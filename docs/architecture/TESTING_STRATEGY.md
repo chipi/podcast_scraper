@@ -1260,6 +1260,7 @@ Testing for the Grounded Insight Layer follows the established test pyramid. Cur
 - [x] Insight clustering (#599): unit tests for `collect_insight_rows_from_corpus`, `build_insight_clusters_payload` (`test_insight_clusters.py`); integration test for end-to-end corpus flow (`tests/integration/search/test_insight_clusters_cli.py`)
 - [x] Cluster context expansion (#601): unit tests for `load_insight_clusters`, `expand_with_cluster_context`, `format_cluster_context` (`test_insight_cluster_context.py`); integration test for artifact → expand flow
 - [x] Multi-quote extraction (#600): ML provider test updated for `answer_candidates(top_k=3)` mock; existing provider tests cover backward-compat `quote_text` fallback
+- [x] Speaker flow validation (#598): integration tests for NER → host/guest detection → KG person injection (`tests/integration/providers/test_speaker_flow_integration.py` — 7 tests covering host+guest, host-only, description snippet, mentioned-not-guest, org-as-author). Speaker detection simplified from 1389→935 lines; 7 unit tests for removed scoring functions deleted
 
 #### GIL and KG CI quality gates {#gil-and-kg-ci-quality-gates}
 
