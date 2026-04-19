@@ -1,4 +1,9 @@
-"""Unit tests for cross-episode insight clustering (#599)."""
+"""Unit tests for cross-episode insight clustering (#599).
+
+Tests here cover only functions that do NOT require sentence-transformers
+(collect, empty-payload, JSON I/O). Embedding-dependent tests live in
+tests/integration/search/test_insight_clusters_cli.py.
+"""
 
 from __future__ import annotations
 
@@ -109,7 +114,7 @@ def test_collect_skips_invalid_json(tmp_path: Path) -> None:
     assert rows == []
 
 
-# ── build_insight_clusters_payload ───────────────────────────────────
+# ── build_insight_clusters_payload (empty input — no embedder needed) ─
 
 
 def test_empty_rows_returns_empty_payload() -> None:
@@ -118,152 +123,3 @@ def test_empty_rows_returns_empty_payload() -> None:
     assert payload["insight_count"] == 0
     assert payload["cluster_count"] == 0
     assert payload["clusters"] == []
-
-
-def test_two_similar_insights_cluster_together() -> None:
-    rows = [
-        {
-            "insight_id": "a1",
-            "text": "Index funds consistently outperform active managers",
-            "insight_type": "factual",
-            "episode_id": "ep1",
-            "grounded": True,
-            "supporting_quotes": [],
-        },
-        {
-            "insight_id": "a2",
-            "text": "Index funds beat active managers over long periods",
-            "insight_type": "factual",
-            "episode_id": "ep2",
-            "grounded": True,
-            "supporting_quotes": [],
-        },
-    ]
-    payload = build_insight_clusters_payload(rows, threshold=0.70)
-    assert payload["insight_count"] == 2
-    assert payload["cluster_count"] >= 1
-    # The two should be in the same cluster
-    cluster = payload["clusters"][0]
-    assert cluster["member_count"] == 2
-    assert cluster["cross_episode"] is True
-    assert set(cluster["episode_ids"]) == {"ep1", "ep2"}
-    assert cluster["cluster_id"].startswith("ic:")
-    assert cluster["canonical_insight"]  # non-empty
-
-
-def test_dissimilar_insights_stay_separate() -> None:
-    rows = [
-        {
-            "insight_id": "a1",
-            "text": "Quantum computing will revolutionize cryptography",
-            "insight_type": "factual",
-            "episode_id": "ep1",
-            "grounded": True,
-            "supporting_quotes": [],
-        },
-        {
-            "insight_id": "b1",
-            "text": "Mediterranean diet reduces cardiovascular risk",
-            "insight_type": "factual",
-            "episode_id": "ep2",
-            "grounded": True,
-            "supporting_quotes": [],
-        },
-    ]
-    payload = build_insight_clusters_payload(rows, threshold=0.75)
-    # Two very different insights should not cluster
-    assert payload["cluster_count"] == 0
-    assert payload["singletons"] == 2
-
-
-def test_same_episode_cluster_not_cross_episode() -> None:
-    rows = [
-        {
-            "insight_id": "a1",
-            "text": "AI regulation will lag behind innovation",
-            "insight_type": "factual",
-            "episode_id": "ep1",
-            "grounded": True,
-            "supporting_quotes": [],
-        },
-        {
-            "insight_id": "a2",
-            "text": "AI regulation cannot keep pace with innovation",
-            "insight_type": "factual",
-            "episode_id": "ep1",
-            "grounded": True,
-            "supporting_quotes": [],
-        },
-    ]
-    payload = build_insight_clusters_payload(rows, threshold=0.70)
-    if payload["cluster_count"] > 0:
-        assert payload["clusters"][0]["cross_episode"] is False
-
-
-def test_cluster_members_have_similarity_scores() -> None:
-    rows = [
-        {
-            "insight_id": "a1",
-            "text": "Diversification is the only free lunch in investing",
-            "insight_type": "factual",
-            "episode_id": "ep1",
-            "grounded": True,
-            "supporting_quotes": [],
-        },
-        {
-            "insight_id": "a2",
-            "text": "Diversification remains the only free lunch for investors",
-            "insight_type": "factual",
-            "episode_id": "ep2",
-            "grounded": True,
-            "supporting_quotes": [],
-        },
-    ]
-    payload = build_insight_clusters_payload(rows, threshold=0.70)
-    if payload["cluster_count"] > 0:
-        for member in payload["clusters"][0]["members"]:
-            assert "similarity_to_centroid" in member
-            assert 0.0 <= member["similarity_to_centroid"] <= 1.0
-
-
-def test_supporting_quotes_preserved_in_cluster() -> None:
-    rows = [
-        {
-            "insight_id": "a1",
-            "text": "Index funds beat active managers",
-            "insight_type": "factual",
-            "episode_id": "ep1",
-            "grounded": True,
-            "supporting_quotes": [
-                {
-                    "quote_id": "q1",
-                    "text": "92% underperform",
-                    "speaker_id": "s1",
-                    "char_start": 0,
-                    "char_end": 50,
-                }
-            ],
-        },
-        {
-            "insight_id": "a2",
-            "text": "Index funds outperform active managers consistently",
-            "insight_type": "factual",
-            "episode_id": "ep2",
-            "grounded": True,
-            "supporting_quotes": [
-                {
-                    "quote_id": "q2",
-                    "text": "the data is clear",
-                    "speaker_id": "s2",
-                    "char_start": 100,
-                    "char_end": 200,
-                }
-            ],
-        },
-    ]
-    payload = build_insight_clusters_payload(rows, threshold=0.70)
-    if payload["cluster_count"] > 0:
-        all_quotes = []
-        for m in payload["clusters"][0]["members"]:
-            all_quotes.extend(m["supporting_quotes"])
-        assert len(all_quotes) >= 2
