@@ -528,7 +528,7 @@ OpenAI (full)       $37.40              $374.00             $3,740.00
 ## Autoresearch-derived defaults (2026-04)
 
 These are the research-backed settings used across `config/profiles/` (main
-profiles + `capture_e2e_*.yaml` per-provider captures). Source data in
+profiles + `config/profiles/freeze/*.yaml` per-provider captures). Source data in
 `docs/guides/eval-reports/` and `data/eval/runs/ner_*_smoke_v1/`.
 
 Since 2026-04, the defaults are split across **named presets** so a single
@@ -560,7 +560,7 @@ Smoke eval (5 episodes, 15 gold entities, `data/eval/runs/ner_*_smoke_v1/`):
 saving the API call. Post-reingestion validation on a larger/harder corpus is
 tracked in `POST_REINGESTION_PLAN.md` Step 6.
 
-**Exception — per-provider capture profiles** (`capture_e2e_<name>.yaml`):
+**Exception — per-provider freeze profiles** (`config/profiles/freeze/<name>.yaml`):
 these intentionally route NER through `<provider>` to exercise each provider's
 full surface in profile/cost capture runs.
 

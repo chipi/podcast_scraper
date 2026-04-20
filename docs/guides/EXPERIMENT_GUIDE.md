@@ -1277,9 +1277,9 @@ make run-promote \
 
 Eval workflows often use **materialized** or **local** inputs so HTTP is out of the path. When an experiment or acceptance run **does** hit the network (real RSS, transcript URLs), align retry policy with the job:
 
-- **Long batch / production-like ingestion**: Rely on defaults or raise `http_retry_total`, `rss_retry_total`, and `episode_retry_max` if feeds are flaky. See [CONFIGURATION.md — Download resilience](../api/CONFIGURATION.md#download-resilience), `config/examples/config.example.download-resilience.yaml`, and [recommended presets](../api/CONFIGURATION.md#recommended-presets-download-resilience).
-- **Polite HTTP toward CDNs** (high parallelism, same host for RSS and media): Consider merging `config/examples/config.example.download-resilience.polite.yaml`.
-- **Fast CI or smoke**: Lower retries (`episode_retry_max: 0`, small `http_retry_total`) so failures fail quickly; see the commented "fast-fail" block in `config.example.download-resilience.yaml`.
+- **Long batch / production-like ingestion**: Rely on defaults or raise `http_retry_total`, `rss_retry_total`, and `episode_retry_max` if feeds are flaky. See [CONFIGURATION.md — Download resilience](../api/CONFIGURATION.md#download-resilience) and [recommended presets](../api/CONFIGURATION.md#recommended-presets-download-resilience) (canonical).
+- **Polite HTTP toward CDNs** (high parallelism, same host for RSS and media): Use the **Polite HTTP** preset in [CONFIGURATION.md — Recommended presets](../api/CONFIGURATION.md#recommended-presets-download-resilience) (copy keys into your YAML).
+- **Fast CI or smoke**: Lower retries (`episode_retry_max: 0`, small `http_retry_total`) so failures fail quickly; use the **Fast fail** preset / minimal-retry YAML in the same CONFIGURATION section.
 - **Triage**: Use `failure_summary` in `run.json` and `http_urllib3_retry_events` / `episode_download_retries` in `metrics.json` after the run (see [Pipeline run metrics](#pipeline-run-metrics-download-resilience) above).
 
 CLI overrides: [CLI.md — Control Options](../api/CLI.md#control-options) (`--http-retry-total`, `--episode-retry-max`, etc.).

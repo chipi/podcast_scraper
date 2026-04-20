@@ -9,7 +9,7 @@ import threading
 import warnings
 from datetime import date
 from pathlib import Path
-from typing import Any, Callable, Dict, List, Literal, Optional, TYPE_CHECKING
+from typing import Any, Callable, cast, Dict, List, Literal, Optional, TYPE_CHECKING
 from urllib.parse import urlparse
 
 import yaml
@@ -17,6 +17,7 @@ from dotenv import load_dotenv
 from pydantic import AliasChoices, BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from . import config_constants
+from .rss.feeds_spec import append_normalized_feed_items, RssFeedEntry
 
 logger = logging.getLogger(__name__)
 
@@ -723,12 +724,14 @@ class Config(BaseModel):
     """
 
     rss_url: Optional[str] = Field(default=None, alias="rss")
-    rss_urls: Optional[List[str]] = Field(
+    rss_urls: Optional[List[RssFeedEntry]] = Field(
         default=None,
         validation_alias=AliasChoices("rss_urls", "feeds"),
         description=(
-            "Multiple RSS feed URLs (GitHub #440). When two or more are set, output_dir must "
-            "be the corpus parent; each feed is written under output_dir/feeds/<stable_name>/."
+            "Multiple feeds (GitHub #440): each entry is a URL string or an object with "
+            "``url`` plus optional per-feed overrides (see rss/feeds_spec.py). When two or more "
+            "are set, output_dir must be the corpus parent; each feed is written under "
+            "output_dir/feeds/<stable_name>/."
         ),
     )
     multi_feed_strict: bool = Field(
@@ -2660,36 +2663,24 @@ class Config(BaseModel):
         feeds_val = rss_urls_key if rss_urls_key is not None else feeds_key
 
         if isinstance(rss_raw, list):
-            urls: List[str] = []
-            for u in rss_raw:
-                if u is not None and str(u).strip():
-                    t = str(u).strip()
-                    if t not in urls:
-                        urls.append(t)
+            bucket: List[dict] = []
+            append_normalized_feed_items(bucket, list(rss_raw))
             if isinstance(feeds_val, list):
-                for u in feeds_val:
-                    if u is not None and str(u).strip():
-                        t = str(u).strip()
-                        if t not in urls:
-                            urls.append(t)
+                append_normalized_feed_items(bucket, list(feeds_val))
             d.pop("rss", None)
             d.pop("feeds", None)
             d.pop("rss_urls", None)
-            d["rss_urls"] = urls
+            d["rss_urls"] = bucket
             return d
 
         if isinstance(rss_raw, str) and rss_raw.strip() and isinstance(feeds_val, list):
-            urls = [rss_raw.strip()]
-            for u in feeds_val:
-                if u is not None and str(u).strip():
-                    t = str(u).strip()
-                    if t not in urls:
-                        urls.append(t)
-            if len(urls) >= 2:
+            bucket = [{"url": rss_raw.strip()}]
+            append_normalized_feed_items(bucket, list(feeds_val))
+            if len(bucket) >= 2:
                 d.pop("rss", None)
                 d.pop("feeds", None)
                 d.pop("rss_urls", None)
-                d["rss_urls"] = urls
+                d["rss_urls"] = bucket
             else:
                 d.pop("feeds", None)
                 if rss_urls_key is not None:
@@ -2706,9 +2697,14 @@ class Config(BaseModel):
             and len(only_list) == 1
             and not (isinstance(rss_raw, str) and rss_raw.strip())
         ):
-            one = str(only_list[0]).strip()
-            if one:
-                d["rss"] = one
+            one = only_list[0]
+            url: str = ""
+            if isinstance(one, str):
+                url = one.strip()
+            elif isinstance(one, dict):
+                url = str(one.get("url") or one.get("rss") or "").strip()
+            if url:
+                d["rss"] = url
                 d.pop("feeds", None)
                 d.pop("rss_urls", None)
         return d
@@ -2849,26 +2845,29 @@ class Config(BaseModel):
 
     @field_validator("rss_urls", mode="before")
     @classmethod
-    def _coerce_rss_urls_list(cls, value: Any) -> Optional[List[str]]:
+    def _coerce_rss_urls_list(cls, value: Any) -> Optional[List[Any]]:
         if value is None:
             return None
         if not isinstance(value, list):
-            raise TypeError("rss_urls must be a list of URL strings")
-        out = [str(u).strip() for u in value if u is not None and str(u).strip()]
-        return out or None
+            raise TypeError("rss_urls must be a list of URL strings or feed objects")
+        bucket: List[dict] = []
+        append_normalized_feed_items(bucket, value)
+        return bucket or None
 
     @field_validator("rss_urls", mode="after")
     @classmethod
-    def _validate_rss_urls_entries(cls, value: Optional[List[str]]) -> Optional[List[str]]:
+    def _validate_rss_urls_entries(cls, value: Optional[List[Any]]) -> Optional[List[RssFeedEntry]]:
         if not value:
-            return value
+            return cast(Optional[List[RssFeedEntry]], value)
+        out: List[RssFeedEntry] = []
         for u in value:
-            parsed = urlparse(u)
-            if parsed.scheme not in ("http", "https"):
-                raise ValueError(f"RSS URL must use http or https (got {parsed.scheme!r}): {u}")
-            if not parsed.netloc:
-                raise ValueError(f"RSS URL must include a valid hostname: {u}")
-        return value
+            if isinstance(u, RssFeedEntry):
+                out.append(u)
+            elif isinstance(u, dict):
+                out.append(RssFeedEntry.model_validate(u))
+            else:
+                raise TypeError("rss_urls entries must coerce to RssFeedEntry")
+        return out
 
     @field_validator("output_dir", mode="before")
     @classmethod

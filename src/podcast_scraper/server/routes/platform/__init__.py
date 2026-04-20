@@ -3,7 +3,7 @@
 **Not used for RFC-077.** Corpus RSS list file, viewer-safe operator YAML, and HTTP
 pipeline jobs are **top-level** routers next to this package:
 
-- ``routes/feeds.py`` — ``GET``/``PUT /api/feeds`` (``rss_urls.list.txt``); gated by
+- ``routes/feeds.py`` — ``GET``/``PUT /api/feeds`` (``feeds.spec.yaml``); gated by
   ``enable_feeds_api`` / env ``PODCAST_SERVE_ENABLE_FEEDS_API``.
 - ``routes/operator_config.py`` — ``GET``/``PUT /api/operator-config``; gated by
   ``enable_operator_config_api`` / ``PODCAST_SERVE_ENABLE_OPERATOR_CONFIG_API``.

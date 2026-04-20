@@ -37,8 +37,9 @@ class TestMultiRssInput(unittest.TestCase):
             output_dir="/tmp/out",
         )
         assert cfg.rss_urls is not None
-        self.assertIn("https://a.example/rss", cfg.rss_urls)
-        self.assertIn("https://b.example/rss", cfg.rss_urls)
+        urls = [e.url for e in cfg.rss_urls]
+        self.assertIn("https://a.example/rss", urls)
+        self.assertIn("https://b.example/rss", urls)
 
     def test_rss_urls_strips_whitespace(self) -> None:
         cfg = _cfg(
@@ -47,7 +48,7 @@ class TestMultiRssInput(unittest.TestCase):
         )
         assert cfg.rss_urls is not None
         self.assertTrue(
-            all(u == u.strip() for u in cfg.rss_urls),
+            all(e.url == e.url.strip() for e in cfg.rss_urls),
             "URLs should be stripped of whitespace",
         )
 

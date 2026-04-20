@@ -344,6 +344,21 @@ Visual contract for the permanent bottom row (**`StatusBar.vue`**, **`data-testi
 - **Offline:** **Files** on the **status bar** (or **Choose files…** inside the **Health** dialog)
   loads local GI/KG without the server. The value persists in **`localStorage`** key **`ps_corpus_path`**.
 
+### Corpus sources dialog (Feeds | Operator YAML) {#corpus-sources-dialog}
+
+Modal **`data-testid="status-bar-sources-dialog"`** (title **Corpus sources**). Opens from status bar **Feeds** / **Operator YAML** when the matching capability is true on **`GET /api/health`**.
+
+- **Tabs:** **Feeds** (`data-testid="sources-dialog-tab-feeds"`) | **Operator YAML** (`data-testid="sources-dialog-tab-operator"`). Switching tabs **lazy-loads** only that tab’s API so a broken operator file does not block the Feeds editor.
+- **Feeds tab:** Optional **paste-lines** control **`sources-dialog-feeds-lines-textarea`** + **`sources-dialog-feeds-merge-lines`** — one RSS URL per line (legacy **`--rss-file`** shape) merged into the JSON **`feeds`** array (deduped by URL). JSON editor **`sources-dialog-feeds-textarea`** for root **`{ "feeds": [...] }`** (URL strings or objects with **`url`** + optional overrides); persisted as corpus **`feeds.spec.yaml`**. Same contract as CLI **`--feeds-spec`** (RFC-077 / #626). Help copy states feeds are **not** edited in Operator YAML.
+- **Operator YAML tab:**
+  - Shows resolved file path from **`GET /api/operator-config`** (`operator_config_path`) in small muted text above the controls.
+  - **Profile** row: native **`<select>`** **`data-testid="sources-dialog-profile-select"`**. Options: **`None`** (empty value — no `profile:` line persisted), then every name in **`available_profiles`** from **GET** (sorted server list). If the on-disk file references a **`profile:`** name **not** in that list (custom / stale preset), show an extra option **`{name} (custom)`** so the value round-trips until the operator changes it. When **`viewer_operator.yaml`** is **missing or whitespace-only**, **GET** **`/api/operator-config`** seeds **`profile: cloud_balanced`** on disk if that stem exists under packaged **`config/profiles`** (otherwise content stays empty until the user saves).
+  - **Overrides** editor: monospace **`sources-dialog-operator-textarea`** — YAML for keys **other than** top-level **`profile:`** (the **`<select>`** is the sole source of truth for `profile:` on **Save**). Any `profile:` line pasted into the textarea is **stripped on save** when resolving body text; **None** in the menu therefore always persists **without** a `profile:` key even if the textarea still contained a pasted `profile:` line. On load, the client splits file content into select + body (see `operatorYamlProfile.ts`).
+  - **Save YAML** persists via **`PUT /api/operator-config`** with JSON `{ "content": "..." }`. Errors: **422** invalid YAML; **400** with `detail.keys` for forbidden secrets or forbidden feed keys (`rss`, `rss_url`, `rss_urls`, `feeds` at root). Server validation is **shallow** (top-level keys only), not a full duplicate of `Config` validation.
+  - Help copy: secrets only via environment; packaged preset defaults merge first (#593), explicit keys in the file override; feeds belong in the Feeds tab / list file.
+
+**Playwright map:** update [E2E surface map](https://github.com/chipi/podcast_scraper/blob/main/web/gi-kg-viewer/e2e/E2E_SURFACE_MAP.md) when `data-testid`s here change.
+
 ---
 
 ## Shell keyboard shortcuts
@@ -490,4 +505,7 @@ search overlay.
 | 2026-04-19 | Corpus path **List** opens status-bar **artifact-list-dialog** (not Dashboard workspace) |
 | 2026-04-19 | Corpus path List/Load wording; shell keyboard shortcuts (slash, Escape, row G/L) |
 | 2026-04-19 | **Status bar** section with `#status-bar`; scope non-goal + historical note for shell IA; corpus path subsection links VIEWER_IA flows |
+| 2026-04-20 | **Corpus sources dialog** (`#corpus-sources-dialog`): Feeds vs Operator YAML; profile `<select>` + overrides textarea; `sources-dialog-profile-select`; RFC-077 / #593 merge semantics |
+| 2026-04-21 | Operator save: profile `<select>` sole source of truth; None strips pasted `profile:` in textarea; shallow validation called out |
+| 2026-04-21 | Corpus sources Feeds: paste-lines + **Append lines to feeds JSON** (`sources-dialog-feeds-lines-textarea`, `sources-dialog-feeds-merge-lines`); operator **GET** seeds `profile: cloud_balanced` when `viewer_operator.yaml` is missing/whitespace-only and preset exists; client parses FastAPI JSON `detail` for clearer errors |
 | 2026-04-19 | Shell IA pointer to VIEWER_IA; `warning` vs `kg` clusters; Dashboard charts require a **written takeaway** (dedicated line or chart title); tunables: graph 7d seed, COSE lengths, recency decay, label tiers, compound opacity, Dashboard thresholds / caps |

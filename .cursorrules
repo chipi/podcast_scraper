@@ -84,6 +84,13 @@
   - Examples that discard local edits: `git checkout -- <path>` (same as restoring that path from **index/HEAD**), `git checkout HEAD -- <path>`, `git restore --source HEAD -- <path>`, `git restore <path>` when it would replace tracked content from the index/commit without the user having asked for that outcome.
   - **Do not** use these to "narrow a PR", "clean up noise", or undo work the user did not ask to remove — **ask** or leave the files alone.
 
+4f. **Gitignored and other local-only paths — never delete or “clean up” on disk unless explicitly asked**
+
+  - Anything listed in **`.gitignore`** (or otherwise not meant to be committed) may hold **operator-local** configs, experiments, or secrets. Treat that content as **the user’s working material**, not disposable scratch.
+  - **Never** use `delete_file`, `rm`, or “empty this folder” cleanup on paths you know are **gitignored** unless the user **explicitly** asked to remove **those** paths or files.
+  - **"Pretend it does not exist"** / **"remove references"** / **"docs must not mention it"** means: change **tracked** files only (documentation, tests, application code, tracked examples). It does **not** mean delete, move, or wipe **gitignored** trees as part of the same task.
+  - In **tracked** prose and examples, do **not** treat **gitignored** paths as the **canonical** location for presets or workflows; point readers at **tracked** examples and docs, or use **neutral placeholders** (e.g. a path the reader supplies), per **`.cursor/rules/documentation.mdc`**.
+
 ### Terminal Command Execution
 
 9. ** NEVER run commands in background — ALWAYS `is_background: false` **
@@ -346,6 +353,7 @@ make fix-md        # Auto-fix markdown
 -  NEVER `git stash` or `git checkout <ref> -- <file>` during an active merge — it **destroys all conflict resolutions** (Rules 4a–4c)
 - NEVER overwrite local files with remote content without showing the diff and getting approval (Rule 4d)
 - NEVER reset working-tree files from `HEAD`/a ref to drop uncommitted edits without explicit user ask or confirmed prompt (Rule 4e); includes **`git checkout -- <path>`** (same as restore from index/HEAD). Before such git: load **`git-working-tree-safety.mdc`** (Rule 17) or **ask first**
+- NEVER delete or “clean up” **gitignored** paths unless the user **explicitly** asked to remove those files (Rule **4f**)
 - Before workarounds: look for similar examples elsewhere in the repo, compare, and reuse that pattern (Rule 5b).
 - **`.metrics/rule-adherence.jsonl` — write often (do not skip)**:
 

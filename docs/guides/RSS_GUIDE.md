@@ -62,12 +62,11 @@ flowchart LR
 ## Configuring feed URLs
 
 - **Single feed:** `rss:` / `rss_url` in YAML, or positional / `--rss` on the CLI.
-- **Multiple feeds:** `feeds:` / `rss_urls:` list with a corpus **parent** `output_dir`; each feed
-  writes under `feeds/<stable_name>/`. See [CONFIGURATION.md — RSS and multi-feed corpus](../api/CONFIGURATION.md#rss-and-multi-feed-corpus-github-440), [RFC-063](../rfc/RFC-063-multi-feed-corpus-append-resume.md).
+- **Multiple feeds:** `feeds:` / `rss_urls:` in operator YAML (URL strings or objects with `url` + optional per-feed overrides), corpus **`feeds.spec.yaml`** / JSON (**`--feeds-spec`**), or legacy **`--rss-file`** line list — with a corpus **parent** `output_dir`; each feed writes under `feeds/<stable_name>/`. See [CONFIGURATION.md — RSS and multi-feed corpus](../api/CONFIGURATION.md#rss-and-multi-feed-corpus-github-440), [RFC-063](../rfc/RFC-063-multi-feed-corpus-append-resume.md), [RFC-077](../rfc/RFC-077-viewer-feeds-and-serve-pipeline-jobs.md).
 - **Normalization:** Request URLs go through **`normalize_url`** in the downloader (encoding,
   scheme/host handling) before cache keys and some logs.
 
-CLI collection of URLs (positional, `--rss`, `--rss-file`, config merge) lives in **`cli.py`**;
+CLI feed resolution (positional, `--rss`, `--rss-file`, **`--feeds-spec`**, config merge) lives in **`cli.py`**;
 programmatic use builds **`Config`** directly or via **`load_config_file()`**.
 
 ## HTTP layer for the feed document

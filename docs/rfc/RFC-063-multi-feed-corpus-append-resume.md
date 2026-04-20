@@ -29,8 +29,7 @@
   - [CORPUS_MULTI_FEED_ARTIFACTS.md](../api/CORPUS_MULTI_FEED_ARTIFACTS.md) — normative `corpus_manifest.json` / `corpus_run_summary.json` (#506)
   - `docs/architecture/ARCHITECTURE.md` — multi-feed outer loop documented (GitHub #440)
   - `docs/architecture/TESTING_STRATEGY.md` — new test tiers as needed
-  - `config/acceptance/acceptance_multi_feed_planet_money_journal_openai.yaml` — full-pipeline acceptance preset (Planet Money + The Journal, OpenAI; local under `config/acceptance/`); `USE_FIXTURES=1` rewrites `feeds:` to local E2E fixture URLs
-  - `config/manual/manual_multi_feed_planet_money_journal_openai_gemini.yaml` — manual validation preset (OpenAI Whisper + Gemini text; same feeds)
+  - A two-feed feeds document passed with **`--feeds-spec`**; **`USE_FIXTURES=1`** with **`make test-acceptance`** rewrites external feed URLs to the E2E fixture server when used from merged operator YAML
 
 ## Abstract
 
@@ -176,8 +175,8 @@ segment when only one feed and no multi-feed mode, **or** always use `feeds/<id>
 
 ### 6. CLI and config surface
 
-- Positional `rss` preserved; add `--rss URL` (repeatable) and/or file list.
-- Config file: `rss` as string **or** list, or dedicated `feeds:` key — merge rules documented.
+- Positional `rss` preserved; add `--rss URL` (repeatable), **`--feeds-spec`** for structured corpus **`feeds.spec.yaml`**, and/or legacy **`--rss-file`** line list ([RFC-077](RFC-077-viewer-feeds-and-serve-pipeline-jobs.md)).
+- Config file: `rss` as string **or** list, or dedicated `feeds:` / `rss_urls:` list (entries may include per-feed overrides) — merge rules documented in [CONFIGURATION.md](../api/CONFIGURATION.md#rss-and-multi-feed-corpus-github-440).
 - Aggregated exit code: non-zero if any feed failed.
 
 ### 7. Supplementary artifacts (holistic operations)

@@ -24,7 +24,7 @@ RFCs translate PRD requirements into concrete technical solutions and serve as l
 | --- | ----- | ----------- | ----------- |
 | [RFC-015](RFC-015-ai-experiment-pipeline.md) | AI Experiment Pipeline | PRD-007 | Technical design for configuration-driven experiment pipeline (CI integration pending) |
 | [RFC-041](RFC-041-podcast-ml-benchmarking-framework.md) | Podcast ML Benchmarking Framework | PRD-007 | Repeatable, objective ML benchmarking system (CI integration pending) |
-| [RFC-077](RFC-077-viewer-feeds-and-serve-pipeline-jobs.md) | Viewer feeds + operator config + jobs & hygiene | [PRD-030](../prd/PRD-030-viewer-feed-sources-and-pipeline-jobs.md) | **Draft:** feeds + operator YAML API, job lifecycle + stale/reconcile ([#626](https://github.com/chipi/podcast_scraper/issues/626)) |
+| [RFC-077](RFC-077-viewer-feeds-and-serve-pipeline-jobs.md) | Viewer feeds + operator config + jobs & hygiene | [PRD-030](../prd/PRD-030-viewer-feed-sources-and-pipeline-jobs.md) | **Draft:** structured **`feeds.spec.yaml`** + operator YAML API, job lifecycle + stale/reconcile ([#626](https://github.com/chipi/podcast_scraper/issues/626)) |
 
 ## Completed RFCs
 
@@ -64,7 +64,7 @@ RFCs translate PRD requirements into concrete technical solutions and serve as l
 | [RFC-036](RFC-036-grok-provider-implementation.md) | Grok Provider Implementation (xAI) | PRD-013 | v2.5.0 | Technical design for Grok (xAI's AI model) |
 | [RFC-037](RFC-037-ollama-provider-implementation.md) | Ollama Provider Implementation | PRD-014 | v2.5.0 | Technical design for Ollama (local/offline) |
 | [RFC-039](RFC-039-development-workflow-worktrees-ci.md) | Development Workflow | - | v2.4.0 | Git worktrees, Cursor integration, CI evolution |
-| [RFC-023](RFC-023-readme-acceptance-tests.md) | README Acceptance Tests | - | v2.5.0 | Script-based acceptance tests (`make test-acceptance`) with YAML configs |
+| [RFC-023](RFC-023-readme-acceptance-tests.md) | README Acceptance Tests | - | v2.5.0 | Script-based acceptance (`make test-acceptance`, `FAST_CONFIG.yaml` fast matrix, `scripts/acceptance/`) — not pytest `tests/acceptance/` |
 | [RFC-040](RFC-040-audio-preprocessing-pipeline.md) | Audio Preprocessing Pipeline | - | v2.5.0 | FFmpeg preprocessing, opus codec, audio caching, factory pattern |
 | [RFC-042](RFC-042-hybrid-summarization-pipeline.md) | Hybrid Podcast Summarization Pipeline | - | v2.5.0 | Hybrid MAP-REDUCE with instruction-tuned LLMs |
 | [RFC-044](RFC-044-model-registry.md) | Model Registry for Architecture Limits | - | v2.5.0 | Centralized registry for model architecture limits |
@@ -112,7 +112,7 @@ by filename under `docs/rfc/` but excluded from the index per the
 | --- | --- | --- |
 | [RFC-015](RFC-015-ai-experiment-pipeline.md) | Experiments | Runner implemented; **CI auto-run still pending** |
 | [RFC-041](RFC-041-podcast-ml-benchmarking-framework.md) | Benchmarks | Datasets/scripts exist; **automated CI benchmarking** not fully wired |
-| [RFC-077](RFC-077-viewer-feeds-and-serve-pipeline-jobs.md) | Viewer feeds + operator config + `serve` jobs & hygiene | [PRD-030](../prd/PRD-030-viewer-feed-sources-and-pipeline-jobs.md) | **Draft:** `/api/feeds`, `/api/operator-config` (no secret keys in file), job registry + stale/cancel/reconcile ([#626](https://github.com/chipi/podcast_scraper/issues/626)); ≠ [RFC-065](RFC-065-live-pipeline-monitor.md) |
+| [RFC-077](RFC-077-viewer-feeds-and-serve-pipeline-jobs.md) | Viewer feeds + operator config + `serve` jobs & hygiene | [PRD-030](../prd/PRD-030-viewer-feed-sources-and-pipeline-jobs.md) | **Draft:** `/api/feeds` (**`feeds.spec.yaml`**), `/api/operator-config` (no secret keys in file), job registry + stale/cancel/reconcile ([#626](https://github.com/chipi/podcast_scraper/issues/626)); ≠ [RFC-065](RFC-065-live-pipeline-monitor.md) |
 
 ### Recently completed (v2.6.0+)
 

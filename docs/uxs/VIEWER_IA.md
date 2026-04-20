@@ -242,6 +242,7 @@ content area. Single row, ~36px tall.
   capability rows from **`GET /api/health`** (including **`feeds_api`**,
   **`operator_config_api`**, **`jobs_api`** when present), Retry health button,
   and last error message.
+- **Feeds** / **Operator YAML** (aka **Config**; when **`feeds_api`** / **`operator_config_api`** are true on health): compact triggers on the status bar open the shared **Corpus sources** modal (`data-testid="status-bar-sources-dialog"`) with tabs **Feeds** (canonical **`feeds.spec.yaml`** — JSON editor plus optional one-line-per-URL merge into **`feeds`**) and **Operator YAML** (packaged **`profile:`** picker from **`available_profiles`**; **GET** may seed **`profile: cloud_balanced`** when the operator file is missing/empty if that preset exists — plus monospace **overrides** YAML; not a second place to edit feed URLs). Tokens, `data-testid`s, and field layout: [UXS-001 — Corpus sources dialog](UXS-001-gi-kg-viewer.md#corpus-sources-dialog).
 - **Rebuild indicator** `⚡`: appears only when `reindex_recommended` is
   true from index stats. `warning` token. Clicking opens health popover
   scrolled to the index section.
@@ -361,3 +362,6 @@ User edits corpus path in status bar
 | 2026-04-19 | Opening principle (single context layer); collapse Option B + `ps_left_panel_open`; 1024px width table; no-placeholder / first-run policy |
 | 2026-04-19 | Single canonical IA policy; visual spec link to UXS-001 `#status-bar` |
 | 2026-04-19 | Boundaries table: link Server guide path (`../guides/SERVER_GUIDE.md`) |
+| 2026-04-20 | Status bar: Feeds / Operator YAML open Corpus sources modal; profile + feeds split (RFC-077 / UXS-001 `#corpus-sources-dialog`) |
+| 2026-04-21 | Operator YAML aka **Config**; empty `available_profiles` note; preset list cwd+repo union (RFC-077) |
+| 2026-04-21 | Corpus sources Feeds: optional one-URL-per-line merge; operator **GET** may seed `profile: cloud_balanced` when file missing/empty |

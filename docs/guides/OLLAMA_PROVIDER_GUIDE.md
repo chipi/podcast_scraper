@@ -169,10 +169,7 @@ Use this block **after** you work through Tier 1–3. It ties the operational ch
 - [ ] **Tier 3 prompts (35B):** `src/podcast_scraper/prompts/ollama/qwen3.5_35b/`; for tag `qwen3.5:35b-a3b`, use `src/podcast_scraper/prompts/ollama/qwen3.5_35b-a3b/`
 - [ ] **Integration tests:** `pytest tests/integration/providers/ollama/test_qwen3_5_ollama_tiers.py` (or run the full Ollama integration slice via `make test-integration`)
 - [ ] **Eval configs (`data/eval/configs/`):** **`llm_ollama_*_smoke_v1`** = pure Ollama summarization (no LongT5; same shape as `llm_mistral_smoke_v1`). Mistral-family Ollama smokes include `llm_ollama_mistral_7b_smoke_v1`, `llm_ollama_mistral_nemo_12b_smoke_v1`, `llm_ollama_mistral_small3_2_smoke_v1`. Llama 3.x smokes include `llm_ollama_llama32_3b_smoke_v1`, `llm_ollama_llama33_70b_q3km_smoke_v1`. **`hybrid_ml_tier2_*`** = LongT5 MAP + Ollama REDUCE (needs HF MAP cache + `ollama pull`). Qwen 3.5 tier extras: `hybrid_ml_tier2_qwen35_*b_authority_v1`, `hybrid_ml_tier2_qwen35_9b_smoke_tuned_v1`, `hybrid_ml_tier2_qwen35_9b_smoke_paragraph_v1`.
-- [ ] **Acceptance configs (`config/acceptance/`):** Qwen 3.5 variants —
-  `acceptance_planet_money_ollama_qwen3_5_9b.yaml`, `acceptance_planet_money_ollama_qwen3_5_27b.yaml`,
-  `acceptance_planet_money_ollama_qwen3_5_35b.yaml` (and matching `acceptance_the_journal_ollama_qwen3_5_*.yaml`).
-  See `config/acceptance/README.md`.
+- [ ] **Acceptance presets:** CI-style full pipeline rows live in **`config/acceptance/FAST_CONFIG.yaml`** (see **`config/acceptance/README.md`**). For extra operator YAMLs, use your own paths (often under **`config/playground/`**) with **`profile: local`** and required Ollama fields.
 
 ### Step 4: Install Podcast Scraper Dependencies
 
@@ -235,7 +232,7 @@ When using **hybrid MAP-REDUCE** summarization (`summary_provider: hybrid_ml`), 
 
 - **Config**: `summary_provider: hybrid_ml`, `hybrid_reduce_backend: ollama`, `hybrid_reduce_model: <ollama_tag>` (e.g. `llama3.1:8b`, `mistral:7b`, `qwen2.5:7b`, `qwen2.5:32b`).
 - **No template file**: The reduce instruction is sent to Ollama as an inline prompt; no `custom.j2` or other template file is required.
-- **Acceptance tests**: Example full-pipeline configs under `config/acceptance/` use Ollama for summarization (e.g. `acceptance_planet_money_ollama_llama3_1_8b.yaml` with `llama3.1:8b`). Ensure the model is available (`ollama pull llama3.1:8b` or equivalent).
+- **Acceptance tests**: **`FAST_CONFIG.yaml`** includes **`airgapped`** / **`local`** rows that exercise Ollama against fixtures when **`USE_FIXTURES=1`**. For ad-hoc runs, use your own operator YAML with **`profile: local`** and ensure models are pulled (`ollama pull …`).
 
 See [ML Provider Reference](ML_PROVIDER_REFERENCE.md#hybrid-ml-provider-summary_provider-hybrid_ml) for full hybrid_ml configuration. For **transcript cleaning + internal MAP preprocessing** (`transcript_cleaning_strategy`, `hybrid_internal_preprocessing_after_pattern`, CLI flags), see [RFC-042 § Layered transcript cleaning](../rfc/RFC-042-hybrid-summarization-pipeline.md#layered-transcript-cleaning-issue-419) and [CLI API](../api/CLI.md#transcript-cleaning-hybrid-ml-preprocessing-issue-419).
 
@@ -260,7 +257,7 @@ Use this when you introduce another **Ollama model tag** (e.g. a larger variant 
 
 3. **Eval configs (optional):** Add a new file under `data/eval/configs/` with a unique `id`, copied from a similar run; set `reduce_model` or the relevant Ollama fields to `<tag>` so multi-run / comparison workflows can name the run.
 
-4. **Acceptance configs (optional):** Add something like `config/acceptance/acceptance_planet_money_ollama_<variant>.yaml` (mirror an existing Ollama variant YAML). Update the table in `config/acceptance/README.md` if the config should be discoverable. **Do not** add Ollama-heavy stems to `config/acceptance/FAST_CONFIGS.txt` unless you want PR CI to run them.
+4. **Acceptance configs (optional):** Add operator YAML where you keep local configs (for example **`config/playground/`**) with **`profile: local`** / Ollama fields. **Do not** add Ollama-heavy rows to **`FAST_CONFIG.yaml`** unless you want PR CI to run them.
 
 5. **Tests (optional):** Extra integration tests are only warranted if you need to pin behavior for that tag; otherwise existing Ollama tests plus config strings usually suffice.
 

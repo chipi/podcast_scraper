@@ -62,7 +62,7 @@ class TestJSONLStreamingIntegration:
     def test_full_jsonl_cycle_with_metrics(self, tmp_path: Path) -> None:
         jsonl_path = tmp_path / "run.jsonl"
         cfg = config_module.Config(
-            rss_urls=["https://example.com/feed.xml"],
+            rss_urls=[config_module.RssFeedEntry(url="https://example.com/feed.xml")],
             jsonl_metrics_enabled=True,
             jsonl_metrics_path=str(jsonl_path),
         )
@@ -84,7 +84,7 @@ class TestJSONLStreamingIntegration:
     def test_episode_finished_missing_metrics_skips_write(self, tmp_path: Path) -> None:
         jsonl_path = tmp_path / "partial.jsonl"
         cfg = config_module.Config(
-            rss_urls=["https://example.com/feed.xml"],
+            rss_urls=[config_module.RssFeedEntry(url="https://example.com/feed.xml")],
             jsonl_metrics_enabled=True,
             jsonl_metrics_path=str(jsonl_path),
         )
@@ -99,7 +99,7 @@ class TestJSONLStreamingIntegration:
 
     def test_emit_without_context_raises(self, tmp_path: Path) -> None:
         cfg = config_module.Config(
-            rss_urls=["https://example.com/feed.xml"],
+            rss_urls=[config_module.RssFeedEntry(url="https://example.com/feed.xml")],
             jsonl_metrics_enabled=True,
             jsonl_metrics_path=str(tmp_path / "x.jsonl"),
         )
@@ -114,7 +114,7 @@ class TestOrchestrationJsonlHookupIntegration:
     def test_setup_disabled_returns_none(self, tmp_path: Path) -> None:
         collector = metrics_module.Metrics()
         cfg = config_module.Config(
-            rss_urls=["https://example.com/feed.xml"],
+            rss_urls=[config_module.RssFeedEntry(url="https://example.com/feed.xml")],
             jsonl_metrics_enabled=False,
         )
         assert orchestration._setup_jsonl_emitter(cfg, str(tmp_path), collector) is None
@@ -123,7 +123,7 @@ class TestOrchestrationJsonlHookupIntegration:
         run_dir = tmp_path / "out"
         run_dir.mkdir()
         cfg = config_module.Config(
-            rss_urls=["https://example.com/feed.xml"],
+            rss_urls=[config_module.RssFeedEntry(url="https://example.com/feed.xml")],
             jsonl_metrics_enabled=True,
             jsonl_metrics_path=None,
             run_id="orch-jsonl",

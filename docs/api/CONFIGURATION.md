@@ -4,7 +4,11 @@ The `Config` class is the central configuration model for podcast_scraper, built
 
 ## Overview
 
-All runtime options flow through the `Config` model:
+All runtime options flow through the `Config` model.
+
+**Canonical vs examples:** This **CONFIGURATION.md** document (plus [CLI.md](CLI.md) for command-line flag names) is the **authoritative** reference for fields, defaults, validation, environment-variable mapping, and operational patterns such as download resilience. Files under `config/examples/` are **non-canonical** illustrations for local copy-paste; if anything disagrees with this document, **this document wins**.
+
+**YAML preset (`profile:`):** At load time, an optional root key **`profile: <name>`** merges packaged defaults from `config/profiles/<name>.yaml` before applying other keys in the same file ([GitHub #593](https://github.com/chipi/podcast_scraper/issues/593)); resolution tries **cwd** `config/profiles/` first, then **repo** `config/profiles/` (same order as `Config._resolve_profile`). The viewer **`/api/operator-config`** **`available_profiles`** field lists preset **names** from the **union** of those directories (see [RFC-077](../rfc/RFC-077-viewer-feeds-and-serve-pipeline-jobs.md) and [PRD-030](../prd/PRD-030-viewer-feed-sources-and-pipeline-jobs.md)). Use **`profile:`** plus thin overrides in operator YAML; keep feed URLs in corpus **`feeds.spec.yaml`** (Feeds API / CLI **`--feeds-spec`**), not in operator YAML (**PUT** rejects root feed keys).
 
 ```python
 from podcast_scraper import Config
@@ -124,7 +128,9 @@ When a key is **omitted** from the config file and not passed programmatically, 
 
 #### Download Resilience
 
-The pipeline ships with resilient defaults for downloading thousands of episodes across feeds without manual intervention. Retry parameters and optional **fair HTTP** knobs (Issue #522) are configurable via config file fields or CLI flags ([CLI.md — Control Options](CLI.md#control-options)). Checked-in examples: `config/examples/config.example.download-resilience.yaml` (tuning + fast-fail comments), `config/examples/config.example.download-resilience.polite.yaml` (recommended polite preset). Defaults are active even if you set nothing.
+**Canonical source:** Defaults, semantics, field tables, recommended presets, inline YAML snippets, and CLI parity for RSS/media retries and Issue #522 **are defined only in this subsection** (anchor `#download-resilience`). If any other file or example disagrees, **this document wins**. [CLI.md — Control Options](CLI.md#control-options) lists the matching CLI flags.
+
+The pipeline ships with resilient defaults for downloading thousands of episodes across feeds without manual intervention. Retry parameters and optional **fair HTTP** knobs (Issue #522) are configurable via config file fields or CLI flags. For **per-feed** overrides in multi-feed, the same field names may appear on each `feeds[]` entry in a feeds spec (merge order: `profile:` → global `Config` → feed entry — [RFC-077](../rfc/RFC-077-viewer-feeds-and-serve-pipeline-jobs.md)); `config/examples/feeds.spec.example.*` is a **non-canonical** shape illustration only. Defaults are active even if you set nothing.
 
 **Note:** [ADR-028](../adr/ADR-028-unified-retry-policy-with-metrics.md) covers **LLM/API provider** retries and call metrics (`retry_with_metrics`, etc.), not RSS/media **HTTP** retries. Download-layer retries are the `http_*`, `rss_*`, and `episode_*` fields in this section; fair-HTTP fields are optional (`host_*`, `circuit_breaker_*`, `rss_conditional_get`, `rss_cache_dir`). `metrics.json` records `http_urllib3_retry_events`, episode-level retry counters, and Issue #522 policy counters ([Experiment Guide -- Pipeline run metrics](../guides/EXPERIMENT_GUIDE.md#pipeline-run-metrics-download-resilience); run layout in [PIPELINE_AND_WORKFLOW -- Run tracking](../guides/PIPELINE_AND_WORKFLOW.md#run-tracking-files-issue-379-429)).
 
@@ -217,10 +223,10 @@ Use one of these patterns unless you have a specific reason to tune further:
 | Preset | When to use | Where to start |
 | ------ | ----------- | -------------- |
 | **Shipped defaults** | Normal batch runs; most feeds and home networks | Omit all `http_*`, `rss_*`, `episode_*`, and Issue #522 fields. No config file changes required. |
-| **Polite HTTP (Issue #522)** | High `workers`, many episodes from one CDN, or multi-feed corpora where the same host sees RSS + media traffic | Merge `config/examples/config.example.download-resilience.polite.yaml` into your YAML (or copy its keys). |
-| **Fast fail** | CI, smoke tests, or debugging where you want errors quickly | Use the minimal-retry example above or the commented block in `config/examples/config.example.download-resilience.yaml`. |
+| **Polite HTTP (Issue #522)** | High `workers`, many episodes from one CDN, or multi-feed corpora where the same host sees RSS + media traffic | Add keys such as `host_request_interval_ms: 200`, `host_max_concurrent: 4`, `rss_conditional_get: true` to your operator YAML (optional: `rss_cache_dir`, circuit breaker fields — see the fair-HTTP table above). |
+| **Fast fail** | CI, smoke tests, or debugging where you want errors quickly | Use the **Example (minimal retry for fast CI runs)** YAML block earlier in this section (same knobs via CLI flags if you prefer). |
 
-Full field reference and semantics for retries and fair HTTP are in the tables earlier in this section. Example snippets (including aggressive retry for flaky networks) stay in this document; the `config/examples/` files are meant to be copied and edited.
+Full field reference and semantics for retries and fair HTTP are in the tables earlier in this section. Example snippets (including aggressive retry for flaky networks) stay in this document; copy them into your own operator YAML or set the equivalent CLI flags.
 
 ##### CLI vs configuration parity (download resilience)
 
@@ -1469,14 +1475,39 @@ cfg = Config(
 )
 ```
 
-See [RSS and feed ingestion guide](../guides/RSS_GUIDE.md), [CLI.md — RSS and multi-feed](CLI.md#rss-and-multi-feed), [SERVICE.md](SERVICE.md), [RFC-063 — Multi-feed corpus](../rfc/RFC-063-multi-feed-corpus-append-resume.md), and checked-in examples:
+<a id="multi-feed-compose"></a>
 
-- `config/examples/config.example.multi-feed.cloud-llm.yaml` / `config/examples/config.example.multi-feed.cloud-llm.json` (generic placeholder **feeds**; same option set as `config/manual/manual_multi_feed_corpus_rss_registry_openai_gemini.yaml` — OpenAI **`whisper-1`** transcription + Gemini speaker/summary, GI/KG from **summary bullets**, **`vector_search`** / **faiss** — requires **`OPENAI_API_KEY`** and **`GEMINI_API_KEY`**)
-- `config/examples/config.example.multi-feed.ollama.yaml` / `config/examples/config.example.multi-feed.ollama.json` (same multi-feed + GI/KG + **`vector_search`** shape; **local Whisper** transcription + **Ollama** **`qwen3.5:9b`** speaker/summary, **`llm_pipeline_mode: bundled`**, **`ollama_temperature: 0.0`** — requires **Ollama** with the model pulled)
-- `config/examples/config.example.multi-feed.ml-dev.yaml` / `config/examples/config.example.multi-feed.ml-dev.json` (same shape; **Whisper + spaCy + transformers**; **`summary_mode_id: ml_small_authority`** with **`summary_mode_precedence: mode`** — MAP/REDUCE models and params from RFC-044 registry dev mode; optional **`whisper_model`**, **`ner_model`**, **`summary_device`** omitted so defaults apply)
-- `config/examples/config.example.multi-feed.ml-prod.yaml` / `config/examples/config.example.multi-feed.ml-prod.json` (same shape; **`summary_mode_id: ml_bart_led_autoresearch_v1`** with **`summary_mode_precedence: mode`** — RFC-044 registry prod tier; Whisper/NER/summary device omitted as above)
-- `config/acceptance/acceptance_multi_feed_planet_money_journal_openai.yaml` / `acceptance_multi_feed_planet_money_journal_deepseek.yaml` (full-pipeline acceptance presets)
-- `config/manual/manual_multi_feed_planet_money_journal_openai_gemini.yaml` / `manual_multi_feed_planet_money_journal_deepseek.yaml`
+### Multi-feed compose (`profile:` + operator YAML + feeds)
+
+There are **no** checked-in `config.example.multi-feed.*` files. A multi-feed CLI run combines:
+
+1. **Operator YAML** (`--config`): set **`profile:`** to a preset under `config/profiles/`, set **`output_dir`** when **two or more** feeds are active, and add any corpus/runtime overrides. You may start from `config/examples/config.example.yaml` / `config.example.json`, add **`profile:`**, and drop inline **`rss`** when using **`--feeds-spec`**.
+2. **Feed list**: either **`--feeds-spec`** pointing at `{ feeds: [...] }` (illustration: `config/examples/feeds.spec.example.yaml` / `.json`) or **`feeds:`** / **`rss_urls:`** in the same operator YAML.
+
+**CLI shape:**
+
+```bash
+python -m podcast_scraper.cli \
+  --config path/to/operator.yaml \
+  --feeds-spec config/examples/feeds.spec.example.yaml
+```
+
+**Stacks** (previously illustrated by separate multi-feed example files — all derivable from profiles + this document + [RFC-044](../rfc/RFC-044-model-registry.md)):
+
+| Goal | Set `profile:` | Typical extra keys (besides `output_dir`, `max_episodes`, `append`) | Notes |
+| ---- | ---------------- | -------------------------------------------------------------------- | ----- |
+| Cloud OpenAI Whisper + Gemini GI/KG + vector | `cloud_balanced` | Often none beyond sizing / workers | `OPENAI_API_KEY`, `GEMINI_API_KEY`, and other env keys as in the profile |
+| Local Whisper + Ollama bundled | `local` | `ollama_speaker_model` (e.g. `qwen3.5:9b`), `ollama_temperature` | Ollama with the requested model pulled |
+| Airgapped + RFC-044 ML dev authority | `airgapped` | `summary_mode_id: ml_small_authority`, `summary_mode_precedence: mode`, GI/KG overrides as needed | Local ML stack per RFC-044 |
+| Airgapped + RFC-044 BART LED prod tier | `airgapped` | `summary_mode_id: ml_bart_led_autoresearch_v1`, `summary_mode_precedence: mode` | Same |
+
+Packaged profiles are **non-canonical** bundles; field semantics remain **this document** and RFC-044.
+
+See [RSS and feed ingestion guide](../guides/RSS_GUIDE.md), [CLI.md — RSS and multi-feed](CLI.md#rss-and-multi-feed), [SERVICE.md](SERVICE.md), [RFC-063 — Multi-feed corpus](../rfc/RFC-063-multi-feed-corpus-append-resume.md). **Non-normative** shape examples:
+
+- `config/examples/feeds.spec.example.yaml` / `config/examples/feeds.spec.example.json` — structured corpus feeds (`{ "feeds": [...] }`); each entry is a URL string or an object with **`url`** plus optional per-feed keys (same names as download-resilience fields in **this** document). Use **`--feeds-spec`** or viewer Feeds (writes **`feeds.spec.yaml`** under the corpus root). Normative API shape: [RFC-077](../rfc/RFC-077-viewer-feeds-and-serve-pipeline-jobs.md).
+- `config/acceptance/FAST_CONFIG.yaml` + `config/acceptance/fragments/` — fast acceptance matrix (materialized per row; see **`config/acceptance/README.md`**)
+- Any RFC-077 feeds document you pass with **`--feeds-spec`** (see **`config/examples/feeds.spec.example.yaml`** for shape)
 
 <a id="episode-selection-github-521"></a>
 
@@ -1547,10 +1578,7 @@ output_dir: ./my_corpus
 append: true
 ```
 
-**Checked-in presets (Planet Money + The Journal, full pipeline):**
-
-- **OpenAI / hybrid:** `config/acceptance/acceptance_multi_feed_planet_money_journal_openai_append.yaml`, `config/manual/manual_multi_feed_planet_money_journal_openai_gemini_append.yaml` (OpenAI Whisper + Gemini speaker/summary; use with `make test-acceptance` / CLI)
-- **DeepSeek (Whisper + DeepSeek LLM):** `config/acceptance/acceptance_multi_feed_planet_money_journal_deepseek_append.yaml`, `config/manual/manual_multi_feed_planet_money_journal_deepseek_append.yaml`
+**Append example (two feeds):** use **`--feeds-spec`** with a feeds document listing both feeds, set **`append: true`** on the operator YAML, then re-run the same CLI (or **`make test-acceptance CONFIGS=…`**) to validate **`run_append_*`** resume per [RFC-063](../rfc/RFC-063-multi-feed-corpus-append-resume.md).
 
 Re-run the **same** command twice to validate resume: the second run should skip complete episodes under each feed’s `run_append_*` tree.
 

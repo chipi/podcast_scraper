@@ -1,6 +1,15 @@
 import { expect, test, type Page } from '@playwright/test'
 import { SHELL_HEADING_RE, statusBarCorpusPathInput } from './helpers'
 
+/**
+ * Browser-stubbed `/api/*` — no real `podcast serve` or corpus disk.
+ *
+ * With a real server, `GET /api/operator-config` may **create** `viewer_operator.yaml` with
+ * `profile: cloud_balanced` when the file is missing or whitespace-only and that packaged
+ * preset exists (name is hardcoded in the server). If the preset is not shipped, `content`
+ * stays empty until a `PUT`.
+ */
+
 /** Match only the viewer backend path (avoid globs that also match Vite /src/api/feedsApi.ts). */
 function matchExactApiPath(path: string): (url: URL) => boolean {
   return (url: URL) => url.pathname.replace(/\/$/, '') === path
@@ -99,8 +108,8 @@ test.describe('Status bar — feeds & operator YAML (mocked API)', () => {
         contentType: 'application/json',
         body: JSON.stringify({
           path: url.searchParams.get('path') ?? '',
-          file_relpath: 'rss_urls.list.txt',
-          urls: ['https://seed.example/rss'],
+          file_relpath: 'feeds.spec.yaml',
+          feeds: ['https://seed.example/rss'],
         }),
       })
     })
@@ -113,6 +122,7 @@ test.describe('Status bar — feeds & operator YAML (mocked API)', () => {
           corpus_path: '/mock/corpus',
           operator_config_path: '/mock/viewer_operator.yaml',
           content: 'noop: 1\n',
+          available_profiles: ['cloud_balanced', 'local'],
         }),
       })
     })
@@ -124,13 +134,15 @@ test.describe('Status bar — feeds & operator YAML (mocked API)', () => {
     await page.getByTestId('status-bar-feeds-trigger').click()
     await expect(page.getByTestId('status-bar-sources-dialog')).toBeVisible()
     await expect(page.getByTestId('sources-dialog-feeds-textarea')).toHaveValue(
-      'https://seed.example/rss',
+      '{\n  "feeds": [\n    "https://seed.example/rss"\n  ]\n}',
     )
+    await expect(page.getByTestId('sources-dialog-feeds-lines-textarea')).toBeVisible()
+    await expect(page.getByTestId('sources-dialog-feeds-merge-lines')).toBeVisible()
     expect(operatorGets).toHaveLength(0)
   })
 
-  test('Save feeds sends PUT with trimmed non-empty lines', async ({ page }) => {
-    let lastPutUrls: string[] | null = null
+  test('Save feeds sends PUT with parsed feeds array', async ({ page }) => {
+    let lastPutFeeds: unknown[] | null = null
     await page.route(matchExactApiPath('/api/health'), async (route) => {
       await route.fulfill({
         status: 200,
@@ -147,22 +159,22 @@ test.describe('Status bar — feeds & operator YAML (mocked API)', () => {
           contentType: 'application/json',
           body: JSON.stringify({
             path: url.searchParams.get('path') ?? '',
-            file_relpath: 'rss_urls.list.txt',
-            urls: [],
+            file_relpath: 'feeds.spec.yaml',
+            feeds: [],
           }),
         })
         return
       }
       if (route.request().method() === 'PUT') {
-        const body = route.request().postDataJSON() as { urls?: string[] }
-        lastPutUrls = Array.isArray(body.urls) ? body.urls : []
+        const body = route.request().postDataJSON() as { feeds?: unknown[] }
+        lastPutFeeds = Array.isArray(body.feeds) ? body.feeds : []
         await route.fulfill({
           status: 200,
           contentType: 'application/json',
           body: JSON.stringify({
             path: url.searchParams.get('path') ?? '',
-            file_relpath: 'rss_urls.list.txt',
-            urls: lastPutUrls,
+            file_relpath: 'feeds.spec.yaml',
+            feeds: lastPutFeeds,
           }),
         })
       }
@@ -173,9 +185,56 @@ test.describe('Status bar — feeds & operator YAML (mocked API)', () => {
     await statusBarCorpusPathInput(page).fill('/mock/corpus')
     await expect(page.getByTestId('status-bar-feeds-trigger')).toBeVisible({ timeout: 15_000 })
     await page.getByTestId('status-bar-feeds-trigger').click()
-    await page.getByTestId('sources-dialog-feeds-textarea').fill('  https://a.example/x  \n\nhttps://b.example/y\n')
+    await page
+      .getByTestId('sources-dialog-feeds-textarea')
+      .fill('{\n  "feeds": [\n    "  https://a.example/x  ",\n    "https://b.example/y"\n  ]\n}')
     await page.getByRole('button', { name: 'Save feeds' }).click()
-    expect(lastPutUrls).toEqual(['https://a.example/x', 'https://b.example/y'])
+    expect(lastPutFeeds).toEqual(['  https://a.example/x  ', 'https://b.example/y'])
+  })
+
+  test('Append lines merges URLs into feeds JSON without save', async ({ page }) => {
+    await page.route(matchExactApiPath('/api/health'), async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: healthBodyWithSourcesApis(),
+      })
+    })
+    await stubCorpusPathCompanionApis(page)
+    await page.route(matchExactApiPath('/api/feeds'), async (route) => {
+      const url = new URL(route.request().url())
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          path: url.searchParams.get('path') ?? '',
+          file_relpath: 'feeds.spec.yaml',
+          feeds: ['https://existing.example/rss'],
+        }),
+      })
+    })
+    await page.route(matchExactApiPath('/api/operator-config'), async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          corpus_path: '/mock/corpus',
+          operator_config_path: '/mock/viewer_operator.yaml',
+          content: 'noop: 1\n',
+          available_profiles: ['cloud_balanced'],
+        }),
+      })
+    })
+
+    await page.goto('/')
+    await page.getByRole('heading', { name: SHELL_HEADING_RE }).waitFor({ timeout: 60_000 })
+    await statusBarCorpusPathInput(page).fill('/mock/corpus')
+    await page.getByTestId('status-bar-feeds-trigger').click()
+    await page.getByTestId('sources-dialog-feeds-lines-textarea').fill('https://new.example/feed\n')
+    await page.getByTestId('sources-dialog-feeds-merge-lines').click()
+    const v = await page.getByTestId('sources-dialog-feeds-textarea').inputValue()
+    expect(v).toContain('https://existing.example/rss')
+    expect(v).toContain('https://new.example/feed')
   })
 
   test('Operator tab loads YAML and save sends PUT body', async ({ page }) => {
@@ -194,8 +253,8 @@ test.describe('Status bar — feeds & operator YAML (mocked API)', () => {
         contentType: 'application/json',
         body: JSON.stringify({
           path: '/mock/corpus',
-          file_relpath: 'rss_urls.list.txt',
-          urls: [],
+          file_relpath: 'feeds.spec.yaml',
+          feeds: [],
         }),
       })
     })
@@ -209,6 +268,7 @@ test.describe('Status bar — feeds & operator YAML (mocked API)', () => {
             corpus_path: url.searchParams.get('path') ?? '',
             operator_config_path: '/mock/custom.yaml',
             content: 'keep: true\n',
+            available_profiles: ['cloud_balanced', 'local'],
           }),
         })
         return
@@ -223,6 +283,7 @@ test.describe('Status bar — feeds & operator YAML (mocked API)', () => {
             corpus_path: url.searchParams.get('path') ?? '',
             operator_config_path: '/mock/custom.yaml',
             content: lastPutContent ?? '',
+            available_profiles: ['cloud_balanced', 'local'],
           }),
         })
       }
@@ -235,7 +296,8 @@ test.describe('Status bar — feeds & operator YAML (mocked API)', () => {
       timeout: 15_000,
     })
     await page.getByTestId('status-bar-operator-config-trigger').click()
-    await expect(page.getByTestId('sources-dialog-operator-textarea')).toHaveValue('keep: true\n')
+    await expect(page.getByTestId('sources-dialog-profile-select')).toBeVisible()
+    await expect(page.getByTestId('sources-dialog-operator-textarea')).toHaveValue('keep: true')
     await page.getByTestId('sources-dialog-operator-textarea').fill('keep: true\nextra: 2\n')
     await page.getByRole('button', { name: 'Save YAML' }).click()
     expect(lastPutContent).toBe('keep: true\nextra: 2\n')

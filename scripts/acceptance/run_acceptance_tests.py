@@ -45,6 +45,8 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
+import yaml
+
 try:
     import psutil
 except ImportError:
@@ -264,13 +266,16 @@ def _assert_artifacts_from_config(
     """
     try:
         cfg_dict = config.load_config_file(str(config_path))
+        # Resolve ``profile:`` so flags match service behavior (materialized matrix YAMLs
+        # only set ``profile`` + fragments + defaults at top level).
+        cfg_model = config.Config.model_validate(cfg_dict)
     except Exception as exc:
         logger.warning("Cannot load config for assertions: %s", exc)
         return True, []
 
-    generate_gi = cfg_dict.get("generate_gi", False)
-    generate_kg = cfg_dict.get("generate_kg", False)
-    auto_speakers = cfg_dict.get("auto_speakers", True)
+    generate_gi = bool(cfg_model.generate_gi)
+    generate_kg = bool(cfg_model.generate_kg)
+    auto_speakers = bool(cfg_model.auto_speakers)
 
     if not generate_gi and not generate_kg and not auto_speakers:
         return True, []
@@ -393,43 +398,134 @@ def find_config_files(pattern: str) -> List[Path]:
     return merged
 
 
-def _load_stems_from_file(path: Path) -> set[str]:
-    stems: set[str] = set()
-    with open(path, encoding="utf-8") as f:
-        for line in f:
-            line = line.split("#", 1)[0].strip()
-            if line:
-                stems.add(line)
-    return stems
+def _acceptance_config_root() -> Path:
+    """Directory containing ``FAST_CONFIG.yaml`` and ``fragments/``."""
+    return Path(__file__).resolve().parent.parent.parent / "config" / "acceptance"
+
+
+def _fast_config_yaml_path() -> Path:
+    return _acceptance_config_root() / "FAST_CONFIG.yaml"
+
+
+def load_fast_config_matrix() -> Dict[str, Any]:
+    """Load the tracked fast acceptance matrix (YAML)."""
+    path = _fast_config_yaml_path()
+    if not path.is_file():
+        return {}
+    try:
+        data = yaml.safe_load(path.read_text(encoding="utf-8"))
+    except OSError as exc:
+        logger.warning("Could not read %s: %s", path, exc)
+        return {}
+    return data if isinstance(data, dict) else {}
+
+
+def load_fast_matrix_ids() -> set[str]:
+    """Matrix row ``id`` values for ``--fast-only`` / ``--from-fast-stems`` (enabled rows only)."""
+    data = load_fast_config_matrix()
+    runs = data.get("runs")
+    if not isinstance(runs, list):
+        return set()
+    out: set[str] = set()
+    for run in runs:
+        if not isinstance(run, dict):
+            continue
+        if run.get("enabled") is False:
+            continue
+        rid = run.get("id")
+        if isinstance(rid, str) and rid.strip():
+            out.add(rid.strip())
+    return out
 
 
 def load_fast_config_stems() -> set[str]:
-    """Load set of config stems considered 'fast' for --fast-only / --from-fast-stems.
+    """Backward-compatible alias: fast matrix row ids (see ``FAST_CONFIG.yaml``)."""
+    ids = load_fast_matrix_ids()
+    if ids:
+        logger.info("Loaded %d fast matrix row id(s) from %s", len(ids), _fast_config_yaml_path())
+    return ids
 
-    Reads ``config/acceptance/FAST_CONFIGS.txt`` when present (tracked in Git).
-    If that file is missing or empty, reads optional local
-    ``config/ci/acceptance_fast_stems.txt`` (gitignored; see ``config/ci/README.md``).
 
-    One stem per line; ``#`` comments and blank lines ignored. Stem = filename without
-    extension (e.g. ``acceptance_planet_money_ml_dev``).
+def deep_merge_acceptance_dicts(base: Dict[str, Any], overlay: Dict[str, Any]) -> Dict[str, Any]:
+    """Merge operator fragments; ``feeds`` / ``rss_urls`` lists replace (do not append)."""
+    out = dict(base)
+    for k, v in overlay.items():
+        if k in ("feeds", "rss_urls") and isinstance(v, list):
+            out[k] = list(v)
+        elif isinstance(v, dict) and isinstance(out.get(k), dict):
+            out[k] = deep_merge_acceptance_dicts(out[k], v)
+        else:
+            out[k] = v
+    return out
 
-    Returns:
-        Set of stem strings. Empty if no file exists or is unreadable.
-    """
-    project_root = Path(__file__).parent.parent.parent
-    local_path = project_root / "config" / "acceptance" / "FAST_CONFIGS.txt"
-    ci_path = project_root / "config" / "ci" / "acceptance_fast_stems.txt"
-    for path in (local_path, ci_path):
-        if not path.exists():
+
+def _feeds_fragment_path_for_run(run: Dict[str, Any]) -> Path:
+    root = _acceptance_config_root()
+    feeds_rel = run.get("feeds")
+    if isinstance(feeds_rel, str) and feeds_rel.strip():
+        return (root / feeds_rel.strip()).resolve()
+    shape = run.get("feeds_shape")
+    if shape == "single":
+        return (root / "fragments" / "feeds_single.yaml").resolve()
+    if shape == "multi":
+        return (root / "fragments" / "feeds_multi.yaml").resolve()
+    raise ValueError(f"FAST_CONFIG run missing 'feeds' or valid 'feeds_shape': {run!r}")
+
+
+def _feeds_shape_tag(run: Dict[str, Any]) -> str:
+    if isinstance(run.get("feeds"), str):
+        return Path(run["feeds"]).stem
+    return str(run.get("feeds_shape", "unknown"))
+
+
+def materialize_fast_matrix_configs(session_dir: Path) -> List[Path]:
+    """Write ``session_dir/materialized/{id}.yaml`` for each enabled matrix row."""
+    matrix = load_fast_config_matrix()
+    runs = matrix.get("runs")
+    defaults_rel = matrix.get("defaults", "fragments/acceptance_defaults.yaml")
+    root = _acceptance_config_root()
+    defaults_path = (root / str(defaults_rel)).resolve()
+    if not defaults_path.is_file():
+        raise FileNotFoundError(f"FAST_CONFIG defaults not found: {defaults_path}")
+    defaults_dict = config.load_config_file(str(defaults_path))
+    if not isinstance(defaults_dict, dict):
+        defaults_dict = {}
+
+    mat_dir = session_dir / "materialized"
+    mat_dir.mkdir(parents=True, exist_ok=True)
+    out: List[Path] = []
+    if not isinstance(runs, list):
+        return out
+
+    for run in runs:
+        if not isinstance(run, dict):
             continue
-        try:
-            stems = _load_stems_from_file(path)
-            if stems:
-                logger.info("Loaded %d fast config stems from %s", len(stems), path)
-            return stems
-        except OSError as e:
-            logger.warning("Could not read %s: %s", path, e)
-    return set()
+        if run.get("enabled") is False:
+            continue
+        rid = run.get("id")
+        prof = run.get("profile")
+        if not isinstance(rid, str) or not isinstance(prof, str):
+            logger.warning("Skipping invalid FAST_CONFIG run (missing id/profile): %s", run)
+            continue
+        rid = rid.strip()
+        prof = prof.strip()
+        feeds_path = _feeds_fragment_path_for_run(run)
+        if not feeds_path.is_file():
+            raise FileNotFoundError(f"Feeds fragment not found for run {rid}: {feeds_path}")
+        feeds_dict = config.load_config_file(str(feeds_path))
+        if not isinstance(feeds_dict, dict):
+            feeds_dict = {}
+        merged = deep_merge_acceptance_dicts(defaults_dict, feeds_dict)
+        merged["profile"] = prof
+        shape_tag = _feeds_shape_tag(run)
+        merged["run_id"] = f"acceptance_{rid}_{prof}_{shape_tag}"
+        dest = mat_dir / f"{rid}.yaml"
+        with open(dest, "w", encoding="utf-8") as f:
+            yaml.dump(merged, f, default_flow_style=False, sort_keys=False)
+        out.append(dest)
+
+    out.sort(key=lambda p: p.name)
+    return out
 
 
 def resolve_yaml_paths_from_stems(stems: set[str]) -> List[Path]:
@@ -627,8 +723,6 @@ def modify_config_for_fixtures(
     # Save modified config in the run directory
     # This is needed for the service to run and also serves as a record of what was used
     modified_config_path = run_output_dir / "config.yaml"
-
-    import yaml
 
     with open(modified_config_path, "w") as f:
         yaml.dump(config_dict, f, default_flow_style=False)
@@ -2168,9 +2262,8 @@ def main() -> None:  # noqa: C901 - CLI orchestrates configs, server, analysis, 
         action="store_true",
         default=False,
         help=(
-            "After resolving --configs globs, keep only stems listed in "
-            "config/acceptance/FAST_CONFIGS.txt (or optional local "
-            "config/ci/acceptance_fast_stems.txt)."
+            "After resolving --configs globs, keep only files whose stem matches a row "
+            "``id`` in config/acceptance/FAST_CONFIG.yaml (enabled runs only)."
         ),
     )
     parser.add_argument(
@@ -2178,11 +2271,9 @@ def main() -> None:  # noqa: C901 - CLI orchestrates configs, server, analysis, 
         action="store_true",
         default=False,
         help=(
-            "Ignore --configs; run YAMLs for each fast stem, resolving "
-            "config/acceptance/<stem>.yaml or config/examples/<stem>.yaml. "
-            "Uses FAST_CONFIGS.txt when present, else optional local "
-            "config/ci/acceptance_fast_stems.txt. "
-            "Intended for CI / fixture smoke (pair with --use-fixtures)."
+            "Ignore --configs; materialize each enabled row from "
+            "config/acceptance/FAST_CONFIG.yaml into session_dir/materialized/{id}.yaml "
+            "and run those (pair with --use-fixtures for CI fixture smoke)."
         ),
     )
     parser.add_argument(
@@ -2229,29 +2320,38 @@ def main() -> None:  # noqa: C901 - CLI orchestrates configs, server, analysis, 
         e2e_server = E2EHTTPServer()
         e2e_server.start()
 
+    # Output + session dirs first (``--from-fast-stems`` materializes under session_dir).
+    output_dir = Path(args.output_dir).resolve()
+    output_dir.mkdir(parents=True, exist_ok=True)
+    session_id = datetime.utcnow().strftime("%Y%m%d_%H%M%S")
+    session_dir = output_dir / "sessions" / f"session_{session_id}"
+    session_dir.mkdir(parents=True, exist_ok=True)
+    runs_dir = session_dir / "runs"
+    runs_dir.mkdir(parents=True, exist_ok=True)
+
     # Find config files
     if args.from_fast_stems:
         if args.configs:
             logger.info("--from-fast-stems set; ignoring --configs %r", args.configs)
-        fast_stems = load_fast_config_stems()
-        if not fast_stems:
+        fast_ids = load_fast_matrix_ids()
+        if not fast_ids:
             logger.error(
-                "No fast stems: add or restore config/acceptance/FAST_CONFIGS.txt "
-                "(tracked), or create optional local config/ci/acceptance_fast_stems.txt "
-                "(see config/ci/README.md)."
+                "No fast matrix rows: add config/acceptance/FAST_CONFIG.yaml with "
+                "non-empty runs (see config/acceptance/README.md)."
             )
             sys.exit(1)
-        config_files = resolve_yaml_paths_from_stems(fast_stems)
+        try:
+            config_files = materialize_fast_matrix_configs(session_dir)
+        except (OSError, ValueError, FileNotFoundError) as exc:
+            logger.error("Failed to materialize fast matrix: %s", exc)
+            sys.exit(1)
         if not config_files:
-            logger.error(
-                "No YAML files resolved for fast stems (see warnings above). "
-                "Expected files under config/acceptance/ or config/examples/."
-            )
+            logger.error("No materialized configs for fast matrix (check FAST_CONFIG.yaml runs).")
             sys.exit(1)
         logger.info(
-            "--from-fast-stems: running %d config(s) from %d stem(s)",
+            "--from-fast-stems: running %d config(s) from FAST_CONFIG.yaml (%d row id(s))",
             len(config_files),
-            len(fast_stems),
+            len(fast_ids),
         )
     else:
         if not args.configs:
@@ -2264,35 +2364,23 @@ def main() -> None:  # noqa: C901 - CLI orchestrates configs, server, analysis, 
 
         # Optionally restrict to fast subset (for CI: run fast configs on PR, full suite nightly)
         if args.fast_only:
-            fast_stems = load_fast_config_stems()
-            if not fast_stems:
+            fast_ids = load_fast_matrix_ids()
+            if not fast_ids:
                 logger.warning(
-                    "Fast stem list not found or empty; --fast-only has no effect. "
-                    "See config/acceptance/FAST_CONFIGS.txt or optional "
-                    "config/ci/acceptance_fast_stems.txt."
+                    "Fast matrix empty or missing; --fast-only has no effect. "
+                    "See config/acceptance/FAST_CONFIG.yaml."
                 )
             else:
                 before = len(config_files)
-                config_files = filter_fast_configs(config_files, fast_stems)
+                config_files = filter_fast_configs(config_files, fast_ids)
                 logger.info(
-                    "--fast-only: running %d of %d configs (from fast stem list)",
+                    "--fast-only: running %d of %d configs (from FAST_CONFIG.yaml row ids)",
                     len(config_files),
                     before,
                 )
                 if not config_files:
-                    logger.error("No configs matched the fast stem list")
+                    logger.error("No configs matched FAST_CONFIG.yaml row ids")
                     sys.exit(1)
-
-    # Setup output directory (resolve to absolute so run dirs are deterministic)
-    output_dir = Path(args.output_dir).resolve()
-    output_dir.mkdir(parents=True, exist_ok=True)
-
-    # Create session folder; run artifacts are kept under session_dir/runs/run_* for inspection
-    session_id = datetime.utcnow().strftime("%Y%m%d_%H%M%S")
-    session_dir = output_dir / "sessions" / f"session_{session_id}"
-    session_dir.mkdir(parents=True, exist_ok=True)
-    runs_dir = session_dir / "runs"
-    runs_dir.mkdir(parents=True, exist_ok=True)
 
     # Reuse RSS feed XML across sequential configs (same URL hits cache after first fetch).
     # See podcast_scraper.rss.feed_cache (PODCAST_SCRAPER_RSS_CACHE_DIR); off by default for CLI.

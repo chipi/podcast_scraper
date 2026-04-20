@@ -210,7 +210,7 @@ Generated `gi.json` files must conform to the schema. Validation utilities (e.g.
 For **comparing outcomes** on the **same episodes** (not YAML threshold parity), use a
 fixed episode set and two runs — e.g. local transformers evidence vs OpenAI
 `extract_quotes` / `score_entailment` with the same `summary_provider` and
-`gi_insight_source`. Pair configs live under `config/manual/gil_paired_benchmark_*.yaml`.
+`gi_insight_source`. Keep paired operator YAMLs for A/B runs on your machine (not part of the tracked tree).
 After runs, compare with **`make compare-gil-runs REF=<ref_run_root> CAND=<cand_run_root>`**
 or **`python scripts/tools/compare_gil_runs.py <ref_run_root> <cand_run_root>`** — per-episode
 quote/grounded counts and a short agreement summary.

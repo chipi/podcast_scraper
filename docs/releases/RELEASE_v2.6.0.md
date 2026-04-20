@@ -125,7 +125,7 @@ Together, the v2.5.0 **provider breadth** and v2.6.0 **Performance tab + frozen 
 - **`metrics.json`** — `http_urllib3_retry_events`, `episode_download_retries`, `episode_download_retry_sleep_seconds` ([Experiment Guide](../guides/EXPERIMENT_GUIDE.md#pipeline-run-metrics-download-resilience)).
 - **Optional Issue #522-class extensions** — per-host throttling, `Retry-After`, circuit breaker, RSS conditional GET; fields and flags documented under [CONFIGURATION — Download resilience](../api/CONFIGURATION.md#download-resilience).
 - **`failure_summary`** in `run.json` when episodes fail (counts by error type, failed episode identifiers).
-- Example config: `config/examples/config.example.download-resilience.yaml`.
+- Download resilience: documented canonically under [CONFIGURATION.md — Download resilience](../api/CONFIGURATION.md#download-resilience) (inline YAML presets; no separate example file required).
 
 ---
 

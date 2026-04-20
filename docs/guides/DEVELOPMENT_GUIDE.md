@@ -785,7 +785,7 @@ metadata for a specific provider configuration.
 ```bash
 # Capture a profile from a pipeline run
 make profile-freeze VERSION=v2.6-openai \
-  PIPELINE_CONFIG=config/profiles/capture_e2e_openai.yaml
+  PIPELINE_CONFIG=config/profiles/freeze/openai.yaml
 
 # Compare two profiles
 make profile-diff FROM=v2.6-wip-openai TO=v2.6-wip-gemini
@@ -793,7 +793,7 @@ make profile-diff FROM=v2.6-wip-openai TO=v2.6-wip-gemini
 
 Profiles live in `data/profiles/<version>.yaml`.
 Pipeline capture configs live in
-`config/profiles/capture_e2e_*.yaml`.
+`config/profiles/freeze/*.yaml`.
 
 **Full guide:**
 [Performance Profile Guide](PERFORMANCE_PROFILE_GUIDE.md)

@@ -31,6 +31,7 @@ from urllib.parse import urlparse
 from pydantic import ValidationError
 
 from . import __version__, config, config_constants
+from .rss.feeds_spec import load_feeds_spec_file, merge_feed_entry_into_config, RssFeedEntry
 from .utils import filesystem, progress
 from .utils.log_redaction import format_exception_for_log
 from .workflow import orchestration as workflow
@@ -231,6 +232,18 @@ def _load_rss_urls_from_file(path: str) -> List[str]:
 _FILE_URLS_ELIDE = object()
 
 
+def resolve_cli_feed_targets(args: argparse.Namespace) -> List[RssFeedEntry]:
+    """Resolve feed list: ``--feeds-spec`` file or legacy URL collection (each as RssFeedEntry)."""
+    spec = getattr(args, "feeds_spec", None)
+    if spec:
+        doc = load_feeds_spec_file(str(spec))
+        if not doc.feeds:
+            raise ValueError("feeds spec: feeds array is empty")
+        return list(doc.feeds)
+    urls = collect_feed_urls(args)
+    return [RssFeedEntry(url=u) for u in urls]
+
+
 def collect_feed_urls(
     args: argparse.Namespace,
     *,
@@ -252,7 +265,16 @@ def collect_feed_urls(
     for u in getattr(args, "rss_extra", None) or []:
         add(str(u))
     for u in getattr(args, "rss_urls", None) or []:
-        add(str(u))
+        if isinstance(u, str):
+            add(str(u))
+        elif isinstance(u, dict):
+            url = str(u.get("url") or u.get("rss") or "").strip()
+            if url:
+                add(url)
+        elif isinstance(u, RssFeedEntry):
+            add(u.url)
+        else:
+            add(str(u))
 
     if preloaded_file_urls is _FILE_URLS_ELIDE:
         rss_file = getattr(args, "rss_file", None)
@@ -383,26 +405,51 @@ def validate_args(args: argparse.Namespace) -> None:
     """Validate parsed CLI arguments and raise ValueError when invalid."""
     errors: List[str] = []
 
-    preloaded_file: object = _FILE_URLS_ELIDE
+    feeds_spec = getattr(args, "feeds_spec", None)
     rss_file = getattr(args, "rss_file", None)
-    if rss_file:
+    if feeds_spec and rss_file:
+        errors.append("Use either --feeds-spec or --rss-file, not both")
+    if feeds_spec and (getattr(args, "rss", None) or getattr(args, "rss_extra", None)):
+        errors.append("Use either --feeds-spec or RSS URL arguments (--rss / positional), not both")
+
+    preloaded_file: object = _FILE_URLS_ELIDE
+    if rss_file and not feeds_spec:
         try:
             preloaded_file = _load_rss_urls_from_file(str(rss_file))
         except ValueError as exc:
             errors.append(str(exc))
             preloaded_file = []
 
-    feed_urls = collect_feed_urls(args, preloaded_file_urls=preloaded_file)
-    if not feed_urls:
-        errors.append("At least one RSS URL is required (positional, --rss, --rss-file, or config)")
+    if feeds_spec:
+        feed_targets: List[RssFeedEntry] = []
+        try:
+            feed_targets = resolve_cli_feed_targets(args)
+        except (OSError, ValueError, TypeError, ValidationError) as exc:
+            errors.append(f"Invalid --feeds-spec file: {exc}")
+        if not errors and not feed_targets:
+            errors.append("At least one feed is required in --feeds-spec (non-empty feeds array)")
+        if not errors:
+            for ent in feed_targets:
+                _validate_rss_url(ent.url, errors)
+            if len(feed_targets) >= 2 and not (getattr(args, "output_dir", None) or "").strip():
+                errors.append(
+                    "Multi-feed mode (GitHub #440): --output-dir is required as the corpus parent "
+                    "(each feed is written under <output-dir>/feeds/<stable_name>/)"
+                )
     else:
-        for u in feed_urls:
-            _validate_rss_url(u, errors)
-        if len(feed_urls) >= 2 and not (getattr(args, "output_dir", None) or "").strip():
+        feed_urls = collect_feed_urls(args, preloaded_file_urls=preloaded_file)
+        if not feed_urls:
             errors.append(
-                "Multi-feed mode (GitHub #440): --output-dir is required as the corpus parent "
-                "(each feed is written under <output-dir>/feeds/<stable_name>/)"
+                "At least one RSS URL is required (positional, --rss, --rss-file, or config)"
             )
+        else:
+            for u in feed_urls:
+                _validate_rss_url(u, errors)
+            if len(feed_urls) >= 2 and not (getattr(args, "output_dir", None) or "").strip():
+                errors.append(
+                    "Multi-feed mode (GitHub #440): --output-dir is required as the corpus parent "
+                    "(each feed is written under <output-dir>/feeds/<stable_name>/)"
+                )
 
     # Validate numeric arguments
     if args.max_episodes is not None and args.max_episodes <= 0:
@@ -496,6 +543,16 @@ def _add_common_arguments(parser: argparse.ArgumentParser) -> None:
         default=None,
         metavar="PATH",
         help="File with one RSS URL per line (# and blank lines ignored; GitHub #440)",
+    )
+    parser.add_argument(
+        "--feeds-spec",
+        default=None,
+        metavar="PATH",
+        help=(
+            "Structured feeds file (YAML or JSON): root object with ``feeds`` array of URL "
+            "strings or objects with ``url`` plus optional per-feed overrides (RFC-077 / #626). "
+            "Mutually exclusive with --rss-file and explicit RSS URL arguments."
+        ),
     )
     parser.add_argument(
         "--output-dir",
@@ -1890,9 +1947,15 @@ def _load_and_merge_config(
 
     parser.set_defaults(**defaults_updates)
     args = parser.parse_args(argv)
-    if not collect_feed_urls(args):
+    has_feeds = bool(collect_feed_urls(args))
+    if not has_feeds and getattr(args, "feeds_spec", None):
+        try:
+            has_feeds = bool(load_feeds_spec_file(str(args.feeds_spec)).feeds)
+        except (OSError, ValueError, TypeError, ValidationError):
+            has_feeds = False
+    if not has_feeds:
         raise ValueError(
-            "RSS URL is required (positional rss, repeatable --rss, --rss-file, "
+            "RSS URL is required (positional rss, repeatable --rss, --rss-file, --feeds-spec, "
             "or config rss / rss_urls / feeds)"
         )
     return args
@@ -3353,6 +3416,20 @@ def _build_config_for_feed(
     return _build_config(clone)
 
 
+def _build_config_for_feed_entry(
+    args: argparse.Namespace,
+    entry: RssFeedEntry,
+    *,
+    output_dir_override: Optional[str],
+) -> config.Config:
+    """Build Config for one feed including per-feed overrides from ``RssFeedEntry``."""
+    clone = copy.copy(args)
+    clone.rss = entry.url
+    clone.output_dir = output_dir_override
+    base = _build_config(clone)
+    return merge_feed_entry_into_config(base.model_copy(update={"rss_urls": None}), entry)
+
+
 def _build_config(args: argparse.Namespace) -> config.Config:  # noqa: C901
     """Materialize a Config object from already-validated CLI arguments."""
     speaker_names_list = [s.strip() for s in (args.speaker_names or "").split(",") if s.strip()]
@@ -4351,13 +4428,13 @@ def main(  # noqa: C901 - main function handles multiple command paths
             log.error(f"Cache operation failed: {exc}")
             return 1
 
-    feed_urls = collect_feed_urls(args)
+    feed_targets = resolve_cli_feed_targets(args)
 
     from .monitor.memray_util import maybe_reexec_memray_cli
 
-    maybe_reexec_memray_cli(args, argv, feed_urls)
+    maybe_reexec_memray_cli(args, argv, [e.url for e in feed_targets])
 
-    if len(feed_urls) >= 2:
+    if len(feed_targets) >= 2:
         corpus_raw = (getattr(args, "output_dir", None) or "").strip()
         try:
             corpus_parent = filesystem.validate_and_normalize_output_dir(corpus_raw)
@@ -4374,7 +4451,7 @@ def main(  # noqa: C901 - main function handles multiple command paths
         log.info(
             "Starting multi-feed podcast scrape (GitHub #440): corpus_parent=%s feeds=%d",
             corpus_parent,
-            len(feed_urls),
+            len(feed_targets),
         )
 
         from .utils.corpus_incidents import append_corpus_incident
@@ -4394,7 +4471,8 @@ def main(  # noqa: C901 - main function handles multiple command paths
                 _inc_start = (
                     Path(_inc_default).stat().st_size if Path(_inc_default).is_file() else 0
                 )
-                for url in feed_urls:
+                for entry in feed_targets:
+                    url = entry.url
                     sub = filesystem.feed_workspace_dirname(url)
                     try:
                         out_path = filesystem.corpus_feed_output_dir(corpus_parent, url)
@@ -4423,8 +4501,8 @@ def main(  # noqa: C901 - main function handles multiple command paths
                         continue
                     log.info("Feed start: rss=%s -> feeds/%s", url, sub)
                     try:
-                        cfg = _build_config_for_feed(
-                            args, rss_url=url, output_dir_override=out_path
+                        cfg = _build_config_for_feed_entry(
+                            args, entry, output_dir_override=out_path
                         )
                     except ValidationError as exc:
                         log.error("Invalid configuration for feed %s: %s", url, exc)
@@ -4503,8 +4581,8 @@ def main(  # noqa: C901 - main function handles multiple command paths
                     )
 
                 try:
-                    base_cfg = _build_config_for_feed(
-                        args, rss_url=feed_urls[0], output_dir_override=corpus_parent
+                    base_cfg = _build_config_for_feed_entry(
+                        args, feed_targets[0], output_dir_override=corpus_parent
                     )
                 except ValidationError as exc:
                     log.error("Invalid configuration for corpus parent finalize: %s", exc)
@@ -4540,7 +4618,15 @@ def main(  # noqa: C901 - main function handles multiple command paths
             return 1
 
     try:
-        cfg = _build_config(args)
+        if getattr(args, "feeds_spec", None):
+            only = resolve_cli_feed_targets(args)[0]
+            cfg = _build_config_for_feed_entry(
+                args,
+                only,
+                output_dir_override=filesystem.derive_output_dir(only.url, args.output_dir),
+            )
+        else:
+            cfg = _build_config(args)
     except ValidationError as exc:
         log.error(f"Invalid configuration: {exc}")
         return 1

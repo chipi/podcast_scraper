@@ -992,7 +992,7 @@ class E2EHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
                     {"name": "llama3.1:latest"},
                     {"name": "llama3.1:8b"},
                     {"name": "llama3:latest"},
-                    # Ollama models for full acceptance configs (config/acceptance/, *ollama*)
+                    # Ollama model tags returned to fixture clients
                     {"name": "mistral:7b"},
                     {"name": "mistral-nemo:12b"},
                     {"name": "mistral-small3.2:latest"},
@@ -1003,7 +1003,7 @@ class E2EHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
                     {"name": "qwen3.5:35b"},
                     {"name": "qwen3.5:35b-a3b"},
                     {"name": "phi3:mini"},
-                    # Planet Money Ollama acceptance (acceptance_planet_money_ollama_gemma2_9b.yaml)
+                    # Ollama tags used by fixture-backed full-pipeline runs
                     {"name": "gemma2:9b"},
                 ]
             }

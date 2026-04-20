@@ -15,11 +15,11 @@ from typing import Any, Awaitable, Callable, cast, Sequence
 
 from fastapi import FastAPI
 
+from podcast_scraper.rss.feeds_spec import FEEDS_SPEC_DEFAULT_BASENAME
 from podcast_scraper.server.pipeline_job_registry import (
     with_jobs_locked_mutate,
     with_jobs_locked_read,
 )
-from podcast_scraper.server.routes.feeds import FEEDS_LIST_BASENAME
 
 logger = logging.getLogger(__name__)
 
@@ -79,10 +79,10 @@ def build_pipeline_argv(corpus_root: Path, operator_yaml: Path) -> list[str]:
     """Build CLI argv for a full pipeline run (mirrors operator ``serve`` config)."""
     exe = sys.executable
     argv: list[str] = [exe, "-m", "podcast_scraper.cli", "--output-dir", str(corpus_root)]
-    argv.extend(["--config-file", str(operator_yaml)])
-    rss = corpus_root / FEEDS_LIST_BASENAME
-    if rss.is_file():
-        argv.extend(["--rss-file", str(rss)])
+    argv.extend(["--config", str(operator_yaml)])
+    spec = corpus_root / FEEDS_SPEC_DEFAULT_BASENAME
+    if spec.is_file():
+        argv.extend(["--feeds-spec", str(spec.resolve())])
     return argv
 
 

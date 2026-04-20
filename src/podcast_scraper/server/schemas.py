@@ -92,7 +92,9 @@ class HealthResponse(BaseModel):
     )
     feeds_api: bool = Field(
         default=False,
-        description="True when GET/PUT /api/feeds is mounted (RSS list file under corpus root).",
+        description=(
+            "True when GET/PUT /api/feeds is mounted " "(``feeds.spec.yaml`` under corpus root)."
+        ),
     )
     operator_config_api: bool = Field(
         default=False,
@@ -105,18 +107,22 @@ class HealthResponse(BaseModel):
 
 
 class FeedsListResponse(BaseModel):
-    """Response for GET/PUT /api/feeds."""
+    """Response for GET/PUT /api/feeds (structured ``{ feeds: [...] }`` on disk)."""
 
     path: str = Field(description="Resolved absolute corpus root path.")
-    file_relpath: str = Field(description="RSS list file relative to corpus root (POSIX).")
-    urls: list[str] = Field(default_factory=list, description="Feed URLs in file order.")
+    file_relpath: str = Field(description="Feeds spec file relative to corpus root (POSIX).")
+    feeds: list[str | dict[str, Any]] = Field(
+        default_factory=list,
+        description="Feed entries in file order (URL strings or objects with url + overrides).",
+    )
 
 
 class FeedsPutBody(BaseModel):
     """Body for PUT /api/feeds."""
 
-    urls: list[str] = Field(
-        default_factory=list, description="Feed URLs to persist (deduped, order kept)."
+    feeds: list[str | dict[str, Any]] = Field(
+        default_factory=list,
+        description="Feed entries to persist (deduped by url, first-seen order kept).",
     )
 
 
@@ -127,7 +133,20 @@ class OperatorConfigGetResponse(BaseModel):
     operator_config_path: str = Field(
         description="Absolute path of the operator YAML file on disk."
     )
-    content: str = Field(description="Full file contents (UTF-8).")
+    content: str = Field(
+        description=(
+            "Full file contents (UTF-8). GET may create a minimal "
+            "`profile: cloud_balanced` file when it was missing or whitespace-only "
+            "and that preset is packaged."
+        )
+    )
+    available_profiles: list[str] = Field(
+        default_factory=list,
+        description=(
+            "Sorted packaged preset names (no .yaml) unioned from cwd and repo "
+            "config/profiles/ (same roots as Config profile load); excludes *.example.yaml."
+        ),
+    )
 
 
 class OperatorConfigPutBody(BaseModel):

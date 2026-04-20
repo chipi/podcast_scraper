@@ -83,13 +83,12 @@ Also documented in [DEVELOPMENT_GUIDE.md](DEVELOPMENT_GUIDE.md) (*GI / KG browse
 For **human** multi-feed checks without real RSS, use the same HTTP handler as pytest’s **`e2e_server`**:
 
 1. From repo root (venv on **`PYTHONPATH`** includes repo root so **`tests.e2e`** resolves): **`make serve-e2e-mock`** (default port **18765**; override with **`E2E_MOCK_PORT`**).
-2. In another terminal: **`python -m podcast_scraper.cli --config config/manual/manual_e2e_mock.yaml`**
+2. In another terminal: **`python -m podcast_scraper.cli --config your_operator.yaml --feeds-spec path/to/your_fixture_feeds.yaml --output-dir …`**
 
-That YAML lists the five primary mock feeds (**`podcast1`**–**`podcast5`**) plus long-form
+That feeds document should list the five primary mock feeds (**`podcast1`**–**`podcast5`**) plus long-form
 fixtures **`podcast7_sustainability`**, **`podcast8_solar`**, and **`podcast9_solo`** (p07–p09;
-**p06** edge-case feed is intentionally omitted). Tracked path is **`config/manual/manual_e2e_mock.yaml`**
-(OpenAI Whisper + Gemini, GI/KG + **`vector_search`**; see **`.gitignore`** for `config/manual`
-un-ignore rules). This is **not** the same contract as CI pytest E2E (no network guard, you
+**p06** edge-case feed is intentionally omitted), each at **`http://127.0.0.1:<port>/feeds/.../feed.xml`**
+(**`E2E_MOCK_PORT`**, default **18765**). This is **not** the same contract as CI pytest E2E (no network guard, you
 choose ML cost); it reuses fixture XML/audio only.
 
 ## Core Principle: No Mocking

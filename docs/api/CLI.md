@@ -61,12 +61,13 @@ Selection order: **`--episode-order`** → optional **`--since` / `--until`** �
 
 ### RSS and multi-feed (GitHub #440)
 
-- **`--rss URL`** — Repeatable. Each occurrence adds another feed URL (merged with config `feeds` / `rss_urls` and optional `--rss-file`).
-- **`--rss-file PATH`** — Text file with one RSS URL per line (comments and blank lines allowed); URLs are merged with other sources.
+- **`--rss URL`** — Repeatable. Each occurrence adds another feed URL (merged with config `feeds` / `rss_urls` and optional `--rss-file`). Mutually exclusive with **`--feeds-spec`**.
+- **`--rss-file PATH`** — Text file with one RSS URL per line (comments and blank lines allowed); URLs are merged with other sources. Mutually exclusive with **`--feeds-spec`**.
+- **`--feeds-spec PATH`** — Structured feeds document (**YAML** or **JSON**): root object with **`feeds`** array of URL strings or objects with **`url`** plus optional per-feed overrides (same allowlist as `podcast_scraper.rss.feeds_spec`; RFC-077 / #626). Mutually exclusive with **`--rss-file`** and with explicit RSS URL arguments (**positional** / **`--rss`**). When set, **`--output-dir`** is required if the spec lists **two or more** feeds.
 - **Multi-feed** — When **two or more** distinct feed URLs are in effect, **`--output-dir` is required** (corpus parent). Outputs are written under `<output_dir>/feeds/<stable_feed_id>/` per feed. Single-feed runs do not add the `feeds/` segment.
 - **`--multi-feed-strict` / `--no-multi-feed-strict`** — Multi-feed only (GitHub #559). **Default:** lenient (exit **0** if every failed feed is a **soft** failure: RSS fetch/parse `ValueError`, FFmpeg stderr UTF-8 decode, Whisper 413 / payload size). **`--multi-feed-strict`** turns on **strict** mode for CI: exit **1** on any feed failure even when soft-classified. Hard failures (for example `RuntimeError`, invalid per-feed path) always exit **1**. Same behavior is on `Config` as **`multi_feed_strict`** for `service.run()`.
 
-Config file equivalent: YAML **`feeds:`** or **`rss_urls:`** list (see [CONFIGURATION.md — RSS and multi-feed](CONFIGURATION.md#rss-and-multi-feed-corpus-github-440)). Generic multi-feed templates with placeholder feeds: **OpenAI + Gemini** (GI/KG + **`vector_search`**) — `config/examples/config.example.multi-feed.cloud-llm.yaml` / `config/examples/config.example.multi-feed.cloud-llm.json` (aligned with `config/manual/manual_multi_feed_corpus_rss_registry_openai_gemini.yaml` except **`feeds`**); **local Whisper + Ollama** (`qwen3.5:9b`, **`llm_pipeline_mode: bundled`**) — `config/examples/config.example.multi-feed.ollama.yaml` / `config/examples/config.example.multi-feed.ollama.json`; **local ML** (registry **`ml_small_authority`** / **`ml_bart_led_autoresearch_v1`**) — `config/examples/config.example.multi-feed.ml-dev.yaml` / `config/examples/config.example.multi-feed.ml-dev.json` and `config/examples/config.example.multi-feed.ml-prod.yaml` / `config/examples/config.example.multi-feed.ml-prod.json`. Full-pipeline presets: `config/acceptance/acceptance_multi_feed_planet_money_journal_openai.yaml` and `acceptance_multi_feed_planet_money_journal_deepseek.yaml` (and `config/manual/manual_multi_feed_planet_money_journal_*.yaml`). For **append / resume**, see `acceptance_multi_feed_planet_money_journal_openai_append.yaml` and `acceptance_multi_feed_planet_money_journal_deepseek_append.yaml` under `config/acceptance/` and [CONFIGURATION.md — Append / resume](CONFIGURATION.md#append-resume-github-444).
+Config file equivalent: YAML **`feeds:`** or **`rss_urls:`** list (entries may be URL strings or mappings with **`url`** plus optional per-feed overrides), or use **`--rss-file`** / **`--feeds-spec`** (see [CONFIGURATION.md — RSS and multi-feed](CONFIGURATION.md#rss-and-multi-feed-corpus-github-440) and [Multi-feed compose](CONFIGURATION.md#multi-feed-compose)). Typical multi-feed setup: **`--feeds-spec`** pointing at a feeds document (start from **`config/examples/feeds.spec.example.yaml`** / **`.json`**) plus an operator YAML with **`profile:`** and **`output_dir`**. You may still pass any URL-per-line list with **`--rss-file`**. Acceptance fast matrix: **`config/acceptance/FAST_CONFIG.yaml`** (see **`config/acceptance/README.md`**). For **append / resume**, set **`append: true`** on your operator YAML (or pass **`--append`**) per [CONFIGURATION.md — Append / resume](CONFIGURATION.md#append-resume-github-444).
 
 ### Provider Selection (v2.4.0+)
 
@@ -230,9 +231,7 @@ See [RFC-042 — Layered transcript cleaning](../rfc/RFC-042-hybrid-summarizatio
 - `--rss-cache-dir DIR` - Directory for RSS conditional validators/body cache
 
 Defaults, semantics, recommended presets, and full config/CLI parity:
-[CONFIGURATION.md — Download resilience](CONFIGURATION.md#download-resilience).
-Examples: `config/examples/config.example.download-resilience.yaml`,
-`config/examples/config.example.download-resilience.polite.yaml`.
+[CONFIGURATION.md — Download resilience](CONFIGURATION.md#download-resilience) (**canonical** — do not rely on example YAML under `config/examples/` as a second source of truth).
 
 ### Logging Options
 

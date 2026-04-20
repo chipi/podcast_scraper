@@ -35,14 +35,14 @@ def test_feeds_roundtrip(corpus: Path) -> None:
 
     g = client.get("/api/feeds", params={"path": str(corpus)})
     assert g.status_code == 200
-    assert g.json()["urls"] == []
-    assert g.json()["file_relpath"] == "rss_urls.list.txt"
+    assert g.json()["feeds"] == []
+    assert g.json()["file_relpath"] == "feeds.spec.yaml"
 
     p = client.put(
         "/api/feeds",
         params={"path": str(corpus)},
         json={
-            "urls": [
+            "feeds": [
                 "  https://a.example/feed  ",
                 "https://b.example/feed",
                 "https://a.example/feed",
@@ -50,10 +50,10 @@ def test_feeds_roundtrip(corpus: Path) -> None:
         },
     )
     assert p.status_code == 200
-    assert p.json()["urls"] == ["https://a.example/feed", "https://b.example/feed"]
+    assert p.json()["feeds"] == ["https://a.example/feed", "https://b.example/feed"]
 
     g2 = client.get("/api/feeds", params={"path": str(corpus)})
-    assert g2.json()["urls"] == ["https://a.example/feed", "https://b.example/feed"]
+    assert g2.json()["feeds"] == ["https://a.example/feed", "https://b.example/feed"]
 
 
 def test_operator_config_roundtrip(corpus: Path) -> None:
@@ -65,11 +65,18 @@ def test_operator_config_roundtrip(corpus: Path) -> None:
     g = client.get("/api/operator-config", params={"path": str(corpus)})
     assert g.status_code == 200
     body = g.json()
-    assert body["content"] == ""
+    profiles = body["available_profiles"]
+    if "cloud_balanced" in profiles:
+        assert body["content"].strip() == "profile: cloud_balanced"
+    else:
+        assert body["content"] == ""
     assert body["corpus_path"] == str(corpus.resolve())
     assert body["operator_config_path"] == str((corpus / "viewer_operator.yaml").resolve())
+    assert isinstance(body.get("available_profiles"), list)
+    assert isinstance(body["available_profiles"], list)
+    assert len(body["available_profiles"]) >= 1
 
-    yaml_text = "output_dir: ./out\nrss_urls:\n  - https://x.example/rss\n"
+    yaml_text = "output_dir: ./out\nmax_episodes: 3\n"
     p = client.put(
         "/api/operator-config", params={"path": str(corpus)}, json={"content": yaml_text}
     )
@@ -78,6 +85,18 @@ def test_operator_config_roundtrip(corpus: Path) -> None:
 
     g2 = client.get("/api/operator-config", params={"path": str(corpus)})
     assert g2.json()["content"] == yaml_text
+    assert "local" in g2.json()["available_profiles"]
+
+
+def test_operator_config_put_rejects_feed_keys(corpus: Path) -> None:
+    app = create_app(corpus, static_dir=False, enable_operator_config_api=True)
+    client = TestClient(app)
+    bad = "rss_urls:\n  - https://x.example/rss\n"
+    r = client.put("/api/operator-config", params={"path": str(corpus)}, json={"content": bad})
+    assert r.status_code == 400
+    detail = r.json().get("detail")
+    assert isinstance(detail, dict)
+    assert detail.get("error") == "forbidden_operator_feed_keys"
 
 
 def test_operator_config_put_rejects_api_key(corpus: Path) -> None:
@@ -89,6 +108,20 @@ def test_operator_config_put_rejects_api_key(corpus: Path) -> None:
     detail = r.json().get("detail")
     assert isinstance(detail, dict)
     assert detail.get("error") == "forbidden_operator_keys"
+
+
+def test_operator_config_get_seeds_whitespace_only_file(corpus: Path) -> None:
+    cfg = corpus / "viewer_operator.yaml"
+    cfg.write_text("  \n  \n", encoding="utf-8")
+    app = create_app(corpus, static_dir=False, enable_operator_config_api=True)
+    client = TestClient(app)
+    r = client.get("/api/operator-config", params={"path": str(corpus)})
+    assert r.status_code == 200
+    body = r.json()
+    if "cloud_balanced" in body["available_profiles"]:
+        assert body["content"].strip() == "profile: cloud_balanced"
+    else:
+        assert body["content"].strip() == ""
 
 
 def test_operator_config_get_conflict_when_file_has_secrets(corpus: Path) -> None:
@@ -118,8 +151,8 @@ def test_feeds_rejects_path_outside_anchor(corpus: Path) -> None:
 def test_feeds_put_rejects_over_max_urls(corpus: Path) -> None:
     app = create_app(corpus, static_dir=False, enable_feeds_api=True)
     client = TestClient(app)
-    urls = [f"https://e{i}.example/feed" for i in range(5001)]
-    r = client.put("/api/feeds", params={"path": str(corpus)}, json={"urls": urls})
+    feeds = [f"https://e{i}.example/feed" for i in range(5001)]
+    r = client.put("/api/feeds", params={"path": str(corpus)}, json={"feeds": feeds})
     assert r.status_code == 400
 
 

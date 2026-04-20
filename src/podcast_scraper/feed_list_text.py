@@ -1,4 +1,4 @@
-"""Shared parsing for RSS URL list files (CLI ``--rss-file`` and viewer ``/api/feeds``)."""
+"""Shared parsing for RSS URL list files (CLI ``--rss-file`` legacy line lists)."""
 
 from __future__ import annotations
 

@@ -2,7 +2,7 @@
   "_comment": "Example podcast scraper configuration. Note: Some settings (like OPENAI_API_KEY, WORKERS, TIMEOUT) are better set via .env file. See config/examples/.env.example for environment variable options. Priority: CLI args > Config file > Environment variables > Defaults",
 
   "rss": "https://example.com/feed.xml",
-  "_comment_multi_feed": "Multi-feed (GitHub #440): use feeds array instead of rss; output_dir required. Cloud: config.example.multi-feed.cloud-llm.yaml/json. Ollama: config.example.multi-feed.ollama.yaml/json. Local ML: config.example.multi-feed.ml-dev.yaml/json (summary_mode_id ml_small_authority), ml-prod (ml_bart_led_autoresearch_v1).",
+  "_comment_multi_feed": "Multi-feed (GitHub #440): feeds/rss_urls in config, --feeds-spec (feeds.spec.example.yaml/json), or any line list via --rss-file; output_dir required when len(feeds)>=2. Compose profile + operator YAML + feeds — docs/api/CONFIGURATION.md#multi-feed-compose.",
   "output_dir": "output",
   "max_episodes": 3,
   "append": true,
@@ -43,7 +43,7 @@
   "_comment_llm_summary_prompts": "For API summary providers, defaults are JSON bullet templates (prompts/shared/summarization/). summary_prompt_params defaults: bullet_min, max_words_per_bullet; optional bullet_max. GI/KG use gi_max_insights and kg_max_topics as downstream ceilings. Paragraph mode: */long_v1 + */system_v1.",
   "metadata_format": "json",
 
-  "_comment_gi_kg_vector_preset": "Multi-feed / cloud examples align with config/manual/manual_multi_feed_corpus_rss_registry_openai_gemini.yaml: generate_gi true, gi_insight_source provider, gi_max_insights 12, generate_kg true, kg_extraction_source provider, kg_max_topics 10, vector_search true, vector_backend faiss. Optional topic clustering after indexing: python -m podcast_scraper.cli topic-clusters --output-dir <corpus_parent> (writes search/topic_clusters.json). See docs/rfc/RFC-075-corpus-topic-clustering.md",
+  "_comment_gi_kg_vector_preset": "Multi-feed / cloud examples align with config/profiles/cloud_balanced.yaml plus --feeds-spec pointing at your multi-feed RFC-077 document (generate_gi true, gi_insight_source provider, gi_max_insights 12, generate_kg true, kg_extraction_source provider, kg_max_topics 10, vector_search true, vector_backend faiss). Optional topic clustering after indexing: python -m podcast_scraper.cli topic-clusters --output-dir <corpus_parent> (writes search/topic_clusters.json). See docs/rfc/RFC-075-corpus-topic-clustering.md",
 
   "_comment_openai": "OpenAI configuration (required if using any OpenAI providers). Note: OPENAI_API_KEY should be set in .env file. Optional model settings: openai_transcription_model (default: whisper-1), openai_speaker_model (default: gpt-4o-mini), openai_summary_model (env-based test/prod), openai_cleaning_model (default: gpt-4o-mini for hybrid/LLM transcript cleaning), openai_temperature (default: 0.3)",
   "_comment_gemini": "Gemini configuration (required if using any Gemini providers). Note: GEMINI_API_KEY should be set in .env file. Optional model settings: gemini_transcription_model (default: environment-based, gemini-1.5-flash for test/dev, gemini-1.5-pro for prod), gemini_speaker_model (default: environment-based), gemini_summary_model (default: environment-based), gemini_temperature (default: 0.3), gemini_max_tokens (default: null)",

@@ -23,10 +23,11 @@
 - **Related Documents**:
   - [SERVER_GUIDE.md](../guides/SERVER_GUIDE.md)
   - [CONFIGURATION.md](../api/CONFIGURATION.md)
+  - [GitHub #593](https://github.com/chipi/podcast_scraper/issues/593) — optional root **`profile:`** merges packaged `config/profiles/<name>.yaml` defaults (`Config._resolve_profile`)
 
 ## Abstract
 
-This RFC specifies **Phase 1**: (a) opt-in **`GET`/`PUT /api/feeds`** for `rss_urls.list.txt` under the corpus root; (b) opt-in **`GET`/`PUT /api/operator-config`** for a **viewer-safe operator YAML** file whose location follows **precedence**: path from **`podcast serve --config-file`** when the server was started with it, else a **fixed basename under the resolved corpus root** (e.g. `viewer_operator.yaml`). **Secrets never belong in that file** — only environment variables; **PUT** and (optionally) **GET** enforce a **forbidden-key denylist** aligned with [RFC-008](RFC-008-config-model.md) / sensitive field names.
+This RFC specifies **Phase 1**: (a) opt-in **`GET`/`PUT /api/feeds`** for structured corpus **`feeds.spec.yaml`** (root **`{ feeds: [...] }`** — JSON on the wire; extension selects YAML vs JSON on disk when using **`--feeds-spec`**); (b) opt-in **`GET`/`PUT /api/operator-config`** for a **viewer-safe operator YAML** file whose location follows **precedence**: path from **`podcast serve --config-file`** when the server was started with it, else a **fixed basename under the resolved corpus root** (e.g. `viewer_operator.yaml`). **Secrets never belong in that file** — only environment variables; **PUT** and (optionally) **GET** enforce **forbidden secret keys** and **forbidden feed-list keys** at the YAML root (see § Phase 1b), aligned with [RFC-008](RFC-008-config-model.md). **`GET`** also returns **`available_profiles`** for the viewer profile picker (#593).
 
 **Phase 2** specifies **HTTP-triggered pipeline jobs** (**child OS subprocess** of `serve` — see **§ Phase 2 — Architecture decision** for why and what we rejected), a **durable job registry**, **stale and orphan detection**, **cancel** semantics, and **operator-facing reconciliation** so many runs do not leave ambiguous background state. **`GET /api/health`** gains only **capability booleans** (`feeds_api`, `operator_config_api`, `jobs_api`); job payloads never live on health.
 
@@ -51,10 +52,12 @@ Operators need **feeds + config + job clarity** without leaving the viewer. With
 
 ## Design & Implementation
 
-### Phase 1a — Feeds (unchanged mechanics)
+### Phase 1a — Feeds (structured spec)
 
-- Basename **`rss_urls.list.txt`** at corpus root.
-- **`GET`/`PUT /api/feeds?path=`** — JSON body for PUT `{ "urls": string[] }`.
+- **Canonical basename:** **`feeds.spec.yaml`** at corpus root (writer default). **`--feeds-spec PATH`** accepts **`.yaml`**, **`.yml`**, or **`.json`**; parser choice follows the file extension (same pattern as main **`--config`** / `load_config_file`).
+- **Document schema:** top-level **object** with a single **`feeds`** array (required). Each element is either a **string** (RSS URL) or an **object** with required **`url`** (http/https) and optional keys that are an **explicit allowlist** of per-inner-run `Config` fields (download resilience, timeouts, user agent, episode window — see `podcast_scraper.rss.feeds_spec.RSS_FEED_ENTRY_OVERRIDE_KEYS`). Unknown keys on feed objects are rejected (**`extra="forbid"`**). Unknown top-level keys besides **`feeds`** and optional **`_comment*`** are rejected.
+- **`GET`/`PUT /api/feeds?path=`** — JSON: **`GET`** returns **`path`**, **`file_relpath`**, **`feeds`** (mixed strings and objects; URL-only entries may be returned as bare strings). **`PUT`** body **`{ "feeds": [...] }`**; server validates, dedupes by URL (first-seen order), writes **UTF-8 YAML** atomically to **`feeds.spec.yaml`**.
+- **Merge order (CLI and jobs):** packaged **`profile:`** (if any) → global operator **`Config`** → **per-feed entry** fields from the spec file for overlapping keys on each inner `run_pipeline` config (`model_copy` update).
 - **`feeds_api`** on **`GET /api/health`** reflects `app.state.feeds_api_enabled` (from `create_app(..., enable_feeds_api=...)`).
 - `create_app(..., enable_feeds_api=False)`; `PODCAST_SERVE_ENABLE_FEEDS_API` for the uvicorn reload factory (`serve_feature_kwargs_from_environ`).
 - Fix typo in any prior notes: health route is **`GET /api/health`**, not `/api/handler`.
@@ -73,12 +76,22 @@ Operators need **feeds + config + job clarity** without leaving the viewer. With
 
 **HTTP:**
 
-- **`GET /api/operator-config?path=<corpus>`** — resolve corpus with `resolve_corpus_path_param`; JSON matches **`OperatorConfigGetResponse`**: `corpus_path`, **`operator_config_path`** (absolute path string), `content` (no separate `format` field).
-- **`PUT /api/operator-config?path=<corpus>`** — same corpus resolution; body = YAML string; **reject** forbidden keys; atomic write to **`operator_config_path`** only.
+- **`GET /api/operator-config?path=<corpus>`** — resolve corpus with `resolve_corpus_path_param`; JSON matches **`OperatorConfigGetResponse`**: `corpus_path`, **`operator_config_path`** (absolute path string), `content`, **`available_profiles`** (sorted list of packaged preset **names** without `.yaml` extension). **Side effect:** if the operator file is **missing or whitespace-only** and **`cloud_balanced`** is in **`available_profiles`**, the handler **creates** the file with **`profile: cloud_balanced`** before returning (so the viewer profile picker has a sane default without an extra **PUT**). If **`cloud_balanced`** is not packaged in the environment, **`content`** may stay empty until the operator **PUT**s.
+- **`PUT /api/operator-config?path=<corpus>`** — same corpus resolution; body = YAML string; **reject** forbidden secret keys **and** forbidden **feed-list** top-level keys (see **§ Feeds vs operator YAML**); atomic write to **`operator_config_path`** only.
 
 **Health:** `operator_config_api: bool` reflects `app.state.operator_config_api_enabled`.
 
-**Viewer:** status bar **Config** next to **Feeds**; shared **modal with tabs** (Feeds | Config) per UXS-001; Config tab = monospace editor + “Validate” + Save; surface validation errors from `422` body.
+**Viewer:** status bar **Config** next to **Feeds**; shared **modal with tabs** (Feeds | Config) per UXS-001; Config tab = **Profile** `<select>` (from `available_profiles` + “None”) + monospace **overrides** YAML + Save; surface validation errors from `422` / forbidden-key `400` bodies.
+
+#### Profile composition (#593)
+
+Operator YAML may include a single top-level **`profile: <preset>`** line. At pipeline load, `Config` merges **`config/profiles/<preset>.yaml`** as **defaults**, then applies explicit keys from the same operator file (explicit wins). The `profile` key is consumed and is not a persisted `Config` field. **`available_profiles`** on **`GET /api/operator-config`** lists packaged presets by **unioning** `*.yaml` stems from every **`config/profiles`** directory that exists: **(1)** cwd-relative `config/profiles` (same as `Config._resolve_profile`’s first candidate), **(2)** repo-root `config/profiles` next to the installed sources, de-duplicated by resolved path. Excludes **`*.example.yaml`** (stem ends with `.example`). If no directories exist, **`available_profiles`** is an empty array.
+
+#### Feeds vs operator YAML
+
+Canonical **viewer** workflow: **feeds** live in corpus **`feeds.spec.yaml`** (Feeds API; CLI **`--feeds-spec`** with the same resolved path). Operator YAML **must not** duplicate feed sources at the **root** mapping. **`PUT /api/operator-config`** rejects these top-level keys (normalized): **`rss`**, **`rss_url`**, **`rss_urls`**, **`feeds`** — response `detail.error` = **`forbidden_operator_feed_keys`** when **every** forbidden key is a feed-list key; **`forbidden_operator_keys`** when any other forbidden key appears (**including** a mix of feed keys and secrets — clients should use `detail.keys` for specifics; same HTTP **400** shape with `keys` list).
+
+**Phase 2 jobs:** when **`feeds.spec.yaml`** exists under the corpus anchor, child argv passes **`--feeds-spec <absolute path>`** and **`--config`** (same flag the main CLI uses) to `operator_config_path`; effective pipeline config includes **`profile:`** merge as above. Legacy **`--rss-file`** remains on the main CLI for line lists but is not what the job runner or Feeds API emit.
 
 ### Phase 2 — Jobs and subprocess
 
@@ -148,7 +161,7 @@ This subsection records **design validation** (including informal cross-check ag
 
 ### Phase 2 — Job registry and hygiene (“end of day clear”)
 
-**Child argv (reference):** subprocess includes **`--output-dir`** = resolved corpus anchor, **`--config-file`** = `str(app.state.operator_config_path)`, **`--rss-file`** = absolute path to `rss_urls.list.txt` under anchor (plus any agreed pipeline flags from RFC / CLI).
+**Child argv (reference):** subprocess includes **`--output-dir`** = resolved corpus anchor, **`--config`** = `str(app.state.operator_config_path)` (operator file may set **`profile:`** — merged with packaged preset before `Config` validation), and **`--feeds-spec`** = absolute path to **`feeds.spec.yaml`** under anchor when present (plus any agreed pipeline flags from RFC / CLI). Feed entries for the run come from that spec file, not from operator YAML root keys.
 
 **Registry storage:** under corpus root **`.viewer/jobs.jsonl`** (or SQLite if concurrency demands — start JSONL + file lock).
 
@@ -186,7 +199,7 @@ Optional bridge: child pipeline may still emit `.pipeline_status.json`; server *
 
 ## Testing strategy
 
-- Integration: feeds + operator-config PUT rejection on forbidden key; GET legacy file with secret → error path.
+- Integration: feeds + operator-config PUT rejection on forbidden secret and forbidden feed keys; GET legacy file with secret → error path; GET includes `available_profiles`; feeds **`GET`/`PUT`** round-trip **`feeds`** JSON vs **`feeds.spec.yaml`** on disk; structured spec parser rejects unknown top-level keys and unknown per-feed keys.
 - Job hygiene: unit/integration for stale transition + cancel mock subprocess.
 - Playwright: mocked APIs for dialogs.
 
@@ -207,3 +220,6 @@ Optional bridge: child pipeline may still emit `.pipeline_status.json`; server *
 | 2026-04-19 | ADR-style section: **child subprocess** for pipeline vs in-process / BackgroundTasks / broker; alternatives table + external validation note |
 | 2026-04-19 | **§ Validation** expanded (soundness + limits); **§ ADR** — default RFC-only, when to add new ADR |
 | 2026-04-19 | Align with shipped code: `app.state.*_enabled`, `operator_config_path`, GET JSON shape, Phase 2 route list + reconcile, cancel v1 (SIGTERM only, cancel_pending semantics) |
+| 2026-04-20 | Profiles (#593): `available_profiles` on GET; PUT rejects root feed keys; viewer profile picker + overrides; § Profile composition + feeds vs operator YAML |
+| 2026-04-21 | `available_profiles` union cwd + repo `config/profiles/`; mixed PUT errors documented; viewer profile select sole source of truth on save |
+| 2026-04-20 | **Feeds spec:** canonical **`feeds.spec.yaml`**, **`{ feeds: [...] }`** schema, **`--feeds-spec`**, **`GET`/`PUT`** JSON shape (**`feeds`** not **`urls`**), per-feed override allowlist + merge order; jobs argv **`--config`** + **`--feeds-spec`** (replaces **`--rss-file`** / **`--config-file`** for child CLI) |

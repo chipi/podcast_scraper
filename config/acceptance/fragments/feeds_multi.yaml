@@ -1,0 +1,7 @@
+# Five placeholder feeds — slot order matches modify_config_for_fixtures (E2E podcast1..5).
+feeds:
+  - https://example.invalid/e2e-placeholder-feed-p01.xml
+  - https://example.invalid/e2e-placeholder-feed-p02.xml
+  - https://example.invalid/e2e-placeholder-feed-p03.xml
+  - https://example.invalid/e2e-placeholder-feed-p04.xml
+  - https://example.invalid/e2e-placeholder-feed-p05.xml

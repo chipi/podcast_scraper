@@ -1,0 +1,30 @@
+# Fast acceptance matrix (runtime merge). See config/acceptance/README.md.
+# Each enabled row: merge defaults + feeds fragment + profile:, materialized as
+# sessions/session_*/materialized/{id}.yaml (--from-fast-stems).
+version: 1
+defaults: fragments/acceptance_defaults.yaml
+
+runs:
+  - id: fast_airgapped_single
+    profile: airgapped
+    feeds_shape: single
+
+  - id: fast_airgapped_multi
+    profile: airgapped
+    feeds_shape: multi
+
+  - id: fast_cloud_balanced_single
+    profile: cloud_balanced
+    feeds_shape: single
+
+  - id: fast_cloud_balanced_multi
+    profile: cloud_balanced
+    feeds_shape: multi
+
+  - id: fast_cloud_quality_single
+    profile: cloud_quality
+    feeds_shape: single
+
+  - id: fast_dev_single
+    profile: dev
+    feeds_shape: single

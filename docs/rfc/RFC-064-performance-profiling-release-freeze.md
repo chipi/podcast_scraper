@@ -293,7 +293,7 @@ Equivalent to:
 Pipeline YAML files live under **`config/profiles/`** (alongside **`data/profiles/`** outputs). That keeps capture configs separate from quality evaluation configs under `data/eval/` / `config/eval/` — profiling and eval are parallel tracks (see Relationship to RFC-041).
 
 For **repeatable, offline-friendly RSS**, use the same placeholder URL pattern as
-`config/acceptance/sample_acceptance_e2e_fixture_single.yaml` (`example.invalid` /
+`config/acceptance/fragments/feeds_single.yaml` / `FAST_CONFIG.yaml` (`example.invalid` /
 `e2e-placeholder`): `freeze_profile.py` then starts **`E2EHTTPServer`** and points
 the config at fixture feed **`podcast1_mtb`** by default (override via `--e2e-feed`
 or `E2E_FEED=` in the Makefile). Cloud LLM API calls are still real unless you
@@ -465,7 +465,7 @@ The two systems are **intentionally separate runs**. Profiling overhead (psutil 
 config/profiles/
   README.md
   profile_freeze.example.yaml  # Copy to e.g. profile_freeze.yaml (not necessarily committed)
-  capture_e2e_*.yaml           # E2E mock RSS presets (aligned with sample acceptance fixtures)
+  freeze/*.yaml                  # E2E mock RSS presets (merged with freeze/_defaults.yaml)
 
 data/profiles/
   v2.3.0.yaml

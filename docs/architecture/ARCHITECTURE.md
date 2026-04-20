@@ -1023,12 +1023,12 @@ Runtime configuration organized by use case.
 
 | Folder | Purpose |
 | ------ | ------- |
-| `acceptance/` | Acceptance test YAML matrices (per-provider, multi-feed); `FAST_CONFIGS.txt` for CI subset |
-| `ci/` | CI-oriented config lists (`acceptance_fast_stems.txt`) |
+| `acceptance/` | Acceptance fast matrix (`FAST_CONFIG.yaml`) + fragments; optional local YAML presets |
+| `ci/` | CI-oriented local-only files (gitignored except `README.md`; not used for acceptance fast list) |
 | `examples/` | Example YAML/JSON configs and `.env.example` for onboarding |
 | `manual/` | Manual/benchmark-oriented configs (GI/KG, multi-feed variants) |
 | `playground/` | Experimental user-specific configs |
-| `profiles/` | Capture/E2E performance profiles (`capture_e2e_*.yaml`); frozen profile snapshots (RFC-064) |
+| `profiles/` | Deployment YAML; `profiles/freeze/` for RFC-064 capture presets; frozen snapshots in `data/profiles/` |
 
 Root files: `digest_topics.yaml` (Corpus Digest
 topic-band config, RFC-068),

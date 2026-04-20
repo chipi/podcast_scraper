@@ -90,7 +90,7 @@ def parse_serve_argv(argv: Sequence[str]) -> Namespace:
     parser.add_argument(
         "--enable-feeds-api",
         action="store_true",
-        help="Expose GET/PUT /api/feeds (rss_urls.list.txt under corpus root).",
+        help="Expose GET/PUT /api/feeds (feeds.spec.yaml under corpus root).",
     )
     parser.add_argument(
         "--enable-operator-config-api",

@@ -151,9 +151,9 @@ help:
 	@echo "  make test-reruns     Run tests with reruns for flaky tests (2 retries, 1s delay)"
 	@echo "  make test-acceptance  Run E2E acceptance tests (multiple configs sequentially)"
 	@echo "                            Usage: make test-acceptance CONFIGS=\"…\" [USE_FIXTURES=1] …"
-	@echo "                            Or:     make test-acceptance FROM_FAST_STEMS=1 USE_FIXTURES=1 (tracked fast matrix + path resolve)"
+	@echo "                            Or:     make test-acceptance FROM_FAST_STEMS=1 USE_FIXTURES=1 (materialize FAST_CONFIG.yaml rows)"
 	@echo "                            Configs with vector_search: run make preload-ml-models without SKIP_GIL=1 so FAISS indexing has cached embeddings offline."
-	@echo "  make test-acceptance-fixtures-fast  Same as FROM_FAST_STEMS=1 + USE_FIXTURES=1 + no auto analyze/benchmark; optional TIMEOUT=seconds (default 900)"
+	@echo "  make test-acceptance-fixtures-fast  Same as FROM_FAST_STEMS=1 + USE_FIXTURES=1 + no auto analyze/benchmark; optional TIMEOUT=seconds (default 900; CI uses 1500)"
 	@echo "                            Options: USE_FIXTURES=1 uses test fixtures (default: uses real RSS/APIs)"
 	@echo "                                     NO_SHOW_LOGS=1 disables real-time log streaming (default: logs shown)"
 	@echo "                                     NO_AUTO_ANALYZE=1 disables automatic analysis (default: analysis runs automatically)"
@@ -450,7 +450,7 @@ validate-kg-schema:
 # GI/KG viewer v2 (RFC-062 / #489): FastAPI + Vite. Install: pip install -e '.[server]'; cd $(WEB_VIEWER_DIR) && npm install
 .PHONY: serve serve-api serve-ui serve-e2e-mock
 SERVE_OUTPUT_DIR ?= ./output
-# Fixed port for ``config/manual/manual_e2e_mock.yaml`` (override when YAML edited).
+# Default E2E mock RSS port (127.0.0.1:18765; override with E2E_MOCK_PORT when fixture URLs change).
 # Deliberately not 8000 so ``serve-e2e-mock`` can run alongside ``serve-api`` (FastAPI default).
 E2E_MOCK_PORT ?= 18765
 serve:
@@ -463,7 +463,7 @@ serve-api:
 serve-ui:
 	@cd $(WEB_VIEWER_DIR) && npm run dev
 
-# E2E fixture HTTP server (RSS + mock API paths) for manual multi-feed YAML (see config/manual/manual_e2e_mock.yaml).
+# E2E fixture HTTP server (RSS + mock API paths); use --feeds-spec with URLs on this port.
 serve-e2e-mock:
 	@export PYTHONPATH="${PYTHONPATH}:$(PWD)/src:$(PWD)" && $(PYTHON) scripts/tools/run_e2e_mock_server.py --port "$(E2E_MOCK_PORT)"
 
@@ -893,7 +893,7 @@ test-acceptance:
 		echo ""; \
 		echo "Options:"; \
 		echo "  CONFIGS=pattern         Config glob(s), space-separated (required unless FROM_FAST_STEMS=1)"; \
-		echo "  FROM_FAST_STEMS=1      Resolve YAMLs from fast stem list (FAST_CONFIGS.txt; optional config/ci/acceptance_fast_stems.txt)"; \
+		echo "  FROM_FAST_STEMS=1      Materialize rows from config/acceptance/FAST_CONFIG.yaml"; \
 		echo "  USE_FIXTURES=1          Use E2E server fixtures (test feeds and mock APIs)"; \
 		echo "  NO_SHOW_LOGS=1          Disable streaming logs to console"; \
 		echo "  NO_AUTO_ANALYZE=1       Disable automatic analysis after session"; \
@@ -928,7 +928,7 @@ test-acceptance:
 		--log-level INFO
 
 # Fixture smoke for the full *fast* acceptance matrix (offline E2E server + mock APIs).
-# Resolves each stem to config/acceptance/<stem>.yaml or config/examples/<stem>.yaml.
+# Materializes each enabled row from config/acceptance/FAST_CONFIG.yaml under session_*/materialized/.
 test-acceptance-fixtures-fast:
 	@$(PYTHON) scripts/acceptance/run_acceptance_tests.py \
 		--from-fast-stems \

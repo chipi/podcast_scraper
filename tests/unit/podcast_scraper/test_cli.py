@@ -24,6 +24,7 @@ if PROJECT_ROOT not in sys.path:
 import pytest
 
 from podcast_scraper import cli, config
+from podcast_scraper.rss.feeds_spec import RssFeedEntry
 
 pytestmark = [pytest.mark.unit, pytest.mark.module_cli]
 
@@ -2967,8 +2968,17 @@ class TestLoadAndMergeConfig(unittest.TestCase):
         cli._add_common_arguments(parser)
 
         args = cli._load_and_merge_config(parser, "config.yaml", [])
+        raw_feeds = getattr(args, "rss_urls", None) or []
+        urls: list[str] = []
+        for item in raw_feeds:
+            if isinstance(item, RssFeedEntry):
+                urls.append(item.url)
+            elif isinstance(item, dict):
+                urls.append(str(item.get("url", "")))
+            else:
+                urls.append(str(item))
         self.assertEqual(
-            args.rss_urls,
+            urls,
             ["https://a.example/feed.xml", "https://b.example/feed.xml"],
         )
         self.assertEqual(args.output_dir, "/tmp/corpus_multi")

@@ -23,7 +23,7 @@ See **SCHEMA.md** in this folder for the schema (fields, types, examples).
 
 - **rules_applied / rules_missed**: Use the numbering from `.cursorrules` (0, 1, 2, 2a, 3, 4, 5, 8a, 8b, 9, 9a, 12, 13, 14, 15, 16) or short labels. Empty list is allowed for either.
 - **skills_used**: Only include skills you actually used (e.g. from `~/.cursor/skills/` or project skills). Omit key or use `[]` if none.
-- **subagents_used**: Only include subagents you delegated to (e.g. verifier, ci-fix-loop, acceptance from `.cursor/agents/`). Omit key or use `[]` if none.
+- **subagents_used**: Only include Task/subagent types you delegated to (e.g. verifier, ci-fix-loop, explore). Omit key or use `[]` if none. Optional file-backed agents may live under **`.cursor/agents/`** locally; this repo documents slash commands under **`.cursor/commands/`** instead.
 
 ## Known subagents (this project)
 

@@ -1,9 +1,16 @@
-"""Reject operator YAML that embeds secrets (viewer PUT / operator file checks).
+"""Reject operator YAML that embeds secrets or feed-list keys (viewer PUT / file checks).
 
-Only **top-level** mapping keys are checked. Nested mappings (e.g. ``providers:``) are
-not scanned — secrets there would still load in the real pipeline if present on disk;
-operators should treat this API as a convenience editor with a shallow denylist, not
-a full secret scanner.
+**Top-level** mapping keys only: forbidden credential names, ``*_api_key`` / password /
+secret heuristics, and feed-source keys (``rss``, ``rss_url``, ``rss_urls``, ``feeds``)
+that belong in corpus ``feeds.spec.yaml`` (Feeds API) for the viewer workflow.
+
+Nested mappings (e.g. ``providers:``) are **not** scanned — secrets there would still
+load in the real pipeline if present on disk. Treat this API as a **shallow** gate, not
+a full secret or feed scanner.
+
+When both feed keys and other forbidden keys appear, ``detail.error`` is
+``forbidden_operator_keys`` (not ``forbidden_operator_feed_keys``); ``detail.keys`` lists
+all offending top-level keys.
 """
 
 from __future__ import annotations
@@ -14,6 +21,17 @@ import yaml
 from fastapi import HTTPException, status
 
 # Known Config credential fields (snake_case). Extend when new provider keys ship.
+# Top-level keys that duplicate the canonical feeds list / RSS sources (Feeds API +
+# feeds.spec.yaml).
+_FORBIDDEN_FEED_KEYS_NORMALIZED: frozenset[str] = frozenset(
+    {
+        "rss",
+        "rss_url",
+        "rss_urls",
+        "feeds",
+    }
+)
+
 _FORBIDDEN_NORMALIZED: frozenset[str] = frozenset(
     {
         "openai_api_key",
@@ -38,6 +56,9 @@ def forbidden_operator_top_level_keys(data: dict[str, Any]) -> list[str]:
     bad: list[str] = []
     for raw_key in data:
         nk = _norm_key(str(raw_key))
+        if nk in _FORBIDDEN_FEED_KEYS_NORMALIZED:
+            bad.append(str(raw_key))
+            continue
         if nk in _FORBIDDEN_NORMALIZED:
             bad.append(str(raw_key))
             continue
@@ -72,7 +93,13 @@ def assert_operator_yaml_safe_for_persist(text: str) -> None:
         )
     bad = forbidden_operator_top_level_keys(parsed)
     if bad:
+        feed_hits = [k for k in bad if _norm_key(k) in _FORBIDDEN_FEED_KEYS_NORMALIZED]
+        err = (
+            "forbidden_operator_feed_keys"
+            if feed_hits and len(feed_hits) == len(bad)
+            else "forbidden_operator_keys"
+        )
         raise HTTPException(
             status.HTTP_400_BAD_REQUEST,
-            detail={"error": "forbidden_operator_keys", "keys": bad},
+            detail={"error": err, "keys": bad},
         )

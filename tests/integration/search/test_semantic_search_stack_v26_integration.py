@@ -272,7 +272,9 @@ def test_run_corpus_search_single_doc_type_uses_faiss_filter(
 
 def test_indexer_helpers_and_kg_vector_rows(tmp_path: Path) -> None:
     assert _embedding_dim("sentence-transformers/all-MiniLM-L6-v2") == 384
-    cfg = config_mod.Config(rss_urls=["https://example.com/feed.xml"])
+    cfg = config_mod.Config(
+        rss_urls=[config_mod.RssFeedEntry(url="https://example.com/feed.xml")],
+    )
     p = _resolve_index_dir(str(tmp_path), cfg)
     assert p == (tmp_path / "search").resolve()
 

@@ -88,7 +88,7 @@ corpus routes — **not** behind the historical `enable_platform` stub package:
 
 | Surface | Router module | `create_app` flag | Serve / env (reload factory) |
 | ------- | ------------- | ----------------- | ---------------------------- |
-| RSS list file (`rss_urls.list.txt`) | `routes/feeds.py` | `enable_feeds_api` | `--enable-feeds-api` / `PODCAST_SERVE_ENABLE_FEEDS_API` |
+| Structured feeds file (`feeds.spec.yaml`) | `routes/feeds.py` | `enable_feeds_api` | `--enable-feeds-api` / `PODCAST_SERVE_ENABLE_FEEDS_API` |
 | Operator YAML (non-secret) | `routes/operator_config.py` | `enable_operator_config_api` | `--enable-operator-config-api` / `PODCAST_SERVE_ENABLE_OPERATOR_CONFIG_API` |
 | Pipeline jobs (subprocess + registry) | `routes/jobs.py` | `enable_jobs_api` | `--enable-jobs-api` / `PODCAST_SERVE_ENABLE_JOBS_API` |
 

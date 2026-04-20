@@ -26,110 +26,69 @@ something works while you **run** the steps.
 | **Provider / API setup** | [Provider configuration quick reference](../guides/PROVIDER_CONFIGURATION_QUICK_REFERENCE.md) |
 | **Automated test context (optional)** | [TESTING_STRATEGY.md](../architecture/TESTING_STRATEGY.md); acceptance index at repo root: `config/acceptance/README.md` |
 | **Transcript-only GIL/KG eval (stub, `data/eval`)** | `data/eval/configs/README.md` (repo root); sample YAML: `gil_eval_stub_curated_5feeds_smoke_v1.yaml`, `kg_eval_stub_curated_5feeds_smoke_v1.yaml`; [EXPERIMENT_GUIDE — GIL/KG experiments](../guides/EXPERIMENT_GUIDE.md#grounded-insights-gil-and-knowledge-graph-kg-experiments) |
-| **Manual GI+KG configs (this workflow)** | Index: `config/manual/README.md` at repo root — NPR Planet Money `510289`, OpenAI-first presets |
+| **Manual GI+KG configs (this workflow)** | Feeds: RFC-077 **`--feeds-spec`** file (shape: **`config/examples/feeds.spec.example.yaml`**); operator YAML: **`profile:`**, **`output_dir`**, etc. |
 
 ---
 
-## Ready-made configs: NPR feeds and OpenAI-first
+## Feeds specs + operator YAML {#feeds-specs-operator-yaml}
 
-Feeds match **GI/KG acceptance**: NPR Planet Money
-`https://feeds.npr.org/510289/podcast.xml` (same as
-`config/acceptance/acceptance_planet_money_*.yaml`).
+**Feeds lists** use the RFC-077 shape (**`feeds:`** entries with **`url`**). Start from **`config/examples/feeds.spec.example.yaml`** / **`.json`** and point entries at the RSS URLs you want to validate.
 
-**Index and file list:** `config/manual/README.md` (repository root).
+**Operators:** use **`profile:`** (for example **`cloud_balanced`**) plus **`output_dir`**, **`max_episodes`**, **`delay_ms`**, **`append`**, … Start from **`config/examples/config.example.yaml`** or your own YAML.
 
-| Step | What you exercise | Config file (repo root) | `output_dir` in YAML (use as `$OUT` below) |
-| --- | --- | --- | --- |
-| **A (optional)** | Summaries + metadata only; no GI/KG | `config/manual/manual_planet_money_openai_summaries_only.yaml` | `.test_outputs/manual/planet_money_openai_summaries_only` |
-| **B (recommended)** | OpenAI stack; **GI + KG from summary bullets** (fewer LLM calls than `provider`) | `config/manual/manual_planet_money_openai_gi_kg_summary_bullets.yaml` | `.test_outputs/manual/planet_money_openai_gi_kg_summary_bullets` |
-| **C** | OpenAI stack; **GI + KG via `provider`** (`generate_insights`, `extract_kg_graph`) | `config/manual/manual_planet_money_openai_gi_kg_provider.yaml` | `.test_outputs/manual/planet_money_openai_gi_kg_provider` |
-| **D (optional)** | **Local ML** summaries; GI+KG bullets (no API keys) | `config/manual/manual_planet_money_ml_gi_kg_summary_bullets.yaml` | `.test_outputs/manual/planet_money_ml_gi_kg_summary_bullets` |
-| **E (multi-feed)** | **OpenAI Whisper + Gemini** (speaker + summary `gemini-2.5-flash-lite`); **two feeds in one corpus** (Planet Money + The Journal); GI+KG bullets | `config/manual/manual_multi_feed_planet_money_journal_openai_gemini.yaml` | `.test_outputs/manual/multi_feed_pm_journal_openai_gemini` |
-| **F (multi-feed + append)** | Same as **E** with **`append: true`**; stable `run_append_*` per feed; re-run CLI to skip complete episodes | `config/manual/manual_multi_feed_planet_money_journal_openai_gemini_append.yaml` | `.test_outputs/manual/multi_feed_pm_journal_openai_gemini_append` |
-| **G (multi-feed, fixtures)** | **Eight** E2E mock RSS feeds on **`127.0.0.1`**: primary **`podcast1`–`podcast5`** plus long-form **`podcast7_sustainability`**, **`podcast8_solar`**, **`podcast9_solo`** (p07–p09; **p06** edge-case feed omitted); OpenAI Whisper + Gemini preset (GI/KG on) | **`make serve-e2e-mock`** then `config/manual/manual_e2e_mock.yaml` | `output` (see YAML ``output_dir``) |
+| Step | What you exercise | `--feeds-spec` |
+| --- | --- | --- |
+| **A** | Single feed you know well | path to a one-feed RFC-077 document |
+| **B** | Different single feed | path to another one-feed document |
+| **C** | Two-feed corpus | path to a two-feed RFC-077 document |
+| **D (append)** | Same feeds as **C** with **`append: true`** on the operator YAML | same **`--feeds-spec`** |
+| **E (fixtures)** | Mock feeds on **`127.0.0.1`** | document whose URLs target **`make serve-e2e-mock`** (default port **18765**) |
+| **F** | Larger multi-feed run | your own multi-feed document (watch rate limits / geo blocks) |
 
-**Multi-feed ergonomics (E/F):** Treat the YAML **`output_dir`** as the **corpus parent** (folder that contains **`feeds/`**). Offline batch summary: **`python -m podcast_scraper.cli corpus-status --output-dir <corpus_parent>`**. **`gi inspect`** / **`kg inspect`** with **`--output-dir`** pointing at that parent accept **`--feed-id`** (metadata **`feed.feed_id`**) when the same **`episode_id`** could match more than one feed — see [CONFIGURATION.md — RSS and multi-feed](../api/CONFIGURATION.md#rss-and-multi-feed-corpus-github-440). **Viewer / `serve`:** use the **same corpus parent** as **`--output-dir`** so **`/api/search`** finds **`<corpus>/search/`**; if you list artifacts from a path under **`feeds/...`** only, the UI may show a **Corpus path hint** pointing at the parent.
-
-**Run (direct CLI — output goes to the YAML `output_dir`):**
+**Example CLI (multi-feed):**
 
 ```bash
-python -m podcast_scraper.cli --config config/manual/manual_planet_money_openai_gi_kg_summary_bullets.yaml
+python -m podcast_scraper.cli \
+  --config path/to/operator.yaml \
+  --feeds-spec path/to/your-feeds.yaml \
+  --output-dir .test_outputs/manual/my-manual-run
 ```
 
-**Run (acceptance runner — session layout under `.test_outputs/acceptance/` unless you pass `OUTPUT_DIR`):**
+**Acceptance runner** (session layout under **`.test_outputs/acceptance/`** unless **`OUTPUT_DIR`**):
 
 ```bash
-make test-acceptance CONFIGS="config/manual/manual_planet_money_openai_gi_kg_summary_bullets.yaml"
+make test-acceptance CONFIGS="path/to/operator.yaml"
 ```
 
-OpenAI steps need **`OPENAI_API_KEY`** (see `examples/.env.example`).
+**Keys:** depends on **`profile:`** (for **`cloud_balanced`**, see **`config/examples/.env.example`**).
 
-**Step B (OpenAI + summary bullets GI/KG):** With **`gil_evidence_match_summary_provider: true`** (default),
-`Config` aligns **`quote_extraction_provider`** and **`entailment_provider`** to **`summary_provider`**
-when they would otherwise stay **`transformers`**, so this preset uses **OpenAI for GIL grounding**
-and does **not** require **`.[ml]`** for NLI. Set **`gil_evidence_match_summary_provider: false`**
-if you want **local** HF QA/NLI with API summaries (install **`pip install -e ".[ml]"`**). See
-[GROUNDED_INSIGHTS_GUIDE — GIL evidence provider matrix](../guides/GROUNDED_INSIGHTS_GUIDE.md#gil-evidence-provider-matrix)
-and [CONFIGURATION.md — GIL evidence providers](../api/CONFIGURATION.md#grounded-insights-gil-evidence-providers).
-
-For ML step **D**, set `whisper_device` / `summary_device` to **`cpu`** in the YAML if you are not
-on Apple Silicon or MPS is unavailable.
+**GI evidence:** See [GROUNDED_INSIGHTS_GUIDE — GIL evidence provider matrix](../guides/GROUNDED_INSIGHTS_GUIDE.md#gil-evidence-provider-matrix).
 
 ### Acceptance configs (full pipeline, CI-style)
 
-Same NPR / WSJ feeds and provider matrix as automation; each YAML runs **summaries + GI +
-KG + semantic index** (`summary_bullets` for GI and KG — not stub-only splits). See
-`config/acceptance/README.md` at the repository root.
+Matrix-driven runs: **`config/acceptance/FAST_CONFIG.yaml`** + **`fragments/`**. See **`config/acceptance/README.md`** and **`scripts/acceptance/README.md`**.
 
-| Use case | Example config |
-| --- | --- |
-| Full pipeline, OpenAI stack | `config/acceptance/acceptance_planet_money_openai.yaml` |
-| Full pipeline, local ML (dev / faster models) | `config/acceptance/acceptance_planet_money_ml_dev.yaml` |
-| Full pipeline, local ML (prod-style models) | `config/acceptance/acceptance_planet_money_ml_prod.yaml` |
-| Full pipeline, another cloud provider | `config/acceptance/acceptance_planet_money_<provider>.yaml` (e.g. `gemini`, `anthropic`) |
-
-For **The Journal** (WSJ feed), mirror with `config/acceptance/acceptance_the_journal_*.yaml`.
-
-For **both feeds in one acceptance run** (multi-feed corpus, OpenAI), use
-`config/acceptance/acceptance_multi_feed_planet_money_journal_openai.yaml` (local preset; see `scripts/acceptance/README.md`).
-
-For **multi-feed + append / resume** (GitHub #444), use
-`config/acceptance/acceptance_multi_feed_planet_money_journal_openai_append.yaml` or
-`config/acceptance/acceptance_multi_feed_planet_money_journal_openai_append.yaml` with `make test-acceptance`.
-
-For **stub** GI, **`provider`**-mode KG, summaries-only, or other layer-specific presets,
-use **`config/manual/`** (see [Ready-made configs](#ready-made-configs-npr-feeds-and-openai-first)) or pytest E2E tests.
-
-**Runner reference:** `scripts/acceptance/README.md` (repository root).
+For **stub** GI, **`provider`**-mode KG, summaries-only, or other layer-specific presets, use pytest E2E tests or small operator YAMLs you maintain locally.
 
 ### Handoff message (paste into team / intelligence channel)
 
-Use this when you assign or report a **manual multi-feed** validation (step **E** above). Replace placeholders in angle brackets.
-
 ```text
-Manual validation — multi-feed GI/KG (Planet Money + The Journal, OpenAI Whisper + Gemini)
+Manual validation — multi-feed GI/KG (Planet Money + The Journal)
 
 Command:
-  python -m podcast_scraper.cli --config config/manual/manual_multi_feed_planet_money_journal_openai_gemini.yaml
+  python -m podcast_scraper.cli --config <operator.yaml> \
+    --feeds-spec path/to/your-feeds.yaml \
+    --output-dir .test_outputs/manual/my-manual-run
 
-Prereqs: OPENAI_API_KEY and GEMINI_API_KEY (see config/examples/.env.example).
-
-Output root (from YAML): .test_outputs/manual/multi_feed_pm_journal_openai_gemini
-Layout: <output_dir>/feeds/rss_<host>_<hash>/ per feed (transcripts, metadata, *.gi.json, *.kg.json).
+Prereqs: keys for your profile (see config/examples/.env.example when using cloud_balanced).
 
 Optional acceptance-style session:
-  make test-acceptance CONFIGS="config/manual/manual_multi_feed_planet_money_journal_openai_gemini.yaml"
+  make test-acceptance CONFIGS="<operator.yaml>"
 
-Docs: docs/wip/manual-test-plan-gi-kg.md (step E), docs/api/CONFIGURATION.md#rss-and-multi-feed-corpus-github-440
-
-<What to verify: e.g. both feeds completed, GI quotes plausible, KG topics sane, viewer lists artifacts under corpus root.>
+Docs: docs/wip/manual-test-plan-gi-kg.md, docs/api/CONFIGURATION.md#rss-and-multi-feed-corpus-github-440
 ```
 
-**Append / resume (step F):** paste the same structure but point at
-`config/manual/manual_multi_feed_planet_money_journal_openai_gemini_append.yaml`, output root
-`.test_outputs/manual/multi_feed_pm_journal_openai_gemini_append`, and note that a **second**
-identical run should skip work under each feed’s `run_append_*` directory. Docs:
-[CONFIGURATION.md — Append / resume](../api/CONFIGURATION.md#append-resume-github-444).
+**Append / resume:** set **`append: true`** on the operator YAML, same **`--feeds-spec`**, run twice. [CONFIGURATION.md — Append / resume](../api/CONFIGURATION.md#append-resume-github-444).
 
 ---
 
@@ -151,8 +110,8 @@ Write down the episode titles or IDs you will use so you can find the right file
 
 ## 1. Choose extraction stack (once per run)
 
-Prefer picking a **row in the table above** (`config/manual/*.yaml`) instead of hand-rolling
-flags. Mapping:
+Prefer picking a **row in the table** in [Feeds specs + operator YAML](#feeds-specs-operator-yaml) instead of hand-rolling
+flags. Mapping (example filenames you maintain locally):
 
 | Your goal | Config |
 | --- | --- |
@@ -165,7 +124,7 @@ flags. Mapping:
 **Gotchas (from guides):**
 
 - **`gi_insight_source: stub`** — placeholder insights; fine for CI-style smoke, not for
-  your “does GI make sense?” pass. Details: [Enabling grounded insights](../guides/GROUNDED_INSIGHTS_GUIDE.md#enabling-grounded-insights). Acceptance **`full/`** configs use **`summary_bullets`** for GI; use **`config/manual/`** or pytest E2E for stub or other modes.
+  your “does GI make sense?” pass. Details: [Enabling grounded insights](../guides/GROUNDED_INSIGHTS_GUIDE.md#enabling-grounded-insights). Acceptance **`full/`** configs use **`summary_bullets`** for GI; use local operator YAML or pytest E2E for stub or other modes.
 - **`kg_extraction_source: provider`** with **ML-only** summary provider — graph extraction
   is a no-op; pipeline falls back to **summary bullets** when available. Details:
   [KG guide extraction table](../guides/KNOWLEDGE_GRAPH_GUIDE.md#enabling-kg) and [RFC-055](../rfc/RFC-055-knowledge-graph-layer-core.md).
@@ -176,7 +135,7 @@ flags. Mapping:
 
 ## 2. Run the pipeline (2–3 episodes)
 
-1. Pick a config from [Ready-made configs](#ready-made-configs-npr-feeds-and-openai-first).
+1. Pick a config from [Feeds specs + operator YAML](#feeds-specs-operator-yaml) (or your own operator YAML).
 2. Run **`python -m podcast_scraper.cli --config <path>`** (or `make test-acceptance` as in
    that section).
 3. Set **`OUT`** to that YAML’s **`output_dir`** value. Artifacts live under
@@ -203,7 +162,7 @@ python -m podcast_scraper.cli 'https://feeds.npr.org/510289/podcast.xml' \
 If you already have transcripts and use **`--skip-existing`**, confirm GI/KG still emit or
 re-run with intent (re-processing policy is your choice).
 
-**Custom YAML:** mirror keys from [CONFIGURATION.md](../api/CONFIGURATION.md#knowledge-graph-kg) and the GIL sections; copy patterns from `config/manual/` or `config/acceptance/`.
+**Custom YAML:** mirror keys from [CONFIGURATION.md](../api/CONFIGURATION.md#knowledge-graph-kg) and the GIL sections; copy patterns from **`config/acceptance/`** or your own saved operator YAML.
 
 ---
 

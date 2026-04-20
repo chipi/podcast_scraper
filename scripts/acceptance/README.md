@@ -5,8 +5,8 @@ This directory contains scripts for **end-to-end (E2E) acceptance testing**: ful
 ## What Acceptance Tests Are
 
 - **Full pipeline runs** using the same code path as production (**`python -m podcast_scraper.service`** per config).
-- **Config-driven**: each run uses a YAML config (RSS URL, providers, `generate_metadata`, `generate_summaries`, etc.). Configs live in `config/acceptance/` (see that folder’s README for the config list).
-- **Full pipeline**: configs under `config/acceptance/` set `generate_summaries`, `generate_gi`, `generate_kg`, and semantic index (`vector_search`) so each acceptance run exercises the same end-to-end artifact set (see `config/acceptance/README.md`). The E2E test suite also covers GI/KG CLI paths (e.g. `tests/e2e/test_gi_cli_e2e.py`, `tests/e2e/test_kg_cli_e2e.py`).
+- **Config-driven**: each run uses a YAML config (RSS URL, providers, `generate_metadata`, `generate_summaries`, etc.). The tracked matrix lives under **`config/acceptance/`** (see that folder’s **`README.md`**).
+- **Full pipeline**: the fast matrix merges **official `config/profiles/`** bundles so each row exercises summaries, GI/KG, and semantic index when the profile enables them (see `config/acceptance/README.md`). The E2E test suite also covers GI/KG CLI paths (e.g. `tests/e2e/test_gi_cli_e2e.py`, `tests/e2e/test_kg_cli_e2e.py`).
 - **Optional fixtures**: with `--use-fixtures`, runs use a local E2E server (test feeds, mock APIs) so tests can run without network or real provider keys.
 
 They are **not** the same as the **evaluation framework** in `scripts/eval/` (experiments, baselines, datasets, metrics, regression). Use evaluation for model/prompt comparison and quality metrics; use acceptance for “does the pipeline run and produce expected outputs?”.
@@ -17,16 +17,16 @@ They are **not** the same as the **evaluation framework** in `scripts/eval/` (ex
 
 - **`run_acceptance_tests.py`** – Run E2E acceptance tests
   - Takes one or more config **glob patterns** in a single `--configs` / `CONFIGS` string: separate patterns with whitespace (shell quoting as usual). Each pattern is expanded; **paths are deduped and sorted** before running.
-  - Examples: `config/acceptance/acceptance_planet_money_*.yaml`, `config/acceptance/*.yaml`.
+  - Examples: paths to your operator YAMLs, or materialized `sessions/session_*/materialized/*.yaml` from **`--from-fast-stems`**.
   - Runs each config sequentially: full pipeline (transcribe, summarize, write metadata, and GIL when `generate_gi: true`).
   - Writes outputs under `--output-dir` (default: `.test_outputs/acceptance`): logs, timing, exit codes, optional baseline comparison.
   - **Session data is written after each config** so you can run `make analyze-acceptance SESSION_ID=...` even if the run is interrupted.
   - With `--use-fixtures`, RSS and cloud provider bases point at the E2E mock server; dummy keys are set where validation requires them. **Ollama** uses `OLLAMA_API_BASE` toward the same server; the mock `/api/tags` response includes model names used by acceptance YAMLs (e.g. `llama3.1:8b`, hybrid reduce models, `gemma2:9b`) so `USE_FIXTURES=1` runs do not need a local `ollama serve`.
-  - **`--from-fast-stems`**: resolve YAMLs from the fast stem list (`config/acceptance/FAST_CONFIGS.txt`, tracked; if missing, optional local `config/ci/acceptance_fast_stems.txt` — see `config/ci/README.md`). For each stem, resolves `config/acceptance/<stem>.yaml` first, then `config/examples/<stem>.yaml` if the full path is missing (legacy fallback). Pair with `--use-fixtures` for offline smoke of **all fast acceptance presets** (including multi-feed).
+  - **`--from-fast-stems`**: load **`config/acceptance/FAST_CONFIG.yaml`**, merge each enabled row (`defaults` + feeds fragment + **`profile:`**), write **`sessions/session_*/materialized/{id}.yaml`**, and run those paths. Pair with **`--use-fixtures`** for CI fixture smoke.
   - Options: `--use-fixtures` (E2E server), `--compare-baseline`, `--save-as-baseline`, `--no-auto-analyze`, `--no-auto-benchmark`, `--timeout SECONDS` (per-run timeout), `--fast-only` (filter glob results to fast stems), `--stream-debug` (show DEBUG lines on the console; default is **INFO and above** only while streaming—full logs are still saved to `stdout.log` / `stderr.log`).
   - **RSS feed cache:** Each session sets `PODCAST_SCRAPER_RSS_CACHE_DIR` to `sessions/session_*/rss_cache` so the first fetch of a given feed URL is written to disk and later configs in the same run reuse it (less load on real RSS hosts). Normal CLI use leaves this unset (no caching). Episode media is separate; see `reuse_media` in config.
   - **Multiple configs:** After one **session (batch) header** (config count, mode, paths), each run logs a single line **── Run *i*/*n*: `filename.yaml` ──** and **feeds (this config, …)** or **rss (this config): …** for that YAML only (no repeated batch-wide messages). Multi-feed YAMLs with `feeds:` / `rss_urls` get per-run fixture URL substitution when `USE_FIXTURES=1`. After each multi-feed service run, **`corpus_manifest.json`** and **`corpus_run_summary.json`** are written at the corpus parent when applicable (#506); use **`python -m podcast_scraper.cli corpus-status --output-dir …`** to inspect.
-  - Usage: `make test-acceptance CONFIGS="config/acceptance/acceptance_planet_money_ml_dev.yaml"` or use `run_acceptance_tests.py` directly with `--configs` and `--output-dir`.
+  - Usage: `make test-acceptance FROM_FAST_STEMS=1 USE_FIXTURES=1`, or `make test-acceptance CONFIGS="path/to/operator.yaml"`, or `run_acceptance_tests.py` with `--configs` / `--from-fast-stems` and `--output-dir`.
 
 ### Analysis & Benchmarking
 
@@ -40,71 +40,44 @@ They are **not** the same as the **evaluation framework** in `scripts/eval/` (ex
 
 ## How It Works
 
-1. **Configs**: You choose one or more pipeline configs from `config/acceptance/`. Each config specifies RSS feed, providers (whisper, spacy, openai, etc.), and enables summaries, GI, KG, and semantic index per `config/acceptance/README.md`.
+1. **Configs**: You choose one or more pipeline YAML paths, or **`--from-fast-stems`** to materialize rows from **`config/acceptance/FAST_CONFIG.yaml`**. Each file specifies feeds + **`profile:`** (or full inline operator keys) per `config/acceptance/README.md`.
 2. **Run**: `run_acceptance_tests.py` invokes **`python -m podcast_scraper.service --config …`** once per config (same pipeline as production). Outputs go to `--output-dir` with a session subfolder (timestamped).
 3. **Results**: Logs, exit codes, and optional metrics are stored. With `--compare-baseline` or `--save-as-baseline`, the runner can compare or save a baseline for simple regression checks.
 4. **Analysis**: After a run, `analyze_bulk_runs.py` (or the runner’s built-in analysis) can summarize results; `generate_performance_benchmark.py` can produce a performance report.
 
 ## Usage
 
-Run a single full-pipeline config:
+Run a single full-pipeline config (path is yours — often under **`config/playground/`** or a temp file):
 
 ```bash
-make test-acceptance CONFIGS="config/acceptance/acceptance_planet_money_ml_dev.yaml"
+make test-acceptance CONFIGS="path/to/operator.yaml"
 ```
 
-Run all Planet Money full-pipeline configs:
+Run the **fast matrix** with fixtures (materializes **`FAST_CONFIG.yaml`** rows):
 
 ```bash
-make test-acceptance CONFIGS="config/acceptance/acceptance_planet_money_*.yaml"
+make test-acceptance-fixtures-fast
 ```
 
-Run all full acceptance configs (Planet Money + The Journal, ML and LLM providers):
+Run the same matrix with explicit flags:
 
 ```bash
-make test-acceptance CONFIGS="config/acceptance/*.yaml"
+make test-acceptance FROM_FAST_STEMS=1 USE_FIXTURES=1 NO_AUTO_ANALYZE=1 NO_AUTO_BENCHMARK=1
 ```
 
-Run the **full acceptance matrix** with fixtures and without auto analysis/benchmark:
+**Feeds lists** for **`--feeds-spec`** are RFC-077 YAML/JSON you supply (shape: **`config/examples/feeds.spec.example.yaml`**). Combine with an operator YAML that sets **`profile:`** and corpus options.
+
+**Append / resume (GitHub #444):** set **`append: true`** on the operator YAML, re-run twice under **`USE_FIXTURES=1`** to validate **`run_append_*`** skip behavior.
+
+**`FAST_ONLY=1`:** after **`CONFIGS=`** expands to multiple paths, keep only stems that match **`id:`** rows in **`FAST_CONFIG.yaml`** (see **`config/acceptance/README.md`**).
 
 ```bash
-make test-acceptance CONFIGS="config/acceptance/*.yaml" \
-  USE_FIXTURES=1 NO_AUTO_ANALYZE=1 NO_AUTO_BENCHMARK=1
+make test-acceptance CONFIGS="path/to/session/materialized/*.yaml" USE_FIXTURES=1 FAST_ONLY=1
 ```
 
-Run with E2E fixtures (no real RSS or API keys):
+Fast matrix row **`id`** values are defined in **`config/acceptance/FAST_CONFIG.yaml`** (see **`config/acceptance/README.md`**).
 
-```bash
-make test-acceptance CONFIGS="config/acceptance/acceptance_planet_money_ml_dev.yaml" USE_FIXTURES=1
-```
-
-Multi-feed acceptance (two feeds in one YAML): preset YAMLs under **`config/acceptance/`** (gitignored). Generic placeholder **feeds** with OpenAI + Gemini + GI/KG + **`vector_search`** (same option set as **`config/manual/manual_multi_feed_corpus_rss_registry_openai_gemini.yaml`**): **`config/examples/config.example.multi-feed.cloud-llm.yaml`** / **`config/examples/config.example.multi-feed.cloud-llm.json`**. Local **Whisper + Ollama** (`qwen3.5:9b`, **`llm_pipeline_mode: bundled`**): **`config/examples/config.example.multi-feed.ollama.yaml`** / **`config/examples/config.example.multi-feed.ollama.json`**. Local **ML** (RFC-044 **`ml_small_authority`** / **`ml_bart_led_autoresearch_v1`**): **`config/examples/config.example.multi-feed.ml-dev.yaml`** / **`.json`** and **`config/examples/config.example.multi-feed.ml-prod.yaml`** / **`.json`**.
-
-```bash
-make test-acceptance CONFIGS="config/acceptance/acceptance_multi_feed_planet_money_journal_openai.yaml" USE_FIXTURES=1
-```
-
-Multi-feed + **append / resume** (GitHub #444): same Planet Money + Journal + OpenAI preset with `append: true` — use for validating stable `run_append_*` per feed and skip-complete behavior (re-run the same command twice):
-
-```bash
-make test-acceptance CONFIGS="config/acceptance/acceptance_multi_feed_planet_money_journal_openai_append.yaml" USE_FIXTURES=1
-```
-
-Same layout with **DeepSeek** (Whisper + DeepSeek for speaker/summary):
-
-```bash
-make test-acceptance CONFIGS="config/acceptance/acceptance_multi_feed_planet_money_journal_deepseek_append.yaml" USE_FIXTURES=1
-```
-
-Run only the fast subset after expanding a glob (local tree with `config/acceptance/`):
-
-```bash
-make test-acceptance CONFIGS="config/acceptance/*.yaml" USE_FIXTURES=1 FAST_ONLY=1
-```
-
-Fast stems are listed in the tracked file **`config/acceptance/FAST_CONFIGS.txt`**. Optionally add a local-only **`config/ci/acceptance_fast_stems.txt`** (gitignored) as a fallback; see **`config/ci/README.md`**.
-
-**Full fast matrix + fixtures** (recommended smoke: every fast preset, E2E mock server, default 900s per config):
+**Full fast matrix + fixtures** (recommended smoke: every enabled **`FAST_CONFIG.yaml`** row, E2E mock server; CI uses a higher per-run timeout):
 
 ```bash
 make test-acceptance-fixtures-fast
@@ -113,7 +86,7 @@ make test-acceptance-fixtures-fast
 Equivalent:
 
 ```bash
-make test-acceptance FROM_FAST_STEMS=1 USE_FIXTURES=1 NO_AUTO_ANALYZE=1 NO_AUTO_BENCHMARK=1 TIMEOUT=900
+make test-acceptance FROM_FAST_STEMS=1 USE_FIXTURES=1 NO_AUTO_ANALYZE=1 NO_AUTO_BENCHMARK=1 TIMEOUT=1500
 ```
 
 **Main / release CI** runs `make test-acceptance-fixtures-fast` on push (see `.github/workflows/python-app.yml`, job `test-acceptance-fixtures`). The same job then runs **`make verify-gil-offsets-after-acceptance`**: for the latest session under `.test_outputs/acceptance/sessions/`, every `runs/run_*` that contains **`search/metadata.json`** is checked with **`verify-gil-chunk-offsets --strict`** so **GIL Quote** character spans align with **FAISS transcript** chunks (RFC-072 / issue #528; semantic **lift** contract). Override the acceptance output root with **`OUTPUT_DIR=…`** if you use a non-default `--output-dir`. **Scheduled nightly** (`.github/workflows/nightly.yml`) does not run this acceptance matrix; it uses **`make test-nightly`** instead.
@@ -127,7 +100,7 @@ make verify-gil-offsets-after-acceptance
 Run with a per-run timeout (e.g. 600 seconds) so long configs are killed and reported as failed:
 
 ```bash
-python scripts/acceptance/run_acceptance_tests.py --configs "config/acceptance/*.yaml" --use-fixtures --timeout 600
+python scripts/acceptance/run_acceptance_tests.py --from-fast-stems --use-fixtures --timeout 600
 ```
 
-See `config/acceptance/README.md` for the list of acceptance configs and provider prerequisites. For the full experiment and evaluation workflow (datasets, baselines, metrics), see `docs/guides/EXPERIMENT_GUIDE.md` and `scripts/eval/README.md`.
+See `config/acceptance/README.md` for the fast matrix, fragments, and provider prerequisites. For the full experiment and evaluation workflow (datasets, baselines, metrics), see `docs/guides/EXPERIMENT_GUIDE.md` and `scripts/eval/README.md`.

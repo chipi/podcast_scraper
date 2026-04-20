@@ -592,13 +592,13 @@ def profile_stage_delta_rows(
             ("peak_rss_mb", "Peak RSS (MB)"),
             ("avg_cpu_pct", "Avg CPU %"),
         ):
-            bv = baseline.stages.get(stage, {}).get(mkey)
+            raw_bv = baseline.stages.get(stage, {}).get(mkey)
             for cand in candidates:
-                cv = cand.stages.get(stage, {}).get(mkey)
-                if bv is None and cv is None:
+                raw_cv = cand.stages.get(stage, {}).get(mkey)
+                if raw_bv is None and raw_cv is None:
                     continue
-                bvf = float(bv) if bv is not None else None
-                cvf = float(cv) if cv is not None else None
+                bvf = float(raw_bv) if raw_bv is not None else None
+                cvf = float(raw_cv) if raw_cv is not None else None
                 if bvf is None or cvf is None:
                     continue
                 delta = cvf - bvf

@@ -104,7 +104,7 @@ routes/
   corpus_text_file.py # viewer — GET /corpus/text-file (transcript / caption files under corpus root)
   corpus_digest.py   # viewer — GET /corpus/digest
   corpus_topic_clusters.py   # viewer — GET /corpus/topic-clusters
-  feeds.py           # optional — GET/PUT /feeds (rss_urls.list.txt); enable_feeds_api
+  feeds.py           # optional — GET/PUT /feeds (feeds.spec.yaml); enable_feeds_api
   operator_config.py # optional — GET/PUT /operator-config; enable_operator_config_api
   jobs.py            # optional — POST/GET /jobs, cancel, reconcile; enable_jobs_api
   platform/          # reserved stub package (#50, #347); not used for RFC-077
@@ -142,8 +142,8 @@ Local **dev** server: no auth. Treat **production** deployments as out-of-scope 
 | Method | Path | Tag | Description | Key query params |
 | ------ | ---- | --- | ----------- | ---------------- |
 | GET | `/api/health` | health | Liveness and **capability flags**: `status`; core viewer `artifacts_api`, `search_api`, `explore_api`, `index_routes_api`, `corpus_metrics_api`, `cil_queries_api` (default **true** when mounted); catalog `corpus_library_api`, `corpus_digest_api`, `corpus_binary_api`. **RFC-077 (default false):** `feeds_api`, `operator_config_api`, `jobs_api` when those route groups are mounted. Omit digest flag on older builds → clients treat digest as unavailable. | — |
-| GET, PUT | `/api/feeds` | feeds | Read/write **`rss_urls.list.txt`** under the resolved corpus root (JSON list body on PUT). | `path` |
-| GET, PUT | `/api/operator-config` | operator_config | Read/write **viewer-safe** operator YAML at the server-resolved path (forbidden secret keys rejected on PUT). | `path` |
+| GET, PUT | `/api/feeds` | feeds | Read/write structured **`feeds.spec.yaml`** under the resolved corpus root (JSON **`{ "feeds": [...] }`** on PUT). | `path` |
+| GET, PUT | `/api/operator-config` | operator_config | Read/write **viewer-safe** operator YAML at the server-resolved path. **GET** returns `content`, `operator_config_path`, and **`available_profiles`** (union of packaged `config/profiles/*.yaml` names from **cwd** and **repo** roots, same as `Config` preset resolution; excluding `*.example.yaml`). When the file is **missing or whitespace-only** and the packaged preset **`cloud_balanced`** exists, **GET** **writes** a minimal `profile: cloud_balanced` file first (idempotent if already that content). **PUT** rejects forbidden **secret** keys and top-level **feed** keys (`rss`, `rss_url`, `rss_urls`, `feeds`) — use `/api/feeds` / **`feeds.spec.yaml`** for feeds. See [RFC-077](../rfc/RFC-077-viewer-feeds-and-serve-pipeline-jobs.md) (Phase 1b) and [PRD-030](../prd/PRD-030-viewer-feed-sources-and-pipeline-jobs.md). | `path` |
 | GET, POST | `/api/jobs` | jobs | List (`GET`) or enqueue (`POST`) pipeline jobs for the corpus; **`GET /api/jobs/{id}`**, **`POST /api/jobs/{id}/cancel`**, **`POST /api/jobs/reconcile`**. | `path` |
 | GET | `/api/artifacts` | artifacts | List `*.gi.json`, `*.kg.json`, and `*.bridge.json` (recursive); each item includes `mtime_utc` (#507) and `publish_date` (YYYY-MM-DD from episode metadata when present, else UTC calendar day from file mtime). | `path` (required) — corpus output directory |
 | GET | `/api/artifacts/{path}` | artifacts | Load and return a single artifact JSON by relative path. | `path` (required) — corpus root for the relative lookup |

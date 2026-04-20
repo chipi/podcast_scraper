@@ -914,21 +914,23 @@ The following prompt templates are available in `.cursor/prompts/`:
 - **Use a command** when you want the main agent to do the work in this chat (e.g. `/review`, `/pr`).
 - **Use a subagent** when you want context isolation or a short summary (e.g. "run ci and tell me the result," "run acceptance tests for planet money").
 
-### Project Custom Subagents (`.cursor/agents/`)
+### Project custom commands (`.cursor/commands/`)
 
-This project defines three custom subagents. All run from **project root** and use the **project venv only** (Makefile uses `.venv` when present).
+This repository checks in **slash commands** (Markdown under **`.cursor/commands/`**). In Chat, type **`/`** and pick a command stem (filename without `.md`); add your specifics in the same message.
 
-| Subagent | File | When to use |
-| ---------- | ------ | -------------- |
-| **Verifier** | `verifier.md` | "Verify before commit," "run ci and report," "is the tree green?" Runs format-check, lint, lint-markdown, full **make ci**; optionally docker-test. Returns PASSED/FAILED + short summary. |
-| **CI Fix Loop** | `ci-fix-loop.md` | "Run ci and fix until it passes," "make ci green." Runs full **make ci**; on failure fixes and re-runs up to 3 times. Returns final status + what was fixed. |
-| **Acceptance** | `acceptance.md` | "Run acceptance tests," "run all acceptance configs." Runs `make test-acceptance CONFIGS="config/acceptance/*.yaml"` (or user pattern). Returns Status, Session ID, Summary; suggests `make analyze-acceptance SESSION_ID=…`. |
+| Command | File | When to use |
+| ------- | ---- | ----------- |
+| **pipeline-run-and-report** | `pipeline-run-and-report.md` | Run the pipeline (acceptance or CLI config), resolve `output_dir`, read `metrics.json` / `run.json` / monitor artifacts, finish with a short post-mortem. |
+| **implement-attached-plan** | `implement-attached-plan.md` | Implement a pasted or attached plan without editing the plan file; merge existing to-dos when provided. |
+| **review-changes-gaps** | `review-changes-gaps.md` | Structured pass for gaps, stale references, and small safe fixes after a change. |
 
-Optional later: **Docs check** (lint-markdown + docs), **PR prep** (status/diff + docker-test). Use Cursor's **built-in Explore** for "find all X in codebase."
+**Acceptance runs** (full pipeline, multiple YAMLs): use **`make test-acceptance`** from repo root with **`CONFIGS="…"`** (space-separated globs), or **`FROM_FAST_STEMS=1`** **`USE_FIXTURES=1`** to materialize rows from **`config/acceptance/FAST_CONFIG.yaml`**, or **`make test-acceptance-fixtures-fast`** for the CI-style fast matrix + fixtures. See **`scripts/acceptance/README.md`** and **[Testing Guide — E2E Acceptance Tests](TESTING_GUIDE.md#e2e-acceptance-tests)**.
+
+Optional: add your own **`.cursor/agents/*.md`** or use Cursor’s **Task** tool (e.g. verifier, explore) for isolated runs. Use Cursor’s **built-in Explore** for "find all X in codebase."
 
 ### Subagents vs Skills
 
-- **Subagents** = separate context and/or parallel work (verify, run CI and fix, run acceptance).
+- **Subagents / Task tool** = separate context and/or parallel work (e.g. verify, run CI and fix, long acceptance matrix).
 - **Skills** = procedures the main agent follows in the same context (commit-with-approval, push-to-pr, efficient pytest). Use skills for single-shot, repeatable procedures; use subagents when you want isolation or summarization.
 
 ## Project-Specific Recommendations

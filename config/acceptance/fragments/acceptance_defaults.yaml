@@ -1,0 +1,8 @@
+# Merged for every row in config/acceptance/FAST_CONFIG.yaml (before profile + feeds).
+# Runner overwrites output_dir and fixture RSS when USE_FIXTURES=1.
+max_episodes: 2
+workers: 1
+delay_ms: 0
+append: false
+transcribe_missing: true
+multi_feed_strict: false

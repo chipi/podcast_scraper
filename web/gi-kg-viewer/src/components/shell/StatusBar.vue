@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { computed, ref, useTemplateRef } from 'vue'
-import { getFeeds, putFeeds } from '../../api/feedsApi'
+import { getFeeds, putFeeds, type FeedApiEntry } from '../../api/feedsApi'
 import { getOperatorConfig, putOperatorConfig } from '../../api/operatorConfigApi'
+import { mergeOperatorYamlProfile, splitOperatorYamlProfile } from '../../utils/operatorYamlProfile'
 import { useArtifactsStore } from '../../stores/artifacts'
 import { useIndexStatsStore } from '../../stores/indexStats'
 import { useShellStore } from '../../stores/shell'
@@ -18,10 +19,14 @@ const sourcesDialogRef = useTemplateRef<HTMLDialogElement>('sourcesDialogRef')
 
 const sourcesTab = ref<'feeds' | 'operator'>('feeds')
 const feedsEditorText = ref('')
-const operatorYamlText = ref('')
+const operatorYamlBody = ref('')
+const operatorProfileSelected = ref('')
+const availableProfiles = ref<string[]>([])
 const operatorFileHint = ref('')
 const sourcesBusy = ref(false)
 const sourcesError = ref<string | null>(null)
+/** One RSS URL per line — merged into the JSON ``feeds`` array (legacy ``--rss-file`` style). */
+const feedsLinePaste = ref('')
 
 const healthDotClass = computed(() => {
   if (shell.healthError) {
@@ -90,11 +95,14 @@ async function loadSourcesTab(tab: 'feeds' | 'operator'): Promise<void> {
   try {
     if (tab === 'feeds' && shell.feedsApiAvailable) {
       const f = await getFeeds(p)
-      feedsEditorText.value = f.urls.join('\n')
+      feedsEditorText.value = JSON.stringify({ feeds: f.feeds }, null, 2)
     } else if (tab === 'operator' && shell.operatorConfigApiAvailable) {
       const o = await getOperatorConfig(p)
-      operatorYamlText.value = o.content
       operatorFileHint.value = o.operator_config_path
+      availableProfiles.value = o.available_profiles ?? []
+      const sp = splitOperatorYamlProfile(o.content)
+      operatorProfileSelected.value = sp.profile
+      operatorYamlBody.value = sp.body
     }
   } catch (e) {
     sourcesError.value = e instanceof Error ? e.message : String(e)
@@ -117,14 +125,66 @@ async function selectSourcesTab(tab: 'feeds' | 'operator'): Promise<void> {
   await loadSourcesTab(tab)
 }
 
+function appendFeedUrlsFromLines(): void {
+  sourcesError.value = null
+  const rawLines = feedsLinePaste.value.split(/\r?\n/)
+  const urls = rawLines.map((s) => s.trim()).filter((s) => s.length > 0)
+  if (urls.length === 0) {
+    sourcesError.value = 'Paste at least one URL line first.'
+    return
+  }
+  let parsed: unknown
+  try {
+    parsed = JSON.parse(feedsEditorText.value) as unknown
+  } catch {
+    sourcesError.value = 'Fix JSON in the editor before merging lines (or clear and try again).'
+    return
+  }
+  const root = parsed as { feeds?: unknown }
+  if (!root || typeof root !== 'object' || !Array.isArray(root.feeds)) {
+    sourcesError.value = 'Root must be an object with a "feeds" array.'
+    return
+  }
+  const existing = root.feeds as FeedApiEntry[]
+  const seen = new Set<string>()
+  for (const e of existing) {
+    if (typeof e === 'string') {
+      seen.add(e.trim())
+    } else if (e && typeof e === 'object' && typeof (e as { url?: unknown }).url === 'string') {
+      seen.add(String((e as { url: string }).url).trim())
+    }
+  }
+  const merged: FeedApiEntry[] = [...existing]
+  for (const u of urls) {
+    if (seen.has(u)) {
+      continue
+    }
+    seen.add(u)
+    merged.push(u)
+  }
+  feedsEditorText.value = JSON.stringify({ feeds: merged }, null, 2)
+  feedsLinePaste.value = ''
+}
+
 async function saveFeedsFromDialog(): Promise<void> {
   sourcesBusy.value = true
   sourcesError.value = null
   const p = shell.corpusPath.trim()
-  const lines = feedsEditorText.value.split('\n').map((s) => s.trim()).filter(Boolean)
   try {
-    const out = await putFeeds(p, lines)
-    feedsEditorText.value = out.urls.join('\n')
+    let parsed: unknown
+    try {
+      parsed = JSON.parse(feedsEditorText.value) as unknown
+    } catch {
+      sourcesError.value = 'Invalid JSON — fix syntax before saving.'
+      return
+    }
+    const root = parsed as { feeds?: unknown }
+    if (!root || typeof root !== 'object' || !Array.isArray(root.feeds)) {
+      sourcesError.value = 'Root must be an object with a "feeds" array.'
+      return
+    }
+    const out = await putFeeds(p, root.feeds as FeedApiEntry[])
+    feedsEditorText.value = JSON.stringify({ feeds: out.feeds }, null, 2)
   } catch (e) {
     sourcesError.value = e instanceof Error ? e.message : String(e)
   } finally {
@@ -137,7 +197,15 @@ async function saveOperatorFromDialog(): Promise<void> {
   sourcesError.value = null
   const p = shell.corpusPath.trim()
   try {
-    await putOperatorConfig(p, operatorYamlText.value)
+    // Dropdown is the only source of truth for `profile:` (None = omit line; ignore pasted profile: in textarea).
+    const inner = splitOperatorYamlProfile(operatorYamlBody.value)
+    const prof = operatorProfileSelected.value.trim()
+    const merged = mergeOperatorYamlProfile(prof, inner.body)
+    const out = await putOperatorConfig(p, merged)
+    availableProfiles.value = out.available_profiles ?? availableProfiles.value
+    const sp = splitOperatorYamlProfile(out.content)
+    operatorProfileSelected.value = sp.profile
+    operatorYamlBody.value = sp.body
   } catch (e) {
     sourcesError.value = e instanceof Error ? e.message : String(e)
   } finally {
@@ -200,7 +268,7 @@ const corpusPathModel = computed({
       v-if="shell.healthStatus && shell.hasCorpusPath && shell.feedsApiAvailable"
       type="button"
       class="shrink-0 rounded border border-border px-1.5 py-0.5 text-[10px] hover:bg-overlay"
-      title="Edit rss_urls.list.txt for this corpus"
+      title="Edit feeds.spec.yaml (JSON in UI) for this corpus"
       data-testid="status-bar-feeds-trigger"
       @click="void openSourcesDialog('feeds')"
     >
@@ -430,14 +498,31 @@ const corpusPathModel = computed({
     </p>
     <div v-show="sourcesTab === 'feeds' && shell.feedsApiAvailable" class="flex max-h-[min(60vh,22rem)] flex-col gap-2">
       <p class="text-[10px] text-muted leading-snug">
-        One RSS URL per line (same format as CLI <code class="rounded bg-overlay px-0.5 font-mono text-[9px]">--rss-file</code>).
+        Structured <code class="rounded bg-overlay px-0.5 font-mono text-[9px]">feeds.spec.yaml</code> on disk (RFC-077 / #626). Edit JSON here: root <code class="font-mono text-[9px]">feeds</code> is an array of URL strings or objects with <code class="font-mono text-[9px]">url</code> plus optional per-feed overrides (same shape as CLI <code class="font-mono text-[9px]">--feeds-spec</code>). Legacy one-URL-per-line lists belong with <code class="font-mono text-[9px]">--rss-file</code> on the CLI — use the box below to turn lines into this JSON shape. Do not duplicate feeds in Operator YAML.
       </p>
+      <textarea
+        v-model="feedsLinePaste"
+        data-testid="sources-dialog-feeds-lines-textarea"
+        class="min-h-[4rem] w-full resize-y rounded border border-border bg-elevated p-2 font-mono text-[11px] text-elevated-foreground"
+        spellcheck="false"
+        aria-label="Paste RSS URLs one per line"
+        placeholder="https://example.com/feed.xml (one per line)"
+      />
+      <button
+        type="button"
+        class="self-start rounded border border-border px-2 py-1 text-[10px] hover:bg-overlay disabled:opacity-40"
+        :disabled="sourcesBusy"
+        data-testid="sources-dialog-feeds-merge-lines"
+        @click="appendFeedUrlsFromLines"
+      >
+        Append lines to feeds JSON
+      </button>
       <textarea
         v-model="feedsEditorText"
         data-testid="sources-dialog-feeds-textarea"
         class="min-h-[10rem] w-full resize-y rounded border border-border bg-elevated p-2 font-mono text-[11px] text-elevated-foreground"
         spellcheck="false"
-        aria-label="RSS feed URLs"
+        aria-label="Feeds spec JSON (feeds array)"
       />
       <button
         type="button"
@@ -453,14 +538,47 @@ const corpusPathModel = computed({
         {{ operatorFileHint }}
       </p>
       <p class="text-[10px] text-muted leading-snug">
-        Do not put API keys in this file — use environment variables. The server rejects forbidden keys on save.
+        Packaged preset <code class="rounded bg-overlay px-0.5 font-mono text-[9px]">profile:</code> defaults merge first; keys below override. The <strong>Profile</strong> menu is what Save writes for <code class="font-mono text-[9px]">profile:</code> — <strong>None</strong> removes it even if you pasted a <code class="font-mono text-[9px]">profile:</code> line in the box. When the operator file is missing or empty, the server creates <code class="font-mono text-[9px]">profile: cloud_balanced</code> on first load if that preset exists under packaged <code class="font-mono text-[9px]">config/profiles</code>. If the menu is empty, no packaged presets were found (check <code class="font-mono text-[9px]">config/profiles</code>). Do not put API keys here — use environment variables. RSS / feed lists belong in Feeds (<code class="font-mono text-[9px]">feeds.spec.yaml</code>); the server rejects feed keys and secrets on save (top-level only).
+      </p>
+      <div class="flex flex-wrap items-center gap-2">
+        <label
+          for="sources-dialog-profile-select"
+          class="text-[10px] text-muted shrink-0"
+        >Profile</label>
+        <select
+          id="sources-dialog-profile-select"
+          v-model="operatorProfileSelected"
+          data-testid="sources-dialog-profile-select"
+          class="max-w-[min(100%,14rem)] rounded border border-border bg-elevated px-2 py-1 text-[11px] text-elevated-foreground"
+          aria-label="Pipeline profile preset"
+        >
+          <option value="">
+            None
+          </option>
+          <option
+            v-if="operatorProfileSelected && !availableProfiles.includes(operatorProfileSelected)"
+            :value="operatorProfileSelected"
+          >
+            {{ operatorProfileSelected }} (custom)
+          </option>
+          <option
+            v-for="n in availableProfiles"
+            :key="n"
+            :value="n"
+          >
+            {{ n }}
+          </option>
+        </select>
+      </div>
+      <p class="text-[10px] text-muted leading-snug">
+        Overrides (YAML, without top-level <code class="font-mono text-[9px]">profile:</code> — use the menu above):
       </p>
       <textarea
-        v-model="operatorYamlText"
+        v-model="operatorYamlBody"
         data-testid="sources-dialog-operator-textarea"
         class="min-h-[10rem] w-full resize-y rounded border border-border bg-elevated p-2 font-mono text-[11px] text-elevated-foreground"
         spellcheck="false"
-        aria-label="Operator YAML"
+        aria-label="Operator YAML overrides"
       />
       <button
         type="button"

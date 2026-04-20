@@ -19,7 +19,7 @@ def test_forbidden_suffix_api_key() -> None:
 
 
 def test_allowed_benign_keys() -> None:
-    assert forbidden_operator_top_level_keys({"output_dir": "./x", "rss_urls": []}) == []
+    assert forbidden_operator_top_level_keys({"output_dir": "./x", "max_episodes": 3}) == []
 
 
 def test_assert_safe_accepts_mapping_yaml() -> None:

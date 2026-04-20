@@ -34,9 +34,6 @@ if str(tests_dir) not in sys.path:
     sys.path.insert(0, str(tests_dir))
 
 # Import cache helpers from integration tests
-import sys
-from pathlib import Path
-
 # Import from parent conftest explicitly to avoid pytest resolution issues
 from tests.conftest import create_test_config  # noqa: E402
 
@@ -786,7 +783,6 @@ class TestFullPipelineE2E:
 
         # Feed: "Singletrack Sessions" by Maya Koster
         # Episode desc: "Maya talks with trail builder Liam Verbeek..."
-
         # 1. Metadata: host detection from RSS itunes:author
         metadata_files = list(Path(self.output_dir).rglob("*.metadata.json"))
         assert len(metadata_files) > 0, "Should create metadata file"

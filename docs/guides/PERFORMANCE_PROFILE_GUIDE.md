@@ -196,8 +196,9 @@ optional (skip monitor on routine captures if repo size matters).
 
 1. Choose a **pipeline YAML** under
    [`config/profiles/`](https://github.com/chipi/podcast_scraper/blob/main/config/profiles/README.md).
-   Recommended: **`capture_e2e_*.yaml`** (aligned with
-   `config/acceptance/sample_acceptance_e2e_fixture_single.yaml`).
+   Recommended: **`config/profiles/freeze/<provider>.yaml`** (merged with
+   `freeze/_defaults.yaml` for placeholder RSS / output paths; see
+   [`freeze/README.md`](https://github.com/chipi/podcast_scraper/blob/main/config/profiles/freeze/README.md)).
 2. Choose **`VERSION`** (e.g. `v2.6.0-ml-dev`) — becomes `release` in the YAML and default
    output path `data/profiles/<VERSION>.yaml`.
 3. Set **`DATASET_ID`** to something **truthful** for metadata (e.g. `e2e_podcast1_mtb_n2`),
@@ -206,7 +207,7 @@ optional (skip monitor on routine captures if repo size matters).
 
    ```bash
    make profile-freeze VERSION=v2.6.0-ml-dev \
-     PIPELINE_CONFIG=config/profiles/capture_e2e_ml_dev.yaml \
+     PIPELINE_CONFIG=config/profiles/freeze/ml_dev.yaml \
      DATASET_ID=e2e_podcast1_mtb_n2
    ```
 
@@ -214,7 +215,7 @@ optional (skip monitor on routine captures if repo size matters).
 
    ```bash
    make profile-freeze VERSION=v2.6.0-ml-dev \
-     PIPELINE_CONFIG=config/profiles/capture_e2e_ml_dev.yaml \
+     PIPELINE_CONFIG=config/profiles/freeze/ml_dev.yaml \
      DATASET_ID=e2e_podcast1_mtb_n2 \
      MONITOR=1
    ```
@@ -439,9 +440,9 @@ often means **no measurable wall time** was recorded for that bucket in
 
 ## Suggested variant matrix (release)
 
-See **[`config/profiles/README.md`](https://github.com/chipi/podcast_scraper/blob/main/config/profiles/README.md)** for the
-**`capture_e2e_*.yaml`** table (ML dev/prod, OpenAI, Anthropic, Ollama). **Minimal**
-subset if time is tight: **ml-dev + ml-prod + one cloud**.
+See **[`config/profiles/freeze/README.md`](https://github.com/chipi/podcast_scraper/blob/main/config/profiles/freeze/README.md)**
+for the per-provider **`freeze/*.yaml`** matrix (ML dev/prod, OpenAI, Anthropic, Ollama, …).
+**Minimal** subset if time is tight: **ml-dev + ml-prod + one cloud**.
 
 ---
 

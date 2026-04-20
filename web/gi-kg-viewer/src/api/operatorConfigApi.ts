@@ -1,9 +1,12 @@
 import { fetchWithTimeout } from './httpClient'
+import { readApiErrorMessage } from './readApiErrorMessage'
 
 export interface OperatorConfigPayload {
   corpus_path: string
   operator_config_path: string
   content: string
+  /** Packaged preset names for the operator-config profile picker. */
+  available_profiles?: string[]
 }
 
 export async function getOperatorConfig(corpusPath: string): Promise<OperatorConfigPayload> {
@@ -12,8 +15,7 @@ export async function getOperatorConfig(corpusPath: string): Promise<OperatorCon
     timeoutDetail: 'operator-config',
   })
   if (!res.ok) {
-    const t = await res.text()
-    throw new Error(t.trim() || `HTTP ${res.status}`)
+    throw new Error(await readApiErrorMessage(res))
   }
   return (await res.json()) as OperatorConfigPayload
 }
@@ -33,8 +35,7 @@ export async function putOperatorConfig(
     { timeoutDetail: 'operator-config' },
   )
   if (!res.ok) {
-    const t = await res.text()
-    throw new Error(t.trim() || `HTTP ${res.status}`)
+    throw new Error(await readApiErrorMessage(res))
   }
   return (await res.json()) as OperatorConfigPayload
 }

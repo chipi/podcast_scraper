@@ -526,13 +526,13 @@ class TestSummarizerSummaryModelConstruction:
         for _label, model_name, config_field in test_models:
             if config_field == "summary_model":
                 cfg = Config(
-                    rss_urls=["https://example.com/feed.xml"],
+                    rss_urls=[config.RssFeedEntry(url="https://example.com/feed.xml")],
                     summary_model=model_name,
                 )
                 resolved_model_name = summarizer.select_summary_model(cfg)
             else:
                 cfg = Config(
-                    rss_urls=["https://example.com/feed.xml"],
+                    rss_urls=[config.RssFeedEntry(url="https://example.com/feed.xml")],
                     summary_model=config.TEST_DEFAULT_SUMMARY_MODEL,
                     summary_reduce_model=model_name,
                 )

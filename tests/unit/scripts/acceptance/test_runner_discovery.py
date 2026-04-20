@@ -1,6 +1,7 @@
-"""Unit tests for acceptance runner stem / path discovery (no subprocess runs)."""
+"""Unit tests for acceptance runner fast matrix / path discovery (no subprocess runs)."""
 
 import importlib.util
+import tempfile
 import unittest
 from pathlib import Path
 
@@ -17,27 +18,37 @@ def _load_run_acceptance_module():
 
 
 class TestAcceptanceRunnerDiscovery(unittest.TestCase):
-    """``--from-fast-stems`` helpers (CI fixture matrix)."""
+    """``FAST_CONFIG.yaml`` + ``--from-fast-stems`` helpers."""
 
-    def test_load_fast_config_stems_includes_single_and_multi_feed_ml_fixtures(self):
-        """Fast stems include single-feed ML and multi-feed ML (GitHub #539)."""
+    def test_load_fast_matrix_ids_includes_airgapped_and_cloud_rows(self):
+        mod = _load_run_acceptance_module()
+        ids = mod.load_fast_matrix_ids()
+        self.assertIn("fast_airgapped_single", ids)
+        self.assertIn("fast_airgapped_multi", ids)
+        self.assertIn("fast_cloud_balanced_single", ids)
+        self.assertIn("fast_cloud_balanced_multi", ids)
+
+    def test_load_fast_config_stems_matches_matrix_ids(self):
         mod = _load_run_acceptance_module()
         stems = mod.load_fast_config_stems()
-        self.assertIn("sample_acceptance_e2e_fixture_single", stems)
-        self.assertIn("sample_acceptance_e2e_fixture_multi_ml", stems)
+        self.assertEqual(stems, mod.load_fast_matrix_ids())
 
-    def test_load_fast_config_stems_includes_multi_feed_fixture(self):
+    def test_materialize_fast_matrix_writes_materialized_id_yaml(self):
         mod = _load_run_acceptance_module()
-        stems = mod.load_fast_config_stems()
-        self.assertIn("sample_acceptance_e2e_fixture_multi_openai", stems)
+        with tempfile.TemporaryDirectory() as tmp:
+            session_dir = Path(tmp) / "session_test"
+            session_dir.mkdir()
+            paths = mod.materialize_fast_matrix_configs(session_dir)
+            self.assertGreaterEqual(len(paths), 1)
+            for p in paths:
+                self.assertEqual(p.parent.name, "materialized")
+                self.assertTrue(p.name.endswith(".yaml"))
+                text = p.read_text(encoding="utf-8")
+                self.assertIn("profile:", text)
 
-    def test_resolve_yaml_paths_finds_tracked_sample_under_acceptance_dir(self):
+    def test_resolve_yaml_paths_finds_example_config_when_present(self):
         mod = _load_run_acceptance_module()
-        paths = mod.resolve_yaml_paths_from_stems({"sample_acceptance_e2e_fixture_single"})
+        paths = mod.resolve_yaml_paths_from_stems({"config.example"})
         self.assertEqual(len(paths), 1)
-        self.assertEqual(
-            paths[0].name,
-            "sample_acceptance_e2e_fixture_single.yaml",
-        )
+        self.assertEqual(paths[0].name, "config.example.yaml")
         self.assertTrue(paths[0].is_file())
-        self.assertEqual(paths[0].parent.name, "acceptance")

@@ -63,12 +63,15 @@ The legacy **CorpusDataWorkspace** / **Pipeline | Content intelligence** split o
 
 ## Revision history
 
-| Date       | Change                                                         |
-| ---------- | -------------------------------------------------------------- |
-| 2026-04-06 | Initial content (in UXS-001)                                   |
-| 2026-04-13 | Extracted from UXS-001 into standalone UXS-006                 |
-| 2026-04-19 | Corpus workspace on Dashboard; left rail query-only IA         |
-| 2026-04-19 | Dashboard: briefing + tabs; artifacts via status bar dialog    |
+| Date       | Change                                                                           |
+| ---------- | -------------------------------------------------------------------------------- |
+| 2026-04-06 | Initial content (in UXS-001)                                                     |
+| 2026-04-13 | Extracted from UXS-001 into standalone UXS-006                                   |
+| 2026-04-19 | Corpus workspace on Dashboard; left rail query-only IA                           |
+| 2026-04-19 | Dashboard: briefing + tabs; artifacts via status bar dialog                      |
+| 2026-04-20 | §6.0 jobs: operator `--config` + optional `profile:` merge (#593)                |
+| 2026-04-20 | §6.0 jobs (cont.): feeds via `--feeds-spec` when `feeds.spec.yaml` exists        |
+| 2026-04-21 | §6.0: Operator YAML = **Config**; shallow PUT validation (feed + secret keys)    |
 
 ---
 
@@ -644,6 +647,8 @@ the current corpus, **Run** (enqueue), **Reconcile**, **Refresh**, per-row **Can
 when status is `queued` or `running`, and inline help when the API is off. This
 surface is **in addition to** run-history charts fed from **`GET /api/corpus/runs/summary`**
 (see below). Spec: [RFC-077](../rfc/RFC-077-viewer-feeds-and-serve-pipeline-jobs.md).
+
+**Config a job uses:** the subprocess passes **`--config`** to the server-resolved operator YAML path (same file as status bar **Operator YAML** / **Config**). That file may contain **`profile: <preset>`** — effective pipeline settings are **packaged preset defaults merged with explicit keys** in the file ([GitHub #593](https://github.com/chipi/podcast_scraper/issues/593)). **Feeds** for the job come from corpus **`feeds.spec.yaml`** via **`--feeds-spec`** when that file exists, not from duplicate root keys in operator YAML (those keys are rejected on **`PUT /api/operator-config`** — **top-level** denylist only, same as secrets). Any **Run** / help copy in this tab should say **operator file + optional profile**, not “edit feeds here.”
 
 #### 6.1 Run history strip
 
