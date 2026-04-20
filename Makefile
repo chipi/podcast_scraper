@@ -2027,7 +2027,7 @@ experiment-run:
 
 # RFC-064 / Issue #510: frozen release profiles (see data/profiles/README.md)
 profile-freeze:
-	@# Usage: make profile-freeze VERSION=v2.6.0 PIPELINE_CONFIG=config/profiles/profile_freeze.yaml
+	@# Usage: make profile-freeze VERSION=v2.6.0 PIPELINE_CONFIG=config/profiles/freeze/<provider>.yaml
 	@# Optional: DATASET_ID=... OUTPUT=... SKIP_WARMUP=1 E2E_FEED=podcast1_multi_episode
 	@# Optional: SAMPLE_INTERVAL=0.25 NO_STAGE_TRUTH=1 MONITOR=1 (RFC-065 ticks -> <VERSION>.monitor.log)
 	@if [ -z "$(VERSION)" ]; then \
@@ -2036,7 +2036,7 @@ profile-freeze:
 	fi
 	@if [ -z "$(PIPELINE_CONFIG)" ]; then \
 		echo "❌ Error: PIPELINE_CONFIG is required (YAML of podcast_scraper Config fields)"; \
-		echo "  Copy config/profiles/profile_freeze.example.yaml and edit (see config/profiles/README.md)."; \
+		echo "  Use one of config/profiles/freeze/<provider>.yaml (see config/profiles/freeze/README.md)."; \
 		exit 1; \
 	fi
 	@if [ ! -f "$(PIPELINE_CONFIG)" ]; then \

@@ -18,8 +18,11 @@
 transcription_provider: whisper
 whisper_model: small.en
 
-# Speaker detection
-speaker_detector_provider: ollama
+# Speaker detection — spaCy trf beats qwen3.5:9b on NER (F1 1.000 vs 0.750
+# on smoke) and avoids a 9B-model inference call per episode. Local compute
+# stays on transcription + summarization where it's actually worth it.
+speaker_detector_provider: spacy
+ner_model: en_core_web_trf
 auto_speakers: true
 
 # Summarization — local champion

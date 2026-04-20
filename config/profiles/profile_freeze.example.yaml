@@ -1,32 +1,13 @@
-# Copy to e.g. profile_freeze.yaml (or keep multiple configs in config/profiles/).
-# Used by: make profile-freeze VERSION=vX.Y.Z PIPELINE_CONFIG=config/profiles/<your>.yaml
-# Standard podcast_scraper Config keys (YAML). Docs: src/podcast_scraper/config.py
+# LEGACY stub (pre-2.6) — superseded by config/profiles/freeze/*.yaml.
+# Kept for one release cycle while older docs/links migrate.
 #
-# For E2E mock RSS (no real network feed), use the same placeholder as sample acceptance:
-#   rss: https://example.invalid/e2e-placeholder-single-feed.xml
-# freeze_profile then starts E2EHTTPServer and uses podcast1_mtb (or E2E_FEED=...).
-# See capture_e2e_*.yaml and config/profiles/README.md.
+# Preferred workflow:
+#   make profile-freeze VERSION=vX.Y.Z \
+#     PIPELINE_CONFIG=config/profiles/freeze/<provider>.yaml
 #
-# rss_url: "https://feeds.npr.org/510289/podcast.xml"
-# output_dir: ".tmp/profile_freeze_run"
-# max_episodes: 20
-# log_level: "INFO"
-# transcribe_missing: true
-# whisper_model: "base"
-# generate_summaries: true
-# summary_provider: "transformers"
-# summary_model: "facebook/bart-large-cnn"
-# vector_search: false
-#
-# Full-stack presets (manual_multi_feed_corpus_rss_registry_openai_gemini.yaml) also set:
-# generate_gi: true
-# gi_insight_source: summary_bullets
-# gi_max_insights: 5
-# generate_kg: true
-# kg_extraction_source: summary_bullets
-# kg_max_topics: 5
-# vector_search: true
-# vector_backend: faiss
+# The freeze/ profiles pair with freeze/_defaults.yaml for operational fields
+# (rss, output_dir, max_episodes, whisper_device). See config/profiles/README.md
+# and config/profiles/freeze/README.md.
 
 rss_url: "https://example.com/replace-with-your-feed.xml"
 output_dir: ".tmp/profile_freeze_run"

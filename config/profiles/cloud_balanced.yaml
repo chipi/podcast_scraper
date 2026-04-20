@@ -7,7 +7,7 @@
 #   Summary:   EVAL_HELDOUT_V2_2026_04.md (gemini 0.564 bullets, 1.5s, $0.00047/ep)
 #   GI:        GI_AUTORESEARCH_PLAN.md (provider mode +10pp, n=12 sweet spot)
 #   KG:        KG_AUTORESEARCH_PLAN.md (provider mode +37pp, n=10 sweet spot)
-#   Clustering: 0.70 threshold from 1178-topic production sweep
+#   Clustering: 0.75 threshold (code default, insight_clusters.py)
 #   NER:       spaCy trf = 1.000 F1 with show-title fix
 #
 # Usage:

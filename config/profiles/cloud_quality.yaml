@@ -20,8 +20,11 @@
 transcription_provider: openai
 openai_transcription_model: whisper-1
 
-# Speaker detection
-speaker_detector_provider: openai
+# Speaker detection — spaCy trf ties all cloud LLMs at F1=1.000 on NER smoke
+# (5 eps / 15 entities). Free, local, deterministic. Larger-corpus validation
+# deferred to post-reingestion (see POST_REINGESTION_PLAN.md Step 6).
+speaker_detector_provider: spacy
+ner_model: en_core_web_trf
 auto_speakers: true
 
 # Summarization — DeepSeek for quality
@@ -54,5 +57,4 @@ vector_backend: faiss
 generate_metadata: true
 generate_summaries: true
 language: en
-grok_timeout: 3600  # Grok reasoning needs more time
 log_level: INFO

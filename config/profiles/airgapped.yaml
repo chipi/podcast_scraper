@@ -27,17 +27,20 @@ auto_speakers: true
 # Requires `make preload-ml-models` (or manual HF cache) to populate weights.
 summary_provider: summllama
 
-# Grounded Insights — from summary bullets (no LLM provider available)
+# Grounded Insights — from summary bullets (SummLlama is summary-only, not chat).
+# n=12 matches the autoresearch sweet spot (applies regardless of insight source;
+# the old n=8 was a bart-led carry-over).
 generate_gi: true
 gi_insight_source: summary_bullets
-gi_max_insights: 8
+gi_max_insights: 12
 gi_require_grounding: true
 
-# Knowledge Graph — from summary bullets
+# Knowledge Graph — from summary bullets.
+# n=10 matches autoresearch sweet spot; kg_max_entities=15 matches other profiles.
 generate_kg: true
 kg_extraction_source: summary_bullets
-kg_max_topics: 5
-kg_max_entities: 10
+kg_max_topics: 10
+kg_max_entities: 15
 
 # Vector search + clustering
 vector_search: true

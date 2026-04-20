@@ -1,0 +1,44 @@
+# Profile: freeze/openai — max-OpenAI (transcription + NER + summary).
+# Provider-only prescription; operational fields (rss, output_dir, max_episodes)
+# are injected by freeze_profile.py (E2E fixture) or CLI.
+#
+# Run:
+#   make profile-freeze VERSION=v2.6.0-openai \
+#     PIPELINE_CONFIG=config/profiles/freeze/openai.yaml \
+#     DATASET_ID=e2e_podcast1_mtb_n2
+
+# Transcription — OpenAI's Whisper API
+transcription_provider: openai
+openai_transcription_model: whisper-1
+
+# Speaker detection — OpenAI gpt-4o-mini (exercise full OpenAI NER path)
+speaker_detector_provider: openai
+openai_speaker_model: gpt-4o-mini
+auto_speakers: true
+
+# Summarization — OpenAI gpt-4o-mini
+summary_provider: openai
+openai_summary_model: gpt-4o-mini
+preprocessing_enabled: true
+
+# Grounded Insights
+generate_gi: true
+gi_insight_source: provider
+gi_max_insights: 12
+gi_require_grounding: true
+
+# Knowledge Graph
+generate_kg: true
+kg_extraction_source: provider
+kg_max_topics: 10
+kg_max_entities: 15
+
+# Vector search + clustering
+vector_search: true
+vector_backend: faiss
+
+# General
+generate_metadata: true
+generate_summaries: true
+language: en
+log_level: INFO
