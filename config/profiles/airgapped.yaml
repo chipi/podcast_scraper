@@ -1,16 +1,13 @@
 # Profile: airgapped — no network, no Ollama daemon
 #
 # Maximum isolation: no API calls, no Ollama server, no network.
-# Uses only bundled ML models (transformers, spaCy, local Whisper).
+# Uses only bundled ML models (SummLlama / transformers, spaCy, local Whisper).
 #
 # Research references:
-#   Summary:   bart-led 0.206 paragraph (weak but zero-dep)
-#   GI:        summary_bullets source (no LLM for provider mode)
-#   KG:        summary_bullets source (no LLM for provider mode)
-#   NER:       spaCy sm for speed, trf for quality
-#
-# Note: SummLlama3.2-3B (#571) would upgrade this profile significantly
-# when wired as a proper ML mode (0.485 paragraph vs 0.206 for bart-led).
+#   Summary:   SummLlama3.2-3B 0.485 paragraph (#571, 2.4x over bart-led 0.206)
+#   GI:        summary_bullets source (SummLlama is summary-only, not chat)
+#   KG:        summary_bullets source (same rationale)
+#   NER:       spaCy trf for quality (1.000 F1 w/ show-title fix)
 #
 # Usage:
 #   python -m podcast_scraper.cli --config config/profiles/airgapped.yaml \
@@ -20,12 +17,15 @@
 transcription_provider: whisper
 whisper_model: medium.en
 
-# Speaker detection — spaCy only
+# Speaker detection — spaCy trf (1.000 F1, fully local)
 speaker_detector_provider: spacy
+ner_model: en_core_web_trf
 auto_speakers: true
 
-# Summarization — pure ML, bart-led
-summary_provider: transformers
+# Summarization — SummLlama3.2-3B (#571): instruction-tuned summary model,
+# 0.485 paragraph quality, single safetensors shard, ~7GB RAM on CPU.
+# Requires `make preload-ml-models` (or manual HF cache) to populate weights.
+summary_provider: summllama
 
 # Grounded Insights — from summary bullets (no LLM provider available)
 generate_gi: true

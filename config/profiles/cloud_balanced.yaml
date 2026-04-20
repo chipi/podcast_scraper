@@ -21,8 +21,10 @@
 transcription_provider: openai
 openai_transcription_model: whisper-1
 
-# Speaker detection
-speaker_detector_provider: gemini
+# Speaker detection — spaCy trf is free, local, 1.000 F1 with show-title fix.
+# No reason to pay for a cloud NER call when local trf matches reference.
+speaker_detector_provider: spacy
+ner_model: en_core_web_trf
 auto_speakers: true
 
 # Summarization
