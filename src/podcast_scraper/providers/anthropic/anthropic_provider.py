@@ -879,6 +879,178 @@ class AnthropicProvider:
                     provider="AnthropicProvider/Summarization",
                 ) from exc
 
+    def summarize_mega_bundled(
+        self,
+        text: str,
+        *,
+        episode_title: Optional[str] = None,
+        episode_description: Optional[str] = None,
+        params: Optional[Dict[str, Any]] = None,
+        pipeline_metrics: "metrics.Metrics | None" = None,
+        call_metrics: Any | None = None,
+    ) -> Any:
+        """Single-call mega-bundle: summary + bullets + insights + topics + entities (#643).
+
+        Anthropic Claude Haiku 4.5 is a tier-1 mega-bundle provider per the
+        #632 experiment: summary length matches silver within 74%, KG topic
+        coverage exceeds standalone baseline (81% vs 71%), entity F1 = 1.000.
+        Saves ~2/3 of extraction cost vs three separate calls.
+
+        Args:
+            text: Transcript text.
+            episode_title: Optional title hint (unused in current prompt).
+            episode_description: Optional description hint (unused).
+            params: Optional param dict; honors ``max_tokens`` override.
+            pipeline_metrics: Optional metrics tracker.
+            call_metrics: Optional per-call metrics tracker.
+
+        Returns:
+            :class:`MegaBundleResult` (from providers.common.megabundle_parser)
+            with .title, .summary, .bullets, .insights, .topics, .entities.
+
+        Raises:
+            RuntimeError: If provider not initialized.
+            MegaBundleParseError: If response fails schema validation.
+            ProviderRuntimeError: For API-level failures after retries.
+        """
+        if not self._summarization_initialized:
+            raise RuntimeError(
+                "AnthropicProvider summarization not initialized. Call initialize() first."
+            )
+
+        from ...prompting.megabundle import build_megabundle_prompt
+        from ...utils.provider_metrics import (
+            _safe_anthropic_retryable,
+            ProviderCallMetrics,
+            retry_with_metrics,
+        )
+        from ..common.megabundle_parser import parse_megabundle_response
+
+        max_out = int(
+            (params or {}).get("max_tokens")
+            or getattr(self.cfg, "llm_bundled_max_output_tokens", 16384)
+            or 16384
+        )
+        language = getattr(self.cfg, "language", "en") or None
+        system_prompt, user_prompt = build_megabundle_prompt(text, language=language)
+
+        if call_metrics is None:
+            call_metrics = ProviderCallMetrics()
+        call_metrics.set_provider_name("anthropic")
+
+        def _make_api_call() -> Any:
+            return self.client.messages.create(
+                model=self.summary_model,
+                max_tokens=max_out,
+                temperature=0.0,
+                system=system_prompt,
+                messages=[{"role": "user", "content": user_prompt}],
+            )
+
+        try:
+            resp = retry_with_metrics(
+                _make_api_call,
+                max_retries=3,
+                initial_delay=1.0,
+                max_delay=30.0,
+                retryable_exceptions=_safe_anthropic_retryable(),
+                metrics=call_metrics,
+            )
+        except Exception:
+            call_metrics.finalize()
+            raise
+        call_metrics.finalize()
+
+        # Anthropic returns content as a list of blocks; mega-bundle is a
+        # single text block with the JSON body.
+        raw_text = resp.content[0].text if resp.content else "{}"
+
+        # Usage tracking for observability.
+        if hasattr(resp, "usage") and resp.usage is not None:
+            try:
+                call_metrics.set_tokens(
+                    int(getattr(resp.usage, "input_tokens", 0) or 0),
+                    int(getattr(resp.usage, "output_tokens", 0) or 0),
+                )
+            except (TypeError, ValueError):
+                pass
+
+        return parse_megabundle_response(raw_text)
+
+    def summarize_extraction_bundled(
+        self,
+        text: str,
+        *,
+        episode_title: Optional[str] = None,
+        episode_description: Optional[str] = None,
+        params: Optional[Dict[str, Any]] = None,
+        pipeline_metrics: "metrics.Metrics | None" = None,
+        call_metrics: Any | None = None,
+    ) -> Any:
+        """Single-call extraction bundle: insights + topics + entities (#643).
+
+        Companion to :meth:`summarize_bundled` for the 2-call pipeline.
+        """
+        if not self._summarization_initialized:
+            raise RuntimeError(
+                "AnthropicProvider summarization not initialized. Call initialize() first."
+            )
+
+        from ...prompting.megabundle import build_extraction_bundle_prompt
+        from ...utils.provider_metrics import (
+            _safe_anthropic_retryable,
+            ProviderCallMetrics,
+            retry_with_metrics,
+        )
+        from ..common.megabundle_parser import parse_extraction_bundle_response
+
+        max_out = int(
+            (params or {}).get("max_tokens")
+            or getattr(self.cfg, "llm_bundled_max_output_tokens", 16384)
+            or 16384
+        )
+        language = getattr(self.cfg, "language", "en") or None
+        system_prompt, user_prompt = build_extraction_bundle_prompt(text, language=language)
+
+        if call_metrics is None:
+            call_metrics = ProviderCallMetrics()
+        call_metrics.set_provider_name("anthropic")
+
+        def _make_api_call() -> Any:
+            return self.client.messages.create(
+                model=self.summary_model,
+                max_tokens=max_out,
+                temperature=0.0,
+                system=system_prompt,
+                messages=[{"role": "user", "content": user_prompt}],
+            )
+
+        try:
+            resp = retry_with_metrics(
+                _make_api_call,
+                max_retries=3,
+                initial_delay=1.0,
+                max_delay=30.0,
+                retryable_exceptions=_safe_anthropic_retryable(),
+                metrics=call_metrics,
+            )
+        except Exception:
+            call_metrics.finalize()
+            raise
+        call_metrics.finalize()
+
+        raw_text = resp.content[0].text if resp.content else "{}"
+        if hasattr(resp, "usage") and resp.usage is not None:
+            try:
+                call_metrics.set_tokens(
+                    int(getattr(resp.usage, "input_tokens", 0) or 0),
+                    int(getattr(resp.usage, "output_tokens", 0) or 0),
+                )
+            except (TypeError, ValueError):
+                pass
+
+        return parse_extraction_bundle_response(raw_text)
+
     def summarize_bundled(
         self,
         text: str,

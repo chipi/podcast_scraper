@@ -53,6 +53,20 @@ class MegaBundleResult:
             "bullets": list(self.bullets),
         }
 
+    def to_extraction_partial(self) -> Dict[str, Any]:
+        """Return the insights/topics/entities payload for GIL+KG reuse.
+
+        Shape is the canonical in-pipeline contract: GIL stage reads
+        ``insights`` as ``[{"text": str, "insight_type": str}]``; KG stage reads
+        ``topics`` as ``list[str]`` and ``entities`` as
+        ``[{"name": str, "kind": str, "role": str}]``.
+        """
+        return {
+            "insights": [dict(i) for i in self.insights],
+            "topics": list(self.topics),
+            "entities": [dict(e) for e in self.entities],
+        }
+
 
 _CODE_FENCE_RE = re.compile(r"^```(?:json)?\s*|\s*```\s*$", re.MULTILINE)
 

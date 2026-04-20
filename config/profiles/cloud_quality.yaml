@@ -35,6 +35,19 @@ auto_speakers: true
 summary_provider: deepseek
 deepseek_summary_model: deepseek-chat
 
+# Pipeline mode — mega_bundled (#643): one call returns
+# title + summary + bullets + insights + topics + entities. DeepSeek is tier-2
+# for mega-bundle (entity F1 ≈ 0.88 vs Anthropic haiku-4.5 tier-1 at 1.000),
+# but the ~6× cost savings vs three standalone calls outweighs the entity gap
+# for most quality-tier users. Swap to Anthropic haiku-4.5 + mega_bundled if
+# NER fidelity matters most. See docs/guides/AI_PROVIDER_COMPARISON_GUIDE.md.
+llm_pipeline_mode: mega_bundled
+
+# Output token floor for cloud LLM structured JSON (#645). Default 4096 is
+# enough for mega-bundle on full-length transcripts; raise if you see
+# truncated JSON in logs.
+cloud_llm_structured_min_output_tokens: 4096
+
 # Grounded Insights — uses summary_provider (DeepSeek) for insight + evidence.
 # Best single-provider GI in the 7-LLM matrix is Gemini at 80%, but switching
 # here would split summary and GI across providers. Per-stage provider routing

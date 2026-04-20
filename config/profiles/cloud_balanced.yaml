@@ -37,6 +37,17 @@ summary_provider: gemini
 gemini_summary_model: gemini-2.5-flash-lite
 preprocessing_enabled: true
 
+# Pipeline mode — extraction_bundled (#643): summary/bullets use the provider's
+# native summary prompt (staged), insights + topics + entities collapse into a
+# single extraction call. Halves cloud calls for GIL+KG+NER without betting on
+# tier-1 mega-bundle fidelity. Works for all 6 cloud providers; swap to
+# mega_bundled on Anthropic or DeepSeek if you need max cost savings.
+llm_pipeline_mode: extraction_bundled
+
+# Output token floor for cloud LLM structured JSON (#645). Prevents truncated
+# JSON (Gemini returned empty strings on long transcripts below ~650 tokens).
+cloud_llm_structured_min_output_tokens: 4096
+
 # Grounded Insights
 generate_gi: true
 gi_insight_source: provider

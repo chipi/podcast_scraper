@@ -54,6 +54,39 @@ params:
 
 ---
 
+## LLM pipeline modes (`llm_pipeline_mode`)
+
+Four end-to-end pipelines produce the `{title, summary, bullets}` artifact **plus**
+insights / topics / entities that feed the knowledge graph:
+
+| Mode | API calls | Best for | Tier-1 providers |
+| --- | --- | --- | --- |
+| `staged` (default) | 3–4 (summary + GIL + KG/NER) | Local/Ollama; when bullets/summary quality must be tuned independently | All |
+| `bundled` | 1 summary + 2 extraction | Compact cloud runs where summary+bullets fit one call | Anthropic, Ollama |
+| `extraction_bundled` | 1 summary + 1 extraction | Balanced cloud — summary stays in a provider-tuned prompt, extraction collapses into one call | All cloud providers |
+| `mega_bundled` | 1 | Quality-first cloud, tier-1 providers only — single call returns everything | Anthropic (tier 1), DeepSeek (tier 2) |
+
+Research pointers (#632 mega-bundle experiment):
+
+- **Anthropic `claude-haiku-4-5` mega-bundled** — summary length within 74 % of
+  silver, KG topic coverage 81 % (beats standalone 71 %), entity F1 = 1.000.
+  Saves ~⅔ of extraction cost vs three calls. Use for `cloud_quality`.
+- **DeepSeek `deepseek-chat` mega-bundled** — tier 2: summary 73 %, KG 71 %
+  (baseline), entity F1 ≈ 0.88. ~6× cheaper than separate calls.
+- **OpenAI / Gemini / Mistral / Grok** — not tier-1 for mega-bundle (KG or
+  entity quality regresses). Use `extraction_bundled` to still collapse the
+  GIL+KG+NER trio into one JSON call while keeping the provider's native
+  summary prompt for paragraph/bullets.
+
+Set the mode in your profile:
+
+```yaml
+llm_pipeline_mode: "mega_bundled"        # or: "extraction_bundled", "bundled", "staged"
+cloud_llm_structured_min_output_tokens: 4096  # floor for JSON responses (#645)
+```
+
+---
+
 ## Full reference — v2 matrix details
 
 The two picks above cover most deployments. Everything below is the detailed reference for

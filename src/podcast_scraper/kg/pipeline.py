@@ -165,6 +165,7 @@ def build_artifact(
     cfg: Optional[Any] = None,
     kg_extraction_provider: Optional[Any] = None,
     pipeline_metrics: Optional[Any] = None,
+    prefilled_partial: Optional[Dict[str, Any]] = None,
 ) -> Dict[str, Any]:
     """Build a KG artifact dict for one episode.
 
@@ -218,7 +219,28 @@ def build_artifact(
     llm_from_summary_bullets = False
     resolved_model = model_version
 
-    if source == "provider":
+    # #643: prefilled from mega_bundled / extraction_bundled short-circuits
+    # provider dispatch entirely. Normalize to the {label,...}/{name,entity_kind}
+    # shape that _append_topics_and_entities_from_partial expects.
+    if prefilled_partial and (prefilled_partial.get("topics") or prefilled_partial.get("entities")):
+        norm_topics: List[Dict[str, Any]] = []
+        for t in prefilled_partial.get("topics") or []:
+            if isinstance(t, str) and t.strip():
+                norm_topics.append({"label": t.strip()})
+            elif isinstance(t, dict) and isinstance(t.get("label"), str) and t["label"].strip():
+                norm_topics.append(dict(t))
+        norm_entities: List[Dict[str, Any]] = []
+        for e in prefilled_partial.get("entities") or []:
+            if not isinstance(e, dict):
+                continue
+            name = e.get("name")
+            if not isinstance(name, str) or not name.strip():
+                continue
+            kind = e.get("kind") or e.get("entity_kind") or "person"
+            norm_entities.append({"name": name.strip(), "entity_kind": str(kind).strip().lower()})
+        llm_partial = {"topics": norm_topics, "entities": norm_entities}
+        used_provider = True
+    elif source == "provider":
         llm_partial = _try_provider_extraction(
             transcript_text,
             episode_title or "",
