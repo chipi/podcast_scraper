@@ -59,7 +59,7 @@ ml = [
   "sentence-transformers>=3.0.0,<6.0.0",
   # Semantic corpus search (PRD-021 / RFC-061): local vector index
   "faiss-cpu>=1.9.0,<2.0.0",
-  "accelerate>=0.20.0,<2.0.0",
+  "accelerate>=1.13.0,<2.0.0",
   "protobuf>=3.20.0,!=6.33.4,<8.0.0",  # Exclude 6.33.4 due to CVE-2026-0994 (fixed in 6.33.5+)
   # GGUF in-process inference for hybrid_ml Tier 2 REDUCE (RFC-042, Issue #352); Ollama needs no extra
   "llama-cpp-python>=0.2.0,<0.4.0",
