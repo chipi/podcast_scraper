@@ -58,7 +58,8 @@ UNIT_FASTAPI_IMPORT_RE = re.compile(
 
 ML_MODELS_MARKER_RE = re.compile(r"@pytest\.mark\.ml_models")
 
-TEST_METHOD_RE = re.compile(r"^\s+def (test_\w+)\(", re.MULTILINE)
+# Match module-level ``def test_*`` (column 0) and methods inside classes (indented).
+TEST_METHOD_RE = re.compile(r"^[\t ]*def (test_\w+)\(", re.MULTILINE)
 
 # --- Allowlists ---
 # Empty test file stubs: add paths here ONLY for files that are actively

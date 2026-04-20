@@ -433,13 +433,17 @@ class GeminiProvider:
             # empty on SAFETY/RECITATION finish reasons and silently concatenates
             # truncated output on MAX_TOKENS. Surface these so we can tell the
             # difference between "empty transcript" and "client blocked it".
+            # Broad except because this is a purely diagnostic branch — callers
+            # must never fail transcription because introspection hiccupped on
+            # an atypical response object (e.g. test doubles).
             finish_reason: Optional[str] = None
             try:
-                if response.candidates:
-                    fr = response.candidates[0].finish_reason
-                    finish_reason = str(fr) if fr is not None else None
-            except (AttributeError, IndexError):
-                pass
+                candidates = getattr(response, "candidates", None)
+                first = candidates[0] if candidates else None
+                fr = getattr(first, "finish_reason", None) if first is not None else None
+                finish_reason = str(fr) if fr is not None else None
+            except Exception:
+                finish_reason = None
             if finish_reason and any(
                 x in finish_reason.upper() for x in ("MAX_TOKENS", "SAFETY", "RECITATION")
             ):

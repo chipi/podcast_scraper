@@ -485,8 +485,11 @@ profiles + `capture_e2e_*.yaml` per-provider captures). Source data in
 Since 2026-04, the defaults are split across **named presets** so a single
 edit updates every deployment profile that references them (GitHub #634):
 
-- **Audio preprocessing**: [`config/profiles/audio/speech_optimal_v1.yaml`](../../config/profiles/audio/speech_optimal_v1.yaml)
-  — referenced by all 5 deployment profiles via `audio_preprocessing_profile: speech_optimal_v1`.
+- **Audio preprocessing**: `config/profiles/audio/speech_optimal_v1.yaml` —
+  referenced by all 5 deployment profiles via
+  `audio_preprocessing_profile: speech_optimal_v1`. See the file's own comment
+  block for rationale and data; see `config/profiles/audio/README.md` for the
+  pattern (both live under `config/`, outside the MkDocs tree).
 - **Text cleaning (ML-only)**: `ml_preprocessing_profile` on `Config` (e.g.
   `cleaning_v4`), overrides the `mode_cfg.preprocessing_profile` default in
   the ML summary registry. Cloud LLM and Ollama providers send raw transcripts
