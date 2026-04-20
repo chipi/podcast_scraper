@@ -482,6 +482,16 @@ These are the research-backed settings used across `config/profiles/` (main
 profiles + `capture_e2e_*.yaml` per-provider captures). Source data in
 `docs/guides/eval-reports/` and `data/eval/runs/ner_*_smoke_v1/`.
 
+Since 2026-04, the defaults are split across **named presets** so a single
+edit updates every deployment profile that references them (GitHub #634):
+
+- **Audio preprocessing**: [`config/profiles/audio/speech_optimal_v1.yaml`](../../config/profiles/audio/speech_optimal_v1.yaml)
+  — referenced by all 5 deployment profiles via `audio_preprocessing_profile: speech_optimal_v1`.
+- **Text cleaning (ML-only)**: `ml_preprocessing_profile` on `Config` (e.g.
+  `cleaning_v4`), overrides the `mode_cfg.preprocessing_profile` default in
+  the ML summary registry. Cloud LLM and Ollama providers send raw transcripts
+  and ignore this field.
+
 ### NER / speaker detection
 
 Smoke eval (5 episodes, 15 gold entities, `data/eval/runs/ner_*_smoke_v1/`):
@@ -570,9 +580,14 @@ from `curated_5feeds_benchmark_v2`. Local Whisper small.en baseline WER ~11%.
    size (upload speed, 25 MB cap) but **not** per-minute cost. Lower bitrate is
    still worth it for smaller files (Exp 1: 32 kbps is the sweet spot).
 2. **Silence trim** — direct duration cut. On tightly-edited benchmark fixtures
-   the filter removed 0% (fixtures have no silences >1 s at any threshold). On
-   production NPR audio, `-40dB / 0.5s` detects 35 silences/ep (~meaningful cut).
-   **Silence sweep on prod audio is a follow-up.**
+   the filter removed 0% (fixtures have no silences > 1 s at any threshold).
+   On production NPR audio (#577 Exp 2-prod, 2026-04-20, 2 × 32-min episodes):
+   `-50 dB / 2.0 s` (the previous default) trims 0%. `-30 dB / 0.5 s` trims
+   **3.6%** with < 1% transcript char drop. `-25 dB / 0.5 s` trims **6.7%**
+   with similar char drop (held pending validation on more diverse podcast
+   types). `speech_optimal_v1.yaml` now uses `-30 dB / 0.5 s` as the moderate
+   sweet spot — across all 5 deployment profiles that's a direct 3.6% API $
+   saving on top of whatever provider they pick.
 3. **Cheaper model** — `voxtral-mini-latest` is 6× cheaper at similar clean-run
    quality (pending hallucination mitigations). `gpt-4o-mini-transcribe` is 50%
    cheaper than `whisper-1` but blocked on chunking.

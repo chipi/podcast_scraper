@@ -30,6 +30,22 @@ All numbers and picks trace back to
 → **Autoresearch-derived defaults** section and
 [`docs/guides/eval-reports/`](../../docs/guides/eval-reports/).
 
+## `config/profiles/audio/*.yaml` — audio preprocessing presets
+
+Named bundles of audio-preprocessing fields (bitrate, sample rate, silence
+trim, target loudness). Deployment profiles reference them via the
+`audio_preprocessing_profile` field so one edit to a preset updates every
+profile that uses it.
+
+All 5 deployment profiles above reference
+[`audio/speech_optimal_v1.yaml`](audio/speech_optimal_v1.yaml) (the default
+preset, Whisper-tuned). See [`audio/README.md`](audio/README.md) for the full
+workflow and merge-precedence rules.
+
+**Orthogonal to `ml_preprocessing_profile`** (ML-only text cleaning like
+`cleaning_v4`). Audio preprocessing and text cleaning are different pipeline
+stages; both are now user-configurable from deployment profiles (#634).
+
 ## `config/profiles/freeze/*.yaml` — performance capture profiles
 
 Companion profiles used by `make profile-freeze` (RFC-064) to capture

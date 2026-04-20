@@ -17,9 +17,8 @@
 transcription_provider: whisper
 whisper_model: small.en
 
-# Audio preprocessing — 32 kbps @ 16 kHz mono (#577 Exp 1: no WER cost, 75%
-# smaller files for local IO/storage).
-preprocessing_mp3_bitrate_kbps: 32
+# Audio preprocessing — named preset (#634 Scope 1).
+audio_preprocessing_profile: speech_optimal_v1
 
 # Speaker detection — spaCy trf beats qwen3.5:9b on NER (F1 1.000 vs 0.750
 # on smoke) and avoids a 9B-model inference call per episode. Local compute

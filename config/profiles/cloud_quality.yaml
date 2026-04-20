@@ -21,8 +21,8 @@
 transcription_provider: openai
 openai_transcription_model: whisper-1
 
-# Audio preprocessing — 32 kbps @ 16 kHz mono (Exp 1 winner, no WER cost).
-preprocessing_mp3_bitrate_kbps: 32
+# Audio preprocessing — named preset (#634 Scope 1).
+audio_preprocessing_profile: speech_optimal_v1
 
 # Speaker detection — spaCy trf ties all cloud LLMs at F1=1.000 on NER smoke
 # (5 eps / 15 entities). Free, local, deterministic. Larger-corpus validation

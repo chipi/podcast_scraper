@@ -22,10 +22,9 @@
 transcription_provider: openai
 openai_transcription_model: whisper-1
 
-# Audio preprocessing — 32 kbps MP3 @ 16 kHz mono is the storage/IO sweet spot.
-# Exp 1 of #577: 32k matches WER of 128k on local small.en (file is 75% smaller,
-# same transcription quality). Also keeps us safely under OpenAI 25 MB upload cap.
-preprocessing_mp3_bitrate_kbps: 32
+# Audio preprocessing — named preset in config/profiles/audio/ (#634 Scope 1).
+# One edit to speech_optimal_v1.yaml updates every profile that references it.
+audio_preprocessing_profile: speech_optimal_v1
 
 # Speaker detection — spaCy trf is free, local, 1.000 F1 with show-title fix.
 # No reason to pay for a cloud NER call when local trf matches reference.
