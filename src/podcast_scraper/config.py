@@ -2361,6 +2361,19 @@ class Config(BaseModel):
             "API. Applies to: openai, anthropic, gemini, deepseek, mistral, grok."
         ),
     )
+    single_feed_uses_corpus_layout: bool = Field(
+        default=False,
+        alias="single_feed_uses_corpus_layout",
+        description=(
+            "When True, single-feed runs write under <output_dir>/feeds/<slug>/ "
+            "instead of <output_dir>/run_<id>/, matching the corpus layout used "
+            "by multi-feed runs (GitHub #644). Unifies output shape for viewer, "
+            "eval tooling, and corpus-level artifacts. Default False for "
+            "backwards compatibility; recommended True for new corpora and when "
+            "an existing output_dir has been migrated. Migration helper: "
+            "scripts/tools/migrate_single_feed_to_corpus.py."
+        ),
+    )
     # ML generation parameters (all defaults come from Config, no hardcoded values)
     # These provide fine-grained control over generation parameters
     summary_map_params: Dict[str, Any] = Field(
