@@ -2321,14 +2321,20 @@ class Config(BaseModel):
             "'hybrid' (pattern-based + conditional LLM when needed)."
         ),
     )
-    llm_pipeline_mode: Literal["staged", "bundled"] = Field(
+    llm_pipeline_mode: Literal["staged", "bundled", "mega_bundled", "extraction_bundled"] = Field(
         default="staged",
         alias="llm_pipeline_mode",
         description=(
-            "LLM transcript pipeline for cleaning + summary + bullets (Issue #477). "
-            "'staged' = separate semantic clean and summarize calls (default). "
-            "'bundled' = one structured completion when the summary provider implements "
-            "summarize_bundled (OpenAI/Anthropic/Gemini); falls back to staged on failure."
+            "LLM transcript pipeline (Issue #477, extended by #643). "
+            "'staged' = separate clean, summarize, GI, KG calls (default). "
+            "'bundled' = one structured completion for clean+summary+bullets "
+            "(Issue #477). "
+            "'mega_bundled' = one call for summary+bullets+insights+topics+entities. "
+            "Validated on Anthropic Claude Haiku 4.5 (#632, #643). Falls back "
+            "to 'staged' on parser failure. "
+            "'extraction_bundled' = two calls: summary standalone + "
+            "insights/topics/entities bundled. Viable on OpenAI, Gemini where "
+            "mega_bundled compresses the summary (#643)."
         ),
     )
     llm_bundled_max_output_tokens: int = Field(
@@ -2338,6 +2344,21 @@ class Config(BaseModel):
         description=(
             "Max completion/output tokens for bundled clean+summary+bullets calls "
             "(large default: output includes full cleaned transcript JSON)."
+        ),
+    )
+    cloud_llm_structured_min_output_tokens: int = Field(
+        default=4096,
+        ge=512,
+        alias="cloud_llm_structured_min_output_tokens",
+        description=(
+            "Minimum max_output_tokens enforced on cloud-LLM structured summary "
+            "(non-bundled) calls. Prevents mid-JSON truncation on long transcripts "
+            "when summary_reduce_params.max_new_tokens is sized for LED-base local "
+            "ML (~650). Discovered via Flightcast episode failure 2026-04-20 "
+            "(Gemini truncated summary JSON at ~650 tokens). Providers that read "
+            "params.max_length or summary_reduce_params.max_new_tokens should "
+            "clamp the resulting value to at least this floor before calling the "
+            "API. Applies to: openai, anthropic, gemini, deepseek, mistral, grok."
         ),
     )
     # ML generation parameters (all defaults come from Config, no hardcoded values)

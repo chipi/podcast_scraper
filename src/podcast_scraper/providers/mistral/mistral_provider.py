@@ -819,6 +819,10 @@ class MistralProvider:
             or self.cfg.summary_reduce_params.get("max_new_tokens")
             or 800
         )
+        # Enforce cloud-LLM structured-JSON output floor (Flightcast 2026-04-20).
+        from ..common.output_tokens import cloud_structured_max_output_tokens
+
+        max_length = cloud_structured_max_output_tokens(self.cfg, max_length)
         min_length = (
             (params.get("min_length") if params else None)
             or self.cfg.summary_reduce_params.get("min_new_tokens")

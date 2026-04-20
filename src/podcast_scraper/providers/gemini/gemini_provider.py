@@ -932,6 +932,12 @@ class GeminiProvider:
             or self.cfg.summary_reduce_params.get("max_new_tokens")
             or 800
         )
+        # Enforce the cloud-LLM structured-JSON output floor (Flightcast truncation
+        # fix 2026-04-20). Local-ML default (650) is tuned for LED-base and is
+        # too small for Gemini's structured summary output on long transcripts.
+        from ..common.output_tokens import cloud_structured_max_output_tokens
+
+        max_length = cloud_structured_max_output_tokens(self.cfg, max_length)
         min_length = (
             (params.get("min_length") if params else None)
             or self.cfg.summary_reduce_params.get("min_new_tokens")
@@ -1030,6 +1036,29 @@ class GeminiProvider:
 
                 if input_tokens is not None and output_tokens is not None:
                     call_metrics.set_tokens(input_tokens, output_tokens)
+
+            # Truncation diagnostic: warn on MAX_TOKENS/SAFETY/RECITATION finish
+            # reasons or near-budget output. Surfaces the class of silent
+            # truncation that caused Flightcast failure on 2026-04-20.
+            try:
+                from ..common.output_tokens import warn_if_output_truncated
+
+                finish_reason: Optional[str] = None
+                try:
+                    candidates = getattr(response, "candidates", None)
+                    first = candidates[0] if candidates else None
+                    fr = getattr(first, "finish_reason", None) if first is not None else None
+                    finish_reason = str(fr) if fr is not None else None
+                except Exception:
+                    finish_reason = None
+                warn_if_output_truncated(
+                    provider_name="gemini",
+                    finish_reason=finish_reason,
+                    output_tokens=output_tokens,
+                    max_output_tokens=max_length,
+                )
+            except Exception:
+                pass
 
             # Track LLM call metrics if available (aggregate tracking)
             if (
