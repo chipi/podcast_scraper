@@ -143,6 +143,9 @@ data/eval/materialized/
 # Evaluation runs
 data/eval/runs/
 
+# Generated eval configs (scripts/eval/pipeline_validate.py auto-writes here)
+data/eval/configs/_pipeline_validate/
+
 # Environment variables
 .env
 .env.local
