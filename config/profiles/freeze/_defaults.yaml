@@ -1,0 +1,30 @@
+# Freeze-operational defaults for `make profile-freeze` runs.
+#
+# `config/profiles/*.yaml` profiles describe providers/research; they are
+# intentionally free of operational fields (rss, output_dir, max_episodes).
+# freeze_profile.py merges this file under the provider profile so freeze
+# runs have a consistent, self-contained operational shape.
+#
+# Override any field per-run with `--override key=value` (future) or by
+# editing this file. For real-feed capture (not E2E fixtures), pass
+# `--rss <url>` and `--output-dir <path>` explicitly.
+
+# RSS placeholder — detected by freeze_profile as "start E2E fixture server,
+# use the default podcast fixture" (podcast1_mtb). Override with --e2e-feed
+# to pick a different fixture, or --rss to capture against a real feed.
+rss: https://example.invalid/e2e-placeholder-single-feed.xml
+
+# Output root for the capture run. freeze_profile writes run artifacts here
+# and then extracts the frozen profile YAML to `data/profiles/<version>.yaml`.
+output_dir: .tmp/profile_capture/e2e
+
+# Episodes per run. Two is the conventional capture size — enough to measure
+# cold-start vs steady-state timing without blowing the budget on API calls.
+max_episodes: 2
+
+# Whisper compute device. Capture on CPU so numbers are comparable across
+# hostnames and CI. Override to `mps`/`cuda` for accelerator-specific profiles.
+whisper_device: cpu
+
+# Transcribe any episode missing a cached transcript (expected for E2E fixtures).
+transcribe_missing: true

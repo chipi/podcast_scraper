@@ -44,6 +44,10 @@ logger = logging.getLogger(__name__)
 # Default E2E RSS fixture when config uses placeholder URL (sample acceptance style)
 _DEFAULT_E2E_PODCAST = "podcast1_mtb"
 
+# Operational defaults file — merged under the provider profile so profile
+# YAMLs stay provider-only. See config/profiles/freeze/_defaults.yaml.
+_FREEZE_DEFAULTS_PATH = _ROOT / "config" / "profiles" / "freeze" / "_defaults.yaml"
+
 # Default psutil poll interval (seconds); finer windows for short stages (Issue #510 / RFC-064)
 _DEFAULT_SAMPLE_INTERVAL_S = 0.5
 
@@ -575,8 +579,20 @@ def main() -> None:
     if not cfg_path.is_file():
         raise SystemExit(f"Pipeline config not found: {cfg_path}")
 
-    raw = ps_config.load_config_file(str(cfg_path))
-    base_cfg = ps_config.Config.model_validate(raw)
+    # Merge freeze-operational defaults (rss/output_dir/max_episodes/whisper_device)
+    # under the provider profile so profile YAMLs stay provider-only.
+    merged: Dict[str, Any] = {}
+    defaults: Dict[str, Any] = {}
+    if _FREEZE_DEFAULTS_PATH.is_file():
+        defaults = ps_config.load_config_file(str(_FREEZE_DEFAULTS_PATH))
+        merged.update(defaults)
+    merged.update(ps_config.load_config_file(str(cfg_path)))
+    # Derive per-profile output_dir suffix when the operator hasn't overridden
+    # the root from freeze/_defaults.yaml. Profile stem is already the provider
+    # name (e.g., config/profiles/freeze/gemini.yaml -> "gemini").
+    if merged.get("output_dir") == defaults.get("output_dir") and merged.get("output_dir"):
+        merged["output_dir"] = str(Path(merged["output_dir"]) / cfg_path.stem)
+    base_cfg = ps_config.Config.model_validate(merged)
 
     e2e_server = None
     e2e_podcast = (args.e2e_feed or "").strip()

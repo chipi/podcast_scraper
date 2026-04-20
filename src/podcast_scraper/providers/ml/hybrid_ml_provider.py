@@ -444,9 +444,15 @@ class HybridMLProvider:
 
         params = params or {}
 
-        preprocessing_profile = params.get("preprocessing_profile")
-        if not preprocessing_profile:
-            preprocessing_profile = "cleaning_v4"
+        # Resolution order (high -> low priority):
+        #   1. Explicit params dict
+        #   2. Config.ml_preprocessing_profile (#634 Scope 2)
+        #   3. "cleaning_v4" hard fallback
+        preprocessing_profile = (
+            params.get("preprocessing_profile")
+            or getattr(self.cfg, "ml_preprocessing_profile", None)
+            or "cleaning_v4"
+        )
         cleaned_text, _stats = apply_profile_with_stats(text, preprocessing_profile)
 
         # MAP: classic compression (chunk summaries)

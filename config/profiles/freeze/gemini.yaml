@@ -1,0 +1,43 @@
+# Profile: freeze/gemini — max-Gemini (transcription + NER + summary).
+# Gemini has native audio input, so uses provider transcription end-to-end.
+# Provider-only prescription; operational fields injected by freeze_profile / CLI.
+#
+# Run:
+#   make profile-freeze VERSION=v2.6.0-gemini \
+#     PIPELINE_CONFIG=config/profiles/freeze/gemini.yaml \
+#     DATASET_ID=e2e_podcast1_mtb_n2
+
+# Transcription — Gemini audio input
+transcription_provider: gemini
+gemini_transcription_model: gemini-2.5-flash-lite
+
+# Speaker detection — Gemini
+speaker_detector_provider: gemini
+gemini_speaker_model: gemini-2.5-flash-lite
+auto_speakers: true
+
+# Summarization — Gemini (compound-default cloud pick, 0.564 bullets / 1.5s / $0.47/1k)
+summary_provider: gemini
+gemini_summary_model: gemini-2.5-flash-lite
+
+# Grounded Insights
+generate_gi: true
+gi_insight_source: provider
+gi_max_insights: 12
+gi_require_grounding: true
+
+# Knowledge Graph
+generate_kg: true
+kg_extraction_source: provider
+kg_max_topics: 10
+kg_max_entities: 15
+
+# Vector search + clustering
+vector_search: true
+vector_backend: faiss
+
+# General
+generate_metadata: true
+generate_summaries: true
+language: en
+log_level: INFO

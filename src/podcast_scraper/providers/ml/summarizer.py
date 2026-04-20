@@ -1041,6 +1041,18 @@ class SummaryModel:
         with contextlib.redirect_stdout(io.StringIO()):
             try:
                 self.model = self.model.to(self.device)  # type: ignore[union-attr]
+            except NotImplementedError as e:
+                if "meta tensor" in str(e).lower():
+                    logger.warning(
+                        "Model has meta-backed tied weights; re-tying and retrying %s on %s",
+                        self.model_name,
+                        self.device,
+                    )
+                    if hasattr(self.model, "tie_weights"):
+                        self.model.tie_weights()  # type: ignore[union-attr]
+                    self.model = self.model.to(self.device)  # type: ignore[union-attr]
+                else:
+                    raise
             except (RuntimeError, Exception) as e:
                 error_msg = str(e).lower()
                 if self.device in ("mps", "cuda") and (
@@ -1163,6 +1175,11 @@ class SummaryModel:
                     "trust_remote_code": False,  # Security: don't execute remote code (Issue #379)
                     # Disable safetensors for Pegasus (no safetensors files)
                     "use_safetensors": use_safetensors,
+                    # Force eager weight allocation. With transformers 4.57 + torch 2.11, the
+                    # default lazy path can leave tied weights (lm_head, embed_tokens) on the
+                    # meta device, which then crashes `.to(device)` on subsequent feeds in
+                    # multi-feed mode with "Cannot copy out of meta tensor".
+                    "low_cpu_mem_usage": False,
                 }
                 if self.revision:
                     model_kwargs["revision"] = self.revision

@@ -1,0 +1,44 @@
+# Profile: freeze/ml_prod — all-local production shape.
+# pegasus-cnn + spaCy trf + Whisper small.en (production WER sweet spot).
+# Provider-only prescription; operational fields injected by freeze_profile / CLI.
+#
+# Run:
+#   make profile-freeze VERSION=v2.6.0-ml-prod \
+#     PIPELINE_CONFIG=config/profiles/freeze/ml_prod.yaml \
+#     DATASET_ID=e2e_podcast1_mtb_n2
+
+# Transcription — Whisper small.en (9.5% WER sweet spot)
+transcription_provider: whisper
+whisper_model: small.en
+
+# Speaker detection — spaCy trf (1.000 F1 on smoke)
+speaker_detector_provider: spacy
+ner_model: en_core_web_trf
+auto_speakers: true
+
+# Summarization — local ML (pegasus-cnn MAP + long-fast REDUCE)
+summary_provider: transformers
+summary_model: pegasus-cnn
+summary_reduce_model: long-fast
+
+# Grounded Insights — summary_bullets (transformers is summary-only, not chat)
+generate_gi: true
+gi_insight_source: summary_bullets
+gi_max_insights: 12
+gi_require_grounding: true
+
+# Knowledge Graph — summary_bullets (same rationale)
+generate_kg: true
+kg_extraction_source: summary_bullets
+kg_max_topics: 10
+kg_max_entities: 15
+
+# Vector search + clustering
+vector_search: true
+vector_backend: faiss
+
+# General
+generate_metadata: true
+generate_summaries: true
+language: en
+log_level: INFO

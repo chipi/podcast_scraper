@@ -476,60 +476,240 @@ OpenAI (full)       $37.40              $374.00             $3,740.00
 
 ---
 
+## Autoresearch-derived defaults (2026-04)
+
+These are the research-backed settings used across `config/profiles/` (main
+profiles + `capture_e2e_*.yaml` per-provider captures). Source data in
+`docs/guides/eval-reports/` and `data/eval/runs/ner_*_smoke_v1/`.
+
+Since 2026-04, the defaults are split across **named presets** so a single
+edit updates every deployment profile that references them (GitHub #634):
+
+- **Audio preprocessing**: `config/profiles/audio/speech_optimal_v1.yaml` —
+  referenced by all 5 deployment profiles via
+  `audio_preprocessing_profile: speech_optimal_v1`. See the file's own comment
+  block for rationale and data; see `config/profiles/audio/README.md` for the
+  pattern (both live under `config/`, outside the MkDocs tree).
+- **Text cleaning (ML-only)**: `ml_preprocessing_profile` on `Config` (e.g.
+  `cleaning_v4`), overrides the `mode_cfg.preprocessing_profile` default in
+  the ML summary registry. Cloud LLM and Ollama providers send raw transcripts
+  and ignore this field.
+
+### NER / speaker detection
+
+Smoke eval (5 episodes, 15 gold entities, `data/eval/runs/ner_*_smoke_v1/`):
+
+| Backend | F1 | Notes |
+| --- | :-: | --- |
+| **spaCy trf** (`en_core_web_trf`) | **1.000** | Free, local, deterministic |
+| spaCy sm (`en_core_web_sm`) | 0.966 | Faster, slightly lower recall |
+| OpenAI, Anthropic, Gemini, Mistral, DeepSeek, Grok | 1.000 | All six cloud LLMs tie spaCy trf |
+| Ollama `qwen3.5:9b` | 0.750 | Misses 6/15 entities; weakest tested |
+
+**Default for main profiles**: `speaker_detector_provider: spacy` +
+`ner_model: en_core_web_trf`. Ties every cloud LLM on the available data while
+saving the API call. Post-reingestion validation on a larger/harder corpus is
+tracked in `POST_REINGESTION_PLAN.md` Step 6.
+
+**Exception — per-provider capture profiles** (`capture_e2e_<name>.yaml`):
+these intentionally route NER through `<provider>` to exercise each provider's
+full surface in profile/cost capture runs.
+
+**All 6 cloud providers + Ollama have `detect_speakers` wired** (see
+`src/podcast_scraper/providers/*/...`). Earlier "summarization only" notes in
+this guide are obsolete.
+
+### Grounded Insights (GI)
+
+- `gi_insight_source: provider` (not `summary_bullets`) → **+10pp** insight
+  coverage vs silver. Used by `cloud_balanced`, `cloud_quality`, `local`.
+  `airgapped` keeps `summary_bullets` because SummLlama3.2-3B is summary-only,
+  not chat.
+- `gi_max_insights: 12` — autoresearch sweet spot; default is 20, which is
+  long-tail and hurts precision.
+- `gi_require_grounding: true` (default) — drops insights without grounded
+  quote evidence.
+
+### Knowledge Graph (KG)
+
+- `kg_extraction_source: provider` → **+37pp** topic coverage vs silver
+  (measured on KG pipeline, not summary-bullet proxy).
+- `kg_max_topics: 10` — autoresearch sweet spot; default is 20.
+- `kg_max_entities: 15` — matches default; standardised across profiles.
+- **KG v3 prompt** (noun-phrase enforcement, promoted in #625 / PR #628) —
+  already the default.
+
+### Insight clustering
+
+- Default threshold **0.75** (`src/podcast_scraper/search/insight_clusters.py`).
+  Configured at call site, not via profile YAML.
+
+### Pipeline mode
+
+- `llm_pipeline_mode: bundled` — **only** for local `qwen3.5:9b`: bundled
+  schema stabilises paragraph output for Ollama (+structure reliability).
+- `llm_pipeline_mode: staged` (default) — for Gemini, OpenAI, Anthropic (except
+  Haiku bundled edge case), DeepSeek, Mistral, Grok. On Gemini and OpenAI,
+  bundled costs 5-12% quality for no real gain.
+
+### Transcription
+
+- `whisper_model: small.en` — 9.5% WER sweet spot, 148s/ep on CPU. Use this
+  whenever the provider doesn't offer its own transcription.
+- `whisper_model: base.en` — 40s/ep, ~13% WER. Faster but noticeably worse
+  quality; reserved for `dev` profile.
+- Providers with native transcription: **OpenAI** (`whisper-1`), **Gemini**
+  (`gemini-2.5-flash-lite`), **Mistral** (`voxtral-mini-latest`). For these,
+  per-provider capture profiles use the provider's own transcription path.
+- Anthropic, DeepSeek, Grok, Ollama have no transcription — fall back to
+  local Whisper (`small.en`).
+
+### Transcription head-to-head (#577 Exp 3, 2026-04-20, 5 NPR eps ~30 min each)
+
+Audio fixed at 32 kbps / 16 kHz / mono (Exp 1 winner). Reference transcripts
+from `curated_5feeds_benchmark_v2`. Local Whisper small.en baseline WER ~11%.
+
+| Provider / Model | WER (avg) | $/ep (32-min) | Wall | Notes |
+| ---------------- | :-------: | :-----------: | :--: | ----- |
+| `openai/whisper-1` | 8.2% | $0.20 | 68s | No caps; hard-coded anti-loop filters make it the most stable cloud option |
+| `mistral/voxtral-mini-latest` | 8.6% (clean) | **$0.034** | **21s** | 6× cheaper than whisper-1 but **1/5 eps hallucinated** (109K-char loop); no native anti-loop filters. Requires `temperature=0.0` (applied) + output-length sanity check (applied) + pre-chunk to <25 min. New model `voxtral-mini-transcribe-2` (Feb 2026) ships with diarization/timestamps and is expected to replace voxtral-mini-latest for batch transcription — upgrade tracked separately. |
+| `openai/gpt-4o-transcribe` | — | — | — | **Hard 1400s (23 min) duration cap.** All 5 eps failed. Needs chunking (see #286). |
+| `openai/gpt-4o-mini-transcribe` | — | — | — | **Token budget cap** (narrower than the 1400s cap). All 5 eps failed. Needs chunking. |
+| `gemini/gemini-2.5-flash-lite` | 72–931% | $0.01 | 16–121s | **Not suitable for verbatim transcription.** LLM-based audio without anti-loop filters. At default `max_output_tokens=8192` silently truncates → summary-style (72% WER). At raised cap, runs the hallucination loop (931% WER). Use `gemini-2.5-pro` or `-flash` with thinking for better results if Gemini is required; otherwise prefer Whisper/Voxtral. |
+
+### Cost lever hierarchy for Whisper API path
+
+1. **File-size vs duration** — API cost is duration-based. Bitrate affects file
+   size (upload speed, 25 MB cap) but **not** per-minute cost. Lower bitrate is
+   still worth it for smaller files (Exp 1: 32 kbps is the sweet spot).
+2. **Silence trim** — direct duration cut. On tightly-edited benchmark fixtures
+   the filter removed 0% (fixtures have no silences > 1 s at any threshold).
+   On production NPR audio (#577 Exp 2-prod, 2026-04-20, 2 × 32-min episodes):
+   `-50 dB / 2.0 s` (the previous default) trims 0%. `-30 dB / 0.5 s` trims
+   **3.6%** with < 1% transcript char drop. `-25 dB / 0.5 s` trims **6.7%**
+   with similar char drop (held pending validation on more diverse podcast
+   types). `speech_optimal_v1.yaml` now uses `-30 dB / 0.5 s` as the moderate
+   sweet spot — across all 5 deployment profiles that's a direct 3.6% API $
+   saving on top of whatever provider they pick.
+3. **Cheaper model** — `voxtral-mini-latest` is 6× cheaper at similar clean-run
+   quality (pending hallucination mitigations). `gpt-4o-mini-transcribe` is 50%
+   cheaper than `whisper-1` but blocked on chunking.
+
+### Cross-provider caps and constraints
+
+| Model | File size | Duration | Token budget | Notes |
+| ----- | :-------: | :------: | :----------: | ----- |
+| `openai/whisper-1` | 25 MB | — | — | Most permissive OpenAI option |
+| `openai/gpt-4o-transcribe` | — | 1400s | — | Hard duration cap |
+| `openai/gpt-4o-mini-transcribe` | — | — | yes (tighter than 1400s) | Needs chunking for any real podcast ep |
+| `mistral/voxtral-mini-latest` | n/a | **30 min** (documented ceiling) | — | Exceeding 30 min triggers hallucination loops |
+| `gemini/gemini-2.5-flash-lite` | inline ~20 MB (Files API ≥ 20 MB) | — | 8192 output default, 65536 cap | Silent summary-truncation at default cap |
+
+### Local vs API breakeven — when to pick which (#577 Exp 4)
+
+Inputs (measured, 32-min NPR episode, 32 kbps input):
+
+| Path | Wall per ep | $ per ep | Throughput (parallel) |
+| ---- | :---------: | :------: | :-------------------: |
+| Local Whisper `small.en` on MPS | ~100s | $0.00 | 1 ep at a time (MPS shared) |
+| Cloud `whisper-1` | ~68s | $0.20 | 50+ concurrent (tier-1 rate limit) |
+| Cloud `voxtral-mini-latest` (clean runs) | ~21s | $0.034 | 10+ concurrent |
+
+Decision rules:
+
+- **Volume < 100 eps/day AND you're not time-sensitive** → local wins. Zero
+  cost; the 100s/ep on MPS is fine to run overnight. API $ savings (at most
+  $20/day on whisper-1) don't justify the API complexity or hallucination risk.
+- **Volume 100–1,000 eps/day OR you need results inside an hour** → cloud API
+  wins on wall-clock time. Pick `whisper-1` for reliability (no chunking
+  needed, no hallucination surprises). Expect `$20–$200/day`.
+- **Volume > 1,000 eps/day OR cost-sensitive at scale** → `voxtral-mini` with
+  hallucination mitigations applied (`temperature=0.0`, pre-chunk to < 25 min,
+  post-hoc length sanity check with fallback to `whisper-1`). 6× cheaper than
+  `whisper-1`; expected ~`$35/1,000 eps` net after fallback overhead.
+
+**Pathological case — a single ~3,000-word episode as fast as possible:**
+`voxtral-mini-latest` wins wall-time (~21s). `whisper-1` is the conservative
+alternative (~68s, predictable). Both beat local Whisper (~100s sequential).
+
+**Break-even table (rough, 32-min NPR avg episode):**
+
+| Daily volume | Local (1× MPS) | whisper-1 (50 parallel) | voxtral-mini (10 parallel + fallback) |
+| :----------: | :------------: | :---------------------: | :----------------------------------: |
+| 10 eps | 17 min, $0 | 14s, $2 | 21s, $0.40 |
+| 100 eps | 2.8 hours, $0 | 2.3 min, $20 | 3.5 min, $4 |
+| 1,000 eps | 28 hours, $0 | 23 min, $200 | 35 min, $40 |
+| 10,000 eps | 11.5 days, $0 | 3.8 hours, $2,000 | 5.8 hours, $400 |
+
+Rule of thumb: once you need throughput above 1 ep/min sustained, local on a
+single Mac is out. Cloud API cost becomes the binding constraint, which is
+why `voxtral-mini` with mitigations is the cost-optimal long-horizon pick.
+
+---
+
 ## Recommended Configurations
 
 ### Configuration 1: Ultra-Budget ($0.016/100 episodes)
 
 ```yaml
-# 97% cheaper than OpenAI
-transcription_provider: whisper       # Free (local)
-speaker_detector_provider: spacy      # Free (local; DeepSeek: summarization only)
-summary_provider: deepseek            # $0.016/100
+# 97% cheaper than OpenAI. DeepSeek has detect_speakers wired but NER smoke
+# has spaCy trf tied at F1=1.000, so local spaCy is cheaper and equivalent.
+transcription_provider: whisper             # Free (local; DeepSeek no transcription API)
+whisper_model: small.en                     # Production quality
+speaker_detector_provider: spacy            # Free, local; F1=1.000 smoke
+ner_model: en_core_web_trf
+summary_provider: deepseek                  # $0.016/100, leads v2 bullets
+deepseek_summary_model: deepseek-chat
 deepseek_api_key: ${DEEPSEEK_API_KEY}
 ```
 
 ### Configuration 2: Quality-First (~$42/100 episodes)
 
 ```yaml
-# Maximum quality
+# Maximum quality via OpenAI (transcription + summarization).
 transcription_provider: openai
-speaker_detector_provider: spacy      # OpenAI: summarization only (no speaker detection)
+openai_transcription_model: whisper-1
+speaker_detector_provider: spacy            # F1 tied; skip the API call
+ner_model: en_core_web_trf
 summary_provider: openai
-openai_summary_model: gpt-5
+openai_summary_model: gpt-4o-mini           # v2 eval model; gpt-4o for top quality
 openai_api_key: ${OPENAI_API_KEY}
 ```
 
 ### Configuration 3: Privacy-First ($0)
 
 ```yaml
-# Data never leaves your device
-transcription_provider: whisper       # Local
-speaker_detector_provider: ollama     # Local Ollama
-summary_provider: ollama              # Local Ollama
-ollama_speaker_model: llama3.1:8b
-ollama_summary_model: llama3.1:8b
-# For better quality (12-16 GB RAM):
-# ollama_speaker_model: llama3.3:latest
-# ollama_summary_model: llama3.3:latest
+# Data never leaves your device.
+transcription_provider: whisper             # Local
+whisper_model: small.en                     # 9.5% WER sweet spot
+speaker_detector_provider: spacy            # Local spaCy trf > qwen3.5:9b NER (F1 1.0 vs 0.75)
+ner_model: en_core_web_trf
+summary_provider: ollama                    # Local Ollama
+ollama_summary_model: qwen3.5:9b            # v2 local champion
+llm_pipeline_mode: bundled                  # Stabilises Ollama JSON output
 ```
 
 ### Configuration 4: Speed-First (~$0.25/100 episodes)
 
 ```yaml
-# Fast cloud summarization
-transcription_provider: whisper       # Local
-speaker_detector_provider: spacy      # Local (Grok: summarization only)
+# Fast cloud summarization via Grok.
+transcription_provider: whisper             # Local (Grok no transcription API)
+whisper_model: small.en
+speaker_detector_provider: spacy            # Free, tied F1 on smoke
+ner_model: en_core_web_trf
 summary_provider: grok
-grok_summary_model: grok-2
+grok_summary_model: grok-3-mini             # Eval-validated; grok-2/grok-beta are stale IDs
 grok_api_key: ${GROK_API_KEY}
 ```
 
-### Configuration 5: EU Compliant (Mistral Summarization)
+### Configuration 5: EU Compliant (Mistral)
 
 ```yaml
-# European data residency for summarization; local for other capabilities
-transcription_provider: whisper            # Local (Mistral: summarization only)
-speaker_detector_provider: spacy           # Local (Mistral: summarization only)
+# European data residency end-to-end (Mistral has its own transcription).
+transcription_provider: mistral
+mistral_transcription_model: voxtral-mini-latest
+speaker_detector_provider: spacy            # Free, tied F1 on smoke
+ner_model: en_core_web_trf
 summary_provider: mistral
 mistral_summary_model: mistral-large-latest
 mistral_api_key: ${MISTRAL_API_KEY}
@@ -538,46 +718,41 @@ mistral_api_key: ${MISTRAL_API_KEY}
 ### Configuration 6: Free Development (~$0)
 
 ```yaml
-# Maximize free tiers
-transcription_provider: whisper       # Local
-speaker_detector_provider: spacy      # Local (Gemini/Grok don't support speaker detection)
-summary_provider: grok                # Free tier
-grok_summary_model: grok-beta
+# Maximize free tiers. Gemini free tier covers transcription + summary.
+transcription_provider: gemini              # Gemini has audio input
+gemini_transcription_model: gemini-2.5-flash-lite
+speaker_detector_provider: spacy            # Free, tied F1 on smoke
+ner_model: en_core_web_trf
+summary_provider: gemini
+gemini_summary_model: gemini-2.5-flash-lite
+gemini_api_key: ${GEMINI_API_KEY}
 ```
 
 ---
 
-## Summary
+## Summary — v2 held-out key takeaways
 
-```text
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                              KEY TAKEAWAYS                                  │
-├─────────────────────────────────────────────────────────────────────────────┤
-│                                                                             │
-│   CHEAPEST CLOUD:      DeepSeek         $0.016/100 episodes (97% off)    │
-│   BEST CLOUD QUALITY:  Anthropic Haiku  33.7% ROUGE-L (benchmark Apr 2026)│
-│   FASTEST CLOUD:       Gemini Flash     2.7s/ep paragraphs               │
-│   LARGEST CONTEXT:     Gemini Pro       2,000,000 tokens                 │
-│   BEST FREE TIER:      Gemini/Grok      Generous limits                  │
-│   REAL-TIME INFO:      Grok             X/Twitter integration            │
-│   EU COMPLIANT:        Mistral          European summarization provider  │
-│   COMPLETE PRIVACY:    Local/Ollama     Data never leaves device         │
-│   BEST LOCAL (para):   qwen3.5:35b      31.9% ROUGE-L, 21s/ep           │
-│   BEST LOCAL (bullets):qwen3.5:35b      36.2% ROUGE-L, 14s/ep           │
-│                                                                             │
-├─────────────────────────────────────────────────────────────────────────────┤
-│                                                                             │
-│   COST INSIGHT:                                                          │
-│     Transcription = 90%+ of cloud costs                                    │
-│     → Use local Whisper + cloud text = massive savings                     │
-│                                                                             │
-│   EVAL INSIGHT (Apr 2026, benchmark 10 eps, vs Sonnet 4.6 silver):      │
-│     Anthropic Haiku leads cloud paragraphs (33.7% ROUGE-L, 86.2% embed)   │
-│     qwen3.5:35b is the only on-prem model above cloud median (31.9%)       │
-│     Rankings change when the silver reference changes — see eval reports   │
-│                                                                             │
-└─────────────────────────────────────────────────────────────────────────────┘
-```
+See [`eval-reports/EVAL_HELDOUT_V2_2026_04.md`](eval-reports/EVAL_HELDOUT_V2_2026_04.md)
+for the full matrix. Headline findings:
+
+| Axis | Winner | Score / note |
+| --- | --- | --- |
+| Cheapest cloud | **DeepSeek** | `$0.016/100 eps`, leads bullets non-bundled (43.1%) |
+| Compound-scored cloud default | **Gemini 2.5-flash-lite** | Non-bundled: 0.564/0.479 bullets/para, 1.5s/ep, `$0.47/1k eps` |
+| Best cloud bundled | **Anthropic** `claude-haiku-4-5` | Only provider where bundled is competitive (39.3% bullets, 39.2% para) |
+| Best local | **qwen3.5:9b bundled** | 0.529/0.509 bullets/para, ~44s/ep, `$0` |
+| EU residency | **Mistral** | End-to-end: `voxtral-mini-latest` transcription + `mistral-large-latest` |
+| Real-time info | **Grok** | X/Twitter integration |
+| Local bullets leader (non-bundled) | **qwen3.5:9b** | 0.580 — beats qwen3.5:35b (0.576) at 1/4 the size |
+
+**Cost insight:** transcription is 90%+ of cloud pipeline cost. Local Whisper
+`small.en` + cloud summarization is the high-leverage combination. Per-provider
+cost numbers are in [EVAL_HELDOUT_V2](eval-reports/EVAL_HELDOUT_V2_2026_04.md);
+older v1 numbers in this guide are superseded.
+
+**Rankings change when the silver reference changes** — Sonnet 4.6 silver
+favours verbose paragraph style; different silvers may produce different
+orderings. See [eval methodology](eval-reports/index.md) for detail.
 
 ---
 

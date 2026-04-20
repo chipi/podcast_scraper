@@ -1736,9 +1736,15 @@ class TestGeminiThinkingConfigMerge(unittest.TestCase):
     @patch("podcast_scraper.providers.gemini.gemini_provider.genai")
     @patch("builtins.open", create=True)
     @patch("os.path.exists")
-    def test_transcribe_25_flash_passes_thinking_disabled_config(
+    def test_transcribe_25_flash_passes_thinking_enabled_for_transcription(
         self, mock_exists, mock_open, mock_genai
     ):
+        """Transcription path explicitly sets thinking_budget=2048 regardless
+        of model tier (#577 Exp 3 research: python-genai #2204 documents that
+        audio tasks on 2.5 series produce low-quality output when thinking is
+        disabled). This overrides the ``_should_disable_thinking_for_model``
+        default used for non-transcription Gemini calls.
+        """
         mock_exists.return_value = True
         mock_file = Mock()
         mock_file.read.return_value = b"\x00audio"
@@ -1764,4 +1770,4 @@ class TestGeminiThinkingConfigMerge(unittest.TestCase):
 
         kw = mock_client.models.generate_content.call_args[1]
         self.assertIn("config", kw)
-        self.assertEqual(kw["config"]["thinking_config"]["thinking_budget"], 0)
+        self.assertEqual(kw["config"]["thinking_config"]["thinking_budget"], 2048)

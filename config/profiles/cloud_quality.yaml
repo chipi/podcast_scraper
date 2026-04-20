@@ -3,38 +3,51 @@
 # Uses the best provider per stage based on autoresearch findings.
 # ~2x cost of cloud_balanced but highest quality ceiling.
 #
-# Research references:
-#   Summary:   DeepSeek 0.586 bullets (#1 quality, v2 eval)
-#   GI:        Grok 88% insight coverage (#1 for GI, 7-provider matrix)
-#   KG:        DeepSeek 81% topic coverage (#1 for KG, 7-provider matrix)
+# Research references (EVAL_HELDOUT_V2, EVAL_CROSS_DATASET_BASELINE_2026_04):
+#   Summary:   DeepSeek 0.586 bullets / 0.541 paragraph (#1 quality, v2 held-out)
+#   GI:        Gemini 80% insight coverage (#1, range 65-80% across cloud LLMs)
+#   KG:        qwen3.5:9b 79% topic coverage leads overall; cloud LLMs cluster
+#              at 65% (gemini/openai/anthropic). KG pick below is DeepSeek for
+#              prompt-coherence with summary, not because it leads KG — KG
+#              per-stage provider routing is future work.
 #
 # Usage:
 #   python -m podcast_scraper.cli --config config/profiles/cloud_quality.yaml \
 #     --rss <feed_url> --output-dir <output>
 
-# Transcription — Deepgram Nova-3 recommended (see cloud_balanced.yaml).
-# Until provider built, Whisper API as fallback:
+# Transcription — whisper-1 for reliability (Exp 3 of #577): no duration/token
+# caps, no hallucination risk seen. Costs more than voxtral-mini but that's
+# aligned with this profile's "quality > cost" intent.
 transcription_provider: openai
 openai_transcription_model: whisper-1
 
-# Speaker detection
-speaker_detector_provider: openai
+# Audio preprocessing — named preset (#634 Scope 1).
+audio_preprocessing_profile: speech_optimal_v1
+
+# Speaker detection — spaCy trf ties all cloud LLMs at F1=1.000 on NER smoke
+# (5 eps / 15 entities). Free, local, deterministic. Larger-corpus validation
+# deferred to post-reingestion (see POST_REINGESTION_PLAN.md Step 6).
+speaker_detector_provider: spacy
+ner_model: en_core_web_trf
 auto_speakers: true
 
 # Summarization — DeepSeek for quality
 summary_provider: deepseek
 deepseek_summary_model: deepseek-chat
 
-# Grounded Insights — Grok for best insight coverage
+# Grounded Insights — uses summary_provider (DeepSeek) for insight + evidence.
+# Best single-provider GI in the 7-LLM matrix is Gemini at 80%, but switching
+# here would split summary and GI across providers. Per-stage provider routing
+# (gi_insight_provider override) is future work; until then, DeepSeek is used
+# for summary + GI consistency.
 generate_gi: true
 gi_insight_source: provider
 gi_max_insights: 12
 gi_require_grounding: true
-# Note: GI evidence uses summary_provider (DeepSeek) for quote extraction.
-# For Grok-quality insights, would need gi_insight_provider override (not yet
-# implemented — requires per-stage provider routing, tracked as future work).
 
-# Knowledge Graph — DeepSeek for best topic coverage
+# Knowledge Graph — DeepSeek for prompt coherence with summary.
+# qwen3.5:9b leads KG (79%) in the cross-dataset baseline, but that's a local
+# model; within cloud LLMs KG clusters at 65%. Per-stage routing is future work.
 generate_kg: true
 kg_extraction_source: provider
 kg_max_topics: 10
@@ -48,5 +61,4 @@ vector_backend: faiss
 generate_metadata: true
 generate_summaries: true
 language: en
-grok_timeout: 3600  # Grok reasoning needs more time
 log_level: INFO

@@ -2464,6 +2464,32 @@ class Config(BaseModel):
         ),
     )
 
+    audio_preprocessing_profile: Optional[str] = Field(
+        default=None,
+        alias="audio_preprocessing_profile",
+        description=(
+            "Named audio preset from config/profiles/audio/<name>.yaml (GitHub #634). "
+            "Merged under the deployment profile so one change to "
+            "audio/speech_optimal_v1.yaml updates every profile that references it. "
+            "Individual preprocessing_* fields in the deployment profile or on the "
+            "CLI still override the preset. Orthogonal to ml_preprocessing_profile, "
+            "which controls text cleaning for the ML summarizer."
+        ),
+    )
+
+    ml_preprocessing_profile: Optional[str] = Field(
+        default=None,
+        alias="ml_preprocessing_profile",
+        description=(
+            "ML-only text cleaning profile ID (e.g. 'cleaning_v4', 'cleaning_v3') "
+            "applied before BART/LED/SummLlama summarization. When set, overrides "
+            "the mode_cfg.preprocessing_profile default in ml_provider.py / "
+            "hybrid_ml_provider.py. Ignored by cloud LLM providers and Ollama, "
+            "which send raw transcripts (GitHub #634 Scope 2, Option A: ML-only "
+            "scope made explicit in name)."
+        ),
+    )
+
     model_config = ConfigDict(extra="forbid", populate_by_name=True, frozen=True)
 
     @model_validator(mode="before")
@@ -2480,7 +2506,9 @@ class Config(BaseModel):
             return data
         profile_name = data.pop("profile", None)
         if not profile_name:
-            return data
+            # Still resolve audio preprocessing preset if user set it directly,
+            # without a deployment profile.
+            return cls._merge_audio_preprocessing_preset(data)
 
         profile_name = str(profile_name).strip()
         # Resolve profile YAML path
@@ -2503,7 +2531,8 @@ class Config(BaseModel):
             logging.getLogger(__name__).warning(
                 "Profile '%s' not found in config/profiles/; ignoring", profile_name
             )
-            return data
+            # Still resolve audio preset if set directly on data.
+            return cls._merge_audio_preprocessing_preset(data)
 
         # Load profile YAML
         import yaml
@@ -2513,6 +2542,61 @@ class Config(BaseModel):
         # Merge: profile provides defaults, explicit data overrides
         merged = dict(profile_dict)
         merged.update(data)  # explicit fields win
+
+        # After deployment profile resolution, also resolve
+        # audio_preprocessing_profile if set (#634 Scope 1). Inlined here rather
+        # than as a separate @model_validator because Pydantic v2 runs mode=before
+        # validators in reverse definition order, making cross-validator ordering
+        # fragile when one depends on the output of another.
+        merged = cls._merge_audio_preprocessing_preset(merged)
+        return merged
+
+    @classmethod
+    def _merge_audio_preprocessing_preset(cls, data: Dict[str, Any]) -> Dict[str, Any]:
+        """Load audio/<name>.yaml preset and merge its preprocessing_* fields
+        as defaults beneath ``data``. Explicit data (deployment profile or CLI)
+        wins on overlap.
+
+        No-op if ``audio_preprocessing_profile`` is unset. Warns if the named
+        preset YAML is not found.
+        """
+        preset_name = data.get("audio_preprocessing_profile")
+        if not preset_name:
+            return data
+
+        from pathlib import Path
+
+        preset_name = str(preset_name).strip()
+        candidates = [
+            Path("config/profiles/audio") / f"{preset_name}.yaml",
+            (
+                Path(__file__).parent.parent.parent
+                / "config"
+                / "profiles"
+                / "audio"
+                / f"{preset_name}.yaml"
+            ),
+        ]
+        preset_path = None
+        for c in candidates:
+            if c.is_file():
+                preset_path = c
+                break
+
+        if preset_path is None:
+            import logging
+
+            logging.getLogger(__name__).warning(
+                "Audio preprocessing profile '%s' not found in config/profiles/audio/; " "ignoring",
+                preset_name,
+            )
+            return data
+
+        import yaml
+
+        preset_dict = yaml.safe_load(preset_path.read_text(encoding="utf-8")) or {}
+        merged = dict(preset_dict)
+        merged.update(data)
         return merged
 
     @model_validator(mode="before")

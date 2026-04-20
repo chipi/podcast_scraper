@@ -1,0 +1,39 @@
+# Audio preprocessing preset: speech_optimal_v1 — tuned for Whisper / LLM transcription.
+#
+# Provider-agnostic audio pipeline settings. Referenced by deployment profiles
+# via `audio_preprocessing_profile: speech_optimal_v1`. Override individual
+# fields in the deployment profile or CLI for per-deployment tuning.
+#
+# Research references:
+#   Bitrate:   #577 Exp 1 (2026-04-20) — 32 kbps @ 16 kHz mono matches 128 kbps
+#              WER on local small.en. 75% file-size reduction, zero quality cost.
+#   Silence:   #577 Exp 2-prod (2026-04-20) — on 2 real NPR episodes (32 min each),
+#              -30 dB / 0.5 s removes 3.6% of audio duration with < 1% transcript
+#              char drop (well under the 3% red-flag bar). The more aggressive
+#              -25 dB / 0.5 s removes 6.7% but approaches the risk line; held for
+#              a future v2 preset pending validation on more diverse podcast
+#              types (interviews, long-form, music-heavy). Current default
+#              (-30 / 0.5 s) is the moderate sweet spot.
+#   Loudness:  -16 LUFS is the industry podcast loudness target (same as
+#              Apple Podcasts and Spotify recommended).
+
+preprocessing_enabled: true
+
+# Sample rate — 16 kHz is Whisper's native rate; downsampling from 44.1/48 kHz
+# is safe for speech and halves audio data.
+preprocessing_sample_rate: 16000
+
+# MP3 bitrate — 32 kbps is the Exp 1 winner on 16 kHz mono speech. Keeps us
+# comfortably under OpenAI's 25 MB upload cap on long episodes too.
+preprocessing_mp3_bitrate_kbps: 32
+
+# Silence trim — moderate setting from the #577 Exp 2-prod sweep on NPR audio.
+# 3.6% duration cut at < 1% transcript char drop. Was -50 dB / 2.0 s (null lever
+# — that config trims nothing on real podcast audio); bumped to -30 / 0.5 for
+# real savings. The more aggressive -25 / 0.5 (6.7% cut) is held pending
+# diverse-podcast validation.
+preprocessing_silence_threshold: "-30dB"
+preprocessing_silence_duration: 0.5
+
+# Target loudness — Apple Podcasts / Spotify recommended podcast loudness.
+preprocessing_target_loudness: -16

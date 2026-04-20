@@ -7,22 +7,29 @@
 #   Summary:   EVAL_HELDOUT_V2_2026_04.md (gemini 0.564 bullets, 1.5s, $0.00047/ep)
 #   GI:        GI_AUTORESEARCH_PLAN.md (provider mode +10pp, n=12 sweet spot)
 #   KG:        KG_AUTORESEARCH_PLAN.md (provider mode +37pp, n=10 sweet spot)
-#   Clustering: 0.70 threshold from 1178-topic production sweep
+#   Clustering: 0.75 threshold (code default, insight_clusters.py)
 #   NER:       spaCy trf = 1.000 F1 with show-title fix
 #
 # Usage:
 #   python -m podcast_scraper.cli --config config/profiles/cloud_balanced.yaml \
 #     --rss <feed_url> --output-dir <output>
 
-# Transcription — Deepgram Nova-3 is the recommended cloud provider:
-# 7.8% WER (vs Whisper API ref), $0.003/ep (50% cheaper), 8.5s/ep,
-# built-in diarization + word timestamps. Requires deepgram provider (#596).
-# Until Deepgram provider is built, fall back to Whisper API:
+# Transcription — whisper-1 is the current default (Exp 3 of #577, 2026-04-20):
+# predictable WER (avg 8.2%), no duration/token caps, $0.20/ep on 32-min audio.
+# voxtral-mini-latest is 6x cheaper with comparable WER (8.6% avg) but showed a
+# hallucination on 1/5 test eps — parked pending investigation of anti-loop
+# mitigations. gpt-4o-[mini-]transcribe blocked on chunking (#286).
 transcription_provider: openai
 openai_transcription_model: whisper-1
 
-# Speaker detection
-speaker_detector_provider: gemini
+# Audio preprocessing — named preset in config/profiles/audio/ (#634 Scope 1).
+# One edit to speech_optimal_v1.yaml updates every profile that references it.
+audio_preprocessing_profile: speech_optimal_v1
+
+# Speaker detection — spaCy trf is free, local, 1.000 F1 with show-title fix.
+# No reason to pay for a cloud NER call when local trf matches reference.
+speaker_detector_provider: spacy
+ner_model: en_core_web_trf
 auto_speakers: true
 
 # Summarization

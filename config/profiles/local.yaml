@@ -12,14 +12,19 @@
 #   python -m podcast_scraper.cli --config config/profiles/local.yaml \
 #     --rss <feed_url> --output-dir <output>
 
-# Transcription — local Whisper, small.en is the sweet spot
-# 9.5% WER, 148s/ep, 40% better than base.en, 2.5× faster than medium.en
+# Transcription — local Whisper small.en (9.5% WER, 148s/ep on CPU).
 # See TRANSCRIPTION_AUTORESEARCH_PLAN.md for sweep data.
 transcription_provider: whisper
 whisper_model: small.en
 
-# Speaker detection
-speaker_detector_provider: ollama
+# Audio preprocessing — named preset (#634 Scope 1).
+audio_preprocessing_profile: speech_optimal_v1
+
+# Speaker detection — spaCy trf beats qwen3.5:9b on NER (F1 1.000 vs 0.750
+# on smoke) and avoids a 9B-model inference call per episode. Local compute
+# stays on transcription + summarization where it's actually worth it.
+speaker_detector_provider: spacy
+ner_model: en_core_web_trf
 auto_speakers: true
 
 # Summarization — local champion

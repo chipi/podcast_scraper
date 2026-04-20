@@ -1466,8 +1466,17 @@ class MLProvider:
             truncation = params.get("truncation") if params else None
             if truncation is None:
                 truncation = effective_tokenize.get("truncation")
-            preprocessing_profile = (params.get("preprocessing_profile") if params else None) or (
-                mode_cfg.preprocessing_profile if mode_cfg else "cleaning_v4"
+            # Resolution order (high -> low priority):
+            #   1. Explicit params dict
+            #   2. Config.ml_preprocessing_profile (#634 Scope 2) — user-facing
+            #      deployment-profile override
+            #   3. mode_cfg.preprocessing_profile — registry default for the
+            #      summary mode
+            #   4. "cleaning_v4" hard fallback
+            preprocessing_profile = (
+                (params.get("preprocessing_profile") if params else None)
+                or getattr(self.cfg, "ml_preprocessing_profile", None)
+                or (mode_cfg.preprocessing_profile if mode_cfg else "cleaning_v4")
             )
 
             result = summarizer.summarize_long_text(
