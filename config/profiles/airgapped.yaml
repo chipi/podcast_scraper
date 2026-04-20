@@ -17,6 +17,9 @@
 transcription_provider: whisper
 whisper_model: medium.en
 
+# Audio preprocessing — 32 kbps @ 16 kHz mono (#577 Exp 1: no WER cost).
+preprocessing_mp3_bitrate_kbps: 32
+
 # Speaker detection — spaCy trf (1.000 F1, fully local)
 speaker_detector_provider: spacy
 ner_model: en_core_web_trf

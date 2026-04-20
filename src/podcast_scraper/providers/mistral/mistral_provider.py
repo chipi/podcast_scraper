@@ -96,6 +96,31 @@ class MistralProvider:
 
     cleaning_processor: TranscriptCleaningProcessor  # Type annotation for mypy
 
+    @staticmethod
+    def _probe_audio_duration_s(audio_path: str) -> float:
+        """Best-effort ffprobe duration in seconds. Returns 0.0 on any failure."""
+        import subprocess
+
+        try:
+            result = subprocess.run(
+                [
+                    "ffprobe",
+                    "-v",
+                    "error",
+                    "-show_entries",
+                    "format=duration",
+                    "-of",
+                    "default=noprint_wrappers=1:nokey=1",
+                    audio_path,
+                ],
+                capture_output=True,
+                text=True,
+                timeout=5,
+            )
+            return float(result.stdout.strip()) if result.returncode == 0 else 0.0
+        except (subprocess.SubprocessError, ValueError, OSError):
+            return 0.0
+
     def __init__(self, cfg: config.Config):
         """Initialize unified Mistral provider.
 
@@ -337,17 +362,24 @@ class MistralProvider:
                 retry_with_metrics,
             )
 
+            # temperature=0.0 is Mistral's documented recommendation for transcription
+            # (vs 0.2 for audio chat). Without it, voxtral-mini-latest has been observed
+            # to enter runaway repetition loops — its LLM-based decoder has no built-in
+            # anti-hallucination filters (unlike Whisper's compression_ratio_threshold,
+            # logprob_threshold, no_speech_threshold). See #577 Exp 3 investigation.
             def _make_transcribe_call():
                 if effective_language is not None:
                     return self.client.audio.transcriptions.complete(
                         model=self.transcription_model,
                         file=mistral_file,
                         language=effective_language,
+                        temperature=0.0,
                     )
                 else:
                     return self.client.audio.transcriptions.complete(
                         model=self.transcription_model,
                         file=mistral_file,
+                        temperature=0.0,
                     )
 
             transcription = retry_with_metrics(
@@ -363,6 +395,27 @@ class MistralProvider:
             if not text:
                 logger.warning("Mistral Voxtral API returned empty transcription")
                 text = ""
+
+            # Runaway-output sanity check. Natural conversational speech tops out near
+            # ~120 chars/s. Anything above 200 chars/s is almost certainly a decoder
+            # repetition loop (observed on voxtral-mini-latest for audio >30 min, the
+            # model's documented transcription ceiling). Warn but do not raise — caller
+            # decides fallback policy. Threshold tuned to catch the 3,400 chars/s loop
+            # seen in #577 Exp 3 without tripping on legitimate fast-talking content.
+            duration_s = self._probe_audio_duration_s(audio_path)
+            if duration_s and duration_s > 0:
+                chars_per_s = len(text) / duration_s
+                if chars_per_s > 200:
+                    logger.warning(
+                        "Mistral transcription looks like a hallucination loop: %d chars "
+                        "over %.1fs audio = %.0f chars/s (sane ceiling ~200). Model: %s. "
+                        "Consider switching to voxtral-mini-transcribe-2 or pre-chunking "
+                        "audio to <25 min windows.",
+                        len(text),
+                        duration_s,
+                        chars_per_s,
+                        self.transcription_model,
+                    )
 
             logger.debug("Mistral transcription completed: %d characters", len(text))
             return text

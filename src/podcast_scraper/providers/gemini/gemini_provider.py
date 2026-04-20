@@ -380,27 +380,75 @@ class GeminiProvider:
                 retry_with_metrics,
             )
 
+            # google-genai SDK expects Part objects, not raw dicts.
             contents = [
-                {
-                    "mime_type": mime_type,
-                    "data": audio_data,
-                },
-                prompt_text,
+                genai_types.Part.from_bytes(data=audio_data, mime_type=mime_type),
+                "Transcribe verbatim.",
             ]
+
+            # Transcription-specific config (#577 Exp 3 research findings):
+            #   - system_instruction: explicit anti-summary directive. Without it,
+            #     gemini-2.5-flash-lite tends to return summary-like output rather
+            #     than verbatim word-for-word text.
+            #   - max_output_tokens=65536: 2.5 series cap. Default 8192 silently
+            #     truncates long transcripts (32-min audio = ~6-9K tokens) and the
+            #     model compresses toward summary rather than hard-cutting.
+            #   - temperature=0.0: verbatim tasks should be deterministic.
+            #   - thinking_budget=2048: python-genai #2204 documents that audio tasks
+            #     on 2.5 series produce low-quality output when thinking is disabled.
+            #     flash-lite defaults to 0; enable explicitly for transcription paths.
+            transcription_system_instruction = (
+                "You are a verbatim audio transcription service. "
+                "Transcribe every spoken word exactly as said, including filler words "
+                "and repetitions. Do NOT summarize, paraphrase, shorten, or omit any "
+                "content. Output plain text only, no timestamps, no speaker labels "
+                "unless explicitly requested, no formatting or commentary."
+            )
+            if effective_language:
+                transcription_system_instruction += f" Language: {effective_language}."
+
+            transcription_config = _merge_generate_content_config(
+                self.transcription_model,
+                {
+                    "system_instruction": transcription_system_instruction,
+                    "max_output_tokens": 65536,
+                    "temperature": 0.0,
+                    "thinking_config": {"thinking_budget": 2048},
+                },
+            )
+
             response = retry_with_metrics(
                 lambda: self.client.models.generate_content(
                     model=self.transcription_model,
                     contents=cast(Any, contents),
-                    config=cast(
-                        Any,
-                        _merge_generate_content_config(self.transcription_model, {}),
-                    ),
+                    config=cast(Any, transcription_config),
                 ),
                 max_retries=2,
                 initial_delay=1.0,
                 max_delay=30.0,
                 retryable_exceptions=_safe_gemini_retryable(),
             )
+
+            # Silent-truncation and safety-block diagnostics: response.text returns
+            # empty on SAFETY/RECITATION finish reasons and silently concatenates
+            # truncated output on MAX_TOKENS. Surface these so we can tell the
+            # difference between "empty transcript" and "client blocked it".
+            finish_reason: Optional[str] = None
+            try:
+                if response.candidates:
+                    fr = response.candidates[0].finish_reason
+                    finish_reason = str(fr) if fr is not None else None
+            except (AttributeError, IndexError):
+                pass
+            if finish_reason and any(
+                x in finish_reason.upper() for x in ("MAX_TOKENS", "SAFETY", "RECITATION")
+            ):
+                logger.warning(
+                    "Gemini transcription finished with non-STOP reason: %s (audio=%s). "
+                    "Output may be truncated or content-filtered.",
+                    finish_reason,
+                    audio_path,
+                )
 
             # Extract text from response
             text = response.text if hasattr(response, "text") else str(response)

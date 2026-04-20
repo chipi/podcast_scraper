@@ -14,12 +14,18 @@
 #   python -m podcast_scraper.cli --config config/profiles/cloud_balanced.yaml \
 #     --rss <feed_url> --output-dir <output>
 
-# Transcription — Deepgram Nova-3 is the recommended cloud provider:
-# 7.8% WER (vs Whisper API ref), $0.003/ep (50% cheaper), 8.5s/ep,
-# built-in diarization + word timestamps. Requires deepgram provider (#596).
-# Until Deepgram provider is built, fall back to Whisper API:
+# Transcription — whisper-1 is the current default (Exp 3 of #577, 2026-04-20):
+# predictable WER (avg 8.2%), no duration/token caps, $0.20/ep on 32-min audio.
+# voxtral-mini-latest is 6x cheaper with comparable WER (8.6% avg) but showed a
+# hallucination on 1/5 test eps — parked pending investigation of anti-loop
+# mitigations. gpt-4o-[mini-]transcribe blocked on chunking (#286).
 transcription_provider: openai
 openai_transcription_model: whisper-1
+
+# Audio preprocessing — 32 kbps MP3 @ 16 kHz mono is the storage/IO sweet spot.
+# Exp 1 of #577: 32k matches WER of 128k on local small.en (file is 75% smaller,
+# same transcription quality). Also keeps us safely under OpenAI 25 MB upload cap.
+preprocessing_mp3_bitrate_kbps: 32
 
 # Speaker detection — spaCy trf is free, local, 1.000 F1 with show-title fix.
 # No reason to pay for a cloud NER call when local trf matches reference.

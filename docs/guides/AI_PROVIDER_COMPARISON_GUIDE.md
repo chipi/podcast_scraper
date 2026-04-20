@@ -551,6 +551,82 @@ this guide are obsolete.
 - Anthropic, DeepSeek, Grok, Ollama have no transcription — fall back to
   local Whisper (`small.en`).
 
+### Transcription head-to-head (#577 Exp 3, 2026-04-20, 5 NPR eps ~30 min each)
+
+Audio fixed at 32 kbps / 16 kHz / mono (Exp 1 winner). Reference transcripts
+from `curated_5feeds_benchmark_v2`. Local Whisper small.en baseline WER ~11%.
+
+| Provider / Model | WER (avg) | $/ep (32-min) | Wall | Notes |
+| ---------------- | :-------: | :-----------: | :--: | ----- |
+| `openai/whisper-1` | 8.2% | $0.20 | 68s | No caps; hard-coded anti-loop filters make it the most stable cloud option |
+| `mistral/voxtral-mini-latest` | 8.6% (clean) | **$0.034** | **21s** | 6× cheaper than whisper-1 but **1/5 eps hallucinated** (109K-char loop); no native anti-loop filters. Requires `temperature=0.0` (applied) + output-length sanity check (applied) + pre-chunk to <25 min. New model `voxtral-mini-transcribe-2` (Feb 2026) ships with diarization/timestamps and is expected to replace voxtral-mini-latest for batch transcription — upgrade tracked separately. |
+| `openai/gpt-4o-transcribe` | — | — | — | **Hard 1400s (23 min) duration cap.** All 5 eps failed. Needs chunking (see #286). |
+| `openai/gpt-4o-mini-transcribe` | — | — | — | **Token budget cap** (narrower than the 1400s cap). All 5 eps failed. Needs chunking. |
+| `gemini/gemini-2.5-flash-lite` | 72–931% | $0.01 | 16–121s | **Not suitable for verbatim transcription.** LLM-based audio without anti-loop filters. At default `max_output_tokens=8192` silently truncates → summary-style (72% WER). At raised cap, runs the hallucination loop (931% WER). Use `gemini-2.5-pro` or `-flash` with thinking for better results if Gemini is required; otherwise prefer Whisper/Voxtral. |
+
+### Cost lever hierarchy for Whisper API path
+
+1. **File-size vs duration** — API cost is duration-based. Bitrate affects file
+   size (upload speed, 25 MB cap) but **not** per-minute cost. Lower bitrate is
+   still worth it for smaller files (Exp 1: 32 kbps is the sweet spot).
+2. **Silence trim** — direct duration cut. On tightly-edited benchmark fixtures
+   the filter removed 0% (fixtures have no silences >1 s at any threshold). On
+   production NPR audio, `-40dB / 0.5s` detects 35 silences/ep (~meaningful cut).
+   **Silence sweep on prod audio is a follow-up.**
+3. **Cheaper model** — `voxtral-mini-latest` is 6× cheaper at similar clean-run
+   quality (pending hallucination mitigations). `gpt-4o-mini-transcribe` is 50%
+   cheaper than `whisper-1` but blocked on chunking.
+
+### Cross-provider caps and constraints
+
+| Model | File size | Duration | Token budget | Notes |
+| ----- | :-------: | :------: | :----------: | ----- |
+| `openai/whisper-1` | 25 MB | — | — | Most permissive OpenAI option |
+| `openai/gpt-4o-transcribe` | — | 1400s | — | Hard duration cap |
+| `openai/gpt-4o-mini-transcribe` | — | — | yes (tighter than 1400s) | Needs chunking for any real podcast ep |
+| `mistral/voxtral-mini-latest` | n/a | **30 min** (documented ceiling) | — | Exceeding 30 min triggers hallucination loops |
+| `gemini/gemini-2.5-flash-lite` | inline ~20 MB (Files API ≥ 20 MB) | — | 8192 output default, 65536 cap | Silent summary-truncation at default cap |
+
+### Local vs API breakeven — when to pick which (#577 Exp 4)
+
+Inputs (measured, 32-min NPR episode, 32 kbps input):
+
+| Path | Wall per ep | $ per ep | Throughput (parallel) |
+| ---- | :---------: | :------: | :-------------------: |
+| Local Whisper `small.en` on MPS | ~100s | $0.00 | 1 ep at a time (MPS shared) |
+| Cloud `whisper-1` | ~68s | $0.20 | 50+ concurrent (tier-1 rate limit) |
+| Cloud `voxtral-mini-latest` (clean runs) | ~21s | $0.034 | 10+ concurrent |
+
+Decision rules:
+
+- **Volume < 100 eps/day AND you're not time-sensitive** → local wins. Zero
+  cost; the 100s/ep on MPS is fine to run overnight. API $ savings (at most
+  $20/day on whisper-1) don't justify the API complexity or hallucination risk.
+- **Volume 100–1,000 eps/day OR you need results inside an hour** → cloud API
+  wins on wall-clock time. Pick `whisper-1` for reliability (no chunking
+  needed, no hallucination surprises). Expect `$20–$200/day`.
+- **Volume > 1,000 eps/day OR cost-sensitive at scale** → `voxtral-mini` with
+  hallucination mitigations applied (`temperature=0.0`, pre-chunk to < 25 min,
+  post-hoc length sanity check with fallback to `whisper-1`). 6× cheaper than
+  `whisper-1`; expected ~`$35/1,000 eps` net after fallback overhead.
+
+**Pathological case — a single ~3,000-word episode as fast as possible:**
+`voxtral-mini-latest` wins wall-time (~21s). `whisper-1` is the conservative
+alternative (~68s, predictable). Both beat local Whisper (~100s sequential).
+
+**Break-even table (rough, 32-min NPR avg episode):**
+
+| Daily volume | Local (1× MPS) | whisper-1 (50 parallel) | voxtral-mini (10 parallel + fallback) |
+| :----------: | :------------: | :---------------------: | :----------------------------------: |
+| 10 eps | 17 min, $0 | 14s, $2 | 21s, $0.40 |
+| 100 eps | 2.8 hours, $0 | 2.3 min, $20 | 3.5 min, $4 |
+| 1,000 eps | 28 hours, $0 | 23 min, $200 | 35 min, $40 |
+| 10,000 eps | 11.5 days, $0 | 3.8 hours, $2,000 | 5.8 hours, $400 |
+
+Rule of thumb: once you need throughput above 1 ep/min sustained, local on a
+single Mac is out. Cloud API cost becomes the binding constraint, which is
+why `voxtral-mini` with mitigations is the cost-optimal long-horizon pick.
+
 ---
 
 ## Recommended Configurations

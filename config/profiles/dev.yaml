@@ -12,11 +12,14 @@
 #   python -m podcast_scraper.cli --config config/profiles/dev.yaml \
 #     --rss <feed_url> --output-dir <output>
 
-# Transcription — smallest local Whisper (~13% WER, 40s/ep)
+# Transcription — smallest local Whisper (~13% WER, 40s/ep).
 # Fast feedback, errors exist but pipeline still runs.
 # See TRANSCRIPTION_AUTORESEARCH_PLAN.md for sweep data.
 transcription_provider: whisper
 whisper_model: tiny.en
+
+# Audio preprocessing — 32 kbps @ 16 kHz mono (#577 Exp 1).
+preprocessing_mp3_bitrate_kbps: 32
 
 # Speaker detection — fast spaCy (en_core_web_sm: 0.966 F1, no GPU, ~5x faster
 # than trf). Intentional for dev: speed over the last 3.4pp of accuracy.
