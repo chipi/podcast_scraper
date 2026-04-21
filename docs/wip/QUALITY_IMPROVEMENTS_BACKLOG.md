@@ -366,6 +366,127 @@ walking `gi.json` Topic nodes directly sees the bullet-as-topic shape.
 Pairs with the KG v3 prompt tightening (Finding 2) and Viewer UI #609
 so the viewer always sees canonical short topics.
 
+## Findings from 100-episode production run (2026-04-21, `my-manual-run4`)
+
+Full deep-dive in `docs/wip/PROD_RUN_ANALYSIS_100EP.md`. The single
+biggest quality surface uncovered by running insight-clustering on the
+corpus:
+
+### 14. Sponsor ad-reads are being extracted as insights and polluting clusters
+
+**Observed.** `scripts/validate/validate_post_reingestion.py` built 51
+insight clusters from 1200 insights across 100 episodes. Top-10 clusters
+by cross-episode reach:
+
+| Reach | Canonical "insight" | What it really is |
+| :-: | --- | --- |
+| **10 eps** | "Ramp automates 85 % of expense reviews with 99 % accuracy using AI." | Sponsor ad read |
+| 6 eps | "WorkOS provides core enterprise capabilities like SSO, SCIM, RBAC, audit logs." | Sponsor ad read |
+| 6 eps | "Rogo AI's platform was designed to support how Wall Street bankers actually work." | Sponsor ad read |
+| 6 eps | "The single most underestimated force in international relations is actually stupidity." | Host catchphrase (legit) |
+| 5 eps | "Ramp understands that no one wants to spend hours chasing receipts..." | Sponsor ad read |
+| 5 eps | "OpenAI, Cursor, Anthropic, Perplexity, and Vercel all use WorkOS." | Sponsor ad read |
+| 4 eps | "Shopify runs on Ramp, Stripe runs on Ramp, and my business does too." | Sponsor ad read |
+| 4 eps | "Rogo AI connects directly to your system to work with your actual data." | Sponsor ad read |
+| 4 eps | "political party becomes the prism through which we see every other aspect of our identities." | Host recurring line |
+| 4 eps | "I work at The New York Times, which is suing OpenAI and Microsoft and Perplexity..." | NYT sponsor disclosure |
+
+**8 of 10 top clusters are advertising content.** The biggest cluster has
+**the same Ramp ad extracted verbatim as a "fact" across 10 different
+episodes.**
+
+**Why it matters.** This single finding explains several prior symptoms:
+
+- **Finding 1 (low quotes/insight).** Ad copy doesn't ground to meaningful
+  transcript quotes beyond the ad itself — only the ad sentence supports
+  the "insight".
+- **Feed-variable grounding (this run: 58–98 %).** Feeds with more
+  sponsor inventory (`omnycontent` at 58.3 %) have worse grounding because
+  a bigger chunk of extracted "insights" are ad-copy.
+- **Cross-episode clustering signal is real but polluted.** The tech works
+  — it accurately finds duplicates. It's the input that's dirty.
+
+**Fix options (ranked by effort):**
+
+1. **Mega-bundle prompt tightening (cheapest).** Add explicit instructions:
+   "Do not extract marketing claims, sponsor reads, subscription pitches,
+   or paid-promotion content. Skip any passage that describes a product or
+   service as being 'built for X', 'helps you Y', or references trademarks
+   like Ramp, WorkOS, Rogo, etc. If the passage is an ad-read or host
+   disclosure, produce no insight for that range." Low-risk, ~10 LOC.
+
+2. **Post-filter heuristic.** After mega-bundle returns, drop insights
+   matching ad-copy patterns: company-name + verb + feature, "runs on",
+   "powered by", "brought to you by", trademark-heavy phrasing. ~30 LOC,
+   conservative fallback if the prompt tweak underperforms.
+
+3. **Pre-filter sponsor segments from the transcript.** Harder — requires
+   detecting ad breaks from audio cues or transcript heuristics. Higher
+   upside (removes bad text BEFORE the model sees it) but much more work.
+
+**Priority / effort.** **Highest priority** — polluting multiple other
+metrics. Option 1 + 2 together, ~1 day of work + re-run on omnycontent
+feed to measure lift.
+
+### 15. 88 % of insights are singletons — clustering threshold + scale
+
+**Observed.** 51 clusters cover 141 insights (11.8 %). The remaining
+1059 insights (88.2 %) are singletons.
+
+**Interpretation.** At 100 episodes with a 0.75 embedding-similarity
+threshold, most insights are too specific / varied to cluster. That's
+partly fine (unique content should stay unique) but singletons also
+include:
+
+- Generic claims that didn't find similar peers yet (need more corpus).
+- Near-duplicates that the threshold missed (too strict).
+- Dialogue-insight pollution (Finding 12) and sponsor-read pollution
+  (Finding 14) spreading the embedding space.
+
+**Fix.** Sweep cluster threshold in {0.65, 0.70, 0.75, 0.80, 0.85} once
+findings 12 + 14 are fixed; re-measure cluster count and cross-episode
+reach to pick the right operating point. Don't tune the threshold
+before cleaning the inputs — you'd be optimising against polluted data.
+
+**Priority / effort.** Medium. Do AFTER fix for Finding 14 lands.
+
+### 16. NPR speaker detection misses every host (0 host roles across 10 eps)
+
+**Observed.** Per-feed entity role counts:
+
+| Feed | `host` | `guest` | `mentioned` |
+| --- | :-: | :-: | :-: |
+| `wsj` / `megaphone/3581` | 20 | 0 | ~140 |
+| most feeds | 10 | 0–4 | ~140 |
+| **`npr`** | **0** | **0** | 147 |
+
+spaCy trf NER is missing hosts on NPR consistently across 10 episodes.
+
+**Root cause (hypothesis).** NPR transcripts may have host intro patterns
+(e.g., byline-only intros, no "I'm <host name>" disclosure) that don't
+match the heuristics the speaker-detection pipeline uses for host
+identification.
+
+**Fix.** Spot-check 2–3 NPR transcripts to see what the host intro looks
+like; adjust speaker detection heuristics or NER prompt accordingly. May
+pair with Finding 16 style audit across all feeds.
+
+**Priority / effort.** Medium. Speaker detection is downstream (viewer /
+cluster visualisation), so invisible for now, but degrades over time.
+
+### Validated-clean signals (100-ep corpus)
+
+- **0 fallbacks** — Gemini 503 retry fix (`c9ff5156`) held in production.
+- **12 insights / 10 topics / ~15 entities per episode** consistent across all
+  10 feeds (no per-feed floor-drop aside from omnycontent's grounding).
+- **938/1000 unique KG topics** (93.8 %). Up from 99/100 in the 10-feed
+  run — cross-episode duplication now at **4.6 %** (exact match) and
+  **2.5 % cross-feed**, enough for semantic clustering to produce real
+  groups (once Finding 14 is cleaned up).
+- **All 6 explore-expansion CLI commands** execute without error.
+- **Corpus finalize ran correctly** (manifest + summary + search/
+  vector index + id_map present).
+
 ## Findings from NEXT 100+-episode run — APPEND HERE
 
 *(Add new sections as we learn more.)*
