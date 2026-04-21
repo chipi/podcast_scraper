@@ -166,6 +166,7 @@ number, file, line, date, and a short comment.
 | 1 | #239 | server/cil_digest_topics.py | 108 | 2026-04-18 | ``os.path.isfile(joined)`` same chain as #238 (PR #602) |
 | 1 | #240 | server/cil_digest_topics.py | 175 | 2026-04-18 | ``safe_relpath_under_corpus_root`` before ``isfile`` / ``_read_json_object`` on bridge (PR #602) |
 | 1 | #241 | server/cil_digest_topics.py | 219 | 2026-04-18 | same as #240 in ``row_matches_library_topic_cluster_filter`` (PR #602) |
+| 1 | #244–#297 | ``atomic_write.py``, ``feeds_spec.py``, ``corpus_catalog.py``, ``corpus_text_file.py``, ``routes/feeds.py``, ``routes/jobs.py``, ``routes/operator_config.py`` | various | 2026-04-21 | PR #649 ``py/path-injection`` batch on ``refs/pull/649/merge``; Type 1 false positives (resolve_corpus_path_param / ``normpath_if_under_root`` / ``safe_relpath_under_corpus_root`` / ``_verified_operator_config_path`` / trusted callers); dismissed via ``gh api …/code-scanning/alerts/{n}`` |
 
 ## Still open (not yet dismissed)
 
