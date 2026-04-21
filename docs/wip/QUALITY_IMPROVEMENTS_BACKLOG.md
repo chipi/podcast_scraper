@@ -193,6 +193,109 @@ clean up later), low effort (~1 day prompt + re-run).
   shape. Bridge is producing sensible identity lists, just with the
   threshold caveat in Finding 5.
 
+## Findings from 53-episode single-feed UI run (2026-04-21, `my-manual-run-10/run_20260421-190016_2606de6d`)
+
+UI-triggered run of ~53 episodes from one acast feed, dropped into the
+multi-feed corpus root by mistake (`single_feed_uses_corpus_layout: false`
++ corpus parent output_dir = orphaned single-feed dir at root). Pipeline
+itself worked; surfaces orchestration + cross-episode signals worth
+tracking.
+
+### 8. Within-feed topic duplication is 10× better than cross-feed
+
+**Observed.** 528 topics across 53 episodes → 475 unique strings →
+**10 % duplication** (vs 1 % cross-feed in the 10-feed run).
+
+**Interpretation.** Same-show episodes naturally repeat concepts
+("Federal Reserve", "inflation", "stock market" across an economics
+podcast). Cross-episode clustering *within* a feed should work much
+better than across-feed, even with exact-string match.
+
+**Action.** When we run the 100+ episode production corpus, measure:
+
+- Single-feed duplication % per feed (expect ≥ 10 %).
+- Cross-feed duplication % (expect ≤ 1–2 %).
+- Semantic-clustering lift over exact-match: does embedding-based
+  clustering 3–5× the useful cluster count?
+
+If within-feed clustering is solid, corpus-wide search will still be
+feed-siloed. Need a canonicalisation pass (Finding 2) to break that
+silo if we want true corpus-wide topic browse.
+
+**Priority / effort.** Info only until the 100+ run lands; then it
+informs whether Finding 2 (topic canonicalisation) is blocking.
+
+### 9. UI single-feed runs land outside the corpus-layout feeds/ tree
+
+**Observed.** UI-triggered acast run landed at
+`my-manual-run-10/run_20260421-190016_*/` (legacy single-feed layout)
+even though `my-manual-run-10/` is a multi-feed corpus root containing
+`feeds/` subdirs. Config used `single_feed_uses_corpus_layout: false`.
+
+**Consequences:**
+
+- `corpus_manifest.json`, `corpus_run_summary.json`, `search/` at root
+  still reflect the earlier 10-feed batch only. The UI run's 53
+  episodes are invisible to corpus-level tools.
+- Same acast feed already exists as `feeds/rss_feeds.acast.com_f08ef8e2/
+  run_*/` from the 10-feed batch. The UI run created a second
+  disconnected acast dir at top level.
+- Viewer / indexer / cluster pipelines walking `feeds/**` will miss
+  the UI run. Walking root `run_*/` will miss the 10-feed batch.
+
+**Fix (known, user flagged).** UI must set
+`single_feed_uses_corpus_layout: true` when writing into a multi-feed
+corpus parent. Ideally the behaviour is:
+
+- If `output_dir` contains a `feeds/` subdir (i.e., an existing corpus
+  parent), single-feed runs always use corpus layout regardless of the
+  flag.
+- If `output_dir` is empty or brand-new, user's flag wins.
+
+Consider making the flag implicit / auto-detected at Config-validator
+time (companion to the existing wrapping validator) so manual flag
+setting becomes unnecessary.
+
+**Priority / effort.** High (blocks UI-driven corpus use), low–medium
+effort (~30 LOC + test).
+
+### 10. UI default `max_episodes = null` triggers unlimited scrapes
+
+**Observed.** UI run has no episode cap; scraped ~53 episodes and
+still running. Can silently produce hundreds of episodes + large
+transcription cost.
+
+**Fix.** UI should either (a) default to a safe cap (e.g., 25) with an
+opt-in override, or (b) show a cost / time estimate before confirming
+when `max_episodes` is empty.
+
+**Priority / effort.** Medium (cost-control), low effort (UI-only).
+
+### 11. Stale root-level lock + corpus state from earlier runs
+
+**Observed.** `my-manual-run-10/.podcast_scraper.lock` dates to an
+earlier run (17:53). `corpus_manifest.json` and `search/` reflect the
+original 10-feed batch. If the UI run had respected corpus layout,
+these would need to be refreshed (corpus-finalize) after the run.
+
+**Fix.** After any new run that adds episodes to an existing corpus
+parent, trigger corpus-finalize automatically (update manifest + run
+summary + search index). Pairs with Finding 9.
+
+**Priority / effort.** Medium, low effort.
+
+### Confirmations this run validated
+
+- **Pipeline quality matches prior runs:** 12.0 insights/ep, 93.7 %
+  grounded, 10.0 topics/ep, median 3-word topics — consistent with the
+  10-feed and 2-feed runs. No regressions.
+- **Entity kinds populated with 2 categories** (354 org + 485 person).
+  No `place` observed across 53 episodes from a finance/news show —
+  either `place` is too rare in this content or the prompt suppresses
+  it. Worth probing with a geographically-rich feed.
+- **Quotes/insight 1.31** — persistent across all 3 runs at this scale.
+  Confirms Finding 1 is systematic, not noise.
+
 ## Findings from NEXT 100+-episode run — APPEND HERE
 
 *(Add new sections as we learn more.)*
