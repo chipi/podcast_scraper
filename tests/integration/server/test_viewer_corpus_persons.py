@@ -70,6 +70,50 @@ def test_corpus_persons_top_ranking(tmp_path: Path) -> None:
     assert p0["top_topics"] == ["topic:tax"]
 
 
+def test_corpus_persons_top_two_episodes_ranking(tmp_path: Path) -> None:
+    meta = tmp_path / "metadata"
+    meta.mkdir()
+
+    def write_ep(stem: str, person_name: str, topic: str) -> None:
+        gi = {
+            "episode_id": stem,
+            "nodes": [
+                {
+                    "id": f"person:{person_name.lower()}",
+                    "type": "Person",
+                    "properties": {"name": person_name},
+                },
+                {"id": "q1", "type": "Quote", "properties": {"text": "x"}},
+                {"id": "i1", "type": "Insight", "properties": {"text": "t"}},
+                {"id": topic, "type": "Topic", "properties": {"label": topic}},
+            ],
+            "edges": [
+                {"type": "SPOKEN_BY", "from": "q1", "to": f"person:{person_name.lower()}"},
+                {"type": "SUPPORTED_BY", "from": "i1", "to": "q1"},
+                {"type": "ABOUT", "from": "i1", "to": topic},
+            ],
+        }
+        base = meta / stem
+        (base.with_suffix(".metadata.json")).write_text(
+            json.dumps(_episode_doc(episode_id=stem, published="2024-05-01T00:00:00")),
+            encoding="utf-8",
+        )
+        (base.with_suffix(".gi.json")).write_text(json.dumps(gi), encoding="utf-8")
+
+    write_ep("ep_a", "Alice", "topic:alpha")
+    write_ep("ep_b", "Bob", "topic:beta")
+
+    app = create_app(tmp_path, static_dir=False)
+    client = TestClient(app)
+    r = client.get("/api/corpus/persons/top", params={"path": str(tmp_path), "limit": 10})
+    assert r.status_code == 200
+    body = r.json()
+    assert body["total_persons"] == 2
+    assert len(body["persons"]) == 2
+    ids = [p["person_id"] for p in body["persons"]]
+    assert "person:alice" in ids and "person:bob" in ids
+
+
 def test_corpus_persons_top_empty(tmp_path: Path) -> None:
     app = create_app(tmp_path, static_dir=False)
     client = TestClient(app)

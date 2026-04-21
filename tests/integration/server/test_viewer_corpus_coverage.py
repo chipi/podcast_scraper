@@ -76,6 +76,34 @@ def test_corpus_coverage_counts_and_buckets(tmp_path: Path) -> None:
     assert feeds["feed_b"]["with_gi"] == 1 and feeds["feed_b"]["with_kg"] == 0
 
 
+def test_corpus_coverage_metadata_only_episodes_count_as_neither(tmp_path: Path) -> None:
+    """Episode rows with metadata but no GI/KG siblings contribute ``with_neither``."""
+    meta = tmp_path / "feeds" / "z" / "metadata"
+    meta.mkdir(parents=True)
+    stem = meta / "orphan"
+    (stem.with_suffix(".metadata.json")).write_text(
+        json.dumps(
+            _episode_doc(
+                episode_id="e0",
+                feed_id="",
+                published="bad-month",
+            ),
+        ),
+        encoding="utf-8",
+    )
+    app = create_app(tmp_path, static_dir=False)
+    client = TestClient(app)
+    r = client.get("/api/corpus/coverage", params={"path": str(tmp_path)})
+    assert r.status_code == 200
+    body = r.json()
+    assert body["total_episodes"] == 1
+    assert body["with_neither"] == 1
+    assert body["with_gi"] == 0
+    assert body["by_month"] == []
+    feeds = {f["feed_id"]: f for f in body["by_feed"]}
+    assert "(unknown)" in feeds
+
+
 def test_corpus_coverage_empty_corpus(tmp_path: Path) -> None:
     app = create_app(tmp_path, static_dir=False)
     client = TestClient(app)

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import os
 from pathlib import Path
 
 import pytest
@@ -145,3 +146,78 @@ def test_jobs_cancel_queued(corpus: Path) -> None:
     c = client.post(f"/api/jobs/{jid}/cancel", params={"path": str(corpus)})
     assert c.status_code == 200
     assert c.json()["status"] == "cancelled"
+
+
+def test_jobs_get_unknown_returns_404(corpus: Path) -> None:
+    app = create_app(corpus, static_dir=False, enable_jobs_api=True)
+    client = TestClient(app)
+    r = client.get("/api/jobs/does-not-exist-uuid", params={"path": str(corpus)})
+    assert r.status_code == 404
+
+
+def test_jobs_log_returns_404_when_file_missing(corpus: Path) -> None:
+    app = create_app(corpus, static_dir=False, enable_jobs_api=True)
+    client = TestClient(app)
+    jid = "00000000-0000-4000-8000-000000000088"
+
+    def seed(jobs: list) -> None:
+        jobs.append(
+            {
+                "job_id": jid,
+                "command_type": "full_incremental_pipeline",
+                "status": "succeeded",
+                "created_at": "2026-04-19T12:00:00Z",
+                "started_at": "2026-04-19T12:00:01Z",
+                "ended_at": "2026-04-19T12:00:02Z",
+                "pid": None,
+                "argv_summary": "[]",
+                "exit_code": 0,
+                "log_relpath": f".viewer/jobs/{jid}.log",
+                "error_reason": None,
+                "cancel_requested": False,
+            }
+        )
+
+    with_jobs_locked_mutate(corpus, seed)
+    r = client.get(f"/api/jobs/{jid}/log", params={"path": str(corpus)})
+    assert r.status_code == 404
+
+
+def test_jobs_cancel_unknown_returns_404(corpus: Path) -> None:
+    app = create_app(corpus, static_dir=False, enable_jobs_api=True)
+    client = TestClient(app)
+    r = client.post(
+        "/api/jobs/00000000-0000-4000-8000-000000000077/cancel", params={"path": str(corpus)}
+    )
+    assert r.status_code == 404
+
+
+def test_jobs_reconcile_wall_clock_stale(monkeypatch: pytest.MonkeyPatch, corpus: Path) -> None:
+    monkeypatch.setenv("PODCAST_JOB_STALE_SECONDS", "120")
+    app = create_app(corpus, static_dir=False, enable_jobs_api=True)
+    client = TestClient(app)
+
+    def seed(jobs: list) -> None:
+        jobs.append(
+            {
+                "job_id": "stale-wall",
+                "command_type": "full_incremental_pipeline",
+                "status": "running",
+                "created_at": "2000-01-01T00:00:00Z",
+                "started_at": "2000-01-01T00:00:01Z",
+                "ended_at": None,
+                "pid": os.getpid(),
+                "argv_summary": "[]",
+                "exit_code": None,
+                "log_relpath": ".viewer/jobs/stale-wall.log",
+                "error_reason": None,
+                "cancel_requested": False,
+            }
+        )
+
+    with_jobs_locked_mutate(corpus, seed)
+    rec = client.post("/api/jobs/reconcile", params={"path": str(corpus)})
+    assert rec.status_code == 200
+    assert rec.json()["updated"] >= 1
+    row = client.get("/api/jobs/stale-wall", params={"path": str(corpus)}).json()
+    assert row["status"] == "stale"

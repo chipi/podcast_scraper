@@ -168,6 +168,46 @@ def test_feeds_rejects_path_outside_anchor(corpus: Path) -> None:
     assert r.status_code == 400
 
 
+def test_feeds_put_accepts_object_entries_roundtrip(corpus: Path) -> None:
+    app = create_app(corpus, static_dir=False, enable_feeds_api=True)
+    client = TestClient(app)
+    payload = {
+        "feeds": [
+            {"url": "https://obj.example/a", "timeout": 30, "rss_conditional_get": True},
+            "https://plain.example/b",
+        ]
+    }
+    p = client.put("/api/feeds", params={"path": str(corpus)}, json=payload)
+    assert p.status_code == 200
+    feeds = p.json()["feeds"]
+    assert any(
+        isinstance(x, dict) and x.get("url") == "https://obj.example/a" and x.get("timeout") == 30
+        for x in feeds
+    )
+    g = client.get("/api/feeds", params={"path": str(corpus)})
+    assert g.status_code == 200
+    assert len(g.json()["feeds"]) >= 1
+
+
+def test_feeds_get_500_on_invalid_spec_on_disk(corpus: Path) -> None:
+    """Unknown top-level keys raise ``ValueError`` in ``load_feeds_spec_file`` → HTTP 500."""
+    (corpus / "feeds.spec.yaml").write_text(
+        "not_allowed_root: true\nfeeds: []\n",
+        encoding="utf-8",
+    )
+    app = create_app(corpus, static_dir=False, enable_feeds_api=True)
+    client = TestClient(app)
+    r = client.get("/api/feeds", params={"path": str(corpus)})
+    assert r.status_code == 500
+
+
+def test_feeds_put_rejects_non_string_non_object_entries(corpus: Path) -> None:
+    app = create_app(corpus, static_dir=False, enable_feeds_api=True)
+    client = TestClient(app)
+    r = client.put("/api/feeds", params={"path": str(corpus)}, json={"feeds": [1, 2, 3]})
+    assert r.status_code in (400, 422)
+
+
 def test_feeds_put_rejects_over_max_urls(corpus: Path) -> None:
     app = create_app(corpus, static_dir=False, enable_feeds_api=True)
     client = TestClient(app)

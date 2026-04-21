@@ -46,12 +46,6 @@ function giJsonTopicDegreeAtLeastTwo(): string {
       from: 'insight:gxexp-e2e-degree',
       to: 'topic:ci-policy',
     },
-    /** Extra incident edge (existing ``ABOUT`` type) so ``topic:ci-policy`` has ``degree() > 1``. */
-    {
-      type: 'ABOUT',
-      from: 'topic:ci-policy',
-      to: 'insight:b72dafa3f874480d',
-    },
   )
   return JSON.stringify(j)
 }
@@ -305,18 +299,10 @@ async function dblclickCyNode(page: Page, nodeId: string): Promise<void> {
   await waitForCyNodeRendered(page, nodeId)
   const pos = await cyRenderedPositionForNodeId(page, nodeId)
   expect(pos).not.toBeNull()
+  /** Overlay can appear after ``Fit``; two separate down/up pairs are not a DOM ``dblclick`` (Firefox often never fires Cytoscape ``dbltap``). */
+  await dismissGraphGestureOverlayIfPresent(page)
   const canvas = page.locator('.graph-canvas')
-  const box = await canvas.boundingBox()
-  expect(box).not.toBeNull()
-  const vx = box!.x + pos!.x
-  const vy = box!.y + pos!.y
-  await page.mouse.move(vx, vy)
-  await page.mouse.down()
-  await page.mouse.up()
-  await page.waitForTimeout(120)
-  await page.mouse.move(vx, vy)
-  await page.mouse.down()
-  await page.mouse.up()
+  await canvas.click({ position: { x: pos!.x, y: pos!.y }, clickCount: 2, delay: 45 })
 }
 
 async function clickCyNodeOnce(page: Page, nodeId: string): Promise<void> {
@@ -328,13 +314,9 @@ async function clickCyNodeOnce(page: Page, nodeId: string): Promise<void> {
   await waitForCyNodeRendered(page, nodeId)
   const pos = await cyRenderedPositionForNodeId(page, nodeId)
   expect(pos).not.toBeNull()
-  const box = await page.locator('.graph-canvas').boundingBox()
-  expect(box).not.toBeNull()
-  const vx = box!.x + pos!.x
-  const vy = box!.y + pos!.y
-  await page.mouse.move(vx, vy)
-  await page.mouse.down()
-  await page.mouse.up()
+  await dismissGraphGestureOverlayIfPresent(page)
+  const canvas = page.locator('.graph-canvas')
+  await canvas.click({ position: { x: pos!.x, y: pos!.y }, delay: 30 })
 }
 
 async function shiftDblclickCyNode(page: Page, nodeId: string): Promise<void> {
@@ -346,22 +328,14 @@ async function shiftDblclickCyNode(page: Page, nodeId: string): Promise<void> {
   await waitForCyNodeRendered(page, nodeId)
   const pos = await cyRenderedPositionForNodeId(page, nodeId)
   expect(pos).not.toBeNull()
-  const box = await page.locator('.graph-canvas').boundingBox()
-  expect(box).not.toBeNull()
-  const vx = box!.x + pos!.x
-  const vy = box!.y + pos!.y
-  await page.keyboard.down('Shift')
-  try {
-    await page.mouse.move(vx, vy)
-    await page.mouse.down()
-    await page.mouse.up()
-    await page.waitForTimeout(120)
-    await page.mouse.move(vx, vy)
-    await page.mouse.down()
-    await page.mouse.up()
-  } finally {
-    await page.keyboard.up('Shift')
-  }
+  await dismissGraphGestureOverlayIfPresent(page)
+  const canvas = page.locator('.graph-canvas')
+  await canvas.click({
+    position: { x: pos!.x, y: pos!.y },
+    clickCount: 2,
+    delay: 45,
+    modifiers: ['Shift'],
+  })
 }
 
 async function cyNodeCount(page: Page): Promise<number> {
@@ -550,10 +524,10 @@ test.describe('Graph expansion (mocked API)', () => {
   })
 
   test('expand then collapse: only one POST to node-episodes', async ({ page }) => {
-    let nodeEpisodesPostCount = 0
+    const nodeEpisodesPostCount = { n: 0 }
     page.on('request', (req) => {
       if (req.url().includes('/api/corpus/node-episodes') && req.method() === 'POST') {
-        nodeEpisodesPostCount += 1
+        nodeEpisodesPostCount.n += 1
       }
     })
     await mockGraphExpansionBaseline(page)
@@ -593,14 +567,18 @@ test.describe('Graph expansion (mocked API)', () => {
     })
 
     await gotoGraphWithMockCorpus(page)
+    /** Debounced corpus-beyond probes also POST here; let them finish, then count only expand/collapse. */
+    await page.waitForTimeout(600)
+    nodeEpisodesPostCount.n = 0
+
     const firstPost = page.waitForRequest(
       (r) => r.url().includes('/api/corpus/node-episodes') && r.method() === 'POST',
     )
     await dblclickCyNode(page, 'topic:ci-policy')
     await firstPost
-    expect(nodeEpisodesPostCount).toBe(1)
+    expect(nodeEpisodesPostCount.n).toBe(1)
     await dblclickCyNode(page, 'topic:ci-policy')
-    expect(nodeEpisodesPostCount).toBe(1)
+    expect(nodeEpisodesPostCount.n).toBe(1)
   })
 
   test('single activation on topic opens graph node rail (onetap)', async ({ page }) => {
@@ -665,6 +643,9 @@ test.describe('Graph expansion (mocked API)', () => {
     })
     await gotoGraphWithMockCorpus(page)
     await page.getByRole('checkbox', { name: /Episode/ }).check()
+    /** Corpus-beyond probes POST independently of the double-click under test. */
+    await page.waitForTimeout(600)
+    postCount = 0
     await dblclickCyNode(page, 'episode:ci-fixture')
     expect(postCount).toBe(0)
   })
@@ -691,6 +672,8 @@ test.describe('Graph expansion (mocked API)', () => {
       })
     })
     await gotoGraphWithMockCorpus(page)
+    await page.waitForTimeout(600)
+    postCount = 0
     await dblclickCyNode(page, 'topic:ci-policy')
     expect(postCount).toBe(0)
   })
