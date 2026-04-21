@@ -94,6 +94,105 @@ until next run; look for systematic pattern across 100+ episodes.
 
 **Priority / effort.** Noise. Skip.
 
+## Findings from 2-feed smoke run (2026-04-21, `my-manual-run3-2`)
+
+Same rebase + fix set, 2 feeds (NPR prediction-markets, WSJ Iran regime),
+1 episode each, 2 runs per feed (identical output). Used to confirm the
+post-#648 state before spinning the larger 100+ run.
+
+Mostly confirms the 10-feed findings. Two new observations worth adding:
+
+### 5. Bridge `both=10` every episode is mechanically perfect (too lenient?)
+
+**Observed.** Across every single run in both the 10-feed and 2-feed
+corpora, bridge identity counts are identical shape:
+`both = min(gi_topics, kg_topics) = 10`, `gi_only = 0`,
+`kg_only = len(kg_entities)`. Bridge always claims **all** KG topics
+have a GI source.
+
+**Root cause (hypothesis).** GI Topic nodes are derived from summary
+bullets (6 long sentences per episode). Each bullet mentions multiple
+concepts, so any KG noun-phrase topic can find a semantic match inside
+at least one bullet. Bridge threshold may be calibrated for label-vs-
+label matching, not bullet-vs-label — effectively everything matches.
+
+**Why it matters.** We aren't testing bridge alignment quality — we're
+observing "bullets are long enough to contain all concepts." A fixture
+where GI and KG have deliberately non-overlapping topics would reveal
+whether bridge is actually filtering or just merging-all.
+
+**Fix.** Add a regression test with non-overlapping topic fixtures;
+tighten bridge threshold if the current one merges irrelevant topics.
+Pair with a "Topic label confidence" signal (bullet-vs-noun-phrase
+similarity score) surfaced in bridge output so downstream consumers
+can threshold themselves.
+
+**Priority / effort.** Medium priority, medium effort (~1 day + re-run).
+Defer until next production run confirms at scale.
+
+### 6. GI Topic node IDs on disk are bullet-slugs (cosmetic)
+
+**Observed.** `gi.json` stores Topic node IDs as slugified bullet text:
+
+```json
+"id": "topic:prediction-markets-exemplified-by-kalshi-allow-users-to-bet-on-the-outcomes-of-a"
+"properties": { "label": "Prediction markets, exemplified by Kalshi, allow users to bet on ... sports to politics." }
+```
+
+KG uses canonical slugs: `topic:prediction-markets`.
+
+**Why it matters.** Bridge reconciles via semantic alignment at merge-
+time, so the corpus-wide identities list shows clean KG-style slugs.
+But anything that reads `gi.json` directly (viewer's raw GI panel,
+per-episode cluster browse) sees bullet-slug IDs + long-bullet labels.
+UX is ugly; search behaves oddly.
+
+**Fix.** When GI builds Topic nodes, prefer the KG's noun-phrase label
++ canonical slug when available (via `topic_labels_kg` param already
+passed into `gi.build_artifact`). The alignment already happens in
+bridge — run it earlier at GI build time.
+
+**Priority / effort.** Low–medium (cosmetic but visible in viewer),
+low effort. Pairs with #609 viewer work — check if viewer pulls raw
+`gi.json` or uses bridge.
+
+### 7. Entity kind misclassification (Planet Money = person, Tomorrow's Cure = person)
+
+**Observed.** NPR Prediction-Markets episode entities:
+- `Planet Money` → `kind=person` (should be `org`)
+- `Tomorrow's Cure` → `kind=person` (it's a podcast series / show title)
+- `Mayo Clinic` → `kind=org` ✓ (correct)
+- `Taylor Swift` → `kind=person` ✓
+
+WSJ Iran episode: all 15 person + 2 org look correct.
+
+**Root cause (hypothesis).** The mega-bundle prompt constrains
+`entity_kind` to `person / org / place`. Ambiguous cases (show titles,
+product names, media brands) get bucketed into `person` by default.
+
+**Why it matters.** Corpus-wide entity rollups will include show titles
+and media brands as "people", polluting host/guest detection, guest
+network visualisation, and entity search.
+
+**Fix.** Add `show` and/or `product` to the entity kind enum, or tighten
+the prompt with a "when unsure between person and org, default to org"
+instruction. Run a fixture test with known-ambiguous entities (show
+titles, brand names) to measure improvement.
+
+**Priority / effort.** Medium priority (polluted entity data is hard to
+clean up later), low effort (~1 day prompt + re-run).
+
+### Other validated-as-clean signals
+
+- **100 % grounding** on both smoke-run episodes (up from ~95 % in 10-feed).
+- **100 % verbatim** on quotes (13/13 NPR, 17/17 WSJ).
+- **No fallbacks** (the Gemini 503 retry fix from `c9ff5156` is landed
+  and working).
+- **Bridge v2 `identities` schema** is populated correctly — earlier
+  "0 nodes / 0 edges" report was wrong; I was looking for bridge v1
+  shape. Bridge is producing sensible identity lists, just with the
+  threshold caveat in Finding 5.
+
 ## Findings from NEXT 100+-episode run — APPEND HERE
 
 *(Add new sections as we learn more.)*
