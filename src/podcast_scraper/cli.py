@@ -3324,8 +3324,24 @@ def parse_args(argv: Optional[Sequence[str]] = None) -> argparse.Namespace:
         print(f"podcast_scraper {__version__}")
         raise SystemExit(0)
 
-    if initial_args.config:
-        args = _load_and_merge_config(parser, initial_args.config, argv)
+    # Resolve --profile NAME to its YAML path and route through
+    # _load_and_merge_config — same path as --config. Without this, argparse
+    # defaults (e.g. --summary-provider's default "transformers") silently
+    # override profile values, and users of cloud_balanced/cloud_quality got
+    # 13 wrong fields (#646 real-episode audit).
+    effective_config_path: Optional[str] = initial_args.config
+    if not effective_config_path and getattr(initial_args, "profile", None):
+        profile_name = str(initial_args.profile).strip()
+        from pathlib import Path as _P
+
+        candidate = (
+            _P(__file__).resolve().parents[2] / "config" / "profiles" / f"{profile_name}.yaml"
+        )
+        if candidate.is_file():
+            effective_config_path = str(candidate)
+
+    if effective_config_path:
+        args = _load_and_merge_config(parser, effective_config_path, argv)
     else:
         args = parser.parse_args(argv)
 
@@ -3695,6 +3711,21 @@ def _build_config(args: argparse.Namespace) -> config.Config:  # noqa: C901
     # Inject profile if set via --profile CLI flag (#593)
     if profile:
         payload["profile"] = profile
+
+    # Fields that have no argparse flag but can be set by --config YAML via
+    # parser.set_defaults. Include only when non-None so Config's own default
+    # stands otherwise (#646 profile-completeness audit).
+    for _field in (
+        "llm_pipeline_mode",
+        "cloud_llm_structured_min_output_tokens",
+        "deepseek_timeout",
+        "audio_preprocessing_profile",
+        "ml_preprocessing_profile",
+    ):
+        _v = getattr(args, _field, None)
+        if _v is not None:
+            payload[_field] = _v
+
     # Pydantic's model_validate returns the correct type, but mypy needs help
     return cast(config.Config, config.Config.model_validate(payload))
 

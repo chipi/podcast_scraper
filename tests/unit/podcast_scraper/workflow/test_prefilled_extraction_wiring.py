@@ -140,3 +140,49 @@ class TestMegaBundleHelpers:
         assert p["insights"][0]["insight_type"] == "claim"
         assert p["topics"] == ["blockchain governance", "roman empire", "algorithmic trading"]
         assert p["entities"][0]["kind"] == "person"
+
+
+class TestSummaryMetadataPrefilledLifecycle:
+    """Regression tests for ``SummaryMetadata.prefilled_extraction`` — transient
+    field (``exclude=True``) that must survive ``model_copy`` so GIL/KG stages
+    see it, but must NOT be serialised to disk by ``model_dump`` /
+    ``model_dump_json``. A silent loss here would make mega_bundled / extraction_bundled
+    regress to 3 LLM calls/episode without any test failing."""
+
+    def _build(self):
+        from datetime import datetime
+
+        from podcast_scraper.workflow.metadata_generation import SummaryMetadata
+
+        return SummaryMetadata(
+            generated_at=datetime.now(),
+            word_count=100,
+            title="T",
+            bullets=["b1", "b2"],
+            prefilled_extraction={
+                "insights": [{"text": "i1", "insight_type": "claim"}],
+                "topics": ["t1", "t2"],
+                "entities": [{"name": "E1", "kind": "person"}],
+            },
+        )
+
+    def test_model_copy_preserves_prefilled_extraction(self):
+        sm = self._build()
+        cp = sm.model_copy()
+        assert cp.prefilled_extraction == sm.prefilled_extraction
+
+    def test_model_copy_with_update_preserves_prefilled_extraction(self):
+        sm = self._build()
+        cp = sm.model_copy(update={"title": "New Title"})
+        assert cp.title == "New Title"
+        assert cp.prefilled_extraction == sm.prefilled_extraction
+
+    def test_model_dump_excludes_prefilled_extraction(self):
+        sm = self._build()
+        d = sm.model_dump()
+        assert "prefilled_extraction" not in d
+
+    def test_model_dump_json_excludes_prefilled_extraction(self):
+        sm = self._build()
+        j = sm.model_dump_json()
+        assert "prefilled_extraction" not in j
