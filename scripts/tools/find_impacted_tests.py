@@ -32,6 +32,8 @@ MODULE_MAPPING = {
     # Providers
     "providers/ml/": "module_ml_providers",
     "providers/openai/": "module_openai_providers",
+    # Jinja prompt templates
+    "prompts/": "module_prompts",
     # Summarization
     "summarization/": "module_summarization",
     # Transcription

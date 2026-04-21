@@ -1,0 +1,2 @@
+# Placeholder single feed — rewritten under USE_FIXTURES=1 (see acceptance runner).
+rss: https://example.invalid/e2e-placeholder-single-feed.xml

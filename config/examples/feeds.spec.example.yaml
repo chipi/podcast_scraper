@@ -1,0 +1,53 @@
+# Structured multi-feed list for ``--feeds-spec`` or corpus ``feeds.spec.yaml`` (RFC-077 / #626).
+# Copy this file (or the JSON twin) and set ``feeds:`` URLs for your corpus; keep private lists outside the repo if needed.
+#
+# **Not canonical:** This file is an illustration only. Merge order and field semantics are
+# defined in **docs/api/CONFIGURATION.md** (Download resilience + multi-feed) and **RFC-077**.
+# Global download-resilience knobs belong in operator YAML (or ``profile:``); use entries
+# below only when one feed should differ.
+#
+# Merge order for each inner pipeline run: packaged ``profile:`` (if any) → global operator
+# ``Config`` → per-feed entry fields below (overlapping keys win on the feed entry).
+# Omit keys on a feed to inherit global defaults.
+#
+# JSON twin: ``config/examples/feeds.spec.example.json`` (use ``_comment*`` at root for prose).
+#
+# -----------------------------------------------------------------------------
+# RSS vs media urllib3 retries — best for: tuning fetch robustness per subsystem.
+# RSS XML uses ``rss_retry_total`` / ``rss_backoff_factor``; episode media and transcripts
+# use ``http_retry_total`` / ``http_backoff_factor`` (not the same knob). See CONFIGURATION.md
+# § Download resilience (tables).
+# -----------------------------------------------------------------------------
+#
+# Episode-level retries — best for: whole-episode retry after urllib3 gives up.
+# ``episode_retry_max`` / ``episode_retry_delay_sec``
+#
+# Polite / fair HTTP (Issue #522) — best for: several workers or multi-feed hitting one CDN.
+# ``host_request_interval_ms``, ``host_max_concurrent``
+#
+# RSS conditional GET — best for: less bandwidth when feeds support ETag/Last-Modified.
+# ``rss_conditional_get`` and optional ``rss_cache_dir``
+#
+# Circuit breaker — best for: optional protection; scope ``feed`` vs ``host`` (CONFIGURATION.md).
+#
+# Fast-fail CI — best for: smoke tests; use the minimal-retry YAML preset in CONFIGURATION.md
+# § Download resilience.
+# -----------------------------------------------------------------------------
+
+feeds:
+  # Feed A: polite defaults (#522); inherits global urllib3 retries unless overridden here.
+  - url: https://example.com/podcast-feed-a.xml
+    host_request_interval_ms: 200
+    host_max_concurrent: 4
+    rss_conditional_get: true
+    # rss_cache_dir: ~/.cache/podcast_scraper/rss
+
+  # Feed B: explicit urllib3 + episode retry shape (placeholders; tighten for production).
+  - url: https://example.com/podcast-feed-b.xml
+    http_retry_total: 8
+    http_backoff_factor: 1.0
+    rss_retry_total: 10
+    rss_backoff_factor: 2.0
+    episode_retry_max: 1
+    episode_retry_delay_sec: 10.0
+    timeout: 120

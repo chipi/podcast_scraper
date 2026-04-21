@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Create canonical dataset JSON from existing eval data (RFC-041 Phase 0).
+"""Create canonical dataset JSON from existing eval data.
 
 This script:
 - Scans existing eval data directories
@@ -304,7 +304,7 @@ def create_dataset_json(
 def main() -> None:
     """Main entry point."""
     parser = argparse.ArgumentParser(
-        description="Create canonical dataset JSON from existing eval data (RFC-041 Phase 0)."
+        description="Create canonical dataset JSON from existing eval data."
     )
     parser.add_argument(
         "--dataset-id",

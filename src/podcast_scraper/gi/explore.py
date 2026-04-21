@@ -2,12 +2,13 @@
 
 Used by gi explore to build an in-memory view from per-episode gi.json files
 (no DB). Supports topic filter via Topic label (ABOUT edge) or substring in insight
-text; optional speaker filter on quote speaker_id or graph speaker_name (RFC-050 UC2).
+text; optional speaker filter on quote speaker_id or graph speaker_name.
 
 When ``<output_dir>/search/vectors.faiss`` exists and ``--topic`` is set, topic matching
-uses the semantic corpus index first (RFC-061): metadata files supply ``gi.json`` paths
-so only hit episodes load full artifacts; on failure or no hits, behavior falls back to
-substring/topic-label matching over all artifacts.
+uses the semantic corpus index first to propose insight candidates (metadata map loads
+``gi.json`` paths). Each candidate must still satisfy the same **topic contains** rule as the
+non-semantic path (substring on linked Topic labels or insight text); on failure or no hits,
+behavior falls back to substring/topic-label matching over all artifacts.
 
 Programmatic helpers implement UC1–UC5 patterns as thin wrappers over collect/sort.
 """
@@ -45,7 +46,7 @@ from .load import build_inspect_output
 logger = logging.getLogger(__name__)
 
 # Exit codes: 0 success, 2 invalid args, 3 missing/no artifacts, 4 no matching results,
-# 5 strict schema validation failed (RFC-050 lists 4 for strict; we keep 4=no match for
+# 5 strict schema validation failed (explore lists 4 for strict; we keep 4=no match for
 # backward compatibility with existing CLI tests — see GROUNDED_INSIGHTS_GUIDE).
 EXIT_SUCCESS = 0
 EXIT_INVALID_ARGS = 2
@@ -125,7 +126,7 @@ def _supporting_quote_speaker_key(q: SupportingQuote) -> Optional[str]:
 
 
 def default_vector_index_dir(output_dir: Path) -> Optional[Path]:
-    """Return ``output_dir / search`` if a FAISS index is present (RFC-061)."""
+    """Return ``output_dir / search`` if a FAISS index is present."""
     p = Path(output_dir) / "search"
     if (p / "vectors.faiss").is_file():
         return p
@@ -379,6 +380,10 @@ def _collect_insights_semantic(
         ins = _find_insight_summary(artifact, iid)
         if ins is None:
             continue
+        # Same contract as non-semantic explore: "topic contains" is substring on linked
+        # Topic labels or insight body (vector hits alone can be only loosely related).
+        if not _insight_matches_topic(artifact, iid, ins.text, topic):
+            continue
         if not _insight_matches_speaker(ins, speaker):
             continue
         if grounded_only and not ins.grounded:
@@ -454,7 +459,7 @@ def collect_insights(
     """Collect InsightSummary from artifacts with optional topic/speaker/grounded filters.
 
     When ``topic`` is set and ``semantic_index_dir`` contains ``vectors.faiss``, tries
-    vector-ranked insights first (RFC-061). If that yields at least one result, returns
+    vector-ranked insights first. If that yields at least one result, returns
     ``(insights, True)`` (caller should not re-sort by confidence/time). Otherwise falls
     back to substring/topic-label matching and returns ``(insights, False)``.
 
@@ -671,13 +676,13 @@ def build_explore_output(
 
 
 def topic_slug_for_rfc(label: str) -> str:
-    """Stable slug for synthetic topic_id (RFC-050 topic.topic_id)."""
+    """Stable slug for synthetic topic_id."""
     slug = re.sub(r"[^a-z0-9]+", "-", label.lower().strip()).strip("-")
     return slug or "topic"
 
 
 def explore_output_to_rfc_dict(out: ExploreOutput) -> Dict[str, Any]:
-    """RFC-050 §3.3 JSON shape for gi explore (topic object, nested episode/speaker)."""
+    """JSON shape for gi explore (topic object, nested episode/speaker)."""
     topic_obj: Optional[Dict[str, str]] = None
     if out.topic and out.topic.strip():
         lab = out.topic.strip()
@@ -745,7 +750,7 @@ def explore_output_to_rfc_dict(out: ExploreOutput) -> Dict[str, Any]:
     }
 
 
-# --- RFC-050 use-case helpers (programmatic; CLI uses collect + sort + build) ---
+# --- Explore use-case helpers (programmatic; CLI uses collect + sort + build) ---
 
 
 def run_uc5_insight_explorer(
@@ -837,7 +842,7 @@ def find_insight_by_id(
 
 
 def map_uc4_question_to_params(question: str) -> Optional[Dict[str, Any]]:
-    """UC4: deterministic pattern map for ``gi query`` (RFC-050).
+    """UC4: deterministic pattern map for ``gi query``.
 
     Unmatched questions stay ``None``; broadening this list is low priority (GitHub #487
     EV-2) because semantic corpus search (``podcast search``, #484) is expected to
@@ -888,7 +893,7 @@ def map_uc4_question_to_params(question: str) -> Optional[Dict[str, Any]]:
                 return {"topic": t}
             break
 
-    # Compound: "What did Sam Altman say about innovation?" (RFC-050 UC4)
+    # Compound: "What did Sam Altman say about innovation?"
     if low.startswith("what did ") and " say about " in low:
         rest = q[len("what did ") :]
         idx = rest.lower().index(" say about ")
@@ -912,7 +917,7 @@ def run_uc4_topic_leaderboard(
     limit: int = 20,
     strict: bool = False,
 ) -> Dict[str, Any]:
-    """UC4: rank topic labels by linked insight count (RFC-050 example questions)."""
+    """UC4: rank topic labels by linked insight count."""
     paths = scan_artifact_paths(output_dir)
     if not paths:
         return {

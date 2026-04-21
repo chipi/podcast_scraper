@@ -31,6 +31,7 @@ from urllib.parse import urlparse
 from pydantic import ValidationError
 
 from . import __version__, config, config_constants
+from .rss.feeds_spec import load_feeds_spec_file, merge_feed_entry_into_config, RssFeedEntry
 from .utils import filesystem, progress
 from .utils.log_redaction import format_exception_for_log
 from .workflow import orchestration as workflow
@@ -219,20 +220,42 @@ def _rich_progress(total: Optional[int], description: str) -> Iterator[Union[_Ri
 
 def _load_rss_urls_from_file(path: str) -> List[str]:
     """Read non-empty, non-comment lines from ``--rss-file`` (GitHub #440)."""
+    from podcast_scraper.feed_list_text import parse_rss_list_file_lines
+
     p = Path(path)
     if not p.is_file():
         raise ValueError(f"--rss-file is not a readable file: {path}")
     text = p.read_text(encoding="utf-8", errors="replace")
-    urls: List[str] = []
-    for line in text.splitlines():
-        s = line.strip()
-        if not s or s.startswith("#"):
-            continue
-        urls.append(s)
-    return urls
+    return parse_rss_list_file_lines(text)
 
 
 _FILE_URLS_ELIDE = object()
+
+
+def resolve_cli_feed_targets(args: argparse.Namespace) -> List[RssFeedEntry]:
+    """Resolve feed list: ``--feeds-spec`` file or legacy URL collection (each as RssFeedEntry)."""
+    spec = getattr(args, "feeds_spec", None)
+    if spec:
+        doc = load_feeds_spec_file(str(spec))
+        if not doc.feeds:
+            raise ValueError("feeds spec: feeds array is empty")
+        return list(doc.feeds)
+    urls = collect_feed_urls(args)
+    return [RssFeedEntry(url=u) for u in urls]
+
+
+def single_feeds_spec_output_dir(args: argparse.Namespace, entry: RssFeedEntry) -> str:
+    """Workspace path for one feed from ``--feeds-spec`` when ``--output-dir`` is the corpus.
+
+    Uses ``<corpus>/feeds/<stable>/`` so ``run_*`` matches multi-feed layout (#440). When
+    ``--output-dir`` is omitted, falls back to
+    :func:`~podcast_scraper.utils.filesystem.derive_output_dir` with no override (legacy
+    ``output/rss_*`` default).
+    """
+    corpus_raw = (getattr(args, "output_dir", None) or "").strip()
+    if corpus_raw:
+        return filesystem.corpus_feed_output_dir(corpus_raw, entry.url)
+    return filesystem.derive_output_dir(entry.url, None)
 
 
 def collect_feed_urls(
@@ -256,7 +279,16 @@ def collect_feed_urls(
     for u in getattr(args, "rss_extra", None) or []:
         add(str(u))
     for u in getattr(args, "rss_urls", None) or []:
-        add(str(u))
+        if isinstance(u, str):
+            add(str(u))
+        elif isinstance(u, dict):
+            url = str(u.get("url") or u.get("rss") or "").strip()
+            if url:
+                add(url)
+        elif isinstance(u, RssFeedEntry):
+            add(u.url)
+        else:
+            add(str(u))
 
     if preloaded_file_urls is _FILE_URLS_ELIDE:
         rss_file = getattr(args, "rss_file", None)
@@ -387,26 +419,51 @@ def validate_args(args: argparse.Namespace) -> None:
     """Validate parsed CLI arguments and raise ValueError when invalid."""
     errors: List[str] = []
 
-    preloaded_file: object = _FILE_URLS_ELIDE
+    feeds_spec = getattr(args, "feeds_spec", None)
     rss_file = getattr(args, "rss_file", None)
-    if rss_file:
+    if feeds_spec and rss_file:
+        errors.append("Use either --feeds-spec or --rss-file, not both")
+    if feeds_spec and (getattr(args, "rss", None) or getattr(args, "rss_extra", None)):
+        errors.append("Use either --feeds-spec or RSS URL arguments (--rss / positional), not both")
+
+    preloaded_file: object = _FILE_URLS_ELIDE
+    if rss_file and not feeds_spec:
         try:
             preloaded_file = _load_rss_urls_from_file(str(rss_file))
         except ValueError as exc:
             errors.append(str(exc))
             preloaded_file = []
 
-    feed_urls = collect_feed_urls(args, preloaded_file_urls=preloaded_file)
-    if not feed_urls:
-        errors.append("At least one RSS URL is required (positional, --rss, --rss-file, or config)")
+    if feeds_spec:
+        feed_targets: List[RssFeedEntry] = []
+        try:
+            feed_targets = resolve_cli_feed_targets(args)
+        except (OSError, ValueError, TypeError, ValidationError) as exc:
+            errors.append(f"Invalid --feeds-spec file: {exc}")
+        if not errors and not feed_targets:
+            errors.append("At least one feed is required in --feeds-spec (non-empty feeds array)")
+        if not errors:
+            for ent in feed_targets:
+                _validate_rss_url(ent.url, errors)
+            if len(feed_targets) >= 2 and not (getattr(args, "output_dir", None) or "").strip():
+                errors.append(
+                    "Multi-feed mode (GitHub #440): --output-dir is required as the corpus parent "
+                    "(each feed is written under <output-dir>/feeds/<stable_name>/)"
+                )
     else:
-        for u in feed_urls:
-            _validate_rss_url(u, errors)
-        if len(feed_urls) >= 2 and not (getattr(args, "output_dir", None) or "").strip():
+        feed_urls = collect_feed_urls(args, preloaded_file_urls=preloaded_file)
+        if not feed_urls:
             errors.append(
-                "Multi-feed mode (GitHub #440): --output-dir is required as the corpus parent "
-                "(each feed is written under <output-dir>/feeds/<stable_name>/)"
+                "At least one RSS URL is required (positional, --rss, --rss-file, or config)"
             )
+        else:
+            for u in feed_urls:
+                _validate_rss_url(u, errors)
+            if len(feed_urls) >= 2 and not (getattr(args, "output_dir", None) or "").strip():
+                errors.append(
+                    "Multi-feed mode (GitHub #440): --output-dir is required as the corpus parent "
+                    "(each feed is written under <output-dir>/feeds/<stable_name>/)"
+                )
 
     # Validate numeric arguments
     if args.max_episodes is not None and args.max_episodes <= 0:
@@ -500,6 +557,16 @@ def _add_common_arguments(parser: argparse.ArgumentParser) -> None:
         default=None,
         metavar="PATH",
         help="File with one RSS URL per line (# and blank lines ignored; GitHub #440)",
+    )
+    parser.add_argument(
+        "--feeds-spec",
+        default=None,
+        metavar="PATH",
+        help=(
+            "Structured feeds file (YAML or JSON): root object with ``feeds`` array of URL "
+            "strings or objects with ``url`` plus optional per-feed overrides (RFC-077 / #626). "
+            "Mutually exclusive with --rss-file and explicit RSS URL arguments."
+        ),
     )
     parser.add_argument(
         "--output-dir",
@@ -633,15 +700,13 @@ def _add_common_arguments(parser: argparse.ArgumentParser) -> None:
         "--monitor",
         action="store_true",
         dest="monitor",
-        help="Live resource/stage monitor subprocess (RFC-065; writes .pipeline_status.json)",
+        help="Live resource/stage monitor subprocess",
     )
     parser.add_argument(
         "--memray",
         action="store_true",
         dest="memray",
-        help=(
-            "Re-exec under memray for heap profiling (RFC-065 Phase 3; pip install -e '.[monitor]')"
-        ),
+        help=("Re-exec under memray for heap profiling"),
     )
     parser.add_argument(
         "--memray-output",
@@ -1255,7 +1320,7 @@ def _add_metadata_arguments(parser: argparse.ArgumentParser) -> None:
         "--vector-search",
         action=argparse.BooleanOptionalAction,
         default=None,
-        help="Enable/disable corpus vector indexing after pipeline finalize (RFC-061 / #484).",
+        help="Enable/disable corpus vector indexing after pipeline finalize.",
     )
     parser.add_argument(
         "--vector-backend",
@@ -1461,7 +1526,7 @@ def _add_summarization_arguments(parser: argparse.ArgumentParser) -> None:
     parser.add_argument(
         "--summary-mode-id",
         default=None,
-        help="RFC-044 summarization mode ID (e.g., ml_prod_authority_v1). "
+        help="Summarization mode ID from the model registry (e.g., ml_prod_authority_v1). "
         "When set, providers can use promoted baseline defaults from the Model Registry.",
     )
     parser.add_argument(
@@ -1830,6 +1895,109 @@ def _config_yaml_allowed_top_level_keys() -> set[str]:
     return allowed
 
 
+def _yaml_top_level_key_to_model_field(yaml_key: str) -> Optional[str]:
+    """Map a YAML/JSON top-level key to :class:`~podcast_scraper.config.Config` field name."""
+    if yaml_key in config.DEPRECATED_CONFIG_TOP_LEVEL_KEYS or yaml_key == "profile":
+        return None
+    for fname, finfo in config.Config.model_fields.items():
+        if fname == yaml_key:
+            return fname
+        if finfo.alias == yaml_key:
+            return fname
+        va = finfo.validation_alias
+        if isinstance(va, str) and va == yaml_key:
+            return fname
+        if va is not None:
+            for choice in getattr(va, "choices", None) or ():
+                if isinstance(choice, str) and choice == yaml_key:
+                    return fname
+    return None
+
+
+def _argparse_dest_for_model_field(field_name: str) -> str:
+    """Map ``Config`` field name to ``parse_args`` namespace attribute (:mod:`argparse`)."""
+    if field_name == "rss_url":
+        return "rss"
+    if field_name == "prefer_types":
+        return "prefer_type"
+    if field_name == "screenplay_speaker_names":
+        return "speaker_names"
+    if field_name == "screenplay_gap_s":
+        return "screenplay_gap"
+    if field_name == "screenplay_num_speakers":
+        return "num_speakers"
+    return field_name
+
+
+def _argv_cli_profile_name(argv: Optional[Sequence[str]]) -> Optional[str]:
+    """Return ``--profile`` / ``--profile=`` value from argv, if present."""
+    if not argv:
+        return None
+    tokens = list(argv)
+    for i, tok in enumerate(tokens):
+        if tok == "--profile":
+            if i + 1 < len(tokens):
+                name = str(tokens[i + 1]).strip()
+                return name or None
+            return None
+        if tok.startswith("--profile=") and len(tok) > len("--profile="):
+            return tok[len("--profile=") :].strip() or None
+    return None
+
+
+def _collect_explicit_cli_dests(
+    parser: argparse.ArgumentParser, argv: Optional[Sequence[str]]
+) -> frozenset[str]:
+    """Which argparse ``dest`` values were set via the command line (not from defaults)."""
+    if not argv:
+        return frozenset()
+    dests: set[str] = set()
+    tokens = list(argv)
+    skip_next = False
+    for i, tok in enumerate(tokens):
+        if skip_next:
+            skip_next = False
+            continue
+        if tok == "--config":
+            skip_next = True
+            continue
+        if tok.startswith("--config="):
+            continue
+        if not tok.startswith("-"):
+            if i == 0 and ("://" in tok or tok.endswith(".xml") or tok.endswith(".rss")):
+                dests.add("rss")
+            continue
+        matched_any = False
+        for action in parser._actions:
+            option_strings = getattr(action, "option_strings", None) or ()
+            for opt in option_strings:
+                if not opt.startswith("--"):
+                    continue
+                if tok == opt or (tok.startswith(opt + "=") and len(tok) > len(opt) + 1):
+                    dests.add(action.dest)
+                    matched_any = True
+                    break
+            if matched_any:
+                break
+    return frozenset(dests)
+
+
+def _attach_cli_merge_metadata(
+    parser: argparse.ArgumentParser,
+    argv: Optional[Sequence[str]],
+    args: argparse.Namespace,
+    *,
+    config_yaml_keys: Optional[frozenset[str]] = None,
+) -> None:
+    """Annotate namespace for :func:`_build_config` profile vs operator merge."""
+    setattr(
+        args,
+        "_config_yaml_explicit_keys",
+        frozenset(config_yaml_keys) if config_yaml_keys is not None else frozenset(),
+    )
+    setattr(args, "_cli_explicit_dests", _collect_explicit_cli_dests(parser, argv))
+
+
 def _load_and_merge_config(
     parser: argparse.ArgumentParser, config_path: str, argv: Optional[Sequence[str]]
 ) -> argparse.Namespace:
@@ -1871,8 +2039,19 @@ def _load_and_merge_config(
     if unknown_keys:
         raise ValueError("Unknown config option(s): " + ", ".join(sorted(unknown_keys)))
 
+    config_explicit_keys = frozenset(config_data.keys())
+    cli_profile = _argv_cli_profile_name(argv)
+    validate_data = dict(config_data)
+    if cli_profile is not None:
+        # CLI --profile must participate in the same merge as ``profile:`` in YAML so
+        # ``Config._resolve_profile`` runs before argparse defaults are frozen on ``args``.
+        # Without this, thin operator files + ``--profile`` left ``transcription_provider`` /
+        # ``summary_provider`` / preprocessing on argparse defaults, which then beat the
+        # packaged preset in ``_build_config``'s payload (#646 follow-up vs main model_dump).
+        validate_data["profile"] = cli_profile
+
     try:
-        config_model = config.Config.model_validate(config_data)
+        config_model = config.Config.model_validate(validate_data)
         # Debug: Log grok model values after validation
         import logging
 
@@ -1885,20 +2064,33 @@ def _load_and_merge_config(
     except ValidationError as exc:
         raise ValueError(f"Invalid configuration: {exc}") from exc
 
-    defaults_updates: Dict[str, Any] = config_model.model_dump(
-        exclude_none=True,
-        by_alias=True,
-    )
+    # Full dump matches main ``_load_and_merge_config`` so nested merges (e.g.
+    # ``audio_preprocessing_profile`` → ``preprocessing_silence_threshold``) and
+    # every packaged-preset field land on ``args`` before ``parse_args`` (#646 + thin
+    # ``--config`` + ``--profile`` parity with ``--config`` profile YAML alone).
+    defaults_updates = config_model.model_dump(exclude_none=True, by_alias=True)
 
     speaker_list = defaults_updates.get("speaker_names")
     if isinstance(speaker_list, list):
-        defaults_updates["speaker_names"] = ",".join(speaker_list)
+        defaults_updates["speaker_names"] = ",".join(str(x) for x in speaker_list)
 
     parser.set_defaults(**defaults_updates)
     args = parser.parse_args(argv)
-    if not collect_feed_urls(args):
+    _attach_cli_merge_metadata(
+        parser,
+        argv,
+        args,
+        config_yaml_keys=config_explicit_keys,
+    )
+    has_feeds = bool(collect_feed_urls(args))
+    if not has_feeds and getattr(args, "feeds_spec", None):
+        try:
+            has_feeds = bool(load_feeds_spec_file(str(args.feeds_spec)).feeds)
+        except (OSError, ValueError, TypeError, ValidationError):
+            has_feeds = False
+    if not has_feeds:
         raise ValueError(
-            "RSS URL is required (positional rss, repeatable --rss, --rss-file, "
+            "RSS URL is required (positional rss, repeatable --rss, --rss-file, --feeds-spec, "
             "or config rss / rss_urls / feeds)"
         )
     return args
@@ -1936,7 +2128,7 @@ def _parse_corpus_status_args(argv: Optional[Sequence[str]] = None) -> argparse.
     parser = argparse.ArgumentParser(
         description=(
             "Show corpus parent status: manifest, per-feed metadata counts, "
-            "index.json errors sample, unified search index (RFC-063 §7)."
+            "index.json errors sample, unified search index."
         ),
         prog="podcast_scraper corpus-status",
     )
@@ -2678,7 +2870,7 @@ def _run_gi_query(args: argparse.Namespace, logger: logging.Logger) -> int:
     result = run_uc4_semantic_qa(out_path, question.strip(), limit=limit, strict=strict)
     if result is None:
         logger.error(
-            "Question did not match a supported pattern (RFC-050 UC4). Examples: "
+            "Question did not match a supported pattern. Examples: "
             "'What insights about X?', 'What insights are there about X?', "
             "'What did Y say?', 'What did Y say about X?', "
             "'Which topics have the most insights?', 'Top topics'."
@@ -2994,7 +3186,7 @@ def _parse_gi_args(gi_argv: Sequence[str]) -> argparse.Namespace:
     # gi query (UC4: tiny pattern map → explore RFC answer)
     query_parser = subparsers.add_parser(
         "query",
-        help="Natural-language question → matched explore result (RFC-050 UC4)",
+        help="Natural-language question → matched explore result",
     )
     query_parser.add_argument(
         "--question",
@@ -3032,7 +3224,7 @@ def _parse_gi_args(gi_argv: Sequence[str]) -> argparse.Namespace:
 
     gi_exp = subparsers.add_parser(
         "export",
-        help="Export all gi.json under a run as NDJSON or merged JSON bundle (RFC-050 / kg parity)",
+        help="Export all gi.json under a run as NDJSON or merged JSON bundle",
     )
     gi_exp.add_argument(
         "--output-dir",
@@ -3069,7 +3261,7 @@ def _parse_kg_args(kg_argv: Sequence[str]) -> argparse.Namespace:
     """Parse 'kg' subcommand arguments (validate, inspect, export, entities, topics)."""
     parser = argparse.ArgumentParser(
         prog="podcast_scraper kg",
-        description="Knowledge Graph (KG) tools for per-episode kg.json (RFC-056).",
+        description="Knowledge Graph (KG) tools for per-episode kg.json.",
     )
     subparsers = parser.add_subparsers(dest="kg_subcommand", required=True, help="Command")
 
@@ -3344,6 +3536,7 @@ def parse_args(argv: Optional[Sequence[str]] = None) -> argparse.Namespace:
         args = _load_and_merge_config(parser, effective_config_path, argv)
     else:
         args = parser.parse_args(argv)
+        _attach_cli_merge_metadata(parser, argv, args)
 
     validate_args(args)
     return args
@@ -3359,10 +3552,23 @@ def _build_config_for_feed(
     return _build_config(clone)
 
 
+def _build_config_for_feed_entry(
+    args: argparse.Namespace,
+    entry: RssFeedEntry,
+    *,
+    output_dir_override: Optional[str],
+) -> config.Config:
+    """Build Config for one feed including per-feed overrides from ``RssFeedEntry``."""
+    clone = copy.copy(args)
+    clone.rss = entry.url
+    clone.output_dir = output_dir_override
+    base = _build_config(clone)
+    return merge_feed_entry_into_config(base.model_copy(update={"rss_urls": None}), entry)
+
+
 def _build_config(args: argparse.Namespace) -> config.Config:  # noqa: C901
     """Materialize a Config object from already-validated CLI arguments."""
     speaker_names_list = [s.strip() for s in (args.speaker_names or "").split(",") if s.strip()]
-    profile = getattr(args, "profile", None)
     payload: Dict[str, Any] = {
         "rss_url": args.rss,
         "output_dir": filesystem.derive_output_dir(args.rss, args.output_dir),
@@ -3708,6 +3914,7 @@ def _build_config(args: argparse.Namespace) -> config.Config:  # noqa: C901
             _drv = getattr(args, _drk)
             if _drv is not None:
                 payload[_drk] = _drv
+    profile = getattr(args, "profile", None)
     # Inject profile if set via --profile CLI flag (#593)
     if profile:
         payload["profile"] = profile
@@ -4166,13 +4373,13 @@ def main(  # noqa: C901 - main function handles multiple command paths
     if hasattr(args, "command") and args.command == "gi":
         return _run_gi(args, log=log)
 
-    # Handle kg subcommand (RFC-056)
+    # Handle kg subcommand
     if hasattr(args, "command") and args.command == "kg":
         from .kg.cli_handlers import run_kg
 
         return run_kg(args, log)
 
-    # Semantic corpus search / index (RFC-061 / #484)
+    # Semantic corpus search / index
     if hasattr(args, "command") and args.command == "search":
         from .search.cli_handlers import run_search_cli
 
@@ -4357,13 +4564,13 @@ def main(  # noqa: C901 - main function handles multiple command paths
             log.error(f"Cache operation failed: {exc}")
             return 1
 
-    feed_urls = collect_feed_urls(args)
+    feed_targets = resolve_cli_feed_targets(args)
 
     from .monitor.memray_util import maybe_reexec_memray_cli
 
-    maybe_reexec_memray_cli(args, argv, feed_urls)
+    maybe_reexec_memray_cli(args, argv, [e.url for e in feed_targets])
 
-    if len(feed_urls) >= 2:
+    if len(feed_targets) >= 2:
         corpus_raw = (getattr(args, "output_dir", None) or "").strip()
         try:
             corpus_parent = filesystem.validate_and_normalize_output_dir(corpus_raw)
@@ -4380,7 +4587,7 @@ def main(  # noqa: C901 - main function handles multiple command paths
         log.info(
             "Starting multi-feed podcast scrape (GitHub #440): corpus_parent=%s feeds=%d",
             corpus_parent,
-            len(feed_urls),
+            len(feed_targets),
         )
 
         from .utils.corpus_incidents import append_corpus_incident
@@ -4400,7 +4607,8 @@ def main(  # noqa: C901 - main function handles multiple command paths
                 _inc_start = (
                     Path(_inc_default).stat().st_size if Path(_inc_default).is_file() else 0
                 )
-                for url in feed_urls:
+                for entry in feed_targets:
+                    url = entry.url
                     sub = filesystem.feed_workspace_dirname(url)
                     try:
                         out_path = filesystem.corpus_feed_output_dir(corpus_parent, url)
@@ -4429,8 +4637,8 @@ def main(  # noqa: C901 - main function handles multiple command paths
                         continue
                     log.info("Feed start: rss=%s -> feeds/%s", url, sub)
                     try:
-                        cfg = _build_config_for_feed(
-                            args, rss_url=url, output_dir_override=out_path
+                        cfg = _build_config_for_feed_entry(
+                            args, entry, output_dir_override=out_path
                         )
                     except ValidationError as exc:
                         log.error("Invalid configuration for feed %s: %s", url, exc)
@@ -4509,8 +4717,8 @@ def main(  # noqa: C901 - main function handles multiple command paths
                     )
 
                 try:
-                    base_cfg = _build_config_for_feed(
-                        args, rss_url=feed_urls[0], output_dir_override=corpus_parent
+                    base_cfg = _build_config_for_feed_entry(
+                        args, feed_targets[0], output_dir_override=corpus_parent
                     )
                 except ValidationError as exc:
                     log.error("Invalid configuration for corpus parent finalize: %s", exc)
@@ -4546,7 +4754,15 @@ def main(  # noqa: C901 - main function handles multiple command paths
             return 1
 
     try:
-        cfg = _build_config(args)
+        if getattr(args, "feeds_spec", None):
+            only = resolve_cli_feed_targets(args)[0]
+            cfg = _build_config_for_feed_entry(
+                args,
+                only,
+                output_dir_override=single_feeds_spec_output_dir(args, only),
+            )
+        else:
+            cfg = _build_config(args)
     except ValidationError as exc:
         log.error(f"Invalid configuration: {exc}")
         return 1

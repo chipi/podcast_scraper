@@ -1,4 +1,4 @@
-"""Unit tests for Model Registry (RFC-044).
+"""Unit tests for Model Registry.
 
 Verifies registry lookup, dynamic detection fallback, pattern-based fallbacks,
 safe default, extensibility (register_model), and completeness vs DEFAULT_SUMMARY_MODELS.

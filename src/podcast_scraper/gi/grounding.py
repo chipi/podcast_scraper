@@ -16,7 +16,7 @@ from podcast_scraper.utils.log_redaction import format_exception_for_log
 
 logger = logging.getLogger(__name__)
 
-# Thresholds for evidence stack (RFC-049 / scope doc)
+# Thresholds for evidence stack
 QA_SCORE_MIN = 0.3
 NLI_ENTAILMENT_MIN = 0.5
 

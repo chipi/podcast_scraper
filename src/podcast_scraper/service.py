@@ -79,7 +79,7 @@ class ServiceResult:
     soft_failures: Optional[str] = None
 
 
-def _run_multi_feed(cfg: config.Config, feed_urls: List[str]) -> ServiceResult:
+def _run_multi_feed(cfg: config.Config, entries: List[config.RssFeedEntry]) -> ServiceResult:
     """Run one pipeline per feed under ``output_dir/feeds/…`` (GitHub #440).
 
     Per-feed failures are isolated: other feeds still run. When ``cfg.multi_feed_strict`` is
@@ -90,6 +90,7 @@ def _run_multi_feed(cfg: config.Config, feed_urls: List[str]) -> ServiceResult:
     After the batch, writes manifest/summary (#506) and builds a parent vector
     index when ``vector_search`` and FAISS are enabled (#505).
     """
+    from podcast_scraper.rss.feeds_spec import merge_feed_entry_into_config
     from podcast_scraper.utils.corpus_lock import corpus_parent_lock
 
     total = 0
@@ -108,21 +109,27 @@ def _run_multi_feed(cfg: config.Config, feed_urls: List[str]) -> ServiceResult:
     try:
         try:
             with corpus_parent_lock(Path(parent), logger=logger):
-                n_feeds = len(feed_urls)
-                for idx, url in enumerate(feed_urls):
+                n_feeds = len(entries)
+                template = cfg.model_copy(
+                    update={
+                        "rss_url": None,
+                        "rss_urls": None,
+                    }
+                )
+                for idx, entry in enumerate(entries):
+                    url = entry.url
                     child_dir = filesystem.corpus_feed_output_dir(parent, url)
                     incident_log = (cfg.incident_log_path or "").strip()
                     if not incident_log:
                         incident_log = str(Path(parent) / "corpus_incidents.jsonl")
-                    sub_cfg = cfg.model_copy(
+                    base = template.model_copy(
                         update={
-                            "rss_url": url,
                             "output_dir": child_dir,
-                            "rss_urls": None,
                             "skip_auto_vector_index": skip_auto,
                             "incident_log_path": incident_log,
                         },
                     )
+                    sub_cfg = merge_feed_entry_into_config(base, entry)
                     try:
                         count, summary = workflow.run_pipeline(sub_cfg)
                         total += count
@@ -172,7 +179,7 @@ def _run_multi_feed(cfg: config.Config, feed_urls: List[str]) -> ServiceResult:
                 template = cfg.model_copy(
                     update={
                         "output_dir": parent,
-                        "rss_url": feed_urls[0],
+                        "rss_url": entries[0].url,
                         "rss_urls": None,
                         "skip_auto_vector_index": False,
                     }
@@ -267,9 +274,9 @@ def run(cfg: config.Config) -> ServiceResult:
                 log_file=resolved_log,
             )
 
-        multi_urls = list(cfg.rss_urls or [])
-        if len(multi_urls) >= 2:
-            return _run_multi_feed(cfg, multi_urls)
+        multi_entries = list(cfg.rss_urls or [])
+        if len(multi_entries) >= 2:
+            return _run_multi_feed(cfg, multi_entries)
 
         # Single-feed path. Opt-in ``feeds/<slug>/`` wrapping (#644) is applied
         # at Config construction via the ``_apply_single_feed_corpus_layout``

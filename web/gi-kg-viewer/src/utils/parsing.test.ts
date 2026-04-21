@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { ArtifactData, GraphFilterState, ParsedArtifact } from '../types/artifact'
 import {
+  applyGraphDefaultNodeTypeVisibility,
   applyGraphFilters,
   buildNodeTitle,
   countPersonEntityIncidentEdges,
@@ -12,6 +13,8 @@ import {
   filterArtifactEgoAroundTopicCluster,
   filterArtifactEgoOneHop,
   filtersActive,
+  filtersActiveExcludingNodeTypes,
+  graphTypesDeviateFromGraphSpec,
   findRawNodeInArtifact,
   fullPrimaryNodeLabel,
   insightProvenanceLine,
@@ -182,7 +185,7 @@ describe('entityDisplayNameFromId', () => {
     expect(entityDisplayNameFromId('g:entity:organization:acme-corp')).toBe('Acme Corp')
   })
 
-  it('humanises RFC-072 person: and org: ids', () => {
+  it('humanises CIL person: and org: ids', () => {
     expect(entityDisplayNameFromId('person:john-doe')).toBe('John Doe')
     expect(entityDisplayNameFromId('k:kg:org:acme-corp')).toBe('Acme Corp')
   })
@@ -259,6 +262,24 @@ describe('defaultFilterState', () => {
   })
 })
 
+describe('applyGraphDefaultNodeTypeVisibility', () => {
+  it('turns off Quote Speaker by default; Episode stays on', () => {
+    const state = defaultFilterState(parsedGi())!
+    applyGraphDefaultNodeTypeVisibility(state)
+    expect(state.allowedTypes.Episode).toBe(true)
+    expect(state.allowedTypes.Quote).toBe(false)
+    expect(state.allowedTypes.Insight).toBe(true)
+    expect(graphTypesDeviateFromGraphSpec(state)).toBe(false)
+  })
+
+  it('graphTypesDeviateFromGraphSpec detects user overrides', () => {
+    const state = defaultFilterState(parsedGi())!
+    applyGraphDefaultNodeTypeVisibility(state)
+    state.allowedTypes.Episode = false
+    expect(graphTypesDeviateFromGraphSpec(state)).toBe(true)
+  })
+})
+
 // ── filtersActive ──
 
 describe('filtersActive', () => {
@@ -289,6 +310,23 @@ describe('filtersActive', () => {
     expect(firstKey).toBeDefined()
     state.allowedEdgeTypes[firstKey] = false
     expect(filtersActive(art, state)).toBe(true)
+  })
+})
+
+describe('filtersActiveExcludingNodeTypes', () => {
+  it('returns false when only node types differ from defaults', () => {
+    const art = parsedGi()
+    const state = defaultFilterState(art)!
+    state.allowedTypes.Quote = false
+    expect(filtersActive(art, state)).toBe(true)
+    expect(filtersActiveExcludingNodeTypes(art, state)).toBe(false)
+  })
+
+  it('returns true when hideUngroundedInsights is on', () => {
+    const art = parsedGi()
+    const state = defaultFilterState(art)!
+    state.hideUngroundedInsights = true
+    expect(filtersActiveExcludingNodeTypes(art, state)).toBe(true)
   })
 })
 
@@ -608,6 +646,47 @@ describe('insightSupportingTranscriptAggregate', () => {
     ])
   })
 
+  it('uses first quote episode_id when insight omits episode_id', () => {
+    const art = parseArtifact('x.gi.json', {
+      episode_id: 'e',
+      model_version: 'm',
+      prompt_version: 'p',
+      nodes: [
+        { id: 'episode:e', type: 'Episode', properties: { title: 'E' } },
+        { id: 'ins', type: 'Insight', properties: { text: 'I', grounded: true } },
+        {
+          id: 'q1',
+          type: 'Quote',
+          properties: {
+            text: 'A',
+            episode_id: 'e',
+            char_start: 0,
+            char_end: 2,
+            transcript_ref: 't.txt',
+          },
+        },
+        {
+          id: 'q2',
+          type: 'Quote',
+          properties: {
+            text: 'B',
+            episode_id: 'e',
+            char_start: 10,
+            char_end: 12,
+            transcript_ref: 't.txt',
+          },
+        },
+      ],
+      edges: [
+        { type: 'SUPPORTED_BY', from: 'ins', to: 'q1' },
+        { type: 'SUPPORTED_BY', from: 'ins', to: 'q2' },
+      ],
+    })
+    const agg = insightSupportingTranscriptAggregate(art, 'ins')
+    expect(agg).not.toBeNull()
+    expect(agg!.episodeId).toBe('e')
+  })
+
   it('returns null when supporting quotes use different transcript_ref values', () => {
     const art = parseArtifact('x.gi.json', {
       episode_id: 'e',
@@ -837,6 +916,15 @@ describe('toCytoElements', () => {
     const nodeElem = elems.find((e) => e.data.id === 'i1')
     expect(nodeElem).toBeTruthy()
     expect(nodeElem!.data.type).toBe('Insight')
+    expect(typeof (nodeElem!.data as { shortLabel?: string }).shortLabel).toBe('string')
+    expect(Number((nodeElem!.data as { recencyWeight?: number }).recencyWeight)).toBe(1)
+  })
+
+  it('canonicalises edge types for Cytoscape edgeType', () => {
+    const elems = toCytoElements(parsedGi())
+    const edge = elems.find((e) => 'source' in e.data && e.data.source === 'i1')
+    expect(edge).toBeTruthy()
+    expect((edge!.data as { edgeType?: string }).edgeType).toBe('SUPPORTED_BY')
   })
 
   it('includes data.parent when RawGraphNode has parent', () => {

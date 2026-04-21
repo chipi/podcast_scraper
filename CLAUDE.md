@@ -8,6 +8,10 @@
 **For all AI assistants (comprehensive guidelines):**
 **`.ai-coding-guidelines.md`** - Complete AI coding guidelines (PRIMARY source of truth)
 
+**Specs vs code:** Do not embed `RFC-*`, `PRD-*`, or `UXS-*` identifiers in code, comments, CSS class names, CLI strings, or user-visible copy. Use neutral feature and API names; keep numbered references in `docs/rfc/`, `docs/prd/`, and `docs/uxs/` only. See `.ai-coding-guidelines.md` (**Specification IDs in product code**).
+
+**FUTURE checkout (this repo):** **`WORKTREE.md`** (repo root) — branch purpose (2.6+), no releases from here, PR-only flow, and **Python/venv per worktree** (use this worktree’s `.venv` for `python` / `pytest` / `make serve-api`; sanity-check `podcast_scraper.__file__`; do not add `pythonpath` to `pyproject.toml` to paper over the wrong interpreter).
+
 ## Quick Reference
 
 **CRITICAL RULES:**
@@ -20,7 +24,7 @@
 - After making file edits: summarize changes and ask "Keep these changes or undo any of them?"
 - When intent is clear: **run commands and tools yourself** (make, scripts, tests); **only** ask when blocked (auth/secrets, ambiguous scope, or policy needs approval) — see *Autonomous execution* in `.cursorrules` / `.ai-coding-guidelines.md`
 - When any make target fails (test, ci, lint, format, docs, etc.): establish root cause first, then fix from there (no random experimenting)
-- Run `make ci-fast` before committing when needed (exceptions: workflow-only changes; **recent green `ci-fast` or `ci` in this session on the same diff** with no substantive edits after; user says skip / already validated; **incremental tiny follow-up** — see `.cursorrules` rules **5** and **5c**)
+- Run `make ci-fast` before committing when needed; for **viewer-heavy** work prefer **`make ci-ui-fast`** locally first (**Playwright** instead of Python **`tests/e2e/`**; pre-commit still runs **`make ci-fast`**). Exceptions: workflow-only changes; **recent green `ci-fast` / `ci-ui-fast` or `ci` in this session on the same diff** with no substantive edits after; user says skip / already validated; **incremental tiny follow-up** — see `.cursorrules` rules **5** and **5c**
 - **Always** use Makefile commands (never direct pytest/python/black commands)
 - **Never** use `cd` to project root (already in workspace directory)
 - **Always** use correct GitHub username (check with `mcp_github_get_me`, not Mac username)
@@ -29,12 +33,14 @@
 - **Never** `git checkout <ref> -- <file>` during a merge (destroys resolved content; use `git show <ref>:<path>` to inspect)
 - **Never** overwrite local files with remote content without showing the diff and getting explicit approval (rule 4d)
 - **Never** `git checkout -- <path>`, `git checkout HEAD -- <path>`, `git restore --source HEAD …`, or similar to discard uncommitted work unless the user explicitly asked or you asked and they confirmed (rule 4e). Before any revert-from-git on tracked paths: **`.cursor/rules/git-working-tree-safety.mdc`** (Rule 17) or **ask first**
+- **Gitignored paths:** **never delete** them when “cleaning docs” or removing references; tracked `docs/**` must not treat them as canonical — see `.cursorrules` rule **4f** and `.cursor/rules/documentation.mdc`
 - Run `make fix-md` immediately after ANY markdown edit (zero lint violations before review)
 - **GI/KG viewer UX** (`web/gi-kg-viewer/`): when UI changes affect users or Playwright, update in order:
-  **`e2e/E2E_SURFACE_MAP.md`** (automation contract) → **`e2e/*.spec.ts`** / helpers → **`docs/uxs/UXS-001-gi-kg-viewer.md`**
-  and/or the relevant **feature UXS** (`docs/uxs/index.md`) if the visual/token experience contract changes.
-  See `docs/guides/E2E_TESTING_GUIDE.md` (Playwright) and `docs/guides/DEVELOPMENT_GUIDE.md` (viewer section).
-- **User-reported viewer bugs:** reproduce and re-validate with **Chrome DevTools MCP** (or Playwright MCP); **validate the fix in the same channel you used to reproduce** (symmetry rule — tests alone are not a substitute if you reproduced in the browser). Also run **`make test-ui`** / integration server tests / **`make test-ui-e2e`** as appropriate. Workflow: **`docs/guides/AGENT_BROWSER_LOOP_GUIDE.md`** (*Obligatory validation* + *Symmetry rule*).
+  **`e2e/E2E_SURFACE_MAP.md`** (automation contract) → **`e2e/*.spec.ts`** / helpers → **`docs/uxs/VIEWER_IA.md`** when **shell information architecture** changes (regions, navigation axes, persistence, clearing, first-run) → **`docs/uxs/UXS-001-gi-kg-viewer.md`**
+  and/or the relevant **feature UXS** (`docs/uxs/index.md`) when the **visual/token** experience contract changes.
+  UXS lifecycle (Draft vs Active, align at ship): **`docs/uxs/index.md`** — section **Living documents and ship boundary**.
+  See `docs/guides/E2E_TESTING_GUIDE.md` (Playwright) and `docs/guides/DEVELOPMENT_GUIDE.md` (viewer section). For a **full local gate** on viewer-heavy PRs, prefer **`make ci-ui-fast`** (same lint/type/docs/build chain as **`ci-fast`**, with browser E2E).
+- **User-reported viewer bugs:** reproduce and re-validate with **Chrome DevTools MCP by default** (Playwright MCP only when clearly better for scripted isolation — say so in one line); **validate the fix in the same channel you used to reproduce** (symmetry rule — tests alone are not a substitute if you reproduced in the browser). Also run **`make test-ui`** / integration server tests / **`make test-ui-e2e`** or **`make ci-ui-fast`** as appropriate. Workflow: **`docs/guides/AGENT_BROWSER_LOOP_GUIDE.md`** (*Default MCP choice* + *Obligatory validation* + *Symmetry rule*). For **graph neighbourhood / “everything bright” after ~1–3s**, use the **timing + Cytoscape + Pinia** checklist in **`.cursor/rules/agent-browser-ui-fixes.mdc`** (section *Graph canvas — selection, neighbourhood dimming*) and the companion subsection in **`docs/guides/AGENT_BROWSER_LOOP_GUIDE.md`**.
 - **FastAPI `/api/*`**: tests in **`tests/unit/podcast_scraper/server/`** and **`tests/integration/server/`**; reference **`docs/guides/SERVER_GUIDE.md`**.
 - **Local serve from a chosen output dir:** interpret “use this folder as root” as **`make serve SERVE_OUTPUT_DIR=…`** / **`make serve-api SERVE_OUTPUT_DIR=…`**; do **not** edit the Makefile default unless the user explicitly wants the repo default changed. **`VITE_DEFAULT_CORPUS_PATH`** is only for pre-filling the viewer shell path (see `.cursorrules` GI/KG section).
 - **Agent-started servers:** when the agent starts **`make serve`** / **`make serve-api`** without the user naming a root, use **`SERVE_OUTPUT_DIR=.test_outputs`** unless another path is clearly implied (see `.cursorrules` GI/KG section).
@@ -218,5 +224,6 @@ ready comparison baseline.
   Makefile targets (`make test-ui`, `make serve`, …)
 - **`docs/architecture/TESTING_STRATEGY.md`** - Comprehensive testing approach
 - **`docs/architecture/ARCHITECTURE.md`** - Architecture design and module responsibilities
+- **`.cursor/commands/*.md`** - Cursor **slash commands** (saved agent prompts), e.g. pipeline post-mortem and plan/review workflows; see **`docs/guides/CURSOR_AI_BEST_PRACTICES_GUIDE.md`**
 
 **See the "Complete guide file set" section above for the complete loading pattern.**

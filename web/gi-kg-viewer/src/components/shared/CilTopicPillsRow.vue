@@ -2,15 +2,22 @@
 import type { CilDigestTopicPill } from '../../api/digestApi'
 import { cilClusteredTopicPillChrome } from '../../utils/colors'
 
+export type CilClusterMemberAppearance = 'quote' | 'kg'
+
 const props = withDefaults(
   defineProps<{
     pills: CilDigestTopicPill[]
     maxPillChars?: number
     dataTestid?: string
+    /**
+     * Cluster-member pill chrome: ``quote`` (amber, legacy) or ``kg`` (Digest Recent parity with graph TopicCluster).
+     */
+    clusterMemberAppearance?: CilClusterMemberAppearance
   }>(),
   {
     maxPillChars: 24,
     dataTestid: undefined,
+    clusterMemberAppearance: 'quote',
   },
 )
 
@@ -38,13 +45,19 @@ function shortLabel(label: string): string {
       v-for="(p, i) in pills"
       :key="`${p.topic_id}-${i}`"
       type="button"
-      class="max-w-[11rem] shrink-0 truncate rounded-full border px-1.5 py-0.5 text-[10px] font-medium text-surface-foreground hover:opacity-95"
+      class="max-w-[11rem] shrink-0 truncate rounded-full border px-1.5 py-0.5 text-[10px] font-medium hover:opacity-95"
       :class="
         p.in_topic_cluster
-          ? 'border-2 font-semibold shadow-sm'
-          : 'border border-border bg-canvas hover:bg-overlay'
+          ? clusterMemberAppearance === 'kg'
+            ? 'border border-kg bg-kg/15 font-semibold text-surface-foreground'
+            : 'border-2 border-transparent font-semibold text-surface-foreground shadow-sm'
+          : 'border border-border bg-canvas text-surface-foreground hover:bg-overlay'
       "
-      :style="p.in_topic_cluster ? cilClusteredTopicPillChrome : undefined"
+      :style="
+        p.in_topic_cluster && clusterMemberAppearance === 'quote'
+          ? cilClusteredTopicPillChrome
+          : undefined
+      "
       :title="p.label.trim() || undefined"
       :aria-label="`Open graph for topic: ${p.label}`"
       @click.stop="emit('pill-click', i)"

@@ -1,4 +1,5 @@
 import type { ParsedArtifact } from '../types/artifact'
+import { logicalEpisodeIdFromGraphNodeId } from './graphEpisodeMetadata'
 
 /**
  * Shown when a GI quote has no resolved speaker (graph **Quote** node detail, Search lifted +
@@ -46,6 +47,10 @@ function feedRunRootFromGiCorpusRelPath(gi: string): string | null {
   if (idx >= 0) {
     return g.slice(0, idx)
   }
+  /** Corpus run root is the corpus path itself (GI at ``metadata/foo.gi.json``). */
+  if (g.startsWith('metadata/')) {
+    return ''
+  }
   return null
 }
 
@@ -67,8 +72,27 @@ export function resolveGiPathForTranscript(
     quoteEpisodeId != null && String(quoteEpisodeId).trim()
       ? String(quoteEpisodeId).trim()
       : ''
-  if (ep && viewArtifact.sourceCorpusRelPathByEpisodeId?.[ep]) {
-    return viewArtifact.sourceCorpusRelPathByEpisodeId[ep]
+  const map = viewArtifact.sourceCorpusRelPathByEpisodeId
+  if (ep && map && typeof map === 'object') {
+    const lowerIndex = new Map<string, string>()
+    for (const [k, v] of Object.entries(map)) {
+      if (typeof v === 'string' && v.trim()) {
+        lowerIndex.set(k.toLowerCase(), v.trim())
+      }
+    }
+    const keys = [ep.toLowerCase()]
+    const bare =
+      logicalEpisodeIdFromGraphNodeId(`g:episode:${ep}`) ||
+      logicalEpisodeIdFromGraphNodeId(`episode:${ep}`)
+    if (bare) {
+      keys.push(bare.toLowerCase())
+    }
+    for (const k of keys) {
+      const hit = lowerIndex.get(k)
+      if (hit) {
+        return hit
+      }
+    }
   }
   return viewArtifact.sourceCorpusRelPath ?? null
 }
@@ -88,8 +112,8 @@ export function resolveTranscriptCorpusRelpath(
     if (stripped.startsWith('feeds/')) {
       return stripped
     }
-    if (feedRoot && stripped.startsWith('transcripts/')) {
-      return `${feedRoot}/${stripped}`
+    if (stripped.startsWith('transcripts/') && feedRoot != null) {
+      return feedRoot ? `${feedRoot}/${stripped}` : stripped
     }
     return stripped
   }

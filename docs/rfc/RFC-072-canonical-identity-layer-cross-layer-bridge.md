@@ -47,7 +47,7 @@ Phases **1–5** are implemented in the current tree: canonical identity sluggin
 builders; per-episode **`bridge.json`** emission in the metadata pipeline; **CIL** read
 routes under **`/api/persons/*`** and **`/api/topics/*`**; semantic-search **transcript
 lift** (`lifted`) and **`verify-gil-chunk-offsets`** with **`merged_episode_gi_paths`**
-for feed-nested metadata; shared path rules in **`builders/rfc072_artifact_paths.py`**
+for feed-nested metadata; shared path rules in **`builders/bridge_artifact_paths.py`**
 and GIL edge-type normalisation in **`gi/edge_normalization.py`**. This RFC remains the
 normative design; if GitHub issue bodies drift, reconcile them to match this document.
 

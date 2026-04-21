@@ -1,4 +1,4 @@
-"""Unit tests for corpus topic clustering (RFC-075)."""
+"""Unit tests for corpus topic clustering."""
 
 from __future__ import annotations
 
@@ -226,7 +226,7 @@ def test_load_validation_yaml_roundtrip(tmp_path: Path) -> None:
 
 
 def _topic_clusters_validation_fixture_path() -> Path:
-    """RFC-075 example YAML under tests/fixtures (not config/ — no long-lived validation file)."""
+    """Example topic-cluster YAML under tests/fixtures (no long-lived validation in config/)."""
     tests_root = Path(__file__).resolve().parents[3]
     return tests_root / "fixtures" / "search" / "topic_clusters_validation.example.yaml"
 

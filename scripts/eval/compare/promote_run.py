@@ -512,9 +512,7 @@ def promote_run(
 
 def main() -> None:
     """Main entry point."""
-    parser = argparse.ArgumentParser(
-        description="Promote a run to baseline or reference (RFC-041 promotion workflow)."
-    )
+    parser = argparse.ArgumentParser(description="Promote a run to baseline or reference.")
     parser.add_argument(
         "--run-id",
         type=str,

@@ -7,7 +7,7 @@ Features:
 - Optional templating parameters via Jinja2
 - SHA256 hashes for reproducible experiment metadata
 
-This module implements RFC-017: Prompt Management and Loading.
+This module implements versioned prompt management and loading.
 
 Prompt directory structure:
   prompts/

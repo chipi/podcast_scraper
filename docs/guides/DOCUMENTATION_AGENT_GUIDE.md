@@ -44,6 +44,8 @@ When working on documentation tasks:
    - Development guide additions
    - Testing strategy updates
    - MkDocs configuration
+   - **Acceptance runner / matrix:** when acceptance behavior or CI changes, align **`scripts/acceptance/README.md`**, **`config/acceptance/README.md`**, **`docs/guides/TESTING_GUIDE.md`** (E2E Acceptance Tests), **`Makefile`** help for **`test-acceptance`** / **`test-acceptance-fixtures-fast`**, and any guide that still says **`make acceptance`** (obsolete — use **`make test-acceptance`** with **`CONFIGS=`** or **`FROM_FAST_STEMS=1`**).
+   - **Cursor saved prompts:** when adding slash workflows, document them in **`.cursor/commands/README.md`** (if present) and in **`docs/guides/CURSOR_AI_BEST_PRACTICES_GUIDE.md`** under project custom commands.
    - **GI/KG viewer (`web/gi-kg-viewer/`):** keep
      [web/gi-kg-viewer/README.md](https://github.com/chipi/podcast_scraper/blob/main/web/gi-kg-viewer/README.md)
      aligned with user-facing commands; sync [DEVELOPMENT_GUIDE.md](DEVELOPMENT_GUIDE.md),

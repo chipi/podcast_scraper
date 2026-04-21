@@ -2,6 +2,7 @@
 import { computed, ref, watch } from 'vue'
 import type { BridgeDocument } from '../../types/bridge'
 import type { ParsedArtifact } from '../../types/artifact'
+import { useGraphFilterStore } from '../../stores/graphFilters'
 import { useGraphNavigationStore } from '../../stores/graphNavigation'
 import { useShellStore } from '../../stores/shell'
 import { graphNodeTypeChrome } from '../../utils/colors'
@@ -15,6 +16,7 @@ import {
   insightSupportingQuoteRows,
   insightSupportingTranscriptAggregate,
 } from '../../utils/parsing'
+import { formatInsightPositionHintLine } from '../../utils/insightPositionHint'
 import { graphTypeAvatarLetter } from '../../utils/graphTypeAvatar'
 import HelpTip from '../shared/HelpTip.vue'
 import {
@@ -72,13 +74,19 @@ const props = defineProps<{
   nodeId: string | null
   /** Embedded in App right rail: full width, no fixed 280px strip. */
   embedInRail?: boolean
-  /** RFC-072 bridge.json (optional) for cross-layer diagnostics. */
+  /** bridge.json (optional) for cross-layer diagnostics. */
   bridgeDocument?: BridgeDocument | null
 }>()
 
 const shell = useShellStore()
 const graphNav = useGraphNavigationStore()
 const artifacts = useArtifactsStore()
+const graphFilters = useGraphFilterStore()
+
+/** Merged GI/KG before per-type visibility filters (quotes/speakers/episodes off by default on canvas). */
+const fullMergedArtifactForMetadata = computed(
+  () => graphFilters.fullArtifact ?? props.viewArtifact,
+)
 
 const transcriptViewerRef = ref<InstanceType<typeof TranscriptViewerDialog> | null>(null)
 const topicTimelineRef = ref<InstanceType<typeof TopicTimelineDialog> | null>(null)
@@ -126,10 +134,19 @@ const graphFocusNeighborTooltip =
   'Show on graph — focus this node in the loaded merged graph (same as semantic search G).'
 
 const node = computed(() => {
-  const art = props.viewArtifact
   const id = props.nodeId
-  if (!art || id == null) return null
-  return findRawNodeInArtifact(art, id)
+  if (id == null) {
+    return null
+  }
+  const slice = props.viewArtifact
+  if (slice) {
+    const hit = findRawNodeInArtifact(slice, id)
+    if (hit) {
+      return hit
+    }
+  }
+  const full = graphFilters.fullArtifact
+  return full ? findRawNodeInArtifact(full, id) : null
 })
 
 const nodeType = computed(() => {
@@ -253,7 +270,7 @@ const topicClusterNeighborhoodForMap = computed((): {
   return { compoundId: cid, memberIds: topicClusterMemberGraphIds.value }
 })
 
-/** Always the corpus compound id when collapsing member topics on canvas (RFC-075). */
+/** Always the corpus compound id when collapsing member topics on canvas (topic clusters). */
 const topicClusterCollapseCyId = computed((): string => {
   const c = topicClusterCompoundId.value?.trim()
   if (c) {
@@ -267,7 +284,7 @@ const TOPIC_CLUSTER_CONNECTIONS_EMPTY =
 
 /**
  * Full quote/insight text in the rail — not ``nodeLabel`` (that caps at ~40 chars for on-canvas labels).
- * For RFC-075 clusters with JSON, the header matches the **cluster** (same for compound and member).
+ * For topic clusters with JSON, the header matches the **cluster** (same for compound and member).
  */
 const displayName = computed(() => {
   const cl = topicClusterDocEntry.value
@@ -520,6 +537,38 @@ function emitPersonEntityExploreHandoff(): void {
   }
 }
 
+const insightEpisodeDurationMs = computed((): number | null => {
+  if (!isInsightNode.value || !node.value) {
+    return null
+  }
+  const p = node.value.properties as Record<string, unknown> | undefined
+  const direct = p?.episode_duration_ms ?? p?.duration_ms
+  if (typeof direct === 'number' && Number.isFinite(direct) && direct > 0) {
+    return direct
+  }
+  const rawEp = p?.episode_id
+  const epId =
+    typeof rawEp === 'string' && rawEp.trim()
+      ? rawEp.trim()
+      : typeof rawEp === 'number' && Number.isFinite(rawEp)
+        ? String(rawEp)
+        : null
+  if (!epId) {
+    return null
+  }
+  const art = fullMergedArtifactForMetadata.value
+  if (!art) {
+    return null
+  }
+  const ep = findRawNodeInArtifact(art, epId)
+  const qp = ep?.properties as Record<string, unknown> | undefined
+  if (!qp) {
+    return null
+  }
+  const d = qp.episode_duration_ms ?? qp.duration_ms
+  return typeof d === 'number' && Number.isFinite(d) && d > 0 ? d : null
+})
+
 /** Type / position / confidence only (grounding + provenance live in the details HelpTip). */
 const insightSecondaryDetailLines = computed((): string[] => {
   if (!isInsightNode.value) return []
@@ -531,8 +580,9 @@ const insightSecondaryDetailLines = computed((): string[] => {
   }
   const ph = p?.position_hint
   if (typeof ph === 'number' && Number.isFinite(ph)) {
-    const pct = Math.round(Math.max(0, Math.min(1, ph)) * 100)
-    parts.push(`Position in episode: ~${pct}%`)
+    parts.push(
+      formatInsightPositionHintLine(ph, insightEpisodeDurationMs.value),
+    )
   }
   const rawNode = node.value as Record<string, unknown> | null
   const cn = rawNode?.confidence
@@ -554,12 +604,14 @@ const insightSemanticSearchQuery = computed((): string => {
 })
 
 const insightSupportingQuotes = computed(() =>
-  isInsightNode.value ? insightSupportingQuoteRows(props.viewArtifact, props.nodeId) : [],
+  isInsightNode.value
+    ? insightSupportingQuoteRows(fullMergedArtifactForMetadata.value, props.nodeId)
+    : [],
 )
 
 const insightSupportingTranscriptAgg = computed(() =>
   isInsightNode.value
-    ? insightSupportingTranscriptAggregate(props.viewArtifact, props.nodeId)
+    ? insightSupportingTranscriptAggregate(fullMergedArtifactForMetadata.value, props.nodeId)
     : null,
 )
 
@@ -569,10 +621,10 @@ const insightOpenAllSupportingQuotesReady = computed((): boolean => {
     return false
   }
   const root = shell.corpusPath.trim()
-  if (!shell.healthStatus || !root) {
+  if (!shell.healthStatus || !shell.hasCorpusPath) {
     return false
   }
-  const giPath = resolveGiPathForTranscript(props.viewArtifact, agg.episodeId)
+  const giPath = resolveGiPathForTranscript(fullMergedArtifactForMetadata.value, agg.episodeId)
   const resolvedRelpath = resolveTranscriptCorpusRelpath(agg.transcriptRef, giPath)
   return Boolean(
     resolvedRelpath && corpusTextFileViewUrl(root, resolvedRelpath),
@@ -927,7 +979,7 @@ const transcriptSourceSection = computed(() => {
       : typeof rawEp === 'number' && Number.isFinite(rawEp)
         ? String(rawEp)
         : null
-  const giPath = resolveGiPathForTranscript(props.viewArtifact, quoteEpId)
+  const giPath = resolveGiPathForTranscript(fullMergedArtifactForMetadata.value, quoteEpId)
   const root = shell.corpusPath.trim()
   const resolvedRelpath = ref ? resolveTranscriptCorpusRelpath(ref, giPath) : ''
   const href =
@@ -966,7 +1018,7 @@ function openInsightAllSupportingQuotesTranscript(): void {
   if (!agg || !root) {
     return
   }
-  const giPath = resolveGiPathForTranscript(props.viewArtifact, agg.episodeId)
+  const giPath = resolveGiPathForTranscript(fullMergedArtifactForMetadata.value, agg.episodeId)
   const resolvedRelpath = resolveTranscriptCorpusRelpath(agg.transcriptRef, giPath)
   const href = corpusTextFileViewUrl(root, resolvedRelpath)
   if (!href || !resolvedRelpath) {
@@ -1046,7 +1098,7 @@ const crossLayerBridgeLine = computed(() => {
   return crossLayerPresenceLabel(row.sources)
 })
 
-/** RFC-075: corpus topic cluster label when this Topic is a member (API-loaded clusters only). */
+/** Corpus topic cluster label when this Topic is a member (API-loaded clusters only). */
 const topicClusterContext = computed(() => {
   if (!isTopicNode.value || !props.nodeId) {
     return null
@@ -1445,7 +1497,7 @@ const graphConnectionsCenterInView = computed((): boolean => {
               <strong class="font-medium text-surface-foreground">Topic filter</strong> fills
               <strong class="font-medium text-surface-foreground/90">Topic contains</strong> (same control as the
               topic graph row) and clears the speaker filter. You still run
-              <strong class="font-medium text-surface-foreground/90">Run explore</strong>.
+              <strong class="font-medium text-surface-foreground/90">Explore</strong>.
             </p>
           </HelpTip>
         </div>
@@ -1536,7 +1588,7 @@ const graphConnectionsCenterInView = computed((): boolean => {
             <strong class="font-medium text-surface-foreground">Set Explore filters</strong> switches
             to Explore, clears topic/speaker filters, sets <strong class="font-medium text-surface-foreground/90">Grounded only</strong>
             and optional <strong class="font-medium text-surface-foreground/90">Min confidence</strong> from this node,
-            then you run <strong class="font-medium text-surface-foreground/90">Run explore</strong>.
+            then you run <strong class="font-medium text-surface-foreground/90">Explore</strong>.
           </p>
         </HelpTip>
       </div>
@@ -1695,7 +1747,7 @@ const graphConnectionsCenterInView = computed((): boolean => {
             to Search with this topic label as the query (clears feed filter). Run Search to hit the vector index.
             <strong class="font-medium text-surface-foreground">Set Explore topic filter</strong> switches
             to Explore and fills <strong class="font-medium text-surface-foreground/90">Topic contains</strong>;
-            press <strong class="font-medium text-surface-foreground/90">Run explore</strong> to load insights.
+            press <strong class="font-medium text-surface-foreground/90">Explore</strong> to load insights.
           </p>
         </HelpTip>
       </div>
@@ -1722,7 +1774,7 @@ const graphConnectionsCenterInView = computed((): boolean => {
         >
           <p class="font-sans text-[10px] leading-snug text-muted">
             Opens a <strong class="font-medium text-surface-foreground">corpus-wide</strong> list:
-            every episode under your corpus path with RFC-072 bridge + GI that has insights about this
+            every episode under your corpus path with CIL bridge + GI that has insights about this
             topic. You may see <strong class="font-medium text-surface-foreground">no rows, one episode,
             or several</strong> — that is how many matched, not a limit of the graph view. Uses the node
             <strong class="font-medium text-surface-foreground/90">id</strong> (e.g.

@@ -1,4 +1,4 @@
-"""HTTP API for the GI/KG viewer (RFC-062).
+"""HTTP API for the GI/KG viewer.
 
 Install optional dependencies: ``pip install -e '.[server]'``.
 """

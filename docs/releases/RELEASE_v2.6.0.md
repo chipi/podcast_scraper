@@ -58,7 +58,7 @@ v2.6.0 ships the **retrieval** and **structured artifact** layers that the viewe
 - **FAISS** — `FaissVectorStore` implements the vector-store contract ([ADR-060](../adr/ADR-060-vectorstore-protocol-with-backend-abstraction.md)); embed, index, and query paths are specified in [RFC-061](../rfc/RFC-061-semantic-corpus-search.md) and [PRD-021](../prd/PRD-021-semantic-corpus-search.md).
 - **CLI** — `podcast index` and `podcast search` for building and querying the corpus index; semantic exploration hooks for **`gi explore`** where documented in the CLI and guides.
 - **HTTP** — **`GET /api/search`** for the viewer Search panel (same corpus root as the shell); index rebuild and stats under **`/api/index/*`** (see [Server Guide](../guides/SERVER_GUIDE.md)).
-- **Viewer** — Search tab wired to the API; **similar episodes** in Library depend on the same index when present.
+- **Viewer** — Semantic search wired to the API (**left** query column in the current shell; **similar episodes** in Library depend on the same index when present). Post–v2.6 viewer work moved corpus artifacts + **Data** cards onto **Dashboard** — see **RFC-062** and **UXS-006**.
 - **After v2.6.0** — Draft [RFC-070](../rfc/RFC-070-semantic-corpus-search-platform-future.md) tracks optional backends (Qdrant, pgvector, and so on); **not** part of the v2.6.0 FAISS ship.
 
 ### Grounded Insight Layer (GIL)
@@ -125,7 +125,7 @@ Together, the v2.5.0 **provider breadth** and v2.6.0 **Performance tab + frozen 
 - **`metrics.json`** — `http_urllib3_retry_events`, `episode_download_retries`, `episode_download_retry_sleep_seconds` ([Experiment Guide](../guides/EXPERIMENT_GUIDE.md#pipeline-run-metrics-download-resilience)).
 - **Optional Issue #522-class extensions** — per-host throttling, `Retry-After`, circuit breaker, RSS conditional GET; fields and flags documented under [CONFIGURATION — Download resilience](../api/CONFIGURATION.md#download-resilience).
 - **`failure_summary`** in `run.json` when episodes fail (counts by error type, failed episode identifiers).
-- Example config: `config/examples/config.example.download-resilience.yaml`.
+- Download resilience: documented canonically under [CONFIGURATION.md — Download resilience](../api/CONFIGURATION.md#download-resilience) (inline YAML presets; no separate example file required).
 
 ---
 

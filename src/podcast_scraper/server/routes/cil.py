@@ -1,4 +1,4 @@
-"""RFC-072 cross-layer CIL query API (GitHub #527)."""
+"""Cross-layer CIL query API (GitHub #527)."""
 
 from __future__ import annotations
 
@@ -83,7 +83,7 @@ async def person_positions(
         "``all`` or ``*`` for no filter.",
     ),
 ) -> CilPositionArcResponse:
-    """Position arc — insights by person + topic across episodes (RFC-072 Pattern A)."""
+    """Position arc — insights by person + topic across episodes."""
     root_safe, anchor_safe = _require_root_and_anchor(request, path)
     types = _parse_insight_types(insight_types, default=("claim",))
     raw = cil_queries.position_arc(root_safe, anchor_safe, person_id, topic, insight_types=types)
@@ -112,7 +112,7 @@ async def person_profile(
         description="Corpus root. Omit when server default output_dir is set.",
     ),
 ) -> CilPersonProfileResponse:
-    """Person profile — insights grouped by topic (RFC-072 Pattern B)."""
+    """Person profile — insights grouped by topic."""
     root_safe, anchor_safe = _require_root_and_anchor(request, path)
     raw = cil_queries.person_profile(root_safe, anchor_safe, person_id)
     topics_raw = raw.get("topics") or {}
@@ -195,7 +195,7 @@ async def topic_timeline(
         "``all`` or ``*`` for all.",
     ),
 ) -> CilTopicTimelineResponse:
-    """Topic evolution across episodes (RFC-072 Pattern C)."""
+    """Topic evolution across episodes."""
     root_safe, anchor_safe = _require_root_and_anchor(request, path)
     types = _parse_insight_types(insight_types, default=None)
     tid = cil_queries.canonical_cil_entity_id(topic_id)

@@ -1,12 +1,45 @@
 import { defineStore } from 'pinia'
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { fetchWithTimeout } from '../api/httpClient'
 import { StaleGeneration } from '../utils/staleGeneration'
 
+const CORPUS_PATH_STORAGE_KEY = 'ps_corpus_path'
+
+function readInitialCorpusPath(): string {
+  try {
+    if (typeof localStorage !== 'undefined') {
+      const stored = localStorage.getItem(CORPUS_PATH_STORAGE_KEY)
+      if (stored != null) {
+        return stored
+      }
+    }
+  } catch {
+    /* ignore quota / private mode */
+  }
+  return (import.meta.env.VITE_DEFAULT_CORPUS_PATH as string | undefined) ?? ''
+}
+
+export type LeftPanelSurface = 'search' | 'explore'
+
 export const useShellStore = defineStore('shell', () => {
-  const corpusPath = ref(
-    (import.meta.env.VITE_DEFAULT_CORPUS_PATH as string | undefined) ?? '',
-  )
+  const corpusPath = ref(readInitialCorpusPath())
+
+  /** Left query column: Search (default) vs Explore mode (`LeftPanel.vue` slide). */
+  const leftPanelSurface = ref<LeftPanelSurface>('search')
+
+  function setLeftPanelSurface(surface: LeftPanelSurface): void {
+    leftPanelSurface.value = surface
+  }
+
+  watch(corpusPath, (v) => {
+    try {
+      if (typeof localStorage !== 'undefined') {
+        localStorage.setItem(CORPUS_PATH_STORAGE_KEY, v)
+      }
+    } catch {
+      /* ignore */
+    }
+  })
   const healthStatus = ref<string | null>(null)
   const healthError = ref<string | null>(null)
   /** True only when /api/health reports corpus_library_api (avoids 404 on /api/corpus/* catalog). */
@@ -26,8 +59,16 @@ export const useShellStore = defineStore('shell', () => {
   const exploreApiAvailable = ref(true)
   const indexRoutesApiAvailable = ref(true)
   const corpusMetricsApiAvailable = ref(true)
-  /** True when /api/health reports CIL query routes (RFC-072 / GitHub #527). */
+  /** True when /api/health reports CIL query routes. */
   const cilQueriesApiAvailable = ref(true)
+  /** From GET /api/health when server exposes optional search enrichment. */
+  const enrichedSearchAvailable = ref(false)
+  /** True only when GET/PUT /api/feeds is advertised (strict). */
+  const feedsApiAvailable = ref(false)
+  /** True only when GET/PUT /api/operator-config is advertised (strict). */
+  const operatorConfigApiAvailable = ref(false)
+  /** True only when POST/GET /api/jobs is advertised (strict). */
+  const jobsApiAvailable = ref(false)
   const artifactsLoading = ref(false)
   const artifactsError = ref<string | null>(null)
   const artifactCount = ref<number | null>(null)
@@ -38,24 +79,13 @@ export const useShellStore = defineStore('shell', () => {
       kind: string
       size_bytes: number
       mtime_utc: string
+      publish_date: string
     }[]
   >([])
   /** Server-resolved absolute corpus path (returned by /api/artifacts). */
   const resolvedCorpusPath = ref<string | null>(null)
   /** Server hints (e.g. multi-feed corpus root for unified search index). */
   const corpusHints = ref<string[]>([])
-
-  /**
-   * Digest (or other views) sets this before switching to Library; Library consumes once
-   * and opens episode detail for this metadata relative path.
-   */
-  const pendingLibraryMetadataRelpath = ref<string | null>(null)
-
-  /**
-   * Digest topic pills set this before switching to Library; Library consumes once into
-   * **Summary / topic** filter and reloads the list.
-   */
-  const pendingLibraryTopicQ = ref<string | null>(null)
 
   const hasCorpusPath = computed(() => corpusPath.value.trim().length > 0)
 
@@ -74,28 +104,6 @@ export const useShellStore = defineStore('shell', () => {
 
   function healthAdvertisesRoute(value: unknown): boolean {
     return value !== false
-  }
-
-  function setPendingLibraryEpisode(metadataRelativePath: string): void {
-    const t = metadataRelativePath.trim()
-    pendingLibraryMetadataRelpath.value = t || null
-  }
-
-  function takePendingLibraryEpisode(): string | null {
-    const v = pendingLibraryMetadataRelpath.value
-    pendingLibraryMetadataRelpath.value = null
-    return v
-  }
-
-  function setPendingLibraryTopicQ(q: string): void {
-    const t = q.trim()
-    pendingLibraryTopicQ.value = t || null
-  }
-
-  function takePendingLibraryTopicQ(): string | null {
-    const v = pendingLibraryTopicQ.value
-    pendingLibraryTopicQ.value = null
-    return v
   }
 
   async function fetchHealth(): Promise<void> {
@@ -117,6 +125,10 @@ export const useShellStore = defineStore('shell', () => {
         index_routes_api?: boolean
         corpus_metrics_api?: boolean
         cil_queries_api?: boolean
+        enriched_search_available?: boolean
+        feeds_api?: boolean
+        operator_config_api?: boolean
+        jobs_api?: boolean
       }
       if (healthFetchGate.isStale(seq)) {
         return
@@ -141,6 +153,10 @@ export const useShellStore = defineStore('shell', () => {
       indexRoutesApiAvailable.value = healthAdvertisesRoute(body.index_routes_api)
       corpusMetricsApiAvailable.value = healthAdvertisesRoute(body.corpus_metrics_api)
       cilQueriesApiAvailable.value = healthAdvertisesRoute(body.cil_queries_api)
+      enrichedSearchAvailable.value = body.enriched_search_available === true
+      feedsApiAvailable.value = body.feeds_api === true
+      operatorConfigApiAvailable.value = body.operator_config_api === true
+      jobsApiAvailable.value = body.jobs_api === true
     } catch (e) {
       if (healthFetchGate.isStale(seq)) {
         return
@@ -155,6 +171,10 @@ export const useShellStore = defineStore('shell', () => {
       indexRoutesApiAvailable.value = false
       corpusMetricsApiAvailable.value = false
       cilQueriesApiAvailable.value = false
+      enrichedSearchAvailable.value = false
+      feedsApiAvailable.value = false
+      operatorConfigApiAvailable.value = false
+      jobsApiAvailable.value = false
       healthError.value = e instanceof Error ? e.message : String(e)
     }
   }
@@ -188,6 +208,7 @@ export const useShellStore = defineStore('shell', () => {
           kind: string
           size_bytes: number
           mtime_utc: string
+          publish_date: string
         }[]
       }
       if (artifactListFetchGate.isStale(seq)) {
@@ -214,6 +235,8 @@ export const useShellStore = defineStore('shell', () => {
 
   return {
     corpusPath,
+    leftPanelSurface,
+    setLeftPanelSurface,
     healthStatus,
     healthStatusDisplay,
     healthError,
@@ -226,20 +249,18 @@ export const useShellStore = defineStore('shell', () => {
     indexRoutesApiAvailable,
     corpusMetricsApiAvailable,
     cilQueriesApiAvailable,
+    enrichedSearchAvailable,
+    feedsApiAvailable,
+    operatorConfigApiAvailable,
+    jobsApiAvailable,
     artifactsLoading,
     artifactsError,
     artifactCount,
     artifactList,
     resolvedCorpusPath,
     corpusHints,
-    pendingLibraryMetadataRelpath,
-    pendingLibraryTopicQ,
     hasCorpusPath,
     fetchHealth,
     fetchArtifactList,
-    setPendingLibraryEpisode,
-    takePendingLibraryEpisode,
-    setPendingLibraryTopicQ,
-    takePendingLibraryTopicQ,
   }
 })

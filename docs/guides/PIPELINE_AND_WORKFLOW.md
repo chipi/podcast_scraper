@@ -4,7 +4,7 @@ This guide describes how the podcast_scraper pipeline runs: entry points, flow, 
 
 ## High-Level Flow
 
-1. **Entry**: `podcast_scraper.cli.main` parses CLI args (optionally merging JSON/YAML configs) into a validated `Config` object and applies global logging preferences.
+1. **Entry**: `podcast_scraper.cli.main` parses CLI args (optionally merging JSON/YAML from **`--config`**, named preset from **`--profile`**, and feed lists from **`--feeds-spec`** / **`--rss-file`** / argv) into a validated `Config` object and applies global logging preferences. Human-oriented overview: [CLI.md — Quick Start](../api/CLI.md#quick-start).
 2. **Multi-feed outer loop (GitHub #440)**: When `Config.rss_urls` contains **two or more** feeds, `cli.main` and `service.run` iterate feeds sequentially: for each URL they derive a child `output_dir` under `<corpus_parent>/feeds/<stable_feed_id>/` and invoke the same inner pipeline with a single-feed sub-config. Failures are logged per feed; the overall process exit code reflects whether any feed failed.
 3. **Run orchestration**: `workflow.orchestration.run_pipeline` coordinates the end-to-end job for **one** feed at a time: output setup, RSS acquisition, **episode selection** (`prepare_episodes_from_feed`: `episode_order`, optional `episode_since` / `episode_until`, `episode_offset`, `max_episodes`; see [CONFIGURATION.md — Episode selection](../api/CONFIGURATION.md#episode-selection-github-521)), episode materialization, transcript download, optional Whisper transcription, optional metadata generation, optional summarization, and cleanup. When **`Config.monitor`** is true (**`--monitor`**), a child process samples the pipeline PID and renders a live **RSS/CPU/stage** view (or plain **`.monitor.log`** when stderr is not a TTY) while updating **`.pipeline_status.json`**; the parent may start a stdin listener for optional **py-spy** (**`f`**) when **`.[monitor]`** is installed (see [Live Pipeline Monitor](LIVE_PIPELINE_MONITOR.md), RFC-065).
 4. **Episode handling**: For each `Episode`, `workflow.episode_processor.process_episode_download` either saves an existing transcript or enqueues media for Whisper.
@@ -255,7 +255,7 @@ graph TB
 ## Pipeline and Workflow Behavior (Quirks)
 
 - **Typed, immutable configuration**: `Config` is a frozen Pydantic model, ensuring every module receives canonicalized values (e.g., normalized URLs, integer coercions, validated Whisper models). This centralizes validation and guards downstream logic.
-- **Resilient HTTP interactions**: A per-thread `requests.Session` with exponential backoff retry (`LoggingRetry`) handles transient network issues while logging retries for observability. Retry counts and backoff factors are configurable via `Config` fields (`http_retry_total`, `http_backoff_factor`, `rss_retry_total`, `rss_backoff_factor`) with resilient defaults (8 retries / 1.0 s backoff for media; 10 retries / 2.0 s backoff for RSS). An additional application-level episode retry (`episode_retry_max`, default 1) re-runs the full episode download on transient network errors after urllib3 retries are exhausted. Optional per-host pacing, circuit breaker, and RSS conditional GET (Issue #522) are in the same section, with [recommended presets](../api/CONFIGURATION.md#recommended-presets-download-resilience) and example YAML under `config/examples/`. See [CONFIGURATION.md -- Download Resilience](../api/CONFIGURATION.md#download-resilience). Model loading operations use `retry_with_exponential_backoff` for transient errors (network failures, timeouts).
+- **Resilient HTTP interactions**: A per-thread `requests.Session` with exponential backoff retry (`LoggingRetry`) handles transient network issues while logging retries for observability. Retry counts and backoff factors are configurable via `Config` fields (`http_retry_total`, `http_backoff_factor`, `rss_retry_total`, `rss_backoff_factor`) with resilient defaults (8 retries / 1.0 s backoff for media; 10 retries / 2.0 s backoff for RSS). An additional application-level episode retry (`episode_retry_max`, default 1) re-runs the full episode download on transient network errors after urllib3 retries are exhausted. Optional per-host pacing, circuit breaker, and RSS conditional GET (Issue #522) are in the same section, with [recommended presets](../api/CONFIGURATION.md#recommended-presets-download-resilience). See [CONFIGURATION.md -- Download Resilience](../api/CONFIGURATION.md#download-resilience) (canonical). Model loading operations use `retry_with_exponential_backoff` for transient errors (network failures, timeouts).
 - **Concurrent transcript pulls**: Transcript downloads are parallelized via `ThreadPoolExecutor`, guarded with locks when mutating shared counters/job queues. **Whisper remains sequential** to avoid GPU/CPU thrashing and to keep the UX predictable.
 - **Deterministic filesystem layout**: Output folders follow `output/rss_<host>_<hash>` conventions. Optional `run_id` and Whisper suffixes create run-scoped subdirectories while `sanitize_filename` protects against filesystem hazards.
 - **Dry-run and resumability**: `--dry-run` walks the entire plan without touching disk, while `--skip-existing` short-circuits work per episode, making repeated runs idempotent.
@@ -284,4 +284,66 @@ The pipeline writes several tracking files in each run directory (`output_dir/ru
 
 Run summaries and metrics use `schema_version: "1.0.0"`. **`index.json`** uses `1.0.0` by default; runs with **`append`** (GitHub #444) write **`schema_version: "1.1.0"`** and may include optional `pipeline_append: true`. Older `1.0.0` index files remain valid; append resume prefers on-disk metadata + `episode_id` over index rows alone (index may be stale after a crash). For exit codes and partial failures, see [Troubleshooting - Exit codes and partial failures](TROUBLESHOOTING.md#exit-codes-and-partial-failures-issue-429).
 
-**Operational note (multi-feed + append):** With **`feeds:`** / **`rss_urls:`** and **`append: true`**, each feed still has its own `feeds/<stable_feed_id>/run_append_*/` tree. Run the same config twice (fixtures or real RSS) to confirm the second pass skips complete episodes without creating duplicate `run_*` directories. Example configs: `config/acceptance/acceptance_multi_feed_planet_money_journal_openai_append.yaml`, `config/manual/manual_multi_feed_planet_money_journal_openai_gemini_append.yaml`.
+**Operational note (multi-feed + append):** With **`feeds:`** / **`rss_urls:`** (or **`--feeds-spec`**) and **`append: true`**, each feed still has its own `feeds/<stable_feed_id>/run_append_*/` tree. Run the same command twice (fixtures or real RSS) to confirm the second pass skips complete episodes without creating duplicate `run_*` directories. Example: **`--feeds-spec path/to/your-two-feed.yaml`** with **`append: true`** on the operator YAML.
+
+---
+
+## Partial multi-feed success — exit code lessons
+
+**Status:** Draft notes (operator / design). Related GitHub: **#557** (Whisper 25 MB + incident log), **#558**
+(FFmpeg/ffprobe subprocess UTF-8 replace + preprocessing fallback incident rows). **#559** (soft-failure taxonomy; default **lenient** with
+**`multi_feed_strict: false`**; strict CI uses **`multi_feed_strict: true`** or CLI
+**`--multi-feed-strict`**) is **implemented** in code and docs (CONFIGURATION / CLI).
+
+### What went well (resilience that already exists)
+
+- **Per-feed isolation in `service._run_multi_feed`:** One feed’s `run_pipeline` exception
+  (e.g. RSS fetch `ValueError`) is caught; other feeds still run. See
+
+  `src/podcast_scraper/service.py` (`try` / `except` around `workflow.run_pipeline(sub_cfg)`).
+
+- **Finalize on partial batches:** `finalize_multi_feed_batch` in
+  `src/podcast_scraper/workflow/corpus_operations.py` still writes manifest and
+
+  `corpus_run_summary.json`, and runs parent `index_corpus` where configured; vector index
+  failure there is logged as non-fatal in a `try` / `except`.
+
+- **Episode-level transcription errors:** Many paths log `transcription raised an unexpected
+  error`, increment metrics, and **continue** the loop unless `fail_fast` / `max_failures`
+
+  triggers (see `src/podcast_scraper/workflow/stages/transcription.py`).
+
+So the long manual run **did** complete batch work: artifacts, corpus summary, and indexing
+for feeds that succeeded.
+
+### What felt like “blowing up” at the end
+
+1. **Process exit code:** Operators often want exit **0** when “best effort” corpus work
+   finished and artifacts are usable, with failures **only** in structured JSON / logs.
+
+   Today, **any** feed-level error collection in `service._run_multi_feed` sets
+   `ServiceResult.success=False` and aggregates `error` text; the CLI / acceptance harness
+   then treats the run as **failed** even when most feeds succeeded.
+
+2. **Terminal `Error:` line:** A single concatenated message listing every bad RSS URL is
+   easy to read as a fatal crash, even though the session already wrote summaries and ran
+
+   follow-up steps (e.g. acceptance analysis).
+
+3. **Semantic mismatch:** Some failures are **data / network** (404 RSS), some are **bugs**
+   (#558), some are **policy / limits** (#557). Lumping them all into one “failed run”
+
+   bucket makes CI and manual runs harder to interpret.
+
+### Design intent to capture
+
+| Layer | Desired behavior |
+| --- | --- |
+| **Orchestration** | Always finish **finalize** (manifest, summary, optional index) when safe; never lose partial work silently. |
+| **Reporting** | Keep `corpus_run_summary.json` `overall_ok` accurate (not all feeds ok). Optionally add **`soft_failures`** or **`hard_failures`** counts for triage. |
+| **Exit code** | Separate **“artifacts written”** from **“all feeds green”**. Options: new config flag (e.g. `treat_feed_errors_as_warnings`), or CLI flag `--best-effort-exit-zero`, or distinct exit codes (documented). |
+| **Failures** | **Skip** with reason for: RSS 404, optional oversize Whisper (after #557), optional decode (after #558). **Fail** or **non-zero** for: config invalid, lock failure, total loss of corpus root. |
+
+### Follow-up
+
+**#559** exit semantics and optional extra triage fields remain as design notes. **#557** and **#558** behavior is implemented in code (CONFIGURATION.md). Keep this file as narrative until exit-code / reporting follow-ups ship, then trim or link from `docs/guides/` if maintainers want it public.

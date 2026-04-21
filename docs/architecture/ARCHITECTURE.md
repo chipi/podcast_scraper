@@ -117,7 +117,7 @@ The system has **one pipeline** (`workflow.run_pipeline`) and **one configuratio
 - **CIL query API** — Filesystem scans for `*.bridge.json` with sibling `gi.json` / `kg.json`; patterns for person/topic arcs and timelines ([RFC-072 § query patterns](../rfc/RFC-072-canonical-identity-layer-cross-layer-bridge.md)).
 - **Semantic search** — **Transcript** hits can expose an optional **`lifted`** object (insight, speaker, topic, quote timestamps) when chunk char ranges overlap a **Quote** and edges/`bridge.json` allow resolution ([Semantic Search Guide](../guides/SEMANTIC_SEARCH_GUIDE.md)).
 
-**Shared implementation seams:** `src/podcast_scraper/builders/rfc072_artifact_paths.py` is the single place for **bridge / GI / KG sibling path** rules (metadata → `bridge.json`, `bridge.json` → `gi.json`/`kg.json`, `gi.json` → `bridge.json`). `src/podcast_scraper/gi/edge_normalization.py` normalises **GIL edge `type`** strings for graph walks (CIL queries and search lift). **`build_bridge`** payload assembly stays in `builders/bridge_builder.py`.
+**Shared implementation seams:** `src/podcast_scraper/builders/bridge_artifact_paths.py` is the single place for **bridge / GI / KG sibling path** rules (metadata → `bridge.json`, `bridge.json` → `gi.json`/`kg.json`, `gi.json` → `bridge.json`). `src/podcast_scraper/gi/edge_normalization.py` normalises **GIL edge `type`** strings for graph walks (CIL queries and search lift). **`build_bridge`** payload assembly stays in `builders/bridge_builder.py`.
 
 **Operational gate:** Before relying on lift in production-shaped corpora, run **Quote vs chunk offset** verification (`verify-gil-chunk-offsets` or **`make verify-gil-offsets-strict`**) on an indexed run. Details: [Semantic Search Guide — lift and verification](../guides/SEMANTIC_SEARCH_GUIDE.md#chunk-to-insight-lift-and-offset-verification-rfc-072--528), [GIL / KG / CIL cross-layer guide](../guides/GIL_KG_CIL_CROSS_LAYER.md).
 
@@ -1023,12 +1023,12 @@ Runtime configuration organized by use case.
 
 | Folder | Purpose |
 | ------ | ------- |
-| `acceptance/` | Acceptance test YAML matrices (per-provider, multi-feed); `FAST_CONFIGS.txt` for CI subset |
-| `ci/` | CI-oriented config lists (`acceptance_fast_stems.txt`) |
+| `acceptance/` | Acceptance fast matrix (`FAST_CONFIG.yaml`) + fragments; optional local YAML presets |
+| `ci/` | CI-oriented local-only files (gitignored except `README.md`; not used for acceptance fast list) |
 | `examples/` | Example YAML/JSON configs and `.env.example` for onboarding |
 | `manual/` | Manual/benchmark-oriented configs (GI/KG, multi-feed variants) |
 | `playground/` | Experimental user-specific configs |
-| `profiles/` | Capture/E2E performance profiles (`capture_e2e_*.yaml`); frozen profile snapshots (RFC-064) |
+| `profiles/` | Deployment YAML; `profiles/freeze/` for RFC-064 capture presets; frozen snapshots in `data/profiles/` |
 
 Root files: `digest_topics.yaml` (Corpus Digest
 topic-band config, RFC-068),

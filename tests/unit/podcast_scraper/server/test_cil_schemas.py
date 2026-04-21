@@ -1,4 +1,4 @@
-"""Unit tests for RFC-072 CIL response schemas (codecov patch coverage)."""
+"""Unit tests for CIL response schemas (codecov patch coverage)."""
 
 from __future__ import annotations
 

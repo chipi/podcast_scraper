@@ -4,7 +4,7 @@
 - Designed to work with both local HF models and OpenAI backends.
 - Uses Pydantic for validation and type safety.
 
-This module implements RFC-017: Prompt Management and Loading.
+This module implements versioned prompt management and loading.
 
 Note: This module was moved from root-level experiment_config.py to evaluation/experiment_config.py
 for better organization. The evaluation system uses this configuration exclusively.
@@ -96,7 +96,7 @@ class GeminiBackendConfig(BaseModel):
 
 
 class HybridMLBackendConfig(BaseModel):
-    """Config for hybrid MAP-REDUCE (RFC-042): classic MAP + instruction-tuned REDUCE."""
+    """Config for hybrid MAP-REDUCE: classic MAP + instruction-tuned REDUCE."""
 
     type: Literal["hybrid_ml"] = "hybrid_ml"
     map_model: str = Field(
@@ -239,7 +239,7 @@ class DataConfig(BaseModel):
         ge=1,
         description=(
             "If set, only the first N episodes (after stable sort) are processed or scored. "
-            "Used for smoke runs and autoresearch cost control (RFC-057)."
+            "Used for smoke runs and autoresearch cost control."
         ),
     )
 

@@ -1,5 +1,10 @@
 import { expect, test } from '@playwright/test'
-import { leftPanelTabs, SHELL_HEADING_RE } from './helpers'
+import { setupCorpusDashboardDataRoutes } from './dashboardApiMocks'
+import {
+  openCorpusDataWorkspace,
+  SHELL_HEADING_RE,
+  statusBarCorpusPathInput,
+} from './helpers'
 
 /** Minimal `GET /api/index/stats` body so Dashboard enables index actions (#507). */
 const INDEX_STATS_ENVELOPE = {
@@ -22,7 +27,7 @@ const INDEX_STATS_ENVELOPE = {
   rebuild_last_error: null as string | null,
 }
 
-test.describe('Index rebuild from API · Data panel (mocked API)', () => {
+test.describe('Index rebuild from Dashboard Index status card (mocked API)', () => {
   test.beforeEach(async ({ page }) => {
     await page.route('**/api/health', async (route) => {
       await route.fulfill({
@@ -42,6 +47,14 @@ test.describe('Index rebuild from API · Data panel (mocked API)', () => {
         body: JSON.stringify(INDEX_STATS_ENVELOPE),
       })
     })
+    await page.route('**/api/artifacts?**', async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ path: '/mock/corpus', artifacts: [] }),
+      })
+    })
+    await setupCorpusDashboardDataRoutes(page)
   })
 
   test('Update index sends POST /api/index/rebuild (202, incremental)', async ({ page }) => {
@@ -63,11 +76,11 @@ test.describe('Index rebuild from API · Data panel (mocked API)', () => {
 
     await page.goto('/')
     await page.getByRole('heading', { name: SHELL_HEADING_RE }).waitFor()
+    await statusBarCorpusPathInput(page).fill('/mock/corpus')
+    await openCorpusDataWorkspace(page)
+    await expect(page.getByTestId('index-status-card')).toBeVisible()
 
-    await leftPanelTabs(page).getByRole('button', { name: 'API · Data' }).click()
-    await expect(page.getByRole('heading', { name: 'Vector index' })).toBeVisible()
-
-    const updateBtn = page.getByRole('button', { name: 'Update index' })
+    const updateBtn = page.getByTestId('index-status-update')
     await expect(updateBtn).toBeEnabled()
 
     const reqPromise = page.waitForRequest(
@@ -98,10 +111,11 @@ test.describe('Index rebuild from API · Data panel (mocked API)', () => {
 
     await page.goto('/')
     await page.getByRole('heading', { name: SHELL_HEADING_RE }).waitFor()
-    await leftPanelTabs(page).getByRole('button', { name: 'API · Data' }).click()
-    await expect(page.getByRole('heading', { name: 'Vector index' })).toBeVisible()
+    await statusBarCorpusPathInput(page).fill('/mock/corpus')
+    await openCorpusDataWorkspace(page)
+    await expect(page.getByTestId('index-status-card')).toBeVisible()
 
-    const fullBtn = page.getByRole('button', { name: 'Full rebuild' })
+    const fullBtn = page.getByTestId('index-status-full-rebuild')
     await expect(fullBtn).toBeEnabled()
 
     const reqPromise = page.waitForRequest(

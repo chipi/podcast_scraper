@@ -64,6 +64,34 @@ export function digestRowFeedLabel(row: DigestRowFeedFields): string {
  * Prefer ``GET /api/corpus/feeds`` ``display_title`` for ``feed_id`` (Library sidebar source),
  * then row-level ``feed_display_title`` / ``feed_id`` — aligns Digest with Library feed names.
  */
+/** Tunable: strong semantic similarity tier (Digest topic-band hits). */
+export const DIGEST_SIMILARITY_STRONG_MIN = 0.85
+/** Tunable: good tier floor (inclusive). */
+export const DIGEST_SIMILARITY_GOOD_MIN = 0.7
+
+export type DigestTopicSimilarityDisplay = {
+  label: string
+  /** Tailwind text colour classes for the label (no border / pill). */
+  labelClass: string
+  /** Native ``title`` for the label element (raw numeric score). */
+  rawTitle: string
+}
+
+/**
+ * Semantic strength label for a topic-band vector score (Digest).
+ * Raw value is surfaced via ``rawTitle`` on the label, not in the visible string.
+ */
+export function digestTopicHitSimilarityDisplay(score: number): DigestTopicSimilarityDisplay {
+  const rawTitle = `Similarity: ${score.toFixed(3)}`
+  if (score >= DIGEST_SIMILARITY_STRONG_MIN) {
+    return { label: 'Strong match', labelClass: 'text-gi', rawTitle }
+  }
+  if (score >= DIGEST_SIMILARITY_GOOD_MIN) {
+    return { label: 'Good match', labelClass: 'text-muted', rawTitle }
+  }
+  return { label: 'Weak match', labelClass: 'text-disabled', rawTitle }
+}
+
 export function digestRowFeedLabelWithCatalog(
   row: DigestRowFeedFields,
   titleByFeedId: Readonly<Record<string, string>>,

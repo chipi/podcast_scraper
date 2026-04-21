@@ -1,4 +1,4 @@
-"""Memray process wrapper for heap profiling (RFC-065 Phase 3)."""
+"""Memray process wrapper for heap profiling."""
 
 from __future__ import annotations
 
@@ -102,10 +102,7 @@ def maybe_reexec_memray_service(
         return None
     memray_bin = shutil.which("memray")
     if not memray_bin:
-        return (
-            "memray not on PATH; install optional extra: pip install -e '.[monitor]' "
-            "(RFC-065 Phase 3)."
-        )
+        return "memray not on PATH; install optional extra: pip install -e '.[monitor]' " "."
     out = resolve_memray_output_service(output_dir, memray_output)
     out.parent.mkdir(parents=True, exist_ok=True)
     env = os.environ.copy()

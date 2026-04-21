@@ -8,6 +8,8 @@
   - `docs/rfc/RFC-XXX-feature.md` (if applicable)
 - **Related UX specs**:
   - `docs/uxs/UXS-XXX-other.md` (if this doc extends or conflicts with another UXS)
+- **Shell IA (GI/KG viewer only):**
+  - [VIEWER_IA.md](VIEWER_IA.md) — canonical shell regions, navigation axes, persistence; link when this UXS describes a surface inside the viewer chrome
 - **Related issues**:
   - GitHub #NNN — [short label]
 - **Implementation paths** (where tokens and styles should land):

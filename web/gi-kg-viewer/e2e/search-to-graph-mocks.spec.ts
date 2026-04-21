@@ -1,7 +1,8 @@
 import { readFileSync } from 'node:fs'
 import { expect, test } from '@playwright/test'
 import { GI_SAMPLE_FIXTURE } from './fixtures'
-import { leftPanelTabs, mainViewsNav, SHELL_HEADING_RE } from './helpers'
+import { setupCorpusDashboardDataRoutes } from './dashboardApiMocks'
+import { mainViewsNav, SHELL_HEADING_RE, statusBarCorpusPathInput } from './helpers'
 
 const artifactJson = readFileSync(GI_SAMPLE_FIXTURE, 'utf-8')
 
@@ -34,7 +35,8 @@ test.describe('Search → graph (mocked API)', () => {
               relative_path: 'metadata/ci_sample.gi.json',
               kind: 'gi',
               size_bytes: artifactJson.length,
-              mtime_utc: '2024-01-01T00:00:00Z',
+              mtime_utc: '2026-04-18T12:00:00Z',
+              publish_date: '2026-04-18',
             },
           ],
         }),
@@ -173,13 +175,15 @@ test.describe('Search → graph (mocked API)', () => {
         }),
       })
     })
+
+    await setupCorpusDashboardDataRoutes(page)
   })
 
-  test('RFC-075: mocked topic-clusters v2 adds Topic cluster to Types row', async ({ page }) => {
+  test('mocked topic-clusters v2 adds Topic cluster to Types row', async ({ page }) => {
     await page.goto('/')
     await page.getByRole('heading', { name: SHELL_HEADING_RE }).waitFor()
 
-    await page.getByPlaceholder('/path/to/output').fill('/mock/corpus')
+    await statusBarCorpusPathInput(page).fill('/mock/corpus')
     await mainViewsNav(page).getByRole('button', { name: 'Graph' }).click()
 
     await page.getByRole('button', { name: 'Fit' }).waitFor({ state: 'visible', timeout: 30_000 })
@@ -187,23 +191,23 @@ test.describe('Search → graph (mocked API)', () => {
     await expect(page.getByText(/Topic cluster\s*\(\d+\)/)).toBeVisible()
   })
 
-  test('RFC-075: API Data tab shows topic clusters loaded and schema line', async ({ page }) => {
+  test('Dashboard Intelligence tab shows topic clusters loaded and schema line', async ({ page }) => {
     await page.goto('/')
     await page.getByRole('heading', { name: SHELL_HEADING_RE }).waitFor()
 
-    await page.getByPlaceholder('/path/to/output').fill('/mock/corpus')
+    await statusBarCorpusPathInput(page).fill('/mock/corpus')
+    await page.getByTestId('status-bar-list-artifacts').waitFor({ state: 'visible', timeout: 15_000 })
     await mainViewsNav(page).getByRole('button', { name: 'Graph' }).click()
     await page.getByRole('button', { name: 'Fit' }).waitFor({ state: 'visible', timeout: 30_000 })
 
-    await leftPanelTabs(page).getByRole('button', { name: 'API · Data' }).click()
-    const apiSection = page.locator('section').filter({
-      has: page.getByRole('heading', { name: 'API', exact: true }),
-    })
-    await expect(
-      apiSection.getByRole('heading', { name: 'Topic clusters', level: 3 }),
-    ).toBeVisible()
-    await expect(apiSection.getByText('Loaded', { exact: true })).toBeVisible()
-    await expect(apiSection.getByText(/schema_version:\s*2/)).toBeVisible()
+    await mainViewsNav(page).getByRole('button', { name: 'Dashboard' }).click()
+    await page.getByTestId('briefing-card').waitFor({ state: 'visible', timeout: 15_000 })
+    await page.getByRole('tablist', { name: 'Dashboard tabs' }).getByRole('tab', { name: 'Intelligence' }).click()
+
+    const block = page.getByTestId('topic-clusters-status-block')
+    await expect(block.getByRole('heading', { name: 'Topic clusters', level: 3 })).toBeVisible()
+    await expect(block.getByText('Loaded', { exact: true })).toBeVisible()
+    await expect(block.getByText(/schema_version:\s*2/)).toBeVisible()
   })
 
   test('corpus path auto-loads graph → search → Show on graph opens node detail', async ({
@@ -212,7 +216,7 @@ test.describe('Search → graph (mocked API)', () => {
     await page.goto('/')
     await page.getByRole('heading', { name: SHELL_HEADING_RE }).waitFor()
 
-    await page.getByPlaceholder('/path/to/output').fill('/mock/corpus')
+    await statusBarCorpusPathInput(page).fill('/mock/corpus')
     await mainViewsNav(page).getByRole('button', { name: 'Graph' }).click()
 
     await page.getByRole('button', { name: 'Fit' }).waitFor({ state: 'visible', timeout: 30_000 })
@@ -244,7 +248,7 @@ test.describe('Search → graph (mocked API)', () => {
     await page.goto('/')
     await page.getByRole('heading', { name: SHELL_HEADING_RE }).waitFor()
 
-    await page.getByPlaceholder('/path/to/output').fill('/mock/corpus')
+    await statusBarCorpusPathInput(page).fill('/mock/corpus')
     await mainViewsNav(page).getByRole('button', { name: 'Graph' }).click()
 
     await page.getByRole('button', { name: 'Fit' }).waitFor({ state: 'visible', timeout: 30_000 })
@@ -322,17 +326,21 @@ test.describe('Search → graph (mocked API)', () => {
     await expect(
       page.getByRole('heading', { name: 'Explore & query', exact: false }),
     ).toBeVisible({ timeout: 10_000 })
-    await expect(page.getByRole('checkbox', { name: /Grounded only/i })).toBeChecked()
     await expect(page.getByRole('textbox', { name: 'Topic contains' })).toHaveValue('')
     await expect(page.getByRole('textbox', { name: 'Speaker contains' })).toHaveValue('')
+    await page.getByTestId('explore-advanced-open').click()
+    const exploreAdvanced = page.getByRole('dialog', { name: 'Advanced explore' })
+    await expect(exploreAdvanced).toBeVisible()
+    await expect(exploreAdvanced.getByRole('checkbox', { name: /Grounded only/i })).toBeChecked()
+    await exploreAdvanced.getByRole('button', { name: 'Close' }).click()
+    await expect(exploreAdvanced).toBeHidden()
 
-    await page.getByRole('button', { name: 'Back to details' }).click()
     await expect(page.getByTestId('node-detail-insight-details-tip')).toBeVisible()
 
     await page.getByTestId('node-detail-insight-prefill-search').click()
     await expect(page.locator('#search-q')).toHaveValue(/Summary insight \(stub\)/)
 
-    await page.getByRole('button', { name: 'Back to details' }).click()
+    await page.getByTestId('node-detail-rail-tab-details').click()
     await expect(page.getByTestId('node-detail-insight-related-topics')).toBeVisible()
 
     await page
@@ -344,7 +352,6 @@ test.describe('Search → graph (mocked API)', () => {
     })
     await expect(page.getByTestId('node-detail-full-topic')).toContainText('Climate policy')
 
-    await page.getByRole('button', { name: 'Search & Explore' }).click()
     await page.locator('#search-q').fill('climate insights')
     await page
       .locator('section')
@@ -364,9 +371,12 @@ test.describe('Search → graph (mocked API)', () => {
     await expect(episodeRowAgain.getByTestId('graph-connection-open-library')).toBeEnabled()
 
     await episodeRowAgain.getByTestId('graph-connection-open-library').click()
-    await expect(mainViewsNav(page).getByRole('button', { name: 'Library' })).toHaveClass(
+    await expect(mainViewsNav(page).getByRole('button', { name: 'Graph' })).toHaveClass(
       /bg-primary/,
     )
+    await expect(page.getByRole('region', { name: 'Episode', exact: true })).toBeVisible({
+      timeout: 15_000,
+    })
     await expect(page.getByTestId('episode-detail-rail-body')).toContainText('CI fixture episode', {
       timeout: 15_000,
     })
@@ -401,7 +411,7 @@ test.describe('Search → graph (mocked API)', () => {
     await page.goto('/')
     await page.getByRole('heading', { name: SHELL_HEADING_RE }).waitFor()
 
-    await page.getByPlaceholder('/path/to/output').fill('/mock/corpus')
+    await statusBarCorpusPathInput(page).fill('/mock/corpus')
     await mainViewsNav(page).getByRole('button', { name: 'Graph' }).click()
 
     await page.getByRole('button', { name: 'Fit' }).waitFor({ state: 'visible', timeout: 30_000 })
@@ -462,7 +472,7 @@ test.describe('Search → graph (mocked API)', () => {
     await page.goto('/')
     await page.getByRole('heading', { name: SHELL_HEADING_RE }).waitFor()
 
-    await page.getByPlaceholder('/path/to/output').fill('/mock/corpus')
+    await statusBarCorpusPathInput(page).fill('/mock/corpus')
     await mainViewsNav(page).getByRole('button', { name: 'Graph' }).click()
 
     await page.getByRole('button', { name: 'Fit' }).waitFor({ state: 'visible', timeout: 30_000 })

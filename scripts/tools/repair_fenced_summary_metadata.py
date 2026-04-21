@@ -43,10 +43,10 @@ from typing import Any, Dict, Tuple
 from unittest.mock import Mock
 
 try:
-    from podcast_scraper.builders.bridge_builder import build_bridge
-    from podcast_scraper.builders.rfc072_artifact_paths import (
+    from podcast_scraper.builders.bridge_artifact_paths import (
         bridge_json_path_adjacent_to_metadata,
     )
+    from podcast_scraper.builders.bridge_builder import build_bridge
     from podcast_scraper.gi.io import write_artifact as gi_write_artifact
     from podcast_scraper.kg.io import write_artifact as kg_write_artifact
     from podcast_scraper.schemas.summary_schema import parse_summary_output
@@ -58,10 +58,10 @@ try:
 except ImportError:
     _root = Path(__file__).resolve().parent.parent.parent
     sys.path.insert(0, str(_root / "src"))
-    from podcast_scraper.builders.bridge_builder import build_bridge
-    from podcast_scraper.builders.rfc072_artifact_paths import (
+    from podcast_scraper.builders.bridge_artifact_paths import (
         bridge_json_path_adjacent_to_metadata,
     )
+    from podcast_scraper.builders.bridge_builder import build_bridge
     from podcast_scraper.gi.io import write_artifact as gi_write_artifact
     from podcast_scraper.kg.io import write_artifact as kg_write_artifact
     from podcast_scraper.schemas.summary_schema import parse_summary_output

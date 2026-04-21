@@ -1,4 +1,4 @@
-"""Integration tests for RFC-072 CIL query API (GitHub #527)."""
+"""Integration tests for CIL query API (GitHub #527)."""
 
 from __future__ import annotations
 

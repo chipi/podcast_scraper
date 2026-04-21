@@ -1,4 +1,4 @@
-"""Normalise GIL graph edge ``type`` strings for comparisons (RFC-072 consumers)."""
+"""Normalise GIL graph edge ``type`` strings for comparisons."""
 
 from __future__ import annotations
 

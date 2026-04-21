@@ -3,12 +3,31 @@ import {
   buildGiKgCyStylesheet,
   estimateLabelHalfWidthPx,
   sideLabelTextMarginX,
+  topicDegreeHeatBorderWidthPx,
 } from './cyGraphStylesheet'
 
 function nodeRuleStyle(sheet: ReturnType<typeof buildGiKgCyStylesheet>): Record<string, unknown> {
   return (sheet.find((r) => (r as { selector?: string }).selector === 'node') as { style: Record<string, unknown> })
     .style
 }
+
+describe('topicDegreeHeatBorderWidthPx', () => {
+  it('returns 0 when heat is missing, zero, or non-finite', () => {
+    expect(topicDegreeHeatBorderWidthPx(undefined, false)).toBe(0)
+    expect(topicDegreeHeatBorderWidthPx(0, false)).toBe(0)
+    expect(topicDegreeHeatBorderWidthPx(Number.NaN, false)).toBe(0)
+  })
+
+  it('ramps from 1px once heat is positive (main profile)', () => {
+    expect(topicDegreeHeatBorderWidthPx(0.25, false)).toBeCloseTo(1.75, 5)
+    expect(topicDegreeHeatBorderWidthPx(1, false)).toBe(4)
+  })
+
+  it('uses compact scaling with a 1px floor when heat is positive', () => {
+    expect(topicDegreeHeatBorderWidthPx(0.01, true)).toBeGreaterThanOrEqual(1)
+    expect(topicDegreeHeatBorderWidthPx(0, true)).toBe(0)
+  })
+})
 
 describe('estimateLabelHalfWidthPx', () => {
   it('grows with length up to half max wrap', () => {
@@ -53,12 +72,13 @@ describe('buildGiKgCyStylesheet', () => {
     expect(Number(st['text-outline-width'])).toBeGreaterThan(0)
   })
 
-  it('search-hit widens body but does not pin text-margin-x (callback uses ele.width())', () => {
+  it('search-hit adds ring only (tier sizes stay literal; margin comes from callback + width)', () => {
     const hitRule = buildGiKgCyStylesheet({ includeSearchHit: true, compact: false }).find(
       (r) => (r as { selector?: string }).selector === 'node.search-hit',
     ) as { style: Record<string, unknown> }
     expect(hitRule.style['text-margin-x']).toBeUndefined()
-    expect(hitRule.style.width).toBe(24)
+    expect(hitRule.style.width).toBeUndefined()
+    expect(hitRule.style['border-color']).toBe('#fab005')
   })
 
   it('above placement: top center with negative margin-y', () => {
@@ -83,17 +103,18 @@ describe('buildGiKgCyStylesheet', () => {
       (r) => (r as { selector?: string }).selector === 'node[type = "TopicCluster"]',
     ) as { style: Record<string, unknown> }
     expect(rule).toBeTruthy()
-    expect(rule.style['background-opacity']).toBeDefined()
+    expect(rule.style['background-opacity']).toBe(0.06)
     expect(rule.style['border-style']).toBe('dashed')
+    expect(rule.style['background-color']).toBe('var(--ps-kg)')
   })
 
-  it('includes RFC-076 expandable and expanded-seed ring rules (full graph)', () => {
+  it('includes cross-episode expandable and expanded-seed ring rules (full graph)', () => {
     const sheet = buildGiKgCyStylesheet({ compact: false })
     const expandable = sheet.find(
-      (r) => (r as { selector?: string }).selector === 'node.rfc076-expandable',
+      (r) => (r as { selector?: string }).selector === 'node.graph-expand-eligible',
     ) as { style: Record<string, unknown> }
     const seed = sheet.find(
-      (r) => (r as { selector?: string }).selector === 'node.rfc076-expanded-seed',
+      (r) => (r as { selector?: string }).selector === 'node.graph-expand-seed',
     ) as { style: Record<string, unknown> }
     expect(expandable.style['border-color']).toBe('#14b8a6')
     expect(expandable.style['border-width']).toBe(2)
@@ -101,15 +122,24 @@ describe('buildGiKgCyStylesheet', () => {
     expect(seed.style['border-width']).toBe(3)
   })
 
-  it('includes RFC-076 ring rules with thinner borders for compact/minimap', () => {
+  it('includes cross-episode expand ring rules with thinner borders for compact/minimap', () => {
     const sheet = buildGiKgCyStylesheet({ compact: true })
     const expandable = sheet.find(
-      (r) => (r as { selector?: string }).selector === 'node.rfc076-expandable',
+      (r) => (r as { selector?: string }).selector === 'node.graph-expand-eligible',
     ) as { style: Record<string, unknown> }
     const seed = sheet.find(
-      (r) => (r as { selector?: string }).selector === 'node.rfc076-expanded-seed',
+      (r) => (r as { selector?: string }).selector === 'node.graph-expand-seed',
     ) as { style: Record<string, unknown> }
     expect(expandable.style['border-width']).toBe(1.5)
     expect(seed.style['border-width']).toBe(2.25)
+  })
+
+  it('includes explicit edge fallback for (unknown) edgeType', () => {
+    const sheet = buildGiKgCyStylesheet({ compact: false })
+    const rule = sheet.find(
+      (r) => (r as { selector?: string }).selector === 'edge[edgeType = "(unknown)"]',
+    ) as { style: Record<string, unknown> }
+    expect(rule).toBeTruthy()
+    expect(rule.style['line-color']).toBe('var(--ps-muted)')
   })
 })

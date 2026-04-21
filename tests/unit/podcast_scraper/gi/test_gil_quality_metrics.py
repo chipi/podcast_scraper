@@ -1,4 +1,4 @@
-"""Tests for PRD-017 GIL quality metrics (file aggregation)."""
+"""Tests for GIL quality metrics (file aggregation)."""
 
 import pytest
 

@@ -1,4 +1,4 @@
-"""Background RSS / CPU sampling for a remote PID (RFC-065)."""
+"""Background RSS / CPU sampling for a remote PID."""
 
 from __future__ import annotations
 

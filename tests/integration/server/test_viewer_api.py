@@ -1,4 +1,4 @@
-"""Viewer API: health + artifacts (RFC-062).
+"""Viewer API: health + artifacts.
 
 Requires ``fastapi`` (``pip install -e '.[server]'``).
 """
@@ -51,6 +51,9 @@ def test_list_artifacts_finds_gi_and_kg(tmp_path: Path) -> None:
     for item in body["artifacts"]:
         assert "mtime_utc" in item
         assert str(item["mtime_utc"]).endswith("Z")
+        assert "publish_date" in item
+        assert len(str(item["publish_date"])) == 10
+        assert str(item["publish_date"])[4] == "-"
     assert body.get("hints") == []
 
 

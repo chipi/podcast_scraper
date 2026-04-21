@@ -4,8 +4,9 @@
 These tests verify retry behavior, jitter, and metrics tracking.
 """
 
+import sys
 import unittest
-from types import SimpleNamespace
+from types import ModuleType, SimpleNamespace
 from unittest.mock import Mock, patch
 
 from podcast_scraper.utils.provider_metrics import (
@@ -232,35 +233,77 @@ class TestGeminiRetryableExceptions(unittest.TestCase):
 
     Missing this meant mega_bundled fell back to staged on the first 503
     instead of retrying with backoff. Discovered during the 10-feed
-    cloud_balanced production run (2026-04-21)."""
+    cloud_balanced production run (2026-04-21).
+
+    Unit CI installs ``.[dev]`` only — no ``google.*`` packages. We inject
+    minimal fake modules via ``sys.modules`` so imports inside
+    :func:`_safe_gemini_retryable` resolve without skips."""
+
+    def _fake_google_modules_genai_only(self) -> dict[str, ModuleType]:
+        genai_errors = ModuleType("google.genai.errors")
+
+        class ServerError(Exception):
+            pass
+
+        genai_errors.ServerError = ServerError
+        genai_pkg = ModuleType("google.genai")
+        genai_pkg.__path__ = []
+        google_pkg = ModuleType("google")
+        google_pkg.__path__ = []
+        return {
+            "google": google_pkg,
+            "google.genai": genai_pkg,
+            "google.genai.errors": genai_errors,
+        }
+
+    def _fake_google_modules_api_core_only(self) -> dict[str, ModuleType]:
+        api_core_exc = ModuleType("google.api_core.exceptions")
+
+        class ResourceExhausted(Exception):
+            pass
+
+        class ServiceUnavailable(Exception):
+            pass
+
+        api_core_exc.ResourceExhausted = ResourceExhausted
+        api_core_exc.ServiceUnavailable = ServiceUnavailable
+        api_core_pkg = ModuleType("google.api_core")
+        api_core_pkg.__path__ = []
+        google_pkg = ModuleType("google")
+        google_pkg.__path__ = []
+        return {
+            "google": google_pkg,
+            "google.api_core": api_core_pkg,
+            "google.api_core.exceptions": api_core_exc,
+        }
 
     def test_new_genai_sdk_server_error_is_retryable(self):
         from podcast_scraper.utils.provider_metrics import _safe_gemini_retryable
 
-        try:
-            from google.genai.errors import ServerError
-        except ImportError:  # pragma: no cover — SDK is a transitive dep
-            self.skipTest("google-genai SDK not installed")
-        self.assertIn(ServerError, _safe_gemini_retryable())
+        mods = self._fake_google_modules_genai_only()
+        with patch.dict(sys.modules, mods, clear=False):
+            retryable = _safe_gemini_retryable()
+            server_err = mods["google.genai.errors"].ServerError
+        self.assertIn(server_err, retryable)
 
     def test_legacy_api_core_service_unavailable_is_retryable(self):
         """Legacy SDK coverage must remain."""
         from podcast_scraper.utils.provider_metrics import _safe_gemini_retryable
 
-        try:
-            from google.api_core.exceptions import ServiceUnavailable
-        except ImportError:  # pragma: no cover
-            self.skipTest("google.api_core not installed")
-        self.assertIn(ServiceUnavailable, _safe_gemini_retryable())
+        mods = self._fake_google_modules_api_core_only()
+        with patch.dict(sys.modules, mods, clear=False):
+            retryable = _safe_gemini_retryable()
+            su = mods["google.api_core.exceptions"].ServiceUnavailable
+        self.assertIn(su, retryable)
 
     def test_resource_exhausted_still_retryable(self):
         from podcast_scraper.utils.provider_metrics import _safe_gemini_retryable
 
-        try:
-            from google.api_core.exceptions import ResourceExhausted
-        except ImportError:  # pragma: no cover
-            self.skipTest("google.api_core not installed")
-        self.assertIn(ResourceExhausted, _safe_gemini_retryable())
+        mods = self._fake_google_modules_api_core_only()
+        with patch.dict(sys.modules, mods, clear=False):
+            retryable = _safe_gemini_retryable()
+            rexc = mods["google.api_core.exceptions"].ResourceExhausted
+        self.assertIn(rexc, retryable)
 
 
 class TestOpenAiCompatibleChatUsageTokens(unittest.TestCase):

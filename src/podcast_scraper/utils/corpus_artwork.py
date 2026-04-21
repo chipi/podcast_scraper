@@ -1,4 +1,4 @@
-"""Download podcast feed/episode artwork into the corpus tree (RFC-067 Phase 4).
+"""Download podcast feed/episode artwork into the corpus tree.
 
 Files live under ``<corpus>/.podcast_scraper/corpus-art/sha256/…`` and are served by
 ``GET /api/corpus/binary`` (allowlisted subtree only).

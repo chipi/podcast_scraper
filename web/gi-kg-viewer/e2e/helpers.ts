@@ -9,15 +9,37 @@ export function mainViewsNav(page: Page) {
   return page.getByRole('navigation', { name: 'Main views' })
 }
 
-/** Left rail: Corpus path vs API · Data (connection + data overview). */
-export function leftPanelTabs(page: Page) {
-  return page.getByRole('navigation', { name: 'Left panel tabs' })
+/**
+ * **Dashboard** tab — waits for the briefing card (`data-testid="briefing-card"`).
+ */
+export async function openCorpusDataWorkspace(page: Page): Promise<void> {
+  await mainViewsNav(page).getByRole('button', { name: 'Dashboard' }).click()
+  await page.getByTestId('briefing-card').waitFor({ state: 'visible' })
+}
+
+/** Bottom status bar corpus path field (`data-testid="status-bar-corpus-path"`). */
+export function statusBarCorpusPathInput(page: Page) {
+  return page.getByTestId('status-bar-corpus-path')
 }
 
 /**
- * Offline graph load: force /api/health to fail so the "Choose files…" control
- * is shown on the **API · Data** tab, then load the CI fixture via the file picker.
+ * Offline graph load: force /api/health to fail, open **Graph**, then load the CI
+ * fixture via the status bar **Files** / hidden file input.
  */
+/**
+ * Closes the first-run graph gesture overlay when it is visible so pointer and
+ * keyboard tests can reach Cytoscape (overlay is above `.graph-canvas`).
+ */
+export async function dismissGraphGestureOverlayIfPresent(page: Page): Promise<void> {
+  const btn = page.getByTestId('graph-gesture-overlay-dismiss')
+  try {
+    await btn.waitFor({ state: 'visible', timeout: 3000 })
+  } catch {
+    return
+  }
+  await btn.click()
+}
+
 export async function loadGraphViaFilePicker(page: Page): Promise<void> {
   await page.route('**/api/health', async (route) => {
     await route.abort('failed')
@@ -28,12 +50,7 @@ export async function loadGraphViaFilePicker(page: Page): Promise<void> {
 
   await mainViewsNav(page).getByRole('button', { name: 'Graph' }).click()
 
-  await leftPanelTabs(page).getByRole('button', { name: 'API · Data' }).click()
-
-  const chooseBtn = page.getByRole('button', { name: /Choose files/i })
-  await chooseBtn.waitFor({ state: 'visible', timeout: 30_000 })
-
-  const fileInput = page.locator('input[type="file"]').first()
+  const fileInput = page.getByTestId('status-bar-local-file-input')
   await fileInput.setInputFiles(GI_SAMPLE_FIXTURE)
 
   await page.getByRole('button', { name: 'Fit' }).waitFor({ state: 'visible', timeout: 30_000 })

@@ -1,4 +1,4 @@
-"""Unit tests for RFC-064 freeze_profile helpers (Issue #510)."""
+"""Unit tests for freeze_profile helpers (Issue #510)."""
 
 from __future__ import annotations
 

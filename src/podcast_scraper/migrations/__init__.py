@@ -1,5 +1,8 @@
-"""Offline corpus migration helpers (RFC-072, etc.)."""
+"""Offline corpus migration helpers (GI/KG JSON transforms, etc.)."""
 
-from podcast_scraper.migrations.rfc072 import migrate_gil_document, migrate_kg_document
+from podcast_scraper.migrations.gil_kg_identity_migrations import (
+    migrate_gil_document,
+    migrate_kg_document,
+)
 
 __all__ = ["migrate_gil_document", "migrate_kg_document"]

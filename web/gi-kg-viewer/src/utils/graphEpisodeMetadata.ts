@@ -76,6 +76,10 @@ export function guessMetadataRelPathFromArtifactRelPath(rel: string): string | n
 
 /**
  * Match a logical episode id to one of the loaded GI/KG files and derive metadata path.
+ *
+ * Prefer ``ParsedArtifact.sourceCorpusRelPath`` (set when each file was fetched) over
+ * ``selectedRelPaths[i]``: ``loadSelected`` skips ``.bridge.json`` rows when building
+ * ``parsedList``, so parallel indices are not guaranteed to refer to the same file.
  */
 export function resolveEpisodeMetadataFromLoadedArtifacts(
   logicalEpisodeId: string,
@@ -89,10 +93,20 @@ export function resolveEpisodeMetadataFromLoadedArtifacts(
     const epId = art?.episodeId?.trim()
     if (!epId || epId.startsWith('merged:')) continue
     if (epId !== want) continue
-    const rel = selectedRelPaths[i]?.trim()
+    const fromArtifact =
+      (typeof art.sourceCorpusRelPath === 'string' && art.sourceCorpusRelPath.trim()) || ''
+    const rel = (fromArtifact || selectedRelPaths[i]?.trim()).trim()
     if (!rel) continue
-    const guessed = guessMetadataRelPathFromArtifactRelPath(rel)
+    let guessed = guessMetadataRelPathFromArtifactRelPath(rel)
     if (guessed) return guessed
+    const map = art.sourceCorpusRelPathByEpisodeId
+    if (map && typeof map === 'object') {
+      const mapped = map[want]
+      if (typeof mapped === 'string' && mapped.trim()) {
+        guessed = guessMetadataRelPathFromArtifactRelPath(mapped.trim())
+        if (guessed) return guessed
+      }
+    }
   }
   return null
 }
@@ -142,6 +156,54 @@ export function normalizeCorpusMetadataPath(p: string): string {
  * Episode nodes in the merged artifact whose ``metadata_relative_path`` (or source variant) matches.
  * Returns stable logical ids for ``resolveCyNodeId`` / library highlight (corpus ``episode_id`` or id stem).
  */
+/**
+ * Cytoscape node id for an **Episode** row whose metadata path matches ``wantMetadataPath``
+ * (merged/filtered artifact ids match the canvas). Deterministic when several rows match.
+ */
+export function findEpisodeGraphNodeIdForMetadataPath(
+  art: ParsedArtifact | null,
+  wantMetadataPath: string,
+): string | null {
+  const want = normalizeCorpusMetadataPath(wantMetadataPath)
+  if (!want || !art?.data?.nodes) return null
+  const ids: string[] = []
+  for (const n of art.data.nodes as RawGraphNode[]) {
+    if (!n || n.id == null || n.type !== 'Episode') continue
+    const mp = metadataPathFromEpisodeProperties(n)
+    if (!mp) continue
+    if (normalizeCorpusMetadataPath(mp) !== want) continue
+    ids.push(String(n.id))
+  }
+  if (ids.length === 0) return null
+  ids.sort()
+  return ids[0] ?? null
+}
+
+/**
+ * Resolve Episode Cytoscape id for Library / Digest **Open in graph** when corpus ``metadata_relative_path``
+ * text does not exactly match graph row properties (encoding / punctuation drift) but ``episode_id`` does.
+ */
+export function findEpisodeGraphNodeIdForMetadataPathOrEpisodeId(
+  art: ParsedArtifact | null,
+  wantMetadataPath: string,
+  fallbackEpisodeId: string | null | undefined,
+): string | null {
+  const byMeta = findEpisodeGraphNodeIdForMetadataPath(art, wantMetadataPath)
+  if (byMeta) return byMeta
+  const eid = fallbackEpisodeId?.trim()
+  if (!eid || !art?.data?.nodes) return null
+  for (const n of art.data.nodes as RawGraphNode[]) {
+    if (!n || n.type !== 'Episode' || n.id == null) continue
+    const fromId = logicalEpisodeIdFromGraphNodeId(String(n.id))
+    const p = n.properties as Record<string, unknown> | undefined
+    const fromProp = typeof p?.episode_id === 'string' ? p.episode_id.trim() : ''
+    if ((fromId && fromId === eid) || (fromProp && fromProp === eid)) {
+      return String(n.id)
+    }
+  }
+  return null
+}
+
 export function logicalEpisodeIdsMatchingMetadataPath(
   art: ParsedArtifact | null,
   wantPath: string,
@@ -171,7 +233,7 @@ export function logicalEpisodeIdsMatchingMetadataPath(
 }
 
 /**
- * Prefer the Cytoscape id already tied to the Episode rail (graph double-tap); else scan the artifact.
+ * Prefer the Cytoscape id already tied to the Episode subject rail (graph double-tap); else scan the artifact.
  */
 export function logicalEpisodeIdsForLibraryGraphSync(
   art: ParsedArtifact | null,

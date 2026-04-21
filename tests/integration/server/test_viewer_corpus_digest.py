@@ -1,4 +1,4 @@
-"""Integration tests for GET /api/corpus/digest (RFC-068)."""
+"""Integration tests for GET /api/corpus/digest."""
 
 from __future__ import annotations
 

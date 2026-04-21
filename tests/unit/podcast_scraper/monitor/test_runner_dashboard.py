@@ -1,4 +1,4 @@
-"""Tests for monitor stderr vs file logging (RFC-065 / profile freeze)."""
+"""Tests for monitor stderr vs file logging."""
 
 from __future__ import annotations
 

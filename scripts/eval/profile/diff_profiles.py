@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Compare two frozen performance profiles (RFC-064, Issue #510)."""
+"""Compare two frozen performance profiles."""
 
 from __future__ import annotations
 

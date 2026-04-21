@@ -9,7 +9,7 @@ export const useGraphNavigationStore = defineStore('graphNavigation', () => {
   /** Raw episode / node ids (e.g. metadata ``episode_id``) → yellow ``search-hit`` ring on graph. */
   const libraryHighlightSourceIds = ref<string[]>([])
   /**
-   * Optional extra graph ids (e.g. RFC-075 ``tc:…`` compound) to include in the camera ``center``
+   * Optional extra graph ids (e.g. topic-cluster ``tc:…`` compound) to include in the camera ``center``
    * bbox when applying pending focus; selection stays on the primary node only.
    */
   const pendingFocusCameraIncludeRawIds = ref<string[]>([])
@@ -53,6 +53,8 @@ export const useGraphNavigationStore = defineStore('graphNavigation', () => {
     fallbackNodeId?: string | null,
     cameraIncludeRawIds?: string[] | null,
   ): void {
+    // Clear first so repeat requests for the same id still notify watchers (Show on graph twice).
+    clearPendingFocus()
     const id = nodeId.trim()
     pendingFocusNodeId.value = id.length ? id : null
     if (fallbackNodeId === undefined) {

@@ -1,5 +1,8 @@
 import { describe, expect, it } from 'vitest'
+import type { EdgeSingular } from 'cytoscape'
 import {
+  giKgCoseEdgeElasticity,
+  giKgCoseIdealEdgeLength,
   giKgCoseLayoutOptionsCompact,
   giKgCoseLayoutOptionsMain,
   giKgCoseLayoutOptionsMainFallback,
@@ -55,6 +58,43 @@ describe('giKgCoseLayoutOptionsMain', () => {
     expect(o.numIter).toBe(2500)
     expect(typeof o.nodeRepulsion).toBe('function')
     expect(typeof o.idealEdgeLength).toBe('function')
+    expect(typeof o.edgeElasticity).toBe('function')
+  })
+})
+
+function mockEdge(
+  sourceParent: string | null,
+  targetParent: string | null,
+  edgeType: string,
+): EdgeSingular {
+  return {
+    data: (k: string) => (k === 'edgeType' ? edgeType : undefined),
+    source: () => ({ data: (k: string) => (k === 'parent' ? sourceParent : undefined) }),
+    target: () => ({ data: (k: string) => (k === 'parent' ? targetParent : undefined) }),
+  } as unknown as EdgeSingular
+}
+
+describe('giKgCoseIdealEdgeLength', () => {
+  it('prioritises intra-topic-cluster length over semantic ABOUT', () => {
+    const edge = mockEdge('tc:x', 'tc:x', 'ABOUT')
+    expect(giKgCoseIdealEdgeLength(edge, 'main')).toBe(36)
+  })
+
+  it('uses semantic ABOUT length outside tc: clusters', () => {
+    const edge = mockEdge(null, null, 'ABOUT')
+    expect(giKgCoseIdealEdgeLength(edge, 'main')).toBe(80)
+  })
+})
+
+describe('giKgCoseEdgeElasticity', () => {
+  it('uses default elasticity inside tc: clusters', () => {
+    const edge = mockEdge('tc:x', 'tc:x', 'ABOUT')
+    expect(giKgCoseEdgeElasticity(edge, 'main')).toBe(100)
+  })
+
+  it('uses semantic elasticity for ABOUT outside tc:', () => {
+    const edge = mockEdge(null, null, 'ABOUT')
+    expect(giKgCoseEdgeElasticity(edge, 'main')).toBe(200)
   })
 })
 

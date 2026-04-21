@@ -1,7 +1,7 @@
-"""PRD-017 success metrics over per-episode ``gi.json`` artifacts (file-based, no DB).
+"""GIL success metrics over per-episode ``gi.json`` artifacts (file-based, no DB).
 
 Aggregates grounding rate, quote validity, and density for operator/CI gates.
-Thresholds default to PRD-017 targets; use :func:`enforce_prd017_thresholds` with
+Thresholds default to documented GIL targets; use :func:`enforce_prd017_thresholds` with
 ``--enforce`` in ``scripts/tools/gil_quality_metrics.py``.
 
 **Quote validity (file-based view):** :func:`compute_gil_quality_metrics` checks
@@ -23,7 +23,7 @@ from .schema import validate_artifact
 
 
 def _quote_evidence_valid(q: Any) -> bool:
-    """True if span and timestamps look usable (PRD-017 quote validity)."""
+    """True if span and timestamps look usable."""
     ev = q.evidence
     if ev.char_start < 0 or ev.char_end < 0 or ev.char_end <= ev.char_start:
         return False
@@ -105,7 +105,7 @@ def compute_gil_quality_metrics(
     *,
     strict_schema: bool = False,
 ) -> GilQualityMetrics:
-    """Load artifacts from paths (files or dirs), validate, and compute PRD-017 metrics."""
+    """Load artifacts from paths (files or dirs), validate, and compute GIL metrics."""
     raw_paths = [Path(p) for p in paths]
     try:
         gi_paths = collect_gi_paths_from_inputs(raw_paths)

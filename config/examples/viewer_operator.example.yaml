@@ -1,0 +1,21 @@
+# Packaged default for the GI/KG viewer: seeded as ``viewer_operator.yaml`` in a corpus
+# directory when the file is missing or whitespace-only (GET /api/operator-config).
+#
+# Do not set ``profile:`` here — same as thin CLI operator files: pick a preset in the
+# viewer **Profile** menu (Save writes ``profile:``) or pass ``--profile`` on the CLI.
+#
+# Do not set ``output_dir`` here: viewer jobs pass ``--output-dir`` = the corpus root.
+# Feeds belong in ``feeds.spec.yaml`` in the same directory (Feeds API / CLI --feeds-spec).
+#
+# Reference manual: ``config/manual/operator_defaults.yaml`` (CLI-oriented; may set output_dir).
+
+max_episodes: 1
+delay_ms: 1250
+
+transcribe_missing: true
+skip_existing: true
+reuse_media: true
+append: false
+screenplay: false
+workers: 4
+log_level: INFO

@@ -39,6 +39,12 @@ reintroduce it in new or edited `docs/**` files.
 do **not** use green-check, red-X, clipboard, or decorative tick characters as bullets or status
 icons. Use plain words (**Required**, **Never**, **Allowed**, **Skip**) or unadorned list markers.
 
+## Gitignored paths in documentation
+
+- Paths and trees that **`.gitignore`** excludes are **local or machine-specific**. They are **not** the canonical home for anything described in **tracked** documentation.
+- When the user asks to stop mentioning something or "pretend it does not exist" in the repo: edit **tracked** markdown and code only. **Do not** delete files under **gitignored** trees as part of that cleanup unless they **explicitly** asked to remove those files.
+- In **`docs/**`**, do **not** cite **gitignored** paths (or files only found there) as the **official** place for presets, seeds, or workflows; use **tracked** project examples and guides, or **neutral placeholders** the reader controls.
+
 ## Document Location Rules
 
 ### ABSOLUTE RULE

@@ -191,7 +191,7 @@ class TestServerViewerCil:
 
 class TestServerViewerCorpusLibrary:
     def test_corpus_feeds_minimal_metadata(self, tmp_path: Path) -> None:
-        """``GET /api/corpus/feeds`` with one flat metadata row (RFC-067)."""
+        """``GET /api/corpus/feeds`` with one flat metadata row."""
         meta = tmp_path / "metadata"
         meta.mkdir()
         episode_doc = {

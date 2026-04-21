@@ -489,7 +489,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from podcast_scraper.search.corpus_scope import discover_metadata_files
-from podcast_scraper.builders.rfc072_artifact_paths import bridge_json_path_adjacent_to_metadata
+from podcast_scraper.builders.bridge_artifact_paths import bridge_json_path_adjacent_to_metadata
 from podcast_scraper.workflow.metadata_generation import (
     _determine_gi_path,
     _determine_kg_path,

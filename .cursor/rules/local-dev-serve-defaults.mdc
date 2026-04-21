@@ -1,0 +1,26 @@
+---
+description: >-
+  When the agent starts the viewer API or full stack (make serve-api / make serve), use
+  SERVE_OUTPUT_DIR=./.test_outputs by default. Do not change Makefile SERVE_OUTPUT_DIR ?= ./output.
+alwaysApply: true
+---
+
+# Local dev — agent default for `make serve` / `make serve-api`
+
+**Owner preference (this checkout):** When the user asks you to **start the API**, **start the viewer stack**, **run `make serve`**, **`serve-api`**, or equivalent, **do it without asking** using:
+
+```bash
+mkdir -p .test_outputs
+make serve-api SERVE_OUTPUT_DIR=./.test_outputs
+```
+
+For **API + UI**:
+
+```bash
+mkdir -p .test_outputs
+make serve SERVE_OUTPUT_DIR=./.test_outputs
+```
+
+**Do not** change the repo default (`Makefile` keeps `SERVE_OUTPUT_DIR ?= ./output`). **Override on the command line** only.
+
+**Exception:** If the user names another directory (e.g. `./output`, a fixture path), use that instead.

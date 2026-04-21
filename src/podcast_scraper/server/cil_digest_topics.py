@@ -1,4 +1,4 @@
-"""CIL topic pills for digest and library (RFC-072 bridge + RFC-075 clusters)."""
+"""CIL topic pills for digest and library."""
 
 from __future__ import annotations
 
@@ -199,7 +199,7 @@ def build_cil_digest_topics_for_row(
 
 
 def row_has_cluster_topic(pills: Sequence[CilDigestTopicPill]) -> bool:
-    """True when any pill marks RFC-075 cluster membership for this row."""
+    """True when any pill marks corpus topic-cluster membership for this row."""
     return any(p.in_topic_cluster for p in pills)
 
 

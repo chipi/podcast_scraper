@@ -72,6 +72,42 @@ describe('useShellStore /api/health discovery flags', () => {
     expect(shell.corpusDigestApiAvailable).toBe(true)
   })
 
+  it('sets jobsApiAvailable only when health sets jobs_api true', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => ({
+        ok: true,
+        json: async () => ({
+          status: 'ok',
+          corpus_library_api: true,
+          jobs_api: true,
+        }),
+      })) as unknown as typeof fetch,
+    )
+    const shell = useShellStore()
+    await shell.fetchHealth()
+    expect(shell.jobsApiAvailable).toBe(true)
+  })
+
+  it('sets feedsApiAvailable and operatorConfigApiAvailable only when health flags are true', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => ({
+        ok: true,
+        json: async () => ({
+          status: 'ok',
+          corpus_library_api: true,
+          feeds_api: true,
+          operator_config_api: false,
+        }),
+      })) as unknown as typeof fetch,
+    )
+    const shell = useShellStore()
+    await shell.fetchHealth()
+    expect(shell.feedsApiAvailable).toBe(true)
+    expect(shell.operatorConfigApiAvailable).toBe(false)
+  })
+
   it('disables digest when corpus_digest_api is explicitly false', async () => {
     vi.stubGlobal(
       'fetch',
@@ -108,6 +144,9 @@ describe('useShellStore /api/health discovery flags', () => {
     expect(shell.indexRoutesApiAvailable).toBe(false)
     expect(shell.corpusMetricsApiAvailable).toBe(false)
     expect(shell.cilQueriesApiAvailable).toBe(false)
+    expect(shell.feedsApiAvailable).toBe(false)
+    expect(shell.operatorConfigApiAvailable).toBe(false)
+    expect(shell.jobsApiAvailable).toBe(false)
   })
 
   it('disables CIL queries when cil_queries_api is explicitly false', async () => {

@@ -1,6 +1,6 @@
-"""Integration: ML cache inspection helpers and RFC-072 artifact path rules.
+"""Integration: ML cache inspection helpers and bridge artifact path rules.
 
-Touches ``cache.manager`` read-only aggregation and ``builders.rfc072_artifact_paths``
+Touches ``cache.manager`` read-only aggregation and ``builders.bridge_artifact_paths``
 filename logic used by the GI/KG/bridge layout.
 """
 
@@ -10,7 +10,7 @@ from pathlib import Path
 
 import pytest
 
-from podcast_scraper.builders import rfc072_artifact_paths
+import podcast_scraper.builders.bridge_artifact_paths as bridge_artifact_paths
 from podcast_scraper.cache import manager as cache_manager
 
 pytestmark = pytest.mark.integration
@@ -40,35 +40,35 @@ def test_get_all_cache_info_structure() -> None:
 
 def test_bridge_json_path_adjacent_to_metadata_variants() -> None:
     assert (
-        rfc072_artifact_paths.bridge_json_path_adjacent_to_metadata("show/ep.metadata.json")
+        bridge_artifact_paths.bridge_json_path_adjacent_to_metadata("show/ep.metadata.json")
         == "show/ep.bridge.json"
     )
-    assert rfc072_artifact_paths.bridge_json_path_adjacent_to_metadata("x.metadata.yaml") == (
+    assert bridge_artifact_paths.bridge_json_path_adjacent_to_metadata("x.metadata.yaml") == (
         "x.bridge.json"
     )
-    assert rfc072_artifact_paths.bridge_json_path_adjacent_to_metadata("x.metadata.yml") == (
+    assert bridge_artifact_paths.bridge_json_path_adjacent_to_metadata("x.metadata.yml") == (
         "x.bridge.json"
     )
-    assert rfc072_artifact_paths.bridge_json_path_adjacent_to_metadata("plain") == (
+    assert bridge_artifact_paths.bridge_json_path_adjacent_to_metadata("plain") == (
         "plain.bridge.json"
     )
-    assert rfc072_artifact_paths.bridge_json_path_adjacent_to_metadata("a.b.c") == "a.b.bridge.json"
+    assert bridge_artifact_paths.bridge_json_path_adjacent_to_metadata("a.b.c") == "a.b.bridge.json"
 
 
 def test_bridge_path_next_to_gi_json(tmp_path: Path) -> None:
     gi = tmp_path / "stem.gi.json"
-    br = rfc072_artifact_paths.bridge_path_next_to_gi_json(gi)
+    br = bridge_artifact_paths.bridge_path_next_to_gi_json(gi)
     assert br.name == "stem.bridge.json"
     odd = tmp_path / "odd.txt"
-    br_odd = rfc072_artifact_paths.bridge_path_next_to_gi_json(odd)
+    br_odd = bridge_artifact_paths.bridge_path_next_to_gi_json(odd)
     assert br_odd.name == "odd.bridge.json"
 
 
 def test_gi_and_kg_json_paths_next_to_bridge(tmp_path: Path) -> None:
     bridge = tmp_path / "episode.bridge.json"
-    gi_p, kg_p = rfc072_artifact_paths.gi_and_kg_json_paths_next_to_bridge(bridge)
+    gi_p, kg_p = bridge_artifact_paths.gi_and_kg_json_paths_next_to_bridge(bridge)
     assert gi_p.name == "episode.gi.json"
     assert kg_p.name == "episode.kg.json"
 
     with pytest.raises(ValueError, match="not a bridge"):
-        rfc072_artifact_paths.gi_and_kg_json_paths_next_to_bridge(tmp_path / "x.json")
+        bridge_artifact_paths.gi_and_kg_json_paths_next_to_bridge(tmp_path / "x.json")

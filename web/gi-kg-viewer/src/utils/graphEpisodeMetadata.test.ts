@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import type { ArtifactData } from '../types/artifact'
 import {
+  findEpisodeGraphNodeIdForMetadataPath,
+  findEpisodeGraphNodeIdForMetadataPathOrEpisodeId,
   graphCyIdRepresentsEpisodeNode,
   guessMetadataRelPathFromArtifactRelPath,
   logicalEpisodeIdFromGraphNodeId,
@@ -54,6 +56,83 @@ describe('graphEpisodeMetadata', () => {
       'metadata/foo.gi.json',
     ])
     expect(meta).toBe('metadata/foo.metadata.json')
+  })
+
+  it('resolveEpisodeMetadataFromLoadedArtifacts prefers sourceCorpusRelPath when parallel indices are wrong', () => {
+    const data: ArtifactData = { episode_id: 'e2', nodes: [], edges: [] }
+    const parsed = parseArtifact('bar.gi.json', data, 'metadata/bar.gi.json')
+    const meta = resolveEpisodeMetadataFromLoadedArtifacts('e2', [parsed], [
+      'metadata/wrong.gi.json',
+    ])
+    expect(meta).toBe('metadata/bar.metadata.json')
+  })
+
+  it('findEpisodeGraphNodeIdForMetadataPath returns Episode id for merged graph', () => {
+    const want = 'metadata/foo.metadata.json'
+    const data: ArtifactData = {
+      nodes: [
+        {
+          id: 'g:episode:ep99',
+          type: 'Episode',
+          properties: { metadata_relative_path: want },
+        },
+        {
+          id: 'g:episode:ep100',
+          type: 'Episode',
+          properties: { metadata_relative_path: 'other/metadata.json' },
+        },
+      ],
+      edges: [],
+    }
+    const parsed = parseArtifact('x.gi.json', data)
+    expect(findEpisodeGraphNodeIdForMetadataPath(parsed, want)).toBe('g:episode:ep99')
+  })
+
+  it('findEpisodeGraphNodeIdForMetadataPath picks lexicographically first when several match', () => {
+    const want = 'metadata/foo.metadata.json'
+    const data: ArtifactData = {
+      nodes: [
+        {
+          id: 'z:episode:a',
+          type: 'Episode',
+          properties: { metadata_relative_path: want },
+        },
+        {
+          id: 'a:episode:b',
+          type: 'Episode',
+          properties: { metadata_relative_path: want },
+        },
+      ],
+      edges: [],
+    }
+    const parsed = parseArtifact('x.gi.json', data)
+    expect(findEpisodeGraphNodeIdForMetadataPath(parsed, want)).toBe('a:episode:b')
+  })
+
+  it('findEpisodeGraphNodeIdForMetadataPathOrEpisodeId falls back to episode_id when metadata mismatches', () => {
+    const wrongMeta = 'metadata/wrong.metadata.json'
+    const data: ArtifactData = {
+      nodes: [
+        {
+          id: '__unified_ep__:25560386-3aa0-11f1-bad6-37d650dbf5f0',
+          type: 'Episode',
+          properties: {
+            metadata_relative_path: 'metadata/correct.metadata.json',
+            episode_id: '25560386-3aa0-11f1-bad6-37d650dbf5f0',
+          },
+        },
+      ],
+      edges: [],
+    }
+    const parsed = parseArtifact('x.gi.json', data)
+    expect(findEpisodeGraphNodeIdForMetadataPath(parsed, wrongMeta)).toBeNull()
+    expect(
+      findEpisodeGraphNodeIdForMetadataPathOrEpisodeId(
+        parsed,
+        wrongMeta,
+        '25560386-3aa0-11f1-bad6-37d650dbf5f0',
+      ),
+    ).toBe('__unified_ep__:25560386-3aa0-11f1-bad6-37d650dbf5f0')
   })
 
   it('logicalEpisodeIdsMatchingMetadataPath finds Episode by metadata path', () => {

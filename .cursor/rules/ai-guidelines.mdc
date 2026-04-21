@@ -40,7 +40,7 @@
 
 **For the procedure:** Use the **commit-with-approval** skill.
 
-**This project:** Validation = `make ci-fast` (~6–10 min). **Skip a repeat run** before commit if `ci-fast` or `make ci` already passed in-session on the **current** tree and nothing substantive changed after; say so briefly. If markdown edited: `make fix-md`, self-check (one H1, blanks after headings, code fences with language, tables), then `make lint-markdown`. Never commit without showing `git status` and `git diff` and getting explicit approval.
+**This project:** Validation = `make ci-fast` (~6–10 min), or **`make ci-ui-fast`** for **viewer-heavy** work (Playwright; skips Python **`tests/e2e/`**; pre-commit still runs **`make ci-fast`**). **Skip a repeat run** before commit if **`ci-fast`**, **`ci-ui-fast`**, or **`make ci`** already passed in-session on the **current** tree and nothing substantive changed after; say so briefly. If markdown edited: `make fix-md`, self-check (one H1, blanks after headings, code fences with language, tables), then `make lint-markdown`. Never commit without showing `git status` and `git diff` and getting explicit approval.
 
 ## CRITICAL: PR Push Workflow - MANDATORY CHECKLIST
 
@@ -121,6 +121,7 @@ Do **not** run `git checkout -- <path>`, `git checkout HEAD -- <path>`, `git res
 ```bash
 # Default: Start with fast tests
 make ci-fast          # Unit + fast integration + fast e2e (~6-10 min)
+make ci-ui-fast       # Same gates + Playwright; skips Python tests/e2e (viewer work)
 
 # If changes touch ML code, run slow tests
 make test-integration-slow  # Slow integration (~5-10 min)
@@ -164,6 +165,7 @@ make docker-test      # Only if changed Dockerfile/structure
 - **`docs/guides/TESTING_GUIDE.md`** → Test execution, fixtures, coverage
 - **`docs/guides/CURSOR_AI_BEST_PRACTICES_GUIDE.md`** → Model selection strategies
 - **`docs/guides/MARKDOWN_LINTING_GUIDE.md`** → Markdown style rules
+- **`WORKTREE.md`** (repo root, when present) → FUTURE checkout charter + **Python/venv per worktree** (read before trusting `pytest` / `python` paths)
 - **`docs/guides/GIT_WORKTREE_GUIDE.md`** → Git worktree workflow
 - **`docs/ci/index.md`** → CI/CD pipeline documentation
 - **`docs/architecture/ARCHITECTURE.md`** → System design, module responsibilities
@@ -181,7 +183,7 @@ make docker-test      # Only if changed Dockerfile/structure
 
 1. NEVER push to main (use feature branches + PRs)
 2. ALWAYS show changes and get approval before commit/push
-3. Run `make ci-fast` before committing unless a recent in-session run already passed on the same diff (see `.cursorrules` rule 5)
+3. Run `make ci-fast` (or **`make ci-ui-fast`** for viewer-heavy diffs) before committing unless a recent in-session run already passed on the same diff (see `.cursorrules` rule 5)
 4. Write lint-valid code from the start
 5. Respect module boundaries (see `module-boundaries.mdc`)
 6. Mock external deps in tests

@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { useArtifactsStore } from '../../stores/artifacts'
-import { useEpisodeRailStore } from '../../stores/episodeRail'
 import { useGraphFilterStore } from '../../stores/graphFilters'
+import { useSubjectStore } from '../../stores/subject'
 import { useGraphNavigationStore } from '../../stores/graphNavigation'
 import { findRawNodeInArtifact } from '../../utils/parsing'
 import {
@@ -13,7 +13,7 @@ import NodeDetail from './NodeDetail.vue'
 
 const gf = useGraphFilterStore()
 const nav = useGraphNavigationStore()
-const episodeRail = useEpisodeRailStore()
+const subject = useSubjectStore()
 const artifacts = useArtifactsStore()
 
 const emit = defineEmits<{
@@ -23,6 +23,7 @@ const emit = defineEmits<{
   'open-explore-speaker-filter': [{ speaker: string }]
   'open-explore-insight-filters': [{ groundedOnly: boolean; minConfidence: number | null }]
   'open-library-episode': [{ metadata_relative_path: string }]
+  'close-subject-rail': []
 }>()
 
 /**
@@ -32,7 +33,7 @@ const emit = defineEmits<{
  * ``NodeDetail`` (member list, connections) can render.
  */
 const viewArtifact = computed(() => {
-  const id = episodeRail.graphNodeCyId?.trim()
+  const id = subject.graphNodeCyId?.trim()
   const ego = gf.viewWithEgo(nav.graphEgoFocusCyId)
   const full = gf.filteredArtifact
   if (!id || !full) {
@@ -44,15 +45,22 @@ const viewArtifact = computed(() => {
   return full
 })
 
-const nodeId = computed(() => episodeRail.graphNodeCyId)
+const nodeId = computed(() => subject.graphNodeCyId)
 
 const rawNode = computed(() => {
-  const art = viewArtifact.value
   const id = nodeId.value
-  if (!art || !id) {
+  if (!id) {
     return null
   }
-  return findRawNodeInArtifact(art, id)
+  const slice = viewArtifact.value
+  if (slice) {
+    const hit = findRawNodeInArtifact(slice, id)
+    if (hit) {
+      return hit
+    }
+  }
+  const full = gf.fullArtifact
+  return full ? findRawNodeInArtifact(full, id) : null
 })
 
 /** Same type chip as ``NodeDetail``; used as rail heading (Library uses “Episode”). */
@@ -74,7 +82,7 @@ const panelHeading = computed(() => {
 })
 
 function onClose(): void {
-  episodeRail.showTools({ preserveGraphNodeId: true })
+  emit('close-subject-rail')
 }
 </script>
 
@@ -92,9 +100,10 @@ function onClose(): void {
       <button
         type="button"
         class="shrink-0 rounded border border-border px-2 py-1 text-[10px] font-medium text-elevated-foreground hover:bg-overlay"
+        aria-label="Close graph node detail"
         @click="onClose"
       >
-        Search & Explore
+        Close
       </button>
     </div>
     <NodeDetail

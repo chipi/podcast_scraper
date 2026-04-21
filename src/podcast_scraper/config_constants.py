@@ -80,7 +80,7 @@ PROD_DEFAULT_NER_MODEL = "en_core_web_trf"  # Prod: Transformer-based, higher qu
 # These are used in production deployments and nightly-only tests
 # Aligned with ml_small_authority (BART-base → LED-base, proven on podcast content)
 #
-# RFC-044: These identifiers are also promoted into the code Model Registry as a
+# Summarization mode IDs: these identifiers are also promoted into the code Model Registry as a
 # `ModeConfiguration` (e.g. "ml_small_authority") so app defaults can be tied
 # to proven baselines without runtime imports from `data/eval/`.
 #
@@ -109,7 +109,7 @@ PROD_DEFAULT_NER_MODEL = "en_core_web_trf"  # Prod: Transformer-based, higher qu
 #
 # Hybrid ML pipeline (ml_hybrid_bart_*) is retained and documented but NOT a default
 # recommendation — v2 eval showed hybrid is only useful when the REDUCE model is weak
-# (3B range). With capable REDUCE (9B+), standalone LLM beats hybrid. See RFC-073.
+# (3B range). With capable REDUCE (9B+), standalone LLM beats hybrid. See hybrid provider docs.
 DEV_DEFAULT_SUMMARY_MODE_ID = "ml_small_authority"
 PROD_DEFAULT_SUMMARY_MODE_ID = "ml_bart_led_autoresearch_v1"
 # Tier 3 default (requires Ollama). v2 champion: qwen3.5:9b in bundled mode delivers
@@ -134,7 +134,7 @@ except Exception:
         SUMMARY_MODEL_LED_BASE_16384  # Production baseline: LED-base for reduce phase
     )
 
-# GIL evidence stack defaults (RFC-042 §12.1, Issue #435)
+# GIL evidence stack defaults
 # Used when generate_gi is enabled; loaders resolve aliases via model_registry.
 DEFAULT_EMBEDDING_MODEL = "sentence-transformers/all-MiniLM-L6-v2"  # minilm-l6
 DEFAULT_EXTRACTIVE_QA_MODEL = "deepset/roberta-base-squad2"  # roberta-squad2

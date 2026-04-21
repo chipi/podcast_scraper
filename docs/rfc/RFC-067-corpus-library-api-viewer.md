@@ -16,8 +16,9 @@
   - [RFC-004: Filesystem Layout](RFC-004-filesystem-layout.md) — output directory conventions
   - [RFC-068: Corpus Digest](RFC-068-corpus-digest-api-viewer.md) — digest API & viewer (PRD-023)
 - **Related UX specs**:
-  - [UXS-003: Corpus Library](../uxs/UXS-003-corpus-library.md) — Library tab, Episode rail, catalog layout
-  - [UXS-001: GI / KG viewer](../uxs/UXS-001-gi-kg-viewer.md) — shared tokens and shell conventions
+  - [UXS-003: Corpus Library](../uxs/UXS-003-corpus-library.md) — Library tab, Episode subject rail, catalog layout
+  - [VIEWER_IA: Viewer information architecture](../uxs/VIEWER_IA.md) — shell IA (tabs, subject rail, status bar)
+  - [UXS-001: GI / KG viewer](../uxs/UXS-001-gi-kg-viewer.md) — shared tokens and visual chrome
 - **Related Documents**:
   - [ADR-064: Canonical server layer](../adr/ADR-064-canonical-server-layer-with-feature-flagged-routes.md) — route mounting pattern
 
@@ -259,7 +260,7 @@ where other routes return embedded errors, follow **`/api/search`** style only i
 - Extend `mainTab` union in
   `App.vue` (`web/gi-kg-viewer/src/App.vue`) with `'library'`.
 - Add a **Library** button in the main nav next to Graph / Dashboard with the same styling
-  pattern as existing main-view tabs (UXS-001 shell, UXS-003 Library).
+  pattern as existing main-view tabs (VIEWER_IA shell, UXS-003 Library).
 
 ### Components
 

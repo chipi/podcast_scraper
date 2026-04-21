@@ -1,4 +1,4 @@
-"""Track A autoresearch helpers: env keys, ROUGE extraction, dual LLM judges (RFC-057).
+"""Track A autoresearch helpers: env keys, ROUGE extraction, dual LLM judges.
 
 Logic here is imported by ``autoresearch/prompt_tuning/eval/score.py`` and unit-tested
 without running the full experiment subprocess.

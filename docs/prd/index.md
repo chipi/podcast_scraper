@@ -29,6 +29,7 @@ Features with meaningful **UI** may also link **[UX specifications](../uxs/index
 | [PRD-016](PRD-016-operational-observability-pipeline-intelligence.md) | Operational Observability & Pipeline Intelligence | RFC-025, 026, 027, 064, 065, 066 | **Partial (v2.6.0):** test metrics + GitHub Pages dashboards (RFC-025/026) and **live monitor** (RFC-065), **frozen perf profiles** + **compare Performance tab** (RFC-064/066) shipped; RFC-027 pipeline-metrics gaps (e.g. CSV) remain |
 | [PRD-017](PRD-017-grounded-insight-layer.md) | Grounded Insight Layer (GIL) | RFC-042, 044, 052, 049, 050, 051, 072 | **Partial (v2.6.0):** [RFC-042](../rfc/RFC-042-hybrid-summarization-pipeline.md)/[044](../rfc/RFC-044-model-registry.md)/[052](../rfc/RFC-052-locally-hosted-llm-models-with-prompts.md)/[049](../rfc/RFC-049-grounded-insight-layer-core.md)/[050](../rfc/RFC-050-grounded-insight-layer-use-cases.md) **Completed** (single-layer); cross-layer work in Draft RFC-072 and RFC-051 |
 | [PRD-019](PRD-019-knowledge-graph-layer.md) | Knowledge Graph Layer (KG) | RFC-042, 044, 052, 055, 056, 051, 072 | **Partial (v2.6.0):** [RFC-042](../rfc/RFC-042-hybrid-summarization-pipeline.md)/[044](../rfc/RFC-044-model-registry.md)/[052](../rfc/RFC-052-locally-hosted-llm-models-with-prompts.md)/[055](../rfc/RFC-055-knowledge-graph-layer-core.md)/[056](../rfc/RFC-056-knowledge-graph-layer-use-cases.md) **Completed** (single-layer); cross-layer work in Draft RFC-072 and RFC-051 |
+| [PRD-030](PRD-030-viewer-feed-sources-and-pipeline-jobs.md) | Viewer operator surface — feeds, config, jobs | [RFC-077](../rfc/RFC-077-viewer-feeds-and-serve-pipeline-jobs.md) | **Draft:** structured **`feeds.spec.yaml`** + **operator YAML** (no secrets in file; `serve --config-file` else corpus default); Phase 2 jobs + **stale/cancel/reconcile** ([#626](https://github.com/chipi/podcast_scraper/issues/626)) |
 
 ## Implemented PRDs
 
@@ -55,7 +56,7 @@ Features with meaningful **UI** may also link **[UX specifications](../uxs/index
 
 ## Gap analysis {:#gaps}
 
-**Counts (reconcile when adding PRDs):** **29** PRD documents -- **3** open (Partial) above,
+**Counts (reconcile when adding PRDs):** **30** PRD documents -- **4** open (Partial/Draft) above,
 **18** implemented, **8** Draft (not indexed until promoted).
 Use **`Implemented (vX.Y.Z)`**, **`Partial`**, or **`Draft`** in PRD headers — not **`Completed`**
 (that label is for RFCs and ADRs).

@@ -16,6 +16,11 @@
 - **When intent is clear**, do the work in-session: run Makefile targets, scripts, tests, downloads, and fixes yourself—do **not** habitually close with “you should run X” if the agent environment can run X.
 - **Ask only when blocked:** missing secrets/auth or tools you cannot use; explicit approval required by policy (e.g. commit/push); **unclear scope/intent** (then use “ask first” / “prefer pause” above); unsafe requests.
 
+### `WORKTREE.md` (when present at repo root)
+
+- **Read `WORKTREE.md`** for this checkout’s branch intent, release posture, and **Python/venv** rules before relying on `pytest` / `python` / `make serve-api` output.
+- Use **this worktree’s** `.venv` only; if imports resolve to another checkout, fix the interpreter — **do not** add `[tool.pytest.ini_options] pythonpath = ["src"]` (or similar) to mask it.
+
 ### Git & Branch Workflow
 
 0. **NEVER push any branch unless the user explicitly asks**
@@ -84,6 +89,13 @@
   - Examples that discard local edits: `git checkout -- <path>` (same as restoring that path from **index/HEAD**), `git checkout HEAD -- <path>`, `git restore --source HEAD -- <path>`, `git restore <path>` when it would replace tracked content from the index/commit without the user having asked for that outcome.
   - **Do not** use these to "narrow a PR", "clean up noise", or undo work the user did not ask to remove — **ask** or leave the files alone.
 
+4f. **Gitignored and other local-only paths — never delete or “clean up” on disk unless explicitly asked**
+
+  - Anything listed in **`.gitignore`** (or otherwise not meant to be committed) may hold **operator-local** configs, experiments, or secrets. Treat that content as **the user’s working material**, not disposable scratch.
+  - **Never** use `delete_file`, `rm`, or “empty this folder” cleanup on paths you know are **gitignored** unless the user **explicitly** asked to remove **those** paths or files.
+  - **"Pretend it does not exist"** / **"remove references"** / **"docs must not mention it"** means: change **tracked** files only (documentation, tests, application code, tracked examples). It does **not** mean delete, move, or wipe **gitignored** trees as part of the same task.
+  - In **tracked** prose and examples, do **not** treat **gitignored** paths as the **canonical** location for presets or workflows; point readers at **tracked** examples and docs, or use **neutral placeholders** (e.g. a path the reader supplies), per **`.cursor/rules/documentation.mdc`**.
+
 ### Terminal Command Execution
 
 9. ** NEVER run commands in background — ALWAYS `is_background: false` **
@@ -96,10 +108,10 @@
 
   - Terminal is ALREADY in project root; run commands directly
 
-9b. **Use 10 min timeout for make ci-fast and make test-fast**
+9b. **Use 10 min timeout for make ci-fast and make test-fast** (use **900000 ms (15 min)** for **`make ci-ui-fast`** when Playwright install or browser runs are cold)
 
-  - `make ci-fast` and `make test-fast` run unit + integration + E2E and need time to finish
-  - When invoking them via automation (e.g. run_terminal_cmd), MUST use timeout at least 600000 ms (10 min) so the run is not killed before completion
+  - `make ci-fast` and `make test-fast` run unit + integration + E2E and need time to finish; **`make ci-ui-fast`** swaps Python **`tests/e2e/`** for **Playwright** and may need the longer budget
+  - When invoking them via automation (e.g. run_terminal_cmd), MUST use timeout at least 600000 ms (10 min) so the run is not killed before completion (15 min for **`make ci-ui-fast`** per above)
 
 ### Process Safety — ML Workloads (RFC-074)
 
@@ -107,9 +119,9 @@
 
   - If `make` appears stuck (no output for 60s), do NOT spawn another `make`
   - Report to user: "make appears stuck — check for zombie processes with `make check-zombie`"
-  - NEVER run multiple `make ci` / `make ci-fast` / `make test` concurrently — process pileup on macOS causes unkillable kernel-level zombies and filesystem corruption
+  - NEVER run multiple `make ci` / `make ci-fast` / `make ci-ui-fast` / `make test` concurrently — process pileup on macOS causes unkillable kernel-level zombies and filesystem corruption
 
-10a. **Before running `make ci` or `make ci-fast`, check for existing runs**
+10a. **Before running `make ci`, `make ci-fast`, or `make ci-ui-fast`, check for existing runs**
 
   - Run `pgrep -f "make.*(ci|test)" 2>/dev/null || true` first
   - If processes found, ask user before proceeding
@@ -168,13 +180,14 @@
 5c. **Incremental validation when repeating full `make ci-fast` is unnecessary or the user declines it**
 
   - **User intent:** If the user says they do **not** want a full CI re-run (e.g. "no full ci-fast", "small change", "docs-only"), **comply**. Do not start another full `make ci-fast` unless they ask or the diff clearly needs it.
-  - **Agent response (brief):** State (1) what Makefile targets you **ran**, (2) what **`make ci-fast` would have added**, (3) that **`git commit` pre-commit still runs `make ci-fast`** unless they use `--no-verify`.
+  - **Agent response (brief):** State (1) what Makefile targets you **ran**, (2) what **`make ci-fast`** (or **`make ci-ui-fast`** for viewer-only work) **would have added** beyond that, (3) that **`git commit` pre-commit still runs `make ci-fast`** unless they use `--no-verify`.
   - **Narrow targets (Makefile only — no raw pytest/black):**
     - **`mkdocs.yml` only** or other **MkDocs wiring** without large doc rewrites: **`make docs`**
     - **Markdown under `docs/`**: **`make fix-md`**, **`make lint-markdown`**; add **`make docs`** if `mkdocs.yml`, plugins, or nav could be affected
     - **Policy text only** (e.g. `.cursorrules`, `.cursor/rules/*.mdc`) with no runnable code: usually **nothing** unless asked; offer **`make lint-markdown`** if substantial markdown was edited
+    - **Viewer UI** (`web/gi-kg-viewer/**` TS/Vue/E2E specs, no Python **`tests/e2e`** changes): prefer **`make ci-ui-fast`** for a broad local gate (Playwright included); **pre-commit still runs `make ci-fast`**
     - **Small Python follow-up** after **`make ci-fast` already passed (exit 0) in this session** on the same tree and the edit is obviously localized: **`make format`** (touched paths), **`make lint`**, **`make type`** if types changed; add a **minimal test target** only when scope is clear (load **`test-scope-decision-tree`** skill); if unsure, run **`make ci-fast`** or ask
-  - **Do not** rely on incremental shortcuts when the diff touches **`pyproject.toml`**, **Dockerfile**, **broad `src/` + test changes**, **viewer E2E-visible surfaces**, or **anything that does not map cleanly to a narrow target** — run **`make ci-fast`** or ask.
+  - **Do not** rely on incremental shortcuts when the diff touches **`pyproject.toml`**, **Dockerfile**, **broad `src/` + test changes**, **viewer E2E-visible surfaces**, or **anything that does not map cleanly to a narrow target** — run **`make ci-ui-fast`** when the change is viewer-only, else **`make ci-fast`**, or ask.
 
 12. **ALL analysis/plans → `docs/wip/` (never `docs/analysis/` or `docs/plan/`)**
 
@@ -275,16 +288,17 @@ or accessible names used by tests):
 
 1. **`e2e/E2E_SURFACE_MAP.md`** — Update first when anything **E2E-visible** or **selector-related**
    changes (Playwright `getByRole` strings, entry flows, `#search-q`, `.graph-canvas`, etc.).
-2. **Playwright** — Update `e2e/*.spec.ts`, `helpers.ts`, or `fixtures.ts`; run **`make test-ui-e2e`**.
-3. **`docs/uxs/`** — Update **`UXS-001`** for **shared** tokens/shell rules; update the relevant
+2. **Playwright** — Update `e2e/*.spec.ts`, `helpers.ts`, or `fixtures.ts`; run **`make test-ui-e2e`**, or **`make ci-ui-fast`** for the same **quality gates as `ci-fast`** with **Playwright** instead of Python **`tests/e2e/`** (pre-commit still runs **`make ci-fast`**).
+3. **`docs/uxs/`** — Update **`VIEWER_IA.md`** when **shell IA** changes (regions, navigation axes, persistence, clearing, first-run). Update **`UXS-001`** for **shared** tokens/visual chrome rules; update the relevant
    **feature UXS** (`docs/uxs/index.md` lists Digest, Library, Graph, Search, Dashboard, …) when a
    **surface-specific** visual contract changes, not only when tests break.
 
-4. **User-reported UI bugs** — Do not claim a fix without proof: reproduce with **Chrome DevTools MCP**
-   (or Playwright MCP) when available; capture network / new-tab response; implement fix; **re-validate in
+4. **User-reported UI bugs** — Do not claim a fix without proof: reproduce with **Chrome DevTools MCP by default**
+   when available (Playwright MCP only when clearly better for scripted automation — state the reason in one line);
+   capture network / new-tab response; implement fix; **re-validate in
    the same channel** (same MCP flow / same URL or clicks) after any required process restart — **not**
    only pytest or `make test-ui` if you reproduced in the browser. Tests are **additional** locks. See
-   **Symmetry rule** in **`docs/guides/AGENT_BROWSER_LOOP_GUIDE.md`** → **Obligatory validation when fixing a reported UI bug**.
+   **Default MCP choice** + **Symmetry rule** in **`docs/guides/AGENT_BROWSER_LOOP_GUIDE.md`** → **Obligatory validation when fixing a reported UI bug**.
 
 **Local `make serve` / “use X as root” (interpretation):** When the user points at a directory as the
 **root** for local API + viewer dev (e.g. `.test_outputs`, `./output`, a manual run path), treat that as
@@ -323,6 +337,7 @@ make format        # black + isort
 make lint          # flake8
 make type          # mypy
 make ci-fast       # Fast tests before commit (~6-10 min)
+make ci-ui-fast    # Like ci-fast but Playwright instead of Python tests/e2e (viewer-heavy work)
 make ci            # Full CI suite (~10-15 min)
 make docs          # Build docs (before committing doc changes)
 make lint-markdown # Check markdown
@@ -337,13 +352,14 @@ make fix-md        # Auto-fix markdown
 - ALWAYS use Makefile commands, never direct tools
 - Write lint-valid code from the start
 - Respect module boundaries
-- Default: `make ci-fast` before committing (exceptions: workflow-only changes; recent green CI on current tree in-session; user waives; **incremental / tiny follow-up** — see rules **5** and **5c**)
+- Default: `make ci-fast` before committing; for **viewer-heavy** diffs prefer **`make ci-ui-fast`** locally first (exceptions: workflow-only changes; recent green CI on current tree in-session; user waives; **incremental / tiny follow-up** — see rules **5** and **5c**). **Pre-commit** still runs **`make ci-fast`**
 - ALL analysis/plans → `docs/wip/`
 - Auto-load `.mdc` files for detailed guidance (Rule 17); session review at close (Rule 18), **separate from** metrics JSONL
 - NEVER commit secrets
 -  NEVER `git stash` or `git checkout <ref> -- <file>` during an active merge — it **destroys all conflict resolutions** (Rules 4a–4c)
 - NEVER overwrite local files with remote content without showing the diff and getting approval (Rule 4d)
 - NEVER reset working-tree files from `HEAD`/a ref to drop uncommitted edits without explicit user ask or confirmed prompt (Rule 4e); includes **`git checkout -- <path>`** (same as restore from index/HEAD). Before such git: load **`git-working-tree-safety.mdc`** (Rule 17) or **ask first**
+- NEVER delete or “clean up” **gitignored** paths unless the user **explicitly** asked to remove those files (Rule **4f**)
 - Before workarounds: look for similar examples elsewhere in the repo, compare, and reuse that pattern (Rule 5b).
 - **`.metrics/rule-adherence.jsonl` — write often (do not skip)**:
 

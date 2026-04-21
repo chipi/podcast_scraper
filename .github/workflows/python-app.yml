@@ -24,7 +24,8 @@ on:
       - 'Dockerfile'
       - '.dockerignore'
       - 'web/gi-kg-viewer/**'
-      - 'config/acceptance/FAST_CONFIGS.txt'
+      - 'config/acceptance/FAST_CONFIG.yaml'
+      - 'config/acceptance/fragments/**'
       - '.github/workflows/python-app.yml'
   pull_request:
     branches: [ "main", "release/2.4", "release/2.5" ]
@@ -37,7 +38,8 @@ on:
       - 'Dockerfile'
       - '.dockerignore'
       - 'web/gi-kg-viewer/**'
-      - 'config/acceptance/FAST_CONFIGS.txt'
+      - 'config/acceptance/FAST_CONFIG.yaml'
+      - 'config/acceptance/fragments/**'
       - '.github/workflows/python-app.yml'
 
 permissions:

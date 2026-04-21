@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs'
 import { expect, test } from '@playwright/test'
 import { GI_SAMPLE_FIXTURE } from './fixtures'
-import { mainViewsNav, SHELL_HEADING_RE } from './helpers'
+import { mainViewsNav, SHELL_HEADING_RE, statusBarCorpusPathInput } from './helpers'
 
 const artifactJson = readFileSync(GI_SAMPLE_FIXTURE, 'utf-8')
 
@@ -32,7 +32,8 @@ test.describe('Explore supporting quotes (mocked API)', () => {
               relative_path: 'metadata/ci_sample.gi.json',
               kind: 'gi',
               size_bytes: artifactJson.length,
-              mtime_utc: '2024-01-01T00:00:00Z',
+              mtime_utc: '2026-04-18T12:00:00Z',
+              publish_date: '2026-04-18',
             },
           ],
         }),
@@ -85,14 +86,15 @@ test.describe('Explore supporting quotes (mocked API)', () => {
     await page.goto('/')
     await page.getByRole('heading', { name: SHELL_HEADING_RE }).waitFor()
 
-    await page.getByPlaceholder('/path/to/output').fill('/mock/corpus')
+    await statusBarCorpusPathInput(page).fill('/mock/corpus')
     await mainViewsNav(page).getByRole('button', { name: 'Graph' }).click()
 
     await page.getByRole('button', { name: 'Fit' }).waitFor({ state: 'visible', timeout: 30_000 })
 
-    await page.getByRole('navigation', { name: 'Right panel tabs' }).getByRole('button', { name: 'Explore' }).click()
+    await page.getByTestId('left-panel-enter-explore').click()
+    await page.getByRole('heading', { name: /Explore & query/i }).waitFor({ state: 'visible' })
 
-    await page.getByRole('button', { name: 'Run explore' }).click()
+    await page.getByTestId('explore-filtered-submit').click()
 
     await page.getByText('Explore mock insight with supporting quote', { exact: false }).waitFor({
       timeout: 10_000,

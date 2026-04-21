@@ -1,7 +1,7 @@
 /**
  * Shared Cytoscape stylesheet for GI/KG merged graphs (main canvas + rail mini preview).
  */
-import type { NodeSingular } from 'cytoscape'
+import type { EdgeSingular, NodeSingular } from 'cytoscape'
 import { graphNodeFill } from './colors'
 
 export function cytoscapeNodeLabelColorFromTheme(): string {
@@ -37,6 +37,86 @@ const VISUAL_TYPES = [
   'Entity_organization',
   'Podcast',
 ] as const
+
+/** Tier 1–2 (WIP §3.5): show truncated labels in the medium-zoom band. */
+const LABEL_SHORT_TIER_TYPES = [
+  'Insight',
+  'Topic',
+  'TopicCluster',
+  'Entity_person',
+  'Entity_organization',
+] as const
+
+/** Main profile node diameters (WIP §3.1), before compact scale. */
+const NODE_DIAMETER_MAIN_PX: Record<string, number> = {
+  Insight: 44,
+  Topic: 40,
+  TopicCluster: 48,
+  Entity_person: 34,
+  Entity_organization: 26,
+  Quote: 22,
+  Speaker: 18,
+  Episode: 18,
+  Podcast: 18,
+}
+
+function scaledNodeSize(type: string, compact: boolean): number {
+  const base = NODE_DIAMETER_MAIN_PX[type] ?? 18
+  if (!compact) {
+    return base
+  }
+  return Math.max(12, Math.round((base * 14) / 18))
+}
+
+function graphNodeOpacity(ele: NodeSingular): number {
+  const raw = ele.data('recencyWeight')
+  const rw = Number(raw)
+  /** Parser clamps `recencyWeight` to [0.4, 1]; keep the same floor here (WIP §4.1). */
+  const recency = Number.isFinite(rw) ? Math.max(0.4, Math.min(1, rw)) : 1
+  if (ele.hasClass('graph-dimmed')) {
+    return 0.4 * recency
+  }
+  if (ele.hasClass('graph-neighbour')) {
+    return 0.85 * recency
+  }
+  if (ele.hasClass('graph-focused')) {
+    return recency
+  }
+  return recency
+}
+
+function graphEdgeOpacity(ele: EdgeSingular): number {
+  if (ele.hasClass('graph-edge-dimmed')) {
+    return 0.2
+  }
+  if (ele.hasClass('graph-edge-neighbour')) {
+    return 0.9
+  }
+  return 0.6
+}
+
+function insightBackgroundOpacity(ele: NodeSingular): number {
+  const c = Number(ele.data('confidenceOpacity'))
+  return Number.isFinite(c) ? Math.max(0.35, Math.min(1, c)) : 0.85
+}
+
+/**
+ * Topic hub border from normalized `degreeHeat` (0–1). **0** when there is no heat
+ * signal so expand / search-hit / selection rings are not visually crowded (UXS-004).
+ */
+export function topicDegreeHeatBorderWidthPx(degreeHeat: unknown, compact: boolean): number {
+  const heat = Number(degreeHeat)
+  const h = Number.isFinite(heat) ? Math.max(0, Math.min(1, heat)) : 0
+  if (h <= 0) {
+    return 0
+  }
+  const base = 1 + h * 3
+  return compact ? Math.max(1, base * (14 / 18)) : base
+}
+
+function topicBorderWidthForHeat(ele: NodeSingular, compact: boolean): number {
+  return topicDegreeHeatBorderWidthPx(ele.data('degreeHeat'), compact)
+}
 
 /** Where to put the caption relative to the node body (Cytoscape `text-*` props). */
 export type GiKgNodeLabelPlacement = 'side' | 'above' | 'below'
@@ -91,7 +171,10 @@ export function cytoscapeSideLabelMarginXCallback(compact: boolean): (ele: NodeS
   const avgCharPx = compact ? 4.75 : 5.5
   return (ele: NodeSingular) => {
     const w = ele.width()
-    const label = String(ele.data('label') ?? '')
+    const useShort = ele.hasClass('graph-label-tier-short')
+    const shortL = String(ele.data('shortLabel') ?? '')
+    const fullL = String(ele.data('label') ?? '')
+    const label = useShort && shortL.trim() ? shortL : fullL
     return sideLabelTextMarginX(w, label, maxWrapPx, gapPx, avgCharPx)
   }
 }
@@ -136,6 +219,10 @@ function nodeLabelOffsetStyle(
   }
 }
 
+function labelShortTierSelector(): string {
+  return LABEL_SHORT_TIER_TYPES.map((t) => `node.graph-label-tier-short[type = "${t}"]`).join(', ')
+}
+
 export function buildGiKgCyStylesheet(options?: {
   /** Main graph only — yellow ring for search hits. */
   includeSearchHit?: boolean
@@ -143,16 +230,25 @@ export function buildGiKgCyStylesheet(options?: {
   compact?: boolean
   /** Default `side` (label to the right of the disc, no bbox/disc overlap). */
   nodeLabelPlacement?: GiKgNodeLabelPlacement
+  /** When true, skip opacity transition (matches `prefers-reduced-motion: reduce`). */
+  prefersReducedMotion?: boolean
 }): Record<string, unknown>[] {
   const compact = Boolean(options?.compact)
-  const nw = compact ? 14 : 18
-  const nh = compact ? 14 : 18
+  const nw = scaledNodeSize('Episode', compact)
+  const nh = scaledNodeSize('Episode', compact)
   const fs = compact ? '7px' : '9px'
   const tw = compact ? '72px' : '140px'
   const halo = cytoscapeNodeLabelHaloColorFromTheme()
   const placement: GiKgNodeLabelPlacement = options?.nodeLabelPlacement ?? 'side'
   const labelPos = nodeLabelOffsetStyle(placement, nw, nh, compact)
   const outlineW = compact ? 2 : 2.75
+  const reducedMotion = Boolean(options?.prefersReducedMotion)
+  const transitionStyle: Record<string, unknown> = reducedMotion
+    ? {}
+    : {
+        'transition-property': 'opacity, border-opacity, text-opacity',
+        'transition-duration': 0.15,
+      }
 
   const style: Record<string, unknown>[] = [
     {
@@ -176,6 +272,8 @@ export function buildGiKgCyStylesheet(options?: {
         width: nw,
         height: nh,
         'border-width': 0,
+        opacity: (ele: NodeSingular) => graphNodeOpacity(ele),
+        ...transitionStyle,
       },
     },
     {
@@ -192,39 +290,205 @@ export function buildGiKgCyStylesheet(options?: {
         width: compact ? 1 : 1.5,
         'curve-style': 'bezier',
         'target-arrow-shape': 'triangle',
-        'target-arrow-color': '#adb5bd',
-        'line-color': '#adb5bd',
-        label: 'data(label)',
+        'target-arrow-color': 'var(--ps-muted)',
+        'line-color': 'var(--ps-muted)',
+        'line-style': 'solid',
+        label: '',
         'font-size': compact ? '6px' : '8px',
         color: '#495057',
         'text-outline-width': compact ? 1.5 : 2,
         'text-outline-color': halo,
         'text-outline-opacity': 1,
+        opacity: (ele: EdgeSingular) => graphEdgeOpacity(ele),
+        ...transitionStyle,
       },
     },
   ]
 
   for (const t of VISUAL_TYPES) {
+    const side = scaledNodeSize(t, compact)
     style.push({
       selector: `node[type = "${t}"]`,
       style: {
         'background-color': graphNodeFill(t),
+        width: side,
+        height: side,
       },
     })
   }
 
   style.push({
+    selector: 'node[type = "Insight"]',
+    style: {
+      'background-opacity': (ele: NodeSingular) => insightBackgroundOpacity(ele),
+    },
+  })
+
+  style.push({
+    selector: 'node[type = "Topic"]',
+    style: {
+      'border-width': (ele: NodeSingular) => topicBorderWidthForHeat(ele, compact),
+      'border-color': 'var(--ps-kg)',
+      'border-opacity': 0.55,
+    },
+  })
+
+  style.push({
+    selector: 'node[type = "Topic"]:selected',
+    style: {
+      'border-width': compact ? 2 : 3,
+      'border-color': '#228be6',
+      'border-opacity': 1,
+    },
+  })
+
+  const tcPad = compact ? '14px' : '18px'
+  style.push({
     selector: 'node[type = "TopicCluster"]',
     style: {
-      'background-color': graphNodeFill('TopicCluster'),
-      'background-opacity': 0.22,
-      'border-width': compact ? 1.5 : 2,
+      'background-color': 'var(--ps-kg)',
+      'background-opacity': 0.06,
+      'border-width': compact ? 1.25 : 1.5,
       'border-style': 'dashed',
-      'border-color': '#5f3dc4',
-      'border-opacity': 0.9,
+      'border-color': 'var(--ps-kg)',
+      'border-opacity': 0.4,
       shape: 'roundrectangle',
-      /** Tighter than generic nodes so merged topic clusters read as one tight region. */
-      padding: compact ? '3px' : '6px',
+      padding: tcPad,
+    },
+  })
+
+  style.push({
+    selector: 'node[type = "Insight"], node[type = "Topic"]',
+    style: {
+      'shadow-blur': compact ? 6 : 8,
+      'shadow-color': 'var(--ps-border)',
+      'shadow-offset-x': 0,
+      'shadow-offset-y': 2,
+      'shadow-opacity': 0.6,
+    },
+  })
+
+  style.push({
+    selector: 'node[type = "Topic"].graph-topic-heat-high',
+    style: {
+      'shadow-blur': 12,
+      'shadow-color': 'var(--ps-kg)',
+      'shadow-offset-x': 0,
+      'shadow-offset-y': 2,
+      'shadow-opacity': 0.5,
+    },
+  })
+
+  style.push({
+    selector: 'node.graph-label-tier-none',
+    style: {
+      'text-opacity': 0,
+    },
+  })
+  style.push({
+    selector: 'node.graph-label-tier-short',
+    style: {
+      'text-opacity': 0,
+    },
+  })
+  style.push({
+    selector: labelShortTierSelector(),
+    style: {
+      label: 'data(shortLabel)',
+      'text-opacity': 1,
+    },
+  })
+  style.push({
+    selector: 'node.graph-label-tier-full',
+    style: {
+      label: 'data(label)',
+      'text-opacity': 1,
+    },
+  })
+
+  const edgeStrokes: { selector: string; style: Record<string, unknown> }[] = [
+    {
+      selector: 'edge[edgeType = "HAS_INSIGHT"]',
+      style: {
+        width: compact ? 1.5 : 2,
+        'line-color': 'var(--ps-primary)',
+        'line-style': 'solid',
+        'target-arrow-shape': 'triangle',
+        'target-arrow-color': 'var(--ps-primary)',
+      },
+    },
+    {
+      selector: 'edge[edgeType = "ABOUT"]',
+      style: {
+        width: compact ? 1.5 : 2,
+        'line-color': 'var(--ps-gi)',
+        'line-style': 'solid',
+        'target-arrow-shape': 'none',
+      },
+    },
+    {
+      selector: 'edge[edgeType = "SUPPORTED_BY"]',
+      style: {
+        width: compact ? 0.85 : 1,
+        'line-color': 'var(--ps-muted)',
+        'line-style': 'dashed',
+        'target-arrow-shape': 'triangle',
+        'target-arrow-color': 'var(--ps-muted)',
+      },
+    },
+    {
+      selector: 'edge[edgeType = "RELATED_TO"]',
+      style: {
+        width: compact ? 1 : 1,
+        'line-color': 'var(--ps-kg)',
+        'line-style': 'solid',
+        'target-arrow-shape': 'none',
+      },
+    },
+    {
+      selector: 'edge[edgeType = "MENTIONS"]',
+      style: {
+        width: compact ? 1 : 1,
+        'line-color': 'var(--ps-muted)',
+        'line-style': 'dotted',
+        'target-arrow-shape': 'none',
+      },
+    },
+    {
+      selector: 'edge[edgeType = "SPOKE_IN"]',
+      style: {
+        width: compact ? 1.5 : 2,
+        'line-color': 'var(--ps-primary)',
+        'line-style': 'solid',
+        'target-arrow-shape': 'triangle',
+        'target-arrow-color': 'var(--ps-primary)',
+      },
+    },
+    {
+      selector: 'edge[edgeType = "HAS_MEMBER"]',
+      style: {
+        width: compact ? 1.25 : 1.5,
+        'line-color': 'var(--ps-kg)',
+        'line-style': 'solid',
+        'target-arrow-shape': 'none',
+        'line-opacity': 0.6,
+      },
+    },
+  ]
+  for (const r of edgeStrokes) {
+    style.push(r)
+  }
+
+  /** Explicit fallback when `edgeType` is missing or `(unknown)` after canonicalisation. */
+  style.push({
+    selector: 'edge[edgeType = "(unknown)"]',
+    style: {
+      width: compact ? 1 : 1.5,
+      'curve-style': 'bezier',
+      'line-color': 'var(--ps-muted)',
+      'line-style': 'solid',
+      'target-arrow-shape': 'triangle',
+      'target-arrow-color': 'var(--ps-muted)',
     },
   })
 
@@ -235,26 +499,39 @@ export function buildGiKgCyStylesheet(options?: {
       'target-arrow-shape': 'none',
       width: 0,
       label: '',
-      'events': 'no',
+      events: 'no',
     },
   })
 
-  /** RFC-076: eligible Topic / Person / Entity for plain dbl-click cross-episode expand. */
-  const rfc076Ring = compact ? 1.5 : 2
-  const rfc076ExpandedRing = compact ? 2.25 : 3
   style.push({
-    selector: 'node.rfc076-expandable',
+    selector: 'edge.graph-edge-dimmed',
     style: {
-      'border-width': rfc076Ring,
+      opacity: 0.2,
+    },
+  })
+  style.push({
+    selector: 'edge.graph-edge-neighbour',
+    style: {
+      opacity: 0.9,
+    },
+  })
+
+  /** Eligible Topic / Person / Entity for plain dbl-click cross-episode expand. */
+  const expandEligibleRing = compact ? 1.5 : 2
+  const expandSeedRing = compact ? 2.25 : 3
+  style.push({
+    selector: 'node.graph-expand-eligible',
+    style: {
+      'border-width': expandEligibleRing,
       'border-style': 'solid',
       'border-color': '#14b8a6',
       'border-opacity': 0.92,
     },
   })
   style.push({
-    selector: 'node.rfc076-expanded-seed',
+    selector: 'node.graph-expand-seed',
     style: {
-      'border-width': rfc076ExpandedRing,
+      'border-width': expandSeedRing,
       'border-style': 'solid',
       'border-color': '#748ffc',
       'border-opacity': 0.95,
@@ -262,17 +539,14 @@ export function buildGiKgCyStylesheet(options?: {
   })
 
   if (options?.includeSearchHit) {
-    const hitStyle: Record<string, unknown> = {
-      'border-width': 4,
-      'border-color': '#fab005',
-      'border-opacity': 0.9,
-      width: 24,
-      height: 24,
-      'z-index': 10,
-    }
     style.push({
       selector: 'node.search-hit',
-      style: hitStyle,
+      style: {
+        'border-width': 4,
+        'border-color': '#fab005',
+        'border-opacity': 0.9,
+        'z-index': 10,
+      },
     })
   }
 

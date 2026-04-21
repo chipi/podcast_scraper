@@ -91,6 +91,24 @@ def test_corpus_text_file_serves_cleaned_when_raw_txt_missing(tmp_path: Path) ->
     assert r.text == "cleaned only"
 
 
+def test_corpus_text_file_serves_raw_when_cleaned_path_requested_but_missing(
+    tmp_path: Path,
+) -> None:
+    """Some pipelines store only ``*.txt`` while metadata references ``*.cleaned.txt``."""
+    sub = tmp_path / "transcripts"
+    sub.mkdir(parents=True)
+    (sub / "ep.txt").write_text("raw only", encoding="utf-8")
+
+    app = create_app(tmp_path, static_dir=False)
+    client = TestClient(app)
+    r = client.get(
+        "/api/corpus/text-file",
+        params={"path": str(tmp_path), "relpath": "transcripts/ep.cleaned.txt"},
+    )
+    assert r.status_code == 200
+    assert r.text == "raw only"
+
+
 def test_corpus_text_file_prefers_raw_txt_when_both_exist(tmp_path: Path) -> None:
     sub = tmp_path / "transcripts"
     sub.mkdir(parents=True)

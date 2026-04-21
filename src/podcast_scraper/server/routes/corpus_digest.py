@@ -1,4 +1,4 @@
-"""GET /api/corpus/digest — Corpus Digest (RFC-068)."""
+"""GET /api/corpus/digest — Corpus Digest."""
 
 from __future__ import annotations
 

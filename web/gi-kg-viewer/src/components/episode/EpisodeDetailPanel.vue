@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
+import { computed, inject, ref, watch } from 'vue'
 import { storeToRefs } from 'pinia'
 import { fetchIndexStats, type IndexStatsEnvelope } from '../../api/indexStatsApi'
 import {
@@ -14,8 +14,10 @@ import CilTopicPillsRow from '../shared/CilTopicPillsRow.vue'
 import HelpTip from '../shared/HelpTip.vue'
 import PodcastCover from '../shared/PodcastCover.vue'
 import { useArtifactsStore } from '../../stores/artifacts'
-import { useEpisodeRailStore } from '../../stores/episodeRail'
+import { useGraphExplorerStore } from '../../stores/graphExplorer'
+import { useGraphFilterStore } from '../../stores/graphFilters'
 import { useGraphNavigationStore } from '../../stores/graphNavigation'
+import { useSubjectStore } from '../../stores/subject'
 import { useShellStore } from '../../stores/shell'
 import { buildLibrarySearchHandoffQuery } from '../../utils/corpusSearchHandoff'
 import { digestRowFeedLabelWithCatalog } from '../../utils/digestRowDisplay'
@@ -32,6 +34,8 @@ import {
   applyGraphFocusPlan,
   graphFocusPlanFromCilPill,
 } from '../../utils/cilGraphFocus'
+import { corpusGraphBaselineLoaderKey } from '../../corpusGraphBaseline'
+import { findEpisodeGraphNodeIdForMetadataPathOrEpisodeId } from '../../utils/graphEpisodeMetadata'
 
 const props = withDefaults(
   defineProps<{
@@ -54,9 +58,23 @@ const emit = defineEmits<{
 
 const shell = useShellStore()
 const artifacts = useArtifactsStore()
+const graphExplorer = useGraphExplorerStore()
+const loadCorpusGraphBaseline = inject(corpusGraphBaselineLoaderKey, null)
+
+/** Same merged-graph load as first Graph visit — skip if corpus slice is already loaded. */
+async function ensureDefaultCorpusGraphIfNeeded(): Promise<void> {
+  if (!loadCorpusGraphBaseline) {
+    return
+  }
+  if (graphExplorer.graphTabOpenedThisSession && artifacts.selectedRelPaths.length > 0) {
+    return
+  }
+  await loadCorpusGraphBaseline()
+}
+const graphFilters = useGraphFilterStore()
 const graphNav = useGraphNavigationStore()
-const episodeRail = useEpisodeRailStore()
-const { metadataRelativePath } = storeToRefs(episodeRail)
+const subject = useSubjectStore()
+const { episodeMetadataPath: metadataRelativePath } = storeToRefs(subject)
 
 const feeds = ref<CorpusFeedItem[]>([])
 const indexStatsEnvelope = ref<IndexStatsEnvelope | null>(null)
@@ -401,14 +419,29 @@ async function openInGraph(): Promise<void> {
     graphActionError.value = 'No GI/KG artifacts on disk for this episode.'
     return
   }
-  await artifacts.loadRelativeArtifacts(paths)
+  /** Baseline + append await graph/corpus reloads; ``detail`` can swap if another fetch completes — must not focus using a stale ref after awaits. */
+  const episodeMeta = detail.value.metadata_relative_path?.trim() ?? ''
+  const episodeIdForGraph = detail.value.episode_id
+  const episodeUiTitle = detail.value.episode_title?.trim() || null
+  await ensureDefaultCorpusGraphIfNeeded()
+  await artifacts.appendRelativeArtifacts(paths)
   graphNav.clearLibraryEpisodeHighlights()
-  const eid = detail.value.episode_id?.trim()
-  if (eid) {
-    graphNav.requestFocusNode(eid)
-    graphNav.setLibraryEpisodeHighlights([eid])
+  if (episodeMeta) {
+    const epCy =
+      findEpisodeGraphNodeIdForMetadataPathOrEpisodeId(
+        graphFilters.filteredArtifact,
+        episodeMeta,
+        episodeIdForGraph,
+      ) || ''
+    subject.focusEpisode(episodeMeta, {
+      uiTitle: episodeUiTitle,
+      ...(epCy ? { graphConnectionsCyId: epCy } : {}),
+    })
+    if (epCy) {
+      graphNav.requestFocusNode(epCy)
+    }
   } else {
-    graphNav.clearPendingFocus()
+    subject.setEpisodeUiLabel(episodeUiTitle)
   }
   emit('switch-main-tab', 'graph')
 }
@@ -434,11 +467,13 @@ async function openDetailCilTopicInGraph(pillIndex: number): Promise<void> {
     graphActionError.value = 'No GI/KG artifacts on disk for this episode.'
     return
   }
-  await artifacts.loadRelativeArtifacts(paths)
+  const episodeIdForPlan = detail.value.episode_id
+  await ensureDefaultCorpusGraphIfNeeded()
+  await artifacts.appendRelativeArtifacts(paths)
   graphNav.clearLibraryEpisodeHighlights()
-  const plan = graphFocusPlanFromCilPill(pill, detail.value.episode_id)
+  const plan = graphFocusPlanFromCilPill(pill, episodeIdForPlan)
   applyGraphFocusPlan(graphNav, plan)
-  const eid = detail.value.episode_id?.trim()
+  const eid = typeof episodeIdForPlan === 'string' ? episodeIdForPlan.trim() : ''
   if (
     eid &&
     (plan.kind === 'episode_only' || (plan.kind === 'topic' && plan.fallback))
@@ -452,7 +487,6 @@ function openInSearch(): void {
   if (!detail.value) {
     return
   }
-  episodeRail.showTools()
   const fid = normalizeFeedIdForViewer(detail.value.feed_id)
   const catalogTitle = fid ? feedDisplayTitleById.value[fid]?.trim() : ''
   emit('focus-search', {
@@ -467,7 +501,7 @@ function openSimilarEpisode(row: CorpusSimilarEpisodeItem): void {
   if (!p) {
     return
   }
-  episodeRail.openEpisodePanel(p)
+  subject.focusEpisode(p, { uiTitle: row.episode_title?.trim() || null })
 }
 
 watch(

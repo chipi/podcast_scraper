@@ -2,8 +2,8 @@
 
 - **Status**: Completed (v2.6.0) — Vue 3 SPA **`web/gi-kg-viewer/`**, FastAPI
   **`src/podcast_scraper/server/`**, **`podcast serve`** / **`make serve`**, Playwright E2E.
-  The **shell** (nav, **Corpus** vs **API · Data**, **Dashboard**, graph host, semantic search,
-  health matrix) lives here; **Library**, **Digest**, extended **corpus** and **index rebuild**
+  The **shell** (nav, **status bar** corpus path, **Dashboard**, graph host, **left** query column
+  for semantic search + explore, **right** subject column, health matrix) lives here; **Library**, **Digest**, extended **corpus** and **index rebuild**
   APIs, and **graph exploration chrome** are specified in sibling RFCs but **ship inside the same
   app** (see **Delivered scope** below).
 - **Authors**: Podcast Scraper Team
@@ -28,16 +28,18 @@
   - [RFC-055: KG core](RFC-055-knowledge-graph-layer-core.md) — KG artifact shape
   - [RFC-056: KG use cases](RFC-056-knowledge-graph-layer-use-cases.md)
   - [RFC-067: Corpus library API & viewer](RFC-067-corpus-library-api-viewer.md) — **`/api/corpus/feeds`**
-    **`/episodes`**, Library UX, episode rail handoffs
+    **`/episodes`**, Library UX, episode subject-rail handoffs
   - [RFC-068: Corpus digest API & viewer](RFC-068-corpus-digest-api-viewer.md) — **`/api/corpus/digest`**
     **Digest** tab, discovery flows
   - [RFC-069: Graph exploration toolkit](RFC-069-graph-exploration-toolkit.md) — minimap, degree
     filter, layouts, zoom affordances on the graph card
+  - [RFC-077: Viewer feeds, operator YAML, pipeline jobs on `serve`](RFC-077-viewer-feeds-and-serve-pipeline-jobs.md) —
+    opt-in **`/api/feeds`**, **`/api/operator-config`**, **`/api/jobs`** (not `enable_platform`)
   - [RFC-051: Database projection GIL/KG](RFC-051-database-projection-gil-kg.md) — future structured
     query backend
 - **Related UX specs**:
-  - [UXS-001: GI/KG viewer](../uxs/UXS-001-gi-kg-viewer.md) — shared design system (tokens, density,
-    shell chrome, accessibility)
+  - [VIEWER_IA: Viewer information architecture](../uxs/VIEWER_IA.md) — **canonical** shell IA (regions, axes, persistence, clearing, first-run)
+  - [UXS-001: GI/KG viewer](../uxs/UXS-001-gi-kg-viewer.md) — shared design system (tokens, typography, **visual** chrome, accessibility)
   - [UXS-002 Corpus Digest](../uxs/UXS-002-corpus-digest.md), [UXS-003 Corpus Library](../uxs/UXS-003-corpus-library.md),
     [UXS-004 Graph Exploration](../uxs/UXS-004-graph-exploration.md), [UXS-005 Semantic Search](../uxs/UXS-005-semantic-search.md),
     [UXS-006 Dashboard](../uxs/UXS-006-dashboard.md) — per-surface visual contracts (see [UXS index](../uxs/index.md))
@@ -54,28 +56,32 @@
   - [GitHub #50](https://github.com/chipi/podcast_scraper/issues/50) — Platform UI + server (v2.7)
   - [GitHub #347](https://github.com/chipi/podcast_scraper/issues/347) — UI for DB-backed corpus (v2.7)
   - [GitHub #46](https://github.com/chipi/podcast_scraper/issues/46) — Docker architecture (v2.7)
-- **Updated**: 2026-04-11 (expanded v2.6 shell scope, sibling RFC cross-links, server layout)
+  - [GitHub #606](https://github.com/chipi/podcast_scraper/issues/606) — Viewer shell restructure (query left, subject right, status bar)
+- **Updated**: 2026-04-19 — shell IA #606 narrative; **RFC-077** server flags, route tree, and `enable_platform` vs opt-in feeds/operator/jobs
 
 ## Abstract
 
 This RFC defines the **v2 GI/KG viewer**: a **Vue 3 + Vite** single-page app (**`web/gi-kg-viewer/`**)
 backed by the canonical FastAPI layer (**`src/podcast_scraper/server/`**). It replaces the removed
 vanilla-JS prototype (**`web/gi-kg-viz/`**, #445) with one **“Podcast Intelligence Platform”** shell:
-main navigation (**Digest**, **Library**, **Graph**, **Dashboard**), a left rail (**Corpus** path vs
-**API · Data**), semantic search (**RFC-061**), a **Cytoscape.js** graph host, and a **Dashboard** with
-**Pipeline** vs **Content intelligence** chart sections. **Pinia**, **TypeScript**, and **Tailwind**
+main navigation (**Digest**, **Library**, **Graph**, **Dashboard**), a **left** query column (**Semantic search** default; **Explore** as a slide-in mode from the same column), a **right** subject column (episode / graph-node / future topic-person), semantic search (**RFC-061**), a **Cytoscape.js** graph host, and a **Dashboard** with
+**Coverage** / **Intelligence** / **Pipeline** sub-tabs (see **UXS-006**). **Pinia**, **TypeScript**, and **Tailwind**
 (UXS-001 tokens) carry state and styling; **`podcast serve`** serves the built SPA plus **`/api/*`**.
+
+**Shipped layout (#606, 2026-04):** **Shell IA** is normative in **[VIEWER_IA](../uxs/VIEWER_IA.md)**. Corpus path and offline **Files** live on the **status bar**; **List** opens **`artifact-list-dialog`** (load / graph handoffs). **Dashboard** ships as **briefing** plus **Coverage** / **Intelligence** / **Pipeline** (index rebuild and coverage charts on **Coverage** — see **UXS-006**), not a legacy left **API · Data** workspace component. The **Delivered scope** table below reflects this; see
+[#606](https://github.com/chipi/podcast_scraper/issues/606), **VIEWER_IA**, and **Active** UXSs.
 
 The same release expanded the **server** beyond the original search + artifacts + explore + index
 stats sketch: **corpus metrics**, **library**, **digest**, **binary/covers**, **`POST /api/index/rebuild`**
-and **`GET /api/corpus/runs/summary`** (and related routes) power **API · Data**, **Library**, **Digest**,
-and **Dashboard** panels. Behavioral and API detail for those areas lives in **RFC-067**, **RFC-068**,
-and **RFC-069**; graph chrome specifics (minimap, degree buckets, layout combobox, export PNG) are
+and **`GET /api/corpus/runs/summary`** (and related routes) power the **Dashboard** workspace, **Library**, **Digest**,
+and related graph surfaces. Behavioral and API detail for those areas lives in **RFC-067**, **RFC-068**,
+and **RFC-069**; graph chrome specifics (minimap, degree buckets, layout cycle + **Re-layout**, filters popover, export PNG) are
 **RFC-069** on top of this RFC’s graph integration patterns.
 
 The FastAPI package remains the **seed of the platform API** ([#50](https://github.com/chipi/podcast_scraper/issues/50),
 [#347](https://github.com/chipi/podcast_scraper/issues/347)): **`enable_platform`** in **`app.py`**
-is reserved for future platform routers; **v2.6** mounts **viewer + corpus** routes unconditionally.
+is still reserved for future megasketch **catalog / DB** routers under **`routes/platform/`**.
+**RFC-077** adds separate flags (**`enable_feeds_api`**, **`enable_operator_config_api`**, **`enable_jobs_api`**) for corpus RSS list file, viewer-safe operator YAML, and HTTP pipeline jobs — see [RFC-077](RFC-077-viewer-feeds-and-serve-pipeline-jobs.md). **v2.6+** mounts **viewer + corpus** routes unconditionally; RFC-077 routes are **opt-in**.
 
 **Architecture alignment:** The server is a **consumption and coordination layer** — it does not mutate
 artifacts or pipeline outputs. It wraps **`VectorStore`**, **`gi explore`**, filesystem artifacts, and
@@ -86,21 +92,52 @@ This follows megasketch **A.2** — **one pipeline core, multiple shells** (CLI 
 
 | Surface | What shipped (summary) | Normative detail |
 | ------- | ---------------------- | ---------------- |
-| **App shell** | Header (**Podcast Intelligence Platform** + v2), **Main views** tabs, **Corpus** / **API · Data** left tabs, right **Search & Explore** vs **Episode** / graph context rails | [UXS-001](../uxs/UXS-001-gi-kg-viewer.md) |
-| **Digest** | Default entry tab for online mode; rolling window, topic bands, **Recent** list, **Episode** rail, **Search topic** handoff | [UXS-002](../uxs/UXS-002-corpus-digest.md) + [RFC-068](RFC-068-corpus-digest-api-viewer.md) |
-| **Library** | Feed list + cursor-paginated episodes, filters, **Episode** rail (**Open in graph**, **Prefill semantic search**, similar episodes) | [UXS-003](../uxs/UXS-003-corpus-library.md) + [RFC-067](RFC-067-corpus-library-api-viewer.md) |
-| **Graph** | Merged GI/KG load, **Sources** / **Types** / **Edges**, search-hit focus, **Episode** rail on graph when metadata resolves; **toolbar** zoom/fit/export; **RFC-069** overlays (layout, degree filter, minimap, Shift+box zoom) | [UXS-004](../uxs/UXS-004-graph-exploration.md) + this RFC + [RFC-069](RFC-069-graph-exploration-toolkit.md) |
+| **App shell** | Header (**Podcast Intelligence Platform** + v2), **Main views** tabs, **left** query column (**Semantic search** / **Explore** mode), **status bar** (corpus path, health, offline files), **right** subject column (episode / graph-node / …) | [VIEWER_IA](../uxs/VIEWER_IA.md) + [UXS-001](../uxs/UXS-001-gi-kg-viewer.md) |
+| **Digest** | Default entry tab for online mode; rolling window, topic bands, **Recent** list, **Episode** subject rail, **Search topic** handoff | [UXS-002](../uxs/UXS-002-corpus-digest.md) + [RFC-068](RFC-068-corpus-digest-api-viewer.md) |
+| **Library** | Feed list + cursor-paginated episodes, filters, **Episode** subject rail (**Open in graph**, **Prefill semantic search**, similar episodes) | [UXS-003](../uxs/UXS-003-corpus-library.md) + [RFC-067](RFC-067-corpus-library-api-viewer.md) |
+| **Graph** | Merged GI/KG load, **Sources** / **Types** / **Edges**, search-hit focus, **Episode** subject rail on graph when metadata resolves; **toolbar** zoom/fit/export; **RFC-069** overlays (layout, degree filter, minimap, Shift+box zoom) | [UXS-004](../uxs/UXS-004-graph-exploration.md) + this RFC + [RFC-069](RFC-069-graph-exploration-toolkit.md) |
 | **Semantic search** | **`#search-q`**, since / top‑k, **Advanced search** modal, **Search result insights** modal, **G** / **L** actions, merge duplicate KG surfaces | [UXS-005](../uxs/UXS-005-semantic-search.md) + [RFC-061](RFC-061-semantic-corpus-search.md) |
-| **Dashboard** | **Corpus summary** strip; **Dashboard sections** tablist **Pipeline** vs **Content intelligence**; Chart.js (manifest, **run.json**, index/digest glance, GI/KG timelines, histograms) | [UXS-006](../uxs/UXS-006-dashboard.md) + [RFC-071](RFC-071-corpus-intelligence-dashboard-viewer.md); stats from **`/api/corpus/*`** |
-| **API · Data** | **Health** matrix (**Artifacts**, **Semantic search**, **Library API**, **Digest API**, **Binary**, …), elevated **Data** cards (**Corpus root**, **Corpus catalog**, **Graph**, **Vector index** with rebuild) | UXS-001 |
-| **Server** | **`app.py`** mounts **health**, **artifacts**, **search**, **explore**, **index_stats**, **index_rebuild**, **corpus_library**, **corpus_binary**, **corpus_metrics**, **corpus_digest** | [ADR-064](../adr/ADR-064-canonical-server-layer-with-feature-flagged-routes.md) |
+| **Dashboard** | **Briefing** card; **Coverage** / **Intelligence** / **Pipeline** sub-tabs; Chart.js surfaces per **UXS-006**; corpus **List** / **Load into graph** via **status bar** (not a legacy **`CorpusDataWorkspace`** on the tab body) | [UXS-006](../uxs/UXS-006-dashboard.md) + [RFC-071](RFC-071-corpus-intelligence-dashboard-viewer.md) + [VIEWER_IA](../uxs/VIEWER_IA.md) (status bar) |
+| **Server** | **`app.py`** mounts **health**, **artifacts**, **search**, **explore**, **index_stats**, **index_rebuild**, **corpus_library**, **corpus_binary**, **corpus_metrics**, **corpus_digest**, …; optional **RFC-077** **`/api/feeds`**, **`/api/operator-config`**, **`/api/jobs`** | [ADR-064](../adr/ADR-064-canonical-server-layer-with-feature-flagged-routes.md), [RFC-077](RFC-077-viewer-feeds-and-serve-pipeline-jobs.md) |
 | **E2E** | Playwright under **`web/gi-kg-viewer/e2e/`** (Firefox; dedicated Vite port in CI) | [E2E surface map](https://github.com/chipi/podcast_scraper/blob/main/web/gi-kg-viewer/e2e/E2E_SURFACE_MAP.md), [ADR-066](../adr/ADR-066-playwright-for-ui-e2e-testing.md) |
+
+The table documents **shipped** viewer chrome including the **#606** shell IA update.
+
+## Shell restructure (#606, shipped)
+
+**Information architecture:** query column left (**Semantic search** default; **Explore** mode), main view tabs,
+**subject** column right, **status bar** for corpus path / health / offline files / **List** (artifacts dialog). **Normative** shell IA: **[VIEWER_IA](../uxs/VIEWER_IA.md)**. **Normative** layout and tokens
+stay in **Active** UXSs (see
+[UX specifications index — Living documents and ship boundary](../uxs/index.md#living-documents-and-ship-boundary)). Track history in
+[GitHub #606](https://github.com/chipi/podcast_scraper/issues/606).
+
+### Behavioral invariants
+
+- **Corpus path change** clears current **subject** context and must keep the existing
+  refresh cascade (artifacts list, library, digest, dashboard, index stats) wired from
+  `shellStore` / `App.vue` watchers.
+- **Subject** selection in the right **subject rail** **persists** across **main tab**
+  switches (Digest / Library / Graph / Dashboard). Clear on explicit rail close, new
+  subject selection, or corpus path change.
+- With **main tab** **Graph** and subject kind episode / topic / person (where
+  applicable), preserve graph **focus / center** on the resolved Cytoscape node (existing
+  `graphNavigation` patterns).
+- **StaleGeneration** and other async gates must **not** be removed or bypassed during
+  shell-only refactors.
+- **Offline** GI/KG load via folder / file picker remains supported on the **status bar**.
+
+### Focus and keyboard (shell-specific)
+
+Global shortcuts (**slash** for search focus, **Escape** on Graph, per-row **G** / **L** on semantic
+search hits) are documented in [UXS-001](../uxs/UXS-001-gi-kg-viewer.md) and implemented in
+`useViewerKeyboard.ts`. Extend the
+[E2E surface map](https://github.com/chipi/podcast_scraper/blob/main/web/gi-kg-viewer/e2e/E2E_SURFACE_MAP.md)
+when automation-visible strings change.
 
 ## Problem Statement
 
 **v2.6 scope note:** The shipped app addresses the v1 gaps below **and** adds corpus-scale
-navigation (**Digest**, **Library**), aggregate **Dashboard** analytics, **API · Data** operations
-(including **vector index rebuild**), and deep graph chrome (**RFC-069**) — all in one SPA. The
+navigation (**Digest**, **Library**), aggregate **Dashboard** analytics (briefing + sub-tabs; **index rebuild** on **Coverage**), **status bar** corpus/artifact flows, and deep graph chrome (**RFC-069**) — all in one SPA. The
 following bullets remain the historical motivation; **Delivered scope** summarizes what landed.
 
 The viewer v1 (`web/gi-kg-viz/`, [#445](https://github.com/chipi/podcast_scraper/issues/445))
@@ -165,16 +202,16 @@ through a graphical interface.
    functionality
 10. **Platform-ready design** — server, frontend, and API contracts designed to grow
     into the full platform vision (megasketch Part A/B) without architectural rewrites
-11. **Corpus discovery tabs** — **Digest** and **Library** main views with shared **Episode** rail
+11. **Corpus discovery tabs** — **Digest** and **Library** main views with shared **Episode** subject rail
     patterns and handoffs to graph and search (**RFC-068**, **RFC-067**)
 12. **Corpus and runs APIs** — **`/api/corpus/*`** for stats, feeds, episodes, digest, runs summary,
-    binary/covers; extended **`/api/health`** capability flags for the left **API** card
+    binary/covers; extended **`/api/health`** capability flags for the **Dashboard** API card
 13. **Index lifecycle in UI** — **`GET /api/index/stats`** plus **`POST /api/index/rebuild`**
-    (incremental vs full) from **API · Data**, with disabled states while rebuild runs
+    (incremental vs full) from **Dashboard → Coverage** (see **UXS-006**), with disabled states while rebuild runs
 14. **Graph exploration toolkit** — On-canvas and card chrome for fit/zoom/export, layouts, degree
     buckets, minimap, Shift+drag box zoom (**RFC-069**)
-15. **Dashboard analytics** — **Pipeline** vs **Content intelligence** sections driven by corpus +
-    index + artifact aggregate endpoints
+15. **Dashboard analytics** — **Coverage** / **Intelligence** / **Pipeline** sub-tabs driven by corpus +
+    index + artifact aggregate endpoints (**UXS-006**)
 16. **Playwright regression suite** — Specs and **E2E surface map** kept in lockstep with UI
     (**ADR-066**, [#509](https://github.com/chipi/podcast_scraper/issues/509))
 
@@ -352,17 +389,21 @@ src/podcast_scraper/server/
 │   ├── corpus_digest.py   # digest window + topic bands (RFC-068)
 │   ├── corpus_metrics.py  # corpus stats, runs summary, aggregates for Dashboard
 │   ├── corpus_binary.py   # episode cover / binary helpers
-│   └── platform/          # v2.7 — reserved; enable_platform currently no-op in app factory
+│   ├── feeds.py           # optional RFC-077 — GET/PUT /feeds
+│   ├── operator_config.py # optional RFC-077 — GET/PUT /operator-config
+│   ├── jobs.py            # optional RFC-077 — POST/GET /jobs (+ cancel, reconcile)
+│   └── platform/          # reserved (#50, #347); not used for RFC-077
 ├── dependencies.py        # shared wiring (output_dir, stores) as implemented
 └── schemas.py             # Pydantic models shared by routes
 ```
 
-**FastAPI app factory (`app.py`) — v2.6 behavior:**
+**FastAPI app factory (`app.py`) — shipped behavior:**
 
-- **`create_app(output_dir, static_dir=..., enable_platform=False)`** — all **viewer + corpus**
-  routers above are **`include_router(..., prefix="/api")`** unconditionally.
-- **`enable_platform`**: reserved; **platform** package exists for future **#50 / #347** work but does
-  not mount extra routers yet.
+- **`create_app(output_dir, static_dir=..., enable_platform=False, enable_feeds_api=False, …)`** — all **viewer + corpus**
+  routers in the tree above (except the three optional RFC-077 files) are **`include_router(..., prefix="/api")`** unconditionally.
+- **`enable_feeds_api` / `enable_operator_config_api` / `enable_jobs_api`**: when true, mount **RFC-077** routers (`feeds`, `operator_config`, `jobs`). Env aliases: `PODCAST_SERVE_ENABLE_*` (reload factory).
+- **`enable_platform`**: reserved; **`routes/platform/`** exists for future **#50 / #347** work but does
+  not mount routers yet.
 - **`static_dir`**: when **`web/gi-kg-viewer/dist`** exists (or path passed), mounts **`StaticFiles`**
   at **`/`** with **`html=True`** for SPA fallback.
 - **CORS**: allows local Vite ports **5173** / **5174** for dev.

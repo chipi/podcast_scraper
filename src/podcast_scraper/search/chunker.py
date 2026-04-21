@@ -1,4 +1,4 @@
-"""Transcript chunking for semantic indexing (RFC-061 §3 / #484 Step 2)."""
+"""Transcript chunking for semantic indexing."""
 
 from __future__ import annotations
 
@@ -121,7 +121,7 @@ def chunk_transcript(
     overlap_tokens: int = 50,
     timestamps: Optional[List[Dict[str, Any]]] = None,
 ) -> List[TranscriptChunk]:
-    """Split transcript into overlapping sentence-based chunks (RFC-061).
+    """Split transcript into overlapping sentence-based chunks.
 
     Sentences are split on ``.?!`` followed by whitespace. If that yields at most
     one span and the transcript is long, paragraph boundaries (blank lines) are

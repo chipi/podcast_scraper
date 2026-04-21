@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { Chart } from 'chart.js'
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
-import { chartGridColor, rgbaFromToken } from '../../utils/chartTheme'
+import { rgbaFromToken } from '../../utils/chartTheme'
 import { ensureChartJsRegistered } from '../../utils/chartRegister'
 
 const props = defineProps<{
@@ -85,7 +85,7 @@ function buildChart(): void {
         y: {
           beginAtZero: true,
           ticks: { precision: 0, font: { size: 10 } },
-          grid: { color: chartGridColor() },
+          grid: { display: false },
         },
       },
     },

@@ -1,12 +1,16 @@
-"""Platform route stubs for v2.7 (#50, #347).
+"""Reserved package for future megasketch platform routes (#50, #347).
 
-Planned routes (not yet implemented):
-- GET/POST /api/feeds   — feed catalog CRUD
-- GET      /api/episodes — episode browsing
-- POST/GET /api/jobs     — pipeline job management
-- GET      /api/status   — pipeline monitoring
+**Not used for RFC-077.** Corpus RSS list file, viewer-safe operator YAML, and HTTP
+pipeline jobs are **top-level** routers next to this package:
 
-When ready, create route modules here (e.g. ``feeds.py``) following the
-pattern in ``server/routes/`` and include them in ``app.py`` behind an
-``enable_platform`` flag.
+- ``routes/feeds.py`` — ``GET``/``PUT /api/feeds`` (``feeds.spec.yaml``); gated by
+  ``enable_feeds_api`` / env ``PODCAST_SERVE_ENABLE_FEEDS_API``.
+- ``routes/operator_config.py`` — ``GET``/``PUT /api/operator-config``; gated by
+  ``enable_operator_config_api`` / ``PODCAST_SERVE_ENABLE_OPERATOR_CONFIG_API``.
+- ``routes/jobs.py`` — ``POST``/``GET /api/jobs``, cancel, reconcile, etc.; gated by
+  ``enable_jobs_api`` / ``PODCAST_SERVE_ENABLE_JOBS_API``.
+
+Normative docs: RFC-077 (viewer feeds, operator config, pipeline jobs) and
+``docs/guides/SERVER_GUIDE.md``. The ``enable_platform`` argument to ``create_app``
+remains reserved until #50/#347 ship separate catalog or DB-backed surfaces.
 """

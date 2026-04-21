@@ -5,7 +5,7 @@ import { fileURLToPath } from 'node:url'
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
 /**
- * RFC-062: browser E2E against Vite dev server (no Python API required for offline tests).
+ * Browser E2E against Vite dev server (no Python API required for offline tests).
  */
 export default defineConfig({
   testDir: './e2e',
@@ -33,7 +33,8 @@ export default defineConfig({
       'npm exec vite -- --port 5174 --strictPort --host 127.0.0.1',
     cwd: __dirname,
     url: 'http://127.0.0.1:5174',
-    reuseExistingServer: !process.env.CI,
+    /** Reuse a dev server on 5174 when present so local runs do not fail if `CI=true`. */
+    reuseExistingServer: true,
     timeout: process.env.CI ? 180_000 : 120_000,
   },
 })

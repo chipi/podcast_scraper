@@ -1,7 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
 
-/** Tracks RFC-076 progressive graph expansion (seed cy id -> appended artifact paths). */
+/** Tracks cross-episode graph expansion (seed cy id -> appended artifact paths). */
 export const useGraphExpansionStore = defineStore('graphExpansion', () => {
   const expandedBySeed = ref<Record<string, { addedRelPaths: string[] }>>({})
   const truncationLine = ref<string | null>(null)

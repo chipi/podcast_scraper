@@ -1,4 +1,4 @@
-"""RFC-072 cross-layer corpus queries (bridge + GI + KG on disk; no database).
+"""Cross-layer CIL corpus queries (bridge + GI + KG on disk; no database).
 
 Public query functions accept two path strings:
 
@@ -143,7 +143,7 @@ def iter_cil_bridge_bundles(
     """Yield ``(safe_bridge_path, bridge)`` reading only each ``*.bridge.json``.
 
     Same traversal and prefix rules as ``iter_cil_episode_bundles`` but does not
-    read GI/KG JSON (RFC-076 progressive graph expansion).
+    read GI/KG JSON (cross-episode graph expansion).
     """
     anchor_s = os.path.normpath(anchor_path)
     root_s = os.path.normpath(root_path)
@@ -199,7 +199,7 @@ def episodes_for_bridge_node_id(
     *,
     max_episodes: int | None = None,
 ) -> tuple[list[dict[str, Any]], bool, int | None]:
-    """Episodes whose bridge lists the canonical CIL id (RFC-076).
+    """Episodes whose bridge lists the canonical CIL id (node-episodes listing).
 
     Returns:
         ``(rows, truncated, total_matched)`` where each row has corpus-relative
@@ -398,7 +398,7 @@ def _cil_episode_metadata_fields(
     root_prefix: str,
     corpus_root_norm: str,
 ) -> dict[str, Any]:
-    """Read sibling ``*.metadata.json`` for CIL episode display (RFC-072 UI).
+    """Read sibling ``*.metadata.json`` for CIL episode display.
 
     Artwork local paths match **Corpus Library** (``corpus_catalog``): only emit
     ``*_image_local_relpath`` when the file exists under ``corpus_root_norm`` and
@@ -459,7 +459,7 @@ def position_arc(
     target_topic: str,
     insight_types: tuple[str, ...] | None = ("claim",),
 ) -> list[dict[str, Any]]:
-    """RFC-072 Pattern A — chronological insights for person + topic."""
+    """Pattern A — chronological insights for person + topic."""
     person = canonical_cil_entity_id(target_person)
     topic = canonical_cil_entity_id(target_topic)
     root_prefix = os.path.normpath(root_path) + os.sep
@@ -566,7 +566,7 @@ def _person_profile_append_for_episode(
 
 
 def person_profile(root_path: str, anchor_path: str, target_person: str) -> dict[str, Any]:
-    """RFC-072 Pattern B — insights by topic + quotes for a person (Person Profile)."""
+    """Pattern B — insights by topic + quotes for a person (Person Profile)."""
     person = canonical_cil_entity_id(target_person)
     by_topic: dict[str, list[dict[str, Any]]] = {}
     all_quotes: list[dict[str, Any]] = []
@@ -590,7 +590,7 @@ def topic_timeline(
     target_topic: str,
     insight_types: tuple[str, ...] | None = None,
 ) -> list[dict[str, Any]]:
-    """RFC-072 Pattern C — insights about a topic across episodes."""
+    """Pattern C — insights about a topic across episodes."""
     topic = canonical_cil_entity_id(target_topic)
     root_prefix = os.path.normpath(root_path) + os.sep
     results: list[dict[str, Any]] = []
@@ -658,7 +658,7 @@ def topic_timeline_merged(
     target_topics: Sequence[str],
     insight_types: tuple[str, ...] | None = None,
 ) -> list[dict[str, Any]]:
-    """RFC-072 Pattern C for multiple topics — one scan of episode bundles.
+    """Pattern C for multiple topics — one scan of episode bundles.
 
     For each episode, includes insights ABOUT any of the canonical topic ids in
     ``target_topics`` (bridge intersection + GI ABOUT edges). Insight nodes are

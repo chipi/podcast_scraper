@@ -1,4 +1,4 @@
-"""Integration tests for the FastAPI server (RFC-062).
+"""Integration tests for the FastAPI server.
 
 These tests exercise the wired application with real filesystem artifacts
 (no mocking of route internals). Skipped when ``fastapi`` is not installed.
@@ -107,6 +107,10 @@ class TestHealth:
         assert body.get("corpus_digest_api") is True
         assert body.get("corpus_binary_api") is True
         assert body.get("cil_queries_api") is True
+        assert body.get("enriched_search_available") is False
+        assert body.get("feeds_api") is False
+        assert body.get("operator_config_api") is False
+        assert body.get("jobs_api") is False
 
 
 # ---------------------------------------------------------------------------
@@ -123,6 +127,29 @@ class TestArtifacts:
         assert names == ["ep1.bridge.json", "ep1.gi.json", "ep1.kg.json"]
         kinds = {a["name"]: a["kind"] for a in body["artifacts"]}
         assert kinds["ep1.bridge.json"] == "bridge"
+        for a in body["artifacts"]:
+            pd = a.get("publish_date")
+            assert isinstance(pd, str) and len(pd) == 10 and pd[4] == "-"
+
+    def test_list_publish_date_from_metadata_when_present(self, tmp_path: Path) -> None:
+        """``publish_date`` prefers episode metadata over mtime surrogate."""
+        meta = tmp_path / "metadata"
+        meta.mkdir()
+        meta_doc = {
+            "episode": {"episode_id": "x", "published_date": "2024-06-15T12:00:00Z"},
+            "grounded_insights": {"version": "1.0", "episode_id": "x"},
+        }
+        (meta / "ep99.metadata.json").write_text(json.dumps(meta_doc), encoding="utf-8")
+        (meta / "ep99.gi.json").write_text(
+            '{"grounded_insights":{"episode_id":"x"}}', encoding="utf-8"
+        )
+
+        app = create_app(tmp_path, static_dir=False)
+        tc = TestClient(app)
+        resp = tc.get("/api/artifacts", params={"path": str(tmp_path)})
+        assert resp.status_code == 200
+        gi = next(a for a in resp.json()["artifacts"] if a["name"] == "ep99.gi.json")
+        assert gi["publish_date"] == "2024-06-15"
 
     def test_list_prefers_latest_feed_run_dir(self, tmp_path: Path) -> None:
         """``feeds/<dir>/run_*`` siblings: only the lexicographically greatest run is listed."""

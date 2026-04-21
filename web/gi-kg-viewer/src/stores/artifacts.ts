@@ -18,15 +18,23 @@ import {
 } from '../utils/clusterSiblingMerge'
 import { withTopicClustersOnDisplay } from '../utils/topicClustersOverlay'
 import { StaleGeneration } from '../utils/staleGeneration'
+import { useGraphExpansionStore } from './graphExpansion'
+import { useGraphExplorerStore } from './graphExplorer'
+import {
+  calendarPublishYmdFromParsedArtifact,
+  episodeStemFromArtifactRelPath,
+  GRAPH_DEFAULT_EPISODE_CAP,
+  selectParsedArtifactsForGraphLoad,
+} from '../utils/graphEpisodeSelection'
 
 /** Relative paths selected from /api/artifacts list (basename or full relative path). */
 export const useArtifactsStore = defineStore('artifacts', () => {
   const corpusPath = ref('')
   const selectedRelPaths = ref<string[]>([])
   const parsedList = ref<ParsedArtifact[]>([])
-  /** RFC-072 bridge.json for the current corpus selection (optional). */
+  /** bridge.json for the current corpus selection (optional). */
   const bridgeDocument = ref<BridgeDocument | null>(null)
-  /** RFC-075 ``topic_clusters.json`` from the API when present (API load only). */
+  /** ``topic_clusters.json`` from the API when present (API load only). */
   const topicClustersDoc = ref<TopicClustersDocument | null>(null)
   /**
    * How the last load obtained topic clusters: API success, 404, error, local file picker (no API JSON),
@@ -41,6 +49,11 @@ export const useArtifactsStore = defineStore('artifacts', () => {
   const loadError = ref<string | null>(null)
   const loading = ref(false)
   const loadGate = new StaleGeneration()
+  /**
+   * When true, skip ``syncMergedGraphFromCorpusApi`` auto-selection (Digest/Library/episode
+   * explicit ``loadRelativeArtifacts`` or local file picker owns ``selectedRelPaths``).
+   */
+  const manualGraphSelection = ref(false)
   /** Inline status after cluster sibling auto-merge (graph tab); errors use ``siblingMergeError`` + banner. */
   const siblingMergeLine = ref<string | null>(null)
   /** True when ``siblingMergeLine`` is from a failed resolve/load (shown as a top alert). */
@@ -78,7 +91,7 @@ export const useArtifactsStore = defineStore('artifacts', () => {
 
   /**
    * Fetch ``/api/corpus/topic-clusters`` for the current ``corpusPath`` (no artifact load required).
-   * Safe to call as soon as corpus root + healthy API are known so **API · Data** can show status.
+   * Safe to call as soon as corpus root + healthy API are known so the Dashboard corpus workspace can show status.
    */
   async function syncTopicClustersForCurrentCorpus(): Promise<void> {
     const root = corpusPath.value.trim()
@@ -99,6 +112,7 @@ export const useArtifactsStore = defineStore('artifacts', () => {
   /** Offline / no-backend: parse selected .gi.json / .kg.json files in the browser. */
   async function loadFromLocalFiles(files: FileList | null): Promise<void> {
     if (!files || files.length === 0) return
+    manualGraphSelection.value = true
     loadError.value = null
     parsedList.value = []
     bridgeDocument.value = null
@@ -107,10 +121,20 @@ export const useArtifactsStore = defineStore('artifacts', () => {
     topicClustersErrorDetail.value = null
     topicClustersSchemaWarning.value = null
     selectedRelPaths.value = []
+    void import('./graphExpansion').then((m) => {
+      m.useGraphExpansionStore().resetExpansionState()
+    })
     const seq = loadGate.bump()
     loading.value = true
     try {
-      const out: ParsedArtifact[] = []
+      type BridgeHold = { name: string; text: string; mtime: number }
+      const bridgeHolds: BridgeHold[] = []
+      const candidates: {
+        art: ParsedArtifact
+        relKey: string
+        publishYmd: string
+        fileLastModifiedMs: number
+      }[] = []
       for (const file of Array.from(files)) {
         if (loadGate.isStale(seq)) {
           return
@@ -119,9 +143,13 @@ export const useArtifactsStore = defineStore('artifacts', () => {
         if (lower.endsWith('.bridge.json')) {
           try {
             const text = await file.text()
-            bridgeDocument.value = parseBridgeDocument(JSON.parse(text))
+            bridgeHolds.push({
+              name: file.name,
+              text,
+              mtime: file.lastModified,
+            })
           } catch {
-            /* ignore invalid bridge */
+            /* ignore */
           }
           continue
         }
@@ -130,17 +158,46 @@ export const useArtifactsStore = defineStore('artifacts', () => {
         }
         const text = await file.text()
         const data = JSON.parse(text) as ArtifactData
-        out.push(parseArtifact(file.name, data))
+        const art = parseArtifact(file.name, data)
+        const publishYmd = calendarPublishYmdFromParsedArtifact(art, file.lastModified)
+        candidates.push({
+          art,
+          relKey: file.name,
+          publishYmd,
+          fileLastModifiedMs: file.lastModified,
+        })
       }
       if (loadGate.isStale(seq)) {
         return
       }
-      if (out.length === 0) {
+      if (candidates.length === 0) {
         loadError.value = 'No .gi.json or .kg.json files in selection.'
         return
       }
-      parsedList.value = out
-      selectedRelPaths.value = out.map((p) => p.name)
+      const graphExplorer = useGraphExplorerStore()
+      // Local file picks are explicit: do not apply the graph-tab date lens (it defaults to
+      // “last N days” and would hide older fixtures / archival episodes the user chose).
+      const { kept, wasCapped } = selectParsedArtifactsForGraphLoad(
+        candidates,
+        '',
+        GRAPH_DEFAULT_EPISODE_CAP,
+      )
+      graphExplorer.setLastAutoLoadCapped(wasCapped)
+      const stems = new Set(kept.map((a) => episodeStemFromArtifactRelPath(a.name)))
+      bridgeDocument.value = null
+      for (const b of bridgeHolds) {
+        const st = episodeStemFromArtifactRelPath(b.name)
+        if (stems.has(st)) {
+          try {
+            bridgeDocument.value = parseBridgeDocument(JSON.parse(b.text))
+          } catch {
+            /* ignore invalid bridge */
+          }
+          break
+        }
+      }
+      parsedList.value = kept
+      selectedRelPaths.value = kept.map((p) => p.name)
       topicClustersDoc.value = null
       topicClustersLoadState.value = 'local_files'
       topicClustersErrorDetail.value = null
@@ -162,19 +219,30 @@ export const useArtifactsStore = defineStore('artifacts', () => {
    * Replaces current selection and fetches from the API.
    */
   async function loadRelativeArtifacts(relativePaths: string[]): Promise<void> {
+    manualGraphSelection.value = true
     const cleaned = relativePaths.map((p) => p.trim()).filter(Boolean)
     selectedRelPaths.value = cleaned
     await loadSelected()
   }
 
-  async function loadSelected(): Promise<void> {
+  /**
+   * Fetch and parse the current ``selectedRelPaths`` into ``parsedList``.
+   * By default clears graph expansion state (seeds no longer match after a full replace).
+   * Pass ``preserveExpansion: true`` when the selection only grew or shrank via
+   * ``appendRelativeArtifacts`` / ``removeRelativeArtifacts`` (expand/collapse).
+   */
+  async function loadSelected(opts?: { preserveExpansion?: boolean }): Promise<void> {
     loadError.value = null
     parsedList.value = []
     bridgeDocument.value = null
     const root = corpusPath.value.trim()
     if (!root || selectedRelPaths.value.length === 0) {
       loadError.value = 'Set corpus path and select at least one artifact file.'
+      useGraphExpansionStore().resetExpansionState()
       return
+    }
+    if (!opts?.preserveExpansion) {
+      useGraphExpansionStore().resetExpansionState()
     }
     const seq = loadGate.bump()
     loading.value = true
@@ -256,6 +324,7 @@ export const useArtifactsStore = defineStore('artifacts', () => {
   }
 
   function clearSelection(): void {
+    manualGraphSelection.value = false
     selectedRelPaths.value = []
     parsedList.value = []
     bridgeDocument.value = null
@@ -272,6 +341,10 @@ export const useArtifactsStore = defineStore('artifacts', () => {
   /** Check every path from the current corpus list (does not fetch). */
   function selectAllListed(relativePaths: string[]): void {
     selectedRelPaths.value = relativePaths.slice()
+  }
+
+  function clearManualGraphSelection(): void {
+    manualGraphSelection.value = false
   }
 
   /** Uncheck all listed files (does not clear the graph until you load again). */
@@ -301,7 +374,7 @@ export const useArtifactsStore = defineStore('artifacts', () => {
       return
     }
     selectedRelPaths.value = [...selectedRelPaths.value, ...add]
-    await loadSelected()
+    await loadSelected({ preserveExpansion: true })
   }
 
   /** Remove corpus-relative paths from the current selection and reload the graph. */
@@ -319,7 +392,7 @@ export const useArtifactsStore = defineStore('artifacts', () => {
       return
     }
     selectedRelPaths.value = next
-    await loadSelected()
+    await loadSelected({ preserveExpansion: true })
   }
 
   /**
@@ -416,6 +489,7 @@ export const useArtifactsStore = defineStore('artifacts', () => {
 
   return {
     corpusPath,
+    manualGraphSelection,
     selectedRelPaths,
     parsedList,
     bridgeDocument,
@@ -437,6 +511,7 @@ export const useArtifactsStore = defineStore('artifacts', () => {
     setCorpusPath,
     toggleSelection,
     clearSelection,
+    clearManualGraphSelection,
     selectAllListed,
     deselectAllListed,
     syncTopicClustersForCurrentCorpus,

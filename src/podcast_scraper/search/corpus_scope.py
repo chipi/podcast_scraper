@@ -1,4 +1,4 @@
-"""Corpus-wide episode identity helpers (GitHub #505 / RFC-063).
+"""Corpus-wide episode identity helpers (GitHub #505).
 
 Composite ``(feed_id, episode_id)`` scope keys avoid fingerprint and vector row
 collisions when multiple feeds share a corpus parent.
@@ -47,7 +47,7 @@ def gi_map_lookup_key_from_vector_meta(meta: dict) -> str:
 
 
 def episode_root_from_metadata_path(metadata_path: Path) -> Path:
-    """Episode workspace root: parent of ``metadata/`` (RFC-063 §5)."""
+    """Episode workspace root: parent of ``metadata/``."""
     return metadata_path.parent.parent.resolve()
 
 
@@ -104,7 +104,7 @@ def latest_feed_run_allowed_relpaths(rel_posixes: Iterable[str]) -> frozenset[st
 
 
 def filter_metadata_paths_to_latest_feed_run(corpus_root: Path, paths: List[Path]) -> List[Path]:
-    """Drop metadata paths under older ``feeds/.../run_*`` siblings (see RFC-063)."""
+    """Drop metadata paths under older ``feeds/.../run_*`` siblings (multi-feed layout)."""
     root_res = corpus_root.resolve()
     rels: List[str] = []
     by_rel: dict[str, Path] = {}

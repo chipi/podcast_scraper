@@ -5,7 +5,7 @@ This module provides tools for:
 - Comparing any two experiments
 - Generating historical trend reports
 
-This implements RFC-015 Phase 3: Storage & Comparison.
+This implements experiment history storage and comparison.
 """
 
 from __future__ import annotations

@@ -113,20 +113,20 @@ class TestFilterFastConfigs:
 
     def test_filter_keeps_only_stems_in_set(self):
         """Only configs whose stem is in fast_stems are kept."""
-        fast_stems = {"acceptance_planet_money_ml_prod", "acceptance_planet_money_ml_dev"}
+        fast_stems = {"fast_airgapped_single", "fast_cloud_balanced_multi"}
         configs = [
-            Path("config/acceptance/acceptance_planet_money_ml_prod.yaml"),
-            Path("config/acceptance/acceptance_planet_money_openai.yaml"),
-            Path("config/acceptance/acceptance_planet_money_ml_dev.yaml"),
+            Path("sessions/x/materialized/fast_airgapped_single.yaml"),
+            Path("sessions/x/materialized/fast_cloud_balanced_single.yaml"),
+            Path("sessions/x/materialized/fast_cloud_balanced_multi.yaml"),
         ]
         out = filter_fast_configs(configs, fast_stems)
         assert len(out) == 2
-        assert out[0].stem == "acceptance_planet_money_ml_prod"
-        assert out[1].stem == "acceptance_planet_money_ml_dev"
+        assert out[0].stem == "fast_airgapped_single"
+        assert out[1].stem == "fast_cloud_balanced_multi"
 
     def test_filter_empty_stems_returns_all(self):
         """When fast_stems is empty, all configs are returned."""
-        configs = [Path("a/acceptance_planet_money_ml.yaml")]
+        configs = [Path("a/fast_cloud_balanced_single.yaml")]
         assert filter_fast_configs(configs, set()) == configs
 
 

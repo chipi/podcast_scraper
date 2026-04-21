@@ -1,4 +1,4 @@
-"""Unit tests for RFC-072 canonical CIL slugify (Phase 1)."""
+"""Unit tests for canonical CIL slugify."""
 
 import pytest
 

@@ -1,4 +1,4 @@
-"""Episode-level similar results from the vector index (RFC-067 Phase 3)."""
+"""Episode-level similar results from the vector index."""
 
 from __future__ import annotations
 

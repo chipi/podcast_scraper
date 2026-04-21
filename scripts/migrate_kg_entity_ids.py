@@ -31,7 +31,7 @@ def main() -> int:
         print(f"Not found: {inp}", file=sys.stderr)
         return 2
     raw = json.loads(inp.read_text(encoding="utf-8"))
-    from podcast_scraper.migrations.rfc072 import migrate_kg_document
+    from podcast_scraper.migrations.gil_kg_identity_migrations import migrate_kg_document
 
     migrated = migrate_kg_document(raw)
     out_path.write_text(json.dumps(migrated, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")

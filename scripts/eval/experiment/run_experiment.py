@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Experiment runner with contract enforcement (RFC-015).
+"""Experiment runner with contract enforcement.
 
 This script:
 - Loads an ExperimentConfig from YAML
@@ -869,7 +869,7 @@ def run_experiment(  # noqa: C901
                 if device:
                     device = str(device)
         elif cfg.backend.type == "hybrid_ml":
-            # Hybrid MAP-REDUCE (RFC-042): classic MAP + instruction-tuned REDUCE
+            # Hybrid MAP-REDUCE: classic MAP + instruction-tuned REDUCE
             from podcast_scraper import config
 
             map_model = cfg.backend.map_model

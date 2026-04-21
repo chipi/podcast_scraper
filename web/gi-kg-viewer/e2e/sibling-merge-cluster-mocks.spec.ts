@@ -1,12 +1,12 @@
 import { readFileSync } from 'node:fs'
 import { expect, test, type Page } from '@playwright/test'
 import { GI_SAMPLE_FIXTURE } from './fixtures'
-import { mainViewsNav, SHELL_HEADING_RE } from './helpers'
+import { mainViewsNav, SHELL_HEADING_RE, statusBarCorpusPathInput } from './helpers'
 
 const artifactJson = readFileSync(GI_SAMPLE_FIXTURE, 'utf-8')
 
 /**
- * Mocks aligned with ``search-to-graph-mocks.spec.ts`` plus RFC-075
+ * Mocks aligned with ``search-to-graph-mocks.spec.ts`` plus topic-clusters API
  * ``members[].episode_ids`` so ``maybeMergeClusterSiblingEpisodes`` runs after graph load.
  */
 async function mockCorpusGraphBaseline(page: Page): Promise<void> {
@@ -35,7 +35,8 @@ async function mockCorpusGraphBaseline(page: Page): Promise<void> {
             relative_path: 'metadata/ci_sample.gi.json',
             kind: 'gi',
             size_bytes: artifactJson.length,
-            mtime_utc: '2024-01-01T00:00:00Z',
+            mtime_utc: '2026-04-18T12:00:00Z',
+            publish_date: '2026-04-18',
           },
         ],
       }),
@@ -116,7 +117,7 @@ test.describe('Topic-cluster sibling merge (mocked API)', () => {
     await page.goto('/')
     await page.getByRole('heading', { name: SHELL_HEADING_RE }).waitFor()
 
-    await page.getByPlaceholder('/path/to/output').fill('/mock/corpus')
+    await statusBarCorpusPathInput(page).fill('/mock/corpus')
     await mainViewsNav(page).getByRole('button', { name: 'Graph' }).click()
     await page.getByRole('button', { name: 'Fit' }).waitFor({ state: 'visible', timeout: 30_000 })
 
@@ -150,7 +151,7 @@ test.describe('Topic-cluster sibling merge (mocked API)', () => {
     await page.goto('/')
     await page.getByRole('heading', { name: SHELL_HEADING_RE }).waitFor()
 
-    await page.getByPlaceholder('/path/to/output').fill('/mock/corpus')
+    await statusBarCorpusPathInput(page).fill('/mock/corpus')
     await mainViewsNav(page).getByRole('button', { name: 'Graph' }).click()
     await page.getByRole('button', { name: 'Fit' }).waitFor({ state: 'visible', timeout: 30_000 })
 

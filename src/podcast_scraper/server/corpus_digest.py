@@ -1,4 +1,4 @@
-"""Corpus digest selection (RFC-068): time windows, feed diversity, topic config."""
+"""Corpus digest selection: time windows, feed diversity, topic config."""
 
 from __future__ import annotations
 
@@ -21,6 +21,7 @@ from podcast_scraper.server.corpus_catalog import (
 
 _REPO_ROOT = Path(__file__).resolve().parents[3]
 
+# Keep in sync with config/digest_topics.yaml (fallback when YAML missing/invalid).
 DEFAULT_DIGEST_TOPICS: list[dict[str, str]] = [
     {
         "id": "science",
@@ -32,6 +33,11 @@ DEFAULT_DIGEST_TOPICS: list[dict[str, str]] = [
         "label": "Technology",
         "query": "software artificial intelligence technology engineering",
     },
+    {
+        "id": "business",
+        "label": "Business & markets",
+        "query": "business markets economics strategy",
+    },
 ]
 
 DIGEST_MAX_TOPICS_PER_REQUEST = 5
@@ -40,12 +46,12 @@ DIGEST_TOPIC_SEARCH_TOP_K = 24
 
 
 def digest_topics_config_path() -> Path:
-    """Filesystem path to optional ``config/digest_topics.yaml`` (RFC-068)."""
+    """Filesystem path to optional ``config/digest_topics.yaml``."""
     return _REPO_ROOT / "config" / "digest_topics.yaml"
 
 
 def load_digest_topics() -> list[dict[str, str]]:
-    """Return topic dicts with keys id, label, query (RFC-068)."""
+    """Return topic dicts with keys id, label, query."""
     path = digest_topics_config_path()
     if not path.is_file():
         return list(DEFAULT_DIGEST_TOPICS)
@@ -147,7 +153,7 @@ def diversify_digest_rows(
     max_rows: int,
     per_feed_cap: int,
 ) -> list[CatalogEpisodeRow]:
-    """Round-robin by feed_id on a newest-first stream (RFC-068)."""
+    """Round-robin by feed_id on a newest-first stream."""
     if max_rows <= 0 or per_feed_cap <= 0:
         return []
 

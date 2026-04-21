@@ -2,10 +2,9 @@
 
 Everything in this directory except this **`README.md`** is **gitignored**.
 
-## Fast acceptance stems
+## Acceptance fast matrix
 
-The **tracked** fast matrix for `--from-fast-stems` / **`FAST_ONLY`** lives in:
-
-**`config/acceptance/FAST_CONFIGS.txt`**
-
-Optionally, you can add a local-only **`acceptance_fast_stems.txt`** here (same format: one stem per line, `#` comments allowed). The acceptance runner reads **`FAST_CONFIGS.txt` first**, then **`config/ci/acceptance_fast_stems.txt`** if that file exists—handy for experimenting without editing the committed list.
+The **tracked** fast list for **`--from-fast-stems`** / **`FAST_ONLY`** is
+**`config/acceptance/FAST_CONFIG.yaml`** (matrix of `defaults` + `runs`). Edit that file (or use a
+branch) to add or disable rows — there is **no** alternate stem list in `config/ci/` for the
+acceptance runner.

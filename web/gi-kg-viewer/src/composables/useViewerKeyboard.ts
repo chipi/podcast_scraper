@@ -15,8 +15,14 @@ function targetIsEditable(target: EventTarget | null): boolean {
 }
 
 /**
- * RFC-062: / focuses search (when not typing in a field); Escape clears graph
- * interaction on the Graph tab (when focus is not in an editable control).
+ * Global viewer keyboard shortcuts (documented in the shell UX spec):
+ *
+ * - Slash — When focus is not in an editable control: expand the left query column if needed,
+ *   switch the column to **Search** mode (vs Explore), then focus `#search-q`. Does not bind
+ *   single-letter G / L globally; those remain click targets on each search hit row (avoids clashing
+ *   with browser find and OS bindings).
+ * - Escape — On the Graph main tab, when focus is not in an editable control: clear graph
+ *   interaction and transient selection state.
  */
 export function useViewerKeyboard(opts: {
   focusSearch: () => void

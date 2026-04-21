@@ -1,4 +1,4 @@
-"""Optional stdin hook to trigger py-spy CPU flamegraphs (RFC-065 Phase 3)."""
+"""Optional stdin hook to trigger py-spy CPU flamegraphs."""
 
 from __future__ import annotations
 

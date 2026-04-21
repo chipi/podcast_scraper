@@ -54,17 +54,17 @@ metadata in **`stage_truth.json`**. See the
 ## Capture workflow
 
 1. Use a **pipeline config** YAML under
-   [`config/profiles/`](../config/profiles/). Presets
-   **`capture_e2e_*.yaml`** use the same **E2E mock RSS** pattern as
-   `sample_acceptance_e2e_fixture_single.yaml` (no real feed;
-   `freeze_profile` starts the fixture server automatically).
+   [`config/profiles/freeze/`](../config/profiles/freeze/). Those profiles merge
+   **`freeze/_defaults.yaml`** for placeholder RSS and paths; `freeze_profile.py`
+   starts the **E2E mock RSS** server when the URL is the acceptance placeholder
+   (same family as `config/acceptance/fragments/feeds_single.yaml`).
 2. Close heavy background apps, use **AC power** on laptops, and run
    when the machine is idle.
 3. From the repo root:
 
    ```bash
    make profile-freeze VERSION=v2.6.0-ml-dev \
-     PIPELINE_CONFIG=config/profiles/capture_e2e_ml_dev.yaml \
+     PIPELINE_CONFIG=config/profiles/freeze/ml_dev.yaml \
      DATASET_ID=e2e_podcast1_mtb_n2
    ```
 

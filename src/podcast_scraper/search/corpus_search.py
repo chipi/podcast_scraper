@@ -102,11 +102,11 @@ class CorpusSearchOutcome:
     detail: Optional[str] = None
     """Optional human/debug message (logged server-side; may be omitted in API)."""
     lift_stats: Optional[Dict[str, int]] = None
-    """Per-response lift counters (RFC-072 #528); set on success after ``top_k`` slice."""
+    """Per-response lift counters; set on success after ``top_k`` slice."""
 
 
 def _attach_topic_cluster_metadata(rows: List[Dict[str, Any]], corpus_root: Path) -> None:
-    """Join RFC-075 ``topic_clusters.json`` into ``kg_topic`` metadata (query-time join)."""
+    """Join ``topic_clusters.json`` into ``kg_topic`` metadata (query-time join)."""
     m = load_topic_cluster_enrichment_map(corpus_root)
     if not m:
         return

@@ -1,4 +1,4 @@
-"""Unit tests for RFC-072 ``cil_queries`` (GitHub #527)."""
+"""Unit tests for ``cil_queries`` (GitHub #527)."""
 
 from __future__ import annotations
 

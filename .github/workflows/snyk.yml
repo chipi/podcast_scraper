@@ -61,13 +61,14 @@ jobs:
           done
           exit 1
 
+      # Associate scans with the GitHub repo so public OSS repos are not billed as private CLI tests.
       - name: Run Snyk to check for vulnerabilities
         uses: snyk/actions/python@master
         continue-on-error: true
         env:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
         with:
-          args: --file=pyproject.toml --package-manager=pip --severity-threshold=high --sarif-file-output=snyk.sarif
+          args: --file=pyproject.toml --package-manager=pip --severity-threshold=high --sarif-file-output=snyk.sarif --remote-repo-url=${{ github.server_url }}/${{ github.repository }}
 
       - name: Upload Snyk results to GitHub Code Scanning
         uses: github/codeql-action/upload-sarif@v4
@@ -195,4 +196,4 @@ jobs:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
         with:
           command: monitor
-          args: --file=pyproject.toml --package-manager=pip
+          args: --file=pyproject.toml --package-manager=pip --remote-repo-url=${{ github.server_url }}/${{ github.repository }}

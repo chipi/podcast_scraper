@@ -2,7 +2,7 @@
 
 **Status:** Reference Guide
 **Applies to:** Local development, agent-assisted UI debugging, E2E test workflows
-**Last updated:** April 2026 (obligatory MCP validation + symmetry rule: re-validate in the same channel as reproduction)
+**Last updated:** April 2026 (default MCP: DevTools first; symmetry rule unchanged)
 
 ---
 
@@ -35,8 +35,18 @@ the pipeline instead of the browser.
 | **Playwright MCP** | *Driving* — navigate, click, fill, assert | Automated QA engineer |
 | **Chrome DevTools MCP** | *Debugging* — network tab, console, DOM, traces | Human dev with DevTools open |
 
-For a full closed loop you use both: Playwright runs the test suite (automated mode),
-Chrome DevTools MCP gives the agent eyes into your live session (co-development mode).
+### Default MCP choice (agents — do not flip arbitrarily)
+
+Pick **one channel per bug** and keep **reproduce → fix → validate** on that channel (see **Symmetry rule** below).
+
+| Situation | Use |
+| --------- | --- |
+| **Default** for in-browser reproduce / validate on the viewer (navigate, snapshot, `evaluate_script`, console/network) | **Chrome DevTools MCP** (Cursor: often `user-devtools`) |
+| **Playwright MCP** (Cursor: often `user-playwright`) | Only when something clearly fits **scripted automation** better (e.g. multi-tab drive, file upload, trace capture). If you use it, **say in one line** why and that validation ran there — so the channel stays explicit. |
+
+`make test-ui-e2e` / CI Playwright is unchanged: that is the **test suite**, not a substitute for picking DevTools vs Playwright MCP for a given interactive repro.
+
+For a full closed loop you still use both **modes**: Playwright runs the **automated** suite; DevTools MCP is the **default** for live / agent-driven in-Chrome loops unless Playwright MCP is the better fit for that specific task.
 
 ### Why MCP?
 
@@ -61,7 +71,7 @@ separate from the agent-browser loop described here.
 | Context | Browser | Why |
 | ------- | ------- | --- |
 | `make test-ui-e2e` (CI, automated) | Firefox | Cross-browser coverage, existing config |
-| Agent-driven exploration (MCP) | Chromium (Playwright default) | Playwright MCP launches its own Chromium |
+| Agent-driven exploration (MCP) | Chrome (DevTools MCP, default) or Chromium (Playwright MCP) | DevTools attaches to your Chrome; Playwright MCP launches its own Chromium when you chose that channel |
 | Live co-development | Chrome | CDP required for DevTools MCP attachment |
 
 ---
@@ -70,8 +80,8 @@ separate from the agent-browser loop described here.
 
 ### How it works
 
-The agent opens a headless Chromium browser via Playwright MCP, navigates your app,
-and gets structured feedback after **each action** — not just pass/fail at the end.
+For **Playwright-driven MCP** checks (when you chose that channel), the agent opens a headless Chromium browser via Playwright MCP, navigates your app,
+and gets structured feedback after **each action** — not just pass/fail at the end. **Default** interactive repro/validate remains **Chrome DevTools MCP** (see *Default MCP choice* above).
 
 What the agent sees is an **accessibility snapshot**, not a screenshot:
 
@@ -260,8 +270,8 @@ not replace it. Use MCP when:
 [`web/gi-kg-viewer/e2e/E2E_SURFACE_MAP.md`](https://github.com/chipi/podcast_scraper/blob/main/web/gi-kg-viewer/e2e/E2E_SURFACE_MAP.md)
 is the **Playwright automation contract**, but it is also the best single reference for **expected
 accessible names, regions, entry paths, and disambiguation** (for example, scoping the semantic
-**Search** submit under the **Semantic search** section so it does not collide with the right-panel
-**Search** tab). Playwright MCP, Chrome DevTools MCP, and human manual repro all read essentially the
+**Search** submit under the **Semantic search** `section` (or `#search-q`) so it does not collide with
+the collapsed-left-column **Search** shortcut button or other **Search**-labeled controls). Playwright MCP, Chrome DevTools MCP, and human manual repro all read essentially the
 same **accessibility tree** as the test suite. When a spec fails, when an agent mis-clicks in a
 snapshot, or when you need a checklist for “what should appear next,” start from the surface map,
 then open the owning spec listed there. It does **not** replace UXS for visual design or the
@@ -372,6 +382,10 @@ you **must** re-run that same MCP flow after the fix (and after any required **A
 **pytest** or **`make test-ui`** alone does **not** replace that check; tests are **additional** regression
 locks, not a substitute for re-checking the reproduction you already ran.
 
+**MCP server id:** Cursor may expose Chrome DevTools as `user-devtools`, `devtools`, or another key—if
+`call_mcp_tool` fails with “server does not exist”, try those names or read the MCP descriptor list; do
+not assume the key matches `mcp.json` verbatim.
+
 **Standard sequence (agent runs this, not the user):**
 
 1. **Attach and inspect** — Use **Chrome DevTools MCP** with the user’s live session when available:
@@ -411,6 +425,22 @@ locks, not a substitute for re-checking the reproduction you already ran.
 This subsection is the **interactive** half of the loop; **`make test-ui-e2e`** remains the regression
 gate before commit. MCP validation catches issues that specs do not yet cover; new or updated specs
 lock the behavior in CI.
+
+### Graph canvas — neighbourhood dimming and delayed “full brightness”
+
+Some bugs only appear **after layout or a second store tick** (~1–3s). A quick immediate snapshot is not enough.
+
+**Typical reproduction (GI/KG viewer):** **Digest** → **Open graph and episode details** (an episode row) → in the episode rail, **Open in graph** → **wait ≥2.5s** before concluding pass/fail.
+
+**What to measure in Chrome (DevTools MCP `evaluate_script`):**
+
+- If exposed: `window.__GIKG_CY_DEV__` as the Cytoscape instance `cy`. Compare counts before and after the wait, for example `cy.nodes('.graph-dimmed').length`, `cy.nodes(':selected').length`, and related `graph-*` classes your change touches.
+- Cross-check Pinia: **`graphConnectionsCyId`** on the **subject** store and **`pendingFocusNodeId`** on **graphNavigation** (`web/gi-kg-viewer/src/stores/subject.ts`, `graphNavigation.ts`). “All bright” with **zero** dimmed nodes often correlates with focus handoff not sticking (`graphConnectionsCyId` cleared or never set).
+
+**Implementation reminders:**
+
+- Corpus **`metadata_relative_path`** strings may **not** match graph Episode row metadata text; use a **stable episode id** as a fallback when mapping corpus → Cytoscape id (see `web/gi-kg-viewer/src/utils/graphEpisodeMetadata.ts`).
+- Any path that **clears** episode representative state when metadata resolution fails must **not** wipe a **valid** `graphConnectionsCyId` already pointing at an Episode node on the active core graph.
 
 ### Pipeline and environment pitfalls (viewer bugs)
 
@@ -527,7 +557,7 @@ unfamiliar UI states, complex multi-step reproduction.
 
 ### UC-1: Feature done → write specs → green gate
 
-**Problem:** You finish a UI feature (new Episode rail, Dashboard chart, search
+**Problem:** You finish a UI feature (new Episode subject rail, Dashboard chart, search
 filter). You need to validate it works and doesn't break anything — the same way
 `make test` validates Python changes.
 
@@ -573,10 +603,10 @@ proper spec.
 **Scenario B — feature:** You want to add a "Prefill search" button to the Episode
 detail rail.
 
-1. You're in Chrome, looking at the Episode rail in the Library tab
+1. You're in Chrome, looking at the Episode subject rail in the Library tab
 2. "Add a 'Prefill search' button below the episode title. When clicked, it should
    fill the search box with the episode title."
-3. Agent sees the rail DOM, edits `EpisodeRail.vue`, adds the button + store wiring
+3. Agent sees the rail DOM, edits `EpisodeDetailPanel.vue`, adds the button + store wiring
 4. Vite reloads — button appears in your browser
 5. You click it — search box fills — "works, but put it next to 'Open in graph'"
 6. Agent moves it, reload, you confirm
@@ -906,7 +936,7 @@ make run-compare
 | [Development Guide](DEVELOPMENT_GUIDE.md) | GI/KG viewer dev workflow, `make serve` |
 | [Server Guide](SERVER_GUIDE.md) | FastAPI `/api/*` endpoints the agent inspects |
 | [E2E Surface Map](https://github.com/chipi/podcast_scraper/blob/main/web/gi-kg-viewer/e2e/E2E_SURFACE_MAP.md) | Playwright automation contract — surfaces, selectors, specs |
-| [UXS-001](../uxs/UXS-001-gi-kg-viewer.md) + [feature UXS](../uxs/index.md) | Shared tokens (UXS-001) and per-surface specs (Digest, Library, Graph, Search, Dashboard, …) |
+| [VIEWER_IA.md](../uxs/VIEWER_IA.md) + [UXS-001](../uxs/UXS-001-gi-kg-viewer.md) + [feature UXS](../uxs/index.md) | Shell IA (VIEWER_IA); shared tokens (UXS-001); per-surface specs (Digest, Library, Graph, Search, Dashboard, …) |
 | [Polyglot Repo Guide](POLYGLOT_REPO_GUIDE.md) | Python root vs `web/gi-kg-viewer/` layout |
 | [Agent-Pipeline Feedback Loop](AGENT_PIPELINE_LOOP_GUIDE.md) | Python-side companion: CI, acceptance, `--monitor`, `metrics.json` |
 

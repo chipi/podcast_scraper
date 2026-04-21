@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://podcast-scraper.dev/schemas/kg.schema.json",
   "title": "Knowledge Graph Layer Episode Artifact (kg.json)",
-  "description": "Per-episode KG: entities, topics, and typed edges (separate from gi.json). v1.2 (RFC-072): entity `kind` person|org, ids `person:`/`org:`; v1.1 optional descriptions; v1.0 legacy `entity_kind`. See docs/architecture/kg/ontology.md.",
+  "description": "Per-episode KG: entities, topics, and typed edges (separate from gi.json). v1.2: entity `kind` person|org, ids `person:`/`org:`; v1.1 optional descriptions; v1.0 legacy `entity_kind`. See docs/architecture/kg/ontology.md.",
   "type": "object",
   "additionalProperties": false,
   "required": ["schema_version", "episode_id", "extraction", "nodes", "edges"],
@@ -10,7 +10,7 @@
     "schema_version": {
       "type": "string",
       "pattern": "^1\\.(0|1|2)$",
-      "description": "KG artifact schema version (1.0 legacy, 1.1 descriptions, 1.2 RFC-072 kind + person:/org: ids)"
+      "description": "KG artifact schema version (1.0 legacy, 1.1 descriptions, 1.2 canonical kind + person:/org: ids)"
     },
     "episode_id": {
       "type": "string",
@@ -104,7 +104,7 @@
             "kind": {
               "type": "string",
               "enum": ["person", "org"],
-              "description": "RFC-072 v1.2: person vs organization (preferred over entity_kind)"
+              "description": "v1.2: person vs organization (preferred over entity_kind)"
             },
             "entity_kind": {
               "type": "string",

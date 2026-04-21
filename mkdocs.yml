@@ -65,6 +65,8 @@ nav:
       - Testing Strategy: architecture/TESTING_STRATEGY.md
       - Platform Blueprint: architecture/PLATFORM_ARCHITECTURE_BLUEPRINT.md
       - Viewer Frontend: architecture/VIEWER_FRONTEND_ARCHITECTURE.md
+      - Viewer graph (implementation): architecture/VIEWER_GRAPH_SPEC.md
+      - Viewer async stability: architecture/VIEWER_ASYNC_STABILITY.md
       - GI Ontology: architecture/gi/ontology.md
       - KG Ontology:
           - architecture/kg/README.md

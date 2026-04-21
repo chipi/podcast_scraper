@@ -121,7 +121,7 @@ class TestShouldPreloadMLModels(unittest.TestCase):
         self.assertTrue(result)
 
     def test_returns_true_when_vector_search_enabled(self):
-        """vector_search=True preloads embedding model path (PRD-021 / #485)."""
+        """vector_search=True preloads embedding model path."""
         cfg = Mock()
         cfg.transcribe_missing = False
         cfg.transcription_provider = "openai"

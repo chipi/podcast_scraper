@@ -1,4 +1,4 @@
-"""Filesystem-backed episode catalog for Corpus Library (RFC-067 Phase 1)."""
+"""Filesystem-backed episode catalog for Corpus Library."""
 
 from __future__ import annotations
 
@@ -7,14 +7,15 @@ import json
 import os
 import re
 from dataclasses import dataclass
-from datetime import date, datetime
+from datetime import date, datetime, timezone
 from pathlib import Path
 from typing import Any, Iterable, Mapping, Optional
 
-from podcast_scraper.builders.rfc072_artifact_paths import bridge_json_path_adjacent_to_metadata
+from podcast_scraper.builders.bridge_artifact_paths import bridge_json_path_adjacent_to_metadata
 from podcast_scraper.search.corpus_scope import discover_metadata_files, normalize_feed_id
 from podcast_scraper.utils.corpus_artwork import CORPUS_ART_REL_PREFIX
 from podcast_scraper.utils.path_validation import (
+    normpath_if_under_root,
     safe_relpath_under_corpus_root,
     safe_resolve_directory,
 )
@@ -631,8 +632,10 @@ def filter_rows(
     title_q: Optional[str] = None,
     topic_q: Optional[str] = None,
     since: Optional[str] = None,
+    until: Optional[str] = None,
+    has_gi: Optional[bool] = None,
 ) -> list[CatalogEpisodeRow]:
-    """Filter catalog rows by feed id, title/topic substrings, and minimum publish date."""
+    """Filter catalog rows by feed id, title/topic substrings, publish date range, GI presence."""
     out = rows
     if feed_id is not None:
         want = str(feed_id).strip()
@@ -663,7 +666,69 @@ def filter_rows(
             if d >= cutoff:
                 filtered.append(r)
         out = filtered
+    if until and until.strip() and re.match(r"^\d{4}-\d{2}-\d{2}$", until.strip()):
+        upper = date.fromisoformat(until.strip()[:10])
+        capped: list[CatalogEpisodeRow] = []
+        for r in out:
+            if not r.publish_date:
+                continue
+            try:
+                d = date.fromisoformat(r.publish_date[:10])
+            except ValueError:
+                continue
+            if d <= upper:
+                capped.append(r)
+        out = capped
+    if has_gi is True:
+        out = [r for r in out if r.has_gi]
+    elif has_gi is False:
+        out = [r for r in out if not r.has_gi]
     return out
+
+
+def metadata_candidate_relpaths_from_artifact(relative_path_posix: str) -> list[str]:
+    """Sibling metadata paths for corpus-relative ``*.gi`` / ``*.kg`` / ``*.bridge`` JSON paths."""
+    r = relative_path_posix.replace("\\", "/").strip()
+    if r.endswith(".gi.json"):
+        stem = r[: -len(".gi.json")]
+    elif r.endswith(".kg.json"):
+        stem = r[: -len(".kg.json")]
+    elif r.endswith(".bridge.json"):
+        stem = r[: -len(".bridge.json")]
+    else:
+        return []
+    return [
+        f"{stem}.metadata.json",
+        f"{stem}.metadata.yaml",
+        f"{stem}.metadata.yml",
+    ]
+
+
+def publish_calendar_date_for_artifact_listing(
+    corpus_root: Path,
+    relative_path_posix: str,
+    mtime_ts: float,
+) -> str:
+    """Calendar ``YYYY-MM-DD`` for artifact rows (metadata date, else UTC day from mtime)."""
+    root = corpus_root.resolve()
+    root_s = os.path.normpath(str(root))
+    for mp in metadata_candidate_relpaths_from_artifact(relative_path_posix):
+        safe = safe_relpath_under_corpus_root(root, mp)
+        if not safe:
+            continue
+        meta_abs = normpath_if_under_root(os.path.normpath(safe), root_s)
+        if not meta_abs or not os.path.isfile(meta_abs):
+            continue
+        doc = _load_metadata_doc(meta_abs)
+        if not doc:
+            continue
+        ep = doc.get("episode")
+        if isinstance(ep, dict):
+            parsed = _parse_publish_date_str(ep.get("published_date"))
+            if parsed:
+                return parsed
+    dt = datetime.fromtimestamp(mtime_ts, tz=timezone.utc)
+    return dt.date().isoformat()
 
 
 def slice_page(

@@ -26,11 +26,12 @@
   - [RFC-068](RFC-068-corpus-digest-api-viewer.md) — **`GET /api/corpus/digest?compact=true`** glance line
 - **Related UX specs**:
   - [UXS-006: Dashboard](../uxs/UXS-006-dashboard.md) — **Dashboard tab (charts)**
-  - [UXS-001: GI/KG viewer](../uxs/UXS-001-gi-kg-viewer.md) — shared tokens and shell conventions
+  - [VIEWER_IA: Viewer information architecture](../uxs/VIEWER_IA.md) — shell IA
+  - [UXS-001: GI/KG viewer](../uxs/UXS-001-gi-kg-viewer.md) — shared tokens and visual chrome
 - **Related Documents**:
   - [E2E surface map](https://github.com/chipi/podcast_scraper/blob/main/web/gi-kg-viewer/e2e/E2E_SURFACE_MAP.md)
   - [Server guide](../guides/SERVER_GUIDE.md) (HTTP overview)
-- **Updated**: 2026-04-11 (authored retrospectively)
+- **Updated**: 2026-04-19 (Align with shipped Dashboard: **Coverage** / **Intelligence** / **Pipeline**; **VIEWER_IA** + status bar artifacts; remove stale **`CorpusDataWorkspace`** narrative)
 
 ## Abstract
 
@@ -38,7 +39,7 @@ The **Dashboard** view in **`web/gi-kg-viewer`** aggregates **pipeline execution
 manifest, discovered **`run.json`** files, stage timings, episode outcomes) and **content
 intelligence** signals (FAISS index stats, optional digest snapshot, GI/KG artifact mtimes, catalog
 publish-month histogram vs list counts, loaded-graph node types vs vector **doc_type** counts). The
-browser composes Chart.js panels inside two **tabpanels** — **Pipeline** and **Content intelligence** —
+browser composes Chart.js panels inside **Coverage**, **Intelligence**, and **Pipeline** sub-tabs
 calling FastAPI **`corpus_metrics`** routes under **`/api/`** plus existing **index**, **digest**, and
 **library** endpoints. This RFC records the **as-built** architecture and boundaries relative to
 **RFC-062** (shell) and **PRD-025** (product intent).
@@ -46,9 +47,9 @@ calling FastAPI **`corpus_metrics`** routes under **`/api/`** plus existing **in
 ## Problem Statement
 
 Operators needed **corpus-scale** answers (runs, feeds, index health, artifact freshness) without
-exporting data to separate BI tools or reading raw JSON trees. **API · Data** exposes the same facts as
-**cards**; the **Dashboard** adds **time-series and distribution** views and ties **pipeline** vs
-**content** mental models. Without a written RFC, the split between **RFC-062** (monolithic viewer RFC)
+exporting data to separate BI tools or reading raw JSON trees. The former **API · Data** left-panel cards
+were retired in favor of **status bar** corpus operations (**List** / **Load into graph**) plus **Dashboard**
+**briefing** and **Coverage** / **Intelligence** / **Pipeline** charts. Without a written RFC, the split between **RFC-062** (monolithic viewer RFC)
 and **corpus_metrics** behavior was hard to navigate for contributors.
 
 ## Delivered architecture
@@ -57,12 +58,14 @@ and **corpus_metrics** behavior was hard to navigate for contributors.
 
 | Piece | Role |
 | ----- | ---- |
-| **`DashboardView.vue`** | Fetches corpus stats, manifest, runs summary, digest glance; wires **Pinia**
-  **artifacts** / **indexStats**; switches **`pipeline` / `contentIntelligence`** panels. |
-| **`DashboardOverviewSection.vue`** | Summary strip + tab UI glue. |
-| **Chart components** | **`CategoryLineChart`**, **`MultiSeriesLineChart`**, **`SimpleDoughnutChart`**,
-  **`StackedStageBarChart`**, **`TypeCountBarChart`**, **`VerticalBarChart`**, **`MetricsPanel`**. |
-| **`api/corpusMetricsApi.ts`** | **`fetchCorpusStats`**, **`fetchCorpusManifest`**, **`fetchCorpusRunsSummary`**. |
+| **`DashboardView.vue`** | Fetches runs summary, **coverage**, feeds, digest, top persons; wires **Pinia**
+  **indexStats** / **dashboardNav**; hosts **Coverage** / **Intelligence** / **Pipeline** sub-tab UI. |
+| **`BriefingCard.vue`** (and related) | Briefing strip + handoffs; tab panels per **UXS-006**. |
+| **Chart / panel components** | **`ArtifactActivityChart`**, **`CoverageByMonthChart`**, **`FeedCoverageTable`**, **`IndexStatusCard`**, **`IntelligenceSnapshot`**, **`PipelineRunHistoryStrip`**, **`PipelineStageChart`**, **`TopicClustersStatusBlock`**, **`TopicLandscape`**, **`TopVoices`**, **`VerticalBarChart`**. |
+| **`api/corpusMetricsApi.ts`** | **`fetchCorpusRunsSummary`** (and related run helpers as used). |
+| **`api/corpusCoverageApi.ts`** | **`fetchCorpusCoverage`**. |
+| **`api/corpusLibraryApi.ts`** | **`fetchCorpusFeeds`**. |
+| **`api/corpusPersonsApi.ts`** | **`fetchCorpusTopPersons`**. |
 | **`api/digestApi.ts`** | Compact digest for dashboard one-liner. |
 | **`utils/artifactMtimeBuckets.ts`** | Client-side GI/KG mtime bucketing (caps documented in code). |
 
@@ -111,12 +114,12 @@ Mounted under the app **`/api`** prefix:
 
 **RFC-062** remains the **umbrella** viewer + server seed RFC. **RFC-071** is a **focused slice** for the
 **Dashboard** product surface so PRD/RFC indexes and cross-links stay precise. Prefer editing **RFC-071**
-for Dashboard-only API or chart-behavior notes; edit **RFC-062** when shell navigation, **API · Data**,
-or shared stores change across tabs.
+for Dashboard-only API or chart-behavior notes; edit **RFC-062** / **VIEWER_IA** when shell navigation,
+**status bar** corpus flows, or shared stores change across tabs.
 
 ## References
 
 - [PRD-025](../prd/PRD-025-corpus-intelligence-dashboard-viewer.md)
 - [RFC-062](RFC-062-gi-kg-viewer-v2.md)
 - [RFC-063](RFC-063-multi-feed-corpus-append-resume.md)
-- [UXS-006](../uxs/UXS-006-dashboard.md); [UXS-001](../uxs/UXS-001-gi-kg-viewer.md)
+- [UXS-006](../uxs/UXS-006-dashboard.md); [VIEWER_IA](../uxs/VIEWER_IA.md); [UXS-001](../uxs/UXS-001-gi-kg-viewer.md)

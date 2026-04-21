@@ -23,13 +23,14 @@
   - [PRD-022](../prd/PRD-022-corpus-library-episode-browser.md), [PRD-023](../prd/PRD-023-corpus-digest-recap.md) —
     feeds catalog + digest glance strings
 - **Related UX specs**:
+  - [VIEWER_IA: Viewer information architecture](../uxs/VIEWER_IA.md) — shell IA (status bar corpus flows)
   - [UXS-006: Dashboard](../uxs/UXS-006-dashboard.md) — **Dashboard tab (charts)** layout, tokens,
     accessibility targets
   - [UXS-001: GI/KG viewer](../uxs/UXS-001-gi-kg-viewer.md) — shared design system
 - **Related Documents**:
   - [E2E surface map](https://github.com/chipi/podcast_scraper/blob/main/web/gi-kg-viewer/e2e/E2E_SURFACE_MAP.md)
     — **Dashboard** row (Playwright contract)
-- **Updated**: 2026-04-11 (retrospective PRD)
+- **Updated**: 2026-04-19 (**VIEWER_IA** + status bar; remove **`CorpusDataWorkspace`** / left **API · Data** narrative; **Coverage** / **Intelligence** / **Pipeline** sub-tabs)
 
 ## Summary
 
@@ -37,27 +38,29 @@ Operators and developers need a **single in-viewer place** to see whether a corp
 pipeline runs (manifest throughput, latest `run.json` stages, episode outcomes), and **content
 intelligence** (vector index vs catalog, digest one-liner, GI/KG write-time timelines, publish-month
 histograms, graph node types vs indexed doc types). The **Dashboard** main tab in **`web/gi-kg-viewer`**
-delivers Chart.js-based panels grouped under **Pipeline** vs **Content intelligence**, fed by FastAPI
+delivers Chart.js-based panels under **Coverage**, **Intelligence**, and **Pipeline** sub-tabs, fed by FastAPI
 **`/api/corpus/*`** routes and client-side merges with the loaded graph and index stores.
 
 ## Background
 
-Before the Dashboard tab, operators relied on **API · Data** cards, ad hoc **`cat`**, or external
+Before the Dashboard tab, operators relied on **API · Data** left-panel cards (retired); **Health** + corpus
+**List** / **Load into graph** now live on the **status bar** (**VIEWER_IA**), while **Dashboard** focuses on
+**briefing** + **Coverage** / **Intelligence** / **Pipeline** charts, or on ad hoc **`cat`**, or on external
 tools to correlate **run.json**, **corpus_manifest.json**, catalog stats, and index health. The
 Dashboard does not replace **RFC-064** frozen profiles or **RFC-066** Streamlit run compare; it answers
 **“what does this corpus root look like right now?”** inside the same session as graph and search.
 
 ## Goals
 
-1. **At-a-glance corpus summary** — feeds, episodes, digest topic bands, GI list counts when artifacts
-   are listed (from **`GET /api/corpus/stats`** + client context).
+1. **At-a-glance corpus summary** — feeds, episodes, digest topic bands, coverage rollups, GI list counts when artifacts
+   are listed (from **`/api/corpus/*`** aggregates + **`GET /api/index/stats`** + client context).
 2. **Pipeline visibility** — manifest document, run summaries, cumulative growth, latest run stage bars,
    episode outcome bars from **`run.json`** discovery ([RFC-063](../rfc/RFC-063-multi-feed-corpus-append-resume.md)).
 3. **Content intelligence** — vector index glance (**`GET /api/index/stats`**), optional compact digest
    (**`GET /api/corpus/digest?compact=true`**), GI/KG mtime timelines (client-bucketed), publish-month
    catalog vs histogram insight, graph node-type vs index doc-type bars.
-4. **Trust and navigation** — blurbs point operators to **API · Data** for corrective actions (reindex,
-   refresh catalog).
+4. **Trust and navigation** — blurbs point operators to **status bar** corpus controls and **Dashboard**
+   **Coverage** / **Intelligence** / **Pipeline** for corrective actions (reindex, refresh catalog, inspect runs).
 5. **Testable contract** — Playwright **`dashboard.spec.ts`** and [E2E surface map](https://github.com/chipi/podcast_scraper/blob/main/web/gi-kg-viewer/e2e/E2E_SURFACE_MAP.md).
 
 ## Non-goals
@@ -91,7 +94,8 @@ Dashboard does not replace **RFC-064** frozen profiles or **RFC-066** Streamlit 
 
 1. With a healthy server and corpus path, an operator can open **Dashboard** and see **Pipeline** and
    **Content intelligence** without loading the graph canvas.
-2. Charts use the same **corpus root** as **API · Data** and respect multi-feed layout where applicable.
+2. Charts use the same **corpus root** as the **status bar** field and **Dashboard** corpus workspace
+   (same logical root as the former **API · Data** cards) and respect multi-feed layout where applicable.
 3. **`make test-ui-e2e`** covers **Dashboard** surfaces per E2E map.
 4. Documentation chain: **PRD-025** (this) → **RFC-071** → **UXS-006**.
 

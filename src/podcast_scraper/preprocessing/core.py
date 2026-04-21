@@ -230,7 +230,7 @@ def remove_sponsor_blocks(text: str) -> str:
     run sponsor removal twice (pattern workflow clean + cleaning_v4 in summarize_long_text).
     Hybrid ML with ``transcript_cleaning_strategy=pattern`` uses
     ``cleaning_hybrid_after_pattern`` inside ``HybridMLProvider.summarize`` to avoid that
-    duplicate (Issue #419). RFC-060 Phase 1 will consolidate detection into a single
+    duplicate (Issue #419). Future work will consolidate detection into a single
     CommercialDetector where still duplicated.
 
     Args:

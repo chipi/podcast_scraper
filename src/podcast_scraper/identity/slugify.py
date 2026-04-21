@@ -1,7 +1,7 @@
-"""Canonical slugifier for CIL identifiers (RFC-072 Section 1).
+"""Canonical slugifier for CIL identifiers.
 
-Spec: ``docs/rfc/RFC-072-canonical-identity-layer-cross-layer-bridge.md`` (Canonical
-Identity Layer — Shared Namespace).
+See ``docs/guides/GIL_KG_CIL_CROSS_LAYER.md`` for canonical identity rules (shared
+namespace).
 """
 
 from __future__ import annotations

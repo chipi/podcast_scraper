@@ -262,7 +262,7 @@ source .venv/bin/activate
 **Note:** The `setup_venv.sh` script automatically installs the package in editable mode
 (`pip install -e .`), which is required for:
 
-- Running CLI commands: `python3 -m podcast_scraper.cli`
+- Running CLI commands: `python3 -m podcast_scraper.cli` (typical argv: **`--profile`**, **`--config`**, **`--feeds-spec`** — [CLI.md — Quick Start](../api/CLI.md#quick-start))
 - Importing the package in Python: `from podcast_scraper import ...`
 - Running tests that import the package
 
@@ -652,10 +652,10 @@ when `serve` is running. Platform routes under `routes/platform/` are **not** mo
   [web/gi-kg-viewer/README.md](https://github.com/chipi/podcast_scraper/blob/main/web/gi-kg-viewer/README.md)
   and
   [RFC-062](../rfc/RFC-062-gi-kg-viewer-v2.md).
-- **CIL pill to graph focus:** Digest Recent and Episode rail use
+- **CIL pill to graph focus:** Digest Recent and the Episode subject rail use
   `web/gi-kg-viewer/src/utils/cilGraphFocus.ts` so clustered pills pass optional
   `tc:…` ids into `pendingFocusCameraIncludeRawIds` (same idea as Search hits). Further
-  entry surfaces and audit notes: [graph focus entry points (WIP)](../wip/graph-focus-entrypoints.md).
+  entry surfaces and audit notes: [Viewer graph spec — Graph focus entry points](../architecture/VIEWER_GRAPH_SPEC.md#graph-focus-entry-points).
 
 **Makefile targets (repository root):**
 
@@ -674,7 +674,7 @@ when `serve` is running. Platform routes under `routes/platform/` are **not** mo
   (copy, labels, layout, routes, theme tokens, accessible names, list/load flows), update **(1)**
   [`e2e/E2E_SURFACE_MAP.md`](https://github.com/chipi/podcast_scraper/blob/main/web/gi-kg-viewer/e2e/E2E_SURFACE_MAP.md),
   **(2)** `e2e/*.spec.ts` / `helpers.ts` / `fixtures.ts` and run **`make test-ui-e2e`**, **(3)**
-  [UXS-001](../uxs/UXS-001-gi-kg-viewer.md) and/or the relevant [feature UXS](../uxs/index.md) when the **visual or experience spec** changes.
+  [VIEWER_IA.md](../uxs/VIEWER_IA.md) when **shell IA** changes, then [UXS-001](../uxs/UXS-001-gi-kg-viewer.md) and/or the relevant [feature UXS](../uxs/index.md) when the **visual or experience spec** changes.
   Checklist: [E2E Testing Guide — When you change viewer UX](E2E_TESTING_GUIDE.md#when-you-change-viewer-ux-required-workflow).
 
 ### Debugging viewer UI
@@ -785,7 +785,7 @@ metadata for a specific provider configuration.
 ```bash
 # Capture a profile from a pipeline run
 make profile-freeze VERSION=v2.6-openai \
-  PIPELINE_CONFIG=config/profiles/capture_e2e_openai.yaml
+  PIPELINE_CONFIG=config/profiles/freeze/openai.yaml
 
 # Compare two profiles
 make profile-diff FROM=v2.6-wip-openai TO=v2.6-wip-gemini
@@ -793,7 +793,7 @@ make profile-diff FROM=v2.6-wip-openai TO=v2.6-wip-gemini
 
 Profiles live in `data/profiles/<version>.yaml`.
 Pipeline capture configs live in
-`config/profiles/capture_e2e_*.yaml`.
+`config/profiles/freeze/*.yaml`.
 
 **Full guide:**
 [Performance Profile Guide](PERFORMANCE_PROFILE_GUIDE.md)

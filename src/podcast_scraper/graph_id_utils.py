@@ -1,11 +1,11 @@
 """Stable graph node ids for GI and KG artifacts.
 
 Episode nodes share ``episode:{episode_id}`` across layers. Topic, Entity, and Person
-use global slug-style ids (RFC-072: ``person:``, ``org:``, ``topic:``). Insight and Quote
+use global slug-style ids. Insight and Quote
 use opaque hashes keyed by episode + content so they stay unique without embedding
 episode id in the string (``properties.episode_id`` remains the anchor).
 
-Canonical label→slug rules live in ``podcast_scraper.identity.slugify`` (RFC-072);
+Canonical label→slug rules live in ``podcast_scraper.identity.slugify``;
 this module applies graph-specific fallbacks (``topic``, ``unknown``) and length caps.
 """
 
@@ -45,7 +45,7 @@ def topic_node_id_from_slug(slug: str) -> str:
 
 
 def entity_node_id(entity_kind: str, name: str) -> str:
-    """KG entity node id: ``person:{slug}`` or ``org:{slug}`` (RFC-072 CIL)."""
+    """KG entity node id: ``person:{slug}`` or ``org:{slug}``."""
     ek = entity_kind if entity_kind in ("person", "organization") else "person"
     base = (name or "").strip()
     slug = slugify_label(base) if base else "unknown"

@@ -29,10 +29,13 @@
     host)
   - Existing: `web/gi-kg-viewer/src/stores/` (new `person.ts` store or extend
     existing)
+- **Shell IA:** [VIEWER_IA.md](VIEWER_IA.md) — Person subject in subject rail; navigation axes
 
 ---
 
 ## Summary
+
+For shell layout, the three navigation axes, subject rail persistence and clearing, status bar, and first-run empty corpus behavior, see **[VIEWER_IA.md](VIEWER_IA.md)**. This document specifies **Position Tracker** within Person Landing / the subject rail only.
 
 The Position Tracker is a person + topic navigable surface that shows how a person's
 stated positions on a topic evolve across episodes. This UXS defines the visual
@@ -59,7 +62,9 @@ tokens reference [UXS-001](UXS-001-gi-kg-viewer.md). Functional requirements are
 **In scope:**
 
 - Position Tracker right rail panel (graph and search entry points)
-- Position Tracker full-width view (browse entry point)
+- Position Tracker full-width layout when Person Landing runs in the main column
+  (browse host undecided; see
+  [UXS-010 — Full-width browse](UXS-010-person-profile.md#person-landing-fullwidth-browse))
 - Person header, topic selector, insight type filter
 - Episode timeline with Insight and Quote cards
 - All five degradation states (FR3.1 -- FR3.5)
@@ -91,9 +96,10 @@ The Position Tracker panel has two presentation modes:
 - **Right rail** (from graph or search entry point): same panel slot used for graph
   node detail and episode detail. Panel width follows the existing rail width
   (UXS-001).
-- **Full-width** (from browse entry point): occupies the main content area. Layout
-  is the same vertical stack but with wider cards and more horizontal space for
-  Insight text.
+- **Full-width** (only once browse ships; same shell gap as
+  [UXS-010](UXS-010-person-profile.md#person-landing-fullwidth-browse)): occupies the
+  main content area. Layout is the same vertical stack but with wider cards and more
+  horizontal space for Insight text.
 
 The panel header shows "Position Tracker" with the `gi` domain token color, reflecting
 that the primary data source is GIL Insights.
@@ -113,8 +119,13 @@ Tracker tab is preselected with that topic active.
 - Clicking a speaker name in a search result card (including lifted results with
   `lifted.speaker` or enriched sources from UXS-008) opens the Person Landing in
   the right rail.
-- A dedicated person browse (accessible from the viewer navigation) opens the
-  Person Landing in full-width mode.
+
+**Full-width (planned):** There is no implemented top-level browse control in the v2
+main tabs (**Digest \| Library \| Graph \| Dashboard**). Full-width Position Tracker
+is the same Person Landing container as the rail case; **where** corpus-wide browse
+lives is specified under
+[UXS-010 — Full-width browse](UXS-010-person-profile.md#person-landing-fullwidth-browse).
+Until that ships, validation and E2E should assume **rail** entry only.
 
 ---
 
@@ -172,10 +183,11 @@ Below the header, a row of action buttons:
 
 ### Insight cards
 
-Insight cards follow the **shared InsightCard component** defined in
-[UXS-001](UXS-001-gi-kg-viewer.md). This view uses the following InsightCard slots:
-insight text, `insight_type` badge, `position_hint` bar, confidence score, grounding
-badge. Episode attribution is provided by the parent episode card context.
+Insight cards follow the **shared InsightCard** contract in
+[UXS-001 — InsightCard (shared component)](UXS-001-gi-kg-viewer.md#insightcard-shared-component).
+This view uses the following InsightCard slots: insight text, `insight_type` badge,
+`position_hint` bar, confidence score, grounding badge. Episode attribution is
+provided by the parent episode card context.
 
 Within each episode card, Insights are listed vertically, ordered by `position_hint`
 ascending (early in episode first).
@@ -188,8 +200,12 @@ ascending (early in episode first).
   - "question" -> `link` token.
   - Other/unknown -> `muted` token.
 - `position_hint` indicator: a small horizontal bar (40px wide, 4px tall) filled
-  proportionally. Uses `primary` token fill on `border` background. Tooltip shows
-  the numeric value.
+  proportionally. Uses `primary` token fill on `border` background.
+  **Tooltip:** Never show the raw 0.0–1.0 float. If episode `duration_ms` is
+  available, compute `position_hint × duration_ms` and show
+  `~[M]m [S]s into episode`. If duration is unavailable, show a tier label:
+  0.0–0.33 → **"Early in episode"**; 0.34–0.66 → **"Mid episode"**;
+  0.67–1.0 → **"Late in episode"**.
 - Confidence score: `muted` `text-xs`, e.g. "0.88 confidence". Hidden when not
   available.
 - Grounding badge: "grounded" (`success` token, `text-xs`) or "ungrounded"
@@ -241,6 +257,7 @@ New visible labels and selectors require updates to the
 before or with implementation. Key surfaces:
 
 - Right rail panel with `aria-label="Position Tracker"` (use `exact: true`)
+- Full-width Person Landing host (after browse placement is chosen and built)
 - Person header (display name, appearance count)
 - Topic selector dropdown
 - Insight type filter segmented control
@@ -270,3 +287,5 @@ before or with implementation. Key surfaces:
 | Date       | Change                                                         |
 | ---------- | -------------------------------------------------------------- |
 | 2026-04-13 | Initial draft (PRD-028 companion)                              |
+| 2026-04-19 | InsightCard links: UXS-001 subsection anchor                   |
+| 2026-04-19 | Full-width TBD; rail-only; see UXS-010 browse note             |

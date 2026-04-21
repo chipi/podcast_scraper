@@ -22,7 +22,7 @@ describe('visualGroupForNode', () => {
     expect(visualGroupForNode({ type: 'Entity' })).toBe('Entity_person')
   })
 
-  it('maps RFC-072 kind person|org on Entity', () => {
+  it('maps CIL kind person|org on Entity', () => {
     expect(visualGroupForNode({ type: 'Entity', properties: { kind: 'person' } })).toBe(
       'Entity_person',
     )

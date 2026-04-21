@@ -1,5 +1,13 @@
 import { expect, test } from '@playwright/test'
-import { mainViewsNav, SHELL_HEADING_RE } from './helpers'
+import { mainViewsNav, SHELL_HEADING_RE, statusBarCorpusPathInput } from './helpers'
+
+/** Local calendar `YYYY-MM-DD` for recency-dot mocks (matches `digestRecency` parsing). */
+function localYmd(d = new Date()): string {
+  const y = d.getFullYear()
+  const m = String(d.getMonth() + 1).padStart(2, '0')
+  const day = String(d.getDate()).padStart(2, '0')
+  return `${y}-${m}-${day}`
+}
 
 test.describe('Corpus Digest tab', () => {
   test.beforeEach(async ({ page }) => {
@@ -204,7 +212,7 @@ test.describe('Corpus Digest tab', () => {
   }) => {
     await page.goto('/')
     await page.getByRole('heading', { name: SHELL_HEADING_RE }).waitFor()
-    await page.getByPlaceholder('/path/to/output').fill('/mock/corpus')
+    await statusBarCorpusPathInput(page).fill('/mock/corpus')
     await expect(page.getByTestId('digest-root')).toBeVisible()
     const digestRecentCard = page.getByRole('button', {
       name: 'Digest Episode Alpha, Mock Feed Show',
@@ -226,6 +234,9 @@ test.describe('Corpus Digest tab', () => {
         name: 'Open graph for topic Mock Topic Band (top hit with GI or KG)',
       }),
     ).toBeVisible()
+    await expect(
+      page.getByRole('region', { name: 'Topic bands' }).getByText('Strong match'),
+    ).toBeVisible()
     await page.getByRole('button', { name: 'Search topic' }).first().click()
     await expect(page.locator('#search-q')).toHaveValue('climate science')
     await expect(
@@ -233,12 +244,12 @@ test.describe('Corpus Digest tab', () => {
     ).toHaveValue('')
   })
 
-  test('digest episode cards omit graph/search actions (Episode rail has them)', async ({
+  test('digest episode cards omit graph/search actions (Episode subject rail has them)', async ({
     page,
   }) => {
     await page.goto('/')
     await page.getByRole('heading', { name: SHELL_HEADING_RE }).waitFor()
-    await page.getByPlaceholder('/path/to/output').fill('/mock/corpus')
+    await statusBarCorpusPathInput(page).fill('/mock/corpus')
     await expect(page.getByTestId('digest-root')).toBeVisible()
     const digestRoot = page.getByTestId('digest-root')
     await expect(digestRoot.getByRole('button', { name: 'Open in graph' })).toHaveCount(0)
@@ -247,12 +258,12 @@ test.describe('Corpus Digest tab', () => {
     ).toHaveCount(0)
   })
 
-  test('click digest Recent row opens Episode rail; stays on Digest', async ({
+  test('click digest Recent row opens Episode subject rail; stays on Digest', async ({
     page,
   }) => {
     await page.goto('/')
     await page.getByRole('heading', { name: SHELL_HEADING_RE }).waitFor()
-    await page.getByPlaceholder('/path/to/output').fill('/mock/corpus')
+    await statusBarCorpusPathInput(page).fill('/mock/corpus')
     await expect(page.getByTestId('digest-root')).toBeVisible()
     await page
       .getByRole('button', {
@@ -268,12 +279,12 @@ test.describe('Corpus Digest tab', () => {
     ).toBeVisible()
   })
 
-  test('Digest ↔ Library keeps Episode rail when episode is in catalog', async ({
+  test('Digest ↔ Library keeps Episode subject rail when episode is in catalog', async ({
     page,
   }) => {
     await page.goto('/')
     await page.getByRole('heading', { name: SHELL_HEADING_RE }).waitFor()
-    await page.getByPlaceholder('/path/to/output').fill('/mock/corpus')
+    await statusBarCorpusPathInput(page).fill('/mock/corpus')
     await expect(page.getByTestId('digest-root')).toBeVisible()
     await page
       .getByRole('button', {
@@ -330,7 +341,7 @@ test.describe('Corpus Digest tab', () => {
     })
     await page.goto('/')
     await page.getByRole('heading', { name: SHELL_HEADING_RE }).waitFor()
-    await page.getByPlaceholder('/path/to/output').fill('/mock/corpus')
+    await statusBarCorpusPathInput(page).fill('/mock/corpus')
     await expect(page.getByTestId('digest-root')).toBeVisible()
     await page
       .getByRole('button', {
@@ -374,7 +385,7 @@ test.describe('Corpus Digest tab', () => {
     })
     await page.goto('/')
     await page.getByRole('heading', { name: SHELL_HEADING_RE }).waitFor()
-    await page.getByPlaceholder('/path/to/output').fill('/mock/corpus')
+    await statusBarCorpusPathInput(page).fill('/mock/corpus')
     await expect(page.getByTestId('digest-root')).toBeVisible()
     await page
       .getByRole('button', {
@@ -418,14 +429,176 @@ test.describe('Corpus Digest tab', () => {
     })
     await page.goto('/')
     await page.getByRole('heading', { name: SHELL_HEADING_RE }).waitFor()
-    await page.getByPlaceholder('/path/to/output').fill('/mock/corpus')
+    await statusBarCorpusPathInput(page).fill('/mock/corpus')
     await expect(page.getByTestId('digest-root')).toBeVisible()
     await page
       .getByRole('button', {
-        name: 'Open graph and episode details: Digest Episode Alpha, Mock Feed Show',
+        name: 'Open graph and episode details: Digest Episode Alpha, Mock Feed Show, Strong match',
       })
       .click()
     await page.getByRole('button', { name: 'Fit' }).waitFor({ state: 'visible', timeout: 30_000 })
     await expect(page.locator('.graph-canvas')).toBeVisible()
+  })
+
+  test('topic bands show-more expands fourth band and hides control', async ({ page }) => {
+    const today = localYmd()
+    const hit = {
+      metadata_relative_path: 'metadata/ep1.metadata.json',
+      episode_title: 'Digest Episode Alpha',
+      feed_id: 'f1',
+      feed_display_title: 'Mock Feed Show',
+      publish_date: today,
+      score: 0.72,
+      summary_preview: 'Digest summary — First bullet',
+      episode_id: 'e1',
+      gi_relative_path: 'metadata/ep1.gi.json',
+      kg_relative_path: 'metadata/ep1.kg.json',
+      has_gi: true,
+      has_kg: false,
+    }
+    const topics = [
+      {
+        topic_id: 't1',
+        label: 'Mock Topic Band',
+        query: 'climate science',
+        graph_topic_id: 'topic:mock-topic-band',
+        hits: [hit],
+      },
+      {
+        topic_id: 't2',
+        label: 'Second Band',
+        query: 'q2',
+        graph_topic_id: 'topic:second-band',
+        hits: [hit],
+      },
+      {
+        topic_id: 't3',
+        label: 'Third Band',
+        query: 'q3',
+        graph_topic_id: 'topic:third-band',
+        hits: [hit],
+      },
+      {
+        topic_id: 't4',
+        label: 'Fourth Band',
+        query: 'q4',
+        graph_topic_id: 'topic:fourth-band',
+        hits: [hit],
+      },
+    ]
+    await page.unroute('**/api/corpus/digest**')
+    await page.route('**/api/corpus/digest**', async (route) => {
+      const url = new URL(route.request().url())
+      const win = url.searchParams.get('window') || 'all'
+      const since = (url.searchParams.get('since') ?? '').trim()
+      let windowStartUtc = '1970-01-01T00:00:00Z'
+      if (win === 'since' && /^\d{4}-\d{2}-\d{2}$/.test(since)) {
+        windowStartUtc = `${since}T00:00:00Z`
+      }
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          path: '/mock/corpus',
+          window: win,
+          window_start_utc: windowStartUtc,
+          window_end_utc: '2024-06-08T00:00:00Z',
+          compact: false,
+          rows: [
+            {
+              metadata_relative_path: 'metadata/ep1.metadata.json',
+              feed_id: 'f1',
+              feed_display_title: 'Mock Feed Show',
+              episode_id: 'e1',
+              episode_title: 'Digest Episode Alpha',
+              publish_date: today,
+              summary_title: 'Digest summary',
+              summary_bullets_preview: ['First bullet'],
+              summary_bullet_graph_topic_ids: ['topic:first-bullet'],
+              summary_preview: 'Digest summary — First bullet',
+              gi_relative_path: 'metadata/ep1.gi.json',
+              kg_relative_path: 'metadata/ep1.kg.json',
+              has_gi: true,
+              has_kg: false,
+              cil_digest_topics: [],
+            },
+          ],
+          topics,
+          topics_unavailable_reason: null,
+        }),
+      })
+    })
+    await page.goto('/')
+    await page.getByRole('heading', { name: SHELL_HEADING_RE }).waitFor()
+    await statusBarCorpusPathInput(page).fill('/mock/corpus')
+    const digestRoot = page.getByTestId('digest-root')
+    await expect(digestRoot).toBeVisible()
+    await expect(
+      digestRoot.getByRole('button', { name: 'Open graph for topic Fourth Band (top hit with GI or KG)' }),
+    ).toHaveCount(0)
+    const showMore = digestRoot.getByTestId('digest-topic-bands-show-more')
+    await expect(showMore).toBeVisible()
+    await expect(showMore).toHaveText('Show 1 more topics')
+    await showMore.click()
+    await expect(showMore).toHaveCount(0)
+    await expect(
+      digestRoot.getByRole('button', { name: 'Open graph for topic Fourth Band (top hit with GI or KG)' }),
+    ).toBeVisible()
+  })
+
+  test('digest Recent shows recency dot img when publish_date is today (local)', async ({
+    page,
+  }) => {
+    const today = localYmd()
+    await page.unroute('**/api/corpus/digest**')
+    await page.route('**/api/corpus/digest**', async (route) => {
+      const url = new URL(route.request().url())
+      const win = url.searchParams.get('window') || 'all'
+      const since = (url.searchParams.get('since') ?? '').trim()
+      let windowStartUtc = '1970-01-01T00:00:00Z'
+      if (win === 'since' && /^\d{4}-\d{2}-\d{2}$/.test(since)) {
+        windowStartUtc = `${since}T00:00:00Z`
+      }
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          path: '/mock/corpus',
+          window: win,
+          window_start_utc: windowStartUtc,
+          window_end_utc: '2024-06-08T00:00:00Z',
+          compact: false,
+          rows: [
+            {
+              metadata_relative_path: 'metadata/ep1.metadata.json',
+              feed_id: 'f1',
+              feed_display_title: 'Mock Feed Show',
+              episode_id: 'e1',
+              episode_title: 'Digest Episode Alpha',
+              publish_date: today,
+              summary_title: 'Digest summary',
+              summary_bullets_preview: ['First bullet'],
+              summary_bullet_graph_topic_ids: ['topic:first-bullet'],
+              summary_preview: 'Digest summary — First bullet',
+              gi_relative_path: 'metadata/ep1.gi.json',
+              kg_relative_path: 'metadata/ep1.kg.json',
+              has_gi: true,
+              has_kg: false,
+              cil_digest_topics: [],
+            },
+          ],
+          topics: [],
+          topics_unavailable_reason: null,
+        }),
+      })
+    })
+    await page.goto('/')
+    await page.getByRole('heading', { name: SHELL_HEADING_RE }).waitFor()
+    await statusBarCorpusPathInput(page).fill('/mock/corpus')
+    const digestRoot = page.getByTestId('digest-root')
+    await expect(digestRoot).toBeVisible()
+    await expect(
+      digestRoot.getByRole('img', { name: /Published (less than 1 hour|\d+ hour)/ }),
+    ).toBeVisible()
   })
 })

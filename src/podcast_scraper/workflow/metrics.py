@@ -91,7 +91,7 @@ class Metrics:
     gi_evidence_score_entailment_calls: int = 0
     gi_episodes_zero_grounded_when_required: int = 0  # gi_require_grounding but 0 quotes
     gi_grounding_degraded: bool = False  # True if any episode had zero grounded quotes (above)
-    # GIL success metrics (PRD-017): accumulated across artifacts this run
+    # GIL success metrics: accumulated across artifacts this run
     gi_insights_total: int = 0  # Total Insight nodes across all artifacts
     gi_quotes_total: int = 0  # Total Quote nodes across all artifacts
     gi_insights_grounded: int = 0  # Insights with ≥1 SUPPORTED_BY edge
@@ -140,7 +140,7 @@ class Metrics:
     cleaning_time_by_episode: Dict[int, float] = field(default_factory=dict)
     gi_times: List[float] = field(default_factory=list)  # GIL artifact generation times per episode
     kg_times: List[float] = field(default_factory=list)  # KG artifact generation times per episode
-    # Wall time for maybe_index_corpus (RFC-064 frozen profiles); 0 if skipped or disabled
+    # Wall time for maybe_index_corpus; 0 if skipped or disabled
     vector_index_seconds: float = 0.0
 
     # LLM API call tracking (for cost estimation)
@@ -172,7 +172,7 @@ class Metrics:
     llm_bundled_clean_summary_output_tokens: int = 0
     llm_bundled_fallback_to_staged_count: int = 0
 
-    # Audio preprocessing metrics (RFC-040, Issue #387)
+    # Audio preprocessing metrics
     preprocessing_times: List[float] = field(
         default_factory=list
     )  # Preprocessing times per episode (actual processing time, not wall time)
@@ -410,7 +410,7 @@ class Metrics:
         quotes_verbatim: int = 0,
         quotes_checked: int = 0,
     ) -> None:
-        """Record GIL success metrics from one artifact (PRD-017).
+        """Record GIL success metrics from one artifact.
 
         Call once per generated gi.json. Accumulates totals for grounding rate,
         quote validity rate, and extraction coverage.
@@ -1166,7 +1166,7 @@ class Metrics:
                 else 0.0
             ),
             "preprocessing_audio_metadata": self.preprocessing_audio_metadata,
-            # Per-episode stage seconds (string keys for JSON); RFC-064 stage_truth snapshots
+            # Per-episode stage seconds (string keys for JSON); stage_truth snapshots
             "download_media_time_by_episode": {
                 str(k): round(v, 4) for k, v in sorted(self.download_media_time_by_episode.items())
             },
@@ -1327,7 +1327,7 @@ class Metrics:
           - key: value
         ...
 
-        Uses DEBUG level per RFC-027 to avoid cluttering normal logs.
+        Uses DEBUG level to avoid cluttering normal logs.
         Detailed metrics are available at DEBUG level, summary metrics at INFO level.
         """
         metrics_dict = self.finish()
@@ -1338,4 +1338,4 @@ class Metrics:
             readable_key = key.replace("_", " ").title()
             summary_lines.append(f"  - {readable_key}: {value}")
         summary = "\n".join(summary_lines)
-        logger.debug(summary)  # Changed from logger.info() per RFC-027
+        logger.debug(summary)  # Changed from logger.info() for quieter summaries

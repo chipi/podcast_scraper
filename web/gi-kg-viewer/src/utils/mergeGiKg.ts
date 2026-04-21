@@ -47,7 +47,7 @@ function entityCanonicalKey(node: RawGraphNode): string | null {
 
 export type EntityDedupMode = 'name-based' | 'cil-first'
 
-/** Strip ``g:`` / ``k:`` / ``kg:`` layer prefixes for RFC-072 id comparison (exported for topic cluster overlay). */
+/** Strip ``g:`` / ``k:`` / ``kg:`` layer prefixes for CIL id comparison (exported for topic cluster overlay). */
 export function stripLayerPrefixesForCil(rawId: string): string {
   let s = String(rawId).trim()
   let prev = ''
@@ -65,7 +65,7 @@ export function stripLayerPrefixesForCil(rawId: string): string {
 }
 
 /**
- * When GI+KG are combined, the same RFC-072 id (e.g. ``person:alice``) may appear
+ * When GI+KG are combined, the same CIL id (e.g. ``person:alice``) may appear
  * as a GI ``Person`` and a KG ``Entity`` with different graph types; merge on CIL id.
  */
 function cilMergeKey(node: RawGraphNode): string | null {

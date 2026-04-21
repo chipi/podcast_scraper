@@ -90,7 +90,7 @@ This surfaces in multiple places:
 1. **`verify-gil-offsets-strict` CI gate** (the immediate trigger) -- the
    offset verification expects Quote nodes to exist so it can check alignment
    with FAISS transcript chunks.  Runs from ML-only acceptance configs
-   (`sample_acceptance_e2e_fixture_single.yaml`) produce `verdict: no_quotes`.
+   (ML-only / **airgapped** single-feed acceptance rows) produce `verdict: no_quotes`.
    Fixed (April 2026) by treating `no_quotes` as a pass in strict mode --
    nothing to misalign means no alignment failure -- but the underlying
    quality gap remains.  When GI has Quotes but some episodes have **no**
@@ -148,12 +148,12 @@ fallback if engineering bandwidth is tight.
 **Status:** Addressed (2026-04). Multi-feed batches defer shared ML singleton teardown between feeds;
 `preload_ml_models_if_needed` reuses matching ML fingerprints; HF QA cache cleared between feeds;
 QA pipelines pass `low_cpu_mem_usage=False`; `summarizer.unload_model` skips `.to("cpu")` on meta
-shells. `sample_acceptance_e2e_fixture_multi_ml` is back in `FAST_CONFIGS.txt`.
+shells. Fast acceptance matrix lives in `config/acceptance/FAST_CONFIG.yaml` (official profiles + fragments).
 
 **Historical (pre-fix):** five feeds in one process could leave HF QA / torch in a state where
 feed 2’s Whisper load failed with meta-tensor errors; CI weights were present (not a cache miss).
 
-**Local smoke:** `make test-acceptance CONFIGS=config/acceptance/sample_acceptance_e2e_fixture_multi_ml.yaml USE_FIXTURES=1`
+**Local smoke:** `make test-acceptance FROM_FAST_STEMS=1 USE_FIXTURES=1` (matrix in `config/acceptance/FAST_CONFIG.yaml`) or `make test-acceptance-fixtures-fast`
 
 **Trigger to revisit:**
 

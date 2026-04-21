@@ -3,6 +3,7 @@ import { computed, ref } from 'vue'
 import { useGraphNavigationStore } from '../../stores/graphNavigation'
 import { useSearchStore } from '../../stores/search'
 import { useShellStore } from '../../stores/shell'
+import { useSubjectStore } from '../../stores/subject'
 import type { SearchHit } from '../../api/searchApi'
 import { graphNodeIdFromSearchHit } from '../../utils/searchFocus'
 import { sourceMetadataRelativePathFromSearchHit } from '../../utils/searchHitLibrary'
@@ -19,6 +20,7 @@ const emit = defineEmits<{
 const shell = useShellStore()
 const search = useSearchStore()
 const nav = useGraphNavigationStore()
+const subject = useSubjectStore()
 
 const queryRef = ref<HTMLTextAreaElement | null>(null)
 const advancedDialogRef = ref<HTMLDialogElement | null>(null)
@@ -113,6 +115,29 @@ const libraryOpensEnabled = computed(() =>
   Boolean(shell.healthStatus && shell.hasCorpusPath),
 )
 
+const searchFieldsEnabled = computed(
+  () => Boolean(shell.healthStatus && shell.hasCorpusPath),
+)
+
+const searchFieldDisabledTitle = computed(() => {
+  if (!shell.hasCorpusPath) {
+    return 'Set corpus path in the status bar to enable search'
+  }
+  if (!shell.healthStatus) {
+    return 'Requires a healthy API connection'
+  }
+  return ''
+})
+
+const enhancedSearchChipClass = computed(() => {
+  const base =
+    'inline-flex items-center rounded border px-1.5 py-px text-[10px] font-semibold uppercase tracking-wide'
+  if (search.enrichmentCallFailed) {
+    return `${base} border-warning text-warning`
+  }
+  return `${base} border-gi text-gi`
+})
+
 function toggleType(v: string): void {
   const i = search.filters.types.indexOf(v)
   if (i >= 0) {
@@ -122,7 +147,7 @@ function toggleType(v: string): void {
   }
 }
 
-/** RFC-075: optional ``tc:…`` compound to widen the graph camera bbox (selection stays on the leaf). */
+/** Optional ``tc:…`` compound to widen the graph camera bbox (selection stays on the leaf). */
 function topicClusterCompoundIdForCamera(hit: SearchHit): string | null {
   const tc = hit.metadata?.topic_cluster
   if (tc == null || typeof tc !== 'object') return null
@@ -133,6 +158,7 @@ function topicClusterCompoundIdForCamera(hit: SearchHit): string | null {
 function onFocusHit(hit: SearchHit): void {
   const id = graphNodeIdFromSearchHit(hit)
   if (!id) return
+  subject.focusGraphNode(id)
   const tcParent = topicClusterCompoundIdForCamera(hit)
   nav.requestFocusNode(id, undefined, tcParent ? [tcParent] : undefined)
   emit('go-graph')
@@ -151,6 +177,16 @@ function onOpenEpisodeSummaryHit(hit: SearchHit): void {
 
 async function onSubmit(): Promise<void> {
   await search.runSearch(shell.corpusPath)
+}
+
+/** Enter runs search (same as **Search**); Shift+Enter inserts a newline. */
+function onQueryKeydown(e: KeyboardEvent): void {
+  if (e.key !== 'Enter' || e.shiftKey) return
+  if (e.ctrlKey || e.metaKey || e.altKey) return
+  if (e.defaultPrevented || e.isComposing) return
+  if (!searchFieldsEnabled.value || search.loading) return
+  e.preventDefault()
+  void onSubmit()
 }
 
 /** Advanced feed field: catalog id for API; Library handoff can show catalog title until edited. */
@@ -179,14 +215,34 @@ const advancedFeedInputTitle = computed(() => {
   }
   return 'Substring match on catalog feed_id in index metadata.'
 })
+
+const advancedFeedCombinedTitle = computed(() =>
+  searchFieldsEnabled.value ? advancedFeedInputTitle.value : searchFieldDisabledTitle.value,
+)
 </script>
 
 <template>
-  <section class="rounded-lg border border-border bg-surface p-4">
-    <div class="mb-2 flex items-center gap-1.5">
+  <!-- Grid: chrome row auto-height, results row fills remainder (reliable scroll; flex-1 column was not bounding height). -->
+  <section
+    class="grid min-h-0 min-w-0 max-w-full flex-1 grid-rows-[auto_minmax(0,1fr)] overflow-x-hidden rounded-lg border border-border bg-surface p-4"
+  >
+    <div class="min-w-0">
+    <div class="mb-2 flex shrink-0 flex-wrap items-center gap-1.5">
       <h2 class="text-sm font-medium text-surface-foreground">
         Semantic search
       </h2>
+      <span
+        v-if="shell.enrichedSearchAvailable"
+        data-testid="search-enhanced-chip"
+        :class="enhancedSearchChipClass"
+        :title="
+          search.enrichmentCallFailed
+            ? 'Last search reported enrichment failure — vector hits are still shown.'
+            : 'Semantic search enrichment is available on this server.'
+        "
+      >
+        Enhanced
+      </span>
       <HelpTip>
         <p class="font-medium text-surface-foreground">
           How semantic search works
@@ -219,11 +275,12 @@ const advancedFeedInputTitle = computed(() => {
             window. Run <strong>Search</strong> for vector hits.
           </li>
           <li>
-            <strong>G</strong> — show on graph (GI/KG node); <strong>L</strong> — open the episode in
-            <strong>Library</strong> when the corpus path is set, the API is healthy, and the hit
-            includes <code class="rounded bg-canvas px-0.5 text-[10px]">source_metadata_relative_path</code>
-            (stamp it with a vector index rebuild). If Library routes are off, the Library tab may show
-            an error after you click <strong>L</strong>.
+            <strong>G</strong> — focus the mapped GI/KG node and switch to <strong>Graph</strong> when
+            needed; <strong>L</strong> — open the episode in the <strong>subject panel</strong> (main tab
+            unchanged) when the corpus path is set, the API is healthy, and the hit includes
+            <code class="rounded bg-canvas px-0.5 text-[10px]">source_metadata_relative_path</code>
+            (stamp it with a vector index rebuild). Catalog errors for that episode still surface on the
+            <strong>Library</strong> tab if you open it separately.
           </li>
           <li>
             <strong>Search result insights</strong> (after a search) — one scrollable modal: dominant-type
@@ -246,14 +303,20 @@ const advancedFeedInputTitle = computed(() => {
       </HelpTip>
     </div>
     <p
-      v-if="!shell.healthStatus"
-      class="mb-2 text-xs text-muted"
+      v-if="!shell.hasCorpusPath"
+      class="mb-2 shrink-0 text-xs text-muted"
+    >
+      Set corpus path in the status bar to enable search.
+    </p>
+    <p
+      v-else-if="!shell.healthStatus"
+      class="mb-2 shrink-0 text-xs text-muted"
     >
       Requires the API.
     </p>
     <form
       id="semantic-search-form"
-      class="space-y-2"
+      class="shrink-0 space-y-2"
       @submit.prevent="onSubmit"
     >
       <textarea
@@ -264,20 +327,28 @@ const advancedFeedInputTitle = computed(() => {
         class="w-full rounded border border-border bg-elevated px-2 py-1.5 text-sm text-elevated-foreground placeholder:text-muted"
         placeholder="Natural language…"
         aria-label="Search query"
-        :disabled="!shell.healthStatus"
+        :disabled="!searchFieldsEnabled"
+        :title="searchFieldDisabledTitle"
+        @keydown="onQueryKeydown"
       />
-      <div class="flex max-w-full flex-nowrap items-end gap-3">
-        <div class="w-[min(100%,10.5rem)] shrink-0">
-          <label class="block text-xs text-muted" for="search-since-date">Since (date)</label>
+      <div
+        class="grid w-full min-w-0 grid-cols-[minmax(0,1fr)_4rem] items-end gap-x-2 gap-y-1 sm:grid-cols-[minmax(0,1fr)_4.5rem]"
+      >
+        <div class="min-w-0">
+          <label
+            class="block truncate text-xs text-muted"
+            for="search-since-date"
+          >Since (date)</label>
           <input
             id="search-since-date"
             v-model="search.filters.since"
             type="date"
-            class="w-full rounded border border-border bg-elevated px-2 py-1 text-sm"
-            :disabled="!shell.healthStatus"
+            class="box-border w-full min-w-0 max-w-full rounded border border-border bg-elevated px-1.5 py-1 text-xs sm:px-2 sm:text-sm"
+            :disabled="!searchFieldsEnabled"
+            :title="searchFieldDisabledTitle"
           >
         </div>
-        <div class="w-[4.75rem] shrink-0">
+        <div class="w-full min-w-0 justify-self-stretch sm:w-auto sm:justify-self-end">
           <label class="block text-xs text-muted" for="search-top-k">Top‑k</label>
           <input
             id="search-top-k"
@@ -285,17 +356,19 @@ const advancedFeedInputTitle = computed(() => {
             type="number"
             min="1"
             max="100"
-            class="w-full rounded border border-border bg-elevated px-2 py-1 text-sm"
-            :disabled="!shell.healthStatus"
+            class="box-border w-full rounded border border-border bg-elevated px-1.5 py-1 text-xs tabular-nums sm:px-2 sm:text-sm"
+            :disabled="!searchFieldsEnabled"
+            :title="searchFieldDisabledTitle"
           >
         </div>
       </div>
     </form>
-    <div class="mt-2">
+    <div class="mt-2 shrink-0">
       <button
         type="button"
         class="text-xs text-primary underline decoration-primary/60 underline-offset-2 hover:decoration-primary disabled:opacity-40"
-        :disabled="!shell.healthStatus"
+        :disabled="!searchFieldsEnabled"
+        :title="searchFieldDisabledTitle"
         @click="openAdvancedSearch"
       >
         Advanced search
@@ -305,7 +378,7 @@ const advancedFeedInputTitle = computed(() => {
       v-if="hasAdvancedFilterSummary"
       role="region"
       aria-label="Active advanced filters"
-      class="mt-2 rounded border border-border bg-elevated/60 px-2 py-1.5"
+      class="mt-2 shrink-0 rounded border border-border bg-elevated/60 px-2 py-1.5"
     >
       <p class="text-[10px] font-medium uppercase tracking-wide text-muted">
         Advanced filters
@@ -319,19 +392,21 @@ const advancedFeedInputTitle = computed(() => {
         </li>
       </ul>
     </div>
-    <div class="mt-2 flex flex-wrap gap-2">
+    <div class="mt-2 flex shrink-0 flex-wrap gap-2">
       <button
         type="submit"
         form="semantic-search-form"
         class="rounded bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground hover:opacity-90 disabled:opacity-40"
-        :disabled="!shell.healthStatus || search.loading"
+        :disabled="!searchFieldsEnabled || search.loading"
+        :title="searchFieldDisabledTitle"
       >
         {{ search.loading ? 'Searching…' : 'Search' }}
       </button>
       <button
         type="button"
         class="rounded border border-border px-3 py-1.5 text-sm hover:bg-overlay disabled:opacity-40"
-        :disabled="!shell.healthStatus"
+        :disabled="!searchFieldsEnabled"
+        :title="searchFieldDisabledTitle"
         @click="search.clearResults()"
       >
         Clear
@@ -339,7 +414,7 @@ const advancedFeedInputTitle = computed(() => {
     </div>
     <dialog
       ref="advancedDialogRef"
-      class="w-[min(100%,24rem)] max-h-[min(90vh,32rem)] overflow-y-auto rounded-lg border border-border bg-surface p-4 text-surface-foreground shadow-xl [&::backdrop]:bg-black/40"
+      class="shrink-0 w-[min(100%,24rem)] max-h-[min(90vh,32rem)] overflow-y-auto rounded-lg border border-border bg-surface p-4 text-surface-foreground shadow-xl [&::backdrop]:bg-black/40"
       aria-labelledby="advanced-search-title"
       @click="onAdvancedDialogClick"
     >
@@ -361,7 +436,8 @@ const advancedFeedInputTitle = computed(() => {
             v-model="search.filters.groundedOnly"
             type="checkbox"
             class="rounded border-border"
-            :disabled="!shell.healthStatus"
+            :disabled="!searchFieldsEnabled"
+            :title="searchFieldDisabledTitle"
           >
           Grounded insights only
         </label>
@@ -373,8 +449,8 @@ const advancedFeedInputTitle = computed(() => {
             type="text"
             class="mt-0.5 w-full rounded border border-border bg-elevated px-2 py-1 text-sm"
             placeholder="Catalog feed id substring"
-            :title="advancedFeedInputTitle"
-            :disabled="!shell.healthStatus"
+            :title="advancedFeedCombinedTitle"
+            :disabled="!searchFieldsEnabled"
             autocomplete="off"
           >
         </label>
@@ -384,7 +460,8 @@ const advancedFeedInputTitle = computed(() => {
             v-model="search.filters.speaker"
             type="text"
             class="mt-0.5 w-full rounded border border-border bg-elevated px-2 py-1 text-sm"
-            :disabled="!shell.healthStatus"
+            :disabled="!searchFieldsEnabled"
+            :title="searchFieldDisabledTitle"
           >
         </label>
         <label class="block text-xs text-muted">
@@ -394,7 +471,8 @@ const advancedFeedInputTitle = computed(() => {
             type="text"
             class="mt-0.5 w-full rounded border border-border bg-elevated px-2 py-1 text-sm"
             placeholder="(server default)"
-            :disabled="!shell.healthStatus"
+            :disabled="!searchFieldsEnabled"
+            :title="searchFieldDisabledTitle"
           >
         </label>
         <label class="flex cursor-pointer items-center gap-2 text-xs text-muted">
@@ -402,7 +480,8 @@ const advancedFeedInputTitle = computed(() => {
             v-model="search.filters.dedupeKgSurfaces"
             type="checkbox"
             class="rounded border-border"
-            :disabled="!shell.healthStatus"
+            :disabled="!searchFieldsEnabled"
+            :title="searchFieldDisabledTitle"
           >
           Merge duplicate KG surfaces (kg_entity / kg_topic)
         </label>
@@ -420,7 +499,8 @@ const advancedFeedInputTitle = computed(() => {
                 type="checkbox"
                 class="rounded border-border"
                 :checked="search.filters.types.includes(opt.value)"
-                :disabled="!shell.healthStatus"
+                :disabled="!searchFieldsEnabled"
+                :title="searchFieldDisabledTitle"
                 @change="toggleType(opt.value)"
               >
               {{ opt.label }}
@@ -433,54 +513,60 @@ const advancedFeedInputTitle = computed(() => {
       ref="vizDialogRef"
       :hits="search.results"
     />
-    <p
-      v-if="search.error"
-      class="mt-2 text-xs text-danger"
-    >
-      {{ search.error }}
-    </p>
-    <p
-      v-if="search.apiError"
-      class="mt-2 text-xs text-warning"
-    >
-      {{ search.apiError }}
-    </p>
+    </div>
     <div
-      v-if="search.results.length"
-      class="mt-3 space-y-2"
+      data-testid="semantic-search-results-scroll"
+      class="min-h-0 min-w-0 overflow-x-hidden overflow-y-auto overscroll-y-contain [scrollbar-gutter:stable] [scrollbar-width:thin] [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-border"
     >
-      <div class="flex flex-wrap items-center gap-x-3 gap-y-1">
-        <p class="text-xs font-medium text-muted">
-          {{ search.results.length }}
-          {{ search.results.length === 1 ? 'result' : 'results' }}
-        </p>
-        <p
-          v-if="search.liftStats && search.liftStats.transcript_hits_returned > 0"
-          class="text-[10px] text-muted"
-          title="RFC-072 lift coverage for this result page (transcript rows returned vs rows with a linked GI insight)."
-        >
-          Lift:
-          {{ search.liftStats.lift_applied }} /
-          {{ search.liftStats.transcript_hits_returned }}
-          transcript rows linked to GI
-        </p>
-        <button
-          type="button"
-          class="text-xs text-primary underline decoration-primary/60 underline-offset-2 hover:decoration-primary"
-          @click="openSearchResultsViz"
-        >
-          Search result insights
-        </button>
+      <p
+        v-if="search.error"
+        class="mt-2 text-xs text-danger"
+      >
+        {{ search.error }}
+      </p>
+      <p
+        v-if="search.apiError"
+        class="mt-2 text-xs text-warning"
+      >
+        {{ search.apiError }}
+      </p>
+      <div
+        v-if="search.results.length"
+        class="mt-3 space-y-2"
+      >
+        <div class="flex flex-wrap items-center gap-x-3 gap-y-1">
+          <p class="text-xs font-medium text-muted">
+            {{ search.results.length }}
+            {{ search.results.length === 1 ? 'result' : 'results' }}
+          </p>
+          <p
+            v-if="search.liftStats && search.liftStats.transcript_hits_returned > 0"
+            class="text-[10px] text-muted"
+            title="Transcript lift coverage for this result page (rows returned vs rows with a linked GI insight)."
+          >
+            Lift:
+            {{ search.liftStats.lift_applied }} /
+            {{ search.liftStats.transcript_hits_returned }}
+            transcript rows linked to GI
+          </p>
+          <button
+            type="button"
+            class="text-xs text-primary underline decoration-primary/60 underline-offset-2 hover:decoration-primary"
+            @click="openSearchResultsViz"
+          >
+            Search result insights
+          </button>
+        </div>
+        <ResultCard
+          v-for="(h, i) in search.results"
+          :key="`${h.doc_id}-${i}`"
+          :hit="h"
+          :library-opens-enabled="libraryOpensEnabled"
+          @focus="onFocusHit"
+          @open-library="onOpenLibraryHit"
+          @open-episode-summary="onOpenEpisodeSummaryHit"
+        />
       </div>
-      <ResultCard
-        v-for="(h, i) in search.results"
-        :key="`${h.doc_id}-${i}`"
-        :hit="h"
-        :library-opens-enabled="libraryOpensEnabled"
-        @focus="onFocusHit"
-        @open-library="onOpenLibraryHit"
-        @open-episode-summary="onOpenEpisodeSummaryHit"
-      />
     </div>
   </section>
 </template>

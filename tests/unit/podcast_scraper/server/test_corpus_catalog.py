@@ -1,4 +1,4 @@
-"""Unit tests for Corpus Library catalog scan (RFC-067)."""
+"""Unit tests for Corpus Library catalog scan."""
 
 from __future__ import annotations
 
@@ -263,6 +263,35 @@ def test_filter_rows_topic_q_matches_bullet_or_summary_title(tmp_path: Path) -> 
     assert {r.episode_id for r in f} == {"1"}
     f2 = filter_rows(rows, topic_q="QUANTUM")
     assert {r.episode_id for r in f2} == {"4"}
+
+
+def test_filter_rows_until_and_has_gi(tmp_path: Path) -> None:
+    root = tmp_path
+    mdir = root / "metadata"
+    _write_meta(
+        mdir / "early.metadata.json",
+        episode_id="1",
+        published="2024-01-10T00:00:00",
+    )
+    (mdir / "early.gi.json").write_text("{}", encoding="utf-8")
+    _write_meta(
+        mdir / "late.metadata.json",
+        episode_id="2",
+        published="2024-03-20T00:00:00",
+    )
+    (mdir / "late.gi.json").write_text("{}", encoding="utf-8")
+    rows = build_catalog_rows(root)
+    f = filter_rows(rows, since="2024-01-01", until="2024-02-01")
+    assert {r.episode_id for r in f} == {"1"}
+    _write_meta(
+        mdir / "nogi.metadata.json",
+        episode_id="3",
+        published="2024-06-01T00:00:00",
+    )
+    rows2 = build_catalog_rows(root)
+    missing = filter_rows(rows2, has_gi=False)
+    assert {r.episode_id for r in missing} == {"3"}
+    assert all(not r.has_gi for r in missing)
 
 
 def test_filter_rows_feed_id_empty_string(tmp_path: Path) -> None:

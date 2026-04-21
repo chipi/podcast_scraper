@@ -1,4 +1,4 @@
-"""Tests for GIL output contracts (RFC-050 shapes)."""
+"""Tests for GIL output contracts."""
 
 import pytest
 

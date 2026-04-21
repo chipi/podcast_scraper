@@ -20,7 +20,7 @@ import { sourceMetadataRelativePathFromSearchHit } from '../../utils/searchHitLi
 
 const props = defineProps<{
   hit: SearchHit
-  /** Corpus Library API + corpus path — required to offer Library navigation. */
+  /** Corpus Library API + corpus path — required to offer episode handoff (**L**) in the subject rail. */
   libraryOpensEnabled: boolean
 }>()
 
@@ -32,7 +32,7 @@ const emit = defineEmits<{
 
 const docType = computed(() => String(props.hit.metadata?.doc_type ?? '?'))
 
-/** RFC-075: one line when server joined ``topic_clusters.json`` for this ``kg_topic`` row. */
+/** One line when server joined ``topic_clusters.json`` for this ``kg_topic`` row. */
 const topicClusterSummary = computed((): string | null => {
   const tc = props.hit.metadata?.topic_cluster
   if (tc == null || typeof tc !== 'object') return null
@@ -100,7 +100,7 @@ const episodeIdTooltip = computed((): string | undefined => {
   if (!id) return undefined
   return (
     `Episode id (corpus-stable, from metadata / vector index): ${id}. ` +
-    'Same episode across chunks in this search; not sent when opening Library (that uses the metadata file path).'
+    'Same episode across chunks in this search; not sent for L (that uses the metadata file path).'
   )
 })
 
@@ -120,7 +120,7 @@ const quotes = computed(() => {
 const quotesOpen = ref(false)
 const liftedOpen = ref(true)
 
-/** RFC-072 optional enrichment on transcript chunk hits (#528). */
+/** Optional enrichment on transcript chunk hits (linked GI insight). */
 const lifted = computed((): Record<string, unknown> | null => {
   const raw = props.hit.lifted
   if (raw == null || typeof raw !== 'object') return null
@@ -222,8 +222,8 @@ function onEpisodeIdChipClick(ev: MouseEvent): void {
           v-if="openLibrary"
           type="button"
           :class="SEARCH_RESULT_LIBRARY_BUTTON_CLASS"
-          aria-label="Open episode in Library"
-          title="Open in Library"
+          aria-label="Open episode in subject panel"
+          title="Open episode in subject panel"
           @click="onLibraryClick"
         >
           L

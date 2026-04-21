@@ -29,10 +29,13 @@
   - Existing: `web/gi-kg-viewer/src/components/search/ResultCard.vue`
   - Existing: `web/gi-kg-viewer/src/stores/search.ts` (extended)
   - New: enriched answer panel component (within search/)
+- **Shell IA:** [VIEWER_IA.md](VIEWER_IA.md) — left panel Search host; subject rail; navigation axes
 
 ---
 
 ## Summary
+
+For shell layout, the three navigation axes, subject rail persistence and clearing, status bar, and first-run empty corpus behavior, see **[VIEWER_IA.md](VIEWER_IA.md)**. This document specifies the **Enriched Answer** panel and related search UI only (extends UXS-005).
 
 Enriched Search extends the existing semantic search panel (UXS-005) with a
 query-time LLM enrichment layer that lifts raw FAISS transcript chunks into
@@ -114,6 +117,11 @@ panel header:
 - Small pill: `surface` background, `gi` border, `text-xs`.
 - Visible only when `enriched_search_available: true` from `GET /api/health`.
 - Hidden when enrichment is not configured -- no degraded state, no error.
+- **Last enrichment call failed** (timeout or provider error — same condition
+  that drives the panel’s error state): chip keeps `surface` background and
+  `text-xs` text, but use a subtle **`warning` border** instead of the normal
+  `gi` border. Native `title` tooltip: `Enrichment configured but last call failed.`
+  On the next **successful** enrichment call, revert to the `gi` border.
 
 ---
 

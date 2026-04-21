@@ -1,4 +1,4 @@
-"""RFC-072 per-episode ``bridge.json`` — canonical CIL identities across GI and KG."""
+"""Per-episode ``bridge.json`` — canonical CIL identities across GI and KG."""
 
 from __future__ import annotations
 
@@ -220,7 +220,7 @@ def build_bridge(
     fuzzy_threshold: float = _FUZZY_MERGE_THRESHOLD,
     embedder: Optional[Any] = None,
 ) -> Dict[str, Any]:
-    """Build a ``bridge.json`` payload (RFC-072 §4).
+    """Build a ``bridge.json`` payload.
 
     Args:
         episode_id: Episode identifier.

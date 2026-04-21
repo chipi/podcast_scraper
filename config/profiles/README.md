@@ -56,6 +56,14 @@ run time to supply operational fields.
 
 See [`freeze/README.md`](freeze/README.md) for the workflow and matrix.
 
+## Acceptance runner matrix (`config/acceptance/`)
+
+Cross-link only: the acceptance runner merges
+[`FAST_CONFIG.yaml`](../acceptance/FAST_CONFIG.yaml) with YAML under
+[`fragments/`](../acceptance/fragments/). That layout is independent of
+`make profile-freeze`; see [`acceptance/README.md`](../acceptance/README.md)
+for stems, env vars, and CI usage.
+
 ## Legacy
 
 [`profile_freeze.example.yaml`](profile_freeze.example.yaml) is a stub from

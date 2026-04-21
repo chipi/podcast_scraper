@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test'
+import { statusBarCorpusPathInput } from './helpers'
 
 test.describe('Corpus path hints (mocked API)', () => {
   test.beforeEach(async ({ page }) => {
@@ -32,8 +33,10 @@ test.describe('Corpus path hints (mocked API)', () => {
   test('List shows corpus path hint when API returns hints', async ({ page }) => {
     await page.goto('/')
 
-    await page.getByPlaceholder('/path/to/output').fill('/mock/corpus/feeds/rss_example/metadata')
-    await page.getByRole('button', { name: 'List' }).click()
+    await statusBarCorpusPathInput(page).fill(
+      '/mock/corpus/feeds/rss_example/metadata',
+    )
+    await page.getByTestId('status-bar-list-artifacts').click()
 
     await expect(page.getByText('Corpus path hint')).toBeVisible()
     await expect(page.getByText(/Unified semantic index/i)).toBeVisible()

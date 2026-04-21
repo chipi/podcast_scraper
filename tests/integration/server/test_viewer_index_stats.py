@@ -1,4 +1,4 @@
-"""Viewer API: GET /api/index/stats (RFC-062).
+"""Viewer API: GET /api/index/stats.
 
 Requires ``fastapi`` (``pip install -e '.[server]'``).
 """

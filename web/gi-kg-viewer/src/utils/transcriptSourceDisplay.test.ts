@@ -36,6 +36,12 @@ describe('resolveTranscriptCorpusRelpath', () => {
       'feeds/rss_x/run_abc/transcripts/0002 - Ep_20260409.txt',
     )
   })
+  it('treats GI at corpus-root metadata/ as run root for transcripts/ refs', () => {
+    const gi = 'metadata/0001 - Ep.gi.json'
+    expect(resolveTranscriptCorpusRelpath('transcripts/0001 - Ep.txt', gi)).toBe(
+      'transcripts/0001 - Ep.txt',
+    )
+  })
   it('joins bare filename to feed run root when GI is under metadata/', () => {
     const gi = 'feeds/show/run_hash/metadata/ep.gi.json'
     expect(resolveTranscriptCorpusRelpath('transcript.txt', gi)).toBe(
@@ -78,6 +84,15 @@ describe('resolveGiPathForTranscript', () => {
       sourceCorpusRelPathByEpisodeId: { ep2: 'feeds/other/metadata/y.gi.json' },
     } as unknown as ParsedArtifact
     expect(resolveGiPathForTranscript(art, 'ep2')).toBe('feeds/other/metadata/y.gi.json')
+  })
+  it('resolves map key case-insensitively for episode id', () => {
+    const art = {
+      sourceCorpusRelPath: null,
+      sourceCorpusRelPathByEpisodeId: {
+        'AA-BB-CC': 'feeds/x/metadata/a.gi.json',
+      },
+    } as unknown as ParsedArtifact
+    expect(resolveGiPathForTranscript(art, 'aa-bb-cc')).toBe('feeds/x/metadata/a.gi.json')
   })
 })
 

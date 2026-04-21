@@ -109,7 +109,7 @@ class TestKgSchema(unittest.TestCase):
         self.assertIn("validation failed", str(ctx.exception).lower())
 
     def test_strict_accepts_1_2_kind_and_person_prefix_id(self) -> None:
-        """v1.2 Entity uses ``kind`` and ``person:`` ids (RFC-072)."""
+        """v1.2 Entity uses ``kind`` and ``person:`` ids."""
         art = {
             "schema_version": "1.2",
             "episode_id": "e:1",

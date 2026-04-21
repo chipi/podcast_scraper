@@ -2,7 +2,8 @@
 
 > **Scope:** Internal architecture of the GI/KG browser viewer SPA
 > (`web/gi-kg-viewer/`). For the FastAPI backend see the
-> [Server Guide](../guides/SERVER_GUIDE.md); for visual/UX contracts see
+> [Server Guide](../guides/SERVER_GUIDE.md); for **shell information architecture** see
+> [VIEWER_IA](../uxs/VIEWER_IA.md); for visual/UX contracts see
 > [UXS-001](../uxs/UXS-001-gi-kg-viewer.md) and the
 > [UXS index](../uxs/index.md); for the original design rationale see
 > [RFC-062](../rfc/RFC-062-gi-kg-viewer-v2.md).
@@ -24,37 +25,37 @@ No Vue Router is used. Navigation is tab-state driven (see Shell below).
 
 ## Component tree
 
+High-level layout matches **`App.vue`** (no Vue Router): **header** → **collapsible left column**
+(**`LeftPanel`**) → **center** (main tab roots) → **collapsible right column** (**`SubjectRail`**)
+→ **footer** **`StatusBar`**.
+
 ```text
 App.vue
-+-- [header]  Main-tab buttons (Digest | Library | Graph | Dashboard)
-|             Theme cycle, keyboard hints (/ search, Esc clear)
++-- [header]  Main views (Digest | Library | Graph | Dashboard); theme cycle; kbd hints (/ search, Esc clear)
++-- [banners]  Optional alerts (e.g. sibling merge)
 |
-+-- [left sidebar]  leftTab: Corpus | API . Data
-|   +-- HelpTip (corpus help)
-|   +-- DashboardOverviewSection
-|       +-- MetricsPanel
++-- [main row]
+|   +-- [left column]  Collapsible w-72 / w-8; chevron toggle; when collapsed, vertical "Search" affordance
+|   |   +-- LeftPanel
+|   |       +-- SearchPanel  (#search-q, results, advanced modal, ResultCard, …)
+|   |       +-- ExplorePanel (section under Search)
+|   |
+|   +-- [center]  mainTab drives which root is mounted (keep-alive where used)
+|   |   +-- DigestView
+|   |   +-- LibraryView
+|   |   +-- DashboardView
+|   |   |   +-- BriefingCard, Coverage / Intelligence / Pipeline tab panels + chart components (see UXS-006; corpus **List** lives on **StatusBar** → artifact dialog)
+|   |   +-- GraphTabPanel  (graph canvas + toolbar when Graph tab)
+|   |
+|   +-- [right column]  Collapsible w-96 / w-8; collapsed shortcuts Search / Explore / Details (graph)
+|       +-- SubjectRail  (subject.kind: null | 'episode' | 'graph-node' | 'topic' | 'person')
+|           +-- GraphNodeRailPanel     (subject.kind === 'graph-node')
+|           |   +-- NodeDetail (embed-in-rail), GraphConnectionsSection, GraphNeighborhoodMiniMap, …
+|           +-- Episode region + EpisodeDetailPanel  (subject.kind === 'episode')
+|           |   +-- Optional Details / Neighbourhood tablist on Graph tab + GraphConnectionsSection slot
+|           +-- Placeholder copy  (topic / person kinds when not implemented)
 |
-+-- [center]  Content driven by mainTab ref
-|   +-- DigestView           (mainTab === 'digest')
-|   +-- LibraryView          (mainTab === 'library')
-|   +-- DashboardView        (mainTab === 'dashboard')
-|   |   +-- CategoryLineChart, MultiSeriesLineChart, SimpleDoughnutChart
-|   |   +-- StackedStageBarChart, TypeCountBarChart, VerticalBarChart
-|   +-- GraphCanvas          (mainTab === 'graph' && displayArtifact)
-|
-+-- [right sidebar]  Driven by episodeRail.paneKind
-    +-- GraphNodeRailPanel   (paneKind === 'graph-node')
-    |   +-- NodeDetail
-    |       +-- GraphConnectionsSection
-    |       |   +-- GraphNeighborhoodMiniMap
-    |       +-- TranscriptViewerDialog
-    |       +-- TopicTimelineDialog
-    +-- EpisodeDetailPanel   (paneKind === 'episode')
-    |   +-- GraphConnectionsSection (when on Graph tab)
-    +-- SearchPanel          (else / tools mode)
-    |   +-- ResultCard
-    |   +-- SearchResultsVizDialog
-    +-- ExplorePanel
++-- [footer]  StatusBar  (corpus path, health, offline files — shell store)
 ```
 
 ### Shared components (`components/shared/`)
@@ -74,15 +75,14 @@ inline `<dialog>` for advanced search options (not extracted to its own file).
 
 ## Shell and navigation
 
-There is **no Vue Router**. The app is a single-page shell with three
-independent tab axes:
+There is **no Vue Router**. The app is a single-page shell with a **main tab** plus
+**subject** state:
 
 | Axis | Ref / store field | Values |
 | ---- | ----------------- | ------ |
 | Main view | `App.vue` local `mainTab` | `digest`, `library`, `graph`, `dashboard` |
-| Left panel | `App.vue` local `leftTab` | `corpus`, `api` |
-| Right panel | `episodeRail.paneKind` | `graph-node`, `episode`, (else tools) |
-| Tools sub-tab | `episodeRail.toolsTab` | `search`, `explore` |
+| Left query column | `LeftPanel.vue` (no tab switcher) | `SearchPanel` + `ExplorePanel` stacked |
+| Right subject rail | `subject.kind` (`stores/subject.ts`) | `graph-node`, `episode`, `topic`, `person`, or empty |
 
 The **shell store** owns `corpusPath`, health status, and feature-availability
 flags. Changing `corpusPath` triggers cascading refreshes across stores
@@ -112,7 +112,7 @@ flags. Changing `corpusPath` triggers cascading refreshes across stores
   indexStats  ─────────>  (FAISS index envelope, rebuild polling)
        \__ uses shell (corpus path, health gating)
 
-  episodeRail  ────────>  (which right-panel pane, metadata path, graph node)
+  subject      ────────>  (which subject kind, metadata path, graph node id, …)
 
   corpusLens  ─────────>  (date filter for corpus-wide views)
   theme  ──────────────>  (dark / light / system cycle)
@@ -183,8 +183,8 @@ is in flight.
 
 ### Gate inventory
 
-A full per-surface gate table is maintained in the
-[WIP holistic HTTP stability doc](../wip/wip-viewer-holistic-http-stability.md).
+A full per-surface gate table is maintained in
+[Viewer async stability](VIEWER_ASYNC_STABILITY.md#stale-run--single-flight-guards).
 Key surfaces:
 
 | Surface | Gate(s) | Notes |
@@ -303,8 +303,8 @@ The E2E surface contract is documented in
 | [UXS-001](../uxs/UXS-001-gi-kg-viewer.md) | Shared design system, tokens, typography |
 | [UXS index](../uxs/index.md) | Per-feature UXS docs (Digest, Library, Graph, Search, Dashboard) |
 | E2E Surface Map (`web/gi-kg-viewer/e2e/E2E_SURFACE_MAP.md`) | Playwright selectors, surface ownership |
-| [WIP: HTTP stability](../wip/wip-viewer-holistic-http-stability.md) | Full gate inventory, dedupe table, health behavior |
-| [WIP: Corpus load stability](../wip/wip-viewer-corpus-load-graph-stability.md) | Large-corpus load and graph hardening |
+| [Viewer async stability](VIEWER_ASYNC_STABILITY.md) | HTTP timeouts, `StaleGeneration`, dedupe, corpus graph load hardening |
+| [Viewer graph spec](VIEWER_GRAPH_SPEC.md) | Cytoscape load, styling, gestures, focus entry points |
 | [Architecture](ARCHITECTURE.md) | System-level architecture (viewer is one surface) |
 | [Development Guide](../guides/DEVELOPMENT_GUIDE.md) | Dev workflow, `make serve`, debugging |
 

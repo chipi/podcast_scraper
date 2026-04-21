@@ -1,4 +1,4 @@
-"""Multi-feed corpus artifacts and status (GitHub #506 / RFC-063 §7)."""
+"""Multi-feed corpus artifacts and status (GitHub #506)."""
 
 from __future__ import annotations
 

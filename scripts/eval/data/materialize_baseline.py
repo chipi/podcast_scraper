@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Baseline materialization script (RFC-041 Phase 0).
+"""Baseline materialization script.
 
 This script:
 - Creates baseline artifacts from current main branch
@@ -52,7 +52,7 @@ def hash_text(text: str) -> str:
     return hashlib.sha256(text.encode("utf-8")).hexdigest()
 
 
-# Metrics computation is now handled by scorer.py (RFC-016 Phase 3)
+# Metrics computation is now handled by scorer.py
 # Import the scorer module to use its unified metrics computation
 from podcast_scraper.evaluation.scorer import score_run
 
@@ -1846,7 +1846,7 @@ def materialize_baseline(
 def main() -> None:
     """Main entry point."""
     parser = argparse.ArgumentParser(
-        description="Materialize a baseline from current system state (RFC-041 Phase 0)."
+        description="Materialize a baseline from current system state."
     )
     parser.add_argument(
         "--baseline-id",

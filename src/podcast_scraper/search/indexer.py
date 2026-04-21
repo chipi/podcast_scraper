@@ -1,4 +1,4 @@
-"""Embed-and-index corpus pipeline (RFC-061 §4 / GitHub #484 Step 3)."""
+"""Embed-and-index corpus pipeline."""
 
 from __future__ import annotations
 
@@ -175,7 +175,7 @@ def _kg_embed_text_topic(props: Dict[str, Any]) -> Optional[str]:
 
 
 def _kg_entity_kind_for_meta(props: Dict[str, Any]) -> Optional[str]:
-    """person|organization for index metadata (RFC-072 ``kind`` or legacy ``entity_kind``)."""
+    """person|organization for index metadata."""
     k = props.get("kind")
     if k == "org":
         return "organization"

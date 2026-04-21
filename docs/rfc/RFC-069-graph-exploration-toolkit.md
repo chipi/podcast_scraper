@@ -13,6 +13,7 @@
   - [UXS-001: GI/KG viewer](../uxs/UXS-001-gi-kg-viewer.md) — shared shell tokens
 - **Related Documents**:
   - [E2E surface map](https://github.com/chipi/podcast_scraper/blob/main/web/gi-kg-viewer/e2e/E2E_SURFACE_MAP.md)
+  - [GRAPH-CHROME-REDESIGN](../wip/GRAPH-CHROME-REDESIGN.md) — shipped chrome layout (**Types** + **⚙** popover + **`GraphBottomBar`**); §1 of this RFC updated **2026-04** to match.
 
 ## Abstract
 
@@ -54,11 +55,15 @@ All proposed features must **compose** with this baseline (no breaking tap/dblta
 
 ## Design & implementation
 
-### 1. UI placement (stakeholder-approved)
+### 1. UI placement (stakeholder-approved; **updated 2026-04**)
 
-- **Primary toolbar** (`GraphCanvas.vue` top row): existing **Fit**, **Re-layout**, **Export PNG**; add **Zoom −**, **Zoom +**, **Zoom reset (100%)** — calls `cy.zoom(1)` (true 100% scale); **Fit** remains the control that fits the graph to the viewport. Add **Zoom %** readout (`Math.round(cy.zoom() * 100)`).
-- **Secondary strip**: **Yes** — extra thin row on the graph card **or** a collapsible **Graph tools** block under “Filters & sources” (implementer’s choice for density): minimap toggle, layout `<select>`, edge-filter chips or multi-select, **Histograms** (type + degree) collapsible.
-- **Minimap**: absolutely positioned overlay **bottom-right** of `.graph-canvas` when enabled; must not steal clicks from main graph except on minimap surface. **In scope for v1** (not deferred).
+Original RFC placed **Fit** / zoom / **Export PNG** on the top row and considered a **second toolbar row** or collapsible **Graph tools** for minimap, layout `<select>`, edges, and histograms.
+
+**Shipped layout** ([GRAPH-CHROME-REDESIGN](../wip/GRAPH-CHROME-REDESIGN.md), `GraphBottomBar.vue`, `GraphFiltersPopover.vue`):
+
+- **Top row** (`GraphCanvas.vue`, **`graph-toolbar-types`**): **Types** filters + **all** / **none** + **`graph-toolbar-more-filters`** (**⚙**) opening **`graph-filters-popover`** (**Sources**, **Edges**, **Degree** buckets + clear — satisfies edge + degree “histogram” interaction without a separate histogram strip).
+- **Bottom bar** under the canvas (**`graph-bottom-bar`**): **Left** — minimap **⊞** (`graph-minimap-toggle`), **Re-layout**, **layout cycle** (advances **cose → breadthfirst → circle → grid** and re-layouts). **Centre** — **`graph-status-line`** (lens, counts). **Right** — **Fit**, **Zoom −** / **+**, **Zoom %** readout (`Math.round(cy.zoom() * 100)`), **100%** (`cy.zoom(1)` then center `:visible`), **Gestures**, **Export PNG**; optional bar collapse (**Alt+B**, `localStorage`).
+- **Minimap**: **bottom-left** inside the graph canvas host (not bottom-right); **`cytoscape-navigator`**; **×** on frame hides minimap. Must not steal clicks from the main graph except on minimap surface. **In scope for v1** (not deferred).
 
 ### 2. Zoom & box zoom
 
@@ -85,8 +90,9 @@ All proposed features must **compose** with this baseline (no breaking tap/dblta
 
 ### 6. Layout menu (**keep simple — decided**)
 
-- Dropdown only: **`cose`** (default, match today), **`breadthfirst`**, **`circle`**, **`grid`** — all Cytoscape **built-ins**, **no fcose** / cose-bilkent / extra layout packages in this pass.
-- On change: run layout on the **visible** element collection (see §7), then `cy.fit` padding—**without** full `destroyCy()` unless required.
+- Algorithms only: **`cose`** (default, match today), **`breadthfirst`**, **`circle`**, **`grid`** — all Cytoscape **built-ins**, **no fcose** / cose-bilkent / extra layout packages in this pass.
+- **UI (2026-04):** the viewer ships a **layout cycle** control in **`GraphBottomBar`** (same four algorithms in fixed order) instead of an inline `<select>`; each advance updates `preferredLayout` and re-runs layout like the original “on change” contract below.
+- On algorithm change / **Re-layout**: run layout on the **visible** element collection (see §7), then `cy.fit` padding—**without** full `destroyCy()` unless required.
 - **Re-layout** button: re-run **currently selected** layout algorithm (not always COSE).
 
 ### 7. State precedence (normative)
@@ -96,7 +102,7 @@ All proposed features must **compose** with this baseline (no breaking tap/dblta
 3. **Ego** (`focusNodeId`) subsets to 1-hop (existing).
 4. **Edge filters** apply on the resulting subgraph.
 5. **Degree bucket filter** (from histogram interaction): when active, hides nodes outside the selected degree range (after 1–4).
-6. **Layout** (**normative**): the layout dropdown and **Re-layout** must run on the **currently visible** subgraph only — i.e. `cy.elements(':visible')` (or equivalent), including after degree-bucket hiding — so positions reflect what the user sees and hidden nodes do not reserve space. Edges incident to hidden endpoints are excluded from layout naturally via visibility. Initial graph build after `redraw()` uses full filtered data until any visibility-only filter applies.
+6. **Layout** (**normative**): the layout control (cycle or dropdown) and **Re-layout** must run on the **currently visible** subgraph only — i.e. `cy.elements(':visible')` (or equivalent), including after degree-bucket hiding — so positions reflect what the user sees and hidden nodes do not reserve space. Edges incident to hidden endpoints are excluded from layout naturally via visibility. Initial graph build after `redraw()` uses full filtered data until any visibility-only filter applies.
 
 ### 8. Performance & limits
 
@@ -107,7 +113,7 @@ All proposed features must **compose** with this baseline (no breaking tap/dblta
 ### 9. Testing
 
 - **Unit**: pure functions for degree buckets and edge-type set extraction (if extracted).
-- **E2E**: extend `e2e/*.spec.ts` or add `graph-tools.spec.ts`: mock health + minimal artifact list + GI JSON; assert **Zoom +** changes zoom label, layout dropdown switches and **Fit** still works; box zoom optional if stable in CI.
+- **E2E**: extend `e2e/*.spec.ts` or add `graph-tools.spec.ts`: mock health + minimal artifact list + GI JSON; assert **Zoom +** changes zoom label, **layout cycle** (or layout control) + **Fit** still work; box zoom optional if stable in CI.
 - Update [E2E_SURFACE_MAP.md](https://github.com/chipi/podcast_scraper/blob/main/web/gi-kg-viewer/e2e/E2E_SURFACE_MAP.md) for every new **accessible name** or role.
 
 ### 10. Documentation
@@ -123,7 +129,7 @@ All proposed features must **compose** with this baseline (no breaking tap/dblta
 | Zoom reset | **`cy.zoom(1)`** — **100%** scale; **Fit** stays separate. |
 | Extra layouts | **Simple only** — cose, breadthfirst, circle, grid; **no fcose**. |
 | Degree histogram | **Acts as filter** — click bucket toggles filter; clear control or second click clears. |
-| Toolbar density | **Yes** — second row **or** collapsible **Graph tools** under Filters & sources. |
+| Toolbar density | **Yes** — implemented as **Types** row + **⚙** popover + **`GraphBottomBar`** (see [GRAPH-CHROME-REDESIGN](../wip/GRAPH-CHROME-REDESIGN.md)); satisfies intent of second row / collapsible tools without duplicating that literal structure. |
 | Box zoom | **Shift+drag** on background; rectangle + `fit` intersecting elements. |
 | Layout vs degree filter | **Layout uses visible elements only** — matches user perception; see §7 step 6. |
 

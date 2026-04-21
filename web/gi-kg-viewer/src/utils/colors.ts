@@ -1,5 +1,5 @@
 /**
- * Node fill colors (v1 parity). Future: map to UXS-001 tokens / CSS variables.
+ * Node fill colors (v1 parity). Future: map to shared shell tokens / CSS variables.
  */
 export const GRAPH_NODE_UNKNOWN_FILL = '#868e96'
 
@@ -88,8 +88,8 @@ type NodeChrome = { background: string; border: string; labelColor: string }
 
 /** Fill / border / label colors aligned with Cytoscape node styling (``visualGroupForNode`` keys). */
 /**
- * RFC-075 CIL topic chips in Digest / Episode rail: same amber/orange as graph
- * ``node.search-hit`` emphasis and ``Quote`` node chrome so cluster membership is obvious.
+ * CIL topic chips (topic-cluster members) when ``clusterMemberAppearance="quote"`` (Episode rail):
+ * amber/orange aligned with graph ``Quote`` chrome. Digest Recent uses ``kg`` Tailwind classes instead.
  */
 export const cilClusteredTopicPillChrome = Object.freeze({
   borderColor: graphNodeTypeStyles.Quote.border,

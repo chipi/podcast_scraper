@@ -22,10 +22,13 @@ file remains **pytest** E2E.
 | ----- | ------ |
 | **Run from repo root** | `make test-ui-e2e` (`npm install`, `playwright install firefox`, `npm run test:e2e`) |
 | **Run in package** | `cd web/gi-kg-viewer && npm run test:e2e` |
-| **Config** | `web/gi-kg-viewer/playwright.config.ts` — `testDir: ./e2e`, `webServer` runs **Vite** on **127.0.0.1:5174** |
+| **Config** | `web/gi-kg-viewer/playwright.config.ts` — `testDir: ./e2e`, `webServer` runs **Vite** on **127.0.0.1:5174** with **`reuseExistingServer: true`** so a dev server already bound to that port is reused (helps when **`CI=true`** is set locally and would otherwise force a second **strictPort** bind) |
 | **Specs** | `web/gi-kg-viewer/e2e/*.spec.ts` (+ `fixtures.ts`, `helpers.ts`) |
 | **Surface map** | [E2E_SURFACE_MAP.md](https://github.com/chipi/podcast_scraper/blob/main/web/gi-kg-viewer/e2e/E2E_SURFACE_MAP.md) — surfaces, fixtures, stable Playwright selectors (update with UI/E2E changes) |
 | **CI** | Workflow job **`viewer-e2e`** (same commands as `make test-ui-e2e`) |
+| **vs pytest E2E** | pytest proves CLI/pipeline + `e2e_server`; Playwright proves **browser UX** (graph shell, search UI, a11y paths) |
+| **vs FastAPI unit tests** | `tests/unit/podcast_scraper/server/test_viewer_*.py` cover **`/api/*`** JSON contracts; use Playwright when behavior depends on the **SPA** |
+| **vs Vitest** | `web/gi-kg-viewer/src/utils/*.test.ts` cover **pure TS logic** (parsing, merge, metrics); `make test-ui` (~150 ms, no browser). Use Playwright for **rendered UI behavior** |
 
 ### Debugging UI issues and interpreting failures
 
@@ -47,16 +50,15 @@ without walking this list in order:
 1. **`e2e/E2E_SURFACE_MAP.md`** — Update if anything **E2E-visible** or **selector-related** changed
    (including `getByRole` strings, `#search-q`, `.graph-canvas`, file-picker vs list flows).
 2. **Playwright** — Update `e2e/*.spec.ts`, `helpers.ts`, and/or `fixtures.ts`; run **`make test-ui-e2e`**.
-3. **`docs/uxs/`** — Update **[UXS-001](../uxs/UXS-001-gi-kg-viewer.md)** when **shared** tokens, typography,
-   or shell-wide rules change; update the relevant **[feature UXS](../uxs/index.md)** (Digest, Library,
+3. **`docs/uxs/`** — Update **[VIEWER_IA.md](../uxs/VIEWER_IA.md)** when **shell information architecture** changes (regions, navigation axes, persistence, clearing, first-run). Update **[UXS-001](../uxs/UXS-001-gi-kg-viewer.md)** when **shared** tokens, typography,
+   or shell-wide **visual** rules change; update the relevant **[feature UXS](../uxs/index.md)** (Digest, Library,
    Graph, Search, Dashboard, …) when a **surface-specific** visual contract changes, even if tests still pass.
+   After merge, **Active** UXS should describe the **shipped** viewer for that release (see
+   [UX specifications index — Living documents and ship boundary](../uxs/index.md#living-documents-and-ship-boundary)).
 
 Also documented in [DEVELOPMENT_GUIDE.md](DEVELOPMENT_GUIDE.md) (*GI / KG browser viewer*),
 [TESTING_GUIDE.md](TESTING_GUIDE.md) (*Browser E2E*), [UX specifications index](../uxs/index.md),
 `.cursorrules` (*GI/KG viewer UX*), and `.ai-coding-guidelines.md` (*GI/KG browser viewer*).
-| **vs pytest E2E** | pytest proves CLI/pipeline + `e2e_server`; Playwright proves **browser UX** (graph shell, search UI, a11y paths) |
-| **vs FastAPI unit tests** | `tests/unit/podcast_scraper/server/test_viewer_*.py` cover **`/api/*`** JSON contracts; use Playwright when behavior depends on the **SPA** |
-| **vs Vitest** | `web/gi-kg-viewer/src/utils/*.test.ts` cover **pure TS logic** (parsing, merge, metrics); `make test-ui` (~150 ms, no browser). Use Playwright for **rendered UI behavior** |
 
 **Further reading:** [Polyglot repository guide](POLYGLOT_REPO_GUIDE.md) (root vs `web/gi-kg-viewer/`),
 [Testing Guide — Browser E2E](TESTING_GUIDE.md#browser-e2e-gi-kg-viewer-v2),
@@ -81,13 +83,12 @@ Also documented in [DEVELOPMENT_GUIDE.md](DEVELOPMENT_GUIDE.md) (*GI / KG browse
 For **human** multi-feed checks without real RSS, use the same HTTP handler as pytest’s **`e2e_server`**:
 
 1. From repo root (venv on **`PYTHONPATH`** includes repo root so **`tests.e2e`** resolves): **`make serve-e2e-mock`** (default port **18765**; override with **`E2E_MOCK_PORT`**).
-2. In another terminal: **`python -m podcast_scraper.cli --config config/manual/manual_e2e_mock.yaml`**
+2. In another terminal: **`python -m podcast_scraper.cli --profile <preset> --config your_operator.yaml --feeds-spec path/to/your_fixture_feeds.yaml`** (add **`--output-dir`** if not already in the operator YAML). Same three-way split as production runs; see [CLI.md — Quick Start](../api/CLI.md#quick-start).
 
-That YAML lists the five primary mock feeds (**`podcast1`**–**`podcast5`**) plus long-form
+That feeds document should list the five primary mock feeds (**`podcast1`**–**`podcast5`**) plus long-form
 fixtures **`podcast7_sustainability`**, **`podcast8_solar`**, and **`podcast9_solo`** (p07–p09;
-**p06** edge-case feed is intentionally omitted). Tracked path is **`config/manual/manual_e2e_mock.yaml`**
-(OpenAI Whisper + Gemini, GI/KG + **`vector_search`**; see **`.gitignore`** for `config/manual`
-un-ignore rules). This is **not** the same contract as CI pytest E2E (no network guard, you
+**p06** edge-case feed is intentionally omitted), each at **`http://127.0.0.1:<port>/feeds/.../feed.xml`**
+(**`E2E_MOCK_PORT`**, default **18765**). This is **not** the same contract as CI pytest E2E (no network guard, you
 choose ML cost); it reuses fixture XML/audio only.
 
 ## Core Principle: No Mocking

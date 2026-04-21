@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
 import { useGraphNavigationStore } from '../../stores/graphNavigation'
 import { useExploreStore } from '../../stores/explore'
 import { useShellStore } from '../../stores/shell'
@@ -9,6 +9,8 @@ import {
   GI_QUOTE_SPEAKER_UNAVAILABLE_HINT,
   SUPPORTING_QUOTE_SPEAKER_UNAVAILABLE_TESTID,
 } from '../../utils/transcriptSourceDisplay'
+import { segmentsForSubstringNeedle } from '../../utils/exploreHighlight'
+import type { ExploreTextSegment } from '../../utils/exploreHighlight'
 import HelpTip from '../shared/HelpTip.vue'
 
 const emit = defineEmits<{ 'go-graph': [] }>()
@@ -17,7 +19,66 @@ const shell = useShellStore()
 const ex = useExploreStore()
 const nav = useGraphNavigationStore()
 
+const advancedExploreDialogRef = ref<HTMLDialogElement | null>(null)
+
 const expandedQuotes = ref<Set<string>>(new Set())
+
+function openAdvancedExplore(): void {
+  advancedExploreDialogRef.value?.showModal()
+}
+
+function closeAdvancedExplore(): void {
+  advancedExploreDialogRef.value?.close()
+}
+
+function onAdvancedExploreDialogClick(e: MouseEvent): void {
+  const el = advancedExploreDialogRef.value
+  if (el && e.target === el) {
+    el.close()
+  }
+}
+
+const advancedExploreSummaryLines = computed(() => {
+  const f = ex.filters
+  const lines: string[] = []
+  if (f.groundedOnly) {
+    lines.push('Grounded only')
+  }
+  if (f.strict) {
+    lines.push('Strict schema')
+  }
+  const lim = Number(f.limit)
+  if (Number.isFinite(lim) && lim !== 50) {
+    lines.push(`Limit: ${lim}`)
+  }
+  if (f.sortBy !== 'confidence') {
+    lines.push(f.sortBy === 'time' ? 'Sort: Time' : `Sort: ${f.sortBy}`)
+  }
+  const mc = f.minConfidence.trim()
+  if (mc) {
+    lines.push(`Min confidence: ${mc}`)
+  }
+  return lines
+})
+
+const hasAdvancedExploreSummary = computed(
+  () => advancedExploreSummaryLines.value.length > 0,
+)
+
+/** Topic substring wins for highlight; else speaker (matches filter priority feel). */
+const exploreHighlightNeedle = computed(() => {
+  const t = ex.filters.topic.trim()
+  if (t) return t
+  return ex.filters.speaker.trim()
+})
+
+function exploreBodySegments(text: string): ExploreTextSegment[] {
+  return segmentsForSubstringNeedle(text, exploreHighlightNeedle.value, 280)
+}
+
+function exploreLeaderboardLabelSegments(label: string): ExploreTextSegment[] {
+  return segmentsForSubstringNeedle(label, exploreHighlightNeedle.value, 400)
+}
 
 function toggleQuotes(insightId: string): void {
   if (expandedQuotes.value.has(insightId)) {
@@ -33,10 +94,32 @@ function focusNode(id: string): void {
   nav.requestFocusNode(trimmed)
   emit('go-graph')
 }
+
+const exploreFieldsEnabled = computed(() => Boolean(shell.healthStatus && !ex.loading))
+
+/** Enter runs **Explore** (same as the button); Shift+Enter ignored here (single-line inputs). */
+function onFilteredExploreKeydown(e: KeyboardEvent): void {
+  if (e.key !== 'Enter' || e.shiftKey) return
+  if (e.ctrlKey || e.metaKey || e.altKey) return
+  if (e.defaultPrevented || e.isComposing) return
+  if (!exploreFieldsEnabled.value) return
+  e.preventDefault()
+  void ex.runFilteredExplore(shell.corpusPath)
+}
+
+/** Enter runs **Run quick question**; Shift+Enter inserts a newline (IME-safe). */
+function onNlQuestionKeydown(e: KeyboardEvent): void {
+  if (e.key !== 'Enter' || e.shiftKey) return
+  if (e.ctrlKey || e.metaKey || e.altKey) return
+  if (e.defaultPrevented || e.isComposing) return
+  if (!exploreFieldsEnabled.value) return
+  e.preventDefault()
+  void ex.runNaturalLanguage(shell.corpusPath)
+}
 </script>
 
 <template>
-  <section class="rounded-lg border border-border bg-surface p-4">
+  <section class="min-w-0 max-w-full rounded-lg border border-border bg-surface p-4">
     <div class="mb-2 flex items-center gap-1.5">
       <h2 class="text-sm font-medium text-surface-foreground">
         Explore &amp; query
@@ -99,16 +182,13 @@ function focusNode(id: string): void {
                 on speaker attribution for quotes linked to insights.
               </li>
               <li>
-                <span class="font-medium text-surface-foreground">Grounded only</span> — keep insights
-                that pass grounding checks.
-              </li>
-              <li>
-                <span class="font-medium text-surface-foreground">Strict schema</span> — stricter
-                validation when reading artifacts.
-              </li>
-              <li>
-                <span class="font-medium text-surface-foreground">Limit / Sort / Min confidence</span> —
-                cap rows, order by model confidence or time, optional confidence floor.
+                <span class="font-medium text-surface-foreground">Advanced explore</span> — opens a
+                dialog for <strong class="text-surface-foreground">Grounded only</strong>,
+                <strong class="text-surface-foreground">Strict schema</strong>,
+                <strong class="text-surface-foreground">Limit</strong>,
+                <strong class="text-surface-foreground">Sort</strong>, and
+                <strong class="text-surface-foreground">Min confidence</strong> (same pattern as
+                Semantic search → Advanced search). Non-default choices show under the link.
               </li>
             </ul>
           </HelpTip>
@@ -121,6 +201,7 @@ function focusNode(id: string): void {
               type="text"
               class="mt-0.5 w-full rounded border border-border bg-elevated px-2 py-1 text-sm"
               :disabled="!shell.healthStatus"
+              @keydown="onFilteredExploreKeydown"
             >
           </label>
           <label class="block text-xs text-muted">
@@ -130,74 +211,140 @@ function focusNode(id: string): void {
               type="text"
               class="mt-0.5 w-full rounded border border-border bg-elevated px-2 py-1 text-sm"
               :disabled="!shell.healthStatus"
+              @keydown="onFilteredExploreKeydown"
             >
           </label>
-          <div class="flex flex-wrap gap-3 text-xs text-muted">
-            <label class="flex items-center gap-1">
-              <input
-                v-model="ex.filters.groundedOnly"
-                type="checkbox"
-                class="rounded border-border"
-                :disabled="!shell.healthStatus"
-              >
-              Grounded only
-            </label>
-            <label class="flex items-center gap-1">
-              <input
-                v-model="ex.filters.strict"
-                type="checkbox"
-                class="rounded border-border"
-                :disabled="!shell.healthStatus"
-              >
-              Strict schema
-            </label>
-          </div>
-          <div class="grid grid-cols-2 gap-2">
-            <label class="text-xs text-muted">
-              Limit
-              <input
-                v-model.number="ex.filters.limit"
-                type="number"
-                min="1"
-                max="500"
-                class="mt-0.5 w-full rounded border border-border bg-elevated px-2 py-1 text-sm"
-                :disabled="!shell.healthStatus"
-              >
-            </label>
-            <label class="text-xs text-muted">
-              Sort
-              <select
-                v-model="ex.filters.sortBy"
-                class="mt-0.5 w-full rounded border border-border bg-elevated px-2 py-1 text-sm"
-                :disabled="!shell.healthStatus"
-              >
-                <option value="confidence">
-                  Confidence
-                </option>
-                <option value="time">
-                  Time
-                </option>
-              </select>
-            </label>
-          </div>
-          <label class="block text-xs text-muted">
-            Min confidence (optional)
-            <input
-              v-model="ex.filters.minConfidence"
-              type="text"
-              class="mt-0.5 w-full rounded border border-border bg-elevated px-2 py-1 text-sm"
-              placeholder="e.g. 0.5"
-              :disabled="!shell.healthStatus"
-            >
-          </label>
-          <button
-            type="button"
-            class="rounded bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground hover:opacity-90 disabled:opacity-40"
-            :disabled="!shell.healthStatus || ex.loading"
-            @click="ex.runFilteredExplore(shell.corpusPath)"
+          <div
+            v-if="hasAdvancedExploreSummary"
+            role="region"
+            aria-label="Active explore filters"
+            class="rounded border border-border bg-elevated/60 px-2 py-1.5"
           >
-            Run explore
-          </button>
+            <p class="text-[10px] font-medium uppercase tracking-wide text-muted">
+              Advanced filters
+            </p>
+            <ul class="mt-1 space-y-0.5 text-[10px] leading-snug text-muted">
+              <li
+                v-for="(line, i) in advancedExploreSummaryLines"
+                :key="i"
+              >
+                {{ line }}
+              </li>
+            </ul>
+          </div>
+          <div class="mt-1">
+            <button
+              type="button"
+              data-testid="explore-advanced-open"
+              class="text-xs text-primary underline decoration-primary/60 underline-offset-2 hover:decoration-primary disabled:opacity-40"
+              :disabled="!shell.healthStatus"
+              @click="openAdvancedExplore"
+            >
+              Advanced explore
+            </button>
+          </div>
+          <div class="mt-2 flex shrink-0 flex-wrap gap-2">
+            <button
+              type="button"
+              data-testid="explore-filtered-submit"
+              class="rounded bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground hover:opacity-90 disabled:opacity-40"
+              :disabled="!shell.healthStatus || ex.loading"
+              @click="ex.runFilteredExplore(shell.corpusPath)"
+            >
+              {{ ex.loading ? 'Exploring…' : 'Explore' }}
+            </button>
+            <button
+              type="button"
+              data-testid="explore-clear-output"
+              class="rounded border border-border px-3 py-1.5 text-sm hover:bg-overlay disabled:opacity-40"
+              :disabled="!shell.healthStatus"
+              @click="ex.clearOutput()"
+            >
+              Clear
+            </button>
+          </div>
+          <dialog
+            ref="advancedExploreDialogRef"
+            data-testid="explore-advanced-dialog"
+            class="w-[min(100%,24rem)] max-h-[min(90vh,32rem)] overflow-y-auto rounded-lg border border-border bg-surface p-4 text-surface-foreground shadow-xl [&::backdrop]:bg-black/40"
+            aria-labelledby="explore-advanced-title"
+            @click="onAdvancedExploreDialogClick"
+          >
+            <div class="mb-3 flex items-start justify-between gap-3">
+              <h2 id="explore-advanced-title" class="text-sm font-medium text-surface-foreground">
+                Advanced explore
+              </h2>
+              <button
+                type="button"
+                class="shrink-0 rounded border border-border px-2 py-1 text-xs hover:bg-overlay"
+                @click="closeAdvancedExplore"
+              >
+                Close
+              </button>
+            </div>
+            <div class="space-y-2">
+              <div class="flex flex-wrap gap-3 text-xs text-muted">
+                <label class="flex items-center gap-1">
+                  <input
+                    v-model="ex.filters.groundedOnly"
+                    type="checkbox"
+                    class="rounded border-border"
+                    :disabled="!shell.healthStatus"
+                  >
+                  Grounded only
+                </label>
+                <label class="flex items-center gap-1">
+                  <input
+                    v-model="ex.filters.strict"
+                    type="checkbox"
+                    class="rounded border-border"
+                    :disabled="!shell.healthStatus"
+                  >
+                  Strict schema
+                </label>
+              </div>
+              <div class="grid grid-cols-2 gap-2">
+                <label class="text-xs text-muted">
+                  Limit
+                  <input
+                    v-model.number="ex.filters.limit"
+                    type="number"
+                    min="1"
+                    max="500"
+                    class="mt-0.5 w-full rounded border border-border bg-elevated px-2 py-1 text-sm"
+                    :disabled="!shell.healthStatus"
+                    @keydown="onFilteredExploreKeydown"
+                  >
+                </label>
+                <label class="text-xs text-muted">
+                  Sort
+                  <select
+                    v-model="ex.filters.sortBy"
+                    class="mt-0.5 w-full rounded border border-border bg-elevated px-2 py-1 text-sm"
+                    :disabled="!shell.healthStatus"
+                  >
+                    <option value="confidence">
+                      Confidence
+                    </option>
+                    <option value="time">
+                      Time
+                    </option>
+                  </select>
+                </label>
+              </div>
+              <label class="block text-xs text-muted">
+                Min confidence (optional)
+                <input
+                  v-model="ex.filters.minConfidence"
+                  type="text"
+                  class="mt-0.5 w-full rounded border border-border bg-elevated px-2 py-1 text-sm"
+                  placeholder="e.g. 0.5"
+                  :disabled="!shell.healthStatus"
+                  @keydown="onFilteredExploreKeydown"
+                >
+              </label>
+            </div>
+          </dialog>
         </div>
       </div>
 
@@ -237,7 +384,9 @@ function focusNode(id: string): void {
           rows="2"
           class="w-full rounded border border-border bg-elevated px-2 py-1.5 text-sm"
           placeholder="What insights about machine learning?"
+          aria-label="Quick question"
           :disabled="!shell.healthStatus"
+          @keydown="onNlQuestionKeydown"
         />
         <button
           type="button"
@@ -248,15 +397,6 @@ function focusNode(id: string): void {
           Run quick question
         </button>
       </div>
-
-      <button
-        type="button"
-        class="text-xs text-muted underline hover:text-surface-foreground"
-        :disabled="!shell.healthStatus"
-        @click="ex.clearOutput()"
-      >
-        Clear results
-      </button>
     </div>
 
     <p
@@ -268,7 +408,7 @@ function focusNode(id: string): void {
 
     <div
       v-if="ex.last && !ex.error"
-      class="mt-3 max-h-[32rem] space-y-2 overflow-y-auto rounded border border-border bg-elevated p-2 text-xs"
+      class="mt-3 max-h-[32rem] min-w-0 space-y-2 overflow-y-auto overflow-x-hidden rounded border border-border bg-elevated p-2 text-xs"
     >
       <div v-if="ex.last.error">
         <p class="font-medium text-warning">
@@ -324,15 +464,15 @@ function focusNode(id: string): void {
         <!-- Topics leaderboard -->
         <div
           v-if="ex.leaderboardRows.length"
-          class="overflow-x-auto"
+          class="min-w-0"
         >
-          <table class="w-full border-collapse text-left text-[11px]">
+          <table class="w-full table-fixed border-collapse text-left text-[11px]">
             <thead>
               <tr class="border-b border-border text-muted">
                 <th class="py-1 pr-2">
                   Topic
                 </th>
-                <th class="py-1">
+                <th class="w-14 shrink-0 py-1 text-right">
                   Insights
                 </th>
               </tr>
@@ -344,10 +484,19 @@ function focusNode(id: string): void {
                 class="cursor-pointer border-b border-border/60 transition-colors hover:bg-overlay"
                 @click="focusNode(row.topic_id)"
               >
-                <td class="py-1 pr-2">
-                  {{ row.label }}
+                <td class="break-words py-1 pr-2">
+                  <template
+                    v-for="(seg, si) in exploreLeaderboardLabelSegments(row.label)"
+                    :key="si"
+                  >
+                    <mark
+                      v-if="seg.mark"
+                      class="rounded bg-primary/20 px-0.5 text-surface-foreground"
+                    >{{ seg.text }}</mark>
+                    <span v-else>{{ seg.text }}</span>
+                  </template>
                 </td>
-                <td class="py-1">
+                <td class="w-14 shrink-0 py-1 text-right tabular-nums">
                   {{ row.insight_count }}
                 </td>
               </tr>
@@ -367,10 +516,10 @@ function focusNode(id: string): void {
             <div
               v-for="(sp, i) in ex.topSpeakers"
               :key="`sp-${i}`"
-              class="flex items-center justify-between gap-2"
+              class="flex min-w-0 items-center justify-between gap-2"
             >
-              <span class="text-surface-foreground">{{ sp.name || sp.speaker_id }}</span>
-              <span class="text-muted">{{ sp.quote_count }} quotes · {{ sp.insight_count }} insights</span>
+              <span class="min-w-0 truncate text-surface-foreground">{{ sp.name || sp.speaker_id }}</span>
+              <span class="shrink-0 text-muted">{{ sp.quote_count }} quotes · {{ sp.insight_count }} insights</span>
             </div>
           </div>
         </div>
@@ -382,8 +531,8 @@ function focusNode(id: string): void {
           class="cursor-pointer rounded border border-border bg-surface p-2 transition-colors hover:border-primary/50 hover:bg-overlay"
           @click="focusNode(ins.insight_id)"
         >
-          <div class="mb-1 flex flex-wrap items-center gap-2">
-            <span class="font-mono text-[10px] text-primary">{{ ins.insight_id }}</span>
+          <div class="mb-1 flex min-w-0 flex-wrap items-center gap-2">
+            <span class="min-w-0 break-all font-mono text-[10px] text-primary">{{ ins.insight_id }}</span>
             <span
               v-if="ins.confidence != null"
               class="rounded bg-overlay px-1 py-0.5 text-[10px] text-muted"
@@ -411,7 +560,17 @@ function focusNode(id: string): void {
             </svg>
           </div>
           <p class="leading-snug text-surface-foreground">
-            {{ truncate(ins.text, 280) }}
+            <template
+              v-for="(seg, si) in exploreBodySegments(ins.text)"
+              :key="si"
+            >
+              <mark
+                v-if="seg.mark"
+                class="rounded bg-primary/20 px-0.5"
+                data-testid="explore-insight-text-highlight"
+              >{{ seg.text }}</mark>
+              <span v-else>{{ seg.text }}</span>
+            </template>
           </p>
           <div
             v-if="ins.episode"

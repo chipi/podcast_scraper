@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, ref, watch } from 'vue'
+import { computed, inject, onActivated, onBeforeUnmount, ref, watch } from 'vue'
 import { storeToRefs } from 'pinia'
 import {
   fetchCorpusDigest,
@@ -14,20 +14,25 @@ import HelpTip from '../shared/HelpTip.vue'
 import PodcastCover from '../shared/PodcastCover.vue'
 import { useArtifactsStore } from '../../stores/artifacts'
 import { useCorpusLensStore } from '../../stores/corpusLens'
-import { useEpisodeRailStore } from '../../stores/episodeRail'
+import { useSubjectStore } from '../../stores/subject'
+import { useGraphExplorerStore } from '../../stores/graphExplorer'
 import { useGraphNavigationStore } from '../../stores/graphNavigation'
+import { useDashboardNavStore } from '../../stores/dashboardNav'
 import { useShellStore } from '../../stores/shell'
 import {
   digestRowFeedLabelWithCatalog,
   digestRowSummaryPreview,
+  digestTopicHitSimilarityDisplay,
   libraryEpisodeSummaryLine,
 } from '../../utils/digestRowDisplay'
+import { isPublishDateWithin24hRolling, recencyDotHoverTitle } from '../../utils/digestRecency'
 import { feedNameHoverWithCatalogLookup } from '../../utils/feedHoverTitle'
 import { formatDurationSeconds } from '../../utils/formatDuration'
 import { formatUtcDateTimeForDisplay } from '../../utils/formatting'
 import { normalizeFeedIdForViewer } from '../../utils/feedId'
 import { handleVerticalListArrowKeydown } from '../../utils/listRowArrowNav'
 import { StaleGeneration } from '../../utils/staleGeneration'
+import { corpusGraphBaselineLoaderKey } from '../../corpusGraphBaseline'
 import {
   applyGraphFocusPlan,
   graphFocusPlanFromCilPill,
@@ -40,9 +45,22 @@ const emit = defineEmits<{
 }>()
 
 const shell = useShellStore()
+const dashboardNav = useDashboardNavStore()
 const artifacts = useArtifactsStore()
+const graphExplorer = useGraphExplorerStore()
+const loadCorpusGraphBaseline = inject(corpusGraphBaselineLoaderKey, null)
 const graphNav = useGraphNavigationStore()
-const episodeRail = useEpisodeRailStore()
+
+async function ensureDefaultCorpusGraphIfNeeded(): Promise<void> {
+  if (!loadCorpusGraphBaseline) {
+    return
+  }
+  if (graphExplorer.graphTabOpenedThisSession && artifacts.selectedRelPaths.length > 0) {
+    return
+  }
+  await loadCorpusGraphBaseline()
+}
+const subject = useSubjectStore()
 const corpusLens = useCorpusLensStore()
 const { sinceYmd, activePreset } = storeToRefs(corpusLens)
 
@@ -70,6 +88,65 @@ const digest = ref<CorpusDigestResponse | null>(null)
 const error = ref<string | null>(null)
 const loading = ref(false)
 const graphActionError = ref<string | null>(null)
+
+/** Topic bands progressive reveal (digest UX). */
+const DIGEST_TOPIC_BANDS_INITIAL = 3
+/**
+ * Max height for each topic band’s hit list (under the title / Search topic row).
+ * ~65% of a typical tall stack — extra hits scroll inside the band.
+ */
+const DIGEST_TOPIC_BAND_HITS_MAX_HEIGHT = '10.5rem'
+const topicBandsExpanded = ref(false)
+
+watch(digest, () => {
+  topicBandsExpanded.value = false
+})
+
+onActivated(() => {
+  const h = dashboardNav.consumeHandoff()
+  if (h?.kind === 'digest') {
+    topicBandsExpanded.value = true
+    void loadDigest()
+  }
+})
+
+const visibleTopicBands = computed((): CorpusDigestTopicBand[] => {
+  const all = digest.value?.topics ?? []
+  if (topicBandsExpanded.value || all.length <= DIGEST_TOPIC_BANDS_INITIAL) {
+    return all
+  }
+  return all.slice(0, DIGEST_TOPIC_BANDS_INITIAL)
+})
+
+const digestTopicBandsShowMoreCount = computed((): number => {
+  const n = digest.value?.topics.length ?? 0
+  if (topicBandsExpanded.value || n <= DIGEST_TOPIC_BANDS_INITIAL) {
+    return 0
+  }
+  return n - DIGEST_TOPIC_BANDS_INITIAL
+})
+
+function topicBandIndex(band: CorpusDigestTopicBand): number {
+  return digest.value?.topics.findIndex((b) => b.topic_id === band.topic_id) ?? -1
+}
+
+function bandCardClass(_band: CorpusDigestTopicBand): string {
+  /** Same chrome for every column — first band used ``bg-elevated`` which reads as flat gray vs peers. */
+  return 'flex min-h-0 min-w-0 flex-col rounded border border-border bg-surface p-1.5'
+}
+
+function bandTitleClass(band: CorpusDigestTopicBand): string {
+  return topicBandIndex(band) === 0
+    ? 'text-sm font-bold text-surface-foreground'
+    : 'text-sm font-semibold text-surface-foreground'
+}
+
+function topicHitSimilarityUi(h: CorpusDigestTopicHit) {
+  if (h.score == null) {
+    return null
+  }
+  return digestTopicHitSimilarityDisplay(h.score)
+}
 
 const digestLoadGate = new StaleGeneration()
 const digestCatalogGate = new StaleGeneration()
@@ -137,7 +214,8 @@ async function openDigestRecentTopicPillInGraph(
   }
   const pill = row.cil_digest_topics?.[pillIndex]
 
-  await artifacts.loadRelativeArtifacts(cleaned)
+  await ensureDefaultCorpusGraphIfNeeded()
+  await artifacts.appendRelativeArtifacts(cleaned)
   if (digestGraphOpenGate.isStale(seq)) {
     return
   }
@@ -156,7 +234,9 @@ async function openDigestRecentTopicPillInGraph(
 
 /** Distinct from **Recent** digest cards (same episode can appear in both lists). */
 function topicHitAriaLabel(h: CorpusDigestTopicHit): string {
-  return `Open graph and episode details: ${h.episode_title || '(episode)'}, ${episodeFeedLabel(h)}`
+  const base = `Open graph and episode details: ${h.episode_title || '(episode)'}, ${episodeFeedLabel(h)}`
+  const sim = topicHitSimilarityUi(h)
+  return sim ? `${base}, ${sim.label}` : base
 }
 
 /** Publish / E# / duration for topic-band hit native ``title`` (no longer under the cover). */
@@ -181,10 +261,7 @@ function topicHitHoverNativeTitle(h: CorpusDigestTopicHit): string {
   const lines: string[] = []
   lines.push(...topicHitTimingTooltipLines(h))
   if (h.score != null) {
-    lines.push(`Similarity for this topic: ${h.score.toFixed(3)}`)
-    lines.push(
-      'Ranks this hit within this topic band (vector search). Compare hits here only, not across corpora or models.',
-    )
+    // Similarity tier + raw score live on the row; keep native row title for catalog hints only.
   }
   if (episodeFeedInlineVisible(h)) {
     lines.push(`Feed: ${episodeFeedLabel(h)}`)
@@ -199,7 +276,7 @@ function topicHitHoverNativeTitle(h: CorpusDigestTopicHit): string {
     lines.push(`RSS: ${rss}`)
   }
   if (lines.length === 0) {
-    return undefined
+    return ''
   }
   return lines.join('\n')
 }
@@ -209,16 +286,16 @@ function digestCardAriaLabel(row: CorpusDigestRow): string {
   return `${row.episode_title}, ${episodeFeedLabel(row)}`
 }
 
-/** Match Library list: `bg-overlay` when this episode is open in the Episode rail. */
+/** Match Library list: `bg-overlay` when this episode is open in the Episode subject rail. */
 function isDigestRowSelected(row: CorpusDigestRow): boolean {
   const p = row.metadata_relative_path?.trim()
-  const cur = episodeRail.metadataRelativePath?.trim()
+  const cur = subject.episodeMetadataPath?.trim()
   return Boolean(p && cur && p === cur)
 }
 
 function isTopicHitSelected(h: CorpusDigestTopicHit): boolean {
   const p = h.metadata_relative_path?.trim()
-  const cur = episodeRail.metadataRelativePath?.trim()
+  const cur = subject.episodeMetadataPath?.trim()
   return Boolean(p && cur && p === cur)
 }
 
@@ -299,9 +376,9 @@ async function loadDigest(): Promise<void> {
       return
     }
     digest.value = d
-    const path = episodeRail.metadataRelativePath?.trim()
+    const path = subject.episodeMetadataPath?.trim()
     if (path && !digestCoversMetadataPath(path)) {
-      episodeRail.clearEpisodeContext()
+      subject.clearSubject()
     }
   } catch (e) {
     if (digestLoadGate.isStale(seq)) {
@@ -383,7 +460,8 @@ async function openTopicHitInGraph(
     graphActionError.value = 'No GI/KG artifacts on disk for this episode.'
     return
   }
-  await artifacts.loadRelativeArtifacts(cleaned)
+  await ensureDefaultCorpusGraphIfNeeded()
+  await artifacts.appendRelativeArtifacts(cleaned)
   if (digestGraphOpenGate.isStale(seq)) {
     return
   }
@@ -449,7 +527,7 @@ onBeforeUnmount(() => {
     data-testid="digest-root"
   >
     <div class="flex flex-col gap-1.5">
-      <div class="flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
+      <div class="flex w-full min-w-0 flex-col gap-2">
         <div class="flex min-w-0 items-center gap-1.5">
           <h2
             id="digest-main-heading"
@@ -481,9 +559,11 @@ onBeforeUnmount(() => {
               <strong class="font-medium text-surface-foreground/90">digest topic node</strong>
               when it exists in the slice (otherwise the episode node).
               <strong class="font-medium text-surface-foreground/90">Search topic</strong>
-              prefills semantic search. Hover a hit row for publish date, episode number,
-              duration, similarity (when present), feed name, and extra catalog hints (RSS and
-              a short feed description when available).
+              prefills semantic search. Each hit row shows a semantic
+              <strong class="font-medium text-surface-foreground/90">match strength</strong>
+              when a score exists (hover the label for the raw value). Hover the row for publish
+              date, episode number, duration, feed name, and catalog hints (RSS and a short feed
+              description when available).
               <strong class="font-medium text-surface-foreground/90">Recent</strong>
               — row click opens the
               <strong class="font-medium text-surface-foreground/90">Episode</strong>
@@ -497,9 +577,12 @@ onBeforeUnmount(() => {
             </p>
           </HelpTip>
         </div>
-        <div class="flex flex-wrap items-center justify-end gap-2 sm:shrink-0">
+        <div
+          class="flex w-full min-w-0 flex-wrap items-center gap-x-2 gap-y-1"
+          data-testid="digest-toolbar-filters"
+        >
         <label
-          class="text-[10px] font-medium text-muted"
+          class="shrink-0 text-[10px] font-medium text-muted"
           for="digest-filter-since"
         >Published on or after</label>
         <input
@@ -508,11 +591,11 @@ onBeforeUnmount(() => {
           type="text"
           inputmode="numeric"
           placeholder="YYYY-MM-DD"
-          class="w-32 rounded border border-border bg-elevated px-2 py-1 text-xs text-surface-foreground"
+          class="min-w-0 w-[8.5rem] max-w-full shrink rounded border border-border bg-elevated px-2 py-1 text-xs text-surface-foreground sm:w-32"
           aria-label="Published on or after date"
           @keydown.enter="applyDigestDateNow()"
         >
-        <div class="flex flex-wrap gap-1">
+        <div class="flex min-w-0 flex-wrap gap-1">
           <button
             type="button"
             class="rounded border border-border bg-surface px-2 py-0.5 text-[10px] text-surface-foreground hover:bg-overlay/40"
@@ -600,15 +683,17 @@ onBeforeUnmount(() => {
 
       <div
         v-if="digest.topics.length"
-        class="min-h-0 max-h-[min(42vh,21.5rem)] overflow-x-hidden overflow-y-auto rounded-sm"
+        class="min-w-0 overflow-x-hidden"
         role="region"
         aria-label="Topic bands"
       >
-        <div class="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
+        <div
+          class="grid gap-2 [grid-template-columns:repeat(auto-fit,minmax(min(100%,12rem),1fr))]"
+        >
           <section
-            v-for="band in digest.topics"
+            v-for="band in visibleTopicBands"
             :key="band.topic_id"
-            class="flex min-w-0 flex-col rounded border border-border bg-surface p-1.5"
+            :class="bandCardClass(band)"
             :aria-label="`Topic ${band.label}`"
           >
             <div class="flex flex-wrap items-center justify-between gap-1.5">
@@ -618,7 +703,7 @@ onBeforeUnmount(() => {
                 :aria-label="`Open graph for topic ${band.label} (top hit with GI or KG)`"
                 @click="void openTopicBandInGraph(band)"
               >
-                <span class="text-sm font-semibold text-surface-foreground">{{
+                <span :class="bandTitleClass(band)">{{
                   band.label
                 }}</span>
               </button>
@@ -630,12 +715,15 @@ onBeforeUnmount(() => {
                 Search topic
               </button>
             </div>
-            <ul class="mt-0.5 space-y-0.5 text-xs">
+            <ul
+              class="mt-0.5 min-h-0 space-y-0.5 overflow-x-hidden overflow-y-auto overscroll-y-contain text-xs [scrollbar-width:thin] [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-border"
+              :style="{ maxHeight: DIGEST_TOPIC_BAND_HITS_MAX_HEIGHT }"
+            >
               <li v-for="(h, hi) in band.hits" :key="hi">
                 <div
                   :role="h.metadata_relative_path ? 'button' : undefined"
                   :tabindex="h.metadata_relative_path ? 0 : undefined"
-                  class="grid grid-cols-[auto,minmax(0,1fr)] gap-x-2 gap-y-0.5 rounded px-0.5 py-0.5 outline-none"
+                  class="grid grid-cols-[auto,minmax(0,1fr)] gap-x-1.5 gap-y-0.5 rounded px-0.5 py-px outline-none"
                   :class="[
                     h.metadata_relative_path
                       ? 'cursor-pointer ring-offset-1 hover:bg-overlay focus-visible:ring-2 focus-visible:ring-primary'
@@ -648,7 +736,7 @@ onBeforeUnmount(() => {
                   @keydown.enter.prevent="onTopicHitRowActivate(h, band)"
                   @keydown.space.prevent="onTopicHitRowActivate(h, band)"
                 >
-                  <div class="row-start-1 flex w-9 shrink-0 self-start">
+                  <div class="row-start-1 flex w-8 shrink-0 self-start">
                     <PodcastCover
                       class="shrink-0"
                       :corpus-path="shell.corpusPath"
@@ -657,23 +745,64 @@ onBeforeUnmount(() => {
                       :episode-image-url="h.episode_image_url"
                       :feed-image-url="h.feed_image_url"
                       :alt="`Cover for ${h.episode_title || 'episode'}`"
-                      size-class="h-9 w-9 shrink-0"
+                      size-class="h-8 w-8 shrink-0"
                     />
                   </div>
-                  <span
-                    class="row-start-1 min-w-0 self-start break-words font-medium text-surface-foreground"
-                  >{{ h.episode_title || '(episode)' }}</span>
-                  <p
-                    v-if="digestRowSummaryPreview(h)"
-                    class="col-span-2 min-w-0 break-words whitespace-pre-wrap text-[11px] leading-snug text-muted"
-                  >
-                    {{ digestRowSummaryPreview(h) }}
-                  </p>
+                  <div class="row-start-1 min-w-0">
+                    <div class="flex w-full min-w-0 items-start justify-between gap-2">
+                      <div class="flex min-w-0 flex-1 items-start gap-1.5">
+                        <span
+                          v-if="isPublishDateWithin24hRolling(h.publish_date)"
+                          role="img"
+                          class="mt-1 h-1.5 w-1.5 shrink-0 rounded-full bg-success"
+                          :title="recencyDotHoverTitle(h.publish_date) || undefined"
+                          :aria-label="
+                            recencyDotHoverTitle(h.publish_date) || 'Recently published'
+                          "
+                        />
+                        <span
+                          class="min-w-0 break-words font-medium text-surface-foreground"
+                        >{{ h.episode_title || '(episode)' }}</span>
+                      </div>
+                      <template
+                        v-for="sim in [topicHitSimilarityUi(h)]"
+                        :key="'digest-topic-sim-' + band.topic_id + '-' + hi"
+                      >
+                        <span
+                          v-if="sim"
+                          class="shrink-0 text-[10px] leading-tight"
+                          :class="sim.labelClass"
+                          :title="sim.rawTitle"
+                        >{{ sim.label }}</span>
+                      </template>
+                    </div>
+                    <p
+                      v-if="digestRowSummaryPreview(h)"
+                      class="mt-0.5 min-w-0 break-words text-[10px] leading-snug text-muted"
+                      :class="isTopicHitSelected(h) ? '' : 'line-clamp-1'"
+                      :title="
+                        isTopicHitSelected(h)
+                          ? undefined
+                          : digestRowSummaryPreview(h) || undefined
+                      "
+                    >
+                      {{ digestRowSummaryPreview(h) }}
+                    </p>
+                  </div>
                 </div>
               </li>
             </ul>
           </section>
         </div>
+        <button
+          v-if="digestTopicBandsShowMoreCount > 0"
+          type="button"
+          class="mt-2 text-left text-xs text-primary underline decoration-transparent underline-offset-2 hover:decoration-primary"
+          data-testid="digest-topic-bands-show-more"
+          @click="topicBandsExpanded = true"
+        >
+          Show {{ digestTopicBandsShowMoreCount }} more topics
+        </button>
       </div>
 
       <!-- Match Library: collapsible/filters above, then `flex min-h-0 flex-1 flex-col gap-2` + Episodes panel. -->
@@ -771,9 +900,22 @@ onBeforeUnmount(() => {
                 />
                 <div class="min-w-0 flex-1">
                   <div class="flex flex-col gap-1 sm:flex-row sm:items-start sm:justify-between sm:gap-2">
-                    <span
-                      class="min-w-0 break-words font-medium text-surface-foreground sm:max-w-[min(100%,24rem)] sm:flex-1"
-                    >{{ row.episode_title }}</span>
+                    <div
+                      class="flex min-w-0 items-start gap-1.5 sm:max-w-[min(100%,24rem)] sm:flex-1"
+                    >
+                      <span
+                        v-if="isPublishDateWithin24hRolling(row.publish_date)"
+                        role="img"
+                        class="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-success"
+                        :title="recencyDotHoverTitle(row.publish_date) || undefined"
+                        :aria-label="
+                          recencyDotHoverTitle(row.publish_date) || 'Recently published'
+                        "
+                      />
+                      <span
+                        class="min-w-0 break-words font-medium text-surface-foreground"
+                      >{{ row.episode_title }}</span>
+                    </div>
                     <div
                       class="flex min-w-0 max-w-full shrink-0 flex-wrap items-baseline justify-end gap-x-1.5 gap-y-0.5 text-[10px] sm:max-w-[min(100%,20rem)]"
                     >
@@ -800,13 +942,20 @@ onBeforeUnmount(() => {
                   </div>
                   <p
                     v-if="libraryEpisodeSummaryLine(row)"
-                    class="mt-0.5 break-words whitespace-pre-wrap text-[11px] leading-relaxed text-muted"
+                    class="mt-0.5 break-words text-[11px] leading-relaxed text-muted"
+                    :class="isDigestRowSelected(row) ? 'whitespace-pre-wrap' : 'line-clamp-2'"
+                    :title="
+                      isDigestRowSelected(row)
+                        ? undefined
+                        : libraryEpisodeSummaryLine(row) || undefined
+                    "
                   >
                     {{ libraryEpisodeSummaryLine(row) }}
                   </p>
                   <CilTopicPillsRow
                     v-if="digestRecentCilPills(row).length"
                     class="mt-0.5"
+                    cluster-member-appearance="kg"
                     :pills="digestRecentCilPills(row)"
                     :max-pill-chars="RECENT_TOPIC_PILL_CHARS"
                     data-testid="digest-recent-cil-pills"

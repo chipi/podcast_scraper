@@ -20,7 +20,7 @@ stage progress and resource usage in real time. After a run, the agent performs 
 structured post-mortem without you scrolling through logs.
 
 **Companion guide:** [Agent-Browser Closed Loop Guide](AGENT_BROWSER_LOOP_GUIDE.md)
-covers the browser-side loops (Playwright E2E, Chrome DevTools MCP, live
+covers the browser-side loops (Playwright E2E, Chrome DevTools MCP as the **default** for interactive repro/validate, Playwright MCP when clearly better for scripted drive, live
 co-development). Both guides share the same principle — give the agent direct access
 to structured feedback instead of copy-paste.
 
@@ -62,8 +62,8 @@ status file and monitor log are in the output root; debug artifacts are under
 When you run a pipeline with `--monitor`, the agent can observe the run in progress:
 
 ```text
-1. You: "Run acceptance_the_journal_openai with monitor"
-   → make acceptance CONFIG=config/acceptance/acceptance_the_journal_openai.yaml
+1. You: "Run a single-feed preset with monitor"
+   → make test-acceptance CONFIGS="path/to/your_operator.yaml"
      (with monitor: true in the config)
 
 2. During the run, the agent can:
@@ -150,7 +150,7 @@ you iterate on config or code.
 ```text
 You: "Run the journal acceptance test and evaluate the results"
     ↓
-Agent runs: make acceptance CONFIG=config/acceptance/acceptance_the_journal_openai.yaml
+Agent runs: make test-acceptance CONFIGS="path/to/your_operator.yaml"
     ↓
 Agent reads terminal output + metrics.json + .monitor.log
     ↓
@@ -267,7 +267,7 @@ These are workflow friction points, not blockers. The structured artifacts
 make ci-fast
 
 # Run acceptance test (with monitor if config has monitor: true)
-make acceptance CONFIG=config/acceptance/acceptance_the_journal_openai.yaml
+make test-acceptance CONFIGS="path/to/your_operator.yaml"
 
 # Read pipeline status during a run
 cat output/.pipeline_status.json

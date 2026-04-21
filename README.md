@@ -23,7 +23,7 @@ and hands-on work with edge and cloud AI/ML technologies.
 
 - **Transcript Downloads** — Automatic detection and download from RSS feeds
 - **Episode selection** — Order (`newest` / `oldest`), optional publish-date window (`--since` / `--until`), offset, and `max_episodes` for large back-catalogs ([CONFIGURATION.md](docs/api/CONFIGURATION.md#episode-selection-github-521), GitHub #521)
-- **Multi-feed corpus** — One config or CLI invocation for multiple shows: `feeds` / `rss_urls` in YAML, repeatable `--rss` / `--rss-file` on the CLI; isolated output under `<output_dir>/feeds/<stable_id>/` per feed. With `vector_search` + FAISS, a **single parent index** is built under `<output_dir>/search` after all feeds finish; **`corpus_manifest.json`**, **`corpus_run_summary.json`**, and structured log lines record batch status ([RFC-063](docs/rfc/RFC-063-multi-feed-corpus-append-resume.md), [CONFIGURATION.md](docs/api/CONFIGURATION.md#rss-and-multi-feed-corpus-github-440)). Inspect offline: `python -m podcast_scraper.cli corpus-status --output-dir <corpus_parent>`.
+- **Multi-feed corpus** — One config or CLI invocation for multiple shows: `feeds` / `rss_urls` in YAML, **`--feeds-spec`** for structured `feeds.spec.yaml` / JSON, or repeatable `--rss` / legacy `--rss-file`; isolated output under `<output_dir>/feeds/<stable_id>/` per feed. With `vector_search` + FAISS, a **single parent index** is built under `<output_dir>/search` after all feeds finish; **`corpus_manifest.json`**, **`corpus_run_summary.json`**, and structured log lines record batch status ([RFC-063](docs/rfc/RFC-063-multi-feed-corpus-append-resume.md), [CONFIGURATION.md](docs/api/CONFIGURATION.md#rss-and-multi-feed-corpus-github-440)). Inspect offline: `python -m podcast_scraper.cli corpus-status --output-dir <corpus_parent>`.
 - **Transcription** — Generate transcripts with Whisper, OpenAI API, or Google Gemini API
 - **Audio Preprocessing** — Optimize audio files before transcription (reduce size, remove silence, normalize loudness)
 - **Speaker Detection** — Identify speakers using spaCy NER, OpenAI, Google Gemini, Grok (real-time info), or other providers
@@ -340,6 +340,32 @@ python -m podcast_scraper.cli --help
 ### Run
 
 **Prerequisite:** Make sure you've completed the installation steps above and activated your virtual environment.
+
+<a id="typical-run-profile-operator-config--feed-list"></a>
+
+#### Typical run: profile + operator config + feed list
+
+After install, most people want **packaged defaults** (profile), **their own knobs** (operator YAML), and **where the RSS URLs live** (feeds file or spec). The CLI wires all three together; you do **not** need to merge YAML by hand.
+
+```bash
+# From the repo root, venv active, API keys in .env or the environment:
+python -m podcast_scraper.cli \
+  --profile cloud_balanced \
+  --config config/manual/operator_defaults.yaml \
+  --feeds-spec config/manual/feeds.spec.registry_10.yaml
+```
+
+| Flag | Role |
+| ---- | ---- |
+| **`--profile NAME`** | Named preset under `config/profiles/<NAME>.yaml` (e.g. `cloud_balanced`, `local`, `cloud_quality`). Merged first as defaults. |
+| **`--config PATH`** | Operator YAML: `output_dir`, `max_episodes`, `workers`, booleans, etc. Explicit keys **override** the profile. |
+| **Feeds** (choose one) | **`--feeds-spec PATH`** — structured file whose root has a **`feeds`** array (URLs as strings or `{ url: … }` objects); same shape as corpus **`feeds.spec.yaml`**. **`--rss-file PATH`** — legacy **one RSS URL per line**. **Positional URL** or repeatable **`--rss URL`** — single-feed or multi-feed without a file. |
+
+**Do not combine** `--feeds-spec` with `--rss-file` or with explicit RSS URL arguments in the same invocation (the CLI rejects that mix).
+
+**Alternative:** `--config config/profiles/cloud_balanced.yaml` alone is valid when the feed URL(s) live **inside** that YAML (`rss` / `rss_urls` / `feeds`) or you pass a URL on the command line. Use **`--profile` + `--config`** when your operator file is small (paths, limits, flags) and the profile stays the packaged preset.
+
+In-repo references: `config/examples/feeds.spec.example.yaml`, `config/manual/operator_defaults.yaml`, `config/profiles/cloud_balanced.yaml`. Deeper detail: [CONFIGURATION.md](docs/api/CONFIGURATION.md) (RSS / multi-feed), [RSS_GUIDE.md](docs/guides/RSS_GUIDE.md).
 
 #### Basic Usage with Example Config (Recommended for First-Time Users)
 

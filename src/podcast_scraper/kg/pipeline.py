@@ -331,7 +331,7 @@ def _entity_dedup_key(*, name: str, entity_kind: Optional[str]) -> str:
 
 
 def _normalized_kind_from_props(props: Dict[str, Any]) -> str:
-    """Map stored ``kind`` (RFC-072) or legacy ``entity_kind`` to person/organization."""
+    """Map stored ``kind`` or legacy ``entity_kind`` to person/organization."""
     raw = props.get("kind")
     if raw == "org":
         return "organization"
@@ -365,7 +365,7 @@ def _entity_properties(
     role: str,
     description: Optional[str] = None,
 ) -> Dict[str, Any]:
-    """Entity node properties: name, label, ``kind`` (person|org), role (RFC-072)."""
+    """Entity node properties: name, label, ``kind`` (person|org), role."""
     name_s = (name or "").strip()[:500]
     ek = _normalize_entity_kind(entity_kind)
     kind_out = "org" if ek == "organization" else "person"

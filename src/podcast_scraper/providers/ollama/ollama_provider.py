@@ -798,7 +798,7 @@ class OllamaProvider:
         logger.debug("Detecting speakers via Ollama API for episode: %s", episode_title[:50])
 
         try:
-            # Build prompt using prompt_store (RFC-017)
+            # Build prompt using prompt_store
             user_prompt = self._build_speaker_detection_prompt(
                 episode_title, episode_description, known_hosts
             )
@@ -1026,7 +1026,7 @@ class OllamaProvider:
         )
 
         try:
-            # Build prompts using prompt_store (RFC-017)
+            # Build prompts using prompt_store
             (
                 system_prompt,
                 user_prompt,
@@ -1147,7 +1147,7 @@ class OllamaProvider:
                 )
                 call_metrics.set_cost(cost)
 
-            # Get prompt metadata for tracking (RFC-017)
+            # Get prompt metadata for tracking
             from ...prompts.store import get_prompt_metadata
 
             prompt_metadata = {}
@@ -1349,7 +1349,7 @@ class OllamaProvider:
         min_length: int,
         custom_prompt: Optional[str],
     ) -> tuple[str, str, Optional[str], str, int, int]:
-        """Build system and user prompts for summarization using prompt_store (RFC-017)."""
+        """Build system and user prompts for summarization using prompt_store."""
         from ...prompts.store import render_prompt
 
         # Try model-specific prompts first, fallback to generic
@@ -1432,7 +1432,7 @@ class OllamaProvider:
 
         from ...prompts.store import render_prompt
 
-        # Build cleaning prompt using prompt_store (RFC-017)
+        # Build cleaning prompt using prompt_store
         prompt_name = "ollama/cleaning/v1"
         user_prompt = render_prompt(prompt_name, transcript=text)
 

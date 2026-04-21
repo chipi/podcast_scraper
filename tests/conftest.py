@@ -13,8 +13,16 @@ All test files can import from this module using pytest's conftest.py mechanism.
 # Suppress rich progress bars in tests to keep output clean
 # Must be set BEFORE any rich imports
 import os
+from pathlib import Path
 
 os.environ["TERM"] = "dumb"  # Disable rich terminal features
+
+# Prefer repo-local Hugging Face hub when ``make preload-ml-models`` has populated
+# ``.cache/huggingface/hub`` (matches ``get_transformers_cache_dir`` tier-3). Without
+# this, libraries default to ``~/.cache/...`` and offline tests miss the preload tree.
+_project_hf_hub = Path(__file__).resolve().parents[1] / ".cache" / "huggingface" / "hub"
+if _project_hf_hub.is_dir():
+    os.environ.setdefault("HF_HUB_CACHE", str(_project_hf_hub))
 
 # Force Hugging Face libraries to work offline (use only cached models)
 # This prevents network access attempts that would fail with pytest-socket blocking

@@ -72,9 +72,13 @@ Expand runs only when:
 
 `graphExpansion` records `seedCyId -> addedRelPaths[]`. Collapse calls **`removeRelativeArtifacts`** on those paths and clears the record. Full graph reload matches expand cost (accepted for v1).
 
+### Expansion reset vs full reload
+
+Any **full** `artifacts.loadSelected()` (default) clears **`graphExpansion`** before refetching so `expandedBySeed` never points at paths that are no longer in the merged selection (corpus auto-sync, `loadRelativeArtifacts`, Dashboard **Load into graph**, **Refresh graph**, and similar). **`appendRelativeArtifacts`** and **`removeRelativeArtifacts`** call `loadSelected({ preserveExpansion: true })` so progressive expand and collapse can reload the merged graph without wiping unrelated seeds mid-flow.
+
 ### Visual affordance (viewer)
 
-Topic / Person / Entity nodes that pass the same structural rules as **Eligibility (expand)** get a **teal** Cytoscape node border **only after** a debounced `POST /api/corpus/node-episodes` probe finds at least one matching episode whose GI/KG paths are **not** already in the viewer’s merged artifact selection (so the ring means “double-click can merge corpus material that is not on the graph yet,” not merely “degree &gt; 1”). The expansion **seed** after a successful expand shows a **blue** border until collapsed. Styling uses classes `rfc076-expandable` / `rfc076-expanded-seed`; the graph toolbar hint summarizes the rings.
+Topic / Person / Entity nodes that pass the same structural rules as **Eligibility (expand)** get a **teal** Cytoscape node border **only after** a debounced `POST /api/corpus/node-episodes` probe finds at least one matching episode whose GI/KG paths are **not** already in the viewer’s merged artifact selection (so the ring means “double-click can merge corpus material that is not on the graph yet,” not merely “degree &gt; 1”). The expansion **seed** after a successful expand shows a **blue** border until collapsed. Styling uses classes `graph-expand-eligible` / `graph-expand-seed`; the graph toolbar hint summarizes the rings.
 
 ### Performance
 
@@ -85,7 +89,7 @@ Server cost is **O(number of bridge files)** with one JSON read per bridge. View
 - Python unit: `tests/unit/podcast_scraper/server/test_cil_queries_node_episodes.py`
 - Python integration: `tests/integration/server/test_corpus_node_episodes_integration.py`
 - Viewer Vitest: `corpusLibraryApi.test.ts` for `fetchNodeEpisodes`
-- Playwright (GI/KG viewer): `web/gi-kg-viewer/e2e/rfc076-graph-expansion-mocks.spec.ts` — drives **`dbltap`** expand/collapse by sending **two quick click cycles** on `.graph-canvas` at the node’s rendered position (same Cytoscape input path as a user **double-click** / **double-tap**); it does not call `cy.emit` from test code. Expand **`POST`** bodies are expected to include **`max_episodes`** set to the viewer constant (same value as Vitest `corpusLibraryApi` tests) on every mocked expand path that receives a request.
+- Playwright (GI/KG viewer): `web/gi-kg-viewer/e2e/graph-expansion-mocks.spec.ts` — drives **`dbltap`** expand/collapse by sending **two quick click cycles** on `.graph-canvas` at the node’s rendered position (same Cytoscape input path as a user **double-click** / **double-tap**); it does not call `cy.emit` from test code. Expand **`POST`** bodies are expected to include **`max_episodes`** set to the viewer constant **`GRAPH_NODE_EPISODES_EXPAND_MAX`** (same value as Vitest `corpusLibraryApi` tests) on every mocked expand path that receives a request.
 
 ## Resolved decisions
 

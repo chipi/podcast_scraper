@@ -1,4 +1,4 @@
-"""Unit tests for RFC-067 Phase 3 similarity helpers."""
+"""Unit tests for corpus similarity helpers."""
 
 from __future__ import annotations
 

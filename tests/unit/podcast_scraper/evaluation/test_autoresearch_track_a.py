@@ -1,4 +1,4 @@
-"""Unit tests for RFC-057 Track A autoresearch helpers."""
+"""Unit tests for Track A autoresearch helpers."""
 
 from __future__ import annotations
 

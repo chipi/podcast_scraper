@@ -79,6 +79,46 @@ export function sortedMonthHistogram(
 /**
  * Per UTC day counts of GI vs KG artifact writes, then cumulative totals (for growth curves).
  */
+/** Per UTC day counts of new GI vs KG writes (not cumulative). */
+export type DayGiKgBucket = { day: string; gi: number; kg: number }
+
+/**
+ * Last ``windowDays`` UTC calendar days ending at ``endUtc`` (inclusive of that UTC date),
+ * with counts of artifacts whose ``mtime_utc`` falls on each day.
+ */
+export function dailyGiKgNewCountsLastDays(
+  items: { kind: string; mtime_utc: string }[],
+  windowDays = 30,
+  endUtc: Date = new Date(),
+): DayGiKgBucket[] {
+  const giDay = new Map<string, number>()
+  const kgDay = new Map<string, number>()
+  for (const it of items) {
+    if (it.kind !== 'gi' && it.kind !== 'kg') {
+      continue
+    }
+    const day = utcDayFromMtime(it.mtime_utc)
+    if (!day) {
+      continue
+    }
+    const map = it.kind === 'gi' ? giDay : kgDay
+    map.set(day, (map.get(day) ?? 0) + 1)
+  }
+  const y = endUtc.getUTCFullYear()
+  const m = endUtc.getUTCMonth()
+  const d = endUtc.getUTCDate()
+  const days: string[] = []
+  for (let i = windowDays - 1; i >= 0; i -= 1) {
+    const dt = new Date(Date.UTC(y, m, d - i))
+    days.push(dt.toISOString().slice(0, 10))
+  }
+  return days.map((day) => ({
+    day,
+    gi: giDay.get(day) ?? 0,
+    kg: kgDay.get(day) ?? 0,
+  }))
+}
+
 export function cumulativeGiKgByDay(
   items: { kind: string; mtime_utc: string }[],
 ): { day: string; gi: number; kg: number }[] {

@@ -1,4 +1,4 @@
-"""Optional corpus-level overrides for RFC-072 transcript chunk lift (#528).
+"""Optional corpus-level overrides for transcript chunk lift to CIL (#528).
 
 ``cil_lift_overrides.json`` at the corpus root (pipeline output directory) adjusts
 char alignment and resolves split canonical ids without rebuilding the FAISS index.
@@ -85,7 +85,7 @@ def write_cil_lift_overrides_merged_topic_id_aliases(
     corpus_root: Path,
     auto_topic_aliases: Mapping[str, str],
 ) -> Dict[str, str]:
-    """Merge auto-generated topic aliases into ``cil_lift_overrides.json`` (RFC-075 Phase 2).
+    """Merge auto-generated topic aliases into ``cil_lift_overrides.json``.
 
     Keys already present in the file's ``topic_id_aliases`` **win** over *auto_topic_aliases*
     (hand edits and prior runs preserved). Other top-level keys are kept. Creates the file

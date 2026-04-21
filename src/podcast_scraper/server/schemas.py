@@ -1,10 +1,10 @@
-"""Pydantic models for viewer API responses (RFC-062)."""
+"""Pydantic models for viewer API responses."""
 
 from __future__ import annotations
 
 from typing import Any, Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class ArtifactItem(BaseModel):
@@ -16,6 +16,10 @@ class ArtifactItem(BaseModel):
     size_bytes: int = Field(ge=0, description="File size in bytes.")
     mtime_utc: str = Field(
         description="Last modification time (UTC ISO-8601 with Z suffix).",
+    )
+    publish_date: str = Field(
+        description="Episode calendar date (YYYY-MM-DD) from metadata when present; "
+        "otherwise UTC calendar date derived from this file's mtime (ingested surrogate).",
     )
 
 
@@ -42,6 +46,13 @@ class HealthResponse(BaseModel):
         default=True,
         description="True when GET /api/search (semantic search) is mounted.",
     )
+    enriched_search_available: bool = Field(
+        default=False,
+        description=(
+            "True when optional semantic-search enrichment (e.g. LLM join) is configured; "
+            "viewer shows Enhanced chip when true."
+        ),
+    )
     explore_api: bool = Field(
         default=True,
         description="True when GET /api/explore (graph neighborhood) is mounted.",
@@ -56,25 +67,139 @@ class HealthResponse(BaseModel):
             "True when GET /api/corpus/stats, manifest, run-summary, " "runs/summary are mounted."
         ),
     )
+    corpus_coverage_api: bool = Field(
+        default=True,
+        description="True when GET /api/corpus/coverage (GI/KG presence by month/feed) is mounted.",
+    )
     corpus_library_api: bool = Field(
         default=True,
-        description="True when GET /api/corpus/* catalog routes are mounted (RFC-067).",
+        description="True when GET /api/corpus/* catalog routes are mounted.",
     )
     corpus_digest_api: bool = Field(
         default=True,
         description=(
-            "True when GET /api/corpus/digest is mounted (RFC-068). "
+            "True when GET /api/corpus/digest is mounted. "
             "Omit or false on older server builds without digest."
         ),
     )
     corpus_binary_api: bool = Field(
         default=True,
-        description="True when GET /api/corpus/binary is mounted (local artwork, RFC-067 Phase 4).",
+        description="True when GET /api/corpus/binary is mounted (local artwork, corpus library).",
     )
     cil_queries_api: bool = Field(
         default=True,
-        description="True when RFC-072 cross-layer CIL query routes are mounted (GitHub #527).",
+        description="True when cross-layer CIL query routes are mounted (GitHub #527).",
     )
+    feeds_api: bool = Field(
+        default=False,
+        description=(
+            "True when GET/PUT /api/feeds is mounted " "(``feeds.spec.yaml`` under corpus root)."
+        ),
+    )
+    operator_config_api: bool = Field(
+        default=False,
+        description="True when GET/PUT /api/operator-config is mounted (non-secret YAML only).",
+    )
+    jobs_api: bool = Field(
+        default=False,
+        description="True when POST/GET /api/jobs and related pipeline job routes are mounted.",
+    )
+
+
+class FeedsListResponse(BaseModel):
+    """Response for GET/PUT /api/feeds (structured ``{ feeds: [...] }`` on disk)."""
+
+    path: str = Field(description="Resolved absolute corpus root path.")
+    file_relpath: str = Field(description="Feeds spec file relative to corpus root (POSIX).")
+    feeds: list[str | dict[str, Any]] = Field(
+        default_factory=list,
+        description="Feed entries in file order (URL strings or objects with url + overrides).",
+    )
+
+
+class FeedsPutBody(BaseModel):
+    """Body for PUT /api/feeds."""
+
+    feeds: list[str | dict[str, Any]] = Field(
+        default_factory=list,
+        description="Feed entries to persist (deduped by url, first-seen order kept).",
+    )
+
+
+class OperatorConfigGetResponse(BaseModel):
+    """Response for GET/PUT /api/operator-config."""
+
+    corpus_path: str = Field(description="Resolved corpus root from the path query parameter.")
+    operator_config_path: str = Field(
+        description="Absolute path of the operator YAML file on disk."
+    )
+    content: str = Field(
+        description=(
+            "Full file contents (UTF-8). GET may copy a packaged overrides-only starter "
+            "when the file was missing or whitespace-only; ``profile:`` is chosen in the "
+            "viewer (or CLI ``--profile``), not seeded into that starter."
+        )
+    )
+    available_profiles: list[str] = Field(
+        default_factory=list,
+        description=(
+            "Sorted packaged preset names (no .yaml) unioned from cwd and repo "
+            "config/profiles/ (same roots as Config profile load); excludes *.example.yaml."
+        ),
+    )
+
+
+class OperatorConfigPutBody(BaseModel):
+    """Body for PUT /api/operator-config."""
+
+    content: str = Field(default="", description="Full YAML file contents (UTF-8).")
+
+
+class PipelineJobRecord(BaseModel):
+    """One row from the JSONL job registry (GET list/detail, cancel response)."""
+
+    model_config = ConfigDict(extra="ignore")
+
+    job_id: str
+    command_type: str = Field(default="full_incremental_pipeline")
+    status: str
+    created_at: str
+    started_at: str | None = None
+    ended_at: str | None = None
+    pid: int | None = None
+    argv_summary: str = ""
+    exit_code: int | None = None
+    log_relpath: str = ""
+    error_reason: str | None = None
+    cancel_requested: bool = False
+    queue_position: int | None = Field(
+        default=None,
+        description="1-based position among queued jobs for this corpus (omit when not queued).",
+    )
+
+
+class PipelineJobAccepted(BaseModel):
+    """Response for POST /api/jobs (202 Accepted)."""
+
+    job_id: str
+    status: str
+    corpus_path: str
+    queue_position: int | None = None
+
+
+class PipelineJobsListResponse(BaseModel):
+    """Response for GET /api/jobs."""
+
+    path: str
+    jobs: list[PipelineJobRecord] = Field(default_factory=list)
+
+
+class PipelineJobReconcileResponse(BaseModel):
+    """Response for POST /api/jobs/reconcile."""
+
+    path: str
+    updated: int = Field(ge=0)
+    details: list[str] = Field(default_factory=list)
 
 
 class IndexStatsBody(BaseModel):
@@ -151,7 +276,7 @@ class SearchHitModel(BaseModel):
     lifted: dict[str, Any] | None = Field(
         default=None,
         description=(
-            "Transcript hits only: RFC-072 chunk-to-Insight lift when GI offsets and bridge "
+            "Transcript hits only: chunk-to-Insight lift when GI offsets and bridge "
             "align (#528). Shape is loosely typed; typical keys include insight, speaker, "
             "topic, and quote (e.g. timestamp_start_ms / timestamp_end_ms). Speaker display "
             "and quote speaker fields follow the same .gi.json / segment rules as #541."
@@ -183,7 +308,7 @@ class CorpusSearchApiResponse(BaseModel):
     detail: str | None = None
     lift_stats: CorpusSearchLiftStatsModel | None = Field(
         default=None,
-        description="RFC-072 lift coverage for this response page (#528).",
+        description="Transcript lift coverage for this response page (#528).",
     )
 
 
@@ -195,7 +320,7 @@ class ExploreApiResponse(BaseModel):
     detail: str | None = None
     data: dict[str, Any] | None = Field(
         default=None,
-        description="RFC-050 explore JSON when ``kind`` is ``explore``.",
+        description="Explore-shaped GI JSON when ``kind`` is ``explore``.",
     )
     question: str | None = None
     answer: dict[str, Any] | None = Field(
@@ -220,9 +345,7 @@ class CorpusFeedItem(BaseModel):
     )
     image_local_relpath: str | None = Field(
         default=None,
-        description=(
-            "Corpus-relative path to downloaded feed art when file exists (RFC-067 Phase 4)."
-        ),
+        description=("Corpus-relative path to downloaded feed art when file exists."),
     )
     rss_url: str | None = Field(
         default=None,
@@ -242,7 +365,7 @@ class CorpusFeedsResponse(BaseModel):
 
 
 class CilDigestTopicPill(BaseModel):
-    """One CIL topic chip for digest / library (bridge identity + optional RFC-075 cluster)."""
+    """One CIL topic chip for digest / library (bridge identity + optional topic cluster)."""
 
     topic_id: str = Field(description="Canonical ``topic:…`` id from bridge.json.")
     label: str = Field(description="Human label (bridge display_name or derived from id).")
@@ -378,7 +501,7 @@ class CorpusEpisodeDetailResponse(BaseModel):
     gi_relative_path: str
     kg_relative_path: str
     bridge_relative_path: str = Field(
-        description="Sibling ``.bridge.json`` path (RFC-072) from metadata stem.",
+        description="Sibling ``.bridge.json`` path from metadata stem.",
     )
     has_gi: bool = False
     has_kg: bool = False
@@ -418,7 +541,7 @@ class CorpusEpisodeDetailResponse(BaseModel):
 
 
 class CorpusSimilarEpisodeItem(BaseModel):
-    """One deduped peer episode from GET /api/corpus/episodes/similar (RFC-067 Phase 3)."""
+    """One deduped peer episode from GET /api/corpus/episodes/similar."""
 
     score: float
     feed_id: str = Field(description="Normalized feed id (empty when unknown).")
@@ -466,7 +589,7 @@ class CorpusSimilarEpisodesResponse(BaseModel):
 
 
 class CorpusDigestRow(BaseModel):
-    """One ranked digest row (RFC-068 L0 + L2)."""
+    """One ranked digest row."""
 
     metadata_relative_path: str
     feed_id: str
@@ -517,7 +640,7 @@ class CorpusDigestRow(BaseModel):
 
 
 class CorpusDigestTopicHit(BaseModel):
-    """Semantic topic hit scoped to digest window (RFC-068 L1)."""
+    """Semantic topic hit scoped to digest window."""
 
     metadata_relative_path: str | None = None
     episode_title: str = ""
@@ -574,7 +697,7 @@ class CorpusDigestTopicBand(BaseModel):
 
 
 class CorpusDigestResponse(BaseModel):
-    """Response for GET /api/corpus/digest (RFC-068)."""
+    """Response for GET /api/corpus/digest."""
 
     path: str
     window: Literal["all", "24h", "7d", "1mo", "since"]
@@ -604,7 +727,64 @@ class CorpusStatsResponse(BaseModel):
     )
     digest_topics_configured: int = Field(
         0,
-        description="Digest topic bands from server config (RFC-068).",
+        description="Digest topic bands from server config.",
+    )
+
+
+class CoverageByMonthItem(BaseModel):
+    """One publish-month bucket for GI/KG coverage (dashboard)."""
+
+    month: str = Field(description="YYYY-MM from episode publish_date.")
+    total: int = Field(ge=0)
+    with_gi: int = Field(ge=0)
+    with_kg: int = Field(ge=0)
+    with_both: int = Field(ge=0)
+
+
+class CoverageFeedItem(BaseModel):
+    """Per-feed GI/KG coverage counts (dashboard)."""
+
+    feed_id: str
+    display_title: str
+    total: int = Field(ge=0)
+    with_gi: int = Field(ge=0)
+    with_kg: int = Field(ge=0)
+
+
+class CorpusCoverageResponse(BaseModel):
+    """Response for GET /api/corpus/coverage."""
+
+    path: str
+    total_episodes: int = Field(ge=0)
+    with_gi: int = Field(ge=0)
+    with_kg: int = Field(ge=0)
+    with_both: int = Field(ge=0)
+    with_neither: int = Field(ge=0)
+    by_month: list[CoverageByMonthItem] = Field(default_factory=list)
+    by_feed: list[CoverageFeedItem] = Field(default_factory=list)
+
+
+class TopPersonItem(BaseModel):
+    """One row for GET /api/corpus/persons/top."""
+
+    person_id: str = Field(description='Canonical id, e.g. "person:slug".')
+    display_name: str
+    episode_count: int = Field(ge=0)
+    insight_count: int = Field(ge=0)
+    top_topics: list[str] = Field(
+        default_factory=list,
+        description="Up to three canonical topic ids (ABOUT targets of grounded insights).",
+    )
+
+
+class CorpusTopPersonsResponse(BaseModel):
+    """Response for GET /api/corpus/persons/top."""
+
+    path: str
+    persons: list[TopPersonItem] = Field(default_factory=list)
+    total_persons: int = Field(
+        ge=0,
+        description="Distinct Person node ids seen across GI artifacts.",
     )
 
 
@@ -668,7 +848,7 @@ class CorpusResolveEpisodesResponse(BaseModel):
 
 
 class CorpusNodeEpisodesRequest(BaseModel):
-    """Body for POST /api/corpus/node-episodes (RFC-076)."""
+    """Body for POST /api/corpus/node-episodes (cross-episode graph expand)."""
 
     node_id: str = Field(min_length=1, description="Viewer or canonical CIL node id.")
     path: str | None = Field(
@@ -704,7 +884,7 @@ class CorpusNodeEpisodesResponse(BaseModel):
     )
 
 
-# --- RFC-072 cross-layer queries (GitHub #527) ---
+# --- Cross-layer CIL queries (GitHub #527) ---
 
 
 class CilArcEpisodeBlock(BaseModel):
@@ -748,7 +928,7 @@ class CilPersonProfileQuoteRow(BaseModel):
 
 
 class CilPersonProfileResponse(BaseModel):
-    """Response for GET /api/persons/{person_id}/brief (RFC-072 Pattern B, Person Profile)."""
+    """Response for GET /api/persons/{person_id}/brief."""
 
     path: str
     person_id: str

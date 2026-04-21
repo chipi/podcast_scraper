@@ -48,7 +48,7 @@ PYTEST_WORKERS ?= 2
 # Parallel execution via pytest-xdist caused double-runs on CI (exit-code mismatch
 # triggered fallback, doubling wall time).
 
-.PHONY: help init init-no-ml venv-dev-init test-unit-dev-venv download-spacy-wheels format format-check lint lint-markdown lint-markdown-docs fix-md strip-doc-checkmarks strip-doc-emoji strip-docs type security security-bandit security-audit complexity complexity-track deadcode docstrings spelling spelling-docs quality check-unit-imports check-test-policy check-pricing-assumptions validate-gi-schema validate-kg-schema gil-quality-metrics compare-gil-runs kg-quality-metrics quality-metrics-ci fetch-ci-metrics fetch-ci-metrics-validate fetch-nightly-metrics validate-metrics-bundle build-metrics-dashboard-preview metrics-preview-check serve-metrics-dashboard metrics-dashboard-live deps-analyze deps-check deps-graph deps-graph-full call-graph flowcharts visualize release-docs-prep pre-release bump analyze-test-memory cleanup-processes check-zombie check-spotlight test-unit test-unit-sequential test-unit-no-ml test-integration test-integration-sequential test-integration-fast test-ci test-ci-fast test-e2e test-e2e-sequential test-e2e-fast test-e2e-data-q verify-gil-offsets-after-acceptance preload-transformers-integration-summariesuality test-nightly test test-sequential test-fast test-reruns test-track test-track-view test-openai test-openai-multi test-openai-all-feeds test-openai-real test-openai-real-multi test-openai-real-all-feeds test-openai-real-feed coverage coverage-check coverage-check-unit coverage-check-integration coverage-check-e2e coverage-check-combined merge-cov-fragments coverage-report coverage-enforce docs docs-check build _ci_body ci ci-fast ci-sequential ci-clean ci-nightly clean clean-cache clean-model-cache clean-all docker-build docker-build-fast docker-build-full docker-test docker-clean install-hooks preload-ml-models preload-ml-models-production hf-hub-smoke-test backup-cache backup-cache-dry-run backup-cache-list backup-cache-cleanup restore-cache restore-cache-dry-run metadata-generate source-index dataset-create dataset-smoke dataset-benchmark dataset-raw dataset-materialize run-promote baseline-create experiment-run ml-param-sweep autoresearch-score autoresearch-score-bundled silver-pairwise runs-list baselines-list run-compare runs-compare benchmark profile-freeze profile-diff profile-promote serve-gi-kg-viz test-ui test-ui-e2e verify-gil-offsets-strict pipeline-validate transcription-sweep
+.PHONY: help init init-no-ml venv-dev-init test-unit-dev-venv download-spacy-wheels format format-check lint lint-markdown lint-markdown-docs fix-md strip-doc-checkmarks strip-doc-emoji strip-docs type security security-bandit security-audit complexity complexity-track deadcode docstrings spelling spelling-docs quality check-unit-imports check-test-policy check-pricing-assumptions validate-gi-schema validate-kg-schema gil-quality-metrics compare-gil-runs kg-quality-metrics quality-metrics-ci fetch-ci-metrics fetch-ci-metrics-validate fetch-nightly-metrics validate-metrics-bundle build-metrics-dashboard-preview metrics-preview-check serve-metrics-dashboard metrics-dashboard-live deps-analyze deps-check deps-graph deps-graph-full call-graph flowcharts visualize release-docs-prep pre-release bump analyze-test-memory cleanup-processes check-zombie check-spotlight test-unit test-unit-sequential test-unit-no-ml test-integration test-integration-sequential test-integration-fast test-ci test-ci-fast test-e2e test-e2e-sequential test-e2e-fast test-e2e-data-q verify-gil-offsets-after-acceptance preload-transformers-integration-summariesuality test-nightly test test-sequential test-fast test-fast-no-py-e2e test-reruns test-track test-track-view test-openai test-openai-multi test-openai-all-feeds test-openai-real test-openai-real-multi test-openai-real-all-feeds test-openai-real-feed coverage coverage-check coverage-check-unit coverage-check-integration coverage-check-e2e coverage-check-combined merge-cov-fragments coverage-report coverage-enforce docs docs-check build _ci_body ci ci-fast ci-ui-fast ci-sequential ci-clean ci-nightly clean clean-cache clean-model-cache clean-all docker-build docker-build-fast docker-build-full docker-test docker-clean install-hooks preload-ml-models preload-ml-models-production hf-hub-smoke-test backup-cache backup-cache-dry-run backup-cache-list backup-cache-cleanup restore-cache restore-cache-dry-run metadata-generate source-index dataset-create dataset-smoke dataset-benchmark dataset-raw dataset-materialize run-promote baseline-create experiment-run ml-param-sweep autoresearch-score autoresearch-score-bundled silver-pairwise runs-list baselines-list run-compare runs-compare benchmark profile-freeze profile-diff profile-promote serve-gi-kg-viz test-ui test-ui-e2e verify-gil-offsets-strict pipeline-validate transcription-sweep
 
 help:
 	@echo "Common developer commands:"
@@ -103,7 +103,7 @@ help:
 	@echo "  make pre-release         ADR-031: pre_release_check.py (version + release notes) then make ci"
 	@echo "  make bump VERSION=X.Y.Z  Bump pyproject.toml + __init__.py (optional ALLOW_DIRTY=1 FORCE_TAG=1)"
 	@echo "  make test-ui             Vitest unit tests for TypeScript utils in $(WEB_VIEWER_DIR) (fast, no browser)"
-	@echo "  make test-ui-e2e         Playwright E2E for $(WEB_VIEWER_DIR) (RFC-062; needs npm install in that dir)"
+	@echo "  make test-ui-e2e         Playwright E2E for $(WEB_VIEWER_DIR) (needs npm install in that dir)"
 	@echo ""
 	@echo "Analysis commands:"
 	@echo "  make analyze-test-memory [TARGET=test-unit] [WORKERS=N]  Analyze test memory usage and resource consumption"
@@ -129,6 +129,7 @@ help:
 	@echo "  make test                Run all tests (unit + integration + e2e, full suite, uses multi-episode feed)"
 	@echo "  make test-sequential     Run all tests sequentially (for debugging, uses multi-episode feed)"
 	@echo "  make test-fast           Run fast tests (unit + critical path integration + critical path e2e, uses fast feed)"
+	@echo "  make test-fast-no-py-e2e Same as test-fast but skips tests/e2e (faster when validating UI + server only)"
 	@echo "  make test-track          Run all test suites (unit + integration + e2e) and track execution times"
 	@echo "                            Results saved to reports/test-timings.json for historical comparison"
 	@echo "  make test-track-view     View test timing history and compare runs"
@@ -150,9 +151,9 @@ help:
 	@echo "  make test-reruns     Run tests with reruns for flaky tests (2 retries, 1s delay)"
 	@echo "  make test-acceptance  Run E2E acceptance tests (multiple configs sequentially)"
 	@echo "                            Usage: make test-acceptance CONFIGS=\"…\" [USE_FIXTURES=1] …"
-	@echo "                            Or:     make test-acceptance FROM_FAST_STEMS=1 USE_FIXTURES=1 (tracked fast matrix + path resolve)"
+	@echo "                            Or:     make test-acceptance FROM_FAST_STEMS=1 USE_FIXTURES=1 (materialize FAST_CONFIG.yaml rows)"
 	@echo "                            Configs with vector_search: run make preload-ml-models without SKIP_GIL=1 so FAISS indexing has cached embeddings offline."
-	@echo "  make test-acceptance-fixtures-fast  Same as FROM_FAST_STEMS=1 + USE_FIXTURES=1 + no auto analyze/benchmark; optional TIMEOUT=seconds (default 900)"
+	@echo "  make test-acceptance-fixtures-fast  Same as FROM_FAST_STEMS=1 + USE_FIXTURES=1 + no auto analyze/benchmark; optional TIMEOUT=seconds (default 900; CI uses 1500)"
 	@echo "                            Options: USE_FIXTURES=1 uses test fixtures (default: uses real RSS/APIs)"
 	@echo "                                     NO_SHOW_LOGS=1 disables real-time log streaming (default: logs shown)"
 	@echo "                                     NO_AUTO_ANALYZE=1 disables automatic analysis (default: analysis runs automatically)"
@@ -178,6 +179,7 @@ help:
 	@echo "  make build           Build source and wheel distributions (outputs to .build/dist/)"
 	@echo "  make ci              Run the full CI suite locally (all tests: unit + integration + e2e, uses multi-episode feed)"
 	@echo "  make ci-fast         Run fast CI checks (unit + critical path integration + critical path e2e, uses fast feed)"
+	@echo "  make ci-ui-fast      Like ci-fast but skips Python tests/e2e and runs Playwright (test-ui-e2e)"
 	@echo "  make ci-clean        Run complete CI suite with clean first (same as ci but cleans build artifacts first)"
 	@echo "  make ci-nightly      Run full nightly CI chain (unit + integration + e2e + nightly, production models)"
 	@echo "  make docker-build       Build Docker image (default, with model preloading)"
@@ -448,7 +450,9 @@ validate-kg-schema:
 # GI/KG viewer v2 (RFC-062 / #489): FastAPI + Vite. Install: pip install -e '.[server]'; cd $(WEB_VIEWER_DIR) && npm install
 .PHONY: serve serve-api serve-ui serve-e2e-mock
 SERVE_OUTPUT_DIR ?= ./output
-# Fixed port for ``config/manual/manual_e2e_mock.yaml`` (override when YAML edited).
+# Optional corpus-editing + jobs routes (health shows green when on). Override with SERVE_ARGS= to disable.
+SERVE_ARGS ?= --enable-feeds-api --enable-operator-config-api --enable-jobs-api
+# Default E2E mock RSS port (127.0.0.1:18765; override with E2E_MOCK_PORT when fixture URLs change).
 # Deliberately not 8000 so ``serve-e2e-mock`` can run alongside ``serve-api`` (FastAPI default).
 E2E_MOCK_PORT ?= 18765
 serve:
@@ -461,16 +465,16 @@ serve-api:
 serve-ui:
 	@cd $(WEB_VIEWER_DIR) && npm run dev
 
-# E2E fixture HTTP server (RSS + mock API paths) for manual multi-feed YAML (see config/manual/manual_e2e_mock.yaml).
+# E2E fixture HTTP server (RSS + mock API paths); use --feeds-spec with URLs on this port.
 serve-e2e-mock:
 	@export PYTHONPATH="${PYTHONPATH}:$(PWD)/src:$(PWD)" && $(PYTHON) scripts/tools/run_e2e_mock_server.py --port "$(E2E_MOCK_PORT)"
 
-# RFC-062: Vitest unit tests for TypeScript utility logic (no browser needed)
+# Vitest unit tests for TypeScript utility logic (no browser needed)
 test-ui:
 	@echo "Vitest unit tests (gi-kg-viewer)..."
 	@cd $(WEB_VIEWER_DIR) && npm install && npm run test:unit
 
-# RFC-062: Playwright browser E2E (install browsers once: cd $(WEB_VIEWER_DIR) && npx playwright install firefox)
+# Playwright browser E2E (install browsers once: cd $(WEB_VIEWER_DIR) && npx playwright install firefox)
 test-ui-e2e:
 	@echo "Playwright E2E (gi-kg-viewer)..."
 	@cd $(WEB_VIEWER_DIR) && npm install && npx playwright install firefox && npm run test:e2e
@@ -862,6 +866,21 @@ test-fast:
 	@$(MAKE) merge-cov-fragments
 	@$(PYTHON) -m coverage report 2>&1 | grep -E "^[[:space:]]*TOTAL" || (echo "No TOTAL line in coverage report"; exit 1)
 
+# Same worker/coverage layout as test-fast, but skips tests/e2e/ (saves significant wall time).
+# Pair with make test-ui-e2e (see ci-ui-fast) when validating viewer changes.
+test-fast-no-py-e2e:
+	@echo "Running unit tests (fast) with coverage..."
+	@E2E_TEST_MODE=fast $(PYTHON) -m pytest tests/unit/ -m 'not integration and not e2e' \
+		-n $(shell $(PYTHON) scripts/tools/calculate_test_workers.py --test-type unit --max-workers 8 2>/dev/null || echo 4) \
+		--cov=$(PACKAGE) --cov-report=term-missing --disable-socket --allow-hosts=127.0.0.1,localhost -q
+	@echo "Running critical path integration tests with coverage (appending)..."
+	@E2E_TEST_MODE=fast $(PYTHON) -m pytest tests/integration/ -m 'integration and critical_path' \
+		-n $(shell $(PYTHON) scripts/tools/calculate_test_workers.py --test-type integration --max-workers 5 2>/dev/null || echo 3) \
+		--cov=$(PACKAGE) --cov-append --cov-report=term-missing --disable-socket --allow-hosts=127.0.0.1,localhost -q
+	@echo "Combining coverage..."
+	@$(MAKE) merge-cov-fragments
+	@$(PYTHON) -m coverage report 2>&1 | grep -E "^[[:space:]]*TOTAL" || (echo "No TOTAL line in coverage report"; exit 1)
+
 test-reruns:
 	# Network isolation enabled to match CI behavior and catch network dependency issues early
 	$(PYTHON) -m pytest --reruns 2 --reruns-delay 1 --cov=$(PACKAGE) --cov-report=term-missing -m 'not integration and not e2e' --disable-socket --allow-hosts=127.0.0.1,localhost
@@ -876,7 +895,7 @@ test-acceptance:
 		echo ""; \
 		echo "Options:"; \
 		echo "  CONFIGS=pattern         Config glob(s), space-separated (required unless FROM_FAST_STEMS=1)"; \
-		echo "  FROM_FAST_STEMS=1      Resolve YAMLs from fast stem list (FAST_CONFIGS.txt; optional config/ci/acceptance_fast_stems.txt)"; \
+		echo "  FROM_FAST_STEMS=1      Materialize rows from config/acceptance/FAST_CONFIG.yaml"; \
 		echo "  USE_FIXTURES=1          Use E2E server fixtures (test feeds and mock APIs)"; \
 		echo "  NO_SHOW_LOGS=1          Disable streaming logs to console"; \
 		echo "  NO_AUTO_ANALYZE=1       Disable automatic analysis after session"; \
@@ -911,7 +930,7 @@ test-acceptance:
 		--log-level INFO
 
 # Fixture smoke for the full *fast* acceptance matrix (offline E2E server + mock APIs).
-# Resolves each stem to config/acceptance/<stem>.yaml or config/examples/<stem>.yaml.
+# Materializes each enabled row from config/acceptance/FAST_CONFIG.yaml under session_*/materialized/.
 test-acceptance-fixtures-fast:
 	@$(PYTHON) scripts/acceptance/run_acceptance_tests.py \
 		--from-fast-stems \
@@ -1324,7 +1343,11 @@ ci: cleanup-processes
 _ci_body: format-check lint lint-markdown type security complexity deadcode docstrings spelling check-test-policy test test-ui test-ui-e2e coverage-enforce docs build
 
 ci-fast: cleanup-processes format-check lint lint-markdown type security complexity deadcode docstrings spelling check-test-policy quality-metrics-ci test-fast test-ui docs build
-	# Note: ci-fast skips coverage-enforce and test-ui-e2e (Playwright) because fast suite
+	# Note: ci-fast skips coverage-enforce and test-ui-e2e (Playwright). For viewer work use ci-ui-fast.
+
+# Viewer-heavy gate: like ci-fast but skips Python tests/e2e and runs Playwright (longer than Vitest alone).
+ci-ui-fast: cleanup-processes format-check lint lint-markdown type security complexity deadcode docstrings spelling check-test-policy quality-metrics-ci test-fast-no-py-e2e test-ui test-ui-e2e docs build
+	# Note: ci-ui-fast skips coverage-enforce and Python tests/e2e; Playwright still needs browsers installed.
 
 ci-clean: clean-all format-check lint lint-markdown type security preload-ml-models test docs build
 

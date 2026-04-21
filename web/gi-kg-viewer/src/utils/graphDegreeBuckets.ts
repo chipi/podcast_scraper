@@ -1,4 +1,4 @@
-/** RFC-069: fixed degree buckets for histogram + filter. */
+/** Fixed degree buckets for histogram + filter. */
 
 export const DEGREE_BUCKET_ORDER = ['0', '1', '2-5', '6-10', '11+'] as const
 

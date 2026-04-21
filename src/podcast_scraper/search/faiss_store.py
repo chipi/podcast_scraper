@@ -26,7 +26,7 @@ INDEX_VARIANT_FLAT = "faiss_flat_ip_idmap"
 INDEX_VARIANT_IVF = "faiss_ivf_flat_ip_idmap"
 INDEX_VARIANT_PQ = "faiss_ivfpq_idmap"
 
-# RFC-061 / #484: scale index structure by approximate corpus size
+# Semantic index sizing (#484): scale index structure by approximate corpus size
 FAISS_AUTO_IVF_MIN_VECTORS = 100_000
 FAISS_AUTO_IVFPQ_MIN_VECTORS = 1_000_000
 
@@ -207,7 +207,7 @@ class FaissVectorStore:
     def export_vectors_by_doc_id(self) -> Dict[str, np.ndarray]:
         """Export L2-normalized embedding vectors keyed by FAISS ``doc_id``.
 
-        Used by corpus topic clustering (RFC-075) to read ``kg_topic`` rows without
+        Used by corpus topic clustering to read ``kg_topic`` rows without
         a separate vector pass. Rows align with the index's internal ordering.
 
         Returns:

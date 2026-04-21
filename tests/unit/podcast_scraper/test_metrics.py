@@ -283,7 +283,7 @@ class TestFinish(unittest.TestCase):
         self.assertEqual(result["avg_cleaning_seconds"], 0.25)  # (0.1+0.2+0.3+0.4)/4
 
     def test_finish_exports_per_episode_timing_dicts(self):
-        """finish() includes per-episode stage seconds (string keys) for RFC-064 snapshots."""
+        """finish() includes per-episode stage seconds (string keys) for profile snapshots."""
         m = metrics.Metrics()
         m.download_media_time_by_episode = {1: 1.5, 10: 2.25}
         m.transcribe_time_by_episode = {1: 3.0}
@@ -1076,7 +1076,7 @@ class TestLogMetrics(unittest.TestCase):
 
         m.log_metrics()
 
-        # Should call finish (which calculates duration) and log at DEBUG level (per RFC-027)
+        # Should call finish (which calculates duration) and log at DEBUG level
         mock_log.assert_called_once()
         call_args = mock_log.call_args[0][0]
         self.assertIn("Pipeline finished", call_args)

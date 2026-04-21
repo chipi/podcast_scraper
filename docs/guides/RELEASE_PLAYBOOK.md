@@ -72,7 +72,7 @@ Complete phases in order so the **tagged commit** already includes green docs an
 
 - Decide **semver** bump (see table above).
 - For **major** releases, list the **prod-intended provider/model matrix**: which
-  `config/profiles/capture_e2e_*.yaml` or `config/acceptance/*.yaml` configs, which `DATASET_ID`
+  `config/profiles/freeze/*.yaml` or `config/acceptance/*.yaml` configs, which `DATASET_ID`
   labels, which reference host.
 - Run **`make release-docs-prep`** — this stubs `docs/releases/RELEASE_vX.Y.Z.md` (from
   `pyproject.toml` version) and regenerates architecture diagram SVGs.
@@ -102,7 +102,7 @@ make experiment-run CONFIG=data/eval/configs/<release_eval>.yaml
 
 ```bash
 make profile-freeze VERSION=vX.Y.Z \
-  PIPELINE_CONFIG=config/profiles/capture_e2e_<preset>.yaml \
+  PIPELINE_CONFIG=config/profiles/freeze/<preset>.yaml \
   DATASET_ID=<label>
 
 # Optional: compare to previous release

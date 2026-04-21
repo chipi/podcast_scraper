@@ -1,4 +1,4 @@
-"""Lift FAISS transcript chunks to GIL Insights + bridge display names (RFC-072 §6, #528)."""
+"""Lift FAISS transcript chunks to GIL Insights + bridge display names."""
 
 from __future__ import annotations
 
@@ -8,7 +8,7 @@ import os
 from pathlib import Path
 from typing import Any, Dict, List, Mapping, MutableMapping, Optional
 
-from podcast_scraper.builders.rfc072_artifact_paths import bridge_path_next_to_gi_json
+from podcast_scraper.builders.bridge_artifact_paths import bridge_path_next_to_gi_json
 from podcast_scraper.gi.edge_normalization import normalize_gil_edge_type
 from podcast_scraper.search.cil_lift_overrides import (
     CilLiftOverrides,
@@ -170,7 +170,7 @@ def try_lift_transcript_chunk_from_gi(
     char_end: int,
     overrides: Optional[CilLiftOverrides] = None,
 ) -> Optional[Dict[str, Any]]:
-    """If a Quote overlaps the chunk span, return RFC-072-style ``lifted`` dict, else ``None``."""
+    """If a Quote overlaps the chunk span, return a ``lifted`` dict, else ``None``."""
     quote_id = _best_overlapping_quote(gi, char_start, char_end)
     if quote_id is None:
         return None
