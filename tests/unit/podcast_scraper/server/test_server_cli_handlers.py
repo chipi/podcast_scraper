@@ -4,8 +4,10 @@ from __future__ import annotations
 
 import logging
 import os
+import sys
 from argparse import Namespace
 from pathlib import Path
+from unittest.mock import MagicMock
 
 import pytest
 
@@ -76,6 +78,8 @@ def test_sync_reload_environ_sets_output_dir(
     assert Path(os.environ["PODCAST_SERVE_OUTPUT_DIR"]).resolve() == tmp_path.resolve()
 
 
-def test_run_serve_missing_output_dir_returns_2() -> None:
+def test_run_serve_missing_output_dir_returns_2(monkeypatch: pytest.MonkeyPatch) -> None:
+    """CI ``test-unit`` installs ``.[dev]`` only (no ``uvicorn``); stub it to hit the path check."""
+    monkeypatch.setitem(sys.modules, "uvicorn", MagicMock())
     ns = Namespace(output_dir="/no/such/dir/podcast-serve-test-xyz")
     assert cli_handlers.run_serve(ns, _log) == 2

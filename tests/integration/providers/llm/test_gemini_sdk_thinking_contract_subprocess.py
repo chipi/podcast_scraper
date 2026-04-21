@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
-"""Optional subprocess check: real ``google.genai`` types accept ``thinking_budget``.
+"""Subprocess check: real ``google.genai`` types accept ``thinking_budget``.
 
-Keeps this module separate from ``test_gemini_provider.py``, which patches
-``sys.modules`` for ``google.genai`` and would hide SDK shape regressions.
+Runs in :mod:`tests.integration` with ``.[llm]`` installed (CI integration jobs).
+Kept separate from ``test_gemini_provider.py``, which patches ``sys.modules`` for
+``google.genai`` and would hide SDK shape regressions.
 """
 
 import subprocess
@@ -28,10 +29,11 @@ except Exception:
     sys.exit(1)
 """
 
+pytestmark = [pytest.mark.integration, pytest.mark.critical_path]
 
-@pytest.mark.unit
+
 class TestGeminiSdkThinkingContractSubprocess(unittest.TestCase):
-    """Runs in a clean interpreter; skips when ``google-genai`` is not installed."""
+    """Runs in a clean interpreter with ``google-genai`` from the integration venv."""
 
     @pytest.mark.xfail(
         reason="google-genai SDK may reject thinking_budget per SDK version",
@@ -45,8 +47,11 @@ class TestGeminiSdkThinkingContractSubprocess(unittest.TestCase):
             timeout=60,
             check=False,
         )
-        if proc.returncode == 2:
-            self.skipTest("google.genai not installed (optional [llm] extra)")
+        self.assertNotEqual(
+            proc.returncode,
+            2,
+            msg="google.genai must be installed (integration uses .[dev,ml,llm])",
+        )
         self.assertEqual(
             proc.returncode,
             0,
