@@ -1,6 +1,8 @@
 """Tests for GIL cross-episode explore (scan, collect, build_explore_output)."""
 
+import json
 from pathlib import Path
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -14,6 +16,7 @@ from podcast_scraper.gi import (
 )
 from podcast_scraper.gi.contracts import EvidenceSpan, InsightSummary, SupportingQuote, TopicEntry
 from podcast_scraper.gi.explore import (
+    _collect_insights_semantic,
     _insight_matches_topic,
     _topic_labels_for_insight,
     aggregate_topic_entries_for_insights,
@@ -28,7 +31,10 @@ from podcast_scraper.gi.explore import (
     topic_slug_for_rfc,
 )
 from podcast_scraper.gi.grounding import GroundedQuote
+from podcast_scraper.gi.io import read_artifact
 from podcast_scraper.gi.pipeline import _artifact_from_multi_insight
+from podcast_scraper.search.faiss_store import VECTORS_FILE
+from podcast_scraper.search.protocol import IndexStats
 
 
 @pytest.mark.unit
@@ -416,3 +422,89 @@ class TestExploreCollectAndOutput:
         loaded = load_artifacts([gi_path], validate=False)
         assert len(collect_insights(loaded, speaker="guest")[0]) == 1
         assert len(collect_insights(loaded, speaker="host")[0]) == 0
+
+
+def _minimal_gi_insight_only(episode_id: str, insight_text: str) -> dict:
+    return {
+        "schema_version": "2.0",
+        "model_version": "stub",
+        "prompt_version": "v1",
+        "episode_id": episode_id,
+        "nodes": [
+            {
+                "id": "insight-1",
+                "type": "Insight",
+                "properties": {
+                    "text": insight_text,
+                    "grounded": True,
+                    "confidence": 0.9,
+                },
+            },
+        ],
+        "edges": [],
+    }
+
+
+def test_collect_insights_semantic_topic_substring_filters_vector_hits(tmp_path: Path) -> None:
+    """Semantic explore ranks by vector order; topic contains still filters insight body."""
+    meta = tmp_path / "metadata"
+    meta.mkdir()
+    gi_a = meta / "ep_a.gi.json"
+    gi_b = meta / "ep_b.gi.json"
+    gi_a.write_text(
+        json.dumps(_minimal_gi_insight_only("ep_a", "Alpha bravo charlie delta")),
+        encoding="utf-8",
+    )
+    gi_b.write_text(
+        json.dumps(_minimal_gi_insight_only("ep_b", "Topic needle xyzneedle789 match here")),
+        encoding="utf-8",
+    )
+    loaded = [
+        (gi_a.resolve(), read_artifact(gi_a, validate=False, strict=False)),
+        (gi_b.resolve(), read_artifact(gi_b, validate=False, strict=False)),
+    ]
+    search_dir = tmp_path / "search"
+    search_dir.mkdir(parents=True, exist_ok=True)
+    (search_dir / VECTORS_FILE).touch()
+
+    def _hit(ep: str, score: float = 0.99) -> MagicMock:
+        h = MagicMock()
+        h.metadata = {"episode_id": ep, "source_id": "insight-1", "feed_id": None}
+        h.score = score
+        return h
+
+    store_mock = MagicMock()
+    store_mock.ntotal = 100
+    store_mock.stats.return_value = IndexStats(
+        total_vectors=100,
+        doc_type_counts={"insight": 100},
+        feeds_indexed=[],
+        embedding_model="sentence-transformers/all-MiniLM-L6-v2",
+        embedding_dim=384,
+        last_updated="2020-01-01T00:00:00Z",
+        index_size_bytes=1,
+    )
+    # ep_a ranks first by "vector" order but does not contain topic needle
+    store_mock.search.return_value = [_hit("ep_a", 0.99), _hit("ep_b", 0.5)]
+
+    with patch("podcast_scraper.search.faiss_store.FaissVectorStore.load", return_value=store_mock):
+        with patch(
+            "podcast_scraper.providers.ml.embedding_loader.encode",
+            return_value=[0.01] * 384,
+        ):
+            insights, gi_paths = _collect_insights_semantic(
+                tmp_path,
+                loaded,
+                topic="xyzneedle789",
+                speaker=None,
+                grounded_only=False,
+                min_confidence=None,
+                limit=10,
+                index_dir=search_dir,
+                strict=False,
+            )
+
+    assert len(insights) == 1
+    assert "xyzneedle789" in (insights[0].text or "").lower()
+    assert len(gi_paths) == 1
+    assert gi_paths[0].resolve() == gi_b.resolve()

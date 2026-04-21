@@ -24,7 +24,14 @@
 
 ## Placement
 
-Search and Explore live in the **left query column** per **[VIEWER_IA.md](VIEWER_IA.md)** (**Left panel — Query interface**, collapse, **`/`** focus). **`LeftPanel.vue`** hosts **`SearchPanel.vue`** at **`w-72`** when expanded — verify control sizing at that width. Search **results stay visible** when a hit opens in the **subject rail** (results and subject coexist). Deprecated: right-rail-only search, `episodeRail`, `paneKind = tools` as placement drivers.
+Search is the **default** surface of the **left query column**; **Explore** is an alternate mode
+(slide transition) entered via a quiet footer control (**Explore corpus →**) and exited via
+**← Search** — see **[VIEWER_IA.md](VIEWER_IA.md)**. Mode is **`shell.leftPanelSurface`** (`search` |
+`explore`). **`/`** expands the column if needed, switches to **Search**, then focuses **`#search-q`**
+(`LeftPanel` → `focusQuery`). **`LeftPanel.vue`** hosts **`SearchPanel.vue`** + **`ExplorePanel.vue`**
+at **`w-72`** when expanded. Search **results stay visible** when a hit opens in the **subject rail**
+(mode switches do not clear the subject). Deprecated: right-rail-only search, `episodeRail`,
+`paneKind = tools` as placement drivers.
 
 ---
 
@@ -32,10 +39,11 @@ Search and Explore live in the **left query column** per **[VIEWER_IA.md](VIEWER
 
 For shell layout, the three navigation axes, subject rail persistence and clearing, status bar, and first-run empty corpus behavior, see **[VIEWER_IA.md](VIEWER_IA.md)**. This document specifies the **Search and Explore** panel content only (query form, advanced filters, result cards, insights modal).
 
-The semantic search panel provides FAISS-based corpus search in the **left** shell
-column (**Semantic search** form with **Explore** below it in the same query column). This UXS defines
-the visual contract for the search form, advanced filters, result cards, and the
-search result insights modal. All tokens reference [UXS-001](UXS-001-gi-kg-viewer.md).
+The semantic search panel provides FAISS-based corpus search in the **left** shell column
+(**Semantic search** card: form + scrollable results; **Explore corpus →** sits in **`LeftPanel`**
+below that card). This UXS defines the visual contract for the search form,
+advanced filters, result cards, and the search result insights modal. All tokens reference
+[UXS-001](UXS-001-gi-kg-viewer.md).
 
 Track shell work in [GitHub #606](https://github.com/chipi/podcast_scraper/issues/606)
 and [RFC-062](../rfc/RFC-062-gi-kg-viewer-v2.md). When the viewer changes, update this **Active** UXS in the same PR — see
@@ -46,7 +54,8 @@ and [RFC-062](../rfc/RFC-062-gi-kg-viewer-v2.md). When the viewer changes, updat
 nodes (Phase 1; see [UXS-004](UXS-004-graph-exploration.md)). **Search result cards** may show a
 **Topic cluster:** line when the API joined **`metadata.topic_cluster`** (canonical label and compound
 id). **Show on graph** may widen the camera to include the **`tc:`** compound parent while keeping
-selection on the leaf.
+selection on the leaf. The **pan/zoom** animation and **minimum zoom** floor for that hand-off match
+other graph focus paths ([UXS-004 — Camera framing and selection](UXS-004-graph-exploration.md#camera-framing-and-selection-merged-graph)).
 
 **Dashboard topic clusters:** On the **Dashboard → Intelligence** sub-tab, the **Topic clusters**
 status block reflects **`GET /api/corpus/topic-clusters`**
@@ -60,10 +69,16 @@ picker (no API fetch for clustering). Unknown **`schema_version`** values get a 
 
 ## Primary flow
 
-Search query field (no separate label; placeholder + **Semantic search** heading),
-then **Since (date)** and **Top-k** on one compact row; **Advanced search** link;
+Search query field (no separate label; placeholder + **Semantic search** heading) —
+**Enter** submits the same as **Search** (disabled while loading / no corpus / API down);
+**Shift+Enter** inserts a newline; **IME** composition does not trigger submit.
+Then **Since (date)** and **Top-k** on one compact row (**CSS grid**: date column absorbs
+remaining width with **`minmax(0, 1fr)`** so the native date control stays inside the left
+panel; slightly tighter padding / **`text-xs`** on small widths); **Advanced search** link;
 optional read-only **Advanced filters** summary when any advanced control differs
-from defaults; **Search** / **Clear** last.
+from defaults; **Search** / **Clear** last; scrollable **results** (errors + hit cards) in the middle.
+**Explore corpus →** lives in **`LeftPanel.vue`** below the search card (**`data-testid="left-panel-explore-footer"`** /
+**`left-panel-enter-explore`**) so it stays visible above the status bar.
 
 ---
 
@@ -137,6 +152,11 @@ search panel surfaces and selectors.
 
 | Date       | Change                                                                                 |
 | ---------- | -------------------------------------------------------------------------------------- |
+| 2026-04-21 | Query: Enter submits search; Shift+Enter newline; IME-safe.                            |
+| 2026-04-21 | Explore CTA: `LeftPanel` footer below search card (clears status bar).                 |
+| 2026-04-21 | Left column: Search default; Explore mode (slide); `/` restores Search + focus.        |
+| 2026-04-21 | Search: Since + Top-k row uses grid so fields stay in panel.                           |
+| 2026-04-21 | Show on graph: UXS-004 camera + min zoom (cross-link).                                 |
 | 2026-04-06 | Initial content (in UXS-001)                                                           |
 | 2026-04-13 | Extracted from UXS-001 into standalone UXS-005                                         |
 | 2026-04-13 | Document lift_stats summary line + Lifted GI insight region                            |

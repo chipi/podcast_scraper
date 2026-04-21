@@ -64,7 +64,7 @@
 This RFC defines the **v2 GI/KG viewer**: a **Vue 3 + Vite** single-page app (**`web/gi-kg-viewer/`**)
 backed by the canonical FastAPI layer (**`src/podcast_scraper/server/`**). It replaces the removed
 vanilla-JS prototype (**`web/gi-kg-viz/`**, #445) with one **“Podcast Intelligence Platform”** shell:
-main navigation (**Digest**, **Library**, **Graph**, **Dashboard**), a **left** query column (**Semantic search** + **Explore**), a **right** subject column (episode / graph-node / future topic-person), semantic search (**RFC-061**), a **Cytoscape.js** graph host, and a **Dashboard** with
+main navigation (**Digest**, **Library**, **Graph**, **Dashboard**), a **left** query column (**Semantic search** default; **Explore** as a slide-in mode from the same column), a **right** subject column (episode / graph-node / future topic-person), semantic search (**RFC-061**), a **Cytoscape.js** graph host, and a **Dashboard** with
 **Coverage** / **Intelligence** / **Pipeline** sub-tabs (see **UXS-006**). **Pinia**, **TypeScript**, and **Tailwind**
 (UXS-001 tokens) carry state and styling; **`podcast serve`** serves the built SPA plus **`/api/*`**.
 
@@ -75,7 +75,7 @@ The same release expanded the **server** beyond the original search + artifacts 
 stats sketch: **corpus metrics**, **library**, **digest**, **binary/covers**, **`POST /api/index/rebuild`**
 and **`GET /api/corpus/runs/summary`** (and related routes) power the **Dashboard** workspace, **Library**, **Digest**,
 and related graph surfaces. Behavioral and API detail for those areas lives in **RFC-067**, **RFC-068**,
-and **RFC-069**; graph chrome specifics (minimap, degree buckets, layout combobox, export PNG) are
+and **RFC-069**; graph chrome specifics (minimap, degree buckets, layout cycle + **Re-layout**, filters popover, export PNG) are
 **RFC-069** on top of this RFC’s graph integration patterns.
 
 The FastAPI package remains the **seed of the platform API** ([#50](https://github.com/chipi/podcast_scraper/issues/50),
@@ -92,7 +92,7 @@ This follows megasketch **A.2** — **one pipeline core, multiple shells** (CLI 
 
 | Surface | What shipped (summary) | Normative detail |
 | ------- | ---------------------- | ---------------- |
-| **App shell** | Header (**Podcast Intelligence Platform** + v2), **Main views** tabs, **left** query column (**Semantic search** + **Explore**), **status bar** (corpus path, health, offline files), **right** subject column (episode / graph-node / …) | [VIEWER_IA](../uxs/VIEWER_IA.md) + [UXS-001](../uxs/UXS-001-gi-kg-viewer.md) |
+| **App shell** | Header (**Podcast Intelligence Platform** + v2), **Main views** tabs, **left** query column (**Semantic search** / **Explore** mode), **status bar** (corpus path, health, offline files), **right** subject column (episode / graph-node / …) | [VIEWER_IA](../uxs/VIEWER_IA.md) + [UXS-001](../uxs/UXS-001-gi-kg-viewer.md) |
 | **Digest** | Default entry tab for online mode; rolling window, topic bands, **Recent** list, **Episode** subject rail, **Search topic** handoff | [UXS-002](../uxs/UXS-002-corpus-digest.md) + [RFC-068](RFC-068-corpus-digest-api-viewer.md) |
 | **Library** | Feed list + cursor-paginated episodes, filters, **Episode** subject rail (**Open in graph**, **Prefill semantic search**, similar episodes) | [UXS-003](../uxs/UXS-003-corpus-library.md) + [RFC-067](RFC-067-corpus-library-api-viewer.md) |
 | **Graph** | Merged GI/KG load, **Sources** / **Types** / **Edges**, search-hit focus, **Episode** subject rail on graph when metadata resolves; **toolbar** zoom/fit/export; **RFC-069** overlays (layout, degree filter, minimap, Shift+box zoom) | [UXS-004](../uxs/UXS-004-graph-exploration.md) + this RFC + [RFC-069](RFC-069-graph-exploration-toolkit.md) |
@@ -105,7 +105,7 @@ The table documents **shipped** viewer chrome including the **#606** shell IA up
 
 ## Shell restructure (#606, shipped)
 
-**Information architecture:** query column left (**Semantic search** + **Explore**), main view tabs,
+**Information architecture:** query column left (**Semantic search** default; **Explore** mode), main view tabs,
 **subject** column right, **status bar** for corpus path / health / offline files / **List** (artifacts dialog). **Normative** shell IA: **[VIEWER_IA](../uxs/VIEWER_IA.md)**. **Normative** layout and tokens
 stay in **Active** UXSs (see
 [UX specifications index — Living documents and ship boundary](../uxs/index.md#living-documents-and-ship-boundary)). Track history in

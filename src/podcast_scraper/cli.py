@@ -1881,6 +1881,127 @@ def _config_yaml_allowed_top_level_keys() -> set[str]:
     return allowed
 
 
+def _yaml_top_level_key_to_model_field(yaml_key: str) -> Optional[str]:
+    """Map a YAML/JSON top-level key to :class:`~podcast_scraper.config.Config` field name."""
+    if yaml_key in config.DEPRECATED_CONFIG_TOP_LEVEL_KEYS or yaml_key == "profile":
+        return None
+    for fname, finfo in config.Config.model_fields.items():
+        if fname == yaml_key:
+            return fname
+        if finfo.alias == yaml_key:
+            return fname
+        va = finfo.validation_alias
+        if isinstance(va, str) and va == yaml_key:
+            return fname
+        if va is not None:
+            for choice in getattr(va, "choices", None) or ():
+                if isinstance(choice, str) and choice == yaml_key:
+                    return fname
+    return None
+
+
+def _argparse_dest_for_model_field(field_name: str) -> str:
+    """Map ``Config`` field name to ``parse_args`` namespace attribute (:mod:`argparse`)."""
+    if field_name == "rss_url":
+        return "rss"
+    if field_name == "prefer_types":
+        return "prefer_type"
+    if field_name == "screenplay_speaker_names":
+        return "speaker_names"
+    if field_name == "screenplay_gap_s":
+        return "screenplay_gap"
+    if field_name == "screenplay_num_speakers":
+        return "num_speakers"
+    return field_name
+
+
+def _defaults_from_explicit_yaml_keys(
+    config_data: Dict[str, Any], config_model: config.Config
+) -> Dict[str, Any]:
+    """Build ``set_defaults`` updates from keys actually present in the operator file.
+
+    Using a full :meth:`~pydantic.BaseModel.model_dump` for ``set_defaults`` injects implicit
+    Pydantic defaults into ``argparse``, which then override ``--profile`` during final
+    :meth:`~podcast_scraper.config.Config.model_validate` (profile merge loses to explicit
+    payload keys). Only keys present in the YAML/JSON file should become argparse defaults.
+    """
+    updates: Dict[str, Any] = {}
+    for ykey in config_data:
+        if ykey in config.DEPRECATED_CONFIG_TOP_LEVEL_KEYS:
+            if ykey == "multi_feed_soft_fail_exit_zero":
+                updates["multi_feed_strict"] = config_model.multi_feed_strict
+            continue
+        if ykey == "profile":
+            updates["profile"] = config_data["profile"]
+            continue
+        fname = _yaml_top_level_key_to_model_field(ykey)
+        if not fname:
+            continue
+        dest = _argparse_dest_for_model_field(fname)
+        fragment = config_model.model_dump(exclude_none=False, by_alias=True, include={fname})
+        if not fragment:
+            continue
+        _, val = next(iter(fragment.items()))
+        updates[dest] = val
+    speaker_raw = updates.get("speaker_names")
+    if isinstance(speaker_raw, list):
+        updates["speaker_names"] = ",".join(str(x) for x in speaker_raw)
+    return updates
+
+
+def _collect_explicit_cli_dests(
+    parser: argparse.ArgumentParser, argv: Optional[Sequence[str]]
+) -> frozenset[str]:
+    """Which argparse ``dest`` values were set via the command line (not from defaults)."""
+    if not argv:
+        return frozenset()
+    dests: set[str] = set()
+    tokens = list(argv)
+    skip_next = False
+    for i, tok in enumerate(tokens):
+        if skip_next:
+            skip_next = False
+            continue
+        if tok == "--config":
+            skip_next = True
+            continue
+        if tok.startswith("--config="):
+            continue
+        if not tok.startswith("-"):
+            if i == 0 and ("://" in tok or tok.endswith(".xml") or tok.endswith(".rss")):
+                dests.add("rss")
+            continue
+        matched_any = False
+        for action in parser._actions:
+            option_strings = getattr(action, "option_strings", None) or ()
+            for opt in option_strings:
+                if not opt.startswith("--"):
+                    continue
+                if tok == opt or (tok.startswith(opt + "=") and len(tok) > len(opt) + 1):
+                    dests.add(action.dest)
+                    matched_any = True
+                    break
+            if matched_any:
+                break
+    return frozenset(dests)
+
+
+def _attach_cli_merge_metadata(
+    parser: argparse.ArgumentParser,
+    argv: Optional[Sequence[str]],
+    args: argparse.Namespace,
+    *,
+    config_yaml_keys: Optional[frozenset[str]] = None,
+) -> None:
+    """Annotate namespace for :func:`_build_config` profile vs operator merge."""
+    setattr(
+        args,
+        "_config_yaml_explicit_keys",
+        frozenset(config_yaml_keys) if config_yaml_keys is not None else frozenset(),
+    )
+    setattr(args, "_cli_explicit_dests", _collect_explicit_cli_dests(parser, argv))
+
+
 def _load_and_merge_config(
     parser: argparse.ArgumentParser, config_path: str, argv: Optional[Sequence[str]]
 ) -> argparse.Namespace:
@@ -1936,17 +2057,15 @@ def _load_and_merge_config(
     except ValidationError as exc:
         raise ValueError(f"Invalid configuration: {exc}") from exc
 
-    defaults_updates: Dict[str, Any] = config_model.model_dump(
-        exclude_none=True,
-        by_alias=True,
-    )
-
-    speaker_list = defaults_updates.get("speaker_names")
-    if isinstance(speaker_list, list):
-        defaults_updates["speaker_names"] = ",".join(speaker_list)
-
+    defaults_updates = _defaults_from_explicit_yaml_keys(config_data, config_model)
     parser.set_defaults(**defaults_updates)
     args = parser.parse_args(argv)
+    _attach_cli_merge_metadata(
+        parser,
+        argv,
+        args,
+        config_yaml_keys=frozenset(config_data.keys()),
+    )
     has_feeds = bool(collect_feed_urls(args))
     if not has_feeds and getattr(args, "feeds_spec", None):
         try:
@@ -3401,6 +3520,7 @@ def parse_args(argv: Optional[Sequence[str]] = None) -> argparse.Namespace:
         args = _load_and_merge_config(parser, effective_config_path, argv)
     else:
         args = parser.parse_args(argv)
+        _attach_cli_merge_metadata(parser, argv, args)
 
     validate_args(args)
     return args
@@ -3433,7 +3553,6 @@ def _build_config_for_feed_entry(
 def _build_config(args: argparse.Namespace) -> config.Config:  # noqa: C901
     """Materialize a Config object from already-validated CLI arguments."""
     speaker_names_list = [s.strip() for s in (args.speaker_names or "").split(",") if s.strip()]
-    profile = getattr(args, "profile", None)
     payload: Dict[str, Any] = {
         "rss_url": args.rss,
         "output_dir": filesystem.derive_output_dir(args.rss, args.output_dir),
@@ -3779,6 +3898,7 @@ def _build_config(args: argparse.Namespace) -> config.Config:  # noqa: C901
             _drv = getattr(args, _drk)
             if _drv is not None:
                 payload[_drk] = _drv
+    profile = getattr(args, "profile", None)
     # Inject profile if set via --profile CLI flag (#593)
     if profile:
         payload["profile"] = profile

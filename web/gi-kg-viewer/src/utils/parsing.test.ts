@@ -13,6 +13,7 @@ import {
   filterArtifactEgoAroundTopicCluster,
   filterArtifactEgoOneHop,
   filtersActive,
+  filtersActiveExcludingNodeTypes,
   graphTypesDeviateFromGraphSpec,
   findRawNodeInArtifact,
   fullPrimaryNodeLabel,
@@ -262,10 +263,10 @@ describe('defaultFilterState', () => {
 })
 
 describe('applyGraphDefaultNodeTypeVisibility', () => {
-  it('turns off Quote Speaker Episode by default', () => {
+  it('turns off Quote Speaker by default; Episode stays on', () => {
     const state = defaultFilterState(parsedGi())!
     applyGraphDefaultNodeTypeVisibility(state)
-    expect(state.allowedTypes.Episode).toBe(false)
+    expect(state.allowedTypes.Episode).toBe(true)
     expect(state.allowedTypes.Quote).toBe(false)
     expect(state.allowedTypes.Insight).toBe(true)
     expect(graphTypesDeviateFromGraphSpec(state)).toBe(false)
@@ -274,7 +275,7 @@ describe('applyGraphDefaultNodeTypeVisibility', () => {
   it('graphTypesDeviateFromGraphSpec detects user overrides', () => {
     const state = defaultFilterState(parsedGi())!
     applyGraphDefaultNodeTypeVisibility(state)
-    state.allowedTypes.Episode = true
+    state.allowedTypes.Episode = false
     expect(graphTypesDeviateFromGraphSpec(state)).toBe(true)
   })
 })
@@ -309,6 +310,23 @@ describe('filtersActive', () => {
     expect(firstKey).toBeDefined()
     state.allowedEdgeTypes[firstKey] = false
     expect(filtersActive(art, state)).toBe(true)
+  })
+})
+
+describe('filtersActiveExcludingNodeTypes', () => {
+  it('returns false when only node types differ from defaults', () => {
+    const art = parsedGi()
+    const state = defaultFilterState(art)!
+    state.allowedTypes.Quote = false
+    expect(filtersActive(art, state)).toBe(true)
+    expect(filtersActiveExcludingNodeTypes(art, state)).toBe(false)
+  })
+
+  it('returns true when hideUngroundedInsights is on', () => {
+    const art = parsedGi()
+    const state = defaultFilterState(art)!
+    state.hideUngroundedInsights = true
+    expect(filtersActiveExcludingNodeTypes(art, state)).toBe(true)
   })
 })
 

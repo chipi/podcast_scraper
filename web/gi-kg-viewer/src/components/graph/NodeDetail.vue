@@ -1497,7 +1497,7 @@ const graphConnectionsCenterInView = computed((): boolean => {
               <strong class="font-medium text-surface-foreground">Topic filter</strong> fills
               <strong class="font-medium text-surface-foreground/90">Topic contains</strong> (same control as the
               topic graph row) and clears the speaker filter. You still run
-              <strong class="font-medium text-surface-foreground/90">Run explore</strong>.
+              <strong class="font-medium text-surface-foreground/90">Explore</strong>.
             </p>
           </HelpTip>
         </div>
@@ -1588,7 +1588,7 @@ const graphConnectionsCenterInView = computed((): boolean => {
             <strong class="font-medium text-surface-foreground">Set Explore filters</strong> switches
             to Explore, clears topic/speaker filters, sets <strong class="font-medium text-surface-foreground/90">Grounded only</strong>
             and optional <strong class="font-medium text-surface-foreground/90">Min confidence</strong> from this node,
-            then you run <strong class="font-medium text-surface-foreground/90">Run explore</strong>.
+            then you run <strong class="font-medium text-surface-foreground/90">Explore</strong>.
           </p>
         </HelpTip>
       </div>
@@ -1747,7 +1747,7 @@ const graphConnectionsCenterInView = computed((): boolean => {
             to Search with this topic label as the query (clears feed filter). Run Search to hit the vector index.
             <strong class="font-medium text-surface-foreground">Set Explore topic filter</strong> switches
             to Explore and fills <strong class="font-medium text-surface-foreground/90">Topic contains</strong>;
-            press <strong class="font-medium text-surface-foreground/90">Run explore</strong> to load insights.
+            press <strong class="font-medium text-surface-foreground/90">Explore</strong> to load insights.
           </p>
         </HelpTip>
       </div>

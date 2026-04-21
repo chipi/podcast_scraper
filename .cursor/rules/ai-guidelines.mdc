@@ -165,6 +165,7 @@ make docker-test      # Only if changed Dockerfile/structure
 - **`docs/guides/TESTING_GUIDE.md`** → Test execution, fixtures, coverage
 - **`docs/guides/CURSOR_AI_BEST_PRACTICES_GUIDE.md`** → Model selection strategies
 - **`docs/guides/MARKDOWN_LINTING_GUIDE.md`** → Markdown style rules
+- **`WORKTREE.md`** (repo root, when present) → FUTURE checkout charter + **Python/venv per worktree** (read before trusting `pytest` / `python` paths)
 - **`docs/guides/GIT_WORKTREE_GUIDE.md`** → Git worktree workflow
 - **`docs/ci/index.md`** → CI/CD pipeline documentation
 - **`docs/architecture/ARCHITECTURE.md`** → System design, module responsibilities

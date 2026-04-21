@@ -43,11 +43,12 @@ All tokens reference [UXS-001](UXS-001-gi-kg-viewer.md).
   digest request uses `window=all`. A set date uses `window=since` with that
   **YYYY-MM-DD**. Changing the lens on either tab updates the other.
 
-- **Toolbar:** First row -- **`h2` Digest** (left) with **`?`** help; **Published on or after**
-  plus presets on the **right**. When digest data is loaded, a second muted row shows rolling
-
-  bounds (start -> end, row count). Use the **Library** main tab to open the catalog;
-  corpus path is unchanged.
+- **Toolbar:** **`h2` Digest** with **`?`** help on the **first** row; **Published on or after**
+  (`#digest-filter-since`, shared **`corpusLens`** with Library) and the same preset buttons
+  (**All time**, **7d**, **30d**, **90d**) on a **second** full-width row that **`flex-wrap`**s
+  (narrow center columns do not keep date + presets squeezed beside the title). When digest data
+  is loaded, a **third** muted row shows rolling bounds (start -> end, row count). Use the
+  **Library** main tab to open the catalog; corpus path is unchanged.
 
 ---
 
@@ -55,17 +56,16 @@ All tokens reference [UXS-001](UXS-001-gi-kg-viewer.md).
 
 - **Digest tab:** Single-column scroll on `canvas`; sections:
 
-1. **Toolbar** -- stacked rows inside a **`flex`** column (`gap-1.5`): **(a)** first row
-   (`wrap`, `justify-between`) -- **`h2` Digest** (`#digest-main-heading`, **`text-sm`**
-
-   semibold) on the **left** with a **`HelpTip`** (**About Digest**) that explains **Topic
-   bands** (topic title -> **Graph**; hit row -> **Episode subject rail** + **Graph**; digest topic
-   focus; **Search topic**; hit rows show **semantic match strength** when a score exists and
-   hover **`title`** on hit rows lists publish date, **E#**, duration, and feed hints), **Recent** (Episode
-   rail, CIL **topic pills** vs **Library** catalog); **Published
-   on or after** (`#digest-filter-since`, shared **`corpusLens`** with Library) plus the same
-   preset buttons (**All time**, **7d**, **30d**, **90d**) on the **right** (`muted` label,
-   `surface` controls). **(b)** when digest data is loaded, a second muted **`text-[10px]`**
+1. **Toolbar** -- stacked rows inside a **`flex`** column (`gap-1.5`): **(a)** title row --
+   **`h2` Digest** (`#digest-main-heading`, **`text-sm`** semibold) with a **`HelpTip`**
+   (**About Digest**) that explains **Topic bands** (topic title -> **Graph**; hit row ->
+   **Episode subject rail** + **Graph**; digest topic focus; **Search topic**; hit rows show
+   **semantic match strength** when a score exists and hover **`title`** on hit rows lists publish
+   date, **E#**, duration, and feed hints), **Recent** (Episode rail, CIL **topic pills** vs
+   **Library** catalog). **(b)** lens row -- **`data-testid="digest-toolbar-filters"`**: **`flex-wrap`**
+   **`w-full min-w-0`** row with **Published on or after** (`#digest-filter-since`, shared
+   **`corpusLens`** with Library), same preset buttons (**All time**, **7d**, **30d**, **90d**)
+   (`muted` label, `surface` controls). **(c)** when digest data is loaded, a muted **`text-[10px]`**
    row shows rolling window bounds (start -> end, episode count) with `<time datetime="...">`
    for machine-readable instants (human-readable display includes explicit UTC). Active
    preset uses a **primary** ring on the matching button.
@@ -76,7 +76,8 @@ All tokens reference [UXS-001](UXS-001-gi-kg-viewer.md).
    When bands exist: outer **`role="region"`** **`aria-label`** **Topic bands** wraps the
    topic **grid** without an outer **`max-height`** / nested scroll: show the **first three**
    band cards by default; when the API returns more, a **`digest-topic-bands-show-more`**
-   control expands the rest inline. Inner responsive grid (`sm:2` / `xl:3` columns); each topic
+   control expands the rest inline. Inner responsive grid uses **`repeat(auto-fit, minmax(min(100%, 12rem), 1fr))`**
+   so column count follows the **digest column width** (smaller **12rem** floor keeps **three** bands on one row with **both** shell sidebars open on typical laptop widths; very narrow still stacks one per row). Each topic
    is a compact bordered **`section`** card. The **first** band uses **`bg-elevated`** and a
    **`border-primary/20`** border; its topic title **`button`** uses **`font-bold`**. Later bands
    use **`bg-surface`**, **`border-border`**, and **`text-sm font-semibold`**. The **topic title** **`button`** opens **Graph** for the top hit that has GI or KG on disk;
@@ -157,6 +158,8 @@ keeps the Episode subject rail selection when that episode is still in scope. Li
 longer embeds a New (24h) digest strip so the two tabs do not compete -- users open
 Digest for "what's new," Library for catalog browse.
 
+**Open in graph** (Episode subject rail while **Digest** or **Library** is the main tab): switches to **Graph**, loads episode GI/KG when needed, **selects** the **Episode** node, applies **1-hop neighbourhood dimming**, and **re-frames** the viewport using the same camera rules as other graph focus hand-offs ([UXS-004 — Camera framing and selection](UXS-004-graph-exploration.md#camera-framing-and-selection-merged-graph)). Focus and dimming stay stable after layout (corpus **metadata path** vs graph row text can differ; resolution falls back to **stable episode id** so the view does not silently drop episode focus).
+
 ---
 
 ## Health discovery
@@ -201,6 +204,8 @@ before or with implementation. Dedicated Playwright coverage lives in
 
 | Date       | Change                                                           |
 | ---------- | ---------------------------------------------------------------- |
+| 2026-04-21 | Topic band grid min track 12rem (fits 3 cols; dual sidebars).    |
+| 2026-04-21 | Topic bands auto-fit; stacked toolbar; Open in graph (UXS-004).  |
 | 2026-04-10 | Initial content (in UXS-001)                                     |
 | 2026-04-11 | Health discovery, glance gate, Search topic, E2E digest.spec     |
 | 2026-04-11 | No in-column title; digest toolbar row (window / date lens)      |
@@ -305,7 +310,7 @@ topics"** control appears below the grid.
   region wrapper
 
 - The outer `role="region"` `aria-label="Topic bands"` and responsive
-  grid (`sm:2` / `xl:3` columns) remain unchanged
+  grid (`auto-fit` / `minmax(min(100%, 12rem), 1fr)` tracks) remain unchanged in spirit (implementation may tune the **12rem** floor)
 
 **"Show more" button:**
 

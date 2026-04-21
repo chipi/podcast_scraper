@@ -3,7 +3,7 @@ import { nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
 
 const STORAGE_KEY = 'ps_graph_hints_seen'
 
-/** RFC-076 expandable / expanded seed rings — matches `cyGraphStylesheet.ts`. */
+/** Expandable / expanded seed rings — matches `cyGraphStylesheet.ts`. */
 const EXPAND_RING_TEAL = '#14b8a6'
 const EXPAND_RING_BLUE = '#748ffc'
 
@@ -147,6 +147,21 @@ defineExpose({ reopen })
             </svg>
             <span class="shrink-0 font-mono text-surface-foreground">Click</span>
             <span class="min-w-0 text-muted">Open node details</span>
+          </li>
+          <li class="flex gap-3 text-xs">
+            <svg
+              class="mt-0.5 h-4 w-4 shrink-0 text-muted"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              aria-hidden="true"
+            >
+              <rect x="4" y="6" width="16" height="12" rx="1" />
+              <path d="M8 10h8M8 14h5" />
+            </svg>
+            <span class="shrink-0 font-mono text-surface-foreground">Alt + B</span>
+            <span class="min-w-0 text-muted">Toggle the graph bottom bar (collapse / expand)</span>
           </li>
           <li class="flex gap-3 text-xs">
             <svg

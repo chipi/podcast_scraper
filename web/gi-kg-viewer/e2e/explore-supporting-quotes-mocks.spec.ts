@@ -91,9 +91,10 @@ test.describe('Explore supporting quotes (mocked API)', () => {
 
     await page.getByRole('button', { name: 'Fit' }).waitFor({ state: 'visible', timeout: 30_000 })
 
-    await page.getByRole('heading', { name: 'Explore', exact: true }).waitFor({ state: 'visible' })
+    await page.getByTestId('left-panel-enter-explore').click()
+    await page.getByRole('heading', { name: /Explore & query/i }).waitFor({ state: 'visible' })
 
-    await page.getByRole('button', { name: 'Run explore' }).click()
+    await page.getByTestId('explore-filtered-submit').click()
 
     await page.getByText('Explore mock insight with supporting quote', { exact: false }).waitFor({
       timeout: 10_000,

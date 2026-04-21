@@ -429,7 +429,9 @@ async function loadEpisodes(append: boolean): Promise<void> {
 }
 
 function selectEpisode(row: CorpusEpisodeListItem): void {
-  subject.focusEpisode(row.metadata_relative_path)
+  subject.focusEpisode(row.metadata_relative_path, {
+    uiTitle: row.episode_title?.trim() || null,
+  })
 }
 
 const LIBRARY_EPISODE_ROW_SELECTOR = '[data-library-episode-row]'

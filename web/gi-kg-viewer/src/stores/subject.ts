@@ -7,9 +7,17 @@ export type SubjectKind = 'episode' | 'topic' | 'person' | 'graph-node' | null
  * Right-hand **subject** rail: one focused entity (episode, graph node, …).
  * Search / Explore live in the left query panel and do not share this column.
  */
+function truncateUiLabel(s: string, max = 72): string {
+  const t = s.trim()
+  if (t.length <= max) return t
+  return `${t.slice(0, max - 1)}…`
+}
+
 export const useSubjectStore = defineStore('subject', () => {
   const kind = ref<SubjectKind>(null)
   const episodeMetadataPath = ref<string | null>(null)
+  /** Optional strip / graph territory label (e.g. episode title). */
+  const episodeUiLabel = ref<string | null>(null)
   const graphNodeCyId = ref<string | null>(null)
   const graphConnectionsCyId = ref<string | null>(null)
   const topicId = ref<string | null>(null)
@@ -17,6 +25,7 @@ export const useSubjectStore = defineStore('subject', () => {
 
   function clearFields(): void {
     episodeMetadataPath.value = null
+    episodeUiLabel.value = null
     graphNodeCyId.value = null
     graphConnectionsCyId.value = null
     topicId.value = null
@@ -25,7 +34,7 @@ export const useSubjectStore = defineStore('subject', () => {
 
   function focusEpisode(
     metadataPath: string,
-    opts?: { graphConnectionsCyId?: string | null },
+    opts?: { graphConnectionsCyId?: string | null; uiTitle?: string | null },
   ): void {
     const t = metadataPath.trim()
     clearFields()
@@ -37,6 +46,8 @@ export const useSubjectStore = defineStore('subject', () => {
     episodeMetadataPath.value = t
     const cy = opts?.graphConnectionsCyId?.trim()
     graphConnectionsCyId.value = cy || null
+    const lab = opts?.uiTitle?.trim()
+    episodeUiLabel.value = lab ? truncateUiLabel(lab) : null
   }
 
   function focusGraphNode(cyNodeId: string): void {
@@ -77,9 +88,16 @@ export const useSubjectStore = defineStore('subject', () => {
     clearFields()
   }
 
+  /** Update graph strip label without re-running ``focusEpisode`` (e.g. **Open in graph**). */
+  function setEpisodeUiLabel(v: string | null): void {
+    const t = v?.trim()
+    episodeUiLabel.value = t ? truncateUiLabel(t) : null
+  }
+
   return {
     kind,
     episodeMetadataPath,
+    episodeUiLabel,
     graphNodeCyId,
     graphConnectionsCyId,
     topicId,
@@ -89,5 +107,6 @@ export const useSubjectStore = defineStore('subject', () => {
     focusTopic,
     focusPerson,
     clearSubject,
+    setEpisodeUiLabel,
   }
 })

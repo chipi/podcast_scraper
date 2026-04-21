@@ -148,5 +148,5 @@ From repo root: **`make test-ui`**. Tests: `src/utils/*.test.ts`, `src/stores/*.
 - **Typography:** Inter (UI) and JetBrains Mono (code) load from Google Fonts in `index.html`; stacks match UXS-001.
 - **Tokens:** `overlay` / `disabled` (and hover `bg-overlay`) align with UXS-001 hover and disabled guidance.
 - **Keyboard:** **`/`** focuses the semantic search query (ignored when focus is in an input/textarea/select). **`Esc`** on the **Graph** tab clears graph selection, closes the node detail panel, exits 1-hop neighborhood view, and clears pending “show on graph” focus — skipped while focus is in an editable field so typing is unaffected.
-- **Graph export:** **Export PNG** in the graph toolbar saves the **full** graph at 2× scale with the current theme’s canvas color as background. (Vector SVG export is not in core Cytoscape 3.x; PNG is the supported path.)
+- **Graph export:** **Export PNG** (label **PNG** in the graph bottom bar; `aria-label` **Export PNG**) saves the **full** graph at 2× scale with the current theme’s canvas color as background. (Vector SVG export is not in core Cytoscape 3.x; PNG is the supported path.)
 - **Layout:** Sidebar stacks on small viewports; graph min-heights taper down below the `sm` breakpoint for shorter screens.

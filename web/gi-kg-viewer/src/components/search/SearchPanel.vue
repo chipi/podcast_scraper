@@ -179,6 +179,16 @@ async function onSubmit(): Promise<void> {
   await search.runSearch(shell.corpusPath)
 }
 
+/** Enter runs search (same as **Search**); Shift+Enter inserts a newline. */
+function onQueryKeydown(e: KeyboardEvent): void {
+  if (e.key !== 'Enter' || e.shiftKey) return
+  if (e.ctrlKey || e.metaKey || e.altKey) return
+  if (e.defaultPrevented || e.isComposing) return
+  if (!searchFieldsEnabled.value || search.loading) return
+  e.preventDefault()
+  void onSubmit()
+}
+
 /** Advanced feed field: catalog id for API; Library handoff can show catalog title until edited. */
 const advancedFeedUi = computed({
   get() {
@@ -212,8 +222,12 @@ const advancedFeedCombinedTitle = computed(() =>
 </script>
 
 <template>
-  <section class="rounded-lg border border-border bg-surface p-4">
-    <div class="mb-2 flex flex-wrap items-center gap-1.5">
+  <!-- Grid: chrome row auto-height, results row fills remainder (reliable scroll; flex-1 column was not bounding height). -->
+  <section
+    class="grid min-h-0 min-w-0 max-w-full flex-1 grid-rows-[auto_minmax(0,1fr)] overflow-x-hidden rounded-lg border border-border bg-surface p-4"
+  >
+    <div class="min-w-0">
+    <div class="mb-2 flex shrink-0 flex-wrap items-center gap-1.5">
       <h2 class="text-sm font-medium text-surface-foreground">
         Semantic search
       </h2>
@@ -290,19 +304,19 @@ const advancedFeedCombinedTitle = computed(() =>
     </div>
     <p
       v-if="!shell.hasCorpusPath"
-      class="mb-2 text-xs text-muted"
+      class="mb-2 shrink-0 text-xs text-muted"
     >
       Set corpus path in the status bar to enable search.
     </p>
     <p
       v-else-if="!shell.healthStatus"
-      class="mb-2 text-xs text-muted"
+      class="mb-2 shrink-0 text-xs text-muted"
     >
       Requires the API.
     </p>
     <form
       id="semantic-search-form"
-      class="space-y-2"
+      class="shrink-0 space-y-2"
       @submit.prevent="onSubmit"
     >
       <textarea
@@ -315,20 +329,26 @@ const advancedFeedCombinedTitle = computed(() =>
         aria-label="Search query"
         :disabled="!searchFieldsEnabled"
         :title="searchFieldDisabledTitle"
+        @keydown="onQueryKeydown"
       />
-      <div class="flex max-w-full flex-nowrap items-end gap-3">
-        <div class="w-[min(100%,10.5rem)] shrink-0">
-          <label class="block text-xs text-muted" for="search-since-date">Since (date)</label>
+      <div
+        class="grid w-full min-w-0 grid-cols-[minmax(0,1fr)_4rem] items-end gap-x-2 gap-y-1 sm:grid-cols-[minmax(0,1fr)_4.5rem]"
+      >
+        <div class="min-w-0">
+          <label
+            class="block truncate text-xs text-muted"
+            for="search-since-date"
+          >Since (date)</label>
           <input
             id="search-since-date"
             v-model="search.filters.since"
             type="date"
-            class="w-full rounded border border-border bg-elevated px-2 py-1 text-sm"
+            class="box-border w-full min-w-0 max-w-full rounded border border-border bg-elevated px-1.5 py-1 text-xs sm:px-2 sm:text-sm"
             :disabled="!searchFieldsEnabled"
             :title="searchFieldDisabledTitle"
           >
         </div>
-        <div class="w-[4.75rem] shrink-0">
+        <div class="w-full min-w-0 justify-self-stretch sm:w-auto sm:justify-self-end">
           <label class="block text-xs text-muted" for="search-top-k">Top‑k</label>
           <input
             id="search-top-k"
@@ -336,14 +356,14 @@ const advancedFeedCombinedTitle = computed(() =>
             type="number"
             min="1"
             max="100"
-            class="w-full rounded border border-border bg-elevated px-2 py-1 text-sm"
+            class="box-border w-full rounded border border-border bg-elevated px-1.5 py-1 text-xs tabular-nums sm:px-2 sm:text-sm"
             :disabled="!searchFieldsEnabled"
             :title="searchFieldDisabledTitle"
           >
         </div>
       </div>
     </form>
-    <div class="mt-2">
+    <div class="mt-2 shrink-0">
       <button
         type="button"
         class="text-xs text-primary underline decoration-primary/60 underline-offset-2 hover:decoration-primary disabled:opacity-40"
@@ -358,7 +378,7 @@ const advancedFeedCombinedTitle = computed(() =>
       v-if="hasAdvancedFilterSummary"
       role="region"
       aria-label="Active advanced filters"
-      class="mt-2 rounded border border-border bg-elevated/60 px-2 py-1.5"
+      class="mt-2 shrink-0 rounded border border-border bg-elevated/60 px-2 py-1.5"
     >
       <p class="text-[10px] font-medium uppercase tracking-wide text-muted">
         Advanced filters
@@ -372,7 +392,7 @@ const advancedFeedCombinedTitle = computed(() =>
         </li>
       </ul>
     </div>
-    <div class="mt-2 flex flex-wrap gap-2">
+    <div class="mt-2 flex shrink-0 flex-wrap gap-2">
       <button
         type="submit"
         form="semantic-search-form"
@@ -394,7 +414,7 @@ const advancedFeedCombinedTitle = computed(() =>
     </div>
     <dialog
       ref="advancedDialogRef"
-      class="w-[min(100%,24rem)] max-h-[min(90vh,32rem)] overflow-y-auto rounded-lg border border-border bg-surface p-4 text-surface-foreground shadow-xl [&::backdrop]:bg-black/40"
+      class="shrink-0 w-[min(100%,24rem)] max-h-[min(90vh,32rem)] overflow-y-auto rounded-lg border border-border bg-surface p-4 text-surface-foreground shadow-xl [&::backdrop]:bg-black/40"
       aria-labelledby="advanced-search-title"
       @click="onAdvancedDialogClick"
     >
@@ -493,54 +513,60 @@ const advancedFeedCombinedTitle = computed(() =>
       ref="vizDialogRef"
       :hits="search.results"
     />
-    <p
-      v-if="search.error"
-      class="mt-2 text-xs text-danger"
-    >
-      {{ search.error }}
-    </p>
-    <p
-      v-if="search.apiError"
-      class="mt-2 text-xs text-warning"
-    >
-      {{ search.apiError }}
-    </p>
+    </div>
     <div
-      v-if="search.results.length"
-      class="mt-3 space-y-2"
+      data-testid="semantic-search-results-scroll"
+      class="min-h-0 min-w-0 overflow-x-hidden overflow-y-auto overscroll-y-contain [scrollbar-gutter:stable] [scrollbar-width:thin] [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-border"
     >
-      <div class="flex flex-wrap items-center gap-x-3 gap-y-1">
-        <p class="text-xs font-medium text-muted">
-          {{ search.results.length }}
-          {{ search.results.length === 1 ? 'result' : 'results' }}
-        </p>
-        <p
-          v-if="search.liftStats && search.liftStats.transcript_hits_returned > 0"
-          class="text-[10px] text-muted"
-          title="Transcript lift coverage for this result page (rows returned vs rows with a linked GI insight)."
-        >
-          Lift:
-          {{ search.liftStats.lift_applied }} /
-          {{ search.liftStats.transcript_hits_returned }}
-          transcript rows linked to GI
-        </p>
-        <button
-          type="button"
-          class="text-xs text-primary underline decoration-primary/60 underline-offset-2 hover:decoration-primary"
-          @click="openSearchResultsViz"
-        >
-          Search result insights
-        </button>
+      <p
+        v-if="search.error"
+        class="mt-2 text-xs text-danger"
+      >
+        {{ search.error }}
+      </p>
+      <p
+        v-if="search.apiError"
+        class="mt-2 text-xs text-warning"
+      >
+        {{ search.apiError }}
+      </p>
+      <div
+        v-if="search.results.length"
+        class="mt-3 space-y-2"
+      >
+        <div class="flex flex-wrap items-center gap-x-3 gap-y-1">
+          <p class="text-xs font-medium text-muted">
+            {{ search.results.length }}
+            {{ search.results.length === 1 ? 'result' : 'results' }}
+          </p>
+          <p
+            v-if="search.liftStats && search.liftStats.transcript_hits_returned > 0"
+            class="text-[10px] text-muted"
+            title="Transcript lift coverage for this result page (rows returned vs rows with a linked GI insight)."
+          >
+            Lift:
+            {{ search.liftStats.lift_applied }} /
+            {{ search.liftStats.transcript_hits_returned }}
+            transcript rows linked to GI
+          </p>
+          <button
+            type="button"
+            class="text-xs text-primary underline decoration-primary/60 underline-offset-2 hover:decoration-primary"
+            @click="openSearchResultsViz"
+          >
+            Search result insights
+          </button>
+        </div>
+        <ResultCard
+          v-for="(h, i) in search.results"
+          :key="`${h.doc_id}-${i}`"
+          :hit="h"
+          :library-opens-enabled="libraryOpensEnabled"
+          @focus="onFocusHit"
+          @open-library="onOpenLibraryHit"
+          @open-episode-summary="onOpenEpisodeSummaryHit"
+        />
       </div>
-      <ResultCard
-        v-for="(h, i) in search.results"
-        :key="`${h.doc_id}-${i}`"
-        :hit="h"
-        :library-opens-enabled="libraryOpensEnabled"
-        @focus="onFocusHit"
-        @open-library="onOpenLibraryHit"
-        @open-episode-summary="onOpenEpisodeSummaryHit"
-      />
     </div>
   </section>
 </template>

@@ -110,8 +110,8 @@ rules for the Library tab and the shared Episode subject rail. All tokens refere
 - Double-tapping an Episode node opens the Episode subject rail when a corpus metadata path
   resolves (node properties, loaded artifact path, or catalog episode_id lookup).
 - With the Episode subject rail already open from Library or Digest, switching the main tab
-  to Graph highlights that episode's node and centers/zooms the canvas when the node
-  is present in the merged graph.
+  to **Graph** highlights that episode's node and **re-frames** the canvas (pan/zoom + minimum zoom floor) when the node is present in the merged graph — same contract as **Open in graph** and canvas single-tap focus ([UXS-004 — Camera framing and selection](UXS-004-graph-exploration.md#camera-framing-and-selection-merged-graph)).
+- **Open in graph** (Episode rail): loads GI/KG as needed, switches to **Graph**, selects the episode, applies neighbourhood dimming, and animates the viewport per UXS-004; episode id is used when metadata path alignment alone is insufficient.
 - On the **Graph** main tab, when the rail holds a graph center id for that episode,
   **Details** vs **Neighbourhood** tabs (same shell pattern as graph-node rail) sit
   **under** the episode hero (cover **left**, title + feed meta **right**, same row as other
@@ -186,6 +186,7 @@ the E2E Testing Guide.
 
 | Date       | Change                                                                  |
 | ---------- |-------------------------------------------------------------------------|
+| 2026-04-21 | Graph integration: UXS-004 camera + dimming parity.                     |
 | 2026-04-10 | Initial content (in UXS-001)                                            |
 | 2026-04-13 | Extracted from UXS-001 into standalone UXS-003                          |
 | 2026-04-16 | Episode subject rail (Graph): Details / Neighbourhood for connections   |

@@ -130,8 +130,8 @@ test.describe('Status bar — feeds & operator YAML (mocked API)', () => {
     await page.goto('/')
     await page.getByRole('heading', { name: SHELL_HEADING_RE }).waitFor({ timeout: 60_000 })
     await statusBarCorpusPathInput(page).fill('/mock/corpus')
-    await expect(page.getByTestId('status-bar-feeds-trigger')).toBeVisible({ timeout: 15_000 })
-    await page.getByTestId('status-bar-feeds-trigger').click()
+    await expect(page.getByTestId('status-bar-sources-trigger')).toBeVisible({ timeout: 15_000 })
+    await page.getByTestId('status-bar-sources-trigger').click()
     await expect(page.getByTestId('status-bar-sources-dialog')).toBeVisible()
     await expect(page.getByTestId('sources-dialog-feeds-textarea')).toHaveValue(
       '{\n  "feeds": [\n    "https://seed.example/rss"\n  ]\n}',
@@ -183,8 +183,8 @@ test.describe('Status bar — feeds & operator YAML (mocked API)', () => {
     await page.goto('/')
     await page.getByRole('heading', { name: SHELL_HEADING_RE }).waitFor({ timeout: 60_000 })
     await statusBarCorpusPathInput(page).fill('/mock/corpus')
-    await expect(page.getByTestId('status-bar-feeds-trigger')).toBeVisible({ timeout: 15_000 })
-    await page.getByTestId('status-bar-feeds-trigger').click()
+    await expect(page.getByTestId('status-bar-sources-trigger')).toBeVisible({ timeout: 15_000 })
+    await page.getByTestId('status-bar-sources-trigger').click()
     await page
       .getByTestId('sources-dialog-feeds-textarea')
       .fill('{\n  "feeds": [\n    "  https://a.example/x  ",\n    "https://b.example/y"\n  ]\n}')
@@ -229,7 +229,7 @@ test.describe('Status bar — feeds & operator YAML (mocked API)', () => {
     await page.goto('/')
     await page.getByRole('heading', { name: SHELL_HEADING_RE }).waitFor({ timeout: 60_000 })
     await statusBarCorpusPathInput(page).fill('/mock/corpus')
-    await page.getByTestId('status-bar-feeds-trigger').click()
+    await page.getByTestId('status-bar-sources-trigger').click()
     await page.getByTestId('sources-dialog-feeds-lines-textarea').fill('https://new.example/feed\n')
     await page.getByTestId('sources-dialog-feeds-merge-lines').click()
     const v = await page.getByTestId('sources-dialog-feeds-textarea').inputValue()
@@ -292,10 +292,11 @@ test.describe('Status bar — feeds & operator YAML (mocked API)', () => {
     await page.goto('/')
     await page.getByRole('heading', { name: SHELL_HEADING_RE }).waitFor({ timeout: 60_000 })
     await statusBarCorpusPathInput(page).fill('/mock/corpus')
-    await expect(page.getByTestId('status-bar-operator-config-trigger')).toBeVisible({
+    await expect(page.getByTestId('status-bar-sources-trigger')).toBeVisible({
       timeout: 15_000,
     })
-    await page.getByTestId('status-bar-operator-config-trigger').click()
+    await page.getByTestId('status-bar-sources-trigger').click()
+    await page.getByTestId('sources-dialog-tab-operator').click()
     await expect(page.getByTestId('sources-dialog-profile-select')).toBeVisible()
     await expect(page.getByTestId('sources-dialog-operator-textarea')).toHaveValue('keep: true')
     await page.getByTestId('sources-dialog-operator-textarea').fill('keep: true\nextra: 2\n')

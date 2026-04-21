@@ -401,7 +401,7 @@ export interface InsightSupportingQuoteRow {
   timestampStartMs: number | null
 }
 
-function normalizeGiEdgeType(type: string | undefined | null): string {
+export function normalizeGiEdgeType(type: string | undefined | null): string {
   return String(type ?? '')
     .trim()
     .toLowerCase()
@@ -712,7 +712,7 @@ function pruneOrphanTopicClusterParents(nodes: RawGraphNode[]): RawGraphNode[] {
   return out
 }
 
-const GRAPH_TYPES_OFF_BY_DEFAULT = new Set(['Quote', 'Speaker', 'Episode'])
+const GRAPH_TYPES_OFF_BY_DEFAULT = new Set(['Quote', 'Speaker'])
 
 /** Graph tab: hide noisy node types on first paint (see docs/architecture/VIEWER_GRAPH_SPEC.md). */
 export function applyGraphDefaultNodeTypeVisibility(state: GraphFilterState): void {
@@ -742,6 +742,35 @@ export function filtersActive(
   for (const k of keys) {
     if (state.allowedTypes[k] === false) return true
   }
+  if (
+    (fullArt.kind === 'gi' || fullArt.kind === 'both') &&
+    state.hideUngroundedInsights
+  ) {
+    return true
+  }
+  if (
+    fullArt.kind === 'both' &&
+    (state.showGiLayer === false || state.showKgLayer === false)
+  ) {
+    return true
+  }
+  const aet = state.allowedEdgeTypes
+  if (aet && typeof aet === 'object') {
+    for (const k of Object.keys(aet)) {
+      if (aet[k] === false) {
+        return true
+      }
+    }
+  }
+  return false
+}
+
+/** Like ``filtersActive`` but ignores per-node-type visibility toggles (used for graph “more filters” popover indicator). */
+export function filtersActiveExcludingNodeTypes(
+  fullArt: ParsedArtifact | null,
+  state: GraphFilterState | null,
+): boolean {
+  if (!fullArt || !state) return false
   if (
     (fullArt.kind === 'gi' || fullArt.kind === 'both') &&
     state.hideUngroundedInsights

@@ -10,6 +10,8 @@
 
 **Specs vs code:** Do not embed `RFC-*`, `PRD-*`, or `UXS-*` identifiers in code, comments, CSS class names, CLI strings, or user-visible copy. Use neutral feature and API names; keep numbered references in `docs/rfc/`, `docs/prd/`, and `docs/uxs/` only. See `.ai-coding-guidelines.md` (**Specification IDs in product code**).
 
+**FUTURE checkout (this repo):** **`WORKTREE.md`** (repo root) — branch purpose (2.6+), no releases from here, PR-only flow, and **Python/venv per worktree** (use this worktree’s `.venv` for `python` / `pytest` / `make serve-api`; sanity-check `podcast_scraper.__file__`; do not add `pythonpath` to `pyproject.toml` to paper over the wrong interpreter).
+
 ## Quick Reference
 
 **CRITICAL RULES:**
@@ -38,7 +40,7 @@
   and/or the relevant **feature UXS** (`docs/uxs/index.md`) when the **visual/token** experience contract changes.
   UXS lifecycle (Draft vs Active, align at ship): **`docs/uxs/index.md`** — section **Living documents and ship boundary**.
   See `docs/guides/E2E_TESTING_GUIDE.md` (Playwright) and `docs/guides/DEVELOPMENT_GUIDE.md` (viewer section). For a **full local gate** on viewer-heavy PRs, prefer **`make ci-ui-fast`** (same lint/type/docs/build chain as **`ci-fast`**, with browser E2E).
-- **User-reported viewer bugs:** reproduce and re-validate with **Chrome DevTools MCP** (or Playwright MCP); **validate the fix in the same channel you used to reproduce** (symmetry rule — tests alone are not a substitute if you reproduced in the browser). Also run **`make test-ui`** / integration server tests / **`make test-ui-e2e`** or **`make ci-ui-fast`** as appropriate. Workflow: **`docs/guides/AGENT_BROWSER_LOOP_GUIDE.md`** (*Obligatory validation* + *Symmetry rule*).
+- **User-reported viewer bugs:** reproduce and re-validate with **Chrome DevTools MCP by default** (Playwright MCP only when clearly better for scripted isolation — say so in one line); **validate the fix in the same channel you used to reproduce** (symmetry rule — tests alone are not a substitute if you reproduced in the browser). Also run **`make test-ui`** / integration server tests / **`make test-ui-e2e`** or **`make ci-ui-fast`** as appropriate. Workflow: **`docs/guides/AGENT_BROWSER_LOOP_GUIDE.md`** (*Default MCP choice* + *Obligatory validation* + *Symmetry rule*). For **graph neighbourhood / “everything bright” after ~1–3s**, use the **timing + Cytoscape + Pinia** checklist in **`.cursor/rules/agent-browser-ui-fixes.mdc`** (section *Graph canvas — selection, neighbourhood dimming*) and the companion subsection in **`docs/guides/AGENT_BROWSER_LOOP_GUIDE.md`**.
 - **FastAPI `/api/*`**: tests in **`tests/unit/podcast_scraper/server/`** and **`tests/integration/server/`**; reference **`docs/guides/SERVER_GUIDE.md`**.
 - **Local serve from a chosen output dir:** interpret “use this folder as root” as **`make serve SERVE_OUTPUT_DIR=…`** / **`make serve-api SERVE_OUTPUT_DIR=…`**; do **not** edit the Makefile default unless the user explicitly wants the repo default changed. **`VITE_DEFAULT_CORPUS_PATH`** is only for pre-filling the viewer shell path (see `.cursorrules` GI/KG section).
 - **Agent-started servers:** when the agent starts **`make serve`** / **`make serve-api`** without the user naming a root, use **`SERVE_OUTPUT_DIR=.test_outputs`** unless another path is clearly implied (see `.cursorrules` GI/KG section).

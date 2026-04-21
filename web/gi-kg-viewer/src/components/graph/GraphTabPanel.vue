@@ -7,6 +7,7 @@ import { useGraphExpansionStore } from '../../stores/graphExpansion'
 
 const emit = defineEmits<{
   'request-corpus-graph-sync': []
+  'request-graph-full-reset': []
 }>()
 
 const artifacts = useArtifactsStore()
@@ -16,8 +17,8 @@ const { truncationLine: graphExpansionTruncationLine } = storeToRefs(graphExpans
 const graphCanvasRef = ref<InstanceType<typeof GraphCanvas> | null>(null)
 
 defineExpose({
-  clearInteractionState: () => {
-    graphCanvasRef.value?.clearInteractionState()
+  clearInteractionState: (opts?: { skipRedraw?: boolean }) => {
+    graphCanvasRef.value?.clearInteractionState(opts)
   },
 })
 </script>
@@ -54,6 +55,7 @@ defineExpose({
       ref="graphCanvasRef"
       class="min-h-0 flex-1"
       @request-corpus-graph-sync="emit('request-corpus-graph-sync')"
+      @request-graph-full-reset="emit('request-graph-full-reset')"
     />
     <div
       v-if="!artifacts.displayArtifact"

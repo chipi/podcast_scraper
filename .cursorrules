@@ -16,6 +16,11 @@
 - **When intent is clear**, do the work in-session: run Makefile targets, scripts, tests, downloads, and fixes yourself—do **not** habitually close with “you should run X” if the agent environment can run X.
 - **Ask only when blocked:** missing secrets/auth or tools you cannot use; explicit approval required by policy (e.g. commit/push); **unclear scope/intent** (then use “ask first” / “prefer pause” above); unsafe requests.
 
+### `WORKTREE.md` (when present at repo root)
+
+- **Read `WORKTREE.md`** for this checkout’s branch intent, release posture, and **Python/venv** rules before relying on `pytest` / `python` / `make serve-api` output.
+- Use **this worktree’s** `.venv` only; if imports resolve to another checkout, fix the interpreter — **do not** add `[tool.pytest.ini_options] pythonpath = ["src"]` (or similar) to mask it.
+
 ### Git & Branch Workflow
 
 0. **NEVER push any branch unless the user explicitly asks**
@@ -288,11 +293,12 @@ or accessible names used by tests):
    **feature UXS** (`docs/uxs/index.md` lists Digest, Library, Graph, Search, Dashboard, …) when a
    **surface-specific** visual contract changes, not only when tests break.
 
-4. **User-reported UI bugs** — Do not claim a fix without proof: reproduce with **Chrome DevTools MCP**
-   (or Playwright MCP) when available; capture network / new-tab response; implement fix; **re-validate in
+4. **User-reported UI bugs** — Do not claim a fix without proof: reproduce with **Chrome DevTools MCP by default**
+   when available (Playwright MCP only when clearly better for scripted automation — state the reason in one line);
+   capture network / new-tab response; implement fix; **re-validate in
    the same channel** (same MCP flow / same URL or clicks) after any required process restart — **not**
    only pytest or `make test-ui` if you reproduced in the browser. Tests are **additional** locks. See
-   **Symmetry rule** in **`docs/guides/AGENT_BROWSER_LOOP_GUIDE.md`** → **Obligatory validation when fixing a reported UI bug**.
+   **Default MCP choice** + **Symmetry rule** in **`docs/guides/AGENT_BROWSER_LOOP_GUIDE.md`** → **Obligatory validation when fixing a reported UI bug**.
 
 **Local `make serve` / “use X as root” (interpretation):** When the user points at a directory as the
 **root** for local API + viewer dev (e.g. `.test_outputs`, `./output`, a manual run path), treat that as

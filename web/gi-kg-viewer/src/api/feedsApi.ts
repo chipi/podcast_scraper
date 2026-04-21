@@ -1,7 +1,7 @@
 import { fetchWithTimeout } from './httpClient'
 import { readApiErrorMessage } from './readApiErrorMessage'
 
-/** One feed: URL string or object with `url` plus optional per-feed overrides (RFC-077). */
+/** One feed: URL string or object with `url` plus optional per-feed overrides. */
 export type FeedApiEntry = string | Record<string, unknown>
 
 export interface FeedsList {

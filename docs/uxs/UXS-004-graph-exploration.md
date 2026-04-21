@@ -13,7 +13,11 @@
   - [Progressive graph expansion (cross-episode)](../rfc/RFC-076-progressive-graph-expansion.md) (`onetap` rail, `dbltap` expand/collapse, `POST /api/corpus/node-episodes`)
 - **Implementation paths**:
   - `web/gi-kg-viewer/src/components/graph/GraphCanvas.vue`
-  - `web/gi-kg-viewer/src/components/graph/GraphStatusLine.vue` (graph lens + episode/node counts; `docs/architecture/VIEWER_GRAPH_SPEC.md`)
+  - `web/gi-kg-viewer/src/components/episode/EpisodeDetailPanel.vue` (**Open in graph** hand-off)
+  - `web/gi-kg-viewer/src/utils/graphEpisodeMetadata.ts` (corpus episode → Cytoscape id; metadata + episode-id fallback)
+  - `web/gi-kg-viewer/src/components/graph/GraphStatusLine.vue` (summary **counts** strip + bottom-bar **lens** row; `docs/architecture/VIEWER_GRAPH_SPEC.md`)
+  - `web/gi-kg-viewer/src/components/graph/GraphBottomBar.vue` (minimap / re-layout / lens centre / zoom+PNG+optional Gestures / collapse)
+  - `web/gi-kg-viewer/src/components/graph/GraphFiltersPopover.vue` (**⚙** Sources / Edges / Degree)
   - `web/gi-kg-viewer/src/components/graph/GraphGestureOverlay.vue` (one-time gesture discovery overlay)
   - `web/gi-kg-viewer/src/components/graph/GraphNodeRailPanel.vue`
   - `web/gi-kg-viewer/src/components/graph/NodeDetail.vue`
@@ -25,8 +29,8 @@
   - `web/gi-kg-viewer/src/utils/cyCoseLayoutOptions.ts` (COSE tuning for topic clusters + semantic edge lengths)
   - `web/gi-kg-viewer/src/utils/parsing.ts` (Cytoscape node data: `shortLabel`, `recencyWeight`, `confidenceOpacity`, canonical `edgeType`)
   - `web/gi-kg-viewer/src/utils/topicClustersOverlay.ts` (corpus **TopicCluster** compound parents)
-  - `web/gi-kg-viewer/src/stores/graphExplorer.ts`
-  - `web/gi-kg-viewer/src/stores/graphLens.ts` (graph-only time lens; seeded from Digest/Library lens once)
+  - `web/gi-kg-viewer/src/stores/graphExplorer.ts` (graph-only time lens + layout prefs; seeded from Digest/Library lens once)
+  - `web/gi-kg-viewer/src/utils/graphEpisodeSelection.ts` (graph lens filter + scored episode cap before corpus load)
   - `web/gi-kg-viewer/src/stores/graphFilters.ts`
   - `web/gi-kg-viewer/src/stores/graphNavigation.ts`
   - `web/gi-kg-viewer/src/stores/graphExpansion.ts` (cross-episode expand seed → appended paths)
@@ -44,9 +48,10 @@ merged GI/KG artifacts.
 ### Default graph load (corpus API + local files)
 
 - **Graph lens (`graphLens`):** Independent from Digest/Library **Published on or after** (`corpusLens`). On first **Graph** tab visit per browser session, the graph lens is **seeded** from the shared corpus lens; if Library/Digest is **all time**, the graph defaults to **last 7 days** instead of loading the whole corpus. Changing Digest/Library filters **does not** change the graph lens after seed; changing the graph lens **does not** change Digest/Library.
-- **Episode cap:** The merged graph loads at most **15** episodes (tunable in [UXS-001](UXS-001-gi-kg-viewer.md)) from the current graph lens window. **`(capped)`** appears in the status line when more episodes matched the window than the cap (hidden while RFC-076 cross-episode expansion adds rows).
-- **Status line:** **`data-testid="graph-status-line"`** — muted **`text-[10px]`** row in the **canvas column** (stacked above Cytoscape, canvas-tint background): **Showing … · N episodes · M nodes** and a compact lens control (**`data-testid="graph-status-lens-selector"`**). **`data-testid="graph-status-episode-count"`** and **`graph-status-node-count`** wrap **numeric** text only (node count may use a **`k`** suffix); **`data-testid="graph-status-since-input"`** is on the **Since** date field. Preset buttons (**7d / 30d / 90d / All**) and the date input use the same **Digest-style** active affordance (**`ring-2 ring-primary`**) as corpus lens presets. Changing the lens clears RFC-076 expansion and reloads the graph from the API list (or re-filters local file picks).
-- **Default node types:** **Quote**, **Speaker**, and **Episode** checkboxes start **off** for a cleaner first read; a **filters active — reset** chip (**`data-testid="graph-types-reset"`**) appears when the user deviates from those defaults (separate from the Sources-row “filters active” warning for layers / edges).
+- **Episode cap:** The merged graph loads at most **15** episodes (tunable in [UXS-001](UXS-001-gi-kg-viewer.md)) from the current graph lens window. Episodes are **ranked by score** (recency within the window + topic-cluster bonus when `topic_clusters.json` is available; tie-break newer publish), not “newest 15 only”. **`(capped)`** appears in the **counts** strip (`graph-status-line`) when more episodes matched the window than the cap (hidden while RFC-076 cross-episode expansion adds rows).
+- **Stats strip + time lens (full merged graph):** **`data-testid="graph-status-line"`** is **counts only** — muted **`text-[10px]`** row at the **top** of the graph card (**Showing … · N episodes · M nodes · C components**; **`graph-status-component-count`**; **`graph-status-episode-count`** / **`graph-status-node-count`** with optional **`k`** suffix on large node counts). **`data-testid="graph-gesture-overlay-reopen"`** (**Gestures**) sits on the **same strip, right-aligned**, and reopens the gesture overlay **without** clearing `localStorage`. The **graph time lens** (**`data-testid="graph-status-lens-selector"`**, presets **7d / 30d / 90d / All**, **`data-testid="graph-status-since-input"`**, optional **`data-testid="graph-status-reset"`** after RFC-076 **expand**) renders in **`data-testid="graph-bottom-bar-centre"`** as **`data-testid="graph-status-line-controls"`** (same **Digest-style** active ring on presets / custom **Since**). Changing the lens clears RFC-076 expansion and reloads the graph from the API list (or re-filters local file picks). When there is **no** full merged-graph strip (e.g. some offline slices), **Gestures** stays in the **bottom bar** right zone instead. Normative test ids: [E2E surface map](https://github.com/chipi/podcast_scraper/blob/main/web/gi-kg-viewer/e2e/E2E_SURFACE_MAP.md) (**Graph shell** row).
+- **Search highlight chip:** When search (or library) highlights are active, **`data-testid="graph-search-highlight-chip"`** appears in a **thin row between** the stats strip and the **Types** toolbar — not in the bottom bar.
+- **Default node types:** **Quote**, **Speaker**, and **Episode** checkboxes start **off** for a cleaner first read; a **filters active — reset** chip (**`data-testid="graph-types-reset"`**) appears when the user deviates from those defaults. Non-default **Sources / Edges / degree** filters are indicated by a **warning** dot on **`data-testid="graph-toolbar-more-filters"`** (popover), not by a separate “filters active” line on the Types row.
 
 Full spec: [Viewer graph spec — Graph initial load](../architecture/VIEWER_GRAPH_SPEC.md#graph-initial-load).
 
@@ -56,7 +61,7 @@ Cytoscape **`parent`** on member **Topic** nodes whose bare id matches **`topic:
 Payload **v2** uses **`graph_compound_parent_id`** (`tc:`…) for those parents; **`cil_alias_target_topic_id`**
 is for CIL aliases only, not for graph ids.
 This UXS defines the visual contract for graph chrome:
-toolbar, canvas overlays, minimap, degree filter, node detail rail, and
+toolbar, bottom bar, filters popover, minimap, degree filter, node detail rail, and
 neighborhood visualization. On the **main graph canvas**, node captions default to
 the **side** of the disc (dynamic `text-margin-x`) with a canvas-tinted halo so edge
 splines stay readable; **above** / **below** placement remain available via the shared
@@ -97,6 +102,22 @@ or error text when applicable, with **Dismiss**.
 
 ---
 
+## Camera framing and selection (merged graph)
+
+**User-visible contract** (Cytoscape canvas + subject rail):
+
+1. **Cross-panel focus** — When the app moves focus onto a node **from outside the canvas** (pending focus / `requestFocusNode`: Digest **topic band** hit rows that land on Graph, **Open in graph** from the Episode rail, Library → Graph with focus, Semantic Search **Show on graph**, etc.), after the merged graph finishes its layout pass the canvas **selects** that node, applies **selection dimming** (see *Selection dim* under **Graph visual styling** below), updates the **subject rail**, and runs one **short animated pan/zoom** so the focal element(s) are **centered** in the viewport. Some handoffs pass **extra graph ids** so the camera’s bounding box can include a related compound (e.g. TopicCluster) while **primary selection** stays on the main id — see [UXS-005 — Results](UXS-005-semantic-search.md#results) (**Show on graph**).
+
+2. **Single-tap on the canvas** — A normal **single** activation on a node (Cytoscape **`tap`** + debounced **`onetap`**; opens the Episode or graph-node rail) runs the **same** camera animation as cross-panel focus. The newly inspected node should not stay parked at the edge of the viewport while the rail updates. **Double** activation remains **RFC-076** expand/collapse on eligible seeds (**`dbltap`**); **`onetap`** is debounced so a double-click expand does not open the rail first.
+
+3. **Minimum zoom during focus animation** — The animation uses at least **`GRAPH_FOCUS_FRAME_MIN_ZOOM`** (**1.3×**, roughly **130%** in the bottom zoom readout) unless the user was already zoomed in further (`max(current zoom, constant)` in `GraphCanvas.vue`). This keeps hand-offs readable without zooming “into your face” as aggressively as earlier **1.6×** defaults.
+
+4. **Stable episode neighbourhood after hand-off** — After **Open in graph** (or any path that focuses an **Episode** on the merged slice), **1-hop neighbourhood dimming** must remain on the intended episode and its neighbours once layout settles — not revert to **uniform full brightness** a second or two later. Corpus **metadata path** strings and graph **Episode** row text can diverge (punctuation, apostrophes, normalisation); the product resolves the Cytoscape episode node by **metadata match first**, then **stable corpus episode id**, and must **not** discard a **valid** stored graph episode id when a path-only match fails.
+
+**Implementation anchors:** `GraphCanvas.vue` (`animateCameraToFocusedNode`, `tryApplyPendingFocus`, `onetap` handler), `EpisodeDetailPanel.vue`, `graphEpisodeMetadata.ts`, Pinia **`subject`** (`graphConnectionsCyId`) and **`graphNavigation`** (`pendingFocusNodeId`, optional `pendingFocusCameraIncludeRawIds`).
+
+---
+
 ## Graph visual styling (Cytoscape)
 
 Normative numbers and formulas live in the [Viewer graph spec — Graph visual styling](../architecture/VIEWER_GRAPH_SPEC.md#graph-visual-styling) (tracks [GitHub #608](https://github.com/chipi/podcast_scraper/issues/608)). This subsection states the **user-visible contract** only.
@@ -125,47 +146,21 @@ A **one-time, dismissible** overlay on the graph canvas teaches gestures and rin
 
 **Mounting context:** [`App.vue`](https://github.com/chipi/podcast_scraper/blob/main/web/gi-kg-viewer/src/App.vue) mounts [`GraphTabPanel`](https://github.com/chipi/podcast_scraper/blob/main/web/gi-kg-viewer/src/components/graph/GraphTabPanel.vue) only when the **Graph** main tab is active (`v-if="mainTab === 'graph'"`), and [`GraphCanvas`](https://github.com/chipi/podcast_scraper/blob/main/web/gi-kg-viewer/src/components/graph/GraphCanvas.vue) mounts only when artifacts display — the overlay does not need a separate `mainTab` prop unless that shell layout changes.
 
-**Dismiss:** primary control **Got it** (`data-testid="graph-gesture-overlay-dismiss"`), backdrop click outside the card (`@click.self` on the overlay root; card uses `@click.stop`), and **Escape** via a `window` `keydown` listener (capture) that ignores **Escape** when focus is outside the overlay (e.g. layout combobox or bottom zoom toolbar) so graph chrome stays predictable.
+**Dismiss:** primary control **Got it** (`data-testid="graph-gesture-overlay-dismiss"`), backdrop click outside the card (`@click.self` on the overlay root; card uses `@click.stop`), and **Escape** via a `window` `keydown` listener (capture) that ignores **Escape** when focus is outside the overlay (e.g. **Since** (`graph-status-since-input`) in the bottom bar lens row, **⚙** filters popover, or **Fit** / zoom in the bottom bar) so graph chrome stays predictable.
 
 **Accessibility:** `role="dialog"`, `aria-modal="true"`, heading **Graph gestures** referenced with `aria-labelledby`, initial focus on **Got it** after open; on dismiss, focus returns to the graph canvas host for keyboard continuity.
 
-**Surface map:** overlay root `data-testid="graph-gesture-overlay"`. Optional **Gestures** control in the bottom-right zoom cluster (`data-testid="graph-gesture-overlay-reopen"`) reopens the card **without** clearing `localStorage` (reminder after a quick dismiss).
+**Surface map:** overlay root `data-testid="graph-gesture-overlay"`. **`data-testid="graph-gesture-overlay-reopen"`** (**Gestures**) reopens the card **without** clearing `localStorage`: **right** on the **stats** strip when a full merged graph is loaded, otherwise in the **bottom bar** right zone (same test id in both places).
 
 ---
 
-## Toolbar (primary row)
+## Graph chrome (toolbar, bottom bar, filters popover)
 
-When semantic search (or library-driven graph highlights) mark nodes on the graph, a compact **highlight count** chip may appear in this row (`text-[10px]`). There is **no** persistent line of Shift / double-click gesture copy here; gestures are covered by the **Gesture discovery overlay** and optional **Gestures** reopen control.
+Normative layout and test ids: [GRAPH-CHROME-REDESIGN](../wip/GRAPH-CHROME-REDESIGN.md) and [E2E surface map](https://github.com/chipi/podcast_scraper/blob/main/web/gi-kg-viewer/e2e/E2E_SURFACE_MAP.md) (**Graph shell** row).
 
----
-
-## Canvas overlay (bottom-right)
-
-**Fit** (`primary`), zoom **-** / **+** / **100%** (100% = `zoom(1)`, pan unchanged),
-**Gestures** (`data-testid="graph-gesture-overlay-reopen"`, opens the gesture discovery card without clearing `localStorage`), and **Export PNG** (rightmost, 2x full graph) in one `toolbar` with `aria-label`
-"Graph fit, zoom, gestures, and export" (`role="toolbar"`); aria **Zoom out** / **Zoom in** on
-**-** / **+**. Sits above the graph surface (`.graph-canvas`), not in the top chrome
-row.
-
----
-
-## Canvas overlay (upper-right)
-
-`role="region"` `aria-label` "Graph layout, re-layout, and degree filter"
-(`.graph-layout-controls`) -- tight vertical column (~6.75rem wide): full-width
-**Re-layout**, **Layout** label stacked above select (cose, breadthfirst, circle,
-grid; "Graph layout algorithm" combobox), **Degree** buckets in a 2-column grid,
-compact **Clear** (degree) with `aria-label` "Clear degree filter" when active.
-Node detail lives in the App **subject** column (`SubjectRail`), not over the canvas.
-
----
-
-## Toolbar (chrome below primary)
-
-Optional **Sources** row first (merged GI / KG, **Hide ungrounded**, **filters
-active** when relevant); **Minimap** checkbox row; then **Edges** and **Types**
-(per-type checkboxes + all / none, swatches match node fills, counts). No separate
-panel above the graph.
+- **Top toolbar (`data-testid="graph-toolbar-types"`):** **Types** only — compact single row (`items-center`, tight leading): per-type checkboxes, **all** / **none**, swatches (counts); **`graph-types-reset`** when defaults are overridden; **`graph-toolbar-more-filters`** (**⚙**) opens **`graph-filters-popover`** (**Sources** / **Edges** / **Degree** + **Clear degree filter**). No separate Sources / Edges rows on the card.
+- **Bottom bar (`data-testid="graph-bottom-bar"`):** Under the canvas; optional collapse (**`graph-bottom-bar-toggle`** / **`graph-bottom-bar-expand`**, **`ps_graph_bottom_bar_collapsed`**, **Alt+B**). **Left:** **`graph-minimap-toggle`**, **`graph-relayout`**, **`graph-layout-cycle`** (cycles layout algorithm and re-layouts). **Centre (full merged graph):** **`graph-bottom-bar-centre`** — **`graph-status-line-controls`** / **`graph-status-lens-selector`** (lens presets, **Since**, optional **Reset**). **Right:** **`role="toolbar"`** — **Fit**, **−** / **+** / **100%**, optional **Gestures** (only when the stats strip is absent), **PNG** (2× full graph); toolbar **`aria-label`** omits “gestures” when that button is hidden. (Legacy floating zoom / layout strips on the canvas were removed in favour of this bar.)
+- **Minimap:** Lower-left on the canvas host; **`graph-minimap-close`** (**×**) on the frame; visibility toggled from the bottom bar **⊞** control and the close button.
 
 ---
 
@@ -177,7 +172,7 @@ panel above the graph.
 switch the **left** rail to the **Search** tab and fill **Search** or **Explore** filters; they do **not**
 replace the right column. A pill **tablist** sits under the node header — **Details** (default) vs **Neighbourhood** — **`data-testid`** **`node-detail-rail-tab-details`** / **`node-detail-rail-tab-neighbourhood`**. The scroll body shows either node content (**Details**) or **`graph-connections-section`** (**Neighbourhood**); the active tab resets to **Details** when the focused graph node id changes. If the center id is not in the merged slice, **Neighbourhood** shows **`node-detail-rail-neighbourhood-unavailable`** instead of an empty panel. Graph **Type** plus **`entity_kind`**-style labels (**person**, **organization**, …) appear at the top of **Details** (**`node-detail-kind-row`**), not under the **h3** title. Insight **L** / **G** / **S** on graph neighbors (see long **Insight** paragraph below) live under **Neighbourhood**, not **Details**.
 
-The header primary title (**h3**) expands vertically to fit the full label (`whitespace-pre-wrap`, `select-text`; no `line-clamp`). **Quote**, **Topic**, **Insight**, **Person**, **Speaker**, and **Entity** nodes set **`data-testid`** on that span (**`node-detail-full-quote`**, **`node-detail-full-topic`**, **`node-detail-full-insight`**, **`node-detail-full-person-entity`**) and expose a **`C`** chip stacked **under** **`?`** (**`node-detail-full-*-copy`**, same square footprint as **E** / **`?`**; native tooltip and **`aria-label`** **Copy title**, then **Copied to clipboard** / **Copy failed; try again** briefly). Other node types keep a native **`title`** on the span for hover. **Topic** optional **Aliases:** line (**`data-testid="node-detail-topic-aliases"`**) when **`properties.aliases`** is a non-empty string array (GI schema); aliases are omitted from the generic property list for topics. Below the header (above neighborhood / **Where this appears**), a compact gateway row mirrors Episode handoffs: **`data-testid="node-detail-topic-prefill-search"`** **Prefill semantic search** opens **Search** with the topic label as query (no feed filter); **`data-testid="node-detail-topic-explore-filter"`** **Set Explore topic filter** opens **Explore** with **Topic contains** filled and clears prior explore output — the user still runs **Run explore**. Both are disabled when corpus/API health is not OK. Below that row, **Topic timeline** (**`data-testid="node-detail-topic-timeline"`**) opens a native **`dialog`** (**`data-testid="topic-timeline-dialog"`**) with the same modal shell as **Transcript** (`w-[min(100%,42rem)]`, `max-h-[min(92vh,48rem)]`, fixed header + scrollable body): it calls **`GET /api/topics/{topic_id}/timeline`** (CIL / RFC-072) using the graph node **id** and the resolved corpus path. Inner hooks include **`topic-timeline-loading`**, **`topic-timeline-error`**, **`topic-timeline-empty`**, **`topic-timeline-episodes`**. Disabled when health is not OK, **`cil_queries_api`** is false, or the corpus path is unset. **Person** / **Entity** scroll body: optional **`data-testid="node-detail-person-entity-role"`** (**SPOKEN_BY** / **SPOKE_IN** counts in the loaded slice), optional **`data-testid="node-detail-person-entity-aliases"`**, and (**`data-testid="node-detail-person-entity-prefill-search"`**, **`data-testid="node-detail-person-entity-explore-filter"`**) — compact labels **Speaker filter** / **Topic filter** (maps to **Speaker contains** vs **Topic contains**; see **`aria-label`** and **`?`** HelpTip). **`data-testid="node-detail-insight-details-tip"`** wraps a text-style **HelpTip** in the insight scroll body (below the header): the trigger is the underlined label **`Grounded`**, **`Not grounded`**, or **`Extraction details`** (when **`grounded`** is missing but lineage or other fields still populate the panel); **`aria-label`** matches that label. The panel holds a short **Grounding** explainer (**Grounded** = at least one supporting quote linked via **SUPPORTED_BY** in this GI; **Not grounded** = the artifact sets grounded to false with no such quotes), optional **Other fields** (**Type** / **Position in episode** / **Confidence**), and **Lineage** (**`model_version`**, **`prompt_version`**, optional **`extraction.extracted_at`**, artifact name). **`insight_type`**, **`position_hint`**, **`confidence`**, and **`grounded`** stay out of the generic property list when surfaced here. A gateway row (**`data-testid="node-detail-insight-prefill-search"`**, **`data-testid="node-detail-insight-explore-filters"`**) mirrors Topic handoffs: **Prefill semantic search** uses a truncated insight string for the vector index; **Set Explore filters** opens **Explore** with **Topic contains** and **Speaker contains** cleared, **Grounded only** and optional **Min confidence** aligned to this node — the user still runs **Run explore**. **Episode on graph** and **Open source episode in Library** are not separate insight buttons; use **`Graph neighborhood and connections`** (**`data-testid="graph-connections-section"`**): for each neighbor, **L** (before **G**, **Episode** neighbors only) opens **Library** when metadata resolves (same rules as search result **L**); **G** focuses that neighbor on the graph; **S** (after **G**) prefills **Semantic search** with the neighbor’s primary text (truncated). **`data-testid="node-detail-insight-related-topics"`** (bordered region like Library **Similar episodes**) lists **Topic** neighbors via **`ABOUT`** / **`RELATED_TO`**; inner list host **`data-testid="node-detail-insight-related-topics-list"`** has no max-height or vertical scroll (the rail scrolls as a whole). Each row is one full-width control (**`node-detail-insight-related-topic-row`**): **click** focuses that **Topic** on the graph (same behavior as neighbor **G** on quotes). **`data-testid="node-detail-insight-supporting-quotes"`** lists **Quote** neighbors linked by **`SUPPORTED_BY`** (out from the insight), ordered by **`char_start`** then **`timestamp_start_ms`**, with truncated text and **G** to focus each quote; **`data-testid="node-detail-insight-view-transcript-all-quotes"`** (**Transcript (all quotes)**) opens the in-app transcript when every listed quote shares one **`transcript_ref`** and has finite **`char_start`** / **`char_end`**, highlighting all spans (the dialog may contain multiple **`transcript-viewer-highlight`** marks; **Passage** shows **N character spans (supporting quotes)** when **N** is greater than 1); more than five quotes collapse until **Show all N** (**`data-testid="node-detail-insight-supporting-quotes-toggle-expand"`**), reset when the selected node changes.
+The header primary title (**h3**) expands vertically to fit the full label (`whitespace-pre-wrap`, `select-text`; no `line-clamp`). **Quote**, **Topic**, **Insight**, **Person**, **Speaker**, and **Entity** nodes set **`data-testid`** on that span (**`node-detail-full-quote`**, **`node-detail-full-topic`**, **`node-detail-full-insight`**, **`node-detail-full-person-entity`**) and expose a **`C`** chip stacked **under** **`?`** (**`node-detail-full-*-copy`**, same square footprint as **E** / **`?`**; native tooltip and **`aria-label`** **Copy title**, then **Copied to clipboard** / **Copy failed; try again** briefly). Other node types keep a native **`title`** on the span for hover. **Topic** optional **Aliases:** line (**`data-testid="node-detail-topic-aliases"`**) when **`properties.aliases`** is a non-empty string array (GI schema); aliases are omitted from the generic property list for topics. Below the header (above neighborhood / **Where this appears**), a compact gateway row mirrors Episode handoffs: **`data-testid="node-detail-topic-prefill-search"`** **Prefill semantic search** opens **Search** with the topic label as query (no feed filter); **`data-testid="node-detail-topic-explore-filter"`** **Set Explore topic filter** opens **Explore** with **Topic contains** filled and clears prior explore output — the user still runs **Explore**. Both are disabled when corpus/API health is not OK. Below that row, **Topic timeline** (**`data-testid="node-detail-topic-timeline"`**) opens a native **`dialog`** (**`data-testid="topic-timeline-dialog"`**) with the same modal shell as **Transcript** (`w-[min(100%,42rem)]`, `max-h-[min(92vh,48rem)]`, fixed header + scrollable body): it calls **`GET /api/topics/{topic_id}/timeline`** (CIL / RFC-072) using the graph node **id** and the resolved corpus path. Inner hooks include **`topic-timeline-loading`**, **`topic-timeline-error`**, **`topic-timeline-empty`**, **`topic-timeline-episodes`**. Disabled when health is not OK, **`cil_queries_api`** is false, or the corpus path is unset. **Person** / **Entity** scroll body: optional **`data-testid="node-detail-person-entity-role"`** (**SPOKEN_BY** / **SPOKE_IN** counts in the loaded slice), optional **`data-testid="node-detail-person-entity-aliases"`**, and (**`data-testid="node-detail-person-entity-prefill-search"`**, **`data-testid="node-detail-person-entity-explore-filter"`**) — compact labels **Speaker filter** / **Topic filter** (maps to **Speaker contains** vs **Topic contains**; see **`aria-label`** and **`?`** HelpTip). **`data-testid="node-detail-insight-details-tip"`** wraps a text-style **HelpTip** in the insight scroll body (below the header): the trigger is the underlined label **`Grounded`**, **`Not grounded`**, or **`Extraction details`** (when **`grounded`** is missing but lineage or other fields still populate the panel); **`aria-label`** matches that label. The panel holds a short **Grounding** explainer (**Grounded** = at least one supporting quote linked via **SUPPORTED_BY** in this GI; **Not grounded** = the artifact sets grounded to false with no such quotes), optional **Other fields** (**Type** / **Position in episode** / **Confidence**), and **Lineage** (**`model_version`**, **`prompt_version`**, optional **`extraction.extracted_at`**, artifact name). **`insight_type`**, **`position_hint`**, **`confidence`**, and **`grounded`** stay out of the generic property list when surfaced here. A gateway row (**`data-testid="node-detail-insight-prefill-search"`**, **`data-testid="node-detail-insight-explore-filters"`**) mirrors Topic handoffs: **Prefill semantic search** uses a truncated insight string for the vector index; **Set Explore filters** opens **Explore** with **Topic contains** and **Speaker contains** cleared, **Grounded only** and optional **Min confidence** aligned to this node — the user still runs **Explore**. **Episode on graph** and **Open source episode in Library** are not separate insight buttons; use **`Graph neighborhood and connections`** (**`data-testid="graph-connections-section"`**): for each neighbor, **L** (before **G**, **Episode** neighbors only) opens **Library** when metadata resolves (same rules as search result **L**); **G** focuses that neighbor on the graph; **S** (after **G**) prefills **Semantic search** with the neighbor’s primary text (truncated). **`data-testid="node-detail-insight-related-topics"`** (bordered region like Library **Similar episodes**) lists **Topic** neighbors via **`ABOUT`** / **`RELATED_TO`**; inner list host **`data-testid="node-detail-insight-related-topics-list"`** has no max-height or vertical scroll (the rail scrolls as a whole). Each row is one full-width control (**`node-detail-insight-related-topic-row`**): **click** focuses that **Topic** on the graph (same behavior as neighbor **G** on quotes). **`data-testid="node-detail-insight-supporting-quotes"`** lists **Quote** neighbors linked by **`SUPPORTED_BY`** (out from the insight), ordered by **`char_start`** then **`timestamp_start_ms`**, with truncated text and **G** to focus each quote; **`data-testid="node-detail-insight-view-transcript-all-quotes"`** (**Transcript (all quotes)**) opens the in-app transcript when every listed quote shares one **`transcript_ref`** and has finite **`char_start`** / **`char_end`**, highlighting all spans (the dialog may contain multiple **`transcript-viewer-highlight`** marks; **Passage** shows **N character spans (supporting quotes)** when **N** is greater than 1); more than five quotes collapse until **Show all N** (**`data-testid="node-detail-insight-supporting-quotes-toggle-expand"`**), reset when the selected node changes.
 A body paragraph is omitted when it would only repeat that full primary label.
 **`entity_kind: episode`** is not
 shown as a subtitle under Insight (and similar) nodes -- the rail header already gives
@@ -204,7 +199,7 @@ Cytoscape surface), not a viewport-fixed tile and not over the app's right rail.
 
 ## Density
 
-Use existing `text-[10px]` / `border-border` patterns so the extra row stays compact
+Use existing `text-[10px]` / `border-border` patterns so toolbar and bottom bar stay compact
 and scannable; minimap is a fixed footprint in the lower-left of the graph canvas host.
 
 ---
@@ -220,7 +215,12 @@ graph shell row.
 
 | Date       | Change                                                                                              |
 | ---------- | --------------------------------------------------------------------------------------------------- |
-| 2026-04-19 | Default graph load: graphLens, cap, status line; Q/S/E off (VIEWER_GRAPH_SPEC).                     |
+| 2026-04-21 | Graph chrome: stats strip (counts + **Gestures** when full graph); lens **centre**; search chip.    |
+| 2026-04-21 | Graph chrome: Types + **⚙** popover; bottom bar (minimap, re-layout, zoom, PNG, collapse).          |
+| 2026-04-21 | 100%: `zoom(1)` then `center(:visible)`; clears debounced zoom-out recenter.                        |
+| 2026-04-21 | Camera: hand-off + single-tap share focus anim; min zoom 1.3×; stable episode dim.                  |
+| 2026-04-20 | Episode cap: scored pick (recency+cluster); store=graphExplorer; **Reset** + E2E ref.               |
+| 2026-04-19 | Default graph load: graphLens, cap, stats strip; Q/S/E off (VIEWER_GRAPH_SPEC).                     |
 | 2026-04-19 | RFC-076: loadSelected clears graphExpansion; preserveExpansion on append/remove.                    |
 | 2026-04-10 | Initial content (in UXS-001)                                                                        |
 | 2026-04-13 | Extracted from UXS-001 into standalone UXS-004                                                      |

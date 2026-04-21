@@ -28,22 +28,60 @@ const sourcesError = ref<string | null>(null)
 /** One RSS URL per line — merged into the JSON ``feeds`` array (legacy ``--rss-file`` style). */
 const feedsLinePaste = ref('')
 
+/** Advertised in GET /api/health but often off in minimal server builds. */
+const optionalHealthCapsLimited = computed(
+  () =>
+    !shell.feedsApiAvailable ||
+    !shell.operatorConfigApiAvailable ||
+    !shell.jobsApiAvailable,
+)
+
 const healthDotClass = computed(() => {
   if (shell.healthError) {
-    return 'bg-danger'
-  }
-  /** VIEWER_IA: no corpus configured — show danger even if health is still loading. */
-  if (!shell.hasCorpusPath) {
     return 'bg-danger'
   }
   if (!shell.healthStatus) {
     return 'bg-muted'
   }
   const st = String(shell.healthStatus).toLowerCase()
-  if (st === 'ok') {
-    return 'bg-success'
+  if (st !== 'ok') {
+    return 'bg-warning'
   }
-  return 'bg-warning'
+  /** Reachable + OK, but viewer cannot drive corpus APIs until path is set. */
+  if (!shell.hasCorpusPath) {
+    return 'bg-warning'
+  }
+  if (optionalHealthCapsLimited.value) {
+    return 'bg-warning'
+  }
+  return 'bg-success'
+})
+
+/** Single summary line: server status + viewer context (path / optional routes). */
+const healthDialogSummary = computed(() => {
+  if (shell.healthError) {
+    return { text: shell.healthError, textClass: 'text-danger' }
+  }
+  if (!shell.healthStatus) {
+    return { text: 'Checking…', textClass: 'text-muted' }
+  }
+  const st = String(shell.healthStatus).toLowerCase()
+  if (st !== 'ok') {
+    return { text: shell.healthStatusDisplay, textClass: 'text-warning' }
+  }
+  if (!shell.hasCorpusPath) {
+    return {
+      text: 'OK — corpus path not set',
+      textClass: 'text-warning',
+    }
+  }
+  if (optionalHealthCapsLimited.value) {
+    return {
+      text: 'OK — limited (optional APIs off)',
+      textClass: 'text-warning',
+    }
+  }
+  return { text: shell.healthStatusDisplay, textClass: 'text-success' }
 })
 
 const showRebuildBolt = computed(
@@ -115,6 +153,17 @@ async function openSourcesDialog(tab: 'feeds' | 'operator'): Promise<void> {
   sourcesTab.value = tab
   await loadSourcesTab(tab)
   sourcesDialogRef.value?.showModal()
+}
+
+/** Open configuration dialog: Feed list tab if feeds API is on, else Operator config only. */
+async function openSourcesDialogDefault(): Promise<void> {
+  const feedsOn = shell.feedsApiAvailable
+  const tab: 'feeds' | 'operator' = feedsOn ? 'feeds' : 'operator'
+  await openSourcesDialog(tab)
+}
+
+function closeSourcesDialog(): void {
+  sourcesDialogRef.value?.close()
 }
 
 async function selectSourcesTab(tab: 'feeds' | 'operator'): Promise<void> {
@@ -223,7 +272,7 @@ const corpusPathModel = computed({
 
 <template>
   <footer
-    class="flex h-9 shrink-0 items-center gap-2 border-t border-border bg-canvas px-2 text-xs text-canvas-foreground"
+    class="flex h-9 min-w-0 shrink-0 items-center gap-2 border-t border-border bg-canvas px-2 text-xs text-canvas-foreground"
     data-testid="app-status-bar"
   >
     <label class="sr-only" for="status-bar-corpus-path-input">Corpus path</label>
@@ -232,7 +281,7 @@ const corpusPathModel = computed({
       v-model="corpusPathModel"
       type="text"
       data-testid="status-bar-corpus-path"
-      class="min-w-0 flex-1 rounded border border-border bg-elevated px-2 py-0.5 text-[11px] text-elevated-foreground placeholder:text-muted"
+      class="h-7 min-w-[12rem] w-[min(56.25rem,calc(100vw-14rem))] shrink-0 rounded border border-border bg-elevated px-2 py-0.5 font-mono text-[11px] text-elevated-foreground placeholder:text-muted"
       placeholder="Set corpus path…"
       autocomplete="off"
     >
@@ -264,50 +313,46 @@ const corpusPathModel = computed({
     >
       List
     </button>
-    <button
-      v-if="shell.healthStatus && shell.hasCorpusPath && shell.feedsApiAvailable"
-      type="button"
-      class="shrink-0 rounded border border-border px-1.5 py-0.5 text-[10px] hover:bg-overlay"
-      title="Edit feeds.spec.yaml (JSON in UI) for this corpus"
-      data-testid="status-bar-feeds-trigger"
-      @click="void openSourcesDialog('feeds')"
-    >
-      Feeds
-    </button>
-    <button
-      v-if="shell.healthStatus && shell.hasCorpusPath && shell.operatorConfigApiAvailable"
-      type="button"
-      class="shrink-0 rounded border border-border px-1.5 py-0.5 text-[10px] hover:bg-overlay"
-      title="Edit operator YAML (no API keys — use environment variables)"
-      data-testid="status-bar-operator-config-trigger"
-      @click="void openSourcesDialog('operator')"
-    >
-      Config
-    </button>
-    <button
-      type="button"
-      class="flex shrink-0 items-center gap-1 rounded border border-border px-1.5 py-0.5 hover:bg-overlay"
-      data-testid="status-bar-health-trigger"
-      title="Health details"
-      @click="openHealthDialog"
-    >
-      <span
-        class="inline-block h-2 w-2 shrink-0 rounded-full"
-        :class="healthDotClass"
-        aria-hidden="true"
-      />
-      <span class="hidden text-[10px] sm:inline">Health</span>
-    </button>
-    <button
-      v-if="showRebuildBolt"
-      type="button"
-      class="shrink-0 rounded border border-warning/50 px-1.5 py-0.5 text-[10px] text-warning hover:bg-warning/10"
-      data-testid="status-bar-rebuild-indicator"
-      title="Index refresh recommended"
-      @click="openIndexDialog"
-    >
-      Index
-    </button>
+    <div class="ml-auto flex min-w-0 shrink-0 items-center gap-2">
+      <button
+        v-if="showRebuildBolt"
+        type="button"
+        class="shrink-0 rounded border border-warning/50 px-1.5 py-0.5 text-[10px] text-warning hover:bg-warning/10"
+        data-testid="status-bar-rebuild-indicator"
+        title="Index refresh recommended"
+        @click="openIndexDialog"
+      >
+        Index
+      </button>
+      <button
+        v-if="
+          shell.healthStatus &&
+            shell.hasCorpusPath &&
+            (shell.feedsApiAvailable || shell.operatorConfigApiAvailable)
+        "
+        type="button"
+        class="shrink-0 rounded border border-border px-1.5 py-0.5 text-[10px] hover:bg-overlay"
+        title="Feed list and operator config"
+        data-testid="status-bar-sources-trigger"
+        @click="void openSourcesDialogDefault()"
+      >
+        Configuration
+      </button>
+      <button
+        type="button"
+        class="flex shrink-0 items-center gap-1 rounded border border-border px-1.5 py-0.5 hover:bg-overlay"
+        data-testid="status-bar-health-trigger"
+        title="Health: server status, corpus path, and advertised API routes"
+        @click="openHealthDialog"
+      >
+        <span
+          class="inline-block h-2 w-2 shrink-0 rounded-full"
+          :class="healthDotClass"
+          aria-hidden="true"
+        />
+        <span class="hidden text-[10px] sm:inline">Health</span>
+      </button>
+    </div>
   </footer>
 
   <dialog
@@ -337,14 +382,8 @@ const corpusPathModel = computed({
           <dt class="text-muted">
             Health
           </dt>
-          <dd v-if="shell.healthStatus" class="font-medium text-success">
-            {{ shell.healthStatusDisplay }}
-          </dd>
-          <dd v-else-if="shell.healthError" class="font-medium text-danger">
-            {{ shell.healthError }}
-          </dd>
-          <dd v-else class="text-muted">
-            Checking…
+          <dd class="text-right font-medium leading-snug">
+            <span :class="healthDialogSummary.textClass">{{ healthDialogSummary.text }}</span>
           </dd>
         </div>
       </dl>
@@ -404,7 +443,7 @@ const corpusPathModel = computed({
           <dt class="text-muted">
             Feeds file API
           </dt>
-          <dd :class="shell.feedsApiAvailable ? 'text-success' : 'text-muted'">
+          <dd :class="shell.feedsApiAvailable ? 'text-success' : 'text-danger'">
             {{ shell.feedsApiAvailable ? 'Yes' : 'No' }}
           </dd>
         </div>
@@ -412,7 +451,7 @@ const corpusPathModel = computed({
           <dt class="text-muted">
             Operator YAML API
           </dt>
-          <dd :class="shell.operatorConfigApiAvailable ? 'text-success' : 'text-muted'">
+          <dd :class="shell.operatorConfigApiAvailable ? 'text-success' : 'text-danger'">
             {{ shell.operatorConfigApiAvailable ? 'Yes' : 'No' }}
           </dd>
         </div>
@@ -420,7 +459,7 @@ const corpusPathModel = computed({
           <dt class="text-muted">
             Pipeline jobs API
           </dt>
-          <dd :class="shell.jobsApiAvailable ? 'text-success' : 'text-muted'">
+          <dd :class="shell.jobsApiAvailable ? 'text-success' : 'text-danger'">
             {{ shell.jobsApiAvailable ? 'Yes' : 'No' }}
           </dd>
         </div>
@@ -452,53 +491,61 @@ const corpusPathModel = computed({
 
   <dialog
     ref="sourcesDialogRef"
-    class="max-h-[min(85vh,36rem)] w-[min(96vw,28rem)] overflow-hidden rounded-lg border border-border bg-surface p-3 text-xs text-surface-foreground shadow-lg backdrop:bg-black/40"
-    aria-labelledby="status-bar-sources-dialog-title"
+    class="w-[min(96vw,28rem)] overflow-hidden rounded-lg border border-border bg-surface p-0 text-xs text-surface-foreground shadow-lg backdrop:bg-black/40"
+    aria-labelledby="status-bar-configuration-title"
     data-testid="status-bar-sources-dialog"
   >
-    <div class="mb-2 flex items-center justify-between gap-2">
-      <h2 id="status-bar-sources-dialog-title" class="text-sm font-semibold">
-        Corpus sources
-      </h2>
-      <button
-        type="button"
-        class="rounded border border-border px-2 py-0.5 text-[10px] hover:bg-overlay"
-        @click="sourcesDialogRef?.close()"
-      >
-        Close
-      </button>
+    <!-- Inner flex wrapper: avoid ``display:flex`` on ``<dialog>`` — it overrides UA ``display:none`` when closed. -->
+    <div class="flex max-h-[min(92vh,44rem)] min-h-0 flex-col gap-2 p-3">
+    <div class="shrink-0 space-y-2 border-b border-border pb-2">
+      <div class="flex items-start justify-between gap-2">
+        <div class="min-w-0">
+          <h2 id="status-bar-configuration-title" class="text-sm font-semibold">
+            Configuration
+          </h2>
+        </div>
+        <button
+          type="button"
+          class="shrink-0 rounded border border-border px-2 py-0.5 text-[10px] hover:bg-overlay"
+          @click="closeSourcesDialog"
+        >
+          Close
+        </button>
+      </div>
+      <div class="flex flex-wrap gap-1">
+        <button
+          v-if="shell.feedsApiAvailable"
+          type="button"
+          class="rounded px-2 py-0.5 text-[10px] hover:bg-overlay"
+          :class="sourcesTab === 'feeds' ? 'bg-overlay font-medium' : 'text-muted'"
+          data-testid="sources-dialog-tab-feeds"
+          @click="void selectSourcesTab('feeds')"
+        >
+          Feed list
+        </button>
+        <button
+          v-if="shell.operatorConfigApiAvailable"
+          type="button"
+          class="rounded px-2 py-0.5 text-[10px] hover:bg-overlay"
+          :class="sourcesTab === 'operator' ? 'bg-overlay font-medium' : 'text-muted'"
+          data-testid="sources-dialog-tab-operator"
+          @click="void selectSourcesTab('operator')"
+        >
+          Operator config
+        </button>
+      </div>
     </div>
-    <div class="mb-2 flex gap-1 border-b border-border pb-2">
-      <button
-        v-if="shell.feedsApiAvailable"
-        type="button"
-        class="rounded px-2 py-0.5 text-[10px] hover:bg-overlay"
-        :class="sourcesTab === 'feeds' ? 'bg-overlay font-medium' : 'text-muted'"
-        data-testid="sources-dialog-tab-feeds"
-        @click="void selectSourcesTab('feeds')"
-      >
-        Feeds
-      </button>
-      <button
-        v-if="shell.operatorConfigApiAvailable"
-        type="button"
-        class="rounded px-2 py-0.5 text-[10px] hover:bg-overlay"
-        :class="sourcesTab === 'operator' ? 'bg-overlay font-medium' : 'text-muted'"
-        data-testid="sources-dialog-tab-operator"
-        @click="void selectSourcesTab('operator')"
-      >
-        Operator YAML
-      </button>
-    </div>
-    <p v-if="sourcesBusy" class="mb-2 text-[10px] text-muted">
+    <p v-if="sourcesBusy" class="shrink-0 text-[10px] text-muted">
       Loading…
     </p>
-    <p v-if="sourcesError" class="mb-2 rounded border border-danger/40 bg-danger/10 px-2 py-1 text-[10px] text-danger">
+    <p v-if="sourcesError" class="shrink-0 rounded border border-danger/40 bg-danger/10 px-2 py-1 text-[10px] text-danger">
       {{ sourcesError }}
     </p>
-    <div v-show="sourcesTab === 'feeds' && shell.feedsApiAvailable" class="flex max-h-[min(60vh,22rem)] flex-col gap-2">
+    <!-- Explicit max-height (not flex-1) so the tab row never loses space to the scroll sibling. -->
+    <div class="min-h-0 max-h-[min(58vh,32rem)] overflow-y-auto overscroll-contain pr-0.5">
+    <div v-show="sourcesTab === 'feeds' && shell.feedsApiAvailable" class="flex flex-col gap-2">
       <p class="text-[10px] text-muted leading-snug">
-        Structured <code class="rounded bg-overlay px-0.5 font-mono text-[9px]">feeds.spec.yaml</code> on disk (RFC-077 / #626). Edit JSON here: root <code class="font-mono text-[9px]">feeds</code> is an array of URL strings or objects with <code class="font-mono text-[9px]">url</code> plus optional per-feed overrides (same shape as CLI <code class="font-mono text-[9px]">--feeds-spec</code>). Legacy one-URL-per-line lists belong with <code class="font-mono text-[9px]">--rss-file</code> on the CLI — use the box below to turn lines into this JSON shape. Do not duplicate feeds in Operator YAML.
+        Structured <code class="rounded bg-overlay px-0.5 font-mono text-[9px]">feeds.spec.yaml</code> on disk under the corpus root. Edit JSON here: root <code class="font-mono text-[9px]">feeds</code> is an array of URL strings or objects with <code class="font-mono text-[9px]">url</code> plus optional per-feed overrides (same shape as CLI <code class="font-mono text-[9px]">--feeds-spec</code>). Legacy one-URL-per-line lists belong with <code class="font-mono text-[9px]">--rss-file</code> on the CLI — use the box below to turn lines into this JSON shape. Do not duplicate feeds in operator config.
       </p>
       <textarea
         v-model="feedsLinePaste"
@@ -533,12 +580,12 @@ const corpusPathModel = computed({
         Save feeds
       </button>
     </div>
-    <div v-show="sourcesTab === 'operator' && shell.operatorConfigApiAvailable" class="flex max-h-[min(60vh,22rem)] flex-col gap-2">
+    <div v-show="sourcesTab === 'operator' && shell.operatorConfigApiAvailable" class="flex flex-col gap-2">
       <p v-if="operatorFileHint" class="break-all text-[9px] text-muted leading-snug">
         {{ operatorFileHint }}
       </p>
       <p class="text-[10px] text-muted leading-snug">
-        Packaged preset <code class="rounded bg-overlay px-0.5 font-mono text-[9px]">profile:</code> defaults merge first; keys below override. The <strong>Profile</strong> menu is what Save writes for <code class="font-mono text-[9px]">profile:</code> — <strong>None</strong> removes it even if you pasted a <code class="font-mono text-[9px]">profile:</code> line in the box. When the operator file is missing or empty, the server creates <code class="font-mono text-[9px]">profile: cloud_balanced</code> on first load if that preset exists under packaged <code class="font-mono text-[9px]">config/profiles</code>. If the menu is empty, no packaged presets were found (check <code class="font-mono text-[9px]">config/profiles</code>). Do not put API keys here — use environment variables. RSS / feed lists belong in Feeds (<code class="font-mono text-[9px]">feeds.spec.yaml</code>); the server rejects feed keys and secrets on save (top-level only).
+        Packaged preset <code class="rounded bg-overlay px-0.5 font-mono text-[9px]">profile:</code> defaults merge first; keys below override. The <strong>Profile</strong> menu is what Save writes for <code class="font-mono text-[9px]">profile:</code> — <strong>None</strong> removes it even if you pasted a <code class="font-mono text-[9px]">profile:</code> line in the box. When the operator file is missing or empty, the server creates <code class="font-mono text-[9px]">profile: cloud_balanced</code> on first load if that preset exists under packaged <code class="font-mono text-[9px]">config/profiles</code>. If the menu is empty, no packaged presets were found (check <code class="font-mono text-[9px]">config/profiles</code>). Do not put API keys here — use environment variables. RSS / feed lists belong in the <strong class="text-surface-foreground">Feed list</strong> tab (<code class="font-mono text-[9px]">feeds.spec.yaml</code>); the server rejects feed keys and secrets on save (top-level only).
       </p>
       <div class="flex flex-wrap items-center gap-2">
         <label
@@ -578,7 +625,7 @@ const corpusPathModel = computed({
         data-testid="sources-dialog-operator-textarea"
         class="min-h-[10rem] w-full resize-y rounded border border-border bg-elevated p-2 font-mono text-[11px] text-elevated-foreground"
         spellcheck="false"
-        aria-label="Operator YAML overrides"
+        aria-label="Operator config overrides (YAML)"
       />
       <button
         type="button"
@@ -588,6 +635,8 @@ const corpusPathModel = computed({
       >
         Save YAML
       </button>
+    </div>
+    </div>
     </div>
   </dialog>
 

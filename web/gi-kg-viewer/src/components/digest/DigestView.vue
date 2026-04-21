@@ -75,7 +75,7 @@ const error = ref<string | null>(null)
 const loading = ref(false)
 const graphActionError = ref<string | null>(null)
 
-/** Topic bands progressive reveal (RFC-068 digest UX). */
+/** Topic bands progressive reveal (digest UX). */
 const DIGEST_TOPIC_BANDS_INITIAL = 3
 const topicBandsExpanded = ref(false)
 
@@ -111,10 +111,9 @@ function topicBandIndex(band: CorpusDigestTopicBand): number {
   return digest.value?.topics.findIndex((b) => b.topic_id === band.topic_id) ?? -1
 }
 
-function bandCardClass(band: CorpusDigestTopicBand): string {
-  return topicBandIndex(band) === 0
-    ? 'flex min-w-0 flex-col rounded border border-primary/20 bg-elevated p-1.5'
-    : 'flex min-w-0 flex-col rounded border border-border bg-surface p-1.5'
+function bandCardClass(_band: CorpusDigestTopicBand): string {
+  /** Same chrome for every column — first band used ``bg-elevated`` which reads as flat gray vs peers. */
+  return 'flex min-w-0 flex-col rounded border border-border bg-surface p-1.5'
 }
 
 function bandTitleClass(band: CorpusDigestTopicBand): string {
@@ -196,7 +195,7 @@ async function openDigestRecentTopicPillInGraph(
   }
   const pill = row.cil_digest_topics?.[pillIndex]
 
-  await artifacts.loadRelativeArtifacts(cleaned)
+  await artifacts.appendRelativeArtifacts(cleaned)
   if (digestGraphOpenGate.isStale(seq)) {
     return
   }
@@ -441,7 +440,7 @@ async function openTopicHitInGraph(
     graphActionError.value = 'No GI/KG artifacts on disk for this episode.'
     return
   }
-  await artifacts.loadRelativeArtifacts(cleaned)
+  await artifacts.appendRelativeArtifacts(cleaned)
   if (digestGraphOpenGate.isStale(seq)) {
     return
   }
@@ -507,7 +506,7 @@ onBeforeUnmount(() => {
     data-testid="digest-root"
   >
     <div class="flex flex-col gap-1.5">
-      <div class="flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
+      <div class="flex w-full min-w-0 flex-col gap-2">
         <div class="flex min-w-0 items-center gap-1.5">
           <h2
             id="digest-main-heading"
@@ -557,9 +556,12 @@ onBeforeUnmount(() => {
             </p>
           </HelpTip>
         </div>
-        <div class="flex flex-wrap items-center justify-end gap-2 sm:shrink-0">
+        <div
+          class="flex w-full min-w-0 flex-wrap items-center gap-x-2 gap-y-1"
+          data-testid="digest-toolbar-filters"
+        >
         <label
-          class="text-[10px] font-medium text-muted"
+          class="shrink-0 text-[10px] font-medium text-muted"
           for="digest-filter-since"
         >Published on or after</label>
         <input
@@ -568,11 +570,11 @@ onBeforeUnmount(() => {
           type="text"
           inputmode="numeric"
           placeholder="YYYY-MM-DD"
-          class="w-32 rounded border border-border bg-elevated px-2 py-1 text-xs text-surface-foreground"
+          class="min-w-0 w-[8.5rem] max-w-full shrink rounded border border-border bg-elevated px-2 py-1 text-xs text-surface-foreground sm:w-32"
           aria-label="Published on or after date"
           @keydown.enter="applyDigestDateNow()"
         >
-        <div class="flex flex-wrap gap-1">
+        <div class="flex min-w-0 flex-wrap gap-1">
           <button
             type="button"
             class="rounded border border-border bg-surface px-2 py-0.5 text-[10px] text-surface-foreground hover:bg-overlay/40"
@@ -664,7 +666,9 @@ onBeforeUnmount(() => {
         role="region"
         aria-label="Topic bands"
       >
-        <div class="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
+        <div
+          class="grid gap-2 [grid-template-columns:repeat(auto-fit,minmax(min(100%,12rem),1fr))]"
+        >
           <section
             v-for="band in visibleTopicBands"
             :key="band.topic_id"

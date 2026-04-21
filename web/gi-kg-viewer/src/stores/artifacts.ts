@@ -19,7 +19,7 @@ import {
 import { withTopicClustersOnDisplay } from '../utils/topicClustersOverlay'
 import { StaleGeneration } from '../utils/staleGeneration'
 import { useGraphExpansionStore } from './graphExpansion'
-import { useGraphLensStore } from './graphLens'
+import { useGraphExplorerStore } from './graphExplorer'
 import {
   calendarPublishYmdFromParsedArtifact,
   episodeStemFromArtifactRelPath,
@@ -174,7 +174,7 @@ export const useArtifactsStore = defineStore('artifacts', () => {
         loadError.value = 'No .gi.json or .kg.json files in selection.'
         return
       }
-      const graphLens = useGraphLensStore()
+      const graphExplorer = useGraphExplorerStore()
       // Local file picks are explicit: do not apply the graph-tab date lens (it defaults to
       // “last N days” and would hide older fixtures / archival episodes the user chose).
       const { kept, wasCapped } = selectParsedArtifactsForGraphLoad(
@@ -182,7 +182,7 @@ export const useArtifactsStore = defineStore('artifacts', () => {
         '',
         GRAPH_DEFAULT_EPISODE_CAP,
       )
-      graphLens.setLastAutoLoadCapped(wasCapped)
+      graphExplorer.setLastAutoLoadCapped(wasCapped)
       const stems = new Set(kept.map((a) => episodeStemFromArtifactRelPath(a.name)))
       bridgeDocument.value = null
       for (const b of bridgeHolds) {
@@ -227,7 +227,7 @@ export const useArtifactsStore = defineStore('artifacts', () => {
 
   /**
    * Fetch and parse the current ``selectedRelPaths`` into ``parsedList``.
-   * By default clears RFC-076 graph expansion (seeds no longer match after a full replace).
+   * By default clears graph expansion state (seeds no longer match after a full replace).
    * Pass ``preserveExpansion: true`` when the selection only grew or shrank via
    * ``appendRelativeArtifacts`` / ``removeRelativeArtifacts`` (expand/collapse).
    */

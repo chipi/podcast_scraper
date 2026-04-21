@@ -65,7 +65,7 @@ defineExpose({ open, close })
 <template>
   <dialog
     ref="dialogRef"
-    class="w-[min(100%,38rem)] max-h-[min(90vh,42rem)] overflow-y-auto rounded-lg border border-border bg-surface p-4 text-surface-foreground shadow-xl [&::backdrop]:bg-black/40"
+    class="shrink-0 w-[min(100%,38rem)] max-h-[min(90vh,42rem)] overflow-y-auto rounded-lg border border-border bg-surface p-4 text-surface-foreground shadow-xl [&::backdrop]:bg-black/40"
     aria-labelledby="search-results-viz-title"
     @click="onBackdropClick"
   >

@@ -533,7 +533,7 @@ A compact grid of topic clusters. Each cluster card:
 - Episode count (summed from `members[].episode_ids`, deduplicated)
 - Clicking → Graph tab, focused on that TopicCluster compound node
 
-Grid: `sm:2` / `xl:3` columns. Same grid pattern as Digest topic bands
+Grid: `repeat(auto-fit, minmax(min(100%, 12rem), 1fr))` — same card-width logic as Digest topic bands
 but cards are smaller and denser — no hit rows, just cluster identity.
 
 **Insight line:** "N topic clusters covering M distinct topics."

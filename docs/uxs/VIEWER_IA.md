@@ -51,9 +51,9 @@ is no parallel “detail drawer” per tab — the subject store drives the rail
 │  LEFT PANEL    │         MAIN AREA              │   RIGHT RAIL       │
 │                │                                │                    │
 │  Search        │  Digest | Library |            │  Subject Panel     │
-│  ──────────    │  Graph  | Dashboard            │                    │
-│  Explore       │                                │  (empty when       │
-│                │  (tab content)                 │   nothing          │
+│  (default)     │  Graph  | Dashboard            │                    │
+│  ↔ Explore     │                                │  (empty when       │
+│  mode          │  (tab content)                 │   nothing          │
 │                │                                │   selected)        │
 │                │                                │                    │
 ├────────────────┴────────────────────────────────┴────────────────────┤
@@ -65,7 +65,7 @@ Four independent areas. Each has one job:
 
 | Area | Job |
 | --- | --- |
-| Left panel | Query the corpus (Search + Explore) |
+| Left panel | Query the corpus (**Search** default; **Explore** as a deliberate mode) |
 | Main area | Browse four perspectives on the corpus (tabs) |
 | Right rail | Understand the current subject (entity detail) |
 | Status bar | Operational context (corpus path + server health) |
@@ -82,7 +82,7 @@ The app has no URL routing. Navigation is tab and store state.
 | --- | --- | --- |
 | Main tab | `digest` / `library` / `graph` / `dashboard` | `App.vue` local ref |
 | Subject (right rail) | episode / topic / person / graph-node / none | `subjectStore` |
-| Left panel content | search results / explore results | `searchStore`, `exploreStore` |
+| Left panel surface | `search` (semantic UI + results) / `explore` (GI explore UI) | `shellStore.leftPanelSurface` + `searchStore`, `exploreStore` |
 
 Changing one axis does not reset the others. Switching from Library to Graph
 does not clear the subject rail. Running a search does not change the active tab.
@@ -93,17 +93,24 @@ does not clear the subject rail. Running a search does not change the active tab
 
 **Always visible.** Permanent on the left regardless of which main tab is active.
 
-**Contents:**
+**Two modes, one column width (`w-72`):**
 
-- **Search** (primary): semantic FAISS-based corpus search. Full-width query
-  form, results list below. The primary entry point into the corpus from any
-  context. Keyboard shortcut `/` focuses the search input.
-- **Explore** (secondary): GI cross-episode explore and natural-language
-  queries. Collapsible section below Search.
+- **Search** (default): semantic FAISS-based corpus search — query form, run controls, scrollable
+  results. Quiet footer control **Explore corpus →** (`text-xs`, muted, arrow) slides the column to
+  **Explore** mode (CSS transform on a two-pane strip inside `LeftPanel.vue`; **`data-testid="left-panel-slide-host"`**).
+- **Explore**: GI cross-episode filters and natural-language / preset queries. **← Search** at the
+  top (same quiet treatment) slides back; **search query and results are preserved** (`searchStore`
+  untouched). **`data-testid="left-panel-enter-explore"`** / **`left-panel-back-search`**.
 
-**Purpose:** The left panel is the global query surface. Users do not need
-to navigate away from what they are doing to search — Search is always
-adjacent to whatever tab or subject is active.
+**Keyboard:** **`/`** expands the column if collapsed, sets surface to **Search**, then focuses
+**`#search-q`** (`useViewerKeyboard` + `LeftPanel` `focusQuery`). In **Explore**, **Enter** in
+**Topic contains** or **Speaker contains** runs **Explore**; **Limit** / **Min confidence** use
+the same **Enter** → **Explore** behavior inside the **Advanced explore** dialog. **Enter** in
+**Quick question** runs **Run quick question**; **Shift+Enter** there inserts a newline (IME
+composition does not trigger submit).
+
+**Purpose:** Search stays the default mental model (like a map app’s search field). Explore is a
+deliberate “browse corpus” mode, not a second always-visible stack.
 
 **Visual spec:** UXS-005 (Search), UXS-001 (tokens)
 
@@ -114,17 +121,17 @@ width (especially on the Graph tab). **Behaviour:**
 
 - **Control:** A single **collapse/expand** control on the **top edge** of
   the left column (first row of that column), not inside `SearchPanel`.
-- **Expanded:** Column width **`w-72`** (288px) — full Search + Explore.
-- **Collapsed:** Column width **`w-8`** (32px) — strip shows the toggle plus
-  a vertical **Search** affordance; activating it expands the column again.
-  (Explore is reached from the expanded column or from the collapsed right-rail
-  shortcuts when the subject rail is collapsed — see `App.vue`.)
+- **Expanded:** Column width **`w-72`** (288px) — **Search** or **Explore** mode (one visible at a time).
+- **Collapsed:** Column width **`w-8`** (32px) — strip shows the toggle plus a vertical **Search**
+  affordance; activating it expands the column to **Search** mode and focuses the query field.
+  **Explore** is opened only from the expanded column (**Explore corpus →**), or via graph hand-offs
+  that set **Explore** mode programmatically (`App.vue` + `shell.setLeftPanelSurface('explore')`).
 - **Persistence:** Preferred open/closed state is stored under
   **`localStorage` key `ps_left_panel_open`** (`"true"` / `"false"`). Default
   when the key is missing: **expanded**.
 - **Slash (`/`):** When focus is not in an editable control, `/` **expands**
-  the left column if it was collapsed, then focuses the semantic search query
-  field (`#search-q`) — see `useViewerKeyboard` + `App.vue`.
+  the left column if it was collapsed, switches to **Search** mode, then focuses
+  the semantic search query field (`#search-q`) — see `useViewerKeyboard` + `App.vue` + `LeftPanel.vue`.
 
 **Implementation map:** `web/gi-kg-viewer/src/App.vue` (column chrome,
 `leftOpen`), `LeftPanel.vue` (Search + Explore body). Broader module map:
@@ -214,6 +221,8 @@ Topology exploration. Cytoscape canvas with GI/KG merged graph. Loads a
 time-bounded episode slice by default (see `graphLens` in [Viewer graph spec](../architecture/VIEWER_GRAPH_SPEC.md#graph-initial-load)).
 The graph is another perspective on the same entities that Library
 and Digest surface — not a separate information domain. See UXS-004.
+
+**Chrome (where controls live):** A **stats** strip at the top of the graph card (episode / node / component counts, plus **Gestures** when a full merged graph is loaded), optional **search-highlight** chip row, then a compact **Types** row and **⚙** filters popover. A **collapsible bottom bar** under the canvas holds minimap / re-layout / layout cycle, the **graph time lens** (when applicable), **Fit** / zoom / **PNG**, and **Gestures** only when the stats strip is absent. Details: [UXS-004 — Graph chrome](UXS-004-graph-exploration.md#graph-chrome-toolbar-bottom-bar-filters-popover).
 
 ### Dashboard
 
@@ -365,3 +374,7 @@ User edits corpus path in status bar
 | 2026-04-20 | Status bar: Feeds / Operator YAML open Corpus sources modal; profile + feeds split (RFC-077 / UXS-001 `#corpus-sources-dialog`) |
 | 2026-04-21 | Operator YAML aka **Config**; empty `available_profiles` note; preset list cwd+repo union (RFC-077) |
 | 2026-04-21 | Corpus sources Feeds: optional one-URL-per-line merge; operator **GET** may seed `profile: cloud_balanced` when file missing/empty |
+| 2026-04-21 | Left panel: Search default vs Explore mode (slide); **`shell.leftPanelSurface`**; collapsed strip **Search** only; **`/`** → Search + focus |
+| 2026-04-21 | Explore: **Advanced explore** dialog (Limit, Sort, Min confidence, checkboxes); **Enter** on main topic/speaker + in dialog |
+| 2026-04-21 | Explore: **Enter** on filter fields → **Explore**; **Enter** on quick question → **Run quick question**; **Shift+Enter** newline |
+| 2026-04-21 | **Graph** subsection: **Chrome** paragraph (stats strip, Types + **⚙**, bottom bar) links UXS-004 graph chrome section |

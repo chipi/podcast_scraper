@@ -20,7 +20,7 @@ stage progress and resource usage in real time. After a run, the agent performs 
 structured post-mortem without you scrolling through logs.
 
 **Companion guide:** [Agent-Browser Closed Loop Guide](AGENT_BROWSER_LOOP_GUIDE.md)
-covers the browser-side loops (Playwright E2E, Chrome DevTools MCP, live
+covers the browser-side loops (Playwright E2E, Chrome DevTools MCP as the **default** for interactive repro/validate, Playwright MCP when clearly better for scripted drive, live
 co-development). Both guides share the same principle — give the agent direct access
 to structured feedback instead of copy-paste.
 

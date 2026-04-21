@@ -5,9 +5,10 @@ Used by gi explore to build an in-memory view from per-episode gi.json files
 text; optional speaker filter on quote speaker_id or graph speaker_name.
 
 When ``<output_dir>/search/vectors.faiss`` exists and ``--topic`` is set, topic matching
-uses the semantic corpus index first: metadata files supply ``gi.json`` paths
-so only hit episodes load full artifacts; on failure or no hits, behavior falls back to
-substring/topic-label matching over all artifacts.
+uses the semantic corpus index first to propose insight candidates (metadata map loads
+``gi.json`` paths). Each candidate must still satisfy the same **topic contains** rule as the
+non-semantic path (substring on linked Topic labels or insight text); on failure or no hits,
+behavior falls back to substring/topic-label matching over all artifacts.
 
 Programmatic helpers implement UC1–UC5 patterns as thin wrappers over collect/sort.
 """
@@ -378,6 +379,10 @@ def _collect_insights_semantic(
             continue
         ins = _find_insight_summary(artifact, iid)
         if ins is None:
+            continue
+        # Same contract as non-semantic explore: "topic contains" is substring on linked
+        # Topic labels or insight body (vector hits alone can be only loosely related).
+        if not _insight_matches_topic(artifact, iid, ins.text, topic):
             continue
         if not _insight_matches_speaker(ins, speaker):
             continue

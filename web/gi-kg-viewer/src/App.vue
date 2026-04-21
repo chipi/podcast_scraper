@@ -11,9 +11,8 @@ import StatusBar from './components/shell/StatusBar.vue'
 import SubjectRail from './components/shell/SubjectRail.vue'
 import { useArtifactsStore } from './stores/artifacts'
 import { useExploreStore } from './stores/explore'
-import { useGraphFilterStore } from './stores/graphFilters'
-import { useGraphLensStore } from './stores/graphLens'
-import { useGraphNavigationStore } from './stores/graphNavigation'
+import { useGraphExpansionStore } from './stores/graphExpansion'
+import { useGraphExplorerStore } from './stores/graphExplorer'
 import { useSearchStore } from './stores/search'
 import { useShellStore } from './stores/shell'
 import { useSubjectStore } from './stores/subject'
@@ -22,7 +21,6 @@ import {
   GRAPH_DEFAULT_EPISODE_CAP,
   selectRelPathsForGraphLoad,
 } from './utils/graphEpisodeSelection'
-import { logicalEpisodeIdsForLibraryGraphSync } from './utils/graphEpisodeMetadata'
 import { sourceMetadataRelativePathFromSearchHit } from './utils/searchHitLibrary'
 import { StaleGeneration } from './utils/staleGeneration'
 
@@ -46,13 +44,14 @@ const search = useSearchStore()
 const explore = useExploreStore()
 const theme = useThemeStore()
 const subject = useSubjectStore()
-const graphFilters = useGraphFilterStore()
-const graphNav = useGraphNavigationStore()
-const graphLens = useGraphLensStore()
+const graphExplorer = useGraphExplorerStore()
+const graphExpansion = useGraphExpansionStore()
 
 const mainTab = ref<'digest' | 'library' | 'graph' | 'dashboard'>('digest')
 const leftPanelRef = ref<{ focusQuery: () => void } | null>(null)
-const graphCanvasRef = ref<{ clearInteractionState: () => void } | null>(null)
+const graphCanvasRef = ref<{
+  clearInteractionState: (opts?: { skipRedraw?: boolean }) => void
+} | null>(null)
 const isGraphTab = computed(() => mainTab.value === 'graph')
 
 const leftOpen = ref(readLeftPanelOpenPreference())
@@ -79,9 +78,36 @@ useViewerKeyboard({
   isGraphTab,
 })
 
+/**
+ * Switch to Graph without re-running corpus auto-sync when the merged graph is already loaded.
+ * Tab switches alone must not replace the slice (episode “Open in graph” is highlight-only).
+ */
+function activateGraphTab(): void {
+  mainTab.value = 'graph'
+  const root = shell.corpusPath.trim()
+  if (!root || !shell.healthStatus) {
+    return
+  }
+  if (artifacts.manualGraphSelection) {
+    return
+  }
+  if (artifacts.parsedList.length > 0) {
+    return
+  }
+  void syncMergedGraphFromCorpusApi()
+}
+
+function onSwitchMainTab(tab: 'digest' | 'library' | 'graph' | 'dashboard'): void {
+  if (tab === 'graph') {
+    activateGraphTab()
+    return
+  }
+  mainTab.value = tab
+}
+
 function onStatusBarLocalArtifactsLoaded(loaded: boolean): void {
   if (loaded) {
-    mainTab.value = 'graph'
+    activateGraphTab()
   }
 }
 
@@ -113,7 +139,7 @@ watch(
     const prev = old !== undefined ? String(old ?? '').trim() : null
     const next = String(p ?? '').trim()
     if (prev !== null && prev !== next) {
-      graphLens.resetForNewCorpus()
+      graphExplorer.resetGraphLensForNewCorpus()
       artifacts.clearManualGraphSelection()
     }
   },
@@ -145,12 +171,12 @@ async function runCorpusGraphSyncBody(): Promise<void> {
     return
   }
   if (mainTab.value === 'graph') {
-    graphLens.markGraphTabOpenedOnce()
+    graphExplorer.markGraphTabOpenedOnce()
   }
-  if (!graphLens.graphTabOpenedThisSession) {
+  if (!graphExplorer.graphTabOpenedThisSession) {
     return
   }
-  graphLens.seedFromCorpusLensIfNeeded()
+  graphExplorer.seedFromCorpusLensIfNeeded()
   await artifacts.syncTopicClustersForCurrentCorpus()
   await shell.fetchArtifactList()
   if (corpusGraphSyncGate.isStale(gen)) {
@@ -163,10 +189,11 @@ async function runCorpusGraphSyncBody(): Promise<void> {
   }))
   const { selectedRelPaths, wasCapped } = selectRelPathsForGraphLoad(
     rows,
-    graphLens.sinceYmd,
+    graphExplorer.sinceYmd,
     GRAPH_DEFAULT_EPISODE_CAP,
+    artifacts.topicClustersDoc,
   )
-  graphLens.setLastAutoLoadCapped(wasCapped)
+  graphExplorer.setLastAutoLoadCapped(wasCapped)
   if (selectedRelPaths.length === 0) {
     artifacts.clearSelection()
     await artifacts.syncTopicClustersForCurrentCorpus()
@@ -194,12 +221,31 @@ async function syncMergedGraphFromCorpusApi(): Promise<void> {
 }
 
 async function onCorpusGraphLensReload(): Promise<void> {
+  graphExpansion.resetExpansionState()
+  graphExpansion.invalidateCorpusBeyondHints()
   artifacts.clearManualGraphSelection()
   await syncMergedGraphFromCorpusApi()
 }
 
+/**
+ * Graph status bar “Reset”: collapse RFC-076 expansion bookkeeping, restore the same time slice as
+ * first corpus auto-sync (15-episode cap), clear graph/subject focus, reload from API, then fit in
+ * ``finishLayoutPass`` (no pending viewport preserve).
+ */
+async function onGraphCorpusFullReset(): Promise<void> {
+  if (!shell.corpusPath.trim() || !shell.healthStatus) {
+    return
+  }
+  graphCanvasRef.value?.clearInteractionState({ skipRedraw: true })
+  graphExpansion.resetExpansionState()
+  graphExpansion.invalidateCorpusBeyondHints()
+  artifacts.clearManualGraphSelection()
+  graphExplorer.resetSinceYmdToInitialCorpusSeed()
+  await syncMergedGraphFromCorpusApi()
+}
+
 watch(
-  () => [shell.corpusPath, shell.healthStatus, mainTab.value] as const,
+  () => [shell.corpusPath, shell.healthStatus] as const,
   () => {
     void syncMergedGraphFromCorpusApi()
   },
@@ -238,6 +284,7 @@ function onGraphNodeTopicOpenExploreFilter(payload: { topic: string }): void {
   const t = payload.topic.trim()
   if (!t) return
   leftOpen.value = true
+  shell.setLeftPanelSurface('explore')
   explore.filters.topic = t
   explore.filters.speaker = ''
   explore.clearOutput()
@@ -248,6 +295,7 @@ function onGraphNodeSpeakerOpenExploreFilter(payload: { speaker: string }): void
   const s = payload.speaker.trim()
   if (!s) return
   leftOpen.value = true
+  shell.setLeftPanelSurface('explore')
   explore.filters.topic = ''
   explore.filters.speaker = s
   explore.clearOutput()
@@ -259,6 +307,7 @@ function onGraphNodeInsightOpenExploreFilters(payload: {
   minConfidence: number | null
 }): void {
   leftOpen.value = true
+  shell.setLeftPanelSurface('explore')
   explore.filters.topic = ''
   explore.filters.speaker = ''
   explore.filters.groundedOnly = payload.groundedOnly
@@ -286,25 +335,6 @@ function onSearchOpenEpisodeSummary(hit: SearchHit): void {
   }
 }
 
-/**
- * Library / Digest episode rail + **Graph** tab: highlight the matching Episode node(s) and
- * center/zoom (same pipeline as **Open in graph**).
- */
-function syncGraphFocusFromOpenEpisodeRail(): void {
-  if (mainTab.value !== 'graph') return
-  if (subject.kind !== 'episode') return
-  const meta = subject.episodeMetadataPath?.trim()
-  if (!meta) return
-  const ids = logicalEpisodeIdsForLibraryGraphSync(
-    graphFilters.filteredArtifact,
-    meta,
-    subject.graphConnectionsCyId?.trim() ?? null,
-  )
-  if (ids.length === 0) return
-  graphNav.setLibraryEpisodeHighlights(ids)
-  graphNav.requestFocusNode(ids[0]!)
-}
-
 watch(
   () =>
     [subject.kind, subject.episodeMetadataPath, subject.graphNodeCyId] as const,
@@ -320,24 +350,12 @@ watch(
   },
 )
 
-watch(mainTab, (t) => {
-  if (t === 'graph') {
-    void nextTick(() => syncGraphFocusFromOpenEpisodeRail())
-  }
-})
-
-watch(
-  () => subject.episodeMetadataPath,
-  () => {
-    if (mainTab.value !== 'graph' || subject.kind !== 'episode') return
-    void nextTick(() => syncGraphFocusFromOpenEpisodeRail())
-  },
-)
-
 </script>
 
 <template>
-  <div class="flex min-h-screen flex-col bg-canvas text-canvas-foreground">
+  <div
+    class="flex min-h-0 min-w-0 flex-col overflow-hidden bg-canvas text-canvas-foreground h-dvh max-h-dvh"
+  >
     <header class="shrink-0 border-b border-border bg-surface px-4 py-2 shadow-sm">
       <div class="flex flex-wrap items-center justify-between gap-3">
         <h1 class="text-lg font-semibold tracking-tight text-surface-foreground">
@@ -381,7 +399,7 @@ watch(
                   ? 'bg-primary text-primary-foreground'
                   : 'text-elevated-foreground hover:bg-overlay'
               "
-              @click="mainTab = 'graph'"
+              @click="activateGraphTab()"
             >
               Graph
             </button>
@@ -485,7 +503,7 @@ watch(
       <div class="flex min-h-0 flex-1">
       <!-- LEFT SIDEBAR (collapsible) -->
       <div
-        class="relative shrink-0 border-r border-border bg-canvas transition-all"
+        class="relative flex min-h-0 min-w-0 shrink-0 flex-col border-r border-border bg-canvas transition-all"
         :class="leftOpen ? 'w-72' : 'w-8'"
       >
         <button
@@ -506,21 +524,23 @@ watch(
             type="button"
             class="text-[10px] font-medium text-muted hover:text-surface-foreground"
             style="writing-mode: vertical-lr"
-            @click="leftOpen = true"
+            title="Open left panel (Search — use Explore corpus → inside for GI explore)"
+            @click="
+              leftOpen = true;
+              void nextTick(() => leftPanelRef?.focusQuery())
+            "
           >
             Search
           </button>
         </div>
-        <div v-show="leftOpen" class="flex flex-col" style="max-height: calc(100vh - 6rem)">
-          <div class="min-h-0 flex-1 overflow-y-auto px-2 pb-3 pt-2">
-            <div class="flex min-h-0 flex-1 flex-col">
-              <LeftPanel
-                ref="leftPanelRef"
-                @go-graph="mainTab = 'graph'"
-                @open-library-episode="onSearchOpenLibraryEpisode"
-                @open-episode-summary="onSearchOpenEpisodeSummary"
-              />
-            </div>
+        <div v-show="leftOpen" class="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
+          <div class="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden px-2 pb-4 pt-2">
+            <LeftPanel
+              ref="leftPanelRef"
+              @go-graph="activateGraphTab()"
+              @open-library-episode="onSearchOpenLibraryEpisode"
+              @open-episode-summary="onSearchOpenEpisodeSummary"
+            />
           </div>
         </div>
       </div>
@@ -533,7 +553,7 @@ watch(
             <DigestView
               v-if="mainTab === 'digest'"
               class="h-full"
-              @switch-main-tab="mainTab = $event"
+              @switch-main-tab="onSwitchMainTab($event)"
               @focus-search="onLibraryFocusSearch"
               @open-library-episode="onDigestOpenEpisodeInRail"
             />
@@ -542,17 +562,16 @@ watch(
             <LibraryView
               v-if="mainTab === 'library'"
               class="h-full"
-              @switch-main-tab="mainTab = $event"
+              @switch-main-tab="onSwitchMainTab($event)"
               @focus-search="onLibraryFocusSearch"
             />
           </keep-alive>
           <div
             v-if="mainTab === 'dashboard'"
-            class="h-full max-w-full overflow-x-hidden overflow-y-auto p-3"
-            style="max-height: calc(100vh - 5rem)"
+            class="h-full min-h-0 max-w-full flex-1 overflow-x-hidden overflow-y-auto p-3"
           >
             <DashboardView
-              @go-graph="mainTab = 'graph'"
+              @go-graph="activateGraphTab()"
               @open-library="mainTab = 'library'"
               @open-digest="mainTab = 'digest'"
             />
@@ -562,6 +581,7 @@ watch(
               v-if="mainTab === 'graph'"
               ref="graphCanvasRef"
               @request-corpus-graph-sync="onCorpusGraphLensReload"
+              @request-graph-full-reset="onGraphCorpusFullReset"
             />
           </keep-alive>
         </div>
@@ -569,7 +589,7 @@ watch(
 
       <!-- RIGHT SIDEBAR (collapsible) — subject rail only -->
       <div
-        class="relative shrink-0 border-l border-border bg-canvas transition-all"
+        class="relative flex min-h-0 shrink-0 flex-col border-l border-border bg-canvas transition-all"
         :class="rightOpen ? 'w-96' : 'w-8'"
       >
         <button
@@ -590,41 +610,18 @@ watch(
             type="button"
             class="text-[10px] font-medium text-muted hover:text-surface-foreground"
             style="writing-mode: vertical-lr"
-            @click="
-              rightOpen = true;
-              leftOpen = true;
-              void nextTick(() => leftPanelRef?.focusQuery())
-            "
-          >
-            Search
-          </button>
-          <button
-            type="button"
-            class="text-[10px] font-medium text-muted hover:text-surface-foreground"
-            style="writing-mode: vertical-lr"
-            @click="
-              rightOpen = true;
-              leftOpen = true
-            "
-          >
-            Explore
-          </button>
-          <button
-            v-if="mainTab === 'graph' && subject.graphNodeCyId?.trim()"
-            type="button"
-            class="text-[10px] font-medium text-muted hover:text-surface-foreground"
-            style="writing-mode: vertical-lr"
-            data-testid="rail-collapsed-graph-details"
+            title="Open details panel (episode, graph selection, connections)"
+            data-testid="rail-collapsed-subject"
             @click="rightOpen = true"
           >
             Details
           </button>
         </div>
-        <div v-show="rightOpen" class="flex min-h-0 flex-1 flex-col" style="max-height: calc(100vh - 6rem)">
+        <div v-show="rightOpen" class="flex min-h-0 flex-1 flex-col overflow-hidden">
           <SubjectRail
             :main-tab="mainTab"
             @close-subject="onCloseSubjectRail"
-            @go-graph="mainTab = 'graph'"
+            @go-graph="activateGraphTab()"
             @focus-search-handoff="onLibraryFocusSearch"
             @prefill-semantic-search="onGraphNodeTopicPrefillSearch"
             @open-explore-topic-filter="onGraphNodeTopicOpenExploreFilter"
@@ -632,14 +629,14 @@ watch(
             @open-explore-insight-filters="onGraphNodeInsightOpenExploreFilters"
             @open-library-episode="onSearchOpenLibraryEpisode"
             @open-episode-summary="onSearchOpenEpisodeSummary"
-            @switch-main-tab="mainTab = $event"
+            @switch-main-tab="onSwitchMainTab($event)"
           />
         </div>
       </div>
       </div>
       <StatusBar
         @local-artifacts-loaded="onStatusBarLocalArtifactsLoaded"
-        @go-graph="mainTab = 'graph'"
+        @go-graph="activateGraphTab()"
       />
     </div>
   </div>

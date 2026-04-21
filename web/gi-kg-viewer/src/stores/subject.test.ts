@@ -40,4 +40,10 @@ describe('useSubjectStore', () => {
     s.focusEpisode('  ')
     expect(s.kind).toBeNull()
   })
+
+  it('stores optional episode UI label from focusEpisode opts', () => {
+    const s = useSubjectStore()
+    s.focusEpisode('metadata/a.json', { uiTitle: 'Hello world' })
+    expect(s.episodeUiLabel).toBe('Hello world')
+  })
 })

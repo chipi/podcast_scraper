@@ -119,15 +119,13 @@ Graph tab open re-seeds from the new corpus context.
 When loading GI/KG artifacts for the graph, select at most **N episodes**
 from the candidate pool defined by `graphLens`.
 
-**Candidate pool selection:**
+**Candidate pool selection (implemented in `web/gi-kg-viewer/src/utils/graphEpisodeSelection.ts`):**
 
-```text
-
-else:
-    candidates = episodes where publish_date >= window_start, sorted desc
-    if candidates.length > N: truncate to N
-
-```
+1. Build one **episode stem** per GI/KG/bridge basename group; use listing `publish_date` (YYYY-MM-DD) per stem.
+2. **Filter** by `graphLens`: dated window = `publish_date >= sinceYmd`; **all time** = all stems.
+3. **Score** each stem: `recency_weight + cluster_bonus` (tunables in [UXS-001](../uxs/UXS-001-gi-kg-viewer.md)). Recency is linear from **0.2** (oldest in the dated pool, or older than the trailing **90**-day window from the newest publish for **all time**) to **1.0** at the newest. **Cluster bonus** (+0.4 default) applies when the stem matches an `episode_id` on a **topic cluster** member (`topic_clusters.json`), if that doc was loaded.
+4. Sort by **score descending**, then **publish date descending**, then stem id (stable tie-break).
+5. Take the **top N** stems; load all GI/KG/bridge paths for those stems only.
 
 The cap controls load time and canvas density, not node count directly.
 
@@ -146,18 +144,11 @@ Add to UXS-001 tunable parameters table:
 In the artifact loading flow (`artifactsStore` or wherever GI/KG paths
 are listed and loaded):
 
-1. `GET /api/artifacts` returns all available GI/KG paths
-2. Before loading, filter paths by `graphLens` window using episode
-   publish date (available in artifact path or metadata)
+1. `GET /api/artifacts` returns all available GI/KG paths (with `publish_date` per row).
+2. `GET /api/corpus/topic-clusters` (when present) supplies cluster membership for the scoring bonus.
+3. Run the **score + cap** selection above, then load only the chosen paths into the merged graph.
 
-3. Sort by publish date descending
-4. Take first N paths
-5. Load those N GI/KG JSON files into the merged graph
-
-If the API does not expose publish date on artifact listing, fall back
-to loading all paths and filtering by episode metadata after parsing.
-Note this in implementation — a future API improvement could expose
-date on the artifact list endpoint to avoid loading then discarding.
+**Future:** per-episode GI Insight counts from a coverage-style API can add a third term to the score (see UXS-001 **GI density max weight**).
 
 ---
 
@@ -184,7 +175,7 @@ Showing all time · 15 episodes (capped) · 934 nodes   [All ▾]
 
 - `text-[10px]`, `muted` token — unobtrusive, same density as toolbar
 - Left-aligned text, right-aligned lens selector
-- Background: `bg-canvas` in the canvas column (reads as part of the canvas stack above Cytoscape)
+- Background: `bg-canvas` in the canvas column (embedded in **`GraphBottomBar`** centre zone under the main graph canvas)
 - Height: ~24px, same compact scale as toolbar rows
 
 #### Lens selector
@@ -247,10 +238,9 @@ users can turn any type on/off freely. This only changes the defaults.
 
 #### Visual indicator
 
-When any non-default type is enabled (e.g. user turns on Episode nodes),
-a small **"filters active"** muted chip appears next to the Types heading
-in the toolbar — same pattern already referenced in UXS-004 for the
-Sources row. Clicking it resets all types to defaults.
+When any non-default type visibility is chosen (vs graph defaults), a
+**filters active — reset** chip (**muted**) appears next to the **Types**
+heading in the top toolbar. Clicking it resets all types to defaults.
 
 `data-testid="graph-types-reset"`
 
@@ -310,7 +300,7 @@ web/gi-kg-viewer/src/stores/artifacts.ts (or graph loading path)
   — apply graphLens filter + episode cap before loading GI/KG paths
 
 web/gi-kg-viewer/src/components/graph/GraphCanvas.vue
-  — render GraphStatusLine above canvas
+  — embed GraphStatusLine in GraphBottomBar (centre zone under canvas)
   — wire graphLens changes to reload trigger
 
 web/gi-kg-viewer/e2e/E2E_SURFACE_MAP.md
@@ -323,7 +313,7 @@ web/gi-kg-viewer/e2e/E2E_SURFACE_MAP.md
 ```text
 
 web/gi-kg-viewer/src/components/graph/GraphStatusLine.vue
-  — status line row above Cytoscape (lens selector, counts, since input)
+  — status line row (lens selector, counts, since input); embedded in bottom bar under canvas
 
 ```
 
@@ -354,9 +344,9 @@ docs/uxs/UXS-001-gi-kg-viewer.md
 
 **Checkpoint 2 — Episode cap**
 
-- Graph loads at most 15 episodes from `graphLens` window
+- Graph loads at most 15 episodes from `graphLens` window (scored selection, not pure recency)
 - "(capped)" indicator appears when pool was truncated
-- "all time" lens loads 15 most recent, not everything
+- "all time" lens still caps at 15 **highest-scoring** episodes across the corpus (not the entire corpus)
 
 **Checkpoint 3 — Status line**
 
@@ -1047,10 +1037,9 @@ not persistent UI noise.
 - Background: `rgba` of `canvas` token at ~60% opacity —
   `color-mix(in srgb, var(--ps-canvas) 65%, transparent)` when supported; otherwise a neutral translucent veil (see scoped `.ps-gesture-overlay-root` in `GraphGestureOverlay.vue`)
 
-- `z-index`: above Cytoscape canvas, below the graph chrome overlays
-  (layout controls, fit/zoom toolbar, minimap)
+- `z-index`: above the main **`.graph-canvas`** Cytoscape layer; **below** the minimap panel when it is open (minimap uses a higher stacking order inside the same canvas host). **`GraphBottomBar`** is mounted **below** `canvasHost`, so it is **not** covered by this overlay and stays usable while the gesture card is open.
 
-- Does **not** block the chrome overlays — user can still see them
+- The dimmed backdrop covers only the **canvas host** region (not the bottom bar)
 
 #### Hint card
 
@@ -1136,7 +1125,7 @@ Overlay dismisses when **any** of these occur:
 
 - Clicking **Got it**
 - Clicking the **dimmed backdrop** outside the hint card (not clicks on the Cytoscape layer beneath — the dimmed layer receives the hit; card uses `@click.stop`)
-- **Escape**, when focus is inside the overlay (e.g. **Got it**) or when focus is on the graph canvas host after open — **not** when focus is in graph chrome above the overlay (layout combobox, zoom toolbar, etc.) so users are not surprised while using those controls
+- **Escape**, when focus is inside the overlay (e.g. **Got it**) or when focus is on the graph canvas host after open — **not** when focus is in other graph chrome (**⚙** filters popover, **Since** in **`graph-status-line`**, **Fit** / zoom / **Gestures** in **`graph-bottom-bar`**, etc.) so users are not surprised while using those controls
 
 On dismiss: set `localStorage` key `ps_graph_hints_seen` = `"1"`.
 The overlay does not auto-open again; users can still use the optional **Gestures** reopen control (Section 7) without clearing `localStorage`.
@@ -1205,9 +1194,10 @@ ignores keys when focus is outside the overlay (graph chrome).
 
 ### 6. Toolbar Hint Row — Simplify
 
-With the overlay handling first-time teaching, the **top** toolbar primary row
-holds **only** the search highlight chip when applicable — **no** persistent
-Shift / double-click / ring prose.
+With the overlay handling first-time teaching, the **top** toolbar row is
+**Types** + **⚙** filters only — **no** persistent Shift / double-click / ring prose.
+The **search highlight** chip (when applicable) sits in the **bottom bar** centre
+zone under the canvas (see [GRAPH-CHROME-REDESIGN](../wip/GRAPH-CHROME-REDESIGN.md)).
 
 **Requirement:** Removing that copy **requires** either the optional **Gestures**
 reopen control (Section 7) or another minimal affordance (e.g. a **?** entry) so
@@ -1217,14 +1207,13 @@ users who dismissed quickly are not stranded without a path back to the legend.
 
 ### 7. Re-open Affordance
 
-A **Gestures** (or **?** / **Shortcuts**) control in the bottom-right zoom cluster
+A **Gestures** (or **?** / **Shortcuts**) control in the **graph bottom bar** right zone
 (next to **Export PNG**) calls `reopen()` so the card appears **without** clearing
 `localStorage` (manual open only; auto-open still suppressed after dismiss).
 
 `data-testid`: `graph-gesture-overlay-reopen`
 
-Ship this when the primary toolbar gesture line is removed (Section 6), so
-reviewers always have a deliberate path back to the overlay copy.
+**Shipped:** persistent gesture prose was removed from the top toolbar in favour of this overlay; **Gestures** in **`GraphBottomBar`** is the deliberate path back to the overlay copy.
 
 ---
 
@@ -1273,7 +1262,7 @@ Add to `e2e/E2E_SURFACE_MAP.md`:
 | --- | --- | --- |
 | Overlay container | `data-testid="graph-gesture-overlay"` | Present on first graph load with nodes |
 | Dismiss button | `data-testid="graph-gesture-overlay-dismiss"` | Click to dismiss |
-| Re-open button | `data-testid="graph-gesture-overlay-reopen"` | **Gestures** in bottom-right toolbar |
+| Re-open button | `data-testid="graph-gesture-overlay-reopen"` | **Gestures** in **`graph-bottom-bar`** right zone |
 
 Playwright spec: `e2e/graph-gesture-overlay.spec.ts`
 
@@ -1297,7 +1286,7 @@ Test cases:
 - Ring colours in `cyGraphStylesheet.ts` — unchanged (overlay references
   them visually but does not own them)
 
-- All other graph chrome (layout controls, minimap, zoom toolbar) — unchanged
+- All other graph chrome (**layout cycle**, **Re-layout**, minimap, **Fit** / zoom / **Export PNG** in **`GraphBottomBar`**) — behaviour unchanged by the overlay; only placement vs legacy canvas overlays evolved per [GRAPH-CHROME-REDESIGN](../wip/GRAPH-CHROME-REDESIGN.md)
 - Token system — uses only existing UXS-001 tokens
 
 ---

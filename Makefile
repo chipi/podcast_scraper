@@ -450,6 +450,8 @@ validate-kg-schema:
 # GI/KG viewer v2 (RFC-062 / #489): FastAPI + Vite. Install: pip install -e '.[server]'; cd $(WEB_VIEWER_DIR) && npm install
 .PHONY: serve serve-api serve-ui serve-e2e-mock
 SERVE_OUTPUT_DIR ?= ./output
+# Optional corpus-editing + jobs routes (health shows green when on). Override with SERVE_ARGS= to disable.
+SERVE_ARGS ?= --enable-feeds-api --enable-operator-config-api --enable-jobs-api
 # Default E2E mock RSS port (127.0.0.1:18765; override with E2E_MOCK_PORT when fixture URLs change).
 # Deliberately not 8000 so ``serve-e2e-mock`` can run alongside ``serve-api`` (FastAPI default).
 E2E_MOCK_PORT ?= 18765

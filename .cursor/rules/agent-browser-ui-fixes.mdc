@@ -1,33 +1,47 @@
 ---
 description: >-
-  User asks to fix or validate something in the GI/KG web viewer (Vue), graph or detail
-  panels, Open transcript / corpus links, Digest or Library UI, or viewer-facing FastAPI
-  routes; use Chrome DevTools MCP or Playwright to reproduce and prove fixes.
-globs:
-  - web/gi-kg-viewer/**/*
-  - src/podcast_scraper/server/**/*.py
-alwaysApply: false
+  Viewer UI / graph (Vue + viewer FastAPI): treat Chrome DevTools MCP like a test gate—reproduce
+  before fix, re-verify after; try MCP server user-devtools then devtools. Full loop in
+  docs/guides/AGENT_BROWSER_LOOP_GUIDE.md.
+alwaysApply: true
 ---
 
-# Viewer UI bugfixes — closed loop
+# Viewer UI — browser validation gate (no copy-paste from the user)
 
-**When this rule applies**, do **not** treat `.cursorrules` item 4 as a vague hint. **Read the
-full workflow** in:
+**When your work or the bug report touches** `web/gi-kg-viewer/` **or** viewer-facing code under `src/podcast_scraper/server/`, you **must** close the loop in the browser when MCP is available. Do **not** treat `npm run test:unit` / `npm run build` alone as proof for **visual or interaction** regressions.
 
-- `docs/guides/AGENT_BROWSER_LOOP_GUIDE.md` — section **Obligatory validation when fixing a reported UI bug**
-- Same file — **Live co-development mode** if you use **Chrome DevTools MCP** (setup, `list_pages`, `new_page` for new-tab URLs, network).
+## MCP (live Chrome)
 
-**Symmetry (mandatory):** If you reproduced the bug with **Chrome DevTools MCP** (or Playwright MCP), you
-**must** confirm the fix with that **same** MCP flow after restart if needed. **Do not** treat passing
-pytest / `make test-ui` as a substitute for that browser confirmation. Tests run **in addition**, for
-regression.
+1. **Discover the server name** if the first call fails: try `user-devtools`, then `devtools`, then `chrome-devtools` (Cursor may rename the MCP entry vs `mcp.json`).
+2. **Tools:** `list_pages` → `select_page` (e.g. app on `http://localhost:5173/`) → `evaluate_script` / `take_snapshot` / `list_console_messages` as needed.
+3. **Symmetry:** If you used MCP to reproduce, you **must** re-run the **same** MCP checks after your code change before claiming fixed. If MCP is unavailable, say so explicitly in the reply—do not imply you saw the UI.
 
-**Order of operations:** reproduce (MCP) → change code → **repeat same MCP checks** → then `make test-ui` /
-`tests/integration/server/` / `make test-ui-e2e` / **`make ci-ui-fast`** as appropriate → report what you verified in **both**
-channels (or state you were blocked from MCP).
+**Prereq (human):** Chrome with remote debugging (e.g. port **9222**) and MCP showing green—see `docs/guides/AGENT_BROWSER_LOOP_GUIDE.md`.
 
-**If MCP is unavailable** for reproduction, say so up front; then automated tests may be the primary proof.
-Do not ask the user to be the default tester.
+## Automated fallback
 
-**Version:** 1.1
-**Updated:** 2026-04-16
+Playwright / `make test-ui-e2e` (and unit tests) run **in addition** for regression; they do not replace MCP for uncaptured UX.
+
+## Graph canvas — selection, neighbourhood dimming, delayed “full brightness”
+
+**Symptom:** After opening an episode in the graph (often **Digest → “Open graph and episode details” → “Open in graph”**), the neighbourhood briefly looks correct, then **~1–3s later** every node appears equally bright (no dimming / no clear selection).
+
+**Reproduce (MCP):** Same clicks as above; after navigation, **wait at least ~2.5s** before judging — the failure is timing-dependent.
+
+**Prove state in the browser (DevTools `evaluate_script`):**
+
+- **Cytoscape dev handle:** `window.__GIKG_CY_DEV__` (when present). Count, for example:
+  - `cy.nodes('.graph-dimmed').length`
+  - `cy.nodes('.graph-neighbour').length`
+  - `cy.nodes('.graph-focused').length`
+  - `cy.nodes(':selected').length`
+- **Pinia:** `subject` store **`graphConnectionsCyId`** and **`graphNavigation.pendingFocusNodeId`** (`web/gi-kg-viewer/src/stores/subject.ts`, `graphNavigation.ts`). If dimming clears while those are still wrong (`null` when an episode should be focused), trace the **focus** and **territory / filtered-artifact** watchers — not only the first paint.
+
+**Code lessons (do not re-learn the hard way):**
+
+- **Corpus `metadata_relative_path` and graph Episode row labels/paths can diverge** (encoding, punctuation, normalization). When resolving “which Cytoscape node is this corpus episode?”, prefer a **stable id** (e.g. corpus **`episode_id`**) as a fallback after metadata-path match — see `findEpisodeGraphNodeIdForMetadataPathOrEpisodeId` in `web/gi-kg-viewer/src/utils/graphEpisodeMetadata.ts`.
+- **Never clear episode graph selection/dimming** on “metadata lookup missed” alone if **`graphConnectionsCyId`** already points at a valid **Episode** node on the current core — otherwise a late watcher pass wipes a good focus.
+
+**Success heuristic after fix:** After the wait, expect **at least one** selected/focused episode neighbourhood (`graph-dimmed` / neighbour counts **not** all zero with a non-trivial node count) and coherent Pinia ids for the intended episode.
+
+**Version:** 1.3

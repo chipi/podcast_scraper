@@ -14,6 +14,7 @@ import CilTopicPillsRow from '../shared/CilTopicPillsRow.vue'
 import HelpTip from '../shared/HelpTip.vue'
 import PodcastCover from '../shared/PodcastCover.vue'
 import { useArtifactsStore } from '../../stores/artifacts'
+import { useGraphFilterStore } from '../../stores/graphFilters'
 import { useGraphNavigationStore } from '../../stores/graphNavigation'
 import { useSubjectStore } from '../../stores/subject'
 import { useShellStore } from '../../stores/shell'
@@ -32,6 +33,7 @@ import {
   applyGraphFocusPlan,
   graphFocusPlanFromCilPill,
 } from '../../utils/cilGraphFocus'
+import { findEpisodeGraphNodeIdForMetadataPathOrEpisodeId } from '../../utils/graphEpisodeMetadata'
 
 const props = withDefaults(
   defineProps<{
@@ -54,6 +56,7 @@ const emit = defineEmits<{
 
 const shell = useShellStore()
 const artifacts = useArtifactsStore()
+const graphFilters = useGraphFilterStore()
 const graphNav = useGraphNavigationStore()
 const subject = useSubjectStore()
 const { episodeMetadataPath: metadataRelativePath } = storeToRefs(subject)
@@ -401,14 +404,25 @@ async function openInGraph(): Promise<void> {
     graphActionError.value = 'No GI/KG artifacts on disk for this episode.'
     return
   }
-  await artifacts.loadRelativeArtifacts(paths)
+  await artifacts.appendRelativeArtifacts(paths)
   graphNav.clearLibraryEpisodeHighlights()
-  const eid = detail.value.episode_id?.trim()
-  if (eid) {
-    graphNav.requestFocusNode(eid)
-    graphNav.setLibraryEpisodeHighlights([eid])
+  const meta = detail.value.metadata_relative_path?.trim()
+  if (meta) {
+    const epCy =
+      findEpisodeGraphNodeIdForMetadataPathOrEpisodeId(
+        graphFilters.filteredArtifact,
+        meta,
+        detail.value.episode_id,
+      ) || ''
+    subject.focusEpisode(meta, {
+      uiTitle: detail.value.episode_title?.trim() || null,
+      ...(epCy ? { graphConnectionsCyId: epCy } : {}),
+    })
+    if (epCy) {
+      graphNav.requestFocusNode(epCy)
+    }
   } else {
-    graphNav.clearPendingFocus()
+    subject.setEpisodeUiLabel(detail.value.episode_title ?? null)
   }
   emit('switch-main-tab', 'graph')
 }
@@ -434,7 +448,7 @@ async function openDetailCilTopicInGraph(pillIndex: number): Promise<void> {
     graphActionError.value = 'No GI/KG artifacts on disk for this episode.'
     return
   }
-  await artifacts.loadRelativeArtifacts(paths)
+  await artifacts.appendRelativeArtifacts(paths)
   graphNav.clearLibraryEpisodeHighlights()
   const plan = graphFocusPlanFromCilPill(pill, detail.value.episode_id)
   applyGraphFocusPlan(graphNav, plan)
@@ -466,7 +480,7 @@ function openSimilarEpisode(row: CorpusSimilarEpisodeItem): void {
   if (!p) {
     return
   }
-  subject.focusEpisode(p)
+  subject.focusEpisode(p, { uiTitle: row.episode_title?.trim() || null })
 }
 
 watch(

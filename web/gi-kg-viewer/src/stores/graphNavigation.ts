@@ -53,6 +53,8 @@ export const useGraphNavigationStore = defineStore('graphNavigation', () => {
     fallbackNodeId?: string | null,
     cameraIncludeRawIds?: string[] | null,
   ): void {
+    // Clear first so repeat requests for the same id still notify watchers (Show on graph twice).
+    clearPendingFocus()
     const id = nodeId.trim()
     pendingFocusNodeId.value = id.length ? id : null
     if (fallbackNodeId === undefined) {

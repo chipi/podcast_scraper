@@ -224,8 +224,8 @@ still derive from the tokens above.
   practical.
 - **Max content width:** **960px** for primary column content; graph area may be
   full viewport width.
-- **Left query column** (Semantic search + Explore, stacked): collapsible **`w-72`**
-  rail in `App.vue` when expanded.
+- **Left query column** (**Semantic search** default; **Explore** as a slide-in mode from
+  **`LeftPanel.vue`**): collapsible **`w-72`** rail in `App.vue` when expanded.
 - **Right subject column** (Episode detail, graph node detail, future topic/person): fixed
   width **`w-96`** (**24rem** / **384px** at **16px** root) when expanded. To tune further,
   change that class on the same element (desktop-only layout).
@@ -366,7 +366,7 @@ Modal **`data-testid="status-bar-sources-dialog"`** (title **Corpus sources**). 
 Implemented in `useViewerKeyboard.ts` (global handlers, not per-component ad hoc):
 
 - **Slash** — When focus is not in an editable control: expand the left query column if
-  needed and focus `#search-q`.
+  needed, switch to **Search** mode, then focus `#search-q`.
 - **Escape** — On the **Graph** main tab, when focus is not in an editable control: clear
   graph interaction / transient selection state.
 - **G** / **L** on semantic search hits — Bound as **click targets on each result row**
@@ -412,6 +412,10 @@ DevTools; do not hard-code alternatives in component files.
 | Recency dot rolling window              | **24h** from local **YYYY-MM-DD** midnight | Open   | Digest + Library episode rows; date-only API             |
 | Library feed search threshold           | **15** feeds                               | Open   | Constant in LibraryView.vue; default 15 feeds trigger    |
 | Graph default episode cap (initial)     | **15** episodes                            | Open   | GRAPH cap in graphEpisodeSelection.ts; graph-only lens   |
+| Graph episode load recency score floor  | **0.2**                                    | Open   | ``GRAPH_SCORE_RECENCY_MIN``; linear mix with max **1.0** |
+| Graph episode load topic cluster bonus  | **0.4**                                    | Open   | TOPIC_CLUSTER_BONUS; additive (graphEpisodeSelection.ts) |
+| Graph episode load all-time decay days  | **90**                                     | Open   | ALL_TIME_DECAY_DAYS; trailing window from newest publish |
+| Graph episode load GI density max weight| **0.4**                                    | Open   | GI_DENSITY_MAX; future per-episode coverage API cap      |
 | Graph recency seed default              | **7d**                                     | Open   | Initial graph window; VIEWER_GRAPH_SPEC (init load)      |
 | Dashboard GI coverage warn threshold    | **50%**                                    | Open   | Briefing + Coverage; UXS-006 §3.4                        |
 | Dashboard index coverage warn threshold | **60%**                                    | Open   | Briefing + Coverage; UXS-006 §3.4                        |
@@ -419,14 +423,14 @@ DevTools; do not hard-code alternatives in component files.
 | Dashboard Top voices limit              | **5**                                      | Open   | persons/top default limit                                |
 | COSE ABOUT edge ideal length            | **80px**                                   | Open   | cyCoseLayoutOptions.ts; VIEWER_GRAPH_SPEC (styling)      |
 | COSE MENTIONS edge ideal length         | **150px**                                  | Open   | cyCoseLayoutOptions.ts; VIEWER_GRAPH_SPEC (styling)      |
-| Graph recency decay window              | **90 days**                                | Open   | VIEWER_GRAPH_SPEC §4.1                                   |
+| Graph recency decay (opacity)           | **90 days**                                | Open   | VIEWER_GRAPH_SPEC §4.1 node recency vs episode pick      |
 | Graph recency minimum opacity           | **0.4**                                    | Open   | VIEWER_GRAPH_SPEC §4.1                                   |
 | Graph degree heat max degree            | **30**                                     | Open   | GraphCanvas.vue; VIEWER_GRAPH_SPEC §4.3                  |
 | Graph label zoom (hide all labels)      | **0.5**                                    | Open   | Below: no labels (GraphCanvas.vue)                       |
 | Graph label zoom (full labels)          | **1.0**                                    | Open   | Above: full node labels                                  |
 | Graph compound fill opacity             | **0.06**                                   | Open   | TopicCluster compound; VIEWER_GRAPH_SPEC §3.6            |
 
-**Code map:** Similarity floors live in `web/gi-kg-viewer/src/utils/digestRowDisplay.ts`; recency parsing and the rolling window live in `web/gi-kg-viewer/src/utils/digestRecency.ts`; the feed-count threshold constant lives in `LibraryView.vue`.
+**Code map:** Similarity floors live in `web/gi-kg-viewer/src/utils/digestRowDisplay.ts`; recency parsing and the rolling window live in `web/gi-kg-viewer/src/utils/digestRecency.ts`; the feed-count threshold constant lives in `LibraryView.vue`. Corpus graph episode pick (cap, recency + topic-cluster score, tie-break) lives in `web/gi-kg-viewer/src/utils/graphEpisodeSelection.ts`.
 
 **Graph canvas / layout (open, not in table above):** They ship in code today but are
 intentionally easy to tune without a UXS revision — see
@@ -490,6 +494,7 @@ search overlay.
 
 | Date | Change |
 | --- | --- |
+| 2026-04-20 | Tunables: graph initial-load **episode scoring** (recency floor/max, topic-cluster bonus, 90d all-time decay, future GI density cap) in `graphEpisodeSelection.ts` + table rows |
 | 2026-04-19 | Tunable: **Graph default episode cap** (15) for corpus graph initial load (`VIEWER_GRAPH_SPEC` initial load) |
 | 2026-04-19 | Open tunables for digest similarity tiers, recency dot window, Library feed-search threshold (#610) |
 | 2026-04-03 | Initial draft |

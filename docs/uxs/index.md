@@ -112,7 +112,7 @@ Authoritative specs; current implementations should conform
 | [UXS-001](UXS-001-gi-kg-viewer.md) | GI/KG Viewer (Shared Design System) | PRD-003, PRD-017, PRD-019; RFC-062 | Shared tokens, typography, layout, states, accessibility, components; shell regions / navigation → [VIEWER_IA](VIEWER_IA.md) |
 | [UXS-002](UXS-002-corpus-digest.md) | Corpus Digest | PRD-023; RFC-068 | Digest tab: topic bands, recent episodes, rolling window |
 | [UXS-003](UXS-003-corpus-library.md) | Corpus Library | PRD-022; RFC-067 | Library tab: feed/episode catalog, Episode subject rail, filters |
-| [UXS-004](UXS-004-graph-exploration.md) | Graph Exploration | PRD-024; RFC-069, RFC-076 | Graph chrome: toolbar, gesture discovery overlay, minimap, degree filter, node detail |
+| [UXS-004](UXS-004-graph-exploration.md) | Graph Exploration | PRD-024; RFC-069, RFC-076 | Graph chrome, canvas, overlays, node detail; **camera framing** + selection/dimming contract for focus hand-offs and single-tap |
 | [UXS-005](UXS-005-semantic-search.md) | Semantic Search | PRD-021; RFC-061 | Search panel: query, advanced filters, result cards, insights modal |
 | [UXS-006](UXS-006-dashboard.md) | Dashboard | PRD-025; RFC-071 | Dashboard tab: briefing + Coverage / Intelligence / Pipeline (normative spec in UXS-006) |
 

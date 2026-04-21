@@ -326,9 +326,14 @@ test.describe('Search → graph (mocked API)', () => {
     await expect(
       page.getByRole('heading', { name: 'Explore & query', exact: false }),
     ).toBeVisible({ timeout: 10_000 })
-    await expect(page.getByRole('checkbox', { name: /Grounded only/i })).toBeChecked()
     await expect(page.getByRole('textbox', { name: 'Topic contains' })).toHaveValue('')
     await expect(page.getByRole('textbox', { name: 'Speaker contains' })).toHaveValue('')
+    await page.getByTestId('explore-advanced-open').click()
+    const exploreAdvanced = page.getByRole('dialog', { name: 'Advanced explore' })
+    await expect(exploreAdvanced).toBeVisible()
+    await expect(exploreAdvanced.getByRole('checkbox', { name: /Grounded only/i })).toBeChecked()
+    await exploreAdvanced.getByRole('button', { name: 'Close' }).click()
+    await expect(exploreAdvanced).toBeHidden()
 
     await expect(page.getByTestId('node-detail-insight-details-tip')).toBeVisible()
 

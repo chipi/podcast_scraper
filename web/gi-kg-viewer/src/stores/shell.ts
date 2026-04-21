@@ -19,8 +19,17 @@ function readInitialCorpusPath(): string {
   return (import.meta.env.VITE_DEFAULT_CORPUS_PATH as string | undefined) ?? ''
 }
 
+export type LeftPanelSurface = 'search' | 'explore'
+
 export const useShellStore = defineStore('shell', () => {
   const corpusPath = ref(readInitialCorpusPath())
+
+  /** Left query column: Search (default) vs Explore mode (`LeftPanel.vue` slide). */
+  const leftPanelSurface = ref<LeftPanelSurface>('search')
+
+  function setLeftPanelSurface(surface: LeftPanelSurface): void {
+    leftPanelSurface.value = surface
+  }
 
   watch(corpusPath, (v) => {
     try {
@@ -226,6 +235,8 @@ export const useShellStore = defineStore('shell', () => {
 
   return {
     corpusPath,
+    leftPanelSurface,
+    setLeftPanelSurface,
     healthStatus,
     healthStatusDisplay,
     healthError,
