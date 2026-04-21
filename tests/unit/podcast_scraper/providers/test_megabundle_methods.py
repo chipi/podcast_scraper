@@ -6,6 +6,12 @@ These tests mock each SDK client and verify:
   bundled_clean_summary_* prompt store entries).
 - JSON-mode / response_format flags are set on the API call.
 - The extraction variant does not require summary/bullets in the response.
+
+SDK deps (anthropic, mistralai, google.genai) are optional ``[llm]`` extras
+and not installed in the CI unit-test job. The ``_mock_all_provider_sdks``
+autouse fixture patches the module-level SDK symbols on every provider
+module so ``Provider(cfg)`` does not raise ``ImportError`` during test
+collection / construction.
 """
 
 from __future__ import annotations
@@ -23,6 +29,31 @@ from podcast_scraper.providers.gemini.gemini_provider import GeminiProvider
 from podcast_scraper.providers.grok.grok_provider import GrokProvider
 from podcast_scraper.providers.mistral.mistral_provider import MistralProvider
 from podcast_scraper.providers.openai.openai_provider import OpenAIProvider
+
+
+@pytest.fixture(autouse=True)
+def _mock_all_provider_sdks():
+    """Mock SDK module-level symbols so provider constructors pass the
+    ``None`` import guard without the real packages installed."""
+    # anthropic / mistralai / google.genai are in the [llm] extra and may be
+    # unavailable in the unit-test job. openai is a core dep so its SDK is
+    # imported lazily inside OpenAIProvider and needs no patch.
+    patches = [
+        patch("podcast_scraper.providers.anthropic.anthropic_provider.Anthropic", Mock()),
+        patch("podcast_scraper.providers.mistral.mistral_provider.Mistral", Mock()),
+        patch("podcast_scraper.providers.deepseek.deepseek_provider.OpenAI", Mock()),
+        patch("podcast_scraper.providers.grok.grok_provider.OpenAI", Mock()),
+        patch("podcast_scraper.providers.gemini.gemini_provider.genai", Mock()),
+    ]
+    for p in patches:
+        p.start()
+    yield
+    for p in reversed(patches):
+        try:
+            p.stop()
+        except (RuntimeError, AttributeError):
+            pass
+
 
 _MEGA_JSON = json.dumps(
     {
