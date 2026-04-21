@@ -76,6 +76,10 @@ export function guessMetadataRelPathFromArtifactRelPath(rel: string): string | n
 
 /**
  * Match a logical episode id to one of the loaded GI/KG files and derive metadata path.
+ *
+ * Prefer ``ParsedArtifact.sourceCorpusRelPath`` (set when each file was fetched) over
+ * ``selectedRelPaths[i]``: ``loadSelected`` skips ``.bridge.json`` rows when building
+ * ``parsedList``, so parallel indices are not guaranteed to refer to the same file.
  */
 export function resolveEpisodeMetadataFromLoadedArtifacts(
   logicalEpisodeId: string,
@@ -89,10 +93,20 @@ export function resolveEpisodeMetadataFromLoadedArtifacts(
     const epId = art?.episodeId?.trim()
     if (!epId || epId.startsWith('merged:')) continue
     if (epId !== want) continue
-    const rel = selectedRelPaths[i]?.trim()
+    const fromArtifact =
+      (typeof art.sourceCorpusRelPath === 'string' && art.sourceCorpusRelPath.trim()) || ''
+    const rel = (fromArtifact || selectedRelPaths[i]?.trim()).trim()
     if (!rel) continue
-    const guessed = guessMetadataRelPathFromArtifactRelPath(rel)
+    let guessed = guessMetadataRelPathFromArtifactRelPath(rel)
     if (guessed) return guessed
+    const map = art.sourceCorpusRelPathByEpisodeId
+    if (map && typeof map === 'object') {
+      const mapped = map[want]
+      if (typeof mapped === 'string' && mapped.trim()) {
+        guessed = guessMetadataRelPathFromArtifactRelPath(mapped.trim())
+        if (guessed) return guessed
+      }
+    }
   }
   return null
 }

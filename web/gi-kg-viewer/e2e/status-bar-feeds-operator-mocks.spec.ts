@@ -4,10 +4,10 @@ import { SHELL_HEADING_RE, statusBarCorpusPathInput } from './helpers'
 /**
  * Browser-stubbed `/api/*` — no real `podcast serve` or corpus disk.
  *
- * With a real server, `GET /api/operator-config` may **create** `viewer_operator.yaml` with
- * `profile: cloud_balanced` when the file is missing or whitespace-only and that packaged
- * preset exists (name is hardcoded in the server). If the preset is not shipped, `content`
- * stays empty until a `PUT`.
+ * With a real server, `GET /api/operator-config` may **create** `viewer_operator.yaml` from a
+ * packaged overrides example (no `profile:` line) when the file is missing or whitespace-only.
+ * Operators pick **Profile** in the UI + Save (CLI-style `--profile` + `--config`). If no
+ * starter ships in the environment, `content` stays empty until a `PUT`.
  */
 
 /** Match only the viewer backend path (avoid globs that also match Vite /src/api/feedsApi.ts). */
@@ -297,10 +297,10 @@ test.describe('Status bar — feeds & operator YAML (mocked API)', () => {
     })
     await page.getByTestId('status-bar-sources-trigger').click()
     await page.getByTestId('sources-dialog-tab-operator').click()
-    await expect(page.getByTestId('sources-dialog-profile-select')).toBeVisible()
+    await expect(page.getByTestId('sources-dialog-operator-textarea')).toBeVisible()
     await expect(page.getByTestId('sources-dialog-operator-textarea')).toHaveValue('keep: true')
     await page.getByTestId('sources-dialog-operator-textarea').fill('keep: true\nextra: 2\n')
-    await page.getByRole('button', { name: 'Save YAML' }).click()
+    await page.getByTestId('sources-dialog-save-overrides').click()
     expect(lastPutContent).toBe('keep: true\nextra: 2\n')
   })
 

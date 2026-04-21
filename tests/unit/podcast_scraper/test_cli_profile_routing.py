@@ -13,8 +13,11 @@ Covers two pre-existing bugs exposed by the real-episode validation:
   ``audio_preprocessing_profile``. ``--config <profile.yaml>`` worked
   for argparse-known fields but silently dropped these.
 
-Both paths now route through ``_load_and_merge_config`` and include the
-missing fields conditionally in payload.
+Both paths route through ``_load_and_merge_config`` (merged
+``Config.model_validate`` + ``model_dump`` into ``set_defaults`` so packaged
+presets and audio sub-presets populate ``args`` before ``parse_args``). The
+``_build_config`` payload still conditionally forwards a few YAML-only fields
+(``llm_pipeline_mode``, …) per #646.
 """
 
 from __future__ import annotations

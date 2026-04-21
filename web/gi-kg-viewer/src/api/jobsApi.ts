@@ -21,6 +21,12 @@ export interface PipelineJobsList {
   jobs: PipelineJobRow[]
 }
 
+/** Open raw job log in a new tab (same origin as the viewer). */
+export function pipelineJobLogUrl(corpusPath: string, jobId: string): string {
+  const q = new URLSearchParams({ path: corpusPath.trim(), job_id: jobId.trim() })
+  return `/api/jobs/subprocess-log?${q.toString()}`
+}
+
 export interface PipelineJobAccepted {
   job_id: string
   status: string

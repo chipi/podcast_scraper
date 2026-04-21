@@ -72,21 +72,31 @@ const insight = computed(() => {
         <tr
           v-for="r in rows"
           :key="r.feed_id"
-          class="cursor-pointer border-b border-border/60 hover:bg-overlay/40"
+          class="border-b border-border/60 hover:bg-overlay/40"
           data-testid="feed-coverage-row"
-          @click="emit('select-feed', r.feed_id)"
         >
-          <td class="py-1.5 pr-2 font-medium">
+          <td
+            class="cursor-pointer py-1.5 pr-2 font-medium"
+            title="Open Corpus Library filtered to this feed"
+            @click.stop="emit('select-feed', r.feed_id)"
+          >
             {{ r.display_title }}
           </td>
-          <td class="py-1.5 pr-2 tabular-nums">
+          <td
+            class="cursor-pointer py-1.5 pr-2 tabular-nums"
+            title="Open Corpus Library filtered to this feed"
+            @click.stop="emit('select-feed', r.feed_id)"
+          >
             {{ r.total }}
           </td>
-          <td class="py-1.5 pr-2">
+          <td
+            class="cursor-pointer py-1.5 pr-2"
+            :title="`GI coverage for this feed — click to open Library with this feed (${pct(r.with_gi, r.total)}%)`"
+            @click.stop="emit('select-feed', r.feed_id)"
+          >
             <div class="flex items-center gap-1">
               <div
                 class="h-2 w-10 shrink-0 overflow-hidden rounded bg-overlay"
-                :title="`${pct(r.with_gi, r.total)}% GI`"
               >
                 <div
                   class="h-full bg-gi"
@@ -96,7 +106,11 @@ const insight = computed(() => {
               <span class="tabular-nums text-muted">{{ pct(r.with_gi, r.total) }}%</span>
             </div>
           </td>
-          <td class="py-1.5 pr-2">
+          <td
+            class="cursor-pointer py-1.5 pr-2"
+            :title="`KG coverage for this feed — click to open Library with this feed (${pct(r.with_kg, r.total)}%)`"
+            @click.stop="emit('select-feed', r.feed_id)"
+          >
             <div class="flex items-center gap-1">
               <div
                 class="h-2 w-10 shrink-0 overflow-hidden rounded bg-overlay"
@@ -109,7 +123,11 @@ const insight = computed(() => {
               <span class="tabular-nums text-muted">{{ pct(r.with_kg, r.total) }}%</span>
             </div>
           </td>
-          <td class="py-1.5 text-muted">
+          <td
+            class="cursor-pointer py-1.5 text-muted"
+            title="Open Corpus Library filtered to this feed"
+            @click.stop="emit('select-feed', r.feed_id)"
+          >
             {{ indexedSet.has(r.feed_id) ? 'Yes' : '—' }}
           </td>
         </tr>

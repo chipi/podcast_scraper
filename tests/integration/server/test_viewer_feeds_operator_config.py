@@ -11,6 +11,7 @@ from fastapi.testclient import TestClient
 pytest.importorskip("fastapi")
 
 from podcast_scraper.server.app import create_app
+from podcast_scraper.server.operator_yaml_profile import split_operator_yaml_profile
 
 pytestmark = [pytest.mark.integration]
 
@@ -65,11 +66,12 @@ def test_operator_config_roundtrip(corpus: Path) -> None:
     g = client.get("/api/operator-config", params={"path": str(corpus)})
     assert g.status_code == 200
     body = g.json()
-    profiles = body["available_profiles"]
-    if "cloud_balanced" in profiles:
-        assert body["content"].strip() == "profile: cloud_balanced"
-    else:
-        assert body["content"] == ""
+    seeded = body["content"].strip()
+    # Seeded from packaged overrides example when present (no ``profile:`` in file).
+    if seeded:
+        assert "max_episodes" in seeded
+        assert split_operator_yaml_profile(seeded)[0] == ""
+    # else: no packaged example in this environment — empty GET is fine.
     assert body["corpus_path"] == str(corpus.resolve())
     assert body["operator_config_path"] == str((corpus / "viewer_operator.yaml").resolve())
     assert isinstance(body.get("available_profiles"), list)
@@ -86,6 +88,24 @@ def test_operator_config_roundtrip(corpus: Path) -> None:
     g2 = client.get("/api/operator-config", params={"path": str(corpus)})
     assert g2.json()["content"] == yaml_text
     assert "local" in g2.json()["available_profiles"]
+
+
+def test_operator_put_profile_only_merges_packaged_example(corpus: Path) -> None:
+    """PUT with only ``profile:`` (empty overrides) picks up packaged example keys."""
+    app = create_app(corpus, static_dir=False, enable_operator_config_api=True)
+    client = TestClient(app)
+    r = client.put(
+        "/api/operator-config",
+        params={"path": str(corpus)},
+        json={"content": "profile: cloud_balanced\n"},
+    )
+    assert r.status_code == 200
+    body = r.json()["content"]
+    assert "profile: cloud_balanced" in body
+    assert "max_episodes" in body
+    g = client.get("/api/operator-config", params={"path": str(corpus)})
+    assert g.status_code == 200
+    assert "max_episodes" in g.json()["content"]
 
 
 def test_operator_config_put_rejects_feed_keys(corpus: Path) -> None:
@@ -118,10 +138,10 @@ def test_operator_config_get_seeds_whitespace_only_file(corpus: Path) -> None:
     r = client.get("/api/operator-config", params={"path": str(corpus)})
     assert r.status_code == 200
     body = r.json()
-    if "cloud_balanced" in body["available_profiles"]:
-        assert body["content"].strip() == "profile: cloud_balanced"
-    else:
-        assert body["content"].strip() == ""
+    seeded = body["content"].strip()
+    if seeded:
+        assert "max_episodes" in seeded
+        assert split_operator_yaml_profile(seeded)[0] == ""
 
 
 def test_operator_config_get_conflict_when_file_has_secrets(corpus: Path) -> None:

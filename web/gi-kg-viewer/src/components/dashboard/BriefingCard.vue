@@ -18,6 +18,8 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   'select-tab': [tab: 'coverage' | 'intelligence' | 'pipeline']
+  /** Open Pipeline tab focused on corpus run strip (matches “Last run” context). */
+  'open-pipeline-run-history': []
   'rebuild-index': []
   'open-library': []
 }>()
@@ -56,13 +58,46 @@ const giRate = computed(() => {
   }
   return props.coverage.with_gi / t
 })
-const indexRate = computed(() => {
+/** FAISS row count (many per episode) — do not divide by episode count as a “%”. */
+const indexVectorCount = computed(() => props.indexEnv?.stats?.total_vectors ?? null)
+
+const indexVectorsPerEpisode = computed(() => {
   const t = totalEpisodes.value
-  const v = props.indexEnv?.stats?.total_vectors
-  if (!t || v == null) {
+  const v = indexVectorCount.value
+  if (!t || v == null || t <= 0) {
     return null
   }
   return v / t
+})
+
+const indexVectorsLabel = computed(() => {
+  const v = indexVectorCount.value
+  if (v == null || !props.indexEnv?.available) {
+    return '—'
+  }
+  if (v >= 1_000_000) {
+    return `${(v / 1_000_000).toFixed(1)}M vectors`
+  }
+  if (v >= 10_000) {
+    return `${Math.round(v / 1000)}k vectors`
+  }
+  if (v >= 1000) {
+    return `${(v / 1000).toFixed(1)}k vectors`
+  }
+  return `${v} vectors`
+})
+
+const indexVectorsTitle = computed(() => {
+  const v = indexVectorCount.value
+  const t = totalEpisodes.value
+  const r = indexVectorsPerEpisode.value
+  if (v == null || !t) {
+    return 'Vector index stats unavailable.'
+  }
+  return (
+    `${v.toLocaleString()} vector rows in the semantic index (many chunks per episode). ` +
+    `Roughly ${r != null ? r.toFixed(1) : '—'} rows per catalog episode — not a percent of episodes.`
+  )
 })
 
 const indexDaysSince = computed((): number | null => {
@@ -81,13 +116,30 @@ const giPctDisplay = computed(() => {
   const r = giRate.value
   return r == null ? '—' : `${Math.round(r * 100)}%`
 })
-const indexPctDisplay = computed(() => {
-  const r = indexRate.value
-  return r == null ? '—' : `${Math.round(r * 100)}%`
+
+const giCoverageTitle = computed(
+  () =>
+    'Episodes that have at least one GI artifact file, as a share of episodes in the corpus catalog (Coverage tab).',
+)
+
+const feedsIndexedCount = computed(() => props.indexEnv?.stats?.feeds_indexed?.length ?? 0)
+
+const indexFeedsCoverageRatio = computed(() => {
+  const fc = props.catalogFeedCount
+  if (!fc || !props.indexEnv?.available) {
+    return null
+  }
+  return feedsIndexedCount.value / fc
 })
 
 const giWarn = computed(() => giRate.value != null && giRate.value < GI_WARN)
-const indexWarn = computed(() => indexRate.value != null && indexRate.value < INDEX_WARN)
+/** Warn when few catalog feeds appear in index stats — not vector/episodes ratio. */
+const indexWarn = computed(
+  () =>
+    indexFeedsCoverageRatio.value != null &&
+    indexFeedsCoverageRatio.value < INDEX_WARN &&
+    props.catalogFeedCount > 0,
+)
 
 const actionItems = computed(() => {
   type Act = { text: string; primary: string; secondary?: string; onPrimary: () => void; onSecondary?: () => void }
@@ -159,7 +211,7 @@ const actionItems = computed(() => {
           out.push({
             text: 'No pipeline runs in over 7 days',
             primary: 'View in Pipeline',
-            onPrimary: () => emit('select-tab', 'pipeline'),
+            onPrimary: () => emit('open-pipeline-run-history'),
           })
         }
       }
@@ -168,8 +220,8 @@ const actionItems = computed(() => {
   return out.slice(0, 3)
 })
 
-function openPipelineTab(): void {
-  emit('select-tab', 'pipeline')
+function openLastRunDetails(): void {
+  emit('open-pipeline-run-history')
 }
 
 function goLibraryAll(): void {
@@ -231,7 +283,8 @@ function goLibraryAll(): void {
               <button
                 type="button"
                 class="ml-2 text-xs font-medium text-primary hover:underline"
-                @click="openPipelineTab"
+                data-testid="briefing-last-run-details"
+                @click="openLastRunDetails"
               >
                 Details →
               </button>
@@ -256,18 +309,20 @@ function goLibraryAll(): void {
               type="button"
               class="hover:underline"
               :class="giWarn ? 'text-warning' : ''"
+              :title="giCoverageTitle"
               @click="emit('select-tab', 'coverage')"
             >
-              {{ giPctDisplay }} GI
+              {{ giPctDisplay }} with GI
             </button>
             <span class="text-muted"> · </span>
             <button
               type="button"
               class="hover:underline"
               :class="indexWarn ? 'text-warning' : ''"
+              :title="indexVectorsTitle"
               @click="emit('select-tab', 'coverage')"
             >
-              {{ indexPctDisplay }} indexed
+              {{ indexVectorsLabel }}
             </button>
             <span class="text-muted"> · </span>
             <button

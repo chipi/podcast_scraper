@@ -13,6 +13,8 @@ The CLI is designed for:
 
 For non-interactive use (daemons, services), see the [Service API](SERVICE.md) instead.
 
+<a id="quick-start"></a>
+
 ## Quick Start
 
 ```bash
@@ -28,6 +30,27 @@ python -m podcast_scraper.cli https://example.com/feed.xml \
 # With config file
 python -m podcast_scraper.cli --config config.yaml
 ```
+
+<a id="typical-run-profile-operator-config--feed-list"></a>
+
+### Typical run: profile + operator config + feed list
+
+After install, the usual pattern is **preset defaults** (`--profile`), **your operator YAML**
+(`--config`), and **where feeds live** (`--feeds-spec`, `--rss-file`, or a URL on argv). You do
+**not** need to merge profile YAML into the operator file by hand.
+
+```bash
+python -m podcast_scraper.cli \
+  --profile cloud_balanced \
+  --config config/manual/operator_defaults.yaml \
+  --feeds-spec config/manual/feeds.spec.registry_10.yaml
+```
+
+Merge order for `Config`: packaged **`config/profiles/<profile>.yaml`** first, then operator YAML
+and CLI flags override. The **`--profile`** flag is injected into the payload even when
+**`--config`** points at a file that omits `profile:` (same effect as `profile: <name>` in YAML).
+
+Same content in the root [README.md](https://github.com/chipi/podcast_scraper/blob/main/README.md#typical-run-profile-operator-config--feed-list). See [Configuration — Multi-feed compose](CONFIGURATION.md#multi-feed-compose).
 
 ## API Reference
 
@@ -46,7 +69,8 @@ python -m podcast_scraper.cli --config config.yaml
 
 ### Basic Options
 
-- `RSS_URL` - RSS feed URL (required if not using `--config`)
+- `RSS_URL` - RSS feed URL (omit when the feed list is supplied another way: **`--feeds-spec`**,
+  **`--rss-file`**, **`--rss`**, or **`rss` / `feeds` / `rss_urls`** inside the **`--config`** YAML)
 - `--output-dir PATH` - Output directory
 - `--max-episodes N` - Maximum episodes to process after other episode-selection steps
 - `--episode-order {newest,oldest}` - Feed item order before date filter and offset (`newest` = XML document order, default; `oldest` = reversed). GitHub #521.
@@ -67,7 +91,7 @@ Selection order: **`--episode-order`** → optional **`--since` / `--until`** �
 - **Multi-feed** — When **two or more** distinct feed URLs are in effect, **`--output-dir` is required** (corpus parent). Outputs are written under `<output_dir>/feeds/<stable_feed_id>/` per feed. Single-feed runs do not add the `feeds/` segment.
 - **`--multi-feed-strict` / `--no-multi-feed-strict`** — Multi-feed only (GitHub #559). **Default:** lenient (exit **0** if every failed feed is a **soft** failure: RSS fetch/parse `ValueError`, FFmpeg stderr UTF-8 decode, Whisper 413 / payload size). **`--multi-feed-strict`** turns on **strict** mode for CI: exit **1** on any feed failure even when soft-classified. Hard failures (for example `RuntimeError`, invalid per-feed path) always exit **1**. Same behavior is on `Config` as **`multi_feed_strict`** for `service.run()`.
 
-Config file equivalent: YAML **`feeds:`** or **`rss_urls:`** list (entries may be URL strings or mappings with **`url`** plus optional per-feed overrides), or use **`--rss-file`** / **`--feeds-spec`** (see [CONFIGURATION.md — RSS and multi-feed](CONFIGURATION.md#rss-and-multi-feed-corpus-github-440) and [Multi-feed compose](CONFIGURATION.md#multi-feed-compose)). Typical multi-feed setup: **`--feeds-spec`** pointing at a feeds document (start from **`config/examples/feeds.spec.example.yaml`** / **`.json`**) plus an operator YAML with **`profile:`** and **`output_dir`**. You may still pass any URL-per-line list with **`--rss-file`**. Acceptance fast matrix: **`config/acceptance/FAST_CONFIG.yaml`** (see **`config/acceptance/README.md`**). For **append / resume**, set **`append: true`** on your operator YAML (or pass **`--append`**) per [CONFIGURATION.md — Append / resume](CONFIGURATION.md#append-resume-github-444).
+Config file equivalent: YAML **`feeds:`** or **`rss_urls:`** list (entries may be URL strings or mappings with **`url`** plus optional per-feed overrides), or use **`--rss-file`** / **`--feeds-spec`** (see [CONFIGURATION.md — RSS and multi-feed](CONFIGURATION.md#rss-and-multi-feed-corpus-github-440) and [Multi-feed compose](CONFIGURATION.md#multi-feed-compose)). Typical multi-feed setup: **`--feeds-spec`** pointing at a feeds document (start from **`config/examples/feeds.spec.example.yaml`** / **`.json`**) plus operator YAML with **`output_dir`** and either **`profile:`** *or* the CLI flag **`--profile <name>`** (equivalent merge — see [Quick Start — Typical run](#typical-run-profile-operator-config--feed-list)). You may still pass any URL-per-line list with **`--rss-file`**. Acceptance fast matrix: **`config/acceptance/FAST_CONFIG.yaml`** (see **`config/acceptance/README.md`**). For **append / resume**, set **`append: true`** on your operator YAML (or pass **`--append`**) per [CONFIGURATION.md — Append / resume](CONFIGURATION.md#append-resume-github-444).
 
 ### Provider Selection (v2.4.0+)
 
@@ -295,6 +319,18 @@ The CLI supports JSON and YAML configuration files:
 ```bash
 python -m podcast_scraper.cli --config config.json
 ```
+
+- **`--config PATH`** — Operator YAML/JSON: corpus paths, episode limits, provider flags, etc. Keys
+  in this file override packaged profile defaults when **`--profile`** or **`profile:`** is in
+  effect; see the opening section of [CONFIGURATION.md](CONFIGURATION.md) (**YAML preset
+  (`profile:`)**).
+- **`--profile NAME`** — Shorthand for “use **`config/profiles/<NAME>.yaml`** as the default bundle.”
+  May be combined with **`--config`**: the profile merges **first**, then the operator file and
+  explicit CLI flags win. Equivalent to putting **`profile: <NAME>`** in the operator YAML except
+  you keep the preset name on the command line.
+
+Feed URLs can live in the operator file (**`rss`**, **`feeds`**, **`rss_urls`**) or outside it via
+**`--feeds-spec`** / **`--rss-file`** / argv (see [RSS and multi-feed](#rss-and-multi-feed)).
 
 ## Diagnostic Commands (Issue #379, #429)
 

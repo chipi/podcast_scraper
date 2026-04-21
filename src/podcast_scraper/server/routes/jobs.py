@@ -3,10 +3,13 @@
 from __future__ import annotations
 
 import asyncio
+import os
 from pathlib import Path
 
 from fastapi import APIRouter, BackgroundTasks, FastAPI, HTTPException, Query, Request, status
+from fastapi.responses import FileResponse
 
+from podcast_scraper.server.operator_paths import viewer_operator_yaml_path
 from podcast_scraper.server.pipeline_jobs import (
     apply_reconcile,
     cancel_job,
@@ -22,8 +25,28 @@ from podcast_scraper.server.schemas import (
     PipelineJobRecord,
     PipelineJobsListResponse,
 )
+from podcast_scraper.utils.path_validation import safe_relpath_under_corpus_root
 
 router = APIRouter(tags=["jobs"])
+
+
+async def _serve_pipeline_job_log(corpus: Path, job_id: str) -> FileResponse:
+    """Resolve registry row → log file on disk; same rules for path- and query-style routes."""
+    root = corpus.resolve()
+    rec = await asyncio.to_thread(get_job, corpus, job_id)
+    if rec is None:
+        raise HTTPException(status_code=404, detail="Job not found.")
+    rel = str(rec.get("log_relpath") or f".viewer/jobs/{job_id}.log").strip()
+    verified = safe_relpath_under_corpus_root(root, rel.replace("\\", "/"))
+    if not verified:
+        raise HTTPException(status_code=400, detail="Invalid log path.")
+    if not os.path.isfile(verified):
+        raise HTTPException(status_code=404, detail="Log file not present yet.")
+    return FileResponse(
+        verified,
+        media_type="text/plain; charset=utf-8",
+        filename=os.path.basename(verified),
+    )
 
 
 async def _kickoff_job(app: FastAPI, corpus: Path, rec: dict) -> None:
@@ -38,13 +61,12 @@ def _corpus_and_operator(request: Request, path: str | None) -> tuple[Path, Path
             status_code=400,
             detail="Corpus path is required (query or server default).",
         )
-    raw_op = getattr(request.app.state, "operator_config_path", None)
-    if raw_op is None:
+    if not bool(getattr(request.app.state, "jobs_api_enabled", False)):
         raise HTTPException(
             status_code=500,
-            detail="operator_config_path is not configured for pipeline jobs.",
+            detail="jobs_api is not enabled.",
         )
-    return corpus, Path(raw_op)
+    return corpus, viewer_operator_yaml_path(request.app, corpus)
 
 
 @router.post(
@@ -102,6 +124,31 @@ async def reconcile_pipeline_jobs(
     corpus, _op = _corpus_and_operator(request, path)
     n, details = await asyncio.to_thread(apply_reconcile, corpus)
     return PipelineJobReconcileResponse(path=str(corpus.resolve()), updated=n, details=details)
+
+
+@router.get("/jobs/subprocess-log")
+async def get_pipeline_job_log_query(
+    request: Request,
+    job_id: str = Query(..., description="Pipeline job id (UUID)."),
+    path: str | None = Query(default=None, description="Corpus output directory."),
+) -> FileResponse:
+    """Same as ``GET /jobs/{job_id}/log`` but query-based.
+
+    Avoids some proxy/static 404s on ``…/log``.
+    """
+    corpus, _op = _corpus_and_operator(request, path)
+    return await _serve_pipeline_job_log(corpus, job_id)
+
+
+@router.get("/jobs/{job_id}/log")
+async def get_pipeline_job_log(
+    request: Request,
+    job_id: str,
+    path: str | None = Query(default=None, description="Corpus output directory."),
+) -> FileResponse:
+    """Return the job subprocess log as ``text/plain`` (for opening in a new browser tab)."""
+    corpus, _op = _corpus_and_operator(request, path)
+    return await _serve_pipeline_job_log(corpus, job_id)
 
 
 @router.get("/jobs/{job_id}", response_model=PipelineJobRecord)

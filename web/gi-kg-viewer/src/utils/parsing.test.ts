@@ -646,6 +646,47 @@ describe('insightSupportingTranscriptAggregate', () => {
     ])
   })
 
+  it('uses first quote episode_id when insight omits episode_id', () => {
+    const art = parseArtifact('x.gi.json', {
+      episode_id: 'e',
+      model_version: 'm',
+      prompt_version: 'p',
+      nodes: [
+        { id: 'episode:e', type: 'Episode', properties: { title: 'E' } },
+        { id: 'ins', type: 'Insight', properties: { text: 'I', grounded: true } },
+        {
+          id: 'q1',
+          type: 'Quote',
+          properties: {
+            text: 'A',
+            episode_id: 'e',
+            char_start: 0,
+            char_end: 2,
+            transcript_ref: 't.txt',
+          },
+        },
+        {
+          id: 'q2',
+          type: 'Quote',
+          properties: {
+            text: 'B',
+            episode_id: 'e',
+            char_start: 10,
+            char_end: 12,
+            transcript_ref: 't.txt',
+          },
+        },
+      ],
+      edges: [
+        { type: 'SUPPORTED_BY', from: 'ins', to: 'q1' },
+        { type: 'SUPPORTED_BY', from: 'ins', to: 'q2' },
+      ],
+    })
+    const agg = insightSupportingTranscriptAggregate(art, 'ins')
+    expect(agg).not.toBeNull()
+    expect(agg!.episodeId).toBe('e')
+  })
+
   it('returns null when supporting quotes use different transcript_ref values', () => {
     const art = parseArtifact('x.gi.json', {
       episode_id: 'e',

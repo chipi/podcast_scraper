@@ -107,8 +107,8 @@ def parse_serve_argv(argv: Sequence[str]) -> Namespace:
         default=None,
         metavar="PATH",
         help=(
-            "Operator YAML path when operator config API is enabled "
-            "(default: <output-dir>/viewer_operator.yaml)."
+            "Pin one operator YAML for all corpora (GET/PUT /api/operator-config and jobs). "
+            "Default: each corpus uses <corpus>/viewer_operator.yaml next to feeds.spec.yaml."
         ),
     )
     args = parser.parse_args(list(argv))

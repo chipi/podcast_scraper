@@ -46,4 +46,17 @@ describe('useSubjectStore', () => {
     s.focusEpisode('metadata/a.json', { uiTitle: 'Hello world' })
     expect(s.episodeUiLabel).toBe('Hello world')
   })
+
+  it('focusEpisode same path updates graph anchor without clearing metadata path', () => {
+    const s = useSubjectStore()
+    s.focusEpisode('metadata/a.json', { uiTitle: 'T1' })
+    expect(s.episodeMetadataPath).toBe('metadata/a.json')
+    s.focusEpisode('metadata/a.json', {
+      graphConnectionsCyId: 'g:episode:x',
+      uiTitle: 'T2',
+    })
+    expect(s.episodeMetadataPath).toBe('metadata/a.json')
+    expect(s.graphConnectionsCyId).toBe('g:episode:x')
+    expect(s.episodeUiLabel).toBe('T2')
+  })
 })

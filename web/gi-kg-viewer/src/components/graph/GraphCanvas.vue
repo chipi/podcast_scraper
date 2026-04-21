@@ -240,6 +240,26 @@ function clearGraphCanvasImmediateHide(el: HTMLElement | null | undefined): void
 function releaseGraphCanvasLayoutHold(): void {
   graphContentHiddenUntilLayout.value = false
   clearGraphCanvasImmediateHide(container.value)
+  const cam = pendingFocusCameraAfterLayoutHold
+  pendingFocusCameraAfterLayoutHold = null
+  const core = cy
+  if (cam && core) {
+    void nextTick(() => {
+      requestAnimationFrame(() => {
+        if (!cy || cy !== core) {
+          return
+        }
+        try {
+          core.resize()
+        } catch {
+          /* ignore */
+        }
+        animateCameraToFocusedNode(core, cam.cyId, {
+          extraRawIds: cam.extras.length ? cam.extras : undefined,
+        })
+      })
+    })
+  }
 }
 
 const minimapHost = ref<HTMLDivElement | null>(null)
@@ -311,6 +331,9 @@ type ViewportPreserveSnap = {
   /** Relayout: only restore if this node is still selected. Ego exit: restore regardless of selection. */
   requireSelectedMatch: boolean
 }
+
+/** Library/Digest handoff: run ``animateCameraToFocusedNode`` after paint hold so Cytoscape has real layout size. */
+let pendingFocusCameraAfterLayoutHold: { cyId: string; extras: string[] } | null = null
 
 let pendingViewportPreserve: ViewportPreserveSnap | null = null
 /** Full-graph viewport before entering 1-hop (shift+dbl-click); applied when returning to full graph. */
@@ -537,7 +560,10 @@ function clearEpisodeRepresentativeGraphState(core: Core | null): void {
   applySearchHighlights(core)
 }
 
-function applyEpisodeRepresentativeFocusIfNeeded(core: Core): void {
+function applyEpisodeRepresentativeFocusIfNeeded(
+  core: Core,
+  opts?: { skipCamera?: boolean },
+): void {
   if (episodeTerritoryDismissed.value) {
     clearEpisodeRepresentativeGraphState(core)
     return
@@ -559,17 +585,22 @@ function applyEpisodeRepresentativeFocusIfNeeded(core: Core): void {
   if (preferred) {
     const prefColl = core.$id(preferred)
     if (!prefColl.empty()) {
-      const rawPref = rawNodeForRailInteraction(preferred)
-      const prefIsEpisode = graphCyIdRepresentsEpisodeNode(preferred, rawPref)
+      /** Merged graph only: ego slice (``rawNodeForRailInteraction``) can miss the Episode row right after Open in graph / reload while ``best`` still resolves on the full artifact — then we must not keep a stale ``best`` and ignore ``graphConnectionsCyId``. */
+      const rawPrefMerged = gf.filteredArtifact
+        ? findRawNodeInArtifact(gf.filteredArtifact, preferred)
+        : null
+      const prefIsEpisode = graphCyIdRepresentsEpisodeNode(preferred, rawPrefMerged)
       if (prefIsEpisode) {
         if (!best) {
           /** Corpus ``metadata_relative_path`` can disagree with graph row text; ``graphConnectionsCyId`` is authoritative. */
           cyEpisodeId = preferred
-        } else if (rawPref?.type === 'Episode') {
-          const mp = metadataPathFromEpisodeProperties(rawPref)?.trim()
+        } else if (rawPrefMerged?.type === 'Episode') {
+          const mp = metadataPathFromEpisodeProperties(rawPrefMerged)?.trim()
           if (mp && normalizeCorpusMetadataPath(mp) === metaNorm) {
             cyEpisodeId = preferred
           }
+        } else if (!rawPrefMerged && logicalEpisodeIdFromGraphNodeId(preferred)?.trim()) {
+          cyEpisodeId = preferred
         }
       }
     }
@@ -606,10 +637,13 @@ function applyEpisodeRepresentativeFocusIfNeeded(core: Core): void {
   }
   refreshSelectedNodeZoomAnchor(core)
   applySearchHighlights(core)
-  try {
-    core.fit(node.closedNeighborhood(), 48)
-  } catch {
-    /* ignore */
+  if (!opts?.skipCamera) {
+    try {
+      /** ``fit(closedNeighborhood())`` zoomed out on hub episodes and fought ``tryApplyPendingFocus``. */
+      animateCameraToFocusedNode(core, cyEpisodeId)
+    } catch {
+      /* ignore */
+    }
   }
   try {
     applyGraphSelectionDimFromNode(core, node)
@@ -1044,6 +1078,7 @@ function releaseGraphPaintAfterLayout(core: Core): void {
     requestAnimationFrame(() => {
       requestAnimationFrame(() => {
         if (!cy || cy !== core) {
+          pendingFocusCameraAfterLayoutHold = null
           return
         }
         releaseGraphCanvasLayoutHold()
@@ -1070,10 +1105,10 @@ function finishLayoutPass(core: Core): void {
   syncGraphLabelTierClasses(cy)
   attachZoomRecenter(core)
   applySearchHighlights(core)
-  /** Episode-rail territory fit must not run after search / library ``requestFocusNode`` camera — that
-   * used to override ``tryApplyPendingFocus`` when ``subject.kind === 'episode'`` for one tick. */
-  applyEpisodeRepresentativeFocusIfNeeded(core)
-  tryApplyPendingFocus(core)
+  /** ``tryApplyPendingFocus`` first so Library/Digest **Open in graph** camera wins; episode strip skips
+   * duplicate ``animateCameraToFocusedNode`` when pending focus was consumed. */
+  const appliedPending = tryApplyPendingFocus(core)
+  applyEpisodeRepresentativeFocusIfNeeded(core, { skipCamera: appliedPending })
   reapplySelectionDimmingIfAny(core)
   applyTopicClusterMemberCollapse(core)
   applyCrossEpisodeExpandHints(core)
@@ -1187,6 +1222,7 @@ function applyTopicClusterMemberCollapse(core: Core): void {
 function destroyCy(): void {
   // Do not clear pendingViewportPreserve here — it must survive destroy+redraw until the new cy's layoutstop
   // (ego exit to full graph, Re-layout). egoPriorFullGraphViewportPreserve must survive enter-ego redraw too.
+  pendingFocusCameraAfterLayoutHold = null
   graphLayoutGate.invalidate()
   clearSelectedNodeZoomAnchor()
   suspendSelectedNodeZoomAnchorCorrection = 0
@@ -1278,22 +1314,22 @@ function animateCameraToFocusedNode(
   }
 }
 
-function tryApplyPendingFocus(core: Core): void {
+/** @returns ``true`` when pending focus was applied (camera + selection); caller may skip episode-strip camera. */
+function tryApplyPendingFocus(core: Core): boolean {
   const rawId = nav.pendingFocusNodeId
-  if (!rawId) return
+  if (!rawId) return false
   const fallbackRaw = nav.pendingFocusFallbackNodeId
   let cyId = resolveCyNodeId(core, rawId)
   if (!cyId && fallbackRaw) {
     cyId = resolveCyNodeId(core, fallbackRaw)
   }
+  /** Do not clear pending: ``redraw`` can leave the graph mid-rebuild; a later ``finishLayoutPass`` / watcher applies. */
   if (!cyId) {
-    nav.clearPendingFocus()
-    return
+    return false
   }
   const n = core.$id(cyId)
   if (n.empty()) {
-    nav.clearPendingFocus()
-    return
+    return false
   }
   const focusNode = n.first() as NodeSingular
   core.nodes().unselect()
@@ -1306,10 +1342,17 @@ function tryApplyPendingFocus(core: Core): void {
   }
   const rawNode = rawNodeForRailInteraction(cyId)
   void openGraphEpisodeOrNodeRail(cyId, rawNode)
-  animateCameraToFocusedNode(core, cyId, {
-    extraRawIds: nav.pendingFocusCameraIncludeRawIds,
-  })
+  const extras = [...nav.pendingFocusCameraIncludeRawIds]
   nav.clearPendingFocus()
+  /** While the canvas host is hidden for first paint, ``animate`` uses wrong bounds; defer until ``releaseGraphCanvasLayoutHold``. */
+  if (graphContentHiddenUntilLayout.value) {
+    pendingFocusCameraAfterLayoutHold = { cyId, extras }
+  } else {
+    animateCameraToFocusedNode(core, cyId, {
+      extraRawIds: extras.length ? extras : undefined,
+    })
+  }
+  return true
 }
 
 /** Re-apply neighbourhood dimming when ``select`` handlers were not wired yet or async rail races layout. */
@@ -2192,31 +2235,15 @@ watch(
 )
 
 watch(
-  () => [nav.pendingFocusNodeId, gf.filteredArtifact] as const,
-  () => {
-    void nextTick(() => {
-      try {
-        const c = cy
-        // While the first layout pass is running, skip: `finishLayoutPass` will call
-        // `tryApplyPendingFocus` after `layoutstop`. Otherwise we consume pending focus early and
-        // the post-layout pass sees nothing (broken restore after graph rebuild).
-        if (c && !graphContentHiddenUntilLayout.value) {
-          tryApplyPendingFocus(c)
-        }
-      } catch (e) {
-        console.warn('[GraphCanvas] watcher (pendingFocus nextTick):', e)
-      }
-    })
-  },
-  { flush: 'post' },
-)
-
-watch(
   () =>
     [
+      nav.pendingFocusNodeId,
+      nav.pendingFocusFallbackNodeId,
+      nav.pendingFocusCameraIncludeRawIds.join('\0'),
       subject.kind,
       subject.episodeMetadataPath,
       subject.episodeUiLabel,
+      subject.graphConnectionsCyId,
       gf.fullArtifact,
       gf.filteredArtifact,
     ] as const,
@@ -2227,9 +2254,13 @@ watch(
         return
       }
       try {
-        applyEpisodeRepresentativeFocusIfNeeded(c)
+        // While the first layout pass is running, skip: `finishLayoutPass` will call
+        // `tryApplyPendingFocus` after `layoutstop`. Otherwise we consume pending focus early and
+        // the post-layout pass sees nothing (broken restore after graph rebuild).
+        const applied = tryApplyPendingFocus(c)
+        applyEpisodeRepresentativeFocusIfNeeded(c, { skipCamera: applied })
       } catch (e) {
-        console.warn('[GraphCanvas] watcher (episode territory):', e)
+        console.warn('[GraphCanvas] watcher (episode territory + pending focus):', e)
       }
     })
   },
@@ -2278,12 +2309,13 @@ onActivated(() => {
         /* ignore */
       }
     })
-    // Re-apply pending graph focus after returning to the tab (focus may have been set while deactivated).
-    if (nav.pendingFocusNodeId && !graphContentHiddenUntilLayout.value) {
+    // Re-apply pending graph focus / episode strip after returning to the tab.
+    if (!graphContentHiddenUntilLayout.value) {
       try {
-        tryApplyPendingFocus(c)
+        const applied = tryApplyPendingFocus(c)
+        applyEpisodeRepresentativeFocusIfNeeded(c, { skipCamera: applied })
       } catch (e) {
-        console.warn('[GraphCanvas] onActivated tryApplyPendingFocus:', e)
+        console.warn('[GraphCanvas] onActivated graph focus sync:', e)
       }
     }
   })

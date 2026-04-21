@@ -51,19 +51,6 @@ def serve_feature_kwargs_from_environ() -> dict[str, bool | str | None]:
     }
 
 
-def _resolve_operator_config_path_for_serve(
-    resolved_output: Path,
-    operator_config_file: str | os.PathLike[str] | None,
-) -> Path:
-    """Shared YAML path for operator-config API and pipeline job argv (RFC-077)."""
-    if operator_config_file:
-        return Path(operator_config_file).expanduser().resolve()
-    raw = os.environ.get("PODCAST_SERVE_CONFIG_FILE", "").strip()
-    if raw:
-        return Path(raw).expanduser().resolve()
-    return resolved_output / "viewer_operator.yaml"
-
-
 def _default_static_dir() -> Path | None:
     """Built SPA assets under ``web/gi-kg-viewer/dist`` (repo root relative to this file)."""
     repo_root = Path(__file__).resolve().parents[3]
@@ -92,13 +79,14 @@ def create_app(
             a no-op — stubs exist but no routers are implemented yet.
         enable_feeds_api: When ``True``, mount GET/PUT ``/api/feeds`` (requires ``output_dir``).
         enable_operator_config_api: When ``True``, mount GET/PUT ``/api/operator-config``
-            (requires ``output_dir``; YAML path from ``operator_config_file`` or
-            ``<output_dir>/viewer_operator.yaml``).
+            (requires ``output_dir``). YAML defaults to ``<corpus>/viewer_operator.yaml``
+            unless ``operator_config_file`` pins a single shared file.
         enable_jobs_api: When ``True``, mount ``/api/jobs`` pipeline job routes (requires
-            ``output_dir``; uses the same resolved operator YAML path as operator-config).
+            ``output_dir``; uses the same operator path rules as operator-config).
         operator_config_file: Optional explicit operator YAML path when **either**
-            ``enable_operator_config_api`` or ``enable_jobs_api`` is ``True`` (same file
-            for GET/PUT operator-config and for pipeline job argv).
+            ``enable_operator_config_api`` or ``enable_jobs_api`` is ``True``. When set,
+            all corpora use this one file; otherwise each corpus has its own
+            ``viewer_operator.yaml`` next to ``feeds.spec.yaml``.
     """
     app = FastAPI(title="podcast_scraper", version=__version__)
 
@@ -144,7 +132,7 @@ def create_app(
     app.state.feeds_api_enabled = bool(enable_feeds_api)
     app.state.operator_config_api_enabled = bool(enable_operator_config_api)
     app.state.jobs_api_enabled = bool(enable_jobs_api)
-    app.state.operator_config_path = None
+    app.state.operator_config_fixed_path = None
 
     if enable_feeds_api and resolved_output is None:
         raise ValueError("enable_feeds_api requires output_dir (corpus anchor).")
@@ -154,10 +142,12 @@ def create_app(
         raise ValueError("enable_jobs_api requires output_dir (corpus anchor).")
 
     if (enable_operator_config_api or enable_jobs_api) and resolved_output is not None:
-        app.state.operator_config_path = _resolve_operator_config_path_for_serve(
-            resolved_output,
-            operator_config_file,
-        )
+        if operator_config_file:
+            app.state.operator_config_fixed_path = Path(operator_config_file).expanduser().resolve()
+        else:
+            raw = os.environ.get("PODCAST_SERVE_CONFIG_FILE", "").strip()
+            if raw:
+                app.state.operator_config_fixed_path = Path(raw).expanduser().resolve()
 
     if enable_feeds_api:
         app.include_router(feeds.router, prefix="/api")

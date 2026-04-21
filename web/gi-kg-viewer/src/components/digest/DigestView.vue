@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onActivated, onBeforeUnmount, ref, watch } from 'vue'
+import { computed, inject, onActivated, onBeforeUnmount, ref, watch } from 'vue'
 import { storeToRefs } from 'pinia'
 import {
   fetchCorpusDigest,
@@ -15,6 +15,7 @@ import PodcastCover from '../shared/PodcastCover.vue'
 import { useArtifactsStore } from '../../stores/artifacts'
 import { useCorpusLensStore } from '../../stores/corpusLens'
 import { useSubjectStore } from '../../stores/subject'
+import { useGraphExplorerStore } from '../../stores/graphExplorer'
 import { useGraphNavigationStore } from '../../stores/graphNavigation'
 import { useDashboardNavStore } from '../../stores/dashboardNav'
 import { useShellStore } from '../../stores/shell'
@@ -31,6 +32,7 @@ import { formatUtcDateTimeForDisplay } from '../../utils/formatting'
 import { normalizeFeedIdForViewer } from '../../utils/feedId'
 import { handleVerticalListArrowKeydown } from '../../utils/listRowArrowNav'
 import { StaleGeneration } from '../../utils/staleGeneration'
+import { corpusGraphBaselineLoaderKey } from '../../corpusGraphBaseline'
 import {
   applyGraphFocusPlan,
   graphFocusPlanFromCilPill,
@@ -45,7 +47,19 @@ const emit = defineEmits<{
 const shell = useShellStore()
 const dashboardNav = useDashboardNavStore()
 const artifacts = useArtifactsStore()
+const graphExplorer = useGraphExplorerStore()
+const loadCorpusGraphBaseline = inject(corpusGraphBaselineLoaderKey, null)
 const graphNav = useGraphNavigationStore()
+
+async function ensureDefaultCorpusGraphIfNeeded(): Promise<void> {
+  if (!loadCorpusGraphBaseline) {
+    return
+  }
+  if (graphExplorer.graphTabOpenedThisSession && artifacts.selectedRelPaths.length > 0) {
+    return
+  }
+  await loadCorpusGraphBaseline()
+}
 const subject = useSubjectStore()
 const corpusLens = useCorpusLensStore()
 const { sinceYmd, activePreset } = storeToRefs(corpusLens)
@@ -77,6 +91,11 @@ const graphActionError = ref<string | null>(null)
 
 /** Topic bands progressive reveal (digest UX). */
 const DIGEST_TOPIC_BANDS_INITIAL = 3
+/**
+ * Max height for each topic band’s hit list (under the title / Search topic row).
+ * ~65% of a typical tall stack — extra hits scroll inside the band.
+ */
+const DIGEST_TOPIC_BAND_HITS_MAX_HEIGHT = '10.5rem'
 const topicBandsExpanded = ref(false)
 
 watch(digest, () => {
@@ -113,7 +132,7 @@ function topicBandIndex(band: CorpusDigestTopicBand): number {
 
 function bandCardClass(_band: CorpusDigestTopicBand): string {
   /** Same chrome for every column — first band used ``bg-elevated`` which reads as flat gray vs peers. */
-  return 'flex min-w-0 flex-col rounded border border-border bg-surface p-1.5'
+  return 'flex min-h-0 min-w-0 flex-col rounded border border-border bg-surface p-1.5'
 }
 
 function bandTitleClass(band: CorpusDigestTopicBand): string {
@@ -195,6 +214,7 @@ async function openDigestRecentTopicPillInGraph(
   }
   const pill = row.cil_digest_topics?.[pillIndex]
 
+  await ensureDefaultCorpusGraphIfNeeded()
   await artifacts.appendRelativeArtifacts(cleaned)
   if (digestGraphOpenGate.isStale(seq)) {
     return
@@ -440,6 +460,7 @@ async function openTopicHitInGraph(
     graphActionError.value = 'No GI/KG artifacts on disk for this episode.'
     return
   }
+  await ensureDefaultCorpusGraphIfNeeded()
   await artifacts.appendRelativeArtifacts(cleaned)
   if (digestGraphOpenGate.isStale(seq)) {
     return
@@ -694,12 +715,15 @@ onBeforeUnmount(() => {
                 Search topic
               </button>
             </div>
-            <ul class="mt-0.5 space-y-0.5 text-xs">
+            <ul
+              class="mt-0.5 min-h-0 space-y-0.5 overflow-x-hidden overflow-y-auto overscroll-y-contain text-xs [scrollbar-width:thin] [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-border"
+              :style="{ maxHeight: DIGEST_TOPIC_BAND_HITS_MAX_HEIGHT }"
+            >
               <li v-for="(h, hi) in band.hits" :key="hi">
                 <div
                   :role="h.metadata_relative_path ? 'button' : undefined"
                   :tabindex="h.metadata_relative_path ? 0 : undefined"
-                  class="grid grid-cols-[auto,minmax(0,1fr)] gap-x-2 gap-y-0.5 rounded px-0.5 py-0.5 outline-none"
+                  class="grid grid-cols-[auto,minmax(0,1fr)] gap-x-1.5 gap-y-0.5 rounded px-0.5 py-px outline-none"
                   :class="[
                     h.metadata_relative_path
                       ? 'cursor-pointer ring-offset-1 hover:bg-overlay focus-visible:ring-2 focus-visible:ring-primary'
@@ -712,7 +736,7 @@ onBeforeUnmount(() => {
                   @keydown.enter.prevent="onTopicHitRowActivate(h, band)"
                   @keydown.space.prevent="onTopicHitRowActivate(h, band)"
                 >
-                  <div class="row-start-1 flex w-9 shrink-0 self-start">
+                  <div class="row-start-1 flex w-8 shrink-0 self-start">
                     <PodcastCover
                       class="shrink-0"
                       :corpus-path="shell.corpusPath"
@@ -721,7 +745,7 @@ onBeforeUnmount(() => {
                       :episode-image-url="h.episode_image_url"
                       :feed-image-url="h.feed_image_url"
                       :alt="`Cover for ${h.episode_title || 'episode'}`"
-                      size-class="h-9 w-9 shrink-0"
+                      size-class="h-8 w-8 shrink-0"
                     />
                   </div>
                   <div class="row-start-1 min-w-0">
@@ -730,7 +754,7 @@ onBeforeUnmount(() => {
                         <span
                           v-if="isPublishDateWithin24hRolling(h.publish_date)"
                           role="img"
-                          class="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-success"
+                          class="mt-1 h-1.5 w-1.5 shrink-0 rounded-full bg-success"
                           :title="recencyDotHoverTitle(h.publish_date) || undefined"
                           :aria-label="
                             recencyDotHoverTitle(h.publish_date) || 'Recently published'
@@ -754,8 +778,8 @@ onBeforeUnmount(() => {
                     </div>
                     <p
                       v-if="digestRowSummaryPreview(h)"
-                      class="mt-0.5 min-w-0 break-words text-[11px] leading-snug text-muted"
-                      :class="isTopicHitSelected(h) ? '' : 'line-clamp-2'"
+                      class="mt-0.5 min-w-0 break-words text-[10px] leading-snug text-muted"
+                      :class="isTopicHitSelected(h) ? '' : 'line-clamp-1'"
                       :title="
                         isTopicHitSelected(h)
                           ? undefined

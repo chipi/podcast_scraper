@@ -35,6 +35,19 @@ values; use **YAML/JSON** for shared defaults. See [Configuration API — Twelve
 
 ---
 
+## Pipeline run (profile + operator + feeds)
+
+```bash
+python -m podcast_scraper.cli \
+  --profile cloud_balanced \
+  --config config/manual/operator_defaults.yaml \
+  --feeds-spec config/manual/feeds.spec.registry_10.yaml
+```
+
+Details: [README.md](https://github.com/chipi/podcast_scraper/blob/main/README.md#typical-run-profile-operator-config--feed-list), [CLI.md — Quick Start](../api/CLI.md#quick-start), [CONFIGURATION.md — Multi-feed compose](../api/CONFIGURATION.md#multi-feed-compose).
+
+---
+
 ## Diagnostic Commands (Issue #379)
 
 ```bash

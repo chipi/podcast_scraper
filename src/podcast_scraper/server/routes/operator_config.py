@@ -8,33 +8,61 @@ from fastapi import APIRouter, HTTPException, Query, Request, status
 
 from podcast_scraper.server.atomic_write import atomic_write_text
 from podcast_scraper.server.operator_config_security import assert_operator_yaml_safe_for_persist
+from podcast_scraper.server.operator_paths import (
+    packaged_viewer_operator_example_path,
+    viewer_operator_yaml_path,
+)
+from podcast_scraper.server.operator_yaml_profile import expand_profile_only_with_packaged_example
 from podcast_scraper.server.pathutil import resolve_corpus_path_param
 from podcast_scraper.server.profile_presets import list_packaged_profile_names
 from podcast_scraper.server.schemas import OperatorConfigGetResponse, OperatorConfigPutBody
 
 router = APIRouter(tags=["operator-config"])
 
-# Default packaged preset when the viewer operator file is missing or empty (GET seeds once).
-_DEFAULT_VIEWER_PROFILE = "cloud_balanced"
 
+def _ensure_default_viewer_operator_yaml(cfg_path: Path) -> None:
+    """Seed ``viewer_operator.yaml`` when absent or whitespace-only.
 
-def _ensure_default_viewer_operator_yaml(cfg_path: Path, profiles: list[str]) -> None:
-    """Write minimal ``profile: …`` when file is absent or whitespace-only and preset exists."""
-    if _DEFAULT_VIEWER_PROFILE not in profiles:
-        return
+    Copies packaged ``config/examples/viewer_operator.example.yaml`` when present (no
+    ``profile:`` in that file — operators choose preset in the viewer Profile menu or
+    ``--profile`` on the CLI, same merge order as a thin ``--config`` file).
+
+    When the file exists but is only a ``profile:`` line (viewer Save with empty overrides),
+    merges packaged example overrides under that profile (same disk shape as a thin
+    ``--profile`` + ``--config`` pair).
+    """
+    example_path = packaged_viewer_operator_example_path()
     if cfg_path.is_file():
         existing = cfg_path.read_text(encoding="utf-8", errors="replace")
         if existing.strip():
+            expanded = expand_profile_only_with_packaged_example(
+                existing, example_path=example_path
+            )
+            if expanded != existing:
+                try:
+                    assert_operator_yaml_safe_for_persist(expanded)
+                except HTTPException:
+                    return
+                atomic_write_text(cfg_path, expanded)
             return
+    if example_path is None:
+        return
+    text = example_path.read_text(encoding="utf-8", errors="replace")
+    try:
+        assert_operator_yaml_safe_for_persist(text)
+    except HTTPException:
+        return
     cfg_path.parent.mkdir(parents=True, exist_ok=True)
-    atomic_write_text(cfg_path, f"profile: {_DEFAULT_VIEWER_PROFILE}\n")
+    atomic_write_text(cfg_path, text)
 
 
-def _operator_file(request: Request) -> Path:
-    raw = getattr(request.app.state, "operator_config_path", None)
-    if raw is None:
-        raise HTTPException(status_code=500, detail="operator_config_path is not configured.")
-    return Path(raw)
+def _operator_file(request: Request, corpus_root: Path) -> Path:
+    if not (
+        bool(getattr(request.app.state, "operator_config_api_enabled", False))
+        or bool(getattr(request.app.state, "jobs_api_enabled", False))
+    ):
+        raise HTTPException(status_code=500, detail="operator config API is not enabled.")
+    return viewer_operator_yaml_path(request.app, corpus_root)
 
 
 @router.get("/operator-config", response_model=OperatorConfigGetResponse)
@@ -46,15 +74,16 @@ async def get_operator_config(
 ) -> OperatorConfigGetResponse:
     """Return viewer-safe operator YAML from the configured resolved path.
 
-    May create ``viewer_operator.yaml`` with ``profile: cloud_balanced`` when the file
-    is missing or whitespace-only and that packaged preset exists (see
-    ``_ensure_default_viewer_operator_yaml``).
+    May create ``<corpus>/viewer_operator.yaml`` from the packaged overrides example when
+    the file is missing or whitespace-only (see ``_ensure_default_viewer_operator_yaml``).
+    ``profile:`` is not seeded; use the viewer Profile menu + Save (same idea as CLI
+    ``--profile`` + ``--config``).
     """
     anchor = getattr(request.app.state, "output_dir", None)
     corpus_root = resolve_corpus_path_param(path, anchor)
-    cfg_path = _operator_file(request)
+    cfg_path = _operator_file(request, corpus_root)
     profiles = list_packaged_profile_names()
-    _ensure_default_viewer_operator_yaml(cfg_path, profiles)
+    _ensure_default_viewer_operator_yaml(cfg_path)
     if not cfg_path.is_file():
         return OperatorConfigGetResponse(
             corpus_path=str(corpus_root.resolve()),
@@ -96,13 +125,17 @@ async def put_operator_config(
     """Validate and atomically write operator YAML to the configured resolved path."""
     anchor = getattr(request.app.state, "output_dir", None)
     corpus_root = resolve_corpus_path_param(path, anchor)
-    cfg_path = _operator_file(request)
-    assert_operator_yaml_safe_for_persist(body.content)
-    atomic_write_text(cfg_path, body.content)
+    cfg_path = _operator_file(request, corpus_root)
+    to_write = expand_profile_only_with_packaged_example(
+        body.content,
+        example_path=packaged_viewer_operator_example_path(),
+    )
+    assert_operator_yaml_safe_for_persist(to_write)
+    atomic_write_text(cfg_path, to_write)
     profiles = list_packaged_profile_names()
     return OperatorConfigGetResponse(
         corpus_path=str(corpus_root.resolve()),
         operator_config_path=str(cfg_path.resolve()),
-        content=body.content,
+        content=to_write,
         available_profiles=profiles,
     )

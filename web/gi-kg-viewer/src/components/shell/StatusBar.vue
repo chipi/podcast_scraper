@@ -17,12 +17,14 @@ const indexDialogRef = useTemplateRef<HTMLDialogElement>('indexDialogRef')
 const artifactListDialogRef = useTemplateRef<HTMLDialogElement>('artifactListDialogRef')
 const sourcesDialogRef = useTemplateRef<HTMLDialogElement>('sourcesDialogRef')
 
-const sourcesTab = ref<'feeds' | 'operator'>('feeds')
+const sourcesTab = ref<'feeds' | 'profile' | 'operator'>('feeds')
 const feedsEditorText = ref('')
 const operatorYamlBody = ref('')
 const operatorProfileSelected = ref('')
 const availableProfiles = ref<string[]>([])
 const operatorFileHint = ref('')
+/** Corpus path (trimmed) we last GET for operator YAML; skip re-fetch when switching Profile ↔ Overrides. */
+const operatorSourcesLoadedForPath = ref('')
 const sourcesBusy = ref(false)
 const sourcesError = ref<string | null>(null)
 /** One RSS URL per line — merged into the JSON ``feeds`` array (legacy ``--rss-file`` style). */
@@ -126,7 +128,7 @@ async function onLocalFilesChange(ev: Event): Promise<void> {
 }
 
 /** Load only the active tab so a broken operator file does not block the Feeds editor. */
-async function loadSourcesTab(tab: 'feeds' | 'operator'): Promise<void> {
+async function loadSourcesTab(tab: 'feeds' | 'profile' | 'operator'): Promise<void> {
   const p = shell.corpusPath.trim()
   sourcesBusy.value = true
   sourcesError.value = null
@@ -134,13 +136,20 @@ async function loadSourcesTab(tab: 'feeds' | 'operator'): Promise<void> {
     if (tab === 'feeds' && shell.feedsApiAvailable) {
       const f = await getFeeds(p)
       feedsEditorText.value = JSON.stringify({ feeds: f.feeds }, null, 2)
-    } else if (tab === 'operator' && shell.operatorConfigApiAvailable) {
+    } else if (
+      (tab === 'profile' || tab === 'operator') &&
+      shell.operatorConfigApiAvailable
+    ) {
+      if (operatorSourcesLoadedForPath.value === p) {
+        return
+      }
       const o = await getOperatorConfig(p)
       operatorFileHint.value = o.operator_config_path
       availableProfiles.value = o.available_profiles ?? []
       const sp = splitOperatorYamlProfile(o.content)
       operatorProfileSelected.value = sp.profile
       operatorYamlBody.value = sp.body
+      operatorSourcesLoadedForPath.value = p
     }
   } catch (e) {
     sourcesError.value = e instanceof Error ? e.message : String(e)
@@ -149,24 +158,25 @@ async function loadSourcesTab(tab: 'feeds' | 'operator'): Promise<void> {
   }
 }
 
-async function openSourcesDialog(tab: 'feeds' | 'operator'): Promise<void> {
+async function openSourcesDialog(tab: 'feeds' | 'profile' | 'operator'): Promise<void> {
   sourcesTab.value = tab
   await loadSourcesTab(tab)
   sourcesDialogRef.value?.showModal()
 }
 
-/** Open configuration dialog: Feed list tab if feeds API is on, else Operator config only. */
+/** Open configuration dialog: Feed list tab if feeds API is on, else operator (YAML) tab. */
 async function openSourcesDialogDefault(): Promise<void> {
   const feedsOn = shell.feedsApiAvailable
-  const tab: 'feeds' | 'operator' = feedsOn ? 'feeds' : 'operator'
+  const tab: 'feeds' | 'profile' | 'operator' = feedsOn ? 'feeds' : 'operator'
   await openSourcesDialog(tab)
 }
 
 function closeSourcesDialog(): void {
+  operatorSourcesLoadedForPath.value = ''
   sourcesDialogRef.value?.close()
 }
 
-async function selectSourcesTab(tab: 'feeds' | 'operator'): Promise<void> {
+async function selectSourcesTab(tab: 'feeds' | 'profile' | 'operator'): Promise<void> {
   if (sourcesTab.value === tab) {
     return
   }
@@ -255,6 +265,7 @@ async function saveOperatorFromDialog(): Promise<void> {
     const sp = splitOperatorYamlProfile(out.content)
     operatorProfileSelected.value = sp.profile
     operatorYamlBody.value = sp.body
+    operatorSourcesLoadedForPath.value = p
   } catch (e) {
     sourcesError.value = e instanceof Error ? e.message : String(e)
   } finally {
@@ -332,7 +343,7 @@ const corpusPathModel = computed({
         "
         type="button"
         class="shrink-0 rounded border border-border px-1.5 py-0.5 text-[10px] hover:bg-overlay"
-        title="Feed list and operator config"
+        title="Feed list, pipeline profile, and YAML overrides"
         data-testid="status-bar-sources-trigger"
         @click="void openSourcesDialogDefault()"
       >
@@ -491,7 +502,7 @@ const corpusPathModel = computed({
 
   <dialog
     ref="sourcesDialogRef"
-    class="w-[min(96vw,28rem)] overflow-hidden rounded-lg border border-border bg-surface p-0 text-xs text-surface-foreground shadow-lg backdrop:bg-black/40"
+    class="w-[min(96vw,32rem)] overflow-hidden rounded-lg border border-border bg-surface p-0 text-xs text-surface-foreground shadow-lg backdrop:bg-black/40"
     aria-labelledby="status-bar-configuration-title"
     data-testid="status-bar-sources-dialog"
   >
@@ -527,11 +538,21 @@ const corpusPathModel = computed({
           v-if="shell.operatorConfigApiAvailable"
           type="button"
           class="rounded px-2 py-0.5 text-[10px] hover:bg-overlay"
+          :class="sourcesTab === 'profile' ? 'bg-overlay font-medium' : 'text-muted'"
+          data-testid="sources-dialog-tab-profile"
+          @click="void selectSourcesTab('profile')"
+        >
+          Profile
+        </button>
+        <button
+          v-if="shell.operatorConfigApiAvailable"
+          type="button"
+          class="rounded px-2 py-0.5 text-[10px] hover:bg-overlay"
           :class="sourcesTab === 'operator' ? 'bg-overlay font-medium' : 'text-muted'"
           data-testid="sources-dialog-tab-operator"
           @click="void selectSourcesTab('operator')"
         >
-          Operator config
+          Overrides
         </button>
       </div>
     </div>
@@ -544,6 +565,31 @@ const corpusPathModel = computed({
     <!-- Explicit max-height (not flex-1) so the tab row never loses space to the scroll sibling. -->
     <div class="min-h-0 max-h-[min(58vh,32rem)] overflow-y-auto overscroll-contain pr-0.5">
     <div v-show="sourcesTab === 'feeds' && shell.feedsApiAvailable" class="flex flex-col gap-2">
+      <p
+        v-if="shell.operatorConfigApiAvailable"
+        class="text-[10px] text-muted leading-snug"
+      >
+        Pipeline preset + YAML (<code class="rounded bg-overlay px-0.5 font-mono text-[9px]">GET /api/operator-config</code>):
+        <button
+          type="button"
+          class="font-medium text-surface-foreground underline decoration-dotted underline-offset-2 hover:decoration-solid"
+          data-testid="sources-dialog-jump-to-profile"
+          @click="void selectSourcesTab('profile')"
+        >
+          Profile
+        </button>
+        (packaged <code class="font-mono text-[9px]">profile:</code>)
+        or
+        <button
+          type="button"
+          class="font-medium text-surface-foreground underline decoration-dotted underline-offset-2 hover:decoration-solid"
+          data-testid="sources-dialog-jump-to-operator"
+          @click="void selectSourcesTab('operator')"
+        >
+          Overrides
+        </button>
+        (YAML without top-level <code class="font-mono text-[9px]">profile:</code>).
+      </p>
       <p class="text-[10px] text-muted leading-snug">
         Structured <code class="rounded bg-overlay px-0.5 font-mono text-[9px]">feeds.spec.yaml</code> on disk under the corpus root. Edit JSON here: root <code class="font-mono text-[9px]">feeds</code> is an array of URL strings or objects with <code class="font-mono text-[9px]">url</code> plus optional per-feed overrides (same shape as CLI <code class="font-mono text-[9px]">--feeds-spec</code>). Legacy one-URL-per-line lists belong with <code class="font-mono text-[9px]">--rss-file</code> on the CLI — use the box below to turn lines into this JSON shape. Do not duplicate feeds in operator config.
       </p>
@@ -580,23 +626,23 @@ const corpusPathModel = computed({
         Save feeds
       </button>
     </div>
-    <div v-show="sourcesTab === 'operator' && shell.operatorConfigApiAvailable" class="flex flex-col gap-2">
+    <div v-show="sourcesTab === 'profile' && shell.operatorConfigApiAvailable" class="flex flex-col gap-2">
       <p v-if="operatorFileHint" class="break-all text-[9px] text-muted leading-snug">
         {{ operatorFileHint }}
       </p>
       <p class="text-[10px] text-muted leading-snug">
-        Packaged preset <code class="rounded bg-overlay px-0.5 font-mono text-[9px]">profile:</code> defaults merge first; keys below override. The <strong>Profile</strong> menu is what Save writes for <code class="font-mono text-[9px]">profile:</code> — <strong>None</strong> removes it even if you pasted a <code class="font-mono text-[9px]">profile:</code> line in the box. When the operator file is missing or empty, the server creates <code class="font-mono text-[9px]">profile: cloud_balanced</code> on first load if that preset exists under packaged <code class="font-mono text-[9px]">config/profiles</code>. If the menu is empty, no packaged presets were found (check <code class="font-mono text-[9px]">config/profiles</code>). Do not put API keys here — use environment variables. RSS / feed lists belong in the <strong class="text-surface-foreground">Feed list</strong> tab (<code class="font-mono text-[9px]">feeds.spec.yaml</code>); the server rejects feed keys and secrets on save (top-level only).
+        Packaged preset <code class="rounded bg-overlay px-0.5 font-mono text-[9px]">profile:</code> merges first; keys in <strong class="text-surface-foreground">Overrides</strong> win — same idea as CLI <code class="font-mono text-[9px]">--profile</code> plus <code class="font-mono text-[9px]">--config</code>. This menu is the source of truth for top-level <code class="font-mono text-[9px]">profile:</code>: <strong>None</strong> removes it even if a stale line exists on disk. If the menu is empty, no packaged presets were found (check <code class="font-mono text-[9px]">config/profiles</code>). Do not put API keys in YAML — use environment variables. RSS / feeds belong in <strong class="text-surface-foreground">Feed list</strong>; the server rejects feed keys and secrets on save.
       </p>
       <div class="flex flex-wrap items-center gap-2">
         <label
           for="sources-dialog-profile-select"
           class="text-[10px] text-muted shrink-0"
-        >Profile</label>
+        >Preset</label>
         <select
           id="sources-dialog-profile-select"
           v-model="operatorProfileSelected"
           data-testid="sources-dialog-profile-select"
-          class="max-w-[min(100%,14rem)] rounded border border-border bg-elevated px-2 py-1 text-[11px] text-elevated-foreground"
+          class="max-w-[min(100%,16rem)] rounded border border-border bg-elevated px-2 py-1 text-[11px] text-elevated-foreground"
           aria-label="Pipeline profile preset"
         >
           <option value="">
@@ -617,8 +663,22 @@ const corpusPathModel = computed({
           </option>
         </select>
       </div>
+      <button
+        type="button"
+        class="self-start rounded border border-border px-2 py-1 text-[10px] hover:bg-overlay disabled:opacity-40"
+        :disabled="sourcesBusy"
+        data-testid="sources-dialog-save-profile"
+        @click="void saveOperatorFromDialog()"
+      >
+        Save (applies preset + overrides on disk)
+      </button>
+    </div>
+    <div v-show="sourcesTab === 'operator' && shell.operatorConfigApiAvailable" class="flex flex-col gap-2">
+      <p v-if="operatorFileHint" class="break-all text-[9px] text-muted leading-snug">
+        {{ operatorFileHint }}
+      </p>
       <p class="text-[10px] text-muted leading-snug">
-        Overrides (YAML, without top-level <code class="font-mono text-[9px]">profile:</code> — use the menu above):
+        YAML overrides only (no top-level <code class="font-mono text-[9px]">profile:</code> — use the <strong class="text-surface-foreground">Profile</strong> tab for the preset line). Same file as the API response; saving merges with the current preset from the Profile tab.
       </p>
       <textarea
         v-model="operatorYamlBody"
@@ -631,6 +691,7 @@ const corpusPathModel = computed({
         type="button"
         class="self-start rounded border border-border px-2 py-1 text-[10px] hover:bg-overlay disabled:opacity-40"
         :disabled="sourcesBusy"
+        data-testid="sources-dialog-save-overrides"
         @click="void saveOperatorFromDialog()"
       >
         Save YAML

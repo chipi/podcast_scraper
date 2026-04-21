@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
+import { computed, nextTick, ref, watch } from 'vue'
 import { fetchCorpusCoverage, type CorpusCoverageResponse } from '../../api/corpusCoverageApi'
 import { fetchCorpusDigest, type CorpusDigestResponse } from '../../api/digestApi'
 import { fetchCorpusFeeds, type CorpusFeedItem } from '../../api/corpusLibraryApi'
@@ -17,6 +17,7 @@ import FeedCoverageTable from './FeedCoverageTable.vue'
 import IndexStatusCard from './IndexStatusCard.vue'
 import IntelligenceSnapshot from './IntelligenceSnapshot.vue'
 import TopicClustersStatusBlock from './TopicClustersStatusBlock.vue'
+import PipelineJobHistoryStrip from './PipelineJobHistoryStrip.vue'
 import PipelineJobsCard from './PipelineJobsCard.vue'
 import PipelineRunHistoryStrip from './PipelineRunHistoryStrip.vue'
 import PipelineStageChart from './PipelineStageChart.vue'
@@ -35,6 +36,8 @@ const indexStats = useIndexStatsStore()
 const dashboardNav = useDashboardNavStore()
 
 const dashTab = ref<'coverage' | 'intelligence' | 'pipeline'>('coverage')
+/** Sub-tabs inside Pipeline: active jobs, finished job strip, corpus run strip. */
+const pipelineActivityTab = ref<'jobs' | 'job_history' | 'history'>('jobs')
 const runs = ref<CorpusRunSummaryItem[]>([])
 const coverage = ref<CorpusCoverageResponse | null>(null)
 const feeds = ref<CorpusFeedItem[]>([])
@@ -45,9 +48,25 @@ const topPersonsError = ref<string | null>(null)
 const dashLoading = ref(false)
 const dashError = ref<string | null>(null)
 const dashGate = new StaleGeneration()
+/** Overlapping digest-only fetches (Intelligence tab) vs full dashboard refresh. */
+const digestIntelGate = new StaleGeneration()
 
 function selectTab(tab: 'coverage' | 'intelligence' | 'pipeline'): void {
   dashTab.value = tab
+}
+
+function selectPipelineActivityTab(tab: 'jobs' | 'job_history' | 'history'): void {
+  pipelineActivityTab.value = tab
+}
+
+/** From Briefing “Last run” Details — Pipeline tab + Run history strip (not HTTP Jobs). */
+async function openPipelineRunHistory(): Promise<void> {
+  dashTab.value = 'pipeline'
+  pipelineActivityTab.value = 'history'
+  await nextTick()
+  document
+    .querySelector<HTMLElement>('[data-testid="pipeline-jobs-history-panel"]')
+    ?.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
 }
 
 async function fetchTopPersons(): Promise<void> {
@@ -69,8 +88,27 @@ async function fetchTopPersons(): Promise<void> {
   }
 }
 
+/** Corpus snapshot (7d digest) for Intelligence — not tied to full dashboard load. */
+async function refreshIntelligenceDigest(): Promise<void> {
+  const seq = digestIntelGate.bump()
+  const root = shell.corpusPath.trim()
+  if (!root || !shell.healthStatus) {
+    return
+  }
+  const d = await fetchCorpusDigest(root, {
+    window: '7d',
+    compact: false,
+    maxRows: 3,
+  }).catch(() => null)
+  if (digestIntelGate.isStale(seq)) {
+    return
+  }
+  digestIntel.value = d
+}
+
 async function refreshDashboard(): Promise<void> {
   const seq = dashGate.bump()
+  digestIntelGate.invalidate()
   dashLoading.value = true
   dashError.value = null
   const root = shell.corpusPath.trim()
@@ -134,6 +172,7 @@ watch(
 
 watch(dashTab, (t) => {
   if (t === 'intelligence') {
+    void refreshIntelligenceDigest()
     void fetchTopPersons()
   }
 })
@@ -242,6 +281,7 @@ function openLibraryFailures(): void {
       :corpus-path="shell.corpusPath"
       :api-ready="Boolean(shell.healthStatus)"
       @select-tab="selectTab"
+      @open-pipeline-run-history="void openPipelineRunHistory()"
       @rebuild-index="indexStats.requestIndexRebuild(true)"
       @open-library="emit('open-library')"
     />
@@ -338,8 +378,78 @@ function openLibraryFailures(): void {
       class="space-y-4"
       role="tabpanel"
     >
-      <PipelineJobsCard />
-      <PipelineRunHistoryStrip :runs="runs" />
+      <div
+        class="rounded border border-border bg-surface text-sm text-surface-foreground"
+        data-testid="pipeline-jobs-history-panel"
+      >
+        <nav
+          class="flex flex-wrap gap-1 border-b border-border bg-elevated/30 px-2 py-1.5"
+          role="tablist"
+          aria-label="Jobs, job history, and run history"
+        >
+          <button
+            type="button"
+            role="tab"
+            :aria-selected="pipelineActivityTab === 'jobs'"
+            class="rounded px-2.5 py-1 text-[10px] font-medium"
+            :class="
+              pipelineActivityTab === 'jobs'
+                ? 'bg-primary text-primary-foreground'
+                : 'text-muted hover:bg-overlay'
+            "
+            data-testid="dashboard-pipeline-subtab-jobs"
+            @click="selectPipelineActivityTab('jobs')"
+          >
+            Jobs
+          </button>
+          <button
+            type="button"
+            role="tab"
+            :aria-selected="pipelineActivityTab === 'job_history'"
+            class="rounded px-2.5 py-1 text-[10px] font-medium"
+            :class="
+              pipelineActivityTab === 'job_history'
+                ? 'bg-primary text-primary-foreground'
+                : 'text-muted hover:bg-overlay'
+            "
+            data-testid="dashboard-pipeline-subtab-job-history"
+            @click="selectPipelineActivityTab('job_history')"
+          >
+            Job history
+          </button>
+          <button
+            type="button"
+            role="tab"
+            :aria-selected="pipelineActivityTab === 'history'"
+            class="rounded px-2.5 py-1 text-[10px] font-medium"
+            :class="
+              pipelineActivityTab === 'history'
+                ? 'bg-primary text-primary-foreground'
+                : 'text-muted hover:bg-overlay'
+            "
+            data-testid="dashboard-pipeline-subtab-history"
+            @click="selectPipelineActivityTab('history')"
+          >
+            Run history
+          </button>
+        </nav>
+        <div class="p-3" role="tabpanel">
+          <PipelineJobsCard
+            v-if="pipelineActivityTab === 'jobs'"
+            embedded
+            active-jobs-only
+          />
+          <PipelineJobHistoryStrip
+            v-else-if="pipelineActivityTab === 'job_history'"
+            embedded
+          />
+          <PipelineRunHistoryStrip
+            v-else
+            embedded
+            :runs="runs"
+          />
+        </div>
+      </div>
       <VerticalBarChart
         v-if="durationFive.labels.length"
         :title="durationFive.title"

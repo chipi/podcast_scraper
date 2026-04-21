@@ -6,6 +6,7 @@ Practical guides for using and developing Podcast Scraper.
 
 | Guide | Description |
 | ------- | ------------- |
+| [Installation Guide](INSTALLATION_GUIDE.md) | Install paths (see README), first **`--profile` + `--config` + `--feeds-spec`** run |
 | [Quick Reference](QUICK_REFERENCE.md) | Common commands cheat sheet |
 | [Troubleshooting](TROUBLESHOOTING.md) | Common issues and solutions |
 | [Glossary](GLOSSARY.md) | Key terms and concepts |
@@ -15,7 +16,7 @@ Practical guides for using and developing Podcast Scraper.
 | Reference | Description |
 | --------- | ----------- |
 | [Configuration API](../api/CONFIGURATION.md) | `Config`, env vars, YAML — [Twelve-factor (config)](../api/CONFIGURATION.md#twelve-factor-app-alignment-config), [Download resilience](../api/CONFIGURATION.md#download-resilience) (retries, Issue #522, presets, CLI parity), `failure_summary` in `run.json` |
-| [CLI](../api/CLI.md) | Flags including `--http-retry-total`, `--episode-retry-max`, etc. (Control Options) |
+| [CLI](../api/CLI.md) | Flags; [Quick Start](../api/CLI.md#quick-start) (**`--profile`**, **`--config`**, **`--feeds-spec`**); `--http-retry-total`, `--episode-retry-max`, etc. |
 
 ## Development
 

@@ -19,7 +19,7 @@ v2.6.0 adds **viewer and HTTP** capabilities; the core library API is unchanged.
 ### Feeds API and jobs: structured `feeds.spec.yaml` (RFC-077 / #626)
 
 - **Canonical corpus feeds file** is **`feeds.spec.yaml`** at the corpus root (root object with **`feeds`** array). The viewer **`GET`/`PUT /api/feeds`** contract uses JSON **`{ "feeds": [...] }`** (not **`urls`**).
-- **Pipeline jobs** subprocess passes **`--config`** and **`--feeds-spec`** (when the file exists) to `python -m podcast_scraper.cli`, matching the main CLI flags.
+- **Pipeline jobs** subprocess passes **`--config`** and **`--feeds-spec`** (when the file exists) to `python -m podcast_scraper.cli`, matching the main CLI flags. Manual runs often add **`--profile <name>`** alongside **`--config`** for the same merge semantics; see [CLI.md — Quick Start](CLI.md#quick-start).
 - **Migration from `rss_urls.list.txt`:** convert one URL per line to `feeds: ["https://...", ...]` in YAML or JSON, save as **`feeds.spec.yaml`**, or use **`config/examples/feeds.spec.example.*`** as a template. **`--rss-file`** remains supported on the CLI for line lists but is not what the Feeds API or job runner use.
 
 ### Additive: Corpus Digest and health discovery (RFC-068)

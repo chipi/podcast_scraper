@@ -1481,16 +1481,27 @@ cfg = Config(
 
 There are **no** checked-in `config.example.multi-feed.*` files. A multi-feed CLI run combines:
 
-1. **Operator YAML** (`--config`): set **`profile:`** to a preset under `config/profiles/`, set **`output_dir`** when **two or more** feeds are active, and add any corpus/runtime overrides. You may start from `config/examples/config.example.yaml` / `config.example.json`, add **`profile:`**, and drop inline **`rss`** when using **`--feeds-spec`**.
+1. **Operator YAML** (`--config`): set **`output_dir`** when **two or more** feeds are active and add any corpus/runtime overrides. **Profile preset** — either put **`profile:`** in this YAML *or* pass **`--profile <name>`** on the CLI (same merge order; the CLI flag is injected into `Config` even when the operator file omits **`profile:`**). You may start from `config/examples/config.example.yaml` / `config.example.json`, add **`profile:`** (or use **`--profile`**), and drop inline **`rss`** when using **`--feeds-spec`**.
 2. **Feed list**: either **`--feeds-spec`** pointing at `{ feeds: [...] }` (illustration: `config/examples/feeds.spec.example.yaml` / `.json`) or **`feeds:`** / **`rss_urls:`** in the same operator YAML.
 
-**CLI shape:**
+**CLI shape** (operator file + structured feeds; profile on the command line):
+
+```bash
+python -m podcast_scraper.cli \
+  --profile cloud_balanced \
+  --config path/to/operator.yaml \
+  --feeds-spec config/examples/feeds.spec.example.yaml
+```
+
+**CLI shape** (profile inside operator YAML instead of **`--profile`**):
 
 ```bash
 python -m podcast_scraper.cli \
   --config path/to/operator.yaml \
   --feeds-spec config/examples/feeds.spec.example.yaml
 ```
+
+End-user copy of the first pattern: [README.md](https://github.com/chipi/podcast_scraper/blob/main/README.md#typical-run-profile-operator-config--feed-list); full CLI notes: [CLI.md — Quick Start](CLI.md#quick-start).
 
 **Stacks** (previously illustrated by separate multi-feed example files — all derivable from profiles + this document + [RFC-044](../rfc/RFC-044-model-registry.md)):
 

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, nextTick, onMounted, ref, watch } from 'vue'
+import { computed, nextTick, onMounted, provide, ref, watch } from 'vue'
 import type { SearchHit } from './api/searchApi'
 import { useViewerKeyboard } from './composables/useViewerKeyboard'
 import DashboardView from './components/dashboard/DashboardView.vue'
@@ -22,6 +22,7 @@ import {
   selectRelPathsForGraphLoad,
 } from './utils/graphEpisodeSelection'
 import { sourceMetadataRelativePathFromSearchHit } from './utils/searchHitLibrary'
+import { corpusGraphBaselineLoaderKey } from './corpusGraphBaseline'
 import { StaleGeneration } from './utils/staleGeneration'
 
 const LS_LEFT_PANEL_OPEN = 'ps_left_panel_open'
@@ -219,6 +220,18 @@ async function syncMergedGraphFromCorpusApi(): Promise<void> {
     }
   }
 }
+
+/**
+ * Library/Digest **Open in graph** (before first Graph visit): same default merged load as opening
+ * Graph, then callers merge episode GI/KG. Injected into episode + digest panels.
+ */
+async function ensureCorpusGraphBaselineForHandoff(): Promise<void> {
+  graphExplorer.markGraphTabOpenedOnce()
+  mainTab.value = 'graph'
+  await syncMergedGraphFromCorpusApi()
+}
+
+provide(corpusGraphBaselineLoaderKey, ensureCorpusGraphBaselineForHandoff)
 
 async function onCorpusGraphLensReload(): Promise<void> {
   graphExpansion.resetExpansionState()

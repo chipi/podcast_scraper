@@ -83,7 +83,7 @@ Also documented in [DEVELOPMENT_GUIDE.md](DEVELOPMENT_GUIDE.md) (*GI / KG browse
 For **human** multi-feed checks without real RSS, use the same HTTP handler as pytest’s **`e2e_server`**:
 
 1. From repo root (venv on **`PYTHONPATH`** includes repo root so **`tests.e2e`** resolves): **`make serve-e2e-mock`** (default port **18765**; override with **`E2E_MOCK_PORT`**).
-2. In another terminal: **`python -m podcast_scraper.cli --config your_operator.yaml --feeds-spec path/to/your_fixture_feeds.yaml --output-dir …`**
+2. In another terminal: **`python -m podcast_scraper.cli --profile <preset> --config your_operator.yaml --feeds-spec path/to/your_fixture_feeds.yaml`** (add **`--output-dir`** if not already in the operator YAML). Same three-way split as production runs; see [CLI.md — Quick Start](../api/CLI.md#quick-start).
 
 That feeds document should list the five primary mock feeds (**`podcast1`**–**`podcast5`**) plus long-form
 fixtures **`podcast7_sustainability`**, **`podcast8_solar`**, and **`podcast9_solo`** (p07–p09;

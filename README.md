@@ -341,6 +341,32 @@ python -m podcast_scraper.cli --help
 
 **Prerequisite:** Make sure you've completed the installation steps above and activated your virtual environment.
 
+<a id="typical-run-profile-operator-config--feed-list"></a>
+
+#### Typical run: profile + operator config + feed list
+
+After install, most people want **packaged defaults** (profile), **their own knobs** (operator YAML), and **where the RSS URLs live** (feeds file or spec). The CLI wires all three together; you do **not** need to merge YAML by hand.
+
+```bash
+# From the repo root, venv active, API keys in .env or the environment:
+python -m podcast_scraper.cli \
+  --profile cloud_balanced \
+  --config config/manual/operator_defaults.yaml \
+  --feeds-spec config/manual/feeds.spec.registry_10.yaml
+```
+
+| Flag | Role |
+| ---- | ---- |
+| **`--profile NAME`** | Named preset under `config/profiles/<NAME>.yaml` (e.g. `cloud_balanced`, `local`, `cloud_quality`). Merged first as defaults. |
+| **`--config PATH`** | Operator YAML: `output_dir`, `max_episodes`, `workers`, booleans, etc. Explicit keys **override** the profile. |
+| **Feeds** (choose one) | **`--feeds-spec PATH`** — structured file whose root has a **`feeds`** array (URLs as strings or `{ url: … }` objects); same shape as corpus **`feeds.spec.yaml`**. **`--rss-file PATH`** — legacy **one RSS URL per line**. **Positional URL** or repeatable **`--rss URL`** — single-feed or multi-feed without a file. |
+
+**Do not combine** `--feeds-spec` with `--rss-file` or with explicit RSS URL arguments in the same invocation (the CLI rejects that mix).
+
+**Alternative:** `--config config/profiles/cloud_balanced.yaml` alone is valid when the feed URL(s) live **inside** that YAML (`rss` / `rss_urls` / `feeds`) or you pass a URL on the command line. Use **`--profile` + `--config`** when your operator file is small (paths, limits, flags) and the profile stays the packaged preset.
+
+In-repo references: `config/examples/feeds.spec.example.yaml`, `config/manual/operator_defaults.yaml`, `config/profiles/cloud_balanced.yaml`. Deeper detail: [CONFIGURATION.md](docs/api/CONFIGURATION.md) (RSS / multi-feed), [RSS_GUIDE.md](docs/guides/RSS_GUIDE.md).
+
 #### Basic Usage with Example Config (Recommended for First-Time Users)
 
 The easiest way to get started is using an example config file:

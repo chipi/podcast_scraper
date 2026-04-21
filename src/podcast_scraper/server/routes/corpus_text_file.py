@@ -46,6 +46,16 @@ def _cleaned_txt_fallback_relpath(norm: str) -> str | None:
     return str(cleaned).replace("\\", "/")
 
 
+def _raw_txt_from_cleaned_relpath(norm: str) -> str | None:
+    """Map ``.../foo.cleaned.txt`` to ``.../foo.txt`` when only the raw transcript exists."""
+    p = Path(norm)
+    name = p.name
+    if not name.lower().endswith(".cleaned.txt"):
+        return None
+    raw_name = f"{name[: -len('.cleaned.txt')]}.txt"
+    return str(p.with_name(raw_name)).replace("\\", "/")
+
+
 def _resolve_readable_file_under_corpus(root: Path, norm: str) -> tuple[str, str] | None:
     """Return ``(absolute_path, basename)`` for an allowed file under *root*, or ``None``.
 
@@ -69,18 +79,28 @@ def _resolve_readable_file_under_corpus(root: Path, norm: str) -> tuple[str, str
         return verified, basename
 
     alt_norm = _cleaned_txt_fallback_relpath(norm)
-    if alt_norm is None:
+    if alt_norm is not None:
+        safe_alt = safe_relpath_under_corpus_root(root, alt_norm)
+        verified_alt = normpath_if_under_root(safe_alt, root_s) if safe_alt else None
+        if verified_alt:
+            alt_base = os.path.basename(verified_alt)
+            if _suffix_allowed(alt_base) and os.path.isfile(verified_alt):
+                # codeql[py/path-injection] -- verified_alt from
+                # normpath_if_under_root(safe_alt, root_s).
+                return verified_alt, alt_base
+
+    raw_norm = _raw_txt_from_cleaned_relpath(norm)
+    if raw_norm is None:
         return None
-    safe_alt = safe_relpath_under_corpus_root(root, alt_norm)
-    verified_alt = normpath_if_under_root(safe_alt, root_s) if safe_alt else None
-    if not verified_alt:
+    safe_raw = safe_relpath_under_corpus_root(root, raw_norm)
+    verified_raw = normpath_if_under_root(safe_raw, root_s) if safe_raw else None
+    if not verified_raw:
         return None
-    alt_base = os.path.basename(verified_alt)
-    if not _suffix_allowed(alt_base):
+    raw_base = os.path.basename(verified_raw)
+    if not _suffix_allowed(raw_base):
         return None
-    # codeql[py/path-injection] -- verified_alt from normpath_if_under_root(safe_alt, root_s).
-    if os.path.isfile(verified_alt):
-        return verified_alt, alt_base
+    if os.path.isfile(verified_raw):
+        return verified_raw, raw_base
     return None
 
 

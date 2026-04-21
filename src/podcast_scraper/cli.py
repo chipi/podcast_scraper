@@ -244,6 +244,20 @@ def resolve_cli_feed_targets(args: argparse.Namespace) -> List[RssFeedEntry]:
     return [RssFeedEntry(url=u) for u in urls]
 
 
+def single_feeds_spec_output_dir(args: argparse.Namespace, entry: RssFeedEntry) -> str:
+    """Workspace path for one feed from ``--feeds-spec`` when ``--output-dir`` is the corpus.
+
+    Uses ``<corpus>/feeds/<stable>/`` so ``run_*`` matches multi-feed layout (#440). When
+    ``--output-dir`` is omitted, falls back to
+    :func:`~podcast_scraper.utils.filesystem.derive_output_dir` with no override (legacy
+    ``output/rss_*`` default).
+    """
+    corpus_raw = (getattr(args, "output_dir", None) or "").strip()
+    if corpus_raw:
+        return filesystem.corpus_feed_output_dir(corpus_raw, entry.url)
+    return filesystem.derive_output_dir(entry.url, None)
+
+
 def collect_feed_urls(
     args: argparse.Namespace,
     *,
@@ -1915,38 +1929,20 @@ def _argparse_dest_for_model_field(field_name: str) -> str:
     return field_name
 
 
-def _defaults_from_explicit_yaml_keys(
-    config_data: Dict[str, Any], config_model: config.Config
-) -> Dict[str, Any]:
-    """Build ``set_defaults`` updates from keys actually present in the operator file.
-
-    Using a full :meth:`~pydantic.BaseModel.model_dump` for ``set_defaults`` injects implicit
-    Pydantic defaults into ``argparse``, which then override ``--profile`` during final
-    :meth:`~podcast_scraper.config.Config.model_validate` (profile merge loses to explicit
-    payload keys). Only keys present in the YAML/JSON file should become argparse defaults.
-    """
-    updates: Dict[str, Any] = {}
-    for ykey in config_data:
-        if ykey in config.DEPRECATED_CONFIG_TOP_LEVEL_KEYS:
-            if ykey == "multi_feed_soft_fail_exit_zero":
-                updates["multi_feed_strict"] = config_model.multi_feed_strict
-            continue
-        if ykey == "profile":
-            updates["profile"] = config_data["profile"]
-            continue
-        fname = _yaml_top_level_key_to_model_field(ykey)
-        if not fname:
-            continue
-        dest = _argparse_dest_for_model_field(fname)
-        fragment = config_model.model_dump(exclude_none=False, by_alias=True, include={fname})
-        if not fragment:
-            continue
-        _, val = next(iter(fragment.items()))
-        updates[dest] = val
-    speaker_raw = updates.get("speaker_names")
-    if isinstance(speaker_raw, list):
-        updates["speaker_names"] = ",".join(str(x) for x in speaker_raw)
-    return updates
+def _argv_cli_profile_name(argv: Optional[Sequence[str]]) -> Optional[str]:
+    """Return ``--profile`` / ``--profile=`` value from argv, if present."""
+    if not argv:
+        return None
+    tokens = list(argv)
+    for i, tok in enumerate(tokens):
+        if tok == "--profile":
+            if i + 1 < len(tokens):
+                name = str(tokens[i + 1]).strip()
+                return name or None
+            return None
+        if tok.startswith("--profile=") and len(tok) > len("--profile="):
+            return tok[len("--profile=") :].strip() or None
+    return None
 
 
 def _collect_explicit_cli_dests(
@@ -2043,8 +2039,19 @@ def _load_and_merge_config(
     if unknown_keys:
         raise ValueError("Unknown config option(s): " + ", ".join(sorted(unknown_keys)))
 
+    config_explicit_keys = frozenset(config_data.keys())
+    cli_profile = _argv_cli_profile_name(argv)
+    validate_data = dict(config_data)
+    if cli_profile is not None:
+        # CLI --profile must participate in the same merge as ``profile:`` in YAML so
+        # ``Config._resolve_profile`` runs before argparse defaults are frozen on ``args``.
+        # Without this, thin operator files + ``--profile`` left ``transcription_provider`` /
+        # ``summary_provider`` / preprocessing on argparse defaults, which then beat the
+        # packaged preset in ``_build_config``'s payload (#646 follow-up vs main model_dump).
+        validate_data["profile"] = cli_profile
+
     try:
-        config_model = config.Config.model_validate(config_data)
+        config_model = config.Config.model_validate(validate_data)
         # Debug: Log grok model values after validation
         import logging
 
@@ -2057,14 +2064,23 @@ def _load_and_merge_config(
     except ValidationError as exc:
         raise ValueError(f"Invalid configuration: {exc}") from exc
 
-    defaults_updates = _defaults_from_explicit_yaml_keys(config_data, config_model)
+    # Full dump matches main ``_load_and_merge_config`` so nested merges (e.g.
+    # ``audio_preprocessing_profile`` → ``preprocessing_silence_threshold``) and
+    # every packaged-preset field land on ``args`` before ``parse_args`` (#646 + thin
+    # ``--config`` + ``--profile`` parity with ``--config`` profile YAML alone).
+    defaults_updates = config_model.model_dump(exclude_none=True, by_alias=True)
+
+    speaker_list = defaults_updates.get("speaker_names")
+    if isinstance(speaker_list, list):
+        defaults_updates["speaker_names"] = ",".join(str(x) for x in speaker_list)
+
     parser.set_defaults(**defaults_updates)
     args = parser.parse_args(argv)
     _attach_cli_merge_metadata(
         parser,
         argv,
         args,
-        config_yaml_keys=frozenset(config_data.keys()),
+        config_yaml_keys=config_explicit_keys,
     )
     has_feeds = bool(collect_feed_urls(args))
     if not has_feeds and getattr(args, "feeds_spec", None):
@@ -4743,7 +4759,7 @@ def main(  # noqa: C901 - main function handles multiple command paths
             cfg = _build_config_for_feed_entry(
                 args,
                 only,
-                output_dir_override=filesystem.derive_output_dir(only.url, args.output_dir),
+                output_dir_override=single_feeds_spec_output_dir(args, only),
             )
         else:
             cfg = _build_config(args)

@@ -52,11 +52,9 @@ def test_jobs_not_mounted_by_default(corpus: Path) -> None:
     assert client.post("/api/jobs", params={"path": str(corpus)}).status_code == 404
 
 
-def test_jobs_only_sets_operator_config_path(corpus: Path) -> None:
+def test_jobs_only_uses_per_corpus_operator_path(corpus: Path) -> None:
     app = create_app(corpus, static_dir=False, enable_jobs_api=True)
-    p = getattr(app.state, "operator_config_path", None)
-    assert p is not None
-    assert p.resolve() == (corpus / "viewer_operator.yaml").resolve()
+    assert getattr(app.state, "operator_config_fixed_path", None) is None
 
 
 def test_jobs_health_and_submit_completes(corpus: Path, fake_factory_immediate: object) -> None:
@@ -78,6 +76,14 @@ def test_jobs_health_and_submit_completes(corpus: Path, fake_factory_immediate: 
     one = client.get(f"/api/jobs/{job_id}", params={"path": str(corpus)})
     assert one.status_code == 200
     assert one.json().get("status") == "succeeded"
+
+    log_r = client.get(f"/api/jobs/{job_id}/log", params={"path": str(corpus)})
+    assert log_r.status_code == 200
+    assert log_r.text.strip() == "fake-log"
+
+    log_q = client.get("/api/jobs/subprocess-log", params={"path": str(corpus), "job_id": job_id})
+    assert log_q.status_code == 200
+    assert log_q.text.strip() == "fake-log"
 
 
 def test_jobs_reconcile_marks_dead_pid(corpus: Path) -> None:

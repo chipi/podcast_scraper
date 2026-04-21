@@ -262,7 +262,7 @@ source .venv/bin/activate
 **Note:** The `setup_venv.sh` script automatically installs the package in editable mode
 (`pip install -e .`), which is required for:
 
-- Running CLI commands: `python3 -m podcast_scraper.cli`
+- Running CLI commands: `python3 -m podcast_scraper.cli` (typical argv: **`--profile`**, **`--config`**, **`--feeds-spec`** — [CLI.md — Quick Start](../api/CLI.md#quick-start))
 - Importing the package in Python: `from podcast_scraper import ...`
 - Running tests that import the package
 

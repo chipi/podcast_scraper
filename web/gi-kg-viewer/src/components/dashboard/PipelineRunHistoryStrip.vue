@@ -3,9 +3,14 @@ import { computed, ref, watch } from 'vue'
 import type { CorpusRunSummaryItem } from '../../api/corpusMetricsApi'
 import { formatDashboardRunDurationSeconds } from '../../utils/formatDuration'
 
-const props = defineProps<{
-  runs: CorpusRunSummaryItem[]
-}>()
+const props = withDefaults(
+  defineProps<{
+    runs: CorpusRunSummaryItem[]
+    /** When true, omit outer card chrome and heading (parent provides tab + border). */
+    embedded?: boolean
+  }>(),
+  { embedded: false },
+)
 
 const selectedIdx = ref(-1)
 
@@ -83,10 +88,17 @@ const insight = computed(() => {
 
 <template>
   <div
-    class="rounded border border-border bg-surface p-3 text-surface-foreground"
+    :class="
+      embedded
+        ? 'text-surface-foreground'
+        : 'rounded border border-border bg-surface p-3 text-surface-foreground'
+    "
     data-testid="pipeline-run-history-strip"
   >
-    <h3 class="mb-2 text-sm font-semibold">
+    <h3
+      v-if="!embedded"
+      class="mb-2 text-sm font-semibold"
+    >
       Run history
     </h3>
     <div class="flex flex-wrap items-center gap-1">

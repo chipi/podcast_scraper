@@ -37,10 +37,20 @@ export const useSubjectStore = defineStore('subject', () => {
     opts?: { graphConnectionsCyId?: string | null; uiTitle?: string | null },
   ): void {
     const t = metadataPath.trim()
-    clearFields()
     if (!t) {
+      clearFields()
       kind.value = null
       return
+    }
+    /** Re-open same episode (e.g. **Open in graph**): avoid nulling ``episodeMetadataPath`` — Library ``loadEpisodes`` treats null as “no subject” and auto-selects the first row. */
+    const sameEpisode =
+      kind.value === 'episode' && episodeMetadataPath.value?.trim() === t
+    if (!sameEpisode) {
+      clearFields()
+    } else {
+      graphNodeCyId.value = null
+      topicId.value = null
+      personId.value = null
     }
     kind.value = 'episode'
     episodeMetadataPath.value = t

@@ -58,6 +58,15 @@ describe('graphEpisodeMetadata', () => {
     expect(meta).toBe('metadata/foo.metadata.json')
   })
 
+  it('resolveEpisodeMetadataFromLoadedArtifacts prefers sourceCorpusRelPath when parallel indices are wrong', () => {
+    const data: ArtifactData = { episode_id: 'e2', nodes: [], edges: [] }
+    const parsed = parseArtifact('bar.gi.json', data, 'metadata/bar.gi.json')
+    const meta = resolveEpisodeMetadataFromLoadedArtifacts('e2', [parsed], [
+      'metadata/wrong.gi.json',
+    ])
+    expect(meta).toBe('metadata/bar.metadata.json')
+  })
+
   it('findEpisodeGraphNodeIdForMetadataPath returns Episode id for merged graph', () => {
     const want = 'metadata/foo.metadata.json'
     const data: ArtifactData = {

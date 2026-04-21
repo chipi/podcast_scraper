@@ -135,9 +135,9 @@ class OperatorConfigGetResponse(BaseModel):
     )
     content: str = Field(
         description=(
-            "Full file contents (UTF-8). GET may create a minimal "
-            "`profile: cloud_balanced` file when it was missing or whitespace-only "
-            "and that preset is packaged."
+            "Full file contents (UTF-8). GET may copy a packaged overrides-only starter "
+            "when the file was missing or whitespace-only; ``profile:`` is chosen in the "
+            "viewer (or CLI ``--profile``), not seeded into that starter."
         )
     )
     available_profiles: list[str] = Field(

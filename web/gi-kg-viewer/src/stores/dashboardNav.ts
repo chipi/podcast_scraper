@@ -41,5 +41,15 @@ export const useDashboardNavStore = defineStore('dashboardNav', () => {
     return p
   }
 
-  return { pending, setHandoff, consumeHandoff }
+  /** Pop pending only when it is a Library handoff (digest/other kinds stay queued). */
+  function consumeLibraryHandoffIfPending(): DashboardLibraryHandoff | null {
+    const p = pending.value
+    if (!p || p.kind !== 'library') {
+      return null
+    }
+    pending.value = null
+    return p
+  }
+
+  return { pending, setHandoff, consumeHandoff, consumeLibraryHandoffIfPending }
 })

@@ -498,7 +498,7 @@ export function insightSupportingTranscriptAggregate(
   const insight = findRawNodeInArtifact(art, insightGraphId ?? '')
   const iep = insight?.properties as Record<string, unknown> | undefined
   const rawEp = iep?.episode_id
-  const episodeId =
+  let episodeId =
     typeof rawEp === 'string' && rawEp.trim()
       ? rawEp.trim()
       : typeof rawEp === 'number' && Number.isFinite(rawEp)
@@ -530,6 +530,16 @@ export function insightSupportingTranscriptAggregate(
   }
   if (charRanges.length === 0 || refs.size !== 1 || charRanges.length !== rows.length) {
     return null
+  }
+  if (!episodeId && rows.length > 0) {
+    const qn = findRawNodeInArtifact(art, rows[0]!.id)
+    const qp = qn?.properties as Record<string, unknown> | undefined
+    const qe = qp?.episode_id
+    if (typeof qe === 'string' && qe.trim()) {
+      episodeId = qe.trim()
+    } else if (typeof qe === 'number' && Number.isFinite(qe)) {
+      episodeId = String(qe)
+    }
   }
   return {
     transcriptRef: [...refs][0],

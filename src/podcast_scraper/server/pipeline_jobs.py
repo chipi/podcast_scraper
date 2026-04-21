@@ -16,6 +16,8 @@ from typing import Any, Awaitable, Callable, cast, Sequence
 from fastapi import FastAPI
 
 from podcast_scraper.rss.feeds_spec import FEEDS_SPEC_DEFAULT_BASENAME
+from podcast_scraper.server.operator_paths import viewer_operator_yaml_path
+from podcast_scraper.server.operator_yaml_profile import split_operator_yaml_profile
 from podcast_scraper.server.pipeline_job_registry import (
     with_jobs_locked_mutate,
     with_jobs_locked_read,
@@ -76,9 +78,17 @@ def pid_alive(pid: int | None) -> bool:
 
 
 def build_pipeline_argv(corpus_root: Path, operator_yaml: Path) -> list[str]:
-    """Build CLI argv for a full pipeline run (mirrors operator ``serve`` config)."""
+    """Build CLI argv for a full pipeline run (README parity: ``--profile`` then ``--config``)."""
     exe = sys.executable
     argv: list[str] = [exe, "-m", "podcast_scraper.cli", "--output-dir", str(corpus_root)]
+    try:
+        op_text = operator_yaml.read_text(encoding="utf-8", errors="replace")
+    except OSError:
+        op_text = ""
+    profile_name, _body = split_operator_yaml_profile(op_text)
+    pn = profile_name.strip()
+    if pn:
+        argv.extend(["--profile", pn])
     argv.extend(["--config", str(operator_yaml)])
     spec = corpus_root / FEEDS_SPEC_DEFAULT_BASENAME
     if spec.is_file():
@@ -419,7 +429,7 @@ async def start_job_if_running_record(
 
 async def drain_queue_async(app: FastAPI, corpus_root: Path) -> None:
     """Start queued jobs until the concurrency cap is reached."""
-    operator_yaml = Path(getattr(app.state, "operator_config_path"))
+    operator_yaml = viewer_operator_yaml_path(app, corpus_root)
     while True:
         promoted = await asyncio.to_thread(promote_queued_if_slot, corpus_root, operator_yaml)
         if promoted is None:
@@ -429,6 +439,6 @@ async def drain_queue_async(app: FastAPI, corpus_root: Path) -> None:
 
 async def schedule_post_submit(app: FastAPI, corpus_root: Path, rec: dict[str, Any]) -> None:
     """Background entry: spawn when the accepted job is already *running*."""
-    operator_yaml = Path(getattr(app.state, "operator_config_path"))
+    operator_yaml = viewer_operator_yaml_path(app, corpus_root)
     if rec.get("status") == STATUS_RUNNING:
         await start_job_if_running_record(app, corpus_root, operator_yaml, rec)

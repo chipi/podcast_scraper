@@ -439,7 +439,7 @@ Optional full-pipeline YAML presets may live under **`config/acceptance/`** besi
    `cp config/examples/config.example.yaml config/acceptance/config.my.myshow.yaml` (or a name that fits your feeds).
 3. **Adjust for your definition of acceptance:** Edit the copied file(s)—RSS feed URLs, providers, model names, output paths, etc.—so they match what you consider “acceptance” for your use case. You can add multiple configs (e.g. one per show or per provider) and run them all with a pattern like `config/acceptance/*.yaml`.
 
-**Multi-feed (GitHub #440):** Use **`feeds:`** / **`rss_urls:`** in operator YAML **or** **`--feeds-spec`** with a feeds document (RFC-077 shape; see **`config/examples/feeds.spec.example.yaml`**). With **`USE_FIXTURES=1`**, the acceptance runner replaces each external feed URL with a distinct local E2E fixture feed so the run stays offline.
+**Multi-feed (GitHub #440):** Use **`feeds:`** / **`rss_urls:`** in operator YAML **or** **`--feeds-spec`** with a feeds document (RFC-077 shape; see **`config/examples/feeds.spec.example.yaml`**). For manual CLI runs, combine **`--feeds-spec`** with **`--config`** and optional **`--profile`** (same as [CLI.md — Quick Start](../api/CLI.md#quick-start)). With **`USE_FIXTURES=1`**, the acceptance runner replaces each external feed URL with a distinct local E2E fixture feed so the run stays offline.
 
 **Append / resume (GitHub #444):** Copy that preset, set **`append: true`**, and re-run (stable **`run_append_*`** per feed). Pytest coverage: `tests/e2e/test_append_resume_e2e.py` (two CLI invocations, stable `run_append_*`, `index.json` 1.1.0). See [CONFIGURATION.md — Append / resume](../api/CONFIGURATION.md#append-resume-github-444).
 

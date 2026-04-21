@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
+import { computed, inject, ref, watch } from 'vue'
 import { storeToRefs } from 'pinia'
 import { fetchIndexStats, type IndexStatsEnvelope } from '../../api/indexStatsApi'
 import {
@@ -14,6 +14,7 @@ import CilTopicPillsRow from '../shared/CilTopicPillsRow.vue'
 import HelpTip from '../shared/HelpTip.vue'
 import PodcastCover from '../shared/PodcastCover.vue'
 import { useArtifactsStore } from '../../stores/artifacts'
+import { useGraphExplorerStore } from '../../stores/graphExplorer'
 import { useGraphFilterStore } from '../../stores/graphFilters'
 import { useGraphNavigationStore } from '../../stores/graphNavigation'
 import { useSubjectStore } from '../../stores/subject'
@@ -33,6 +34,7 @@ import {
   applyGraphFocusPlan,
   graphFocusPlanFromCilPill,
 } from '../../utils/cilGraphFocus'
+import { corpusGraphBaselineLoaderKey } from '../../corpusGraphBaseline'
 import { findEpisodeGraphNodeIdForMetadataPathOrEpisodeId } from '../../utils/graphEpisodeMetadata'
 
 const props = withDefaults(
@@ -56,6 +58,19 @@ const emit = defineEmits<{
 
 const shell = useShellStore()
 const artifacts = useArtifactsStore()
+const graphExplorer = useGraphExplorerStore()
+const loadCorpusGraphBaseline = inject(corpusGraphBaselineLoaderKey, null)
+
+/** Same merged-graph load as first Graph visit — skip if corpus slice is already loaded. */
+async function ensureDefaultCorpusGraphIfNeeded(): Promise<void> {
+  if (!loadCorpusGraphBaseline) {
+    return
+  }
+  if (graphExplorer.graphTabOpenedThisSession && artifacts.selectedRelPaths.length > 0) {
+    return
+  }
+  await loadCorpusGraphBaseline()
+}
 const graphFilters = useGraphFilterStore()
 const graphNav = useGraphNavigationStore()
 const subject = useSubjectStore()
@@ -404,25 +419,29 @@ async function openInGraph(): Promise<void> {
     graphActionError.value = 'No GI/KG artifacts on disk for this episode.'
     return
   }
+  /** Baseline + append await graph/corpus reloads; ``detail`` can swap if another fetch completes — must not focus using a stale ref after awaits. */
+  const episodeMeta = detail.value.metadata_relative_path?.trim() ?? ''
+  const episodeIdForGraph = detail.value.episode_id
+  const episodeUiTitle = detail.value.episode_title?.trim() || null
+  await ensureDefaultCorpusGraphIfNeeded()
   await artifacts.appendRelativeArtifacts(paths)
   graphNav.clearLibraryEpisodeHighlights()
-  const meta = detail.value.metadata_relative_path?.trim()
-  if (meta) {
+  if (episodeMeta) {
     const epCy =
       findEpisodeGraphNodeIdForMetadataPathOrEpisodeId(
         graphFilters.filteredArtifact,
-        meta,
-        detail.value.episode_id,
+        episodeMeta,
+        episodeIdForGraph,
       ) || ''
-    subject.focusEpisode(meta, {
-      uiTitle: detail.value.episode_title?.trim() || null,
+    subject.focusEpisode(episodeMeta, {
+      uiTitle: episodeUiTitle,
       ...(epCy ? { graphConnectionsCyId: epCy } : {}),
     })
     if (epCy) {
       graphNav.requestFocusNode(epCy)
     }
   } else {
-    subject.setEpisodeUiLabel(detail.value.episode_title ?? null)
+    subject.setEpisodeUiLabel(episodeUiTitle)
   }
   emit('switch-main-tab', 'graph')
 }
@@ -448,11 +467,13 @@ async function openDetailCilTopicInGraph(pillIndex: number): Promise<void> {
     graphActionError.value = 'No GI/KG artifacts on disk for this episode.'
     return
   }
+  const episodeIdForPlan = detail.value.episode_id
+  await ensureDefaultCorpusGraphIfNeeded()
   await artifacts.appendRelativeArtifacts(paths)
   graphNav.clearLibraryEpisodeHighlights()
-  const plan = graphFocusPlanFromCilPill(pill, detail.value.episode_id)
+  const plan = graphFocusPlanFromCilPill(pill, episodeIdForPlan)
   applyGraphFocusPlan(graphNav, plan)
-  const eid = detail.value.episode_id?.trim()
+  const eid = typeof episodeIdForPlan === 'string' ? episodeIdForPlan.trim() : ''
   if (
     eid &&
     (plan.kind === 'episode_only' || (plan.kind === 'topic' && plan.fallback))

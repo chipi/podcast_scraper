@@ -48,9 +48,9 @@ rules for the Library tab and the shared Episode subject rail. All tokens refere
    **Clear all filters** disabled when everything is already default; **Apply** reloads
    using title/summary filters (same as **Enter** in those fields). **No** separate **Clear
    text** button. On wide viewports, a **two-column** row
-   (~**60% / 40%**): **left** = that stack; **right** =
-   **Feed** list: **all** catalog feeds at **natural height** (no nested **`max-height`**
-   scroll on the feed list). When the feed count exceeds the tunable threshold (default **15**),
+   (~**60% / 40%**): **left** = that stack;    **right** =
+   **Feed** list: **all** catalog feeds in a short viewport (**~two row** height, **`overflow-y`**
+   scroll; **`data-testid="library-feed-list-scroll"`**). When the feed count exceeds the tunable threshold (default **15**),
    a **`library-feed-filter-search`** input filters rows client-side by display title.
    Stacks vertically on narrow widths.
    With no row selected, episodes include **all** feeds; choosing a feed narrows the list.

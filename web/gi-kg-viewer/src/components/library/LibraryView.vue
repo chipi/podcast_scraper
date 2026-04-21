@@ -4,6 +4,7 @@ import {
   nextTick,
   onActivated,
   onBeforeUnmount,
+  onMounted,
   ref,
   watch,
 } from 'vue'
@@ -35,6 +36,12 @@ const LIBRARY_EPISODES_PAGE_SIZE = 20
 
 /** When feed count exceeds this, show a client-side filter box above the feed list. */
 const LIBRARY_FEED_FILTER_SEARCH_THRESHOLD = 15
+
+/**
+ * Max height of the feed picker (~2 rows: `PodcastCover` h-8 + row `py-1` + `space-y-0.5`).
+ * Additional feeds scroll inside the region.
+ */
+const LIBRARY_FEED_LIST_MAX_HEIGHT = '5.25rem'
 
 const emit = defineEmits<{
   'focus-search': [
@@ -418,7 +425,8 @@ async function loadEpisodes(append: boolean): Promise<void> {
       if (
         !append &&
         episodes.value.length > 0 &&
-        subject.episodeMetadataPath == null
+        subject.episodeMetadataPath == null &&
+        subject.kind == null
       ) {
         void nextTick(() => {
           selectEpisode(episodes.value[0]!)
@@ -517,20 +525,31 @@ watch(
   { flush: 'post' },
 )
 
-onActivated(() => {
-  const nav = dashboardNav.consumeHandoff()
-  if (nav?.kind === 'library') {
-    if (nav.feedId !== undefined) {
-      feedFilterId.value = nav.feedId.trim() ? nav.feedId : null
-    }
-    if (nav.since !== undefined) {
-      corpusLens.sinceYmd = nav.since ?? ''
-    }
-    libraryUntilYmd.value = nav.until?.trim() ?? ''
-    libraryHasGiFilter.value = nav.missingGiOnly === true ? false : undefined
-    subject.clearSubject()
-    void loadEpisodes(false)
+function applyDashboardLibraryHandoff(): void {
+  const nav = dashboardNav.consumeLibraryHandoffIfPending()
+  if (!nav) {
+    return
   }
+  if (nav.feedId !== undefined) {
+    feedFilterId.value = nav.feedId.trim() ? nav.feedId : null
+  }
+  if (nav.since !== undefined) {
+    corpusLens.sinceYmd = nav.since ?? ''
+  }
+  libraryUntilYmd.value = nav.until?.trim() ?? ''
+  libraryHasGiFilter.value = nav.missingGiOnly === true ? false : undefined
+  subject.clearSubject()
+  void loadEpisodes(false)
+}
+
+/** First paint from Dashboard can run before ``onActivated`` in some keep-alive timings. */
+onMounted(() => {
+  applyDashboardLibraryHandoff()
+  void nextTick(setupEpisodesInfiniteObserver)
+})
+
+onActivated(() => {
+  applyDashboardLibraryHandoff()
   void nextTick(setupEpisodesInfiniteObserver)
 })
 
@@ -758,33 +777,40 @@ onBeforeUnmount(() => {
             <p v-else-if="feedsError" class="px-1 text-xs text-danger">
               {{ feedsError }}
             </p>
-            <ul v-else class="space-y-0.5 text-sm">
-              <li v-for="f in filteredFeeds" :key="f.feed_id || '__empty__'">
-                <button
-                  type="button"
-                  class="flex w-full min-w-0 items-center gap-2 rounded px-2 py-1 text-left hover:bg-overlay focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
-                  :class="
-                    isFeedRowSelected(f) ? 'bg-overlay text-surface-foreground' : 'text-muted'
-                  "
-                  :title="feedRowTitleAttr(f)"
-                  :aria-label="feedRowAccessibleName(f)"
-                  :aria-pressed="isFeedRowSelected(f)"
-                  @click="selectFeed(f)"
-                >
-                  <PodcastCover
-                    :corpus-path="shell.corpusPath"
-                    :feed-image-local-relpath="f.image_local_relpath"
-                    :feed-image-url="f.image_url"
-                    :alt="`Cover for ${feedRowVisibleLabel(f)}`"
-                    size-class="h-8 w-8"
-                  />
-                  <span class="min-w-0 flex-1 truncate text-sm">{{
-                    feedRowVisibleLabel(f)
-                  }}</span>
-                  <span class="shrink-0 text-[10px] text-muted">({{ f.episode_count }})</span>
-                </button>
-              </li>
-            </ul>
+            <div
+              v-else
+              class="min-h-0 max-w-full overflow-x-hidden overflow-y-auto overscroll-y-contain [scrollbar-width:thin] [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-border"
+              data-testid="library-feed-list-scroll"
+              :style="{ maxHeight: LIBRARY_FEED_LIST_MAX_HEIGHT }"
+            >
+              <ul class="space-y-0.5 text-sm">
+                <li v-for="f in filteredFeeds" :key="f.feed_id || '__empty__'">
+                  <button
+                    type="button"
+                    class="flex w-full min-w-0 items-center gap-2 rounded px-2 py-1 text-left hover:bg-overlay focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                    :class="
+                      isFeedRowSelected(f) ? 'bg-overlay text-surface-foreground' : 'text-muted'
+                    "
+                    :title="feedRowTitleAttr(f)"
+                    :aria-label="feedRowAccessibleName(f)"
+                    :aria-pressed="isFeedRowSelected(f)"
+                    @click="selectFeed(f)"
+                  >
+                    <PodcastCover
+                      :corpus-path="shell.corpusPath"
+                      :feed-image-local-relpath="f.image_local_relpath"
+                      :feed-image-url="f.image_url"
+                      :alt="`Cover for ${feedRowVisibleLabel(f)}`"
+                      size-class="h-8 w-8"
+                    />
+                    <span class="min-w-0 flex-1 truncate text-sm">{{
+                      feedRowVisibleLabel(f)
+                    }}</span>
+                    <span class="shrink-0 text-[10px] text-muted">({{ f.episode_count }})</span>
+                  </button>
+                </li>
+              </ul>
+            </div>
               </div>
             </div>
           </div>
