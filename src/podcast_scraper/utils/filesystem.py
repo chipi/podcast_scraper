@@ -201,16 +201,35 @@ def _build_provider_model_suffix(cfg: config.Config) -> Optional[str]:
     """
     parts = []
 
-    # Transcription provider + model
+    # Transcription provider + model. Covers every value in
+    # ``transcription_provider: Literal[...]`` so run-dir names encode provider
+    # choice and don't collide across providers (post-#646 audit).
+    _TRANSCRIPTION_SHORTS = {
+        "openai": ("oa", "openai_transcription_model", "whisper-1"),
+        "gemini": ("gm", "gemini_transcription_model", "gemini-2.5-flash-lite"),
+        "mistral": ("ms", "mistral_transcription_model", "voxtral-mini-latest"),
+    }
     if cfg.transcribe_missing:
         if cfg.transcription_provider == "whisper":
             model_short = _shorten_model_name(cfg.whisper_model)
             parts.append(f"w_{sanitize_filename(model_short)}")
-        elif cfg.transcription_provider == "openai":
-            model = getattr(cfg, "openai_transcription_model", "whisper-1")
-            parts.append(f"oa_{sanitize_filename(model)}")
+        elif cfg.transcription_provider in _TRANSCRIPTION_SHORTS:
+            prefix, attr, default = _TRANSCRIPTION_SHORTS[cfg.transcription_provider]
+            model = getattr(cfg, attr, default) or default
+            parts.append(f"{prefix}_{sanitize_filename(model)}")
 
-    # Summary provider + models
+    # Summary provider + models. Covers every cloud LLM value in
+    # ``summary_provider: Literal[...]`` so run-dir names don't collide across
+    # providers (post-#646 audit).
+    _SUMMARY_SHORTS = {
+        "openai": ("oa", "openai_summary_model", "gpt-4o-mini"),
+        "gemini": ("gm", "gemini_summary_model", "gemini-2.5-flash-lite"),
+        "anthropic": ("an", "anthropic_summary_model", "claude-haiku-4-5"),
+        "deepseek": ("ds", "deepseek_summary_model", "deepseek-chat"),
+        "mistral": ("ms", "mistral_summary_model", "mistral-small-latest"),
+        "grok": ("gk", "grok_summary_model", "grok-3-mini"),
+        "ollama": ("ol", "ollama_summary_model", "qwen3.5:9b"),
+    }
     if cfg.generate_summaries:
         if cfg.summary_provider in ("transformers", "local"):
             # Import here to avoid circular dependency
@@ -226,9 +245,10 @@ def _build_provider_model_suffix(cfg: config.Config) -> Optional[str]:
             if reduce_model != map_model:
                 reduce_short = _shorten_model_name(reduce_model)
                 parts.append(f"r_{sanitize_filename(reduce_short)}")
-        elif cfg.summary_provider == "openai":
-            model = getattr(cfg, "openai_summary_model", "gpt-4o-mini")
-            parts.append(f"oa_{sanitize_filename(model)}")
+        elif cfg.summary_provider in _SUMMARY_SHORTS:
+            prefix, attr, default = _SUMMARY_SHORTS[cfg.summary_provider]
+            model = getattr(cfg, attr, default) or default
+            parts.append(f"{prefix}_{_shorten_model_name(sanitize_filename(model))}")
 
     # Speaker detection provider + model
     if cfg.screenplay or cfg.auto_speakers:

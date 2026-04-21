@@ -1720,6 +1720,12 @@ def _build_transcription_provider_info(cfg: config.Config) -> Optional[Dict[str,
     elif cfg.transcription_provider == "gemini":
         transcription_model = getattr(cfg, "gemini_transcription_model", "gemini-2.5-flash-lite")
         provider_info["gemini_model"] = transcription_model
+    elif cfg.transcription_provider == "mistral":
+        # Mistral voxtral is a valid Literal value for transcription_provider;
+        # record the model for reproducibility (post-#646 audit).
+        transcription_model = getattr(cfg, "mistral_transcription_model", None)
+        if transcription_model:
+            provider_info["mistral_model"] = transcription_model
 
     return provider_info
 
