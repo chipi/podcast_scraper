@@ -487,6 +487,237 @@ cluster visualisation), so invisible for now, but degrades over time.
 - **Corpus finalize ran correctly** (manifest + summary + search/
   vector index + id_map present).
 
+## Findings from cost audit (2026-04-21, triggered by $25 Whisper bill)
+
+Actual OpenAI bill: **$25 for ~150 episodes** = $0.167/ep = 27.8 min/ep
+audio. Matches Whisper's $0.006/min rate on realistic podcast lengths.
+The per-minute rate in `config/pricing_assumptions.yaml` is correct and
+in sync with vendor docs.
+
+The surprise was "way over what we projected" — not because the math is
+wrong, but because cost observability has three gaps.
+
+### 17. `llm_transcription_cost_usd` never bubbles up to metrics.json
+
+**Observed.** Every `metrics.json` across the 100-ep run shows
+`llm_transcription_cost_usd: $0.0000` **even though
+`llm_transcription_audio_minutes` is correctly tracked** (1363 total
+min across 35 calls on the 100-ep run, 38.9 min/ep avg — realistic).
+
+Cost IS calculated at the provider level
+(`openai_provider.py:529` via `calculate_provider_cost`), but the result
+never makes it into per-run `metrics.json` or `corpus_run_summary.json`.
+
+**Why it matters.** You cannot look at a run and answer "what did this
+cost?". Every retry + every rebase-iteration silently adds to the bill
+with no in-tool running tally. Test-run accumulation (2-feed + 10-feed
++ 53-ep UI + 100-ep + …) adds up to $18–25 over a day and you don't see
+it until the vendor bill arrives.
+
+**Fix.**
+
+- Aggregate `llm_transcription_cost_usd` into per-run `metrics.json`
+  (already collected on `ProviderCallMetrics` during the call — just
+  needs to be summed and persisted).
+- Bubble up into `corpus_run_summary.json` as `total_transcription_cost_usd`.
+- Bonus: print a one-line cost summary at end of scrape: "Whisper: 23
+  min × $0.006 = $0.14 (this run) — corpus total: $2.17".
+
+**Priority / effort.** High (cost observability is load-bearing),
+low-medium effort (~0.5 day + test).
+
+### 18. File-size → minutes fallback is wrong for preprocessed audio
+
+**Observed.** `openai_provider.py:514-520`:
+
+```python
+# Estimate from file size (rough: 1MB ≈ 1 minute for typical MP3)
+file_size_mb = os.path.getsize(audio_path) / (1024 * 1024)
+audio_minutes = file_size_mb  # Rough estimate
+```
+
+The `1 MB ≈ 1 min` rule-of-thumb assumes **128 kbps** MP3.
+`speech_optimal_v1` (default in `cloud_balanced`) preprocesses to **32
+kbps** → 1 MB ≈ **~4 min**. Fallback under-reports by **~4×**.
+
+**When it bites.** Only when BOTH `episode_duration_seconds` (from RSS
+`<itunes:duration>`) AND Whisper's `response.duration` are missing. On
+the 100-ep run it didn't fire (minutes look realistic via paths 1 or 2).
+But it's a silent time bomb.
+
+**Fix.**
+
+- Replace the `1 MB ≈ 1 min` assumption with
+  `audio_minutes = file_size_mb / (bitrate_kbps / 128.0)` — reads the
+  configured bitrate and scales accordingly.
+- Better: call `ffprobe` for exact duration when neither path 1 nor 2
+  is available. Already done in
+  `MistralProvider._probe_audio_duration_s`; port the same helper to
+  OpenAI / other providers.
+
+**Priority / effort.** Medium (latent bug, easy to miss until the
+run hits a feed with no RSS duration), low effort (~0.25 day).
+
+### 19. Whisper is called via two code paths; only one returns `.duration`
+
+**Observed.** Two Whisper invocation sites in `openai_provider.py`:
+
+- Lines 377, 383: `response_format="text"` → returns plain text, **no
+  `.duration` attribute** → falls through to the Bug 18 fallback.
+- Lines 477, 483: `response_format="verbose_json"` → includes
+  `.duration` correctly.
+
+When the caller uses the `text` path (non-screenplay mode, typical
+default), Bug 18 becomes the fallback — and Bug 17 hides the cost.
+
+**Fix.**
+
+- Switch to `response_format="verbose_json"` uniformly (Whisper returns
+  duration for free; we lose nothing and gain reliable minutes).
+- Or: always run `ffprobe` as a pre-call step so duration is known
+  regardless of Whisper response format.
+
+**Priority / effort.** Low-medium (unifies the two paths), low effort
+(~0.25 day). Best coupled with #18.
+
+### 20. `total_episode_estimated_cost_usd` aggregates ONLY transcription
+
+**Observed.** Inspecting all 10 run `metrics.json` in the 100-ep run:
+
+| Run (feed) | est_cost | gi_in_tokens | trans_calls |
+| --- | :-: | :-: | :-: |
+| acast | $0.9522 | 597 k | 8 |
+| megaphone/3581 | **$0.0000** | 1,368 k | 0 |
+| megaphone/370 | **$0.0000** | 1,025 k | 0 |
+| megaphone/755 | **$0.0000** | 1,113 k | 0 |
+| npr | $1.7182 | 926 k | 9 |
+| simplecast/2e10 | $3.5536 | 1,362 k | 9 |
+| simplecast/9995 | $1.9559 | 953 k | 9 |
+| flightcast | **$0.0000** | 1,476 k | 0 |
+| wsj | **$0.0000** | 448 k | 0 |
+| omnycontent | **$0.0000** | 1,527 k | 0 |
+
+The 4 runs with non-zero `est_cost` are exactly the 4 runs that had
+fresh transcription calls. The 6 runs that cache-hit on transcription
+report $0.00 despite **10.8 M GI input tokens + mega-bundle calls**.
+
+**Math check.** Transcription only: 1363 min × $0.006 = $8.18 across the
+4 runs. Matches `total_episode_estimated_cost_usd` sum ($8.18).
+**Missing from the total:** ~10.8 M Gemini flash-lite input tokens ≈
+$1.08 + ~129 k output ≈ $0.052 + 100 mega-bundle calls ≈ $0.13 →
+**~$1.26 of LLM cost that's entirely invisible.**
+
+At scale this error grows. If transcripts cache-hit (common in re-runs,
+eval loops, incremental ingestion), `total_episode_estimated_cost_usd`
+reports $0 for ALL the LLM work. Silent under-report of the
+information-extraction cost, which is often the dominant cost once
+transcripts are cached.
+
+**Fix.** Aggregate these into `total_episode_estimated_cost_usd`:
+
+- `llm_summarization_cost_usd` (staged + bundled + mega + extraction)
+- `llm_gi_cost_usd` (evidence stack: extract_quotes + score_entailment)
+- `llm_kg_cost_usd` (when provider source)
+- `llm_speaker_detection_cost_usd` (when LLM provider)
+- `llm_cleaning_cost_usd` (hybrid / llm cleaner)
+
+Each already has tokens tracked on `pipeline_metrics`; just need to
+multiply by resolved pricing and sum.
+
+**Priority / effort.** Highest cost-observability priority. Pair with
+Finding 17 as a single "fix cost aggregation" PR. Low-medium effort
+(~0.75 day) because the arithmetic is trivial, but care needed to
+resolve the right model per call (Gemini 2.5 vs 2.0-flash, etc.).
+
+### 21. Pricing YAML has gaps and stale / placeholder entries
+
+**Observed.** Audit of `config/pricing_assumptions.yaml` vs models
+actually used in profiles:
+
+| Model (used where) | In YAML? | Notes |
+| --- | :-: | --- |
+| `whisper-1` | ✅ | $0.006/min correct |
+| `gpt-4o-mini` | ✅ | $0.15/$0.60 correct |
+| `gpt-4o` | ✅ | $2.50/$10 correct |
+| **`gemini-2.5-flash-lite`** (`cloud_balanced` default) | ❌ | **Missing.** Falls to `default: $0.10/$0.40` — approximately right but not exact |
+| `gemini-2.0-flash` | ✅ | |
+| `gemini-1.5-pro` / `-flash` | ✅ | |
+| **`claude-opus-4-*`, `claude-sonnet-4-*`** | ❌ | Not listed (Anthropic 4.x line post-training-cutoff) |
+| `claude-haiku-4-5` (`cloud_quality` default) | ✅ | $1/$5 correct |
+| `claude-3-5-sonnet/haiku/opus`, `claude-3-haiku` | ✅ | |
+| `deepseek-chat` | ✅ | $0.28/$0.42 — **possibly stale**, DeepSeek has moved to different tiers; confirm vs vendor page |
+| `mistral-small` / `mistral-large` | ✅ | $0.20/$0.20 small — may be stale; Mistral small-latest has changed |
+| **Voxtral transcription** | ⚠️ | Under `mistral.transcription.default: cost_per_minute: 0.006` — present by fallthrough, but no explicit `voxtral-mini-latest` key |
+| `grok-beta`, `grok-2`, `grok-3-mini`, `grok-4` | ⚠️ / ❌ | All **$0.0** placeholders. Comment says "until confirmed on xAI docs" — but we SHIP with zeros, making Grok cost reporting silently $0. |
+| `ollama` | ✅ | $0 correct (local) |
+
+**Meta flags.** `last_reviewed: 2026-03-30` + `stale_review_after_days:
+90` → yaml becomes stale after 2026-06-28. Staleness warning exists
+but no enforcement at merge time for this PR's target.
+
+**Fix options.**
+
+- **Minimal (immediate).** Add missing entries: `gemini-2.5-flash-lite`,
+  `claude-haiku-4-*`, `claude-sonnet-4-*`, `grok-3-mini`, Voxtral
+  explicit row. Bump `last_reviewed`.
+- **Better.** CI check: for each model used in any shipped profile,
+  assert there's a matching row in pricing YAML. Would have caught
+  this before merge.
+- **Best.** Grok zeros are actively misleading — either add real rates
+  (xAI docs are public) or refuse to run with Grok configured when
+  pricing is 0 (with override flag).
+
+**Priority / effort.** Medium (affects trust of cost estimates),
+low-medium effort (~0.25 day for YAML edits + CI check).
+
+### 22. Token / duration heuristic in pre-run estimator is stage-generic
+
+**Observed.** `helpers.py` `avg_duration_minutes` defaults to 30 min
+when RSS durations missing. Token heuristics use **150 words/min × 1.3
+tokens/word**. These are applied to every stage.
+
+**Why it matters.** Pre-run estimator is the user's only pre-scrape
+ballpark. Wrong numbers here produce surprise bills (today's case: $25
+actual vs whatever projection the user had in mind).
+
+- 30 min/ep default is OK for "misc podcast" but pessimistic for
+  short-form news / optimistic for long-form interviews.
+- 150 wpm × 1.3 tpw → ~195 tokens per minute of audio. In practice
+  different providers (and GIL evidence stack with retries) use very
+  different token volumes.
+- The GI evidence stack makes ~3-5 calls per insight per episode; that
+  multiplier isn't in the pre-run heuristic.
+
+**Fix options.**
+
+- Use actual RSS `<itunes:duration>` per episode (already done) and
+  surface "we have duration data for X of N episodes" in pre-run output
+  so user knows fallback is active.
+- Calibrate tokens/min against observed ratios from prior runs (e.g.
+  write `last_observed_tokens_per_minute.json` after each run, average
+  in next estimate).
+- Document the GI-evidence multiplier in the estimator: `gi_calls ≈
+  insight_count × avg_quote_candidates × 2` (QA + NLI).
+
+**Priority / effort.** Medium. Nice-to-have; user is already empirically
+calibrated from today's bill.
+
+### Cost-observability coupling suggestion
+
+Findings 17–22 are all cost-observability concerns. Natural grouping:
+
+- **Single GH issue / PR "Cost observability & pricing accuracy"**
+  covering 17, 18, 19, 20, 21, 22. ~1.5 days total. Get all the
+  bookkeeping right in one pass so subsequent re-runs produce honest
+  numbers.
+- Alternatively split 17+18+19 ("transcription cost") from 20 ("other
+  stages") from 21+22 ("pricing accuracy + estimator"). Three smaller
+  issues.
+
+Suggested plan amendment: insert as **Phase 1.5** (between Phase 1
+prompt fixes and Phase 2 orchestration) so the prompt-fix re-runs
+produce trustworthy cost numbers.
+
 ## Findings from NEXT 100+-episode run — APPEND HERE
 
 *(Add new sections as we learn more.)*

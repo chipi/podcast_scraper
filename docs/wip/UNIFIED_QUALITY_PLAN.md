@@ -112,6 +112,43 @@ full 100) of the existing corpus. Compare against the
 - GI topic label median words ≤ 4.
 - KG topic median words ≤ 3, max ≤ 5.
 
+## Phase 1.5 — Cost observability for transcription (~1 day)
+
+Triggered by a $25 OpenAI Whisper bill on ~150 episodes (correct per-
+minute rate, but cost is invisible in-tool between runs). See Findings
+17–19 in `QUALITY_IMPROVEMENTS_BACKLOG.md`. Insert BEFORE Phase 2 so
+that subsequent re-runs (including the Phase 1 validation re-run on the
+100-ep corpus) produce trustworthy cost numbers.
+
+### 1.5a. Surface transcription cost in run-level metrics (Finding 17)
+
+- Aggregate `llm_transcription_cost_usd` into per-run `metrics.json`.
+- Bubble up into `corpus_run_summary.json` as
+  `total_transcription_cost_usd`.
+- Print one-line CLI summary at end of scrape.
+
+### 1.5b. Fix file-size duration fallback for preprocessed audio (Finding 18)
+
+- Scale `MB → minutes` by configured bitrate:
+  `audio_minutes = file_size_mb / (bitrate_kbps / 128.0)`
+- Or call `ffprobe` directly — helper already exists in
+  `MistralProvider._probe_audio_duration_s`.
+
+### 1.5c. Unify Whisper invocation to return duration (Finding 19)
+
+- Switch all Whisper calls to `response_format="verbose_json"` so
+  `.duration` is always present.
+- Removes the fallback path that triggers Finding 18.
+
+### Phase 1.5 validation
+
+Re-run the Phase 1 validation scrape (20-ep subset). Confirm:
+
+- Every `metrics.json` has non-zero `llm_transcription_cost_usd` matching
+  `audio_minutes × $0.006`.
+- `corpus_run_summary.json` has a `total_transcription_cost_usd`.
+- End-of-scrape CLI prints a cost summary.
+
 ## Phase 2 — CLI / orchestration fixes (0.5 day)
 
 ### 2a. Bridge non-overlap fixture test (Finding 5)
