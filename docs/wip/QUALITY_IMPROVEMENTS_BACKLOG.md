@@ -296,6 +296,76 @@ summary + search index). Pairs with Finding 9.
 - **Quotes/insight 1.31** — persistent across all 3 runs at this scale.
   Confirms Finding 1 is systematic, not noise.
 
+### 12. ~4 % of insights are verbatim transcript dialogue, not distilled claims
+
+**Observed.** Scanning 752 insights across 53 episodes (UI run), **31
+(4.1 %) match dialogue heuristics** — host patter, filler words ("you
+know", "let's", "I mean"), first-person commentary kept in speaker
+tone. Example:
+
+> "It's a deal to our let's do it. Okay, So we do, in fact have the
+> perfect guest. We're going to be speaking with Brad Jacobs..."
+
+That text lives in an `Insight.text` property, not a Topic label. The
+Quote node attached to it copies a literal transcript span — grounding
+trivially succeeds because the "insight" **is** already a verbatim
+quote.
+
+**Root cause.** Mega-bundle prompt does not strongly enforce "insight =
+distilled third-person claim". LLM sometimes lifts transcript text
+verbatim, especially host intros and interviewee monologues.
+
+**Why it matters.** Every such insight inflates the "grounded" count
+without carrying real claim value. Clustering on these will cluster on
+host filler rather than ideas. Viewer users see these as mystery
+"topics" — poor UX.
+
+**Fix.** Strengthen mega-bundle prompt:
+
+- "Insights must be paraphrased third-person claims distilled from the
+  transcript, not verbatim lifts."
+- "Start insights with a subject + verb in present tense. Avoid
+  'we', 'I', 'you', 'let's', 'okay', conversational filler."
+- Optionally: post-process filter in `megabundle_parser.py` that rewrites
+  insights containing dialogue markers (or drops+re-queries them).
+
+**Priority / effort.** High (viewer UX + cluster quality), low
+effort (~10 LOC prompt + re-run). Measure after the 100+ run.
+
+### 13. GI Topic labels = summary bullets (long "bunch of text" by design)
+
+**Observed.** 320 GI Topic nodes across 53 episodes; labels have
+**median 141 chars / 20 words, max 200 chars (hard cap), min 10 words**.
+They are literally the summary bullets copied in as topic labels. Some
+are truncated mid-word at 200 chars ("floodgates for more lawsu").
+
+**Root cause.** In `metadata_generation.py`, summary bullets are passed
+as `topic_labels` into `gi.build_artifact`. Then
+`_make_topic_node_specs` (`gi/pipeline.py:62`) stores the raw bullet as
+the topic label with a `[:200]` slice.
+
+**Why it matters.** A viewer showing GI Topic nodes as a topic tour
+sees 20-word sentences, which is what the user calls "just a bunch of
+text". Bridge reconciles at merge-time via semantic alignment (see
+Finding 5) but the raw `gi.json` is ugly, and anything downstream
+walking `gi.json` Topic nodes directly sees the bullet-as-topic shape.
+
+**Fix options:**
+
+- **Best:** When KG's noun-phrase topics are available, use them as GI
+  Topic labels too. The existing `topic_labels_kg` pathway into
+  `gi.build_artifact` should replace bullet-as-topic entirely when KG
+  topics exist. Pair with Finding 6 (ID canonicalisation).
+- **Fallback:** Summarise bullets to 2–4 word topic labels via the
+  same mega-bundle call (already produces short topic labels for KG).
+  Re-use that list for GI Topic nodes.
+- Drop the mid-word `[:200]` truncation; if a label must be shortened,
+  do it at word boundary.
+
+**Priority / effort.** High (directly visible in viewer), low effort.
+Pairs with the KG v3 prompt tightening (Finding 2) and Viewer UI #609
+so the viewer always sees canonical short topics.
+
 ## Findings from NEXT 100+-episode run — APPEND HERE
 
 *(Add new sections as we learn more.)*
