@@ -23,8 +23,8 @@ none of which answer “did **resource cost** regress between vX and vY?” the 
 1. **Frozen profiles live under `data/profiles/`** as **YAML** files, committed at release (or
    retroactively captured for past tags), keyed by **release tag** and methodology described in
    [Performance Profile Guide](../guides/PERFORMANCE_PROFILE_GUIDE.md).
-2. **Capture and diff are first-class scripts**: `scripts/eval/freeze_profile.py` produces
-   profiles; `scripts/eval/diff_profiles.py` (and Makefile **`profile-freeze`** /
+2. **Capture and diff are first-class scripts**: `scripts/eval/profile/freeze_profile.py` produces
+   profiles; `scripts/eval/profile/diff_profiles.py` (and Makefile **`profile-freeze`** /
    **`profile-diff`**) compare two profiles for terminal workflows.
 3. **Schema and fields** are owned by [RFC-064](../rfc/RFC-064-performance-profiling-release-freeze.md)
    and the guide — ADR does not duplicate every field; it ratifies the **pattern** (frozen YAML +
@@ -63,8 +63,8 @@ none of which answer “did **resource cost** regress between vX and vY?” the 
 
 ## Implementation Notes
 
-- **Paths**: `data/profiles/*.yaml`, `scripts/eval/freeze_profile.py`,
-  `scripts/eval/diff_profiles.py`, Makefile targets **`profile-freeze`**, **`profile-diff`**.
+- **Paths**: `data/profiles/*.yaml`, `scripts/eval/profile/freeze_profile.py`,
+  `scripts/eval/profile/diff_profiles.py`, Makefile targets **`profile-freeze`**, **`profile-diff`**.
 - **Consumer**: `tools/run_compare/` discovers profiles by release tag
   ([RFC-066](../rfc/RFC-066-run-compare-performance-tab.md)).
 

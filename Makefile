@@ -1699,7 +1699,7 @@ metadata-generate:
 	fi
 	@echo "Generating episode metadata from RSS XML files..."
 	@echo "  Input directory: $(INPUT_DIR)"
-	@cmd="$(PYTHON) scripts/eval/generate_episode_metadata.py --input-dir $(INPUT_DIR)"; \
+	@cmd="$(PYTHON) scripts/eval/data/generate_episode_metadata.py --input-dir $(INPUT_DIR)"; \
 	if [ -n "$(OUTPUT_DIR)" ]; then \
 		echo "  Output directory: $(OUTPUT_DIR)"; \
 		cmd="$$cmd --output-dir $(OUTPUT_DIR)"; \
@@ -1727,7 +1727,7 @@ source-index:
 	fi
 	@echo "Generating source index..."
 	@echo "  Source directory: $(SOURCE_DIR)"
-	@cmd="$(PYTHON) scripts/eval/generate_source_index.py --source-dir $(SOURCE_DIR)"; \
+	@cmd="$(PYTHON) scripts/eval/data/generate_source_index.py --source-dir $(SOURCE_DIR)"; \
 	if [ -n "$(ALL)" ] && [ "$(ALL)" = "1" ]; then \
 		echo "  Processing all source directories"; \
 		cmd="$$cmd --all"; \
@@ -1766,7 +1766,7 @@ dataset-create:
 	else \
 		echo "  Description: $(DESCRIPTION)"; \
 	fi; \
-	cmd="$(PYTHON) scripts/eval/create_dataset_json.py --dataset-id $(DATASET_ID) --eval-dir $$EVAL_DIR --description \"$$DESCRIPTION\""; \
+	cmd="$(PYTHON) scripts/eval/data/create_dataset_json.py --dataset-id $(DATASET_ID) --eval-dir $$EVAL_DIR --description \"$$DESCRIPTION\""; \
 	if [ -n "$(OUTPUT_DIR)" ]; then \
 		echo "  Output directory: $(OUTPUT_DIR)"; \
 		cmd="$$cmd --output-dir $(OUTPUT_DIR)"; \
@@ -1792,7 +1792,7 @@ dataset-smoke:
 	echo "Creating smoke test dataset: curated_5feeds_smoke_v1"; \
 	echo "  Eval directory: $$EVAL_DIR"; \
 	echo "  Output directory: $$OUTPUT_DIR"; \
-	$(PYTHON) scripts/eval/create_dataset_json.py \
+	$(PYTHON) scripts/eval/data/create_dataset_json.py \
 		--dataset-id curated_5feeds_smoke_v1 \
 		--eval-dir $$EVAL_DIR \
 		--output-dir $$OUTPUT_DIR \
@@ -1809,7 +1809,7 @@ dataset-benchmark:
 	echo "Creating benchmark dataset: curated_5feeds_benchmark_v1"; \
 	echo "  Eval directory: $$EVAL_DIR"; \
 	echo "  Output directory: $$OUTPUT_DIR"; \
-	$(PYTHON) scripts/eval/create_dataset_json.py \
+	$(PYTHON) scripts/eval/data/create_dataset_json.py \
 		--dataset-id curated_5feeds_benchmark_v1 \
 		--eval-dir $$EVAL_DIR \
 		--output-dir $$OUTPUT_DIR \
@@ -1826,7 +1826,7 @@ dataset-raw:
 	echo "Creating raw dataset: curated_5feeds_raw_v1"; \
 	echo "  Eval directory: $$EVAL_DIR"; \
 	echo "  Output directory: $$OUTPUT_DIR"; \
-	$(PYTHON) scripts/eval/create_dataset_json.py \
+	$(PYTHON) scripts/eval/data/create_dataset_json.py \
 		--dataset-id curated_5feeds_raw_v1 \
 		--eval-dir $$EVAL_DIR \
 		--output-dir $$OUTPUT_DIR \
@@ -1850,7 +1850,7 @@ dataset-materialize:
 	@OUTPUT_DIR=$${OUTPUT_DIR:-data/eval/materialized}; \
 	echo "Materializing dataset: $(DATASET_ID)"; \
 	echo "  Output directory: $$OUTPUT_DIR"; \
-	cmd="$(PYTHON) scripts/eval/materialize_dataset.py --dataset-id $(DATASET_ID) --output-dir $$OUTPUT_DIR"; \
+	cmd="$(PYTHON) scripts/eval/data/materialize_dataset.py --dataset-id $(DATASET_ID) --output-dir $$OUTPUT_DIR"; \
 	if [ -n "$(DATASET_FILE)" ]; then \
 		echo "  Dataset file: $(DATASET_FILE)"; \
 		cmd="$$cmd --dataset-file $(DATASET_FILE)"; \
@@ -1888,7 +1888,7 @@ run-promote:
 		echo "❌ Error: --as must be 'baseline' or 'reference'"; \
 		exit 1; \
 	fi
-	@cmd="$(PYTHON) scripts/eval/promote_run.py --run-id $(RUN_ID) --as $(AS) --promoted-id $(PROMOTED_ID) --reason \"$(REASON)\""; \
+	@cmd="$(PYTHON) scripts/eval/compare/promote_run.py --run-id $(RUN_ID) --as $(AS) --promoted-id $(PROMOTED_ID) --reason \"$(REASON)\""; \
 	if [ "$(AS)" = "reference" ]; then \
 		# DATASET_ID is optional now (task type auto-detected from run) \
 		if [ -n "$(DATASET_ID)" ]; then \
@@ -1949,7 +1949,7 @@ baseline-create:
 	echo "Creating baseline: $(BASELINE_ID)"; \
 	echo "  Dataset: $(DATASET_ID)"; \
 	echo "  Run ID (temporary): $$RUN_ID"; \
-	cmd="$(PYTHON) scripts/eval/materialize_baseline.py --baseline-id $$RUN_ID --dataset-id $(DATASET_ID) --output-dir data/eval/runs"; \
+	cmd="$(PYTHON) scripts/eval/data/materialize_baseline.py --baseline-id $$RUN_ID --dataset-id $(DATASET_ID) --output-dir data/eval/runs"; \
 	if [ -n "$(EXPERIMENT_CONFIG)" ]; then \
 		echo "  Experiment config: $(EXPERIMENT_CONFIG)"; \
 		cmd="$$cmd --experiment-config $(EXPERIMENT_CONFIG)"; \
@@ -1994,7 +1994,7 @@ experiment-run:
 		exit 1; \
 	fi
 	@echo "Running experiment: $(CONFIG)"
-	@cmd="$(PYTHON) scripts/eval/run_experiment.py $(CONFIG)"; \
+	@cmd="$(PYTHON) scripts/eval/experiment/run_experiment.py $(CONFIG)"; \
 	if [ -n "$(BASELINE)" ]; then \
 		echo "  Baseline: $(BASELINE)"; \
 		cmd="$$cmd --baseline $(BASELINE)"; \
@@ -2043,7 +2043,7 @@ profile-freeze:
 		echo "❌ Error: PIPELINE_CONFIG not found: $(PIPELINE_CONFIG)"; \
 		exit 1; \
 	fi
-	@cmd="$(PYTHON) scripts/eval/freeze_profile.py --version $(VERSION) --pipeline-config $(PIPELINE_CONFIG)"; \
+	@cmd="$(PYTHON) scripts/eval/profile/freeze_profile.py --version $(VERSION) --pipeline-config $(PIPELINE_CONFIG)"; \
 	if [ -n "$(DATASET_ID)" ]; then cmd="$$cmd --dataset-id $(DATASET_ID)"; fi; \
 	if [ -n "$(OUTPUT)" ]; then cmd="$$cmd --output $(OUTPUT)"; fi; \
 	if [ "$(SKIP_WARMUP)" = "1" ]; then cmd="$$cmd --skip-warmup"; fi; \
@@ -2059,7 +2059,7 @@ profile-diff:
 		echo "❌ Error: FROM and TO are required (e.g. FROM=v2.5.0 TO=v2.6.0)"; \
 		exit 1; \
 	fi
-	@$(PYTHON) scripts/eval/diff_profiles.py "data/profiles/$(FROM).yaml" "data/profiles/$(TO).yaml"
+	@$(PYTHON) scripts/eval/profile/diff_profiles.py "data/profiles/$(FROM).yaml" "data/profiles/$(TO).yaml"
 
 profile-promote:
 	@# Usage: make profile-promote SOURCE=data/profiles/v2.6-wip-openai.yaml \
@@ -2077,7 +2077,7 @@ profile-promote:
 		echo "❌ Error: REASON is required (why this profile is being promoted)"; \
 		exit 1; \
 	fi
-	@cmd="$(PYTHON) scripts/eval/promote_profile.py \
+	@cmd="$(PYTHON) scripts/eval/profile/promote_profile.py \
 		--source \"$(SOURCE)\" \
 		--promoted-id \"$(PROMOTED_ID)\" \
 		--reason \"$(REASON)\""; \
@@ -2186,7 +2186,7 @@ silver-pairwise:
 		exit 1; \
 	fi
 	@dataset=$${DATASET:-curated_5feeds_smoke_v1}; \
-	cmd="$(PYTHON) scripts/eval/pairwise_judge.py \
+	cmd="$(PYTHON) scripts/eval/score/pairwise_judge.py \
 		--candidate-a data/eval/runs/$(CANDIDATE_A) \
 		--candidate-b data/eval/runs/$(CANDIDATE_B) \
 		--transcripts data/eval/materialized/$$dataset"; \
@@ -2313,13 +2313,13 @@ configs-clean:
 runs-list:
 	@# List all experiment runs
 	@# Usage: make runs-list [DATASET_ID=dataset_id]
-	@$(PYTHON) scripts/eval/list_runs.py \
+	@$(PYTHON) scripts/eval/compare/list_runs.py \
 		$(if $(DATASET_ID),--dataset-id $(DATASET_ID))
 
 baselines-list:
 	@# List all baselines
 	@# Usage: make baselines-list [DATASET_ID=dataset_id]
-	@$(PYTHON) scripts/eval/list_runs.py --baselines \
+	@$(PYTHON) scripts/eval/compare/list_runs.py --baselines \
 		$(if $(DATASET_ID),--dataset-id $(DATASET_ID))
 
 run-compare:
@@ -2337,7 +2337,7 @@ runs-compare:
 		echo "Usage: make runs-compare RUN1=run_id1 RUN2=run_id2"; \
 		exit 1; \
 	fi
-	@$(PYTHON) scripts/eval/compare_runs.py \
+	@$(PYTHON) scripts/eval/compare/compare_runs.py \
 		--run1 $(RUN1) \
 		--run2 $(RUN2) \
 		$(if $(DATASET_ID),--dataset-id $(DATASET_ID)) \
@@ -2356,7 +2356,7 @@ report-multi-run:
 		RUN_IDS=hybrid_ml_tier1_smoke_v1,hybrid_ml_tier2_qwen25_7b_smoke_v1; \
 		echo "Using defaults: BASELINE_ID=$$BASELINE_ID RUN_IDS=$$RUN_IDS REFERENCE_ID=$$REFERENCE_ID"; \
 	fi; \
-	cmd="$(PYTHON) scripts/eval/multi_run_report.py --reference-id $$REFERENCE_ID"; \
+	cmd="$(PYTHON) scripts/eval/compare/multi_run_report.py --reference-id $$REFERENCE_ID"; \
 	if [ -n "$$BASELINE_ID" ]; then cmd="$$cmd --baseline-id $$BASELINE_ID"; fi; \
 	if [ -n "$$RUN_IDS" ]; then cmd="$$cmd --run-ids $$RUN_IDS"; fi; \
 	if [ -n "$(OUTPUT)" ]; then cmd="$$cmd --output $(OUTPUT)"; else cmd="$$cmd --output docs/wip/multi_run_comparison.md"; fi; \
@@ -2387,7 +2387,7 @@ benchmark:
 		echo "❌ Error: Config file not found: $(CONFIG)"; \
 		exit 1; \
 	fi
-	@$(PYTHON) scripts/eval/run_benchmark.py \
+	@$(PYTHON) scripts/eval/experiment/run_benchmark.py \
 		--config $(CONFIG) \
 		--baseline $(BASELINE) \
 		$(if $(SMOKE),--smoke) \
@@ -2495,11 +2495,11 @@ pipeline-validate:
 	@#   make pipeline-validate PV_ARGS="--all-cloud"      # all cloud only
 	@#   make pipeline-validate PV_ARGS="--all-local"      # all Ollama only
 	@if [ -n "$(PROVIDER)" ] && [ -n "$(MODEL)" ]; then \
-		$(PYTHON) scripts/eval/pipeline_validate.py --provider "$(PROVIDER)" --model "$(MODEL)"; \
+		$(PYTHON) scripts/eval/experiment/pipeline_validate.py --provider "$(PROVIDER)" --model "$(MODEL)"; \
 	elif [ -n "$(PV_ARGS)" ]; then \
-		$(PYTHON) scripts/eval/pipeline_validate.py $(PV_ARGS); \
+		$(PYTHON) scripts/eval/experiment/pipeline_validate.py $(PV_ARGS); \
 	else \
-		$(PYTHON) scripts/eval/pipeline_validate.py --all; \
+		$(PYTHON) scripts/eval/experiment/pipeline_validate.py --all; \
 	fi
 
 transcription-sweep:
@@ -2508,7 +2508,7 @@ transcription-sweep:
 	@#   make transcription-sweep                           # default 4 models × held-out episodes
 	@#   make transcription-sweep MODELS=base.en,medium.en  # specific models
 	@#   make transcription-sweep EPISODES=p01_e03          # single episode
-	$(PYTHON) scripts/eval/transcription_sweep.py \
+	$(PYTHON) scripts/eval/experiment/transcription_sweep.py \
 		--audio-dir tests/fixtures/audio \
 		--reference-dir data/eval/materialized/curated_5feeds_benchmark_v2 \
 		--episodes "$${EPISODES:-p01_e03,p02_e03,p03_e03,p04_e03,p05_e03}" \

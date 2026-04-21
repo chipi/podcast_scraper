@@ -465,8 +465,8 @@ subset if time is tight: **ml-dev + ml-prod + one cloud**.
 | [RFC-064](../rfc/RFC-064-performance-profiling-release-freeze.md) | Design, stage model, non-goals |
 | [`config/profiles/README.md`](https://github.com/chipi/podcast_scraper/blob/main/config/profiles/README.md) | Capture config index and preset matrix |
 | [`data/profiles/README.md`](https://github.com/chipi/podcast_scraper/blob/main/data/profiles/README.md) | Artifact directory, index table, lifecycle |
-| [`scripts/eval/freeze_profile.py`](https://github.com/chipi/podcast_scraper/blob/main/scripts/eval/freeze_profile.py) | CLI (`--e2e-feed`, warm-up, `--monitor`, `PODCAST_SCRAPER_MONITOR_FILE_LOG` during measured run, …) |
+| [`scripts/eval/profile/freeze_profile.py`](https://github.com/chipi/podcast_scraper/blob/main/scripts/eval/profile/freeze_profile.py) | CLI (`--e2e-feed`, warm-up, `--monitor`, `PODCAST_SCRAPER_MONITOR_FILE_LOG` during measured run, …) |
 | [Live Pipeline Monitor](LIVE_PIPELINE_MONITOR.md) | RFC-065 operator guide and artifact paths |
-| [`scripts/eval/promote_profile.py`](https://github.com/chipi/podcast_scraper/blob/main/scripts/eval/promote_profile.py) | Promote working profile to reference |
-| [`scripts/eval/diff_profiles.py`](https://github.com/chipi/podcast_scraper/blob/main/scripts/eval/diff_profiles.py) | Terminal diff |
+| [`scripts/eval/profile/promote_profile.py`](https://github.com/chipi/podcast_scraper/blob/main/scripts/eval/profile/promote_profile.py) | Promote working profile to reference |
+| [`scripts/eval/profile/diff_profiles.py`](https://github.com/chipi/podcast_scraper/blob/main/scripts/eval/profile/diff_profiles.py) | Terminal diff |
 | [Experiment Guide](EXPERIMENT_GUIDE.md) | Eval promotion (baselines, silvers) -- same philosophy |

@@ -25,7 +25,7 @@
 **Phase 1: Experiment Runner**  (Complete)
 
 - Experiment config schema (`src/podcast_scraper/evaluation/config.py`)
-- Experiment runner (`scripts/eval/run_experiment.py`) using RFC-016 providers
+- Experiment runner (`scripts/eval/experiment/run_experiment.py`) using RFC-016 providers
 - Dataset JSON support (reads from `data/eval/datasets/` or `benchmarks/datasets/`)
 - `make experiment-run` command with baseline/reference support
 - Comprehensive fingerprinting (run context, provider, model, generation params, preprocessing, chunking, prompts, environment, runtime)
@@ -47,7 +47,7 @@
 - Reference storage:
   - Silver: `data/eval/references/silver/{reference_id}/`
   - Gold: `data/eval/references/gold/{task_type}/{reference_id}/`
-- Promotion workflow (`scripts/eval/promote_run.py`, `make run-promote`)
+- Promotion workflow (`scripts/eval/compare/promote_run.py`, `make run-promote`)
 - Historical tracking via immutable baselines/references
 - Comparison tools (baseline deltas, reference metrics)
 - README governance layer for all artifact types
@@ -399,8 +399,8 @@ prompts:
 
 ```bash
 
-python scripts/eval/run_experiment.py experiments/summarization_openai_long_v1.yaml
-python scripts/eval/run_experiment.py experiments/summarization_openai_long_v2.yaml
+python scripts/eval/experiment/run_experiment.py experiments/summarization_openai_long_v1.yaml
+python scripts/eval/experiment/run_experiment.py experiments/summarization_openai_long_v2.yaml
 
 ```text
 
@@ -912,7 +912,7 @@ def evaluate_experiment_predictions(
 ```
 # Generate predictions
 
-python scripts/eval/run_experiment.py experiments/summarization_openai_long_v1.yaml
+python scripts/eval/experiment/run_experiment.py experiments/summarization_openai_long_v1.yaml
 
 # Evaluate predictions
 
@@ -1023,7 +1023,7 @@ def run_experiment(
 
 # Generate + evaluate in one command
 
-python scripts/eval/run_experiment.py \
+python scripts/eval/experiment/run_experiment.py \
   experiments/summarization_openai_long_v1.yaml \
   --evaluate \
   --gold-data data/eval/golden/summaries/
@@ -1071,7 +1071,7 @@ def run_experiment(cfg: ExperimentConfig) -> None:
 
 ```python
 
-# scripts/eval/run_experiment.py
+# scripts/eval/experiment/run_experiment.py
 
 import argparse
 import json
@@ -1557,34 +1557,34 @@ results/
 
 # Generate predictions only
 
-python scripts/eval/run_experiment.py \
+python scripts/eval/experiment/run_experiment.py \
   --config experiments/summarization_openai_gpt4_mini_v1.yaml \
   --mode gen \
   --output-dir results
 
 # Evaluate existing predictions
 
-python scripts/eval/run_experiment.py \
+python scripts/eval/experiment/run_experiment.py \
   --config experiments/summarization_openai_gpt4_mini_v1.yaml \
   --mode eval \
   --output-dir results
 
 # Generate and evaluate (default)
 
-python scripts/eval/run_experiment.py \
+python scripts/eval/experiment/run_experiment.py \
   --config experiments/summarization_openai_gpt4_mini_v1.yaml \
   --output-dir results
 
 # Run multiple experiments
 
-python scripts/eval/run_experiment.py \
+python scripts/eval/experiment/run_experiment.py \
   --config experiments/summarization_bart_led_local.yaml \
   --config experiments/summarization_openai_gpt4_mini_v1.yaml \
   --output-dir results
 
 # Force regenerate predictions
 
-python scripts/eval/run_experiment.py \
+python scripts/eval/experiment/run_experiment.py \
   --config experiments/summarization_openai_gpt4_mini_v1.yaml \
   --force-regenerate
 
@@ -1745,7 +1745,7 @@ def evaluate_experiment_predictions(
 
 # Step 1: Run experiment (generates predictions.jsonl)
 
-python scripts/eval/run_experiment.py experiments/summarization_openai_long_v1.yaml
+python scripts/eval/experiment/run_experiment.py experiments/summarization_openai_long_v1.yaml
 
 # Step 2: Evaluate predictions (uses existing eval logic)
 
@@ -1929,13 +1929,13 @@ def run_experiment(
 
 # Generate + evaluate in one command
 
-python scripts/eval/run_experiment.py \
+python scripts/eval/experiment/run_experiment.py \
   experiments/summarization_openai_long_v1.yaml \
   --mode gen+eval
 
 # Or evaluate existing predictions
 
-python scripts/eval/run_experiment.py \
+python scripts/eval/experiment/run_experiment.py \
   experiments/summarization_openai_long_v1.yaml \
   --mode eval
 
@@ -2041,7 +2041,7 @@ jobs:
 
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
         run: |
-          python scripts/eval/run_experiment.py \
+          python scripts/eval/experiment/run_experiment.py \
             --config experiments/summarization_bart_led_v1.yaml \
             --episodes ep01 \
             --mode gen+eval
@@ -2657,7 +2657,7 @@ def update_experiment_results(
 
 ```python
 
-# In scripts/eval/run_experiment.py, after evaluation phase:
+# In scripts/eval/experiment/run_experiment.py, after evaluation phase:
 
 if mode in ("eval", "gen+eval"):
     metrics = evaluate_predictions(config, predictions_file)
@@ -2676,7 +2676,7 @@ if mode in ("eval", "gen+eval"):
 
 # Run experiment and automatically update Excel
 
-python scripts/eval/run_experiment.py \
+python scripts/eval/experiment/run_experiment.py \
   --config experiments/summarization_openai_gpt4_mini_v1.yaml \
   --update-excel
 

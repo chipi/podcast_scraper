@@ -95,12 +95,12 @@ See [EVAL_TIER2_QMSUM_2026_04.md](EVAL_TIER2_QMSUM_2026_04.md) for detailed anal
 
 ```bash
 # GI insight coverage
-python scripts/eval/score_gi_insight_coverage.py \
+python scripts/eval/score/score_gi_insight_coverage.py \
   --run-id <run> --silver silver_sonnet46_gi_benchmark_v2 \
   --dataset curated_5feeds_benchmark_v2
 
 # KG topic coverage
-python scripts/eval/score_kg_topic_coverage.py \
+python scripts/eval/score/score_kg_topic_coverage.py \
   --run-id <run> --silver silver_sonnet46_kg_benchmark_v2 \
   --dataset curated_5feeds_benchmark_v2
 ```

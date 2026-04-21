@@ -1,7 +1,7 @@
 # RFC-064: Performance Profiling and Release Freeze Framework
 
-- **Status**: Completed (v2.6.0) — `data/profiles/*.yaml`, `scripts/eval/freeze_profile.py`,
-  `scripts/eval/diff_profiles.py`, Makefile **`profile-freeze`** / **`profile-diff`**, and profile
+- **Status**: Completed (v2.6.0) — `data/profiles/*.yaml`, `scripts/eval/profile/freeze_profile.py`,
+  `scripts/eval/profile/diff_profiles.py`, Makefile **`profile-freeze`** / **`profile-diff`**, and profile
   fields consumed by **[RFC-066](RFC-066-run-compare-performance-tab.md)** /
   **`tools/run_compare/`**. Refreshing profiles each release is operational hygiene, not an open
   design gap.
@@ -49,7 +49,7 @@ Where RFC-041 answers "did output quality change?", this RFC answers "did resour
 The framework has two components:
 
 1. **`data/profiles/` — frozen release profiles**: YAML snapshots of peak RSS, wall time, and CPU utilization per pipeline stage, committed at release time and versioned by release tag.
-2. **`scripts/eval/freeze_profile.py` — profile capture and diff tooling**: A headless script that runs the reference dataset, captures resource metrics via `psutil` alongside the existing `Metrics` collector, and writes the frozen profile. A companion diff script compares any two profiles.
+2. **`scripts/eval/profile/freeze_profile.py` — profile capture and diff tooling**: A headless script that runs the reference dataset, captures resource metrics via `psutil` alongside the existing `Metrics` collector, and writes the frozen profile. A companion diff script compares any two profiles.
 
 **Split to sibling RFCs** (not part of the frozen-profile capture contract here):
 
@@ -272,7 +272,7 @@ The artifact is honest about its provenance — the environment fingerprint tell
 
 ### 2. Freeze Script and Diff Tool
 
-#### 2a. Freeze Script (`scripts/eval/freeze_profile.py`)
+#### 2a. Freeze Script (`scripts/eval/profile/freeze_profile.py`)
 
 Single entry point for profile capture. Runs headless.
 
@@ -283,7 +283,7 @@ make profile-freeze VERSION=v2.6.0 PIPELINE_CONFIG=config/profiles/profile_freez
 Equivalent to:
 
 ```bash
-.venv/bin/python3 scripts/eval/freeze_profile.py \
+.venv/bin/python3 scripts/eval/profile/freeze_profile.py \
   --version v2.6.0 \
   --pipeline-config config/profiles/profile_freeze.yaml \
   --dataset-id indicator_v1 \
@@ -314,7 +314,7 @@ point provider bases at the mock server separately.
 
 The polling thread is lightweight (one `psutil.Process` call per second using `oneshot()` for efficiency). Its overhead on timing is negligible — well under 1% of wall time for any stage longer than a few seconds.
 
-#### 2b. Profile Diff (`scripts/eval/diff_profiles.py`)
+#### 2b. Profile Diff (`scripts/eval/profile/diff_profiles.py`)
 
 ```bash
 make profile-diff FROM=v2.5.0 TO=v2.6.0
@@ -503,8 +503,8 @@ All artifacts are local YAML files committed to git. No backend services, no dat
 ### Phase 0: Frozen profiles + freeze script (this RFC, v1 scope)
 
 - `data/profiles/` directory and `README.md` (capture conditions, methodology)
-- `scripts/eval/freeze_profile.py` — headless profile capture with warm-up pass
-- `scripts/eval/diff_profiles.py` — terminal diff tool
+- `scripts/eval/profile/freeze_profile.py` — headless profile capture with warm-up pass
+- `scripts/eval/profile/diff_profiles.py` — terminal diff tool
 - `make profile-freeze` and `make profile-diff` Makefile targets
 - Add `vector_indexing` timing to `Metrics` (currently not tracked; needed for complete stage coverage)
 - Retroactive freeze of recent releases

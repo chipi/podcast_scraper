@@ -22,7 +22,7 @@
   - `docs/rfc/RFC-055-knowledge-graph-layer-core.md` — eval dataset conventions
 - **Related Documents**:
   - `data/eval/` — Gold-standard eval dataset (episodes with verified transcripts and summaries)
-  - `scripts/eval/run_experiment.py` — experiment runner (predictions → `data/eval/runs/<run_id>/`)
+  - `scripts/eval/experiment/run_experiment.py` — experiment runner (predictions → `data/eval/runs/<run_id>/`)
   - `src/podcast_scraper/evaluation/` — scoring (`scorer.py`, `gi_scorer.py`, `kg_scorer.py`, `eval_gi_kg_runtime.py`, experiment config)
   - `src/podcast_scraper/prompts/` — versioned `.j2` templates (see `prompts/shared/README.md`)
   - `docs/api/CONFIGURATION.md` — `summary_prompt_params`, summarization / Whisper fields
@@ -66,7 +66,7 @@ The pipeline's LLM prompts and ML inference parameters were set by hand and have
 
 Autoresearch is **not** a second product pipeline. It is a **thin control loop** on top of existing code:
 
-- **`autoresearch/<track>/eval/score.py`** only **orchestrates**: CLI / env → invoke **`scripts/eval/run_experiment.py`** and/or **`podcast_scraper.evaluation`** (`ExperimentConfig`, `scorer.score_run`, comparators) → optional judge calls → single scalar on stdout. **Do not** reimplement ROUGE, WER, prediction I/O, or experiment layout under `autoresearch/` except minimal glue.
+- **`autoresearch/<track>/eval/score.py`** only **orchestrates**: CLI / env → invoke **`scripts/eval/experiment/run_experiment.py`** and/or **`podcast_scraper.evaluation`** (`ExperimentConfig`, `scorer.score_run`, comparators) → optional judge calls → single scalar on stdout. **Do not** reimplement ROUGE, WER, prediction I/O, or experiment layout under `autoresearch/` except minimal glue.
 - **New Python** under `autoresearch/` should stay small (orchestrator, judge HTTP/SDK calls, rubric loading). If logic is generally useful, add it under **`src/podcast_scraper/evaluation/`** (or shared utils) and **import** it from `score.py` so production and autoresearch share one implementation.
 - The **coding agent** + **`program.md`** replace the human clicking; they do not replace **`data/eval/`**, **`run_experiment.py`**, or **`Config`**.
 
@@ -85,7 +85,7 @@ Autoresearch is **not** a second product pipeline. It is a **thin control loop**
 ### Eval & scoring
 
 - **Preferred**: `autoresearch/<track>/eval/score.py` is a **thin orchestrator** run from the **repository root** (e.g. `python autoresearch/prompt_tuning/eval/score.py`) that:
-  - Imports from `podcast_scraper.evaluation.*` and, where applicable, shells out to or reuses patterns from `scripts/eval/run_experiment.py`.
+  - Imports from `podcast_scraper.evaluation.*` and, where applicable, shells out to or reuses patterns from `scripts/eval/experiment/run_experiment.py`.
   - Reads episodes from `data/eval/` and writes/reads predictions under `data/eval/runs/` (or a dedicated `data/eval/autoresearch_runs/` subtree if isolation is needed — decide once in implementation; either way, **never mutate golden inputs** under the curated eval corpus paths).
 - **GIL/KG autoresearch (future)**: If the loop later optimizes insight or graph prompts, reuse `eval_gi_kg_runtime.py`, `gi_scorer.py`, and `kg_scorer.py` rather than duplicating metrics.
 - **Summarization-only Track A (v1)**: May compose `scorer.score_run` / experiment YAML contracts already used by `scripts/eval/`; extend only when the rubric requires judge LLM logic not present in `scorer.py`.

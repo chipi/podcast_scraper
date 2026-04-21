@@ -682,7 +682,7 @@ Based on lessons learned from RFC-015 and RFC-016, the following improvements ar
 #### Materialization Script
 
 ```bash
-# scripts/eval/materialize_dataset.py
+# scripts/eval/data/materialize_dataset.py
 
 def materialize_dataset(dataset_json: Path, output_dir: Path):
     """Materialize dataset JSON into episode folders."""
@@ -913,22 +913,22 @@ regression_rules:
 ### Phase 0: Dataset Freezing + Baseline Artifacts (Complete)
 
 1. Dataset JSON format implemented (`data/eval/datasets/` and `benchmarks/datasets/`)
-2. Dataset creation scripts (`scripts/eval/create_dataset_json.py`)
-3. Dataset materialization (`scripts/eval/materialize_dataset.py`) with hash validation
-4. Source data inventory (`scripts/eval/generate_source_index.py`, `scripts/eval/generate_episode_metadata.py`)
-5. Baseline creation (`scripts/eval/materialize_baseline.py`) with comprehensive fingerprinting
+2. Dataset creation scripts (`scripts/eval/data/create_dataset_json.py`)
+3. Dataset materialization (`scripts/eval/data/materialize_dataset.py`) with hash validation
+4. Source data inventory (`scripts/eval/data/generate_source_index.py`, `scripts/eval/data/generate_episode_metadata.py`)
+5. Baseline creation (`scripts/eval/data/materialize_baseline.py`) with comprehensive fingerprinting
 6. Baseline storage structure (`data/eval/baselines/`) with `predictions.jsonl`, `metrics.json`, `fingerprint.json`, `baseline.json`
 7. Metrics structure (`metrics.json`) with intrinsic and vs_reference sections
 8. README governance layer for all artifact types
 
 ### Phase 1: Integration with RFC-015 (Complete)
 
-1. Experiment runner reads dataset JSONs (`scripts/eval/run_experiment.py` supports `dataset_id`)
+1. Experiment runner reads dataset JSONs (`scripts/eval/experiment/run_experiment.py` supports `dataset_id`)
 2. Experiment runner references baseline_id and optional reference_ids
 3. Quality gates evaluated automatically (intrinsic metrics: gates, length, performance, cost)
 4. Regression detection via comparison deltas (`comparisons/vs_{baseline_id}.json`)
 5. Reference model implemented (baseline, silver, gold references)
-6. Promotion workflow (`scripts/eval/promote_run.py`, `make run-promote`)
+6. Promotion workflow (`scripts/eval/compare/promote_run.py`, `make run-promote`)
 
 ### Phase 2: CI Integration (Pending)
 

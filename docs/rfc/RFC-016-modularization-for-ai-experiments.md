@@ -47,7 +47,7 @@
 5. **Comprehensive Fingerprinting**  (100% Complete)
    - `src/podcast_scraper/providers/fingerprint.py` → `ProviderFingerprint` with full environment capture
    - Enhanced fingerprint structure: run context, provider, model, generation params, preprocessing, chunking, prompts, environment, runtime
-   - Fingerprint validation via smoke tests (`scripts/eval/test_fingerprint_smoke.py`)
+   - Fingerprint validation via smoke tests (`scripts/eval/experiment/test_fingerprint_smoke.py`)
 
 6. **Preprocessing Profiles**  (100% Complete)
    - `src/podcast_scraper/preprocessing/profiles.py` → Versioned preprocessing profiles

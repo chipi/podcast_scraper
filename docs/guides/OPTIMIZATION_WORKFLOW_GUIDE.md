@@ -73,7 +73,7 @@ Create an experiment config YAML in your dedicated folder and run it with
 `--cost-report` to capture token counts:
 
 ```bash
-.venv/bin/python3 scripts/eval/run_experiment.py \
+.venv/bin/python3 scripts/eval/experiment/run_experiment.py \
   data/eval/issue-NNN/my_config.yaml \
   --reference silver_sonnet46_smoke_v1 --cost-report
 ```
@@ -89,7 +89,7 @@ Use the profiling system described in
 capture config in your dedicated folder and run a freeze:
 
 ```bash
-.venv/bin/python3 scripts/eval/freeze_profile.py \
+.venv/bin/python3 scripts/eval/profile/freeze_profile.py \
   --version issue-NNN-staged \
   --pipeline-config data/profiles/issue-NNN/capture_config.yaml \
   --dataset-id e2e_podcast1_mtb_n2 \
@@ -134,19 +134,19 @@ path enabled. Compare against the baseline:
 
 ```bash
 # Eval (same reference, same dataset -- see Experiment Guide)
-.venv/bin/python3 scripts/eval/run_experiment.py \
+.venv/bin/python3 scripts/eval/experiment/run_experiment.py \
   data/eval/issue-NNN/my_optimized_config.yaml \
   --reference silver_sonnet46_smoke_v1 --cost-report
 
 # Profile (same capture setup -- see Performance Profile Guide)
-.venv/bin/python3 scripts/eval/freeze_profile.py \
+.venv/bin/python3 scripts/eval/profile/freeze_profile.py \
   --version issue-NNN-optimized \
   --pipeline-config data/profiles/issue-NNN/capture_optimized.yaml \
   --dataset-id e2e_podcast1_mtb_n2 \
   --output data/profiles/issue-NNN/issue-NNN-optimized.yaml
 
 # Diff the two profiles
-.venv/bin/python3 scripts/eval/diff_profiles.py \
+.venv/bin/python3 scripts/eval/profile/diff_profiles.py \
   data/profiles/issue-NNN/issue-NNN-staged.yaml \
   data/profiles/issue-NNN/issue-NNN-optimized.yaml
 ```

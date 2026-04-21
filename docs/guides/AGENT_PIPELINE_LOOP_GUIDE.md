@@ -279,7 +279,7 @@ cat output/.monitor.log
 cat output/metrics.json
 
 # Compare with frozen release profile
-python scripts/eval/diff_profiles.py data/profiles/v0.42.yaml data/profiles/v0.43.yaml
+python scripts/eval/profile/diff_profiles.py data/profiles/v0.42.yaml data/profiles/v0.43.yaml
 
 # Run comparison tool (Streamlit, visual)
 make run-compare

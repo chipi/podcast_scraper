@@ -154,7 +154,7 @@ The hybrid champion closes **70% of the gap** between pure-ML local (18.8%) and 
   `_mode_registry["ml_hybrid_bart_llama32_3b_autoresearch_v1"]`
 - **Ollama params wiring**: `OllamaReduceParams` dataclass in
   `src/podcast_scraper/evaluation/experiment_config.py`; passed through
-  `scripts/eval/run_experiment.py` → `src/podcast_scraper/config.py` →
+  `scripts/eval/experiment/run_experiment.py` → `src/podcast_scraper/config.py` →
   `src/podcast_scraper/providers/ollama/ollama_provider.py`
 - **Canonical eval config**: `data/eval/configs/ml/baseline_ml_hybrid_bart_llama32_3b_autoresearch_v1.yaml`
 - **Sweep TSVs**: `autoresearch/ml_param_tuning/results/bart_llama32_3b_sweep_*.tsv`
