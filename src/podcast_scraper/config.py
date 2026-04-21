@@ -1529,6 +1529,17 @@ class Config(BaseModel):
         alias="deepseek_max_tokens",
         description="Max tokens for DeepSeek generation (None = model default)",
     )
+    deepseek_timeout: int = Field(
+        default=600,
+        alias="deepseek_timeout",
+        ge=30,
+        description=(
+            "HTTP read timeout in seconds for DeepSeek API calls (default: 600 = 10min). "
+            "DeepSeek mega-bundle / large JSON responses can exceed the default 120s "
+            "generic HTTP timeout, so DeepSeek follows Grok's pattern of a per-provider "
+            "override (#646 real-episode validation)."
+        ),
+    )
     # DeepSeek Prompt Configuration (following OpenAI pattern)
     deepseek_summary_system_prompt: str = Field(
         default="deepseek/summarization/system_bullets_v1",
@@ -1957,10 +1968,13 @@ class Config(BaseModel):
         alias="vector_embedding_model",
         description="Sentence-transformers model id for semantic corpus embeddings (GitHub #484).",
     )
-    vector_backend: Literal["faiss", "qdrant"] = Field(
+    vector_backend: Literal["faiss"] = Field(
         default="faiss",
         alias="vector_backend",
-        description=("Vector index backend. Shipped: faiss only; qdrant deferred (RFC-070)."),
+        description=(
+            "Vector index backend. Currently faiss only. qdrant is reserved for a future "
+            "platform-mode release (RFC-070) — will be re-added to this Literal once wired."
+        ),
     )
     vector_index_types: Optional[
         List[Literal["insight", "quote", "summary", "transcript", "kg_topic", "kg_entity"]]

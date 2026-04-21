@@ -720,12 +720,6 @@ def maybe_index_corpus(output_dir: str, cfg: config.Config) -> None:
         return
     if getattr(cfg, "vector_search", False) is not True:
         return
-    if getattr(cfg, "vector_backend", "faiss") != "faiss":
-        logger.warning(
-            "vector_backend=%r not supported for corpus indexing (Phase 1: faiss); skipping",
-            cfg.vector_backend,
-        )
-        return
     try:
         index_corpus(output_dir, cfg)
     except Exception as exc:

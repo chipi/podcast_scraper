@@ -31,16 +31,21 @@ speaker_detector_provider: spacy
 ner_model: en_core_web_trf
 auto_speakers: true
 
-# Summarization — DeepSeek for quality
-summary_provider: deepseek
-deepseek_summary_model: deepseek-chat
+# Summarization — Anthropic haiku-4.5 for tier-1 mega-bundle (#646 validation).
+# Real-episode test (scripts/validate/validate_phase3c.py, 2026-04-21):
+# 1 LLM call / ep, 12 insights / 10 topics / 7+ entities, ~15 s, entity F1 = 1.000.
+# DeepSeek deepseek-chat is a validated tier-2 alternative (~10× cheaper, ~50 s,
+# 12 / 10 / 8–15 artifacts) IF deepseek_timeout ≥ 300 — switch to:
+#   summary_provider: deepseek
+#   deepseek_summary_model: deepseek-chat
+#   deepseek_timeout: 600
+# for high-volume corpus building where latency > quality. See
+# docs/guides/AI_PROVIDER_COMPARISON_GUIDE.md for the full tradeoff.
+summary_provider: anthropic
+anthropic_summary_model: claude-haiku-4-5
 
 # Pipeline mode — mega_bundled (#643): one call returns
-# title + summary + bullets + insights + topics + entities. DeepSeek is tier-2
-# for mega-bundle (entity F1 ≈ 0.88 vs Anthropic haiku-4.5 tier-1 at 1.000),
-# but the ~6× cost savings vs three standalone calls outweighs the entity gap
-# for most quality-tier users. Swap to Anthropic haiku-4.5 + mega_bundled if
-# NER fidelity matters most. See docs/guides/AI_PROVIDER_COMPARISON_GUIDE.md.
+# title + summary + bullets + insights + topics + entities.
 llm_pipeline_mode: mega_bundled
 
 # Output token floor for cloud LLM structured JSON (#645). Default 4096 is

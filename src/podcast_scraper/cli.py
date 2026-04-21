@@ -1242,9 +1242,12 @@ def _add_metadata_arguments(parser: argparse.ArgumentParser) -> None:
     )
     parser.add_argument(
         "--vector-backend",
-        choices=["faiss", "qdrant"],
+        choices=["faiss"],
         default=None,
-        help="Vector index backend (default: faiss). qdrant is not implemented in Phase 1.",
+        help=(
+            "Vector index backend (default: faiss). "
+            "qdrant is reserved for RFC-070 and not yet wired."
+        ),
     )
     parser.add_argument(
         "--vector-index-path",

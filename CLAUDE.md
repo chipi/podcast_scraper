@@ -114,6 +114,30 @@ apply, or do we need to do it now before pushing?"* The Phase 3C miss came
 from carrying over a pre-compaction "defer to follow-up" tag without
 re-asking; the profile change it was paired with turned into a lie.
 
+## Final validation before push: real episodes, not just unit tests
+
+Mocked unit tests prove the dispatch routes correctly; they do **not**
+prove the feature works against real provider responses, real transcripts,
+or the real end-to-end pipeline. Before pushing any change that touches
+a production pipeline stage (summarization dispatch, GI/KG extraction,
+transcription preprocessing, audio pipeline, any new `llm_pipeline_mode`
+value, any profile default), the last step before commit is:
+
+1. **Run one real episode end-to-end** with the changed code path, using
+   the real provider API keys available in `.env`. There is no "I don't
+   have keys" — check `.env` first.
+2. **Measure the claim numerically.** If the change is "fewer LLM calls",
+   count them. If it's "cheaper transcription", measure file size and $.
+   If it's "better KG", count nodes. Unit tests don't measure claims.
+3. **Inspect one artifact by eye.** Open the produced `gi.json` /
+   `kg.json` / `metadata.json` / cleaned audio and confirm it looks sane.
+4. **Only then push.** The test plan checkbox in a PR body is a
+   post-merge reminder, not a replacement for pre-push validation.
+
+For work in `scripts/validate/validate_phase3c.py` style: keep it as a
+committed reusable harness so the next change in the same stage has a
+ready comparison baseline.
+
 ## COMPLETE GUIDE FILE SET (LOAD ALL WHEN REQUESTED)
 
 **When the user asks to "load ai coding guidelines" or "load coding guidelines", you MUST load ALL of these files:**

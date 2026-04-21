@@ -497,9 +497,6 @@ def finalize_multi_feed_batch(
         return summary_doc
     if template_cfg.vector_search is not True:
         return summary_doc
-    if getattr(template_cfg, "vector_backend", "faiss") != "faiss":
-        logger.warning("Skipping parent corpus index: vector_backend is not faiss")
-        return summary_doc
 
     from podcast_scraper.search.indexer import index_corpus
 

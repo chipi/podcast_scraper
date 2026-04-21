@@ -145,8 +145,11 @@ class DeepSeekProvider:
             "base_url": base_url,
         }
 
-        # Configure HTTP timeouts with separate connect/read timeouts
-        client_kwargs["timeout"] = get_http_timeout(cfg)
+        # Configure HTTP timeouts. DeepSeek mega-bundle / large JSON responses
+        # can exceed the 120s generic default; honour the per-provider override
+        # (#646 real-episode validation). Matches Grok's pattern.
+        deepseek_read_timeout = float(getattr(cfg, "deepseek_timeout", 600))
+        client_kwargs["timeout"] = get_http_timeout(cfg, read_timeout=deepseek_read_timeout)
 
         self.client = OpenAI(**client_kwargs)
 
