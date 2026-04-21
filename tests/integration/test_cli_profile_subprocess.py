@@ -78,6 +78,18 @@ def _run_cli(profile: str, output_dir: Path) -> subprocess.CompletedProcess:
             "cloud_quality",
             ["summary=on:anthropic", "metadata=on:json"],
         ),
+        (
+            "local",
+            ["summary=on:ollama", "metadata=on:json"],
+        ),
+        (
+            "airgapped",
+            ["summary=on:summllama", "metadata=on:json"],
+        ),
+        (
+            "dev",
+            ["summary=on:transformers", "metadata=on:json"],
+        ),
     ],
 )
 def test_profile_reaches_orchestrator_with_expected_config(

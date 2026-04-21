@@ -2196,6 +2196,19 @@ def _generate_episode_summary(  # noqa: C901
                                 "prefilled_extraction": mega_result.to_extraction_partial(),
                             },
                         }
+                    else:
+                        # Provider returned something unexpected (not a MegaBundleResult
+                        # instance). Contract violation — warn so ops notices, fall
+                        # through to staged. Without this, a bad provider silently
+                        # downgrades to staged with no signal.
+                        if pipeline_metrics is not None:
+                            pipeline_metrics.record_llm_bundled_fallback_to_staged()
+                        logger.warning(
+                            "[%s] mega_bundled returned unexpected type %s "
+                            "(expected MegaBundleResult); falling back to staged",
+                            episode_idx,
+                            type(mega_result).__name__,
+                        )
                 except Exception as mega_exc:
                     if pipeline_metrics is not None:
                         pipeline_metrics.record_llm_bundled_fallback_to_staged()
@@ -2232,7 +2245,21 @@ def _generate_episode_summary(  # noqa: C901
                     )
                     if isinstance(extr_result, MegaBundleResult):
                         extraction_partial = extr_result.to_extraction_partial()
+                    else:
+                        # Provider contract violation — warn + record fallback so
+                        # ops notices the downgrade instead of silently reverting
+                        # to 3 LLM calls.
+                        if pipeline_metrics is not None:
+                            pipeline_metrics.record_llm_bundled_fallback_to_staged()
+                        logger.warning(
+                            "[%s] extraction_bundled returned unexpected type %s "
+                            "(expected MegaBundleResult); GIL/KG will run their own calls",
+                            episode_idx,
+                            type(extr_result).__name__,
+                        )
                 except Exception as extr_exc:
+                    if pipeline_metrics is not None:
+                        pipeline_metrics.record_llm_bundled_fallback_to_staged()
                     logger.warning(
                         "[%s] extraction_bundled failed, GIL/KG will run their "
                         "own LLM calls: %s",

@@ -125,7 +125,13 @@ def _summarise_gi_kg(corpus: Path) -> Dict[str, Any]:
             round(100.0 * grounded_insights / total_insights, 1) if total_insights else 0.0
         ),
         "total_quotes": total_quotes,
+        # Aggregate — includes ungrounded insights in the denominator.
         "quotes_per_insight": (round(total_quotes / total_insights, 2) if total_insights else 0.0),
+        # Only counts grounded insights — cleaner signal for multi-quote
+        # validation (POST_REINGESTION_PLAN target: 3-5 per grounded insight).
+        "quotes_per_grounded_insight": (
+            round(total_quotes / grounded_insights, 2) if grounded_insights else 0.0
+        ),
         "total_kg_topics": total_topics,
         "total_kg_entities": total_entities,
     }
@@ -264,6 +270,7 @@ def main() -> int:
         "  gi={gi_artifact_count} kg={kg_artifact_count} "
         "insights={total_insights} grounded={grounded_pct}% "
         "quotes/insight={quotes_per_insight} "
+        "(grounded={quotes_per_grounded_insight}) "
         "topics={total_kg_topics} entities={total_kg_entities}".format(**agg)
     )
 
