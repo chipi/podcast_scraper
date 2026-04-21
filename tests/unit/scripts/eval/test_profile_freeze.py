@@ -16,7 +16,7 @@ ROOT = Path(__file__).resolve().parents[4]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-_FREEZE_PATH = ROOT / "scripts" / "eval" / "freeze_profile.py"
+_FREEZE_PATH = ROOT / "scripts" / "eval" / "profile" / "freeze_profile.py"
 _spec = importlib.util.spec_from_file_location("freeze_profile_under_test", _FREEZE_PATH)
 assert _spec and _spec.loader
 _fp = importlib.util.module_from_spec(_spec)
