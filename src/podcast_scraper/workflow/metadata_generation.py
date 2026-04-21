@@ -2205,11 +2205,13 @@ def _generate_episode_summary(  # noqa: C901
                     "summarize_mega_bundled; using staged path",
                     episode_idx,
                 )
-            elif pipeline_mode == "extraction_bundled" and callable(extr_fn):
-                # Extraction_bundled: staged summary (below) + bundled extraction (now).
-                # We run the extraction call here, stash the partial, then let the
-                # staged summary path run. This is a pragmatic first cut: it adds 1
-                # LLM call but halves GIL+KG (2 -> 0 separate provider calls).
+            # Extraction_bundled: run the extraction call BEFORE staged summary.
+            # The partial rides on a local var, then attaches to result["metadata"]
+            # after the staged summary builds result (same shape as mega_bundled
+            # path). Using a local var rather than smuggling through params avoids
+            # any risk of the sentinel key leaking into a provider **params call.
+            extraction_partial: Optional[Dict[str, Any]] = None
+            if pipeline_mode == "extraction_bundled" and callable(extr_fn):
                 try:
                     logger.debug("[%s] extraction_bundled single-call extraction", episode_idx)
                     from ..providers.common.megabundle_parser import MegaBundleResult
@@ -2223,8 +2225,7 @@ def _generate_episode_summary(  # noqa: C901
                         call_metrics=call_metrics,
                     )
                     if isinstance(extr_result, MegaBundleResult):
-                        # Stash on cfg-local var; applied after staged summary runs.
-                        params["_prefilled_extraction"] = extr_result.to_extraction_partial()
+                        extraction_partial = extr_result.to_extraction_partial()
                 except Exception as extr_exc:
                     logger.warning(
                         "[%s] extraction_bundled failed, GIL/KG will run their "
@@ -2508,19 +2509,24 @@ def _generate_episode_summary(  # noqa: C901
                 logger.error("%s", redact_for_log(error_msg))
                 raise RuntimeError(redact_for_log(error_msg))
 
-            # Pick up prefilled extraction from mega_bundled (on result metadata)
-            # or extraction_bundled (stashed on params earlier).
+            # Merge extraction_bundled partial (computed before staged summary
+            # ran) onto result metadata so the pickup below has a single source.
+            if extraction_partial is not None and isinstance(result, dict):
+                result_meta = (
+                    result.setdefault("metadata", {}) if isinstance(result, dict) else None
+                )
+                if isinstance(result_meta, dict):
+                    result_meta["prefilled_extraction"] = extraction_partial
+
+            # Pick up prefilled extraction from either mega_bundled or
+            # extraction_bundled — both now write to result.metadata.prefilled_extraction.
             prefilled_extraction: Optional[Dict[str, Any]] = None
             if isinstance(result, dict):
-                result_meta = result.get("metadata") if isinstance(result, dict) else None
+                result_meta = result.get("metadata")
                 if isinstance(result_meta, dict):
                     pe = result_meta.get("prefilled_extraction")
                     if isinstance(pe, dict):
                         prefilled_extraction = pe
-            if prefilled_extraction is None and isinstance(
-                params.get("_prefilled_extraction"), dict
-            ):
-                prefilled_extraction = params["_prefilled_extraction"]
 
             # Build SummaryMetadata with required schema fields
             return (
