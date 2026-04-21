@@ -91,10 +91,14 @@ def _merge_generate_content_config(
     # Explicit None is treated as absent so callers do not block injection by mistake.
     if merged.get("thinking_config") is None and "thinking_config" in merged:
         del merged["thinking_config"]
-    if "thinking_config" in merged:
-        return merged
-    if _should_disable_thinking_for_model(model):
+    if "thinking_config" not in merged and _should_disable_thinking_for_model(model):
         merged["thinking_config"] = {"thinking_budget": 0}
+    # Disable Automatic Function Calling. We never declare tools, so AFC has
+    # nothing to do — disabling suppresses the "AFC is enabled with max remote
+    # calls: 10" INFO line the SDK emits on every request. This is the
+    # SDK-creator-recommended way to opt out (vs. silencing the logger).
+    if "automatic_function_calling" not in merged:
+        merged["automatic_function_calling"] = {"disable": True}
     return merged
 
 
@@ -163,8 +167,8 @@ class GeminiProvider:
         self.cleaning_model = getattr(cfg, "gemini_cleaning_model", "gemini-2.5-flash-lite")
         self.cleaning_temperature = getattr(cfg, "gemini_cleaning_temperature", 0.2)
 
-        # Suppress verbose Gemini SDK debug logs (if needed)
-        # Similar to OpenAI provider pattern
+        # Suppress verbose Gemini SDK debug logs when DEBUG is enabled
+        # globally (same pattern as the OpenAI provider).
         root_logger = logging.getLogger()
         root_level = root_logger.level if root_logger.level else logging.INFO
         if root_level <= logging.DEBUG:
