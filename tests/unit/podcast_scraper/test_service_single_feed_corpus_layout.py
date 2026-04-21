@@ -1,8 +1,10 @@
 """Unit tests for single_feed_uses_corpus_layout (#644).
 
-Verifies that when Config.single_feed_uses_corpus_layout is True, the
-single-feed service path derives <output_dir>/feeds/<slug>/ from the RSS URL
-and passes it as the effective output_dir to workflow.run_pipeline.
+Since #646 the wrapping happens in a Config ``@model_validator(mode="after")``,
+not in ``service.run``. That means every entry point (CLI, service.run, direct
+construction) gets the same wrapped ``output_dir`` without the caller needing
+to know. These tests cover both the Config level (guaranteed wrapping) and the
+service level (backwards-compatible behaviour).
 """
 
 from __future__ import annotations
@@ -60,6 +62,51 @@ class TestSingleFeedCorpusLayout:
             service.run(cfg2)
             second = mock_workflow.run_pipeline.call_args[0][0].output_dir
         assert first == second
+
+    def test_config_validator_wraps_at_construction(self, tmp_path):
+        """Every caller — CLI, service.run, programmatic — goes through Config
+        construction, so wrapping must happen there (not in a single caller).
+        Prevents the #646-discovered bug where CLI path bypassed service.run."""
+        cfg = Config.model_validate(
+            {
+                "rss_url": "https://feeds.example.com/podcast.xml",
+                "output_dir": str(tmp_path),
+                "single_feed_uses_corpus_layout": True,
+            }
+        )
+        assert "/feeds/rss_feeds.example.com_" in cfg.output_dir
+        # Original tmp_path is preserved as the prefix.
+        assert cfg.output_dir.startswith(str(tmp_path.resolve())) or cfg.output_dir.startswith(
+            str(tmp_path)
+        )
+
+    def test_config_validator_idempotent(self, tmp_path):
+        """Validator must not double-wrap if output_dir already contains a
+        /feeds/ segment (matters when someone runs Config.model_validate on
+        a previously-wrapped dict, e.g. round-tripping through yaml)."""
+        cfg1 = Config.model_validate(
+            {
+                "rss_url": "https://feeds.example.com/podcast.xml",
+                "output_dir": str(tmp_path),
+                "single_feed_uses_corpus_layout": True,
+            }
+        )
+        # Round-trip through model_dump: should NOT accumulate another /feeds/ segment.
+        dumped = cfg1.model_dump()
+        cfg2 = Config.model_validate(dumped)
+        assert cfg2.output_dir == cfg1.output_dir
+        assert cfg2.output_dir.count("/feeds/") == 1
+
+    def test_config_validator_skips_when_flag_off(self, tmp_path):
+        cfg = Config.model_validate(
+            {
+                "rss_url": "https://feeds.example.com/podcast.xml",
+                "output_dir": str(tmp_path),
+                "single_feed_uses_corpus_layout": False,
+            }
+        )
+        assert cfg.output_dir == str(tmp_path)
+        assert "/feeds/" not in cfg.output_dir
 
     def test_corpus_layout_does_not_affect_multi_feed(self, tmp_path):
         # Multi-feed path already uses corpus layout. The flag must not alter

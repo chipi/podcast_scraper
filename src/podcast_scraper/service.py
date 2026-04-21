@@ -271,33 +271,11 @@ def run(cfg: config.Config) -> ServiceResult:
         if len(multi_urls) >= 2:
             return _run_multi_feed(cfg, multi_urls)
 
-        # Single-feed path: optionally wrap output in feeds/<slug>/ so the
-        # output layout matches the multi-feed corpus shape (#644). Opt-in via
-        # Config.single_feed_uses_corpus_layout (default False keeps backwards
-        # compatibility with legacy single-feed corpora written as
-        # <output_dir>/run_<id>/...).
-        #
-        # Explicit ``is True`` check so that test doubles (MagicMock) whose
-        # attribute access returns a truthy Mock don't accidentally trip the
-        # wrapping path.
-        effective_cfg = cfg
-        use_corpus_layout = getattr(cfg, "single_feed_uses_corpus_layout", False) is True
-        if (
-            use_corpus_layout
-            and isinstance(getattr(cfg, "rss_url", None), str)
-            and cfg.rss_url
-            and isinstance(getattr(cfg, "output_dir", None), str)
-            and cfg.output_dir
-        ):
-            feed_dir = filesystem.corpus_feed_output_dir(cfg.output_dir, cfg.rss_url)
-            effective_cfg = cfg.model_copy(update={"output_dir": feed_dir})
-            logger.info(
-                "Single-feed run using corpus layout: %s -> %s",
-                cfg.output_dir,
-                feed_dir,
-            )
-
-        count, summary = workflow.run_pipeline(effective_cfg)
+        # Single-feed path. Opt-in ``feeds/<slug>/`` wrapping (#644) is applied
+        # at Config construction via the ``_apply_single_feed_corpus_layout``
+        # post-validator, so ``cfg.output_dir`` is already in its final form
+        # here — no extra wrapping needed in this hot path.
+        count, summary = workflow.run_pipeline(cfg)
 
         return ServiceResult(
             episodes_processed=count,

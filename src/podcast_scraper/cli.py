@@ -510,6 +510,23 @@ def _add_common_arguments(parser: argparse.ArgumentParser) -> None:
         ),
     )
     parser.add_argument(
+        "--single-feed-uses-corpus-layout",
+        dest="single_feed_uses_corpus_layout",
+        action="store_true",
+        default=False,
+        help=(
+            "Opt-in single-feed corpus layout (#644): wrap output as "
+            "<output-dir>/feeds/<slug>/run_<id>/ so single-feed runs match "
+            "the multi-feed shape. Default: off (legacy <output-dir>/run_<id>/)."
+        ),
+    )
+    parser.add_argument(
+        "--no-single-feed-uses-corpus-layout",
+        dest="single_feed_uses_corpus_layout",
+        action="store_false",
+        help="Disable single-feed corpus layout (default).",
+    )
+    parser.add_argument(
         "--max-episodes", type=int, default=None, help="Maximum number of episodes to process"
     )
     parser.add_argument(
@@ -3379,6 +3396,7 @@ def _build_config(args: argparse.Namespace) -> config.Config:  # noqa: C901
         "generate_gi": getattr(args, "generate_gi", False),
         "generate_kg": getattr(args, "generate_kg", False),
         "kg_extraction_source": getattr(args, "kg_extraction_source", None) or "summary_bullets",
+        "single_feed_uses_corpus_layout": getattr(args, "single_feed_uses_corpus_layout", False),
         "kg_max_topics": (
             config_constants.DEFAULT_SUMMARY_BULLETS_DOWNSTREAM_MAX
             if getattr(args, "kg_max_topics", None) is None

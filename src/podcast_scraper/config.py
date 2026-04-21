@@ -3952,6 +3952,36 @@ class Config(BaseModel):
         return self
 
     @model_validator(mode="after")
+    def _apply_single_feed_corpus_layout(self) -> "Config":
+        """Wrap single-feed ``output_dir`` under ``feeds/<slug>/`` when the opt-in
+        flag is set (#644). Runs on every Config construction (CLI, YAML,
+        programmatic) so the wrapping is consistent across all entry points.
+        Idempotent: skips wrapping when ``output_dir`` already contains a
+        ``feeds/<slug>/`` segment."""
+        if not self.single_feed_uses_corpus_layout:
+            return self
+        # Multi-feed path wraps per-feed elsewhere; don't double-wrap.
+        if self.rss_urls and len(self.rss_urls) >= 2:
+            return self
+        if not isinstance(self.rss_url, str) or not self.rss_url:
+            return self
+        if not isinstance(self.output_dir, str) or not self.output_dir:
+            return self
+        # Idempotency check: skip if output_dir already looks wrapped.
+        if "/feeds/rss_" in self.output_dir or self.output_dir.rstrip("/").endswith(
+            tuple(f"/feeds/{s}" for s in ("",))
+        ):
+            return self
+        from .utils.filesystem import corpus_feed_output_dir
+
+        wrapped = corpus_feed_output_dir(self.output_dir, self.rss_url)
+        # Assign via object.__setattr__ because model_validator(after) runs
+        # before the model becomes fully "frozen" for mutation but pydantic v2
+        # still routes direct assignment through validation — this bypasses it.
+        object.__setattr__(self, "output_dir", wrapped)
+        return self
+
+    @model_validator(mode="after")
     def _validate_openai_provider_requirements(self) -> "Config":
         """Validate that OpenAI API key is provided when OpenAI providers are selected."""
         openai_providers_used = []
