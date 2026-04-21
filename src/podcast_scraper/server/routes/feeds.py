@@ -7,6 +7,7 @@ with ``url`` plus optional per-feed overrides validated server-side.
 from __future__ import annotations
 
 import logging
+import os
 from pathlib import Path
 from typing import Any, List, Union
 
@@ -22,6 +23,7 @@ from podcast_scraper.rss.feeds_spec import (
 from podcast_scraper.server.atomic_write import atomic_write_text
 from podcast_scraper.server.pathutil import resolve_corpus_path_param
 from podcast_scraper.server.schemas import FeedsListResponse, FeedsPutBody
+from podcast_scraper.utils.path_validation import normpath_if_under_root, safe_resolve_directory
 
 logger = logging.getLogger(__name__)
 
@@ -75,11 +77,16 @@ async def get_feeds(
     """Return structured ``feeds.spec.yaml`` for the resolved corpus root."""
     anchor = getattr(request.app.state, "output_dir", None)
     root = resolve_corpus_path_param(path, anchor)
-    fp = _feeds_path(root)
+    root_sd = safe_resolve_directory(root)
+    if root_sd is None:
+        raise HTTPException(status_code=400, detail="Invalid corpus path.")
+    root_s = os.path.normpath(str(root_sd.resolve()))
+    fp = _feeds_path(root_sd)
+    fp_ver = normpath_if_under_root(os.path.normpath(str(fp.resolve())), root_s)
     feeds: List[Union[str, dict[str, Any]]] = []
-    if fp.is_file():
+    if fp_ver and os.path.isfile(fp_ver):
         try:
-            doc = load_feeds_spec_file(fp)
+            doc = load_feeds_spec_file(fp_ver)
         except (OSError, ValueError, ValidationError) as exc:
             logger.warning("Invalid feeds spec at %s: %s", fp, exc)
             raise HTTPException(
@@ -88,7 +95,7 @@ async def get_feeds(
             ) from exc
         feeds = _document_feeds_to_api_list(doc)
     return FeedsListResponse(
-        path=str(root.resolve()),
+        path=root_s,
         file_relpath=FEEDS_SPEC_BASENAME,
         feeds=feeds,
     )
@@ -103,6 +110,10 @@ async def put_feeds(
     """Persist structured feeds to ``feeds.spec.yaml`` under the corpus root."""
     anchor = getattr(request.app.state, "output_dir", None)
     root = resolve_corpus_path_param(path, anchor)
+    root_sd = safe_resolve_directory(root)
+    if root_sd is None:
+        raise HTTPException(status_code=400, detail="Invalid corpus path.")
+    root_s = os.path.normpath(str(root_sd.resolve()))
     if len(body.feeds) > 5000:
         raise HTTPException(status_code=400, detail="Too many feed entries (max 5000).")
     cleaned = _dedupe_feeds_put(list(body.feeds))
@@ -110,11 +121,14 @@ async def put_feeds(
         doc = FeedsSpecDocument.model_validate({"feeds": cleaned})
     except ValidationError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
-    fp = _feeds_path(root)
+    fp = _feeds_path(root_sd)
+    fp_ver = normpath_if_under_root(os.path.normpath(str(fp.resolve())), root_s)
+    if not fp_ver:
+        raise HTTPException(status_code=400, detail="Invalid feeds spec path.")
     text = dump_feeds_spec_yaml(doc)
-    atomic_write_text(fp, text)
+    atomic_write_text(Path(fp_ver), text)
     return FeedsListResponse(
-        path=str(root.resolve()),
+        path=root_s,
         file_relpath=FEEDS_SPEC_BASENAME,
         feeds=_document_feeds_to_api_list(doc),
     )

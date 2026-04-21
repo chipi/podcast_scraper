@@ -84,9 +84,9 @@ def _resolve_readable_file_under_corpus(root: Path, norm: str) -> tuple[str, str
         verified_alt = normpath_if_under_root(safe_alt, root_s) if safe_alt else None
         if verified_alt:
             alt_base = os.path.basename(verified_alt)
+            # codeql[py/path-injection] -- verified_alt from normpath_if_under_root
+            # (safe_alt, root_s).
             if _suffix_allowed(alt_base) and os.path.isfile(verified_alt):
-                # codeql[py/path-injection] -- verified_alt from
-                # normpath_if_under_root(safe_alt, root_s).
                 return verified_alt, alt_base
 
     raw_norm = _raw_txt_from_cleaned_relpath(norm)
@@ -99,6 +99,7 @@ def _resolve_readable_file_under_corpus(root: Path, norm: str) -> tuple[str, str
     raw_base = os.path.basename(verified_raw)
     if not _suffix_allowed(raw_base):
         return None
+    # codeql[py/path-injection] -- verified_raw from normpath_if_under_root(safe_raw, root_s).
     if os.path.isfile(verified_raw):
         return verified_raw, raw_base
     return None

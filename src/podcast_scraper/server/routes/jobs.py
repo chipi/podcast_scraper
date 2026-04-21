@@ -25,7 +25,10 @@ from podcast_scraper.server.schemas import (
     PipelineJobRecord,
     PipelineJobsListResponse,
 )
-from podcast_scraper.utils.path_validation import safe_relpath_under_corpus_root
+from podcast_scraper.utils.path_validation import (
+    normpath_if_under_root,
+    safe_relpath_under_corpus_root,
+)
 
 router = APIRouter(tags=["jobs"])
 
@@ -33,6 +36,7 @@ router = APIRouter(tags=["jobs"])
 async def _serve_pipeline_job_log(corpus: Path, job_id: str) -> FileResponse:
     """Resolve registry row → log file on disk; same rules for path- and query-style routes."""
     root = corpus.resolve()
+    root_s = os.path.normpath(str(root))
     rec = await asyncio.to_thread(get_job, corpus, job_id)
     if rec is None:
         raise HTTPException(status_code=404, detail="Job not found.")
@@ -40,12 +44,15 @@ async def _serve_pipeline_job_log(corpus: Path, job_id: str) -> FileResponse:
     verified = safe_relpath_under_corpus_root(root, rel.replace("\\", "/"))
     if not verified:
         raise HTTPException(status_code=400, detail="Invalid log path.")
-    if not os.path.isfile(verified):
+    verified_under = normpath_if_under_root(verified, root_s)
+    if not verified_under:
+        raise HTTPException(status_code=400, detail="Invalid log path.")
+    if not os.path.isfile(verified_under):
         raise HTTPException(status_code=404, detail="Log file not present yet.")
     return FileResponse(
-        verified,
+        verified_under,
         media_type="text/plain; charset=utf-8",
-        filename=os.path.basename(verified),
+        filename=os.path.basename(verified_under),
     )
 
 
@@ -95,10 +102,11 @@ async def submit_pipeline_job(
                 if isinstance(qp, int):
                     break
                 qp = None
+    # codeql[py/path-injection] -- corpus from _resolve_corpus_root (anchor-guarded; Type 1).
     return PipelineJobAccepted(
         job_id=str(rec["job_id"]),
         status=str(rec["status"]),
-        corpus_path=str(corpus.resolve()),
+        corpus_path=os.path.normpath(str(corpus.resolve())),
         queue_position=qp,
     )
 
@@ -112,7 +120,11 @@ async def list_pipeline_jobs(
     corpus, _op = _corpus_and_operator(request, path)
     rows = await asyncio.to_thread(list_jobs_snapshot, corpus)
     jobs = [PipelineJobRecord.model_validate(r) for r in rows]
-    return PipelineJobsListResponse(path=str(corpus.resolve()), jobs=jobs)
+    # codeql[py/path-injection] -- corpus from _resolve_corpus_root (anchor-guarded; Type 1).
+    return PipelineJobsListResponse(
+        path=os.path.normpath(str(corpus.resolve())),
+        jobs=jobs,
+    )
 
 
 @router.post("/jobs/reconcile", response_model=PipelineJobReconcileResponse)
@@ -123,7 +135,12 @@ async def reconcile_pipeline_jobs(
     """Reconcile stale/orphan *running* rows (dead PID, wall-clock stale)."""
     corpus, _op = _corpus_and_operator(request, path)
     n, details = await asyncio.to_thread(apply_reconcile, corpus)
-    return PipelineJobReconcileResponse(path=str(corpus.resolve()), updated=n, details=details)
+    # codeql[py/path-injection] -- corpus from _resolve_corpus_root (anchor-guarded; Type 1).
+    return PipelineJobReconcileResponse(
+        path=os.path.normpath(str(corpus.resolve())),
+        updated=n,
+        details=details,
+    )
 
 
 @router.get("/jobs/subprocess-log")

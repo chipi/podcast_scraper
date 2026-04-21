@@ -140,11 +140,17 @@ class FeedsSpecDocument(BaseModel):
 
 
 def load_feeds_spec_file(path: str | Path) -> FeedsSpecDocument:
-    """Load and validate ``feeds.spec.{yaml,yml,json}`` (root object with ``feeds`` array only)."""
+    """Load and validate ``feeds.spec.{yaml,yml,json}`` (root object with ``feeds`` array only).
+
+    Callers must pass a path already bound to a trusted corpus root (HTTP routes use
+    ``normpath_if_under_root`` before calling); the CLI may pass explicit local paths.
+    """
     p = Path(path).expanduser()
+    # codeql[py/path-injection] -- caller supplies trusted path (Type 1; CODEQL_DISMISSALS.md).
     if not p.is_file():
         raise ValueError(f"Feeds spec file not found: {p}")
     suffix = p.suffix.lower()
+    # codeql[py/path-injection] -- same as is_file guard above.
     text = p.read_text(encoding="utf-8")
     if suffix == ".json":
         raw = json.loads(text)

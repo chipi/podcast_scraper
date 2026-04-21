@@ -15,6 +15,7 @@ from podcast_scraper.builders.bridge_artifact_paths import bridge_json_path_adja
 from podcast_scraper.search.corpus_scope import discover_metadata_files, normalize_feed_id
 from podcast_scraper.utils.corpus_artwork import CORPUS_ART_REL_PREFIX
 from podcast_scraper.utils.path_validation import (
+    normpath_if_under_root,
     safe_relpath_under_corpus_root,
     safe_resolve_directory,
 )
@@ -711,13 +712,12 @@ def publish_calendar_date_for_artifact_listing(
     """Calendar ``YYYY-MM-DD`` for artifact rows (metadata date, else UTC day from mtime)."""
     root = corpus_root.resolve()
     root_s = os.path.normpath(str(root))
-    safe_prefix = root_s + os.sep
     for mp in metadata_candidate_relpaths_from_artifact(relative_path_posix):
         safe = safe_relpath_under_corpus_root(root, mp)
         if not safe:
             continue
-        meta_abs = os.path.normpath(safe)
-        if not meta_abs.startswith(safe_prefix) or not os.path.isfile(meta_abs):
+        meta_abs = normpath_if_under_root(os.path.normpath(safe), root_s)
+        if not meta_abs or not os.path.isfile(meta_abs):
             continue
         doc = _load_metadata_doc(meta_abs)
         if not doc:

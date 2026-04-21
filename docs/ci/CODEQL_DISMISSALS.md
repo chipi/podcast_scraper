@@ -43,6 +43,18 @@ same ``# codeql[py/path-injection] -- …`` line used elsewhere under
 the sanitizer chain. Prefer fixing taint flow first; use the pragma when CodeQL
 cannot close the query.
 
+**Code-side patterns added for viewer routes (same Type 1):** ``GET/PUT /feeds``
+re-resolves the corpus root with ``safe_resolve_directory`` and checks
+``feeds.spec`` with ``normpath_if_under_root`` before any filesystem access.
+``GET …/jobs/…/log`` re-checks ``safe_relpath_under_corpus_root`` output with
+``normpath_if_under_root`` in the same function as ``isfile`` / ``FileResponse``.
+``publish_calendar_date_for_artifact_listing`` uses ``normpath_if_under_root``
+before metadata ``isfile``. ``operator_config`` routes call
+``_verified_operator_config_path`` so paths are either under the resolved corpus
+root or exactly the server ``operator_config_fixed_path``. Generic helpers
+``atomic_write_text`` and ``load_feeds_spec_file`` use pragmas documenting that
+callers only pass corpus-anchored or packaged paths.
+
 **Sanitiser chain (reference):**
 
 All user-supplied corpus paths flow through one of:
