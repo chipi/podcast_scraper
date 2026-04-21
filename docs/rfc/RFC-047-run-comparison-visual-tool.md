@@ -490,5 +490,5 @@ Together, these RFCs provide a complete evaluation workflow: run experiments →
 - **Related RFC**: `docs/rfc/RFC-041-podcast-ml-benchmarking-framework.md`
 - **Related RFC**: `docs/rfc/RFC-045-ml-model-optimization-guide.md`
 - **Related RFC**: `docs/rfc/RFC-046-materialization-architecture.md`
-- **Source Code**: `scripts/eval/run_experiment.py` (generates artifacts)
+- **Source Code**: `scripts/eval/experiment/run_experiment.py` (generates artifacts)
 - **Source Code**: `src/podcast_scraper/evaluation/scorer.py` (generates metrics.json)

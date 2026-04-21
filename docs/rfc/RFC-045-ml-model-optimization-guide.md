@@ -122,7 +122,7 @@ The podcast_scraper system has three interconnected processing flows. Understand
 │                                                                                  │
 ├─────────────────────────────────────────────────────────────────────────────────┤
 │                                                                                  │
-│  FLOW 2: EVALUATION PIPELINE (scripts/eval/run_experiment.py)                   │
+│  FLOW 2: EVALUATION PIPELINE (scripts/eval/experiment/run_experiment.py)                   │
 │  ═══════════════════════════════════════════════════════════                    │
 │                                                                                  │
 │  experiment.yaml ──► Load Dataset ──► For Each Episode ──► provider.summarize() │

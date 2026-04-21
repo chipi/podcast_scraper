@@ -225,6 +225,44 @@ class TestRetryWithMetrics(unittest.TestCase):
         mock_sleep.assert_called_once_with(2.0)
 
 
+class TestGeminiRetryableExceptions(unittest.TestCase):
+    """Regression: _safe_gemini_retryable must cover the new google-genai
+    SDK's ServerError (wraps 5xx including 503 UNAVAILABLE), not only the
+    legacy google.api_core exceptions.
+
+    Missing this meant mega_bundled fell back to staged on the first 503
+    instead of retrying with backoff. Discovered during the 10-feed
+    cloud_balanced production run (2026-04-21)."""
+
+    def test_new_genai_sdk_server_error_is_retryable(self):
+        from podcast_scraper.utils.provider_metrics import _safe_gemini_retryable
+
+        try:
+            from google.genai.errors import ServerError
+        except ImportError:  # pragma: no cover — SDK is a transitive dep
+            self.skipTest("google-genai SDK not installed")
+        self.assertIn(ServerError, _safe_gemini_retryable())
+
+    def test_legacy_api_core_service_unavailable_is_retryable(self):
+        """Legacy SDK coverage must remain."""
+        from podcast_scraper.utils.provider_metrics import _safe_gemini_retryable
+
+        try:
+            from google.api_core.exceptions import ServiceUnavailable
+        except ImportError:  # pragma: no cover
+            self.skipTest("google.api_core not installed")
+        self.assertIn(ServiceUnavailable, _safe_gemini_retryable())
+
+    def test_resource_exhausted_still_retryable(self):
+        from podcast_scraper.utils.provider_metrics import _safe_gemini_retryable
+
+        try:
+            from google.api_core.exceptions import ResourceExhausted
+        except ImportError:  # pragma: no cover
+            self.skipTest("google.api_core not installed")
+        self.assertIn(ResourceExhausted, _safe_gemini_retryable())
+
+
 class TestOpenAiCompatibleChatUsageTokens(unittest.TestCase):
     """openai_compatible_chat_usage_tokens."""
 

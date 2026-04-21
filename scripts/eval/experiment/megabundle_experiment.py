@@ -135,7 +135,22 @@ def build_megabundle_prompt(transcript: str) -> Tuple[str, str]:
 def call_megabundle(
     provider: str, model: str, api_key: str, transcript: str
 ) -> Tuple[Dict[str, Any], float, Optional[float]]:
-    """Returns (parsed_json, wall_s, estimated_cost_usd_or_None)."""
+    """Returns (parsed_json, wall_s, estimated_cost_usd_or_None).
+
+    Note: this experiment harness predates the production
+    ``Provider.summarize_mega_bundled()`` methods shipped in #646. It
+    currently duplicates the LLM-call logic so experiment results are
+    decoupled from our pipeline wrapper (retries, instrumentation, etc.)
+    and remain comparable across #632-era runs. Caveats:
+      - Anthropic branch uses max_tokens=8192 (prod path uses 16384);
+        may clip on very long transcripts.
+      - DeepSeek branch relies on the OpenAI SDK default (~600 s) rather
+        than our ``deepseek_timeout=600`` knob, so it does not need the
+        #646 timeout fix.
+      - Mistral cost tracking is TBD.
+    Switch to provider classes when experiments no longer need baseline
+    parity with historical eval results.
+    """
     system, user = build_megabundle_prompt(transcript)
     t0 = time.time()
     if provider == "openai":

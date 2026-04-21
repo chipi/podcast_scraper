@@ -270,7 +270,7 @@ src/podcast_scraper/monitor/
 **Deferred (not in tree):** **`terminal_split.py`** — tmux / **Terminal.app** split helper.
 
 The `sampler.py` module reuses the `ResourceSampler` pattern from
-`scripts/eval/freeze_profile.py` (background thread polling `psutil.Process`).
+`scripts/eval/profile/freeze_profile.py` (background thread polling `psutil.Process`).
 The key difference is that the monitor's sampler runs in the monitor process
 targeting the pipeline's PID (cross-process), while `freeze_profile.py`'s
 sampler targets its own process.
@@ -386,5 +386,5 @@ Phases below match what shipped; only **terminal split** remains explicitly out 
 - **Parent RFC**: [RFC-064](RFC-064-performance-profiling-release-freeze.md)
 - **Source**: `src/podcast_scraper/monitor/`
 - **Operator guide**: [LIVE_PIPELINE_MONITOR.md](../guides/LIVE_PIPELINE_MONITOR.md)
-- **Sampler pattern**: `scripts/eval/freeze_profile.py` (**ResourceSampler**)
+- **Sampler pattern**: `scripts/eval/profile/freeze_profile.py` (**ResourceSampler**)
 - **Tracking**: [GitHub #512](https://github.com/chipi/podcast_scraper/issues/512)

@@ -110,9 +110,19 @@ def _safe_openai_retryable() -> tuple[type[Exception], ...]:
 def _safe_gemini_retryable() -> tuple[type[Exception], ...]:
     """Return retryable Google API exception classes with fallback.
 
-    Same rationale as :func:`_safe_openai_retryable` but for the
-    ``google.api_core.exceptions`` module used by the Gemini provider.
+    Same rationale as :func:`_safe_openai_retryable` but covers both
+    SDKs used by the Gemini provider:
+
+    - ``google.api_core.exceptions`` — legacy ``google-generativeai`` SDK.
+    - ``google.genai.errors`` — new ``google-genai`` SDK (the one our
+      GeminiProvider uses since #415). Its ``ServerError`` wraps 5xx
+      responses including 503 UNAVAILABLE (model-overload throttling).
+
+    Missing the new-SDK ``ServerError`` caused mega_bundled to fall back
+    to staged on the very first 503 instead of retrying with backoff
+    (discovered during the 10-feed cloud_balanced production run).
     """
+    classes: list[type[Exception]] = [ConnectionError]
     try:
         from google.api_core import exceptions as _gexc
 
@@ -124,10 +134,20 @@ def _safe_gemini_retryable() -> tuple[type[Exception], ...]:
             and isinstance(_su, type)
             and issubclass(_su, Exception)
         ):
-            return (_re, _su, ConnectionError)
+            classes.extend([_re, _su])
     except (ImportError, AttributeError):
         pass
-    return (Exception,)
+    try:
+        from google.genai import errors as _genai_errors
+
+        _se = _genai_errors.ServerError
+        if isinstance(_se, type) and issubclass(_se, Exception):
+            classes.append(_se)
+    except (ImportError, AttributeError):
+        pass
+    if len(classes) == 1:  # only ConnectionError survived — broaden to be safe
+        return (Exception,)
+    return tuple(classes)
 
 
 def _safe_anthropic_retryable() -> tuple[type[Exception], ...]:

@@ -517,7 +517,7 @@ class TransformersSummarizationProvider:
 
 ## 5. Integration with Experiment Pipeline
 
-**File: `scripts/eval/run_experiment.py`**
+**File: `scripts/eval/experiment/run_experiment.py`**
 
 ```python
 

@@ -119,7 +119,7 @@ OpenAI's `seed` parameter is "approximately deterministic" and stabilises `syste
 - `Config.openai_summary_seed: Optional[int]` (config.py)
 - `SummarizationParams.seed: Optional[int]` (providers/params.py)
 - Factory wiring: `openai_summary_seed=params.seed` (summarization/factory.py)
-- Experiment runner: `openai_summary_seed=params_dict_raw.get("seed")` (scripts/eval/run_experiment.py)
+- Experiment runner: `openai_summary_seed=params_dict_raw.get("seed")` (scripts/eval/experiment/run_experiment.py)
 - Provider: passed to both bundled and non-bundled API calls (openai_provider.py)
 
 All v2 autoresearch configs set `params.seed: 42`.

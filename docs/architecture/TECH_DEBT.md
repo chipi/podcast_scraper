@@ -181,8 +181,8 @@ As of April 2026, the codebase has **18 `# nosec B615` suppressions** across:
 - `src/podcast_scraper/providers/ml/hybrid_ml_provider.py` (×4)
 - `src/podcast_scraper/providers/ml/model_loader.py` (×4)
 - `src/podcast_scraper/providers/ml/summarizer.py` (×6)
-- `scripts/eval/run_longt5xl_v2.py` (×2)
-- `scripts/eval/run_summllama_v2.py` (×2)
+- `scripts/eval/experiment/run_longt5xl_v2.py` (×2)
+- `scripts/eval/experiment/run_summllama_v2.py` (×2)
 
 Every production ML model load uses this pattern. Eval standalone scripts were
 added in the v2 sweep (PR #568) and were adjusted to match.

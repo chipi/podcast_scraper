@@ -142,6 +142,108 @@ class TestMegaBundleHelpers:
         assert p["entities"][0]["kind"] == "person"
 
 
+class TestMegaBundledFallbackPaths:
+    """Fallback-to-staged paths must log + record metrics consistently
+    across mega_bundled, extraction_bundled, and their unexpected-return-type
+    variants. Prior bug: extraction_bundled exception and bad-return paths
+    were silent — ops had no signal when a provider silently downgraded to
+    3 LLM calls."""
+
+    def _build_cfg_and_provider_stubs(self, mode: str, raise_in: str):
+        """raise_in in {'mega', 'extraction', 'none'}; when 'none' returns
+        an unexpected non-MegaBundleResult type to exercise the contract-
+        violation branch."""
+        from unittest.mock import Mock
+
+        from podcast_scraper.config import Config
+
+        cfg = Config.model_validate(
+            {
+                "rss_url": "https://example.com/feed.xml",
+                "summary_provider": "anthropic",
+                "anthropic_api_key": "k",
+                "llm_pipeline_mode": mode,
+                "generate_summaries": True,
+                "auto_speakers": False,
+                "transcribe_missing": False,
+                "generate_metadata": True,
+            }
+        )
+        provider = Mock()
+        if mode == "mega_bundled":
+            if raise_in == "mega":
+                provider.summarize_mega_bundled.side_effect = RuntimeError(
+                    "simulated provider error"
+                )
+            else:
+                # return non-MegaBundleResult
+                provider.summarize_mega_bundled.return_value = {"wrong": "shape"}
+        elif mode == "extraction_bundled":
+            if raise_in == "extraction":
+                provider.summarize_extraction_bundled.side_effect = RuntimeError(
+                    "simulated provider error"
+                )
+            else:
+                provider.summarize_extraction_bundled.return_value = "not_a_result"
+        return cfg, provider
+
+    def _invoke(self, cfg, provider, tmp_path):
+        """Call _generate_episode_summary up to the fallback point."""
+        from podcast_scraper.workflow import metrics as m
+        from podcast_scraper.workflow.metadata_generation import _generate_episode_summary
+
+        transcript = tmp_path / "t.txt"
+        transcript.write_text(
+            "This is a real transcript with enough words to exceed the 50-char minimum. " * 10,
+            encoding="utf-8",
+        )
+        # staged fallback will call provider.summarize — mock it.
+        provider._summarization_initialized = True
+        provider.cleaning_processor = None
+        provider.summarize.return_value = {
+            "summary": '{"title":"T","summary":"S","bullets":["b"]}',
+            "summary_short": None,
+            "metadata": {"provider": "anthropic", "bundled": False},
+        }
+
+        pm = m.Metrics()
+        try:
+            _generate_episode_summary(
+                transcript_file_path="t.txt",
+                output_dir=str(tmp_path),
+                cfg=cfg,
+                episode_idx=0,
+                summary_provider=provider,
+                pipeline_metrics=pm,
+            )
+        except Exception:
+            # Staged-summary downstream validation may still raise (parsing
+            # fails on our stub); we only care about whether the fallback
+            # metric was bumped.
+            pass
+        return pm
+
+    def test_mega_bundled_exception_records_fallback_metric(self, tmp_path):
+        cfg, provider = self._build_cfg_and_provider_stubs("mega_bundled", "mega")
+        pm = self._invoke(cfg, provider, tmp_path)
+        assert pm.llm_bundled_fallback_to_staged_count >= 1
+
+    def test_mega_bundled_unexpected_return_records_fallback_metric(self, tmp_path):
+        cfg, provider = self._build_cfg_and_provider_stubs("mega_bundled", "none")
+        pm = self._invoke(cfg, provider, tmp_path)
+        assert pm.llm_bundled_fallback_to_staged_count >= 1
+
+    def test_extraction_bundled_exception_records_fallback_metric(self, tmp_path):
+        cfg, provider = self._build_cfg_and_provider_stubs("extraction_bundled", "extraction")
+        pm = self._invoke(cfg, provider, tmp_path)
+        assert pm.llm_bundled_fallback_to_staged_count >= 1
+
+    def test_extraction_bundled_unexpected_return_records_fallback_metric(self, tmp_path):
+        cfg, provider = self._build_cfg_and_provider_stubs("extraction_bundled", "none")
+        pm = self._invoke(cfg, provider, tmp_path)
+        assert pm.llm_bundled_fallback_to_staged_count >= 1
+
+
 class TestSummaryMetadataPrefilledLifecycle:
     """Regression tests for ``SummaryMetadata.prefilled_extraction`` — transient
     field (``exclude=True``) that must survive ``model_copy`` so GIL/KG stages

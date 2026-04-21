@@ -27,7 +27,7 @@ AutoResearch is a **thin control layer**, not a second pipeline.
    `program.md`, edits only allowlisted files, runs `score.py`, and commits or reverts.
 2. **Reuse existing eval infrastructure**: `score.py` is a thin orchestrator that
    imports from `podcast_scraper.evaluation` and shells out to
-   `scripts/eval/run_experiment.py`. No forked ROUGE, WER, prediction I/O, or
+   `scripts/eval/experiment/run_experiment.py`. No forked ROUGE, WER, prediction I/O, or
    experiment layout under `autoresearch/`.
 3. **`score.py` is immutable**: The agent must not edit the scoring script — same
    principle as autoresearch's immutable `prepare.py`. This prevents the optimizer from

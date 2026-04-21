@@ -332,7 +332,7 @@ Use `MAX_EPISODES_PER_FEED` to limit episodes per feed:
 ### Using the Script Directly
 
 ```bash
-python scripts/eval/create_dataset_json.py \
+python scripts/eval/data/create_dataset_json.py \
   --dataset-id indicator_v1 \
   --eval-dir data/eval \
   --output-dir data/eval/datasets \
@@ -431,7 +431,7 @@ make dataset-materialize \
 **Using the Script Directly:**
 
 ```bash
-python scripts/eval/materialize_dataset.py \
+python scripts/eval/data/materialize_dataset.py \
   --dataset-id curated_5feeds_smoke_v1 \
   --output-dir data/eval/materialized
 ```
@@ -542,7 +542,7 @@ make baseline-create \
 Alternatively, you can call the script directly:
 
 ```bash
-python scripts/eval/materialize_baseline.py \
+python scripts/eval/data/materialize_baseline.py \
   --baseline-id bart_led_baseline_v1 \
   --dataset-id curated_5feeds_smoke_v1 \
   --experiment-config data/eval/configs/baseline_config.yaml \
@@ -709,7 +709,7 @@ Alternatively, you can call the script directly:
 
 ```bash
 export OPENAI_API_KEY="your-key-here"
-python scripts/eval/run_experiment.py data/eval/configs/my_experiment.yaml
+python scripts/eval/experiment/run_experiment.py data/eval/configs/my_experiment.yaml
 ```
 
 The experiment runner will:
@@ -771,7 +771,7 @@ system automatically:
 experiment-run → run_experiment.py → score_run() → metrics.json
 ```
 
-1. **Run Experiment**: `scripts/eval/run_experiment.py` processes episodes and generates `predictions.jsonl`
+1. **Run Experiment**: `scripts/eval/experiment/run_experiment.py` processes episodes and generates `predictions.jsonl`
 2. **Compute Metrics**: `score_run()` in `src/podcast_scraper/evaluation/scorer.py` reads predictions and computes metrics
 3. **Save Results**: Metrics are saved to `data/eval/runs/<run_id>/metrics.json` and `metrics_report.md`
 
@@ -811,7 +811,7 @@ The runner executes the experiment and produces:
 - `fingerprint.json` - System fingerprint (reproducibility)
 - `run_metadata.json` - Experiment metadata
 
-**Location:** `scripts/eval/run_experiment.py` (runner phase)
+**Location:** `scripts/eval/experiment/run_experiment.py` (runner phase)
 
 #### Scorer (Metrics)
 
@@ -915,7 +915,7 @@ make experiment-run CONFIG=... REFERENCE_IDS=golden_v1
 make experiment-run CONFIG=... REFERENCE_IDS="golden_v1 silver_v2"
 
 # Via CLI
-python scripts/eval/run_experiment.py config.yaml --reference golden_v1 --reference silver_v2
+python scripts/eval/experiment/run_experiment.py config.yaml --reference golden_v1 --reference silver_v2
 ```
 
 #### Reference Structure

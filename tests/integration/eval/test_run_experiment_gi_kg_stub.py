@@ -1,4 +1,4 @@
-"""Integration: subprocess smoke for ``scripts/eval/run_experiment.py`` (GI/KG eval_stub)."""
+"""Integration: subprocess smoke for ``scripts/eval/experiment/run_experiment.py`` (GI/KG eval_stub)."""
 
 from __future__ import annotations
 
@@ -55,7 +55,7 @@ def test_run_experiment_gil_stub_dry_run_writes_predictions(tmp_path: Path) -> N
         proc = subprocess.run(
             [
                 sys.executable,
-                str(repo / "scripts/eval/run_experiment.py"),
+                str(repo / "scripts/eval/experiment/run_experiment.py"),
                 str(cfg_path),
                 "--dry-run",
                 "--force",
@@ -105,7 +105,7 @@ def test_run_experiment_kg_stub_dry_run_writes_predictions(tmp_path: Path) -> No
         proc = subprocess.run(
             [
                 sys.executable,
-                str(repo / "scripts/eval/run_experiment.py"),
+                str(repo / "scripts/eval/experiment/run_experiment.py"),
                 str(cfg_path),
                 "--dry-run",
                 "--force",

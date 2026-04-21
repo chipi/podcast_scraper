@@ -157,3 +157,40 @@ class TestBothPathsAgree:
         # Compare every key present in the expected table.
         for key in CLOUD_BALANCED_EXPECTED:
             assert getattr(via_profile, key, None) == getattr(via_config, key, None), key
+
+
+class TestAllShippedProfilesRoundTripThroughCLI:
+    """Every YAML value in every shipped profile must survive the
+    CLI argparse → _build_config → Config round trip. This is the generic
+    regression gate for the #646 profile-routing bugs."""
+
+    @pytest.mark.parametrize(
+        "profile_name", ["cloud_balanced", "cloud_quality", "local", "airgapped", "dev"]
+    )
+    def test_profile_flag_round_trips_every_yaml_field(
+        self, _fake_keys: None, profile_name: str
+    ) -> None:
+        import yaml
+
+        with open(f"config/profiles/{profile_name}.yaml") as f:
+            expected = {
+                k: v for k, v in yaml.safe_load(f).items() if not k.startswith("_") and k != "rss"
+            }
+        args = parse_args(
+            [
+                "--profile",
+                profile_name,
+                "https://example.com/feed.xml",
+                "--output-dir",
+                "/tmp/_t",
+            ]
+        )
+        cfg = _build_config(args)
+        bad = {
+            k: (exp, getattr(cfg, k, "<MISSING>"))
+            for k, exp in expected.items()
+            if getattr(cfg, k, "<MISSING>") != exp
+        }
+        assert not bad, f"{profile_name}: {len(bad)} field(s) dropped:\n" + "\n".join(
+            f"  {k}: expected={v[0]!r} actual={v[1]!r}" for k, v in bad.items()
+        )

@@ -338,7 +338,7 @@ new Tier 3 pick.
 ### 6a. ML transformers standalone (HF, not Ollama) — 2026-04-16
 
 Two Hugging Face transformer models evaluated as "pure ML, no Ollama daemon" alternatives,
-run via `scripts/eval/run_summllama_v2.py` and `scripts/eval/run_longt5xl_v2.py` on Apple
+run via `scripts/eval/experiment/run_summllama_v2.py` and `scripts/eval/experiment/run_longt5xl_v2.py` on Apple
 MPS. Scored with the same v2 harness (ROUGE-L + dual-judge blended scalar).
 
 **Paragraph:**
@@ -385,7 +385,7 @@ produces ~3000-5000 chars) — far shorter than our target. ROUGE-L 19%, judge 0
 contested. The book-summary domain transfer does not hold on podcast transcripts. Paired
 with prohibitive MPS beam-search latency (1096s/ep), this is unsuitable for our workload
 regardless of how predictions are scored. Run artifacts kept; no config created (run
-was driven directly by `scripts/eval/run_longt5xl_v2.py`).
+was driven directly by `scripts/eval/experiment/run_longt5xl_v2.py`).
 
 **Practical consequences:**
 

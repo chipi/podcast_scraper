@@ -260,7 +260,7 @@ register_profile("cleaning_v4", _cleaning_v4)
 If you want the profile to appear in fingerprints with version info, update the metadata functions:
 
 ```python
-# In scripts/eval/materialize_baseline.py
+# In scripts/eval/data/materialize_baseline.py
 
 def get_preprocessing_profile_version(profile_id: str) -> str:
     """Get version string for a preprocessing profile."""

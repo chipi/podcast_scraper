@@ -52,7 +52,7 @@ from podcast_scraper.summarization.factory import create_summarization_provider
 logger = logging.getLogger(__name__)
 
 # Import enhanced fingerprint generation
-from scripts.eval.materialize_baseline import (
+from scripts.eval.data.materialize_baseline import (
     generate_enhanced_fingerprint,
     get_git_status,
 )

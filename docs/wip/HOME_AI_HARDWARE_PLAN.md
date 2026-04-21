@@ -162,7 +162,7 @@ About 5-10 min from "I want a GPU" to "training is running." Step-by-step:
    - `scp -r` / `rsync` from your MBP (works but slow for big repos)
    - Mount a persistent volume (`/workspace`) and keep the repo there between sessions
 5. **Run your workload** — for our case: `pip install -r requirements.txt`, then
-   `python scripts/eval/run_summllama_v2.py ...` or a LoRA training command. Exactly the
+   `python scripts/eval/experiment/run_summllama_v2.py ...` or a LoRA training command. Exactly the
    same command you'd run locally.
 6. **Download results** — `scp -r` the predictions file / adapter weights back to your MBP
 7. **Stop the pod** (button in UI or `runpodctl stop`). Billing ends. If you keep a volume,
