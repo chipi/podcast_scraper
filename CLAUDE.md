@@ -42,6 +42,102 @@
 - **`.metrics/rule-adherence.jsonl`**: append at milestones and before commit/push (see `.cursorrules`) — rules/skills/subagents self-audit **only**; no retrospective fields.
 - **Rule 18** (session review): same closing **cadence** often as the last metrics line, but **separate** — brief reflection; promote durable lessons into guides or `.cursor/rules` (not JSONL).
 
+## Auto-load guides by file path (do not wait for the trigger phrase)
+
+Load the relevant guide **before** editing, even when the user did not say
+"load ai coding guidelines". The guide sets the rules; deciding without it
+causes preventable CI breakage.
+
+- **Editing `tests/unit/**`** → read `docs/guides/UNIT_TESTING_GUIDE.md`
+  (especially *Pyproject extras: what unit tests may depend on*).
+  `tests/unit/` must not depend on any non-`[dev]` extra (`[ml]`, `[llm]`,
+  `[server]`, `[compare]`); mock the SDK module symbol with `@patch(…)` or a
+  file-scoped autouse fixture instead. Never use `pytest.importorskip()` to
+  sidestep the rule. If a test truly needs the real SDK, it belongs in
+  `tests/integration/`.
+- **Editing `tests/integration/**` or `tests/e2e/**`** → read
+  `docs/guides/TESTING_GUIDE.md` and the relevant section of
+  `docs/architecture/TESTING_STRATEGY.md`.
+- **Adding a new provider / provider method / provider test** → read the
+  two rules above plus the existing test file for the provider you're
+  modifying (follow the established SDK-mock pattern).
+- **Editing `config/profiles/*.yaml`** → see *Profile completeness* below.
+- **Editing `web/gi-kg-viewer/**`** → already covered by the GI/KG rule
+  above (E2E_SURFACE_MAP → specs → UXS).
+
+## Profile completeness (config/profiles/\*.yaml)
+
+Never ship a profile default that references an enum value
+(`llm_pipeline_mode`, `gi_insight_source`, `kg_extraction_source`,
+`summary_provider`, …) without verifying a **live** code path reads it.
+
+Procedure before committing a profile change:
+
+1. Find the field's `Literal[...]` declaration in `src/podcast_scraper/config.py`.
+2. Grep the symbol and the literal strings in `src/` (`grep -rn
+   "llm_pipeline_mode" src/`). Confirm every value in the `Literal` has a
+   dispatch arm that actually does something different.
+3. Trace to the stage that consumes it end-to-end. If the value is
+   accepted by `Config` but no downstream dispatcher switches on it,
+   **the profile is lying**: either wire the dispatch or drop the profile
+   default to a value that is already live.
+
+The `#643 Phase 3C` near-miss (shipping `llm_pipeline_mode: mega_bundled`
+while the dispatch was deferred) is the canonical example — with no wiring
+the new mode would have been *worse* than staged (extra LLM call + no cost
+savings from GIL/KG skip).
+
+## Half-wired features are worse than no feature
+
+Generalises profile completeness to all config / flag / enum additions:
+
+- Adding a new `Literal[...]` value, a new `Config` field, a new CLI flag,
+  or a new method on a provider is only complete when **every code path
+  the user could hit actually does the different thing**. "Method exists
+  but pipeline still calls the old one" is a regression, not a stub.
+- If a full end-to-end wiring is genuinely out of scope, do **not** change
+  profile defaults, do **not** publicise the flag in docs as available, and
+  do **not** add the `Literal` value. Ship the interior pieces as private /
+  unreachable until the dispatch is wired.
+- "Works in unit tests but not through the real pipeline" is the signature
+  failure mode. A wiring test that calls the top-level entrypoint and
+  asserts the downstream stage *skipped its LLM call* is the correct guard
+  (see `tests/unit/podcast_scraper/workflow/test_prefilled_extraction_wiring.py`).
+
+## Resuming from compaction: re-confirm deferred items
+
+When a conversation summary carries over a todo tagged "deferred", "risky",
+or "follow-up", do **not** silently act on it — also do **not** silently
+keep it deferred if it would break the diff you are about to ship.
+Re-state the item and ask: *"Summary says X is deferred. Does that still
+apply, or do we need to do it now before pushing?"* The Phase 3C miss came
+from carrying over a pre-compaction "defer to follow-up" tag without
+re-asking; the profile change it was paired with turned into a lie.
+
+## Final validation before push: real episodes, not just unit tests
+
+Mocked unit tests prove the dispatch routes correctly; they do **not**
+prove the feature works against real provider responses, real transcripts,
+or the real end-to-end pipeline. Before pushing any change that touches
+a production pipeline stage (summarization dispatch, GI/KG extraction,
+transcription preprocessing, audio pipeline, any new `llm_pipeline_mode`
+value, any profile default), the last step before commit is:
+
+1. **Run one real episode end-to-end** with the changed code path, using
+   the real provider API keys available in `.env`. There is no "I don't
+   have keys" — check `.env` first.
+2. **Measure the claim numerically.** If the change is "fewer LLM calls",
+   count them. If it's "cheaper transcription", measure file size and $.
+   If it's "better KG", count nodes. Unit tests don't measure claims.
+3. **Inspect one artifact by eye.** Open the produced `gi.json` /
+   `kg.json` / `metadata.json` / cleaned audio and confirm it looks sane.
+4. **Only then push.** The test plan checkbox in a PR body is a
+   post-merge reminder, not a replacement for pre-push validation.
+
+For work in `scripts/validate/validate_phase3c.py` style: keep it as a
+committed reusable harness so the next change in the same stage has a
+ready comparison baseline.
+
 ## COMPLETE GUIDE FILE SET (LOAD ALL WHEN REQUESTED)
 
 **When the user asks to "load ai coding guidelines" or "load coding guidelines", you MUST load ALL of these files:**

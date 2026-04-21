@@ -271,6 +271,10 @@ def run(cfg: config.Config) -> ServiceResult:
         if len(multi_urls) >= 2:
             return _run_multi_feed(cfg, multi_urls)
 
+        # Single-feed path. Opt-in ``feeds/<slug>/`` wrapping (#644) is applied
+        # at Config construction via the ``_apply_single_feed_corpus_layout``
+        # post-validator, so ``cfg.output_dir`` is already in its final form
+        # here — no extra wrapping needed in this hot path.
         count, summary = workflow.run_pipeline(cfg)
 
         return ServiceResult(

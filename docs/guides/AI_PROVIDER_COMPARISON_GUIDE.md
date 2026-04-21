@@ -54,6 +54,55 @@ params:
 
 ---
 
+## LLM pipeline modes (`llm_pipeline_mode`)
+
+Four end-to-end pipelines produce the `{title, summary, bullets}` artifact **plus**
+insights / topics / entities that feed the knowledge graph:
+
+| Mode | API calls | Best for | Tier-1 providers |
+| --- | --- | --- | --- |
+| `staged` (default) | 3–4 (summary + GIL + KG/NER) | Local/Ollama; when bullets/summary quality must be tuned independently | All |
+| `bundled` | 1 summary + 2 extraction | Compact cloud runs where summary+bullets fit one call | Anthropic, Ollama |
+| `extraction_bundled` | 1 summary + 1 extraction | Balanced cloud — summary stays in a provider-tuned prompt, extraction collapses into one call | All cloud providers |
+| `mega_bundled` | 1 | Quality-first cloud, tier-1 providers only — single call returns everything | Anthropic (tier 1), DeepSeek (tier 2) |
+
+### Real-episode validation (2026-04-21, #646)
+
+All 6 cloud providers tested end-to-end via `scripts/validate/validate_phase3c.py`
+on two real investor-podcast transcripts (7.8 KB short ~8 min, 47 KB medium ~45 min).
+Every provider passes the call-count / prefilled-propagation / artifact-count gates
+in `mega_bundled` mode — **the #632 "tier-1/tier-2 only" claim did not hold on
+real production traffic.**
+
+Medium transcript (~45 min, representative of production audio):
+
+| Provider | Model | Calls | Cost $ | Time | Ins / Top / Ent | Notes |
+| --- | --- | --- | --- | --- | --- | --- |
+| **Gemini** | flash-lite | 1 | **0.00127** | 17.8 s | 12 / 10 / 15 | Cost/latency winner; default for `cloud_balanced`. Occasional 503 UNAVAILABLE (retried). |
+| **Mistral** | small-latest | 1 | 0.00201 | **8.6 s** | 12 / 10 / 14 | Fastest of all providers. |
+| **OpenAI** | gpt-4o-mini | 1 | 0.00153 | 23.9 s | 12 / 10 / 15 | Reliable mid-cost. |
+| **DeepSeek** | deepseek-chat | 1 | 0.00223 | 56.2 s | 12 / 10 / 15 | Slowest; needs `deepseek_timeout ≥ 300` (default 600 s in #646). |
+| **Anthropic** | haiku-4.5 | 1 | 0.01530 | 16.3 s | 12 / 10 / 15 | Most specific entity names ("Salomon Brothers", "Duke University"); default for `cloud_quality`. |
+| **Grok** | grok-3-mini | 1 | 0.03346 | 43.4 s | 12 / 10 / 13 | 25× more expensive than Gemini with no quality edge. Not recommended for volume. |
+
+Baseline comparison on Gemini (medium transcript): **staged** = 3 calls, $0.00445, 13.5 s; **bundled** = 3 calls, $0.00438, 11.2 s; **extraction_bundled** = 2 calls, $0.00265, 9.7 s; **mega_bundled** = 1 call, $0.00127, 17.8 s. Mega-bundled = 72 % cheaper than staged for the same artifact counts.
+
+**Profile defaults after validation:**
+
+- `cloud_balanced` → **Gemini flash-lite mega_bundled** (cheapest, same quality as extraction_bundled, simpler pipeline).
+- `cloud_quality` → **Anthropic haiku-4.5 mega_bundled** (entity F1 = 1.000 per #632, most specific entity names, 15 s latency).
+
+**Quality caveat:** entity F1 numbers from #632 (Anthropic 1.000 vs DeepSeek 0.88) were on fixture transcripts. Real-episode artifact counts are now comparable across all 6 providers; differences are subtler (name specificity, edge-case entity capture). Re-score with the eval harness if entity fidelity is critical.
+
+Set the mode in your profile:
+
+```yaml
+llm_pipeline_mode: "mega_bundled"        # or: "extraction_bundled", "bundled", "staged"
+cloud_llm_structured_min_output_tokens: 4096  # floor for JSON responses (#645)
+```
+
+---
+
 ## Full reference — v2 matrix details
 
 The two picks above cover most deployments. Everything below is the detailed reference for

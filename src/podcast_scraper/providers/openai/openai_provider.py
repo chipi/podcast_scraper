@@ -1018,6 +1018,10 @@ class OpenAIProvider:
             or self.cfg.summary_reduce_params.get("max_new_tokens")
             or 800
         )
+        # Enforce cloud-LLM structured-JSON output floor (Flightcast 2026-04-20).
+        from ..common.output_tokens import cloud_structured_max_output_tokens
+
+        max_length = cloud_structured_max_output_tokens(self.cfg, max_length)
         min_length = (
             (params.get("min_length") if params else None)
             or self.cfg.summary_reduce_params.get("min_new_tokens")
@@ -1211,6 +1215,191 @@ class OpenAIProvider:
                     message=f"OpenAI summarization failed: {format_exception_for_log(exc)}",
                     provider="OpenAIProvider/Summarization",
                 ) from exc
+
+    def summarize_mega_bundled(
+        self,
+        text: str,
+        *,
+        episode_title: Optional[str] = None,
+        episode_description: Optional[str] = None,
+        params: Optional[Dict[str, Any]] = None,
+        pipeline_metrics: "metrics.Metrics | None" = None,
+        call_metrics: Any | None = None,
+    ) -> Any:
+        """Single-call mega-bundle: summary + bullets + insights + topics + entities (#643).
+
+        #632 research flagged OpenAI as "not tier-1" because KG/entity quality
+        regressed in mega-bundle mode on fixture transcripts. #646 real-episode
+        validation revisits this claim. See
+        ``docs/guides/AI_PROVIDER_COMPARISON_GUIDE.md`` for the tier table.
+        """
+        if not self._summarization_initialized:
+            raise RuntimeError(
+                "OpenAIProvider summarization not initialized. Call initialize() first."
+            )
+
+        from ...prompting.megabundle import build_megabundle_prompt
+        from ...utils.provider_metrics import (
+            _safe_openai_retryable,
+            ProviderCallMetrics,
+            retry_with_metrics,
+        )
+        from ..common.megabundle_parser import parse_megabundle_response
+
+        max_out = int(
+            (params or {}).get("max_tokens")
+            or getattr(self.cfg, "llm_bundled_max_output_tokens", 16384)
+            or 16384
+        )
+        language = getattr(self.cfg, "language", "en") or None
+        system_prompt, user_prompt = build_megabundle_prompt(text, language=language)
+
+        _uses_completion_tokens = self.summary_model.startswith(("o1", "o3", "gpt-5"))
+        _token_kwarg: Dict[str, Any] = (
+            {"max_completion_tokens": max_out}
+            if _uses_completion_tokens
+            else {"max_tokens": max_out}
+        )
+
+        if call_metrics is None:
+            call_metrics = ProviderCallMetrics()
+        call_metrics.set_provider_name("openai")
+
+        def _make_api_call() -> Any:
+            kwargs: Dict[str, Any] = {
+                "model": self.summary_model,
+                "messages": [
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": user_prompt},
+                ],
+                "temperature": 0.0,
+                **_token_kwarg,
+            }
+            if not _uses_completion_tokens:
+                kwargs["response_format"] = {"type": "json_object"}
+            if self.summary_seed is not None:
+                kwargs["seed"] = self.summary_seed
+            return self.client.chat.completions.create(**kwargs)
+
+        try:
+            resp = retry_with_metrics(
+                _make_api_call,
+                max_retries=3,
+                initial_delay=1.0,
+                max_delay=30.0,
+                retryable_exceptions=_safe_openai_retryable(),
+                metrics=call_metrics,
+            )
+        except Exception:
+            call_metrics.finalize()
+            raise
+        call_metrics.finalize()
+
+        raw_text = (resp.choices[0].message.content or "").strip() or "{}"
+        if hasattr(resp, "usage") and resp.usage is not None:
+            try:
+                call_metrics.set_tokens(
+                    int(getattr(resp.usage, "prompt_tokens", 0) or 0),
+                    int(getattr(resp.usage, "completion_tokens", 0) or 0),
+                )
+            except (TypeError, ValueError):
+                pass
+
+        return parse_megabundle_response(raw_text)
+
+    def summarize_extraction_bundled(
+        self,
+        text: str,
+        *,
+        episode_title: Optional[str] = None,
+        episode_description: Optional[str] = None,
+        params: Optional[Dict[str, Any]] = None,
+        pipeline_metrics: "metrics.Metrics | None" = None,
+        call_metrics: Any | None = None,
+    ) -> Any:
+        """Single-call extraction bundle: insights + topics + entities (#643).
+
+        Companion to :meth:`summarize_bundled` for the 2-call pipeline:
+        bundled summary/bullets + bundled extraction. Omits summary/title/bullets
+        from the prompt so the model can spend its budget on KG quality.
+
+        Returns:
+            :class:`MegaBundleResult` with empty title/summary/bullets and
+            populated insights/topics/entities.
+        """
+        if not self._summarization_initialized:
+            raise RuntimeError(
+                "OpenAIProvider summarization not initialized. Call initialize() first."
+            )
+
+        from ...prompting.megabundle import build_extraction_bundle_prompt
+        from ...utils.provider_metrics import (
+            _safe_openai_retryable,
+            ProviderCallMetrics,
+            retry_with_metrics,
+        )
+        from ..common.megabundle_parser import parse_extraction_bundle_response
+
+        max_out = int(
+            (params or {}).get("max_tokens")
+            or getattr(self.cfg, "llm_bundled_max_output_tokens", 16384)
+            or 16384
+        )
+        language = getattr(self.cfg, "language", "en") or None
+        system_prompt, user_prompt = build_extraction_bundle_prompt(text, language=language)
+
+        _uses_completion_tokens = self.summary_model.startswith(("o1", "o3", "gpt-5"))
+        _token_kwarg: Dict[str, Any] = (
+            {"max_completion_tokens": max_out}
+            if _uses_completion_tokens
+            else {"max_tokens": max_out}
+        )
+
+        if call_metrics is None:
+            call_metrics = ProviderCallMetrics()
+        call_metrics.set_provider_name("openai")
+
+        def _make_api_call() -> Any:
+            kwargs: Dict[str, Any] = {
+                "model": self.summary_model,
+                "messages": [
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": user_prompt},
+                ],
+                "temperature": 0.0,
+                **_token_kwarg,
+            }
+            if not _uses_completion_tokens:
+                kwargs["response_format"] = {"type": "json_object"}
+            if self.summary_seed is not None:
+                kwargs["seed"] = self.summary_seed
+            return self.client.chat.completions.create(**kwargs)
+
+        try:
+            resp = retry_with_metrics(
+                _make_api_call,
+                max_retries=3,
+                initial_delay=1.0,
+                max_delay=30.0,
+                retryable_exceptions=_safe_openai_retryable(),
+                metrics=call_metrics,
+            )
+        except Exception:
+            call_metrics.finalize()
+            raise
+        call_metrics.finalize()
+
+        raw_text = (resp.choices[0].message.content or "").strip() or "{}"
+        if hasattr(resp, "usage") and resp.usage is not None:
+            try:
+                call_metrics.set_tokens(
+                    int(getattr(resp.usage, "prompt_tokens", 0) or 0),
+                    int(getattr(resp.usage, "completion_tokens", 0) or 0),
+                )
+            except (TypeError, ValueError):
+                pass
+
+        return parse_extraction_bundle_response(raw_text)
 
     def summarize_bundled(
         self,

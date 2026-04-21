@@ -738,13 +738,17 @@ class TestValidationEdgeCases(unittest.TestCase):
         )
         self.assertEqual(cfg.vector_index_types, ["insight", "transcript"])
 
-    def test_vector_backend_qdrant_literal_stored(self):
-        """qdrant is allowed for forward compatibility (RFC-061 Phase 2)."""
-        cfg = Config(
-            rss_url="https://example.com/feed.xml",
-            vector_backend="qdrant",
-        )
-        self.assertEqual(cfg.vector_backend, "qdrant")
+    def test_vector_backend_rejects_qdrant_until_wired(self):
+        """qdrant is reserved for RFC-070 and not yet dispatched; Config must
+        reject it rather than silently accept a value with no live code path
+        (#646 profile-completeness rule)."""
+        from pydantic import ValidationError
+
+        with self.assertRaises(ValidationError):
+            Config(
+                rss_url="https://example.com/feed.xml",
+                vector_backend="qdrant",
+            )
 
     def test_vector_search_true_with_embedding_model(self):
         cfg = Config(

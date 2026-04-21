@@ -372,6 +372,11 @@ class SummaryMetadata(BaseModel):
         default="valid", description="Parsing status"
     )
     raw_text: Optional[str] = Field(default=None, description="Original raw text if parsing failed")
+    # Transient (not serialized): prefilled insights/topics/entities produced by
+    # llm_pipeline_mode=mega_bundled / extraction_bundled so GIL + KG stages can
+    # skip their own LLM calls. Shape matches
+    # ``MegaBundleResult.to_extraction_partial()``.
+    prefilled_extraction: Optional[Dict[str, Any]] = Field(default=None, exclude=True, repr=False)
 
     @field_serializer("generated_at")
     def serialize_generated_at(self, value: datetime) -> str:
@@ -2145,8 +2150,91 @@ def _generate_episode_summary(  # noqa: C901
             params.update(_hybrid_ml_layered_summarize_params(cfg, summary_provider))
 
             result: Optional[Dict[str, Any]] = None
+            pipeline_mode = getattr(cfg, "llm_pipeline_mode", "staged")
+
+            # mega_bundled / extraction_bundled (#643): single call returns
+            # summary+bullets (mega only) PLUS insights+topics+entities. The
+            # extraction partial rides along on result["metadata"] so GIL+KG
+            # stages can skip their own LLM calls.
+            mega_fn = getattr(summary_provider, "summarize_mega_bundled", None)
+            extr_fn = getattr(summary_provider, "summarize_extraction_bundled", None)
+            if pipeline_mode == "mega_bundled" and callable(mega_fn):
+                try:
+                    logger.debug("[%s] mega_bundled single-call path", episode_idx)
+                    from ..cleaning import PatternBasedCleaner
+                    from ..providers.common.megabundle_parser import MegaBundleResult
+
+                    cleaning_started = time.perf_counter()
+                    pattern_cleaned = PatternBasedCleaner().clean(transcript_text)
+                    if pipeline_metrics is not None:
+                        pipeline_metrics.record_cleaning_time(
+                            time.perf_counter() - cleaning_started, episode_idx
+                        )
+                    mega_result = mega_fn(
+                        pattern_cleaned,
+                        episode_title=None,
+                        episode_description=None,
+                        params=params,
+                        pipeline_metrics=pipeline_metrics,
+                        call_metrics=call_metrics,
+                    )
+                    if isinstance(mega_result, MegaBundleResult):
+                        summary_json = json.dumps(mega_result.to_summary_artifact())
+                        result = {
+                            "summary": summary_json,
+                            "summary_short": None,
+                            "metadata": {
+                                "provider": getattr(cfg, "summary_provider", "unknown"),
+                                "bundled": True,
+                                "pipeline_mode": "mega_bundled",
+                                "prefilled_extraction": mega_result.to_extraction_partial(),
+                            },
+                        }
+                except Exception as mega_exc:
+                    if pipeline_metrics is not None:
+                        pipeline_metrics.record_llm_bundled_fallback_to_staged()
+                    logger.warning(
+                        "[%s] mega_bundled failed, falling back to staged: %s",
+                        episode_idx,
+                        redact_for_log(str(mega_exc)),
+                    )
+                    result = None
+            elif pipeline_mode == "mega_bundled":
+                logger.warning(
+                    "[%s] llm_pipeline_mode=mega_bundled but provider has no "
+                    "summarize_mega_bundled; using staged path",
+                    episode_idx,
+                )
+            elif pipeline_mode == "extraction_bundled" and callable(extr_fn):
+                # Extraction_bundled: staged summary (below) + bundled extraction (now).
+                # We run the extraction call here, stash the partial, then let the
+                # staged summary path run. This is a pragmatic first cut: it adds 1
+                # LLM call but halves GIL+KG (2 -> 0 separate provider calls).
+                try:
+                    logger.debug("[%s] extraction_bundled single-call extraction", episode_idx)
+                    from ..providers.common.megabundle_parser import MegaBundleResult
+
+                    extr_result = extr_fn(
+                        transcript_text,
+                        episode_title=None,
+                        episode_description=None,
+                        params=params,
+                        pipeline_metrics=pipeline_metrics,
+                        call_metrics=call_metrics,
+                    )
+                    if isinstance(extr_result, MegaBundleResult):
+                        # Stash on cfg-local var; applied after staged summary runs.
+                        params["_prefilled_extraction"] = extr_result.to_extraction_partial()
+                except Exception as extr_exc:
+                    logger.warning(
+                        "[%s] extraction_bundled failed, GIL/KG will run their "
+                        "own LLM calls: %s",
+                        episode_idx,
+                        redact_for_log(str(extr_exc)),
+                    )
+
             bundled_fn = getattr(summary_provider, "summarize_bundled", None)
-            if getattr(cfg, "llm_pipeline_mode", "staged") == "bundled" and callable(bundled_fn):
+            if result is None and pipeline_mode == "bundled" and callable(bundled_fn):
                 try:
                     logger.debug("[%s] Bundled clean+summary (pattern pre-clean)", episode_idx)
                     from ..cleaning import PatternBasedCleaner
@@ -2420,6 +2508,20 @@ def _generate_episode_summary(  # noqa: C901
                 logger.error("%s", redact_for_log(error_msg))
                 raise RuntimeError(redact_for_log(error_msg))
 
+            # Pick up prefilled extraction from mega_bundled (on result metadata)
+            # or extraction_bundled (stashed on params earlier).
+            prefilled_extraction: Optional[Dict[str, Any]] = None
+            if isinstance(result, dict):
+                result_meta = result.get("metadata") if isinstance(result, dict) else None
+                if isinstance(result_meta, dict):
+                    pe = result_meta.get("prefilled_extraction")
+                    if isinstance(pe, dict):
+                        prefilled_extraction = pe
+            if prefilled_extraction is None and isinstance(
+                params.get("_prefilled_extraction"), dict
+            ):
+                prefilled_extraction = params["_prefilled_extraction"]
+
             # Build SummaryMetadata with required schema fields
             return (
                 SummaryMetadata(
@@ -2432,6 +2534,7 @@ def _generate_episode_summary(  # noqa: C901
                     timestamps=schema.timestamps,
                     schema_status=schema.status,
                     raw_text=schema.raw_text if schema.status != "valid" else None,
+                    prefilled_extraction=prefilled_extraction,
                 ),
                 call_metrics,
             )
@@ -3354,6 +3457,14 @@ def generate_episode_metadata(  # noqa: C901
                 gi_episode_duration_ms: Optional[int] = None
                 if episode_duration_seconds is not None and int(episode_duration_seconds) > 0:
                     gi_episode_duration_ms = int(episode_duration_seconds) * 1000
+                # #643: prefer insights from mega_bundled / extraction_bundled.
+                prefilled_insights_arg: Optional[List[Dict[str, Any]]] = None
+                if summary_metadata is not None:
+                    pe = getattr(summary_metadata, "prefilled_extraction", None)
+                    if isinstance(pe, dict):
+                        pe_insights = pe.get("insights")
+                        if isinstance(pe_insights, list) and pe_insights:
+                            prefilled_insights_arg = pe_insights
                 payload = build_artifact(
                     episode_id,
                     transcript_text,
@@ -3376,6 +3487,7 @@ def generate_episode_metadata(  # noqa: C901
                     gil_created_evidence_providers=gil_evidence_cleanup,
                     topic_labels=gi_topic_labels,
                     episode_duration_ms=gi_episode_duration_ms,
+                    prefilled_insights=prefilled_insights_arg,
                 )
                 write_artifact(Path(gi_path), payload, validate=True)
                 bridge_gi_payload = payload
@@ -3530,6 +3642,15 @@ def generate_episode_metadata(  # noqa: C901
                     write_artifact as kg_write_artifact,
                 )
 
+                # #643: prefer topics/entities from mega_bundled / extraction_bundled.
+                kg_prefilled_partial: Optional[Dict[str, Any]] = None
+                if summary_metadata is not None:
+                    pe_kg = getattr(summary_metadata, "prefilled_extraction", None)
+                    if isinstance(pe_kg, dict) and (pe_kg.get("topics") or pe_kg.get("entities")):
+                        kg_prefilled_partial = {
+                            "topics": pe_kg.get("topics") or [],
+                            "entities": pe_kg.get("entities") or [],
+                        }
                 kg_payload = kg_build_artifact(
                     episode_id,
                     transcript_text_kg,
@@ -3544,6 +3665,7 @@ def generate_episode_metadata(  # noqa: C901
                     cfg=cfg,
                     kg_extraction_provider=kg_provider_arg,
                     pipeline_metrics=pipeline_metrics,
+                    prefilled_partial=kg_prefilled_partial,
                 )
                 kg_write_artifact(Path(kg_path), kg_payload, validate=True)
                 bridge_kg_payload = kg_payload

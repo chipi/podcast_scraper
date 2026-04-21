@@ -932,6 +932,12 @@ class GeminiProvider:
             or self.cfg.summary_reduce_params.get("max_new_tokens")
             or 800
         )
+        # Enforce the cloud-LLM structured-JSON output floor (Flightcast truncation
+        # fix 2026-04-20). Local-ML default (650) is tuned for LED-base and is
+        # too small for Gemini's structured summary output on long transcripts.
+        from ..common.output_tokens import cloud_structured_max_output_tokens
+
+        max_length = cloud_structured_max_output_tokens(self.cfg, max_length)
         min_length = (
             (params.get("min_length") if params else None)
             or self.cfg.summary_reduce_params.get("min_new_tokens")
@@ -1031,6 +1037,29 @@ class GeminiProvider:
                 if input_tokens is not None and output_tokens is not None:
                     call_metrics.set_tokens(input_tokens, output_tokens)
 
+            # Truncation diagnostic: warn on MAX_TOKENS/SAFETY/RECITATION finish
+            # reasons or near-budget output. Surfaces the class of silent
+            # truncation that caused Flightcast failure on 2026-04-20.
+            try:
+                from ..common.output_tokens import warn_if_output_truncated
+
+                finish_reason: Optional[str] = None
+                try:
+                    candidates = getattr(response, "candidates", None)
+                    first = candidates[0] if candidates else None
+                    fr = getattr(first, "finish_reason", None) if first is not None else None
+                    finish_reason = str(fr) if fr is not None else None
+                except Exception:
+                    finish_reason = None
+                warn_if_output_truncated(
+                    provider_name="gemini",
+                    finish_reason=finish_reason,
+                    output_tokens=output_tokens,
+                    max_output_tokens=max_length,
+                )
+            except Exception:
+                pass
+
             # Track LLM call metrics if available (aggregate tracking)
             if (
                 pipeline_metrics is not None
@@ -1112,6 +1141,177 @@ class GeminiProvider:
                     message=f"Gemini summarization failed: {format_exception_for_log(exc)}",
                     provider="GeminiProvider/Summarization",
                 ) from exc
+
+    def summarize_mega_bundled(
+        self,
+        text: str,
+        *,
+        episode_title: Optional[str] = None,
+        episode_description: Optional[str] = None,
+        params: Optional[Dict[str, Any]] = None,
+        pipeline_metrics: "metrics.Metrics | None" = None,
+        call_metrics: Any | None = None,
+    ) -> Any:
+        """Single-call mega-bundle: summary + bullets + insights + topics + entities (#643).
+
+        #632 research flagged Gemini as "not tier-1" because KG/entity quality
+        regressed in mega-bundle mode on fixture transcripts. #646 real-episode
+        validation revisits this claim against production audio. Exposed for
+        users who want to trade some quality for ~3× lower cost and ~1.5 s/ep
+        latency; tier status is documented in
+        ``docs/guides/AI_PROVIDER_COMPARISON_GUIDE.md``.
+        """
+        if not self._summarization_initialized:
+            raise RuntimeError(
+                "GeminiProvider summarization not initialized. Call initialize() first."
+            )
+
+        from ...prompting.megabundle import build_megabundle_prompt
+        from ...utils.provider_metrics import (
+            _safe_gemini_retryable,
+            ProviderCallMetrics,
+            retry_with_metrics,
+        )
+        from ..common.megabundle_parser import parse_megabundle_response
+        from ..common.output_tokens import cloud_structured_max_output_tokens
+
+        max_out = int(
+            (params or {}).get("max_tokens")
+            or getattr(self.cfg, "llm_bundled_max_output_tokens", 16384)
+            or 16384
+        )
+        max_out = cloud_structured_max_output_tokens(self.cfg, max_out)
+        language = getattr(self.cfg, "language", "en") or None
+        system_prompt, user_prompt = build_megabundle_prompt(text, language=language)
+
+        if call_metrics is None:
+            call_metrics = ProviderCallMetrics()
+        call_metrics.set_provider_name("gemini")
+
+        def _make_api_call() -> Any:
+            generation_config = _merge_generate_content_config(
+                self.summary_model,
+                {
+                    "temperature": 0.0,
+                    "max_output_tokens": max_out,
+                    "response_mime_type": "application/json",
+                    "system_instruction": system_prompt,
+                },
+            )
+            return self.client.models.generate_content(
+                model=self.summary_model,
+                contents=user_prompt,
+                config=cast(Any, generation_config),
+            )
+
+        try:
+            resp = retry_with_metrics(
+                _make_api_call,
+                max_retries=3,
+                initial_delay=1.0,
+                max_delay=30.0,
+                retryable_exceptions=_safe_gemini_retryable(),
+                metrics=call_metrics,
+            )
+        except Exception:
+            call_metrics.finalize()
+            raise
+        call_metrics.finalize()
+
+        raw_text = (resp.text if hasattr(resp, "text") else str(resp) or "").strip() or "{}"
+        if hasattr(resp, "usage_metadata") and resp.usage_metadata is not None:
+            try:
+                call_metrics.set_tokens(
+                    int(getattr(resp.usage_metadata, "prompt_token_count", 0) or 0),
+                    int(getattr(resp.usage_metadata, "candidates_token_count", 0) or 0),
+                )
+            except (TypeError, ValueError):
+                pass
+
+        return parse_megabundle_response(raw_text)
+
+    def summarize_extraction_bundled(
+        self,
+        text: str,
+        *,
+        episode_title: Optional[str] = None,
+        episode_description: Optional[str] = None,
+        params: Optional[Dict[str, Any]] = None,
+        pipeline_metrics: "metrics.Metrics | None" = None,
+        call_metrics: Any | None = None,
+    ) -> Any:
+        """Single-call extraction bundle: insights + topics + entities (#643).
+
+        Companion to :meth:`summarize_bundled` for the 2-call pipeline.
+        """
+        if not self._summarization_initialized:
+            raise RuntimeError(
+                "GeminiProvider summarization not initialized. Call initialize() first."
+            )
+
+        from ...prompting.megabundle import build_extraction_bundle_prompt
+        from ...utils.provider_metrics import (
+            _safe_gemini_retryable,
+            ProviderCallMetrics,
+            retry_with_metrics,
+        )
+        from ..common.megabundle_parser import parse_extraction_bundle_response
+        from ..common.output_tokens import cloud_structured_max_output_tokens
+
+        max_out = int(
+            (params or {}).get("max_tokens")
+            or getattr(self.cfg, "llm_bundled_max_output_tokens", 16384)
+            or 16384
+        )
+        max_out = cloud_structured_max_output_tokens(self.cfg, max_out)
+        language = getattr(self.cfg, "language", "en") or None
+        system_prompt, user_prompt = build_extraction_bundle_prompt(text, language=language)
+
+        if call_metrics is None:
+            call_metrics = ProviderCallMetrics()
+        call_metrics.set_provider_name("gemini")
+
+        def _make_api_call() -> Any:
+            generation_config = _merge_generate_content_config(
+                self.summary_model,
+                {
+                    "temperature": 0.0,
+                    "max_output_tokens": max_out,
+                    "response_mime_type": "application/json",
+                    "system_instruction": system_prompt,
+                },
+            )
+            return self.client.models.generate_content(
+                model=self.summary_model,
+                contents=user_prompt,
+                config=cast(Any, generation_config),
+            )
+
+        try:
+            resp = retry_with_metrics(
+                _make_api_call,
+                max_retries=3,
+                initial_delay=1.0,
+                max_delay=30.0,
+                retryable_exceptions=_safe_gemini_retryable(),
+                metrics=call_metrics,
+            )
+        except Exception:
+            call_metrics.finalize()
+            raise
+        call_metrics.finalize()
+
+        raw_text = (resp.text if hasattr(resp, "text") else str(resp) or "").strip() or "{}"
+        if hasattr(resp, "usage_metadata") and resp.usage_metadata is not None:
+            try:
+                call_metrics.set_tokens(
+                    int(getattr(resp.usage_metadata, "prompt_token_count", 0) or 0),
+                    int(getattr(resp.usage_metadata, "candidates_token_count", 0) or 0),
+                )
+            except (TypeError, ValueError):
+                pass
+
+        return parse_extraction_bundle_response(raw_text)
 
     def summarize_bundled(
         self,

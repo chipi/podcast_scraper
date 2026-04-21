@@ -614,6 +614,10 @@ class GrokProvider:
             or self.cfg.summary_reduce_params.get("max_new_tokens")
             or 800
         )
+        # Enforce cloud-LLM structured-JSON output floor (Flightcast 2026-04-20).
+        from ..common.output_tokens import cloud_structured_max_output_tokens
+
+        max_length = cloud_structured_max_output_tokens(self.cfg, max_length)
         min_length = (
             (params.get("min_length") if params else None)
             or self.cfg.summary_reduce_params.get("min_new_tokens")
@@ -793,6 +797,162 @@ class GrokProvider:
                     message=f"Grok summarization failed: {format_exception_for_log(exc)}",
                     provider="GrokProvider/Summarization",
                 ) from exc
+
+    def summarize_mega_bundled(
+        self,
+        text: str,
+        *,
+        episode_title: Optional[str] = None,
+        episode_description: Optional[str] = None,
+        params: Optional[Dict[str, Any]] = None,
+        pipeline_metrics: "metrics.Metrics | None" = None,
+        call_metrics: Any | None = None,
+    ) -> Any:
+        """Single-call mega-bundle: summary + bullets + insights + topics + entities (#643).
+
+        #632 research flagged Grok as "not tier-1"; #646 real-episode
+        validation retests the claim. See AI_PROVIDER_COMPARISON_GUIDE.md.
+        """
+        if not self._summarization_initialized:
+            raise RuntimeError(
+                "GrokProvider summarization not initialized. Call initialize() first."
+            )
+
+        from ...prompting.megabundle import build_megabundle_prompt
+        from ...utils.provider_metrics import (
+            _safe_openai_retryable,
+            ProviderCallMetrics,
+            retry_with_metrics,
+        )
+        from ..common.megabundle_parser import parse_megabundle_response
+        from ..common.output_tokens import cloud_structured_max_output_tokens
+
+        max_out = int(
+            (params or {}).get("max_tokens")
+            or getattr(self.cfg, "llm_bundled_max_output_tokens", 16384)
+            or 16384
+        )
+        max_out = cloud_structured_max_output_tokens(self.cfg, max_out)
+        language = getattr(self.cfg, "language", "en") or None
+        system_prompt, user_prompt = build_megabundle_prompt(text, language=language)
+
+        if call_metrics is None:
+            call_metrics = ProviderCallMetrics()
+        call_metrics.set_provider_name("grok")
+
+        def _make_api_call() -> Any:
+            return self.client.chat.completions.create(
+                model=self.summary_model,
+                messages=[
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": user_prompt},
+                ],
+                temperature=0.0,
+                max_tokens=max_out,
+                response_format={"type": "json_object"},
+            )
+
+        try:
+            resp = retry_with_metrics(
+                _make_api_call,
+                max_retries=3,
+                initial_delay=1.0,
+                max_delay=30.0,
+                retryable_exceptions=_safe_openai_retryable(),
+                metrics=call_metrics,
+            )
+        except Exception:
+            call_metrics.finalize()
+            raise
+        call_metrics.finalize()
+
+        raw_text = (resp.choices[0].message.content or "").strip() or "{}"
+        if hasattr(resp, "usage") and resp.usage is not None:
+            try:
+                call_metrics.set_tokens(
+                    int(getattr(resp.usage, "prompt_tokens", 0) or 0),
+                    int(getattr(resp.usage, "completion_tokens", 0) or 0),
+                )
+            except (TypeError, ValueError):
+                pass
+
+        return parse_megabundle_response(raw_text)
+
+    def summarize_extraction_bundled(
+        self,
+        text: str,
+        *,
+        episode_title: Optional[str] = None,
+        episode_description: Optional[str] = None,
+        params: Optional[Dict[str, Any]] = None,
+        pipeline_metrics: "metrics.Metrics | None" = None,
+        call_metrics: Any | None = None,
+    ) -> Any:
+        """Single-call extraction bundle: insights + topics + entities (#643)."""
+        if not self._summarization_initialized:
+            raise RuntimeError(
+                "GrokProvider summarization not initialized. Call initialize() first."
+            )
+
+        from ...prompting.megabundle import build_extraction_bundle_prompt
+        from ...utils.provider_metrics import (
+            _safe_openai_retryable,
+            ProviderCallMetrics,
+            retry_with_metrics,
+        )
+        from ..common.megabundle_parser import parse_extraction_bundle_response
+        from ..common.output_tokens import cloud_structured_max_output_tokens
+
+        max_out = int(
+            (params or {}).get("max_tokens")
+            or getattr(self.cfg, "llm_bundled_max_output_tokens", 16384)
+            or 16384
+        )
+        max_out = cloud_structured_max_output_tokens(self.cfg, max_out)
+        language = getattr(self.cfg, "language", "en") or None
+        system_prompt, user_prompt = build_extraction_bundle_prompt(text, language=language)
+
+        if call_metrics is None:
+            call_metrics = ProviderCallMetrics()
+        call_metrics.set_provider_name("grok")
+
+        def _make_api_call() -> Any:
+            return self.client.chat.completions.create(
+                model=self.summary_model,
+                messages=[
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": user_prompt},
+                ],
+                temperature=0.0,
+                max_tokens=max_out,
+                response_format={"type": "json_object"},
+            )
+
+        try:
+            resp = retry_with_metrics(
+                _make_api_call,
+                max_retries=3,
+                initial_delay=1.0,
+                max_delay=30.0,
+                retryable_exceptions=_safe_openai_retryable(),
+                metrics=call_metrics,
+            )
+        except Exception:
+            call_metrics.finalize()
+            raise
+        call_metrics.finalize()
+
+        raw_text = (resp.choices[0].message.content or "").strip() or "{}"
+        if hasattr(resp, "usage") and resp.usage is not None:
+            try:
+                call_metrics.set_tokens(
+                    int(getattr(resp.usage, "prompt_tokens", 0) or 0),
+                    int(getattr(resp.usage, "completion_tokens", 0) or 0),
+                )
+            except (TypeError, ValueError):
+                pass
+
+        return parse_extraction_bundle_response(raw_text)
 
     def summarize_bundled(
         self,

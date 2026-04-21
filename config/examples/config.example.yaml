@@ -95,7 +95,7 @@ metadata_format: json  # json or yaml (json recommended for database ingestion)
 
 # Semantic corpus search (RFC-061 / PRD-021): FAISS index over GIL, summaries, transcripts
 # vector_search: false  # Default off. When true, pipeline runs embed-and-index after finalize
-# vector_backend: faiss  # Phase 1: faiss only; qdrant deferred (RFC-061 Phase 2)
+# vector_backend: faiss  # Only value accepted today; qdrant reserved for RFC-070 (re-added to Literal when wired)
 # vector_index_path: null  # Optional; relative → under output_dir. Default: search/ → <output_dir>/search/
 # vector_embedding_model: minilm-l6  # Registry alias or full sentence-transformers id (see ModelRegistry)
 # vector_index_types: null  # Optional list: insight, quote, summary, transcript, kg_topic, kg_entity (default: all)

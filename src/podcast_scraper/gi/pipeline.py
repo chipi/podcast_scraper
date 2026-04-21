@@ -523,6 +523,7 @@ def build_artifact(
     gil_created_evidence_providers: Optional[List[Any]] = None,
     topic_labels: Optional[List[str]] = None,
     episode_duration_ms: Optional[int] = None,
+    prefilled_insights: Optional[List[Dict[str, Any]]] = None,
 ) -> Dict[str, Any]:
     """Build a GIL artifact for one episode.
 
@@ -571,14 +572,36 @@ def build_artifact(
     title = (episode_title or "Episode").strip() or "Episode"
     date_str = _safe_iso_date(publish_date)
 
-    insight_specs = _resolve_insight_specs(
-        transcript_text=transcript_text or "",
-        cfg=cfg,
-        insight_texts=insight_texts,
-        insight_provider=insight_provider,
-        episode_title=episode_title or title,
-        pipeline_metrics=pipeline_metrics,
-    )
+    # #643: when llm_pipeline_mode=mega_bundled/extraction_bundled has already
+    # produced insights, short-circuit provider dispatch entirely.
+    insight_specs: List[Tuple[str, str]] = []
+    if prefilled_insights:
+        max_insights_pref = (
+            getattr(cfg, "gi_max_insights", config_constants.DEFAULT_SUMMARY_BULLETS_DOWNSTREAM_MAX)
+            if cfg is not None
+            else config_constants.DEFAULT_SUMMARY_BULLETS_DOWNSTREAM_MAX
+        )
+        for item in prefilled_insights:
+            if not isinstance(item, dict):
+                continue
+            text = str(item.get("text") or "").strip()
+            if not text:
+                continue
+            itype = str(item.get("insight_type") or "claim").strip().lower()
+            if itype not in {"claim", "fact", "opinion"}:
+                itype = "claim"
+            insight_specs.append((text, itype))
+            if len(insight_specs) >= max_insights_pref:
+                break
+    if not insight_specs:
+        insight_specs = _resolve_insight_specs(
+            transcript_text=transcript_text or "",
+            cfg=cfg,
+            insight_texts=insight_texts,
+            insight_provider=insight_provider,
+            episode_title=episode_title or title,
+            pipeline_metrics=pipeline_metrics,
+        )
 
     artifact_model_version = model_version
     if cfg is not None:

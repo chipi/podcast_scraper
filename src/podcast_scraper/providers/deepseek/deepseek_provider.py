@@ -145,8 +145,11 @@ class DeepSeekProvider:
             "base_url": base_url,
         }
 
-        # Configure HTTP timeouts with separate connect/read timeouts
-        client_kwargs["timeout"] = get_http_timeout(cfg)
+        # Configure HTTP timeouts. DeepSeek mega-bundle / large JSON responses
+        # can exceed the 120s generic default; honour the per-provider override
+        # (#646 real-episode validation). Matches Grok's pattern.
+        deepseek_read_timeout = float(getattr(cfg, "deepseek_timeout", 600))
+        client_kwargs["timeout"] = get_http_timeout(cfg, read_timeout=deepseek_read_timeout)
 
         self.client = OpenAI(**client_kwargs)
 
@@ -506,6 +509,10 @@ class DeepSeekProvider:
             or self.cfg.summary_reduce_params.get("max_new_tokens")
             or 800
         )
+        # Enforce cloud-LLM structured-JSON output floor (Flightcast 2026-04-20).
+        from ..common.output_tokens import cloud_structured_max_output_tokens
+
+        max_length = cloud_structured_max_output_tokens(self.cfg, max_length)
         min_length = (
             (params.get("min_length") if params else None)
             or self.cfg.summary_reduce_params.get("min_new_tokens")
@@ -684,6 +691,170 @@ class DeepSeekProvider:
                     message=f"DeepSeek summarization failed: {format_exception_for_log(exc)}",
                     provider="DeepSeekProvider/Summarization",
                 ) from exc
+
+    def summarize_mega_bundled(
+        self,
+        text: str,
+        *,
+        episode_title: Optional[str] = None,
+        episode_description: Optional[str] = None,
+        params: Optional[Dict[str, Any]] = None,
+        pipeline_metrics: "metrics.Metrics | None" = None,
+        call_metrics: Any | None = None,
+    ) -> Any:
+        """Single-call mega-bundle: summary + bullets + insights + topics + entities (#643).
+
+        DeepSeek deepseek-chat is a tier-2 mega-bundle provider per the #632
+        experiment: summary length matches silver within 73%, KG 71% (baseline),
+        entity F1 ~0.88 (slight gap vs Anthropic's 1.000). 6x cheaper than
+        three standalone cloud calls; acceptable quality when entity coverage
+        isn't mission-critical.
+
+        Raises:
+            RuntimeError: If provider not initialized.
+            MegaBundleParseError: If response fails schema validation.
+            ProviderRuntimeError: For API-level failures after retries.
+        """
+        if not self._summarization_initialized:
+            raise RuntimeError(
+                "DeepSeekProvider summarization not initialized. Call initialize() first."
+            )
+
+        from ...prompting.megabundle import build_megabundle_prompt
+        from ...utils.provider_metrics import (
+            _safe_openai_retryable,
+            ProviderCallMetrics,
+            retry_with_metrics,
+        )
+        from ..common.megabundle_parser import parse_megabundle_response
+
+        max_out = int(
+            (params or {}).get("max_tokens")
+            or getattr(self.cfg, "llm_bundled_max_output_tokens", 16384)
+            or 16384
+        )
+        # DeepSeek API caps chat completions output at 8192 tokens.
+        max_out = min(max_out, 8192)
+        language = getattr(self.cfg, "language", "en") or None
+        system_prompt, user_prompt = build_megabundle_prompt(text, language=language)
+
+        if call_metrics is None:
+            call_metrics = ProviderCallMetrics()
+        call_metrics.set_provider_name("deepseek")
+
+        def _make_api_call() -> Any:
+            return self.client.chat.completions.create(
+                model=self.summary_model,
+                messages=[
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": user_prompt},
+                ],
+                response_format={"type": "json_object"},
+                temperature=0.0,
+                max_tokens=max_out,
+            )
+
+        try:
+            resp = retry_with_metrics(
+                _make_api_call,
+                max_retries=3,
+                initial_delay=1.0,
+                max_delay=30.0,
+                retryable_exceptions=_safe_openai_retryable(),
+                metrics=call_metrics,
+            )
+        except Exception:
+            call_metrics.finalize()
+            raise
+        call_metrics.finalize()
+
+        raw_text = resp.choices[0].message.content or "{}"
+        if hasattr(resp, "usage") and resp.usage is not None:
+            try:
+                call_metrics.set_tokens(
+                    int(getattr(resp.usage, "prompt_tokens", 0) or 0),
+                    int(getattr(resp.usage, "completion_tokens", 0) or 0),
+                )
+            except (TypeError, ValueError):
+                pass
+
+        return parse_megabundle_response(raw_text)
+
+    def summarize_extraction_bundled(
+        self,
+        text: str,
+        *,
+        episode_title: Optional[str] = None,
+        episode_description: Optional[str] = None,
+        params: Optional[Dict[str, Any]] = None,
+        pipeline_metrics: "metrics.Metrics | None" = None,
+        call_metrics: Any | None = None,
+    ) -> Any:
+        """Single-call extraction bundle: insights + topics + entities (#643)."""
+        if not self._summarization_initialized:
+            raise RuntimeError(
+                "DeepSeekProvider summarization not initialized. Call initialize() first."
+            )
+
+        from ...prompting.megabundle import build_extraction_bundle_prompt
+        from ...utils.provider_metrics import (
+            _safe_openai_retryable,
+            ProviderCallMetrics,
+            retry_with_metrics,
+        )
+        from ..common.megabundle_parser import parse_extraction_bundle_response
+
+        max_out = int(
+            (params or {}).get("max_tokens")
+            or getattr(self.cfg, "llm_bundled_max_output_tokens", 16384)
+            or 16384
+        )
+        # DeepSeek API caps chat completions output at 8192 tokens.
+        max_out = min(max_out, 8192)
+        language = getattr(self.cfg, "language", "en") or None
+        system_prompt, user_prompt = build_extraction_bundle_prompt(text, language=language)
+
+        if call_metrics is None:
+            call_metrics = ProviderCallMetrics()
+        call_metrics.set_provider_name("deepseek")
+
+        def _make_api_call() -> Any:
+            return self.client.chat.completions.create(
+                model=self.summary_model,
+                messages=[
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": user_prompt},
+                ],
+                response_format={"type": "json_object"},
+                temperature=0.0,
+                max_tokens=max_out,
+            )
+
+        try:
+            resp = retry_with_metrics(
+                _make_api_call,
+                max_retries=3,
+                initial_delay=1.0,
+                max_delay=30.0,
+                retryable_exceptions=_safe_openai_retryable(),
+                metrics=call_metrics,
+            )
+        except Exception:
+            call_metrics.finalize()
+            raise
+        call_metrics.finalize()
+
+        raw_text = resp.choices[0].message.content or "{}"
+        if hasattr(resp, "usage") and resp.usage is not None:
+            try:
+                call_metrics.set_tokens(
+                    int(getattr(resp.usage, "prompt_tokens", 0) or 0),
+                    int(getattr(resp.usage, "completion_tokens", 0) or 0),
+                )
+            except (TypeError, ValueError):
+                pass
+
+        return parse_extraction_bundle_response(raw_text)
 
     def summarize_bundled(
         self,

@@ -1529,6 +1529,17 @@ class Config(BaseModel):
         alias="deepseek_max_tokens",
         description="Max tokens for DeepSeek generation (None = model default)",
     )
+    deepseek_timeout: int = Field(
+        default=600,
+        alias="deepseek_timeout",
+        ge=30,
+        description=(
+            "HTTP read timeout in seconds for DeepSeek API calls (default: 600 = 10min). "
+            "DeepSeek mega-bundle / large JSON responses can exceed the default 120s "
+            "generic HTTP timeout, so DeepSeek follows Grok's pattern of a per-provider "
+            "override (#646 real-episode validation)."
+        ),
+    )
     # DeepSeek Prompt Configuration (following OpenAI pattern)
     deepseek_summary_system_prompt: str = Field(
         default="deepseek/summarization/system_bullets_v1",
@@ -1957,10 +1968,13 @@ class Config(BaseModel):
         alias="vector_embedding_model",
         description="Sentence-transformers model id for semantic corpus embeddings (GitHub #484).",
     )
-    vector_backend: Literal["faiss", "qdrant"] = Field(
+    vector_backend: Literal["faiss"] = Field(
         default="faiss",
         alias="vector_backend",
-        description=("Vector index backend. Shipped: faiss only; qdrant deferred (RFC-070)."),
+        description=(
+            "Vector index backend. Currently faiss only. qdrant is reserved for a future "
+            "platform-mode release (RFC-070) — will be re-added to this Literal once wired."
+        ),
     )
     vector_index_types: Optional[
         List[Literal["insight", "quote", "summary", "transcript", "kg_topic", "kg_entity"]]
@@ -2321,14 +2335,20 @@ class Config(BaseModel):
             "'hybrid' (pattern-based + conditional LLM when needed)."
         ),
     )
-    llm_pipeline_mode: Literal["staged", "bundled"] = Field(
+    llm_pipeline_mode: Literal["staged", "bundled", "mega_bundled", "extraction_bundled"] = Field(
         default="staged",
         alias="llm_pipeline_mode",
         description=(
-            "LLM transcript pipeline for cleaning + summary + bullets (Issue #477). "
-            "'staged' = separate semantic clean and summarize calls (default). "
-            "'bundled' = one structured completion when the summary provider implements "
-            "summarize_bundled (OpenAI/Anthropic/Gemini); falls back to staged on failure."
+            "LLM transcript pipeline (Issue #477, extended by #643). "
+            "'staged' = separate clean, summarize, GI, KG calls (default). "
+            "'bundled' = one structured completion for clean+summary+bullets "
+            "(Issue #477). "
+            "'mega_bundled' = one call for summary+bullets+insights+topics+entities. "
+            "Validated on Anthropic Claude Haiku 4.5 (#632, #643). Falls back "
+            "to 'staged' on parser failure. "
+            "'extraction_bundled' = two calls: summary standalone + "
+            "insights/topics/entities bundled. Viable on OpenAI, Gemini where "
+            "mega_bundled compresses the summary (#643)."
         ),
     )
     llm_bundled_max_output_tokens: int = Field(
@@ -2338,6 +2358,34 @@ class Config(BaseModel):
         description=(
             "Max completion/output tokens for bundled clean+summary+bullets calls "
             "(large default: output includes full cleaned transcript JSON)."
+        ),
+    )
+    cloud_llm_structured_min_output_tokens: int = Field(
+        default=4096,
+        ge=512,
+        alias="cloud_llm_structured_min_output_tokens",
+        description=(
+            "Minimum max_output_tokens enforced on cloud-LLM structured summary "
+            "(non-bundled) calls. Prevents mid-JSON truncation on long transcripts "
+            "when summary_reduce_params.max_new_tokens is sized for LED-base local "
+            "ML (~650). Discovered via Flightcast episode failure 2026-04-20 "
+            "(Gemini truncated summary JSON at ~650 tokens). Providers that read "
+            "params.max_length or summary_reduce_params.max_new_tokens should "
+            "clamp the resulting value to at least this floor before calling the "
+            "API. Applies to: openai, anthropic, gemini, deepseek, mistral, grok."
+        ),
+    )
+    single_feed_uses_corpus_layout: bool = Field(
+        default=False,
+        alias="single_feed_uses_corpus_layout",
+        description=(
+            "When True, single-feed runs write under <output_dir>/feeds/<slug>/ "
+            "instead of <output_dir>/run_<id>/, matching the corpus layout used "
+            "by multi-feed runs (GitHub #644). Unifies output shape for viewer, "
+            "eval tooling, and corpus-level artifacts. Default False for "
+            "backwards compatibility; recommended True for new corpora and when "
+            "an existing output_dir has been migrated. Migration helper: "
+            "scripts/tools/migrate_single_feed_to_corpus.py."
         ),
     )
     # ML generation parameters (all defaults come from Config, no hardcoded values)
@@ -3901,6 +3949,36 @@ class Config(BaseModel):
                 "When rss_urls has two or more feeds (GitHub #440), output_dir is required "
                 "as the corpus parent directory (set output_dir or OUTPUT_DIR)."
             )
+        return self
+
+    @model_validator(mode="after")
+    def _apply_single_feed_corpus_layout(self) -> "Config":
+        """Wrap single-feed ``output_dir`` under ``feeds/<slug>/`` when the opt-in
+        flag is set (#644). Runs on every Config construction (CLI, YAML,
+        programmatic) so the wrapping is consistent across all entry points.
+        Idempotent: skips wrapping when ``output_dir`` already contains a
+        ``feeds/<slug>/`` segment."""
+        if not self.single_feed_uses_corpus_layout:
+            return self
+        # Multi-feed path wraps per-feed elsewhere; don't double-wrap.
+        if self.rss_urls and len(self.rss_urls) >= 2:
+            return self
+        if not isinstance(self.rss_url, str) or not self.rss_url:
+            return self
+        if not isinstance(self.output_dir, str) or not self.output_dir:
+            return self
+        # Idempotency check: skip if output_dir already looks wrapped.
+        if "/feeds/rss_" in self.output_dir or self.output_dir.rstrip("/").endswith(
+            tuple(f"/feeds/{s}" for s in ("",))
+        ):
+            return self
+        from .utils.filesystem import corpus_feed_output_dir
+
+        wrapped = corpus_feed_output_dir(self.output_dir, self.rss_url)
+        # Assign via object.__setattr__ because model_validator(after) runs
+        # before the model becomes fully "frozen" for mutation but pydantic v2
+        # still routes direct assignment through validation — this bypasses it.
+        object.__setattr__(self, "output_dir", wrapped)
         return self
 
     @model_validator(mode="after")

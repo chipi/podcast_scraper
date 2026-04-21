@@ -510,6 +510,23 @@ def _add_common_arguments(parser: argparse.ArgumentParser) -> None:
         ),
     )
     parser.add_argument(
+        "--single-feed-uses-corpus-layout",
+        dest="single_feed_uses_corpus_layout",
+        action="store_true",
+        default=False,
+        help=(
+            "Opt-in single-feed corpus layout (#644): wrap output as "
+            "<output-dir>/feeds/<slug>/run_<id>/ so single-feed runs match "
+            "the multi-feed shape. Default: off (legacy <output-dir>/run_<id>/)."
+        ),
+    )
+    parser.add_argument(
+        "--no-single-feed-uses-corpus-layout",
+        dest="single_feed_uses_corpus_layout",
+        action="store_false",
+        help="Disable single-feed corpus layout (default).",
+    )
+    parser.add_argument(
         "--max-episodes", type=int, default=None, help="Maximum number of episodes to process"
     )
     parser.add_argument(
@@ -1242,9 +1259,12 @@ def _add_metadata_arguments(parser: argparse.ArgumentParser) -> None:
     )
     parser.add_argument(
         "--vector-backend",
-        choices=["faiss", "qdrant"],
+        choices=["faiss"],
         default=None,
-        help="Vector index backend (default: faiss). qdrant is not implemented in Phase 1.",
+        help=(
+            "Vector index backend (default: faiss). "
+            "qdrant is reserved for RFC-070 and not yet wired."
+        ),
     )
     parser.add_argument(
         "--vector-index-path",
@@ -3304,8 +3324,24 @@ def parse_args(argv: Optional[Sequence[str]] = None) -> argparse.Namespace:
         print(f"podcast_scraper {__version__}")
         raise SystemExit(0)
 
-    if initial_args.config:
-        args = _load_and_merge_config(parser, initial_args.config, argv)
+    # Resolve --profile NAME to its YAML path and route through
+    # _load_and_merge_config — same path as --config. Without this, argparse
+    # defaults (e.g. --summary-provider's default "transformers") silently
+    # override profile values, and users of cloud_balanced/cloud_quality got
+    # 13 wrong fields (#646 real-episode audit).
+    effective_config_path: Optional[str] = initial_args.config
+    if not effective_config_path and getattr(initial_args, "profile", None):
+        profile_name = str(initial_args.profile).strip()
+        from pathlib import Path as _P
+
+        candidate = (
+            _P(__file__).resolve().parents[2] / "config" / "profiles" / f"{profile_name}.yaml"
+        )
+        if candidate.is_file():
+            effective_config_path = str(candidate)
+
+    if effective_config_path:
+        args = _load_and_merge_config(parser, effective_config_path, argv)
     else:
         args = parser.parse_args(argv)
 
@@ -3376,6 +3412,7 @@ def _build_config(args: argparse.Namespace) -> config.Config:  # noqa: C901
         "generate_gi": getattr(args, "generate_gi", False),
         "generate_kg": getattr(args, "generate_kg", False),
         "kg_extraction_source": getattr(args, "kg_extraction_source", None) or "summary_bullets",
+        "single_feed_uses_corpus_layout": getattr(args, "single_feed_uses_corpus_layout", False),
         "kg_max_topics": (
             config_constants.DEFAULT_SUMMARY_BULLETS_DOWNSTREAM_MAX
             if getattr(args, "kg_max_topics", None) is None
@@ -3674,6 +3711,21 @@ def _build_config(args: argparse.Namespace) -> config.Config:  # noqa: C901
     # Inject profile if set via --profile CLI flag (#593)
     if profile:
         payload["profile"] = profile
+
+    # Fields that have no argparse flag but can be set by --config YAML via
+    # parser.set_defaults. Include only when non-None so Config's own default
+    # stands otherwise (#646 profile-completeness audit).
+    for _field in (
+        "llm_pipeline_mode",
+        "cloud_llm_structured_min_output_tokens",
+        "deepseek_timeout",
+        "audio_preprocessing_profile",
+        "ml_preprocessing_profile",
+    ):
+        _v = getattr(args, _field, None)
+        if _v is not None:
+            payload[_field] = _v
+
     # Pydantic's model_validate returns the correct type, but mypy needs help
     return cast(config.Config, config.Config.model_validate(payload))
 
