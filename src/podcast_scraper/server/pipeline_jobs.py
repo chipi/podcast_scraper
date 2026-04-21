@@ -13,8 +13,6 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Awaitable, Callable, cast, Sequence
 
-from fastapi import FastAPI
-
 from podcast_scraper.rss.feeds_spec import FEEDS_SPEC_DEFAULT_BASENAME
 from podcast_scraper.server.operator_paths import viewer_operator_yaml_path
 from podcast_scraper.server.operator_yaml_profile import split_operator_yaml_profile
@@ -305,7 +303,7 @@ def promote_queued_if_slot(corpus_root: Path, operator_yaml: Path) -> dict[str, 
 
 
 async def spawn_pipeline_subprocess(
-    app: FastAPI,
+    app: Any,
     corpus_root: Path,
     job_id: str,
     argv: list[str],
@@ -364,7 +362,7 @@ async def _finalize_job(
 
 
 async def monitor_subprocess(
-    app: FastAPI,
+    app: Any,
     corpus_root: Path,
     job_id: str,
     proc: asyncio.subprocess.Process,
@@ -392,7 +390,7 @@ async def monitor_subprocess(
 
 
 async def start_job_if_running_record(
-    app: FastAPI,
+    app: Any,
     corpus_root: Path,
     operator_yaml: Path,
     job: dict[str, Any],
@@ -427,7 +425,7 @@ async def start_job_if_running_record(
     await monitor_subprocess(app, corpus_root, job_id, proc)
 
 
-async def drain_queue_async(app: FastAPI, corpus_root: Path) -> None:
+async def drain_queue_async(app: Any, corpus_root: Path) -> None:
     """Start queued jobs until the concurrency cap is reached."""
     operator_yaml = viewer_operator_yaml_path(app, corpus_root)
     while True:
@@ -437,7 +435,7 @@ async def drain_queue_async(app: FastAPI, corpus_root: Path) -> None:
         await start_job_if_running_record(app, corpus_root, operator_yaml, promoted)
 
 
-async def schedule_post_submit(app: FastAPI, corpus_root: Path, rec: dict[str, Any]) -> None:
+async def schedule_post_submit(app: Any, corpus_root: Path, rec: dict[str, Any]) -> None:
     """Background entry: spawn when the accepted job is already *running*."""
     operator_yaml = viewer_operator_yaml_path(app, corpus_root)
     if rec.get("status") == STATUS_RUNNING:

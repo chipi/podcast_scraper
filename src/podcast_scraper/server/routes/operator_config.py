@@ -8,7 +8,10 @@ from pathlib import Path
 from fastapi import APIRouter, HTTPException, Query, Request, status
 
 from podcast_scraper.server.atomic_write import atomic_write_text
-from podcast_scraper.server.operator_config_security import assert_operator_yaml_safe_for_persist
+from podcast_scraper.server.operator_config_security import (
+    assert_operator_yaml_safe_for_persist,
+    OperatorYamlUnsafeError,
+)
 from podcast_scraper.server.operator_paths import (
     packaged_viewer_operator_example_path,
     viewer_operator_yaml_path,
@@ -67,7 +70,7 @@ def _ensure_default_viewer_operator_yaml(cfg_path: Path) -> None:
             if expanded != existing:
                 try:
                     assert_operator_yaml_safe_for_persist(expanded)
-                except HTTPException:
+                except OperatorYamlUnsafeError:
                     return
                 atomic_write_text(cfg_path, expanded)
             return
@@ -77,7 +80,7 @@ def _ensure_default_viewer_operator_yaml(cfg_path: Path) -> None:
     text = example_path.read_text(encoding="utf-8", errors="replace")
     try:
         assert_operator_yaml_safe_for_persist(text)
-    except HTTPException:
+    except OperatorYamlUnsafeError:
         return
     # codeql[py/path-injection] -- cfg_path verified via _verified_operator_config_path (Type 1).
     cfg_path.parent.mkdir(parents=True, exist_ok=True)
@@ -127,7 +130,7 @@ async def get_operator_config(
     content = cfg_path.read_text(encoding="utf-8", errors="replace")
     try:
         assert_operator_yaml_safe_for_persist(content)
-    except HTTPException as exc:
+    except OperatorYamlUnsafeError as exc:
         detail = exc.detail
         if (
             exc.status_code == status.HTTP_400_BAD_REQUEST
@@ -138,7 +141,7 @@ async def get_operator_config(
                 status.HTTP_409_CONFLICT,
                 detail="Existing operator YAML contains forbidden keys; fix the file out-of-band.",
             ) from exc
-        raise
+        raise HTTPException(status_code=exc.status_code, detail=exc.detail) from exc
     corpus_s = os.path.normpath(str(corpus_root.resolve()))
     op_s = os.path.normpath(str(cfg_path.resolve()))
     return OperatorConfigGetResponse(
@@ -166,7 +169,10 @@ async def put_operator_config(
         body.content,
         example_path=packaged_viewer_operator_example_path(),
     )
-    assert_operator_yaml_safe_for_persist(to_write)
+    try:
+        assert_operator_yaml_safe_for_persist(to_write)
+    except OperatorYamlUnsafeError as exc:
+        raise HTTPException(status_code=exc.status_code, detail=exc.detail) from exc
     atomic_write_text(cfg_path, to_write)
     profiles = list_packaged_profile_names()
     corpus_s = os.path.normpath(str(corpus_root.resolve()))

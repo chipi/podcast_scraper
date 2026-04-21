@@ -3,13 +3,12 @@
 from __future__ import annotations
 
 from pathlib import Path
-
-from fastapi import FastAPI
+from typing import Any
 
 VIEWER_OPERATOR_BASENAME = "viewer_operator.yaml"
 
 
-def viewer_operator_yaml_path(app: FastAPI, corpus_root: Path) -> Path:
+def viewer_operator_yaml_path(app: Any, corpus_root: Path) -> Path:
     """Return operator file path for ``corpus_root``.
 
     When ``serve`` was started with ``--config-file`` / ``PODCAST_SERVE_CONFIG_FILE``, all

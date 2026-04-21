@@ -7,6 +7,7 @@ import pytest
 from podcast_scraper.server.operator_config_security import (
     assert_operator_yaml_safe_for_persist,
     forbidden_operator_top_level_keys,
+    OperatorYamlUnsafeError,
 )
 
 
@@ -27,10 +28,9 @@ def test_assert_safe_accepts_mapping_yaml() -> None:
 
 
 def test_assert_safe_rejects_forbidden() -> None:
-    with pytest.raises(Exception) as excinfo:
+    with pytest.raises(OperatorYamlUnsafeError) as excinfo:
         assert_operator_yaml_safe_for_persist("gemini_api_key: secret\n")
     exc = excinfo.value
-    assert getattr(exc, "status_code", None) == 400
-    detail = getattr(exc, "detail", None)
-    assert isinstance(detail, dict)
-    assert detail.get("error") == "forbidden_operator_keys"
+    assert exc.status_code == 400
+    assert isinstance(exc.detail, dict)
+    assert exc.detail.get("error") == "forbidden_operator_keys"

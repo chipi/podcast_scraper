@@ -11,6 +11,9 @@ a full secret or feed scanner.
 When both feed keys and other forbidden keys appear, ``detail.error`` is
 ``forbidden_operator_keys`` (not ``forbidden_operator_feed_keys``); ``detail.keys`` lists
 all offending top-level keys.
+
+Raises :class:`OperatorYamlUnsafeError` (no FastAPI dependency) so unit tests can import
+this module under ``.[dev]`` only; HTTP routes translate to ``HTTPException``.
 """
 
 from __future__ import annotations
@@ -18,7 +21,6 @@ from __future__ import annotations
 from typing import Any
 
 import yaml
-from fastapi import HTTPException, status
 
 # Known Config credential fields (snake_case). Extend when new provider keys ship.
 # Top-level keys that duplicate the canonical feeds list / RSS sources (Feeds API +
@@ -45,6 +47,15 @@ _FORBIDDEN_NORMALIZED: frozenset[str] = frozenset(
         "api_key",
     }
 )
+
+
+class OperatorYamlUnsafeError(Exception):
+    """Invalid or forbidden operator YAML (routes map to ``HTTPException``)."""
+
+    def __init__(self, status_code: int, detail: str | dict[str, Any]) -> None:
+        super().__init__(str(detail))
+        self.status_code = status_code
+        self.detail = detail
 
 
 def _norm_key(key: str) -> str:
@@ -74,22 +85,22 @@ def forbidden_operator_top_level_keys(data: dict[str, Any]) -> list[str]:
 
 
 def assert_operator_yaml_safe_for_persist(text: str) -> None:
-    """Raise HTTPException when YAML is invalid or contains forbidden top-level keys."""
+    """Raise :class:`OperatorYamlUnsafeError` when YAML is invalid or has forbidden keys."""
     if not str(text).strip():
         return
     try:
         parsed = yaml.safe_load(text)
     except yaml.YAMLError as exc:
-        raise HTTPException(
-            status.HTTP_422_UNPROCESSABLE_CONTENT,
-            detail=f"Invalid YAML: {exc}",
+        raise OperatorYamlUnsafeError(
+            422,
+            f"Invalid YAML: {exc}",
         ) from exc
     if parsed is None:
         return
     if not isinstance(parsed, dict):
-        raise HTTPException(
-            status.HTTP_422_UNPROCESSABLE_CONTENT,
-            detail="Operator YAML must parse to a mapping (object) at the root.",
+        raise OperatorYamlUnsafeError(
+            422,
+            "Operator YAML must parse to a mapping (object) at the root.",
         )
     bad = forbidden_operator_top_level_keys(parsed)
     if bad:
@@ -99,7 +110,7 @@ def assert_operator_yaml_safe_for_persist(text: str) -> None:
             if feed_hits and len(feed_hits) == len(bad)
             else "forbidden_operator_keys"
         )
-        raise HTTPException(
-            status.HTTP_400_BAD_REQUEST,
-            detail={"error": err, "keys": bad},
+        raise OperatorYamlUnsafeError(
+            400,
+            {"error": err, "keys": bad},
         )
