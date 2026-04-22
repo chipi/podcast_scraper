@@ -1,6 +1,6 @@
 # RFC-079: Full-Stack Docker Compose Topology
 
-- **Status**: Draft
+- **Status**: Implemented
 - **Authors**: Marko
 - **Created**: 2026-04-22
 - **Domain**: Infrastructure / DevOps
@@ -25,14 +25,12 @@ for corpus output. This gives us a single `docker compose up` that runs the view
 and `docker compose run pipeline` to execute ingestion — matching the production deployment
 model from day one.
 
-This RFC is the **total** solution in **two phases**. **Phase 1** (primary deliverable, #659)
-adds the compose topology, images, Makefile targets, and documentation. **`POST /api/jobs`**
-is *not* rewired in Phase 1: it keeps the existing subprocess behavior (see **Jobs API and
-pipeline execution** below). **Phase 2** (#660) chooses and implements how "run job" uses the
-**`pipeline` container** (or an equivalent executor) under Docker so the viewer jobs flow
-matches the split-image architecture without duplicating ML inside `api` unless that is an
-explicit product decision. **Native** laptop / venv subprocess jobs stay supported unchanged
-(see §Native vs Docker).
+This RFC was delivered in **two phases**. **Phase 1** (#659) shipped the compose topology,
+images, Makefile targets, and documentation. **Phase 2** (#660) implemented Docker job
+execution: when **`PODCAST_PIPELINE_EXEC_MODE=docker`**, `POST /api/jobs` delegates to
+**`docker compose run`** into the **`pipeline`** or **`pipeline-llm`** service via a factory
+and host Docker socket (Option B from the design evaluation below). **Native** laptop / venv
+subprocess jobs remain the default and are unchanged (see §Native vs Docker).
 
 ## Problem Statement
 
@@ -71,7 +69,7 @@ This works for local dev but has no path to deployment:
 5. **Reuse existing pipeline Dockerfile** ([`docker/pipeline/Dockerfile`](../docker/pipeline/Dockerfile)) with minimal changes
 6. **New Dockerfiles** under `docker/api/` and `docker/viewer/` for API (`.[server]` + semantic-search deps; not full `.[ml]`) and Nginx (multi-stage Vue build)
 7. **Health checks** on all long-running containers
-8. **Compose profiles** for dev-override and CI-override use cases — **executable backlog: [GitHub #659](https://github.com/chipi/podcast_scraper/issues/659)** (decision / optional `compose/docker-compose.dev.yml`).
+8. **Compose profiles** for CI-override and prod-override use cases — **resolved:** no `compose/docker-compose.dev.yml`; host dev uses `make serve-*`; CI/prod uses smoke overlay + optional `compose/docker-compose.prod.yml` (see OQ2).
 9. **Document and track** the gap between viewer-triggered jobs and the `pipeline` service,
    closed by **[GitHub #660](https://github.com/chipi/podcast_scraper/issues/660)** once the stack exists
 
@@ -452,19 +450,21 @@ Therefore **after Phase 1**, behavior is:
 The dedicated **`pipeline` service** image is the right place for ML; **`api`** should stay
 thin **once** Phase 2 delegates execution.
 
-### Phase 2 (#660): close the loop (pick one strategy)
+### Phase 2 (#660): Docker job execution (implemented — Option B)
 
-Implement and document **one** primary strategy for containerized deployments (dev/prod
-matrix is allowed but must be explicit):
+**Implemented:** `app.state.jobs_subprocess_factory` is set by `attach_docker_jobs_factory`
+when **`PODCAST_PIPELINE_EXEC_MODE=docker`**. The factory runs **`docker compose run`** into
+the **`pipeline`** or **`pipeline-llm`** service, wiring stdout to the job log path. Requires
+host Docker socket mounted into `api` (see `compose/docker-compose.jobs-docker.yml`) and
+**`PODCAST_DOCKER_PROJECT_DIR`** pointing to the repo root visible to the Docker daemon.
 
-| Option | Description | Trade-off |
-|--------|-------------|-----------|
-| **A — Fat `api` image** | Install full `cli` + ML extras in `api` so the existing subprocess path works unchanged. | Large `api` image; duplicates pipeline image purpose; simple mentally. |
-| **B — `jobs_subprocess_factory`** | On compose startup, register a factory that runs `docker compose run` / `docker run` for the pipeline image, wiring stdout to the job log path. | Requires Docker-in-Docker or **host socket** mount; security and path discipline must be documented. |
-| **C — Worker service** | Add a small worker (or `pipeline` in worker mode) that claims jobs from disk/queue and runs one job per process; `api` stays slim. | More moving parts; clean separation. |
+Design alternatives evaluated during planning (historical context only):
 
-**Recommendation:** prefer **B or C** for production-like compose; use **A** only as a
-deliberate short-term bridge if time-to-green matters more than image size.
+| Option | Description | Outcome |
+|--------|-------------|---------|
+| **A — Fat `api` image** | Install full `cli` + ML extras in `api` so subprocess works unchanged. | **Not chosen** — duplicates pipeline image, large `api`. |
+| **B — `jobs_subprocess_factory`** | Factory runs `docker compose run` for the pipeline image via host socket. | **Implemented** (`pipeline_docker_factory.py`). |
+| **C — Worker service** | Separate worker claims jobs from disk/queue. | **Not chosen** — more moving parts than needed for single-host. |
 
 **Tracking:** [GitHub #660](https://github.com/chipi/podcast_scraper/issues/660).
 
@@ -516,8 +516,7 @@ deliberate short-term bridge if time-to-green matters more than image size.
 1. **Phase 1a** — **[#659](https://github.com/chipi/podcast_scraper/issues/659):** Create `docker/viewer/Dockerfile`, `docker/viewer/nginx.conf`,
    `docker/api/Dockerfile`, `compose/docker-compose.stack.yml`. Validate locally with
    `stack-up` and manual browser test; validate `docker compose run` for `pipeline`.
-2. **Jobs / Docker** — **[#660](https://github.com/chipi/podcast_scraper/issues/660):** Jobs API ↔ Docker — implement chosen option (fat `api`, factory + Docker,
-   or worker); document **native vs compose** operator behavior (see §Native vs Docker).
+2. **Jobs / Docker** — **[#660](https://github.com/chipi/podcast_scraper/issues/660):** Implemented Option B — `pipeline_docker_factory` + host socket + `docker compose run`; native subprocess unchanged (see §Native vs Docker).
 3. **RFC-078 smoke:** Add `compose/docker-compose.smoke.yml` and wire into CI smoke workflow (orthogonal to #660; can land in parallel). **Not tracked in this RFC as orphan work** — open **GitHub issues** for RFC-078 execution; **[#659](https://github.com/chipi/podcast_scraper/issues/659)** only carries the stack handoff checklist.
 4. **Phase 3** — **[#659](https://github.com/chipi/podcast_scraper/issues/659):** Shipped starter
    [`compose/docker-compose.prod.yml`](https://github.com/chipi/podcast_scraper/blob/main/compose/docker-compose.prod.yml) (restart policies + commented VPS / external volume hints). Operators fork or extend for real prod.
