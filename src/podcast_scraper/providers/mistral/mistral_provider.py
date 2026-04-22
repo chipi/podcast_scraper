@@ -76,15 +76,7 @@ logger = logging.getLogger(__name__)
 # Default speaker names when detection fails
 from ..ml.speaker_detection import DEFAULT_SPEAKER_NAMES
 
-# Mistral API pricing constants (for cost estimation)
-# Source: https://docs.mistral.ai/pricing/
-# Last updated: 2026-02
-# Note: Prices subject to change. Always verify current rates
-MISTRAL_VOXTRAL_COST_PER_MINUTE = 0.006  # Voxtral: $0.006 per minute of audio
-MISTRAL_SMALL_INPUT_COST_PER_1M_TOKENS = 0.20  # mistral-small: $0.20 per 1M input tokens
-MISTRAL_SMALL_OUTPUT_COST_PER_1M_TOKENS = 0.20  # mistral-small: $0.20 per 1M output tokens
-MISTRAL_LARGE_INPUT_COST_PER_1M_TOKENS = 2.00  # mistral-large: $2.00 per 1M input tokens
-MISTRAL_LARGE_OUTPUT_COST_PER_1M_TOKENS = 6.00  # mistral-large: $6.00 per 1M output tokens
+# Pricing for Mistral models lives in ``config/pricing_assumptions.yaml`` (#651).
 
 
 class MistralProvider:
@@ -233,35 +225,17 @@ class MistralProvider:
 
     @staticmethod
     def get_pricing(model: str, capability: str) -> Dict[str, float]:
-        """Get pricing information for a specific model and capability.
+        """Read pricing from ``config/pricing_assumptions.yaml`` (#651)."""
+        from podcast_scraper.pricing_assumptions import (
+            get_loaded_table,
+            lookup_external_pricing,
+        )
 
-        Args:
-            model: Model name (e.g., "mistral-large-latest", "voxtral-mini-latest")
-            capability: Capability type ("transcription", "speaker_detection", "summarization")
-
-        Returns:
-            Dictionary with pricing information
-        """
-        pricing: Dict[str, float] = {}
-
-        if capability == "transcription":
-            # Audio pricing is per minute
-            pricing["cost_per_minute"] = MISTRAL_VOXTRAL_COST_PER_MINUTE
-            pricing["cost_per_hour"] = MISTRAL_VOXTRAL_COST_PER_MINUTE * 60
-        else:
-            # Text-based pricing (speaker detection, summarization)
-            if "small" in model.lower():
-                pricing["input_cost_per_1m_tokens"] = MISTRAL_SMALL_INPUT_COST_PER_1M_TOKENS
-                pricing["output_cost_per_1m_tokens"] = MISTRAL_SMALL_OUTPUT_COST_PER_1M_TOKENS
-            elif "large" in model.lower():
-                pricing["input_cost_per_1m_tokens"] = MISTRAL_LARGE_INPUT_COST_PER_1M_TOKENS
-                pricing["output_cost_per_1m_tokens"] = MISTRAL_LARGE_OUTPUT_COST_PER_1M_TOKENS
-            else:
-                # Default to small pricing
-                pricing["input_cost_per_1m_tokens"] = MISTRAL_SMALL_INPUT_COST_PER_1M_TOKENS
-                pricing["output_cost_per_1m_tokens"] = MISTRAL_SMALL_OUTPUT_COST_PER_1M_TOKENS
-
-        return pricing
+        table, _ = get_loaded_table("config/pricing_assumptions.yaml")
+        if not table:
+            return {}
+        ext = lookup_external_pricing(table, "mistral", capability, model)
+        return dict(ext) if ext else {}
 
     def initialize(self) -> None:
         """Initialize all Mistral capabilities.

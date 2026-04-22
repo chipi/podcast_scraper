@@ -260,28 +260,26 @@ class OllamaProvider:
 
     @staticmethod
     def get_pricing(model: str, capability: str) -> Dict[str, float]:
-        """Get pricing information for a specific model and capability.
+        """Read pricing from ``config/pricing_assumptions.yaml`` (#651).
 
-        Ollama is a local, self-hosted solution with ZERO API costs.
-        All operations run on your local hardware with no per-token pricing.
-
-        Args:
-            model: Model name (e.g., "llama3.1:8b", "llama3.1:7b")
-            capability: Capability type ("speaker_detection", "summarization")
-
-        Returns:
-            Dictionary with pricing information (all zeros for Ollama):
-            - For speaker detection/summarization: {
-                "input_cost_per_1m_tokens": 0.0,
-                "output_cost_per_1m_tokens": 0.0
-              }
+        Ollama runs locally at zero API cost — YAML rows are all 0.0 but the
+        aggregate still flows through the same code path as billable providers
+        for consistency.
         """
-        # Ollama is completely free - no API costs
-        # All processing happens locally on user's hardware
-        return {
-            "input_cost_per_1m_tokens": 0.0,
-            "output_cost_per_1m_tokens": 0.0,
-        }
+        from podcast_scraper.pricing_assumptions import (
+            get_loaded_table,
+            lookup_external_pricing,
+        )
+
+        table, _ = get_loaded_table("config/pricing_assumptions.yaml")
+        if not table:
+            return {"input_cost_per_1m_tokens": 0.0, "output_cost_per_1m_tokens": 0.0}
+        ext = lookup_external_pricing(table, "ollama", capability, model)
+        return (
+            dict(ext)
+            if ext
+            else {"input_cost_per_1m_tokens": 0.0, "output_cost_per_1m_tokens": 0.0}
+        )
 
     def _normalize_model_name(self, model: str) -> str:
         """Normalize Ollama model name to ensure correct format.

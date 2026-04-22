@@ -440,70 +440,37 @@ def _kg_model_for_pricing(cfg: config.Config, kg_provider: str) -> str:
     return str(getattr(cfg, model_attr, defaults.get(kg_provider, "")))
 
 
-def _builtin_provider_pricing(provider_type: str, capability: str, model: str) -> Dict[str, float]:
-    """Built-in USD rates from provider modules (no YAML)."""
-    if provider_type == "openai":
-        from ..providers.openai.openai_provider import OpenAIProvider
-
-        return OpenAIProvider.get_pricing(model, capability)
-    if provider_type == "gemini":
-        from ..providers.gemini.gemini_provider import GeminiProvider
-
-        return GeminiProvider.get_pricing(model, capability)
-    if provider_type == "anthropic":
-        from ..providers.anthropic.anthropic_provider import AnthropicProvider
-
-        return AnthropicProvider.get_pricing(model, capability)
-    if provider_type == "mistral":
-        from ..providers.mistral.mistral_provider import MistralProvider
-
-        return MistralProvider.get_pricing(model, capability)
-    if provider_type == "deepseek":
-        from ..providers.deepseek.deepseek_provider import DeepSeekProvider
-
-        return DeepSeekProvider.get_pricing(model, capability)
-    if provider_type == "grok":
-        from ..providers.grok.grok_provider import GrokProvider
-
-        return GrokProvider.get_pricing(model, capability)
-    if provider_type == "ollama":
-        from ..providers.ollama.ollama_provider import OllamaProvider
-
-        return OllamaProvider.get_pricing(model, capability)
-    return {}
-
-
 def _get_provider_pricing(
     cfg: config.Config, provider_type: str, capability: str, model: str
 ) -> Dict[str, float]:
-    """Get pricing information from the appropriate provider.
+    """Get pricing information from ``config/pricing_assumptions.yaml``.
 
-    Merges optional ``pricing_assumptions_file`` YAML overrides on top of built-in rates.
+    Post-#651: YAML is the single source of truth. Missing rows return an empty
+    dict (caller treats this as "cost unknown" and logs a one-off warning).
+    The ``check_profile_pricing_coverage.py`` CI guard fails PRs that reference
+    a model without a matching YAML row.
 
     Args:
         cfg: Configuration object
-        provider_type: Provider type ("openai", "whisper", etc.)
+        provider_type: Provider type ("openai", "gemini", "anthropic", etc.)
         capability: Capability type ("transcription", "speaker_detection", "summarization")
         model: Model name
 
     Returns:
-        Dictionary with pricing information, or empty dict if not available
+        Dictionary with pricing information (``input_cost_per_1m_tokens``,
+        ``output_cost_per_1m_tokens``, ``cost_per_minute``, etc.), or empty
+        dict if no matching YAML row was found.
     """
-    base = _builtin_provider_pricing(provider_type, capability, model)
     path_cfg = str(getattr(cfg, "pricing_assumptions_file", "") or "").strip()
     if not path_cfg:
-        return base
+        return {}
     from .. import pricing_assumptions
 
     table, _resolved = pricing_assumptions.get_loaded_table(path_cfg)
     if not table:
-        return base
+        return {}
     ext = pricing_assumptions.lookup_external_pricing(table, provider_type, capability, model)
-    if not ext:
-        return base
-    merged = dict(base)
-    merged.update(ext)
-    return merged
+    return dict(ext) if ext else {}
 
 
 def _metrics_wall_suffix(

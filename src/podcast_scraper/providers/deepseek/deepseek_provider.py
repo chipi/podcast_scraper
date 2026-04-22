@@ -50,13 +50,7 @@ logger = logging.getLogger(__name__)
 # Default speaker names when detection fails
 from ..ml.speaker_detection import DEFAULT_SPEAKER_NAMES
 
-# DeepSeek API pricing constants (for cost estimation)
-# Source: https://platform.deepseek.com/pricing
-# Last updated: 2026-02
-# Note: Prices subject to change. Always verify current rates
-DEEPSEEK_CHAT_INPUT_COST_PER_1M_TOKENS = 0.28
-DEEPSEEK_CHAT_OUTPUT_COST_PER_1M_TOKENS = 0.42
-DEEPSEEK_CHAT_CACHE_HIT_INPUT_COST_PER_1M_TOKENS = 0.028  # 90% discount on cache hits
+# Pricing for DeepSeek models lives in ``config/pricing_assumptions.yaml`` (#651).
 
 
 class DeepSeekProvider:
@@ -172,26 +166,17 @@ class DeepSeekProvider:
 
     @staticmethod
     def get_pricing(model: str, capability: str) -> Dict[str, float]:
-        """Get pricing information for a specific model and capability.
+        """Read pricing from ``config/pricing_assumptions.yaml`` (#651)."""
+        from podcast_scraper.pricing_assumptions import (
+            get_loaded_table,
+            lookup_external_pricing,
+        )
 
-        Args:
-            model: Model name (e.g., "deepseek-chat", "deepseek-reasoner")
-            capability: Capability type ("speaker_detection", "summarization")
-
-        Returns:
-            Dictionary with pricing information
-        """
-        pricing: Dict[str, float] = {}
-
-        if capability in ("speaker_detection", "summarization"):
-            # Text-based pricing
-            pricing["input_cost_per_1m_tokens"] = DEEPSEEK_CHAT_INPUT_COST_PER_1M_TOKENS
-            pricing["output_cost_per_1m_tokens"] = DEEPSEEK_CHAT_OUTPUT_COST_PER_1M_TOKENS
-            pricing["cache_hit_input_cost_per_1m_tokens"] = (
-                DEEPSEEK_CHAT_CACHE_HIT_INPUT_COST_PER_1M_TOKENS
-            )
-
-        return pricing
+        table, _ = get_loaded_table("config/pricing_assumptions.yaml")
+        if not table:
+            return {}
+        ext = lookup_external_pricing(table, "deepseek", capability, model)
+        return dict(ext) if ext else {}
 
     def initialize(self) -> None:
         """Initialize all DeepSeek capabilities.

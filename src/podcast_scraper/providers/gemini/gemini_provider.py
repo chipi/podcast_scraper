@@ -62,17 +62,7 @@ logger = logging.getLogger(__name__)
 # Default speaker names when detection fails
 from ..ml.speaker_detection import DEFAULT_SPEAKER_NAMES
 
-# Gemini API pricing constants (for cost estimation)
-# Source: https://ai.google.dev/pricing
-# Last updated: 2026-02
-# Note: Prices subject to change. Always verify current rates
-GEMINI_AUDIO_COST_PER_SECOND = 0.00025  # ~$0.90 per hour
-GEMINI_2_FLASH_INPUT_COST_PER_1M_TOKENS = 0.10
-GEMINI_2_FLASH_OUTPUT_COST_PER_1M_TOKENS = 0.40
-GEMINI_1_5_PRO_INPUT_COST_PER_1M_TOKENS = 1.25
-GEMINI_1_5_PRO_OUTPUT_COST_PER_1M_TOKENS = 5.00
-GEMINI_1_5_FLASH_INPUT_COST_PER_1M_TOKENS = 0.075
-GEMINI_1_5_FLASH_OUTPUT_COST_PER_1M_TOKENS = 0.30
+# Pricing for Gemini models lives in ``config/pricing_assumptions.yaml`` (#651).
 
 
 def _should_disable_thinking_for_model(model: str) -> bool:
@@ -244,38 +234,17 @@ class GeminiProvider:
 
     @staticmethod
     def get_pricing(model: str, capability: str) -> Dict[str, float]:
-        """Get pricing information for a specific model and capability.
+        """Read pricing from ``config/pricing_assumptions.yaml`` (#651)."""
+        from podcast_scraper.pricing_assumptions import (
+            get_loaded_table,
+            lookup_external_pricing,
+        )
 
-        Args:
-            model: Model name (e.g., "gemini-1.5-pro", "gemini-2.5-flash-lite")
-            capability: Capability type ("transcription", "speaker_detection", "summarization")
-
-        Returns:
-            Dictionary with pricing information
-        """
-        pricing: Dict[str, float] = {}
-
-        if capability == "transcription":
-            # Audio pricing is per second
-            pricing["cost_per_second"] = GEMINI_AUDIO_COST_PER_SECOND
-            pricing["cost_per_hour"] = GEMINI_AUDIO_COST_PER_SECOND * 3600
-        else:
-            # Text-based pricing (speaker detection, summarization)
-            if "2.0-flash" in model.lower() or "flash-lite" in model.lower():
-                pricing["input_cost_per_1m_tokens"] = GEMINI_2_FLASH_INPUT_COST_PER_1M_TOKENS
-                pricing["output_cost_per_1m_tokens"] = GEMINI_2_FLASH_OUTPUT_COST_PER_1M_TOKENS
-            elif "1.5-pro" in model.lower():
-                pricing["input_cost_per_1m_tokens"] = GEMINI_1_5_PRO_INPUT_COST_PER_1M_TOKENS
-                pricing["output_cost_per_1m_tokens"] = GEMINI_1_5_PRO_OUTPUT_COST_PER_1M_TOKENS
-            elif "1.5-flash" in model.lower():
-                pricing["input_cost_per_1m_tokens"] = GEMINI_1_5_FLASH_INPUT_COST_PER_1M_TOKENS
-                pricing["output_cost_per_1m_tokens"] = GEMINI_1_5_FLASH_OUTPUT_COST_PER_1M_TOKENS
-            else:
-                # Default to 2.0-flash pricing
-                pricing["input_cost_per_1m_tokens"] = GEMINI_2_FLASH_INPUT_COST_PER_1M_TOKENS
-                pricing["output_cost_per_1m_tokens"] = GEMINI_2_FLASH_OUTPUT_COST_PER_1M_TOKENS
-
-        return pricing
+        table, _ = get_loaded_table("config/pricing_assumptions.yaml")
+        if not table:
+            return {}
+        ext = lookup_external_pricing(table, "gemini", capability, model)
+        return dict(ext) if ext else {}
 
     def initialize(self) -> None:
         """Initialize all Gemini capabilities.

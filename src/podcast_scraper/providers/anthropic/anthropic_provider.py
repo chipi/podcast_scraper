@@ -50,21 +50,7 @@ logger = logging.getLogger(__name__)
 # Default speaker names when detection fails
 from ..ml.speaker_detection import DEFAULT_SPEAKER_NAMES
 
-# Anthropic API pricing constants (for cost estimation)
-# Source: https://www.anthropic.com/pricing
-# Last updated: 2026-02
-# Note: Prices subject to change. Always verify current rates
-ANTHROPIC_CLAUDE_3_5_SONNET_INPUT_COST_PER_1M_TOKENS = 3.00
-ANTHROPIC_CLAUDE_3_5_SONNET_OUTPUT_COST_PER_1M_TOKENS = 15.00
-ANTHROPIC_CLAUDE_3_OPUS_INPUT_COST_PER_1M_TOKENS = 15.00
-ANTHROPIC_CLAUDE_3_OPUS_OUTPUT_COST_PER_1M_TOKENS = 75.00
-ANTHROPIC_CLAUDE_3_HAIKU_INPUT_COST_PER_1M_TOKENS = 0.25
-ANTHROPIC_CLAUDE_3_HAIKU_OUTPUT_COST_PER_1M_TOKENS = 1.25
-ANTHROPIC_CLAUDE_3_5_HAIKU_INPUT_COST_PER_1M_TOKENS = 0.80
-ANTHROPIC_CLAUDE_3_5_HAIKU_OUTPUT_COST_PER_1M_TOKENS = 4.00
-# Claude Haiku 4.5 (alias e.g. claude-haiku-4-5) — see Anthropic pricing page
-ANTHROPIC_CLAUDE_HAIKU_4_5_INPUT_COST_PER_1M_TOKENS = 1.00
-ANTHROPIC_CLAUDE_HAIKU_4_5_OUTPUT_COST_PER_1M_TOKENS = 5.00
+# Pricing for Anthropic models lives in ``config/pricing_assumptions.yaml`` (#651).
 
 
 class AnthropicProvider:
@@ -201,71 +187,17 @@ class AnthropicProvider:
 
     @staticmethod
     def get_pricing(model: str, capability: str) -> Dict[str, float]:
-        """Get pricing information for a specific model and capability.
+        """Read pricing from ``config/pricing_assumptions.yaml`` (#651)."""
+        from podcast_scraper.pricing_assumptions import (
+            get_loaded_table,
+            lookup_external_pricing,
+        )
 
-        Args:
-            model: Model name (e.g., "claude-3-5-sonnet-20241022", "claude-3-opus-20240229")
-            capability: Capability type ("transcription", "speaker_detection", "summarization")
-
-        Returns:
-            Dictionary with pricing information
-        """
-        pricing: Dict[str, float] = {}
-
-        if capability == "transcription":
-            # Anthropic doesn't support native audio transcription
-            # Return placeholder pricing (should not be used)
-            pricing["cost_per_second"] = 0.0
-            pricing["cost_per_hour"] = 0.0
-        else:
-            # Text-based pricing (speaker detection, summarization)
-            # Model names use "3-5" (dash) but we check for both "3.5" and "3-5"
-            model_lower = model.lower()
-            if "3.5-sonnet" in model_lower or "3-5-sonnet" in model_lower:
-                pricing["input_cost_per_1m_tokens"] = (
-                    ANTHROPIC_CLAUDE_3_5_SONNET_INPUT_COST_PER_1M_TOKENS
-                )
-                pricing["output_cost_per_1m_tokens"] = (
-                    ANTHROPIC_CLAUDE_3_5_SONNET_OUTPUT_COST_PER_1M_TOKENS
-                )
-            elif "haiku-4-5" in model_lower:
-                pricing["input_cost_per_1m_tokens"] = (
-                    ANTHROPIC_CLAUDE_HAIKU_4_5_INPUT_COST_PER_1M_TOKENS
-                )
-                pricing["output_cost_per_1m_tokens"] = (
-                    ANTHROPIC_CLAUDE_HAIKU_4_5_OUTPUT_COST_PER_1M_TOKENS
-                )
-            elif "3.5-haiku" in model_lower or "3-5-haiku" in model_lower:
-                pricing["input_cost_per_1m_tokens"] = (
-                    ANTHROPIC_CLAUDE_3_5_HAIKU_INPUT_COST_PER_1M_TOKENS
-                )
-                pricing["output_cost_per_1m_tokens"] = (
-                    ANTHROPIC_CLAUDE_3_5_HAIKU_OUTPUT_COST_PER_1M_TOKENS
-                )
-            elif "3-opus" in model.lower():
-                pricing["input_cost_per_1m_tokens"] = (
-                    ANTHROPIC_CLAUDE_3_OPUS_INPUT_COST_PER_1M_TOKENS
-                )
-                pricing["output_cost_per_1m_tokens"] = (
-                    ANTHROPIC_CLAUDE_3_OPUS_OUTPUT_COST_PER_1M_TOKENS
-                )
-            elif "3-haiku" in model.lower():
-                pricing["input_cost_per_1m_tokens"] = (
-                    ANTHROPIC_CLAUDE_3_HAIKU_INPUT_COST_PER_1M_TOKENS
-                )
-                pricing["output_cost_per_1m_tokens"] = (
-                    ANTHROPIC_CLAUDE_3_HAIKU_OUTPUT_COST_PER_1M_TOKENS
-                )
-            else:
-                # Default to 3.5-sonnet pricing
-                pricing["input_cost_per_1m_tokens"] = (
-                    ANTHROPIC_CLAUDE_3_5_SONNET_INPUT_COST_PER_1M_TOKENS
-                )
-                pricing["output_cost_per_1m_tokens"] = (
-                    ANTHROPIC_CLAUDE_3_5_SONNET_OUTPUT_COST_PER_1M_TOKENS
-                )
-
-        return pricing
+        table, _ = get_loaded_table("config/pricing_assumptions.yaml")
+        if not table:
+            return {}
+        ext = lookup_external_pricing(table, "anthropic", capability, model)
+        return dict(ext) if ext else {}
 
     def initialize(self) -> None:
         """Initialize all Anthropic capabilities.

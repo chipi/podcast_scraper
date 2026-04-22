@@ -810,31 +810,30 @@ class TestDeepSeekProviderPricing(unittest.TestCase):
     """Tests for DeepSeekProvider.get_pricing() static method."""
 
     def test_get_pricing_speaker_detection(self):
-        """Test pricing lookup for speaker detection."""
+        """Test pricing lookup for speaker detection (YAML-backed post-#651)."""
         pricing = DeepSeekProvider.get_pricing("deepseek-chat", "speaker_detection")
         self.assertIn("input_cost_per_1m_tokens", pricing)
         self.assertIn("output_cost_per_1m_tokens", pricing)
         self.assertIn("cache_hit_input_cost_per_1m_tokens", pricing)
-        self.assertEqual(pricing["input_cost_per_1m_tokens"], 0.28)
-        self.assertEqual(pricing["output_cost_per_1m_tokens"], 0.42)
-        self.assertEqual(pricing["cache_hit_input_cost_per_1m_tokens"], 0.028)
+        self.assertEqual(pricing["input_cost_per_1m_tokens"], 0.27)
+        self.assertEqual(pricing["output_cost_per_1m_tokens"], 1.10)
+        self.assertEqual(pricing["cache_hit_input_cost_per_1m_tokens"], 0.07)
 
     def test_get_pricing_summarization(self):
-        """Test pricing lookup for summarization."""
+        """Test pricing lookup for summarization (YAML-backed)."""
         pricing = DeepSeekProvider.get_pricing("deepseek-chat", "summarization")
         self.assertIn("input_cost_per_1m_tokens", pricing)
         self.assertIn("output_cost_per_1m_tokens", pricing)
         self.assertIn("cache_hit_input_cost_per_1m_tokens", pricing)
-        self.assertEqual(pricing["input_cost_per_1m_tokens"], 0.28)
-        self.assertEqual(pricing["output_cost_per_1m_tokens"], 0.42)
-        self.assertEqual(pricing["cache_hit_input_cost_per_1m_tokens"], 0.028)
+        self.assertEqual(pricing["input_cost_per_1m_tokens"], 0.27)
+        self.assertEqual(pricing["output_cost_per_1m_tokens"], 1.10)
+        self.assertEqual(pricing["cache_hit_input_cost_per_1m_tokens"], 0.07)
 
     def test_get_pricing_reasoner_model(self):
-        """Test pricing lookup for reasoner model (same pricing)."""
+        """Test pricing lookup for deepseek-reasoner (higher rates than chat)."""
         pricing = DeepSeekProvider.get_pricing("deepseek-reasoner", "summarization")
-        # DeepSeek reasoner uses same pricing as chat
-        self.assertEqual(pricing["input_cost_per_1m_tokens"], 0.28)
-        self.assertEqual(pricing["output_cost_per_1m_tokens"], 0.42)
+        self.assertEqual(pricing["input_cost_per_1m_tokens"], 0.55)
+        self.assertEqual(pricing["output_cost_per_1m_tokens"], 2.19)
 
     def test_get_pricing_unsupported_capability(self):
         """Test pricing lookup for unsupported capability returns empty dict."""

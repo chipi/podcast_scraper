@@ -1097,29 +1097,29 @@ class TestMistralProviderPricing(unittest.TestCase):
     """Tests for MistralProvider.get_pricing() static method."""
 
     def test_get_pricing_audio_transcription(self):
-        """Test pricing lookup for audio transcription."""
+        """Test pricing lookup for audio transcription (YAML-backed post-#651)."""
         pricing = MistralProvider.get_pricing("voxtral-mini-latest", "transcription")
         self.assertIn("cost_per_minute", pricing)
-        self.assertEqual(pricing["cost_per_minute"], 0.006)
+        self.assertEqual(pricing["cost_per_minute"], 0.001)
 
     def test_get_pricing_small_speaker_detection(self):
-        """Test pricing lookup for mistral-small speaker detection."""
+        """Test pricing lookup for mistral-small speaker detection (YAML-backed)."""
         pricing = MistralProvider.get_pricing("mistral-small-latest", "speaker_detection")
         self.assertEqual(pricing["input_cost_per_1m_tokens"], 0.20)
-        self.assertEqual(pricing["output_cost_per_1m_tokens"], 0.20)
+        self.assertEqual(pricing["output_cost_per_1m_tokens"], 0.60)
 
     def test_get_pricing_large_summarization(self):
-        """Test pricing lookup for mistral-large summarization."""
+        """Test pricing lookup for mistral-large summarization (YAML-backed)."""
         pricing = MistralProvider.get_pricing("mistral-large-latest", "summarization")
         self.assertEqual(pricing["input_cost_per_1m_tokens"], 2.00)
         self.assertEqual(pricing["output_cost_per_1m_tokens"], 6.00)
 
     def test_get_pricing_unsupported_model(self):
-        """Test pricing lookup for unsupported model returns default pricing."""
+        """Unsupported model falls back to YAML ``default`` row."""
         pricing = MistralProvider.get_pricing("mistral-unknown", "summarization")
-        # Should default to small pricing
+        # YAML default: input=0.20, output=0.60
         self.assertEqual(pricing["input_cost_per_1m_tokens"], 0.20)
-        self.assertEqual(pricing["output_cost_per_1m_tokens"], 0.20)
+        self.assertEqual(pricing["output_cost_per_1m_tokens"], 0.60)
 
 
 @pytest.mark.unit

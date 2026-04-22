@@ -52,14 +52,7 @@ logger = logging.getLogger(__name__)
 # Default speaker names when detection fails
 from ..ml.speaker_detection import DEFAULT_SPEAKER_NAMES
 
-# Grok API pricing constants (for cost estimation)
-# Source: Verify at https://console.x.ai or https://docs.x.ai
-# Last updated: 2026-02-05
-# Note: Pricing should be verified from xAI's official documentation
-GROK_BETA_INPUT_COST_PER_1M_TOKENS = 0.0  # Verify with xAI pricing
-GROK_BETA_OUTPUT_COST_PER_1M_TOKENS = 0.0  # Verify with xAI pricing
-GROK_2_INPUT_COST_PER_1M_TOKENS = 0.0  # Verify with xAI pricing
-GROK_2_OUTPUT_COST_PER_1M_TOKENS = 0.0  # Verify with xAI pricing
+# Pricing for Grok models lives in ``config/pricing_assumptions.yaml`` (#651).
 
 
 class GrokProvider:
@@ -189,33 +182,17 @@ class GrokProvider:
 
     @staticmethod
     def get_pricing(model: str, capability: str) -> Dict[str, float]:
-        """Get pricing information for a specific model and capability.
+        """Read pricing from ``config/pricing_assumptions.yaml`` (#651)."""
+        from podcast_scraper.pricing_assumptions import (
+            get_loaded_table,
+            lookup_external_pricing,
+        )
 
-        Args:
-            model: Model name (e.g., "grok-beta", "grok-2")
-            capability: Capability type ("speaker_detection", "summarization")
-
-        Returns:
-            Dictionary with pricing information
-        """
-        pricing: Dict[str, float] = {}
-
-        # Text-based pricing (speaker detection, summarization)
-        model_lower = model.lower()
-
-        # Check for specific model families
-        if "grok-2" in model_lower or "grok2" in model_lower:
-            pricing["input_cost_per_1m_tokens"] = GROK_2_INPUT_COST_PER_1M_TOKENS
-            pricing["output_cost_per_1m_tokens"] = GROK_2_OUTPUT_COST_PER_1M_TOKENS
-        elif "grok-beta" in model_lower or "betagrok" in model_lower:
-            pricing["input_cost_per_1m_tokens"] = GROK_BETA_INPUT_COST_PER_1M_TOKENS
-            pricing["output_cost_per_1m_tokens"] = GROK_BETA_OUTPUT_COST_PER_1M_TOKENS
-        else:
-            # Default to grok-2 pricing for unknown models (conservative estimate)
-            pricing["input_cost_per_1m_tokens"] = GROK_2_INPUT_COST_PER_1M_TOKENS
-            pricing["output_cost_per_1m_tokens"] = GROK_2_OUTPUT_COST_PER_1M_TOKENS
-
-        return pricing
+        table, _ = get_loaded_table("config/pricing_assumptions.yaml")
+        if not table:
+            return {}
+        ext = lookup_external_pricing(table, "grok", capability, model)
+        return dict(ext) if ext else {}
 
     def initialize(self) -> None:
         """Initialize all Grok capabilities.

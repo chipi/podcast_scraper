@@ -64,24 +64,11 @@ def _openai_chat_usage_tokens(response: Any) -> Tuple[Optional[int], Optional[in
 # Use canonical default from speaker_detection (Issue #428: typed placeholder, not "Guest")
 from ..ml.speaker_detection import DEFAULT_SPEAKER_NAMES
 
-# OpenAI API pricing constants (for cost estimation)
-# Source: https://openai.com/pricing
-# Last updated: 2025-01
-# Note: Prices subject to change. Always verify current rates at https://openai.com/pricing
-#
-# Pricing is model-based, not environment-based. The same model costs the same
-# whether used in test or production. Test/prod distinction is only in which
-# models are selected (test uses cheaper models, prod uses higher quality models).
-#
-# Only models actually defined in config_constants.py are tracked here:
-# - whisper-1: Used for transcription (test and prod)
-# - gpt-4o-mini: Speaker (test/prod), summarization (test), transcript cleaning (test/prod default)
-# - gpt-4o: Used for summarization (prod)
-OPENAI_WHISPER_COST_PER_MINUTE = 0.006  # Whisper API: $0.006 per minute of audio
-OPENAI_GPT4O_MINI_INPUT_COST_PER_1M_TOKENS = 0.15  # GPT-4o-mini: $0.15 per 1M input tokens
-OPENAI_GPT4O_MINI_OUTPUT_COST_PER_1M_TOKENS = 0.60  # GPT-4o-mini: $0.60 per 1M output tokens
-OPENAI_GPT4O_INPUT_COST_PER_1M_TOKENS = 2.50  # GPT-4o: $2.50 per 1M input tokens
-OPENAI_GPT4O_OUTPUT_COST_PER_1M_TOKENS = 10.00  # GPT-4o: $10.00 per 1M output tokens
+# Pricing for OpenAI models lives in ``config/pricing_assumptions.yaml`` (#651).
+# See ``get_pricing()`` below — it delegates to the YAML loader so there is a
+# single source of truth. CI guard
+# (``scripts/validate/check_profile_pricing_coverage.py``) fails PRs that
+# reference a model without a matching YAML row.
 
 
 class OpenAIProvider:
@@ -226,45 +213,25 @@ class OpenAIProvider:
 
     @staticmethod
     def get_pricing(model: str, capability: str) -> Dict[str, float]:
-        """Get pricing information for a specific model and capability.
+        """Read pricing from ``config/pricing_assumptions.yaml`` (#651).
 
-        Only models defined in config_constants.py are supported:
-        - whisper-1: Transcription (test and prod)
-        - gpt-4o-mini: Speaker detection (test and prod), Summarization (test)
-        - gpt-4o: Summarization (prod)
+        YAML is the single source of truth; this thin wrapper is kept for API
+        stability (test fixtures, tooling). Production cost calc goes through
+        :func:`podcast_scraper.workflow.helpers._get_provider_pricing`.
 
-        Pricing is model-based, not environment-based. The same model costs the same
-        whether used in test or production. Test/prod distinction is only in which
-        models are selected.
-
-        Args:
-            model: Model name (must match one of the models in config_constants.py)
-            capability: Capability type ("transcription", "speaker_detection", "summarization")
-
-        Returns:
-            Dictionary with pricing information:
-            - For transcription: {"cost_per_minute": float}
-            - For chat models: {"input_cost_per_1m_tokens": float,
-              "output_cost_per_1m_tokens": float}
-            - Empty dict if pricing not available for the model/capability
+        Returns the rate dict for ``(provider=openai, capability, model)`` or
+        ``{}`` when no matching row exists.
         """
-        if capability == "transcription":
-            if model == "whisper-1":
-                return {"cost_per_minute": OPENAI_WHISPER_COST_PER_MINUTE}
-        elif capability in ("speaker_detection", "summarization"):
-            model_lower = model.lower()
-            # Only support models actually defined in config_constants.py
-            if "gpt-4o-mini" in model_lower:
-                return {
-                    "input_cost_per_1m_tokens": OPENAI_GPT4O_MINI_INPUT_COST_PER_1M_TOKENS,
-                    "output_cost_per_1m_tokens": OPENAI_GPT4O_MINI_OUTPUT_COST_PER_1M_TOKENS,
-                }
-            elif "gpt-4o" in model_lower and "mini" not in model_lower:
-                return {
-                    "input_cost_per_1m_tokens": OPENAI_GPT4O_INPUT_COST_PER_1M_TOKENS,
-                    "output_cost_per_1m_tokens": OPENAI_GPT4O_OUTPUT_COST_PER_1M_TOKENS,
-                }
-        return {}
+        from podcast_scraper.pricing_assumptions import (
+            get_loaded_table,
+            lookup_external_pricing,
+        )
+
+        table, _ = get_loaded_table("config/pricing_assumptions.yaml")
+        if not table:
+            return {}
+        ext = lookup_external_pricing(table, "openai", capability, model)
+        return dict(ext) if ext else {}
 
     def initialize(self) -> None:
         """Initialize all OpenAI capabilities.
