@@ -347,14 +347,51 @@ def apply_gil_evidence_llm_call_metrics(
     pipeline_metrics: Any,
     prompt_tokens: Optional[int],
     completion_tokens: Optional[int],
+    cfg: Optional[Any] = None,
+    provider_type: Optional[str] = None,
+    model: Optional[str] = None,
 ) -> None:
     """Finalize a GIL evidence LLM call and merge into pipeline metrics.
 
     Records aggregate GI tokens when both token counts are known; always records
     retry and rate-limit sleep from ``call_metrics`` after :meth:`finalize`.
+
+    When ``cfg`` + ``provider_type`` + ``model`` are provided and
+    ``call_metrics.estimated_cost`` has not been set, computes cost from
+    ``calculate_provider_cost`` and populates both ``call_metrics`` (for
+    per-episode attribution) and the pipeline's ``llm_gi_cost_usd`` aggregate
+    (#650 Finding 17). Without those args the legacy behaviour stands —
+    callers that already `set_cost` on ``call_metrics`` will still flow that
+    value through.
     """
     if prompt_tokens is not None and completion_tokens is not None:
         call_metrics.set_tokens(prompt_tokens, completion_tokens)
+    # Compute and attach cost if the provider didn't already.
+    if (
+        call_metrics.estimated_cost is None
+        and cfg is not None
+        and provider_type
+        and model
+        and prompt_tokens is not None
+        and completion_tokens is not None
+    ):
+        try:
+            from podcast_scraper.workflow.helpers import calculate_provider_cost
+
+            cost = calculate_provider_cost(
+                cfg=cfg,
+                provider_type=provider_type,
+                capability="summarization",
+                model=model,
+                prompt_tokens=int(prompt_tokens),
+                completion_tokens=int(completion_tokens),
+            )
+            if cost is not None:
+                call_metrics.set_cost(cost)
+        except Exception:
+            # Pricing is best-effort at this layer — a missing rate row
+            # shouldn't fail a GIL evidence call.
+            pass
     call_metrics.finalize()
     if pipeline_metrics is None:
         return
@@ -365,8 +402,6 @@ def apply_gil_evidence_llm_call_metrics(
         and completion_tokens is not None
         and hasattr(pipeline_metrics, "record_llm_gi_call")
     ):
-        # If the provider already wrote a cost into call_metrics (via set_cost),
-        # pass it through to the pipeline-level GI aggregate (#650 Finding 17).
         gi_cost = getattr(call_metrics, "estimated_cost", None)
         pipeline_metrics.record_llm_gi_call(prompt_tokens, completion_tokens, cost_usd=gi_cost)
 

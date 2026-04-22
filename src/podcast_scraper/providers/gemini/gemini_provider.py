@@ -1846,7 +1846,15 @@ class GeminiProvider:
                 merge_gil_evidence_call_metrics_on_failure(call_metrics, pm)
                 raise
             in_tok, out_tok = gemini_generate_usage_tokens(response)
-            apply_gil_evidence_llm_call_metrics(call_metrics, pm, in_tok, out_tok)
+            apply_gil_evidence_llm_call_metrics(
+                call_metrics,
+                pm,
+                in_tok,
+                out_tok,
+                cfg=self.cfg,
+                provider_type="gemini",
+                model=self.summary_model,
+            )
             content = response.text if hasattr(response, "text") else str(response)
             content = (content or "").strip()
             if content.startswith("```"):
@@ -1947,7 +1955,15 @@ class GeminiProvider:
                 merge_gil_evidence_call_metrics_on_failure(call_metrics, pm)
                 raise
             in_tok, out_tok = gemini_generate_usage_tokens(response)
-            apply_gil_evidence_llm_call_metrics(call_metrics, pm, in_tok, out_tok)
+            apply_gil_evidence_llm_call_metrics(
+                call_metrics,
+                pm,
+                in_tok,
+                out_tok,
+                cfg=self.cfg,
+                provider_type="gemini",
+                model=self.summary_model,
+            )
             content = response.text if hasattr(response, "text") else str(response)
             content = (content or "0").strip()
             for part in content.replace(",", " ").split():

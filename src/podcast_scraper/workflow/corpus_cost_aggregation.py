@@ -56,11 +56,16 @@ def aggregate_corpus_costs(corpus_parent: Path | str) -> Dict[str, Any]:
     run_count = 0
     missing_cost_fields = 0
 
-    if not feeds_root.exists():
-        logger.debug("aggregate_corpus_costs: feeds/ not found under %s; returning zeros", root)
-        return _build_result(by_stage, run_count, missing_cost_fields)
+    # Multi-feed (corpus) layout: <root>/feeds/<slug>/run_*/metrics.json
+    # Single-feed layout:         <root>/run_*/metrics.json
+    # Support both — single-feed users otherwise see "0 runs" even though
+    # the run exists (discovered during #650 Layer 3 validation).
+    if feeds_root.exists():
+        pattern = feeds_root.glob("*/run_*/metrics.json")
+    else:
+        pattern = root.glob("run_*/metrics.json")
 
-    for metrics_file in sorted(feeds_root.glob("*/run_*/metrics.json")):
+    for metrics_file in sorted(pattern):
         try:
             doc = json.loads(metrics_file.read_text(encoding="utf-8"))
         except (OSError, ValueError) as exc:

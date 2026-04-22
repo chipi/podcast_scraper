@@ -1331,7 +1331,15 @@ class DeepSeekProvider:
                 merge_gil_evidence_call_metrics_on_failure(call_metrics, pm)
                 raise
             in_tok, out_tok = openai_compatible_chat_usage_tokens(response)
-            apply_gil_evidence_llm_call_metrics(call_metrics, pm, in_tok, out_tok)
+            apply_gil_evidence_llm_call_metrics(
+                call_metrics,
+                pm,
+                in_tok,
+                out_tok,
+                cfg=self.cfg,
+                provider_type="deepseek",
+                model=self.summary_model,
+            )
             content = (response.choices[0].message.content or "").strip()
             if content.startswith("```"):
                 content = content.split("\n", 1)[-1].rsplit("```", 1)[0].strip()
@@ -1426,7 +1434,15 @@ class DeepSeekProvider:
                 merge_gil_evidence_call_metrics_on_failure(call_metrics, pm)
                 raise
             in_tok, out_tok = openai_compatible_chat_usage_tokens(response)
-            apply_gil_evidence_llm_call_metrics(call_metrics, pm, in_tok, out_tok)
+            apply_gil_evidence_llm_call_metrics(
+                call_metrics,
+                pm,
+                in_tok,
+                out_tok,
+                cfg=self.cfg,
+                provider_type="deepseek",
+                model=self.summary_model,
+            )
             content = (response.choices[0].message.content or "0").strip()
             for part in content.replace(",", " ").split():
                 try:

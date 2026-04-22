@@ -1671,7 +1671,15 @@ class AnthropicProvider:
                 merge_gil_evidence_call_metrics_on_failure(call_metrics, pm)
                 raise
             in_tok, out_tok = anthropic_message_usage_tokens(response)
-            apply_gil_evidence_llm_call_metrics(call_metrics, pm, in_tok, out_tok)
+            apply_gil_evidence_llm_call_metrics(
+                call_metrics,
+                pm,
+                in_tok,
+                out_tok,
+                cfg=self.cfg,
+                provider_type="anthropic",
+                model=self.summary_model,
+            )
             content = ""
             if response.content and len(response.content) > 0:
                 first = response.content[0]
@@ -1769,7 +1777,15 @@ class AnthropicProvider:
                 merge_gil_evidence_call_metrics_on_failure(call_metrics, pm)
                 raise
             in_tok, out_tok = anthropic_message_usage_tokens(response)
-            apply_gil_evidence_llm_call_metrics(call_metrics, pm, in_tok, out_tok)
+            apply_gil_evidence_llm_call_metrics(
+                call_metrics,
+                pm,
+                in_tok,
+                out_tok,
+                cfg=self.cfg,
+                provider_type="anthropic",
+                model=self.summary_model,
+            )
             content = ""
             if response.content and len(response.content) > 0:
                 first = response.content[0]

@@ -129,15 +129,49 @@ class TestAggregateCorpusCosts:
         assert out["by_stage"]["llm_transcription_cost_usd"] == 0.0
         assert out["by_stage"]["llm_summarization_cost_usd"] == pytest.approx(0.01)
 
-    def test_only_walks_feeds_subtree(self, tmp_path: Path) -> None:
-        # A metrics.json in a sibling path should NOT be counted —
-        # corpus_parent layout is authoritative.
+    def test_only_walks_feeds_subtree_when_present(self, tmp_path: Path) -> None:
+        # Multi-feed layout present: aggregator must use feeds/ subtree and
+        # ignore top-level sibling paths.
         outside = tmp_path / "other" / "run_001"
         outside.mkdir(parents=True)
         (outside / "metrics.json").write_text(
             json.dumps({"llm_transcription_cost_usd": 99.0}), encoding="utf-8"
         )
         # Proper feeds-subtree file:
+        _write_metrics(tmp_path, "feed_a", "run_001", {"llm_transcription_cost_usd": 0.05})
+
+        out = aggregate_corpus_costs(tmp_path)
+        assert out["run_count"] == 1
+        assert out["total_transcription_cost_usd"] == pytest.approx(0.05)
+
+    def test_single_feed_layout_fallback(self, tmp_path: Path) -> None:
+        # Single-feed layout: <root>/run_*/metrics.json, no feeds/ subtree.
+        # Aggregator must fall back to scanning top-level run_* directly.
+        run_dir = tmp_path / "run_20260422-160632_abc123"
+        run_dir.mkdir()
+        (run_dir / "metrics.json").write_text(
+            json.dumps(
+                {
+                    "llm_transcription_cost_usd": 0.37,
+                    "llm_gi_cost_usd": 0.02,
+                }
+            ),
+            encoding="utf-8",
+        )
+
+        out = aggregate_corpus_costs(tmp_path)
+        assert out["run_count"] == 1
+        assert out["total_transcription_cost_usd"] == pytest.approx(0.37)
+        assert out["by_stage"]["llm_gi_cost_usd"] == pytest.approx(0.02)
+        assert out["total_cost_usd"] == pytest.approx(0.39)
+
+    def test_feeds_subtree_wins_over_top_level_run_dirs(self, tmp_path: Path) -> None:
+        # If both layouts exist (edge case / migration), prefer feeds/ subtree
+        # to avoid double-counting a single-feed run that was later promoted.
+        (tmp_path / "run_orphan").mkdir()
+        (tmp_path / "run_orphan" / "metrics.json").write_text(
+            json.dumps({"llm_transcription_cost_usd": 99.0}), encoding="utf-8"
+        )
         _write_metrics(tmp_path, "feed_a", "run_001", {"llm_transcription_cost_usd": 0.05})
 
         out = aggregate_corpus_costs(tmp_path)
