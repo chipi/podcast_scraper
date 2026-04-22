@@ -28,7 +28,7 @@ from __future__ import annotations
 import re
 import sys
 from pathlib import Path
-from typing import Dict, List, Sequence, Set, Tuple
+from typing import Dict, List, Optional, Sequence, Set, Tuple
 
 try:
     import yaml
@@ -74,11 +74,12 @@ _SECTION_FOR_CAPABILITY: Dict[str, str] = {
 }
 
 
-def _iter_profile_paths() -> List[Path]:
-    """Collect all *.yaml files under config/profiles/ (recursively)."""
-    if not PROFILES_DIR.is_dir():
+def _iter_profile_paths(profiles_dir: Optional[Path] = None) -> List[Path]:
+    """Collect all *.yaml files under ``profiles_dir`` (recursively)."""
+    root = profiles_dir if profiles_dir is not None else PROFILES_DIR
+    if not root.is_dir():
         return []
-    return sorted(p for p in PROFILES_DIR.rglob("*.yaml"))
+    return sorted(p for p in root.rglob("*.yaml"))
 
 
 def _load_yaml(path: Path) -> Dict[str, object]:
@@ -157,15 +158,23 @@ def _unique_sorted(items: Sequence[Tuple[str, str, str, Path]]) -> List[Tuple[st
     return out
 
 
-def main() -> int:
-    if not PRICING_YAML.is_file():
-        print(f"ERROR: {PRICING_YAML} not found.", file=sys.stderr)
-        return 2
-    pricing = _load_yaml(PRICING_YAML)
+def main(
+    profiles_dir: Optional[Path] = None,
+    pricing_yaml: Optional[Path] = None,
+    repo_root: Optional[Path] = None,
+) -> int:
+    profiles_root = profiles_dir if profiles_dir is not None else PROFILES_DIR
+    pricing_path = pricing_yaml if pricing_yaml is not None else PRICING_YAML
+    display_root = repo_root if repo_root is not None else REPO_ROOT
 
-    profile_paths = _iter_profile_paths()
+    if not pricing_path.is_file():
+        print(f"ERROR: {pricing_path} not found.", file=sys.stderr)
+        return 2
+    pricing = _load_yaml(pricing_path)
+
+    profile_paths = _iter_profile_paths(profiles_root)
     if not profile_paths:
-        print(f"No profiles found under {PROFILES_DIR}; nothing to check.")
+        print(f"No profiles found under {profiles_root}; nothing to check.")
         return 0
 
     refs: List[Tuple[str, str, str, Path]] = []
@@ -186,7 +195,10 @@ def main() -> int:
         print()
         print(f"FAIL: {len(missing)} model(s) referenced by profiles have no YAML rate row:")
         for provider, section, model, path in missing:
-            rel = path.relative_to(REPO_ROOT)
+            try:
+                rel = path.relative_to(display_root)
+            except ValueError:
+                rel = path
             print(f"  providers.{provider}.{section}.{model}  (referenced in {rel})")
         print()
         print("Add a row in config/pricing_assumptions.yaml, or fall back to a ")

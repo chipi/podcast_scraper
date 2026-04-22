@@ -53,6 +53,45 @@ from ..ml.speaker_detection import DEFAULT_SPEAKER_NAMES
 # Pricing for Anthropic models lives in ``config/pricing_assumptions.yaml`` (#651).
 
 
+def _record_anthropic_llm_call(
+    response: Any,
+    pipeline_metrics: Optional[Any],
+    *,
+    recorder_name: str,
+    cfg: Any,
+    model: str,
+) -> None:
+    """Record tokens + cost_usd for an Anthropic LLM call into pipeline_metrics.
+
+    Matches the behaviour of OpenAI's inline wiring (#650/#651) for cleaning,
+    GI, and KG capabilities. Uses the ``summarization`` pricing capability for
+    all text calls — the YAML rate row is per (provider, text-vs-transcription)
+    regardless of which pipeline stage invoked it.
+    """
+    if pipeline_metrics is None or not hasattr(pipeline_metrics, recorder_name):
+        return
+    usage = getattr(response, "usage", None)
+    if usage is None:
+        return
+    in_raw = getattr(usage, "input_tokens", None)
+    out_raw = getattr(usage, "output_tokens", None)
+    if not isinstance(in_raw, (int, float)) or not isinstance(out_raw, (int, float)):
+        return
+    in_tok = int(in_raw)
+    out_tok = int(out_raw)
+    from ...workflow.helpers import calculate_provider_cost
+
+    cost = calculate_provider_cost(
+        cfg=cfg,
+        provider_type="anthropic",
+        capability="summarization",
+        model=model,
+        prompt_tokens=in_tok,
+        completion_tokens=out_tok,
+    )
+    getattr(pipeline_metrics, recorder_name)(in_tok, out_tok, cost_usd=cost)
+
+
 class AnthropicProvider:
     """Unified Anthropic provider: SpeakerDetector and SummarizationProvider (no transcription).
 
@@ -1293,6 +1332,14 @@ class AnthropicProvider:
 
             call_metrics.finalize()
 
+            _record_anthropic_llm_call(
+                response,
+                pipeline_metrics,
+                recorder_name="record_llm_cleaning_call",
+                cfg=self.cfg,
+                model=self.cleaning_model,
+            )
+
             # Extract text from response
             cleaned = ""
             if response.content and len(response.content) > 0:
@@ -1380,6 +1427,13 @@ class AnthropicProvider:
                 system=system_prompt,
                 messages=[{"role": "user", "content": user_prompt}],
             )
+            _record_anthropic_llm_call(
+                response,
+                pipeline_metrics,
+                recorder_name="record_llm_gi_call",
+                cfg=self.cfg,
+                model=self.summary_model,
+            )
             content = ""
             if response.content and len(response.content) > 0:
                 first = response.content[0]
@@ -1460,6 +1514,13 @@ class AnthropicProvider:
                 max_delay=30.0,
                 retryable_exceptions=_safe_anthropic_retryable(),
             )
+            _record_anthropic_llm_call(
+                response,
+                pipeline_metrics,
+                recorder_name="record_llm_kg_call",
+                cfg=self.cfg,
+                model=model,
+            )
             content = ""
             if response.content and len(response.content) > 0:
                 first = response.content[0]
@@ -1528,6 +1589,13 @@ class AnthropicProvider:
                 initial_delay=1.0,
                 max_delay=30.0,
                 retryable_exceptions=_safe_anthropic_retryable(),
+            )
+            _record_anthropic_llm_call(
+                response,
+                pipeline_metrics,
+                recorder_name="record_llm_kg_call",
+                cfg=self.cfg,
+                model=model,
             )
             content = ""
             if response.content and len(response.content) > 0:

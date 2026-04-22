@@ -65,6 +65,44 @@ from ..ml.speaker_detection import DEFAULT_SPEAKER_NAMES
 # Pricing for Gemini models lives in ``config/pricing_assumptions.yaml`` (#651).
 
 
+def _record_gemini_llm_call(
+    response: Any,
+    pipeline_metrics: Optional[Any],
+    *,
+    recorder_name: str,
+    cfg: Any,
+    model: str,
+) -> None:
+    """Record tokens + cost_usd for a Gemini LLM call into pipeline_metrics.
+
+    Matches OpenAI/Anthropic equivalents (#650/#651). Gemini uses
+    ``response.usage_metadata.prompt_token_count`` / ``.candidates_token_count``
+    for usage. Uses the ``summarization`` pricing capability for all text calls.
+    """
+    if pipeline_metrics is None or not hasattr(pipeline_metrics, recorder_name):
+        return
+    usage = getattr(response, "usage_metadata", None)
+    if usage is None:
+        return
+    in_raw = getattr(usage, "prompt_token_count", None)
+    out_raw = getattr(usage, "candidates_token_count", None)
+    if not isinstance(in_raw, (int, float)) or not isinstance(out_raw, (int, float)):
+        return
+    in_tok = int(in_raw)
+    out_tok = int(out_raw)
+    from ...workflow.helpers import calculate_provider_cost
+
+    cost = calculate_provider_cost(
+        cfg=cfg,
+        provider_type="gemini",
+        capability="summarization",
+        model=model,
+        prompt_tokens=in_tok,
+        completion_tokens=out_tok,
+    )
+    getattr(pipeline_metrics, recorder_name)(in_tok, out_tok, cost_usd=cost)
+
+
 def _should_disable_thinking_for_model(model: str) -> bool:
     """True for Gemini 2.5 Flash (non-lite): default thinking consumes max_output_tokens."""
     m = (model or "").lower()
@@ -1580,6 +1618,13 @@ class GeminiProvider:
                 contents=user_prompt,
                 config=cast(Any, generation_config),
             )
+            _record_gemini_llm_call(
+                response,
+                pipeline_metrics,
+                recorder_name="record_llm_gi_call",
+                cfg=self.cfg,
+                model=self.summary_model,
+            )
             content = response.text if hasattr(response, "text") else str(response)
             content = (content or "").strip()
             lines = [
@@ -1663,6 +1708,13 @@ class GeminiProvider:
                 max_delay=30.0,
                 retryable_exceptions=_safe_gemini_retryable(),
             )
+            _record_gemini_llm_call(
+                response,
+                pipeline_metrics,
+                recorder_name="record_llm_kg_call",
+                cfg=self.cfg,
+                model=model,
+            )
             raw = response.text if hasattr(response, "text") else str(response)
             return parse_kg_graph_response(
                 (raw or "").strip(),
@@ -1734,6 +1786,13 @@ class GeminiProvider:
                 initial_delay=1.0,
                 max_delay=30.0,
                 retryable_exceptions=_safe_gemini_retryable(),
+            )
+            _record_gemini_llm_call(
+                response,
+                pipeline_metrics,
+                recorder_name="record_llm_kg_call",
+                cfg=self.cfg,
+                model=model,
             )
             raw = response.text if hasattr(response, "text") else str(response)
             return parse_kg_graph_response(
@@ -2024,6 +2083,14 @@ class GeminiProvider:
                 raise
 
             call_metrics.finalize()
+
+            _record_gemini_llm_call(
+                response,
+                pipeline_metrics,
+                recorder_name="record_llm_cleaning_call",
+                cfg=self.cfg,
+                model=self.cleaning_model,
+            )
 
             cleaned = response.text if hasattr(response, "text") else str(response)
             if not cleaned:

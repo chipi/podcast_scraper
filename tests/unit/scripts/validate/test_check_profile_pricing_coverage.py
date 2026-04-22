@@ -118,3 +118,79 @@ def test_script_passes_on_current_repo_state() -> None:
     # Run the main() function directly rather than via subprocess — cleaner
     # import + lets us assert on exit code.
     assert _mod.main() == 0
+
+
+class TestGuardCatchesDrift:
+    """End-to-end negative tests: prove main() returns 1 when a profile
+    references a model that has no YAML rate row. Guards against the
+    failure-mode #651 exists to prevent — a profile landing with a new
+    model and no accompanying pricing entry, silently dropping its
+    cost to $0.
+    """
+
+    def _write_pricing(self, path: Path, extra_openai_text: dict | None = None) -> None:
+        text_models = {"gpt-4o": {"input_cost_per_1m_tokens": 2.5}}
+        if extra_openai_text:
+            text_models.update(extra_openai_text)
+        payload = {
+            "providers": {
+                "openai": {
+                    "transcription": {"whisper-1": {"cost_per_minute": 0.006}},
+                    "text": text_models,
+                }
+            }
+        }
+        import yaml as _yaml
+
+        path.write_text(_yaml.safe_dump(payload), encoding="utf-8")
+
+    def _write_profile(self, path: Path, **fields: str) -> None:
+        import yaml as _yaml
+
+        path.write_text(_yaml.safe_dump(fields), encoding="utf-8")
+
+    def test_main_returns_1_when_profile_references_missing_model(self, tmp_path: Path) -> None:
+        profiles_dir = tmp_path / "profiles"
+        profiles_dir.mkdir()
+        pricing = tmp_path / "pricing.yaml"
+        self._write_pricing(pricing)
+        # Profile references openai.text.gpt-5-mega which is NOT in pricing
+        # and openai.text has no `default` fallback row.
+        self._write_profile(
+            profiles_dir / "ships_new_model.yaml",
+            openai_summary_model="gpt-5-mega",
+        )
+
+        assert _mod.main(profiles_dir=profiles_dir, pricing_yaml=pricing) == 1
+
+    def test_main_returns_1_when_transcription_model_missing(self, tmp_path: Path) -> None:
+        profiles_dir = tmp_path / "profiles"
+        profiles_dir.mkdir()
+        pricing = tmp_path / "pricing.yaml"
+        self._write_pricing(pricing)
+        # Profile uses an unpriced Whisper variant; transcription has no
+        # default row so this must FAIL.
+        self._write_profile(
+            profiles_dir / "unpriced_whisper.yaml",
+            openai_transcription_model="whisper-3-ultra",
+        )
+
+        assert _mod.main(profiles_dir=profiles_dir, pricing_yaml=pricing) == 1
+
+    def test_main_returns_0_when_model_falls_back_to_default(self, tmp_path: Path) -> None:
+        """Sanity-inverse: if the provider+section has a `default` row, an
+        unlisted model is tolerated. Proves the negative tests above fail
+        for the *right* reason (truly missing), not a stray yaml issue."""
+        profiles_dir = tmp_path / "profiles"
+        profiles_dir.mkdir()
+        pricing = tmp_path / "pricing.yaml"
+        self._write_pricing(
+            pricing,
+            extra_openai_text={"default": {"input_cost_per_1m_tokens": 2.5}},
+        )
+        self._write_profile(
+            profiles_dir / "new_model_but_default_covers.yaml",
+            openai_summary_model="gpt-5-mega",
+        )
+
+        assert _mod.main(profiles_dir=profiles_dir, pricing_yaml=pricing) == 0

@@ -92,8 +92,10 @@ providers:
         input_cost_per_1m_tokens: 15.00
         output_cost_per_1m_tokens: 75.00
       claude-opus-4-5:
-        input_cost_per_1m_tokens: 15.00
-        output_cost_per_1m_tokens: 75.00
+        # Source: https://claude.com/pricing (verified 2026-04-22).
+        # Opus 4.5 and above are priced lower than Opus 4 / Opus 4.1.
+        input_cost_per_1m_tokens: 5.00
+        output_cost_per_1m_tokens: 25.00
       claude-sonnet-4:
         input_cost_per_1m_tokens: 3.00
         output_cost_per_1m_tokens: 15.00
@@ -146,19 +148,23 @@ providers:
         output_cost_per_1m_tokens: 0.60
 
   deepseek:
+    # Source: https://api-docs.deepseek.com/quick_start/pricing (verified
+    # 2026-04-22). DeepSeek-V3.2 unified pricing: deepseek-chat and
+    # deepseek-reasoner share identical rates; only context length and
+    # max output differ.
     text:
       deepseek-chat:
-        input_cost_per_1m_tokens: 0.27
-        output_cost_per_1m_tokens: 1.10
-        cache_hit_input_cost_per_1m_tokens: 0.07
+        input_cost_per_1m_tokens: 0.28
+        output_cost_per_1m_tokens: 0.42
+        cache_hit_input_cost_per_1m_tokens: 0.028
       deepseek-reasoner:
-        input_cost_per_1m_tokens: 0.55
-        output_cost_per_1m_tokens: 2.19
-        cache_hit_input_cost_per_1m_tokens: 0.14
+        input_cost_per_1m_tokens: 0.28
+        output_cost_per_1m_tokens: 0.42
+        cache_hit_input_cost_per_1m_tokens: 0.028
       default:
-        input_cost_per_1m_tokens: 0.27
-        output_cost_per_1m_tokens: 1.10
-        cache_hit_input_cost_per_1m_tokens: 0.07
+        input_cost_per_1m_tokens: 0.28
+        output_cost_per_1m_tokens: 0.42
+        cache_hit_input_cost_per_1m_tokens: 0.028
 
   grok:
     # Rates per xAI public pricing. grok-4 is the flagship; grok-3 family

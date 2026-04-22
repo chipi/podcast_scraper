@@ -53,6 +53,43 @@ from ..ml.speaker_detection import DEFAULT_SPEAKER_NAMES
 # Pricing for DeepSeek models lives in ``config/pricing_assumptions.yaml`` (#651).
 
 
+def _record_deepseek_llm_call(
+    response: Any,
+    pipeline_metrics: Optional[Any],
+    *,
+    recorder_name: str,
+    cfg: Any,
+    model: str,
+) -> None:
+    """Record tokens + cost_usd for a DeepSeek LLM call into pipeline_metrics.
+
+    Mirrors OpenAI wiring (#650/#651). DeepSeek uses an OpenAI-compatible SDK
+    so usage lives at ``response.usage.prompt_tokens`` / ``.completion_tokens``.
+    """
+    if pipeline_metrics is None or not hasattr(pipeline_metrics, recorder_name):
+        return
+    usage = getattr(response, "usage", None)
+    if usage is None:
+        return
+    in_raw = getattr(usage, "prompt_tokens", None)
+    out_raw = getattr(usage, "completion_tokens", None)
+    if not isinstance(in_raw, (int, float)) or not isinstance(out_raw, (int, float)):
+        return
+    in_tok = int(in_raw)
+    out_tok = int(out_raw)
+    from ...workflow.helpers import calculate_provider_cost
+
+    cost = calculate_provider_cost(
+        cfg=cfg,
+        provider_type="deepseek",
+        capability="summarization",
+        model=model,
+        prompt_tokens=in_tok,
+        completion_tokens=out_tok,
+    )
+    getattr(pipeline_metrics, recorder_name)(in_tok, out_tok, cost_usd=cost)
+
+
 class DeepSeekProvider:
     """Unified DeepSeek provider: SpeakerDetector and SummarizationProvider (no transcription).
 
@@ -1108,6 +1145,13 @@ class DeepSeekProvider:
                 temperature=0.3,
                 max_tokens=min(1024, max_insights * 150),
             )
+            _record_deepseek_llm_call(
+                response,
+                pipeline_metrics,
+                recorder_name="record_llm_gi_call",
+                cfg=self.cfg,
+                model=self.summary_model,
+            )
             content = (response.choices[0].message.content or "").strip()
             lines = [
                 line.strip()
@@ -1185,6 +1229,13 @@ class DeepSeekProvider:
                 max_delay=30.0,
                 retryable_exceptions=_safe_openai_retryable(),
             )
+            _record_deepseek_llm_call(
+                response,
+                pipeline_metrics,
+                recorder_name="record_llm_kg_call",
+                cfg=self.cfg,
+                model=model,
+            )
             raw = (response.choices[0].message.content or "").strip()
             return parse_kg_graph_response(raw, max_topics=max_topics, max_entities=max_entities)
         except Exception as e:
@@ -1247,6 +1298,13 @@ class DeepSeekProvider:
                 initial_delay=1.0,
                 max_delay=30.0,
                 retryable_exceptions=_safe_openai_retryable(),
+            )
+            _record_deepseek_llm_call(
+                response,
+                pipeline_metrics,
+                recorder_name="record_llm_kg_call",
+                cfg=self.cfg,
+                model=model,
             )
             raw = (response.choices[0].message.content or "").strip()
             return parse_kg_graph_response(raw, max_topics=max_topics, max_entities=max_entities)
@@ -1513,6 +1571,14 @@ class DeepSeekProvider:
                 raise
 
             call_metrics.finalize()
+
+            _record_deepseek_llm_call(
+                response,
+                pipeline_metrics,
+                recorder_name="record_llm_cleaning_call",
+                cfg=self.cfg,
+                model=self.cleaning_model,
+            )
 
             cleaned = response.choices[0].message.content
             if not cleaned:
