@@ -44,6 +44,29 @@ SEGMENT_TRANSCRIPT_ALIGNMENT_MAX_DELTA = 50
 _STUB_INSIGHT_TEXT = "Summary insight (stub)."
 
 
+def _apply_gi_insight_filters(
+    insight_specs: List[Tuple[str, str]], pipeline_metrics: Optional[Any]
+) -> List[Tuple[str, str]]:
+    """#652 Part B — run ad + dialogue filters on (text, type) specs.
+
+    Source-agnostic (prefilled / provider / summary_bullets / stub).
+    Conservative thresholds live in ``gi.filters``. Extracted helper so
+    ``build_artifact`` stays under the cyclomatic-complexity budget.
+    """
+    from .filters import apply_insight_filters
+
+    insight_dicts = [{"text": t, "insight_type": k} for t, k in insight_specs]
+    kept, ads_dropped, dialogue_dropped = apply_insight_filters(insight_dicts)
+    if not (ads_dropped or dialogue_dropped):
+        return insight_specs
+    if pipeline_metrics is not None:
+        if ads_dropped and hasattr(pipeline_metrics, "record_ads_filtered"):
+            pipeline_metrics.record_ads_filtered(ads_dropped)
+        if dialogue_dropped and hasattr(pipeline_metrics, "record_dialogue_insights_dropped"):
+            pipeline_metrics.record_dialogue_insights_dropped(dialogue_dropped)
+    return [(d["text"], d.get("insight_type") or "claim") for d in kept]
+
+
 def _dedupe_topic_node_specs(
     topic_labels: Optional[List[str]],
 ) -> List[Tuple[str, str]]:
@@ -609,6 +632,10 @@ def build_artifact(
             episode_title=episode_title or title,
             pipeline_metrics=pipeline_metrics,
         )
+
+    # #652 Part B — ad + dialogue filters applied post-resolution.
+    if insight_specs:
+        insight_specs = _apply_gi_insight_filters(insight_specs, pipeline_metrics)
 
     artifact_model_version = model_version
     if cfg is not None:

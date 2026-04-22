@@ -95,7 +95,8 @@ class TestKgPipeline(unittest.TestCase):
         self.assertEqual(metrics.kg_provider_extractions, 1)
         self.assertTrue(art["extraction"]["model_version"].startswith("provider:summary_bullets:"))
         topic_labels = {n["properties"]["label"] for n in art["nodes"] if n["type"] == "Topic"}
-        self.assertIn("Derived topic", topic_labels)
+        # #652 Part B — topic normalizer lowercases + 2–3 word canonical form.
+        self.assertIn("derived topic", topic_labels)
 
     def test_summary_bullets_verbatim_when_provider_lacks_bullet_method(self) -> None:
         """Without extract_kg_from_summary_bullets, labels become topic nodes."""

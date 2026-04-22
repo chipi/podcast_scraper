@@ -178,6 +178,11 @@ class Metrics:
     llm_bundled_clean_summary_output_tokens: int = 0
     llm_bundled_clean_summary_cost_usd: float = 0.0  # Accumulated bundle-mode cost
     llm_bundled_fallback_to_staged_count: int = 0
+    # #652 Part C — deterministic post-extraction filter counters.
+    ads_filtered_count: int = 0
+    dialogue_insights_dropped_count: int = 0
+    topics_normalized_count: int = 0
+    entity_kinds_repaired_count: int = 0
 
     # Audio preprocessing metrics
     preprocessing_times: List[float] = field(
@@ -562,6 +567,23 @@ class Metrics:
     def record_llm_bundled_fallback_to_staged(self) -> None:
         """Increment count when bundled clean+summary fails and staged path is used."""
         self.llm_bundled_fallback_to_staged_count += 1
+
+    # #652 Part C — post-extraction filter recorders.
+    def record_ads_filtered(self, count: int) -> None:
+        """Accumulate ad-filtered insight drops (#652 Finding 14-lite)."""
+        self.ads_filtered_count += int(count)
+
+    def record_dialogue_insights_dropped(self, count: int) -> None:
+        """Accumulate dialogue-form insight drops (#652 Finding 12)."""
+        self.dialogue_insights_dropped_count += int(count)
+
+    def record_topics_normalized(self, count: int) -> None:
+        """Accumulate topic normalizations (#652 Finding 2)."""
+        self.topics_normalized_count += int(count)
+
+    def record_entity_kinds_repaired(self, count: int) -> None:
+        """Accumulate entity-kind repairs (#652 Finding 7)."""
+        self.entity_kinds_repaired_count += int(count)
 
     def record_preprocessing_time(self, duration: float) -> None:
         """Record time spent preprocessing audio for an episode.
@@ -1180,6 +1202,11 @@ class Metrics:
             "llm_bundled_clean_summary_avg_output_tokens_per_call": bd_out_avg,
             "llm_bundled_clean_summary_cost_usd": round(self.llm_bundled_clean_summary_cost_usd, 6),
             "llm_bundled_fallback_to_staged_count": self.llm_bundled_fallback_to_staged_count,
+            # #652 Part C — post-extraction filter counters.
+            "ads_filtered_count": self.ads_filtered_count,
+            "dialogue_insights_dropped_count": self.dialogue_insights_dropped_count,
+            "topics_normalized_count": self.topics_normalized_count,
+            "entity_kinds_repaired_count": self.entity_kinds_repaired_count,
             "total_episode_estimated_cost_usd": total_episode_estimated_cost_usd,
             "total_stage_cost_usd": total_stage_cost_usd,
             "total_episode_estimated_cost_usd_legacy": total_episode_estimated_cost_usd_legacy,
