@@ -14,6 +14,7 @@ timestamps), Quote nodes get precise timestamp_start_ms and timestamp_end_ms
 from __future__ import annotations
 
 import logging
+import textwrap
 from typing import Any, Dict, List, Optional, Set, Tuple, TYPE_CHECKING
 from unittest.mock import Mock
 
@@ -57,9 +58,15 @@ def _dedupe_topic_node_specs(
             continue
         slug = slugify_label(raw)
         if slug in seen_slugs:
+            # #653 Part C: within-episode dedup — skip second Topic with same slug.
             continue
         seen_slugs.add(slug)
-        out.append((topic_node_id_from_slug(slug), raw[:200]))
+        # #653 Part A: truncate at word boundary rather than mid-word. Short KG
+        # canonical topics (2–3 words, typically < 50 chars) pass through
+        # unchanged; only legacy long bullet-slugs (the fallback path) exercise
+        # this branch, and `textwrap.shorten` uses whitespace as break hints.
+        display = raw if len(raw) <= 200 else textwrap.shorten(raw, width=200, placeholder="…")
+        out.append((topic_node_id_from_slug(slug), display))
     return out
 
 

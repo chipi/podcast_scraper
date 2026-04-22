@@ -17,7 +17,6 @@ from __future__ import annotations
 
 import json
 import logging
-import re
 from collections import defaultdict
 from datetime import datetime
 from pathlib import Path
@@ -675,19 +674,18 @@ def build_explore_output(
     )
 
 
-def topic_slug_for_rfc(label: str) -> str:
-    """Stable slug for synthetic topic_id."""
-    slug = re.sub(r"[^a-z0-9]+", "-", label.lower().strip()).strip("-")
-    return slug or "topic"
-
-
 def explore_output_to_rfc_dict(out: ExploreOutput) -> Dict[str, Any]:
     """JSON shape for gi explore (topic object, nested episode/speaker)."""
+    # #653 Part B: use the canonical slugifier instead of the previous
+    # local ad-hoc regex. Identical output for ASCII labels; unicode labels
+    # now slug consistently with the rest of the pipeline.
+    from ..graph_id_utils import slugify_label, topic_node_id_from_slug
+
     topic_obj: Optional[Dict[str, str]] = None
     if out.topic and out.topic.strip():
         lab = out.topic.strip()
         topic_obj = {
-            "topic_id": f"topic:{topic_slug_for_rfc(lab)}",
+            "topic_id": topic_node_id_from_slug(slugify_label(lab)),
             "label": lab,
         }
     insights_payload: List[Dict[str, Any]] = []
