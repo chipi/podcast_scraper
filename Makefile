@@ -192,6 +192,7 @@ help:
 	@echo "  make stack-run-pipeline RFC-079: one-shot pipeline (compose profile pipeline)"
 	@echo "  make stack-build-llm   RFC-079: build pipeline-llm image (INSTALL_EXTRAS=llm profile)"
 	@echo "  make verify-stack-profiles  Validate packaged profile → Docker tier (scripts/tools)"
+	@echo "  make stack-compose-validate RFC-079: docker compose config (stack + jobs-docker merge, no build)"
 	@echo "  make smoke-build       RFC-078: build stack + smoke overlay images"
 	@echo "  make smoke-run-pipeline RFC-078: one-shot pipeline (tees .smoke/pipeline.log)"
 	@echo "  make smoke-assert-logs  RFC-078: grep .smoke/pipeline.log for completion / errors"
@@ -464,7 +465,7 @@ validate-kg-schema:
 	fi
 
 # GI/KG viewer v2 (RFC-062 / #489): FastAPI + Vite. Install: pip install -e '.[server]'; cd $(WEB_VIEWER_DIR) && npm install
-.PHONY: serve serve-api serve-ui serve-e2e-mock stack-build stack-build-llm stack-up stack-down stack-logs stack-run-pipeline verify-stack-profiles smoke-build smoke-run-pipeline smoke-up smoke-down smoke-test-playwright smoke-assert-logs smoke-export-corpus smoke-assert-artifacts
+.PHONY: serve serve-api serve-ui serve-e2e-mock stack-build stack-build-llm stack-compose-validate stack-up stack-down stack-logs stack-run-pipeline verify-stack-profiles smoke-build smoke-run-pipeline smoke-up smoke-down smoke-test-playwright smoke-assert-logs smoke-export-corpus smoke-assert-artifacts
 SERVE_OUTPUT_DIR ?= ./output
 # Optional corpus-editing + jobs routes (health shows green when on). Override with SERVE_ARGS= to disable.
 SERVE_ARGS ?= --enable-feeds-api --enable-operator-config-api --enable-jobs-api
@@ -502,6 +503,15 @@ stack-build-llm:
 verify-stack-profiles:
 	@echo "Validating config/profiles/*.yaml minimum Docker tiers..."
 	@export PYTHONPATH="${PYTHONPATH}:$(PWD)/src" && $(PYTHON) scripts/tools/validate_profile_docker_tier.py
+
+# RFC-079: ``docker compose config`` (no build) — catches bad merges / invalid interpolation.
+STACK_COMPOSE_VALIDATE_CFG ?= $(PWD)/config/examples/docker-stack.example.yaml
+stack-compose-validate:
+	@cfg="$(CONFIG_FILE)"; \
+	if [ -z "$$cfg" ]; then cfg="$(STACK_COMPOSE_VALIDATE_CFG)"; fi; \
+	echo "stack-compose-validate: CONFIG_FILE=$$cfg"; \
+	CONFIG_FILE="$$cfg" $(STACK_COMPOSE) config -q; \
+	CONFIG_FILE="$$cfg" docker compose -f compose/docker-compose.stack.yml -f compose/docker-compose.jobs-docker.yml config -q
 
 stack-up:
 	@$(STACK_COMPOSE) up -d

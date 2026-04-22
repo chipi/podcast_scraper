@@ -22,6 +22,8 @@ on:
       - 'pyproject.toml'
       - 'Makefile'
       - 'docker/pipeline/Dockerfile'
+      - 'docker/api/**'
+      - 'docker/viewer/**'
       - '.dockerignore'
       - 'web/gi-kg-viewer/**'
       - 'config/acceptance/MAIN_ACCEPTANCE_CONFIG.yaml'
@@ -39,6 +41,8 @@ on:
       - 'pyproject.toml'
       - 'Makefile'
       - 'docker/pipeline/Dockerfile'
+      - 'docker/api/**'
+      - 'docker/viewer/**'
       - '.dockerignore'
       - 'web/gi-kg-viewer/**'
       - 'config/acceptance/MAIN_ACCEPTANCE_CONFIG.yaml'
@@ -61,6 +65,7 @@ jobs:
       docs-only: ${{ steps.filter.outputs.docs }}
       code: ${{ steps.filter.outputs.code }}
       stack-profiles: ${{ steps.filter.outputs.stack-profiles }}
+      stack-compose: ${{ steps.filter.outputs.stack-compose }}
     steps:
     - uses: actions/checkout@v6
     - uses: dorny/paths-filter@v4
@@ -86,6 +91,13 @@ jobs:
             - 'config/profiles/**'
             - 'compose/**'
             - 'scripts/tools/validate_profile_docker_tier.py'
+            - '.github/workflows/python-app.yml'
+          stack-compose:
+            - 'compose/**'
+            - 'docker/api/**'
+            - 'docker/viewer/**'
+            - 'docker/pipeline/Dockerfile'
+            - 'compose/docker-compose.jobs-docker.yml'
             - '.github/workflows/python-app.yml'
 
   # GI/KG viewer v2 — Playwright E2E (RFC-062)
@@ -226,7 +238,7 @@ jobs:
   test-unit:
     runs-on: ubuntu-latest
     timeout-minutes: 15  # Conservative timeout for fast unit tests
-    needs: [lint, build, detect-changes]  # detect-changes: optional verify-stack-profiles step
+    needs: [lint, build, detect-changes]  # optional verify-stack-profiles + stack compose config steps
     steps:
     - uses: actions/checkout@v6
     - name: Set up Python 3.11
@@ -244,6 +256,12 @@ jobs:
       run: |
         export PYTHONPATH="${PYTHONPATH}:$(pwd)/src"
         make verify-stack-profiles
+    - name: Validate stack Compose file merges (RFC-079, no build)
+      if: needs.detect-changes.outputs.stack-compose == 'true'
+      run: |
+        export CONFIG_FILE="${GITHUB_WORKSPACE}/config/examples/docker-stack.example.yaml"
+        docker compose -f compose/docker-compose.stack.yml config -q
+        docker compose -f compose/docker-compose.stack.yml -f compose/docker-compose.jobs-docker.yml config -q
     - name: Install ffmpeg (required for audio preprocessing unit tests)
       run: |
         sudo apt-get update

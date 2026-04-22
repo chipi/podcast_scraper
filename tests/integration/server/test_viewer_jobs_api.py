@@ -264,3 +264,17 @@ def test_jobs_docker_mode_accepts_pipeline_install_extras(
     client = TestClient(app)
     r = client.post("/api/jobs", params={"path": str(corpus)})
     assert r.status_code == 202
+
+
+def test_jobs_docker_mode_accepts_pipeline_install_extras_llm(
+    monkeypatch: pytest.MonkeyPatch, corpus: Path, fake_factory_immediate: object
+) -> None:
+    monkeypatch.setenv("PODCAST_PIPELINE_EXEC_MODE", "docker")
+    (corpus / "viewer_operator.yaml").write_text(
+        "pipeline_install_extras: llm\nmax_episodes: 1\n", encoding="utf-8"
+    )
+    app = create_app(corpus, static_dir=False, enable_jobs_api=True)
+    app.state.jobs_subprocess_factory = fake_factory_immediate
+    client = TestClient(app)
+    r = client.post("/api/jobs", params={"path": str(corpus)})
+    assert r.status_code == 202
