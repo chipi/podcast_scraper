@@ -1199,6 +1199,33 @@ def _finalize_metrics_path(cfg: config.Config, effective_output_dir: str) -> Opt
     return os.path.join(effective_output_dir, "metrics.json")
 
 
+def _log_cost_summary_line(pipeline_metrics: Any) -> None:
+    """Log a compact cost summary at end of run (#650).
+
+    Emits ``LLM: $X.XX • Transcription: $Y.YY • Total: $Z.ZZ`` so every
+    run's cost is visible on the console without needing to open
+    ``metrics.json``. Silent when all three totals are zero (local-only
+    runs or dry runs).
+    """
+    tr = float(getattr(pipeline_metrics, "llm_transcription_cost_usd", 0.0) or 0.0)
+    llm = (
+        float(getattr(pipeline_metrics, "llm_summarization_cost_usd", 0.0) or 0.0)
+        + float(getattr(pipeline_metrics, "llm_speaker_detection_cost_usd", 0.0) or 0.0)
+        + float(getattr(pipeline_metrics, "llm_cleaning_cost_usd", 0.0) or 0.0)
+        + float(getattr(pipeline_metrics, "llm_gi_cost_usd", 0.0) or 0.0)
+        + float(getattr(pipeline_metrics, "llm_kg_cost_usd", 0.0) or 0.0)
+    )
+    total = tr + llm
+    if total == 0.0:
+        return
+    logger.info(
+        "Run cost — LLM: $%.4f • Transcription: $%.4f • Total: $%.4f",
+        llm,
+        tr,
+        total,
+    )
+
+
 def _finalize_emit_and_save(
     jsonl_emitter: Optional[Any],
     pipeline_metrics: Any,
@@ -1392,6 +1419,7 @@ def _finalize_pipeline(
     _log_episode_results(pipeline_metrics, episodes)
     metrics_path = _finalize_metrics_path(cfg, effective_output_dir)
     metrics_written = _finalize_emit_and_save(jsonl_emitter, pipeline_metrics, metrics_path)
+    _log_cost_summary_line(pipeline_metrics)
     index_written, failure_summary = _finalize_run_index(
         cfg, pipeline_metrics, episodes, effective_output_dir, run_suffix
     )
