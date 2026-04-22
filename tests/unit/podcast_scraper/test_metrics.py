@@ -510,6 +510,7 @@ class TestFinish(unittest.TestCase):
             "llm_bundled_clean_summary_output_tokens",
             "llm_bundled_clean_summary_avg_input_tokens_per_call",
             "llm_bundled_clean_summary_avg_output_tokens_per_call",
+            "llm_bundled_clean_summary_cost_usd",
             "llm_bundled_fallback_to_staged_count",
             "total_episode_estimated_cost_usd",
             "total_stage_cost_usd",

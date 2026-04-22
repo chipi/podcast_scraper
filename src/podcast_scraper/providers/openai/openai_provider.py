@@ -71,6 +71,44 @@ from ..ml.speaker_detection import DEFAULT_SPEAKER_NAMES
 # reference a model without a matching YAML row.
 
 
+def _record_openai_summarization_call(
+    response: Any,
+    pipeline_metrics: Optional[Any],
+    *,
+    cfg: Any,
+    model: str,
+) -> None:
+    """Record one OpenAI summarization LLM call into pipeline_metrics.
+
+    Used by bundle-mode methods (summarize_bundled, summarize_mega_bundled,
+    summarize_extraction_bundled) — these make one summary-pricing LLM call
+    and historically skipped ``record_llm_summarization_call`` entirely, so
+    cost/tokens vanished at pipeline level even though call_metrics saw them.
+    """
+    if pipeline_metrics is None or not hasattr(pipeline_metrics, "record_llm_summarization_call"):
+        return
+    usage = getattr(response, "usage", None)
+    if usage is None:
+        return
+    in_raw = getattr(usage, "prompt_tokens", None)
+    out_raw = getattr(usage, "completion_tokens", None)
+    if not isinstance(in_raw, (int, float)) or not isinstance(out_raw, (int, float)):
+        return
+    in_tok = int(in_raw)
+    out_tok = int(out_raw)
+    from ...workflow.helpers import calculate_provider_cost
+
+    cost = calculate_provider_cost(
+        cfg=cfg,
+        provider_type="openai",
+        capability="summarization",
+        model=model,
+        prompt_tokens=in_tok,
+        completion_tokens=out_tok,
+    )
+    pipeline_metrics.record_llm_summarization_call(in_tok, out_tok, cost_usd=cost)
+
+
 class OpenAIProvider:
     """Unified OpenAI provider implementing TranscriptionProvider, SpeakerDetector, and SummarizationProvider.
 
@@ -1310,6 +1348,9 @@ class OpenAIProvider:
             except (TypeError, ValueError):
                 pass
 
+        _record_openai_summarization_call(
+            resp, pipeline_metrics, cfg=self.cfg, model=self.summary_model
+        )
         return parse_megabundle_response(raw_text)
 
     def summarize_extraction_bundled(
@@ -1404,6 +1445,9 @@ class OpenAIProvider:
             except (TypeError, ValueError):
                 pass
 
+        _record_openai_summarization_call(
+            resp, pipeline_metrics, cfg=self.cfg, model=self.summary_model
+        )
         return parse_extraction_bundle_response(raw_text)
 
     def summarize_bundled(
@@ -1519,9 +1563,7 @@ class OpenAIProvider:
             if input_tokens > 0 or output_tokens > 0:
                 call_metrics.set_tokens(input_tokens, output_tokens)
 
-        if pipeline_metrics is not None and input_tokens is not None and output_tokens is not None:
-            pipeline_metrics.record_llm_bundled_clean_summary_call(input_tokens, output_tokens)
-
+        cost: Optional[float] = None
         if input_tokens is not None:
             from ...workflow.helpers import calculate_provider_cost
 
@@ -1534,6 +1576,11 @@ class OpenAIProvider:
                 completion_tokens=output_tokens,
             )
             call_metrics.set_cost(cost)
+
+        if pipeline_metrics is not None and input_tokens is not None and output_tokens is not None:
+            pipeline_metrics.record_llm_bundled_clean_summary_call(
+                input_tokens, output_tokens, cost_usd=cost
+            )
 
         prompt_metadata = {
             "system": get_prompt_metadata(

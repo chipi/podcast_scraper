@@ -176,6 +176,7 @@ class Metrics:
     llm_bundled_clean_summary_calls: int = 0
     llm_bundled_clean_summary_input_tokens: int = 0
     llm_bundled_clean_summary_output_tokens: int = 0
+    llm_bundled_clean_summary_cost_usd: float = 0.0  # Accumulated bundle-mode cost
     llm_bundled_fallback_to_staged_count: int = 0
 
     # Audio preprocessing metrics
@@ -540,11 +541,23 @@ class Metrics:
         if cost_usd is not None:
             self.llm_kg_cost_usd += float(cost_usd)
 
-    def record_llm_bundled_clean_summary_call(self, input_tokens: int, output_tokens: int) -> None:
-        """Record one bundled LLM call (semantic clean + title + bullets, Issue #477)."""
+    def record_llm_bundled_clean_summary_call(
+        self,
+        input_tokens: int,
+        output_tokens: int,
+        cost_usd: Optional[float] = None,
+    ) -> None:
+        """Record one bundled LLM call (semantic clean + title + bullets, Issue #477).
+
+        ``cost_usd`` is accumulated into ``llm_bundled_clean_summary_cost_usd`` so
+        mega/bundled-mode runs surface their summary-side cost in cost_rollup
+        alongside staged modes (#650/#651).
+        """
         self.llm_bundled_clean_summary_calls += 1
         self.llm_bundled_clean_summary_input_tokens += input_tokens
         self.llm_bundled_clean_summary_output_tokens += output_tokens
+        if cost_usd is not None:
+            self.llm_bundled_clean_summary_cost_usd += float(cost_usd)
 
     def record_llm_bundled_fallback_to_staged(self) -> None:
         """Increment count when bundled clean+summary fails and staged path is used."""
@@ -948,17 +961,19 @@ class Metrics:
             round((1 - total_preprocessed / total_original) * 100, 1) if total_original > 0 else 0.0
         )
 
-        # Per-stage cost aggregate (Findings 17 + 20): sum of the 6 stage costs
+        # Per-stage cost aggregate (Findings 17 + 20): sum of the stage costs
         # populated by record_llm_*_call(cost_usd=...). Covers transcription,
-        # summarization, speaker detection, cleaning, GI, KG. Authoritative once
-        # all providers pass cost_usd through; until then some fields read 0.
+        # summarization, speaker detection, cleaning, GI, KG, and the bundle
+        # path (mega/bundled modes — Issue #477). Authoritative once all
+        # providers pass cost_usd through; until then some fields read 0.
         total_stage_cost_usd = round(
             self.llm_transcription_cost_usd
             + self.llm_summarization_cost_usd
             + self.llm_speaker_detection_cost_usd
             + self.llm_cleaning_cost_usd
             + self.llm_gi_cost_usd
-            + self.llm_kg_cost_usd,
+            + self.llm_kg_cost_usd
+            + self.llm_bundled_clean_summary_cost_usd,
             6,
         )
 
@@ -1163,6 +1178,7 @@ class Metrics:
             ),
             "llm_bundled_clean_summary_avg_input_tokens_per_call": bd_in_avg,
             "llm_bundled_clean_summary_avg_output_tokens_per_call": bd_out_avg,
+            "llm_bundled_clean_summary_cost_usd": round(self.llm_bundled_clean_summary_cost_usd, 6),
             "llm_bundled_fallback_to_staged_count": self.llm_bundled_fallback_to_staged_count,
             "total_episode_estimated_cost_usd": total_episode_estimated_cost_usd,
             "total_stage_cost_usd": total_stage_cost_usd,

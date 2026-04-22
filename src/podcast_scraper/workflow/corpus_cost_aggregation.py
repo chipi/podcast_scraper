@@ -26,6 +26,7 @@ _STAGE_COST_FIELDS: tuple[str, ...] = (
     "llm_cleaning_cost_usd",
     "llm_gi_cost_usd",
     "llm_kg_cost_usd",
+    "llm_bundled_clean_summary_cost_usd",
 )
 
 

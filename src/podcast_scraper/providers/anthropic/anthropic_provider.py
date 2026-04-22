@@ -964,6 +964,13 @@ class AnthropicProvider:
             except (TypeError, ValueError):
                 pass
 
+        _record_anthropic_llm_call(
+            resp,
+            pipeline_metrics,
+            recorder_name="record_llm_summarization_call",
+            cfg=self.cfg,
+            model=self.summary_model,
+        )
         return parse_megabundle_response(raw_text)
 
     def summarize_extraction_bundled(
@@ -1038,6 +1045,13 @@ class AnthropicProvider:
             except (TypeError, ValueError):
                 pass
 
+        _record_anthropic_llm_call(
+            resp,
+            pipeline_metrics,
+            recorder_name="record_llm_summarization_call",
+            cfg=self.cfg,
+            model=self.summary_model,
+        )
         return parse_extraction_bundle_response(raw_text)
 
     def summarize_bundled(
@@ -1142,9 +1156,7 @@ class AnthropicProvider:
             if input_tokens > 0 or output_tokens > 0:
                 call_metrics.set_tokens(input_tokens, output_tokens)
 
-        if pipeline_metrics is not None and input_tokens is not None and output_tokens is not None:
-            pipeline_metrics.record_llm_bundled_clean_summary_call(input_tokens, output_tokens)
-
+        cost: Optional[float] = None
         if input_tokens is not None:
             from ...workflow.helpers import calculate_provider_cost
 
@@ -1157,6 +1169,11 @@ class AnthropicProvider:
                 completion_tokens=output_tokens,
             )
             call_metrics.set_cost(cost)
+
+        if pipeline_metrics is not None and input_tokens is not None and output_tokens is not None:
+            pipeline_metrics.record_llm_bundled_clean_summary_call(
+                input_tokens, output_tokens, cost_usd=cost
+            )
 
         prompt_metadata = {
             "system": get_prompt_metadata(

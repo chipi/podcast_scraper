@@ -390,6 +390,94 @@ class TestGeminiProviderTranscription(unittest.TestCase):
         self.assertIsInstance(elapsed, float)
         self.assertGreater(elapsed, 0)
 
+    @patch("podcast_scraper.providers.gemini.gemini_provider.genai")
+    @patch("os.path.getsize")
+    @patch("builtins.open", create=True)
+    @patch("os.path.exists")
+    def test_transcribe_with_segments_file_size_fallback_scales_by_bitrate(
+        self, mock_exists, mock_open, mock_getsize, mock_genai
+    ):
+        """#650 Finding 18 — file-size→minutes fallback must scale by configured
+        bitrate. Pre-fix (naive 1MB≈1min assumption) would under-report 4× on
+        speech_optimal_v1 (32 kbps) and silently zero-out cost. Symmetry with
+        openai's ``test_transcribe_with_segments_file_size_fallback_scales_by_bitrate``.
+        """
+        mock_exists.return_value = True
+        mock_file = Mock()
+        mock_file.read.return_value = b"fake audio data"
+        mock_open.return_value.__enter__.return_value = mock_file
+        mock_open.return_value.__exit__.return_value = None
+        mock_getsize.return_value = 3 * 1024 * 1024  # 3 MB
+
+        mock_response = Mock()
+        mock_response.text = "fallback transcript"
+        mock_client = Mock()
+        mock_client.models.generate_content.return_value = mock_response
+        mock_genai.Client.return_value = mock_client
+
+        cfg = config.Config(
+            transcription_provider="gemini",
+            gemini_api_key="test-api-key-123",
+            transcribe_missing=True,
+            preprocessing_mp3_bitrate_kbps=32,  # speech_optimal_v1
+        )
+        provider = GeminiProvider(cfg)
+        provider.initialize()
+
+        pm = Mock()
+        provider.transcribe_with_segments(
+            "/path/to/audio.mp3",
+            pipeline_metrics=pm,
+        )
+
+        # Expected: 3 MB × (128/32) = 12.0 minutes.
+        self.assertTrue(pm.record_llm_transcription_call.called)
+        recorded_minutes = pm.record_llm_transcription_call.call_args[0][0]
+        self.assertAlmostEqual(recorded_minutes, 12.0, places=4)
+        # cost_usd populated — proves the bitrate-aware minutes flow through cost math.
+        cost_kwarg = pm.record_llm_transcription_call.call_args.kwargs.get("cost_usd")
+        self.assertIsNotNone(cost_kwarg)
+
+    @patch("podcast_scraper.providers.gemini.gemini_provider.genai")
+    @patch("os.path.getsize")
+    @patch("builtins.open", create=True)
+    @patch("os.path.exists")
+    def test_transcribe_with_segments_file_size_fallback_default_bitrate(
+        self, mock_exists, mock_open, mock_getsize, mock_genai
+    ):
+        """Finding 18 — when bitrate is unset, fall back to 128 kbps (matches pre-fix
+        behaviour for untuned audio so fix doesn't regress existing eps)."""
+        mock_exists.return_value = True
+        mock_file = Mock()
+        mock_file.read.return_value = b"fake audio data"
+        mock_open.return_value.__enter__.return_value = mock_file
+        mock_open.return_value.__exit__.return_value = None
+        mock_getsize.return_value = 5 * 1024 * 1024  # 5 MB
+
+        mock_response = Mock()
+        mock_response.text = "default-bitrate transcript"
+        mock_client = Mock()
+        mock_client.models.generate_content.return_value = mock_response
+        mock_genai.Client.return_value = mock_client
+
+        cfg = config.Config(
+            transcription_provider="gemini",
+            gemini_api_key="test-api-key-123",
+            transcribe_missing=True,
+        )
+        provider = GeminiProvider(cfg)
+        provider.initialize()
+
+        pm = Mock()
+        provider.transcribe_with_segments(
+            "/path/to/audio.mp3",
+            pipeline_metrics=pm,
+        )
+
+        # Expected: 5 MB × (128/128) = 5.0 minutes.
+        recorded_minutes = pm.record_llm_transcription_call.call_args[0][0]
+        self.assertAlmostEqual(recorded_minutes, 5.0, places=4)
+
 
 @pytest.mark.unit
 class TestGeminiProviderSpeakerDetection(unittest.TestCase):

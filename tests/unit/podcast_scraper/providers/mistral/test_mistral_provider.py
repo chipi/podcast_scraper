@@ -447,6 +447,89 @@ class TestMistralProviderTranscription(unittest.TestCase):
         self.assertIsInstance(elapsed, float)
         self.assertGreater(elapsed, 0)
 
+    @patch("podcast_scraper.providers.mistral.mistral_provider._mistral_file_class")
+    @patch("podcast_scraper.providers.mistral.mistral_provider.Mistral")
+    @patch("os.path.getsize")
+    @patch("builtins.open", create=True)
+    @patch("os.path.exists")
+    def test_transcribe_with_segments_file_size_fallback_scales_by_bitrate(
+        self, mock_exists, mock_open, mock_getsize, mock_mistral_class, mock_file_cls
+    ):
+        """#650 Finding 18 symmetry — file-size→minutes fallback on Mistral must
+        scale by configured bitrate when episode_duration_seconds is unset.
+        """
+        mock_file_cls.return_value = _DummyMistralUploadFile
+        mock_exists.return_value = True
+        mock_file = Mock()
+        mock_file.read.return_value = b"fake audio data"
+        mock_open.return_value.__enter__.return_value = mock_file
+        mock_open.return_value.__exit__.return_value = None
+        mock_getsize.return_value = 3 * 1024 * 1024  # 3 MB
+
+        mock_transcription = Mock()
+        mock_transcription.text = "fallback transcript"
+        mock_client = Mock()
+        mock_client.audio.transcriptions.complete.return_value = mock_transcription
+        mock_mistral_class.return_value = mock_client
+
+        cfg = config.Config(
+            transcription_provider="mistral",
+            mistral_api_key="test-api-key-123",
+            transcribe_missing=True,
+            preprocessing_mp3_bitrate_kbps=32,
+        )
+        provider = MistralProvider(cfg)
+        provider.initialize()
+
+        pm = Mock()
+        provider.transcribe_with_segments("/path/to/audio.mp3", pipeline_metrics=pm)
+
+        # Expected: 3 MB × (128/32) = 12.0 minutes.
+        self.assertTrue(pm.record_llm_transcription_call.called)
+        recorded_minutes = pm.record_llm_transcription_call.call_args[0][0]
+        self.assertAlmostEqual(recorded_minutes, 12.0, places=4)
+        cost_kwarg = pm.record_llm_transcription_call.call_args.kwargs.get("cost_usd")
+        self.assertIsNotNone(cost_kwarg)
+
+    @patch("podcast_scraper.providers.mistral.mistral_provider._mistral_file_class")
+    @patch("podcast_scraper.providers.mistral.mistral_provider.Mistral")
+    @patch("os.path.getsize")
+    @patch("builtins.open", create=True)
+    @patch("os.path.exists")
+    def test_transcribe_with_segments_file_size_fallback_default_bitrate(
+        self, mock_exists, mock_open, mock_getsize, mock_mistral_class, mock_file_cls
+    ):
+        """Finding 18 — unset bitrate falls back to 128 kbps so pre-fix behaviour
+        is preserved for untuned audio."""
+        mock_file_cls.return_value = _DummyMistralUploadFile
+        mock_exists.return_value = True
+        mock_file = Mock()
+        mock_file.read.return_value = b"fake audio data"
+        mock_open.return_value.__enter__.return_value = mock_file
+        mock_open.return_value.__exit__.return_value = None
+        mock_getsize.return_value = 5 * 1024 * 1024  # 5 MB
+
+        mock_transcription = Mock()
+        mock_transcription.text = "default-bitrate transcript"
+        mock_client = Mock()
+        mock_client.audio.transcriptions.complete.return_value = mock_transcription
+        mock_mistral_class.return_value = mock_client
+
+        cfg = config.Config(
+            transcription_provider="mistral",
+            mistral_api_key="test-api-key-123",
+            transcribe_missing=True,
+        )
+        provider = MistralProvider(cfg)
+        provider.initialize()
+
+        pm = Mock()
+        provider.transcribe_with_segments("/path/to/audio.mp3", pipeline_metrics=pm)
+
+        # Expected: 5 MB × (128/128) = 5.0 minutes.
+        recorded_minutes = pm.record_llm_transcription_call.call_args[0][0]
+        self.assertAlmostEqual(recorded_minutes, 5.0, places=4)
+
 
 @pytest.mark.unit
 class TestMistralProviderSpeakerDetection(unittest.TestCase):
@@ -1254,7 +1337,10 @@ class TestMistralSummarizeBundled(unittest.TestCase):
 
         provider.summarize_bundled("text", pipeline_metrics=pm)
 
-        pm.record_llm_bundled_clean_summary_call.assert_called_once_with(200, 80)
+        pm.record_llm_bundled_clean_summary_call.assert_called_once()
+        call = pm.record_llm_bundled_clean_summary_call.call_args
+        assert call.args == (200, 80)
+        assert call.kwargs.get("cost_usd") is not None  # #651 Part B cost wiring
 
     @patch("podcast_scraper.prompts.store.get_prompt_metadata")
     @patch("podcast_scraper.prompts.store.render_prompt")

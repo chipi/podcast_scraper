@@ -1403,7 +1403,10 @@ class TestOpenAISummarizeBundled(unittest.TestCase):
 
         provider.summarize_bundled("text", pipeline_metrics=pm)
 
-        pm.record_llm_bundled_clean_summary_call.assert_called_once_with(200, 80)
+        pm.record_llm_bundled_clean_summary_call.assert_called_once()
+        call = pm.record_llm_bundled_clean_summary_call.call_args
+        assert call.args == (200, 80)
+        assert call.kwargs.get("cost_usd") is not None  # #651 Part B cost wiring
 
     @patch("podcast_scraper.prompts.store.get_prompt_metadata")
     @patch("podcast_scraper.prompts.store.render_prompt")
