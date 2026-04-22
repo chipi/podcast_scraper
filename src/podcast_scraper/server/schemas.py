@@ -194,6 +194,18 @@ class PipelineJobsListResponse(BaseModel):
     jobs: list[PipelineJobRecord] = Field(default_factory=list)
 
 
+class PipelineJobLogTailResponse(BaseModel):
+    """Tail of a job subprocess log (UTF-8) for dashboard previews."""
+
+    text: str = ""
+    truncated: bool = Field(
+        default=False,
+        description=(
+            "True when the file was larger than ``max_bytes`` and leading bytes were skipped."
+        ),
+    )
+
+
 class PipelineJobReconcileResponse(BaseModel):
     """Response for POST /api/jobs/reconcile."""
 

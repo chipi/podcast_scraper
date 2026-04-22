@@ -33,6 +33,10 @@ function operatorYamlPathFromArgv(argv: string[]): string | null {
  */
 export function pipelineJobRunDetailsText(row: PipelineJobRow): string {
   const lines: string[] = [`command_type: ${row.command_type || '—'}`]
+  const err = row.error_reason?.trim()
+  if (err) {
+    lines.push(`error_reason: ${err}`)
+  }
   const argv = parsedArgv(row)
   if (argv.length) {
     lines.push('argv (exact subprocess):')

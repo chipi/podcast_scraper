@@ -86,6 +86,23 @@ def test_jobs_health_and_submit_completes(corpus: Path, fake_factory_immediate: 
     assert log_q.status_code == 200
     assert log_q.text.strip() == "fake-log"
 
+    tail = client.get(
+        f"/api/jobs/{job_id}/log-tail", params={"path": str(corpus), "max_bytes": 4096}
+    )
+    assert tail.status_code == 200
+    body = tail.json()
+    assert body.get("truncated") is False
+    assert "fake-log" in body.get("text", "")
+
+    tail_q = client.get(
+        "/api/jobs/subprocess-log-tail",
+        params={"path": str(corpus), "job_id": job_id, "max_bytes": 4096},
+    )
+    assert tail_q.status_code == 200
+    body_q = tail_q.json()
+    assert body_q.get("truncated") is False
+    assert "fake-log" in body_q.get("text", "")
+
 
 def test_jobs_reconcile_marks_dead_pid(corpus: Path) -> None:
     app = create_app(corpus, static_dir=False, enable_jobs_api=True)
@@ -221,3 +238,29 @@ def test_jobs_reconcile_wall_clock_stale(monkeypatch: pytest.MonkeyPatch, corpus
     assert rec.json()["updated"] >= 1
     row = client.get("/api/jobs/stale-wall", params={"path": str(corpus)}).json()
     assert row["status"] == "stale"
+
+
+def test_jobs_docker_mode_rejects_missing_pipeline_install_extras(
+    monkeypatch: pytest.MonkeyPatch, corpus: Path
+) -> None:
+    monkeypatch.setenv("PODCAST_PIPELINE_EXEC_MODE", "docker")
+    (corpus / "viewer_operator.yaml").write_text("max_episodes: 1\n", encoding="utf-8")
+    app = create_app(corpus, static_dir=False, enable_jobs_api=True)
+    client = TestClient(app)
+    r = client.post("/api/jobs", params={"path": str(corpus)})
+    assert r.status_code == 400
+    assert "pipeline_install_extras" in str(r.json().get("detail", ""))
+
+
+def test_jobs_docker_mode_accepts_pipeline_install_extras(
+    monkeypatch: pytest.MonkeyPatch, corpus: Path, fake_factory_immediate: object
+) -> None:
+    monkeypatch.setenv("PODCAST_PIPELINE_EXEC_MODE", "docker")
+    (corpus / "viewer_operator.yaml").write_text(
+        "pipeline_install_extras: ml\nmax_episodes: 1\n", encoding="utf-8"
+    )
+    app = create_app(corpus, static_dir=False, enable_jobs_api=True)
+    app.state.jobs_subprocess_factory = fake_factory_immediate
+    client = TestClient(app)
+    r = client.post("/api/jobs", params={"path": str(corpus)})
+    assert r.status_code == 202

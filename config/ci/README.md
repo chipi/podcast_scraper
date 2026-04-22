@@ -1,10 +1,7 @@
-# Local CI-related files (`config/ci/`)
+# CI / CD configuration files
 
-Everything in this directory except this **`README.md`** is **gitignored**.
+YAML and other small configs **only used by automation** (GitHub Actions, compose smoke overlays, etc.).
 
-## Acceptance fast matrix
+- **`smoke-config.yaml`** — RFC-078 full-stack smoke: fixture RSS + airgapped-style limits (see `compose/docker-compose.smoke.yml`, `make smoke-*`, `make smoke-assert-logs`, `make smoke-export-corpus`, `make smoke-assert-artifacts`).
 
-The **tracked** fast list for **`--from-fast-stems`** / **`FAST_ONLY`** is
-**`config/acceptance/MAIN_ACCEPTANCE_CONFIG.yaml`** (matrix of `defaults` + `runs`). Edit that file (or use a
-branch) to add or disable rows — there is **no** alternate stem list in `config/ci/` for the
-acceptance runner.
+Application defaults for humans stay under `config/manual/`, `config/examples/`, and `config/profiles/`.

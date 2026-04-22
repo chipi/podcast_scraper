@@ -258,8 +258,8 @@ docker run -v ./config.yaml:/app/config.yaml \
 **Quick start with Docker Compose:**
 
 ```bash
-# Use provided docker-compose.yml
-docker-compose up -d
+# Standalone pipeline compose (from repository root)
+docker compose -f compose/docker-compose.yml up -d
 ```
 
 See [Docker Service Guide](docs/guides/DOCKER_SERVICE_GUIDE.md) and [Docker Variants Guide](docs/guides/DOCKER_VARIANTS_GUIDE.md) for complete Docker documentation.

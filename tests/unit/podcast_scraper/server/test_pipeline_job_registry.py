@@ -14,6 +14,22 @@ from podcast_scraper.server.pipeline_job_registry import (
 )
 
 
+def test_read_jobs_dedupes_duplicate_job_id_latest_wins(tmp_path: Path) -> None:
+    p = jobs_registry_path(tmp_path)
+    p.parent.mkdir(parents=True, exist_ok=True)
+    p.write_text(
+        json.dumps({"job_id": "same", "status": "running", "note": "old"})
+        + "\n"
+        + json.dumps({"job_id": "same", "status": "cancelled", "note": "new"})
+        + "\n",
+        encoding="utf-8",
+    )
+    rows = read_jobs(tmp_path)
+    assert len(rows) == 1
+    assert rows[0]["status"] == "cancelled"
+    assert rows[0]["note"] == "new"
+
+
 def test_read_jobs_skips_malformed_lines(tmp_path: Path) -> None:
     p = jobs_registry_path(tmp_path)
     p.parent.mkdir(parents=True, exist_ok=True)

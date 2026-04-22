@@ -1,5 +1,5 @@
 ---
-# Hadolint configuration for podcast_scraper Dockerfile
+# Hadolint configuration for podcast_scraper pipeline image (docker/pipeline/Dockerfile)
 # See: https://github.com/hadolint/hadolint
 
 ignored:

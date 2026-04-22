@@ -1,0 +1,19 @@
+# Example viewer operator for **Docker-backed** pipeline jobs (#660).
+# Native ``make serve-api`` workflows do **not** require ``pipeline_install_extras``.
+#
+# When ``PODCAST_PIPELINE_EXEC_MODE=docker`` on the API container, this key is **mandatory**:
+# ``ml`` → ``docker compose … run pipeline`` (full ``.[ml]`` image).
+# ``llm`` → ``… run pipeline-llm`` (``.[llm]`` image; use with ``cloud_thin`` profile).
+
+pipeline_install_extras: ml
+
+max_episodes: 1
+delay_ms: 1250
+
+transcribe_missing: true
+skip_existing: true
+reuse_media: true
+append: false
+screenplay: false
+workers: 4
+log_level: INFO

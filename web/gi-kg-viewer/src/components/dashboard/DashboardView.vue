@@ -38,6 +38,8 @@ const dashboardNav = useDashboardNavStore()
 const dashTab = ref<'coverage' | 'intelligence' | 'pipeline'>('coverage')
 /** Sub-tabs inside Pipeline: active jobs, finished job strip, corpus run strip. */
 const pipelineActivityTab = ref<'jobs' | 'job_history' | 'history'>('jobs')
+/** When set, Run history strip highlights this ``run.json`` path (from job summary feed links). */
+const runHistoryHighlightPath = ref<string | null>(null)
 const runs = ref<CorpusRunSummaryItem[]>([])
 const coverage = ref<CorpusCoverageResponse | null>(null)
 const feeds = ref<CorpusFeedItem[]>([])
@@ -59,7 +61,37 @@ function selectPipelineActivityTab(tab: 'jobs' | 'job_history' | 'history'): voi
   pipelineActivityTab.value = tab
 }
 
-/** From Briefing “Last run” Details — Pipeline tab + Run history strip (not HTTP Jobs). */
+watch(pipelineActivityTab, (t) => {
+  if (t !== 'history') {
+    runHistoryHighlightPath.value = null
+  }
+})
+
+async function onOpenRunHistoryFromExplore(payload: { relativePath: string }): Promise<void> {
+  const rel = payload.relativePath.trim()
+  if (!rel) {
+    return
+  }
+  runHistoryHighlightPath.value = rel
+  dashTab.value = 'pipeline'
+  pipelineActivityTab.value = 'history'
+  await nextTick()
+  document
+    .querySelector<HTMLElement>('[data-testid="pipeline-jobs-history-panel"]')
+    ?.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
+}
+
+/** From Briefing “Last run” Details — Pipeline tab + Job history (finished HTTP jobs). */
+async function openPipelineJobHistory(): Promise<void> {
+  dashTab.value = 'pipeline'
+  pipelineActivityTab.value = 'job_history'
+  await nextTick()
+  document
+    .querySelector<HTMLElement>('[data-testid="pipeline-jobs-history-panel"]')
+    ?.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
+}
+
+/** From Briefing action “View in Pipeline” — Pipeline tab + corpus Run history strip. */
 async function openPipelineRunHistory(): Promise<void> {
   dashTab.value = 'pipeline'
   pipelineActivityTab.value = 'history'
@@ -281,6 +313,7 @@ function openLibraryFailures(): void {
       :corpus-path="shell.corpusPath"
       :api-ready="Boolean(shell.healthStatus)"
       @select-tab="selectTab"
+      @open-pipeline-job-history="void openPipelineJobHistory()"
       @open-pipeline-run-history="void openPipelineRunHistory()"
       @rebuild-index="indexStats.requestIndexRebuild(true)"
       @open-library="emit('open-library')"
@@ -438,15 +471,19 @@ function openLibraryFailures(): void {
             v-if="pipelineActivityTab === 'jobs'"
             embedded
             active-jobs-only
+            @open-run-history="onOpenRunHistoryFromExplore"
+            @go-to-job-history="selectPipelineActivityTab('job_history')"
           />
           <PipelineJobHistoryStrip
             v-else-if="pipelineActivityTab === 'job_history'"
             embedded
+            @open-run-history="onOpenRunHistoryFromExplore"
           />
           <PipelineRunHistoryStrip
             v-else
             embedded
             :runs="runs"
+            :highlight-relative-path="runHistoryHighlightPath"
           />
         </div>
       </div>

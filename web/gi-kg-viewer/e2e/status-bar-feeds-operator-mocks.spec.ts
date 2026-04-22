@@ -133,15 +133,16 @@ test.describe('Status bar — feeds & operator YAML (mocked API)', () => {
     await expect(page.getByTestId('status-bar-sources-trigger')).toBeVisible({ timeout: 15_000 })
     await page.getByTestId('status-bar-sources-trigger').click()
     await expect(page.getByTestId('status-bar-sources-dialog')).toBeVisible()
+    await expect(page.getByTestId('sources-dialog-feeds-list')).toBeVisible()
+    await expect(page.getByTestId('sources-dialog-feeds-row-0')).toContainText('https://seed.example/rss')
+    await page.getByTestId('sources-dialog-feeds-panel-json').click()
     await expect(page.getByTestId('sources-dialog-feeds-textarea')).toHaveValue(
       '{\n  "feeds": [\n    "https://seed.example/rss"\n  ]\n}',
     )
-    await expect(page.getByTestId('sources-dialog-feeds-lines-textarea')).toBeVisible()
-    await expect(page.getByTestId('sources-dialog-feeds-merge-lines')).toBeVisible()
     expect(operatorGets).toHaveLength(0)
   })
 
-  test('Save feeds sends PUT with parsed feeds array', async ({ page }) => {
+  test('Apply JSON sends PUT with parsed feeds array', async ({ page }) => {
     let lastPutFeeds: unknown[] | null = null
     await page.route(matchExactApiPath('/api/health'), async (route) => {
       await route.fulfill({
@@ -177,7 +178,9 @@ test.describe('Status bar — feeds & operator YAML (mocked API)', () => {
             feeds: lastPutFeeds,
           }),
         })
+        return
       }
+      await route.fulfill({ status: 405, body: 'unexpected method' })
     })
 
     await page.goto('/')
@@ -185,14 +188,15 @@ test.describe('Status bar — feeds & operator YAML (mocked API)', () => {
     await statusBarCorpusPathInput(page).fill('/mock/corpus')
     await expect(page.getByTestId('status-bar-sources-trigger')).toBeVisible({ timeout: 15_000 })
     await page.getByTestId('status-bar-sources-trigger').click()
+    await page.getByTestId('sources-dialog-feeds-panel-json').click()
     await page
       .getByTestId('sources-dialog-feeds-textarea')
       .fill('{\n  "feeds": [\n    "  https://a.example/x  ",\n    "https://b.example/y"\n  ]\n}')
-    await page.getByRole('button', { name: 'Save feeds' }).click()
+    await page.getByTestId('sources-dialog-feeds-apply-json').click()
     expect(lastPutFeeds).toEqual(['  https://a.example/x  ', 'https://b.example/y'])
   })
 
-  test('Append lines merges URLs into feeds JSON without save', async ({ page }) => {
+  test('Add feed appends URL and saves via PUT', async ({ page }) => {
     await page.route(matchExactApiPath('/api/health'), async (route) => {
       await route.fulfill({
         status: 200,
@@ -201,17 +205,36 @@ test.describe('Status bar — feeds & operator YAML (mocked API)', () => {
       })
     })
     await stubCorpusPathCompanionApis(page)
+    let lastPutFeedsAppend: unknown[] | null = null
     await page.route(matchExactApiPath('/api/feeds'), async (route) => {
       const url = new URL(route.request().url())
-      await route.fulfill({
-        status: 200,
-        contentType: 'application/json',
-        body: JSON.stringify({
-          path: url.searchParams.get('path') ?? '',
-          file_relpath: 'feeds.spec.yaml',
-          feeds: ['https://existing.example/rss'],
-        }),
-      })
+      if (route.request().method() === 'GET') {
+        await route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify({
+            path: url.searchParams.get('path') ?? '',
+            file_relpath: 'feeds.spec.yaml',
+            feeds: ['https://existing.example/rss'],
+          }),
+        })
+        return
+      }
+      if (route.request().method() === 'PUT') {
+        const body = route.request().postDataJSON() as { feeds?: unknown[] }
+        lastPutFeedsAppend = Array.isArray(body.feeds) ? body.feeds : []
+        await route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify({
+            path: url.searchParams.get('path') ?? '',
+            file_relpath: 'feeds.spec.yaml',
+            feeds: lastPutFeedsAppend,
+          }),
+        })
+        return
+      }
+      await route.fulfill({ status: 405, body: 'unexpected method' })
     })
     await page.route(matchExactApiPath('/api/operator-config'), async (route) => {
       await route.fulfill({
@@ -230,11 +253,10 @@ test.describe('Status bar — feeds & operator YAML (mocked API)', () => {
     await page.getByRole('heading', { name: SHELL_HEADING_RE }).waitFor({ timeout: 60_000 })
     await statusBarCorpusPathInput(page).fill('/mock/corpus')
     await page.getByTestId('status-bar-sources-trigger').click()
-    await page.getByTestId('sources-dialog-feeds-lines-textarea').fill('https://new.example/feed\n')
-    await page.getByTestId('sources-dialog-feeds-merge-lines').click()
-    const v = await page.getByTestId('sources-dialog-feeds-textarea').inputValue()
-    expect(v).toContain('https://existing.example/rss')
-    expect(v).toContain('https://new.example/feed')
+    await page.getByTestId('sources-dialog-feeds-add-url').fill('https://new.example/feed')
+    await page.getByTestId('sources-dialog-feeds-add-btn').click()
+    expect(lastPutFeedsAppend).toEqual(['https://existing.example/rss', 'https://new.example/feed'])
+    await expect(page.getByTestId('sources-dialog-feeds-row-1')).toContainText('https://new.example/feed')
   })
 
   test('Operator tab loads YAML and save sends PUT body', async ({ page }) => {
@@ -304,7 +326,9 @@ test.describe('Status bar — feeds & operator YAML (mocked API)', () => {
     expect(lastPutContent).toBe('keep: true\nextra: 2\n')
   })
 
-  test('health dialog lists feeds, operator, and pipeline jobs API rows as Yes', async ({ page }) => {
+  test('health tab in corpus dialog lists feeds, operator, and pipeline jobs API rows as Yes', async ({
+    page,
+  }) => {
     await page.route(matchExactApiPath('/api/health'), async (route) => {
       await route.fulfill({
         status: 200,
@@ -317,15 +341,18 @@ test.describe('Status bar — feeds & operator YAML (mocked API)', () => {
     await page.getByRole('heading', { name: SHELL_HEADING_RE }).waitFor({ timeout: 60_000 })
     await statusBarCorpusPathInput(page).fill('/mock/corpus')
     await page.getByTestId('status-bar-health-trigger').click()
-    const healthDialog = page.locator('[aria-labelledby="status-bar-health-dialog-title"]')
-    await expect(healthDialog.getByText('Feeds file API')).toBeVisible()
-    await expect(healthDialog.getByText('Operator YAML API')).toBeVisible()
-    await expect(healthDialog.getByText('Pipeline jobs API')).toBeVisible()
-    const feedsDt = healthDialog.locator('dt').filter({ hasText: /Feeds file API/ })
+    const dialog = page.getByTestId('status-bar-sources-dialog')
+    const healthPanel = page.getByTestId('sources-dialog-health-panel')
+    await expect(dialog).toBeVisible()
+    await expect(healthPanel).toBeVisible()
+    await expect(healthPanel.getByText('Feeds file API')).toBeVisible()
+    await expect(healthPanel.getByText('Operator YAML API')).toBeVisible()
+    await expect(healthPanel.getByText('Pipeline jobs API')).toBeVisible()
+    const feedsDt = healthPanel.locator('dt').filter({ hasText: /Feeds file API/ })
     await expect(feedsDt.locator('xpath=./following-sibling::dd[1]')).toHaveText('Yes')
-    const opDt = healthDialog.locator('dt').filter({ hasText: /Operator YAML API/ })
+    const opDt = healthPanel.locator('dt').filter({ hasText: /Operator YAML API/ })
     await expect(opDt.locator('xpath=./following-sibling::dd[1]')).toHaveText('Yes')
-    const jobsDt = healthDialog.locator('dt').filter({ hasText: /Pipeline jobs API/ })
+    const jobsDt = healthPanel.locator('dt').filter({ hasText: /Pipeline jobs API/ })
     await expect(jobsDt.locator('xpath=./following-sibling::dd[1]')).toHaveText('Yes')
   })
 })

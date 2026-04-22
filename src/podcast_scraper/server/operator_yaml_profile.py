@@ -20,6 +20,20 @@ def format_profile_scalar(name: str) -> str:
     return json.dumps(s)
 
 
+def parse_pipeline_install_extras(content: str) -> str | None:
+    """Return extras name from top-level ``pipeline_install_extras``, or ``None`` if absent."""
+    for line in content.replace("\r\n", "\n").split("\n"):
+        m = re.match(r"^\s*pipeline_install_extras:\s*(\S+)\s*$", line)
+        if not m:
+            continue
+        v = m.group(1).strip().strip("\"'")
+        if v in ("ml", "llm"):
+            return v
+        if v:
+            return v
+    return None
+
+
 def split_operator_yaml_profile(content: str) -> tuple[str, str]:
     """Return ``(profile_name, body_without_profile_line)``."""
     raw = content.replace("\r\n", "\n")

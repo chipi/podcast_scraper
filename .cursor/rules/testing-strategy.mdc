@@ -44,7 +44,7 @@ See **`docs/guides/E2E_TESTING_GUIDE.md`** (section *When you change viewer UX*)
 
 **For which tests to run:** Use the **test-scope-decision-tree** skill.
 
-**This project:** See table below for area → command. Run `make docker-test` only when Dockerfile/structure/deps changed.
+**This project:** See table below for area → command. Run `make docker-test` only when `docker/pipeline/Dockerfile` / structure / deps changed.
 
 **Run slow tests ONLY if you changed:**
 
@@ -67,7 +67,7 @@ See **`docs/guides/E2E_TESTING_GUIDE.md`** (section *When you change viewer UX*)
 
 **Run `make docker-test` ONLY if you changed:**
 
-- Dockerfile — any changes to build process
+- `docker/pipeline/Dockerfile` — any changes to pipeline image build
 - Project structure — changes to package layout
 - Dependencies — changes to `pyproject.toml` (core deps, metadata)
 - Package configuration — changes to `[tool.setuptools]`
@@ -305,7 +305,7 @@ Changed code?
 │  ├─ Integration ML? → make ci-fast + make test-integration-slow
 │  ├─ E2E ML? → make ci-fast + make test-e2e-slow
 │  └─ Both? → make ci-fast + make test-all-slow
-├─ Dockerfile/structure? → make ci-fast + make docker-test
+├─ `docker/pipeline/Dockerfile` / structure? → make ci-fast + make docker-test
 └─ No ML? → make ci-fast
 ```
 

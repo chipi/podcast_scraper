@@ -22,7 +22,7 @@ scanning, Docker validation, documentation deployment, and metrics collection.
 | **Python Application**    | `python-app.yml` | Main CI pipeline with testing, linting, and builds    | Push/PR to `main` (only when Python/config files change)                    |
 | **Documentation Deploy**  | `docs.yml`       | Build and deploy MkDocs documentation to GitHub Pages | Push to `main`, PR with doc changes, manual                                 |
 | **CodeQL Security**       | `codeql.yml`     | Security vulnerability scanning                       | Push/PR to `main` (only when code/workflow files change), scheduled weekly  |
-| **Docker Build & Test**   | `docker.yml`     | Build and test Docker images                          | Push to `main` (all), PRs (Dockerfile/.dockerignore only)                   |
+| **Docker Build & Test**   | `docker.yml`     | Build and test Docker images                          | Push/PR paths per `docker.yml` (pipeline image, py)                         |
 | **Snyk Security Scan**    | `snyk.yml`       | Dependency and Docker image vulnerability scanning    | Push/PR to `main`, scheduled weekly (Mondays), manual                       |
 | **Nightly Comprehensive** | `nightly.yml`    | Full test suite with comprehensive metrics collection | Scheduled daily (2 AM UTC), manual                                          |
 
@@ -92,19 +92,18 @@ Each workflow only runs when specific files are modified:
 - `tests/**` (any test file)
 - `pyproject.toml`
 - `Makefile`
-- `Dockerfile`
+- `docker/pipeline/Dockerfile`
 - `.dockerignore`
 
 **`docker.yml` Workflow:**
 
-- **Push to main:** All changes (Dockerfile, .dockerignore, pyproject.toml, *.py)
-- **Pull requests:** Only `Dockerfile` or `.dockerignore` changes
+- **Push to main / PR:** `docker/pipeline/Dockerfile`, `.dockerignore`, `pyproject.toml`, `**.py`
 
 **`snyk.yml` Workflow:**
 
 - `**.py`
 - `pyproject.toml`
-- `Dockerfile`
+- `docker/pipeline/Dockerfile`
 - `.dockerignore`
 
 **`codeql.yml` Workflow:**
@@ -337,7 +336,7 @@ When you change files, here's what runs:
 | **Only `.py` files** | Run | Run | Run | Code changes need full validation + API docs rebuild |
 | **Only `README.md`** | Skip | Run | Skip | README is included in docs site |
 | **`pyproject.toml`** | Run | Skip | Skip | Config changes affect dependencies/build |
-| **`Dockerfile`** | Run | Skip | Skip | Docker builds depend on package validation |
+| **`docker/pipeline/Dockerfile`** | Run | Skip | Skip | Docker builds depend on package validation |
 | **`.github/workflows/`** | (if python-app.yml) | (if docs.yml) | Run | Workflow changes need validation |
 | **Mixed changes** | Run | Run | Run | Any match triggers the workflow |
 
@@ -559,10 +558,10 @@ git push
 ```text
 ```bash
 
-# Edit Dockerfile
+# Edit docker/pipeline/Dockerfile
 
-echo "# Test comment" >> Dockerfile
-git add Dockerfile
+echo "# Test comment" >> docker/pipeline/Dockerfile
+git add docker/pipeline/Dockerfile
 git commit -m "chore: test docker path filtering"
 git push
 

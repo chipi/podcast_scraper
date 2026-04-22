@@ -27,6 +27,59 @@ export function pipelineJobLogUrl(corpusPath: string, jobId: string): string {
   return `/api/jobs/subprocess-log?${q.toString()}`
 }
 
+export interface PipelineJobLogTailResponse {
+  text: string
+  truncated: boolean
+}
+
+/** Turn FastAPI JSON error bodies into a short string for UI. */
+export function formatJobHttpErrorMessage(message: string): string {
+  const m = message.trim()
+  if (!m.startsWith('{')) {
+    return m
+  }
+  try {
+    const o = JSON.parse(m) as { detail?: unknown }
+    const d = o.detail
+    if (typeof d === 'string') {
+      if (d === 'Not Found') {
+        return 'HTTP 404: log-tail route missing or wrong URL — upgrade serve or open full log from Command & paths.'
+      }
+      if (d === 'Job not found.' || d === 'Job not found') {
+        return 'No registry row for this job id under the current corpus path (check Corpus root, refresh Job history, restart serve after upgrading).'
+      }
+      return d
+    }
+    if (Array.isArray(d)) {
+      return d.map((x) => (typeof x === 'object' && x && 'msg' in x ? String((x as { msg: unknown }).msg) : String(x))).join('; ')
+    }
+  } catch {
+    /* not JSON */
+  }
+  return m
+}
+
+/** Last portion of the job subprocess log (UTF-8); for dashboard summary + metrics. */
+export async function fetchPipelineJobLogTail(
+  corpusPath: string,
+  jobId: string,
+  maxBytes = 96_000,
+): Promise<PipelineJobLogTailResponse> {
+  const q = new URLSearchParams({
+    path: corpusPath.trim(),
+    job_id: jobId.trim(),
+    max_bytes: String(maxBytes),
+  })
+  const res = await fetchWithTimeout(`/api/jobs/subprocess-log-tail?${q.toString()}`, undefined, {
+    timeoutDetail: 'jobs',
+  })
+  if (!res.ok) {
+    const t = await res.text()
+    throw new Error(t.trim() || `HTTP ${res.status}`)
+  }
+  return (await res.json()) as PipelineJobLogTailResponse
+}
+
 export interface PipelineJobAccepted {
   job_id: string
   status: string

@@ -58,6 +58,14 @@ const isGraphTab = computed(() => mainTab.value === 'graph')
 const leftOpen = ref(readLeftPanelOpenPreference())
 const rightOpen = ref(true)
 
+/** Collapsible rail seam tabs (minimal chrome). */
+const railEdgeToggleTab = {
+  left:
+    'absolute left-full top-1/2 z-20 flex h-10 w-2.5 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border border-border/25 bg-canvas/90 text-muted backdrop-blur-sm motion-safe:transition-[color,background-color,box-shadow,border-color] hover:border-border/45 hover:bg-overlay hover:text-surface-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/35 focus-visible:ring-offset-1 focus-visible:ring-offset-canvas',
+  right:
+    'absolute right-full top-1/2 z-20 flex h-10 w-2.5 translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border border-border/25 bg-canvas/90 text-muted backdrop-blur-sm motion-safe:transition-[color,background-color,box-shadow,border-color] hover:border-border/45 hover:bg-overlay hover:text-surface-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/35 focus-visible:ring-offset-1 focus-visible:ring-offset-canvas',
+} as const
+
 watch(leftOpen, (open) => {
   try {
     localStorage.setItem(LS_LEFT_PANEL_OPEN, open ? 'true' : 'false')
@@ -516,13 +524,15 @@ watch(
       <div class="flex min-h-0 flex-1">
       <!-- LEFT SIDEBAR (collapsible) -->
       <div
-        class="relative flex min-h-0 min-w-0 shrink-0 flex-col border-r border-border bg-canvas transition-all"
+        class="relative z-10 flex min-h-0 min-w-0 shrink-0 flex-col border-r border-border bg-canvas transition-all"
         :class="leftOpen ? 'w-72' : 'w-8'"
       >
         <button
           type="button"
-          class="flex h-8 w-full items-center justify-center text-muted hover:text-surface-foreground"
+          :class="railEdgeToggleTab.left"
           :title="leftOpen ? 'Collapse left panel' : 'Expand left panel'"
+          :aria-expanded="leftOpen"
+          data-testid="left-rail-edge-toggle"
           @click="leftOpen = !leftOpen"
         >
           <svg class="h-3 w-3 transition-transform" :class="{ 'rotate-180': !leftOpen }" viewBox="0 0 12 12" fill="currentColor">
@@ -531,19 +541,19 @@ watch(
         </button>
         <div
           v-if="!leftOpen"
-          class="flex flex-col items-center gap-4 pt-2"
+          class="flex min-h-0 flex-1 flex-col items-center justify-center gap-4 py-2"
         >
           <button
             type="button"
             class="text-[10px] font-medium text-muted hover:text-surface-foreground"
             style="writing-mode: vertical-lr"
-            title="Open left panel (Search — use Explore corpus → inside for GI explore)"
+            title="Open left panel (Search and Explore — use Explore corpus → inside for GI explore)"
             @click="
               leftOpen = true;
               void nextTick(() => leftPanelRef?.focusQuery())
             "
           >
-            Search
+            Search / Explore
           </button>
         </div>
         <div v-show="leftOpen" class="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
@@ -602,13 +612,15 @@ watch(
 
       <!-- RIGHT SIDEBAR (collapsible) — subject rail only -->
       <div
-        class="relative flex min-h-0 shrink-0 flex-col border-l border-border bg-canvas transition-all"
+        class="relative z-10 flex min-h-0 shrink-0 flex-col border-l border-border bg-canvas transition-all"
         :class="rightOpen ? 'w-96' : 'w-8'"
       >
         <button
           type="button"
-          class="flex h-8 w-full items-center justify-center text-muted hover:text-surface-foreground"
+          :class="railEdgeToggleTab.right"
           :title="rightOpen ? 'Collapse right panel' : 'Expand right panel'"
+          :aria-expanded="rightOpen"
+          data-testid="right-rail-edge-toggle"
           @click="rightOpen = !rightOpen"
         >
           <svg class="h-3 w-3 transition-transform" :class="{ 'rotate-180': !rightOpen }" viewBox="0 0 12 12" fill="currentColor">
@@ -617,7 +629,7 @@ watch(
         </button>
         <div
           v-if="!rightOpen"
-          class="flex flex-col items-center gap-4 pt-2"
+          class="flex min-h-0 flex-1 flex-col items-center justify-center gap-4 py-2"
         >
           <button
             type="button"

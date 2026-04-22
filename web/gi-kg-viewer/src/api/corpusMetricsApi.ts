@@ -82,3 +82,17 @@ export async function fetchCorpusManifest(
     return readJson<CorpusManifestDocument>(res)
   })
 }
+
+/** ``corpus_run_summary.json`` at corpus root (multi-feed batch rollup). */
+export type CorpusRunSummaryDocument = Record<string, unknown>
+
+export async function fetchCorpusRunSummaryDocument(
+  corpusPath: string,
+): Promise<CorpusRunSummaryDocument> {
+  const q = new URLSearchParams({ path: corpusPath.trim() })
+  const qs = q.toString()
+  return dedupeInFlight(`GET|/api/corpus/documents/run-summary?${qs}`, async () => {
+    const res = await fetchWithTimeout(`/api/corpus/documents/run-summary?${qs}`)
+    return readJson<CorpusRunSummaryDocument>(res)
+  })
+}

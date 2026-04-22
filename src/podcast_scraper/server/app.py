@@ -156,6 +156,12 @@ def create_app(
     if enable_jobs_api:
         app.include_router(jobs.router, prefix="/api")
 
+    _pipe_mode = os.environ.get("PODCAST_PIPELINE_EXEC_MODE", "").strip().lower()
+    if enable_jobs_api and _pipe_mode == "docker":
+        from podcast_scraper.server.pipeline_docker_factory import attach_docker_jobs_factory
+
+        attach_docker_jobs_factory(app)
+
     if static_dir is False:
         resolved_static = None
     elif static_dir is True or static_dir is None:

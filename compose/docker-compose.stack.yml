@@ -1,0 +1,89 @@
+# RFC-079 / GitHub #659: viewer (Nginx) + API (FastAPI) + optional pipeline (docker/pipeline/Dockerfile).
+# Long-running: viewer + api. Pipeline: ``docker compose --profile pipeline run --rm pipeline``.
+#
+# Prerequisites:
+#   - CONFIG_FILE (default ../config.yaml relative to this file = repo-root config.yaml) must set output_dir to /app/output (see config/examples/docker-stack.example.yaml).
+#   - ``docker compose up`` does not start the ML pipeline service (profile ``pipeline``).
+
+services:
+  viewer:
+    build:
+      context: ..
+      dockerfile: docker/viewer/Dockerfile
+    image: podcast-scraper-stack-viewer:latest
+    ports:
+      - "${VIEWER_PORT:-8080}:80"
+    depends_on:
+      api:
+        condition: service_healthy
+
+  api:
+    build:
+      context: ..
+      dockerfile: docker/api/Dockerfile
+    image: podcast-scraper-stack-api:latest
+    expose:
+      - "8000"
+    environment:
+      PODCAST_SCRAPER_CONFIG: /app/config.yaml
+      # Provider keys: empty defaults (set in repo-root ``.env`` for Compose substitution only).
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      MISTRAL_API_KEY: ${MISTRAL_API_KEY:-}
+      DEEPSEEK_API_KEY: ${DEEPSEEK_API_KEY:-}
+      GROK_API_KEY: ${GROK_API_KEY:-}
+    volumes:
+      # Read-write: API may rebuild vector index or write lock files under the corpus root.
+      - corpus_data:/app/output
+      - ${CONFIG_FILE:-../config.yaml}:/app/config.yaml:ro
+
+  pipeline:
+    profiles:
+      - pipeline
+    build:
+      context: ..
+      dockerfile: docker/pipeline/Dockerfile
+      args:
+        INSTALL_EXTRAS: ${STACK_PIPELINE_INSTALL_EXTRAS:-ml}
+        PRELOAD_ML_MODELS: ${STACK_PIPELINE_PRELOAD_ML:-true}
+    image: podcast-scraper-stack-pipeline:latest
+    volumes:
+      - corpus_data:/app/output
+      - ${CONFIG_FILE:-../config.yaml}:/app/config.yaml:ro
+    environment:
+      PODCAST_SCRAPER_CONFIG: /app/config.yaml
+      PODCAST_SCRAPER_WORK_DIR: /app
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      MISTRAL_API_KEY: ${MISTRAL_API_KEY:-}
+      DEEPSEEK_API_KEY: ${DEEPSEEK_API_KEY:-}
+      GROK_API_KEY: ${GROK_API_KEY:-}
+
+  # Optional: same Dockerfile with ``INSTALL_EXTRAS=llm`` (``pyproject`` **``. [llm]``**) for cloud-thin profiles.
+  pipeline-llm:
+    profiles:
+      - pipeline-llm
+    build:
+      context: ..
+      dockerfile: docker/pipeline/Dockerfile
+      args:
+        INSTALL_EXTRAS: llm
+        PRELOAD_ML_MODELS: "false"
+    image: podcast-scraper-stack-pipeline-llm:latest
+    volumes:
+      - corpus_data:/app/output
+      - ${CONFIG_FILE:-../config.yaml}:/app/config.yaml:ro
+    environment:
+      PODCAST_SCRAPER_CONFIG: /app/config.yaml
+      PODCAST_SCRAPER_WORK_DIR: /app
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      MISTRAL_API_KEY: ${MISTRAL_API_KEY:-}
+      DEEPSEEK_API_KEY: ${DEEPSEEK_API_KEY:-}
+      GROK_API_KEY: ${GROK_API_KEY:-}
+
+volumes:
+  corpus_data:

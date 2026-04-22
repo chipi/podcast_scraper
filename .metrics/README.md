@@ -10,11 +10,11 @@ One JSON object per line (JSONL). Each line records a **checkpoint**: rules appl
 
 - Append **throughout the session** whenever something **substantive** completes (e.g. green tests for a change, a feature slice landed, doc/lint pass, CI fixed) — **not only** at the end.
 - Expect **multiple lines per session** (often **~2–10**; long sessions can be more). Under-logging is a common mistake; **err on the side of appending**.
-- Also append **before commit/push**, on "done"/"wrap up", or at **session end** if you have not logged the latest milestone.
+- Also append **before commit/push**, when the user signals closure (including **done** / **wrap up** and similar), or at **session end** if you have not logged the latest milestone — same **judgment** as **Rule 18** triggers in **`.cursorrules`**.
 - **Do not ask** the user whether to append; write when `.metrics/` exists. A verbal announcement is optional (silent OK).
 
 **Rule 18** (session review) uses the **same closing cadence** as a final append sometimes does, but it is
-**not** stored in this JSONL. See **`.cursorrules` Rule 18** — promote durable lessons into guides or
+**not** stored in this JSONL. The retrospective is **visible in chat** by default. See **`.cursorrules` Rule 18** — promote durable lessons into guides or
 `.cursor/rules` instead; do not add extra keys or retrospective prose here.
 
 ### Schema

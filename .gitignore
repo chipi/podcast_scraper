@@ -10,6 +10,10 @@ podcast_scraper.egg-info/
 
 # Test outputs
 .test_outputs/
+# RFC-078 local smoke: pipeline log from ``make smoke-run-pipeline``
+.smoke/
+# RFC-078: ``make smoke-export-corpus`` host copy of ``smoke_data`` volume
+.smoke-corpus/
 # RFC-064 profile capture runs (metrics + artifacts; frozen YAML goes under data/profiles/)
 .tmp/
 # CI metrics bundles downloaded for local validation (see scripts/dashboard/fetch_ci_metrics_artifacts.sh)

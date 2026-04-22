@@ -63,8 +63,7 @@ site/
 examples.txt
 WORKTREE.md
 CLAUDE.md
-docker-compose*.yml
-docker-compose*.yaml
+compose/
 
 # Keep essential files
 !pyproject.toml

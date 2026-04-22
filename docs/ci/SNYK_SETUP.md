@@ -102,7 +102,7 @@ To change the schedule, edit the `cron` expression in `.github/workflows/snyk.ym
 
 - Ensure Docker image builds successfully
 - Check disk space (workflow includes cleanup steps)
-- Verify Dockerfile path is correct
+- Verify `docker/pipeline/Dockerfile` path is correct (Snyk container job builds that image)
 
 ## Additional Resources
 

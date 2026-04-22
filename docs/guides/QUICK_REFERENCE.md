@@ -342,8 +342,8 @@ docker run -v ./config.yaml:/app/config.yaml \
            podcast-scraper:latest
 
 # Docker Compose
-docker-compose up -d       # ML-enabled variant
-docker-compose -f docker-compose.llm-only.yml up -d  # LLM-only variant
+docker compose -f compose/docker-compose.yml up -d       # ML-enabled variant
+docker compose -f compose/docker-compose.llm-only.yml up -d  # LLM-only variant
 ```
 
 **See:** [Docker Service Guide](DOCKER_SERVICE_GUIDE.md), [Docker Variants Guide](DOCKER_VARIANTS_GUIDE.md)

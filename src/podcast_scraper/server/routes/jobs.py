@@ -10,6 +10,7 @@ from fastapi import APIRouter, BackgroundTasks, FastAPI, HTTPException, Query, R
 from fastapi.responses import FileResponse
 
 from podcast_scraper.server.operator_paths import viewer_operator_yaml_path
+from podcast_scraper.server.pipeline_docker_factory import assert_operator_pipeline_extras
 from podcast_scraper.server.pipeline_jobs import (
     apply_reconcile,
     cancel_job,
@@ -21,6 +22,7 @@ from podcast_scraper.server.pipeline_jobs import (
 from podcast_scraper.server.routes.index_rebuild import _resolve_corpus_root
 from podcast_scraper.server.schemas import (
     PipelineJobAccepted,
+    PipelineJobLogTailResponse,
     PipelineJobReconcileResponse,
     PipelineJobRecord,
     PipelineJobsListResponse,
@@ -33,27 +35,58 @@ from podcast_scraper.utils.path_validation import (
 router = APIRouter(tags=["jobs"])
 
 
+def _read_job_log_tail_utf8(abs_path: str, max_bytes: int) -> tuple[str, bool]:
+    """Return ``(text, truncated)`` for the last ``max_bytes`` of the file."""
+    try:
+        size = os.path.getsize(abs_path)
+    except OSError:
+        return "", False
+    mb = max(1024, min(int(max_bytes), 512_000))
+    try:
+        with open(abs_path, "rb") as fh:
+            if size <= mb:
+                raw = fh.read()
+                truncated = False
+            else:
+                fh.seek(size - mb)
+                raw = fh.read()
+                truncated = True
+    except OSError:
+        return "", False
+    text = raw.decode("utf-8", errors="replace")
+    if truncated and "\n" in text:
+        nl = text.find("\n")
+        if nl >= 0 and nl + 1 < len(text):
+            text = text[nl + 1 :]
+    return text, truncated
+
+
 async def _serve_pipeline_job_log(corpus: Path, job_id: str) -> FileResponse:
     """Resolve registry row → log file on disk; same rules for path- and query-style routes."""
-    root = corpus.resolve()
-    root_s = os.path.normpath(str(root))
-    rec = await asyncio.to_thread(get_job, corpus, job_id)
-    if rec is None:
-        raise HTTPException(status_code=404, detail="Job not found.")
-    rel = str(rec.get("log_relpath") or f".viewer/jobs/{job_id}.log").strip()
-    verified = safe_relpath_under_corpus_root(root, rel.replace("\\", "/"))
-    if not verified:
-        raise HTTPException(status_code=400, detail="Invalid log path.")
-    verified_under = normpath_if_under_root(verified, root_s)
-    if not verified_under:
-        raise HTTPException(status_code=400, detail="Invalid log path.")
-    if not os.path.isfile(verified_under):
-        raise HTTPException(status_code=404, detail="Log file not present yet.")
+    verified_under = await _resolved_job_log_path(corpus, job_id)
     return FileResponse(
         verified_under,
         media_type="text/plain; charset=utf-8",
         filename=os.path.basename(verified_under),
     )
+
+
+async def _resolved_job_log_path(corpus: Path, job_id: str) -> str:
+    rec = await asyncio.to_thread(get_job, corpus, job_id)
+    if rec is None:
+        raise HTTPException(status_code=404, detail="Job not found.")
+    rel = str(rec.get("log_relpath") or f".viewer/jobs/{job_id}.log").strip()
+    verified = safe_relpath_under_corpus_root(corpus.resolve(), rel.replace("\\", "/"))
+    if not verified:
+        raise HTTPException(status_code=400, detail="Invalid log path.")
+    root = corpus.resolve()
+    root_s = os.path.normpath(str(root))
+    verified_under = normpath_if_under_root(verified, root_s)
+    if not verified_under:
+        raise HTTPException(status_code=400, detail="Invalid log path.")
+    if not os.path.isfile(verified_under):
+        raise HTTPException(status_code=404, detail="Log file not present yet.")
+    return verified_under
 
 
 async def _kickoff_job(app: FastAPI, corpus: Path, rec: dict) -> None:
@@ -91,6 +124,11 @@ async def submit_pipeline_job(
 ) -> PipelineJobAccepted:
     """Queue a pipeline CLI job for the corpus (202 + optional queue position)."""
     corpus, operator_yaml = _corpus_and_operator(request, path)
+    if os.environ.get("PODCAST_PIPELINE_EXEC_MODE", "").strip().lower() == "docker":
+        try:
+            await asyncio.to_thread(assert_operator_pipeline_extras, operator_yaml)
+        except ValueError as exc:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
     rec = await asyncio.to_thread(enqueue_pipeline_job, corpus, operator_yaml)
     background_tasks.add_task(_kickoff_job, request.app, corpus, rec)
     qp = None
@@ -157,6 +195,25 @@ async def get_pipeline_job_log_query(
     return await _serve_pipeline_job_log(corpus, job_id)
 
 
+@router.get("/jobs/subprocess-log-tail", response_model=PipelineJobLogTailResponse)
+async def get_pipeline_job_log_tail_query(
+    request: Request,
+    job_id: str = Query(..., description="Pipeline job id (UUID)."),
+    path: str | None = Query(default=None, description="Corpus output directory."),
+    max_bytes: int = Query(
+        default=96_000,
+        ge=4096,
+        le=512_000,
+        description="Max bytes read from end of log (UTF-8).",
+    ),
+) -> PipelineJobLogTailResponse:
+    """Same as ``GET /jobs/{job_id}/log-tail`` but query-based (avoids some proxy 404s)."""
+    corpus, _op = _corpus_and_operator(request, path)
+    verified_under = await _resolved_job_log_path(corpus, job_id)
+    text, truncated = await asyncio.to_thread(_read_job_log_tail_utf8, verified_under, max_bytes)
+    return PipelineJobLogTailResponse(text=text, truncated=truncated)
+
+
 @router.get("/jobs/{job_id}/log")
 async def get_pipeline_job_log(
     request: Request,
@@ -166,6 +223,25 @@ async def get_pipeline_job_log(
     """Return the job subprocess log as ``text/plain`` (for opening in a new browser tab)."""
     corpus, _op = _corpus_and_operator(request, path)
     return await _serve_pipeline_job_log(corpus, job_id)
+
+
+@router.get("/jobs/{job_id}/log-tail", response_model=PipelineJobLogTailResponse)
+async def get_pipeline_job_log_tail(
+    request: Request,
+    job_id: str,
+    path: str | None = Query(default=None, description="Corpus output directory."),
+    max_bytes: int = Query(
+        default=96_000,
+        ge=4096,
+        le=512_000,
+        description="Max bytes read from end of log (UTF-8).",
+    ),
+) -> PipelineJobLogTailResponse:
+    """Return the tail of the job log as JSON (for dashboard metrics + summary preview)."""
+    corpus, _op = _corpus_and_operator(request, path)
+    verified_under = await _resolved_job_log_path(corpus, job_id)
+    text, truncated = await asyncio.to_thread(_read_job_log_tail_utf8, verified_under, max_bytes)
+    return PipelineJobLogTailResponse(text=text, truncated=truncated)
 
 
 @router.get("/jobs/{job_id}", response_model=PipelineJobRecord)

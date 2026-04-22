@@ -23,7 +23,7 @@ The CI/CD pipeline consists of **six main workflows**:
 | **Python Application** | `python-app.yml` | Main CI pipeline with testing, linting, and builds | Push/PR to `main` (only when Python/config files change) |
 | **Documentation Deploy** | `docs.yml` | Build and deploy MkDocs documentation to GitHub Pages | Push to `main`, PR with doc changes, manual |
 | **CodeQL Security** | `codeql.yml` | Security vulnerability scanning | Push/PR to `main` (only when code/workflow files change), scheduled weekly |
-| **Docker Build & Test** | `docker.yml` | Build and test Docker images | Push to `main` (all), PRs (Dockerfile/.dockerignore only) |
+| **Docker Build & Test** | `docker.yml` | Build and test Docker images | Push/PR: `docker/pipeline/Dockerfile`, `.dockerignore`, `pyproject.toml`, `**.py` |
 | **Snyk Security Scan** | `snyk.yml` | Dependency and Docker image vulnerability scanning | Push/PR to `main`, scheduled weekly (Mondays), manual |
 | **Nightly Comprehensive** | `nightly.yml` | Full test suite with comprehensive metrics collection | Scheduled daily (2 AM UTC), manual |
 

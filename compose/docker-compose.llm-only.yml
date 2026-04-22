@@ -7,15 +7,15 @@ version: '3.8'
 services:
   podcast_scraper:
     build:
-      context: .
-      dockerfile: Dockerfile
+      context: ..
+      dockerfile: docker/pipeline/Dockerfile
       args:
         INSTALL_EXTRAS: ""  # LLM-only, no ML dependencies
     image: podcast-scraper:llm-only
 
     volumes:
-      - ./config.yaml:/app/config.yaml:ro
-      - ./output:/app/output
+      - ../config.yaml:/app/config.yaml:ro
+      - ../output:/app/output
 
     environment:
       - PODCAST_SCRAPER_CONFIG=/app/config.yaml

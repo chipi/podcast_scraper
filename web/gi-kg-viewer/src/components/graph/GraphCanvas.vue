@@ -2354,12 +2354,20 @@ defineExpose({
   <div class="flex min-h-0 flex-1 flex-col rounded border border-border bg-canvas">
     <div
       v-if="gf.fullArtifact"
-      class="flex min-w-0 items-center justify-between gap-2 border-b border-border bg-canvas py-px pl-2 pr-1"
+      class="flex min-h-7 min-w-0 flex-wrap items-center gap-2 border-b border-border bg-canvas py-0 pl-2 pr-1"
     >
       <GraphStatusLine variant="summary" bare />
+      <span
+        v-if="gf.state && searchHighlightCount > 0"
+        data-testid="graph-search-highlight-chip"
+        class="shrink-0 rounded-full bg-yellow-500/20 px-2 py-0.5 text-[10px] font-medium text-yellow-600"
+      >
+        {{ searchHighlightCount }}
+        {{ searchHighlightCount === 1 ? 'highlight' : 'highlights' }}
+      </span>
       <button
         type="button"
-        class="shrink-0 rounded border border-border px-1.5 py-px text-[10px] leading-none text-surface-foreground hover:bg-overlay"
+        class="ml-auto shrink-0 rounded border border-border px-1.5 py-px text-[10px] leading-none text-surface-foreground hover:bg-overlay"
         data-testid="graph-gesture-overlay-reopen"
         aria-label="Show graph gestures help"
         @click="reopenGestureOverlay"
@@ -2368,24 +2376,20 @@ defineExpose({
       </button>
     </div>
     <div
-      v-if="gf.state && searchHighlightCount > 0"
-      class="flex flex-wrap items-center gap-2 border-b border-border px-2 py-0.5"
-    >
-      <span
-        data-testid="graph-search-highlight-chip"
-        class="rounded-full bg-yellow-500/20 px-2 py-0.5 text-[10px] font-medium text-yellow-600"
-      >
-        {{ searchHighlightCount }}
-        {{ searchHighlightCount === 1 ? 'highlight' : 'highlights' }}
-      </span>
-    </div>
-    <div
       v-if="gf.state"
-      class="flex min-h-0 flex-wrap items-center gap-x-2 gap-y-0.5 border-b border-border px-2 py-1 text-surface-foreground leading-none"
+      class="flex min-h-7 flex-wrap items-center gap-x-2 gap-y-0.5 border-b border-border px-2 py-0 text-surface-foreground leading-none"
       data-testid="graph-toolbar-types"
     >
       <span class="inline-flex items-center self-center text-[10px] font-semibold uppercase tracking-wide text-muted">
         Types
+      </span>
+      <span
+        v-if="!gf.fullArtifact && searchHighlightCount > 0"
+        data-testid="graph-search-highlight-chip"
+        class="shrink-0 rounded-full bg-yellow-500/20 px-2 py-0.5 text-[10px] font-medium text-yellow-600"
+      >
+        {{ searchHighlightCount }}
+        {{ searchHighlightCount === 1 ? 'highlight' : 'highlights' }}
       </span>
       <button
         v-if="gf.graphTypesDeviateFromDefaults"

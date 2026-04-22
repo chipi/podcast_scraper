@@ -18,6 +18,26 @@ LOCK_TIMEOUT_S = 30.0
 _T = TypeVar("_T")
 
 
+def _dedupe_job_rows_by_id(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Keep one row per ``job_id``: later lines win (repairs duplicate JSONL rows).
+
+    The registry is normally rewritten as a single line per job, but interrupted
+    writes or older tooling can leave multiple lines with the same ``job_id``.
+    """
+    no_id: list[dict[str, Any]] = []
+    by_id: dict[str, dict[str, Any]] = {}
+    order: list[str] = []
+    for j in rows:
+        jid = str(j.get("job_id", "")).strip()
+        if not jid:
+            no_id.append(dict(j))
+            continue
+        if jid not in by_id:
+            order.append(jid)
+        by_id[jid] = dict(j)
+    return no_id + [by_id[k] for k in order]
+
+
 def viewer_dir(corpus_root: Path) -> Path:
     """Return ``<corpus>/.viewer``."""
     return corpus_root / VIEWER_DIR
@@ -57,7 +77,7 @@ def read_jobs(corpus_root: Path) -> list[dict[str, Any]]:
             out.append(json.loads(line))
         except json.JSONDecodeError:
             continue
-    return out
+    return _dedupe_job_rows_by_id(out)
 
 
 def write_jobs_atomic(corpus_root: Path, jobs: list[dict[str, Any]]) -> None:

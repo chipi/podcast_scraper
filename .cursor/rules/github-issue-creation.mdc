@@ -1,0 +1,6 @@
+---
+description: Create GitHub issues via MCP or gh; never drop issue drafts into docs unless asked
+alwaysApply: true
+---
+
+When the user asks to create a GitHub issue (e.g. "create gh issue"): use configured GitHub MCP tools if available, else `gh issue create` (network as needed); never write issue drafts under `docs/` or the repo unless they explicitly ask for a file.

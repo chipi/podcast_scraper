@@ -145,7 +145,7 @@ Supervisor provides advanced process management with automatic restarts, logging
 
 ### Enabling Supervisor Mode
 
-1. **Create supervisor config file** (see `docker/supervisor.conf.example` in the repository):
+1. **Create supervisor config file** (see `docker/pipeline/supervisor.conf.example` in the repository):
 
    ```ini
    [supervisord]
@@ -196,18 +196,18 @@ The repository includes ready-to-use Docker Compose files:
 **ML-enabled variant:**
 
 ```bash
-# Use the default docker-compose.yml
-docker-compose up -d
+# Standalone pipeline (ML variant) from repo root
+docker compose -f compose/docker-compose.yml up -d
 ```
 
 **LLM-only variant:**
 
 ```bash
 # Use the LLM-only specific compose file
-docker-compose -f docker-compose.llm-only.yml up -d
+docker compose -f compose/docker-compose.llm-only.yml up -d
 ```
 
-See `docker-compose.yml` and `docker-compose.llm-only.yml` in the repository root for complete examples with resource limits, volume mounts, and environment variables.
+See `compose/docker-compose.yml` and `compose/docker-compose.llm-only.yml` for complete examples with resource limits, volume mounts, and environment variables.
 
 ### Basic Service
 
@@ -567,10 +567,188 @@ snyk test --docker podcast-scraper:latest
 - Skip security scanning
 - Hardcode secrets in Dockerfiles
 
+## Full stack (RFC-079 / GitHub #659)
+
+Use [`compose/docker-compose.stack.yml`](https://github.com/chipi/podcast_scraper/blob/main/compose/docker-compose.stack.yml) for a **three-service** topology:
+**viewer** (Nginx + built Vue SPA), **api** (FastAPI `podcast_scraper.cli serve` with `--no-static`),
+and **pipeline** ([`docker/pipeline/Dockerfile`](https://github.com/chipi/podcast_scraper/blob/main/docker/pipeline/Dockerfile), behind Compose profile `pipeline`).
+
+### Prerequisites
+
+- Docker Engine + Compose v2.
+- A host config file whose `output_dir` is **`/app/output`** (matches the named volume mount).
+  Copy [`config/examples/docker-stack.example.yaml`](https://github.com/chipi/podcast_scraper/blob/main/config/examples/docker-stack.example.yaml)
+  and point `CONFIG_FILE` at it when running Make targets.
+- **API vs `.[server]` only:** importing `create_app` requires NumPy, FAISS, and sentence-transformers
+  (search routes). The [`docker/api/Dockerfile`](https://github.com/chipi/podcast_scraper/blob/main/docker/api/Dockerfile) installs `.[server]`
+  plus those dependencies (CPU torch); it does **not** ship the full `.[ml]` pipeline stack.
+  **Jobs API:** By default, `POST /api/jobs` from the **`api` container** spawns `podcast_scraper.cli`
+  **inside that container** (subprocess), which may lack full `.[ml]` deps — use `stack-run-pipeline`
+  for ops-style runs. Set **`PODCAST_PIPELINE_EXEC_MODE=docker`** (see
+  [`compose/docker-compose.jobs-docker.yml`](https://github.com/chipi/podcast_scraper/blob/main/compose/docker-compose.jobs-docker.yml)) so the
+  server uses the **#660** factory (`docker compose run` into the `pipeline` / `pipeline-llm` service).
+  **Native** workflows (`make serve-api` on a full host venv) are **unchanged**
+  ([RFC-077](../rfc/RFC-077-viewer-feeds-and-serve-pipeline-jobs.md)). Docker path requires operator
+  **`pipeline_install_extras: ml | llm`**; see
+  [RFC-079 §Native vs Docker](../rfc/RFC-079-full-stack-docker-compose.md#native-vs-docker).
+- **Shared volume:** `corpus_data` is mounted read-write on **both** `api` and `pipeline` so the API
+  can rebuild indexes or write lock files under the corpus root (read-only was deferred; see RFC-079).
+
+### Secrets (stack)
+
+- **Never commit API keys** in YAML, Markdown, or examples. Use **environment variables** only.
+- **Local:** put keys in a repo-root **`.env`** file (gitignored). Docker Compose reads `.env` for
+  **variable substitution** in `compose/docker-compose.stack.yml` (e.g. `OPENAI_API_KEY: ${OPENAI_API_KEY:-}`).
+  Defaults stay **empty** — do not ship placeholder strings that look like real keys.
+- **`CONFIG_FILE`:** keep provider keys **out** of the mounted operator/config YAML when possible;
+  prefer env-only injection so secrets are not copied into the bind-mounted file.
+- **CI / GitHub Actions:** map repository **Secrets** into the job `env:` block; never log or echo values.
+- **Docker-backed jobs (#660):** merge
+  [`compose/docker-compose.jobs-docker.yml`](https://github.com/chipi/podcast_scraper/blob/main/compose/docker-compose.jobs-docker.yml) so the
+  `api` service mounts **`/var/run/docker.sock`** and receives **`PODCAST_DOCKER_PROJECT_DIR`**
+  (absolute host repo root the Docker daemon can resolve). Example:
+  `docker compose -f compose/docker-compose.stack.yml -f compose/docker-compose.jobs-docker.yml up -d`
+  after `export PODCAST_DOCKER_PROJECT_DIR="$PWD"`.
+
+### Commands (Makefile)
+
+```bash
+make stack-build
+CONFIG_FILE=$PWD/config/examples/docker-stack.example.yaml make stack-up
+curl -fsS "http://127.0.0.1:${VIEWER_PORT:-8080}/api/health"   # through Nginx
+```
+
+- **`VIEWER_PORT`:** host port mapped to Nginx `:80` (default **8080**).
+- **`CONFIG_FILE`:** path to YAML mounted at `/app/config.yaml` in `api` and `pipeline`.
+
+Run the pipeline once (writes into the same volume):
+
+```bash
+CONFIG_FILE=$PWD/config/examples/docker-stack.example.yaml make stack-run-pipeline
+```
+
+Follow logs:
+
+```bash
+make stack-logs
+```
+
+Tear down (keep the named volume):
+
+```bash
+make stack-down
+```
+
+Tear down **and** delete corpus data volume:
+
+```bash
+REMOVE_VOLUMES=1 make stack-down
+```
+
+### Manual acceptance checklist (#659)
+
+1. `docker compose -f compose/docker-compose.stack.yml build` succeeds.
+2. `docker compose -f compose/docker-compose.stack.yml up -d` starts **viewer** + **api**;
+   `curl -f "http://localhost:${VIEWER_PORT:-8080}/api/health"` returns **200** (proxied by Nginx).
+3. `docker compose -f compose/docker-compose.stack.yml --profile pipeline run --rm pipeline` completes
+   using your `CONFIG_FILE` (the example above uses `dry_run: true` and `max_episodes: 1`).
+4. After a non–dry-run pipeline, open `http://127.0.0.1:${VIEWER_PORT:-8080}/` or hit a corpus API
+   route to confirm data is visible.
+
+### RFC-079 backlog (GitHub #659): pipeline vs API, FAISS, dev compose, prod merge, smoke handoff
+
+#### Concurrent pipeline writes and API reads (OQ4)
+
+Several server and pipeline code paths use **atomic replace** (temp file in the same directory,
+then `rename` / `Path.replace`): e.g. `podcast_scraper.server.atomic_write.atomic_write_text`,
+`write_jobs_atomic` in `pipeline_job_registry.py`, `write_pipeline_status_atomic`, and
+`Metrics.save_to_file` in `workflow/metrics.py`. That reduces torn reads for those artifacts.
+
+**Caveat:** a full corpus still involves many files and stages. **Operational guidance:** keep the
+same ordering as RFC-078 smoke — **finish the `pipeline` one-shot** (or job) **before** relying on
+the API for new JSON / graph data. Avoid pointing production traffic at the API while the pipeline
+is mid-run on the same volume unless you accept occasional parse errors on partially written files.
+
+#### FAISS / vector index after `compose run pipeline` (OQ5)
+
+Semantic search loads the index **per request**: `run_corpus_search` calls `FaissVectorStore.load`
+on the corpus `search/` directory (`src/podcast_scraper/search/corpus_search.py`). Once the
+pipeline has **fully written** the index files on the shared volume, the **next** `/api/search`
+sees the new on-disk state **without** restarting the `api` container.
+
+For a deliberate rebuild (e.g. after manual edits or corruption), use **`POST /api/index/rebuild`**
+(see `src/podcast_scraper/server/routes/index_rebuild.py`). Background rebuild is gated so two
+rebuilds do not overlap per corpus.
+
+#### Compose “dev override” (Goal 8 / OQ2)
+
+**Decision:** there is **no** `compose/docker-compose.dev.yml` in this repo. For **hot reload**
+(Vite + FastAPI on the host), use **`make serve-api`** / **`make serve-ui`** / `make serve`.
+The Compose stack remains the **CI / prod-like** path (`stack-*`, smoke, VPS-style merges).
+
+#### Prod-style merge (Phase 3)
+
+Use [`compose/docker-compose.prod.yml`](https://github.com/chipi/podcast_scraper/blob/main/compose/docker-compose.prod.yml) as an **optional
+second `-f` file** on top of `docker-compose.stack.yml`: adds **`restart: unless-stopped`** for
+`viewer` and `api`, and documents **external named volumes** / resource limits in comments for
+VPS operators. Example:
+
+```bash
+docker compose -f compose/docker-compose.stack.yml -f compose/docker-compose.prod.yml up -d
+```
+
+#### Handoff to RFC-078 smoke (stack contract)
+
+Smoke overlays [`compose/docker-compose.smoke.yml`](https://github.com/chipi/podcast_scraper/blob/main/compose/docker-compose.smoke.yml) on the
+**same** `viewer` / `api` / `pipeline` images. Operators should know:
+
+| Item | Stack smoke / CI expectation |
+| ---- | ----------------------------- |
+| Base file | `compose/docker-compose.stack.yml` |
+| Overlay | `compose/docker-compose.smoke.yml` (RFC-078) |
+| `CONFIG_FILE` | **Absolute** path to YAML with `output_dir: /app/output` (see example config) |
+| `VIEWER_PORT` | Smoke defaults to **8090** in the smoke compose file; override `SMOKE_BASE_URL` for Playwright |
+| Corpus volume | Named volume `smoke_data` in smoke overlay (export → `.smoke-corpus/` for artifact gates) |
+| Docker jobs | Optional merge [`compose/docker-compose.jobs-docker.yml`](https://github.com/chipi/podcast_scraper/blob/main/compose/docker-compose.jobs-docker.yml) + **#660** — not required for smoke unless testing `POST /api/jobs` in Docker mode |
+
+Details: [`tests/smoke/README.md`](https://github.com/chipi/podcast_scraper/blob/main/tests/smoke/README.md), [RFC-078](../rfc/RFC-078-ephemeral-acceptance-smoke-test.md).
+
+### Pipeline image tiers
+
+The `pipeline` service in the stack reuses [`docker/pipeline/Dockerfile`](https://github.com/chipi/podcast_scraper/blob/main/docker/pipeline/Dockerfile) with two
+compose-level build args (**`STACK_PIPELINE_INSTALL_EXTRAS`**, **`STACK_PIPELINE_PRELOAD_ML`**):
+
+| Tier | `INSTALL_EXTRAS` | Size | Can run |
+| ---- | ----------------- | ---- | ------- |
+| **ML** (default) | `ml` | 3-4 GB | Any profile (local Whisper, spaCy, transformers, FAISS, **plus** cloud APIs) |
+| **LLM** (planned) | `llm` | ~1–1.5 GB (target) | API-heavy profiles without local torch/spaCy/FAISS (e.g. future **`cloud_thin`**) — pairs with **`pipeline_install_extras: llm`** on the Docker job path |
+| **Core / minimal** | `""` | smallest | Bare optional install — dev or legacy; prefer **`llm`** once shipped for thin cloud profiles |
+
+**Today's cloud profiles** (`cloud_balanced`, `cloud_quality`) still use **spaCy trf** for NER
+and **FAISS** for vector indexing, so they require the **ML** tier. A true LLM-only pipeline
+needs a profile that replaces all local stages with API providers. See
+[RFC-079 §Pipeline image tiers](../rfc/RFC-079-full-stack-docker-compose.md#pipeline-image-tiers)
+for the full matrix.
+
+```bash
+# Faster dev build (minimal tier, no model preload) — today: INSTALL_EXTRAS=""
+# Once `llm` exists: STACK_PIPELINE_INSTALL_EXTRAS=llm STACK_PIPELINE_PRELOAD_ML=false make stack-build
+STACK_PIPELINE_INSTALL_EXTRAS="" STACK_PIPELINE_PRELOAD_ML=false make stack-build
+```
+
+### Stack troubleshooting
+
+| Symptom | Likely cause |
+| :------ | :----------- |
+| **502 / empty** from `/api/*` | `api` not healthy yet (first start downloads HF weights — wait or check `docker compose -f compose/docker-compose.stack.yml logs -f api`). |
+| **403** from Nginx | Misconfigured `root` or missing `dist/` — rebuild viewer image. |
+| **API exits: output directory does not exist** | Volume not mounted at `/app/output` or config `output_dir` not `/app/output`. |
+| **Pipeline cannot write** | Wrong `output_dir` in config vs `/app/output` mount. |
+
 ## Related Documentation
 
 - [Service API](../api/SERVICE.md) - Service mode API reference
 - [Configuration API](../api/CONFIGURATION.md) - Config file format and options
 - [Docker Variants Guide](DOCKER_VARIANTS_GUIDE.md) - LLM-only vs ML-enabled variants
 - Supervisor Example: `config/examples/supervisor.conf.example` (in repository root)
-- Docker Supervisor Config: `docker/supervisor.conf.example` (in repository root)
+- Docker Supervisor Config: `docker/pipeline/supervisor.conf.example`

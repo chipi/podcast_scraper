@@ -43,7 +43,7 @@ v1.0.0 marks the first stable release of Podcast Scraper, a command-line tool fo
 
 ### Deployment
 
-- **Docker Support**: Pre-configured Dockerfile for containerized deployments
+- **Docker Support**: Pre-configured pipeline image (`docker/pipeline/Dockerfile`) for containerized deployments
 - **Virtual Environment**: Helper script for local development setup
 - **Platform Support**: Cross-platform compatibility (Linux, macOS, Windows)
 
@@ -147,7 +147,7 @@ brew install ffmpeg  # macOS
 
 # Build image
 
-docker build -t podcast-scraper -f podcast_scraper/Dockerfile .
+docker build -t podcast-scraper -f docker/pipeline/Dockerfile .
 
 # Run with volume mount
 
