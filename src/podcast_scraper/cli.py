@@ -3451,6 +3451,31 @@ def parse_args(argv: Optional[Sequence[str]] = None) -> argparse.Namespace:
         ic_argv = list(argv[1:]) if len(argv) > 1 else []
         return parse_insight_clusters_argv(ic_argv)
 
+    if argv and len(argv) > 0 and argv[0] == "corpus-cost":
+        # Pre-dispatch for the `corpus-cost` subcommand (#650). Re-aggregates
+        # per-stage costs from a corpus's run_*/metrics.json files and either
+        # prints or updates corpus_manifest.json.
+        cc_parser = argparse.ArgumentParser(prog="podcast_scraper corpus-cost")
+        cc_parser.add_argument("corpus_path", help="Corpus root (parent of feeds/).")
+        cc_parser.add_argument(
+            "--update-manifest",
+            action="store_true",
+            help=(
+                "Rewrite corpus_manifest.json with the fresh cost_rollup. "
+                "Safe: overwrites only the cost_rollup and schema_version "
+                "fields — feed rows are preserved as-is."
+            ),
+        )
+        cc_parser.add_argument(
+            "--json",
+            action="store_true",
+            help="Emit the aggregate as JSON on stdout (for piping).",
+        )
+        cc_argv = list(argv[1:]) if len(argv) > 1 else []
+        parsed = cc_parser.parse_args(cc_argv)
+        parsed.command = "corpus-cost"
+        return parsed
+
     if argv and len(argv) > 0 and argv[0] == "verify-gil-chunk-offsets":
         from .search.cli_handlers import parse_verify_gil_chunk_offsets_argv
 
@@ -4288,6 +4313,78 @@ def _validate_ffmpeg() -> None:
         sys.exit(1)
 
 
+def _run_corpus_cost_cli(args: argparse.Namespace, log: logging.Logger) -> int:
+    """Implement the ``corpus-cost <corpus_path>`` subcommand (#650).
+
+    Re-aggregates per-stage costs from every ``run_*/metrics.json`` under
+    the corpus and either prints a human-readable summary, emits JSON,
+    or rewrites ``corpus_manifest.json`` with the fresh ``cost_rollup``.
+    Useful for corpora built before the cost-aggregation fix landed: their
+    existing manifest still carries the pre-fix (often zero) numbers.
+    """
+    import json as _json
+
+    from podcast_scraper.workflow.corpus_cost_aggregation import aggregate_corpus_costs
+    from podcast_scraper.workflow.corpus_operations import (
+        CORPUS_MANIFEST_FILE,
+        CORPUS_MANIFEST_SCHEMA_VERSION,
+    )
+
+    corpus_root = Path(args.corpus_path).expanduser().resolve()
+    if not corpus_root.exists():
+        print(f"Error: corpus path does not exist: {corpus_root}", file=sys.stderr)
+        return 1
+    if not corpus_root.is_dir():
+        print(f"Error: corpus path is not a directory: {corpus_root}", file=sys.stderr)
+        return 1
+
+    rollup = aggregate_corpus_costs(corpus_root)
+
+    if args.json:
+        print(_json.dumps(rollup, indent=2, sort_keys=True))
+    else:
+        print(f"Corpus: {corpus_root}")
+        print(f"  Runs aggregated:             {rollup['run_count']}")
+        print(f"  Transcription cost:          ${rollup['total_transcription_cost_usd']:.4f}")
+        print(f"  LLM cost (non-transcription): ${rollup['total_llm_cost_usd']:.4f}")
+        print(f"  Total cost:                  ${rollup['total_cost_usd']:.4f}")
+        print("  Per-stage breakdown:")
+        for stage, amount in sorted(rollup["by_stage"].items()):
+            print(f"    {stage}: ${amount:.4f}")
+        if rollup["metrics_files_missing_cost_fields"]:
+            print(
+                f"  Note: {rollup['metrics_files_missing_cost_fields']} run(s) "
+                "had no per-stage cost fields — likely produced before #650 "
+                "landed. Re-run those episodes to populate."
+            )
+
+    if args.update_manifest:
+        manifest_path = corpus_root / CORPUS_MANIFEST_FILE
+        if not manifest_path.exists():
+            print(
+                f"Error: --update-manifest but {CORPUS_MANIFEST_FILE} not found at "
+                f"{manifest_path}. Run the pipeline first to create it.",
+                file=sys.stderr,
+            )
+            return 2
+        try:
+            doc = _json.loads(manifest_path.read_text(encoding="utf-8"))
+        except (OSError, ValueError) as exc:
+            print(f"Error: unreadable {manifest_path}: {exc}", file=sys.stderr)
+            return 2
+        if not isinstance(doc, dict):
+            print(f"Error: {manifest_path} is not a JSON object.", file=sys.stderr)
+            return 2
+        doc["cost_rollup"] = rollup
+        doc["schema_version"] = CORPUS_MANIFEST_SCHEMA_VERSION
+        manifest_path.write_text(
+            _json.dumps(doc, indent=2, sort_keys=True) + "\n", encoding="utf-8"
+        )
+        log.info("Rewrote %s with fresh cost_rollup.", manifest_path)
+
+    return 0
+
+
 def main(  # noqa: C901 - main function handles multiple command paths
     argv: Optional[Sequence[str]] = None,
     *,
@@ -4308,6 +4405,7 @@ def main(  # noqa: C901 - main function handles multiple command paths
         in (
             "cache",
             "corpus-status",
+            "corpus-cost",
             "doctor",
             "gi",
             "index",
@@ -4399,6 +4497,9 @@ def main(  # noqa: C901 - main function handles multiple command paths
         from .search.cli_handlers import run_insight_clusters_cli
 
         return run_insight_clusters_cli(args, log)
+
+    if hasattr(args, "command") and args.command == "corpus-cost":
+        return _run_corpus_cost_cli(args, log)
 
     if hasattr(args, "command") and args.command == "verify-gil-chunk-offsets":
         from .search.cli_handlers import run_verify_gil_chunk_offsets_cli

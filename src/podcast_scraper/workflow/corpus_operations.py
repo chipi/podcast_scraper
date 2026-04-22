@@ -19,8 +19,9 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 CORPUS_MANIFEST_FILE = "corpus_manifest.json"
+CORPUS_MANIFEST_SCHEMA_VERSION = "1.1.0"  # bumped from 1.0.0 in #650 — add cost_rollup
 CORPUS_RUN_SUMMARY_FILE = "corpus_run_summary.json"
-CORPUS_RUN_SUMMARY_SCHEMA_VERSION = "1.1.0"
+CORPUS_RUN_SUMMARY_SCHEMA_VERSION = "1.2.0"  # bumped from 1.1.0 in #650 — add cost_rollup
 DEFAULT_CORPUS_INCIDENTS_BASENAME = "corpus_incidents.jsonl"
 
 
@@ -213,16 +214,25 @@ def write_corpus_manifest(
         if fr.failure_kind is not None:
             row["failure_kind"] = fr.failure_kind
         feeds_out.append(row)
+    from podcast_scraper.workflow.corpus_cost_aggregation import aggregate_corpus_costs
+
+    cost_rollup = aggregate_corpus_costs(parent)
     doc = {
-        "schema_version": "1.0.0",
+        "schema_version": CORPUS_MANIFEST_SCHEMA_VERSION,
         "tool_version": __version__,
         "corpus_parent": str(parent),
         "updated_at": _utc_iso(),
         "feeds": feeds_out,
+        "cost_rollup": cost_rollup,
     }
     path = parent / CORPUS_MANIFEST_FILE
     path.write_text(json.dumps(doc, indent=2, sort_keys=True) + "\n", encoding="utf-8")
-    logger.info("Wrote corpus manifest: %s", path)
+    logger.info(
+        "Wrote corpus manifest: %s (cost_rollup.total_cost_usd=%s over %d runs)",
+        path,
+        cost_rollup["total_cost_usd"],
+        cost_rollup["run_count"],
+    )
 
 
 def build_corpus_run_summary_document(
@@ -256,12 +266,16 @@ def build_corpus_run_summary_document(
             "hard": int(ep_row.get("hard", 0)),
         }
         feeds_json.append(row)
+    from podcast_scraper.workflow.corpus_cost_aggregation import aggregate_corpus_costs
+
+    cost_rollup = aggregate_corpus_costs(corpus_parent_resolved)
     doc: Dict[str, Any] = {
         "schema_version": CORPUS_RUN_SUMMARY_SCHEMA_VERSION,
         "corpus_parent": corpus_parent_resolved,
         "finished_at": fin,
         "overall_ok": overall_ok,
         "feeds": feeds_json,
+        "cost_rollup": cost_rollup,
     }
     if batch_incidents is not None:
         doc["batch_incidents"] = batch_incidents
