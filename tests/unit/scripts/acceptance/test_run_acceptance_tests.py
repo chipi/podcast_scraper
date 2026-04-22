@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import os
 import sys
 import tempfile
@@ -18,14 +19,19 @@ if str(_SCRIPTS_ACCEPTANCE) not in sys.path:
     sys.path.insert(0, str(_SCRIPTS_ACCEPTANCE))
 
 from run_acceptance_tests import (  # noqa: E402
+    _apply_per_run_wall_budget_failure,
     _assess_vector_index_run,
     _estimate_llm_cost_usd_from_stdout_log,
     _extract_provider_info,
     _line_is_debug_for_console_filter,
+    _resolved_per_run_wall_seconds,
     _strict_vector_index_requested,
     apply_session_rss_cache_env,
     collect_logs_from_output,
+    compute_walltime_vs_baseline_summary,
+    EXIT_PER_RUN_WALL_BUDGET,
     filter_fast_configs,
+    WALLTIME_REGRESSION_RATIO,
 )
 
 
@@ -113,15 +119,15 @@ class TestFilterFastConfigs:
 
     def test_filter_keeps_only_stems_in_set(self):
         """Only configs whose stem is in fast_stems are kept."""
-        fast_stems = {"fast_airgapped_single", "fast_cloud_balanced_multi"}
+        fast_stems = {"fast_dev_single", "fast_cloud_balanced_multi"}
         configs = [
-            Path("sessions/x/materialized/fast_airgapped_single.yaml"),
+            Path("sessions/x/materialized/fast_dev_single.yaml"),
             Path("sessions/x/materialized/fast_cloud_balanced_single.yaml"),
             Path("sessions/x/materialized/fast_cloud_balanced_multi.yaml"),
         ]
         out = filter_fast_configs(configs, fast_stems)
         assert len(out) == 2
-        assert out[0].stem == "fast_airgapped_single"
+        assert out[0].stem == "fast_dev_single"
         assert out[1].stem == "fast_cloud_balanced_multi"
 
     def test_filter_empty_stems_returns_all(self):
@@ -228,3 +234,90 @@ class TestStrictVectorIndexEnv:
         assert _strict_vector_index_requested() is True
         monkeypatch.setenv("STRICT_VECTOR_INDEX", "0")
         assert _strict_vector_index_requested() is False
+
+
+@pytest.mark.unit
+class TestPerRunWallBudgetResolution:
+    """``ACCEPTANCE_PER_RUN_WALL_SECONDS`` / ``--per-run-wall-seconds`` resolution."""
+
+    def test_default_600_without_env(self, monkeypatch):
+        monkeypatch.delenv("ACCEPTANCE_PER_RUN_WALL_SECONDS", raising=False)
+        assert _resolved_per_run_wall_seconds(None) == 600
+
+    def test_cli_override(self, monkeypatch):
+        monkeypatch.delenv("ACCEPTANCE_PER_RUN_WALL_SECONDS", raising=False)
+        assert _resolved_per_run_wall_seconds(120) == 120
+
+    def test_env_override_when_cli_none(self, monkeypatch):
+        monkeypatch.setenv("ACCEPTANCE_PER_RUN_WALL_SECONDS", "42")
+        assert _resolved_per_run_wall_seconds(None) == 42
+
+    def test_zero_disables(self, monkeypatch):
+        assert _resolved_per_run_wall_seconds(0) == 0
+
+
+@pytest.mark.unit
+class TestWalltimeVsBaselineSummary:
+    """Baseline wall-clock comparison (≥25% slower)."""
+
+    def test_flags_regression_at_exactly_threshold(self, tmp_path):
+        bid = "b1"
+        bdir = tmp_path / "baselines" / bid
+        bdir.mkdir(parents=True)
+        baseline = {"runs": [{"config_name": "cfg_a", "duration_seconds": 100.0}]}
+        (bdir / "baseline.json").write_text(json.dumps(baseline), encoding="utf-8")
+        threshold_wall = 100.0 * WALLTIME_REGRESSION_RATIO
+        summ = compute_walltime_vs_baseline_summary(
+            [{"config_name": "cfg_a", "wall_clock_seconds": threshold_wall}],
+            bid,
+            tmp_path,
+        )
+        assert summ is not None
+        assert len(summ["regressions_ge_threshold"]) == 1
+
+    def test_no_flag_just_below_threshold(self, tmp_path):
+        bid = "b1"
+        bdir = tmp_path / "baselines" / bid
+        bdir.mkdir(parents=True)
+        baseline = {"runs": [{"config_name": "cfg_a", "duration_seconds": 100.0}]}
+        (bdir / "baseline.json").write_text(json.dumps(baseline), encoding="utf-8")
+        wall = 100.0 * WALLTIME_REGRESSION_RATIO - 0.02
+        summ = compute_walltime_vs_baseline_summary(
+            [{"config_name": "cfg_a", "wall_clock_seconds": wall}],
+            bid,
+            tmp_path,
+        )
+        assert summ is not None
+        assert summ["regressions_ge_threshold"] == []
+
+
+@pytest.mark.unit
+class TestApplyPerRunWallBudgetFailure:
+    """Post-run wall budget mutates ``run_data`` and rewrites ``run_data.json``."""
+
+    def test_exceed_marks_failed_when_service_ok(self, tmp_path):
+        rd = {
+            "config_name": "x",
+            "duration_seconds": 700.0,
+            "wall_clock_seconds": 700.0,
+            "exit_code": 0,
+            "output_dir": str(tmp_path),
+        }
+        (tmp_path / "run_data.json").write_text("{}", encoding="utf-8")
+        _apply_per_run_wall_budget_failure(rd, 600)
+        assert rd["exit_code"] == EXIT_PER_RUN_WALL_BUDGET
+        assert rd["per_run_wall_budget_exceeded"] is True
+        data = json.loads((tmp_path / "run_data.json").read_text(encoding="utf-8"))
+        assert data["exit_code"] == EXIT_PER_RUN_WALL_BUDGET
+
+    def test_within_budget_unchanged(self, tmp_path):
+        rd = {
+            "config_name": "x",
+            "duration_seconds": 10.0,
+            "wall_clock_seconds": 10.0,
+            "exit_code": 0,
+            "output_dir": str(tmp_path),
+        }
+        _apply_per_run_wall_budget_failure(rd, 600)
+        assert rd["exit_code"] == 0
+        assert rd.get("per_run_wall_budget_exceeded") is False

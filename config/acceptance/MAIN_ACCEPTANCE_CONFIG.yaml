@@ -1,17 +1,16 @@
-# Fast acceptance matrix (runtime merge). See config/acceptance/README.md.
+# Main acceptance matrix (runtime merge). See config/acceptance/README.md.
 # Each enabled row: merge defaults + feeds fragment + profile:, materialized as
 # sessions/session_*/materialized/{id}.yaml (--from-fast-stems).
+#
+# PR / CI matrix: four runs sized for ~900s per config (no airgapped rows — Whisper+SummLlama
+# on long fixture audio cannot meet the job budget; cloud + dev rows already cover orchestration).
 version: 1
 defaults: fragments/acceptance_defaults.yaml
 
 runs:
-  - id: fast_airgapped_single
-    profile: airgapped
+  - id: fast_dev_single
+    profile: dev
     feeds_shape: single
-
-  - id: fast_airgapped_multi
-    profile: airgapped
-    feeds_shape: multi
 
   - id: fast_cloud_balanced_single
     profile: cloud_balanced
@@ -23,8 +22,4 @@ runs:
 
   - id: fast_cloud_quality_single
     profile: cloud_quality
-    feeds_shape: single
-
-  - id: fast_dev_single
-    profile: dev
     feeds_shape: single

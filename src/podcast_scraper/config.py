@@ -2851,7 +2851,13 @@ class Config(BaseModel):
         if not isinstance(value, list):
             raise TypeError("rss_urls must be a list of URL strings or feed objects")
         bucket: List[dict] = []
-        append_normalized_feed_items(bucket, value)
+        normalized: List[Any] = []
+        for item in value:
+            if isinstance(item, RssFeedEntry):
+                normalized.append(item.model_dump(mode="json", exclude_none=True))
+            else:
+                normalized.append(item)
+        append_normalized_feed_items(bucket, normalized)
         return bucket or None
 
     @field_validator("rss_urls", mode="after")

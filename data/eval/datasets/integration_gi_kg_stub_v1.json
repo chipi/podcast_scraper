@@ -1,0 +1,18 @@
+{
+  "dataset_id": "integration_gi_kg_stub_v1",
+  "version": "1.0",
+  "description": "Single-episode stub for CI integration (run_experiment eval_stub dry-run).",
+  "created_at": "2026-04-22T00:00:00Z",
+  "content_regime": "explainer",
+  "num_episodes": 1,
+  "episodes": [
+    {
+      "episode_id": "stub_ep_01",
+      "title": "CI stub episode",
+      "transcript_path": "tests/fixtures/eval/transcripts/stub_ep_01.txt",
+      "transcript_hash": "b3e0067dc1b94b5142d230ceaeded23f779659642511ae09bc1f317f2a2bfae7",
+      "preprocessing_profile": "cleaning_v3",
+      "duration_minutes": 0.1
+    }
+  ]
+}

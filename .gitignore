@@ -101,10 +101,10 @@ web/gi-kg-viewer/playwright/.cache/
 config/examples/config.my.*
 examples.txt
 
-# Acceptance: track README + FAST_CONFIG matrix + fragments; other *.yaml local
+# Acceptance: track README + MAIN_ACCEPTANCE_CONFIG matrix + fragments; other *.yaml local
 config/acceptance/*
 !config/acceptance/README.md
-!config/acceptance/FAST_CONFIG.yaml
+!config/acceptance/MAIN_ACCEPTANCE_CONFIG.yaml
 !config/acceptance/fragments/
 !config/acceptance/fragments/*.yaml
 

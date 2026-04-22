@@ -59,7 +59,7 @@ See [`freeze/README.md`](freeze/README.md) for the workflow and matrix.
 ## Acceptance runner matrix (`config/acceptance/`)
 
 Cross-link only: the acceptance runner merges
-[`FAST_CONFIG.yaml`](../acceptance/FAST_CONFIG.yaml) with YAML under
+[`MAIN_ACCEPTANCE_CONFIG.yaml`](../acceptance/MAIN_ACCEPTANCE_CONFIG.yaml) with YAML under
 [`fragments/`](../acceptance/fragments/). That layout is independent of
 `make profile-freeze`; see [`acceptance/README.md`](../acceptance/README.md)
 for stems, env vars, and CI usage.

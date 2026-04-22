@@ -1517,7 +1517,7 @@ Packaged profiles are **non-canonical** bundles; field semantics remain **this d
 See [RSS and feed ingestion guide](../guides/RSS_GUIDE.md), [CLI.md — RSS and multi-feed](CLI.md#rss-and-multi-feed), [SERVICE.md](SERVICE.md), [RFC-063 — Multi-feed corpus](../rfc/RFC-063-multi-feed-corpus-append-resume.md). **Non-normative** shape examples:
 
 - `config/examples/feeds.spec.example.yaml` / `config/examples/feeds.spec.example.json` — structured corpus feeds (`{ "feeds": [...] }`); each entry is a URL string or an object with **`url`** plus optional per-feed keys (same names as download-resilience fields in **this** document). Use **`--feeds-spec`** or viewer Feeds (writes **`feeds.spec.yaml`** under the corpus root). Normative API shape: [RFC-077](../rfc/RFC-077-viewer-feeds-and-serve-pipeline-jobs.md).
-- `config/acceptance/FAST_CONFIG.yaml` + `config/acceptance/fragments/` — fast acceptance matrix (materialized per row; see **`config/acceptance/README.md`**)
+- `config/acceptance/MAIN_ACCEPTANCE_CONFIG.yaml` + `config/acceptance/fragments/` — fast acceptance matrix (materialized per row; see **`config/acceptance/README.md`**)
 - Any RFC-077 feeds document you pass with **`--feeds-spec`** (see **`config/examples/feeds.spec.example.yaml`** for shape)
 
 <a id="episode-selection-github-521"></a>

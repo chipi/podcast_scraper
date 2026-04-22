@@ -24,7 +24,7 @@ on:
       - 'Dockerfile'
       - '.dockerignore'
       - 'web/gi-kg-viewer/**'
-      - 'config/acceptance/FAST_CONFIG.yaml'
+      - 'config/acceptance/MAIN_ACCEPTANCE_CONFIG.yaml'
       - 'config/acceptance/fragments/**'
       - '.github/workflows/python-app.yml'
   pull_request:
@@ -38,7 +38,7 @@ on:
       - 'Dockerfile'
       - '.dockerignore'
       - 'web/gi-kg-viewer/**'
-      - 'config/acceptance/FAST_CONFIG.yaml'
+      - 'config/acceptance/MAIN_ACCEPTANCE_CONFIG.yaml'
       - 'config/acceptance/fragments/**'
       - '.github/workflows/python-app.yml'
 
@@ -1218,8 +1218,8 @@ jobs:
     - name: Run acceptance fast matrix with E2E fixtures
       run: |
         export PYTHONPATH="${PYTHONPATH}:$(pwd)"
-        # Local Whisper in multi-feed ML preset can approach 900s on slow CPU; keep margin.
-        TIMEOUT=1500 make test-acceptance-fixtures-fast
+        # Fast matrix is four cloud/dev rows (no airgapped Whisper-heavy preset); 900s per config.
+        TIMEOUT=900 PER_RUN_WALL_SECONDS=600 make test-acceptance-fixtures-fast
     - name: Verify GIL Quote vs FAISS transcript chunk offsets (acceptance corpora)
       run: |
         export PYTHONPATH="${PYTHONPATH}:$(pwd)"

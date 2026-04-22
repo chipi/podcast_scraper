@@ -13,6 +13,7 @@ for better organization. The evaluation system uses this configuration exclusive
 from __future__ import annotations
 
 import json
+import os
 from pathlib import Path
 from typing import Any, Dict, List, Literal, Optional
 
@@ -631,6 +632,20 @@ class ExperimentConfig(BaseModel):
 
 # ----- Loader helpers -----
 
+PODCAST_EVAL_MATERIALIZED_ROOT_ENV = "PODCAST_EVAL_MATERIALIZED_ROOT"
+
+
+def eval_materialized_datasets_root() -> Path:
+    """Parent of per-dataset dirs (default ``data/eval/materialized``).
+
+    Override with :envvar:`PODCAST_EVAL_MATERIALIZED_ROOT` for tests or CI fixtures
+    (path must contain ``<dataset_id>/meta.json`` and episode ``.txt`` files).
+    """
+    override = os.environ.get(PODCAST_EVAL_MATERIALIZED_ROOT_ENV, "").strip()
+    if override:
+        return Path(override)
+    return Path("data/eval/materialized")
+
 
 def load_dataset_json(dataset_id: str) -> Dict[str, Any]:
     """Load dataset JSON definition.
@@ -711,7 +726,7 @@ def discover_input_files(data_cfg: DataConfig, base_dir: Path | None = None) -> 
         dataset = load_dataset_json(data_cfg.dataset_id)
 
         # Materialized data is required - no fallback to sources
-        materialized_dir = Path("data/eval/materialized") / data_cfg.dataset_id
+        materialized_dir = eval_materialized_datasets_root() / data_cfg.dataset_id
         if not materialized_dir.exists():
             raise FileNotFoundError(
                 f"Materialized dataset not found: {materialized_dir}\n"
@@ -781,8 +796,8 @@ def episode_id_from_path(path: Path, data_cfg: DataConfig) -> str:
     """
     if data_cfg.dataset_id:
         # Dataset-based mode: try to extract episode_id from materialized path first
-        # Materialized paths are: data/eval/materialized/{dataset_id}/{episode_id}.txt
-        materialized_dir = Path("data/eval/materialized") / data_cfg.dataset_id
+        # Materialized paths are: {eval_materialized_datasets_root()}/{dataset_id}/{episode_id}.txt
+        materialized_dir = eval_materialized_datasets_root() / data_cfg.dataset_id
         try:
             # Check if path is within materialized directory
             path_resolved = path.resolve()

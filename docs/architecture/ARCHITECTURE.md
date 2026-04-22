@@ -1023,7 +1023,7 @@ Runtime configuration organized by use case.
 
 | Folder | Purpose |
 | ------ | ------- |
-| `acceptance/` | Acceptance fast matrix (`FAST_CONFIG.yaml`) + fragments; optional local YAML presets |
+| `acceptance/` | Acceptance fast matrix (`MAIN_ACCEPTANCE_CONFIG.yaml`) + fragments; optional local YAML presets |
 | `ci/` | CI-oriented local-only files (gitignored except `README.md`; not used for acceptance fast list) |
 | `examples/` | Example YAML/JSON configs and `.env.example` for onboarding |
 | `manual/` | Manual/benchmark-oriented configs (GI/KG, multi-feed variants) |

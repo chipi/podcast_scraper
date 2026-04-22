@@ -35,10 +35,6 @@ pytestmark = [pytest.mark.integration, pytest.mark.critical_path]
 class TestGeminiSdkThinkingContractSubprocess(unittest.TestCase):
     """Runs in a clean interpreter with ``google-genai`` from the integration venv."""
 
-    @pytest.mark.xfail(
-        reason="google-genai SDK may reject thinking_budget per SDK version",
-        strict=False,
-    )
     def test_thinking_config_types_accept_thinking_budget(self) -> None:
         proc = subprocess.run(
             [sys.executable, "-c", _SUBPROCESS_SNIPPET],

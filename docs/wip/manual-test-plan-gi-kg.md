@@ -66,7 +66,7 @@ make test-acceptance CONFIGS="path/to/operator.yaml"
 
 ### Acceptance configs (full pipeline, CI-style)
 
-Matrix-driven runs: **`config/acceptance/FAST_CONFIG.yaml`** + **`fragments/`**. See **`config/acceptance/README.md`** and **`scripts/acceptance/README.md`**.
+Matrix-driven runs: **`config/acceptance/MAIN_ACCEPTANCE_CONFIG.yaml`** + **`fragments/`**. See **`config/acceptance/README.md`** and **`scripts/acceptance/README.md`**.
 
 For **stub** GI, **`provider`**-mode KG, summaries-only, or other layer-specific presets, use pytest E2E tests or small operator YAMLs you maintain locally.
 

@@ -18,15 +18,20 @@ def _load_run_acceptance_module():
 
 
 class TestAcceptanceRunnerDiscovery(unittest.TestCase):
-    """``FAST_CONFIG.yaml`` + ``--from-fast-stems`` helpers."""
+    """``MAIN_ACCEPTANCE_CONFIG.yaml`` + ``--from-fast-stems`` helpers."""
 
-    def test_load_fast_matrix_ids_includes_airgapped_and_cloud_rows(self):
+    def test_load_fast_matrix_ids_includes_dev_and_cloud_rows(self):
         mod = _load_run_acceptance_module()
         ids = mod.load_fast_matrix_ids()
-        self.assertIn("fast_airgapped_single", ids)
-        self.assertIn("fast_airgapped_multi", ids)
-        self.assertIn("fast_cloud_balanced_single", ids)
-        self.assertIn("fast_cloud_balanced_multi", ids)
+        self.assertEqual(
+            ids,
+            {
+                "fast_dev_single",
+                "fast_cloud_balanced_single",
+                "fast_cloud_balanced_multi",
+                "fast_cloud_quality_single",
+            },
+        )
 
     def test_load_fast_config_stems_matches_matrix_ids(self):
         mod = _load_run_acceptance_module()
@@ -39,7 +44,7 @@ class TestAcceptanceRunnerDiscovery(unittest.TestCase):
             session_dir = Path(tmp) / "session_test"
             session_dir.mkdir()
             paths = mod.materialize_fast_matrix_configs(session_dir)
-            self.assertGreaterEqual(len(paths), 1)
+            self.assertEqual(len(paths), 4)
             for p in paths:
                 self.assertEqual(p.parent.name, "materialized")
                 self.assertTrue(p.name.endswith(".yaml"))

@@ -924,7 +924,7 @@ This repository checks in **slash commands** (Markdown under **`.cursor/commands
 | **implement-attached-plan** | `implement-attached-plan.md` | Implement a pasted or attached plan without editing the plan file; merge existing to-dos when provided. |
 | **review-changes-gaps** | `review-changes-gaps.md` | Structured pass for gaps, stale references, and small safe fixes after a change. |
 
-**Acceptance runs** (full pipeline, multiple YAMLs): use **`make test-acceptance`** from repo root with **`CONFIGS="…"`** (space-separated globs), or **`FROM_FAST_STEMS=1`** **`USE_FIXTURES=1`** to materialize rows from **`config/acceptance/FAST_CONFIG.yaml`**, or **`make test-acceptance-fixtures-fast`** for the CI-style fast matrix + fixtures. See **`scripts/acceptance/README.md`** and **[Testing Guide — E2E Acceptance Tests](TESTING_GUIDE.md#e2e-acceptance-tests)**.
+**Acceptance runs** (full pipeline, multiple YAMLs): use **`make test-acceptance`** from repo root with **`CONFIGS="…"`** (space-separated globs), or **`FROM_FAST_STEMS=1`** **`USE_FIXTURES=1`** to materialize rows from **`config/acceptance/MAIN_ACCEPTANCE_CONFIG.yaml`**, or **`make test-acceptance-fixtures-fast`** for the CI-style fast matrix + fixtures. See **`scripts/acceptance/README.md`** and **[Testing Guide — E2E Acceptance Tests](TESTING_GUIDE.md#e2e-acceptance-tests)**.
 
 Optional: add your own **`.cursor/agents/*.md`** or use Cursor’s **Task** tool (e.g. verifier, explore) for isolated runs. Use Cursor’s **built-in Explore** for "find all X in codebase."
 

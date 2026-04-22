@@ -17,7 +17,7 @@
 - **Related Documents**:
   - [README.md](https://github.com/chipi/podcast_scraper/blob/main/README.md) - Main project README (source of truth for examples)
   - [TESTING_STRATEGY.md](../architecture/TESTING_STRATEGY.md) - Overall testing strategy and test categories
-  - [scripts/acceptance/README.md](https://github.com/chipi/podcast_scraper/blob/main/scripts/acceptance/README.md) - Runner CLI, **`make test-acceptance`**, **`FAST_CONFIG.yaml`** matrix
+  - [scripts/acceptance/README.md](https://github.com/chipi/podcast_scraper/blob/main/scripts/acceptance/README.md) - Runner CLI, **`make test-acceptance`**, **`MAIN_ACCEPTANCE_CONFIG.yaml`** matrix
   - [config/acceptance/README.md](https://github.com/chipi/podcast_scraper/blob/main/config/acceptance/README.md) - Tracked vs local acceptance YAML layout
 
 ## Abstract

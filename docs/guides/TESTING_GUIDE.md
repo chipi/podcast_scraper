@@ -432,7 +432,7 @@ Acceptance tests allow you to run multiple configuration files sequentially, col
 
 ### Setting up acceptance configs
 
-Optional full-pipeline YAML presets may live under **`config/acceptance/`** beside the tracked matrix. The repo tracks **`config/acceptance/README.md`**, **`config/acceptance/FAST_CONFIG.yaml`**, and **`config/acceptance/fragments/*.yaml`**.
+Optional full-pipeline YAML presets may live under **`config/acceptance/`** beside the tracked matrix. The repo tracks **`config/acceptance/README.md`**, **`config/acceptance/MAIN_ACCEPTANCE_CONFIG.yaml`**, and **`config/acceptance/fragments/*.yaml`**.
 
 1. **Create the folder:** `mkdir -p config/acceptance` (at project root).
 2. **Copy example configs:** Use `config/examples/config.example.yaml` (or any example) as a template:
@@ -447,7 +447,7 @@ Optional full-pipeline YAML presets may live under **`config/acceptance/`** besi
 
 **Corpus resolution + CLI (post–#505 / inspect hardening):** Unit tests include **`tests/unit/podcast_scraper/utils/test_corpus_episode_paths.py`** (YAML metadata, rglob fallback, parent search hint), **`tests/unit/podcast_scraper/utils/test_corpus_lock.py`**, **`TestKgSubcommandMultiFeed`** and **`TestGiSubcommand`** multi-feed **`gi inspect` / `kg inspect`** paths in **`tests/unit/podcast_scraper/test_cli.py`**, and viewer **`web/gi-kg-viewer/src/stores/shell.hints.test.ts`** for **`GET /api/artifacts`** `hints`. Playwright **`web/gi-kg-viewer/e2e/corpus-hints.spec.ts`** mirrors the hint banner (requires **`npx playwright install firefox`** locally / in CI).
 
-**Full fast matrix with fixtures (smoke all acceptance presets offline):** `make test-acceptance-fixtures-fast` materializes each enabled row from **`config/acceptance/FAST_CONFIG.yaml`** into **`sessions/session_*/materialized/{id}.yaml`** and runs those configs. Uses **`USE_FIXTURES=1`**, disables auto analyze/benchmark, and CI sets a **1500s** per-config timeout (`TIMEOUT=...` to override locally). Same target runs on **main / release** pushes in CI (`test-acceptance-fixtures` job in `python-app.yml`).
+**Full fast matrix with fixtures (smoke all acceptance presets offline):** `make test-acceptance-fixtures-fast` materializes each enabled row from **`config/acceptance/MAIN_ACCEPTANCE_CONFIG.yaml`** into **`sessions/session_*/materialized/{id}.yaml`** and runs those configs. Uses **`USE_FIXTURES=1`**, disables auto analyze/benchmark, **900s** subprocess **`TIMEOUT`**, and **600s** post-run wall budget (`PER_RUN_WALL_SECONDS` / `ACCEPTANCE_PER_RUN_WALL_SECONDS`; **`session.json`** records **`wall_clock_seconds`** per run and **`walltime_vs_baseline`** when **`COMPARE_BASELINE=…`**). Same target runs on **main / release** pushes in CI (`test-acceptance-fixtures` job in `python-app.yml`).
 
 Optional: use **`config/playground/`** for ad-hoc or one-off configs; run them with e.g. `make test-acceptance CONFIGS="config/playground/config.my.*.yaml"`.
 
@@ -460,10 +460,10 @@ make test-acceptance CONFIGS="config/examples/config.example.yaml"
 # Run multiple configs (using glob patterns)
 make test-acceptance CONFIGS="config/acceptance/*.yaml"
 
-# Fast matrix from FAST_CONFIG.yaml (materialized YAMLs per row) + fixtures
+# Fast matrix from MAIN_ACCEPTANCE_CONFIG.yaml (materialized YAMLs per row) + fixtures
 make test-acceptance FROM_FAST_STEMS=1 USE_FIXTURES=1
 
-# Same as above with CI-style defaults (no auto analyze/benchmark; default TIMEOUT=900; CI uses 1500)
+# Same as above with CI-style defaults (no auto analyze/benchmark; TIMEOUT=900; PER_RUN_WALL_SECONDS=600)
 make test-acceptance-fixtures-fast
 
 # Save current runs as a baseline for future comparison

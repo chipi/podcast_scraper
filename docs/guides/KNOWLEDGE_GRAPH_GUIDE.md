@@ -135,7 +135,7 @@ See [CLI reference](../api/CLI.md#knowledge-graph-kg-subcommands) for examples.
   CI runs the same enforce pass as GIL on `tests/fixtures/gil_kg_ci_enforce` via
   `make quality-metrics-ci`.
 - **Fixture:** `tests/fixtures/kg/minimal.kg.json` for smoke checks.
-- **Acceptance (E2E configs):** Optional full-pipeline YAML under **`config/acceptance/`** (see **`config/acceptance/README.md`**; repo tracks **`FAST_CONFIG.yaml`** + **`fragments/`**, other `*.yaml` are usually local). Typical runs: **`make test-acceptance CONFIGS="config/acceptance/*.yaml"`** (your glob), **`make test-acceptance FROM_FAST_STEMS=1 USE_FIXTURES=1`**, or **`make test-acceptance-fixtures-fast`** for the offline fast matrix. KG uses
+- **Acceptance (E2E configs):** Optional full-pipeline YAML under **`config/acceptance/`** (see **`config/acceptance/README.md`**; repo tracks **`MAIN_ACCEPTANCE_CONFIG.yaml`** + **`fragments/`**, other `*.yaml` are usually local). Typical runs: **`make test-acceptance CONFIGS="config/acceptance/*.yaml"`** (your glob), **`make test-acceptance FROM_FAST_STEMS=1 USE_FIXTURES=1`**, or **`make test-acceptance-fixtures-fast`** for the offline fast matrix. KG uses
   `kg_extraction_source: summary_bullets` (no stub-only acceptance split).
 
 Run metrics export (`metrics.json`) includes KG rollups: `kg_topic_nodes_total`,

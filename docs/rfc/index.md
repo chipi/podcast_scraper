@@ -64,7 +64,7 @@ RFCs translate PRD requirements into concrete technical solutions and serve as l
 | [RFC-036](RFC-036-grok-provider-implementation.md) | Grok Provider Implementation (xAI) | PRD-013 | v2.5.0 | Technical design for Grok (xAI's AI model) |
 | [RFC-037](RFC-037-ollama-provider-implementation.md) | Ollama Provider Implementation | PRD-014 | v2.5.0 | Technical design for Ollama (local/offline) |
 | [RFC-039](RFC-039-development-workflow-worktrees-ci.md) | Development Workflow | - | v2.4.0 | Git worktrees, Cursor integration, CI evolution |
-| [RFC-023](RFC-023-readme-acceptance-tests.md) | README Acceptance Tests | - | v2.5.0 | Script-based acceptance (`make test-acceptance`, `FAST_CONFIG.yaml` fast matrix, `scripts/acceptance/`) — not pytest `tests/acceptance/` |
+| [RFC-023](RFC-023-readme-acceptance-tests.md) | README Acceptance Tests | - | v2.5.0 | Script-based acceptance (`make test-acceptance`, `MAIN_ACCEPTANCE_CONFIG.yaml` fast matrix, `scripts/acceptance/`) — not pytest `tests/acceptance/` |
 | [RFC-040](RFC-040-audio-preprocessing-pipeline.md) | Audio Preprocessing Pipeline | - | v2.5.0 | FFmpeg preprocessing, opus codec, audio caching, factory pattern |
 | [RFC-042](RFC-042-hybrid-summarization-pipeline.md) | Hybrid Podcast Summarization Pipeline | - | v2.5.0 | Hybrid MAP-REDUCE with instruction-tuned LLMs |
 | [RFC-044](RFC-044-model-registry.md) | Model Registry for Architecture Limits | - | v2.5.0 | Centralized registry for model architecture limits |

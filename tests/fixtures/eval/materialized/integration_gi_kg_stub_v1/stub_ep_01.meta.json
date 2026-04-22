@@ -1,0 +1,10 @@
+{
+  "metadata_version": "1.0",
+  "episode_id": "stub_ep_01",
+  "transcript_path": "stub_ep_01.txt",
+  "transcript_hash": "b3e0067dc1b94b5142d230ceaeded23f779659642511ae09bc1f317f2a2bfae7",
+  "source_transcript_path": "tests/fixtures/eval/transcripts/stub_ep_01.txt",
+  "preprocessing_profile": "cleaning_v3",
+  "title": "CI stub episode",
+  "duration_minutes": 0.1
+}

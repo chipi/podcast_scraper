@@ -70,6 +70,132 @@ logger = logging.getLogger(__name__)
 
 # Exit code used when a run is killed due to --timeout (per-run timeout)
 EXIT_TIMEOUT = 124
+# Exit code when a run finishes within --timeout but exceeds the per-run wall budget
+EXIT_PER_RUN_WALL_BUDGET = 125
+
+# Tracked acceptance matrix file (``--from-fast-stems`` / ``--fast-only``)
+MAIN_ACCEPTANCE_CONFIG_BASENAME = "MAIN_ACCEPTANCE_CONFIG.yaml"
+# Baseline wall-clock comparison: flag when current >= baseline * this ratio
+WALLTIME_REGRESSION_RATIO = 1.25
+
+
+def _resolved_per_run_wall_seconds(cli_value: Optional[int]) -> int:
+    """Per-run wall budget in seconds; ``0`` disables the post-run budget check.
+
+    Default comes from ``ACCEPTANCE_PER_RUN_WALL_SECONDS`` (fallback ``600``) when
+    the CLI flag is omitted.
+    """
+    if cli_value is not None:
+        return max(0, int(cli_value))
+    raw = os.environ.get("ACCEPTANCE_PER_RUN_WALL_SECONDS", "600").strip()
+    if not raw:
+        return 600
+    try:
+        return max(0, int(raw))
+    except ValueError:
+        logger.warning("Invalid ACCEPTANCE_PER_RUN_WALL_SECONDS=%r; using 600", raw)
+        return 600
+
+
+def compute_walltime_vs_baseline_summary(
+    runs: List[Dict[str, Any]],
+    baseline_id: str,
+    output_dir: Path,
+    *,
+    regression_ratio: float = WALLTIME_REGRESSION_RATIO,
+) -> Optional[Dict[str, Any]]:
+    """Compare wall clock per run to baseline; flag slowdowns ≥ ``regression_ratio``."""
+    baseline_path = output_dir / "baselines" / baseline_id / "baseline.json"
+    if not baseline_path.is_file():
+        return None
+    try:
+        meta = json.loads(baseline_path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        logger.warning("Could not read baseline for wall-time compare: %s", exc)
+        return None
+    baseline_runs = meta.get("runs")
+    if not isinstance(baseline_runs, list):
+        return None
+    by_name: Dict[str, Dict[str, Any]] = {}
+    for br in baseline_runs:
+        if isinstance(br, dict):
+            name = br.get("config_name")
+            if isinstance(name, str) and name.strip():
+                by_name[name.strip()] = br
+    regressions: List[Dict[str, Any]] = []
+    for r in runs:
+        if not isinstance(r, dict):
+            continue
+        name = r.get("config_name")
+        if not isinstance(name, str) or not name.strip():
+            continue
+        name = name.strip()
+        if name not in by_name:
+            continue
+        base = by_name[name]
+        cur_wall = float(r.get("wall_clock_seconds", r.get("duration_seconds", 0)) or 0.0)
+        base_wall = float(base.get("wall_clock_seconds", base.get("duration_seconds", 0)) or 0.0)
+        if base_wall <= 0:
+            continue
+        if cur_wall >= base_wall * regression_ratio:
+            regressions.append(
+                {
+                    "config_name": name,
+                    "baseline_wall_seconds": round(base_wall, 2),
+                    "current_wall_seconds": round(cur_wall, 2),
+                    "slowdown_ratio": round(cur_wall / base_wall, 4),
+                }
+            )
+    return {
+        "baseline_id": baseline_id,
+        "baseline_path": str(baseline_path.resolve()),
+        "regression_ratio_threshold": regression_ratio,
+        "regressions_ge_threshold": regressions,
+    }
+
+
+def _apply_per_run_wall_budget_failure(run_data: Dict[str, Any], budget_seconds: int) -> None:
+    """If wall clock exceeds ``budget_seconds``, fail loud and persist updated ``run_data``."""
+    if budget_seconds <= 0:
+        run_data.setdefault("per_run_wall_budget_exceeded", False)
+        return
+    wall = float(run_data.get("wall_clock_seconds", run_data.get("duration_seconds", 0)) or 0.0)
+    run_data["per_run_wall_budget_seconds"] = budget_seconds
+    if wall <= budget_seconds:
+        run_data["per_run_wall_budget_exceeded"] = False
+        return
+
+    run_data["per_run_wall_budget_exceeded"] = True
+    prev_exit = int(run_data.get("exit_code", 1))
+    if prev_exit == 0:
+        run_data["exit_code"] = EXIT_PER_RUN_WALL_BUDGET
+        logger.error(
+            "PER-RUN WALL BUDGET EXCEEDED: config=%s wall_clock=%.2fs budget=%ds "
+            "(service exit was 0; failing with exit_code=%d). "
+            "Increase ACCEPTANCE_PER_RUN_WALL_SECONDS / --per-run-wall-seconds, "
+            "or reduce work per run.",
+            run_data.get("config_name"),
+            wall,
+            budget_seconds,
+            EXIT_PER_RUN_WALL_BUDGET,
+        )
+    else:
+        logger.error(
+            "PER-RUN WALL BUDGET EXCEEDED (run already failed): config=%s wall_clock=%.2fs "
+            "budget=%ds exit_code=%d",
+            run_data.get("config_name"),
+            wall,
+            budget_seconds,
+            prev_exit,
+        )
+    outp = run_data.get("output_dir")
+    if isinstance(outp, str) and outp.strip():
+        rp = Path(outp) / "run_data.json"
+        try:
+            with open(rp, "w", encoding="utf-8") as f:
+                json.dump(run_data, f, indent=2)
+        except OSError as exc:
+            logger.warning("Could not rewrite run_data.json after wall budget check: %s", exc)
 
 
 def _log_session_estimated_llm_cost(runs_data: List[Dict[str, Any]]) -> None:
@@ -399,17 +525,17 @@ def find_config_files(pattern: str) -> List[Path]:
 
 
 def _acceptance_config_root() -> Path:
-    """Directory containing ``FAST_CONFIG.yaml`` and ``fragments/``."""
+    """Directory containing ``MAIN_ACCEPTANCE_CONFIG.yaml`` and ``fragments/``."""
     return Path(__file__).resolve().parent.parent.parent / "config" / "acceptance"
 
 
-def _fast_config_yaml_path() -> Path:
-    return _acceptance_config_root() / "FAST_CONFIG.yaml"
+def _main_acceptance_config_path() -> Path:
+    return _acceptance_config_root() / MAIN_ACCEPTANCE_CONFIG_BASENAME
 
 
 def load_fast_config_matrix() -> Dict[str, Any]:
-    """Load the tracked fast acceptance matrix (YAML)."""
-    path = _fast_config_yaml_path()
+    """Load the tracked main acceptance matrix (YAML)."""
+    path = _main_acceptance_config_path()
     if not path.is_file():
         return {}
     try:
@@ -439,10 +565,14 @@ def load_fast_matrix_ids() -> set[str]:
 
 
 def load_fast_config_stems() -> set[str]:
-    """Backward-compatible alias: fast matrix row ids (see ``FAST_CONFIG.yaml``)."""
+    """Backward-compatible alias: main acceptance matrix row ids."""
     ids = load_fast_matrix_ids()
     if ids:
-        logger.info("Loaded %d fast matrix row id(s) from %s", len(ids), _fast_config_yaml_path())
+        logger.info(
+            "Loaded %d acceptance matrix row id(s) from %s",
+            len(ids),
+            _main_acceptance_config_path(),
+        )
     return ids
 
 
@@ -469,7 +599,7 @@ def _feeds_fragment_path_for_run(run: Dict[str, Any]) -> Path:
         return (root / "fragments" / "feeds_single.yaml").resolve()
     if shape == "multi":
         return (root / "fragments" / "feeds_multi.yaml").resolve()
-    raise ValueError(f"FAST_CONFIG run missing 'feeds' or valid 'feeds_shape': {run!r}")
+    raise ValueError(f"acceptance matrix run missing 'feeds' or valid 'feeds_shape': {run!r}")
 
 
 def _feeds_shape_tag(run: Dict[str, Any]) -> str:
@@ -486,7 +616,9 @@ def materialize_fast_matrix_configs(session_dir: Path) -> List[Path]:
     root = _acceptance_config_root()
     defaults_path = (root / str(defaults_rel)).resolve()
     if not defaults_path.is_file():
-        raise FileNotFoundError(f"FAST_CONFIG defaults not found: {defaults_path}")
+        raise FileNotFoundError(
+            f"{MAIN_ACCEPTANCE_CONFIG_BASENAME} defaults not found: {defaults_path}"
+        )
     defaults_dict = config.load_config_file(str(defaults_path))
     if not isinstance(defaults_dict, dict):
         defaults_dict = {}
@@ -505,7 +637,7 @@ def materialize_fast_matrix_configs(session_dir: Path) -> List[Path]:
         rid = run.get("id")
         prof = run.get("profile")
         if not isinstance(rid, str) or not isinstance(prof, str):
-            logger.warning("Skipping invalid FAST_CONFIG run (missing id/profile): %s", run)
+            logger.warning("Skipping invalid acceptance matrix run (missing id/profile): %s", run)
             continue
         rid = rid.strip()
         prof = prof.strip()
@@ -2069,6 +2201,7 @@ def run_config(
         "start_time": start_timestamp,
         "end_time": end_timestamp,
         "duration_seconds": round(duration_seconds, 2),
+        "wall_clock_seconds": round(duration_seconds, 2),
         "exit_code": effective_exit,
         "service_exit_code": exit_code,
         "timeout": timed_out,  # True if run was killed by --timeout
@@ -2258,12 +2391,25 @@ def main() -> None:  # noqa: C901 - CLI orchestrates configs, server, analysis, 
         "recorded as failed (exit 124). Useful for CI or long summarization suites.",
     )
     parser.add_argument(
+        "--per-run-wall-seconds",
+        type=int,
+        default=None,
+        metavar="SECONDS",
+        help=(
+            "Wall-clock budget per config run (seconds). After each run, if elapsed wall time "
+            f"exceeds this value, the run fails with exit {EXIT_PER_RUN_WALL_BUDGET} when the "
+            "service exit was 0. Use 0 to disable. Default: ACCEPTANCE_PER_RUN_WALL_SECONDS "
+            "environment variable or 600. This is independent of --timeout (subprocess kill); "
+            "it surfaces slow successful runs before the outer job budget is hit."
+        ),
+    )
+    parser.add_argument(
         "--fast-only",
         action="store_true",
         default=False,
         help=(
             "After resolving --configs globs, keep only files whose stem matches a row "
-            "``id`` in config/acceptance/FAST_CONFIG.yaml (enabled runs only)."
+            f"``id`` in config/acceptance/{MAIN_ACCEPTANCE_CONFIG_BASENAME} (enabled runs only)."
         ),
     )
     parser.add_argument(
@@ -2272,7 +2418,8 @@ def main() -> None:  # noqa: C901 - CLI orchestrates configs, server, analysis, 
         default=False,
         help=(
             "Ignore --configs; materialize each enabled row from "
-            "config/acceptance/FAST_CONFIG.yaml into session_dir/materialized/{id}.yaml "
+            f"config/acceptance/{MAIN_ACCEPTANCE_CONFIG_BASENAME} into "
+            "session_dir/materialized/{id}.yaml "
             "and run those (pair with --use-fixtures for CI fixture smoke)."
         ),
     )
@@ -2302,6 +2449,8 @@ def main() -> None:  # noqa: C901 - CLI orchestrates configs, server, analysis, 
         level=getattr(logging, args.log_level),
         format="%(asctime)s %(levelname)s %(name)s: %(message)s",
     )
+
+    per_run_wall_budget = _resolved_per_run_wall_seconds(args.per_run_wall_seconds)
 
     # Check E2E server availability (only needed if using fixtures)
     use_fixtures = args.use_fixtures
@@ -2336,8 +2485,9 @@ def main() -> None:  # noqa: C901 - CLI orchestrates configs, server, analysis, 
         fast_ids = load_fast_matrix_ids()
         if not fast_ids:
             logger.error(
-                "No fast matrix rows: add config/acceptance/FAST_CONFIG.yaml with "
-                "non-empty runs (see config/acceptance/README.md)."
+                "No acceptance matrix rows: add config/acceptance/%s with "
+                "non-empty runs (see config/acceptance/README.md).",
+                MAIN_ACCEPTANCE_CONFIG_BASENAME,
             )
             sys.exit(1)
         try:
@@ -2346,11 +2496,15 @@ def main() -> None:  # noqa: C901 - CLI orchestrates configs, server, analysis, 
             logger.error("Failed to materialize fast matrix: %s", exc)
             sys.exit(1)
         if not config_files:
-            logger.error("No materialized configs for fast matrix (check FAST_CONFIG.yaml runs).")
+            logger.error(
+                "No materialized configs for acceptance matrix (check %s runs).",
+                MAIN_ACCEPTANCE_CONFIG_BASENAME,
+            )
             sys.exit(1)
         logger.info(
-            "--from-fast-stems: running %d config(s) from FAST_CONFIG.yaml (%d row id(s))",
+            "--from-fast-stems: running %d config(s) from %s (%d row id(s))",
             len(config_files),
+            MAIN_ACCEPTANCE_CONFIG_BASENAME,
             len(fast_ids),
         )
     else:
@@ -2367,19 +2521,21 @@ def main() -> None:  # noqa: C901 - CLI orchestrates configs, server, analysis, 
             fast_ids = load_fast_matrix_ids()
             if not fast_ids:
                 logger.warning(
-                    "Fast matrix empty or missing; --fast-only has no effect. "
-                    "See config/acceptance/FAST_CONFIG.yaml."
+                    "Acceptance matrix empty or missing; --fast-only has no effect. "
+                    "See config/acceptance/%s.",
+                    MAIN_ACCEPTANCE_CONFIG_BASENAME,
                 )
             else:
                 before = len(config_files)
                 config_files = filter_fast_configs(config_files, fast_ids)
                 logger.info(
-                    "--fast-only: running %d of %d configs (from FAST_CONFIG.yaml row ids)",
+                    "--fast-only: running %d of %d configs (from %s row ids)",
                     len(config_files),
                     before,
+                    MAIN_ACCEPTANCE_CONFIG_BASENAME,
                 )
                 if not config_files:
-                    logger.error("No configs matched FAST_CONFIG.yaml row ids")
+                    logger.error("No configs matched %s row ids", MAIN_ACCEPTANCE_CONFIG_BASENAME)
                     sys.exit(1)
 
     # Reuse RSS feed XML across sequential configs (same URL hits cache after first fetch).
@@ -2396,6 +2552,14 @@ def main() -> None:  # noqa: C901 - CLI orchestrates configs, server, analysis, 
         runs_dir=runs_dir,
         baselines_dir=output_dir / "baselines",
     )
+    if per_run_wall_budget > 0:
+        logger.info(
+            "Per-run wall budget: %ds (post-run check; exit %d if exceeded when service exit=0); "
+            "subprocess --timeout: %s",
+            per_run_wall_budget,
+            EXIT_PER_RUN_WALL_BUDGET,
+            f"{args.timeout}s" if args.timeout else "none",
+        )
 
     try:
         # Run all configs sequentially
@@ -2414,6 +2578,17 @@ def main() -> None:  # noqa: C901 - CLI orchestrates configs, server, analysis, 
             if per_run_costs:
                 session_cost = round(sum(per_run_costs), 6)
 
+            walltime_vs: Optional[Dict[str, Any]] = None
+            if args.compare_baseline:
+                walltime_vs = compute_walltime_vs_baseline_summary(
+                    runs, args.compare_baseline, output_dir
+                )
+
+            total_wall = sum(
+                float(r.get("wall_clock_seconds", r.get("duration_seconds", 0)) or 0.0)
+                for r in runs
+            )
+
             summary = {
                 "session_id": session_id,
                 "start_time": runs[0]["start_time"] if runs else None,
@@ -2422,6 +2597,12 @@ def main() -> None:  # noqa: C901 - CLI orchestrates configs, server, analysis, 
                 "successful_runs": sum(1 for r in runs if r["exit_code"] == 0),
                 "failed_runs": sum(1 for r in runs if r["exit_code"] != 0),
                 "total_duration_seconds": sum(r["duration_seconds"] for r in runs),
+                "total_wall_clock_seconds": round(total_wall, 2),
+                "per_run_wall_budget_seconds": per_run_wall_budget,
+                "acceptance_matrix_file": (
+                    MAIN_ACCEPTANCE_CONFIG_BASENAME if args.from_fast_stems else None
+                ),
+                "walltime_vs_baseline": walltime_vs,
                 "estimated_session_cost_usd": session_cost,
                 "config_files": [str(cf) for cf in config_files],
                 "runs": runs,
@@ -2454,6 +2635,7 @@ def main() -> None:  # noqa: C901 - CLI orchestrates configs, server, analysis, 
                 strict_vector_index=strict_vec,
                 assert_artifacts=assert_artifacts,
             )
+            _apply_per_run_wall_budget_failure(run_data, per_run_wall_budget)
             runs_data.append(run_data)
             # Persist after each config so analysis works if run is interrupted
             _write_session_summary(runs_data)
@@ -2584,6 +2766,31 @@ def main() -> None:  # noqa: C901 - CLI orchestrates configs, server, analysis, 
                 "%d acceptance run(s) failed (see session.json exit_code / vector_index fields).",
                 failed_count,
             )
+            sys.exit(1)
+
+        walltime_vs_final: Optional[Dict[str, Any]] = None
+        if args.compare_baseline:
+            walltime_vs_final = compute_walltime_vs_baseline_summary(
+                runs_data, args.compare_baseline, output_dir
+            )
+        regressions = (walltime_vs_final or {}).get("regressions_ge_threshold") or []
+        if regressions:
+            pct = int(round((WALLTIME_REGRESSION_RATIO - 1.0) * 100))
+            logger.error(
+                "Wall-clock regression vs baseline %r: %d run(s) ≥%d%% slower than baseline "
+                "(see session.json → walltime_vs_baseline).",
+                args.compare_baseline,
+                len(regressions),
+                pct,
+            )
+            for row in regressions:
+                logger.error(
+                    "  %s: baseline %.2fs → current %.2fs (ratio %.3f)",
+                    row.get("config_name"),
+                    float(row.get("baseline_wall_seconds", 0)),
+                    float(row.get("current_wall_seconds", 0)),
+                    float(row.get("slowdown_ratio", 0)),
+                )
             sys.exit(1)
 
     finally:

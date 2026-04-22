@@ -97,7 +97,7 @@ make ci                      # Full CI suite (+ Playwright, coverage enforce)
 | `make test-nightly` | Nightly tests (production models) | ~4hrs |
 | `make test-ui` | Vitest unit tests for `web/gi-kg-viewer` TS utils (no browser) | ~1s |
 | `make test-ui-e2e` | Playwright E2E for `web/gi-kg-viewer` (Firefox; installs browsers) | ~1–3 min |
-| `make test-acceptance-fixtures-fast` | Full-pipeline acceptance **fast matrix** + E2E fixtures (materializes **`FAST_CONFIG.yaml`** rows) | slow (CI-scale) |
+| `make test-acceptance-fixtures-fast` | Full-pipeline acceptance **fast matrix** + E2E fixtures (materializes **`MAIN_ACCEPTANCE_CONFIG.yaml`** rows) | slow (CI-scale) |
 
 Full-pipeline acceptance presets: **`make test-acceptance CONFIGS="…"`** or **`FROM_FAST_STEMS=1`** **`USE_FIXTURES=1`** — see [Testing Guide — E2E Acceptance Tests](TESTING_GUIDE.md#e2e-acceptance-tests) and **`scripts/acceptance/README.md`**.
 

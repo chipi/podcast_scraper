@@ -49,9 +49,8 @@ class TestGeminiTranscriptionProvider(unittest.TestCase):
         self.assertTrue(provider._transcription_initialized)
 
     @patch("podcast_scraper.providers.gemini.gemini_provider.genai")
-    @patch("builtins.open", create=True)
     @patch("os.path.exists")
-    def test_transcribe_success(self, mock_exists, mock_open, mock_genai):
+    def test_transcribe_success(self, mock_exists, mock_genai):
         """Test successful transcription via Gemini API via factory."""
         # Mock Client API
         mock_client = Mock()
@@ -60,9 +59,6 @@ class TestGeminiTranscriptionProvider(unittest.TestCase):
         mock_client.models.generate_content.return_value = mock_response
         mock_genai.Client.return_value = mock_client
         mock_exists.return_value = True
-        mock_file = Mock()
-        mock_open.return_value.__enter__.return_value = mock_file
-        mock_open.return_value.__exit__.return_value = None
 
         provider = create_transcription_provider(self.cfg)
         provider.initialize()

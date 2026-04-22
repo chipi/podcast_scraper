@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import os
 import subprocess
+import sys
 from pathlib import Path
 
 import pytest
@@ -25,7 +26,8 @@ import pytest
 pytestmark = pytest.mark.integration
 
 _REPO_ROOT = Path(__file__).resolve().parents[2]
-_PY = str(_REPO_ROOT / ".venv" / "bin" / "python")
+# CI and local dev may not use ``.venv`` at this path; use the active interpreter.
+_PY = sys.executable
 
 
 def _fake_keys_env() -> dict:

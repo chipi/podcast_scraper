@@ -22,7 +22,7 @@ They are **not** the same as the **evaluation framework** in `scripts/eval/` (ex
   - Writes outputs under `--output-dir` (default: `.test_outputs/acceptance`): logs, timing, exit codes, optional baseline comparison.
   - **Session data is written after each config** so you can run `make analyze-acceptance SESSION_ID=...` even if the run is interrupted.
   - With `--use-fixtures`, RSS and cloud provider bases point at the E2E mock server; dummy keys are set where validation requires them. **Ollama** uses `OLLAMA_API_BASE` toward the same server; the mock `/api/tags` response includes model names used by acceptance YAMLs (e.g. `llama3.1:8b`, hybrid reduce models, `gemma2:9b`) so `USE_FIXTURES=1` runs do not need a local `ollama serve`.
-  - **`--from-fast-stems`**: load **`config/acceptance/FAST_CONFIG.yaml`**, merge each enabled row (`defaults` + feeds fragment + **`profile:`**), write **`sessions/session_*/materialized/{id}.yaml`**, and run those paths. Pair with **`--use-fixtures`** for CI fixture smoke.
+  - **`--from-fast-stems`**: load **`config/acceptance/MAIN_ACCEPTANCE_CONFIG.yaml`**, merge each enabled row (`defaults` + feeds fragment + **`profile:`**), write **`sessions/session_*/materialized/{id}.yaml`**, and run those paths. Pair with **`--use-fixtures`** for CI fixture smoke.
   - Options: `--use-fixtures` (E2E server), `--compare-baseline`, `--save-as-baseline`, `--no-auto-analyze`, `--no-auto-benchmark`, `--timeout SECONDS` (per-run timeout), `--fast-only` (filter glob results to fast stems), `--stream-debug` (show DEBUG lines on the console; default is **INFO and above** only while streaming—full logs are still saved to `stdout.log` / `stderr.log`).
   - **RSS feed cache:** Each session sets `PODCAST_SCRAPER_RSS_CACHE_DIR` to `sessions/session_*/rss_cache` so the first fetch of a given feed URL is written to disk and later configs in the same run reuse it (less load on real RSS hosts). Normal CLI use leaves this unset (no caching). Episode media is separate; see `reuse_media` in config.
   - **Multiple configs:** After one **session (batch) header** (config count, mode, paths), each run logs a single line **── Run *i*/*n*: `filename.yaml` ──** and **feeds (this config, …)** or **rss (this config): …** for that YAML only (no repeated batch-wide messages). Multi-feed YAMLs with `feeds:` / `rss_urls` get per-run fixture URL substitution when `USE_FIXTURES=1`. After each multi-feed service run, **`corpus_manifest.json`** and **`corpus_run_summary.json`** are written at the corpus parent when applicable (#506); use **`python -m podcast_scraper.cli corpus-status --output-dir …`** to inspect.
@@ -40,7 +40,7 @@ They are **not** the same as the **evaluation framework** in `scripts/eval/` (ex
 
 ## How It Works
 
-1. **Configs**: You choose one or more pipeline YAML paths, or **`--from-fast-stems`** to materialize rows from **`config/acceptance/FAST_CONFIG.yaml`**. Each file specifies feeds + **`profile:`** (or full inline operator keys) per `config/acceptance/README.md`.
+1. **Configs**: You choose one or more pipeline YAML paths, or **`--from-fast-stems`** to materialize rows from **`config/acceptance/MAIN_ACCEPTANCE_CONFIG.yaml`**. Each file specifies feeds + **`profile:`** (or full inline operator keys) per `config/acceptance/README.md`.
 2. **Run**: `run_acceptance_tests.py` invokes **`python -m podcast_scraper.service --config …`** once per config (same pipeline as production). Outputs go to `--output-dir` with a session subfolder (timestamped).
 3. **Results**: Logs, exit codes, and optional metrics are stored. With `--compare-baseline` or `--save-as-baseline`, the runner can compare or save a baseline for simple regression checks.
 4. **Analysis**: After a run, `analyze_bulk_runs.py` (or the runner’s built-in analysis) can summarize results; `generate_performance_benchmark.py` can produce a performance report.
@@ -53,7 +53,7 @@ Run a single full-pipeline config (path is yours — often under **`config/playg
 make test-acceptance CONFIGS="path/to/operator.yaml"
 ```
 
-Run the **fast matrix** with fixtures (materializes **`FAST_CONFIG.yaml`** rows):
+Run the **fast matrix** with fixtures (materializes **`MAIN_ACCEPTANCE_CONFIG.yaml`** rows):
 
 ```bash
 make test-acceptance-fixtures-fast
@@ -69,15 +69,15 @@ make test-acceptance FROM_FAST_STEMS=1 USE_FIXTURES=1 NO_AUTO_ANALYZE=1 NO_AUTO_
 
 **Append / resume (GitHub #444):** set **`append: true`** on the operator YAML, re-run twice under **`USE_FIXTURES=1`** to validate **`run_append_*`** skip behavior.
 
-**`FAST_ONLY=1`:** after **`CONFIGS=`** expands to multiple paths, keep only stems that match **`id:`** rows in **`FAST_CONFIG.yaml`** (see **`config/acceptance/README.md`**).
+**`FAST_ONLY=1`:** after **`CONFIGS=`** expands to multiple paths, keep only stems that match **`id:`** rows in **`MAIN_ACCEPTANCE_CONFIG.yaml`** (see **`config/acceptance/README.md`**).
 
 ```bash
 make test-acceptance CONFIGS="path/to/session/materialized/*.yaml" USE_FIXTURES=1 FAST_ONLY=1
 ```
 
-Fast matrix row **`id`** values are defined in **`config/acceptance/FAST_CONFIG.yaml`** (see **`config/acceptance/README.md`**).
+Fast matrix row **`id`** values are defined in **`config/acceptance/MAIN_ACCEPTANCE_CONFIG.yaml`** (see **`config/acceptance/README.md`**).
 
-**Full fast matrix + fixtures** (recommended smoke: every enabled **`FAST_CONFIG.yaml`** row, E2E mock server; CI uses a higher per-run timeout):
+**Full fast matrix + fixtures** (recommended smoke: every enabled **`MAIN_ACCEPTANCE_CONFIG.yaml`** row, E2E mock server; CI uses **900s** subprocess **`--timeout`** and **600s** post-run wall budget so slow runs fail before the job budget). Override with **`TIMEOUT=…`** / **`PER_RUN_WALL_SECONDS=…`** (or **`ACCEPTANCE_PER_RUN_WALL_SECONDS`**; **`0`** disables the wall check).
 
 ```bash
 make test-acceptance-fixtures-fast
@@ -86,7 +86,7 @@ make test-acceptance-fixtures-fast
 Equivalent:
 
 ```bash
-make test-acceptance FROM_FAST_STEMS=1 USE_FIXTURES=1 NO_AUTO_ANALYZE=1 NO_AUTO_BENCHMARK=1 TIMEOUT=1500
+make test-acceptance FROM_FAST_STEMS=1 USE_FIXTURES=1 NO_AUTO_ANALYZE=1 NO_AUTO_BENCHMARK=1 TIMEOUT=900 PER_RUN_WALL_SECONDS=600
 ```
 
 **Main / release CI** runs `make test-acceptance-fixtures-fast` on push (see `.github/workflows/python-app.yml`, job `test-acceptance-fixtures`). The same job then runs **`make verify-gil-offsets-after-acceptance`**: for the latest session under `.test_outputs/acceptance/sessions/`, every `runs/run_*` that contains **`search/metadata.json`** is checked with **`verify-gil-chunk-offsets --strict`** so **GIL Quote** character spans align with **FAISS transcript** chunks (RFC-072 / issue #528; semantic **lift** contract). Override the acceptance output root with **`OUTPUT_DIR=…`** if you use a non-default `--output-dir`. **Scheduled nightly** (`.github/workflows/nightly.yml`) does not run this acceptance matrix; it uses **`make test-nightly`** instead.

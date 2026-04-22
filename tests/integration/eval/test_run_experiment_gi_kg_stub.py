@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import os
 import shutil
 import subprocess
 import sys
@@ -11,6 +12,8 @@ from pathlib import Path
 
 import pytest
 
+from podcast_scraper.evaluation.experiment_config import PODCAST_EVAL_MATERIALIZED_ROOT_ENV
+
 pytestmark = pytest.mark.integration
 
 
@@ -18,15 +21,17 @@ def _repo_root() -> Path:
     return Path(__file__).resolve().parents[3]
 
 
-def _materialized_smoke_ready() -> bool:
-    root = _repo_root()
-    d = root / "data/eval/materialized/curated_5feeds_smoke_v1"
-    return d.is_dir() and any(d.glob("*.txt"))
+def _eval_subprocess_env(repo: Path) -> dict[str, str]:
+    env = dict(os.environ)
+    env[PODCAST_EVAL_MATERIALIZED_ROOT_ENV] = str(repo / "tests/fixtures/eval/materialized")
+    # ``run_experiment.py`` imports ``scripts.*``; subprocess needs repo root on ``PYTHONPATH``.
+    root = str(repo)
+    prev = env.get("PYTHONPATH", "").strip()
+    env["PYTHONPATH"] = root if not prev else f"{root}{os.pathsep}{prev}"
+    return env
 
 
 def test_run_experiment_gil_stub_dry_run_writes_predictions(tmp_path: Path) -> None:
-    if not _materialized_smoke_ready():
-        pytest.skip("Materialized curated_5feeds_smoke_v1 transcripts not found")
     repo = _repo_root()
     run_id = f"it_gil_stub_{uuid.uuid4().hex[:12]}"
     cfg_path = tmp_path / "gil_stub_one_ep.yaml"
@@ -38,7 +43,7 @@ def test_run_experiment_gil_stub_dry_run_writes_predictions(tmp_path: Path) -> N
                 "backend:",
                 "  type: eval_stub",
                 "data:",
-                "  dataset_id: curated_5feeds_smoke_v1",
+                "  dataset_id: integration_gi_kg_stub_v1",
                 "  max_episodes: 1",
                 "preprocessing_profile: cleaning_v3",
                 "params:",
@@ -64,6 +69,7 @@ def test_run_experiment_gil_stub_dry_run_writes_predictions(tmp_path: Path) -> N
             capture_output=True,
             text=True,
             timeout=180,
+            env=_eval_subprocess_env(repo),
         )
         assert proc.returncode == 0, (proc.stdout, proc.stderr)
         pred = runs_dir / "predictions.jsonl"
@@ -77,8 +83,6 @@ def test_run_experiment_gil_stub_dry_run_writes_predictions(tmp_path: Path) -> N
 
 
 def test_run_experiment_kg_stub_dry_run_writes_predictions(tmp_path: Path) -> None:
-    if not _materialized_smoke_ready():
-        pytest.skip("Materialized curated_5feeds_smoke_v1 transcripts not found")
     repo = _repo_root()
     run_id = f"it_kg_stub_{uuid.uuid4().hex[:12]}"
     cfg_path = tmp_path / "kg_stub_one_ep.yaml"
@@ -90,7 +94,7 @@ def test_run_experiment_kg_stub_dry_run_writes_predictions(tmp_path: Path) -> No
                 "backend:",
                 "  type: eval_stub",
                 "data:",
-                "  dataset_id: curated_5feeds_smoke_v1",
+                "  dataset_id: integration_gi_kg_stub_v1",
                 "  max_episodes: 1",
                 "preprocessing_profile: cleaning_v3",
                 "params:",
@@ -114,6 +118,7 @@ def test_run_experiment_kg_stub_dry_run_writes_predictions(tmp_path: Path) -> No
             capture_output=True,
             text=True,
             timeout=180,
+            env=_eval_subprocess_env(repo),
         )
         assert proc.returncode == 0, (proc.stdout, proc.stderr)
         pred = runs_dir / "predictions.jsonl"

@@ -148,12 +148,12 @@ fallback if engineering bandwidth is tight.
 **Status:** Addressed (2026-04). Multi-feed batches defer shared ML singleton teardown between feeds;
 `preload_ml_models_if_needed` reuses matching ML fingerprints; HF QA cache cleared between feeds;
 QA pipelines pass `low_cpu_mem_usage=False`; `summarizer.unload_model` skips `.to("cpu")` on meta
-shells. Fast acceptance matrix lives in `config/acceptance/FAST_CONFIG.yaml` (official profiles + fragments).
+shells. Fast acceptance matrix lives in `config/acceptance/MAIN_ACCEPTANCE_CONFIG.yaml` (official profiles + fragments).
 
 **Historical (pre-fix):** five feeds in one process could leave HF QA / torch in a state where
 feed 2’s Whisper load failed with meta-tensor errors; CI weights were present (not a cache miss).
 
-**Local smoke:** `make test-acceptance FROM_FAST_STEMS=1 USE_FIXTURES=1` (matrix in `config/acceptance/FAST_CONFIG.yaml`) or `make test-acceptance-fixtures-fast`
+**Local smoke:** `make test-acceptance FROM_FAST_STEMS=1 USE_FIXTURES=1` (matrix in `config/acceptance/MAIN_ACCEPTANCE_CONFIG.yaml`) or `make test-acceptance-fixtures-fast`
 
 **Trigger to revisit:**
 

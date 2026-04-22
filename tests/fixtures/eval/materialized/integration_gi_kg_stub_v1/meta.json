@@ -1,0 +1,13 @@
+{
+  "dataset_id": "integration_gi_kg_stub_v1",
+  "source_dataset_file": "data/eval/datasets/integration_gi_kg_stub_v1.json",
+  "num_episodes": 1,
+  "materialized_at": "2026-04-22T00:00:00Z",
+  "episodes": [
+    {
+      "episode_id": "stub_ep_01",
+      "transcript_path": "stub_ep_01.txt",
+      "meta_path": "stub_ep_01.meta.json"
+    }
+  ]
+}

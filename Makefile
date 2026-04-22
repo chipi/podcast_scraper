@@ -151,9 +151,9 @@ help:
 	@echo "  make test-reruns     Run tests with reruns for flaky tests (2 retries, 1s delay)"
 	@echo "  make test-acceptance  Run E2E acceptance tests (multiple configs sequentially)"
 	@echo "                            Usage: make test-acceptance CONFIGS=\"…\" [USE_FIXTURES=1] …"
-	@echo "                            Or:     make test-acceptance FROM_FAST_STEMS=1 USE_FIXTURES=1 (materialize FAST_CONFIG.yaml rows)"
+	@echo "                            Or:     make test-acceptance FROM_FAST_STEMS=1 USE_FIXTURES=1 (materialize MAIN_ACCEPTANCE_CONFIG.yaml rows)"
 	@echo "                            Configs with vector_search: run make preload-ml-models without SKIP_GIL=1 so FAISS indexing has cached embeddings offline."
-	@echo "  make test-acceptance-fixtures-fast  Same as FROM_FAST_STEMS=1 + USE_FIXTURES=1 + no auto analyze/benchmark; optional TIMEOUT=seconds (default 900; CI uses 1500)"
+	@echo "  make test-acceptance-fixtures-fast  Same as FROM_FAST_STEMS=1 + USE_FIXTURES=1 + no auto analyze/benchmark; TIMEOUT default 900; PER_RUN_WALL_SECONDS default 600 (post-run wall budget)"
 	@echo "                            Options: USE_FIXTURES=1 uses test fixtures (default: uses real RSS/APIs)"
 	@echo "                                     NO_SHOW_LOGS=1 disables real-time log streaming (default: logs shown)"
 	@echo "                                     NO_AUTO_ANALYZE=1 disables automatic analysis (default: analysis runs automatically)"
@@ -895,7 +895,7 @@ test-acceptance:
 		echo ""; \
 		echo "Options:"; \
 		echo "  CONFIGS=pattern         Config glob(s), space-separated (required unless FROM_FAST_STEMS=1)"; \
-		echo "  FROM_FAST_STEMS=1      Materialize rows from config/acceptance/FAST_CONFIG.yaml"; \
+		echo "  FROM_FAST_STEMS=1      Materialize rows from config/acceptance/MAIN_ACCEPTANCE_CONFIG.yaml"; \
 		echo "  USE_FIXTURES=1          Use E2E server fixtures (test feeds and mock APIs)"; \
 		echo "  NO_SHOW_LOGS=1          Disable streaming logs to console"; \
 		echo "  NO_AUTO_ANALYZE=1       Disable automatic analysis after session"; \
@@ -905,6 +905,7 @@ test-acceptance:
 		echo "  SAVE_AS_BASELINE=id     Save current runs as baseline"; \
 		echo "  FAST_ONLY=1             Run only configs matching fast stems (after CONFIGS glob)"; \
 		echo "  TIMEOUT=seconds         Per-run timeout (kill and fail if exceeded)"; \
+		echo "  PER_RUN_WALL_SECONDS=s  Post-run wall budget (default 600 via runner; 0 disables)"; \
 		echo "  OUTPUT_DIR=path          Output directory (default: .test_outputs/acceptance)"; \
 		echo ""; \
 		echo "Examples:"; \
@@ -926,11 +927,12 @@ test-acceptance:
 		$(if $(SAVE_AS_BASELINE),--save-as-baseline $(SAVE_AS_BASELINE)) \
 		$(if $(FAST_ONLY),--fast-only) \
 		$(if $(TIMEOUT),--timeout $(TIMEOUT)) \
+		$(if $(PER_RUN_WALL_SECONDS),--per-run-wall-seconds $(PER_RUN_WALL_SECONDS)) \
 		$(if $(ASSERT_ARTIFACTS),--assert-artifacts) \
 		--log-level INFO
 
 # Fixture smoke for the full *fast* acceptance matrix (offline E2E server + mock APIs).
-# Materializes each enabled row from config/acceptance/FAST_CONFIG.yaml under session_*/materialized/.
+# Materializes each enabled row from config/acceptance/MAIN_ACCEPTANCE_CONFIG.yaml under session_*/materialized/.
 test-acceptance-fixtures-fast:
 	@$(PYTHON) scripts/acceptance/run_acceptance_tests.py \
 		--from-fast-stems \
@@ -939,6 +941,7 @@ test-acceptance-fixtures-fast:
 		--no-auto-analyze \
 		--no-auto-benchmark \
 		--timeout "$(or $(TIMEOUT),900)" \
+		--per-run-wall-seconds "$(or $(PER_RUN_WALL_SECONDS),600)" \
 		--log-level INFO
 	@echo ""
 	@echo "✓ Acceptance tests completed"
