@@ -760,6 +760,20 @@ class TestAnthropicProviderE2E:
             metadata_files = list(Path(temp_dir).rglob("*.metadata.json"))
             assert len(metadata_files) > 0, "Should have created at least one metadata file"
 
+            # #650/#651 cost assertions: the mock HTTP server returns usage tokens
+            # in every response, so the anthropic speaker/summarization LLM calls
+            # must thread cost_usd through record_llm_*_call and up into
+            # metrics.json. Pre-#651 Part B, anthropic's generate_insights/clean/kg
+            # calls reported $0; Layer 3 v2 showed summarization calls=0 for
+            # mega_bundled too. This guards against either regressing.
+            from tests.e2e.conftest import assert_cost_fields_populated
+
+            assert_cost_fields_populated(
+                Path(temp_dir),
+                billable_stages=["speaker_detection", "summarization"],
+                local_stages=["transcription"],  # Anthropic uses Whisper local
+            )
+
             # Save responses for all episodes
             _save_all_episode_responses(
                 Path(temp_dir),
@@ -775,6 +789,53 @@ class TestAnthropicProviderE2E:
             else:
                 # Log location for debugging
                 print(f"\n🔍 Preserving temp_dir for inspection: {temp_dir}")
+
+    def test_anthropic_mega_bundled_pipeline_records_cost(self, e2e_server: Optional[Any]):
+        """#650/#651 mega_bundled parity: cost must populate via the bundle path.
+
+        Pre-audit, ``summarize_mega_bundled`` on all 6 billable providers never
+        invoked ``record_llm_*_call`` — so every bundled run silently reported
+        $0 summarization cost. This variant for Anthropic proves the wiring
+        now routes through ``record_llm_summarization_call`` with cost_usd.
+        """
+        temp_dir = tempfile.mkdtemp()
+        try:
+            rss_url, anthropic_api_base, anthropic_api_key = _get_test_feed_url(
+                e2e_server if not USE_REAL_ANTHROPIC_API else None
+            )
+            config_kwargs = {
+                "rss_url": rss_url,
+                "output_dir": temp_dir,
+                "transcription_provider": "whisper",
+                "speaker_detector_provider": "anthropic",
+                "summary_provider": "anthropic",
+                "auto_speakers": True,
+                "generate_metadata": True,
+                "generate_summaries": True,
+                "preload_models": False,
+                "transcribe_missing": True,
+                "llm_pipeline_mode": "mega_bundled",
+                "max_episodes": int(os.getenv("LLM_TEST_MAX_EPISODES", "1")),
+            }
+            if anthropic_api_key is not None:
+                config_kwargs["anthropic_api_key"] = anthropic_api_key
+            if anthropic_api_base is not None:
+                config_kwargs["anthropic_api_base"] = anthropic_api_base
+            cfg = create_test_config(**config_kwargs)
+
+            transcripts_saved, summary = workflow.run_pipeline(cfg)
+            assert transcripts_saved > 0, "Should have saved at least one transcript"
+
+            from tests.e2e.conftest import assert_cost_fields_populated
+
+            assert_cost_fields_populated(
+                Path(temp_dir),
+                billable_stages=["speaker_detection", "summarization"],
+                local_stages=["transcription"],
+            )
+        finally:
+            if not USE_REAL_ANTHROPIC_API:
+                shutil.rmtree(temp_dir, ignore_errors=True)
 
     def test_anthropic_hybrid_cleaning_strategy(self, e2e_server: Optional[Any]):
         """Test Anthropic provider with hybrid cleaning strategy (pattern + conditional LLM).

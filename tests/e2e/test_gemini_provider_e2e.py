@@ -896,6 +896,15 @@ class TestGeminiProviderE2E:
                     "content" in metadata_content or "episode" in metadata_content
                 ), "Metadata should have content or episode section"
 
+            # #650/#651 cost assertions: Gemini powers transcription + speaker
+            # + summarization. All billable.
+            from tests.e2e.conftest import assert_cost_fields_populated
+
+            assert_cost_fields_populated(
+                Path(temp_dir),
+                billable_stages=["transcription", "speaker_detection", "summarization"],
+            )
+
             # Save responses for all episodes
             _save_all_episode_responses(
                 Path(temp_dir),
@@ -910,6 +919,62 @@ class TestGeminiProviderE2E:
                 shutil.rmtree(temp_dir, ignore_errors=True)
             else:
                 print(f"\n🔍 Preserving temp_dir for inspection: {temp_dir}")
+
+    @patch("podcast_scraper.providers.gemini.gemini_provider.genai")
+    def test_gemini_mega_bundled_pipeline_records_cost(self, mock_genai, e2e_server: Optional[Any]):
+        """#650/#651 mega_bundled parity — Gemini is the cloud_balanced default
+        summary provider, so regression here is the production failure mode.
+        """
+        temp_dir = tempfile.mkdtemp()
+        try:
+            rss_url, gemini_api_base, gemini_api_key = _get_test_feed_url(e2e_server)
+
+            mock_client = Mock()
+            mock_resp = Mock()
+            mock_resp.text = (
+                '{"title": "T", "summary": "s", "bullets": ["b1"], '
+                '"insights": [{"text": "ins"}], '
+                '"topics": [{"label": "t"}], '
+                '"entities": [{"name": "E", "kind": "org"}]}'
+            )
+            mock_resp.usage_metadata = Mock()
+            mock_resp.usage_metadata.prompt_token_count = 800
+            mock_resp.usage_metadata.candidates_token_count = 200
+            mock_client.models.generate_content.return_value = mock_resp
+            mock_genai.Client.return_value = mock_client
+
+            config_kwargs = {
+                "rss_url": rss_url,
+                "output_dir": temp_dir,
+                "transcription_provider": "gemini",
+                "speaker_detector_provider": "gemini",
+                "summary_provider": "gemini",
+                "auto_speakers": True,
+                "generate_metadata": True,
+                "generate_summaries": True,
+                "preload_models": False,
+                "transcribe_missing": True,
+                "llm_pipeline_mode": "mega_bundled",
+                "max_episodes": int(os.getenv("LLM_TEST_MAX_EPISODES", "1")),
+            }
+            if gemini_api_key is not None:
+                config_kwargs["gemini_api_key"] = gemini_api_key
+            if gemini_api_base is not None:
+                config_kwargs["gemini_api_base"] = gemini_api_base
+            cfg = create_test_config(**config_kwargs)
+
+            transcripts_saved, summary = workflow.run_pipeline(cfg)
+            assert transcripts_saved > 0
+
+            from tests.e2e.conftest import assert_cost_fields_populated
+
+            assert_cost_fields_populated(
+                Path(temp_dir),
+                billable_stages=["transcription", "speaker_detection", "summarization"],
+            )
+        finally:
+            if not USE_REAL_GEMINI_API:
+                shutil.rmtree(temp_dir, ignore_errors=True)
 
     @patch("podcast_scraper.providers.gemini.gemini_provider.genai")
     def test_gemini_hybrid_cleaning_strategy(self, mock_genai, e2e_server: Optional[Any]):

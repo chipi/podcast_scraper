@@ -600,6 +600,17 @@ class TestOllamaProviderE2E:
                     "content" in metadata_content or "episode" in metadata_content
                 ), "Metadata should have content or episode section"
 
+            # #650/#651 cost assertions: Ollama is LOCAL, free. Pricing YAML
+            # has ollama.text.default = \$0, so cost_usd must be exactly 0.0.
+            # Transcription is Whisper local (also free). Asserts that free
+            # providers don't leak non-zero cost into metrics.
+            from tests.e2e.conftest import assert_cost_fields_populated
+
+            assert_cost_fields_populated(
+                Path(temp_dir),
+                local_stages=["transcription", "speaker_detection", "summarization"],
+            )
+
             # Save responses for all episodes
             _save_all_episode_responses(
                 Path(temp_dir),
