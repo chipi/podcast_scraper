@@ -6,12 +6,17 @@ for provider factories, ensuring backward compatibility with Config-based usage.
 
 from __future__ import annotations
 
+import importlib.util
 import unittest
 from unittest.mock import MagicMock, Mock, patch
 
 # Mock openai for factory imports; unit-only pytest (``make test-ci-fast``).
 mock_openai = MagicMock()
 mock_openai.OpenAI = Mock()
+# Give the mock a truthy __spec__ so importlib.util.find_spec("openai") doesn't
+# crash when a later test probes package availability. patch.dict.start() without
+# matching .stop() leaves this mock in sys.modules for the rest of the session.
+mock_openai.__spec__ = importlib.util.spec_from_loader("openai", loader=None)
 _patch_openai = patch.dict(
     "sys.modules",
     {
