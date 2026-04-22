@@ -7,6 +7,7 @@ using factory functions to create providers (tests factory integration).
 For standalone provider tests, see test_gemini_provider.py.
 """
 
+import importlib.util
 import json
 import os
 import unittest
@@ -21,6 +22,12 @@ mock_genai_module.configure = Mock()
 mock_genai_module.GenerativeModel = Mock()
 mock_api_core = MagicMock()
 mock_api_core.exceptions = MagicMock()
+# Give each mock a truthy __spec__ so importlib.util.find_spec doesn't crash
+# when a later test probes package availability. patch.dict.start() without
+# matching .stop() leaves these mocks in sys.modules for the rest of the session.
+mock_google.__spec__ = importlib.util.spec_from_loader("google", loader=None)
+mock_genai_module.__spec__ = importlib.util.spec_from_loader("google.genai", loader=None)
+mock_api_core.__spec__ = importlib.util.spec_from_loader("google.api_core", loader=None)
 _patch_google = patch.dict(
     "sys.modules",
     {

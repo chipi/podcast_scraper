@@ -25,12 +25,15 @@
 #
 schema_version: 1
 metadata:
-  last_reviewed: "2026-03-30"
+  last_reviewed: "2026-04-22"
   pricing_effective_date: "2026-02-01"
   stale_review_after_days: 90
   notes: >
-    Vendor pages change often; treat totals as approximate. Grok rates are placeholders (0.0)
-    until confirmed on xAI docs.
+    Vendor pages change often; treat totals as approximate. This file is the
+    single source of truth for pipeline cost estimates (#650/#651) — provider
+    Python constants have been removed. Missing a model here = $0 cost +
+    warning at runtime; a CI guard fails PRs that add a profile referencing a
+    model without a rate row.
   source_urls:
     openai: https://openai.com/pricing
     gemini: https://ai.google.dev/pricing
@@ -57,6 +60,15 @@ providers:
       default:
         cost_per_second: 0.00025
     text:
+      gemini-2.5-pro:
+        input_cost_per_1m_tokens: 1.25
+        output_cost_per_1m_tokens: 10.00
+      gemini-2.5-flash:
+        input_cost_per_1m_tokens: 0.30
+        output_cost_per_1m_tokens: 2.50
+      gemini-2.5-flash-lite:
+        input_cost_per_1m_tokens: 0.10
+        output_cost_per_1m_tokens: 0.40
       gemini-2.0-flash:
         input_cost_per_1m_tokens: 0.10
         output_cost_per_1m_tokens: 0.40
@@ -75,12 +87,28 @@ providers:
       default:
         cost_per_second: 0.0
     text:
-      claude-3-5-sonnet:
+      # Claude 4.x generation
+      claude-opus-4:
+        input_cost_per_1m_tokens: 15.00
+        output_cost_per_1m_tokens: 75.00
+      claude-opus-4-5:
+        # Source: https://claude.com/pricing (verified 2026-04-22).
+        # Opus 4.5 and above are priced lower than Opus 4 / Opus 4.1.
+        input_cost_per_1m_tokens: 5.00
+        output_cost_per_1m_tokens: 25.00
+      claude-sonnet-4:
+        input_cost_per_1m_tokens: 3.00
+        output_cost_per_1m_tokens: 15.00
+      claude-sonnet-4-5:
         input_cost_per_1m_tokens: 3.00
         output_cost_per_1m_tokens: 15.00
       claude-haiku-4-5:
         input_cost_per_1m_tokens: 1.00
         output_cost_per_1m_tokens: 5.00
+      # Claude 3.x generation
+      claude-3-5-sonnet:
+        input_cost_per_1m_tokens: 3.00
+        output_cost_per_1m_tokens: 15.00
       claude-3-5-haiku:
         input_cost_per_1m_tokens: 0.80
         output_cost_per_1m_tokens: 4.00
@@ -96,22 +124,40 @@ providers:
 
   mistral:
     transcription:
+      voxtral-mini-latest:
+        cost_per_minute: 0.001
+      voxtral-small-latest:
+        cost_per_minute: 0.001
       default:
         cost_per_minute: 0.006
     text:
       mistral-small:
         input_cost_per_1m_tokens: 0.20
-        output_cost_per_1m_tokens: 0.20
+        output_cost_per_1m_tokens: 0.60
+      mistral-small-latest:
+        input_cost_per_1m_tokens: 0.20
+        output_cost_per_1m_tokens: 0.60
       mistral-large:
+        input_cost_per_1m_tokens: 2.00
+        output_cost_per_1m_tokens: 6.00
+      mistral-large-latest:
         input_cost_per_1m_tokens: 2.00
         output_cost_per_1m_tokens: 6.00
       default:
         input_cost_per_1m_tokens: 0.20
-        output_cost_per_1m_tokens: 0.20
+        output_cost_per_1m_tokens: 0.60
 
   deepseek:
+    # Source: https://api-docs.deepseek.com/quick_start/pricing (verified
+    # 2026-04-22). DeepSeek-V3.2 unified pricing: deepseek-chat and
+    # deepseek-reasoner share identical rates; only context length and
+    # max output differ.
     text:
       deepseek-chat:
+        input_cost_per_1m_tokens: 0.28
+        output_cost_per_1m_tokens: 0.42
+        cache_hit_input_cost_per_1m_tokens: 0.028
+      deepseek-reasoner:
         input_cost_per_1m_tokens: 0.28
         output_cost_per_1m_tokens: 0.42
         cache_hit_input_cost_per_1m_tokens: 0.028
@@ -121,16 +167,30 @@ providers:
         cache_hit_input_cost_per_1m_tokens: 0.028
 
   grok:
+    # Rates per xAI public pricing. grok-4 is the flagship; grok-3 family
+    # remains available. Mini variants are substantially cheaper.
     text:
-      grok-beta:
-        input_cost_per_1m_tokens: 0.0
-        output_cost_per_1m_tokens: 0.0
+      grok-4:
+        input_cost_per_1m_tokens: 3.00
+        output_cost_per_1m_tokens: 15.00
+      grok-4-fast:
+        input_cost_per_1m_tokens: 0.20
+        output_cost_per_1m_tokens: 0.50
+      grok-3:
+        input_cost_per_1m_tokens: 3.00
+        output_cost_per_1m_tokens: 15.00
+      grok-3-mini:
+        input_cost_per_1m_tokens: 0.30
+        output_cost_per_1m_tokens: 0.50
       grok-2:
-        input_cost_per_1m_tokens: 0.0
-        output_cost_per_1m_tokens: 0.0
+        input_cost_per_1m_tokens: 2.00
+        output_cost_per_1m_tokens: 10.00
+      grok-beta:
+        input_cost_per_1m_tokens: 5.00
+        output_cost_per_1m_tokens: 15.00
       default:
-        input_cost_per_1m_tokens: 0.0
-        output_cost_per_1m_tokens: 0.0
+        input_cost_per_1m_tokens: 3.00
+        output_cost_per_1m_tokens: 15.00
 
   ollama:
     text:

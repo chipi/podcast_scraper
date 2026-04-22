@@ -2101,13 +2101,14 @@ class Config(BaseModel):
         ),
     )
     pricing_assumptions_file: str = Field(
-        default="",
+        default="config/pricing_assumptions.yaml",
         alias="pricing_assumptions_file",
         description=(
-            "Optional YAML file with USD rates for LLM cost estimates (transcription + tokens). "
-            "When empty, only built-in provider constants are used. "
+            "YAML file with USD rates for LLM cost estimates (transcription + tokens). "
+            "Post-#651 this is the single source of truth — provider Python rate constants "
+            "have been removed. Default: packaged config/pricing_assumptions.yaml. "
             "Relative paths are resolved from the current working directory and then from "
-            "ancestor directories (repo root). See config/pricing_assumptions.yaml."
+            "ancestor directories (repo root). Set to empty string to disable cost tracking."
         ),
     )
     summary_provider: Literal[

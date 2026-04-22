@@ -375,7 +375,10 @@ class TestGilEvidenceCallMetrics(unittest.TestCase):
         self.assertEqual(m.prompt_tokens, 10)
         self.assertEqual(m.completion_tokens, 20)
         pipe.record_llm_gi_evidence_call_metrics.assert_called_once()
-        pipe.record_llm_gi_call.assert_called_once_with(10, 20)
+        # cost_usd threads through from call_metrics.estimated_cost
+        # (#650 Finding 17) — None here because test ProviderCallMetrics never
+        # called set_cost.
+        pipe.record_llm_gi_call.assert_called_once_with(10, 20, cost_usd=None)
 
     def test_apply_pipeline_none_no_crash(self):
         m = ProviderCallMetrics()
@@ -402,6 +405,65 @@ class TestGilEvidenceCallMetrics(unittest.TestCase):
         pipe = Mock()
         merge_gil_evidence_call_metrics_on_failure(m, pipe)
         pipe.record_llm_gi_evidence_call_metrics.assert_called_once()
+
+    def test_apply_computes_cost_when_cfg_provider_model_passed(self):
+        """#650 Finding 17 — helper fills cost_usd when call_metrics lacks it.
+
+        Before this path existed, GIL evidence LLM calls via
+        extract_quotes / score_entailment on non-OpenAI providers (gemini,
+        deepseek, grok, anthropic, ollama) reported $0 because the shared
+        helper never invoked calculate_provider_cost. This test locks in
+        the cost-computation branch.
+        """
+        from podcast_scraper import config as cfg_mod
+
+        cfg = cfg_mod.Config(
+            transcription_provider="whisper",
+            speaker_detector_provider="anthropic",
+            summary_provider="anthropic",
+            anthropic_api_key="test-api-key-123",
+            transcribe_missing=False,
+            auto_speakers=True,
+            generate_summaries=True,
+        )
+        m = ProviderCallMetrics()
+        pipe = Mock()
+        apply_gil_evidence_llm_call_metrics(
+            m,
+            pipe,
+            prompt_tokens=5000,
+            completion_tokens=200,
+            cfg=cfg,
+            provider_type="anthropic",
+            model="claude-haiku-4-5",
+        )
+        # Cost computed + pushed into both call_metrics and pipeline_metrics.
+        self.assertIsNotNone(m.estimated_cost)
+        self.assertGreater(m.estimated_cost, 0.0)
+        pipe.record_llm_gi_call.assert_called_once()
+        call = pipe.record_llm_gi_call.call_args
+        self.assertEqual(call.args, (5000, 200))
+        self.assertIsNotNone(call.kwargs.get("cost_usd"))
+        self.assertEqual(call.kwargs["cost_usd"], m.estimated_cost)
+
+    def test_apply_preserves_existing_call_metrics_cost(self):
+        """If call_metrics.estimated_cost is already set, helper must not
+        overwrite it — provider's own cost calculation wins.
+        """
+        m = ProviderCallMetrics()
+        m.set_cost(0.0042)
+        pipe = Mock()
+        apply_gil_evidence_llm_call_metrics(
+            m,
+            pipe,
+            prompt_tokens=10,
+            completion_tokens=20,
+            cfg=Mock(),
+            provider_type="anthropic",
+            model="claude-haiku-4-5",
+        )
+        self.assertEqual(m.estimated_cost, 0.0042)
+        pipe.record_llm_gi_call.assert_called_once_with(10, 20, cost_usd=0.0042)
 
     def test_merge_failure_pipeline_none(self):
         m = ProviderCallMetrics()

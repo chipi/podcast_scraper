@@ -146,30 +146,37 @@ class Metrics:
     # LLM API call tracking (for cost estimation)
     llm_transcription_calls: int = 0  # Number of transcription API calls
     llm_transcription_audio_minutes: float = 0.0  # Total audio minutes transcribed
+    llm_transcription_cost_usd: float = 0.0  # Accumulated transcription cost (Finding 17)
     llm_speaker_detection_calls: int = 0  # Number of speaker detection API calls
     llm_speaker_detection_input_tokens: int = 0  # Total input tokens for speaker detection
     llm_speaker_detection_output_tokens: int = 0  # Total output tokens for speaker detection
+    llm_speaker_detection_cost_usd: float = 0.0  # Accumulated speaker-detection cost
     llm_summarization_calls: int = 0  # Number of summarization API calls
     llm_summarization_input_tokens: int = 0  # Total input tokens for summarization
     llm_summarization_output_tokens: int = 0  # Total output tokens for summarization
+    llm_summarization_cost_usd: float = 0.0  # Accumulated summarization cost (Finding 20)
     # Transcript semantic cleaning (LLM path; pattern-only runs do not increment these)
     llm_cleaning_calls: int = 0
     llm_cleaning_input_tokens: int = 0
     llm_cleaning_output_tokens: int = 0
+    llm_cleaning_cost_usd: float = 0.0  # Accumulated semantic-cleaning cost
     # Grounded insights layer: generate_insights + extract_quotes + score_entailment (LLM path)
     llm_gi_calls: int = 0
     llm_gi_input_tokens: int = 0
     llm_gi_output_tokens: int = 0
+    llm_gi_cost_usd: float = 0.0  # Accumulated GIL cost (insights + evidence stack)
     llm_gi_evidence_retries: int = 0  # Retries across GIL evidence LLM calls (extract_quotes / NLI)
     llm_gi_evidence_rate_limit_sleep_sec: float = 0.0  # Rate-limit sleep on those calls
     # Knowledge graph: extract_kg_graph (LLM provider path)
     llm_kg_calls: int = 0
     llm_kg_input_tokens: int = 0
     llm_kg_output_tokens: int = 0
+    llm_kg_cost_usd: float = 0.0  # Accumulated KG extraction cost
     # Single-call clean + summary + bullets (Issue #477 bundled pipeline experiment)
     llm_bundled_clean_summary_calls: int = 0
     llm_bundled_clean_summary_input_tokens: int = 0
     llm_bundled_clean_summary_output_tokens: int = 0
+    llm_bundled_clean_summary_cost_usd: float = 0.0  # Accumulated bundle-mode cost
     llm_bundled_fallback_to_staged_count: int = 0
 
     # Audio preprocessing metrics
@@ -431,48 +438,84 @@ class Metrics:
         self.gi_quotes_verbatim += quotes_verbatim
         self.gi_quotes_checked += quotes_checked
 
-    def record_llm_transcription_call(self, audio_minutes: float) -> None:
+    def record_llm_transcription_call(
+        self, audio_minutes: float, cost_usd: Optional[float] = None
+    ) -> None:
         """Record an LLM transcription API call.
 
         Args:
             audio_minutes: Audio duration in minutes
+            cost_usd: Optional estimated cost in USD; when provided, accumulates
+                into ``llm_transcription_cost_usd`` (Finding 17).
         """
         self.llm_transcription_calls += 1
         self.llm_transcription_audio_minutes += audio_minutes
+        if cost_usd is not None:
+            self.llm_transcription_cost_usd += float(cost_usd)
 
-    def record_llm_speaker_detection_call(self, input_tokens: int, output_tokens: int) -> None:
+    def record_llm_speaker_detection_call(
+        self,
+        input_tokens: int,
+        output_tokens: int,
+        cost_usd: Optional[float] = None,
+    ) -> None:
         """Record an LLM speaker detection API call.
 
         Args:
             input_tokens: Number of input tokens used
             output_tokens: Number of output tokens used
+            cost_usd: Optional estimated cost in USD.
         """
         self.llm_speaker_detection_calls += 1
         self.llm_speaker_detection_input_tokens += input_tokens
         self.llm_speaker_detection_output_tokens += output_tokens
+        if cost_usd is not None:
+            self.llm_speaker_detection_cost_usd += float(cost_usd)
 
-    def record_llm_summarization_call(self, input_tokens: int, output_tokens: int) -> None:
+    def record_llm_summarization_call(
+        self,
+        input_tokens: int,
+        output_tokens: int,
+        cost_usd: Optional[float] = None,
+    ) -> None:
         """Record an LLM summarization API call.
 
         Args:
             input_tokens: Number of input tokens used
             output_tokens: Number of output tokens used
+            cost_usd: Optional estimated cost in USD.
         """
         self.llm_summarization_calls += 1
         self.llm_summarization_input_tokens += input_tokens
         self.llm_summarization_output_tokens += output_tokens
+        if cost_usd is not None:
+            self.llm_summarization_cost_usd += float(cost_usd)
 
-    def record_llm_cleaning_call(self, input_tokens: int, output_tokens: int) -> None:
+    def record_llm_cleaning_call(
+        self,
+        input_tokens: int,
+        output_tokens: int,
+        cost_usd: Optional[float] = None,
+    ) -> None:
         """Record an LLM transcript-cleaning API call (semantic cleaning)."""
         self.llm_cleaning_calls += 1
         self.llm_cleaning_input_tokens += input_tokens
         self.llm_cleaning_output_tokens += output_tokens
+        if cost_usd is not None:
+            self.llm_cleaning_cost_usd += float(cost_usd)
 
-    def record_llm_gi_call(self, input_tokens: int, output_tokens: int) -> None:
+    def record_llm_gi_call(
+        self,
+        input_tokens: int,
+        output_tokens: int,
+        cost_usd: Optional[float] = None,
+    ) -> None:
         """Record an LLM call for the grounded-insights layer (insights / evidence stack)."""
         self.llm_gi_calls += 1
         self.llm_gi_input_tokens += input_tokens
         self.llm_gi_output_tokens += output_tokens
+        if cost_usd is not None:
+            self.llm_gi_cost_usd += float(cost_usd)
 
     def record_llm_gi_evidence_call_metrics(self, cm: Any) -> None:
         """Accumulate retries and rate-limit sleep from one GIL evidence LLM API call.
@@ -485,17 +528,36 @@ class Metrics:
             getattr(cm, "rate_limit_sleep_sec", 0.0) or 0.0
         )
 
-    def record_llm_kg_call(self, input_tokens: int, output_tokens: int) -> None:
+    def record_llm_kg_call(
+        self,
+        input_tokens: int,
+        output_tokens: int,
+        cost_usd: Optional[float] = None,
+    ) -> None:
         """Record an LLM call for KG extraction (extract_kg_graph)."""
         self.llm_kg_calls += 1
         self.llm_kg_input_tokens += input_tokens
         self.llm_kg_output_tokens += output_tokens
+        if cost_usd is not None:
+            self.llm_kg_cost_usd += float(cost_usd)
 
-    def record_llm_bundled_clean_summary_call(self, input_tokens: int, output_tokens: int) -> None:
-        """Record one bundled LLM call (semantic clean + title + bullets, Issue #477)."""
+    def record_llm_bundled_clean_summary_call(
+        self,
+        input_tokens: int,
+        output_tokens: int,
+        cost_usd: Optional[float] = None,
+    ) -> None:
+        """Record one bundled LLM call (semantic clean + title + bullets, Issue #477).
+
+        ``cost_usd`` is accumulated into ``llm_bundled_clean_summary_cost_usd`` so
+        mega/bundled-mode runs surface their summary-side cost in cost_rollup
+        alongside staged modes (#650/#651).
+        """
         self.llm_bundled_clean_summary_calls += 1
         self.llm_bundled_clean_summary_input_tokens += input_tokens
         self.llm_bundled_clean_summary_output_tokens += output_tokens
+        if cost_usd is not None:
+            self.llm_bundled_clean_summary_cost_usd += float(cost_usd)
 
     def record_llm_bundled_fallback_to_staged(self) -> None:
         """Increment count when bundled clean+summary fails and staged path is used."""
@@ -899,10 +961,35 @@ class Metrics:
             round((1 - total_preprocessed / total_original) * 100, 1) if total_original > 0 else 0.0
         )
 
+        # Per-stage cost aggregate (Findings 17 + 20): sum of the stage costs
+        # populated by record_llm_*_call(cost_usd=...). Covers transcription,
+        # summarization, speaker detection, cleaning, GI, KG, and the bundle
+        # path (mega/bundled modes — Issue #477). Authoritative once all
+        # providers pass cost_usd through; until then some fields read 0.
+        total_stage_cost_usd = round(
+            self.llm_transcription_cost_usd
+            + self.llm_summarization_cost_usd
+            + self.llm_speaker_detection_cost_usd
+            + self.llm_cleaning_cost_usd
+            + self.llm_gi_cost_usd
+            + self.llm_kg_cost_usd
+            + self.llm_bundled_clean_summary_cost_usd,
+            6,
+        )
+
         with self._episode_metrics_lock:
-            total_episode_estimated_cost_usd = round(
+            total_episode_estimated_cost_usd_legacy = round(
                 sum((em.estimated_cost or 0.0) for em in self.episode_metrics),
                 6,
+            )
+            # Authoritative corpus-level cost: prefer stage-aggregate (covers all
+            # 6 stages) and fall back to the legacy episode-level sum (covers
+            # transcription + summary only) when stage aggregates haven't been
+            # populated yet (pre-wiring or provider gap).
+            total_episode_estimated_cost_usd = (
+                total_stage_cost_usd
+                if total_stage_cost_usd > 0
+                else total_episode_estimated_cost_usd_legacy
             )
             total_episode_prompt_tokens = sum(
                 (em.prompt_tokens or 0) for em in self.episode_metrics
@@ -1046,22 +1133,26 @@ class Metrics:
             # LLM API call tracking
             "llm_transcription_calls": self.llm_transcription_calls,
             "llm_transcription_audio_minutes": round(self.llm_transcription_audio_minutes, 2),
+            "llm_transcription_cost_usd": round(self.llm_transcription_cost_usd, 6),
             "llm_speaker_detection_calls": self.llm_speaker_detection_calls,
             "llm_speaker_detection_input_tokens": self.llm_speaker_detection_input_tokens,
             "llm_speaker_detection_output_tokens": self.llm_speaker_detection_output_tokens,
             "llm_speaker_detection_avg_input_tokens_per_call": sp_in_avg,
             "llm_speaker_detection_avg_output_tokens_per_call": sp_out_avg,
+            "llm_speaker_detection_cost_usd": round(self.llm_speaker_detection_cost_usd, 6),
             "llm_summarization_calls": self.llm_summarization_calls,
             "llm_summarization_input_tokens": self.llm_summarization_input_tokens,
             "llm_summarization_output_tokens": self.llm_summarization_output_tokens,
             "llm_summarization_avg_input_tokens_per_call": sum_in_avg,
             "llm_summarization_avg_output_tokens_per_call": sum_out_avg,
+            "llm_summarization_cost_usd": round(self.llm_summarization_cost_usd, 6),
             "llm_cleaning_calls": self.llm_cleaning_calls,
             "llm_cleaning_input_tokens": self.llm_cleaning_input_tokens,
             "llm_cleaning_output_tokens": self.llm_cleaning_output_tokens,
             "llm_cleaning_avg_input_tokens_per_call": cl_in_avg,
             "llm_cleaning_avg_output_tokens_per_call": cl_out_avg,
             "llm_cleaning_calls_per_recorded_cleaning_episode": cleaning_llm_calls_per_recorded,
+            "llm_cleaning_cost_usd": round(self.llm_cleaning_cost_usd, 6),
             "llm_gi_calls": self.llm_gi_calls,
             "llm_gi_input_tokens": self.llm_gi_input_tokens,
             "llm_gi_output_tokens": self.llm_gi_output_tokens,
@@ -1072,12 +1163,14 @@ class Metrics:
             "llm_gi_evidence_rate_limit_sleep_sec": round(
                 self.llm_gi_evidence_rate_limit_sleep_sec, 4
             ),
+            "llm_gi_cost_usd": round(self.llm_gi_cost_usd, 6),
             "llm_kg_calls": self.llm_kg_calls,
             "llm_kg_input_tokens": self.llm_kg_input_tokens,
             "llm_kg_output_tokens": self.llm_kg_output_tokens,
             "llm_kg_avg_input_tokens_per_call": kg_in_avg,
             "llm_kg_avg_output_tokens_per_call": kg_out_avg,
             "llm_kg_calls_per_kg_artifact": kg_llm_calls_per_artifact,
+            "llm_kg_cost_usd": round(self.llm_kg_cost_usd, 6),
             "llm_bundled_clean_summary_calls": self.llm_bundled_clean_summary_calls,
             "llm_bundled_clean_summary_input_tokens": (self.llm_bundled_clean_summary_input_tokens),
             "llm_bundled_clean_summary_output_tokens": (
@@ -1085,8 +1178,11 @@ class Metrics:
             ),
             "llm_bundled_clean_summary_avg_input_tokens_per_call": bd_in_avg,
             "llm_bundled_clean_summary_avg_output_tokens_per_call": bd_out_avg,
+            "llm_bundled_clean_summary_cost_usd": round(self.llm_bundled_clean_summary_cost_usd, 6),
             "llm_bundled_fallback_to_staged_count": self.llm_bundled_fallback_to_staged_count,
             "total_episode_estimated_cost_usd": total_episode_estimated_cost_usd,
+            "total_stage_cost_usd": total_stage_cost_usd,
+            "total_episode_estimated_cost_usd_legacy": total_episode_estimated_cost_usd_legacy,
             "total_episode_prompt_tokens": total_episode_prompt_tokens,
             "total_episode_completion_tokens": total_episode_completion_tokens,
             "llm_token_totals_by_stage": {

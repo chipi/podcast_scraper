@@ -425,8 +425,11 @@ check-test-policy:
 	$(PYTHON) scripts/tools/check_test_policy.py --fix-hint
 
 # Optional ARGS: e.g. make check-pricing-assumptions ARGS="--strict"
+# Runs the staleness report AND the #651 profile-coverage guard
+# (fails when a profile references a model without a YAML rate row).
 check-pricing-assumptions:
 	export PYTHONPATH="${PYTHONPATH}:$(PWD)/src" && $(PYTHON) -m $(PACKAGE).cli pricing-assumptions $(ARGS)
+	$(PYTHON) scripts/validate/check_profile_pricing_coverage.py
 
 validate-gi-schema:
 	# Validate gi.json files against docs/architecture/gi/gi.schema.json (strict mode).

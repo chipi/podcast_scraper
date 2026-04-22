@@ -52,14 +52,44 @@ logger = logging.getLogger(__name__)
 # Default speaker names when detection fails
 from ..ml.speaker_detection import DEFAULT_SPEAKER_NAMES
 
-# Grok API pricing constants (for cost estimation)
-# Source: Verify at https://console.x.ai or https://docs.x.ai
-# Last updated: 2026-02-05
-# Note: Pricing should be verified from xAI's official documentation
-GROK_BETA_INPUT_COST_PER_1M_TOKENS = 0.0  # Verify with xAI pricing
-GROK_BETA_OUTPUT_COST_PER_1M_TOKENS = 0.0  # Verify with xAI pricing
-GROK_2_INPUT_COST_PER_1M_TOKENS = 0.0  # Verify with xAI pricing
-GROK_2_OUTPUT_COST_PER_1M_TOKENS = 0.0  # Verify with xAI pricing
+# Pricing for Grok models lives in ``config/pricing_assumptions.yaml`` (#651).
+
+
+def _record_grok_llm_call(
+    response: Any,
+    pipeline_metrics: Optional[Any],
+    *,
+    recorder_name: str,
+    cfg: Any,
+    model: str,
+) -> None:
+    """Record tokens + cost_usd for a Grok LLM call into pipeline_metrics.
+
+    Mirrors OpenAI wiring (#650/#651). xAI uses the OpenAI-compatible SDK so
+    ``response.usage.prompt_tokens`` / ``.completion_tokens`` is the shape.
+    """
+    if pipeline_metrics is None or not hasattr(pipeline_metrics, recorder_name):
+        return
+    usage = getattr(response, "usage", None)
+    if usage is None:
+        return
+    in_raw = getattr(usage, "prompt_tokens", None)
+    out_raw = getattr(usage, "completion_tokens", None)
+    if not isinstance(in_raw, (int, float)) or not isinstance(out_raw, (int, float)):
+        return
+    in_tok = int(in_raw)
+    out_tok = int(out_raw)
+    from ...workflow.helpers import calculate_provider_cost
+
+    cost = calculate_provider_cost(
+        cfg=cfg,
+        provider_type="grok",
+        capability="summarization",
+        model=model,
+        prompt_tokens=in_tok,
+        completion_tokens=out_tok,
+    )
+    getattr(pipeline_metrics, recorder_name)(in_tok, out_tok, cost_usd=cost)
 
 
 class GrokProvider:
@@ -189,33 +219,17 @@ class GrokProvider:
 
     @staticmethod
     def get_pricing(model: str, capability: str) -> Dict[str, float]:
-        """Get pricing information for a specific model and capability.
+        """Read pricing from ``config/pricing_assumptions.yaml`` (#651)."""
+        from podcast_scraper.pricing_assumptions import (
+            get_loaded_table,
+            lookup_external_pricing,
+        )
 
-        Args:
-            model: Model name (e.g., "grok-beta", "grok-2")
-            capability: Capability type ("speaker_detection", "summarization")
-
-        Returns:
-            Dictionary with pricing information
-        """
-        pricing: Dict[str, float] = {}
-
-        # Text-based pricing (speaker detection, summarization)
-        model_lower = model.lower()
-
-        # Check for specific model families
-        if "grok-2" in model_lower or "grok2" in model_lower:
-            pricing["input_cost_per_1m_tokens"] = GROK_2_INPUT_COST_PER_1M_TOKENS
-            pricing["output_cost_per_1m_tokens"] = GROK_2_OUTPUT_COST_PER_1M_TOKENS
-        elif "grok-beta" in model_lower or "betagrok" in model_lower:
-            pricing["input_cost_per_1m_tokens"] = GROK_BETA_INPUT_COST_PER_1M_TOKENS
-            pricing["output_cost_per_1m_tokens"] = GROK_BETA_OUTPUT_COST_PER_1M_TOKENS
-        else:
-            # Default to grok-2 pricing for unknown models (conservative estimate)
-            pricing["input_cost_per_1m_tokens"] = GROK_2_INPUT_COST_PER_1M_TOKENS
-            pricing["output_cost_per_1m_tokens"] = GROK_2_OUTPUT_COST_PER_1M_TOKENS
-
-        return pricing
+        table, _ = get_loaded_table("config/pricing_assumptions.yaml")
+        if not table:
+            return {}
+        ext = lookup_external_pricing(table, "grok", capability, model)
+        return dict(ext) if ext else {}
 
     def initialize(self) -> None:
         """Initialize all Grok capabilities.
@@ -384,7 +398,21 @@ class GrokProvider:
             if pipeline_metrics is not None and hasattr(response, "usage"):
                 input_tokens = response.usage.prompt_tokens if response.usage else 0
                 output_tokens = response.usage.completion_tokens if response.usage else 0
-                pipeline_metrics.record_llm_speaker_detection_call(input_tokens, output_tokens)
+                sd_cost: Optional[float] = None
+                if input_tokens > 0 or output_tokens > 0:
+                    from ...workflow.helpers import calculate_provider_cost
+
+                    sd_cost = calculate_provider_cost(
+                        cfg=self.cfg,
+                        provider_type="grok",
+                        capability="speaker_detection",
+                        model=self.speaker_model,
+                        prompt_tokens=int(input_tokens),
+                        completion_tokens=int(output_tokens),
+                    )
+                pipeline_metrics.record_llm_speaker_detection_call(
+                    input_tokens, output_tokens, cost_usd=sd_cost
+                )
 
             return speakers, detected_hosts, success, False
 
@@ -716,15 +744,9 @@ class GrokProvider:
                 if input_tokens > 0 or output_tokens > 0:
                     call_metrics.set_tokens(input_tokens, output_tokens)
 
-            # Track LLM call metrics if available (aggregate tracking)
-            if (
-                pipeline_metrics is not None
-                and input_tokens is not None
-                and output_tokens is not None
-            ):
-                pipeline_metrics.record_llm_summarization_call(input_tokens, output_tokens)
-
-            # Calculate cost
+            # Calculate cost first so the value flows into both call_metrics and
+            # pipeline_metrics.record_llm_summarization_call(cost_usd=...).
+            cost: Optional[float] = None
             if input_tokens is not None:
                 from ...workflow.helpers import calculate_provider_cost
 
@@ -737,6 +759,16 @@ class GrokProvider:
                     completion_tokens=output_tokens,
                 )
                 call_metrics.set_cost(cost)
+
+            # Track LLM call metrics if available (aggregate tracking)
+            if (
+                pipeline_metrics is not None
+                and input_tokens is not None
+                and output_tokens is not None
+            ):
+                pipeline_metrics.record_llm_summarization_call(
+                    input_tokens, output_tokens, cost_usd=cost
+                )
 
             # Get prompt metadata for tracking
             from ...prompts.store import get_prompt_metadata
@@ -876,6 +908,13 @@ class GrokProvider:
             except (TypeError, ValueError):
                 pass
 
+        _record_grok_llm_call(
+            resp,
+            pipeline_metrics,
+            recorder_name="record_llm_summarization_call",
+            cfg=self.cfg,
+            model=self.summary_model,
+        )
         return parse_megabundle_response(raw_text)
 
     def summarize_extraction_bundled(
@@ -952,6 +991,13 @@ class GrokProvider:
             except (TypeError, ValueError):
                 pass
 
+        _record_grok_llm_call(
+            resp,
+            pipeline_metrics,
+            recorder_name="record_llm_summarization_call",
+            cfg=self.cfg,
+            model=self.summary_model,
+        )
         return parse_extraction_bundle_response(raw_text)
 
     def summarize_bundled(
@@ -1057,9 +1103,7 @@ class GrokProvider:
             if input_tokens > 0 or output_tokens > 0:
                 call_metrics.set_tokens(input_tokens, output_tokens)
 
-        if pipeline_metrics is not None and input_tokens is not None and output_tokens is not None:
-            pipeline_metrics.record_llm_bundled_clean_summary_call(input_tokens, output_tokens)
-
+        cost: Optional[float] = None
         if input_tokens is not None:
             from ...workflow.helpers import calculate_provider_cost
 
@@ -1072,6 +1116,11 @@ class GrokProvider:
                 completion_tokens=output_tokens,
             )
             call_metrics.set_cost(cost)
+
+        if pipeline_metrics is not None and input_tokens is not None and output_tokens is not None:
+            pipeline_metrics.record_llm_bundled_clean_summary_call(
+                input_tokens, output_tokens, cost_usd=cost
+            )
 
         prompt_metadata = {
             "system": get_prompt_metadata(
@@ -1200,6 +1249,13 @@ class GrokProvider:
                 temperature=0.3,
                 max_tokens=min(1024, max_insights * 150),
             )
+            _record_grok_llm_call(
+                response,
+                pipeline_metrics,
+                recorder_name="record_llm_gi_call",
+                cfg=self.cfg,
+                model=self.summary_model,
+            )
             content = (response.choices[0].message.content or "").strip()
             lines = [
                 line.strip()
@@ -1277,6 +1333,13 @@ class GrokProvider:
                 max_delay=30.0,
                 retryable_exceptions=_safe_openai_retryable(),
             )
+            _record_grok_llm_call(
+                response,
+                pipeline_metrics,
+                recorder_name="record_llm_kg_call",
+                cfg=self.cfg,
+                model=model,
+            )
             raw = (response.choices[0].message.content or "").strip()
             return parse_kg_graph_response(raw, max_topics=max_topics, max_entities=max_entities)
         except Exception as e:
@@ -1337,6 +1400,13 @@ class GrokProvider:
                 initial_delay=1.0,
                 max_delay=30.0,
                 retryable_exceptions=_safe_openai_retryable(),
+            )
+            _record_grok_llm_call(
+                response,
+                pipeline_metrics,
+                recorder_name="record_llm_kg_call",
+                cfg=self.cfg,
+                model=model,
             )
             raw = (response.choices[0].message.content or "").strip()
             return parse_kg_graph_response(raw, max_topics=max_topics, max_entities=max_entities)
@@ -1406,7 +1476,15 @@ class GrokProvider:
                 merge_gil_evidence_call_metrics_on_failure(call_metrics, pm)
                 raise
             in_tok, out_tok = openai_compatible_chat_usage_tokens(response)
-            apply_gil_evidence_llm_call_metrics(call_metrics, pm, in_tok, out_tok)
+            apply_gil_evidence_llm_call_metrics(
+                call_metrics,
+                pm,
+                in_tok,
+                out_tok,
+                cfg=self.cfg,
+                provider_type="grok",
+                model=self.summary_model,
+            )
             content = (response.choices[0].message.content or "").strip()
             if content.startswith("```"):
                 content = content.split("\n", 1)[-1].rsplit("```", 1)[0].strip()
@@ -1501,7 +1579,15 @@ class GrokProvider:
                 merge_gil_evidence_call_metrics_on_failure(call_metrics, pm)
                 raise
             in_tok, out_tok = openai_compatible_chat_usage_tokens(response)
-            apply_gil_evidence_llm_call_metrics(call_metrics, pm, in_tok, out_tok)
+            apply_gil_evidence_llm_call_metrics(
+                call_metrics,
+                pm,
+                in_tok,
+                out_tok,
+                cfg=self.cfg,
+                provider_type="grok",
+                model=self.summary_model,
+            )
             content = (response.choices[0].message.content or "0").strip()
             for part in content.replace(",", " ").split():
                 try:
@@ -1587,6 +1673,14 @@ class GrokProvider:
                 raise
 
             call_metrics.finalize()
+
+            _record_grok_llm_call(
+                response,
+                pipeline_metrics,
+                recorder_name="record_llm_cleaning_call",
+                cfg=self.cfg,
+                model=self.cleaning_model,
+            )
 
             cleaned = response.choices[0].message.content
             if not cleaned:

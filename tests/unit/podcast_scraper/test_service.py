@@ -251,7 +251,7 @@ class TestServiceRunMultiFeed440(unittest.TestCase):
             {"https://a.example/feed.xml", "https://b.example/feed.xml"},
         )
         self.assertIsNotNone(result.multi_feed_summary)
-        self.assertEqual(result.multi_feed_summary.get("schema_version"), "1.1.0")
+        self.assertEqual(result.multi_feed_summary.get("schema_version"), "1.2.0")
         self.assertTrue(result.multi_feed_summary.get("overall_ok"))
         self.assertEqual(len(result.multi_feed_summary.get("feeds") or []), 2)
         mock_apply_log.assert_called_once()
@@ -395,7 +395,7 @@ class TestServiceRunMultiFeed440(unittest.TestCase):
             self.assertEqual(first_cfg.incident_log_path, incident_path)
 
             mfs = result.multi_feed_summary or {}
-            self.assertEqual(mfs.get("schema_version"), "1.1.0")
+            self.assertEqual(mfs.get("schema_version"), "1.2.0")
             bi = mfs.get("batch_incidents") or {}
             self.assertEqual(bi.get("lines_in_window"), 1)
             self.assertEqual((bi.get("feed_incidents_unique") or {}).get("soft"), 1)

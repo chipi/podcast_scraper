@@ -218,7 +218,7 @@ class TestIntegrationMain(unittest.TestCase):
             self.assertTrue(os.path.isfile(os.path.join(corpus, "corpus_manifest.json")))
             with open(summary_path, encoding="utf-8") as fh:
                 blob = json.load(fh)
-            self.assertEqual(blob.get("schema_version"), "1.1.0")
+            self.assertEqual(blob.get("schema_version"), "1.2.0")
             self.assertIs(blob.get("overall_ok"), False)
             feeds = blob.get("feeds") or []
             self.assertEqual(len(feeds), 2)
@@ -312,7 +312,7 @@ class TestIntegrationMain(unittest.TestCase):
             with open(summary_path, encoding="utf-8") as fh:
                 blob = json.load(fh)
             self.assertIs(blob.get("overall_ok"), False)
-            self.assertEqual(blob.get("schema_version"), "1.1.0")
+            self.assertEqual(blob.get("schema_version"), "1.2.0")
             bi = blob.get("batch_incidents") or {}
             self.assertGreaterEqual(bi.get("lines_in_window", 0), 1)
 

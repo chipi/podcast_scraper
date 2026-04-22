@@ -50,21 +50,46 @@ logger = logging.getLogger(__name__)
 # Default speaker names when detection fails
 from ..ml.speaker_detection import DEFAULT_SPEAKER_NAMES
 
-# Anthropic API pricing constants (for cost estimation)
-# Source: https://www.anthropic.com/pricing
-# Last updated: 2026-02
-# Note: Prices subject to change. Always verify current rates
-ANTHROPIC_CLAUDE_3_5_SONNET_INPUT_COST_PER_1M_TOKENS = 3.00
-ANTHROPIC_CLAUDE_3_5_SONNET_OUTPUT_COST_PER_1M_TOKENS = 15.00
-ANTHROPIC_CLAUDE_3_OPUS_INPUT_COST_PER_1M_TOKENS = 15.00
-ANTHROPIC_CLAUDE_3_OPUS_OUTPUT_COST_PER_1M_TOKENS = 75.00
-ANTHROPIC_CLAUDE_3_HAIKU_INPUT_COST_PER_1M_TOKENS = 0.25
-ANTHROPIC_CLAUDE_3_HAIKU_OUTPUT_COST_PER_1M_TOKENS = 1.25
-ANTHROPIC_CLAUDE_3_5_HAIKU_INPUT_COST_PER_1M_TOKENS = 0.80
-ANTHROPIC_CLAUDE_3_5_HAIKU_OUTPUT_COST_PER_1M_TOKENS = 4.00
-# Claude Haiku 4.5 (alias e.g. claude-haiku-4-5) — see Anthropic pricing page
-ANTHROPIC_CLAUDE_HAIKU_4_5_INPUT_COST_PER_1M_TOKENS = 1.00
-ANTHROPIC_CLAUDE_HAIKU_4_5_OUTPUT_COST_PER_1M_TOKENS = 5.00
+# Pricing for Anthropic models lives in ``config/pricing_assumptions.yaml`` (#651).
+
+
+def _record_anthropic_llm_call(
+    response: Any,
+    pipeline_metrics: Optional[Any],
+    *,
+    recorder_name: str,
+    cfg: Any,
+    model: str,
+) -> None:
+    """Record tokens + cost_usd for an Anthropic LLM call into pipeline_metrics.
+
+    Matches the behaviour of OpenAI's inline wiring (#650/#651) for cleaning,
+    GI, and KG capabilities. Uses the ``summarization`` pricing capability for
+    all text calls — the YAML rate row is per (provider, text-vs-transcription)
+    regardless of which pipeline stage invoked it.
+    """
+    if pipeline_metrics is None or not hasattr(pipeline_metrics, recorder_name):
+        return
+    usage = getattr(response, "usage", None)
+    if usage is None:
+        return
+    in_raw = getattr(usage, "input_tokens", None)
+    out_raw = getattr(usage, "output_tokens", None)
+    if not isinstance(in_raw, (int, float)) or not isinstance(out_raw, (int, float)):
+        return
+    in_tok = int(in_raw)
+    out_tok = int(out_raw)
+    from ...workflow.helpers import calculate_provider_cost
+
+    cost = calculate_provider_cost(
+        cfg=cfg,
+        provider_type="anthropic",
+        capability="summarization",
+        model=model,
+        prompt_tokens=in_tok,
+        completion_tokens=out_tok,
+    )
+    getattr(pipeline_metrics, recorder_name)(in_tok, out_tok, cost_usd=cost)
 
 
 class AnthropicProvider:
@@ -201,71 +226,17 @@ class AnthropicProvider:
 
     @staticmethod
     def get_pricing(model: str, capability: str) -> Dict[str, float]:
-        """Get pricing information for a specific model and capability.
+        """Read pricing from ``config/pricing_assumptions.yaml`` (#651)."""
+        from podcast_scraper.pricing_assumptions import (
+            get_loaded_table,
+            lookup_external_pricing,
+        )
 
-        Args:
-            model: Model name (e.g., "claude-3-5-sonnet-20241022", "claude-3-opus-20240229")
-            capability: Capability type ("transcription", "speaker_detection", "summarization")
-
-        Returns:
-            Dictionary with pricing information
-        """
-        pricing: Dict[str, float] = {}
-
-        if capability == "transcription":
-            # Anthropic doesn't support native audio transcription
-            # Return placeholder pricing (should not be used)
-            pricing["cost_per_second"] = 0.0
-            pricing["cost_per_hour"] = 0.0
-        else:
-            # Text-based pricing (speaker detection, summarization)
-            # Model names use "3-5" (dash) but we check for both "3.5" and "3-5"
-            model_lower = model.lower()
-            if "3.5-sonnet" in model_lower or "3-5-sonnet" in model_lower:
-                pricing["input_cost_per_1m_tokens"] = (
-                    ANTHROPIC_CLAUDE_3_5_SONNET_INPUT_COST_PER_1M_TOKENS
-                )
-                pricing["output_cost_per_1m_tokens"] = (
-                    ANTHROPIC_CLAUDE_3_5_SONNET_OUTPUT_COST_PER_1M_TOKENS
-                )
-            elif "haiku-4-5" in model_lower:
-                pricing["input_cost_per_1m_tokens"] = (
-                    ANTHROPIC_CLAUDE_HAIKU_4_5_INPUT_COST_PER_1M_TOKENS
-                )
-                pricing["output_cost_per_1m_tokens"] = (
-                    ANTHROPIC_CLAUDE_HAIKU_4_5_OUTPUT_COST_PER_1M_TOKENS
-                )
-            elif "3.5-haiku" in model_lower or "3-5-haiku" in model_lower:
-                pricing["input_cost_per_1m_tokens"] = (
-                    ANTHROPIC_CLAUDE_3_5_HAIKU_INPUT_COST_PER_1M_TOKENS
-                )
-                pricing["output_cost_per_1m_tokens"] = (
-                    ANTHROPIC_CLAUDE_3_5_HAIKU_OUTPUT_COST_PER_1M_TOKENS
-                )
-            elif "3-opus" in model.lower():
-                pricing["input_cost_per_1m_tokens"] = (
-                    ANTHROPIC_CLAUDE_3_OPUS_INPUT_COST_PER_1M_TOKENS
-                )
-                pricing["output_cost_per_1m_tokens"] = (
-                    ANTHROPIC_CLAUDE_3_OPUS_OUTPUT_COST_PER_1M_TOKENS
-                )
-            elif "3-haiku" in model.lower():
-                pricing["input_cost_per_1m_tokens"] = (
-                    ANTHROPIC_CLAUDE_3_HAIKU_INPUT_COST_PER_1M_TOKENS
-                )
-                pricing["output_cost_per_1m_tokens"] = (
-                    ANTHROPIC_CLAUDE_3_HAIKU_OUTPUT_COST_PER_1M_TOKENS
-                )
-            else:
-                # Default to 3.5-sonnet pricing
-                pricing["input_cost_per_1m_tokens"] = (
-                    ANTHROPIC_CLAUDE_3_5_SONNET_INPUT_COST_PER_1M_TOKENS
-                )
-                pricing["output_cost_per_1m_tokens"] = (
-                    ANTHROPIC_CLAUDE_3_5_SONNET_OUTPUT_COST_PER_1M_TOKENS
-                )
-
-        return pricing
+        table, _ = get_loaded_table("config/pricing_assumptions.yaml")
+        if not table:
+            return {}
+        ext = lookup_external_pricing(table, "anthropic", capability, model)
+        return dict(ext) if ext else {}
 
     def initialize(self) -> None:
         """Initialize all Anthropic capabilities.
@@ -533,7 +504,21 @@ class AnthropicProvider:
                 usage = response.usage
                 input_tokens = getattr(usage, "input_tokens", 0)
                 output_tokens = getattr(usage, "output_tokens", 0)
-                pipeline_metrics.record_llm_speaker_detection_call(input_tokens, output_tokens)
+                sd_cost: Optional[float] = None
+                if input_tokens > 0 or output_tokens > 0:
+                    from ...workflow.helpers import calculate_provider_cost
+
+                    sd_cost = calculate_provider_cost(
+                        cfg=self.cfg,
+                        provider_type="anthropic",
+                        capability="speaker_detection",
+                        model=self.speaker_model,
+                        prompt_tokens=int(input_tokens),
+                        completion_tokens=int(output_tokens),
+                    )
+                pipeline_metrics.record_llm_speaker_detection_call(
+                    input_tokens, output_tokens, cost_usd=sd_cost
+                )
 
             return speakers, detected_hosts, success, False
 
@@ -790,15 +775,9 @@ class AnthropicProvider:
                 if input_tokens > 0 or output_tokens > 0:
                     call_metrics.set_tokens(input_tokens, output_tokens)
 
-            # Track LLM call metrics if available (aggregate tracking)
-            if (
-                pipeline_metrics is not None
-                and input_tokens is not None
-                and output_tokens is not None
-            ):
-                pipeline_metrics.record_llm_summarization_call(input_tokens, output_tokens)
-
-            # Calculate cost
+            # Calculate cost first so the value flows into both call_metrics and
+            # pipeline_metrics.record_llm_summarization_call(cost_usd=...).
+            cost: Optional[float] = None
             if input_tokens is not None:
                 from ...workflow.helpers import calculate_provider_cost
 
@@ -811,6 +790,16 @@ class AnthropicProvider:
                     completion_tokens=output_tokens,
                 )
                 call_metrics.set_cost(cost)
+
+            # Track LLM call metrics if available (aggregate tracking)
+            if (
+                pipeline_metrics is not None
+                and input_tokens is not None
+                and output_tokens is not None
+            ):
+                pipeline_metrics.record_llm_summarization_call(
+                    input_tokens, output_tokens, cost_usd=cost
+                )
 
             # Get prompt metadata for tracking
             from ...prompts.store import get_prompt_metadata
@@ -975,6 +964,13 @@ class AnthropicProvider:
             except (TypeError, ValueError):
                 pass
 
+        _record_anthropic_llm_call(
+            resp,
+            pipeline_metrics,
+            recorder_name="record_llm_summarization_call",
+            cfg=self.cfg,
+            model=self.summary_model,
+        )
         return parse_megabundle_response(raw_text)
 
     def summarize_extraction_bundled(
@@ -1049,6 +1045,13 @@ class AnthropicProvider:
             except (TypeError, ValueError):
                 pass
 
+        _record_anthropic_llm_call(
+            resp,
+            pipeline_metrics,
+            recorder_name="record_llm_summarization_call",
+            cfg=self.cfg,
+            model=self.summary_model,
+        )
         return parse_extraction_bundle_response(raw_text)
 
     def summarize_bundled(
@@ -1153,9 +1156,7 @@ class AnthropicProvider:
             if input_tokens > 0 or output_tokens > 0:
                 call_metrics.set_tokens(input_tokens, output_tokens)
 
-        if pipeline_metrics is not None and input_tokens is not None and output_tokens is not None:
-            pipeline_metrics.record_llm_bundled_clean_summary_call(input_tokens, output_tokens)
-
+        cost: Optional[float] = None
         if input_tokens is not None:
             from ...workflow.helpers import calculate_provider_cost
 
@@ -1168,6 +1169,11 @@ class AnthropicProvider:
                 completion_tokens=output_tokens,
             )
             call_metrics.set_cost(cost)
+
+        if pipeline_metrics is not None and input_tokens is not None and output_tokens is not None:
+            pipeline_metrics.record_llm_bundled_clean_summary_call(
+                input_tokens, output_tokens, cost_usd=cost
+            )
 
         prompt_metadata = {
             "system": get_prompt_metadata(
@@ -1343,6 +1349,14 @@ class AnthropicProvider:
 
             call_metrics.finalize()
 
+            _record_anthropic_llm_call(
+                response,
+                pipeline_metrics,
+                recorder_name="record_llm_cleaning_call",
+                cfg=self.cfg,
+                model=self.cleaning_model,
+            )
+
             # Extract text from response
             cleaned = ""
             if response.content and len(response.content) > 0:
@@ -1430,6 +1444,13 @@ class AnthropicProvider:
                 system=system_prompt,
                 messages=[{"role": "user", "content": user_prompt}],
             )
+            _record_anthropic_llm_call(
+                response,
+                pipeline_metrics,
+                recorder_name="record_llm_gi_call",
+                cfg=self.cfg,
+                model=self.summary_model,
+            )
             content = ""
             if response.content and len(response.content) > 0:
                 first = response.content[0]
@@ -1510,6 +1531,13 @@ class AnthropicProvider:
                 max_delay=30.0,
                 retryable_exceptions=_safe_anthropic_retryable(),
             )
+            _record_anthropic_llm_call(
+                response,
+                pipeline_metrics,
+                recorder_name="record_llm_kg_call",
+                cfg=self.cfg,
+                model=model,
+            )
             content = ""
             if response.content and len(response.content) > 0:
                 first = response.content[0]
@@ -1578,6 +1606,13 @@ class AnthropicProvider:
                 initial_delay=1.0,
                 max_delay=30.0,
                 retryable_exceptions=_safe_anthropic_retryable(),
+            )
+            _record_anthropic_llm_call(
+                response,
+                pipeline_metrics,
+                recorder_name="record_llm_kg_call",
+                cfg=self.cfg,
+                model=model,
             )
             content = ""
             if response.content and len(response.content) > 0:
@@ -1653,7 +1688,15 @@ class AnthropicProvider:
                 merge_gil_evidence_call_metrics_on_failure(call_metrics, pm)
                 raise
             in_tok, out_tok = anthropic_message_usage_tokens(response)
-            apply_gil_evidence_llm_call_metrics(call_metrics, pm, in_tok, out_tok)
+            apply_gil_evidence_llm_call_metrics(
+                call_metrics,
+                pm,
+                in_tok,
+                out_tok,
+                cfg=self.cfg,
+                provider_type="anthropic",
+                model=self.summary_model,
+            )
             content = ""
             if response.content and len(response.content) > 0:
                 first = response.content[0]
@@ -1751,7 +1794,15 @@ class AnthropicProvider:
                 merge_gil_evidence_call_metrics_on_failure(call_metrics, pm)
                 raise
             in_tok, out_tok = anthropic_message_usage_tokens(response)
-            apply_gil_evidence_llm_call_metrics(call_metrics, pm, in_tok, out_tok)
+            apply_gil_evidence_llm_call_metrics(
+                call_metrics,
+                pm,
+                in_tok,
+                out_tok,
+                cfg=self.cfg,
+                provider_type="anthropic",
+                model=self.summary_model,
+            )
             content = ""
             if response.content and len(response.content) > 0:
                 first = response.content[0]

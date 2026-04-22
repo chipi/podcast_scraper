@@ -718,6 +718,62 @@ class TestGrokProviderE2E:
                 usage_summary = _summarize_grok_usage(metadata_content)
                 print(f"\n{usage_summary}")
 
+            # #650/#651 cost assertions: Grok powers speaker + summary.
+            # Transcription is Whisper local (free).
+            from tests.e2e.conftest import assert_cost_fields_populated
+
+            assert_cost_fields_populated(
+                Path(temp_dir),
+                billable_stages=["speaker_detection", "summarization"],
+                local_stages=["transcription"],
+            )
+
+        finally:
+            shutil.rmtree(temp_dir, ignore_errors=True)
+
+    def test_grok_mega_bundled_pipeline_records_cost(self, e2e_server: Optional[Any]):
+        """#650/#651 mega_bundled parity for Grok. Grok has no native
+        transcription (Whisper local), so transcription is local_stages here.
+        """
+        temp_dir = tempfile.mkdtemp()
+        try:
+            rss_url, grok_api_base, grok_api_key = _get_test_feed_url(e2e_server)
+            config_kwargs = {
+                "rss_url": rss_url,
+                "output_dir": temp_dir,
+                "transcription_provider": "whisper",
+                "speaker_detector_provider": "grok",
+                "summary_provider": "grok",
+                "grok_speaker_model": "grok-3-mini",
+                "grok_summary_model": "grok-3-mini",
+                "auto_speakers": True,
+                "generate_metadata": True,
+                "generate_summaries": True,
+                "preload_models": False,
+                "transcribe_missing": True,
+                "llm_pipeline_mode": "mega_bundled",
+                "max_episodes": int(os.getenv("LLM_TEST_MAX_EPISODES", "1")),
+            }
+            if grok_api_key is not None:
+                config_kwargs["grok_api_key"] = grok_api_key
+            elif USE_REAL_GROK_API:
+                env_key = os.getenv("GROK_API_KEY")
+                if env_key:
+                    config_kwargs["grok_api_key"] = env_key
+            if grok_api_base is not None:
+                config_kwargs["grok_api_base"] = grok_api_base
+            cfg = create_test_config(**config_kwargs)
+
+            transcripts_saved, summary = workflow.run_pipeline(cfg)
+            assert transcripts_saved > 0
+
+            from tests.e2e.conftest import assert_cost_fields_populated
+
+            assert_cost_fields_populated(
+                Path(temp_dir),
+                billable_stages=["speaker_detection", "summarization"],
+                local_stages=["transcription"],
+            )
         finally:
             shutil.rmtree(temp_dir, ignore_errors=True)
 

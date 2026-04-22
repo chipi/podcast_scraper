@@ -41,6 +41,11 @@ from unittest.mock import MagicMock
 
 mock_openai = MagicMock()
 mock_openai.OpenAI = Mock()
+# Give the mock a truthy __spec__ so importlib.util.find_spec("openai") doesn't
+# crash when a later test in the session (e.g. setup/torch init, run_manifest)
+# probes package availability. Patch.dict.start() without matching .stop() leaves
+# this mock in sys.modules for the rest of the pytest session.
+mock_openai.__spec__ = importlib.util.spec_from_loader("openai", loader=None)
 
 
 # Add real exception classes so they can be used in retry_with_metrics

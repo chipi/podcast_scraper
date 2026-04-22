@@ -810,7 +810,7 @@ class TestDeepSeekProviderPricing(unittest.TestCase):
     """Tests for DeepSeekProvider.get_pricing() static method."""
 
     def test_get_pricing_speaker_detection(self):
-        """Test pricing lookup for speaker detection."""
+        """Test pricing lookup for speaker detection (YAML-backed post-#651)."""
         pricing = DeepSeekProvider.get_pricing("deepseek-chat", "speaker_detection")
         self.assertIn("input_cost_per_1m_tokens", pricing)
         self.assertIn("output_cost_per_1m_tokens", pricing)
@@ -820,7 +820,7 @@ class TestDeepSeekProviderPricing(unittest.TestCase):
         self.assertEqual(pricing["cache_hit_input_cost_per_1m_tokens"], 0.028)
 
     def test_get_pricing_summarization(self):
-        """Test pricing lookup for summarization."""
+        """Test pricing lookup for summarization (YAML-backed)."""
         pricing = DeepSeekProvider.get_pricing("deepseek-chat", "summarization")
         self.assertIn("input_cost_per_1m_tokens", pricing)
         self.assertIn("output_cost_per_1m_tokens", pricing)
@@ -830,9 +830,11 @@ class TestDeepSeekProviderPricing(unittest.TestCase):
         self.assertEqual(pricing["cache_hit_input_cost_per_1m_tokens"], 0.028)
 
     def test_get_pricing_reasoner_model(self):
-        """Test pricing lookup for reasoner model (same pricing)."""
+        """Test pricing lookup for deepseek-reasoner. DeepSeek-V3.2 unified
+        pricing: reasoner shares the exact same rates as chat (only context
+        length + max output differ). Verified against
+        https://api-docs.deepseek.com/quick_start/pricing on 2026-04-22."""
         pricing = DeepSeekProvider.get_pricing("deepseek-reasoner", "summarization")
-        # DeepSeek reasoner uses same pricing as chat
         self.assertEqual(pricing["input_cost_per_1m_tokens"], 0.28)
         self.assertEqual(pricing["output_cost_per_1m_tokens"], 0.42)
 
@@ -1305,7 +1307,10 @@ class TestDeepSeekSummarizeBundled(unittest.TestCase):
 
         provider.summarize_bundled("text", pipeline_metrics=pm)
 
-        pm.record_llm_bundled_clean_summary_call.assert_called_once_with(200, 80)
+        pm.record_llm_bundled_clean_summary_call.assert_called_once()
+        call = pm.record_llm_bundled_clean_summary_call.call_args
+        assert call.args == (200, 80)
+        assert call.kwargs.get("cost_usd") is not None  # #651 Part B cost wiring
 
     @patch("podcast_scraper.prompts.store.get_prompt_metadata")
     @patch("podcast_scraper.prompts.store.render_prompt")

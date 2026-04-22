@@ -64,24 +64,49 @@ def _openai_chat_usage_tokens(response: Any) -> Tuple[Optional[int], Optional[in
 # Use canonical default from speaker_detection (Issue #428: typed placeholder, not "Guest")
 from ..ml.speaker_detection import DEFAULT_SPEAKER_NAMES
 
-# OpenAI API pricing constants (for cost estimation)
-# Source: https://openai.com/pricing
-# Last updated: 2025-01
-# Note: Prices subject to change. Always verify current rates at https://openai.com/pricing
-#
-# Pricing is model-based, not environment-based. The same model costs the same
-# whether used in test or production. Test/prod distinction is only in which
-# models are selected (test uses cheaper models, prod uses higher quality models).
-#
-# Only models actually defined in config_constants.py are tracked here:
-# - whisper-1: Used for transcription (test and prod)
-# - gpt-4o-mini: Speaker (test/prod), summarization (test), transcript cleaning (test/prod default)
-# - gpt-4o: Used for summarization (prod)
-OPENAI_WHISPER_COST_PER_MINUTE = 0.006  # Whisper API: $0.006 per minute of audio
-OPENAI_GPT4O_MINI_INPUT_COST_PER_1M_TOKENS = 0.15  # GPT-4o-mini: $0.15 per 1M input tokens
-OPENAI_GPT4O_MINI_OUTPUT_COST_PER_1M_TOKENS = 0.60  # GPT-4o-mini: $0.60 per 1M output tokens
-OPENAI_GPT4O_INPUT_COST_PER_1M_TOKENS = 2.50  # GPT-4o: $2.50 per 1M input tokens
-OPENAI_GPT4O_OUTPUT_COST_PER_1M_TOKENS = 10.00  # GPT-4o: $10.00 per 1M output tokens
+# Pricing for OpenAI models lives in ``config/pricing_assumptions.yaml`` (#651).
+# See ``get_pricing()`` below — it delegates to the YAML loader so there is a
+# single source of truth. CI guard
+# (``scripts/validate/check_profile_pricing_coverage.py``) fails PRs that
+# reference a model without a matching YAML row.
+
+
+def _record_openai_summarization_call(
+    response: Any,
+    pipeline_metrics: Optional[Any],
+    *,
+    cfg: Any,
+    model: str,
+) -> None:
+    """Record one OpenAI summarization LLM call into pipeline_metrics.
+
+    Used by bundle-mode methods (summarize_bundled, summarize_mega_bundled,
+    summarize_extraction_bundled) — these make one summary-pricing LLM call
+    and historically skipped ``record_llm_summarization_call`` entirely, so
+    cost/tokens vanished at pipeline level even though call_metrics saw them.
+    """
+    if pipeline_metrics is None or not hasattr(pipeline_metrics, "record_llm_summarization_call"):
+        return
+    usage = getattr(response, "usage", None)
+    if usage is None:
+        return
+    in_raw = getattr(usage, "prompt_tokens", None)
+    out_raw = getattr(usage, "completion_tokens", None)
+    if not isinstance(in_raw, (int, float)) or not isinstance(out_raw, (int, float)):
+        return
+    in_tok = int(in_raw)
+    out_tok = int(out_raw)
+    from ...workflow.helpers import calculate_provider_cost
+
+    cost = calculate_provider_cost(
+        cfg=cfg,
+        provider_type="openai",
+        capability="summarization",
+        model=model,
+        prompt_tokens=in_tok,
+        completion_tokens=out_tok,
+    )
+    pipeline_metrics.record_llm_summarization_call(in_tok, out_tok, cost_usd=cost)
 
 
 class OpenAIProvider:
@@ -226,45 +251,25 @@ class OpenAIProvider:
 
     @staticmethod
     def get_pricing(model: str, capability: str) -> Dict[str, float]:
-        """Get pricing information for a specific model and capability.
+        """Read pricing from ``config/pricing_assumptions.yaml`` (#651).
 
-        Only models defined in config_constants.py are supported:
-        - whisper-1: Transcription (test and prod)
-        - gpt-4o-mini: Speaker detection (test and prod), Summarization (test)
-        - gpt-4o: Summarization (prod)
+        YAML is the single source of truth; this thin wrapper is kept for API
+        stability (test fixtures, tooling). Production cost calc goes through
+        :func:`podcast_scraper.workflow.helpers._get_provider_pricing`.
 
-        Pricing is model-based, not environment-based. The same model costs the same
-        whether used in test or production. Test/prod distinction is only in which
-        models are selected.
-
-        Args:
-            model: Model name (must match one of the models in config_constants.py)
-            capability: Capability type ("transcription", "speaker_detection", "summarization")
-
-        Returns:
-            Dictionary with pricing information:
-            - For transcription: {"cost_per_minute": float}
-            - For chat models: {"input_cost_per_1m_tokens": float,
-              "output_cost_per_1m_tokens": float}
-            - Empty dict if pricing not available for the model/capability
+        Returns the rate dict for ``(provider=openai, capability, model)`` or
+        ``{}`` when no matching row exists.
         """
-        if capability == "transcription":
-            if model == "whisper-1":
-                return {"cost_per_minute": OPENAI_WHISPER_COST_PER_MINUTE}
-        elif capability in ("speaker_detection", "summarization"):
-            model_lower = model.lower()
-            # Only support models actually defined in config_constants.py
-            if "gpt-4o-mini" in model_lower:
-                return {
-                    "input_cost_per_1m_tokens": OPENAI_GPT4O_MINI_INPUT_COST_PER_1M_TOKENS,
-                    "output_cost_per_1m_tokens": OPENAI_GPT4O_MINI_OUTPUT_COST_PER_1M_TOKENS,
-                }
-            elif "gpt-4o" in model_lower and "mini" not in model_lower:
-                return {
-                    "input_cost_per_1m_tokens": OPENAI_GPT4O_INPUT_COST_PER_1M_TOKENS,
-                    "output_cost_per_1m_tokens": OPENAI_GPT4O_OUTPUT_COST_PER_1M_TOKENS,
-                }
-        return {}
+        from podcast_scraper.pricing_assumptions import (
+            get_loaded_table,
+            lookup_external_pricing,
+        )
+
+        table, _ = get_loaded_table("config/pricing_assumptions.yaml")
+        if not table:
+            return {}
+        ext = lookup_external_pricing(table, "openai", capability, model)
+        return dict(ext) if ext else {}
 
     def initialize(self) -> None:
         """Initialize all OpenAI capabilities.
@@ -374,13 +379,13 @@ class OpenAIProvider:
                             model=self.transcription_model,
                             file=audio_file,
                             language=effective_language,
-                            response_format="text",
+                            response_format="verbose_json",
                         )
                     else:
                         return self.client.audio.transcriptions.create(
                             model=self.transcription_model,
                             file=audio_file,
-                            response_format="text",
+                            response_format="verbose_json",
                         )
 
             transcript = retry_with_metrics(
@@ -391,8 +396,18 @@ class OpenAIProvider:
                 retryable_exceptions=_safe_openai_retryable(),
             )
 
-            # transcript is a string when response_format="text"
-            text = str(transcript) if not isinstance(transcript, str) else transcript
+            # verbose_json returns a Transcription object with `.text` (and `.duration`,
+            # `.segments`, etc.). We return just the text here; cost tracking in
+            # transcribe_with_segments uses the full response.
+            if hasattr(transcript, "text"):
+                text_attr = getattr(transcript, "text", None)
+                text = text_attr if isinstance(text_attr, str) else ""
+            elif isinstance(transcript, dict):
+                text = str(transcript.get("text", ""))
+            elif isinstance(transcript, str):
+                text = transcript
+            else:
+                text = str(transcript)
 
             logger.debug(
                 "OpenAI transcription completed: %d characters",
@@ -512,18 +527,24 @@ class OpenAIProvider:
                 if isinstance(duration_val, (int, float)):
                     audio_minutes = float(duration_val) / 60.0
             else:
-                # Estimate from file size (rough: 1MB ≈ 1 minute for typical MP3)
+                # Fallback only fires when neither episode_duration_seconds nor
+                # response.duration is available (rare with verbose_json). Scale
+                # by the configured bitrate: at 128 kbps ≈ 1 MB/min, but low-bitrate
+                # preprocessing (speech_optimal_v1 uses 32 kbps → ~0.25 MB/min) would
+                # under-report ~4× if we assumed 128. Default to 128 when unset
+                # (matches pre-preprocessing podcast MP3s).
                 try:
                     file_size_mb = os.path.getsize(audio_path) / (1024 * 1024)
-                    audio_minutes = file_size_mb  # Rough estimate
+                    bitrate_kbps_cfg = getattr(self.cfg, "preprocessing_mp3_bitrate_kbps", None)
+                    bitrate_kbps = float(bitrate_kbps_cfg) if bitrate_kbps_cfg else 128.0
+                    audio_minutes = file_size_mb * (128.0 / bitrate_kbps)
                 except OSError:
                     pass
 
             # Calculate cost for transcription (per minute pricing)
             if audio_minutes > 0:
-                if pipeline_metrics is not None:
-                    pipeline_metrics.record_llm_transcription_call(audio_minutes)
-                # Calculate cost
+                # Compute cost first so the same value can flow into both
+                # call_metrics (per-episode) and pipeline_metrics (per-stage).
                 from ...workflow.helpers import calculate_provider_cost
 
                 cost = calculate_provider_cost(
@@ -534,6 +555,8 @@ class OpenAIProvider:
                     audio_minutes=audio_minutes,
                 )
                 call_metrics.set_cost(cost)
+                if pipeline_metrics is not None:
+                    pipeline_metrics.record_llm_transcription_call(audio_minutes, cost_usd=cost)
 
             # OpenAI API returns a Transcription object with text and segments
             # when verbose_json is used. Convert to dict format matching Whisper output.
@@ -753,7 +776,23 @@ class OpenAIProvider:
             if pipeline_metrics is not None and hasattr(response, "usage"):
                 input_tokens = response.usage.prompt_tokens if response.usage else 0
                 output_tokens = response.usage.completion_tokens if response.usage else 0
-                pipeline_metrics.record_llm_speaker_detection_call(input_tokens, output_tokens)
+                # Compute cost for the aggregate so metrics.json reflects speaker
+                # detection spend (previously silently 0 in total_stage_cost_usd).
+                sd_cost: Optional[float] = None
+                if input_tokens > 0 or output_tokens > 0:
+                    from ...workflow.helpers import calculate_provider_cost
+
+                    sd_cost = calculate_provider_cost(
+                        cfg=self.cfg,
+                        provider_type="openai",
+                        capability="speaker_detection",
+                        model=self.speaker_model,
+                        prompt_tokens=int(input_tokens),
+                        completion_tokens=int(output_tokens),
+                    )
+                pipeline_metrics.record_llm_speaker_detection_call(
+                    input_tokens, output_tokens, cost_usd=sd_cost
+                )
 
             return speakers, detected_hosts, success, False
 
@@ -1129,15 +1168,9 @@ class OpenAIProvider:
                 if input_tokens > 0 or output_tokens > 0:
                     call_metrics.set_tokens(input_tokens, output_tokens)
 
-            # Track LLM call metrics if available (aggregate tracking)
-            if (
-                pipeline_metrics is not None
-                and input_tokens is not None
-                and output_tokens is not None
-            ):
-                pipeline_metrics.record_llm_summarization_call(input_tokens, output_tokens)
-
-            # Calculate cost
+            # Calculate cost first so the value flows into both call_metrics and
+            # pipeline_metrics.record_llm_summarization_call(cost_usd=...).
+            cost: Optional[float] = None
             if input_tokens is not None:
                 from ...workflow.helpers import calculate_provider_cost
 
@@ -1150,6 +1183,16 @@ class OpenAIProvider:
                     completion_tokens=output_tokens,
                 )
                 call_metrics.set_cost(cost)
+
+            # Track LLM call metrics if available (aggregate tracking)
+            if (
+                pipeline_metrics is not None
+                and input_tokens is not None
+                and output_tokens is not None
+            ):
+                pipeline_metrics.record_llm_summarization_call(
+                    input_tokens, output_tokens, cost_usd=cost
+                )
 
             # Get prompt metadata for tracking
             from ...prompts.store import get_prompt_metadata
@@ -1305,6 +1348,9 @@ class OpenAIProvider:
             except (TypeError, ValueError):
                 pass
 
+        _record_openai_summarization_call(
+            resp, pipeline_metrics, cfg=self.cfg, model=self.summary_model
+        )
         return parse_megabundle_response(raw_text)
 
     def summarize_extraction_bundled(
@@ -1399,6 +1445,9 @@ class OpenAIProvider:
             except (TypeError, ValueError):
                 pass
 
+        _record_openai_summarization_call(
+            resp, pipeline_metrics, cfg=self.cfg, model=self.summary_model
+        )
         return parse_extraction_bundle_response(raw_text)
 
     def summarize_bundled(
@@ -1514,9 +1563,7 @@ class OpenAIProvider:
             if input_tokens > 0 or output_tokens > 0:
                 call_metrics.set_tokens(input_tokens, output_tokens)
 
-        if pipeline_metrics is not None and input_tokens is not None and output_tokens is not None:
-            pipeline_metrics.record_llm_bundled_clean_summary_call(input_tokens, output_tokens)
-
+        cost: Optional[float] = None
         if input_tokens is not None:
             from ...workflow.helpers import calculate_provider_cost
 
@@ -1529,6 +1576,11 @@ class OpenAIProvider:
                 completion_tokens=output_tokens,
             )
             call_metrics.set_cost(cost)
+
+        if pipeline_metrics is not None and input_tokens is not None and output_tokens is not None:
+            pipeline_metrics.record_llm_bundled_clean_summary_call(
+                input_tokens, output_tokens, cost_usd=cost
+            )
 
         prompt_metadata = {
             "system": get_prompt_metadata(
@@ -1608,7 +1660,18 @@ class OpenAIProvider:
                 and out_tok is not None
                 and hasattr(pipeline_metrics, "record_llm_gi_call")
             ):
-                pipeline_metrics.record_llm_gi_call(in_tok, out_tok)
+                gi_cost: Optional[float] = None
+                from ...workflow.helpers import calculate_provider_cost
+
+                gi_cost = calculate_provider_cost(
+                    cfg=self.cfg,
+                    provider_type="openai",
+                    capability="summarization",
+                    model=self.insight_model,
+                    prompt_tokens=int(in_tok),
+                    completion_tokens=int(out_tok),
+                )
+                pipeline_metrics.record_llm_gi_call(in_tok, out_tok, cost_usd=gi_cost)
             content = (response.choices[0].message.content or "").strip()
             lines = [
                 line.strip()
@@ -1695,7 +1758,17 @@ class OpenAIProvider:
                 and out_tok is not None
                 and hasattr(pm, "record_llm_kg_call")
             ):
-                pm.record_llm_kg_call(in_tok, out_tok)
+                from ...workflow.helpers import calculate_provider_cost
+
+                kg_cost = calculate_provider_cost(
+                    cfg=self.cfg,
+                    provider_type="openai",
+                    capability="summarization",
+                    model=model,
+                    prompt_tokens=int(in_tok),
+                    completion_tokens=int(out_tok),
+                )
+                pm.record_llm_kg_call(in_tok, out_tok, cost_usd=kg_cost)
             raw = (response.choices[0].message.content or "").strip()
             return parse_kg_graph_response(raw, max_topics=max_topics, max_entities=max_entities)
         except Exception as e:
@@ -1767,7 +1840,17 @@ class OpenAIProvider:
                 and out_tok is not None
                 and hasattr(pm, "record_llm_kg_call")
             ):
-                pm.record_llm_kg_call(in_tok, out_tok)
+                from ...workflow.helpers import calculate_provider_cost
+
+                kg_cost = calculate_provider_cost(
+                    cfg=self.cfg,
+                    provider_type="openai",
+                    capability="summarization",
+                    model=model,
+                    prompt_tokens=int(in_tok),
+                    completion_tokens=int(out_tok),
+                )
+                pm.record_llm_kg_call(in_tok, out_tok, cost_usd=kg_cost)
             raw = (response.choices[0].message.content or "").strip()
             return parse_kg_graph_response(raw, max_topics=max_topics, max_entities=max_entities)
         except Exception as e:
@@ -2144,7 +2227,17 @@ class OpenAIProvider:
                 and out_tok is not None
                 and hasattr(pipeline_metrics, "record_llm_cleaning_call")
             ):
-                pipeline_metrics.record_llm_cleaning_call(in_tok, out_tok)
+                from ...workflow.helpers import calculate_provider_cost
+
+                cleaning_cost = calculate_provider_cost(
+                    cfg=self.cfg,
+                    provider_type="openai",
+                    capability="summarization",
+                    model=self.cleaning_model,
+                    prompt_tokens=int(in_tok),
+                    completion_tokens=int(out_tok),
+                )
+                pipeline_metrics.record_llm_cleaning_call(in_tok, out_tok, cost_usd=cleaning_cost)
             if not cleaned:
                 logger.warning("OpenAI API returned empty cleaned text, using original")
                 return text

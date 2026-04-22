@@ -738,6 +738,16 @@ class TestDeepSeekProviderE2E:
                         validate_provider="deepseek",
                     )
 
+            # #650/#651 cost assertions: DeepSeek powers speaker + summary.
+            # Transcription is Whisper local (free).
+            from tests.e2e.conftest import assert_cost_fields_populated
+
+            assert_cost_fields_populated(
+                Path(temp_dir),
+                billable_stages=["speaker_detection", "summarization"],
+                local_stages=["transcription"],
+            )
+
         finally:
             # Only clean up when using mock E2E server
             if not USE_REAL_DEEPSEEK_API:
@@ -745,6 +755,47 @@ class TestDeepSeekProviderE2E:
             else:
                 # Log location for debugging
                 print(f"\n⚠️  Preserving temp_dir (USE_REAL_DEEPSEEK_API=1): {temp_dir}")
+
+    def test_deepseek_mega_bundled_pipeline_records_cost(self, e2e_server: Optional[Any]):
+        """#650/#651 mega_bundled parity for DeepSeek. DeepSeek has no native
+        transcription (Whisper local), so transcription is local_stages here.
+        """
+        temp_dir = tempfile.mkdtemp()
+        try:
+            rss_url, deepseek_api_base, deepseek_api_key = _get_test_feed_url(e2e_server)
+            config_kwargs = {
+                "rss_url": rss_url,
+                "output_dir": temp_dir,
+                "transcription_provider": "whisper",
+                "speaker_detector_provider": "deepseek",
+                "summary_provider": "deepseek",
+                "auto_speakers": True,
+                "generate_metadata": True,
+                "generate_summaries": True,
+                "preload_models": False,
+                "transcribe_missing": True,
+                "llm_pipeline_mode": "mega_bundled",
+                "max_episodes": int(os.getenv("LLM_TEST_MAX_EPISODES", "1")),
+            }
+            if deepseek_api_key is not None:
+                config_kwargs["deepseek_api_key"] = deepseek_api_key
+            if deepseek_api_base is not None:
+                config_kwargs["deepseek_api_base"] = deepseek_api_base
+            cfg = create_test_config(**config_kwargs)
+
+            transcripts_saved, summary = workflow.run_pipeline(cfg)
+            assert transcripts_saved > 0
+
+            from tests.e2e.conftest import assert_cost_fields_populated
+
+            assert_cost_fields_populated(
+                Path(temp_dir),
+                billable_stages=["speaker_detection", "summarization"],
+                local_stages=["transcription"],
+            )
+        finally:
+            if not USE_REAL_DEEPSEEK_API:
+                shutil.rmtree(temp_dir, ignore_errors=True)
 
     def test_deepseek_speaker_detection_api_error_handling(self, e2e_server: Optional[Any]):
         """Test that DeepSeek speaker detection works correctly.

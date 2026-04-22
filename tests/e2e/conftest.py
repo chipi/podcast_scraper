@@ -824,3 +824,99 @@ def limit_max_episodes_in_fast_mode(request, monkeypatch):
 # REMOVED: mock_whisper_in_fast_mode fixture
 # E2E tests should use real Whisper (no mocks). Tests that need mocked Whisper
 # should be in integration tests, not E2E tests.
+
+
+# ---------------------------------------------------------------------------
+# Cost-flow assertion helper (#650/#651)
+# ---------------------------------------------------------------------------
+
+
+def assert_cost_fields_populated(
+    temp_dir,
+    *,
+    billable_stages=(),
+    local_stages=(),
+):
+    """Assert the full cost chain flowed end-to-end for an E2E pipeline run.
+
+    Reads every ``run_*/metrics.json`` under ``temp_dir`` and verifies that for
+    each named stage the Metrics emission is consistent with the provider
+    class driving that stage.
+
+    Parameters
+    ----------
+    temp_dir : Path
+        E2E test's tempdir root — contains ``run_*/metrics.json``.
+    billable_stages : Sequence[str]
+        Stages whose provider is a billable cloud LLM (openai, anthropic,
+        gemini, mistral, deepseek, grok). Each MUST have ``<stage>_calls > 0``
+        AND ``<stage>_cost_usd > 0``. Names without the ``llm_`` prefix —
+        e.g. ``["summarization", "speaker_detection", "gi", "kg"]``.
+    local_stages : Sequence[str]
+        Stages whose provider is local / free (ollama, spaCy for speaker
+        detection, local Whisper for transcription). For these the recorder
+        either never fires (``calls == 0`` — non-LLM path like spaCy) or
+        fires with a $0 YAML rate (``cost_usd == 0.0`` — ollama). Both
+        outcomes are fine; what must NOT happen is ``cost_usd`` being
+        dropped (None) when the recorder was invoked, or ``cost_usd`` being
+        non-zero for a stage routed through a free provider.
+
+    Why the split: a test like ``test_anthropic_full_pipeline`` uses Whisper
+    for transcription (local) + Anthropic for speaker/summary (billable).
+    Asserting "cost > 0 on every stage" would wrongly fail on the transcription
+    row; asserting "cost == 0 on every stage" would wrongly pass on a
+    regression that zeroed out the Anthropic summarization cost. Both
+    invariants have to be stated explicitly.
+    """
+    import json as _json
+    from pathlib import Path as _Path
+
+    metrics_files = list(_Path(temp_dir).rglob("metrics.json"))
+    assert metrics_files, (
+        f"No metrics.json under {temp_dir} — pipeline may not have written " "run artifacts"
+    )
+    for m_path in metrics_files:
+        try:
+            m = _json.loads(m_path.read_text(encoding="utf-8"))
+        except (OSError, ValueError) as exc:  # pragma: no cover — surface loudly
+            raise AssertionError(f"Cannot read {m_path}: {exc}") from exc
+
+        for stage in billable_stages:
+            calls_key = f"llm_{stage}_calls"
+            cost_key = f"llm_{stage}_cost_usd"
+            calls = m.get(calls_key)
+            assert calls is not None and calls > 0, (
+                f"{calls_key} expected > 0 in {m_path}, got {calls}. "
+                "Provider recorder never fired — cost chain broken (#650/#651)."
+            )
+            cost = m.get(cost_key)
+            assert cost is not None, (
+                f"{cost_key} missing from {m_path} — Metrics.to_dict() dropped "
+                "the field, or provider never passed cost_usd kwarg."
+            )
+            assert cost > 0.0, (
+                f"{cost_key}={cost} in {m_path}. Expected > 0 — billable "
+                "provider's call should have populated cost via "
+                "calculate_provider_cost(). Check the wiring at the "
+                f"provider's record_llm_{stage}_call(cost_usd=...) site."
+            )
+
+        for stage in local_stages:
+            calls_key = f"llm_{stage}_calls"
+            cost_key = f"llm_{stage}_cost_usd"
+            # Recorder either never fired (non-LLM ML path, e.g. spaCy) or
+            # fired with $0 pricing (ollama). Both are fine; what must not
+            # happen is cost being non-zero for a free provider.
+            cost = m.get(cost_key)
+            assert cost is not None, (
+                f"{cost_key} missing from {m_path} — Metrics.to_dict() dropped "
+                "the field entirely. This is a serialisation bug, not a "
+                "provider-wiring one."
+            )
+            assert cost == 0.0, (
+                f"{cost_key}={cost} in {m_path}. Expected exactly 0.0 — "
+                f"local / free provider shouldn't be accumulating cost. "
+                "Either the pricing YAML has a non-zero rate for a local "
+                "provider (ollama/whisper-local/spaCy should all be $0), "
+                "or a billable provider's cost leaked into the wrong stage."
+            )
