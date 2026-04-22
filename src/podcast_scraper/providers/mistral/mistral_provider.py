@@ -480,20 +480,32 @@ class MistralProvider:
         text = self.transcribe(audio_path, language)
         elapsed = time.time() - start_time
 
+        # Resolve audio_minutes with a file-size fallback so cost isn't silently 0
+        # when the caller doesn't pass episode_duration_seconds (#650 Finding 18
+        # symmetry — OpenAI fix applies here too). Bitrate-aware: scales by
+        # cfg.preprocessing_mp3_bitrate_kbps.
+        audio_minutes = 0.0
+        if episode_duration_seconds is not None:
+            audio_minutes = float(episode_duration_seconds) / 60.0
+        else:
+            try:
+                file_size_mb = os.path.getsize(audio_path) / (1024 * 1024)
+                bitrate_kbps_cfg = getattr(self.cfg, "preprocessing_mp3_bitrate_kbps", None)
+                bitrate_kbps = float(bitrate_kbps_cfg) if bitrate_kbps_cfg else 128.0
+                audio_minutes = file_size_mb * (128.0 / bitrate_kbps)
+            except OSError:
+                pass
+
         # Track LLM call metrics if available
-        if pipeline_metrics is not None and episode_duration_seconds is not None:
-            audio_minutes = episode_duration_seconds / 60.0
-            # Note: Mistral doesn't provide token usage for audio, so we track by duration
-            # This is an approximation - actual pricing is per minute of audio
+        if pipeline_metrics is not None and audio_minutes > 0:
             pipeline_metrics.record_llm_transcription_call(audio_minutes)
 
         # Finalize call_metrics (Mistral audio transcription may not have tokens,
         # but finalize for consistency)
         if call_metrics is not None:
-            if episode_duration_seconds is not None:
+            if audio_minutes > 0:
                 from ...workflow.helpers import calculate_provider_cost
 
-                audio_minutes = episode_duration_seconds / 60.0
                 cost = calculate_provider_cost(
                     cfg=self.cfg,
                     provider_type="mistral",

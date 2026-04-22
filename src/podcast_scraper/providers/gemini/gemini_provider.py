@@ -607,16 +607,29 @@ class GeminiProvider:
         elapsed = time.time() - start_time
         call_metrics.finalize()
 
+        # Resolve audio_minutes with a file-size fallback so cost isn't silently 0
+        # when the caller doesn't pass episode_duration_seconds (#650 Finding 18
+        # symmetry — OpenAI fix applies here too). Bitrate-aware: scales by
+        # cfg.preprocessing_mp3_bitrate_kbps (32 kbps on speech_optimal_v1 would
+        # otherwise under-report 4× with a naive 128-kbps assumption).
+        audio_minutes = 0.0
+        if episode_duration_seconds is not None:
+            audio_minutes = float(episode_duration_seconds) / 60.0
+        else:
+            try:
+                file_size_mb = os.path.getsize(audio_path) / (1024 * 1024)
+                bitrate_kbps_cfg = getattr(self.cfg, "preprocessing_mp3_bitrate_kbps", None)
+                bitrate_kbps = float(bitrate_kbps_cfg) if bitrate_kbps_cfg else 128.0
+                audio_minutes = file_size_mb * (128.0 / bitrate_kbps)
+            except OSError:
+                pass
+
         # Track LLM call metrics if available (aggregate)
-        if pipeline_metrics is not None and episode_duration_seconds is not None:
-            audio_minutes = episode_duration_seconds / 60.0
-            # Note: Gemini doesn't provide token usage for audio, so we track by duration
-            # This is an approximation - actual pricing is per second of audio
+        if pipeline_metrics is not None and audio_minutes > 0:
             pipeline_metrics.record_llm_transcription_call(audio_minutes)
 
         # Calculate cost for transcription (per minute pricing)
-        if episode_duration_seconds is not None:
-            audio_minutes = episode_duration_seconds / 60.0
+        if audio_minutes > 0:
             from ...workflow.helpers import calculate_provider_cost
 
             cost = calculate_provider_cost(
