@@ -1,4 +1,12 @@
-Extract {{ max_insights }} key takeaways from the following podcast transcript. Output exactly one short statement per line. Each line should be a standalone insight (1-2 sentences). Do not number or bullet the lines. Do not add any other text before or after the list.
+Extract {{ max_insights }} key takeaways from the following podcast transcript.
+
+QUALITY RULES (#652):
+
+1. Ads / sponsor reads: skip. Do NOT produce an insight from sponsor reads, host disclosures ("brought to you by…", "I work at…"), promo codes, or subscription pitches. Skip passages that describe a product/service as "built for X", "helps you Y", or name a sponsor product.
+
+2. Insight form: paraphrased THIRD-PERSON claims distilled from the transcript. Do NOT copy verbatim dialogue, host patter, or first-person speaker monologue. Start each insight with a noun + verb in present tense. Avoid "we", "I", "you", "let\'s", "okay", or conversational filler ("you know", "I mean").
+
+Output format: exactly one short statement per line. Each line a standalone insight (1–2 sentences). Do not number or bullet the lines. Do not add any other text before or after the list.
 
 {% if title %}
 Episode: {{ title }}

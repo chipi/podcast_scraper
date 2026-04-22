@@ -1,7 +1,15 @@
 {# Shared KG graph extraction prompt (RFC-055 / GI parity). #}
 Episode title: {{ title | default("", true) }}
 
-Extract up to {{ max_topics }} distinct **topics** and up to {{ max_entities }} **named entities** (people or organizations) that appear in the transcript. For each topic, use a **short heading** (about **2–8 words**, noun-style); longer context belongs in **description**, not in the label. Do not exceed these counts; put the strongest items first.
+QUALITY RULES (#652) — apply to every topic and entity:
+
+1. Ads / sponsor reads: skip. Do NOT produce a topic or entity for sponsor reads, host disclosures ("brought to you by…", "I work at…"), promo codes, or subscription pitches.
+
+2. Topic length: concise **2–3 word noun phrases**. Do NOT use prepositions ("in", "of", "for", "vs") at start or middle. Do NOT use event-specific proper-noun compounds ("X succession", "Y leverage"). Prefer canonical concept names that could recur across episodes ("nuclear program", not "Iran's nuclear program").
+
+3. Entity kind: default to **org** for companies, shows, podcasts, brands, products, publications, or organisations. Reserve **person** for individual human names (first + last, or clearly a named individual). When in doubt, classify as **org**.
+
+Extract up to {{ max_topics }} distinct **topics** and up to {{ max_entities }} **named entities** (people or organizations) that appear in the transcript. Do not exceed these counts; put the strongest items first.
 
 Transcript:
 {{ transcript }}
