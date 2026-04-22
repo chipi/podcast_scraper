@@ -538,9 +538,8 @@ class OpenAIProvider:
 
             # Calculate cost for transcription (per minute pricing)
             if audio_minutes > 0:
-                if pipeline_metrics is not None:
-                    pipeline_metrics.record_llm_transcription_call(audio_minutes)
-                # Calculate cost
+                # Compute cost first so the same value can flow into both
+                # call_metrics (per-episode) and pipeline_metrics (per-stage).
                 from ...workflow.helpers import calculate_provider_cost
 
                 cost = calculate_provider_cost(
@@ -551,6 +550,8 @@ class OpenAIProvider:
                     audio_minutes=audio_minutes,
                 )
                 call_metrics.set_cost(cost)
+                if pipeline_metrics is not None:
+                    pipeline_metrics.record_llm_transcription_call(audio_minutes, cost_usd=cost)
 
             # OpenAI API returns a Transcription object with text and segments
             # when verbose_json is used. Convert to dict format matching Whisper output.
@@ -770,7 +771,23 @@ class OpenAIProvider:
             if pipeline_metrics is not None and hasattr(response, "usage"):
                 input_tokens = response.usage.prompt_tokens if response.usage else 0
                 output_tokens = response.usage.completion_tokens if response.usage else 0
-                pipeline_metrics.record_llm_speaker_detection_call(input_tokens, output_tokens)
+                # Compute cost for the aggregate so metrics.json reflects speaker
+                # detection spend (previously silently 0 in total_stage_cost_usd).
+                sd_cost: Optional[float] = None
+                if input_tokens > 0 or output_tokens > 0:
+                    from ...workflow.helpers import calculate_provider_cost
+
+                    sd_cost = calculate_provider_cost(
+                        cfg=self.cfg,
+                        provider_type="openai",
+                        capability="speaker_detection",
+                        model=self.speaker_model,
+                        prompt_tokens=int(input_tokens),
+                        completion_tokens=int(output_tokens),
+                    )
+                pipeline_metrics.record_llm_speaker_detection_call(
+                    input_tokens, output_tokens, cost_usd=sd_cost
+                )
 
             return speakers, detected_hosts, success, False
 
@@ -1146,15 +1163,9 @@ class OpenAIProvider:
                 if input_tokens > 0 or output_tokens > 0:
                     call_metrics.set_tokens(input_tokens, output_tokens)
 
-            # Track LLM call metrics if available (aggregate tracking)
-            if (
-                pipeline_metrics is not None
-                and input_tokens is not None
-                and output_tokens is not None
-            ):
-                pipeline_metrics.record_llm_summarization_call(input_tokens, output_tokens)
-
-            # Calculate cost
+            # Calculate cost first so the value flows into both call_metrics and
+            # pipeline_metrics.record_llm_summarization_call(cost_usd=...).
+            cost: Optional[float] = None
             if input_tokens is not None:
                 from ...workflow.helpers import calculate_provider_cost
 
@@ -1167,6 +1178,16 @@ class OpenAIProvider:
                     completion_tokens=output_tokens,
                 )
                 call_metrics.set_cost(cost)
+
+            # Track LLM call metrics if available (aggregate tracking)
+            if (
+                pipeline_metrics is not None
+                and input_tokens is not None
+                and output_tokens is not None
+            ):
+                pipeline_metrics.record_llm_summarization_call(
+                    input_tokens, output_tokens, cost_usd=cost
+                )
 
             # Get prompt metadata for tracking
             from ...prompts.store import get_prompt_metadata
@@ -1625,7 +1646,18 @@ class OpenAIProvider:
                 and out_tok is not None
                 and hasattr(pipeline_metrics, "record_llm_gi_call")
             ):
-                pipeline_metrics.record_llm_gi_call(in_tok, out_tok)
+                gi_cost: Optional[float] = None
+                from ...workflow.helpers import calculate_provider_cost
+
+                gi_cost = calculate_provider_cost(
+                    cfg=self.cfg,
+                    provider_type="openai",
+                    capability="summarization",
+                    model=self.insight_model,
+                    prompt_tokens=int(in_tok),
+                    completion_tokens=int(out_tok),
+                )
+                pipeline_metrics.record_llm_gi_call(in_tok, out_tok, cost_usd=gi_cost)
             content = (response.choices[0].message.content or "").strip()
             lines = [
                 line.strip()
@@ -1712,7 +1744,17 @@ class OpenAIProvider:
                 and out_tok is not None
                 and hasattr(pm, "record_llm_kg_call")
             ):
-                pm.record_llm_kg_call(in_tok, out_tok)
+                from ...workflow.helpers import calculate_provider_cost
+
+                kg_cost = calculate_provider_cost(
+                    cfg=self.cfg,
+                    provider_type="openai",
+                    capability="summarization",
+                    model=model,
+                    prompt_tokens=int(in_tok),
+                    completion_tokens=int(out_tok),
+                )
+                pm.record_llm_kg_call(in_tok, out_tok, cost_usd=kg_cost)
             raw = (response.choices[0].message.content or "").strip()
             return parse_kg_graph_response(raw, max_topics=max_topics, max_entities=max_entities)
         except Exception as e:
@@ -1784,7 +1826,17 @@ class OpenAIProvider:
                 and out_tok is not None
                 and hasattr(pm, "record_llm_kg_call")
             ):
-                pm.record_llm_kg_call(in_tok, out_tok)
+                from ...workflow.helpers import calculate_provider_cost
+
+                kg_cost = calculate_provider_cost(
+                    cfg=self.cfg,
+                    provider_type="openai",
+                    capability="summarization",
+                    model=model,
+                    prompt_tokens=int(in_tok),
+                    completion_tokens=int(out_tok),
+                )
+                pm.record_llm_kg_call(in_tok, out_tok, cost_usd=kg_cost)
             raw = (response.choices[0].message.content or "").strip()
             return parse_kg_graph_response(raw, max_topics=max_topics, max_entities=max_entities)
         except Exception as e:
@@ -2161,7 +2213,17 @@ class OpenAIProvider:
                 and out_tok is not None
                 and hasattr(pipeline_metrics, "record_llm_cleaning_call")
             ):
-                pipeline_metrics.record_llm_cleaning_call(in_tok, out_tok)
+                from ...workflow.helpers import calculate_provider_cost
+
+                cleaning_cost = calculate_provider_cost(
+                    cfg=self.cfg,
+                    provider_type="openai",
+                    capability="summarization",
+                    model=self.cleaning_model,
+                    prompt_tokens=int(in_tok),
+                    completion_tokens=int(out_tok),
+                )
+                pipeline_metrics.record_llm_cleaning_call(in_tok, out_tok, cost_usd=cleaning_cost)
             if not cleaned:
                 logger.warning("OpenAI API returned empty cleaned text, using original")
                 return text

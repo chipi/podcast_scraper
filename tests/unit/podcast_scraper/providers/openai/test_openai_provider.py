@@ -1146,7 +1146,14 @@ class TestOpenAIProviderPricing(unittest.TestCase):
         mock_client.chat.completions.create.assert_called_once()
         call_kw = mock_client.chat.completions.create.call_args[1]
         self.assertEqual(call_kw["model"], provider.summary_model)
-        pm.record_llm_kg_call.assert_called_once_with(5, 10)
+        # record_llm_kg_call now also carries cost_usd (#650 Finding 17 wiring).
+        pm.record_llm_kg_call.assert_called_once()
+        kg_args, kg_kwargs = pm.record_llm_kg_call.call_args
+        self.assertEqual(kg_args[0], 5)
+        self.assertEqual(kg_args[1], 10)
+        self.assertIn("cost_usd", kg_kwargs)
+        self.assertIsNotNone(kg_kwargs["cost_usd"])
+        self.assertGreater(kg_kwargs["cost_usd"], 0)
 
     def test_extract_kg_graph_not_initialized_returns_none(self):
         provider = OpenAIProvider(self.cfg)
@@ -1235,7 +1242,14 @@ class TestOpenAIProviderPricing(unittest.TestCase):
         provider.client = mock_client
         provider._summarization_initialized = True
         provider.generate_insights("t", pipeline_metrics=metrics_obj)
-        metrics_obj.record_llm_gi_call.assert_called_once_with(3, 4)
+        # record_llm_gi_call now also carries cost_usd (#650 Finding 17 wiring).
+        metrics_obj.record_llm_gi_call.assert_called_once()
+        gi_args, gi_kwargs = metrics_obj.record_llm_gi_call.call_args
+        self.assertEqual(gi_args[0], 3)
+        self.assertEqual(gi_args[1], 4)
+        self.assertIn("cost_usd", gi_kwargs)
+        self.assertIsNotNone(gi_kwargs["cost_usd"])
+        self.assertGreater(gi_kwargs["cost_usd"], 0)
 
 
 @pytest.mark.unit
