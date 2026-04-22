@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 from pathlib import Path
 from typing import Any
 
@@ -19,6 +20,22 @@ def viewer_operator_yaml_path(app: Any, corpus_root: Path) -> Path:
     if fixed is not None:
         return Path(fixed)
     return corpus_root / VIEWER_OPERATOR_BASENAME
+
+
+def viewer_operator_extras_source(app: Any, corpus_root: Path) -> Path:
+    """YAML file that may declare ``pipeline_install_extras`` for Docker job validation only.
+
+    The pipeline CLI ``--config`` stays the pinned pipeline file (``viewer_operator_yaml_path``);
+    Pydantic ``Config`` rejects ``pipeline_install_extras`` there. When Docker job mode is on and
+    ``<corpus>/viewer_operator.yaml`` exists, read extras from that file; else fall back to the
+    same path as ``viewer_operator_yaml_path`` (native / single-file operators).
+    """
+    if (
+        os.environ.get("PODCAST_PIPELINE_EXEC_MODE", "").strip().lower() == "docker"
+        and (corpus_root / VIEWER_OPERATOR_BASENAME).is_file()
+    ):
+        return corpus_root / VIEWER_OPERATOR_BASENAME
+    return viewer_operator_yaml_path(app, corpus_root)
 
 
 def packaged_viewer_operator_example_path() -> Path | None:

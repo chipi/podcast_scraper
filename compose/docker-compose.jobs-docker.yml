@@ -12,6 +12,10 @@ services:
   api:
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
+      # Host repo root (substituted from the *host* env at ``docker compose up`` time) must be
+      # visible **inside** the API container so ``docker compose -f …`` can read compose files.
+      # In-container path is fixed at ``/podcast_repo``; ``PODCAST_DOCKER_PROJECT_DIR`` below matches.
+      - ${PODCAST_DOCKER_PROJECT_DIR:?set to absolute repo root on host}:/podcast_repo:ro
     environment:
       PODCAST_PIPELINE_EXEC_MODE: docker
-      PODCAST_DOCKER_PROJECT_DIR: ${PODCAST_DOCKER_PROJECT_DIR:?set to absolute repo root on host}
+      PODCAST_DOCKER_PROJECT_DIR: /podcast_repo

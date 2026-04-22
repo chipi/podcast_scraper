@@ -609,6 +609,8 @@ and **pipeline** ([`docker/pipeline/Dockerfile`](https://github.com/chipi/podcas
   (absolute host repo root the Docker daemon can resolve). Example:
   `docker compose -f compose/docker-compose.stack.yml -f compose/docker-compose.jobs-docker.yml up -d`
   after `export PODCAST_DOCKER_PROJECT_DIR="$PWD"`.
+  **`PODCAST_DOCKER_COMPOSE_FILES`** (optional, comma-separated paths under the project dir) is passed to **`docker compose -f`** when the API spawns a job; default is **`compose/docker-compose.stack.yml`** only. The **`jobs-docker`** merge at **`up`** mounts the host repo read-only at **`/podcast_repo`** and sets **`PODCAST_DOCKER_PROJECT_DIR=/podcast_repo`** inside **`api`** (on the host you still export **`PODCAST_DOCKER_PROJECT_DIR=$PWD`** for the bind source). Set **`PODCAST_DOCKER_COMPOSE_FILES`** to include **`compose/docker-compose.jobs-docker.yml`** if `compose run` must see the same merge graph.
+  Corpus **`CONFIG_FILE`** profile and **`viewer_operator.yaml` → `pipeline_install_extras`** are independent: the job runner does not infer **`ml`** vs **`llm`** from the profile name — align them manually; **`make verify-stack-profiles`** checks packaged profiles vs minimum tier.
 
 ### Commands (Makefile)
 
@@ -721,8 +723,8 @@ compose-level build args (**`STACK_PIPELINE_INSTALL_EXTRAS`**, **`STACK_PIPELINE
 | Tier | `INSTALL_EXTRAS` | Size | Can run |
 | ---- | ----------------- | ---- | ------- |
 | **ML** (default) | `ml` | 3-4 GB | Any profile (local Whisper, spaCy, transformers, FAISS, **plus** cloud APIs) |
-| **LLM** (planned) | `llm` | ~1–1.5 GB (target) | API-heavy profiles without local torch/spaCy/FAISS (e.g. future **`cloud_thin`**) — pairs with **`pipeline_install_extras: llm`** on the Docker job path |
-| **Core / minimal** | `""` | smallest | Bare optional install — dev or legacy; prefer **`llm`** once shipped for thin cloud profiles |
+| **LLM** | `llm` | ~1–1.5 GB (target) | API-heavy profiles without local torch/spaCy/FAISS (e.g. **`cloud_thin`**) — pairs with **`pipeline_install_extras: llm`** on the Docker job path |
+| **Core / minimal** | `""` | smallest | Bare optional install — dev or legacy; prefer **`llm`** for thin cloud profiles |
 
 **Today's cloud profiles** (`cloud_balanced`, `cloud_quality`) still use **spaCy trf** for NER
 and **FAISS** for vector indexing, so they require the **ML** tier. A true LLM-only pipeline
@@ -731,8 +733,8 @@ needs a profile that replaces all local stages with API providers. See
 for the full matrix.
 
 ```bash
-# Faster dev build (minimal tier, no model preload) — today: INSTALL_EXTRAS=""
-# Once `llm` exists: STACK_PIPELINE_INSTALL_EXTRAS=llm STACK_PIPELINE_PRELOAD_ML=false make stack-build
+# Faster dev build (minimal tier, no model preload) — INSTALL_EXTRAS=""
+# LLM tier: STACK_PIPELINE_INSTALL_EXTRAS=llm STACK_PIPELINE_PRELOAD_ML=false make stack-build
 STACK_PIPELINE_INSTALL_EXTRAS="" STACK_PIPELINE_PRELOAD_ML=false make stack-build
 ```
 

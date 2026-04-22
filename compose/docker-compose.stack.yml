@@ -26,6 +26,9 @@ services:
       - "8000"
     environment:
       PODCAST_SCRAPER_CONFIG: /app/config.yaml
+      # Host-absolute path to the same YAML as ``/app/config.yaml`` mount — required when the API
+      # runs nested ``docker compose`` (``PODCAST_PIPELINE_EXEC_MODE=docker``) so pipeline mounts resolve.
+      CONFIG_FILE: ${CONFIG_FILE:-}
       # Provider keys: empty defaults (set in repo-root ``.env`` for Compose substitution only).
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
       GEMINI_API_KEY: ${GEMINI_API_KEY:-}

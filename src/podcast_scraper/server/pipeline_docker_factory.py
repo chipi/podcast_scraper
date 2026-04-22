@@ -7,8 +7,9 @@ When ``PODCAST_PIPELINE_EXEC_MODE=docker``, ``create_app`` attaches
 Requires:
   - Docker CLI + Compose v2 plugin in the API image (see ``docker/api/Dockerfile``).
   - Host Docker socket mounted into the API container (e.g. ``/var/run/docker.sock``).
-  - ``PODCAST_DOCKER_PROJECT_DIR``: absolute path to the repository root on the **host** (same
-    path visible to the Docker daemon), typically bind-mounted into the API container.
+  - ``PODCAST_DOCKER_PROJECT_DIR``: absolute path to the repository root **as seen by the API
+    process** (with ``compose/docker-compose.jobs-docker.yml``, the stack bind-mounts the host
+    repo at ``/podcast_repo`` and sets this env to ``/podcast_repo`` inside ``api``).
   - Operator YAML must include ``pipeline_install_extras: ml`` or ``pipeline_install_extras: llm``
     when this mode is enabled.
 """
@@ -128,9 +129,9 @@ def attach_docker_jobs_factory(app: Any) -> None:
         argv: Sequence[str], corpus_root: Path, log_abs: Path
     ) -> asyncio.subprocess.Process:
         """Spawn pipeline via Compose ``pipeline`` / ``pipeline-llm`` (not ``sys.executable``)."""
-        from podcast_scraper.server.operator_paths import viewer_operator_yaml_path
+        from podcast_scraper.server.operator_paths import viewer_operator_extras_source
 
-        op = viewer_operator_yaml_path(app, corpus_root)
+        op = viewer_operator_extras_source(app, corpus_root)
         return await _docker_jobs_factory(argv, corpus_root, log_abs, operator_yaml=op)
 
     app.state.jobs_subprocess_factory = factory

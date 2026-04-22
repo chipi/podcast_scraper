@@ -425,7 +425,7 @@ The product keeps **both** execution stories:
 | Workflow | Typical entry | Job spawn | Operator YAML |
 |----------|---------------|-----------|-----------------|
 | **Native (default today)** | `make serve-api`, laptop venv, tests | **Subprocess** of `serve` — [RFC-077](RFC-077-viewer-feeds-and-serve-pipeline-jobs.md) argv + `create_subprocess_exec` | **Unchanged** from shipped RFC-077: no Docker-only keys required for PUT or for jobs. |
-| **Docker stack** | `docker compose -f compose/docker-compose.stack.yml up` + viewer | **#660**: delegate to **`pipeline`** image (factory + host Docker socket, worker, or deliberate fat-`api` bridge) | **Docker path only:** e.g. **`pipeline_install_extras: ml \| llm`** (aligns with **`docker/pipeline/Dockerfile`** **`INSTALL_EXTRAS`**) **required** when the server is configured to spawn jobs into containers — omission → **validation error** with a clear message. Gate on an explicit env such as **`PIPELINE_EXEC_MODE=docker`** (exact name in #660 PR). |
+| **Docker stack** | `docker compose -f compose/docker-compose.stack.yml up` + viewer | **#660** (shipped): delegate to **`pipeline`** / **`pipeline-llm`** via factory + host Docker socket (RFC Option **B**) | **Docker path only:** **`pipeline_install_extras: ml \| llm`** in **`viewer_operator.yaml`** (aligns with **`docker/pipeline/Dockerfile`** **`INSTALL_EXTRAS`**) **required** when the server is configured to spawn jobs into containers — omission → **400** with a clear message. Gate on **`PODCAST_PIPELINE_EXEC_MODE=docker`**. Optional **`PODCAST_DOCKER_COMPOSE_FILES`** lists compose files passed to `docker compose -f` (default `compose/docker-compose.stack.yml` only); merge **`compose/docker-compose.jobs-docker.yml`** at **`up`** time so **`api`** gets the socket and env. |
 
 **Principle:** never require Docker-only metadata for operators who only ever run **native** subprocess jobs; validate **`pipeline_install_extras`** (and profile↔tier checks) only on the **Docker enqueue/spawn** path.
 
@@ -470,7 +470,7 @@ deliberate short-term bridge if time-to-green matters more than image size.
 
 #### #660 implementation checklist (paste / track in the issue)
 
-1. **Exec mode:** env (e.g. `PIPELINE_EXEC_MODE`) selects **native** (default: current subprocess) vs **docker** (factory / `docker compose run` / worker). Native path: **no** new mandatory operator keys.
+1. **Exec mode:** **`PODCAST_PIPELINE_EXEC_MODE`** selects **native** (unset / not `docker`: current subprocess) vs **`docker`** (factory / `docker compose run`). Native path: **no** new mandatory operator keys.
 2. **Image selection:** when mode is **docker**, operator YAML used for the job must include **`pipeline_install_extras`** ∈ `{ ml, llm }` — maps to **`INSTALL_EXTRAS`** / the correct compose **service** (e.g. `pipeline` vs `pipeline-llm` once the LLM tier exists). **No** silent default to `ml` on omission.
 3. **Profile↔tier:** optional script or test gate (see gap matrix / `make verify`) so packaged profiles do not declare capabilities the chosen image lacks.
 4. **Secrets:** keys only via `.env` / CI secrets — never committed; compose uses `${VAR:-}` pass-through (see `DOCKER_SERVICE_GUIDE` + §Secrets in internal plan).
@@ -539,7 +539,7 @@ produce two **image tiers** (same binary, different dependency surface):
 | Tier | `INSTALL_EXTRAS` | `PRELOAD_ML_MODELS` | Approx size | What it can run |
 |------|-----------------|---------------------|-------------|-----------------|
 | **ML** (default) | `ml` | `true` (or `false` for faster dev builds) | 3-4 GB | Any profile: local Whisper, spaCy NER, transformers summarization, FAISS index build, SummLlama, **plus** cloud LLM calls |
-| **LLM** (planned; `pyproject` **`.[llm]`**) | `llm` | N/A (skipped) | ~1–1.5 GB (target) | Cloud/API-heavy profiles (e.g. future **`cloud_thin`**) with **no** local torch/spaCy/FAISS stack; pairs with **`pipeline_install_extras: llm`** on the Docker job path |
+| **LLM** (`pyproject` **`.[llm]`**) | `llm` | N/A (skipped) | ~1–1.5 GB (target) | Cloud/API-heavy profiles (e.g. **`cloud_thin`**) with **no** local torch/spaCy/FAISS stack; pairs with **`pipeline_install_extras: llm`** on the Docker job path |
 | **Core / minimal** | `""` | N/A (skipped) | smallest | Bare pipeline without optional groups — dev-only or legacy; prefer **`llm`** tier once implemented for API-only profiles |
 
 ### Profile → minimum image tier
@@ -550,7 +550,7 @@ produce two **image tiers** (same binary, different dependency surface):
 | `config/profiles/local.yaml` | Whisper (local) | spaCy trf (local) | Ollama (local daemon) | provider | FAISS (local) | **ML** |
 | `config/profiles/cloud_balanced.yaml` | OpenAI whisper-1 (API) | spaCy trf (local) | Gemini (API) | provider | FAISS (local) | **ML** |
 | `config/profiles/cloud_quality.yaml` | OpenAI whisper-1 (API) | spaCy trf (local) | Anthropic (API) | provider | FAISS (local) | **ML** |
-| *(planned) `config/profiles/cloud_thin.yaml`* | Cloud API only | Cloud API only | Cloud API only | provider | `false` | **LLM** (`INSTALL_EXTRAS=llm`) |
+| `config/profiles/cloud_thin.yaml` | Cloud API only | Cloud API only | Cloud API only | provider | `false` | **LLM** (`INSTALL_EXTRAS=llm`) |
 
 **Key insight:** today's "cloud" profiles (`cloud_balanced`, `cloud_quality`) still require
 **spaCy** for NER and **FAISS** for vector indexing, so they need the **ML** tier. The
@@ -574,8 +574,8 @@ CONFIG_FILE=$PWD/my-llm-only-profile.yaml make stack-run-pipeline
 Each item below is **also** listed on **[#659](https://github.com/chipi/podcast_scraper/issues/659)** or **[#660](https://github.com/chipi/podcast_scraper/issues/660)** so nothing lives only here.
 
 1. **RFC index** — [index.md](index.md) **Open RFCs (detail)** table now includes one-line rows for **RFC-078** and **RFC-079** (smoke vs stack, issue pointers).
-2. **Example operator YAML** — Keep [`config/examples/viewer_operator.example.yaml`](https://github.com/chipi/podcast_scraper/blob/main/config/examples/viewer_operator.example.yaml) aligned with **native-default** (no `pipeline_install_extras`). Add a **separate** example (e.g. `viewer_operator.docker.example.yaml`) or a short **commented** stanza documenting `pipeline_install_extras` for compose-only operators — avoid requiring Docker-only keys in the primary seeded example. **Backlog: [#660](https://github.com/chipi/podcast_scraper/issues/660)**.
-3. **Automated dual-path coverage** — [#660](https://github.com/chipi/podcast_scraper/issues/660) acceptance already calls for **manual** (or PR-described) checks on **native** and **Docker** job paths; optional later: thin integration or e2e hooks per path if flake budget allows. **Backlog: [#660](https://github.com/chipi/podcast_scraper/issues/660)**.
+2. **Example operator YAML** — **Done:** [`config/examples/viewer_operator.example.yaml`](https://github.com/chipi/podcast_scraper/blob/main/config/examples/viewer_operator.example.yaml) stays **native-default** (no `pipeline_install_extras`); Docker path documented in [`config/examples/viewer_operator.docker.example.yaml`](https://github.com/chipi/podcast_scraper/blob/main/config/examples/viewer_operator.docker.example.yaml). **#660** closure tracks guide/RFC cross-checks only.
+3. **Automated coverage** — **#660** includes unit tests for the Docker factory helpers, integration tests for Docker-mode validation (with a fake subprocess factory), **`make verify-stack-profiles`** in CI when `config/profiles/**`, `compose/**`, the tier validator script, or **`python-app.yml`** changes, and **manual** stack + `jobs-docker` acceptance recorded on **#660**. Merge-blocking **real** `docker compose run` inside GitHub-hosted runners is **out of scope** for **#660** (open a **new** issue if required).
 
 ## Operational contracts (quick reference)
 
@@ -585,7 +585,7 @@ Each item below is **also** listed on **[#659](https://github.com/chipi/podcast_
 | Makefile targets | `Makefile` (`stack-*`, `smoke-*`, `verify-stack-profiles`) |
 | Secrets / `.env` | [`DOCKER_SERVICE_GUIDE.md` § Full stack → Secrets (stack)](../guides/DOCKER_SERVICE_GUIDE.md#secrets-stack) |
 | Native vs Docker jobs | [§Native vs Docker](#native-vs-docker); [#660](https://github.com/chipi/podcast_scraper/issues/660) |
-| Profile ↔ image tier | `scripts/tools/validate_profile_docker_tier.py`; RFC-079 [§Pipeline image tiers](#pipeline-image-tiers-and-profile-compatibility) |
+| Profile ↔ image tier | `scripts/tools/validate_profile_docker_tier.py`; RFC-079 [§Pipeline image tiers](#pipeline-image-tiers) |
 | Ephemeral CI smoke | [RFC-078](RFC-078-ephemeral-acceptance-smoke-test.md), `compose/docker-compose.smoke.yml`, `make smoke-*` |
 | Prod-style merge (restart, VPS notes) | [`compose/docker-compose.prod.yml`](https://github.com/chipi/podcast_scraper/blob/main/compose/docker-compose.prod.yml) + `DOCKER_SERVICE_GUIDE` § RFC-079 backlog |
 
@@ -607,9 +607,9 @@ Each item below is **also** listed on **[#659](https://github.com/chipi/podcast_
 5. **FAISS index reload**: **Resolved** — `/api/search` loads `FaissVectorStore` from disk per request,
    so a **completed** pipeline write set is visible on the **next** search without restarting `api`.
    Use **`POST /api/index/rebuild`** for an explicit rebuild. See `DOCKER_SERVICE_GUIDE.md` § **RFC-079 backlog** → *FAISS / vector index*.
-6. **Jobs in compose**: Default remains subprocess in `api`. Optional **`PODCAST_PIPELINE_EXEC_MODE=docker`**
-   (with Docker socket + `PODCAST_DOCKER_PROJECT_DIR`) runs jobs via `docker compose run` into
-   `pipeline` / `pipeline-llm`; see `podcast_scraper.server.pipeline_docker_factory` and DOCKER_SERVICE_GUIDE. **Backlog: [#660](https://github.com/chipi/podcast_scraper/issues/660)**.
+6. **Jobs in compose**: Default remains subprocess in `api`. **`PODCAST_PIPELINE_EXEC_MODE=docker`**
+   (with Docker socket + `PODCAST_DOCKER_PROJECT_DIR` + operator **`pipeline_install_extras`**) runs jobs via `docker compose run` into
+   **`pipeline`** / **`pipeline-llm`**; see `podcast_scraper.server.pipeline_docker_factory` and **DOCKER_SERVICE_GUIDE** § Full stack. **Shipped** under **[#660](https://github.com/chipi/podcast_scraper/issues/660)**.
 7. **LLM pipeline tier vs cloud profiles**: Shipped **`cloud_thin.yaml`** + **`INSTALL_EXTRAS=llm`**
    (`pipeline-llm` service) pairs thin cloud-only runs with the **LLM** image tier. **`cloud_balanced`**
    / **`cloud_quality`** remain **ML** tier (spaCy + FAISS).

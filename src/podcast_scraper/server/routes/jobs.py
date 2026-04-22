@@ -9,7 +9,10 @@ from pathlib import Path
 from fastapi import APIRouter, BackgroundTasks, FastAPI, HTTPException, Query, Request, status
 from fastapi.responses import FileResponse
 
-from podcast_scraper.server.operator_paths import viewer_operator_yaml_path
+from podcast_scraper.server.operator_paths import (
+    viewer_operator_extras_source,
+    viewer_operator_yaml_path,
+)
 from podcast_scraper.server.pipeline_docker_factory import assert_operator_pipeline_extras
 from podcast_scraper.server.pipeline_jobs import (
     apply_reconcile,
@@ -126,7 +129,10 @@ async def submit_pipeline_job(
     corpus, operator_yaml = _corpus_and_operator(request, path)
     if os.environ.get("PODCAST_PIPELINE_EXEC_MODE", "").strip().lower() == "docker":
         try:
-            await asyncio.to_thread(assert_operator_pipeline_extras, operator_yaml)
+            await asyncio.to_thread(
+                assert_operator_pipeline_extras,
+                viewer_operator_extras_source(request.app, corpus),
+            )
         except ValueError as exc:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
     rec = await asyncio.to_thread(enqueue_pipeline_job, corpus, operator_yaml)
