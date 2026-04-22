@@ -293,8 +293,10 @@ class TestOpenAIProviderTranscription(unittest.TestCase):
         mock_open.return_value.__exit__.return_value = None
 
         mock_client = Mock()
-        # When response_format="text", API returns string directly, not an object
-        mock_client.audio.transcriptions.create.return_value = "Hello world"
+        # verbose_json returns an object with `.text` attribute.
+        mock_response = Mock()
+        mock_response.text = "Hello world"
+        mock_client.audio.transcriptions.create.return_value = mock_response
 
         provider = OpenAIProvider(self.cfg)
         provider.client = mock_client
@@ -304,6 +306,10 @@ class TestOpenAIProviderTranscription(unittest.TestCase):
 
         self.assertEqual(result, "Hello world")
         mock_client.audio.transcriptions.create.assert_called_once()
+        # Finding 19 — transcribe() must request verbose_json so duration/cost
+        # tracking is never dropped.
+        call_kwargs = mock_client.audio.transcriptions.create.call_args[1]
+        self.assertEqual(call_kwargs.get("response_format"), "verbose_json")
 
     @patch("builtins.open", create=True)
     @patch("os.path.exists")
@@ -425,6 +431,101 @@ class TestOpenAIProviderTranscription(unittest.TestCase):
         self.assertEqual(len(result_dict["segments"]), 2)
         self.assertIsInstance(elapsed, float)
         self.assertGreater(elapsed, 0)
+
+    @patch("os.path.getsize")
+    @patch("builtins.open", create=True)
+    @patch("os.path.exists")
+    def test_transcribe_with_segments_file_size_fallback_scales_by_bitrate(
+        self, mock_exists, mock_open, mock_getsize
+    ):
+        """Finding 18 — file-size→minutes fallback must scale by configured bitrate.
+
+        A 3 MB MP3 encoded at 32 kbps (speech_optimal_v1) is ~12 minutes, not 3.
+        Pre-fix bug: fallback returned `file_size_mb` directly (3), under-reporting
+        by 4× and masking cost in metrics.json.
+        """
+        mock_exists.return_value = True
+        mock_file = Mock()
+        mock_open.return_value.__enter__.return_value = mock_file
+        mock_open.return_value.__exit__.return_value = None
+        mock_getsize.return_value = 3 * 1024 * 1024  # 3 MB
+
+        # Force the fallback path: no episode_duration_seconds, and response has
+        # no .duration attribute.
+        mock_response = Mock(spec=["text", "segments"])
+        mock_response.text = "fallback-path transcript"
+        mock_response.segments = []
+
+        mock_client = Mock()
+        mock_client.audio.transcriptions.create.return_value = mock_response
+
+        cfg = config.Config(
+            rss_url="https://example.com/feed.xml",
+            transcription_provider="openai",
+            openai_api_key="sk-test123",
+            transcribe_missing=True,
+            preprocessing_mp3_bitrate_kbps=32,  # speech_optimal_v1 case
+        )
+        provider = OpenAIProvider(cfg)
+        provider.client = mock_client
+        provider.initialize()
+
+        mock_pipeline_metrics = Mock()
+
+        provider.transcribe_with_segments(
+            "/path/to/audio.mp3",
+            pipeline_metrics=mock_pipeline_metrics,
+        )
+
+        # Expected: 3 MB × (128 / 32) = 12.0 minutes (not 3).
+        self.assertTrue(mock_pipeline_metrics.record_llm_transcription_call.called)
+        recorded_minutes = mock_pipeline_metrics.record_llm_transcription_call.call_args[0][0]
+        self.assertAlmostEqual(recorded_minutes, 12.0, places=4)
+
+    @patch("os.path.getsize")
+    @patch("builtins.open", create=True)
+    @patch("os.path.exists")
+    def test_transcribe_with_segments_file_size_fallback_default_bitrate(
+        self, mock_exists, mock_open, mock_getsize
+    ):
+        """Finding 18 — when bitrate is unset (auto), fall back to 128 kbps.
+
+        Keeps pre-fix behaviour for untuned / pre-preprocessing audio, so the fix
+        doesn't regress cases that were already correct.
+        """
+        mock_exists.return_value = True
+        mock_file = Mock()
+        mock_open.return_value.__enter__.return_value = mock_file
+        mock_open.return_value.__exit__.return_value = None
+        mock_getsize.return_value = 5 * 1024 * 1024  # 5 MB
+
+        mock_response = Mock(spec=["text", "segments"])
+        mock_response.text = "default-bitrate transcript"
+        mock_response.segments = []
+
+        mock_client = Mock()
+        mock_client.audio.transcriptions.create.return_value = mock_response
+
+        # No preprocessing_mp3_bitrate_kbps set → defaults to None → fallback 128.
+        cfg = config.Config(
+            rss_url="https://example.com/feed.xml",
+            transcription_provider="openai",
+            openai_api_key="sk-test123",
+            transcribe_missing=True,
+        )
+        provider = OpenAIProvider(cfg)
+        provider.client = mock_client
+        provider.initialize()
+
+        mock_pipeline_metrics = Mock()
+        provider.transcribe_with_segments(
+            "/path/to/audio.mp3",
+            pipeline_metrics=mock_pipeline_metrics,
+        )
+
+        # Expected: 5 MB × (128 / 128) = 5.0 minutes.
+        recorded_minutes = mock_pipeline_metrics.record_llm_transcription_call.call_args[0][0]
+        self.assertAlmostEqual(recorded_minutes, 5.0, places=4)
 
 
 @pytest.mark.unit

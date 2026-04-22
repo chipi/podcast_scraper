@@ -374,13 +374,13 @@ class OpenAIProvider:
                             model=self.transcription_model,
                             file=audio_file,
                             language=effective_language,
-                            response_format="text",
+                            response_format="verbose_json",
                         )
                     else:
                         return self.client.audio.transcriptions.create(
                             model=self.transcription_model,
                             file=audio_file,
-                            response_format="text",
+                            response_format="verbose_json",
                         )
 
             transcript = retry_with_metrics(
@@ -391,8 +391,18 @@ class OpenAIProvider:
                 retryable_exceptions=_safe_openai_retryable(),
             )
 
-            # transcript is a string when response_format="text"
-            text = str(transcript) if not isinstance(transcript, str) else transcript
+            # verbose_json returns a Transcription object with `.text` (and `.duration`,
+            # `.segments`, etc.). We return just the text here; cost tracking in
+            # transcribe_with_segments uses the full response.
+            if hasattr(transcript, "text"):
+                text_attr = getattr(transcript, "text", None)
+                text = text_attr if isinstance(text_attr, str) else ""
+            elif isinstance(transcript, dict):
+                text = str(transcript.get("text", ""))
+            elif isinstance(transcript, str):
+                text = transcript
+            else:
+                text = str(transcript)
 
             logger.debug(
                 "OpenAI transcription completed: %d characters",
@@ -512,10 +522,17 @@ class OpenAIProvider:
                 if isinstance(duration_val, (int, float)):
                     audio_minutes = float(duration_val) / 60.0
             else:
-                # Estimate from file size (rough: 1MB ≈ 1 minute for typical MP3)
+                # Fallback only fires when neither episode_duration_seconds nor
+                # response.duration is available (rare with verbose_json). Scale
+                # by the configured bitrate: at 128 kbps ≈ 1 MB/min, but low-bitrate
+                # preprocessing (speech_optimal_v1 uses 32 kbps → ~0.25 MB/min) would
+                # under-report ~4× if we assumed 128. Default to 128 when unset
+                # (matches pre-preprocessing podcast MP3s).
                 try:
                     file_size_mb = os.path.getsize(audio_path) / (1024 * 1024)
-                    audio_minutes = file_size_mb  # Rough estimate
+                    bitrate_kbps_cfg = getattr(self.cfg, "preprocessing_mp3_bitrate_kbps", None)
+                    bitrate_kbps = float(bitrate_kbps_cfg) if bitrate_kbps_cfg else 128.0
+                    audio_minutes = file_size_mb * (128.0 / bitrate_kbps)
                 except OSError:
                     pass
 
