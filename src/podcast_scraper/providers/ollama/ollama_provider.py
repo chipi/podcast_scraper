@@ -866,7 +866,21 @@ class OllamaProvider:
             if pipeline_metrics is not None and hasattr(response, "usage"):
                 input_tokens = response.usage.prompt_tokens if response.usage else 0
                 output_tokens = response.usage.completion_tokens if response.usage else 0
-                pipeline_metrics.record_llm_speaker_detection_call(input_tokens, output_tokens)
+                sd_cost: Optional[float] = None
+                if input_tokens > 0 or output_tokens > 0:
+                    from ...workflow.helpers import calculate_provider_cost
+
+                    sd_cost = calculate_provider_cost(
+                        cfg=self.cfg,
+                        provider_type="ollama",
+                        capability="speaker_detection",
+                        model=self.speaker_model,
+                        prompt_tokens=int(input_tokens),
+                        completion_tokens=int(output_tokens),
+                    )
+                pipeline_metrics.record_llm_speaker_detection_call(
+                    input_tokens, output_tokens, cost_usd=sd_cost
+                )
 
             return speakers, detected_hosts, success, False
 
@@ -1125,15 +1139,9 @@ class OllamaProvider:
                 if input_tokens > 0 or output_tokens > 0:
                     call_metrics.set_tokens(input_tokens, output_tokens)
 
-            # Track LLM call metrics if available (aggregate tracking)
-            if (
-                pipeline_metrics is not None
-                and input_tokens is not None
-                and output_tokens is not None
-            ):
-                pipeline_metrics.record_llm_summarization_call(input_tokens, output_tokens)
-
-            # Calculate cost (Ollama is free, but track for consistency)
+            # Calculate cost first (Ollama is free, but track for consistency)
+            # so the value flows into both call_metrics and pipeline_metrics.
+            cost: Optional[float] = None
             if input_tokens is not None:
                 from ...workflow.helpers import calculate_provider_cost
 
@@ -1146,6 +1154,16 @@ class OllamaProvider:
                     completion_tokens=output_tokens,
                 )
                 call_metrics.set_cost(cost)
+
+            # Track LLM call metrics if available (aggregate tracking)
+            if (
+                pipeline_metrics is not None
+                and input_tokens is not None
+                and output_tokens is not None
+            ):
+                pipeline_metrics.record_llm_summarization_call(
+                    input_tokens, output_tokens, cost_usd=cost
+                )
 
             # Get prompt metadata for tracking
             from ...prompts.store import get_prompt_metadata

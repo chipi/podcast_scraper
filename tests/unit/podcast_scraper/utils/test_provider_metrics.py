@@ -375,7 +375,10 @@ class TestGilEvidenceCallMetrics(unittest.TestCase):
         self.assertEqual(m.prompt_tokens, 10)
         self.assertEqual(m.completion_tokens, 20)
         pipe.record_llm_gi_evidence_call_metrics.assert_called_once()
-        pipe.record_llm_gi_call.assert_called_once_with(10, 20)
+        # cost_usd threads through from call_metrics.estimated_cost
+        # (#650 Finding 17) — None here because test ProviderCallMetrics never
+        # called set_cost.
+        pipe.record_llm_gi_call.assert_called_once_with(10, 20, cost_usd=None)
 
     def test_apply_pipeline_none_no_crash(self):
         m = ProviderCallMetrics()

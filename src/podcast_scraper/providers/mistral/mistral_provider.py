@@ -496,24 +496,29 @@ class MistralProvider:
             except OSError:
                 pass
 
+        # Compute cost first so the same value flows into both call_metrics
+        # (per-episode) and pipeline_metrics (per-stage aggregate).
+        tr_cost: Optional[float] = None
+        if audio_minutes > 0:
+            from ...workflow.helpers import calculate_provider_cost
+
+            tr_cost = calculate_provider_cost(
+                cfg=self.cfg,
+                provider_type="mistral",
+                capability="transcription",
+                model=self.transcription_model,
+                audio_minutes=audio_minutes,
+            )
+            if call_metrics is not None:
+                call_metrics.set_cost(tr_cost)
+
         # Track LLM call metrics if available
         if pipeline_metrics is not None and audio_minutes > 0:
-            pipeline_metrics.record_llm_transcription_call(audio_minutes)
+            pipeline_metrics.record_llm_transcription_call(audio_minutes, cost_usd=tr_cost)
 
         # Finalize call_metrics (Mistral audio transcription may not have tokens,
         # but finalize for consistency)
         if call_metrics is not None:
-            if audio_minutes > 0:
-                from ...workflow.helpers import calculate_provider_cost
-
-                cost = calculate_provider_cost(
-                    cfg=self.cfg,
-                    provider_type="mistral",
-                    capability="transcription",
-                    model=self.transcription_model,
-                    audio_minutes=audio_minutes,
-                )
-                call_metrics.set_cost(cost)
             call_metrics.finalize()
 
         # Mistral Voxtral may not provide segments in the same format as OpenAI
@@ -686,7 +691,21 @@ class MistralProvider:
                     if response.usage and response.usage.completion_tokens
                     else 0
                 )
-                pipeline_metrics.record_llm_speaker_detection_call(input_tokens, output_tokens)
+                sd_cost: Optional[float] = None
+                if input_tokens > 0 or output_tokens > 0:
+                    from ...workflow.helpers import calculate_provider_cost
+
+                    sd_cost = calculate_provider_cost(
+                        cfg=self.cfg,
+                        provider_type="mistral",
+                        capability="speaker_detection",
+                        model=self.speaker_model,
+                        prompt_tokens=input_tokens,
+                        completion_tokens=output_tokens,
+                    )
+                pipeline_metrics.record_llm_speaker_detection_call(
+                    input_tokens, output_tokens, cost_usd=sd_cost
+                )
 
             return speakers, detected_hosts, success, False
 
@@ -926,15 +945,9 @@ class MistralProvider:
                 if input_tokens > 0 or output_tokens > 0:
                     call_metrics.set_tokens(input_tokens, output_tokens)
 
-            # Track LLM call metrics if available (aggregate tracking)
-            if (
-                pipeline_metrics is not None
-                and input_tokens is not None
-                and output_tokens is not None
-            ):
-                pipeline_metrics.record_llm_summarization_call(input_tokens, output_tokens)
-
-            # Calculate cost
+            # Calculate cost first so the value flows into both call_metrics and
+            # pipeline_metrics.record_llm_summarization_call(cost_usd=...).
+            cost: Optional[float] = None
             if input_tokens is not None:
                 from ...workflow.helpers import calculate_provider_cost
 
@@ -947,6 +960,16 @@ class MistralProvider:
                     completion_tokens=output_tokens,
                 )
                 call_metrics.set_cost(cost)
+
+            # Track LLM call metrics if available (aggregate tracking)
+            if (
+                pipeline_metrics is not None
+                and input_tokens is not None
+                and output_tokens is not None
+            ):
+                pipeline_metrics.record_llm_summarization_call(
+                    input_tokens, output_tokens, cost_usd=cost
+                )
 
             # Get prompt metadata for tracking
             from ...prompts.store import get_prompt_metadata

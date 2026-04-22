@@ -365,7 +365,10 @@ def apply_gil_evidence_llm_call_metrics(
         and completion_tokens is not None
         and hasattr(pipeline_metrics, "record_llm_gi_call")
     ):
-        pipeline_metrics.record_llm_gi_call(prompt_tokens, completion_tokens)
+        # If the provider already wrote a cost into call_metrics (via set_cost),
+        # pass it through to the pipeline-level GI aggregate (#650 Finding 17).
+        gi_cost = getattr(call_metrics, "estimated_cost", None)
+        pipeline_metrics.record_llm_gi_call(prompt_tokens, completion_tokens, cost_usd=gi_cost)
 
 
 def merge_gil_evidence_call_metrics_on_failure(
