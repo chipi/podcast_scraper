@@ -26,17 +26,38 @@ from typing import List, Optional, Sequence, Tuple
 # Ad filter (Finding 14-lite)
 # ---------------------------------------------------------------------------
 
+# Patterns are tuned for SPOKEN transcript text (Whisper output) where URLs
+# become phonetic — "bloomberg.com/odd_lots" → "Bloomberg dot com slash Odd
+# Lots". Pre-overnight-#652-stabilization the patterns assumed machine-URL
+# form (``\bvisit\s+[\w.]+/\w+\b``) and caught 0/1200 insights on a 100-ep
+# real corpus. Verified spoken-form patterns hit ad reads in 11/100 eps
+# at the ≥ 2-distinct-patterns threshold.
 _AD_PATTERNS: Tuple[re.Pattern[str], ...] = tuple(
     re.compile(p, re.IGNORECASE)
     for p in (
+        # Sponsor disclosure phrases — high-precision standalone signals.
         r"\bbrought to you by\b",
-        r"\bpromo code\s+\w+",
-        r"\buse code\s+\w+",
-        r"\bsave\s+\d+\s*%",
-        r"\bvisit\s+[\w.]+/\w+",
-        r"\bthis episode is sponsored\b",
-        r"\bgo to\s+[\w.]+/\w+",
         r"\bsponsored by\b",
+        r"\bthis episode is sponsored\b",
+        r"\bthis (?:show|podcast) is (?:brought|sponsored)\b",
+        r"\bour sponsors?\b",
+        r"\btoday'?s sponsor\b",
+        r"\bthanks (?:to )?our sponsors?\b",
+        r"\bsupport the (?:show|podcast)\b",
+        # Spoken-URL signatures (Whisper output).
+        r"\b\w+\s+dot\s+com\b",  # "ramp dot com"
+        r"\bdot\s+com\s+slash\b",  # "dot com slash promo"
+        r"\bslash\s+(?:promo|code|deal|free|trial|save|offer|pod)\b",
+        r"\bgo to\s+\w+\s+dot\s+com\b",
+        r"\bvisit\s+\w+\s+dot\s+com\b",
+        r"\bhead (?:over )?to\s+\w+\s+dot\s+com\b",
+        # Promo / CTA phrases — common in ad reads.
+        r"\b(?:promo|use)\s+code\s+\w+",
+        r"\bsave\s+(?:up to\s+)?\d+\s*(?:percent|%)\b",
+        r"\bget\s+\d+\s*(?:percent|%)\s*off\b",
+        r"\bfree (?:trial|month|shipping|delivery)\b",
+        r"\bfor a limited time\b",
+        r"\bsign up\s+(?:today|now)\b",
     )
 )
 
@@ -71,6 +92,11 @@ def insight_looks_like_ad(insight_text: str, source_text: Optional[str] = None) 
 # ---------------------------------------------------------------------------
 
 _FILLER_PREFIXES: Tuple[str, ...] = (
+    # Post-#652 audit: dropped "so", "and", "but" — they're natural sentence
+    # connectors used by genuine substantive insights ("So stable coins like
+    # USDC ..." was a real technical claim, not filler). The remaining prefixes
+    # are pure conversational filler (yeah/uh/well/etc.) with low collision
+    # risk on real insight starts.
     "yeah",
     "yep",
     "nope",
@@ -79,9 +105,6 @@ _FILLER_PREFIXES: Tuple[str, ...] = (
     "well",
     "i mean",
     "you know",
-    "so",
-    "and",
-    "but",
     "um",
     "uh",
     "right",
@@ -92,7 +115,13 @@ _FIRST_PERSON_PRONOUNS: frozenset[str] = frozenset(
     {"i", "me", "my", "mine", "myself", "we", "us", "our", "ours", "ourselves"}
 )
 
-_PRONOUN_DENSITY_THRESHOLD = 0.15
+# Bumped from 0.15 → 0.25 after #652 audit. The lower threshold dropped
+# substantive first-person CEO/expert claims like "We made our first
+# investment before the AI trade started" (3/12 = 0.25 pronoun density —
+# right at the old threshold but legitimate analysis content). The higher
+# threshold still catches dialogue-heavy insights without false-positiving
+# on opinion/analysis bullets.
+_PRONOUN_DENSITY_THRESHOLD = 0.25
 _QUOTE_COVERAGE_THRESHOLD = 0.60
 
 

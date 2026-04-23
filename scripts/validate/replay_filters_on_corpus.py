@@ -139,16 +139,18 @@ def _apply_one(
         return None
     kg_path = _kg_path_for_gi(gi_path)
     kg = _load_json(kg_path) if kg_path else {}
-    transcript = _transcript_for_gi(gi_path) or ""
 
     # Insights + ad/dialogue filters.
     insights = _insights_from_gi(gi)
-    # All insights share the episode's transcript as potential ad-window; a
-    # per-insight window would need more structure (quote char offsets).
-    transcript_window = {i: transcript for i in range(len(insights))}
-    _kept, ads_dropped, dialogue_dropped = apply_insight_filters(
-        insights, transcript_window_by_index=transcript_window
-    )
+    # NB: production wiring (gi/pipeline.py) calls apply_insight_filters
+    # WITHOUT transcript_window_by_index, so the ad filter scans only the
+    # insight text itself. We mirror that here. An earlier version of this
+    # harness passed the FULL transcript per insight, but that produced
+    # episode-level over-filtering: any episode containing ad content
+    # anywhere in its transcript would lose ALL its insights, which is
+    # incorrect. The right narrow-window design needs quote char offsets,
+    # which we don't have at the gi.json layer.
+    _kept, ads_dropped, dialogue_dropped = apply_insight_filters(insights)
 
     # Topics + normalizer.
     topics = _topics_from_kg(kg or {})

@@ -45,36 +45,54 @@ _TOPIC_STOPWORDS: frozenset[str] = frozenset(
     }
 )
 
-_TOPIC_MAX_TOKENS = 4
+# Bumped from 4 → 6 after #652 stabilization. Real-corpus audit showed many
+# genuine multi-word topics like "AI ethics and public perception" or "global
+# oil supply chain" that get mangled at 4 tokens.
+_TOPIC_MAX_TOKENS = 6
 
-_PUNCTUATION_RE = re.compile(r"[^\w\s-]")
+# Strip punctuation EXCEPT '&' and '-' (preserves "P&I", "AT&T", "ai-agents").
+# Apostrophes are handled separately so "China's" → "chinas" not "china s".
+_PUNCTUATION_RE = re.compile(r"[^\w\s\-&]")
+_APOSTROPHE_RE = re.compile(r"'")
 _MULTI_WHITESPACE_RE = re.compile(r"\s+")
 
 
 def _normalize_topic_label(label: str) -> Optional[str]:
-    """Return a lower-cased, stopword-stripped, ≤4-token topic label, or None.
+    """Return a lower-cased, stopword-stripped, ≤6-token topic label, or None.
 
-    Deterministic — same input always produces the same output. Preserves
-    internal hyphens (``ai-agents`` stays as one token) but strips punctuation.
+    Design (post-#652-stabilization audit on ``my-manual-run4`` 100-ep corpus):
+
+    * Lowercase + collapse whitespace (always).
+    * Strip apostrophes WITHOUT inserting a space ("China's" → "chinas").
+    * Strip punctuation EXCEPT ``&`` and ``-`` so "P&I", "AT&T", "ai-agents"
+      survive.
+    * Cap at ≤6 tokens (was 4 — too aggressive; lost meaning on multi-word
+      topics like "AI ethics and public perception").
+    * Strip leading + trailing stopwords ONLY. Medial stopwords are KEPT
+      because removing them destroyed meaning ("International Group of P&I
+      Clubs" → "international group p" was a regression).
+    * Dedupe via normalized-form equality at the caller.
     """
     if not label:
         return None
-    text = _PUNCTUATION_RE.sub(" ", label).lower().strip()
-    text = _MULTI_WHITESPACE_RE.sub(" ", text)
+    text = label.lower()
+    text = _APOSTROPHE_RE.sub("", text)  # "china's" → "chinas" (no orphan)
+    text = _PUNCTUATION_RE.sub(" ", text)
+    text = _MULTI_WHITESPACE_RE.sub(" ", text).strip()
     if not text:
         return None
     tokens = text.split(" ")
     # Drop leading stopwords.
     while tokens and tokens[0] in _TOPIC_STOPWORDS:
         tokens = tokens[1:]
-    # Drop trailing stopwords too — "markets of the" → "markets".
+    # Drop trailing stopwords ("markets of the" → "markets of" → "markets").
     while tokens and tokens[-1] in _TOPIC_STOPWORDS:
         tokens = tokens[:-1]
-    # Trim to max tokens.
+    # Cap at max tokens AFTER stopword trimming.
     tokens = tokens[:_TOPIC_MAX_TOKENS]
-    # Drop medial stopwords between content words (e.g. "markets in flux"
-    # becomes "markets flux"); safe because we already capped at 4 tokens.
-    tokens = [t for t in tokens if t not in _TOPIC_STOPWORDS]
+    # NOTE: medial stopwords are intentionally preserved. The previous
+    # implementation stripped them too, which destroyed meaning for topics
+    # like "personal journeys of dissent" → "personal journeys dissent".
     if not tokens:
         return None
     return " ".join(tokens)

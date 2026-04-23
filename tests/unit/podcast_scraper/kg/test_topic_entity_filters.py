@@ -19,15 +19,36 @@ class TestNormalizeTopicLabels:
         assert out == ["prediction markets"]
         assert changes == 1
 
-    def test_trims_to_four_tokens(self):
-        out, _ = normalize_topic_labels(["one two three four five six"])
-        # After capping at 4 tokens: "one two three four". None are stopwords.
-        assert out == ["one two three four"]
+    def test_trims_to_six_tokens(self):
+        """#652 stabilization: token cap bumped from 4 → 6 after real-corpus
+        audit. Many genuine multi-word topics ("AI ethics and public
+        perception", "global oil supply chain") were being mangled at 4."""
+        out, _ = normalize_topic_labels(["one two three four five six seven eight"])
+        # After capping at 6 tokens: "one two three four five six".
+        assert out == ["one two three four five six"]
 
-    def test_drops_medial_stopwords(self):
+    def test_preserves_medial_stopwords(self):
+        """#652 stabilization: medial stopword stripping was destructive —
+        'International Group of P&I Clubs' → 'international group p' (lost
+        the meaningful "P&I Clubs" phrase). Keep medial stopwords; only
+        strip leading + trailing."""
         out, _ = normalize_topic_labels(["Markets in Flux"])
-        # "in" is a stopword, dropped as medial.
-        assert out == ["markets flux"]
+        assert out == ["markets in flux"]
+
+    def test_preserves_ampersand(self):
+        """#652 stabilization: '&' must survive normalization ('P&I', 'AT&T',
+        'B&B')."""
+        out, _ = normalize_topic_labels(["International Group of P&I Clubs"])
+        # Leading/trailing stopwords stripped; medial kept; & preserved;
+        # capped at 6 tokens.
+        assert out == ["international group of p&i clubs"]
+
+    def test_apostrophe_stripped_without_orphan_char(self):
+        """#652 stabilization: "China's economy" previously became
+        'china s economy' (orphan 's'). Now apostrophes are stripped in-place
+        → 'chinas economy'."""
+        out, _ = normalize_topic_labels(["China's economy"])
+        assert out == ["chinas economy"]
 
     def test_dedupes_near_matches(self):
         out, changes = normalize_topic_labels(["AI agents", "ai agents", "AI Agents"])

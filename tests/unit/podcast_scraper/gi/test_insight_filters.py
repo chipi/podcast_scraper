@@ -45,9 +45,26 @@ class TestDialogueFilter:
         assert insight_looks_like_dialogue("I mean, we should consider…") is True
 
     def test_first_person_density_triggers_drop(self):
-        # 4 pronouns out of 10 tokens = 0.4 density → above 0.15 threshold.
+        """Density threshold is 0.25 post-#652 audit (was 0.15 — too aggressive).
+
+        The text below has 4 first-person pronouns (I, we, our, I) in 10
+        tokens = 0.4 density, well above the 0.25 threshold.
+        """
         text = "I think we should probably tell our audience what I did."
         assert insight_looks_like_dialogue(text) is True
+
+    def test_substantive_first_person_below_threshold_passes(self):
+        """#652 stabilization: genuine first-person analysis / CEO claims must
+        NOT be dropped. Pronoun density 0.15-0.24 range passes under the new
+        0.25 threshold.
+
+        "We made our first investment before the AI trade started" — 2
+        pronouns (we, our) in 10 tokens = 0.2 density. Below 0.25.
+        """
+        assert (
+            insight_looks_like_dialogue("We made our first investment before the AI trade started.")
+            is False
+        )
 
     def test_quote_coverage_triggers_drop(self):
         insight = "It's a deal to our let's do it"  # 31 chars
