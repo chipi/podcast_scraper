@@ -1,0 +1,344 @@
+{
+  "bridge_distribution": {
+    "both": 600,
+    "episodes_scanned": 100,
+    "gi_only": 0,
+    "kg_only": 1929,
+    "pct_both": 23.72,
+    "pct_gi_only": 0.0,
+    "pct_kg_only": 76.28,
+    "status": "ok",
+    "total_identities": 2529
+  },
+  "corpus_root": "/Users/markodragoljevic/Projects/podcast_scraper-autoresearch/.test_outputs/_653_backfill_test",
+  "cost_rollup": {
+    "status": "missing-cost-rollup"
+  },
+  "filter_impact": {
+    "ads_dropped": 0,
+    "ads_dropped_pct": 0.0,
+    "dialogue_dropped": 0,
+    "dialogue_dropped_pct": 0.0,
+    "entities_kind_repaired": 12,
+    "entities_kind_repaired_pct": 0.78,
+    "entities_total": 1529,
+    "entity_kind_histogram": {
+      "org": 658,
+      "person": 871
+    },
+    "insights_total": 1200,
+    "kg_topic_length_histogram": {
+      "1": 22,
+      "2": 378,
+      "3": 440,
+      "4": 133,
+      "5": 24,
+      "6": 3
+    },
+    "status": "ok",
+    "topics_normalized": 434,
+    "topics_normalized_pct": 43.4,
+    "topics_total": 1000
+  },
+  "gil_quality_metrics": {
+    "artifact_paths": 100,
+    "artifacts_with_insight_and_quote": 100,
+    "avg_insights_per_artifact": 12.0,
+    "avg_quotes_per_artifact": 16.17,
+    "errors": [],
+    "extraction_coverage": 1.0,
+    "grounded_insight_rate": 0.9142,
+    "grounded_insights": 1097,
+    "quote_validity_rate": 1.0,
+    "status": "ok",
+    "total_insights": 1200,
+    "total_quotes": 1617,
+    "valid_quotes": 1617
+  },
+  "git_sha": "ad0fcca93b95",
+  "insight_clusters": {
+    "cluster_count": 51,
+    "status": "ok",
+    "top10": [
+      {
+        "cluster_id": "ic:ramp-automates-85-of-expense-reviews-with-99-accuracy-using-ai",
+        "label": null,
+        "member_count": 0,
+        "sample_insights": []
+      },
+      {
+        "cluster_id": "ic:workos-provides-core-enterprise-capabilities-like-sso-scim-rbac-and-audit-log",
+        "label": null,
+        "member_count": 0,
+        "sample_insights": []
+      },
+      {
+        "cluster_id": "ic:rogo-ais-platform-was-designed-to-support-how-wall-street-bankers-and-investors",
+        "label": null,
+        "member_count": 0,
+        "sample_insights": []
+      },
+      {
+        "cluster_id": "ic:the-single-most-underestimated-force-in-international-relations-is-actually-stup",
+        "label": null,
+        "member_count": 0,
+        "sample_insights": []
+      },
+      {
+        "cluster_id": "ic:ramp-understands-that-no-one-wants-to-spend-hours-chasing-receipts-reviewing-ex",
+        "label": null,
+        "member_count": 0,
+        "sample_insights": []
+      },
+      {
+        "cluster_id": "ic:openai-cursor-anthropic-perplexity-and-vercel-all-use-workos",
+        "label": null,
+        "member_count": 0,
+        "sample_insights": []
+      },
+      {
+        "cluster_id": "ic:shopify-runs-on-ramp-stripe-runs-on-ramp-and-my-business-does-too",
+        "label": null,
+        "member_count": 0,
+        "sample_insights": []
+      },
+      {
+        "cluster_id": "ic:rogo-ai-connects-directly-to-your-system-to-work-with-your-actual-data",
+        "label": null,
+        "member_count": 0,
+        "sample_insights": []
+      },
+      {
+        "cluster_id": "ic:political-party-becomes-the-prism-through-which-we-see-every-other-aspect-of-our",
+        "label": null,
+        "member_count": 0,
+        "sample_insights": []
+      },
+      {
+        "cluster_id": "ic:i-work-at-the-new-york-times-which-is-suing-openai-and-microsoft-and-perplexity",
+        "label": null,
+        "member_count": 0,
+        "sample_insights": []
+      }
+    ]
+  },
+  "kg_quality_metrics": {
+    "artifact_paths": 100,
+    "artifacts_with_extraction": 100,
+    "avg_edges_per_artifact": 25.29,
+    "avg_nodes_per_artifact": 26.29,
+    "errors": [],
+    "extraction_coverage": 1.0,
+    "status": "ok",
+    "total_edges": 2529,
+    "total_nodes": 2629
+  },
+  "schema_version": "1.0.0",
+  "snapshot_date": "2026-04-23",
+  "topic_clusters": {
+    "cluster_count": 100,
+    "singletons": 691,
+    "status": "ok",
+    "threshold": 0.75,
+    "top20": [
+      {
+        "aliases": [
+          "AI agents",
+          "AI agents in real world",
+          "Agentic AI tools",
+          "autonomous agents",
+          "human-like AI agents",
+          "persistent AI agents"
+        ],
+        "canonical_label": "AI agents",
+        "member_count": 6
+      },
+      {
+        "aliases": [
+          "AI agents for coding",
+          "AI code agents",
+          "AI code generation",
+          "AI coding tools",
+          "AI-driven coding"
+        ],
+        "canonical_label": "AI agents for coding",
+        "member_count": 5
+      },
+      {
+        "aliases": [
+          "Crude oil prices",
+          "oil market dynamics",
+          "oil price dynamics",
+          "oil price fluctuations",
+          "oil prices"
+        ],
+        "canonical_label": "oil price dynamics",
+        "member_count": 5
+      },
+      {
+        "aliases": [
+          "Geopolitical conflict",
+          "geopolitical events",
+          "geopolitical instability",
+          "geopolitical risks",
+          "geopolitical tensions"
+        ],
+        "canonical_label": "Geopolitical conflict",
+        "member_count": 5
+      },
+      {
+        "aliases": [
+          "Iran conflict",
+          "Iran conflict impact",
+          "Iran-US relations",
+          "US-Iran conflict",
+          "US-Iran relations"
+        ],
+        "canonical_label": "US-Iran conflict",
+        "member_count": 5
+      },
+      {
+        "aliases": [
+          "Strait of Hormuz",
+          "Strait of Hormuz blockade",
+          "Strait of Hormuz control",
+          "Strait of Hormuz disruptions",
+          "Strait of Hormuz security"
+        ],
+        "canonical_label": "Strait of Hormuz control",
+        "member_count": 5
+      },
+      {
+        "aliases": [
+          "AI safety",
+          "AI safety and regulation",
+          "AI safety concerns",
+          "AI-driven safety systems"
+        ],
+        "canonical_label": "AI safety",
+        "member_count": 4
+      },
+      {
+        "aliases": [
+          "AI factories",
+          "AI in manufacturing",
+          "AI industry",
+          "AI industry competition"
+        ],
+        "canonical_label": "AI industry",
+        "member_count": 4
+      },
+      {
+        "aliases": [
+          "Energy trade",
+          "energy market economics",
+          "energy trading",
+          "power and energy markets"
+        ],
+        "canonical_label": "energy trading",
+        "member_count": 4
+      },
+      {
+        "aliases": [
+          "Middle East conflict",
+          "Middle East conflict impact",
+          "Middle East tensions",
+          "Middle East war"
+        ],
+        "canonical_label": "Middle East conflict",
+        "member_count": 4
+      },
+      {
+        "aliases": [
+          "Agent-based development",
+          "Custom agent development",
+          "custom agents"
+        ],
+        "canonical_label": "Custom agent development",
+        "member_count": 3
+      },
+      {
+        "aliases": [
+          "AI adoption in business",
+          "AI model adoption",
+          "AI technology adoption"
+        ],
+        "canonical_label": "AI model adoption",
+        "member_count": 3
+      },
+      {
+        "aliases": [
+          "AI and productivity",
+          "AI integration in productivity software",
+          "AI productivity tools"
+        ],
+        "canonical_label": "AI productivity tools",
+        "member_count": 3
+      },
+      {
+        "aliases": [
+          "AI capabilities",
+          "AI model capabilities",
+          "AI reasoning capabilities"
+        ],
+        "canonical_label": "AI capabilities",
+        "member_count": 3
+      },
+      {
+        "aliases": [
+          "AI development culture",
+          "AI development environments",
+          "AI development stages"
+        ],
+        "canonical_label": "AI development environments",
+        "member_count": 3
+      },
+      {
+        "aliases": [
+          "AI for product design",
+          "AI product development",
+          "AI-driven product development"
+        ],
+        "canonical_label": "AI product development",
+        "member_count": 3
+      },
+      {
+        "aliases": [
+          "AI economic impact",
+          "AI revenue growth",
+          "Economics of AI"
+        ],
+        "canonical_label": "AI economic impact",
+        "member_count": 3
+      },
+      {
+        "aliases": [
+          "AI ethics",
+          "AI ethics and liability",
+          "AI ethics and public perception"
+        ],
+        "canonical_label": "AI ethics",
+        "member_count": 3
+      },
+      {
+        "aliases": [
+          "AI impact on jobs",
+          "AI impact on labor market",
+          "impact of AI on work"
+        ],
+        "canonical_label": "AI impact on jobs",
+        "member_count": 3
+      },
+      {
+        "aliases": [
+          "AI model inference",
+          "AI models",
+          "efficient AI models"
+        ],
+        "canonical_label": "AI models",
+        "member_count": 3
+      }
+    ],
+    "topic_count": 936
+  }
+}
