@@ -107,6 +107,29 @@ Fix design:
 - Drop "so" from filler prefixes (too common as logical connector).
 - Drop "and"/"but" from filler prefixes (also natural connectors).
 
+**Q: Did we test that #652 actually drops commercial insights?**
+
+Yes — with a 10-case battery drawn from real ad reads in the
+`my-manual-run4` corpus plus 4 negative controls:
+
+Drops (all True, correctly):
+- `"Go to Bloomberg dot com slash odd Lots for the daily newsletter."` (real Bloomberg cross-promo)
+- `"This show is brought to you by Ramp, go to ramp dot com slash podcast."` (real sponsor disclosure + spoken URL)
+- `"Use promo code ACME20 for 20% off your first order."` (promo code + % off)
+- `"Visit indeed dot com slash hire for a limited time free trial."` (visit X dot com + dot com slash + free trial + limited time)
+- `"This episode is sponsored by our sponsors at Workos."` (sponsored by + our sponsors)
+
+Keeps (all False, correctly — negative controls):
+- `"Go to refinery to understand how crude oil gets processed."` (only 1 pattern — "go to refinery", no dot com)
+- `"Taxes dropped by 15% off the 2020 peak."` (only "% off"; no second marker)
+- `"Visit the research paper for more detail."` (only "visit"; no dot com)
+- `"AI regulation is accelerating"` (no markers at all)
+
+5 new cases committed into `test_insight_filters.py` as permanent
+regression guard. Added one pattern (`\b\d+\s*(?:percent|%)\s*off\b`)
+to cover "20% off" standalone since the original patterns required
+"save" or "get" as prefix.
+
 **Ad filter (production wiring) — defensive only, accept:**
 Even with vastly improved spoken-form patterns, scanning insight TEXT
 only (matching production wiring) yields 0/1200 hits on the corpus.
@@ -164,6 +187,21 @@ quality wins:
 ## Blockers
 
 (anything that requires user input in the morning)
+
+## Future-work idea captured overnight (from the user)
+
+Autoresearch + evolution as new episodes come in — think of it as
+"post-data scrubbing" driven by autoresearch + agentic coding. Pattern:
+when new episode data lands, an agent runs the same kind of audit loop
+we did tonight (replay against representative baselines, spot-check
+quality, detect drift, open follow-up issues automatically). Not yet
+scoped as an issue — needs discussion. For reference:
+- Tonight's tonight's audit pattern is codified in the notes below; the
+  replay harness + quality-audit Python snippets should be reusable as
+  the agent's "baseline detector".
+- Autoresearch already has a scoring harness (Track A / RFC-057). Fusing
+  it with the filter-replay + spot-check rhythm would turn each new
+  ingest into a self-evaluating update, not a blind re-run.
 
 ---
 

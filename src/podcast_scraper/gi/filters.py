@@ -55,6 +55,7 @@ _AD_PATTERNS: Tuple[re.Pattern[str], ...] = tuple(
         r"\b(?:promo|use)\s+code\s+\w+",
         r"\bsave\s+(?:up to\s+)?\d+\s*(?:percent|%)\b",
         r"\bget\s+\d+\s*(?:percent|%)\s*off\b",
+        r"\b\d+\s*(?:percent|%)\s*off\b",  # bare "20% off" (discount offer)
         r"\bfree (?:trial|month|shipping|delivery)\b",
         r"\bfor a limited time\b",
         r"\bsign up\s+(?:today|now)\b",

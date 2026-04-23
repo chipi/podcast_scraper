@@ -33,6 +33,49 @@ class TestAdFilter:
     def test_clean_insight_passes(self):
         assert insight_looks_like_ad("AI regulation is accelerating") is False
 
+    def test_real_spoken_form_ads_trigger_drop(self):
+        """#652 stabilization: patterns must catch spoken-form ad reads.
+
+        Pre-stabilization the regex assumed literal URLs (``.com/path``)
+        which NEVER appear in Whisper transcripts. All 8 original patterns
+        caught 0/1200 insights on the 100-ep real corpus. These cases are
+        drawn from real ad reads in that corpus.
+        """
+        # Bloomberg cross-promo (real): "Bloomberg dot com slash odd Lots"
+        assert (
+            insight_looks_like_ad(
+                "Go to Bloomberg dot com slash odd Lots for the daily newsletter."
+            )
+            is True
+        )
+        # Classic sponsor disclosure + spoken URL:
+        assert (
+            insight_looks_like_ad(
+                "This show is brought to you by Ramp, go to ramp dot com slash podcast."
+            )
+            is True
+        )
+        # Multi-signal ad bullet (LLM hallucination scenario):
+        assert insight_looks_like_ad("Use promo code ACME20 for 20% off your first order.") is True
+        # Canonical "visit X dot com + free trial + limited time":
+        assert (
+            insight_looks_like_ad("Visit indeed dot com slash hire for a limited time free trial.")
+            is True
+        )
+        # "Sponsored by" + "our sponsors" (two disclosures in one sentence):
+        assert insight_looks_like_ad("This episode is sponsored by our sponsors at Workos.") is True
+
+    def test_substantive_content_with_weak_markers_passes(self):
+        """Real negatives — substance that MENTIONS one ad-adjacent phrase
+        but isn't actually an ad. The ≥ 2 distinct-pattern threshold keeps
+        false positives low."""
+        assert (
+            insight_looks_like_ad("Go to refinery to understand how crude oil gets processed.")
+            is False
+        )
+        assert insight_looks_like_ad("Taxes dropped by 15% off the 2020 peak.") is False
+        assert insight_looks_like_ad("Visit the research paper for more detail.") is False
+
 
 class TestDialogueFilter:
     def test_filler_prefix_triggers_drop(self):
