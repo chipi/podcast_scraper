@@ -1,5 +1,5 @@
 # BART+LED autoresearch winner — promoted from baseline_ml_dev_authority
-# RFC-057 Track B: greedy param sweep, 2 rounds, 11 experiments total.
+# Autoresearch Track B: greedy param sweep, 2 rounds, 11 experiments total.
 #
 # Round 1 wins:
 #   max_new_tokens: 650 → 550  (+2.89% ROUGE-L)  avg_tokens: 217 → 267

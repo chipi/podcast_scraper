@@ -16,7 +16,7 @@ from tools.run_compare.data import (
     JoinedRelease,
     load_profile,
     longest_common_prefix,
-    profile_has_rfc065_trace,
+    profile_has_monitor_trace,
     profile_stage_delta_rows,
     profile_trend_long_rows,
     ProfileEntry,
@@ -62,7 +62,7 @@ totals:
     assert p.totals["wall_time_s"] == 20
     assert p.monitor_log_path is None
     assert p.rfc065_monitor is None
-    assert not profile_has_rfc065_trace(p)
+    assert not profile_has_monitor_trace(p)
 
 
 def test_load_profile_picks_up_monitor_log_and_stage_truth(tmp_path: Path) -> None:
@@ -97,7 +97,7 @@ totals: {wall_time_s: 1, peak_rss_mb: 1}
     assert p.monitor_trace_bytes == 100
     assert p.rfc065_monitor is not None
     assert p.rfc065_monitor["archived_log"] == "data/profiles/v2-mon.monitor.log"
-    assert profile_has_rfc065_trace(p)
+    assert profile_has_monitor_trace(p)
 
 
 def test_discover_profiles_skips_bad_file(tmp_path: Path) -> None:

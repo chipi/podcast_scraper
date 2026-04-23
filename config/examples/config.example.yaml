@@ -11,7 +11,7 @@ rss: https://example.com/feed.xml
 # placeholder feeds — same option set as manual_multi_feed_corpus_rss_registry_openai_gemini.yaml),
 # config.example.multi-feed.ollama.yaml / .json (Whisper + Ollama qwen3.5:9b, bundled pipeline),
 # and config.example.multi-feed.ml-dev.yaml / .json plus ml-prod (Whisper + spaCy + transformers;
-# RFC-044 modes ml_small_authority vs ml_bart_led_autoresearch_v1; placeholder feeds).
+# model-registry modes ml_small_authority vs ml_bart_led_autoresearch_v1; placeholder feeds).
 output_dir: output  # Can also be set via OUTPUT_DIR env var
 max_episodes: 3
 append: true
@@ -49,7 +49,7 @@ run_id: experiment
 workers: 4  # Number of parallel download workers. Can also be set via WORKERS env var
 log_level: INFO  # Can also be set via LOG_LEVEL env var (DEBUG, INFO, WARNING, ERROR)
 
-# Live pipeline monitor (RFC-065): live RSS/CPU/stage child + .pipeline_status.json; use --log-file
+# Live pipeline monitor: live RSS/CPU/stage child + .pipeline_status.json; use --log-file
 # for cleaner stderr. Non-TTY stderr → .monitor.log under output_dir (see LIVE_PIPELINE_MONITOR.md).
 # monitor: false
 # Optional heap/CPU profiling — pip install -e ".[monitor]"
@@ -93,9 +93,9 @@ metadata_format: json  # json or yaml (json recommended for database ingestion)
 # nli_model: cross-encoder/nli-deberta-v3-base  # Or alias: nli-deberta-base
 # nli_device: null
 
-# Semantic corpus search (RFC-061 / PRD-021): FAISS index over GIL, summaries, transcripts
+# Semantic corpus search (PRD-021): FAISS index over GIL, summaries, transcripts
 # vector_search: false  # Default off. When true, pipeline runs embed-and-index after finalize
-# vector_backend: faiss  # Only value accepted today; qdrant reserved for RFC-070 (re-added to Literal when wired)
+# vector_backend: faiss  # Only value accepted today; qdrant reserved for a future vector backend (re-added to Literal when wired)
 # vector_index_path: null  # Optional; relative → under output_dir. Default: search/ → <output_dir>/search/
 # vector_embedding_model: minilm-l6  # Registry alias or full sentence-transformers id (see ModelRegistry)
 # vector_index_types: null  # Optional list: insight, quote, summary, transcript, kg_topic, kg_entity (default: all)
@@ -106,9 +106,9 @@ metadata_format: json  # json or yaml (json recommended for database ingestion)
 #   is on (multi-feed runs set this per-feed and build one parent index after the batch — GitHub #505).
 # After a run: `python -m podcast_scraper.cli index --output-dir <out>` to rebuild; `... search ...`
 # for queries. With an index, `gi explore --topic` uses vectors first. Guide: docs/guides/SEMANTIC_SEARCH_GUIDE.md
-# Optional RFC-075 corpus topic clusters (not part of the main pipeline): after `vector_search` produced
+# Optional corpus topic clusters (not part of the main pipeline): after `vector_search` produced
 # `search/vectors.faiss`, run `python -m podcast_scraper.cli topic-clusters --output-dir <corpus_parent>`
-# to write `search/topic_clusters.json` for the viewer overlay. See docs/rfc/RFC-075-corpus-topic-clustering.md
+# to write `search/topic_clusters.json` for the viewer overlay. See docs/guides/SEMANTIC_SEARCH_GUIDE.md
 # Multi-feed corpus parent: point `index` / `search` / `gi explore` / `serve` at the same parent that
 # contains `feeds/`; discovery is recursive under each feed tree (GitHub #505).
 
@@ -207,7 +207,7 @@ metadata_format: json  # json or yaml (json recommended for database ingestion)
 # ML-specific settings (used with local transformers/whisper/spaCy providers)
 # Defaults: Pegasus-CNN (map) + LED-base (reduce) - production baseline (baseline_ml_prod_authority_v1)
 # whisper_device: auto  # Options: cpu, cuda, mps, auto. Can also be set via WHISPER_DEVICE env var
-# summary_mode_id: ml_prod_authority_v1  # Optional (RFC-044). Uses promoted baseline defaults from registry.
+# summary_mode_id: ml_prod_authority_v1  # Optional. Uses promoted baseline defaults from registry.
 # summary_model: pegasus-cnn  # Options: "pegasus-cnn" (default/prod), "bart-small" (dev), "bart-large", "fast", "pegasus", "long", "long-fast", "longt5-base", "longt5-large", or direct model ID like "google/pegasus-cnn_dailymail"
 # summary_reduce_model: long-fast  # REDUCE model for map-reduce summarization. Options: "long-fast" (default), "long", or direct model ID like "allenai/led-base-16384"
 # ner_model: en_core_web_trf  # spaCy NER model for speaker detection. Options: "en_core_web_trf" (default/prod, higher quality), "en_core_web_sm" (dev, fast). Defaults based on environment
@@ -219,7 +219,7 @@ metadata_format: json  # json or yaml (json recommended for database ingestion)
 # summary_cache_dir: ~/.cache/huggingface/hub  # Custom cache directory for transformer models. Can also be set via SUMMARY_CACHE_DIR or CACHE_DIR env var
 # summary_prompt: null  # Optional: custom prompt/instruction to guide summarization
 
-# Hybrid MAP-REDUCE summarization (RFC-042)
+# Hybrid MAP-REDUCE summarization
 # summary_provider: hybrid_ml
 # hybrid_map_model: longt5-base  # MAP model alias/ID (recommended default)
 # hybrid_reduce_model: google/flan-t5-base  # REDUCE model (Tier 1 default)
@@ -258,7 +258,7 @@ metadata_format: json  # json or yaml (json recommended for database ingestion)
 # summary_batch_size: 1  # Episode-level parallelism: Number of episodes to summarize in parallel. Can also be set via SUMMARY_BATCH_SIZE env var
 # summary_chunk_parallelism: 1  # Chunk-level parallelism: Number of chunks to process in parallel within a single episode (CPU-bound, local providers only). Can also be set via SUMMARY_CHUNK_PARALLELISM env var
 
-# Audio preprocessing settings (RFC-040: Optimize audio for API providers with file size limits)
+# Audio preprocessing settings (optimize audio for API providers with file size limits)
 # preprocessing_enabled: false  # Enable audio preprocessing before transcription (default: false)
 #   # Preprocessing optimizes audio for API providers (e.g., OpenAI Whisper 25MB limit)
 #   # Benefits: File size reduction, API compatibility, cost savings, performance

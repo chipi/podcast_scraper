@@ -564,7 +564,7 @@ def _add_common_arguments(parser: argparse.ArgumentParser) -> None:
         metavar="PATH",
         help=(
             "Structured feeds file (YAML or JSON): root object with ``feeds`` array of URL "
-            "strings or objects with ``url`` plus optional per-feed overrides (RFC-077 / #626). "
+            "strings or objects with ``url`` plus optional per-feed overrides (#626). "
             "Mutually exclusive with --rss-file and explicit RSS URL arguments."
         ),
     )
@@ -1328,7 +1328,7 @@ def _add_metadata_arguments(parser: argparse.ArgumentParser) -> None:
         default=None,
         help=(
             "Vector index backend (default: faiss). "
-            "qdrant is reserved for RFC-070 and not yet wired."
+            "qdrant is reserved for a future vector backend and not yet wired."
         ),
     )
     parser.add_argument(

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""RFC-057 Track A: run summarization eval + optional dual LLM judges, emit one scalar.
+"""Autoresearch Track A: run summarization eval + optional dual LLM judges, emit one scalar.
 
 Runs ``scripts/eval/run_experiment.py`` from the repo root (reuse metrics stack).
 ``--dry-run`` skips judge API calls and re-scores an existing run (``--score-only``).

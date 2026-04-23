@@ -1,7 +1,7 @@
 # Silver Reference Candidate — Anthropic Claude Sonnet 4.6, bullet JSON output, smoke dataset.
 #
 # Purpose: Generate the bullets-track silver reference using Claude Sonnet 4.6.
-# Uses the shared bullets_json_v1 prompt (RFC-017 JSON bullet output format).
+# Uses the shared bullets_json_v1 prompt (JSON bullet output format).
 #
 # Run:
 #   make experiment-run CONFIG=data/eval/configs/silver_selection/silver_candidate_anthropic_sonnet46_smoke_bullets_v1.yaml FORCE=1

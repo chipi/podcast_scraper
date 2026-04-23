@@ -1,7 +1,7 @@
 """Cross-episode insight clustering.
 
 Groups semantically similar insights from different episodes using the same
-average-linkage algorithm as topic clustering (RFC-075). Each cluster
+average-linkage algorithm as topic clustering. Each cluster
 aggregates supporting quotes from multiple episodes/speakers.
 
 Usage:

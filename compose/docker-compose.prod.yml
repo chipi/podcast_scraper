@@ -1,4 +1,4 @@
-# RFC-079 Phase 3 — optional prod-style merge (GitHub #659 backlog).
+# Phase 3 — optional prod-style merge (GitHub #659 backlog).
 # Use on top of docker-compose.stack.yml, e.g.:
 #   docker compose -f compose/docker-compose.stack.yml -f compose/docker-compose.prod.yml up -d
 #

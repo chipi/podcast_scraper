@@ -1,4 +1,4 @@
-# Example config for RFC-079 ``compose/docker-compose.stack.yml`` (GitHub #659).
+# Example config for ``compose/docker-compose.stack.yml`` (GitHub #659).
 #
 # Critical: ``output_dir`` must match the shared volume mount inside containers: ``/app/output``.
 # Copy to a writable path and point Compose at it, e.g.:

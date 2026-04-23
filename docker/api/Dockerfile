@@ -1,4 +1,4 @@
-# RFC-079 / GitHub #659: FastAPI viewer API (no bundled SPA — Nginx serves static + proxies /api/*).
+# GitHub #659: FastAPI viewer API (no bundled SPA — Nginx serves static + proxies /api/*).
 #
 # Preflight: ``.[server]`` alone is not enough for ``create_app`` (routers import FAISS / embeddings).
 # This image installs ``.[server]`` plus CPU torch, FAISS, and sentence-transformers (semantic search)

@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test'
 
-test.describe('RFC-078 stack smoke', () => {
+test.describe('Stack smoke test', () => {
   test('Nginx serves SPA shell', async ({ page }) => {
     await page.goto('/')
     await expect(page.locator('body')).toBeVisible()

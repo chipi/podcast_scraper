@@ -1,6 +1,6 @@
 """Promote an eval baseline configuration into the code Model Registry.
 
-Implements RFC-044 promotion mechanism: read a baseline's `config.yaml` (and
+Implements baseline promotion into the model registry: read a baseline's `config.yaml` (and
 optional `metrics.json`) from `data/eval/baselines/`, validate it, then append a
 ModeConfiguration entry into `src/podcast_scraper/providers/ml/model_registry.py`.
 

@@ -1,4 +1,4 @@
-# Hybrid MAP-REDUCE Tier 1 (RFC-042): LongT5 MAP + FLAN-T5 REDUCE via transformers
+# Hybrid MAP-REDUCE Tier 1: LongT5 MAP + FLAN-T5 REDUCE via transformers
 # Inspired by baseline_ml_prod_authority_v1; use for eval and baseline comparison
 
 id: "hybrid_ml_tier1_authority_v1"

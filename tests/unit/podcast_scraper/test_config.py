@@ -258,7 +258,7 @@ class TestSummaryModeProfileDefaults(unittest.TestCase):
 
 
 class TestOpenAICleaningModelDefaults(unittest.TestCase):
-    """OpenAI transcript-cleaning defaults align with config_constants (RFC-044 adjacency)."""
+    """OpenAI cleaning defaults match config_constants (registry adjacency)."""
 
     def test_get_default_openai_cleaning_model_test_environment(self):
         """Test/CI uses TEST_DEFAULT_OPENAI_CLEANING_MODEL."""
@@ -739,7 +739,7 @@ class TestValidationEdgeCases(unittest.TestCase):
         self.assertEqual(cfg.vector_index_types, ["insight", "transcript"])
 
     def test_vector_backend_rejects_qdrant_until_wired(self):
-        """qdrant is reserved for RFC-070 and not yet dispatched; Config must
+        """qdrant is reserved for a future vector backend and not yet dispatched; Config must
         reject it rather than silently accept a value with no live code path
         (#646 profile-completeness rule)."""
         from pydantic import ValidationError

@@ -1,7 +1,7 @@
 # Nightly comprehensive test suite with full metrics collection
 # Runs all tests (unit + integration + e2e, including slow/ml_models)
 # Generates comprehensive metrics, reports, and trend tracking
-# See RFC-025: Test Metrics and Health Tracking (Layer 3)
+# See docs/ci/METRICS.md — test metrics and health tracking (Layer 3)
 #
 # Note: Linter warnings about "Unable to resolve action" for actions/checkout@v6
 # and actions/cache@v5 are false positives - these are standard GitHub Actions

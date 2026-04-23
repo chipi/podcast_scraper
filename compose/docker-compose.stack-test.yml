@@ -1,4 +1,4 @@
-# RFC-078: smoke overlay on compose/docker-compose.stack.yml (#659). Used locally (make smoke-*)
+# Smoke-test overlay on compose/docker-compose.stack.yml (#659). Used locally (make smoke-*)
 # and in CI. Build/run: always pass both -f files from the repository root.
 # Usage:
 #   docker compose -f compose/docker-compose.stack.yml -f compose/docker-compose.smoke.yml build

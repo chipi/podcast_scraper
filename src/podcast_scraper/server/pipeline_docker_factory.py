@@ -1,4 +1,4 @@
-"""Docker Compose pipeline job factory (#660 / RFC-079 Phase 2).
+"""Docker Compose pipeline job factory (#660 Phase 2).
 
 When ``PODCAST_PIPELINE_EXEC_MODE=docker``, ``create_app`` attaches
 ``app.state.jobs_subprocess_factory`` so ``POST /api/jobs`` runs the CLI inside the

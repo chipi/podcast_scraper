@@ -1,4 +1,4 @@
-"""JSONL job registry under ``<corpus>/.viewer/jobs.jsonl`` (RFC-077 Phase 2)."""
+"""JSONL job registry under ``<corpus>/.viewer/jobs.jsonl`` (Phase 2)."""
 
 from __future__ import annotations
 

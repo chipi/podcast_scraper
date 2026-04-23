@@ -73,7 +73,7 @@ const nodeCount = computed(() => {
 
 const componentCount = computed(() => weaklyConnectedComponentCount(gf.filteredArtifact))
 
-/** Cross-episode expand (RFC-076) appended artifacts beyond the auto slice — offer one-click restore. */
+/** Cross-episode expand appended artifacts beyond the auto slice — offer one-click restore. */
 const showGraphFullReset = computed(() => Object.keys(expandedBySeed.value).length > 0)
 
 function bumpSinceInputFromStore(): void {

@@ -1,4 +1,4 @@
-# RFC-079 / GitHub #659: viewer (Nginx) + API (FastAPI) + optional pipeline (docker/pipeline/Dockerfile).
+# GitHub #659: viewer (Nginx) + API (FastAPI) + optional pipeline (docker/pipeline/Dockerfile).
 # Long-running: viewer + api. Pipeline: ``docker compose --profile pipeline run --rm pipeline``.
 #
 # Prerequisites:

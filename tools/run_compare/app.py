@@ -1,4 +1,4 @@
-"""Streamlit UI for RFC-047 run comparison (Issue #373)."""
+"""Streamlit UI for eval run comparison (Issue #373)."""
 
 from __future__ import annotations
 
@@ -51,7 +51,7 @@ from tools.run_compare.data import (
     merge_run_summary,
     pick_shared_reference_id,
     predictions_to_chart_rows,
-    profile_has_rfc065_trace,
+    profile_has_monitor_trace,
     profile_stage_delta_rows,
     profile_trend_long_rows,
     ProfileEntry,
@@ -196,21 +196,18 @@ def _quality_intro_markdown() -> str:
         "profiles under `data/profiles/*.yaml`.\n\n"
         "Guides: "
         f"[Experiment guide — visual run comparison]({_DOCS_BASE}/docs/guides/"
-        "EXPERIMENT_GUIDE.md#visual-run-comparison-rfc-047) · "
-        f"[RFC-047 design]({_DOCS_BASE}/docs/rfc/"
-        "RFC-047-run-comparison-visual-tool.md) · "
+        "EXPERIMENT_GUIDE.md) · "
         f"[Tool README]({_DOCS_BASE}/tools/run_compare/README.md)."
     )
 
 
 def _performance_intro_markdown() -> str:
     return (
-        "**Performance** joins **frozen profiles** (`data/profiles/*.yaml`, RFC-064) with "
+        "**Performance** joins **frozen profiles** (`data/profiles/*.yaml`) with "
         "eval runs when the **release** join key matches (see README). Use the filters below "
         "to narrow hosts and datasets, then compare KPIs, deltas, and trends. When a profile "
         "has a sibling **`.monitor.log`** (or **`rfc065_monitor`** in **`stage_truth.json`**), "
         "the **Monitor traces** section lists it and offers downloads.\n\n"
-        f"[RFC-066]({_DOCS_BASE}/docs/rfc/RFC-066-run-compare-performance-tab.md) · "
         f"[Performance profile guide]({_DOCS_BASE}/docs/guides/PERFORMANCE_PROFILE_GUIDE.md) "
         f"· [Experiment guide]({_DOCS_BASE}/docs/guides/EXPERIMENT_GUIDE.md)."
     )
@@ -335,8 +332,8 @@ def _joined_release_tooltip_row(j: JoinedRelease) -> str:
     pe = j.profile_entry
     if pe is not None:
         bits.append(f"profile: {pe.path.name} · {pe.hostname} · {pe.dataset_id}")
-        if profile_has_rfc065_trace(pe):
-            bits.append("RFC-065 monitor trace")
+        if profile_has_monitor_trace(pe):
+            bits.append("pipeline monitor trace")
     return " · ".join(bits)
 
 
@@ -1304,13 +1301,13 @@ def _bar_colors_lower_is_better(values: Sequence[float]) -> List[str]:
 
 def _any_profile_monitor_trace(prof_selected: List[JoinedRelease]) -> bool:
     return any(
-        j.profile_entry is not None and profile_has_rfc065_trace(j.profile_entry)
+        j.profile_entry is not None and profile_has_monitor_trace(j.profile_entry)
         for j in prof_selected
     )
 
 
 def _render_perf_monitor_traces(prof_selected: List[JoinedRelease]) -> None:
-    """List RFC-065 ``.monitor.log`` companions and optional ``stage_truth`` metadata."""
+    """List ``.monitor.log`` companions and optional ``stage_truth`` metadata."""
     ordered = sorted(
         prof_selected,
         key=lambda j: (j.profile_entry.sort_ts if j.profile_entry else 0.0, j.release),
@@ -1320,7 +1317,7 @@ def _render_perf_monitor_traces(prof_selected: List[JoinedRelease]) -> None:
     for j in ordered:
         p = j.profile_entry
         assert p is not None
-        if not profile_has_rfc065_trace(p):
+        if not profile_has_monitor_trace(p):
             continue
         log_name = p.monitor_log_path.name if p.monitor_log_path else "—"
         archived = ""
@@ -1346,7 +1343,7 @@ def _render_perf_monitor_traces(prof_selected: List[JoinedRelease]) -> None:
     if not rows:
         return
     _section_anchor("rc-p-monitor")
-    st.subheader("RFC-065 monitor traces")
+    st.subheader("Pipeline monitor traces")
     st.caption(
         "From capture with ``MONITOR=1``, ``freeze_profile.py --monitor``, or ``monitor: true`` "
         "in the pipeline YAML. See the Performance profile guide (live monitor during freeze)."
@@ -1664,7 +1661,7 @@ def _render_performance_main(
     entries: List[RunEntry],
     profiles_all: List[ProfileEntry],
 ) -> None:
-    """RFC-066: frozen profiles + optional join to eval quality metrics."""
+    """Frozen profiles + optional join to eval quality metrics."""
     st.markdown(_NAV_CSS, unsafe_allow_html=True)
     joined, join_warns = join_releases(entries, profiles_all)
     selected_releases, baseline_release, filtered = _performance_sidebar(joined, profiles_all)
@@ -1679,7 +1676,7 @@ def _render_performance_main(
     if not profiles_all:
         st.warning(
             "No frozen profiles found under **data/profiles/*.yaml**. "
-            "See RFC-064 and `make profile-freeze`."
+            "See `make profile-freeze` and docs/guides/PERFORMANCE_PROFILE_GUIDE.md."
         )
         return
 

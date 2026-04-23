@@ -1,4 +1,4 @@
-# RFC-079 / GitHub #659: production viewer — Vue (Vite) static build + Nginx reverse proxy to API.
+# GitHub #659: production viewer — Vue (Vite) static build + Nginx reverse proxy to API.
 # Build from repository root: docker build -f docker/viewer/Dockerfile .
 
 # syntax=docker/dockerfile:1

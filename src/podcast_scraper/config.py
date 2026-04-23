@@ -77,7 +77,7 @@ else:
     TokenizeConfig = None
 
 
-# Load .env file if it exists (RFC-013: OpenAI API key management)
+# Load .env file if it exists (OpenAI API key management)
 # Check for .env in project root
 # Use get_project_root() for robust path resolution
 # SKIP .env loading in test environments - tests should use Config objects and
@@ -190,7 +190,7 @@ DEFAULT_SUMMARY_WORD_OVERLAP = config_constants.DEFAULT_SUMMARY_WORD_OVERLAP
 
 
 def _get_default_summary_mode_id() -> Optional[str]:
-    """Get default summarization mode ID (RFC-044) based on environment.
+    """Get default summarization mode ID based on environment.
 
     Returns:
         None in test environments (to avoid altering unit test defaults),
@@ -525,7 +525,7 @@ def _get_default_summary_tokenize() -> Dict[str, Any]:
     """Get default tokenization settings for local transformers summarization.
 
     In production, defaults are sourced from the promoted production mode
-    (RFC-044) to ensure baseline == app behavior.
+    registry to ensure baseline == app behavior.
 
     In tests, use safe defaults to keep unit tests stable and independent of
     production mode registry contents.
@@ -1022,7 +1022,7 @@ class Config(BaseModel):
         default=False,
         alias="monitor",
         description=(
-            "Spawn a subprocess with a live RSS/CPU/stage dashboard (RFC-065, GitHub #512). "
+            "Spawn a subprocess with a live RSS/CPU/stage dashboard (GitHub #512). "
             "Writes .pipeline_status.json under the output directory."
         ),
     )
@@ -1030,7 +1030,7 @@ class Config(BaseModel):
         default=False,
         alias="memray",
         description=(
-            "Re-exec the CLI or service under memray for heap profiling (RFC-065 Phase 3; "
+            "Re-exec the CLI or service under memray for heap profiling (memray profiling; "
             "optional extra .[monitor]). Sets PODCAST_SCRAPER_MEMRAY_ACTIVE=1 in the child."
         ),
     )
@@ -1121,7 +1121,7 @@ class Config(BaseModel):
             "(metadata/summarization) in parallel (default: 2)"
         ),
     )
-    # OpenAI API configuration (RFC-013)
+    # OpenAI API configuration
     openai_api_key: Optional[str] = Field(
         default=None,
         alias="openai_api_key",
@@ -1191,14 +1191,14 @@ class Config(BaseModel):
         alias="openai_max_tokens",
         description="Max tokens for OpenAI generation (None = model default)",
     )
-    # Prompt configuration (RFC-017)
+    # Prompt configuration
     openai_summary_system_prompt: str = Field(
         default="openai/summarization/system_bullets_v1",
         alias="openai_summary_system_prompt",
         description=(
             "System prompt for summarization (default: JSON bullet schema). "
             "Set to 'openai/summarization/system_v1' for legacy paragraph-style. "
-            "Uses prompt_store (RFC-017); shared templates: prompts/shared/summarization/."
+            "Uses prompt_store; shared templates: prompts/shared/summarization/."
         ),
     )
     openai_summary_user_prompt: str = Field(
@@ -1206,7 +1206,7 @@ class Config(BaseModel):
         alias="openai_summary_user_prompt",
         description=(
             "User prompt for summarization (default: JSON bullets). "
-            "Use 'openai/summarization/long_v1' for paragraphs. Uses prompt_store (RFC-017)."
+            "Use 'openai/summarization/long_v1' for paragraphs. Uses prompt_store."
         ),
     )
     summary_prompt_params: Dict[str, Any] = Field(
@@ -1221,13 +1221,13 @@ class Config(BaseModel):
         default=None,
         alias="openai_speaker_system_prompt",
         description="System prompt name for speaker detection/NER. "
-        "Uses prompt_store (RFC-017) for versioned prompts.",
+        "Uses prompt_store  for versioned prompts.",
     )
     openai_speaker_user_prompt: str = Field(
         default="openai/ner/guest_host_v1",
         alias="openai_speaker_user_prompt",
         description="User prompt name for speaker detection/NER. "
-        "Uses prompt_store (RFC-017) for versioned prompts.",
+        "Uses prompt_store  for versioned prompts.",
     )
     ner_prompt_params: Dict[str, Any] = Field(
         default_factory=dict,
@@ -1290,27 +1290,27 @@ class Config(BaseModel):
         alias="gemini_summary_system_prompt",
         description=(
             "Gemini system prompt for summarization (default: JSON bullets). "
-            "Uses prompt_store (RFC-017); resolves shared/summarization/ when provider file absent."
+            "Uses prompt_store; resolves shared/summarization/ when provider file absent."
         ),
     )
     gemini_summary_user_prompt: str = Field(
         default="gemini/summarization/bullets_json_v1",
         alias="gemini_summary_user_prompt",
-        description="Gemini user prompt for summarization. Uses prompt_store (RFC-017).",
+        description="Gemini user prompt for summarization. Uses prompt_store.",
     )
     gemini_speaker_system_prompt: Optional[str] = Field(
         default=None,
         alias="gemini_speaker_system_prompt",
         description=(
             "Gemini system prompt for speaker detection (default: gemini/ner/system_ner_v1). "
-            "Uses prompt_store (RFC-017) for versioned prompts."
+            "Uses prompt_store  for versioned prompts."
         ),
     )
     gemini_speaker_user_prompt: str = Field(
         default="gemini/ner/guest_host_v1",
         alias="gemini_speaker_user_prompt",
         description="Gemini user prompt for speaker detection. "
-        "Uses prompt_store (RFC-017) for versioned prompts.",
+        "Uses prompt_store  for versioned prompts.",
     )
     # Anthropic API configuration (Issue #106)
     anthropic_api_key: Optional[str] = Field(
@@ -1366,27 +1366,27 @@ class Config(BaseModel):
         alias="anthropic_summary_system_prompt",
         description=(
             "Anthropic system prompt for summarization (default: JSON bullets). "
-            "Uses prompt_store (RFC-017)."
+            "Uses prompt_store."
         ),
     )
     anthropic_summary_user_prompt: str = Field(
         default="anthropic/summarization/bullets_json_v1",
         alias="anthropic_summary_user_prompt",
-        description="Anthropic user prompt for summarization. Uses prompt_store (RFC-017).",
+        description="Anthropic user prompt for summarization. Uses prompt_store.",
     )
     anthropic_speaker_system_prompt: Optional[str] = Field(
         default=None,
         alias="anthropic_speaker_system_prompt",
         description=(
             "Anthropic system prompt for speaker detection (default: anthropic/ner/system_ner_v1). "
-            "Uses prompt_store (RFC-017) for versioned prompts."
+            "Uses prompt_store  for versioned prompts."
         ),
     )
     anthropic_speaker_user_prompt: str = Field(
         default="anthropic/ner/guest_host_v1",
         alias="anthropic_speaker_user_prompt",
         description="Anthropic user prompt for speaker detection. "
-        "Uses prompt_store (RFC-017) for versioned prompts.",
+        "Uses prompt_store  for versioned prompts.",
     )
     # Ollama API configuration (Issue #196)
     ollama_api_base: Optional[str] = Field(
@@ -1468,27 +1468,26 @@ class Config(BaseModel):
         alias="ollama_speaker_system_prompt",
         description=(
             "Ollama system prompt for speaker detection (default: ollama/ner/system_ner_v1). "
-            "Uses prompt_store (RFC-017) for versioned prompts."
+            "Uses prompt_store  for versioned prompts."
         ),
     )
     ollama_speaker_user_prompt: str = Field(
         default="ollama/ner/guest_host_v1",
         alias="ollama_speaker_user_prompt",
         description="Ollama user prompt for speaker detection. "
-        "Uses prompt_store (RFC-017) for versioned prompts.",
+        "Uses prompt_store  for versioned prompts.",
     )
     ollama_summary_system_prompt: str = Field(
         default="ollama/summarization/system_bullets_v1",
         alias="ollama_summary_system_prompt",
         description=(
-            "Ollama system prompt for summarization (default: JSON bullets). "
-            "Uses prompt_store (RFC-017)."
+            "Ollama system prompt for summarization (default: JSON bullets). " "Uses prompt_store."
         ),
     )
     ollama_summary_user_prompt: str = Field(
         default="ollama/summarization/bullets_json_v1",
         alias="ollama_summary_user_prompt",
-        description="Ollama user prompt for summarization. Uses prompt_store (RFC-017).",
+        description="Ollama user prompt for summarization. Uses prompt_store.",
     )
     # DeepSeek API configuration (Issue #107)
     deepseek_api_key: Optional[str] = Field(
@@ -1549,27 +1548,27 @@ class Config(BaseModel):
         alias="deepseek_summary_system_prompt",
         description=(
             "DeepSeek system prompt for summarization (default: JSON bullets). "
-            "Uses prompt_store (RFC-017)."
+            "Uses prompt_store."
         ),
     )
     deepseek_summary_user_prompt: str = Field(
         default="deepseek/summarization/bullets_json_v1",
         alias="deepseek_summary_user_prompt",
-        description="DeepSeek user prompt for summarization. Uses prompt_store (RFC-017).",
+        description="DeepSeek user prompt for summarization. Uses prompt_store.",
     )
     deepseek_speaker_system_prompt: Optional[str] = Field(
         default=None,
         alias="deepseek_speaker_system_prompt",
         description=(
             "DeepSeek system prompt for speaker detection (default: deepseek/ner/system_ner_v1). "
-            "Uses prompt_store (RFC-017) for versioned prompts."
+            "Uses prompt_store  for versioned prompts."
         ),
     )
     deepseek_speaker_user_prompt: str = Field(
         default="deepseek/ner/guest_host_v1",
         alias="deepseek_speaker_user_prompt",
         description="DeepSeek user prompt for speaker detection. "
-        "Uses prompt_store (RFC-017) for versioned prompts.",
+        "Uses prompt_store  for versioned prompts.",
     )
     # Grok API configuration (Issue #1095)
     grok_api_key: Optional[str] = Field(
@@ -1629,28 +1628,27 @@ class Config(BaseModel):
         default="grok/summarization/system_bullets_v1",
         alias="grok_summary_system_prompt",
         description=(
-            "Grok system prompt for summarization (default: JSON bullets). "
-            "Uses prompt_store (RFC-017)."
+            "Grok system prompt for summarization (default: JSON bullets). " "Uses prompt_store."
         ),
     )
     grok_summary_user_prompt: str = Field(
         default="grok/summarization/bullets_json_v1",
         alias="grok_summary_user_prompt",
-        description="Grok user prompt for summarization. Uses prompt_store (RFC-017).",
+        description="Grok user prompt for summarization. Uses prompt_store.",
     )
     grok_speaker_system_prompt: Optional[str] = Field(
         default=None,
         alias="grok_speaker_system_prompt",
         description=(
             "Grok system prompt for speaker detection (default: grok/ner/system_ner_v1). "
-            "Uses prompt_store (RFC-017) for versioned prompts."
+            "Uses prompt_store  for versioned prompts."
         ),
     )
     grok_speaker_user_prompt: str = Field(
         default="grok/ner/guest_host_v1",
         alias="grok_speaker_user_prompt",
         description="Grok user prompt for speaker detection. "
-        "Uses prompt_store (RFC-017) for versioned prompts.",
+        "Uses prompt_store  for versioned prompts.",
     )
     # Mistral API configuration (Issue #106)
     mistral_api_key: Optional[str] = Field(
@@ -1705,27 +1703,26 @@ class Config(BaseModel):
         alias="mistral_speaker_system_prompt",
         description=(
             "Mistral system prompt for speaker detection (default: mistral/ner/system_ner_v1). "
-            "Uses prompt_store (RFC-017) for versioned prompts."
+            "Uses prompt_store  for versioned prompts."
         ),
     )
     mistral_speaker_user_prompt: str = Field(
         default="mistral/ner/guest_host_v1",
         alias="mistral_speaker_user_prompt",
         description="Mistral user prompt for speaker detection. "
-        "Uses prompt_store (RFC-017) for versioned prompts.",
+        "Uses prompt_store  for versioned prompts.",
     )
     mistral_summary_system_prompt: str = Field(
         default="mistral/summarization/system_bullets_v1",
         alias="mistral_summary_system_prompt",
         description=(
-            "Mistral system prompt for summarization (default: JSON bullets). "
-            "Uses prompt_store (RFC-017)."
+            "Mistral system prompt for summarization (default: JSON bullets). " "Uses prompt_store."
         ),
     )
     mistral_summary_user_prompt: str = Field(
         default="mistral/summarization/bullets_json_v1",
         alias="mistral_summary_user_prompt",
-        description="Mistral user prompt for summarization. Uses prompt_store (RFC-017).",
+        description="Mistral user prompt for summarization. Uses prompt_store.",
     )
     generate_metadata: bool = Field(
         default=True,
@@ -1929,7 +1926,7 @@ class Config(BaseModel):
         alias="vector_search",
         description=(
             "When True, embed and index corpus vectors after pipeline finalize "
-            "(PRD-021 / RFC-061). Index defaults to <output_dir>/search; use podcast search / "
+            "(PRD-021). Index defaults to <output_dir>/search; use podcast search / "
             "podcast index CLIs and semantic gi explore when a topic filter is set. "
             "Implies embedding model preload alongside GIL evidence models when set without "
             "generate_gi."
@@ -1976,7 +1973,7 @@ class Config(BaseModel):
         alias="vector_backend",
         description=(
             "Vector index backend. Currently faiss only. qdrant is reserved for a future "
-            "platform-mode release (RFC-070) — will be re-added to this Literal once wired."
+            "platform-mode release — will be re-added to this Literal once wired."
         ),
     )
     vector_index_types: Optional[
@@ -1997,7 +1994,7 @@ class Config(BaseModel):
             "or force flat, ivf_flat, ivfpq after indexing."
         ),
     )
-    # Knowledge Graph Layer (PRD-019 / RFC-055): per-episode kg.json when enabled
+    # Knowledge Graph Layer (PRD-019): per-episode kg.json when enabled
     generate_kg: bool = Field(
         default=False,
         alias="generate_kg",
@@ -2219,7 +2216,7 @@ class Config(BaseModel):
         default_factory=_get_default_summary_mode_id,
         alias="summary_mode_id",
         description=(
-            "Summarization mode ID (RFC-044). When set, providers may use a promoted "
+            "Summarization mode ID. When set, providers may use a promoted "
             "ModeConfiguration from the Model Registry as the source of defaults "
             "(models, preprocessing_profile, and runtime params)."
         ),
@@ -2440,7 +2437,7 @@ class Config(BaseModel):
         ),
     )
 
-    # Audio Preprocessing (RFC-040)
+    # Audio preprocessing
     preprocessing_enabled: bool = Field(
         default=True,
         alias="preprocessing_enabled",

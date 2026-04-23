@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Validate packaged profiles declare a minimum Docker pipeline tier (RFC-079 matrix).
+"""Validate packaged profiles declare a minimum Docker pipeline tier matrix.
 
 Exit 0 when all profiles match expectations; non-zero on mismatch.
 Usage:
@@ -34,7 +34,7 @@ def _tier_rank(t: str) -> int:
 
 
 def _derive_tier_from_yaml(data: dict) -> str:
-    """Heuristic minimum tier from profile fields (kept in sync with RFC-079 matrix)."""
+    """Heuristic minimum tier from profile fields (kept in sync with the stack matrix)."""
     if str(data.get("speaker_detector_provider", "")).lower() == "spacy":
         return "ml"
     if data.get("vector_search") is True:

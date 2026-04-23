@@ -100,7 +100,7 @@ jobs:
             - 'compose/docker-compose.jobs-docker.yml'
             - '.github/workflows/python-app.yml'
 
-  # GI/KG viewer v2 — Playwright E2E (RFC-062)
+  # GI/KG viewer v2 — Playwright E2E
   # After whichever pytest E2E ran: PR uses test-e2e-fast only; push to main/release uses
   # test-e2e only. The sibling job is skipped — require success on ran job(s), not both.
   viewer-e2e:
@@ -251,12 +251,12 @@ jobs:
       run: |
         python -m pip install --upgrade pip
         python -m pip install -e .[dev]
-    - name: Verify packaged profiles vs Docker pipeline tier (RFC-079 / #660)
+    - name: Verify packaged profiles vs Docker pipeline tier (#660)
       if: needs.detect-changes.outputs.stack-profiles == 'true'
       run: |
         export PYTHONPATH="${PYTHONPATH}:$(pwd)/src"
         make verify-stack-profiles
-    - name: Validate stack Compose file merges (RFC-079, no build)
+    - name: Validate stack Compose file merges (no build)
       if: needs.detect-changes.outputs.stack-compose == 'true'
       run: |
         export CONFIG_FILE="${GITHUB_WORKSPACE}/config/examples/docker-stack.example.yaml"
@@ -1258,7 +1258,7 @@ jobs:
     - name: Verify GIL Quote vs FAISS transcript chunk offsets (acceptance corpora)
       run: |
         export PYTHONPATH="${PYTHONPATH}:$(pwd)"
-        # RFC-072 / #528: each successful acceptance run_* with vector_search + generate_gi must
+        # #528: each successful acceptance run_* with vector_search + generate_gi must
         # align Quote char spans with indexed transcript chunks (feeds nightly / lift contract).
         make verify-gil-offsets-after-acceptance
 

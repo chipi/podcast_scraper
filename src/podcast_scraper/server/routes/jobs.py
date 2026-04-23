@@ -1,4 +1,4 @@
-"""POST/GET /api/jobs — opt-in pipeline subprocess jobs (RFC-077 Phase 2)."""
+"""POST/GET /api/jobs — opt-in pipeline subprocess jobs (Phase 2)."""
 
 from __future__ import annotations
 

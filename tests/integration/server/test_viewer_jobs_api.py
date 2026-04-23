@@ -1,4 +1,4 @@
-"""Integration tests for opt-in /api/jobs pipeline API (RFC-077 Phase 2)."""
+"""Integration tests for opt-in /api/jobs pipeline API (Phase 2)."""
 
 from __future__ import annotations
 

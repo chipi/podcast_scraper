@@ -32,7 +32,7 @@
 # Don't use set -e - we want to collect all errors, not exit on first failure
 set +e
 
-# RFC-074: Master timeout to prevent unkillable hanging processes.
+# Master timeout to prevent unkillable hanging processes.
 # If any check (black, mypy, etc.) gets stuck in kernel I/O, this ensures
 # the hook exits instead of leaving zombie processes.
 MAX_HOOK_SECONDS=120
@@ -50,14 +50,14 @@ LOG_DIR=$(mktemp -d "${HOOK_TMPDIR}/precommit_XXXXXX" 2>/dev/null || echo "$TMPD
 HOOK_PID=$$
 LOG_PREFIX="${LOG_DIR}/precommit_${HOOK_PID}"
 
-# Cleanup function — kill child processes and remove temp files (RFC-074)
+# Cleanup function — kill child processes and remove temp files
 cleanup() {
     kill -- -$$ 2>/dev/null || true
     rm -rf "${LOG_DIR}/precommit_${HOOK_PID}"* 2>/dev/null || true
 }
 trap cleanup EXIT INT TERM
 
-# RFC-074: Background watchdog that kills the hook if it exceeds MAX_HOOK_SECONDS.
+# Background watchdog that kills the hook if it exceeds MAX_HOOK_SECONDS.
 # This prevents black/mypy/etc. from hanging indefinitely in kernel I/O.
 _hook_start_seconds=$SECONDS
 (

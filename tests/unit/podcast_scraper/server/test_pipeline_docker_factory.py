@@ -1,4 +1,4 @@
-"""Unit tests for Docker pipeline job factory helpers (#660 / RFC-079 Phase 2)."""
+"""Unit tests for Docker pipeline job factory helpers (#660 Phase 2)."""
 
 from __future__ import annotations
 

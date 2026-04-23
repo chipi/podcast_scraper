@@ -1,6 +1,6 @@
 # ML Prod (Tier 2) — benchmark scale
 # Same params as baseline_ml_bart_led_autoresearch_v1, dataset switched to benchmark (10 eps).
-# RFC-057 Track B autoresearch winner: num_beams=6, max_new_tokens=550.
+# Autoresearch Track B winner: num_beams=6, max_new_tokens=550.
 # Pair with: silver_sonnet46_benchmark_v1
 
 id: "baseline_ml_bart_led_autoresearch_benchmark_v1"

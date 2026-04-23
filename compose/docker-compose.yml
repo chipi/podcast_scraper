@@ -2,7 +2,7 @@ version: '3.8'
 
 # Docker Compose configuration for podcast_scraper
 # See docs/guides/DOCKER_SERVICE_GUIDE.md for complete documentation.
-# Full stack (Nginx viewer + FastAPI + optional pipeline): compose/docker-compose.stack.yml (RFC-079 / #659).
+# Full stack (Nginx viewer + FastAPI + optional pipeline): compose/docker-compose.stack.yml (#659).
 
 services:
   podcast_scraper:

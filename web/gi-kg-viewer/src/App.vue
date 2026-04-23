@@ -249,7 +249,7 @@ async function onCorpusGraphLensReload(): Promise<void> {
 }
 
 /**
- * Graph status bar “Reset”: collapse RFC-076 expansion bookkeeping, restore the same time slice as
+ * Graph status bar “Reset”: collapse cross-episode expansion bookkeeping, restore the same time slice as
  * first corpus auto-sync (15-episode cap), clear graph/subject focus, reload from API, then fit in
  * ``finishLayoutPass`` (no pending viewport preserve).
  */

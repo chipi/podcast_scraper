@@ -1,4 +1,4 @@
-name: RFC-078 stack smoke
+name: Stack smoke test
 
 on:
   push:
@@ -48,10 +48,10 @@ jobs:
       - name: Run pipeline (fixture RSS, airgapped profile)
         run: make smoke-run-pipeline
 
-      - name: Assert pipeline log (RFC-078 layer 2)
+      - name: Assert pipeline log (layer 2)
         run: make smoke-assert-logs
 
-      - name: Export corpus from smoke volume (RFC-078 layer 1 prep)
+      - name: Export corpus from smoke volume (layer 1 prep)
         run: make smoke-export-corpus
 
       - uses: actions/setup-python@v6
@@ -61,7 +61,7 @@ jobs:
       - name: Install Python deps (GIL/KG metric scripts)
         run: pip install -e '.[dev]'
 
-      - name: Artifact quality gates (RFC-078 layer 1)
+      - name: Artifact quality gates (layer 1)
         run: make smoke-assert-artifacts
 
       - name: Start viewer + API

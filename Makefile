@@ -8,15 +8,15 @@ CODESPELL ?= .venv/bin/codespell
 endif
 PACKAGE = podcast_scraper
 
-# GI/KG viewer (Vue + Vite + Playwright, RFC-062). Override if the app moves, e.g. ``make serve-ui WEB_VIEWER_DIR=apps/viewer``.
+# GI/KG viewer (Vue + Vite + Playwright). Override if the app moves, e.g. ``make serve-ui WEB_VIEWER_DIR=apps/viewer``.
 WEB_VIEWER_DIR ?= web/gi-kg-viewer
 
-# GIL Quote vs FAISS chunk offset gate (#528 / RFC-072 Phase 5). ``make verify-gil-offsets-strict`` uses these.
+# GIL Quote vs FAISS chunk offset gate (#528 Phase 5). ``make verify-gil-offsets-strict`` uses these.
 # Override for CI or another indexed corpus: GIL_OFFSET_VERIFY_DIR=/path/to/corpus-root make verify-gil-offsets-strict
 GIL_OFFSET_VERIFY_DIR ?= output
 GIL_OFFSET_MIN_RATE ?= 0.95
 
-# RFC-074: Preload / hf-hub-smoke-test must reach Hugging Face; unset offline flags for those recipes
+# Preload / hf-hub-smoke-test must reach Hugging Face; unset offline flags for those recipes
 # only (a global Makefile export previously forced HF offline and broke ``make preload-ml-models*``).
 HF_NET_ENV := env -u HF_HUB_OFFLINE -u TRANSFORMERS_OFFLINE
 
@@ -185,20 +185,20 @@ help:
 	@echo "  make docker-build       Build Docker image (default, with model preloading)"
 	@echo "  make docker-build-fast  Build Docker image fast (no model preloading, <5min target)"
 	@echo "  make docker-build-full  Build Docker image full (with model preloading, matches main)"
-	@echo "  make stack-build        RFC-079: build viewer + api + pipeline images (compose/docker-compose.stack.yml)"
-	@echo "  make stack-up           RFC-079: start viewer + api (CONFIG_FILE=..., VIEWER_PORT=8080)"
-	@echo "  make stack-down         RFC-079: stop stack (REMOVE_VOLUMES=1 runs compose down -v)"
-	@echo "  make stack-logs         RFC-079: follow viewer + api logs"
-	@echo "  make stack-run-pipeline RFC-079: one-shot pipeline (compose profile pipeline)"
-	@echo "  make stack-build-llm   RFC-079: build pipeline-llm image (INSTALL_EXTRAS=llm profile)"
+	@echo "  make stack-build        Docker stack: build viewer + api + pipeline images (compose/docker-compose.stack.yml)"
+	@echo "  make stack-up           Docker stack: start viewer + api (CONFIG_FILE=..., VIEWER_PORT=8080)"
+	@echo "  make stack-down         Docker stack: stop stack (REMOVE_VOLUMES=1 runs compose down -v)"
+	@echo "  make stack-logs         Docker stack: follow viewer + api logs"
+	@echo "  make stack-run-pipeline Docker stack: one-shot pipeline (compose profile pipeline)"
+	@echo "  make stack-build-llm   Docker stack: build pipeline-llm image (INSTALL_EXTRAS=llm profile)"
 	@echo "  make verify-stack-profiles  Validate packaged profile → Docker tier (scripts/tools)"
-	@echo "  make stack-compose-validate RFC-079: docker compose config (stack + jobs-docker merge, no build)"
-	@echo "  make smoke-build       RFC-078: build stack + smoke overlay images"
-	@echo "  make smoke-run-pipeline RFC-078: one-shot pipeline (tees .smoke/pipeline.log)"
-	@echo "  make smoke-assert-logs  RFC-078: grep .smoke/pipeline.log for completion / errors"
-	@echo "  make smoke-export-corpus  RFC-078: copy /app/output from smoke volume → .smoke-corpus/"
-	@echo "  make smoke-assert-artifacts  RFC-078: GIL+KG gates (default SMOKE_CORPUS_ROOT=.smoke-corpus)"
-	@echo "  make smoke-up / smoke-down / smoke-test-playwright  RFC-078 smoke harness"
+	@echo "  make stack-compose-validate Docker stack: docker compose config (stack + jobs-docker merge, no build)"
+	@echo "  make smoke-build       Smoke test: build stack + smoke overlay images"
+	@echo "  make smoke-run-pipeline Smoke test: one-shot pipeline (tees .smoke/pipeline.log)"
+	@echo "  make smoke-assert-logs  Smoke test: grep .smoke/pipeline.log for completion / errors"
+	@echo "  make smoke-export-corpus  Smoke test: copy /app/output from smoke volume → .smoke-corpus/"
+	@echo "  make smoke-assert-artifacts  Smoke test: GIL+KG gates (default SMOKE_CORPUS_ROOT=.smoke-corpus)"
+	@echo "  make smoke-up / smoke-down / smoke-test-playwright  Smoke test harness"
 	@echo "  make docker-test        Build and test Docker image"
 	@echo "  make docker-clean       Remove Docker test images"
 	@echo "  make install-hooks   Install git pre-commit hook for automatic linting"
@@ -240,16 +240,16 @@ help:
 	@echo "                            Usage: make baseline-create BASELINE_ID=bart_led_baseline_v1 DATASET_ID=indicator_v1"
 	@echo "  make experiment-run      Run an experiment using a config file"
 	@echo "                            Usage: make experiment-run CONFIG=data/eval/configs/my_experiment.yaml"
-	@echo "  make profile-freeze      RFC-064: capture data/profiles/<VERSION>.yaml (PIPELINE_CONFIG=...; optional MONITOR=1)"
-	@echo "  make profile-diff        RFC-064: terminal diff of two profiles (FROM=v1 TO=v2)"
+	@echo "  make profile-freeze      Profiles: capture data/profiles/<VERSION>.yaml (PIPELINE_CONFIG=...; optional MONITOR=1)"
+	@echo "  make profile-diff        Profiles: terminal diff of two profiles (FROM=v1 TO=v2)"
 	@echo "  make profile-promote     Promote a working profile to data/profiles/references/"
 	@echo "                            Usage: make profile-promote SOURCE=... PROMOTED_ID=... REASON=\"...\""
-	@echo "  make run-compare         Streamlit UI: compare eval runs (RFC-047; pip install -e '.[compare]')"
+	@echo "  make run-compare         Streamlit UI: compare eval runs (pip install -e '.[compare]')"
 	@echo "                            Usage: make run-compare [BASELINE=id]  (optional: default baseline in sidebar)"
-	@echo "  make ml-param-sweep      RFC-057 Track B: ML hyperparameter ratchet (no API keys needed)"
+	@echo "  make ml-param-sweep      Autoresearch Track B: ML hyperparameter ratchet (no API keys needed)"
 	@echo "                            Usage: make ml-param-sweep MODEL=bart_led [MAX_FAILS=3] [MIN_GAIN=0.01] [DRY_RUN=1]"
 	@echo "                            Models: bart_led, pegasus_led (see autoresearch/ml_param_tuning/param_space.yaml)"
-	@echo "  make autoresearch-score  RFC-057 Track A: eval run + ROUGE + dual judges (scalar on stdout)"
+	@echo "  make autoresearch-score  Autoresearch Track A: eval run + ROUGE + dual judges (scalar on stdout)"
 	@echo "                            Usage: make autoresearch-score [CONFIG=...] [REFERENCE=...] [DRY_RUN=1]"
 	@echo "  make silver-pairwise    Pairwise LLM judge between two silver candidate runs (winner on stdout)"
 	@echo "                            Usage: make silver-pairwise CANDIDATE_A=<run_id> CANDIDATE_B=<run_id> [OUTPUT=path.json]"
@@ -354,7 +354,7 @@ security-audit:
 	$(PYTHON) -m pip install --upgrade setuptools
 	# Install ML dependencies to ensure they are audited
 
-# Code quality analysis (RFC-031)
+# Code quality analysis (wily / radon)
 # Note: Use $(PYTHON) -m to ensure tools run from venv, not system PATH
 complexity:
 	@echo "=== Cyclomatic Complexity Analysis ==="
@@ -464,7 +464,7 @@ validate-kg-schema:
 		export PYTHONPATH="${PYTHONPATH}:$(PWD)/src" && $(PYTHON) scripts/tools/validate_kg_schema.py tests/fixtures; \
 	fi
 
-# GI/KG viewer v2 (RFC-062 / #489): FastAPI + Vite. Install: pip install -e '.[server]'; cd $(WEB_VIEWER_DIR) && npm install
+# GI/KG viewer v2 (#489): FastAPI + Vite. Install: pip install -e '.[server]'; cd $(WEB_VIEWER_DIR) && npm install
 .PHONY: serve serve-api serve-ui serve-e2e-mock stack-build stack-build-llm stack-compose-validate stack-up stack-down stack-logs stack-run-pipeline verify-stack-profiles smoke-build smoke-run-pipeline smoke-up smoke-down smoke-test-playwright smoke-assert-logs smoke-export-corpus smoke-assert-artifacts
 SERVE_OUTPUT_DIR ?= ./output
 # Optional corpus-editing + jobs routes (health shows green when on). Override with SERVE_ARGS= to disable.
@@ -486,11 +486,11 @@ serve-ui:
 serve-e2e-mock:
 	@export PYTHONPATH="${PYTHONPATH}:$(PWD)/src:$(PWD)" && $(PYTHON) scripts/tools/run_e2e_mock_server.py --port "$(E2E_MOCK_PORT)"
 
-# RFC-079 / GitHub #659: Docker Compose stack (Nginx + FastAPI + shared volume; pipeline behind profile).
+# GitHub #659: Docker Compose stack (Nginx + FastAPI + shared volume; pipeline behind profile).
 STACK_COMPOSE ?= docker compose -f compose/docker-compose.stack.yml
 SMOKE_COMPOSE ?= docker compose -f compose/docker-compose.stack.yml -f compose/docker-compose.smoke.yml
 REMOVE_VOLUMES ?=
-# RFC-078: host directory for ``make smoke-export-corpus`` (then ``make smoke-assert-artifacts``).
+# Smoke test: host directory for ``make smoke-export-corpus`` (then ``make smoke-assert-artifacts``).
 SMOKE_EXPORT_DIR ?= $(PWD)/.smoke-corpus
 SMOKE_CORPUS_ROOT ?= $(PWD)/.smoke-corpus
 
@@ -504,7 +504,7 @@ verify-stack-profiles:
 	@echo "Validating config/profiles/*.yaml minimum Docker tiers..."
 	@export PYTHONPATH="${PYTHONPATH}:$(PWD)/src" && $(PYTHON) scripts/tools/validate_profile_docker_tier.py
 
-# RFC-079: ``docker compose config`` (no build) — catches bad merges / invalid interpolation.
+# ``docker compose config`` (no build) — catches bad merges / invalid interpolation.
 STACK_COMPOSE_VALIDATE_CFG ?= $(PWD)/config/examples/docker-stack.example.yaml
 stack-compose-validate:
 	@cfg="$(CONFIG_FILE)"; \
@@ -573,7 +573,7 @@ test-ui-e2e:
 	@echo "Playwright E2E (gi-kg-viewer)..."
 	@cd $(WEB_VIEWER_DIR) && npm install && npx playwright install firefox && npm run test:e2e
 
-# RFC-072 Phase 5 (#528): fail if GIL Quote spans do not overlap FAISS transcript chunks enough.
+# Phase 5 (#528): fail if GIL Quote spans do not overlap FAISS transcript chunks enough.
 verify-gil-offsets-strict:
 	@echo "GIL vs FAISS chunk offset verification (strict, min overlap rate $(GIL_OFFSET_MIN_RATE))..."
 	@test -d "$(GIL_OFFSET_VERIFY_DIR)" || { echo "GIL_OFFSET_VERIFY_DIR not found: $(GIL_OFFSET_VERIFY_DIR)"; exit 2; }
@@ -636,7 +636,7 @@ quality-metrics-ci:
 	@export PYTHONPATH="${PYTHONPATH}:$(PWD)/src" && $(PYTHON) scripts/tools/kg_quality_metrics.py tests/fixtures/gil_kg_ci_enforce --enforce --strict-schema --fail-on-errors --min-artifacts 1 --min-avg-nodes 1 --min-avg-edges 0 --min-extraction-coverage 1.0
 
 cleanup-processes:
-	# Clean up leftover Python/test processes from previous runs (RFC-074)
+	# Clean up leftover Python/test processes from previous runs
 	# Covers pytest workers, ML model probe processes, and worker calculator
 	@echo "Cleaning up leftover test processes..."
 	@pkill -f "pytest" 2>/dev/null || true
@@ -648,7 +648,7 @@ cleanup-processes:
 	@echo "Process cleanup complete"
 
 check-zombie:
-	# Detect unkillable (UE state) Python processes that require reboot (RFC-074)
+	# Detect unkillable (UE state) Python processes that require reboot
 	@echo "Checking for unkillable Python processes..."
 	@zombie_count=$$(ps aux 2>/dev/null | grep -E '[Pp]ython|[Pp]ytest' | \
 		awk '$$8 ~ /U/' | grep -v grep | wc -l | tr -d ' '); \
@@ -665,7 +665,7 @@ check-zombie:
 	fi
 
 check-spotlight:
-	# Verify Spotlight indexing is disabled or cache dirs are excluded (RFC-074)
+	# Verify Spotlight indexing is disabled or cache dirs are excluded
 	@echo "Checking Spotlight indexing status..."
 	@if command -v mdutil >/dev/null 2>&1; then \
 		if mdutil -s / 2>/dev/null | grep -q "Indexing enabled"; then \
@@ -1407,7 +1407,7 @@ build:
 	$(PYTHON) -m build
 	@if [ -d dist ]; then mkdir -p .build && rm -rf .build/dist && mv dist .build/ && echo "Moved dist to .build/dist/"; fi
 
-# ML model cache probe — runs at RECIPE TIME inside `make ci` only (RFC-074).
+# ML model cache probe — runs at RECIPE TIME inside `make ci` only.
 # Previously this was a parse-time $(shell ...) that spawned a heavy Python process
 # on every `make` invocation (including `make help`), causing APFS kernel lock
 # contention and unkillable zombie processes on macOS.
@@ -1803,7 +1803,7 @@ restore-cache-dry-run:
 	fi; \
 	eval $$cmd
 
-# Experiment commands (RFC-015, RFC-041)
+# Experiment commands (eval / benchmarks)
 metadata-generate:
 	@# Generate episode metadata JSON files from RSS XML files
 	@# Usage: make metadata-generate INPUT_DIR=data/eval/sources [OUTPUT_DIR=...] [LOG_LEVEL=INFO]
@@ -2030,7 +2030,7 @@ run-promote:
 	fi
 
 registry-promote:
-	@# Promote a baseline config.yaml into the code registry (RFC-044).
+	@# Promote a baseline config.yaml into the code registry (model registry).
 	@# Usage: make registry-promote BASELINE_ID=baseline_ml_dev_authority_smoke_v1 MODE_ID=ml_small_authority
 	@if [ -z "$(BASELINE_ID)" ] || [ -z "$(MODE_ID)" ]; then \
 		echo "❌ Error: BASELINE_ID and MODE_ID are required"; \
@@ -2145,11 +2145,11 @@ experiment-run:
 	@echo ""
 	@echo "✓ Experiment completed. Check data/eval/runs/ directory for output."
 
-# RFC-064 / Issue #510: frozen release profiles (see data/profiles/README.md)
+# Issue #510: frozen release profiles (see data/profiles/README.md)
 profile-freeze:
 	@# Usage: make profile-freeze VERSION=v2.6.0 PIPELINE_CONFIG=config/profiles/freeze/<provider>.yaml
 	@# Optional: DATASET_ID=... OUTPUT=... SKIP_WARMUP=1 E2E_FEED=podcast1_multi_episode
-	@# Optional: SAMPLE_INTERVAL=0.25 NO_STAGE_TRUTH=1 MONITOR=1 (RFC-065 ticks -> <VERSION>.monitor.log)
+	@# Optional: SAMPLE_INTERVAL=0.25 NO_STAGE_TRUTH=1 MONITOR=1 (live monitor ticks -> <VERSION>.monitor.log)
 	@if [ -z "$(VERSION)" ]; then \
 		echo "❌ Error: VERSION is required (e.g. VERSION=v2.6.0)"; \
 		exit 1; \
@@ -2206,7 +2206,7 @@ profile-promote:
 	eval $$cmd
 
 ml-param-sweep:
-	@# RFC-057 Track B: ML parameter autoresearch ratchet loop (no LLM judges needed).
+	@# Autoresearch Track B: ML parameter ratchet loop (no LLM judges needed).
 	@# Usage: make ml-param-sweep MODEL=bart_led [MAX_FAILS=3] [MIN_GAIN=0.01] [DRY_RUN=1]
 	@# MODEL choices: bart_led, pegasus_led (defined in autoresearch/ml_param_tuning/param_space.yaml)
 	@if [ -z "$(MODEL)" ]; then \
@@ -2222,7 +2222,7 @@ ml-param-sweep:
 	eval $$cmd
 
 autoresearch-score:
-	@# RFC-057 Track A: reuse run_experiment + metrics, then optional LLM judges; final scalar on stdout.
+	@# Autoresearch Track A: reuse run_experiment + metrics, then optional LLM judges; final scalar on stdout.
 	@# Usage: make autoresearch-score [CONFIG=path] [REFERENCE=id] [DRY_RUN=1] [LOG_LEVEL=INFO]
 	@# Loads .env and optional .env.autoresearch from repo root (see autoresearch_track_a.load_local_dotenv_files).
 	@# Env: AUTORESEARCH_EXPERIMENT_OPENAI_API_KEY, AUTORESEARCH_JUDGE_* keys; optional AUTORESEARCH_ALLOW_PRODUCTION_KEYS=1
@@ -2443,7 +2443,7 @@ baselines-list:
 		$(if $(DATASET_ID),--dataset-id $(DATASET_ID))
 
 run-compare:
-	@# Streamlit run comparison UI (RFC-047, Issue #373)
+	@# Streamlit run comparison UI (Issue #373)
 	@# Usage: make run-compare [BASELINE=baseline_id]
 	@echo "Launching run comparison tool..."
 	@BASELINE=$(BASELINE) $(PYTHON) -m streamlit run tools/run_compare/app.py \

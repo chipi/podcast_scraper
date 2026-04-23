@@ -1,5 +1,5 @@
 #!/bin/bash
-# RFC-074: Check for unkillable (UE state) Python processes at session start.
+# Check for unkillable (UE state) Python processes at session start.
 # If found, warn the agent so it can inform the user before doing anything.
 input=$(cat)
 

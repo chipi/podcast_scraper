@@ -1,4 +1,4 @@
-"""Pipeline job queue, subprocess spawn, and registry updates (RFC-077 Phase 2)."""
+"""Pipeline job queue, subprocess spawn, and registry updates (Phase 2)."""
 
 from __future__ import annotations
 

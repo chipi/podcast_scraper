@@ -1,4 +1,4 @@
-# RFC-079 Phase 2 / GitHub #660: merge on top of docker-compose.stack.yml when API must spawn
+# GitHub #660: merge on top of docker-compose.stack.yml when API must spawn
 # pipeline jobs via ``docker compose run`` (``PODCAST_PIPELINE_EXEC_MODE=docker``).
 #
 # Usage (from repo root):
