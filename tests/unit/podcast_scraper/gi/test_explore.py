@@ -28,11 +28,11 @@ from podcast_scraper.gi.explore import (
     run_uc4_semantic_qa,
     run_uc4_topic_leaderboard,
     sort_insights,
-    topic_slug_for_rfc,
 )
 from podcast_scraper.gi.grounding import GroundedQuote
 from podcast_scraper.gi.io import read_artifact
 from podcast_scraper.gi.pipeline import _artifact_from_multi_insight
+from podcast_scraper.graph_id_utils import slugify_label, topic_node_id_from_slug
 from podcast_scraper.search.faiss_store import VECTORS_FILE
 from podcast_scraper.search.protocol import IndexStats
 
@@ -287,7 +287,8 @@ class TestExploreCollectAndOutput:
         out = build_explore_output([ins], episodes_searched=3, topic="world")
         d = explore_output_to_rfc_dict(out)
         assert d["topic"]["label"] == "world"
-        assert d["topic"]["topic_id"] == f"topic:{topic_slug_for_rfc('world')}"
+        # #653 Part B: migrated to canonical slugifier.
+        assert d["topic"]["topic_id"] == topic_node_id_from_slug(slugify_label("world"))
         assert d["insights"][0]["episode"]["title"] == "Ep title"
         assert "top_speakers" in d
         assert "topics" in d

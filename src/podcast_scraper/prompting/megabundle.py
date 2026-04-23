@@ -22,6 +22,38 @@ DEFAULT_MEGA_BUNDLE_INSIGHTS = 12
 DEFAULT_MEGA_BUNDLE_TOPICS = 10
 DEFAULT_MEGA_BUNDLE_ENTITIES_MAX = 15
 
+# #652 — four quality rules applied to every extraction prompt. Kept as a
+# single string so the exact wording is uniform across providers + the
+# deterministic post-extraction validators in gi/kg pipeline stages have a
+# clear "what the prompt asked for" anchor.
+QUALITY_RULES = (
+    "QUALITY RULES — apply to ALL extracted fields:\n"
+    "\n"
+    "1. Ads / sponsor reads (skip). Do not extract marketing claims, sponsor "
+    "reads, subscription pitches, or paid-promotion content. Skip passages "
+    "describing a product/service as 'built for X', 'helps you Y', 'runs on Z', "
+    "or that name a sponsor product. If a passage is an ad-read or host "
+    "disclosure ('this episode is brought to you by …', 'I work at …'), "
+    "produce NO insight, NO topic, and NO entity for that range.\n"
+    "\n"
+    "2. Insight form. Insights must be paraphrased THIRD-PERSON claims "
+    "distilled from the transcript. Do NOT copy verbatim dialogue, host patter, "
+    "or first-person speaker monologue. Start each insight with a noun + verb "
+    "in present tense. Avoid 'we', 'I', 'you', \"let's\", 'okay', or "
+    "conversational filler ('you know', 'I mean').\n"
+    "\n"
+    "3. Topic length. Topics MUST be concise 2–3 word noun phrases. Do NOT use "
+    "prepositions ('in', 'of', 'for', 'vs') at start or middle. Do NOT use "
+    "event-specific proper-noun compounds ('X succession', 'Y leverage'). "
+    "Prefer canonical concept names that could repeat across episodes "
+    "('nuclear program', not \"Iran's nuclear program\").\n"
+    "\n"
+    "4. Entity kind. Default to 'org' if the name refers to a company, show, "
+    "podcast, brand, product, publication, or organisation. Reserve 'person' "
+    "for individual human names (first + last, or clearly a named individual). "
+    "When in doubt, classify as 'org'.\n"
+)
+
 
 def build_megabundle_prompt(
     transcript: str,
@@ -66,6 +98,7 @@ def build_megabundle_prompt(
     lang_hint = f" Language: {language}." if language else ""
 
     user = (
+        f"{QUALITY_RULES}\n"
         "From the transcript below, extract the following fields into one JSON "
         "object:\n\n"
         '  "title": string — concise episode title (10-15 words).\n'
@@ -74,15 +107,13 @@ def build_megabundle_prompt(
         '  "bullets": array of 4-6 strings — key takeaways as standalone sentences.\n'
         f'  "insights": array of EXACTLY {num_insights} objects, each '
         '{"text": string, "insight_type": "claim"|"fact"|"opinion"}. '
-        "Insights must be grounded factual claims or strong opinions from the "
-        "transcript, not summaries or filler.\n"
-        f'  "topics": array of EXACTLY {num_topics} strings — distinct 2-8 word '
-        "noun phrases capturing the episode's subject matter. Noun phrases only "
-        "(e.g. 'passive index investing', NOT 'passive investing is better'). "
-        "Topics must be unique.\n"
+        "See rule 2 — third-person paraphrased claims, not verbatim dialogue.\n"
+        f'  "topics": array of EXACTLY {num_topics} strings — see rule 3 '
+        "(2–3 word canonical noun phrases).\n"
         f'  "entities": array of up to {max_entities} objects, each '
         '{"name": string, "kind": "person"|"org"|"place", '
         '"role": "host"|"guest"|"mentioned"}. '
+        "See rule 4 — default to 'org'. "
         'Use "host"/"guest" only when the transcript clearly identifies the '
         'person as such; otherwise use "mentioned".'
         f"{lang_hint}\n\n"
@@ -123,18 +154,18 @@ def build_extraction_bundle_prompt(
     lang_hint = f" Language: {language}." if language else ""
 
     user = (
+        f"{QUALITY_RULES}\n"
         "From the transcript below, extract the following structured fields "
         "into one JSON object:\n\n"
         f'  "insights": array of EXACTLY {num_insights} objects, each '
         '{"text": string, "insight_type": "claim"|"fact"|"opinion"}. '
-        "Grounded factual claims or strong opinions from the transcript, "
-        "not summaries or filler.\n"
-        f'  "topics": array of EXACTLY {num_topics} strings — distinct 2-8 word '
-        "noun phrases. Noun phrases only (e.g. 'passive index investing', "
-        "NOT 'passive investing is better'). Topics must be unique.\n"
+        "See rule 2 — third-person paraphrased claims.\n"
+        f'  "topics": array of EXACTLY {num_topics} strings — see rule 3 '
+        "(2–3 word canonical noun phrases).\n"
         f'  "entities": array of up to {max_entities} objects, each '
         '{"name": string, "kind": "person"|"org"|"place", '
         '"role": "host"|"guest"|"mentioned"}. '
+        "See rule 4 — default to 'org'. "
         'Use "host"/"guest" only when the transcript identifies them as such.'
         f"{lang_hint}\n\n"
         "Transcript:\n"

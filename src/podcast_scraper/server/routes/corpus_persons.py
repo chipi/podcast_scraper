@@ -45,6 +45,13 @@ def _person_display_name(gi: dict[str, Any], person_id: str) -> str:
 
 
 def _topics_for_insights(gi: dict[str, Any], insight_ids: set[str]) -> Counter[str]:
+    """Sum ABOUT-edge confidences per topic across the given insights (#664).
+
+    Confidence weighting means topics with strong semantic links rank above
+    topics that are only tangentially connected. Edges without a
+    ``properties.confidence`` field (legacy cross-product, pre-#664) count as
+    1.0 so older gi.json files behave as before.
+    """
     topics: Counter[str] = Counter()
     for e in gi.get("edges") or []:
         if not isinstance(e, dict):
@@ -57,8 +64,18 @@ def _topics_for_insights(gi: dict[str, Any], insight_ids: set[str]) -> Counter[s
         if to_raw is None:
             continue
         tid = canonical_cil_entity_id(str(to_raw))
-        if tid:
-            topics[tid] += 1
+        if not tid:
+            continue
+        props = e.get("properties") if isinstance(e.get("properties"), dict) else {}
+        conf_raw = props.get("confidence") if props else None
+        try:
+            conf = float(conf_raw) if conf_raw is not None else 1.0
+        except (TypeError, ValueError):
+            conf = 1.0
+        # Counter is typed for int values; scale float confidence to preserve
+        # 4-decimal ranking precision while keeping the Counter interface
+        # (``most_common`` ordering is what we need downstream).
+        topics[tid] += int(round(conf * 10000))
     return topics
 
 

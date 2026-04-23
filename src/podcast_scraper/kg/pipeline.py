@@ -54,6 +54,60 @@ def _merge_pipeline_default(cfg: Optional[Any]) -> bool:
     return bool(getattr(cfg, "kg_merge_pipeline_entities", True))
 
 
+def _apply_kg_filters(
+    llm_partial: Dict[str, Any], pipeline_metrics: Optional[Any]
+) -> Dict[str, Any]:
+    """#652 Part B — run topic normalizer + entity-kind repair on a KG partial.
+
+    Pure rewrite: returns a new dict when anything changed, else the input
+    untouched. Wires into pipeline_metrics counters when available. Kept out
+    of ``build_artifact`` to keep its cyclomatic complexity within budget.
+    """
+    from .filters import normalize_topic_labels, repair_entity_kind
+
+    raw_topic_dicts = [t for t in (llm_partial.get("topics") or []) if isinstance(t, dict)]
+    raw_topic_labels = [str(t.get("label") or "").strip() for t in raw_topic_dicts]
+    norm_labels, topics_changed = normalize_topic_labels(raw_topic_labels)
+    if topics_changed:
+        # Preserve per-topic fields (e.g. description) when the normalized
+        # label maps back to a source row. First-occurrence wins on ties.
+        by_norm: Dict[str, Dict[str, Any]] = {}
+        for raw_label, src in zip(raw_topic_labels, raw_topic_dicts):
+            norm_key = normalize_topic_labels([raw_label])[0]
+            if not norm_key:
+                continue
+            if norm_key[0] not in by_norm:
+                by_norm[norm_key[0]] = src
+        new_topics: List[Dict[str, Any]] = []
+        for lab in norm_labels:
+            src_fields = by_norm.get(lab, {})
+            merged = {k: v for k, v in src_fields.items() if k != "label"}
+            merged["label"] = lab
+            new_topics.append(merged)
+        llm_partial = dict(llm_partial)
+        llm_partial["topics"] = new_topics
+        if pipeline_metrics is not None and hasattr(pipeline_metrics, "record_topics_normalized"):
+            pipeline_metrics.record_topics_normalized(topics_changed)
+
+    entities_for_repair = [
+        {"name": e.get("name"), "kind": e.get("entity_kind")}
+        for e in (llm_partial.get("entities") or [])
+        if isinstance(e, dict)
+    ]
+    repaired_entities, ents_repaired = repair_entity_kind(entities_for_repair)
+    if ents_repaired:
+        llm_partial = dict(llm_partial)
+        llm_partial["entities"] = [
+            {"name": r["name"], "entity_kind": r["kind"]} for r in repaired_entities
+        ]
+        if pipeline_metrics is not None and hasattr(
+            pipeline_metrics, "record_entity_kinds_repaired"
+        ):
+            pipeline_metrics.record_entity_kinds_repaired(ents_repaired)
+
+    return llm_partial
+
+
 def _topic_labels_from_args(
     topic_labels: Optional[List[str]],
     topic_label: Optional[str],
@@ -261,6 +315,10 @@ def build_artifact(
         llm_from_summary_bullets = llm_partial is not None
 
     if llm_partial:
+        # #652 Part B — deterministic topic + entity filters (extracted helper
+        # to keep build_artifact within complexity budget).
+        llm_partial = _apply_kg_filters(llm_partial, pipeline_metrics)
+
         _append_topics_and_entities_from_partial(
             ep_node_id,
             llm_partial,

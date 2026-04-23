@@ -1,0 +1,43 @@
+{
+  "dataset_id": "curated_5feeds_benchmark_v2",
+  "run_id": "autoresearch_prompt_ollama_qwen35_9b_bundled_benchmark_paragraph_v2",
+  "episode_count": 5,
+  "intrinsic": {
+    "gates": {
+      "boilerplate_leak_rate": 0.0,
+      "speaker_label_leak_rate": 0.0,
+      "truncation_rate": 0.0,
+      "failed_episodes": [],
+      "episode_gate_failures": {}
+    },
+    "warnings": {
+      "speaker_name_leak_rate": 0.0
+    },
+    "length": {
+      "avg_tokens": 578.0,
+      "min_tokens": 434,
+      "max_tokens": 786
+    },
+    "performance": {
+      "avg_latency_ms": 45286.25297546387,
+      "median_latency_ms": 44009.00673866272,
+      "p95_latency_ms": 49788.69414329529,
+      "avg_latency_ms_excluding_first": 44861.08869314194
+    }
+  },
+  "vs_reference": {
+    "silver_sonnet46_benchmark_v2_paragraph": {
+      "reference_quality": "silver",
+      "rouge1_f1": 0.6428616540828358,
+      "rouge2_f1": 0.3140391885169714,
+      "rougeL_f1": 0.3306923135542242,
+      "bleu": 0.2390370812199223,
+      "wer": 0.9429558685852001,
+      "embedding_cosine": 0.853757917881012,
+      "coverage_ratio": 0.9938101788170564,
+      "numbers_retained": 1.0
+    }
+  },
+  "schema": "metrics_summarization_v2",
+  "task": "summarization"
+}

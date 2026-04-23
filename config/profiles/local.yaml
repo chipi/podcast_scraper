@@ -5,6 +5,14 @@
 #
 # Research references:
 #   Summary:   qwen3.5:9b bundled 0.529 bullets / 0.509 paragraph (v2 eval)
+#              Refreshed 2026-04-23 post-#652/#653 (bundled, no judge re-run):
+#              bullets ROUGE-L 0.358 / cosine 0.834
+#              paragraph ROUGE-L 0.331 / cosine 0.854
+#              eval: data/eval/runs/autoresearch_prompt_ollama_qwen35_9b_bundled_benchmark_*_v2/
+#              #657 Part A: compound "final" score requires judge-model re-run
+#              (separate scope). ROUGE-L-only numbers above; cosine similarity
+#              stayed high (0.83-0.85 band) which is the stronger indicator
+#              for local paraphrase-heavy output.
 #   GI/KG:     Same methodology via Ollama as provider
 #   NER:       spaCy trf = 1.000 F1
 #

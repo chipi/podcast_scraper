@@ -358,7 +358,27 @@ class TestGILPipeline:
         assert insight_nodes[0]["confidence"] == pytest.approx(0.91)
 
     def test_artifact_from_multi_insight_topic_labels_add_topics_and_about(self):
-        """topic_labels create Topic nodes and ABOUT edges from each Insight."""
+        """topic_labels create Topic nodes and semantically-ranked ABOUT edges (#664).
+
+        Uses a stub encoder so we can control the (insight, topic) cosine matrix
+        deterministically — no real sentence-transformers load.
+        """
+        import numpy as np
+
+        class _StubEncoder:
+            """Returns unit vectors whose dot products produce chosen cosines."""
+
+            def __init__(self):
+                # 1 insight × 2 topics: cosines [0.9, 0.4] → both above 0.25 floor.
+                self._by_text = {
+                    "Insight A": np.array([1.0, 0.0, 0.0]),
+                    "Climate Policy": np.array([0.9, np.sqrt(1 - 0.81), 0.0]),
+                    "Energy": np.array([0.4, np.sqrt(1 - 0.16), 0.0]),
+                }
+
+            def encode(self, texts, normalize_embeddings=True):
+                return np.stack([self._by_text[t] for t in texts])
+
         out = _artifact_from_multi_insight(
             "ep:1",
             [("Insight A", "unknown")],
@@ -370,13 +390,19 @@ class TestGILPipeline:
             date_str="2025-01-01T00:00:00Z",
             transcript_ref="t.txt",
             topic_labels=["Climate Policy", "Energy"],
+            about_edge_encoder=_StubEncoder(),
         )
         topics = [n for n in out["nodes"] if n["type"] == "Topic"]
         assert len(topics) == 2
         about = [e for e in out["edges"] if e["type"] == "ABOUT"]
-        assert len(about) == 2
+        assert len(about) == 2  # both topics above floor 0.25, top_k=2
         ins_id = next(n["id"] for n in out["nodes"] if n["type"] == "Insight")
         assert all(e["from"] == ins_id for e in about)
+        # Confidence populated + ordered by cosine descending
+        assert all("properties" in e and "confidence" in e["properties"] for e in about)
+        cosines = [e["properties"]["confidence"] for e in about]
+        assert cosines == sorted(cosines, reverse=True)
+        assert cosines[0] == pytest.approx(0.9, abs=1e-3)
         validate_artifact(out, strict=True)
 
     def test_artifact_from_multi_insight_pads_quote_lists(self):

@@ -1,0 +1,43 @@
+{
+  "dataset_id": "curated_5feeds_benchmark_v2",
+  "run_id": "autoresearch_prompt_gemini25_flash_lite_bundled_benchmark_bullets_v2",
+  "episode_count": 5,
+  "intrinsic": {
+    "gates": {
+      "boilerplate_leak_rate": 0.0,
+      "speaker_label_leak_rate": 0.0,
+      "truncation_rate": 0.0,
+      "failed_episodes": [],
+      "episode_gate_failures": {}
+    },
+    "warnings": {
+      "speaker_name_leak_rate": 0.0
+    },
+    "length": {
+      "avg_tokens": 265.6,
+      "min_tokens": 233,
+      "max_tokens": 316
+    },
+    "performance": {
+      "avg_latency_ms": 2989.213275909424,
+      "median_latency_ms": 3002.1121501922607,
+      "p95_latency_ms": 3874.8910427093506,
+      "avg_latency_ms_excluding_first": 2838.265299797058
+    }
+  },
+  "vs_reference": {
+    "silver_sonnet46_benchmark_v2_bullets": {
+      "reference_quality": "silver",
+      "rouge1_f1": 0.6155169709517536,
+      "rouge2_f1": 0.31447170166275357,
+      "rougeL_f1": 0.36847741760083974,
+      "bleu": 0.16728468767754429,
+      "wer": 0.8762825456024311,
+      "embedding_cosine": 0.843381142616272,
+      "coverage_ratio": 0.773892773892774,
+      "numbers_retained": null
+    }
+  },
+  "schema": "metrics_summarization_v2",
+  "task": "summarization"
+}

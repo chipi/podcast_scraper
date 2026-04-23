@@ -14,6 +14,7 @@ timestamps), Quote nodes get precise timestamp_start_ms and timestamp_end_ms
 from __future__ import annotations
 
 import logging
+import textwrap
 from typing import Any, Dict, List, Optional, Set, Tuple, TYPE_CHECKING
 from unittest.mock import Mock
 
@@ -43,6 +44,60 @@ SEGMENT_TRANSCRIPT_ALIGNMENT_MAX_DELTA = 50
 _STUB_INSIGHT_TEXT = "Summary insight (stub)."
 
 
+def _apply_gi_insight_filters(
+    insight_specs: List[Tuple[str, str]], pipeline_metrics: Optional[Any]
+) -> List[Tuple[str, str]]:
+    """#652 Part B — run ad + dialogue filters on (text, type) specs.
+
+    Source-agnostic (prefilled / provider / summary_bullets / stub).
+    Conservative thresholds live in ``gi.filters``. Extracted helper so
+    ``build_artifact`` stays under the cyclomatic-complexity budget.
+    """
+    from .filters import apply_insight_filters
+
+    insight_dicts = [{"text": t, "insight_type": k} for t, k in insight_specs]
+    kept, ads_dropped, dialogue_dropped = apply_insight_filters(insight_dicts)
+    if not (ads_dropped or dialogue_dropped):
+        return insight_specs
+    if pipeline_metrics is not None:
+        if ads_dropped and hasattr(pipeline_metrics, "record_ads_filtered"):
+            pipeline_metrics.record_ads_filtered(ads_dropped)
+        if dialogue_dropped and hasattr(pipeline_metrics, "record_dialogue_insights_dropped"):
+            pipeline_metrics.record_dialogue_insights_dropped(dialogue_dropped)
+    return [(d["text"], d.get("insight_type") or "claim") for d in kept]
+
+
+def _rank_about_edges_for_insights(
+    insight_texts: List[str],
+    topic_specs: List[Tuple[str, str]],
+    *,
+    top_k: Optional[int],
+    floor: Optional[float],
+    encoder: Optional[Any],
+) -> List[List[Tuple[str, float]]]:
+    """Thin wrapper around ``about_edges.rank_about_edges`` with pipeline
+    defaults and an empty-input short-circuit (avoids loading the embedding
+    model when there are no topics to score against).
+    """
+    if not insight_texts or not topic_specs:
+        return [[] for _ in insight_texts]
+    from .about_edges import (
+        ABOUT_EDGE_DEFAULT_FLOOR,
+        ABOUT_EDGE_DEFAULT_TOP_K,
+        rank_about_edges,
+    )
+
+    k = ABOUT_EDGE_DEFAULT_TOP_K if top_k is None else top_k
+    f = ABOUT_EDGE_DEFAULT_FLOOR if floor is None else floor
+    return rank_about_edges(
+        insight_texts,
+        topic_specs,
+        top_k=k,
+        floor=f,
+        encoder=encoder,
+    )
+
+
 def _dedupe_topic_node_specs(
     topic_labels: Optional[List[str]],
 ) -> List[Tuple[str, str]]:
@@ -57,9 +112,15 @@ def _dedupe_topic_node_specs(
             continue
         slug = slugify_label(raw)
         if slug in seen_slugs:
+            # #653 Part C: within-episode dedup — skip second Topic with same slug.
             continue
         seen_slugs.add(slug)
-        out.append((topic_node_id_from_slug(slug), raw[:200]))
+        # #653 Part A: truncate at word boundary rather than mid-word. Short KG
+        # canonical topics (2–3 words, typically < 50 chars) pass through
+        # unchanged; only legacy long bullet-slugs (the fallback path) exercise
+        # this branch, and `textwrap.shorten` uses whitespace as break hints.
+        display = raw if len(raw) <= 200 else textwrap.shorten(raw, width=200, placeholder="…")
+        out.append((topic_node_id_from_slug(slug), display))
     return out
 
 
@@ -603,6 +664,10 @@ def build_artifact(
             pipeline_metrics=pipeline_metrics,
         )
 
+    # #652 Part B — ad + dialogue filters applied post-resolution.
+    if insight_specs:
+        insight_specs = _apply_gi_insight_filters(insight_specs, pipeline_metrics)
+
     artifact_model_version = model_version
     if cfg is not None:
         raw_gi_src = getattr(cfg, "gi_insight_source", "stub")
@@ -776,6 +841,9 @@ def _artifact_from_multi_insight(
     transcript_segments: Optional[List[Dict[str, Any]]] = None,
     topic_labels: Optional[List[str]] = None,
     episode_duration_ms: Optional[int] = None,
+    about_edge_top_k: Optional[int] = None,
+    about_edge_floor: Optional[float] = None,
+    about_edge_encoder: Optional[Any] = None,
 ) -> Dict[str, Any]:
     """Build artifact from Episode + N Insights + their grounded quote lists.
 
@@ -834,6 +902,16 @@ def _artifact_from_multi_insight(
             }
         )
 
+    # #664: rank insight→topic ABOUT edges semantically (top-K + floor) instead
+    # of emitting the full insights × topics cross-product.
+    about_edges_per_insight = _rank_about_edges_for_insights(
+        [t for t, _ in insight_specs],
+        topic_node_specs,
+        top_k=about_edge_top_k,
+        floor=about_edge_floor,
+        encoder=about_edge_encoder,
+    )
+
     # Pad so we have one quote list per insight
     while len(insight_quotes_list) < len(insight_specs):
         insight_quotes_list.append([])
@@ -881,8 +959,18 @@ def _artifact_from_multi_insight(
             insight_node["confidence"] = float(insight_confidence)
         nodes.append(insight_node)
         edges.append({"type": "HAS_INSIGHT", "from": ep_node_id, "to": insight_id})
-        for tid, _ in topic_node_specs:
-            edges.append({"type": "ABOUT", "from": insight_id, "to": tid})
+        for tid, confidence in about_edges_per_insight[idx]:
+            # Clamp to schema range [0, 1]; cosine is theoretically [-1, 1] but
+            # the floor filter already drops low values in practice.
+            conf = max(0.0, min(1.0, float(confidence)))
+            edges.append(
+                {
+                    "type": "ABOUT",
+                    "from": insight_id,
+                    "to": tid,
+                    "properties": {"confidence": round(conf, 4)},
+                }
+            )
         for gq in quotes:
             if not isinstance(gq, GroundedQuote):
                 continue

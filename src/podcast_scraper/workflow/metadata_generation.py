@@ -43,6 +43,62 @@ from ..utils.log_redaction import format_exception_for_log, redact_for_log
 
 logger = logging.getLogger(__name__)
 
+# #653 Part D — leading stopwords stripped when deriving a short topic phrase
+# from a summary bullet (staged-mode fallback when KG prefilled topics absent).
+_BULLET_LEADING_STOPWORDS: frozenset[str] = frozenset(
+    {
+        "the",
+        "a",
+        "an",
+        "how",
+        "why",
+        "what",
+        "this",
+        "that",
+        "these",
+        "those",
+        "we",
+        "you",
+        "i",
+        "it",
+        "in",
+        "on",
+        "of",
+        "for",
+        "to",
+        "and",
+        "but",
+        "or",
+    }
+)
+
+
+def _bullet_to_topic_phrase(bullet: str, max_tokens: int = 4) -> str:
+    """Extract a short noun-phrase-ish topic label from a summary bullet.
+
+    Strips a leading stopword prefix and keeps the first ``max_tokens``
+    content tokens. Not a full NLP parse — deliberately cheap/local for
+    the staged-mode fallback path (#653 Part D). Bundled modes bypass
+    this and use KG canonical topics directly.
+    """
+    if not bullet:
+        return ""
+    text = bullet.strip()
+    if not text:
+        return ""
+    tokens = text.split()
+    # Drop leading stopwords (at most 3; otherwise the phrase may genuinely
+    # start with one and we shouldn't eat the whole thing).
+    for _ in range(3):
+        if tokens and tokens[0].lower().strip(",.;:!?") in _BULLET_LEADING_STOPWORDS:
+            tokens = tokens[1:]
+        else:
+            break
+    # Strip trailing punctuation on the last kept token.
+    phrase = " ".join(tokens[:max_tokens])
+    return phrase.rstrip(",.;:!?").strip() or text
+
+
 # Lazy import for summarization (optional dependency)
 # Import is deferred until actually needed to avoid PyTorch initialization in dry-run mode
 summarizer = None  # type: ignore
@@ -3441,6 +3497,16 @@ def generate_episode_metadata(  # noqa: C901
                         transcript_segments_arg = None
                 except (json.JSONDecodeError, OSError):
                     transcript_segments_arg = None
+        # #663: excise pre-roll / post-roll ad regions before GI extraction.
+        # Staged-mode GI re-reads the raw transcript file (not the cleaned one
+        # summarization got); without this wrapper, sponsor pre-rolls on shows
+        # like Invest Like the Best leak into insights and quotes.
+        if transcript_text:
+            from ..gi.ad_regions import excise_ad_regions
+
+            transcript_text, transcript_segments_arg, _ = excise_ad_regions(
+                transcript_text, segments=transcript_segments_arg
+            )
         publish_date_str = episode_published_date.isoformat() if episode_published_date else None
         max_attempts = 2
         for attempt in range(max_attempts):
@@ -3482,15 +3548,39 @@ def generate_episode_metadata(  # noqa: C901
                     )
                     or config_constants.DEFAULT_SUMMARY_BULLETS_DOWNSTREAM_MAX
                 )
+                # #653 Part A: prefer KG canonical noun-phrase topics over summary
+                # bullets for GI Topic labels. Bundled pipelines (mega/extraction)
+                # surface them via summary_metadata.prefilled_extraction["topics"];
+                # staged mode still falls back to bullets (see #653 Part D follow-up).
                 gi_topic_labels: Optional[List[str]] = None
-                if summary_metadata and getattr(summary_metadata, "bullets", None):
+                if summary_metadata is not None:
+                    _pe = getattr(summary_metadata, "prefilled_extraction", None)
+                    if isinstance(_pe, dict):
+                        _pe_topics = _pe.get("topics")
+                        if isinstance(_pe_topics, list):
+                            gi_topic_labels = []
+                            for _t in _pe_topics[:max_gi_topics]:
+                                _ts = str(_t).strip()
+                                if _ts:
+                                    gi_topic_labels.append(_ts)
+                            if not gi_topic_labels:
+                                gi_topic_labels = None
+                if (
+                    gi_topic_labels is None
+                    and summary_metadata
+                    and getattr(summary_metadata, "bullets", None)
+                ):
+                    # #653 Part D: staged-mode fallback. Extract a short noun
+                    # phrase from the bullet — strip leading stopwords, keep first
+                    # 4 content tokens. Same visual outcome across all 4 pipeline
+                    # modes (staged, bundled, extraction_bundled, mega_bundled).
                     _bullets_gi_topics = summary_metadata.bullets
                     if _bullets_gi_topics:
                         gi_topic_labels = []
                         for _b in _bullets_gi_topics[:max_gi_topics]:
                             _s = strip_known_ml_bullet_prefixes(str(_b))
                             if _s:
-                                gi_topic_labels.append(_s)
+                                gi_topic_labels.append(_bullet_to_topic_phrase(_s))
                         if not gi_topic_labels:
                             gi_topic_labels = None
                 gi_episode_duration_ms: Optional[int] = None
@@ -3631,6 +3721,12 @@ def generate_episode_metadata(  # noqa: C901
             if os.path.isfile(full_transcript_path_kg):
                 with open(full_transcript_path_kg, encoding="utf-8") as f:
                     transcript_text_kg = f.read()
+        # #663: excise pre-roll / post-roll ads so KG entity/topic extraction
+        # doesn't pick up sponsor names (Ramp, WorkOS, etc.) as content.
+        if transcript_text_kg:
+            from ..gi.ad_regions import excise_ad_regions
+
+            transcript_text_kg, _, _ = excise_ad_regions(transcript_text_kg)
         publish_date_str_kg = episode_published_date.isoformat() if episode_published_date else None
         max_kg_topics = int(
             getattr(cfg, "kg_max_topics", config_constants.DEFAULT_SUMMARY_BULLETS_DOWNSTREAM_MAX)

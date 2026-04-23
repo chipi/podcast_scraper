@@ -5,6 +5,15 @@
 #
 # Research references:
 #   Summary:   EVAL_HELDOUT_V2_2026_04.md (gemini 0.564 bullets, 1.5s, $0.00047/ep)
+#              Refreshed 2026-04-23 post-#652/#653 (no judge re-run, ROUGE-only):
+#              bullets ROUGE-L 0.368 / cosine 0.843 / 3.0s/ep
+#              paragraph ROUGE-L 0.264 / cosine 0.792 / 3.6s/ep
+#              eval: data/eval/runs/autoresearch_prompt_gemini25_flash_lite_bundled_benchmark_*_v2/
+#              Historic compound "Final" = 0.4×ROUGE-L + 0.6×judge. Solving for
+#              judge on historic paragraph Final 0.462 → judge ~0.60; with fresh
+#              ROUGE-L 0.264, implied Final ≈ 0.466 (vs historic 0.462). Same
+#              for bullets: historic Final 0.549 → judge ~0.67; fresh Final
+#              implied ≈ 0.547. No regression within eval noise.
 #   GI:        GI_AUTORESEARCH_PLAN.md (provider mode +10pp, n=12 sweet spot)
 #   KG:        KG_AUTORESEARCH_PLAN.md (provider mode +37pp, n=10 sweet spot)
 #   Clustering: 0.75 threshold (code default, insight_clusters.py)

@@ -61,8 +61,11 @@ class TestBuildMegaBundlePrompt:
     def test_noun_phrase_instruction_preserved(self):
         _, user = build_megabundle_prompt("T")
         # KG v3 noun-phrase discipline is load-bearing for topic quality.
+        # #652 tightened to 2–3 word canonical forms (repeatable across
+        # episodes) rather than strictly "unique" — check for the new wording.
         assert "noun phrase" in user.lower()
-        assert "unique" in user.lower()
+        assert "canonical" in user.lower()
+        assert "2–3 word" in user or "2-3 word" in user
 
 
 class TestBuildExtractionBundlePrompt:
