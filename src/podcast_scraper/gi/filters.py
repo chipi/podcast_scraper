@@ -51,6 +51,15 @@ _AD_PATTERNS: Tuple[re.Pattern[str], ...] = tuple(
         r"\bgo to\s+\w+\s+dot\s+com\b",
         r"\bvisit\s+\w+\s+dot\s+com\b",
         r"\bhead (?:over )?to\s+\w+\s+dot\s+com\b",
+        # Hybrid URL forms — modern Whisper-1 keeps literal punctuation (#663).
+        # Invest-Like-the-Best-style pre-rolls produce ``ramp.com slash invest``
+        # and ``Visit WorkOS.com`` rather than fully-spoken ``dot com``.
+        r"\b\w+\.(?:com|ai|io|co)\s+slash\b",  # "ramp.com slash invest"
+        r"\bvisit\s+\w+\.(?:com|ai|io|co)\b",  # "Visit WorkOS.com"
+        r"\bgo to\s+\w+\.(?:com|ai|io|co)\b",  # "go to ramp.com"
+        r"\bcheck out\s+\w+\.(?:com|ai|io|co)\b",  # "check out ramp.com"
+        r"\blearn more at\s+\w+\.(?:com|ai|io|co)\b",  # "Learn more at rogo.ai"
+        r"\bhead (?:over )?to\s+\w+\.(?:com|ai|io|co)\b",
         # Promo / CTA phrases — common in ad reads.
         r"\b(?:promo|use)\s+code\s+\w+",
         r"\bsave\s+(?:up to\s+)?\d+\s*(?:percent|%)\b",

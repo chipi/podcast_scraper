@@ -67,6 +67,37 @@ def _apply_gi_insight_filters(
     return [(d["text"], d.get("insight_type") or "claim") for d in kept]
 
 
+def _rank_about_edges_for_insights(
+    insight_texts: List[str],
+    topic_specs: List[Tuple[str, str]],
+    *,
+    top_k: Optional[int],
+    floor: Optional[float],
+    encoder: Optional[Any],
+) -> List[List[Tuple[str, float]]]:
+    """Thin wrapper around ``about_edges.rank_about_edges`` with pipeline
+    defaults and an empty-input short-circuit (avoids loading the embedding
+    model when there are no topics to score against).
+    """
+    if not insight_texts or not topic_specs:
+        return [[] for _ in insight_texts]
+    from .about_edges import (
+        ABOUT_EDGE_DEFAULT_FLOOR,
+        ABOUT_EDGE_DEFAULT_TOP_K,
+        rank_about_edges,
+    )
+
+    k = ABOUT_EDGE_DEFAULT_TOP_K if top_k is None else top_k
+    f = ABOUT_EDGE_DEFAULT_FLOOR if floor is None else floor
+    return rank_about_edges(
+        insight_texts,
+        topic_specs,
+        top_k=k,
+        floor=f,
+        encoder=encoder,
+    )
+
+
 def _dedupe_topic_node_specs(
     topic_labels: Optional[List[str]],
 ) -> List[Tuple[str, str]]:
@@ -810,6 +841,9 @@ def _artifact_from_multi_insight(
     transcript_segments: Optional[List[Dict[str, Any]]] = None,
     topic_labels: Optional[List[str]] = None,
     episode_duration_ms: Optional[int] = None,
+    about_edge_top_k: Optional[int] = None,
+    about_edge_floor: Optional[float] = None,
+    about_edge_encoder: Optional[Any] = None,
 ) -> Dict[str, Any]:
     """Build artifact from Episode + N Insights + their grounded quote lists.
 
@@ -868,6 +902,16 @@ def _artifact_from_multi_insight(
             }
         )
 
+    # #664: rank insight→topic ABOUT edges semantically (top-K + floor) instead
+    # of emitting the full insights × topics cross-product.
+    about_edges_per_insight = _rank_about_edges_for_insights(
+        [t for t, _ in insight_specs],
+        topic_node_specs,
+        top_k=about_edge_top_k,
+        floor=about_edge_floor,
+        encoder=about_edge_encoder,
+    )
+
     # Pad so we have one quote list per insight
     while len(insight_quotes_list) < len(insight_specs):
         insight_quotes_list.append([])
@@ -915,8 +959,18 @@ def _artifact_from_multi_insight(
             insight_node["confidence"] = float(insight_confidence)
         nodes.append(insight_node)
         edges.append({"type": "HAS_INSIGHT", "from": ep_node_id, "to": insight_id})
-        for tid, _ in topic_node_specs:
-            edges.append({"type": "ABOUT", "from": insight_id, "to": tid})
+        for tid, confidence in about_edges_per_insight[idx]:
+            # Clamp to schema range [0, 1]; cosine is theoretically [-1, 1] but
+            # the floor filter already drops low values in practice.
+            conf = max(0.0, min(1.0, float(confidence)))
+            edges.append(
+                {
+                    "type": "ABOUT",
+                    "from": insight_id,
+                    "to": tid,
+                    "properties": {"confidence": round(conf, 4)},
+                }
+            )
         for gq in quotes:
             if not isinstance(gq, GroundedQuote):
                 continue

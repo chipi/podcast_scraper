@@ -1,3 +1,6 @@
 # Project-specific terms that look like typos
 # Add words here as needed
 
+# "patter" = rapid, glib speech (as used by a podcast host). Legitimate
+# English word that codespell flags as a typo of "pattern".
+patter

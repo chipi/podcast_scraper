@@ -24,8 +24,13 @@ class PatternBasedCleaner:
     def clean(self, text: str) -> str:
         """Clean transcript using pattern-based rules.
 
-        This is a wrapper around the existing clean_for_summarization()
-        function from preprocessing.core to maintain backward compatibility.
+        Wraps :func:`preprocessing.clean_for_summarization` for the baseline
+        cleaning (timestamps, speaker normalization, phrase-trigger sponsor
+        removal), then applies :func:`gi.ad_regions.excise_ad_regions` to
+        remove pre-roll and post-roll ad blocks detected by pattern density
+        (#663). The density pass catches modern sponsor reads (e.g.,
+        ``Visit ramp.com``, ``Learn more at rogo.ai``) that the four
+        built-in trigger phrases in ``remove_sponsor_blocks`` miss.
 
         Args:
             text: Raw transcript text
@@ -35,9 +40,19 @@ class PatternBasedCleaner:
         """
         # Import here to avoid circular dependency
         from .. import preprocessing
+        from ..gi.ad_regions import excise_ad_regions
 
-        # Use existing clean_for_summarization() which includes all standard cleaning steps
         cleaned: str = preprocessing.clean_for_summarization(text)  # type: ignore[attr-defined]
+        cleaned, _, meta = excise_ad_regions(cleaned)
+        if meta.chars_removed:
+            logger.debug(
+                "PatternBasedCleaner: excised %d ad chars " "(preroll=%s, postroll=%s, hits=%d/%d)",
+                meta.chars_removed,
+                meta.preroll_cut_end,
+                meta.postroll_cut_start,
+                meta.preroll_pattern_hits,
+                meta.postroll_pattern_hits,
+            )
         return cleaned
 
     def remove_sponsors(self, text: str) -> str:

@@ -3497,6 +3497,16 @@ def generate_episode_metadata(  # noqa: C901
                         transcript_segments_arg = None
                 except (json.JSONDecodeError, OSError):
                     transcript_segments_arg = None
+        # #663: excise pre-roll / post-roll ad regions before GI extraction.
+        # Staged-mode GI re-reads the raw transcript file (not the cleaned one
+        # summarization got); without this wrapper, sponsor pre-rolls on shows
+        # like Invest Like the Best leak into insights and quotes.
+        if transcript_text:
+            from ..gi.ad_regions import excise_ad_regions
+
+            transcript_text, transcript_segments_arg, _ = excise_ad_regions(
+                transcript_text, segments=transcript_segments_arg
+            )
         publish_date_str = episode_published_date.isoformat() if episode_published_date else None
         max_attempts = 2
         for attempt in range(max_attempts):
@@ -3711,6 +3721,12 @@ def generate_episode_metadata(  # noqa: C901
             if os.path.isfile(full_transcript_path_kg):
                 with open(full_transcript_path_kg, encoding="utf-8") as f:
                     transcript_text_kg = f.read()
+        # #663: excise pre-roll / post-roll ads so KG entity/topic extraction
+        # doesn't pick up sponsor names (Ramp, WorkOS, etc.) as content.
+        if transcript_text_kg:
+            from ..gi.ad_regions import excise_ad_regions
+
+            transcript_text_kg, _, _ = excise_ad_regions(transcript_text_kg)
         publish_date_str_kg = episode_published_date.isoformat() if episode_published_date else None
         max_kg_topics = int(
             getattr(cfg, "kg_max_topics", config_constants.DEFAULT_SUMMARY_BULLETS_DOWNSTREAM_MAX)
