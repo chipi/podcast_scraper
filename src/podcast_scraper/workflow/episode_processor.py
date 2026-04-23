@@ -1174,6 +1174,34 @@ def _mark_episode_skipped_policy(
     update_metric_safely(pipeline_metrics, "episodes_skipped_total", 1)
 
 
+def _resolve_episode_duration_seconds(job) -> Optional[int]:
+    """Resolve the episode duration in seconds for cost-metric attribution.
+
+    ``ProcessingJob`` / ``TranscriptionJob`` NamedTuples don't carry
+    ``episode_duration_seconds``, so direct attribute access always
+    returns ``None``. Fall back to parsing the RSS ``<itunes:duration>``
+    element off ``job.episode.item`` (#665 hotfix). Without this, the
+    cost recorder's guard (``if audio_minutes > 0``) skips emission
+    whenever the provider path is fully mocked and no audio bytes land
+    on disk — the default for the e2e provider-mock tests that exercise
+    the #650/#651 cost-chain assertions.
+    """
+    duration = getattr(job, "episode_duration_seconds", None)
+    if duration is not None:
+        return int(duration) if isinstance(duration, (int, float)) else None
+    try:
+        from ..rss.parser import _extract_duration_seconds
+
+        ep_item = getattr(getattr(job, "episode", None), "item", None)
+        if ep_item is not None:
+            parsed = _extract_duration_seconds(ep_item)
+            if isinstance(parsed, (int, float)) and parsed > 0:
+                return int(parsed)
+    except Exception:  # pragma: no cover — defensive: provider will try file-size next
+        pass
+    return None
+
+
 def transcribe_media_to_text(
     job: TranscriptionJob,  # type: ignore[valid-type]
     cfg: config.Config,
@@ -1291,7 +1319,7 @@ def transcribe_media_to_text(
         # Pass pipeline_metrics and episode duration for LLM call tracking (if OpenAI provider)
         # Note: Provider receives preprocessed audio (if preprocessing was successful)
         # Provider is agnostic to whether audio was preprocessed
-        episode_duration_seconds = getattr(job, "episode_duration_seconds", None)
+        episode_duration_seconds = _resolve_episode_duration_seconds(job)
         # Apply timeout enforcement for transcription (Issue #379)
         # Create call metrics for tracking per-episode provider metrics
         from ..utils.provider_metrics import ProviderCallMetrics

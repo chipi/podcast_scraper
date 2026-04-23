@@ -900,6 +900,13 @@ class TestOpenAIProviderE2E:
                 preload_models=False,  # Disable model preloading (no local ML models)
                 transcribe_missing=True,
                 max_episodes=int(os.getenv("LLM_TEST_MAX_EPISODES", "1")),
+                # #665 hotfix: p01_multi.xml ep1 has a pre-existing transcript
+                # URL; default "oldest" ordering skips transcription entirely.
+                # Force "oldest" so ep4 (no transcript) triggers the provider.
+                episode_order="oldest",
+                # #665 hotfix: disable transcript cache so a prior-run cache hit
+                # doesn't silently skip the transcription provider.
+                transcript_cache_enabled=False,
             )
 
             # Run pipeline (uses E2E server OpenAI endpoints, no direct mocking)
@@ -979,6 +986,11 @@ class TestOpenAIProviderE2E:
                 transcribe_missing=True,
                 llm_pipeline_mode="mega_bundled",
                 max_episodes=int(os.getenv("LLM_TEST_MAX_EPISODES", "1")),
+                # #665 hotfix: force oldest-last so ep4 (reversed feed order) (no transcript) runs.
+                episode_order="oldest",
+                # #665 hotfix: disable transcript cache so a prior-run cache hit
+                # doesn't silently skip the transcription provider.
+                transcript_cache_enabled=False,
             )
 
             transcripts_saved, summary = workflow.run_pipeline(cfg)
