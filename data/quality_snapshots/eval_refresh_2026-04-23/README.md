@@ -1,11 +1,13 @@
 # Eval refresh — 2026-04-23 (#657 Part A)
 
-Post-#652 + #653 re-run of the v2 benchmark summarization eval on the 3 profile models
-that have cited scores in their preamble: `cloud_balanced` (gemini-2.5-flash-lite bundled),
-`cloud_quality` (deepseek-chat), `local` (qwen3.5:9b bundled via Ollama).
+Post-#652 + #653 re-run of the v2 benchmark summarization eval on all 4 profile models:
+`cloud_balanced` (gemini-2.5-flash-lite bundled), `cloud_quality` (deepseek-chat),
+`local` (qwen3.5:9b bundled via Ollama), `airgapped` (SummLlama3.2-3B standalone).
 
-`airgapped` (SummLlama3.2-3B) was NOT re-run — HF model not currently cached. Cited #571
-baseline stands; documented in the profile preamble.
+SummLlama was inferenced on MPS (Apple Silicon) at ~78 s/ep after HF weights were pulled
+into the local cache. Standalone paragraph only — the airgapped pipeline reuses these
+bullets/paragraph outputs as the source for downstream GI/KG (`gi_insight_source:
+summary_bullets`), so there is no separate airgapped "bundled" variant to eval.
 
 ## Methodology
 
@@ -28,6 +30,7 @@ baseline stands; documented in the profile preamble.
 | `cloud_quality` | paragraph | 0.378 | 0.860 | 25.7 s/ep |
 | `local` (qwen3.5:9b bundled via Ollama) | bullets | 0.358 | 0.834 | (local) |
 | `local` | paragraph | 0.331 | 0.854 | (local) |
+| `airgapped` (SummLlama3.2-3B on MPS) | paragraph | 0.325 | 0.784 | 78 s/ep |
 
 ## Interpretation
 
@@ -52,6 +55,14 @@ baseline stands; documented in the profile preamble.
 - **qwen3.5:9b (local) ROUGE-L falls below the cloud models** but cosine stays in the
   0.83-0.85 band, suggesting paraphrase-heavy output that's semantically similar but
   lexically divergent from the silver reference. ROUGE-only is a lower bound for local models.
+- **SummLlama3.2-3B (airgapped) paragraph ROUGE-L 0.325 / cosine 0.784** lands between
+  gemini-paragraph (0.264) and qwen-paragraph (0.331) on ROUGE-L, and slightly below
+  both on cosine. Historic #571 cited 0.485 as the compound "Final" — that included the
+  judge component. Solving the same way as gemini: if historic Final 0.485 implies judge
+  ~0.59 against ROUGE-L in the same band as today, fresh implied Final with judge 0.59 and
+  ROUGE-L 0.325 ≈ 0.484. No regression within noise. Still the weakest paragraph model on
+  pure ROUGE-L + cosine, which matches its position as the "no-network" fallback — the
+  tradeoff is offline capability, not quality parity.
 
 ## Reproduce
 

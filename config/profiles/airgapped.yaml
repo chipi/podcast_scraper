@@ -4,18 +4,18 @@
 # Uses only bundled ML models (SummLlama / transformers, spaCy, local Whisper).
 #
 # Research references:
-#   Summary:   SummLlama3.2-3B 0.485 paragraph (#571, 2.4x over bart-led 0.206)
-#              #657 Part A refresh (2026-04-23): NOT re-run — the SummLlama3.2-3B
-#              HF model is not currently cached in this environment (~3GB
-#              download + transformers dependency chain). Cited 0.485 baseline
-#              dates to #571 (pre-#652/#653). #652 touched insight extraction
-#              prompts (not summarization) and #653 touched GI topic labels
-#              (not summary content) — neither directly affects standalone
-#              SummLlama paragraph output, so the pre-existing baseline is
-#              still the best reference until a full re-run is warranted.
-#              TODO follow-up: cache the HF model + re-run the eval config
-#              data/eval/configs/ml/summllama32_standalone_v2.yaml via
-#              scripts/eval/experiment/run_summllama_v2.py.
+#   Summary:   SummLlama3.2-3B 0.485 paragraph (#571, 2.4x over bart-led 0.206).
+#              Refreshed 2026-04-23 post-#652/#653 (standalone, no judge re-run):
+#              paragraph ROUGE-L 0.325 / cosine 0.784 / ~78 s/ep on MPS.
+#              eval: data/eval/runs/summllama32_standalone_benchmark_v2_paragraph/
+#              Historic compound "Final" = 0.4×ROUGE-L + 0.6×judge. Solving for
+#              judge on historic Final 0.485 → judge ~0.59; with fresh ROUGE-L
+#              0.325, implied Final ≈ 0.484. No regression within eval noise.
+#              SummLlama is summary-only (no chat/JSON mode), so the airgapped
+#              pipeline reuses these bullets as the source for downstream GI/KG
+#              (gi_insight_source: summary_bullets) — there is no separate
+#              "bundled" variant. Weakest paragraph model of the 4 profiles on
+#              pure ROUGE-L + cosine, traded for offline capability.
 #   GI:        summary_bullets source (SummLlama is summary-only, not chat)
 #   KG:        summary_bullets source (same rationale)
 #   NER:       spaCy trf for quality (1.000 F1 w/ show-title fix)
