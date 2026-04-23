@@ -5,6 +5,17 @@
 #
 # Research references:
 #   Summary:   SummLlama3.2-3B 0.485 paragraph (#571, 2.4x over bart-led 0.206)
+#              #657 Part A refresh (2026-04-23): NOT re-run — the SummLlama3.2-3B
+#              HF model is not currently cached in this environment (~3GB
+#              download + transformers dependency chain). Cited 0.485 baseline
+#              dates to #571 (pre-#652/#653). #652 touched insight extraction
+#              prompts (not summarization) and #653 touched GI topic labels
+#              (not summary content) — neither directly affects standalone
+#              SummLlama paragraph output, so the pre-existing baseline is
+#              still the best reference until a full re-run is warranted.
+#              TODO follow-up: cache the HF model + re-run the eval config
+#              data/eval/configs/ml/summllama32_standalone_v2.yaml via
+#              scripts/eval/experiment/run_summllama_v2.py.
 #   GI:        summary_bullets source (SummLlama is summary-only, not chat)
 #   KG:        summary_bullets source (same rationale)
 #   NER:       spaCy trf for quality (1.000 F1 w/ show-title fix)

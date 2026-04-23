@@ -5,6 +5,14 @@
 #
 # Research references (EVAL_HELDOUT_V2, EVAL_CROSS_DATASET_BASELINE_2026_04):
 #   Summary:   DeepSeek 0.586 bullets / 0.541 paragraph (#1 quality, v2 held-out)
+#              Refreshed 2026-04-23 post-#652/#653 (non-bundled, no judge re-run):
+#              bullets ROUGE-L 0.422 / cosine 0.887 / 14.3s/ep
+#              paragraph ROUGE-L 0.378 / cosine 0.860 / 25.7s/ep
+#              eval: data/eval/runs/autoresearch_prompt_deepseek_benchmark_*_v2/
+#              #657 Part A: compound "final" score requires judge-model re-run
+#              (separate scope); DeepSeek remains clearly above cloud_balanced
+#              on ROUGE-L (+5.4pp bullets / +11.4pp paragraph), preserving the
+#              "maximum quality" positioning relative to the balanced default.
 #   GI:        Gemini 80% insight coverage (#1, range 65-80% across cloud LLMs)
 #   KG:        qwen3.5:9b 79% topic coverage leads overall; cloud LLMs cluster
 #              at 65% (gemini/openai/anthropic). KG pick below is DeepSeek for
