@@ -29,6 +29,10 @@ export interface CorpusRunSummaryItem {
   dialogue_insights_dropped_count: number | null
   topics_normalized_count: number | null
   entity_kinds_repaired_count: number | null
+  // #656 Stage D: #663 pre-extraction ad-region excision counters.
+  ad_chars_excised_preroll: number | null
+  ad_chars_excised_postroll: number | null
+  ad_episodes_with_excision_count: number | null
 }
 
 export interface CorpusRunsSummaryResponse {

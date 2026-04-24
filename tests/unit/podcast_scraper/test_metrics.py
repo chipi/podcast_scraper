@@ -517,6 +517,10 @@ class TestFinish(unittest.TestCase):
             "dialogue_insights_dropped_count",
             "topics_normalized_count",
             "entity_kinds_repaired_count",
+            # #656 Stage D / #663 pre-extraction ad-region excision
+            "ad_chars_excised_preroll",
+            "ad_chars_excised_postroll",
+            "ad_episodes_with_excision_count",
             "total_episode_estimated_cost_usd",
             "total_stage_cost_usd",
             "total_episode_estimated_cost_usd_legacy",

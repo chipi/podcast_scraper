@@ -118,6 +118,10 @@ def _parse_run_json(path_str: str, root_safe: str) -> CorpusRunSummaryItem | Non
         dialogue_insights_dropped_count=_int_metric(m, "dialogue_insights_dropped_count"),
         topics_normalized_count=_int_metric(m, "topics_normalized_count"),
         entity_kinds_repaired_count=_int_metric(m, "entity_kinds_repaired_count"),
+        # #656 Stage D: #663 pre-extraction ad-region excision counters.
+        ad_chars_excised_preroll=_int_metric(m, "ad_chars_excised_preroll"),
+        ad_chars_excised_postroll=_int_metric(m, "ad_chars_excised_postroll"),
+        ad_episodes_with_excision_count=_int_metric(m, "ad_episodes_with_excision_count"),
     )
 
 

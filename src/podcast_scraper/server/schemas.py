@@ -861,6 +861,11 @@ class CorpusRunSummaryItem(BaseModel):
     dialogue_insights_dropped_count: int | None = None
     topics_normalized_count: int | None = None
     entity_kinds_repaired_count: int | None = None
+    # #656 Stage D: pre-extraction ad-region excision counters (#663). Each
+    # is a run total; ``None`` on runs predating the counters.
+    ad_chars_excised_preroll: int | None = None
+    ad_chars_excised_postroll: int | None = None
+    ad_episodes_with_excision_count: int | None = None
 
 
 class CorpusRunsSummaryResponse(BaseModel):

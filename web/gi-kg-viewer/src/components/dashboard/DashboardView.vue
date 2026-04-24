@@ -17,6 +17,7 @@ import FeedCoverageTable from './FeedCoverageTable.vue'
 import IndexStatusCard from './IndexStatusCard.vue'
 import IntelligenceSnapshot from './IntelligenceSnapshot.vue'
 import TopicClustersStatusBlock from './TopicClustersStatusBlock.vue'
+import PipelineAdExcisionMetrics from './PipelineAdExcisionMetrics.vue'
 import PipelineCleanupMetrics from './PipelineCleanupMetrics.vue'
 import PipelineJobHistoryStrip from './PipelineJobHistoryStrip.vue'
 import PipelineJobsCard from './PipelineJobsCard.vue'
@@ -401,6 +402,7 @@ function openLibraryFailures(): void {
       <TopicClustersStatusBlock />
       <TopicLandscape @go-graph="emit('go-graph')" />
       <PipelineCleanupMetrics :run="latestRun" />
+      <PipelineAdExcisionMetrics :run="latestRun" />
       <TopVoices
         :persons="topPersons"
         :loading="topPersonsLoading"
