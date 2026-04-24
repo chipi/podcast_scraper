@@ -158,27 +158,19 @@ def test_resolved_job_log_path_file_missing(tmp_path: Path) -> None:
     assert ei.value.status_code == 404
 
 
-def test_resolved_job_log_path_codeql_guard_rejects_normpath_outside_corpus(
+def test_resolved_job_log_path_rejects_when_normpath_if_under_root_returns_none(
     tmp_path: Path,
 ) -> None:
-    """Second ``normpath`` + ``startswith`` guard (lines 87–89) rejects a poisoned path."""
+    """``normpath_if_under_root`` immediately before ``isfile`` must reject non-corpus paths."""
     rel = ".viewer/jobs/j1.log"
     good_verified = str((tmp_path / rel).resolve())
-    _real_normpath = os.path.normpath
-
-    def _norm(p: object) -> str:
-        s = os.fspath(p) if isinstance(p, os.PathLike) else str(p)
-        if s == good_verified:
-            return "/tmp/definitely_not_under_corpus_root.log"
-        return _real_normpath(s)
-
     with patch.object(
         jobs_mod,
         "get_job",
         return_value={"job_id": "j1", "log_relpath": rel},
     ):
         with patch.object(jobs_mod, "safe_relpath_under_corpus_root", return_value=good_verified):
-            with patch.object(jobs_mod.os.path, "normpath", side_effect=_norm):
+            with patch.object(jobs_mod, "normpath_if_under_root", return_value=None):
                 with pytest.raises(HTTPException) as ei:
                     _run(_resolved(tmp_path, "j1"))
     assert ei.value.status_code == 400

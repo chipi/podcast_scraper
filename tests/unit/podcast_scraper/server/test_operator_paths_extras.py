@@ -59,27 +59,17 @@ def test_packaged_viewer_operator_example_path_returns_path_or_none() -> None:
     assert p is None or p.name == "viewer_operator.example.yaml"
 
 
-def test_extras_source_docker_falls_back_when_joined_candidate_escapes_root(
+def test_extras_source_docker_falls_back_when_fixed_file_helper_returns_none(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
-    """``normpath(join(root, basename))`` outside ``root`` → fall back to fixed operator path."""
-    import os as _os
-
+    """If ``safe_fixed_file_under_root`` rejects the candidate, fall back to fixed operator path."""
     monkeypatch.setenv("PODCAST_PIPELINE_EXEC_MODE", "docker")
     corpus = tmp_path / "corpus"
     corpus.mkdir()
     fixed = tmp_path / "fixed.yaml"
     fixed.write_text("pipeline_install_extras: ml\n", encoding="utf-8")
     app = _App(fixed)
-
-    real_join = _os.path.join
-
-    def fake_join(a: str, b: str) -> str:
-        if b == op.VIEWER_OPERATOR_BASENAME:
-            return "/totally/outside/viewer_operator.yaml"
-        return real_join(a, b)
-
-    with patch.object(op.os.path, "join", side_effect=fake_join):
+    with patch.object(op, "safe_fixed_file_under_root", return_value=None):
         assert op.viewer_operator_extras_source(app, corpus) == fixed
 
 

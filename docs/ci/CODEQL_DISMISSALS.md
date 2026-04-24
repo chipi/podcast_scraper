@@ -46,8 +46,11 @@ cannot close the query.
 **Code-side patterns added for viewer routes (same Type 1):** ``GET/PUT /feeds``
 re-resolves the corpus root with ``safe_resolve_directory`` and checks
 ``feeds.spec`` with ``normpath_if_under_root`` before any filesystem access.
-``GET …/jobs/…/log`` re-checks ``safe_relpath_under_corpus_root`` output with
-``normpath_if_under_root`` in the same function as ``isfile`` / ``FileResponse``.
+``GET …/jobs/…/log`` resolves the corpus with ``safe_resolve_directory``, then
+``normpath_if_under_root`` on the ``safe_relpath_under_corpus_root`` output in the
+same function as ``isfile`` / ``FileResponse``.
+``viewer_operator_extras_source`` (Docker mode) uses ``safe_fixed_file_under_root``
+for ``viewer_operator.yaml`` before ``isfile``.
 ``publish_calendar_date_for_artifact_listing`` uses ``normpath_if_under_root``
 before metadata ``isfile``. ``operator_config`` routes call
 ``_verified_operator_config_path`` so paths are either under the resolved corpus
