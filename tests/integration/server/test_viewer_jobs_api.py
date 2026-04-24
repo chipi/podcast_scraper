@@ -5,14 +5,17 @@ from __future__ import annotations
 import json
 import os
 from pathlib import Path
+from unittest.mock import patch
 
 import pytest
+from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 pytest.importorskip("fastapi")
 
 from podcast_scraper.server.app import create_app
 from podcast_scraper.server.pipeline_job_registry import with_jobs_locked_mutate
+from podcast_scraper.server.routes import jobs as jobs_mod
 
 pytestmark = [pytest.mark.integration]
 
@@ -44,6 +47,41 @@ def fake_factory_immediate() -> object:
         return _FakeProcImmediate()
 
     return _factory
+
+
+def test_jobs_list_requires_corpus_when_server_has_no_default_output_dir() -> None:
+    app = FastAPI()
+    app.state.output_dir = None
+    app.state.jobs_api_enabled = True
+    app.include_router(jobs_mod.router, prefix="/api")
+    client = TestClient(app)
+    r = client.get("/api/jobs")
+    assert r.status_code == 400
+    assert "Corpus path" in r.json().get("detail", "")
+
+
+def test_jobs_rejects_corpus_path_outside_anchor_via_shared_exception_handler(
+    corpus: Path,
+) -> None:
+    app = create_app(corpus, static_dir=False, enable_jobs_api=True)
+    client = TestClient(app)
+    r = client.get("/api/jobs", params={"path": "/etc"})
+    assert r.status_code == 400
+    assert "subdirectory" in r.json().get("detail", "").lower()
+
+
+def test_jobs_api_disabled_returns_500_when_router_mounted_without_create_app_guard(
+    tmp_path: Path,
+) -> None:
+    """``_corpus_and_operator`` rejects calls when ``jobs_api_enabled`` is false (misconfiguration)."""
+    app = FastAPI()
+    app.state.output_dir = tmp_path
+    app.state.jobs_api_enabled = False
+    app.include_router(jobs_mod.router, prefix="/api")
+    client = TestClient(app)
+    r = client.get("/api/jobs", params={"path": str(tmp_path)})
+    assert r.status_code == 500
+    assert "jobs_api" in r.json().get("detail", "").lower()
 
 
 def test_jobs_not_mounted_by_default(corpus: Path) -> None:
@@ -264,6 +302,43 @@ def test_jobs_docker_mode_accepts_pipeline_install_extras(
     client = TestClient(app)
     r = client.post("/api/jobs", params={"path": str(corpus)})
     assert r.status_code == 202
+
+
+def test_jobs_submit_omits_queue_position_when_snapshot_has_non_int(
+    corpus: Path, fake_factory_immediate: object
+) -> None:
+    jid = "00000000-0000-4000-8000-00000000000b"
+    queued_rec = {"job_id": jid, "status": "queued"}
+    snap = [{"job_id": jid, "queue_position": "4", "status": "queued"}]
+    (corpus / "viewer_operator.yaml").write_text("max_episodes: 1\n", encoding="utf-8")
+
+    with patch.object(jobs_mod, "enqueue_pipeline_job", return_value=queued_rec):
+        with patch.object(jobs_mod, "list_jobs_snapshot", return_value=snap):
+            app = create_app(corpus, static_dir=False, enable_jobs_api=True)
+            app.state.jobs_subprocess_factory = fake_factory_immediate
+            client = TestClient(app)
+            r = client.post("/api/jobs", params={"path": str(corpus)})
+    assert r.status_code == 202
+    assert r.json().get("queue_position") is None
+
+
+def test_jobs_submit_includes_queue_position_from_snapshot_when_queued(
+    corpus: Path, fake_factory_immediate: object
+) -> None:
+    """``POST /api/jobs`` copies ``queue_position`` from ``list_jobs_snapshot`` for queued rows."""
+    jid = "00000000-0000-4000-8000-00000000000a"
+    queued_rec = {"job_id": jid, "status": "queued"}
+    snap = [{"job_id": jid, "queue_position": 4, "status": "queued"}]
+    (corpus / "viewer_operator.yaml").write_text("max_episodes: 1\n", encoding="utf-8")
+
+    with patch.object(jobs_mod, "enqueue_pipeline_job", return_value=queued_rec):
+        with patch.object(jobs_mod, "list_jobs_snapshot", return_value=snap):
+            app = create_app(corpus, static_dir=False, enable_jobs_api=True)
+            app.state.jobs_subprocess_factory = fake_factory_immediate
+            client = TestClient(app)
+            r = client.post("/api/jobs", params={"path": str(corpus)})
+    assert r.status_code == 202
+    assert r.json()["queue_position"] == 4
 
 
 def test_jobs_docker_mode_accepts_pipeline_install_extras_llm(

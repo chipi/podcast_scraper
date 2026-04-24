@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+from unittest.mock import patch
 
 import pytest
 
@@ -49,5 +50,49 @@ def test_extras_source_native_ignores_missing_corpus_file(
     corpus.mkdir()
     fixed = tmp_path / "fixed.yaml"
     fixed.write_text("k: v\n", encoding="utf-8")
+    app = _App(fixed)
+    assert op.viewer_operator_extras_source(app, corpus) == fixed
+
+
+def test_packaged_viewer_operator_example_path_returns_path_or_none() -> None:
+    p = op.packaged_viewer_operator_example_path()
+    assert p is None or p.name == "viewer_operator.example.yaml"
+
+
+def test_extras_source_docker_falls_back_when_joined_candidate_escapes_root(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """``normpath(join(root, basename))`` outside ``root`` → fall back to fixed operator path."""
+    import os as _os
+
+    monkeypatch.setenv("PODCAST_PIPELINE_EXEC_MODE", "docker")
+    corpus = tmp_path / "corpus"
+    corpus.mkdir()
+    fixed = tmp_path / "fixed.yaml"
+    fixed.write_text("pipeline_install_extras: ml\n", encoding="utf-8")
+    app = _App(fixed)
+
+    real_join = _os.path.join
+
+    def fake_join(a: str, b: str) -> str:
+        if b == op.VIEWER_OPERATOR_BASENAME:
+            return "/totally/outside/viewer_operator.yaml"
+        return real_join(a, b)
+
+    with patch.object(op.os.path, "join", side_effect=fake_join):
+        assert op.viewer_operator_extras_source(app, corpus) == fixed
+
+
+def test_extras_source_docker_falls_back_when_safe_resolve_returns_none(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    monkeypatch.setenv("PODCAST_PIPELINE_EXEC_MODE", "docker")
+    monkeypatch.setattr(
+        "podcast_scraper.server.operator_paths.safe_resolve_directory", lambda _p: None
+    )
+    corpus = tmp_path / "corpus"
+    corpus.mkdir()
+    fixed = tmp_path / "fixed.yaml"
+    fixed.write_text("pipeline_install_extras: ml\n", encoding="utf-8")
     app = _App(fixed)
     assert op.viewer_operator_extras_source(app, corpus) == fixed

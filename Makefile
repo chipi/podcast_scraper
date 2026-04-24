@@ -510,8 +510,8 @@ stack-compose-validate:
 	@cfg="$(CONFIG_FILE)"; \
 	if [ -z "$$cfg" ]; then cfg="$(STACK_COMPOSE_VALIDATE_CFG)"; fi; \
 	echo "stack-compose-validate: CONFIG_FILE=$$cfg"; \
-	CONFIG_FILE="$$cfg" $(STACK_COMPOSE) config -q; \
-	CONFIG_FILE="$$cfg" docker compose -f compose/docker-compose.stack.yml -f compose/docker-compose.jobs-docker.yml config -q
+	CONFIG_FILE="$$cfg" PODCAST_DOCKER_PROJECT_DIR="$(CURDIR)" $(STACK_COMPOSE) config -q; \
+	CONFIG_FILE="$$cfg" PODCAST_DOCKER_PROJECT_DIR="$(CURDIR)" docker compose -f compose/docker-compose.stack.yml -f compose/docker-compose.jobs-docker.yml config -q
 
 stack-up:
 	@$(STACK_COMPOSE) up -d
@@ -562,6 +562,37 @@ smoke-down:
 
 smoke-test-playwright:
 	@cd tests/smoke && npm install && npx playwright install firefox && SMOKE_BASE_URL=$${SMOKE_BASE_URL:-http://127.0.0.1:8090} npx playwright test
+
+# Stack-test (RFC-078 / RFC-079): local transcripts and Playwright artifacts belong under
+# ``STACK_TEST_LOG_DIR`` (default ``.stack-test/``). Prefer short basenames there
+# (``full-run.log``, ``ci-local-run.log``) — not ``.stack-test-*.log`` at repo root
+# or hidden ``.stack-test/.stack-test-*.log`` (redundant prefix).
+STACK_TEST_LOG_DIR ?= $(PWD)/.stack-test
+STACK_TEST_FULL_RUN_LOG ?= $(STACK_TEST_LOG_DIR)/full-run.log
+STACK_TEST_CI_LOCAL_LOG ?= $(STACK_TEST_LOG_DIR)/ci-local-run.log
+
+.PHONY: stack-test-log-dir stack-test-rename-legacy-logs stack-test-ci-local stack-test-ci-local-clean
+stack-test-log-dir:
+	@mkdir -p "$(STACK_TEST_LOG_DIR)" && printf '%s\n' "$(STACK_TEST_LOG_DIR)" && \
+		printf '  transcript defaults: %s\n  %s\n' "$(STACK_TEST_FULL_RUN_LOG)" "$(STACK_TEST_CI_LOCAL_LOG)"
+
+# Rename ``.stack-test/.stack-test-<stem>.log`` → ``.stack-test/<stem>.log`` (``mv -n``).
+stack-test-rename-legacy-logs:
+	@mkdir -p "$(STACK_TEST_LOG_DIR)"
+	@d="$(STACK_TEST_LOG_DIR)"; \
+	find "$$d" -maxdepth 1 -type f -name '.stack-test-*.log' 2>/dev/null | while IFS= read -r f; do \
+	  b=$$(basename "$$f" .log); \
+	  s=$${b#.stack-test-}; \
+	  dest="$$d/$$s.log"; \
+	  if mv -n "$$f" "$$dest" 2>/dev/null; then echo "renamed $$f -> $$dest"; else echo "skip: $$f"; fi; \
+	done; \
+	true
+
+stack-test-ci-local: stack-test-log-dir
+	@bash scripts/tools/run_stack_test_ci_local.sh $(STACK_TEST_CI_LOCAL_ARGS)
+
+stack-test-ci-local-clean: stack-test-log-dir
+	@STACK_TEST_CI_LOCAL_CLEAN_EXPORT=1 bash scripts/tools/run_stack_test_ci_local.sh $(STACK_TEST_CI_LOCAL_ARGS)
 
 # Vitest unit tests for TypeScript utility logic (no browser needed)
 test-ui:

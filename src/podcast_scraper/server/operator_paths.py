@@ -6,6 +6,8 @@ import os
 from pathlib import Path
 from typing import Any
 
+from podcast_scraper.utils.path_validation import safe_resolve_directory
+
 VIEWER_OPERATOR_BASENAME = "viewer_operator.yaml"
 
 
@@ -30,11 +32,20 @@ def viewer_operator_extras_source(app: Any, corpus_root: Path) -> Path:
     ``<corpus>/viewer_operator.yaml`` exists, read extras from that file; else fall back to the
     same path as ``viewer_operator_yaml_path`` (native / single-file operators).
     """
-    if (
-        os.environ.get("PODCAST_PIPELINE_EXEC_MODE", "").strip().lower() == "docker"
-        and (corpus_root / VIEWER_OPERATOR_BASENAME).is_file()
-    ):
-        return corpus_root / VIEWER_OPERATOR_BASENAME
+    if os.environ.get("PODCAST_PIPELINE_EXEC_MODE", "").strip().lower() != "docker":
+        return viewer_operator_yaml_path(app, corpus_root)
+    root = safe_resolve_directory(corpus_root)
+    if root is None:
+        return viewer_operator_yaml_path(app, corpus_root)
+    # CodeQL py/path-injection: normpath + startswith on the same variable before ``isfile``
+    # (``VIEWER_OPERATOR_BASENAME`` is a single segment; path stays under ``root``).
+    root_s = os.path.normpath(str(root))
+    safe_prefix = root_s + os.sep
+    candidate_s = os.path.normpath(os.path.join(root_s, VIEWER_OPERATOR_BASENAME))
+    if candidate_s != root_s and not candidate_s.startswith(safe_prefix):
+        return viewer_operator_yaml_path(app, corpus_root)
+    if os.path.isfile(candidate_s):
+        return Path(candidate_s)
     return viewer_operator_yaml_path(app, corpus_root)
 
 

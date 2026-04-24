@@ -18,6 +18,7 @@ podcast_scraper.egg-info/
 # Stack test (Playwright under tests/stack-test/, ``make stack-test-*`` / CI): local logs, export, deps
 .stack-test/
 .stack-test-corpus/
+# Deprecated: full-run transcripts belong under ``.stack-test/`` (keep pattern so stray root files stay untracked).
 .stack-test*.log
 tests/stack-test/node_modules/
 tests/stack-test/test-results/

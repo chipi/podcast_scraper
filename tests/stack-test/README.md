@@ -2,6 +2,10 @@
 
 Minimal checks against the **real** Nginx → FastAPI stack (not MSW mocks).
 
+## Stack-test transcripts (local)
+
+When capturing a full ``run_stack_test_ci_local.sh`` / ``make stack-test-ci-local`` run, write logs **under** ``.stack-test/`` using **short basenames** (for example ``tee .stack-test/full-run.log`` or ``tee .stack-test/ci-local-run.log``). Avoid redundant names like ``.stack-test/.stack-test-full-run.log`` (leading dot + repeated prefix). Make exports ``STACK_TEST_FULL_RUN_LOG`` and ``STACK_TEST_CI_LOCAL_LOG`` (defaults under ``STACK_TEST_LOG_DIR``); run ``make stack-test-rename-legacy-logs`` once to rename existing ``.stack-test/.stack-test-*.log`` files. Avoid creating ``.stack-test-*.log`` at the repository root; those clutter the tree. Optional: ``STACK_TEST_LOG_DIR`` (defaults to ``<repo>/.stack-test``).
+
 ## Stack contract (RFC-078 ↔ RFC-079 / #659)
 
 Smoke uses **`compose/docker-compose.smoke.yml`** over **`compose/docker-compose.stack.yml`**. For CI and local debugging, align with the full guide:

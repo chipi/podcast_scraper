@@ -30,10 +30,7 @@ from podcast_scraper.server.schemas import (
     PipelineJobRecord,
     PipelineJobsListResponse,
 )
-from podcast_scraper.utils.path_validation import (
-    normpath_if_under_root,
-    safe_relpath_under_corpus_root,
-)
+from podcast_scraper.utils.path_validation import safe_relpath_under_corpus_root
 
 router = APIRouter(tags=["jobs"])
 
@@ -79,17 +76,20 @@ async def _resolved_job_log_path(corpus: Path, job_id: str) -> str:
     if rec is None:
         raise HTTPException(status_code=404, detail="Job not found.")
     rel = str(rec.get("log_relpath") or f".viewer/jobs/{job_id}.log").strip()
-    verified = safe_relpath_under_corpus_root(corpus.resolve(), rel.replace("\\", "/"))
+    root_res = corpus.resolve()
+    root_s = os.path.normpath(str(root_res))
+    safe_prefix = root_s + os.sep
+    verified = safe_relpath_under_corpus_root(root_res, rel.replace("\\", "/"))
     if not verified:
         raise HTTPException(status_code=400, detail="Invalid log path.")
-    root = corpus.resolve()
-    root_s = os.path.normpath(str(root))
-    verified_under = normpath_if_under_root(verified, root_s)
-    if not verified_under:
+    # CodeQL py/path-injection: repeat normpath + startswith in this function before FS sinks
+    # (``safe_relpath_under_corpus_root`` already validated; CodeQL does not propagate taint).
+    log_path = os.path.normpath(verified)
+    if log_path != root_s and not log_path.startswith(safe_prefix):
         raise HTTPException(status_code=400, detail="Invalid log path.")
-    if not os.path.isfile(verified_under):
+    if not os.path.isfile(log_path):
         raise HTTPException(status_code=404, detail="Log file not present yet.")
-    return verified_under
+    return log_path
 
 
 async def _kickoff_job(app: FastAPI, corpus: Path, rec: dict) -> None:

@@ -56,7 +56,8 @@ jobs:
         load: true
         tags: podcast-scraper:test-llm
         cache-from: type=gha,scope=llm-only
-        cache-to: type=gha,mode=max,scope=llm-only
+        # No cache-to on PRs: BuildKit → GHA cache export often hits transient 502s
+        # ("Unicorn") on large mode=max uploads; main docker-build-full still writes GHA cache.
 
     - name: Test Docker image (help command)
       run: |
@@ -117,7 +118,8 @@ jobs:
         load: true
         tags: ${{ matrix.tag }}
         cache-from: type=gha,scope=${{ matrix.name }}
-        cache-to: type=gha,mode=max,scope=${{ matrix.name }}
+        # mode=min: export fewer blobs than mode=max — less load on GHA cache API (fewer 502s).
+        cache-to: type=gha,mode=min,scope=${{ matrix.name }}
 
     - name: Test Docker image (${{ matrix.name }} - help command)
       run: |
