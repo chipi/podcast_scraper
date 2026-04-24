@@ -3,6 +3,7 @@
  */
 import type { EdgeSingular, NodeSingular } from 'cytoscape'
 import { graphNodeFill } from './colors'
+import { weightedEdgeOpacity, weightedEdgeWidth } from './cyEdgeWeight'
 
 export function cytoscapeNodeLabelColorFromTheme(): string {
   try {
@@ -418,11 +419,17 @@ export function buildGiKgCyStylesheet(options?: {
       },
     },
     {
+      // #664 + #656-foundation: ABOUT edges now carry
+      // ``properties.confidence`` (cosine similarity, 0.25–1.0). Map it to
+      // line-opacity + width so strong "about X" edges stand out and weak
+      // ones fade. Legacy edges without the property fall back to uniform
+      // rendering via the helpers' defaults.
       selector: 'edge[edgeType = "ABOUT"]',
       style: {
-        width: compact ? 1.5 : 2,
+        width: weightedEdgeWidth(compact ? 1.5 : 2),
         'line-color': 'var(--ps-gi)',
         'line-style': 'solid',
+        'line-opacity': weightedEdgeOpacity(),
         'target-arrow-shape': 'none',
       },
     },
