@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import json
-from datetime import date
+from datetime import datetime, timezone
 from pathlib import Path
 
 import pytest
@@ -36,7 +36,7 @@ def _episode_doc(
 
 
 def test_digest_compact_diversity_and_omit_topics(tmp_path: Path) -> None:
-    today = date.today().isoformat()
+    today = datetime.now(timezone.utc).date().isoformat()
     meta = tmp_path / "metadata"
     meta.mkdir()
     for i in range(3):
@@ -88,7 +88,7 @@ def test_digest_compact_diversity_and_omit_topics(tmp_path: Path) -> None:
 
 
 def test_digest_full_window_and_topics_no_index(tmp_path: Path) -> None:
-    today = date.today().isoformat()
+    today = datetime.now(timezone.utc).date().isoformat()
     meta = tmp_path / "metadata"
     meta.mkdir()
     (meta / "one.metadata.json").write_text(
@@ -117,7 +117,7 @@ def test_digest_full_window_and_topics_no_index(tmp_path: Path) -> None:
 
 
 def test_digest_window_1mo_ok(tmp_path: Path) -> None:
-    today = date.today().isoformat()
+    today = datetime.now(timezone.utc).date().isoformat()
     meta = tmp_path / "metadata"
     meta.mkdir()
     (meta / "one.metadata.json").write_text(
@@ -152,7 +152,7 @@ def test_digest_since_requires_param(tmp_path: Path) -> None:
 
 
 def test_digest_rows_include_visual_metadata(tmp_path: Path) -> None:
-    today = date.today().isoformat()
+    today = datetime.now(timezone.utc).date().isoformat()
     meta = tmp_path / "metadata"
     meta.mkdir()
     d = _episode_doc(published=f"{today}T12:00:00Z")
@@ -182,7 +182,7 @@ def test_digest_rows_include_visual_metadata(tmp_path: Path) -> None:
 def test_digest_feed_display_title_from_sibling_when_feed_title_omitted(
     tmp_path: Path,
 ) -> None:
-    today = date.today().isoformat()
+    today = datetime.now(timezone.utc).date().isoformat()
     meta = tmp_path / "metadata"
     meta.mkdir()
     (meta / "a.metadata.json").write_text(
@@ -209,7 +209,7 @@ def test_digest_feed_display_title_from_sibling_when_feed_title_omitted(
 
 
 def test_digest_row_includes_feed_rss_and_description(tmp_path: Path) -> None:
-    today = date.today().isoformat()
+    today = datetime.now(timezone.utc).date().isoformat()
     meta = tmp_path / "metadata"
     meta.mkdir()
     d = _episode_doc(published=f"{today}T12:00:00Z")
