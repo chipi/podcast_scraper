@@ -18,7 +18,7 @@ from podcast_scraper.server.operator_paths import (
     viewer_operator_extras_source,
     viewer_operator_yaml_path,
 )
-from podcast_scraper.server.pipeline_docker_factory import assert_operator_pipeline_extras
+from podcast_scraper.server.pipeline_docker_factory import validate_operator_pipeline_extras
 from podcast_scraper.server.pipeline_jobs import (
     apply_reconcile,
     cancel_job,
@@ -96,24 +96,21 @@ async def submit_pipeline_job(
     # ``create_app``) instead of re-reading ``PODCAST_PIPELINE_EXEC_MODE`` here.
     # Re-reading would drift if the env is rotated mid-process.
     pipe_mode = getattr(request.app.state, "pipeline_exec_mode", "")
-    # #666 review #13 (intentional asymmetry): the ``pipeline_install_extras``
-    # assertion runs in Docker mode only because Docker mode *spawns* a
-    # container whose image must match the declared extras (``ml`` /
-    # ``llm``) — the declaration drives which compose service is used.
-    # Subprocess mode runs inside the API container using whatever extras
-    # were installed there at build time, so enforcing the operator YAML
-    # value would reject deployments that intentionally don't set it.
-    if pipe_mode == "docker":
-        try:
-            # codeql[py/path-injection] -- operator_yaml from viewer_operator_extras_source
-            # (Docker): safe_resolve_directory + safe_fixed_file_under_root before isfile;
-            # assert_operator_pipeline_extras reads that path (Type 1).
-            await asyncio.to_thread(
-                assert_operator_pipeline_extras,
-                viewer_operator_extras_source(request.app, corpus),
-            )
-        except ValueError as exc:
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+    # #666 review #13: extras validation is symmetric on *values* — if the
+    # operator YAML declares ``pipeline_install_extras`` it must be one of
+    # ``ml`` / ``llm`` in both modes. Requiring the field itself stays
+    # mode-specific by design: Docker mode uses the declaration to pick a
+    # compose service (``pipeline`` vs ``pipeline-llm``) and cannot infer
+    # it, whereas subprocess mode uses whatever extras the API image was
+    # built with.
+    try:
+        await asyncio.to_thread(
+            validate_operator_pipeline_extras,
+            viewer_operator_extras_source(request.app, corpus),
+            pipe_mode,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
     rec = await asyncio.to_thread(enqueue_pipeline_job, corpus, operator_yaml)
     background_tasks.add_task(_kickoff_job, request.app, corpus, rec)
     qp = None

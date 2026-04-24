@@ -151,6 +151,47 @@ def test_assert_operator_pipeline_extras_rejects_missing_or_other(tmp_path: Path
         pdf.assert_operator_pipeline_extras(p)
 
 
+class TestValidateOperatorPipelineExtras:
+    """#666 review #13: symmetric-value / mode-specific-presence validator."""
+
+    def test_docker_mode_requires_field(self, tmp_path: Path) -> None:
+        p = tmp_path / "op.yaml"
+        p.write_text("max_episodes: 1\n", encoding="utf-8")
+        with pytest.raises(ValueError, match="Docker pipeline jobs require"):
+            pdf.validate_operator_pipeline_extras(p, "docker")
+
+    def test_docker_mode_accepts_ml(self, tmp_path: Path) -> None:
+        p = tmp_path / "op.yaml"
+        p.write_text("pipeline_install_extras: ml\n", encoding="utf-8")
+        assert pdf.validate_operator_pipeline_extras(p, "docker") == "ml"
+
+    def test_docker_mode_accepts_llm(self, tmp_path: Path) -> None:
+        p = tmp_path / "op.yaml"
+        p.write_text('pipeline_install_extras: "llm"\n', encoding="utf-8")
+        assert pdf.validate_operator_pipeline_extras(p, "docker") == "llm"
+
+    def test_subprocess_mode_allows_missing(self, tmp_path: Path) -> None:
+        p = tmp_path / "op.yaml"
+        p.write_text("max_episodes: 1\n", encoding="utf-8")
+        # Native `make serve-api` YAMLs don't declare extras; empty pipe_mode
+        # should not reject.
+        assert pdf.validate_operator_pipeline_extras(p, "") is None
+
+    def test_subprocess_mode_accepts_valid_value(self, tmp_path: Path) -> None:
+        p = tmp_path / "op.yaml"
+        p.write_text("pipeline_install_extras: ml\n", encoding="utf-8")
+        assert pdf.validate_operator_pipeline_extras(p, "") == "ml"
+
+    def test_both_modes_reject_invalid_value(self, tmp_path: Path) -> None:
+        """Symmetry: a bad value is rejected in every mode, not just Docker."""
+        p = tmp_path / "op.yaml"
+        p.write_text("pipeline_install_extras: cuda\n", encoding="utf-8")
+        with pytest.raises(ValueError, match="'ml' or 'llm'"):
+            pdf.validate_operator_pipeline_extras(p, "docker")
+        with pytest.raises(ValueError, match="'ml' or 'llm'"):
+            pdf.validate_operator_pipeline_extras(p, "")
+
+
 def test_attach_docker_jobs_factory_registers_callable() -> None:
     app = type("A", (), {})()
     app.state = type("S", (), {})()

@@ -112,6 +112,39 @@ def assert_operator_pipeline_extras(operator_yaml: Path) -> str:
     return extras
 
 
+def validate_operator_pipeline_extras(operator_yaml: Path, pipe_mode: str) -> str | None:
+    """Mode-aware validator for ``pipeline_install_extras`` (#666 review #13).
+
+    * The *value* is validated symmetrically across modes: if the operator
+      YAML sets ``pipeline_install_extras`` to anything other than ``ml``
+      or ``llm``, reject in both Docker and subprocess mode.
+    * The *presence* requirement stays mode-specific:
+        - ``pipe_mode == "docker"``: the field is mandatory because the
+          API must pick a compose service (``pipeline`` vs
+          ``pipeline-llm``) whose image matches.
+        - subprocess mode: the field is optional; the job runs inside the
+          API container using whatever extras were installed at build
+          time.
+    Returns the declared value or ``None`` when absent + mode permits.
+    """
+    # codeql[py/path-injection] -- operator_yaml from viewer_operator_extras_source
+    # (safe_resolve_directory + safe_fixed_file_under_root): Type 1.
+    text = operator_yaml.read_text(encoding="utf-8", errors="replace")
+    extras = parse_pipeline_install_extras(text)
+    if extras is not None and extras not in ("ml", "llm"):
+        raise ValueError(
+            "pipeline_install_extras must be 'ml' or 'llm' "
+            f"(got {extras!r}) in operator YAML ({operator_yaml})."
+        )
+    if extras is None and pipe_mode == "docker":
+        raise ValueError(
+            "Docker pipeline jobs require top-level pipeline_install_extras: ml "
+            "or pipeline_install_extras: llm in the operator YAML "
+            f"({operator_yaml})."
+        )
+    return extras
+
+
 async def _docker_jobs_factory(
     argv: Sequence[str],
     corpus_root: Path,
