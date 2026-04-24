@@ -49,11 +49,13 @@ re-resolves the corpus root with ``safe_resolve_directory`` and checks
 ``GET …/jobs/…/log`` uses ``jobs_log_path.resolve_pipeline_job_log_path`` (same
 function as ``isfile``): ``safe_resolve_directory``, then ``normpath_if_under_root``
 on the ``safe_relpath_under_corpus_root`` output; ``routes/jobs`` maps
-``JobLogPathError`` to ``HTTPException``.
+``JobLogPathError`` to ``HTTPException``. If CodeQL still flags ``isfile`` on the
+resolved path, ``jobs_log_path`` carries ``# codeql[py/path-injection]`` on the line
+immediately above that sink (single-line comment; Type 1).
 ``viewer_operator_extras_source`` (Docker mode) uses ``safe_fixed_file_under_root``
 for ``viewer_operator.yaml`` before ``isfile``. If CodeQL still flags ``isfile``,
-``# codeql[py/path-injection]`` on the preceding line documents Type 1 (same as
-``corpus_binary``). ``routes/jobs`` uses the same pragma for ``FileResponse`` /
+use a **single-line** ``# codeql[py/path-injection] -- …`` immediately above the
+sink (splitting the pragma across two ``#`` lines can fail to suppress; Type 1). ``routes/jobs`` uses the same pragma for ``FileResponse`` /
 ``to_thread(assert_operator_pipeline_extras, …)`` / log-tail ``verified_under`` where
 taint does not cross from ``jobs_log_path`` / ``operator_paths`` helpers.
 ``publish_calendar_date_for_artifact_listing`` uses ``normpath_if_under_root``

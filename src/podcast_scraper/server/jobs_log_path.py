@@ -71,6 +71,7 @@ async def resolve_pipeline_job_log_path(corpus: Path, job_id: str) -> str:
     log_path = normpath_if_under_root(os.path.normpath(verified), root_s)
     if not log_path:
         raise JobLogPathError(400, "Invalid log path.")
+    # codeql[py/path-injection] -- log_path via normpath_if_under_root (Type 1).
     if not os.path.isfile(log_path):
         raise JobLogPathError(404, "Log file not present yet.")
     return log_path

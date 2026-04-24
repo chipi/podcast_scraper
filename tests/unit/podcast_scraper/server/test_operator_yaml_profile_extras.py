@@ -15,3 +15,9 @@ def test_parse_pipeline_install_extras_llm_quoted() -> None:
 
 def test_parse_pipeline_install_extras_missing() -> None:
     assert parse_pipeline_install_extras("max_episodes: 1\n") is None
+
+
+def test_parse_pipeline_install_extras_empty_value_then_valid() -> None:
+    """Empty quoted token is skipped; later line wins (branch ``if v`` false → continue)."""
+    text = 'pipeline_install_extras: ""\npipeline_install_extras: ml\n'
+    assert parse_pipeline_install_extras(text) == "ml"

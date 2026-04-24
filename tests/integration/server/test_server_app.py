@@ -79,6 +79,24 @@ def test_create_app_wires_docker_jobs_factory_when_pipeline_exec_docker(
     assert asyncio.iscoroutinefunction(factory)
 
 
+def test_create_app_wires_docker_jobs_factory_when_pipeline_exec_mode_mixed_case(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("PODCAST_PIPELINE_EXEC_MODE", "Docker")
+    app = create_app(tmp_path, static_dir=False, enable_jobs_api=True)
+    factory = getattr(app.state, "jobs_subprocess_factory", None)
+    assert callable(factory)
+    assert asyncio.iscoroutinefunction(factory)
+
+
+def test_create_app_static_dir_none_resolves_default_dist(tmp_path: Path) -> None:
+    """``static_dir=None`` uses ``_default_static_dir()`` like ``True``."""
+    with patch("podcast_scraper.server.app._default_static_dir", return_value=tmp_path):
+        app = create_app(None, static_dir=None)
+    names = [getattr(r, "name", None) for r in app.routes]
+    assert "viewer" in names
+
+
 def test_create_app_jobs_pins_operator_config_file_argument(tmp_path: Path) -> None:
     op = tmp_path / "shared.yaml"
     op.write_text("k: v\n", encoding="utf-8")

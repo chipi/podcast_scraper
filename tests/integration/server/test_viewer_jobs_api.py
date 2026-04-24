@@ -5,7 +5,7 @@ from __future__ import annotations
 import json
 import os
 from pathlib import Path
-from unittest.mock import patch
+from unittest.mock import AsyncMock, patch
 
 import pytest
 from fastapi import FastAPI
@@ -339,6 +339,79 @@ def test_jobs_submit_includes_queue_position_from_snapshot_when_queued(
             r = client.post("/api/jobs", params={"path": str(corpus)})
     assert r.status_code == 202
     assert r.json()["queue_position"] == 4
+
+
+def test_jobs_log_routes_map_job_log_path_error_to_http(
+    corpus: Path, fake_factory_immediate: object
+) -> None:
+    """``_resolved_job_log_path`` maps ``JobLogPathError`` to ``HTTPException``."""
+    app = create_app(corpus, static_dir=False, enable_jobs_api=True)
+    app.state.jobs_subprocess_factory = fake_factory_immediate
+    client = TestClient(app)
+    jid = "00000000-0000-4000-8000-0000000000c1"
+    err = jobs_mod.JobLogPathError(404, "log path test detail")
+    with patch.object(
+        jobs_mod,
+        "resolve_pipeline_job_log_path",
+        AsyncMock(side_effect=err),
+    ):
+        r_log = client.get(f"/api/jobs/{jid}/log", params={"path": str(corpus)})
+        assert r_log.status_code == 404
+        assert r_log.json().get("detail") == "log path test detail"
+        r_sub = client.get("/api/jobs/subprocess-log", params={"path": str(corpus), "job_id": jid})
+        assert r_sub.status_code == 404
+        r_tail = client.get(
+            f"/api/jobs/{jid}/log-tail",
+            params={"path": str(corpus), "max_bytes": 4096},
+        )
+        assert r_tail.status_code == 404
+        r_tail_q = client.get(
+            "/api/jobs/subprocess-log-tail",
+            params={"path": str(corpus), "job_id": jid, "max_bytes": 4096},
+        )
+        assert r_tail_q.status_code == 404
+
+
+def test_jobs_log_tail_rejects_max_bytes_below_minimum(corpus: Path) -> None:
+    app = create_app(corpus, static_dir=False, enable_jobs_api=True)
+    client = TestClient(app)
+    r = client.get(
+        "/api/jobs/subprocess-log-tail",
+        params={
+            "path": str(corpus),
+            "job_id": "00000000-0000-4000-8000-0000000000c2",
+            "max_bytes": 100,
+        },
+    )
+    assert r.status_code == 422
+    r2 = client.get(
+        "/api/jobs/00000000-0000-4000-8000-0000000000c2/log-tail",
+        params={"path": str(corpus), "max_bytes": 100},
+    )
+    assert r2.status_code == 422
+
+
+def test_jobs_log_tail_uses_default_max_bytes_when_omitted(
+    corpus: Path, fake_factory_immediate: object
+) -> None:
+    app = create_app(corpus, static_dir=False, enable_jobs_api=True)
+    app.state.jobs_subprocess_factory = fake_factory_immediate
+    client = TestClient(app)
+    r = client.post("/api/jobs", params={"path": str(corpus)})
+    jid = r.json()["job_id"]
+    tail = client.get(f"/api/jobs/{jid}/log-tail", params={"path": str(corpus)})
+    assert tail.status_code == 200
+    assert "truncated" in tail.json()
+
+
+def test_jobs_subprocess_log_404_for_unknown_job(corpus: Path) -> None:
+    app = create_app(corpus, static_dir=False, enable_jobs_api=True)
+    client = TestClient(app)
+    r = client.get(
+        "/api/jobs/subprocess-log",
+        params={"path": str(corpus), "job_id": "00000000-0000-4000-8000-00000000dead"},
+    )
+    assert r.status_code == 404
 
 
 def test_jobs_docker_mode_accepts_pipeline_install_extras_llm(
