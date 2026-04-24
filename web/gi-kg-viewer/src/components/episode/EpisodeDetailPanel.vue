@@ -11,6 +11,7 @@ import {
   type CorpusSimilarEpisodeItem,
 } from '../../api/corpusLibraryApi'
 import CilTopicPillsRow from '../shared/CilTopicPillsRow.vue'
+import DiagnosticRow from '../shared/DiagnosticRow.vue'
 import HelpTip from '../shared/HelpTip.vue'
 import PodcastCover from '../shared/PodcastCover.vue'
 import { useArtifactsStore } from '../../stores/artifacts'
@@ -637,15 +638,19 @@ watch(
                     Paths and ids for support — same data the viewer uses for search, similar
                     episodes, and graph loads.
                   </p>
-                  <dl class="space-y-1.5 font-mono text-[10px] leading-snug">
-                    <template v-for="(row, di) in detailDiagnosticsEntries" :key="di">
-                      <dt class="font-sans font-medium text-muted">
-                        {{ row.label }}
-                      </dt>
-                      <dd class="break-words text-elevated-foreground">
-                        {{ row.value }}
-                      </dd>
-                    </template>
+                  <!--
+                    #656-foundation: migrate this troubleshooting panel to
+                    ``DiagnosticRow`` so the three #656 per-episode
+                    diagnostics (bridge partition, pipeline-cleanup
+                    counters, ad-excision) share one visual language.
+                  -->
+                  <dl class="space-y-0 font-mono text-[10px] leading-snug">
+                    <DiagnosticRow
+                      v-for="(row, di) in detailDiagnosticsEntries"
+                      :key="di"
+                      :label="row.label"
+                      :value="row.value"
+                    />
                   </dl>
                 </HelpTip>
                 <button

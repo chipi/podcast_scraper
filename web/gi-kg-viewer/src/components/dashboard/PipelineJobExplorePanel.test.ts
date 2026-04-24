@@ -34,8 +34,10 @@ describe('PipelineJobExplorePanel.vue — XSS surface', () => {
   it('has no v-html directive', () => {
     // v-html would render arbitrary HTML from untrusted pipeline output /
     // log tails / corpus manifests — every string in this component comes
-    // from the API and must be treated as untrusted.
-    expect(source).not.toMatch(/\bv-html\b/)
+    // from the API and must be treated as untrusted. Match the binding
+    // syntax (``v-html=`` / ``:v-html=``) specifically so a doc-comment
+    // mention does not trip the guard.
+    expect(source).not.toMatch(/\sv-html\s*=/)
   })
 
   it('has no innerHTML assignment', () => {
