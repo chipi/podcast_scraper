@@ -39,8 +39,46 @@ def _project_dir() -> Path:
 
 
 def _compose_files() -> list[str]:
+    """Parse ``PODCAST_DOCKER_COMPOSE_FILES`` into a list of repo-relative paths.
+
+    Each entry MUST be a repository-relative path without ``..`` segments and
+    must not be absolute. This guards against an env-var attacker (or a
+    mis-configured operator) pointing the factory at ``/etc/hosts`` or at a
+    compose file outside the project root. Resolution against
+    ``PODCAST_DOCKER_PROJECT_DIR`` happens in the caller.
+    """
     raw = os.environ.get("PODCAST_DOCKER_COMPOSE_FILES", "compose/docker-compose.stack.yml").strip()
-    return [p.strip() for p in raw.split(",") if p.strip()]
+    entries = [p.strip() for p in raw.split(",") if p.strip()]
+    for entry in entries:
+        candidate = Path(entry)
+        if candidate.is_absolute():
+            raise RuntimeError(
+                f"PODCAST_DOCKER_COMPOSE_FILES entry must be repo-relative, got absolute: {entry}"
+            )
+        # Normalise and reject any ``..`` traversal. Running ``Path.resolve``
+        # here would evaluate against the API container's cwd, not the project
+        # root, so stay textual instead.
+        parts = candidate.parts
+        if any(part == ".." for part in parts):
+            raise RuntimeError(f"PODCAST_DOCKER_COMPOSE_FILES entry contains '..': {entry}")
+    return entries
+
+
+def _resolve_compose_path(project: Path, rel: str) -> Path:
+    """Resolve ``rel`` under ``project`` and assert it stays inside the tree.
+
+    Pure belt-and-suspenders against symlink or path-construction shenanigans
+    that slipped past :func:`_compose_files`. ``project`` is already resolved
+    by :func:`_project_dir`, so any escape here is a real bug, not a footgun.
+    """
+    resolved = (project / rel).resolve()
+    try:
+        resolved.relative_to(project)
+    except ValueError as exc:
+        raise RuntimeError(
+            f"Compose file {rel!r} escapes PODCAST_DOCKER_PROJECT_DIR ({project})."
+        ) from exc
+    return resolved
 
 
 def _service_for_extras(extras: str) -> tuple[str, str]:
@@ -91,7 +129,7 @@ async def _docker_jobs_factory(
 
     cmd: list[str] = ["docker", "compose"]
     for f in compose_files:
-        cmd.extend(["-f", str(project / f)])
+        cmd.extend(["-f", str(_resolve_compose_path(project, f))])
     cmd.extend(
         [
             "--project-directory",

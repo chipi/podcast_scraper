@@ -15,7 +15,7 @@ ENV PYTHONUNBUFFERED=1 \
     PODCAST_STACK_OUTPUT_DIR=/app/output
 
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends curl \
+    && apt-get install -y --no-install-recommends curl util-linux \
     && rm -rf /var/lib/apt/lists/*
 
 # Docker CLI + Compose v2 for ``PODCAST_PIPELINE_EXEC_MODE=docker`` (mount ``/var/run/docker.sock`` at runtime).
@@ -48,7 +48,19 @@ RUN --mount=type=cache,target=/root/.cache/pip \
 COPY docker/api/entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
 
-# Run as root so writes work on a fresh named volume at /app/output (see compose + guide).
+# #666 review item #5: run as a non-root user, consistent with
+# ``docker/pipeline/Dockerfile``. The entrypoint chowns ``/app/output``
+# so the user can write corpus artifacts and FAISS lock files on a
+# fresh named volume (root-owned on first mount). When
+# ``PODCAST_PIPELINE_EXEC_MODE=docker`` is enabled, the entrypoint also
+# adds ``podcast`` to the group that owns the host-mounted
+# ``/var/run/docker.sock`` so ``docker compose`` works without root.
+ARG PODCAST_UID=1000
+ARG PODCAST_GID=1000
+RUN groupadd -g "${PODCAST_GID}" podcast \
+    && useradd -u "${PODCAST_UID}" -g "${PODCAST_GID}" -m -s /bin/bash podcast \
+    && mkdir -p /app/output \
+    && chown -R podcast:podcast /app
 
 EXPOSE 8000
 

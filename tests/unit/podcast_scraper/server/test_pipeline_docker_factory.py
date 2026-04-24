@@ -42,6 +42,45 @@ def test_compose_files_strips_and_skips_empty(monkeypatch: pytest.MonkeyPatch) -
     assert pdf._compose_files() == ["a.yaml", "b.yaml"]
 
 
+def test_compose_files_rejects_absolute_path(monkeypatch: pytest.MonkeyPatch) -> None:
+    """#666 review #4: an env-controlled absolute path could point at any host
+    file (``/etc/hosts``, ``/etc/passwd``, …). Guard rejects such values."""
+    monkeypatch.setenv("PODCAST_DOCKER_COMPOSE_FILES", "/etc/hosts")
+    with pytest.raises(RuntimeError, match="absolute"):
+        pdf._compose_files()
+
+
+def test_compose_files_rejects_parent_traversal(monkeypatch: pytest.MonkeyPatch) -> None:
+    """#666 review #4: ``../…`` entries could escape the project directory."""
+    monkeypatch.setenv(
+        "PODCAST_DOCKER_COMPOSE_FILES",
+        "compose/docker-compose.stack.yml,../outside/docker-compose.yml",
+    )
+    with pytest.raises(RuntimeError, match=r"\.\."):
+        pdf._compose_files()
+
+
+def test_resolve_compose_path_blocks_symlink_escape(tmp_path) -> None:
+    """#666 review #4: defense-in-depth against a symlink that points outside
+    the project root."""
+    project = tmp_path / "project"
+    outside = tmp_path / "outside"
+    project.mkdir()
+    outside.mkdir()
+    (outside / "evil.yml").write_text("services: {}\n")
+    (project / "evil.yml").symlink_to(outside / "evil.yml")
+    with pytest.raises(RuntimeError, match="escapes"):
+        pdf._resolve_compose_path(project.resolve(), "evil.yml")
+
+
+def test_resolve_compose_path_happy_path(tmp_path) -> None:
+    project = tmp_path / "project"
+    (project / "compose").mkdir(parents=True)
+    (project / "compose" / "a.yml").write_text("x: 1\n")
+    resolved = pdf._resolve_compose_path(project.resolve(), "compose/a.yml")
+    assert resolved == (project / "compose" / "a.yml").resolve()
+
+
 def test_cli_argv_tail_after_python_m_cli() -> None:
     argv = [
         "/usr/bin/python3",

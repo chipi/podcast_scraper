@@ -13,6 +13,15 @@ services:
     image: podcast-scraper-stack-viewer:latest
     ports:
       - "${VIEWER_PORT:-8080}:80"
+    # #666 review #6: explicit compose-level healthcheck so other services
+    # can chain ``depends_on: condition: service_healthy`` on the viewer.
+    # Nginx serves the SPA shell on GET /.
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:80/ > /dev/null"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
     depends_on:
       api:
         condition: service_healthy
@@ -24,6 +33,16 @@ services:
     image: podcast-scraper-stack-api:latest
     expose:
       - "8000"
+    # #666 review #6: explicit compose-level healthcheck (mirrors the
+    # Dockerfile HEALTHCHECK) so ``depends_on: condition: service_healthy``
+    # actually waits on the API. Some Compose versions ignore healthchecks
+    # declared only in the image; make the contract visible here.
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:8000/api/health > /dev/null"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 120s
     environment:
       PODCAST_SCRAPER_CONFIG: /app/config.yaml
       # Host-absolute path to the same YAML as ``/app/config.yaml`` mount — required when the API

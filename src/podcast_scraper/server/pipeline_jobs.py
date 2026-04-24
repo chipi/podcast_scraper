@@ -404,8 +404,13 @@ async def start_job_if_running_record(
     try:
         proc = await spawn_pipeline_subprocess(app, corpus_root, job_id, argv, log_abs)
     except Exception as exc:
+        # #666 review #9: full ``str(exc)`` can include absolute paths,
+        # environment variable names, or internal stack-trace fragments
+        # that are forwarded to the viewer via ``error_reason``. Capture
+        # only the exception type in the registry; the full message stays
+        # server-side in ``logger.exception`` above.
         logger.exception("spawn failed job=%s", job_id)
-        err_msg = str(exc)
+        err_code = type(exc).__name__
 
         def _fail_mark_spawn_failed(jobs: list[dict[str, Any]]) -> None:
             for j in jobs:
@@ -413,7 +418,7 @@ async def start_job_if_running_record(
                     continue
                 j["status"] = STATUS_FAILED
                 j["ended_at"] = _utc_iso()
-                j["error_reason"] = f"spawn_failed: {err_msg}"
+                j["error_reason"] = f"spawn_failed: {err_code}"
                 j["exit_code"] = -1
 
         await asyncio.to_thread(with_jobs_locked_mutate, corpus_root, _fail_mark_spawn_failed)

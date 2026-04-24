@@ -92,7 +92,11 @@ async def submit_pipeline_job(
 ) -> PipelineJobAccepted:
     """Queue a pipeline CLI job for the corpus (202 + optional queue position)."""
     corpus, operator_yaml = _corpus_and_operator(request, path)
-    if os.environ.get("PODCAST_PIPELINE_EXEC_MODE", "").strip().lower() == "docker":
+    # #666 review #8: read exec mode from ``app.state`` (pinned at startup by
+    # ``create_app``) instead of re-reading ``PODCAST_PIPELINE_EXEC_MODE`` here.
+    # Re-reading would drift if the env is rotated mid-process.
+    pipe_mode = getattr(request.app.state, "pipeline_exec_mode", "")
+    if pipe_mode == "docker":
         try:
             # codeql[py/path-injection] -- operator_yaml from viewer_operator_extras_source
             # (Docker): safe_resolve_directory + safe_fixed_file_under_root before isfile;

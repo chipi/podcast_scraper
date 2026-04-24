@@ -157,7 +157,14 @@ def create_app(
     if enable_jobs_api:
         app.include_router(jobs.router, prefix="/api")
 
+    # #666 review item #8: resolve the pipeline exec mode ONCE at startup
+    # and pin it on ``app.state``. Route handlers must read from
+    # ``app.state.pipeline_exec_mode`` — never re-read ``PODCAST_PIPELINE_EXEC_MODE``
+    # at request time. A rolling env-var change between startup and runtime
+    # would otherwise silently bypass (or silently fall back from) the
+    # Docker factory path.
     _pipe_mode = os.environ.get("PODCAST_PIPELINE_EXEC_MODE", "").strip().lower()
+    app.state.pipeline_exec_mode = _pipe_mode
     if enable_jobs_api and _pipe_mode == "docker":
         from podcast_scraper.server.pipeline_docker_factory import attach_docker_jobs_factory
 
