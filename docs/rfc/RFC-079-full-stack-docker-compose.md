@@ -69,7 +69,7 @@ This works for local dev but has no path to deployment:
 5. **Reuse existing pipeline Dockerfile** ([`docker/pipeline/Dockerfile`](../docker/pipeline/Dockerfile)) with minimal changes
 6. **New Dockerfiles** under `docker/api/` and `docker/viewer/` for API (`.[server]` + semantic-search deps; not full `.[ml]`) and Nginx (multi-stage Vue build)
 7. **Health checks** on all long-running containers
-8. **Compose profiles** for CI-override and prod-override use cases — **resolved:** no `compose/docker-compose.dev.yml`; host dev uses `make serve-*`; CI/prod uses smoke overlay + optional `compose/docker-compose.prod.yml` (see OQ2).
+8. **Compose profiles** for CI-override and prod-override use cases — **resolved:** no `compose/docker-compose.dev.yml`; host dev uses `make serve-*`; CI/prod uses stack-test overlay + optional `compose/docker-compose.prod.yml` (see OQ2).
 9. **Document and track** the gap between viewer-triggered jobs and the `pipeline` service,
    closed by **[GitHub #660](https://github.com/chipi/podcast_scraper/issues/660)** once the stack exists
 
@@ -303,21 +303,21 @@ start it. It is only invoked explicitly with `docker compose run`.
 
 ### 5. Compose Override for CI/Smoke (RFC-078)
 
-**`compose/docker-compose.smoke.yml`** (override layered on top of `compose/docker-compose.stack.yml`):
+**`compose/docker-compose.stack-test.yml`** (override layered on top of `compose/docker-compose.stack.yml`):
 
 ```yaml
-# Sketch — see repo ``compose/docker-compose.smoke.yml`` for the canonical overlay.
+# Sketch — see repo ``compose/docker-compose.stack-test.yml`` for the canonical overlay.
 
 services:
   api:
     volumes:
-      - smoke_data:/app/output
+      - corpus_data:/app/output
 
   pipeline:
     volumes:
-      - smoke_data:/app/output
+      - corpus_data:/app/output
       - ./tests/fixtures/rss:/app/fixtures/rss:ro
-      - ./config/ci/smoke-config.yaml:/app/config.yaml:ro
+      - ./config/ci/stack-test-config.yaml:/app/config.yaml:ro
     profiles: []
 
   viewer:
@@ -325,7 +325,7 @@ services:
       - "8090:80"
 
 volumes:
-  smoke_data:
+  corpus_data:
 ```
 
 ### 6. File Layout
@@ -339,7 +339,7 @@ docker/
     Dockerfile          # Slim FastAPI server (no ML) — under docker/api/
 compose/
   docker-compose.stack.yml    # Full-stack topology (viewer + api + pipeline)
-  docker-compose.smoke.yml    # RFC-078 smoke overlay (local + CI)
+  docker-compose.stack-test.yml    # RFC-078 stack-test overlay (local + CI)
   docker-compose.yml          # Standalone pipeline compose
   docker-compose.llm-only.yml # LLM-only variant
 docker/pipeline/Dockerfile    # Pipeline / ML / LLM runner
@@ -505,8 +505,8 @@ Design alternatives evaluated during planning (historical context only):
 
 **Integration with RFC-078:**
 
-- The smoke test workflow layers `compose/docker-compose.smoke.yml` on top
-- Pipeline runs against fixture feeds, writes to `smoke_data` volume
+- The smoke test workflow layers `compose/docker-compose.stack-test.yml` on top
+- Pipeline runs against fixture feeds, writes to `corpus_data` volume
 - API reads the output, Playwright tests the viewer through Nginx
 
 **Where it is tracked:** Stack contracts and `compose/docker-compose.stack.yml` are **[#659](https://github.com/chipi/podcast_scraper/issues/659)** (handoff checklist there). Smoke workflow + Playwright are **RFC-078** and must be opened as **their own GitHub issues** when you start tracking that work — not as orphan bullets only in this RFC.
@@ -517,7 +517,7 @@ Design alternatives evaluated during planning (historical context only):
    `docker/api/Dockerfile`, `compose/docker-compose.stack.yml`. Validate locally with
    `stack-up` and manual browser test; validate `docker compose run` for `pipeline`.
 2. **Jobs / Docker** — **[#660](https://github.com/chipi/podcast_scraper/issues/660):** Implemented Option B — `pipeline_docker_factory` + host socket + `docker compose run`; native subprocess unchanged (see §Native vs Docker).
-3. **RFC-078 smoke:** Add `compose/docker-compose.smoke.yml` and wire into CI smoke workflow (orthogonal to #660; can land in parallel). **Not tracked in this RFC as orphan work** — open **GitHub issues** for RFC-078 execution; **[#659](https://github.com/chipi/podcast_scraper/issues/659)** only carries the stack handoff checklist.
+3. **RFC-078 smoke:** Add `compose/docker-compose.stack-test.yml` and wire into CI smoke workflow (orthogonal to #660; can land in parallel). **Not tracked in this RFC as orphan work** — open **GitHub issues** for RFC-078 execution; **[#659](https://github.com/chipi/podcast_scraper/issues/659)** only carries the stack handoff checklist.
 4. **Phase 3** — **[#659](https://github.com/chipi/podcast_scraper/issues/659):** Shipped starter
    [`compose/docker-compose.prod.yml`](https://github.com/chipi/podcast_scraper/blob/main/compose/docker-compose.prod.yml) (restart policies + commented VPS / external volume hints). Operators fork or extend for real prod.
 
@@ -585,7 +585,7 @@ Each item below is **also** listed on **[#659](https://github.com/chipi/podcast_
 | Secrets / `.env` | [`DOCKER_SERVICE_GUIDE.md` § Full stack → Secrets (stack)](../guides/DOCKER_SERVICE_GUIDE.md#secrets-stack) |
 | Native vs Docker jobs | [§Native vs Docker](#native-vs-docker); [#660](https://github.com/chipi/podcast_scraper/issues/660) |
 | Profile ↔ image tier | `scripts/tools/validate_profile_docker_tier.py`; RFC-079 [§Pipeline image tiers](#pipeline-image-tiers) |
-| Ephemeral CI smoke | [RFC-078](RFC-078-ephemeral-acceptance-smoke-test.md), `compose/docker-compose.smoke.yml`, `make smoke-*` |
+| Ephemeral CI smoke | [RFC-078](RFC-078-ephemeral-acceptance-smoke-test.md), `compose/docker-compose.stack-test.yml`, `make stack-test-*` |
 | Prod-style merge (restart, VPS notes) | [`compose/docker-compose.prod.yml`](https://github.com/chipi/podcast_scraper/blob/main/compose/docker-compose.prod.yml) + `DOCKER_SERVICE_GUIDE` § RFC-079 backlog |
 
 ## Open Questions

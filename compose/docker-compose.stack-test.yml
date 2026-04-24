@@ -1,31 +1,34 @@
-# Smoke-test overlay on compose/docker-compose.stack.yml (#659). Used locally (make smoke-*)
-# and in CI. Build/run: always pass both -f files from the repository root.
-# Usage:
-#   docker compose -f compose/docker-compose.stack.yml -f compose/docker-compose.smoke.yml build
-#   docker compose -f compose/docker-compose.stack.yml -f compose/docker-compose.smoke.yml run --rm pipeline
+# Stack-test overlay on compose/docker-compose.stack.yml (#659).
+# Used locally (``make stack-test-*``) and in CI
+# (``.github/workflows/stack-test.yml``). Build/run: always pass both
+# ``-f`` files from the repository root:
+#   docker compose -f compose/docker-compose.stack.yml -f compose/docker-compose.stack-test.yml build
+#   docker compose -f compose/docker-compose.stack.yml -f compose/docker-compose.stack-test.yml run --rm pipeline
+#
+# Uses the same ``corpus_data`` named volume as the base stack so the
+# exported corpus / viewer / API all agree. Pipeline mounts the
+# stack-test pipeline config so the base's ``CONFIG_FILE`` (production
+# default) does not leak into stack-test runs.
 
 services:
   api:
     volumes:
-      - smoke_data:/app/output
+      - corpus_data:/app/output
 
   viewer:
     ports:
-      - "${SMOKE_VIEWER_PORT:-8090}:80"
+      - "${STACK_TEST_VIEWER_PORT:-8090}:80"
 
   pipeline:
     profiles: []
     volumes:
-      - smoke_data:/app/output
+      - corpus_data:/app/output
       - ../tests/fixtures/rss:/app/fixtures/rss:ro
-      - ../config/ci/smoke-config.yaml:/app/config.yaml:ro
+      - ../config/ci/stack-test-config.yaml:/app/config.yaml:ro
 
   pipeline-llm:
     profiles: []
     volumes:
-      - smoke_data:/app/output
+      - corpus_data:/app/output
       - ../tests/fixtures/rss:/app/fixtures/rss:ro
-      - ../config/ci/smoke-config.yaml:/app/config.yaml:ro
-
-volumes:
-  smoke_data:
+      - ../config/ci/stack-test-config.yaml:/app/config.yaml:ro

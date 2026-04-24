@@ -1,0 +1,50 @@
+# Stack-test pipeline config (RFC-078 / RFC-079 acceptance).
+#
+# Mounted read-only at ``/app/config.yaml`` by
+# ``compose/docker-compose.stack-test.yml`` for the ``pipeline`` /
+# ``pipeline-llm`` services. Bundles the airgapped-style limits used by
+# ``make stack-test-run`` and the Playwright harness under
+# ``tests/stack-test/``.
+#
+# NOTE: the ``rss`` URL assumes a mock-feeds Nginx sidecar reachable at
+# ``mock-feeds`` on the stack-test compose network. Until that service is
+# wired into the overlay (follow-up), ``dry_run: true`` keeps the compose
+# validation + build path green without fetching real RSS.
+
+rss: "http://mock-feeds/feed.xml"
+output_dir: "/app/output"
+max_episodes: 1
+dry_run: true
+workers: 1
+log_level: INFO
+
+append: false
+transcribe_missing: false
+generate_metadata: true
+generate_summaries: true
+generate_gi: true
+generate_kg: true
+
+# Airgapped-style profile (matches ``config/profiles/airgapped_thin.yaml``
+# without the full airgapped memory footprint — stack-test targets CI /
+# small dev machines).
+transcription_provider: whisper
+whisper_model: tiny.en
+
+audio_preprocessing_profile: speech_optimal_v1
+
+speaker_detector_provider: spacy
+ner_model: en_core_web_sm
+auto_speakers: true
+
+summary_provider: transformers
+summary_model: bart-small
+summary_reduce_model: long-fast
+
+gi_insight_source: summary_bullets
+gi_max_insights: 12
+gi_require_grounding: true
+
+kg_extraction_source: summary_bullets
+kg_max_topics: 10
+kg_max_entities: 15

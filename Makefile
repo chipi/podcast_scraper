@@ -193,12 +193,12 @@ help:
 	@echo "  make stack-build-llm   Docker stack: build pipeline-llm image (INSTALL_EXTRAS=llm profile)"
 	@echo "  make verify-stack-profiles  Validate packaged profile → Docker tier (scripts/tools)"
 	@echo "  make stack-compose-validate Docker stack: docker compose config (stack + jobs-docker merge, no build)"
-	@echo "  make smoke-build       Smoke test: build stack + smoke overlay images"
-	@echo "  make smoke-run-pipeline Smoke test: one-shot pipeline (tees .smoke/pipeline.log)"
-	@echo "  make smoke-assert-logs  Smoke test: grep .smoke/pipeline.log for completion / errors"
-	@echo "  make smoke-export-corpus  Smoke test: copy /app/output from smoke volume → .smoke-corpus/"
-	@echo "  make smoke-assert-artifacts  Smoke test: GIL+KG gates (default SMOKE_CORPUS_ROOT=.smoke-corpus)"
-	@echo "  make smoke-up / smoke-down / smoke-test-playwright  Smoke test harness"
+	@echo "  make stack-test-build       Stack-test: build stack + stack-test overlay images"
+	@echo "  make stack-test-run         Stack-test: one-shot pipeline (tees .stack-test/pipeline.log)"
+	@echo "  make stack-test-assert-logs Stack-test: grep .stack-test/pipeline.log for completion / errors"
+	@echo "  make stack-test-export      Stack-test: copy /app/output from corpus_data volume → .stack-test-corpus/"
+	@echo "  make stack-test-assert-artifacts  Stack-test: GIL+KG gates (default STACK_TEST_CORPUS_ROOT=.stack-test-corpus)"
+	@echo "  make stack-test-up / stack-test-down / stack-test-playwright  Stack-test harness"
 	@echo "  make docker-test        Build and test Docker image"
 	@echo "  make docker-clean       Remove Docker test images"
 	@echo "  make install-hooks   Install git pre-commit hook for automatic linting"
@@ -469,7 +469,7 @@ validate-kg-schema:
 	fi
 
 # GI/KG viewer v2 (#489): FastAPI + Vite. Install: pip install -e '.[server]'; cd $(WEB_VIEWER_DIR) && npm install
-.PHONY: serve serve-api serve-ui serve-e2e-mock stack-build stack-build-llm stack-compose-validate stack-up stack-down stack-logs stack-run-pipeline verify-stack-profiles smoke-build smoke-run-pipeline smoke-up smoke-down smoke-test-playwright smoke-assert-logs smoke-export-corpus smoke-assert-artifacts
+.PHONY: serve serve-api serve-ui serve-e2e-mock stack-build stack-build-llm stack-compose-validate stack-up stack-down stack-logs stack-run-pipeline verify-stack-profiles stack-test-build stack-test-run stack-test-up stack-test-down stack-test-playwright stack-test-assert-logs stack-test-export stack-test-assert-artifacts
 SERVE_OUTPUT_DIR ?= ./output
 # Optional corpus-editing + jobs routes (health shows green when on). Override with SERVE_ARGS= to disable.
 SERVE_ARGS ?= --enable-feeds-api --enable-operator-config-api --enable-jobs-api
@@ -492,11 +492,11 @@ serve-e2e-mock:
 
 # GitHub #659: Docker Compose stack (Nginx + FastAPI + shared volume; pipeline behind profile).
 STACK_COMPOSE ?= docker compose -f compose/docker-compose.stack.yml
-SMOKE_COMPOSE ?= docker compose -f compose/docker-compose.stack.yml -f compose/docker-compose.smoke.yml
+STACK_TEST_COMPOSE ?= docker compose -f compose/docker-compose.stack.yml -f compose/docker-compose.stack-test.yml
 REMOVE_VOLUMES ?=
-# Smoke test: host directory for ``make smoke-export-corpus`` (then ``make smoke-assert-artifacts``).
-SMOKE_EXPORT_DIR ?= $(PWD)/.smoke-corpus
-SMOKE_CORPUS_ROOT ?= $(PWD)/.smoke-corpus
+# Stack-test: host directory for ``make stack-test-export`` (then ``make stack-test-assert-artifacts``).
+STACK_TEST_EXPORT_DIR ?= $(PWD)/.stack-test-corpus
+STACK_TEST_CORPUS_ROOT ?= $(PWD)/.stack-test-corpus
 
 stack-build:
 	@$(STACK_COMPOSE) build
@@ -529,43 +529,43 @@ stack-logs:
 stack-run-pipeline:
 	@$(STACK_COMPOSE) --profile pipeline run --rm pipeline
 
-smoke-build:
-	@STACK_PIPELINE_PRELOAD_ML=false $(SMOKE_COMPOSE) build
+stack-test-build:
+	@STACK_PIPELINE_PRELOAD_ML=false $(STACK_TEST_COMPOSE) build
 
-smoke-run-pipeline:
-	@mkdir -p .smoke
-	@bash -c 'set -o pipefail && STACK_PIPELINE_PRELOAD_ML=false $(SMOKE_COMPOSE) run --rm pipeline 2>&1 | tee .smoke/pipeline.log'
+stack-test-run:
+	@mkdir -p $(STACK_TEST_LOG_DIR)
+	@bash -c 'set -o pipefail && STACK_PIPELINE_PRELOAD_ML=false $(STACK_TEST_COMPOSE) run --rm pipeline 2>&1 | tee $(STACK_TEST_LOG_DIR)/pipeline.log'
 
-smoke-assert-logs:
-	@test -s .smoke/pipeline.log || (echo "Missing or empty .smoke/pipeline.log — run make smoke-run-pipeline first"; exit 1)
-	@if grep -q '^Traceback' .smoke/pipeline.log; then echo "Python traceback in .smoke/pipeline.log"; exit 1; fi
-	@if ! grep -q "Wrote corpus run summary" .smoke/pipeline.log; then echo "Expected success log line not found (Wrote corpus run summary)"; exit 1; fi
-	@echo "smoke-assert-logs: OK"
+stack-test-assert-logs:
+	@test -s $(STACK_TEST_LOG_DIR)/pipeline.log || (echo "Missing or empty $(STACK_TEST_LOG_DIR)/pipeline.log — run make stack-test-run first"; exit 1)
+	@if grep -q '^Traceback' $(STACK_TEST_LOG_DIR)/pipeline.log; then echo "Python traceback in $(STACK_TEST_LOG_DIR)/pipeline.log"; exit 1; fi
+	@if ! grep -q "Wrote corpus run summary" $(STACK_TEST_LOG_DIR)/pipeline.log; then echo "Expected success log line not found (Wrote corpus run summary)"; exit 1; fi
+	@echo "stack-test-assert-logs: OK"
 
-smoke-export-corpus:
-	@mkdir -p "$(SMOKE_EXPORT_DIR)"
-	@STACK_PIPELINE_PRELOAD_ML=false $(SMOKE_COMPOSE) run --rm -T --no-deps \
-		-v "$(SMOKE_EXPORT_DIR):/host" \
+stack-test-export:
+	@mkdir -p "$(STACK_TEST_EXPORT_DIR)"
+	@STACK_PIPELINE_PRELOAD_ML=false $(STACK_TEST_COMPOSE) run --rm -T --no-deps \
+		-v "$(STACK_TEST_EXPORT_DIR):/host" \
 		--entrypoint /bin/sh \
-		pipeline -c 'set -e; if [ ! -d /app/output ] || [ -z "$$(ls -A /app/output 2>/dev/null)" ]; then echo "empty /app/output — run make smoke-run-pipeline first"; exit 1; fi; cp -a /app/output/. /host/'
-	@echo "smoke-export-corpus: copied to $(SMOKE_EXPORT_DIR)"
+		pipeline -c 'set -e; if [ ! -d /app/output ] || [ -z "$$(ls -A /app/output 2>/dev/null)" ]; then echo "empty /app/output — run make stack-test-run first"; exit 1; fi; cp -a /app/output/. /host/'
+	@echo "stack-test-export: copied to $(STACK_TEST_EXPORT_DIR)"
 
-smoke-assert-artifacts:
-	@test -f "$(SMOKE_CORPUS_ROOT)/corpus_run_summary.json" || (echo "No corpus_run_summary.json under $(SMOKE_CORPUS_ROOT) — run make smoke-export-corpus (or set SMOKE_CORPUS_ROOT)"; exit 1)
-	@export PYTHONPATH="$(PWD)/src:$$PYTHONPATH" && $(PYTHON) scripts/tools/gil_quality_metrics.py "$(SMOKE_CORPUS_ROOT)" --enforce --strict-schema --fail-on-errors \
+stack-test-assert-artifacts:
+	@test -f "$(STACK_TEST_CORPUS_ROOT)/corpus_run_summary.json" || (echo "No corpus_run_summary.json under $(STACK_TEST_CORPUS_ROOT) — run make stack-test-export (or set STACK_TEST_CORPUS_ROOT)"; exit 1)
+	@export PYTHONPATH="$(PWD)/src:$$PYTHONPATH" && $(PYTHON) scripts/tools/gil_quality_metrics.py "$(STACK_TEST_CORPUS_ROOT)" --enforce --strict-schema --fail-on-errors \
 		--min-extraction-coverage 0.5 --min-grounded-insight-rate 0.5 --min-quote-validity-rate 0.5 --min-avg-insights 0.2 --min-avg-quotes 0.2
-	@export PYTHONPATH="$(PWD)/src:$$PYTHONPATH" && $(PYTHON) scripts/tools/kg_quality_metrics.py "$(SMOKE_CORPUS_ROOT)" --enforce --strict-schema --fail-on-errors \
+	@export PYTHONPATH="$(PWD)/src:$$PYTHONPATH" && $(PYTHON) scripts/tools/kg_quality_metrics.py "$(STACK_TEST_CORPUS_ROOT)" --enforce --strict-schema --fail-on-errors \
 		--min-artifacts 1 --min-avg-nodes 0.2 --min-extraction-coverage 0.5
-	@echo "smoke-assert-artifacts: OK"
+	@echo "stack-test-assert-artifacts: OK"
 
-smoke-up:
-	@STACK_PIPELINE_PRELOAD_ML=false SMOKE_VIEWER_PORT=$${SMOKE_VIEWER_PORT:-8090} $(SMOKE_COMPOSE) up -d
+stack-test-up:
+	@STACK_PIPELINE_PRELOAD_ML=false STACK_TEST_VIEWER_PORT=$${STACK_TEST_VIEWER_PORT:-8090} $(STACK_TEST_COMPOSE) up -d
 
-smoke-down:
-	@$(SMOKE_COMPOSE) down
+stack-test-down:
+	@$(STACK_TEST_COMPOSE) down
 
-smoke-test-playwright:
-	@cd tests/smoke && npm install && npx playwright install firefox && SMOKE_BASE_URL=$${SMOKE_BASE_URL:-http://127.0.0.1:8090} npx playwright test
+stack-test-playwright:
+	@cd tests/stack-test && npm install && npx playwright install firefox && STACK_TEST_BASE_URL=$${STACK_TEST_BASE_URL:-http://127.0.0.1:8090} npx playwright test
 
 # Stack-test (RFC-078 / RFC-079): local transcripts and Playwright artifacts belong under
 # ``STACK_TEST_LOG_DIR`` (default ``.stack-test/``). Prefer short basenames there

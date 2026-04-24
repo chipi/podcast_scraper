@@ -701,19 +701,19 @@ docker compose -f compose/docker-compose.stack.yml -f compose/docker-compose.pro
 
 #### Handoff to RFC-078 smoke (stack contract)
 
-Smoke overlays [`compose/docker-compose.smoke.yml`](https://github.com/chipi/podcast_scraper/blob/main/compose/docker-compose.smoke.yml) on the
+Stack-test overlays [`compose/docker-compose.stack-test.yml`](https://github.com/chipi/podcast_scraper/blob/main/compose/docker-compose.stack-test.yml) on the
 **same** `viewer` / `api` / `pipeline` images. Operators should know:
 
 | Item | Stack smoke / CI expectation |
 | ---- | ----------------------------- |
 | Base file | `compose/docker-compose.stack.yml` |
-| Overlay | `compose/docker-compose.smoke.yml` (RFC-078) |
+| Overlay | `compose/docker-compose.stack-test.yml` (RFC-078) |
 | `CONFIG_FILE` | **Absolute** path to YAML with `output_dir: /app/output` (see example config) |
-| `VIEWER_PORT` | Smoke defaults to **8090** in the smoke compose file; override `SMOKE_BASE_URL` for Playwright |
-| Corpus volume | Named volume `smoke_data` in smoke overlay (export → `.smoke-corpus/` for artifact gates) |
+| `VIEWER_PORT` | Smoke defaults to **8090** in the smoke compose file; override `STACK_TEST_BASE_URL` for Playwright |
+| Corpus volume | Named volume `corpus_data` in stack-test overlay (export → `.stack-test-corpus/` for artifact gates) |
 | Docker jobs | Optional merge [`compose/docker-compose.jobs-docker.yml`](https://github.com/chipi/podcast_scraper/blob/main/compose/docker-compose.jobs-docker.yml) + **#660** — not required for smoke unless testing `POST /api/jobs` in Docker mode |
 
-Details: [`tests/smoke/README.md`](https://github.com/chipi/podcast_scraper/blob/main/tests/smoke/README.md), [RFC-078](../rfc/RFC-078-ephemeral-acceptance-smoke-test.md).
+Details: [`tests/stack-test/README.md`](https://github.com/chipi/podcast_scraper/blob/main/tests/stack-test/README.md), [RFC-078](../rfc/RFC-078-ephemeral-acceptance-smoke-test.md).
 
 ### Pipeline image tiers
 

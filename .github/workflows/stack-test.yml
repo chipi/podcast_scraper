@@ -1,4 +1,4 @@
-name: Stack smoke test
+name: Stack test
 
 on:
   push:
@@ -7,11 +7,11 @@ on:
       - 'compose/**'
       - 'docker/**'
       - 'config/ci/**'
-      - 'tests/smoke/**'
+      - 'tests/stack-test/**'
       - 'Makefile'
       - 'pyproject.toml'
       - 'docker/pipeline/**'
-      - '.github/workflows/smoke-test.yml'
+      - '.github/workflows/stack-test.yml'
       - 'scripts/tools/gil_quality_metrics.py'
       - 'scripts/tools/kg_quality_metrics.py'
   workflow_dispatch:
@@ -20,16 +20,16 @@ permissions:
   contents: read
 
 jobs:
-  smoke:
+  stack-test:
     runs-on: ubuntu-latest
     env:
       STACK_PIPELINE_PRELOAD_ML: false
-      SMOKE_VIEWER_PORT: 8090
-      SMOKE_BASE_URL: http://127.0.0.1:8090
+      STACK_TEST_VIEWER_PORT: 8090
+      STACK_TEST_BASE_URL: http://127.0.0.1:8090
       DOCKER_BUILDKIT: 1
       COMPOSE_DOCKER_CLI_BUILD: 1
-      SMOKE_EXPORT_DIR: ${{ github.workspace }}/.smoke-corpus
-      SMOKE_CORPUS_ROOT: ${{ github.workspace }}/.smoke-corpus
+      STACK_TEST_EXPORT_DIR: ${{ github.workspace }}/.stack-test-corpus
+      STACK_TEST_CORPUS_ROOT: ${{ github.workspace }}/.stack-test-corpus
     steps:
       - uses: actions/checkout@v6
 
@@ -42,17 +42,17 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v4
 
-      - name: Build stack + smoke images
-        run: make smoke-build
+      - name: Build stack + stack-test images
+        run: make stack-test-build
 
       - name: Run pipeline (fixture RSS, airgapped profile)
-        run: make smoke-run-pipeline
+        run: make stack-test-run
 
       - name: Assert pipeline log (layer 2)
-        run: make smoke-assert-logs
+        run: make stack-test-assert-logs
 
-      - name: Export corpus from smoke volume (layer 1 prep)
-        run: make smoke-export-corpus
+      - name: Export corpus from stack-test volume (layer 1 prep)
+        run: make stack-test-export
 
       - uses: actions/setup-python@v6
         with:
@@ -62,10 +62,10 @@ jobs:
         run: pip install -e '.[dev]'
 
       - name: Artifact quality gates (layer 1)
-        run: make smoke-assert-artifacts
+        run: make stack-test-assert-artifacts
 
       - name: Start viewer + API
-        run: make smoke-up
+        run: make stack-test-up
 
       - name: Wait for Nginx → API health
         run: |
@@ -83,17 +83,17 @@ jobs:
         with:
           node-version: '22'
 
-      - name: Playwright smoke tests
-        run: make smoke-test-playwright
+      - name: Playwright stack tests
+        run: make stack-test-playwright
 
       - name: Tear down
         if: always()
-        run: make smoke-down || true
+        run: make stack-test-down || true
 
       - name: Upload pipeline log on failure
         if: failure()
         uses: actions/upload-artifact@v4
         with:
-          name: smoke-pipeline-log
-          path: .smoke/pipeline.log
+          name: stack-test-pipeline-log
+          path: .stack-test/pipeline.log
           if-no-files-found: ignore

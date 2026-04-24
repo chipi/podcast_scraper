@@ -10,13 +10,11 @@ podcast_scraper.egg-info/
 
 # Test outputs
 .test_outputs/
-# RFC-078 local smoke: pipeline log from ``make smoke-run-pipeline``
-.smoke/
-# RFC-078: ``make smoke-export-corpus`` host copy of ``smoke_data`` volume
-.smoke-corpus/
 
 # Stack test (Playwright under tests/stack-test/, ``make stack-test-*`` / CI): local logs, export, deps
 .stack-test/
+# Host copy of the ``corpus_data`` volume (``make stack-test-export``)
+.stack-test-corpus/
 .stack-test-corpus/
 # Deprecated: full-run transcripts belong under ``.stack-test/`` (keep pattern so stray root files stay untracked).
 .stack-test*.log
@@ -128,6 +126,9 @@ config/manual/
 # CI-related local files under config/ci (optional stem lists, etc.); not committed
 config/ci/*
 !config/ci/README.md
+# Stack-test pipeline config is mounted by compose/docker-compose.stack-test.yml
+# and consumed by CI, so it must be tracked.
+!config/ci/stack-test-config.yaml
 
 # Experiments (local / ad-hoc configs)
 config/playground/

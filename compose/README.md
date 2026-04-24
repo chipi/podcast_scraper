@@ -1,6 +1,6 @@
 # Docker Compose
 
-Stack, smoke overlay, and standalone pipeline definitions. **Build `context` is `..` (repo root)** so `docker/pipeline/Dockerfile` and friends resolve correctly; **bind mounts** use `../…` paths from this directory.
+Stack, stack-test overlay, and standalone pipeline definitions. **Build `context` is `..` (repo root)** so `docker/pipeline/Dockerfile` and friends resolve correctly; **bind mounts** use `../…` paths from this directory.
 
 From the repository root:
 
@@ -8,7 +8,7 @@ From the repository root:
 docker compose -f compose/docker-compose.stack.yml up -d
 ```
 
-`make stack-*` and `make smoke-*` use these files (see the `Makefile`).
+`make stack-*` and `make stack-test-*` use these files (see the `Makefile`).
 
 For **`CONFIG_FILE`** on the stack, prefer an **absolute** path (e.g. `CONFIG_FILE=$PWD/config/examples/docker-stack.example.yaml`) so it does not depend on Compose path resolution.
 
@@ -27,4 +27,4 @@ See `docs/guides/DOCKER_SERVICE_GUIDE.md` § Full stack.
 
 **Prod-style restart policies:** merge [`compose/docker-compose.prod.yml`](docker-compose.prod.yml) (restart + commented VPS hints; see guide § RFC-079 backlog).
 
-RFC-078 helpers (from repo root): `make smoke-assert-logs` → `make smoke-export-corpus` → `make smoke-assert-artifacts` (or set **`SMOKE_EXPORT_DIR`** / **`SMOKE_CORPUS_ROOT`**).
+RFC-078 helpers (from repo root): `make stack-test-assert-logs` → `make stack-test-export` → `make stack-test-assert-artifacts` (or set **`STACK_TEST_EXPORT_DIR`** / **`STACK_TEST_CORPUS_ROOT`**).
