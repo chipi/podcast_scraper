@@ -405,10 +405,14 @@ quality: complexity deadcode docstrings spelling
 	# TODO(CVE-2026-1839): Remove --ignore-vuln after bumping transformers to a fixed 5.x release.
 	# Ignore CVE-2025-69872: diskcache 5.6.3 vulnerability (transitive dep). Revisit when diskcache publishes a fix.
 	# TODO(CVE-2025-69872): Remove --ignore-vuln when diskcache releases a patched version.
+	# Ignore CVE-2026-3219: pip mishandles concatenated tar+ZIP archives (install confusion). Affects the
+	#   ambient ``pip`` on the runner (26.0.1); PyPI has no newer pip yet (fix merged, unreleased). CI only
+	#   installs from trusted indexes; revisit when pip >26.0.1 includes https://github.com/pypa/pip/pull/13870.
+	# TODO(CVE-2026-3219): Remove --ignore-vuln after a patched pip release is published and GHA images pick it up.
 	# Note: If protobuf is updated to >=6.33.5 or >=7.0.0, this ignore can be removed
 	# Note: en-core-web-sm is installed from GitHub (not PyPI), so it cannot be audited by pip-audit
 	#       If it appears in audit output, it can be safely ignored as it's not from PyPI
-	$(PYTHON) -m pip_audit --skip-editable --ignore-vuln PYSEC-2022-42969 --ignore-vuln CVE-2026-0994 --ignore-vuln CVE-2026-4539 --ignore-vuln CVE-2026-1839 --ignore-vuln CVE-2025-69872
+	$(PYTHON) -m pip_audit --skip-editable --ignore-vuln PYSEC-2022-42969 --ignore-vuln CVE-2026-0994 --ignore-vuln CVE-2026-4539 --ignore-vuln CVE-2026-1839 --ignore-vuln CVE-2025-69872 --ignore-vuln CVE-2026-3219
 
 docs:
 	$(PYTHON) -m mkdocs build --strict
