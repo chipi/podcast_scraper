@@ -102,12 +102,15 @@ export function weightedEdgeStyle(
 }
 
 /**
- * Convenience: opacity helper for confidence-style [0, 1] properties.
- * Maps ``properties.<key>`` cosine (clamped to [0.25, 1.0] — the
- * #664 floor) to opacity in [0.35, 1.0]. Weak edges remain visible
- * enough to read but clearly de-emphasized.
+ * #664 / #656 Stage C — opacity helper for ABOUT-edge
+ * ``properties.confidence`` cosine. Named for its source to leave the
+ * generic ``weightedEdge*`` namespace free for other property-driven
+ * mappings (e.g. RFC-080 V1 ``edge.data('weight')`` count-based
+ * mapping). Maps cosine clamped to [0.25, 1.0] — the #664 floor — into
+ * opacity [0.35, 1.0]. Weak edges remain visible enough to read but
+ * clearly de-emphasized.
  */
-export function weightedEdgeOpacity(
+export function aboutConfidenceOpacity(
   propertyPath: string = 'properties.confidence',
   fallback: number = 1,
 ): (ele: EdgeSingular) => number {
@@ -120,11 +123,13 @@ export function weightedEdgeOpacity(
 }
 
 /**
- * Convenience: width helper. Scales ``properties.<key>`` in [0.25, 1.0]
- * to [baseWidth * 0.75, baseWidth * 1.5] — so the heaviest edges read
- * ~2× the lightest without overwhelming node badges.
+ * #664 / #656 Stage C — width helper for ABOUT-edge confidence.
+ * Scales ``properties.<key>`` in [0.25, 1.0] to
+ * [baseWidth * 0.75, baseWidth * 1.5] — so the heaviest edges read
+ * ~2× the lightest without overwhelming node badges. Same naming
+ * rationale as ``aboutConfidenceOpacity``.
  */
-export function weightedEdgeWidth(
+export function aboutConfidenceWidth(
   baseWidth: number,
   propertyPath: string = 'properties.confidence',
 ): (ele: EdgeSingular) => number {

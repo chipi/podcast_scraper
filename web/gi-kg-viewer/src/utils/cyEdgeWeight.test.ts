@@ -2,9 +2,9 @@ import { describe, expect, it } from 'vitest'
 
 import {
   scaleWeighted,
-  weightedEdgeOpacity,
+  aboutConfidenceOpacity,
   weightedEdgeStyle,
-  weightedEdgeWidth,
+  aboutConfidenceWidth,
 } from './cyEdgeWeight'
 
 /**
@@ -82,8 +82,8 @@ describe('weightedEdgeStyle', () => {
   })
 })
 
-describe('weightedEdgeOpacity (#664 convenience)', () => {
-  const callback = weightedEdgeOpacity()
+describe('aboutConfidenceOpacity (#664 convenience)', () => {
+  const callback = aboutConfidenceOpacity()
 
   it('maps floor-cosine 0.25 to opacity 0.35', () => {
     expect(callback(fakeEdge({ properties: { confidence: 0.25 } }))).toBeCloseTo(0.35)
@@ -107,15 +107,15 @@ describe('weightedEdgeOpacity (#664 convenience)', () => {
   })
 })
 
-describe('weightedEdgeWidth', () => {
+describe('aboutConfidenceWidth', () => {
   it('scales base width in [0.75x, 1.5x] over the confidence range', () => {
-    const callback = weightedEdgeWidth(2)
+    const callback = aboutConfidenceWidth(2)
     expect(callback(fakeEdge({ properties: { confidence: 0.25 } }))).toBeCloseTo(1.5)
     expect(callback(fakeEdge({ properties: { confidence: 1.0 } }))).toBeCloseTo(3.0)
   })
 
   it('falls back to base width for edges without confidence', () => {
-    const callback = weightedEdgeWidth(2)
+    const callback = aboutConfidenceWidth(2)
     expect(callback(fakeEdge({}))).toBe(2)
   })
 })

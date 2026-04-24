@@ -3,7 +3,7 @@
  */
 import type { EdgeSingular, NodeSingular } from 'cytoscape'
 import { graphNodeFill } from './colors'
-import { weightedEdgeOpacity, weightedEdgeWidth } from './cyEdgeWeight'
+import { aboutConfidenceOpacity, aboutConfidenceWidth } from './cyEdgeWeight'
 
 export function cytoscapeNodeLabelColorFromTheme(): string {
   try {
@@ -426,10 +426,10 @@ export function buildGiKgCyStylesheet(options?: {
       // rendering via the helpers' defaults.
       selector: 'edge[edgeType = "ABOUT"]',
       style: {
-        width: weightedEdgeWidth(compact ? 1.5 : 2),
+        width: aboutConfidenceWidth(compact ? 1.5 : 2),
         'line-color': 'var(--ps-gi)',
         'line-style': 'solid',
-        'line-opacity': weightedEdgeOpacity(),
+        'line-opacity': aboutConfidenceOpacity(),
         'target-arrow-shape': 'none',
       },
     },
