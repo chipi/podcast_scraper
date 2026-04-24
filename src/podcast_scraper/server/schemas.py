@@ -550,6 +550,40 @@ class CorpusEpisodeDetailResponse(BaseModel):
         default_factory=list,
         description="CIL topic pills from bridge (cluster-first order).",
     )
+    bridge_partition: "BridgePartitionSummary | None" = Field(
+        default=None,
+        description=(
+            "Per-episode ``{gi_only, kg_only, both}`` identity partition counts "
+            "derived from ``bridge.json::identities``. ``None`` when the bridge "
+            "file is missing or unreadable. Meaningful for the first time "
+            "post-#654 (previous threshold produced a mechanical ``both = 10 × "
+            "episode_count`` distribution)."
+        ),
+    )
+
+
+class BridgePartitionSummary(BaseModel):
+    """Counts of identity membership across GI / KG layers in bridge.json.
+
+    #656 Stage B: drives the per-episode bridge indicator on
+    ``EpisodeDetailPanel``. Each identity (topic / person / org) is
+    classified from its ``sources: {gi, kg}`` flags:
+
+      * ``gi_only`` — ``gi=True``, ``kg=False``.
+      * ``kg_only`` — ``gi=False``, ``kg=True``.
+      * ``both``    — both flags ``True``.
+      * ``total``   — sum of the three above (identities present in
+        neither layer are never emitted by the builder, so this also
+        equals ``len(identities)``).
+
+    Per-type splits (topic / person / org) are reserved for a follow-up
+    surface (hover detail) — intentionally omitted here.
+    """
+
+    gi_only: int = Field(ge=0)
+    kg_only: int = Field(ge=0)
+    both: int = Field(ge=0)
+    total: int = Field(ge=0)
 
 
 class CorpusSimilarEpisodeItem(BaseModel):

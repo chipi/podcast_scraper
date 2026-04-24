@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import os
 from pathlib import Path
 from typing import Any
@@ -39,6 +40,7 @@ from podcast_scraper.server.corpus_catalog import (
 )
 from podcast_scraper.server.pathutil import resolve_corpus_path_param
 from podcast_scraper.server.schemas import (
+    BridgePartitionSummary,
     CorpusEpisodeDetailResponse,
     CorpusEpisodeListItem,
     CorpusEpisodesResponse,
@@ -347,6 +349,9 @@ async def corpus_episode_detail(
     desc_by_feed = feed_description_by_feed_id(rows)
     cluster_index = load_topic_cluster_index(root)
     detail_pills = build_cil_digest_topics_for_row(root, r, cluster_index)
+    bridge_partition = (
+        _load_bridge_partition_summary(root, r.bridge_relative_path) if r.has_bridge else None
+    )
     return CorpusEpisodeDetailResponse(
         path=str(root),
         metadata_relative_path=r.metadata_relative_path,
@@ -372,6 +377,52 @@ async def corpus_episode_detail(
         feed_image_local_relpath=r.feed_image_local_relpath,
         episode_image_local_relpath=r.episode_image_local_relpath,
         cil_digest_topics=detail_pills,
+        bridge_partition=bridge_partition,
+    )
+
+
+def _load_bridge_partition_summary(
+    root: Path, bridge_relative_path: str | None
+) -> BridgePartitionSummary | None:
+    """Read ``bridge.json`` and count ``gi_only`` / ``kg_only`` / ``both`` identities.
+
+    Returns ``None`` on any read / parse failure or when the file is
+    missing — callers treat that as "no bridge data", matching the
+    legacy per-episode rendering path. #656 Stage B.
+    """
+    if not bridge_relative_path:
+        return None
+    root_s = os.path.normpath(str(root.resolve()))
+    target = os.path.normpath(os.path.join(root_s, bridge_relative_path))
+    if not target.startswith(root_s + os.sep) and target != root_s:
+        return None
+    try:
+        # codeql[py/path-injection] -- target normalized + prefix-guarded above.
+        with open(target, encoding="utf-8") as fh:
+            payload = json.load(fh)
+    except (OSError, json.JSONDecodeError):
+        return None
+    identities = payload.get("identities") if isinstance(payload, dict) else None
+    if not isinstance(identities, list):
+        return None
+    gi_only = 0
+    kg_only = 0
+    both = 0
+    for row in identities:
+        if not isinstance(row, dict):
+            continue
+        sources_raw = row.get("sources")
+        sources: dict[str, Any] = sources_raw if isinstance(sources_raw, dict) else {}
+        gi = bool(sources.get("gi"))
+        kg = bool(sources.get("kg"))
+        if gi and kg:
+            both += 1
+        elif gi:
+            gi_only += 1
+        elif kg:
+            kg_only += 1
+    return BridgePartitionSummary(
+        gi_only=gi_only, kg_only=kg_only, both=both, total=gi_only + kg_only + both
     )
 
 

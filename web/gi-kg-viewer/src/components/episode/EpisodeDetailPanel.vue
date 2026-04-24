@@ -12,6 +12,7 @@ import {
 } from '../../api/corpusLibraryApi'
 import CilTopicPillsRow from '../shared/CilTopicPillsRow.vue'
 import DiagnosticRow from '../shared/DiagnosticRow.vue'
+import EpisodeBridgePartition from './EpisodeBridgePartition.vue'
 import HelpTip from '../shared/HelpTip.vue'
 import PodcastCover from '../shared/PodcastCover.vue'
 import { useArtifactsStore } from '../../stores/artifacts'
@@ -702,6 +703,13 @@ watch(
           @pill-click="(i) => void openDetailCilTopicInGraph(i)"
         />
       </div>
+      <!--
+        #656 Stage B: per-episode bridge {gi_only, kg_only, both}
+        indicator (post-#654). Component hides itself when the
+        partition is missing — legacy episodes without bridge.json
+        don't render an empty placeholder.
+      -->
+      <EpisodeBridgePartition :partition="detail.bridge_partition" />
       <p
         v-if="detail.summary_text"
         class="mt-2 whitespace-pre-wrap text-xs leading-relaxed text-muted"
