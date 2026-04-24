@@ -239,7 +239,7 @@
   | Refactoring / module boundaries | `module-boundaries.mdc` | BEFORE moving code |
   | About to commit or push | `ai-guidelines.mdc` | BEFORE `git commit` |
   | Need decision guidance | `ai-guidelines.mdc` | When unsure about approach |
-  | Session end / "done" / wrap-up | `.cursorrules` Rule **18** | Retrospective (separate from metrics JSONL); promote durable lessons into guides/rules |
+  | Task / session closure (Rule **18**) | `.cursorrules` Rule **18** | Visible retrospective in chat (separate from metrics JSONL); promote durable lessons into guides/rules |
 
   All files in `.cursor/rules/`.
 
@@ -252,18 +252,25 @@
 
 ### Session review — process reflection (Rule 18)
 
-- **When:** At **natural session end**, when the user says **"done"** / **"wrap up"**, or after a
-  **major milestone** — use the **same cadence** as the final **`.metrics/rule-adherence.jsonl`** append
-  (see REMEMBER), but **do not** mix reflection into that file or its schema.
-- **Do:** Run a short **retrospective** (silent is OK): what would have closed the work **faster** or
-  avoided a false **"fixed"**? Examples: wrong validation channel, tests that did not match user data
-  shape, model objects rebuilt without passing new fields, assuming localhost from the agent sandbox.
+- **When (use judgment, not only keywords):** Run Rule **18** when a **meaningful unit of work is actually
+  finished** — same stopping points where you would append **`.metrics/rule-adherence.jsonl`** (see REMEMBER),
+  including: user signals closure (**done** / **wrap up** / **thanks** / **ship it** / equivalent),
+  **before commit or push**, after a **green CI slice** with nothing substantive left to do on that slice,
+  or when the thread is clearly **handing off** after a completed fix or feature. If you shipped something
+  non-trivial and the conversation is winding down, default to **running Rule 18** even if the user did
+  not use the exact words **done** or **wrap up**. **Do not** mix reflection into the JSONL or its schema.
+- **Do (visible by default):** In the **chat reply**, include a short **retrospective** the user can read:
+  what would have closed the work **faster**, what to verify next time, or what risked a false **fixed**.
+  Examples: wrong validation channel, tests that did not match user data shape, model objects rebuilt
+  without passing new fields, assuming localhost from the agent sandbox. **Silent or skip only** if the
+  user explicitly asked for no reflection or no extra closing text.
 - **Not metrics:** **Never** put retrospective text, lesson lists, or extra keys into
   **`rule-adherence.jsonl`**. That log stays a **rule/skills/subagents** self-audit only.
 - **Promote into repo instructions:** When a lesson is **durable and project-wide**, update the right
   canonical doc in-session when reasonable — e.g. **`docs/guides/AGENT_BROWSER_LOOP_GUIDE.md`** (browser
   / UI loop), **`.cursorrules`** / **`.cursor/rules/*.mdc`** (always-on agent rules),
-  **`docs/guides/DEVELOPMENT_GUIDE.md`** (dev workflow). For half-baked notes, use **`docs/wip/`** only.
+  **`docs/guides/DEVELOPMENT_GUIDE.md`** (dev workflow). For half-baked notes, use **`docs/wip/`** only
+  after **confirming** the user wants that file (no unsolicited markdown under `docs/`).
   **Do not** pad guides with one-off noise. **User intent beats this:** if the user says to skip
   reflection, comply.
 
@@ -364,17 +371,17 @@ make fix-md        # Auto-fix markdown
 - **`.metrics/rule-adherence.jsonl` — write often (do not skip)**:
 
   - Append **a new JSON line** whenever a **meaningful chunk of work finishes** (e.g. tests pass for a change, a feature slice is done, docs/lint fixed, CI unblocked) — **not only** at session end. **Multiple lines per session are normal** (often **~2–10**; more is OK for long sessions).
-  - Also append **before commit/push**, when the user says "done"/"wrap up", or at **natural session end** if nothing was logged recently.
+  - Also append **before commit/push**, when the user signals closure or at **natural session end** if nothing was logged recently (same **judgment** as Rule **18** — not only the phrases **done** / **wrap up**).
   - Each line: short self-audit (rules applied/missed, `.mdc` loaded/skipped, **skills** / **subagents** if any). See `.metrics/README.md` + **SCHEMA.md**. Optional `skills_used` / `subagents_used`. **Do not** add retrospective or lesson fields here (Rule **18** is separate).
   - **Do not ask** permission; **do not** wait for the user to remind you. Announcement optional (silent OK).
 
-- **BEFORE any commit/push OR when user says "done"/"wrap up" OR at natural task completion** (in addition to incremental logs above):
+- **BEFORE any commit/push OR at natural task completion** (user closure signals, green slice, thread winding down — same **judgment** as Rule **18**; in addition to incremental logs above):
 
   - If you have **not** appended since the last major milestone, perform self-audit and **append** (catch missed checkpoints)
-  - On that **same beat** (right after logging or if you already logged the milestone), run **Rule 18** **separately**: retrospective + promote durable lessons into guides/rules when appropriate — **not** inside JSONL
+  - On that **same beat** (right after logging or if you already logged the milestone), run **Rule 18** **separately**: **visible** retrospective in chat + promote durable lessons into guides/rules when appropriate — **not** inside JSONL
 
 ---
 
-**Version:** 2.5
-**Updated:** 2026-04-18
+**Version:** 2.6
+**Updated:** 2026-04-22
 **Source:** Trimmed from v1.0; details moved to `.cursor/rules/*.mdc`

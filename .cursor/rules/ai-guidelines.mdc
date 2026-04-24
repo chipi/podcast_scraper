@@ -28,13 +28,16 @@
 
 ## End-of-session review (Rule 18)
 
-**When:** User says **done** / **wrap up**, natural session end, or the same **cadence** as a closing
-**`.metrics/rule-adherence.jsonl`** append (before commit) — but **not inside** that file.
+**When:** Same **cadence** as **`.metrics/rule-adherence.jsonl`** (meaningful slice done, before commit/push,
+user clearly closing out) — **not only** the exact words **done** / **wrap up**; use judgment when a job is
+actually finished. **Not inside** the JSONL file.
 
-**Do:** Brief retrospective (silent OK): faster path next time? false "fixed"? wrong validation channel?
+**Do:** **Visible** retrospective in **chat** (faster path next time? false **fixed**? wrong validation
+channel?). **Silent or skip** only if the user explicitly asked for no reflection.
 
 **Output:** **Do not** write lessons into JSONL. **Promote** durable lessons into `docs/guides/`,
-`.cursorrules`, or `.cursor/rules/*.mdc` (or `docs/wip/` for drafts). Full wording: **`.cursorrules` Rule 18**.
+`.cursorrules`, or `.cursor/rules/*.mdc` (or `docs/wip/` for drafts **after user confirms** a file).
+Full wording: **`.cursorrules` Rule 18**.
 
 ## CRITICAL: Git Commit Workflow - MANDATORY CHECKLIST
 
@@ -52,7 +55,7 @@
 
 **Run ONLY if you changed:**
 
-- Dockerfile — any build process changes
+- `docker/pipeline/Dockerfile` — any pipeline image build changes
 - Project structure — package layout changes
 - Dependencies — `pyproject.toml` core deps/metadata
 - Package configuration — `[tool.setuptools]` changes
@@ -154,7 +157,7 @@ make lint-markdown    # Check markdown files
 make fix-md           # Auto-fix markdown issues
 
 # Docker (conditional)
-make docker-test      # Only if changed Dockerfile/structure
+make docker-test      # Only if changed `docker/pipeline/Dockerfile` / structure
 ```
 
 ## RELATED DOCUMENTATION

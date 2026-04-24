@@ -1,4 +1,4 @@
-"""Unit tests for structured feeds spec (RFC-077 / #626)."""
+"""Unit tests for structured feeds spec (#626)."""
 
 from __future__ import annotations
 
@@ -73,7 +73,7 @@ def test_feeds_spec_document_accepts_comment_keys() -> None:
 
 @pytest.mark.unit
 def test_repo_example_feeds_specs_load() -> None:
-    """Tracked ``config/examples/feeds.spec.example.*`` stay valid RFC-077 documents."""
+    """Tracked ``config/examples/feeds.spec.example.*`` stay valid feeds-spec documents."""
     root = Path(__file__).resolve().parents[4]
     examples_dir = root / "config" / "examples"
     for name in ("feeds.spec.example.yaml", "feeds.spec.example.json"):

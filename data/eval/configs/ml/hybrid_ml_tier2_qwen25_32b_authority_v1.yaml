@@ -1,4 +1,4 @@
-# Hybrid MAP-REDUCE Tier 2 (RFC-042): LongT5 MAP + Qwen 2.5 32B REDUCE via Ollama
+# Hybrid MAP-REDUCE Tier 2: LongT5 MAP + Qwen 2.5 32B REDUCE via Ollama
 # Requires: ollama pull qwen2.5:32b
 # Authority dataset; use when you have sufficient GPU/RAM for 32B.
 

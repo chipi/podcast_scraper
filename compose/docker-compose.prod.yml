@@ -1,0 +1,27 @@
+# Phase 3 — optional prod-style merge (GitHub #659 backlog).
+# Use on top of docker-compose.stack.yml, e.g.:
+#   docker compose -f compose/docker-compose.stack.yml -f compose/docker-compose.prod.yml up -d
+#
+# This file intentionally stays small: restart policies for long-running services.
+# For external named volumes on a VPS, replace the ``corpus_data`` definition in a
+# forked override or use ``docker volume create`` + ``external: true`` in a site-local file.
+
+services:
+  viewer:
+    restart: unless-stopped
+
+  api:
+    restart: unless-stopped
+
+# Example: pin memory on a small VPS (uncomment and tune):
+#   api:
+#     deploy:
+#       resources:
+#         limits:
+#           memory: 2G
+#
+# Example: external corpus volume (site-local override — paths are illustrative only):
+# volumes:
+#   corpus_data:
+#     external: true
+#     name: podcast_scraper_corpus_prod

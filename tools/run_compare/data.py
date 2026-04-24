@@ -1,4 +1,4 @@
-"""Load eval run artifacts for the run comparison tool (RFC-047, RFC-066)."""
+"""Load eval run artifacts for the run comparison tool."""
 
 from __future__ import annotations
 
@@ -198,7 +198,7 @@ def infer_run_type_bucket(rel_label: str) -> str:
     return RUN_TYPE_OTHER
 
 
-# Pipeline stage order aligned with ``scripts/eval/freeze_profile.py`` (RFC-064).
+# Pipeline stage order aligned with ``scripts/eval/freeze_profile.py``.
 PROFILE_STAGE_ORDER: Tuple[str, ...] = (
     "rss_feed_fetch",
     "media_download",
@@ -217,7 +217,7 @@ _PROFILE_SKIP_FILES = frozenset({"regression_rules.yaml"})
 
 @dataclass(frozen=True)
 class ProfileEntry:
-    """One frozen performance profile YAML under ``data/profiles/`` (RFC-064)."""
+    """One frozen performance profile YAML under ``data/profiles/``."""
 
     release: str
     date: str
@@ -229,14 +229,14 @@ class ProfileEntry:
     environment: Dict[str, Any]
     episodes_processed: int
     sort_ts: float
-    # RFC-065 companions next to ``<stem>.yaml`` (optional; see PERFORMANCE_PROFILE_GUIDE.md).
+    # Live monitor companions next to ``<stem>.yaml`` (optional; see PERFORMANCE_PROFILE_GUIDE.md).
     monitor_log_path: Optional[Path] = None
     monitor_trace_lines: Optional[int] = None
     monitor_trace_bytes: Optional[int] = None
     rfc065_monitor: Optional[Dict[str, Any]] = None
 
 
-def _load_profile_rfc065_companion(
+def _load_profile_monitor_companion(
     yaml_path: Path,
 ) -> Tuple[Optional[Path], Optional[int], Optional[int], Optional[Dict[str, Any]]]:
     """Load sibling ``.stage_truth.json`` / ``.monitor.log`` metadata for a profile YAML."""
@@ -276,8 +276,8 @@ def _load_profile_rfc065_companion(
     return (resolved, lines, nbytes, meta)
 
 
-def profile_has_rfc065_trace(entry: ProfileEntry) -> bool:
-    """True if a monitor companion log or ``stage_truth`` RFC-065 block is present."""
+def profile_has_monitor_trace(entry: ProfileEntry) -> bool:
+    """True if a monitor companion log or ``stage_truth`` monitor block is present."""
     if entry.monitor_log_path is not None:
         return True
     m = entry.rfc065_monitor
@@ -286,7 +286,7 @@ def profile_has_rfc065_trace(entry: ProfileEntry) -> bool:
 
 @dataclass(frozen=True)
 class JoinedRelease:
-    """Quality eval run and/or frozen profile for the same release join key (RFC-066)."""
+    """Quality eval run and/or frozen profile for the same release join key."""
 
     release: str
     eval_entry: Optional[RunEntry]
@@ -344,7 +344,7 @@ def discover_runs(eval_root: Optional[Path] = None) -> List[RunEntry]:
 
 
 def _parse_profile_date_ts(date_str: str) -> float:
-    """Parse profile ``date`` field for sort order (RFC-064 ISO timestamps)."""
+    """Parse profile ``date`` field for sort order (ISO timestamps)."""
     s = (date_str or "").strip()
     if not s:
         return 0.0
@@ -362,7 +362,7 @@ def _parse_profile_date_ts(date_str: str) -> float:
 def discover_profiles(profiles_root: Optional[Path] = None) -> List[ProfileEntry]:
     """Load all ``*.yaml`` profiles under ``data/profiles`` (excluding rules files).
 
-    Each entry may include RFC-065 companion metadata from sibling ``<stem>.monitor.log`` and
+    Each entry may include live-monitor companion metadata from sibling ``<stem>.monitor.log`` and
     ``<stem>.stage_truth.json`` (``rfc065_monitor``), used by the Run Compare Performance page.
 
     Args:
@@ -433,7 +433,7 @@ def load_profile(path: Path) -> ProfileEntry:
     ep = raw.get("episodes_processed")
     episodes_processed = int(ep) if isinstance(ep, int) else 0
     sort_ts = _parse_profile_date_ts(date_s)
-    mlog, mlines, mbytes, rfc_m = _load_profile_rfc065_companion(path)
+    mlog, mlines, mbytes, rfc_m = _load_profile_monitor_companion(path)
     return ProfileEntry(
         release=release,
         date=date_s,

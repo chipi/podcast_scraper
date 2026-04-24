@@ -1,6 +1,6 @@
 # Example validation YAML for unit tests only — not a product contract or canonical dataset.
 # Real work: create any path you want and pass it to `topic-clusters --validate-config`.
-# Schema: RFC-075 (expected_merge_pairs, expected_distinct, optional per-row episode_sources).
+# Schema: topic cluster validation (expected_merge_pairs, expected_distinct, optional per-row episode_sources).
 #
 schema_version: "1"
 description: Minimal example for test_topic_clusters YAML shape checks.

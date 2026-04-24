@@ -1,0 +1,40 @@
+# Profile: cloud_thin — cloud APIs only (no local spaCy / FAISS)
+#
+# Use with pipeline image built using ``INSTALL_EXTRAS=llm`` (``pyproject`` **``. [llm]``**).
+# Requires ``OPENAI_API_KEY`` (Whisper) and ``GEMINI_API_KEY`` (NER + summary + GI/KG) in the environment.
+# No local semantic index: ``vector_search: false``.
+#
+# Speaker + summary share the same Gemini model id (aligned with ``cloud_balanced`` flash-lite).
+
+transcription_provider: openai
+openai_transcription_model: whisper-1
+
+audio_preprocessing_profile: speech_optimal_v1
+
+speaker_detector_provider: gemini
+auto_speakers: true
+
+summary_provider: gemini
+gemini_summary_model: gemini-2.5-flash-lite
+gemini_speaker_model: gemini-2.5-flash-lite
+preprocessing_enabled: true
+
+llm_pipeline_mode: mega_bundled
+cloud_llm_structured_min_output_tokens: 4096
+
+generate_gi: true
+gi_insight_source: provider
+gi_max_insights: 12
+gi_require_grounding: true
+
+generate_kg: true
+kg_extraction_source: provider
+kg_max_topics: 10
+kg_max_entities: 15
+
+vector_search: false
+
+generate_metadata: true
+generate_summaries: true
+language: en
+log_level: INFO

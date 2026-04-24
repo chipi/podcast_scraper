@@ -48,7 +48,7 @@ _DEFAULT_E2E_PODCAST = "podcast1_mtb"
 # YAMLs stay provider-only. See config/profiles/freeze/_defaults.yaml.
 _FREEZE_DEFAULTS_PATH = _ROOT / "config" / "profiles" / "freeze" / "_defaults.yaml"
 
-# Default psutil poll interval (seconds); finer windows for short stages (Issue #510 / RFC-064)
+# Default psutil poll interval (seconds); finer windows for short stages (Issue #510)
 _DEFAULT_SAMPLE_INTERVAL_S = 0.5
 
 # Keys copied into *.stage_truth.json for audits (trimmed metrics.json)
@@ -138,7 +138,7 @@ class ResourceSampler:
 
 
 def wall_seconds_by_stage(metrics: Dict[str, Any]) -> Dict[str, float]:
-    """Map saved metrics.json fields to RFC-064 stage wall times (aggregate)."""
+    """Map saved metrics.json fields to profile stage wall times (aggregate)."""
     m = metrics
     out: Dict[str, float] = {}
 
@@ -566,7 +566,7 @@ def main() -> None:
         "--monitor",
         action="store_true",
         help=(
-            "Enable RFC-065 live monitor for the measured run only (warm-up unchanged). "
+            "Enable live pipeline monitor for the measured run only (warm-up unchanged). "
             "Archives ticks to <version>.monitor.log beside the YAML; forces file logging "
             f"via {MONITOR_FILE_LOG_ENV} so capture works even under a TTY."
         ),

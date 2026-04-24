@@ -23,5 +23,5 @@ Implementation: `podcast_scraper.prompts.store._resolve_template_path`.
 
 ## Further reading
 
-- **RFC-017** (design context): `docs/rfc/RFC-017-prompt-management.md` — section *Shared summarization templates vs per-provider overrides*.
+- **Prompt management** (design context): see repository docs under `docs/guides/` and `docs/api/CONFIGURATION.md` — section *Shared summarization templates vs per-provider overrides*.
 - **Config:** `docs/api/CONFIGURATION.md` — summary bullets and `summary_prompt_params`.

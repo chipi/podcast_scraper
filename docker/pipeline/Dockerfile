@@ -4,7 +4,8 @@
 # Build Arguments
 # ============================================================================
 # INSTALL_EXTRAS: Which optional dependencies to install
-#   - "" (empty) = core only (LLM-only, ~50MB, no ML deps)
+#   - "" (empty) = core only (minimal, no ML / no cloud SDK bundle)
+#   - "llm" = core + API SDK extras only (``pip install '.[llm]'`` — no torch/spaCy/FAISS)
 #   - "ml" = core + ML dependencies (~1-3GB with models)
 #   Default: "ml" for backwards compatibility
 ARG INSTALL_EXTRAS=ml
@@ -28,8 +29,8 @@ ARG INSTALL_EXTRAS
 ARG PRELOAD_ML_MODELS
 
 # Validate build arguments
-RUN if [ -n "$INSTALL_EXTRAS" ] && [ "$INSTALL_EXTRAS" != "ml" ] && [ "$INSTALL_EXTRAS" != "" ]; then \
-        echo "Error: INSTALL_EXTRAS must be 'ml' or '' (empty). Got: '$INSTALL_EXTRAS'" >&2; \
+RUN if [ -n "$INSTALL_EXTRAS" ] && [ "$INSTALL_EXTRAS" != "ml" ] && [ "$INSTALL_EXTRAS" != "llm" ] && [ "$INSTALL_EXTRAS" != "" ]; then \
+        echo "Error: INSTALL_EXTRAS must be 'ml', 'llm', or '' (empty). Got: '$INSTALL_EXTRAS'" >&2; \
         exit 1; \
     fi && \
     if [ -n "$PRELOAD_ML_MODELS" ] && [ "$PRELOAD_ML_MODELS" != "true" ] && [ "$PRELOAD_ML_MODELS" != "false" ]; then \
@@ -42,7 +43,7 @@ ENV PRELOAD_ML_MODELS=${PRELOAD_ML_MODELS}
 # Install build dependencies (only if ML extras are requested)
 # Build deps are needed for compiling some packages from source if wheels aren't available
 # Python 3.12 has good wheel support, so most packages won't need compilation
-RUN if [ -n "$INSTALL_EXTRAS" ] && [ "$INSTALL_EXTRAS" = "ml" ]; then \
+RUN if [ -n "$INSTALL_EXTRAS" ] && { [ "$INSTALL_EXTRAS" = "ml" ] || [ "$INSTALL_EXTRAS" = "llm" ]; }; then \
         apt-get update && \
         apt-get upgrade -y --no-install-recommends && \
         apt-get install -y --no-install-recommends \
@@ -79,8 +80,11 @@ RUN --mount=type=cache,target=/root/.cache/pip \
         pip uninstall -y podcast-scraper && \
         # Ensure torch CPU-only version is used (reinstall CPU version to override any CUDA version)
         pip install --force-reinstall --no-deps torch --index-url https://download.pytorch.org/whl/cpu; \
+    elif [ "$INSTALL_EXTRAS" = "llm" ]; then \
+        pip install '.[llm]' && \
+        pip uninstall -y podcast-scraper; \
     else \
-        # Install core dependencies only (LLM-only, no ML)
+        # Install core dependencies only (minimal)
         pip install . && \
         pip uninstall -y podcast-scraper; \
     fi && \
@@ -212,8 +216,8 @@ COPY --from=builder --chown=podcast:podcast /root/.cache/huggingface /home/podca
 
 # Copy application files and set permissions
 COPY --chown=podcast:podcast config/examples/config.example.* /opt/podcast_scraper/examples/
-COPY --chown=podcast:podcast docker/supervisord.conf /etc/supervisor/supervisord.conf
-COPY --chown=podcast:podcast docker/entrypoint.sh /app/entrypoint.sh
+COPY --chown=podcast:podcast docker/pipeline/supervisord.conf /etc/supervisor/supervisord.conf
+COPY --chown=podcast:podcast docker/pipeline/entrypoint.sh /app/entrypoint.sh
 RUN chmod +x /app/entrypoint.sh
 
 WORKDIR /app

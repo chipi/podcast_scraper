@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""RFC-057 Track B: ML parameter autoresearch ratchet loop.
+"""Autoresearch Track B: ML parameter ratchet loop.
 
 Sweeps map_params / reduce_params in an experiment config YAML, running each
 candidate against a silver reference and accepting if ROUGE-L improves >= 1%.

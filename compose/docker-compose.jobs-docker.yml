@@ -1,0 +1,21 @@
+# GitHub #660: merge on top of docker-compose.stack.yml when API must spawn
+# pipeline jobs via ``docker compose run`` (``PODCAST_PIPELINE_EXEC_MODE=docker``).
+#
+# Usage (from repo root):
+#   export PODCAST_DOCKER_PROJECT_DIR="$PWD"   # host path the Docker daemon resolves
+#   docker compose -f compose/docker-compose.stack.yml \
+#     -f compose/docker-compose.jobs-docker.yml up -d
+#
+# Security: mounting ``/var/run/docker.sock`` grants the ``api`` container Docker control on the host.
+
+services:
+  api:
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      # Host repo root (substituted from the *host* env at ``docker compose up`` time) must be
+      # visible **inside** the API container so ``docker compose -f …`` can read compose files.
+      # In-container path is fixed at ``/podcast_repo``; ``PODCAST_DOCKER_PROJECT_DIR`` below matches.
+      - ${PODCAST_DOCKER_PROJECT_DIR:?set to absolute repo root on host}:/podcast_repo:ro
+    environment:
+      PODCAST_PIPELINE_EXEC_MODE: docker
+      PODCAST_DOCKER_PROJECT_DIR: /podcast_repo

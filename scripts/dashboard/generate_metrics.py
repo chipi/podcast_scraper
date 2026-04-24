@@ -5,7 +5,7 @@ Generate metrics JSON from test artifacts (JUnit XML, coverage XML, pytest JSON)
 This script extracts metrics from test artifacts and generates a structured JSON file
 for metrics consumption and trend tracking.
 
-See RFC-025: Test Metrics and Health Tracking
+See docs/ci/METRICS.md for test metrics and health tracking
 """
 
 import json

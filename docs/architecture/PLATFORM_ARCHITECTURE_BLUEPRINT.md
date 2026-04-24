@@ -438,7 +438,7 @@ the chosen queue library (see B.13) and calls `run_pipeline(cfg)` (simple tier) 
 #### B.9.2 Docker image strategy
 
 **Single image (default):** All services share one Docker image built from the same
-`Dockerfile`. This keeps the build simple and ensures every container has the same code
+`docker/pipeline/Dockerfile`. This keeps the build simple and ensures every container has the same code
 version. The image includes all dependencies (ML models, GPU libs, Python packages).
 
 **When to split images:** Split into `podcast-scraper-gpu` and `podcast-scraper-base` when
@@ -1965,8 +1965,8 @@ part closes that loop: build → release → deploy → configure → restart �
 | Capability | Status | Where |
 | --- | --- | --- |
 | **Docker image build** | CI builds and tests Docker image on PR/push | `.github/workflows/docker.yml`, Makefile `docker-*` targets |
-| **Docker Compose** | Two compose files for local/dev use | `docker-compose.yml`, `docker-compose.llm-only.yml` |
-| **Process management** | Supervisor support in container for restart/log | `docker/entrypoint.sh`, `docker/supervisord.conf` |
+| **Docker Compose** | Two compose files for local/dev use | `compose/docker-compose.yml`, `compose/docker-compose.llm-only.yml` |
+| **Process management** | Supervisor support in container for restart/log | `docker/pipeline/entrypoint.sh`, `docker/pipeline/supervisord.conf` |
 | **Docs deployment** | MkDocs to GitHub Pages on main push | `.github/workflows/docs.yml` |
 | **Image registry** | Not configured — no push to GHCR/DockerHub | Gap |
 | **Deployment automation** | Not implemented — no CD pipeline | Gap |
@@ -2262,7 +2262,7 @@ services:
       retries: 5
 ```
 
-**Supervisor (inside container):** The existing `docker/supervisord.conf` handles process
+**Supervisor (inside container):** The existing `docker/pipeline/supervisord.conf` handles process
 restart within a container. For Compose with `restart: unless-stopped`, supervisor is
 redundant for single-process containers. Keep supervisor only if running multiple processes
 in one container (not recommended for Part D.5 topology).
@@ -2585,7 +2585,7 @@ architecture, observability stack, deployment pipeline). This file remains **WIP
 | --- | --- | --- |
 | RFC: Multi-tenant data model | Part A (A.3–A.6, A.12) | Schema, migrations, RLS, tenant lifecycle, auth evolution |
 | RFC: Worker orchestration & job model | Part B (B.7–B.8, B.9.1, B.14, B.15, B.17) + Part D (D.5–D.6) | Two-tier queue design (simple/distributed), arq, job payload, state machine, DLQ, CLI entry points, file locking, testing strategy |
-| RFC: Compose reference architecture | Part B (B.4, B.9.2) + Part D (D.5, D.11) + Part F (F.3, F.9) | docker-compose.yml, image strategy, secrets, volumes, networking, deploy scripts |
+| RFC: Compose reference architecture | Part B (B.4, B.9.2) + Part D (D.5, D.11) + Part F (F.3, F.9) | `compose/docker-compose.yml`, image strategy, secrets, volumes, networking, deploy scripts |
 | RFC: Hardware reference architecture | Part D (D.1–D.4, D.10–D.16) | Minimum specs, model memory budget, graduation path, concrete configs, TCO analysis |
 | RFC: Database migrations | Part B (B.16) | Alembic setup, migration workflow, container startup order, rollback |
 | RFC: Corpus digest contract | Part C (C.3–C.9) | Digest artifact schema, time-scoped aggregation, clustering, pipeline integration, viewer routes |

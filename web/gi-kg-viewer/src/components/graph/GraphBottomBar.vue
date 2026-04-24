@@ -140,10 +140,10 @@ onMounted(() => {
   <div data-testid="graph-bottom-bar" :aria-expanded="collapsed ? 'false' : 'true'">
     <div
       v-if="!collapsed"
-      class="flex shrink-0 items-center gap-2 border-t border-border/80 bg-canvas py-0.5 pl-1 pr-1 text-surface-foreground"
+      class="flex min-h-7 shrink-0 items-center gap-2 border-t border-border/80 bg-canvas py-0 pl-1 pr-1 text-surface-foreground"
     >
       <div
-        class="flex shrink-0 flex-wrap items-center gap-0.5 py-0.5"
+        class="flex shrink-0 flex-wrap items-center gap-0.5 py-0"
         data-testid="graph-bottom-bar-left"
       >
         <button
@@ -179,7 +179,7 @@ onMounted(() => {
 
       <div
         v-if="props.showLensControls"
-        class="flex min-w-0 flex-1 justify-center border-r border-border/60 pr-1"
+        class="flex min-h-0 min-w-0 flex-1 items-center justify-center border-r border-border/60 pr-1"
         data-testid="graph-bottom-bar-centre"
       >
         <GraphStatusLine
@@ -191,7 +191,7 @@ onMounted(() => {
       </div>
 
       <div
-        class="flex shrink-0 flex-nowrap items-center gap-0.5 py-0.5"
+        class="flex shrink-0 flex-nowrap items-center gap-0.5 py-0"
         :class="props.showLensControls ? '' : 'ml-auto'"
         data-testid="graph-bottom-bar-right"
         role="toolbar"
@@ -281,8 +281,8 @@ onMounted(() => {
     <button
       v-else
       type="button"
-      class="flex h-7 w-full shrink-0 cursor-pointer items-center justify-center border-t-2 border-border bg-elevated text-sm font-semibold leading-none text-surface-foreground hover:bg-overlay"
-      title="Expand graph bar"
+      class="graph-bottom-bar-expand-btn flex h-3 w-full shrink-0 cursor-pointer items-center justify-center border-t border-border/80 bg-canvas px-1 text-[9px] leading-none text-muted hover:bg-overlay hover:text-surface-foreground"
+      title="Expand graph bar (Alt+B)"
       data-testid="graph-bottom-bar-expand"
       aria-label="Expand graph bar"
       aria-expanded="false"
@@ -292,3 +292,18 @@ onMounted(() => {
     </button>
   </div>
 </template>
+
+<style scoped>
+/* ~12px tall strip vs ~20px+ expanded row; extra tap target only below (no overlap into graph). */
+.graph-bottom-bar-expand-btn {
+  position: relative;
+}
+.graph-bottom-bar-expand-btn::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  bottom: -12px;
+}
+</style>

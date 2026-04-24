@@ -1,18 +1,21 @@
-"""Integration tests for opt-in /api/jobs pipeline API (RFC-077 Phase 2)."""
+"""Integration tests for opt-in /api/jobs pipeline API (Phase 2)."""
 
 from __future__ import annotations
 
 import json
 import os
 from pathlib import Path
+from unittest.mock import AsyncMock, patch
 
 import pytest
+from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 pytest.importorskip("fastapi")
 
 from podcast_scraper.server.app import create_app
 from podcast_scraper.server.pipeline_job_registry import with_jobs_locked_mutate
+from podcast_scraper.server.routes import jobs as jobs_mod
 
 pytestmark = [pytest.mark.integration]
 
@@ -44,6 +47,41 @@ def fake_factory_immediate() -> object:
         return _FakeProcImmediate()
 
     return _factory
+
+
+def test_jobs_list_requires_corpus_when_server_has_no_default_output_dir() -> None:
+    app = FastAPI()
+    app.state.output_dir = None
+    app.state.jobs_api_enabled = True
+    app.include_router(jobs_mod.router, prefix="/api")
+    client = TestClient(app)
+    r = client.get("/api/jobs")
+    assert r.status_code == 400
+    assert "Corpus path" in r.json().get("detail", "")
+
+
+def test_jobs_rejects_corpus_path_outside_anchor_via_shared_exception_handler(
+    corpus: Path,
+) -> None:
+    app = create_app(corpus, static_dir=False, enable_jobs_api=True)
+    client = TestClient(app)
+    r = client.get("/api/jobs", params={"path": "/etc"})
+    assert r.status_code == 400
+    assert "subdirectory" in r.json().get("detail", "").lower()
+
+
+def test_jobs_api_disabled_returns_500_when_router_mounted_without_create_app_guard(
+    tmp_path: Path,
+) -> None:
+    """``_corpus_and_operator`` rejects calls when ``jobs_api_enabled`` is false (misconfiguration)."""
+    app = FastAPI()
+    app.state.output_dir = tmp_path
+    app.state.jobs_api_enabled = False
+    app.include_router(jobs_mod.router, prefix="/api")
+    client = TestClient(app)
+    r = client.get("/api/jobs", params={"path": str(tmp_path)})
+    assert r.status_code == 500
+    assert "jobs_api" in r.json().get("detail", "").lower()
 
 
 def test_jobs_not_mounted_by_default(corpus: Path) -> None:
@@ -85,6 +123,23 @@ def test_jobs_health_and_submit_completes(corpus: Path, fake_factory_immediate: 
     log_q = client.get("/api/jobs/subprocess-log", params={"path": str(corpus), "job_id": job_id})
     assert log_q.status_code == 200
     assert log_q.text.strip() == "fake-log"
+
+    tail = client.get(
+        f"/api/jobs/{job_id}/log-tail", params={"path": str(corpus), "max_bytes": 4096}
+    )
+    assert tail.status_code == 200
+    body = tail.json()
+    assert body.get("truncated") is False
+    assert "fake-log" in body.get("text", "")
+
+    tail_q = client.get(
+        "/api/jobs/subprocess-log-tail",
+        params={"path": str(corpus), "job_id": job_id, "max_bytes": 4096},
+    )
+    assert tail_q.status_code == 200
+    body_q = tail_q.json()
+    assert body_q.get("truncated") is False
+    assert "fake-log" in body_q.get("text", "")
 
 
 def test_jobs_reconcile_marks_dead_pid(corpus: Path) -> None:
@@ -221,3 +276,153 @@ def test_jobs_reconcile_wall_clock_stale(monkeypatch: pytest.MonkeyPatch, corpus
     assert rec.json()["updated"] >= 1
     row = client.get("/api/jobs/stale-wall", params={"path": str(corpus)}).json()
     assert row["status"] == "stale"
+
+
+def test_jobs_docker_mode_rejects_missing_pipeline_install_extras(
+    monkeypatch: pytest.MonkeyPatch, corpus: Path
+) -> None:
+    monkeypatch.setenv("PODCAST_PIPELINE_EXEC_MODE", "docker")
+    (corpus / "viewer_operator.yaml").write_text("max_episodes: 1\n", encoding="utf-8")
+    app = create_app(corpus, static_dir=False, enable_jobs_api=True)
+    client = TestClient(app)
+    r = client.post("/api/jobs", params={"path": str(corpus)})
+    assert r.status_code == 400
+    assert "pipeline_install_extras" in str(r.json().get("detail", ""))
+
+
+def test_jobs_docker_mode_accepts_pipeline_install_extras(
+    monkeypatch: pytest.MonkeyPatch, corpus: Path, fake_factory_immediate: object
+) -> None:
+    monkeypatch.setenv("PODCAST_PIPELINE_EXEC_MODE", "docker")
+    (corpus / "viewer_operator.yaml").write_text(
+        "pipeline_install_extras: ml\nmax_episodes: 1\n", encoding="utf-8"
+    )
+    app = create_app(corpus, static_dir=False, enable_jobs_api=True)
+    app.state.jobs_subprocess_factory = fake_factory_immediate
+    client = TestClient(app)
+    r = client.post("/api/jobs", params={"path": str(corpus)})
+    assert r.status_code == 202
+
+
+def test_jobs_submit_omits_queue_position_when_snapshot_has_non_int(
+    corpus: Path, fake_factory_immediate: object
+) -> None:
+    jid = "00000000-0000-4000-8000-00000000000b"
+    queued_rec = {"job_id": jid, "status": "queued"}
+    snap = [{"job_id": jid, "queue_position": "4", "status": "queued"}]
+    (corpus / "viewer_operator.yaml").write_text("max_episodes: 1\n", encoding="utf-8")
+
+    with patch.object(jobs_mod, "enqueue_pipeline_job", return_value=queued_rec):
+        with patch.object(jobs_mod, "list_jobs_snapshot", return_value=snap):
+            app = create_app(corpus, static_dir=False, enable_jobs_api=True)
+            app.state.jobs_subprocess_factory = fake_factory_immediate
+            client = TestClient(app)
+            r = client.post("/api/jobs", params={"path": str(corpus)})
+    assert r.status_code == 202
+    assert r.json().get("queue_position") is None
+
+
+def test_jobs_submit_includes_queue_position_from_snapshot_when_queued(
+    corpus: Path, fake_factory_immediate: object
+) -> None:
+    """``POST /api/jobs`` copies ``queue_position`` from ``list_jobs_snapshot`` for queued rows."""
+    jid = "00000000-0000-4000-8000-00000000000a"
+    queued_rec = {"job_id": jid, "status": "queued"}
+    snap = [{"job_id": jid, "queue_position": 4, "status": "queued"}]
+    (corpus / "viewer_operator.yaml").write_text("max_episodes: 1\n", encoding="utf-8")
+
+    with patch.object(jobs_mod, "enqueue_pipeline_job", return_value=queued_rec):
+        with patch.object(jobs_mod, "list_jobs_snapshot", return_value=snap):
+            app = create_app(corpus, static_dir=False, enable_jobs_api=True)
+            app.state.jobs_subprocess_factory = fake_factory_immediate
+            client = TestClient(app)
+            r = client.post("/api/jobs", params={"path": str(corpus)})
+    assert r.status_code == 202
+    assert r.json()["queue_position"] == 4
+
+
+def test_jobs_log_routes_map_job_log_path_error_to_http(
+    corpus: Path, fake_factory_immediate: object
+) -> None:
+    """``_resolved_job_log_path`` maps ``JobLogPathError`` to ``HTTPException``."""
+    app = create_app(corpus, static_dir=False, enable_jobs_api=True)
+    app.state.jobs_subprocess_factory = fake_factory_immediate
+    client = TestClient(app)
+    jid = "00000000-0000-4000-8000-0000000000c1"
+    err = jobs_mod.JobLogPathError(404, "log path test detail")
+    with patch.object(
+        jobs_mod,
+        "resolve_pipeline_job_log_path",
+        AsyncMock(side_effect=err),
+    ):
+        r_log = client.get(f"/api/jobs/{jid}/log", params={"path": str(corpus)})
+        assert r_log.status_code == 404
+        assert r_log.json().get("detail") == "log path test detail"
+        r_sub = client.get("/api/jobs/subprocess-log", params={"path": str(corpus), "job_id": jid})
+        assert r_sub.status_code == 404
+        r_tail = client.get(
+            f"/api/jobs/{jid}/log-tail",
+            params={"path": str(corpus), "max_bytes": 4096},
+        )
+        assert r_tail.status_code == 404
+        r_tail_q = client.get(
+            "/api/jobs/subprocess-log-tail",
+            params={"path": str(corpus), "job_id": jid, "max_bytes": 4096},
+        )
+        assert r_tail_q.status_code == 404
+
+
+def test_jobs_log_tail_rejects_max_bytes_below_minimum(corpus: Path) -> None:
+    app = create_app(corpus, static_dir=False, enable_jobs_api=True)
+    client = TestClient(app)
+    r = client.get(
+        "/api/jobs/subprocess-log-tail",
+        params={
+            "path": str(corpus),
+            "job_id": "00000000-0000-4000-8000-0000000000c2",
+            "max_bytes": 100,
+        },
+    )
+    assert r.status_code == 422
+    r2 = client.get(
+        "/api/jobs/00000000-0000-4000-8000-0000000000c2/log-tail",
+        params={"path": str(corpus), "max_bytes": 100},
+    )
+    assert r2.status_code == 422
+
+
+def test_jobs_log_tail_uses_default_max_bytes_when_omitted(
+    corpus: Path, fake_factory_immediate: object
+) -> None:
+    app = create_app(corpus, static_dir=False, enable_jobs_api=True)
+    app.state.jobs_subprocess_factory = fake_factory_immediate
+    client = TestClient(app)
+    r = client.post("/api/jobs", params={"path": str(corpus)})
+    jid = r.json()["job_id"]
+    tail = client.get(f"/api/jobs/{jid}/log-tail", params={"path": str(corpus)})
+    assert tail.status_code == 200
+    assert "truncated" in tail.json()
+
+
+def test_jobs_subprocess_log_404_for_unknown_job(corpus: Path) -> None:
+    app = create_app(corpus, static_dir=False, enable_jobs_api=True)
+    client = TestClient(app)
+    r = client.get(
+        "/api/jobs/subprocess-log",
+        params={"path": str(corpus), "job_id": "00000000-0000-4000-8000-00000000dead"},
+    )
+    assert r.status_code == 404
+
+
+def test_jobs_docker_mode_accepts_pipeline_install_extras_llm(
+    monkeypatch: pytest.MonkeyPatch, corpus: Path, fake_factory_immediate: object
+) -> None:
+    monkeypatch.setenv("PODCAST_PIPELINE_EXEC_MODE", "docker")
+    (corpus / "viewer_operator.yaml").write_text(
+        "pipeline_install_extras: llm\nmax_episodes: 1\n", encoding="utf-8"
+    )
+    app = create_app(corpus, static_dir=False, enable_jobs_api=True)
+    app.state.jobs_subprocess_factory = fake_factory_immediate
+    client = TestClient(app)
+    r = client.post("/api/jobs", params={"path": str(corpus)})
+    assert r.status_code == 202

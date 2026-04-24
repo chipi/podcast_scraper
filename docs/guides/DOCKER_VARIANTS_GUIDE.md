@@ -144,25 +144,24 @@ The repository includes ready-to-use Docker Compose files:
 **ML-enabled variant:**
 
 ```bash
-# Use the default docker-compose.yml
-docker-compose up -d
+# ML-enabled standalone pipeline (from repository root)
+docker compose -f compose/docker-compose.yml up -d
 ```
 
 **LLM-only variant:**
 
 ```bash
-# Use the LLM-only specific compose file
-docker-compose -f docker-compose.llm-only.yml up -d
+docker compose -f compose/docker-compose.llm-only.yml up -d
 ```
 
-See `docker-compose.yml` and `docker-compose.llm-only.yml` in the repository root for complete examples with resource limits, volume mounts, and environment variables.
+See `compose/docker-compose.yml` and `compose/docker-compose.llm-only.yml` for complete examples with resource limits, volume mounts, and environment variables.
 
 ### LLM-Only Service
 
-**Using provided file (`docker-compose.llm-only.yml`):**
+**Using provided file (`compose/docker-compose.llm-only.yml`):**
 
 ```bash
-docker-compose -f docker-compose.llm-only.yml up -d
+docker compose -f compose/docker-compose.llm-only.yml up -d
 ```
 
 **Or custom configuration:**
@@ -193,10 +192,10 @@ services:
 
 ### ML-Enabled Service
 
-**Using provided file (`docker-compose.yml`):**
+**Using provided file (`compose/docker-compose.yml`):**
 
 ```bash
-docker-compose up -d
+docker compose -f compose/docker-compose.yml up -d
 ```
 
 **Or custom configuration:**

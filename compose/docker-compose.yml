@@ -1,7 +1,8 @@
 version: '3.8'
 
 # Docker Compose configuration for podcast_scraper
-# See docs/guides/DOCKER_SERVICE_GUIDE.md for complete documentation
+# See docs/guides/DOCKER_SERVICE_GUIDE.md for complete documentation.
+# Full stack (Nginx viewer + FastAPI + optional pipeline): compose/docker-compose.stack.yml (#659).
 
 services:
   podcast_scraper:
@@ -9,8 +10,8 @@ services:
     # - LLM-only: Build with --build-arg INSTALL_EXTRAS=""
     # - ML-enabled: Build with --build-arg INSTALL_EXTRAS=ml (default)
     build:
-      context: .
-      dockerfile: Dockerfile
+      context: ..
+      dockerfile: docker/pipeline/Dockerfile
       args:
         INSTALL_EXTRAS: ml  # Change to "" for LLM-only variant
         PRELOAD_ML_MODELS: "true"  # Set to "false" for faster builds
@@ -18,8 +19,8 @@ services:
 
     # Required: Mount config file
     volumes:
-      - ./config.yaml:/app/config.yaml:ro
-      - ./output:/app/output
+      - ../config.yaml:/app/config.yaml:ro
+      - ../output:/app/output
 
     # Optional: Model cache persistence (recommended for ML variant)
     # Uncomment to persist models across container restarts:

@@ -1,4 +1,4 @@
-"""POST/GET /api/jobs — opt-in pipeline subprocess jobs (RFC-077 Phase 2)."""
+"""POST/GET /api/jobs — opt-in pipeline subprocess jobs (Phase 2)."""
 
 from __future__ import annotations
 
@@ -9,7 +9,16 @@ from pathlib import Path
 from fastapi import APIRouter, BackgroundTasks, FastAPI, HTTPException, Query, Request, status
 from fastapi.responses import FileResponse
 
-from podcast_scraper.server.operator_paths import viewer_operator_yaml_path
+from podcast_scraper.server.jobs_log_path import (
+    JobLogPathError,
+    read_job_log_tail_utf8 as _read_job_log_tail_utf8,
+    resolve_pipeline_job_log_path,
+)
+from podcast_scraper.server.operator_paths import (
+    viewer_operator_extras_source,
+    viewer_operator_yaml_path,
+)
+from podcast_scraper.server.pipeline_docker_factory import assert_operator_pipeline_extras
 from podcast_scraper.server.pipeline_jobs import (
     apply_reconcile,
     cancel_job,
@@ -21,13 +30,10 @@ from podcast_scraper.server.pipeline_jobs import (
 from podcast_scraper.server.routes.index_rebuild import _resolve_corpus_root
 from podcast_scraper.server.schemas import (
     PipelineJobAccepted,
+    PipelineJobLogTailResponse,
     PipelineJobReconcileResponse,
     PipelineJobRecord,
     PipelineJobsListResponse,
-)
-from podcast_scraper.utils.path_validation import (
-    normpath_if_under_root,
-    safe_relpath_under_corpus_root,
 )
 
 router = APIRouter(tags=["jobs"])
@@ -35,25 +41,20 @@ router = APIRouter(tags=["jobs"])
 
 async def _serve_pipeline_job_log(corpus: Path, job_id: str) -> FileResponse:
     """Resolve registry row → log file on disk; same rules for path- and query-style routes."""
-    root = corpus.resolve()
-    root_s = os.path.normpath(str(root))
-    rec = await asyncio.to_thread(get_job, corpus, job_id)
-    if rec is None:
-        raise HTTPException(status_code=404, detail="Job not found.")
-    rel = str(rec.get("log_relpath") or f".viewer/jobs/{job_id}.log").strip()
-    verified = safe_relpath_under_corpus_root(root, rel.replace("\\", "/"))
-    if not verified:
-        raise HTTPException(status_code=400, detail="Invalid log path.")
-    verified_under = normpath_if_under_root(verified, root_s)
-    if not verified_under:
-        raise HTTPException(status_code=400, detail="Invalid log path.")
-    if not os.path.isfile(verified_under):
-        raise HTTPException(status_code=404, detail="Log file not present yet.")
+    verified_under = await _resolved_job_log_path(corpus, job_id)
+    # codeql[py/path-injection] -- verified_under from resolve_pipeline_job_log_path (Type 1).
     return FileResponse(
         verified_under,
         media_type="text/plain; charset=utf-8",
         filename=os.path.basename(verified_under),
     )
+
+
+async def _resolved_job_log_path(corpus: Path, job_id: str) -> str:
+    try:
+        return await resolve_pipeline_job_log_path(corpus, job_id)
+    except JobLogPathError as exc:
+        raise HTTPException(status_code=exc.status_code, detail=exc.detail) from exc
 
 
 async def _kickoff_job(app: FastAPI, corpus: Path, rec: dict) -> None:
@@ -91,6 +92,17 @@ async def submit_pipeline_job(
 ) -> PipelineJobAccepted:
     """Queue a pipeline CLI job for the corpus (202 + optional queue position)."""
     corpus, operator_yaml = _corpus_and_operator(request, path)
+    if os.environ.get("PODCAST_PIPELINE_EXEC_MODE", "").strip().lower() == "docker":
+        try:
+            # codeql[py/path-injection] -- operator_yaml from viewer_operator_extras_source
+            # (Docker): safe_resolve_directory + safe_fixed_file_under_root before isfile;
+            # assert_operator_pipeline_extras reads that path (Type 1).
+            await asyncio.to_thread(
+                assert_operator_pipeline_extras,
+                viewer_operator_extras_source(request.app, corpus),
+            )
+        except ValueError as exc:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
     rec = await asyncio.to_thread(enqueue_pipeline_job, corpus, operator_yaml)
     background_tasks.add_task(_kickoff_job, request.app, corpus, rec)
     qp = None
@@ -157,6 +169,26 @@ async def get_pipeline_job_log_query(
     return await _serve_pipeline_job_log(corpus, job_id)
 
 
+@router.get("/jobs/subprocess-log-tail", response_model=PipelineJobLogTailResponse)
+async def get_pipeline_job_log_tail_query(
+    request: Request,
+    job_id: str = Query(..., description="Pipeline job id (UUID)."),
+    path: str | None = Query(default=None, description="Corpus output directory."),
+    max_bytes: int = Query(
+        default=96_000,
+        ge=4096,
+        le=512_000,
+        description="Max bytes read from end of log (UTF-8).",
+    ),
+) -> PipelineJobLogTailResponse:
+    """Same as ``GET /jobs/{job_id}/log-tail`` but query-based (avoids some proxy 404s)."""
+    corpus, _op = _corpus_and_operator(request, path)
+    verified_under = await _resolved_job_log_path(corpus, job_id)
+    # codeql[py/path-injection] -- verified_under from resolve_pipeline_job_log_path (Type 1).
+    text, truncated = await asyncio.to_thread(_read_job_log_tail_utf8, verified_under, max_bytes)
+    return PipelineJobLogTailResponse(text=text, truncated=truncated)
+
+
 @router.get("/jobs/{job_id}/log")
 async def get_pipeline_job_log(
     request: Request,
@@ -166,6 +198,26 @@ async def get_pipeline_job_log(
     """Return the job subprocess log as ``text/plain`` (for opening in a new browser tab)."""
     corpus, _op = _corpus_and_operator(request, path)
     return await _serve_pipeline_job_log(corpus, job_id)
+
+
+@router.get("/jobs/{job_id}/log-tail", response_model=PipelineJobLogTailResponse)
+async def get_pipeline_job_log_tail(
+    request: Request,
+    job_id: str,
+    path: str | None = Query(default=None, description="Corpus output directory."),
+    max_bytes: int = Query(
+        default=96_000,
+        ge=4096,
+        le=512_000,
+        description="Max bytes read from end of log (UTF-8).",
+    ),
+) -> PipelineJobLogTailResponse:
+    """Return the tail of the job log as JSON (for dashboard metrics + summary preview)."""
+    corpus, _op = _corpus_and_operator(request, path)
+    verified_under = await _resolved_job_log_path(corpus, job_id)
+    # codeql[py/path-injection] -- verified_under from resolve_pipeline_job_log_path (Type 1).
+    text, truncated = await asyncio.to_thread(_read_job_log_tail_utf8, verified_under, max_bytes)
+    return PipelineJobLogTailResponse(text=text, truncated=truncated)
 
 
 @router.get("/jobs/{job_id}", response_model=PipelineJobRecord)

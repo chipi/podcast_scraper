@@ -15,6 +15,7 @@ One JSON object per line. All keys are strings; list values are arrays of string
 
 **Session reflection (Rule 18)** is **not** part of this schema. Do not add extra keys or free-form
 retrospective text to `rule-adherence.jsonl`; keep this log to rule/skills/subagent self-audit only.
+Write the retrospective in **chat** instead (**visible** by default; see **`.cursorrules` Rule 18**).
 
 ## Example (full)
 

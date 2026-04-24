@@ -1,0 +1,27 @@
+# Example config for ``compose/docker-compose.stack.yml`` (GitHub #659).
+#
+# Critical: ``output_dir`` must match the shared volume mount inside containers: ``/app/output``.
+# Copy to a writable path and point Compose at it, e.g.:
+#   CONFIG_FILE=$PWD/my-stack.yaml make stack-up
+#
+# Minimal smoke: ``dry_run: true`` plans work without writing transcripts; still fetches RSS.
+# For a real corpus, remove dry_run and tune providers (see config/examples/config.example.yaml).
+
+rss: "https://feeds.npr.org/1001/podcast.xml"
+output_dir: "/app/output"
+max_episodes: 1
+dry_run: true
+workers: 1
+log_level: INFO
+
+append: false
+transcribe_missing: false
+generate_metadata: false
+generate_summaries: false
+generate_gi: false
+generate_kg: false
+
+transcription_provider: whisper
+whisper_model: tiny.en
+speaker_detector_provider: spacy
+summary_provider: transformers

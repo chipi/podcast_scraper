@@ -73,7 +73,7 @@ const nodeCount = computed(() => {
 
 const componentCount = computed(() => weaklyConnectedComponentCount(gf.filteredArtifact))
 
-/** Cross-episode expand (RFC-076) appended artifacts beyond the auto slice — offer one-click restore. */
+/** Cross-episode expand appended artifacts beyond the auto slice — offer one-click restore. */
 const showGraphFullReset = computed(() => Object.keys(expandedBySeed.value).length > 0)
 
 function bumpSinceInputFromStore(): void {
@@ -118,7 +118,7 @@ const presetClass = computed(() => (props.embedded ? presetBtnClassEmbedded : pr
 
 const summaryRootClass = computed(() =>
   props.bare
-    ? 'min-w-0 min-h-0 flex-1 py-px pr-1 text-[10px] leading-tight text-muted'
+    ? 'flex min-h-0 min-w-0 shrink items-center py-0 pr-1 text-[10px] leading-none text-muted'
     : 'border-b border-border bg-canvas px-2 py-px text-[10px] leading-tight text-muted',
 )
 </script>
@@ -149,7 +149,7 @@ const summaryRootClass = computed(() =>
   <!-- Lens + Reset only — bottom bar centre -->
   <div
     v-else
-    class="flex min-w-0 flex-wrap items-center justify-center gap-x-1 gap-y-0.5 px-1 py-0.5"
+    class="flex min-h-0 min-w-0 flex-wrap items-center justify-center gap-x-1 gap-y-0.5 px-1 py-0"
     data-testid="graph-status-line-controls"
     role="group"
     aria-label="Graph time lens"

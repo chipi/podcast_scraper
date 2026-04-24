@@ -4,7 +4,7 @@ on:
   push:
     branches: [ "main", "release/2.4", "release/2.5" ]
     paths:
-      - 'Dockerfile'
+      - 'docker/pipeline/Dockerfile'
       - '.dockerignore'
       - 'pyproject.toml'
       - '**.py'
@@ -13,7 +13,7 @@ on:
   pull_request:
     branches: [ "main", "release/2.4", "release/2.5" ]
     paths:
-      - 'Dockerfile'
+      - 'docker/pipeline/Dockerfile'
       - '.dockerignore'
       - 'pyproject.toml'
       - '**.py'
@@ -49,14 +49,15 @@ jobs:
       uses: docker/build-push-action@v7
       with:
         context: .
-        file: Dockerfile
+        file: docker/pipeline/Dockerfile
         build-args: |
           INSTALL_EXTRAS=
         push: false
         load: true
         tags: podcast-scraper:test-llm
         cache-from: type=gha,scope=llm-only
-        cache-to: type=gha,mode=max,scope=llm-only
+        # No cache-to on PRs: BuildKit → GHA cache export often hits transient 502s
+        # ("Unicorn") on large mode=max uploads; main docker-build-full still writes GHA cache.
 
     - name: Test Docker image (help command)
       run: |
@@ -73,7 +74,7 @@ jobs:
 
     - name: Validate Dockerfile with hadolint
       run: |
-        docker run --rm -v $(pwd):/workspace -w /workspace hadolint/hadolint:latest hadolint Dockerfile
+        docker run --rm -v $(pwd):/workspace -w /workspace hadolint/hadolint:latest hadolint docker/pipeline/Dockerfile
 
   # Full Docker build for main branch (both variants in parallel)
   # Builds both LLM-only and ML-enabled variants to ensure full validation
@@ -110,14 +111,15 @@ jobs:
       uses: docker/build-push-action@v7
       with:
         context: .
-        file: Dockerfile
+        file: docker/pipeline/Dockerfile
         build-args: |
           ${{ matrix.build_args }}
         push: false
         load: true
         tags: ${{ matrix.tag }}
         cache-from: type=gha,scope=${{ matrix.name }}
-        cache-to: type=gha,mode=max,scope=${{ matrix.name }}
+        # mode=min: export fewer blobs than mode=max — less load on GHA cache API (fewer 502s).
+        cache-to: type=gha,mode=min,scope=${{ matrix.name }}
 
     - name: Test Docker image (${{ matrix.name }} - help command)
       run: |
@@ -135,4 +137,4 @@ jobs:
     - name: Validate Dockerfile with hadolint
       if: matrix.name == 'llm-only'
       run: |
-        docker run --rm -v $(pwd):/workspace -w /workspace hadolint/hadolint:latest hadolint Dockerfile
+        docker run --rm -v $(pwd):/workspace -w /workspace hadolint/hadolint:latest hadolint docker/pipeline/Dockerfile

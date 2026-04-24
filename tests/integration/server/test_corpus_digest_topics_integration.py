@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import json
-from datetime import date
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
@@ -35,7 +35,7 @@ def test_digest_include_topics_builds_bands_when_search_hits_catalog(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    today = date.today().isoformat()
+    today = datetime.now(timezone.utc).date().isoformat()
     meta = tmp_path / "metadata"
     meta.mkdir()
     (meta / "one.metadata.json").write_text(
@@ -100,7 +100,7 @@ def test_digest_max_rows_clamp_and_probe_no_index(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    today = date.today().isoformat()
+    today = datetime.now(timezone.utc).date().isoformat()
     meta = tmp_path / "metadata"
     meta.mkdir()
     for i in range(5):

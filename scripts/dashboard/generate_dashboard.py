@@ -12,7 +12,7 @@ This script generates an interactive HTML dashboard that displays:
 It supports a --unified mode which includes a dropdown to switch between
 CI and Nightly data sources.
 
-See RFC-026: Metrics Consumption and Dashboards
+See docs/ci/METRICS.md for metrics consumption and dashboards
 """
 
 import argparse

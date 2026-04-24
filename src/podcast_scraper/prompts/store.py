@@ -18,8 +18,8 @@ Prompt directory structure:
 
 Summarization templates under ``<provider>/summarization/<name>.j2`` that are missing on
 disk fall back to ``shared/summarization/<name>.j2`` so every LLM provider can use the same
-bullet/JSON prompts without duplicating files. Rationale: ``docs/rfc/RFC-017-prompt-management.md``
-(§ Shared summarization templates) and ``prompts/shared/README.md``.
+bullet/JSON prompts without duplicating files. See ``docs/guides/PREPROCESSING_PROFILES_GUIDE.md``,
+``prompts/shared/README.md``, and ``config.py`` (prompt_store fields).
 """
 
 from __future__ import annotations

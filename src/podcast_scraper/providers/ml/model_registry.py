@@ -6,7 +6,7 @@ dynamic detection → pattern-based guess → safe default. Keeps the codebase
 decoupled from hardcoded limits and supports future mode configurations
 (promoted baselines).
 
-See docs/rfc/RFC-044-model-registry.md for design and migration strategy.
+See ``docs/api/MODELS.md`` for design and migration strategy.
 """
 
 from dataclasses import dataclass

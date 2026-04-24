@@ -136,6 +136,15 @@ function giJsonPersonOrgEligible(): string {
 const artifactJsonPersonOrg = giJsonPersonOrgEligible()
 
 async function mockGraphExpansionBaseline(page: Page, giArtifactBody: string = artifactJsonDegree2): Promise<void> {
+  // Skip first-run graph gesture card so ``.graph-canvas`` clicks are not blocked (Firefox CI).
+  await page.addInitScript(() => {
+    try {
+      window.localStorage?.setItem?.('ps_graph_hints_seen', '1')
+    } catch {
+      /* ignore private mode / quota */
+    }
+  })
+
   await page.route('**/api/health', async (route) => {
     await route.fulfill({
       status: 200,
@@ -302,7 +311,11 @@ async function dblclickCyNode(page: Page, nodeId: string): Promise<void> {
   /** Overlay can appear after ``Fit``; two separate down/up pairs are not a DOM ``dblclick`` (Firefox often never fires Cytoscape ``dbltap``). */
   await dismissGraphGestureOverlayIfPresent(page)
   const canvas = page.locator('.graph-canvas')
-  await canvas.click({ position: { x: pos!.x, y: pos!.y }, clickCount: 2, delay: 45 })
+  // Two sequential taps (gap) fire ``dbltap`` more reliably than ``clickCount: 2`` on Firefox when
+  // ``onetap`` opens the rail — a single compound click can miss the canvas on the second hit.
+  await canvas.click({ position: { x: pos!.x, y: pos!.y }, delay: 35 })
+  await page.waitForTimeout(120)
+  await canvas.click({ position: { x: pos!.x, y: pos!.y }, delay: 35 })
 }
 
 async function clickCyNodeOnce(page: Page, nodeId: string): Promise<void> {
@@ -332,8 +345,13 @@ async function shiftDblclickCyNode(page: Page, nodeId: string): Promise<void> {
   const canvas = page.locator('.graph-canvas')
   await canvas.click({
     position: { x: pos!.x, y: pos!.y },
-    clickCount: 2,
-    delay: 45,
+    delay: 35,
+    modifiers: ['Shift'],
+  })
+  await page.waitForTimeout(120)
+  await canvas.click({
+    position: { x: pos!.x, y: pos!.y },
+    delay: 35,
     modifiers: ['Shift'],
   })
 }
@@ -487,8 +505,7 @@ test.describe('Graph expansion (mocked API)', () => {
       (r) => r.url().includes('/api/corpus/node-episodes') && r.method() === 'POST',
     )
     const secondGiPromise = page.waitForRequest((r) => r.url().includes('gxexp_second.gi.json'))
-    await Promise.all([postPromise, secondGiPromise, dblclickCyNode(page, 'topic:ci-policy')])
-
+    await dblclickCyNode(page, 'topic:ci-policy')
     const postReq = await postPromise
     const body = postReq.postDataJSON() as { node_id?: string; path?: string; max_episodes?: number }
     expect(body.node_id).toBe('topic:ci-policy')

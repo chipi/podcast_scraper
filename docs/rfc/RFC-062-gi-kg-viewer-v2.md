@@ -940,7 +940,7 @@ grows into the full platform vision described in the
 | --------- | --------------- | ----------- |
 | Docker Compose | `postgres` + `api` + `worker` + `caddy` services | Megasketch Part B |
 | Worker process | Same image, different `command` — consumes job queue | Uses `service.run()` internally |
-| Static build | Vite output baked into Docker image | `npm run build` in Dockerfile |
+| Static build | Vite output baked into Docker image | `npm run build` in `docker/viewer/Dockerfile` |
 
 ### Growth Path (No Architectural Rewrites)
 
@@ -961,7 +961,7 @@ v2.7 (#50, #347)
 └── podcast serve --output-dir --platform
 
 v2.7+ (#46, megasketch)
-├── docker-compose.yml (postgres, api, worker, caddy)
+├── compose/docker-compose.yml (example layout: postgres, api, worker, caddy)
 ├── src/podcast_scraper/server/ (same module, running in container)
 └── podcast serve --platform --db-url postgres://...
 ```

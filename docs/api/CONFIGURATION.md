@@ -1303,7 +1303,7 @@ docker run -e OPENAI_API_KEY=sk-your-key-here podcast-scraper https://example.co
 echo "OPENAI_API_KEY=sk-your-key-here" > .env
 
 # Docker Compose automatically loads .env
-# In docker-compose.yml:
+# In compose/docker-compose.yml:
 # env_file:
 # - .env
 ```

@@ -37,7 +37,8 @@ export async function dismissGraphGestureOverlayIfPresent(page: Page): Promise<v
   } catch {
     return
   }
-  await btn.click()
+  // ``force`` avoids flakes when a parent (e.g. ``<html>`` during transition) briefly intercepts hits.
+  await btn.click({ force: true })
 }
 
 export async function loadGraphViaFilePicker(page: Page): Promise<void> {

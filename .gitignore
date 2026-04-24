@@ -10,6 +10,20 @@ podcast_scraper.egg-info/
 
 # Test outputs
 .test_outputs/
+# RFC-078 local smoke: pipeline log from ``make smoke-run-pipeline``
+.smoke/
+# RFC-078: ``make smoke-export-corpus`` host copy of ``smoke_data`` volume
+.smoke-corpus/
+
+# Stack test (Playwright under tests/stack-test/, ``make stack-test-*`` / CI): local logs, export, deps
+.stack-test/
+.stack-test-corpus/
+# Deprecated: full-run transcripts belong under ``.stack-test/`` (keep pattern so stray root files stay untracked).
+.stack-test*.log
+tests/stack-test/node_modules/
+tests/stack-test/test-results/
+tests/stack-test/playwright-report/
+
 # RFC-064 profile capture runs (metrics + artifacts; frozen YAML goes under data/profiles/)
 .tmp/
 # CI metrics bundles downloaded for local validation (see scripts/dashboard/fetch_ci_metrics_artifacts.sh)

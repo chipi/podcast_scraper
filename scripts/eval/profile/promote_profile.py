@@ -62,7 +62,7 @@ def _stage_truth_path(profile_path: Path) -> Path:
 
 
 def _monitor_log_path(profile_path: Path) -> Path:
-    """Optional RFC-065 monitor archive next to the profile YAML."""
+    """Optional pipeline monitor archive next to the profile YAML."""
     return profile_path.parent / f"{profile_path.stem}.monitor.log"
 
 

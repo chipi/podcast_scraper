@@ -1,8 +1,8 @@
-# Structured multi-feed list for ``--feeds-spec`` or corpus ``feeds.spec.yaml`` (RFC-077 / #626).
+# Structured multi-feed list for ``--feeds-spec`` or corpus ``feeds.spec.yaml`` (#626).
 # Copy this file (or the JSON twin) and set ``feeds:`` URLs for your corpus; keep private lists outside the repo if needed.
 #
 # **Not canonical:** This file is an illustration only. Merge order and field semantics are
-# defined in **docs/api/CONFIGURATION.md** (Download resilience + multi-feed) and **RFC-077**.
+# defined in **docs/api/CONFIGURATION.md** (Download resilience + multi-feed).
 # Global download-resilience knobs belong in operator YAML (or ``profile:``); use entries
 # below only when one feed should differ.
 #

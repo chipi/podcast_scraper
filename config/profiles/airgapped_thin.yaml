@@ -1,0 +1,51 @@
+# Profile: airgapped_thin — same isolation as ``airgapped``, lower RAM / startup cost
+#
+# No cloud APIs, no Ollama. Tuned for Docker stack tests and smaller machines while keeping the
+# same **GI / KG / FAISS** shape as packaged ``airgapped`` (summary bullets → GI/KG, grounded GIL).
+#
+# Compared to ``airgapped``:
+# - Whisper ``tiny.en`` instead of ``medium.en`` (smaller download + VRAM/RAM footprint)
+# - ``en_core_web_sm`` instead of ``en_core_web_trf`` (faster NER, less memory)
+# - ``transformers`` BART-small + ``long-fast`` REDUCE instead of SummLlama-3B (~7GB peak)
+#
+# For maximum local quality, use ``airgapped`` instead.
+
+# Transcription — smallest local Whisper (stack-test / dev friendly)
+transcription_provider: whisper
+whisper_model: tiny.en
+
+# Audio preprocessing — named preset (#634 Scope 1).
+audio_preprocessing_profile: speech_optimal_v1
+
+# Speaker detection — spaCy sm (fast, fully local)
+speaker_detector_provider: spacy
+ner_model: en_core_web_sm
+auto_speakers: true
+
+# Summarization — local transformers (summary-only; GI reads ``summary_bullets``)
+summary_provider: transformers
+summary_model: bart-small
+summary_reduce_model: long-fast
+
+# Grounded Insights — from summary bullets (same as ``airgapped``)
+generate_gi: true
+gi_insight_source: summary_bullets
+gi_max_insights: 12
+gi_require_grounding: true
+
+# Knowledge Graph — from summary bullets
+generate_kg: true
+kg_extraction_source: summary_bullets
+kg_max_topics: 10
+kg_max_entities: 15
+
+# Vector search + clustering
+vector_search: true
+vector_backend: faiss
+
+# General
+generate_metadata: true
+generate_summaries: true
+transcribe_missing: true
+language: en
+log_level: INFO

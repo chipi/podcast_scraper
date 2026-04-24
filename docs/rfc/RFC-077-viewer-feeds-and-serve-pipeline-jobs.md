@@ -109,6 +109,10 @@ Canonical **viewer** workflow: **feeds** live in corpus **`feeds.spec.yaml`** (F
 3. **CPU / event loop** — the scraper is **CPU- and I/O-heavy**; running it synchronously inside an `async def` route **blocks** the event loop. Starlette **`BackgroundTasks`** still run **in-process** and are widely treated as appropriate only for **lightweight** work; they do **not** add crash isolation. A **separate interpreter process** avoids sharing fate with the API worker.
 4. **Alignment with “one server”** ([ADR-064](../adr/ADR-064-canonical-server-layer-with-feature-flagged-routes.md)) — we add **routes + a small runner** inside the existing FastAPI app instead of introducing a **second** always-on service (broker worker) for the **local operator** story.
 
+#### Compose / full-stack Docker (#660, RFC-079 Phase 2)
+
+When the API runs inside **[RFC-079](RFC-079-full-stack-docker-compose.md)** compose and **`PODCAST_PIPELINE_EXEC_MODE=docker`**, **[GitHub #660](https://github.com/chipi/podcast_scraper/issues/660)** replaces the in-container `sys.executable` subprocess with a factory that invokes **`docker compose run`** into the **`pipeline`** or **`pipeline-llm`** service image. That path is **additive**: **native** `make serve-api` (full venv on the host) keeps the **subprocess + argv** model above unchanged. **`CONFIG_FILE` / corpus profile** (what the pipeline does) and **`viewer_operator.yaml` → `pipeline_install_extras`** (which Compose service / image tier runs the job) are **separate**; the server does **not** infer the latter from the profile name — keep them consistent (see **`make verify-stack-profiles`**). **Docker-only** operator metadata is **validated only** when enqueueing in Docker mode — not for laptop-only operators. See [RFC-079 §Native vs Docker](RFC-079-full-stack-docker-compose.md#native-vs-docker).
+
 **Alternatives considered (explicit non-picks for v1):**
 
 | Option | Pros | Cons | Verdict |
@@ -223,3 +227,4 @@ Optional bridge: child pipeline may still emit `.pipeline_status.json`; server *
 | 2026-04-20 | Profiles (#593): `available_profiles` on GET; PUT rejects root feed keys; viewer profile picker + overrides; § Profile composition + feeds vs operator YAML |
 | 2026-04-21 | `available_profiles` union cwd + repo `config/profiles/`; mixed PUT errors documented; viewer profile select sole source of truth on save |
 | 2026-04-20 | **Feeds spec:** canonical **`feeds.spec.yaml`**, **`{ feeds: [...] }`** schema, **`--feeds-spec`**, **`GET`/`PUT`** JSON shape (**`feeds`** not **`urls`**), per-feed override allowlist + merge order; jobs argv **`--config`** + **`--feeds-spec`** (replaces **`--rss-file`** / **`--config-file`** for child CLI) |
+| 2026-04-22 | **§ Compose / #660:** native subprocess jobs unchanged; Docker stack (#660) additive; **`pipeline_install_extras`** Docker-path-only — cross-ref [RFC-079 §Native vs Docker](RFC-079-full-stack-docker-compose.md#native-vs-docker) |

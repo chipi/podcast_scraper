@@ -1,5 +1,5 @@
 {
-  "_comment": "Structured feeds (RFC-077 / #626). Non-canonical illustration — semantics: docs/api/CONFIGURATION.md#download-resilience and RFC-077. Root: `feeds` plus optional `_comment*`.",
+  "_comment": "Structured feeds (#626). Non-canonical illustration — semantics: docs/api/CONFIGURATION.md#download-resilience. Root: `feeds` plus optional `_comment*`.",
   "_comment_resilience": "Per-feed overrides merge after global Config (and packaged profile:). Field names match CONFIGURATION.md Download resilience. RSS uses rss_retry_*; media uses http_retry_*.",
   "_comment_polite": "Issue #522: host_request_interval_ms, host_max_concurrent, rss_conditional_get — see CONFIGURATION.md recommended presets.",
   "feeds": [

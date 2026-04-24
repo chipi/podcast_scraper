@@ -92,8 +92,8 @@ RFCs translate PRD requirements into concrete technical solutions and serve as l
 
 ## Gap analysis {:#gaps}
 
-**Counts (reconcile when moving RFCs):** **75** files under `docs/rfc/RFC-*.md` -- IDs **RFC-001--RFC-077**
-with **no RFC-014**. **3** open (in-flight, partial implementation), **59** completed, and **13** Draft
+**Counts (reconcile when moving RFCs):** **77** files under `docs/rfc/RFC-*.md` -- IDs **RFC-001--RFC-079**
+with **no RFC-014**. **3** open (in-flight, partial implementation), **59** completed, and **15** Draft
 (not indexed until promoted) in the tables above.
 
 **Open RFC clusters:** AI experiment pipeline + ML benchmark CI (**RFC-015**, **RFC-041**).
@@ -102,8 +102,10 @@ with **no RFC-014**. **3** open (in-flight, partial implementation), **59** comp
 metrics alerts (**RFC-043**), Postgres projection (**RFC-051**), adaptive summarization routing
 (**RFC-053**), E2E mock composition (**RFC-054**), diarization and cleaning
 (**RFC-058**--**RFC-060**), semantic search platform (**RFC-070**), canonical identity layer
-(**RFC-072**), enrichment layer (**RFC-073**), process safety (**RFC-074**). These are discoverable
-by filename under `docs/rfc/` but excluded from the index per the
+(**RFC-072**), enrichment layer (**RFC-073**), process safety (**RFC-074**),
+ephemeral acceptance smoke test (**RFC-078**), full-stack Docker Compose (**RFC-079**;
+optional doc polish: [RFC-079 §Optional follow-ups](RFC-079-full-stack-docker-compose.md#optional-follow-ups)).
+These are discoverable by filename under `docs/rfc/` but excluded from the index per the
 [index inclusion rule](../guides/MARKDOWN_LINTING_GUIDE.md) (Draft docs are not indexed).
 
 ### Open RFCs (detail)
@@ -113,6 +115,8 @@ by filename under `docs/rfc/` but excluded from the index per the
 | [RFC-015](RFC-015-ai-experiment-pipeline.md) | Experiments | Runner implemented; **CI auto-run still pending** |
 | [RFC-041](RFC-041-podcast-ml-benchmarking-framework.md) | Benchmarks | Datasets/scripts exist; **automated CI benchmarking** not fully wired |
 | [RFC-077](RFC-077-viewer-feeds-and-serve-pipeline-jobs.md) | Viewer feeds + operator config + `serve` jobs & hygiene | [PRD-030](../prd/PRD-030-viewer-feed-sources-and-pipeline-jobs.md) | **Draft:** `/api/feeds` (**`feeds.spec.yaml`**), `/api/operator-config` (no secret keys in file), job registry + stale/cancel/reconcile ([#626](https://github.com/chipi/podcast_scraper/issues/626)); ≠ [RFC-065](RFC-065-live-pipeline-monitor.md) |
+| [RFC-078](RFC-078-ephemeral-acceptance-smoke-test.md) | Ephemeral full-stack smoke (CI + gates) | **Draft:** `compose/docker-compose.smoke.yml`, `make smoke-*`, Playwright `tests/smoke/`; stack base [RFC-079](RFC-079-full-stack-docker-compose.md) / [#659](https://github.com/chipi/podcast_scraper/issues/659); execution tracked via **GitHub issues** (not RFC-only) |
+| [RFC-079](RFC-079-full-stack-docker-compose.md) | Full-stack Compose (Nginx + API + pipeline) | **Implemented:** `compose/docker-compose.stack.yml`, `stack-*`, [#659](https://github.com/chipi/podcast_scraper/issues/659) Phase 1 + [#660](https://github.com/chipi/podcast_scraper/issues/660) Docker job factory (Option B); [§Native vs Docker](RFC-079-full-stack-docker-compose.md#native-vs-docker) |
 
 ### Recently completed (v2.6.0+)
 

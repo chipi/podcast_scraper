@@ -36,7 +36,7 @@ This RFC addresses the problem of ML models (Whisper, spaCy, Transformers) downl
    - Test default: `tiny.en` (smallest, fastest)
    - Production default: `base.en` (better quality, matches app config)
    - Cache: `~/.cache/whisper/`
-   - Status:  Preloaded in Dockerfile (`base.en`),  Preloaded locally (both)
+   - Status:  Preloaded in `docker/pipeline/Dockerfile` (`base.en`),  Preloaded locally (both)
 
 2. **spaCy Models** (Speaker Detection)
    - Default: `en_core_web_sm` (same for tests and production)
@@ -154,7 +154,7 @@ make preload-ml-models
 
 **Current State:**
 
-- Whisper models preloaded in Dockerfile
+- Whisper models preloaded in `docker/pipeline/Dockerfile`
 - spaCy models NOT preloaded (future enhancement)
 - Transformers models NOT preloaded (future enhancement)
 
@@ -289,9 +289,9 @@ make preload-ml-models
 
 ## Future Enhancements
 
-1. **Dockerfile Updates:**
-   - Preload spaCy models in Dockerfile
-   - Preload Transformers models in Dockerfile
+1. **Pipeline Dockerfile updates (`docker/pipeline/Dockerfile`):**
+   - Preload spaCy models in `docker/pipeline/Dockerfile`
+   - Preload Transformers models in `docker/pipeline/Dockerfile`
 
 2. **Additional Models:**
    - Support preloading additional model variants
@@ -331,7 +331,7 @@ make preload-ml-models
 
 - Issue #131: "prelaod ml models outside of test runs"
 - `tests/unit/conftest.py`: Network blocking implementation
-- `Dockerfile`: Whisper model preloading
+- `docker/pipeline/Dockerfile`: Whisper model preloading
 - `src/podcast_scraper/speaker_detection.py`: spaCy model loading
 - `src/podcast_scraper/summarizer.py`: Transformers model loading
 - `src/podcast_scraper/whisper_integration.py`: Whisper model loading

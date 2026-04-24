@@ -1,6 +1,6 @@
 # Autoresearch v2 bundled bullets ratchet — Anthropic, dev dataset (10 episodes).
 #
-# Templates (ported from OpenAI champions via RFC-073 replication template):
+# Templates (ported from OpenAI champions via autoresearch replication template):
 #   src/podcast_scraper/prompts/anthropic/summarization/bundled_clean_summary_system_v1.j2
 #   src/podcast_scraper/prompts/anthropic/summarization/bundled_clean_summary_user_v1.j2
 #

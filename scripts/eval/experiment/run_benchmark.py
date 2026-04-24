@@ -7,7 +7,7 @@ This script:
 - Generates comprehensive comparison reports
 - Supports smoke mode (fast subset) and full mode
 
-This implements RFC-041 Phase 2: Benchmark Runner.
+This implements the benchmark runner (Phase 2).
 
 Usage:
     python scripts/eval/run_benchmark.py --datasets dataset1,dataset2 --baseline baseline_id

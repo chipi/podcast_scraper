@@ -18,7 +18,9 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   'select-tab': [tab: 'coverage' | 'intelligence' | 'pipeline']
-  /** Open Pipeline tab focused on corpus run strip (matches “Last run” context). */
+  /** Open Pipeline tab + Job history (Last run → Details). */
+  'open-pipeline-job-history': []
+  /** Open Pipeline tab + corpus Run history (e.g. stale-run action). */
   'open-pipeline-run-history': []
   'rebuild-index': []
   'open-library': []
@@ -221,7 +223,7 @@ const actionItems = computed(() => {
 })
 
 function openLastRunDetails(): void {
-  emit('open-pipeline-run-history')
+  emit('open-pipeline-job-history')
 }
 
 function goLibraryAll(): void {

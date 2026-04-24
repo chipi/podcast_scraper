@@ -46,8 +46,18 @@ cannot close the query.
 **Code-side patterns added for viewer routes (same Type 1):** ``GET/PUT /feeds``
 re-resolves the corpus root with ``safe_resolve_directory`` and checks
 ``feeds.spec`` with ``normpath_if_under_root`` before any filesystem access.
-``GET …/jobs/…/log`` re-checks ``safe_relpath_under_corpus_root`` output with
-``normpath_if_under_root`` in the same function as ``isfile`` / ``FileResponse``.
+``GET …/jobs/…/log`` uses ``jobs_log_path.resolve_pipeline_job_log_path`` (same
+function as ``isfile``): ``safe_resolve_directory``, then ``normpath_if_under_root``
+on the ``safe_relpath_under_corpus_root`` output; ``routes/jobs`` maps
+``JobLogPathError`` to ``HTTPException``. If CodeQL still flags ``isfile`` on the
+resolved path, ``jobs_log_path`` carries ``# codeql[py/path-injection]`` on the line
+immediately above that sink (single-line comment; Type 1).
+``viewer_operator_extras_source`` (Docker mode) uses ``safe_fixed_file_under_root``
+for ``viewer_operator.yaml`` before ``isfile``. If CodeQL still flags ``isfile``,
+use a **single-line** ``# codeql[py/path-injection] -- …`` immediately above the
+sink (splitting the pragma across two ``#`` lines can fail to suppress; Type 1). ``routes/jobs`` uses the same pragma for ``FileResponse`` /
+``to_thread(assert_operator_pipeline_extras, …)`` / log-tail ``verified_under`` where
+taint does not cross from ``jobs_log_path`` / ``operator_paths`` helpers.
 ``publish_calendar_date_for_artifact_listing`` uses ``normpath_if_under_root``
 before metadata ``isfile``. ``operator_config`` routes call
 ``_verified_operator_config_path`` so paths are either under the resolved corpus
@@ -167,6 +177,8 @@ number, file, line, date, and a short comment.
 | 1 | #240 | server/cil_digest_topics.py | 175 | 2026-04-18 | ``safe_relpath_under_corpus_root`` before ``isfile`` / ``_read_json_object`` on bridge (PR #602) |
 | 1 | #241 | server/cil_digest_topics.py | 219 | 2026-04-18 | same as #240 in ``row_matches_library_topic_cluster_filter`` (PR #602) |
 | 1 | #244–#297 | ``atomic_write.py``, ``feeds_spec.py``, ``corpus_catalog.py``, ``corpus_text_file.py``, ``routes/feeds.py``, ``routes/jobs.py``, ``routes/operator_config.py`` | various | 2026-04-21 | PR #649 ``py/path-injection`` batch on ``refs/pull/649/merge``; Type 1 false positives (resolve_corpus_path_param / ``normpath_if_under_root`` / ``safe_relpath_under_corpus_root`` / ``_verified_operator_config_path`` / trusted callers); dismissed via ``gh api …/code-scanning/alerts/{n}`` |
+| 1 | #304 | server/operator_paths.py | 50 | 2026-04-24 | Type 1: ``candidate_s`` from ``safe_fixed_file_under_root`` before ``isfile``; CodeQL cross-function taint gap; dismissed ``gh api`` (PR #666) |
+| 1 | #305 | server/jobs_log_path.py | 74 | 2026-04-24 | Type 1: ``log_path`` from ``normpath_if_under_root`` after ``safe_relpath_under_corpus_root`` before ``isfile``; dismissed ``gh api`` (PR #666) |
 
 ## Still open (not yet dismissed)
 
@@ -187,6 +199,17 @@ Determine whether the alert matches a **known type** above.
   Then add the new type to the "Alert types" section above.
 
 ### Step 2 -- Dismiss via API
+
+**List open alerts for a PR (required when Security tab shows PR-only CodeQL):**
+the default ``GET …/code-scanning/alerts?state=open`` is for the default branch;
+PR findings often appear only on ``refs/pull/<N>/merge``.
+
+```bash
+gh api 'repos/chipi/podcast_scraper/code-scanning/alerts?state=open&ref=refs/pull/<N>/merge&per_page=100' \
+  -q '.[] | "\(.number) \(.rule.id) \(.most_recent_instance.location.path):\(.most_recent_instance.location.start_line)"'
+```
+
+**Dismiss one alert by number** (same alert id repo-wide; comment should cite Type and doc):
 
 ```bash
 gh api repos/chipi/podcast_scraper/code-scanning/alerts/ALERT_NUMBER \

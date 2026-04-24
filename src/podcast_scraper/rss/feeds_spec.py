@@ -1,4 +1,4 @@
-"""Structured corpus feed list: ``{ feeds: [...] }`` in YAML or JSON (RFC-077 / #626).
+"""Structured corpus feed list: ``{ feeds: [...] }`` in YAML or JSON (#626).
 
 Each entry is either a URL string or an object with required ``url`` plus optional
 per-feed overrides (download resilience, timeouts, episode window). Validated with

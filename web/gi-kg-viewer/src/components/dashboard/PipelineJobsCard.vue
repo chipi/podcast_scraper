@@ -9,7 +9,7 @@ import {
   type PipelineJobRow,
 } from '../../api/jobsApi'
 import { useShellStore } from '../../stores/shell'
-import { pipelineJobRunDetailsText } from '../../utils/pipelineJobRunDetailsText'
+import PipelineJobExplorePanel from './PipelineJobExplorePanel.vue'
 
 const props = withDefaults(
   defineProps<{
@@ -20,6 +20,12 @@ const props = withDefaults(
   }>(),
   { embedded: false, activeJobsOnly: false },
 )
+
+const emit = defineEmits<{
+  'open-run-history': [payload: { relativePath: string }]
+  /** Embedded Jobs empty state: parent switches Pipeline sub-tab to Job history. */
+  'go-to-job-history': []
+}>()
 
 const shell = useShellStore()
 
@@ -46,6 +52,23 @@ const displayJobs = computed(() => {
     return jobs.value
   }
   return jobs.value.filter((j) => j.status === 'queued' || j.status === 'running')
+})
+
+/** Embedded dashboard: show empty / hint copy on the same row as Run / Reconcile / Refresh. */
+const embeddedToolbarLeadKind = computed<'loading' | 'none' | 'hint' | null>(() => {
+  if (!props.embedded || !canUseJobs.value) {
+    return null
+  }
+  if (loading.value && !jobs.value.length) {
+    return 'loading'
+  }
+  if (!displayJobs.value.length && !jobs.value.length) {
+    return 'none'
+  }
+  if (!displayJobs.value.length && jobs.value.length && props.activeJobsOnly) {
+    return 'hint'
+  }
+  return null
 })
 
 let pollTimer: ReturnType<typeof setInterval> | null = null
@@ -266,8 +289,14 @@ onUnmounted(() => {
     data-testid="pipeline-jobs-card"
   >
     <div
-      class="mb-2 flex flex-wrap items-center gap-2"
-      :class="props.embedded ? 'justify-end' : 'justify-between'"
+      class="mb-2 flex flex-wrap items-center gap-x-3 gap-y-2"
+      :class="
+        props.embedded
+          ? embeddedToolbarLeadKind
+            ? 'justify-between'
+            : 'justify-end'
+          : 'justify-between'
+      "
     >
       <h3
         v-if="!props.embedded"
@@ -275,7 +304,32 @@ onUnmounted(() => {
       >
         Jobs
       </h3>
-      <div class="flex flex-wrap gap-1">
+      <p
+        v-else-if="embeddedToolbarLeadKind === 'loading'"
+        class="min-w-0 flex-1 text-[10px] text-muted"
+      >
+        Loading…
+      </p>
+      <div
+        v-else-if="embeddedToolbarLeadKind === 'none'"
+        class="min-w-0 flex-1 text-[10px] text-muted"
+      >
+        No jobs yet. Run queues a CLI pipeline for this corpus.
+      </div>
+      <p
+        v-else-if="embeddedToolbarLeadKind === 'hint'"
+        class="min-w-0 flex-1 text-[10px] text-muted leading-snug"
+      >
+        No queued or running jobs. Open the
+        <button
+          type="button"
+          class="inline cursor-pointer border-0 bg-transparent p-0 align-baseline font-semibold text-primary underline decoration-dotted underline-offset-2 hover:decoration-solid focus-visible:rounded-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+          data-testid="pipeline-jobs-go-to-job-history"
+          @click="emit('go-to-job-history')"
+        >Job history</button>
+        tab for finished jobs.
+      </p>
+      <div class="flex shrink-0 flex-wrap gap-1">
         <button
           type="button"
           class="rounded border border-border px-2 py-0.5 text-[10px] hover:bg-overlay disabled:opacity-50"
@@ -333,22 +387,29 @@ onUnmounted(() => {
       Auto-refresh every 4s while a job is queued or running; elapsed time updates every second.
     </p>
     <p
-      v-if="loading && !jobs.length"
+      v-if="!props.embedded && loading && !jobs.length"
       class="text-[10px] text-muted"
     >
       Loading…
     </p>
     <div
-      v-else-if="!displayJobs.length && canUseJobs && !jobs.length"
+      v-else-if="!props.embedded && !displayJobs.length && canUseJobs && !jobs.length"
       class="text-[10px] text-muted"
     >
       No jobs yet. Run queues a CLI pipeline for this corpus.
     </div>
     <p
-      v-else-if="!displayJobs.length && canUseJobs && jobs.length && props.activeJobsOnly"
+      v-else-if="!props.embedded && !displayJobs.length && canUseJobs && jobs.length && props.activeJobsOnly"
       class="text-[10px] text-muted leading-snug"
     >
-      No queued or running jobs. Open the <strong class="text-surface-foreground">Job history</strong> tab for finished HTTP pipeline jobs.
+      No queued or running jobs. Open the
+      <button
+        type="button"
+        class="inline cursor-pointer border-0 bg-transparent p-0 align-baseline font-semibold text-primary underline decoration-dotted underline-offset-2 hover:decoration-solid focus-visible:rounded-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+        data-testid="pipeline-jobs-go-to-job-history"
+        @click="emit('go-to-job-history')"
+      >Job history</button>
+      tab for finished jobs.
     </p>
     <ul
       v-else-if="displayJobs.length"
@@ -381,21 +442,11 @@ onUnmounted(() => {
             </button>
           </div>
         </div>
-        <details class="mt-1">
-          <summary
-            class="cursor-pointer list-none text-[9px] text-muted hover:text-surface-foreground [&::-webkit-details-marker]:hidden"
-            title="Exact subprocess argv and paths from the job registry"
-          >
-            <span class="rounded border border-border/80 bg-overlay/30 px-1.5 py-0.5 font-medium text-surface-foreground">
-              Command line and paths
-            </span>
-          </summary>
-          <pre
-            class="mt-1 w-full max-w-full overflow-x-auto whitespace-pre-wrap break-all rounded border border-border bg-canvas p-2 text-left font-mono text-[9px] leading-snug text-canvas-foreground"
-            role="region"
-            :aria-label="`Job ${j.job_id} run details`"
-          >{{ pipelineJobRunDetailsText(j) }}</pre>
-        </details>
+        <PipelineJobExplorePanel
+          :job="j"
+          :corpus-path="root"
+          @open-run-history="emit('open-run-history', $event)"
+        />
         <div class="mt-1 space-y-0.5 text-[9px] leading-snug text-muted">
           <p v-if="j.started_at">
             Started {{ formatClock(j.started_at) }}

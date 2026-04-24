@@ -46,7 +46,7 @@
 - **Agent-started servers:** when the agent starts **`make serve`** / **`make serve-api`** without the user naming a root, use **`SERVE_OUTPUT_DIR=.test_outputs`** unless another path is clearly implied (see `.cursorrules` GI/KG section).
 - **FastAPI reload after server edits:** **Restart `make serve-api`** in-session with the same **`SERVE_OUTPUT_DIR`** rule (default **`.test_outputs`** for agent-initiated restarts when no path is given); verify **`/api/health`**; say **Ready for tests** with URL + root — **do not** only instruct the user to restart. Background **`serve-api`** is allowed under `.cursorrules` Rule **9**.
 - **`.metrics/rule-adherence.jsonl`**: append at milestones and before commit/push (see `.cursorrules`) — rules/skills/subagents self-audit **only**; no retrospective fields.
-- **Rule 18** (session review): same closing **cadence** often as the last metrics line, but **separate** — brief reflection; promote durable lessons into guides or `.cursor/rules` (not JSONL).
+- **Rule 18** (session review): same closing **cadence** often as the last metrics line, but **separate** — **visible** brief reflection in chat (not only on keywords **done** / **wrap up**); promote durable lessons into guides or `.cursor/rules` (not JSONL). See **`.cursorrules` Rule 18**.
 
 ## Auto-load guides by file path (do not wait for the trigger phrase)
 

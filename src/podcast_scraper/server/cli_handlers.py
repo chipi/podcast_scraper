@@ -100,7 +100,7 @@ def parse_serve_argv(argv: Sequence[str]) -> Namespace:
     parser.add_argument(
         "--enable-jobs-api",
         action="store_true",
-        help="Expose POST/GET /api/jobs pipeline subprocess jobs (RFC-077 Phase 2).",
+        help="Expose POST/GET /api/jobs pipeline subprocess jobs (Phase 2).",
     )
     parser.add_argument(
         "--config-file",

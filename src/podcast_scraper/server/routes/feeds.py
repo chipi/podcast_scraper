@@ -1,6 +1,6 @@
 """GET/PUT /api/feeds — structured corpus feed list (``feeds.spec.yaml``).
 
-Root document: ``{ feeds: [...] }`` (RFC-077 / #626). Each entry is a URL string or an object
+Root document: ``{ feeds: [...] }`` (#626). Each entry is a URL string or an object
 with ``url`` plus optional per-feed overrides validated server-side.
 """
 

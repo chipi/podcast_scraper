@@ -2,7 +2,11 @@
 import { computed, ref, watch } from 'vue'
 import { listPipelineJobs, pipelineJobLogUrl, type PipelineJobRow } from '../../api/jobsApi'
 import { useShellStore } from '../../stores/shell'
-import { pipelineJobRunDetailsText } from '../../utils/pipelineJobRunDetailsText'
+import PipelineJobExplorePanel from './PipelineJobExplorePanel.vue'
+
+const emit = defineEmits<{
+  'open-run-history': [payload: { relativePath: string }]
+}>()
 
 withDefaults(
   defineProps<{
@@ -42,16 +46,42 @@ watch(
   { immediate: true },
 )
 
-function dotClass(j: PipelineJobRow): string {
-  const st = String(j.status).toLowerCase()
+function jobStatusKey(j: PipelineJobRow): string {
+  return String(j.status).toLowerCase()
+}
+
+/** Dot (●) color by terminal status. */
+function statusDotClass(j: PipelineJobRow): string {
+  const st = jobStatusKey(j)
   if (st === 'succeeded') {
     return 'text-success'
   }
-  if (st === 'failed' || st === 'stale') {
+  if (st === 'failed') {
     return 'text-danger'
   }
+  if (st === 'stale') {
+    return 'text-warning'
+  }
   if (st === 'cancelled') {
-    return 'text-muted'
+    return 'text-sky-500 dark:text-sky-400'
+  }
+  return 'text-muted'
+}
+
+/** Status label next to dot — same semantics as the dot. */
+function statusLabelClass(j: PipelineJobRow): string {
+  const st = jobStatusKey(j)
+  if (st === 'succeeded') {
+    return 'text-success'
+  }
+  if (st === 'failed') {
+    return 'text-danger'
+  }
+  if (st === 'stale') {
+    return 'text-warning'
+  }
+  if (st === 'cancelled') {
+    return 'text-sky-600 dark:text-sky-300'
   }
   return 'text-muted'
 }
@@ -195,60 +225,70 @@ watch(
       No finished HTTP pipeline jobs in the registry yet. Use <strong class="text-surface-foreground">Jobs</strong> to queue a run.
     </p>
     <template v-else-if="strip.length">
-      <div class="flex flex-wrap items-center gap-1">
-        <button
+      <div class="flex flex-wrap items-end gap-x-2 gap-y-1">
+        <div
           v-for="(j, i) in strip"
           :key="j.job_id"
-          type="button"
-          :title="`${j.created_at ?? ''} · ${j.status}`"
-          :class="[
-            dotClass(j),
-            i === strip.length - 1 ? 'text-[12px] leading-none' : 'text-[10px] leading-none',
-            selectedIdx === i ? 'ring-1 ring-primary ring-offset-1 rounded-full' : '',
-          ]"
-          data-testid="pipeline-job-history-dot"
-          @click="toggle(i)"
+          class="inline-flex items-center gap-1.5"
         >
-          ●
-        </button>
-      </div>
-      <div
-        v-if="selectedJob"
-        class="mt-2 rounded border border-border bg-overlay p-2 text-[10px] text-muted"
-      >
-        <p>
-          <span class="text-surface-foreground">Job:</span>
-          <span class="font-mono">{{ shortId(selectedJob.job_id) }}</span>
-          <span class="ml-1 font-medium capitalize text-surface-foreground">{{ selectedJob.status }}</span>
-        </p>
-        <p v-if="selectedJob.exit_code != null">
-          <span class="text-surface-foreground">Exit:</span> {{ selectedJob.exit_code }}
-        </p>
-        <p>
-          <span class="text-surface-foreground">Wall time:</span> {{ jobDurationLabel(selectedJob) }}
-        </p>
-        <p v-if="selectedJob.error_reason" class="text-danger">
-          {{ selectedJob.error_reason }}
-        </p>
-        <p v-if="selectedJob.log_relpath">
-          <span class="text-surface-foreground">Log:</span>
-          <a
-            class="ml-1 break-all font-mono text-surface-foreground underline decoration-dotted underline-offset-2 hover:decoration-solid"
-            :href="pipelineJobLogUrl(root, selectedJob.job_id)"
-            target="_blank"
-            rel="noopener noreferrer"
-          >{{ selectedJob.log_relpath }}</a>
-        </p>
-        <pre
-          class="mt-2 w-full max-w-full overflow-x-auto whitespace-pre-wrap break-all rounded border border-border bg-canvas p-2 text-left font-mono text-[9px] leading-snug text-canvas-foreground"
-        >{{ pipelineJobRunDetailsText(selectedJob) }}</pre>
+          <button
+            type="button"
+            :title="`${j.created_at ?? ''} · ${j.status}`"
+            :class="[
+              statusDotClass(j),
+              i === strip.length - 1 ? 'text-[12px] leading-none' : 'text-[10px] leading-none',
+              selectedIdx === i ? 'ring-1 ring-primary ring-offset-1 rounded-full' : '',
+            ]"
+            data-testid="pipeline-job-history-dot"
+            @click="toggle(i)"
+          >
+            ●
+          </button>
+          <span
+            class="select-none text-[9px] font-medium capitalize leading-none tracking-tight"
+            :class="statusLabelClass(j)"
+            :aria-hidden="true"
+          >{{ j.status }}</span>
+        </div>
       </div>
       <p
-        v-if="insight"
-        class="mt-2 text-[11px] text-muted"
+        v-if="selectedJob && insight"
+        class="mt-2 flex flex-wrap items-baseline gap-x-1 gap-y-0.5 text-[10px] leading-snug text-muted"
+        data-testid="pipeline-job-history-summary-line"
+      >
+        <span>{{ insight }}</span>
+        <span aria-hidden="true">·</span>
+        <span class="font-mono text-surface-foreground">{{ shortId(selectedJob.job_id) }}</span>
+        <template v-if="selectedJob.exit_code != null">
+          <span aria-hidden="true">·</span>
+          <span>exit {{ selectedJob.exit_code }}</span>
+        </template>
+        <span aria-hidden="true">·</span>
+        <span>wall {{ jobDurationLabel(selectedJob) }}</span>
+        <span aria-hidden="true">·</span>
+        <a
+          class="shrink-0 font-medium text-primary underline decoration-dotted underline-offset-2 hover:decoration-solid"
+          :href="pipelineJobLogUrl(root, selectedJob.job_id)"
+          target="_blank"
+          rel="noopener noreferrer"
+          data-testid="pipeline-job-history-log-link"
+          :title="selectedJob.log_relpath ? `Open log (${selectedJob.log_relpath})` : 'Open job log in new tab'"
+        >Log</a>
+      </p>
+      <p
+        v-else-if="insight"
+        class="mt-2 text-[10px] text-muted"
+        data-testid="pipeline-job-history-summary-line-collapsed"
       >
         {{ insight }}
       </p>
+      <PipelineJobExplorePanel
+        v-if="selectedJob"
+        class="mt-2"
+        :job="selectedJob"
+        :corpus-path="root"
+        @open-run-history="emit('open-run-history', $event)"
+      />
     </template>
   </div>
 </template>

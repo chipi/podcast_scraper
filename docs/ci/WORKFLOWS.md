@@ -23,7 +23,7 @@ scanning, Docker validation, documentation deployment, dependency updates, and m
 | **Python Application**    | `python-app.yml` | Main CI pipeline with testing, linting, and builds    | Push/PR to `main` (only when Python/config files change)                    |
 | **Documentation Deploy**  | `docs.yml`       | Build and deploy MkDocs documentation to GitHub Pages | Push to `main`, PR with doc changes, manual                                 |
 | **CodeQL Security**       | `codeql.yml`     | Security vulnerability scanning                       | Push/PR to `main` (only when code/workflow files change), scheduled weekly  |
-| **Docker Build & Test**   | `docker.yml`     | Build and test Docker images                          | Push to `main` (all), PRs (Dockerfile/.dockerignore only)                   |
+| **Docker Build & Test**   | `docker.yml`     | Build and test Docker images                          | Push/PR paths per `docker.yml` (pipeline image, py)                         |
 | **Snyk Security Scan**    | `snyk.yml`       | Dependency and Docker image vulnerability scanning    | Push/PR to `main`, scheduled weekly (Mondays), manual                       |
 | **Nightly Comprehensive** | `nightly.yml`    | Full test suite with comprehensive metrics collection | Scheduled daily (2 AM UTC), push to release branches, manual                |
 | **Dependabot**            | `dependabot.yml` | Automated dependency update PRs                       | Scheduled weekly (Mondays), monthly for Docker                              |
@@ -78,7 +78,7 @@ graph TB
 - `tests/**` - Test files
 - `pyproject.toml` - Project configuration
 - `Makefile` - Build configuration
-- `Dockerfile`, `.dockerignore` - Docker files
+- `docker/pipeline/Dockerfile`, `.dockerignore` - Pipeline Docker files
 - `.github/workflows/python-app.yml` - Workflow itself
 
 **Skips when:** Only documentation, markdown, or non-code files change
@@ -93,19 +93,18 @@ Each workflow only runs when specific files are modified:
 - `tests/**` (any test file)
 - `pyproject.toml`
 - `Makefile`
-- `Dockerfile`
+- `docker/pipeline/Dockerfile`
 - `.dockerignore`
 
 **`docker.yml` Workflow:**
 
-- **Push to main:** All changes (Dockerfile, .dockerignore, pyproject.toml, *.py)
-- **Pull requests:** Only `Dockerfile` or `.dockerignore` changes
+- **Push to main / PR:** `docker/pipeline/Dockerfile`, `.dockerignore`, `pyproject.toml`, `**.py`
 
 **`snyk.yml` Workflow:**
 
 - `**.py`
 - `pyproject.toml`
-- `Dockerfile`
+- `docker/pipeline/Dockerfile`
 - `.dockerignore`
 
 **`codeql.yml` Workflow:**
@@ -422,7 +421,7 @@ needs: [preload-ml-models]
 
 **Conditional Execution:**
 
-- Only runs if PR modifies: `Dockerfile`, `.dockerignore`, `pyproject.toml`, or `*.py`
+- Only runs if PR modifies: `docker/pipeline/Dockerfile`, `.dockerignore`, `pyproject.toml`, or `*.py`
 
 **Duration:** ~5-8 minutes
 
@@ -446,7 +445,7 @@ needs: [preload-ml-models]
 
 **Conditional Execution:**
 
-- Only runs if PR modifies: `**.py`, `pyproject.toml`, `Dockerfile`, or `.dockerignore`
+- Only runs if PR modifies: `**.py`, `pyproject.toml`, `docker/pipeline/Dockerfile`, or `.dockerignore`
 
 **Duration:** ~3-5 minutes
 
@@ -466,7 +465,7 @@ needs: [preload-ml-models]
 
 **Conditional Execution:**
 
-- Only runs if PR modifies: `**.py`, `pyproject.toml`, `Dockerfile`, or `.dockerignore`
+- Only runs if PR modifies: `**.py`, `pyproject.toml`, `docker/pipeline/Dockerfile`, or `.dockerignore`
 - Skips on scheduled runs: `if: github.event_name != 'schedule'`
 
 **Duration:** ~8-12 minutes
@@ -639,7 +638,7 @@ This ensures:
 | `test-e2e` | **Does not run** | **Runs after merge** |
 | `docs` | Yes | |
 | `build` | Yes | |
-| `docker-build` | (if Dockerfile/.dockerignore change) | (all changes) |
+| `docker-build` | (if `docker/pipeline/Dockerfile` / `.dockerignore` / `pyproject.toml` / `**.py` change) | (same path filters) |
 | `snyk-*` | (if files match) | (if files match) |
 | `analyze` | (if files match) | (if files match) |
 
@@ -688,7 +687,7 @@ All checks must pass for the PR to be mergeable (unless branch protection rules 
 
 **Optional Checks (Run if files match):**
 
-- `docker-build` (PRs: only if Dockerfile/.dockerignore changed)
+- `docker-build` (PRs: same path filters as push)
 - `snyk-dependencies` (if code changed)
 - `snyk-docker` (if Docker files changed)
 - `analyze` (if Python/workflow files changed)
@@ -926,17 +925,16 @@ schedule:
 **File:** `.github/workflows/docker.yml`
 **Triggers:**
 
-- **Push to main:** All changes (Dockerfile, .dockerignore, pyproject.toml, *.py)
-- **Pull requests:** Only when `Dockerfile` or `.dockerignore` change
+- **Push to main / PR:** `docker/pipeline/Dockerfile`, `.dockerignore`, `pyproject.toml`, `**.py`
 
 **Path Filters:**
 
 - **Push to main:**
-  - `Dockerfile`, `.dockerignore` - Docker-related files
+  - `docker/pipeline/Dockerfile`, `.dockerignore` - Docker-related files
   - `pyproject.toml` - Project configuration
   - `*.py` - Python source files
 - **Pull requests:**
-  - `Dockerfile` - Main Dockerfile
+  - `docker/pipeline/Dockerfile` - Pipeline image
   - `.dockerignore` - Docker ignore file
 
 **Optimization:** Docker build no longer runs on PRs for Python-only changes, saving ~10 minutes per PR. Full Docker validation still runs on merge to main.
@@ -947,13 +945,13 @@ The Docker workflow uses a **hybrid optimization approach** to balance fast PR f
 
 **PR Triggers (Conditional):**
 
-- Docker build runs on PRs **only** when `Dockerfile` or `.dockerignore` change
+- Docker build runs when `docker/pipeline/Dockerfile`, `.dockerignore`, `pyproject.toml`, or `**.py` change (same filters on push and PR)
 - Python code changes (`pyproject.toml`, `*.py`) no longer trigger Docker build on PRs
 - **Result**: ~10 minutes saved per PR for Python-only changes
 
 **Lightweight Build on PRs:**
 
-- When PRs do trigger (Dockerfile changes), they use a lightweight build:
+- When the workflow runs, PR builds use a lightweight variant:
   - Build only default image (skip multi-model build)
   - Skip model preloading (`PRELOAD_ML_MODELS=false`)
   - **Result**: ~3-5 minutes per PR (vs 10+ minutes for full build)
@@ -963,7 +961,7 @@ The Docker workflow uses a **hybrid optimization approach** to balance fast PR f
 - Push to `main` triggers optimized full build:
   - **Parallel builds**: Both images (default + multi-model) build simultaneously using matrix strategy
   - **Scoped caching**: Separate cache scopes for each image type for better cache hits
-  - **BuildKit cache mounts**: Already implemented in Dockerfile for pip and model caches
+  - **BuildKit cache mounts**: Already implemented in `docker/pipeline/Dockerfile` for pip and model caches
   - **Result**: ~5 minutes saved on main (parallel execution vs sequential)
 
 **Performance Improvements:**
@@ -988,9 +986,9 @@ Validates that Docker images can be built correctly and pass basic smoke tests. 
 
 **PR Build (docker-build-fast):**
 
-- Runs only when `Dockerfile` or `.dockerignore` change
+- Runs only when `docker/pipeline/Dockerfile`, `.dockerignore`, `pyproject.toml`, or `**.py` change
 - Builds only the LLM-only image (`INSTALL_EXTRAS=`, no ML deps)
-- Fast feedback for Dockerfile changes
+- Fast feedback when pipeline Docker or Python deps change
 
 **Main Build (docker-build-full):**
 
@@ -1007,7 +1005,7 @@ Validates that Docker images can be built correctly and pass basic smoke tests. 
 2. Free disk space (removes unnecessary system packages)
 3. Set up Docker Buildx
 4. Build Docker image(s):
-   - Uses `Dockerfile`
+   - Uses `docker/pipeline/Dockerfile`
    - Caches layers using GitHub Actions cache
    - BuildKit cache mounts for pip (model files are baked into the image layer)
    - Tags: `podcast-scraper:test` (default) or `podcast-scraper:multi-model`
@@ -1047,8 +1045,8 @@ Validates that Docker images can be built correctly and pass basic smoke tests. 
 
 - `**.py` - Python source files
 - `pyproject.toml` - Project configuration
-- `Dockerfile`, `.dockerignore` - Docker files
-- `Dockerfile` - Main Dockerfile
+- `docker/pipeline/Dockerfile`, `.dockerignore` - Pipeline Docker files
+- `docker/pipeline/Dockerfile` - Pipeline image
 
 **Skips when:** Only documentation or unrelated files change
 
@@ -1421,7 +1419,7 @@ When you change files, here's what runs:
 | **Only `.py` files** | Run | Run | Run | Code changes need full validation + API docs rebuild |
 | **Only `README.md`** | Skip | Run | Skip | README is included in docs site |
 | **`pyproject.toml`** | Run | Skip | Skip | Config changes affect dependencies/build |
-| **`Dockerfile`** | Run | Skip | Skip | Docker builds depend on package validation |
+| **`docker/pipeline/Dockerfile`** | Run | Skip | Skip | Docker builds depend on package validation |
 | **`.github/workflows/`** | (if python-app.yml) | (if docs.yml) | Run | Workflow changes need validation |
 | **Mixed changes** | Run | Run | Run | Any match triggers the workflow |
 

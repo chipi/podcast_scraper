@@ -50,7 +50,7 @@ import time
 from pathlib import Path
 from typing import List, Optional
 
-# RFC-074: Wall-clock timeout to prevent indefinite hangs during model
+# Wall-clock timeout to prevent indefinite hangs during model
 # downloads or loads that can trigger macOS APFS kernel lock contention.
 # Effective value is set in main() after parsing --production (see _arm_preload_alarm).
 _PRELOAD_TIMEOUT_EFFECTIVE: int = 600

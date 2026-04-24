@@ -1,4 +1,4 @@
-# Hybrid MAP-REDUCE Tier 2 (RFC-042): LongT5 MAP + Qwen 3.5 27B REDUCE via Ollama
+# Hybrid MAP-REDUCE Tier 2: LongT5 MAP + Qwen 3.5 27B REDUCE via Ollama
 # Requires: ollama pull qwen3.5:27b
 # Authority dataset; same role as hybrid_ml_tier2_qwen25_32b_authority_v1.
 
