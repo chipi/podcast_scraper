@@ -819,6 +819,14 @@ class CorpusRunSummaryItem(BaseModel):
         default_factory=dict,
         description="Counts for ok / failed / skipped from ``metrics.episode_statuses``.",
     )
+    # #656 Stage B: surface the #652 Part B post-extraction filter counters so
+    # the dashboard can render a "Pipeline cleanup" summary per run. Each
+    # counter is a total across the run; ``None`` means the field was absent
+    # (legacy run or metrics.json schema mismatch).
+    ads_filtered_count: int | None = None
+    dialogue_insights_dropped_count: int | None = None
+    topics_normalized_count: int | None = None
+    entity_kinds_repaired_count: int | None = None
 
 
 class CorpusRunsSummaryResponse(BaseModel):

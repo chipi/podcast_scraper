@@ -685,9 +685,19 @@ watch(
         {{ detail.summary_title }}
       </p>
       <div v-if="(detail.cil_digest_topics ?? []).length" class="mt-2">
+        <!--
+          #656 Stage B: chip/pill polish. ``truncation="wrap"`` +
+          ``max-width-class="auto"`` lets the pill shrink-wrap around
+          post-#653 canonical labels ("oil prices", "shadow fleet")
+          instead of padding to 11rem. ``max-pill-chars`` stays as a
+          defensive cap for legacy corpora whose labels weren't
+          backfilled yet.
+        -->
         <CilTopicPillsRow
           :pills="detail.cil_digest_topics ?? []"
-          :max-pill-chars="28"
+          :max-pill-chars="40"
+          truncation="wrap"
+          max-width-class="auto"
           data-testid="episode-detail-cil-pills"
           @pill-click="(i) => void openDetailCilTopicInGraph(i)"
         />

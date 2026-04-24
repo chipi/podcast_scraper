@@ -958,6 +958,8 @@ onBeforeUnmount(() => {
                     cluster-member-appearance="kg"
                     :pills="digestRecentCilPills(row)"
                     :max-pill-chars="RECENT_TOPIC_PILL_CHARS"
+                    truncation="wrap"
+                    max-width-class="auto"
                     data-testid="digest-recent-cil-pills"
                     @pill-click="(i) => void openDigestRecentTopicPillInGraph(row, i)"
                   />

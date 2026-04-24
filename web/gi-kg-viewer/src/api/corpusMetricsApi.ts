@@ -23,6 +23,12 @@ export interface CorpusRunSummaryItem {
   time_normalizing_seconds: number | null
   time_io_and_waiting_seconds: number | null
   episode_outcomes: Record<string, number>
+  // #656 Stage B: #652 Part B filter counters. ``null`` when the run
+  // predates #652 (dashboard renders these as "—").
+  ads_filtered_count: number | null
+  dialogue_insights_dropped_count: number | null
+  topics_normalized_count: number | null
+  entity_kinds_repaired_count: number | null
 }
 
 export interface CorpusRunsSummaryResponse {
