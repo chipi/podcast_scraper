@@ -9,6 +9,11 @@ from pathlib import Path
 from fastapi import APIRouter, BackgroundTasks, FastAPI, HTTPException, Query, Request, status
 from fastapi.responses import FileResponse
 
+from podcast_scraper.server.jobs_log_path import (
+    JobLogPathError,
+    read_job_log_tail_utf8 as _read_job_log_tail_utf8,
+    resolve_pipeline_job_log_path,
+)
 from podcast_scraper.server.operator_paths import (
     viewer_operator_extras_source,
     viewer_operator_yaml_path,
@@ -30,39 +35,8 @@ from podcast_scraper.server.schemas import (
     PipelineJobRecord,
     PipelineJobsListResponse,
 )
-from podcast_scraper.utils.path_validation import (
-    normpath_if_under_root,
-    safe_relpath_under_corpus_root,
-    safe_resolve_directory,
-)
 
 router = APIRouter(tags=["jobs"])
-
-
-def _read_job_log_tail_utf8(abs_path: str, max_bytes: int) -> tuple[str, bool]:
-    """Return ``(text, truncated)`` for the last ``max_bytes`` of the file."""
-    try:
-        size = os.path.getsize(abs_path)
-    except OSError:
-        return "", False
-    mb = max(1024, min(int(max_bytes), 512_000))
-    try:
-        with open(abs_path, "rb") as fh:
-            if size <= mb:
-                raw = fh.read()
-                truncated = False
-            else:
-                fh.seek(size - mb)
-                raw = fh.read()
-                truncated = True
-    except OSError:
-        return "", False
-    text = raw.decode("utf-8", errors="replace")
-    if truncated and "\n" in text:
-        nl = text.find("\n")
-        if nl >= 0 and nl + 1 < len(text):
-            text = text[nl + 1 :]
-    return text, truncated
 
 
 async def _serve_pipeline_job_log(corpus: Path, job_id: str) -> FileResponse:
@@ -76,25 +50,10 @@ async def _serve_pipeline_job_log(corpus: Path, job_id: str) -> FileResponse:
 
 
 async def _resolved_job_log_path(corpus: Path, job_id: str) -> str:
-    rec = await asyncio.to_thread(get_job, corpus, job_id)
-    if rec is None:
-        raise HTTPException(status_code=404, detail="Job not found.")
-    rel = str(rec.get("log_relpath") or f".viewer/jobs/{job_id}.log").strip()
-    root_res = safe_resolve_directory(corpus)
-    if root_res is None:
-        raise HTTPException(status_code=400, detail="Invalid corpus path.")
-    root_s = os.path.normpath(str(root_res))
-    verified = safe_relpath_under_corpus_root(root_res, rel.replace("\\", "/"))
-    if not verified:
-        raise HTTPException(status_code=400, detail="Invalid log path.")
-    # CodeQL py/path-injection: re-verify with ``normpath_if_under_root`` in this function before
-    # ``isfile`` / ``FileResponse`` sinks (Type 1; CODEQL_DISMISSALS.md).
-    log_path = normpath_if_under_root(os.path.normpath(verified), root_s)
-    if not log_path:
-        raise HTTPException(status_code=400, detail="Invalid log path.")
-    if not os.path.isfile(log_path):
-        raise HTTPException(status_code=404, detail="Log file not present yet.")
-    return log_path
+    try:
+        return await resolve_pipeline_job_log_path(corpus, job_id)
+    except JobLogPathError as exc:
+        raise HTTPException(status_code=exc.status_code, detail=exc.detail) from exc
 
 
 async def _kickoff_job(app: FastAPI, corpus: Path, rec: dict) -> None:
