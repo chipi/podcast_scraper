@@ -46,21 +46,37 @@ def _utc_iso() -> str:
 
 
 def max_concurrent_jobs() -> int:
-    """Max concurrent *running* jobs per corpus (default 1)."""
+    """Max concurrent *running* jobs per corpus (default 1).
+
+    #666 review #14: when ``PODCAST_VIEWER_MAX_PIPELINE_JOBS`` is unparsable,
+    log a warning so operators see that their env var is being ignored.
+    """
     raw = os.environ.get("PODCAST_VIEWER_MAX_PIPELINE_JOBS", "1").strip()
     try:
         n = int(raw)
     except ValueError:
+        logger.warning(
+            "PODCAST_VIEWER_MAX_PIPELINE_JOBS=%r is not an int; using default 1",
+            raw,
+        )
         return 1
     return max(1, n)
 
 
 def stale_after_seconds() -> int:
-    """Wall-clock stale threshold for *running* jobs during reconcile."""
+    """Wall-clock stale threshold for *running* jobs during reconcile.
+
+    #666 review #14: log a warning on parse failure rather than silently
+    falling back to the 24h default.
+    """
     raw = os.environ.get("PODCAST_JOB_STALE_SECONDS", str(86400)).strip()
     try:
         return max(0, int(raw))
     except ValueError:
+        logger.warning(
+            "PODCAST_JOB_STALE_SECONDS=%r is not an int; using default 86400",
+            raw,
+        )
         return 86400
 
 
@@ -317,6 +333,12 @@ async def spawn_pipeline_subprocess(
 
     def _open_log_binary() -> Any:
         log_abs.parent.mkdir(parents=True, exist_ok=True)
+        # #666 review #10 (known limitation): the pipeline subprocess writes
+        # directly to this file handle, so log growth is unbounded within a
+        # single job. Truncating via ``"wb"`` bounds per-run size to one job
+        # but does not cap a runaway pipeline's stdout. Proper rotation
+        # requires wrapping stdout in a capped-writer class or pumping via
+        # pipe — filed as a separate follow-up (logrotate-style design).
         return open(log_abs, "wb")
 
     log_f = await asyncio.to_thread(_open_log_binary)
@@ -382,11 +404,14 @@ async def monitor_subprocess(
         await _finalize_job(corpus_root, job_id, exit_code=code, cancelled=cancelled)
         await drain_queue_async(app, corpus_root)
     finally:
+        # #666 review #11: log cleanup failures instead of silently
+        # swallowing them — disk-full / readonly-fs conditions leave the
+        # operator with no signal that pipeline output was truncated.
         if log_fp is not None:
             try:
                 log_fp.close()
-            except Exception:
-                pass
+            except Exception as exc:  # pragma: no cover - defensive
+                logger.warning("job log close failed job=%s: %s", job_id, exc)
 
 
 async def start_job_if_running_record(

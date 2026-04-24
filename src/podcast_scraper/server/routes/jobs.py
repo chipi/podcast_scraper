@@ -96,6 +96,13 @@ async def submit_pipeline_job(
     # ``create_app``) instead of re-reading ``PODCAST_PIPELINE_EXEC_MODE`` here.
     # Re-reading would drift if the env is rotated mid-process.
     pipe_mode = getattr(request.app.state, "pipeline_exec_mode", "")
+    # #666 review #13 (intentional asymmetry): the ``pipeline_install_extras``
+    # assertion runs in Docker mode only because Docker mode *spawns* a
+    # container whose image must match the declared extras (``ml`` /
+    # ``llm``) — the declaration drives which compose service is used.
+    # Subprocess mode runs inside the API container using whatever extras
+    # were installed there at build time, so enforcing the operator YAML
+    # value would reject deployments that intentionally don't set it.
     if pipe_mode == "docker":
         try:
             # codeql[py/path-injection] -- operator_yaml from viewer_operator_extras_source
