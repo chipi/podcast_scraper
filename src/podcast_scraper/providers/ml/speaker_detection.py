@@ -772,6 +772,7 @@ def analyze_episode_patterns(
     Kept for backward compat with callers (ml_provider.analyze_patterns).
     detect_speaker_names no longer uses heuristics.
     """
+    _ = sample_size
     return {}
 
 

@@ -38,6 +38,7 @@ def test_create_app_static_false_skips_mount() -> None:
 def test_create_app_enable_platform_noop() -> None:
     app = create_app(None, static_dir=False, enable_platform=True)
     assert app is not None
+    assert getattr(app.state, "enable_platform", None) is True
 
 
 def test_create_app_for_uvicorn_requires_env(monkeypatch: pytest.MonkeyPatch) -> None:

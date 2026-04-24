@@ -268,13 +268,17 @@ async function mockGraphExpansionBaseline(page: Page, giArtifactBody: string = a
     })
   })
 
-  await page.route('**/api/artifacts/metadata/ci_sample.bridge.json?**', async (route) => {
-    await route.fulfill({
-      status: 404,
-      contentType: 'application/json',
-      body: JSON.stringify({ detail: 'no bridge in e2e mock' }),
-    })
-  })
+  // Glob `?**` is a poor match for `…bridge.json?path=…` under Firefox; predicate matches query safely.
+  await page.route(
+    (url) => url.pathname === '/api/artifacts/metadata/ci_sample.bridge.json',
+    async (route) => {
+      await route.fulfill({
+        status: 404,
+        contentType: 'application/json',
+        body: JSON.stringify({ detail: 'no bridge in e2e mock' }),
+      })
+    },
+  )
 }
 
 async function cyRenderedPositionForNodeId(

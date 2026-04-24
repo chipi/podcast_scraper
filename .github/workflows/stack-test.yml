@@ -40,7 +40,7 @@ jobs:
           df -h
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v6
+        uses: docker/setup-buildx-action@v4
 
       - name: Build stack + smoke images
         run: make smoke-build

@@ -132,6 +132,7 @@ def create_app(
     app.state.feeds_api_enabled = bool(enable_feeds_api)
     app.state.operator_config_api_enabled = bool(enable_operator_config_api)
     app.state.jobs_api_enabled = bool(enable_jobs_api)
+    app.state.enable_platform = bool(enable_platform)
     app.state.operator_config_fixed_path = None
 
     if enable_feeds_api and resolved_output is None:
