@@ -45,6 +45,8 @@ def viewer_operator_extras_source(app: Any, corpus_root: Path) -> Path:
     candidate_s = safe_fixed_file_under_root(root, VIEWER_OPERATOR_BASENAME)
     if candidate_s is None:
         return viewer_operator_yaml_path(app, corpus_root)
+    # codeql[py/path-injection] -- candidate_s from safe_fixed_file_under_root
+    # (normpath_if_under_root; Type 1).
     if os.path.isfile(candidate_s):
         return Path(candidate_s)
     return viewer_operator_yaml_path(app, corpus_root)

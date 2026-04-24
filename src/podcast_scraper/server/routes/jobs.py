@@ -42,6 +42,7 @@ router = APIRouter(tags=["jobs"])
 async def _serve_pipeline_job_log(corpus: Path, job_id: str) -> FileResponse:
     """Resolve registry row → log file on disk; same rules for path- and query-style routes."""
     verified_under = await _resolved_job_log_path(corpus, job_id)
+    # codeql[py/path-injection] -- verified_under from resolve_pipeline_job_log_path (Type 1).
     return FileResponse(
         verified_under,
         media_type="text/plain; charset=utf-8",
@@ -93,6 +94,9 @@ async def submit_pipeline_job(
     corpus, operator_yaml = _corpus_and_operator(request, path)
     if os.environ.get("PODCAST_PIPELINE_EXEC_MODE", "").strip().lower() == "docker":
         try:
+            # codeql[py/path-injection] -- operator_yaml from viewer_operator_extras_source
+            # (Docker): safe_resolve_directory + safe_fixed_file_under_root before isfile;
+            # assert_operator_pipeline_extras reads that path (Type 1).
             await asyncio.to_thread(
                 assert_operator_pipeline_extras,
                 viewer_operator_extras_source(request.app, corpus),
@@ -180,6 +184,7 @@ async def get_pipeline_job_log_tail_query(
     """Same as ``GET /jobs/{job_id}/log-tail`` but query-based (avoids some proxy 404s)."""
     corpus, _op = _corpus_and_operator(request, path)
     verified_under = await _resolved_job_log_path(corpus, job_id)
+    # codeql[py/path-injection] -- verified_under from resolve_pipeline_job_log_path (Type 1).
     text, truncated = await asyncio.to_thread(_read_job_log_tail_utf8, verified_under, max_bytes)
     return PipelineJobLogTailResponse(text=text, truncated=truncated)
 
@@ -210,6 +215,7 @@ async def get_pipeline_job_log_tail(
     """Return the tail of the job log as JSON (for dashboard metrics + summary preview)."""
     corpus, _op = _corpus_and_operator(request, path)
     verified_under = await _resolved_job_log_path(corpus, job_id)
+    # codeql[py/path-injection] -- verified_under from resolve_pipeline_job_log_path (Type 1).
     text, truncated = await asyncio.to_thread(_read_job_log_tail_utf8, verified_under, max_bytes)
     return PipelineJobLogTailResponse(text=text, truncated=truncated)
 

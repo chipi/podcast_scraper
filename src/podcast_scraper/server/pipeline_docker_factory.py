@@ -61,6 +61,8 @@ def _cli_argv_tail(argv: Sequence[str]) -> list[str]:
 
 def assert_operator_pipeline_extras(operator_yaml: Path) -> str:
     """Ensure operator YAML declares ``pipeline_install_extras: ml`` or ``llm``; return value."""
+    # codeql[py/path-injection] -- Docker enqueue: path from viewer_operator_extras_source
+    # only (Type 1).
     text = operator_yaml.read_text(encoding="utf-8", errors="replace")
     extras = parse_pipeline_install_extras(text)
     if extras not in ("ml", "llm"):
