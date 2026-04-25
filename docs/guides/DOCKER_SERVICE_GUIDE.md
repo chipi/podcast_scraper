@@ -191,7 +191,7 @@ Supervisor provides advanced process management with automatic restarts, logging
 
 ## Docker Compose Examples
 
-For the **end-to-end stack** (viewer + API + on-demand pipeline jobs) use [`compose/docker-compose.stack.yml`](../../compose/docker-compose.stack.yml) and follow the [Docker Compose guide](DOCKER_COMPOSE_GUIDE.md).
+For the **end-to-end stack** (viewer + API + on-demand pipeline jobs) use [`compose/docker-compose.stack.yml`](https://github.com/chipi/podcast_scraper/blob/main/compose/docker-compose.stack.yml) and follow the [Docker Compose guide](DOCKER_COMPOSE_GUIDE.md).
 
 The Compose snippets below are for the **single-container** service deployment style covered in this guide — long-running pipeline triggered by an external scheduler, no operator UI. Build the image yourself with `docker/pipeline/Dockerfile` and the `INSTALL_EXTRAS=ml` or `INSTALL_EXTRAS=llm` build arg (see [Docker Variants guide](DOCKER_VARIANTS_GUIDE.md)).
 

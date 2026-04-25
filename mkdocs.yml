@@ -36,6 +36,7 @@ nav:
           - "E2E WIP v1 (Apr 2026)": guides/performance-reports/PERF_E2E_WIP_V1_2026_04.md
       - ML Model Comparison Guide: guides/ML_MODEL_COMPARISON_GUIDE.md
       - Preprocessing Profiles Guide: guides/PREPROCESSING_PROFILES_GUIDE.md
+      - Docker Compose Guide: guides/DOCKER_COMPOSE_GUIDE.md
       - Docker Service Guide: guides/DOCKER_SERVICE_GUIDE.md
       - Docker Variants Guide: guides/DOCKER_VARIANTS_GUIDE.md
       - Provider Configuration Quick Reference: guides/PROVIDER_CONFIGURATION_QUICK_REFERENCE.md

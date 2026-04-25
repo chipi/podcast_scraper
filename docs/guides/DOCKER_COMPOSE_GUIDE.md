@@ -91,7 +91,7 @@ In the **Configuration** dialog (footer or status-bar entry):
   - `cloud_balanced`, `cloud_quality` — richer cloud configurations with vector search for semantic queries.
   - `local`, `dev`, `airgapped` — full local stacks for advanced setups.
 
-  See [`config/profiles/README.md`](../../config/profiles/README.md) for the full list and trade-offs.
+  See [`config/profiles/README.md`](https://github.com/chipi/podcast_scraper/blob/main/config/profiles/README.md) for the full list and trade-offs.
 
   The **Save** action writes both the chosen profile name and your overrides to `<corpus>/viewer_operator.yaml` on the shared `corpus_data` volume.
 
@@ -324,7 +324,7 @@ make stack-test-seed STACK_TEST_OPERATOR_VARIANT=cloud-thin
 The `compose/docker-compose.stack.yml` + `compose/docker-compose.stack-test.yml` setup ships everything you need for a single-corpus, single-host deployment. To take it production-ish:
 
 1. **Drop the `mock-feeds` service.** Remove `compose/docker-compose.stack-test.yml` from your `-f` chain (or write a thin overlay that omits it). Real RSS URLs go in `feeds.spec.yaml` directly via the UI.
-2. **Add restart policies.** Merge [`compose/docker-compose.prod.yml`](../../compose/docker-compose.prod.yml) — adds `restart: unless-stopped` for `api` and `viewer`.
+2. **Add restart policies.** Merge [`compose/docker-compose.prod.yml`](https://github.com/chipi/podcast_scraper/blob/main/compose/docker-compose.prod.yml) — adds `restart: unless-stopped` for `api` and `viewer`.
 3. **Externalise the corpus volume.** Change `corpus_data` to an external named volume so it survives `docker compose down -v`. Or bind-mount a host path.
 4. **Front the viewer with HTTPS.** Put a reverse proxy (Caddy, Traefik, Nginx) in front of `viewer:80` — the SPA itself doesn't terminate TLS.
 5. **Lock down the API.** The current setup assumes the viewer host is trusted. Add network policies or an authenticating proxy if `:8090` is reachable from anywhere outside the host.
@@ -334,11 +334,11 @@ For full RFC-079 / GitHub #659 architecture details, see [RFC-079 — Full-stack
 
 ## Reference
 
-- [README — Quick start with Docker Compose](../../README.md#quickest-start-docker-compose) — the 4-step landing version of this guide.
-- [`compose/`](../../compose/) — compose files: `docker-compose.stack.yml` (base), `docker-compose.stack-test.yml` (overlay used for the bundled mock-feeds + Docker job mode), `docker-compose.jobs-docker.yml` (production overlay enabling Docker job mode without mock-feeds), `docker-compose.prod.yml` (restart policies).
-- [`docker/`](../../docker/) — image Dockerfiles for `api`, `viewer`, `pipeline`, and the `mock-feeds` Nginx sidecar.
-- [Stack-test README](../../tests/stack-test/README.md) — how the Playwright suite drives the same compose stack.
+- [README — Quick start with Docker Compose](https://github.com/chipi/podcast_scraper/blob/main/README.md#quickest-start-docker-compose) — the 4-step landing version of this guide.
+- [`compose/`](https://github.com/chipi/podcast_scraper/tree/main/compose) — compose files: `docker-compose.stack.yml` (base), `docker-compose.stack-test.yml` (overlay used for the bundled mock-feeds + Docker job mode), `docker-compose.jobs-docker.yml` (production overlay enabling Docker job mode without mock-feeds), `docker-compose.prod.yml` (restart policies).
+- [`docker/`](https://github.com/chipi/podcast_scraper/tree/main/docker) — image Dockerfiles for `api`, `viewer`, `pipeline`, and the `mock-feeds` Nginx sidecar.
+- [Stack-test README](https://github.com/chipi/podcast_scraper/blob/main/tests/stack-test/README.md) — how the Playwright suite drives the same compose stack.
 - [Docker variants guide](DOCKER_VARIANTS_GUIDE.md) — pipeline image tier comparison (ml vs llm).
 - [Server guide](SERVER_GUIDE.md) — `/api/*` reference, FastAPI architecture.
 - [Configuration guide](../api/CONFIGURATION.md) — every config field, including operator-yaml-friendly ones.
-- [Profiles README](../../config/profiles/README.md) — packaged profiles and their trade-offs.
+- [Profiles README](https://github.com/chipi/podcast_scraper/blob/main/config/profiles/README.md) — packaged profiles and their trade-offs.
