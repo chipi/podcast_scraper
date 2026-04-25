@@ -24,6 +24,8 @@ import {
   nodeLabel,
   primaryTextFromLooseGiNode,
   parseArtifact,
+  aggregateEpisodePersonEdges,
+  aggregateEpisodeTopicEdges,
   confidenceTierFromInsightProperties,
   isInsightUngrounded,
   toCytoElements,
@@ -1019,6 +1021,206 @@ describe('isInsightUngrounded (RFC-080 V2)', () => {
     expect(isInsightUngrounded({})).toBe(false)
     expect(isInsightUngrounded(undefined)).toBe(false)
     expect(isInsightUngrounded({ grounded: null as unknown as boolean })).toBe(false)
+  })
+})
+
+// ── RFC-080 V1: aggregated Episode↔Topic / Episode↔Person edges ──
+
+function v1Fixture(): ParsedArtifact {
+  // Episode E1 with 3 insights about Topic T1 and 1 about Topic T2;
+  // Episode E2 with 1 insight about T1. Quotes attributed to a Person.
+  return parseArtifact('mix.gi.json', {
+    episode_id: 'e1',
+    model_version: 'm',
+    prompt_version: 'v',
+    nodes: [
+      { id: 'episode:e1', type: 'Episode', properties: { title: 'E1' } },
+      { id: 'episode:e2', type: 'Episode', properties: { title: 'E2' } },
+      { id: 't:1', type: 'Topic', properties: { label: 'AI policy' } },
+      { id: 't:2', type: 'Topic', properties: { label: 'Climate' } },
+      { id: 'p:ada', type: 'Person', properties: { name: 'Ada' } },
+      { id: 'i:e1-a', type: 'Insight', properties: { text: 'a', episode_id: 'e1' } },
+      { id: 'i:e1-b', type: 'Insight', properties: { text: 'b', episode_id: 'e1' } },
+      { id: 'i:e1-c', type: 'Insight', properties: { text: 'c', episode_id: 'e1' } },
+      { id: 'i:e1-d', type: 'Insight', properties: { text: 'd', episode_id: 'e1' } },
+      { id: 'i:e2-a', type: 'Insight', properties: { text: 'e2-a', episode_id: 'e2' } },
+      { id: 'q:e1-1', type: 'Quote', properties: { text: 'q1', episode_id: 'e1' } },
+      { id: 'q:e1-2', type: 'Quote', properties: { text: 'q2', episode_id: 'e1' } },
+      { id: 'q:e2-1', type: 'Quote', properties: { text: 'q3', episode_id: 'e2' } },
+    ],
+    edges: [
+      { type: 'HAS_INSIGHT', from: 'episode:e1', to: 'i:e1-a' },
+      { type: 'HAS_INSIGHT', from: 'episode:e1', to: 'i:e1-b' },
+      { type: 'HAS_INSIGHT', from: 'episode:e1', to: 'i:e1-c' },
+      { type: 'HAS_INSIGHT', from: 'episode:e1', to: 'i:e1-d' },
+      { type: 'HAS_INSIGHT', from: 'episode:e2', to: 'i:e2-a' },
+      // 3 insights from e1 about t:1 → ABOUT_AGG (e1, t:1) weight = 3
+      { type: 'ABOUT', from: 'i:e1-a', to: 't:1' },
+      { type: 'ABOUT', from: 'i:e1-b', to: 't:1' },
+      { type: 'ABOUT', from: 'i:e1-c', to: 't:1' },
+      // 1 insight from e1 about t:2
+      { type: 'ABOUT', from: 'i:e1-d', to: 't:2' },
+      // 1 insight from e2 about t:1
+      { type: 'ABOUT', from: 'i:e2-a', to: 't:1' },
+      // Quotes spoken by Ada — 2 from e1 + 1 from e2
+      { type: 'SUPPORTED_BY', from: 'i:e1-a', to: 'q:e1-1' },
+      { type: 'SUPPORTED_BY', from: 'i:e1-b', to: 'q:e1-2' },
+      { type: 'SUPPORTED_BY', from: 'i:e2-a', to: 'q:e2-1' },
+      { type: 'SPOKEN_BY', from: 'q:e1-1', to: 'p:ada' },
+      { type: 'SPOKEN_BY', from: 'q:e1-2', to: 'p:ada' },
+      { type: 'SPOKEN_BY', from: 'q:e2-1', to: 'p:ada' },
+    ],
+  })
+}
+
+describe('aggregateEpisodeTopicEdges (RFC-080 V1)', () => {
+  it('counts insights bridging each (episode, topic) pair', () => {
+    const out = aggregateEpisodeTopicEdges(v1Fixture())
+    const e1t1 = out.find((e) => e.episodeId === 'episode:e1' && e.topicId === 't:1')
+    const e1t2 = out.find((e) => e.episodeId === 'episode:e1' && e.topicId === 't:2')
+    const e2t1 = out.find((e) => e.episodeId === 'episode:e2' && e.topicId === 't:1')
+    expect(e1t1?.weight).toBe(3)
+    expect(e1t2?.weight).toBe(1)
+    expect(e2t1?.weight).toBe(1)
+  })
+
+  it('exposes contributing insight ids for rail filtering', () => {
+    const out = aggregateEpisodeTopicEdges(v1Fixture())
+    const e1t1 = out.find((e) => e.episodeId === 'episode:e1' && e.topicId === 't:1')
+    expect(e1t1?.contributingInsightIds).toEqual(['i:e1-a', 'i:e1-b', 'i:e1-c'])
+  })
+
+  it('ignores ABOUT edges whose target is not a Topic', () => {
+    // V1 spec scope is Episode↔Topic only — ABOUT-to-Person edges must
+    // not show up in the topic aggregate (they're handled by the
+    // analogous SPOKE_IN_AGG path or future Person aggregate).
+    const art = parseArtifact('p.gi.json', {
+      episode_id: 'e1',
+      model_version: 'm',
+      prompt_version: 'v',
+      nodes: [
+        { id: 'episode:e1', type: 'Episode', properties: {} },
+        { id: 'p:ada', type: 'Person', properties: { name: 'Ada' } },
+        { id: 'i:1', type: 'Insight', properties: { text: 'i', episode_id: 'e1' } },
+      ],
+      edges: [
+        { type: 'HAS_INSIGHT', from: 'episode:e1', to: 'i:1' },
+        { type: 'ABOUT', from: 'i:1', to: 'p:ada' },
+      ],
+    })
+    expect(aggregateEpisodeTopicEdges(art)).toEqual([])
+  })
+
+  it('returns empty when an artifact has no ABOUT edges', () => {
+    const art = parseArtifact('empty.gi.json', {
+      episode_id: 'e1',
+      model_version: 'm',
+      prompt_version: 'v',
+      nodes: [{ id: 'episode:e1', type: 'Episode', properties: {} }],
+      edges: [],
+    })
+    expect(aggregateEpisodeTopicEdges(art)).toEqual([])
+  })
+})
+
+describe('aggregateEpisodePersonEdges (RFC-080 V1)', () => {
+  it('counts quotes from each (episode, person) pair via SPOKEN_BY', () => {
+    const out = aggregateEpisodePersonEdges(v1Fixture())
+    const e1ada = out.find((e) => e.episodeId === 'episode:e1' && e.personId === 'p:ada')
+    const e2ada = out.find((e) => e.episodeId === 'episode:e2' && e.personId === 'p:ada')
+    expect(e1ada?.weight).toBe(2)
+    expect(e2ada?.weight).toBe(1)
+  })
+
+  it('falls back to insight episode when quote.properties.episode_id is absent', () => {
+    const art = parseArtifact('q.gi.json', {
+      episode_id: 'e1',
+      model_version: 'm',
+      prompt_version: 'v',
+      nodes: [
+        { id: 'episode:e1', type: 'Episode', properties: {} },
+        { id: 'p:ada', type: 'Person', properties: { name: 'Ada' } },
+        { id: 'i:1', type: 'Insight', properties: { text: 'i', episode_id: 'e1' } },
+        // Quote without episode_id property — must inherit from supporting insight.
+        { id: 'q:1', type: 'Quote', properties: { text: 'q' } },
+      ],
+      edges: [
+        { type: 'HAS_INSIGHT', from: 'episode:e1', to: 'i:1' },
+        { type: 'SUPPORTED_BY', from: 'i:1', to: 'q:1' },
+        { type: 'SPOKEN_BY', from: 'q:1', to: 'p:ada' },
+      ],
+    })
+    const out = aggregateEpisodePersonEdges(art)
+    expect(out).toHaveLength(1)
+    expect(out[0]?.episodeId).toBe('episode:e1')
+    expect(out[0]?.weight).toBe(1)
+  })
+
+  it('ignores SPOKEN_BY edges whose target is not a person-typed node', () => {
+    const art = parseArtifact('o.gi.json', {
+      episode_id: 'e1',
+      model_version: 'm',
+      prompt_version: 'v',
+      nodes: [
+        { id: 'episode:e1', type: 'Episode', properties: {} },
+        { id: 'org:acme', type: 'Entity_organization', properties: { name: 'Acme' } },
+        { id: 'q:1', type: 'Quote', properties: { episode_id: 'e1' } },
+      ],
+      edges: [{ type: 'SPOKEN_BY', from: 'q:1', to: 'org:acme' }],
+    })
+    expect(aggregateEpisodePersonEdges(art)).toEqual([])
+  })
+})
+
+describe('toCytoElements with enableAggregatedEdges (RFC-080 V1)', () => {
+  it('omits aggregated edges by default (flag off)', () => {
+    const elems = toCytoElements(v1Fixture())
+    const aggregated = elems.filter(
+      (e) => (e.classes ?? '').includes('graph-edge-about-agg') ||
+        (e.classes ?? '').includes('graph-edge-spoke-in-agg'),
+    )
+    expect(aggregated).toEqual([])
+  })
+
+  it('appends ABOUT_AGG edges with weight + contributing insights when flag is on', () => {
+    const elems = toCytoElements(v1Fixture(), { enableAggregatedEdges: true })
+    const aggE1T1 = elems.find(
+      (e) =>
+        'source' in e.data &&
+        e.data.source === 'episode:e1' &&
+        e.data.target === 't:1' &&
+        (e.classes ?? '').includes('graph-edge-about-agg'),
+    )
+    expect(aggE1T1).toBeTruthy()
+    expect((aggE1T1!.data as { weight?: number }).weight).toBe(3)
+    expect((aggE1T1!.data as { edgeType?: string }).edgeType).toBe('ABOUT_AGG')
+    expect((aggE1T1!.data as { contributingInsightIds?: string[] }).contributingInsightIds).toEqual([
+      'i:e1-a',
+      'i:e1-b',
+      'i:e1-c',
+    ])
+  })
+
+  it('appends SPOKE_IN_AGG edges with weight + contributing quotes when flag is on', () => {
+    const elems = toCytoElements(v1Fixture(), { enableAggregatedEdges: true })
+    const aggE1Ada = elems.find(
+      (e) =>
+        'source' in e.data &&
+        e.data.source === 'episode:e1' &&
+        e.data.target === 'p:ada' &&
+        (e.classes ?? '').includes('graph-edge-spoke-in-agg'),
+    )
+    expect(aggE1Ada).toBeTruthy()
+    expect((aggE1Ada!.data as { weight?: number }).weight).toBe(2)
+    expect((aggE1Ada!.data as { edgeType?: string }).edgeType).toBe('SPOKE_IN_AGG')
+  })
+
+  it('aggregated edge ids follow the documented `about_agg:src->tgt` shape', () => {
+    const elems = toCytoElements(v1Fixture(), { enableAggregatedEdges: true })
+    const ids = elems
+      .filter((e) => (e.classes ?? '').includes('graph-edge-about-agg'))
+      .map((e) => e.data.id as string)
+    expect(ids).toContain('about_agg:episode:e1->t:1')
   })
 })
 

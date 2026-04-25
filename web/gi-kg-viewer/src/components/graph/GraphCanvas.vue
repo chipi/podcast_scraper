@@ -24,6 +24,7 @@ import { useSubjectStore } from '../../stores/subject'
 import { useGraphExpansionStore } from '../../stores/graphExpansion'
 import { useGraphExplorerStore } from '../../stores/graphExplorer'
 import { useGraphFilterStore } from '../../stores/graphFilters'
+import { useGraphLensesStore } from '../../stores/graphLenses'
 import { useGraphNavigationStore } from '../../stores/graphNavigation'
 import { useSearchStore } from '../../stores/search'
 import { useShellStore } from '../../stores/shell'
@@ -65,6 +66,7 @@ const emit = defineEmits<{
 }>()
 
 const gf = useGraphFilterStore()
+const lenses = useGraphLensesStore()
 const ge = useGraphExplorerStore()
 const { preferredLayout, minimapOpen, activeDegreeBucket } = storeToRefs(ge)
 const nav = useGraphNavigationStore()
@@ -528,6 +530,9 @@ function buildCyStyle() {
     ...(buildGiKgCyStylesheet({
       includeSearchHit: true,
       prefersReducedMotion: graphPrefersReducedMotion.value,
+      // RFC-080 V5 — opt-in via lens flag (defaults off; user toggle
+      // persists across reloads via useGraphLensesStore).
+      enableNodeSizeByDegree: lenses.nodeSizeByDegree,
     }) as Record<string, unknown>[]),
     {
       selector: 'node',
@@ -1782,7 +1787,12 @@ function redraw(): void {
       return
     }
 
-    const elements = toCytoElements(art)
+    // RFC-080 V1 — append render-only Episode↔Topic / Episode↔Person
+    // aggregated edges when the lens flag is on. Defaults off; takes
+    // effect on the next graph rebuild.
+    const elements = toCytoElements(art, {
+      enableAggregatedEdges: lenses.aggregatedEdges,
+    })
     const nodeCount = elements.filter((x) => !('source' in x.data)).length
     if (nodeCount === 0) {
       el.innerHTML =

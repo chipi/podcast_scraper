@@ -212,4 +212,30 @@ describe('buildGiKgCyStylesheet', () => {
     ) as { style: Record<string, unknown> }
     expect(typeof quote.style.width).toBe('number')
   })
+
+  // RFC-080 V1 — aggregated-edge selectors are always present in the
+  // sheet but only fire when toCytoElements emits an edge with the
+  // matching class. Width is `mapData(weight, ...)` so the chunkiest
+  // edges read clearly without overwhelming the canvas. Disjoint from
+  // the per-Insight ABOUT selector (which uses edgeType, not class).
+  it('V1: includes graph-edge-about-agg width mapping by data(weight)', () => {
+    const sheet = buildGiKgCyStylesheet({ compact: false })
+    const rule = sheet.find(
+      (r) => (r as { selector?: string }).selector === 'edge.graph-edge-about-agg',
+    ) as { style: Record<string, unknown> }
+    expect(rule).toBeTruthy()
+    expect(String(rule.style.width)).toMatch(/^mapData\(weight, 1, \d+, [\d.]+, [\d.]+\)$/)
+    expect(rule.style['line-color']).toBe('var(--ps-gi)')
+  })
+
+  it('V1: includes graph-edge-spoke-in-agg width mapping by data(weight)', () => {
+    const sheet = buildGiKgCyStylesheet({ compact: false })
+    const rule = sheet.find(
+      (r) => (r as { selector?: string }).selector === 'edge.graph-edge-spoke-in-agg',
+    ) as { style: Record<string, unknown> }
+    expect(rule).toBeTruthy()
+    expect(String(rule.style.width)).toMatch(/^mapData\(weight, 1, \d+, [\d.]+, [\d.]+\)$/)
+    expect(rule.style['line-color']).toBe('var(--ps-primary)')
+    expect(rule.style['target-arrow-shape']).toBe('triangle')
+  })
 })

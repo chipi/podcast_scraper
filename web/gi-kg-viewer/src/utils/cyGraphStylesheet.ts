@@ -567,6 +567,44 @@ export function buildGiKgCyStylesheet(options?: {
     },
   })
 
+  // RFC-080 V1 — render-only aggregated edges (Episode→Topic ABOUT_AGG,
+  // Episode→Person SPOKE_IN_AGG). These selectors are always present in
+  // the stylesheet but only fire when `toCytoElements` was called with
+  // `enableAggregatedEdges: true` (so production builds without the
+  // lens enabled get no behaviour change). Width maps `data(weight)` —
+  // a count of contributing per-Insight edges — into a 1.5px..5px
+  // range. Mapping is per-element, not normalised against the whole
+  // graph; tightening to a slice-relative max is in #667's open
+  // questions.
+  const aboutAggBaseWidth = compact ? 1 : 1.5
+  const aboutAggMaxWidth = compact ? 4 : 5
+  style.push({
+    selector: 'edge.graph-edge-about-agg',
+    style: {
+      width: `mapData(weight, 1, 12, ${aboutAggBaseWidth}, ${aboutAggMaxWidth})`,
+      'line-color': 'var(--ps-gi)',
+      'line-style': 'solid',
+      'line-opacity': 0.85,
+      'target-arrow-shape': 'none',
+      // Slightly higher z so the chunky aggregate sits over the
+      // per-Insight ABOUT fan when both are visible (e.g. tier-full
+      // before #667 ships the tier gating).
+      'z-index': 5,
+    },
+  })
+  style.push({
+    selector: 'edge.graph-edge-spoke-in-agg',
+    style: {
+      width: `mapData(weight, 1, 8, ${aboutAggBaseWidth}, ${aboutAggMaxWidth})`,
+      'line-color': 'var(--ps-primary)',
+      'line-style': 'solid',
+      'line-opacity': 0.85,
+      'target-arrow-shape': 'triangle',
+      'target-arrow-color': 'var(--ps-primary)',
+      'z-index': 5,
+    },
+  })
+
   /** Eligible Topic / Person / Entity for plain dbl-click cross-episode expand. */
   const expandEligibleRing = compact ? 1.5 : 2
   const expandSeedRing = compact ? 2.25 : 3

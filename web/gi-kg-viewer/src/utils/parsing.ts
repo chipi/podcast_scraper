@@ -1141,8 +1141,178 @@ export function toGraphElements(art: ParsedArtifact): {
   return { visNodes, visEdges, idSet }
 }
 
+/**
+ * RFC-080 V1 — render-only aggregated edge from Episode → Topic.
+ *
+ * `weight` is the number of `Insight → ABOUT → Topic` triples whose
+ * insight belongs to the episode. `contributingInsightIds` carries the
+ * raw insight ids so a click on the aggregated edge can open the rail
+ * pre-filtered to those insights.
+ */
+export interface AboutAggregateEdge {
+  episodeId: string
+  topicId: string
+  weight: number
+  contributingInsightIds: string[]
+}
+
+/**
+ * RFC-080 V1 — render-only aggregated edge from Episode → Person.
+ *
+ * `weight` is the number of `Quote → SPOKEN_BY → Person` triples whose
+ * quote belongs to the episode (resolved via the quote's `episode_id`
+ * property when present, else via the supporting insight's episode).
+ */
+export interface SpokeInAggregateEdge {
+  episodeId: string
+  personId: string
+  weight: number
+  contributingQuoteIds: string[]
+}
+
+function buildInsightToEpisodeMap(art: ParsedArtifact): Map<string, string> {
+  const map = new Map<string, string>()
+  const edges = art.data.edges ?? []
+  for (const e of edges) {
+    if (!e || typeof e !== 'object') continue
+    if (normalizeGiEdgeType(e.type) !== 'has_insight') continue
+    const ep = e.from != null ? String(e.from).trim() : ''
+    const ins = e.to != null ? String(e.to).trim() : ''
+    if (ep && ins) map.set(ins, ep)
+  }
+  return map
+}
+
+/**
+ * Aggregate `Insight → ABOUT → Topic` edges into Episode → Topic edges
+ * with a `weight` count. Render-only (not persisted). Used by RFC-080
+ * V1 to surface "which episode is most about this topic".
+ */
+export function aggregateEpisodeTopicEdges(art: ParsedArtifact): AboutAggregateEdge[] {
+  const insightToEpisode = buildInsightToEpisodeMap(art)
+  const nodesById = new Map<string, RawGraphNode>()
+  for (const n of art.data.nodes ?? []) {
+    if (n && n.id != null) nodesById.set(String(n.id), n)
+  }
+  // (episode, topic) → ordered list of contributing insight ids
+  // (Map preserves insertion order so contributingInsightIds reads
+  // as deterministic for downstream tests / rail-filter UX.)
+  const grouped = new Map<string, { episodeId: string; topicId: string; insightIds: string[] }>()
+  for (const e of art.data.edges ?? []) {
+    if (!e || typeof e !== 'object') continue
+    if (normalizeGiEdgeType(e.type) !== 'about') continue
+    const insight = e.from != null ? String(e.from).trim() : ''
+    const target = e.to != null ? String(e.to).trim() : ''
+    if (!insight || !target) continue
+    const targetType = String(nodesById.get(target)?.type ?? '').toLowerCase()
+    if (targetType !== 'topic') continue
+    const episode = insightToEpisode.get(insight)
+    if (!episode) continue
+    const key = `${episode} ${target}`
+    const bucket = grouped.get(key)
+    if (bucket) {
+      if (!bucket.insightIds.includes(insight)) bucket.insightIds.push(insight)
+    } else {
+      grouped.set(key, { episodeId: episode, topicId: target, insightIds: [insight] })
+    }
+  }
+  const out: AboutAggregateEdge[] = []
+  for (const v of grouped.values()) {
+    out.push({
+      episodeId: v.episodeId,
+      topicId: v.topicId,
+      weight: v.insightIds.length,
+      contributingInsightIds: v.insightIds,
+    })
+  }
+  return out
+}
+
+/**
+ * Aggregate `Quote → SPOKEN_BY → Person` edges into Episode → Person
+ * edges with a `weight` count. Quote's episode resolves via:
+ *   1. `quote.properties.episode_id` (canonical), else
+ *   2. The episode of the first supporting insight (SUPPORTED_BY chain).
+ * Render-only.
+ */
+export function aggregateEpisodePersonEdges(art: ParsedArtifact): SpokeInAggregateEdge[] {
+  const insightToEpisode = buildInsightToEpisodeMap(art)
+  const nodesById = new Map<string, RawGraphNode>()
+  for (const n of art.data.nodes ?? []) {
+    if (n && n.id != null) nodesById.set(String(n.id), n)
+  }
+  // Build quote → episode (via property OR via supporting insight chain).
+  const quoteToEpisode = new Map<string, string>()
+  for (const n of art.data.nodes ?? []) {
+    if (!n || String(n.type).toLowerCase() !== 'quote' || n.id == null) continue
+    const ep = (n.properties as Record<string, unknown> | undefined)?.episode_id
+    if (typeof ep === 'string' && ep.trim()) {
+      // Prefix with the conventional `episode:` to match Episode node ids.
+      quoteToEpisode.set(String(n.id), `episode:${ep.trim()}`)
+    }
+  }
+  // Fallback: walk SUPPORTED_BY edges (insight → quote); inherit
+  // insight's episode if the quote didn't expose one directly.
+  for (const e of art.data.edges ?? []) {
+    if (!e || typeof e !== 'object') continue
+    if (normalizeGiEdgeType(e.type) !== 'supported_by') continue
+    const insight = e.from != null ? String(e.from).trim() : ''
+    const quote = e.to != null ? String(e.to).trim() : ''
+    if (!quote || quoteToEpisode.has(quote)) continue
+    const ep = insightToEpisode.get(insight)
+    if (ep) quoteToEpisode.set(quote, ep)
+  }
+  // Now group SPOKEN_BY edges by (episode, person).
+  const grouped = new Map<
+    string,
+    { episodeId: string; personId: string; quoteIds: string[] }
+  >()
+  for (const e of art.data.edges ?? []) {
+    if (!e || typeof e !== 'object') continue
+    if (normalizeGiEdgeType(e.type) !== 'spoken_by') continue
+    const quote = e.from != null ? String(e.from).trim() : ''
+    const person = e.to != null ? String(e.to).trim() : ''
+    if (!quote || !person) continue
+    const personType = String(nodesById.get(person)?.type ?? '').toLowerCase()
+    // Person, Entity_person — accept the canonical person types.
+    if (!personType.includes('person')) continue
+    const episode = quoteToEpisode.get(quote)
+    if (!episode) continue
+    const key = `${episode} ${person}`
+    const bucket = grouped.get(key)
+    if (bucket) {
+      if (!bucket.quoteIds.includes(quote)) bucket.quoteIds.push(quote)
+    } else {
+      grouped.set(key, { episodeId: episode, personId: person, quoteIds: [quote] })
+    }
+  }
+  const out: SpokeInAggregateEdge[] = []
+  for (const v of grouped.values()) {
+    out.push({
+      episodeId: v.episodeId,
+      personId: v.personId,
+      weight: v.quoteIds.length,
+      contributingQuoteIds: v.quoteIds,
+    })
+  }
+  return out
+}
+
 /** Cytoscape element list (nodes + edges). */
-export function toCytoElements(art: ParsedArtifact): import('cytoscape').ElementDefinition[] {
+export function toCytoElements(
+  art: ParsedArtifact,
+  options?: {
+    /**
+     * RFC-080 V1 — when true, append render-only aggregated
+     * Episode↔Topic (`ABOUT_AGG`) and Episode↔Person (`SPOKE_IN_AGG`)
+     * edges with a `weight` data attribute. The aggregated edges carry
+     * a discriminator class (`graph-edge-about-agg` / `graph-edge-spoke-in-agg`)
+     * so stylesheet selectors stay disjoint from real ABOUT / SPOKE_IN
+     * edges. Off by default (lens flag — see RFC rollout).
+     */
+    enableAggregatedEdges?: boolean
+  },
+): import('cytoscape').ElementDefinition[] {
   const g = toGraphElements(art)
   const nodesById = new Map<string, RawGraphNode>()
   for (const n of art.data.nodes ?? []) {
@@ -1189,5 +1359,42 @@ export function toCytoElements(art: ParsedArtifact): import('cytoscape').Element
         edgeType: e.label || '(unknown)',
       },
     }))
-  return [...nodes, ...edges]
+  const aggregatedEdges: import('cytoscape').ElementDefinition[] = []
+  if (options?.enableAggregatedEdges) {
+    // RFC-080 V1 — append render-only aggregated edges. Filtered to
+    // pairs whose both endpoints are visible in the current slice
+    // (g.idSet) so they never paint as "edges to nowhere" after a
+    // type filter or RFC-076 partial expand.
+    for (const a of aggregateEpisodeTopicEdges(art)) {
+      if (!g.idSet.has(a.episodeId) || !g.idSet.has(a.topicId)) continue
+      aggregatedEdges.push({
+        data: {
+          id: `about_agg:${a.episodeId}->${a.topicId}`,
+          source: a.episodeId,
+          target: a.topicId,
+          label: 'ABOUT_AGG',
+          edgeType: 'ABOUT_AGG',
+          weight: a.weight,
+          contributingInsightIds: a.contributingInsightIds,
+        },
+        classes: 'graph-edge-about-agg',
+      })
+    }
+    for (const a of aggregateEpisodePersonEdges(art)) {
+      if (!g.idSet.has(a.episodeId) || !g.idSet.has(a.personId)) continue
+      aggregatedEdges.push({
+        data: {
+          id: `spoke_in_agg:${a.episodeId}->${a.personId}`,
+          source: a.episodeId,
+          target: a.personId,
+          label: 'SPOKE_IN_AGG',
+          edgeType: 'SPOKE_IN_AGG',
+          weight: a.weight,
+          contributingQuoteIds: a.contributingQuoteIds,
+        },
+        classes: 'graph-edge-spoke-in-agg',
+      })
+    }
+  }
+  return [...nodes, ...edges, ...aggregatedEdges]
 }
