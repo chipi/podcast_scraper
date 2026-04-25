@@ -1,17 +1,25 @@
 name: Stack test
 
-# End-to-end stack-test against the Docker compose stack
-# (mock-feeds → pipeline → API → viewer SPA). Single runner, two
-# named step groups so failures are easy to triage:
-#   1. Airgapped: build + pipeline run + asserts (no cloud calls)
-#   2. Viewer + API + Playwright (smoke + full UI flow)
+# End-to-end stack-test against the Docker compose stack.
+#
+# Single sequence: build images → bring up api + viewer + mock-feeds →
+# seed feeds.spec.yaml + viewer_operator.yaml into the corpus_data
+# volume → run Playwright (smoke + full UI flow). The full UI flow
+# spec drives the API job factory, which spawns one-shot
+# ``docker compose run pipeline`` containers that produce the corpus
+# artifacts the smoke + UI assertions then validate.
+#
+# Profile: ``airgapped_thin`` (Whisper tiny.en, transformers
+# bart-base + led-base, spaCy en_core_web_sm; no cloud calls).
 #
 # Cloud-thin (OpenAI Whisper + Gemini providers) is **local-only** —
 # we don't run it on public CI to avoid recurring API costs on every
-# push / nightly. ``make stack-test-build-cloud`` +
-# ``make stack-test-run-cloud`` exist for developers to validate the
-# cloud path against their own ``.env`` keys before pushing changes
-# that touch ``[llm]`` extras / Gemini providers / OpenAI Whisper.
+# push / nightly. ``make stack-test-build-cloud`` plus
+# ``make stack-test-seed STACK_TEST_OPERATOR_VARIANT=cloud-thin`` plus
+# ``STACK_TEST_OPERATOR_PROFILE=cloud_thin make stack-test-playwright``
+# exists for developers to validate the cloud path against their own
+# ``.env`` keys before pushing changes that touch ``[llm]`` extras /
+# Gemini providers / OpenAI Whisper.
 
 on:
   push:
@@ -24,14 +32,13 @@ on:
       - 'tests/stack-test/**'
       - 'tests/fixtures/rss/**'
       - 'tests/fixtures/audio/**'
+      - 'tests/fixtures/transcripts/**'
       - 'Makefile'
       - 'pyproject.toml'
       - 'src/podcast_scraper/prompts/**'
       - 'src/podcast_scraper/search/**'
       - 'src/podcast_scraper/workflow/orchestration.py'
       - '.github/workflows/stack-test.yml'
-      - 'scripts/tools/gil_quality_metrics.py'
-      - 'scripts/tools/kg_quality_metrics.py'
   workflow_dispatch:
 
 permissions:
@@ -46,12 +53,7 @@ jobs:
       STACK_TEST_BASE_URL: http://127.0.0.1:8090
       DOCKER_BUILDKIT: 1
       COMPOSE_DOCKER_CLI_BUILD: 1
-      STACK_TEST_EXPORT_DIR: ${{ github.workspace }}/.stack-test-corpus
-      STACK_TEST_CORPUS_ROOT: ${{ github.workspace }}/.stack-test-corpus
     steps:
-      # ───────────────────────────────────────────────────────────
-      # Setup
-      # ───────────────────────────────────────────────────────────
       - uses: actions/checkout@v6
 
       - name: Free disk space
@@ -63,53 +65,17 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v4
 
-      - uses: actions/setup-python@v6
+      - uses: actions/setup-node@v6
         with:
-          python-version: '3.12'
+          node-version: '22'
 
-      - name: Install Python deps (GIL/KG metric scripts)
-        run: pip install -e '.[dev]'
-
-      # ───────────────────────────────────────────────────────────
-      # Stage 1 — Airgapped: build + run + asserts
-      # Profile: ``airgapped_thin`` (Whisper tiny.en, transformers
-      # bart-base + led-base, spaCy en_core_web_sm; no cloud calls).
-      # ───────────────────────────────────────────────────────────
-      - name: 'Stage 1 — airgapped: build images'
+      - name: Build stack images
         run: make stack-test-build
 
-      - name: 'Stage 1 — airgapped: run pipeline (mock RSS, fixture audio)'
-        run: make stack-test-run
-
-      - name: 'Stage 1 — airgapped: assert pipeline log markers'
-        run: make stack-test-assert-logs
-
-      - name: 'Stage 1 — airgapped: export corpus from volume + assert artifacts'
-        run: |
-          make stack-test-export
-          make stack-test-assert-artifacts
-
-      # ───────────────────────────────────────────────────────────
-      # Stage 2 — Viewer + API + Playwright smoke
-      # Brings up api + viewer + mock-feeds against the corpus
-      # produced by Stage 1, seeds ``feeds.spec.yaml`` +
-      # ``viewer_operator.yaml`` into the volume, and runs the
-      # Playwright smoke spec (``stack-viewer.spec.ts``).
-      # ``stack-jobs-flow.spec.ts`` (full UI flow: add feed → run
-      # pipeline job → validate artefacts) is currently held back via
-      # ``testIgnore`` — the API job factory's nested ``docker compose
-      # run pipeline`` spawn fails with "Config file not found:
-      # /app/config.yaml" while the same args succeed when run
-      # manually inside the API container. Re-enable once the factory
-      # issue is bottomed out.
-      # ───────────────────────────────────────────────────────────
-      - name: 'Stage 2 — viewer/api: seed corpus volume (feeds.spec.yaml + viewer_operator.yaml)'
-        run: make stack-test-seed
-
-      - name: 'Stage 2 — viewer/api: start containers'
+      - name: Bring up api + viewer + mock-feeds
         run: make stack-test-up
 
-      - name: 'Stage 2 — viewer/api: wait for /api/health'
+      - name: Wait for /api/health
         run: |
           for i in $(seq 1 60); do
             if curl -fsS "http://127.0.0.1:8090/api/health" >/dev/null; then
@@ -121,27 +87,15 @@ jobs:
           echo "timeout waiting for /api/health"
           exit 1
 
-      - uses: actions/setup-node@v6
-        with:
-          node-version: '22'
+      - name: Seed corpus_data volume (feeds.spec.yaml + viewer_operator.yaml, ml variant)
+        run: make stack-test-seed
 
-      - name: 'Stage 2 — viewer/api: Playwright smoke'
+      - name: Run Playwright (smoke + full UI flow)
         run: make stack-test-playwright
 
-      # ───────────────────────────────────────────────────────────
-      # Always-run cleanup + diagnostics
-      # ───────────────────────────────────────────────────────────
       - name: Tear down compose stack
         if: always()
         run: make stack-test-down || true
-
-      - name: Upload pipeline log on failure
-        if: failure()
-        uses: actions/upload-artifact@v4
-        with:
-          name: stack-test-pipeline-log
-          path: .stack-test/pipeline.log
-          if-no-files-found: ignore
 
       - name: Upload Playwright report on failure
         if: failure()

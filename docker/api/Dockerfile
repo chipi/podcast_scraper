@@ -45,6 +45,16 @@ RUN --mount=type=cache,target=/root/.cache/pip \
     && pip install --no-deps . \
     && python -c "from podcast_scraper.server.app import create_app; print('create_app import ok')"
 
+# Preload the sentence-transformers embedding model used by ``GET
+# /api/search``. The endpoint calls ``embedding_loader.encode(...,
+# allow_download=False)`` so the model MUST be cached on disk before
+# runtime — otherwise queries fail with ``embed_failed`` even though
+# the FAISS index is present. ``HF_HOME`` is shared across users via
+# ``/opt/podcast_hf``; the entrypoint chowns it for the runtime user.
+ENV HF_HOME=/opt/podcast_hf
+RUN mkdir -p "$HF_HOME" \
+    && python -c "from sentence_transformers import SentenceTransformer; SentenceTransformer('sentence-transformers/all-MiniLM-L6-v2')"
+
 # Ship packaged pipeline profiles so the operator-config endpoint can
 # enumerate them via ``GET /api/operator-config``. Profiles live
 # outside the Python package (``config/profiles/``) so they can't ride

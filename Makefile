@@ -193,15 +193,13 @@ help:
 	@echo "  make stack-build-llm   Docker stack: build pipeline-llm image (INSTALL_EXTRAS=llm profile)"
 	@echo "  make verify-stack-profiles  Validate packaged profile → Docker tier (scripts/tools)"
 	@echo "  make stack-compose-validate Docker stack: docker compose config (stack + jobs-docker merge, no build)"
-	@echo "  make stack-test-build       Stack-test: build stack + stack-test overlay images (airgapped)"
-	@echo "  make stack-test-build-cloud Stack-test: build cloud-thin pipeline-llm image ([llm] extras only)"
-	@echo "  make stack-test-run         Stack-test: airgapped pipeline run (tees .stack-test/pipeline.log)"
-	@echo "  make stack-test-run-cloud   Stack-test: cloud-thin pipeline run (needs OPENAI_API_KEY + GEMINI_API_KEY in .env)"
-	@echo "  make stack-test-assert-logs Stack-test: grep .stack-test/pipeline.log for completion / errors"
-	@echo "  make stack-test-export      Stack-test: copy /app/output from corpus_data volume → .stack-test-corpus/"
-	@echo "  make stack-test-assert-artifacts  Stack-test: GIL+KG gates (default STACK_TEST_CORPUS_ROOT=.stack-test-corpus)"
-	@echo "  make stack-test-seed        Stack-test: copy config/ci/stack-test-seed/ into corpus_data volume (full UI flow setup)"
-	@echo "  make stack-test-up / stack-test-down / stack-test-playwright  Stack-test harness"
+	@echo "  make stack-test-build       Stack-test: build api + viewer + pipeline (airgapped/ml) images"
+	@echo "  make stack-test-build-cloud Stack-test: also build pipeline-llm ([llm] extras for cloud-thin runs — local only)"
+	@echo "  make stack-test-up          Stack-test: bring up api + viewer + mock-feeds (sources .env if present)"
+	@echo "  make stack-test-seed        Stack-test: seed corpus_data volume with feeds.spec.yaml + viewer_operator.yaml (STACK_TEST_OPERATOR_VARIANT=ml|cloud-thin)"
+	@echo "  make stack-test-playwright  Stack-test: run Playwright (smoke + full UI flow; STACK_TEST_OPERATOR_PROFILE=cloud_thin for llm runs)"
+	@echo "  make stack-test-down        Stack-test: tear down (STACK_TEST_DOWN_VOLUMES=1 to also drop corpus_data)"
+	@echo "  make stack-test-export      Stack-test: copy corpus_data volume → .stack-test-corpus/ for debug inspection"
 	@echo "  make docker-test        Build and test Docker image"
 	@echo "  make docker-clean       Remove Docker test images"
 	@echo "  make install-hooks   Install git pre-commit hook for automatic linting"
@@ -472,7 +470,7 @@ validate-kg-schema:
 	fi
 
 # GI/KG viewer v2 (#489): FastAPI + Vite. Install: pip install -e '.[server]'; cd $(WEB_VIEWER_DIR) && npm install
-.PHONY: serve serve-api serve-ui serve-e2e-mock stack-build stack-build-llm stack-compose-validate stack-up stack-down stack-logs stack-run-pipeline verify-stack-profiles stack-test-build stack-test-run stack-test-up stack-test-down stack-test-playwright stack-test-assert-logs stack-test-export stack-test-assert-artifacts
+.PHONY: serve serve-api serve-ui serve-e2e-mock stack-build stack-build-llm stack-compose-validate stack-up stack-down stack-logs stack-run-pipeline verify-stack-profiles stack-test-build stack-test-build-cloud stack-test-up stack-test-down stack-test-seed stack-test-playwright stack-test-export
 SERVE_OUTPUT_DIR ?= ./output
 # Optional corpus-editing + jobs routes (health shows green when on). Override with SERVE_ARGS= to disable.
 SERVE_ARGS ?= --enable-feeds-api --enable-operator-config-api --enable-jobs-api
@@ -497,9 +495,10 @@ serve-e2e-mock:
 STACK_COMPOSE ?= docker compose -f compose/docker-compose.stack.yml
 STACK_TEST_COMPOSE ?= docker compose -f compose/docker-compose.stack.yml -f compose/docker-compose.stack-test.yml
 REMOVE_VOLUMES ?=
-# Stack-test: host directory for ``make stack-test-export`` (then ``make stack-test-assert-artifacts``).
-STACK_TEST_EXPORT_DIR ?= $(PWD)/.stack-test-corpus
-STACK_TEST_CORPUS_ROOT ?= $(PWD)/.stack-test-corpus
+# Stack-test: host directory for ``make stack-test-export`` (debug aid —
+# copies the ``corpus_data`` volume contents to disk so artifacts can be
+# inspected after a Playwright run).
+STACK_TEST_EXPORT_DIR ?= $(CURDIR)/.stack-test-corpus
 
 stack-build:
 	@$(STACK_COMPOSE) build
@@ -542,107 +541,18 @@ stack-test-build:
 stack-test-build-cloud:
 	@STACK_PIPELINE_PRELOAD_ML=false $(STACK_TEST_COMPOSE) --profile pipeline-llm build pipeline-llm
 
-stack-test-run:
-	@mkdir -p $(STACK_TEST_LOG_DIR)
-	@bash -c 'set -o pipefail && STACK_PIPELINE_PRELOAD_ML=false $(STACK_TEST_COMPOSE) run --rm pipeline 2>&1 | tee $(STACK_TEST_LOG_DIR)/pipeline.log'
-
-# Run the cloud-thin pipeline image against the same mock-feeds host.
-# Mounts ``stack-test-config.cloud-thin.yaml`` instead of the airgapped
-# default. Reads ``OPENAI_API_KEY`` and ``GEMINI_API_KEY`` from the
-# repo-root ``.env`` (sourced into the recipe shell — compose's
-# auto-load looks at the project-dir of the first ``-f`` which is
-# ``compose/``, where there is no ``.env``). Logs to a separate file
-# so airgapped + cloud results can be inspected independently.
-stack-test-run-cloud:
-	@mkdir -p $(STACK_TEST_LOG_DIR)
-	@if [ ! -f .env ]; then \
-		echo "stack-test-run-cloud: .env not found at repo root — required for OPENAI_API_KEY + GEMINI_API_KEY"; \
-		exit 1; \
-	fi
-	@bash -c 'set -o pipefail && \
-		set -a && . ./.env && set +a && \
-		STACK_PIPELINE_INSTALL_EXTRAS=llm \
-		STACK_PIPELINE_PRELOAD_ML=false \
-		$(STACK_TEST_COMPOSE) --profile pipeline-llm run --rm \
-			-v "$(PWD)/config/ci/stack-test-config.cloud-thin.yaml:/app/config.yaml:ro" \
-			pipeline-llm 2>&1 | tee $(STACK_TEST_LOG_DIR)/pipeline.cloud.log'
-
-stack-test-assert-logs:
-	@test -s $(STACK_TEST_LOG_DIR)/pipeline.log || (echo "Missing or empty $(STACK_TEST_LOG_DIR)/pipeline.log — run make stack-test-run first"; exit 1)
-	@if grep -q '^Traceback' $(STACK_TEST_LOG_DIR)/pipeline.log; then echo "Python traceback in $(STACK_TEST_LOG_DIR)/pipeline.log"; exit 1; fi
-	@# stack-test currently runs single-feed (rss: ...) so the multi-feed
-	@# "Wrote corpus run summary" line never fires. Use the always-present
-	@# orchestration result line — confirms the pipeline ran AND succeeded.
-	@# Pattern: ``result: episodes=N ok=N failed=N skipped=N`` with failed=0.
-	@if ! grep -qE "result: episodes=[0-9]+ ok=[1-9][0-9]* failed=0 " $(STACK_TEST_LOG_DIR)/pipeline.log; then echo "Expected success log line not found (result: episodes=N ok=N failed=0)"; exit 1; fi
-	@if ! grep -q "run artifacts written" $(STACK_TEST_LOG_DIR)/pipeline.log; then echo "Expected success log line not found (run artifacts written)"; exit 1; fi
-	@echo "stack-test-assert-logs: OK"
-
+# Debug aid: copy ``/app/output`` from the running ``corpus_data`` volume
+# onto the host so artifacts can be inspected after a Playwright run.
+# Multi-feed corpus layout — runs land at
+# ``feeds/<stable>/run_*/{transcripts,metadata,run.json,…}`` and the
+# corpus root carries ``corpus_run_summary.json`` + ``feeds.spec.yaml``.
 stack-test-export:
 	@mkdir -p "$(STACK_TEST_EXPORT_DIR)"
-	@STACK_PIPELINE_PRELOAD_ML=false $(STACK_TEST_COMPOSE) run --rm -T --no-deps \
+	@$(STACK_TEST_COMPOSE) --profile pipeline run --rm -T --no-deps \
 		-v "$(STACK_TEST_EXPORT_DIR):/host" \
 		--entrypoint /bin/sh \
-		pipeline -c 'set -e; if [ ! -d /app/output ] || [ -z "$$(ls -A /app/output 2>/dev/null)" ]; then echo "empty /app/output — run make stack-test-run first"; exit 1; fi; cp -a /app/output/. /host/'
+		pipeline -c 'set -e; if [ ! -d /app/output ] || [ -z "$$(ls -A /app/output 2>/dev/null)" ]; then echo "empty /app/output — run a Playwright pipeline job first (make stack-test-up + stack-test-seed + stack-test-playwright)"; exit 1; fi; cp -a /app/output/. /host/'
 	@echo "stack-test-export: copied to $(STACK_TEST_EXPORT_DIR)"
-
-stack-test-assert-artifacts:
-	@# Single-feed runs produce ``run_<id>/run.json``; multi-feed runs
-	@# additionally write ``corpus_run_summary.json`` at the root. Accept
-	@# either as a sentinel that the export landed.
-	@if ! { test -f "$(STACK_TEST_CORPUS_ROOT)/corpus_run_summary.json" || ls "$(STACK_TEST_CORPUS_ROOT)"/run_*/run.json >/dev/null 2>&1; }; then \
-		echo "No run artifacts under $(STACK_TEST_CORPUS_ROOT) (expected corpus_run_summary.json or run_*/run.json) — run make stack-test-export (or set STACK_TEST_CORPUS_ROOT)"; \
-		exit 1; \
-	fi
-	@# Stack-test runs against the 1-minute ``p01_fast`` fixture, which is
-	@# too short for the GIL evidence stack to consistently produce grounded
-	@# quotes (NLI / extractive QA need substantial transcript content).
-	@# Quality assertions here are smoke-level — they catch a totally
-	@# broken pipeline (0 insights, 0 KG nodes) without expecting
-	@# production-grade grounding rates that the fixture can't deliver.
-	@# For real quality gates, run gil/kg_quality_metrics on a real
-	@# corpus, not the stack-test export.
-	@# Stack-test runs against the ``p01_mtb`` fixture (~6 min episode 1,
-	@# ~1.8k transcript words). Thresholds gate **pipeline correctness**
-	@# end-to-end (real transcript → real summary → real insights → real
-	@# KG nodes → all artifacts on disk), not **grounding quality**:
-	@# the airgapped path uses ``bart-base`` MAP + ``led-base`` REDUCE,
-	@# which produces abstractive summaries that the QA+NLI evidence
-	@# stack can't reliably extractively ground on a single episode.
-	@# That's the real product behaviour — flagging it here as a
-	@# pipeline failure would give false negatives. For grounding/
-	@# quality gates, run the metrics scripts on a real corpus.
-	@export PYTHONPATH="$(PWD)/src:$$PYTHONPATH" && $(PYTHON) scripts/tools/gil_quality_metrics.py "$(STACK_TEST_CORPUS_ROOT)" --enforce --strict-schema --fail-on-errors \
-		--min-extraction-coverage 0.0 --min-grounded-insight-rate 0.0 --min-quote-validity-rate 0.0 \
-		--min-avg-insights 5.0 --min-avg-quotes 0.0
-	@export PYTHONPATH="$(PWD)/src:$$PYTHONPATH" && $(PYTHON) scripts/tools/kg_quality_metrics.py "$(STACK_TEST_CORPUS_ROOT)" --enforce --strict-schema --fail-on-errors \
-		--min-artifacts 1 --min-avg-nodes 5.0 --min-extraction-coverage 0.8
-	@# Also assert the per-episode files we expect for a real run: each
-	@# Run dir must contain a transcript, a metadata.json, a gi.json,
-	@# and a kg.json. Without these the API + viewer have nothing to
-	@# render — the smoke gate above misses that case if a downstream
-	@# stage silently early-exits.
-	@if ! ls "$(STACK_TEST_CORPUS_ROOT)"/run_*/transcripts/*.txt >/dev/null 2>&1; then echo "No transcripts under $(STACK_TEST_CORPUS_ROOT)/run_*/transcripts/"; exit 1; fi
-	@if ! ls "$(STACK_TEST_CORPUS_ROOT)"/run_*/metadata/*.metadata.json >/dev/null 2>&1; then echo "No metadata.json under $(STACK_TEST_CORPUS_ROOT)/run_*/metadata/"; exit 1; fi
-	@if ! ls "$(STACK_TEST_CORPUS_ROOT)"/run_*/metadata/*.gi.json >/dev/null 2>&1; then echo "No gi.json under $(STACK_TEST_CORPUS_ROOT)/run_*/metadata/"; exit 1; fi
-	@if ! ls "$(STACK_TEST_CORPUS_ROOT)"/run_*/metadata/*.kg.json >/dev/null 2>&1; then echo "No kg.json under $(STACK_TEST_CORPUS_ROOT)/run_*/metadata/"; exit 1; fi
-	@echo "stack-test-assert-artifacts: OK"
-
-# Cloud-thin produces real grounded quotes (Gemini's extractive QA +
-# NLI find direct evidence in the transcript far better than the
-# airgapped bart-base abstractive path). Apply a stricter gate here so
-# a regression in the cloud GIL evidence stack — e.g. provider
-# returning empty quote arrays — fails CI instead of slipping through
-# the lenient ``stack-test-assert-artifacts`` smoke gate above.
-stack-test-assert-artifacts-cloud:
-	@if ! ls "$(STACK_TEST_CORPUS_ROOT)"/run_*/run.json >/dev/null 2>&1; then \
-		echo "No run.json under $(STACK_TEST_CORPUS_ROOT) — run make stack-test-export first"; \
-		exit 1; \
-	fi
-	@export PYTHONPATH="$(PWD)/src:$$PYTHONPATH" && $(PYTHON) scripts/tools/gil_quality_metrics.py "$(STACK_TEST_CORPUS_ROOT)" --enforce --strict-schema --fail-on-errors \
-		--min-extraction-coverage 0.0 --min-grounded-insight-rate 0.05 --min-quote-validity-rate 0.5 \
-		--min-avg-insights 5.0 --min-avg-quotes 0.5
-	@echo "stack-test-assert-artifacts-cloud: OK (grounded-quote gate satisfied)"
 
 # Copy ``config/ci/stack-test-seed/*`` into the ``corpus_data`` volume
 # so the API + Playwright full-flow spec see ``feeds.spec.yaml`` and
@@ -650,65 +560,66 @@ stack-test-assert-artifacts-cloud:
 # touches anything. Idempotent — overwrites any prior seed each run
 # so a previous test's mutations don't bleed into the next.
 #
-# Run order for the full UI flow:
-#   make stack-test-build         (or stack-test-build-cloud)
-#   make stack-test-seed          (this target)
-#   make stack-test-up            (api + viewer + mock-feeds)
+# ``STACK_TEST_OPERATOR_VARIANT`` (default ``ml``) decides which
+# ``pipeline_install_extras`` line gets appended to the single
+# ``viewer_operator.yaml`` template — the rest of the file is shared
+# across both runs:
+#   - ``ml``         → ``pipeline_install_extras: ml``  (compose service ``pipeline``)
+#   - ``cloud-thin`` → ``pipeline_install_extras: llm`` (compose service ``pipeline-llm``)
+# The Playwright spec then needs ``STACK_TEST_OPERATOR_PROFILE`` set to
+# match: ``airgapped_thin`` for ml (default), ``cloud_thin`` for llm.
+#
+# Run order for the full UI flow (ml/airgapped):
+#   make stack-test-build                          # builds api + pipeline (ml)
+#   make stack-test-up
+#   make stack-test-seed                           # default ml variant
 #   make stack-test-playwright
+#
+# Run order for the full UI flow (llm/cloud-thin) — local only:
+#   make stack-test-build-cloud                    # adds pipeline-llm
+#   make stack-test-up
+#   make stack-test-seed STACK_TEST_OPERATOR_VARIANT=cloud-thin
+#   STACK_TEST_OPERATOR_PROFILE=cloud_thin make stack-test-playwright
+STACK_TEST_OPERATOR_VARIANT ?= ml
+ifeq ($(STACK_TEST_OPERATOR_VARIANT),ml)
+  STACK_TEST_SEED_EXTRAS := ml
+else ifeq ($(STACK_TEST_OPERATOR_VARIANT),cloud-thin)
+  STACK_TEST_SEED_EXTRAS := llm
+else
+  STACK_TEST_SEED_EXTRAS := __invalid__
+endif
+
 stack-test-seed:
 	@if [ ! -d config/ci/stack-test-seed ]; then \
 		echo "stack-test-seed: missing config/ci/stack-test-seed/ (need feeds.spec.yaml + viewer_operator.yaml)"; \
 		exit 1; \
 	fi
+	@if [ "$(STACK_TEST_SEED_EXTRAS)" = "__invalid__" ]; then \
+		echo "stack-test-seed: STACK_TEST_OPERATOR_VARIANT must be 'ml' or 'cloud-thin' (got: $(STACK_TEST_OPERATOR_VARIANT))"; \
+		exit 1; \
+	fi
+	@echo "stack-test-seed: variant=$(STACK_TEST_OPERATOR_VARIANT) pipeline_install_extras=$(STACK_TEST_SEED_EXTRAS)"
 	@PODCAST_DOCKER_PROJECT_DIR=$(CURDIR) \
 		$(STACK_TEST_COMPOSE) run --rm -T --no-deps \
-			-v "$(PWD)/config/ci/stack-test-seed:/seed:ro" \
+			-v "$(CURDIR)/config/ci/stack-test-seed:/seed:ro" \
+			-e STACK_TEST_SEED_EXTRAS=$(STACK_TEST_SEED_EXTRAS) \
 			--entrypoint /bin/sh \
-			api -c 'set -e; mkdir -p /app/output; cp -f /seed/feeds.spec.yaml /seed/viewer_operator.yaml /app/output/; chown -R podcast:podcast /app/output 2>/dev/null || true; ls -la /app/output/'
+			api -c 'set -e; mkdir -p /app/output; cp -f /seed/feeds.spec.yaml /app/output/feeds.spec.yaml; cp -f /seed/viewer_operator.yaml /app/output/viewer_operator.yaml; printf "\npipeline_install_extras: %s\n" "$$STACK_TEST_SEED_EXTRAS" >> /app/output/viewer_operator.yaml; chown -R podcast:podcast /app/output 2>/dev/null || true; ls -la /app/output/'
 	@echo "stack-test-seed: OK"
 
 stack-test-up:
-	@STACK_PIPELINE_PRELOAD_ML=false \
+	@bash -c 'set -e; \
+		if [ -f .env ]; then set -a; . ./.env; set +a; fi; \
+		STACK_PIPELINE_PRELOAD_ML=false \
 		STACK_TEST_VIEWER_PORT=$${STACK_TEST_VIEWER_PORT:-8090} \
 		PODCAST_DOCKER_PROJECT_DIR=$(CURDIR) \
-		$(STACK_TEST_COMPOSE) up -d
+		$(STACK_TEST_COMPOSE) up -d'
 
 stack-test-down:
 	@$(STACK_TEST_COMPOSE) down $(if $(filter 1 true yes,$(STACK_TEST_DOWN_VOLUMES)),-v,)
 
 stack-test-playwright:
-	@cd tests/stack-test && npm install && npx playwright install firefox && STACK_TEST_BASE_URL=$${STACK_TEST_BASE_URL:-http://127.0.0.1:8090} npx playwright test
-
-# Stack-test (RFC-078 / RFC-079): local transcripts and Playwright artifacts belong under
-# ``STACK_TEST_LOG_DIR`` (default ``.stack-test/``). Prefer short basenames there
-# (``full-run.log``, ``ci-local-run.log``) — not ``.stack-test-*.log`` at repo root
-# or hidden ``.stack-test/.stack-test-*.log`` (redundant prefix).
-STACK_TEST_LOG_DIR ?= $(PWD)/.stack-test
-STACK_TEST_FULL_RUN_LOG ?= $(STACK_TEST_LOG_DIR)/full-run.log
-STACK_TEST_CI_LOCAL_LOG ?= $(STACK_TEST_LOG_DIR)/ci-local-run.log
-
-.PHONY: stack-test-log-dir stack-test-rename-legacy-logs stack-test-ci-local stack-test-ci-local-clean
-stack-test-log-dir:
-	@mkdir -p "$(STACK_TEST_LOG_DIR)" && printf '%s\n' "$(STACK_TEST_LOG_DIR)" && \
-		printf '  transcript defaults: %s\n  %s\n' "$(STACK_TEST_FULL_RUN_LOG)" "$(STACK_TEST_CI_LOCAL_LOG)"
-
-# Rename ``.stack-test/.stack-test-<stem>.log`` → ``.stack-test/<stem>.log`` (``mv -n``).
-stack-test-rename-legacy-logs:
-	@mkdir -p "$(STACK_TEST_LOG_DIR)"
-	@d="$(STACK_TEST_LOG_DIR)"; \
-	find "$$d" -maxdepth 1 -type f -name '.stack-test-*.log' 2>/dev/null | while IFS= read -r f; do \
-	  b=$$(basename "$$f" .log); \
-	  s=$${b#.stack-test-}; \
-	  dest="$$d/$$s.log"; \
-	  if mv -n "$$f" "$$dest" 2>/dev/null; then echo "renamed $$f -> $$dest"; else echo "skip: $$f"; fi; \
-	done; \
-	true
-
-stack-test-ci-local: stack-test-log-dir
-	@bash scripts/tools/run_stack_test_ci_local.sh $(STACK_TEST_CI_LOCAL_ARGS)
-
-stack-test-ci-local-clean: stack-test-log-dir
-	@STACK_TEST_CI_LOCAL_CLEAN_EXPORT=1 bash scripts/tools/run_stack_test_ci_local.sh $(STACK_TEST_CI_LOCAL_ARGS)
+	@cd tests/stack-test && npm install && ./node_modules/.bin/playwright install firefox && STACK_TEST_BASE_URL=$${STACK_TEST_BASE_URL:-http://127.0.0.1:8090} ./node_modules/.bin/playwright test
 
 # Vitest unit tests for TypeScript utility logic (no browser needed)
 test-ui:

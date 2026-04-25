@@ -291,6 +291,14 @@ def test_docker_jobs_factory_builds_compose_argv_and_spawns(
     assert str(tmp_path / "compose" / "extra.yml") in flat
     assert "--profile" in flat and "pipeline-llm" in flat
     assert "run" in flat and "-T" in flat and "--rm" in flat and "--no-deps" in flat
+    # Compose v2 resolves bind-mount sources relative to project-directory.
+    # Passing ``--project-directory <repo-root>`` would re-anchor the
+    # ``../<...>`` paths in our compose files one level above the repo —
+    # silent host-side mkdir, then the pipeline entrypoint fails its
+    # ``[ ! -f /app/config.yaml ]`` check. Letting Compose default the
+    # project directory to ``dirname(first -f)`` keeps the existing
+    # relative paths working.
+    assert "--project-directory" not in flat
     cli_i = flat.index("podcast_scraper.cli")
     assert flat[cli_i + 1 : cli_i + 3] == ["run", "--help"]
     assert kwargs["cwd"] == str(tmp_path)

@@ -163,10 +163,20 @@ async def _docker_jobs_factory(
     cmd: list[str] = ["docker", "compose"]
     for f in compose_files:
         cmd.extend(["-f", str(_resolve_compose_path(project, f))])
+    # Intentionally NOT passing ``--project-directory``. Compose v2 resolves
+    # bind-mount sources and build contexts relative to the project
+    # directory. When ``--project-directory`` is set explicitly to the repo
+    # root, ``../config/ci/foo.yaml`` in ``compose/docker-compose.*.yml``
+    # resolves to one level *above* the repo (silent host-side mkdir, then
+    # the pipeline entrypoint fails ``[ ! -f /app/config.yaml ]`` because
+    # the bind source is an empty directory). Letting Compose default the
+    # project directory to ``dirname(first -f)`` = ``<repo>/compose`` makes
+    # the existing relative paths (``../<...>``) resolve correctly to
+    # ``<repo>/<...>``. ``COMPOSE_PROJECT_NAME`` (set in the API
+    # ``environment:``) keeps the spawned container in the running stack's
+    # project regardless.
     cmd.extend(
         [
-            "--project-directory",
-            str(project),
             "--profile",
             profile,
             "run",

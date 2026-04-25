@@ -43,15 +43,21 @@ services:
       PODCAST_PIPELINE_EXEC_MODE: docker
       PODCAST_DOCKER_PROJECT_DIR: ${PODCAST_DOCKER_PROJECT_DIR:-..}
       PODCAST_DOCKER_COMPOSE_FILES: compose/docker-compose.stack.yml,compose/docker-compose.stack-test.yml
-      # Pin the compose project name so the API's nested ``docker
-      # compose run`` shares the running stack's network + volumes.
-      # Without this, ``--project-directory`` (added by the factory)
-      # makes compose derive a project name from the repo dirname
-      # (``podcast_scraper-autoresearch``), which is a *different*
-      # project than the one currently up (``compose`` — taken from
-      # the parent dir of the first ``-f`` file). The spawned
-      # pipeline would then get a fresh empty volume + no mock-feeds
-      # network reachability.
+      # Opt out of the entrypoint's privilege drop so the API server stays
+      # root and can talk to /var/run/docker.sock when its gid is 0 (macOS
+      # Docker Desktop). On Linux runners the socket usually has a non-zero
+      # gid and the entrypoint's group-fixup would handle it without this,
+      # but keeping it on for stack-test gives parity between macOS and CI.
+      PODCAST_KEEP_ROOT: "1"
+      # Belt-and-suspenders: pin the compose project name so the
+      # API's nested ``docker compose run`` always shares the running
+      # stack's network + volumes (``compose`` — same as the default
+      # the running stack picks up from the parent dir of the first
+      # ``-f`` file). The factory deliberately doesn't pass
+      # ``--project-directory`` (relative-path resolution would break
+      # — see ``server/pipeline_docker_factory.py``), so the default
+      # already lands on ``compose``; this env var keeps the contract
+      # explicit and forwards through any future refactor.
       COMPOSE_PROJECT_NAME: compose
     # Stack-test runs in **per-corpus** operator-config mode: each
     # corpus has its own ``viewer_operator.yaml`` next to
@@ -111,6 +117,10 @@ services:
       - ../tests/fixtures/rss/p01_fast_with_transcript.xml:/usr/share/nginx/html/p01_fast_with_transcript.xml:ro
       - ../tests/fixtures/rss/p01_episode_selection.xml:/usr/share/nginx/html/p01_episode_selection.xml:ro
       - ../tests/fixtures/audio:/usr/share/nginx/html/audio:ro
+      # Transcripts referenced by p01_fast_with_transcript / p01_episode_selection
+      # RSS fixtures (``<podcast:transcript>`` / itunes-style links) — the full UI
+      # flow spec drives a transcript-download fast path so Whisper isn't needed.
+      - ../tests/fixtures/transcripts:/usr/share/nginx/html/transcripts:ro
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- http://127.0.0.1/healthz || exit 1"]
       interval: 5s
@@ -118,22 +128,13 @@ services:
       retries: 5
       start_period: 3s
 
-  pipeline:
-    profiles: []
-    depends_on:
-      mock-feeds:
-        condition: service_healthy
-    volumes:
-      - corpus_data:/app/output
-      - ../tests/fixtures/rss:/app/fixtures/rss:ro
-      - ../config/ci/stack-test-config.yaml:/app/config.yaml:ro
-
-  pipeline-llm:
-    profiles: []
-    depends_on:
-      mock-feeds:
-        condition: service_healthy
-    volumes:
-      - corpus_data:/app/output
-      - ../tests/fixtures/rss:/app/fixtures/rss:ro
-      - ../config/ci/stack-test-config.yaml:/app/config.yaml:ro
+  # No ``pipeline`` / ``pipeline-llm`` overrides: stack-test runs the
+  # pipeline exclusively through the API job factory
+  # (``PODCAST_PIPELINE_EXEC_MODE=docker``), which spawns one-shot
+  # ``docker compose run --rm pipeline{,-llm}`` containers with operator
+  # ``--config`` / ``--feeds-spec`` / ``--profile`` driving config.
+  # Mock-feeds reachability is on the shared compose network (started by
+  # ``stack-test-up``); the factory uses ``--no-deps`` so per-job
+  # ``depends_on`` merging here would have no effect anyway. The two
+  # services keep the empty ``profiles: []`` declared in the base file
+  # so ``docker compose --profile pipeline run ...`` selects them.

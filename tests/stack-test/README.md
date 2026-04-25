@@ -1,41 +1,63 @@
 # Stack test (Playwright)
 
-Minimal checks against the **real** Nginx → FastAPI stack (not MSW mocks).
+Smoke + full UI flow against the **real** Nginx → FastAPI → mock-feeds stack — no MSW mocks. Validates the same compose stack a developer or operator runs in production.
 
-## Stack-test transcripts (local)
+## What runs
 
-When capturing a full ``run_stack_test_ci_local.sh`` / ``make stack-test-ci-local`` run, write logs **under** ``.stack-test/`` using **short basenames** (for example ``tee .stack-test/full-run.log`` or ``tee .stack-test/ci-local-run.log``). Avoid redundant names like ``.stack-test/.stack-test-full-run.log`` (leading dot + repeated prefix). Make exports ``STACK_TEST_FULL_RUN_LOG`` and ``STACK_TEST_CI_LOCAL_LOG`` (defaults under ``STACK_TEST_LOG_DIR``); run ``make stack-test-rename-legacy-logs`` once to rename existing ``.stack-test/.stack-test-*.log`` files. Avoid creating ``.stack-test-*.log`` at the repository root; those clutter the tree. Optional: ``STACK_TEST_LOG_DIR`` (defaults to ``<repo>/.stack-test``).
+Single Playwright run drives:
 
-## Stack contract (RFC-078 ↔ RFC-079 / #659)
+1. `stack-viewer.spec.ts` — Nginx serves the SPA shell, `/api/health` is reachable through the Nginx proxy, the corpus auto-loads, the runs-summary endpoint reports a non-zero run, and the graph canvas mounts.
+2. `stack-jobs-flow.spec.ts` — full UI flow: set corpus path, add a second feed via the Configuration dialog, select a profile and Save, click **Run pipeline job**, poll `/api/jobs` until the API factory's spawned `docker compose run pipeline` container reaches `succeeded`, then validate Library / Digest / Search / Graph against the produced artifacts.
 
-Stack-test uses **`compose/docker-compose.stack-test.yml`** over **`compose/docker-compose.stack.yml`**. For CI and local debugging, align with the full guide:
-
-- **`CONFIG_FILE`:** absolute path; `output_dir` must be **`/app/output`** (see `config/examples/docker-stack.example.yaml`).
-- **Ports:** stack-test viewer defaults to **8090** (`STACK_TEST_VIEWER_PORT` / `STACK_TEST_BASE_URL` for Playwright).
-- **Volumes:** pipeline writes to **`corpus_data`** (same named volume as the base stack); `make stack-test-export` copies to **`.stack-test-corpus/`** (or `STACK_TEST_EXPORT_DIR`).
-- **Docker-backed jobs:** optional `compose/docker-compose.jobs-docker.yml` — **#660**, not required for default stack-test.
-
-Canonical table: `docs/guides/DOCKER_SERVICE_GUIDE.md` § **RFC-079 backlog** → *Handoff to RFC-078 stack-test*.
+The pipeline runs as a one-shot container spawned by the API job factory (`PODCAST_PIPELINE_EXEC_MODE=docker`). The factory passes `--config <corpus>/viewer_operator.yaml --feeds-spec <corpus>/feeds.spec.yaml --profile <name>` to the CLI — no `/app/config.yaml` mount, no separate standalone CLI run.
 
 ## Local flow
 
-From the repository root, with Docker:
+Both variants run from the repo root with Docker Desktop. **`.env`** at the repo root is sourced into `make stack-test-up` so `OPENAI_API_KEY` / `GEMINI_API_KEY` propagate through Compose into the API container, then into spawned pipeline containers.
 
-1. `make stack-test-build`
-2. `make stack-test-run` — writes `.stack-test/pipeline.log`
-3. `make stack-test-assert-logs` — sanity-checks that log (no traceback, expects `Wrote corpus run summary`)
-4. `make stack-test-export` — copies `/app/output` from the **`corpus_data`** volume to **`.stack-test-corpus/`** (override dir: `STACK_TEST_EXPORT_DIR=...`)
-5. `make stack-test-assert-artifacts` — GIL/KG quality gates on **`STACK_TEST_CORPUS_ROOT`** (defaults to **`$(pwd)/.stack-test-corpus`**)
-6. `make stack-test-up` then `make stack-test-playwright` (defaults to `http://127.0.0.1:8090`)
+### Airgapped / ml — no cloud calls
 
-Override the base URL: `STACK_TEST_BASE_URL=http://127.0.0.1:8080 make stack-test-playwright`.
+```bash
+make stack-test-build                       # builds api + viewer + pipeline (ml)
+make stack-test-up
+make stack-test-seed                        # default STACK_TEST_OPERATOR_VARIANT=ml
+make stack-test-playwright                  # spec defaults to STACK_TEST_OPERATOR_PROFILE=airgapped_thin
+```
+
+### Cloud-thin / llm — local only (real Gemini + OpenAI Whisper costs)
+
+```bash
+make stack-test-build                       # builds the airgapped images first
+make stack-test-build-cloud                 # adds pipeline-llm ([llm] extras)
+make stack-test-up
+make stack-test-seed STACK_TEST_OPERATOR_VARIANT=cloud-thin
+STACK_TEST_OPERATOR_PROFILE=cloud_thin make stack-test-playwright
+```
+
+The cloud-thin path does **not** run on public CI (avoids recurring API costs). When `STACK_TEST_OPERATOR_PROFILE=cloud_thin`, the spec gracefully skips the populated-FAISS semantic-search assertion (`vector_search: false` in the profile) and instead asserts `/api/search` returns the structured `error: "no_index"` response.
+
+### Tear down
+
+```bash
+make stack-test-down                        # stop the stack, keep corpus_data
+make stack-test-down STACK_TEST_DOWN_VOLUMES=1   # also drop corpus_data
+```
+
+### Inspect artifacts after a run
+
+```bash
+make stack-test-export                      # copies corpus_data → ./.stack-test-corpus/
+```
 
 ## CI
 
-[`.github/workflows/stack-test.yml`](../../.github/workflows/stack-test.yml) runs the same
-Make sequence (build → pipeline → **assert-logs** → **export** → **assert-artifacts**
-→ stack up → Playwright) on path-filtered **`push` to `main`** and **`workflow_dispatch`**.
-Prerequisite stack work is tracked on GitHub [**#659**](https://github.com/chipi/podcast_scraper/issues/659) /
-[**#660**](https://github.com/chipi/podcast_scraper/issues/660) (both materialize [**RFC-079**](../../docs/rfc/RFC-079-full-stack-docker-compose.md)).
-Further stack-test CI changes (`workflow_run` after `python-app`, GHA BuildKit cache backends,
-merge-blocking policy) need **new GitHub issues** — [`RFC-078`](../../docs/rfc/RFC-078-ephemeral-acceptance-smoke-test.md) is **design only**, not a backlog.
+[`.github/workflows/stack-test.yml`](../../.github/workflows/stack-test.yml) runs the airgapped/ml variant on path-filtered `push` to `main` and `workflow_dispatch`. The workflow's sequence mirrors the local flow above (`stack-test-build` → `up` → `seed` → `playwright` → `down`). Cloud-thin is local-only.
+
+## Overrides
+
+- `STACK_TEST_BASE_URL` (default `http://127.0.0.1:8090`) — point Playwright at a different viewer host:port.
+- `STACK_TEST_OPERATOR_VARIANT` — `ml` (default) or `cloud-thin`. Picks `pipeline_install_extras` and which compose service the API factory spawns.
+- `STACK_TEST_OPERATOR_PROFILE` — packaged profile the spec selects via the Job Profile dialog. `airgapped_thin` (default for ml), `cloud_thin` for llm. Other profiles work but the test only special-cases vector_search behaviour.
+- `STACK_TEST_VIEWER_PORT` (default `8090`) — host port for the viewer.
+- `STACK_TEST_DOWN_VOLUMES` — set to `1` on `make stack-test-down` to also drop `corpus_data`.
+- `STACK_TEST_JOB_POLL_MS` (spec env) — tighten the `/api/jobs` poll interval (default 4000 ms).

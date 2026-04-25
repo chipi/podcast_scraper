@@ -126,13 +126,11 @@ config/manual/
 # CI-related local files under config/ci (optional stem lists, etc.); not committed
 config/ci/*
 !config/ci/README.md
-# Stack-test pipeline configs are mounted by
-# compose/docker-compose.stack-test.yml and consumed by CI, so they
-# must be tracked. ``stack-test-config.yaml`` is the airgapped-thin
-# default; ``stack-test-config.cloud-thin.yaml`` is the cloud-thin
-# variant (``make stack-test-run-cloud``).
-!config/ci/stack-test-config.yaml
-!config/ci/stack-test-config.cloud-thin.yaml
+# Stack-test seed lives at ``config/ci/stack-test-seed/`` and is consumed
+# by ``make stack-test-seed`` to populate the ``corpus_data`` volume
+# before the Playwright full UI flow runs.
+!config/ci/stack-test-seed/
+!config/ci/stack-test-seed/**
 
 # Experiments (local / ad-hoc configs)
 config/playground/

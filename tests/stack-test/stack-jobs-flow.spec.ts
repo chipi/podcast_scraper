@@ -70,6 +70,21 @@ function stackTestOperatorProfile(): string {
   return (process.env.STACK_TEST_OPERATOR_PROFILE ?? '').trim() || 'airgapped_thin'
 }
 
+/**
+ * Whether the active profile builds a local FAISS / sentence-transformers
+ * vector index during the pipeline run. ``cloud_thin`` opts out via
+ * ``vector_search: false`` — the API correctly returns
+ * ``error: "no_index"`` and the spec asserts that gracefully instead of
+ * the populated-index path. Profiles known to keep ``vector_search: true``
+ * (the default for the airgapped + cloud_balanced/quality presets) take
+ * the populated-index path.
+ */
+const STACK_TEST_NO_VECTOR_PROFILES: ReadonlySet<string> = new Set(['cloud_thin'])
+
+function stackTestProfileBuildsVectorIndex(): boolean {
+  return !STACK_TEST_NO_VECTOR_PROFILES.has(stackTestOperatorProfile())
+}
+
 /** Heartbeat so CI / local logs are not silent during long polls. */
 function stackTestProgress(msg: string): void {
   // eslint-disable-next-line no-console
@@ -375,52 +390,75 @@ async function validateCorpusDataLoadedAfterJob(
     await expect(page.getByTestId('episode-detail-rail-body')).toBeVisible({ timeout: 60_000 })
   }
 
-  stackTestProgress('post-job: semantic search UI (left panel) + results list')
-  await prepareSemanticSearchUi(page)
-  // Short query matches ``waitForSearchHits`` probes; long phrases can
-  // return 0 rows on tiny FAISS corpora.
-  const searchUiQuery = 'trails'
-  const searchRespPromise = page.waitForResponse(
-    (r) => {
-      if (r.request().method() !== 'GET') {
-        return false
-      }
-      let u: URL
-      try {
-        u = new URL(r.url())
-      } catch {
-        return false
-      }
-      if (!u.pathname.endsWith('/api/search')) {
-        return false
-      }
-      const qv = u.searchParams.get('q') ?? ''
-      return qv === searchUiQuery || decodeURIComponent(qv) === searchUiQuery
-    },
-    { timeout: 120_000 },
-  )
-  await page.locator('#search-q').fill(searchUiQuery)
-  // Submit lives **outside** ``<form id="semantic-search-form">``
-  // (``form="semantic-search-form"``), not inside it.
-  await page.locator('button[type="submit"][form="semantic-search-form"]').click()
-  const searchResp = await searchRespPromise
-  expect(searchResp.ok(), `GET /api/search UI response status ${searchResp.status()}`).toBeTruthy()
-  const searchJson = (await searchResp.json()) as { error?: string | null; results?: unknown[] }
-  expect(
-    searchJson.error,
-    `UI-driven GET /api/search should not set error (query=${JSON.stringify(searchUiQuery)})`,
-  ).toBeFalsy()
-  expect(
-    Array.isArray(searchJson.results) && searchJson.results.length > 0,
-    `UI search should return hits for ${JSON.stringify(searchUiQuery)} (got ${
-      Array.isArray(searchJson.results) ? searchJson.results.length : 'non-array'
-    })`,
-  ).toBeTruthy()
-  const resultsHost = page.getByTestId('semantic-search-results-scroll')
-  await expect(resultsHost.getByText(/\d+\s+results?/i).first()).toBeVisible({ timeout: 30_000 })
+  // Semantic search asserts only when the active profile builds a local
+  // vector index (airgapped_thin etc.). cloud_thin opts out via
+  // ``vector_search: false`` — the API correctly returns
+  // ``error: "no_index"`` and the UI shows a "no index" surface; both
+  // are valid stack-test outcomes for that profile.
+  const hasVector = stackTestProfileBuildsVectorIndex()
+  if (hasVector) {
+    stackTestProgress('post-job: semantic search UI (left panel) + results list')
+    await prepareSemanticSearchUi(page)
+    // Short query matches ``waitForSearchHits`` probes; long phrases can
+    // return 0 rows on tiny FAISS corpora.
+    const searchUiQuery = 'trails'
+    const searchRespPromise = page.waitForResponse(
+      (r) => {
+        if (r.request().method() !== 'GET') {
+          return false
+        }
+        let u: URL
+        try {
+          u = new URL(r.url())
+        } catch {
+          return false
+        }
+        if (!u.pathname.endsWith('/api/search')) {
+          return false
+        }
+        const qv = u.searchParams.get('q') ?? ''
+        return qv === searchUiQuery || decodeURIComponent(qv) === searchUiQuery
+      },
+      { timeout: 120_000 },
+    )
+    await page.locator('#search-q').fill(searchUiQuery)
+    // Submit lives **outside** ``<form id="semantic-search-form">``
+    // (``form="semantic-search-form"``), not inside it.
+    await page.locator('button[type="submit"][form="semantic-search-form"]').click()
+    const searchResp = await searchRespPromise
+    expect(searchResp.ok(), `GET /api/search UI response status ${searchResp.status()}`).toBeTruthy()
+    const searchJson = (await searchResp.json()) as { error?: string | null; results?: unknown[] }
+    expect(
+      searchJson.error,
+      `UI-driven GET /api/search should not set error (query=${JSON.stringify(searchUiQuery)})`,
+    ).toBeFalsy()
+    expect(
+      Array.isArray(searchJson.results) && searchJson.results.length > 0,
+      `UI search should return hits for ${JSON.stringify(searchUiQuery)} (got ${
+        Array.isArray(searchJson.results) ? searchJson.results.length : 'non-array'
+      })`,
+    ).toBeTruthy()
+    const resultsHost = page.getByTestId('semantic-search-results-scroll')
+    await expect(resultsHost.getByText(/\d+\s+results?/i).first()).toBeVisible({ timeout: 30_000 })
+  } else {
+    stackTestProgress(
+      `post-job: semantic search skipped — profile ${stackTestOperatorProfile()} has vector_search disabled (enriched_search_available=false)`,
+    )
+    // Sanity: API still answers /api/search with a structured no_index
+    // response (200 + ``error: "no_index"``), not a 5xx.
+    const res = await request.get('/api/search', { params: { q: 'trails', path: CORPUS } })
+    expect(res.ok(), `GET /api/search status ${res.status()} (no_index variant)`).toBeTruthy()
+    const body = (await res.json()) as { error?: string | null }
+    expect(
+      body.error,
+      'GET /api/search without index should report error=no_index, not crash',
+    ).toBe('no_index')
+  }
 
-  stackTestProgress('post-job: GET /api/search (FAISS + embeddings)')
-  await waitForSearchHits(request, 120_000)
+  if (hasVector) {
+    stackTestProgress('post-job: GET /api/search (FAISS + embeddings)')
+    await waitForSearchHits(request, 120_000)
+  }
 
   stackTestProgress('post-job: Graph tab — graph canvas (last: heaviest / gesture overlay)')
   await page.getByTestId('main-tab-graph').click()
@@ -529,6 +567,12 @@ async function waitForLatestJobSucceeded(
 
 test.describe('stack test — feeds UI + job + data', () => {
   test('configure mock feeds, run pipeline job, wait, evaluate', async ({ page, request }) => {
+    // The global config timeout (120s) is for fast smoke specs. This test
+    // drives a real pipeline job end-to-end (download → transcribe → GI/KG)
+    // for 4 episodes; ``waitForLatestJobSucceeded`` allows 800s (13 min) for
+    // the poll. Match that with margin for UI navigation + post-job asserts.
+    test.setTimeout(15 * 60 * 1000)
+
     const pageErrors: string[] = []
     page.on('pageerror', (err) => {
       pageErrors.push(err.message)

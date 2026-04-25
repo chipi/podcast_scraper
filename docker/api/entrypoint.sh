@@ -38,9 +38,29 @@ if [ "$(id -u)" = "0" ]; then
         fi
     fi
 
+    # Opt-in: keep running as root. Required only for stack-test on macOS
+    # Docker Desktop, where the host socket is root:root (gid 0) and the
+    # group-fixup above no-ops — running as podcast then can't reach the
+    # socket and ``PODCAST_PIPELINE_EXEC_MODE=docker`` jobs die with
+    # "permission denied while trying to connect to the docker API". The
+    # stack-test compose overlay sets this; production deployments leave
+    # it unset and drop privileges normally.
+    if [ "${PODCAST_KEEP_ROOT:-}" = "1" ]; then
+        # Even as root, set HOME explicitly so ``docker compose`` finds
+        # its config — root's HOME is /root by default, but the parent's
+        # HOME may have been inherited from elsewhere.
+        exec env HOME=/root "$@"
+    fi
+
     # Drop privileges. ``setpriv`` is in util-linux; fall back to ``su``.
+    # ``setpriv`` keeps the parent env intact — including HOME=/root — which
+    # breaks ``docker compose`` spawned by the API as the podcast user
+    # (Docker tries to read /root/.docker/config.json → EACCES → "unknown
+    # shorthand flag: 'f'" when the compose plugin path can't be loaded).
+    # Reset HOME to the podcast user's home so any spawned tool finds its
+    # config in the right place.
     if command -v setpriv >/dev/null 2>&1; then
-        exec setpriv --reuid=podcast --regid=podcast --init-groups "$@"
+        exec env HOME=/home/podcast setpriv --reuid=podcast --regid=podcast --init-groups "$@"
     else
         exec su -s /bin/sh -c 'exec "$0" "$@"' podcast -- "$@"
     fi

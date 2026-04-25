@@ -160,27 +160,22 @@ ENV PYTHONUNBUFFERED=1 \
     MKL_NUM_THREADS=1 \
     NUMEXPR_NUM_THREADS=1
 
-# Install only runtime dependencies
-# ffmpeg is only needed for local Whisper transcription (ML mode)
-# If using LLM-only mode, ffmpeg is not required
+# Install runtime dependencies. ffmpeg is needed in BOTH modes:
+#   - ml: local Whisper transcription decodes mp3/m4a → 16k mono.
+#   - llm/cloud-thin: ``preprocessing_enabled: true`` in the cloud
+#     profiles still runs client-side audio normalization (loudness +
+#     silence trim + bitrate) before uploading to the cloud STT API,
+#     so ffmpeg is required there too. Earlier versions skipped it for
+#     LLM-only and stack-test cloud-thin runs failed with ``ffmpeg is
+#     not installed or not in PATH``.
 ARG INSTALL_EXTRAS
-# Upgrade base image packages first (e.g. libtiff CVEs flagged by Snyk) before adding deps.
-RUN if [ -n "$INSTALL_EXTRAS" ] && [ "$INSTALL_EXTRAS" = "ml" ]; then \
-        apt-get update && \
-        apt-get upgrade -y --no-install-recommends && \
-        apt-get install -y --no-install-recommends \
-            ffmpeg \
-            supervisor && \
-        apt-get clean && \
-        rm -rf /var/lib/apt/lists/*; \
-    else \
-        apt-get update && \
-        apt-get upgrade -y --no-install-recommends && \
-        apt-get install -y --no-install-recommends \
-            supervisor && \
-        apt-get clean && \
-        rm -rf /var/lib/apt/lists/*; \
-    fi
+RUN apt-get update && \
+    apt-get upgrade -y --no-install-recommends && \
+    apt-get install -y --no-install-recommends \
+        ffmpeg \
+        supervisor && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/*
 
 # Create non-root user for security
 # UID 1000 is a common convention for application users

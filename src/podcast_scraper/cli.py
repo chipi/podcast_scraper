@@ -2033,6 +2033,7 @@ def _load_and_merge_config(
         valid_dests
         | _config_yaml_allowed_top_level_keys()
         | config.DEPRECATED_CONFIG_TOP_LEVEL_KEYS
+        | config.OPERATOR_ONLY_TOP_LEVEL_KEYS  # e.g. pipeline_install_extras
         | {"profile"}  # Consumed by Config._resolve_profile before field validation
     )
     unknown_keys = [key for key in config_data.keys() if key not in valid_keys]

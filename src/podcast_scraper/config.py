@@ -590,6 +590,13 @@ GIL_EVIDENCE_ALIGN_SUMMARY_PROVIDERS: frozenset[str] = frozenset(
 # stripped or mapped in ``Config._handle_deprecated_fields``.
 DEPRECATED_CONFIG_TOP_LEVEL_KEYS: frozenset[str] = frozenset({"multi_feed_soft_fail_exit_zero"})
 
+# Operator-API-only top-level keys that may appear in ``viewer_operator.yaml``
+# alongside Config-shaped fields. The API uses them to decide pipeline routing
+# (e.g. which Docker compose service to spawn), but the pipeline CLI itself
+# has no use for them. Allowed past the unknown-keys gate, then silently
+# stripped in ``Config._handle_deprecated_fields`` before ``model_validate``.
+OPERATOR_ONLY_TOP_LEVEL_KEYS: frozenset[str] = frozenset({"pipeline_install_extras"})
+
 
 class Config(BaseModel):
     """Configuration model for podcast scraping pipeline.
@@ -2712,6 +2719,12 @@ class Config(BaseModel):
     def _handle_deprecated_fields(cls, data: Any) -> Any:
         """Handle deprecated field names for backward compatibility."""
         if isinstance(data, dict):
+            # Operator-API-only fields (see OPERATOR_ONLY_TOP_LEVEL_KEYS):
+            # tolerated for callers that pass ``viewer_operator.yaml`` directly
+            # to the pipeline CLI (Docker job factory), then stripped before
+            # Pydantic's ``extra="forbid"`` validates the rest.
+            for _op_key in OPERATOR_ONLY_TOP_LEVEL_KEYS:
+                data.pop(_op_key, None)
             if "multi_feed_soft_fail_exit_zero" in data and "multi_feed_strict" in data:
                 raise ValueError(
                     "Use only multi_feed_strict; remove deprecated multi_feed_soft_fail_exit_zero"
