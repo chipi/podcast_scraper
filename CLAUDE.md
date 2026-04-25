@@ -30,6 +30,7 @@
 - **Never** use `cd` to project root (already in workspace directory)
 - **Always** use correct GitHub username (check with `mcp_github_get_me`, not Mac username)
 - **Always** show terminal output for make/test commands (`is_background: false`)
+- **Don't truncate command output** with `| tail -N` (or `| head` / `| grep`-and-throw-away) when the user is waiting for a result. The harness can't stream Bash stdout live — they only see the output when the command exits, so truncating means they see less than they would have with no pipe at all. For genuinely long outputs, prefer a generous tail (`tail -100`) over a short one, or run in background and surface progress via an explicit summary. **Never** silently filter the command body the user asked you to run.
 - **Never** `git stash` during an active merge (destroys merge state and all conflict resolutions — see `.cursorrules` rules 4a–4c)
 - **Never** `git checkout <ref> -- <file>` during a merge (destroys resolved content; use `git show <ref>:<path>` to inspect)
 - **Never** overwrite local files with remote content without showing the diff and getting explicit approval (rule 4d)
