@@ -1222,6 +1222,53 @@ describe('toCytoElements with enableAggregatedEdges (RFC-080 V1)', () => {
       .map((e) => e.data.id as string)
     expect(ids).toContain('about_agg:episode:e1->t:1')
   })
+
+  // RFC-080 V3 — Episode nodes carry `publishDate` (Unix ms) and
+  // Insight/Quote nodes carry `episodeId` so the timeline layout can
+  // park children near their parent without a neighbourhood walk.
+  it('attaches publishDate (Unix ms) on Episode nodes when publish_date is parseable', () => {
+    const art = parseArtifact('p.gi.json', {
+      episode_id: 'e1',
+      model_version: 'm',
+      prompt_version: 'v',
+      nodes: [
+        {
+          id: 'episode:e1',
+          type: 'Episode',
+          properties: { title: 'E1', publish_date: '2026-04-17T00:00:00Z' },
+        },
+      ],
+      edges: [],
+    })
+    const ep = toCytoElements(art).find((e) => e.data.id === 'episode:e1')
+    const pd = (ep?.data as { publishDate?: number }).publishDate
+    expect(typeof pd).toBe('number')
+    expect(pd).toBe(Date.parse('2026-04-17T00:00:00Z'))
+  })
+
+  it('omits publishDate when publish_date is missing or unparseable', () => {
+    const art = parseArtifact('np.gi.json', {
+      episode_id: 'e1',
+      model_version: 'm',
+      prompt_version: 'v',
+      nodes: [
+        { id: 'episode:e1', type: 'Episode', properties: {} },
+        { id: 'episode:e2', type: 'Episode', properties: { publish_date: 'not-a-date' } },
+      ],
+      edges: [],
+    })
+    const elems = toCytoElements(art)
+    expect((elems.find((e) => e.data.id === 'episode:e1')?.data as { publishDate?: number }).publishDate).toBeUndefined()
+    expect((elems.find((e) => e.data.id === 'episode:e2')?.data as { publishDate?: number }).publishDate).toBeUndefined()
+  })
+
+  it('attaches episodeId on Insight/Quote nodes when properties.episode_id is set', () => {
+    const elems = toCytoElements(v1Fixture())
+    const insight = elems.find((e) => e.data.id === 'i:e1-a')
+    const quote = elems.find((e) => e.data.id === 'q:e1-1')
+    expect((insight?.data as { episodeId?: string }).episodeId).toBe('episode:e1')
+    expect((quote?.data as { episodeId?: string }).episodeId).toBe('episode:e1')
+  })
 })
 
 describe('applyGraphFilters topic cluster pruning', () => {

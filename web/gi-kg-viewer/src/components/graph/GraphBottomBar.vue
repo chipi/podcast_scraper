@@ -111,6 +111,7 @@ const layoutCycleTitle = computed(() => {
     breadthfirst: 'Breadthfirst',
     circle: 'Circle',
     grid: 'Grid',
+    timeline: 'Timeline (date axis)',
   }
   const order = [...GRAPH_LAYOUT_CYCLE_ORDER]
   const cur = props.preferredLayout

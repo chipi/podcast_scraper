@@ -3,14 +3,19 @@ import { ref } from 'vue'
 import { localYmdDaysAgo } from '../utils/localCalendarDate'
 import { useCorpusLensStore } from './corpusLens'
 
-export type GraphLayoutName = 'cose' | 'breadthfirst' | 'circle' | 'grid'
+export type GraphLayoutName = 'cose' | 'breadthfirst' | 'circle' | 'grid' | 'timeline'
 
-/** Order for the graph layout cycle control (toolbar / bottom bar). */
+/**
+ * Order for the graph layout cycle control (toolbar / bottom bar).
+ * `timeline` is the RFC-080 V3 entry — Episodes spread on the date
+ * axis (quantile-mapped); see `cyTimelineLayout.ts`.
+ */
 export const GRAPH_LAYOUT_CYCLE_ORDER: readonly GraphLayoutName[] = [
   'cose',
   'breadthfirst',
   'circle',
   'grid',
+  'timeline',
 ] as const
 
 export const useGraphExplorerStore = defineStore('graphExplorer', () => {

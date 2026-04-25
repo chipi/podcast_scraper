@@ -1330,6 +1330,24 @@ export function toCytoElements(
       type: n.group,
       recencyWeight: recencyWeightFromPublishMs(publishMs),
     }
+    // RFC-080 V3 — surface publishDate (Unix ms) on Episode nodes so
+    // cyTimelineLayout can read `n.data('publishDate')` directly. Set
+    // only when finite to keep the missing-date branch in the timeline
+    // helper deterministic (typeof check there is `=== 'number'`).
+    if (String(raw?.type) === 'Episode' && typeof publishMs === 'number' && Number.isFinite(publishMs)) {
+      data.publishDate = publishMs
+    }
+    // RFC-080 V3 — surface `episodeId` on Insight/Quote nodes so the
+    // timeline layout can park children near their parent without
+    // walking neighbours. Falls back to a neighbourhood walk in the
+    // layout helper when this isn't set (legacy artifacts).
+    const rawType = String(raw?.type ?? '')
+    if (rawType === 'Insight' || rawType === 'Quote') {
+      const eid = (raw?.properties as Record<string, unknown> | undefined)?.episode_id
+      if (typeof eid === 'string' && eid.trim()) {
+        data.episodeId = `episode:${eid.trim()}`
+      }
+    }
     if (n.parent) {
       data.parent = n.parent
     }

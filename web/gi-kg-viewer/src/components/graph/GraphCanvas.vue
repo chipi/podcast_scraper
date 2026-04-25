@@ -49,6 +49,13 @@ import {
   type RadialSnapshot,
 } from '../../utils/cyRadialLayout'
 import {
+  computeEpisodeTimelinePositions,
+  deterministicJitter,
+  weightedMeanXFromEpisodes,
+  type TimelineEpisodeInput,
+  type TimelinePosition,
+} from '../../utils/cyTimelineLayout'
+import {
   graphNodeExpandableForCrossEpisodeExpand,
   syncCrossEpisodeExpandNodeClasses,
 } from '../../utils/graphCrossEpisodeExpand'
@@ -777,7 +784,123 @@ function layoutOptionsFor(name: string): Record<string, unknown> {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     return giKgCoseLayout.giKgCoseLayoutOptionsMainFallback() as any
   }
+  // 'timeline' is handled by `timelineLayoutSpec(core)` at the caller —
+  // it needs the live Cytoscape collection to read publishDate +
+  // walk edges for Topic/Person band placement; layoutOptionsFor
+  // doesn't have access to the eles. Returning a no-op spec here
+  // would be wrong; the dispatch call sites special-case it.
   return { name, padding: 36 }
+}
+
+const TIMELINE_TOPIC_BAND_OFFSET = 100
+const TIMELINE_PERSON_BAND_OFFSET = -180
+const TIMELINE_INSIGHT_OFFSET = 30
+const TIMELINE_QUOTE_OFFSET = -30
+const TIMELINE_DEFAULT_X = 0
+
+/** RFC-080 V3 — count of Episodes parked at the missing-date spot in the
+ * last applied timeline layout. Surfaced via the bottom-bar lens menu (or
+ * a quiet inline note) once that UI lands; until then, devs can read it
+ * via Vue devtools. */
+const timelineMissingDateCount = ref(0)
+
+/** Build a Cytoscape layout spec for the timeline lens. Reads
+ * publishDate (Unix ms) from Episode node data, computes quantile
+ * positions (default axis), then propagates Topic / Person / Insight /
+ * Quote positions via weighted-mean of connected episodes (RFC-080 V3).
+ *
+ * Returns `{ name: 'preset', positions, padding }` ready to hand to
+ * `eles.layout(spec)`. Empty / no-Episode collections fall back to a
+ * grid layout so the canvas still renders cleanly.
+ */
+function timelineLayoutSpec(core: Core): Record<string, unknown> {
+  const episodeNodes = core.nodes('node[type = "Episode"]')
+  if (episodeNodes.empty()) {
+    return { name: 'grid', padding: 36 }
+  }
+
+  const containerEl = container.value
+  const canvasWidth = Math.max(600, containerEl?.clientWidth ?? 1000)
+  const canvasMidY = Math.max(200, (containerEl?.clientHeight ?? 600) / 2)
+  const geometry = {
+    canvasWidth,
+    canvasMidY,
+    jitterRange: 40,
+  }
+
+  const episodeInputs: TimelineEpisodeInput[] = []
+  episodeNodes.forEach((n) => {
+    const raw = n.data('publishDate')
+    const dateMs = typeof raw === 'number' && Number.isFinite(raw) ? raw : null
+    episodeInputs.push({ id: n.id(), dateMs })
+  })
+  const { positions: episodePositions, missingDateIds } =
+    computeEpisodeTimelinePositions(episodeInputs, geometry, 'quantile')
+  timelineMissingDateCount.value = missingDateIds.length
+
+  const positions: Record<string, TimelinePosition> = { ...episodePositions }
+
+  // Topic / Person / Entity_* nodes — weighted mean of connected
+  // episode x-positions; band offset by node type so the spine stays
+  // visually distinct.
+  const placeBand = (selector: string, bandOffset: number): void => {
+    core.nodes(selector).forEach((n) => {
+      const connectedXs: number[] = []
+      n.neighborhood('node[type = "Episode"]').forEach((e) => {
+        const p = positions[e.id()]
+        if (p) connectedXs.push(p.x)
+      })
+      const meanX = weightedMeanXFromEpisodes(connectedXs)
+      const x = meanX ?? TIMELINE_DEFAULT_X
+      const y = canvasMidY + bandOffset + deterministicJitter(n.id(), 30)
+      positions[n.id()] = { x, y }
+    })
+  }
+  placeBand('node[type = "Topic"]', TIMELINE_TOPIC_BAND_OFFSET)
+  placeBand('node[type = "TopicCluster"]', TIMELINE_TOPIC_BAND_OFFSET)
+  placeBand('node[type = "Entity_person"]', TIMELINE_PERSON_BAND_OFFSET)
+  placeBand('node[type = "Entity_organization"]', TIMELINE_PERSON_BAND_OFFSET)
+
+  // Insights / Quotes ride near their parent Episode (small signed
+  // offset so children don't all land on the parent's exact (x, y)).
+  const placeChildren = (selector: string, yOffset: number): void => {
+    core.nodes(selector).forEach((n) => {
+      const eid = String(n.data('episodeId') ?? '').trim()
+      const epPos = eid ? positions[eid] : undefined
+      if (epPos) {
+        positions[n.id()] = {
+          x: epPos.x + deterministicJitter(n.id(), 20),
+          y: epPos.y + yOffset + deterministicJitter(n.id(), 15),
+        }
+        return
+      }
+      // Fall back to a connected-Episode walk if data.episodeId
+      // wasn't set (legacy artifacts).
+      const connectedXs: number[] = []
+      n.neighborhood('node[type = "Episode"]').forEach((e) => {
+        const p = positions[e.id()]
+        if (p) connectedXs.push(p.x)
+      })
+      const meanX = weightedMeanXFromEpisodes(connectedXs)
+      const x = meanX ?? TIMELINE_DEFAULT_X
+      positions[n.id()] = {
+        x,
+        y: canvasMidY + yOffset + deterministicJitter(n.id(), 15),
+      }
+    })
+  }
+  placeChildren('node[type = "Insight"]', TIMELINE_INSIGHT_OFFSET)
+  placeChildren('node[type = "Quote"]', TIMELINE_QUOTE_OFFSET)
+
+  return {
+    name: 'preset',
+    fit: true,
+    padding: 60,
+    positions: (n: NodeSingular) => {
+      const p = positions[n.id()]
+      return p ? { x: p.x, y: p.y } : { x: TIMELINE_DEFAULT_X, y: canvasMidY }
+    },
+  }
 }
 
 type CyModelPosition = { x: number; y: number }
@@ -1799,13 +1922,15 @@ function runRelayout(): void {
 
   pendingViewportPreserve = captureSelectedViewportAnchor(c)
   const name = preferredLayout.value
-  const opts = layoutOptionsFor(name)
+  // RFC-080 V3: timeline reads cy node data (publishDate, episodeId)
+  // so it builds its preset spec live; other layouts use static opts.
+  const layoutSpec =
+    name === 'timeline'
+      ? timelineLayoutSpec(c)
+      : { ...layoutOptionsFor(name), name }
   let lo: { stop: () => void; one: (ev: string, fn: () => void) => void; run: () => void }
   try {
-    lo = eles.layout({
-      ...opts,
-      name,
-    } as never) as typeof lo
+    lo = eles.layout(layoutSpec as never) as typeof lo
   } catch {
     releaseGraphCanvasLayoutHold()
     return
@@ -1929,6 +2054,10 @@ function redraw(): void {
     el.innerHTML = ''
     applyGraphCanvasImmediateHide(el)
     const layoutName = preferredLayout.value
+    // RFC-080 V3 — timeline computes per-node positions from live cy
+    // data, so it returns a self-contained spec (`{ name: 'preset',
+    // positions, ... }`). For other layouts the caller still spreads
+    // `name` over the static opts.
     const layoutOpts = layoutOptionsFor(layoutName)
     const core = cytoscape({
       container: el,
@@ -1966,10 +2095,11 @@ function redraw(): void {
         })
       : core.elements()
     try {
-      initialLo = layoutCollection.layout({
-        ...layoutOpts,
-        name: layoutName,
-      } as never) as typeof initialLo
+      const initialSpec =
+        layoutName === 'timeline'
+          ? timelineLayoutSpec(core)
+          : { ...layoutOpts, name: layoutName }
+      initialLo = layoutCollection.layout(initialSpec as never) as typeof initialLo
     } catch {
       cy = null
       try {
@@ -2691,6 +2821,18 @@ defineExpose({
           class="pointer-events-none absolute right-2 top-2 z-[4] rounded border border-border/70 bg-surface/95 px-2 py-0.5 text-[10px] font-medium text-surface-foreground shadow-sm"
         >
           Radial · Esc to exit
+        </div>
+        <!-- RFC-080 V3 — timeline lens missing-date marker. Surfaces the
+             count of episodes parked at the leftmost spot so users see
+             the "no date" pile isn't a layout glitch. -->
+        <div
+          v-if="preferredLayout === 'timeline' && timelineMissingDateCount > 0"
+          data-testid="graph-timeline-missing-date"
+          class="pointer-events-none absolute bottom-2 left-2 z-[4] rounded border border-border/70 bg-surface/95 px-2 py-0.5 text-[10px] text-muted shadow-sm"
+        >
+          {{ timelineMissingDateCount }}
+          {{ timelineMissingDateCount === 1 ? 'episode has' : 'episodes have' }}
+          no date (parked at left)
         </div>
         <GraphGestureOverlay
           ref="gestureOverlayRef"
