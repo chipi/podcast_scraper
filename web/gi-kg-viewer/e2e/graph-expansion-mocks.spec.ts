@@ -318,7 +318,8 @@ async function dblclickCyNode(page: Page, nodeId: string): Promise<void> {
   // Two sequential taps (gap) fire ``dbltap`` more reliably than ``clickCount: 2`` on Firefox when
   // ``onetap`` opens the rail — a single compound click can miss the canvas on the second hit.
   await canvas.click({ position: { x: pos!.x, y: pos!.y }, delay: 35 })
-  await page.waitForTimeout(120)
+  // Wider gap than Cytoscape ``dbltap`` threshold: nightly / Firefox CI can starve rAF under load.
+  await page.waitForTimeout(220)
   await canvas.click({ position: { x: pos!.x, y: pos!.y }, delay: 35 })
 }
 
@@ -352,7 +353,7 @@ async function shiftDblclickCyNode(page: Page, nodeId: string): Promise<void> {
     delay: 35,
     modifiers: ['Shift'],
   })
-  await page.waitForTimeout(120)
+  await page.waitForTimeout(220)
   await canvas.click({
     position: { x: pos!.x, y: pos!.y },
     delay: 35,
@@ -376,6 +377,19 @@ async function gotoGraphWithMockCorpus(page: Page): Promise<void> {
   await page.getByRole('button', { name: 'Fit' }).waitFor({ state: 'visible', timeout: 30_000 })
   await expect(page.locator('.graph-canvas')).toBeVisible()
   await dismissGraphGestureOverlayIfPresent(page)
+  await expect
+    .poll(async () =>
+      page.evaluate(() => {
+        const cy = (window as unknown as { __GIKG_CY_DEV__?: import('cytoscape').Core }).__GIKG_CY_DEV__
+        if (!cy) return 0
+        const n = cy.$id('topic:ci-policy')
+        if (n.empty() || typeof n.isNode !== 'function' || !n.isNode()) return 0
+        return n.degree()
+      }),
+    )
+    .toBeGreaterThan(1, { timeout: 30_000 })
+  // ``scheduleNodeEpisodesCorpusBeyondProbes`` debounces at 400ms; avoid expand racing in-flight POST.
+  await page.waitForTimeout(500)
 }
 
 test.describe('Graph expansion (mocked API)', () => {
