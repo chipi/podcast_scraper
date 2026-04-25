@@ -179,6 +179,8 @@ number, file, line, date, and a short comment.
 | 1 | #244–#297 | ``atomic_write.py``, ``feeds_spec.py``, ``corpus_catalog.py``, ``corpus_text_file.py``, ``routes/feeds.py``, ``routes/jobs.py``, ``routes/operator_config.py`` | various | 2026-04-21 | PR #649 ``py/path-injection`` batch on ``refs/pull/649/merge``; Type 1 false positives (resolve_corpus_path_param / ``normpath_if_under_root`` / ``safe_relpath_under_corpus_root`` / ``_verified_operator_config_path`` / trusted callers); dismissed via ``gh api …/code-scanning/alerts/{n}`` |
 | 1 | #304 | server/operator_paths.py | 50 | 2026-04-24 | Type 1: ``candidate_s`` from ``safe_fixed_file_under_root`` before ``isfile``; CodeQL cross-function taint gap; dismissed ``gh api`` (PR #666) |
 | 1 | #305 | server/jobs_log_path.py | 74 | 2026-04-24 | Type 1: ``log_path`` from ``normpath_if_under_root`` after ``safe_relpath_under_corpus_root`` before ``isfile``; dismissed ``gh api`` (PR #666) |
+| 1 | #306 | server/routes/corpus_library.py | 395 | 2026-04-25 | Type 1: ``root`` sanitized via ``_resolve_corpus_root`` → ``resolve_corpus_path_param`` (normpath+startswith anchor); ``.resolve()`` on the already-anchored path. Dismissed ``gh api`` (PR #675) |
+| 1 | #307 | server/routes/corpus_library.py | 401 | 2026-04-25 | Type 1: ``target = os.path.normpath(os.path.join(root_s, bridge_relative_path))`` followed by inline ``target.startswith(root_s + os.sep)`` prefix-guard before ``open()``. Dismissed ``gh api`` (PR #675) |
 
 ## Still open (not yet dismissed)
 
