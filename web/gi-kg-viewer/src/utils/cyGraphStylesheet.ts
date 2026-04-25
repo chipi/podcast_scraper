@@ -233,6 +233,14 @@ export function buildGiKgCyStylesheet(options?: {
   nodeLabelPlacement?: GiKgNodeLabelPlacement
   /** When true, skip opacity transition (matches `prefers-reduced-motion: reduce`). */
   prefersReducedMotion?: boolean
+  /**
+   * RFC-080 V5 — when true, Topic + Episode `width`/`height` become
+   * `mapData(degreeHeat, 0, 1, …)` so high-degree nodes are visually
+   * larger. Off by default (RFC rollout: validate on staging corpus
+   * before promoting). The existing `degreeHeat` border signal stays as
+   * a secondary cue.
+   */
+  enableNodeSizeByDegree?: boolean
 }): Record<string, unknown>[] {
   const compact = Boolean(options?.compact)
   const nw = scaledNodeSize('Episode', compact)
@@ -306,15 +314,30 @@ export function buildGiKgCyStylesheet(options?: {
     },
   ]
 
+  const sizeByDegree = Boolean(options?.enableNodeSizeByDegree)
   for (const t of VISUAL_TYPES) {
     const side = scaledNodeSize(t, compact)
+    const baseStyle: Record<string, unknown> = {
+      'background-color': graphNodeFill(t),
+      width: side,
+      height: side,
+    }
+    // RFC-080 V5: scale Topic + Episode width/height by `degreeHeat`.
+    // Other types stay fixed because their degree distribution is
+    // narrow (Quote / Speaker etc.). Cap the upper bound at the smaller
+    // of (1.5× base, 12% of viewport) so 60px Topics don't dominate
+    // mobile viewports — the canvasWidth clamp lives in GraphCanvas
+    // when it sets `degreeHeat`. The values here pick a reasonable
+    // bounded range based on the existing fixed sizes.
+    if (sizeByDegree && (t === 'Topic' || t === 'Episode')) {
+      const lo = Math.round(side * 0.7)
+      const hi = Math.round(side * 1.5)
+      baseStyle.width = `mapData(degreeHeat, 0, 1, ${lo}, ${hi})`
+      baseStyle.height = `mapData(degreeHeat, 0, 1, ${lo}, ${hi})`
+    }
     style.push({
       selector: `node[type = "${t}"]`,
-      style: {
-        'background-color': graphNodeFill(t),
-        width: side,
-        height: side,
-      },
+      style: baseStyle,
     })
   }
 
@@ -322,6 +345,27 @@ export function buildGiKgCyStylesheet(options?: {
     selector: 'node[type = "Insight"]',
     style: {
       'background-opacity': (ele: NodeSingular) => insightBackgroundOpacity(ele),
+    },
+  })
+
+  // RFC-080 V2 — Insight grounding + confidence tier hooks. These rules
+  // are always present in the stylesheet but only fire when the
+  // matching class is assigned at element-build time
+  // (`toCytoElements`). Tier classes are stylesheet hooks for future
+  // selectors (e.g. "hide low-confidence" filters); they don't override
+  // the existing `confidenceOpacity` mapping that drives
+  // `background-opacity`. The ungrounded dashed border draws attention
+  // to `grounded: false` insights without disturbing opacity. The
+  // `.search-hit` selector pushed later in this stylesheet wins on
+  // border styling when both apply (same-property override by source
+  // order).
+  style.push({
+    selector: 'node[type = "Insight"].insight-ungrounded',
+    style: {
+      'border-width': compact ? 1.25 : 1.5,
+      'border-style': 'dashed',
+      'border-color': 'var(--ps-warning, #f59f00)',
+      'border-opacity': 0.7,
     },
   })
 

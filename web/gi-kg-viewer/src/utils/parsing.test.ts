@@ -24,6 +24,8 @@ import {
   nodeLabel,
   primaryTextFromLooseGiNode,
   parseArtifact,
+  confidenceTierFromInsightProperties,
+  isInsightUngrounded,
   toCytoElements,
   toGraphElements,
 } from './parsing'
@@ -935,6 +937,88 @@ describe('toCytoElements', () => {
     const elems = toCytoElements(art)
     const hit = elems.find((e) => e.data.id === first!.id)
     expect(hit?.data.parent).toBe('tc:test')
+  })
+
+  // RFC-080 V2 — Insight grounding + confidence tier classes are
+  // attached at element-build time so the stylesheet can hook them
+  // (insight-confidence-high|medium|low + insight-ungrounded). Legacy
+  // insights without confidence get no tier class — the default
+  // Insight styling still applies.
+  it('attaches insight-ungrounded class when grounded is false', () => {
+    const art: ParsedArtifact = {
+      ...parsedGi(),
+    }
+    const elems = toCytoElements(art)
+    const ungroundedInsight = elems.find((e) => e.data.id === 'i2')
+    expect(ungroundedInsight?.classes).toMatch(/\binsight-ungrounded\b/)
+  })
+
+  it('omits insight-ungrounded class when grounded is true or missing', () => {
+    const elems = toCytoElements(parsedGi())
+    const groundedInsight = elems.find((e) => e.data.id === 'i1')
+    expect(groundedInsight?.classes ?? '').not.toMatch(/insight-ungrounded/)
+  })
+
+  it('attaches confidence tier class based on properties.confidence buckets', () => {
+    const buildArt = (insightConf: number | undefined): ParsedArtifact =>
+      parseArtifact('ep.gi.json', {
+        episode_id: 'ep1',
+        model_version: 'm',
+        prompt_version: 'v',
+        nodes: [
+          {
+            id: 'i:tier',
+            type: 'Insight',
+            properties: insightConf == null
+              ? { text: 'no conf', episode_id: 'ep1' }
+              : { text: 't', episode_id: 'ep1', confidence: insightConf },
+          },
+        ],
+        edges: [],
+      })
+    const high = toCytoElements(buildArt(0.85)).find((e) => e.data.id === 'i:tier')
+    const med = toCytoElements(buildArt(0.5)).find((e) => e.data.id === 'i:tier')
+    const low = toCytoElements(buildArt(0.2)).find((e) => e.data.id === 'i:tier')
+    const none = toCytoElements(buildArt(undefined)).find((e) => e.data.id === 'i:tier')
+    expect(high?.classes).toMatch(/insight-confidence-high/)
+    expect(med?.classes).toMatch(/insight-confidence-medium/)
+    expect(low?.classes).toMatch(/insight-confidence-low/)
+    // Legacy artifacts (no confidence): no tier class assigned.
+    expect(none?.classes ?? '').not.toMatch(/insight-confidence-/)
+  })
+})
+
+describe('confidenceTierFromInsightProperties (RFC-080 V2)', () => {
+  it('buckets confidence at the documented thresholds', () => {
+    expect(confidenceTierFromInsightProperties({ confidence: 1.0 })).toBe('high')
+    expect(confidenceTierFromInsightProperties({ confidence: 0.7 })).toBe('high')
+    expect(confidenceTierFromInsightProperties({ confidence: 0.69 })).toBe('medium')
+    expect(confidenceTierFromInsightProperties({ confidence: 0.4 })).toBe('medium')
+    expect(confidenceTierFromInsightProperties({ confidence: 0.39 })).toBe('low')
+    expect(confidenceTierFromInsightProperties({ confidence: 0 })).toBe('low')
+  })
+
+  it('parses stringified numeric confidence', () => {
+    expect(confidenceTierFromInsightProperties({ confidence: '0.8' })).toBe('high')
+  })
+
+  it('returns null for missing / non-finite confidence', () => {
+    expect(confidenceTierFromInsightProperties(undefined)).toBeNull()
+    expect(confidenceTierFromInsightProperties({})).toBeNull()
+    expect(confidenceTierFromInsightProperties({ confidence: 'abc' })).toBeNull()
+    expect(confidenceTierFromInsightProperties({ confidence: NaN })).toBeNull()
+  })
+})
+
+describe('isInsightUngrounded (RFC-080 V2)', () => {
+  it('returns true only when grounded === false', () => {
+    expect(isInsightUngrounded({ grounded: false })).toBe(true)
+    expect(isInsightUngrounded({ grounded: true })).toBe(false)
+    // Missing / null / non-boolean → grounded by default (no warning border
+    // for legacy artifacts predating the field).
+    expect(isInsightUngrounded({})).toBe(false)
+    expect(isInsightUngrounded(undefined)).toBe(false)
+    expect(isInsightUngrounded({ grounded: null as unknown as boolean })).toBe(false)
   })
 })
 

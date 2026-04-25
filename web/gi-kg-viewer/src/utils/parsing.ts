@@ -340,6 +340,45 @@ function confidenceOpacityFromInsightProperties(
   return 0.5 + conf * 0.5
 }
 
+/**
+ * Map an Insight's raw confidence to a coarse tier class. Tiers exist as
+ * stylesheet hooks so future selectors (e.g. "hide all low-confidence")
+ * can target them directly without recomputing thresholds. Returns
+ * `null` when confidence is missing / non-finite — callers omit the
+ * class so the default Insight styling applies.
+ *
+ * Bucket thresholds match the planned RFC-080 V2 stylesheet:
+ *   high   ≥ 0.7
+ *   medium ≥ 0.4
+ *   low    < 0.4
+ */
+export function confidenceTierFromInsightProperties(
+  properties: Record<string, unknown> | undefined,
+): 'high' | 'medium' | 'low' | null {
+  const raw = properties?.confidence
+  let c = Number.NaN
+  if (typeof raw === 'number') {
+    c = raw
+  } else if (typeof raw === 'string' && raw.trim()) {
+    c = Number(raw)
+  }
+  if (!Number.isFinite(c)) return null
+  if (c >= 0.7) return 'high'
+  if (c >= 0.4) return 'medium'
+  return 'low'
+}
+
+/**
+ * Insight is "ungrounded" when its raw `grounded` property is explicitly
+ * `false`. Treats missing / null / non-boolean as grounded so legacy
+ * artifacts predating the field don't all light up with warning borders.
+ */
+export function isInsightUngrounded(
+  properties: Record<string, unknown> | undefined,
+): boolean {
+  return properties?.grounded === false
+}
+
 export function buildNodeTitle(n: RawGraphNode): string {
   try {
     const disp = nodeLabel(n)
@@ -1124,10 +1163,20 @@ export function toCytoElements(art: ParsedArtifact): import('cytoscape').Element
     if (n.parent) {
       data.parent = n.parent
     }
+    const elem: import('cytoscape').ElementDefinition = { data }
     if (String(raw?.type) === 'Insight') {
       data.confidenceOpacity = confidenceOpacityFromInsightProperties(raw?.properties)
+      // RFC-080 V2: tier + grounding classes for stylesheet hooks. Tiers
+      // are coarse buckets a future "hide low-confidence" filter can
+      // toggle. Ungrounded paints a dashed warning border without
+      // disturbing the existing opacity signal.
+      const classes: string[] = []
+      const tier = confidenceTierFromInsightProperties(raw?.properties)
+      if (tier) classes.push(`insight-confidence-${tier}`)
+      if (isInsightUngrounded(raw?.properties)) classes.push('insight-ungrounded')
+      if (classes.length) elem.classes = classes.join(' ')
     }
-    return { data }
+    return elem
   })
   const edges: import('cytoscape').ElementDefinition[] = g.visEdges
     .filter((e) => g.idSet.has(e.from) && g.idSet.has(e.to))

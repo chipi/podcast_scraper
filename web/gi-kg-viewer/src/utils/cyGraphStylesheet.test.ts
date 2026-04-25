@@ -142,4 +142,74 @@ describe('buildGiKgCyStylesheet', () => {
     expect(rule).toBeTruthy()
     expect(rule.style['line-color']).toBe('var(--ps-muted)')
   })
+
+  // RFC-080 V2 — Insight grounding selector lives in the stylesheet
+  // unconditionally; only fires when the class is assigned at element-
+  // build time (toCytoElements). Search-hit border specificity is
+  // covered by source order — `.search-hit` is appended last in the
+  // sheet so its border-color/width override the dashed warning when
+  // both apply.
+  it('V2: includes insight-ungrounded dashed warning border', () => {
+    const sheet = buildGiKgCyStylesheet({ compact: false })
+    const rule = sheet.find(
+      (r) =>
+        (r as { selector?: string }).selector ===
+        'node[type = "Insight"].insight-ungrounded',
+    ) as { style: Record<string, unknown> }
+    expect(rule).toBeTruthy()
+    expect(rule.style['border-style']).toBe('dashed')
+    expect(rule.style['border-width']).toBe(1.5)
+    expect(rule.style['border-opacity']).toBe(0.7)
+  })
+
+  it('V2: search-hit selector is appended after insight-ungrounded so its border wins', () => {
+    const sheet = buildGiKgCyStylesheet({ compact: false, includeSearchHit: true })
+    const ungroundedIdx = sheet.findIndex(
+      (r) =>
+        (r as { selector?: string }).selector ===
+        'node[type = "Insight"].insight-ungrounded',
+    )
+    const searchHitIdx = sheet.findIndex(
+      (r) => (r as { selector?: string }).selector === 'node.search-hit',
+    )
+    expect(ungroundedIdx).toBeGreaterThanOrEqual(0)
+    expect(searchHitIdx).toBeGreaterThan(ungroundedIdx)
+  })
+
+  // RFC-080 V5 — node-size-by-degree is opt-in via
+  // enableNodeSizeByDegree. Default keeps fixed widths so the lens can
+  // be staged on real corpora before promoting to default-on (per RFC
+  // rollout).
+  it('V5: width/height stay fixed by default for Topic + Episode', () => {
+    const sheet = buildGiKgCyStylesheet({ compact: false })
+    const topic = sheet.find(
+      (r) => (r as { selector?: string }).selector === 'node[type = "Topic"]',
+    ) as { style: Record<string, unknown> }
+    const episode = sheet.find(
+      (r) => (r as { selector?: string }).selector === 'node[type = "Episode"]',
+    ) as { style: Record<string, unknown> }
+    expect(typeof topic.style.width).toBe('number')
+    expect(typeof episode.style.width).toBe('number')
+  })
+
+  it('V5: enableNodeSizeByDegree maps Topic + Episode width/height through degreeHeat', () => {
+    const sheet = buildGiKgCyStylesheet({ compact: false, enableNodeSizeByDegree: true })
+    const topic = sheet.find(
+      (r) => (r as { selector?: string }).selector === 'node[type = "Topic"]',
+    ) as { style: Record<string, unknown> }
+    const episode = sheet.find(
+      (r) => (r as { selector?: string }).selector === 'node[type = "Episode"]',
+    ) as { style: Record<string, unknown> }
+    expect(String(topic.style.width)).toMatch(/^mapData\(degreeHeat, 0, 1, \d+, \d+\)$/)
+    expect(String(topic.style.height)).toMatch(/^mapData\(degreeHeat, 0, 1, \d+, \d+\)$/)
+    expect(String(episode.style.width)).toMatch(/^mapData\(degreeHeat, 0, 1, \d+, \d+\)$/)
+  })
+
+  it('V5: other types (Quote, Speaker, …) keep fixed sizes even when V5 is on', () => {
+    const sheet = buildGiKgCyStylesheet({ compact: false, enableNodeSizeByDegree: true })
+    const quote = sheet.find(
+      (r) => (r as { selector?: string }).selector === 'node[type = "Quote"]',
+    ) as { style: Record<string, unknown> }
+    expect(typeof quote.style.width).toBe('number')
+  })
 })
