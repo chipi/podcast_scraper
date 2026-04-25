@@ -1,14 +1,20 @@
-# Stack-test overlay on compose/docker-compose.stack.yml (#659).
+# Stack-test overlay on compose/docker-compose.stack.yml.
 # Used locally (``make stack-test-*``) and in CI
-# (``.github/workflows/stack-test.yml``). Build/run: always pass both
-# ``-f`` files from the repository root:
-#   docker compose -f compose/docker-compose.stack.yml -f compose/docker-compose.stack-test.yml build
-#   docker compose -f compose/docker-compose.stack.yml -f compose/docker-compose.stack-test.yml run --rm pipeline
+# (``.github/workflows/stack-test.yml``). Always pass both ``-f`` files
+# from the repository root, e.g.:
+#   docker compose -f compose/docker-compose.stack.yml \
+#                  -f compose/docker-compose.stack-test.yml build
 #
-# Uses the same ``corpus_data`` named volume as the base stack so the
-# exported corpus / viewer / API all agree. Pipeline mounts the
-# stack-test pipeline config so the base's ``CONFIG_FILE`` (production
-# default) does not leak into stack-test runs.
+# Adds:
+#   - mock-feeds Nginx sidecar serving bundled RSS / audio / transcript
+#     fixtures so the platform exercises end-to-end without internet.
+#   - Docker job-mode wiring on the API service
+#     (``PODCAST_PIPELINE_EXEC_MODE=docker`` + host docker socket +
+#     project-dir bind mount + ``PODCAST_KEEP_ROOT=1`` for macOS Docker
+#     Desktop where the socket has gid 0).
+#
+# All services share the base stack's ``corpus_data`` named volume so
+# Playwright assertions, viewer reads, and API writes all agree.
 
 services:
   api:
@@ -32,14 +38,14 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock
       - ${PODCAST_DOCKER_PROJECT_DIR:-..}:${PODCAST_DOCKER_PROJECT_DIR:-..}:ro
     environment:
-      # Docker job mode: API spawns pipeline container via compose
-      # instead of an in-process subprocess. ``PODCAST_DOCKER_PROJECT_DIR``
-      # must be the **host** path to the repo root so nested compose
-      # mounts resolve. ``PODCAST_DOCKER_COMPOSE_FILES`` includes the
-      # stack-test overlay so the spawned ``pipeline`` / ``pipeline-llm``
-      # service inherits the mock-feeds dep + the stack-test config
-      # mount; without it the spawned container can't find
-      # ``/app/config.yaml`` and can't resolve ``http://mock-feeds``.
+      # Docker job mode: API spawns the pipeline container via compose
+      # instead of running it as an in-process subprocess.
+      # ``PODCAST_DOCKER_PROJECT_DIR`` must be the **host** path to the
+      # repo root so nested compose's bind-mount sources resolve on the
+      # Docker daemon. ``PODCAST_DOCKER_COMPOSE_FILES`` includes both
+      # the base and this overlay so the spawned ``pipeline{,-llm}``
+      # service is on the same network as ``mock-feeds`` and uses the
+      # same project name as the running stack.
       PODCAST_PIPELINE_EXEC_MODE: docker
       PODCAST_DOCKER_PROJECT_DIR: ${PODCAST_DOCKER_PROJECT_DIR:-..}
       PODCAST_DOCKER_COMPOSE_FILES: compose/docker-compose.stack.yml,compose/docker-compose.stack-test.yml
@@ -59,28 +65,9 @@ services:
       # already lands on ``compose``; this env var keeps the contract
       # explicit and forwards through any future refactor.
       COMPOSE_PROJECT_NAME: compose
-    # Stack-test runs in **per-corpus** operator-config mode: each
-    # corpus has its own ``viewer_operator.yaml`` next to
-    # ``feeds.spec.yaml``. The base image's default ``--config-file
-    # /app/config.yaml`` is for **single-config** deployments — drop
-    # it here so the operator-config API writes to
-    # ``<corpus>/viewer_operator.yaml`` (the path the seed file lands
-    # at via ``make stack-test-seed``).
-    command:
-      - python
-      - "-m"
-      - podcast_scraper.cli
-      - serve
-      - "--host"
-      - 0.0.0.0
-      - "--port"
-      - "8000"
-      - "--no-static"
-      - "--output-dir"
-      - /app/output
-      - "--enable-feeds-api"
-      - "--enable-operator-config-api"
-      - "--enable-jobs-api"
+    # No command override: the base API CMD already runs in per-corpus
+    # operator-config mode (``viewer_operator.yaml`` per corpus root,
+    # no static ``--config-file``).
 
   viewer:
     build:
@@ -96,30 +83,23 @@ services:
     ports:
       - "${STACK_TEST_VIEWER_PORT:-8090}:80"
 
-  # Mock RSS + audio fixtures host so the pipeline can fetch
-  # `http://mock-feeds/feed.xml` and `/audio/*.mp3` without internet
-  # access during stack-test (#666 follow-up — replaces the
-  # ``dry_run: true`` workaround in stack-test-config.yaml).
+  # Mock RSS + audio + transcript fixtures host so the pipeline (spawned
+  # by the API job factory) can fetch ``http://mock-feeds/<...>`` without
+  # internet access during stack-test. The full UI flow spec
+  # (``tests/stack-test/stack-jobs-flow.spec.ts``) drives the pipeline
+  # against TWO distinct RSS URLs — one seeded into
+  # ``<corpus>/feeds.spec.yaml`` via ``make stack-test-seed`` and one
+  # added through the Configuration dialog at runtime.
   mock-feeds:
     image: nginx:1.27-alpine
     volumes:
       - ../docker/mock-feeds/nginx.conf:/etc/nginx/conf.d/default.conf:ro
-      # ``p01_mtb.xml`` has 3 episodes with real audio fixtures
-      # (p01_e01..03.mp3, ~6–20 min each). Used by the airgapped /
-      # cloud-thin pipeline runs that consume single-feed
-      # ``rss: http://mock-feeds/feed.xml`` from the stack-test config.
-      - ../tests/fixtures/rss/p01_mtb.xml:/usr/share/nginx/html/feed.xml:ro
-      # The full UI flow spec (``stack-jobs-flow.spec.ts``) drives the
-      # pipeline via the API job runner against TWO distinct RSS URLs
-      # — one seeded in ``feeds.spec.yaml``, one added through the
-      # Configuration dialog. Expose them at the exact paths the spec
-      # references.
       - ../tests/fixtures/rss/p01_fast_with_transcript.xml:/usr/share/nginx/html/p01_fast_with_transcript.xml:ro
       - ../tests/fixtures/rss/p01_episode_selection.xml:/usr/share/nginx/html/p01_episode_selection.xml:ro
       - ../tests/fixtures/audio:/usr/share/nginx/html/audio:ro
-      # Transcripts referenced by p01_fast_with_transcript / p01_episode_selection
-      # RSS fixtures (``<podcast:transcript>`` / itunes-style links) — the full UI
-      # flow spec drives a transcript-download fast path so Whisper isn't needed.
+      # Transcripts referenced by the RSS fixtures (``<podcast:transcript>``
+      # / itunes-style links). The full UI flow drives a transcript-
+      # download fast path so Whisper isn't needed for these episodes.
       - ../tests/fixtures/transcripts:/usr/share/nginx/html/transcripts:ro
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- http://127.0.0.1/healthz || exit 1"]

@@ -1299,13 +1299,13 @@ docker run -e OPENAI_API_KEY=sk-your-key-here podcast-scraper https://example.co
 **Using .env file**:
 
 ```bash
-# Create .env file
+# Create .env file at the repo root (gitignored)
 echo "OPENAI_API_KEY=sk-your-key-here" > .env
 
-# Docker Compose automatically loads .env
-# In compose/docker-compose.yml:
-# env_file:
-# - .env
+# `make stack-test-up` sources .env so OPENAI_API_KEY / GEMINI_API_KEY
+# / etc. propagate through Compose into the API container and any
+# pipeline containers the API spawns. Compose also reads .env directly
+# for `${VAR:-}` substitution in compose/docker-compose.stack.yml.
 ```
 
 ## .env File Setup

@@ -185,12 +185,11 @@ help:
 	@echo "  make docker-build       Build Docker image (default, with model preloading)"
 	@echo "  make docker-build-fast  Build Docker image fast (no model preloading, <5min target)"
 	@echo "  make docker-build-full  Build Docker image full (with model preloading, matches main)"
-	@echo "  make stack-build        Docker stack: build viewer + api + pipeline images (compose/docker-compose.stack.yml)"
-	@echo "  make stack-up           Docker stack: start viewer + api (CONFIG_FILE=..., VIEWER_PORT=8080)"
+	@echo "  make stack-build        Docker stack (production base, no mock-feeds): build viewer + api + pipeline images"
+	@echo "  make stack-build-llm    Docker stack: also build pipeline-llm (INSTALL_EXTRAS=llm)"
+	@echo "  make stack-up           Docker stack: start viewer + api (VIEWER_PORT=8080); pipeline jobs spawn via API factory"
 	@echo "  make stack-down         Docker stack: stop stack (REMOVE_VOLUMES=1 runs compose down -v)"
 	@echo "  make stack-logs         Docker stack: follow viewer + api logs"
-	@echo "  make stack-run-pipeline Docker stack: one-shot pipeline (compose profile pipeline)"
-	@echo "  make stack-build-llm   Docker stack: build pipeline-llm image (INSTALL_EXTRAS=llm profile)"
 	@echo "  make verify-stack-profiles  Validate packaged profile → Docker tier (scripts/tools)"
 	@echo "  make stack-compose-validate Docker stack: docker compose config (stack + jobs-docker merge, no build)"
 	@echo "  make stack-test-build       Stack-test: build api + viewer + pipeline (airgapped/ml) images"
@@ -470,7 +469,7 @@ validate-kg-schema:
 	fi
 
 # GI/KG viewer v2 (#489): FastAPI + Vite. Install: pip install -e '.[server]'; cd $(WEB_VIEWER_DIR) && npm install
-.PHONY: serve serve-api serve-ui serve-e2e-mock stack-build stack-build-llm stack-compose-validate stack-up stack-down stack-logs stack-run-pipeline verify-stack-profiles stack-test-build stack-test-build-cloud stack-test-up stack-test-down stack-test-seed stack-test-playwright stack-test-export
+.PHONY: serve serve-api serve-ui serve-e2e-mock stack-build stack-build-llm stack-compose-validate stack-up stack-down stack-logs verify-stack-profiles stack-test-build stack-test-build-cloud stack-test-up stack-test-down stack-test-seed stack-test-playwright stack-test-export
 SERVE_OUTPUT_DIR ?= ./output
 # Optional corpus-editing + jobs routes (health shows green when on). Override with SERVE_ARGS= to disable.
 SERVE_ARGS ?= --enable-feeds-api --enable-operator-config-api --enable-jobs-api
@@ -511,13 +510,12 @@ verify-stack-profiles:
 	@export PYTHONPATH="${PYTHONPATH}:$(PWD)/src" && $(PYTHON) scripts/tools/validate_profile_docker_tier.py
 
 # ``docker compose config`` (no build) — catches bad merges / invalid interpolation.
-STACK_COMPOSE_VALIDATE_CFG ?= $(PWD)/config/examples/docker-stack.example.yaml
+# Validates both the base stack and the production overlay
+# (``jobs-docker.yml`` declares ``PODCAST_DOCKER_PROJECT_DIR`` as required).
 stack-compose-validate:
-	@cfg="$(CONFIG_FILE)"; \
-	if [ -z "$$cfg" ]; then cfg="$(STACK_COMPOSE_VALIDATE_CFG)"; fi; \
-	echo "stack-compose-validate: CONFIG_FILE=$$cfg"; \
-	CONFIG_FILE="$$cfg" PODCAST_DOCKER_PROJECT_DIR="$(CURDIR)" $(STACK_COMPOSE) config -q; \
-	CONFIG_FILE="$$cfg" PODCAST_DOCKER_PROJECT_DIR="$(CURDIR)" docker compose -f compose/docker-compose.stack.yml -f compose/docker-compose.jobs-docker.yml config -q
+	@PODCAST_DOCKER_PROJECT_DIR="$(CURDIR)" $(STACK_COMPOSE) config -q
+	@PODCAST_DOCKER_PROJECT_DIR="$(CURDIR)" docker compose -f compose/docker-compose.stack.yml -f compose/docker-compose.jobs-docker.yml config -q
+	@echo "stack-compose-validate: OK"
 
 stack-up:
 	@$(STACK_COMPOSE) up -d
@@ -527,9 +525,6 @@ stack-down:
 
 stack-logs:
 	@$(STACK_COMPOSE) logs -f viewer api
-
-stack-run-pipeline:
-	@$(STACK_COMPOSE) --profile pipeline run --rm pipeline
 
 stack-test-build:
 	@STACK_PIPELINE_PRELOAD_ML=false $(STACK_TEST_COMPOSE) build

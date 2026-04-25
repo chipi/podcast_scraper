@@ -87,7 +87,33 @@ Then open **<http://127.0.0.1:8000>** (default port). In the sidebar, set **Corp
 
 ---
 
-## Quick Start
+## Quickest start: Docker Compose
+
+The fastest way to try the platform end-to-end — no Python venv, no Node install, no provider keys required. You get the viewer, the API, and an on-demand pipeline runner all wired together; you drive the platform from your browser.
+
+```bash
+make stack-test-build      # build api + viewer + pipeline images (~5–15 min first time)
+make stack-test-up         # bring up viewer (8090) + api + bundled mock RSS fixtures
+```
+
+Then open **<http://127.0.0.1:8090>**, open **Configuration → Feeds**, add an RSS URL (or use the bundled fixture `http://mock-feeds/p01_fast_with_transcript.xml`), pick a profile under **Job Profile** (`airgapped_thin` runs locally with Whisper + transformers, no cloud calls), click **Save**, then **Dashboard → Pipeline → Run pipeline job**. Artifacts populate the **Library**, **Digest**, **Search**, and **Graph** tabs as the job runs.
+
+To use cloud providers (OpenAI Whisper API + Gemini for everything else — faster + better quality), put `OPENAI_API_KEY` and `GEMINI_API_KEY` in a repo-root `.env` file, then:
+
+```bash
+make stack-test-build-cloud   # adds the cloud-thin pipeline-llm image
+# in the UI, choose the "cloud_thin" profile under Job Profile and Save
+```
+
+Tear down (preserves the corpus): `make stack-test-down`. Tear down + drop everything: `make stack-test-down STACK_TEST_DOWN_VOLUMES=1`.
+
+**Full guide** with architecture, troubleshooting, and production hints: [Docker Compose guide](docs/guides/DOCKER_COMPOSE_GUIDE.md).
+
+---
+
+## Quick Start (Python)
+
+For development, scripted CLI runs, or when you'd rather not run the whole stack — install the package in a venv and use the CLI directly. The Docker Compose path above is the recommended way to **operate** the platform; the Python path below is for **development** and **headless CLI scripting**.
 
 ### Requirements
 
@@ -226,28 +252,30 @@ uv pip install -e ".[ml]"
 
 See [Installation Guide](docs/guides/INSTALLATION_GUIDE.md#method-3-uv-fast-installation---recommended-for-speed) for details.
 
-#### Method 4: Docker (Containerized - Recommended for Production)
+#### Method 4: Docker (Containerized)
 
-For containerized deployments and service-oriented usage:
+For most users the **[Quickest start: Docker Compose](#quickest-start-docker-compose)** path above is the recommended way to run the platform — it brings up the viewer + API + on-demand pipeline jobs as a single stack.
 
-**LLM-only variant (small, fast, ~200-300MB):**
+The single-container `docker run` style below is appropriate when you want the pipeline as a long-running service triggered by an external scheduler (cron, systemd, supervisord), not via the operator UI.
+
+**LLM-only variant (small, fast, ~500 MB):**
 
 ```bash
 # Build LLM-only image
-docker build --build-arg INSTALL_EXTRAS="" -t podcast-scraper:llm-only .
+docker build --build-arg INSTALL_EXTRAS=llm -f docker/pipeline/Dockerfile -t podcast-scraper:llm .
 
 # Run with config file
 docker run -v ./config.yaml:/app/config.yaml \
            -v ./output:/app/output \
            -e OPENAI_API_KEY=sk-your-key \
-           podcast-scraper:llm-only
+           podcast-scraper:llm
 ```
 
-**ML-enabled variant (full features, ~1-3GB):**
+**ML-enabled variant (full features, ~3-5 GB):**
 
 ```bash
 # Build ML-enabled image (default)
-docker build --build-arg INSTALL_EXTRAS=ml -t podcast-scraper:ml .
+docker build --build-arg INSTALL_EXTRAS=ml -f docker/pipeline/Dockerfile -t podcast-scraper:ml .
 
 # Run with config file
 docker run -v ./config.yaml:/app/config.yaml \
@@ -255,14 +283,7 @@ docker run -v ./config.yaml:/app/config.yaml \
            podcast-scraper:ml
 ```
 
-**Quick start with Docker Compose:**
-
-```bash
-# Standalone pipeline compose (from repository root)
-docker compose -f compose/docker-compose.yml up -d
-```
-
-See [Docker Service Guide](docs/guides/DOCKER_SERVICE_GUIDE.md) and [Docker Variants Guide](docs/guides/DOCKER_VARIANTS_GUIDE.md) for complete Docker documentation.
+See [Docker Compose guide](docs/guides/DOCKER_COMPOSE_GUIDE.md) for the recommended end-to-end stack flow, [Docker Service guide](docs/guides/DOCKER_SERVICE_GUIDE.md) for the single-container deployment style, and [Docker Variants guide](docs/guides/DOCKER_VARIANTS_GUIDE.md) for image-tier (`ml` vs `llm`) trade-offs.
 
 #### Development (main)
 
