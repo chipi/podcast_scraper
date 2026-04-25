@@ -774,4 +774,98 @@ test.describe('Graph expansion (mocked API)', () => {
     await page.getByTestId('artifact-list-dialog').getByRole('button', { name: 'None', exact: true }).click()
     await expect(strip).toBeHidden()
   })
+
+  // #586 regression guard (behaviour-level, runs in browser).
+  //
+  // Two known triggers for ``TypeError: can't access property "notify",
+  // renderer is null`` during the expand flow:
+  //
+  //  1. ``loadSelected`` cleared ``parsedList`` to ``[]`` at the start
+  //     of every load — even on expand (``preserveExpansion: true``) —
+  //     causing an intermediate empty-graph ``redraw()`` racing
+  //     Cytoscape's pending COSE rAF. **Fixed** in ``artifacts.ts``:
+  //     the prior list stays visible until the new one is built; only
+  //     a definite empty resolution clears it.
+  //
+  //  2. Cytoscape's COSE layout fires a post-``layoutstop`` ``fit()``
+  //     via rAF that can land after ``cy.destroy()`` if a re-merge
+  //     happens during a layout pass. **Not yet fixed** — see follow-up
+  //     in #586. The existing GraphCanvas mitigations cap this at
+  //     ~2 errors per full expand run, which we accept as the baseline
+  //     until the upstream layout race is patched.
+  //
+  // This test asserts the count does not REGRESS beyond the baseline.
+  // Once the second trigger is fixed, tighten the bound to 0 and
+  // remove the BASELINE_MAX comment.
+  //
+  // Pairs with the vitest guard in ``artifacts.loadSelected.test.ts``.
+  test('#586: expand does not regress the renderer-null error baseline', async ({ page }) => {
+    const consoleErrors: string[] = []
+    const pageErrors: string[] = []
+    page.on('console', (msg) => {
+      if (msg.type() === 'error') consoleErrors.push(msg.text())
+    })
+    page.on('pageerror', (err) => {
+      pageErrors.push(err.message)
+    })
+
+    await mockGraphExpansionBaseline(page)
+    await page.route('**/api/corpus/node-episodes**', async (route) => {
+      if (route.request().method() !== 'POST') {
+        await route.fulfill({ status: 405, body: 'method not allowed' })
+        return
+      }
+      assertNodeEpisodesExpandPostHasMaxEpisodes(route)
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          path: '/mock/corpus',
+          node_id: 'topic:ci-policy',
+          episodes: [
+            {
+              gi_relative_path: 'metadata/gxexp_second.gi.json',
+              kg_relative_path: '',
+              bridge_relative_path: '',
+              episode_id: 'ep-gxexp-e2e',
+            },
+          ],
+          truncated: false,
+          total_matched: null,
+        }),
+      })
+    })
+    await page.route('**/api/artifacts/metadata/gxexp_second.gi.json?**', async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: secondGiForMerge,
+      })
+    })
+
+    await gotoGraphWithMockCorpus(page)
+    await dblclickCyNode(page, 'topic:ci-policy')
+
+    // Wait for the expanded node to land + let the COSE layout finish a
+    // couple of frames past layoutstop so any stray rAF would have
+    // fired by now.
+    await page.waitForRequest((r) => r.url().includes('gxexp_second.gi.json'))
+    await page.waitForTimeout(1500)
+
+    const rendererNullErrors = [...consoleErrors, ...pageErrors].filter((line) =>
+      /renderer is null|notify.*renderer|TypeError.*renderer/i.test(line),
+    )
+
+    // BASELINE_MAX: ~2 unhandled errors per full expand run, attributed
+    // to the COSE post-layoutstop fit() rAF (see test header). Tighten
+    // to 0 once that second trigger is fixed. The deferred-parsedList
+    // fix (#586 trigger 1) eliminated the empty-graph redraw race; if
+    // a regression in that path resurfaces, we'd see this count climb
+    // toward 4-6.
+    const BASELINE_MAX = 3
+    expect(
+      rendererNullErrors.length,
+      `#586 regression — renderer-null errors exceeded baseline (${BASELINE_MAX}). Got ${rendererNullErrors.length}:\n${rendererNullErrors.join('\n')}`,
+    ).toBeLessThanOrEqual(BASELINE_MAX)
+  })
 })
