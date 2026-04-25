@@ -186,7 +186,13 @@ RUN if [ -n "$INSTALL_EXTRAS" ] && [ "$INSTALL_EXTRAS" = "ml" ]; then \
 # UID 1000 is a common convention for application users
 RUN useradd -m -u 1000 -s /bin/bash podcast && \
     # Create necessary directories with proper ownership
-    mkdir -p /app \
+    # /app/output: pre-created so a fresh `corpus_data` named volume
+    # inherits podcast:podcast ownership on first mount (#666 follow-up
+    # — without this, running `make stack-test-run` before
+    # `make stack-test-up` left the mountpoint root-owned and the
+    # pipeline failed with PermissionError on /app/output/run_*).
+    # Mirrors docker/api/Dockerfile's mkdir + chown of /app/output.
+    mkdir -p /app/output \
              /opt/podcast_scraper/examples \
              /opt/whisper-cache \
              /etc/supervisor/conf.d \

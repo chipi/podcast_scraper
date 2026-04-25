@@ -1423,16 +1423,23 @@ def _finalize_pipeline(
     index_written, failure_summary = _finalize_run_index(
         cfg, pipeline_metrics, episodes, effective_output_dir, run_suffix
     )
-    from podcast_scraper.search.indexer import maybe_index_corpus
-
-    maybe_update_pipeline_status(
-        cfg,
-        effective_output_dir,
-        stage="vector_indexing",
-        episode_total=len(episodes),
-    )
+    # Skip the import entirely when vector indexing is disabled. The
+    # ``search.indexer`` module pulls in numpy + faiss at load time, which
+    # cloud-thin builds (``[llm]`` extras, ``vector_search: false``)
+    # don't ship — without this guard the finalize step crashes with
+    # ``ModuleNotFoundError: numpy`` despite the rest of the pipeline
+    # succeeding cleanly.
     _vidx_t0 = time.perf_counter()
-    maybe_index_corpus(effective_output_dir, cfg)
+    if getattr(cfg, "vector_search", True):
+        from podcast_scraper.search.indexer import maybe_index_corpus
+
+        maybe_update_pipeline_status(
+            cfg,
+            effective_output_dir,
+            stage="vector_indexing",
+            episode_total=len(episodes),
+        )
+        maybe_index_corpus(effective_output_dir, cfg)
     pipeline_metrics.vector_index_seconds = round(time.perf_counter() - _vidx_t0, 4)
     if metrics_path:
         try:
