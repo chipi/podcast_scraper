@@ -45,6 +45,10 @@ import * as giKgCoseLayout from '../../utils/cyCoseLayoutOptions'
 import { syncGraphLabelTierClasses } from '../../utils/cyGraphLabelTier'
 import { buildGiKgCyStylesheet, cytoscapeSideLabelMarginXCallback } from '../../utils/cyGraphStylesheet'
 import {
+  computeRadialPositions,
+  type RadialSnapshot,
+} from '../../utils/cyRadialLayout'
+import {
   graphNodeExpandableForCrossEpisodeExpand,
   syncCrossEpisodeExpandNodeClasses,
 } from '../../utils/graphCrossEpisodeExpand'
@@ -1224,10 +1228,125 @@ function applyTopicClusterMemberCollapse(core: Core): void {
   })
 }
 
+/* RFC-080 V4 — radial focus mode state. The mode is enter/exit only;
+ * snapshots capture node positions + per-element display so an exit
+ * restores the graph exactly. Held at module scope (not pinia) because
+ * the snapshot is meaningful only against the current `cy` instance —
+ * a destroy + redraw invalidates it. */
+const radialModeActive = ref(false)
+const radialAriaMessage = ref('')
+let radialSnapshot: RadialSnapshot | null = null
+
+function enterRadialMode(centreId: string): boolean {
+  const c = cy
+  if (!c) return false
+  const centre = c.$id(centreId)
+  if (centre.empty() || !centre.isNode()) return false
+
+  // Ring 1 = 1-hop neighbour nodes; ring 2 = 2-hop minus ring 1 minus
+  // the centre itself. Compound (TopicCluster) members participate in
+  // ring 1 alongside external 1-hop neighbours per RFC-080 V4.
+  const ring1 = centre.neighborhood('node').union(centre.children('node'))
+  const ring2 = ring1.neighborhood('node').difference(ring1).difference(centre)
+  const ring1Ids = ring1.map((n) => n.id())
+  const ring2Ids = ring2.map((n) => n.id())
+
+  // V5 interaction: ring radius adapts to the largest ring-1 node radius
+  // so size-by-degree doesn't push neighbours into each other.
+  let maxR1Radius = 0
+  ring1.forEach((n) => {
+    const r = (n.width() ?? 0) / 2
+    if (r > maxR1Radius) maxR1Radius = r
+  })
+  const out = computeRadialPositions(centreId, ring1Ids, ring2Ids, {
+    maxRing1NodeRadius: maxR1Radius,
+  })
+
+  // Snapshot positions + display state for clean restore on exit. We
+  // walk all nodes / edges (not just the visible set) because outer-
+  // hop elements get hidden as part of entering the mode.
+  const positions: Record<string, { x: number; y: number }> = {}
+  const displays: Record<string, string> = {}
+  c.nodes().forEach((n) => {
+    const p = n.position()
+    positions[n.id()] = { x: p.x, y: p.y }
+    displays[n.id()] = String(n.style('display') ?? 'element')
+  })
+  const edgeDisplays: Record<string, string> = {}
+  c.edges().forEach((e) => {
+    edgeDisplays[e.id()] = String(e.style('display') ?? 'element')
+  })
+  radialSnapshot = { positions, displays, edgeDisplays, centreId }
+
+  // Hide everything outside ring 1 ∪ ring 2 ∪ centre. Edges with
+  // either endpoint hidden also disappear so we don't render orphan
+  // strokes.
+  const visibleSet = new Set<string>([centreId, ...ring1Ids, ...ring2Ids])
+  c.batch(() => {
+    c.nodes().forEach((n) => {
+      n.style('display', visibleSet.has(n.id()) ? 'element' : 'none')
+    })
+    c.edges().forEach((e) => {
+      const ok = visibleSet.has(e.source().id()) && visibleSet.has(e.target().id())
+      e.style('display', ok ? 'element' : 'none')
+    })
+  })
+
+  c.layout({
+    name: 'preset',
+    positions: (n: NodeSingular) => {
+      const p = out.positions[n.id()]
+      return p ? { x: p.x, y: p.y } : { x: 0, y: 0 }
+    },
+    fit: true,
+    padding: 60,
+  } as never).run()
+
+  radialModeActive.value = true
+  // a11y: announce centre node label (the user lost the mouse-context
+  // when the canvas reorganised; SR / keyboard users get a verbal
+  // reference).
+  const label = String(centre.data('label') ?? centreId)
+  radialAriaMessage.value = `Radial view centred on ${label}.`
+  return true
+}
+
+function exitRadialMode(): void {
+  const c = cy
+  if (!c || !radialSnapshot) {
+    radialModeActive.value = false
+    radialSnapshot = null
+    radialAriaMessage.value = ''
+    return
+  }
+  const snap = radialSnapshot
+  c.batch(() => {
+    c.nodes().forEach((n) => {
+      const p = snap.positions[n.id()]
+      if (p) n.position({ x: p.x, y: p.y })
+      const d = snap.displays[n.id()]
+      n.style('display', d ?? 'element')
+    })
+    c.edges().forEach((e) => {
+      const d = snap.edgeDisplays[e.id()]
+      e.style('display', d ?? 'element')
+    })
+  })
+  radialAriaMessage.value = `Radial view exited.`
+  radialModeActive.value = false
+  radialSnapshot = null
+}
+
 function destroyCy(): void {
   // Do not clear pendingViewportPreserve here — it must survive destroy+redraw until the new cy's layoutstop
   // (ego exit to full graph, Re-layout). egoPriorFullGraphViewportPreserve must survive enter-ego redraw too.
   pendingFocusCameraAfterLayoutHold = null
+  // RFC-080 V4: snapshot is bound to the cy instance; a destroy invalidates it.
+  // Clear so a subsequent enter starts from a clean state instead of restoring
+  // stale positions onto a freshly mounted graph.
+  radialSnapshot = null
+  radialModeActive.value = false
+  radialAriaMessage.value = ''
   graphLayoutGate.invalidate()
   clearSelectedNodeZoomAnchor()
   suspendSelectedNodeZoomAnchorCorrection = 0
@@ -2277,6 +2396,49 @@ watch(
   { flush: 'post' },
 )
 
+/* RFC-080 V4 — keyboard wiring. Escape always exits radial mode if
+ * active (regardless of focus location, matching the RFC). Alt+R
+ * toggles: enter centred on the currently-selected node, or exit if
+ * already active. The user can drive the mode entirely from the
+ * keyboard until the bottom-bar lens menu ships. */
+let radialKeydownHandler: ((e: KeyboardEvent) => void) | null = null
+
+function attachRadialKeydown(): void {
+  radialKeydownHandler = (e: KeyboardEvent): void => {
+    if (e.key === 'Escape' && radialModeActive.value) {
+      e.preventDefault()
+      exitRadialMode()
+      return
+    }
+    // Alt+R: toggle. Lower-case match so both `r` and `R` (Shift+Alt+R) work.
+    if (e.altKey && (e.key === 'r' || e.key === 'R')) {
+      e.preventDefault()
+      if (radialModeActive.value) {
+        exitRadialMode()
+        return
+      }
+      const c = cy
+      if (!c) return
+      const sel = c.$('node:selected')
+      const target = sel.empty() ? null : sel.first()
+      if (!target) return
+      enterRadialMode(target.id())
+    }
+  }
+  window.addEventListener('keydown', radialKeydownHandler, true)
+}
+
+function detachRadialKeydown(): void {
+  if (radialKeydownHandler) {
+    try {
+      window.removeEventListener('keydown', radialKeydownHandler, true)
+    } catch {
+      /* ignore */
+    }
+    radialKeydownHandler = null
+  }
+}
+
 onMounted(() => {
   if (typeof window !== 'undefined' && typeof window.matchMedia === 'function') {
     reducedMotionMql = window.matchMedia('(prefers-reduced-motion: reduce)')
@@ -2296,6 +2458,7 @@ onMounted(() => {
     }
     reducedMotionMql.addEventListener('change', reducedMotionMqlHandler)
   }
+  attachRadialKeydown()
   safeGraphWatch('onMounted', () => {
     redraw()
   })
@@ -2345,6 +2508,7 @@ onUnmounted(() => {
     clearTimeout(nodeEpisodesCorpusBeyondDebounce)
     nodeEpisodesCorpusBeyondDebounce = null
   }
+  detachRadialKeydown()
   destroyCy()
   graphCyNodeCount.value = 0
   pendingViewportPreserve = null
@@ -2506,6 +2670,27 @@ defineExpose({
           >
             Laying out graph…
           </span>
+        </div>
+        <!--
+          RFC-080 V4 — radial focus mode. The aria-live region announces
+          enter/exit to screen readers; the visible test-id pip is for
+          dev / Playwright reach (no user-facing toggle UI in this
+          slice — Alt+R toggles, Escape exits; bottom-bar lens menu
+          ships in a follow-up).
+        -->
+        <div
+          aria-live="polite"
+          aria-atomic="true"
+          class="sr-only"
+        >
+          {{ radialAriaMessage }}
+        </div>
+        <div
+          v-if="radialModeActive"
+          data-testid="graph-radial-mode-active"
+          class="pointer-events-none absolute right-2 top-2 z-[4] rounded border border-border/70 bg-surface/95 px-2 py-0.5 text-[10px] font-medium text-surface-foreground shadow-sm"
+        >
+          Radial · Esc to exit
         </div>
         <GraphGestureOverlay
           ref="gestureOverlayRef"
