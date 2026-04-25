@@ -336,6 +336,7 @@ function openLibraryFailures(): void {
             ? 'bg-primary text-primary-foreground'
             : 'text-muted hover:bg-overlay'
         "
+        data-testid="dashboard-tab-coverage"
         @click="selectTab('coverage')"
       >
         Coverage
@@ -350,6 +351,7 @@ function openLibraryFailures(): void {
             ? 'bg-primary text-primary-foreground'
             : 'text-muted hover:bg-overlay'
         "
+        data-testid="dashboard-tab-intelligence"
         @click="selectTab('intelligence')"
       >
         Intelligence
@@ -364,6 +366,7 @@ function openLibraryFailures(): void {
             ? 'bg-primary text-primary-foreground'
             : 'text-muted hover:bg-overlay'
         "
+        data-testid="dashboard-tab-pipeline"
         @click="selectTab('pipeline')"
       >
         Pipeline

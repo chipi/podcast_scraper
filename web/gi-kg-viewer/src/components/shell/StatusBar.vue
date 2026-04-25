@@ -577,6 +577,7 @@ async function addFeedFromInput(): Promise<void> {
         <button
           type="button"
           class="shrink-0 rounded border border-border px-2 py-0.5 text-[10px] hover:bg-overlay"
+          data-testid="sources-dialog-close"
           @click="closeSourcesDialog"
         >
           Close

@@ -6,12 +6,15 @@ export default defineConfig({
   testDir: '.',
   // ``stack-jobs-flow.spec.ts`` is the full UI flow (add feed via UI →
   // select profile → run pipeline job via /api/jobs → validate
-  // Library/Digest/Search/Graph after success). It needs a seeded
-  // ``feeds.spec.yaml`` at the corpus root and a mock-feeds host that
-  // serves the multi-RSS layout the spec references — both pending
-  // (TODO: wire seed + multi-RSS into the compose overlay, then drop
-  // this ignore). Until then ``stack-viewer.spec.ts`` provides the
-  // smoke coverage.
+  // Library/Digest/Search/Graph after success). The seed +
+  // multi-RSS mock-feeds wiring is in place (this branch); the
+  // remaining blocker is the API job factory's nested ``docker
+  // compose run pipeline`` spawn — the same compose args succeed
+  // when invoked manually from inside the API container but fail
+  // from the factory's subprocess with "Config file not found:
+  // /app/config.yaml". Drop this ignore once the factory spawn is
+  // fixed; until then ``stack-viewer.spec.ts`` provides smoke
+  // coverage.
   testIgnore: ['**/stack-jobs-flow.spec.ts'],
   fullyParallel: false,
   forbidOnly: Boolean(process.env.CI),

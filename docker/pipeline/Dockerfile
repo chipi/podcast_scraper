@@ -222,6 +222,11 @@ COPY --from=builder --chown=podcast:podcast /root/.cache/huggingface /home/podca
 
 # Copy application files and set permissions
 COPY --chown=podcast:podcast config/examples/config.example.* /opt/podcast_scraper/examples/
+# Ship packaged pipeline profiles at the cwd-relative path
+# ``Config._resolve_profile`` and ``server.profile_presets`` look up
+# first. Without this the pipeline can't resolve ``profile:
+# airgapped_thin`` etc. on disk inside the container.
+COPY --chown=podcast:podcast config/profiles/ /app/config/profiles/
 COPY --chown=podcast:podcast docker/pipeline/supervisord.conf /etc/supervisor/supervisord.conf
 COPY --chown=podcast:podcast docker/pipeline/entrypoint.sh /app/entrypoint.sh
 RUN chmod +x /app/entrypoint.sh

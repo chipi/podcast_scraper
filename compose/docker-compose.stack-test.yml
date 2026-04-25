@@ -12,8 +12,69 @@
 
 services:
   api:
+    # Stack-test override: keep the API container running as root so
+    # it can speak to ``/var/run/docker.sock``. The production
+    # entrypoint adds ``podcast`` (uid 1000) to the docker socket's
+    # group when the socket has a non-zero gid (Linux CI / hosts);
+    # on macOS Docker Desktop the socket is ``root:root`` (gid 0) and
+    # the group-fixup skips, so the podcast user can't reach the
+    # socket and the job runner's nested compose call fails with
+    # "permission denied". Running as root sidesteps that for
+    # stack-test only — production deployments still drop privileges
+    # via the entrypoint.
+    user: "0:0"
     volumes:
       - corpus_data:/app/output
+      # Job runner spawns the ``pipeline-ml`` / ``pipeline-llm``
+      # container nested via ``docker compose run``. Mount the host
+      # socket + the project dir so the API can find both compose
+      # files when it shells out.
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ${PODCAST_DOCKER_PROJECT_DIR:-..}:${PODCAST_DOCKER_PROJECT_DIR:-..}:ro
+    environment:
+      # Docker job mode: API spawns pipeline container via compose
+      # instead of an in-process subprocess. ``PODCAST_DOCKER_PROJECT_DIR``
+      # must be the **host** path to the repo root so nested compose
+      # mounts resolve. ``PODCAST_DOCKER_COMPOSE_FILES`` includes the
+      # stack-test overlay so the spawned ``pipeline`` / ``pipeline-llm``
+      # service inherits the mock-feeds dep + the stack-test config
+      # mount; without it the spawned container can't find
+      # ``/app/config.yaml`` and can't resolve ``http://mock-feeds``.
+      PODCAST_PIPELINE_EXEC_MODE: docker
+      PODCAST_DOCKER_PROJECT_DIR: ${PODCAST_DOCKER_PROJECT_DIR:-..}
+      PODCAST_DOCKER_COMPOSE_FILES: compose/docker-compose.stack.yml,compose/docker-compose.stack-test.yml
+      # Pin the compose project name so the API's nested ``docker
+      # compose run`` shares the running stack's network + volumes.
+      # Without this, ``--project-directory`` (added by the factory)
+      # makes compose derive a project name from the repo dirname
+      # (``podcast_scraper-autoresearch``), which is a *different*
+      # project than the one currently up (``compose`` — taken from
+      # the parent dir of the first ``-f`` file). The spawned
+      # pipeline would then get a fresh empty volume + no mock-feeds
+      # network reachability.
+      COMPOSE_PROJECT_NAME: compose
+    # Stack-test runs in **per-corpus** operator-config mode: each
+    # corpus has its own ``viewer_operator.yaml`` next to
+    # ``feeds.spec.yaml``. The base image's default ``--config-file
+    # /app/config.yaml`` is for **single-config** deployments — drop
+    # it here so the operator-config API writes to
+    # ``<corpus>/viewer_operator.yaml`` (the path the seed file lands
+    # at via ``make stack-test-seed``).
+    command:
+      - python
+      - "-m"
+      - podcast_scraper.cli
+      - serve
+      - "--host"
+      - 0.0.0.0
+      - "--port"
+      - "8000"
+      - "--no-static"
+      - "--output-dir"
+      - /app/output
+      - "--enable-feeds-api"
+      - "--enable-operator-config-api"
+      - "--enable-jobs-api"
 
   viewer:
     build:
@@ -38,13 +99,17 @@ services:
     volumes:
       - ../docker/mock-feeds/nginx.conf:/etc/nginx/conf.d/default.conf:ro
       # ``p01_mtb.xml`` has 3 episodes with real audio fixtures
-      # (p01_e01..03.mp3, ~6–20 min each). Combined with
-      # ``max_episodes: 1`` in the stack-test config, this exercises a
-      # representative end-to-end pipeline. Fixture dates are static
-      # (2025-09); the viewer-side stack-test mode bypasses the
-      # default 7-day graph lens so date-based filtering doesn't
-      # depend on wall-clock time.
+      # (p01_e01..03.mp3, ~6–20 min each). Used by the airgapped /
+      # cloud-thin pipeline runs that consume single-feed
+      # ``rss: http://mock-feeds/feed.xml`` from the stack-test config.
       - ../tests/fixtures/rss/p01_mtb.xml:/usr/share/nginx/html/feed.xml:ro
+      # The full UI flow spec (``stack-jobs-flow.spec.ts``) drives the
+      # pipeline via the API job runner against TWO distinct RSS URLs
+      # — one seeded in ``feeds.spec.yaml``, one added through the
+      # Configuration dialog. Expose them at the exact paths the spec
+      # references.
+      - ../tests/fixtures/rss/p01_fast_with_transcript.xml:/usr/share/nginx/html/p01_fast_with_transcript.xml:ro
+      - ../tests/fixtures/rss/p01_episode_selection.xml:/usr/share/nginx/html/p01_episode_selection.xml:ro
       - ../tests/fixtures/audio:/usr/share/nginx/html/audio:ro
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- http://127.0.0.1/healthz || exit 1"]

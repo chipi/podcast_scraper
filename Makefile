@@ -200,6 +200,7 @@ help:
 	@echo "  make stack-test-assert-logs Stack-test: grep .stack-test/pipeline.log for completion / errors"
 	@echo "  make stack-test-export      Stack-test: copy /app/output from corpus_data volume → .stack-test-corpus/"
 	@echo "  make stack-test-assert-artifacts  Stack-test: GIL+KG gates (default STACK_TEST_CORPUS_ROOT=.stack-test-corpus)"
+	@echo "  make stack-test-seed        Stack-test: copy config/ci/stack-test-seed/ into corpus_data volume (full UI flow setup)"
 	@echo "  make stack-test-up / stack-test-down / stack-test-playwright  Stack-test harness"
 	@echo "  make docker-test        Build and test Docker image"
 	@echo "  make docker-clean       Remove Docker test images"
@@ -643,8 +644,34 @@ stack-test-assert-artifacts-cloud:
 		--min-avg-insights 5.0 --min-avg-quotes 0.5
 	@echo "stack-test-assert-artifacts-cloud: OK (grounded-quote gate satisfied)"
 
+# Copy ``config/ci/stack-test-seed/*`` into the ``corpus_data`` volume
+# so the API + Playwright full-flow spec see ``feeds.spec.yaml`` and
+# ``viewer_operator.yaml`` at the corpus root before the operator UI
+# touches anything. Idempotent — overwrites any prior seed each run
+# so a previous test's mutations don't bleed into the next.
+#
+# Run order for the full UI flow:
+#   make stack-test-build         (or stack-test-build-cloud)
+#   make stack-test-seed          (this target)
+#   make stack-test-up            (api + viewer + mock-feeds)
+#   make stack-test-playwright
+stack-test-seed:
+	@if [ ! -d config/ci/stack-test-seed ]; then \
+		echo "stack-test-seed: missing config/ci/stack-test-seed/ (need feeds.spec.yaml + viewer_operator.yaml)"; \
+		exit 1; \
+	fi
+	@PODCAST_DOCKER_PROJECT_DIR=$(CURDIR) \
+		$(STACK_TEST_COMPOSE) run --rm -T --no-deps \
+			-v "$(PWD)/config/ci/stack-test-seed:/seed:ro" \
+			--entrypoint /bin/sh \
+			api -c 'set -e; mkdir -p /app/output; cp -f /seed/feeds.spec.yaml /seed/viewer_operator.yaml /app/output/; chown -R podcast:podcast /app/output 2>/dev/null || true; ls -la /app/output/'
+	@echo "stack-test-seed: OK"
+
 stack-test-up:
-	@STACK_PIPELINE_PRELOAD_ML=false STACK_TEST_VIEWER_PORT=$${STACK_TEST_VIEWER_PORT:-8090} $(STACK_TEST_COMPOSE) up -d
+	@STACK_PIPELINE_PRELOAD_ML=false \
+		STACK_TEST_VIEWER_PORT=$${STACK_TEST_VIEWER_PORT:-8090} \
+		PODCAST_DOCKER_PROJECT_DIR=$(CURDIR) \
+		$(STACK_TEST_COMPOSE) up -d
 
 stack-test-down:
 	@$(STACK_TEST_COMPOSE) down $(if $(filter 1 true yes,$(STACK_TEST_DOWN_VOLUMES)),-v,)

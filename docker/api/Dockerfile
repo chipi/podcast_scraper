@@ -45,6 +45,14 @@ RUN --mount=type=cache,target=/root/.cache/pip \
     && pip install --no-deps . \
     && python -c "from podcast_scraper.server.app import create_app; print('create_app import ok')"
 
+# Ship packaged pipeline profiles so the operator-config endpoint can
+# enumerate them via ``GET /api/operator-config``. Profiles live
+# outside the Python package (``config/profiles/``) so they can't ride
+# along in the wheel — copy them into the working dir at the cwd-
+# relative path the resolver checks first
+# (``server.profile_presets._profile_directories``).
+COPY config/profiles/ ./config/profiles/
+
 COPY docker/api/entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
 

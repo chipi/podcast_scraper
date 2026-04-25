@@ -334,6 +334,7 @@ onUnmounted(() => {
           type="button"
           class="rounded border border-border px-2 py-0.5 text-[10px] hover:bg-overlay disabled:opacity-50"
           :disabled="!canUseJobs || loading"
+          data-testid="pipeline-jobs-run"
           @click="void onRun()"
         >
           Run
