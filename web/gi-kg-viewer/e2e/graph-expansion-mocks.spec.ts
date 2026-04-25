@@ -304,21 +304,48 @@ async function waitForCyNodeRendered(page: Page, nodeId: string): Promise<void> 
 }
 
 async function dblclickCyNode(page: Page, nodeId: string): Promise<void> {
+  // Wait for the canvas + dev cy handle, but don't drive the dbltap via
+  // pointer events — Cytoscape's ``dbltap`` detection depends on
+  // browser timing that varies wildly between Firefox builds, OS event
+  // loops, and CI rAF starvation. The timing-based path was flaky on
+  // local Mac (consistent fail) AND nightly Firefox CI (intermittent
+  // fail), forcing the gap to be re-tuned every few months.
+  //
+  // Instead, fire Cytoscape's `tap` then `dbltap` events directly via
+  // the dev-mode core handle. This bypasses pointer-event timing
+  // entirely and tests exactly the same handler chain (``onetap`` rail
+  // open, ``dbltap`` expand) that real users hit.
+  //
+  // Falls back to the pointer-event path if `__GIKG_CY_DEV__` isn't
+  // exposed (production build); both paths land in the same handlers.
   await page.waitForFunction(() => {
     const el = document.querySelector('.graph-canvas') as HTMLElement | null
     const cy = (window as unknown as { __GIKG_CY_DEV__?: unknown }).__GIKG_CY_DEV__
     return Boolean(cy && el && !el.classList.contains('pointer-events-none'))
   })
   await waitForCyNodeRendered(page, nodeId)
+  await dismissGraphGestureOverlayIfPresent(page)
+
+  const triggered = await page.evaluate((id: string) => {
+    const cy = (window as unknown as { __GIKG_CY_DEV__?: import('cytoscape').Core })
+      .__GIKG_CY_DEV__
+    if (!cy) return false
+    const n = cy.$id(id)
+    if (n.empty()) return false
+    // ``onetap`` debounce: fire one tap so the rail opens (matching the
+    // real-user single-tap-then-double-tap flow), then the dbltap.
+    n.emit('tap')
+    n.emit('dbltap')
+    return true
+  }, nodeId)
+
+  if (triggered) return
+
+  // Fallback for production builds where __GIKG_CY_DEV__ is stripped.
   const pos = await cyRenderedPositionForNodeId(page, nodeId)
   expect(pos).not.toBeNull()
-  /** Overlay can appear after ``Fit``; two separate down/up pairs are not a DOM ``dblclick`` (Firefox often never fires Cytoscape ``dbltap``). */
-  await dismissGraphGestureOverlayIfPresent(page)
   const canvas = page.locator('.graph-canvas')
-  // Two sequential taps (gap) fire ``dbltap`` more reliably than ``clickCount: 2`` on Firefox when
-  // ``onetap`` opens the rail — a single compound click can miss the canvas on the second hit.
   await canvas.click({ position: { x: pos!.x, y: pos!.y }, delay: 35 })
-  // Wider gap than Cytoscape ``dbltap`` threshold: nightly / Firefox CI can starve rAF under load.
   await page.waitForTimeout(220)
   await canvas.click({ position: { x: pos!.x, y: pos!.y }, delay: 35 })
 }
@@ -338,15 +365,43 @@ async function clickCyNodeOnce(page: Page, nodeId: string): Promise<void> {
 }
 
 async function shiftDblclickCyNode(page: Page, nodeId: string): Promise<void> {
+  // Same rationale as `dblclickCyNode` — fire Cytoscape's `dbltap`
+  // directly with a synthetic `originalEvent.shiftKey: true` so the
+  // ``shift`` branch in the handler runs. Bypasses Firefox modifier-
+  // key + double-click timing flake.
   await page.waitForFunction(() => {
     const el = document.querySelector('.graph-canvas') as HTMLElement | null
     const cy = (window as unknown as { __GIKG_CY_DEV__?: unknown }).__GIKG_CY_DEV__
     return Boolean(cy && el && !el.classList.contains('pointer-events-none'))
   })
   await waitForCyNodeRendered(page, nodeId)
+  await dismissGraphGestureOverlayIfPresent(page)
+
+  const triggered = await page.evaluate((id: string) => {
+    const cy = (window as unknown as { __GIKG_CY_DEV__?: import('cytoscape').Core })
+      .__GIKG_CY_DEV__
+    if (!cy) return false
+    const n = cy.$id(id)
+    if (n.empty()) return false
+    // Cytoscape passes `originalEvent` through to handlers; the
+    // dbltap site reads `originalEvent.shiftKey`.
+    type EmittableEvent = { type: string; originalEvent: { shiftKey: boolean } }
+    const evt: EmittableEvent = {
+      type: 'dbltap',
+      originalEvent: { shiftKey: true },
+    }
+    // Cast `n.emit` → unknown because cytoscape's typings restrict the
+    // payload shape to `EventObject[]` and we want the synthetic event
+    // to ride alongside.
+    ;(n.emit as unknown as (kind: string, extra: EmittableEvent[]) => void)('dbltap', [evt])
+    return true
+  }, nodeId)
+
+  if (triggered) return
+
+  // Pointer-event fallback (production builds w/o __GIKG_CY_DEV__).
   const pos = await cyRenderedPositionForNodeId(page, nodeId)
   expect(pos).not.toBeNull()
-  await dismissGraphGestureOverlayIfPresent(page)
   const canvas = page.locator('.graph-canvas')
   await canvas.click({
     position: { x: pos!.x, y: pos!.y },
@@ -368,7 +423,17 @@ async function cyNodeCount(page: Page): Promise<number> {
   })
 }
 
-async function gotoGraphWithMockCorpus(page: Page): Promise<void> {
+async function gotoGraphWithMockCorpus(
+  page: Page,
+  opts?: { topicMinDegree?: number },
+): Promise<void> {
+  // Default: wait for `topic:ci-policy` degree >= 1 (the node exists and
+  // renders). Tests that need the cross-episode expand gate open can pass
+  // `topicMinDegree: 2` to wait for the second ABOUT edge from the
+  // `giJsonTopicDegreeAtLeastTwo` fixture; the degree-1 raw-fixture test
+  // (which intentionally exercises the *no-expand* path) must NOT block
+  // on degree > 1 or it times out.
+  const minDegree = opts?.topicMinDegree ?? 1
   await page.goto('/')
   await page.getByRole('heading', { name: SHELL_HEADING_RE }).waitFor()
   await statusBarCorpusPathInput(page).fill('/mock/corpus')
@@ -378,16 +443,21 @@ async function gotoGraphWithMockCorpus(page: Page): Promise<void> {
   await expect(page.locator('.graph-canvas')).toBeVisible()
   await dismissGraphGestureOverlayIfPresent(page)
   await expect
-    .poll(async () =>
-      page.evaluate(() => {
-        const cy = (window as unknown as { __GIKG_CY_DEV__?: import('cytoscape').Core }).__GIKG_CY_DEV__
-        if (!cy) return 0
-        const n = cy.$id('topic:ci-policy')
-        if (n.empty() || typeof n.isNode !== 'function' || !n.isNode()) return 0
-        return n.degree()
-      }),
+    .poll(
+      async () =>
+        page.evaluate(() => {
+          const cy = (window as unknown as { __GIKG_CY_DEV__?: import('cytoscape').Core }).__GIKG_CY_DEV__
+          if (!cy) return 0
+          const n = cy.$id('topic:ci-policy')
+          if (n.empty() || typeof n.isNode !== 'function' || !n.isNode()) return 0
+          return n.degree()
+        }),
+      { timeout: 30_000 },
     )
-    .toBeGreaterThan(1, { timeout: 30_000 })
+    // Playwright's poll matchers refuse a `{ timeout }` second arg when
+    // the expected value is a non-literal expression; pass it via
+    // `poll(fn, { timeout })` instead.
+    .toBeGreaterThan(minDegree - 1)
   // ``scheduleNodeEpisodesCorpusBeyondProbes`` debounces at 400ms; avoid expand racing in-flight POST.
   await page.waitForTimeout(500)
 }

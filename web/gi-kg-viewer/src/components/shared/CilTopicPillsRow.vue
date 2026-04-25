@@ -57,11 +57,20 @@ function buttonShapeClasses(): string {
 </script>
 
 <template>
+  <!--
+    Use ``role="group"`` on the wrapper rather than ``role="list"``: WAI-
+    ARIA requires list children to be ``role="listitem"``, and putting
+    that role on each ``<button>`` shadowed the implicit button role
+    (Playwright + screen readers reported them as listitems, breaking
+    ``getByRole('button')``). ``group`` accepts arbitrary children with
+    an ``aria-label`` for the cluster name and keeps the pills
+    discoverable as buttons.
+  -->
   <div
     v-if="pills.length"
     class="flex flex-wrap gap-1"
     :data-testid="dataTestid"
-    role="list"
+    role="group"
     aria-label="Topic chips"
   >
     <button
@@ -83,7 +92,6 @@ function buttonShapeClasses(): string {
       "
       :title="p.label.trim() || undefined"
       :aria-label="`Open graph for topic: ${p.label}`"
-      role="listitem"
       @click.stop="emit('pill-click', i)"
     >
       {{ displayLabel(p.label) }}
