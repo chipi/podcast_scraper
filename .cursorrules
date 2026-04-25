@@ -139,6 +139,26 @@
   - **Do not use:** `pytest`, `black .`, `flake8`, `npx markdownlint-cli2`
   - Exception: `git` commands are fine; Python: `.venv/bin/python3 script.py`
 
+8a-bis. **Viewer (`web/gi-kg-viewer`) tools — `npm run …` / `./node_modules/.bin/…`, never `npx`.**
+
+  - The viewer pins **`@playwright/test`** (CLI exposed as
+    `node_modules/.bin/playwright`) but **not** a separate package
+    literally named `playwright`. **`npx playwright test ...`** silently
+    fetches a fresh copy from the npm registry → two module instances
+    at the same version → "Playwright Test did not expect
+    test.describe() to be called here" → worker SIGKILL (exit code
+    137 in the parent shell). Easy to misread as "user canceled" or
+    OOM. Smoking gun: `npm warn exec ... will be installed` near the
+    top of the output.
+  - **Use:** `npm run test:e2e -- <args>`, `npm run test:unit`,
+    `npm run dev`, `npm run build`, or `./node_modules/.bin/playwright
+    test …` from the viewer dir. Same isolation as `.venv/bin/pytest`.
+  - **Do not use:** `npx playwright`, `npx vitest`, `npx vite`. `npx`
+    is not the Node analog of `python -m`; it falls back to fetching
+    from registry when the literal name isn't in `node_modules`.
+  - Polyglot details: `docs/guides/POLYGLOT_REPO_GUIDE.md` —
+    *Invoking viewer tools*.
+
 8b. **ALWAYS update venv when dependency ranges change**
 
   - Trigger: After ANY edit to `[project.dependencies]` or `[project.optional-dependencies]` in `pyproject.toml`

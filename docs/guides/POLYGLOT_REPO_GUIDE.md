@@ -64,6 +64,56 @@ The viewer directory is **`WEB_VIEWER_DIR`** in the root [`Makefile`](https://gi
 
 ---
 
+## Invoking viewer tools — `npm` / `./node_modules/.bin/` (not `npx`)
+
+The Node analog of Python's `.venv` is **`web/gi-kg-viewer/node_modules/`** —
+a per-project, gitignored dependency folder. Use it the same way you'd
+use `.venv/bin/<tool>` for Python: invoke project-pinned binaries, not
+ambient ones.
+
+| Python | Node (viewer) |
+| ------ | ------------- |
+| `.venv/bin/python` | `node_modules/.bin/<tool>` |
+| `pyproject.toml` / `requirements.txt` | `package.json` (deps + lockfile) |
+| `source .venv/bin/activate` | `npm run <script>` (auto-prepends `node_modules/.bin` to `PATH` for that script) |
+
+**Use these:**
+
+```sh
+cd web/gi-kg-viewer
+npm install                       # creates / updates node_modules
+npm run test:e2e                  # Playwright via project-pinned CLI
+npm run test:unit                 # Vitest
+npm run dev                       # Vite dev server
+./node_modules/.bin/playwright test some.spec.ts -g "..."  # equivalent direct invocation
+```
+
+**Avoid `npx <tool>`** for viewer tooling. The viewer pins
+**`@playwright/test`** (which exposes its CLI as
+`node_modules/.bin/playwright`) but **not** a separate package literally
+named `playwright`. `npx playwright` doesn't find a `playwright` package
+in `node_modules`, silently fetches a fresh copy from the npm registry
+into a temp dir, and runs that. The freshly-fetched runner then loads
+spec files whose `import { test } from '@playwright/test'` resolves to
+the project's `node_modules/@playwright/test` — **two module instances
+at the same version, no shared internal state**. The runner's internal
+test registry rejects `test.describe()` calls from the spec with:
+
+> Error: Playwright Test did not expect test.describe() to be called
+> here. … You have two different versions of @playwright/test.
+
+The worker process crashes; the parent shell sees exit code 137
+(SIGKILL). Easy to misread as "user canceled" or OOM. The smoking gun
+is `npm warn exec The following package was not found and will be
+installed: playwright@…` near the top of the output.
+
+`npx` is **not** the Node equivalent of `python -m`. `python -m` only
+loads from the current interpreter; `npx` falls back to **fetching from
+the registry** if the literal name isn't in `node_modules`. Reach for
+`npm run …` or `./node_modules/.bin/…` instead.
+
+---
+
 ## Where to read next
 
 - **First pipeline run (profile + operator YAML + feeds):** [README.md](https://github.com/chipi/podcast_scraper/blob/main/README.md#typical-run-profile-operator-config--feed-list),
