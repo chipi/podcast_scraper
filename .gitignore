@@ -126,9 +126,13 @@ config/manual/
 # CI-related local files under config/ci (optional stem lists, etc.); not committed
 config/ci/*
 !config/ci/README.md
-# Stack-test pipeline config is mounted by compose/docker-compose.stack-test.yml
-# and consumed by CI, so it must be tracked.
+# Stack-test pipeline configs are mounted by
+# compose/docker-compose.stack-test.yml and consumed by CI, so they
+# must be tracked. ``stack-test-config.yaml`` is the airgapped-thin
+# default; ``stack-test-config.cloud-thin.yaml`` is the cloud-thin
+# variant (``make stack-test-run-cloud``).
 !config/ci/stack-test-config.yaml
+!config/ci/stack-test-config.cloud-thin.yaml
 
 # Experiments (local / ad-hoc configs)
 config/playground/

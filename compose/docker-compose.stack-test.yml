@@ -16,11 +16,48 @@ services:
       - corpus_data:/app/output
 
   viewer:
+    build:
+      context: ..
+      dockerfile: docker/viewer/Dockerfile
+      args:
+        # Empty string = "all time" — stack-test fixtures use static
+        # 2025 publish dates. The viewer's default 7-day lens would
+        # otherwise filter them out and the auto-load picks 0
+        # artifacts. Production builds (without this overlay) keep
+        # the code default of 7 days.
+        VITE_DEFAULT_GRAPH_LENS_DAYS: "0"
     ports:
       - "${STACK_TEST_VIEWER_PORT:-8090}:80"
 
+  # Mock RSS + audio fixtures host so the pipeline can fetch
+  # `http://mock-feeds/feed.xml` and `/audio/*.mp3` without internet
+  # access during stack-test (#666 follow-up — replaces the
+  # ``dry_run: true`` workaround in stack-test-config.yaml).
+  mock-feeds:
+    image: nginx:1.27-alpine
+    volumes:
+      - ../docker/mock-feeds/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+      # ``p01_mtb.xml`` has 3 episodes with real audio fixtures
+      # (p01_e01..03.mp3, ~6–20 min each). Combined with
+      # ``max_episodes: 1`` in the stack-test config, this exercises a
+      # representative end-to-end pipeline. Fixture dates are static
+      # (2025-09); the viewer-side stack-test mode bypasses the
+      # default 7-day graph lens so date-based filtering doesn't
+      # depend on wall-clock time.
+      - ../tests/fixtures/rss/p01_mtb.xml:/usr/share/nginx/html/feed.xml:ro
+      - ../tests/fixtures/audio:/usr/share/nginx/html/audio:ro
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1/healthz || exit 1"]
+      interval: 5s
+      timeout: 2s
+      retries: 5
+      start_period: 3s
+
   pipeline:
     profiles: []
+    depends_on:
+      mock-feeds:
+        condition: service_healthy
     volumes:
       - corpus_data:/app/output
       - ../tests/fixtures/rss:/app/fixtures/rss:ro
@@ -28,6 +65,9 @@ services:
 
   pipeline-llm:
     profiles: []
+    depends_on:
+      mock-feeds:
+        condition: service_healthy
     volumes:
       - corpus_data:/app/output
       - ../tests/fixtures/rss:/app/fixtures/rss:ro

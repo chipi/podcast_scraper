@@ -6,20 +6,19 @@
 # ``make stack-test-run`` and the Playwright harness under
 # ``tests/stack-test/``.
 #
-# NOTE: the ``rss`` URL assumes a mock-feeds Nginx sidecar reachable at
-# ``mock-feeds`` on the stack-test compose network. Until that service is
-# wired into the overlay (follow-up), ``dry_run: true`` keeps the compose
-# validation + build path green without fetching real RSS.
+# The ``mock-feeds`` Nginx sidecar (see compose overlay) serves
+# ``tests/fixtures/rss/p01_fast.xml`` at ``http://mock-feeds/feed.xml``
+# and ``tests/fixtures/audio/`` under ``/audio/`` — both reachable on the
+# compose network so the pipeline runs end-to-end without internet access.
 
 rss: "http://mock-feeds/feed.xml"
 output_dir: "/app/output"
 max_episodes: 1
-dry_run: true
 workers: 1
 log_level: INFO
 
 append: false
-transcribe_missing: false
+transcribe_missing: true
 generate_metadata: true
 generate_summaries: true
 generate_gi: true

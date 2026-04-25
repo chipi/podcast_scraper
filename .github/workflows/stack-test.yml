@@ -1,5 +1,19 @@
 name: Stack test
 
+# End-to-end stack-test against the Docker compose stack
+# (mock-feeds → pipeline → API → viewer SPA). Single runner, three
+# named step groups so failures are easy to triage:
+#   1. Build + airgapped pipeline run + asserts
+#   2. Cloud-thin pipeline run + asserts (sequential — runs against a
+#      fresh corpus volume; needs OPENAI_API_KEY + GEMINI_API_KEY)
+#   3. Viewer + API + Playwright smoke
+#
+# Both pipeline profiles share the same mock-feeds host and stack-test
+# fixtures (``tests/fixtures/rss/p01_mtb.xml`` + ``tests/fixtures/audio/``)
+# so the assertions are directly comparable. Cloud-thin is gated on
+# the secrets being present — when absent the cloud step group is
+# skipped (airgapped + viewer still run).
+
 on:
   push:
     branches: [main]
@@ -7,10 +21,15 @@ on:
       - 'compose/**'
       - 'docker/**'
       - 'config/ci/**'
+      - 'config/profiles/**'
       - 'tests/stack-test/**'
+      - 'tests/fixtures/rss/**'
+      - 'tests/fixtures/audio/**'
       - 'Makefile'
       - 'pyproject.toml'
-      - 'docker/pipeline/**'
+      - 'src/podcast_scraper/prompts/**'
+      - 'src/podcast_scraper/search/**'
+      - 'src/podcast_scraper/workflow/orchestration.py'
       - '.github/workflows/stack-test.yml'
       - 'scripts/tools/gil_quality_metrics.py'
       - 'scripts/tools/kg_quality_metrics.py'
@@ -31,6 +50,9 @@ jobs:
       STACK_TEST_EXPORT_DIR: ${{ github.workspace }}/.stack-test-corpus
       STACK_TEST_CORPUS_ROOT: ${{ github.workspace }}/.stack-test-corpus
     steps:
+      # ───────────────────────────────────────────────────────────
+      # Setup
+      # ───────────────────────────────────────────────────────────
       - uses: actions/checkout@v6
 
       - name: Free disk space
@@ -42,18 +64,6 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v4
 
-      - name: Build stack + stack-test images
-        run: make stack-test-build
-
-      - name: Run pipeline (fixture RSS, airgapped profile)
-        run: make stack-test-run
-
-      - name: Assert pipeline log (layer 2)
-        run: make stack-test-assert-logs
-
-      - name: Export corpus from stack-test volume (layer 1 prep)
-        run: make stack-test-export
-
       - uses: actions/setup-python@v6
         with:
           python-version: '3.12'
@@ -61,13 +71,100 @@ jobs:
       - name: Install Python deps (GIL/KG metric scripts)
         run: pip install -e '.[dev]'
 
-      - name: Artifact quality gates (layer 1)
-        run: make stack-test-assert-artifacts
+      # ───────────────────────────────────────────────────────────
+      # Stage 1 — Airgapped: build + run + asserts
+      # Profile: ``airgapped_thin`` (Whisper tiny.en, transformers
+      # bart-base + led-base, spaCy en_core_web_sm; no cloud calls).
+      # ───────────────────────────────────────────────────────────
+      - name: 'Stage 1 — airgapped: build images'
+        run: make stack-test-build
 
-      - name: Start viewer + API
+      - name: 'Stage 1 — airgapped: run pipeline (mock RSS, fixture audio)'
+        run: make stack-test-run
+
+      - name: 'Stage 1 — airgapped: assert pipeline log markers'
+        run: make stack-test-assert-logs
+
+      - name: 'Stage 1 — airgapped: export corpus from volume + assert artifacts'
+        run: |
+          make stack-test-export
+          make stack-test-assert-artifacts
+
+      # ───────────────────────────────────────────────────────────
+      # Stage 2 — Cloud-thin: build + run + asserts
+      # Profile: ``cloud_thin`` (OpenAI Whisper API + Gemini for
+      # NER/summary/GI/KG; no torch / transformers / faiss locally).
+      # Gated on OPENAI_API_KEY + GEMINI_API_KEY secrets being set.
+      # Reset the volume + corpus export between runs so artefact
+      # asserts inspect the cloud-thin output cleanly.
+      # ───────────────────────────────────────────────────────────
+      - name: 'Stage 2 — cloud-thin: gate on API secrets'
+        id: cloud_secrets
+        run: |
+          if [ -n "${{ secrets.OPENAI_API_KEY }}" ] && [ -n "${{ secrets.GEMINI_API_KEY }}" ]; then
+            echo "available=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "available=false" >> "$GITHUB_OUTPUT"
+            echo "::warning ::Cloud-thin step group skipped — OPENAI_API_KEY / GEMINI_API_KEY not set on this branch"
+          fi
+
+      - name: 'Stage 2 — cloud-thin: tear down airgapped stack + reset volume'
+        if: steps.cloud_secrets.outputs.available == 'true'
+        env:
+          # Drop the corpus_data volume so the cloud run starts from a
+          # clean slate; the make recipe gates ``-v`` on this flag.
+          STACK_TEST_DOWN_VOLUMES: '1'
+        run: |
+          make stack-test-down || true
+          rm -rf "${STACK_TEST_EXPORT_DIR}" .stack-test/pipeline.log
+
+      - name: 'Stage 2 — cloud-thin: build pipeline-llm image'
+        if: steps.cloud_secrets.outputs.available == 'true'
+        run: make stack-test-build-cloud
+
+      - name: 'Stage 2 — cloud-thin: run pipeline (Gemini + OpenAI Whisper)'
+        if: steps.cloud_secrets.outputs.available == 'true'
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+        # ``stack-test-run-cloud`` sources ``.env`` from the repo root
+        # for local dev; on CI we don't have an ``.env`` so write one
+        # with the secrets just for the recipe shell.
+        run: |
+          umask 077
+          {
+            echo "OPENAI_API_KEY=$OPENAI_API_KEY"
+            echo "GEMINI_API_KEY=$GEMINI_API_KEY"
+          } > .env
+          make stack-test-run-cloud
+
+      - name: 'Stage 2 — cloud-thin: assert pipeline log + export + artifacts (incl. grounded-quote gate)'
+        if: steps.cloud_secrets.outputs.available == 'true'
+        run: |
+          # The cloud recipe writes ``pipeline.cloud.log``; the asserts
+          # target ``pipeline.log`` — point them at the cloud log so
+          # the same assertion logic applies.
+          cp .stack-test/pipeline.cloud.log .stack-test/pipeline.log
+          make stack-test-assert-logs
+          make stack-test-export
+          make stack-test-assert-artifacts
+          # Cloud-only: grounded-insight-rate ≥ 5% (Gemini's extractive
+          # QA + NLI consistently produces real evidence on the
+          # p01_mtb fixture). Catches a regression where the provider
+          # returns empty quote arrays.
+          make stack-test-assert-artifacts-cloud
+
+      # ───────────────────────────────────────────────────────────
+      # Stage 3 — Viewer + API + Playwright smoke
+      # Brings up the api + viewer (Nginx) containers against the
+      # corpus produced by whichever pipeline ran last (cloud if
+      # available, else airgapped) and runs the Playwright smoke
+      # spec.
+      # ───────────────────────────────────────────────────────────
+      - name: 'Stage 3 — viewer/api: start containers'
         run: make stack-test-up
 
-      - name: Wait for Nginx → API health
+      - name: 'Stage 3 — viewer/api: wait for /api/health'
         run: |
           for i in $(seq 1 60); do
             if curl -fsS "http://127.0.0.1:8090/api/health" >/dev/null; then
@@ -83,17 +180,30 @@ jobs:
         with:
           node-version: '22'
 
-      - name: Playwright stack tests
+      - name: 'Stage 3 — viewer/api: Playwright smoke'
         run: make stack-test-playwright
 
-      - name: Tear down
+      # ───────────────────────────────────────────────────────────
+      # Always-run cleanup + diagnostics
+      # ───────────────────────────────────────────────────────────
+      - name: Tear down compose stack
         if: always()
         run: make stack-test-down || true
 
-      - name: Upload pipeline log on failure
+      - name: Upload pipeline logs on failure
         if: failure()
         uses: actions/upload-artifact@v4
         with:
-          name: stack-test-pipeline-log
-          path: .stack-test/pipeline.log
+          name: stack-test-pipeline-logs
+          path: |
+            .stack-test/pipeline.log
+            .stack-test/pipeline.cloud.log
+          if-no-files-found: ignore
+
+      - name: Upload Playwright report on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: stack-test-playwright-report
+          path: tests/stack-test/playwright-report
           if-no-files-found: ignore

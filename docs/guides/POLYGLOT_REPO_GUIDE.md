@@ -26,7 +26,7 @@ Treat them as two toolchains that share one git tree, not one unified `npm` work
 | File | Purpose |
 | ---- | ------- |
 | **`config/examples/.env.example`** | Copy to **repo root** `.env` for **Python**: API keys, `CACHE_DIR`, logging, optional `PODCAST_SCRAPER_*`, etc. ([CONFIGURATION.md](../api/CONFIGURATION.md); [twelve-factor config](../api/CONFIGURATION.md#twelve-factor-app-alignment-config)). |
-| **`web/gi-kg-viewer/.env.example`** | Copy to **`web/gi-kg-viewer/.env`** for **Vite** only (e.g. `VITE_DEFAULT_CORPUS_PATH`, optional `VITE_CLUSTER_SIBLING_EPISODE_CAP` for Graph tab topic-cluster sibling auto-load — **API corpus path** only; offline file-picker loads skip `topic_clusters.json` fetch and sibling merge). Vite loads `.env*` next to the app by default. |
+| **`web/gi-kg-viewer/.env.example`** | Copy to **`web/gi-kg-viewer/.env`** for **Vite** only: `VITE_DEFAULT_CORPUS_PATH` (pre-fills the shell corpus path for Graph tab auto-load — **API corpus path** only; offline file-picker loads skip `topic_clusters.json` fetch and sibling merge), `VITE_CLUSTER_SIBLING_EPISODE_CAP` (Graph tab topic-cluster sibling auto-load), `VITE_DEFAULT_GRAPH_LENS_DAYS` (Graph time-lens lower bound on first auto-load: positive integer = "last N days" — production default `7`; `0` or empty = "all time", used by the stack-test viewer build so static fixture publish dates aren't filtered out). Vite loads `.env*` next to the app by default. |
 
 Root `.gitignore` already ignores `.env`, `.env.local`, and similar patterns so secrets are not
 committed from either location.
