@@ -14,6 +14,7 @@ import HelpTip from '../shared/HelpTip.vue'
 import PodcastCover from '../shared/PodcastCover.vue'
 import { useArtifactsStore } from '../../stores/artifacts'
 import { useCorpusLensStore } from '../../stores/corpusLens'
+import DateChip from '../shared/DateChip.vue'
 import { useSubjectStore } from '../../stores/subject'
 import { useGraphExplorerStore } from '../../stores/graphExplorer'
 import { useGraphNavigationStore } from '../../stores/graphNavigation'
@@ -581,54 +582,12 @@ onBeforeUnmount(() => {
           class="flex w-full min-w-0 flex-wrap items-center gap-x-2 gap-y-1"
           data-testid="digest-toolbar-filters"
         >
-        <label
-          class="shrink-0 text-[10px] font-medium text-muted"
-          for="digest-filter-since"
-        >Published on or after</label>
-        <input
-          id="digest-filter-since"
-          v-model="sinceYmd"
-          type="text"
-          inputmode="numeric"
-          placeholder="YYYY-MM-DD"
-          class="min-w-0 w-[8.5rem] max-w-full shrink rounded border border-border bg-elevated px-2 py-1 text-xs text-surface-foreground sm:w-32"
-          aria-label="Published on or after date"
-          @keydown.enter="applyDigestDateNow()"
-        >
-        <div class="flex min-w-0 flex-wrap gap-1">
-          <button
-            type="button"
-            class="rounded border border-border bg-surface px-2 py-0.5 text-[10px] text-surface-foreground hover:bg-overlay/40"
-            :class="activePreset === 'all' ? 'ring-2 ring-primary' : ''"
-            @click="corpusLens.setPreset('all')"
-          >
-            All time
-          </button>
-          <button
-            type="button"
-            class="rounded border border-border bg-surface px-2 py-0.5 text-[10px] text-surface-foreground hover:bg-overlay/40"
-            :class="activePreset === '7' ? 'ring-2 ring-primary' : ''"
-            @click="corpusLens.setPreset(7)"
-          >
-            7d
-          </button>
-          <button
-            type="button"
-            class="rounded border border-border bg-surface px-2 py-0.5 text-[10px] text-surface-foreground hover:bg-overlay/40"
-            :class="activePreset === '30' ? 'ring-2 ring-primary' : ''"
-            @click="corpusLens.setPreset(30)"
-          >
-            30d
-          </button>
-          <button
-            type="button"
-            class="rounded border border-border bg-surface px-2 py-0.5 text-[10px] text-surface-foreground hover:bg-overlay/40"
-            :class="activePreset === '90' ? 'ring-2 ring-primary' : ''"
-            @click="corpusLens.setPreset(90)"
-          >
-            90d
-          </button>
-        </div>
+          <DateChip
+            :model-value="sinceYmd"
+            chip-testid="digest-chip-date"
+            popover-testid="digest-popover-date"
+            @update:model-value="(v) => (sinceYmd = v)"
+          />
         </div>
       </div>
       <p
