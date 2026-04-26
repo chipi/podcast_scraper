@@ -108,8 +108,34 @@ jobs:
           echo "::group::viewer container logs"
           docker compose -f compose/docker-compose.stack.yml -f compose/docker-compose.stack-test.yml logs --no-color --tail=200 viewer || true
           echo "::endgroup::"
-          echo "::group::pipeline container logs (one-shot job runner)"
-          docker compose -f compose/docker-compose.stack.yml -f compose/docker-compose.stack-test.yml logs --no-color --tail=400 pipeline pipeline-llm || true
+          # Pipeline runs as a one-shot ``docker compose run --rm pipeline …``
+          # container spawned by the API job factory; ``--rm`` removes it the
+          # moment it exits, so ``docker compose logs pipeline`` prints
+          # nothing here. Fetch the captured subprocess stderr/stdout from
+          # the API instead — it persists job logs and exposes them via
+          # ``GET /api/jobs/<id>/log`` (and ``…/subprocess-log``). This
+          # surfaces the actual pipeline ``exit_code_1`` reason in the
+          # workflow log.
+          echo "::group::pipeline subprocess logs (via /api/jobs/<id>/log)"
+          API_BASE="${STACK_TEST_BASE_URL:-http://127.0.0.1:8090}"
+          CORPUS_PATH="$(printf %s '/app/output' | jq -sRr @uri)"
+          jobs_json="$(curl -fsS "${API_BASE}/api/jobs?path=${CORPUS_PATH}" 2>/dev/null || echo '{}')"
+          job_ids="$(printf %s "${jobs_json}" | jq -r '.jobs // [] | .[] | .job_id' 2>/dev/null || true)"
+          if [ -z "${job_ids}" ]; then
+            echo "(no jobs reported by /api/jobs)"
+          else
+            echo "${job_ids}" | while IFS= read -r jid; do
+              [ -n "${jid}" ] || continue
+              echo "----- job ${jid} status -----"
+              curl -fsS "${API_BASE}/api/jobs/${jid}?path=${CORPUS_PATH}" 2>/dev/null \
+                | jq -r '. | "status=\(.status // "?")\nexit_code=\(.exit_code // "?")\nerror_reason=\(.error_reason // "")\nstarted_at=\(.started_at // "")\nfinished_at=\(.finished_at // "")"' \
+                || echo "(failed to read job ${jid} status)"
+              echo "----- job ${jid} subprocess log (full) -----"
+              curl -fsS "${API_BASE}/api/jobs/${jid}/log?path=${CORPUS_PATH}" 2>/dev/null \
+                || echo "(failed to read /api/jobs/${jid}/log)"
+              echo "----- end job ${jid} -----"
+            done
+          fi
           echo "::endgroup::"
 
       - name: Tear down compose stack
