@@ -33,6 +33,29 @@ Pipeline jobs run as **one-shot containers** spawned by the API on demand. There
 
 From the repo root:
 
+### One-shot wrappers (recommended for routine local validation)
+
+Two convenience targets bundle the whole build → up → seed → Playwright
+cycle so you don't have to remember the four-step sequence:
+
+```bash
+# ml pipeline (airgapped/whisper-tiny) — no API keys, ~5–10 min
+make stack-test-ml
+
+# cloud-thin (LLM) pipeline — needs .env keys, ~15–20 min, local-only
+make stack-test-cloud-thin
+```
+
+Both leave the stack **up** after success so you can `make stack-test-export`
+or poke at the corpus volume; run `make stack-test-down` when finished.
+
+A third variant `stack-test-ml-ci` runs the same flow but **always tears
+down** at the end (success or failure) via a shell `EXIT` trap. That's the
+one wired into `make ci` as the final gate.
+
+If you'd rather drive each step manually (debugging, custom seeds, …),
+the underlying targets are documented below.
+
 ### 1. Build the images
 
 ```bash

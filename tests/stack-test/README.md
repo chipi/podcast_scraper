@@ -15,7 +15,20 @@ The pipeline runs as a one-shot container spawned by the API job factory (`PODCA
 
 Both variants run from the repo root with Docker Desktop. **`.env`** at the repo root is sourced into `make stack-test-up` so `OPENAI_API_KEY` / `GEMINI_API_KEY` propagate through Compose into the API container, then into spawned pipeline containers.
 
-### Airgapped / ml — no cloud calls
+### One-shot wrappers (recommended)
+
+```bash
+make stack-test-ml                          # build → up → seed (ml) → Playwright (airgapped_thin)
+make stack-test-cloud-thin                  # build + pipeline-llm → up → seed (cloud-thin) → Playwright (cloud_thin)
+```
+
+Both leave the stack **up** after success so you can `make stack-test-export` and inspect artifacts; run `make stack-test-down` when finished.
+
+A third variant `stack-test-ml-ci` runs the same ml flow inside a shell `EXIT` trap that **always** tears down at the end (success or failure). Used by `make ci` as the final gate so a `make ci` run leaves a clean laptop.
+
+### Step-by-step (debug / custom seeds)
+
+#### Airgapped / ml — no cloud calls
 
 ```bash
 make stack-test-build                       # builds api + viewer + pipeline (ml)
@@ -24,7 +37,7 @@ make stack-test-seed                        # default STACK_TEST_OPERATOR_VARIAN
 make stack-test-playwright                  # spec defaults to STACK_TEST_OPERATOR_PROFILE=airgapped_thin
 ```
 
-### Cloud-thin / llm — local only (real Gemini + OpenAI Whisper costs)
+#### Cloud-thin / llm — local only (real Gemini + OpenAI Whisper costs)
 
 ```bash
 make stack-test-build                       # builds the airgapped images first
@@ -51,7 +64,7 @@ make stack-test-export                      # copies corpus_data → ./.stack-te
 
 ## CI
 
-[`.github/workflows/stack-test.yml`](../../.github/workflows/stack-test.yml) runs the airgapped/ml variant on path-filtered `push` to `main` and `workflow_dispatch`. The workflow's sequence mirrors the local flow above (`stack-test-build` → `up` → `seed` → `playwright` → `down`). Cloud-thin is local-only.
+[`.github/workflows/stack-test.yml`](../../.github/workflows/stack-test.yml) runs the airgapped/ml variant **as a `workflow_run`** triggered after the **Python application** workflow completes successfully on `main` (sequential post-Python gate; the workflow checks out the upstream's `head_sha` so a subsequent push doesn't shift the target). Workflow sequence mirrors the local flow above (`stack-test-build` → `up` → `seed` → `playwright` → `down`) plus an on-failure compose log dump (`api` / `viewer` / `pipeline` / `pipeline-llm`, `--tail=400`) so a pipeline `exit_code_1` is diagnosable from the workflow log instead of silently torn down. Manual `workflow_dispatch` is also accepted. Cloud-thin is local-only.
 
 ## Overrides
 

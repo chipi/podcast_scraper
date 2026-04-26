@@ -21,12 +21,22 @@ scanning, Docker validation, documentation deployment, dependency updates, and m
 | Workflow                  | File             | Purpose                                               | Trigger                                                                     |
 | ------------------------- | ---------------- | ----------------------------------------------------- | --------------------------------------------------------------------------- |
 | **Python Application**    | `python-app.yml` | Main CI pipeline with testing, linting, and builds    | Push/PR to `main` (only when Python/config files change)                    |
+| **Stack test**            | `stack-test.yml` | Docker stack + ml pipeline + Playwright (post-Python) | `workflow_run` after Python application succeeds, manual                    |
 | **Documentation Deploy**  | `docs.yml`       | Build and deploy MkDocs documentation to GitHub Pages | Push to `main`, PR with doc changes, manual                                 |
 | **CodeQL Security**       | `codeql.yml`     | Security vulnerability scanning                       | Push/PR to `main` (only when code/workflow files change), scheduled weekly  |
 | **Docker Build & Test**   | `docker.yml`     | Build and test Docker images                          | Push/PR paths per `docker.yml` (pipeline image, py)                         |
 | **Snyk Security Scan**    | `snyk.yml`       | Dependency and Docker image vulnerability scanning    | Push/PR to `main`, scheduled weekly (Mondays), manual                       |
 | **Nightly Comprehensive** | `nightly.yml`    | Full test suite with comprehensive metrics collection | Scheduled daily (2 AM UTC), push to release branches, manual                |
 | **Dependabot**            | `dependabot.yml` | Automated dependency update PRs                       | Scheduled weekly (Mondays), monthly for Docker                              |
+
+**Stack test sequencing (post-PR #675 follow-up):** Stack test was switched from a parallel
+`push` trigger to a `workflow_run` trigger gated on Python application's `conclusion == 'success'`.
+Rationale: stack-test's Docker build path was tripping on viewer / Python regressions that
+Python application would have caught — running both in parallel surfaced the same regression
+twice in the PR view. As a sequential next-gate, stack-test runs only after Python application
+is green and pins itself to that run's `head_sha` so subsequent pushes don't shift the target.
+On-failure compose log dump (`api` / `viewer` / `pipeline` / `pipeline-llm`) was added so future
+pipeline failures are diagnosable from the workflow log.
 
 ---
 

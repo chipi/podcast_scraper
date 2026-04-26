@@ -72,19 +72,27 @@ picker (no API fetch for clustering). Unknown **`schema_version`** values get a 
 Search query field (no separate label; placeholder + **Semantic search** heading) —
 **Enter** submits the same as **Search** (disabled while loading / no corpus / API down);
 **Shift+Enter** inserts a newline; **IME** composition does not trigger submit.
-Then **Since (date)** and **Top-k** on one compact row (**CSS grid**: date column absorbs
-remaining width with **`minmax(0, 1fr)`** so the native date control stays inside the left
-panel; slightly tighter padding / **`text-xs`** on small widths); **Advanced search** link;
-optional read-only **Advanced filters** summary when any advanced control differs
-from defaults; **Search** / **Clear** last; scrollable **results** (errors + hit cards) in the middle.
-**Explore corpus →** lives in **`LeftPanel.vue`** below the search card (**`data-testid="left-panel-explore-footer"`** /
-**`left-panel-enter-explore`**) so it stays visible above the status bar.
+Then a **filter chip bar** (#671, `data-testid="search-filter-bar"`) with four chips —
+**Since** (`search-chip-since`, shared `DateChip`), **Top‑k** (`search-chip-topk`,
+default 10), **Doc types** (`search-chip-doctypes`, empty = all), **More**
+(`search-chip-more`, opens the slim Advanced search dialog). Each chip's label
+switches from `Label ▾` (default) to `Label: detail ▾` when active; the **More**
+chip shows `More: N` reflecting the count of non-default fields it hosts. Replaces
+the legacy inline `Since (date) + Top-k` row, the "Advanced search" underline link,
+and the read-only "Active advanced filters" summary block (which is gone — chip
+labels carry the active state instead). **Search** / **Clear** sit below the chip
+bar; scrollable **results** (errors + hit cards) follow in the middle.
+**Explore corpus →** lives in **`LeftPanel.vue`** below the search card
+(**`data-testid="left-panel-explore-footer"`** / **`left-panel-enter-explore`**)
+so it stays visible above the status bar.
 
 ---
 
-## Advanced search
+## Advanced search dialog (slim, hosted by the More chip)
 
-Small underlined control opens a modal dialog with:
+Opened by clicking the **More** filter chip; same backdrop pattern as before.
+After #671 the dialog hosts only the low-traffic fields that aren't worth a
+top-level chip:
 
 - **Feed** (substring on catalog `feed_id` for the API; Library -> Prefill semantic
   search shows the feed title from the feeds catalog when known, with hover/title for
@@ -94,7 +102,9 @@ Small underlined control opens a modal dialog with:
 - **Embedding model**
 - **Merge duplicate KG surfaces** (default on: same behavior family as graph
   Entity/Topic dedupe for `kg_entity` / `kg_topic` vector rows)
-- **Doc Types** (empty = all)
+
+The legacy in-dialog **Doc Types** fieldset moved to the dedicated **Doc types**
+chip on the filter bar.
 
 ---
 
