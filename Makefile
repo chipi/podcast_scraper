@@ -472,7 +472,7 @@ validate-kg-schema:
 	fi
 
 # GI/KG viewer v2 (#489): FastAPI + Vite. Install: pip install -e '.[server]'; cd $(WEB_VIEWER_DIR) && npm install
-.PHONY: serve serve-api serve-ui serve-e2e-mock stack-build stack-build-llm stack-compose-validate stack-up stack-down stack-logs verify-stack-profiles stack-test-build stack-test-build-cloud stack-test-up stack-test-down stack-test-seed stack-test-playwright stack-test-export stack-test-ml stack-test-cloud-thin
+.PHONY: serve serve-api serve-ui serve-e2e-mock stack-build stack-build-llm stack-compose-validate stack-up stack-down stack-logs verify-stack-profiles stack-test-build stack-test-build-cloud stack-test-up stack-test-down stack-test-seed stack-test-playwright stack-test-export stack-test-ml stack-test-cloud-thin stack-test-ml-ci
 SERVE_OUTPUT_DIR ?= ./output
 # Optional corpus-editing + jobs routes (health shows green when on). Override with SERVE_ARGS= to disable.
 SERVE_ARGS ?= --enable-feeds-api --enable-operator-config-api --enable-jobs-api
@@ -644,6 +644,23 @@ stack-test-cloud-thin:
 	$(MAKE) stack-test-up
 	$(MAKE) stack-test-seed STACK_TEST_OPERATOR_VARIANT=cloud-thin
 	STACK_TEST_OPERATOR_PROFILE=cloud_thin $(MAKE) stack-test-playwright
+
+# CI flavour of ``stack-test-ml`` — same flow but always tears down at
+# the end (success or failure). Used by ``_ci_body``: ``make ci`` should
+# leave a clean laptop after the gate runs. Inner exit code is preserved
+# so a Playwright failure still fails ``make ci``.
+#
+# The shell ``trap … EXIT`` is what guarantees teardown even when
+# ``stack-test-playwright`` fails — chaining with ``&&`` short-circuits
+# at the failed step, then the EXIT trap fires before the recipe
+# returns the captured non-zero status.
+stack-test-ml-ci:
+	@set -u; \
+	trap '$(MAKE) stack-test-down >/dev/null 2>&1 || true' EXIT; \
+	$(MAKE) stack-test-build \
+		&& $(MAKE) stack-test-up \
+		&& $(MAKE) stack-test-seed STACK_TEST_OPERATOR_VARIANT=ml \
+		&& $(MAKE) stack-test-playwright
 
 # Vitest unit tests for TypeScript utility logic (no browser needed)
 test-ui:
@@ -1526,14 +1543,12 @@ ci: cleanup-processes
 # Offline HF for pytest: ``tests/conftest.py`` sets HF_HUB_OFFLINE / TRANSFORMERS_OFFLINE.
 # The ``ci:`` cache probe above passes them inline so probes do not hit the Hub accidentally.
 
-_ci_body: format-check lint lint-markdown type security complexity deadcode docstrings spelling check-test-policy test test-ui test-ui-e2e build-viewer coverage-enforce docs build stack-test-ml
-	# stack-test-ml is the final gate — full Docker stack + ml pipeline path
-	# (~5-10 min, no API keys, no cloud cost). Stack stays up after success
-	# for inspection (``make stack-test-export`` / artifact poking); run
-	# ``make stack-test-down`` when finished. Cloud-thin variant
-	# (``stack-test-cloud-thin``) is a separate explicit target — public
-	# CI does not run it (recurring API cost) and ``ci`` does not include
-	# it for the same reason locally.
+_ci_body: format-check lint lint-markdown type security complexity deadcode docstrings spelling check-test-policy test test-ui test-ui-e2e build-viewer coverage-enforce docs build stack-test-ml-ci
+	# Final gate is ``stack-test-ml-ci`` (build → up → seed → Playwright →
+	# always-teardown). ml pipeline only — ~5-10 min, no API keys, no cloud
+	# cost. Cloud-thin variant (``stack-test-cloud-thin``) is a separate
+	# explicit target; public CI does not run it (recurring API cost) and
+	# ``ci`` does not include it for the same reason locally.
 
 ci-fast: cleanup-processes format-check lint lint-markdown type security complexity deadcode docstrings spelling check-test-policy quality-metrics-ci test-fast test-ui build-viewer docs build
 	# Note: ci-fast skips coverage-enforce and test-ui-e2e (Playwright). For viewer work use ci-ui-fast.
