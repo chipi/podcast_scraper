@@ -1261,7 +1261,7 @@ For detailed mocking patterns, see:
 
 - `fast`: 1 episode (quick)
 - `multi_episode`: 5 episodes (full validation)
-- `data_quality`: All mock data (nightly)
+- `nightly`: 15 episodes across p01–p05 (nightly only)
 
 **Flaky Test Reruns** (integration/E2E only):
 

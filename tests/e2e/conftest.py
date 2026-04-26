@@ -644,7 +644,6 @@ def configure_e2e_feed_limiting(request):
     Test run mode is determined by E2E_TEST_MODE environment variable:
     - "fast": Fast feed (1 episode, 1 minute) - used by make test-e2e-fast
     - "multi_episode": Multi-episode feed (5 episodes, 10-15 seconds each) - used by make test-e2e
-    - "data_quality": All original mock data - used by make test-e2e-data-quality
     - "nightly": All podcasts p01-p05 (15 episodes) - used by make test-nightly
     - Default: "multi_episode" (if E2E_TEST_MODE not set, use multi-episode feed)
 
@@ -689,11 +688,7 @@ def configure_e2e_feed_limiting(request):
     if test_mode == "multi_episode" and is_critical_path:
         test_mode = "fast"
 
-    if test_mode == "data_quality":
-        # Data Quality mode: Allow all podcasts (original mock data)
-        E2EHTTPRequestHandler.set_allowed_podcasts(None)
-        E2EHTTPRequestHandler.set_use_fast_fixtures(False)  # Use full fixtures
-    elif test_mode == "nightly":
+    if test_mode == "nightly":
         # Nightly mode: Allow podcasts 1-5 (p01-p05) for comprehensive testing
         # plus episode-selection feed (p01_episode_selection.xml; GitHub #521).
         # Use full fixtures (not fast) for production-quality testing
@@ -764,7 +759,6 @@ def limit_max_episodes_in_fast_mode(request, monkeypatch):
     Test run mode is determined by E2E_TEST_MODE environment variable:
     - "fast": Limits to 1 episode - used by make test-e2e-fast
     - "multi_episode": No limitation (5 episodes) - used by make test-e2e
-    - "data_quality": No limitation (3-5 episodes) - used by make test-e2e-data-quality
     - "nightly": No limitation (all 15 episodes across p01-p05) - used by make test-nightly
     - Default: "multi_episode" (if E2E_TEST_MODE not set, allow multiple episodes)
 

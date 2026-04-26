@@ -167,7 +167,7 @@ Handler API: `E2EHTTPRequestHandler.set_transient_error(path, status=..., fail_c
 
 Feed names and RSS file mapping. Which feed name you can use depends on **test mode** (see [Test Modes](#test-modes)). For how the real pipeline fetches and parses RSS (retries, conditional GET, circuit breaker, multi-feed), see [RSS and feed ingestion](RSS_GUIDE.md).
 
-**Full fixtures** (used in `data_quality` and `nightly`; mapping from `PODCAST_RSS_MAP`):
+**Full fixtures** (used in `nightly` mode; mapping from `PODCAST_RSS_MAP`):
 
 | Feed name | RSS file | Description |
 | --------- | -------- | ----------- |
@@ -204,7 +204,6 @@ Set automatically by `conftest` from `E2E_TEST_MODE`.
 | `fast` | `podcast1`, `podcast1_with_transcript`, `podcast1_multi_episode`, `podcast1_episode_selection`, `podcast9_solo`, `podcast7_sustainability`, `podcast8_solar` |
 | `multi_episode` | `podcast1_multi_episode`, `podcast1_episode_selection`, `podcast1_with_transcript`, `edgecases`, `podcast7_sustainability`, `podcast8_solar` |
 | `nightly` | `podcast1`, `podcast2`, `podcast3`, `podcast4`, `podcast5`, `podcast1_episode_selection` (full fixtures) |
-| `data_quality` | All feeds (None = allow all) |
 
 Use `e2e_server.urls.feed("podcast1_multi_episode")` or `e2e_server.urls.feed("podcast1_episode_selection")` etc. Only feeds in the allowed set for the current mode are served; others return 404.
 
@@ -238,7 +237,7 @@ e2e_server.clear_error_behavior("/audio/p01_multi_e03.mp3")
 **Fixture mode:**
 
 - When **fast fixtures** are on, feeds resolve via `PODCAST_RSS_MAP_FAST` (e.g. `podcast1` → `p01_fast.xml`).
-- When off (e.g. nightly/data_quality), feeds use `PODCAST_RSS_MAP` (e.g. `podcast1` → `p01_mtb.xml`).
+- When off (e.g. nightly mode), feeds use `PODCAST_RSS_MAP` (e.g. `podcast1` → `p01_mtb.xml`).
 - Conftest sets this from `E2E_TEST_MODE`; teardown clears error behaviors and resets fast-fixtures mode.
 
 ### Served Content
@@ -407,7 +406,6 @@ E2E tests support different modes via the `E2E_TEST_MODE` environment variable (
 | `fast` | 1 per test (via monkeypatch) | Fast | Quick feedback, critical path |
 | `multi_episode` | No limit (e.g. 5) | Fast | Full validation |
 | `nightly` | No limit (e.g. 15 across p01–p05) | Full | Nightly suite |
-| `data_quality` | Multiple, all mock data | Full | Data quality / nightly |
 
 Markers can override effective mode: tests marked `@pytest.mark.nightly` use nightly when `E2E_TEST_MODE` is unset; tests marked `@pytest.mark.critical_path` use fast when unset.
 
@@ -476,7 +474,6 @@ pytest tests/e2e/test_basic_e2e.py -v -m e2e --disable-socket --allow-hosts=127.
 (rule I1) enforces that integration tests do not carry this marker.
 
 - `@pytest.mark.multi_episode` - Multi-episode tests
-- `@pytest.mark.data_quality` - Data quality tests (nightly)
 
 ## Provider Testing
 

@@ -409,7 +409,7 @@ Set via `E2E_TEST_MODE` environment variable:
 | ------ | ---------- | ---------- |
 | `fast` | 1 per test | Quick feedback |
 | `multi_episode` | 5 per test | Full validation |
-| `data_quality` | Multiple | Nightly only |
+| `nightly` | 15 (p01–p05) | Nightly only |
 
 ## ML Model Preloading
 

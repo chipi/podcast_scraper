@@ -179,109 +179,13 @@ class TestMultiEpisodeE2E:
                     f"processing in multi-episode mode, got {len(metadata_files)}"
                 )
 
-    def test_multi_episode_with_summarization(self, e2e_server):
-        """Test multi-episode processing with summarization enabled.
 
-        Validates:
-        - Summarization works correctly across multiple episodes
-        - Processing jobs are queued and handled correctly
-        - All episodes get summaries generated
-        """
-        # Require ML models to be cached
-        from tests.integration.ml_model_cache_helpers import (
-            require_transformers_model_cached,
-            require_whisper_model_cached,
-        )
-
-        require_transformers_model_cached(config.TEST_DEFAULT_SUMMARY_MODEL, None)
-        # Require Whisper model to be cached - needed to transcribe episodes 3-5
-        # Tests should use tiny.en (TEST_DEFAULT_WHISPER_MODEL), not base.en
-        require_whisper_model_cached(config.TEST_DEFAULT_WHISPER_MODEL)
-
-        rss_url = e2e_server.urls.feed("podcast1_multi_episode")
-
-        with tempfile.TemporaryDirectory() as tmpdir:
-            cfg = Config(
-                rss_url=rss_url,
-                output_dir=tmpdir,
-                max_episodes=5,  # Process all 5 multi-episode episodes
-                transcribe_missing=True,
-                generate_summaries=True,  # Enable summarization
-                summary_provider="transformers",  # Use transformers (not deprecated "local")
-                summary_model=config.TEST_DEFAULT_SUMMARY_MODEL,  # Use test default (small, fast)
-                summary_reduce_model=config.TEST_DEFAULT_SUMMARY_REDUCE_MODEL,  # Cached
-                whisper_model=config.TEST_DEFAULT_WHISPER_MODEL,  # Test default: tiny.en
-                generate_metadata=True,
-                metadata_format="json",
-            )
-
-            # Run pipeline
-            count, summary = run_pipeline(cfg)
-
-            # Determine expected episode count based on test mode
-            test_mode = os.environ.get("E2E_TEST_MODE", "multi_episode").lower()
-            expected_episodes = 1 if test_mode == "fast" else 5
-
-            # Validate processing (adjust expectations based on test mode)
-            # In multi-episode mode:
-            # - Episodes 1 and 2 have transcripts (will be processed)
-            # - Episodes 3, 4, 5 need transcription (will be processed if Whisper is cached)
-            # Since we require Whisper to be cached, all 5 episodes should be processed
-            if test_mode == "fast":
-                assert count == expected_episodes, (
-                    f"Should process {expected_episodes} episode(s) with "
-                    f"summarization (mode: {test_mode}), got {count}"
-                )
-            else:
-                # In multi-episode mode, all 5 episodes should be processed when Whisper is cached
-                assert count == 5, (
-                    f"Should process all 5 episodes with summarization when Whisper is cached, "
-                    f"got {count}"
-                )
-
-            # Verify summaries were generated for all episodes
-            metadata_files = list(Path(tmpdir).rglob("*.metadata.json"))
-            if test_mode == "fast":
-                assert len(metadata_files) == expected_episodes, (
-                    f"Should have exactly {expected_episodes} metadata "
-                    f"file(s), got {len(metadata_files)}"
-                )
-            else:
-                # When Whisper is cached, all 5 episodes should be processed and have metadata
-                assert len(metadata_files) == 5, (
-                    f"Should have exactly 5 metadata file(s) when Whisper is cached, "
-                    f"got {len(metadata_files)}"
-                )
-
-            # Check that summaries are present for all episodes
-            # When Whisper is cached, all 5 episodes should have transcripts and summaries
-            for metadata_file in sorted(metadata_files):
-                with open(metadata_file, "r", encoding="utf-8") as f:
-                    metadata = json.load(f)
-                    # All episodes should have content (transcript) when Whisper is cached
-                    assert metadata.get(
-                        "content"
-                    ), f"Metadata should have content section (file: {metadata_file.name})"
-                    assert metadata["content"].get(
-                        "transcript_source"
-                    ), f"Metadata should have transcript_source (file: {metadata_file.name})"
-                    # All episodes should have summaries
-                    assert (
-                        "summary" in metadata
-                    ), f"Metadata should have summary section (file: {metadata_file.name})"
-                    assert (
-                        metadata["summary"] is not None
-                    ), f"Summary should not be None (file: {metadata_file.name})"
-                    # Verify summary has normalized schema fields
-                    assert "bullets" in metadata["summary"], (
-                        f"Summary should have bullets field (normalized schema) "
-                        f"(file: {metadata_file.name})"
-                    )
-                    assert (
-                        len(metadata["summary"]["bullets"]) > 0
-                    ), f"bullets should not be empty (file: {metadata_file.name})"
-                    # short_summary is computed from bullets
-                    assert metadata["summary"].get("short_summary"), (
-                        f"Summary should have short_summary field (computed) "
-                        f"(file: {metadata_file.name})"
-                    )
+# Removed: ``test_multi_episode_with_summarization`` — the test asserted on
+# ML summarization output content (``summary is not None``, ``bullets`` length,
+# ``short_summary`` populated) for every episode in a 5-episode run, which is
+# precisely the dimension ``data/eval/`` now covers with versioned silver
+# references and pairwise LLM judging. The pipeline-mechanics dimension
+# (5-episode iteration, file-write ordering, concurrent processing) stays
+# covered by the two sibling tests in this class. Removed in the chore-class
+# CI cleanup PR (sibling of #677). See ``data/eval/README.md`` for the
+# replacement evaluation surface.
