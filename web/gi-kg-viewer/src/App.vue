@@ -387,14 +387,32 @@ function onSearchOpenEpisodeSummary(hit: SearchHit): void {
 
 watch(
   () =>
-    [subject.kind, subject.episodeMetadataPath, subject.graphNodeCyId] as const,
+    [
+      subject.kind,
+      subject.episodeMetadataPath,
+      subject.graphNodeCyId,
+      subject.topicId,
+      subject.personId,
+    ] as const,
   () => {
     const ep = subject.episodeMetadataPath?.trim()
     const gn = subject.graphNodeCyId?.trim()
+    const tp = subject.topicId?.trim()
+    const pn = subject.personId?.trim()
     if (subject.kind === 'episode' && ep) {
       rightOpen.value = true
     }
     if (subject.kind === 'graph-node' && gn) {
+      rightOpen.value = true
+    }
+    /** #672 — TEV / Person Landing sit in the same rail; auto-open so a
+     * focusTopic / focusPerson from Digest / Search / Explore is actually
+     * visible even when the rail was collapsed via the localStorage
+     * preference. */
+    if (subject.kind === 'topic' && tp) {
+      rightOpen.value = true
+    }
+    if (subject.kind === 'person' && pn) {
       rightOpen.value = true
     }
   },
