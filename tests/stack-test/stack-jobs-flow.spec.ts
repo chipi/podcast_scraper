@@ -376,9 +376,13 @@ async function validateCorpusDataLoadedAfterJob(
   await page.getByTestId('main-tab-library').click()
   const libRoot = page.getByTestId('library-root')
   await expect(libRoot).toBeVisible({ timeout: 60_000 })
-  // ``library-feed-list-scroll`` is the feed sidebar only; episode
-  // titles live in ``[data-library-episode-row]`` below.
-  await expect(page.getByTestId('library-feed-list-scroll')).toBeVisible({ timeout: 120_000 })
+  // #669 — the legacy ``library-feed-list-scroll`` sidebar was replaced
+  // by the always-visible ``library-filter-bar`` chip row (Feed / Date /
+  // Clustered chips). Wait for the bar to render so the Library is
+  // ready before we check episode rows + titles below; the feed list
+  // itself now lives inside ``library-popover-feed`` and only renders
+  // when the chip is opened.
+  await expect(page.getByTestId('library-filter-bar')).toBeVisible({ timeout: 120_000 })
   for (const marker of STACK_TEST_LIBRARY_TITLE_MARKERS) {
     await expect(libRoot).toContainText(marker, { timeout: 60_000 })
   }
