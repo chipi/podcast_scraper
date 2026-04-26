@@ -349,8 +349,11 @@ async function validateCorpusDataLoadedAfterJob(
   )
   await page.getByTestId('main-tab-digest').click()
   await expect(page.getByTestId('digest-root')).toBeVisible({ timeout: 60_000 })
+  // #670 — Digest date filter moved into a chip popover. Open the chip
+  // first, then click the "All time" preset inside the popover dialog.
+  await page.getByTestId('digest-chip-date').click()
   await page
-    .getByTestId('digest-toolbar-filters')
+    .getByTestId('digest-popover-date')
     .getByRole('button', { name: 'All time' })
     .click()
   const digestRows = page.locator('[data-digest-recent-row]')

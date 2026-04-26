@@ -369,9 +369,13 @@ Implemented in `useViewerKeyboard.ts` (global handlers, not per-component ad hoc
   needed, switch to **Search** mode, then focus `#search-q`.
 - **Escape** — On the **Graph** main tab, when focus is not in an editable control: clear
   graph interaction / transient selection state.
-- **G** / **L** on semantic search hits — Bound as **click targets on each result row**
-  (Show on graph / open episode in subject panel), **not** as document-level shortcuts, so
-  they do not fight the browser’s find shortcut or OS bindings.
+- **1 / 2 / 3 / 4** (#674 item 5) — When focus is not in an editable control: switch the
+  main tab to **Digest** / **Library** / **Graph** / **Dashboard** respectively. Editable-target
+  guard prevents firing while typing in any text input / textarea / contenteditable.
+- **G** / **L** on semantic search hits + Library episode rows (#674 item 2) — Bound as **click
+  targets on each row** (Show on graph / open episode in subject panel; Library row also has an
+  **S** prefill-search button), **not** as document-level shortcuts, so they do not fight the
+  browser’s find shortcut or OS bindings.
 
 ---
 

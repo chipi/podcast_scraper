@@ -188,7 +188,11 @@ test.describe('Search → graph (mocked API)', () => {
 
     await page.getByRole('button', { name: 'Fit' }).waitFor({ state: 'visible', timeout: 30_000 })
 
-    await expect(page.getByText(/Topic cluster\s*\(\d+\)/)).toBeVisible()
+    // #658 — node-type list moved inside the Types chip popover.
+    await page.getByTestId('graph-chip-types').click()
+    await expect(
+      page.getByTestId('graph-popover-types').getByText(/Topic cluster\s*\(\d+\)/),
+    ).toBeVisible()
   })
 
   test('Dashboard Intelligence tab shows topic clusters loaded and schema line', async ({ page }) => {
@@ -326,9 +330,11 @@ test.describe('Search → graph (mocked API)', () => {
     await expect(
       page.getByRole('heading', { name: 'Explore & query', exact: false }),
     ).toBeVisible({ timeout: 10_000 })
-    await expect(page.getByRole('textbox', { name: 'Topic contains' })).toHaveValue('')
-    await expect(page.getByRole('textbox', { name: 'Speaker contains' })).toHaveValue('')
-    await page.getByTestId('explore-advanced-open').click()
+    // #671 — Topic/Speaker inputs moved inside chip popovers; default chip
+    // label "Topic ▾" / "Speaker ▾" reflects the empty (cleared) filter state.
+    await expect(page.getByTestId('explore-chip-topic')).toContainText('Topic ▾')
+    await expect(page.getByTestId('explore-chip-speaker')).toContainText('Speaker ▾')
+    await page.getByTestId('explore-chip-more').click()
     const exploreAdvanced = page.getByRole('dialog', { name: 'Advanced explore' })
     await expect(exploreAdvanced).toBeVisible()
     await expect(exploreAdvanced.getByRole('checkbox', { name: /Grounded only/i })).toBeChecked()

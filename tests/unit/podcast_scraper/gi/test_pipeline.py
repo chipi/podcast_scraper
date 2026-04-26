@@ -77,6 +77,34 @@ class TestGILPipeline:
         assert ep_nodes[0]["properties"]["title"] == "My Episode"
         assert ep_nodes[0]["properties"]["publish_date"] == "2025-01-15T12:00:00Z"
 
+    def test_build_artifact_feed_id_lands_on_episode_properties(self):
+        """#658: feed_id parameter writes to Episode properties + still validates against schema."""
+        from podcast_scraper.gi import validate_artifact
+
+        out = build_artifact(
+            "ep:1",
+            "Hello.",
+            podcast_id="podcast:xyz",
+            episode_title="My Episode",
+            publish_date="2025-01-15T12:00:00Z",
+            feed_id="rss_example_com_abc123",
+        )
+        ep_nodes = [n for n in out["nodes"] if n["type"] == "Episode"]
+        assert len(ep_nodes) == 1
+        assert ep_nodes[0]["properties"]["feed_id"] == "rss_example_com_abc123"
+        validate_artifact(out, strict=True)
+
+    def test_build_artifact_omits_feed_id_when_not_supplied(self):
+        """#658: feed_id is optional; omitting it leaves the property absent."""
+        out = build_artifact(
+            "ep:1",
+            "",
+            podcast_id="podcast:xyz",
+            episode_title="My Episode",
+        )
+        ep_nodes = [n for n in out["nodes"] if n["type"] == "Episode"]
+        assert "feed_id" not in ep_nodes[0]["properties"]
+
     def test_build_artifact_with_cfg_uses_evidence_stack_when_grounded(self):
         """With cfg and mocked grounded quote, artifact has Quote node and grounded=True."""
         cfg = MagicMock()

@@ -80,7 +80,7 @@ All tokens reference [UXS-001](UXS-001-gi-kg-viewer.md).
    so column count follows the **digest column width** (smaller **12rem** floor keeps **three** bands on one row with **both** shell sidebars open on typical laptop widths; very narrow still stacks one per row). Each topic
    is a compact bordered **`section`** card. The **first** band uses **`bg-elevated`** and a
    **`border-primary/20`** border; its topic title **`button`** uses **`font-bold`**. Later bands
-   use **`bg-surface`**, **`border-border`**, and **`text-sm font-semibold`**. The **topic title** **`button`** opens **Graph** for the top hit that has GI or KG on disk;
+   use **`bg-surface`**, **`border-border`**, and **`text-sm font-semibold`**. The **topic title** **`button`** opens **Graph** for the top hit that has GI or KG on disk **and** focuses the topic in the right **Topic / Entity** rail panel (`focusTopic(graph_topic_id)` → `TopicEntityView`; #674 item 3) so the user gets both the canvas centred on that topic and the higher-level subject overview;
    **Search topic** is a separate primary **`button`**. Per-topic **hit rows** are one
    clickable control that also emits **open-library-episode** (same handoff as **Recent**)
    so the **Episode** rail loads that row, then opens the **Graph** tab for that hit's merged

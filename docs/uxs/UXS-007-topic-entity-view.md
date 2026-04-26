@@ -27,13 +27,25 @@
   - [UXS-010: Person Profile](UXS-010-person-profile.md) --
     person chip click can open Person Landing with Person Profile
 - **Implementation paths**:
-  - New: `web/gi-kg-viewer/src/components/topic/TopicEntityView.vue`
-  - Existing: `web/gi-kg-viewer/src/components/graph/GraphNodeRailPanel.vue` (rail
-    host)
-  - Existing: `web/gi-kg-viewer/src/stores/artifacts.ts` (enrichment data fetch)
-  - MVP slice (GitHub **#548**): `web/gi-kg-viewer/src/components/shared/TopicTimelineDialog.vue`
-    from graph **Topic** node detail — CIL **`/api/topics/.../timeline`** only; full
-    Topic Entity View layout (charts, enrichers, shared **InsightCard**) remains future work.
+  - **Shipped (#672)**:
+    `web/gi-kg-viewer/src/components/subject/TopicEntityView.vue` (rail panel),
+    `web/gi-kg-viewer/src/components/subject/SubjectTimelineChart.vue` (Chart.js
+    monthly mentions bar), `web/gi-kg-viewer/src/utils/subjectMentionsTimeline.ts`
+    (walks ABOUT / RELATED_TO / MENTIONS edges incident to the subject, hops to
+    linked Insight / Quote, resolves each item's `episode_id` to the Episode
+    node's `publish_date` for YYYY-MM bucketing). Subject store entry: `focusTopic`
+    /  `focusEntity` (#672 Fix 2 alias). Mounts inside `SubjectRail` for
+    `subject.kind === 'topic'`.
+  - **Existing graph-rail surface stays separate**:
+    `web/gi-kg-viewer/src/components/graph/GraphNodeRailPanel.vue` +
+    `NodeDetail.vue` continue to render for `subject.kind === 'graph-node'`.
+    Graph **clicks** route through `focusGraphNode` → rich graph-aware detail;
+    `focusTopic` / `focusEntity` from non-graph surfaces (Digest, Search,
+    Explore) go through this UXS's higher-level overview panel.
+  - **MVP slice (GitHub #548) preserved**:
+    `web/gi-kg-viewer/src/components/shared/TopicTimelineDialog.vue` from graph
+    **Topic** node detail — CIL `/api/topics/.../timeline` modal; complementary
+    to the rail timeline above.
 - **Shell IA:** [VIEWER_IA.md](VIEWER_IA.md) — subject rail as single context layer; navigation axes; status bar
 
 ---

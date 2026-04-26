@@ -420,6 +420,7 @@ def _build_stub_artifact(
     date_str: str,
     transcript_ref: str,
     episode_duration_ms: Optional[int] = None,
+    feed_id: Optional[str] = None,
 ) -> Dict[str, Any]:
     """Build minimal stub artifact (one Episode, one Insight, one Quote, one SUPPORTED_BY)."""
     ep_node_id = episode_node_id(episode_id)
@@ -437,6 +438,10 @@ def _build_stub_artifact(
     }
     if episode_duration_ms is not None and episode_duration_ms > 0:
         ep_props["duration_ms"] = int(episode_duration_ms)
+    # #658 — Episode nodes carry the stable feed identifier so the
+    # graph Feed chip can filter by feed across the merged corpus.
+    if feed_id is not None:
+        ep_props["feed_id"] = str(feed_id).strip()
 
     nodes: list = [
         {
@@ -585,6 +590,7 @@ def build_artifact(
     topic_labels: Optional[List[str]] = None,
     episode_duration_ms: Optional[int] = None,
     prefilled_insights: Optional[List[Dict[str, Any]]] = None,
+    feed_id: Optional[str] = None,
 ) -> Dict[str, Any]:
     """Build a GIL artifact for one episode.
 
@@ -770,6 +776,7 @@ def build_artifact(
                 transcript_segments=transcript_segments,
                 topic_labels=topic_labels,
                 episode_duration_ms=episode_duration_ms,
+                feed_id=feed_id,
             )
         except GILGroundingUnsatisfiedError:
             raise
@@ -792,6 +799,7 @@ def build_artifact(
             date_str=date_str,
             transcript_ref=transcript_ref,
             episode_duration_ms=episode_duration_ms,
+            feed_id=feed_id,
         )
 
     # Multiple insights but evidence stack failed: still emit multi-insight artifact
@@ -811,6 +819,7 @@ def build_artifact(
             transcript_segments=transcript_segments,
             topic_labels=topic_labels,
             episode_duration_ms=episode_duration_ms,
+            feed_id=feed_id,
         )
     except Exception:
         return _build_stub_artifact(
@@ -823,6 +832,7 @@ def build_artifact(
             date_str=date_str,
             transcript_ref=transcript_ref,
             episode_duration_ms=episode_duration_ms,
+            feed_id=feed_id,
         )
 
 
@@ -844,6 +854,7 @@ def _artifact_from_multi_insight(
     about_edge_top_k: Optional[int] = None,
     about_edge_floor: Optional[float] = None,
     about_edge_encoder: Optional[Any] = None,
+    feed_id: Optional[str] = None,
 ) -> Dict[str, Any]:
     """Build artifact from Episode + N Insights + their grounded quote lists.
 
@@ -858,6 +869,10 @@ def _artifact_from_multi_insight(
     }
     if episode_duration_ms is not None and episode_duration_ms > 0:
         ep_props["duration_ms"] = int(episode_duration_ms)
+    # #658 — Episode nodes carry the stable feed identifier so the
+    # graph Feed chip can filter by feed across the merged corpus.
+    if feed_id is not None:
+        ep_props["feed_id"] = str(feed_id).strip()
 
     nodes: list = [
         {

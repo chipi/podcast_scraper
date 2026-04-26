@@ -129,7 +129,15 @@ def validate_operator_pipeline_extras(operator_yaml: Path, pipe_mode: str) -> st
     """
     # codeql[py/path-injection] -- operator_yaml from viewer_operator_extras_source
     # (safe_resolve_directory + safe_fixed_file_under_root): Type 1.
-    text = operator_yaml.read_text(encoding="utf-8", errors="replace")
+    # Missing file is equivalent to "no extras declared". Subprocess mode
+    # tolerates that (handled by the ``extras is None`` branch below);
+    # Docker mode falls through to the same explicit error a few lines
+    # down. Catching here keeps a brand-new corpus (``viewer_operator.yaml``
+    # not yet written) from 500'ing on ``POST /api/jobs``.
+    try:
+        text = operator_yaml.read_text(encoding="utf-8", errors="replace")
+    except FileNotFoundError:
+        text = ""
     extras = parse_pipeline_install_extras(text)
     if extras is not None and extras not in ("ml", "llm"):
         raise ValueError(

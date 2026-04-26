@@ -1,8 +1,12 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, inject, ref } from 'vue'
+import { corpusGraphBaselineLoaderKey } from '../../corpusGraphBaseline'
+import { useArtifactsStore } from '../../stores/artifacts'
+import { useGraphExplorerStore } from '../../stores/graphExplorer'
 import { useGraphNavigationStore } from '../../stores/graphNavigation'
 import { useExploreStore } from '../../stores/explore'
 import { useShellStore } from '../../stores/shell'
+import { useSubjectStore } from '../../stores/subject'
 import { truncate } from '../../utils/formatting'
 import { quoteAttributionDisplayFromId } from '../../utils/parsing'
 import {
@@ -11,6 +15,7 @@ import {
 } from '../../utils/transcriptSourceDisplay'
 import { segmentsForSubstringNeedle } from '../../utils/exploreHighlight'
 import type { ExploreTextSegment } from '../../utils/exploreHighlight'
+import ExploreFilterBar from './ExploreFilterBar.vue'
 import HelpTip from '../shared/HelpTip.vue'
 
 const emit = defineEmits<{ 'go-graph': [] }>()
@@ -18,6 +23,29 @@ const emit = defineEmits<{ 'go-graph': [] }>()
 const shell = useShellStore()
 const ex = useExploreStore()
 const nav = useGraphNavigationStore()
+const subject = useSubjectStore()
+const artifacts = useArtifactsStore()
+const graphExplorer = useGraphExplorerStore()
+const loadCorpusGraphBaseline = inject(corpusGraphBaselineLoaderKey, null)
+
+async function ensureDefaultCorpusGraphIfNeeded(): Promise<void> {
+  if (!loadCorpusGraphBaseline) return
+  if (graphExplorer.graphTabOpenedThisSession && artifacts.selectedRelPaths.length > 0) {
+    return
+  }
+  await loadCorpusGraphBaseline()
+}
+
+/** #674 item 4 — Top-speaker rollup row → Person Landing in the rail.
+ *  Auto-loads the corpus graph baseline (same pattern as Digest topic
+ *  click) so the panel has data to render even when the user has not
+ *  visited the Graph tab yet. */
+function focusPersonFromSpeakerId(rawId: string | null | undefined): void {
+  const id = (rawId ?? '').trim()
+  if (!id) return
+  subject.focusPerson(id)
+  void ensureDefaultCorpusGraphIfNeeded()
+}
 
 const advancedExploreDialogRef = ref<HTMLDialogElement | null>(null)
 
@@ -37,33 +65,6 @@ function onAdvancedExploreDialogClick(e: MouseEvent): void {
     el.close()
   }
 }
-
-const advancedExploreSummaryLines = computed(() => {
-  const f = ex.filters
-  const lines: string[] = []
-  if (f.groundedOnly) {
-    lines.push('Grounded only')
-  }
-  if (f.strict) {
-    lines.push('Strict schema')
-  }
-  const lim = Number(f.limit)
-  if (Number.isFinite(lim) && lim !== 50) {
-    lines.push(`Limit: ${lim}`)
-  }
-  if (f.sortBy !== 'confidence') {
-    lines.push(f.sortBy === 'time' ? 'Sort: Time' : `Sort: ${f.sortBy}`)
-  }
-  const mc = f.minConfidence.trim()
-  if (mc) {
-    lines.push(`Min confidence: ${mc}`)
-  }
-  return lines
-})
-
-const hasAdvancedExploreSummary = computed(
-  () => advancedExploreSummaryLines.value.length > 0,
-)
 
 /** Topic substring wins for highlight; else speaker (matches filter priority feel). */
 const exploreHighlightNeedle = computed(() => {
@@ -194,55 +195,12 @@ function onNlQuestionKeydown(e: KeyboardEvent): void {
           </HelpTip>
         </div>
         <div class="space-y-2">
-          <label class="block text-xs text-muted">
-            Topic contains
-            <input
-              v-model="ex.filters.topic"
-              type="text"
-              class="mt-0.5 w-full rounded border border-border bg-elevated px-2 py-1 text-sm"
-              :disabled="!shell.healthStatus"
-              @keydown="onFilteredExploreKeydown"
-            >
-          </label>
-          <label class="block text-xs text-muted">
-            Speaker contains
-            <input
-              v-model="ex.filters.speaker"
-              type="text"
-              class="mt-0.5 w-full rounded border border-border bg-elevated px-2 py-1 text-sm"
-              :disabled="!shell.healthStatus"
-              @keydown="onFilteredExploreKeydown"
-            >
-          </label>
-          <div
-            v-if="hasAdvancedExploreSummary"
-            role="region"
-            aria-label="Active explore filters"
-            class="rounded border border-border bg-elevated/60 px-2 py-1.5"
-          >
-            <p class="text-[10px] font-medium uppercase tracking-wide text-muted">
-              Advanced filters
-            </p>
-            <ul class="mt-1 space-y-0.5 text-[10px] leading-snug text-muted">
-              <li
-                v-for="(line, i) in advancedExploreSummaryLines"
-                :key="i"
-              >
-                {{ line }}
-              </li>
-            </ul>
-          </div>
-          <div class="mt-1">
-            <button
-              type="button"
-              data-testid="explore-advanced-open"
-              class="text-xs text-primary underline decoration-primary/60 underline-offset-2 hover:decoration-primary disabled:opacity-40"
-              :disabled="!shell.healthStatus"
-              @click="openAdvancedExplore"
-            >
-              Advanced explore
-            </button>
-          </div>
+          <ExploreFilterBar
+            :enabled="Boolean(shell.healthStatus)"
+            disabled-title="Requires the API"
+            @open-more="openAdvancedExplore"
+            @submit="ex.runFilteredExplore(shell.corpusPath)"
+          />
           <div class="mt-2 flex shrink-0 flex-wrap gap-2">
             <button
               type="button"
@@ -518,7 +476,20 @@ function onNlQuestionKeydown(e: KeyboardEvent): void {
               :key="`sp-${i}`"
               class="flex min-w-0 items-center justify-between gap-2"
             >
-              <span class="min-w-0 truncate text-surface-foreground">{{ sp.name || sp.speaker_id }}</span>
+              <button
+                v-if="sp.speaker_id"
+                type="button"
+                class="min-w-0 truncate rounded text-left text-surface-foreground hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                data-testid="explore-top-speaker-link"
+                :title="`Open Person panel for ${sp.name || sp.speaker_id}`"
+                @click="focusPersonFromSpeakerId(sp.speaker_id)"
+              >
+                {{ sp.name || sp.speaker_id }}
+              </button>
+              <span
+                v-else
+                class="min-w-0 truncate text-surface-foreground"
+              >{{ sp.name || sp.speaker_id }}</span>
               <span class="shrink-0 text-muted">{{ sp.quote_count }} quotes · {{ sp.insight_count }} insights</span>
             </div>
           </div>

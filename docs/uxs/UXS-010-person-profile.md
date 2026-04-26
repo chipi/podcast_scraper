@@ -24,11 +24,22 @@
     handoff from each topic row; hosted within the shared Person Landing defined
     by this UXS
 - **Implementation paths**:
-  - New: `web/gi-kg-viewer/src/components/person/PersonProfile.vue`
-  - Existing: `web/gi-kg-viewer/src/components/graph/GraphNodeRailPanel.vue` (rail
-    host)
-  - Existing: `web/gi-kg-viewer/src/stores/` (shared `person.ts` store with
-    Position Tracker)
+  - **Shipped (#672)**:
+    `web/gi-kg-viewer/src/components/subject/PersonLandingView.vue` (rail panel
+    with **Profile** / **Positions** ARIA tablist),
+    `SubjectTimelineChart.vue` (Chart.js monthly mentions bar — same component
+    TEV uses), `subjectMentionsTimeline.ts` (SPOKEN_BY edge walk for Person
+    subjects). Subject store entry: `focusPerson(speaker_id)`. Mounts inside
+    `SubjectRail` for `subject.kind === 'person'`. Profile tab holds aliases /
+    description / edge counts / timeline; Positions tab lists SPOKEN_BY
+    quotes with episode context (capped at `PERSON_LANDING_POSITIONS_CAP = 50`).
+  - **Entry points (#674 item 4)**: Search supporting-quote speaker name
+    (`search-result-speaker-link`) and Explore Top speakers rollup
+    (`explore-top-speaker-link`) call `focusPerson(speaker_id)` and
+    auto-load the corpus graph baseline so the panel has data to render.
+  - **Existing graph-rail surface stays separate**:
+    `GraphNodeRailPanel` + `NodeDetail` continue to render for graph clicks
+    on Person nodes (`subject.kind === 'graph-node'`).
 - **Shell IA:** [VIEWER_IA.md](VIEWER_IA.md) — Person subject in subject rail; navigation axes
 
 ---

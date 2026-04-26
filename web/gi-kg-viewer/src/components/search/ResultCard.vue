@@ -1,6 +1,9 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, inject, ref } from 'vue'
 import type { SearchHit } from '../../api/searchApi'
+import { corpusGraphBaselineLoaderKey } from '../../corpusGraphBaseline'
+import { useArtifactsStore } from '../../stores/artifacts'
+import { useGraphExplorerStore } from '../../stores/graphExplorer'
 import { truncate } from '../../utils/formatting'
 import {
   SEARCH_RESULT_EPISODE_ID_BUTTON_CLASS,
@@ -17,6 +20,7 @@ import {
 } from '../../utils/transcriptSourceDisplay'
 import { isKgSurfaceMultiEpisodeDedupe } from '../../utils/searchHitKgDedupe'
 import { sourceMetadataRelativePathFromSearchHit } from '../../utils/searchHitLibrary'
+import { useSubjectStore } from '../../stores/subject'
 
 const props = defineProps<{
   hit: SearchHit
@@ -29,6 +33,29 @@ const emit = defineEmits<{
   'open-library': [SearchHit]
   'open-episode-summary': [SearchHit]
 }>()
+
+const subject = useSubjectStore()
+const artifacts = useArtifactsStore()
+const graphExplorer = useGraphExplorerStore()
+const loadCorpusGraphBaseline = inject(corpusGraphBaselineLoaderKey, null)
+
+async function ensureDefaultCorpusGraphIfNeeded(): Promise<void> {
+  if (!loadCorpusGraphBaseline) return
+  if (graphExplorer.graphTabOpenedThisSession && artifacts.selectedRelPaths.length > 0) {
+    return
+  }
+  await loadCorpusGraphBaseline()
+}
+
+/** #674 item 4 — Supporting-quote speaker name → Person Landing in the rail.
+ *  Auto-loads the corpus graph baseline so the panel has data even if the
+ *  user hasn't visited Graph yet. */
+function focusPersonFromSpeakerId(rawId: unknown): void {
+  const id = typeof rawId === 'string' ? rawId.trim() : ''
+  if (!id) return
+  subject.focusPerson(id)
+  void ensureDefaultCorpusGraphIfNeeded()
+}
 
 const docType = computed(() => String(props.hit.metadata?.doc_type ?? '?'))
 
@@ -348,12 +375,26 @@ function onEpisodeIdChipClick(ev: MouseEvent): void {
             class="mt-0.5 text-[10px] font-medium text-primary"
           >
             —
-            {{
+            <button
+              v-if="typeof q.speaker_id === 'string' && q.speaker_id.trim()"
+              type="button"
+              class="rounded text-left text-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+              data-testid="search-result-speaker-link"
+              :title="`Open Person panel for ${
+                String(q.speaker_name ?? '') ||
+                  quoteAttributionDisplayFromId(q.speaker_id)
+              }`"
+              @click.stop="focusPersonFromSpeakerId(q.speaker_id)"
+            >{{
+              String(q.speaker_name ?? '') ||
+                quoteAttributionDisplayFromId(q.speaker_id)
+            }}</button>
+            <span v-else>{{
               String(q.speaker_name ?? '') ||
                 quoteAttributionDisplayFromId(
                   typeof q.speaker_id === 'string' ? q.speaker_id : '',
                 )
-            }}
+            }}</span>
             <span
               v-if="q.timestamp_start_ms != null"
               class="font-normal text-muted"

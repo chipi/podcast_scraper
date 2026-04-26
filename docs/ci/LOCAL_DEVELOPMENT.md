@@ -59,25 +59,39 @@ git commit -m "your message"
 
 ```text
 
-# Run full CI suite (matches GitHub Actions PR validation)
+# Run full CI suite (matches GitHub Actions Python application + Stack test sequence)
 
 # - Runs unit + critical path integration + critical path e2e tests
 
-# - Full validation before commits/PRs
+# - Plus: test-ui (Vitest), test-ui-e2e (Playwright), build-viewer
 
-# - Note: No cleanup step (faster), use ci-clean for complete validation
+# - Plus: stack-test-ml-ci (full Docker stack + ml pipeline + always-teardown)
+
+# - Full local parity with the two-workflow GitHub Actions chain
+
+# - ~20-30 min. Run before merge for changes that touch pipeline/Docker/routes.
 
 make ci
 
 # Fast CI checks (quick feedback during development)
 
-# - Skips cleanup step (faster)
+# - Skips cleanup, Playwright, coverage, and stack-test (Docker)
 
 # - Runs unit + critical path integration + critical path e2e (no coverage)
 
-# - Use for quick validation during development
+# - Plus: test-ui (Vitest), build-viewer (catches vue-tsc strict errors)
+
+# - ~6-10 min. Use for quick validation during development.
 
 make ci-fast
+
+# Viewer-iteration CI checks (Playwright + viewer build, no Python e2e)
+
+# - test-fast-no-py-e2e + test-ui + test-ui-e2e (Playwright firefox)
+
+# - ~8-12 min. Use for viewer-heavy PRs where Python e2e is unaffected.
+
+make ci-ui-fast
 
 # Complete CI suite (all tests including slow/ml_models)
 
@@ -85,9 +99,32 @@ make ci-fast
 
 # - Runs all tests: unit + integration + e2e (all slow/fast variants)
 
+# - Plus: test-ui, test-ui-e2e, build-viewer (now aligned with _ci_body)
+
 # - Use for complete validation before releases
 
 make ci-clean
+
+# One-shot stack-test variants (Docker compose + Playwright)
+
+# - stack-test-ml: airgapped/whisper-tiny pipeline; no API keys; ~5-10 min
+
+# - stack-test-cloud-thin: cloud_thin profile (LLM); needs .env keys; ~15-20 min
+
+# - stack-test-ml-ci: same as stack-test-ml but always tears down; used by `make ci`
+
+make stack-test-ml
+make stack-test-cloud-thin
+
+# Standalone viewer production bundle check
+
+# - vue-tsc -b && vite build inside web/gi-kg-viewer
+
+# - Catches strict TypeScript regressions that vitest/playwright skip
+
+# - Already wired into every ci* target above
+
+make build-viewer
 
 # Individual checks (same as CI)
 

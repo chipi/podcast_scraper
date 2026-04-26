@@ -30,7 +30,6 @@ import { useSearchStore } from '../../stores/search'
 import { useShellStore } from '../../stores/shell'
 import { useThemeStore } from '../../stores/theme'
 import type { RawGraphNode } from '../../types/artifact'
-import { graphNodeFill, graphNodeLegendLabel } from '../../utils/colors'
 import { degreeBucketFor, emptyDegreeCounts } from '../../utils/graphDegreeBuckets'
 import {
   findEpisodeGraphNodeIdForMetadataPath,
@@ -65,7 +64,7 @@ import { graphNodeIdFromSearchHit, resolveCyNodeId } from '../../utils/searchFoc
 import { StaleGeneration } from '../../utils/staleGeneration'
 import { visualNodeTypeCounts } from '../../utils/visualGroup'
 import GraphBottomBar from './GraphBottomBar.vue'
-import GraphFiltersPopover from './GraphFiltersPopover.vue'
+import GraphFilterBar from './GraphFilterBar.vue'
 import GraphGestureOverlay from './GraphGestureOverlay.vue'
 import GraphStatusLine from './GraphStatusLine.vue'
 
@@ -2298,12 +2297,6 @@ const typeHistogramCounts = computed(() => {
   return visualNodeTypeCounts(nodes as RawGraphNode[])
 })
 
-const typeFilterKeys = computed(() => {
-  const st = gf.state
-  if (!st) return [] as string[]
-  return Object.keys(st.allowedTypes).sort()
-})
-
 /** Avoid Vue “unhandled error in watcher” / uncaught promise if cytoscape callbacks throw. */
 function safeGraphWatch(label: string, fn: () => void): void {
   try {
@@ -2679,67 +2672,10 @@ defineExpose({
         Gestures
       </button>
     </div>
-    <div
-      v-if="gf.state"
-      class="flex min-h-7 flex-wrap items-center gap-x-2 gap-y-0.5 border-b border-border px-2 py-0 text-surface-foreground leading-none"
-      data-testid="graph-toolbar-types"
-    >
-      <span class="inline-flex items-center self-center text-[10px] font-semibold uppercase tracking-wide text-muted">
-        Types
-      </span>
-      <span
-        v-if="!gf.fullArtifact && searchHighlightCount > 0"
-        data-testid="graph-search-highlight-chip"
-        class="shrink-0 rounded-full bg-yellow-500/20 px-2 py-0.5 text-[10px] font-medium text-yellow-600"
-      >
-        {{ searchHighlightCount }}
-        {{ searchHighlightCount === 1 ? 'highlight' : 'highlights' }}
-      </span>
-      <button
-        v-if="gf.graphTypesDeviateFromDefaults"
-        type="button"
-        class="inline-flex items-center rounded bg-muted/25 px-1.5 py-px text-[9px] font-medium leading-none text-muted hover:bg-overlay"
-        data-testid="graph-types-reset"
-        @click="gf.resetGraphTypeVisibilityDefaults()"
-      >
-        filters active — reset
-      </button>
-      <button
-        type="button"
-        class="inline-flex items-center py-px text-[10px] leading-none text-primary underline"
-        @click="gf.selectAllTypes()"
-      >
-        all
-      </button>
-      <button
-        type="button"
-        class="inline-flex items-center py-px text-[10px] leading-none text-primary underline"
-        @click="gf.deselectAllTypes()"
-      >
-        none
-      </button>
-      <label
-        v-for="t in typeFilterKeys"
-        :key="t"
-        class="flex cursor-pointer items-center gap-1 py-px text-[10px] leading-none"
-      >
-        <input
-          type="checkbox"
-          class="size-3 shrink-0 rounded border-border"
-          :checked="gf.state!.allowedTypes[t]"
-          @change="gf.toggleAllowedType(t)"
-        >
-        <span
-          class="h-2.5 w-2.5 shrink-0 rounded-sm ring-1 ring-black/15 dark:ring-white/20"
-          :style="{ backgroundColor: graphNodeFill(String(t)) }"
-          :title="`${String(t)} (node fill)`"
-          aria-hidden="true"
-        />
-        <span>{{ graphNodeLegendLabel(t) }}</span>
-        <span class="font-medium text-muted">({{ typeHistogramCounts[t] ?? 0 }})</span>
-      </label>
-      <GraphFiltersPopover :degree-histogram-counts="degreeHistogramCounts" />
-    </div>
+    <GraphFilterBar
+      :type-histogram-counts="typeHistogramCounts"
+      :degree-histogram-counts="degreeHistogramCounts"
+    />
 
     <div class="flex min-h-0 min-w-0 flex-1 flex-col">
       <div

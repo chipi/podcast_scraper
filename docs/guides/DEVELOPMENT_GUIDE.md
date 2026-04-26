@@ -799,13 +799,17 @@ Pipeline capture configs live in
 [Performance Profile Guide](PERFORMANCE_PROFILE_GUIDE.md)
 and `data/profiles/README.md`.
 
-## Validation gates: `ci-fast` vs `ci`
+## Validation gates: `ci-fast` vs `ci-ui-fast` vs `ci`
 
 | Target | What it runs | When to use |
 | ------ | ------------ | ----------- |
-| `make ci-fast` | `cleanup-processes`, format-check, lint, type, security, complexity, docstrings, spelling, quality-metrics-ci, `test-fast` (critical-path unit + integration + E2E), `test-ui` (Vitest), docs, build | **Default pre-commit gate.** ~6-10 min. Skips Playwright and coverage enforcement. |
-| `make ci` | `cleanup-processes`, everything in `ci-fast` + full `test` suite, `test-ui-e2e` (Playwright), coverage enforcement | Before PR merge or when touching viewer E2E / coverage-sensitive areas. ~10-15 min. |
+| `make ci-fast` | `cleanup-processes`, format-check, lint, type, security, complexity, docstrings, spelling, quality-metrics-ci, `test-fast` (critical-path unit + integration + E2E), `test-ui` (Vitest), `build-viewer` (`vue-tsc -b && vite build`), docs, build | **Default pre-commit gate.** ~6-10 min. Skips Playwright and coverage enforcement. |
+| `make ci-ui-fast` | Same chain as `ci-fast` but `test-fast-no-py-e2e` (skips Python e2e) + `test-ui-e2e` (Playwright firefox) for viewer-iteration runs. Includes `build-viewer`. | **Viewer-heavy work.** ~8-12 min. |
+| `make ci` | Everything in `ci-fast` + full `test` suite, `test-ui-e2e` (Playwright), `build-viewer`, coverage-enforce, **and** `stack-test-ml-ci` (full Docker stack + ml pipeline + Playwright + always-teardown) | **True full local parity** with the GitHub Actions chain (Python application → Stack test). ~20-30 min. Run before merge for changes that touch pipeline / Docker / route handlers. |
 | `make test-fast` | Critical-path unit + integration + E2E tests only (no lint/format/type) | Quick test-only feedback. |
+| `make build-viewer` | `cd web/gi-kg-viewer && npm install && npm run build` (`vue-tsc -b && vite build`). Catches strict TypeScript regressions invisible to `vitest` / `playwright`. | Standalone — already wired into every `ci*` target above. |
+| `make stack-test-ml` | One-shot ml pipeline path: build → up → seed → Playwright (airgapped/whisper-tiny). Stack stays up after. | Local Docker validation, no API keys needed. |
+| `make stack-test-cloud-thin` | Same flow with the `pipeline-llm` image + `cloud_thin` profile. **Local-only** — public CI does not run it (recurring API cost). Requires `.env` with the cloud API keys the profile uses. | Local LLM-path validation before push. |
 
 The pre-commit hook runs staged checks (format,
 lint, mypy, markdownlint, JSON/YAML validation) —

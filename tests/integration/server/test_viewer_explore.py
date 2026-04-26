@@ -17,7 +17,7 @@ from fastapi.testclient import TestClient
 from podcast_scraper.gi.explore import build_explore_output
 from podcast_scraper.server.app import create_app
 
-pytestmark = [pytest.mark.integration]
+pytestmark = [pytest.mark.integration, pytest.mark.critical_path]
 
 
 def test_explore_no_corpus_path() -> None:

@@ -146,13 +146,25 @@ nothing is selected.
 
 ### Subject types
 
-| Subject | Entry points | Component |
-| --- | --- | --- |
-| **Episode** | Library row, Digest row, Graph episode node, Search L button | `EpisodeDetailPanel` |
-| **Topic** | Graph topic node, Search result TEV entry, Digest topic band, Dashboard Intelligence | `TopicEntityView` (UXS-007) |
-| **Person** | Graph person node, Search speaker name, Enriched Search source | `PersonLanding` (UXS-010) |
-| **GIL node** | Graph insight / quote / entity / speaker node | `GraphNodeRailPanel` |
-| *(empty)* | Nothing selected, corpus not loaded | Empty state |
+| Subject | Store kind | Entry points | Component |
+| --- | --- | --- | --- |
+| **Episode** | `episode` | Library row click, Library row **G** button (#674), Digest row, Search **L** button | `EpisodeDetailPanel` |
+| **Topic / Entity** | `topic` | Digest topic-band title (#674); programmatic `focusTopic` / `focusEntity` | `TopicEntityView` (UXS-007) |
+| **Person** | `person` | Search supporting-quote speaker name (#674), Explore **Top speakers** rollup (#674) | `PersonLandingView` (UXS-010) |
+| **Graph node** | `graph-node` | Any graph node click (Topic / Insight / Quote / Person / Entity / Episode in graph) | `GraphNodeRailPanel` (uses `NodeDetail`) |
+| *(empty)* | `null` | Nothing selected, corpus not loaded | Empty state |
+
+**Topic vs Graph-node split:** A graph **click** routes through
+`focusGraphNode` → `GraphNodeRailPanel` (rich graph-aware detail).
+`focusTopic` / `focusEntity` are higher-level subject-overview
+handoffs from non-graph surfaces (Digest, Search, Explore) that open
+the same `TopicEntityView` overview rail panel — name + aliases +
+description + monthly mentions timeline + linked insight/quote list.
+
+**Speaker handoffs auto-load the corpus graph baseline** — a Person
+clicked from Search / Explore without a prior Graph visit triggers
+`corpusGraphBaselineLoaderKey` so the panel has data to render
+(mirrors the Digest topic-band auto-load).
 
 ### Persistence rule
 
@@ -272,9 +284,13 @@ Tailwind shell widths at that viewport (both side columns **expanded**):
 | Right subject column | **384px** (`w-96`) | Collapsed: **32px** (`w-8`) |
 
 **Right rail collapse:** Expanded/collapsed is toggled in `App.vue` (`rightOpen`) for
-more canvas width on Graph. **Persistence:** not stored in `localStorage` in the
-current build (resets to expanded on full page reload); only the **left** column uses
-`ps_left_panel_open`.
+more canvas width on Graph. **Persistence:** stored under
+**`localStorage` key `ps_right_panel_open`** (`"true"` / `"false"`,
+default `"true"` when missing) — symmetric with the left column's
+`ps_left_panel_open` (#673). The rail also **auto-opens** when a new
+subject is focused (`focusEpisode` / `focusGraphNode` / `focusTopic` /
+`focusPerson`) so a click in Digest / Library / Search / Explore is
+always immediately visible even if the user had collapsed the rail.
 
 If usability testing shows the main strip is too narrow at 1024px, tune
 `w-72` / `w-96` in `App.vue` and record new numbers here (see also UXS-001
