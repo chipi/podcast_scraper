@@ -26,10 +26,23 @@ import { corpusGraphBaselineLoaderKey } from './corpusGraphBaseline'
 import { StaleGeneration } from './utils/staleGeneration'
 
 const LS_LEFT_PANEL_OPEN = 'ps_left_panel_open'
+const LS_RIGHT_PANEL_OPEN = 'ps_right_panel_open'
 
 function readLeftPanelOpenPreference(): boolean {
   try {
     const v = localStorage.getItem(LS_LEFT_PANEL_OPEN)
+    if (v === 'false') {
+      return false
+    }
+  } catch {
+    /* ignore */
+  }
+  return true
+}
+
+function readRightPanelOpenPreference(): boolean {
+  try {
+    const v = localStorage.getItem(LS_RIGHT_PANEL_OPEN)
     if (v === 'false') {
       return false
     }
@@ -56,7 +69,7 @@ const graphCanvasRef = ref<{
 const isGraphTab = computed(() => mainTab.value === 'graph')
 
 const leftOpen = ref(readLeftPanelOpenPreference())
-const rightOpen = ref(true)
+const rightOpen = ref(readRightPanelOpenPreference())
 
 /** Collapsible rail seam tabs (minimal chrome). */
 const railEdgeToggleTab = {
@@ -74,6 +87,14 @@ watch(leftOpen, (open) => {
   }
 })
 
+watch(rightOpen, (open) => {
+  try {
+    localStorage.setItem(LS_RIGHT_PANEL_OPEN, open ? 'true' : 'false')
+  } catch {
+    /* ignore */
+  }
+})
+
 useViewerKeyboard({
   focusSearch: () => {
     leftOpen.value = true
@@ -85,6 +106,14 @@ useViewerKeyboard({
     graphCanvasRef.value?.clearInteractionState()
   },
   isGraphTab,
+  setMainTab: (tab) => {
+    if (tab === 'graph') {
+      activateGraphTab()
+    }
+    else {
+      mainTab.value = tab
+    }
+  },
 })
 
 /**
@@ -536,7 +565,7 @@ watch(
           :class="railEdgeToggleTab.left"
           :title="leftOpen ? 'Collapse left panel' : 'Expand left panel'"
           :aria-expanded="leftOpen"
-          data-testid="left-rail-edge-toggle"
+          data-testid="left-panel-collapse-toggle"
           @click="leftOpen = !leftOpen"
         >
           <svg class="h-3 w-3 transition-transform" :class="{ 'rotate-180': !leftOpen }" viewBox="0 0 12 12" fill="currentColor">
@@ -546,6 +575,7 @@ watch(
         <div
           v-if="!leftOpen"
           class="flex min-h-0 flex-1 flex-col items-center justify-center gap-4 py-2"
+          data-testid="left-panel-collapsed-strip"
         >
           <button
             type="button"
