@@ -713,6 +713,7 @@ export function defaultFilterState(art: ParsedArtifact | null): GraphFilterState
     hideUngroundedInsights: false,
     showGiLayer: true,
     showKgLayer: true,
+    graphFeedFilterId: null,
   }
 }
 
@@ -811,6 +812,7 @@ export function filtersActive(
       }
     }
   }
+  if (state.graphFeedFilterId !== null) return true
   return false
 }
 
@@ -840,6 +842,7 @@ export function filtersActiveExcludingNodeTypes(
       }
     }
   }
+  if (state.graphFeedFilterId !== null) return true
   return false
 }
 
@@ -882,6 +885,65 @@ export function applyGraphFilters(
     const t = n.type || '?'
     return allowedTypes[t] !== false
   })
+  // Feed filter (#658): prune Episode nodes that don't match the
+  // selected ``properties.feed_id``, then prune any non-Episode node
+  // that has no path (via the pre-feed-prune edge graph) to a surviving
+  // Episode. BFS from kept Episodes marks the reachable set; everything
+  // else drops so the result has no visually orphaned Insights /
+  // Quotes / Topics floating after their only Episode is removed.
+  if (state.graphFeedFilterId !== null && state.graphFeedFilterId !== '') {
+    const wantFeed = state.graphFeedFilterId
+    const isEpisodeNode = (n: RawGraphNode): boolean => {
+      if (n.type === 'Episode') return true
+      // Merged GI+KG views use ``__unified_ep__:`` synthetic Episode ids.
+      const id = n.id != null ? String(n.id) : ''
+      return id.startsWith('__unified_ep__:')
+    }
+    const keptEpisodeIds = new Set<string>()
+    nodes = nodes.filter((n) => {
+      if (!isEpisodeNode(n)) return true
+      const props = (n.properties || {}) as Record<string, unknown>
+      const f = typeof props.feed_id === 'string' ? props.feed_id.trim() : ''
+      if (f === wantFeed) {
+        if (n.id != null) keptEpisodeIds.add(String(n.id))
+        return true
+      }
+      return false
+    })
+    // Build the undirected adjacency from the *original* edge list so
+    // BFS sees the full graph topology (subsequent edge-prune happens
+    // after node-prune below).
+    const allEdges = (fullArt.data.edges || []) as RawGraphEdge[]
+    const adj = new Map<string, Set<string>>()
+    for (const e of allEdges) {
+      if (!e) continue
+      const a = e.from != null ? String(e.from) : ''
+      const b = e.to != null ? String(e.to) : ''
+      if (!a || !b) continue
+      if (!adj.has(a)) adj.set(a, new Set())
+      if (!adj.has(b)) adj.set(b, new Set())
+      adj.get(a)!.add(b)
+      adj.get(b)!.add(a)
+    }
+    const reachable = new Set<string>(keptEpisodeIds)
+    const queue: string[] = Array.from(keptEpisodeIds)
+    while (queue.length > 0) {
+      const cur = queue.shift()!
+      const neighbours = adj.get(cur)
+      if (!neighbours) continue
+      for (const nb of neighbours) {
+        if (reachable.has(nb)) continue
+        reachable.add(nb)
+        queue.push(nb)
+      }
+    }
+    nodes = nodes.filter((n) => {
+      if (isEpisodeNode(n)) return true
+      const id = n.id != null ? String(n.id) : ''
+      if (!id) return true
+      return reachable.has(id)
+    })
+  }
   nodes = pruneOrphanTopicClusterParents(nodes)
   const ids = new Set<string>()
   for (const n of nodes) {

@@ -410,12 +410,130 @@ describe('applyGraphFilters', () => {
       hideUngroundedInsights: false,
       showGiLayer: true,
       showKgLayer: false,
+      graphFeedFilterId: null,
     }
     const filtered = applyGraphFilters(art, state)
     const ids = (filtered.data.nodes ?? []).map((n) => String(n.id))
     expect(ids).toContain('g:i1')
     expect(ids).toContain('__unified_ep__:ep1')
     expect(ids).not.toContain('k:t1')
+  })
+
+  // #658 — feed filter prunes Episode nodes by ``properties.feed_id`` and
+  // drops non-Episode nodes that lose all their connections to surviving
+  // Episodes (no orphan Insights / Quotes left dangling).
+  describe('feed filter (graphFeedFilterId)', () => {
+    function multiFeedArt(): ParsedArtifact {
+      return {
+        name: 'multi',
+        kind: 'gi',
+        episodeId: null,
+        nodes: 0,
+        edges: 0,
+        nodeTypes: {},
+        data: {
+          nodes: [
+            { id: 'epA', type: 'Episode', properties: { feed_id: 'feed-A' } },
+            { id: 'epB', type: 'Episode', properties: { feed_id: 'feed-B' } },
+            { id: 'iA', type: 'Insight', properties: { grounded: true, episode_id: 'epA' } },
+            { id: 'iB', type: 'Insight', properties: { grounded: true, episode_id: 'epB' } },
+            { id: 'tShared', type: 'Topic' },
+          ],
+          edges: [
+            { type: 'HAS_INSIGHT', from: 'epA', to: 'iA' },
+            { type: 'HAS_INSIGHT', from: 'epB', to: 'iB' },
+            { type: 'ABOUT', from: 'iA', to: 'tShared' },
+            { type: 'ABOUT', from: 'iB', to: 'tShared' },
+          ],
+        },
+      }
+    }
+
+    it('returns the full artifact when graphFeedFilterId is null', () => {
+      const art = multiFeedArt()
+      const state = defaultFilterState(art)!
+      expect(state.graphFeedFilterId).toBeNull()
+      const filtered = applyGraphFilters(art, state)
+      const ids = (filtered.data.nodes ?? []).map((n) => String(n.id))
+      expect(ids).toEqual(expect.arrayContaining(['epA', 'epB', 'iA', 'iB', 'tShared']))
+    })
+
+    it('keeps only Episode nodes whose properties.feed_id matches', () => {
+      const art = multiFeedArt()
+      const state = defaultFilterState(art)!
+      state.graphFeedFilterId = 'feed-A'
+      const filtered = applyGraphFilters(art, state)
+      const ids = (filtered.data.nodes ?? []).map((n) => String(n.id))
+      expect(ids).toContain('epA')
+      expect(ids).not.toContain('epB')
+    })
+
+    it('keeps non-Episode nodes that have any path to a surviving Episode (BFS reachability)', () => {
+      const art = multiFeedArt()
+      const state = defaultFilterState(art)!
+      state.graphFeedFilterId = 'feed-A'
+      const filtered = applyGraphFilters(art, state)
+      const ids = (filtered.data.nodes ?? []).map((n) => String(n.id))
+      // iA and tShared both reach epA via the edge graph
+      expect(ids).toContain('iA')
+      expect(ids).toContain('tShared')
+      // iB still has a transitive path epA → iA → tShared → iB so under
+      // BFS connectivity it stays. (A stricter "owner-episode" semantic
+      // would drop iB; the issue specifies path-based connectivity.)
+      expect(ids).toContain('iB')
+    })
+
+    it('prunes orphan non-Episode nodes when ALL their Episode neighbours are filtered out', () => {
+      const art = multiFeedArt()
+      // make tShared connect ONLY to epB
+      art.data.edges = [
+        { type: 'HAS_INSIGHT', from: 'epA', to: 'iA' },
+        { type: 'HAS_INSIGHT', from: 'epB', to: 'iB' },
+        { type: 'ABOUT', from: 'iB', to: 'tShared' },
+      ]
+      const state = defaultFilterState(art)!
+      state.graphFeedFilterId = 'feed-A'
+      const filtered = applyGraphFilters(art, state)
+      const ids = (filtered.data.nodes ?? []).map((n) => String(n.id))
+      expect(ids).toContain('epA')
+      expect(ids).toContain('iA')
+      expect(ids).not.toContain('tShared') // dropped — only neighbour was epB
+    })
+
+    it('treats __unified_ep__: synthetic ids as Episode nodes for feed matching', () => {
+      const art: ParsedArtifact = {
+        name: 'merged',
+        kind: 'both',
+        episodeId: null,
+        nodes: 0,
+        edges: 0,
+        nodeTypes: {},
+        data: {
+          nodes: [
+            { id: '__unified_ep__:epA', type: 'Episode', properties: { feed_id: 'feed-A' } },
+            { id: '__unified_ep__:epB', type: 'Episode', properties: { feed_id: 'feed-B' } },
+            { id: 'g:i1', type: 'Insight', properties: { grounded: true } },
+          ],
+          edges: [{ type: 'HAS_INSIGHT', from: '__unified_ep__:epA', to: 'g:i1' }],
+        },
+      }
+      const state = defaultFilterState(art)!
+      state.graphFeedFilterId = 'feed-A'
+      const filtered = applyGraphFilters(art, state)
+      const ids = (filtered.data.nodes ?? []).map((n) => String(n.id))
+      expect(ids).toContain('__unified_ep__:epA')
+      expect(ids).not.toContain('__unified_ep__:epB')
+      expect(ids).toContain('g:i1')
+    })
+
+    it('filtersActive returns true when graphFeedFilterId is non-null', () => {
+      const art = multiFeedArt()
+      const state = defaultFilterState(art)!
+      expect(filtersActive(art, state)).toBe(false)
+      state.graphFeedFilterId = 'feed-A'
+      expect(filtersActive(art, state)).toBe(true)
+      expect(filtersActiveExcludingNodeTypes(art, state)).toBe(true)
+    })
   })
 })
 

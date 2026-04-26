@@ -55,4 +55,10 @@ export interface GraphFilterState {
   /** Merged GI+KG graphs (`g:` / `k:` id prefixes); both true by default. */
   showGiLayer: boolean
   showKgLayer: boolean
+  /**
+   * Selected feed_id to filter Episode nodes by; ``null`` = all feeds.
+   * Episode nodes carry ``properties.feed_id`` after #658 pipeline change;
+   * other node types are pruned by connectivity to a matching Episode.
+   */
+  graphFeedFilterId: string | null
 }

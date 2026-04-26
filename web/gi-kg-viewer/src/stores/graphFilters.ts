@@ -122,6 +122,42 @@ export const useGraphFilterStore = defineStore('graphFilters', () => {
     applyGraphDefaultNodeTypeVisibility(state.value)
   }
 
+  function setFeedFilter(feedId: string | null): void {
+    if (!state.value) return
+    const v = feedId == null ? null : feedId.trim()
+    state.value.graphFeedFilterId = v && v !== '' ? v : null
+  }
+
+  function clearFeedFilter(): void {
+    if (!state.value) return
+    state.value.graphFeedFilterId = null
+  }
+
+  function deselectAllEdgeTypes(): void {
+    if (!state.value) return
+    const next: Record<string, boolean> = { ...state.value.allowedEdgeTypes }
+    for (const k of Object.keys(next)) {
+      next[k] = false
+    }
+    state.value.allowedEdgeTypes = next
+  }
+
+  /**
+   * Atomic reset across every chip dimension (#658 ``× reset all``).
+   * Returns Types to graph-spec defaults (Quote / Speaker off), Sources
+   * to all on (gi+kg+show ungrounded), Edges all on, Degree cleared
+   * (handled by graphExplorer caller), Feed cleared.
+   */
+  function resetAllFilters(): void {
+    if (!state.value) return
+    selectAllEdgeTypes()
+    state.value.hideUngroundedInsights = false
+    state.value.showGiLayer = true
+    state.value.showKgLayer = true
+    state.value.graphFeedFilterId = null
+    applyGraphDefaultNodeTypeVisibility(state.value)
+  }
+
   return {
     state,
     fullArtifact,
@@ -138,5 +174,9 @@ export const useGraphFilterStore = defineStore('graphFilters', () => {
     resetGraphTypeVisibilityDefaults,
     toggleAllowedEdgeType,
     selectAllEdgeTypes,
+    deselectAllEdgeTypes,
+    setFeedFilter,
+    clearFeedFilter,
+    resetAllFilters,
   }
 })
