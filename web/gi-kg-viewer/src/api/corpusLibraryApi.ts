@@ -65,6 +65,19 @@ export type CorpusEpisodesResponse = {
   next_cursor: string | null
 }
 
+/**
+ * #656 Stage B: per-episode bridge ``{gi_only, kg_only, both}`` identity
+ * partition counts, computed server-side from ``bridge.json``. ``null``
+ * when the bridge file is missing or unreadable (and on pre-#654 runs
+ * where the partition was mechanically `both = 10 × episode_count`).
+ */
+export type BridgePartitionSummary = {
+  gi_only: number
+  kg_only: number
+  both: number
+  total: number
+}
+
 export type CorpusEpisodeDetailResponse = {
   path: string
   metadata_relative_path: string
@@ -90,6 +103,7 @@ export type CorpusEpisodeDetailResponse = {
   feed_image_local_relpath?: string | null
   episode_image_local_relpath?: string | null
   cil_digest_topics?: CilDigestTopicPill[]
+  bridge_partition?: BridgePartitionSummary | null
 }
 
 export async function fetchCorpusFeeds(corpusPath: string): Promise<CorpusFeedsResponse> {

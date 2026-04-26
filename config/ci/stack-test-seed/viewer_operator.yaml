@@ -1,0 +1,25 @@
+# Minimal corpus overrides for stack test
+# (cf. ``config/examples/viewer_operator.docker.example.yaml``).
+#
+# No ``profile:`` here — the Job Profile preset + **Save** in the
+# viewer merges packaged defaults onto these overrides on disk.
+# Default Playwright preset is **``airgapped_thin``** (see
+# ``tests/stack-test/stack-jobs-flow.spec.ts``); set
+# ``STACK_TEST_OPERATOR_PROFILE=cloud_thin`` for the cloud-thin run.
+#
+# ``pipeline_install_extras`` is **NOT** in this file — it's appended
+# by ``make stack-test-seed`` based on
+# ``STACK_TEST_OPERATOR_VARIANT={ml,cloud-thin}`` so a single template
+# serves both pipelines. ``ml`` → ``pipeline_install_extras: ml``
+# (compose service ``pipeline``); ``cloud-thin`` →
+# ``pipeline_install_extras: llm`` (compose service ``pipeline-llm``).
+
+max_episodes: 4
+workers: 1
+delay_ms: 0
+transcribe_missing: true
+skip_existing: true
+reuse_media: true
+append: false
+screenplay: false
+log_level: INFO

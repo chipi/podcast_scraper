@@ -259,7 +259,6 @@ jobs:
     - name: Validate stack Compose file merges (no build)
       if: needs.detect-changes.outputs.stack-compose == 'true'
       run: |
-        export CONFIG_FILE="${GITHUB_WORKSPACE}/config/examples/docker-stack.example.yaml"
         export PODCAST_DOCKER_PROJECT_DIR="${GITHUB_WORKSPACE}"
         docker compose -f compose/docker-compose.stack.yml config -q
         docker compose -f compose/docker-compose.stack.yml -f compose/docker-compose.jobs-docker.yml config -q

@@ -1,31 +1,120 @@
-# Smoke-test overlay on compose/docker-compose.stack.yml (#659). Used locally (make smoke-*)
-# and in CI. Build/run: always pass both -f files from the repository root.
-# Usage:
-#   docker compose -f compose/docker-compose.stack.yml -f compose/docker-compose.smoke.yml build
-#   docker compose -f compose/docker-compose.stack.yml -f compose/docker-compose.smoke.yml run --rm pipeline
+# Stack-test overlay on compose/docker-compose.stack.yml.
+# Used locally (``make stack-test-*``) and in CI
+# (``.github/workflows/stack-test.yml``). Always pass both ``-f`` files
+# from the repository root, e.g.:
+#   docker compose -f compose/docker-compose.stack.yml \
+#                  -f compose/docker-compose.stack-test.yml build
+#
+# Adds:
+#   - mock-feeds Nginx sidecar serving bundled RSS / audio / transcript
+#     fixtures so the platform exercises end-to-end without internet.
+#   - Docker job-mode wiring on the API service
+#     (``PODCAST_PIPELINE_EXEC_MODE=docker`` + host docker socket +
+#     project-dir bind mount + ``PODCAST_KEEP_ROOT=1`` for macOS Docker
+#     Desktop where the socket has gid 0).
+#
+# All services share the base stack's ``corpus_data`` named volume so
+# Playwright assertions, viewer reads, and API writes all agree.
 
 services:
   api:
+    # Stack-test override: keep the API container running as root so
+    # it can speak to ``/var/run/docker.sock``. The production
+    # entrypoint adds ``podcast`` (uid 1000) to the docker socket's
+    # group when the socket has a non-zero gid (Linux CI / hosts);
+    # on macOS Docker Desktop the socket is ``root:root`` (gid 0) and
+    # the group-fixup skips, so the podcast user can't reach the
+    # socket and the job runner's nested compose call fails with
+    # "permission denied". Running as root sidesteps that for
+    # stack-test only — production deployments still drop privileges
+    # via the entrypoint.
+    user: "0:0"
     volumes:
-      - smoke_data:/app/output
+      - corpus_data:/app/output
+      # Job runner spawns the ``pipeline-ml`` / ``pipeline-llm``
+      # container nested via ``docker compose run``. Mount the host
+      # socket + the project dir so the API can find both compose
+      # files when it shells out.
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ${PODCAST_DOCKER_PROJECT_DIR:-..}:${PODCAST_DOCKER_PROJECT_DIR:-..}:ro
+    environment:
+      # Docker job mode: API spawns the pipeline container via compose
+      # instead of running it as an in-process subprocess.
+      # ``PODCAST_DOCKER_PROJECT_DIR`` must be the **host** path to the
+      # repo root so nested compose's bind-mount sources resolve on the
+      # Docker daemon. ``PODCAST_DOCKER_COMPOSE_FILES`` includes both
+      # the base and this overlay so the spawned ``pipeline{,-llm}``
+      # service is on the same network as ``mock-feeds`` and uses the
+      # same project name as the running stack.
+      PODCAST_PIPELINE_EXEC_MODE: docker
+      PODCAST_DOCKER_PROJECT_DIR: ${PODCAST_DOCKER_PROJECT_DIR:-..}
+      PODCAST_DOCKER_COMPOSE_FILES: compose/docker-compose.stack.yml,compose/docker-compose.stack-test.yml
+      # Opt out of the entrypoint's privilege drop so the API server stays
+      # root and can talk to /var/run/docker.sock when its gid is 0 (macOS
+      # Docker Desktop). On Linux runners the socket usually has a non-zero
+      # gid and the entrypoint's group-fixup would handle it without this,
+      # but keeping it on for stack-test gives parity between macOS and CI.
+      PODCAST_KEEP_ROOT: "1"
+      # Belt-and-suspenders: pin the compose project name so the
+      # API's nested ``docker compose run`` always shares the running
+      # stack's network + volumes (``compose`` — same as the default
+      # the running stack picks up from the parent dir of the first
+      # ``-f`` file). The factory deliberately doesn't pass
+      # ``--project-directory`` (relative-path resolution would break
+      # — see ``server/pipeline_docker_factory.py``), so the default
+      # already lands on ``compose``; this env var keeps the contract
+      # explicit and forwards through any future refactor.
+      COMPOSE_PROJECT_NAME: compose
+    # No command override: the base API CMD already runs in per-corpus
+    # operator-config mode (``viewer_operator.yaml`` per corpus root,
+    # no static ``--config-file``).
 
   viewer:
+    build:
+      context: ..
+      dockerfile: docker/viewer/Dockerfile
+      args:
+        # Empty string = "all time" — stack-test fixtures use static
+        # 2025 publish dates. The viewer's default 7-day lens would
+        # otherwise filter them out and the auto-load picks 0
+        # artifacts. Production builds (without this overlay) keep
+        # the code default of 7 days.
+        VITE_DEFAULT_GRAPH_LENS_DAYS: "0"
     ports:
-      - "${SMOKE_VIEWER_PORT:-8090}:80"
+      - "${STACK_TEST_VIEWER_PORT:-8090}:80"
 
-  pipeline:
-    profiles: []
+  # Mock RSS + audio + transcript fixtures host so the pipeline (spawned
+  # by the API job factory) can fetch ``http://mock-feeds/<...>`` without
+  # internet access during stack-test. The full UI flow spec
+  # (``tests/stack-test/stack-jobs-flow.spec.ts``) drives the pipeline
+  # against TWO distinct RSS URLs — one seeded into
+  # ``<corpus>/feeds.spec.yaml`` via ``make stack-test-seed`` and one
+  # added through the Configuration dialog at runtime.
+  mock-feeds:
+    image: nginx:1.27-alpine
     volumes:
-      - smoke_data:/app/output
-      - ../tests/fixtures/rss:/app/fixtures/rss:ro
-      - ../config/ci/smoke-config.yaml:/app/config.yaml:ro
+      - ../docker/mock-feeds/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+      - ../tests/fixtures/rss/p01_fast_with_transcript.xml:/usr/share/nginx/html/p01_fast_with_transcript.xml:ro
+      - ../tests/fixtures/rss/p01_episode_selection.xml:/usr/share/nginx/html/p01_episode_selection.xml:ro
+      - ../tests/fixtures/audio:/usr/share/nginx/html/audio:ro
+      # Transcripts referenced by the RSS fixtures (``<podcast:transcript>``
+      # / itunes-style links). The full UI flow drives a transcript-
+      # download fast path so Whisper isn't needed for these episodes.
+      - ../tests/fixtures/transcripts:/usr/share/nginx/html/transcripts:ro
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1/healthz || exit 1"]
+      interval: 5s
+      timeout: 2s
+      retries: 5
+      start_period: 3s
 
-  pipeline-llm:
-    profiles: []
-    volumes:
-      - smoke_data:/app/output
-      - ../tests/fixtures/rss:/app/fixtures/rss:ro
-      - ../config/ci/smoke-config.yaml:/app/config.yaml:ro
-
-volumes:
-  smoke_data:
+  # No ``pipeline`` / ``pipeline-llm`` overrides: stack-test runs the
+  # pipeline exclusively through the API job factory
+  # (``PODCAST_PIPELINE_EXEC_MODE=docker``), which spawns one-shot
+  # ``docker compose run --rm pipeline{,-llm}`` containers with operator
+  # ``--config`` / ``--feeds-spec`` / ``--profile`` driving config.
+  # Mock-feeds reachability is on the shared compose network (started by
+  # ``stack-test-up``); the factory uses ``--no-deps`` so per-job
+  # ``depends_on`` merging here would have no effect anyway. The two
+  # services keep the empty ``profiles: []`` declared in the base file
+  # so ``docker compose --profile pipeline run ...`` selects them.

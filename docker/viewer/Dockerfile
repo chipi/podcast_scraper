@@ -6,6 +6,14 @@
 FROM node:22-bookworm-slim AS build
 WORKDIR /viewer
 
+# Optional build-time override for the Graph time lens default. Empty
+# string = "all time" (no lower bound); positive integer N = "last N
+# days". Used by stack-test / smoke builds where fixture dates are
+# static and must not depend on wall-clock time. Production keeps the
+# code default (``last 7 days``).
+ARG VITE_DEFAULT_GRAPH_LENS_DAYS
+ENV VITE_DEFAULT_GRAPH_LENS_DAYS=${VITE_DEFAULT_GRAPH_LENS_DAYS}
+
 COPY web/gi-kg-viewer/package.json web/gi-kg-viewer/package-lock.json ./
 RUN npm ci
 

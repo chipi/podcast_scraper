@@ -15,7 +15,7 @@ ENV PYTHONUNBUFFERED=1 \
     PODCAST_STACK_OUTPUT_DIR=/app/output
 
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends curl \
+    && apt-get install -y --no-install-recommends curl util-linux \
     && rm -rf /var/lib/apt/lists/*
 
 # Docker CLI + Compose v2 for ``PODCAST_PIPELINE_EXEC_MODE=docker`` (mount ``/var/run/docker.sock`` at runtime).
@@ -45,10 +45,40 @@ RUN --mount=type=cache,target=/root/.cache/pip \
     && pip install --no-deps . \
     && python -c "from podcast_scraper.server.app import create_app; print('create_app import ok')"
 
+# Preload the sentence-transformers embedding model used by ``GET
+# /api/search``. The endpoint calls ``embedding_loader.encode(...,
+# allow_download=False)`` so the model MUST be cached on disk before
+# runtime — otherwise queries fail with ``embed_failed`` even though
+# the FAISS index is present. ``HF_HOME`` is shared across users via
+# ``/opt/podcast_hf``; the entrypoint chowns it for the runtime user.
+ENV HF_HOME=/opt/podcast_hf
+RUN mkdir -p "$HF_HOME" \
+    && python -c "from sentence_transformers import SentenceTransformer; SentenceTransformer('sentence-transformers/all-MiniLM-L6-v2')"
+
+# Ship packaged pipeline profiles so the operator-config endpoint can
+# enumerate them via ``GET /api/operator-config``. Profiles live
+# outside the Python package (``config/profiles/``) so they can't ride
+# along in the wheel — copy them into the working dir at the cwd-
+# relative path the resolver checks first
+# (``server.profile_presets._profile_directories``).
+COPY config/profiles/ ./config/profiles/
+
 COPY docker/api/entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
 
-# Run as root so writes work on a fresh named volume at /app/output (see compose + guide).
+# #666 review item #5: run as a non-root user, consistent with
+# ``docker/pipeline/Dockerfile``. The entrypoint chowns ``/app/output``
+# so the user can write corpus artifacts and FAISS lock files on a
+# fresh named volume (root-owned on first mount). When
+# ``PODCAST_PIPELINE_EXEC_MODE=docker`` is enabled, the entrypoint also
+# adds ``podcast`` to the group that owns the host-mounted
+# ``/var/run/docker.sock`` so ``docker compose`` works without root.
+ARG PODCAST_UID=1000
+ARG PODCAST_GID=1000
+RUN groupadd -g "${PODCAST_GID}" podcast \
+    && useradd -u "${PODCAST_UID}" -g "${PODCAST_GID}" -m -s /bin/bash podcast \
+    && mkdir -p /app/output \
+    && chown -R podcast:podcast /app
 
 EXPOSE 8000
 
@@ -56,12 +86,16 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=120s --retries=3 \
     CMD curl -fsS "http://127.0.0.1:8000/api/health" >/dev/null || exit 1
 
 ENTRYPOINT ["/entrypoint.sh"]
+# Default to per-corpus operator-config mode (the API writes
+# ``<corpus>/viewer_operator.yaml`` for each corpus root, no static
+# ``--config-file``). Operators that want single-config mode can
+# override the CMD to add ``--config-file <path>`` and bind-mount their
+# YAML on top.
 CMD ["python", "-m", "podcast_scraper.cli", "serve", \
      "--host", "0.0.0.0", \
      "--port", "8000", \
      "--no-static", \
      "--output-dir", "/app/output", \
-     "--config-file", "/app/config.yaml", \
      "--enable-feeds-api", \
      "--enable-operator-config-api", \
      "--enable-jobs-api"]

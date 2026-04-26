@@ -3,14 +3,39 @@ import { ref } from 'vue'
 import { localYmdDaysAgo } from '../utils/localCalendarDate'
 import { useCorpusLensStore } from './corpusLens'
 
-export type GraphLayoutName = 'cose' | 'breadthfirst' | 'circle' | 'grid'
+export type GraphLayoutName = 'cose' | 'breadthfirst' | 'circle' | 'grid' | 'timeline'
 
-/** Order for the graph layout cycle control (toolbar / bottom bar). */
+/**
+ * Default lower bound (YYYY-MM-DD) for the Graph time lens on first
+ * auto-load. Production: ``last 7 days`` to keep the canvas snappy for
+ * large corpora. Build-time override via ``VITE_DEFAULT_GRAPH_LENS_DAYS``:
+ *   - positive integer N → ``localYmdDaysAgo(N)``
+ *   - ``0`` or ``""`` → ``""`` (= **all time**, no lower bound)
+ *
+ * Used by stack-test / smoke-test builds where the corpus has fixed
+ * fixture dates that must not depend on wall-clock time.
+ */
+function seedDefaultSinceYmd(): string {
+  const raw = (import.meta.env.VITE_DEFAULT_GRAPH_LENS_DAYS as string | undefined)?.trim()
+  if (raw === '' || raw === '0') return ''
+  if (raw != null) {
+    const n = Number(raw)
+    if (Number.isFinite(n) && n > 0) return localYmdDaysAgo(Math.floor(n))
+  }
+  return localYmdDaysAgo(7)
+}
+
+/**
+ * Order for the graph layout cycle control (toolbar / bottom bar).
+ * `timeline` is the RFC-080 V3 entry — Episodes spread on the date
+ * axis (quantile-mapped); see `cyTimelineLayout.ts`.
+ */
 export const GRAPH_LAYOUT_CYCLE_ORDER: readonly GraphLayoutName[] = [
   'cose',
   'breadthfirst',
   'circle',
   'grid',
+  'timeline',
 ] as const
 
 export const useGraphExplorerStore = defineStore('graphExplorer', () => {
@@ -48,18 +73,19 @@ export const useGraphExplorerStore = defineStore('graphExplorer', () => {
     if (seeded.value) return
     const corpus = useCorpusLensStore()
     const s = corpus.sinceYmd?.trim() ?? ''
-    sinceYmd.value = s ? s : localYmdDaysAgo(7)
+    sinceYmd.value = s ? s : seedDefaultSinceYmd()
     seeded.value = true
   }
 
   /**
    * Graph tab “Reset”: same date lower bound as the first auto-sync for this corpus session
-   * (Digest/Library corpus lens, else last 7 days local).
+   * (Digest/Library corpus lens, else build-time configured default — see
+   * ``seedDefaultSinceYmd``).
    */
   function resetSinceYmdToInitialCorpusSeed(): void {
     const corpus = useCorpusLensStore()
     const s = corpus.sinceYmd?.trim() ?? ''
-    sinceYmd.value = s ? s : localYmdDaysAgo(7)
+    sinceYmd.value = s ? s : seedDefaultSinceYmd()
     seeded.value = true
   }
 

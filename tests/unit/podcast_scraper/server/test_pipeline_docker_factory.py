@@ -42,6 +42,45 @@ def test_compose_files_strips_and_skips_empty(monkeypatch: pytest.MonkeyPatch) -
     assert pdf._compose_files() == ["a.yaml", "b.yaml"]
 
 
+def test_compose_files_rejects_absolute_path(monkeypatch: pytest.MonkeyPatch) -> None:
+    """#666 review #4: an env-controlled absolute path could point at any host
+    file (``/etc/hosts``, ``/etc/passwd``, …). Guard rejects such values."""
+    monkeypatch.setenv("PODCAST_DOCKER_COMPOSE_FILES", "/etc/hosts")
+    with pytest.raises(RuntimeError, match="absolute"):
+        pdf._compose_files()
+
+
+def test_compose_files_rejects_parent_traversal(monkeypatch: pytest.MonkeyPatch) -> None:
+    """#666 review #4: ``../…`` entries could escape the project directory."""
+    monkeypatch.setenv(
+        "PODCAST_DOCKER_COMPOSE_FILES",
+        "compose/docker-compose.stack.yml,../outside/docker-compose.yml",
+    )
+    with pytest.raises(RuntimeError, match=r"\.\."):
+        pdf._compose_files()
+
+
+def test_resolve_compose_path_blocks_symlink_escape(tmp_path) -> None:
+    """#666 review #4: defense-in-depth against a symlink that points outside
+    the project root."""
+    project = tmp_path / "project"
+    outside = tmp_path / "outside"
+    project.mkdir()
+    outside.mkdir()
+    (outside / "evil.yml").write_text("services: {}\n")
+    (project / "evil.yml").symlink_to(outside / "evil.yml")
+    with pytest.raises(RuntimeError, match="escapes"):
+        pdf._resolve_compose_path(project.resolve(), "evil.yml")
+
+
+def test_resolve_compose_path_happy_path(tmp_path) -> None:
+    project = tmp_path / "project"
+    (project / "compose").mkdir(parents=True)
+    (project / "compose" / "a.yml").write_text("x: 1\n")
+    resolved = pdf._resolve_compose_path(project.resolve(), "compose/a.yml")
+    assert resolved == (project / "compose" / "a.yml").resolve()
+
+
 def test_cli_argv_tail_after_python_m_cli() -> None:
     argv = [
         "/usr/bin/python3",
@@ -110,6 +149,47 @@ def test_assert_operator_pipeline_extras_rejects_missing_or_other(tmp_path: Path
     p.write_text("pipeline_install_extras: cuda\n", encoding="utf-8")
     with pytest.raises(ValueError, match="pipeline_install_extras"):
         pdf.assert_operator_pipeline_extras(p)
+
+
+class TestValidateOperatorPipelineExtras:
+    """#666 review #13: symmetric-value / mode-specific-presence validator."""
+
+    def test_docker_mode_requires_field(self, tmp_path: Path) -> None:
+        p = tmp_path / "op.yaml"
+        p.write_text("max_episodes: 1\n", encoding="utf-8")
+        with pytest.raises(ValueError, match="Docker pipeline jobs require"):
+            pdf.validate_operator_pipeline_extras(p, "docker")
+
+    def test_docker_mode_accepts_ml(self, tmp_path: Path) -> None:
+        p = tmp_path / "op.yaml"
+        p.write_text("pipeline_install_extras: ml\n", encoding="utf-8")
+        assert pdf.validate_operator_pipeline_extras(p, "docker") == "ml"
+
+    def test_docker_mode_accepts_llm(self, tmp_path: Path) -> None:
+        p = tmp_path / "op.yaml"
+        p.write_text('pipeline_install_extras: "llm"\n', encoding="utf-8")
+        assert pdf.validate_operator_pipeline_extras(p, "docker") == "llm"
+
+    def test_subprocess_mode_allows_missing(self, tmp_path: Path) -> None:
+        p = tmp_path / "op.yaml"
+        p.write_text("max_episodes: 1\n", encoding="utf-8")
+        # Native `make serve-api` YAMLs don't declare extras; empty pipe_mode
+        # should not reject.
+        assert pdf.validate_operator_pipeline_extras(p, "") is None
+
+    def test_subprocess_mode_accepts_valid_value(self, tmp_path: Path) -> None:
+        p = tmp_path / "op.yaml"
+        p.write_text("pipeline_install_extras: ml\n", encoding="utf-8")
+        assert pdf.validate_operator_pipeline_extras(p, "") == "ml"
+
+    def test_both_modes_reject_invalid_value(self, tmp_path: Path) -> None:
+        """Symmetry: a bad value is rejected in every mode, not just Docker."""
+        p = tmp_path / "op.yaml"
+        p.write_text("pipeline_install_extras: cuda\n", encoding="utf-8")
+        with pytest.raises(ValueError, match="'ml' or 'llm'"):
+            pdf.validate_operator_pipeline_extras(p, "docker")
+        with pytest.raises(ValueError, match="'ml' or 'llm'"):
+            pdf.validate_operator_pipeline_extras(p, "")
 
 
 def test_attach_docker_jobs_factory_registers_callable() -> None:
@@ -211,6 +291,14 @@ def test_docker_jobs_factory_builds_compose_argv_and_spawns(
     assert str(tmp_path / "compose" / "extra.yml") in flat
     assert "--profile" in flat and "pipeline-llm" in flat
     assert "run" in flat and "-T" in flat and "--rm" in flat and "--no-deps" in flat
+    # Compose v2 resolves bind-mount sources relative to project-directory.
+    # Passing ``--project-directory <repo-root>`` would re-anchor the
+    # ``../<...>`` paths in our compose files one level above the repo —
+    # silent host-side mkdir, then the pipeline entrypoint fails its
+    # ``[ ! -f /app/config.yaml ]`` check. Letting Compose default the
+    # project directory to ``dirname(first -f)`` keeps the existing
+    # relative paths working.
+    assert "--project-directory" not in flat
     cli_i = flat.index("podcast_scraper.cli")
     assert flat[cli_i + 1 : cli_i + 3] == ["run", "--help"]
     assert kwargs["cwd"] == str(tmp_path)

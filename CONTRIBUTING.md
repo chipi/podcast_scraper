@@ -37,6 +37,17 @@ The repo is **Python-first** at the root; the GI/KG UI is **`web/gi-kg-viewer/`*
 targets such as **`make test-ui`** and **`make test-ui-e2e`** run npm under `web/gi-kg-viewer` for
 you. Full table and commands: [Polyglot repository guide](docs/guides/POLYGLOT_REPO_GUIDE.md).
 
+**Viewer tools — `npm run …` / `node_modules/.bin/…`, never `npx`.**
+`web/gi-kg-viewer/node_modules/` is the Node analog of `.venv/` —
+project-pinned, gitignored. Invoke pinned binaries via `npm run` (e.g.
+`npm run test:e2e`) or directly via `./node_modules/.bin/<tool>`.
+**Avoid `npx <tool>`**: the viewer pins **`@playwright/test`** (CLI
+named `playwright`) but **not** a separate `playwright` package, so
+`npx playwright` silently fetches a fresh registry copy that doesn't
+share state with the spec's `@playwright/test` import → "did not expect
+test.describe()" + worker SIGKILL (exit 137). Details in the polyglot
+guide section *Invoking viewer tools*.
+
 ### Prerequisites
 
 Before you begin, ensure you have these installed:

@@ -1,9 +1,16 @@
 # GitHub #659: viewer (Nginx) + API (FastAPI) + optional pipeline (docker/pipeline/Dockerfile).
-# Long-running: viewer + api. Pipeline: ``docker compose --profile pipeline run --rm pipeline``.
+# Long-running: viewer + api. Pipeline runs as one-shot jobs spawned by
+# the API job factory (``PODCAST_PIPELINE_EXEC_MODE=docker``) which calls
+# ``docker compose run --rm pipeline python -m podcast_scraper.cli ...``
+# with operator-driven ``--config <viewer_operator.yaml> --feeds-spec
+# <feeds.spec.yaml> --profile <name>``. Pipeline configuration lives in
+# the operator YAML on disk under the corpus root, not in a static
+# ``/app/config.yaml`` — that older single-config path was retired with
+# the move to the operator-config API.
 #
 # Prerequisites:
-#   - CONFIG_FILE (default ../config.yaml relative to this file = repo-root config.yaml) must set output_dir to /app/output (see config/examples/docker-stack.example.yaml).
-#   - ``docker compose up`` does not start the ML pipeline service (profile ``pipeline``).
+#   - ``docker compose up`` does not start the pipeline services
+#     (profiles ``pipeline`` / ``pipeline-llm``); they are spawned per-job.
 
 services:
   viewer:
@@ -13,6 +20,15 @@ services:
     image: podcast-scraper-stack-viewer:latest
     ports:
       - "${VIEWER_PORT:-8080}:80"
+    # #666 review #6: explicit compose-level healthcheck so other services
+    # can chain ``depends_on: condition: service_healthy`` on the viewer.
+    # Nginx serves the SPA shell on GET /.
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:80/ > /dev/null"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
     depends_on:
       api:
         condition: service_healthy
@@ -24,11 +40,17 @@ services:
     image: podcast-scraper-stack-api:latest
     expose:
       - "8000"
+    # #666 review #6: explicit compose-level healthcheck (mirrors the
+    # Dockerfile HEALTHCHECK) so ``depends_on: condition: service_healthy``
+    # actually waits on the API. Some Compose versions ignore healthchecks
+    # declared only in the image; make the contract visible here.
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:8000/api/health > /dev/null"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 120s
     environment:
-      PODCAST_SCRAPER_CONFIG: /app/config.yaml
-      # Host-absolute path to the same YAML as ``/app/config.yaml`` mount — required when the API
-      # runs nested ``docker compose`` (``PODCAST_PIPELINE_EXEC_MODE=docker``) so pipeline mounts resolve.
-      CONFIG_FILE: ${CONFIG_FILE:-}
       # Provider keys: empty defaults (set in repo-root ``.env`` for Compose substitution only).
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
       GEMINI_API_KEY: ${GEMINI_API_KEY:-}
@@ -39,7 +61,6 @@ services:
     volumes:
       # Read-write: API may rebuild vector index or write lock files under the corpus root.
       - corpus_data:/app/output
-      - ${CONFIG_FILE:-../config.yaml}:/app/config.yaml:ro
 
   pipeline:
     profiles:
@@ -53,9 +74,7 @@ services:
     image: podcast-scraper-stack-pipeline:latest
     volumes:
       - corpus_data:/app/output
-      - ${CONFIG_FILE:-../config.yaml}:/app/config.yaml:ro
     environment:
-      PODCAST_SCRAPER_CONFIG: /app/config.yaml
       PODCAST_SCRAPER_WORK_DIR: /app
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
       GEMINI_API_KEY: ${GEMINI_API_KEY:-}
@@ -77,9 +96,7 @@ services:
     image: podcast-scraper-stack-pipeline-llm:latest
     volumes:
       - corpus_data:/app/output
-      - ${CONFIG_FILE:-../config.yaml}:/app/config.yaml:ro
     environment:
-      PODCAST_SCRAPER_CONFIG: /app/config.yaml
       PODCAST_SCRAPER_WORK_DIR: /app
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
       GEMINI_API_KEY: ${GEMINI_API_KEY:-}

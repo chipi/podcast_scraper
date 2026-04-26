@@ -550,6 +550,40 @@ class CorpusEpisodeDetailResponse(BaseModel):
         default_factory=list,
         description="CIL topic pills from bridge (cluster-first order).",
     )
+    bridge_partition: "BridgePartitionSummary | None" = Field(
+        default=None,
+        description=(
+            "Per-episode ``{gi_only, kg_only, both}`` identity partition counts "
+            "derived from ``bridge.json::identities``. ``None`` when the bridge "
+            "file is missing or unreadable. Meaningful for the first time "
+            "post-#654 (previous threshold produced a mechanical ``both = 10 × "
+            "episode_count`` distribution)."
+        ),
+    )
+
+
+class BridgePartitionSummary(BaseModel):
+    """Counts of identity membership across GI / KG layers in bridge.json.
+
+    #656 Stage B: drives the per-episode bridge indicator on
+    ``EpisodeDetailPanel``. Each identity (topic / person / org) is
+    classified from its ``sources: {gi, kg}`` flags:
+
+      * ``gi_only`` — ``gi=True``, ``kg=False``.
+      * ``kg_only`` — ``gi=False``, ``kg=True``.
+      * ``both``    — both flags ``True``.
+      * ``total``   — sum of the three above (identities present in
+        neither layer are never emitted by the builder, so this also
+        equals ``len(identities)``).
+
+    Per-type splits (topic / person / org) are reserved for a follow-up
+    surface (hover detail) — intentionally omitted here.
+    """
+
+    gi_only: int = Field(ge=0)
+    kg_only: int = Field(ge=0)
+    both: int = Field(ge=0)
+    total: int = Field(ge=0)
 
 
 class CorpusSimilarEpisodeItem(BaseModel):
@@ -819,6 +853,19 @@ class CorpusRunSummaryItem(BaseModel):
         default_factory=dict,
         description="Counts for ok / failed / skipped from ``metrics.episode_statuses``.",
     )
+    # #656 Stage B: surface the #652 Part B post-extraction filter counters so
+    # the dashboard can render a "Pipeline cleanup" summary per run. Each
+    # counter is a total across the run; ``None`` means the field was absent
+    # (legacy run or metrics.json schema mismatch).
+    ads_filtered_count: int | None = None
+    dialogue_insights_dropped_count: int | None = None
+    topics_normalized_count: int | None = None
+    entity_kinds_repaired_count: int | None = None
+    # #656 Stage D: pre-extraction ad-region excision counters (#663). Each
+    # is a run total; ``None`` on runs predating the counters.
+    ad_chars_excised_preroll: int | None = None
+    ad_chars_excised_postroll: int | None = None
+    ad_episodes_with_excision_count: int | None = None
 
 
 class CorpusRunsSummaryResponse(BaseModel):

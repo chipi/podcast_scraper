@@ -1,4 +1,25 @@
-name: Stack smoke test
+name: Stack test
+
+# End-to-end stack-test against the Docker compose stack.
+#
+# Single sequence: build images → bring up api + viewer + mock-feeds →
+# seed feeds.spec.yaml + viewer_operator.yaml into the corpus_data
+# volume → run Playwright (smoke + full UI flow). The full UI flow
+# spec drives the API job factory, which spawns one-shot
+# ``docker compose run pipeline`` containers that produce the corpus
+# artifacts the smoke + UI assertions then validate.
+#
+# Profile: ``airgapped_thin`` (Whisper tiny.en, transformers
+# bart-base + led-base, spaCy en_core_web_sm; no cloud calls).
+#
+# Cloud-thin (OpenAI Whisper + Gemini providers) is **local-only** —
+# we don't run it on public CI to avoid recurring API costs on every
+# push / nightly. ``make stack-test-build-cloud`` plus
+# ``make stack-test-seed STACK_TEST_OPERATOR_VARIANT=cloud-thin`` plus
+# ``STACK_TEST_OPERATOR_PROFILE=cloud_thin make stack-test-playwright``
+# exists for developers to validate the cloud path against their own
+# ``.env`` keys before pushing changes that touch ``[llm]`` extras /
+# Gemini providers / OpenAI Whisper.
 
 on:
   push:
@@ -7,29 +28,31 @@ on:
       - 'compose/**'
       - 'docker/**'
       - 'config/ci/**'
-      - 'tests/smoke/**'
+      - 'config/profiles/**'
+      - 'tests/stack-test/**'
+      - 'tests/fixtures/rss/**'
+      - 'tests/fixtures/audio/**'
+      - 'tests/fixtures/transcripts/**'
       - 'Makefile'
       - 'pyproject.toml'
-      - 'docker/pipeline/**'
-      - '.github/workflows/smoke-test.yml'
-      - 'scripts/tools/gil_quality_metrics.py'
-      - 'scripts/tools/kg_quality_metrics.py'
+      - 'src/podcast_scraper/prompts/**'
+      - 'src/podcast_scraper/search/**'
+      - 'src/podcast_scraper/workflow/orchestration.py'
+      - '.github/workflows/stack-test.yml'
   workflow_dispatch:
 
 permissions:
   contents: read
 
 jobs:
-  smoke:
+  stack-test:
     runs-on: ubuntu-latest
     env:
       STACK_PIPELINE_PRELOAD_ML: false
-      SMOKE_VIEWER_PORT: 8090
-      SMOKE_BASE_URL: http://127.0.0.1:8090
+      STACK_TEST_VIEWER_PORT: 8090
+      STACK_TEST_BASE_URL: http://127.0.0.1:8090
       DOCKER_BUILDKIT: 1
       COMPOSE_DOCKER_CLI_BUILD: 1
-      SMOKE_EXPORT_DIR: ${{ github.workspace }}/.smoke-corpus
-      SMOKE_CORPUS_ROOT: ${{ github.workspace }}/.smoke-corpus
     steps:
       - uses: actions/checkout@v6
 
@@ -42,32 +65,17 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v4
 
-      - name: Build stack + smoke images
-        run: make smoke-build
-
-      - name: Run pipeline (fixture RSS, airgapped profile)
-        run: make smoke-run-pipeline
-
-      - name: Assert pipeline log (layer 2)
-        run: make smoke-assert-logs
-
-      - name: Export corpus from smoke volume (layer 1 prep)
-        run: make smoke-export-corpus
-
-      - uses: actions/setup-python@v6
+      - uses: actions/setup-node@v6
         with:
-          python-version: '3.12'
+          node-version: '22'
 
-      - name: Install Python deps (GIL/KG metric scripts)
-        run: pip install -e '.[dev]'
+      - name: Build stack images
+        run: make stack-test-build
 
-      - name: Artifact quality gates (layer 1)
-        run: make smoke-assert-artifacts
+      - name: Bring up api + viewer + mock-feeds
+        run: make stack-test-up
 
-      - name: Start viewer + API
-        run: make smoke-up
-
-      - name: Wait for Nginx → API health
+      - name: Wait for /api/health
         run: |
           for i in $(seq 1 60); do
             if curl -fsS "http://127.0.0.1:8090/api/health" >/dev/null; then
@@ -79,21 +87,20 @@ jobs:
           echo "timeout waiting for /api/health"
           exit 1
 
-      - uses: actions/setup-node@v6
-        with:
-          node-version: '22'
+      - name: Seed corpus_data volume (feeds.spec.yaml + viewer_operator.yaml, ml variant)
+        run: make stack-test-seed
 
-      - name: Playwright smoke tests
-        run: make smoke-test-playwright
+      - name: Run Playwright (smoke + full UI flow)
+        run: make stack-test-playwright
 
-      - name: Tear down
+      - name: Tear down compose stack
         if: always()
-        run: make smoke-down || true
+        run: make stack-test-down || true
 
-      - name: Upload pipeline log on failure
+      - name: Upload Playwright report on failure
         if: failure()
         uses: actions/upload-artifact@v4
         with:
-          name: smoke-pipeline-log
-          path: .smoke/pipeline.log
+          name: stack-test-playwright-report
+          path: tests/stack-test/playwright-report
           if-no-files-found: ignore

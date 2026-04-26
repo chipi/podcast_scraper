@@ -1,0 +1,12 @@
+# Stack-test seed feeds spec — first feed only.
+#
+# ``tests/stack-test/stack-jobs-flow.spec.ts`` adds a second URL via
+# the Configuration → Feeds dialog (``MOCK_FEED_EXTRA`` =
+# ``http://mock-feeds/p01_episode_selection.xml``) to verify the
+# add-feed-from-UI flow. The two URLs MUST differ.
+#
+# Mounted into the corpus volume via ``make stack-test-seed`` (see
+# Makefile) before the API container starts.
+
+feeds:
+  - url: http://mock-feeds/p01_fast_with_transcript.xml

@@ -24,6 +24,7 @@ import { useSubjectStore } from '../../stores/subject'
 import { useGraphExpansionStore } from '../../stores/graphExpansion'
 import { useGraphExplorerStore } from '../../stores/graphExplorer'
 import { useGraphFilterStore } from '../../stores/graphFilters'
+import { useGraphLensesStore } from '../../stores/graphLenses'
 import { useGraphNavigationStore } from '../../stores/graphNavigation'
 import { useSearchStore } from '../../stores/search'
 import { useShellStore } from '../../stores/shell'
@@ -43,6 +44,17 @@ import {
 import * as giKgCoseLayout from '../../utils/cyCoseLayoutOptions'
 import { syncGraphLabelTierClasses } from '../../utils/cyGraphLabelTier'
 import { buildGiKgCyStylesheet, cytoscapeSideLabelMarginXCallback } from '../../utils/cyGraphStylesheet'
+import {
+  computeRadialPositions,
+  type RadialSnapshot,
+} from '../../utils/cyRadialLayout'
+import {
+  computeEpisodeTimelinePositions,
+  deterministicJitter,
+  weightedMeanXFromEpisodes,
+  type TimelineEpisodeInput,
+  type TimelinePosition,
+} from '../../utils/cyTimelineLayout'
 import {
   graphNodeExpandableForCrossEpisodeExpand,
   syncCrossEpisodeExpandNodeClasses,
@@ -65,6 +77,7 @@ const emit = defineEmits<{
 }>()
 
 const gf = useGraphFilterStore()
+const lenses = useGraphLensesStore()
 const ge = useGraphExplorerStore()
 const { preferredLayout, minimapOpen, activeDegreeBucket } = storeToRefs(ge)
 const nav = useGraphNavigationStore()
@@ -528,6 +541,9 @@ function buildCyStyle() {
     ...(buildGiKgCyStylesheet({
       includeSearchHit: true,
       prefersReducedMotion: graphPrefersReducedMotion.value,
+      // RFC-080 V5 — opt-in via lens flag (defaults off; user toggle
+      // persists across reloads via useGraphLensesStore).
+      enableNodeSizeByDegree: lenses.nodeSizeByDegree,
     }) as Record<string, unknown>[]),
     {
       selector: 'node',
@@ -768,7 +784,123 @@ function layoutOptionsFor(name: string): Record<string, unknown> {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     return giKgCoseLayout.giKgCoseLayoutOptionsMainFallback() as any
   }
+  // 'timeline' is handled by `timelineLayoutSpec(core)` at the caller —
+  // it needs the live Cytoscape collection to read publishDate +
+  // walk edges for Topic/Person band placement; layoutOptionsFor
+  // doesn't have access to the eles. Returning a no-op spec here
+  // would be wrong; the dispatch call sites special-case it.
   return { name, padding: 36 }
+}
+
+const TIMELINE_TOPIC_BAND_OFFSET = 100
+const TIMELINE_PERSON_BAND_OFFSET = -180
+const TIMELINE_INSIGHT_OFFSET = 30
+const TIMELINE_QUOTE_OFFSET = -30
+const TIMELINE_DEFAULT_X = 0
+
+/** RFC-080 V3 — count of Episodes parked at the missing-date spot in the
+ * last applied timeline layout. Surfaced via the bottom-bar lens menu (or
+ * a quiet inline note) once that UI lands; until then, devs can read it
+ * via Vue devtools. */
+const timelineMissingDateCount = ref(0)
+
+/** Build a Cytoscape layout spec for the timeline lens. Reads
+ * publishDate (Unix ms) from Episode node data, computes quantile
+ * positions (default axis), then propagates Topic / Person / Insight /
+ * Quote positions via weighted-mean of connected episodes (RFC-080 V3).
+ *
+ * Returns `{ name: 'preset', positions, padding }` ready to hand to
+ * `eles.layout(spec)`. Empty / no-Episode collections fall back to a
+ * grid layout so the canvas still renders cleanly.
+ */
+function timelineLayoutSpec(core: Core): Record<string, unknown> {
+  const episodeNodes = core.nodes('node[type = "Episode"]')
+  if (episodeNodes.empty()) {
+    return { name: 'grid', padding: 36 }
+  }
+
+  const containerEl = container.value
+  const canvasWidth = Math.max(600, containerEl?.clientWidth ?? 1000)
+  const canvasMidY = Math.max(200, (containerEl?.clientHeight ?? 600) / 2)
+  const geometry = {
+    canvasWidth,
+    canvasMidY,
+    jitterRange: 40,
+  }
+
+  const episodeInputs: TimelineEpisodeInput[] = []
+  episodeNodes.forEach((n) => {
+    const raw = n.data('publishDate')
+    const dateMs = typeof raw === 'number' && Number.isFinite(raw) ? raw : null
+    episodeInputs.push({ id: n.id(), dateMs })
+  })
+  const { positions: episodePositions, missingDateIds } =
+    computeEpisodeTimelinePositions(episodeInputs, geometry, 'quantile')
+  timelineMissingDateCount.value = missingDateIds.length
+
+  const positions: Record<string, TimelinePosition> = { ...episodePositions }
+
+  // Topic / Person / Entity_* nodes — weighted mean of connected
+  // episode x-positions; band offset by node type so the spine stays
+  // visually distinct.
+  const placeBand = (selector: string, bandOffset: number): void => {
+    core.nodes(selector).forEach((n) => {
+      const connectedXs: number[] = []
+      n.neighborhood('node[type = "Episode"]').forEach((e) => {
+        const p = positions[e.id()]
+        if (p) connectedXs.push(p.x)
+      })
+      const meanX = weightedMeanXFromEpisodes(connectedXs)
+      const x = meanX ?? TIMELINE_DEFAULT_X
+      const y = canvasMidY + bandOffset + deterministicJitter(n.id(), 30)
+      positions[n.id()] = { x, y }
+    })
+  }
+  placeBand('node[type = "Topic"]', TIMELINE_TOPIC_BAND_OFFSET)
+  placeBand('node[type = "TopicCluster"]', TIMELINE_TOPIC_BAND_OFFSET)
+  placeBand('node[type = "Entity_person"]', TIMELINE_PERSON_BAND_OFFSET)
+  placeBand('node[type = "Entity_organization"]', TIMELINE_PERSON_BAND_OFFSET)
+
+  // Insights / Quotes ride near their parent Episode (small signed
+  // offset so children don't all land on the parent's exact (x, y)).
+  const placeChildren = (selector: string, yOffset: number): void => {
+    core.nodes(selector).forEach((n) => {
+      const eid = String(n.data('episodeId') ?? '').trim()
+      const epPos = eid ? positions[eid] : undefined
+      if (epPos) {
+        positions[n.id()] = {
+          x: epPos.x + deterministicJitter(n.id(), 20),
+          y: epPos.y + yOffset + deterministicJitter(n.id(), 15),
+        }
+        return
+      }
+      // Fall back to a connected-Episode walk if data.episodeId
+      // wasn't set (legacy artifacts).
+      const connectedXs: number[] = []
+      n.neighborhood('node[type = "Episode"]').forEach((e) => {
+        const p = positions[e.id()]
+        if (p) connectedXs.push(p.x)
+      })
+      const meanX = weightedMeanXFromEpisodes(connectedXs)
+      const x = meanX ?? TIMELINE_DEFAULT_X
+      positions[n.id()] = {
+        x,
+        y: canvasMidY + yOffset + deterministicJitter(n.id(), 15),
+      }
+    })
+  }
+  placeChildren('node[type = "Insight"]', TIMELINE_INSIGHT_OFFSET)
+  placeChildren('node[type = "Quote"]', TIMELINE_QUOTE_OFFSET)
+
+  return {
+    name: 'preset',
+    fit: true,
+    padding: 60,
+    positions: (n: NodeSingular) => {
+      const p = positions[n.id()]
+      return p ? { x: p.x, y: p.y } : { x: TIMELINE_DEFAULT_X, y: canvasMidY }
+    },
+  }
 }
 
 type CyModelPosition = { x: number; y: number }
@@ -1219,10 +1351,125 @@ function applyTopicClusterMemberCollapse(core: Core): void {
   })
 }
 
+/* RFC-080 V4 — radial focus mode state. The mode is enter/exit only;
+ * snapshots capture node positions + per-element display so an exit
+ * restores the graph exactly. Held at module scope (not pinia) because
+ * the snapshot is meaningful only against the current `cy` instance —
+ * a destroy + redraw invalidates it. */
+const radialModeActive = ref(false)
+const radialAriaMessage = ref('')
+let radialSnapshot: RadialSnapshot | null = null
+
+function enterRadialMode(centreId: string): boolean {
+  const c = cy
+  if (!c) return false
+  const centre = c.$id(centreId)
+  if (centre.empty() || !centre.isNode()) return false
+
+  // Ring 1 = 1-hop neighbour nodes; ring 2 = 2-hop minus ring 1 minus
+  // the centre itself. Compound (TopicCluster) members participate in
+  // ring 1 alongside external 1-hop neighbours per RFC-080 V4.
+  const ring1 = centre.neighborhood('node').union(centre.children('node'))
+  const ring2 = ring1.neighborhood('node').difference(ring1).difference(centre)
+  const ring1Ids = ring1.map((n) => n.id())
+  const ring2Ids = ring2.map((n) => n.id())
+
+  // V5 interaction: ring radius adapts to the largest ring-1 node radius
+  // so size-by-degree doesn't push neighbours into each other.
+  let maxR1Radius = 0
+  ring1.forEach((n) => {
+    const r = (n.width() ?? 0) / 2
+    if (r > maxR1Radius) maxR1Radius = r
+  })
+  const out = computeRadialPositions(centreId, ring1Ids, ring2Ids, {
+    maxRing1NodeRadius: maxR1Radius,
+  })
+
+  // Snapshot positions + display state for clean restore on exit. We
+  // walk all nodes / edges (not just the visible set) because outer-
+  // hop elements get hidden as part of entering the mode.
+  const positions: Record<string, { x: number; y: number }> = {}
+  const displays: Record<string, string> = {}
+  c.nodes().forEach((n) => {
+    const p = n.position()
+    positions[n.id()] = { x: p.x, y: p.y }
+    displays[n.id()] = String(n.style('display') ?? 'element')
+  })
+  const edgeDisplays: Record<string, string> = {}
+  c.edges().forEach((e) => {
+    edgeDisplays[e.id()] = String(e.style('display') ?? 'element')
+  })
+  radialSnapshot = { positions, displays, edgeDisplays, centreId }
+
+  // Hide everything outside ring 1 ∪ ring 2 ∪ centre. Edges with
+  // either endpoint hidden also disappear so we don't render orphan
+  // strokes.
+  const visibleSet = new Set<string>([centreId, ...ring1Ids, ...ring2Ids])
+  c.batch(() => {
+    c.nodes().forEach((n) => {
+      n.style('display', visibleSet.has(n.id()) ? 'element' : 'none')
+    })
+    c.edges().forEach((e) => {
+      const ok = visibleSet.has(e.source().id()) && visibleSet.has(e.target().id())
+      e.style('display', ok ? 'element' : 'none')
+    })
+  })
+
+  c.layout({
+    name: 'preset',
+    positions: (n: NodeSingular) => {
+      const p = out.positions[n.id()]
+      return p ? { x: p.x, y: p.y } : { x: 0, y: 0 }
+    },
+    fit: true,
+    padding: 60,
+  } as never).run()
+
+  radialModeActive.value = true
+  // a11y: announce centre node label (the user lost the mouse-context
+  // when the canvas reorganised; SR / keyboard users get a verbal
+  // reference).
+  const label = String(centre.data('label') ?? centreId)
+  radialAriaMessage.value = `Radial view centred on ${label}.`
+  return true
+}
+
+function exitRadialMode(): void {
+  const c = cy
+  if (!c || !radialSnapshot) {
+    radialModeActive.value = false
+    radialSnapshot = null
+    radialAriaMessage.value = ''
+    return
+  }
+  const snap = radialSnapshot
+  c.batch(() => {
+    c.nodes().forEach((n) => {
+      const p = snap.positions[n.id()]
+      if (p) n.position({ x: p.x, y: p.y })
+      const d = snap.displays[n.id()]
+      n.style('display', d ?? 'element')
+    })
+    c.edges().forEach((e) => {
+      const d = snap.edgeDisplays[e.id()]
+      e.style('display', d ?? 'element')
+    })
+  })
+  radialAriaMessage.value = `Radial view exited.`
+  radialModeActive.value = false
+  radialSnapshot = null
+}
+
 function destroyCy(): void {
   // Do not clear pendingViewportPreserve here — it must survive destroy+redraw until the new cy's layoutstop
   // (ego exit to full graph, Re-layout). egoPriorFullGraphViewportPreserve must survive enter-ego redraw too.
   pendingFocusCameraAfterLayoutHold = null
+  // RFC-080 V4: snapshot is bound to the cy instance; a destroy invalidates it.
+  // Clear so a subsequent enter starts from a clean state instead of restoring
+  // stale positions onto a freshly mounted graph.
+  radialSnapshot = null
+  radialModeActive.value = false
+  radialAriaMessage.value = ''
   graphLayoutGate.invalidate()
   clearSelectedNodeZoomAnchor()
   suspendSelectedNodeZoomAnchorCorrection = 0
@@ -1675,13 +1922,15 @@ function runRelayout(): void {
 
   pendingViewportPreserve = captureSelectedViewportAnchor(c)
   const name = preferredLayout.value
-  const opts = layoutOptionsFor(name)
+  // RFC-080 V3: timeline reads cy node data (publishDate, episodeId)
+  // so it builds its preset spec live; other layouts use static opts.
+  const layoutSpec =
+    name === 'timeline'
+      ? timelineLayoutSpec(c)
+      : { ...layoutOptionsFor(name), name }
   let lo: { stop: () => void; one: (ev: string, fn: () => void) => void; run: () => void }
   try {
-    lo = eles.layout({
-      ...opts,
-      name,
-    } as never) as typeof lo
+    lo = eles.layout(layoutSpec as never) as typeof lo
   } catch {
     releaseGraphCanvasLayoutHold()
     return
@@ -1782,7 +2031,12 @@ function redraw(): void {
       return
     }
 
-    const elements = toCytoElements(art)
+    // RFC-080 V1 — append render-only Episode↔Topic / Episode↔Person
+    // aggregated edges when the lens flag is on. Defaults off; takes
+    // effect on the next graph rebuild.
+    const elements = toCytoElements(art, {
+      enableAggregatedEdges: lenses.aggregatedEdges,
+    })
     const nodeCount = elements.filter((x) => !('source' in x.data)).length
     if (nodeCount === 0) {
       el.innerHTML =
@@ -1800,6 +2054,10 @@ function redraw(): void {
     el.innerHTML = ''
     applyGraphCanvasImmediateHide(el)
     const layoutName = preferredLayout.value
+    // RFC-080 V3 — timeline computes per-node positions from live cy
+    // data, so it returns a self-contained spec (`{ name: 'preset',
+    // positions, ... }`). For other layouts the caller still spreads
+    // `name` over the static opts.
     const layoutOpts = layoutOptionsFor(layoutName)
     const core = cytoscape({
       container: el,
@@ -1837,10 +2095,11 @@ function redraw(): void {
         })
       : core.elements()
     try {
-      initialLo = layoutCollection.layout({
-        ...layoutOpts,
-        name: layoutName,
-      } as never) as typeof initialLo
+      const initialSpec =
+        layoutName === 'timeline'
+          ? timelineLayoutSpec(core)
+          : { ...layoutOpts, name: layoutName }
+      initialLo = layoutCollection.layout(initialSpec as never) as typeof initialLo
     } catch {
       cy = null
       try {
@@ -2267,6 +2526,49 @@ watch(
   { flush: 'post' },
 )
 
+/* RFC-080 V4 — keyboard wiring. Escape always exits radial mode if
+ * active (regardless of focus location, matching the RFC). Alt+R
+ * toggles: enter centred on the currently-selected node, or exit if
+ * already active. The user can drive the mode entirely from the
+ * keyboard until the bottom-bar lens menu ships. */
+let radialKeydownHandler: ((e: KeyboardEvent) => void) | null = null
+
+function attachRadialKeydown(): void {
+  radialKeydownHandler = (e: KeyboardEvent): void => {
+    if (e.key === 'Escape' && radialModeActive.value) {
+      e.preventDefault()
+      exitRadialMode()
+      return
+    }
+    // Alt+R: toggle. Lower-case match so both `r` and `R` (Shift+Alt+R) work.
+    if (e.altKey && (e.key === 'r' || e.key === 'R')) {
+      e.preventDefault()
+      if (radialModeActive.value) {
+        exitRadialMode()
+        return
+      }
+      const c = cy
+      if (!c) return
+      const sel = c.$('node:selected')
+      const target = sel.empty() ? null : sel.first()
+      if (!target) return
+      enterRadialMode(target.id())
+    }
+  }
+  window.addEventListener('keydown', radialKeydownHandler, true)
+}
+
+function detachRadialKeydown(): void {
+  if (radialKeydownHandler) {
+    try {
+      window.removeEventListener('keydown', radialKeydownHandler, true)
+    } catch {
+      /* ignore */
+    }
+    radialKeydownHandler = null
+  }
+}
+
 onMounted(() => {
   if (typeof window !== 'undefined' && typeof window.matchMedia === 'function') {
     reducedMotionMql = window.matchMedia('(prefers-reduced-motion: reduce)')
@@ -2286,6 +2588,7 @@ onMounted(() => {
     }
     reducedMotionMql.addEventListener('change', reducedMotionMqlHandler)
   }
+  attachRadialKeydown()
   safeGraphWatch('onMounted', () => {
     redraw()
   })
@@ -2335,6 +2638,7 @@ onUnmounted(() => {
     clearTimeout(nodeEpisodesCorpusBeyondDebounce)
     nodeEpisodesCorpusBeyondDebounce = null
   }
+  detachRadialKeydown()
   destroyCy()
   graphCyNodeCount.value = 0
   pendingViewportPreserve = null
@@ -2496,6 +2800,39 @@ defineExpose({
           >
             Laying out graph…
           </span>
+        </div>
+        <!--
+          RFC-080 V4 — radial focus mode. The aria-live region announces
+          enter/exit to screen readers; the visible test-id pip is for
+          dev / Playwright reach (no user-facing toggle UI in this
+          slice — Alt+R toggles, Escape exits; bottom-bar lens menu
+          ships in a follow-up).
+        -->
+        <div
+          aria-live="polite"
+          aria-atomic="true"
+          class="sr-only"
+        >
+          {{ radialAriaMessage }}
+        </div>
+        <div
+          v-if="radialModeActive"
+          data-testid="graph-radial-mode-active"
+          class="pointer-events-none absolute right-2 top-2 z-[4] rounded border border-border/70 bg-surface/95 px-2 py-0.5 text-[10px] font-medium text-surface-foreground shadow-sm"
+        >
+          Radial · Esc to exit
+        </div>
+        <!-- RFC-080 V3 — timeline lens missing-date marker. Surfaces the
+             count of episodes parked at the leftmost spot so users see
+             the "no date" pile isn't a layout glitch. -->
+        <div
+          v-if="preferredLayout === 'timeline' && timelineMissingDateCount > 0"
+          data-testid="graph-timeline-missing-date"
+          class="pointer-events-none absolute bottom-2 left-2 z-[4] rounded border border-border/70 bg-surface/95 px-2 py-0.5 text-[10px] text-muted shadow-sm"
+        >
+          {{ timelineMissingDateCount }}
+          {{ timelineMissingDateCount === 1 ? 'episode has' : 'episodes have' }}
+          no date (parked at left)
         </div>
         <GraphGestureOverlay
           ref="gestureOverlayRef"

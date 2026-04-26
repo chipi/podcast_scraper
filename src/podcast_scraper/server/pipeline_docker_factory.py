@@ -39,8 +39,46 @@ def _project_dir() -> Path:
 
 
 def _compose_files() -> list[str]:
+    """Parse ``PODCAST_DOCKER_COMPOSE_FILES`` into a list of repo-relative paths.
+
+    Each entry MUST be a repository-relative path without ``..`` segments and
+    must not be absolute. This guards against an env-var attacker (or a
+    mis-configured operator) pointing the factory at ``/etc/hosts`` or at a
+    compose file outside the project root. Resolution against
+    ``PODCAST_DOCKER_PROJECT_DIR`` happens in the caller.
+    """
     raw = os.environ.get("PODCAST_DOCKER_COMPOSE_FILES", "compose/docker-compose.stack.yml").strip()
-    return [p.strip() for p in raw.split(",") if p.strip()]
+    entries = [p.strip() for p in raw.split(",") if p.strip()]
+    for entry in entries:
+        candidate = Path(entry)
+        if candidate.is_absolute():
+            raise RuntimeError(
+                f"PODCAST_DOCKER_COMPOSE_FILES entry must be repo-relative, got absolute: {entry}"
+            )
+        # Normalise and reject any ``..`` traversal. Running ``Path.resolve``
+        # here would evaluate against the API container's cwd, not the project
+        # root, so stay textual instead.
+        parts = candidate.parts
+        if any(part == ".." for part in parts):
+            raise RuntimeError(f"PODCAST_DOCKER_COMPOSE_FILES entry contains '..': {entry}")
+    return entries
+
+
+def _resolve_compose_path(project: Path, rel: str) -> Path:
+    """Resolve ``rel`` under ``project`` and assert it stays inside the tree.
+
+    Pure belt-and-suspenders against symlink or path-construction shenanigans
+    that slipped past :func:`_compose_files`. ``project`` is already resolved
+    by :func:`_project_dir`, so any escape here is a real bug, not a footgun.
+    """
+    resolved = (project / rel).resolve()
+    try:
+        resolved.relative_to(project)
+    except ValueError as exc:
+        raise RuntimeError(
+            f"Compose file {rel!r} escapes PODCAST_DOCKER_PROJECT_DIR ({project})."
+        ) from exc
+    return resolved
 
 
 def _service_for_extras(extras: str) -> tuple[str, str]:
@@ -74,6 +112,39 @@ def assert_operator_pipeline_extras(operator_yaml: Path) -> str:
     return extras
 
 
+def validate_operator_pipeline_extras(operator_yaml: Path, pipe_mode: str) -> str | None:
+    """Mode-aware validator for ``pipeline_install_extras`` (#666 review #13).
+
+    * The *value* is validated symmetrically across modes: if the operator
+      YAML sets ``pipeline_install_extras`` to anything other than ``ml``
+      or ``llm``, reject in both Docker and subprocess mode.
+    * The *presence* requirement stays mode-specific:
+        - ``pipe_mode == "docker"``: the field is mandatory because the
+          API must pick a compose service (``pipeline`` vs
+          ``pipeline-llm``) whose image matches.
+        - subprocess mode: the field is optional; the job runs inside the
+          API container using whatever extras were installed at build
+          time.
+    Returns the declared value or ``None`` when absent + mode permits.
+    """
+    # codeql[py/path-injection] -- operator_yaml from viewer_operator_extras_source
+    # (safe_resolve_directory + safe_fixed_file_under_root): Type 1.
+    text = operator_yaml.read_text(encoding="utf-8", errors="replace")
+    extras = parse_pipeline_install_extras(text)
+    if extras is not None and extras not in ("ml", "llm"):
+        raise ValueError(
+            "pipeline_install_extras must be 'ml' or 'llm' "
+            f"(got {extras!r}) in operator YAML ({operator_yaml})."
+        )
+    if extras is None and pipe_mode == "docker":
+        raise ValueError(
+            "Docker pipeline jobs require top-level pipeline_install_extras: ml "
+            "or pipeline_install_extras: llm in the operator YAML "
+            f"({operator_yaml})."
+        )
+    return extras
+
+
 async def _docker_jobs_factory(
     argv: Sequence[str],
     corpus_root: Path,
@@ -91,11 +162,21 @@ async def _docker_jobs_factory(
 
     cmd: list[str] = ["docker", "compose"]
     for f in compose_files:
-        cmd.extend(["-f", str(project / f)])
+        cmd.extend(["-f", str(_resolve_compose_path(project, f))])
+    # Intentionally NOT passing ``--project-directory``. Compose v2 resolves
+    # bind-mount sources and build contexts relative to the project
+    # directory. When ``--project-directory`` is set explicitly to the repo
+    # root, ``../config/ci/foo.yaml`` in ``compose/docker-compose.*.yml``
+    # resolves to one level *above* the repo (silent host-side mkdir, then
+    # the pipeline entrypoint fails ``[ ! -f /app/config.yaml ]`` because
+    # the bind source is an empty directory). Letting Compose default the
+    # project directory to ``dirname(first -f)`` = ``<repo>/compose`` makes
+    # the existing relative paths (``../<...>``) resolve correctly to
+    # ``<repo>/<...>``. ``COMPOSE_PROJECT_NAME`` (set in the API
+    # ``environment:``) keeps the spawned container in the running stack's
+    # project regardless.
     cmd.extend(
         [
-            "--project-directory",
-            str(project),
             "--profile",
             profile,
             "run",

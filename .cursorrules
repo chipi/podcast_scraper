@@ -98,7 +98,9 @@
 
 ### Terminal Command Execution
 
-9. ** NEVER run commands in background — ALWAYS `is_background: false` **
+9. **NEVER run commands in background — ALWAYS `is_background: false`**
+
+   **9a. Don't pipe command output to `| tail -N` (or `| head`) when the user is watching.** The harness can't stream Bash stdout live; the user only sees output when the command exits. A short tail truncates the body they would otherwise have seen in full. Prefer no pipe at all; if a command genuinely produces > 1k lines, use a generous tail (`tail -100`) or run in background and report a typed summary. Never silently filter the command body the user asked you to run.
 
   - **#1 MOST VIOLATED RULE — PAY EXTRA ATTENTION**
   - `is_background: true` ONLY for long-running servers (e.g., `mkdocs serve`)
@@ -138,6 +140,26 @@
   - **Use:** `make test`, `make format`, `make lint`, `make fix-md`
   - **Do not use:** `pytest`, `black .`, `flake8`, `npx markdownlint-cli2`
   - Exception: `git` commands are fine; Python: `.venv/bin/python3 script.py`
+
+8a-bis. **Viewer (`web/gi-kg-viewer`) tools — `npm run …` / `./node_modules/.bin/…`, never `npx`.**
+
+  - The viewer pins **`@playwright/test`** (CLI exposed as
+    `node_modules/.bin/playwright`) but **not** a separate package
+    literally named `playwright`. **`npx playwright test ...`** silently
+    fetches a fresh copy from the npm registry → two module instances
+    at the same version → "Playwright Test did not expect
+    test.describe() to be called here" → worker SIGKILL (exit code
+    137 in the parent shell). Easy to misread as "user canceled" or
+    OOM. Smoking gun: `npm warn exec ... will be installed` near the
+    top of the output.
+  - **Use:** `npm run test:e2e -- <args>`, `npm run test:unit`,
+    `npm run dev`, `npm run build`, or `./node_modules/.bin/playwright
+    test …` from the viewer dir. Same isolation as `.venv/bin/pytest`.
+  - **Do not use:** `npx playwright`, `npx vitest`, `npx vite`. `npx`
+    is not the Node analog of `python -m`; it falls back to fetching
+    from registry when the literal name isn't in `node_modules`.
+  - Polyglot details: `docs/guides/POLYGLOT_REPO_GUIDE.md` —
+    *Invoking viewer tools*.
 
 8b. **ALWAYS update venv when dependency ranges change**
 
@@ -353,7 +375,7 @@ make fix-md        # Auto-fix markdown
 
 ## REMEMBER
 
--  NEVER `is_background: true` for make/test/git/pip
+- NEVER `is_background: true` for make/test/git/pip
 - NEVER push to main (feature branches + PRs only)
 - Prefer showing changes + approval before commit; **user can override** with explicit "go" / "commit all" (see User intent section)
 - ALWAYS use Makefile commands, never direct tools
@@ -363,7 +385,7 @@ make fix-md        # Auto-fix markdown
 - ALL analysis/plans → `docs/wip/`
 - Auto-load `.mdc` files for detailed guidance (Rule 17); session review at close (Rule 18), **separate from** metrics JSONL
 - NEVER commit secrets
--  NEVER `git stash` or `git checkout <ref> -- <file>` during an active merge — it **destroys all conflict resolutions** (Rules 4a–4c)
+- NEVER `git stash` or `git checkout <ref> -- <file>` during an active merge — it **destroys all conflict resolutions** (Rules 4a–4c)
 - NEVER overwrite local files with remote content without showing the diff and getting approval (Rule 4d)
 - NEVER reset working-tree files from `HEAD`/a ref to drop uncommitted edits without explicit user ask or confirmed prompt (Rule 4e); includes **`git checkout -- <path>`** (same as restore from index/HEAD). Before such git: load **`git-working-tree-safety.mdc`** (Rule 17) or **ask first**
 - NEVER delete or “clean up” **gitignored** paths unless the user **explicitly** asked to remove those files (Rule **4f**)

@@ -3,6 +3,7 @@
  */
 import type { EdgeSingular, NodeSingular } from 'cytoscape'
 import { graphNodeFill } from './colors'
+import { aboutConfidenceOpacity, aboutConfidenceWidth } from './cyEdgeWeight'
 
 export function cytoscapeNodeLabelColorFromTheme(): string {
   try {
@@ -232,6 +233,14 @@ export function buildGiKgCyStylesheet(options?: {
   nodeLabelPlacement?: GiKgNodeLabelPlacement
   /** When true, skip opacity transition (matches `prefers-reduced-motion: reduce`). */
   prefersReducedMotion?: boolean
+  /**
+   * RFC-080 V5 — when true, Topic + Episode `width`/`height` become
+   * `mapData(degreeHeat, 0, 1, …)` so high-degree nodes are visually
+   * larger. Off by default (RFC rollout: validate on staging corpus
+   * before promoting). The existing `degreeHeat` border signal stays as
+   * a secondary cue.
+   */
+  enableNodeSizeByDegree?: boolean
 }): Record<string, unknown>[] {
   const compact = Boolean(options?.compact)
   const nw = scaledNodeSize('Episode', compact)
@@ -305,15 +314,30 @@ export function buildGiKgCyStylesheet(options?: {
     },
   ]
 
+  const sizeByDegree = Boolean(options?.enableNodeSizeByDegree)
   for (const t of VISUAL_TYPES) {
     const side = scaledNodeSize(t, compact)
+    const baseStyle: Record<string, unknown> = {
+      'background-color': graphNodeFill(t),
+      width: side,
+      height: side,
+    }
+    // RFC-080 V5: scale Topic + Episode width/height by `degreeHeat`.
+    // Other types stay fixed because their degree distribution is
+    // narrow (Quote / Speaker etc.). Cap the upper bound at the smaller
+    // of (1.5× base, 12% of viewport) so 60px Topics don't dominate
+    // mobile viewports — the canvasWidth clamp lives in GraphCanvas
+    // when it sets `degreeHeat`. The values here pick a reasonable
+    // bounded range based on the existing fixed sizes.
+    if (sizeByDegree && (t === 'Topic' || t === 'Episode')) {
+      const lo = Math.round(side * 0.7)
+      const hi = Math.round(side * 1.5)
+      baseStyle.width = `mapData(degreeHeat, 0, 1, ${lo}, ${hi})`
+      baseStyle.height = `mapData(degreeHeat, 0, 1, ${lo}, ${hi})`
+    }
     style.push({
       selector: `node[type = "${t}"]`,
-      style: {
-        'background-color': graphNodeFill(t),
-        width: side,
-        height: side,
-      },
+      style: baseStyle,
     })
   }
 
@@ -321,6 +345,27 @@ export function buildGiKgCyStylesheet(options?: {
     selector: 'node[type = "Insight"]',
     style: {
       'background-opacity': (ele: NodeSingular) => insightBackgroundOpacity(ele),
+    },
+  })
+
+  // RFC-080 V2 — Insight grounding + confidence tier hooks. These rules
+  // are always present in the stylesheet but only fire when the
+  // matching class is assigned at element-build time
+  // (`toCytoElements`). Tier classes are stylesheet hooks for future
+  // selectors (e.g. "hide low-confidence" filters); they don't override
+  // the existing `confidenceOpacity` mapping that drives
+  // `background-opacity`. The ungrounded dashed border draws attention
+  // to `grounded: false` insights without disturbing opacity. The
+  // `.search-hit` selector pushed later in this stylesheet wins on
+  // border styling when both apply (same-property override by source
+  // order).
+  style.push({
+    selector: 'node[type = "Insight"].insight-ungrounded',
+    style: {
+      'border-width': compact ? 1.25 : 1.5,
+      'border-style': 'dashed',
+      'border-color': 'var(--ps-warning, #f59f00)',
+      'border-opacity': 0.7,
     },
   })
 
@@ -418,11 +463,17 @@ export function buildGiKgCyStylesheet(options?: {
       },
     },
     {
+      // #664 + #656-foundation: ABOUT edges now carry
+      // ``properties.confidence`` (cosine similarity, 0.25–1.0). Map it to
+      // line-opacity + width so strong "about X" edges stand out and weak
+      // ones fade. Legacy edges without the property fall back to uniform
+      // rendering via the helpers' defaults.
       selector: 'edge[edgeType = "ABOUT"]',
       style: {
-        width: compact ? 1.5 : 2,
+        width: aboutConfidenceWidth(compact ? 1.5 : 2),
         'line-color': 'var(--ps-gi)',
         'line-style': 'solid',
+        'line-opacity': aboutConfidenceOpacity(),
         'target-arrow-shape': 'none',
       },
     },
@@ -513,6 +564,44 @@ export function buildGiKgCyStylesheet(options?: {
     selector: 'edge.graph-edge-neighbour',
     style: {
       opacity: 0.9,
+    },
+  })
+
+  // RFC-080 V1 — render-only aggregated edges (Episode→Topic ABOUT_AGG,
+  // Episode→Person SPOKE_IN_AGG). These selectors are always present in
+  // the stylesheet but only fire when `toCytoElements` was called with
+  // `enableAggregatedEdges: true` (so production builds without the
+  // lens enabled get no behaviour change). Width maps `data(weight)` —
+  // a count of contributing per-Insight edges — into a 1.5px..5px
+  // range. Mapping is per-element, not normalised against the whole
+  // graph; tightening to a slice-relative max is in #667's open
+  // questions.
+  const aboutAggBaseWidth = compact ? 1 : 1.5
+  const aboutAggMaxWidth = compact ? 4 : 5
+  style.push({
+    selector: 'edge.graph-edge-about-agg',
+    style: {
+      width: `mapData(weight, 1, 12, ${aboutAggBaseWidth}, ${aboutAggMaxWidth})`,
+      'line-color': 'var(--ps-gi)',
+      'line-style': 'solid',
+      'line-opacity': 0.85,
+      'target-arrow-shape': 'none',
+      // Slightly higher z so the chunky aggregate sits over the
+      // per-Insight ABOUT fan when both are visible (e.g. tier-full
+      // before #667 ships the tier gating).
+      'z-index': 5,
+    },
+  })
+  style.push({
+    selector: 'edge.graph-edge-spoke-in-agg',
+    style: {
+      width: `mapData(weight, 1, 8, ${aboutAggBaseWidth}, ${aboutAggMaxWidth})`,
+      'line-color': 'var(--ps-primary)',
+      'line-style': 'solid',
+      'line-opacity': 0.85,
+      'target-arrow-shape': 'triangle',
+      'target-arrow-color': 'var(--ps-primary)',
+      'z-index': 5,
     },
   })
 

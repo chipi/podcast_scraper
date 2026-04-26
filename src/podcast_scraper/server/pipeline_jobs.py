@@ -46,22 +46,120 @@ def _utc_iso() -> str:
 
 
 def max_concurrent_jobs() -> int:
-    """Max concurrent *running* jobs per corpus (default 1)."""
+    """Max concurrent *running* jobs per corpus (default 1).
+
+    #666 review #14: when ``PODCAST_VIEWER_MAX_PIPELINE_JOBS`` is unparsable,
+    log a warning so operators see that their env var is being ignored.
+    """
     raw = os.environ.get("PODCAST_VIEWER_MAX_PIPELINE_JOBS", "1").strip()
     try:
         n = int(raw)
     except ValueError:
+        logger.warning(
+            "PODCAST_VIEWER_MAX_PIPELINE_JOBS=%r is not an int; using default 1",
+            raw,
+        )
         return 1
     return max(1, n)
 
 
 def stale_after_seconds() -> int:
-    """Wall-clock stale threshold for *running* jobs during reconcile."""
+    """Wall-clock stale threshold for *running* jobs during reconcile.
+
+    #666 review #14: log a warning on parse failure rather than silently
+    falling back to the 24h default.
+    """
     raw = os.environ.get("PODCAST_JOB_STALE_SECONDS", str(86400)).strip()
     try:
         return max(0, int(raw))
     except ValueError:
+        logger.warning(
+            "PODCAST_JOB_STALE_SECONDS=%r is not an int; using default 86400",
+            raw,
+        )
         return 86400
+
+
+# #666 review #10: default per-job log cap (50 MiB). Runaway pipelines hit this
+# and the pump writes a truncation marker + /dev/null's any further output so
+# disk space is bounded. 0 disables the cap entirely.
+_LOG_MAX_BYTES_DEFAULT = 50 * 1024 * 1024
+
+
+def job_log_max_bytes() -> int:
+    """Max bytes a single job may write to its ``.viewer/jobs/*.log``.
+
+    Operator override: ``PODCAST_JOB_LOG_MAX_BYTES`` (integer bytes, ``0`` =
+    unlimited). Parse failure logs a warning and falls back to the default.
+    """
+    raw = os.environ.get("PODCAST_JOB_LOG_MAX_BYTES", str(_LOG_MAX_BYTES_DEFAULT)).strip()
+    try:
+        return max(0, int(raw))
+    except ValueError:
+        logger.warning(
+            "PODCAST_JOB_LOG_MAX_BYTES=%r is not an int; using default %d",
+            raw,
+            _LOG_MAX_BYTES_DEFAULT,
+        )
+        return _LOG_MAX_BYTES_DEFAULT
+
+
+async def _pump_subprocess_to_log(
+    stream: asyncio.StreamReader,
+    log_abs: Path,
+    *,
+    max_bytes: int,
+    job_id: str,
+) -> None:
+    """Pump ``stream`` → ``log_abs`` with a per-job byte cap (#666 review #10).
+
+    When ``max_bytes`` is exceeded the remaining bytes are drained from the
+    subprocess stream (so the child does not block on a full pipe) but not
+    written. A truncation marker is emitted to the log the first time the
+    cap is hit.
+    """
+    log_abs.parent.mkdir(parents=True, exist_ok=True)
+    written = 0
+    truncated = False
+    # ``max_bytes == 0`` disables the cap (operators who want unlimited logs).
+    uncapped = max_bytes <= 0
+    with open(log_abs, "wb") as out:
+        while True:
+            try:
+                chunk = await stream.read(65536)
+            except asyncio.CancelledError:
+                raise
+            except Exception as exc:  # pragma: no cover - defensive
+                logger.warning("log pump read failed job=%s: %s", job_id, exc)
+                break
+            if not chunk:
+                break
+            if uncapped:
+                out.write(chunk)
+                continue
+            if written >= max_bytes:
+                # Already truncated; drain silently to unblock the subprocess.
+                continue
+            remaining = max_bytes - written
+            if len(chunk) <= remaining:
+                out.write(chunk)
+                written += len(chunk)
+            else:
+                out.write(chunk[:remaining])
+                written = max_bytes
+                if not truncated:
+                    marker = (
+                        f"\n[LOG TRUNCATED at {max_bytes} bytes "
+                        "(set PODCAST_JOB_LOG_MAX_BYTES=0 to disable)]\n"
+                    ).encode("utf-8")
+                    out.write(marker)
+                    truncated = True
+                    logger.warning(
+                        "job log truncated job=%s after %d bytes",
+                        job_id,
+                        max_bytes,
+                    )
+            out.flush()
 
 
 def pid_alive(pid: int | None) -> bool:
@@ -309,25 +407,39 @@ async def spawn_pipeline_subprocess(
     argv: list[str],
     log_abs: Path,
 ) -> asyncio.subprocess.Process:
-    """Spawn the pipeline child (or delegate to ``app.state.jobs_subprocess_factory``)."""
+    """Spawn the pipeline child (or delegate to ``app.state.jobs_subprocess_factory``).
+
+    The default path pipes subprocess stdout through a capped pump
+    (:func:`_pump_subprocess_to_log`, #666 review #10) so runaway pipelines
+    cannot fill the disk with log output. The Docker factory manages log
+    capture via compose and is not routed through the pump here.
+    """
     factory = getattr(app.state, "jobs_subprocess_factory", None)
     if factory is not None:
         proc = await factory(argv, corpus_root, log_abs)
         return cast(asyncio.subprocess.Process, proc)
 
-    def _open_log_binary() -> Any:
-        log_abs.parent.mkdir(parents=True, exist_ok=True)
-        return open(log_abs, "wb")
-
-    log_f = await asyncio.to_thread(_open_log_binary)
+    log_abs.parent.mkdir(parents=True, exist_ok=True)
     proc = await asyncio.create_subprocess_exec(
         *argv,
-        stdout=log_f,
+        stdout=asyncio.subprocess.PIPE,
         stderr=asyncio.subprocess.STDOUT,
         cwd=str(corpus_root),
         start_new_session=os.name != "nt",
     )
-    setattr(proc, "_ps_log_fp", log_f)
+    # Start the pump concurrently. ``monitor_subprocess`` awaits both
+    # ``proc.wait()`` and this task via the ``_ps_log_pump`` attribute.
+    assert proc.stdout is not None
+    pump_task = asyncio.create_task(
+        _pump_subprocess_to_log(
+            proc.stdout,
+            log_abs,
+            max_bytes=job_log_max_bytes(),
+            job_id=job_id,
+        ),
+        name=f"pipeline-log-pump-{job_id}",
+    )
+    setattr(proc, "_ps_log_pump", pump_task)
     return proc
 
 
@@ -367,8 +479,15 @@ async def monitor_subprocess(
     job_id: str,
     proc: asyncio.subprocess.Process,
 ) -> None:
-    """Wait for the child, finalize registry, then try to promote queued work."""
+    """Wait for the child, drain the log pump, finalize registry, then try
+    to promote queued work.
+
+    ``_ps_log_fp`` (legacy file-handle path, used by the Docker factory) and
+    ``_ps_log_pump`` (default PIPE+pump path, #666 review #10) are mutually
+    exclusive; whichever is present is cleaned up in the finally block.
+    """
     log_fp = getattr(proc, "_ps_log_fp", None)
+    log_pump = getattr(proc, "_ps_log_pump", None)
     try:
         try:
             code = await proc.wait()
@@ -382,11 +501,24 @@ async def monitor_subprocess(
         await _finalize_job(corpus_root, job_id, exit_code=code, cancelled=cancelled)
         await drain_queue_async(app, corpus_root)
     finally:
+        # #666 review #10: wait for the pump task to finish draining stdout
+        # AFTER the child exited — otherwise the last buffered chunks are
+        # lost. The pump owns the file handle internally and closes it.
+        if log_pump is not None:
+            try:
+                await log_pump
+            except asyncio.CancelledError:
+                raise
+            except Exception as exc:  # pragma: no cover - defensive
+                logger.warning("job log pump task failed job=%s: %s", job_id, exc)
+        # #666 review #11: log cleanup failures instead of silently
+        # swallowing them — disk-full / readonly-fs conditions leave the
+        # operator with no signal that pipeline output was truncated.
         if log_fp is not None:
             try:
                 log_fp.close()
-            except Exception:
-                pass
+            except Exception as exc:  # pragma: no cover - defensive
+                logger.warning("job log close failed job=%s: %s", job_id, exc)
 
 
 async def start_job_if_running_record(
@@ -404,8 +536,13 @@ async def start_job_if_running_record(
     try:
         proc = await spawn_pipeline_subprocess(app, corpus_root, job_id, argv, log_abs)
     except Exception as exc:
+        # #666 review #9: full ``str(exc)`` can include absolute paths,
+        # environment variable names, or internal stack-trace fragments
+        # that are forwarded to the viewer via ``error_reason``. Capture
+        # only the exception type in the registry; the full message stays
+        # server-side in ``logger.exception`` above.
         logger.exception("spawn failed job=%s", job_id)
-        err_msg = str(exc)
+        err_code = type(exc).__name__
 
         def _fail_mark_spawn_failed(jobs: list[dict[str, Any]]) -> None:
             for j in jobs:
@@ -413,7 +550,7 @@ async def start_job_if_running_record(
                     continue
                 j["status"] = STATUS_FAILED
                 j["ended_at"] = _utc_iso()
-                j["error_reason"] = f"spawn_failed: {err_msg}"
+                j["error_reason"] = f"spawn_failed: {err_code}"
                 j["exit_code"] = -1
 
         await asyncio.to_thread(with_jobs_locked_mutate, corpus_root, _fail_mark_spawn_failed)

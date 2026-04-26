@@ -185,20 +185,20 @@ help:
 	@echo "  make docker-build       Build Docker image (default, with model preloading)"
 	@echo "  make docker-build-fast  Build Docker image fast (no model preloading, <5min target)"
 	@echo "  make docker-build-full  Build Docker image full (with model preloading, matches main)"
-	@echo "  make stack-build        Docker stack: build viewer + api + pipeline images (compose/docker-compose.stack.yml)"
-	@echo "  make stack-up           Docker stack: start viewer + api (CONFIG_FILE=..., VIEWER_PORT=8080)"
+	@echo "  make stack-build        Docker stack (production base, no mock-feeds): build viewer + api + pipeline images"
+	@echo "  make stack-build-llm    Docker stack: also build pipeline-llm (INSTALL_EXTRAS=llm)"
+	@echo "  make stack-up           Docker stack: start viewer + api (VIEWER_PORT=8080); pipeline jobs spawn via API factory"
 	@echo "  make stack-down         Docker stack: stop stack (REMOVE_VOLUMES=1 runs compose down -v)"
 	@echo "  make stack-logs         Docker stack: follow viewer + api logs"
-	@echo "  make stack-run-pipeline Docker stack: one-shot pipeline (compose profile pipeline)"
-	@echo "  make stack-build-llm   Docker stack: build pipeline-llm image (INSTALL_EXTRAS=llm profile)"
 	@echo "  make verify-stack-profiles  Validate packaged profile → Docker tier (scripts/tools)"
 	@echo "  make stack-compose-validate Docker stack: docker compose config (stack + jobs-docker merge, no build)"
-	@echo "  make smoke-build       Smoke test: build stack + smoke overlay images"
-	@echo "  make smoke-run-pipeline Smoke test: one-shot pipeline (tees .smoke/pipeline.log)"
-	@echo "  make smoke-assert-logs  Smoke test: grep .smoke/pipeline.log for completion / errors"
-	@echo "  make smoke-export-corpus  Smoke test: copy /app/output from smoke volume → .smoke-corpus/"
-	@echo "  make smoke-assert-artifacts  Smoke test: GIL+KG gates (default SMOKE_CORPUS_ROOT=.smoke-corpus)"
-	@echo "  make smoke-up / smoke-down / smoke-test-playwright  Smoke test harness"
+	@echo "  make stack-test-build       Stack-test: build api + viewer + pipeline (airgapped/ml) images"
+	@echo "  make stack-test-build-cloud Stack-test: also build pipeline-llm ([llm] extras for cloud-thin runs — local only)"
+	@echo "  make stack-test-up          Stack-test: bring up api + viewer + mock-feeds (sources .env if present)"
+	@echo "  make stack-test-seed        Stack-test: seed corpus_data volume with feeds.spec.yaml + viewer_operator.yaml (STACK_TEST_OPERATOR_VARIANT=ml|cloud-thin)"
+	@echo "  make stack-test-playwright  Stack-test: run Playwright (smoke + full UI flow; STACK_TEST_OPERATOR_PROFILE=cloud_thin for llm runs)"
+	@echo "  make stack-test-down        Stack-test: tear down (STACK_TEST_DOWN_VOLUMES=1 to also drop corpus_data)"
+	@echo "  make stack-test-export      Stack-test: copy corpus_data volume → .stack-test-corpus/ for debug inspection"
 	@echo "  make docker-test        Build and test Docker image"
 	@echo "  make docker-clean       Remove Docker test images"
 	@echo "  make install-hooks   Install git pre-commit hook for automatic linting"
@@ -469,7 +469,7 @@ validate-kg-schema:
 	fi
 
 # GI/KG viewer v2 (#489): FastAPI + Vite. Install: pip install -e '.[server]'; cd $(WEB_VIEWER_DIR) && npm install
-.PHONY: serve serve-api serve-ui serve-e2e-mock stack-build stack-build-llm stack-compose-validate stack-up stack-down stack-logs stack-run-pipeline verify-stack-profiles smoke-build smoke-run-pipeline smoke-up smoke-down smoke-test-playwright smoke-assert-logs smoke-export-corpus smoke-assert-artifacts
+.PHONY: serve serve-api serve-ui serve-e2e-mock stack-build stack-build-llm stack-compose-validate stack-up stack-down stack-logs verify-stack-profiles stack-test-build stack-test-build-cloud stack-test-up stack-test-down stack-test-seed stack-test-playwright stack-test-export
 SERVE_OUTPUT_DIR ?= ./output
 # Optional corpus-editing + jobs routes (health shows green when on). Override with SERVE_ARGS= to disable.
 SERVE_ARGS ?= --enable-feeds-api --enable-operator-config-api --enable-jobs-api
@@ -492,11 +492,12 @@ serve-e2e-mock:
 
 # GitHub #659: Docker Compose stack (Nginx + FastAPI + shared volume; pipeline behind profile).
 STACK_COMPOSE ?= docker compose -f compose/docker-compose.stack.yml
-SMOKE_COMPOSE ?= docker compose -f compose/docker-compose.stack.yml -f compose/docker-compose.smoke.yml
+STACK_TEST_COMPOSE ?= docker compose -f compose/docker-compose.stack.yml -f compose/docker-compose.stack-test.yml
 REMOVE_VOLUMES ?=
-# Smoke test: host directory for ``make smoke-export-corpus`` (then ``make smoke-assert-artifacts``).
-SMOKE_EXPORT_DIR ?= $(PWD)/.smoke-corpus
-SMOKE_CORPUS_ROOT ?= $(PWD)/.smoke-corpus
+# Stack-test: host directory for ``make stack-test-export`` (debug aid —
+# copies the ``corpus_data`` volume contents to disk so artifacts can be
+# inspected after a Playwright run).
+STACK_TEST_EXPORT_DIR ?= $(CURDIR)/.stack-test-corpus
 
 stack-build:
 	@$(STACK_COMPOSE) build
@@ -509,13 +510,12 @@ verify-stack-profiles:
 	@export PYTHONPATH="${PYTHONPATH}:$(PWD)/src" && $(PYTHON) scripts/tools/validate_profile_docker_tier.py
 
 # ``docker compose config`` (no build) — catches bad merges / invalid interpolation.
-STACK_COMPOSE_VALIDATE_CFG ?= $(PWD)/config/examples/docker-stack.example.yaml
+# Validates both the base stack and the production overlay
+# (``jobs-docker.yml`` declares ``PODCAST_DOCKER_PROJECT_DIR`` as required).
 stack-compose-validate:
-	@cfg="$(CONFIG_FILE)"; \
-	if [ -z "$$cfg" ]; then cfg="$(STACK_COMPOSE_VALIDATE_CFG)"; fi; \
-	echo "stack-compose-validate: CONFIG_FILE=$$cfg"; \
-	CONFIG_FILE="$$cfg" PODCAST_DOCKER_PROJECT_DIR="$(CURDIR)" $(STACK_COMPOSE) config -q; \
-	CONFIG_FILE="$$cfg" PODCAST_DOCKER_PROJECT_DIR="$(CURDIR)" docker compose -f compose/docker-compose.stack.yml -f compose/docker-compose.jobs-docker.yml config -q
+	@PODCAST_DOCKER_PROJECT_DIR="$(CURDIR)" $(STACK_COMPOSE) config -q
+	@PODCAST_DOCKER_PROJECT_DIR="$(CURDIR)" docker compose -f compose/docker-compose.stack.yml -f compose/docker-compose.jobs-docker.yml config -q
+	@echo "stack-compose-validate: OK"
 
 stack-up:
 	@$(STACK_COMPOSE) up -d
@@ -526,77 +526,95 @@ stack-down:
 stack-logs:
 	@$(STACK_COMPOSE) logs -f viewer api
 
-stack-run-pipeline:
-	@$(STACK_COMPOSE) --profile pipeline run --rm pipeline
+stack-test-build:
+	@STACK_PIPELINE_PRELOAD_ML=false $(STACK_TEST_COMPOSE) build
 
-smoke-build:
-	@STACK_PIPELINE_PRELOAD_ML=false $(SMOKE_COMPOSE) build
+# Cloud-thin pipeline image: ``[llm]`` extras only (cloud API SDKs —
+# openai, google-genai, anthropic, mistralai, httpx). Zero local ML
+# (no torch / transformers / whisper / spaCy). Built into the
+# ``pipeline-llm`` compose service.
+stack-test-build-cloud:
+	@STACK_PIPELINE_PRELOAD_ML=false $(STACK_TEST_COMPOSE) --profile pipeline-llm build pipeline-llm
 
-smoke-run-pipeline:
-	@mkdir -p .smoke
-	@bash -c 'set -o pipefail && STACK_PIPELINE_PRELOAD_ML=false $(SMOKE_COMPOSE) run --rm pipeline 2>&1 | tee .smoke/pipeline.log'
-
-smoke-assert-logs:
-	@test -s .smoke/pipeline.log || (echo "Missing or empty .smoke/pipeline.log — run make smoke-run-pipeline first"; exit 1)
-	@if grep -q '^Traceback' .smoke/pipeline.log; then echo "Python traceback in .smoke/pipeline.log"; exit 1; fi
-	@if ! grep -q "Wrote corpus run summary" .smoke/pipeline.log; then echo "Expected success log line not found (Wrote corpus run summary)"; exit 1; fi
-	@echo "smoke-assert-logs: OK"
-
-smoke-export-corpus:
-	@mkdir -p "$(SMOKE_EXPORT_DIR)"
-	@STACK_PIPELINE_PRELOAD_ML=false $(SMOKE_COMPOSE) run --rm -T --no-deps \
-		-v "$(SMOKE_EXPORT_DIR):/host" \
+# Debug aid: copy ``/app/output`` from the running ``corpus_data`` volume
+# onto the host so artifacts can be inspected after a Playwright run.
+# Multi-feed corpus layout — runs land at
+# ``feeds/<stable>/run_*/{transcripts,metadata,run.json,…}`` and the
+# corpus root carries ``corpus_run_summary.json`` + ``feeds.spec.yaml``.
+stack-test-export:
+	@mkdir -p "$(STACK_TEST_EXPORT_DIR)"
+	@$(STACK_TEST_COMPOSE) --profile pipeline run --rm -T --no-deps \
+		-v "$(STACK_TEST_EXPORT_DIR):/host" \
 		--entrypoint /bin/sh \
-		pipeline -c 'set -e; if [ ! -d /app/output ] || [ -z "$$(ls -A /app/output 2>/dev/null)" ]; then echo "empty /app/output — run make smoke-run-pipeline first"; exit 1; fi; cp -a /app/output/. /host/'
-	@echo "smoke-export-corpus: copied to $(SMOKE_EXPORT_DIR)"
+		pipeline -c 'set -e; if [ ! -d /app/output ] || [ -z "$$(ls -A /app/output 2>/dev/null)" ]; then echo "empty /app/output — run a Playwright pipeline job first (make stack-test-up + stack-test-seed + stack-test-playwright)"; exit 1; fi; cp -a /app/output/. /host/'
+	@echo "stack-test-export: copied to $(STACK_TEST_EXPORT_DIR)"
 
-smoke-assert-artifacts:
-	@test -f "$(SMOKE_CORPUS_ROOT)/corpus_run_summary.json" || (echo "No corpus_run_summary.json under $(SMOKE_CORPUS_ROOT) — run make smoke-export-corpus (or set SMOKE_CORPUS_ROOT)"; exit 1)
-	@export PYTHONPATH="$(PWD)/src:$$PYTHONPATH" && $(PYTHON) scripts/tools/gil_quality_metrics.py "$(SMOKE_CORPUS_ROOT)" --enforce --strict-schema --fail-on-errors \
-		--min-extraction-coverage 0.5 --min-grounded-insight-rate 0.5 --min-quote-validity-rate 0.5 --min-avg-insights 0.2 --min-avg-quotes 0.2
-	@export PYTHONPATH="$(PWD)/src:$$PYTHONPATH" && $(PYTHON) scripts/tools/kg_quality_metrics.py "$(SMOKE_CORPUS_ROOT)" --enforce --strict-schema --fail-on-errors \
-		--min-artifacts 1 --min-avg-nodes 0.2 --min-extraction-coverage 0.5
-	@echo "smoke-assert-artifacts: OK"
+# Copy ``config/ci/stack-test-seed/*`` into the ``corpus_data`` volume
+# so the API + Playwright full-flow spec see ``feeds.spec.yaml`` and
+# ``viewer_operator.yaml`` at the corpus root before the operator UI
+# touches anything. Idempotent — overwrites any prior seed each run
+# so a previous test's mutations don't bleed into the next.
+#
+# ``STACK_TEST_OPERATOR_VARIANT`` (default ``ml``) decides which
+# ``pipeline_install_extras`` line gets appended to the single
+# ``viewer_operator.yaml`` template — the rest of the file is shared
+# across both runs:
+#   - ``ml``         → ``pipeline_install_extras: ml``  (compose service ``pipeline``)
+#   - ``cloud-thin`` → ``pipeline_install_extras: llm`` (compose service ``pipeline-llm``)
+# The Playwright spec then needs ``STACK_TEST_OPERATOR_PROFILE`` set to
+# match: ``airgapped_thin`` for ml (default), ``cloud_thin`` for llm.
+#
+# Run order for the full UI flow (ml/airgapped):
+#   make stack-test-build                          # builds api + pipeline (ml)
+#   make stack-test-up
+#   make stack-test-seed                           # default ml variant
+#   make stack-test-playwright
+#
+# Run order for the full UI flow (llm/cloud-thin) — local only:
+#   make stack-test-build-cloud                    # adds pipeline-llm
+#   make stack-test-up
+#   make stack-test-seed STACK_TEST_OPERATOR_VARIANT=cloud-thin
+#   STACK_TEST_OPERATOR_PROFILE=cloud_thin make stack-test-playwright
+STACK_TEST_OPERATOR_VARIANT ?= ml
+ifeq ($(STACK_TEST_OPERATOR_VARIANT),ml)
+  STACK_TEST_SEED_EXTRAS := ml
+else ifeq ($(STACK_TEST_OPERATOR_VARIANT),cloud-thin)
+  STACK_TEST_SEED_EXTRAS := llm
+else
+  STACK_TEST_SEED_EXTRAS := __invalid__
+endif
 
-smoke-up:
-	@STACK_PIPELINE_PRELOAD_ML=false SMOKE_VIEWER_PORT=$${SMOKE_VIEWER_PORT:-8090} $(SMOKE_COMPOSE) up -d
+stack-test-seed:
+	@if [ ! -d config/ci/stack-test-seed ]; then \
+		echo "stack-test-seed: missing config/ci/stack-test-seed/ (need feeds.spec.yaml + viewer_operator.yaml)"; \
+		exit 1; \
+	fi
+	@if [ "$(STACK_TEST_SEED_EXTRAS)" = "__invalid__" ]; then \
+		echo "stack-test-seed: STACK_TEST_OPERATOR_VARIANT must be 'ml' or 'cloud-thin' (got: $(STACK_TEST_OPERATOR_VARIANT))"; \
+		exit 1; \
+	fi
+	@echo "stack-test-seed: variant=$(STACK_TEST_OPERATOR_VARIANT) pipeline_install_extras=$(STACK_TEST_SEED_EXTRAS)"
+	@PODCAST_DOCKER_PROJECT_DIR=$(CURDIR) \
+		$(STACK_TEST_COMPOSE) run --rm -T --no-deps \
+			-v "$(CURDIR)/config/ci/stack-test-seed:/seed:ro" \
+			-e STACK_TEST_SEED_EXTRAS=$(STACK_TEST_SEED_EXTRAS) \
+			--entrypoint /bin/sh \
+			api -c 'set -e; mkdir -p /app/output; cp -f /seed/feeds.spec.yaml /app/output/feeds.spec.yaml; cp -f /seed/viewer_operator.yaml /app/output/viewer_operator.yaml; printf "\npipeline_install_extras: %s\n" "$$STACK_TEST_SEED_EXTRAS" >> /app/output/viewer_operator.yaml; chown -R podcast:podcast /app/output 2>/dev/null || true; ls -la /app/output/'
+	@echo "stack-test-seed: OK"
 
-smoke-down:
-	@$(SMOKE_COMPOSE) down
+stack-test-up:
+	@bash -c 'set -e; \
+		if [ -f .env ]; then set -a; . ./.env; set +a; fi; \
+		STACK_PIPELINE_PRELOAD_ML=false \
+		STACK_TEST_VIEWER_PORT=$${STACK_TEST_VIEWER_PORT:-8090} \
+		PODCAST_DOCKER_PROJECT_DIR=$(CURDIR) \
+		$(STACK_TEST_COMPOSE) up -d'
 
-smoke-test-playwright:
-	@cd tests/smoke && npm install && npx playwright install firefox && SMOKE_BASE_URL=$${SMOKE_BASE_URL:-http://127.0.0.1:8090} npx playwright test
+stack-test-down:
+	@$(STACK_TEST_COMPOSE) down $(if $(filter 1 true yes,$(STACK_TEST_DOWN_VOLUMES)),-v,)
 
-# Stack-test (RFC-078 / RFC-079): local transcripts and Playwright artifacts belong under
-# ``STACK_TEST_LOG_DIR`` (default ``.stack-test/``). Prefer short basenames there
-# (``full-run.log``, ``ci-local-run.log``) — not ``.stack-test-*.log`` at repo root
-# or hidden ``.stack-test/.stack-test-*.log`` (redundant prefix).
-STACK_TEST_LOG_DIR ?= $(PWD)/.stack-test
-STACK_TEST_FULL_RUN_LOG ?= $(STACK_TEST_LOG_DIR)/full-run.log
-STACK_TEST_CI_LOCAL_LOG ?= $(STACK_TEST_LOG_DIR)/ci-local-run.log
-
-.PHONY: stack-test-log-dir stack-test-rename-legacy-logs stack-test-ci-local stack-test-ci-local-clean
-stack-test-log-dir:
-	@mkdir -p "$(STACK_TEST_LOG_DIR)" && printf '%s\n' "$(STACK_TEST_LOG_DIR)" && \
-		printf '  transcript defaults: %s\n  %s\n' "$(STACK_TEST_FULL_RUN_LOG)" "$(STACK_TEST_CI_LOCAL_LOG)"
-
-# Rename ``.stack-test/.stack-test-<stem>.log`` → ``.stack-test/<stem>.log`` (``mv -n``).
-stack-test-rename-legacy-logs:
-	@mkdir -p "$(STACK_TEST_LOG_DIR)"
-	@d="$(STACK_TEST_LOG_DIR)"; \
-	find "$$d" -maxdepth 1 -type f -name '.stack-test-*.log' 2>/dev/null | while IFS= read -r f; do \
-	  b=$$(basename "$$f" .log); \
-	  s=$${b#.stack-test-}; \
-	  dest="$$d/$$s.log"; \
-	  if mv -n "$$f" "$$dest" 2>/dev/null; then echo "renamed $$f -> $$dest"; else echo "skip: $$f"; fi; \
-	done; \
-	true
-
-stack-test-ci-local: stack-test-log-dir
-	@bash scripts/tools/run_stack_test_ci_local.sh $(STACK_TEST_CI_LOCAL_ARGS)
-
-stack-test-ci-local-clean: stack-test-log-dir
-	@STACK_TEST_CI_LOCAL_CLEAN_EXPORT=1 bash scripts/tools/run_stack_test_ci_local.sh $(STACK_TEST_CI_LOCAL_ARGS)
+stack-test-playwright:
+	@cd tests/stack-test && npm install && ./node_modules/.bin/playwright install firefox && STACK_TEST_BASE_URL=$${STACK_TEST_BASE_URL:-http://127.0.0.1:8090} ./node_modules/.bin/playwright test
 
 # Vitest unit tests for TypeScript utility logic (no browser needed)
 test-ui:

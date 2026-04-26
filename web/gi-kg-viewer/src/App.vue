@@ -396,6 +396,7 @@ watch(
                   ? 'bg-primary text-primary-foreground'
                   : 'text-elevated-foreground hover:bg-overlay'
               "
+              data-testid="main-tab-digest"
               @click="mainTab = 'digest'"
             >
               Digest
@@ -408,6 +409,7 @@ watch(
                   ? 'bg-primary text-primary-foreground'
                   : 'text-elevated-foreground hover:bg-overlay'
               "
+              data-testid="main-tab-library"
               @click="mainTab = 'library'"
             >
               Library
@@ -420,6 +422,7 @@ watch(
                   ? 'bg-primary text-primary-foreground'
                   : 'text-elevated-foreground hover:bg-overlay'
               "
+              data-testid="main-tab-graph"
               @click="activateGraphTab()"
             >
               Graph
@@ -432,6 +435,7 @@ watch(
                   ? 'bg-primary text-primary-foreground'
                   : 'text-elevated-foreground hover:bg-overlay'
               "
+              data-testid="main-tab-dashboard"
               @click="mainTab = 'dashboard'"
             >
               Dashboard

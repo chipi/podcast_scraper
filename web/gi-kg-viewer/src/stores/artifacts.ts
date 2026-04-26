@@ -233,10 +233,19 @@ export const useArtifactsStore = defineStore('artifacts', () => {
    */
   async function loadSelected(opts?: { preserveExpansion?: boolean }): Promise<void> {
     loadError.value = null
-    parsedList.value = []
+    // #586 fix: do NOT clear parsedList at the start. An intermediate
+    // ``parsedList = []`` triggers the GraphCanvas ``filteredArtifact``
+    // watcher → ``redraw()`` on an empty graph while the previous
+    // Cytoscape layout may still have a pending rAF callback. That rAF
+    // fires against a destroyed renderer and throws
+    // ``TypeError: can't access property "notify", renderer is null``.
+    // Keep the prior list visible until we atomically swap in ``out`` at
+    // the end; expand flows (preserveExpansion=true) especially benefit
+    // from this — the user sees a smooth add, not a clear-and-rebuild.
     bridgeDocument.value = null
     const root = corpusPath.value.trim()
     if (!root || selectedRelPaths.value.length === 0) {
+      parsedList.value = []
       loadError.value = 'Set corpus path and select at least one artifact file.'
       useGraphExpansionStore().resetExpansionState()
       return
@@ -270,6 +279,9 @@ export const useArtifactsStore = defineStore('artifacts', () => {
         return
       }
       if (out.length === 0) {
+        // Only clear on definite "nothing to show" — matches pre-#586
+        // behaviour for this branch.
+        parsedList.value = []
         loadError.value = 'No .gi.json or .kg.json files in selection.'
         return
       }

@@ -10,13 +10,11 @@ podcast_scraper.egg-info/
 
 # Test outputs
 .test_outputs/
-# RFC-078 local smoke: pipeline log from ``make smoke-run-pipeline``
-.smoke/
-# RFC-078: ``make smoke-export-corpus`` host copy of ``smoke_data`` volume
-.smoke-corpus/
 
 # Stack test (Playwright under tests/stack-test/, ``make stack-test-*`` / CI): local logs, export, deps
 .stack-test/
+# Host copy of the ``corpus_data`` volume (``make stack-test-export``)
+.stack-test-corpus/
 .stack-test-corpus/
 # Deprecated: full-run transcripts belong under ``.stack-test/`` (keep pattern so stray root files stay untracked).
 .stack-test*.log
@@ -128,6 +126,11 @@ config/manual/
 # CI-related local files under config/ci (optional stem lists, etc.); not committed
 config/ci/*
 !config/ci/README.md
+# Stack-test seed lives at ``config/ci/stack-test-seed/`` and is consumed
+# by ``make stack-test-seed`` to populate the ``corpus_data`` volume
+# before the Playwright full UI flow runs.
+!config/ci/stack-test-seed/
+!config/ci/stack-test-seed/**
 
 # Experiments (local / ad-hoc configs)
 config/playground/

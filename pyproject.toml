@@ -131,6 +131,14 @@ dev = [
 packages = {find = {where = ["src"], exclude = ["*.egg-info", "examples", "docker"]}}
 package-dir = {"" = "src"}
 
+# Ship Jinja prompt templates with the wheel — without this setuptools
+# only includes ``.py`` files, and Gemini / Groq / cloud paths fail at
+# runtime with ``PromptNotFoundError`` (``.j2`` files left behind in
+# the source tree). Glob covers the prompts/ subtree which is the only
+# non-Python resource we ship today.
+[tool.setuptools.package-data]
+podcast_scraper = ["prompts/**/*.j2", "prompts/**/*.md"]
+
 [tool.black]
 line-length = 100
 target-version = ["py310"]

@@ -3504,9 +3504,22 @@ def generate_episode_metadata(  # noqa: C901
         if transcript_text:
             from ..gi.ad_regions import excise_ad_regions
 
-            transcript_text, transcript_segments_arg, _ = excise_ad_regions(
+            transcript_text, transcript_segments_arg, ad_meta = excise_ad_regions(
                 transcript_text, segments=transcript_segments_arg
             )
+            # #656 Stage D: record run-level ad-excision counters. GI is the
+            # canonical pre-extraction excision point (always runs on raw
+            # transcript regardless of which summarization cleaner ran),
+            # so one record per episode gives accurate run totals without
+            # double-counting the parallel KG pass below.
+            if pipeline_metrics is not None and ad_meta.chars_removed:
+                pre = ad_meta.preroll_cut_end or 0
+                post = (
+                    (ad_meta.source_length - ad_meta.postroll_cut_start)
+                    if ad_meta.postroll_cut_start is not None
+                    else 0
+                )
+                pipeline_metrics.record_ad_region_excision(pre, post)
         publish_date_str = episode_published_date.isoformat() if episode_published_date else None
         max_attempts = 2
         for attempt in range(max_attempts):

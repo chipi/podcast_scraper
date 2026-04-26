@@ -135,97 +135,44 @@ This follows common Docker tagging patterns:
 2. **Variant-specific tags** (`:llm-only`, `:ml`) for explicit selection
 3. **Versioned tags** (`:2.5.0`, `:2.5.0-llm`) for reproducibility
 
-## Docker Compose Examples
+## Where the variants are used
 
-### Quick Start with Provided Files
+The variants live as build arguments on `docker/pipeline/Dockerfile`. They show up in two places in the compose stack:
 
-The repository includes ready-to-use Docker Compose files:
+| Compose service | `INSTALL_EXTRAS` | Built by |
+| --------------- | ----------------- | -------- |
+| `pipeline` | `ml` | `make stack-test-build` (or `docker compose --profile pipeline build pipeline`) |
+| `pipeline-llm` | `llm` | `make stack-test-build-cloud` (or `docker compose --profile pipeline-llm build pipeline-llm`) |
 
-**ML-enabled variant:**
+When the API spawns a pipeline job, `viewer_operator.yaml`'s `pipeline_install_extras` field selects which service the factory targets — `ml` → `pipeline` (ML image), `llm` → `pipeline-llm` (LLM image). See [Docker Compose guide](DOCKER_COMPOSE_GUIDE.md) for the operator UI flow that drives this selection.
 
-```bash
-# ML-enabled standalone pipeline (from repository root)
-docker compose -f compose/docker-compose.yml up -d
-```
+## Single-container `docker run` examples
 
-**LLM-only variant:**
+If you want to run the pipeline as a one-shot or scheduler-driven container without the full compose stack:
 
-```bash
-docker compose -f compose/docker-compose.llm-only.yml up -d
-```
-
-See `compose/docker-compose.yml` and `compose/docker-compose.llm-only.yml` for complete examples with resource limits, volume mounts, and environment variables.
-
-### LLM-Only Service
-
-**Using provided file (`compose/docker-compose.llm-only.yml`):**
+**LLM-only:**
 
 ```bash
-docker compose -f compose/docker-compose.llm-only.yml up -d
+docker build --build-arg INSTALL_EXTRAS=llm -f docker/pipeline/Dockerfile -t podcast-scraper:llm .
+docker run -v ./config.yaml:/app/config.yaml \
+           -v ./output:/app/output \
+           -e OPENAI_API_KEY=sk-your-key \
+           podcast-scraper:llm
 ```
 
-**Or custom configuration:**
-
-```yaml
-version: '3.8'
-
-services:
-  podcast_scraper:
-    image: podcast-scraper:llm-only
-    build:
-      context: .
-      args:
-        INSTALL_EXTRAS: ""
-    volumes:
-      - ./config.yaml:/app/config.yaml:ro
-      - ./output:/app/output
-    environment:
-      - OPENAI_API_KEY=${OPENAI_API_KEY}
-      - PODCAST_SCRAPER_CONFIG=/app/config.yaml
-    restart: unless-stopped
-    deploy:
-      resources:
-        limits:
-          cpus: '1'
-          memory: 1G
-```
-
-### ML-Enabled Service
-
-**Using provided file (`compose/docker-compose.yml`):**
+**ML-enabled:**
 
 ```bash
-docker compose -f compose/docker-compose.yml up -d
+docker build --build-arg INSTALL_EXTRAS=ml -f docker/pipeline/Dockerfile -t podcast-scraper:ml .
+docker run -v ./config.yaml:/app/config.yaml \
+           -v ./output:/app/output \
+           # Optional: model cache persistence (avoids redownload on rebuild)
+           -v ./whisper-cache:/opt/whisper-cache \
+           -v ./huggingface-cache:/home/podcast/.cache/huggingface \
+           podcast-scraper:ml
 ```
 
-**Or custom configuration:**
-
-```yaml
-version: '3.8'
-
-services:
-  podcast_scraper:
-    image: podcast-scraper:ml
-    build:
-      context: .
-      args:
-        INSTALL_EXTRAS: ml
-        PRELOAD_ML_MODELS: "true"
-    volumes:
-      - ./config.yaml:/app/config.yaml:ro
-      - ./output:/app/output
-      # Model cache persistence (recommended)
-      - ./whisper-cache:/opt/whisper-cache
-      - ./huggingface-cache:/home/podcast/.cache/huggingface
-    environment:
-      - PODCAST_SCRAPER_CONFIG=/app/config.yaml
-    restart: unless-stopped
-    deploy:
-      resources:
-        limits:
-          cpus: '2'
-          memory: 4G
-```
+The single-container flow uses `podcast_scraper.service` (entrypoint fallback) which reads `/app/config.yaml`. See [Docker Service guide](DOCKER_SERVICE_GUIDE.md) for env vars, supervisor mode, and security hardening.
 
 ## Configuration Compatibility
 

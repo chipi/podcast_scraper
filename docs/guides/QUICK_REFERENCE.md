@@ -341,12 +341,14 @@ docker run -v ./config.yaml:/app/config.yaml \
            -v ./output:/app/output \
            podcast-scraper:latest
 
-# Docker Compose
-docker compose -f compose/docker-compose.yml up -d       # ML-enabled variant
-docker compose -f compose/docker-compose.llm-only.yml up -d  # LLM-only variant
+# Docker Compose (recommended end-to-end stack: viewer + API + on-demand pipeline)
+make stack-test-build      # build api + viewer + pipeline (ml) images
+make stack-test-up         # bring up the stack on http://127.0.0.1:8090
+make stack-test-seed       # seed the corpus volume (default ml variant)
+make stack-test-down       # tear down (STACK_TEST_DOWN_VOLUMES=1 also drops the corpus)
 ```
 
-**See:** [Docker Service Guide](DOCKER_SERVICE_GUIDE.md), [Docker Variants Guide](DOCKER_VARIANTS_GUIDE.md)
+**See:** [Docker Compose Guide](DOCKER_COMPOSE_GUIDE.md) (recommended), [Docker Service Guide](DOCKER_SERVICE_GUIDE.md) (single-container), [Docker Variants Guide](DOCKER_VARIANTS_GUIDE.md) (image tiers)
 
 ---
 

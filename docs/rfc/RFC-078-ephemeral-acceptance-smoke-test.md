@@ -1,6 +1,6 @@
 # RFC-078: Ephemeral Acceptance Smoke Test (Post-Build Full-Stack Validation)
 
-- **Status**: Draft
+- **Status**: Implemented (Phase 1 — CI harness + Make targets + Playwright; follow-ups tracked as GitHub issues, see below)
 - **Authors**: Marko
 - **Created**: 2026-04-21
 - **Domain**: Infrastructure / DevOps
@@ -18,8 +18,8 @@ full-stack Docker Compose topology (RFC-079): fixture feeds → pipeline → sha
 FastAPI → Nginx → Playwright, plus **log** and **artifact quality** gates. The environment
 is ephemeral — nothing persists after the job.
 
-**Today:** the [`smoke-test.yml`](https://github.com/chipi/podcast_scraper/blob/main/.github/workflows/smoke-test.yml) workflow runs on
-**path-filtered pushes to `main`** and **`workflow_dispatch`**, runs `make smoke-*` (build,
+**Today:** the [`smoke-test.yml`](https://github.com/chipi/podcast_scraper/blob/main/.github/workflows/stack-test.yml) workflow runs on
+**path-filtered pushes to `main`** and **`workflow_dispatch`**, runs `make stack-test-*` (build,
 pipeline, **assert-logs**, **export-corpus**, **assert-artifacts**, stack up, Playwright),
 then tears down. **`workflow_run`** after `python-app`, merge policy, and BuildKit **GHA cache**
 backends are **design options** documented below — they are **not** in-flight work until there
@@ -28,7 +28,7 @@ is delivered via **#659** and **#660**, both of which implement **RFC-079** (the
 
 **Architecture Alignment:** This RFC depends on the compose topology defined in RFC-079.
 It does not define new containers or Dockerfiles — it consumes the existing stack with a
-smoke overlay (`compose/docker-compose.smoke.yml`) used **locally** (`make smoke-*`) and in CI.
+stack-test overlay (`compose/docker-compose.stack-test.yml`) used **locally** (`make stack-test-*`) and in CI.
 
 ## Problem Statement
 
@@ -62,9 +62,9 @@ undetected and only surface during manual testing or prod deployment.
 
 1. Validate the full data path: fixture feed → pipeline → API → viewer → browser
 2. **Design target:** required status on every green `main` build (optional `workflow_run` + merge policy) — **needs GitHub issue(s)** before it is tracked execution work
-3. Three assertion layers: artifact quality (GIL/KG metrics on exported corpus), log cleanliness (`make smoke-assert-logs`), Playwright e2e
+3. Three assertion layers: artifact quality (GIL/KG metrics on exported corpus), log cleanliness (`make stack-test-assert-logs`), Playwright e2e
 4. Ephemeral — zero state persists after the job
-5. Reuse the RFC-079 compose topology with a CI overlay (`compose/docker-compose.smoke.yml`)
+5. Reuse the RFC-079 compose topology with a CI overlay (`compose/docker-compose.stack-test.yml`)
 6. Reuse existing test infrastructure where possible (acceptance assertions, viewer e2e
    selectors from `E2E_SURFACE_MAP.md`)
 7. Complete in under 30 minutes (target: 15-20 minutes for the smoke job itself)
@@ -86,12 +86,12 @@ undetected and only surface during manual testing or prod deployment.
 - **RFC-079** is in place enough to run smoke: **Phase 1 (#659)** provides `compose/docker-compose.stack.yml`,
   `docker/viewer/`, `docker/api/`, Makefile `stack-*` targets, example config. **Phase 2 (#660)**
   completes RFC-079’s Docker job path but is not required for “pipeline one-shot + API + viewer” smoke.
-  The smoke overlay (`compose/docker-compose.smoke.yml`) layers on top.
+  The stack-test overlay (`compose/docker-compose.stack-test.yml`) layers on top.
 - The pipeline supports local file paths as feed sources (or fixture feeds are served
   via a local HTTP server in the compose network)
 - The FastAPI server hot-reloads or auto-detects new corpus data when the pipeline writes
   to the shared volume (or the job restarts the API after pipeline completes)
-- Playwright smoke tests use **`SMOKE_VIEWER_PORT`** (default **8090** in `compose/docker-compose.smoke.yml` + CI)
+- Playwright smoke tests use **`STACK_TEST_VIEWER_PORT`** (default **8090** in `compose/docker-compose.stack-test.yml` + CI)
 - The pipeline image **must be ML tier** (`INSTALL_EXTRAS=ml`) for offline fixture
   execution (no API keys in CI). See §Pipeline image tier for CI smoke.
 
@@ -114,12 +114,12 @@ The smoke test is the only job that exercises the served stack with real pipelin
 
 ### Trigger
 
-**Implemented (`.github/workflows/smoke-test.yml`):** `push` to `main` when `compose/**`,
-`docker/**`, `config/ci/**`, `tests/smoke/**`, `Makefile`, `pyproject.toml`, or
+**Implemented (`.github/workflows/stack-test.yml`):** `push` to `main` when `compose/**`,
+`docker/**`, `config/ci/**`, `tests/stack-test/**`, `Makefile`, `pyproject.toml`, or
 `docker/pipeline/**` change, plus **`workflow_dispatch`**. The job enables **BuildKit**
 (`DOCKER_BUILDKIT`, `COMPOSE_DOCKER_CLI_BUILD`), sets up **Buildx**, runs **layer 2**
-(`make smoke-assert-logs`) and **layer 1** (`make smoke-export-corpus` →
-`make smoke-assert-artifacts`) before bringing viewer + API up for Playwright.
+(`make stack-test-assert-logs`) and **layer 1** (`make stack-test-export` →
+`make stack-test-assert-artifacts`) before bringing viewer + API up for Playwright.
 
 **Blueprint (no GitHub issue yet):** chain smoke after **`python-app`** with `workflow_run` so
 every green main build is followed by smoke (even when paths above did not change), add
@@ -142,35 +142,35 @@ The smoke job builds the compose stack and runs the pipeline as a one-shot servi
 ```yaml
 - name: Build all images
   run: |
-    docker compose -f compose/docker-compose.stack.yml -f compose/docker-compose.smoke.yml build
+    docker compose -f compose/docker-compose.stack.yml -f compose/docker-compose.stack-test.yml build
 
 - name: Run pipeline against fixture feeds
   run: |
-    docker compose -f compose/docker-compose.stack.yml -f compose/docker-compose.smoke.yml \
+    docker compose -f compose/docker-compose.stack.yml -f compose/docker-compose.stack-test.yml \
       run --rm pipeline \
       2>&1 | tee pipeline.log
 ```
 
-The `compose/docker-compose.smoke.yml` overlay (layered on top of `compose/docker-compose.stack.yml` from
+The `compose/docker-compose.stack-test.yml` overlay (layered on top of `compose/docker-compose.stack.yml` from
 RFC-079 / #659) points the pipeline at committed fixture feeds and writes output to the
-ephemeral `smoke_data` volume. Sketch:
+ephemeral `corpus_data` volume. Sketch:
 
 ```yaml
-# compose/docker-compose.smoke.yml — CI overlay on compose/docker-compose.stack.yml.
+# compose/docker-compose.stack-test.yml — CI overlay on compose/docker-compose.stack.yml.
 # Paths use /app/output to match the implemented stack volume mount.
 
 services:
   api:
     volumes:
-      - smoke_data:/app/output
+      - corpus_data:/app/output
     environment:
       - PODCAST_SCRAPER_CONFIG=/app/config.yaml
 
   pipeline:
     volumes:
-      - smoke_data:/app/output
+      - corpus_data:/app/output
       - ../tests/fixtures/rss:/app/fixtures/rss:ro
-      - ../config/ci/smoke-config.yaml:/app/config.yaml:ro
+      - ../config/ci/stack-test-config.yaml:/app/config.yaml:ro
     environment:
       - PODCAST_SCRAPER_CONFIG=/app/config.yaml
     profiles: []  # Remove profile gate so build/run includes pipeline
@@ -180,7 +180,7 @@ services:
       - "8080:80"
 
 volumes:
-  smoke_data:
+  corpus_data:
     # Ephemeral — destroyed on `down -v`
 ```
 
@@ -191,11 +191,11 @@ fetching from the internet, giving deterministic output.
 
 ```text
 tests/fixtures/rss/   # canonical path mounted at /app/fixtures/rss in smoke compose
-  p01_fast.xml          # default single-feed smoke (see config/ci/smoke-config.yaml)
+  p01_fast.xml          # default single-feed smoke (see config/ci/stack-test-config.yaml)
   …                     # richer multi-feed set — file a GitHub issue before implementing
 ```
 
-The smoke config (`config/ci/smoke-config.yaml`) points at `p01_fast.xml` today and sets
+The smoke config (`config/ci/stack-test-config.yaml`) points at `p01_fast.xml` today and sets
 conservative limits (`max_episodes: 1`, `tiny.en` Whisper). Expand feeds here when the
 smoke job needs broader entity/search coverage.
 
@@ -282,7 +282,7 @@ confirms data flowed all the way through to the browser.
 ```yaml
 - name: Start viewer and API
   run: |
-    docker compose -f compose/docker-compose.stack.yml -f compose/docker-compose.smoke.yml \
+    docker compose -f compose/docker-compose.stack.yml -f compose/docker-compose.stack-test.yml \
       up -d viewer api
 
 - name: Wait for stack healthy
@@ -302,7 +302,7 @@ The Playwright smoke suite is intentionally minimal — it confirms data is visi
 exhaustive UI coverage. The existing `viewer-e2e` tests cover UI behavior with mocks;
 these tests cover the data integration.
 
-**`tests/smoke/viewer-smoke.spec.ts`:**
+**`tests/stack-test/viewer-smoke.spec.ts`:**
 
 ```typescript
 import { test, expect } from '@playwright/test';
@@ -353,7 +353,7 @@ test('API returns search results for known fixture term', async ({ request }) =>
 
 ### Full Workflow
 
-**`.github/workflows/smoke-test.yml`:**
+**`.github/workflows/stack-test.yml`:**
 
 ```yaml
 name: Smoke Test
@@ -407,13 +407,13 @@ jobs:
       - name: Build compose images
         run: |
           docker compose -f compose/docker-compose.stack.yml \
-                         -f compose/docker-compose.smoke.yml build
+                         -f compose/docker-compose.stack-test.yml build
 
       # ── Pipeline run ───────────────────────────────────────
       - name: Run pipeline against fixtures
         run: |
           docker compose -f compose/docker-compose.stack.yml \
-                         -f compose/docker-compose.smoke.yml \
+                         -f compose/docker-compose.stack-test.yml \
             run --rm pipeline 2>&1 | tee pipeline.log
 
       # ── Layer 1: Artifact quality ─────────────────────────
@@ -421,23 +421,23 @@ jobs:
         run: |
           export PYTHONPATH="${PYTHONPATH}:$(pwd)/src"
           # Extract smoke output from volume
-          SMOKE_DIR=$(docker volume inspect smoke_data --format '{{ .Mountpoint }}') || true
+          STACK_TEST_DIR=$(docker volume inspect corpus_data --format '{{ .Mountpoint }}') || true
           # Fallback: copy from container if direct mount path isn't accessible
-          if [ ! -d "$SMOKE_DIR" ]; then
+          if [ ! -d "$STACK_TEST_DIR" ]; then
             mkdir -p /tmp/smoke_output
             docker compose -f compose/docker-compose.stack.yml \
-                           -f compose/docker-compose.smoke.yml \
+                           -f compose/docker-compose.stack-test.yml \
               cp api:/data/output /tmp/smoke_output
-            SMOKE_DIR=/tmp/smoke_output
+            STACK_TEST_DIR=/tmp/smoke_output
           fi
 
-          python scripts/tools/gil_quality_metrics.py "$SMOKE_DIR" \
+          python scripts/tools/gil_quality_metrics.py "$STACK_TEST_DIR" \
             --enforce --strict-schema --fail-on-errors \
             --min-extraction-coverage 0.8 \
             --min-grounded-insight-rate 0.8 \
             --min-avg-insights 1
 
-          python scripts/tools/kg_quality_metrics.py "$SMOKE_DIR" \
+          python scripts/tools/kg_quality_metrics.py "$STACK_TEST_DIR" \
             --enforce --strict-schema --fail-on-errors \
             --min-artifacts 1 \
             --min-avg-nodes 1 \
@@ -460,7 +460,7 @@ jobs:
       - name: Start viewer and API
         run: |
           docker compose -f compose/docker-compose.stack.yml \
-                         -f compose/docker-compose.smoke.yml \
+                         -f compose/docker-compose.stack-test.yml \
             up -d viewer api
 
       - name: Wait for stack healthy
@@ -483,14 +483,14 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           name: smoke-playwright-report
-          path: tests/smoke/playwright-report/
+          path: tests/stack-test/playwright-report/
 
       # ── Teardown ───────────────────────────────────────────
       - name: Tear down
         if: always()
         run: |
           docker compose -f compose/docker-compose.stack.yml \
-                         -f compose/docker-compose.smoke.yml down -v
+                         -f compose/docker-compose.stack-test.yml down -v
 ```
 
 ## Key Decisions
@@ -542,16 +542,16 @@ jobs:
 The smoke test **is** the test. It validates itself by running in CI. Manual verification
 during development:
 
-1. `make smoke-build`
-2. `make smoke-run-pipeline` → `make smoke-assert-logs` → `make smoke-export-corpus` → `make smoke-assert-artifacts`
-3. `make smoke-up` → `make smoke-test-playwright`
+1. `make stack-test-build`
+2. `make stack-test-run` → `make stack-test-assert-logs` → `make stack-test-export` → `make stack-test-assert-artifacts`
+3. `make stack-test-up` → `make stack-test-playwright`
 
 ## Rollout
 
 1. ~~**Phase 0** (prerequisite): RFC-079 — compose topology, Dockerfiles~~ **Phase 1 done**
    ([#659](https://github.com/chipi/podcast_scraper/issues/659)); **#660** is **RFC-079 Phase 2**
    (Docker job execution), not RFC-078.
-2. **Phase 1**: ~~Compose smoke overlay, fixtures, smoke config, Playwright under `tests/smoke/`, Makefile helpers~~ **Done in tree**; further CI workflow upgrades (`workflow_run`, caches, merge gate) beyond today’s `smoke-test.yml` need **new GitHub issues** — this RFC does not track them.
+2. **Phase 1**: ~~Compose stack-test overlay, fixtures, smoke config, Playwright under `tests/stack-test/`, Makefile helpers~~ **Done in tree**; further CI workflow upgrades (`workflow_run`, caches, merge gate) beyond today’s `smoke-test.yml` need **new GitHub issues** — this RFC does not track them.
 3. **Phase 2**: **In progress** — `smoke-test.yml` on `main`; monitor flakiness, tune timeouts / **`smoke-assert-artifacts`** thresholds.
 4. **Phase 3** (future): Cache images to reduce build time; consider running on PRs.
 
@@ -574,7 +574,7 @@ during development:
    and [RFC-077](RFC-077-viewer-feeds-and-serve-pipeline-jobs.md)). Provides `compose/docker-compose.stack.yml`
    as the base file.
 2. **RFC-078: Ephemeral Acceptance Smoke Test** (this document — **design only**) — describes how
-   to consume that topology via `compose/docker-compose.smoke.yml`, assertion layers, and
+   to consume that topology via `compose/docker-compose.stack-test.yml`, assertion layers, and
    `smoke-test.yml`. **Remaining smoke CI polish has no GitHub issue yet** (see **GitHub (smoke acceptance)** above).
 3. **Future: GHCR image push** — CI/release workflow tags and pushes images so VPS can
    `docker compose pull`. Not needed for smoke (builds locally on the runner).
@@ -588,7 +588,7 @@ compose topology → ephemeral validation → (future) gated prod deploy — **m
 
 | Track | Owns | Does **not** own |
 | ----- | ---- | ---------------- |
-| **Smoke acceptance** (design in this RFC; **GitHub issues TBD**) | Smoke compose overlay, `config/ci/smoke-config.yaml`, RSS fixtures under `tests/fixtures/rss/`, `tests/smoke/` Playwright, Makefile `smoke-*`, **`smoke-test.yml`** (log + artifact gates + Playwright), `smoke-export-corpus` | Changing how `POST /api/jobs` spawns work (subprocess vs Docker factory), `PODCAST_PIPELINE_EXEC_MODE`, host socket mounts, or API image Docker CLI packaging |
+| **Smoke acceptance** (design in this RFC; **GitHub issues TBD**) | Smoke compose overlay, `config/ci/stack-test-config.yaml`, RSS fixtures under `tests/fixtures/rss/`, `tests/stack-test/` Playwright, Makefile `smoke-*`, **`smoke-test.yml`** (log + artifact gates + Playwright), `smoke-export-corpus` | Changing how `POST /api/jobs` spawns work (subprocess vs Docker factory), `PODCAST_PIPELINE_EXEC_MODE`, host socket mounts, or API image Docker CLI packaging |
 | **#660** ([RFC-079 Phase 2](RFC-079-full-stack-docker-compose.md)) | Docker pipeline job factory (`pipeline_docker_factory.py`), compose file list env defaults, operator `pipeline_install_extras`, API container requirements for **Docker** execution mode | Fixture feeds, smoke Playwright suite, **`workflow_run`** orchestration policy, GIL/KG **threshold tuning** (product/QA — **design** here; **GitHub** when filed) |
 
 **Design backlog not yet in a GitHub issue** (not #660): `workflow_run` after green `python-app`, **BuildKit `cache-from: type=gha`** for compose (Buildx is already enabled in `smoke-test.yml`), merge-blocking vs post-merge.
@@ -621,11 +621,11 @@ RFC-079 Phase 1 has been implemented:
 
 **As implemented in tree** (descriptive; **GitHub issues** still own prioritization and closure — on top of the RFC-079 compose topology):
 
-1. ~~`compose/docker-compose.smoke.yml`~~ — **Done** (smoke volume, fixture mounts, `pipeline` / `pipeline-llm` profiles cleared for one-shot runs).
-2. ~~`config/ci/smoke-config.yaml`~~ — **Done** (minimal airgapped smoke; explicit `vector_search` / `vector_backend` for doc clarity).
-3. ~~`tests/smoke/` Playwright + `package.json`~~ — **Done** (`stack-viewer.spec.ts`; see `tests/smoke/README.md`).
+1. ~~`compose/docker-compose.stack-test.yml`~~ — **Done** (smoke volume, fixture mounts, `pipeline` / `pipeline-llm` profiles cleared for one-shot runs).
+2. ~~`config/ci/stack-test-config.yaml`~~ — **Done** (minimal airgapped smoke; explicit `vector_search` / `vector_backend` for doc clarity).
+3. ~~`tests/stack-test/` Playwright + `package.json`~~ — **Done** (`stack-viewer.spec.ts`; see `tests/stack-test/README.md`).
 4. ~~Makefile `smoke-*`~~ — **Done**; **added** `smoke-assert-logs`, `smoke-export-corpus`
-   (volume → `.smoke-corpus/`), and `smoke-assert-artifacts` (defaults **`SMOKE_CORPUS_ROOT=$(PWD)/.smoke-corpus`**).
+   (volume → `.stack-test-corpus/`), and `smoke-assert-artifacts` (defaults **`STACK_TEST_CORPUS_ROOT=$(PWD)/.stack-test-corpus`**).
 5. **No GitHub issue yet — CI design backlog:** `workflow_run` after `python-app`, **`cache-from: type=gha`** for
    compose image layers, merge gate policy. **`smoke-test.yml`** already runs Buildx + BuildKit
    and layers 1–2 + Playwright on path-filtered `main` pushes.

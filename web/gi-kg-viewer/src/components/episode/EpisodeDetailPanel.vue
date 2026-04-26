@@ -11,6 +11,8 @@ import {
   type CorpusSimilarEpisodeItem,
 } from '../../api/corpusLibraryApi'
 import CilTopicPillsRow from '../shared/CilTopicPillsRow.vue'
+import DiagnosticRow from '../shared/DiagnosticRow.vue'
+import EpisodeBridgePartition from './EpisodeBridgePartition.vue'
 import HelpTip from '../shared/HelpTip.vue'
 import PodcastCover from '../shared/PodcastCover.vue'
 import { useArtifactsStore } from '../../stores/artifacts'
@@ -637,15 +639,19 @@ watch(
                     Paths and ids for support — same data the viewer uses for search, similar
                     episodes, and graph loads.
                   </p>
-                  <dl class="space-y-1.5 font-mono text-[10px] leading-snug">
-                    <template v-for="(row, di) in detailDiagnosticsEntries" :key="di">
-                      <dt class="font-sans font-medium text-muted">
-                        {{ row.label }}
-                      </dt>
-                      <dd class="break-words text-elevated-foreground">
-                        {{ row.value }}
-                      </dd>
-                    </template>
+                  <!--
+                    #656-foundation: migrate this troubleshooting panel to
+                    ``DiagnosticRow`` so the three #656 per-episode
+                    diagnostics (bridge partition, pipeline-cleanup
+                    counters, ad-excision) share one visual language.
+                  -->
+                  <dl class="space-y-0 font-mono text-[10px] leading-snug">
+                    <DiagnosticRow
+                      v-for="(row, di) in detailDiagnosticsEntries"
+                      :key="di"
+                      :label="row.label"
+                      :value="row.value"
+                    />
                   </dl>
                 </HelpTip>
                 <button
@@ -680,13 +686,30 @@ watch(
         {{ detail.summary_title }}
       </p>
       <div v-if="(detail.cil_digest_topics ?? []).length" class="mt-2">
+        <!--
+          #656 Stage B: chip/pill polish. ``truncation="wrap"`` +
+          ``max-width-class="auto"`` lets the pill shrink-wrap around
+          post-#653 canonical labels ("oil prices", "shadow fleet")
+          instead of padding to 11rem. ``max-pill-chars`` stays as a
+          defensive cap for legacy corpora whose labels weren't
+          backfilled yet.
+        -->
         <CilTopicPillsRow
           :pills="detail.cil_digest_topics ?? []"
-          :max-pill-chars="28"
+          :max-pill-chars="40"
+          truncation="wrap"
+          max-width-class="auto"
           data-testid="episode-detail-cil-pills"
           @pill-click="(i) => void openDetailCilTopicInGraph(i)"
         />
       </div>
+      <!--
+        #656 Stage B: per-episode bridge {gi_only, kg_only, both}
+        indicator (post-#654). Component hides itself when the
+        partition is missing — legacy episodes without bridge.json
+        don't render an empty placeholder.
+      -->
+      <EpisodeBridgePartition :partition="detail.bridge_partition" />
       <p
         v-if="detail.summary_text"
         class="mt-2 whitespace-pre-wrap text-xs leading-relaxed text-muted"

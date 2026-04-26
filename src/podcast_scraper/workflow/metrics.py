@@ -183,6 +183,13 @@ class Metrics:
     dialogue_insights_dropped_count: int = 0
     topics_normalized_count: int = 0
     entity_kinds_repaired_count: int = 0
+    # #663 + #656 Stage D — pre-extraction transcript ad-excision (``gi.ad_regions``).
+    # Run-level counters aggregating ``AdRegionMetadata.chars_removed`` across
+    # every episode where the pump actually cut. Surfaced via
+    # ``metrics.json`` for the per-episode ad-excision diagnostic.
+    ad_chars_excised_preroll: int = 0
+    ad_chars_excised_postroll: int = 0
+    ad_episodes_with_excision_count: int = 0
 
     # Audio preprocessing metrics
     preprocessing_times: List[float] = field(
@@ -584,6 +591,21 @@ class Metrics:
     def record_entity_kinds_repaired(self, count: int) -> None:
         """Accumulate entity-kind repairs (#652 Finding 7)."""
         self.entity_kinds_repaired_count += int(count)
+
+    # #663 + #656 Stage D — ad-region excision recorder.
+    def record_ad_region_excision(self, preroll_chars: int, postroll_chars: int) -> None:
+        """Accumulate per-episode pre-roll / post-roll ad-excision chars.
+
+        Bumps ``ad_episodes_with_excision_count`` once per call where the
+        aggregate ``preroll_chars + postroll_chars`` is > 0 so legacy /
+        clean episodes don't inflate the "touched" count.
+        """
+        pre = max(0, int(preroll_chars or 0))
+        post = max(0, int(postroll_chars or 0))
+        self.ad_chars_excised_preroll += pre
+        self.ad_chars_excised_postroll += post
+        if pre + post > 0:
+            self.ad_episodes_with_excision_count += 1
 
     def record_preprocessing_time(self, duration: float) -> None:
         """Record time spent preprocessing audio for an episode.
@@ -1207,6 +1229,10 @@ class Metrics:
             "dialogue_insights_dropped_count": self.dialogue_insights_dropped_count,
             "topics_normalized_count": self.topics_normalized_count,
             "entity_kinds_repaired_count": self.entity_kinds_repaired_count,
+            # #663 + #656 Stage D — pre-extraction ad-excision counters.
+            "ad_chars_excised_preroll": self.ad_chars_excised_preroll,
+            "ad_chars_excised_postroll": self.ad_chars_excised_postroll,
+            "ad_episodes_with_excision_count": self.ad_episodes_with_excision_count,
             "total_episode_estimated_cost_usd": total_episode_estimated_cost_usd,
             "total_stage_cost_usd": total_stage_cost_usd,
             "total_episode_estimated_cost_usd_legacy": total_episode_estimated_cost_usd_legacy,
