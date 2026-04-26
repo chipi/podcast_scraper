@@ -1,10 +1,16 @@
 import { expect, test, type Page } from '@playwright/test'
 import { mainViewsNav, SHELL_HEADING_RE, statusBarCorpusPathInput } from './helpers'
 
-async function expandLibraryEpisodeFilters(page: Page): Promise<void> {
-  const btn = page.getByRole('button', { name: /^Filters$/i })
-  if ((await btn.getAttribute('aria-expanded')) === 'false') {
-    await btn.click()
+/**
+ * #669 — the legacy "Filters" disclosure was replaced by the always-visible
+ * LibraryFilterBar chip row. Tests that need to interact with the feed list
+ * must open the LibraryFeedChip popover; tests that only touch episode rows
+ * skip this helper.
+ */
+async function openLibraryFeedChip(page: Page): Promise<void> {
+  const chip = page.getByTestId('library-chip-feed')
+  if ((await chip.getAttribute('aria-expanded')) === 'false') {
+    await chip.click()
   }
 }
 
@@ -150,7 +156,7 @@ test.describe('Corpus Library tab', () => {
     await statusBarCorpusPathInput(page).fill('/mock/corpus')
     await mainViewsNav(page).getByRole('button', { name: 'Library' }).click()
     await expect(page.getByTestId('library-root')).toBeVisible()
-    await expandLibraryEpisodeFilters(page)
+    // #669 — filter chips are always visible; no expand step needed.
     await page.getByRole('button', { name: 'Mock Episode Title, Mock Show' }).click()
     await expect(
       page
@@ -173,14 +179,18 @@ test.describe('Corpus Library tab', () => {
     await statusBarCorpusPathInput(page).fill('/mock/corpus')
     await mainViewsNav(page).getByRole('button', { name: 'Library' }).click()
     await expect(page.getByTestId('library-root')).toBeVisible()
-    await expandLibraryEpisodeFilters(page)
-    const clearFeed = page.getByRole('button', { name: /Clear feed filter/ })
-    await expect(clearFeed).toBeVisible()
-    await expect(clearFeed).toBeDisabled()
+    // #669 — Clear lives inside the LibraryFeedChip popover and only renders
+    // when a feed is selected (no disabled state in chip popover).
+    await openLibraryFeedChip(page)
+    const popover = page.getByTestId('library-popover-feed')
+    await expect(popover.getByTestId('corpus-feed-filter-clear')).toHaveCount(0)
     await page.getByRole('button', { name: 'Mock Show, feed id f1, 1 episodes' }).click()
-    await expect(clearFeed).toBeEnabled()
+    await openLibraryFeedChip(page)
+    const clearFeed = popover.getByTestId('corpus-feed-filter-clear')
+    await expect(clearFeed).toBeVisible()
     await clearFeed.click()
-    await expect(clearFeed).toBeDisabled()
+    await openLibraryFeedChip(page)
+    await expect(popover.getByTestId('corpus-feed-filter-clear')).toHaveCount(0)
   })
 
   test('feed list shows filter search when more than 15 feeds and filters client-side', async ({
@@ -207,7 +217,7 @@ test.describe('Corpus Library tab', () => {
     await statusBarCorpusPathInput(page).fill('/mock/corpus')
     await mainViewsNav(page).getByRole('button', { name: 'Library' }).click()
     await expect(page.getByTestId('library-root')).toBeVisible()
-    await expandLibraryEpisodeFilters(page)
+    await openLibraryFeedChip(page)
     const feedSearch = page.getByTestId('library-feed-filter-search')
     await expect(feedSearch).toBeVisible()
     await expect(
@@ -230,10 +240,12 @@ test.describe('Corpus Library tab', () => {
     await statusBarCorpusPathInput(page).fill('/mock/corpus')
     await mainViewsNav(page).getByRole('button', { name: 'Library' }).click()
     await expect(page.getByTestId('library-root')).toBeVisible()
-    await expandLibraryEpisodeFilters(page)
+    await openLibraryFeedChip(page)
     await expect(
       page.getByRole('button', { name: 'Mock Show, feed id f1, 1 episodes' }),
     ).toBeVisible()
+    // Close the popover before clicking an episode behind it.
+    await page.getByTestId('library-chip-feed').click()
     await expect(
       page.getByRole('button', { name: 'Mock Episode Title, Mock Show' }),
     ).toBeVisible()
@@ -283,7 +295,7 @@ test.describe('Corpus Library tab', () => {
     await statusBarCorpusPathInput(page).fill('/mock/corpus')
     await mainViewsNav(page).getByRole('button', { name: 'Library' }).click()
     await expect(page.getByTestId('library-root')).toBeVisible()
-    await expandLibraryEpisodeFilters(page)
+    // #669 — filter chips are always visible; no expand step needed.
     await page.getByRole('button', { name: 'Mock Episode Title, Mock Show' }).click()
     await expect(
       page
@@ -342,7 +354,7 @@ test.describe('Corpus Library tab', () => {
         r.url().includes('/api/corpus/episodes') &&
         r.url().includes('topic_cluster_only=true'),
     )
-    await page.getByTestId('library-topic-cluster-toggle').check()
+    await page.getByTestId('library-chip-clustered').click()
     const req = await clusterReq
     expect(req.url()).toContain('topic_cluster_only=true')
   })

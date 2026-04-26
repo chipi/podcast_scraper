@@ -239,9 +239,8 @@ test.describe('Corpus Digest tab', () => {
     ).toBeVisible()
     await page.getByRole('button', { name: 'Search topic' }).first().click()
     await expect(page.locator('#search-q')).toHaveValue('climate science')
-    await expect(
-      page.getByRole('textbox', { name: 'Since (date)' }),
-    ).toHaveValue('')
+    // #671 — Since field replaced by DateChip; default chip label is "Since ▾".
+    await expect(page.getByTestId('search-chip-since')).toContainText('Since ▾')
   })
 
   test('digest episode cards omit graph/search actions (Episode subject rail has them)', async ({

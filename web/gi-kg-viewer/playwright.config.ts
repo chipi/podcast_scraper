@@ -29,8 +29,11 @@ export default defineConfig({
   projects: [{ name: 'firefox', use: {} }],
   webServer: {
     // npm exec: avoid npx install prompts on CI; --host 127.0.0.1 matches baseURL (IPv4)
+    // VITE_DEFAULT_GRAPH_LENS_DAYS=0 — test fixtures use static publish_date values
+    // ("2026-04-18", "2024-06-05", …) and would fall outside the production 7-day
+    // graph lens once the wall clock advances. All-time lens keeps fixtures stable.
     command:
-      'npm exec vite -- --port 5174 --strictPort --host 127.0.0.1',
+      'VITE_DEFAULT_GRAPH_LENS_DAYS=0 npm exec vite -- --port 5174 --strictPort --host 127.0.0.1',
     cwd: __dirname,
     url: 'http://127.0.0.1:5174',
     /** Reuse a dev server on 5174 when present so local runs do not fail if `CI=true`. */

@@ -747,7 +747,10 @@ test.describe('Graph expansion (mocked API)', () => {
       })
     })
     await gotoGraphWithMockCorpus(page)
-    await page.getByRole('checkbox', { name: /Episode/ }).check()
+    // #658 — Episode type checkbox lives inside the Types chip popover.
+    await page.getByTestId('graph-chip-types').click()
+    await page.getByTestId('graph-popover-types').getByRole('checkbox', { name: /Episode/ }).check()
+    await page.getByTestId('graph-chip-types').click()
     /** Corpus-beyond probes POST independently of the double-click under test. */
     await page.waitForTimeout(600)
     postCount = 0

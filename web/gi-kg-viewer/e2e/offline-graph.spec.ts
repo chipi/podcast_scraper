@@ -17,8 +17,9 @@ test.describe('Offline graph (file picker)', () => {
     await expect(page.getByTestId('graph-layout-cycle')).toBeVisible()
     await expect(page.getByTestId('graph-minimap-toggle')).toBeVisible()
 
-    await page.getByTestId('graph-toolbar-more-filters').click()
-    await expect(page.getByTestId('graph-filters-popover')).toBeVisible()
-    await expect(page.getByRole('button', { name: /^0 \(\d+\)$/ })).toBeVisible()
+    // #658 chip refactor — the legacy `graph-toolbar-more-filters` button + `graph-filters-popover`
+    // were replaced by the chip bar. Edge-type list now lives inside the Edges chip popover.
+    await page.getByTestId('graph-chip-edges').click()
+    await expect(page.getByTestId('graph-popover-edges')).toBeVisible()
   })
 })
