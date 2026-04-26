@@ -11,10 +11,18 @@ import { computed } from 'vue'
 import type { RawGraphNode } from '../../types/artifact'
 import { useArtifactsStore } from '../../stores/artifacts'
 import { useSubjectStore } from '../../stores/subject'
-import { findRawNodeInArtifact } from '../../utils/parsing'
+import {
+  findRawNodeInArtifact,
+  findRawNodeInArtifactByIdOrPrefixed,
+} from '../../utils/parsing'
 import { logicalEpisodeIdFromGraphNodeId } from '../../utils/graphEpisodeMetadata'
 import { buildSubjectMentionsTimeline } from '../../utils/subjectMentionsTimeline'
 import SubjectTimelineChart from './SubjectTimelineChart.vue'
+
+/** Mentions list cap — the rail panel is narrow and the timeline above
+ *  already covers volume; 25 is enough for "what is this subject about?"
+ *  scanning before the user opens the full graph. */
+const TOPIC_ENTITY_VIEW_MENTIONS_CAP = 25
 
 const emit = defineEmits<{
   goGraph: []
@@ -32,7 +40,14 @@ const subjectNode = computed<RawGraphNode | null>(() => {
   const art = artifacts.displayArtifact
   const id = subjectId.value
   if (!art || !id) return null
-  return findRawNodeInArtifact(art, id)
+  return findRawNodeInArtifactByIdOrPrefixed(art, id)
+})
+
+/** Actual graph node id (prefixed form after KG merge) for edge lookups. */
+const subjectGraphNodeId = computed<string | null>(() => {
+  const n = subjectNode.value
+  if (!n || n.id == null) return subjectId.value || null
+  return String(n.id)
 })
 
 const subjectKindLabel = computed(() => {
@@ -68,7 +83,7 @@ const subjectDescription = computed(() => {
 })
 
 const timeline = computed(() =>
-  buildSubjectMentionsTimeline(artifacts.displayArtifact, subjectId.value),
+  buildSubjectMentionsTimeline(artifacts.displayArtifact, subjectGraphNodeId.value),
 )
 
 interface MentionRow {
@@ -173,6 +188,7 @@ function onPrefillSearch(): void {
         {{ subjectDescription }}
       </p>
       <p
+        v-if="timeline.total > 0 || timeline.undated > 0"
         class="text-[10px] text-muted"
         data-testid="topic-entity-view-stats"
       >
@@ -204,7 +220,7 @@ function onPrefillSearch(): void {
           data-testid="topic-entity-view-mentions"
         >
           <li
-            v-for="row in mentionRows.slice(0, 25)"
+            v-for="row in mentionRows.slice(0, TOPIC_ENTITY_VIEW_MENTIONS_CAP)"
             :key="row.id"
             class="rounded border border-border bg-elevated/40 px-2 py-1.5 text-[11px] leading-snug"
           >
@@ -227,11 +243,11 @@ function onPrefillSearch(): void {
           </li>
         </ul>
         <p
-          v-if="mentionRows.length > 25"
+          v-if="mentionRows.length > TOPIC_ENTITY_VIEW_MENTIONS_CAP"
           class="mt-1 text-[10px] text-muted"
           data-testid="topic-entity-view-mentions-overflow"
         >
-          + {{ mentionRows.length - 25 }} more
+          + {{ mentionRows.length - TOPIC_ENTITY_VIEW_MENTIONS_CAP }} more
         </p>
       </section>
       <p

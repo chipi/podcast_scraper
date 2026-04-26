@@ -1,6 +1,9 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, inject, ref } from 'vue'
 import type { SearchHit } from '../../api/searchApi'
+import { corpusGraphBaselineLoaderKey } from '../../corpusGraphBaseline'
+import { useArtifactsStore } from '../../stores/artifacts'
+import { useGraphExplorerStore } from '../../stores/graphExplorer'
 import { truncate } from '../../utils/formatting'
 import {
   SEARCH_RESULT_EPISODE_ID_BUTTON_CLASS,
@@ -32,12 +35,26 @@ const emit = defineEmits<{
 }>()
 
 const subject = useSubjectStore()
+const artifacts = useArtifactsStore()
+const graphExplorer = useGraphExplorerStore()
+const loadCorpusGraphBaseline = inject(corpusGraphBaselineLoaderKey, null)
 
-/** #674 item 4 — Supporting-quote speaker name → Person Landing in the rail. */
+async function ensureDefaultCorpusGraphIfNeeded(): Promise<void> {
+  if (!loadCorpusGraphBaseline) return
+  if (graphExplorer.graphTabOpenedThisSession && artifacts.selectedRelPaths.length > 0) {
+    return
+  }
+  await loadCorpusGraphBaseline()
+}
+
+/** #674 item 4 — Supporting-quote speaker name → Person Landing in the rail.
+ *  Auto-loads the corpus graph baseline so the panel has data even if the
+ *  user hasn't visited Graph yet. */
 function focusPersonFromSpeakerId(rawId: unknown): void {
   const id = typeof rawId === 'string' ? rawId.trim() : ''
   if (!id) return
   subject.focusPerson(id)
+  void ensureDefaultCorpusGraphIfNeeded()
 }
 
 const docType = computed(() => String(props.hit.metadata?.doc_type ?? '?'))

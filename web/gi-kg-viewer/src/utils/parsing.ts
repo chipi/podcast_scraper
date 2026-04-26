@@ -405,6 +405,41 @@ export function findRawNodeInArtifact(
 }
 
 /**
+ * Like {@link findRawNodeInArtifact} but tolerates the GI/KG layer prefixes
+ * ``g:`` / ``k:`` / ``kg:`` that appear after merge.
+ *
+ * Search hits and explore rollups carry ``speaker_id`` in the bare GI form
+ * (e.g. ``person:ada``); after the GI/KG merge in ``mergeGiKg.ts`` the
+ * Person / Entity node id may be prefixed (``g:person:ada`` /
+ * ``k:kg:entity:person:ada`` / etc.). ``findRawNodeInArtifact`` is exact-match
+ * only, so a focusPerson from search would silently miss otherwise-loaded
+ * graph data. This helper falls back through the common prefix variants
+ * before giving up.
+ */
+export function findRawNodeInArtifactByIdOrPrefixed(
+  art: ParsedArtifact | null,
+  nodeId: string | number,
+): RawGraphNode | null {
+  const exact = findRawNodeInArtifact(art, nodeId)
+  if (exact) return exact
+  if (!art?.data) return null
+  const sid = String(nodeId).trim()
+  if (!sid) return null
+  const prefixCandidates = ['g:', 'k:', 'kg:', 'g:kg:', 'k:kg:']
+  for (const p of prefixCandidates) {
+    const hit = findRawNodeInArtifact(art, `${p}${sid}`)
+    if (hit) return hit
+  }
+  // Reverse direction: graph node may be the bare form when the lookup
+  // arrives prefixed (e.g. handoff carried ``g:person:ada``).
+  const stripped = sid.replace(/^(?:g:|k:|kg:|g:kg:|k:kg:)/, '')
+  if (stripped !== sid) {
+    return findRawNodeInArtifact(art, stripped)
+  }
+  return null
+}
+
+/**
  * Count GI-style incident edges for Person / Entity / Speaker nodes in the loaded graph slice.
  * ``SPOKEN_BY`` (Quote → node): quotes attributed to this identity.
  * ``SPOKE_IN`` (node → Episode): episode participation links.

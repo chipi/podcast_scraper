@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import {
   computed,
+  inject,
   nextTick,
   onActivated,
   onBeforeUnmount,
@@ -10,10 +11,13 @@ import {
 } from 'vue'
 import { storeToRefs } from 'pinia'
 import { fetchCorpusEpisodes, fetchCorpusFeeds, type CorpusEpisodeListItem, type CorpusFeedItem } from '../../api/corpusLibraryApi'
+import { corpusGraphBaselineLoaderKey } from '../../corpusGraphBaseline'
 import LibraryFilterBar from './LibraryFilterBar.vue'
 import PodcastCover from '../shared/PodcastCover.vue'
+import { useArtifactsStore } from '../../stores/artifacts'
 import { useCorpusLensStore } from '../../stores/corpusLens'
 import { useDashboardNavStore } from '../../stores/dashboardNav'
+import { useGraphExplorerStore } from '../../stores/graphExplorer'
 import { useSubjectStore } from '../../stores/subject'
 import { useShellStore } from '../../stores/shell'
 import {
@@ -47,6 +51,17 @@ const shell = useShellStore()
 const subject = useSubjectStore()
 const corpusLens = useCorpusLensStore()
 const dashboardNav = useDashboardNavStore()
+const artifacts = useArtifactsStore()
+const graphExplorer = useGraphExplorerStore()
+const loadCorpusGraphBaseline = inject(corpusGraphBaselineLoaderKey, null)
+
+async function ensureDefaultCorpusGraphIfNeeded(): Promise<void> {
+  if (!loadCorpusGraphBaseline) return
+  if (graphExplorer.graphTabOpenedThisSession && artifacts.selectedRelPaths.length > 0) {
+    return
+  }
+  await loadCorpusGraphBaseline()
+}
 
 /** Optional upper bound (``YYYY-MM-DD``) from Dashboard handoff; cleared after load. */
 const libraryUntilYmd = ref('')
@@ -348,6 +363,7 @@ function openEpisodeInGraph(row: CorpusEpisodeListItem): void {
   subject.focusEpisode(row.metadata_relative_path, {
     uiTitle: row.episode_title?.trim() || null,
   })
+  void ensureDefaultCorpusGraphIfNeeded()
   emit('switch-main-tab', 'graph')
 }
 

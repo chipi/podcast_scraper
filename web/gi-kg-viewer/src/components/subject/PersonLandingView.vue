@@ -12,11 +12,17 @@ import { useSubjectStore } from '../../stores/subject'
 import {
   countPersonEntityIncidentEdges,
   findRawNodeInArtifact,
+  findRawNodeInArtifactByIdOrPrefixed,
   normalizeGiEdgeType,
 } from '../../utils/parsing'
 import { logicalEpisodeIdFromGraphNodeId } from '../../utils/graphEpisodeMetadata'
 import { buildSubjectMentionsTimeline } from '../../utils/subjectMentionsTimeline'
 import SubjectTimelineChart from './SubjectTimelineChart.vue'
+
+/** Positions list cap — Persons accumulate more attributed quotes than a
+ *  Topic accumulates mentions, so the cap is higher than ``TopicEntityView``'s
+ *  25; still bounded so the rail does not become a full-text wall. */
+const PERSON_LANDING_POSITIONS_CAP = 50
 
 const emit = defineEmits<{
   goGraph: []
@@ -43,7 +49,14 @@ const personNode = computed<RawGraphNode | null>(() => {
   const art = artifacts.displayArtifact
   const id = personId.value
   if (!art || !id) return null
-  return findRawNodeInArtifact(art, id)
+  return findRawNodeInArtifactByIdOrPrefixed(art, id)
+})
+
+/** Actual graph node id (prefixed form after KG merge) for edge lookups. */
+const personGraphNodeId = computed<string | null>(() => {
+  const n = personNode.value
+  if (!n || n.id == null) return personId.value || null
+  return String(n.id)
 })
 
 const personName = computed(() => {
@@ -71,11 +84,11 @@ const personDescription = computed(() => {
 })
 
 const edgeCounts = computed(() =>
-  countPersonEntityIncidentEdges(artifacts.displayArtifact, personId.value),
+  countPersonEntityIncidentEdges(artifacts.displayArtifact, personGraphNodeId.value),
 )
 
 const timeline = computed(() =>
-  buildSubjectMentionsTimeline(artifacts.displayArtifact, personId.value),
+  buildSubjectMentionsTimeline(artifacts.displayArtifact, personGraphNodeId.value),
 )
 
 interface PositionRow {
@@ -88,7 +101,7 @@ interface PositionRow {
 
 const positionRows = computed<PositionRow[]>(() => {
   const art = artifacts.displayArtifact
-  const pid = personId.value
+  const pid = personGraphNodeId.value
   if (!art || !pid) return []
   const episodes = new Map<string, RawGraphNode>()
   for (const n of art.data?.nodes ?? []) {
@@ -230,6 +243,7 @@ function onPrefillSearch(): void {
         {{ personDescription }}
       </p>
       <p
+        v-if="edgeCounts.spokenByQuotes > 0 || edgeCounts.spokeInEpisodes > 0"
         class="text-[10px] text-muted"
         data-testid="person-landing-edge-counts"
       >
@@ -237,6 +251,13 @@ function onPrefillSearch(): void {
         attributed quote{{ edgeCounts.spokenByQuotes === 1 ? '' : 's' }} ·
         {{ edgeCounts.spokeInEpisodes }}
         episode link{{ edgeCounts.spokeInEpisodes === 1 ? '' : 's' }}.
+      </p>
+      <p
+        v-else
+        class="text-[10px] text-muted"
+        data-testid="person-landing-edge-counts-empty"
+      >
+        No graph links for this person yet — load the corpus graph to populate.
       </p>
       <section aria-label="Mentions by month">
         <h3 class="mb-1 text-[10px] font-semibold uppercase tracking-wider text-muted">
@@ -287,7 +308,7 @@ function onPrefillSearch(): void {
         data-testid="person-landing-positions"
       >
         <li
-          v-for="row in positionRows.slice(0, 50)"
+          v-for="row in positionRows.slice(0, PERSON_LANDING_POSITIONS_CAP)"
           :key="row.id"
           class="rounded border border-border bg-elevated/40 px-2 py-1.5 text-[11px] leading-snug"
         >
@@ -305,11 +326,11 @@ function onPrefillSearch(): void {
         </li>
       </ul>
       <p
-        v-if="positionRows.length > 50"
+        v-if="positionRows.length > PERSON_LANDING_POSITIONS_CAP"
         class="text-[10px] text-muted"
         data-testid="person-landing-positions-overflow"
       >
-        + {{ positionRows.length - 50 }} more
+        + {{ positionRows.length - PERSON_LANDING_POSITIONS_CAP }} more
       </p>
     </div>
   </div>

@@ -155,6 +155,27 @@ describe('buildSubjectMentionsTimeline', () => {
     expect(t.insightIds.sort()).toEqual(['i:1', 'i:2'])
   })
 
+  it('falls back to prefix-tolerant lookup when caller passes the bare GI id', () => {
+    /** Search hits / explore rollups carry ``speaker_id`` in the bare GI
+     * form; after KG merge the actual graph node id is prefixed (`g:`). */
+    const a = art(
+      [
+        { id: 'g:person:ada', type: 'Person', properties: { name: 'Ada' } },
+        { id: 'q:1', type: 'Quote', properties: { episode_id: 'ep-a' } },
+        {
+          id: 'episode:ep-a',
+          type: 'Episode',
+          properties: { publish_date: '2024-07-04' },
+        },
+      ],
+      [{ type: 'SPOKEN_BY', from: 'q:1', to: 'g:person:ada' }],
+    )
+    // Caller passes the BARE form; helper must still find + key off the prefixed id.
+    const t = buildSubjectMentionsTimeline(a, 'person:ada')
+    expect(t.total).toBe(1)
+    expect(t.quoteIds).toEqual(['q:1'])
+  })
+
   it('handles either edge direction (subject as from or to)', () => {
     const a = art(
       [

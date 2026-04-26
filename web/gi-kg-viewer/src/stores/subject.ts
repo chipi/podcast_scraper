@@ -71,6 +71,15 @@ export const useSubjectStore = defineStore('subject', () => {
     graphNodeCyId.value = t
   }
 
+  /**
+   * #672 — Focus a Topic OR a non-Person Entity. The same rail panel
+   * (``TopicEntityView``) renders both: it inspects the resolved node's
+   * ``type`` to label the header ``Topic`` / ``Entity`` accordingly. Use
+   * {@link focusEntity} for call-site clarity at non-Topic entry points
+   * (graph clicks still flow through {@link focusGraphNode} → ``NodeDetail``;
+   * this entry point is for handoffs from Digest / Search / Explore that
+   * want the higher-level subject overview).
+   */
   function focusTopic(id: string): void {
     const t = id.trim()
     clearFields()
@@ -80,6 +89,11 @@ export const useSubjectStore = defineStore('subject', () => {
     }
     kind.value = 'topic'
     topicId.value = t
+  }
+
+  /** Alias of {@link focusTopic} for non-Topic Entity subjects. Same rail panel. */
+  function focusEntity(id: string): void {
+    focusTopic(id)
   }
 
   function focusPerson(id: string): void {
@@ -115,6 +129,7 @@ export const useSubjectStore = defineStore('subject', () => {
     focusEpisode,
     focusGraphNode,
     focusTopic,
+    focusEntity,
     focusPerson,
     clearSubject,
     setEpisodeUiLabel,

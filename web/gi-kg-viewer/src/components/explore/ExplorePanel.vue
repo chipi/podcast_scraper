@@ -1,5 +1,8 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, inject, ref } from 'vue'
+import { corpusGraphBaselineLoaderKey } from '../../corpusGraphBaseline'
+import { useArtifactsStore } from '../../stores/artifacts'
+import { useGraphExplorerStore } from '../../stores/graphExplorer'
 import { useGraphNavigationStore } from '../../stores/graphNavigation'
 import { useExploreStore } from '../../stores/explore'
 import { useShellStore } from '../../stores/shell'
@@ -21,12 +24,27 @@ const shell = useShellStore()
 const ex = useExploreStore()
 const nav = useGraphNavigationStore()
 const subject = useSubjectStore()
+const artifacts = useArtifactsStore()
+const graphExplorer = useGraphExplorerStore()
+const loadCorpusGraphBaseline = inject(corpusGraphBaselineLoaderKey, null)
 
-/** #674 item 4 — Top-speaker rollup row → Person Landing in the rail. */
+async function ensureDefaultCorpusGraphIfNeeded(): Promise<void> {
+  if (!loadCorpusGraphBaseline) return
+  if (graphExplorer.graphTabOpenedThisSession && artifacts.selectedRelPaths.length > 0) {
+    return
+  }
+  await loadCorpusGraphBaseline()
+}
+
+/** #674 item 4 — Top-speaker rollup row → Person Landing in the rail.
+ *  Auto-loads the corpus graph baseline (same pattern as Digest topic
+ *  click) so the panel has data to render even when the user has not
+ *  visited the Graph tab yet. */
 function focusPersonFromSpeakerId(rawId: string | null | undefined): void {
   const id = (rawId ?? '').trim()
   if (!id) return
   subject.focusPerson(id)
+  void ensureDefaultCorpusGraphIfNeeded()
 }
 
 const advancedExploreDialogRef = ref<HTMLDialogElement | null>(null)

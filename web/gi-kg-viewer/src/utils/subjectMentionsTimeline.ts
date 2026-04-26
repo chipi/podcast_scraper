@@ -10,7 +10,11 @@
  * new API call.
  */
 import type { ParsedArtifact, RawGraphNode } from '../types/artifact'
-import { findRawNodeInArtifact, normalizeGiEdgeType } from './parsing'
+import {
+  findRawNodeInArtifact,
+  findRawNodeInArtifactByIdOrPrefixed,
+  normalizeGiEdgeType,
+} from './parsing'
 import { logicalEpisodeIdFromGraphNodeId } from './graphEpisodeMetadata'
 
 /** Edge types that link a subject node to an Insight or Quote item. */
@@ -88,11 +92,14 @@ export function buildSubjectMentionsTimeline(
   if (!art?.data || !subjectNodeId?.trim()) {
     return EMPTY_TIMELINE
   }
-  const sid = subjectNodeId.trim()
-  const subject = findRawNodeInArtifact(art, sid)
+  const rawSid = subjectNodeId.trim()
+  const subject = findRawNodeInArtifactByIdOrPrefixed(art, rawSid)
   if (!subject) {
     return EMPTY_TIMELINE
   }
+  /** Edge endpoints carry the post-merge prefixed form; align ``sid`` with
+   * the actual matched node id so the from/to comparisons below hit. */
+  const sid = subject.id != null ? String(subject.id) : rawSid
 
   const nodes = Array.isArray(art.data.nodes) ? art.data.nodes : []
   const edges = Array.isArray(art.data.edges) ? art.data.edges : []
