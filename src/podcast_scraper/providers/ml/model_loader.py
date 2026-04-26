@@ -11,7 +11,7 @@ from __future__ import annotations
 
 import logging
 import os
-from typing import Any, cast, List, Optional
+from typing import Any, List, Optional
 
 from ... import config
 from ...cache import (
@@ -256,14 +256,11 @@ def build_huggingface_qa_pipeline(
     Returns:
         The transformers QA pipeline instance.
     """
-    from transformers import pipeline
-
     cache_dir = str(get_transformers_cache_dir().resolve())
-    _hf_pipeline = cast(Any, pipeline)
     # low_cpu_mem_usage=False avoids lazy meta-device init paths on some torch/transformers
     # pairs that break a second Whisper load in the same process (GitHub #539).
     if not local_files_only:
-        return _hf_pipeline(
+        return _call_transformers_qa_pipeline(
             "question-answering",
             model=model_id,
             device=device,
@@ -275,7 +272,7 @@ def build_huggingface_qa_pipeline(
         "low_cpu_mem_usage": False,
     }
     try:
-        return _hf_pipeline(
+        return _call_transformers_qa_pipeline(
             "question-answering",
             model=model_id,
             device=device,
@@ -284,13 +281,28 @@ def build_huggingface_qa_pipeline(
     except TypeError as exc:
         if "multiple values" not in str(exc) or "local_files_only" not in str(exc):
             raise
-        return _hf_pipeline(
+        return _call_transformers_qa_pipeline(
             "question-answering",
             model=model_id,
             device=device,
             model_kwargs={"cache_dir": cache_dir, "low_cpu_mem_usage": False},
             local_files_only=True,
         )
+
+
+def _call_transformers_qa_pipeline(*args: Any, **kwargs: Any) -> Any:
+    """Module-level indirection for ``transformers.pipeline``.
+
+    Tests must patch *this* symbol — not ``transformers.pipeline``. The
+    top-level ``transformers`` module is a ``_LazyModule`` (transformers
+    >= 4.40) whose ``__getattr__`` resolves ``pipeline`` from a submodule,
+    so ``monkeypatch.setattr("transformers.pipeline", fake)`` is silently
+    bypassed by the function-local ``from transformers import pipeline``
+    inside :func:`build_huggingface_qa_pipeline`. Issue #677.
+    """
+    from transformers import pipeline
+
+    return pipeline(*args, **kwargs)
 
 
 def _download_qa_pipeline_for_cache(model_id: str) -> None:

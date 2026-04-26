@@ -119,14 +119,26 @@ class TestBuildHuggingfaceQaPipeline:
     """build_huggingface_qa_pipeline: wiring to transformers.pipeline."""
 
     def test_offline_mode_passes_local_files_only(self, monkeypatch, tmp_path):
-        """local_files_only=True is forwarded to model_kwargs."""
+        """local_files_only=True is forwarded to model_kwargs.
+
+        Issue #677: the test used to do
+        ``monkeypatch.setattr("transformers.pipeline", fake_pipeline)``, but
+        transformers >= 4.40 makes the top-level module a ``_LazyModule``
+        whose ``__getattr__`` resolves ``pipeline`` from a submodule —
+        bypassing instance-attribute overrides. The function under test
+        now routes through a module-level indirection
+        (``_call_transformers_qa_pipeline``) so the patch sticks.
+        """
         captured: list = []
 
         def fake_pipeline(task, model, device, model_kwargs=None, **kw):
             captured.append({"task": task, "model": model, "model_kwargs": model_kwargs, **kw})
             return MagicMock()
 
-        monkeypatch.setattr("transformers.pipeline", fake_pipeline)
+        monkeypatch.setattr(
+            "podcast_scraper.providers.ml.model_loader._call_transformers_qa_pipeline",
+            fake_pipeline,
+        )
         monkeypatch.setattr(
             "podcast_scraper.providers.ml.model_loader.get_transformers_cache_dir",
             lambda: tmp_path,
