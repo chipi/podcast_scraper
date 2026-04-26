@@ -198,6 +198,8 @@ help:
 	@echo "  make stack-test-up          Stack-test: bring up api + viewer + mock-feeds (sources .env if present)"
 	@echo "  make stack-test-seed        Stack-test: seed corpus_data volume with feeds.spec.yaml + viewer_operator.yaml (STACK_TEST_OPERATOR_VARIANT=ml|cloud-thin)"
 	@echo "  make stack-test-playwright  Stack-test: run Playwright (smoke + full UI flow; STACK_TEST_OPERATOR_PROFILE=cloud_thin for llm runs)"
+	@echo "  make stack-test-ml          Stack-test (one-shot): ml pipeline — build → up → seed → Playwright (airgapped_thin)"
+	@echo "  make stack-test-cloud-thin  Stack-test (one-shot): cloud-thin (LLM) pipeline — build + pipeline-llm → up → seed → Playwright (cloud_thin); needs .env keys"
 	@echo "  make stack-test-down        Stack-test: tear down (STACK_TEST_DOWN_VOLUMES=1 to also drop corpus_data)"
 	@echo "  make stack-test-export      Stack-test: copy corpus_data volume → .stack-test-corpus/ for debug inspection"
 	@echo "  make docker-test        Build and test Docker image"
@@ -470,7 +472,7 @@ validate-kg-schema:
 	fi
 
 # GI/KG viewer v2 (#489): FastAPI + Vite. Install: pip install -e '.[server]'; cd $(WEB_VIEWER_DIR) && npm install
-.PHONY: serve serve-api serve-ui serve-e2e-mock stack-build stack-build-llm stack-compose-validate stack-up stack-down stack-logs verify-stack-profiles stack-test-build stack-test-build-cloud stack-test-up stack-test-down stack-test-seed stack-test-playwright stack-test-export
+.PHONY: serve serve-api serve-ui serve-e2e-mock stack-build stack-build-llm stack-compose-validate stack-up stack-down stack-logs verify-stack-profiles stack-test-build stack-test-build-cloud stack-test-up stack-test-down stack-test-seed stack-test-playwright stack-test-export stack-test-ml stack-test-cloud-thin
 SERVE_OUTPUT_DIR ?= ./output
 # Optional corpus-editing + jobs routes (health shows green when on). Override with SERVE_ARGS= to disable.
 SERVE_ARGS ?= --enable-feeds-api --enable-operator-config-api --enable-jobs-api
@@ -616,6 +618,32 @@ stack-test-down:
 
 stack-test-playwright:
 	@cd tests/stack-test && npm install && ./node_modules/.bin/playwright install firefox && STACK_TEST_BASE_URL=$${STACK_TEST_BASE_URL:-http://127.0.0.1:8090} ./node_modules/.bin/playwright test
+
+# One-command local stack-test for the ml (airgapped_thin) pipeline path.
+# Build (idempotent) → up → seed → Playwright. Stack stays up afterward
+# so artifacts can be inspected with ``make stack-test-export`` and the
+# corpus volume can be poked at; run ``make stack-test-down`` to clean up.
+# CI uses the underlying step-by-step targets in the workflow file.
+stack-test-ml:
+	$(MAKE) stack-test-build
+	$(MAKE) stack-test-up
+	$(MAKE) stack-test-seed STACK_TEST_OPERATOR_VARIANT=ml
+	$(MAKE) stack-test-playwright
+
+# One-command local stack-test for the cloud-thin (LLM) pipeline path.
+# Same flow as ``stack-test-ml`` plus ``stack-test-build-cloud`` (builds
+# the ``pipeline-llm`` image with ``[llm]`` extras only — no torch /
+# transformers / whisper / spaCy) and seeds with ``pipeline_install_extras:
+# llm``. Playwright runs with ``STACK_TEST_OPERATOR_PROFILE=cloud_thin``.
+# Requires ``.env`` with the cloud API keys the ``cloud_thin`` profile
+# providers expect (OPENAI / GEMINI / ANTHROPIC). Local-only — public CI
+# does not run this variant to avoid recurring API costs.
+stack-test-cloud-thin:
+	$(MAKE) stack-test-build
+	$(MAKE) stack-test-build-cloud
+	$(MAKE) stack-test-up
+	$(MAKE) stack-test-seed STACK_TEST_OPERATOR_VARIANT=cloud-thin
+	STACK_TEST_OPERATOR_PROFILE=cloud_thin $(MAKE) stack-test-playwright
 
 # Vitest unit tests for TypeScript utility logic (no browser needed)
 test-ui:
