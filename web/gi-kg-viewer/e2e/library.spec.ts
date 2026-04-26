@@ -267,10 +267,11 @@ test.describe('Corpus Library tab', () => {
     await page.getByRole('button', { name: 'Prefill semantic search' }).click()
     // Same field order as Similar episodes / server build_similarity_query (title + bullets), not prose summary_text.
     await expect(page.locator('#search-q')).toHaveValue('Summary head Point one Point two')
-    const advancedSummary = page.getByRole('region', { name: 'Active advanced filters' })
-    await expect(advancedSummary).toBeVisible()
-    await expect(advancedSummary).toContainText('Feed: Mock Show')
-    await page.getByRole('button', { name: 'Advanced search' }).click()
+    // #671 — "Active advanced filters" summary region replaced by chip-active state. The "More" chip
+    // increments its count when any advanced field is non-default; opening it shows the slim dialog.
+    const moreChip = page.getByTestId('search-chip-more')
+    await expect(moreChip).toContainText('More: 1')
+    await moreChip.click()
     const advancedDialog = page.getByRole('dialog', { name: 'Advanced search' })
     await expect(advancedDialog).toBeVisible()
     await expect(advancedDialog.locator('#search-advanced-feed')).toHaveValue('Mock Show')

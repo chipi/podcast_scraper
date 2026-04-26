@@ -40,7 +40,7 @@ import {
 } from '../../utils/cilGraphFocus'
 
 const emit = defineEmits<{
-  'switch-main-tab': [tab: 'graph' | 'dashboard']
+  'switch-main-tab': [tab: 'graph' | 'dashboard' | 'library']
   'focus-search': [payload: { feed: string; query: string; since?: string }]
   'open-library-episode': [payload: { metadata_relative_path: string }]
 }>()
@@ -63,7 +63,7 @@ async function ensureDefaultCorpusGraphIfNeeded(): Promise<void> {
 }
 const subject = useSubjectStore()
 const corpusLens = useCorpusLensStore()
-const { sinceYmd, activePreset } = storeToRefs(corpusLens)
+const { sinceYmd } = storeToRefs(corpusLens)
 
 const CORPUS_LENS_DEBOUNCE_MS = 400
 let digestLensDebounceTimer: ReturnType<typeof setTimeout> | null = null
@@ -78,13 +78,6 @@ function scheduleLoadDigestFromCorpusLens(): void {
   }, CORPUS_LENS_DEBOUNCE_MS)
 }
 
-function applyDigestDateNow(): void {
-  if (digestLensDebounceTimer) {
-    clearTimeout(digestLensDebounceTimer)
-    digestLensDebounceTimer = null
-  }
-  void loadDigest()
-}
 const digest = ref<CorpusDigestResponse | null>(null)
 const error = ref<string | null>(null)
 const loading = ref(false)
@@ -184,6 +177,21 @@ function episodeFeedInlineVisible(row: CorpusDigestRow | CorpusDigestTopicHit): 
   }
   const lab = episodeFeedLabel(row)
   return lab !== 'Unknown feed' && Boolean(lab.trim())
+}
+
+/**
+ * #674 item 1 — clicking a feed name in a Digest row scopes the
+ * Library tab to that feed and switches main tab. Library consumes
+ * the handoff via ``dashboardNav.consumeLibraryHandoffIfPending()``
+ * on activation.
+ */
+function onClickDigestFeedName(row: CorpusDigestRow | CorpusDigestTopicHit): void {
+  const fid = row.feed_id?.trim()
+  if (!fid) {
+    return
+  }
+  dashboardNav.setHandoff({ kind: 'library', feedId: fid })
+  emit('switch-main-tab', 'library')
 }
 
 /** Match Library episode list topic pills (visible cap; full string on `title`). */
@@ -488,6 +496,9 @@ async function openTopicBandInGraph(band: CorpusDigestTopicBand): Promise<void> 
   for (const h of band.hits) {
     if (h.has_gi || h.has_kg) {
       await openTopicHitInGraph(h, { graphTopicNodeId: gid })
+      if (gid) {
+        subject.focusTopic(gid)
+      }
       return
     }
   }
@@ -878,11 +889,17 @@ onBeforeUnmount(() => {
                     <div
                       class="flex min-w-0 max-w-full shrink-0 flex-wrap items-baseline justify-end gap-x-1.5 gap-y-0.5 text-[10px] sm:max-w-[min(100%,20rem)]"
                     >
-                      <span
+                      <button
                         v-if="episodeFeedInlineVisible(row)"
-                        class="min-w-0 break-words font-semibold leading-tight text-surface-foreground"
+                        type="button"
+                        class="min-w-0 break-words text-left font-semibold leading-tight text-surface-foreground hover:text-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
                         :title="episodeRowFeedHoverTitle(row) || undefined"
-                      >{{ episodeFeedLabel(row) }}</span>
+                        :aria-label="`Open Library scoped to feed ${episodeFeedLabel(row)}`"
+                        data-testid="digest-feed-name-link"
+                        @click.stop="onClickDigestFeedName(row)"
+                      >
+                        {{ episodeFeedLabel(row) }}
+                      </button>
                       <span
                         v-if="
                           row.publish_date ||

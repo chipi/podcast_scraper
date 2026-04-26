@@ -4,6 +4,8 @@ import type { SearchHit } from '../../api/searchApi'
 import EpisodeDetailPanel from '../episode/EpisodeDetailPanel.vue'
 import GraphConnectionsSection from '../graph/GraphConnectionsSection.vue'
 import GraphNodeRailPanel from '../graph/GraphNodeRailPanel.vue'
+import PersonLandingView from '../subject/PersonLandingView.vue'
+import TopicEntityView from '../subject/TopicEntityView.vue'
 import { useGraphFilterStore } from '../../stores/graphFilters'
 import { useGraphNavigationStore } from '../../stores/graphNavigation'
 import { useSubjectStore } from '../../stores/subject'
@@ -174,15 +176,20 @@ const emptyHint =
           </EpisodeDetailPanel>
         </div>
       </template>
-      <template v-else-if="subject.kind === 'topic'">
-        <div class="mx-3 mt-2 text-[11px] text-muted">
-          Topic detail is not available in this build.
-        </div>
+      <template v-else-if="subject.kind === 'topic' && subject.topicId?.trim()">
+        <TopicEntityView
+          @go-graph="emit('goGraph')"
+          @close-subject="emit('closeSubject')"
+          @open-library-episode="emit('openLibraryEpisode', $event)"
+          @prefill-semantic-search="emit('prefillSemanticSearch', $event)"
+        />
       </template>
-      <template v-else-if="subject.kind === 'person'">
-        <div class="mx-3 mt-2 text-[11px] text-muted">
-          Person detail is not available in this build.
-        </div>
+      <template v-else-if="subject.kind === 'person' && subject.personId?.trim()">
+        <PersonLandingView
+          @go-graph="emit('goGraph')"
+          @close-subject="emit('closeSubject')"
+          @prefill-semantic-search="emit('prefillSemanticSearch', $event)"
+        />
       </template>
     </template>
   </div>

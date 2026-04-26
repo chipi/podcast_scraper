@@ -8,6 +8,7 @@ import type { SearchHit } from '../../api/searchApi'
 import { graphNodeIdFromSearchHit } from '../../utils/searchFocus'
 import { sourceMetadataRelativePathFromSearchHit } from '../../utils/searchHitLibrary'
 import ResultCard from './ResultCard.vue'
+import SearchFilterBar from './SearchFilterBar.vue'
 import SearchResultsVizDialog from './SearchResultsVizDialog.vue'
 import HelpTip from '../shared/HelpTip.vue'
 
@@ -59,57 +60,6 @@ function focusQuery(): void {
 
 defineExpose({ focusQuery })
 
-const typeOptions = [
-  { value: 'insight', label: 'Insights' },
-  { value: 'quote', label: 'Quotes' },
-  { value: 'kg_entity', label: 'KG entities' },
-  { value: 'kg_topic', label: 'KG topics' },
-  { value: 'summary', label: 'Summary bullets' },
-  { value: 'transcript', label: 'Transcript chunks' },
-] as const
-
-const advancedFilterSummaryLines = computed(() => {
-  const f = search.filters
-  const lines: string[] = []
-  const topK = Number(f.topK)
-  if (Number.isFinite(topK) && topK !== 10) {
-    lines.push(`Top‑k: ${topK}`)
-  }
-  if (f.groundedOnly) {
-    lines.push('Grounded insights only')
-  }
-  const feed = f.feed.trim()
-  if (feed) {
-    const feedTitle = search.feedFilterDisplayLabel?.trim()
-    const showTitle = Boolean(
-      search.feedFilterHandoffPristine && feedTitle,
-    )
-    lines.push(showTitle ? `Feed: ${feedTitle}` : `Feed: ${feed}`)
-  }
-  const speaker = f.speaker.trim()
-  if (speaker) {
-    lines.push(`Speaker: ${speaker}`)
-  }
-  const embedding = f.embeddingModel.trim()
-  if (embedding) {
-    lines.push(`Embedding model: ${embedding}`)
-  }
-  if (f.types.length > 0) {
-    const labels = f.types
-      .map((v) => typeOptions.find((o) => o.value === v)?.label ?? v)
-      .join(', ')
-    lines.push(`Doc types: ${labels}`)
-  }
-  if (!f.dedupeKgSurfaces) {
-    lines.push('Merge duplicate KG surfaces: off')
-  }
-  return lines
-})
-
-const hasAdvancedFilterSummary = computed(
-  () => advancedFilterSummaryLines.value.length > 0,
-)
-
 /** L when health + corpus path; per-hit path still required (see ResultCard). */
 const libraryOpensEnabled = computed(() =>
   Boolean(shell.healthStatus && shell.hasCorpusPath),
@@ -137,15 +87,6 @@ const enhancedSearchChipClass = computed(() => {
   }
   return `${base} border-gi text-gi`
 })
-
-function toggleType(v: string): void {
-  const i = search.filters.types.indexOf(v)
-  if (i >= 0) {
-    search.filters.types.splice(i, 1)
-  } else {
-    search.filters.types.push(v)
-  }
-}
 
 /** Optional ``tc:…`` compound to widen the graph camera bbox (selection stays on the leaf). */
 function topicClusterCompoundIdForCamera(hit: SearchHit): string | null {
@@ -331,66 +272,13 @@ const advancedFeedCombinedTitle = computed(() =>
         :title="searchFieldDisabledTitle"
         @keydown="onQueryKeydown"
       />
-      <div
-        class="grid w-full min-w-0 grid-cols-[minmax(0,1fr)_4rem] items-end gap-x-2 gap-y-1 sm:grid-cols-[minmax(0,1fr)_4.5rem]"
-      >
-        <div class="min-w-0">
-          <label
-            class="block truncate text-xs text-muted"
-            for="search-since-date"
-          >Since (date)</label>
-          <input
-            id="search-since-date"
-            v-model="search.filters.since"
-            type="date"
-            class="box-border w-full min-w-0 max-w-full rounded border border-border bg-elevated px-1.5 py-1 text-xs sm:px-2 sm:text-sm"
-            :disabled="!searchFieldsEnabled"
-            :title="searchFieldDisabledTitle"
-          >
-        </div>
-        <div class="w-full min-w-0 justify-self-stretch sm:w-auto sm:justify-self-end">
-          <label class="block text-xs text-muted" for="search-top-k">Top‑k</label>
-          <input
-            id="search-top-k"
-            v-model.number="search.filters.topK"
-            type="number"
-            min="1"
-            max="100"
-            class="box-border w-full rounded border border-border bg-elevated px-1.5 py-1 text-xs tabular-nums sm:px-2 sm:text-sm"
-            :disabled="!searchFieldsEnabled"
-            :title="searchFieldDisabledTitle"
-          >
-        </div>
-      </div>
     </form>
     <div class="mt-2 shrink-0">
-      <button
-        type="button"
-        class="text-xs text-primary underline decoration-primary/60 underline-offset-2 hover:decoration-primary disabled:opacity-40"
-        :disabled="!searchFieldsEnabled"
-        :title="searchFieldDisabledTitle"
-        @click="openAdvancedSearch"
-      >
-        Advanced search
-      </button>
-    </div>
-    <div
-      v-if="hasAdvancedFilterSummary"
-      role="region"
-      aria-label="Active advanced filters"
-      class="mt-2 shrink-0 rounded border border-border bg-elevated/60 px-2 py-1.5"
-    >
-      <p class="text-[10px] font-medium uppercase tracking-wide text-muted">
-        Advanced filters
-      </p>
-      <ul class="mt-1 space-y-0.5 text-[10px] leading-snug text-muted">
-        <li
-          v-for="(line, i) in advancedFilterSummaryLines"
-          :key="i"
-        >
-          {{ line }}
-        </li>
-      </ul>
+      <SearchFilterBar
+        :enabled="searchFieldsEnabled"
+        :disabled-title="searchFieldDisabledTitle"
+        @open-more="openAdvancedSearch"
+      />
     </div>
     <div class="mt-2 flex shrink-0 flex-wrap gap-2">
       <button
@@ -485,28 +373,6 @@ const advancedFeedCombinedTitle = computed(() =>
           >
           Merge duplicate KG surfaces (kg_entity / kg_topic)
         </label>
-        <fieldset class="space-y-1">
-          <legend class="text-xs font-medium text-muted">
-            Doc types (empty = all)
-          </legend>
-          <div class="flex flex-wrap gap-2">
-            <label
-              v-for="opt in typeOptions"
-              :key="opt.value"
-              class="flex cursor-pointer items-center gap-1 text-xs"
-            >
-              <input
-                type="checkbox"
-                class="rounded border-border"
-                :checked="search.filters.types.includes(opt.value)"
-                :disabled="!searchFieldsEnabled"
-                :title="searchFieldDisabledTitle"
-                @change="toggleType(opt.value)"
-              >
-              {{ opt.label }}
-            </label>
-          </div>
-        </fieldset>
       </div>
     </dialog>
     <SearchResultsVizDialog

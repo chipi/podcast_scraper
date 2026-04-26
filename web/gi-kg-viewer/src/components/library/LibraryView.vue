@@ -25,7 +25,10 @@ import { feedNameHoverWithCatalogLookup } from '../../utils/feedHoverTitle'
 import { formatDurationSeconds } from '../../utils/formatDuration'
 import { normalizeFeedIdForViewer } from '../../utils/feedId'
 import { handleVerticalListArrowKeydown } from '../../utils/listRowArrowNav'
-import { inferCorpusLensPreset } from '../../utils/localCalendarDate'
+import {
+  SEARCH_RESULT_GRAPH_BUTTON_CLASS,
+  SEARCH_RESULT_SEMANTIC_PREFILL_BUTTON_CLASS,
+} from '../../utils/searchResultActionStyles'
 import { StaleGeneration } from '../../utils/staleGeneration'
 
 defineOptions({ name: 'LibraryView' })
@@ -37,6 +40,7 @@ const emit = defineEmits<{
   'focus-search': [
     payload: { feed: string; query: string; since?: string; feedDisplayTitle?: string },
   ]
+  'switch-main-tab': [tab: 'digest' | 'library' | 'graph' | 'dashboard']
 }>()
 
 const shell = useShellStore()
@@ -48,7 +52,7 @@ const dashboardNav = useDashboardNavStore()
 const libraryUntilYmd = ref('')
 /** When ``false``, request episodes missing GI from the API. */
 const libraryHasGiFilter = ref<boolean | undefined>(undefined)
-const { sinceYmd, activePreset } = storeToRefs(corpusLens)
+const { sinceYmd } = storeToRefs(corpusLens)
 
 /** Debounce episode reload when the shared date field changes (keystrokes). */
 const CORPUS_LENS_DEBOUNCE_MS = 400
@@ -72,14 +76,6 @@ function applySinceDateReloadEpisodesNow(): void {
   }
   subject.clearSubject()
   void loadEpisodes(false)
-}
-
-function truncateSummaryPart(s: string, max: number): string {
-  const t = s.trim()
-  if (t.length <= max) {
-    return t
-  }
-  return `${t.slice(0, max - 1)}…`
 }
 
 const feeds = ref<CorpusFeedItem[]>([])
@@ -142,11 +138,6 @@ function episodeFeedInlineVisibleList(row: EpisodeRowForFeedHover): boolean {
   }
   const lab = episodeRowFeedLabel(row)
   return lab !== 'Unknown feed' && Boolean(lab.trim())
-}
-
-/** Preset lower bound for ``since`` (publish date on or after), local calendar day. */
-function setSincePreset(kind: 'all' | 7 | 30 | 90): void {
-  corpusLens.setPreset(kind)
 }
 
 function clearAllLibraryFilters(): void {
@@ -344,6 +335,35 @@ async function loadEpisodes(append: boolean): Promise<void> {
 function selectEpisode(row: CorpusEpisodeListItem): void {
   subject.focusEpisode(row.metadata_relative_path, {
     uiTitle: row.episode_title?.trim() || null,
+  })
+}
+
+/**
+ * #674 item 2 — row hover quick action: focus the episode in the
+ * subject rail and switch the main tab to Graph (mirrors the Search
+ * result **G** button). The Graph tab's existing handoff path picks
+ * up the focused episode + centres the canvas.
+ */
+function openEpisodeInGraph(row: CorpusEpisodeListItem): void {
+  subject.focusEpisode(row.metadata_relative_path, {
+    uiTitle: row.episode_title?.trim() || null,
+  })
+  emit('switch-main-tab', 'graph')
+}
+
+/**
+ * #674 item 2 — row hover quick action: prefill semantic search
+ * with the episode title (mirrors the Search panel "Similar
+ * episodes" affordance).
+ */
+function prefillSearchWithEpisode(row: CorpusEpisodeListItem): void {
+  const q = row.episode_title?.trim()
+  if (!q) {
+    return
+  }
+  emit('focus-search', {
+    feed: feedFilterId.value ?? '',
+    query: q,
   })
 }
 
@@ -616,7 +636,7 @@ onBeforeUnmount(() => {
                   role="button"
                   tabindex="0"
                   data-library-episode-row
-                  class="flex w-full gap-2 rounded px-2 py-1.5 text-left outline-none ring-offset-1 focus-visible:ring-2 focus-visible:ring-primary"
+                  class="group flex w-full gap-2 rounded px-2 py-1.5 text-left outline-none ring-offset-1 focus-visible:ring-2 focus-visible:ring-primary"
                   :class="
                     isEpisodeSelected(e) ? 'bg-overlay' : 'hover:bg-overlay/35'
                   "
@@ -672,6 +692,31 @@ onBeforeUnmount(() => {
                         <span v-if="formatDurationSeconds(e.duration_seconds)">{{
                           formatDurationSeconds(e.duration_seconds)
                         }}</span>
+                      </span>
+                      <span
+                        class="inline-flex shrink-0 items-center gap-1 opacity-40 transition-opacity group-hover:opacity-100 focus-within:opacity-100"
+                      >
+                        <button
+                          type="button"
+                          :class="SEARCH_RESULT_GRAPH_BUTTON_CLASS"
+                          data-testid="library-row-open-graph"
+                          title="Open this episode in Graph"
+                          aria-label="Open this episode in Graph"
+                          @click.stop="openEpisodeInGraph(e)"
+                          @keydown.enter.stop
+                          @keydown.space.stop
+                        >G</button>
+                        <button
+                          v-if="e.episode_title?.trim()"
+                          type="button"
+                          :class="SEARCH_RESULT_SEMANTIC_PREFILL_BUTTON_CLASS"
+                          data-testid="library-row-open-search"
+                          title="Search with this episode title"
+                          aria-label="Search with this episode title"
+                          @click.stop="prefillSearchWithEpisode(e)"
+                          @keydown.enter.stop
+                          @keydown.space.stop
+                        >S</button>
                       </span>
                     </div>
                   </div>

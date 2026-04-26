@@ -17,6 +17,7 @@ import {
 } from '../../utils/transcriptSourceDisplay'
 import { isKgSurfaceMultiEpisodeDedupe } from '../../utils/searchHitKgDedupe'
 import { sourceMetadataRelativePathFromSearchHit } from '../../utils/searchHitLibrary'
+import { useSubjectStore } from '../../stores/subject'
 
 const props = defineProps<{
   hit: SearchHit
@@ -29,6 +30,15 @@ const emit = defineEmits<{
   'open-library': [SearchHit]
   'open-episode-summary': [SearchHit]
 }>()
+
+const subject = useSubjectStore()
+
+/** #674 item 4 — Supporting-quote speaker name → Person Landing in the rail. */
+function focusPersonFromSpeakerId(rawId: unknown): void {
+  const id = typeof rawId === 'string' ? rawId.trim() : ''
+  if (!id) return
+  subject.focusPerson(id)
+}
 
 const docType = computed(() => String(props.hit.metadata?.doc_type ?? '?'))
 
@@ -348,12 +358,26 @@ function onEpisodeIdChipClick(ev: MouseEvent): void {
             class="mt-0.5 text-[10px] font-medium text-primary"
           >
             —
-            {{
+            <button
+              v-if="typeof q.speaker_id === 'string' && q.speaker_id.trim()"
+              type="button"
+              class="rounded text-left text-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+              data-testid="search-result-speaker-link"
+              :title="`Open Person panel for ${
+                String(q.speaker_name ?? '') ||
+                  quoteAttributionDisplayFromId(q.speaker_id)
+              }`"
+              @click.stop="focusPersonFromSpeakerId(q.speaker_id)"
+            >{{
+              String(q.speaker_name ?? '') ||
+                quoteAttributionDisplayFromId(q.speaker_id)
+            }}</button>
+            <span v-else>{{
               String(q.speaker_name ?? '') ||
                 quoteAttributionDisplayFromId(
                   typeof q.speaker_id === 'string' ? q.speaker_id : '',
                 )
-            }}
+            }}</span>
             <span
               v-if="q.timestamp_start_ms != null"
               class="font-normal text-muted"
