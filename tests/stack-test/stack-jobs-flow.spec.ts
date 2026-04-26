@@ -292,8 +292,8 @@ async function waitForSearchHits(
  * Left rail: leave **Explore** if active, then ensure **Semantic
  * search** is visible.
  *
- * **Do not** click ``left-rail-edge-toggle`` when the rail is already
- * expanded: that **collapses** the panel. After Explore→Search,
+ * **Do not** click ``left-panel-collapse-toggle`` when the rail is
+ * already expanded: that **collapses** the panel. After Explore→Search,
  * ``#search-q`` can briefly sit in the translated slide — wait first;
  * only expand when ``aria-expanded`` is not ``true`` (collapsed rail).
  */
@@ -306,7 +306,7 @@ async function prepareSemanticSearchUi(
     await backSearch.click()
   }
   const q = page.locator('#search-q')
-  const railToggle = page.getByTestId('left-rail-edge-toggle')
+  const railToggle = page.getByTestId('left-panel-collapse-toggle')
   try {
     await expect(q).toBeVisible({ timeout: 15_000 })
   } catch {
@@ -321,7 +321,9 @@ async function prepareSemanticSearchUi(
     }
     await expect(q).toBeVisible({ timeout: 25_000 })
   }
-  await page.locator('#search-since-date').fill('')
+  // #671 retired the ``#search-since-date`` input in favour of a chip +
+  // DateChip popover; this test never sets a since-date and clears
+  // corpus localStorage on startup, so no defensive clear is needed.
   await q.fill('')
 }
 
