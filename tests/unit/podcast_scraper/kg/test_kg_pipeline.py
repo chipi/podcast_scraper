@@ -28,6 +28,31 @@ class TestKgPipeline(unittest.TestCase):
         self.assertEqual(art["nodes"][0]["id"], "episode:episode:test-1")
         validate_artifact(art, strict=True)
 
+    def test_build_artifact_feed_id_lands_on_episode_properties(self) -> None:
+        """#658: feed_id parameter writes to Episode properties + still validates."""
+        art = build_artifact(
+            "ep:k",
+            "x",
+            podcast_id="podcast:abc",
+            episode_title="My Episode",
+            feed_id="rss_example_com_abc123",
+        )
+        ep_nodes = [n for n in art["nodes"] if n["type"] == "Episode"]
+        self.assertEqual(len(ep_nodes), 1)
+        self.assertEqual(ep_nodes[0]["properties"]["feed_id"], "rss_example_com_abc123")
+        validate_artifact(art, strict=True)
+
+    def test_build_artifact_omits_feed_id_when_not_supplied(self) -> None:
+        """#658: feed_id is optional; omitting it leaves the property absent."""
+        art = build_artifact(
+            "ep:k",
+            "x",
+            podcast_id="podcast:abc",
+            episode_title="My Episode",
+        )
+        ep_nodes = [n for n in art["nodes"] if n["type"] == "Episode"]
+        self.assertNotIn("feed_id", ep_nodes[0]["properties"])
+
     def test_build_artifact_topic_and_hosts(self) -> None:
         """Topic + host entities produce MENTIONS edges to Episode."""
         art = build_artifact(

@@ -77,7 +77,11 @@
             "title": { "type": "string", "minLength": 1 },
             "publish_date": { "type": "string", "minLength": 1 },
             "audio_url": { "type": "string" },
-            "duration_ms": { "type": "integer", "minimum": 0 }
+            "duration_ms": { "type": "integer", "minimum": 0 },
+            "feed_id": {
+              "type": "string",
+              "description": "Stable feed identifier for cross-feed graph filtering (#658). Same value as `GET /api/corpus/feeds[].feed_id`. Empty string when the pipeline can't resolve a feed."
+            }
           }
         },
         "confidence": { "type": "number", "minimum": 0, "maximum": 1 }

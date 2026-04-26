@@ -220,6 +220,7 @@ def build_artifact(
     kg_extraction_provider: Optional[Any] = None,
     pipeline_metrics: Optional[Any] = None,
     prefilled_partial: Optional[Dict[str, Any]] = None,
+    feed_id: Optional[str] = None,
 ) -> Dict[str, Any]:
     """Build a KG artifact dict for one episode.
 
@@ -254,15 +255,20 @@ def build_artifact(
     ep_node_id = episode_node_id(episode_id)
     source = _resolve_source(cfg)
 
+    ep_props: Dict[str, Any] = {
+        "podcast_id": podcast_id or "podcast:unknown",
+        "title": (episode_title or "Episode").strip() or "Episode",
+        "publish_date": date_str,
+    }
+    # #658 — Episode nodes carry the stable feed identifier so the
+    # graph Feed chip can filter by feed across the merged corpus.
+    if feed_id is not None:
+        ep_props["feed_id"] = str(feed_id).strip()
     nodes: List[Dict[str, Any]] = [
         {
             "id": ep_node_id,
             "type": "Episode",
-            "properties": {
-                "podcast_id": podcast_id or "podcast:unknown",
-                "title": (episode_title or "Episode").strip() or "Episode",
-                "publish_date": date_str,
-            },
+            "properties": ep_props,
         }
     ]
     edges: List[Dict[str, Any]] = []

@@ -3630,6 +3630,7 @@ def generate_episode_metadata(  # noqa: C901
                     topic_labels=gi_topic_labels,
                     episode_duration_ms=gi_episode_duration_ms,
                     prefilled_insights=prefilled_insights_arg,
+                    feed_id=feed_id,
                 )
                 write_artifact(Path(gi_path), payload, validate=True)
                 bridge_gi_payload = payload
@@ -3814,6 +3815,7 @@ def generate_episode_metadata(  # noqa: C901
                     kg_extraction_provider=kg_provider_arg,
                     pipeline_metrics=pipeline_metrics,
                     prefilled_partial=kg_prefilled_partial,
+                    feed_id=feed_id,
                 )
                 kg_write_artifact(Path(kg_path), kg_payload, validate=True)
                 bridge_kg_payload = kg_payload

@@ -98,7 +98,11 @@
             "title": { "type": "string", "minLength": 1 },
             "publish_date": { "type": "string", "format": "date-time" },
             "audio_url": { "type": "string" },
-            "duration_ms": { "type": "integer", "minimum": 0 }
+            "duration_ms": { "type": "integer", "minimum": 0 },
+            "feed_id": {
+              "type": "string",
+              "description": "Stable feed identifier for cross-feed graph filtering (#658). Empty string when the pipeline can't resolve a feed (e.g. ad-hoc single-URL runs without feeds.spec); omit otherwise. Same value as `GET /api/corpus/feeds[].feed_id`."
+            }
           }
         }
       }
