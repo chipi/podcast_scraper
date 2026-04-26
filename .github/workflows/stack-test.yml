@@ -22,31 +22,32 @@ name: Stack test
 # Gemini providers / OpenAI Whisper.
 
 on:
-  push:
+  # Sequential next gate: only run after the upstream "Python application"
+  # workflow has completed successfully on the same branch + SHA. The two
+  # workflows used to run in parallel on every push, but stack-test's Docker
+  # build path tripping on a viewer or Python regression that ``Python
+  # application`` would have caught was wasteful (and surfaced the failure
+  # twice in the PR view). Running stack-test only after Python application
+  # succeeds keeps it as a true post-Python integration gate.
+  workflow_run:
+    workflows: ["Python application"]
+    types: [completed]
     branches: [main]
-    paths:
-      - 'compose/**'
-      - 'docker/**'
-      - 'config/ci/**'
-      - 'config/profiles/**'
-      - 'tests/stack-test/**'
-      - 'tests/fixtures/rss/**'
-      - 'tests/fixtures/audio/**'
-      - 'tests/fixtures/transcripts/**'
-      - 'Makefile'
-      - 'pyproject.toml'
-      - 'src/podcast_scraper/prompts/**'
-      - 'src/podcast_scraper/search/**'
-      - 'src/podcast_scraper/workflow/orchestration.py'
-      - '.github/workflows/stack-test.yml'
   workflow_dispatch:
 
 permissions:
+  # ``workflow_run`` events run with the upstream's permissions context;
+  # be explicit so this still works if the upstream tightens its own.
   contents: read
+  actions: read
+  checks: write
 
 jobs:
   stack-test:
     runs-on: ubuntu-latest
+    # Skip when the upstream "Python application" run did not succeed
+    # (workflow_run fires on completion regardless of conclusion).
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
     env:
       STACK_PIPELINE_PRELOAD_ML: false
       STACK_TEST_VIEWER_PORT: 8090
@@ -55,6 +56,11 @@ jobs:
       COMPOSE_DOCKER_CLI_BUILD: 1
     steps:
       - uses: actions/checkout@v6
+        with:
+          # workflow_run runs against the default branch by default; pin to
+          # the upstream's SHA so a subsequent push doesn't shift this run
+          # off-target. ``workflow_dispatch`` falls back to default ref.
+          ref: ${{ github.event.workflow_run.head_sha || github.ref }}
 
       - name: Free disk space
         run: |
@@ -92,6 +98,19 @@ jobs:
 
       - name: Run Playwright (smoke + full UI flow)
         run: make stack-test-playwright
+
+      - name: Dump compose logs on failure
+        if: failure()
+        run: |
+          echo "::group::api container logs"
+          docker compose -f compose/docker-compose.stack.yml -f compose/docker-compose.stack-test.yml logs --no-color --tail=400 api || true
+          echo "::endgroup::"
+          echo "::group::viewer container logs"
+          docker compose -f compose/docker-compose.stack.yml -f compose/docker-compose.stack-test.yml logs --no-color --tail=200 viewer || true
+          echo "::endgroup::"
+          echo "::group::pipeline container logs (one-shot job runner)"
+          docker compose -f compose/docker-compose.stack.yml -f compose/docker-compose.stack-test.yml logs --no-color --tail=400 pipeline pipeline-llm || true
+          echo "::endgroup::"
 
       - name: Tear down compose stack
         if: always()

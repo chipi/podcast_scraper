@@ -11,7 +11,7 @@ import pytest
 
 pytest.importorskip("fastapi")
 
-pytestmark = [pytest.mark.integration]
+pytestmark = [pytest.mark.integration, pytest.mark.critical_path]
 
 
 def test_server_lazy_create_app() -> None:

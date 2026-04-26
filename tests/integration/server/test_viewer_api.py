@@ -19,7 +19,7 @@ from podcast_scraper.search.faiss_store import VECTORS_FILE
 from podcast_scraper.server.app import create_app
 from podcast_scraper.server.schemas import HealthResponse
 
-pytestmark = [pytest.mark.integration]
+pytestmark = [pytest.mark.integration, pytest.mark.critical_path]
 
 
 def test_health_ok(tmp_path: Path) -> None:

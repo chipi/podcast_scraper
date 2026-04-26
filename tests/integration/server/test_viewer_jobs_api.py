@@ -17,7 +17,7 @@ from podcast_scraper.server.app import create_app
 from podcast_scraper.server.pipeline_job_registry import with_jobs_locked_mutate
 from podcast_scraper.server.routes import jobs as jobs_mod
 
-pytestmark = [pytest.mark.integration]
+pytestmark = [pytest.mark.integration, pytest.mark.critical_path]
 
 
 @pytest.fixture()

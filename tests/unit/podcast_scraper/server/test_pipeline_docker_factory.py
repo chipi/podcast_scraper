@@ -191,6 +191,22 @@ class TestValidateOperatorPipelineExtras:
         with pytest.raises(ValueError, match="'ml' or 'llm'"):
             pdf.validate_operator_pipeline_extras(p, "")
 
+    def test_subprocess_mode_tolerates_missing_file(self, tmp_path: Path) -> None:
+        """A fresh corpus without ``viewer_operator.yaml`` must not 500
+        ``POST /api/jobs`` in subprocess mode (native ``make serve-api``).
+        Regression for main breakage after #675 / #666 follow-ups."""
+        missing = tmp_path / "viewer_operator.yaml"
+        assert not missing.exists()
+        assert pdf.validate_operator_pipeline_extras(missing, "") is None
+
+    def test_docker_mode_still_rejects_missing_file(self, tmp_path: Path) -> None:
+        """Docker mode treats a missing file the same as a present file with
+        no ``pipeline_install_extras``: explicit error so the operator picks
+        ``ml`` or ``llm``."""
+        missing = tmp_path / "viewer_operator.yaml"
+        with pytest.raises(ValueError, match="Docker pipeline jobs require"):
+            pdf.validate_operator_pipeline_extras(missing, "docker")
+
 
 def test_attach_docker_jobs_factory_registers_callable() -> None:
     app = type("A", (), {})()

@@ -13,7 +13,7 @@ pytest.importorskip("fastapi")
 from podcast_scraper.server.app import create_app
 from podcast_scraper.server.operator_yaml_profile import split_operator_yaml_profile
 
-pytestmark = [pytest.mark.integration]
+pytestmark = [pytest.mark.integration, pytest.mark.critical_path]
 
 
 @pytest.fixture()

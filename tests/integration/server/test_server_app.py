@@ -16,7 +16,7 @@ pytest.importorskip("fastapi")
 
 from podcast_scraper.server.app import create_app, create_app_for_uvicorn
 
-pytestmark = [pytest.mark.integration]
+pytestmark = [pytest.mark.integration, pytest.mark.critical_path]
 
 
 def test_create_app_output_dir_none() -> None:

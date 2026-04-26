@@ -13,56 +13,108 @@ marker for tests that validate the critical path - these run in the fast test su
 
 ## What is the Critical Path?
 
-**Critical Path = Full Workflow with All Core Features**
+**Critical Path = Anything that, if broken, prevents a user from completing a
+primary product workflow.**
 
-The critical path represents the **essence of this project** - the complete workflow that delivers the main value:
+This project has **two** primary product workflows. A test belongs on the
+critical path if its failure would block users from completing either.
+
+### Workflow 1 — Pipeline ingestion (the original definition)
+
+The complete data-production workflow that delivers the main value:
 
 ```text
 RSS → Parse → Download/Transcribe → Speaker Detection → Summarization → Metadata → Files
 ```
 
-### Path 1: Transcript Download (when transcript URL exists)
+The two variants below cover the disk paths users hit in production. Both are
+in scope for the marker; both must be tested to ensure complete coverage
+regardless of provider selection.
 
-**ML Provider Flow:**
+#### Path 1A: Transcript Download (when transcript URL exists)
 
-- RSS → Parse → Download Transcript → **NER Speaker Detection** → **Local Summarization** → Metadata → Files
+- **ML Provider Flow** — RSS → Parse → Download Transcript →
+  **NER Speaker Detection** → **Local Summarization** → Metadata → Files
+- **OpenAI Provider Flow** — RSS → Parse → Download Transcript →
+  **OpenAI Speaker Detection** → **OpenAI Summarization** → Metadata → Files
 
-**OpenAI Provider Flow:**
+#### Path 1B: Transcription (when transcript URL missing)
 
-- RSS → Parse → Download Transcript → **OpenAI Speaker Detection** → **OpenAI Summarization** → Metadata → Files
-
-### Path 2: Transcription (when transcript URL missing)
-
-**ML Provider Flow:**
-
-- RSS → Parse → Download Audio/Video → **Whisper Transcription** → **NER Speaker Detection** →
+- **ML Provider Flow** — RSS → Parse → Download Audio/Video →
+  **Whisper Transcription** → **NER Speaker Detection** →
   **Local Summarization** → Metadata → Files
-
-**OpenAI Provider Flow:**
-
-- RSS → Parse → Download Audio/Video → **OpenAI Transcription** → **OpenAI Speaker Detection** →
+- **OpenAI Provider Flow** — RSS → Parse → Download Audio/Video →
+  **OpenAI Transcription** → **OpenAI Speaker Detection** →
   **OpenAI Summarization** → Metadata → Files
 
-**Why All Paths Matter:**
+#### Why Speaker Detection and Summarization are Critical
 
-- All variants are valid configurations users can choose
-- All are essential for the tool to work correctly with different provider choices
-- All must be tested to ensure complete coverage regardless of provider selection
+- **Speaker Detection** identifies hosts and guests from metadata
+  (spaCy NER locally, OpenAI in cloud mode).
+- **Summarization** generates episode summaries from transcripts
+  (Transformers locally, OpenAI in cloud mode).
+- Both are core value; both provider modes are valid user-selectable
+  configurations.
 
-### Why Speaker Detection and Summarization are Critical
+### Workflow 2 — Viewer UI usage
 
-- **Speaker Detection**: Core feature that identifies hosts and guests from metadata
-  - **ML Provider**: Uses spaCy NER models (local)
-  - **OpenAI Provider**: Uses OpenAI API (cloud)
-- **Summarization**: Core feature that generates episode summaries from transcripts
-  - **ML Provider**: Uses Transformers models (local)
-  - **OpenAI Provider**: Uses OpenAI API (cloud)
-- **Both are essential**: They represent the main value proposition of the project
-- **Both provider types are critical**: Users can choose ML (local, free) or OpenAI (cloud, paid) based on their needs
+The viewer (`web/gi-kg-viewer/`, served by the FastAPI app) is the second
+primary product surface. A user opens the app, points it at a corpus, and
+expects to:
+
+```text
+Health → Set corpus → Browse Library / Digest → Search / Explore →
+Configure Feeds + Profile → Run pipeline jobs → See results in Graph + Dashboard
+```
+
+API surfaces whose failure breaks this loop are critical-path:
+
+- **App + health surface** — `/api/health`, app startup, route mounting.
+  No app, no anything else.
+- **Corpus listing** — `/api/corpus/episodes`, `/api/corpus/feeds`.
+  Library tab is empty without these.
+- **Artifacts loading** — `/api/artifacts`, `/api/artifacts/<rel>`.
+  Graph / Search / Explore data flows through here.
+- **Operator config + feeds** — `/api/operator-config` (GET / PUT),
+  `/api/feeds` (GET / PUT). Without these, the user can't set the corpus
+  path, choose a profile, or add a feed.
+- **Pipeline jobs** — `/api/jobs` (POST + status + log endpoints).
+  This is the entry point that *triggers* Workflow 1; it's the bridge
+  between the UI and pipeline-critical-path.
+- **Search + Explore** — `/api/search`, `/api/explore`. These are the
+  panels users open to actually look at the corpus.
+- **Digest** — `/api/corpus/digest`, `/api/corpus/cil-digest-topics`,
+  `/api/corpus/topic-clusters`. The Digest tab fronts the corpus value
+  proposition.
+
+API surfaces that **degrade** the experience but don't block primary
+workflows are NOT critical-path (they belong in the full integration suite,
+not `ci-fast`):
+
+- Dashboard auxiliary panels: `/api/index/stats` (Index stats),
+  `/api/corpus/metrics`, `/api/corpus/persons`, `/api/corpus/coverage`.
+  Failure here means a dashboard panel is empty / red — user can still
+  ingest, search, and view.
+- Index rebuild orchestration. Eventual-consistency surface; user can
+  retrigger.
+
+### Decision rule (use this when adding a new test)
+
+A test is **`critical_path`** when answering "yes" to *both*:
+
+1. **Could this regression block a user from completing a primary workflow?**
+   (Pipeline ingest *or* Viewer UI usage.)
+2. **Is the test itself fast and deterministic** (no real ML model load,
+   no real subprocess work)? Critical-path tests run on every PR via
+   `ci-fast`; they must finish in seconds, not minutes.
+
+If either answer is "no", drop the marker. Slow but important regressions
+go in the full `make ci` / nightly suites; fast but cosmetic regressions
+get caught by ordinary integration tests on the full body.
 
 ## Critical Path and Test Pyramid
 
-The critical path should be tested at **all three levels** of the test pyramid:
+Both workflows should be tested at **all three levels** of the test pyramid:
 
 ```text
         /\

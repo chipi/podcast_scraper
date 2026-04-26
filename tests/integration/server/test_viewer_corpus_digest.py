@@ -14,7 +14,7 @@ from fastapi.testclient import TestClient
 
 from podcast_scraper.server.app import create_app
 
-pytestmark = [pytest.mark.integration]
+pytestmark = [pytest.mark.integration, pytest.mark.critical_path]
 
 
 def _episode_doc(
