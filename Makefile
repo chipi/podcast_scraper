@@ -1526,7 +1526,14 @@ ci: cleanup-processes
 # Offline HF for pytest: ``tests/conftest.py`` sets HF_HUB_OFFLINE / TRANSFORMERS_OFFLINE.
 # The ``ci:`` cache probe above passes them inline so probes do not hit the Hub accidentally.
 
-_ci_body: format-check lint lint-markdown type security complexity deadcode docstrings spelling check-test-policy test test-ui test-ui-e2e build-viewer coverage-enforce docs build
+_ci_body: format-check lint lint-markdown type security complexity deadcode docstrings spelling check-test-policy test test-ui test-ui-e2e build-viewer coverage-enforce docs build stack-test-ml
+	# stack-test-ml is the final gate — full Docker stack + ml pipeline path
+	# (~5-10 min, no API keys, no cloud cost). Stack stays up after success
+	# for inspection (``make stack-test-export`` / artifact poking); run
+	# ``make stack-test-down`` when finished. Cloud-thin variant
+	# (``stack-test-cloud-thin``) is a separate explicit target — public
+	# CI does not run it (recurring API cost) and ``ci`` does not include
+	# it for the same reason locally.
 
 ci-fast: cleanup-processes format-check lint lint-markdown type security complexity deadcode docstrings spelling check-test-policy quality-metrics-ci test-fast test-ui build-viewer docs build
 	# Note: ci-fast skips coverage-enforce and test-ui-e2e (Playwright). For viewer work use ci-ui-fast.
