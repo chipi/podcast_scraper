@@ -41,7 +41,9 @@ const emit = defineEmits<{
   (e: 'update:modelValue', v: string): void
 }>()
 
-const { open, anchorRef, panelRef, toggle, close } = useFilterChipPopover()
+const anchorRef = ref<HTMLButtonElement | null>(null)
+const panelRef = ref<HTMLDivElement | null>(null)
+const { open, toggle, close } = useFilterChipPopover(anchorRef, panelRef)
 
 const preset = computed(() => inferCorpusLensPreset(props.modelValue))
 

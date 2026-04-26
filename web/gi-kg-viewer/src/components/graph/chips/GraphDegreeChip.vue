@@ -4,7 +4,7 @@
  * previously lived in the ⚙ popover. Active state lives on
  * ``useGraphExplorerStore.activeDegreeBucket`` (unchanged from today).
  */
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import { storeToRefs } from 'pinia'
 import { useGraphExplorerStore } from '../../../stores/graphExplorer'
 import { useFilterChipPopover } from '../../../composables/useFilterChipPopover'
@@ -16,7 +16,9 @@ const props = defineProps<{
 
 const ge = useGraphExplorerStore()
 const { activeDegreeBucket } = storeToRefs(ge)
-const { open, anchorRef, panelRef, toggle } = useFilterChipPopover()
+const anchorRef = ref<HTMLButtonElement | null>(null)
+const panelRef = ref<HTMLDivElement | null>(null)
+const { open, toggle } = useFilterChipPopover(anchorRef, panelRef)
 
 const isActive = computed(
   () => activeDegreeBucket.value != null && activeDegreeBucket.value !== '',

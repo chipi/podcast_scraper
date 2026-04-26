@@ -3,14 +3,16 @@
  * Top-k chip (#671) — number popover. Default 10. Active when value
  * differs from the API default.
  */
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import { useSearchStore } from '../../../stores/search'
 import { useFilterChipPopover } from '../../../composables/useFilterChipPopover'
 
 const TOP_K_DEFAULT = 10
 
 const search = useSearchStore()
-const { open, anchorRef, panelRef, toggle, close } = useFilterChipPopover()
+const anchorRef = ref<HTMLButtonElement | null>(null)
+const panelRef = ref<HTMLDivElement | null>(null)
+const { open, toggle, close } = useFilterChipPopover(anchorRef, panelRef)
 
 const isActive = computed(() => Number(search.filters.topK) !== TOP_K_DEFAULT)
 

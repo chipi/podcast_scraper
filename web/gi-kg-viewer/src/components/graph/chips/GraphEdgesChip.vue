@@ -3,12 +3,14 @@
  * Graph edge-type chip (#658). Replaces the edges section of the legacy
  * ``GraphFiltersPopover``. Shows ``Edges: K of N ▾`` when filtered.
  */
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import { useGraphFilterStore } from '../../../stores/graphFilters'
 import { useFilterChipPopover } from '../../../composables/useFilterChipPopover'
 
 const gf = useGraphFilterStore()
-const { open, anchorRef, panelRef, toggle } = useFilterChipPopover()
+const anchorRef = ref<HTMLButtonElement | null>(null)
+const panelRef = ref<HTMLDivElement | null>(null)
+const { open, toggle } = useFilterChipPopover(anchorRef, panelRef)
 
 const edgeKeys = computed(() => {
   const aet = gf.state?.allowedEdgeTypes

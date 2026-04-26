@@ -26,7 +26,9 @@ const emit = defineEmits<{
   (e: 'submit'): void
 }>()
 
-const { open, anchorRef, panelRef, toggle, close } = useFilterChipPopover()
+const anchorRef = ref<HTMLButtonElement | null>(null)
+const panelRef = ref<HTMLDivElement | null>(null)
+const { open, toggle, close } = useFilterChipPopover(anchorRef, panelRef)
 
 const draft = ref(props.modelValue)
 watch(

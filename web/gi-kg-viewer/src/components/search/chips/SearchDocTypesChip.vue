@@ -3,7 +3,7 @@
  * Doc types chip (#671). Replaces the multi-checkbox row in the Advanced
  * search dialog. Empty selection = all types.
  */
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import { useSearchStore } from '../../../stores/search'
 import { useFilterChipPopover } from '../../../composables/useFilterChipPopover'
 
@@ -17,7 +17,9 @@ const TYPE_OPTIONS = [
 ] as const
 
 const search = useSearchStore()
-const { open, anchorRef, panelRef, toggle } = useFilterChipPopover()
+const anchorRef = ref<HTMLButtonElement | null>(null)
+const panelRef = ref<HTMLDivElement | null>(null)
+const { open, toggle } = useFilterChipPopover(anchorRef, panelRef)
 
 const isActive = computed(() => search.filters.types.length > 0)
 

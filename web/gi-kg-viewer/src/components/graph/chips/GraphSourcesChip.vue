@@ -4,12 +4,14 @@
  * ungrounded toggles into one popover. Visible only when ``kind === 'both'``
  * (GI+KG); pure-GI / pure-KG views render no Sources chip.
  */
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import { useGraphFilterStore } from '../../../stores/graphFilters'
 import { useFilterChipPopover } from '../../../composables/useFilterChipPopover'
 
 const gf = useGraphFilterStore()
-const { open, anchorRef, panelRef, toggle } = useFilterChipPopover()
+const anchorRef = ref<HTMLButtonElement | null>(null)
+const panelRef = ref<HTMLDivElement | null>(null)
+const { open, toggle } = useFilterChipPopover(anchorRef, panelRef)
 
 const kind = computed(() => gf.fullArtifact?.kind)
 

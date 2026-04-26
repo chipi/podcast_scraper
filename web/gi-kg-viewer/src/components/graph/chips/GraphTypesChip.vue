@@ -4,7 +4,7 @@
  * checkbox grid that previously lived in ``GraphCanvas.vue``. Chip label
  * shows ``Types: K of N ▾`` when filtered.
  */
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import { useGraphFilterStore } from '../../../stores/graphFilters'
 import { useFilterChipPopover } from '../../../composables/useFilterChipPopover'
 import { graphNodeFill, graphNodeLegendLabel } from '../../../utils/colors'
@@ -15,7 +15,9 @@ const props = defineProps<{
 }>()
 
 const gf = useGraphFilterStore()
-const { open, anchorRef, panelRef, toggle } = useFilterChipPopover()
+const anchorRef = ref<HTMLButtonElement | null>(null)
+const panelRef = ref<HTMLDivElement | null>(null)
+const { open, toggle } = useFilterChipPopover(anchorRef, panelRef)
 
 const typeKeys = computed(() => {
   const st = gf.state

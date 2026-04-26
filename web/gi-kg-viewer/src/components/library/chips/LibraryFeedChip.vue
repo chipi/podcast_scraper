@@ -5,7 +5,7 @@
  * State is owned by ``LibraryView`` (kept as a local ref there to
  * preserve existing reload semantics) and driven via v-model.
  */
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import type { CorpusFeedItem } from '../../../api/corpusLibraryApi'
 import { useFilterChipPopover } from '../../../composables/useFilterChipPopover'
 import { feedRowVisibleLabel } from '../../../utils/corpusFeedRowDisplay'
@@ -28,7 +28,9 @@ const emit = defineEmits<{
   (e: 'update:modelValue', v: string | null): void
 }>()
 
-const { open, anchorRef, panelRef, toggle } = useFilterChipPopover()
+const anchorRef = ref<HTMLButtonElement | null>(null)
+const panelRef = ref<HTMLDivElement | null>(null)
+const { open, toggle } = useFilterChipPopover(anchorRef, panelRef)
 
 const selectedFeed = computed<CorpusFeedItem | null>(() => {
   const id = props.modelValue

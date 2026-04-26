@@ -18,7 +18,9 @@ import CorpusFeedFilterPanel from '../../shared/CorpusFeedFilterPanel.vue'
 
 const shell = useShellStore()
 const gf = useGraphFilterStore()
-const { open, anchorRef, panelRef, toggle } = useFilterChipPopover()
+const anchorRef = ref<HTMLButtonElement | null>(null)
+const panelRef = ref<HTMLDivElement | null>(null)
+const { open, toggle } = useFilterChipPopover(anchorRef, panelRef)
 
 const feeds = ref<CorpusFeedItem[]>([])
 const loading = ref(false)

@@ -4,32 +4,36 @@
  *
  * Usage:
  *
- *   const { open, anchorRef, panelRef, toggle, close } = useFilterChipPopover()
+ *   const anchorRef = ref<HTMLButtonElement | null>(null)
+ *   const panelRef = ref<HTMLDivElement | null>(null)
+ *   const { open, toggle, close } = useFilterChipPopover(anchorRef, panelRef)
  *
  * Then bind ``ref="anchorRef"`` on the chip ``<button>``, ``ref="panelRef"``
  * on the popover ``<div role="dialog">``, ``v-show="open"`` on the panel,
  * and ``@click="toggle"`` plus ``:aria-expanded="open"`` /
  * ``aria-haspopup="dialog"`` on the chip.
  *
+ * The consumer owns the refs so ``vue-tsc --noUnusedLocals`` recognises
+ * the template ``ref="..."`` binding as a use of the local variable.
+ *
  * Behaviour:
  *   - ``pointerdown`` outside both anchor and panel → close.
  *   - ``Escape`` → close + return focus to anchor (a11y).
  *   - Listeners attach on open and detach on close / unmount.
  */
-import { nextTick, onUnmounted, ref, watch } from 'vue'
+import { nextTick, onUnmounted, ref, watch, type Ref } from 'vue'
 
-export interface FilterChipPopover {
-  open: ReturnType<typeof ref<boolean>>
-  anchorRef: ReturnType<typeof ref<HTMLButtonElement | null>>
-  panelRef: ReturnType<typeof ref<HTMLDivElement | null>>
+export interface FilterChipPopoverHandle {
+  open: Ref<boolean>
   toggle: () => void
   close: () => void
 }
 
-export function useFilterChipPopover(): FilterChipPopover {
+export function useFilterChipPopover(
+  anchorRef: Ref<HTMLButtonElement | null>,
+  panelRef: Ref<HTMLDivElement | null>,
+): FilterChipPopoverHandle {
   const open = ref(false)
-  const anchorRef = ref<HTMLButtonElement | null>(null)
-  const panelRef = ref<HTMLDivElement | null>(null)
 
   function close(): void {
     open.value = false
@@ -71,5 +75,5 @@ export function useFilterChipPopover(): FilterChipPopover {
     document.removeEventListener('keydown', onDocKeydown, true)
   })
 
-  return { open, anchorRef, panelRef, toggle, close }
+  return { open, toggle, close }
 }
