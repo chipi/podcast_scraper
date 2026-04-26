@@ -1507,9 +1507,9 @@ ci-fast: cleanup-processes format-check lint lint-markdown type security complex
 ci-ui-fast: cleanup-processes format-check lint lint-markdown type security complexity deadcode docstrings spelling check-test-policy quality-metrics-ci test-fast-no-py-e2e test-ui test-ui-e2e build-viewer docs build
 	# Note: ci-ui-fast skips coverage-enforce and Python tests/e2e; Playwright still needs browsers installed.
 
-ci-clean: clean-all format-check lint lint-markdown type security preload-ml-models test build-viewer docs build
+ci-clean: clean-all format-check lint lint-markdown type security complexity deadcode docstrings spelling check-test-policy preload-ml-models test test-ui test-ui-e2e build-viewer coverage-enforce docs build
 
-ci-nightly: format-check lint lint-markdown type security complexity deadcode docstrings spelling preload-ml-models-production test-unit test-integration test-e2e test-nightly build-viewer coverage-enforce docs build
+ci-nightly: format-check lint lint-markdown type security complexity deadcode docstrings spelling check-test-policy preload-ml-models-production test-unit test-integration test-e2e test-nightly test-ui test-ui-e2e build-viewer coverage-enforce docs build
 	@echo ""
 	@echo "✓ Full nightly CI chain completed"
 
