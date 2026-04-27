@@ -1,0 +1,86 @@
+name: Backup corpus snapshot
+
+# Daily backup of the pre-prod codespace's corpus directory to a
+# private GitHub Releases asset on chipi/podcast_scraper-backup. See
+# RFC-081 §Phase 1E + issue #682.
+#
+# Status: SCAFFOLDING — the backup repo + the BACKUP_REPO_TOKEN secret
+# do not exist yet. The job is gated behind ``inputs.dry_run == false``
+# and a manual ``workflow_dispatch`` so it cannot run unintentionally.
+# Operator follow-up:
+#   1. Create chipi/podcast_scraper-backup as a PRIVATE repo.
+#   2. Create a fine-grained PAT with ``contents: write`` scope on
+#      that repo only; store as ``BACKUP_REPO_TOKEN`` GHA secret.
+#   3. Flip the schedule cron back on by removing the ``if:`` gate
+#      and uncommenting the ``schedule:`` trigger.
+
+on:
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Run without uploading (logs the would-do tarball size + retention prune list)"
+        required: false
+        type: boolean
+        default: true
+  # schedule:
+  #   - cron: "17 4 * * *"  # 04:17 UTC daily, after pre-prod is quiet
+
+permissions:
+  # No GITHUB_TOKEN write needed — uploads go to a different repo via
+  # BACKUP_REPO_TOKEN. Keep the default-token surface minimal.
+  contents: read
+
+jobs:
+  snapshot:
+    runs-on: ubuntu-latest
+    # Refuse to run until the operator has confirmed the backup repo
+    # + secret are wired. Removing this guard is the explicit opt-in.
+    if: ${{ inputs.dry_run == false || vars.PODCAST_BACKUP_REPO_READY == 'true' }}
+    steps:
+      - name: Reach into the pre-prod codespace
+        # Codespaces snapshot pattern (gh codespace cp doesn't accept
+        # streaming; we pull a tarball from inside instead). The
+        # codespace must be running OR autostart-on-cli-access enabled.
+        env:
+          CODESPACES_PAT: ${{ secrets.CODESPACES_PAT }}
+        run: |
+          set -euo pipefail
+          : "${CODESPACES_PAT:?CODESPACES_PAT not set}"
+          export GH_TOKEN="$CODESPACES_PAT"
+          echo "TODO: implement once the codespace name is fixed (e.g., chipi/podcast_scraper-preprod)."
+          echo "Outline:"
+          echo "  CS=podcast-scraper-preprod"
+          echo "  gh codespace start --codespace \"\$CS\""
+          echo "  gh codespace ssh --codespace \"\$CS\" -- \\"
+          echo "    'tar -czf - -C /workspaces/podcast_scraper .codespace_corpus' \\"
+          echo "    > snapshot.tgz"
+          echo "  ls -lh snapshot.tgz"
+
+      - name: Compute retention pruning (last 7 daily + 4 weekly)
+        run: |
+          set -euo pipefail
+          echo "TODO: list existing releases on chipi/podcast_scraper-backup"
+          echo "and identify which to delete:"
+          echo "  - keep most recent 7 daily snapshots (snapshot-YYYYMMDD)"
+          echo "  - keep 4 most recent weekly snapshots (any -W tag, or"
+          echo "    auto-promote the earliest daily of each ISO week)"
+          echo "  - delete the rest via ``gh release delete``"
+
+      - name: Upload to chipi/podcast_scraper-backup
+        if: ${{ inputs.dry_run == false }}
+        env:
+          BACKUP_REPO_TOKEN: ${{ secrets.BACKUP_REPO_TOKEN }}
+        run: |
+          set -euo pipefail
+          : "${BACKUP_REPO_TOKEN:?BACKUP_REPO_TOKEN not set}"
+          export GH_TOKEN="$BACKUP_REPO_TOKEN"
+          TAG="snapshot-$(date -u +%Y%m%d)"
+          echo "TODO: gh release create \"$TAG\" snapshot.tgz \\"
+          echo "        --repo chipi/podcast_scraper-backup \\"
+          echo "        --notes \"automated daily backup, retention 7d+4w\""
+
+      - name: Dry-run report
+        if: ${{ inputs.dry_run == true }}
+        run: |
+          echo "Dry-run mode: nothing uploaded. See workflow log for"
+          echo "tarball size + retention plan."

@@ -1,0 +1,58 @@
+name: Deploy to pre-prod codespace
+
+# Triggers a rebuild + wake of the named pre-prod codespace whenever
+# stack-test passes on main, OR when manually dispatched. See
+# RFC-081 §Phase 1A + issue #682.
+#
+# Status: SCAFFOLDING — the codespace name + the CODESPACES_PAT secret
+# do not exist yet. The job's main step short-circuits to a TODO log
+# until the operator wires the prerequisites:
+#   1. Create the pre-prod codespace once (via web UI or
+#      ``gh codespace create --repo chipi/podcast_scraper --branch main``).
+#   2. Pin the codespace name (e.g., ``podcast-scraper-preprod``).
+#   3. Create a fine-grained PAT with ``codespaces`` scope; store as
+#      ``CODESPACES_PAT`` GHA secret. The default ``GITHUB_TOKEN``
+#      cannot manage codespaces.
+
+on:
+  workflow_dispatch:
+  workflow_run:
+    workflows: ["Stack test"]
+    types: [completed]
+    branches: [main]
+
+permissions:
+  actions: read
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
+    steps:
+      - name: Trigger codespace rebuild + wait for /api/health
+        env:
+          CODESPACES_PAT: ${{ secrets.CODESPACES_PAT }}
+          # Pin the codespace name so the workflow targets the same env
+          # every time. Set as a repository variable (Settings →
+          # Variables → Actions → Repository variables) once the
+          # codespace exists.
+          PREPROD_CODESPACE: ${{ vars.PREPROD_CODESPACE_NAME }}
+        run: |
+          set -euo pipefail
+          if [ -z "${CODESPACES_PAT:-}" ] || [ -z "${PREPROD_CODESPACE:-}" ]; then
+            echo "::warning::CODESPACES_PAT or PREPROD_CODESPACE_NAME not set."
+            echo "::warning::Skipping deploy — operator has not yet wired the prerequisites."
+            echo "TODO when ready:"
+            echo "  export GH_TOKEN=\"\$CODESPACES_PAT\""
+            echo "  gh codespace rebuild --full --codespace \"\$PREPROD_CODESPACE\""
+            echo "  # Poll the forwarded /api/health URL with a 5-min budget"
+            exit 0
+          fi
+          export GH_TOKEN="$CODESPACES_PAT"
+          echo "Rebuilding codespace: $PREPROD_CODESPACE"
+          gh codespace rebuild --full --codespace "$PREPROD_CODESPACE"
+          echo "Rebuild requested. Codespace will be ready when its"
+          echo "internal docker compose stack reports healthy."
+          echo "Add a /api/health probe step here once the codespace's"
+          echo "publicly-resolvable forwarded URL is known + stable."
