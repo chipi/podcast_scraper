@@ -28,15 +28,44 @@ files were modified during the audit.
 
 ### `tests/unit/`
 
-**Status: Poor — structural violations blocking unit test signal.**
+**Status update (correction, post-audit verification): the
+"structural violations" framing was wrong.**
 
-- **~37 tests in `tests/unit/podcast_scraper/providers/`** import from
-  `[ml]` extras (`from podcast_scraper.providers.ml import ...`). Per
-  [`docs/guides/UNIT_TESTING_GUIDE.md`](../guides/UNIT_TESTING_GUIDE.md),
-  unit tests must only import from `[dev]`. These will silently skip or
-  fail in the unit CI job because `[ml]` is not installed there.
-- **~20 tests in `tests/unit/podcast_scraper/server/`** import from
-  `[server]` extras with the same problem.
+The audit flagged ~37 + ~20 tests as importing non-`[dev]` extras
+and concluded they would "silently skip or fail in the unit CI job".
+On verification:
+
+- The `Python application` workflow's `test-unit` job (which installs
+  `[dev]` only) is **green** on recent runs.
+- The provider modules use **lazy imports** (`importlib` at runtime,
+  `from transformers import ...` inside functions). Top-level
+  `from podcast_scraper.providers.ml.ml_provider import MLProvider`
+  works in a `[dev]`-only environment because the heavy extras only
+  load at instantiation time, not module-import time.
+
+So the tests are **not** silently broken. They pass fine in CI today.
+
+What remains true:
+
+- **`tests/unit/podcast_scraper/test_summarizer.py`** still patches
+  `transformers.pipeline` / `transformers.AutoModelForSeq2SeqLM`
+  directly (~36 occurrences) — the pre-#677 anti-pattern that breaks
+  against `transformers >= 4.40` lazy modules. Should patch the
+  indirection helper (`SummaryModel._load_model`) instead. **Real
+  bug, real fix needed (see PR-2).**
+- **`tests/unit/podcast_scraper/gi/test_gil_quality_metrics.py`** /
+  **`tests/unit/podcast_scraper/test_cli.py`** assert on quality
+  thresholds that belong in `data/eval/` (PR-4).
+
+What's a stylistic concern (not a bug):
+
+- ~57 tests live in `tests/unit/` but conceptually exercise modules
+  gated by `[ml]` / `[server]`. Some teams would consider this a
+  test-policy concern (the unit tier should stay agnostic to
+  optional extras even if imports happen to be lazy-safe). Moving
+  them to `tests/integration/` is defensible but is **not blocking
+  unit-CI signal** — it would be cleanup for clarity, not correctness.
+  **Deprioritised** — operator decides if they want this refactor.
 - **`tests/unit/podcast_scraper/test_summarizer.py`** still patches
   `transformers.pipeline` / `transformers.AutoModelForSeq2SeqLM` directly
   (~36 occurrences), the pre-#677 anti-pattern. Should patch the
@@ -64,7 +93,7 @@ files were modified during the audit.
   - `tests/integration/gi/test_evidence_stack_integration.py` (QA span
     score / NLI score range checks)
   - `tests/integration/test_summary_schema_integration.py` schema-status
-    + bullet count expectations
+    plus bullet count expectations
 - **Coverage gaps**:
   - `src/podcast_scraper/server/routes/corpus_persons.py` — `/top`
     endpoint has only indirect coverage via library tests
