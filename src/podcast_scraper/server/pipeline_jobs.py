@@ -472,6 +472,16 @@ async def _finalize_job(
 
     await asyncio.to_thread(with_jobs_locked_mutate, corpus_root, fn)
 
+    # Fire-and-forget downstream notification. No-op when
+    # PODCAST_JOB_WEBHOOK_URL is unset (default). Failures are logged
+    # but never propagate — webhook outages must not break finalize.
+    # See src/podcast_scraper/server/job_webhook.py + RFC-081 §Layer 4.
+    rec_after = await asyncio.to_thread(get_job, corpus_root, job_id)
+    if rec_after is not None:
+        from podcast_scraper.server.job_webhook import emit_job_state_change
+
+        await emit_job_state_change(rec_after)
+
 
 async def monitor_subprocess(
     app: Any,
