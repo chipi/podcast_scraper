@@ -474,7 +474,7 @@ validate-kg-schema:
 	fi
 
 # GI/KG viewer v2 (#489): FastAPI + Vite. Install: pip install -e '.[server]'; cd $(WEB_VIEWER_DIR) && npm install
-.PHONY: serve serve-api serve-ui serve-e2e-mock stack-build stack-build-llm stack-compose-validate stack-up stack-down stack-logs verify-stack-profiles stack-test-build stack-test-build-cloud stack-test-up stack-test-down stack-test-seed stack-test-playwright stack-test-export stack-test-ml stack-test-cloud-thin stack-test-ml-ci
+.PHONY: serve serve-api serve-ui serve-e2e-mock stack-build stack-build-llm stack-compose-validate stack-up stack-down stack-logs verify-stack-profiles stack-test-build stack-test-build-cloud stack-test-up stack-test-down stack-test-seed stack-test-playwright stack-test-export stack-test-ml stack-test-cloud-thin stack-test-ml-ci deploy-codespace restore-corpus
 SERVE_OUTPUT_DIR ?= ./output
 # Optional corpus-editing + jobs routes (health shows green when on). Override with SERVE_ARGS= to disable.
 SERVE_ARGS ?= --enable-feeds-api --enable-operator-config-api --enable-jobs-api
@@ -699,6 +699,60 @@ stack-test-ml-ci:
 		&& $(MAKE) stack-test-up \
 		&& $(MAKE) stack-test-seed STACK_TEST_OPERATOR_VARIANT=ml \
 		&& $(MAKE) stack-test-playwright
+
+# RFC-081 Phase 1 — manual escape hatches for the deploy + restore
+# workflows. Both fail loud if prerequisites (PAT / codespace name /
+# backup repo) aren't wired yet.
+
+# Trigger the ``deploy-codespace`` workflow on the named pre-prod
+# codespace. Same code path as the auto-fired GHA on stack-test
+# success; manual invocation is the operator's escape hatch when the
+# auto-trigger didn't fire (e.g., stack-test workflow_run permission
+# blip, or a forced redeploy after secrets change).
+#
+# Requires:
+#   * gh auth login (or GH_TOKEN env)
+#   * GH_TOKEN PAT must include ``codespaces`` scope (the default
+#     ``GITHUB_TOKEN`` doesn't); store in ``CODESPACES_PAT`` GHA secret
+#     and export when running this make target locally.
+#   * ``CODESPACES_PAT_NAME`` (default ``podcast-scraper-preprod``) is
+#     the codespace name; override via env.
+deploy-codespace:
+	@CS="$${CODESPACES_PAT_NAME:-podcast-scraper-preprod}"; \
+	if [ -z "$${GH_TOKEN:-}" ] && ! gh auth status >/dev/null 2>&1; then \
+		echo "ERROR: gh CLI not authenticated. Run 'gh auth login' or export GH_TOKEN." >&2; \
+		echo "       The token must include the 'codespaces' scope." >&2; \
+		exit 2; \
+	fi; \
+	echo "Rebuilding codespace: $$CS"; \
+	gh codespace rebuild --full --codespace "$$CS"
+
+# Pull the latest corpus snapshot from chipi/podcast_scraper-backup and
+# untar into ``.codespace_corpus/`` (the workspace-survives-suspend
+# path that the codespace bind-mounts as the corpus root).
+#
+# Requires:
+#   * gh auth login with read access to chipi/podcast_scraper-backup
+#     (private repo).
+#   * Run from inside the codespace OR with the workspace path
+#     overridden via WORKSPACE_DIR (default: current dir).
+restore-corpus:
+	@WORKSPACE_DIR="$${WORKSPACE_DIR:-$$PWD}"; \
+	BACKUP_REPO="$${PODCAST_BACKUP_REPO:-chipi/podcast_scraper-backup}"; \
+	echo "Restoring latest corpus snapshot from $$BACKUP_REPO ..."; \
+	if ! gh release list --repo "$$BACKUP_REPO" --limit 1 >/dev/null 2>&1; then \
+		echo "ERROR: cannot list releases on $$BACKUP_REPO." >&2; \
+		echo "       Confirm the repo exists, your gh CLI is authenticated, and" >&2; \
+		echo "       your token has read access to that private repo." >&2; \
+		exit 2; \
+	fi; \
+	LATEST=$$(gh release list --repo "$$BACKUP_REPO" --limit 1 --json tagName -q '.[0].tagName'); \
+	echo "Latest snapshot: $$LATEST"; \
+	mkdir -p "$$WORKSPACE_DIR/.codespace_corpus"; \
+	cd /tmp && rm -f snapshot.tgz; \
+	gh release download "$$LATEST" --repo "$$BACKUP_REPO" --pattern 'snapshot.tgz' --output /tmp/snapshot.tgz; \
+	tar -xzf /tmp/snapshot.tgz -C "$$WORKSPACE_DIR" --strip-components=0; \
+	echo "OK: corpus restored from $$LATEST into $$WORKSPACE_DIR/.codespace_corpus/"
 
 # Vitest unit tests for TypeScript utility logic (no browser needed)
 test-ui:
