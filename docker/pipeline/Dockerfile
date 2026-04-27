@@ -10,10 +10,19 @@
 #   Default: "ml" for backwards compatibility
 ARG INSTALL_EXTRAS=ml
 
-# PRELOAD_ML_MODELS: Set to "true" to bake in the full ML cache (default), "false" to skip (e.g. docker-build-fast).
-# When true and INSTALL_EXTRAS=ml, runs `scripts/cache/preload_ml_models.py --production` — same bundle as CI
-# `make preload-ml-models-production` (Whisper tiny.en + base.en, prod+test HF models, hybrid LongT5/FLAN, GIL evidence).
+# PRELOAD_ML_MODELS: Set to "true" to bake in the ML cache (default), "false" to skip (e.g. docker-build-fast).
+# When true and INSTALL_EXTRAS=ml, runs `scripts/cache/preload_ml_models.py --$PRELOAD_VARIANT`.
 ARG PRELOAD_ML_MODELS=true
+
+# PRELOAD_VARIANT: which preload bundle to bake in when PRELOAD_ML_MODELS=true.
+#   - "production" (default) = full bundle for nightly / production: Whisper tiny.en + base.en,
+#     BART-base, LED-base-16384, hybrid LongT5 + FLAN-T5, GIL evidence (embedding + QA + NLI).
+#   - "airgapped-thin" = exactly what config/profiles/airgapped_thin.yaml needs:
+#     Whisper tiny.en, BART-base, LED-base-16384, en_core_web_sm, GIL evidence.
+#     No SummLlama (Llama 3.2 license — never publish), no Pegasus, no hybrid models.
+#     Used by ``make stack-test-build`` so the stack-test pipeline image is smaller and
+#     license-clean for any future redistribution.
+ARG PRELOAD_VARIANT=production
 
 # ============================================================================
 # Build Stage: Install dependencies and build the package
@@ -105,8 +114,14 @@ RUN --mount=type=cache,target=/root/.cache/pip \
     # Clean up temporary build files
     rm -rf /tmp/pip-* /tmp/build-* /tmp/*.whl /tmp/*.tar.gz || true
 
+# Accept the variant arg in this stage too (stage-1 ARGs don't carry from the file scope).
+ARG PRELOAD_VARIANT
+ENV PRELOAD_VARIANT=${PRELOAD_VARIANT}
+
 # hadolint ignore=SC2261
-# Preload ML models (production bundle) when INSTALL_EXTRAS=ml and PRELOAD_ML_MODELS=true.
+# Preload ML models when INSTALL_EXTRAS=ml and PRELOAD_ML_MODELS=true.
+# Variant selects the bundle: ``production`` (full nightly bundle) or
+# ``airgapped-thin`` (only what config/profiles/airgapped_thin.yaml needs).
 # Do NOT use BuildKit cache mounts for Whisper/HF paths here: cache mounts are not persisted into
 # image layers, so the runtime image would ship without model files. Pip uses its own cache mounts
 # on earlier RUN steps only.
@@ -116,9 +131,14 @@ RUN bash -c 'set -e; \
     if [ -n "$INSTALL_EXTRAS" ] && [ "$INSTALL_EXTRAS" = "ml" ] && [ "$PRELOAD_ML_MODELS" = "true" ]; then \
         export WHISPER_CACHE_DIR=/opt/whisper-cache; \
         export HF_HUB_CACHE=/root/.cache/huggingface/hub; \
-        echo "Preloading ML models (production bundle, same as make preload-ml-models-production)..."; \
+        case "${PRELOAD_VARIANT:-production}" in \
+            production) preload_flag="--production" ;; \
+            airgapped-thin) preload_flag="--airgapped-thin" ;; \
+            *) echo "Error: PRELOAD_VARIANT must be production or airgapped-thin (got: $PRELOAD_VARIANT)" >&2; exit 1 ;; \
+        esac; \
+        echo "Preloading ML models (variant=${PRELOAD_VARIANT:-production}, flag=$preload_flag)..."; \
         echo "Working directory: $(pwd)"; \
-        python scripts/cache/preload_ml_models.py --production || { \
+        python scripts/cache/preload_ml_models.py "$preload_flag" || { \
             echo ""; \
             echo "ERROR: ML model preloading failed with exit code $?"; \
             echo "This may be due to network, disk space, or missing dependencies."; \

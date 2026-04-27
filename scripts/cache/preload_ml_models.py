@@ -15,6 +15,11 @@ Usage:
     # Preload test models (default - small, fast models for local dev/testing)
     python scripts/cache/preload_ml_models.py
 
+    # Preload only what the airgapped_thin profile needs
+    # (same effective set as the no-flag default; --airgapped-thin makes the
+    # intent explicit in CI / Dockerfile RUN logs)
+    python scripts/cache/preload_ml_models.py --airgapped-thin
+
     # Preload only specific Whisper models
     WHISPER_MODELS=base.en,tiny.en python scripts/cache/preload_ml_models.py
 
@@ -630,10 +635,24 @@ def main() -> None:
     import argparse
 
     parser = argparse.ArgumentParser(description="Preload ML models for podcast scraper")
-    parser.add_argument(
+    mode = parser.add_mutually_exclusive_group()
+    mode.add_argument(
         "--production",
         action="store_true",
         help="Preload production models (Whisper base.en, BART-large-cnn, LED-large-16384)",
+    )
+    mode.add_argument(
+        "--airgapped-thin",
+        action="store_true",
+        help=(
+            "Preload only what the airgapped_thin profile uses: Whisper tiny.en, "
+            "spaCy en_core_web_sm, BART-base + LED-base-16384, and the GIL evidence "
+            "stack (embedding + QA + NLI). Excludes SummLlama, Pegasus, Whisper "
+            "base.en, long-t5, flan-t5 — saves ~2 GB on the published image and "
+            "avoids redistributing attribution-restricted models. "
+            "Equivalent to running with no flags (kept as the default for back-"
+            "compat) but more explicit in CI / Dockerfile RUN logs."
+        ),
     )
     args = parser.parse_args()
     _arm_preload_alarm(production=args.production)
@@ -698,9 +717,19 @@ def main() -> None:
             print("Skipping GIL evidence models (SKIP_GIL=1)")
             print("")
     else:
-        print("Preloading ML models...")
-        print("This will download and cache models to avoid network calls during testing.")
-        print("")
+        if args.airgapped_thin:
+            print("Preloading airgapped_thin bundle (matches config/profiles/airgapped_thin.yaml)")
+            print("  Whisper: tiny.en")
+            print("  spaCy: en_core_web_sm")
+            print("  Transformers: facebook/bart-base, allenai/led-base-16384")
+            print("  GIL evidence: embedding + QA + NLI")
+            print("  Skipped vs --production: Whisper base.en, long-t5, flan-t5,")
+            print("                            SummLlama (license-restricted), Pegasus")
+            print("")
+        else:
+            print("Preloading ML models...")
+            print("This will download and cache models to avoid network calls during testing.")
+            print("")
 
         # Check skip flags
         skip_whisper = os.environ.get("SKIP_WHISPER", "").strip().lower() in ("1", "true", "yes")

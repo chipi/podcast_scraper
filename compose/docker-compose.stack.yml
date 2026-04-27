@@ -71,6 +71,11 @@ services:
       args:
         INSTALL_EXTRAS: ${STACK_PIPELINE_INSTALL_EXTRAS:-ml}
         PRELOAD_ML_MODELS: ${STACK_PIPELINE_PRELOAD_ML:-true}
+        # Selects which preload bundle the Dockerfile bakes in. Default is
+        # ``production`` (full nightly bundle); ``make stack-test-build`` overrides
+        # to ``airgapped-thin`` so the stack-test pipeline image is smaller and
+        # license-clean (no SummLlama / Pegasus / hybrid models).
+        PRELOAD_VARIANT: ${STACK_PIPELINE_PRELOAD_VARIANT:-production}
     image: podcast-scraper-stack-pipeline:latest
     volumes:
       - corpus_data:/app/output

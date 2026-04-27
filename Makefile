@@ -550,7 +550,17 @@ stack-test-build:
 	@# them in the cached files." (HF_HUB_OFFLINE-style failure on a
 	@# fresh CI runner with no warm DNS / no pre-pulled models). The
 	@# ML pipeline must ALWAYS bake the cache in at build time.
-	@STACK_PIPELINE_PRELOAD_ML=true $(STACK_TEST_COMPOSE) --profile pipeline build
+	@#
+	@# ``STACK_PIPELINE_PRELOAD_VARIANT=airgapped-thin`` selects the
+	@# slim preload bundle: only what config/profiles/airgapped_thin.yaml
+	@# uses (BART-base + LED-base-16384 + Whisper tiny.en + en_core_web_sm
+	@# + GIL evidence). Drops SummLlama (Llama 3.2 license — never
+	@# publish), Pegasus, hybrid LongT5/FLAN-T5, Whisper base.en. This
+	@# saves ~2 GB on the resulting image and keeps the redistribution
+	@# story clean for the future GHCR publish step (RFC-081).
+	@STACK_PIPELINE_PRELOAD_ML=true \
+		STACK_PIPELINE_PRELOAD_VARIANT=airgapped-thin \
+		$(STACK_TEST_COMPOSE) --profile pipeline build
 
 # Cloud-thin pipeline image: ``[llm]`` extras only (cloud API SDKs —
 # openai, google-genai, anthropic, mistralai, httpx). Zero local ML
