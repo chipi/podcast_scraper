@@ -13,7 +13,7 @@ import pytest
 import podcast_scraper.builders.bridge_artifact_paths as bridge_artifact_paths
 from podcast_scraper.cache import manager as cache_manager
 
-pytestmark = pytest.mark.integration
+pytestmark = pytest.mark.unit
 
 
 def test_format_size_human_readable() -> None:

@@ -18,7 +18,7 @@ from podcast_scraper.workflow.metadata_generation import (
 )
 
 
-@pytest.mark.integration
+@pytest.mark.unit
 class TestSummarySchemaIntegration(unittest.TestCase):
     """Test summary schema integration in metadata generation."""
 

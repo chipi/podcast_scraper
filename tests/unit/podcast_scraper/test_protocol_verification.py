@@ -10,7 +10,7 @@ from podcast_scraper import config
 from podcast_scraper.transcription.factory import create_transcription_provider
 
 
-@pytest.mark.integration
+@pytest.mark.unit
 class TestProtocolVerificationIntegration(unittest.TestCase):
     """Integration tests for protocol verification in real provider creation."""
 
