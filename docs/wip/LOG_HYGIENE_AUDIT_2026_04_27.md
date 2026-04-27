@@ -46,16 +46,16 @@ Read-only survey across three log-emitting surfaces. Test files
   variables (Python's default). File paths + line numbers + type info
   are fine; risk surfaces if a frame happens to contain a bearer
   token or `api_key` variable. Affected:
-  - [`src/podcast_scraper/server/pipeline_jobs.py:497`](../../src/podcast_scraper/server/pipeline_jobs.py#L497)
-  - [`src/podcast_scraper/server/routes/index_stats.py:114`](../../src/podcast_scraper/server/routes/index_stats.py#L114)
-  - [`src/podcast_scraper/server/routes/index_rebuild.py:60`](../../src/podcast_scraper/server/routes/index_rebuild.py#L60)
+  - `src/podcast_scraper/server/pipeline_jobs.py:497`
+  - `src/podcast_scraper/server/routes/index_stats.py:114`
+  - `src/podcast_scraper/server/routes/index_rebuild.py:60`
 - Reverse-proxy headers are *available* but not logged by default.
   Confirm Nginx config never grows an `access_log` directive in
-  production. See [`docker/viewer/nginx.conf`](../../docker/viewer/nginx.conf).
+  production. See `docker/viewer/nginx.conf`.
 
 **Clean patterns** (good examples to mirror):
 
-- [`src/podcast_scraper/server/operator_config_security.py`](../../src/podcast_scraper/server/operator_config_security.py)
+- `src/podcast_scraper/server/operator_config_security.py`
   rejects PUTs that contain `*_api_key`, `password`, `secret` keys.
   Prevents accidental config serialisation leaks.
 - 380+ call sites use `format_exception_for_log()` /
@@ -70,7 +70,7 @@ Read-only survey across three log-emitting surfaces. Test files
 
 1. **Episode titles logged at INFO level — verbatim from RSS**
 
-   File: [`src/podcast_scraper/workflow/episode_processor.py`](../../src/podcast_scraper/workflow/episode_processor.py)
+   File: `src/podcast_scraper/workflow/episode_processor.py`
    Lines: 320, 340, 1613, 1754 (`logger.info(f"[{idx}] no transcript
    for: {episode.title}")` and similar).
 
@@ -86,7 +86,7 @@ Read-only survey across three log-emitting surfaces. Test files
 
 2. **`multi_feed_batch` JSON dump may carry unfiltered incident data**
 
-   File: [`src/podcast_scraper/workflow/corpus_operations.py:333`](../../src/podcast_scraper/workflow/corpus_operations.py#L333)
+   File: `src/podcast_scraper/workflow/corpus_operations.py:333`
    Pattern: `logger.info("multi_feed_batch: %s", json.dumps(payload, ...))`.
 
    Error messages in `payload` flow through `redact_for_log()` (good),
@@ -124,7 +124,7 @@ Read-only survey across three log-emitting surfaces. Test files
 
 **Status: clean.**
 
-[`docker/viewer/nginx.conf`](../../docker/viewer/nginx.conf) has no
+`docker/viewer/nginx.conf` has no
 explicit `access_log` directive, so Nginx uses its default behaviour
 which is **no request logging**. Reverse-proxy headers (`X-Real-IP`,
 `X-Forwarded-For`, `X-Forwarded-Proto`) are set on upstream requests
