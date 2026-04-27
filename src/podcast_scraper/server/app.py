@@ -88,6 +88,13 @@ def create_app(
             all corpora use this one file; otherwise each corpus has its own
             ``viewer_operator.yaml`` next to ``feeds.spec.yaml``.
     """
+    # Sentry init runs first so any failure during app construction below
+    # surfaces in Sentry. No-op when ``PODCAST_SENTRY_DSN_API`` is unset
+    # (default — keeps dev / CI / offline boots silent).
+    from podcast_scraper.utils.sentry_init import init_sentry
+
+    init_sentry("api")
+
     app = FastAPI(title="podcast_scraper", version=__version__)
 
     @app.exception_handler(CorpusPathRequestError)

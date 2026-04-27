@@ -26,6 +26,13 @@ dependencies = [
   # TODO(CVE-2026-4539): After pygments ships a fixed release and pip-audit/OSV match NVD ranges, bump the cap and drop Makefile ignore.
   "pygments>=2.14.0,<2.21.0",
   "psutil>=5.9.0,<8.0.0",  # RFC-065 monitor / sampler (imported with orchestration); Docker base image
+  # Sentry SDK lives in base deps so both the api (long-lived FastAPI process)
+  # and the pipeline subprocess (one-shot ``python -m podcast_scraper.cli``)
+  # can initialise it from podcast_scraper.utils.sentry_init.init_sentry().
+  # Init is gated on PODCAST_SENTRY_DSN_API / PODCAST_SENTRY_DSN_PIPELINE so
+  # default (no DSN) stays a true no-op.  ~3 MB install footprint.
+  # See RFC-081 §Layer 2 + issue #681.
+  "sentry-sdk>=2.0.0,<3.0.0",
 ]
 
 [project.optional-dependencies]

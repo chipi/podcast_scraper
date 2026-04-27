@@ -87,6 +87,14 @@ services:
       MISTRAL_API_KEY: ${MISTRAL_API_KEY:-}
       DEEPSEEK_API_KEY: ${DEEPSEEK_API_KEY:-}
       GROK_API_KEY: ${GROK_API_KEY:-}
+      # Sentry SDK — init at the CLI entrypoint, gated on this DSN being
+      # set. Default empty (no-op). When set in Codespaces / VPS env, the
+      # spawned ``docker compose run pipeline ...`` subprocess inherits
+      # the DSN and reports crashes with full stack traces tagged
+      # ``component=pipeline``.  See RFC-081 §Layer 2, issue #681.
+      PODCAST_SENTRY_DSN_PIPELINE: ${PODCAST_SENTRY_DSN_PIPELINE:-}
+      PODCAST_ENV: ${PODCAST_ENV:-dev}
+      PODCAST_RELEASE: ${PODCAST_RELEASE:-}
 
   # Optional: same Dockerfile with ``INSTALL_EXTRAS=llm`` (``pyproject`` **``. [llm]``**) for cloud-thin profiles.
   pipeline-llm:
@@ -109,6 +117,12 @@ services:
       MISTRAL_API_KEY: ${MISTRAL_API_KEY:-}
       DEEPSEEK_API_KEY: ${DEEPSEEK_API_KEY:-}
       GROK_API_KEY: ${GROK_API_KEY:-}
+      # Mirror of the ``pipeline`` service's Sentry env. cloud_thin
+      # pre-prod runs use this image, so DSN propagation must be
+      # symmetric. See RFC-081 §Layer 2, issue #681.
+      PODCAST_SENTRY_DSN_PIPELINE: ${PODCAST_SENTRY_DSN_PIPELINE:-}
+      PODCAST_ENV: ${PODCAST_ENV:-dev}
+      PODCAST_RELEASE: ${PODCAST_RELEASE:-}
 
 volumes:
   corpus_data:
