@@ -62,6 +62,33 @@ services:
     # No restart: pipeline runs are one-shot ``docker compose run --rm``
     # invocations spawned by the api factory; not a long-lived service.
 
+  # Grafana Agent — pre-prod observability sink (RFC-081 §Layer 2).
+  # Scrapes api /metrics + tails Docker container logs, ships to
+  # Grafana Cloud Prom + Loki. Default-off when GRAFANA_CLOUD_*
+  # env vars are unset; the agent stays running idle.
+  grafana-agent:
+    image: grafana/agent:v0.43.4
+    restart: unless-stopped
+    volumes:
+      - ../compose/grafana-agent.yaml:/etc/agent/agent.yaml:ro
+      # Read-only docker socket for ``docker_sd`` log discovery.
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    command:
+      - "-config.file=/etc/agent/agent.yaml"
+      - "-config.expand-env=true"
+      - "-enable-features=integrations-next"
+      - "-server.http.address=0.0.0.0:12345"
+    environment:
+      GRAFANA_CLOUD_PROM_URL: ${GRAFANA_CLOUD_PROM_URL:-}
+      GRAFANA_CLOUD_LOKI_URL: ${GRAFANA_CLOUD_LOKI_URL:-}
+      GRAFANA_CLOUD_USER: ${GRAFANA_CLOUD_USER:-}
+      GRAFANA_CLOUD_API_KEY: ${GRAFANA_CLOUD_API_KEY:-}
+      PODCAST_ENV: ${PODCAST_ENV:-preprod}
+      PODCAST_RELEASE: ${PODCAST_RELEASE:-}
+    depends_on:
+      api:
+        condition: service_healthy
+
 # Example: pin memory on a small VPS (uncomment and tune):
 #   api:
 #     deploy:
