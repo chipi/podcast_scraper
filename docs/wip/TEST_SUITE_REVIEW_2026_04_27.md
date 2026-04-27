@@ -202,7 +202,30 @@ that look like they pass actually never run.
 - **Acceptance**: tests pass with `transformers >= 4.40` lazy modules
   (the bug class that #677 originally fixed for QA pipelines)
 
-### Status update on PR-B4 (2026-04-27, post-implementation review)
+### Status updates on PR-A1, B4, C6, C7 (post-implementation reviews)
+
+The audit framing was systematically **too aggressive** — several
+items turned out to be no-ops on verification. Each is documented
+inline below.
+
+**PR-C7 (GI/KG e2e smoke) — already covered.** The audit claimed "no
+e2e tests validate gi.json + kg.json are written, structurally sound,
+or contain expected entities." On verification, [`tests/e2e/test_full_pipeline_e2e.py`](../../tests/e2e/test_full_pipeline_e2e.py)
+lines 797-823 do exactly that: rglob for `*.gi.json` / `*.kg.json`,
+load each, assert `Insight` / `Quote` / `Topic` / `Entity` node
+presence and counts. Cost-rollup fields (`llm_gi_cost_usd`,
+`llm_kg_cost_usd`) have comprehensive unit + workflow coverage in
+[`tests/unit/podcast_scraper/test_metrics.py`](../../tests/unit/podcast_scraper/test_metrics.py)
+and [`tests/unit/podcast_scraper/workflow/test_corpus_cost_aggregation.py`](../../tests/unit/podcast_scraper/workflow/test_corpus_cost_aggregation.py).
+The only thin spot is no e2e assertion on `metrics.json` cost
+rollup, but that's a thin slice that doesn't justify a new e2e
+spec; it's a small follow-up if it ever becomes priority.
+
+**PR-C6 (FastAPI route gaps) — partially overstated.** The audit
+listed three gaps; one (`/api/corpus/persons/top`) was already
+covered by [`test_viewer_corpus_persons.py`](../../tests/integration/server/test_viewer_corpus_persons.py)
+(ranking, two-episode, empty cases). The other two routes were
+genuine gaps and have been filled in PR-C6's commit.
 
 **The audit overstated PR-B4 too.** On verification, what I claimed
 were "quality-bar assertions" are mostly **smoke assertions**:
