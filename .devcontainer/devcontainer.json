@@ -67,7 +67,7 @@
     }
   },
   "postCreateCommand": "make init-no-ml && pip install -e '.[server,dev]'",
-  "postStartCommand": "echo 'Pre-prod compose stack startup is gated until backup repo + GHCR images land. See .devcontainer/README.md for manual bring-up.'",
+  "postStartCommand": "bash .devcontainer/start.sh",
   "mounts": [],
   "remoteEnv": {
     "PODCAST_ENV": "preprod"
