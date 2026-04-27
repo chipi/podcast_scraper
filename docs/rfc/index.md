@@ -25,6 +25,7 @@ RFCs translate PRD requirements into concrete technical solutions and serve as l
 | [RFC-015](RFC-015-ai-experiment-pipeline.md) | AI Experiment Pipeline | PRD-007 | Technical design for configuration-driven experiment pipeline (CI integration pending) |
 | [RFC-041](RFC-041-podcast-ml-benchmarking-framework.md) | Podcast ML Benchmarking Framework | PRD-007 | Repeatable, objective ML benchmarking system (CI integration pending) |
 | [RFC-077](RFC-077-viewer-feeds-and-serve-pipeline-jobs.md) | Viewer feeds + operator config + jobs & hygiene | [PRD-030](../prd/PRD-030-viewer-feed-sources-and-pipeline-jobs.md) | **Draft:** structured **`feeds.spec.yaml`** + operator YAML API, job lifecycle + stale/reconcile ([#626](https://github.com/chipi/podcast_scraper/issues/626)) |
+| [RFC-081](RFC-081-pre-prod-environment-and-control-plane.md) | Pre-prod environment on GitHub Codespaces (Phase 1) | — | **Draft:** Codespaces deploy auto-fired on Stack-test green; cloud_thin profile via GHCR-published `pipeline-llm`; Grafana Cloud + Sentry free observability; Cloudflare R2 corpus backup; Slack notifications. Always-on host deferred to a follow-up RFC. |
 
 ## Completed RFCs
 
@@ -92,7 +93,7 @@ RFCs translate PRD requirements into concrete technical solutions and serve as l
 
 ## Gap analysis {:#gaps}
 
-**Counts (reconcile when moving RFCs):** **77** files under `docs/rfc/RFC-*.md` -- IDs **RFC-001--RFC-079**
+**Counts (reconcile when moving RFCs):** **81** files under `docs/rfc/RFC-*.md` -- IDs **RFC-001--RFC-081**
 with **no RFC-014**. **3** open (in-flight, partial implementation), **59** completed, and **15** Draft
 (not indexed until promoted) in the tables above.
 
