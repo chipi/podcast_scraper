@@ -17,6 +17,14 @@ services:
     build:
       context: ..
       dockerfile: docker/viewer/Dockerfile
+      args:
+        # Sentry build-time env injection. Vite picks up VITE_*
+        # at build time and bakes them into the SPA bundle. All
+        # three are optional — Vue main.ts only initialises Sentry
+        # when VITE_SENTRY_DSN_VIEWER is set. See RFC-081 §Layer 2.
+        VITE_SENTRY_DSN_VIEWER: ${VITE_SENTRY_DSN_VIEWER:-}
+        VITE_PODCAST_ENV: ${VITE_PODCAST_ENV:-dev}
+        VITE_PODCAST_RELEASE: ${VITE_PODCAST_RELEASE:-}
     image: podcast-scraper-stack-viewer:latest
     ports:
       - "${VIEWER_PORT:-8080}:80"

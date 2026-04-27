@@ -16,6 +16,7 @@
     "test:e2e:ui": "playwright test --ui"
   },
   "dependencies": {
+    "@sentry/vue": "^8.55.1",
     "chart.js": "^4.5.1",
     "cytoscape": "^3.33.1",
     "cytoscape-navigator": "^2.0.2",

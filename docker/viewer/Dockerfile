@@ -14,6 +14,18 @@ WORKDIR /viewer
 ARG VITE_DEFAULT_GRAPH_LENS_DAYS
 ENV VITE_DEFAULT_GRAPH_LENS_DAYS=${VITE_DEFAULT_GRAPH_LENS_DAYS}
 
+# Sentry DSN + env tags for the viewer's runtime error reporting.
+# All three are optional — Vue main.ts only initialises Sentry when
+# VITE_SENTRY_DSN_VIEWER is set, so a build with no DSN is silent.
+# See RFC-081 §Layer 2 + issue #681. Pass via:
+#   docker buildx build --build-arg VITE_SENTRY_DSN_VIEWER=...
+ARG VITE_SENTRY_DSN_VIEWER
+ENV VITE_SENTRY_DSN_VIEWER=${VITE_SENTRY_DSN_VIEWER}
+ARG VITE_PODCAST_ENV
+ENV VITE_PODCAST_ENV=${VITE_PODCAST_ENV}
+ARG VITE_PODCAST_RELEASE
+ENV VITE_PODCAST_RELEASE=${VITE_PODCAST_RELEASE}
+
 COPY web/gi-kg-viewer/package.json web/gi-kg-viewer/package-lock.json ./
 RUN npm ci
 
