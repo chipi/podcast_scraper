@@ -202,6 +202,40 @@ that look like they pass actually never run.
 - **Acceptance**: tests pass with `transformers >= 4.40` lazy modules
   (the bug class that #677 originally fixed for QA pipelines)
 
+### Status update on PR-B4 (2026-04-27, post-implementation review)
+
+**The audit overstated PR-B4 too.** On verification, what I claimed
+were "quality-bar assertions" are mostly **smoke assertions**:
+
+| Pattern | Type |
+| --- | --- |
+| `assert "summary" in result` | smoke (schema) |
+| `assert isinstance(result["summary"], str)` | smoke (type) |
+| `assert len(result["summary"]) > 0` | smoke (non-empty existence) |
+| `assert len(transcript_files) > 0` | smoke (file written) |
+| `enforce_prd017_thresholds(m, min_avg_insights=0.5)` | logic test (verifies threshold-enforcement *function*, with the threshold as a test argument) |
+| `cfg.gi_qa_score_min == 0.11` | CLI parsing test (CLI arg flows to Config field) |
+
+None of these encode a quality bar against real model output. The
+quality-bar pieces (against versioned silver references + LLM judge)
+already live in `data/eval/` per-cluster:
+
+- `data/eval/configs/summarization/*.yaml` (per-provider summarization eval)
+- `data/eval/configs/gil_*.yaml` (Grounded Insights eval)
+- `data/eval/configs/kg_*.yaml` (Knowledge Graph eval)
+- `data/eval/configs/ner/*.yaml` (NER eval)
+- `data/eval/references/silver/`, `data/eval/datasets/curated_5feeds_*.json`
+
+So PR-B4 is **also largely a no-op**. The pytest tier does smoke
+("did anything come out?"); `data/eval/` does quality ("is what came
+out good enough?"). Both layers are correct as-is. No migration
+required.
+
+The real-deal e2e quality migration (if/when we tighten thresholds)
+would land as new eval configs in `data/eval/configs/` plus eval
+runner invocations in CI — separate from pytest entirely. That's a
+follow-up RFC if it ever becomes priority.
+
 ### Priority B — cleanup, reduces noise
 
 #### PR-3 — Move misclassified integration→unit tests
