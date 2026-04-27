@@ -38,13 +38,11 @@ on:
 permissions:
   # ``workflow_run`` events run with the upstream's permissions context;
   # be explicit so this still works if the upstream tightens its own.
+  # The ``publish`` job below adds its own narrower ``packages: write``
+  # at the job level to keep ``stack-test`` from carrying that scope.
   contents: read
   actions: read
   checks: write
-  # ``packages: write`` is required by the ``publish`` job below to push
-  # images to ghcr.io. Granted at workflow level so workflow_run events
-  # inherit it; the test job doesn't actually use it.
-  packages: write
 
 jobs:
   stack-test:
