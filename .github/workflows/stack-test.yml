@@ -49,7 +49,13 @@ jobs:
     # (workflow_run fires on completion regardless of conclusion).
     if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
     env:
-      STACK_PIPELINE_PRELOAD_ML: false
+      # ``STACK_PIPELINE_PRELOAD_ML`` is intentionally NOT set here. The
+      # ``make stack-test-build`` recipe forces it to ``true`` (Makefile)
+      # because the ``airgapped_thin`` profile expects the ML model
+      # cache to be baked into the pipeline image — without it the
+      # pipeline subprocess errors at Transformers load time. Setting
+      # ``false`` here used to override the recipe and ship a useless
+      # image; the Makefile is now the single source of truth.
       STACK_TEST_VIEWER_PORT: 8090
       STACK_TEST_BASE_URL: http://127.0.0.1:8090
       DOCKER_BUILDKIT: 1

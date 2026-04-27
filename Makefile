@@ -532,13 +532,39 @@ stack-logs:
 	@$(STACK_COMPOSE) logs -f viewer api
 
 stack-test-build:
-	@STACK_PIPELINE_PRELOAD_ML=false $(STACK_TEST_COMPOSE) build
+	@# ``--profile pipeline`` is required: the ``pipeline`` service has
+	@# ``profiles: [pipeline]`` so plain ``docker compose build`` silently
+	@# skips it. Without this the API's job factory ends up building the
+	@# pipeline image at job-spawn time inside its own container, which
+	@# in CI runs without BuildKit (the workflow's ``DOCKER_BUILDKIT=1``
+	@# env doesn't propagate into the api container) and fails on the
+	@# Dockerfile's ``RUN --mount=type=cache`` syntax.
+	@#
+	@# ``STACK_PIPELINE_PRELOAD_ML=true`` is REQUIRED, not optional: the
+	@# ``airgapped_thin`` profile (the only profile stack-test exercises
+	@# in CI) loads transformers models — bart-base / led-base / spaCy /
+	@# Whisper — directly from the local cache. With ``=false`` the
+	@# image ships empty caches and the pipeline subprocess errors at
+	@# Transformers load time with "We couldn't connect to
+	@# 'https://huggingface.co' to load the files, and couldn't find
+	@# them in the cached files." (HF_HUB_OFFLINE-style failure on a
+	@# fresh CI runner with no warm DNS / no pre-pulled models). The
+	@# ML pipeline must ALWAYS bake the cache in at build time.
+	@STACK_PIPELINE_PRELOAD_ML=true $(STACK_TEST_COMPOSE) --profile pipeline build
 
 # Cloud-thin pipeline image: ``[llm]`` extras only (cloud API SDKs —
 # openai, google-genai, anthropic, mistralai, httpx). Zero local ML
 # (no torch / transformers / whisper / spaCy). Built into the
 # ``pipeline-llm`` compose service.
 stack-test-build-cloud:
+	@# Mirror of ``stack-test-build`` for the cloud-thin variant.
+	@# Contract: **always** preload models for ML, **never** for cloud.
+	@# The cloud-thin pipeline uses ``[llm]`` extras only (OpenAI /
+	@# Gemini / Anthropic / Mistral SDKs) — no local Transformers /
+	@# Whisper / spaCy — so a model preload would be a no-op (the
+	@# Dockerfile gates preload on ``INSTALL_EXTRAS=ml`` anyway) and
+	@# would waste image size + build time. Force ``=false`` to keep
+	@# the contract explicit and symmetrical with the ML recipe.
 	@STACK_PIPELINE_PRELOAD_ML=false $(STACK_TEST_COMPOSE) --profile pipeline-llm build pipeline-llm
 
 # Debug aid: copy ``/app/output`` from the running ``corpus_data`` volume

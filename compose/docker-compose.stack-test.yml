@@ -65,6 +65,18 @@ services:
       # already lands on ``compose``; this env var keeps the contract
       # explicit and forwards through any future refactor.
       COMPOSE_PROJECT_NAME: compose
+      # Belt-and-suspenders: enable BuildKit + the new compose CLI build
+      # path inside the api container so any nested ``docker compose
+      # build`` (the job factory falls back to a build if the
+      # ``podcast-scraper-stack-pipeline:latest`` image is missing) uses
+      # BuildKit. Without this, the build runs with the legacy builder
+      # and fails at ``RUN --mount=type=cache,target=/root/.cache/pip``
+      # in docker/pipeline/Dockerfile (BuildKit-only syntax). The
+      # primary fix is ``make stack-test-build`` building the pipeline
+      # image upfront with ``--profile pipeline``; this keeps the api
+      # robust if that ever regresses.
+      DOCKER_BUILDKIT: "1"
+      COMPOSE_DOCKER_CLI_BUILD: "1"
     # No command override: the base API CMD already runs in per-corpus
     # operator-config mode (``viewer_operator.yaml`` per corpus root,
     # no static ``--config-file``).
