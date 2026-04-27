@@ -14,6 +14,23 @@ from unittest.mock import MagicMock, Mock, patch
 import pytest
 
 # Mock openai + httpx; unit-only pytest (``make test-ci-fast``).
+#
+# Important: this patch must be ACTIVE during the imports below so the
+# Ollama provider factory binds the mocked ``httpx`` in its module
+# namespace (it does ``import httpx`` at top-level). Once those imports
+# complete, the mock reference is captured in the factory module's
+# namespace and is unaffected by subsequent changes to ``sys.modules``.
+#
+# We then ``.stop()`` the patch so downstream tests in the same xdist
+# worker see the real ``httpx`` again. Without this stop, the patch
+# leaked across the entire worker process — any test doing
+# ``isinstance(x, httpx.Timeout)`` (e.g.,
+# ``tests/unit/podcast_scraper/utils/test_timeout_config.py``) would
+# fail with ``TypeError: isinstance() arg 2 must be a type``. The
+# failure surfaced under xdist parallel collection when worker
+# affinity put this module before the affected ones (#678 PR-A1
+# moved 44 tests, which changed xdist's collection partitioning and
+# exposed this latent leak).
 mock_openai = MagicMock()
 mock_openai.OpenAI = Mock()
 mock_httpx = MagicMock()
@@ -29,6 +46,9 @@ _patch_ollama.start()
 from podcast_scraper import config
 from podcast_scraper.speaker_detectors.factory import create_speaker_detector
 from podcast_scraper.summarization.factory import create_summarization_provider
+
+# Restore real ``sys.modules`` after the imports captured the mocks.
+_patch_ollama.stop()
 
 pytestmark = [pytest.mark.unit, pytest.mark.module_ollama_providers]
 
