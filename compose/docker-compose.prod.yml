@@ -1,17 +1,66 @@
-# Phase 3 — optional prod-style merge (GitHub #659 backlog).
+# Pre-prod overlay on top of compose/docker-compose.stack.yml — used by
+# Codespaces (RFC-081 Phase 1) and any future always-on host (Phase 2,
+# separate RFC).
+#
 # Use on top of docker-compose.stack.yml, e.g.:
 #   docker compose -f compose/docker-compose.stack.yml -f compose/docker-compose.prod.yml up -d
 #
-# This file intentionally stays small: restart policies for long-running services.
-# For external named volumes on a VPS, replace the ``corpus_data`` definition in a
-# forked override or use ``docker volume create`` + ``external: true`` in a site-local file.
+# What this overlay does:
+#
+#   * Adds ``restart: unless-stopped`` so the api + viewer survive Codespace
+#     suspend / wake cycles.
+#   * Swaps ``image:`` refs from local-tag (``podcast-scraper-stack-*:latest``)
+#     to GHCR-published refs (``ghcr.io/chipi/podcast-scraper-stack-*:main``).
+#     Codespaces / VPS pulls bytes from GHCR instead of building locally —
+#     fast, repeatable, and the exact bits Stack-test validated.
+#   * Clears the ``build:`` block on those services so compose never tries
+#     to build pre-prod images locally.
+#   * Surfaces the pre-prod env vars (metrics, sentry, job webhook).
+#
+# What this overlay does NOT do:
+#
+#   * Adds no mock-feeds — pre-prod hits the real internet for RSS feeds.
+#   * Adds no Playwright wiring — pre-prod is for operators, not test bots.
+#   * Defines no ``pipeline`` (ML) service — the published image set is
+#     api / viewer / pipeline-llm only (RFC-081 §Layer 1, license-driven).
+#     If a job ever requests an ML profile in pre-prod, the api factory
+#     will fail loud — by design.
+#
+# Tagging:
+#
+#   * Default ``${PODCAST_IMAGE_TAG:-main}`` — every passing main pushes
+#     :main, so codespaces auto-track green main.
+#   * Override to ``:sha-<short>`` for pinning during incident response
+#     or to ``:pr-<num>`` for collaborator UAT.
+#
+# For external named volumes on a VPS, replace the ``corpus_data``
+# definition in a site-local override that adds ``external: true``.
 
 services:
   viewer:
+    image: ghcr.io/chipi/podcast-scraper-stack-viewer:${PODCAST_IMAGE_TAG:-main}
+    build: !reset null
     restart: unless-stopped
 
   api:
+    image: ghcr.io/chipi/podcast-scraper-stack-api:${PODCAST_IMAGE_TAG:-main}
+    build: !reset null
     restart: unless-stopped
+    environment:
+      # Surface the pre-prod observability env vars. Defaults are off
+      # (empty) so this overlay is safe to apply without operator-side
+      # secrets configured yet.
+      PODCAST_METRICS_ENABLED: ${PODCAST_METRICS_ENABLED:-1}
+      PODCAST_SENTRY_DSN_API: ${PODCAST_SENTRY_DSN_API:-}
+      PODCAST_JOB_WEBHOOK_URL: ${PODCAST_JOB_WEBHOOK_URL:-}
+      PODCAST_ENV: ${PODCAST_ENV:-preprod}
+      PODCAST_RELEASE: ${PODCAST_RELEASE:-}
+
+  pipeline-llm:
+    image: ghcr.io/chipi/podcast-scraper-stack-pipeline-llm:${PODCAST_IMAGE_TAG:-main}
+    build: !reset null
+    # No restart: pipeline runs are one-shot ``docker compose run --rm``
+    # invocations spawned by the api factory; not a long-lived service.
 
 # Example: pin memory on a small VPS (uncomment and tune):
 #   api:
