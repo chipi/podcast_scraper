@@ -5,7 +5,6 @@ from __future__ import annotations
 import pytest
 
 from podcast_scraper.server.operator_config_security import (
-
     assert_operator_yaml_safe_for_persist,
     forbidden_operator_top_level_keys,
     OperatorYamlUnsafeError,

@@ -1,7 +1,8 @@
 """pipeline_install_extras parsing for Docker job path (#660)."""
 
-from podcast_scraper.server.operator_yaml_profile import parse_pipeline_install_extras
 import pytest
+
+from podcast_scraper.server.operator_yaml_profile import parse_pipeline_install_extras
 
 # Moved from tests/unit/ — RFC-081 PR-A1: tests that import [ml]/[llm]/[server]
 # gated modules belong in the integration tier per UNIT_TESTING_GUIDE.md.

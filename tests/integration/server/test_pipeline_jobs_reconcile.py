@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import pytest
+
 from podcast_scraper.server.pipeline_jobs import (
     reconcile_jobs_inplace,
     STATUS_FAILED,
@@ -9,7 +11,6 @@ from podcast_scraper.server.pipeline_jobs import (
     STATUS_STALE,
 )
 
-import pytest
 # Moved from tests/unit/ — RFC-081 PR-A1: tests that import [ml]/[llm]/[server]
 # gated modules belong in the integration tier per UNIT_TESTING_GUIDE.md.
 pytestmark = [pytest.mark.integration]

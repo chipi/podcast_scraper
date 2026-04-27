@@ -5,8 +5,9 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from podcast_scraper.server.cil_queries import episodes_for_bridge_node_id
 import pytest
+
+from podcast_scraper.server.cil_queries import episodes_for_bridge_node_id
 
 # Moved from tests/unit/ — RFC-081 PR-A1: tests that import [ml]/[llm]/[server]
 # gated modules belong in the integration tier per UNIT_TESTING_GUIDE.md.

@@ -6,8 +6,9 @@ import json
 from pathlib import Path
 from typing import Any
 
-from podcast_scraper.server import cil_queries
 import pytest
+
+from podcast_scraper.server import cil_queries
 
 # Moved from tests/unit/ — RFC-081 PR-A1: tests that import [ml]/[llm]/[server]
 # gated modules belong in the integration tier per UNIT_TESTING_GUIDE.md.

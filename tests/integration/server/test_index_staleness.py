@@ -6,6 +6,8 @@ import json
 from pathlib import Path
 from unittest.mock import patch
 
+import pytest
+
 from podcast_scraper.server.index_staleness import (
     compute_index_staleness,
     REASON_ARTIFACTS_NEWER,
@@ -15,7 +17,6 @@ from podcast_scraper.server.index_staleness import (
     REASON_NO_INDEX_BUT_METADATA,
 )
 
-import pytest
 # Moved from tests/unit/ — RFC-081 PR-A1: tests that import [ml]/[llm]/[server]
 # gated modules belong in the integration tier per UNIT_TESTING_GUIDE.md.
 pytestmark = [pytest.mark.integration]

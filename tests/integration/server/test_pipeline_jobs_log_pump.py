@@ -9,7 +9,6 @@ from typing import Any, cast
 import pytest
 
 from podcast_scraper.server.pipeline_jobs import (
-
     _LOG_MAX_BYTES_DEFAULT,
     _pump_subprocess_to_log,
     job_log_max_bytes,

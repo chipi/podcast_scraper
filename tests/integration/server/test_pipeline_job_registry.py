@@ -5,6 +5,8 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+import pytest
+
 from podcast_scraper.server.pipeline_job_registry import (
     jobs_registry_path,
     read_jobs,
@@ -13,7 +15,6 @@ from podcast_scraper.server.pipeline_job_registry import (
     write_jobs_atomic,
 )
 
-import pytest
 # Moved from tests/unit/ — RFC-081 PR-A1: tests that import [ml]/[llm]/[server]
 # gated modules belong in the integration tier per UNIT_TESTING_GUIDE.md.
 pytestmark = [pytest.mark.integration]

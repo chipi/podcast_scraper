@@ -8,7 +8,6 @@ import pytest
 
 from podcast_scraper.server.corpus_catalog import CatalogEpisodeRow
 from podcast_scraper.server.corpus_digest import (
-
     digest_row_dict,
     diversify_digest_rows,
     episode_in_utc_window,

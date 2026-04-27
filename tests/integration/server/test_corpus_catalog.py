@@ -5,6 +5,8 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+import pytest
+
 from podcast_scraper.server.corpus_catalog import (
     aggregate_feeds,
     build_catalog_rows,
@@ -21,7 +23,6 @@ from podcast_scraper.server.corpus_catalog import (
     slice_page,
 )
 
-import pytest
 # Moved from tests/unit/ — RFC-081 PR-A1: tests that import [ml]/[llm]/[server]
 # gated modules belong in the integration tier per UNIT_TESTING_GUIDE.md.
 pytestmark = [pytest.mark.integration]
