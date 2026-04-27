@@ -110,6 +110,33 @@ def create_app(
         allow_headers=["*"],
     )
 
+    # Prometheus /metrics endpoint, gated on ``PODCAST_METRICS_ENABLED``
+    # so the default behaviour (no Grafana account, no agent running)
+    # stays a no-op. Wired for the Grafana Cloud free-tier sink in
+    # pre-prod (RFC-081, Phase 1B). The instrumentator emits the
+    # standard FastAPI metrics: http_requests_total{method,route,status}
+    # + http_request_duration_seconds histogram.
+    if _env_truthy("PODCAST_METRICS_ENABLED"):
+        try:
+            from prometheus_fastapi_instrumentator import Instrumentator
+
+            # ``should_group_status_codes=False`` keeps 2xx/4xx/5xx
+            # distinguishable in dashboards. ``excluded_handlers`` keeps
+            # the /metrics endpoint itself out of the request counter
+            # (otherwise a Prometheus scrape inflates the count).
+            Instrumentator(
+                should_group_status_codes=False,
+                excluded_handlers=["/metrics"],
+            ).instrument(app).expose(app, endpoint="/metrics", include_in_schema=False)
+        except ImportError:
+            # ``prometheus-fastapi-instrumentator`` is in [server] extras.
+            # If a deployment installs core only and sets the flag, fail
+            # loud rather than silently shipping no metrics.
+            raise RuntimeError(
+                "PODCAST_METRICS_ENABLED is set but prometheus-fastapi-instrumentator "
+                "is not installed. Install via ``pip install '.[server]'``."
+            )
+
     app.include_router(health.router, prefix="/api")
     app.include_router(artifacts.router, prefix="/api")
     app.include_router(index_stats.router, prefix="/api")

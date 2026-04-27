@@ -87,6 +87,10 @@ llm = [
 server = [
   "fastapi>=0.115.0,<1.0.0",
   "uvicorn[standard]>=0.32.0,<1.0.0",
+  # Prometheus exporter for /metrics. Wired in src/podcast_scraper/server/app.py
+  # gated on PODCAST_METRICS_ENABLED so default behaviour (no Grafana account)
+  # stays a no-op. Targeted at the Grafana Cloud free tier in pre-prod (RFC-081).
+  "prometheus-fastapi-instrumentator>=7.0.0,<8.0.0",
 ]
 # Live pipeline monitor profiling: py-spy + memray (RFC-065; core `--monitor` uses stdlib + psutil + rich)
 monitor = [
