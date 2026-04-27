@@ -13,6 +13,9 @@ import pytest
 from podcast_scraper import config
 from podcast_scraper.providers.mistral.mistral_provider import MistralProvider
 
+# Preserve PR-time coverage post #678 PR-A1 (moved from ``tests/unit/``).
+pytestmark = pytest.mark.critical_path
+
 
 @pytest.mark.integration
 class TestMistralProviderLifecycle(unittest.TestCase):

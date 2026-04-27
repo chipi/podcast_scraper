@@ -23,6 +23,9 @@ from podcast_scraper import config
 from podcast_scraper.providers.anthropic.anthropic_provider import AnthropicProvider
 from podcast_scraper.providers.ml import speaker_detection
 
+# Preserve PR-time coverage post #678 PR-A1 (moved from ``tests/unit/``).
+pytestmark = pytest.mark.critical_path
+
 
 @pytest.mark.integration
 class TestAnthropicProviderStandalone(unittest.TestCase):

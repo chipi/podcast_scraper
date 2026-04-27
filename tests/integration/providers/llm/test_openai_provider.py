@@ -60,6 +60,15 @@ def tearDownModule():
     _patch_openai.stop()
 
 
+# These tests previously lived in ``tests/unit/`` (PR-A1 moved them here
+# because they depend on the ``[llm]`` extra). The unit-tier was implicit
+# critical-path on PR runs; preserve that coverage by tagging the moved
+# tests with ``critical_path`` so ``make test-integration-fast`` (the PR
+# gate) picks them up. Without this, A1 silently dropped ~1.5pp from the
+# combined coverage gate on PR runs.
+pytestmark = pytest.mark.critical_path
+
+
 @pytest.mark.integration
 class TestOpenAIProviderStandalone(unittest.TestCase):
     """Standalone tests for OpenAIProvider - testing the provider itself."""

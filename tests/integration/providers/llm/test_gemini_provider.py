@@ -55,6 +55,10 @@ def tearDownModule():
     _patch_google.stop()
 
 
+# Preserve PR-time coverage post #678 PR-A1 (moved from ``tests/unit/``).
+pytestmark = pytest.mark.critical_path
+
+
 @pytest.mark.integration
 class TestGeminiProviderStandalone(unittest.TestCase):
     """Standalone tests for GeminiProvider - testing the provider itself."""

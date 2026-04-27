@@ -31,6 +31,10 @@ class _DummyMistralUploadFile:
         self.content = content
 
 
+# Preserve PR-time coverage post #678 PR-A1 (moved from ``tests/unit/``).
+pytestmark = pytest.mark.critical_path
+
+
 @pytest.mark.integration
 class TestMistralProviderStandalone(unittest.TestCase):
     """Standalone tests for MistralProvider - testing the provider itself."""

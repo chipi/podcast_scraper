@@ -41,6 +41,10 @@ def tearDownModule():
     _patch_openai.stop()
 
 
+# Preserve PR-time coverage post #678 PR-A1 (moved from ``tests/unit/``).
+pytestmark = pytest.mark.critical_path
+
+
 @pytest.mark.integration
 class TestDeepSeekProviderStandalone(unittest.TestCase):
     """Standalone tests for DeepSeekProvider - testing the provider itself."""

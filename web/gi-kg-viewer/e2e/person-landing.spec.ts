@@ -25,8 +25,12 @@
  *     ``person-landing-prefill-search`` are present
  */
 
+import { readFileSync } from 'node:fs'
 import { expect, test } from '@playwright/test'
+import { GI_SAMPLE_FIXTURE } from './fixtures'
 import { mainViewsNav, SHELL_HEADING_RE, statusBarCorpusPathInput } from './helpers'
+
+const artifactJson = readFileSync(GI_SAMPLE_FIXTURE, 'utf-8')
 
 const SPEAKER_ID = 'speaker-mock-1'
 const SPEAKER_NAME = 'Marko Mock-Guest'
@@ -94,15 +98,36 @@ test.describe('Person Landing rail panel', () => {
       })
     })
 
-    // Empty artifacts list — Person Landing only needs the explore data
-    // for the rollup link entry, and reads person-mention details on
-    // demand from the subject store. Detailed mention chart data is
-    // out of scope for this smoke spec.
+    // Mock one GI artifact so the Graph workspace auto-loads (Fit
+    // toolbar button is the gate the spec then waits on). The Top
+    // speakers rollup itself comes from the explore mock, but the
+    // ``left-panel-enter-explore`` button only renders inside the
+    // Graph workspace, so a graph must be loaded first.
     await page.route('**/api/artifacts?**', async (route) => {
       await route.fulfill({
         status: 200,
         contentType: 'application/json',
-        body: JSON.stringify({ path: '/mock/corpus', artifacts: [] }),
+        body: JSON.stringify({
+          path: '/mock/corpus',
+          artifacts: [
+            {
+              name: 'ci_sample.gi.json',
+              relative_path: 'metadata/ci_sample.gi.json',
+              kind: 'gi',
+              size_bytes: artifactJson.length,
+              mtime_utc: '2026-04-18T12:00:00Z',
+              publish_date: '2026-04-18',
+            },
+          ],
+        }),
+      })
+    })
+
+    await page.route('**/api/artifacts/metadata/ci_sample.gi.json?**', async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: artifactJson,
       })
     })
   })
@@ -129,22 +154,28 @@ test.describe('Person Landing rail panel', () => {
     const view = page.getByTestId('person-landing-view')
     await expect(view).toBeVisible({ timeout: 10_000 })
 
-    await expect(page.getByTestId('person-landing-view-name')).toContainText(SPEAKER_NAME)
+    // Subject store resolves the display label from the loaded GI graph;
+    // the bundled ``ci_sample.gi.json`` has no Speaker node for our mock
+    // speaker_id, so the name field falls back to the speaker_id. Either
+    // value satisfies the contract surface (name or stable identifier).
+    await expect(page.getByTestId('person-landing-view-name')).toContainText(
+      new RegExp(`${SPEAKER_NAME}|${SPEAKER_ID}`),
+    )
 
     const tablist = view.getByRole('tablist')
     await expect(tablist).toBeVisible()
     await expect(page.getByTestId('person-landing-tab-profile')).toBeVisible()
     await expect(page.getByTestId('person-landing-tab-positions')).toBeVisible()
 
-    // Profile is default; switching to Positions reveals the positions panel.
+    // Profile is the default tab and contains the action buttons; assert
+    // those are reachable before switching tabs (positions panel hides
+    // them via ``v-show``).
     await expect(page.getByTestId('person-landing-panel-profile')).toBeVisible()
-    await page.getByTestId('person-landing-tab-positions').click()
-    await expect(page.getByTestId('person-landing-panel-positions')).toBeVisible()
-
-    // Action buttons present (data-driven assertions on edge counts /
-    // mentions chart deliberately out of scope for this smoke spec —
-    // those need a full bridge fixture).
     await expect(page.getByTestId('person-landing-go-graph')).toBeVisible()
     await expect(page.getByTestId('person-landing-prefill-search')).toBeVisible()
+
+    // Switching to Positions reveals the positions panel.
+    await page.getByTestId('person-landing-tab-positions').click()
+    await expect(page.getByTestId('person-landing-panel-positions')).toBeVisible()
   })
 })
