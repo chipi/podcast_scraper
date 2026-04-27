@@ -21,10 +21,19 @@ _patch_ollama = patch.dict(
         "httpx": mock_httpx,
     },
 )
-_patch_ollama.start()
-
 from podcast_scraper import config
 from podcast_scraper.providers.ollama.ollama_provider import OllamaProvider
+
+
+def setUpModule():
+    # Install ``openai`` + ``httpx`` mocks only while this module's tests run;
+    # otherwise mocks leak into other xdist workers' processes during pytest
+    # collection and break modules that need the real SDK / real httpx.Timeout.
+    _patch_ollama.start()
+
+
+def tearDownModule():
+    _patch_ollama.stop()
 
 
 @pytest.mark.integration

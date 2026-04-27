@@ -19,10 +19,19 @@ _patch_openai = patch.dict(
         "openai": mock_openai,
     },
 )
-_patch_openai.start()
-
 from podcast_scraper import config
 from podcast_scraper.providers.deepseek.deepseek_provider import DeepSeekProvider
+
+
+def setUpModule():
+    # Install ``openai`` mock only while this module's tests run; otherwise
+    # the mock leaks via pytest collection into xdist workers that need the
+    # real SDK (e.g., tests/integration/infrastructure/test_e2e_server.py).
+    _patch_openai.start()
+
+
+def tearDownModule():
+    _patch_openai.stop()
 
 
 @pytest.mark.integration

@@ -38,11 +38,21 @@ _patch_google = patch.dict(
         "google.api_core": mock_api_core,
     },
 )
-_patch_google.start()
-
 from podcast_scraper import config
 from podcast_scraper.providers.gemini.gemini_provider import GeminiProvider
 from podcast_scraper.providers.ml import speaker_detection
+
+
+def setUpModule():
+    # Install ``google.*`` mocks only while this module's tests run; otherwise
+    # mocks leak into other xdist workers' processes during pytest collection
+    # and break modules that need the real SDK (integration tier has
+    # google-genai installed via [llm]).
+    _patch_google.start()
+
+
+def tearDownModule():
+    _patch_google.stop()
 
 
 @pytest.mark.integration

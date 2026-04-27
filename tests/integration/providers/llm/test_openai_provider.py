@@ -41,13 +41,23 @@ _patch_openai = patch.dict(
         "openai": mock_openai,
     },
 )
-_patch_openai.start()
-
 from podcast_scraper import config
 from podcast_scraper.providers.openai.openai_provider import (
     _openai_chat_usage_tokens,
     OpenAIProvider,
 )
+
+
+def setUpModule():
+    # Install ``openai`` mock only while this module's tests run. Doing this
+    # in setUpModule (instead of at module top level) keeps the mock out of
+    # ``sys.modules`` during pytest collection, which otherwise leaks the
+    # mock into other xdist workers' processes that need the real SDK.
+    _patch_openai.start()
+
+
+def tearDownModule():
+    _patch_openai.stop()
 
 
 @pytest.mark.integration
