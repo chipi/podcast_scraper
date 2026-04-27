@@ -6,11 +6,17 @@ name: Backup corpus snapshot
 #
 # Operator setup (one-time):
 #   1. Create chipi/podcast_scraper-backup as a PRIVATE repo.
-#   2. Create a fine-grained PAT with ``contents: write`` scope on
-#      that repo only; store as ``BACKUP_REPO_TOKEN`` GHA secret.
-#   3. Set ``PREPROD_CODESPACE_NAME`` repo variable to the codespace
+#   2. Create a fine-grained PAT with ``Contents: Read and write`` scope
+#      on that repo only; store as ``BACKUP_REPO_TOKEN`` Actions secret.
+#      Used to upload the tarball as a release asset on the backup repo.
+#   3. Create a SECOND fine-grained PAT with ``Codespaces: Read and write``
+#      scope on chipi/podcast_scraper; store as ``CODESPACES_PAT`` Actions
+#      secret. The default GITHUB_TOKEN does not include codespaces
+#      scope, so a separate token is required to ``gh codespace ssh``
+#      into the pre-prod codespace and stream the corpus tarball out.
+#   4. Set ``PREPROD_CODESPACE_NAME`` repo variable to the codespace
 #      name pinned in the deploy-codespace workflow (same value).
-#   4. Set ``PODCAST_BACKUP_REPO_READY`` repo variable to ``true``.
+#   5. Set ``PODCAST_BACKUP_REPO_READY`` repo variable to ``true``.
 #      The schedule cron stays gated until this is set.
 #
 # Once those are in place, the daily cron at 04:17 UTC (after pre-prod
