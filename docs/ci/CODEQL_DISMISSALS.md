@@ -181,6 +181,8 @@ number, file, line, date, and a short comment.
 | 1 | #305 | server/jobs_log_path.py | 74 | 2026-04-24 | Type 1: ``log_path`` from ``normpath_if_under_root`` after ``safe_relpath_under_corpus_root`` before ``isfile``; dismissed ``gh api`` (PR #666) |
 | 1 | #306 | server/routes/corpus_library.py | 395 | 2026-04-25 | Type 1: ``root`` sanitized via ``_resolve_corpus_root`` → ``resolve_corpus_path_param`` (normpath+startswith anchor); ``.resolve()`` on the already-anchored path. Dismissed ``gh api`` (PR #675) |
 | 1 | #307 | server/routes/corpus_library.py | 401 | 2026-04-25 | Type 1: ``target = os.path.normpath(os.path.join(root_s, bridge_relative_path))`` followed by inline ``target.startswith(root_s + os.sep)`` prefix-guard before ``open()``. Dismissed ``gh api`` (PR #675) |
+| 1 | #308 | server/routes/operator_config.py | 136 | 2026-04-28 | Type 1: ``corpus_root`` from ``resolve_corpus_path_param`` (normpath + startswith anchor) immediately before ``corpus_root.mkdir(parents=True, exist_ok=True)`` on GET handler — auto-create restricted to subdirs under the configured corpus root (#693 first-run UX). Dismissed ``gh api`` (PR #702) |
+| 1 | #309 | server/routes/operator_config.py | 195 | 2026-04-28 | Type 1: same sanitizer chain as #308, mirror on PUT handler. Dismissed ``gh api`` (PR #702) |
 
 ## Still open (not yet dismissed)
 
