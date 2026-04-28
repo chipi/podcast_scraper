@@ -718,14 +718,62 @@ stack-test-ml-ci:
 #   * ``CODESPACES_PAT_NAME`` (default ``podcast-scraper-preprod``) is
 #     the codespace name; override via env.
 deploy-codespace:
-	@CS="$${CODESPACES_PAT_NAME:-podcast-scraper-preprod}"; \
-	if [ -z "$${GH_TOKEN:-}" ] && ! gh auth status >/dev/null 2>&1; then \
-		echo "ERROR: gh CLI not authenticated. Run 'gh auth login' or export GH_TOKEN." >&2; \
-		echo "       The token must include the 'codespaces' scope." >&2; \
-		exit 2; \
-	fi; \
+	@CS=$$($(MAKE) -s _resolve-codespace-name); \
+	if [ -z "$$CS" ]; then exit 2; fi; \
 	echo "Rebuilding codespace: $$CS"; \
 	gh codespace rebuild --full --codespace "$$CS"
+
+# Codespace lifecycle helpers (RFC-081 §Phase 1A operator wrappers).
+#
+# All four targets share name resolution via ``_resolve-codespace-name``:
+#   1. ``$$CODESPACE_NAME`` env (full ``podcast-scraper-preprod-<suffix>``) — explicit override.
+#   2. ``gh codespace list`` filtered by displayName ``podcast-scraper-preprod`` — default.
+#
+# Auth: same as deploy-codespace — gh CLI must be ``codespace``-scoped
+# (``gh auth login -s codespace --web``). PAT-based auth in CI uses
+# ``GH_TOKEN`` from the ``CODESPACES_PAT`` Actions secret (must be a
+# **classic** PAT — fine-grained PATs are repo-scoped and 403 on
+# ``/user/codespaces/...``).
+
+_resolve-codespace-name:
+	@if [ -n "$${CODESPACE_NAME:-}" ]; then \
+		echo "$$CODESPACE_NAME"; \
+	else \
+		CS=$$(gh codespace list --json name,displayName -q \
+			'.[] | select(.displayName=="podcast-scraper-preprod") | .name' 2>/dev/null | head -1); \
+		if [ -z "$$CS" ]; then \
+			echo "ERROR: no codespace with displayName=podcast-scraper-preprod found." >&2; \
+			echo "       Set CODESPACE_NAME=<exact-name> or create the codespace first." >&2; \
+			exit 2; \
+		fi; \
+		echo "$$CS"; \
+	fi
+
+# Wake / start the pre-prod codespace (no full rebuild — picks up updated
+# Codespaces secrets at start). Use this after rotating GRAFANA_CLOUD_API_KEY
+# / OPENAI_API_KEY / etc. so the running container's env reflects the new
+# value (Codespaces secrets are baked into env at start, not read live).
+codespace-start:
+	@CS=$$($(MAKE) -s _resolve-codespace-name); \
+	if [ -z "$$CS" ]; then exit 2; fi; \
+	echo "Starting codespace: $$CS"; \
+	gh api -X POST "/user/codespaces/$$CS/start" --jq '.state' >/dev/null && \
+	echo "Start requested. Poll state with 'make codespace-status'."
+
+# Suspend the pre-prod codespace (pauses billing; workspace state preserved).
+# Use before stepping away — codespaces auto-suspend after 30 min idle anyway.
+codespace-stop:
+	@CS=$$($(MAKE) -s _resolve-codespace-name); \
+	if [ -z "$$CS" ]; then exit 2; fi; \
+	echo "Stopping codespace: $$CS"; \
+	gh codespace stop --codespace "$$CS"
+
+# Print current state (Available / ShuttingDown / Shutdown / Rebuilding / etc.)
+codespace-status:
+	@CS=$$($(MAKE) -s _resolve-codespace-name); \
+	if [ -z "$$CS" ]; then exit 2; fi; \
+	gh codespace list --json name,state,displayName,lastUsedAt \
+		-q ".[] | select(.name==\"$$CS\") | \"\(.displayName) [\(.name)] state=\(.state) lastUsed=\(.lastUsedAt)\""
 
 # Pull the latest corpus snapshot from chipi/podcast_scraper-backup and
 # untar into ``.codespace_corpus/`` (the workspace-survives-suspend
