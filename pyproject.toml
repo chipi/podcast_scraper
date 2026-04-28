@@ -116,7 +116,7 @@ server = [
 ]
 # Live pipeline monitor profiling: py-spy + memray (RFC-065; core `--monitor` uses stdlib + psutil + rich)
 monitor = [
-  "py-spy>=0.4.1",
+  "py-spy>=0.4.2",
   "memray>=1.5.0",
 ]
 # Development tools
