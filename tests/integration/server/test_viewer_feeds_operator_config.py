@@ -90,6 +90,54 @@ def test_operator_config_roundtrip(corpus: Path) -> None:
     assert "local" in g2.json()["available_profiles"]
 
 
+def test_operator_config_get_auto_creates_missing_subdir(corpus: Path) -> None:
+    """First-run UX (#693): GET /api/operator-config against a fresh subdir of
+    the configured corpus root must auto-create the directory and seed
+    ``viewer_operator.yaml`` from the packaged example.
+
+    Regression guard for the failure surfaced by ``operator-first-run.spec.ts``
+    on stack-test post-merge: ``resolve_corpus_path_param`` previously rejected
+    missing directories with 400 "Not a directory", so the day-1 operator path
+    (pick a fresh subdir → viewer makes it work) was unreachable. The route
+    now passes ``must_be_dir=False`` and ``mkdir(parents=True, exist_ok=True)``
+    before seeding.
+    """
+    fresh_subdir = corpus / "firstrun-empty"
+    assert not fresh_subdir.exists()  # precondition: subdir doesn't exist on disk
+
+    app = create_app(corpus, static_dir=False, enable_operator_config_api=True)
+    client = TestClient(app)
+
+    g = client.get("/api/operator-config", params={"path": str(fresh_subdir)})
+    assert (
+        g.status_code == 200
+    ), f"Expected 200 (auto-create + seed), got {g.status_code}: {g.text[:200]}"
+    assert fresh_subdir.is_dir(), "GET should have auto-created the corpus subdir"
+    body = g.json()
+    assert body["corpus_path"] == str(fresh_subdir.resolve())
+    # If a packaged example is present in this env, content is non-empty.
+    seeded = body["content"].strip()
+    if seeded:
+        assert "max_episodes" in seeded
+
+
+def test_operator_config_path_outside_anchor_still_rejected(
+    tmp_path_factory: pytest.TempPathFactory,
+) -> None:
+    """Auto-create path doesn't loosen the anchor check — paths escaping the
+    configured corpus root still 400. Security regression guard for #693 fix.
+    """
+    corpus_dir = tmp_path_factory.mktemp("corpus_inside")
+    outside = tmp_path_factory.mktemp("elsewhere_separate") / "not-allowed"
+    app = create_app(corpus_dir, static_dir=False, enable_operator_config_api=True)
+    client = TestClient(app)
+    g = client.get("/api/operator-config", params={"path": str(outside)})
+    assert (
+        g.status_code == 400
+    ), f"Path outside anchor must be rejected with 400, got {g.status_code}"
+    assert not outside.exists(), "auto-create must NOT happen for paths outside anchor"
+
+
 def test_operator_put_profile_only_merges_packaged_example(corpus: Path) -> None:
     """PUT with only ``profile:`` (empty overrides) picks up packaged example keys."""
     app = create_app(corpus, static_dir=False, enable_operator_config_api=True)
