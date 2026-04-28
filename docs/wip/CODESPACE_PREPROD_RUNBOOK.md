@@ -50,7 +50,7 @@ land.
 ## Pipeline-job lifecycle inside the codespace
 
 `POST /api/jobs` flow with `PODCAST_PIPELINE_EXEC_MODE=docker` (the
-prod overlay's default — see [docker-compose.prod.yml](../../compose/docker-compose.prod.yml)):
+prod overlay's default — see `compose/docker-compose.prod.yml`):
 
 1. api validates `viewer_operator.yaml`'s `pipeline_install_extras`
    (must be `ml` or `llm`; `llm` for both cloud_balanced and cloud_thin in
