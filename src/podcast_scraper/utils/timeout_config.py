@@ -106,7 +106,7 @@ def get_summarization_timeout(cfg: config.Config) -> httpx.Timeout | float | Non
     Returns:
         httpx.Timeout object with summarization-appropriate timeouts
     """
-    summarization_timeout = getattr(cfg, "summarization_timeout", 600)  # 10 min
+    summarization_timeout = getattr(cfg, "summarization_timeout", 1200)  # 20 min
     return get_http_timeout(
         cfg,
         connect_timeout=10.0,  # Fast fail on connection issues

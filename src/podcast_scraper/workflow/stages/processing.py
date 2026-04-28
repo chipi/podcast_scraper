@@ -1465,7 +1465,7 @@ def process_processing_jobs_concurrent(  # noqa: C901
             # Enforce summarization timeout per episode (Issue #429)
             from ...utils.timeout import timeout_context, TimeoutError as SummarizationTimeoutError
 
-            summarization_timeout = getattr(cfg, "summarization_timeout", 600)
+            summarization_timeout = getattr(cfg, "summarization_timeout", 1200)
             with timeout_context(
                 summarization_timeout,
                 f"summarization for episode {job.episode.idx}",
@@ -1492,7 +1492,7 @@ def process_processing_jobs_concurrent(  # noqa: C901
             logger.error(
                 "[%s] Summarization timeout after %ss: %s",
                 job.episode.idx,
-                getattr(cfg, "summarization_timeout", 600),
+                getattr(cfg, "summarization_timeout", 1200),
                 format_exception_for_log(exc),
             )
             if pipeline_metrics is not None:

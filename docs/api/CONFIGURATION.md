@@ -1161,9 +1161,9 @@ If either is set to an LLM (e.g. openai, anthropic), the corresponding API key m
 
 **`summarization_timeout`**
 
-- **Description**: Timeout in seconds for summarization operations (Issue #379). `None` means no timeout.
+- **Description**: Timeout in seconds for summarization operations (Issue #379). `None` means no timeout. Sized to outlast typical provider 503 spikes (#697).
 - **CLI Flag**: Not available (config file only)
-- **Default**: `None` (no timeout)
+- **Default**: `1200` (20 minutes)
 - **Type**: `Optional[int]`
 - **Use Cases**: Preventing hung summarization operations, Production reliability, Long transcript handling
 

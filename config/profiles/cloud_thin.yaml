@@ -22,6 +22,11 @@ preprocessing_enabled: true
 llm_pipeline_mode: mega_bundled
 cloud_llm_structured_min_output_tokens: 4096
 
+# GIL evidence stack runs ~76 sequential Gemini calls/episode (extract_quotes + NLI;
+# see #698). A short Gemini 503 spike can stack retry backoff into minutes. 1200s gives
+# the per-call retry ladder room to outlast typical spikes — see #697 for the safety net.
+summarization_timeout: 1200
+
 generate_gi: true
 gi_insight_source: provider
 gi_max_insights: 12
