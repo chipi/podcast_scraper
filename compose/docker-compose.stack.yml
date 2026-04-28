@@ -17,6 +17,14 @@ services:
     build:
       context: ..
       dockerfile: docker/viewer/Dockerfile
+      args:
+        # Sentry build-time env injection. Vite picks up VITE_*
+        # at build time and bakes them into the SPA bundle. All
+        # three are optional — Vue main.ts only initialises Sentry
+        # when VITE_SENTRY_DSN_VIEWER is set. See RFC-081 §Layer 2.
+        VITE_SENTRY_DSN_VIEWER: ${VITE_SENTRY_DSN_VIEWER:-}
+        VITE_PODCAST_ENV: ${VITE_PODCAST_ENV:-dev}
+        VITE_PODCAST_RELEASE: ${VITE_PODCAST_RELEASE:-}
     image: podcast-scraper-stack-viewer:latest
     ports:
       - "${VIEWER_PORT:-8080}:80"
@@ -71,6 +79,11 @@ services:
       args:
         INSTALL_EXTRAS: ${STACK_PIPELINE_INSTALL_EXTRAS:-ml}
         PRELOAD_ML_MODELS: ${STACK_PIPELINE_PRELOAD_ML:-true}
+        # Selects which preload bundle the Dockerfile bakes in. Default is
+        # ``production`` (full nightly bundle); ``make stack-test-build`` overrides
+        # to ``airgapped-thin`` so the stack-test pipeline image is smaller and
+        # license-clean (no SummLlama / Pegasus / hybrid models).
+        PRELOAD_VARIANT: ${STACK_PIPELINE_PRELOAD_VARIANT:-production}
     image: podcast-scraper-stack-pipeline:latest
     volumes:
       - corpus_data:/app/output
@@ -82,6 +95,14 @@ services:
       MISTRAL_API_KEY: ${MISTRAL_API_KEY:-}
       DEEPSEEK_API_KEY: ${DEEPSEEK_API_KEY:-}
       GROK_API_KEY: ${GROK_API_KEY:-}
+      # Sentry SDK — init at the CLI entrypoint, gated on this DSN being
+      # set. Default empty (no-op). When set in Codespaces / VPS env, the
+      # spawned ``docker compose run pipeline ...`` subprocess inherits
+      # the DSN and reports crashes with full stack traces tagged
+      # ``component=pipeline``.  See RFC-081 §Layer 2, issue #681.
+      PODCAST_SENTRY_DSN_PIPELINE: ${PODCAST_SENTRY_DSN_PIPELINE:-}
+      PODCAST_ENV: ${PODCAST_ENV:-dev}
+      PODCAST_RELEASE: ${PODCAST_RELEASE:-}
 
   # Optional: same Dockerfile with ``INSTALL_EXTRAS=llm`` (``pyproject`` **``. [llm]``**) for cloud-thin profiles.
   pipeline-llm:
@@ -104,6 +125,12 @@ services:
       MISTRAL_API_KEY: ${MISTRAL_API_KEY:-}
       DEEPSEEK_API_KEY: ${DEEPSEEK_API_KEY:-}
       GROK_API_KEY: ${GROK_API_KEY:-}
+      # Mirror of the ``pipeline`` service's Sentry env. cloud_thin
+      # pre-prod runs use this image, so DSN propagation must be
+      # symmetric. See RFC-081 §Layer 2, issue #681.
+      PODCAST_SENTRY_DSN_PIPELINE: ${PODCAST_SENTRY_DSN_PIPELINE:-}
+      PODCAST_ENV: ${PODCAST_ENV:-dev}
+      PODCAST_RELEASE: ${PODCAST_RELEASE:-}
 
 volumes:
   corpus_data:

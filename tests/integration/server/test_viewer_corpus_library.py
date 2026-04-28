@@ -462,3 +462,91 @@ def test_corpus_episodes_includes_verified_local_artwork_paths(tmp_path: Path) -
     detail = dr.json()
     assert detail["feed_image_local_relpath"] == art_rel
     assert detail["episode_image_local_relpath"] == art_rel
+
+
+# #678 PR-C6: POST routes coverage gaps surfaced by the test review audit.
+# Both routes had only indirect coverage via the larger viewer flow tests;
+# these add explicit request/response contract tests.
+
+
+def test_corpus_resolve_episode_artifacts_returns_resolved_and_missing(tmp_path: Path) -> None:
+    """POST /api/corpus/resolve-episode-artifacts maps episode_ids to
+    GI/KG/bridge relative paths via catalog scan; unknown ids land in
+    missing_episode_ids."""
+    meta = tmp_path / "metadata"
+    meta.mkdir()
+    (meta / "ep1.metadata.json").write_text(
+        json.dumps(_episode_doc(episode_id="ep1")),
+        encoding="utf-8",
+    )
+    (meta / "ep1.gi.json").write_text("{}", encoding="utf-8")
+
+    app = create_app(tmp_path, static_dir=False)
+    client = TestClient(app)
+
+    r = client.post(
+        "/api/corpus/resolve-episode-artifacts",
+        json={"path": str(tmp_path), "episode_ids": ["ep1", "never-seen"]},
+    )
+    assert r.status_code == 200
+    body = r.json()
+    assert body["path"] == str(tmp_path.resolve())
+    assert len(body["resolved"]) == 1
+    assert body["resolved"][0]["episode_id"] == "ep1"
+    assert body["resolved"][0]["gi_relative_path"].endswith("ep1.gi.json")
+    assert body["missing_episode_ids"] == ["never-seen"]
+
+
+def test_corpus_resolve_episode_artifacts_dedupes_and_rejects_empty(tmp_path: Path) -> None:
+    """Duplicate episode_ids in the request are deduped; empty list rejects with 422."""
+    meta = tmp_path / "metadata"
+    meta.mkdir()
+    (meta / "ep1.metadata.json").write_text(
+        json.dumps(_episode_doc(episode_id="ep1")),
+        encoding="utf-8",
+    )
+    (meta / "ep1.gi.json").write_text("{}", encoding="utf-8")
+
+    app = create_app(tmp_path, static_dir=False)
+    client = TestClient(app)
+
+    # Duplicate ids
+    r = client.post(
+        "/api/corpus/resolve-episode-artifacts",
+        json={"path": str(tmp_path), "episode_ids": ["ep1", "ep1", "ep1"]},
+    )
+    assert r.status_code == 200
+    assert len(r.json()["resolved"]) == 1
+
+    # Empty list — schema constraint min_length=1 → 422
+    r2 = client.post(
+        "/api/corpus/resolve-episode-artifacts",
+        json={"path": str(tmp_path), "episode_ids": []},
+    )
+    assert r2.status_code == 422
+
+
+def test_corpus_node_episodes_returns_empty_for_unknown_node(tmp_path: Path) -> None:
+    """POST /api/corpus/node-episodes with an unknown node_id returns an
+    empty episodes list (not a 404). The endpoint is content-addressed."""
+    meta = tmp_path / "metadata"
+    meta.mkdir()
+    (meta / "ep1.metadata.json").write_text(
+        json.dumps(_episode_doc(episode_id="ep1")),
+        encoding="utf-8",
+    )
+    (meta / "ep1.gi.json").write_text("{}", encoding="utf-8")
+
+    app = create_app(tmp_path, static_dir=False)
+    client = TestClient(app)
+
+    r = client.post(
+        "/api/corpus/node-episodes",
+        json={"path": str(tmp_path), "node_id": "nonexistent::node"},
+    )
+    assert r.status_code == 200
+    body = r.json()
+    assert body["path"] == str(tmp_path.resolve())
+    # node_id is normalised through canonical_cil_entity_id; just verify it's a string.
+    assert isinstance(body["node_id"], str)
+    assert body["episodes"] == []

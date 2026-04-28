@@ -4396,6 +4396,15 @@ def main(  # noqa: C901 - main function handles multiple command paths
     """Entry point for the CLI; returns an exit status code."""
     if argv is None:
         argv = sys.argv[1:]
+    # Sentry init runs early so any subsequent crash (validation,
+    # config loading, pipeline subprocess, provider call) surfaces with
+    # a stack trace. No-op when ``PODCAST_SENTRY_DSN_PIPELINE`` is unset
+    # (default — keeps local dev silent). Pipeline subprocess crashes
+    # are the highest-value Sentry signal we'll have, so init before
+    # any other startup work.
+    from podcast_scraper.utils.sentry_init import init_sentry
+
+    init_sentry("pipeline")
     # Validate Python version and dependencies at startup (Issue #379)
     _validate_python_version()
     # Only validate ffmpeg for main pipeline command, not for cache/doctor/gi/kg subcommands

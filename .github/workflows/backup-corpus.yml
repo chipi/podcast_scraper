@@ -1,0 +1,178 @@
+name: Backup corpus snapshot
+
+# Daily backup of the pre-prod codespace's corpus directory to a
+# private GitHub Releases asset on chipi/podcast_scraper-backup. See
+# RFC-081 §Phase 1E + issue #682.
+#
+# Operator setup (one-time):
+#   1. Create chipi/podcast_scraper-backup as a PRIVATE repo.
+#   2. Create a fine-grained PAT with ``Contents: Read and write`` scope
+#      on that repo only; store as ``BACKUP_REPO_TOKEN`` Actions secret.
+#      Used to upload the tarball as a release asset on the backup repo.
+#   3. Create a SECOND fine-grained PAT with ``Codespaces: Read and write``
+#      scope on chipi/podcast_scraper; store as ``CODESPACES_PAT`` Actions
+#      secret. The default GITHUB_TOKEN does not include codespaces
+#      scope, so a separate token is required to ``gh codespace ssh``
+#      into the pre-prod codespace and stream the corpus tarball out.
+#   4. Set ``PREPROD_CODESPACE_NAME`` repo variable to the codespace
+#      name pinned in the deploy-codespace workflow (same value).
+#   5. Set ``PODCAST_BACKUP_REPO_READY`` repo variable to ``true``.
+#      The schedule cron stays gated until this is set.
+#
+# Once those are in place, the daily cron at 04:17 UTC (after pre-prod
+# is quiet) tarballs the codespace's corpus dir and uploads as a
+# release asset. Retention: 7 daily + 4 weekly, older snapshots pruned.
+
+on:
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Run without uploading (logs the would-do tarball size + retention prune list)"
+        required: false
+        type: boolean
+        default: true
+  schedule:
+    - cron: "17 4 * * *" # 04:17 UTC daily, after pre-prod is quiet
+
+permissions:
+  # No GITHUB_TOKEN write needed — uploads go to a different repo via
+  # BACKUP_REPO_TOKEN. Keep the default-token surface minimal.
+  contents: read
+
+jobs:
+  snapshot:
+    runs-on: ubuntu-latest
+    # The schedule trigger only runs when the operator has flipped the
+    # readiness flag. workflow_dispatch always runs but defaults to
+    # dry_run=true so an accidental manual trigger logs only.
+    if: ${{ github.event_name == 'workflow_dispatch' || vars.PODCAST_BACKUP_REPO_READY == 'true' }}
+    steps:
+      - name: Validate prerequisites
+        env:
+          CODESPACES_PAT: ${{ secrets.CODESPACES_PAT }}
+          BACKUP_REPO_TOKEN: ${{ secrets.BACKUP_REPO_TOKEN }}
+          CS: ${{ vars.PREPROD_CODESPACE_NAME }}
+          BACKUP_REPO: ${{ vars.PODCAST_BACKUP_REPO || 'chipi/podcast_scraper-backup' }}
+        run: |
+          set -euo pipefail
+          missing=()
+          [ -z "${CODESPACES_PAT:-}" ] && missing+=("secrets.CODESPACES_PAT")
+          [ -z "${CS:-}" ] && missing+=("vars.PREPROD_CODESPACE_NAME")
+          if [ "${{ inputs.dry_run }}" = "false" ]; then
+            [ -z "${BACKUP_REPO_TOKEN:-}" ] && missing+=("secrets.BACKUP_REPO_TOKEN (required for upload)")
+          fi
+          if [ ${#missing[@]} -gt 0 ]; then
+            echo "::error::Missing required secrets/variables:" >&2
+            for m in "${missing[@]}"; do echo "  - $m" >&2; done
+            echo "See .github/workflows/backup-corpus.yml header for setup." >&2
+            exit 1
+          fi
+          echo "All prerequisites present. Codespace=$CS, BackupRepo=$BACKUP_REPO."
+
+      - name: Tarball codespace corpus directory
+        env:
+          GH_TOKEN: ${{ secrets.CODESPACES_PAT }}
+          CS: ${{ vars.PREPROD_CODESPACE_NAME }}
+        run: |
+          set -euo pipefail
+          # Wake the codespace if asleep. ``gh codespace start`` is a
+          # no-op when already running.
+          gh codespace start --codespace "$CS" || true
+          # Stream the tar across SSH; avoids needing temp space inside
+          # the codespace's 32 GB workspace.
+          gh codespace ssh --codespace "$CS" -- \
+            'tar -czf - -C /workspaces/podcast_scraper .codespace_corpus' \
+            > snapshot.tgz
+          echo "Tarball created: $(ls -lh snapshot.tgz | awk '{print $5}')"
+          # Sanity: refuse to upload empty / suspiciously small tarballs.
+          size=$(stat -c%s snapshot.tgz)
+          if [ "$size" -lt 1024 ]; then
+            echo "::error::Tarball is suspiciously small ($size bytes); aborting." >&2
+            exit 1
+          fi
+
+      - name: Upload snapshot to backup repo
+        if: ${{ inputs.dry_run != true }}
+        env:
+          GH_TOKEN: ${{ secrets.BACKUP_REPO_TOKEN }}
+          BACKUP_REPO: ${{ vars.PODCAST_BACKUP_REPO || 'chipi/podcast_scraper-backup' }}
+        run: |
+          set -euo pipefail
+          TAG="snapshot-$(date -u +%Y%m%d)"
+          # ``--clobber`` overwrites the asset if a release with this
+          # tag already exists (e.g., manual re-run on the same day).
+          gh release create "$TAG" snapshot.tgz \
+            --repo "$BACKUP_REPO" \
+            --title "Corpus snapshot $TAG" \
+            --notes "Automated daily backup of /workspaces/podcast_scraper/.codespace_corpus. Retention 7d + 4w." \
+            --target main \
+            2>/dev/null \
+            || gh release upload "$TAG" snapshot.tgz \
+                 --repo "$BACKUP_REPO" \
+                 --clobber
+          echo "Uploaded snapshot.tgz as release tag $TAG"
+
+      - name: Prune older snapshots (keep 7 daily + 4 weekly)
+        if: ${{ inputs.dry_run != true }}
+        env:
+          GH_TOKEN: ${{ secrets.BACKUP_REPO_TOKEN }}
+          BACKUP_REPO: ${{ vars.PODCAST_BACKUP_REPO || 'chipi/podcast_scraper-backup' }}
+        run: |
+          set -euo pipefail
+          # List release tags, sorted newest-first (gh sorts by created_at).
+          # Keep:
+          #   * the 7 most recent ``snapshot-YYYYMMDD`` releases
+          #   * the 4 most recent first-of-the-week snapshots beyond
+          #     those (Monday is ISO week start; tag's date determines
+          #     whether it's a Monday).
+          mapfile -t TAGS < <(gh release list --repo "$BACKUP_REPO" --limit 200 \
+            --json tagName -q '.[].tagName' | grep -E '^snapshot-[0-9]{8}$' || true)
+          if [ ${#TAGS[@]} -le 7 ]; then
+            echo "Only ${#TAGS[@]} release(s); nothing to prune."
+            exit 0
+          fi
+          # Daily keep set: first 7
+          KEEP_DAILY=("${TAGS[@]:0:7}")
+          # Weekly keep set: from the rest, pick releases dated on a Monday
+          REMAINDER=("${TAGS[@]:7}")
+          KEEP_WEEKLY=()
+          for tag in "${REMAINDER[@]}"; do
+            d="${tag#snapshot-}"
+            # date(1) on ubuntu-latest understands YYYYMMDD; %u = ISO weekday (1=Mon)
+            wd=$(date -d "$d" +%u 2>/dev/null || true)
+            if [ "$wd" = "1" ]; then
+              KEEP_WEEKLY+=("$tag")
+              [ ${#KEEP_WEEKLY[@]} -ge 4 ] && break
+            fi
+          done
+          KEEP=("${KEEP_DAILY[@]}" "${KEEP_WEEKLY[@]}")
+          echo "Keeping: ${KEEP[*]}"
+          for tag in "${TAGS[@]}"; do
+            keep=false
+            for k in "${KEEP[@]}"; do
+              [ "$tag" = "$k" ] && keep=true && break
+            done
+            if [ "$keep" = "false" ]; then
+              echo "Pruning $tag"
+              gh release delete "$tag" --repo "$BACKUP_REPO" --yes --cleanup-tag || true
+            fi
+          done
+
+      - name: Dry-run report
+        if: ${{ inputs.dry_run == true }}
+        env:
+          GH_TOKEN: ${{ secrets.BACKUP_REPO_TOKEN }}
+          BACKUP_REPO: ${{ vars.PODCAST_BACKUP_REPO || 'chipi/podcast_scraper-backup' }}
+        run: |
+          set -euo pipefail
+          echo "=== Dry-run mode ==="
+          echo "Tarball size: $(ls -lh snapshot.tgz 2>/dev/null | awk '{print $5}' || echo 'NONE')"
+          if [ -n "${BACKUP_REPO_TOKEN:-}" ]; then
+            echo ""
+            echo "Existing releases on $BACKUP_REPO:"
+            gh release list --repo "$BACKUP_REPO" --limit 20 2>&1 || echo "(unable to list)"
+          else
+            echo "BACKUP_REPO_TOKEN not set; skipping release-list preview."
+          fi
+          echo ""
+          echo "Nothing uploaded (dry_run=true)."

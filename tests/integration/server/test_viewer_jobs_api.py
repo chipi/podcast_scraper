@@ -203,6 +203,88 @@ def test_jobs_cancel_queued(corpus: Path) -> None:
     assert c.json()["status"] == "cancelled"
 
 
+# #678 PR-C6: cancel-endpoint coverage gaps surfaced by the test review
+# audit — idempotency under double-cancel, and cancel-after-terminal as
+# a no-op. The base cancel test above only covers the happy queued
+# path. Both cases below should NOT 4xx; cancel is documented as
+# idempotent against terminal states.
+
+
+def test_jobs_cancel_idempotent_double_cancel(corpus: Path) -> None:
+    """Cancelling an already-cancelled job is a no-op that returns the
+    terminal record. Avoids 4xx churn in clients that retry."""
+    app = create_app(corpus, static_dir=False, enable_jobs_api=True)
+    client = TestClient(app)
+    jid = "00000000-0000-4000-8000-0000000000aa"
+
+    def seed(jobs: list) -> None:
+        jobs.append(
+            {
+                "job_id": jid,
+                "command_type": "full_incremental_pipeline",
+                "status": "queued",
+                "created_at": "2026-04-19T12:00:00Z",
+                "started_at": None,
+                "ended_at": None,
+                "pid": None,
+                "argv_summary": "[]",
+                "exit_code": None,
+                "log_relpath": f".viewer/jobs/{jid}.log",
+                "error_reason": None,
+                "cancel_requested": False,
+            }
+        )
+
+    with_jobs_locked_mutate(corpus, seed)
+
+    first = client.post(f"/api/jobs/{jid}/cancel", params={"path": str(corpus)})
+    assert first.status_code == 200
+    assert first.json()["status"] == "cancelled"
+
+    # Double-cancel: should still be 200 with the same terminal record.
+    second = client.post(f"/api/jobs/{jid}/cancel", params={"path": str(corpus)})
+    assert second.status_code == 200
+    assert second.json()["status"] == "cancelled"
+    # Job id stable across calls.
+    assert second.json()["job_id"] == jid
+
+
+def test_jobs_cancel_after_succeeded_is_noop_terminal(corpus: Path) -> None:
+    """Cancelling a job that has already reached a terminal state
+    (succeeded / failed) returns the existing terminal record without
+    re-transitioning. Tests the noop_terminal branch in cancel_job()."""
+    app = create_app(corpus, static_dir=False, enable_jobs_api=True)
+    client = TestClient(app)
+    jid = "00000000-0000-4000-8000-0000000000bb"
+
+    def seed(jobs: list) -> None:
+        jobs.append(
+            {
+                "job_id": jid,
+                "command_type": "full_incremental_pipeline",
+                "status": "succeeded",  # already terminal
+                "created_at": "2026-04-19T12:00:00Z",
+                "started_at": "2026-04-19T12:01:00Z",
+                "ended_at": "2026-04-19T12:05:00Z",
+                "pid": None,
+                "argv_summary": "[]",
+                "exit_code": 0,
+                "log_relpath": f".viewer/jobs/{jid}.log",
+                "error_reason": None,
+                "cancel_requested": False,
+            }
+        )
+
+    with_jobs_locked_mutate(corpus, seed)
+
+    c = client.post(f"/api/jobs/{jid}/cancel", params={"path": str(corpus)})
+    assert c.status_code == 200
+    # Status must remain ``succeeded`` — cancel does not overwrite a
+    # terminal record. exit_code stays 0.
+    assert c.json()["status"] == "succeeded"
+    assert c.json()["exit_code"] == 0
+
+
 def test_jobs_get_unknown_returns_404(corpus: Path) -> None:
     app = create_app(corpus, static_dir=False, enable_jobs_api=True)
     client = TestClient(app)

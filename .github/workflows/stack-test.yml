@@ -38,6 +38,8 @@ on:
 permissions:
   # ``workflow_run`` events run with the upstream's permissions context;
   # be explicit so this still works if the upstream tightens its own.
+  # The ``publish`` job below adds its own narrower ``packages: write``
+  # at the job level to keep ``stack-test`` from carrying that scope.
   contents: read
   actions: read
   checks: write
@@ -155,3 +157,148 @@ jobs:
           name: stack-test-playwright-report
           path: tests/stack-test/playwright-report
           if-no-files-found: ignore
+
+  # ============================================================
+  # publish — gated on stack-test success on main.
+  #
+  # Pushes api / viewer / pipeline-llm to GHCR with two tags:
+  #   * :main         — the always-track-latest-green-main tag
+  #   * :sha-<short>  — for incident-response pinning + rollback
+  #
+  # NEVER pushes pipeline-ml — that image bakes in models with
+  # restrictive licenses (Llama 3.2 community license) and is
+  # built on CI runners only for stack-test consumption.
+  # See RFC-081 §Layer 1 for the published-image-set decision.
+  #
+  # Each image is built locally first, runs the no-secrets-in-image
+  # assertion (scripts/check/no-secrets-in-image.sh), and then
+  # gets the two tags pushed only after the assertion passes.
+  # ============================================================
+  publish:
+    needs: stack-test
+    runs-on: ubuntu-latest
+    # Strict gate: only on main pushes (workflow_run from main) AND
+    # when stack-test succeeded AND in the canonical repo (avoid
+    # forks accidentally pushing).
+    if: |
+      github.repository == 'chipi/podcast_scraper'
+      && github.ref == 'refs/heads/main'
+      && (
+        (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success')
+        || github.event_name == 'workflow_dispatch'
+      )
+    permissions:
+      contents: read
+      packages: write
+    env:
+      DOCKER_BUILDKIT: 1
+      REGISTRY: ghcr.io
+      OWNER: chipi
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ github.event.workflow_run.head_sha || github.ref }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Compute tags
+        id: tags
+        run: |
+          set -euo pipefail
+          SHA="${{ github.event.workflow_run.head_sha || github.sha }}"
+          SHORT="${SHA:0:7}"
+          echo "short_sha=${SHORT}" >> "$GITHUB_OUTPUT"
+          echo "ref_main=:main" >> "$GITHUB_OUTPUT"
+          echo "ref_sha=:sha-${SHORT}" >> "$GITHUB_OUTPUT"
+
+      - name: Build + assert + push (api)
+        env:
+          IMAGE: ${{ env.REGISTRY }}/${{ env.OWNER }}/podcast-scraper-stack-api
+          SHORT_SHA: ${{ steps.tags.outputs.short_sha }}
+        run: |
+          set -euo pipefail
+          # Build to local docker first so the no-secrets assertion can run
+          # against the built image before any push.
+          docker buildx build \
+            --tag "${IMAGE}:build-${SHORT_SHA}" \
+            --load \
+            --cache-from "type=gha,scope=publish-api" \
+            --cache-to "type=gha,scope=publish-api,mode=max" \
+            -f docker/api/Dockerfile .
+          scripts/check/no-secrets-in-image.sh "${IMAGE}:build-${SHORT_SHA}"
+          docker tag "${IMAGE}:build-${SHORT_SHA}" "${IMAGE}:main"
+          docker tag "${IMAGE}:build-${SHORT_SHA}" "${IMAGE}:sha-${SHORT_SHA}"
+          docker push "${IMAGE}:main"
+          docker push "${IMAGE}:sha-${SHORT_SHA}"
+
+      - name: Build + assert + push (viewer)
+        env:
+          IMAGE: ${{ env.REGISTRY }}/${{ env.OWNER }}/podcast-scraper-stack-viewer
+          SHORT_SHA: ${{ steps.tags.outputs.short_sha }}
+          # Sentry DSN bakes into the SPA bundle at build time; reach
+          # for the GHA secret. Other VITE_* vars are optional.
+          VITE_SENTRY_DSN_VIEWER: ${{ secrets.VITE_SENTRY_DSN_VIEWER }}
+        run: |
+          set -euo pipefail
+          docker buildx build \
+            --tag "${IMAGE}:build-${SHORT_SHA}" \
+            --load \
+            --cache-from "type=gha,scope=publish-viewer" \
+            --cache-to "type=gha,scope=publish-viewer,mode=max" \
+            --build-arg "VITE_SENTRY_DSN_VIEWER=${VITE_SENTRY_DSN_VIEWER}" \
+            --build-arg "VITE_PODCAST_ENV=preprod" \
+            --build-arg "VITE_PODCAST_RELEASE=podcast-scraper@sha-${SHORT_SHA}" \
+            -f docker/viewer/Dockerfile .
+          scripts/check/no-secrets-in-image.sh "${IMAGE}:build-${SHORT_SHA}"
+          docker tag "${IMAGE}:build-${SHORT_SHA}" "${IMAGE}:main"
+          docker tag "${IMAGE}:build-${SHORT_SHA}" "${IMAGE}:sha-${SHORT_SHA}"
+          docker push "${IMAGE}:main"
+          docker push "${IMAGE}:sha-${SHORT_SHA}"
+
+      - name: Build + assert + push (pipeline-llm — cloud variant only)
+        env:
+          IMAGE: ${{ env.REGISTRY }}/${{ env.OWNER }}/podcast-scraper-stack-pipeline-llm
+          SHORT_SHA: ${{ steps.tags.outputs.short_sha }}
+        run: |
+          set -euo pipefail
+          # INSTALL_EXTRAS=llm = cloud-thin variant (OpenAI/Gemini SDKs).
+          # PRELOAD_ML_MODELS=false because this image has no local ML models.
+          docker buildx build \
+            --tag "${IMAGE}:build-${SHORT_SHA}" \
+            --load \
+            --cache-from "type=gha,scope=publish-pipeline-llm" \
+            --cache-to "type=gha,scope=publish-pipeline-llm,mode=max" \
+            --build-arg "INSTALL_EXTRAS=llm" \
+            --build-arg "PRELOAD_ML_MODELS=false" \
+            -f docker/pipeline/Dockerfile .
+          scripts/check/no-secrets-in-image.sh "${IMAGE}:build-${SHORT_SHA}"
+          docker tag "${IMAGE}:build-${SHORT_SHA}" "${IMAGE}:main"
+          docker tag "${IMAGE}:build-${SHORT_SHA}" "${IMAGE}:sha-${SHORT_SHA}"
+          docker push "${IMAGE}:main"
+          docker push "${IMAGE}:sha-${SHORT_SHA}"
+
+      - name: Summary
+        run: |
+          set -euo pipefail
+          SHORT="${{ steps.tags.outputs.short_sha }}"
+          {
+            echo "## GHCR publish complete"
+            echo ""
+            echo "Pushed three images with tags ``:main`` + ``:sha-${SHORT}``:"
+            echo ""
+            echo "* ``ghcr.io/${{ env.OWNER }}/podcast-scraper-stack-api:main``"
+            echo "* ``ghcr.io/${{ env.OWNER }}/podcast-scraper-stack-viewer:main``"
+            echo "* ``ghcr.io/${{ env.OWNER }}/podcast-scraper-stack-pipeline-llm:main``"
+            echo ""
+            echo "The ``pipeline-ml`` image (with HuggingFace cache + SummLlama)"
+            echo "is intentionally NOT published — RFC-081 §Layer 1 license"
+            echo "decision; never redistribute restricted-license model bundles."
+          } >> "$GITHUB_STEP_SUMMARY"

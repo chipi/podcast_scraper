@@ -450,28 +450,22 @@ class TestChunking(unittest.TestCase):
         else:
             sys.modules["torch"] = self._original_torch
 
-    @patch("transformers.AutoTokenizer", create=True)
-    @patch("transformers.AutoModelForSeq2SeqLM", create=True)
-    @patch("transformers.pipeline", create=True)
-    @patch("podcast_scraper.summarizer.torch", create=True)
-    def test_chunk_text_for_summarization(
-        self, mock_torch, mock_pipeline, mock_model_class, mock_tokenizer_class
-    ):
-        """Test text chunking functionality."""
-        mock_torch.backends.mps.is_available.return_value = False
-        mock_torch.cuda.is_available.return_value = False
+    def test_chunk_text_for_summarization(self):
+        """Test text chunking functionality.
 
+        ``chunk_text_for_summarization`` takes a tokenizer object directly
+        and never touches ``transformers.*`` itself. The previous version
+        of this test patched ``transformers.AutoTokenizer`` /
+        ``AutoModelForSeq2SeqLM`` / ``pipeline`` decoratively but never
+        used the mocks — they were dead patches and a #677-style
+        anti-pattern (patching lazy-module attributes that
+        ``transformers >= 4.40`` resolves through ``_LazyModule.__getattr__``,
+        bypassing test patches). Removed since they were never load-bearing.
+        """
         mock_tokenizer = Mock()
         # Mock tokenizer to return tokens
         mock_tokenizer.encode.return_value = list(range(2000))  # 2000 tokens
         mock_tokenizer.decode.return_value = "chunk text"
-        mock_tokenizer_class.from_pretrained.return_value = mock_tokenizer
-
-        mock_model = Mock()
-        mock_model_class.from_pretrained.return_value = mock_model
-
-        mock_pipe = Mock()
-        mock_pipeline.return_value = mock_pipe
 
         # Note: We don't need to create SummaryModel for this test,
         # chunk_text_for_summarization only needs a tokenizer
