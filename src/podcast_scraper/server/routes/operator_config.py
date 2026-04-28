@@ -125,7 +125,15 @@ async def get_operator_config(
     ``--profile`` + ``--config``).
     """
     anchor = getattr(request.app.state, "output_dir", None)
-    corpus_root = resolve_corpus_path_param(path, anchor)
+    # First-run UX (#693 / day-1 operator workflow): allow the corpus subdir
+    # to be missing on disk and auto-create it before seeding viewer_operator.yaml.
+    # The path is still validated to live under ``anchor`` (security: same
+    # ``startswith anchor + sep`` check), so the operator can only auto-create
+    # subdirs of the configured corpus root, not arbitrary filesystem paths.
+    corpus_root = resolve_corpus_path_param(path, anchor, must_be_dir=False)
+    # codeql[py/path-injection] -- corpus_root validated by resolve_corpus_path_param's
+    # normpath + ``startswith(anchor + sep)`` check (the documented sanitizer pair).
+    corpus_root.mkdir(parents=True, exist_ok=True)
     cfg_raw = _operator_file(request, corpus_root)
     cfg_path = _verified_operator_config_path(request, corpus_root, cfg_raw)
     profiles = list_packaged_profile_names()
@@ -178,7 +186,13 @@ async def put_operator_config(
 ) -> OperatorConfigGetResponse:
     """Validate and atomically write operator YAML to the configured resolved path."""
     anchor = getattr(request.app.state, "output_dir", None)
-    corpus_root = resolve_corpus_path_param(path, anchor)
+    # Mirror GET handler: auto-create the corpus subdir if missing so PUT
+    # also works against fresh paths (operator chooses path → Save → dir
+    # appears alongside viewer_operator.yaml).
+    corpus_root = resolve_corpus_path_param(path, anchor, must_be_dir=False)
+    # codeql[py/path-injection] -- corpus_root validated by resolve_corpus_path_param's
+    # normpath + ``startswith(anchor + sep)`` check (the documented sanitizer pair).
+    corpus_root.mkdir(parents=True, exist_ok=True)
     cfg_raw = _operator_file(request, corpus_root)
     cfg_path = _verified_operator_config_path(request, corpus_root, cfg_raw)
     to_write = expand_profile_only_with_packaged_example(
