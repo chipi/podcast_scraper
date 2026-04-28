@@ -35,6 +35,26 @@
 #
 # For external named volumes on a VPS, replace the ``corpus_data``
 # definition in a site-local override that adds ``external: true``.
+#
+# Corpus storage:
+#
+#   This overlay redefines the ``corpus_data`` named volume (originally a
+#   Docker-managed volume in stack.yml for stack-test ephemerality) as a
+#   bind mount onto a host directory the operator can edit + back up:
+#
+#     - On Codespaces: ``/workspaces/podcast_scraper/.codespace_corpus``
+#       (workspace-mounted, persists across rebuilds, the path that
+#       backup-corpus.yml tarballs).
+#     - On a VPS: override via ``PODCAST_CORPUS_HOST_PATH`` env var.
+#
+#   So:
+#     * From a codespace shell: ``/workspaces/podcast_scraper/.codespace_corpus``
+#     * From inside the api / pipeline-llm containers: ``/app/output``
+#     * From the viewer corpus-path input: also ``/app/output`` (the path
+#       the api validates against is the container's view).
+#
+#   ``.devcontainer/start.sh`` ``mkdir -p``s the host dir before
+#   ``docker compose up`` so the bind mount source always exists.
 
 services:
   viewer:
@@ -95,9 +115,15 @@ services:
 #       resources:
 #         limits:
 #           memory: 2G
-#
-# Example: external corpus volume (site-local override — paths are illustrative only):
-# volumes:
-#   corpus_data:
-#     external: true
-#     name: podcast_scraper_corpus_prod
+
+# Override the ``corpus_data`` named volume from stack.yml as a bind
+# mount onto the host's workspace dir. Default targets the codespace
+# layout. On a VPS, set ``PODCAST_CORPUS_HOST_PATH`` to an absolute
+# path (e.g., ``/var/lib/podcast/corpus``) before ``docker compose up``.
+volumes:
+  corpus_data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ${PODCAST_CORPUS_HOST_PATH:-/workspaces/podcast_scraper/.codespace_corpus}
