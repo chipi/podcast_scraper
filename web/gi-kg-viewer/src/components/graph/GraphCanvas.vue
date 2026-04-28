@@ -97,11 +97,61 @@ const GRAPH_FOCUS_FRAME_MIN_ZOOM = 1.3
 const episodeTerritoryMode = ref<'off' | 'empty'>('off')
 const episodeTerritoryLoadBusy = ref(false)
 const episodeTerritoryDismissed = ref(false)
+/** Auto-load gate (#696): tracks metadata paths we've already tried to
+ * auto-fetch on this canvas session so a transient fetch failure doesn't
+ * loop. Cleared when the operator dismisses the strip + retries via the
+ * manual load button (which calls ``loadEpisodeSliceForTerritoryStrip``
+ * directly), or when the focused episode changes. */
+const episodeTerritoryAutoLoadTriedPaths = ref<Set<string>>(new Set())
 
 watch(
   () => subject.episodeMetadataPath,
   () => {
     episodeTerritoryDismissed.value = false
+    episodeTerritoryAutoLoadTriedPaths.value = new Set()
+  },
+)
+
+/** Library → Graph hand-off (#696): when the operator clicks an Episode
+ * row in Library / Search, the subject store gets ``episodeMetadataPath``
+ * but the graph canvas may not have that episode's GI/KG slice loaded.
+ * The existing ``applyEpisodeRepresentativeFocusIfNeeded`` then sets
+ * ``episodeTerritoryMode = 'empty'`` and shows a strip with a manual
+ * "load slice" button — but the operator's intent on every previous
+ * click was clearly "show me this episode in the graph". Auto-fire the
+ * same load that the manual button does so the Library → Graph switch
+ * just works.
+ *
+ * Guarded by ``episodeTerritoryAutoLoadTriedPaths`` so a transient
+ * 5xx / network failure doesn't infinite-loop; ``episodeTerritoryDismissed``
+ * preserves the manual-control escape hatch (operator can dismiss the
+ * strip and the auto-load won't re-try until they re-focus the
+ * episode). */
+watch(
+  () => [
+    episodeTerritoryMode.value,
+    subject.episodeMetadataPath,
+    episodeTerritoryDismissed.value,
+  ] as const,
+  () => {
+    if (episodeTerritoryMode.value !== 'empty') {
+      return
+    }
+    if (episodeTerritoryDismissed.value) {
+      return
+    }
+    const meta = subject.episodeMetadataPath?.trim()
+    if (!meta) {
+      return
+    }
+    if (episodeTerritoryAutoLoadTriedPaths.value.has(meta)) {
+      return
+    }
+    if (episodeTerritoryLoadBusy.value) {
+      return
+    }
+    episodeTerritoryAutoLoadTriedPaths.value.add(meta)
+    void loadEpisodeSliceForTerritoryStrip()
   },
 )
 
