@@ -75,22 +75,30 @@ jobs:
           CS: ${{ vars.PREPROD_CODESPACE_NAME }}
         run: |
           set -euo pipefail
-          # Wake the codespace if asleep. ``gh codespace start`` is a
-          # no-op when already running. Flag is ``-c`` (NOT ``--codespace``;
-          # see https://cli.github.com/manual/gh_codespace_ssh).
+          # Wake the codespace if asleep. ``gh api`` works with the
+          # CODESPACES_PAT scope without needing SSH key wiring.
           gh api -X POST "/user/codespaces/$CS/start" >/dev/null 2>&1 || true
-          # Wait for codespace to be Available before SSHing — start is async.
+          # Wait for codespace to be Available before pulling files.
           for i in $(seq 1 24); do
             state=$(gh codespace list --json name,state -q ".[] | select(.name==\"$CS\") | .state" 2>/dev/null || echo "")
             [ "$state" = "Available" ] && break
             echo "Codespace state=$state; waiting (attempt $i/24)..."
             sleep 5
           done
-          # Stream the tar across SSH; avoids needing temp space inside
-          # the codespace's 32 GB workspace.
-          gh codespace ssh -c "$CS" -- \
-            'tar -czf - -C /workspaces/podcast_scraper .codespace_corpus' \
-            > snapshot.tgz
+          # Pull the corpus dir via ``gh codespace cp`` — same path used
+          # by ``make codespace-backup-local``. This was originally a
+          # ``gh codespace ssh -- 'tar -czf -'`` stream, which is fragile
+          # on CI runners (no auto-generated ~/.ssh/codespaces.auto, and
+          # mid-stream connection cuts produce partial-but-not-empty
+          # tarballs that pass naive size checks). ``cp`` is file-level
+          # so a transport hiccup fails the step cleanly instead of
+          # corrupting the snapshot. Tarball locally afterwards so the
+          # upload is still a single asset.
+          gh codespace cp -e -c "$CS" -r \
+            'remote:/workspaces/podcast_scraper/.codespace_corpus' \
+            ./
+          tar -czf snapshot.tgz .codespace_corpus
+          rm -rf .codespace_corpus
           echo "Tarball created: $(ls -lh snapshot.tgz | awk '{print $5}')"
           # Sanity: refuse to upload empty / suspiciously small tarballs.
           size=$(stat -c%s snapshot.tgz)
@@ -100,7 +108,7 @@ jobs:
           fi
           # Sanity: a healthy corpus tarball contains at least one
           # ``.gi.json`` artifact (per-episode GI insights). Catches the
-          # case where the SSH succeeded but the bind-mount was empty.
+          # case where the cp succeeded but the bind-mount was empty.
           if ! tar -tzf snapshot.tgz | grep -q '\.gi\.json$'; then
             echo "::error::Tarball has no .gi.json artifacts; corpus likely empty." >&2
             exit 1
