@@ -68,7 +68,7 @@ ml = [
   # v3+ CrossEncoder: pass local_files_only on constructor, not inside tokenizer/automodel kwargs
   "sentence-transformers>=5.4.1,<6.0.0",
   # Semantic corpus search (PRD-021 / RFC-061): local vector index
-  "faiss-cpu>=1.9.0,<2.0.0",
+  "faiss-cpu>=1.13.2,<2.0.0",
   "accelerate>=1.13.0,<2.0.0",
   "protobuf>=3.20.0,!=6.33.4,<8.0.0",  # Exclude 6.33.4 due to CVE-2026-0994 (fixed in 6.33.5+)
   # GGUF in-process inference for hybrid_ml Tier 2 REDUCE (RFC-042, Issue #352); Ollama needs no extra
@@ -102,7 +102,7 @@ search = [
   "transformers>=4.41.0,<5.0.0",
   "sentencepiece>=0.1.99,<1.0.0",
   "sentence-transformers>=5.4.1,<6.0.0",
-  "faiss-cpu>=1.9.0,<2.0.0",
+  "faiss-cpu>=1.13.2,<2.0.0",
   "protobuf>=3.20.0,!=6.33.4,<8.0.0",  # Exclude 6.33.4 due to CVE-2026-0994 (fixed in 6.33.5+)
 ]
 # Local GI/KG viewer API server (RFC-062); install when using `podcast serve` or `make serve-api`
