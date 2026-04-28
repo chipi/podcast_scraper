@@ -21,6 +21,15 @@ COMPOSE_FILES=(
 
 echo "==> Codespace pre-prod stack startup"
 
+# stack.yml's viewer service publishes to ``${VIEWER_PORT:-8080}:80``.
+# devcontainer.json forwards 8090 (operator-facing convention from
+# RFC-081), so pin the host-side port here to match. Without this,
+# ``compose up`` lands on host:8080 while the codespace's port-forward
+# targets :8090 → operator's browser sees a "Bad Gateway" from GitHub's
+# port forwarder. Override via VIEWER_PORT env if the operator wants
+# a different layout (must also update devcontainer.json forwardPorts).
+export VIEWER_PORT="${VIEWER_PORT:-8090}"
+
 # Ensure the corpus bind-mount source exists. ``docker-compose.prod.yml``
 # overrides the ``corpus_data`` volume as a bind mount onto this dir so
 # that (a) operators can edit ``feeds.spec.yaml`` from the codespace
@@ -30,6 +39,34 @@ echo "==> Codespace pre-prod stack startup"
 # missing — create it before ``compose up``.
 CORPUS_HOST_PATH="${PODCAST_CORPUS_HOST_PATH:-/workspaces/podcast_scraper/.codespace_corpus}"
 mkdir -p "$CORPUS_HOST_PATH"
+
+# Stale-volume defense: ``compose up`` does NOT recreate an existing named
+# volume even when the YAML definition changes. Codespaces booted before
+# the prod overlay's bind-mount config landed (or with a different
+# ``PODCAST_CORPUS_HOST_PATH``) end up wedged on a Docker-managed volume
+# whose ``/app/output`` is invisible from the codespace shell + invisible
+# to ``backup-corpus.yml``.
+#
+# Fix: probe the existing ``compose_corpus_data`` volume's bind device. If
+# it doesn't match the path we expect, take the stack down + remove the
+# stale volume so ``compose up`` recreates it with the right config. The
+# bind path is empty by definition (codespaces are persistent on the host
+# workspace dir, not on Docker volumes — no real data lives in the
+# Docker-managed corpus_data volume), so removing it loses nothing.
+if docker volume inspect compose_corpus_data >/dev/null 2>&1; then
+  EXISTING_DEVICE=$(docker volume inspect compose_corpus_data 2>/dev/null \
+    | grep -oE '"device":[[:space:]]*"[^"]*"' | head -1 | sed 's/.*"\([^"]*\)"$/\1/' || true)
+  if [ "$EXISTING_DEVICE" != "$CORPUS_HOST_PATH" ]; then
+    if [ -z "$EXISTING_DEVICE" ]; then
+      echo "==> Stale corpus_data volume detected (no bind device set — Docker-managed)."
+    else
+      echo "==> Stale corpus_data volume detected (device=$EXISTING_DEVICE; expected=$CORPUS_HOST_PATH)."
+    fi
+    echo "    Bringing stack down + removing volume so the new bind config takes effect..."
+    docker compose "${COMPOSE_FILES[@]}" down 2>&1 | tail -5 || true
+    docker volume rm compose_corpus_data 2>/dev/null || true
+  fi
+fi
 
 # Pull all images first. Quiet mode avoids spamming the boot log with
 # layer-by-layer progress.

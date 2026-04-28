@@ -37,11 +37,8 @@ COPY src/ ./src/
 RUN --mount=type=cache,target=/root/.cache/pip \
     pip install --upgrade pip \
     && pip install torch --index-url https://download.pytorch.org/whl/cpu \
-    && pip install ".[server]" \
-        "numpy>=1.24.0" \
-        "faiss-cpu>=1.9.0,<2.0.0" \
-        "sentence-transformers>=5.4.1,<6.0.0" \
-        "transformers>=4.41.0,<5.0.0" \
+    && pip install ".[server,search]" "numpy>=1.24.0" \
+    && pip install --force-reinstall --no-deps torch --index-url https://download.pytorch.org/whl/cpu \
     && pip install --no-deps . \
     && python -c "from podcast_scraper.server.app import create_app; print('create_app import ok')"
 

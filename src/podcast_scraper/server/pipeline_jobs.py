@@ -174,7 +174,23 @@ def pid_alive(pid: int | None) -> bool:
 
 
 def build_pipeline_argv(corpus_root: Path, operator_yaml: Path) -> list[str]:
-    """Build CLI argv for a full pipeline run (README parity: ``--profile`` then ``--config``)."""
+    """Build CLI argv for a full pipeline run (README parity: ``--profile`` then ``--config``).
+
+    Profile resolution order:
+
+    1. ``profile:`` line in ``viewer_operator.yaml`` (operator's saved choice).
+    2. ``PODCAST_DEFAULT_PROFILE`` env var (validated against on-disk profile
+       names + allowlist via ``env_default_profile``). Lets a fresh corpus run
+       through cloud_thin (or any preprod default) even if the operator
+       triggered a job before clicking Save in the profile menu.
+    3. No ``--profile`` flag at all (CLI falls back to ``Config._resolve_profile``
+       defaults — same as today's pre-RFC-081 behavior).
+    """
+    # Local import — module-level would create a circular: profile_presets
+    # imports nothing from server (today), but the codebase has had churn
+    # and a cycle would be hard to detect; defensive.
+    from podcast_scraper.server.profile_presets import env_default_profile
+
     exe = sys.executable
     argv: list[str] = [exe, "-m", "podcast_scraper.cli", "--output-dir", str(corpus_root)]
     try:
@@ -183,6 +199,10 @@ def build_pipeline_argv(corpus_root: Path, operator_yaml: Path) -> list[str]:
         op_text = ""
     profile_name, _body = split_operator_yaml_profile(op_text)
     pn = profile_name.strip()
+    if not pn:
+        fallback = env_default_profile()
+        if fallback:
+            pn = fallback
     if pn:
         argv.extend(["--profile", pn])
     argv.extend(["--config", str(operator_yaml)])

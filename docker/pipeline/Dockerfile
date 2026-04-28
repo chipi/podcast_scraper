@@ -90,8 +90,12 @@ RUN --mount=type=cache,target=/root/.cache/pip \
         # Ensure torch CPU-only version is used (reinstall CPU version to override any CUDA version)
         pip install --force-reinstall --no-deps torch --index-url https://download.pytorch.org/whl/cpu; \
     elif [ "$INSTALL_EXTRAS" = "llm" ]; then \
-        pip install '.[llm]' && \
-        pip uninstall -y podcast-scraper; \
+        # cloud-API pipeline image. Includes [search] (faiss + sentence-transformers + torch CPU)
+        # so cloud_balanced can build its FAISS vector index without [ml]'s spaCy/Whisper/Pegasus.
+        pip install torch --index-url https://download.pytorch.org/whl/cpu && \
+        pip install '.[llm,search]' && \
+        pip uninstall -y podcast-scraper && \
+        pip install --force-reinstall --no-deps torch --index-url https://download.pytorch.org/whl/cpu; \
     else \
         # Install core dependencies only (minimal)
         pip install . && \

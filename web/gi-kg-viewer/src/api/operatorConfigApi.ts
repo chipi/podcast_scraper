@@ -7,6 +7,14 @@ export interface OperatorConfigPayload {
   content: string
   /** Packaged preset names for the operator-config profile picker. */
   available_profiles?: string[]
+  /**
+   * Env-driven default profile (RFC-081 §Layer 1). When the corpus has no
+   * saved ``profile:`` line yet, the viewer preselects this in the dropdown
+   * so first-run UX shows the right preset without an operator click.
+   * Server guarantees the value is always one of ``available_profiles`` or
+   * ``null`` — no client-side re-validation required.
+   */
+  default_profile?: string | null
 }
 
 export async function getOperatorConfig(corpusPath: string): Promise<OperatorConfigPayload> {

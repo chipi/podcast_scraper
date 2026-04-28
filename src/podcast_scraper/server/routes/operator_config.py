@@ -16,9 +16,12 @@ from podcast_scraper.server.operator_paths import (
     packaged_viewer_operator_example_path,
     viewer_operator_yaml_path,
 )
-from podcast_scraper.server.operator_yaml_profile import expand_profile_only_with_packaged_example
+from podcast_scraper.server.operator_yaml_profile import (
+    expand_profile_only_with_packaged_example,
+    merge_operator_yaml_profile,
+)
 from podcast_scraper.server.pathutil import resolve_corpus_path_param
-from podcast_scraper.server.profile_presets import list_packaged_profile_names
+from podcast_scraper.server.profile_presets import env_default_profile, list_packaged_profile_names
 from podcast_scraper.server.schemas import OperatorConfigGetResponse, OperatorConfigPutBody
 from podcast_scraper.utils.path_validation import normpath_if_under_root
 
@@ -78,6 +81,16 @@ def _ensure_default_viewer_operator_yaml(cfg_path: Path) -> None:
         return
     # codeql[py/path-injection] -- packaged example under site-packages / repo tree only.
     text = example_path.read_text(encoding="utf-8", errors="replace")
+    # When PODCAST_DEFAULT_PROFILE is set, seed the brand-new file with
+    # ``profile: <default>`` at the top so the operator never sees a
+    # "None" preselection on a fresh corpus. ``env_default_profile`` already
+    # validates the env value against the on-disk profile list — no risk of
+    # writing a non-existent profile name. The packaged example deliberately
+    # omits ``profile:`` (operators normally pick via UI), so this is a pure
+    # add — same shape as ``viewer Save profile`` would write later.
+    default_profile = env_default_profile()
+    if default_profile:
+        text = merge_operator_yaml_profile(default_profile, text)
     try:
         assert_operator_yaml_safe_for_persist(text)
     except OperatorYamlUnsafeError:
@@ -116,6 +129,7 @@ async def get_operator_config(
     cfg_raw = _operator_file(request, corpus_root)
     cfg_path = _verified_operator_config_path(request, corpus_root, cfg_raw)
     profiles = list_packaged_profile_names()
+    default = env_default_profile()
     _ensure_default_viewer_operator_yaml(cfg_path)
     if not cfg_path.is_file():
         corpus_s = os.path.normpath(str(corpus_root.resolve()))
@@ -125,6 +139,7 @@ async def get_operator_config(
             operator_config_path=op_s,
             content="",
             available_profiles=profiles,
+            default_profile=default,
         )
     # codeql[py/path-injection] -- cfg_path verified above.
     content = cfg_path.read_text(encoding="utf-8", errors="replace")
@@ -149,6 +164,7 @@ async def get_operator_config(
         operator_config_path=op_s,
         content=content,
         available_profiles=profiles,
+        default_profile=default,
     )
 
 
@@ -175,11 +191,13 @@ async def put_operator_config(
         raise HTTPException(status_code=exc.status_code, detail=exc.detail) from exc
     atomic_write_text(cfg_path, to_write)
     profiles = list_packaged_profile_names()
+    default = env_default_profile()
     corpus_s = os.path.normpath(str(corpus_root.resolve()))
     op_s = os.path.normpath(str(cfg_path.resolve()))
     return OperatorConfigGetResponse(
         corpus_path=corpus_s,
         operator_config_path=op_s,
         content=to_write,
+        default_profile=default,
         available_profiles=profiles,
     )

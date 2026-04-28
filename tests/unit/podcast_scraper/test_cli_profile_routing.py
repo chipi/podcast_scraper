@@ -44,8 +44,11 @@ CLOUD_BALANCED_EXPECTED = {
     "transcription_provider": "openai",
     "openai_transcription_model": "whisper-1",
     "audio_preprocessing_profile": "speech_optimal_v1",
-    "speaker_detector_provider": "spacy",
-    "ner_model": "en_core_web_trf",
+    # PR #700: speaker_detector_provider flipped from spacy → gemini so the
+    # profile runs on pipeline-llm (which ships [llm]+[search] but no
+    # spaCy / transformer NER models). Local-spaCy NER is still available
+    # by overriding speaker_detector_provider on the full pipeline-ml image.
+    "speaker_detector_provider": "gemini",
     "auto_speakers": True,
     "summary_provider": "gemini",
     "gemini_summary_model": "gemini-2.5-flash-lite",

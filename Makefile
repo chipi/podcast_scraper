@@ -718,14 +718,129 @@ stack-test-ml-ci:
 #   * ``CODESPACES_PAT_NAME`` (default ``podcast-scraper-preprod``) is
 #     the codespace name; override via env.
 deploy-codespace:
-	@CS="$${CODESPACES_PAT_NAME:-podcast-scraper-preprod}"; \
-	if [ -z "$${GH_TOKEN:-}" ] && ! gh auth status >/dev/null 2>&1; then \
-		echo "ERROR: gh CLI not authenticated. Run 'gh auth login' or export GH_TOKEN." >&2; \
-		echo "       The token must include the 'codespaces' scope." >&2; \
-		exit 2; \
-	fi; \
+	@CS=$$($(MAKE) -s _resolve-codespace-name); \
+	if [ -z "$$CS" ]; then exit 2; fi; \
 	echo "Rebuilding codespace: $$CS"; \
 	gh codespace rebuild --full --codespace "$$CS"
+
+# Codespace lifecycle helpers (RFC-081 §Phase 1A operator wrappers).
+#
+# All four targets share name resolution via ``_resolve-codespace-name``:
+#   1. ``$$CODESPACE_NAME`` env (full ``podcast-scraper-preprod-<suffix>``) — explicit override.
+#   2. ``gh codespace list`` filtered by displayName ``podcast-scraper-preprod`` — default.
+#
+# Auth: same as deploy-codespace — gh CLI must be ``codespace``-scoped
+# (``gh auth login -s codespace --web``). PAT-based auth in CI uses
+# ``GH_TOKEN`` from the ``CODESPACES_PAT`` Actions secret (must be a
+# **classic** PAT — fine-grained PATs are repo-scoped and 403 on
+# ``/user/codespaces/...``).
+
+_resolve-codespace-name:
+	@if [ -n "$${CODESPACE_NAME:-}" ]; then \
+		echo "$$CODESPACE_NAME"; \
+	else \
+		CS=$$(gh codespace list --json name,displayName -q \
+			'.[] | select(.displayName=="podcast-scraper-preprod") | .name' 2>/dev/null | head -1); \
+		if [ -z "$$CS" ]; then \
+			echo "ERROR: no codespace with displayName=podcast-scraper-preprod found." >&2; \
+			echo "       Set CODESPACE_NAME=<exact-name> or create the codespace first." >&2; \
+			exit 2; \
+		fi; \
+		echo "$$CS"; \
+	fi
+
+# Wake / start the pre-prod codespace (no full rebuild — picks up updated
+# Codespaces secrets at start). Use this after rotating GRAFANA_CLOUD_API_KEY
+# / OPENAI_API_KEY / etc. so the running container's env reflects the new
+# value (Codespaces secrets are baked into env at start, not read live).
+codespace-start:
+	@CS=$$($(MAKE) -s _resolve-codespace-name); \
+	if [ -z "$$CS" ]; then exit 2; fi; \
+	echo "Starting codespace: $$CS"; \
+	gh api -X POST "/user/codespaces/$$CS/start" --jq '.state' >/dev/null && \
+	echo "Start requested. Poll state with 'make codespace-status'."
+
+# Suspend the pre-prod codespace (pauses billing; workspace state preserved).
+# Use before stepping away — codespaces auto-suspend after 30 min idle anyway.
+codespace-stop:
+	@CS=$$($(MAKE) -s _resolve-codespace-name); \
+	if [ -z "$$CS" ]; then exit 2; fi; \
+	echo "Stopping codespace: $$CS"; \
+	gh codespace stop --codespace "$$CS"
+
+# Print current state (Available / ShuttingDown / Shutdown / Rebuilding / etc.)
+codespace-status:
+	@CS=$$($(MAKE) -s _resolve-codespace-name); \
+	if [ -z "$$CS" ]; then exit 2; fi; \
+	gh codespace list --json name,state,displayName,lastUsedAt \
+		-q ".[] | select(.name==\"$$CS\") | \"\(.displayName) [\(.name)] state=\(.state) lastUsed=\(.lastUsedAt)\""
+
+# Pull the codespace corpus to a local laptop directory via ``gh codespace cp``.
+# Belt-and-suspenders backup before risky deploys (image rebuilds, profile flips,
+# devcontainer changes). Pairs with ``codespace-restore-local`` which pushes a
+# local backup back into the codespace.
+#
+# Default destination: ``$HOME/preprod_corpus_backup_<UTC date>/`` so multiple
+# backups don't overwrite each other. Override with ``BACKUP_DIR=...``.
+codespace-backup-local:
+	@CS=$$($(MAKE) -s _resolve-codespace-name); \
+	if [ -z "$$CS" ]; then exit 2; fi; \
+	DEST="$${BACKUP_DIR:-$$HOME/preprod_corpus_backup_$$(date -u +%Y-%m-%d)}"; \
+	mkdir -p "$$DEST"; \
+	echo "Pulling corpus from codespace $$CS to $$DEST/ ..."; \
+	gh codespace cp -e -c "$$CS" -r \
+		'remote:/workspaces/podcast_scraper/.codespace_corpus' \
+		"$$DEST/"; \
+	echo ""; \
+	echo "=== Verify backup ==="; \
+	du -sh "$$DEST/.codespace_corpus" 2>/dev/null || echo "WARN: dir missing"; \
+	gi=$$(find "$$DEST" -name '*.gi.json' 2>/dev/null | wc -l); \
+	tx=$$(find "$$DEST" -name '*.txt' -path '*/transcripts/*' 2>/dev/null | wc -l); \
+	echo "  gi.json artifacts: $$gi"; \
+	echo "  transcripts:       $$tx"; \
+	if [ "$$gi" = "0" ]; then \
+		echo "ERROR: backup contains 0 gi.json artifacts; corpus may be empty." >&2; \
+		exit 3; \
+	fi; \
+	echo "OK: backup written to $$DEST/.codespace_corpus/"
+
+# Push a local laptop backup back into the codespace's corpus dir. Reverse of
+# ``codespace-backup-local``. Idempotent: ``gh codespace cp`` overwrites
+# existing files. Source defaults to the most recent backup under
+# ``$HOME/preprod_corpus_backup_*``; override with ``BACKUP_DIR=...``.
+codespace-restore-local:
+	@CS=$$($(MAKE) -s _resolve-codespace-name); \
+	if [ -z "$$CS" ]; then exit 2; fi; \
+	if [ -n "$${BACKUP_DIR:-}" ]; then \
+		SRC="$$BACKUP_DIR"; \
+	else \
+		SRC=$$(ls -1dt $$HOME/preprod_corpus_backup_* 2>/dev/null | head -1); \
+		if [ -z "$$SRC" ]; then \
+			echo "ERROR: no $$HOME/preprod_corpus_backup_* found. Override with BACKUP_DIR=..." >&2; \
+			exit 2; \
+		fi; \
+	fi; \
+	if [ ! -d "$$SRC/.codespace_corpus" ]; then \
+		echo "ERROR: $$SRC/.codespace_corpus missing — not a valid backup." >&2; \
+		exit 2; \
+	fi; \
+	echo "Restoring $$SRC/.codespace_corpus/ -> codespace $$CS:/workspaces/podcast_scraper/.codespace_corpus/"; \
+	gh codespace cp -e -c "$$CS" -r \
+		"$$SRC/.codespace_corpus" \
+		'remote:/workspaces/podcast_scraper/'; \
+	echo "OK: corpus restored into codespace."
+
+# Trigger the cloud-side backup workflow (.github/workflows/backup-corpus.yml).
+# Tarballs the codespace corpus and uploads to chipi/podcast_scraper-backup
+# as a release asset. Use ``DRY_RUN=true`` to skip the upload; default false.
+codespace-backup-cloud:
+	@DRY_RUN="$${DRY_RUN:-false}"; \
+	echo "Dispatching backup-corpus.yml workflow (dry_run=$$DRY_RUN) ..."; \
+	gh workflow run backup-corpus.yml --repo chipi/podcast_scraper -f dry_run=$$DRY_RUN; \
+	sleep 3; \
+	gh run list --workflow=backup-corpus.yml --repo chipi/podcast_scraper -L 1; \
+	echo ""; \
+	echo "Watch: gh run watch <id> --repo chipi/podcast_scraper"
 
 # Pull the latest corpus snapshot from chipi/podcast_scraper-backup and
 # untar into ``.codespace_corpus/`` (the workspace-survives-suspend

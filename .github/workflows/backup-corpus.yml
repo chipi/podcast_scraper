@@ -75,19 +75,56 @@ jobs:
           CS: ${{ vars.PREPROD_CODESPACE_NAME }}
         run: |
           set -euo pipefail
-          # Wake the codespace if asleep. ``gh codespace start`` is a
-          # no-op when already running.
-          gh codespace start --codespace "$CS" || true
-          # Stream the tar across SSH; avoids needing temp space inside
-          # the codespace's 32 GB workspace.
-          gh codespace ssh --codespace "$CS" -- \
-            'tar -czf - -C /workspaces/podcast_scraper .codespace_corpus' \
-            > snapshot.tgz
+          # Wake the codespace if asleep. ``gh api`` works with the
+          # CODESPACES_PAT scope without needing SSH key wiring.
+          gh api -X POST "/user/codespaces/$CS/start" >/dev/null 2>&1 || true
+          # Wait for codespace to be Available before pulling files.
+          for i in $(seq 1 24); do
+            state=$(gh codespace list --json name,state -q ".[] | select(.name==\"$CS\") | .state" 2>/dev/null || echo "")
+            [ "$state" = "Available" ] && break
+            echo "Codespace state=$state; waiting (attempt $i/24)..."
+            sleep 5
+          done
+          # Pull the corpus dir via ``gh codespace cp`` — same path used
+          # by ``make codespace-backup-local``. This was originally a
+          # ``gh codespace ssh -- 'tar -czf -'`` stream, which is fragile
+          # on CI runners (no auto-generated ~/.ssh/codespaces.auto, and
+          # mid-stream connection cuts produce partial-but-not-empty
+          # tarballs that pass naive size checks). ``cp`` is file-level
+          # so a transport hiccup fails the step cleanly instead of
+          # corrupting the snapshot. Tarball locally afterwards so the
+          # upload is still a single asset.
+          gh codespace cp -e -c "$CS" -r \
+            'remote:/workspaces/podcast_scraper/.codespace_corpus' \
+            ./
+          # Diagnostics for #699: ``gh codespace cp`` produces a different
+          # tree on CI runners than on a local Mac (verified via
+          # ``make codespace-backup-local``). Surface what cp actually wrote
+          # so the next failure is debuggable from the workflow log alone.
+          echo "=== cp completed; runner pwd contents ==="
+          ls -la .codespace_corpus 2>/dev/null | head -10 || echo "(.codespace_corpus missing)"
+          echo "=== gi.json files seen ==="
+          find .codespace_corpus -name '*.gi.json' -print 2>/dev/null | head -5 || true
+          gi_count=$(find .codespace_corpus -name '*.gi.json' 2>/dev/null | wc -l)
+          echo "gi.json count: $gi_count"
+          echo "=== gh CLI version (relevant to cp behavior) ==="
+          gh --version 2>&1 | head -2
+          echo "=== ssh keys (relevant to cp transport) ==="
+          ls -la "$HOME/.ssh/" 2>/dev/null | grep -iE 'codespaces|ed25519|rsa' || echo "(no relevant keys)"
+          tar -czf snapshot.tgz .codespace_corpus
+          rm -rf .codespace_corpus
           echo "Tarball created: $(ls -lh snapshot.tgz | awk '{print $5}')"
           # Sanity: refuse to upload empty / suspiciously small tarballs.
           size=$(stat -c%s snapshot.tgz)
           if [ "$size" -lt 1024 ]; then
             echo "::error::Tarball is suspiciously small ($size bytes); aborting." >&2
+            exit 1
+          fi
+          # Sanity: a healthy corpus tarball contains at least one
+          # ``.gi.json`` artifact (per-episode GI insights). Catches the
+          # case where the cp succeeded but the bind-mount was empty.
+          if ! tar -tzf snapshot.tgz | grep -q '\.gi\.json$'; then
+            echo "::error::Tarball has no .gi.json artifacts; corpus likely empty." >&2
             exit 1
           fi
 
@@ -167,7 +204,9 @@ jobs:
           set -euo pipefail
           echo "=== Dry-run mode ==="
           echo "Tarball size: $(ls -lh snapshot.tgz 2>/dev/null | awk '{print $5}' || echo 'NONE')"
-          if [ -n "${BACKUP_REPO_TOKEN:-}" ]; then
+          echo "Tarball contents (top-level):"
+          tar -tzf snapshot.tgz 2>/dev/null | head -5 || echo "(empty)"
+          if [ -n "${GH_TOKEN:-}" ]; then
             echo ""
             echo "Existing releases on $BACKUP_REPO:"
             gh release list --repo "$BACKUP_REPO" --limit 20 2>&1 || echo "(unable to list)"

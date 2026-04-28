@@ -818,8 +818,9 @@ class Config(BaseModel):
         default=config_constants.DEFAULT_SUMMARIZATION_TIMEOUT_SECONDS,
         alias="summarization_timeout",
         description=(
-            "Timeout in seconds for summarization operations (default: 600 = 10 minutes). "
-            "Set to None to disable timeout. Prevents hangs on very long transcripts."
+            "Timeout in seconds for summarization operations (default: 1200 = 20 minutes). "
+            "Set to None to disable timeout. Prevents hangs on very long transcripts. "
+            "Sized to outlast a typical Gemini 503 spike (#697)."
         ),
     )
     delay_ms: int = Field(default=0, alias="delay_ms")

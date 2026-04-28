@@ -20,7 +20,7 @@ DEFAULT_SCREENPLAY_GAP_SECONDS = 1.25
 DEFAULT_TIMEOUT_SECONDS = 20
 # Timeout defaults for ML operations (Issue #379)
 DEFAULT_TRANSCRIPTION_TIMEOUT_SECONDS = 1800  # 30 minutes
-DEFAULT_SUMMARIZATION_TIMEOUT_SECONDS = 600  # 10 minutes
+DEFAULT_SUMMARIZATION_TIMEOUT_SECONDS = 1200  # 20 minutes (room for provider 503 storms — see #697)
 DEFAULT_USER_AGENT = (
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
     "AppleWebKit/537.36 (KHTML, like Gecko) "

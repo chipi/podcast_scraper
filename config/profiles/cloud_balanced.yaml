@@ -35,10 +35,12 @@ openai_transcription_model: whisper-1
 # One edit to speech_optimal_v1.yaml updates every profile that references it.
 audio_preprocessing_profile: speech_optimal_v1
 
-# Speaker detection — spaCy trf is free, local, 1.000 F1 with show-title fix.
-# No reason to pay for a cloud NER call when local trf matches reference.
-speaker_detector_provider: spacy
-ner_model: en_core_web_trf
+# Speaker detection — Gemini cloud NER. Same provider already drives summary +
+# GI + KG, so adding NER costs one extra small LLM call per episode and lets
+# this profile run on the pipeline-llm image (which ships [llm] + minimum [search]
+# but no spaCy / transformer NER models). Switch to ``spacy`` + ``en_core_web_trf``
+# if running on the full ``pipeline`` (ml) image and you want offline NER.
+speaker_detector_provider: gemini
 auto_speakers: true
 
 # Summarization

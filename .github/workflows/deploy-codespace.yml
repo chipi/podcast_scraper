@@ -4,15 +4,14 @@ name: Deploy to pre-prod codespace
 # stack-test passes on main, OR when manually dispatched. See
 # RFC-081 §Phase 1A + issue #682.
 #
-# Status: SCAFFOLDING — the codespace name + the CODESPACES_PAT secret
-# do not exist yet. The job's main step short-circuits to a TODO log
-# until the operator wires the prerequisites:
+# Operator setup (one-time):
 #   1. Create the pre-prod codespace once (via web UI or
 #      ``gh codespace create --repo chipi/podcast_scraper --branch main``).
-#   2. Pin the codespace name (e.g., ``podcast-scraper-preprod``).
-#   3. Create a fine-grained PAT with ``codespaces`` scope; store as
-#      ``CODESPACES_PAT`` GHA secret. The default ``GITHUB_TOKEN``
-#      cannot manage codespaces.
+#   2. Pin the codespace name as a repository variable
+#      ``PREPROD_CODESPACE_NAME`` (Settings → Variables → Actions).
+#   3. Create a CLASSIC PAT with ``codespace`` scope (fine-grained PATs
+#      are repo-scoped and 403 on ``/user/codespaces/...``); store as
+#      ``CODESPACES_PAT`` GHA secret.
 
 on:
   workflow_dispatch:
@@ -30,7 +29,7 @@ jobs:
     runs-on: ubuntu-latest
     if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
     steps:
-      - name: Trigger codespace rebuild + wait for /api/health
+      - name: Trigger codespace rebuild + poll for ready state
         env:
           CODESPACES_PAT: ${{ secrets.CODESPACES_PAT }}
           # Pin the codespace name so the workflow targets the same env
@@ -46,13 +45,54 @@ jobs:
             echo "TODO when ready:"
             echo "  export GH_TOKEN=\"\$CODESPACES_PAT\""
             echo "  gh codespace rebuild --full --codespace \"\$PREPROD_CODESPACE\""
-            echo "  # Poll the forwarded /api/health URL with a 5-min budget"
             exit 0
           fi
           export GH_TOKEN="$CODESPACES_PAT"
-          echo "Rebuilding codespace: $PREPROD_CODESPACE"
+
+          echo "==> Rebuilding codespace: $PREPROD_CODESPACE"
           gh codespace rebuild --full --codespace "$PREPROD_CODESPACE"
-          echo "Rebuild requested. Codespace will be ready when its"
-          echo "internal docker compose stack reports healthy."
-          echo "Add a /api/health probe step here once the codespace's"
-          echo "publicly-resolvable forwarded URL is known + stable."
+
+          # gh codespace rebuild returns the moment the rebuild is queued —
+          # the actual container build + postCreate + postStart can take
+          # 5-10 min. Poll ``/user/codespaces/<name>`` state until it
+          # transitions Rebuilding → Available (or out of any non-terminal
+          # state). Budget: 12 minutes.
+          echo "==> Polling codespace state until Available (12-min budget)"
+          DEADLINE=$(( $(date +%s) + 720 ))  # 12 min from now
+          STATE="?"
+          while [ "$(date +%s)" -lt "$DEADLINE" ]; do
+            STATE=$(gh api "/user/codespaces/$PREPROD_CODESPACE" --jq '.state' 2>/dev/null || echo "unknown")
+            echo "  $(date -u +%H:%M:%S) state=$STATE"
+            if [ "$STATE" = "Available" ]; then
+              break
+            fi
+            sleep 30
+          done
+
+          if [ "$STATE" != "Available" ]; then
+            echo "::error::Codespace did not reach Available within 12 min (last state=$STATE)."
+            echo "::error::Investigate via: gh codespace view --codespace $PREPROD_CODESPACE"
+            exit 1
+          fi
+          echo "==> Codespace Available."
+
+          # Best-effort /api/health probe via ``gh codespace ssh``.
+          # Requires the ``sshd`` devcontainer feature (added in
+          # ``.devcontainer/devcontainer.json``) and a working
+          # ``codespaces.auto`` key on the runner — gh CLI generates it
+          # on first use. If anything in the chain fails, log a warning
+          # rather than failing the whole deploy: the codespace already
+          # reached Available, which means start.sh's own internal
+          # health-check loop succeeded inside the container.
+          echo "==> /api/health probe (best-effort)"
+          if gh codespace ssh --codespace "$PREPROD_CODESPACE" -- \
+              'curl -fsS http://localhost:8090/api/health' 2>&1 | tee /tmp/health.json; then
+            echo ""
+            echo "==> Deploy complete: codespace Available + /api/health 200 OK."
+          else
+            echo ""
+            echo "::warning::/api/health probe failed but codespace reached Available."
+            echo "::warning::start.sh's own health loop already runs inside the container —"
+            echo "::warning::this probe is belt-and-suspenders. Investigate only if operators"
+            echo "::warning::report the viewer URL is unreachable."
+          fi

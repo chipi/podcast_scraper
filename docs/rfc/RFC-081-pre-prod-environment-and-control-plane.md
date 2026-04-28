@@ -206,17 +206,21 @@ in one move:
    Llama 3.2 Community License, which restricts redistribution without
    attribution. By not publishing the image, the question doesn't
    arise.
-2. **Image size + pre-prod scope** — pre-prod runs against `cloud_thin`
-   (Gemini Flash), which targets a 100-200 episode test corpus and is
-   ~30× faster wall-time than local-ML on a 4-core CPU. The published
-   `pipeline-llm` image is ~1 GB (cloud SDKs, no local models), which
-   fits the Codespaces 32 GB SSD comfortably.
+2. **Image size + pre-prod scope** — pre-prod runs against
+   `cloud_balanced` (Gemini Flash) by default, with `cloud_thin` as a
+   lighter no-vector-index variant. Both target a 100-200 episode test
+   corpus and are ~30× faster wall-time than local-ML on a 4-core CPU.
+   The published `pipeline-llm` image is ~1.5 GB — cloud SDKs plus the
+   minimum local ML needed to build a FAISS vector index
+   (`sentence-transformers` + `faiss-cpu` + `torch` CPU; no spaCy /
+   Whisper / Pegasus / llama-cpp). Fits the Codespaces 32 GB SSD
+   comfortably.
 
 | Image | Published to GHCR? | Used where |
 | --- | --- | --- |
-| `api` | ✅ yes | Codespaces pre-prod (cloud_thin profile) |
+| `api` | ✅ yes | Codespaces pre-prod (cloud_balanced + cloud_thin profiles) |
 | `viewer` | ✅ yes | Codespaces pre-prod |
-| `pipeline-llm` | ✅ yes | Codespaces pre-prod (cloud_thin profile, no local ML) |
+| `pipeline-llm` | ✅ yes | Codespaces pre-prod (`[llm]` + `[search]`; runs both cloud_balanced and cloud_thin) |
 | `pipeline` (ML variant) | ❌ no | stack-test on CI runners only; local dev where redistribution doesn't apply |
 
 **Tags on published images:**
@@ -375,9 +379,11 @@ Assistant, or a Shortcuts handler. Same surface, different sinks.
 | Slack Free | 90-day message history, unlimited channels | $0 |
 | **Total** | | **$0** |
 
-The only non-zero cost is the **cloud_thin pipeline run itself** —
-provider API charges (OpenAI Whisper + Gemini Flash Lite) on the
-operator's own keys. A 200-episode test corpus is ~$40 one-time.
+The only non-zero cost is the **pipeline run itself** — provider API
+charges (OpenAI Whisper + Gemini Flash Lite) on the operator's own
+keys, against either `cloud_balanced` (default; with vector index) or
+`cloud_thin` (no vector index). A 200-episode test corpus is ~$40
+one-time on either profile.
 
 ### Paid-tier exits if hobby grows
 
@@ -427,15 +433,22 @@ The `pipeline-ml` image is built (so stack-test exercises the airgapped
 path) but **never reaches the publish step**. The publish job's image
 list is the explicit safety boundary against accidental redistribution.
 
-**Profile in pre-prod: `cloud_thin`.** Reasoning recap:
+**Profiles in pre-prod: `cloud_balanced` (default) + `cloud_thin`.**
+Reasoning recap:
 
 - Speed: 100-200 episode test corpus runs in ~30 min wall-time vs ~10 hrs
-  on Codespaces 4-core CPU with local ML.
-- Image size: `pipeline-llm` is ~1 GB vs `pipeline-ml`'s 15.5 GB —
-  fits Codespaces 32 GB SSD with headroom.
-- License: zero attribution-required models in the published image.
+  on Codespaces 4-core CPU with full local ML.
+- Image size: `pipeline-llm` is ~1.5 GB (cloud SDKs + minimum [search]
+  extras: faiss + sentence-transformers + torch CPU) vs `pipeline-ml`'s
+  15.5 GB — fits Codespaces 32 GB SSD with headroom.
+- License: zero attribution-required models in the published image
+  (no SummLlama, no Pegasus, no transformer NER).
 - Cost: ~$40 one-time for 200 episodes (OpenAI Whisper + Gemini Flash
   Lite); orthogonal to host cost.
+- `cloud_balanced` is the default because it ships with the local
+  vector index populated, so the viewer's Search/Index surface is
+  usable from day one. `cloud_thin` (no vector_search) is kept as a
+  lighter variant for operators who want minimum image weight.
 
 **Codespace devcontainer:**
 
@@ -466,7 +479,8 @@ images appear at `ghcr.io/chipi/podcast-scraper-stack-{api,viewer,
 pipeline-llm}:main` → deploy-codespace workflow fires → codespace
 wakes with the new bits → forwarded `:8090` → `/api/health` returns
 200 to mobile Safari → loading a feed kicks off a job that uses the
-cloud_thin profile end-to-end.
+`cloud_balanced` profile end-to-end (vector index populated, viewer
+Search works on first run).
 
 **1B — Observability (Grafana Cloud free):**
 

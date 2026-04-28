@@ -41,6 +41,9 @@ dependencies = [
 #   ml        — Whisper, spaCy (+models), torch, transformers, sentence-transformers, FAISS,
 #               llama-cpp-python (GGUF hybrid REDUCE, RFC-042), etc.
 #   llm       — API SDKs: openai, google-genai (Gemini), anthropic, mistralai, httpx (Ollama checks)
+#   search    — Minimum local ML for vector index (sentence-transformers + faiss-cpu + torch CPU).
+#               Pulled into the cloud-API pipeline image alongside [llm] so cloud_balanced can
+#               build its FAISS index without dragging in spaCy/Whisper/Pegasus/llama-cpp from [ml].
 #   compare   — Streamlit compare UI (RFC-047)
 #   server    — GI/KG viewer HTTP API: FastAPI + uvicorn (RFC-062 / #489)
 #   monitor   — py-spy + memray optional profiling (RFC-065; `--monitor` needs no extra)
@@ -89,6 +92,18 @@ llm = [
   # mistralai 2.x: client at mistralai.client.sdk (Dependabot PR #473)
   "mistralai>=1.0.0,<3.0.0",  # Mistral API provider (Issue #106)
   "httpx>=0.24.0,<1.0.0",  # Ollama provider (Issue #196) - for health checks
+]
+# Minimum local ML to build the FAISS vector index when running an otherwise cloud-only
+# pipeline (cloud_balanced on the pipeline-llm image). No spaCy / Whisper / Pegasus /
+# llama-cpp — those stay in [ml]. Image size delta on top of [llm]: ~700 MB → ~1.5 GB.
+search = [
+  "torch>=2.0.0,<3.0.0",
+  # Pinned compatible with sentence-transformers 5.x — see [ml] for rationale.
+  "transformers>=4.41.0,<5.0.0",
+  "sentencepiece>=0.1.99,<1.0.0",
+  "sentence-transformers>=5.4.1,<6.0.0",
+  "faiss-cpu>=1.9.0,<2.0.0",
+  "protobuf>=3.20.0,!=6.33.4,<8.0.0",  # Exclude 6.33.4 due to CVE-2026-0994 (fixed in 6.33.5+)
 ]
 # Local GI/KG viewer API server (RFC-062); install when using `podcast serve` or `make serve-api`
 server = [

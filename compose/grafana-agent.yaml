@@ -21,8 +21,15 @@ metrics:
   global:
     scrape_interval: 30s
     external_labels:
-      env: ${PODCAST_ENV:-dev}
-      release: ${PODCAST_RELEASE:-podcast-scraper@dev}
+      # Grafana Agent's ``-config.expand-env=true`` uses Go's
+      # ``os.ExpandEnv``, which only handles ``$VAR`` / ``${VAR}`` —
+      # NOT bash-style ``${VAR:-default}``. The ``:-default`` syntax
+      # was being parsed as a literal var name ``VAR:-default`` and
+      # crashing the agent. Compose-side defaulting now sets these
+      # to non-empty values via the prod overlay (``PODCAST_ENV``
+      # always populated; ``PODCAST_RELEASE`` may be empty in dev).
+      env: "${PODCAST_ENV}"
+      release: "${PODCAST_RELEASE}"
 
   configs:
     - name: api
@@ -36,21 +43,27 @@ metrics:
           metrics_path: /metrics
 
       remote_write:
-        - url: ${GRAFANA_CLOUD_PROM_URL}
+        # Quote env substitutions: ``-config.expand-env=true`` inlines values
+        # before YAML parse, and Grafana Cloud API keys typically contain
+        # ``:`` / ``-`` / ``=`` chars that break unquoted scalars (the agent
+        # crashed on bare unquoted ``password: ${...}`` with
+        # "block sequence entries are not allowed in this context"). Wrapping
+        # in double quotes is unconditionally safe; URLs are well-formed.
+        - url: "${GRAFANA_CLOUD_PROM_URL}"
           basic_auth:
-            username: ${GRAFANA_CLOUD_USER}
-            password: ${GRAFANA_CLOUD_API_KEY}
+            username: "${GRAFANA_CLOUD_USER}"
+            password: "${GRAFANA_CLOUD_API_KEY}"
 
 logs:
   global:
     clients:
-      - url: ${GRAFANA_CLOUD_LOKI_URL}
+      - url: "${GRAFANA_CLOUD_LOKI_URL}"
         basic_auth:
-          username: ${GRAFANA_CLOUD_USER}
-          password: ${GRAFANA_CLOUD_API_KEY}
+          username: "${GRAFANA_CLOUD_USER}"
+          password: "${GRAFANA_CLOUD_API_KEY}"
         external_labels:
-          env: ${PODCAST_ENV:-dev}
-          release: ${PODCAST_RELEASE:-podcast-scraper@dev}
+          env: "${PODCAST_ENV}"
+          release: "${PODCAST_RELEASE}"
 
   configs:
     - name: docker-containers
