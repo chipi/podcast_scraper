@@ -21,6 +21,16 @@ COMPOSE_FILES=(
 
 echo "==> Codespace pre-prod stack startup"
 
+# Ensure the corpus bind-mount source exists. ``docker-compose.prod.yml``
+# overrides the ``corpus_data`` volume as a bind mount onto this dir so
+# that (a) operators can edit ``feeds.spec.yaml`` from the codespace
+# shell, (b) the api / pipeline containers see the same files at
+# ``/app/output``, and (c) ``backup-corpus.yml`` can tar the host path
+# directly. Docker bind-mounts fail at startup if the source dir is
+# missing — create it before ``compose up``.
+CORPUS_HOST_PATH="${PODCAST_CORPUS_HOST_PATH:-/workspaces/podcast_scraper/.codespace_corpus}"
+mkdir -p "$CORPUS_HOST_PATH"
+
 # Pull all images first. Quiet mode avoids spamming the boot log with
 # layer-by-layer progress.
 if ! docker compose "${COMPOSE_FILES[@]}" pull --quiet 2>&1 | tee /tmp/compose-pull.log; then
