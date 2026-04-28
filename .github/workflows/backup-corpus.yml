@@ -97,6 +97,20 @@ jobs:
           gh codespace cp -e -c "$CS" -r \
             'remote:/workspaces/podcast_scraper/.codespace_corpus' \
             ./
+          # Diagnostics for #699: ``gh codespace cp`` produces a different
+          # tree on CI runners than on a local Mac (verified via
+          # ``make codespace-backup-local``). Surface what cp actually wrote
+          # so the next failure is debuggable from the workflow log alone.
+          echo "=== cp completed; runner pwd contents ==="
+          ls -la .codespace_corpus 2>/dev/null | head -10 || echo "(.codespace_corpus missing)"
+          echo "=== gi.json files seen ==="
+          find .codespace_corpus -name '*.gi.json' -print 2>/dev/null | head -5 || true
+          gi_count=$(find .codespace_corpus -name '*.gi.json' 2>/dev/null | wc -l)
+          echo "gi.json count: $gi_count"
+          echo "=== gh CLI version (relevant to cp behavior) ==="
+          gh --version 2>&1 | head -2
+          echo "=== ssh keys (relevant to cp transport) ==="
+          ls -la "$HOME/.ssh/" 2>/dev/null | grep -iE 'codespaces|ed25519|rsa' || echo "(no relevant keys)"
           tar -czf snapshot.tgz .codespace_corpus
           rm -rf .codespace_corpus
           echo "Tarball created: $(ls -lh snapshot.tgz | awk '{print $5}')"
