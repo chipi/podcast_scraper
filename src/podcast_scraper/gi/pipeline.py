@@ -44,6 +44,27 @@ SEGMENT_TRANSCRIPT_ALIGNMENT_MAX_DELTA = 50
 _STUB_INSIGHT_TEXT = "Summary insight (stub)."
 
 
+def _record_stub_fallback(pipeline_metrics: Optional[Any], exc: Exception) -> None:
+    """#701: surface evidence-stack stub fallback at WARNING + metrics.
+
+    Originally a ``logger.debug`` call which masked silent stub-degradation
+    in normal logs. cloud_thin produced 1-stub gi.json across 9 real-feed
+    episodes for weeks because ``_rank_about_edges_for_insights`` raised
+    ImportError on ``sentence-transformers`` (in [ml]/[search] only) and
+    the debug log never surfaced the failure. Promote to WARNING + flip a
+    metrics counter so ops dashboards see stub fallback in real time.
+    """
+    if pipeline_metrics is not None and hasattr(
+        pipeline_metrics, "gi_artifact_stub_fallback_count"
+    ):
+        pipeline_metrics.gi_artifact_stub_fallback_count += 1
+    logger.warning(
+        "GIL evidence stack (provider path) failed, falling back to " "stub/degraded artifact: %s",
+        exc,
+        exc_info=True,
+    )
+
+
 def _apply_gi_insight_filters(
     insight_specs: List[Tuple[str, str]], pipeline_metrics: Optional[Any]
 ) -> List[Tuple[str, str]]:
@@ -78,24 +99,41 @@ def _rank_about_edges_for_insights(
     """Thin wrapper around ``about_edges.rank_about_edges`` with pipeline
     defaults and an empty-input short-circuit (avoids loading the embedding
     model when there are no topics to score against).
+
+    #701: graceful fallback when ``sentence-transformers`` is not installed.
+    Pipeline images that ship only ``[llm]`` extras (no ``[search]`` / ``[ml]``)
+    don't have the embedding library — without this guard the
+    ``ImportError`` bubbles through ``_artifact_from_multi_insight``, gets
+    swallowed by ``build_artifact``'s outer ``except Exception`` (line ~783),
+    and silently degrades the whole episode to a 1-stub-insight artifact.
+    Returning empty edges keeps the rest of the artifact (insights + quotes)
+    intact at the cost of no insight→topic ABOUT edges.
     """
     if not insight_texts or not topic_specs:
         return [[] for _ in insight_texts]
-    from .about_edges import (
-        ABOUT_EDGE_DEFAULT_FLOOR,
-        ABOUT_EDGE_DEFAULT_TOP_K,
-        rank_about_edges,
-    )
+    try:
+        from .about_edges import (
+            ABOUT_EDGE_DEFAULT_FLOOR,
+            ABOUT_EDGE_DEFAULT_TOP_K,
+            rank_about_edges,
+        )
 
-    k = ABOUT_EDGE_DEFAULT_TOP_K if top_k is None else top_k
-    f = ABOUT_EDGE_DEFAULT_FLOOR if floor is None else floor
-    return rank_about_edges(
-        insight_texts,
-        topic_specs,
-        top_k=k,
-        floor=f,
-        encoder=encoder,
-    )
+        k = ABOUT_EDGE_DEFAULT_TOP_K if top_k is None else top_k
+        f = ABOUT_EDGE_DEFAULT_FLOOR if floor is None else floor
+        return rank_about_edges(
+            insight_texts,
+            topic_specs,
+            top_k=k,
+            floor=f,
+            encoder=encoder,
+        )
+    except ImportError as exc:
+        logger.warning(
+            "GI ABOUT-edge ranking skipped (missing sentence-transformers): %s. "
+            "Insights persist without insight->topic ABOUT edges.",
+            exc,
+        )
+        return [[] for _ in insight_texts]
 
 
 def _dedupe_topic_node_specs(
@@ -781,11 +819,7 @@ def build_artifact(
         except GILGroundingUnsatisfiedError:
             raise
         except Exception as e:
-            logger.debug(
-                "GIL evidence stack (provider path) failed, using stub/degraded artifact: %s",
-                e,
-                exc_info=True,
-            )
+            _record_stub_fallback(pipeline_metrics, e)
 
     # Single stub path (no evidence stack or fallback)
     if len(insight_specs) == 1 and insight_specs[0][0] == _STUB_INSIGHT_TEXT:

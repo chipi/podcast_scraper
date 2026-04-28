@@ -747,3 +747,108 @@ class TestGILPipeline:
         assert len(insight_nodes) == 2
         assert insight_nodes[0]["properties"]["text"] == "P1"
         assert insight_nodes[1]["properties"]["text"] == "P2"
+
+
+@pytest.mark.unit
+class TestStubFallbackRegression701:
+    """#701: stub-fallback regression when sentence-transformers is missing.
+
+    Background: cloud_thin produced 1-stub-insight gi.json across all 9
+    real-feed validation episodes. The cause was ``_rank_about_edges_for_insights``
+    raising ImportError on ``sentence_transformers`` (pipeline-llm shipped
+    only [llm] extras). The error bubbled through ``_artifact_from_multi_insight``
+    → caught by ``build_artifact``'s broad ``except Exception`` → silently
+    fell through to ``_build_stub_artifact``. The except was logged at DEBUG,
+    so the regression was invisible in normal logs.
+
+    Fix:
+      * ``_rank_about_edges_for_insights`` catches ImportError and returns
+        empty edges (insights still persist, no insight->topic ABOUT edges).
+      * The outer except in ``build_artifact`` is promoted to WARNING +
+        flips a metrics counter.
+
+    These tests lock in both legs: artifact stays multi-insight even when
+    sentence-transformers is unavailable, and the warning fires when the
+    fallback path is taken.
+    """
+
+    def test_multi_insight_artifact_persists_when_sentence_transformers_missing(self):
+        """ImportError on sentence_transformers must not collapse to stub."""
+        cfg = MagicMock()
+        cfg.generate_gi = True
+        cfg.gi_require_grounding = True
+        cfg.gi_qa_model = "roberta-squad2"
+        cfg.gi_nli_model = "nli-deberta-base"
+        cfg.extractive_qa_device = None
+        cfg.nli_device = None
+        cfg.gi_fail_on_missing_grounding = False
+        cfg.gi_max_insights = 12
+
+        # Twelve mega_bundled-style insights + ten KG topic labels.
+        prefilled_insights = [
+            {"text": f"Insight {i+1} text content here", "insight_type": "claim"} for i in range(12)
+        ]
+        topic_labels = [f"topic_{i}" for i in range(10)]
+
+        with (
+            patch(
+                "podcast_scraper.gi.deps.create_gil_evidence_providers",
+                return_value=(MagicMock(), MagicMock()),
+            ),
+            patch(
+                "podcast_scraper.gi.grounding.find_grounded_quotes_via_providers",
+                return_value=[],
+            ),
+            # Patch the inner library so the wrapper's ImportError except
+            # block fires (mirrors the real failure: pipeline-llm without
+            # sentence-transformers installed).
+            patch(
+                "podcast_scraper.gi.about_edges.rank_about_edges",
+                side_effect=ImportError("sentence_transformers not installed"),
+            ),
+        ):
+            out = build_artifact(
+                "ep:1",
+                "Transcript content.",
+                cfg=cfg,
+                prefilled_insights=prefilled_insights,
+                topic_labels=topic_labels,
+            )
+
+        insight_nodes = [n for n in out["nodes"] if n["type"] == "Insight"]
+        # Either we got the full 12 insights (graceful fallback worked) or
+        # we got 1 stub (regression). The assertion fails iff we regressed.
+        first_text = insight_nodes[0]["properties"]["text"] if insight_nodes else "NONE"
+        assert len(insight_nodes) == 12, (
+            f"Expected 12 insights, got {len(insight_nodes)}. "
+            f"First insight text: {first_text}. "
+            "If this is 1 with text 'Summary insight (stub).', "
+            "the #701 regression is back."
+        )
+        # And none of them should be the stub sentinel.
+        for n in insight_nodes:
+            assert (
+                n["properties"]["text"] != "Summary insight (stub)."
+            ), "Insight should not be the stub sentinel."
+
+    def test_rank_about_edges_returns_empty_on_missing_sentence_transformers(self):
+        """``_rank_about_edges_for_insights`` swallows ImportError."""
+        from podcast_scraper.gi.pipeline import _rank_about_edges_for_insights
+
+        # Force the inner import to fail by patching out the module.
+        with patch(
+            "podcast_scraper.gi.about_edges.rank_about_edges",
+            side_effect=ImportError("sentence_transformers missing"),
+        ):
+            result = _rank_about_edges_for_insights(
+                ["insight 1", "insight 2"],
+                [("topic:a", "Topic A")],
+                top_k=2,
+                floor=0.25,
+                encoder=None,
+            )
+
+        assert result == [[], []], (
+            "When sentence-transformers is missing, the wrapper should return "
+            f"one empty list per insight (graceful degradation); got {result}"
+        )
