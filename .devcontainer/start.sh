@@ -21,6 +21,15 @@ COMPOSE_FILES=(
 
 echo "==> Codespace pre-prod stack startup"
 
+# stack.yml's viewer service publishes to ``${VIEWER_PORT:-8080}:80``.
+# devcontainer.json forwards 8090 (operator-facing convention from
+# RFC-081), so pin the host-side port here to match. Without this,
+# ``compose up`` lands on host:8080 while the codespace's port-forward
+# targets :8090 → operator's browser sees a "Bad Gateway" from GitHub's
+# port forwarder. Override via VIEWER_PORT env if the operator wants
+# a different layout (must also update devcontainer.json forwardPorts).
+export VIEWER_PORT="${VIEWER_PORT:-8090}"
+
 # Ensure the corpus bind-mount source exists. ``docker-compose.prod.yml``
 # overrides the ``corpus_data`` volume as a bind mount onto this dir so
 # that (a) operators can edit ``feeds.spec.yaml`` from the codespace
