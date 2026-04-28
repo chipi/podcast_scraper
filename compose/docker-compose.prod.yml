@@ -66,6 +66,18 @@ services:
     image: ghcr.io/chipi/podcast-scraper-stack-api:${PODCAST_IMAGE_TAG:-main}
     build: !reset null
     restart: unless-stopped
+    # Docker job-mode wiring (mirror of stack-test). The api spawns
+    # ``pipeline-llm`` containers via ``docker compose run --rm`` rather
+    # than running pipeline code in-process; the published ``api`` image
+    # only ships ``[server]`` extras, so an in-process pipeline run
+    # would crash on missing ``[llm]``/``[ml]`` deps. The mount of
+    # ``/var/run/docker.sock`` lets the api shell out to the host
+    # docker daemon; the read-only project dir mount makes
+    # ``compose/*.yml`` reachable from inside the api container so the
+    # nested compose call can resolve them.
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ${PODCAST_DOCKER_PROJECT_DIR:-/workspaces/podcast_scraper}:${PODCAST_DOCKER_PROJECT_DIR:-/workspaces/podcast_scraper}:ro
     environment:
       # Surface the pre-prod observability env vars. Defaults are off
       # (empty) so this overlay is safe to apply without operator-side
@@ -75,6 +87,20 @@ services:
       PODCAST_JOB_WEBHOOK_URL: ${PODCAST_JOB_WEBHOOK_URL:-}
       PODCAST_ENV: ${PODCAST_ENV:-preprod}
       PODCAST_RELEASE: ${PODCAST_RELEASE:-}
+      # Docker job mode: api spawns the pipeline container via compose
+      # instead of running pipeline code in-process. Required because
+      # the published ``api`` image only ships ``[server]`` extras.
+      PODCAST_PIPELINE_EXEC_MODE: docker
+      PODCAST_DOCKER_PROJECT_DIR: ${PODCAST_DOCKER_PROJECT_DIR:-/workspaces/podcast_scraper}
+      # Compose files the nested ``docker compose run`` resolves. Codespace
+      # default targets stack + prod overlays so the spawned container
+      # inherits the prod overlay's bind-mounted ``corpus_data``.
+      PODCAST_DOCKER_COMPOSE_FILES: ${PODCAST_DOCKER_COMPOSE_FILES:-compose/docker-compose.stack.yml,compose/docker-compose.prod.yml}
+      # Pin compose project name so the nested ``docker compose run``
+      # joins the running stack's network + volumes. Default ``compose``
+      # matches what compose picks from the parent dir of the first
+      # ``-f`` file (``compose/`` → project name ``compose``).
+      COMPOSE_PROJECT_NAME: ${COMPOSE_PROJECT_NAME:-compose}
 
   pipeline-llm:
     image: ghcr.io/chipi/podcast-scraper-stack-pipeline-llm:${PODCAST_IMAGE_TAG:-main}
