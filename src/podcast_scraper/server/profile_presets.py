@@ -51,6 +51,39 @@ def _env_allowlist() -> set[str] | None:
     return allowed or None
 
 
+def env_default_profile() -> str | None:
+    """Resolve ``PODCAST_DEFAULT_PROFILE`` env var (RFC-081 §Layer 1).
+
+    Returns the profile name when the env var is set to a non-empty,
+    on-disk profile name AND that profile passes the allowlist filter.
+    Returns ``None`` otherwise (unset, blank, typo, or filtered out).
+
+    Used in three places:
+
+    * ``OperatorConfigGetResponse.default_profile`` — the viewer reads this
+      and preselects it in the operator profile dropdown when the corpus
+      has no saved profile yet.
+    * ``_ensure_default_viewer_operator_yaml`` — first-corpus seeding
+      writes ``profile: <default>`` so a fresh ``viewer_operator.yaml``
+      starts with the right preset already on disk.
+    * ``build_pipeline_argv`` fallback — if the operator triggers a
+      pipeline run on a corpus whose yaml has no ``profile:`` line,
+      use the env default instead of letting the CLI fall back to whatever
+      ``Config._resolve_profile`` would pick globally.
+
+    Validating against the allowlist + on-disk names keeps the contract
+    consistent: we never advertise (or fall back to) a profile that's
+    either unpublished in this env or doesn't exist on disk.
+    """
+    raw = os.environ.get("PODCAST_DEFAULT_PROFILE", "").strip()
+    if not raw:
+        return None
+    available = list_packaged_profile_names()
+    if raw not in available:
+        return None
+    return raw
+
+
 def validate_operator_profile_allowed(operator_yaml: Path) -> str | None:
     """Reject job submission when operator's profile is outside the allowlist.
 

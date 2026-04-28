@@ -238,7 +238,14 @@ async function loadSourcesTab(tab: SourcesDialogTab): Promise<void> {
       operatorFileHint.value = o.operator_config_path
       availableProfiles.value = o.available_profiles ?? []
       const sp = splitOperatorYamlProfile(o.content)
-      operatorProfileSelected.value = sp.profile
+      // Preselect the env-driven default profile when the corpus has no
+      // saved profile yet (#692, RFC-081 §Layer 1). Server only sets
+      // ``default_profile`` when ``PODCAST_DEFAULT_PROFILE`` is on AND the
+      // value is in ``available_profiles`` — so this is safe to assign
+      // unconditionally without re-validating client-side.
+      const defaultFromServer = (o.default_profile ?? '').trim()
+      operatorProfileSelected.value =
+        sp.profile.trim() || defaultFromServer
       operatorYamlBody.value = sp.body
       operatorSourcesLoadedForPath.value = p
     }

@@ -147,6 +147,16 @@ class OperatorConfigGetResponse(BaseModel):
             "config/profiles/ (same roots as Config profile load); excludes *.example.yaml."
         ),
     )
+    default_profile: str | None = Field(
+        default=None,
+        description=(
+            "Preferred profile when the corpus has no ``profile:`` saved yet. Sourced "
+            "from the ``PODCAST_DEFAULT_PROFILE`` env var; the viewer preselects this "
+            "in the operator dropdown. ``null`` when unset (dev / CI default — no "
+            "preselection, dropdown opens with 'None'). Always one of "
+            "``available_profiles`` or ``null`` (validated server-side)."
+        ),
+    )
 
 
 class OperatorConfigPutBody(BaseModel):

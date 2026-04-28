@@ -111,6 +111,13 @@ services:
       # Override or extend on a Phase 2+ host that publishes more pipeline
       # images. Unset = no filtering (dev / CI).
       PODCAST_AVAILABLE_PROFILES: ${PODCAST_AVAILABLE_PROFILES:-cloud_thin}
+      # Default profile for fresh corpora that haven't saved one yet. The
+      # viewer preselects this in the dropdown so first-run UX shows the
+      # right preset without an operator-side click; the api also falls
+      # back to it in ``build_pipeline_argv`` when the operator triggers a
+      # run before clicking Save in the profile menu. Must be one of
+      # PODCAST_AVAILABLE_PROFILES or unset (no preselection / no fallback).
+      PODCAST_DEFAULT_PROFILE: ${PODCAST_DEFAULT_PROFILE:-cloud_thin}
 
   pipeline-llm:
     image: ghcr.io/chipi/podcast-scraper-stack-pipeline-llm:${PODCAST_IMAGE_TAG:-main}

@@ -269,6 +269,30 @@ def test_api_available_profiles_env_set(resolved_compose: Dict[str, Any]) -> Non
     ), f"PODCAST_AVAILABLE_PROFILES default should include cloud_thin; got {names}"
 
 
+def test_api_default_profile_env_set_and_in_allowlist(
+    resolved_compose: Dict[str, Any],
+) -> None:
+    """``PODCAST_DEFAULT_PROFILE`` is set + must be inside ``PODCAST_AVAILABLE_PROFILES``.
+
+    The viewer preselects ``default_profile`` in the dropdown; if it's outside
+    the allowlist, the operator sees a value they can't actually pick. Server
+    code already guards this (``env_default_profile`` returns None when the
+    requested default isn't allowed), but encoding the contract here catches
+    the misconfig at compose-time before it reaches a user.
+    """
+    env = _api_service(resolved_compose).get("environment") or {}
+    default = (env.get("PODCAST_DEFAULT_PROFILE") or "").strip()
+    assert default, "PODCAST_DEFAULT_PROFILE must be set in the prod overlay"
+    allowlist = [
+        p.strip() for p in (env.get("PODCAST_AVAILABLE_PROFILES") or "").split(",") if p.strip()
+    ]
+    assert default in allowlist, (
+        f"PODCAST_DEFAULT_PROFILE={default!r} must be inside "
+        f"PODCAST_AVAILABLE_PROFILES={allowlist}; viewer would otherwise preselect "
+        "a profile the operator can't pick."
+    )
+
+
 # ---------------------------------------------------------------------------
 # Sane defaults — no surprise empty strings where a value is required
 # ---------------------------------------------------------------------------
@@ -288,6 +312,7 @@ def test_api_required_env_has_sensible_defaults(resolved_compose: Dict[str, Any]
         "PODCAST_DOCKER_COMPOSE_FILES",
         "COMPOSE_PROJECT_NAME",
         "PODCAST_AVAILABLE_PROFILES",
+        "PODCAST_DEFAULT_PROFILE",
     )
     for k in must_be_nonempty:
         v = (env.get(k) or "").strip() if isinstance(env.get(k), str) else env.get(k)

@@ -195,3 +195,58 @@ def test_validate_profile_allowed_typo_profile_raises(
     with pytest.raises(ValueError) as exc_info:
         profile_presets.validate_operator_profile_allowed(op)
     assert "clud_thin" in str(exc_info.value)
+
+
+# --- env_default_profile (#692 default-profile concept) ----------------------
+
+
+def test_default_profile_unset_returns_none(monkeypatch: pytest.MonkeyPatch) -> None:
+    """No env var set: default-profile is None (dev / CI default)."""
+    from podcast_scraper.server import profile_presets
+
+    monkeypatch.delenv("PODCAST_DEFAULT_PROFILE", raising=False)
+    monkeypatch.delenv("PODCAST_AVAILABLE_PROFILES", raising=False)
+    assert profile_presets.env_default_profile() is None
+
+
+def test_default_profile_blank_returns_none(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Whitespace-only env value treated as unset."""
+    from podcast_scraper.server import profile_presets
+
+    monkeypatch.setenv("PODCAST_DEFAULT_PROFILE", "   ")
+    assert profile_presets.env_default_profile() is None
+
+
+def test_default_profile_resolves_when_in_packaged_set(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """``cloud_thin`` is on disk → returns ``cloud_thin``."""
+    from podcast_scraper.server import profile_presets
+
+    monkeypatch.delenv("PODCAST_AVAILABLE_PROFILES", raising=False)
+    monkeypatch.setenv("PODCAST_DEFAULT_PROFILE", "cloud_thin")
+    assert profile_presets.env_default_profile() == "cloud_thin"
+
+
+def test_default_profile_filtered_by_allowlist(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Default must also pass the allowlist filter — no fallback to a hidden profile.
+
+    If allowlist excludes the requested default (operator misconfiguration),
+    return ``None`` rather than serving a profile the operator UI deliberately
+    hides. Better than half-broken UX where dropdown filters but server still
+    falls back to the disallowed profile.
+    """
+    from podcast_scraper.server import profile_presets
+
+    monkeypatch.setenv("PODCAST_AVAILABLE_PROFILES", "cloud_thin")
+    monkeypatch.setenv("PODCAST_DEFAULT_PROFILE", "cloud_balanced")
+    assert profile_presets.env_default_profile() is None
+
+
+def test_default_profile_typo_returns_none(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Typo'd default name (not on disk) → None (no surprise fallback)."""
+    from podcast_scraper.server import profile_presets
+
+    monkeypatch.delenv("PODCAST_AVAILABLE_PROFILES", raising=False)
+    monkeypatch.setenv("PODCAST_DEFAULT_PROFILE", "cloud_thinn")  # typo
+    assert profile_presets.env_default_profile() is None
