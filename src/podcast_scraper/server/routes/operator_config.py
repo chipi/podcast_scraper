@@ -131,6 +131,8 @@ async def get_operator_config(
     # ``startswith anchor + sep`` check), so the operator can only auto-create
     # subdirs of the configured corpus root, not arbitrary filesystem paths.
     corpus_root = resolve_corpus_path_param(path, anchor, must_be_dir=False)
+    # codeql[py/path-injection] -- corpus_root validated by resolve_corpus_path_param's
+    # normpath + ``startswith(anchor + sep)`` check (the documented sanitizer pair).
     corpus_root.mkdir(parents=True, exist_ok=True)
     cfg_raw = _operator_file(request, corpus_root)
     cfg_path = _verified_operator_config_path(request, corpus_root, cfg_raw)
@@ -188,6 +190,8 @@ async def put_operator_config(
     # also works against fresh paths (operator chooses path → Save → dir
     # appears alongside viewer_operator.yaml).
     corpus_root = resolve_corpus_path_param(path, anchor, must_be_dir=False)
+    # codeql[py/path-injection] -- corpus_root validated by resolve_corpus_path_param's
+    # normpath + ``startswith(anchor + sep)`` check (the documented sanitizer pair).
     corpus_root.mkdir(parents=True, exist_ok=True)
     cfg_raw = _operator_file(request, corpus_root)
     cfg_path = _verified_operator_config_path(request, corpus_root, cfg_raw)
