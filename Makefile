@@ -775,6 +775,73 @@ codespace-status:
 	gh codespace list --json name,state,displayName,lastUsedAt \
 		-q ".[] | select(.name==\"$$CS\") | \"\(.displayName) [\(.name)] state=\(.state) lastUsed=\(.lastUsedAt)\""
 
+# Pull the codespace corpus to a local laptop directory via ``gh codespace cp``.
+# Belt-and-suspenders backup before risky deploys (image rebuilds, profile flips,
+# devcontainer changes). Pairs with ``codespace-restore-local`` which pushes a
+# local backup back into the codespace.
+#
+# Default destination: ``$HOME/preprod_corpus_backup_<UTC date>/`` so multiple
+# backups don't overwrite each other. Override with ``BACKUP_DIR=...``.
+codespace-backup-local:
+	@CS=$$($(MAKE) -s _resolve-codespace-name); \
+	if [ -z "$$CS" ]; then exit 2; fi; \
+	DEST="$${BACKUP_DIR:-$$HOME/preprod_corpus_backup_$$(date -u +%Y-%m-%d)}"; \
+	mkdir -p "$$DEST"; \
+	echo "Pulling corpus from codespace $$CS to $$DEST/ ..."; \
+	gh codespace cp -e -c "$$CS" -r \
+		'remote:/workspaces/podcast_scraper/.codespace_corpus' \
+		"$$DEST/"; \
+	echo ""; \
+	echo "=== Verify backup ==="; \
+	du -sh "$$DEST/.codespace_corpus" 2>/dev/null || echo "WARN: dir missing"; \
+	gi=$$(find "$$DEST" -name '*.gi.json' 2>/dev/null | wc -l); \
+	tx=$$(find "$$DEST" -name '*.txt' -path '*/transcripts/*' 2>/dev/null | wc -l); \
+	echo "  gi.json artifacts: $$gi"; \
+	echo "  transcripts:       $$tx"; \
+	if [ "$$gi" = "0" ]; then \
+		echo "ERROR: backup contains 0 gi.json artifacts; corpus may be empty." >&2; \
+		exit 3; \
+	fi; \
+	echo "OK: backup written to $$DEST/.codespace_corpus/"
+
+# Push a local laptop backup back into the codespace's corpus dir. Reverse of
+# ``codespace-backup-local``. Idempotent: ``gh codespace cp`` overwrites
+# existing files. Source defaults to the most recent backup under
+# ``$HOME/preprod_corpus_backup_*``; override with ``BACKUP_DIR=...``.
+codespace-restore-local:
+	@CS=$$($(MAKE) -s _resolve-codespace-name); \
+	if [ -z "$$CS" ]; then exit 2; fi; \
+	if [ -n "$${BACKUP_DIR:-}" ]; then \
+		SRC="$$BACKUP_DIR"; \
+	else \
+		SRC=$$(ls -1dt $$HOME/preprod_corpus_backup_* 2>/dev/null | head -1); \
+		if [ -z "$$SRC" ]; then \
+			echo "ERROR: no $$HOME/preprod_corpus_backup_* found. Override with BACKUP_DIR=..." >&2; \
+			exit 2; \
+		fi; \
+	fi; \
+	if [ ! -d "$$SRC/.codespace_corpus" ]; then \
+		echo "ERROR: $$SRC/.codespace_corpus missing — not a valid backup." >&2; \
+		exit 2; \
+	fi; \
+	echo "Restoring $$SRC/.codespace_corpus/ -> codespace $$CS:/workspaces/podcast_scraper/.codespace_corpus/"; \
+	gh codespace cp -e -c "$$CS" -r \
+		"$$SRC/.codespace_corpus" \
+		'remote:/workspaces/podcast_scraper/'; \
+	echo "OK: corpus restored into codespace."
+
+# Trigger the cloud-side backup workflow (.github/workflows/backup-corpus.yml).
+# Tarballs the codespace corpus and uploads to chipi/podcast_scraper-backup
+# as a release asset. Use ``DRY_RUN=true`` to skip the upload; default false.
+codespace-backup-cloud:
+	@DRY_RUN="$${DRY_RUN:-false}"; \
+	echo "Dispatching backup-corpus.yml workflow (dry_run=$$DRY_RUN) ..."; \
+	gh workflow run backup-corpus.yml --repo chipi/podcast_scraper -f dry_run=$$DRY_RUN; \
+	sleep 3; \
+	gh run list --workflow=backup-corpus.yml --repo chipi/podcast_scraper -L 1; \
+	echo ""; \
+	echo "Watch: gh run watch <id> --repo chipi/podcast_scraper"
+
 # Pull the latest corpus snapshot from chipi/podcast_scraper-backup and
 # untar into ``.codespace_corpus/`` (the workspace-survives-suspend
 # path that the codespace bind-mounts as the corpus root).

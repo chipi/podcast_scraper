@@ -76,11 +76,19 @@ jobs:
         run: |
           set -euo pipefail
           # Wake the codespace if asleep. ``gh codespace start`` is a
-          # no-op when already running.
-          gh codespace start --codespace "$CS" || true
+          # no-op when already running. Flag is ``-c`` (NOT ``--codespace``;
+          # see https://cli.github.com/manual/gh_codespace_ssh).
+          gh api -X POST "/user/codespaces/$CS/start" >/dev/null 2>&1 || true
+          # Wait for codespace to be Available before SSHing — start is async.
+          for i in $(seq 1 24); do
+            state=$(gh codespace list --json name,state -q ".[] | select(.name==\"$CS\") | .state" 2>/dev/null || echo "")
+            [ "$state" = "Available" ] && break
+            echo "Codespace state=$state; waiting (attempt $i/24)..."
+            sleep 5
+          done
           # Stream the tar across SSH; avoids needing temp space inside
           # the codespace's 32 GB workspace.
-          gh codespace ssh --codespace "$CS" -- \
+          gh codespace ssh -c "$CS" -- \
             'tar -czf - -C /workspaces/podcast_scraper .codespace_corpus' \
             > snapshot.tgz
           echo "Tarball created: $(ls -lh snapshot.tgz | awk '{print $5}')"
@@ -88,6 +96,13 @@ jobs:
           size=$(stat -c%s snapshot.tgz)
           if [ "$size" -lt 1024 ]; then
             echo "::error::Tarball is suspiciously small ($size bytes); aborting." >&2
+            exit 1
+          fi
+          # Sanity: a healthy corpus tarball contains at least one
+          # ``.gi.json`` artifact (per-episode GI insights). Catches the
+          # case where the SSH succeeded but the bind-mount was empty.
+          if ! tar -tzf snapshot.tgz | grep -q '\.gi\.json$'; then
+            echo "::error::Tarball has no .gi.json artifacts; corpus likely empty." >&2
             exit 1
           fi
 
@@ -167,7 +182,9 @@ jobs:
           set -euo pipefail
           echo "=== Dry-run mode ==="
           echo "Tarball size: $(ls -lh snapshot.tgz 2>/dev/null | awk '{print $5}' || echo 'NONE')"
-          if [ -n "${BACKUP_REPO_TOKEN:-}" ]; then
+          echo "Tarball contents (top-level):"
+          tar -tzf snapshot.tgz 2>/dev/null | head -5 || echo "(empty)"
+          if [ -n "${GH_TOKEN:-}" ]; then
             echo ""
             echo "Existing releases on $BACKUP_REPO:"
             gh release list --repo "$BACKUP_REPO" --limit 20 2>&1 || echo "(unable to list)"
