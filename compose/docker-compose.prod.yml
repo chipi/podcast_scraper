@@ -101,6 +101,16 @@ services:
       # matches what compose picks from the parent dir of the first
       # ``-f`` file (``compose/`` → project name ``compose``).
       COMPOSE_PROJECT_NAME: ${COMPOSE_PROJECT_NAME:-compose}
+      # Restrict the operator profile dropdown to profiles whose backing
+      # image is actually published to GHCR. Phase 1 publishes
+      # ``pipeline-llm`` only (cloud-thin variant) — see RFC-081 §Layer 1.
+      # Without this, the viewer's profile menu offers every preset under
+      # ``config/profiles/`` and the operator can pick a profile that
+      # would crash mid-pipeline-run because its image isn't deployed.
+      # Comma-separated allowlist; intersected with on-disk profile names.
+      # Override or extend on a Phase 2+ host that publishes more pipeline
+      # images. Unset = no filtering (dev / CI).
+      PODCAST_AVAILABLE_PROFILES: ${PODCAST_AVAILABLE_PROFILES:-cloud_thin}
 
   pipeline-llm:
     image: ghcr.io/chipi/podcast-scraper-stack-pipeline-llm:${PODCAST_IMAGE_TAG:-main}

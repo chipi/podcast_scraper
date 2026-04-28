@@ -27,6 +27,7 @@ from podcast_scraper.server.pipeline_jobs import (
     list_jobs_snapshot,
     schedule_post_submit,
 )
+from podcast_scraper.server.profile_presets import validate_operator_profile_allowed
 from podcast_scraper.server.routes.index_rebuild import _resolve_corpus_root
 from podcast_scraper.server.schemas import (
     PipelineJobAccepted,
@@ -109,6 +110,15 @@ async def submit_pipeline_job(
             viewer_operator_extras_source(request.app, corpus),
             pipe_mode,
         )
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+    # Defense-in-depth for #692 / RFC-081 §Layer 1: even if a stale viewer
+    # bundle picked a profile hidden from the dropdown, refuse to enqueue
+    # a pipeline run that would crash several minutes in (the chosen
+    # profile's image isn't published in this env). ``operator_yaml`` is
+    # the same path the run will execute against — single source of truth.
+    try:
+        await asyncio.to_thread(validate_operator_profile_allowed, operator_yaml)
     except ValueError as exc:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
     rec = await asyncio.to_thread(enqueue_pipeline_job, corpus, operator_yaml)
