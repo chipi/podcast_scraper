@@ -255,18 +255,22 @@ def test_api_compose_project_name_pinned(resolved_compose: Dict[str, Any]) -> No
 def test_api_available_profiles_env_set(resolved_compose: Dict[str, Any]) -> None:
     """``PODCAST_AVAILABLE_PROFILES`` filters the operator dropdown.
 
-    Phase 1 only publishes ``pipeline-llm`` to GHCR; without this var the
-    operator UI offers profiles whose backing image isn't deployed.
+    Phase 1 only publishes ``pipeline-llm`` to GHCR; that image now ships
+    [llm] + [search] extras so cloud_balanced (vector_search: true) runs on
+    it alongside cloud_thin. Both must be in the default allowlist.
     """
     env = _api_service(resolved_compose).get("environment") or {}
     profiles = (env.get("PODCAST_AVAILABLE_PROFILES") or "").strip()
     assert profiles, "PODCAST_AVAILABLE_PROFILES must be set in the prod overlay"
-    # Default value uses cloud_thin (license-clean published image set);
-    # operators can override the env without code change.
     names = [p.strip() for p in profiles.split(",") if p.strip()]
-    assert (
-        "cloud_thin" in names
-    ), f"PODCAST_AVAILABLE_PROFILES default should include cloud_thin; got {names}"
+    assert "cloud_balanced" in names, (
+        "PODCAST_AVAILABLE_PROFILES default should include cloud_balanced "
+        f"(default profile in Phase 1); got {names}"
+    )
+    assert "cloud_thin" in names, (
+        "PODCAST_AVAILABLE_PROFILES default should still include cloud_thin "
+        f"as the lighter no-vector-index variant; got {names}"
+    )
 
 
 def test_api_default_profile_env_set_and_in_allowlist(

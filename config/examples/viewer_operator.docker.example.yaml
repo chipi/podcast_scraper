@@ -3,7 +3,7 @@
 #
 # When ``PODCAST_PIPELINE_EXEC_MODE=docker`` on the API container, this key is **mandatory**:
 # ``ml`` → ``docker compose … run pipeline`` (full ``.[ml]`` image).
-# ``llm`` → ``… run pipeline-llm`` (``.[llm]`` image; use with ``cloud_thin`` profile).
+# ``llm`` → ``… run pipeline-llm`` (``.[llm,search]`` image; runs ``cloud_balanced`` or ``cloud_thin``).
 
 pipeline_install_extras: ml
 

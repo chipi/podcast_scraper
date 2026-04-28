@@ -53,7 +53,9 @@ land.
 prod overlay's default — see [docker-compose.prod.yml](../../compose/docker-compose.prod.yml)):
 
 1. api validates `viewer_operator.yaml`'s `pipeline_install_extras`
-   (must be `ml` or `llm`; `llm` for cloud_thin in Phase 1).
+   (must be `ml` or `llm`; `llm` for both cloud_balanced and cloud_thin in
+   Phase 1 — pipeline-llm now ships [llm] + [search] extras so vector
+   search works without dragging in [ml]'s spaCy / Whisper / Pegasus).
 2. api validates `profile:` against `PODCAST_AVAILABLE_PROFILES`
    (defense in depth on top of the dropdown filter).
 3. api spawns `docker compose run --rm pipeline-llm <argv>` from
@@ -122,17 +124,19 @@ field, or has a value other than `ml` / `llm`. Required when
 api uses it to pick which compose service to spawn (`pipeline` for
 ml, `pipeline-llm` for llm).
 
-Fix: add `pipeline_install_extras: llm` (cloud_thin uses cloud APIs +
-local model-free tier).
+Fix: add `pipeline_install_extras: llm`. Both cloud_balanced and
+cloud_thin run on the pipeline-llm image in Phase 1 — the image now
+ships [search] extras (faiss + sentence-transformers + torch CPU)
+on top of [llm] so vector_search works without [ml].
 
 ### Pipeline job 400s with "profile X is not in the available profiles"
 
 Cause: the saved `profile:` in `viewer_operator.yaml` is outside
-`PODCAST_AVAILABLE_PROFILES` for this env. Phase 1 only allows
-`cloud_thin`.
+`PODCAST_AVAILABLE_PROFILES` for this env. Phase 1 allows
+`cloud_balanced` (default) and `cloud_thin`.
 
-Fix: pick `cloud_thin` from the operator dropdown + Save (overwrites
-the file's profile line).
+Fix: pick `cloud_balanced` (or `cloud_thin`) from the operator dropdown
+\+ Save (overwrites the file's profile line).
 
 ### `ANTHROPIC_API_KEY` (or any other secret) shows `len:1` in `docker inspect`
 

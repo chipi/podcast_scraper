@@ -103,21 +103,23 @@ services:
       COMPOSE_PROJECT_NAME: ${COMPOSE_PROJECT_NAME:-compose}
       # Restrict the operator profile dropdown to profiles whose backing
       # image is actually published to GHCR. Phase 1 publishes
-      # ``pipeline-llm`` only (cloud-thin variant) — see RFC-081 §Layer 1.
-      # Without this, the viewer's profile menu offers every preset under
-      # ``config/profiles/`` and the operator can pick a profile that
-      # would crash mid-pipeline-run because its image isn't deployed.
+      # ``pipeline-llm`` only — but the image now ships [llm] + [search]
+      # extras (faiss + sentence-transformers + torch CPU) so cloud_balanced
+      # runs on it alongside cloud_thin. cloud_balanced is the default so
+      # the viewer's Search/Index surface is populated; cloud_thin stays in
+      # the allowlist for operators who explicitly want the cheaper
+      # no-vector-index variant. See RFC-081 §Layer 1.
       # Comma-separated allowlist; intersected with on-disk profile names.
       # Override or extend on a Phase 2+ host that publishes more pipeline
       # images. Unset = no filtering (dev / CI).
-      PODCAST_AVAILABLE_PROFILES: ${PODCAST_AVAILABLE_PROFILES:-cloud_thin}
+      PODCAST_AVAILABLE_PROFILES: ${PODCAST_AVAILABLE_PROFILES:-cloud_balanced,cloud_thin}
       # Default profile for fresh corpora that haven't saved one yet. The
       # viewer preselects this in the dropdown so first-run UX shows the
       # right preset without an operator-side click; the api also falls
       # back to it in ``build_pipeline_argv`` when the operator triggers a
       # run before clicking Save in the profile menu. Must be one of
       # PODCAST_AVAILABLE_PROFILES or unset (no preselection / no fallback).
-      PODCAST_DEFAULT_PROFILE: ${PODCAST_DEFAULT_PROFILE:-cloud_thin}
+      PODCAST_DEFAULT_PROFILE: ${PODCAST_DEFAULT_PROFILE:-cloud_balanced}
 
   pipeline-llm:
     image: ghcr.io/chipi/podcast-scraper-stack-pipeline-llm:${PODCAST_IMAGE_TAG:-main}
