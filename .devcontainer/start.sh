@@ -21,6 +21,46 @@ COMPOSE_FILES=(
 
 echo "==> Codespace pre-prod stack startup"
 
+# Sync /workspaces/podcast_scraper to origin/main before docker compose,
+# so file-mounted configs (compose overlay, grafana-agent.yaml,
+# nginx.conf when bind-mounted, etc.) are at the same commit as the
+# images we're about to pull from GHCR.
+#
+# Without this, the codespace's git checkout drifts behind whatever
+# branch the operator originally created the codespace from. We hit
+# this twice (today, post-#700 merge): the deploy-codespace workflow
+# rebuilt the container with new images, but ``compose/grafana-agent.yaml``
+# on disk was an older version → grafana-agent crash-looped on a
+# yaml that the published image's runtime expected to be different.
+#
+# Guard: only sync when on the ``main`` branch AND the working tree is
+# clean. A user manually testing on a feature branch keeps their state;
+# uncommitted shell-side edits aren't clobbered.
+if [ -d /workspaces/podcast_scraper/.git ]; then
+  CURRENT_BRANCH=$(git -C /workspaces/podcast_scraper rev-parse --abbrev-ref HEAD 2>/dev/null || echo "?")
+  WORKTREE_DIRTY=$(git -C /workspaces/podcast_scraper status --porcelain 2>/dev/null | head -1)
+  if [ "$CURRENT_BRANCH" = "main" ] && [ -z "$WORKTREE_DIRTY" ]; then
+    echo "==> Sync /workspaces/podcast_scraper to origin/main (clean tree, on main)"
+    if git -C /workspaces/podcast_scraper fetch --quiet origin main 2>&1; then
+      OLD_HEAD=$(git -C /workspaces/podcast_scraper rev-parse HEAD)
+      git -C /workspaces/podcast_scraper reset --hard origin/main 2>&1 | tail -1
+      NEW_HEAD=$(git -C /workspaces/podcast_scraper rev-parse HEAD)
+      if [ "$OLD_HEAD" != "$NEW_HEAD" ]; then
+        echo "    Synced ${OLD_HEAD:0:7} → ${NEW_HEAD:0:7}"
+      else
+        echo "    Already at HEAD."
+      fi
+    else
+      echo "::warning::git fetch origin main failed; continuing with workspace as-is."
+    fi
+  elif [ "$CURRENT_BRANCH" != "main" ]; then
+    echo "==> Skip workspace sync — on branch '$CURRENT_BRANCH' (not main); operator-controlled."
+  else
+    echo "==> Skip workspace sync — uncommitted changes in /workspaces/podcast_scraper."
+    echo "    Stash or commit before next bounce if you want auto-sync."
+  fi
+fi
+
 # stack.yml's viewer service publishes to ``${VIEWER_PORT:-8080}:80``.
 # devcontainer.json forwards 8090 (operator-facing convention from
 # RFC-081), so pin the host-side port here to match. Without this,
