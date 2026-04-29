@@ -21,13 +21,17 @@ metrics:
   global:
     scrape_interval: 30s
     external_labels:
-      # Grafana Agent's ``-config.expand-env=true`` uses Go's
-      # ``os.ExpandEnv``, which only handles ``$VAR`` / ``${VAR}`` —
-      # NOT bash-style ``${VAR:-default}``. The ``:-default`` syntax
-      # was being parsed as a literal var name ``VAR:-default`` and
-      # crashing the agent. Compose-side defaulting now sets these
-      # to non-empty values via the prod overlay (``PODCAST_ENV``
-      # always populated; ``PODCAST_RELEASE`` may be empty in dev).
+      # Grafana Agent runs with -config.expand-env=true which uses
+      # Go's os.ExpandEnv. ExpandEnv processes the WHOLE file as a
+      # string before YAML parsing — including comments — and only
+      # supports plain $VAR / curly-brace forms with no default
+      # syntax. Do not write bash-style fallback expressions in
+      # this file (in either values OR comments) because ExpandEnv
+      # treats the literal text as a variable reference and crashes
+      # with "unable to parse variable name". Compose-side defaulting
+      # now sets these to non-empty values via the prod overlay
+      # (PODCAST_ENV always populated; PODCAST_RELEASE may be empty
+      # in dev).
       env: "${PODCAST_ENV}"
       release: "${PODCAST_RELEASE}"
 
@@ -43,12 +47,17 @@ metrics:
           metrics_path: /metrics
 
       remote_write:
-        # Quote env substitutions: ``-config.expand-env=true`` inlines values
+        # Quote env substitutions: -config.expand-env=true inlines values
         # before YAML parse, and Grafana Cloud API keys typically contain
-        # ``:`` / ``-`` / ``=`` chars that break unquoted scalars (the agent
-        # crashed on bare unquoted ``password: ${...}`` with
-        # "block sequence entries are not allowed in this context"). Wrapping
-        # in double quotes is unconditionally safe; URLs are well-formed.
+        # `:` / `-` / `=` chars that break unquoted scalars (the agent
+        # crashed on bare unquoted password lines with "block sequence
+        # entries are not allowed in this context"). Wrapping in double
+        # quotes is unconditionally safe; URLs are well-formed.
+        # Also: do not embed any literal curly-brace env-substitution
+        # syntax (or its bash-default variant) inside comments — Go's
+        # ExpandEnv processes the whole file as one string before YAML
+        # parsing and treats such text as a variable reference, which
+        # crashes the agent.
         - url: "${GRAFANA_CLOUD_PROM_URL}"
           basic_auth:
             username: "${GRAFANA_CLOUD_USER}"
