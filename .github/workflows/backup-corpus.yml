@@ -123,7 +123,16 @@ jobs:
           # Sanity: a healthy corpus tarball contains at least one
           # ``.gi.json`` artifact (per-episode GI insights). Catches the
           # case where the cp succeeded but the bind-mount was empty.
-          if ! tar -tzf snapshot.tgz | grep -q '\.gi\.json$'; then
+          #
+          # IMPORTANT: don't use ``grep -q`` here — under ``set -o pipefail``,
+          # ``grep -q`` exits on first match and SIGPIPEs ``tar -tzf``,
+          # which propagates as non-zero through the pipe even though the
+          # match succeeded. Use ``grep -c`` (counts all matches; tar runs
+          # to completion; no SIGPIPE; pipefail-safe). Cost us two days of
+          # "phantom" CI failures before we caught it (#699).
+          gi_in_tar=$(tar -tzf snapshot.tgz | grep -c '\.gi\.json$' || true)
+          echo "gi.json entries in tarball: $gi_in_tar"
+          if [ "$gi_in_tar" -eq 0 ]; then
             echo "::error::Tarball has no .gi.json artifacts; corpus likely empty." >&2
             exit 1
           fi
