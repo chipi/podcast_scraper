@@ -27,6 +27,13 @@ cloud_llm_structured_min_output_tokens: 4096
 # the per-call retry ladder room to outlast typical spikes — see #697 for the safety net.
 summarization_timeout: 1200
 
+# #697: per-provider wait-and-resume circuit breaker for Gemini 503 bursts.
+# When ≥3 overload-class failures land in a 30 s window, pause the next call
+# for 60 s instead of stacking individual per-call retry sleeps that can
+# tip episodes over the summarization timeout. Defaults sized to the WSJ
+# Journal incident (2026-04-28).
+llm_circuit_breaker_enabled: true
+
 generate_gi: true
 gi_insight_source: provider
 gi_max_insights: 12
