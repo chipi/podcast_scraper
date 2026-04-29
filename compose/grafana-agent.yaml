@@ -64,6 +64,16 @@ metrics:
             password: "${GRAFANA_CLOUD_API_KEY}"
 
 logs:
+  # Grafana Agent requires a positions directory for log scraping — it
+  # tracks per-target byte offsets so a restart doesn't re-ship the
+  # entire file. Without this top-level field the agent fails to start
+  # with "cannot generate Loki positions file path for docker-containers
+  # because positions_directory is not configured". /tmp is fine in the
+  # agent container (no need for the codespace bind mount; positions
+  # are an internal cursor, not corpus data — losing them means at-most
+  # one duplicate scrape after restart, harmless).
+  positions_directory: /tmp/grafana-agent-positions
+
   global:
     clients:
       - url: "${GRAFANA_CLOUD_LOKI_URL}"
