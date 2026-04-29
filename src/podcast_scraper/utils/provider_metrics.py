@@ -193,6 +193,8 @@ def retry_with_metrics(
     metrics: Optional[ProviderCallMetrics] = None,
     jitter: bool = True,
     error_context: str = "default",
+    circuit_breaker_config: Optional[Any] = None,
+    pipeline_metrics: Optional[Any] = None,
 ) -> T:
     """Retry a function with exponential backoff, jitter, and metrics tracking.
 
@@ -223,11 +225,49 @@ def retry_with_metrics(
     last_exception: Optional[Exception] = None
     delay = initial_delay
 
+    # #697: optional per-provider circuit breaker for cloud-API 503 storms.
+    # When provided, ``circuit_breaker_config`` is an LLMCircuitBreakerConfig
+    # and the provider name is read from ``metrics._provider_name``. Each
+    # attempt waits if the breaker is in cooldown; failures with overload
+    # status (5xx / 429) are recorded; successes clear the breaker. Module-
+    # level lazy import so adding the breaker doesn't widen unit-test imports.
+    _breaker: Optional[Any] = None
+    _provider_name = (
+        getattr(metrics, "_provider_name", "unknown") if metrics is not None else "unknown"
+    )
+    if circuit_breaker_config is not None and getattr(circuit_breaker_config, "enabled", False):
+        from . import llm_circuit_breaker as _llm_breaker_module
+
+        _breaker = _llm_breaker_module
+
     for attempt in range(max_retries + 1):
         try:
-            return func()
+            if _breaker is not None:
+                _breaker.wait_if_overloaded(
+                    _provider_name, circuit_breaker_config, metrics=pipeline_metrics
+                )
+            result = func()
+            if _breaker is not None:
+                _breaker.record_success(_provider_name, circuit_breaker_config)
+            return result
         except retryable_exceptions as e:
             last_exception = e
+            # #697: record overload-class failures into the circuit breaker so
+            # repeated 503s within the window trip the breaker for the next call.
+            if _breaker is not None:
+                _err_str = str(e)
+                _status = 0
+                for code in (429, 500, 502, 503, 504):
+                    if str(code) in _err_str:
+                        _status = code
+                        break
+                if _status:
+                    _breaker.record_failure(
+                        _provider_name,
+                        circuit_breaker_config,
+                        _status,
+                        metrics=pipeline_metrics,
+                    )
             # Check if error is actually retryable using improved classification
             if not is_retryable_error(e, error_context=error_context):
                 # Non-retryable error - re-raise immediately

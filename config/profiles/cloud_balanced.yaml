@@ -79,6 +79,11 @@ kg_max_entities: 15
 vector_search: true
 vector_backend: faiss
 
+# #697: per-provider wait-and-resume circuit breaker for Gemini 503 bursts.
+# Same rationale as cloud_thin — the GIL evidence stack here is identical
+# (76 sequential calls per episode), so the same protection applies.
+llm_circuit_breaker_enabled: true
+
 # General
 generate_metadata: true
 generate_summaries: true
