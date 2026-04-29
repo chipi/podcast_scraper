@@ -51,6 +51,24 @@ def resolve_corpus_path_param(
     if not os.path.isabs(normed):
         normed = os.path.normpath(os.path.join(anchor_str, normed))
 
+    # Resolve symlinks on the user path so it canonicalises the same way as
+    # the anchor (which was ``.resolve()``d above). Without this, paths under
+    # a symlinked corpus root (macOS ``/var/folders/...`` → ``/private/var/...``;
+    # Docker bind mounts where ``/app/output`` may symlink under ``/var/lib/docker``)
+    # would diverge between anchor (resolved) and user path (literal), and the
+    # ``startswith`` anchor check below would 400 a legitimately-anchored path.
+    # ``Path.resolve(strict=False)`` walks up to the first existing ancestor,
+    # resolves symlinks there, then re-attaches missing components — so this
+    # works correctly when ``must_be_dir=False`` and the leaf doesn't exist yet
+    # (first-run UX, see #693).
+    try:
+        normed = os.path.normpath(str(Path(normed).resolve(strict=False)))
+    except (OSError, RuntimeError):
+        # ``resolve()`` can raise on Windows networked paths or symlink loops;
+        # fall back to the unresolved normpath rather than crash. The anchor
+        # check below is still authoritative.
+        pass
+
     # Inline sanitizer: normpath + startswith (CodeQL py/path-injection recognises this).
     normed = os.path.normpath(normed)
     safe_prefix = anchor_str + os.sep

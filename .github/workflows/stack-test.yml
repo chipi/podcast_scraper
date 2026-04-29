@@ -71,10 +71,21 @@ jobs:
           ref: ${{ github.event.workflow_run.head_sha || github.ref }}
 
       - name: Free disk space
+        # #703: existing dotnet/android/ghc/linuxbrew removal (~16 GB) is not
+        # enough for the cold pipeline (ml) image build (~15.5 GB). Add
+        # /opt/hostedtoolcache (CodeQL, Java, etc.) — ~10-15 GB more — and
+        # apt list cleanup. The stack-test-build step is all docker; we
+        # don't need any hosted-tool runtimes for it.
         run: |
-          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /home/linuxbrew/.linuxbrew || true
+          echo "before:"
+          df -h /
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /home/linuxbrew/.linuxbrew \
+            /opt/hostedtoolcache /usr/share/swift /usr/local/share/boost || true
+          sudo apt-get clean || true
+          sudo rm -rf /var/lib/apt/lists/* || true
           docker image prune -af || true
-          df -h
+          echo "after:"
+          df -h /
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v4

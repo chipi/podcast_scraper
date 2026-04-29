@@ -52,13 +52,31 @@ def viewer_operator_extras_source(app: Any, corpus_root: Path) -> Path:
 
 
 def packaged_viewer_operator_example_path() -> Path | None:
-    """Path to ``config/examples/viewer_operator.example.yaml`` when present (repo / sdist tree)."""
+    """Path to ``config/examples/viewer_operator.example.yaml`` when present.
+
+    Resolves in order:
+      1. Repo / sdist tree relative to the package install (``…/<src>/../../config/examples``).
+         Works for ``pip install -e .`` development checkouts and source dists where the
+         file lives at the repo root alongside the package.
+      2. Working-directory relative (``./config/examples/``). This is how the file is
+         shipped in the Docker api image — the example dir is COPY'd into the WORKDIR
+         alongside ``config/profiles/`` (see docker/api/Dockerfile). pip installs from
+         a wheel don't include files outside ``src/podcast_scraper/`` so the package-
+         relative path returns nothing in container builds.
+      3. None — no auto-seed; GET returns empty content.
+    """
     try:
         import podcast_scraper as _pkg
     except ImportError:
         return None
-    # ``__file__`` is ``…/src/podcast_scraper/__init__.py`` (dev) or
-    # ``…/site-packages/podcast_scraper/__init__.py``.
+    rel = Path("config") / "examples" / "viewer_operator.example.yaml"
+    # Path 1: ``<install>/<package>/.. /.. /config/examples/...`` (dev / sdist).
     here = Path(_pkg.__file__).resolve().parent
-    candidate = here.parents[1] / "config" / "examples" / "viewer_operator.example.yaml"
-    return candidate if candidate.is_file() else None
+    repo_candidate = here.parents[1] / rel
+    if repo_candidate.is_file():
+        return repo_candidate
+    # Path 2: cwd-relative (Docker api image where examples are COPY'd in).
+    cwd_candidate = Path.cwd() / rel
+    if cwd_candidate.is_file():
+        return cwd_candidate
+    return None

@@ -60,6 +60,12 @@ RUN mkdir -p "$HF_HOME" \
 # (``server.profile_presets._profile_directories``).
 COPY config/profiles/ ./config/profiles/
 
+# Ship the packaged ``viewer_operator.example.yaml`` so the operator-config
+# auto-seed can populate ``viewer_operator.yaml`` on a fresh corpus. Same
+# story as profiles — the file lives under ``config/examples/`` (outside
+# the Python package), so it can't ride along in the wheel.
+COPY config/examples/ ./config/examples/
+
 COPY docker/api/entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
 

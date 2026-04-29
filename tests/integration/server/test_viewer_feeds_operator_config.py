@@ -121,6 +121,42 @@ def test_operator_config_get_auto_creates_missing_subdir(corpus: Path) -> None:
         assert "max_episodes" in seeded
 
 
+def test_operator_config_get_via_symlinked_anchor(
+    tmp_path_factory: pytest.TempPathFactory,
+) -> None:
+    """Regression: corpus root reached through a symlink must still validate
+    correctly when the requested path is the literal (unresolved) form.
+
+    Bug surfaced by stack-test on main: ``/app/output`` inside the docker
+    container is a bind mount whose canonical form differs from the literal.
+    Anchor was ``.resolve()``d at app startup but the user-provided path was
+    only ``normpath()``d — the ``startswith`` anchor check failed because the
+    two used different forms (canonical vs literal). With ``must_be_dir=True``
+    the bug was masked (``os.path.isdir`` follows symlinks at FS layer);
+    flipping to ``must_be_dir=False`` for #693's first-run UX exposed it.
+
+    Repro: create real dir, symlink to it, point the api at the SYMLINK,
+    then request a fresh subdir via the symlink path.
+    """
+    real = tmp_path_factory.mktemp("real_corpus_root")
+    sym = tmp_path_factory.mktemp("sym_parent") / "corpus_via_link"
+    sym.symlink_to(real)
+    # API is configured with the SYMLINK path; .resolve() inside create_app
+    # canonicalises it to ``real``.
+    fresh_via_sym = sym / "firstrun-empty"  # literal symlink path; subdir doesn't exist
+    assert not fresh_via_sym.exists()
+
+    app = create_app(sym, static_dir=False, enable_operator_config_api=True)
+    client = TestClient(app)
+
+    g = client.get("/api/operator-config", params={"path": str(fresh_via_sym)})
+    assert (
+        g.status_code == 200
+    ), f"Expected 200 for path under symlinked anchor; got {g.status_code}: {g.text[:200]}"
+    # The actual subdir on disk lives under the resolved anchor.
+    assert (real / "firstrun-empty").is_dir()
+
+
 def test_operator_config_path_outside_anchor_still_rejected(
     tmp_path_factory: pytest.TempPathFactory,
 ) -> None:
