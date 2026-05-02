@@ -242,7 +242,7 @@ infra/
 │   ├── tailscale.tf         # tailscale_tailnet_key, ACL update if managed
 │   ├── outputs.tf           # tailnet hostname, IPv4
 │   ├── variables.tf
-│   ├── backend.tf           # remote state — Hetzner Storage Box or local-encrypted
+│   ├── backend.tf           # remote state — local file, encrypted in repo via sops + age
 │   └── README.md
 ├── cloud-init/
 │   └── prod.user-data       # bootstraps Docker + tailscale + deploy user + pulls repo
@@ -268,11 +268,42 @@ infra/
   `chipi/podcast_scraper` to `/srv/podcast-scraper`, copies a
   per-host `.env` from a known location (operator-managed).
 
-**State storage:** OpenTofu state lives in a Hetzner Object Storage
-bucket (S3-compatible, ~€0.50/mo for tiny state files), encrypted
-client-side with a passphrase that the operator stores in 1Password.
-Avoids the "where does state live" foot-gun without dragging in
-Terraform Cloud.
+**State storage: repo-encrypted with sops + age (free, zero new vendor).**
+OpenTofu state lives in `infra/terraform/terraform.tfstate.enc`, encrypted
+with [age](https://github.com/FiloSottile/age) via [sops](https://github.com/getsops/sops).
+The age private key is stored in the operator's 1Password; sops decrypts
+in-memory before each `tofu` invocation.
+
+```bash
+# One-time setup (operator's laptop)
+brew install sops age
+age-keygen -o ~/.config/sops/age/keys.txt   # save the public key in .sops.yaml
+# Save the private key contents to 1Password as "tofu-state-age-key"
+
+# Per-operation
+sops -d infra/terraform/terraform.tfstate.enc > /tmp/state.tfstate
+TF_STATE=/tmp/state.tfstate tofu plan
+sops -e /tmp/state.tfstate > infra/terraform/terraform.tfstate.enc
+shred /tmp/state.tfstate   # never let plaintext touch the repo
+```
+
+A wrapper `infra/tofu` script automates the decrypt → run → re-encrypt
+loop so operators don't manage the dance manually.
+
+**Trade-offs vs. alternatives:**
+
+| | sops + age (chosen) | Hetzner Object Storage | Terraform Cloud |
+|---|---|---|---|
+| Cost | $0 | ~€0.50/mo | $0 free tier (5 users) |
+| Vendor surface | none new | one (already on Hetzner) | new |
+| State in git history | yes (encrypted blob) | no | no |
+| Remote locking | no — fine for team-of-1 | yes | yes |
+| Restore-after-laptop-loss | restore age key from 1Password | re-auth API token | re-login |
+
+For team-of-1 hobby scale, the locking concern doesn't apply and
+`git diff` showing an encrypted blob is genuinely useful as a "state
+changed" signal. If we ever go multi-operator, swap to Object Storage
+— migration is a one-time `sops -d | tofu state push`.
 
 **Bootstrap flow:**
 
@@ -348,6 +379,216 @@ change required; just operator-side configuration of the webhook URL.
 
 Slack continues to receive notifications via the GHA → Slack route
 already wired in pre-prod. No api → Slack direct path needed.
+
+## Operator runbooks
+
+### First-time bootstrap
+
+One-shot setup that takes prod from "nothing" to "viewer reachable
+on the tailnet". ~30-45 min wall.
+
+**Pre-bootstrap (one-time, on operator's laptop):**
+
+```bash
+# 1. Tools
+brew install opentofu sops age
+gh auth login                               # codespace + repo:write
+
+# 2. Tailscale OAuth client for the GHA deployer
+#    Tailscale admin → Settings → OAuth clients → "Generate"
+#    Scope: devices:write, tag:gha-deployer
+#    Save TS_OAUTH_CLIENT_ID + TS_OAUTH_CLIENT_SECRET in 1Password.
+
+# 3. Hetzner Cloud project + API token
+#    Hetzner console → Cloud → New project → API tokens → Generate
+#    Scope: read+write
+#    Save HCLOUD_TOKEN in 1Password.
+
+# 4. age key for sops
+age-keygen -o ~/.config/sops/age/keys.txt
+#    Copy the public key into infra/.sops.yaml (commit-safe)
+#    Save the private key contents to 1Password.
+
+# 5. Stage GHA secrets (one-time, via gh)
+gh secret set HCLOUD_TOKEN          --repo chipi/podcast_scraper --app actions --body '<token>'
+gh secret set TS_OAUTH_CLIENT_ID    --repo chipi/podcast_scraper --app actions --body '<id>'
+gh secret set TS_OAUTH_CLIENT_SECRET --repo chipi/podcast_scraper --app actions --body '<secret>'
+gh secret set TFSTATE_AGE_KEY       --repo chipi/podcast_scraper --app actions --body '<age-private-key>'
+```
+
+**First `tofu apply`:**
+
+```bash
+cd infra/terraform
+export HCLOUD_TOKEN=$(op read 'op://Personal/Hetzner Cloud/api-token')
+export TF_VAR_tailscale_oauth_client_id=$(op read ...)
+export TF_VAR_tailscale_oauth_client_secret=$(op read ...)
+../tofu init
+../tofu plan -out=plan.bin
+../tofu apply plan.bin
+# Outputs: prod-podcast.<tailnet>.ts.net hostname, IPv4, ssh fingerprint
+```
+
+**Stage the host-side `.env` (one-time after first apply):**
+
+The `.env` file holds runtime secrets (provider API keys, Grafana
+credentials, Sentry DSN). It's NOT in Terraform state — staged
+separately so a `tofu destroy && apply` doesn't leak it. Cloud-init
+bootstraps a placeholder; operator overwrites it before stack starts.
+
+```bash
+ssh deploy@prod-podcast.<tailnet>.ts.net  # over Tailscale
+# On the VPS:
+sudo install -o deploy -g deploy -m 600 /dev/stdin /srv/podcast-scraper/.env <<'ENV'
+OPENAI_API_KEY=...
+GEMINI_API_KEY=...
+GRAFANA_CLOUD_PROM_URL=...
+GRAFANA_CLOUD_LOKI_URL=...
+GRAFANA_CLOUD_USER=...
+GRAFANA_CLOUD_API_KEY=...
+PODCAST_SENTRY_DSN_API=...
+PODCAST_SENTRY_DSN_PIPELINE=...
+PODCAST_ENV=prod
+PODCAST_RELEASE=...
+ENV
+sudo systemctl restart podcast-scraper.service  # picks up new .env
+```
+
+The first `compose up` happens after this; cloud-init waits for the
+`.env` file to exist before starting the stack.
+
+**Smoke validation (post-bootstrap):**
+
+```bash
+# 1. Tailnet reachability
+curl -fsS https://prod-podcast.<tailnet>.ts.net/api/health | jq .
+# Expected: {"status":"ok","feeds_api":true,...}
+
+# 2. grafana-agent shipping (logs should mention WAL + "Replaying WAL"
+#    + remote_write target reachable)
+ssh deploy@prod-podcast.<tailnet>.ts.net 'docker logs compose-grafana-agent-1 --tail 20'
+
+# 3. Sentry validation ping
+ssh deploy@prod-podcast.<tailnet>.ts.net \
+  'docker exec compose-api-1 python -c "
+from podcast_scraper.utils.sentry_init import init_sentry
+import sentry_sdk; init_sentry(\"api\")
+sentry_sdk.capture_message(\"prod bootstrap validation ping\", level=\"info\")
+"'
+# Check sentry.io within ~1 min for the event under environment=prod
+
+# 4. Grafana Cloud query (~30 s after agent's first scrape)
+#    Open https://<org>.grafana.net → Explore → Prometheus
+#    Query:  up{component="api",env="prod"}
+#    Expected: 1 series, value=1
+```
+
+### Corpus migration from pre-prod (Codespace) to prod (VPS)
+
+One-time migration on cutover day. Use the most recent backup-repo
+release (cleanest path) rather than `gh codespace cp` between hosts
+(brittle; transcripts may diverge between codespace and VPS during
+sync).
+
+```bash
+# On the VPS, as the deploy user:
+cd /srv/podcast-scraper
+make restore-corpus               # Makefile target; pulls latest snapshot.tgz
+                                  # from chipi/podcast_scraper-backup,
+                                  # untars into /srv/podcast-scraper/corpus/
+
+# Verify
+ls -la corpus/feeds/ | head
+find corpus -name '*.gi.json' | wc -l
+docker compose restart api viewer  # so api re-scans the corpus
+
+# In the viewer (over Tailscale): Library tab should now show all
+# episodes from the snapshot.
+```
+
+After this, future backups come from the VPS instead of the codespace
+(see Backup mechanism in Decision 4).
+
+### Rollback (deploy went red mid-way)
+
+`deploy-prod.yml` runs `docker compose pull && docker compose up -d`.
+Three failure modes + how to recover:
+
+**Failure 1: image pull failed (network blip / GHCR auth issue).**
+
+Symptom: `pull` step in workflow exits non-zero.
+Recovery: re-run the workflow. No state has changed yet on the host;
+old containers still running with old images.
+
+**Failure 2: pull succeeded but `compose up` rolls a container that
+won't start.**
+
+Symptom: workflow's compose-up step exits non-zero. New image is on
+disk but old container is gone (compose recreates by default).
+Recovery: SSH in, manually pin the old image:
+
+```bash
+ssh deploy@prod-podcast.<tailnet>.ts.net
+cd /srv/podcast-scraper
+PODCAST_IMAGE_TAG=sha-<previous-good-short-sha> \
+  docker compose -f compose/docker-compose.stack.yml \
+                 -f compose/docker-compose.prod.yml \
+    up -d --remove-orphans
+```
+
+The `:sha-<short>` tags from the publish job are the rollback target;
+they're never garbage-collected.
+
+**Failure 3: stack is up but functionally broken** (e.g., api 200s
+but the Library is empty due to a corpus path bug).
+
+Symptom: workflow green, but operator notices the bug from the viewer.
+Recovery: same as Failure 2 — pin the previous `:sha-<short>`. Then
+file a bug + ship a fix-forward via the hotfix path.
+
+### Disaster recovery (VPS gone)
+
+If the Hetzner instance is irrecoverable (account issue, hardware
+failure, accidental `tofu destroy` — Tofu has a 5-second cool-down
+prompt but mistakes happen):
+
+```bash
+# 1. Re-provision (~5-10 min)
+cd infra/terraform
+../tofu apply              # same hostname, same Tailscale registration
+
+# 2. Restore corpus (~3-5 min for 18 MB snapshot)
+ssh deploy@prod-podcast.<tailnet>.ts.net 'cd /srv/podcast-scraper && make restore-corpus'
+
+# 3. Re-stage the .env (operator's responsibility; not in Tofu state)
+#    — see "First-time bootstrap" → "Stage the host-side .env"
+
+# 4. Verify (~5 min)
+#    — see "Smoke validation" steps 1-4
+```
+
+**Total wall time: ~15-20 min** assuming the operator knows the
+runbook. The corpus is recoverable to within ~24 h of pre-disaster
+state (last `backup-corpus.yml` run).
+
+If the corpus loss matters more than the speed of recovery,
+optionally enable Hetzner Volume snapshots (€0.0119/GB/month) for a
+secondary safety net with ~hour-level RPO.
+
+### Image set and pull behavior
+
+Same image set as pre-prod (`api`, `viewer`, `pipeline-llm`); the
+`pipeline` (ml) variant is **NOT** pulled to prod for the same
+license-clean reason as pre-prod. Profiles that require local ML
+(`airgapped*`) are not deployable to prod; the operator dropdown
+filter (`PODCAST_AVAILABLE_PROFILES`) is set to `cloud_balanced,cloud_thin`
+exactly as in pre-prod.
+
+First-deploy image pull on a fresh VPS is ~3 GB total (~1.5 GB
+pipeline-llm + ~700 MB api + ~50 MB viewer + ~250 MB grafana-agent).
+Bandwidth allowance on Hetzner CX32 is 20 TB/mo; first-deploy pull
+is negligible against that. Subsequent deploys reuse layers and pull
+~50-200 MB per release.
 
 ## Security
 
@@ -432,30 +673,56 @@ surface for risky changes.
   IaC. Terraform/OpenTofu chosen for the largest provider ecosystem
   and the lowest learning-curve cliff.
 
-## Open Questions
+## Decisions made
 
-1. **Hetzner instance size.** CX32 (€7.89, shared CPU) for cost-
-   floor, or CCX13 (€13.99, dedicated CPU) to remove jitter from
-   ffmpeg / preprocessing? Recommendation: start CX32, upgrade to
-   CCX13 if pipeline wall-time is sensitive (post-validation
-   measurement decides).
-2. **Detached corpus Volume from day one, or only when corpus grows?**
-   Volume is €2.50/mo and decouples corpus survival from VPS
-   lifecycle. Recommendation: skip on day one (boot disk has 80 GB,
-   plenty for early use), add on first VPS replacement.
-3. **Scheduled cron feed sweep** (Open Question 4 from prior draft).
-   Worth implementing in this RFC's scope, or defer? Recommendation:
-   defer — out of scope unless a clear use case appears.
-4. **Tailscale ACL management** — manage via Terraform (the
-   `tailscale_acl` resource), or hand-edit on the Tailscale admin
-   console? Recommendation: Terraform, so the ACL change has a PR
-   trail. Costs ~30 min of one-time setup.
-5. **Codespace lifecycle** post-cutover. Recommendation: keep
-   indefinitely as a smoke / fallback surface. $0 while stopped.
-6. **Hetzner Object Storage vs other state backends** for OpenTofu.
-   Cheapest option that keeps state out of git. Alternative: encrypted
-   state file committed to a private branch (cheaper but messier).
-   Recommendation: Object Storage.
+The original "Open Questions" set has been resolved (see RFC-082
+discussion thread). Recording here so the implementation has explicit
+direction:
+
+1. **Hetzner CX32** (€7.89, shared CPU). Start here; measure ffmpeg /
+   preprocessing wall-time during real-feed runs; upgrade to CCX13
+   (€13.99, dedicated) only if the shared-CPU jitter is observable.
+2. **No detached Volume on day one.** 80 GB boot disk is enough for
+   early use. Add a Volume on first VPS replacement when we already
+   need to migrate the corpus anyway.
+3. **Scheduled cron feed sweep is a general capability, not VPS-only.**
+   Out of scope for RFC-082. Tracked as
+   [#708](https://github.com/chipi/podcast_scraper/issues/708) —
+   design is API-level (apscheduler in the api process, config in
+   `viewer_operator.yaml` or a sibling `schedules.yaml`) so it works
+   on both pre-prod and prod with no host-side cron.
+4. **Tailscale ACL via Terraform** (`tailscale_acl` resource).
+   ACL changes ship as PRs. Aligns with the broader "maximize Tofu
+   coverage" principle.
+5. **Codespace pre-prod stays indefinitely.** $0 while stopped; acts
+   as a free fallback / smoke surface for risky changes.
+6. **State storage: sops + age in-repo, encrypted.** Free; no new
+   vendor; encrypted blob in `git diff` is a useful "state changed"
+   signal. age private key in 1Password. Migration to Object Storage
+   is a one-time `sops -d | tofu state push` if we ever go
+   multi-operator.
+
+## Open Questions (remaining)
+
+The decisions above leave a smaller residual set:
+
+1. **Bootstrap secret-staging UX.** Currently the `.env` is staged
+   manually post-`tofu apply` via SSH (see Operator runbooks). An
+   alternative is to put each secret into 1Password CLI and have
+   cloud-init pull them on first boot via `op` CLI. More moving
+   parts; not clearly worth it for one operator. Defer; revisit if
+   secret rotation cadence picks up.
+2. **Sentry release tag** in prod. `PODCAST_RELEASE` should ideally
+   carry the deployed image's `:sha-<short>` so Sentry events group
+   by release. Two paths: (a) `deploy-prod.yml` writes the SHA into
+   the host's `.env` before `compose up`; (b) the api reads the
+   image digest at startup and self-tags. (a) is simpler. To wire
+   during implementation.
+3. **Sentry alert routing.** Pre-prod Sentry events go to the same
+   Slack channel as prod by default (currently single-DSN-per-
+   component). Splitting requires either two DSNs (one per env) or a
+   Sentry-side filter rule. Not blocking; revisit when first prod
+   incident shows whether the noise is a problem.
 
 ## References
 
