@@ -18,7 +18,7 @@
 
 - **Never** push any branch without explicit user approval (commits OK after diff approval, pushes NEVER by default)
 - **Never** commit without showing changes and getting user approval
-- **Never** push to main branch (always use feature branches)
+- **Default:** feature branch + PR for all changes. **Exception:** hotfix direct-to-main is allowed for **regression fixes only** (small, single-concern, ≤ 50 LOC, fix for something already on main that's broken). Both still require explicit push approval. See `.ai-coding-guidelines.md` "Git Branch Workflow" section for full hotfix protocol.
 - **Always** show `git status` and `git diff` before committing
 - **Always** wait for explicit user approval before committing
 - After making file edits: summarize changes and ask "Keep these changes or undo any of them?"

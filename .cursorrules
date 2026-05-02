@@ -9,7 +9,7 @@
 - **Explicit user instructions override** conflicting *procedural* rules below (examples: "commit all files" / "use `git add -A`" → do it; "skip ci-fast" / "no full ci rerun" / "incremental only" / "docs-only check" / "I already ran full `make ci`" → do not insist on `make ci-fast` / `make ci`; use **rule 5c** narrow targets instead unless they ask for a full run; "stop" / "don't run CI" → stop immediately).
 - **If scope or intent is unclear** (which paths, whether to touch config like `.gitignore`, whether validation is required): **ask first** — do not add unrequested steps (extra edits, long runs, repo policy "help") to be clever.
 - **Prefer pause over action:** if you are **not ~100% sure** what the user wants, **stop, summarize what you understood, and ask** — avoid being eager (extra commands, refactors, config changes, "while I'm here" work).
-- **Non-negotiable safety** (never commit secrets; never push unless asked; never push to `main`): if the user asks for something unsafe, **explain and ask** — do not silently comply or silently ignore without saying why.
+- **Non-negotiable safety** (never commit secrets; never push unless asked; default to feature branch + PR — see Git workflow rule 1 below for the narrow hotfix-direct-to-main exception): if the user asks for something unsafe, **explain and ask** — do not silently comply or silently ignore without saying why.
 
 ### Autonomous execution (default)
 
@@ -28,10 +28,22 @@
   - Commits are allowed after user approves the diff; pushes are never allowed by default
   - Always pause and ask before any push action
 
-1. **NEVER push directly to main branch**
+1. **DEFAULT: feature branch + PR. EXCEPTION: hotfix direct-to-main**
 
-  - ALWAYS create feature branch: `git checkout -b feat/name`
-  - ALWAYS push to feature branch, NEVER to main
+  - DEFAULT for almost all changes: `git checkout -b feat/name`, push, PR, merge
+  - EXCEPTION — hotfix direct-to-main allowed ONLY when ALL apply: (a) fix
+    for a regression already on main; (b) single-concern, small (≤ 50 LOC);
+    (c) user has explicitly asked for hotfix path or context makes it
+    unambiguous (e.g. "fix this on main", "main is red")
+  - Rationale: team-of-1 self-review of PRs adds latency without catching bugs
+    the operator wouldn't catch on the feature branch. Main runs strictly more
+    CI than PRs (stack-test only on main, full Python application, etc.) so
+    "missing PR-side CI" is not a real loss
+  - Hotfix protocol: pull main → edit → run pre-commit checks locally
+    (`make lint` / `make docs` / spot pytest) → commit with `fix:` /
+    `hotfix:` prefix referencing the offending PR → ask for push approval
+    → push → watch CI on main → fix-forward if red
+  - Never combine a hotfix push with unrelated work; never force-push to main
 
 2. **NEVER commit without explicit user approval**
 
@@ -376,7 +388,7 @@ make fix-md        # Auto-fix markdown
 ## REMEMBER
 
 - NEVER `is_background: true` for make/test/git/pip
-- NEVER push to main (feature branches + PRs only)
+- DEFAULT: feature branch + PR. EXCEPTION: hotfix direct-to-main for narrow regression fixes only (see Git workflow rule 1 above)
 - Prefer showing changes + approval before commit; **user can override** with explicit "go" / "commit all" (see User intent section)
 - ALWAYS use Makefile commands, never direct tools
 - Write lint-valid code from the start
