@@ -120,3 +120,78 @@ def test_endpoint_requires_corpus_path_when_no_default(corpus: Path) -> None:
     r = client.get("/api/scheduled-jobs")
     assert r.status_code == 400
     assert "Corpus path" in r.json().get("detail", "")
+
+
+def test_endpoint_returns_500_when_jobs_api_disabled_but_router_mounted(
+    corpus: Path,
+) -> None:
+    """Misconfiguration guard: router mounted but ``jobs_api_enabled`` is False."""
+    from fastapi import FastAPI
+
+    from podcast_scraper.server.routes import scheduled_jobs as scheduled_jobs_route
+
+    app = FastAPI()
+    app.state.output_dir = corpus
+    app.state.jobs_api_enabled = False
+    app.include_router(scheduled_jobs_route.router, prefix="/api")
+    client = TestClient(app)
+    r = client.get("/api/scheduled-jobs", params={"path": str(corpus)})
+    assert r.status_code == 500
+    assert "jobs_api" in r.json().get("detail", "").lower()
+
+
+def test_endpoint_returns_empty_when_scheduler_attribute_is_none(corpus: Path) -> None:
+    """``app.state.scheduler = None`` short-circuits to an empty response (line 48)."""
+    app = create_app(corpus, static_dir=False, enable_jobs_api=True)
+    app.state.scheduler = None
+    with TestClient(app) as client:
+        r = client.get("/api/scheduled-jobs", params={"path": str(corpus)})
+    assert r.status_code == 200
+    body = r.json()
+    assert body["jobs"] == []
+    assert body["scheduler_running"] is False
+    assert body["timezone"] == "UTC"
+
+
+def test_operator_config_put_swallows_scheduler_reload_error(corpus: Path) -> None:
+    """A scheduler.reload() exception must not fail the PUT (defensive path)."""
+    from unittest.mock import MagicMock
+
+    (corpus / "viewer_operator.yaml").write_text("max_episodes: 1\n", encoding="utf-8")
+    app = create_app(
+        corpus,
+        static_dir=False,
+        enable_jobs_api=True,
+        enable_operator_config_api=True,
+    )
+    with TestClient(app) as client:
+        broken = MagicMock()
+        broken.reload.side_effect = RuntimeError("scheduler busy")
+        app.state.scheduler = broken
+
+        put = client.put(
+            "/api/operator-config",
+            params={"path": str(corpus)},
+            json={"content": "max_episodes: 2\n"},
+        )
+        # PUT succeeds; reload error is logged + swallowed.
+        assert put.status_code == 200
+        assert broken.reload.called
+
+
+def test_operator_config_put_no_scheduler_attached(corpus: Path) -> None:
+    """PUT works when ``app.state.scheduler`` is None (no reload attempted)."""
+    (corpus / "viewer_operator.yaml").write_text("max_episodes: 1\n", encoding="utf-8")
+    app = create_app(
+        corpus,
+        static_dir=False,
+        enable_operator_config_api=True,  # no jobs_api → scheduler stays None
+    )
+    assert app.state.scheduler is None
+    with TestClient(app) as client:
+        put = client.put(
+            "/api/operator-config",
+            params={"path": str(corpus)},
+            json={"content": "max_episodes: 3\n"},
+        )
+        assert put.status_code == 200
