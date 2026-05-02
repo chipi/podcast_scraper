@@ -204,6 +204,31 @@ class PipelineJobsListResponse(BaseModel):
     jobs: list[PipelineJobRecord] = Field(default_factory=list)
 
 
+class ScheduledJobItem(BaseModel):
+    """One scheduled feed-sweep entry (#708)."""
+
+    name: str
+    cron: str
+    enabled: bool
+    next_run_at: str | None = Field(
+        default=None,
+        description=(
+            "Next scheduled fire time (UTC ISO-8601). ``null`` when the job is "
+            "disabled, the cron expression is invalid, or the scheduler hasn't "
+            "started yet."
+        ),
+    )
+
+
+class ScheduledJobsListResponse(BaseModel):
+    """Response for GET /api/scheduled-jobs."""
+
+    path: str
+    scheduler_running: bool
+    timezone: str
+    jobs: list[ScheduledJobItem] = Field(default_factory=list)
+
+
 class PipelineJobLogTailResponse(BaseModel):
     """Tail of a job subprocess log (UTF-8) for dashboard previews."""
 

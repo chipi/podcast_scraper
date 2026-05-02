@@ -204,6 +204,22 @@ async def put_operator_config(
     except OperatorYamlUnsafeError as exc:
         raise HTTPException(status_code=exc.status_code, detail=exc.detail) from exc
     atomic_write_text(cfg_path, to_write)
+    # Pick up any ``scheduled_jobs:`` changes immediately (#708). Cheap on
+    # the no-change path: ``reload`` rebuilds the scheduler only when the
+    # parsed list differs in practice via shutdown + start. When the YAML
+    # has no ``scheduled_jobs:`` key, ``start`` short-circuits as a no-op.
+    scheduler = getattr(request.app.state, "scheduler", None)
+    if scheduler is not None:
+        try:
+            scheduler.reload()
+        except Exception as exc:  # pragma: no cover - defensive
+            # Don't fail the PUT for a scheduler reload glitch — the next
+            # app restart will pick up the new schedule list anyway.
+            import logging
+
+            logging.getLogger(__name__).warning(
+                "scheduler reload after operator-config PUT failed: %s", exc
+            )
     profiles = list_packaged_profile_names()
     default = env_default_profile()
     corpus_s = os.path.normpath(str(corpus_root.resolve()))

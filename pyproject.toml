@@ -113,6 +113,11 @@ server = [
   # gated on PODCAST_METRICS_ENABLED so default behaviour (no Grafana account)
   # stays a no-op. Targeted at the Grafana Cloud free tier in pre-prod (RFC-081).
   "prometheus-fastapi-instrumentator>=7.0.0,<8.0.0",
+  # APScheduler powers the optional in-process feed-sweep scheduler (#708).
+  # Wired in src/podcast_scraper/server/scheduler.py; no-op unless
+  # ``scheduled_jobs:`` is present in viewer_operator.yaml. 3.x is the
+  # stable line; 4.x is a breaking redesign still in beta as of writing.
+  "apscheduler>=3.10.0,<4.0.0",
 ]
 # Live pipeline monitor profiling: py-spy + memray (RFC-065; core `--monitor` uses stdlib + psutil + rich)
 monitor = [

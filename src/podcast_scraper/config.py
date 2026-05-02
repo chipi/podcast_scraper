@@ -595,7 +595,9 @@ DEPRECATED_CONFIG_TOP_LEVEL_KEYS: frozenset[str] = frozenset({"multi_feed_soft_f
 # (e.g. which Docker compose service to spawn), but the pipeline CLI itself
 # has no use for them. Allowed past the unknown-keys gate, then silently
 # stripped in ``Config._handle_deprecated_fields`` before ``model_validate``.
-OPERATOR_ONLY_TOP_LEVEL_KEYS: frozenset[str] = frozenset({"pipeline_install_extras"})
+OPERATOR_ONLY_TOP_LEVEL_KEYS: frozenset[str] = frozenset(
+    {"pipeline_install_extras", "scheduled_jobs"}
+)
 
 
 class Config(BaseModel):

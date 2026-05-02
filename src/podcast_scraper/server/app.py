@@ -2,9 +2,12 @@
 
 from __future__ import annotations
 
+import asyncio
+import contextlib
+import logging
 import os
 from pathlib import Path
-from typing import cast
+from typing import AsyncIterator, cast
 
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
@@ -31,8 +34,11 @@ from podcast_scraper.server.routes import (
     index_stats,
     jobs,
     operator_config,
+    scheduled_jobs as scheduled_jobs_route,
     search,
 )
+
+logger = logging.getLogger(__name__)
 
 
 def _env_truthy(name: str) -> bool:
@@ -95,7 +101,27 @@ def create_app(
 
     init_sentry("api")
 
-    app = FastAPI(title="podcast_scraper", version=__version__)
+    @contextlib.asynccontextmanager
+    async def _lifespan(app: FastAPI) -> AsyncIterator[None]:
+        # Pin the event loop so the cron scheduler (running on a daemon
+        # thread) can hand spawn callbacks back to FastAPI via
+        # ``asyncio.run_coroutine_threadsafe``.
+        app.state.event_loop = asyncio.get_running_loop()
+        scheduler = getattr(app.state, "scheduler", None)
+        if scheduler is not None:
+            try:
+                scheduler.start()
+            except Exception as exc:
+                logger.warning("scheduler startup failed: %s", exc)
+        try:
+            yield
+        finally:
+            scheduler = getattr(app.state, "scheduler", None)
+            if scheduler is not None:
+                with contextlib.suppress(Exception):
+                    scheduler.shutdown()
+
+    app = FastAPI(title="podcast_scraper", version=__version__, lifespan=_lifespan)
 
     @app.exception_handler(CorpusPathRequestError)
     async def _corpus_path_errors(
@@ -190,6 +216,7 @@ def create_app(
         app.include_router(operator_config.router, prefix="/api")
     if enable_jobs_api:
         app.include_router(jobs.router, prefix="/api")
+        app.include_router(scheduled_jobs_route.router, prefix="/api")
 
     # #666 review item #8: resolve the pipeline exec mode ONCE at startup
     # and pin it on ``app.state``. Route handlers must read from
@@ -203,6 +230,26 @@ def create_app(
         from podcast_scraper.server.pipeline_docker_factory import attach_docker_jobs_factory
 
         attach_docker_jobs_factory(app)
+
+    # In-process feed-sweep scheduler (#708). Only meaningful with jobs API
+    # enabled (the scheduler reuses the same enqueue + post-submit path as
+    # POST /api/jobs). Construction is cheap and pure — actual cron
+    # registration happens in the lifespan hook above. No-op when
+    # ``scheduled_jobs:`` is absent from the operator YAML.
+    app.state.scheduler = None
+    if enable_jobs_api and resolved_output is not None:
+        from podcast_scraper.server.operator_paths import viewer_operator_yaml_path
+        from podcast_scraper.server.scheduler import (
+            make_app_spawn_callback,
+            SchedulerService,
+        )
+
+        operator_yaml = viewer_operator_yaml_path(app, resolved_output)
+        app.state.scheduler = SchedulerService(
+            corpus_root=resolved_output,
+            operator_yaml=operator_yaml,
+            spawn=make_app_spawn_callback(app),
+        )
 
     if static_dir is False:
         resolved_static = None

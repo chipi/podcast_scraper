@@ -107,6 +107,7 @@ routes/
   feeds.py           # optional — GET/PUT /feeds (feeds.spec.yaml); enable_feeds_api
   operator_config.py # optional — GET/PUT /operator-config; enable_operator_config_api
   jobs.py            # optional — POST/GET /jobs, cancel, reconcile; enable_jobs_api
+  scheduled_jobs.py  # optional — GET /scheduled-jobs (cron list + next-run); enable_jobs_api
   platform/          # reserved stub package (#50, #347); not used for RFC-077
 ```
 
@@ -145,6 +146,7 @@ Local **dev** server: no auth. Treat **production** deployments as out-of-scope 
 | GET, PUT | `/api/feeds` | feeds | Read/write structured **`feeds.spec.yaml`** under the resolved corpus root (JSON **`{ "feeds": [...] }`** on PUT). | `path` |
 | GET, PUT | `/api/operator-config` | operator_config | Read/write **viewer-safe** operator YAML at the server-resolved path. **GET** returns `content`, `operator_config_path`, and **`available_profiles`** (union of packaged `config/profiles/*.yaml` names from **cwd** and **repo** roots, same as `Config` preset resolution; excluding `*.example.yaml`). When the file is **missing or whitespace-only** and the packaged preset **`cloud_balanced`** exists, **GET** **writes** a minimal `profile: cloud_balanced` file first (idempotent if already that content). **PUT** rejects forbidden **secret** keys and top-level **feed** keys (`rss`, `rss_url`, `rss_urls`, `feeds`) — use `/api/feeds` / **`feeds.spec.yaml`** for feeds. See [RFC-077](../rfc/RFC-077-viewer-feeds-and-serve-pipeline-jobs.md) (Phase 1b) and [PRD-030](../prd/PRD-030-viewer-feed-sources-and-pipeline-jobs.md). | `path` |
 | GET, POST | `/api/jobs` | jobs | List (`GET`) or enqueue (`POST`) pipeline jobs for the corpus; **`GET /api/jobs/{id}`**, **`POST /api/jobs/{id}/cancel`**, **`POST /api/jobs/reconcile`**. | `path` |
+| GET | `/api/scheduled-jobs` | scheduled-jobs | List in-process cron schedules from `viewer_operator.yaml` `scheduled_jobs:` ([#708](https://github.com/chipi/podcast_scraper/issues/708)). Each row carries `name`, `cron`, `enabled`, `next_run_at` (UTC ISO; `null` when disabled or invalid cron). Mounts only when **`enable_jobs_api`** is on. Operators add/remove schedules by editing the YAML via **`PUT /api/operator-config`**, which triggers a scheduler reload in-process. | `path` |
 | GET | `/api/artifacts` | artifacts | List `*.gi.json`, `*.kg.json`, and `*.bridge.json` (recursive); each item includes `mtime_utc` (#507) and `publish_date` (YYYY-MM-DD from episode metadata when present, else UTC calendar day from file mtime). | `path` (required) — corpus output directory |
 | GET | `/api/artifacts/{path}` | artifacts | Load and return a single artifact JSON by relative path. | `path` (required) — corpus root for the relative lookup |
 | GET | `/api/index/stats` | index | FAISS index stats, staleness heuristics, and rebuild job flags (`rebuild_in_progress`, `rebuild_last_error`; #507). | `path`, `embedding_model` (optional; compare index to this id, else `Config` default) |
@@ -281,6 +283,7 @@ Pydantic response schemas are defined in
 | Variable | Purpose |
 | -------- | ------- |
 | `PODCAST_SERVE_OUTPUT_DIR` | Set automatically by `run_serve()`. Used by `create_app_for_uvicorn()` in reload mode. Can also be set manually when running uvicorn directly. |
+| `PODCAST_SCHEDULER_TZ` | Timezone for the in-process feed-sweep scheduler (#708). Defaults to `TZ` env, then `UTC`. |
 
 ### CLI entry point
 
@@ -292,6 +295,104 @@ The `serve` sub-command is handled by
 [`cli_handlers.py`][cli-handlers] (`parse_serve_argv` + `run_serve`).
 
 [cli-handlers]: https://github.com/chipi/podcast_scraper/blob/main/src/podcast_scraper/server/cli_handlers.py
+
+## Scheduled feed sweeps (#708)
+
+Optional in-process cron scheduler that fires the same pipeline-job path
+as `POST /api/jobs` on the operator's chosen schedule. Built on
+[APScheduler](https://github.com/agronholm/apscheduler) (3.x; in the
+`[server]` extra). Mounts whenever `enable_jobs_api=True` and the operator
+YAML contains `scheduled_jobs:`.
+
+### Why API-level (not host-side cron)
+
+Works on Codespace pre-prod (no systemd) and VPS prod alike, persists with
+the corpus (no host state to migrate on redeploy), and routes failures
+through the existing job-state webhook surface so Slack and Grafana
+already see the events. See [GH #708](https://github.com/chipi/podcast_scraper/issues/708).
+
+### Schedule definition
+
+Add a top-level `scheduled_jobs:` list to `viewer_operator.yaml` (the
+packaged example ships a commented hint):
+
+```yaml
+scheduled_jobs:
+  - name: morning-feed-sweep
+    cron: "0 4 * * *"      # standard 5-field cron (m h dom mon dow)
+    enabled: true
+  - name: evening-sweep
+    cron: "0 20 * * *"
+    enabled: false           # loaded but not fired
+```
+
+Each schedule reuses the corpus's standing `feeds.spec.yaml` + this same
+operator YAML — there is no per-schedule profile / feeds / max_episodes
+override in V1 (use multiple schedules if you need different cadences for
+different feed sets, V2 will revisit per-schedule overrides).
+
+`name` is used as the job id, the Prometheus label, and shows up in logs
+and any Slack alerts; keep it short and stable. Allowed characters:
+letters, digits, `-`, `_`. Names must be unique within a corpus.
+
+### Reload behavior
+
+- **App startup** (FastAPI lifespan): scheduler starts if at least one
+  enabled job exists.
+- **`PUT /api/operator-config`**: scheduler reloads the YAML and rebuilds
+  triggers in-process. No restart needed — operators can add/remove
+  schedules from the viewer Configuration tab and they take effect on
+  Save.
+- **App shutdown**: scheduler stops cleanly via the same lifespan hook.
+
+Misfire grace is **1 hour**: a schedule whose trigger time was missed
+(host suspended / rebooting) will fire on wakeup if within 1 h of the
+nominal time, then skip silently if not.
+
+### Inspecting state
+
+`GET /api/scheduled-jobs?path=<corpus>` returns the parsed schedule list
+with each job's next-run preview:
+
+```json
+{
+  "path": "/corpora/main",
+  "scheduler_running": true,
+  "timezone": "UTC",
+  "jobs": [
+    {"name": "morning-feed-sweep", "cron": "0 4 * * *", "enabled": true,
+     "next_run_at": "2026-05-03T04:00:00Z"},
+    {"name": "evening-sweep", "cron": "0 20 * * *", "enabled": false,
+     "next_run_at": null}
+  ]
+}
+```
+
+### Failure handling
+
+A scheduled fire is indistinguishable from a manual `POST /api/jobs` once
+it lands — the job appears in the same JSONL registry, Slack/HA webhooks
+fire on terminal state through `emit_job_state_change`, and the row is
+visible at `GET /api/jobs`. Two scheduler-specific Prometheus counters
+flank this:
+
+| Counter | Labels | Increment trigger |
+| ------- | ------ | ----------------- |
+| `podcast_scheduled_jobs_triggered_total` | `name` | Cron fired (job_id may or may not have been issued yet) |
+| `podcast_scheduled_jobs_failed_total` | `name`, `reason` | Spawn raised before a job was registered (e.g. invalid cron, event-loop unavailable) |
+
+Both are no-ops when `prometheus_client` is unavailable (i.e. without
+the `[server]` extra).
+
+### Limitations (V1)
+
+- Per-schedule overrides (profile / feeds / max_episodes) are not wired —
+  use multiple schedules with different operator YAMLs if you need them.
+- No calendar-aware schedules (`every 3rd Tuesday`); standard cron only.
+- No Scheduled tab in the viewer — operators edit `scheduled_jobs:` via
+  the existing Configuration YAML editor. The `GET /api/scheduled-jobs`
+  endpoint exists so a future viewer tab can list schedules + next-run
+  previews; that UI is a follow-up of #708.
 
 ## Development workflow
 
