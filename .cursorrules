@@ -2,408 +2,393 @@
 
 <!-- markdownlint-disable MD029 MD007 -->
 
-## CRITICAL RULES (ALWAYS ENFORCE - NO EXCEPTIONS)
-
-### User intent beats defaults (interpretation priority)
-
-- **Explicit user instructions override** conflicting *procedural* rules below (examples: "commit all files" / "use `git add -A`" → do it; "skip ci-fast" / "no full ci rerun" / "incremental only" / "docs-only check" / "I already ran full `make ci`" → do not insist on `make ci-fast` / `make ci`; use **rule 5c** narrow targets instead unless they ask for a full run; "stop" / "don't run CI" → stop immediately).
-- **If scope or intent is unclear** (which paths, whether to touch config like `.gitignore`, whether validation is required): **ask first** — do not add unrequested steps (extra edits, long runs, repo policy "help") to be clever.
-- **Prefer pause over action:** if you are **not ~100% sure** what the user wants, **stop, summarize what you understood, and ask** — avoid being eager (extra commands, refactors, config changes, "while I'm here" work).
-- **Non-negotiable safety** (never commit secrets; never push unless asked; never push to `main`): if the user asks for something unsafe, **explain and ask** — do not silently comply or silently ignore without saying why.
-
-### Autonomous execution (default)
-
-- **When intent is clear**, do the work in-session: run Makefile targets, scripts, tests, downloads, and fixes yourself—do **not** habitually close with “you should run X” if the agent environment can run X.
-- **Ask only when blocked:** missing secrets/auth or tools you cannot use; explicit approval required by policy (e.g. commit/push); **unclear scope/intent** (then use “ask first” / “prefer pause” above); unsafe requests.
-
-### `WORKTREE.md` (when present at repo root)
-
-- **Read `WORKTREE.md`** for this checkout’s branch intent, release posture, and **Python/venv** rules before relying on `pytest` / `python` / `make serve-api` output.
-- Use **this worktree’s** `.venv` only; if imports resolve to another checkout, fix the interpreter — **do not** add `[tool.pytest.ini_options] pythonpath = ["src"]` (or similar) to mask it.
-
-### Git & Branch Workflow
-
-0. **NEVER push any branch unless the user explicitly asks**
-
-  - Commits are allowed after user approves the diff; pushes are never allowed by default
-  - Always pause and ask before any push action
-
-1. **NEVER push directly to main branch**
-
-  - ALWAYS create feature branch: `git checkout -b feat/name`
-  - ALWAYS push to feature branch, NEVER to main
-
-2. **NEVER commit without explicit user approval**
-
-  - MUST: `git status` → `git diff` → show user → wait for approval → THEN commit
-  - NEVER skip showing changes; NEVER assume approval
-
-2b. **After making file edits: offer keep or undo**
-
-  - After applying edits, briefly summarize what changed and ask: "Keep these changes or undo any of them?"
-  - Give the user a chance to revert specific files or keep all before moving on
-
-2a. **Default: stage only files for the current task (avoid blind `git add -A`)**
-
-  - Use `git add <specific-file>` for each file you changed
-  - Verify with `git status` after staging; ask user if unsure which files
-  - **Exception:** If the user **explicitly** asks to stage everything (e.g. "commit all files", "`git add -A`"), follow that instruction
-
-3. **NEVER push to PR without explicit user approval**
-
-  - Show `git status` + `git diff` → wait for explicit approval
-  - Pre-commit hook runs `make ci-fast` automatically
-
-4. **ALWAYS check for uncommitted changes before creating branch**
-
-  - Run `git status --porcelain`; if output → commit/stash/discard first
-
-4a. **NEVER `git stash` during an active merge**
-
-  - `git stash` during a merge **aborts the merge and destroys all conflict resolutions** — the stash captures the working tree but NOT `.git/MERGE_HEAD`
-  - Before ANY `git stash`: check `test -f .git/MERGE_HEAD`; if it exists, **do not stash**
-  - To test something during a merge, use `git show <ref>:<path>` (prints to stdout, no working-tree changes) or a separate worktree
-
-4b. **NEVER `git checkout <ref> -- <file>` during an active merge**
-
-  - This replaces the resolved content with the version from that ref, **destroying the user's conflict resolution work**
-  - Only safe checkout variants during a merge: `git checkout --ours <file>` / `git checkout --theirs <file>` — and only with explicit user approval
-  - To inspect other branches without touching the working tree: `git show <ref>:<path>` or `git diff <ref> -- <path>`
-
-4c. **Treat in-progress merge state as sacred**
-
-  - When `.git/MERGE_HEAD` exists, the working tree contains **irreplaceable** conflict resolution work
-  - Commands that destroy merge state (all abort the merge): `git stash`, `git checkout <branch>`, `git reset --hard`, `git merge --abort`, `git rebase`
-  - Before running ANY git command during a merge, ask: "Will this destroy the merge state?" If unsure, **ask the user**
-
-4d. **NEVER overwrite local files with remote content without asking**
-
-  - `git checkout origin/<branch> -- <file>` replaces the local file **silently and irreversibly**
-  - Also applies to: `git restore --source origin/main -- <path>`, `git reset --hard origin/main`
-  - Before overwriting any local file with remote content: **show the diff** (`git diff HEAD origin/main -- <path>`) and **get explicit approval**
-  - To inspect remote content without modifying files: `git show origin/main:<path>` or `git diff origin/main -- <path>`
-
-4e. **NEVER reset working-tree files from `HEAD` (or any ref) to drop uncommitted edits unless the user explicitly asked or confirmed**
-
-  - Forbidden without **explicit user instruction** (e.g. "discard my changes to X", "reset that file to main/HEAD") **or** without **asking first** and receiving **clear confirmation** (e.g. yes to "Revert `<path>` to last commit? This deletes uncommitted work.").
-  - Examples that discard local edits: `git checkout -- <path>` (same as restoring that path from **index/HEAD**), `git checkout HEAD -- <path>`, `git restore --source HEAD -- <path>`, `git restore <path>` when it would replace tracked content from the index/commit without the user having asked for that outcome.
-  - **Do not** use these to "narrow a PR", "clean up noise", or undo work the user did not ask to remove — **ask** or leave the files alone.
-
-4f. **Gitignored and other local-only paths — never delete or “clean up” on disk unless explicitly asked**
-
-  - Anything listed in **`.gitignore`** (or otherwise not meant to be committed) may hold **operator-local** configs, experiments, or secrets. Treat that content as **the user’s working material**, not disposable scratch.
-  - **Never** use `delete_file`, `rm`, or “empty this folder” cleanup on paths you know are **gitignored** unless the user **explicitly** asked to remove **those** paths or files.
-  - **"Pretend it does not exist"** / **"remove references"** / **"docs must not mention it"** means: change **tracked** files only (documentation, tests, application code, tracked examples). It does **not** mean delete, move, or wipe **gitignored** trees as part of the same task.
-  - In **tracked** prose and examples, do **not** treat **gitignored** paths as the **canonical** location for presets or workflows; point readers at **tracked** examples and docs, or use **neutral placeholders** (e.g. a path the reader supplies), per **`.cursor/rules/documentation.mdc`**.
-
-### Terminal Command Execution
-
-9. **NEVER run commands in background — ALWAYS `is_background: false`**
-
-   **9a. Don't pipe command output to `| tail -N` (or `| head`) when the user is watching.** The harness can't stream Bash stdout live; the user only sees output when the command exits. A short tail truncates the body they would otherwise have seen in full. Prefer no pipe at all; if a command genuinely produces > 1k lines, use a generous tail (`tail -100`) or run in background and report a typed summary. Never silently filter the command body the user asked you to run.
-
-  - **#1 MOST VIOLATED RULE — PAY EXTRA ATTENTION**
-  - `is_background: true` ONLY for long-running servers (e.g., `mkdocs serve`)
-  - ALL `make`, `pytest`, `git`, `pip` commands MUST be foreground
-
-9a. **NEVER use `cd` to project root before commands**
-
-  - Terminal is ALREADY in project root; run commands directly
-
-9b. **Use 10 min timeout for make ci-fast and make test-fast** (use **900000 ms (15 min)** for **`make ci-ui-fast`** when Playwright install or browser runs are cold)
-
-  - `make ci-fast` and `make test-fast` run unit + integration + E2E and need time to finish; **`make ci-ui-fast`** swaps Python **`tests/e2e/`** for **Playwright** and may need the longer budget
-  - When invoking them via automation (e.g. run_terminal_cmd), MUST use timeout at least 600000 ms (10 min) so the run is not killed before completion (15 min for **`make ci-ui-fast`** per above)
-
-### Process Safety — ML Workloads (RFC-074)
-
-10. **NEVER retry a `make` command that produced no output**
-
-  - If `make` appears stuck (no output for 60s), do NOT spawn another `make`
-  - Report to user: "make appears stuck — check for zombie processes with `make check-zombie`"
-  - NEVER run multiple `make ci` / `make ci-fast` / `make ci-ui-fast` / `make test` concurrently — process pileup on macOS causes unkillable kernel-level zombies and filesystem corruption
-
-10a. **Before running `make ci`, `make ci-fast`, or `make ci-ui-fast`, check for existing runs**
-
-  - Run `pgrep -f "make.*(ci|test)" 2>/dev/null || true` first
-  - If processes found, ask user before proceeding
-
-10b. **After any `make` command that hangs or is killed, run `make cleanup-processes`**
-
-  - This prevents accumulation of orphaned Python/ML processes
-  - If `make check-zombie` reports UE-state processes, tell the user: reboot is required
-
-### Tool Usage
-
-8a. **ALWAYS use Makefile commands, NEVER direct tool invocations**
-
-  - **Use:** `make test`, `make format`, `make lint`, `make fix-md`
-  - **Do not use:** `pytest`, `black .`, `flake8`, `npx markdownlint-cli2`
-  - Exception: `git` commands are fine; Python: `.venv/bin/python3 script.py`
-
-8a-bis. **Viewer (`web/gi-kg-viewer`) tools — `npm run …` / `./node_modules/.bin/…`, never `npx`.**
-
-  - The viewer pins **`@playwright/test`** (CLI exposed as
-    `node_modules/.bin/playwright`) but **not** a separate package
-    literally named `playwright`. **`npx playwright test ...`** silently
-    fetches a fresh copy from the npm registry → two module instances
-    at the same version → "Playwright Test did not expect
-    test.describe() to be called here" → worker SIGKILL (exit code
-    137 in the parent shell). Easy to misread as "user canceled" or
-    OOM. Smoking gun: `npm warn exec ... will be installed` near the
-    top of the output.
-  - **Use:** `npm run test:e2e -- <args>`, `npm run test:unit`,
-    `npm run dev`, `npm run build`, or `./node_modules/.bin/playwright
-    test …` from the viewer dir. Same isolation as `.venv/bin/pytest`.
-  - **Do not use:** `npx playwright`, `npx vitest`, `npx vite`. `npx`
-    is not the Node analog of `python -m`; it falls back to fetching
-    from registry when the literal name isn't in `node_modules`.
-  - Polyglot details: `docs/guides/POLYGLOT_REPO_GUIDE.md` —
-    *Invoking viewer tools*.
-
-8b. **ALWAYS update venv when dependency ranges change**
-
-  - Trigger: After ANY edit to `[project.dependencies]` or `[project.optional-dependencies]` in `pyproject.toml`
-  - Action: Run `pip install --upgrade -e .[dev]` BEFORE running tests or committing
-  - Verify: Check that new packages are installed (or ask user to verify)
-
-### Code Quality & Testing
-
-13. **Write lint-valid code from the start**
-
-  - BEFORE saving any Python file: Run `make format` on that file
-  - AFTER writing a complete function/class: Check line length (< 100 chars)
-  - BEFORE committing: Run `make lint` and fix all errors
-  - Code must pass `make lint` before session ends
-
-5. **ALWAYS review/update tests after code changes — never leave failing tests**
-
-  - Trigger: After modifying ANY code in `src/` (not just tests)
-  - Action 1: Run `make ci-fast` BEFORE committing (unless pre-commit / user-validated — see below)
-  - Action 2: If tests fail, fix them BEFORE continuing with other work
-  - Action 3: Load `testing-strategy.mdc` when writing new tests
-  - Exception: If test failure is complex, document it and ask user before proceeding
-  - Exception: Workflow-only changes (only `.github/workflows/*.yml` modified) — no need to run `make ci-fast`; nothing to validate locally
-  - Exception: **Recent CI on current tree (efficiency)** — skip re-running `make ci-fast` or `make ci` right before commit when **all** are true: (1) the same target already **passed** (exit 0) **in this session** (or the user clearly stated they just ran it), and (2) **no substantive edits** were made **after** that run to anything that gate covers (e.g. `src/`, tests, `pyproject.toml`, workflows, markdown not re-validated). **Re-run** if anything material changed after the last green run, the last run **failed**, or you are **unsure** the tree matches what was validated. State briefly when skipping (e.g. "ci-fast already passed on this diff; skipping repeat run").
-  - Exception: User **explicitly** waives a repeat run — skip unless they ask again (pre-commit hook may still run on commit unless they use `--no-verify`); prefer **rule 5c** narrow targets over arguing for a full rerun
-
-5a. **When any make target fails (test, ci, lint, format, docs, etc.): root cause first, then fix**
-
-  - Establish a clear understanding of *why* it is failing before changing code
-  - Work from root cause (stack trace, failing assertion, env mismatch, lint error, etc.); avoid random changes or trial-and-error
-  - If unclear, reproduce locally, read the failure message, and trace to the source before proposing a fix
-
-5b. **Before adding workarounds or changing how something works: look for similar examples in the repo first**
-
-  - Do NOT only try to "fix the broken path" with ad-hoc changes (flags, timeouts, special cases).
-  - DO ask: "Where do we already do something similar without this problem?" Search the codebase (Makefile, scripts, same area) for comparable flows, then compare and reuse that pattern.
-  - Align the broken path to an existing working pattern before inventing new workarounds.
-
-5c. **Incremental validation when repeating full `make ci-fast` is unnecessary or the user declines it**
-
-  - **User intent:** If the user says they do **not** want a full CI re-run (e.g. "no full ci-fast", "small change", "docs-only"), **comply**. Do not start another full `make ci-fast` unless they ask or the diff clearly needs it.
-  - **Agent response (brief):** State (1) what Makefile targets you **ran**, (2) what **`make ci-fast`** (or **`make ci-ui-fast`** for viewer-only work) **would have added** beyond that, (3) that **`git commit` pre-commit still runs `make ci-fast`** unless they use `--no-verify`.
-  - **Narrow targets (Makefile only — no raw pytest/black):**
-    - **`mkdocs.yml` only** or other **MkDocs wiring** without large doc rewrites: **`make docs`**
-    - **Markdown under `docs/`**: **`make fix-md`**, **`make lint-markdown`**; add **`make docs`** if `mkdocs.yml`, plugins, or nav could be affected
-    - **Policy text only** (e.g. `.cursorrules`, `.cursor/rules/*.mdc`) with no runnable code: usually **nothing** unless asked; offer **`make lint-markdown`** if substantial markdown was edited
-    - **Viewer UI** (`web/gi-kg-viewer/**` TS/Vue/E2E specs, no Python **`tests/e2e`** changes): prefer **`make ci-ui-fast`** for a broad local gate (Playwright included); **pre-commit still runs `make ci-fast`**
-    - **Small Python follow-up** after **`make ci-fast` already passed (exit 0) in this session** on the same tree and the edit is obviously localized: **`make format`** (touched paths), **`make lint`**, **`make type`** if types changed; add a **minimal test target** only when scope is clear (load **`test-scope-decision-tree`** skill); if unsure, run **`make ci-fast`** or ask
-  - **Do not** rely on incremental shortcuts when the diff touches **`pyproject.toml`**, **Dockerfile**, **broad `src/` + test changes**, **viewer E2E-visible surfaces**, or **anything that does not map cleanly to a narrow target** — run **`make ci-ui-fast`** when the change is viewer-only, else **`make ci-fast`**, or ask.
-
-12. **ALL analysis/plans → `docs/wip/` (never `docs/analysis/` or `docs/plan/`)**
-
-  - Applies to: Design docs, RFCs, investigation notes, planning documents, analysis outputs
-  - Trigger: BEFORE creating any new doc file in `docs/`
-  - Action: Save to `docs/wip/` (never `docs/analysis/` or `docs/plan/`)
-  - Exception: Finalized docs can be moved out of `wip/` after review
-
-### GitHub
-
-14. **Use MCP GitHub server for GitHub operations**
-
-  - Preferred: `mcp_github_*` tools; fallback: GitHub API only if MCP fails
-
-15. **ALWAYS use correct GitHub username, NOT Mac username**
-
-  - Use `mcp_github_get_me` to get current user's GitHub login
-
-### CodeQL Alert Dismissals
-
-16. **CodeQL alert dismissals: check the registry, classify, then decide**
-
-  - **Trigger:** CodeQL check fails on a PR.
-  - **Step 1 — Read the registry:** Read `docs/ci/CODEQL_DISMISSALS.md`. It enumerates every **alert type** (numbered), the sanitiser chain / rationale for each, the full dismissal inventory, and the step-by-step process.
-  - **Step 2 — Classify the alert:**
-    - **(a) Known type, same pattern** (matches a numbered type in the registry and uses the same documented sanitiser chain): dismiss as false positive via `gh api`, add a row to the dismissal table, and tell the user what you did.
-    - **(b) New type or broken chain** (no matching type in the registry, or the sanitiser chain is absent / different): **do NOT dismiss**. Explain the taint flow to the user, propose a code fix to route through an existing sanitiser, and **wait for explicit user approval** before any dismissal. If approved, add the new type to the registry.
-  - **Step 3 — Never dismiss silently.** Always state: alert number(s), file/line, which type it matches (or "new type"), and what action you took.
-  - **Step 4 — User approval required for (b).** For new/unknown types the user must explicitly approve the dismissal or the code fix. Do not assume.
-
-### Auto-Loading Detailed Rules (.mdc Files)
-
-17. **AUTOMATICALLY load `.mdc` files when encountering specific situations**
-
-  - These are NOT auto-loaded — YOU must `read_file` them BEFORE proceeding
-  - **ALWAYS announce loading** (e.g., "Loading testing-strategy.mdc...")
-  - Load timing: BEFORE writing code/tests/docs, not after errors occur
-
-  | Situation | Load This File | When to Load |
-  | --------- | -------------- | ------------ |
-  | **User-reported bug or “fix UI” in GI/KG viewer** (`web/gi-kg-viewer`), graph/detail/transcript links, or proving a viewer fix | `docs/guides/AGENT_BROWSER_LOOP_GUIDE.md` (**Obligatory validation** + **Symmetry rule**: validate in the same way you reproduced, e.g. MCP after fix); optional `.cursor/rules/agent-browser-ui-fixes.mdc` | **BEFORE** reproducing, editing viewer/server code for that bug, or claiming the fix works |
-  | Writing/modifying Python code | `coding-standards.mdc` | BEFORE writing first line |
-  | Writing or modifying tests | `testing-strategy.mdc` | BEFORE writing test |
-  | Running tests or validating | `testing-strategy.mdc` | BEFORE running `make test` |
-  | Editing markdown or docs | `documentation.mdc` | BEFORE editing markdown |
-  | Markdown linting errors | `documentation.mdc` | IMMEDIATELY when error appears |
-  | Git worktree operations | `git-worktree.mdc` | BEFORE creating worktree |
-  | **About to run git commands that replace tracked file content** (`git checkout --`, `git restore`, `git checkout <ref> --`, `git reset --hard`, etc.) on paths that may hold **uncommitted** user work | `git-working-tree-safety.mdc` | **BEFORE** the command — or **ask** and get explicit confirmation (Rule **4e**) |
-  | Refactoring / module boundaries | `module-boundaries.mdc` | BEFORE moving code |
-  | About to commit or push | `ai-guidelines.mdc` | BEFORE `git commit` |
-  | Need decision guidance | `ai-guidelines.mdc` | When unsure about approach |
-  | Task / session closure (Rule **18**) | `.cursorrules` Rule **18** | Visible retrospective in chat (separate from metrics JSONL); promote durable lessons into guides/rules |
-
-  All files in `.cursor/rules/`.
-
-  **Documentation prose:** In `docs/**` (PRD/RFC/ADR/guides/api/wip, etc.), do **not** use
-  checkmark / cross / clipboard emoji or decorative tick marks for status, lists, or tables — use
-  plain words (Yes/No, Run/Skip, Good/Bad). Same for `.cursorrules`, `CLAUDE.md`,
-  `.ai-coding-guidelines.md`, and `.cursor/rules/*.mdc`. Full rule in `.cursor/rules/documentation.mdc`.
-  **PRD vs RFC status words:** PRDs use **Implemented** / Partial / Draft; **Completed** is for **RFC**
-  and **ADR** headers, not PRDs.
-
-### Session review — process reflection (Rule 18)
-
-- **When (use judgment, not only keywords):** Run Rule **18** when a **meaningful unit of work is actually
-  finished** — same stopping points where you would append **`.metrics/rule-adherence.jsonl`** (see REMEMBER),
-  including: user signals closure (**done** / **wrap up** / **thanks** / **ship it** / equivalent),
-  **before commit or push**, after a **green CI slice** with nothing substantive left to do on that slice,
-  or when the thread is clearly **handing off** after a completed fix or feature. If you shipped something
-  non-trivial and the conversation is winding down, default to **running Rule 18** even if the user did
-  not use the exact words **done** or **wrap up**. **Do not** mix reflection into the JSONL or its schema.
-- **Do (visible by default):** In the **chat reply**, include a short **retrospective** the user can read:
-  what would have closed the work **faster**, what to verify next time, or what risked a false **fixed**.
-  Examples: wrong validation channel, tests that did not match user data shape, model objects rebuilt
-  without passing new fields, assuming localhost from the agent sandbox. **Silent or skip only** if the
-  user explicitly asked for no reflection or no extra closing text.
-- **Not metrics:** **Never** put retrospective text, lesson lists, or extra keys into
-  **`rule-adherence.jsonl`**. That log stays a **rule/skills/subagents** self-audit only.
-- **Promote into repo instructions:** When a lesson is **durable and project-wide**, update the right
-  canonical doc in-session when reasonable — e.g. **`docs/guides/AGENT_BROWSER_LOOP_GUIDE.md`** (browser
-  / UI loop), **`.cursorrules`** / **`.cursor/rules/*.mdc`** (always-on agent rules),
-  **`docs/guides/DEVELOPMENT_GUIDE.md`** (dev workflow). For half-baked notes, use **`docs/wip/`** only
-  after **confirming** the user wants that file (no unsolicited markdown under `docs/`).
-  **Do not** pad guides with one-off noise. **User intent beats this:** if the user says to skip
-  reflection, comply.
-
-## PROJECT CONTEXT
+This file is the index. Detail lives in `.cursor/rules/*.mdc`
+(auto-loaded by file path) and `.ai-coding-guidelines.md` (deep
+reference, on-demand). For a 90-line summary, see
+`.ai-coding-guidelines-quick.md`.
+
+---
+
+## RULES YOU KEEP BREAKING (read every session)
+
+These are not aspirational. These are the patterns where you have failed
+this user repeatedly. Adherence to these beats every other rule.
+
+1. **Never push without explicit user approval.** Not even a doc-only
+   commit. Not even after CI is green. The user says "push" or you
+   don't push.
+
+2. **Never sync an open PR's branch with main unprompted.** Even if you
+   "see a future merge conflict". The user resolves a small additive
+   conflict at squash-merge time in seconds; you burn ~30 min of CI by
+   re-running every check on the new HEAD. Any push to a PR's HEAD
+   restarts ALL required checks. Ask first.
+
+3. **Do exactly what was asked, nothing more.** No "while I'm here, let
+   me also..." steps. No optional cleanups. No memory-doc additions in
+   the same task. If you see something else worth doing, say so as a
+   suggestion in text — do not act on it.
+
+4. **When the user is frustrated, stop proposing actions.** Acknowledge,
+   ask what they want, and wait. Do not offer 3 options. Do not start
+   another task to "make up for it". Do not write a memory file *while*
+   they are still angry — that is tone-deaf. Acknowledge and wait.
+
+5. **Read what was last asked, not what you think makes sense.** If
+   they said "do A", do A. Don't infer A+B+C because the codebase
+   suggests it.
+
+6. **Validate the cost of an action before taking it.** "Does this
+   restart CI?", "Does this push to a shared branch?", "Does this
+   require approval I haven't gotten?" — answer those before running
+   the command.
+
+---
+
+## User intent beats procedural defaults
+
+- **Explicit user instructions override** the procedural rules below
+  (examples: "commit all files" → use `git add -A`; "skip ci-fast" →
+  don't insist on a full run; "stop" → stop immediately).
+- **If scope or intent is unclear**, ask first. Do not add unrequested
+  steps to be clever.
+- **Non-negotiable safety**: never commit secrets; never push unless
+  asked; never combine a hotfix push with unrelated work.
+
+## Autonomous execution (default)
+
+- **When intent is clear**, do the work in-session: run Makefile
+  targets, scripts, tests, downloads, fixes. Don't habitually close
+  with "you should run X" if the agent can run X.
+- **Ask only when blocked**: missing secrets, ambiguous scope, unsafe
+  request, or policy needs explicit approval (commit/push).
+
+## WORKTREE.md (when present at repo root)
+
+- Read it before relying on `pytest` / `python` / `make serve-api`
+  output. Use this worktree's `.venv` only; if imports resolve to
+  another checkout, fix the interpreter — don't add `pythonpath` to
+  `pyproject.toml` to mask it.
+
+---
+
+## Git workflow
+
+### 1. DEFAULT: feature branch + PR. EXCEPTION: hotfix direct-to-main
+
+- DEFAULT for almost all changes: `git checkout -b feat/name`, push,
+  PR, merge.
+- EXCEPTION — hotfix direct-to-main allowed ONLY when ALL apply:
+  (a) fix for a regression already on main; (b) single-concern, small
+  (≤ 50 LOC); (c) user explicitly asked for hotfix path or context
+  makes it unambiguous (e.g. "fix this on main", "main is red").
+- **Hotfix protocol:** pull main → edit → run pre-commit checks
+  locally (`make lint` / `make docs` / spot pytest) → commit with
+  `fix:` / `hotfix:` prefix → ask for push approval → push → watch
+  CI on main → fix-forward if red.
+- Rationale: team-of-1 self-review of PRs adds latency without
+  catching bugs. Main runs strictly more CI than PRs (stack-test,
+  full Python application). "Missing PR-side CI" is not a real loss.
+
+### 2. NEVER commit without explicit user approval
+
+- MUST: `git status` → `git diff` → show user → wait for approval →
+  THEN commit.
+- After applying edits, briefly summarize and ask "Keep these changes
+  or undo any of them?"
+- Default: stage **specific files** for the current task. Use
+  `git add <file>` per file. Verify with `git status`. Avoid blind
+  `git add -A` unless the user explicitly says so.
+
+### 3. NEVER push without explicit user approval
+
+- Show diff → ask → wait. Never assume approval.
+- Pre-commit hook runs `make ci-fast` automatically (or `--no-verify`
+  if waived).
+
+### 4. Active-merge safety (when `.git/MERGE_HEAD` exists)
+
+- **NEVER `git stash` during a merge** — destroys all conflict
+  resolutions; the stash captures the working tree but NOT
+  `.git/MERGE_HEAD`. Use `git show <ref>:<path>` to inspect instead.
+- **NEVER `git checkout <ref> -- <file>` during a merge** — destroys
+  resolved content. Only safe variants: `git checkout --ours/--theirs
+  <file>` with explicit user approval.
+- **NEVER overwrite local files with remote content without showing
+  the diff and getting approval** (`git checkout origin/<branch> --
+  <file>`, `git restore --source origin/main`, `git reset --hard`).
+- **NEVER `git checkout -- <path>` / `git restore <path>` to discard
+  uncommitted edits unless the user explicitly asked or you asked and
+  they confirmed.** Before any revert-from-git on tracked paths: load
+  `.cursor/rules/git-working-tree-safety.mdc` or ask first.
+- **NEVER delete gitignored paths when "cleaning docs" or removing
+  references** — they may hold operator-local configs, experiments,
+  or secrets. "Pretend it does not exist" means change tracked files
+  only.
+
+---
+
+## Tool usage
+
+### Make commands, never direct tools
+
+- **Use:** `make test`, `make format`, `make lint`, `make fix-md`,
+  `make ci-fast`, `make docs`.
+- **Don't use:** raw `pytest`, `black .`, `flake8`, `npx
+  markdownlint-cli2`. Exception: `git` commands; Python:
+  `.venv/bin/python3 script.py`.
+
+### Viewer (`web/gi-kg-viewer`): `npm run …` / `node_modules/.bin/<tool>`, never `npx`
+
+- The viewer pins `@playwright/test` (CLI: `playwright`) but **not** a
+  separate `playwright` package. `npx playwright` silently fetches a
+  fresh copy from the npm registry → two module instances at the same
+  version → "did not expect test.describe() to be called here" →
+  worker SIGKILL (exit 137). Easy to misread as user-canceled or OOM.
+- **Use:** `npm run test:e2e -- <args>`, `npm run test:unit`,
+  `npm run dev`, `npm run build`, `./node_modules/.bin/playwright
+  test …`.
+- Details: `docs/guides/POLYGLOT_REPO_GUIDE.md` (*Invoking viewer
+  tools*).
+
+### Foreground only — NEVER `is_background: true` for make/test/git/pip
+
+- Background allowed ONLY for long-running servers (`mkdocs serve`,
+  `make serve-api`).
+- ALL `make`, `pytest`, `git`, `pip` MUST be foreground.
+- Don't pipe to `| tail -N` / `| head` when the user is watching —
+  the harness can't stream Bash stdout live; the user only sees
+  output when the command exits, so a short tail truncates what they
+  would otherwise see in full. Prefer no pipe; if a command genuinely
+  produces > 1k lines, use a generous tail (`tail -100`). Never
+  silently filter the command body the user asked you to run.
+- Don't `cd` to project root — terminal is already there.
+
+### Process safety — ML workloads
+
+- NEVER retry a `make` command that produced no output (likely
+  zombie). Report and run `make check-zombie`.
+- NEVER run multiple `make ci` / `ci-fast` / `ci-ui-fast` / `test`
+  concurrently — process pileup on macOS causes unkillable zombies.
+- After any hung/killed `make`, run `make cleanup-processes`.
+
+### Update venv after dependency changes
+
+- After ANY edit to `[project.dependencies]` or
+  `[project.optional-dependencies]` in `pyproject.toml`, run
+  `pip install --upgrade -e .[dev]` BEFORE running tests or
+  committing.
+
+---
+
+## Code quality and testing
+
+### Lint-valid code from the start
+
+- BEFORE saving any Python file: `make format` on it.
+- AFTER writing a function/class: line length < 100 chars.
+- BEFORE committing: `make lint` and fix all errors.
+
+### CI gating: run the right validation, not always the heaviest
+
+- Default: `make ci-fast` before committing.
+- Viewer-heavy diff: `make ci-ui-fast` (Playwright instead of Python
+  `tests/e2e/`).
+- **Skip a duplicate full run** when the same target already passed
+  in this session and no substantive edits were made after — say so
+  briefly when skipping. **Re-run** if anything material changed,
+  the last run failed, or you are unsure.
+- **No redundant ci-fast runs** to verify a small fix. Run the
+  subtarget (`make docs`, `make lint`, `make type`, `make format`)
+  — 10s vs 10min. Cost-of-validation matters.
+
+### When a make target fails
+
+- Establish root cause first (stack trace, failing assertion, env
+  mismatch). Then fix from there. No random experimenting.
+- Before workarounds: search the codebase (Makefile, scripts, same
+  area) for similar flows that work. Align the broken path to an
+  existing working pattern.
+
+### Workarounds vs. fixes
+
+- "Works in unit tests but not through the real pipeline" is a
+  signature failure mode. Half-wired features (Literal value with
+  no dispatch arm, profile default with no live code path, method
+  exists but pipeline still calls the old one) are regressions, not
+  stubs. Don't ship them.
+
+### Document location
+
+- ALL analysis/plans/WIP docs → `docs/wip/`. NEVER `docs/analysis/`
+  or `docs/plan/`.
+
+---
+
+## CodeQL alert dismissals
+
+- **Trigger:** CodeQL fails on a PR.
+- **Step 1:** Read `docs/ci/CODEQL_DISMISSALS.md` — enumerates every
+  alert type, sanitiser chain, and full dismissal inventory.
+- **Step 2:** Classify:
+  - **(a) Known type, same pattern** (matches a numbered type, uses
+    the same documented sanitiser chain): dismiss as false positive
+    via `gh api`, add a row, tell the user.
+  - **(b) New type or broken chain**: do NOT dismiss. Explain the
+    taint flow, propose a code fix routing through an existing
+    sanitiser, and **wait for explicit user approval**. If approved,
+    add the new type to the registry.
+- **Step 3:** Never dismiss silently. Always state alert number(s),
+  file/line, type matched, and action.
+- **Inline `# codeql[py/path-injection]` pragmas DO NOT actually
+  suppress** — they are docs only. Dismiss via `gh api` and log in
+  the registry.
+
+---
+
+## GitHub
+
+- Use MCP GitHub server tools when available; fall back to `gh` CLI
+  if MCP is unavailable.
+- ALWAYS use the correct GitHub username (check with
+  `mcp_github_get_me`, not Mac username).
+
+---
+
+## Project context
 
 Python tool for podcast transcript downloading/generation:
 
-- Download transcripts from RSS feeds, fallback to Whisper transcription
-- Speaker detection (spaCy NER), Summarization (BART/LED or OpenAI)
-- Python 3.10+, Pydantic v2, pytest, black/isort/flake8/mypy, MkDocs
+- Download from RSS feeds, fallback to Whisper transcription.
+- Speaker detection (spaCy NER), Summarization (BART/LED or OpenAI).
+- Python 3.10+, Pydantic v2, pytest, black/isort/flake8/mypy, MkDocs.
 
-### Module Boundaries (details in `module-boundaries.mdc`)
+### Module boundaries (details: `module-boundaries.mdc`)
 
 - `cli.py` → CLI only | `service.py` → Service API only
-- `workflow.py` → Orchestration only | `config.py` → Config model only
+- `workflow.py` → Orchestration | `config.py` → Config model only
 - `downloader.py` → HTTP only | `rss_parser.py` → RSS parsing only
 
-### GI/KG viewer UX (`web/gi-kg-viewer`) — agents and humans
+### Specs vs code
 
-Whenever you change **viewer UX** (visible copy, labels, routes, panels, layout, theme tokens,
-or accessible names used by tests):
+Don't embed `RFC-*`, `PRD-*`, or `UXS-*` identifiers in code,
+comments, CSS class names, CLI strings, or user-visible copy. Use
+neutral names; keep numbered references in `docs/rfc/`, `docs/prd/`,
+`docs/uxs/` only.
 
-1. **`e2e/E2E_SURFACE_MAP.md`** — Update first when anything **E2E-visible** or **selector-related**
-   changes (Playwright `getByRole` strings, entry flows, `#search-q`, `.graph-canvas`, etc.).
-2. **Playwright** — Update `e2e/*.spec.ts`, `helpers.ts`, or `fixtures.ts`; run **`make test-ui-e2e`**, or **`make ci-ui-fast`** for the same **quality gates as `ci-fast`** with **Playwright** instead of Python **`tests/e2e/`** (pre-commit still runs **`make ci-fast`**).
-3. **`docs/uxs/`** — Update **`VIEWER_IA.md`** when **shell IA** changes (regions, navigation axes, persistence, clearing, first-run). Update **`UXS-001`** for **shared** tokens/visual chrome rules; update the relevant
-   **feature UXS** (`docs/uxs/index.md` lists Digest, Library, Graph, Search, Dashboard, …) when a
-   **surface-specific** visual contract changes, not only when tests break.
+### Profile completeness (`config/profiles/*.yaml`)
 
-4. **User-reported UI bugs** — Do not claim a fix without proof: reproduce with **Chrome DevTools MCP by default**
-   when available (Playwright MCP only when clearly better for scripted automation — state the reason in one line);
-   capture network / new-tab response; implement fix; **re-validate in
-   the same channel** (same MCP flow / same URL or clicks) after any required process restart — **not**
-   only pytest or `make test-ui` if you reproduced in the browser. Tests are **additional** locks. See
-   **Default MCP choice** + **Symmetry rule** in **`docs/guides/AGENT_BROWSER_LOOP_GUIDE.md`** → **Obligatory validation when fixing a reported UI bug**.
+Never ship a profile default referencing an enum value
+(`llm_pipeline_mode`, `gi_insight_source`, `kg_extraction_source`,
+`summary_provider`, …) without verifying a **live** code path reads
+it. Procedure: find the `Literal[...]` declaration, grep the literal
+strings in `src/`, confirm every value has a dispatch arm that does
+something different. If a value is accepted by `Config` but no
+downstream dispatcher switches on it, the profile is lying — wire
+the dispatch or drop the profile default.
 
-**Local `make serve` / “use X as root” (interpretation):** When the user points at a directory as the
-**root** for local API + viewer dev (e.g. `.test_outputs`, `./output`, a manual run path), treat that as
-**`SERVE_OUTPUT_DIR`** — run **`make serve SERVE_OUTPUT_DIR=<path>`** (or **`make serve-api …`**). Do
-**not** change the Makefile default **`SERVE_OUTPUT_DIR ?= ./output`** unless they **explicitly** ask to
-change the project default for everyone. Wording like “temporary”, “for now”, “just start”, “don’t change
-any files” → **only** the Make variable override + restart processes; **no** repo edits.
-**`VITE_DEFAULT_CORPUS_PATH`** (viewer `.env`) is **separate**: it pre-fills the shell corpus path in the
-browser; touch it only when they ask about that UI field, not as a substitute for **`SERVE_OUTPUT_DIR`**.
+### GI/KG viewer UX (`web/gi-kg-viewer/`)
 
-**Agent default corpus root (when the agent starts servers):** If the **agent** runs **`make serve`**,
-**`make serve-api`**, or restarts the API/UI stack **without** the user naming an output directory, use
-**`SERVE_OUTPUT_DIR=.test_outputs`** (fixture / local dev corpus). If the user **does** name a path, or
-recent **`SERVE_OUTPUT_DIR`** / **`terminals`** metadata clearly shows another root, use that instead. If
-still **unknown and not inferable**, **ask once** before starting.
+When changing viewer UX (visible copy, labels, routes, panels,
+layout, theme tokens, accessible names used by tests), update in
+order:
 
-**API restart discipline (agents):** When **`src/podcast_scraper/server/`** (or other loaded server code)
-changes mean a **running** Uvicorn process must reload to pick up behavior, **do not** only tell the user
-to restart. **Restart the API in-session** when the agent environment can run shell commands: free the
-listener (typically port **8000**), run **`make serve-api SERVE_OUTPUT_DIR=<root>`** in the **background**
-(Rule **9** exception for long-running servers), then verify **`GET http://127.0.0.1:8000/api/health`**
-returns **200**. Use **`<root>`** per **Agent default corpus root** above (typically **`.test_outputs`**
-when the agent started or restarted the stack). Close with **Ready for tests** and state **URL +
-`SERVE_OUTPUT_DIR`** (one line).
+1. **`e2e/E2E_SURFACE_MAP.md`** — automation contract first.
+2. **Playwright** — `e2e/*.spec.ts`, helpers; run `make test-ui-e2e`
+   or `make ci-ui-fast`.
+3. **`docs/uxs/`** — `VIEWER_IA.md` for shell-IA changes
+   (regions / navigation / persistence); feature UXS for visual /
+   token contracts.
 
-**FastAPI `/api/*` JSON** (new or changed routes): extend **`tests/unit/podcast_scraper/server/`** and
-**`tests/integration/server/`** (not a root-level `tests/integration/test_server_api.py`).
+**User-reported viewer bugs:** reproduce and re-validate with
+**Chrome DevTools MCP by default** (Playwright MCP only when clearly
+better — say so in one line); validate the fix in the same channel
+you used to reproduce. Tests alone are not a substitute. See
+`docs/guides/AGENT_BROWSER_LOOP_GUIDE.md` (*Default MCP choice*,
+*Symmetry rule*).
 
-Details: `docs/guides/E2E_TESTING_GUIDE.md` (Playwright), `docs/guides/DEVELOPMENT_GUIDE.md` (GI/KG viewer),
-`docs/guides/SERVER_GUIDE.md` (HTTP reference), `docs/uxs/index.md`.
+### Local serve interpretation
 
-## ESSENTIAL COMMANDS
+When the user names a directory as the root (e.g. `.test_outputs`,
+`./output`), treat that as `SERVE_OUTPUT_DIR` — run
+`make serve SERVE_OUTPUT_DIR=<path>` (or `make serve-api …`). Do
+NOT change the Makefile default unless they explicitly ask.
+`VITE_DEFAULT_CORPUS_PATH` is separate (pre-fills the viewer shell
+path); touch only when they ask about that UI field.
+
+When the agent restarts servers without the user naming a path, use
+`SERVE_OUTPUT_DIR=.test_outputs` (Rule 9 background exception
+applies).
+
+### FastAPI `/api/*`
+
+Tests in `tests/unit/podcast_scraper/server/` and
+`tests/integration/server/`. Reference: `docs/guides/SERVER_GUIDE.md`.
+
+---
+
+## Auto-loading detailed rules (`.cursor/rules/*.mdc`)
+
+These are NOT auto-loaded by Cursor today (most lack `globs:`
+frontmatter). Until that's wired, **YOU must `read_file` them
+BEFORE proceeding** when the situation matches. Announce loading
+("Loading testing-strategy.mdc...").
+
+| Situation | Load |
+|---|---|
+| Writing/modifying Python code | `coding-standards.mdc` |
+| Writing or modifying tests | `testing-strategy.mdc` |
+| Editing markdown / docs | `documentation.mdc` |
+| Git worktree operations | `git-worktree.mdc` |
+| Refactoring / module boundaries | `module-boundaries.mdc` |
+| About to run git commands that replace tracked content | `git-working-tree-safety.mdc` |
+| Viewer UI bug fixing | `agent-browser-ui-fixes.mdc` + `docs/guides/AGENT_BROWSER_LOOP_GUIDE.md` |
+| About to commit or push | `ai-guidelines.mdc` |
+
+### Auto-load by file path
+
+When editing files matching these paths, load the listed guide
+before editing:
+
+- `tests/unit/**` → `docs/guides/UNIT_TESTING_GUIDE.md` (especially
+  *Pyproject extras: what unit tests may depend on*). `tests/unit/`
+  must not depend on any non-`[dev]` extra. Never use
+  `pytest.importorskip()` to sidestep the rule.
+- `tests/integration/**` or `tests/e2e/**` →
+  `docs/guides/TESTING_GUIDE.md`.
+- `config/profiles/*.yaml` → see *Profile completeness* above.
+- `web/gi-kg-viewer/**` → see *GI/KG viewer UX* above.
+
+---
+
+## Essential commands
 
 ```bash
 make format        # black + isort
 make lint          # flake8
 make type          # mypy
 make ci-fast       # Fast tests before commit (~6-10 min)
-make ci-ui-fast    # Like ci-fast but Playwright instead of Python tests/e2e (viewer-heavy work)
+make ci-ui-fast    # Like ci-fast, Playwright instead of Python tests/e2e
 make ci            # Full CI suite (~10-15 min)
 make docs          # Build docs (before committing doc changes)
 make lint-markdown # Check markdown
 make fix-md        # Auto-fix markdown
 ```
 
-## REMEMBER
+---
 
-- NEVER `is_background: true` for make/test/git/pip
-- NEVER push to main (feature branches + PRs only)
-- Prefer showing changes + approval before commit; **user can override** with explicit "go" / "commit all" (see User intent section)
-- ALWAYS use Makefile commands, never direct tools
-- Write lint-valid code from the start
-- Respect module boundaries
-- Default: `make ci-fast` before committing; for **viewer-heavy** diffs prefer **`make ci-ui-fast`** locally first (exceptions: workflow-only changes; recent green CI on current tree in-session; user waives; **incremental / tiny follow-up** — see rules **5** and **5c**). **Pre-commit** still runs **`make ci-fast`**
-- ALL analysis/plans → `docs/wip/`
-- Auto-load `.mdc` files for detailed guidance (Rule 17); session review at close (Rule 18), **separate from** metrics JSONL
-- NEVER commit secrets
-- NEVER `git stash` or `git checkout <ref> -- <file>` during an active merge — it **destroys all conflict resolutions** (Rules 4a–4c)
-- NEVER overwrite local files with remote content without showing the diff and getting approval (Rule 4d)
-- NEVER reset working-tree files from `HEAD`/a ref to drop uncommitted edits without explicit user ask or confirmed prompt (Rule 4e); includes **`git checkout -- <path>`** (same as restore from index/HEAD). Before such git: load **`git-working-tree-safety.mdc`** (Rule 17) or **ask first**
-- NEVER delete or “clean up” **gitignored** paths unless the user **explicitly** asked to remove those files (Rule **4f**)
-- Before workarounds: look for similar examples elsewhere in the repo, compare, and reuse that pattern (Rule 5b).
-- **`.metrics/rule-adherence.jsonl` — write often (do not skip)**:
+## Documentation prose
 
-  - Append **a new JSON line** whenever a **meaningful chunk of work finishes** (e.g. tests pass for a change, a feature slice is done, docs/lint fixed, CI unblocked) — **not only** at session end. **Multiple lines per session are normal** (often **~2–10**; more is OK for long sessions).
-  - Also append **before commit/push**, when the user signals closure or at **natural session end** if nothing was logged recently (same **judgment** as Rule **18** — not only the phrases **done** / **wrap up**).
-  - Each line: short self-audit (rules applied/missed, `.mdc` loaded/skipped, **skills** / **subagents** if any). See `.metrics/README.md` + **SCHEMA.md**. Optional `skills_used` / `subagents_used`. **Do not** add retrospective or lesson fields here (Rule **18** is separate).
-  - **Do not ask** permission; **do not** wait for the user to remind you. Announcement optional (silent OK).
+In `docs/**` (PRD/RFC/ADR/guides/api/wip), `.cursorrules`, `CLAUDE.md`,
+`.ai-coding-guidelines.md`, and `.cursor/rules/*.mdc`: do **not** use
+checkmark / cross / clipboard emoji or decorative tick marks for
+status, lists, or tables. Use plain words (Yes/No, Run/Skip,
+Good/Bad). Full rule: `.cursor/rules/documentation.mdc`.
 
-- **BEFORE any commit/push OR at natural task completion** (user closure signals, green slice, thread winding down — same **judgment** as Rule **18**; in addition to incremental logs above):
-
-  - If you have **not** appended since the last major milestone, perform self-audit and **append** (catch missed checkpoints)
-  - On that **same beat** (right after logging or if you already logged the milestone), run **Rule 18** **separately**: **visible** retrospective in chat + promote durable lessons into guides/rules when appropriate — **not** inside JSONL
+PRDs use **Implemented** / Partial / Draft. **Completed** is for
+**RFC** and **ADR** headers, not PRDs.
 
 ---
 
 **Version:** 2.6
-**Updated:** 2026-04-22
-**Source:** Trimmed from v1.0; details moved to `.cursor/rules/*.mdc`
+**Updated:** 2026-05-02

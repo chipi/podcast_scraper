@@ -123,7 +123,16 @@ jobs:
           # Sanity: a healthy corpus tarball contains at least one
           # ``.gi.json`` artifact (per-episode GI insights). Catches the
           # case where the cp succeeded but the bind-mount was empty.
-          if ! tar -tzf snapshot.tgz | grep -q '\.gi\.json$'; then
+          #
+          # IMPORTANT: don't use ``grep -q`` here — under ``set -o pipefail``,
+          # ``grep -q`` exits on first match and SIGPIPEs ``tar -tzf``,
+          # which propagates as non-zero through the pipe even though the
+          # match succeeded. Use ``grep -c`` (counts all matches; tar runs
+          # to completion; no SIGPIPE; pipefail-safe). Cost us two days of
+          # "phantom" CI failures before we caught it (#699).
+          gi_in_tar=$(tar -tzf snapshot.tgz | grep -c '\.gi\.json$' || true)
+          echo "gi.json entries in tarball: $gi_in_tar"
+          if [ "$gi_in_tar" -eq 0 ]; then
             echo "::error::Tarball has no .gi.json artifacts; corpus likely empty." >&2
             exit 1
           fi
@@ -136,17 +145,28 @@ jobs:
         run: |
           set -euo pipefail
           TAG="snapshot-$(date -u +%Y%m%d)"
-          # ``--clobber`` overwrites the asset if a release with this
-          # tag already exists (e.g., manual re-run on the same day).
-          gh release create "$TAG" snapshot.tgz \
-            --repo "$BACKUP_REPO" \
-            --title "Corpus snapshot $TAG" \
-            --notes "Automated daily backup of /workspaces/podcast_scraper/.codespace_corpus. Retention 7d + 4w." \
-            --target main \
-            2>/dev/null \
-            || gh release upload "$TAG" snapshot.tgz \
-                 --repo "$BACKUP_REPO" \
-                 --clobber
+          # Create-or-upload pattern. The previous form was:
+          #   gh release create ... --target main 2>/dev/null || gh release upload ... --clobber
+          # which had two bugs:
+          #   1. ``--target main`` fails if the backup repo doesn't have a
+          #      ``main`` branch (a brand-new private repo defaults to no
+          #      branch / a different default).
+          #   2. The fallback ``gh release upload`` assumes the release
+          #      already exists; when create silently failed (stderr
+          #      suppressed), upload threw "release not found" and the job
+          #      failed even though everything else worked.
+          # Now: explicit existence check, then create (omitting --target so
+          # the backup repo's actual default branch is used) or upload.
+          if gh release view "$TAG" --repo "$BACKUP_REPO" >/dev/null 2>&1; then
+            echo "Release $TAG already exists; uploading asset (will clobber)."
+            gh release upload "$TAG" snapshot.tgz --repo "$BACKUP_REPO" --clobber
+          else
+            echo "Release $TAG does not exist; creating with asset."
+            gh release create "$TAG" snapshot.tgz \
+              --repo "$BACKUP_REPO" \
+              --title "Corpus snapshot $TAG" \
+              --notes "Automated daily backup of /workspaces/podcast_scraper/.codespace_corpus. Retention 7d + 4w."
+          fi
           echo "Uploaded snapshot.tgz as release tag $TAG"
 
       - name: Prune older snapshots (keep 7 daily + 4 weekly)

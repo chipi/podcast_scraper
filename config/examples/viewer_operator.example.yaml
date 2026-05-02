@@ -19,3 +19,15 @@ append: false
 screenplay: false
 workers: 4
 log_level: INFO
+
+# Optional in-process cron scheduler (#708). When uncommented, the api
+# fires the same pipeline-job path as a manual viewer Run, on the cron
+# expression below. Each schedule reuses the corpus's standing
+# ``feeds.spec.yaml`` + this file's profile + overrides. Disabled
+# entries are loaded but never fired. Default timezone is UTC; override
+# via the ``TZ`` (or ``PODCAST_SCHEDULER_TZ``) env on the api process.
+#
+# scheduled_jobs:
+#   - name: morning-feed-sweep
+#     cron: "0 4 * * *"
+#     enabled: true

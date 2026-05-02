@@ -595,7 +595,9 @@ DEPRECATED_CONFIG_TOP_LEVEL_KEYS: frozenset[str] = frozenset({"multi_feed_soft_f
 # (e.g. which Docker compose service to spawn), but the pipeline CLI itself
 # has no use for them. Allowed past the unknown-keys gate, then silently
 # stripped in ``Config._handle_deprecated_fields`` before ``model_validate``.
-OPERATOR_ONLY_TOP_LEVEL_KEYS: frozenset[str] = frozenset({"pipeline_install_extras"})
+OPERATOR_ONLY_TOP_LEVEL_KEYS: frozenset[str] = frozenset(
+    {"pipeline_install_extras", "scheduled_jobs"}
+)
 
 
 class Config(BaseModel):
@@ -932,6 +934,50 @@ class Config(BaseModel):
         default="feed",
         alias="circuit_breaker_scope",
         description="Scope key: rss_url (feed) or request host (host).",
+    )
+    # ------------------------------------------------------------------
+    # #697: separate per-provider LLM circuit breaker (cloud_thin / cloud_balanced
+    # 503 storm survival). Sister to the RSS HTTP breaker above but
+    # WAIT-and-resume rather than fail-fast — see
+    # ``src/podcast_scraper/utils/llm_circuit_breaker.py``. Default off so
+    # existing dev/CI flows are unchanged; profiles that benefit (cloud_thin,
+    # cloud_balanced) flip ``llm_circuit_breaker_enabled: true``.
+    # ------------------------------------------------------------------
+    llm_circuit_breaker_enabled: bool = Field(
+        default=False,
+        alias="llm_circuit_breaker_enabled",
+        description=(
+            "Enable per-provider wait-and-resume circuit breaker for cloud "
+            "LLM calls. Sleeps the per-call retry instead of failing when "
+            "an upstream burst of 5xx/429 trips the rolling-window threshold."
+        ),
+    )
+    llm_circuit_breaker_failure_threshold: int = Field(
+        default=3,
+        alias="llm_circuit_breaker_failure_threshold",
+        ge=1,
+        le=100,
+        description=(
+            "Count of overload-class failures (5xx / 429) within the rolling "
+            "window required to trip the breaker."
+        ),
+    )
+    llm_circuit_breaker_window_seconds: float = Field(
+        default=30.0,
+        alias="llm_circuit_breaker_window_seconds",
+        ge=1.0,
+        le=3600.0,
+        description="Rolling window (seconds) over which failures are counted.",
+    )
+    llm_circuit_breaker_cooldown_seconds: float = Field(
+        default=60.0,
+        alias="llm_circuit_breaker_cooldown_seconds",
+        ge=1.0,
+        le=3600.0,
+        description=(
+            "Cooldown (seconds) the next call waits when the breaker trips. "
+            "Sized to outlast typical Gemini Flash 503 spikes (~30-60s)."
+        ),
     )
     rss_conditional_get: bool = Field(
         default=False,
