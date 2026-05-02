@@ -14,8 +14,15 @@ ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
     PODCAST_STACK_OUTPUT_DIR=/app/output
 
+# Pull latest Debian security patches on top of whatever the base image
+# was built with. Closes the lag between python:3.12-slim-bookworm's last
+# rebuild and the latest Debian advisories. Won't fix CVEs Debian hasn't
+# patched yet (those are dismissed separately via reachability analysis;
+# see docs/ci/CODEQL_DISMISSALS.md Type 2). Adds ~30s on cold builds.
 RUN apt-get update \
+    && apt-get upgrade -y --no-install-recommends \
     && apt-get install -y --no-install-recommends curl util-linux \
+    && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
 # Docker CLI + Compose v2 for ``PODCAST_PIPELINE_EXEC_MODE=docker`` (mount ``/var/run/docker.sock`` at runtime).

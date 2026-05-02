@@ -70,6 +70,35 @@ must not import FastAPI at import time. ``pipeline_jobs`` and ``operator_paths``
 ``typing.Any`` for the app handle; ``operator_config_security`` raises
 ``OperatorYamlUnsafeError`` (stdlib) and routes translate to ``HTTPException``.
 
+### 2. Snyk Container -- base-image transitive CVE not reachable
+
+**Why it fires:** the Snyk container scan inspects the final
+``podcast-scraper:snyk-scan`` image's Debian package list and uploads each
+``high``/``critical`` package CVE as a Code Scanning alert. These are
+**not** vulnerabilities in our Python code or pip dependencies -- they are
+in OS packages from the ``python:3.12-slim`` (Debian 13) /
+``python:3.12-slim-bookworm`` (Debian 12) base images.
+
+**Why it is a false positive here:** apply both gates before dismissing:
+
+1. **Upstream Debian fix status.** Either Debian explicitly has no fix
+   (``apt-get upgrade`` cannot help) or the version flagged is already
+   the latest in Debian's apt index. The Dockerfiles run
+   ``apt-get update && apt-get upgrade -y`` early so any backported fix
+   lands automatically on the next rebuild.
+2. **Reachability from our deployment topology.** The vulnerable code
+   path must not be invoked by anything the pipeline runs: Whisper,
+   spaCy, transformers, sentence-transformers, FAISS, ffmpeg, supervisor,
+   FastAPI / uvicorn, httpx / requests, etc. We don't expose DTLS
+   handshake parsing to untrusted peers; we don't process ICC color
+   profiles or other image-rendering flows; and so on.
+
+When **both** gates pass, dismiss as ``won't fix`` with a comment that
+names (a) the Debian fix status and (b) the reachability reasoning.
+Re-evaluate when Snyk re-scans on each PR -- if the same CVE re-surfaces
+after a Debian backport ships, ``apt-get upgrade`` should pick it up
+automatically; otherwise re-dismiss and append a new row below.
+
 **Sanitiser chain (reference):**
 
 All user-supplied corpus paths flow through one of:
@@ -184,6 +213,8 @@ number, file, line, date, and a short comment.
 | 1 | #308 | server/routes/operator_config.py | 136 | 2026-04-28 | Type 1: ``corpus_root`` from ``resolve_corpus_path_param`` (normpath + startswith anchor) immediately before ``corpus_root.mkdir(parents=True, exist_ok=True)`` on GET handler — auto-create restricted to subdirs under the configured corpus root (#693 first-run UX). Dismissed ``gh api`` (PR #702) |
 | 1 | #309 | server/routes/operator_config.py | 195 | 2026-04-28 | Type 1: same sanitizer chain as #308, mirror on PUT handler. Dismissed ``gh api`` (PR #702) |
 | 1 | #311 | server/routes/scheduled_jobs.py | 48 | 2026-05-02 | Type 1: ``corpus`` from ``_resolve_corpus_root`` → ``resolve_corpus_path_param`` (normpath+startswith anchor); ``.resolve()`` on already-anchored ``Path`` before ``os.path.normpath``. Same shape as ``routes/jobs.py`` and ``routes/corpus_library.py`` #306. Dismissed ``gh api`` (PR #707, #708) |
+| 2 | #298 | docker/pipeline (lcms2/liblcms2-2@2.16-2) | — | 2026-05-02 | Type 2: SNYK-DEBIAN13-LCMS2-16104015 (CVE-2026-41254 incorrect-behavior-order). Transitive system dep via ffmpeg / image libs. Pipeline processes audio + text only; no PIL/Pillow image color-management invocation in src/ (``grep -r "from PIL"`` empty). Latest in Debian 13 trixie apt index; ``apt-get upgrade`` would auto-pull a backport once published. Dismissed ``gh api`` (won't fix; not reachable). |
+| 2 | #312 | docker/pipeline (gnutls28/libgnutls30t64@3.8.9-3+deb13u2) | — | 2026-05-02 | Type 2: SNYK-DEBIAN13-GNUTLS28-16344314 (CVE-2026-33845 DTLS handshake integer underflow). Snyk explicitly: "no fixed version for Debian:13 gnutls28". Pipeline uses HTTP/HTTPS via httpx + requests (OpenSSL TLS), not gnutls's DTLS path; we do not accept inbound DTLS handshakes. Dismissed ``gh api`` (won't fix; not reachable). |
 
 ## Still open (not yet dismissed)
 
