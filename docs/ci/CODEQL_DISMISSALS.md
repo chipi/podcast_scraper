@@ -183,6 +183,7 @@ number, file, line, date, and a short comment.
 | 1 | #307 | server/routes/corpus_library.py | 401 | 2026-04-25 | Type 1: ``target = os.path.normpath(os.path.join(root_s, bridge_relative_path))`` followed by inline ``target.startswith(root_s + os.sep)`` prefix-guard before ``open()``. Dismissed ``gh api`` (PR #675) |
 | 1 | #308 | server/routes/operator_config.py | 136 | 2026-04-28 | Type 1: ``corpus_root`` from ``resolve_corpus_path_param`` (normpath + startswith anchor) immediately before ``corpus_root.mkdir(parents=True, exist_ok=True)`` on GET handler — auto-create restricted to subdirs under the configured corpus root (#693 first-run UX). Dismissed ``gh api`` (PR #702) |
 | 1 | #309 | server/routes/operator_config.py | 195 | 2026-04-28 | Type 1: same sanitizer chain as #308, mirror on PUT handler. Dismissed ``gh api`` (PR #702) |
+| 1 | #311 | server/routes/scheduled_jobs.py | 48 | 2026-05-02 | Type 1: ``corpus`` from ``_resolve_corpus_root`` → ``resolve_corpus_path_param`` (normpath+startswith anchor); ``.resolve()`` on already-anchored ``Path`` before ``os.path.normpath``. Same shape as ``routes/jobs.py`` and ``routes/corpus_library.py`` #306. Dismissed ``gh api`` (PR #707, #708) |
 
 ## Still open (not yet dismissed)
 

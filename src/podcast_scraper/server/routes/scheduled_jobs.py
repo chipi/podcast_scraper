@@ -44,6 +44,7 @@ async def list_scheduled_jobs(
     corpus = _corpus(request, path)
     scheduler = getattr(request.app.state, "scheduler", None)
     if scheduler is None:
+        # codeql[py/path-injection] -- corpus from _resolve_corpus_root (anchor-guarded; Type 1).
         return ScheduledJobsListResponse(
             path=os.path.normpath(str(corpus.resolve())),
             scheduler_running=False,
@@ -62,6 +63,7 @@ async def list_scheduled_jobs(
                     next_run_at=scheduler.next_run_at(cfg.name) if cfg.enabled else None,
                 )
             )
+        # codeql[py/path-injection] -- corpus from _resolve_corpus_root (anchor-guarded; Type 1).
         return ScheduledJobsListResponse(
             path=os.path.normpath(str(corpus.resolve())),
             scheduler_running=scheduler.running,
