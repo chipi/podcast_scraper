@@ -1,1 +1,5 @@
 experiment_id	score	delta	status	notes	dataset_ref	commit_sha	timestamp_utc
+gil_bundling_baseline_staged_v1	—	—	baseline	75% silver coverage; 40% grounded; 95.6s avg latency	silver_sonnet46_gi_multiquote_benchmark_v2	51932d15	2026-05-03T15:25Z
+gil_bundling_bundled_a_only_v1	0.30	+0.05cov +0.25grd	kept	80% silver cov (+5pp); 65% grounded (+25pp); 55.8s latency (-42%); Layer A only	silver_sonnet46_gi_multiquote_benchmark_v2	51932d15	2026-05-03T15:36Z
+gil_bundling_bundled_b_only_v1	0.30	+0.07cov +0.02grd	kept	82% silver cov (+7pp); 42% grounded (+2pp); 58.1s latency (-39%); Layer B only	silver_sonnet46_gi_multiquote_benchmark_v2	51932d15	2026-05-03T15:38Z
+gil_bundling_bundled_ab_v1	0.30	+0.07cov +0.38grd	kept-CHAMPION	82% silver cov (+7pp); 78% grounded (+38pp); 36.0s latency (-62%); both layers	silver_sonnet46_gi_multiquote_benchmark_v2	51932d15	2026-05-03T15:32Z
