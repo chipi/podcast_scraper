@@ -1,0 +1,23 @@
+# #698 multi-provider matrix — grok cell bundled_a_only.
+# Mirrors gil_bundling_bundled_a_only_v1 but on grok (grok-3-fast).
+id: gil_bundling_bundled_a_only_grok_v1
+task: grounded_insights
+
+backend:
+  type: grok
+  model: grok-3-fast
+
+data:
+  dataset_id: curated_5feeds_benchmark_v2
+
+preprocessing_profile: cleaning_v4
+
+params:
+  max_length: 800
+  min_length: 200
+  temperature: 0.0
+  gi_insight_source: provider
+  gi_max_insights: 12
+  gi_require_grounding: true
+  gil_evidence_quote_mode: bundled
+  gil_evidence_nli_mode: staged

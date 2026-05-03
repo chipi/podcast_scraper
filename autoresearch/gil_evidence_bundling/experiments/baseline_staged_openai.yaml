@@ -1,0 +1,26 @@
+# #698 multi-provider matrix — openai cell baseline_staged.
+# Mirrors gil_bundling_baseline_staged_v1 but on openai (gpt-4o-mini).
+id: gil_bundling_baseline_staged_openai_v1
+task: grounded_insights
+
+backend:
+  type: openai
+  model: gpt-4o-mini
+
+prompts:
+  user: openai/summarization/long_v1
+
+data:
+  dataset_id: curated_5feeds_benchmark_v2
+
+preprocessing_profile: cleaning_v4
+
+params:
+  max_length: 800
+  min_length: 200
+  temperature: 0.0
+  gi_insight_source: provider
+  gi_max_insights: 12
+  gi_require_grounding: true
+  gil_evidence_quote_mode: staged
+  gil_evidence_nli_mode: staged

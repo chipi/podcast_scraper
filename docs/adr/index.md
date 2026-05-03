@@ -94,10 +94,12 @@ and **Proposed** ADRs).
 | [ADR-074](ADR-074-multi-feed-corpus-parent-layout-and-manifest.md) | Multi-Feed Corpus Parent Layout and Machine-Readable Manifest | Accepted | [RFC-063](../rfc/RFC-063-multi-feed-corpus-append-resume.md) | Layout A corpus parent; unified discovery; `corpus_manifest.json` / optional summaries as operational artifacts | Yes |
 | [ADR-075](ADR-075-frozen-yaml-performance-profiles-for-release-baselines.md) | Frozen YAML Performance Profiles for Release Resource Baselines | Accepted | [RFC-064](../rfc/RFC-064-performance-profiling-release-freeze.md) | `data/profiles/*.yaml` + freeze/diff scripts; resource cost sibling to quality baselines | Yes |
 | [ADR-076](ADR-076-streamlit-for-operator-run-comparison-and-performance-views.md) | Streamlit for Operator Run Comparison and Performance Views | Accepted | [RFC-047](../rfc/RFC-047-run-comparison-visual-tool.md), [RFC-066](../rfc/RFC-066-run-compare-performance-tab.md) | Eval / Performance UI stays in `tools/run_compare/`; Vue viewer stays corpus-first | Yes |
+| [ADR-077](ADR-077-local-ollama-model-selection.md) | Local Ollama Model Selection | Accepted | — | Default Ollama models per profile and tier | Yes |
+| [ADR-078](ADR-078-gil-evidence-bundling-per-provider-champions.md) | GIL Evidence Stack Bundling — Per-Provider Champion Modes | Accepted | — | `bundled_ab` default; Mistral=`bundled_b_only`; Ollama bundled-only (staged unviable on local) | Yes |
 
 ## Gap analysis {:#gaps}
 
-**Counts (reconcile when adding ADRs):** **76** files under `docs/adr/ADR-*.md` (ADR-001–ADR-076;
+**Counts (reconcile when adding ADRs):** **78** files under `docs/adr/ADR-*.md` (ADR-001–ADR-078;
 numbering has historical gaps). From the index table: **2** **Proposed** (**ADR-055**, **ADR-056**),
 **3** **Accepted** with **Code = No** (**ADR-054**, **ADR-058**, **ADR-059**), **2** **Accepted** with
 **Code = Partial** (**ADR-031**, **ADR-047**). **Accepted** means ratified, not necessarily shipped.

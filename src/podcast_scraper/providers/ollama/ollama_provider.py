@@ -1974,6 +1974,9 @@ class OllamaProvider:
                 ],
                 temperature=0.0,
                 max_tokens=max_out,
+                **_ollama_openai_chat_extra_kwargs(
+                    self.summary_model, num_ctx=self.summary_num_ctx
+                ),
             )
 
         try:
@@ -2096,6 +2099,9 @@ class OllamaProvider:
                 ],
                 temperature=0.0,
                 max_tokens=max_out,
+                **_ollama_openai_chat_extra_kwargs(
+                    self.summary_model, num_ctx=self.summary_num_ctx
+                ),
             )
 
         try:
