@@ -1899,6 +1899,7 @@ class GeminiProvider:
                 cfg=self.cfg,
                 provider_type="gemini",
                 model=self.summary_model,
+                stage="extract_quotes",
             )
             content = response.text if hasattr(response, "text") else str(response)
             content = (content or "").strip()
@@ -2008,6 +2009,7 @@ class GeminiProvider:
                 cfg=self.cfg,
                 provider_type="gemini",
                 model=self.summary_model,
+                stage="score_entailment",
             )
             content = response.text if hasattr(response, "text") else str(response)
             content = (content or "0").strip()

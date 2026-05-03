@@ -615,6 +615,60 @@ class TestFinish(unittest.TestCase):
         self.assertEqual(m.llm_gi_evidence_retries, cm.retries)
         self.assertEqual(m.llm_gi_evidence_rate_limit_sleep_sec, cm.rate_limit_sleep_sec)
 
+    def test_record_llm_gi_evidence_stage_call_extract_quotes(self):
+        """``stage='extract_quotes'`` updates substage bucket AND parent aggregate (#698)."""
+        m = metrics.Metrics()
+        m.record_llm_gi_evidence_stage_call("extract_quotes", 1000, 200, cost_usd=0.0015)
+        m.record_llm_gi_evidence_stage_call("extract_quotes", 800, 150, cost_usd=0.0011)
+        self.assertEqual(m.llm_gi_extract_quotes_calls, 2)
+        self.assertEqual(m.llm_gi_extract_quotes_input_tokens, 1800)
+        self.assertEqual(m.llm_gi_extract_quotes_output_tokens, 350)
+        self.assertAlmostEqual(m.llm_gi_extract_quotes_cost_usd, 0.0026, places=6)
+        # Parent aggregate stays in sync.
+        self.assertEqual(m.llm_gi_calls, 2)
+        self.assertAlmostEqual(m.llm_gi_cost_usd, 0.0026, places=6)
+        # The other substage stays empty.
+        self.assertEqual(m.llm_gi_score_entailment_calls, 0)
+        self.assertEqual(m.llm_gi_score_entailment_cost_usd, 0.0)
+
+    def test_record_llm_gi_evidence_stage_call_score_entailment(self):
+        """``stage='score_entailment'`` updates the NLI substage bucket only."""
+        m = metrics.Metrics()
+        m.record_llm_gi_evidence_stage_call("score_entailment", 500, 50, cost_usd=0.0005)
+        m.record_llm_gi_evidence_stage_call("score_entailment", 600, 60, cost_usd=0.0006)
+        self.assertEqual(m.llm_gi_score_entailment_calls, 2)
+        self.assertEqual(m.llm_gi_score_entailment_input_tokens, 1100)
+        self.assertEqual(m.llm_gi_score_entailment_output_tokens, 110)
+        self.assertAlmostEqual(m.llm_gi_score_entailment_cost_usd, 0.0011, places=6)
+        self.assertEqual(m.llm_gi_extract_quotes_calls, 0)
+
+    def test_record_llm_gi_evidence_stage_call_mixed_substages(self):
+        """Both substages aggregate into the same parent ``llm_gi_*`` totals."""
+        m = metrics.Metrics()
+        m.record_llm_gi_evidence_stage_call("extract_quotes", 1000, 200, cost_usd=0.0015)
+        m.record_llm_gi_evidence_stage_call("score_entailment", 500, 50, cost_usd=0.0005)
+        m.record_llm_gi_evidence_stage_call("score_entailment", 500, 50, cost_usd=0.0005)
+        self.assertEqual(m.llm_gi_calls, 3)
+        self.assertEqual(m.llm_gi_input_tokens, 2000)
+        self.assertEqual(m.llm_gi_output_tokens, 300)
+        self.assertAlmostEqual(m.llm_gi_cost_usd, 0.0025, places=6)
+        # Substage sums equal parent (when only substage-attributed calls happen).
+        substage_sum = m.llm_gi_extract_quotes_cost_usd + m.llm_gi_score_entailment_cost_usd
+        self.assertAlmostEqual(substage_sum, m.llm_gi_cost_usd, places=6)
+
+    def test_record_llm_gi_evidence_stage_call_unknown_stage_is_safe(self):
+        """Unknown stage routes only to the parent aggregate (no exception)."""
+        m = metrics.Metrics()
+        m.record_llm_gi_evidence_stage_call(
+            "unknown_stage",  # type: ignore[arg-type]
+            100,
+            10,
+            cost_usd=0.0001,
+        )
+        self.assertEqual(m.llm_gi_calls, 1)
+        self.assertEqual(m.llm_gi_extract_quotes_calls, 0)
+        self.assertEqual(m.llm_gi_score_entailment_calls, 0)
+
     def test_record_gi_success_counts_and_derived_rates(self):
         """Test GIL success metrics accumulation and derived rates in finish()."""
         m = metrics.Metrics()
