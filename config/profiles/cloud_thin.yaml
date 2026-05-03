@@ -22,9 +22,10 @@ preprocessing_enabled: true
 llm_pipeline_mode: mega_bundled
 cloud_llm_structured_min_output_tokens: 4096
 
-# GIL evidence stack runs ~76 sequential Gemini calls/episode (extract_quotes + NLI;
-# see #698). A short Gemini 503 spike can stack retry backoff into minutes. 1200s gives
-# the per-call retry ladder room to outlast typical spikes — see #697 for the safety net.
+# GIL evidence stack: with #698 bundling (gil_evidence_*_mode: bundled below)
+# this stage now issues ~6 calls/episode instead of 76, dropping latency from
+# ~95s to ~36s on gemini-2.5-flash-lite. 1200s timeout retained as a safety
+# margin for transient Gemini 503 spikes — see #697 for the breaker.
 summarization_timeout: 1200
 
 # #697: per-provider wait-and-resume circuit breaker for Gemini 503 bursts.
@@ -38,6 +39,12 @@ generate_gi: true
 gi_insight_source: provider
 gi_max_insights: 12
 gi_require_grounding: true
+
+# #698 GIL evidence bundling — Layer A + Layer B both bundled.
+# Coverage vs Sonnet-4.6 silver: 75% (staged) → 82% (+7pp). 92% calls cut.
+# ADR-078; results in autoresearch/gil_evidence_bundling/results.tsv.
+gil_evidence_quote_mode: bundled
+gil_evidence_nli_mode: bundled
 
 generate_kg: true
 kg_extraction_source: provider

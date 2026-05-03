@@ -98,7 +98,7 @@ Also drop the `[:200]` mid-word truncation in `gi/pipeline.py:62`;
 if truncation is needed, do it at word boundary.
 
 **Expected lift:** GI Topic labels drop from median 20-word sentences
-to 2–3-word canonical concepts. Viewer's topic surface becomes useable.
+to 2–3-word canonical concepts. Viewer's topic surface becomes usable.
 
 ### Phase 1 validation
 

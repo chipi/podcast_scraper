@@ -130,5 +130,7 @@ rows: 4 Gemini cells + 4×5=20 cloud-provider cells + 3 Ollama cells).
 ## Decision
 
 See [ADR-078](../../adr/ADR-078-gil-evidence-bundling-per-provider-champions.md).
-Default flips into `cloud_thin.yaml` / `cloud_balanced.yaml` are deferred
-to a follow-up PR per CLAUDE.md "half-wired features" rule.
+Profile defaults flipped in PR #711 (`cloud_balanced`, `cloud_thin`,
+`cloud_quality`, `local`); airgapped profiles use local CrossEncoder
+and are unaffected. CLI `--config` path also patched to forward the
+new fields (`_gil_tuning_keys` in `cli.py`).

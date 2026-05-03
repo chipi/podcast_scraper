@@ -358,7 +358,7 @@ walking `gi.json` Topic nodes directly sees the bullet-as-topic shape.
   topics exist. Pair with Finding 6 (ID canonicalisation).
 - **Fallback:** Summarise bullets to 2–4 word topic labels via the
   same mega-bundle call (already produces short topic labels for KG).
-  Re-use that list for GI Topic nodes.
+  Reuse that list for GI Topic nodes.
 - Drop the mid-word `[:200]` truncation; if a label must be shortened,
   do it at word boundary.
 

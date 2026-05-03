@@ -137,10 +137,15 @@ mistral-small3.2 silently truncated and timed out. The fix is in
   keeping the override mechanism config-driven (per-experiment
   `gil_evidence_*_mode` params) — no provider-class subtyping.
 
-- **Neutral:** Default profile flips (e.g.
-  `cloud_thin: gil_evidence_quote_mode: bundled`) are deferred to a
-  follow-up PR per CLAUDE.md "half-wired features" rule. PR #711 ships
-  the implementation + matrix results only, not the default flips.
+- **Neutral:** Default profile flips landed in PR #711 alongside the
+  implementation. Profiles affected: `cloud_balanced`, `cloud_thin`,
+  `cloud_quality` (Gemini / Anthropic), and `local` (Ollama). The
+  airgapped profiles (`airgapped`, `airgapped_thin`) use local
+  CrossEncoder for evidence (`quote_extraction_provider: transformers`)
+  and are unaffected by this flip. The CLI `--config` path was also
+  patched to forward `gil_evidence_*_mode` through `_build_config`'s
+  payload — without that the YAML override would have been silently
+  dropped (same #646-class bug).
 
 ## Implementation Notes
 

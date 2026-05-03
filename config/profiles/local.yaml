@@ -46,6 +46,16 @@ gi_insight_source: provider
 gi_max_insights: 12
 gi_require_grounding: true
 
+# #698 GIL evidence bundling — Layer A + Layer B both bundled. On local
+# Ollama the staged path issues 76 calls × ~25s overhead = 30+min per episode,
+# which is operationally infeasible. Bundling cuts to ~6 calls (~10min/ep on
+# qwen3.5:9b). Coverage vs Sonnet-4.6 silver: 72% / 72% grounded. The bundled
+# Ollama path requires num_ctx=32k (default 2048 truncates the bundled prompt);
+# this is wired into OllamaProvider's bundled methods, no extra config needed.
+# ADR-078; results in autoresearch/gil_evidence_bundling/results.tsv.
+gil_evidence_quote_mode: bundled
+gil_evidence_nli_mode: bundled
+
 # Knowledge Graph
 generate_kg: true
 kg_extraction_source: provider

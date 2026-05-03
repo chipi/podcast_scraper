@@ -59,6 +59,10 @@ CLOUD_BALANCED_EXPECTED = {
     "gi_insight_source": "provider",
     "gi_max_insights": 12,
     "gi_require_grounding": True,
+    # #698 GIL evidence bundling — flipped to bundled defaults in PR #711.
+    # ADR-078 records the per-provider champion decision.
+    "gil_evidence_quote_mode": "bundled",
+    "gil_evidence_nli_mode": "bundled",
     "generate_kg": True,
     "kg_extraction_source": "provider",
     "kg_max_topics": 10,
@@ -80,6 +84,9 @@ CLOUD_QUALITY_OVERRIDES = {
     "llm_pipeline_mode": "mega_bundled",
     "cloud_llm_structured_min_output_tokens": 4096,
     "audio_preprocessing_profile": "speech_optimal_v1",
+    # #698 — same flip as cloud_balanced.
+    "gil_evidence_quote_mode": "bundled",
+    "gil_evidence_nli_mode": "bundled",
 }
 
 
@@ -171,7 +178,16 @@ class TestAllShippedProfilesRoundTripThroughCLI:
     regression gate for the #646 profile-routing bugs."""
 
     @pytest.mark.parametrize(
-        "profile_name", ["cloud_balanced", "cloud_quality", "local", "airgapped", "dev"]
+        "profile_name",
+        [
+            "cloud_balanced",
+            "cloud_thin",
+            "cloud_quality",
+            "local",
+            "airgapped",
+            "airgapped_thin",
+            "dev",
+        ],
     )
     def test_profile_flag_round_trips_every_yaml_field(
         self, _fake_keys: None, profile_name: str

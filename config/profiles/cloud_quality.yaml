@@ -71,6 +71,12 @@ gi_insight_source: provider
 gi_max_insights: 12
 gi_require_grounding: true
 
+# #698 GIL evidence bundling — Layer A + Layer B both bundled.
+# Coverage vs Sonnet-4.6 silver: 77.5% (staged) → 82.5% (+5pp). 92% calls cut.
+# ADR-078; results in autoresearch/gil_evidence_bundling/results.tsv.
+gil_evidence_quote_mode: bundled
+gil_evidence_nli_mode: bundled
+
 # Knowledge Graph — DeepSeek for prompt coherence with summary.
 # qwen3.5:9b leads KG (79%) in the cross-dataset baseline, but that's a local
 # model; within cloud LLMs KG clusters at 65%. Per-stage routing is future work.

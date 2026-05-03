@@ -25,7 +25,7 @@ logger = logging.getLogger(__name__)
 
 
 class BundleExtractParseError(Exception):
-    """Raised when the bundled extract response is unparseable as JSON."""
+    """Raised when the bundled extract response is unparsable as JSON."""
 
 
 def _strip_code_fences(content: str) -> str:
