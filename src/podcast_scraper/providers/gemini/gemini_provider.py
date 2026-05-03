@@ -2166,6 +2166,136 @@ class GeminiProvider:
             logger.debug("Gemini score_entailment failed: %s", e, exc_info=True)
             return 0.0
 
+    def score_entailment_bundled(
+        self,
+        pairs: List[Tuple[str, str]],
+        chunk_size: int = 15,
+        **kwargs: Any,
+    ) -> Dict[int, float]:
+        """Bundle ``score_entailment`` across many (premise, hypothesis) pairs (#698 Layer B).
+
+        ``pairs`` is the full list of pairs across all insights × all candidates that
+        passed the QA threshold. The method chunks at ``chunk_size`` (default 15) and
+        issues one Gemini call per chunk, returning a dict mapping each pair index in
+        ``range(len(pairs))`` to its NLI score in [0, 1]. Pairs that the model didn't
+        return a usable score for are absent from the result — the dispatcher decides
+        whether to fall back to per-pair staged calls or drop the candidate.
+
+        Each successful chunk increments the ``score_entailment`` substage cost bucket
+        (Phase 1 plumbing) so the autoresearch matrix can attribute the bundled
+        savings versus the staged path. A whole-method failure raises so the caller
+        can record a fallback metric and re-run the staged NLI loop.
+        """
+        if not self._summarization_initialized or not pairs:
+            return {}
+
+        chunk_size = max(1, int(chunk_size))
+        out: Dict[int, float] = {}
+        pm = kwargs.get("pipeline_metrics")
+        for chunk_start in range(0, len(pairs), chunk_size):
+            chunk = pairs[chunk_start : chunk_start + chunk_size]
+            chunk_scores = self._score_entailment_bundled_chunk(
+                chunk_pairs=chunk,
+                pipeline_metrics=pm,
+            )
+            for local_idx, score in chunk_scores.items():
+                out[chunk_start + local_idx] = score
+            if pm is not None and hasattr(pm, "gi_evidence_score_entailment_bundled_pairs_total"):
+                pm.gi_evidence_score_entailment_bundled_pairs_total += len(chunk)
+        return out
+
+    def _score_entailment_bundled_chunk(
+        self,
+        chunk_pairs: List[Tuple[str, str]],
+        pipeline_metrics: Optional[Any],
+    ) -> Dict[int, float]:
+        """One bundled NLI Gemini call for up to ``chunk_size`` pairs.
+
+        Returns scores for the chunk indexed locally (``range(len(chunk_pairs))``).
+        On any provider/parser failure, raises so the caller can decide on whole-
+        batch fallback. Counted as one ``score_entailment`` substage call.
+        """
+        from ...providers.common.bundle_nli_parser import (
+            BundleNliParseError,
+            parse_bundled_nli_response,
+        )
+        from ...utils.provider_metrics import (
+            _safe_gemini_retryable,
+            apply_gil_evidence_llm_call_metrics,
+            gemini_generate_usage_tokens,
+            merge_gil_evidence_call_metrics_on_failure,
+            ProviderCallMetrics,
+            retry_with_metrics,
+        )
+
+        # Numbered pair list keeps keying explicit and stable.
+        numbered_pairs_lines = []
+        for idx, (premise, hypothesis) in enumerate(chunk_pairs):
+            numbered_pairs_lines.append(
+                f"{idx}:\n  premise: {premise.strip()}\n  hypothesis: {hypothesis.strip()}"
+            )
+        numbered_pairs = "\n".join(numbered_pairs_lines)
+
+        system = (
+            "For each numbered (premise, hypothesis) pair below, rate how much the "
+            "premise supports the hypothesis on a scale from 0 (not at all) to 1 "
+            "(fully supports). Reply with ONLY a JSON object mapping the integer "
+            'index (as a string) to its score: {"0": 0.85, "1": 0.42, ...}.'
+        )
+        user = f"Pairs:\n{numbered_pairs}\n\nReturn JSON only."
+
+        call_metrics = ProviderCallMetrics()
+        call_metrics.set_provider_name("gemini")
+
+        # Output budget: ~25 chars per pair line + envelope.
+        max_out = max(256, min(8192, 30 * max(1, len(chunk_pairs))))
+        generation_config = _merge_generate_content_config(
+            self.summary_model,
+            {
+                "temperature": 0.0,
+                "max_output_tokens": max_out,
+                "system_instruction": system,
+            },
+        )
+
+        def _make_api_call() -> Any:
+            return self.client.models.generate_content(
+                model=self.summary_model,
+                contents=user,
+                config=cast(Any, generation_config),
+            )
+
+        try:
+            response = retry_with_metrics(
+                _make_api_call,
+                max_retries=3,
+                initial_delay=1.0,
+                max_delay=30.0,
+                retryable_exceptions=_safe_gemini_retryable(),
+                metrics=call_metrics,
+            )
+        except Exception:
+            merge_gil_evidence_call_metrics_on_failure(call_metrics, pipeline_metrics)
+            raise
+        in_tok, out_tok = gemini_generate_usage_tokens(response)
+        apply_gil_evidence_llm_call_metrics(
+            call_metrics,
+            pipeline_metrics,
+            in_tok,
+            out_tok,
+            cfg=self.cfg,
+            provider_type="gemini",
+            model=self.summary_model,
+            stage="score_entailment",
+        )
+
+        content = response.text if hasattr(response, "text") else str(response)
+        try:
+            return parse_bundled_nli_response(content, expected_count=len(chunk_pairs))
+        except BundleNliParseError as exc:
+            logger.debug("Gemini score_entailment_bundled parse failed: %s", exc)
+            raise
+
     def clean_transcript(self, text: str, pipeline_metrics: Optional[Any] = None) -> str:
         """Clean transcript using LLM for semantic filtering.
 

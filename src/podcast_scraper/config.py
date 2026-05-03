@@ -1880,6 +1880,29 @@ class Config(BaseModel):
             "transparently). Falls back to ``staged`` for that episode on parser/provider failure."
         ),
     )
+    gil_evidence_nli_mode: Literal["staged", "bundled"] = Field(
+        default="staged",
+        alias="gil_evidence_nli_mode",
+        description=(
+            "GIL evidence-stack score_entailment mode (#698 Layer B). ``staged`` (default) "
+            "issues one NLI LLM call per (insight, quote_candidate) pair. ``bundled`` "
+            "collects all pairs across insights and issues chunked bundled calls (chunk size "
+            "controlled by ``gil_evidence_nli_chunk_size``) when the provider implements "
+            "``score_entailment_bundled``. Per-pair fallback runs for any pair the bundled "
+            "call doesn't return a usable score for."
+        ),
+    )
+    gil_evidence_nli_chunk_size: int = Field(
+        default=15,
+        ge=1,
+        le=100,
+        alias="gil_evidence_nli_chunk_size",
+        description=(
+            "Pairs per bundled NLI call when ``gil_evidence_nli_mode='bundled'``. Tuning "
+            "lever between call count (lower = more calls, smaller prompts) and prompt "
+            "size (higher = fewer calls, longer prompts; risk of token-budget pressure)."
+        ),
+    )
     gi_qa_score_min: float = Field(
         default=0.3,
         ge=0.0,

@@ -45,6 +45,250 @@ SEGMENT_TRANSCRIPT_ALIGNMENT_MAX_DELTA = 50
 _STUB_INSIGHT_TEXT = "Summary insight (stub)."
 
 
+def _ground_insights_dispatch(
+    cfg: Any,
+    insight_specs: List[Tuple[str, Any]],
+    transcript: str,
+    quote_extraction_provider: Any,
+    entailment_provider: Any,
+    qa_score_min: float,
+    nli_entailment_min: float,
+    extract_retries: int,
+    pipeline_metrics: Optional[Any],
+    prefetched_by_idx: Optional[Dict[int, List[Any]]],
+) -> List[List[GroundedQuote]]:
+    """Pick the grounding flow based on ``cfg.gil_evidence_nli_mode`` (#698 Layer B).
+
+    Bundled NLI mode raises through to the staged fallback when the bundled call
+    itself fails (whole-batch fallback) and records a ``..._bundled_fallbacks``
+    counter for matrix attribution.
+    """
+    nli_mode = getattr(cfg, "gil_evidence_nli_mode", "staged")
+    if nli_mode == "bundled":
+        try:
+            return _ground_insights_with_bundled_nli(
+                insight_specs=insight_specs,
+                transcript=transcript,
+                quote_extraction_provider=quote_extraction_provider,
+                entailment_provider=entailment_provider,
+                qa_score_min=qa_score_min,
+                nli_entailment_min=nli_entailment_min,
+                extract_retries=extract_retries,
+                chunk_size=int(getattr(cfg, "gil_evidence_nli_chunk_size", 15)),
+                pipeline_metrics=pipeline_metrics,
+                prefetched_by_idx=prefetched_by_idx,
+            )
+        except Exception:
+            if pipeline_metrics is not None and hasattr(
+                pipeline_metrics, "gi_evidence_score_entailment_bundled_fallbacks"
+            ):
+                pipeline_metrics.gi_evidence_score_entailment_bundled_fallbacks += 1
+            # Fall through to staged below.
+    return _ground_insights_with_optional_prefetch(
+        insight_specs=insight_specs,
+        transcript=transcript,
+        quote_extraction_provider=quote_extraction_provider,
+        entailment_provider=entailment_provider,
+        qa_score_min=qa_score_min,
+        nli_entailment_min=nli_entailment_min,
+        extract_retries=extract_retries,
+        pipeline_metrics=pipeline_metrics,
+        prefetched_by_idx=prefetched_by_idx,
+    )
+
+
+def _gather_qa_passing_candidates(
+    insight_specs: List[Tuple[str, Any]],
+    transcript: str,
+    quote_extraction_provider: Any,
+    qa_score_min: float,
+    extract_retries: int,
+    pipeline_metrics: Optional[Any],
+    prefetched_by_idx: Optional[Dict[int, List[Any]]],
+) -> List[List[Any]]:
+    """Per-insight: collect QA-passing quote candidates (#698 Layer B prep).
+
+    For each insight, use prefetched candidates when available (Layer A); otherwise
+    issue the staged ``extract_quotes`` call. Filters by ``qa_score_min`` so the
+    bundled NLI call only sees candidates worth scoring.
+    """
+    from .grounding import GIL_EXTRACT_RETRY_INSIGHT_SUFFIX
+
+    extract_fn = getattr(quote_extraction_provider, "extract_quotes", None)
+    per_insight: List[List[Any]] = []
+    for idx, (it_text, _) in enumerate(insight_specs):
+        cands: List[Any] = []
+        if prefetched_by_idx is not None:
+            cands = list(prefetched_by_idx.get(idx) or [])
+        if not cands and callable(extract_fn):
+            retries = max(0, int(extract_retries))
+            for attempt in range(retries + 1):
+                ins_for_extract = it_text.strip()
+                if attempt > 0:
+                    ins_for_extract += GIL_EXTRACT_RETRY_INSIGHT_SUFFIX
+                try:
+                    raw = extract_fn(
+                        transcript=transcript,
+                        insight_text=ins_for_extract,
+                        pipeline_metrics=pipeline_metrics,
+                    )
+                except Exception as exc:
+                    logger.warning(
+                        "extract_quotes failed for GIL grounding: %s",
+                        format_exception_for_log(exc),
+                    )
+                    raw = []
+                if pipeline_metrics is not None and hasattr(
+                    pipeline_metrics, "gi_evidence_extract_quotes_calls"
+                ):
+                    pipeline_metrics.gi_evidence_extract_quotes_calls += 1
+                if isinstance(raw, list) and raw:
+                    cands = raw
+                    break
+        # QA filter
+        kept: List[Any] = []
+        for c in cands:
+            text = getattr(c, "text", None)
+            if text is None or getattr(c, "char_start", None) is None:
+                continue
+            if getattr(c, "qa_score", 0.0) < qa_score_min:
+                continue
+            kept.append(c)
+        if pipeline_metrics is not None and hasattr(
+            pipeline_metrics, "gi_evidence_nli_candidates_queued"
+        ):
+            pipeline_metrics.gi_evidence_nli_candidates_queued += len(kept)
+        per_insight.append(kept)
+    return per_insight
+
+
+def _ground_insights_with_bundled_nli(
+    insight_specs: List[Tuple[str, Any]],
+    transcript: str,
+    quote_extraction_provider: Any,
+    entailment_provider: Any,
+    qa_score_min: float,
+    nli_entailment_min: float,
+    extract_retries: int,
+    chunk_size: int,
+    pipeline_metrics: Optional[Any],
+    prefetched_by_idx: Optional[Dict[int, List[Any]]],
+) -> List[List[GroundedQuote]]:
+    """Bundled NLI flow (#698 Layer B): gather all pairs, call once, distribute scores.
+
+    This implements the option (a) win from #698: every (insight, candidate) pair
+    after QA filtering is sent in chunked bundled NLI calls instead of one call
+    per pair. With ~70 pairs across an episode and ``chunk_size=15``, that's
+    ~5 calls instead of 70.
+
+    Per-pair fallback: when the bundled call doesn't return a score for a pair
+    (model omitted it, parse error skipped it), the dispatcher issues a staged
+    per-pair NLI call for just that pair so we don't drop candidates silently.
+
+    Whole-batch fallback: when the bundled call raises, this function falls back
+    to the staged per-insight loop in ``_ground_insights_with_optional_prefetch``
+    via the caller's exception handling. Caller increments
+    ``gi_evidence_score_entailment_bundled_fallbacks`` for that case.
+    """
+    bundled_fn = getattr(entailment_provider, "score_entailment_bundled", None)
+    if not callable(bundled_fn):
+        # Provider doesn't implement bundled NLI — fall back to staged path.
+        return _ground_insights_with_optional_prefetch(
+            insight_specs=insight_specs,
+            transcript=transcript,
+            quote_extraction_provider=quote_extraction_provider,
+            entailment_provider=entailment_provider,
+            qa_score_min=qa_score_min,
+            nli_entailment_min=nli_entailment_min,
+            extract_retries=extract_retries,
+            pipeline_metrics=pipeline_metrics,
+            prefetched_by_idx=prefetched_by_idx,
+        )
+
+    per_insight_candidates = _gather_qa_passing_candidates(
+        insight_specs=insight_specs,
+        transcript=transcript,
+        quote_extraction_provider=quote_extraction_provider,
+        qa_score_min=qa_score_min,
+        extract_retries=extract_retries,
+        pipeline_metrics=pipeline_metrics,
+        prefetched_by_idx=prefetched_by_idx,
+    )
+
+    # Build flat (insight_idx, q_idx, premise, hypothesis) list.
+    pair_list: List[Tuple[int, int, str, str]] = []
+    for i_idx, (it_text, _) in enumerate(insight_specs):
+        for q_idx, c in enumerate(per_insight_candidates[i_idx]):
+            pair_list.append((i_idx, q_idx, str(c.text), it_text.strip()))
+
+    if not pair_list:
+        return [[] for _ in insight_specs]
+
+    bundled_scores: Dict[int, float]
+    try:
+        bundled_scores = bundled_fn(
+            pairs=[(p[2], p[3]) for p in pair_list],
+            chunk_size=chunk_size,
+            pipeline_metrics=pipeline_metrics,
+        )
+    except Exception as exc:
+        logger.warning(
+            "score_entailment_bundled failed; raising for staged fallback: %s",
+            format_exception_for_log(exc),
+        )
+        raise
+
+    if pipeline_metrics is not None and hasattr(
+        pipeline_metrics, "gi_evidence_score_entailment_bundled_calls"
+    ):
+        # Each chunk is one provider call; chunk count == number of bundled calls.
+        chunk_count = (len(pair_list) + max(1, chunk_size) - 1) // max(1, chunk_size)
+        pipeline_metrics.gi_evidence_score_entailment_bundled_calls += chunk_count
+
+    # Per-pair fallback for any pair the bundled call didn't score.
+    score_fn = getattr(entailment_provider, "score_entailment", None)
+    final_scores: Dict[int, float] = {}
+    for pair_idx, (_, _, premise, hypothesis) in enumerate(pair_list):
+        if pair_idx in bundled_scores:
+            final_scores[pair_idx] = bundled_scores[pair_idx]
+            continue
+        if not callable(score_fn):
+            final_scores[pair_idx] = 0.0
+            continue
+        try:
+            final_scores[pair_idx] = float(
+                score_fn(
+                    premise=premise,
+                    hypothesis=hypothesis,
+                    pipeline_metrics=pipeline_metrics,
+                )
+            )
+            if pipeline_metrics is not None and hasattr(
+                pipeline_metrics, "gi_evidence_score_entailment_calls"
+            ):
+                pipeline_metrics.gi_evidence_score_entailment_calls += 1
+        except Exception:
+            final_scores[pair_idx] = 0.0
+
+    # Distribute scores to per-insight GroundedQuote lists.
+    grounded_by_insight: List[List[GroundedQuote]] = [[] for _ in insight_specs]
+    for pair_idx, (i_idx, q_idx, _, _) in enumerate(pair_list):
+        score = final_scores.get(pair_idx, 0.0)
+        if score < nli_entailment_min:
+            continue
+        c = per_insight_candidates[i_idx][q_idx]
+        grounded_by_insight[i_idx].append(
+            GroundedQuote(
+                char_start=int(c.char_start),
+                char_end=int(c.char_end),
+                text=str(c.text),
+                qa_score=float(getattr(c, "qa_score", 0.0)),
+                nli_score=score,
+            )
+        )
+    return grounded_by_insight
+
+
 def _ground_insights_with_optional_prefetch(
     insight_specs: List[Tuple[str, Any]],
     transcript: str,
@@ -878,7 +1122,9 @@ def build_artifact(
                 insight_texts=[t for t, _ in insight_specs],
                 pipeline_metrics=pipeline_metrics,
             )
-            insight_quotes = _ground_insights_with_optional_prefetch(
+            # #698 Layer B — bundled score_entailment dispatch.
+            insight_quotes = _ground_insights_dispatch(
+                cfg=cfg,
                 insight_specs=insight_specs,
                 transcript=transcript_text.strip(),
                 quote_extraction_provider=q_prov,

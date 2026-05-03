@@ -187,6 +187,14 @@ class Metrics:
     # autoresearch matrix can attribute savings.
     gi_evidence_extract_quotes_bundled_calls: int = 0
     gi_evidence_extract_quotes_bundled_fallbacks: int = 0
+    # Bundled-mode counters (#698 Layer B: score_entailment_bundled). The bundled
+    # call internally chunks pairs at ``gil_evidence_nli_chunk_size``; each chunk
+    # increments ``llm_gi_score_entailment_calls`` once instead of N times. The
+    # ``..._pairs_total`` counter is the headline savings number — denominator
+    # for "calls per pair" reduction in the autoresearch report.
+    gi_evidence_score_entailment_bundled_calls: int = 0
+    gi_evidence_score_entailment_bundled_fallbacks: int = 0
+    gi_evidence_score_entailment_bundled_pairs_total: int = 0
     # Knowledge graph: extract_kg_graph (LLM provider path)
     llm_kg_calls: int = 0
     llm_kg_input_tokens: int = 0
