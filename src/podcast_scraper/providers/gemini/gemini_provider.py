@@ -1976,24 +1976,15 @@ class GeminiProvider:
             BundleExtractParseError,
             parse_bundled_extract_response,
         )
+        from ...providers.common.bundled_prompts import (
+            extract_quotes_bundled_max_tokens,
+            EXTRACT_QUOTES_BUNDLED_SYSTEM,
+            extract_quotes_bundled_user,
+            transcript_clip,
+        )
 
-        # Numbered list keeps the keying explicit and stable.
-        numbered_insights = "\n".join(
-            f"{idx}: {text.strip()}" for idx, text in enumerate(insight_texts)
-        )
-        system = (
-            "For EACH insight below, extract 3-5 short verbatim quotes from the "
-            "transcript that support it. Each quote MUST be a different passage — "
-            "never repeat. Reply with ONLY a JSON object mapping the integer "
-            "insight index (as a string) to an array of quote strings: "
-            '{"0": ["quote A", "quote B"], "1": ["quote C"], ...}. '
-            "If an insight has no supporting quote, return an empty array for it."
-        )
-        user = (
-            f"Transcript (excerpt):\n{transcript.strip()[:50000]}\n\n"
-            f"Insights:\n{numbered_insights}\n\n"
-            "Return JSON only."
-        )
+        system = EXTRACT_QUOTES_BUNDLED_SYSTEM
+        user = extract_quotes_bundled_user(transcript_clip(transcript), insight_texts)
 
         from ...utils.provider_metrics import (
             _safe_gemini_retryable,
@@ -2009,8 +2000,7 @@ class GeminiProvider:
         pm = kwargs.get("pipeline_metrics")
 
         # Bundled call may need a larger output budget than the per-insight call.
-        # Roughly: 5 quotes × 100 chars × N insights × ~1.3 tokens-per-char-ish.
-        max_out = max(1024, min(8192, 256 * max(1, len(insight_texts))))
+        max_out = extract_quotes_bundled_max_tokens(len(insight_texts))
         generation_config = _merge_generate_content_config(
             self.summary_model,
             {
@@ -2219,6 +2209,11 @@ class GeminiProvider:
             BundleNliParseError,
             parse_bundled_nli_response,
         )
+        from ...providers.common.bundled_prompts import (
+            score_entailment_bundled_max_tokens,
+            SCORE_ENTAILMENT_BUNDLED_SYSTEM,
+            score_entailment_bundled_user,
+        )
         from ...utils.provider_metrics import (
             _safe_gemini_retryable,
             apply_gil_evidence_llm_call_metrics,
@@ -2228,27 +2223,13 @@ class GeminiProvider:
             retry_with_metrics,
         )
 
-        # Numbered pair list keeps keying explicit and stable.
-        numbered_pairs_lines = []
-        for idx, (premise, hypothesis) in enumerate(chunk_pairs):
-            numbered_pairs_lines.append(
-                f"{idx}:\n  premise: {premise.strip()}\n  hypothesis: {hypothesis.strip()}"
-            )
-        numbered_pairs = "\n".join(numbered_pairs_lines)
-
-        system = (
-            "For each numbered (premise, hypothesis) pair below, rate how much the "
-            "premise supports the hypothesis on a scale from 0 (not at all) to 1 "
-            "(fully supports). Reply with ONLY a JSON object mapping the integer "
-            'index (as a string) to its score: {"0": 0.85, "1": 0.42, ...}.'
-        )
-        user = f"Pairs:\n{numbered_pairs}\n\nReturn JSON only."
+        system = SCORE_ENTAILMENT_BUNDLED_SYSTEM
+        user = score_entailment_bundled_user(chunk_pairs)
 
         call_metrics = ProviderCallMetrics()
         call_metrics.set_provider_name("gemini")
 
-        # Output budget: ~25 chars per pair line + envelope.
-        max_out = max(256, min(8192, 30 * max(1, len(chunk_pairs))))
+        max_out = score_entailment_bundled_max_tokens(len(chunk_pairs))
         generation_config = _merge_generate_content_config(
             self.summary_model,
             {

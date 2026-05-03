@@ -1484,6 +1484,7 @@ class GrokProvider:
                 cfg=self.cfg,
                 provider_type="grok",
                 model=self.summary_model,
+                stage="extract_quotes",
             )
             content = (response.choices[0].message.content or "").strip()
             if content.startswith("```"):
@@ -1587,6 +1588,7 @@ class GrokProvider:
                 cfg=self.cfg,
                 provider_type="grok",
                 model=self.summary_model,
+                stage="score_entailment",
             )
             content = (response.choices[0].message.content or "0").strip()
             for part in content.replace(",", " ").split():
@@ -1599,6 +1601,209 @@ class GrokProvider:
         except Exception as e:
             logger.debug("Grok score_entailment failed: %s", e, exc_info=True)
             return 0.0
+
+    def extract_quotes_bundled(
+        self,
+        transcript: str,
+        insight_texts: List[str],
+        **kwargs: Any,
+    ) -> Dict[int, List[Any]]:
+        """Bundle ``extract_quotes`` (#698 Layer A) — Grok (OpenAI-compat)."""
+        if not self._summarization_initialized or not transcript:
+            return {idx: [] for idx in range(len(insight_texts))}
+        if not insight_texts:
+            return {}
+
+        from ...gi.grounding import QuoteCandidate, resolve_llm_quote_span
+        from ...providers.common.bundle_extract_parser import (
+            BundleExtractParseError,
+            parse_bundled_extract_response,
+        )
+        from ...providers.common.bundled_prompts import (
+            extract_quotes_bundled_max_tokens,
+            EXTRACT_QUOTES_BUNDLED_SYSTEM,
+            extract_quotes_bundled_user,
+            transcript_clip,
+        )
+        from ...utils.provider_metrics import (
+            _safe_openai_retryable,
+            apply_gil_evidence_llm_call_metrics,
+            merge_gil_evidence_call_metrics_on_failure,
+            openai_compatible_chat_usage_tokens,
+            ProviderCallMetrics,
+            retry_with_metrics,
+        )
+
+        system = EXTRACT_QUOTES_BUNDLED_SYSTEM
+        user = extract_quotes_bundled_user(transcript_clip(transcript), insight_texts)
+        call_metrics = ProviderCallMetrics()
+        call_metrics.set_provider_name("grok")
+        pm = kwargs.get("pipeline_metrics")
+        max_out = extract_quotes_bundled_max_tokens(len(insight_texts))
+
+        def _make_api_call() -> Any:
+            return self.client.chat.completions.create(
+                model=self.summary_model,
+                messages=[
+                    {"role": "system", "content": system},
+                    {"role": "user", "content": user},
+                ],
+                temperature=0.0,
+                max_tokens=max_out,
+            )
+
+        try:
+            response = retry_with_metrics(
+                _make_api_call,
+                max_retries=3,
+                initial_delay=1.0,
+                max_delay=30.0,
+                retryable_exceptions=_safe_openai_retryable(),
+                metrics=call_metrics,
+            )
+        except Exception:
+            merge_gil_evidence_call_metrics_on_failure(call_metrics, pm)
+            raise
+        in_tok, out_tok = openai_compatible_chat_usage_tokens(response)
+        apply_gil_evidence_llm_call_metrics(
+            call_metrics,
+            pm,
+            in_tok,
+            out_tok,
+            cfg=self.cfg,
+            provider_type="grok",
+            model=self.summary_model,
+            stage="extract_quotes",
+        )
+
+        content = (response.choices[0].message.content or "").strip()
+        try:
+            parsed = parse_bundled_extract_response(content, expected_count=len(insight_texts))
+        except BundleExtractParseError as exc:
+            logger.debug("Grok extract_quotes_bundled parse failed: %s", exc)
+            raise
+
+        out: Dict[int, List[Any]] = {}
+        for idx in range(len(insight_texts)):
+            quote_strings = parsed.get(idx, [])
+            seen: set = set()
+            candidates: List[Any] = []
+            for qt_str in quote_strings:
+                qt_clean = str(qt_str).strip()
+                if not qt_clean:
+                    continue
+                resolved = resolve_llm_quote_span(transcript, qt_clean)
+                if resolved is None:
+                    continue
+                r_start, r_end, r_verbatim = resolved
+                if r_verbatim in seen:
+                    continue
+                seen.add(r_verbatim)
+                candidates.append(
+                    QuoteCandidate(
+                        char_start=r_start,
+                        char_end=r_end,
+                        text=r_verbatim,
+                        qa_score=1.0,
+                    )
+                )
+            out[idx] = candidates
+        return out
+
+    def score_entailment_bundled(
+        self,
+        pairs: List[Tuple[str, str]],
+        chunk_size: int = 15,
+        **kwargs: Any,
+    ) -> Dict[int, float]:
+        """Bundle ``score_entailment`` (#698 Layer B) — Grok."""
+        if not self._summarization_initialized or not pairs:
+            return {}
+        chunk_size = max(1, int(chunk_size))
+        out: Dict[int, float] = {}
+        pm = kwargs.get("pipeline_metrics")
+        for chunk_start in range(0, len(pairs), chunk_size):
+            chunk = pairs[chunk_start : chunk_start + chunk_size]
+            chunk_scores = self._score_entailment_bundled_chunk(
+                chunk_pairs=chunk, pipeline_metrics=pm
+            )
+            for local_idx, score in chunk_scores.items():
+                out[chunk_start + local_idx] = score
+            if pm is not None and hasattr(pm, "gi_evidence_score_entailment_bundled_pairs_total"):
+                pm.gi_evidence_score_entailment_bundled_pairs_total += len(chunk)
+        return out
+
+    def _score_entailment_bundled_chunk(
+        self,
+        chunk_pairs: List[Tuple[str, str]],
+        pipeline_metrics: Optional[Any],
+    ) -> Dict[int, float]:
+        """One bundled NLI Grok call."""
+        from ...providers.common.bundle_nli_parser import (
+            BundleNliParseError,
+            parse_bundled_nli_response,
+        )
+        from ...providers.common.bundled_prompts import (
+            score_entailment_bundled_max_tokens,
+            SCORE_ENTAILMENT_BUNDLED_SYSTEM,
+            score_entailment_bundled_user,
+        )
+        from ...utils.provider_metrics import (
+            _safe_openai_retryable,
+            apply_gil_evidence_llm_call_metrics,
+            merge_gil_evidence_call_metrics_on_failure,
+            openai_compatible_chat_usage_tokens,
+            ProviderCallMetrics,
+            retry_with_metrics,
+        )
+
+        system = SCORE_ENTAILMENT_BUNDLED_SYSTEM
+        user = score_entailment_bundled_user(chunk_pairs)
+        call_metrics = ProviderCallMetrics()
+        call_metrics.set_provider_name("grok")
+        max_out = score_entailment_bundled_max_tokens(len(chunk_pairs))
+
+        def _make_api_call() -> Any:
+            return self.client.chat.completions.create(
+                model=self.summary_model,
+                messages=[
+                    {"role": "system", "content": system},
+                    {"role": "user", "content": user},
+                ],
+                temperature=0.0,
+                max_tokens=max_out,
+            )
+
+        try:
+            response = retry_with_metrics(
+                _make_api_call,
+                max_retries=3,
+                initial_delay=1.0,
+                max_delay=30.0,
+                retryable_exceptions=_safe_openai_retryable(),
+                metrics=call_metrics,
+            )
+        except Exception:
+            merge_gil_evidence_call_metrics_on_failure(call_metrics, pipeline_metrics)
+            raise
+        in_tok, out_tok = openai_compatible_chat_usage_tokens(response)
+        apply_gil_evidence_llm_call_metrics(
+            call_metrics,
+            pipeline_metrics,
+            in_tok,
+            out_tok,
+            cfg=self.cfg,
+            provider_type="grok",
+            model=self.summary_model,
+            stage="score_entailment",
+        )
+
+        content = (response.choices[0].message.content or "").strip()
+        try:
+            return parse_bundled_nli_response(content, expected_count=len(chunk_pairs))
+        except BundleNliParseError as exc:
+            logger.debug("Grok score_entailment_bundled parse failed: %s", exc)
+            raise
 
     def clean_transcript(self, text: str, pipeline_metrics: Optional[Any] = None) -> str:
         """Clean transcript using LLM for semantic filtering.
