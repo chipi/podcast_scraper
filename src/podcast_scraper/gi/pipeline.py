@@ -28,6 +28,7 @@ from ..graph_id_utils import (
     slugify_label,
     topic_node_id_from_slug,
 )
+from ..utils.log_redaction import format_exception_for_log
 from .grounding import GroundedQuote
 from .provenance import resolve_gil_artifact_model_version
 
@@ -42,6 +43,103 @@ SEGMENT_TRANSCRIPT_ALIGNMENT_MAX_DELTA = 50
 
 # Stub insight text used when no real insights (single stub)
 _STUB_INSIGHT_TEXT = "Summary insight (stub)."
+
+
+def _ground_insights_with_optional_prefetch(
+    insight_specs: List[Tuple[str, Any]],
+    transcript: str,
+    quote_extraction_provider: Any,
+    entailment_provider: Any,
+    qa_score_min: float,
+    nli_entailment_min: float,
+    extract_retries: int,
+    pipeline_metrics: Optional[Any],
+    prefetched_by_idx: Optional[Dict[int, List[Any]]],
+) -> List[List[GroundedQuote]]:
+    """Run :func:`find_grounded_quotes_via_providers` per insight, honouring prefetched.
+
+    Extracted from ``build_artifact`` to keep that orchestrator under the project
+    cyclomatic-complexity threshold. When ``prefetched_by_idx`` is non-None and
+    contains a non-empty list for the insight at index ``idx``, those candidates
+    are used in place of a fresh ``extract_quotes`` call. Otherwise the per-insight
+    staged extract path runs (Layer A failure mode for that insight).
+    """
+    from .grounding import find_grounded_quotes_via_providers
+
+    out: List[List[GroundedQuote]] = []
+    for idx, (it_text, _) in enumerate(insight_specs):
+        candidates_for_insight: Optional[List[Any]] = None
+        if prefetched_by_idx is not None:
+            rows = prefetched_by_idx.get(idx) or []
+            if rows:
+                candidates_for_insight = rows
+        grounded = find_grounded_quotes_via_providers(
+            transcript=transcript,
+            insight_text=it_text,
+            quote_extraction_provider=quote_extraction_provider,
+            entailment_provider=entailment_provider,
+            qa_score_min=qa_score_min,
+            nli_entailment_min=nli_entailment_min,
+            pipeline_metrics=pipeline_metrics,
+            extract_retries=extract_retries,
+            prefetched_candidates=candidates_for_insight,
+        )
+        out.append(grounded if isinstance(grounded, list) else [])
+    return out
+
+
+def _maybe_prefetch_bundled_candidates(
+    cfg: Any,
+    quote_extraction_provider: Any,
+    transcript: str,
+    insight_texts: List[str],
+    pipeline_metrics: Optional[Any],
+) -> Optional[Dict[int, List[Any]]]:
+    """Run the bundled ``extract_quotes_bundled`` call when configured (#698 Layer A).
+
+    Returns a dict mapping each insight index to its candidate list when the
+    bundled call succeeds. Returns ``None`` when bundled mode is off, the
+    provider doesn't expose the bundled method, or the bundled call raises —
+    callers should fall back to the staged per-insight extract path. Metrics
+    counters track adoption (``..._bundled_calls``) and failure
+    (``..._bundled_fallbacks``) so the autoresearch matrix can attribute
+    savings.
+    """
+    quote_mode = getattr(cfg, "gil_evidence_quote_mode", "staged")
+    extract_bundled_fn = getattr(quote_extraction_provider, "extract_quotes_bundled", None)
+    if quote_mode != "bundled" or not callable(extract_bundled_fn):
+        return None
+    try:
+        prefetched = extract_bundled_fn(
+            transcript=transcript,
+            insight_texts=insight_texts,
+            pipeline_metrics=pipeline_metrics,
+        )
+    except Exception as exc:
+        logger.warning(
+            "extract_quotes_bundled failed; falling back to staged: %s",
+            format_exception_for_log(exc),
+        )
+        if pipeline_metrics is not None and hasattr(
+            pipeline_metrics, "gi_evidence_extract_quotes_bundled_fallbacks"
+        ):
+            pipeline_metrics.gi_evidence_extract_quotes_bundled_fallbacks += 1
+        return None
+    if pipeline_metrics is not None and hasattr(
+        pipeline_metrics, "gi_evidence_extract_quotes_bundled_calls"
+    ):
+        pipeline_metrics.gi_evidence_extract_quotes_bundled_calls += 1
+    if not isinstance(prefetched, dict):
+        return None
+    out: Dict[int, List[Any]] = {}
+    for k, v in prefetched.items():
+        try:
+            idx = int(k)
+        except (TypeError, ValueError):
+            continue
+        if isinstance(v, list):
+            out[idx] = v
+    return out
 
 
 def _record_stub_fallback(pipeline_metrics: Optional[Any], exc: Exception) -> None:
@@ -737,11 +835,7 @@ def build_artifact(
         assert cfg is not None
         try:
             from .deps import create_gil_evidence_providers
-            from .grounding import (
-                find_grounded_quotes_via_providers,
-                NLI_ENTAILMENT_MIN,
-                QA_SCORE_MIN,
-            )
+            from .grounding import NLI_ENTAILMENT_MIN, QA_SCORE_MIN
 
             q_prov = quote_extraction_provider
             e_prov = entailment_provider
@@ -772,22 +866,29 @@ def build_artifact(
                 q_prov = quote_extraction_provider
                 e_prov = entailment_provider
 
-            insight_quotes: List[List[GroundedQuote]] = []
             _er = max(0, _cfg_int(cfg, "gi_evidence_extract_retries", 0))
             qa_min = _cfg_float(cfg, "gi_qa_score_min", QA_SCORE_MIN)
             nli_min = _cfg_float(cfg, "gi_nli_entailment_min", NLI_ENTAILMENT_MIN)
-            for it_text, _ in insight_specs:
-                grounded = find_grounded_quotes_via_providers(
-                    transcript=transcript_text.strip(),
-                    insight_text=it_text,
-                    quote_extraction_provider=q_prov,
-                    entailment_provider=e_prov,
-                    qa_score_min=qa_min,
-                    nli_entailment_min=nli_min,
-                    pipeline_metrics=pipeline_metrics,
-                    extract_retries=_er,
-                )
-                insight_quotes.append(grounded if isinstance(grounded, list) else [])
+
+            # #698 Layer A — bundled extract_quotes pre-fetch (helper above).
+            prefetched_by_idx = _maybe_prefetch_bundled_candidates(
+                cfg=cfg,
+                quote_extraction_provider=q_prov,
+                transcript=transcript_text.strip(),
+                insight_texts=[t for t, _ in insight_specs],
+                pipeline_metrics=pipeline_metrics,
+            )
+            insight_quotes = _ground_insights_with_optional_prefetch(
+                insight_specs=insight_specs,
+                transcript=transcript_text.strip(),
+                quote_extraction_provider=q_prov,
+                entailment_provider=e_prov,
+                qa_score_min=qa_min,
+                nli_entailment_min=nli_min,
+                extract_retries=_er,
+                pipeline_metrics=pipeline_metrics,
+                prefetched_by_idx=prefetched_by_idx,
+            )
             total_grounded = sum(len(q) for q in insight_quotes)
             _handle_zero_grounded_quotes(
                 episode_id=episode_id,

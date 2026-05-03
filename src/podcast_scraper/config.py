@@ -1869,6 +1869,17 @@ class Config(BaseModel):
             "retries append a verbatim-copy hint to the insight text."
         ),
     )
+    gil_evidence_quote_mode: Literal["staged", "bundled"] = Field(
+        default="staged",
+        alias="gil_evidence_quote_mode",
+        description=(
+            "GIL evidence-stack extract_quotes mode (#698). ``staged`` (default) issues one "
+            "extract_quotes LLM call per insight, matching pre-#698 behaviour. ``bundled`` "
+            "issues a single bundled call across all insights when the provider implements "
+            "``extract_quotes_bundled`` (Gemini in V1; other providers fall back to ``staged`` "
+            "transparently). Falls back to ``staged`` for that episode on parser/provider failure."
+        ),
+    )
     gi_qa_score_min: float = Field(
         default=0.3,
         ge=0.0,

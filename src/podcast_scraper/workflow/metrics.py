@@ -180,6 +180,13 @@ class Metrics:
     llm_gi_score_entailment_input_tokens: int = 0
     llm_gi_score_entailment_output_tokens: int = 0
     llm_gi_score_entailment_cost_usd: float = 0.0
+    # Bundled-mode counters (#698 Layer A: extract_quotes_bundled). When the
+    # bundled call succeeds, ``llm_gi_extract_quotes_calls`` increments by 1 (one
+    # bundled call covers all N insights) instead of N. ``bundled_calls`` and
+    # ``bundled_fallbacks`` track adoption rate vs. the staged path so the
+    # autoresearch matrix can attribute savings.
+    gi_evidence_extract_quotes_bundled_calls: int = 0
+    gi_evidence_extract_quotes_bundled_fallbacks: int = 0
     # Knowledge graph: extract_kg_graph (LLM provider path)
     llm_kg_calls: int = 0
     llm_kg_input_tokens: int = 0

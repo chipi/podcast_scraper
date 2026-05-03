@@ -1944,6 +1944,148 @@ class GeminiProvider:
             logger.debug("Gemini extract_quotes failed: %s", e, exc_info=True)
             return []
 
+    def extract_quotes_bundled(
+        self,
+        transcript: str,
+        insight_texts: List[str],
+        **kwargs: Any,
+    ) -> Dict[int, List[Any]]:
+        """Bundle ``extract_quotes`` across all insights into one LLM call (#698 Layer A).
+
+        One Gemini round-trip returns a JSON mapping ``{insight_idx_str: [quote, ...]}``
+        covering every insight in ``insight_texts``. Each quote is text-only — char
+        offsets are resolved locally via :func:`resolve_llm_quote_span` after parsing,
+        same as the staged path so downstream NLI sees identical inputs.
+
+        Returns a dict mapping each input index (``range(len(insight_texts))``) to a
+        possibly-empty list of :class:`QuoteCandidate`. Empty list means the bundled
+        path produced nothing for that insight; the caller is expected to fall back
+        to the per-insight staged extract for those rows.
+
+        On any provider/parser failure the method raises so the caller can record a
+        single batched-fallback metric and re-run the staged extract for the whole
+        episode (mirrors the ``mega_bundled`` policy in ``metadata_generation``).
+        """
+        if not self._summarization_initialized or not transcript:
+            return {idx: [] for idx in range(len(insight_texts))}
+        if not insight_texts:
+            return {}
+
+        from ...gi.grounding import QuoteCandidate, resolve_llm_quote_span
+        from ...providers.common.bundle_extract_parser import (
+            BundleExtractParseError,
+            parse_bundled_extract_response,
+        )
+
+        # Numbered list keeps the keying explicit and stable.
+        numbered_insights = "\n".join(
+            f"{idx}: {text.strip()}" for idx, text in enumerate(insight_texts)
+        )
+        system = (
+            "For EACH insight below, extract 3-5 short verbatim quotes from the "
+            "transcript that support it. Each quote MUST be a different passage — "
+            "never repeat. Reply with ONLY a JSON object mapping the integer "
+            "insight index (as a string) to an array of quote strings: "
+            '{"0": ["quote A", "quote B"], "1": ["quote C"], ...}. '
+            "If an insight has no supporting quote, return an empty array for it."
+        )
+        user = (
+            f"Transcript (excerpt):\n{transcript.strip()[:50000]}\n\n"
+            f"Insights:\n{numbered_insights}\n\n"
+            "Return JSON only."
+        )
+
+        from ...utils.provider_metrics import (
+            _safe_gemini_retryable,
+            apply_gil_evidence_llm_call_metrics,
+            gemini_generate_usage_tokens,
+            merge_gil_evidence_call_metrics_on_failure,
+            ProviderCallMetrics,
+            retry_with_metrics,
+        )
+
+        call_metrics = ProviderCallMetrics()
+        call_metrics.set_provider_name("gemini")
+        pm = kwargs.get("pipeline_metrics")
+
+        # Bundled call may need a larger output budget than the per-insight call.
+        # Roughly: 5 quotes × 100 chars × N insights × ~1.3 tokens-per-char-ish.
+        max_out = max(1024, min(8192, 256 * max(1, len(insight_texts))))
+        generation_config = _merge_generate_content_config(
+            self.summary_model,
+            {
+                "temperature": 0.0,
+                "max_output_tokens": max_out,
+                "system_instruction": system,
+            },
+        )
+
+        def _make_api_call() -> Any:
+            return self.client.models.generate_content(
+                model=self.summary_model,
+                contents=user,
+                config=cast(Any, generation_config),
+            )
+
+        try:
+            response = retry_with_metrics(
+                _make_api_call,
+                max_retries=3,
+                initial_delay=1.0,
+                max_delay=30.0,
+                retryable_exceptions=_safe_gemini_retryable(),
+                metrics=call_metrics,
+            )
+        except Exception:
+            merge_gil_evidence_call_metrics_on_failure(call_metrics, pm)
+            raise
+        in_tok, out_tok = gemini_generate_usage_tokens(response)
+        apply_gil_evidence_llm_call_metrics(
+            call_metrics,
+            pm,
+            in_tok,
+            out_tok,
+            cfg=self.cfg,
+            provider_type="gemini",
+            model=self.summary_model,
+            stage="extract_quotes",
+        )
+        content = response.text if hasattr(response, "text") else str(response)
+
+        try:
+            parsed = parse_bundled_extract_response(content, expected_count=len(insight_texts))
+        except BundleExtractParseError as exc:
+            logger.debug("Gemini extract_quotes_bundled parse failed: %s", exc)
+            raise
+
+        # Resolve verbatim spans locally; deduplicate per insight.
+        out: Dict[int, List[Any]] = {}
+        for idx in range(len(insight_texts)):
+            quote_strings = parsed.get(idx, [])
+            seen: set = set()
+            candidates: List[Any] = []
+            for qt_str in quote_strings:
+                qt_clean = str(qt_str).strip()
+                if not qt_clean:
+                    continue
+                resolved = resolve_llm_quote_span(transcript, qt_clean)
+                if resolved is None:
+                    continue
+                r_start, r_end, r_verbatim = resolved
+                if r_verbatim in seen:
+                    continue
+                seen.add(r_verbatim)
+                candidates.append(
+                    QuoteCandidate(
+                        char_start=r_start,
+                        char_end=r_end,
+                        text=r_verbatim,
+                        qa_score=1.0,
+                    )
+                )
+            out[idx] = candidates
+        return out
+
     def score_entailment(
         self,
         premise: str,
