@@ -1,0 +1,21 @@
+id: gil_bundling_bundled_ab_v1
+description: |
+  Both layers bundled: extract_quotes_bundled + score_entailment_bundled.
+  Headline cell for #698 — the maximal call-count reduction (~76 → ~6).
+
+backend:
+  type: gemini
+  model: gemini-2.5-flash-lite-preview-09-2025
+
+data:
+  dataset_id: curated_5feeds_dev_v1
+  max_episodes: 10
+
+podcast_scraper_overrides:
+  generate_gi: true
+  gi_require_grounding: true
+  quote_extraction_provider: gemini
+  entailment_provider: gemini
+  gil_evidence_quote_mode: bundled
+  gil_evidence_nli_mode: bundled
+  gil_evidence_nli_chunk_size: 15

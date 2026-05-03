@@ -1,0 +1,21 @@
+id: gil_bundling_bundled_a_only_v1
+description: |
+  Layer A only: bundled extract_quotes (one call across all insights) +
+  staged score_entailment (one NLI call per quote candidate). Tests whether
+  the bundled extract preserves grounding without changing the NLI surface.
+
+backend:
+  type: gemini
+  model: gemini-2.5-flash-lite-preview-09-2025
+
+data:
+  dataset_id: curated_5feeds_dev_v1
+  max_episodes: 10
+
+podcast_scraper_overrides:
+  generate_gi: true
+  gi_require_grounding: true
+  quote_extraction_provider: gemini
+  entailment_provider: gemini
+  gil_evidence_quote_mode: bundled
+  gil_evidence_nli_mode: staged

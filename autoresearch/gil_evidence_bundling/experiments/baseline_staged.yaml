@@ -1,0 +1,22 @@
+id: gil_bundling_baseline_staged_v1
+description: |
+  Baseline staged extract_quotes + staged score_entailment on Gemini Flash Lite.
+  Reference cell for #698 GIL evidence bundling autoresearch matrix. Identical
+  to current production behaviour; ~76 sequential LLM calls per episode.
+
+backend:
+  type: gemini
+  model: gemini-2.5-flash-lite-preview-09-2025
+
+data:
+  dataset_id: curated_5feeds_dev_v1
+  max_episodes: 10
+
+# #698 mode flags — staged baseline.
+podcast_scraper_overrides:
+  generate_gi: true
+  gi_require_grounding: true
+  quote_extraction_provider: gemini
+  entailment_provider: gemini
+  gil_evidence_quote_mode: staged
+  gil_evidence_nli_mode: staged

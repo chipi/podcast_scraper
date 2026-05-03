@@ -319,12 +319,8 @@ nav:
   - Legal Notice: LEGAL.md
   - Work in Progress:
       - wip/WIP_README.md
-      - Metrics Gap Analysis: wip/METRICS_GAP_ANALYSIS.md
       - Metrics docs & dashboard v2 (design): wip/METRICS_DOCS_AND_DASHBOARD_V2.md
       - "WIP: Concurrent pipelines + HTTP retry metrics": wip/wip-concurrent-pipeline-http-retry-metrics.md
-      - Remaining Work: wip/REMAINING_WORK.md
-      - Type Hints Analysis: wip/TYPE_HINTS_ANALYSIS.md
-      - Prefect Fit Analysis: wip/PREFECT-FIT-ANALYSIS.md
 theme:
   name: material
   features:
