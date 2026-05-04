@@ -14,7 +14,10 @@ from unittest.mock import MagicMock, Mock, patch
 
 import pytest
 
-# Mock openai for imports; unit-only pytest process (``make test-ci-fast``).
+# Mock openai for imports. Scoped via setUpModule / tearDownModule so the
+# mock doesn't leak into other integration tests (e.g. test_e2e_server.py)
+# that need the real SDK. See INTEGRATION_TESTING_GUIDE.md → "Mocking LLM
+# SDKs at sys.modules".
 mock_openai = MagicMock()
 mock_openai.OpenAI = Mock()
 _patch_openai = patch.dict(
@@ -23,14 +26,22 @@ _patch_openai = patch.dict(
         "openai": mock_openai,
     },
 )
-_patch_openai.start()
+
+
+def setUpModule():
+    _patch_openai.start()
+
+
+def tearDownModule():
+    _patch_openai.stop()
+
 
 from podcast_scraper import config
 from podcast_scraper.speaker_detectors.factory import create_speaker_detector
 from podcast_scraper.summarization.factory import create_summarization_provider
 from podcast_scraper.transcription.factory import create_transcription_provider
 
-pytestmark = [pytest.mark.unit, pytest.mark.module_openai_providers]
+pytestmark = [pytest.mark.integration, pytest.mark.module_openai_providers]
 
 
 @pytest.mark.llm

@@ -50,7 +50,7 @@ from podcast_scraper.summarization.factory import create_summarization_provider
 # Restore real ``sys.modules`` after the imports captured the mocks.
 _patch_ollama.stop()
 
-pytestmark = [pytest.mark.unit, pytest.mark.module_ollama_providers]
+pytestmark = [pytest.mark.integration, pytest.mark.module_ollama_providers]
 
 
 @pytest.mark.llm

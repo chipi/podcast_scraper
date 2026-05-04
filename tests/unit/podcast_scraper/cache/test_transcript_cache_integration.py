@@ -5,11 +5,7 @@ import os
 import tempfile
 import unittest
 
-import pytest
-
 from podcast_scraper.cache import transcript_cache
-
-pytestmark = [pytest.mark.integration]
 
 
 class TestTranscriptCacheIntegration(unittest.TestCase):

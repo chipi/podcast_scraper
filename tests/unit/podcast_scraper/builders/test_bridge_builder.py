@@ -5,11 +5,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-import pytest
-
 from podcast_scraper.builders.bridge_builder import build_bridge
-
-pytestmark = [pytest.mark.integration]
 
 
 def test_build_bridge_identities_superset_of_gi_kg_cil_ids(tmp_path: Path) -> None:

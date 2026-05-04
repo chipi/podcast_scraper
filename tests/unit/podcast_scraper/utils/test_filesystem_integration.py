@@ -25,7 +25,6 @@ from podcast_scraper import config
 from podcast_scraper.utils import filesystem
 
 
-@pytest.mark.integration
 @pytest.mark.critical_path
 class TestFilesystemOperations(unittest.TestCase):
     """Test filesystem utility functions."""
@@ -82,7 +81,8 @@ class TestFilesystemOperations(unittest.TestCase):
         """Test file naming with run suffix."""
         # Without run suffix
         name = filesystem.build_whisper_output_name(1, "Episode_Title", None)
-        # The name contains "Episode_Title" which has "_", but that's from title_safe, not run suffix
+        # The name contains "Episode_Title" which has "_", but that's from
+        # title_safe, not run suffix
         # Check that run suffix pattern is not present (run suffix would be "_suffix")
         name_parts = name.split(" - ")[1].split(".")[0]
         # Without run suffix, the name should just be the title (may contain _ from title_safe)

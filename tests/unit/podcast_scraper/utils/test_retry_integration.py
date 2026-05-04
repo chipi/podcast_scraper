@@ -6,12 +6,9 @@ import time
 import unittest
 from unittest.mock import Mock, patch
 
-import pytest
-
 from podcast_scraper.utils.provider_metrics import ProviderCallMetrics, retry_with_metrics
 
 
-@pytest.mark.integration
 class TestRetryIntegration(unittest.TestCase):
     """Integration tests for retry logic in provider scenarios."""
 
@@ -80,7 +77,7 @@ class TestRetryIntegration(unittest.TestCase):
             self.assertAlmostEqual(delay1, 0.1, delta=0.02)
 
     def test_retry_exponential_backoff_with_jitter(self):
-        """Test exponential backoff with jitter using mocked time.sleep for deterministic testing."""
+        """Test exponential backoff with jitter (mocked time.sleep for determinism)."""
         mock_func = Mock(
             side_effect=[ValueError("error"), ValueError("error"), ValueError("error"), "success"]
         )
