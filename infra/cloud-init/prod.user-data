@@ -1,0 +1,98 @@
+#cloud-config
+# First-boot bootstrap for podcast-scraper-prod (RFC-082 Decision 5).
+# Runs once on first boot; idempotent re-runs require manual reset.
+
+hostname: ${tailnet_hostname}
+manage_etc_hosts: true
+
+users:
+  - name: deploy
+    groups: docker
+    shell: /bin/bash
+    sudo: false
+    ssh_authorized_keys:
+      - ${ssh_public_key}
+
+package_update: true
+package_upgrade: true
+
+packages:
+  - ca-certificates
+  - curl
+  - gnupg
+  - lsb-release
+  - unattended-upgrades
+  - jq
+  - git
+
+write_files:
+  # Operator drops .env into /srv/podcast-scraper/.env after first boot, then
+  # `sudo rm` this sentinel to release the systemd unit. start.sh is gated
+  # on the file's absence (ExecStartPre).
+  - path: /srv/podcast-scraper/.bootstrap-needs-env
+    content: |
+      Operator: stage /srv/podcast-scraper/.env (mode 600, owner deploy:deploy)
+      then `sudo rm /srv/podcast-scraper/.bootstrap-needs-env` to start the stack.
+      See docs/guides/PROD_RUNBOOK.md for the .env shape.
+    permissions: '0644'
+    owner: root:root
+
+  - path: /etc/systemd/system/podcast-scraper.service
+    content: |
+      [Unit]
+      Description=podcast_scraper compose stack
+      Requires=docker.service
+      After=docker.service network-online.target tailscaled.service
+
+      [Service]
+      Type=oneshot
+      RemainAfterExit=yes
+      WorkingDirectory=/srv/podcast-scraper
+      EnvironmentFile=/srv/podcast-scraper/.env
+      ExecStartPre=/usr/bin/test ! -e /srv/podcast-scraper/.bootstrap-needs-env
+      ExecStart=/usr/bin/docker compose -f compose/docker-compose.stack.yml -f compose/docker-compose.prod.yml up -d --remove-orphans
+      ExecStop=/usr/bin/docker compose -f compose/docker-compose.stack.yml -f compose/docker-compose.prod.yml down
+
+      [Install]
+      WantedBy=multi-user.target
+    permissions: '0644'
+    owner: root:root
+
+runcmd:
+  # === Docker (official Docker repo) ===
+  - install -m 0755 -d /etc/apt/keyrings
+  - curl -fsSL https://download.docker.com/linux/ubuntu/gpg -o /etc/apt/keyrings/docker.asc
+  - chmod a+r /etc/apt/keyrings/docker.asc
+  - echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/ubuntu $(. /etc/os-release && echo "$VERSION_CODENAME") stable" > /etc/apt/sources.list.d/docker.list
+  - apt-get update
+  - apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+  - systemctl enable --now docker
+
+  # === Tailscale (official tailscale repo; supports both amd64 + arm64) ===
+  - curl -fsSL "https://pkgs.tailscale.com/stable/ubuntu/$(. /etc/os-release && echo "$VERSION_CODENAME").noarmor.gpg" -o /usr/share/keyrings/tailscale-archive-keyring.gpg
+  - curl -fsSL "https://pkgs.tailscale.com/stable/ubuntu/$(. /etc/os-release && echo "$VERSION_CODENAME").tailscale-keyring.list" -o /etc/apt/sources.list.d/tailscale.list
+  - apt-get update
+  - apt-get install -y tailscale
+  - tailscale up --auth-key='${tailscale_auth_key}' --hostname='${tailnet_hostname}' --advertise-tags='tag:prod' --ssh=false
+
+  # === Repo checkout to /srv/podcast-scraper ===
+  - install -d -o deploy -g deploy -m 0755 /srv/podcast-scraper
+  - sudo -u deploy git clone --branch main --depth 50 https://github.com/chipi/podcast_scraper.git /srv/podcast-scraper
+  - chown -R deploy:deploy /srv/podcast-scraper
+
+  # === Corpus mount: prefer attached Volume, fall back to boot-disk dir ===
+  - VOLUME_PATH=$(ls -d /mnt/HC_Volume_* 2>/dev/null | head -1); if [ -n "$VOLUME_PATH" ]; then mkdir -p "$VOLUME_PATH/corpus"; chown -R deploy:deploy "$VOLUME_PATH/corpus"; ln -sfn "$VOLUME_PATH/corpus" /srv/podcast-scraper/corpus; else install -d -o deploy -g deploy /srv/podcast-scraper/corpus; fi
+
+  # === Unattended security upgrades ===
+  - dpkg-reconfigure -plow -fnoninteractive unattended-upgrades
+
+  # === Enable systemd unit (will block on .bootstrap-needs-env) ===
+  - systemctl enable podcast-scraper.service
+  - systemctl start podcast-scraper.service || true
+
+  - echo "[$(date -u +%FT%TZ)] cloud-init complete; awaiting operator .env" >> /var/log/podcast-scraper-bootstrap.log
+
+final_message: |
+  podcast-scraper-prod cloud-init complete after $UPTIME seconds.
+  Next step (operator): SSH in via Tailscale, stage /srv/podcast-scraper/.env,
+  then `sudo rm /srv/podcast-scraper/.bootstrap-needs-env && sudo systemctl restart podcast-scraper.service`.
