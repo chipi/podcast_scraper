@@ -23,7 +23,7 @@ from podcast_scraper.providers.anthropic.anthropic_provider import AnthropicProv
 from podcast_scraper.providers.common.bundle_extract_parser import BundleExtractParseError
 from podcast_scraper.providers.common.bundle_nli_parser import BundleNliParseError
 
-pytestmark = [pytest.mark.unit]
+pytestmark = [pytest.mark.integration]
 
 
 def _make_provider() -> AnthropicProvider:

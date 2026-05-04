@@ -46,7 +46,7 @@ from podcast_scraper.providers.common.bundle_extract_parser import BundleExtract
 from podcast_scraper.providers.common.bundle_nli_parser import BundleNliParseError
 from podcast_scraper.providers.gemini.gemini_provider import GeminiProvider
 
-pytestmark = [pytest.mark.unit]
+pytestmark = [pytest.mark.integration]
 
 
 def _make_provider() -> GeminiProvider:

@@ -19,7 +19,6 @@ test suite covers all 5 with minimal duplication. Provider-specific glue
 
 from __future__ import annotations
 
-import importlib
 import importlib.util
 import json
 from typing import Tuple, Type
@@ -27,22 +26,48 @@ from unittest.mock import MagicMock, Mock, patch
 
 import pytest
 
-# Mock the SDK packages each provider tries to import. None of these are
-# actually used in the unit test path (we patch retry_with_metrics), but
-# each provider's module-level imports may probe them at import time.
-for sdk_name in ("openai", "anthropic", "mistralai", "httpx"):
-    if sdk_name in importlib.util.find_spec.__globals__.get("sys", __import__("sys")).modules:
-        continue
-    mock_mod = MagicMock()
-    mock_mod.__spec__ = importlib.util.spec_from_loader(sdk_name, loader=None)
-    patch.dict("sys.modules", {sdk_name: mock_mod}).start()
+# Mock the LLM SDKs whose module-level imports run when the provider modules
+# load. ``httpx`` is intentionally NOT mocked — integration tier has it
+# installed for real, and OpenAIProvider's timeout_config does
+# ``isinstance(base, httpx.Timeout)`` which requires the real type. Same
+# pattern as tests/integration/providers/llm/test_openai_provider.py.
+mock_openai = MagicMock()
+mock_openai.OpenAI = MagicMock()
+
+
+class _MockOpenAIError(Exception):
+    """Stand-in for openai.APIError so retry_with_metrics' except clauses parse."""
+
+
+class _MockOpenAIRateLimit(Exception):
+    """Stand-in for openai.RateLimitError."""
+
+
+mock_openai.APIError = _MockOpenAIError
+mock_openai.RateLimitError = _MockOpenAIRateLimit
+mock_anthropic = MagicMock()
+mock_mistralai = MagicMock()
+for name, mod in {
+    "openai": mock_openai,
+    "anthropic": mock_anthropic,
+    "mistralai": mock_mistralai,
+}.items():
+    mod.__spec__ = importlib.util.spec_from_loader(name, loader=None)
+patch.dict(
+    "sys.modules",
+    {
+        "openai": mock_openai,
+        "anthropic": mock_anthropic,
+        "mistralai": mock_mistralai,
+    },
+).start()
 
 
 from podcast_scraper import config
 from podcast_scraper.providers.common.bundle_extract_parser import BundleExtractParseError
 from podcast_scraper.providers.common.bundle_nli_parser import BundleNliParseError
 
-pytestmark = [pytest.mark.unit]
+pytestmark = [pytest.mark.integration]
 
 
 # ---------------------------------------------------------------------------
@@ -107,17 +132,7 @@ def _provider_factory(name: str) -> Tuple[Type, dict, str]:
 def _make_provider(name: str):
     cls, cfg_kwargs, model = _provider_factory(name)
     cfg = config.Config(**cfg_kwargs)
-    if name == "ollama":
-        # OllamaProvider.__init__ has a runtime check ``if httpx is None``;
-        # the module-level binding is None when the unit-test env doesn't
-        # install ``[llm]`` extras (CI test-unit step). Patch the binding
-        # to a MagicMock for the duration of construction.
-        from podcast_scraper.providers.ollama import ollama_provider as ollama_mod
-
-        with patch.object(ollama_mod, "httpx", MagicMock()):
-            provider = cls(cfg)
-    else:
-        provider = cls(cfg)
+    provider = cls(cfg)
     provider.client = MagicMock()
     provider._summarization_initialized = True
     provider.summary_model = model
