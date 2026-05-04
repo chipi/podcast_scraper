@@ -83,8 +83,7 @@ compound alone). **Connections to other nodes** lists edges from member topics t
 graph; each row can show **Via:** which member topic(s) that edge comes from when merged. Duplicate
 neighbors by id are merged.
 
-Later phases may extend **Show on graph** and search highlighting — see [UXS-005](UXS-005-semantic-search.md) and
-[`wip-rfc-075-open-questions-followup`](../wip/wip-rfc-075-open-questions-followup.md).
+Later phases may extend **Show on graph** and search highlighting — see [UXS-005](UXS-005-semantic-search.md).
 
 **Progressive cross-episode expansion:** With a healthy corpus path, **double-activation** (Cytoscape **`dbltap`**; mouse: **double-click**, touch: **double-tap**) without Shift on an
 eligible **Topic**, **Person**, or **Entity** node (canonical `topic:` / `person:` / `org:` id, degree

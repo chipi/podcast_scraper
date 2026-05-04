@@ -69,6 +69,16 @@ gi_insight_source: provider
 gi_max_insights: 12
 gi_require_grounding: true
 
+# #698 GIL evidence bundling — Layer A (extract_quotes) + Layer B (NLI) both
+# bundled. Cuts ~76 sequential Gemini calls/ep → ~6 (-92%) and ~95s GIL
+# latency → ~36s (-62%) on this profile's gemini-2.5-flash-lite. Coverage vs
+# Sonnet-4.6 silver: 75% (staged) → 82% (+7pp). Champion call recorded in
+# ADR-078; matrix in autoresearch/gil_evidence_bundling/results.tsv.
+# Bundled methods fall back to staged transparently on parser failures, so
+# this is safe to default to bundled.
+gil_evidence_quote_mode: bundled
+gil_evidence_nli_mode: bundled
+
 # Knowledge Graph
 generate_kg: true
 kg_extraction_source: provider
@@ -80,8 +90,9 @@ vector_search: true
 vector_backend: faiss
 
 # #697: per-provider wait-and-resume circuit breaker for Gemini 503 bursts.
-# Same rationale as cloud_thin — the GIL evidence stack here is identical
-# (76 sequential calls per episode), so the same protection applies.
+# Same rationale as cloud_thin — but with #698 bundling above the GIL stack
+# now issues ~6 calls/ep instead of 76, so the breaker rarely trips on this
+# stage. Kept enabled for the summary + GI insight calls.
 llm_circuit_breaker_enabled: true
 
 # General

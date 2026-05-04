@@ -3888,6 +3888,12 @@ def _build_config(args: argparse.Namespace) -> config.Config:  # noqa: C901
         "gi_embedding_model",
         "extractive_qa_device",
         "nli_device",
+        # #698 — GIL evidence stack bundling modes (Layer A / Layer B). Profiles
+        # set these to ``bundled`` after PR #711; without copying them here the
+        # ``--config`` path would silently drop the override and run staged.
+        "gil_evidence_quote_mode",
+        "gil_evidence_nli_mode",
+        "gil_evidence_nli_chunk_size",
     )
     for _gil_key in _gil_tuning_keys:
         if hasattr(args, _gil_key):

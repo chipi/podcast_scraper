@@ -390,6 +390,7 @@ def apply_gil_evidence_llm_call_metrics(
     cfg: Optional[Any] = None,
     provider_type: Optional[str] = None,
     model: Optional[str] = None,
+    stage: Optional[str] = None,
 ) -> None:
     """Finalize a GIL evidence LLM call and merge into pipeline metrics.
 
@@ -403,6 +404,12 @@ def apply_gil_evidence_llm_call_metrics(
     (#650 Finding 17). Without those args the legacy behaviour stands —
     callers that already `set_cost` on ``call_metrics`` will still flow that
     value through.
+
+    When ``stage`` is one of ``"extract_quotes"`` or ``"score_entailment"`` and
+    the pipeline metrics object exposes ``record_llm_gi_evidence_stage_call``,
+    the call is attributed to that substage bucket (#698 Phase 1). The parent
+    ``llm_gi_*`` aggregate is updated in either path so legacy dashboards keep
+    working.
     """
     if prompt_tokens is not None and completion_tokens is not None:
         call_metrics.set_tokens(prompt_tokens, completion_tokens)
@@ -437,12 +444,19 @@ def apply_gil_evidence_llm_call_metrics(
         return
     if hasattr(pipeline_metrics, "record_llm_gi_evidence_call_metrics"):
         pipeline_metrics.record_llm_gi_evidence_call_metrics(call_metrics)
-    if (
-        prompt_tokens is not None
-        and completion_tokens is not None
-        and hasattr(pipeline_metrics, "record_llm_gi_call")
+    if prompt_tokens is None or completion_tokens is None:
+        return
+    gi_cost = getattr(call_metrics, "estimated_cost", None)
+    # Substage attribution updates the substage bucket AND the parent aggregate
+    # via ``record_llm_gi_call`` internally. Without ``stage``, fall back to the
+    # legacy parent-only path so other providers' behaviour is unchanged.
+    if stage in ("extract_quotes", "score_entailment") and hasattr(
+        pipeline_metrics, "record_llm_gi_evidence_stage_call"
     ):
-        gi_cost = getattr(call_metrics, "estimated_cost", None)
+        pipeline_metrics.record_llm_gi_evidence_stage_call(
+            stage, prompt_tokens, completion_tokens, cost_usd=gi_cost
+        )
+    elif hasattr(pipeline_metrics, "record_llm_gi_call"):
         pipeline_metrics.record_llm_gi_call(prompt_tokens, completion_tokens, cost_usd=gi_cost)
 
 

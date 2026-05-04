@@ -134,8 +134,7 @@ The system has **one pipeline** (`workflow.run_pipeline`) and **one configuratio
 - **In scope:** Build-time or CLI-triggered clustering; optional operator-authored YAML for `topic-clusters --validate-config` (no committed canonical file); HTTP surface to serve the JSON artifact; viewer overlay only.
 - **Out of scope:** Replacing KG extraction, replacing FAISS, or requiring a database. No query-time external embedding APIs.
 
-**Design:** [RFC-075](../rfc/RFC-075-corpus-topic-clustering.md) (Draft) — current writers emit **`schema_version`: `"2"`** with distinct **`graph_compound_parent_id`** (viewer) vs **`cil_alias_target_topic_id`** (CIL). Holistic review notes:
-[docs/wip/rfc-075-holistic-review.md](../wip/rfc-075-holistic-review.md).
+**Design:** [RFC-075](../rfc/RFC-075-corpus-topic-clustering.md) (Draft) — current writers emit **`schema_version`: `"2"`** with distinct **`graph_compound_parent_id`** (viewer) vs **`cil_alias_target_topic_id`** (CIL).
 
 ## Insight Clustering Layer (#599) {#insight-clustering-layer}
 

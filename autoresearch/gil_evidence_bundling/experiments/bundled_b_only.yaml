@@ -1,0 +1,26 @@
+# #698 cell 3 — Layer B only: staged extract_quotes + bundled NLI (chunked).
+id: gil_bundling_bundled_b_only_v1
+task: grounded_insights
+
+backend:
+  type: gemini
+  model: gemini-2.5-flash-lite
+
+prompts:
+  user: gemini/summarization/long_v1
+
+data:
+  dataset_id: curated_5feeds_benchmark_v2
+
+preprocessing_profile: cleaning_v4
+
+params:
+  max_length: 800
+  min_length: 200
+  temperature: 0.0
+  gi_insight_source: provider
+  gi_max_insights: 12
+  gi_require_grounding: true
+  gil_evidence_quote_mode: staged
+  gil_evidence_nli_mode: bundled
+  gil_evidence_nli_chunk_size: 15

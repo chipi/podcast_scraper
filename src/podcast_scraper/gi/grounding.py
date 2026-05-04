@@ -246,6 +246,7 @@ def find_grounded_quotes_via_providers(
     nli_entailment_min: float = NLI_ENTAILMENT_MIN,
     pipeline_metrics: Optional[Any] = None,
     extract_retries: int = 0,
+    prefetched_candidates: Optional[List[Any]] = None,
 ) -> List[GroundedQuote]:
     """Run QA then NLI using provider methods; return quotes that support the insight.
 
@@ -265,6 +266,12 @@ def find_grounded_quotes_via_providers(
         extract_retries: Extra extract_quotes calls after an empty/non-list result;
             later attempts append ``GIL_EXTRACT_RETRY_INSIGHT_SUFFIX``. NLI always
             uses the original ``insight_text`` (no suffix).
+        prefetched_candidates: When non-None (#698 Layer A), skip the per-insight
+            ``extract_quotes`` call and use these candidates directly. Empty list is
+            valid and means "the bundled call returned nothing for this insight" —
+            the caller decides whether to retry staged. ``extract_retries`` is
+            ignored on this path because the bundled call already controls retry
+            policy at the provider level.
 
     Returns:
         List of GroundedQuote (char_start, char_end, text, qa_score, nli_score).
@@ -274,45 +281,50 @@ def find_grounded_quotes_via_providers(
 
     extract_fn = getattr(quote_extraction_provider, "extract_quotes", None)
     score_fn = getattr(entailment_provider, "score_entailment", None)
-    if not callable(extract_fn) or not callable(score_fn):
-        logger.debug(
-            "Provider(s) missing extract_quotes or score_entailment; skipping provider grounding."
-        )
+    if prefetched_candidates is None and not callable(extract_fn):
+        logger.debug("Provider missing extract_quotes; skipping provider grounding.")
+        return []
+    if not callable(score_fn):
+        logger.debug("Provider missing score_entailment; skipping provider grounding.")
         return []
 
-    retries = max(0, int(extract_retries))
-    candidates: List[Any] = []
-    for attempt in range(retries + 1):
-        insight_for_extract = insight_text.strip()
-        if attempt > 0:
-            insight_for_extract += GIL_EXTRACT_RETRY_INSIGHT_SUFFIX
-        try:
-            raw = extract_fn(
-                transcript=transcript.strip(),
-                insight_text=insight_for_extract,
-                pipeline_metrics=pipeline_metrics,
-            )
-        except Exception as e:
-            logger.warning(
-                "extract_quotes failed for GIL grounding: %s",
-                format_exception_for_log(e),
-            )
-            return []
+    candidates: List[Any]
+    if prefetched_candidates is not None:
+        candidates = list(prefetched_candidates)
+    else:
+        candidates = []
+        retries = max(0, int(extract_retries))
+        for attempt in range(retries + 1):
+            insight_for_extract = insight_text.strip()
+            if attempt > 0:
+                insight_for_extract += GIL_EXTRACT_RETRY_INSIGHT_SUFFIX
+            try:
+                raw = extract_fn(  # type: ignore[misc]
+                    transcript=transcript.strip(),
+                    insight_text=insight_for_extract,
+                    pipeline_metrics=pipeline_metrics,
+                )
+            except Exception as e:
+                logger.warning(
+                    "extract_quotes failed for GIL grounding: %s",
+                    format_exception_for_log(e),
+                )
+                return []
 
-        if pipeline_metrics is not None and hasattr(
-            pipeline_metrics, "gi_evidence_extract_quotes_calls"
-        ):
-            pipeline_metrics.gi_evidence_extract_quotes_calls += 1
+            if pipeline_metrics is not None and hasattr(
+                pipeline_metrics, "gi_evidence_extract_quotes_calls"
+            ):
+                pipeline_metrics.gi_evidence_extract_quotes_calls += 1
 
-        if not isinstance(raw, list):
-            logger.debug(
-                "extract_quotes returned non-list (%s); skipping this attempt.",
-                type(raw).__name__,
-            )
-            continue
-        if raw:
-            candidates = raw
-            break
+            if not isinstance(raw, list):
+                logger.debug(
+                    "extract_quotes returned non-list (%s); skipping this attempt.",
+                    type(raw).__name__,
+                )
+                continue
+            if raw:
+                candidates = raw
+                break
 
     if not candidates:
         return []

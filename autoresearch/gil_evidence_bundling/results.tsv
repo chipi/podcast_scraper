@@ -1,0 +1,28 @@
+experiment_id	score	delta	status	notes	dataset_ref	commit_sha	timestamp_utc
+gil_bundling_baseline_staged_v1	—	—	baseline	75% silver coverage; 40% grounded; 95.6s avg latency	silver_sonnet46_gi_multiquote_benchmark_v2	51932d15	2026-05-03T15:25Z
+gil_bundling_bundled_a_only_v1	0.30	+0.05cov +0.25grd	kept	80% silver cov (+5pp); 65% grounded (+25pp); 55.8s latency (-42%); Layer A only	silver_sonnet46_gi_multiquote_benchmark_v2	51932d15	2026-05-03T15:36Z
+gil_bundling_bundled_b_only_v1	0.30	+0.07cov +0.02grd	kept	82% silver cov (+7pp); 42% grounded (+2pp); 58.1s latency (-39%); Layer B only	silver_sonnet46_gi_multiquote_benchmark_v2	51932d15	2026-05-03T15:38Z
+gil_bundling_bundled_ab_v1	0.30	+0.07cov +0.38grd	kept-CHAMPION	82% silver cov (+7pp); 78% grounded (+38pp); 36.0s latency (-62%); both layers	silver_sonnet46_gi_multiquote_benchmark_v2	51932d15	2026-05-03T15:32Z
+gil_bundling_baseline_staged_deepseek_v1	—	—	baseline	72% silver coverage; 51.3s latency	silver_sonnet46_gi_multiquote_benchmark_v2	0c7c2775	2026-05-03T16:50Z
+gil_bundling_bundled_a_only_deepseek_v1	0.30	+0.03cov 17%calls	kept	75% silver cov (+3pp); 26.8s (-48%); 17% calls cut (Layer A only)	silver_sonnet46_gi_multiquote_benchmark_v2	0c7c2775	2026-05-03T16:55Z
+gil_bundling_bundled_b_only_deepseek_v1	0.30	+0.06cov 75%calls	kept	78% silver cov (+6pp); 33.1s (-35%); 75% calls cut (Layer B only)	silver_sonnet46_gi_multiquote_benchmark_v2	0c7c2775	2026-05-03T16:53Z
+gil_bundling_bundled_ab_deepseek_v1	0.30	+0.06cov 92%calls	kept-CHAMPION	78% silver cov (+6pp); 32.0s (-38%); 92% calls cut; cost-aware champion	silver_sonnet46_gi_multiquote_benchmark_v2	0c7c2775	2026-05-03T16:51Z
+gil_bundling_baseline_staged_mistral_v1	—	—	baseline	70% silver coverage; 35.3s latency	silver_sonnet46_gi_multiquote_benchmark_v2	0c7c2775	2026-05-03T17:10Z
+gil_bundling_bundled_a_only_mistral_v1	0.30	+0.00cov 17%calls	kept	70% silver cov (no improvement); 18.4s (-48%); 17% calls cut	silver_sonnet46_gi_multiquote_benchmark_v2	0c7c2775	2026-05-03T17:13Z
+gil_bundling_bundled_b_only_mistral_v1	0.30	+0.10cov 75%calls	kept-CHAMPION	80% silver cov (+10pp); 28.1s (-20%); 75% calls cut; Mistral champion (Layer A regresses)	silver_sonnet46_gi_multiquote_benchmark_v2	0c7c2775	2026-05-03T17:14Z
+gil_bundling_bundled_ab_mistral_v1	0.30	-0.025cov 92%calls	kept	67.5% silver cov (-2.5pp); 20.5s (-42%); 92% calls cut; bundled_ab regresses on Mistral	silver_sonnet46_gi_multiquote_benchmark_v2	0c7c2775	2026-05-03T17:11Z
+gil_bundling_baseline_staged_openai_v1	—	—	baseline	72% silver coverage; 38.8s latency	silver_sonnet46_gi_multiquote_benchmark_v2	0c7c2775	2026-05-03T17:30Z
+gil_bundling_bundled_a_only_openai_v1	0.30	+0.05cov 17%calls	kept	77.5% silver cov (+5pp); 31.1s (-20%); 17% calls cut; quality-best for OpenAI	silver_sonnet46_gi_multiquote_benchmark_v2	0c7c2775	2026-05-03T17:35Z
+gil_bundling_bundled_b_only_openai_v1	0.30	+0.00cov 75%calls	kept	72.5% silver cov (no change); 35.5s (-9%); 75% calls cut	silver_sonnet46_gi_multiquote_benchmark_v2	0c7c2775	2026-05-03T17:36Z
+gil_bundling_bundled_ab_openai_v1	0.30	+0.00cov 92%calls	kept-CHAMPION	72.5% silver cov (-5pp tradeoff vs a_only); 28.1s (-28%); 92% calls cut; operator-chosen champion (call-cut over quality)	silver_sonnet46_gi_multiquote_benchmark_v2	0c7c2775	2026-05-03T17:32Z
+gil_bundling_baseline_staged_grok_v1	—	—	baseline	90% silver coverage (already saturated); 41.6s latency	silver_sonnet46_gi_multiquote_benchmark_v2	0c7c2775	2026-05-03T17:50Z
+gil_bundling_bundled_a_only_grok_v1	0.30	-0.025cov 17%calls	kept	87.5% silver cov (-2.5pp); 44.8s (+8%); 17% calls cut; bundling does not help Grok	silver_sonnet46_gi_multiquote_benchmark_v2	0c7c2775	2026-05-03T17:55Z
+gil_bundling_bundled_b_only_grok_v1	0.30	-0.025cov 75%calls	kept	87.5% silver cov (-2.5pp); 37.4s (-10%); 75% calls cut	silver_sonnet46_gi_multiquote_benchmark_v2	0c7c2775	2026-05-03T17:56Z
+gil_bundling_bundled_ab_grok_v1	0.30	-0.025cov 92%calls	kept-CHAMPION	87.5% silver cov (-2.5pp); 34.4s (-17%); 92% calls cut; champion if rate-limited (else baseline_staged)	silver_sonnet46_gi_multiquote_benchmark_v2	0c7c2775	2026-05-03T17:52Z
+gil_bundling_baseline_staged_anthropic_v1	—	—	baseline	77.5% silver coverage; 42.9s latency	silver_sonnet46_gi_multiquote_benchmark_v2	0c7c2775	2026-05-03T18:10Z
+gil_bundling_bundled_a_only_anthropic_v1	0.30	+0.05cov 17%calls	kept	82.5% silver cov (+5pp); 25.5s (-41%); 17% calls cut	silver_sonnet46_gi_multiquote_benchmark_v2	0c7c2775	2026-05-03T18:14Z
+gil_bundling_bundled_b_only_anthropic_v1	0.30	+0.025cov 75%calls	kept	80% silver cov (+2.5pp); 28.5s (-34%); 75% calls cut	silver_sonnet46_gi_multiquote_benchmark_v2	0c7c2775	2026-05-03T18:15Z
+gil_bundling_bundled_ab_anthropic_v1	0.30	+0.05cov 92%calls	kept-CHAMPION	82.5% silver cov (+5pp); 17.9s (-58%); 92% calls cut; cost-aware champion (tied with a_only on quality)	silver_sonnet46_gi_multiquote_benchmark_v2	0c7c2775	2026-05-03T18:11Z
+gil_bundling_bundled_ab_ollama_qwen35_9b_v1	0.30	—	kept-CHAMPION	72% silver cov; 72% grounded; 122s/ep; bundled-only (staged unviable on local Ollama — per-call overhead × 76 calls); Ollama champion	silver_sonnet46_gi_multiquote_benchmark_v2	39bfd6a0	2026-05-03T21:08Z
+gil_bundling_bundled_ab_ollama_llama32_3b_v1	0.30	—	kept-fragile	62% silver cov (below 70% gate); 45% grounded; 60s/ep; 1+ JSON fallback observed (3B model fragile on bundled prompts); fastest but quality regresses	silver_sonnet46_gi_multiquote_benchmark_v2	39bfd6a0	2026-05-03T22:02Z
+gil_bundling_bundled_ab_ollama_mistral_small32_v1	0.30	—	kept	70% silver cov; 70% grounded; 852s/ep (24B model, brutal on local CPU); num_ctx=32k fix required; comparable quality to qwen but 7x slower	silver_sonnet46_gi_multiquote_benchmark_v2	39bfd6a0	2026-05-03T23:14Z

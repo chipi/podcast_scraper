@@ -109,6 +109,19 @@ def merge_eval_task_into_summarizer_config(
         }
         if max_insights is not None:
             updates["gi_max_insights"] = int(max_insights)
+        # #698 GIL evidence-stack bundling — forward mode flags from the
+        # experiment YAML's ``params:`` dict to the runtime Config so the
+        # bundled dispatch in ``gi/pipeline.py`` actually fires for matrix
+        # cells. Defaults preserve pre-#698 behaviour.
+        quote_mode = p.get("gil_evidence_quote_mode")
+        if quote_mode in ("staged", "bundled"):
+            updates["gil_evidence_quote_mode"] = quote_mode
+        nli_mode = p.get("gil_evidence_nli_mode")
+        if nli_mode in ("staged", "bundled"):
+            updates["gil_evidence_nli_mode"] = nli_mode
+        chunk = p.get("gil_evidence_nli_chunk_size")
+        if isinstance(chunk, int) and 1 <= chunk <= 100:
+            updates["gil_evidence_nli_chunk_size"] = chunk
         # Auto-align evidence providers to match summary_provider when the
         # summarizer is an LLM (same logic as Config._auto_promote_evidence_providers
         # which only runs at construction time, not on model_copy).

@@ -185,8 +185,9 @@ Optional post-step: map each non-centroid member `topic_id` to the cluster’s *
 
 ## Post-implementation holistic review
 
-Completed **four** passes (data flow, edge cases, documentation, second consistency audit) — see
-[`docs/wip/rfc-075-holistic-review.md`](../wip/rfc-075-holistic-review.md).
+Completed **four** passes (data flow, edge cases, documentation, second consistency audit). The
+detailed review notes were folded into the unified quality plan during the post-2.6 cleanup; see
+the implementation notes inline below for what survived as durable guidance.
 
 ## Autoresearch Findings (2026-04-18, PR feat/pipeline-validation-591)
 
@@ -220,15 +221,11 @@ threshold may shift back to 0.75 with cleaner labels.
 label) in the **graph node rail** when **`topic_clusters.json`** is loaded and the selected node is a
 member **Topic**; **selection** stays on the Topic. Optional follow-ups (search-hit emphasis on
 compounds, **Show on graph** camera to cluster) remain product decisions — see
-[UXS-004](../uxs/UXS-004-graph-exploration.md), [UXS-005](../uxs/UXS-005-semantic-search.md), and
-[`docs/wip/wip-rfc-075-open-questions-followup.md`](../wip/wip-rfc-075-open-questions-followup.md).
+[UXS-004](../uxs/UXS-004-graph-exploration.md) and [UXS-005](../uxs/UXS-005-semantic-search.md).
 
 **Data (FAISS vs JSON):** **Canonical** cluster membership stays in **`topic_clusters.json`** (and
 HTTP passthrough) unless a future feature requires denormalized cluster ids on **`kg_topic`** FAISS
-rows; see the same WIP note for the recommended default.
-
-**Working notes** (options, phasing, history):
-[`docs/wip/wip-rfc-075-open-questions-followup.md`](../wip/wip-rfc-075-open-questions-followup.md).
+rows.
 
 ## References
 

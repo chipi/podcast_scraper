@@ -1,0 +1,24 @@
+# #698 multi-provider matrix — mistral cell bundled_ab.
+# Mirrors gil_bundling_bundled_ab_v1 but on mistral (mistral-small-latest).
+id: gil_bundling_bundled_ab_mistral_v1
+task: grounded_insights
+
+backend:
+  type: mistral
+  model: mistral-small-latest
+
+data:
+  dataset_id: curated_5feeds_benchmark_v2
+
+preprocessing_profile: cleaning_v4
+
+params:
+  max_length: 800
+  min_length: 200
+  temperature: 0.0
+  gi_insight_source: provider
+  gi_max_insights: 12
+  gi_require_grounding: true
+  gil_evidence_quote_mode: bundled
+  gil_evidence_nli_mode: bundled
+  gil_evidence_nli_chunk_size: 15

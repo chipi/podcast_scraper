@@ -159,4 +159,3 @@ Implemented (not only planned):
 
 - [RFC-025](../rfc/RFC-025-test-metrics-and-health-tracking.md)
 - [RFC-026](../rfc/RFC-026-metrics-consumption-and-dashboards.md)
-- [METRICS_GAP_ANALYSIS.md](METRICS_GAP_ANALYSIS.md)

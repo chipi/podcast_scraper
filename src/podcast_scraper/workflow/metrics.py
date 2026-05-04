@@ -167,6 +167,34 @@ class Metrics:
     llm_gi_cost_usd: float = 0.0  # Accumulated GIL cost (insights + evidence stack)
     llm_gi_evidence_retries: int = 0  # Retries across GIL evidence LLM calls (extract_quotes / NLI)
     llm_gi_evidence_rate_limit_sleep_sec: float = 0.0  # Rate-limit sleep on those calls
+    # GIL evidence-stack substage breakdown (#698 Phase 1: cost observability prerequisite for
+    # bundling experiment). The sum of these substage buckets equals the evidence-stack share
+    # of ``llm_gi_cost_usd``; ``insights`` generation is the remainder. Substage buckets are
+    # only populated by providers that pass ``stage=`` to ``apply_gil_evidence_llm_call_metrics``
+    # (Gemini in V1; others still aggregate into ``llm_gi_*`` only).
+    llm_gi_extract_quotes_calls: int = 0
+    llm_gi_extract_quotes_input_tokens: int = 0
+    llm_gi_extract_quotes_output_tokens: int = 0
+    llm_gi_extract_quotes_cost_usd: float = 0.0
+    llm_gi_score_entailment_calls: int = 0
+    llm_gi_score_entailment_input_tokens: int = 0
+    llm_gi_score_entailment_output_tokens: int = 0
+    llm_gi_score_entailment_cost_usd: float = 0.0
+    # Bundled-mode counters (#698 Layer A: extract_quotes_bundled). When the
+    # bundled call succeeds, ``llm_gi_extract_quotes_calls`` increments by 1 (one
+    # bundled call covers all N insights) instead of N. ``bundled_calls`` and
+    # ``bundled_fallbacks`` track adoption rate vs. the staged path so the
+    # autoresearch matrix can attribute savings.
+    gi_evidence_extract_quotes_bundled_calls: int = 0
+    gi_evidence_extract_quotes_bundled_fallbacks: int = 0
+    # Bundled-mode counters (#698 Layer B: score_entailment_bundled). The bundled
+    # call internally chunks pairs at ``gil_evidence_nli_chunk_size``; each chunk
+    # increments ``llm_gi_score_entailment_calls`` once instead of N times. The
+    # ``..._pairs_total`` counter is the headline savings number — denominator
+    # for "calls per pair" reduction in the autoresearch report.
+    gi_evidence_score_entailment_bundled_calls: int = 0
+    gi_evidence_score_entailment_bundled_fallbacks: int = 0
+    gi_evidence_score_entailment_bundled_pairs_total: int = 0
     # Knowledge graph: extract_kg_graph (LLM provider path)
     llm_kg_calls: int = 0
     llm_kg_input_tokens: int = 0
@@ -539,6 +567,34 @@ class Metrics:
         self.llm_gi_evidence_rate_limit_sleep_sec += float(
             getattr(cm, "rate_limit_sleep_sec", 0.0) or 0.0
         )
+
+    def record_llm_gi_evidence_stage_call(
+        self,
+        stage: Literal["extract_quotes", "score_entailment"],
+        input_tokens: int,
+        output_tokens: int,
+        cost_usd: Optional[float] = None,
+    ) -> None:
+        """Record one GIL evidence-stack LLM call attributed to a specific substage.
+
+        Substage buckets (``extract_quotes`` vs ``score_entailment``) are the prerequisite
+        for #698: without them, post-bundling cost reduction can't be measured per layer.
+        Always also calls :meth:`record_llm_gi_call` so the parent aggregate stays in sync.
+        """
+        if stage == "extract_quotes":
+            self.llm_gi_extract_quotes_calls += 1
+            self.llm_gi_extract_quotes_input_tokens += int(input_tokens)
+            self.llm_gi_extract_quotes_output_tokens += int(output_tokens)
+            if cost_usd is not None:
+                self.llm_gi_extract_quotes_cost_usd += float(cost_usd)
+        elif stage == "score_entailment":
+            self.llm_gi_score_entailment_calls += 1
+            self.llm_gi_score_entailment_input_tokens += int(input_tokens)
+            self.llm_gi_score_entailment_output_tokens += int(output_tokens)
+            if cost_usd is not None:
+                self.llm_gi_score_entailment_cost_usd += float(cost_usd)
+        # Parent aggregate stays in sync for compatibility with existing dashboards.
+        self.record_llm_gi_call(input_tokens, output_tokens, cost_usd=cost_usd)
 
     def record_llm_kg_call(
         self,

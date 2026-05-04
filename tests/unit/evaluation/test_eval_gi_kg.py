@@ -167,6 +167,88 @@ def test_merge_eval_task_applies_numeric_params() -> None:
     assert kg_cfg.kg_max_entities == 7
 
 
+def _gi_base_for_bundling() -> RuntimeConfig:
+    """Use ``transformers`` summary_provider so no API key is required for Config validation."""
+    return RuntimeConfig.model_validate(
+        {
+            "rss": "",
+            "summary_provider": "transformers",
+            "generate_summaries": True,
+            "generate_metadata": True,
+            "generate_gi": False,
+            "generate_kg": False,
+            "transcribe_missing": False,
+        }
+    )
+
+
+def test_merge_eval_task_forwards_gil_evidence_quote_mode_bundled() -> None:
+    """#698 Layer A — params dict overrides Config.gil_evidence_quote_mode."""
+    cfg = merge_eval_task_into_summarizer_config(
+        _gi_base_for_bundling(),
+        "grounded_insights",
+        {"gil_evidence_quote_mode": "bundled"},
+    )
+    assert cfg.gil_evidence_quote_mode == "bundled"
+    assert cfg.gil_evidence_nli_mode == "staged"  # untouched default
+
+
+def test_merge_eval_task_forwards_gil_evidence_nli_mode_bundled() -> None:
+    """#698 Layer B — params dict overrides Config.gil_evidence_nli_mode."""
+    cfg = merge_eval_task_into_summarizer_config(
+        _gi_base_for_bundling(),
+        "grounded_insights",
+        {"gil_evidence_nli_mode": "bundled", "gil_evidence_nli_chunk_size": 10},
+    )
+    assert cfg.gil_evidence_nli_mode == "bundled"
+    assert cfg.gil_evidence_nli_chunk_size == 10
+    assert cfg.gil_evidence_quote_mode == "staged"  # untouched default
+
+
+def test_merge_eval_task_invalid_quote_mode_falls_back_to_default() -> None:
+    cfg = merge_eval_task_into_summarizer_config(
+        _gi_base_for_bundling(),
+        "grounded_insights",
+        {"gil_evidence_quote_mode": "garbage"},
+    )
+    assert cfg.gil_evidence_quote_mode == "staged"  # default preserved
+
+
+def test_merge_eval_task_invalid_chunk_size_ignored() -> None:
+    """Out-of-range chunk size silently falls back to default (15)."""
+    cfg = merge_eval_task_into_summarizer_config(
+        _gi_base_for_bundling(),
+        "grounded_insights",
+        {"gil_evidence_nli_chunk_size": 999},
+    )
+    assert cfg.gil_evidence_nli_chunk_size == 15  # default
+
+    cfg2 = merge_eval_task_into_summarizer_config(
+        _gi_base_for_bundling(),
+        "grounded_insights",
+        {"gil_evidence_nli_chunk_size": 0},
+    )
+    assert cfg2.gil_evidence_nli_chunk_size == 15  # default
+
+    cfg3 = merge_eval_task_into_summarizer_config(
+        _gi_base_for_bundling(),
+        "grounded_insights",
+        {"gil_evidence_nli_chunk_size": "not-an-int"},
+    )
+    assert cfg3.gil_evidence_nli_chunk_size == 15  # default
+
+
+def test_merge_eval_task_no_bundling_params_preserves_staged_defaults() -> None:
+    """Params without any gil_evidence_*_mode → both modes stay staged."""
+    cfg = merge_eval_task_into_summarizer_config(
+        _gi_base_for_bundling(),
+        "grounded_insights",
+        {"gi_insight_source": "provider"},
+    )
+    assert cfg.gil_evidence_quote_mode == "staged"
+    assert cfg.gil_evidence_nli_mode == "staged"
+
+
 def test_runtime_config_gi_has_gil_enabled() -> None:
     cfg = runtime_config_for_grounded_insights_eval({"gi_insight_source": "stub"})
     assert cfg.generate_gi is True
