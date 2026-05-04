@@ -29,7 +29,7 @@ from podcast_scraper import config
 from podcast_scraper.speaker_detectors.factory import create_speaker_detector
 from podcast_scraper.summarization.factory import create_summarization_provider
 
-pytestmark = [pytest.mark.unit, pytest.mark.module_grok_providers]
+pytestmark = [pytest.mark.integration, pytest.mark.module_grok_providers]
 
 
 @pytest.mark.llm

@@ -7,19 +7,15 @@ import os
 from pathlib import Path
 from unittest.mock import patch
 
-import pytest
-
 from podcast_scraper.gi.grounding import GroundedQuote
 from podcast_scraper.gi.pipeline import _artifact_from_multi_insight
 from podcast_scraper.transcript_formats import parse_webvtt
 from podcast_scraper.workflow import episode_processor
 
-pytestmark = [pytest.mark.integration]
-
-_tests_dir = Path(__file__).resolve().parent.parent
-_spec = importlib.util.spec_from_file_location(
-    "integration_parent_conftest", _tests_dir / "conftest.py"
-)
+# Reach ``tests/conftest.py`` from this file's location
+# (tests/unit/podcast_scraper/transcription/<file>.py — 4 levels up).
+_tests_dir = Path(__file__).resolve().parents[3]
+_spec = importlib.util.spec_from_file_location("tests_parent_conftest", _tests_dir / "conftest.py")
 if _spec is None or _spec.loader is None:
     raise ImportError("conftest not loadable")
 _integration_ct = importlib.util.module_from_spec(_spec)
