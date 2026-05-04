@@ -58,7 +58,7 @@ ml = [
   # Keep scripts/spacy_model_wheels_requirements.txt in sync (make download-spacy-wheels).
   "en-core-web-sm @ https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-3.7.1/en_core_web_sm-3.7.1-py3-none-any.whl",
   "en-core-web-trf @ https://github.com/explosion/spacy-models/releases/download/en_core_web_trf-3.7.3/en_core_web_trf-3.7.3-py3-none-any.whl",
-  "torch>=2.0.0,<3.0.0",
+  "torch>=2.11.0,<3.0.0",
   # sentence-transformers 5.x allows transformers 4.41–5.x; keep <5 until we vendor
   # extractive QA: transformers 5 removed the ``question-answering`` pipeline task (CI preload).
   # CVE-2026-1839 (Trainer rng_state / torch.load): fixed in 5.0.0rc3+ only; pip-audit ignore in Makefile until 5.x stable.
@@ -97,7 +97,7 @@ llm = [
 # pipeline (cloud_balanced on the pipeline-llm image). No spaCy / Whisper / Pegasus /
 # llama-cpp — those stay in [ml]. Image size delta on top of [llm]: ~700 MB → ~1.5 GB.
 search = [
-  "torch>=2.0.0,<3.0.0",
+  "torch>=2.11.0,<3.0.0",
   # Pinned compatible with sentence-transformers 5.x — see [ml] for rationale.
   "transformers>=4.41.0,<5.0.0",
   "sentencepiece>=0.1.99,<1.0.0",
