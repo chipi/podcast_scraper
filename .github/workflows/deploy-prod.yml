@@ -1,0 +1,125 @@
+name: Deploy to prod VPS
+
+# RFC-082 Decision 3: deploy to the always-on Hetzner VPS over Tailscale.
+#
+# Manual-trigger only at first land. After the operator's first `tofu apply`
+# (#714 + #716) and a few green manual runs, a follow-up PR adds the
+# `workflow_run: ["Stack test"]` trigger to complete the GitOps deploy loop
+# (RFC-082 Decision 6).
+#
+# Closes #718 (workflow scaffold), #720 (post-deploy /api/health smoke),
+# #721 (PODCAST_RELEASE=sha-<short> wiring for Sentry release grouping).
+#
+# Operator prerequisites (#714):
+#   - secrets: TS_OAUTH_CLIENT_ID, TS_OAUTH_CLIENT_SECRET
+#   - vars:    PROD_TAILNET_FQDN (e.g. "prod-podcast.example.ts.net")
+
+on:
+  workflow_dispatch:
+    inputs:
+      override_image_sha:
+        description: "Image :sha-<7> tag to deploy (blank = current main HEAD short SHA)"
+        required: false
+        default: ""
+
+permissions:
+  actions: read
+  contents: read
+
+concurrency:
+  # Serialize prod deploys. A second deploy waits for the first; we don't
+  # cancel-in-progress because cancelling mid-`compose up` leaves the stack
+  # in an unknown state.
+  group: deploy-prod
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Pre-flight — required secrets/variables present?
+        id: preflight
+        env:
+          TS_OAUTH_CLIENT_ID:     ${{ secrets.TS_OAUTH_CLIENT_ID }}
+          TS_OAUTH_CLIENT_SECRET: ${{ secrets.TS_OAUTH_CLIENT_SECRET }}
+          PROD_TAILNET_FQDN:      ${{ vars.PROD_TAILNET_FQDN }}
+        run: |
+          set -euo pipefail
+          MISSING=""
+          [ -z "${TS_OAUTH_CLIENT_ID:-}" ]     && MISSING="$MISSING TS_OAUTH_CLIENT_ID"
+          [ -z "${TS_OAUTH_CLIENT_SECRET:-}" ] && MISSING="$MISSING TS_OAUTH_CLIENT_SECRET"
+          [ -z "${PROD_TAILNET_FQDN:-}" ]      && MISSING="$MISSING PROD_TAILNET_FQDN"
+          if [ -n "$MISSING" ]; then
+            echo "::warning::Missing prereqs:$MISSING"
+            echo "::warning::Stage them per #714 then re-run this workflow."
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Resolve target image SHA
+        id: sha
+        if: steps.preflight.outputs.skip != 'true'
+        run: |
+          SHA_SHORT="${{ github.event.inputs.override_image_sha }}"
+          if [ -z "$SHA_SHORT" ]; then
+            SHA_SHORT=$(echo "${{ github.event.workflow_run.head_sha || github.sha }}" | cut -c1-7)
+          fi
+          echo "short=$SHA_SHORT" >> "$GITHUB_OUTPUT"
+          echo "::notice::Deploying image tag sha-$SHA_SHORT"
+
+      - name: Join the tailnet
+        if: steps.preflight.outputs.skip != 'true'
+        uses: tailscale/github-action@v2
+        with:
+          oauth-client-id: ${{ secrets.TS_OAUTH_CLIENT_ID }}
+          oauth-secret:    ${{ secrets.TS_OAUTH_CLIENT_SECRET }}
+          tags:            tag:gha-deployer
+          version:         latest
+
+      - name: Wire PODCAST_RELEASE into host .env (#721 — Sentry release grouping)
+        # Idempotent: prior PODCAST_RELEASE=... line is removed before the new
+        # one is appended, so re-runs don't accumulate duplicates.
+        # init_sentry() already reads PODCAST_RELEASE per
+        # src/podcast_scraper/utils/sentry_init.py, so no app code change needed.
+        if: steps.preflight.outputs.skip != 'true'
+        env:
+          SHA_SHORT:  ${{ steps.sha.outputs.short }}
+          SSH_TARGET: deploy@${{ vars.PROD_TAILNET_FQDN }}
+        run: |
+          ssh -o StrictHostKeyChecking=accept-new -o BatchMode=yes "$SSH_TARGET" \
+            "sudo sed -i '/^PODCAST_RELEASE=/d' /srv/podcast-scraper/.env && \
+             echo 'PODCAST_RELEASE=sha-${SHA_SHORT}' | sudo tee -a /srv/podcast-scraper/.env >/dev/null"
+
+      - name: Deploy (git pull + compose pull + compose up + VPS-local /api/health)
+        # deploy.sh on the VPS exits 0 only on healthy stack — failures here
+        # surface red within the SSH session.
+        if: steps.preflight.outputs.skip != 'true'
+        env:
+          SSH_TARGET: deploy@${{ vars.PROD_TAILNET_FQDN }}
+        run: |
+          ssh -o StrictHostKeyChecking=accept-new -o BatchMode=yes "$SSH_TARGET" \
+            '/srv/podcast-scraper/infra/deploy/deploy.sh'
+
+      - name: External /api/health probe over Tailscale (#720)
+        # Belt-and-suspenders: the VPS-local probe in deploy.sh confirms the
+        # api answers on 127.0.0.1; this probes via tailnet MagicDNS to also
+        # catch any Tailscale-routing/cert issue. 60s timeout (12 × 5s).
+        if: steps.preflight.outputs.skip != 'true'
+        env:
+          PROBE_URL: https://${{ vars.PROD_TAILNET_FQDN }}/api/health
+        run: |
+          set -euo pipefail
+          for i in $(seq 1 12); do
+            if curl -fsS "$PROBE_URL" | jq -e '.status == "ok"' >/dev/null 2>&1; then
+              echo "::notice::/api/health OK over tailnet after $((i * 5))s"
+              exit 0
+            fi
+            sleep 5
+          done
+          echo "::error::/api/health did not return ok within 60s over tailnet"
+          ssh -o StrictHostKeyChecking=accept-new -o BatchMode=yes \
+            "deploy@${{ vars.PROD_TAILNET_FQDN }}" \
+            'docker logs --tail 50 compose-api-1' 2>&1 || true
+          exit 1

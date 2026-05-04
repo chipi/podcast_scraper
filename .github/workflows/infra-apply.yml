@@ -1,0 +1,127 @@
+name: Infra apply (manual)
+
+# RFC-082 Decision 6 — GitOps loop, apply side. Manual dispatch only (NOT
+# auto on merge) so a typo in main.tf can't accidentally tofu destroy prod.
+# The PR's plan comment (from infra-ci.yml) is the preview; this is the
+# explicit "yes, do it" gate.
+#
+# Closes #719 (apply half).
+#
+# State persistence model: this workflow uploads the post-apply
+# `terraform.tfstate.enc` as a workflow artifact (30-day retention). The
+# operator downloads it and commits to main manually. Auto-commit-back is
+# deferred to a follow-up (needs branch-protection bypass via PAT or
+# deploy key, which adds vendor surface).
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: 'Type "APPLY" to confirm you want to apply'
+        required: true
+        default: ''
+
+permissions:
+  contents: read
+
+concurrency:
+  group: infra-apply
+  cancel-in-progress: false
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    # Use a `prod` Environment so the operator can configure required-reviewer
+    # protection in repo Settings → Environments → prod. If the environment
+    # doesn't exist, GitHub creates it on first run with no protection — the
+    # operator should add themselves as a required reviewer post-merge.
+    environment: prod
+    steps:
+      - name: Confirm input
+        run: |
+          if [ "${{ github.event.inputs.confirm }}" != "APPLY" ]; then
+            echo "::error::Must type APPLY to confirm. Got: '${{ github.event.inputs.confirm }}'"
+            exit 1
+          fi
+
+      - uses: actions/checkout@v5
+
+      - name: Pre-flight — required secrets present?
+        env:
+          HCLOUD_TOKEN:           ${{ secrets.HCLOUD_TOKEN }}
+          TS_OAUTH_CLIENT_ID:     ${{ secrets.TS_OAUTH_CLIENT_ID }}
+          TS_OAUTH_CLIENT_SECRET: ${{ secrets.TS_OAUTH_CLIENT_SECRET }}
+          TFSTATE_AGE_KEY:        ${{ secrets.TFSTATE_AGE_KEY }}
+        run: |
+          set -euo pipefail
+          MISSING=""
+          [ -z "${HCLOUD_TOKEN:-}" ]           && MISSING="$MISSING HCLOUD_TOKEN"
+          [ -z "${TS_OAUTH_CLIENT_ID:-}" ]     && MISSING="$MISSING TS_OAUTH_CLIENT_ID"
+          [ -z "${TS_OAUTH_CLIENT_SECRET:-}" ] && MISSING="$MISSING TS_OAUTH_CLIENT_SECRET"
+          [ -z "${TFSTATE_AGE_KEY:-}" ]        && MISSING="$MISSING TFSTATE_AGE_KEY"
+          if [ -n "$MISSING" ]; then
+            echo "::error::Missing prereqs:$MISSING. Stage them per #714 first."
+            exit 1
+          fi
+
+      - name: Install OpenTofu
+        uses: opentofu/setup-opentofu@v1
+        with:
+          tofu_version: 1.6.0
+
+      - name: Install sops + age
+        run: |
+          set -euo pipefail
+          sudo curl -fsSL -o /usr/local/bin/sops \
+            https://github.com/getsops/sops/releases/download/v3.9.4/sops-v3.9.4.linux.amd64
+          sudo chmod +x /usr/local/bin/sops
+          curl -fsSL https://github.com/FiloSottile/age/releases/download/v1.2.1/age-v1.2.1-linux-amd64.tar.gz \
+            | sudo tar -xz -C /usr/local/bin --strip-components=1 age/age age/age-keygen
+
+      - name: Decrypt state (if any prior apply has happened)
+        env:
+          SOPS_AGE_KEY: ${{ secrets.TFSTATE_AGE_KEY }}
+        run: |
+          if [ -f infra/terraform/terraform.tfstate.enc ]; then
+            sops -d infra/terraform/terraform.tfstate.enc > infra/terraform/terraform.tfstate
+          fi
+
+      - name: tofu init + apply
+        working-directory: infra/terraform
+        env:
+          TF_VAR_hcloud_token:                  ${{ secrets.HCLOUD_TOKEN }}
+          TF_VAR_tailscale_oauth_client_id:     ${{ secrets.TS_OAUTH_CLIENT_ID }}
+          TF_VAR_tailscale_oauth_client_secret: ${{ secrets.TS_OAUTH_CLIENT_SECRET }}
+          TF_VAR_ssh_public_key:                ${{ vars.OPERATOR_SSH_PUBLIC_KEY }}
+          TF_VAR_tailscale_tailnet:             ${{ vars.TAILNET_NAME }}
+        run: |
+          tofu init -input=false
+          tofu apply -auto-approve -input=false
+
+      - name: Re-encrypt state (always — even if apply failed; preserves partial state)
+        if: always()
+        env:
+          SOPS_AGE_KEY: ${{ secrets.TFSTATE_AGE_KEY }}
+        run: |
+          if [ -f infra/terraform/terraform.tfstate ]; then
+            sops -e infra/terraform/terraform.tfstate > infra/terraform/terraform.tfstate.enc.new
+            mv infra/terraform/terraform.tfstate.enc.new infra/terraform/terraform.tfstate.enc
+          fi
+
+      - name: Upload new encrypted state as artifact
+        # OPERATOR: download terraform.tfstate.enc from this run's artifacts
+        # and commit to main. Auto-commit-back is a future follow-up
+        # (needs PAT or deploy key with branch-protection bypass).
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: terraform-state-after-apply
+          path: infra/terraform/terraform.tfstate.enc
+          retention-days: 30
+
+      - name: Cleanup plaintext state
+        if: always()
+        run: |
+          shred -u infra/terraform/terraform.tfstate 2>/dev/null \
+            || rm -f infra/terraform/terraform.tfstate

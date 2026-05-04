@@ -1,0 +1,27 @@
+# VPS-prod-only overlay (RFC-082 + #713).
+#
+# Layered ON TOP of docker-compose.stack.yml + docker-compose.prod.yml when
+# the stack runs on the always-on Hetzner VPS. Used by infra/deploy/deploy.sh
+# and the systemd unit in infra/cloud-init/prod.user-data; NOT used by
+# Codespaces (pre-prod), which sticks with stack + prod only and keeps the
+# auth-free default nginx config.
+#
+# Adds:
+#   - VPS-flavored nginx (basic-auth + landing page) over the viewer's default
+#   - landing page bind-mounted into nginx's docroot (so /welcome resolves)
+#   - .htpasswd bind-mount from /srv/podcast-scraper/.htpasswd (operator-staged)
+
+services:
+  viewer:
+    volumes:
+      # Auth-enabled nginx config replaces the auth-free default that's baked
+      # into the published image.
+      - ../docker/viewer/nginx-prod.conf:/etc/nginx/conf.d/default.conf:ro
+      # Landing page for the public /welcome route. Bind-mounted (not COPY'd
+      # into the published viewer image) so the prod-only landing surface
+      # doesn't leak into Codespaces or alter the image's contents.
+      - ../docker/viewer/landing.html:/usr/share/nginx/html/landing.html:ro
+      # The htpasswd file. Operator generates it on the host with:
+      #   htpasswd -bcB /srv/podcast-scraper/.htpasswd <user> <pass>
+      # See docs/guides/PROD_RUNBOOK.md "Basic-auth credentials" section.
+      - ${PODCAST_HTPASSWD_PATH:-/srv/podcast-scraper/.htpasswd}:/etc/nginx/.htpasswd:ro

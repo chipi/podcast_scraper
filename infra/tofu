@@ -1,0 +1,78 @@
+#!/usr/bin/env bash
+# infra/tofu — sops-encrypted-state wrapper for OpenTofu.
+#
+# Decrypts terraform/terraform.tfstate.enc to terraform/terraform.tfstate
+# before invoking tofu, re-encrypts on exit if state changed, and shreds the
+# plaintext via a trap so a Ctrl-C mid-run doesn't leave decrypted state on
+# disk.
+#
+# Operator setup: see infra/README.md.
+#
+# Usage:
+#   cd infra && ./tofu init
+#   cd infra && ./tofu plan
+#   cd infra && ./tofu apply
+set -euo pipefail
+
+REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+TF_DIR="$REPO_ROOT/infra/terraform"
+ENC_STATE="$TF_DIR/terraform.tfstate.enc"
+PLAIN_STATE="$TF_DIR/terraform.tfstate"
+BACKUP_STATE="$TF_DIR/terraform.tfstate.backup"
+
+# Verify required dependencies up-front so we fail fast rather than half-way
+# through a decrypt with no encryptor available.
+for cmd in tofu sops age; do
+  if ! command -v "$cmd" >/dev/null 2>&1; then
+    echo "ERROR: '$cmd' not in PATH. Install with: brew install opentofu sops age" >&2
+    exit 127
+  fi
+done
+
+# Cleanup: any plaintext state file (current or backup) is shredded on exit.
+# The encrypted blob is the source of truth; plaintext is ephemeral.
+cleanup() {
+  for f in "$PLAIN_STATE" "$BACKUP_STATE"; do
+    if [[ -f "$f" ]]; then
+      if command -v shred >/dev/null 2>&1; then
+        shred -u "$f" 2>/dev/null || rm -f "$f"
+      else
+        # macOS has no shred; overwrite with random + delete (best effort).
+        dd if=/dev/urandom of="$f" bs=4096 conv=notrunc 2>/dev/null || true
+        rm -f "$f"
+      fi
+    fi
+  done
+}
+trap cleanup EXIT INT TERM
+
+# Decrypt existing encrypted state, if any. (First-ever apply has none yet.)
+if [[ -f "$ENC_STATE" ]]; then
+  sops -d "$ENC_STATE" > "$PLAIN_STATE"
+fi
+
+# Hash of the plaintext before tofu runs — used to decide whether to re-encrypt.
+PRE_HASH=""
+[[ -f "$PLAIN_STATE" ]] && PRE_HASH=$(shasum -a 256 "$PLAIN_STATE" | awk '{print $1}')
+
+# Run tofu against the terraform dir. We don't `set -e` around tofu because
+# its non-zero exits (e.g. plan with diffs and -detailed-exitcode) are normal.
+cd "$TF_DIR"
+set +e
+tofu "$@"
+TOFU_EXIT=$?
+set -e
+
+# Re-encrypt iff state changed (or appeared for the first time).
+POST_HASH=""
+[[ -f "$PLAIN_STATE" ]] && POST_HASH=$(shasum -a 256 "$PLAIN_STATE" | awk '{print $1}')
+
+if [[ -n "$POST_HASH" && "$PRE_HASH" != "$POST_HASH" ]]; then
+  echo "[infra/tofu] state changed; re-encrypting -> $ENC_STATE" >&2
+  # Write to a sibling file then rename — atomic, never leaves a half-written
+  # encrypted blob if sops dies mid-write.
+  sops -e "$PLAIN_STATE" > "$ENC_STATE.new"
+  mv "$ENC_STATE.new" "$ENC_STATE"
+fi
+
+exit "$TOFU_EXIT"

@@ -1,0 +1,187 @@
+name: Backup corpus snapshot (prod VPS)
+
+# Daily backup of the prod VPS corpus directory to a private GitHub Releases
+# asset on chipi/podcast_scraper-backup. RFC-082 Decision 4 (Phase A).
+#
+# Runs IN PARALLEL with the existing codespace-target backup-corpus.yml
+# during the cutover window so we can spot-check that both produce the same
+# shape of snapshot before disabling the codespace path. After ~1 week of
+# operator confidence, the cutover follow-up (#723) disables the codespace
+# workflow and flips this one's schedule on. Until then this workflow is
+# workflow_dispatch-only (no `schedule:` trigger).
+#
+# Closes #722 (Phase A side).
+#
+# Operator prerequisites (#714):
+#   secrets: TS_OAUTH_CLIENT_ID, TS_OAUTH_CLIENT_SECRET, BACKUP_REPO_TOKEN
+#   vars:    PROD_TAILNET_FQDN, PODCAST_BACKUP_REPO (defaults to chipi/podcast_scraper-backup)
+
+on:
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Run without uploading (logs the would-do tarball size + retention prune list)"
+        required: false
+        type: boolean
+        default: true
+  # `schedule:` intentionally absent — flipped on by the #723 cutover follow-up
+  # once the operator has confirmed parallel-run produces matching snapshots.
+
+permissions:
+  contents: read
+
+jobs:
+  snapshot:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Pre-flight — required secrets/variables present?
+        id: preflight
+        env:
+          TS_OAUTH_CLIENT_ID:     ${{ secrets.TS_OAUTH_CLIENT_ID }}
+          TS_OAUTH_CLIENT_SECRET: ${{ secrets.TS_OAUTH_CLIENT_SECRET }}
+          BACKUP_REPO_TOKEN:      ${{ secrets.BACKUP_REPO_TOKEN }}
+          PROD_TAILNET_FQDN:      ${{ vars.PROD_TAILNET_FQDN }}
+        run: |
+          set -euo pipefail
+          MISSING=""
+          [ -z "${TS_OAUTH_CLIENT_ID:-}" ]     && MISSING="$MISSING TS_OAUTH_CLIENT_ID"
+          [ -z "${TS_OAUTH_CLIENT_SECRET:-}" ] && MISSING="$MISSING TS_OAUTH_CLIENT_SECRET"
+          [ -z "${PROD_TAILNET_FQDN:-}" ]      && MISSING="$MISSING PROD_TAILNET_FQDN"
+          if [ "${{ inputs.dry_run }}" = "false" ] && [ -z "${BACKUP_REPO_TOKEN:-}" ]; then
+            MISSING="$MISSING BACKUP_REPO_TOKEN"
+          fi
+          if [ -n "$MISSING" ]; then
+            echo "::warning::Missing prereqs:$MISSING — skipping."
+            echo "::warning::Stage them per #714 then re-run."
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Join the tailnet
+        if: steps.preflight.outputs.skip != 'true'
+        uses: tailscale/github-action@v2
+        with:
+          oauth-client-id: ${{ secrets.TS_OAUTH_CLIENT_ID }}
+          oauth-secret:    ${{ secrets.TS_OAUTH_CLIENT_SECRET }}
+          tags:            tag:gha-deployer
+          version:         latest
+
+      - name: Pull corpus from VPS over Tailscale
+        if: steps.preflight.outputs.skip != 'true'
+        env:
+          SSH_TARGET: deploy@${{ vars.PROD_TAILNET_FQDN }}
+        run: |
+          set -euo pipefail
+          # Stream the corpus dir as a tarball over SSH. Unlike `gh codespace cp`
+          # this is a single-file streaming operation; if SSH cuts mid-stream the
+          # exit code propagates and we fail fast (no half-tarball that passes
+          # naive size checks). The VPS bind-mount path is /srv/podcast-scraper/corpus
+          # per RFC-082 Decision 4.
+          ssh -o StrictHostKeyChecking=accept-new -o BatchMode=yes "$SSH_TARGET" \
+            'tar -czf - -C /srv/podcast-scraper corpus' > snapshot.tgz
+
+          echo "Tarball created: $(du -h snapshot.tgz | cut -f1)"
+
+          # Sanity: refuse empty / suspiciously small.
+          size=$(stat -c%s snapshot.tgz)
+          if [ "$size" -lt 1024 ]; then
+            echo "::error::Tarball is suspiciously small ($size bytes); aborting." >&2
+            exit 1
+          fi
+
+          # Sanity: a healthy corpus has at least one .gi.json (per-episode
+          # GI insights). Catches "ssh succeeded but corpus dir was empty".
+          # NOTE: don't use `grep -q` here — under `set -o pipefail`, grep -q
+          # SIGPIPEs tar mid-stream and the pipe exits non-zero even on a
+          # successful match. Use `grep -c` (counts; tar runs to completion).
+          # Matches the pattern from the codespace workflow (#699 fix).
+          gi_in_tar=$(tar -tzf snapshot.tgz | grep -c '\.gi\.json$' || true)
+          echo "gi.json entries in tarball: $gi_in_tar"
+          if [ "$gi_in_tar" -eq 0 ]; then
+            echo "::warning::Tarball has no .gi.json artifacts; corpus likely empty."
+            echo "::warning::This is OK for a fresh VPS bootstrap; otherwise investigate."
+          fi
+
+      - name: Upload snapshot to backup repo
+        if: steps.preflight.outputs.skip != 'true' && inputs.dry_run != true
+        env:
+          GH_TOKEN:    ${{ secrets.BACKUP_REPO_TOKEN }}
+          BACKUP_REPO: ${{ vars.PODCAST_BACKUP_REPO || 'chipi/podcast_scraper-backup' }}
+        run: |
+          set -euo pipefail
+          # Tag with -prod suffix so codespace + prod snapshots from the same
+          # day don't collide during the parallel-run window.
+          TAG="snapshot-prod-$(date -u +%Y%m%d)"
+          if gh release view "$TAG" --repo "$BACKUP_REPO" >/dev/null 2>&1; then
+            echo "Release $TAG exists; uploading asset (will clobber)."
+            gh release upload "$TAG" snapshot.tgz --repo "$BACKUP_REPO" --clobber
+          else
+            echo "Release $TAG does not exist; creating with asset."
+            gh release create "$TAG" snapshot.tgz \
+              --repo "$BACKUP_REPO" \
+              --title "Corpus snapshot $TAG (prod VPS)" \
+              --notes "Automated daily backup of /srv/podcast-scraper/corpus over Tailscale. Retention 7 daily + 4 weekly."
+          fi
+          echo "Uploaded snapshot.tgz as release tag $TAG"
+
+      - name: Prune older prod snapshots (keep 7 daily + 4 weekly)
+        if: steps.preflight.outputs.skip != 'true' && inputs.dry_run != true
+        env:
+          GH_TOKEN:    ${{ secrets.BACKUP_REPO_TOKEN }}
+          BACKUP_REPO: ${{ vars.PODCAST_BACKUP_REPO || 'chipi/podcast_scraper-backup' }}
+        run: |
+          set -euo pipefail
+          # Same retention policy as backup-corpus.yml but scoped to snapshot-prod-
+          # tags so we don't touch codespace-era snapshots during cutover overlap.
+          mapfile -t TAGS < <(gh release list --repo "$BACKUP_REPO" --limit 200 \
+            --json tagName -q '.[].tagName' | grep -E '^snapshot-prod-[0-9]{8}$' || true)
+          if [ ${#TAGS[@]} -le 7 ]; then
+            echo "Only ${#TAGS[@]} prod release(s); nothing to prune."
+            exit 0
+          fi
+          KEEP_DAILY=("${TAGS[@]:0:7}")
+          REMAINDER=("${TAGS[@]:7}")
+          KEEP_WEEKLY=()
+          for tag in "${REMAINDER[@]}"; do
+            d="${tag#snapshot-prod-}"
+            wd=$(date -d "$d" +%u 2>/dev/null || true)
+            if [ "$wd" = "1" ]; then
+              KEEP_WEEKLY+=("$tag")
+              [ ${#KEEP_WEEKLY[@]} -ge 4 ] && break
+            fi
+          done
+          KEEP=("${KEEP_DAILY[@]}" "${KEEP_WEEKLY[@]}")
+          echo "Keeping: ${KEEP[*]}"
+          for tag in "${TAGS[@]}"; do
+            keep=false
+            for k in "${KEEP[@]}"; do
+              [ "$tag" = "$k" ] && keep=true && break
+            done
+            if [ "$keep" = "false" ]; then
+              echo "Pruning $tag"
+              gh release delete "$tag" --repo "$BACKUP_REPO" --yes --cleanup-tag || true
+            fi
+          done
+
+      - name: Dry-run report
+        if: steps.preflight.outputs.skip != 'true' && inputs.dry_run == true
+        env:
+          GH_TOKEN:    ${{ secrets.BACKUP_REPO_TOKEN }}
+          BACKUP_REPO: ${{ vars.PODCAST_BACKUP_REPO || 'chipi/podcast_scraper-backup' }}
+        run: |
+          set -euo pipefail
+          echo "=== Dry-run mode (prod VPS source) ==="
+          echo "Tarball size: $(du -h snapshot.tgz 2>/dev/null | cut -f1 || echo 'NONE')"
+          echo "Tarball contents (top-level):"
+          tar -tzf snapshot.tgz 2>/dev/null | head -5 || echo "(empty)"
+          if [ -n "${GH_TOKEN:-}" ]; then
+            echo ""
+            echo "Existing snapshot-prod-* releases on $BACKUP_REPO:"
+            gh release list --repo "$BACKUP_REPO" --limit 20 \
+              --json tagName -q '.[] | .tagName' \
+              | grep -E '^snapshot-prod-' || echo "(none yet)"
+          fi
+          echo ""
+          echo "Nothing uploaded (dry_run=true)."
