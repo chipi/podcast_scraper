@@ -1,0 +1,57 @@
+// podcast_scraper-prod tailnet ACL.
+//
+// Synced to the live Tailscale ACL by infra/terraform/tailscale.tf's
+// tailscale_acl resource on every `tofu apply`.
+//
+// Owner: single operator. Add a collaborator by appending their tailnet
+// identity to acls below and opening a PR. RFC-082 Decision 2 + Decisions-made #4.
+
+{
+  // Tag ownership. Only listed owners can apply these tags to devices.
+  //   tag:prod         → the prod VPS (advertised by cloud-init's `tailscale up`)
+  //   tag:gha-deployer → ephemeral GHA runner during deploy-prod.yml
+  "tagOwners": {
+    "tag:prod":         ["autogroup:admin"],
+    "tag:gha-deployer": ["autogroup:admin"]
+  },
+
+  // Implicit-deny for everything else; only listed traffic is permitted.
+  "acls": [
+    // Operator's own devices (laptop, phone, iPad — anyone with admin role)
+    // reach the viewer + api over HTTPS / HTTP redirect.
+    {
+      "action": "accept",
+      "src":    ["autogroup:admin"],
+      "dst":    ["tag:prod:80,443"]
+    },
+
+    // Deploy workflow (ephemeral GHA runner under tag:gha-deployer) SSHes into
+    // the VPS to run `docker compose pull && up`. SSH only; no other ports.
+    {
+      "action": "accept",
+      "src":    ["tag:gha-deployer"],
+      "dst":    ["tag:prod:22"]
+    }
+
+    // (Future, for #714 + #723) Home Assistant subscribes to /api/jobs.
+    // Uncomment and add HA's tailnet identity once that integration lands.
+    // ,
+    // {
+    //   "action": "accept",
+    //   "src":    ["user:homeassistant@example.com"],
+    //   "dst":    ["tag:prod:443"]
+    // }
+  ],
+
+  // No auto-approvers — manual approval for any new tagged device, slowing
+  // down the bad-key compromise path.
+  "autoApprovers": {
+    "routes":   {},
+    "exitNode": []
+  }
+
+  // Tailscale SSH intentionally NOT enabled (no "ssh" block).
+  // We use plain key-based SSH so the ACL controls reach but not auth.
+  // Re-evaluate if Tailscale-SSH's audit-log + cert-rotation value outweighs
+  // the second-credential complexity.
+}
