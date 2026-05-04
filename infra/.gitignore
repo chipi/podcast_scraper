@@ -1,0 +1,10 @@
+# Never commit plaintext OpenTofu state — only the .enc version belongs in git.
+terraform/terraform.tfstate
+terraform/terraform.tfstate.backup
+terraform/.terraform/
+terraform/*.tfplan
+terraform/*.tfplan.bin
+
+# Local operator overrides (host .env staging, scratch notes)
+.env.local
+.scratch/
