@@ -210,6 +210,14 @@ jobs:
         with:
           ref: ${{ github.event.workflow_run.head_sha || github.ref }}
 
+      # #712: arm64 builds run via QEMU emulation on this amd64 runner.
+      # setup-qemu-action must come before setup-buildx-action so the
+      # builder picks up the registered binfmt_misc handlers.
+      - name: Set up QEMU (arm64 emulation)
+        uses: docker/setup-qemu-action@v3
+        with:
+          platforms: linux/arm64
+
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v4
 
@@ -230,25 +238,37 @@ jobs:
           echo "ref_main=:main" >> "$GITHUB_OUTPUT"
           echo "ref_sha=:sha-${SHORT}" >> "$GITHUB_OUTPUT"
 
+      # #712: each publish step does two buildx invocations.
+      # Step 1: build linux/amd64 only with --load so the no-secrets-in-image
+      # script can ``docker run`` against a real local image. Multi-arch
+      # buildx output can't be --load'd (the local Docker daemon is
+      # single-arch), so we keep the secrets gate on amd64 — it inspects
+      # bake-time COPY surfaces which are arch-identical.
+      # Step 2: build linux/amd64,linux/arm64 with --push directly to GHCR,
+      # tagging both :main and :sha-<short> in one shot. Cache from step 1
+      # makes the amd64 layer near-instant; arm64 is the only new build cost.
       - name: Build + assert + push (api)
         env:
           IMAGE: ${{ env.REGISTRY }}/${{ env.OWNER }}/podcast-scraper-stack-api
           SHORT_SHA: ${{ steps.tags.outputs.short_sha }}
         run: |
           set -euo pipefail
-          # Build to local docker first so the no-secrets assertion can run
-          # against the built image before any push.
           docker buildx build \
+            --platform linux/amd64 \
             --tag "${IMAGE}:build-${SHORT_SHA}" \
             --load \
             --cache-from "type=gha,scope=publish-api" \
             --cache-to "type=gha,scope=publish-api,mode=max" \
             -f docker/api/Dockerfile .
           scripts/check/no-secrets-in-image.sh "${IMAGE}:build-${SHORT_SHA}"
-          docker tag "${IMAGE}:build-${SHORT_SHA}" "${IMAGE}:main"
-          docker tag "${IMAGE}:build-${SHORT_SHA}" "${IMAGE}:sha-${SHORT_SHA}"
-          docker push "${IMAGE}:main"
-          docker push "${IMAGE}:sha-${SHORT_SHA}"
+          docker buildx build \
+            --platform linux/amd64,linux/arm64 \
+            --tag "${IMAGE}:main" \
+            --tag "${IMAGE}:sha-${SHORT_SHA}" \
+            --push \
+            --cache-from "type=gha,scope=publish-api" \
+            --cache-to "type=gha,scope=publish-api,mode=max" \
+            -f docker/api/Dockerfile .
 
       - name: Build + assert + push (viewer)
         env:
@@ -260,6 +280,7 @@ jobs:
         run: |
           set -euo pipefail
           docker buildx build \
+            --platform linux/amd64 \
             --tag "${IMAGE}:build-${SHORT_SHA}" \
             --load \
             --cache-from "type=gha,scope=publish-viewer" \
@@ -269,10 +290,17 @@ jobs:
             --build-arg "VITE_PODCAST_RELEASE=podcast-scraper@sha-${SHORT_SHA}" \
             -f docker/viewer/Dockerfile .
           scripts/check/no-secrets-in-image.sh "${IMAGE}:build-${SHORT_SHA}"
-          docker tag "${IMAGE}:build-${SHORT_SHA}" "${IMAGE}:main"
-          docker tag "${IMAGE}:build-${SHORT_SHA}" "${IMAGE}:sha-${SHORT_SHA}"
-          docker push "${IMAGE}:main"
-          docker push "${IMAGE}:sha-${SHORT_SHA}"
+          docker buildx build \
+            --platform linux/amd64,linux/arm64 \
+            --tag "${IMAGE}:main" \
+            --tag "${IMAGE}:sha-${SHORT_SHA}" \
+            --push \
+            --cache-from "type=gha,scope=publish-viewer" \
+            --cache-to "type=gha,scope=publish-viewer,mode=max" \
+            --build-arg "VITE_SENTRY_DSN_VIEWER=${VITE_SENTRY_DSN_VIEWER}" \
+            --build-arg "VITE_PODCAST_ENV=preprod" \
+            --build-arg "VITE_PODCAST_RELEASE=podcast-scraper@sha-${SHORT_SHA}" \
+            -f docker/viewer/Dockerfile .
 
       - name: Build + assert + push (pipeline-llm — cloud variant only)
         env:
@@ -283,6 +311,7 @@ jobs:
           # INSTALL_EXTRAS=llm = cloud-thin variant (OpenAI/Gemini SDKs).
           # PRELOAD_ML_MODELS=false because this image has no local ML models.
           docker buildx build \
+            --platform linux/amd64 \
             --tag "${IMAGE}:build-${SHORT_SHA}" \
             --load \
             --cache-from "type=gha,scope=publish-pipeline-llm" \
@@ -291,19 +320,51 @@ jobs:
             --build-arg "PRELOAD_ML_MODELS=false" \
             -f docker/pipeline/Dockerfile .
           scripts/check/no-secrets-in-image.sh "${IMAGE}:build-${SHORT_SHA}"
-          docker tag "${IMAGE}:build-${SHORT_SHA}" "${IMAGE}:main"
-          docker tag "${IMAGE}:build-${SHORT_SHA}" "${IMAGE}:sha-${SHORT_SHA}"
-          docker push "${IMAGE}:main"
-          docker push "${IMAGE}:sha-${SHORT_SHA}"
+          docker buildx build \
+            --platform linux/amd64,linux/arm64 \
+            --tag "${IMAGE}:main" \
+            --tag "${IMAGE}:sha-${SHORT_SHA}" \
+            --push \
+            --cache-from "type=gha,scope=publish-pipeline-llm" \
+            --cache-to "type=gha,scope=publish-pipeline-llm,mode=max" \
+            --build-arg "INSTALL_EXTRAS=llm" \
+            --build-arg "PRELOAD_ML_MODELS=false" \
+            -f docker/pipeline/Dockerfile .
+
+      - name: Verify multi-arch manifests
+        env:
+          IMAGE_API: ${{ env.REGISTRY }}/${{ env.OWNER }}/podcast-scraper-stack-api
+          IMAGE_VIEWER: ${{ env.REGISTRY }}/${{ env.OWNER }}/podcast-scraper-stack-viewer
+          IMAGE_PIPELINE: ${{ env.REGISTRY }}/${{ env.OWNER }}/podcast-scraper-stack-pipeline-llm
+          SHORT_SHA: ${{ steps.tags.outputs.short_sha }}
+        run: |
+          set -euo pipefail
+          # #712 acceptance gate: assert each pushed :main manifest lists both
+          # linux/amd64 and linux/arm64 digests. Belt-and-suspenders against
+          # silent platform regressions (someone removes --platform later).
+          for IMAGE in "$IMAGE_API" "$IMAGE_VIEWER" "$IMAGE_PIPELINE"; do
+            echo "==> Inspecting ${IMAGE}:sha-${SHORT_SHA}"
+            MANIFEST=$(docker buildx imagetools inspect "${IMAGE}:sha-${SHORT_SHA}" --raw)
+            for ARCH in amd64 arm64; do
+              if ! echo "$MANIFEST" | grep -q "\"architecture\": \"${ARCH}\""; then
+                echo "::error::${IMAGE}:sha-${SHORT_SHA} missing linux/${ARCH} in manifest"
+                echo "$MANIFEST"
+                exit 1
+              fi
+            done
+            echo "  ${IMAGE}:sha-${SHORT_SHA} OK (amd64 + arm64)"
+          done
 
       - name: Summary
         run: |
           set -euo pipefail
           SHORT="${{ steps.tags.outputs.short_sha }}"
           {
-            echo "## GHCR publish complete"
+            echo "## GHCR publish complete (multi-arch)"
             echo ""
-            echo "Pushed three images with tags ``:main`` + ``:sha-${SHORT}``:"
+            echo "Pushed three images with tags ``:main`` + ``:sha-${SHORT}``,"
+            echo "each as a multi-arch manifest covering ``linux/amd64`` +"
+            echo "``linux/arm64`` (#712 — unblocks Hetzner CAX prod target)."
             echo ""
             echo "* ``ghcr.io/${{ env.OWNER }}/podcast-scraper-stack-api:main``"
             echo "* ``ghcr.io/${{ env.OWNER }}/podcast-scraper-stack-viewer:main``"
@@ -312,4 +373,7 @@ jobs:
             echo "The ``pipeline-ml`` image (with HuggingFace cache + SummLlama)"
             echo "is intentionally NOT published — RFC-081 §Layer 1 license"
             echo "decision; never redistribute restricted-license model bundles."
+            echo "It also stays amd64-only — no current consumer needs ARM ML,"
+            echo "and torch / sentence-transformers / spaCy on arm64 is a"
+            echo "separate (non-trivial) port."
           } >> "$GITHUB_STEP_SUMMARY"
