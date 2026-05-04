@@ -717,3 +717,28 @@ def block_network_and_filesystem_io(request):  # noqa: C901
             patcher.stop()
         except Exception:  # nosec B110 - intentional: ignore cleanup errors
             pass  # Ignore errors during cleanup
+
+
+def pytest_collection_modifyitems(config, items):
+    """Auto-apply ``@pytest.mark.unit`` to every test collected under ``tests/unit/``.
+
+    This hook closes a long-tail consistency gap (#729): ~93 unit-tier files
+    historically shipped without an explicit ``pytestmark = [pytest.mark.unit]``
+    or per-class ``@pytest.mark.unit`` decorator. CI's ``test-unit`` target uses
+    an exclusion-based filter (``-m 'not integration and not e2e'``) so unmarked
+    files were still collected — but ``pytest -m unit`` returned an incomplete
+    set, which broke marker-driven subset runs and made future "filter on
+    marker, not directory" cleanups impossible.
+
+    Marker addition is idempotent for items that already declare ``unit``
+    (``add_marker`` doesn't dup, and pytest dedupes duplicate marker names at
+    selection time). New unit files added later don't need to remember the
+    marker — this hook applies it for them based on file location.
+
+    This is the only directory-based auto-marker in the suite; integration
+    and e2e tiers continue to require explicit markers because those tiers
+    depend on ``[ml]``/``[llm]``/``[server]`` extras that the
+    ``check_test_policy.py`` enforcer audits per-file.
+    """
+    for item in items:
+        item.add_marker(pytest.mark.unit)
