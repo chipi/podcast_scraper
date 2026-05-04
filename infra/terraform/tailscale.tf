@@ -1,7 +1,9 @@
 provider "tailscale" {
-  oauth_client_id     = var.tailscale_oauth_client_id
-  oauth_client_secret = var.tailscale_oauth_client_secret
-  tailnet             = var.tailscale_tailnet
+  # Free-plan workaround: OAuth clients are gated to Tailscale Premium+ tiers.
+  # On Personal Free we authenticate the provider with a Personal API access
+  # token instead. See PROD_RUNBOOK.md "Tailscale credentials" + RFC-082 §Decision 2.
+  api_key = var.tailscale_api_key
+  tailnet = var.tailscale_tailnet
 }
 
 # Per-server auth key. Rotated on every `tofu apply` so a leaked key only

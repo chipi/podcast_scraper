@@ -6,4 +6,4 @@ creation_rules:
     # OPERATOR: replace with the public key from `age-keygen` (starts with "age1").
     # The matching PRIVATE key lives in 1Password as
     # `sops/podcast-scraper/tofu-state-age-key`.
-    age: 'age1PLACEHOLDER0REPLACE0WITH0OPERATOR0AGE0PUBLIC0KEY00000000000000000'
+    age: 'age1yerjgvcm5trle7xl7jkmt53dp290y2fr9rt5zjpljzeyv0nkr5qqffhm00'

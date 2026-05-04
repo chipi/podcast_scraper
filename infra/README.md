@@ -33,15 +33,14 @@ One-time setup (per operator):
 2. `age-keygen -o ~/.config/sops/age/keys.txt`
 3. Copy the public key (the `# public key:` comment) into [`.sops.yaml`](.sops.yaml), replacing the `age1PLACEHOLDER…` value.
 4. Save the **private** key to 1Password as `sops/podcast-scraper/tofu-state-age-key`.
-5. Stage `HCLOUD_TOKEN`, `TS_OAUTH_CLIENT_ID`, `TS_OAUTH_CLIENT_SECRET`, `TFSTATE_AGE_KEY` in repo Actions secrets (see [#714](https://github.com/chipi/podcast_scraper/issues/714)).
+5. Stage `HCLOUD_TOKEN`, `TS_AUTHKEY` (device-join), `TS_API_KEY` (terraform's tailscale provider; Free-plan substitute for OAuth — see [PROD_RUNBOOK.md "Tailscale credentials"](../docs/guides/PROD_RUNBOOK.md)), `TFSTATE_AGE_KEY` in repo Actions secrets (see [#714](https://github.com/chipi/podcast_scraper/issues/714)).
 
 Per-operation:
 
 ```bash
 cd infra
 export HCLOUD_TOKEN=$(op read 'op://Personal/Hetzner Cloud/podcast-scraper-prod/api-token')
-export TF_VAR_tailscale_oauth_client_id=$(op read 'op://Personal/Tailscale/podcast-scraper/gha-deployer-oauth/client-id')
-export TF_VAR_tailscale_oauth_client_secret=$(op read 'op://Personal/Tailscale/podcast-scraper/gha-deployer-oauth/client-secret')
+export TF_VAR_tailscale_api_key=$(op read 'op://Personal/Tailscale/podcast-scraper/api-key')
 ./tofu init
 ./tofu plan
 ./tofu apply

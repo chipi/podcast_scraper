@@ -8,8 +8,9 @@ name: Infra CI
 # dispatch side.
 #
 # Operator prerequisites (#714):
-#   secrets: HCLOUD_TOKEN, TS_OAUTH_CLIENT_ID, TS_OAUTH_CLIENT_SECRET,
-#            TFSTATE_AGE_KEY
+#   secrets: HCLOUD_TOKEN, TS_API_KEY (Free-plan substitute for OAuth — used by
+#            the tailscale Terraform provider; see PROD_RUNBOOK.md "Tailscale
+#            credentials"), TFSTATE_AGE_KEY
 #   vars:    OPERATOR_SSH_PUBLIC_KEY, TAILNET_NAME
 
 on:
@@ -36,17 +37,15 @@ jobs:
       - name: Pre-flight — required secrets present?
         id: preflight
         env:
-          HCLOUD_TOKEN:           ${{ secrets.HCLOUD_TOKEN }}
-          TS_OAUTH_CLIENT_ID:     ${{ secrets.TS_OAUTH_CLIENT_ID }}
-          TS_OAUTH_CLIENT_SECRET: ${{ secrets.TS_OAUTH_CLIENT_SECRET }}
-          TFSTATE_AGE_KEY:        ${{ secrets.TFSTATE_AGE_KEY }}
+          HCLOUD_TOKEN:    ${{ secrets.HCLOUD_TOKEN }}
+          TS_API_KEY:      ${{ secrets.TS_API_KEY }}
+          TFSTATE_AGE_KEY: ${{ secrets.TFSTATE_AGE_KEY }}
         run: |
           set -euo pipefail
           MISSING=""
-          [ -z "${HCLOUD_TOKEN:-}" ]           && MISSING="$MISSING HCLOUD_TOKEN"
-          [ -z "${TS_OAUTH_CLIENT_ID:-}" ]     && MISSING="$MISSING TS_OAUTH_CLIENT_ID"
-          [ -z "${TS_OAUTH_CLIENT_SECRET:-}" ] && MISSING="$MISSING TS_OAUTH_CLIENT_SECRET"
-          [ -z "${TFSTATE_AGE_KEY:-}" ]        && MISSING="$MISSING TFSTATE_AGE_KEY"
+          [ -z "${HCLOUD_TOKEN:-}" ]    && MISSING="$MISSING HCLOUD_TOKEN"
+          [ -z "${TS_API_KEY:-}" ]      && MISSING="$MISSING TS_API_KEY"
+          [ -z "${TFSTATE_AGE_KEY:-}" ] && MISSING="$MISSING TFSTATE_AGE_KEY"
           if [ -n "$MISSING" ]; then
             echo "::warning::Missing prereqs:$MISSING — skipping live plan."
             echo "::warning::Stage them per #714 to enable PR-time tofu plan."
@@ -97,11 +96,10 @@ jobs:
         id: plan
         working-directory: infra/terraform
         env:
-          TF_VAR_hcloud_token:                  ${{ secrets.HCLOUD_TOKEN }}
-          TF_VAR_tailscale_oauth_client_id:     ${{ secrets.TS_OAUTH_CLIENT_ID }}
-          TF_VAR_tailscale_oauth_client_secret: ${{ secrets.TS_OAUTH_CLIENT_SECRET }}
-          TF_VAR_ssh_public_key:                ${{ vars.OPERATOR_SSH_PUBLIC_KEY }}
-          TF_VAR_tailscale_tailnet:             ${{ vars.TAILNET_NAME }}
+          TF_VAR_hcloud_token:      ${{ secrets.HCLOUD_TOKEN }}
+          TF_VAR_tailscale_api_key: ${{ secrets.TS_API_KEY }}
+          TF_VAR_ssh_public_key:    ${{ vars.OPERATOR_SSH_PUBLIC_KEY }}
+          TF_VAR_tailscale_tailnet: ${{ vars.TAILNET_NAME }}
         run: |
           set +e
           tofu plan -no-color -input=false 2>&1 | tee plan.txt

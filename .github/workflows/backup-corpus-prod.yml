@@ -13,7 +13,8 @@ name: Backup corpus snapshot (prod VPS)
 # Closes #722 (Phase A side).
 #
 # Operator prerequisites (#714):
-#   secrets: TS_OAUTH_CLIENT_ID, TS_OAUTH_CLIENT_SECRET, BACKUP_REPO_TOKEN
+#   secrets: TS_AUTHKEY (Free-plan substitute for OAuth — see PROD_RUNBOOK.md
+#            "Tailscale credentials"), BACKUP_REPO_TOKEN
 #   vars:    PROD_TAILNET_FQDN, PODCAST_BACKUP_REPO (defaults to chipi/podcast_scraper-backup)
 
 on:
@@ -38,16 +39,14 @@ jobs:
       - name: Pre-flight — required secrets/variables present?
         id: preflight
         env:
-          TS_OAUTH_CLIENT_ID:     ${{ secrets.TS_OAUTH_CLIENT_ID }}
-          TS_OAUTH_CLIENT_SECRET: ${{ secrets.TS_OAUTH_CLIENT_SECRET }}
-          BACKUP_REPO_TOKEN:      ${{ secrets.BACKUP_REPO_TOKEN }}
-          PROD_TAILNET_FQDN:      ${{ vars.PROD_TAILNET_FQDN }}
+          TS_AUTHKEY:        ${{ secrets.TS_AUTHKEY }}
+          BACKUP_REPO_TOKEN: ${{ secrets.BACKUP_REPO_TOKEN }}
+          PROD_TAILNET_FQDN: ${{ vars.PROD_TAILNET_FQDN }}
         run: |
           set -euo pipefail
           MISSING=""
-          [ -z "${TS_OAUTH_CLIENT_ID:-}" ]     && MISSING="$MISSING TS_OAUTH_CLIENT_ID"
-          [ -z "${TS_OAUTH_CLIENT_SECRET:-}" ] && MISSING="$MISSING TS_OAUTH_CLIENT_SECRET"
-          [ -z "${PROD_TAILNET_FQDN:-}" ]      && MISSING="$MISSING PROD_TAILNET_FQDN"
+          [ -z "${TS_AUTHKEY:-}" ]        && MISSING="$MISSING TS_AUTHKEY"
+          [ -z "${PROD_TAILNET_FQDN:-}" ] && MISSING="$MISSING PROD_TAILNET_FQDN"
           if [ "${{ inputs.dry_run }}" = "false" ] && [ -z "${BACKUP_REPO_TOKEN:-}" ]; then
             MISSING="$MISSING BACKUP_REPO_TOKEN"
           fi
@@ -63,10 +62,9 @@ jobs:
         if: steps.preflight.outputs.skip != 'true'
         uses: tailscale/github-action@v2
         with:
-          oauth-client-id: ${{ secrets.TS_OAUTH_CLIENT_ID }}
-          oauth-secret:    ${{ secrets.TS_OAUTH_CLIENT_SECRET }}
-          tags:            tag:gha-deployer
-          version:         latest
+          authkey: ${{ secrets.TS_AUTHKEY }}
+          tags:    tag:gha-deployer
+          version: latest
 
       - name: Pull corpus from VPS over Tailscale
         if: steps.preflight.outputs.skip != 'true'

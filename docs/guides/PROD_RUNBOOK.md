@@ -4,8 +4,10 @@ Operator-facing runbook for the production deploy defined in
 [RFC-082](../rfc/RFC-082-always-on-pre-prod-and-prod-hosting.md). The RFC
 describes *what we decided*; this runbook describes *what to do today*.
 
-> **For the prerequisites checklist** (Hetzner account + Tailscale OAuth +
-> sops/age + GHA secrets), see [#714](https://github.com/chipi/podcast_scraper/issues/714).
+> **For the prerequisites checklist** (Hetzner account + Tailscale credentials —
+> auth key + API access token on Free plan, see "Tailscale credentials" below
+> for the why — sops/age + GHA secrets), see
+> [#714](https://github.com/chipi/podcast_scraper/issues/714).
 > All commands below assume those are done.
 
 ## Sections
@@ -38,10 +40,12 @@ age-keygen -o ~/.config/sops/age/keys.txt
 # replacing the `age1PLACEHOLDER…` value. Save the PRIVATE key contents to
 # 1Password as `sops/podcast-scraper/tofu-state-age-key`.
 
-# 3. Stage GHA secrets (from #714)
+# 3. Stage GHA secrets (from #714) — Free-plan auth: see "Tailscale credentials"
+#    section below for why TS_AUTHKEY + TS_API_KEY (two separate creds) instead
+#    of OAuth client ID/secret (which would be on Premium+ plans).
 gh secret set HCLOUD_TOKEN          --repo chipi/podcast_scraper --app actions --body '<token>'
-gh secret set TS_OAUTH_CLIENT_ID    --repo chipi/podcast_scraper --app actions --body '<id>'
-gh secret set TS_OAUTH_CLIENT_SECRET --repo chipi/podcast_scraper --app actions --body '<secret>'
+gh secret set TS_AUTHKEY            --repo chipi/podcast_scraper --app actions --body '<tskey-auth-...>'
+gh secret set TS_API_KEY            --repo chipi/podcast_scraper --app actions --body '<tskey-api-...>'
 gh secret set TFSTATE_AGE_KEY       --repo chipi/podcast_scraper --app actions --body "$(cat ~/.config/sops/age/keys.txt)"
 gh secret set BACKUP_REPO_TOKEN     --repo chipi/podcast_scraper --app actions --body '<backup-repo-pat>'
 
@@ -58,8 +62,7 @@ gh variable set TAILNET_NAME            --repo chipi/podcast_scraper --body 'tai
 cd infra
 export HCLOUD_TOKEN=$(op read 'op://Personal/Hetzner Cloud/podcast-scraper-prod/api-token')
 export TF_VAR_hcloud_token="$HCLOUD_TOKEN"
-export TF_VAR_tailscale_oauth_client_id=$(op read 'op://Personal/Tailscale/podcast-scraper/gha-deployer-oauth/client-id')
-export TF_VAR_tailscale_oauth_client_secret=$(op read 'op://Personal/Tailscale/podcast-scraper/gha-deployer-oauth/client-secret')
+export TF_VAR_tailscale_api_key=$(op read 'op://Personal/Tailscale/podcast-scraper/api-key')
 export TF_VAR_tailscale_tailnet="tail-xxxxx.ts.net"   # your tailnet
 export TF_VAR_ssh_public_key="$(cat ~/.ssh/id_ed25519.pub)"
 
@@ -351,15 +354,34 @@ end-to-end DR drill that calibrates these numbers against reality.
 5. Trigger one workflow_dispatch run of `infra-apply.yml` to confirm the new
    token works (will be a no-op apply if no infra changes).
 
-### Tailscale OAuth client
+### Tailscale credentials (Free-plan workaround)
 
-1. Tailscale admin → Settings → OAuth clients → Generate new (scope:
-   `devices:write`, tag: `tag:gha-deployer`).
-2. `gh secret set TS_OAUTH_CLIENT_ID --repo chipi/podcast_scraper --app actions --body '<new-id>'`
-3. `gh secret set TS_OAUTH_CLIENT_SECRET --repo chipi/podcast_scraper --app actions --body '<new-secret>'`
-4. Update 1Password.
-5. Revoke the old client in the Tailscale admin.
-6. Trigger one workflow_dispatch run of `deploy-prod.yml` to confirm.
+OAuth clients are gated to Tailscale Premium+ tiers. On Personal Free we use
+**two separate credentials** instead, both rotated independently:
+
+| Credential | Purpose | Where it's used | Where to generate |
+| --- | --- | --- | --- |
+| `TS_AUTHKEY` | Joins the GHA runner / VPS to the tailnet (device-level auth) | `tailscale/github-action@v2` in deploy-prod.yml + backup-corpus-prod.yml; cloud-init's `tailscale up` | [admin/settings/keys](https://login.tailscale.com/admin/settings/keys) → **Auth keys** tab |
+| `TS_API_KEY` | Authenticates terraform's `tailscale` provider to the management API (creates per-server auth keys, syncs ACL) | infra-ci.yml + infra-apply.yml's `TF_VAR_tailscale_api_key` | [admin/settings/keys](https://login.tailscale.com/admin/settings/keys) → **API access tokens** tab |
+
+Both expire at most every 90 days on Free plan — Tailscale doesn't allow
+non-expiring keys. Set a calendar reminder.
+
+**Rotating `TS_AUTHKEY`:**
+
+1. [admin/settings/keys](https://login.tailscale.com/admin/settings/keys) → Auth keys → Generate new (Reusable, Ephemeral, Pre-approved, Tags: `tag:gha-deployer`).
+2. `gh secret set TS_AUTHKEY --repo chipi/podcast_scraper --app actions --body '<tskey-auth-...>'`
+3. Update 1Password (entry: `Tailscale / podcast-scraper / authkey`).
+4. Revoke the old auth key in the Tailscale admin.
+5. Trigger one workflow_dispatch run of `deploy-prod.yml` to confirm.
+
+**Rotating `TS_API_KEY`:**
+
+1. [admin/settings/keys](https://login.tailscale.com/admin/settings/keys) → API access tokens → Generate new.
+2. `gh secret set TS_API_KEY --repo chipi/podcast_scraper --app actions --body '<tskey-api-...>'`
+3. Update 1Password (entry: `Tailscale / podcast-scraper / api-key`).
+4. Revoke the old token in the Tailscale admin.
+5. Trigger one workflow_dispatch run of `infra-apply.yml` to confirm (no-op apply if no infra changes).
 
 ### age key (sops state)
 

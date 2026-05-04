@@ -4,15 +4,9 @@ variable "hcloud_token" {
   sensitive   = true
 }
 
-variable "tailscale_oauth_client_id" {
+variable "tailscale_api_key" {
   type        = string
-  description = "Tailscale OAuth client ID for the gha-deployer tag."
-  sensitive   = true
-}
-
-variable "tailscale_oauth_client_secret" {
-  type        = string
-  description = "Tailscale OAuth client secret."
+  description = "Tailscale Personal API access token (Free-plan substitute for OAuth clients). Used by the tailscale Terraform provider to manage ACL + generate per-server auth keys. NOT to be confused with TS_AUTHKEY (the device-join auth key consumed by tailscale/github-action and cloud-init)."
   sensitive   = true
 }
 
@@ -23,12 +17,12 @@ variable "tailscale_tailnet" {
 
 variable "server_type" {
   type        = string
-  description = "Hetzner Cloud server type. CX33 (interim, amd64, EUR 6.49) or CAX31 (preferred, ARM, EUR 15.99, post-#712 multi-arch publish)."
-  default     = "cx33"
+  description = "Hetzner Cloud server type. CX43 (chosen, 8 vCPU shared Intel/AMD, 16 GB, EUR 15.11/mo) per RFC-082 Decision 1. CAX31 (ARM Ampere, EUR 19.95/mo) is the anti-jitter premium swap; CCX23 dedicated AMD is the noisy-neighbor escalation. Re-verify prices at hetzner.com/cloud before apply."
+  default     = "cx43"
 
   validation {
-    condition     = contains(["cx33", "cax31", "ccx13", "ccx23"], var.server_type)
-    error_message = "Supported types: cx33, cax31 (preferred once #712 lands), ccx13, ccx23. See RFC-082 Decision 1."
+    condition     = contains(["cx43", "cax31", "ccx23", "cx33", "ccx13"], var.server_type)
+    error_message = "Supported types: cx43 (chosen), cax31 (anti-jitter swap), ccx23 (dedicated escalation), cx33/ccx13 (smaller). See RFC-082 Decision 1."
   }
 }
 

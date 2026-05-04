@@ -11,7 +11,9 @@ name: Deploy to prod VPS
 # #721 (PODCAST_RELEASE=sha-<short> wiring for Sentry release grouping).
 #
 # Operator prerequisites (#714):
-#   - secrets: TS_OAUTH_CLIENT_ID, TS_OAUTH_CLIENT_SECRET
+#   - secrets: TS_AUTHKEY (Free-plan substitute for OAuth — see PROD_RUNBOOK.md
+#              "Tailscale credentials" for why two creds — TS_AUTHKEY for device
+#              join here, TS_API_KEY for terraform's tailscale provider)
 #   - vars:    PROD_TAILNET_FQDN (e.g. "prod-podcast.example.ts.net")
 
 on:
@@ -41,15 +43,13 @@ jobs:
       - name: Pre-flight — required secrets/variables present?
         id: preflight
         env:
-          TS_OAUTH_CLIENT_ID:     ${{ secrets.TS_OAUTH_CLIENT_ID }}
-          TS_OAUTH_CLIENT_SECRET: ${{ secrets.TS_OAUTH_CLIENT_SECRET }}
-          PROD_TAILNET_FQDN:      ${{ vars.PROD_TAILNET_FQDN }}
+          TS_AUTHKEY:        ${{ secrets.TS_AUTHKEY }}
+          PROD_TAILNET_FQDN: ${{ vars.PROD_TAILNET_FQDN }}
         run: |
           set -euo pipefail
           MISSING=""
-          [ -z "${TS_OAUTH_CLIENT_ID:-}" ]     && MISSING="$MISSING TS_OAUTH_CLIENT_ID"
-          [ -z "${TS_OAUTH_CLIENT_SECRET:-}" ] && MISSING="$MISSING TS_OAUTH_CLIENT_SECRET"
-          [ -z "${PROD_TAILNET_FQDN:-}" ]      && MISSING="$MISSING PROD_TAILNET_FQDN"
+          [ -z "${TS_AUTHKEY:-}" ]        && MISSING="$MISSING TS_AUTHKEY"
+          [ -z "${PROD_TAILNET_FQDN:-}" ] && MISSING="$MISSING PROD_TAILNET_FQDN"
           if [ -n "$MISSING" ]; then
             echo "::warning::Missing prereqs:$MISSING"
             echo "::warning::Stage them per #714 then re-run this workflow."
@@ -73,10 +73,9 @@ jobs:
         if: steps.preflight.outputs.skip != 'true'
         uses: tailscale/github-action@v2
         with:
-          oauth-client-id: ${{ secrets.TS_OAUTH_CLIENT_ID }}
-          oauth-secret:    ${{ secrets.TS_OAUTH_CLIENT_SECRET }}
-          tags:            tag:gha-deployer
-          version:         latest
+          authkey: ${{ secrets.TS_AUTHKEY }}
+          tags:    tag:gha-deployer
+          version: latest
 
       - name: Wire PODCAST_RELEASE into host .env (#721 — Sentry release grouping)
         # Idempotent: prior PODCAST_RELEASE=... line is removed before the new

@@ -116,7 +116,7 @@ IaC + a GitOps deploy loop**:
 
 [ New for prod ]
   1. infra/ directory: Terraform + cloud-init + deploy script
-  2. Hetzner CAX31 (or CX33 interim — see Decision 1) provisioned via Terraform
+  2. Hetzner CX43 provisioned via Terraform (see Decision 1)
   3. Tailscale daemon on the VPS, auto-joins tailnet via auth key
   4. GHA workflow deploy-prod.yml fires on stack-test success → main
   5. Host bind-mount: /srv/podcast-scraper/corpus
@@ -125,57 +125,69 @@ IaC + a GitOps deploy loop**:
 
 ### Decision 1 — Hosting target
 
-**Hetzner CAX31** (8 vCPU ARM Ampere, 16 GB RAM, 160 GB SSD, 20 TB
-traffic, **€15.99/mo**, EU). Operator-confirmed EU geography + want
-predictable flat billing.
+**Hetzner CX43** (8 vCPU shared Intel/AMD, 16 GB RAM, 160 GB SSD,
+20 TB traffic, **€15.11/mo** as of May 2026, EU). Operator-confirmed
+EU geography + want predictable flat billing.
 
-CAX31 wins on price/perf at the chosen budget tier: it's the same
-monthly cost as CCX13 (the dedicated-AMD option) but ships **4× the
-vCPUs (8 vs 2) and 2× the RAM (16 vs 8 GB)**. For a workload that's
-ffmpeg + cloud-LLM SDK calls + viewer + grafana-agent — none of which
-benefits from x86-specific instructions — that's a free headroom
-upgrade at the same euro spend.
+CX43 is the cheapest 8-core option in Hetzner's lineup — about **25 %
+less than the same-shape CAX31** (ARM Ampere, €19.95/mo) and roughly
+half the cost of the dedicated-AMD CCX23 (€31.49/mo, broke ceiling).
+CX43 + 50 GB Volume (~€2.86/mo) totals ~€18/mo, well under the $20
+ceiling.
 
-**Why ARM is low-risk for this stack.** Prod runs the cloud-thin
-profile (`INSTALL_EXTRAS=llm`): no torch / spaCy / FAISS / Whisper /
-llama-cpp. The arm64 dependency surface reduces to
-`python:3.12-slim-bookworm` (official multi-arch), `nginx:alpine`
-(viewer; official multi-arch), debian-package ffmpeg (first-class on
-Ampere), pure-Python provider SDKs, and grafana-agent (official ARM
-build). None of the typical "port to ARM" pain points (compiled ML
-wheels, CUDA, native llama.cpp) are in the prod image set.
+> **Pricing volatility caveat.** Hetzner pushed a 30–37 % hike on
+> 2026-04-01 and renames the CX line periodically (CX22 / CX32 /
+> CX42 → CX23 / CX33 / CX43 in 2024). The Hetzner pricing page
+> renders prices client-side so cached/scraped figures (e.g.
+> costgoat) lag reality. **Re-check at
+> [hetzner.com/cloud/cost-optimized](https://www.hetzner.com/cloud/cost-optimized)
+> before every apply.** Earlier RFC drafts referenced stale
+> €15.99 CAX31 and €11.99 CX43 figures; both have since increased.
 
-**Prerequisite.** GHCR publish currently emits amd64-only manifests.
-Moving to CAX is gated on
-[#712 — Multi-arch (amd64+arm64) GHCR publish](https://github.com/chipi/podcast_scraper/issues/712),
-which adds `--platform linux/amd64,linux/arm64` to the three
-`docker buildx build` invocations in `stack-test.yml` and validates
-one real episode end-to-end on a throwaway CAX21 before the prod
-flip. Until #712 lands, the **interim deploy target is CX33**
-(4 vCPU shared Intel/AMD, 8 GB, 80 GB, €6.49/mo) so prod isn't
-blocked on the publish change.
+**CX (shared Intel/AMD) vs. CAX (ARM Ampere) for this stack.** The
+prod image set is cloud-thin (`INSTALL_EXTRAS=llm`): no torch /
+spaCy / FAISS / Whisper / llama-cpp. The arm64-native-wheel concern
+is therefore irrelevant — both architectures work. The trade-off
+collapses to:
 
-> **Naming note.** Hetzner renamed the CX line in 2024 (CX22 / CX32 /
-> CX42 → CX23 / CX33 / CX43) and pushed a 30–37% price hike on
-> 2026-04-01. Earlier drafts of this RFC referenced "CX32 at €7.89" —
-> that SKU no longer exists; CX33 is the same shape post-rename. EUR
-> figures throughout reflect Hetzner's post-2026-04-01 list price.
+| Dimension | CX43 (chosen) | CAX31 (alternative) |
+| --- | --- | --- |
+| Monthly price (May 2026) | **€15.11** | €19.95 (~25 % more) |
+| Per-core perf for ffmpeg | OK; depends on noisy-neighbor luck | Roughly equal; Ampere has good codec instructions |
+| Per-core perf for Python / HTTP | Roughly equal | Roughly equal |
+| Native Python wheels | All amd64-native (zero risk) | All arm64 wheels exist; multi-arch publish required (#712 / #737, already merged) |
+| Noisy-neighbor risk | Higher — x86 shared cloud is in heavier demand | Lower — ARM cloud demand has historically been quieter |
+| GHCR storage | Single-arch | Multi-arch ≈ 2× (free for public repos, no impact) |
+| CI publish wall-time | Native | ~2× longer under QEMU emulation on amd64 runners (already paid by #737) |
 
-**Alternatives kept on the bench (in order, only if CAX31 falls
-short):**
+The two genuine reasons to prefer CAX31 over CX43:
 
-| Trigger | Move to | Specs | Price |
+1. **Anti-jitter premium** — €4.84/mo (~25 %) for less variability
+   from noisy x86 neighbors. Worth it only if shared-CPU jitter
+   actually shows up in measured ffmpeg / Whisper wall-times.
+2. **Energy efficiency / philosophy** — Ampere is more
+   power-efficient and Hetzner's ARM fleet runs greener. Real but
+   soft factor.
+
+For a single-operator hobby workload (ffmpeg, cloud-LLM SDK calls,
+static viewer, grafana-agent), neither outweighs the 25 % cost
+delta. **Pick CX43; escalate only on measured signal.**
+
+**Alternatives kept on the bench (only if CX43 falls short):**
+
+| Trigger | Move to | Specs | Price (May 2026) |
 | --- | --- | --- | --- |
-| #712 not yet landed; need to ship prod now on amd64 | **CX33** (interim) | 4 vCPU shared Intel/AMD, 8 GB, 80 GB | €6.49/mo |
-| #712 not yet landed AND shared-CPU jitter visible | **CCX13** (interim, dedicated) | 2 dedicated AMD vCPU, 8 GB, 80 GB | €15.99/mo |
-| ARM perf surprise — Ampere wall-time materially worse than amd64 baseline | **CCX23** | 4 dedicated AMD vCPU, 16 GB, 160 GB | €31.49/mo |
+| Want the anti-jitter premium of ARM Ampere | **CAX31** | 8 vCPU ARM Ampere, 16 GB, 160 GB | €19.95/mo |
+| Shared-CPU jitter visible in measured ffmpeg / Whisper wall-times on CX43 | **CCX23** | 4 dedicated AMD vCPU, 16 GB, 160 GB | ~€31.49/mo (re-verify) |
 
-CAX31 sits at $17/mo (~$3 under the $20 ceiling). The CCX23 fallback
-breaks the ceiling and would need an explicit budget revision.
+Switching CX43 → CAX31 is a single Terraform variable change
+(`server_type = "cax31"`) — multi-arch publish is already merged
+in #712 / #737, so no CI work is needed. CCX23 breaks the $20
+ceiling and should only be picked if measured numbers demand it.
 
-**Storage add-on:** a separate Hetzner Volume (€0.0572/GB/month, post
-April-2026 pricing) for the corpus bind-mount, so the VPS image can
-be replaced without touching corpus data. ~€2.86/mo for 50 GB.
+**Storage add-on:** a separate Hetzner Volume (~€0.057/GB/month;
+re-verify) for the corpus bind-mount, so the VPS image can be
+replaced without touching corpus data. ~€2.86/mo for 50 GB.
 Recommended once corpus grows past ~20 GB on the boot disk.
 
 ### Decision 2 — Auth wall: Tailscale
@@ -209,6 +221,24 @@ least resistance.
 The Slack-direct-to-api path was speculative anyway; the Slack →
 GHA → api fan-out is fine for hobby scale.
 
+> **Free-plan auth model.** OAuth clients (the typical "service account"
+> path on Tailscale) are gated to Premium+ tiers. On Personal Free we
+> use **two separate credentials**:
+>
+> | Credential | Purpose |
+> | --- | --- |
+> | `TS_AUTHKEY` | Device-level auth: joins the GHA runner to the tailnet (used by `tailscale/github-action@v2`); also passed to cloud-init for the VPS's own `tailscale up`. |
+> | `TS_API_KEY` | Tailscale management API: terraform's `tailscale` provider uses this to sync the ACL from `tailscale/policy.hujson` and create per-server auth keys. |
+>
+> Both are **Tailscale Personal API access tokens / auth keys** (different
+> tabs of the same admin panel: [admin/settings/keys](https://login.tailscale.com/admin/settings/keys)).
+> Both expire ≤ 90 days on Free plan and need calendar-driven rotation.
+> See PROD_RUNBOOK.md "Tailscale credentials (Free-plan workaround)" for
+> rotation procedure. If the operator ever upgrades to Premium+, both
+> can be replaced with a single OAuth client and the workflows / terraform
+> provider switch back to `oauth-client-id` / `oauth_client_id` (one
+> diff, no architecture change).
+
 ### Decision 3 — Deploy mechanism: push from GHA (over Tailscale)
 
 A new `.github/workflows/deploy-prod.yml`:
@@ -227,9 +257,10 @@ jobs:
     steps:
       - uses: tailscale/github-action@v2
         with:
-          oauth-client-id: ${{ secrets.TAILSCALE_OAUTH_CLIENT_ID }}
-          oauth-secret:    ${{ secrets.TAILSCALE_OAUTH_SECRET }}
-          tags:            tag:gha-deployer
+          # Free-plan substitute for OAuth (Premium+ feature). See note below
+          # the snippet on the two-credential model.
+          authkey: ${{ secrets.TS_AUTHKEY }}
+          tags:    tag:gha-deployer
       - run: |
           ssh deploy@prod-podcast.<tailnet>.ts.net "cd /srv/podcast-scraper && \
             docker compose -f compose/docker-compose.stack.yml \
@@ -258,11 +289,12 @@ convention). The compose prod overlay reads it from
 exported differently in the host's `.env`).
 
 **Backup mechanism: GHA-side, same as pre-prod.** The
-`backup-corpus.yml` workflow uses Tailscale OAuth (same pattern as
-the deploy workflow) to reach the VPS, tarballs the corpus, uploads
-to `chipi/podcast_scraper-backup` releases. The single change vs.
-pre-prod's backup is the SSH target hostname — `prod-podcast.<...>`
-instead of the codespace name.
+`backup-corpus-prod.yml` workflow joins the tailnet using the same
+`TS_AUTHKEY` device-auth credential as the deploy workflow (Free-plan
+substitute for OAuth — see Decision 2 note), reaches the VPS, tarballs
+the corpus, uploads to `chipi/podcast_scraper-backup` releases. The
+single change vs. pre-prod's backup is the SSH target hostname —
+`prod-podcast.<...>` instead of the codespace name.
 
 This keeps backup logic in code-review (`.github/workflows/...`)
 rather than as a host-side cron that escapes git visibility.
@@ -299,8 +331,7 @@ infra/
   with the `hetznercloud/hcloud` provider, also supports the
   `tailscale/tailscale` provider. Avoids the BSL-license question on
   HashiCorp Terraform.
-- **`hetznercloud/hcloud` provider** — declares the CAX31 server
-  (or CX33 during the #712 interim window),
+- **`hetznercloud/hcloud` provider** — declares the CX43 server,
   attached Volume, firewall rules (default-deny inbound; allow
   outbound), SSH key registration.
 - **`tailscale/tailscale` provider** — declares the auth key (so
@@ -351,7 +382,7 @@ changed" signal. If we ever go multi-operator, swap to Object Storage
 **Bootstrap flow:**
 
 1. Operator clones repo locally, runs `cd infra/terraform && tofu apply`.
-2. OpenTofu provisions Hetzner CAX31 (or CX33 interim) + attaches Volume + registers
+2. OpenTofu provisions Hetzner CX43 + attaches Volume + registers
    tailscale auth key.
 3. cloud-init runs on first boot: installs Docker, Tailscale, joins
    tailnet, pulls repo, copies operator-staged `.env`, runs
@@ -437,10 +468,13 @@ on the tailnet". ~30-45 min wall.
 brew install opentofu sops age
 gh auth login                               # codespace + repo:write
 
-# 2. Tailscale OAuth client for the GHA deployer
-#    Tailscale admin → Settings → OAuth clients → "Generate"
-#    Scope: devices:write, tag:gha-deployer
-#    Save TS_OAUTH_CLIENT_ID + TS_OAUTH_CLIENT_SECRET in 1Password.
+# 2. Tailscale credentials for the GHA deployer (Free-plan workaround;
+#    see Decision 2 note for the why). Two creds, both at:
+#    Tailscale admin → Settings → Keys
+#      a) Auth keys tab → Generate (Reusable, Ephemeral, Pre-approved,
+#         Tags: tag:gha-deployer). Save tskey-auth-... as TS_AUTHKEY.
+#      b) API access tokens tab → Generate. Save tskey-api-... as TS_API_KEY.
+#    Save both in 1Password.
 
 # 3. Hetzner Cloud project + API token
 #    Hetzner console → Cloud → New project → API tokens → Generate
@@ -454,8 +488,8 @@ age-keygen -o ~/.config/sops/age/keys.txt
 
 # 5. Stage GHA secrets (one-time, via gh)
 gh secret set HCLOUD_TOKEN          --repo chipi/podcast_scraper --app actions --body '<token>'
-gh secret set TS_OAUTH_CLIENT_ID    --repo chipi/podcast_scraper --app actions --body '<id>'
-gh secret set TS_OAUTH_CLIENT_SECRET --repo chipi/podcast_scraper --app actions --body '<secret>'
+gh secret set TS_AUTHKEY            --repo chipi/podcast_scraper --app actions --body '<tskey-auth-...>'
+gh secret set TS_API_KEY            --repo chipi/podcast_scraper --app actions --body '<tskey-api-...>'
 gh secret set TFSTATE_AGE_KEY       --repo chipi/podcast_scraper --app actions --body '<age-private-key>'
 ```
 
@@ -464,8 +498,7 @@ gh secret set TFSTATE_AGE_KEY       --repo chipi/podcast_scraper --app actions -
 ```bash
 cd infra/terraform
 export HCLOUD_TOKEN=$(op read 'op://Personal/Hetzner Cloud/api-token')
-export TF_VAR_tailscale_oauth_client_id=$(op read ...)
-export TF_VAR_tailscale_oauth_client_secret=$(op read ...)
+export TF_VAR_tailscale_api_key=$(op read 'op://Personal/Tailscale/podcast-scraper/api-key')
 ../tofu init
 ../tofu plan -out=plan.bin
 ../tofu apply plan.bin
@@ -629,7 +662,7 @@ exactly as in pre-prod.
 
 First-deploy image pull on a fresh VPS is ~3 GB total (~1.5 GB
 pipeline-llm + ~700 MB api + ~50 MB viewer + ~250 MB grafana-agent).
-Bandwidth allowance on Hetzner CAX31 / CX33 is 20 TB/mo; first-deploy pull
+Bandwidth allowance on Hetzner CX43 is 20 TB/mo; first-deploy pull
 is negligible against that. Subsequent deploys reuse layers and pull
 ~50-200 MB per release.
 
@@ -661,12 +694,13 @@ is negligible against that. Subsequent deploys reuse layers and pull
 
 ## Costs
 
-All EUR figures reflect Hetzner's post-2026-04-01 price list.
+All EUR figures reflect Hetzner's May 2026 list price; re-verify
+against [hetzner.com/cloud](https://www.hetzner.com/cloud/) before
+every apply (cached / scraped figures lag the live page).
 
 | Component | Plan | Cost / mo |
 | --- | --- | --- |
-| Hetzner CAX31 (chosen, post-#712) | flat | €15.99 (~$17) |
-| Hetzner CX33 (interim until #712 lands) | flat | €6.49 (~$7) |
+| Hetzner CX43 (chosen, 8 vCPU shared Intel/AMD, 16 GB) | flat | €15.11 (~$16) |
 | Hetzner Volume 50 GB (optional) | flat | ~€2.86 (~$3) |
 | sops + age state storage (in-repo, no vendor) | — | $0 |
 | Tailscale Personal | up to 100 devices | $0 |
@@ -674,13 +708,13 @@ All EUR figures reflect Hetzner's post-2026-04-01 price list.
 | Grafana Cloud Free | unchanged | $0 |
 | Sentry Free | unchanged | $0 |
 | **Pipeline LLM calls** | metered (operator's keys) | varies — same as pre-prod |
-| **Total fixed (CAX31 + 50 GB Volume)** | | **~$20/mo** |
-| **Total fixed (CX33 interim, no Volume)** | | **~$7/mo** |
+| **Total fixed (CX43, no Volume)** | | **~$16/mo** |
+| **Total fixed (CX43 + 50 GB Volume)** | | **~$19/mo** |
 
-CAX31 + 50 GB Volume sits right at the $20 ceiling. The CX33 interim
-target sits well under, leaving headroom for the Volume add-on
-during the gap before #712 lands. Any further upgrade (CCX23, larger
-Volume) breaks the ceiling and needs an explicit budget revision.
+CX43 + 50 GB Volume sits comfortably under the $20 ceiling with ~$1
+of headroom. Any further upgrade — CAX31 (€19.95 ARM premium),
+CCX23 (€31.49 dedicated AMD), or a larger Volume — breaks the
+ceiling and needs an explicit budget revision.
 
 ## Phased Rollout
 
@@ -728,15 +762,18 @@ The original "Open Questions" set has been resolved (see RFC-082
 discussion thread). Recording here so the implementation has explicit
 direction:
 
-1. **Hetzner CAX31** (€15.99, 8 vCPU ARM Ampere, 16 GB) is the chosen
-   target — best price/perf at the $20 ceiling. Gated on
-   [#712](https://github.com/chipi/podcast_scraper/issues/712)
-   (multi-arch GHCR publish). Until #712 lands, deploy on **CX33**
-   (€6.49, shared Intel/AMD, 8 GB; the 2024-renamed successor to the
-   old CX32) as the amd64 interim. Fall back to CCX13 (€15.99,
-   dedicated AMD) if the interim shows shared-CPU jitter, or CCX23
-   (€31.49, breaks the ceiling) only if ARM perf surprises us. EUR
-   figures are post-2026-04-01 list price.
+1. **Hetzner CX43** (€15.11/mo, 8 vCPU shared Intel/AMD, 16 GB,
+   160 GB) is the chosen target — cheapest 8-core option in the
+   lineup, ~25 % less than the same-shape CAX31 (ARM Ampere,
+   €19.95/mo). Multi-arch GHCR publish (#712 / #737) is already
+   merged, so a future flip to CAX31 is just a Terraform variable
+   change (`server_type = "cax31"`) if the anti-jitter premium
+   ever justifies the €5/mo. Fall back to CCX23 (4 dedicated AMD
+   vCPU, ~€31.49 — breaks the $20 ceiling) only if measured
+   shared-CPU jitter on CX43 demands it. **Earlier RFC drafts
+   referenced stale €15.99 CAX31 / €11.99 CX43 figures from
+   cached costgoat data** — the live Hetzner pricing page is
+   authoritative; re-verify before each apply.
 2. **No detached Volume on day one.** 80 GB boot disk is enough for
    early use. Add a Volume on first VPS replacement when we already
    need to migrate the corpus anyway.
