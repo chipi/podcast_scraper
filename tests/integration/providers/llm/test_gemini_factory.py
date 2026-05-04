@@ -36,7 +36,18 @@ _patch_google = patch.dict(
         "google.api_core": mock_api_core,
     },
 )
-_patch_google.start()
+
+
+def setUpModule():
+    # Scoped per INTEGRATION_TESTING_GUIDE.md → "Mocking LLM SDKs at
+    # sys.modules" — otherwise the mocks leak into other integration
+    # tests that need the real google.genai SDK.
+    _patch_google.start()
+
+
+def tearDownModule():
+    _patch_google.stop()
+
 
 from podcast_scraper import config
 from podcast_scraper.speaker_detectors.factory import create_speaker_detector
