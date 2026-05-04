@@ -30,7 +30,7 @@ import pytest
 # Mock the SDK packages each provider tries to import. None of these are
 # actually used in the unit test path (we patch retry_with_metrics), but
 # each provider's module-level imports may probe them at import time.
-for sdk_name in ("openai", "anthropic", "mistralai"):
+for sdk_name in ("openai", "anthropic", "mistralai", "httpx"):
     if sdk_name in importlib.util.find_spec.__globals__.get("sys", __import__("sys")).modules:
         continue
     mock_mod = MagicMock()
@@ -107,7 +107,17 @@ def _provider_factory(name: str) -> Tuple[Type, dict, str]:
 def _make_provider(name: str):
     cls, cfg_kwargs, model = _provider_factory(name)
     cfg = config.Config(**cfg_kwargs)
-    provider = cls(cfg)
+    if name == "ollama":
+        # OllamaProvider.__init__ has a runtime check ``if httpx is None``;
+        # the module-level binding is None when the unit-test env doesn't
+        # install ``[llm]`` extras (CI test-unit step). Patch the binding
+        # to a MagicMock for the duration of construction.
+        from podcast_scraper.providers.ollama import ollama_provider as ollama_mod
+
+        with patch.object(ollama_mod, "httpx", MagicMock()):
+            provider = cls(cfg)
+    else:
+        provider = cls(cfg)
     provider.client = MagicMock()
     provider._summarization_initialized = True
     provider.summary_model = model
