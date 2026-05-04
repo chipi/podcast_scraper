@@ -12,6 +12,32 @@ These are the patterns where you have failed this user repeatedly:
 4. When the user is frustrated, stop proposing actions; acknowledge and wait.
 5. Read what was last asked, not what you think makes sense.
 6. Validate the cost of an action before taking it (does it restart CI? does it push? does it require approval?).
+7. **Make commands MUST be assessable at the end.** ALWAYS invoke `make` with an exit-code terminator from the start, so the LAST line of output unambiguously says PASS/FAIL. NEVER re-run a `make` command "to check the exit code". See [How to run make commands](#how-to-run-make-commands) below.
+
+## How to run make commands
+
+You repeatedly burn 5–10 minutes by running `make ci-fast` (or any other long `make` target), failing to extract the exit status from the output, then re-running it "to verify". This is a permanent prohibition.
+
+**The rule: every `make <target>` invocation MUST end with an exit-code terminator from the very first run, so PASS/FAIL is the last visible line.** Choose ONE form per call:
+
+```bash
+# Form A — the default, always-safe form. Last line is "MAKE_EXIT=0" or "MAKE_EXIT=N".
+make <target>; echo "MAKE_EXIT=$?"
+
+# Form B — single-shot interpretable terminator. Last line is "PASS" or "FAIL N".
+make <target> && echo "PASS" || echo "FAIL $?"
+```
+
+**Why both lines instead of trusting the prior output:** `make` exits non-zero on the first failing subtarget but the FINAL printed line of a long run is whatever the last subtarget happened to print (often a build success message even when an earlier step failed). The output's *trailing prose* is NOT the exit code. Without the explicit terminator, you cannot tell PASS from FAIL by inspection — and you should NOT re-run the whole target to find out.
+
+**Forbidden:**
+
+- Running `make X` without an exit-code terminator, then running it again "to check".
+- Piping `make X` through `tail`, `grep`, `head` without `set -o pipefail` AND an exit-code echo at the end.
+- Treating "no obvious error in the last 60 lines" as PASS. Inspect the explicit `MAKE_EXIT=` / `PASS` / `FAIL` line.
+- Re-running `make ci-fast` to "verify the exit code" of a previous run. If the prior run lacked the terminator, that is on you — work with what you have, ask the user, or grep the prior output for explicit failure markers. Do NOT spend another 10 minutes.
+
+**On a failing `make ci-fast`:** identify the failing SUBTARGET (docs / lint / format / test / etc.) and validate the fix by re-running ONLY that subtarget — `make docs` is 10 s, `make ci-fast` is 10 min. Then run `make ci-fast` ONCE at the very end as the whole-gate confirmation. (See `feedback_no_redundant_ci_fast.md` and `feedback_subtarget_reverify.md` in user memory.)
 
 ## Reference files (load on demand)
 
