@@ -53,14 +53,26 @@ for name, mod in {
     "mistralai": mock_mistralai,
 }.items():
     mod.__spec__ = importlib.util.spec_from_loader(name, loader=None)
-patch.dict(
+_patch_sdks = patch.dict(
     "sys.modules",
     {
         "openai": mock_openai,
         "anthropic": mock_anthropic,
         "mistralai": mock_mistralai,
     },
-).start()
+)
+
+
+def setUpModule():
+    # Scope the SDK mocks to this module only — otherwise they leak into other
+    # integration test files (test_e2e_server.py, etc.) that need the real SDK
+    # to construct working OpenAI/Anthropic/Mistral provider instances. Same
+    # pattern as test_gemini_provider.py / test_openai_provider.py.
+    _patch_sdks.start()
+
+
+def tearDownModule():
+    _patch_sdks.stop()
 
 
 from podcast_scraper import config

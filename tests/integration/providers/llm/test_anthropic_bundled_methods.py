@@ -16,7 +16,19 @@ import pytest
 
 mock_anthropic = MagicMock()
 mock_anthropic.__spec__ = importlib.util.spec_from_loader("anthropic", loader=None)
-patch.dict("sys.modules", {"anthropic": mock_anthropic}).start()
+_patch_anthropic = patch.dict("sys.modules", {"anthropic": mock_anthropic})
+
+
+def setUpModule():
+    # Scope the SDK mock to this module only — otherwise it leaks into other
+    # integration test files that need the real Anthropic SDK to construct
+    # working provider instances. Same pattern as test_anthropic_provider.py.
+    _patch_anthropic.start()
+
+
+def tearDownModule():
+    _patch_anthropic.stop()
+
 
 from podcast_scraper import config
 from podcast_scraper.providers.anthropic.anthropic_provider import AnthropicProvider

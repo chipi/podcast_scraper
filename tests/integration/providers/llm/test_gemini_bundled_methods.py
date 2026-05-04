@@ -39,7 +39,18 @@ _patch_google = patch.dict(
         "google.api_core": mock_api_core,
     },
 )
-_patch_google.start()
+
+
+def setUpModule():
+    # Scope the SDK mocks to this module only — otherwise they leak into other
+    # integration test files that need the real SDK. Same pattern as
+    # tests/integration/providers/llm/test_gemini_provider.py.
+    _patch_google.start()
+
+
+def tearDownModule():
+    _patch_google.stop()
+
 
 from podcast_scraper import config
 from podcast_scraper.providers.common.bundle_extract_parser import BundleExtractParseError
