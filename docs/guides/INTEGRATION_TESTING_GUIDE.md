@@ -125,6 +125,53 @@ def test_transcription_workflow(self):
         # Verify provider creation and lifecycle, not ML output
 ```
 
+### Mocking LLM SDKs at `sys.modules` (scoped, not module-global) {#sdk-sys-modules-mock}
+
+> **Always pair `patch.dict("sys.modules", …).start()` with a matching `tearDownModule` `.stop()`.** Otherwise the mock leaks across test files and breaks downstream tests that need the real SDK.
+
+When an integration test needs to construct a real provider class (`OpenAIProvider`, `AnthropicProvider`, `GeminiProvider`, etc.) but doesn't want the test machine to require `[llm]` extras for **collection**, the canonical pattern is to mock the SDK package at `sys.modules` import time. Provider modules use soft imports (`try: from openai import OpenAI; except ImportError: openai = None`), so mocking `openai` in `sys.modules` makes the import succeed and the symbol non-None.
+
+**Wrong** (the unscoped `.start()` leaks the mock for the rest of the pytest process — including xdist workers — and a later test like `tests/integration/infrastructure/test_e2e_server.py` ends up with a `MagicMock()` `openai` client instead of the real one):
+
+```python
+mock_openai = MagicMock()
+patch.dict("sys.modules", {"openai": mock_openai}).start()  # ❌ leak
+```
+
+**Right** (scope to this module via `setUpModule` / `tearDownModule`):
+
+```python
+mock_openai = MagicMock()
+mock_openai.__spec__ = importlib.util.spec_from_loader("openai", loader=None)
+_patch_openai = patch.dict("sys.modules", {"openai": mock_openai})
+
+
+def setUpModule():
+    # Scope the SDK mock to this module only — otherwise it leaks into
+    # other integration test files that need the real SDK.
+    _patch_openai.start()
+
+
+def tearDownModule():
+    _patch_openai.stop()
+
+
+# Provider import happens AFTER the patch object exists but BEFORE setUpModule
+# fires. That's fine: the integration tier has the SDK installed for real, so
+# the import succeeds with the real package. The mock activates for tests that
+# need to bypass real SDK constructors via ``provider.client = MagicMock()``.
+from podcast_scraper.providers.openai.openai_provider import OpenAIProvider
+```
+
+Canonical examples in the repo:
+
+- `tests/integration/providers/llm/test_gemini_provider.py` — Gemini (`google.genai`)
+- `tests/integration/providers/llm/test_openai_provider.py` — OpenAI
+- `tests/integration/providers/llm/test_ollama_provider.py` — Ollama (`openai` + `httpx`)
+- `tests/integration/providers/llm/test_*_bundled_methods.py` — #698 bundled-method tests, same pattern
+
+**Don't mock `httpx` at integration tier.** Several provider modules do real `isinstance(base, httpx.Timeout)` checks in `timeout_config.py`. Mocking `httpx` in `sys.modules` makes the type check raise `TypeError: isinstance() arg 2 must be a type`. The integration tier has `[llm]` (which includes `httpx`) installed for real — let it through. The exception is `OllamaProvider` which has an `if httpx is None` runtime check at `__init__`; that's already handled by the real `httpx` being importable.
+
 ### Local HTTP Server Test
 
 ```python
