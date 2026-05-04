@@ -1,0 +1,136 @@
+name: Infra CI
+
+# RFC-082 Decision 6 — GitOps loop, PR side. On any PR touching infra/** or
+# tailscale/policy.hujson, run `tofu fmt -check && validate && plan` and post
+# the plan as a PR comment so the reviewer sees what `tofu apply` would do.
+#
+# Closes #719 (PR-CI half). The infra-apply.yml workflow handles the manual
+# dispatch side.
+#
+# Operator prerequisites (#714):
+#   secrets: HCLOUD_TOKEN, TS_OAUTH_CLIENT_ID, TS_OAUTH_CLIENT_SECRET,
+#            TFSTATE_AGE_KEY
+#   vars:    OPERATOR_SSH_PUBLIC_KEY, TAILNET_NAME
+
+on:
+  pull_request:
+    paths:
+      - 'infra/**'
+      - 'tailscale/policy.hujson'
+
+permissions:
+  contents: read
+  pull-requests: write  # required to post the plan comment
+
+concurrency:
+  group: infra-ci-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  plan:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Pre-flight — required secrets present?
+        id: preflight
+        env:
+          HCLOUD_TOKEN:           ${{ secrets.HCLOUD_TOKEN }}
+          TS_OAUTH_CLIENT_ID:     ${{ secrets.TS_OAUTH_CLIENT_ID }}
+          TS_OAUTH_CLIENT_SECRET: ${{ secrets.TS_OAUTH_CLIENT_SECRET }}
+          TFSTATE_AGE_KEY:        ${{ secrets.TFSTATE_AGE_KEY }}
+        run: |
+          set -euo pipefail
+          MISSING=""
+          [ -z "${HCLOUD_TOKEN:-}" ]           && MISSING="$MISSING HCLOUD_TOKEN"
+          [ -z "${TS_OAUTH_CLIENT_ID:-}" ]     && MISSING="$MISSING TS_OAUTH_CLIENT_ID"
+          [ -z "${TS_OAUTH_CLIENT_SECRET:-}" ] && MISSING="$MISSING TS_OAUTH_CLIENT_SECRET"
+          [ -z "${TFSTATE_AGE_KEY:-}" ]        && MISSING="$MISSING TFSTATE_AGE_KEY"
+          if [ -n "$MISSING" ]; then
+            echo "::warning::Missing prereqs:$MISSING — skipping live plan."
+            echo "::warning::Stage them per #714 to enable PR-time tofu plan."
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Install OpenTofu
+        if: steps.preflight.outputs.skip != 'true'
+        uses: opentofu/setup-opentofu@v1
+        with:
+          tofu_version: 1.6.0
+
+      - name: Install sops + age
+        if: steps.preflight.outputs.skip != 'true'
+        run: |
+          set -euo pipefail
+          sudo curl -fsSL -o /usr/local/bin/sops \
+            https://github.com/getsops/sops/releases/download/v3.9.4/sops-v3.9.4.linux.amd64
+          sudo chmod +x /usr/local/bin/sops
+          curl -fsSL https://github.com/FiloSottile/age/releases/download/v1.2.1/age-v1.2.1-linux-amd64.tar.gz \
+            | sudo tar -xz -C /usr/local/bin --strip-components=1 age/age age/age-keygen
+
+      - name: tofu fmt -check
+        if: steps.preflight.outputs.skip != 'true'
+        working-directory: infra/terraform
+        run: tofu fmt -check -diff
+
+      - name: tofu init + validate
+        if: steps.preflight.outputs.skip != 'true'
+        working-directory: infra/terraform
+        run: |
+          tofu init -input=false
+          tofu validate
+
+      - name: Decrypt state (if any prior apply has happened)
+        if: steps.preflight.outputs.skip != 'true'
+        env:
+          SOPS_AGE_KEY: ${{ secrets.TFSTATE_AGE_KEY }}
+        run: |
+          if [ -f infra/terraform/terraform.tfstate.enc ]; then
+            sops -d infra/terraform/terraform.tfstate.enc > infra/terraform/terraform.tfstate
+          fi
+
+      - name: tofu plan
+        if: steps.preflight.outputs.skip != 'true'
+        id: plan
+        working-directory: infra/terraform
+        env:
+          TF_VAR_hcloud_token:                  ${{ secrets.HCLOUD_TOKEN }}
+          TF_VAR_tailscale_oauth_client_id:     ${{ secrets.TS_OAUTH_CLIENT_ID }}
+          TF_VAR_tailscale_oauth_client_secret: ${{ secrets.TS_OAUTH_CLIENT_SECRET }}
+          TF_VAR_ssh_public_key:                ${{ vars.OPERATOR_SSH_PUBLIC_KEY }}
+          TF_VAR_tailscale_tailnet:             ${{ vars.TAILNET_NAME }}
+        run: |
+          set +e
+          tofu plan -no-color -input=false 2>&1 | tee plan.txt
+          PLAN_EXIT="${PIPESTATUS[0]}"
+          # Cap to GitHub's 65k comment-body limit, leaving headroom for our wrapper.
+          head -c 60000 plan.txt > plan.trunc.txt
+          exit "$PLAN_EXIT"
+
+      - name: Post plan as PR comment
+        if: steps.preflight.outputs.skip != 'true' && always()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            let plan;
+            try { plan = fs.readFileSync('infra/terraform/plan.trunc.txt', 'utf8'); }
+            catch (e) { plan = '(plan output unavailable — see workflow logs)'; }
+            const body = '## OpenTofu plan\n\n```\n' + plan + '\n```\n\n' +
+                         '_Workflow run: ' + context.runId + '_';
+            github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo:  context.repo.repo,
+              issue_number: context.issue.number,
+              body: body
+            });
+
+      - name: Cleanup plaintext state
+        if: always() && steps.preflight.outputs.skip != 'true'
+        run: |
+          shred -u infra/terraform/terraform.tfstate 2>/dev/null \
+            || rm -f infra/terraform/terraform.tfstate
+          rm -f infra/terraform/plan.bin infra/terraform/plan.txt infra/terraform/plan.trunc.txt
