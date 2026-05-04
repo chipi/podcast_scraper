@@ -1,0 +1,188 @@
+name: Post-deploy codespace smoke
+
+# Closes the operator validation loop after ``deploy-codespace.yml``
+# rebuilds the pre-prod codespace. SSHes into the codespace, runs a
+# real-episode pipeline through ``cloud_balanced``, asserts the corpus
+# artifacts came out right, then auto-stops the codespace so the
+# compute meter doesn't run forever. See issue #710 for the full
+# rationale.
+#
+# Operator setup (one-time, in addition to deploy-codespace.yml's
+# CODESPACES_PAT + PREPROD_CODESPACE_NAME):
+#
+#   1. Set repo variable ``SMOKE_FEED_URL`` to the RSS URL of a
+#      stable podcast with at least one short episode (~5 min). Used
+#      as ``feed_url`` in ``POST /api/jobs``. Without this, the smoke
+#      logs a warning and skips — codespace still gets stopped so the
+#      compute meter doesn't leak.
+#   2. (Optional) Set repo variable ``SMOKE_FEED_NAME`` to a
+#      human-readable corpus directory name (defaults to
+#      ``smoke``).
+#   3. (Optional) Set secret ``SMOKE_WEBHOOK_URL`` to a Slack / HA
+#      / RFC-081 §Layer 4 webhook for the green / red ping.
+#
+# When this workflow lands, re-enable the upstream deploy:
+#
+#   gh workflow enable "Deploy to pre-prod codespace" \
+#       --repo chipi/podcast_scraper
+
+on:
+  workflow_dispatch:
+  workflow_run:
+    workflows: ["Deploy to pre-prod codespace"]
+    types: [completed]
+    branches: [main]
+
+permissions:
+  actions: read
+  contents: read
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
+    env:
+      CODESPACES_PAT: ${{ secrets.CODESPACES_PAT }}
+      PREPROD_CODESPACE: ${{ vars.PREPROD_CODESPACE_NAME }}
+      # Operator-pinned via repo variables. Smoke is skipped (warning
+      # logged) when SMOKE_FEED_URL is empty.
+      SMOKE_FEED_URL: ${{ vars.SMOKE_FEED_URL }}
+      SMOKE_FEED_NAME: ${{ vars.SMOKE_FEED_NAME || 'smoke' }}
+      SMOKE_WEBHOOK_URL: ${{ secrets.SMOKE_WEBHOOK_URL }}
+      # Time budget for the in-codespace smoke. Real-episode runs on
+      # cloud_balanced + bundled GIL average ~3-4 min on whisper-1
+      # transcription + gemini-2.5-flash-lite. 7 min covers slow days.
+      SMOKE_BUDGET_SECONDS: '420'
+    outputs:
+      result: ${{ steps.smoke.outputs.result }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ github.event.workflow_run.head_sha || github.ref }}
+
+      - name: Preconditions
+        id: pre
+        run: |
+          set -euo pipefail
+          if [ -z "${CODESPACES_PAT:-}" ] || [ -z "${PREPROD_CODESPACE:-}" ]; then
+            echo "::warning::CODESPACES_PAT or PREPROD_CODESPACE_NAME not set — skipping smoke."
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+            echo "skip_reason=missing-prereqs" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          if [ -z "${SMOKE_FEED_URL:-}" ]; then
+            echo "::warning::SMOKE_FEED_URL repo variable not set — skipping smoke."
+            echo "::warning::Pin via Settings → Variables → Actions → SMOKE_FEED_URL."
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+            echo "skip_reason=missing-feed-url" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          echo "skip=false" >> "$GITHUB_OUTPUT"
+
+      - name: Copy smoke script into codespace
+        if: steps.pre.outputs.skip != 'true'
+        env:
+          GH_TOKEN: ${{ secrets.CODESPACES_PAT }}
+        run: |
+          set -euo pipefail
+          # ``gh codespace cp`` lands in $HOME by default. Place into
+          # /tmp so /home is left untouched.
+          gh codespace cp scripts/smoke/post_deploy.py "remote:/tmp/post_deploy.py" \
+              --codespace "$PREPROD_CODESPACE"
+
+      - name: Run smoke inside codespace
+        id: smoke
+        if: steps.pre.outputs.skip != 'true'
+        env:
+          GH_TOKEN: ${{ secrets.CODESPACES_PAT }}
+        run: |
+          set -euo pipefail
+          # Smoke script reads its config from env vars passed via
+          # ``gh codespace ssh -- env ... python ...``.
+          # The ``2>&1 | tee`` pattern lets the GHA log show progress
+          # AND captures the exit code via PIPESTATUS.
+          set +e
+          gh codespace ssh --codespace "$PREPROD_CODESPACE" -- \
+              "SMOKE_FEED_URL='${SMOKE_FEED_URL}' \
+               SMOKE_FEED_NAME='${SMOKE_FEED_NAME}' \
+               SMOKE_BUDGET_SECONDS='${SMOKE_BUDGET_SECONDS}' \
+               EXPECTED_SHORT_SHA='${{ github.event.workflow_run.head_sha || github.sha }}' \
+               python3 /tmp/post_deploy.py" 2>&1 | tee /tmp/smoke.log
+          rc=${PIPESTATUS[0]}
+          set -e
+          if [ "$rc" -eq 0 ]; then
+            echo "result=green" >> "$GITHUB_OUTPUT"
+          else
+            echo "result=red" >> "$GITHUB_OUTPUT"
+            echo "::error::Smoke failed (rc=$rc) — see /tmp/smoke.log artifact."
+            exit 1
+          fi
+
+      - name: Stop codespace (green path)
+        if: steps.pre.outputs.skip != 'true' && success()
+        env:
+          GH_TOKEN: ${{ secrets.CODESPACES_PAT }}
+        run: |
+          set -euo pipefail
+          # Smoke green → stop the codespace so the compute meter halts.
+          # GitHub auto-suspends idle codespaces at 30 min by default,
+          # but stopping immediately tightens that to seconds.
+          echo "==> Stopping codespace: $PREPROD_CODESPACE"
+          gh codespace stop --codespace "$PREPROD_CODESPACE" || true
+
+      - name: Leave codespace running (red path)
+        if: steps.pre.outputs.skip != 'true' && failure()
+        run: |
+          echo "::warning::Smoke failed — codespace left running so operator can SSH in to debug."
+          echo "::warning::Reach it via: gh codespace ssh --codespace $PREPROD_CODESPACE"
+          echo "::warning::When done debugging: gh codespace stop --codespace $PREPROD_CODESPACE"
+
+      - name: Capture failure artifacts
+        if: steps.pre.outputs.skip != 'true' && failure()
+        env:
+          GH_TOKEN: ${{ secrets.CODESPACES_PAT }}
+        run: |
+          set -euo pipefail
+          # Best-effort post-mortem snapshot. None of these are blocking;
+          # we'd rather report partial info than fail the failure path.
+          mkdir -p /tmp/smoke-artifacts
+          cp /tmp/smoke.log /tmp/smoke-artifacts/ 2>/dev/null || true
+          gh codespace ssh --codespace "$PREPROD_CODESPACE" -- \
+              'curl -fsS http://localhost:8090/api/jobs?path=/app/output' \
+              > /tmp/smoke-artifacts/jobs.json 2>&1 || true
+          gh codespace ssh --codespace "$PREPROD_CODESPACE" -- \
+              'curl -fsS http://localhost:8090/api/health' \
+              > /tmp/smoke-artifacts/health.json 2>&1 || true
+          gh codespace ssh --codespace "$PREPROD_CODESPACE" -- \
+              'docker compose -f /workspaces/podcast_scraper/compose/docker-compose.prod.yml logs --tail=400 api' \
+              > /tmp/smoke-artifacts/api.log 2>&1 || true
+          gh codespace ssh --codespace "$PREPROD_CODESPACE" -- \
+              'df -h' \
+              > /tmp/smoke-artifacts/df.txt 2>&1 || true
+
+      - uses: actions/upload-artifact@v4
+        if: steps.pre.outputs.skip != 'true' && failure()
+        with:
+          name: smoke-artifacts-${{ github.run_id }}
+          path: /tmp/smoke-artifacts/
+          retention-days: 14
+
+      - name: Webhook ping
+        if: steps.pre.outputs.skip != 'true' && always()
+        run: |
+          set -euo pipefail
+          if [ -z "${SMOKE_WEBHOOK_URL:-}" ]; then
+            echo "::notice::SMOKE_WEBHOOK_URL not set; skipping webhook ping."
+            exit 0
+          fi
+          SHORT="${{ github.event.workflow_run.head_sha || github.sha }}"
+          SHORT="${SHORT:0:7}"
+          RESULT="${{ steps.smoke.outputs.result }}"
+          if [ "$RESULT" = "green" ]; then
+            MSG="Smoke: green on \`$SHORT\`; codespace stopped."
+          else
+            MSG="Smoke: red on \`$SHORT\`; codespace \`$PREPROD_CODESPACE\` still up."
+          fi
+          curl -fsS -X POST -H "Content-Type: application/json" \
+              -d "{\"text\":\"${MSG}\"}" \
+              "$SMOKE_WEBHOOK_URL" || echo "::warning::webhook ping failed (non-fatal)"
