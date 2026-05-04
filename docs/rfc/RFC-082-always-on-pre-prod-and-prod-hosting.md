@@ -116,7 +116,7 @@ IaC + a GitOps deploy loop**:
 
 [ New for prod ]
   1. infra/ directory: Terraform + cloud-init + deploy script
-  2. Hetzner CX32 (or CCX13) provisioned via Terraform
+  2. Hetzner CAX31 (or CX33 interim — see Decision 1) provisioned via Terraform
   3. Tailscale daemon on the VPS, auto-joins tailnet via auth key
   4. GHA workflow deploy-prod.yml fires on stack-test success → main
   5. Host bind-mount: /srv/podcast-scraper/corpus
@@ -125,17 +125,58 @@ IaC + a GitOps deploy loop**:
 
 ### Decision 1 — Hosting target
 
-**Hetzner CX32** (4 vCPU shared, 8 GB RAM, 80 GB SSD, ~€7.89/mo, EU).
-Operator-confirmed EU geography + want predictable flat billing.
+**Hetzner CAX31** (8 vCPU ARM Ampere, 16 GB RAM, 160 GB SSD, 20 TB
+traffic, **€15.99/mo**, EU). Operator-confirmed EU geography + want
+predictable flat billing.
 
-Upgrade path: **CCX13** (2 dedicated vCPU, 8 GB, 80 GB, ~€13.99/mo)
-if shared-CPU jitter shows up in pipeline ffmpeg stages. Both are
-within the cost ceiling.
+CAX31 wins on price/perf at the chosen budget tier: it's the same
+monthly cost as CCX13 (the dedicated-AMD option) but ships **4× the
+vCPUs (8 vs 2) and 2× the RAM (16 vs 8 GB)**. For a workload that's
+ffmpeg + cloud-LLM SDK calls + viewer + grafana-agent — none of which
+benefits from x86-specific instructions — that's a free headroom
+upgrade at the same euro spend.
 
-Optional: a separate Hetzner Volume (€0.0476/GB/month) for the corpus
-bind-mount, so the VPS image can be replaced without touching corpus
-data. ~€2.50/mo for 50 GB. Recommended once corpus grows past ~20 GB
-on the boot disk.
+**Why ARM is low-risk for this stack.** Prod runs the cloud-thin
+profile (`INSTALL_EXTRAS=llm`): no torch / spaCy / FAISS / Whisper /
+llama-cpp. The arm64 dependency surface reduces to
+`python:3.12-slim-bookworm` (official multi-arch), `nginx:alpine`
+(viewer; official multi-arch), debian-package ffmpeg (first-class on
+Ampere), pure-Python provider SDKs, and grafana-agent (official ARM
+build). None of the typical "port to ARM" pain points (compiled ML
+wheels, CUDA, native llama.cpp) are in the prod image set.
+
+**Prerequisite.** GHCR publish currently emits amd64-only manifests.
+Moving to CAX is gated on
+[#712 — Multi-arch (amd64+arm64) GHCR publish](https://github.com/chipi/podcast_scraper/issues/712),
+which adds `--platform linux/amd64,linux/arm64` to the three
+`docker buildx build` invocations in `stack-test.yml` and validates
+one real episode end-to-end on a throwaway CAX21 before the prod
+flip. Until #712 lands, the **interim deploy target is CX33**
+(4 vCPU shared Intel/AMD, 8 GB, 80 GB, €6.49/mo) so prod isn't
+blocked on the publish change.
+
+> **Naming note.** Hetzner renamed the CX line in 2024 (CX22 / CX32 /
+> CX42 → CX23 / CX33 / CX43) and pushed a 30–37% price hike on
+> 2026-04-01. Earlier drafts of this RFC referenced "CX32 at €7.89" —
+> that SKU no longer exists; CX33 is the same shape post-rename. EUR
+> figures throughout reflect Hetzner's post-2026-04-01 list price.
+
+**Alternatives kept on the bench (in order, only if CAX31 falls
+short):**
+
+| Trigger | Move to | Specs | Price |
+| --- | --- | --- | --- |
+| #712 not yet landed; need to ship prod now on amd64 | **CX33** (interim) | 4 vCPU shared Intel/AMD, 8 GB, 80 GB | €6.49/mo |
+| #712 not yet landed AND shared-CPU jitter visible | **CCX13** (interim, dedicated) | 2 dedicated AMD vCPU, 8 GB, 80 GB | €15.99/mo |
+| ARM perf surprise — Ampere wall-time materially worse than amd64 baseline | **CCX23** | 4 dedicated AMD vCPU, 16 GB, 160 GB | €31.49/mo |
+
+CAX31 sits at $17/mo (~$3 under the $20 ceiling). The CCX23 fallback
+breaks the ceiling and would need an explicit budget revision.
+
+**Storage add-on:** a separate Hetzner Volume (€0.0572/GB/month, post
+April-2026 pricing) for the corpus bind-mount, so the VPS image can
+be replaced without touching corpus data. ~€2.86/mo for 50 GB.
+Recommended once corpus grows past ~20 GB on the boot disk.
 
 ### Decision 2 — Auth wall: Tailscale
 
@@ -228,8 +269,9 @@ rather than as a host-side cron that escapes git visibility.
 
 **Optional: Hetzner Volume snapshots.** If corpus moves to a
 detached Volume, Hetzner's automatic snapshot feature is a
-zero-config secondary safety net (~€0.0119/GB/month). Out of scope
-for this RFC unless corpus grows large enough to matter.
+zero-config secondary safety net (€0.0143/GB/month, post-2026-04-01
+pricing). Out of scope for this RFC unless corpus grows large
+enough to matter.
 
 ### Decision 5 — IaC: Terraform with the hetznercloud provider
 
@@ -257,7 +299,8 @@ infra/
   with the `hetznercloud/hcloud` provider, also supports the
   `tailscale/tailscale` provider. Avoids the BSL-license question on
   HashiCorp Terraform.
-- **`hetznercloud/hcloud` provider** — declares the CX32 server,
+- **`hetznercloud/hcloud` provider** — declares the CAX31 server
+  (or CX33 during the #712 interim window),
   attached Volume, firewall rules (default-deny inbound; allow
   outbound), SSH key registration.
 - **`tailscale/tailscale` provider** — declares the auth key (so
@@ -292,8 +335,8 @@ loop so operators don't manage the dance manually.
 
 **Trade-offs vs. alternatives:**
 
-| | sops + age (chosen) | Hetzner Object Storage | Terraform Cloud |
-|---|---|---|---|
+| Dimension | sops + age (chosen) | Hetzner Object Storage | Terraform Cloud |
+| --- | --- | --- | --- |
 | Cost | $0 | ~€0.50/mo | $0 free tier (5 users) |
 | Vendor surface | none new | one (already on Hetzner) | new |
 | State in git history | yes (encrypted blob) | no | no |
@@ -308,7 +351,7 @@ changed" signal. If we ever go multi-operator, swap to Object Storage
 **Bootstrap flow:**
 
 1. Operator clones repo locally, runs `cd infra/terraform && tofu apply`.
-2. OpenTofu provisions Hetzner CX32 + attaches Volume + registers
+2. OpenTofu provisions Hetzner CAX31 (or CX33 interim) + attaches Volume + registers
    tailscale auth key.
 3. cloud-init runs on first boot: installs Docker, Tailscale, joins
    tailnet, pulls repo, copies operator-staged `.env`, runs
@@ -572,7 +615,7 @@ runbook. The corpus is recoverable to within ~24 h of pre-disaster
 state (last `backup-corpus.yml` run).
 
 If the corpus loss matters more than the speed of recovery,
-optionally enable Hetzner Volume snapshots (€0.0119/GB/month) for a
+optionally enable Hetzner Volume snapshots (€0.0143/GB/month) for a
 secondary safety net with ~hour-level RPO.
 
 ### Image set and pull behavior
@@ -586,7 +629,7 @@ exactly as in pre-prod.
 
 First-deploy image pull on a fresh VPS is ~3 GB total (~1.5 GB
 pipeline-llm + ~700 MB api + ~50 MB viewer + ~250 MB grafana-agent).
-Bandwidth allowance on Hetzner CX32 is 20 TB/mo; first-deploy pull
+Bandwidth allowance on Hetzner CAX31 / CX33 is 20 TB/mo; first-deploy pull
 is negligible against that. Subsequent deploys reuse layers and pull
 ~50-200 MB per release.
 
@@ -618,20 +661,26 @@ is negligible against that. Subsequent deploys reuse layers and pull
 
 ## Costs
 
+All EUR figures reflect Hetzner's post-2026-04-01 price list.
+
 | Component | Plan | Cost / mo |
-|---|---|---|
-| Hetzner CX32 (or CCX13) | flat | €7.89 (~$9) or €13.99 (~$15) |
-| Hetzner Volume 50 GB (optional) | flat | ~€2.50 |
-| Hetzner Object Storage (state) | flat | ~€0.50 |
+| --- | --- | --- |
+| Hetzner CAX31 (chosen, post-#712) | flat | €15.99 (~$17) |
+| Hetzner CX33 (interim until #712 lands) | flat | €6.49 (~$7) |
+| Hetzner Volume 50 GB (optional) | flat | ~€2.86 (~$3) |
+| sops + age state storage (in-repo, no vendor) | — | $0 |
 | Tailscale Personal | up to 100 devices | $0 |
 | GitHub (CI / Packages public) | included | $0 |
 | Grafana Cloud Free | unchanged | $0 |
 | Sentry Free | unchanged | $0 |
 | **Pipeline LLM calls** | metered (operator's keys) | varies — same as pre-prod |
-| **Total fixed** | | **~$10-19/mo** |
+| **Total fixed (CAX31 + 50 GB Volume)** | | **~$20/mo** |
+| **Total fixed (CX33 interim, no Volume)** | | **~$7/mo** |
 
-Within the $20/mo ceiling even on the dedicated-CPU CCX13 + 50 GB
-Volume + state storage.
+CAX31 + 50 GB Volume sits right at the $20 ceiling. The CX33 interim
+target sits well under, leaving headroom for the Volume add-on
+during the gap before #712 lands. Any further upgrade (CCX23, larger
+Volume) breaks the ceiling and needs an explicit budget revision.
 
 ## Phased Rollout
 
@@ -679,9 +728,15 @@ The original "Open Questions" set has been resolved (see RFC-082
 discussion thread). Recording here so the implementation has explicit
 direction:
 
-1. **Hetzner CX32** (€7.89, shared CPU). Start here; measure ffmpeg /
-   preprocessing wall-time during real-feed runs; upgrade to CCX13
-   (€13.99, dedicated) only if the shared-CPU jitter is observable.
+1. **Hetzner CAX31** (€15.99, 8 vCPU ARM Ampere, 16 GB) is the chosen
+   target — best price/perf at the $20 ceiling. Gated on
+   [#712](https://github.com/chipi/podcast_scraper/issues/712)
+   (multi-arch GHCR publish). Until #712 lands, deploy on **CX33**
+   (€6.49, shared Intel/AMD, 8 GB; the 2024-renamed successor to the
+   old CX32) as the amd64 interim. Fall back to CCX13 (€15.99,
+   dedicated AMD) if the interim shows shared-CPU jitter, or CCX23
+   (€31.49, breaks the ceiling) only if ARM perf surprises us. EUR
+   figures are post-2026-04-01 list price.
 2. **No detached Volume on day one.** 80 GB boot disk is enough for
    early use. Add a Volume on first VPS replacement when we already
    need to migrate the corpus anyway.

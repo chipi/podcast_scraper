@@ -148,6 +148,8 @@ sys.modules["transformers"] = MagicMock()
 from podcast_scraper.providers.ml import ml_provider
 ```
 
+> **Direct `sys.modules[...] = MagicMock()` is fine in unit tests** because each unit-test module is small-scoped and `tests/unit/` is the leaf of the test pyramid (nothing downstream needs the real package). For **integration tests** that mock SDKs at `sys.modules`, use the **scoped** `setUpModule` / `tearDownModule` pattern instead — see [Integration Testing Guide → Mocking LLM SDKs at sys.modules](INTEGRATION_TESTING_GUIDE.md#sdk-sys-modules-mock). Otherwise the mock leaks into other integration files that need the real SDK.
+
 **CI Verification:**
 
 - `scripts/tools/check_unit_test_imports.py` (`make check-unit-imports`) -- verifies
