@@ -77,7 +77,14 @@ export VIEWER_PORT="${VIEWER_PORT:-8090}"
 # ``/app/output``, and (c) ``backup-corpus.yml`` can tar the host path
 # directly. Docker bind-mounts fail at startup if the source dir is
 # missing — create it before ``compose up``.
-CORPUS_HOST_PATH="${PODCAST_CORPUS_HOST_PATH:-/workspaces/podcast_scraper/.codespace_corpus}"
+# Export both compose-required env vars with Codespaces-appropriate defaults.
+# These used to live as ${VAR:-/workspaces/...} fallbacks inside compose/docker-compose.prod.yml;
+# moved here so the compose file is environment-agnostic (VPS deploys provide
+# their own values via /srv/podcast-scraper/.env per PROD_RUNBOOK.md, and the
+# compose file errors out clearly via ${VAR:?...} if either is missing).
+export PODCAST_DOCKER_PROJECT_DIR="${PODCAST_DOCKER_PROJECT_DIR:-/workspaces/podcast_scraper}"
+export PODCAST_CORPUS_HOST_PATH="${PODCAST_CORPUS_HOST_PATH:-/workspaces/podcast_scraper/.codespace_corpus}"
+CORPUS_HOST_PATH="$PODCAST_CORPUS_HOST_PATH"
 mkdir -p "$CORPUS_HOST_PATH"
 
 # Stale-volume defense: ``compose up`` does NOT recreate an existing named

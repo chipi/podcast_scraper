@@ -77,7 +77,7 @@ services:
     # nested compose call can resolve them.
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
-      - ${PODCAST_DOCKER_PROJECT_DIR:-/workspaces/podcast_scraper}:${PODCAST_DOCKER_PROJECT_DIR:-/workspaces/podcast_scraper}:ro
+      - ${PODCAST_DOCKER_PROJECT_DIR:?PODCAST_DOCKER_PROJECT_DIR must be set — Codespaces sets it via .devcontainer/start.sh; VPS sets it via /srv/podcast-scraper/.env per PROD_RUNBOOK.md}:${PODCAST_DOCKER_PROJECT_DIR}:ro
     environment:
       # Surface the pre-prod observability env vars. Defaults are off
       # (empty) so this overlay is safe to apply without operator-side
@@ -91,7 +91,7 @@ services:
       # instead of running pipeline code in-process. Required because
       # the published ``api`` image only ships ``[server]`` extras.
       PODCAST_PIPELINE_EXEC_MODE: docker
-      PODCAST_DOCKER_PROJECT_DIR: ${PODCAST_DOCKER_PROJECT_DIR:-/workspaces/podcast_scraper}
+      PODCAST_DOCKER_PROJECT_DIR: ${PODCAST_DOCKER_PROJECT_DIR:?see comment above; required env var (.devcontainer/start.sh for Codespaces, .env for VPS)}
       # Compose files the nested ``docker compose run`` resolves. Codespace
       # default targets stack + prod overlays so the spawned container
       # inherits the prod overlay's bind-mounted ``corpus_data``.
@@ -171,4 +171,4 @@ volumes:
     driver_opts:
       type: none
       o: bind
-      device: ${PODCAST_CORPUS_HOST_PATH:-/workspaces/podcast_scraper/.codespace_corpus}
+      device: ${PODCAST_CORPUS_HOST_PATH:?PODCAST_CORPUS_HOST_PATH must be set — Codespaces sets it via .devcontainer/start.sh; VPS sets it via /srv/podcast-scraper/.env per PROD_RUNBOOK.md}
