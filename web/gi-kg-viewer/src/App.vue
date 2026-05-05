@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, nextTick, onMounted, provide, ref, watch } from 'vue'
+import posthog from 'posthog-js'
 import type { SearchHit } from './api/searchApi'
 import { useViewerKeyboard } from './composables/useViewerKeyboard'
 import DashboardView from './components/dashboard/DashboardView.vue'
@@ -135,6 +136,10 @@ function activateGraphTab(): void {
   void syncMergedGraphFromCorpusApi()
 }
 
+watch(mainTab, (tab) => {
+  posthog.capture('main_tab_switched', { tab })
+})
+
 function onSwitchMainTab(tab: 'digest' | 'library' | 'graph' | 'dashboard'): void {
   if (tab === 'graph') {
     activateGraphTab()
@@ -239,6 +244,10 @@ async function runCorpusGraphSyncBody(): Promise<void> {
   }
   artifacts.selectAllListed(selectedRelPaths)
   await artifacts.loadSelected()
+  posthog.capture('graph_corpus_synced', {
+    episode_count: selectedRelPaths.length,
+    was_capped: wasCapped,
+  })
 }
 
 async function syncMergedGraphFromCorpusApi(): Promise<void> {
@@ -370,17 +379,20 @@ function onGraphNodeInsightOpenExploreFilters(payload: {
 
 /** Digest row / topic hit: episode detail in the subject rail; stay on Digest. */
 function onDigestOpenEpisodeInRail(payload: { metadata_relative_path: string }): void {
+  posthog.capture('episode_focused', { source: 'digest' })
   subject.focusEpisode(payload.metadata_relative_path)
 }
 
 /** Search hit **L**: open episode in the subject rail (main tab unchanged). */
 function onSearchOpenLibraryEpisode(payload: { metadata_relative_path: string }): void {
+  posthog.capture('episode_focused', { source: 'search' })
   subject.focusEpisode(payload.metadata_relative_path)
 }
 
 function onSearchOpenEpisodeSummary(hit: SearchHit): void {
   const rel = sourceMetadataRelativePathFromSearchHit(hit)
   if (rel) {
+    posthog.capture('episode_focused', { source: 'search_summary' })
     subject.focusEpisode(rel)
   }
 }

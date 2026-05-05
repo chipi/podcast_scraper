@@ -16,5 +16,9 @@ export default defineConfig({
   },
   test: {
     include: ['src/**/*.test.ts'],
+    // Ensure Vitest never initializes PostHog (no token); avoids flaky network side effects.
+    env: {
+      VITE_POSTHOG_PROJECT_TOKEN: '',
+    },
   },
 })
