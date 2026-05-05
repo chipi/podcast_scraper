@@ -6,12 +6,20 @@ hostname: ${tailnet_hostname}
 manage_etc_hosts: true
 
 users:
+  # `default` MUST come first so cloud-init still creates Hetzner's default
+  # user (preserves root's API-injected SSH key for emergency access). Without
+  # it, our explicit `deploy` user REPLACES the default user list and root
+  # loses its authorized_keys.
+  - default
+  # `deploy` user — quoted because the SSH public key contains spaces; the
+  # earlier unquoted form `- ${ssh_public_key}` could be misparsed by YAML
+  # and result in an empty/wrong authorized_keys.
   - name: deploy
     groups: docker
     shell: /bin/bash
     sudo: false
     ssh_authorized_keys:
-      - ${ssh_public_key}
+      - "${ssh_public_key}"
 
 package_update: true
 package_upgrade: true
@@ -59,6 +67,24 @@ write_files:
     owner: root:root
 
 runcmd:
+  # === Belt-and-suspenders SSH key install ===
+  # The `users:` block above SHOULD populate ~deploy/.ssh/authorized_keys, but
+  # we've seen it silently fail on Hetzner's Ubuntu 24.04 image (cloud-init
+  # parses the YAML fine but the keys never land). Brute-force the install
+  # via runcmd — this runs unconditionally after the user is (or should have
+  # been) created.
+  - install -d -m 700 -o deploy -g deploy /home/deploy/.ssh || (useradd -m -s /bin/bash -G docker deploy && install -d -m 700 -o deploy -g deploy /home/deploy/.ssh)
+  - echo '${ssh_public_key}' > /home/deploy/.ssh/authorized_keys
+  - chown deploy:deploy /home/deploy/.ssh/authorized_keys
+  - chmod 600 /home/deploy/.ssh/authorized_keys
+  # Also ensure root's authorized_keys has it, so emergency access is possible
+  # even if the deploy user's setup is broken later. Hetzner injects the key
+  # via API but cloud-init's disable_root may strip it.
+  - install -d -m 700 -o root -g root /root/.ssh
+  - echo '${ssh_public_key}' >> /root/.ssh/authorized_keys
+  - sort -u /root/.ssh/authorized_keys -o /root/.ssh/authorized_keys
+  - chmod 600 /root/.ssh/authorized_keys
+
   # === Docker (official Docker repo) ===
   - install -m 0755 -d /etc/apt/keyrings
   - curl -fsSL https://download.docker.com/linux/ubuntu/gpg -o /etc/apt/keyrings/docker.asc
