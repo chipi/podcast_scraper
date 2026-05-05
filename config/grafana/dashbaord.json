@@ -11,13 +11,40 @@
   "templating": {
     "list": [
       {
+        "name": "env",
+        "type": "custom",
+        "label": "env",
+        "query": "prod,preprod",
+        "options": [
+          {
+            "selected": true,
+            "text": "prod",
+            "value": "prod"
+          },
+          {
+            "selected": false,
+            "text": "preprod",
+            "value": "preprod"
+          }
+        ],
+        "current": {
+          "selected": true,
+          "text": "prod",
+          "value": "prod"
+        },
+        "hide": 0,
+        "includeAll": false,
+        "multi": false,
+        "skipUrlSync": false
+      },
+      {
         "name": "service",
         "type": "query",
         "datasource": {
           "type": "prometheus",
           "uid": "grafanacloud-prom"
         },
-        "query": "label_values(http_requests_total, service)",
+        "query": "label_values(http_requests_total{env=\"$env\"}, service)",
         "regex": "",
         "allValue": ".*",
         "multi": true,
@@ -37,7 +64,7 @@
           "type": "prometheus",
           "uid": "grafanacloud-prom"
         },
-        "query": "label_values(http_requests_total{service=~\"$service\"}, endpoint)",
+        "query": "label_values(http_requests_total{env=\"$env\",service=~\"$service\"}, endpoint)",
         "regex": "",
         "allValue": ".*",
         "multi": true,
@@ -95,7 +122,7 @@
             "type": "prometheus",
             "uid": "grafanacloud-prom"
           },
-          "expr": "sum by(service) (rate(http_requests_total{service=~\"$service\", endpoint=~\"$endpoint\", status=~\"5..\"}[$__rate_interval])) / sum by(service) (rate(http_requests_total{service=~\"$service\", endpoint=~\"$endpoint\"}[$__rate_interval])) * 100",
+          "expr": "sum by(service) (rate(http_requests_total{env=\"$env\",service=~\"$service\", endpoint=~\"$endpoint\", status=~\"5..\"}[$__rate_interval])) / sum by(service) (rate(http_requests_total{env=\"$env\",service=~\"$service\", endpoint=~\"$endpoint\"}[$__rate_interval])) * 100",
           "legendFormat": "{{service}}",
           "refId": "A"
         }
@@ -117,7 +144,7 @@
             "type": "prometheus",
             "uid": "grafanacloud-prom"
           },
-          "expr": "sum by(service) (rate(http_requests_total{service=~\"$service\", endpoint=~\"$endpoint\"}[$__rate_interval]))",
+          "expr": "sum by(service) (rate(http_requests_total{env=\"$env\",service=~\"$service\", endpoint=~\"$endpoint\"}[$__rate_interval]))",
           "legendFormat": "{{service}}",
           "refId": "A"
         }
@@ -139,7 +166,7 @@
             "type": "prometheus",
             "uid": "grafanacloud-prom"
           },
-          "expr": "histogram_quantile(0.95, sum by(service, le) (rate(http_request_duration_seconds_bucket{service=~\"$service\", endpoint=~\"$endpoint\"}[$__rate_interval])))",
+          "expr": "histogram_quantile(0.95, sum by(service, le) (rate(http_request_duration_seconds_bucket{env=\"$env\",service=~\"$service\", endpoint=~\"$endpoint\"}[$__rate_interval])))",
           "legendFormat": "{{service}}",
           "refId": "A"
         }
@@ -161,7 +188,7 @@
             "type": "prometheus",
             "uid": "grafanacloud-prom"
           },
-          "expr": "topk(10, sum by(service, endpoint, status) (rate(http_requests_total{service=~\"$service\", endpoint=~\"$endpoint\", status=~\"5..\"}[$__rate_interval])))",
+          "expr": "topk(10, sum by(service, endpoint, status) (rate(http_requests_total{env=\"$env\",service=~\"$service\", endpoint=~\"$endpoint\", status=~\"5..\"}[$__rate_interval])))",
           "format": "table",
           "instant": true,
           "refId": "A"
@@ -184,7 +211,7 @@
             "type": "prometheus",
             "uid": "grafanacloud-prom"
           },
-          "expr": "sum by(endpoint) (rate(http_requests_total{service=~\"$service\", endpoint=~\"$endpoint\"}[$__rate_interval]))",
+          "expr": "sum by(endpoint) (rate(http_requests_total{env=\"$env\",service=~\"$service\", endpoint=~\"$endpoint\"}[$__rate_interval]))",
           "legendFormat": "{{endpoint}}",
           "refId": "A"
         }
@@ -206,7 +233,7 @@
             "type": "prometheus",
             "uid": "grafanacloud-prom"
           },
-          "expr": "sum by(endpoint, status) (rate(http_requests_total{service=~\"$service\", endpoint=~\"$endpoint\", status=~\"[45]..\"}[$__rate_interval]))",
+          "expr": "sum by(endpoint, status) (rate(http_requests_total{env=\"$env\",service=~\"$service\", endpoint=~\"$endpoint\", status=~\"[45]..\"}[$__rate_interval]))",
           "legendFormat": "{{endpoint}} - {{status}}",
           "refId": "A"
         }
@@ -228,7 +255,7 @@
             "type": "loki",
             "uid": "grafanacloud-logs"
           },
-          "expr": "{service_name=~\"$service\"} |~ \"(?i)(start|restart|deploy|shutdown|initializ)\"",
+          "expr": "{env=\"$env\",service_name=~\"$service\"} |~ \"(?i)(start|restart|deploy|shutdown|initializ)\"",
           "refId": "A"
         }
       ]
@@ -249,7 +276,7 @@
             "type": "loki",
             "uid": "grafanacloud-logs"
           },
-          "expr": "{service_name=~\"$service\"} |~ \"(?i)(error|exception|fatal|panic|fail)\"",
+          "expr": "{env=\"$env\",service_name=~\"$service\"} |~ \"(?i)(error|exception|fatal|panic|fail)\"",
           "refId": "A"
         }
       ]

@@ -20,7 +20,7 @@ describes *what we decided*; this runbook describes *what to do today*.
 6. [Disaster recovery (VPS gone)](#disaster-recovery)
 7. [Credential rotation](#credential-rotation)
 8. [Environment variable reference](#environment-variable-reference)
-9. [Observability setup walkthrough](#observability-setup-walkthrough)
+9. [Observability setup walkthrough](#observability-setup-walkthrough) — includes [Sentry Slack routing (GH-725)](#sentry-slack-routing-prod-vs-pre-prod-gh-725) and [Grafana env filter (GH-726)](#grafana-env-filter-gh-726)
 10. [Tailscale operations](#tailscale-operations)
 11. [Hetzner operations](#hetzner-operations)
 12. [Operator hot-fix workflow](#operator-hot-fix-workflow)
@@ -620,6 +620,26 @@ ssh deploy@prod-podcast.<tailnet> \
    - Grafana Cloud → **Explore** → **Loki** → query `{env="prod"}` →
      expect log lines from `api`, `viewer`, `grafana-agent`
 
+#### Grafana dashboards and alert rules (env filter) {#grafana-env-filter-gh-726}
+
+When prod and pre-prod both ship metrics and logs to the same Grafana
+Cloud stack, any panel or alert that omits **`env`** will aggregate
+both environments. Track importable JSON and operator steps in GitHub
+[issue #726](https://github.com/chipi/podcast_scraper/issues/726).
+
+**Repo dashboards (`config/grafana/`):** Re-import or overwrite panels
+from git after changes. Each JSON dashboard in the podcast-scraper set
+includes a template variable **`env`** (default **`prod`**; choose
+**`preprod`** for Codespaces — these values match `PODCAST_ENV` in
+`compose/grafana-agent.yaml` `external_labels`, not the prose spelling
+"pre-prod"). Prometheus panels use **`env="$env"`** in selectors; Loki
+panels already used the same pattern.
+
+**Grafana Cloud alert rules (not stored in this repo):** Edit every
+rule whose query touches podcast-scraper metrics and add **`env="prod"`**
+to the PromQL selector so pre-prod traffic cannot fire prod alerts.
+Log-based alerts should filter on **`{env="prod", ...}`** the same way.
+
 ### Sentry (one-time, per project)
 
 1. Create free Sentry account at <https://sentry.io/signup/>.
@@ -633,6 +653,50 @@ ssh deploy@prod-podcast.<tailnet> \
 5. After api recreate, verify with the **Sentry validation ping** in
    the Smoke validation block above. Expect the event in the api
    project under `environment=prod` within ~1 min.
+
+### Sentry Slack routing (prod vs pre-prod, GH-725) {#sentry-slack-routing-prod-vs-pre-prod-gh-725}
+
+**Decision (RFC-082 Open Question 3):** [Option
+B](https://github.com/chipi/podcast_scraper/issues/725) — keep a **single
+DSN per component** and split noise in **Sentry** using the
+**`environment`** tag already set by `init_sentry()` from `PODCAST_ENV`
+(`prod` on the VPS `.env`; `preprod` in the default Codespace — see
+`.devcontainer/devcontainer.json`). Option A (separate prod DSNs) is
+documented in the issue for teams that prefer separate Sentry projects.
+
+**Prod-only Slack path (Sentry UI, per project: api and pipeline):**
+
+1. Ensure Slack is installed under **Settings → Integrations → Slack**
+   for the Sentry org (or use the project-level Slack integration).
+2. Open **Alerts → Create Alert** (Issue alert) for `podcast-scraper-api`.
+3. Set **When** to the issue volume you want (e.g. new issue, or regressed).
+4. Under **If**, add a filter on **event environment** (wording varies by
+   Sentry version: e.g. **The event's environment attribute** or **An
+   event's tags** with key `environment`) **equals** `prod` (must match
+   `PODCAST_ENV` on the VPS exactly).
+5. Under **Then**, choose **Send a notification via an integration** →
+   Slack → channel `#podcast-prod-alerts` (or your prod channel).
+6. Repeat for `podcast-scraper-pipeline` if pipeline issues should also
+   notify Slack.
+
+**Pre-prod path:** create a second alert (or use the same rule with a
+different **Then** branch if your Sentry plan supports it) with
+**If** `environment` **equals** `preprod` targeting `#podcast-preprod-alerts`,
+or **do not** attach Slack (pre-prod stays Sentry-email / UI only).
+
+**Acceptance checks (operator):**
+
+1. From prod: run the **Sentry validation ping** in [Smoke
+   validation](#smoke-validation) and confirm only the **prod** Slack
+   route fires.
+2. From a Codespace (default `PODCAST_ENV=preprod`): send a test event
+   (same Python snippet with `init_sentry("api")`) and confirm it does
+   **not** hit the prod-only rule (it should match the pre-prod rule or
+   stay unrouted).
+
+Sentry product reference: [Issue
+alerts](https://docs.sentry.io/product/alerts/) and filter conditions on
+event attributes.
 
 ### Viewer Sentry (build-time DSN, runtime env)
 

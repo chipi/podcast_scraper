@@ -430,12 +430,17 @@ dispatch is the explicit approval.
 
 Same `compose/grafana-agent.yaml` mounts + same `${GRAFANA_CLOUD_*}`
 env vars. The agent scrapes `api:8000/metrics` and ships to Grafana
-Cloud. Sentry init in api + pipeline is unchanged. Operator
-dashboards / alerts work unchanged.
+Cloud. Sentry init in api + pipeline is unchanged.
 
 The only delta: `external_labels.env` flips to `prod` so dashboards
 can filter pre-prod vs prod cleanly. One-line change in the host's
-`.env` (a Terraform-managed `local-file` resource).
+`.env` (a Terraform-managed `local-file` resource). After both
+environments write to the same Grafana stack, **imported JSON
+dashboards** under `config/grafana/` use an **`env` template variable**
+(default `prod`, override `preprod` to match `PODCAST_ENV`); Grafana
+Cloud **alert rules** must add `env="prod"` in PromQL so pre-prod
+does not trip prod thresholds ([GH-726](https://github.com/chipi/podcast_scraper/issues/726),
+[PROD_RUNBOOK — Grafana env filter](../guides/PROD_RUNBOOK.md#grafana-env-filter-gh-726)).
 
 ### Layer-3 control plane — unchanged
 
@@ -810,11 +815,15 @@ The decisions above leave a smaller residual set:
    the host's `.env` before `compose up`; (b) the api reads the
    image digest at startup and self-tags. (a) is simpler. To wire
    during implementation.
-3. **Sentry alert routing.** Pre-prod Sentry events go to the same
-   Slack channel as prod by default (currently single-DSN-per-
-   component). Splitting requires either two DSNs (one per env) or a
-   Sentry-side filter rule. Not blocking; revisit when first prod
-   incident shows whether the noise is a problem.
+3. **Sentry alert routing (resolved, GH-725 Option B).** The operator
+   keeps **one DSN per component** (`PODCAST_SENTRY_DSN_API` /
+   `PODCAST_SENTRY_DSN_PIPELINE`). `init_sentry()` already tags events
+   with **`environment`** from `PODCAST_ENV` (`prod` on the VPS,
+   `preprod` in the default Codespace). **Slack routing** is configured
+   in Sentry with **separate issue alert rules** (or equivalent filters)
+   so `environment:prod` notifies the prod channel and pre-prod traffic
+   goes elsewhere or is muted. See
+   [PROD_RUNBOOK — Sentry Slack routing](../guides/PROD_RUNBOOK.md#sentry-slack-routing-prod-vs-pre-prod-gh-725).
 
 ## References
 

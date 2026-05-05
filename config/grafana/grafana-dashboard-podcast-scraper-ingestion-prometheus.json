@@ -12,7 +12,7 @@
   "annotations": {
     "list": []
   },
-  "description": "Ingestion performance from the podcast scraper **API** Prometheus scrape (`PODCAST_METRICS_ENABLED`). Histograms and counters are emitted when a viewer/API pipeline job finishes (`pipeline_run_prometheus`): one sample per matching `run.json` under the corpus (mtime window around job start/end). Requires deployed API code that exposes these metric names. If series are empty, confirm metrics appear at `/metrics` on the api container after a successful job.",
+  "description": "Ingestion performance from the podcast scraper **API** Prometheus scrape (`PODCAST_METRICS_ENABLED`). Histograms and counters are emitted when a viewer/API pipeline job finishes (`pipeline_run_prometheus`): one sample per matching `run.json` under the corpus (mtime window around job start/end). Requires deployed API code that exposes these metric names. If series are empty, confirm metrics appear at `/metrics` on the api container after a successful job. Panels filter on **`env`** (Grafana Agent `external_labels.env` from `PODCAST_ENV`, typically `prod` vs `preprod`; see [GH-726](https://github.com/chipi/podcast_scraper/issues/726)).",
   "editable": true,
   "fiscalYearStartMonth": 0,
   "graphTooltip": 1,
@@ -86,7 +86,7 @@
             "uid": "${DS_PROMETHEUS}"
           },
           "editorMode": "code",
-          "expr": "sum by (status) (rate(podcast_pipeline_jobs_finished_total[$__rate_interval]))",
+          "expr": "sum by (status) (rate(podcast_pipeline_jobs_finished_total{env=\"$env\"}[$__rate_interval]))",
           "legendFormat": "{{status}}",
           "range": true,
           "refId": "A"
@@ -148,7 +148,7 @@
             "uid": "${DS_PROMETHEUS}"
           },
           "editorMode": "code",
-          "expr": "sum(rate(podcast_pipeline_run_json_observed_total[$__rate_interval]))",
+          "expr": "sum(rate(podcast_pipeline_run_json_observed_total{env=\"$env\"}[$__rate_interval]))",
           "legendFormat": "run_json observed",
           "range": true,
           "refId": "A"
@@ -224,7 +224,7 @@
             "uid": "${DS_PROMETHEUS}"
           },
           "editorMode": "code",
-          "expr": "histogram_quantile(0.95, sum(rate(podcast_pipeline_run_avg_transcribe_seconds_bucket[$__rate_interval])) by (le))",
+          "expr": "histogram_quantile(0.95, sum(rate(podcast_pipeline_run_avg_transcribe_seconds_bucket{env=\"$env\"}[$__rate_interval])) by (le))",
           "legendFormat": "p95 transcribe",
           "range": true,
           "refId": "A"
@@ -235,7 +235,7 @@
             "uid": "${DS_PROMETHEUS}"
           },
           "editorMode": "code",
-          "expr": "histogram_quantile(0.95, sum(rate(podcast_pipeline_run_avg_summarize_seconds_bucket[$__rate_interval])) by (le))",
+          "expr": "histogram_quantile(0.95, sum(rate(podcast_pipeline_run_avg_summarize_seconds_bucket{env=\"$env\"}[$__rate_interval])) by (le))",
           "legendFormat": "p95 summarize",
           "range": true,
           "refId": "B"
@@ -246,7 +246,7 @@
             "uid": "${DS_PROMETHEUS}"
           },
           "editorMode": "code",
-          "expr": "histogram_quantile(0.95, sum(rate(podcast_pipeline_run_avg_gi_seconds_bucket[$__rate_interval])) by (le))",
+          "expr": "histogram_quantile(0.95, sum(rate(podcast_pipeline_run_avg_gi_seconds_bucket{env=\"$env\"}[$__rate_interval])) by (le))",
           "legendFormat": "p95 GI",
           "range": true,
           "refId": "C"
@@ -257,7 +257,7 @@
             "uid": "${DS_PROMETHEUS}"
           },
           "editorMode": "code",
-          "expr": "histogram_quantile(0.95, sum(rate(podcast_pipeline_run_avg_kg_seconds_bucket[$__rate_interval])) by (le))",
+          "expr": "histogram_quantile(0.95, sum(rate(podcast_pipeline_run_avg_kg_seconds_bucket{env=\"$env\"}[$__rate_interval])) by (le))",
           "legendFormat": "p95 KG",
           "range": true,
           "refId": "D"
@@ -332,7 +332,7 @@
             "uid": "${DS_PROMETHEUS}"
           },
           "editorMode": "code",
-          "expr": "histogram_quantile(0.95, sum(rate(podcast_pipeline_run_duration_seconds_bucket[$__rate_interval])) by (le))",
+          "expr": "histogram_quantile(0.95, sum(rate(podcast_pipeline_run_duration_seconds_bucket{env=\"$env\"}[$__rate_interval])) by (le))",
           "legendFormat": "p95 run_duration",
           "range": true,
           "refId": "A"
@@ -343,7 +343,7 @@
             "uid": "${DS_PROMETHEUS}"
           },
           "editorMode": "code",
-          "expr": "histogram_quantile(0.50, sum(rate(podcast_pipeline_run_duration_seconds_bucket[$__rate_interval])) by (le))",
+          "expr": "histogram_quantile(0.50, sum(rate(podcast_pipeline_run_duration_seconds_bucket{env=\"$env\"}[$__rate_interval])) by (le))",
           "legendFormat": "p50 run_duration",
           "range": true,
           "refId": "B"
@@ -406,7 +406,7 @@
             "uid": "${DS_PROMETHEUS}"
           },
           "editorMode": "code",
-          "expr": "histogram_quantile(0.95, sum(rate(podcast_pipeline_run_time_transcription_wait_seconds_bucket[$__rate_interval])) by (le))",
+          "expr": "histogram_quantile(0.95, sum(rate(podcast_pipeline_run_time_transcription_wait_seconds_bucket{env=\"$env\"}[$__rate_interval])) by (le))",
           "legendFormat": "p95 transcription wait",
           "range": true,
           "refId": "A"
@@ -417,7 +417,7 @@
             "uid": "${DS_PROMETHEUS}"
           },
           "editorMode": "code",
-          "expr": "histogram_quantile(0.95, sum(rate(podcast_pipeline_run_time_summarization_wait_seconds_bucket[$__rate_interval])) by (le))",
+          "expr": "histogram_quantile(0.95, sum(rate(podcast_pipeline_run_time_summarization_wait_seconds_bucket{env=\"$env\"}[$__rate_interval])) by (le))",
           "legendFormat": "p95 summarization wait",
           "range": true,
           "refId": "B"
@@ -491,7 +491,7 @@
             "uid": "${DS_PROMETHEUS}"
           },
           "editorMode": "code",
-          "expr": "sum(podcast_pipeline_run_json_observed_total)",
+          "expr": "sum(podcast_pipeline_run_json_observed_total{env=\"$env\"})",
           "instant": true,
           "legendFormat": "total",
           "range": false,
@@ -552,7 +552,7 @@
             "uid": "${DS_PROMETHEUS}"
           },
           "editorMode": "code",
-          "expr": "sum by (status) (podcast_pipeline_jobs_finished_total)",
+          "expr": "sum by (status) (podcast_pipeline_jobs_finished_total{env=\"$env\"})",
           "instant": true,
           "legendFormat": "{{status}}",
           "range": false,
@@ -586,6 +586,33 @@
         "regex": "",
         "skipUrlSync": false,
         "type": "datasource"
+      },
+      {
+        "current": {
+          "selected": true,
+          "text": "prod",
+          "value": "prod"
+        },
+        "hide": 0,
+        "includeAll": false,
+        "label": "env",
+        "multi": false,
+        "name": "env",
+        "options": [
+          {
+            "selected": true,
+            "text": "prod",
+            "value": "prod"
+          },
+          {
+            "selected": false,
+            "text": "preprod",
+            "value": "preprod"
+          }
+        ],
+        "query": "prod,preprod",
+        "skipUrlSync": false,
+        "type": "custom"
       }
     ]
   },
