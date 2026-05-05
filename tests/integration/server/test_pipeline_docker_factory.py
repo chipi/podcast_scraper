@@ -326,3 +326,135 @@ def test_docker_jobs_factory_builds_compose_argv_and_spawns(
     fp = getattr(proc, "_ps_log_fp", None)
     assert fp is not None
     fp.close()
+    # By default (no .env at project root), --env-file should NOT be passed
+    # — keeps codespace + stack-test behaviour unchanged.
+    assert "--env-file" not in flat
+
+
+def test_docker_jobs_factory_passes_env_file_when_present(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """When ``<project>/.env`` exists, ``--env-file`` is added so the nested
+    compose can resolve YAML refs like ``${PODCAST_CORPUS_HOST_PATH:?...}``.
+
+    Real-world cause: VPS deploys stage ``/srv/podcast-scraper/.env`` per
+    PROD_RUNBOOK and rely on it for the prod overlay's volume interpolation.
+    Without the flag, compose's auto-load looks at ``<project>/compose/.env``
+    (project dir = ``dirname(first -f)``), which doesn't exist, and the
+    spawn fails with ``required variable PODCAST_CORPUS_HOST_PATH is missing``.
+    """
+    monkeypatch.setenv("PODCAST_DOCKER_PROJECT_DIR", str(tmp_path))
+    monkeypatch.setenv(
+        "PODCAST_DOCKER_COMPOSE_FILES",
+        "compose/docker-compose.stack.yml",
+    )
+    (tmp_path / "compose").mkdir()
+    (tmp_path / "compose" / "docker-compose.stack.yml").write_text(
+        "services: {}\n", encoding="utf-8"
+    )
+    # The flag-trigger: a real .env file at the project root.
+    (tmp_path / ".env").write_text("PODCAST_CORPUS_HOST_PATH=/some/path\n", encoding="utf-8")
+    op = tmp_path / "viewer_operator.yaml"
+    op.write_text("pipeline_install_extras: llm\n", encoding="utf-8")
+    log_abs = tmp_path / ".viewer" / "jobs" / "spawn.log"
+    monkeypatch.setattr(pdf.shutil, "which", lambda _name: "/bin/docker")
+
+    exec_mock = AsyncMock(return_value=SimpleNamespace())
+
+    async def _go() -> None:
+        with patch.object(pdf.asyncio, "create_subprocess_exec", exec_mock):
+            await pdf._docker_jobs_factory(
+                ["python", "-m", "podcast_scraper.cli", "run"],
+                tmp_path,
+                log_abs,
+                operator_yaml=op,
+            )
+
+    asyncio.run(_go())
+    flat = list(exec_mock.call_args.args)
+    assert "--env-file" in flat
+    env_file_idx = flat.index("--env-file")
+    assert flat[env_file_idx + 1] == str(tmp_path / ".env")
+    # Sanity: --env-file precedes the -f flags so compose parses YAML with
+    # the right env-var resolution context.
+    first_f_idx = flat.index("-f")
+    assert env_file_idx < first_f_idx
+    fp = getattr(exec_mock.return_value, "_ps_log_fp", None)
+    if fp is not None:
+        fp.close()
+
+
+class TestEnvDefaultPipelineInstallExtras:
+    """Tests for the ``PODCAST_DEFAULT_PIPELINE_INSTALL_EXTRAS`` fallback."""
+
+    def test_returns_llm_when_env_is_llm(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.setenv("PODCAST_DEFAULT_PIPELINE_INSTALL_EXTRAS", "llm")
+        assert pdf._env_default_pipeline_install_extras() == "llm"
+
+    def test_returns_ml_when_env_is_ml(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.setenv("PODCAST_DEFAULT_PIPELINE_INSTALL_EXTRAS", "ml")
+        assert pdf._env_default_pipeline_install_extras() == "ml"
+
+    def test_returns_none_when_unset(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.delenv("PODCAST_DEFAULT_PIPELINE_INSTALL_EXTRAS", raising=False)
+        assert pdf._env_default_pipeline_install_extras() is None
+
+    def test_returns_none_for_invalid_value(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        # Anything other than ml/llm falls through to the strict YAML-required
+        # error path so operators get a clear failure rather than silently
+        # picking a wrong service.
+        monkeypatch.setenv("PODCAST_DEFAULT_PIPELINE_INSTALL_EXTRAS", "cuda")
+        assert pdf._env_default_pipeline_install_extras() is None
+
+    def test_strips_whitespace(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.setenv("PODCAST_DEFAULT_PIPELINE_INSTALL_EXTRAS", "  llm  ")
+        assert pdf._env_default_pipeline_install_extras() == "llm"
+
+
+class TestExtrasEnvFallback:
+    """Tests for the env-var fallback in the two extras validators."""
+
+    def test_assert_falls_back_to_env_when_yaml_missing(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setenv("PODCAST_DEFAULT_PIPELINE_INSTALL_EXTRAS", "llm")
+        p = tmp_path / "operator.yaml"
+        p.write_text("max_episodes: 1\n", encoding="utf-8")  # no extras field
+        assert pdf.assert_operator_pipeline_extras(p) == "llm"
+
+    def test_assert_still_raises_when_no_env_default(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.delenv("PODCAST_DEFAULT_PIPELINE_INSTALL_EXTRAS", raising=False)
+        p = tmp_path / "operator.yaml"
+        p.write_text("max_episodes: 1\n", encoding="utf-8")
+        with pytest.raises(ValueError, match="pipeline_install_extras"):
+            pdf.assert_operator_pipeline_extras(p)
+
+    def test_validate_falls_back_to_env_in_docker_mode(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setenv("PODCAST_DEFAULT_PIPELINE_INSTALL_EXTRAS", "llm")
+        p = tmp_path / "operator.yaml"
+        p.write_text("max_episodes: 1\n", encoding="utf-8")
+        assert pdf.validate_operator_pipeline_extras(p, "docker") == "llm"
+
+    def test_validate_still_raises_when_no_env_default_in_docker_mode(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.delenv("PODCAST_DEFAULT_PIPELINE_INSTALL_EXTRAS", raising=False)
+        p = tmp_path / "operator.yaml"
+        p.write_text("max_episodes: 1\n", encoding="utf-8")
+        with pytest.raises(ValueError, match="pipeline_install_extras"):
+            pdf.validate_operator_pipeline_extras(p, "docker")
+
+    def test_yaml_field_takes_precedence_over_env_default(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        # Operator's explicit choice in YAML wins over the host-wide
+        # default — env is only a fallback for first-run UX.
+        monkeypatch.setenv("PODCAST_DEFAULT_PIPELINE_INSTALL_EXTRAS", "ml")
+        p = tmp_path / "operator.yaml"
+        p.write_text("pipeline_install_extras: llm\n", encoding="utf-8")
+        assert pdf.assert_operator_pipeline_extras(p) == "llm"
+        assert pdf.validate_operator_pipeline_extras(p, "docker") == "llm"

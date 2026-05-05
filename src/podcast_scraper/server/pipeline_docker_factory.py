@@ -97,17 +97,46 @@ def _cli_argv_tail(argv: Sequence[str]) -> list[str]:
     return seq[1:] if len(seq) > 1 else []
 
 
+def _env_default_pipeline_install_extras() -> str | None:
+    """Operator-set fallback for ``pipeline_install_extras`` from env.
+
+    When the corpus's operator YAML doesn't declare ``pipeline_install_extras``
+    (e.g. fresh corpus, first-run prod), fall back to
+    ``PODCAST_DEFAULT_PIPELINE_INSTALL_EXTRAS`` if the host has set it. The
+    prod overlay (``compose/docker-compose.prod.yml``) sets it to ``llm`` so
+    first-run UX on the published image set works without operator
+    YAML editing. Returns ``None`` if env unset or set to anything other
+    than ``ml`` / ``llm`` (caller falls back to the strict YAML-required
+    error path so operators see a clear failure rather than silently
+    picking a wrong service).
+    """
+    raw = os.environ.get("PODCAST_DEFAULT_PIPELINE_INSTALL_EXTRAS", "").strip()
+    if raw in ("ml", "llm"):
+        return raw
+    return None
+
+
 def assert_operator_pipeline_extras(operator_yaml: Path) -> str:
-    """Ensure operator YAML declares ``pipeline_install_extras: ml`` or ``llm``; return value."""
+    """Ensure operator YAML declares ``pipeline_install_extras: ml`` or ``llm``; return value.
+
+    Falls back to ``PODCAST_DEFAULT_PIPELINE_INSTALL_EXTRAS`` env var when
+    the YAML omits the field (so first-run prod doesn't require operator
+    YAML editing — see ``_env_default_pipeline_install_extras``).
+    """
     # codeql[py/path-injection] -- Docker enqueue: path from viewer_operator_extras_source
     # only (Type 1).
     text = operator_yaml.read_text(encoding="utf-8", errors="replace")
     extras = parse_pipeline_install_extras(text)
+    if extras is None:
+        env_default = _env_default_pipeline_install_extras()
+        if env_default is not None:
+            return env_default
     if extras not in ("ml", "llm"):
         raise ValueError(
             "Docker pipeline jobs require top-level pipeline_install_extras: ml "
             "or pipeline_install_extras: llm in the operator YAML "
-            f"({operator_yaml})."
+            f"({operator_yaml}); set PODCAST_DEFAULT_PIPELINE_INSTALL_EXTRAS "
+            "on the api container env to provide a host-wide default."
         )
     return extras
 
@@ -145,10 +174,16 @@ def validate_operator_pipeline_extras(operator_yaml: Path, pipe_mode: str) -> st
             f"(got {extras!r}) in operator YAML ({operator_yaml})."
         )
     if extras is None and pipe_mode == "docker":
+        # Env-var fallback so first-run prod doesn't require operator
+        # YAML editing — prod overlay sets PODCAST_DEFAULT_PIPELINE_INSTALL_EXTRAS=llm.
+        env_default = _env_default_pipeline_install_extras()
+        if env_default is not None:
+            return env_default
         raise ValueError(
             "Docker pipeline jobs require top-level pipeline_install_extras: ml "
             "or pipeline_install_extras: llm in the operator YAML "
-            f"({operator_yaml})."
+            f"({operator_yaml}); set PODCAST_DEFAULT_PIPELINE_INSTALL_EXTRAS "
+            "on the api container env to provide a host-wide default."
         )
     return extras
 
@@ -169,6 +204,19 @@ async def _docker_jobs_factory(
         raise RuntimeError("docker CLI not found in PATH (install docker-ce-cli in the API image).")
 
     cmd: list[str] = ["docker", "compose"]
+    # Pass the project's ``.env`` so nested compose can resolve env vars
+    # used in the YAML (e.g. ``PODCAST_CORPUS_HOST_PATH`` on a VPS where
+    # the operator stages ``.env`` per PROD_RUNBOOK). Compose's default
+    # ``.env`` auto-load looks in the project dir = ``dirname(first -f)``
+    # = ``<project>/compose``, NOT ``<project>``, so without this flag
+    # YAML refs like ``${VAR:?...}`` fail at parse time even when the
+    # operator's ``.env`` has the value. Same root cause as the
+    # direct-shell ``docker compose`` deploy gotcha. Guarded on file
+    # existence so codespace + stack-test (no project-root ``.env``;
+    # vars come from the api process env) keep their existing behaviour.
+    env_file = project / ".env"
+    if env_file.is_file():
+        cmd.extend(["--env-file", str(env_file)])
     for f in compose_files:
         cmd.extend(["-f", str(_resolve_compose_path(project, f))])
     # Intentionally NOT passing ``--project-directory``. Compose v2 resolves

@@ -9,6 +9,20 @@
 #
 # Reference manual: ``config/manual/operator_defaults.yaml`` (CLI-oriented; may set output_dir).
 
+# Required for Docker job mode (api spawns ``pipeline-llm`` / ``pipeline``
+# via ``docker compose run``). Selects which compose service to spawn:
+#   ``llm`` → ``pipeline-llm`` (LLM-only, ~10× smaller image; the only
+#            image published in RFC-081 Phase 1 / RFC-082 prod hosting)
+#   ``ml``  → ``pipeline``     (full ML: Whisper + speaker diarization;
+#            published only on hosts that opt into the heavy variant)
+# Harmless in native ``make serve-api`` mode — the api strips the key
+# before the operator YAML reaches Pydantic ``Config`` (#666 review #13).
+# Default ``llm`` because the prod overlay's
+# ``PODCAST_AVAILABLE_PROFILES`` ships ``cloud_balanced`` + ``cloud_thin``
+# — both LLM-only — out of the box. Operators on a heavy host: change
+# to ``ml``.
+pipeline_install_extras: llm
+
 max_episodes: 1
 delay_ms: 1250
 

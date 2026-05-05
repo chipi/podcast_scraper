@@ -92,6 +92,19 @@ services:
       # the published ``api`` image only ships ``[server]`` extras.
       PODCAST_PIPELINE_EXEC_MODE: docker
       PODCAST_DOCKER_PROJECT_DIR: ${PODCAST_DOCKER_PROJECT_DIR:?see comment above; required env var (.devcontainer/start.sh for Codespaces, .env for VPS)}
+      # Pass-through for the nested ``docker compose run`` the api spawns.
+      # That nested call parses ``stack.yml + prod.yml`` (per
+      # ``PODCAST_DOCKER_COMPOSE_FILES`` below) and the prod overlay's
+      # ``volumes.corpus_data.driver_opts.device`` references
+      # ``${PODCAST_CORPUS_HOST_PATH:?...}``. Compose's default ``.env``
+      # auto-load looks in the project dir = ``dirname(first -f)`` =
+      # ``<project>/compose``, NOT ``<project>``, so without this
+      # passthrough the nested compose can't resolve the var even though
+      # the operator's ``.env`` has it. The api code now also passes
+      # ``--env-file`` (pipeline_docker_factory) as the durable fix; this
+      # passthrough remains as a belt-and-suspenders + works for any
+      # other compose-time vars the YAML grows over time.
+      PODCAST_CORPUS_HOST_PATH: ${PODCAST_CORPUS_HOST_PATH:?see comment above; required env var (.devcontainer/start.sh for Codespaces, .env for VPS)}
       # Compose files the nested ``docker compose run`` resolves. Codespace
       # default targets stack + prod overlays so the spawned container
       # inherits the prod overlay's bind-mounted ``corpus_data``.
@@ -120,6 +133,31 @@ services:
       # run before clicking Save in the profile menu. Must be one of
       # PODCAST_AVAILABLE_PROFILES or unset (no preselection / no fallback).
       PODCAST_DEFAULT_PROFILE: ${PODCAST_DEFAULT_PROFILE:-cloud_balanced}
+      # Host-wide default for ``pipeline_install_extras`` when the operator
+      # YAML omits it. Lets a fresh prod corpus run without an operator-side
+      # YAML edit (#666 review #13 follow-up). Must be ``ml`` or ``llm``;
+      # other values fall back to the strict YAML-required error path.
+      # Default ``llm`` matches the prod-published image set (only the
+      # ``pipeline-llm`` image is published in RFC-081 Phase 1 / RFC-082).
+      # Codespace preprod inherits the same value via the prod overlay.
+      PODCAST_DEFAULT_PIPELINE_INSTALL_EXTRAS: ${PODCAST_DEFAULT_PIPELINE_INSTALL_EXTRAS:-llm}
+      # Pass-through for the nested ``docker compose run pipeline-llm``.
+      # The pipeline-llm service's ``environment:`` block resolves these
+      # vars from compose's env at parse time. Without this passthrough,
+      # the nested compose process inherits only the api container's env
+      # — and since the api doesn't otherwise need the LLM keys
+      # itself, they'd resolve to empty defaults and the pipeline would
+      # crash on the first provider call. The api code now also passes
+      # ``--env-file`` (pipeline_docker_factory) which makes this
+      # belt-and-suspenders, but keeping the passthrough explicit avoids
+      # one indirection layer for operators reading the YAML.
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      MISTRAL_API_KEY: ${MISTRAL_API_KEY:-}
+      DEEPSEEK_API_KEY: ${DEEPSEEK_API_KEY:-}
+      GROK_API_KEY: ${GROK_API_KEY:-}
+      PODCAST_SENTRY_DSN_PIPELINE: ${PODCAST_SENTRY_DSN_PIPELINE:-}
 
   pipeline-llm:
     image: ghcr.io/chipi/podcast-scraper-stack-pipeline-llm:${PODCAST_IMAGE_TAG:-main}
@@ -146,7 +184,8 @@ services:
     environment:
       GRAFANA_CLOUD_PROM_URL: ${GRAFANA_CLOUD_PROM_URL:-}
       GRAFANA_CLOUD_LOKI_URL: ${GRAFANA_CLOUD_LOKI_URL:-}
-      GRAFANA_CLOUD_USER: ${GRAFANA_CLOUD_USER:-}
+      GRAFANA_CLOUD_PROM_USER: ${GRAFANA_CLOUD_PROM_USER:-}
+      GRAFANA_CLOUD_LOKI_USER: ${GRAFANA_CLOUD_LOKI_USER:-}
       GRAFANA_CLOUD_API_KEY: ${GRAFANA_CLOUD_API_KEY:-}
       PODCAST_ENV: ${PODCAST_ENV:-preprod}
       PODCAST_RELEASE: ${PODCAST_RELEASE:-}
