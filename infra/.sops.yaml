@@ -2,8 +2,10 @@
 # See infra/README.md for operator setup; full flow in docs/guides/PROD_RUNBOOK.md.
 
 creation_rules:
-  - path_regex: 'infra/terraform/.*\.tfstate$'
+  # Match any *.tfstate file regardless of path. The wrapper passes an absolute
+  # path to sops, and the previous `infra/terraform/...` regex was matching
+  # inconsistently depending on cwd. Suffix-only is robust.
+  - path_regex: '\.tfstate$'
     # OPERATOR: replace with the public key from `age-keygen` (starts with "age1").
-    # The matching PRIVATE key lives in 1Password as
-    # `sops/podcast-scraper/tofu-state-age-key`.
+    # The matching PRIVATE key lives in your password manager (operator's choice).
     age: 'age1yerjgvcm5trle7xl7jkmt53dp290y2fr9rt5zjpljzeyv0nkr5qqffhm00'

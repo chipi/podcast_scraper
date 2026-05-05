@@ -15,7 +15,7 @@ resource "tailscale_tailnet_key" "prod" {
   preauthorized = true
   expiry        = 3600
   tags          = ["tag:prod"]
-  description   = "podcast-scraper-prod VPS auth key (per-apply)"
+  description   = "podcast-scraper-prod VPS auth key"
 }
 
 # Sync the repo's ACL file to the tailnet. Source of truth = tailscale/policy.hujson;

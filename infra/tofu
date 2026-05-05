@@ -29,16 +29,42 @@ for cmd in tofu sops age; do
   fi
 done
 
+# Auto-default SOPS_AGE_KEY_FILE if unset and the standard XDG path exists.
+# sops on macOS doesn't auto-find ~/.config/sops/age/keys.txt; without this
+# fallback, the operator has to remember to export SOPS_AGE_KEY_FILE in their
+# shell or .env.local. The age-keygen output goes here per the PROD_RUNBOOK.
+if [[ -z "${SOPS_AGE_KEY_FILE:-}" ]] && [[ -f "$HOME/.config/sops/age/keys.txt" ]]; then
+  export SOPS_AGE_KEY_FILE="$HOME/.config/sops/age/keys.txt"
+fi
+
 # Cleanup: any plaintext state file (current or backup) is shredded on exit.
 # The encrypted blob is the source of truth; plaintext is ephemeral.
+#
+# EXCEPTION: if sops failed to re-encrypt new state, DO NOT shred — the
+# operator needs the plaintext to recover. Set SOPS_FAILED=1 below to opt
+# out of the shred and surface a recovery message instead.
+SOPS_FAILED=0
 cleanup() {
+  if [[ "$SOPS_FAILED" = "1" ]]; then
+    echo "" >&2
+    echo "WARNING: plaintext state preserved at:" >&2
+    echo "  $PLAIN_STATE" >&2
+    echo "Recover by fixing .sops.yaml and re-encrypting manually:" >&2
+    echo "  sops -e $PLAIN_STATE > $ENC_STATE" >&2
+    echo "  shred -u $PLAIN_STATE   # only after the .enc is saved" >&2
+    return
+  fi
   for f in "$PLAIN_STATE" "$BACKUP_STATE"; do
     if [[ -f "$f" ]]; then
       if command -v shred >/dev/null 2>&1; then
+        # Linux/coreutils path: shred overwrites + unlinks atomically.
         shred -u "$f" 2>/dev/null || rm -f "$f"
       else
-        # macOS has no shred; overwrite with random + delete (best effort).
-        dd if=/dev/urandom of="$f" bs=4096 conv=notrunc 2>/dev/null || true
+        # macOS path: just rm -f. The earlier `dd if=/dev/urandom` fallback was
+        # an INFINITE LOOP (no count= parameter) that filled the disk over hours
+        # if any cleanup got triggered. The secure-overwrite is theatre on APFS
+        # anyway (copy-on-write means the original blocks aren't reused in place).
+        # The plaintext was on disk for seconds; rm is sufficient.
         rm -f "$f"
       fi
     fi
@@ -70,9 +96,17 @@ POST_HASH=""
 if [[ -n "$POST_HASH" && "$PRE_HASH" != "$POST_HASH" ]]; then
   echo "[infra/tofu] state changed; re-encrypting -> $ENC_STATE" >&2
   # Write to a sibling file then rename — atomic, never leaves a half-written
-  # encrypted blob if sops dies mid-write.
-  sops -e "$PLAIN_STATE" > "$ENC_STATE.new"
-  mv "$ENC_STATE.new" "$ENC_STATE"
+  # encrypted blob if sops dies mid-write. If sops fails (bad .sops.yaml,
+  # missing key, etc.) we set SOPS_FAILED=1 so the trap-cleanup preserves
+  # plaintext for operator recovery instead of shredding it.
+  if sops -e "$PLAIN_STATE" > "$ENC_STATE.new" 2>&1; then
+    mv "$ENC_STATE.new" "$ENC_STATE"
+  else
+    SOPS_FAILED=1
+    rm -f "$ENC_STATE.new"
+    echo "[infra/tofu] ERROR: sops re-encryption failed." >&2
+    TOFU_EXIT=2
+  fi
 fi
 
 exit "$TOFU_EXIT"

@@ -48,7 +48,7 @@ PYTEST_WORKERS ?= 2
 # Parallel execution via pytest-xdist caused double-runs on CI (exit-code mismatch
 # triggered fallback, doubling wall time).
 
-.PHONY: help init init-no-ml venv-dev-init test-unit-dev-venv download-spacy-wheels format format-check lint lint-markdown lint-markdown-docs fix-md strip-doc-checkmarks strip-doc-emoji strip-docs type security security-bandit security-audit complexity complexity-track deadcode docstrings spelling spelling-docs quality check-unit-imports check-test-policy check-pricing-assumptions validate-gi-schema validate-kg-schema gil-quality-metrics compare-gil-runs kg-quality-metrics quality-metrics-ci fetch-ci-metrics fetch-ci-metrics-validate fetch-nightly-metrics validate-metrics-bundle build-metrics-dashboard-preview metrics-preview-check serve-metrics-dashboard metrics-dashboard-live deps-analyze deps-check deps-graph deps-graph-full call-graph flowcharts visualize release-docs-prep pre-release bump analyze-test-memory cleanup-processes check-zombie check-spotlight test-unit test-unit-sequential test-unit-no-ml test-integration test-integration-sequential test-integration-fast test-ci test-ci-fast test-e2e test-e2e-sequential test-e2e-fast verify-gil-offsets-after-acceptance preload-transformers-integration-summariesuality test-nightly test test-sequential test-fast test-fast-no-py-e2e test-reruns test-track test-track-view test-openai test-openai-multi test-openai-all-feeds test-openai-real test-openai-real-multi test-openai-real-all-feeds test-openai-real-feed coverage coverage-check coverage-check-unit coverage-check-integration coverage-check-e2e coverage-check-combined merge-cov-fragments coverage-report coverage-enforce docs docs-check build _ci_body ci ci-fast ci-ui-fast ci-ui-full ci-sequential ci-clean ci-nightly clean clean-cache clean-model-cache clean-all docker-build docker-build-fast docker-build-full docker-test docker-clean install-hooks preload-ml-models preload-ml-models-production hf-hub-smoke-test backup-cache backup-cache-dry-run backup-cache-list backup-cache-cleanup restore-cache restore-cache-dry-run metadata-generate source-index dataset-create dataset-smoke dataset-benchmark dataset-raw dataset-materialize run-promote baseline-create experiment-run ml-param-sweep autoresearch-score autoresearch-score-bundled silver-pairwise runs-list baselines-list run-compare runs-compare benchmark profile-freeze profile-diff profile-promote serve-gi-kg-viz test-ui test-ui-e2e build-viewer verify-gil-offsets-strict pipeline-validate transcription-sweep
+.PHONY: help init init-no-ml venv-dev-init test-unit-dev-venv download-spacy-wheels format format-check lint lint-markdown lint-markdown-docs fix-md strip-doc-checkmarks strip-doc-emoji strip-docs type security security-bandit security-audit complexity complexity-track deadcode docstrings spelling spelling-docs quality check-unit-imports check-test-policy check-pricing-assumptions validate-gi-schema validate-kg-schema gil-quality-metrics compare-gil-runs kg-quality-metrics quality-metrics-ci fetch-ci-metrics fetch-ci-metrics-validate fetch-nightly-metrics validate-metrics-bundle build-metrics-dashboard-preview metrics-preview-check serve-metrics-dashboard metrics-dashboard-live deps-analyze deps-check deps-graph deps-graph-full call-graph flowcharts visualize release-docs-prep pre-release bump analyze-test-memory cleanup-processes check-zombie check-spotlight test-unit test-unit-sequential test-unit-no-ml test-integration test-integration-sequential test-integration-fast test-ci test-ci-fast test-e2e test-e2e-sequential test-e2e-fast verify-gil-offsets-after-acceptance preload-transformers-integration-summariesuality test-nightly test test-sequential test-fast test-fast-no-py-e2e test-reruns test-track test-track-view test-openai test-openai-multi test-openai-all-feeds test-openai-real test-openai-real-multi test-openai-real-all-feeds test-openai-real-feed coverage coverage-check coverage-check-unit coverage-check-integration coverage-check-e2e coverage-check-combined merge-cov-fragments coverage-report coverage-enforce docs docs-check build _ci_body ci ci-fast ci-ui-fast ci-ui-full ci-sequential ci-clean ci-nightly clean clean-cache clean-model-cache clean-all docker-build docker-build-fast docker-build-full docker-test docker-clean install-hooks preload-ml-models preload-ml-models-production hf-hub-smoke-test backup-cache backup-cache-dry-run backup-cache-list backup-cache-cleanup restore-cache restore-cache-dry-run metadata-generate source-index dataset-create dataset-smoke dataset-benchmark dataset-raw dataset-materialize run-promote baseline-create experiment-run ml-param-sweep autoresearch-score autoresearch-score-bundled silver-pairwise runs-list baselines-list run-compare runs-compare benchmark profile-freeze profile-diff profile-promote serve-gi-kg-viz test-ui test-ui-e2e build-viewer verify-gil-offsets-strict pipeline-validate transcription-sweep infra-plan infra-apply infra-recover
 
 help:
 	@echo "Common developer commands:"
@@ -172,6 +172,11 @@ help:
 	@echo "  make coverage-check-combined Check combined coverage >= $(COVERAGE_THRESHOLD_COMBINED)%"
 	@echo "  make coverage-enforce        Fast threshold check on existing .coverage (used by ci)"
 	@echo "  make coverage-report         Generate HTML coverage report from existing .coverage"
+	@echo ""
+	@echo "Infrastructure (RFC-082 prod VPS):"
+	@echo "  make infra-plan      tofu init + plan against the prod Hetzner project (sources infra/.env.local; no state changes)"
+	@echo "  make infra-apply     tofu init + plan + apply (CREATES REAL HETZNER RESOURCES; tofu prompts y/n before any change)"
+	@echo "  make infra-recover   Recover from a failed apply: deletes orphan Hetzner resources by name, wipes stale state, re-runs apply with auto-ACL-import"
 	@echo ""
 	@echo "Other commands:"
 	@echo "  make docs            Build MkDocs site (strict mode, outputs to .build/site/)"
@@ -2955,3 +2960,38 @@ transcription-sweep:
 		--reference-dir data/eval/materialized/curated_5feeds_benchmark_v2 \
 		--episodes "$${EPISODES:-p01_e03,p02_e03,p03_e03,p04_e03,p05_e03}" \
 		--models "$${MODELS:-tiny.en,base.en,small.en,medium.en}"
+
+# ============================================================================
+# Infrastructure (RFC-082): provision Hetzner VPS via OpenTofu.
+#
+# Convenience wrappers around the infra/tofu sops-encrypted-state script.
+# Both targets source secrets from infra/.env.local (gitignored) so the
+# operator does not have to re-export HCLOUD_TOKEN / TS_API_KEY each time.
+# See infra/.env.local.example for the required keys.
+# ============================================================================
+INFRA_ENV_FILE := infra/.env.local
+
+infra-plan:
+	@# Sources infra/.env.local + runs `tofu init && tofu plan`. No state changes.
+	@if [ ! -f $(INFRA_ENV_FILE) ]; then \
+		echo "ERROR: $(INFRA_ENV_FILE) is missing." >&2; \
+		echo "Copy from infra/.env.local.example and fill in your secrets." >&2; \
+		exit 1; \
+	fi
+	@set -a && . ./$(INFRA_ENV_FILE) && set +a && cd infra && ./tofu init && ./tofu plan
+
+infra-recover:
+	@# Idempotent recovery from a partial/failed apply: deletes orphan Hetzner
+	@# resources (by name), wipes stale local state, re-runs apply, auto-imports
+	@# the live ACL on conflict. Safe to run repeatedly.
+	@bash infra/recover.sh
+
+infra-apply:
+	@# Sources infra/.env.local + runs `tofu init && plan && apply`. CREATES REAL HETZNER RESOURCES.
+	@# tofu apply prompts y/n before any change, so this is safe to invoke; abort with Ctrl-C at the prompt.
+	@if [ ! -f $(INFRA_ENV_FILE) ]; then \
+		echo "ERROR: $(INFRA_ENV_FILE) is missing." >&2; \
+		echo "Copy from infra/.env.local.example and fill in your secrets." >&2; \
+		exit 1; \
+	fi
+	@set -a && . ./$(INFRA_ENV_FILE) && set +a && cd infra && ./tofu init && ./tofu plan && ./tofu apply
