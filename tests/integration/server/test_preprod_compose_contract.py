@@ -70,7 +70,14 @@ pytestmark.append(
 
 
 def _run_compose_config(extra_profile: str | None = None) -> Dict[str, Any]:
-    env = {**os.environ, "PODCAST_DOCKER_PROJECT_DIR": "/workspaces/podcast_scraper"}
+    env = {
+        **os.environ,
+        "PODCAST_DOCKER_PROJECT_DIR": "/workspaces/podcast_scraper",
+        # Codespace-shaped corpus path. Both prod.yml's volume device and the
+        # api service's env passthrough now use ``${PODCAST_CORPUS_HOST_PATH:?}``,
+        # so the fixture has to provide a value or compose-config exits 1.
+        "PODCAST_CORPUS_HOST_PATH": "/workspaces/podcast_scraper/.codespace_corpus",
+    }
     cmd = [
         "docker",
         "compose",

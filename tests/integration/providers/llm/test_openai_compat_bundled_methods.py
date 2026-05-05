@@ -179,7 +179,30 @@ def _patch_retry_raises(exc: Exception):
     )
 
 
-PROVIDERS = ["openai", "deepseek", "grok", "mistral", "ollama"]
+def _ollama_reachable() -> bool:
+    """Probe Ollama at default port — gate the ``ollama`` parameterization.
+
+    OllamaProvider.__init__ does a real httpx health check against
+    ``http://localhost:11434/api/tags`` (httpx is NOT mocked in this module
+    because OpenAIProvider's timeout_config needs the real ``httpx.Timeout``
+    type). On CI runners with no Ollama service running, instantiation
+    raises ``ConnectionError`` before the test can mock anything — every
+    ``[ollama]``-parameterized test then errors. Skip the parameter when
+    the server is unreachable; operators with local Ollama still get the
+    coverage. Probe time-boxed at 1s so test collection stays fast.
+    """
+    try:
+        import httpx as _real_httpx
+
+        with _real_httpx.Client(timeout=1.0) as c:
+            return c.get("http://localhost:11434/api/tags").status_code == 200
+    except Exception:
+        return False
+
+
+PROVIDERS = ["openai", "deepseek", "grok", "mistral"]
+if _ollama_reachable():
+    PROVIDERS.append("ollama")
 
 
 # ---------------------------------------------------------------------------
