@@ -87,6 +87,8 @@ logs:
         external_labels:
           env: "${PODCAST_ENV}"
           release: "${PODCAST_RELEASE}"
+          # Stable app label for Loki dashboards / alerts (GitHub #746).
+          app: podcast_scraper
 
   configs:
     - name: docker-containers

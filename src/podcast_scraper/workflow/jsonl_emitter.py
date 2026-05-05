@@ -7,6 +7,7 @@ real-time monitoring and analysis.
 
 import json
 import logging
+import sys
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, Optional
@@ -24,16 +25,25 @@ class JSONLEmitter:
     All data flows through the existing Metrics and EpisodeMetrics classes.
     """
 
-    def __init__(self, metrics_instance: metrics.Metrics, jsonl_path: str):
+    def __init__(
+        self,
+        metrics_instance: metrics.Metrics,
+        jsonl_path: str,
+        *,
+        echo_stdout: bool = False,
+    ):
         """Initialize JSONL emitter.
 
         Args:
             metrics_instance: Existing Metrics instance (data source)
             jsonl_path: Path to JSONL output file
+            echo_stdout: When True, duplicate each JSON line to stdout (for Loki via
+                docker logs; GitHub #746).
         """
         self.metrics = metrics_instance
         self.jsonl_path = Path(jsonl_path)
         self.jsonl_path.parent.mkdir(parents=True, exist_ok=True)
+        self._echo_stdout = echo_stdout
         self._file_handle = None
 
     def __enter__(self):
@@ -60,6 +70,9 @@ class JSONLEmitter:
         json_line = json.dumps(event, ensure_ascii=False)
         self._file_handle.write(json_line + "\n")
         self._file_handle.flush()  # Ensure immediate write for streaming
+        if self._echo_stdout:
+            sys.stdout.write(json_line + "\n")
+            sys.stdout.flush()
 
     def emit_run_started(
         self,

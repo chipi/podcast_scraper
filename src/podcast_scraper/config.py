@@ -2185,6 +2185,16 @@ class Config(BaseModel):
             "defaults to {effective_output_dir}/run.jsonl."
         ),
     )
+    jsonl_metrics_echo_stdout: bool = Field(
+        default=False,
+        alias="jsonl_metrics_echo_stdout",
+        description=(
+            "When True with jsonl_metrics_enabled, each JSONL event is also written "
+            "as a single line to stdout (one JSON object per line). Use on long "
+            "batch runs so Grafana Agent docker log shipping can index events in "
+            "Loki with LogQL | json (GitHub #746). Independent of jsonl_metrics_path."
+        ),
+    )
     pricing_assumptions_file: str = Field(
         default="config/pricing_assumptions.yaml",
         alias="pricing_assumptions_file",

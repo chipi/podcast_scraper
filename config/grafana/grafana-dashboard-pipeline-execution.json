@@ -12,7 +12,7 @@
   "annotations": {
     "list": []
   },
-  "description": "Pipeline timing and throughput derived from **stdout** lines logged by `orchestration._log_episode_metrics` (`episode_metrics:` …). Matches Grafana Agent docker logs shipped to Loki with labels **env** and **service_name** (see `compose/grafana-agent.yaml`). Select pipeline services (e.g. `pipeline-llm`, `pipeline`). **Limits:** `workflow/jsonl_emitter.py` writes JSONL to disk only; unless you separately ingest `run.jsonl` into Loki, panels cannot mirror legacy **run_finished** / **episode_finished** JSON events (run-level LLM call totals, gi/kg failure counts, **errors_total**, etc.). **Multi-feed batch starts** use the CLI log line containing `Starting multi-feed podcast scrape`; single-feed runs only appear in episode counters.",
+  "description": "Pipeline timing from **docker stdout** shipped to Loki (Grafana Agent, `compose/grafana-agent.yaml`). **Throughput row:** `episode_metrics:` lines from `orchestration._log_episode_metrics`. **JSONL row (GitHub #746):** enable `jsonl_metrics_enabled` and `jsonl_metrics_echo_stdout` on long runs so each `run_started` / `episode_finished` / `run_finished` object is one stdout line; use LogQL `| json | event_type=\"run_finished\"`. Agent adds labels **env**, **release**, **app**=`podcast_scraper`, and **service** (shown as **service_name** in Grafana Cloud). Tune the **service** multi-select for `pipeline-llm` / `pipeline`. HTTP `/metrics` on the api container stays Prometheus-only.",
   "editable": true,
   "fiscalYearStartMonth": 0,
   "graphTooltip": 1,
@@ -728,6 +728,181 @@
       ],
       "title": "Multi-feed batch start lines",
       "type": "logs"
+    },
+    {
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 60
+      },
+      "id": 20,
+      "panels": [],
+      "title": "JSONL events (stdout; enable jsonl_metrics_echo_stdout, GH-746)",
+      "type": "row"
+    },
+    {
+      "datasource": {
+        "type": "loki",
+        "uid": "${DS_LOKI}"
+      },
+      "description": "Requires pipeline config jsonl_metrics_echo_stdout=true. Each line must be one JSON object (no log prefix).",
+      "gridPos": {
+        "h": 10,
+        "w": 24,
+        "x": 0,
+        "y": 61
+      },
+      "id": 21,
+      "options": {
+        "dedupStrategy": "none",
+        "enableLogDetails": true,
+        "showLabels": true,
+        "showTime": true,
+        "sortOrder": "Descending",
+        "wrapLogMessage": true
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "loki",
+            "uid": "${DS_LOKI}"
+          },
+          "editorMode": "code",
+          "expr": "{env=\"$env\", service_name=~\"$service\"} | json | event_type =~ \"run_started|episode_finished|run_finished\"",
+          "queryType": "range",
+          "refId": "A"
+        }
+      ],
+      "title": "Pipeline JSONL (parsed lines)",
+      "type": "logs"
+    },
+    {
+      "datasource": {
+        "type": "loki",
+        "uid": "${DS_LOKI}"
+      },
+      "description": "Count of JSONL episode_finished events per interval (non-null event_type after | json).",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisPlacement": "auto",
+            "drawStyle": "line",
+            "fillOpacity": 15,
+            "lineInterpolation": "smooth",
+            "lineWidth": 1,
+            "showPoints": "never",
+            "spanNulls": false
+          },
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 71
+      },
+      "id": 22,
+      "options": {
+        "legend": {
+          "calcs": [
+            "last",
+            "mean",
+            "max"
+          ],
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "loki",
+            "uid": "${DS_LOKI}"
+          },
+          "editorMode": "code",
+          "expr": "sum by (service_name) (count_over_time({env=\"$env\", service_name=~\"$service\"} | json | event_type=\"episode_finished\" [$__auto]))",
+          "legendFormat": "{{service_name}}",
+          "queryType": "range",
+          "refId": "A"
+        }
+      ],
+      "title": "episode_finished (JSONL) / interval",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "loki",
+        "uid": "${DS_LOKI}"
+      },
+      "description": "Count of run_finished JSON lines (run-level rollup fields in JSON).",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisPlacement": "auto",
+            "drawStyle": "line",
+            "fillOpacity": 15,
+            "lineInterpolation": "smooth",
+            "lineWidth": 1,
+            "showPoints": "never",
+            "spanNulls": false
+          },
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 71
+      },
+      "id": 23,
+      "options": {
+        "legend": {
+          "calcs": [
+            "last",
+            "mean",
+            "max"
+          ],
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "loki",
+            "uid": "${DS_LOKI}"
+          },
+          "editorMode": "code",
+          "expr": "sum by (service_name) (count_over_time({env=\"$env\", service_name=~\"$service\"} | json | event_type=\"run_finished\" [$__auto]))",
+          "legendFormat": "{{service_name}}",
+          "queryType": "range",
+          "refId": "A"
+        }
+      ],
+      "title": "run_finished (JSONL) / interval",
+      "type": "timeseries"
     }
   ],
   "refresh": "30s",
@@ -822,6 +997,6 @@
   "timezone": "browser",
   "title": "Podcast scraper — pipeline execution (Loki)",
   "uid": "podcast-pipeline-jsonl",
-  "version": 1,
+  "version": 2,
   "weekStart": ""
 }
