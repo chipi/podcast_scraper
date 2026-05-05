@@ -114,7 +114,9 @@ jobs:
 
       - name: Deploy (git pull + compose pull + compose up + VPS-local /api/health)
         # deploy.sh on the VPS exits 0 only on healthy stack — failures here
-        # surface red within the SSH session.
+        # surface red within the SSH session. VPS-local probe is
+        # container-local (docker compose exec api curl 127.0.0.1:8000), not
+        # host loopback :8000 (GH-745).
         if: steps.preflight.outputs.skip != 'true'
         env:
           SSH_TARGET: deploy@${{ steps.ts_host.outputs.resolved_fqdn }}
@@ -123,9 +125,10 @@ jobs:
             '/srv/podcast-scraper/infra/deploy/deploy.sh'
 
       - name: External /api/health probe over Tailscale (#720)
-        # Belt-and-suspenders: the VPS-local probe in deploy.sh confirms the
-        # api answers on 127.0.0.1; this probes via tailnet MagicDNS to also
-        # catch any Tailscale-routing/cert issue. 60s timeout (12 × 5s).
+        # Belt-and-suspenders: deploy.sh already hit /api/health inside the api
+        # container; this probes via tailnet MagicDNS to catch nginx / serve /
+        # cert issues. 60s timeout (12 × 5s). See PROD_RUNBOOK "API health
+        # checks by context" (GH-745).
         if: steps.preflight.outputs.skip != 'true'
         env:
           PROBE_URL: https://${{ steps.ts_host.outputs.resolved_fqdn }}/api/health

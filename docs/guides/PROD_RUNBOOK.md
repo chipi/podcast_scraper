@@ -12,7 +12,7 @@ describes *what we decided*; this runbook describes *what to do today*.
 
 ## Sections
 
-1. [First-time bootstrap](#first-time-bootstrap)
+1. [First-time bootstrap](#first-time-bootstrap) — includes [API health checks by context](#api-health-checks-by-context) (GH-745)
 2. [Daily operations](#daily-operations)
 3. [Basic-auth credentials](#basic-auth-credentials)
 4. [Corpus migration from pre-prod (Codespace) to prod (VPS)](#corpus-migration)
@@ -177,7 +177,29 @@ sudo rm /srv/podcast-scraper/.bootstrap-needs-env
 sudo systemctl restart podcast-scraper.service
 ```
 
+### API health checks by context (GH-745) {#api-health-checks-by-context}
+
+Use the right URL for each layer. Mixing them causes false alarms (for
+example `curl http://127.0.0.1:8000/api/health` on the **VPS host** can fail
+while the API container and the tailnet URL are healthy, because compose
+**does not publish** api port `8000` to the host — only `expose` for the
+Docker network).
+
+| Context | Authoritative check | Notes |
+| --- | --- | --- |
+| **Compose / inside `api` container** | `curl -fsS http://127.0.0.1:8000/api/health` | Same as `compose/docker-compose.stack.yml` `healthcheck` and `infra/deploy/deploy.sh` after #745. |
+| **On the VPS host over SSH** | `docker compose -f compose/docker-compose.stack.yml -f compose/docker-compose.prod.yml -f compose/docker-compose.vps-prod.yml exec -T api curl -fsS http://127.0.0.1:8000/api/health` | Runs the check **inside** the api netns. From `/srv/podcast-scraper`, a short form is `docker compose exec -T api curl -fsS http://127.0.0.1:8000/api/health` if your shell already exports the same `-f` list as systemd. |
+| **Host loopback via viewer (nginx → api)** | `curl -fsS http://127.0.0.1:${VIEWER_PORT:-8080}/api/health` | `VIEWER_PORT` defaults to `8080` (`compose/docker-compose.stack.yml`). Exercises the same path as much of the UI; prod nginx leaves `/api/health` **without** basic auth. |
+| **Laptop / CI on the tailnet** | `curl -fsS https://prod-podcast.<tailnet>/api/health` | MagicDNS + `tailscale serve`; this is what `deploy-prod.yml` probes after deploy. |
+
+**Prefer** tailnet or container-local checks when triaging production. Treat
+host `:8000` alone as invalid unless you have added an explicit `ports:` map
+for `api` (not in the stock compose files).
+
 ### Smoke validation
+
+Use the [health-check table](#api-health-checks-by-context) above so
+each step hits the intended layer.
 
 ```bash
 # 1. Tailnet reachability
@@ -788,6 +810,15 @@ auto-pull on prod, so you have a window, but don't trust it.
 ---
 
 ## FAQ / Troubleshooting
+
+### "`curl http://127.0.0.1:8000/api/health` fails on the VPS but the app works"
+
+The `api` service listens on `8000` **inside the container** only. Stock
+compose uses `expose`, not `ports`, so nothing listens on the **host's**
+`127.0.0.1:8000`. Use a check from the [API health checks by
+context](#api-health-checks-by-context) table (container `exec`, viewer
+port, or tailnet HTTPS). See [GitHub issue
+745](https://github.com/chipi/podcast_scraper/issues/745).
 
 ### "Why `--env-file`?"
 
