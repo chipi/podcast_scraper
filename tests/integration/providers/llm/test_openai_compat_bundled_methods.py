@@ -195,7 +195,11 @@ def _ollama_reachable() -> bool:
         import httpx as _real_httpx
 
         with _real_httpx.Client(timeout=1.0) as c:
-            return c.get("http://localhost:11434/api/tags").status_code == 200
+            # ``bool(...)`` to satisfy mypy in CI where httpx type stubs aren't
+            # available — without it ``response.status_code == 200`` is typed
+            # ``Any`` (httpx is opaque) and the function "returns Any from a
+            # function declared to return ``bool``".
+            return bool(c.get("http://localhost:11434/api/tags").status_code == 200)
     except Exception:
         return False
 
