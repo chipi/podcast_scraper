@@ -19,6 +19,13 @@ describes *what we decided*; this runbook describes *what to do today*.
 5. [Rollback (deploy went red mid-way)](#rollback)
 6. [Disaster recovery (VPS gone)](#disaster-recovery)
 7. [Credential rotation](#credential-rotation)
+8. [Environment variable reference](#environment-variable-reference)
+9. [Observability setup walkthrough](#observability-setup-walkthrough)
+10. [Tailscale operations](#tailscale-operations)
+11. [Hetzner operations](#hetzner-operations)
+12. [Operator hot-fix workflow](#operator-hot-fix-workflow)
+13. [FAQ / Troubleshooting](#faq-troubleshooting)
+14. [Constraints to know](#constraints-to-know)
 
 ---
 
@@ -38,7 +45,7 @@ gh auth login
 age-keygen -o ~/.config/sops/age/keys.txt
 # Copy the public key (the `# public key:` line) into infra/.sops.yaml,
 # replacing the `age1PLACEHOLDER…` value. Save the PRIVATE key contents to
-# 1Password as `sops/podcast-scraper/tofu-state-age-key`.
+# your password manager as `sops/podcast-scraper/tofu-state-age-key`.
 
 # 3. Stage GHA secrets (from #714) — Free-plan auth: see "Tailscale credentials"
 #    section below for why TS_AUTHKEY + TS_API_KEY (two separate creds) instead
@@ -89,21 +96,44 @@ The `.env` holds runtime secrets (provider API keys, Grafana credentials,
 Sentry DSN). Cloud-init drops a sentinel file `/srv/podcast-scraper/.bootstrap-needs-env`;
 the systemd unit refuses to start while it exists.
 
+> See **[Environment variable reference](#environment-variable-reference)**
+> below for the *complete* list with intent + format for each var. The
+> heredoc here is the minimum to boot — anything missing from it must be
+> added before the relevant subsystem (Sentry, Grafana, the LLM pipeline,
+> etc.) will function. **The exact variable names matter** — typos like
+> `OPENAI_KEY` instead of `OPENAI_API_KEY` cost an hour of debugging the
+> first time around.
+
 ```bash
 ssh deploy@prod-podcast.tail-xxxxx.ts.net   # over Tailscale
-sudo install -o deploy -g deploy -m 600 /dev/stdin /srv/podcast-scraper/.env <<'ENV'
-OPENAI_API_KEY=sk-...
-GEMINI_API_KEY=...
-ANTHROPIC_API_KEY=sk-ant-...
-GRAFANA_CLOUD_PROM_URL=...
-GRAFANA_CLOUD_LOKI_URL=...
-GRAFANA_CLOUD_USER=...
-GRAFANA_CLOUD_API_KEY=...
-PODCAST_SENTRY_DSN_API=...
-PODCAST_SENTRY_DSN_PIPELINE=...
+# `deploy` user has no sudo (cloud-init: sudo: false) but owns
+# /srv/podcast-scraper, so write directly — no `sudo install` needed.
+install -m 600 /dev/stdin /srv/podcast-scraper/.env <<'ENV'
+# === Required: ingress + paths ===
+PODCAST_DOCKER_PROJECT_DIR=/srv/podcast-scraper
+PODCAST_CORPUS_HOST_PATH=/srv/podcast-scraper/corpus
+PODCAST_HTPASSWD_PATH=/srv/podcast-scraper/.htpasswd
 PODCAST_ENV=prod
 PODCAST_AVAILABLE_PROFILES=cloud_balanced,cloud_thin
 PODCAST_DEFAULT_PROFILE=cloud_balanced
+
+# === LLM provider keys (cloud_balanced uses openai + gemini) ===
+OPENAI_API_KEY=sk-...
+GEMINI_API_KEY=AIza...
+# Optional providers — set only if you intend to use them
+ANTHROPIC_API_KEY=sk-ant-...
+
+# === Grafana Cloud — separate Prom + Loki user IDs ===
+# (Single GRAFANA_CLOUD_USER no longer works; see env var reference.)
+GRAFANA_CLOUD_PROM_URL=https://prometheus-prod-NN-prod-REGION.grafana.net/api/prom/push
+GRAFANA_CLOUD_LOKI_URL=https://logs-prod-NNN.grafana.net/loki/api/v1/push
+GRAFANA_CLOUD_PROM_USER=NNNNNNN
+GRAFANA_CLOUD_LOKI_USER=NNNNNNN
+GRAFANA_CLOUD_API_KEY=glc_eyJ...
+
+# === Sentry DSNs — one per project ===
+PODCAST_SENTRY_DSN_API=https://...@o....ingest.de.sentry.io/...
+PODCAST_SENTRY_DSN_PIPELINE=https://...@o....ingest.de.sentry.io/...
 ENV
 
 # Stage the basic-auth password file too (see #Basic-auth credentials below).
@@ -349,7 +379,7 @@ end-to-end DR drill that calibrates these numbers against reality.
 
 1. Hetzner console → Security → API Tokens → Generate new (Read+Write).
 2. `gh secret set HCLOUD_TOKEN --repo chipi/podcast_scraper --app actions --body '<new>'`
-3. Update 1Password entry `Hetzner Cloud / podcast-scraper-prod / api-token`.
+3. Update your password manager entry `Hetzner Cloud / podcast-scraper-prod / api-token`.
 4. Revoke the old token in the Hetzner console.
 5. Trigger one workflow_dispatch run of `infra-apply.yml` to confirm the new
    token works (will be a no-op apply if no infra changes).
@@ -371,7 +401,7 @@ non-expiring keys. Set a calendar reminder.
 
 1. [admin/settings/keys](https://login.tailscale.com/admin/settings/keys) → Auth keys → Generate new (Reusable, Ephemeral, Pre-approved, Tags: `tag:gha-deployer`).
 2. `gh secret set TS_AUTHKEY --repo chipi/podcast_scraper --app actions --body '<tskey-auth-...>'`
-3. Update 1Password (entry: `Tailscale / podcast-scraper / authkey`).
+3. Update your password manager (entry: `Tailscale / podcast-scraper / authkey`).
 4. Revoke the old auth key in the Tailscale admin.
 5. Trigger one workflow_dispatch run of `deploy-prod.yml` to confirm.
 
@@ -379,7 +409,7 @@ non-expiring keys. Set a calendar reminder.
 
 1. [admin/settings/keys](https://login.tailscale.com/admin/settings/keys) → API access tokens → Generate new.
 2. `gh secret set TS_API_KEY --repo chipi/podcast_scraper --app actions --body '<tskey-api-...>'`
-3. Update 1Password (entry: `Tailscale / podcast-scraper / api-key`).
+3. Update your password manager (entry: `Tailscale / podcast-scraper / api-key`).
 4. Revoke the old token in the Tailscale admin.
 5. Trigger one workflow_dispatch run of `infra-apply.yml` to confirm (no-op apply if no infra changes).
 
@@ -402,7 +432,7 @@ non-expiring keys. Set a calendar reminder.
    ```
 
 3. `gh secret set TFSTATE_AGE_KEY --repo chipi/podcast_scraper --app actions --body "$(cat ~/.config/sops/age/keys.txt.new)"`
-4. Update 1Password (keep the OLD key for ~30 days as a safety net).
+4. Update your password manager (keep the OLD key for ~30 days as a safety net).
 5. After ~30 days of green CI, delete the OLD key.
 
 ### Host `.env` secrets (provider API keys, Sentry DSN, etc.)
@@ -419,6 +449,507 @@ For multiple keys, edit the `.env` directly: `sudo -e /srv/podcast-scraper/.env`
 
 See [Basic-auth credentials → Add a collaborator](#basic-auth-credentials):
 overwrite the user with `htpasswd -bB`, then restart the service.
+
+---
+
+## Environment variable reference
+
+The host-side `/srv/podcast-scraper/.env` file is the single source of
+truth for runtime config on the VPS. Owned by `deploy:deploy`, mode
+`600`. Loaded by:
+
+- the systemd unit (`EnvironmentFile=` — runs on boot + on `systemctl restart`)
+- the explicit `--env-file` flag we pass when running `docker compose`
+  directly (see [Operator hot-fix workflow](#operator-hot-fix-workflow))
+- the api code's nested `docker compose run pipeline-llm` (auto-passes
+  `--env-file` if the project root has a `.env` — see
+  `pipeline_docker_factory.py`)
+
+### Required vars
+
+| Var | Format | Purpose | Notes if missing |
+| --- | --- | --- | --- |
+| `PODCAST_DOCKER_PROJECT_DIR` | absolute path | Repo path inside the api container (must match host because of bind mount) | api refuses to start; volume interpolation fails |
+| `PODCAST_CORPUS_HOST_PATH` | absolute path | Where the corpus lives on the host | api spawn fails: `volumes.corpus_data.driver_opts.device: required variable PODCAST_CORPUS_HOST_PATH is missing a value` |
+| `PODCAST_HTPASSWD_PATH` | absolute path | Bind-mount source for nginx `auth_basic` | viewer container fails to start (mount source missing) |
+| `PODCAST_ENV` | `prod` | Tags Sentry + Grafana labels with `env=prod` | events tagged `env=preprod` (default) — wrong dashboard filtering |
+| `PODCAST_AVAILABLE_PROFILES` | csv | Profile dropdown allowlist | dropdown shows ALL on-disk profiles, including ones whose images aren't published in prod (run will fail mid-job) |
+| `PODCAST_DEFAULT_PROFILE` | string | Preselected profile in the viewer | dropdown opens unselected; api 400s if Run hit before Save |
+
+### LLM provider keys (Docker job mode)
+
+These are read by the **pipeline container**, not the api. The api passes
+them through via its `environment:` block in
+`compose/docker-compose.prod.yml` so the nested `docker compose run`
+inherits them.
+
+| Var | Required when | Format |
+| --- | --- | --- |
+| `OPENAI_API_KEY` | profile uses openai (cloud_balanced default) | `sk-...` |
+| `GEMINI_API_KEY` | profile uses gemini (cloud_balanced default for diarization + summary) | `AIza...` |
+| `ANTHROPIC_API_KEY` | profile uses anthropic | `sk-ant-...` |
+| `MISTRAL_API_KEY` | profile uses mistral | provider-specific |
+| `DEEPSEEK_API_KEY` | profile uses deepseek | provider-specific |
+| `GROK_API_KEY` | profile uses grok | provider-specific |
+
+**Variable name pitfall:** the code expects `OPENAI_API_KEY` and
+`GEMINI_API_KEY` — *with* `_API_` in the middle. Names like `OPENAI_KEY`
+or `GEMINI_KEY` silently resolve to empty defaults at compose parse
+time, then the pipeline crashes on first provider call with
+`OpenAI API key required for OpenAI providers`. Use `grep -E
+'^(OPENAI|GEMINI)_API_KEY=' /srv/podcast-scraper/.env` to confirm.
+
+### Observability vars (Grafana Cloud + Sentry)
+
+| Var | Where to get it | Notes |
+| --- | --- | --- |
+| `GRAFANA_CLOUD_PROM_URL` | Grafana stack page → Prometheus → Send Metrics → "Remote Write Endpoint" | URL ends in `/api/prom/push` |
+| `GRAFANA_CLOUD_LOKI_URL` | Grafana stack page → Loki → Send Logs → "Endpoint" | URL ends in `/loki/api/v1/push` |
+| `GRAFANA_CLOUD_PROM_USER` | Same Prometheus page → "Username / Instance ID" (numeric) | Distinct from Loki user — Grafana issues a separate instance ID per service |
+| `GRAFANA_CLOUD_LOKI_USER` | Same Loki page → "User" (numeric) | Same pattern as Prom user |
+| `GRAFANA_CLOUD_API_KEY` | Grafana Cloud → Access Policies → New policy with `metrics:write` + `logs:write` → Add token | Single token authenticates both services; format `glc_eyJ...` |
+| `PODCAST_SENTRY_DSN_API` | Sentry → api project → Settings → Client Keys (DSN) | URL like `https://<key>@o<org>.ingest.de.sentry.io/<project>` |
+| `PODCAST_SENTRY_DSN_PIPELINE` | Sentry → pipeline project → Settings → Client Keys (DSN) | Different project from api so issues stay separable |
+
+### Optional / advanced vars
+
+| Var | Default | Effect when set |
+| --- | --- | --- |
+| `PODCAST_DEFAULT_PIPELINE_INSTALL_EXTRAS` | `llm` (in prod overlay) | Host-wide fallback when operator YAML omits `pipeline_install_extras`. Must be `ml` or `llm` |
+| `PODCAST_IMAGE_TAG` | `main` | Pin image to a specific tag (`sha-<short>` for rollback) |
+| `PODCAST_RELEASE` | empty | Sentry release tag (defaults to image SHA via build-time injection) |
+| `PODCAST_METRICS_ENABLED` | `1` | Set to `0` to disable api `/metrics` exposition |
+| `VIEWER_PORT` | `8080` | Host port for the viewer container; only matters before `tailscale serve` is set up |
+
+### Verifying what's actually loaded
+
+```bash
+# Names only (no values), sorted, deduped
+ssh deploy@prod-podcast.<tailnet> \
+  "awk -F= '/^[A-Z_][A-Z0-9_]*=/ {print \$1}' /srv/podcast-scraper/.env | sort -u"
+
+# Confirm a specific var made it into the running api container
+ssh deploy@prod-podcast.<tailnet> \
+  'docker exec compose-api-1 sh -c "for k in OPENAI_API_KEY GEMINI_API_KEY PODCAST_CORPUS_HOST_PATH; do
+     v=\$(printenv \"\$k\"); [ -z \"\$v\" ] && echo \"\$k=<EMPTY>\" || echo \"\$k=<set, length=\${#v}>\"
+   done"'
+```
+
+---
+
+## Observability setup walkthrough
+
+### Grafana Cloud (one-time, per-stack)
+
+1. Create a free Grafana Cloud account at <https://grafana.com/auth/sign-up>.
+2. Default stack is created on signup. Note the region (`us`, `eu-west-2`,
+   etc.) — it's baked into every endpoint URL.
+3. **Get Prometheus credentials:** stack page → click **Prometheus** →
+   **Send Metrics**:
+   - Copy "Remote Write Endpoint" → `GRAFANA_CLOUD_PROM_URL`
+   - Copy "Username / Instance ID" (numeric, ~7 digits) → `GRAFANA_CLOUD_PROM_USER`
+4. **Get Loki credentials:** stack page → **Loki** → **Send Logs**:
+   - Copy "Endpoint" → `GRAFANA_CLOUD_LOKI_URL`
+   - Copy "User" (numeric) → `GRAFANA_CLOUD_LOKI_USER`
+5. **Generate the write token:** grafana.com top nav → **Access Policies**
+   → **Create access policy**:
+   - Name: `podcast-scraper-agent-prod-write` (or similar — easy to revoke later)
+   - Realm: your stack
+   - Scopes: check `metrics:write` AND `logs:write`
+   - Save → click into the policy → **Add token** → name it →
+     **Generate** → copy the `glc_eyJ...` value → `GRAFANA_CLOUD_API_KEY`
+   - **The token is shown ONCE.** Save to your password manager
+     immediately.
+6. After staging vars + recreating `grafana-agent` (see [Operator hot-fix
+   workflow](#operator-hot-fix-workflow)), verify within 2 min:
+   - Grafana Cloud → **Explore** → **Prometheus** → query
+     `up{component="api",env="prod"}` → expect a single series, value `1`
+   - Grafana Cloud → **Explore** → **Loki** → query `{env="prod"}` →
+     expect log lines from `api`, `viewer`, `grafana-agent`
+
+### Sentry (one-time, per project)
+
+1. Create free Sentry account at <https://sentry.io/signup/>.
+2. Create **two** projects:
+   - `podcast-scraper-api` — platform Python (FastAPI auto-detected)
+   - `podcast-scraper-pipeline` — platform Python
+3. For each project: **Settings** → **Client Keys (DSN)** → copy the
+   **DSN** value (full `https://<key>@o<org>.ingest.<region>.sentry.io/<project>`).
+4. Stage as `PODCAST_SENTRY_DSN_API` and `PODCAST_SENTRY_DSN_PIPELINE`
+   in `.env`.
+5. After api recreate, verify with the **Sentry validation ping** in
+   the Smoke validation block above. Expect the event in the api
+   project under `environment=prod` within ~1 min.
+
+### Viewer Sentry (build-time DSN, runtime env)
+
+The viewer SPA's Sentry DSN is baked into the bundle at build time
+(`VITE_SENTRY_DSN_VIEWER` build-arg). The `env=` tag is injected at
+*request time* by nginx `sub_filter` reading the container's
+`PODCAST_ENV` env (so one viewer image serves prod + preprod with
+correct tags).
+
+To wire viewer Sentry (one-time):
+
+1. Create a third Sentry project: `podcast-scraper-viewer` (platform
+   JavaScript / Vue).
+2. Copy the DSN.
+3. Set GHA repo secret: `gh secret set VITE_SENTRY_DSN_VIEWER --repo
+   chipi/podcast_scraper --app actions --body 'https://...'`.
+4. Wait for the next push to `main` — `stack-test.yml`'s viewer
+   publish step bakes the DSN into the new image.
+5. Pull + restart on prod: `gh workflow run deploy-prod.yml`.
+
+DSNs are write-only public tokens designed to ship with frontend code
+— baking into the public GHCR image is the standard pattern.
+
+---
+
+## Tailscale operations
+
+### Reaching the VPS
+
+The VPS joins the tailnet at provision time (cloud-init runs
+`tailscale up --auth-key=$TS_AUTHKEY --hostname=prod-podcast`). On
+your laptop:
+
+```bash
+tailscale status               # confirm laptop is on the tailnet
+ssh deploy@prod-podcast.<tailnet>.ts.net
+# -OR by tailnet IP (rarely needed; MagicDNS handles names):
+ssh deploy@$(tailscale ip -4 prod-podcast)
+```
+
+If the hostname doesn't resolve: a prior failed deploy may have left
+an orphan device on the tailnet, with the live VPS auto-named
+`prod-podcast-1` (or `-2`, etc.). Check `tailscale status | grep prod-podcast`
+and use whatever the actual current name is. Clean up orphans in
+the [Tailscale admin console](https://login.tailscale.com/admin/machines)
+to reclaim the canonical name.
+
+### HTTPS over the tailnet
+
+`tailscale serve` exposes the in-container viewer (on port 8080) as
+HTTPS port 443 with an auto-issued TLS cert from Tailscale's CA.
+Set up once on the VPS:
+
+```bash
+ssh deploy@prod-podcast.<tailnet>
+sudo tailscale serve --bg 8080
+sudo tailscale serve status   # confirm: https://prod-podcast.<tailnet> → 127.0.0.1:8080
+```
+
+After this, `https://prod-podcast.<tailnet>/` works from any tailnet
+device, with a real cert (no browser warnings).
+
+### Editing the ACL
+
+ACL lives in `tailscale/policy.hujson` in the repo. `infra-apply.yml`
+syncs it to the live tailnet via the terraform provider. Edit, open
+PR, merge → next infra-apply run pushes the change.
+
+For ad-hoc / urgent ACL changes (e.g. adding a new device), the admin
+console at <https://login.tailscale.com/admin/acls> allows direct edits
+— but those will be overwritten by the next `infra-apply` run unless
+you also commit them to the file.
+
+### Tailscale auth key vs API key
+
+Both expire ≤ 90 days on Free plan. See [Credential rotation →
+Tailscale credentials](#tailscale-credentials-free-plan-workaround)
+for the rotation flow. Reminder: set a calendar event for ~80 days out.
+
+---
+
+## Hetzner operations
+
+### Console access
+
+If the VPS becomes unreachable over Tailscale (tailscaled crashed,
+network down, etc.), Hetzner's web console gives serial access:
+
+1. <https://console.hetzner.cloud> → Servers → `podcast-scraper-prod`
+2. **Console** tab (top right) → opens a noVNC session
+3. Log in with the `deploy` user via SSH key (your local `~/.ssh/id_ed25519`
+   was injected by cloud-init) — you'll need to upload it via "Send key"
+   button or use root login if the deploy user is broken
+4. Last-resort: **Rescue** mode boots a recovery system to `chroot` the
+   real disk
+
+### Volume management
+
+Optional Hetzner Volume for the corpus is created when
+`volume_size_gb > 0` in `infra/terraform/variables.tf`. cloud-init
+auto-detects `/mnt/HC_Volume_*` and symlinks it as
+`/srv/podcast-scraper/corpus`. Verify via `mount | grep HC_Volume`.
+
+If you upsize the volume:
+
+1. Hetzner console → Volumes → resize (online, no downtime)
+2. SSH in: `sudo resize2fs /dev/disk/by-id/scsi-0HC_Volume_<id>`
+3. Confirm with `df -h /srv/podcast-scraper/corpus`
+
+### Firewall
+
+Hetzner's cloud firewall (managed via terraform) allows ONLY:
+
+- inbound UDP 41641 (Tailscale WireGuard)
+- inbound ICMP (ping)
+- outbound: all (for image pulls, package updates, provider API calls)
+
+Note: there's NO public TCP 80/443 rule. The viewer is reachable
+ONLY over the tailnet (via `tailscale serve`). Adding public ingress
+requires editing `infra/terraform/main.tf` AND removing/relaxing
+`auth_basic` in `nginx-prod.conf.template` (keep auth on for any
+public-internet exposure).
+
+### API token rotation
+
+See [Credential rotation → Hetzner API token](#hetzner-api-token).
+
+---
+
+## Operator hot-fix workflow
+
+When you've made a local change to a compose file or non-image-baked
+config (e.g. `compose/docker-compose.prod.yml`,
+`compose/grafana-agent.yaml`, `nginx-prod.conf.template`) and want to
+test it on prod **without** waiting for a full main-push +
+publish + deploy cycle (~25 min).
+
+> **Limit:** files COPY'd into the published image (api/viewer/pipeline
+> Python source, baked nginx config, Vue bundle) require an image
+> rebuild. This workflow only handles bind-mounted / overlay-defined
+> files.
+
+```bash
+# 1. From your laptop, scp the updated file(s) into the right place on the VPS:
+scp compose/docker-compose.prod.yml \
+    compose/grafana-agent.yaml \
+    docker/viewer/nginx-prod.conf.template \
+    deploy@prod-podcast.<tailnet>:/srv/podcast-scraper/compose/
+# (paths must match what the bind mounts in the YAML expect)
+
+# 2. Recreate the affected service so it picks up the change.
+#    --env-file is REQUIRED when running compose directly as deploy user;
+#    see "Why --env-file?" in the FAQ.
+ssh deploy@prod-podcast.<tailnet> 'bash -s' <<'REMOTE'
+set -euo pipefail
+cd /srv/podcast-scraper
+COMPOSE="docker compose --env-file /srv/podcast-scraper/.env \
+  -f compose/docker-compose.stack.yml \
+  -f compose/docker-compose.prod.yml \
+  -f compose/docker-compose.vps-prod.yml"
+$COMPOSE up -d --force-recreate api grafana-agent viewer
+$COMPOSE ps
+REMOTE
+```
+
+After verifying the fix works on prod, **commit the same change to a
+branch + open a PR** — otherwise the next time someone re-runs cloud-init
+or `git pull`s on the VPS, your hot-fix gets blown away. There's no
+auto-pull on prod, so you have a window, but don't trust it.
+
+---
+
+## FAQ / Troubleshooting
+
+### "Why `--env-file`?"
+
+`docker compose -f compose/docker-compose.stack.yml ...` resolves the
+project directory to **`dirname(first -f file)` = `/srv/podcast-scraper/compose/`**,
+not `/srv/podcast-scraper/`. Compose's auto-load of `.env` searches
+the project dir, so it looks at `compose/.env` (which doesn't exist)
+and skips the actual file at `/srv/podcast-scraper/.env`.
+
+The systemd unit avoids this because `EnvironmentFile=/srv/podcast-scraper/.env`
+loads the env into the SERVICE environment, which the spawned compose
+process inherits regardless of project-dir resolution.
+
+When running compose directly (deploy / debugging / hot-fix), always
+pass `--env-file /srv/podcast-scraper/.env` explicitly.
+
+### "Pipeline fails with `PODCAST_CORPUS_HOST_PATH is missing a value`"
+
+The api spawned a nested `docker compose run pipeline-llm` but couldn't
+resolve `${PODCAST_CORPUS_HOST_PATH}` from `compose/docker-compose.prod.yml`.
+
+Causes (in order of likelihood):
+
+1. `.env` doesn't have `PODCAST_CORPUS_HOST_PATH=...` — check with
+   `grep PODCAST_CORPUS_HOST_PATH /srv/podcast-scraper/.env`
+2. The api container is running an OLD image that doesn't pass
+   `--env-file` to the nested compose AND doesn't have the var in its
+   env passthrough — pull/recreate api with the latest image
+3. The api passthrough block in `compose/docker-compose.prod.yml`
+   doesn't include `PODCAST_CORPUS_HOST_PATH:` — verify the file
+   on prod matches the latest main
+
+### "Pipeline fails with `OpenAI API key required for OpenAI providers`"
+
+The pipeline container's `OPENAI_API_KEY` resolved to empty. Causes:
+
+1. **Wrong variable name in `.env`** — the most common cause. Code
+   expects `OPENAI_API_KEY` (with `_API_`); typos like `OPENAI_KEY`
+   silently resolve to the empty default. Check with
+   `grep -E '^OPENAI(_API)?_KEY=' /srv/podcast-scraper/.env`
+2. The api container env doesn't have the key (passthrough missing /
+   stale image) — see hot-fix workflow + recreate api
+3. The key value itself is malformed (e.g. base64-encoded by accident)
+
+### "Pipeline fails with `Docker pipeline jobs require top-level pipeline_install_extras`"
+
+The corpus's `viewer_operator.yaml` doesn't declare
+`pipeline_install_extras: ml` or `: llm`, AND the host has no
+`PODCAST_DEFAULT_PIPELINE_INSTALL_EXTRAS` env fallback set.
+
+Fix (durable): in the viewer, **Sources** → **Operator** tab, add
+`pipeline_install_extras: llm` to the YAML, **Save**. Now the field
+is in the file.
+
+Fix (host-wide): set `PODCAST_DEFAULT_PIPELINE_INSTALL_EXTRAS=llm`
+in `/srv/podcast-scraper/.env` and recreate the api. Falls back for
+every corpus that omits the field.
+
+The prod overlay sets the env default to `llm` out of the box;
+this error only appears if someone explicitly unset it.
+
+### "Viewer container shows `unhealthy` but the page loads fine"
+
+The healthcheck probe (`wget` against `/`) gets 401 from `auth_basic`
+in prod. Compose's older healthcheck used `curl -fsS` which both
+isn't installed in `nginx:alpine` AND would fail on 401. The current
+healthcheck (in `compose/docker-compose.stack.yml`) uses
+`wget -qSO /dev/null` and accepts ANY `HTTP/` response as alive.
+If you still see `unhealthy`, you're on an old viewer image — pull
+the latest.
+
+### "Grafana agent restarting / no data in Grafana Cloud"
+
+In order of likelihood:
+
+1. Wrong username for one of Prom / Loki — they have **separate**
+   instance IDs in Grafana Cloud. Check both
+   `GRAFANA_CLOUD_PROM_USER` and `GRAFANA_CLOUD_LOKI_USER` are set
+   distinctly.
+2. API key missing the right scope — must include both `metrics:write`
+   AND `logs:write` to feed both endpoints with one token
+3. URL has the wrong region — `prometheus-prod-65-prod-eu-west-2`
+   vs `prometheus-prod-13-prod-us-central-0` etc. Re-copy from
+   the stack page
+
+Diagnose with:
+
+```bash
+ssh deploy@prod-podcast.<tailnet> \
+  'docker logs --tail 50 compose-grafana-agent-1 | grep -iE "error|401|403|forbidden"'
+```
+
+### "Tailnet hostname won't resolve from my laptop"
+
+```bash
+tailscale status            # is the laptop on the tailnet?
+tailscale up                # if not, log back in
+tailscale ip -4 prod-podcast-1  # try variants if -1 / -2 suffix
+```
+
+If laptop is logged in and IP resolves but ssh hangs, the VPS may
+have lost its tailscale registration (auth key expired before
+re-up). Use Hetzner console (see Hetzner ops) to `tailscale up` again
+with a fresh `TS_AUTHKEY`.
+
+### "I can't sudo as deploy"
+
+Cloud-init explicitly sets `sudo: false` for the `deploy` user. This
+is intentional — deploy owns `/srv/podcast-scraper` and is in the
+`docker` group, which covers everything operators normally need.
+Operations requiring root (apt, systemctl, etc.) need the `root`
+user via Hetzner console or via the same `~/.ssh/id_ed25519` key
+which cloud-init also injected into root's `authorized_keys` as
+emergency access.
+
+### "Operator YAML on VPS keeps reverting"
+
+If you edit `/srv/podcast-scraper/corpus/viewer_operator.yaml`
+directly via SSH, then click **Save** in the viewer's Operator tab,
+the viewer overwrites your on-disk edit with whatever's in the
+textarea (which was loaded BEFORE your SSH edit and stayed cached).
+
+Always edit via the viewer Operator tab, not on disk — viewer Save
+preserves the textarea content verbatim.
+
+### "Pipeline image just `Pull complete` then immediately exits"
+
+Read the pipeline container's stdout (logged by the api factory):
+
+```bash
+ssh deploy@prod-podcast.<tailnet> \
+  'ls -lt /srv/podcast-scraper/corpus/jobs/*/log.txt | head -3'
+# then cat the most recent one
+```
+
+Common causes:
+
+- LLM key missing/wrong name (see openai key FAQ)
+- Profile in operator YAML names a provider whose key isn't set
+- Corpus directory has a permission issue (run owner mismatch)
+
+### "Stale Docker volume after env path changes"
+
+`docker volume inspect compose_corpus_data` — if the `device:` field
+doesn't match `PODCAST_CORPUS_HOST_PATH`, the volume was created with
+old config. compose won't recreate volumes whose YAML changed. Fix:
+
+```bash
+ssh deploy@prod-podcast.<tailnet>
+cd /srv/podcast-scraper
+COMPOSE="docker compose --env-file /srv/podcast-scraper/.env \
+  -f compose/docker-compose.stack.yml -f compose/docker-compose.prod.yml \
+  -f compose/docker-compose.vps-prod.yml"
+$COMPOSE down
+docker volume rm compose_corpus_data
+$COMPOSE up -d
+```
+
+The bind path content survives (host dir is the source of truth);
+only the Docker-side volume metadata is rebuilt.
+
+---
+
+## Constraints to know
+
+These are intentional design choices that look like bugs at first
+glance. Knowing about them saves debugging time.
+
+- **`deploy` user has no sudo** (cloud-init: `sudo: false`). Use root
+  via Hetzner console for sudo-needed operations. See
+  [FAQ → I can't sudo as deploy](#i-cant-sudo-as-deploy).
+- **Direct shell `docker compose` MUST use `--env-file`** because the
+  project dir resolves to `compose/`, not `/srv/podcast-scraper/`.
+  Systemd-spawned compose is unaffected (different env-loading path).
+- **Grafana Cloud has separate Prom + Loki user IDs.** Single
+  `GRAFANA_CLOUD_USER` doesn't work — split into PROM_USER / LOKI_USER.
+- **Viewer image is published once per main push** and used by BOTH
+  codespace preprod AND the prod VPS. `PODCAST_ENV` is injected at
+  runtime by nginx `sub_filter` — DON'T add `--build-arg
+  VITE_PODCAST_ENV=...` back to stack-test.yml.
+- **`pipeline_install_extras` is not in the profile YAMLs.** It's an
+  operator-set field separate from profile. Default fallback comes
+  from `PODCAST_DEFAULT_PIPELINE_INSTALL_EXTRAS=llm` env (set in the
+  prod overlay).
+- **No public ingress.** Hetzner firewall blocks all TCP. Viewer
+  reachable only over tailnet via `tailscale serve`. Adding public
+  exposure requires firewall + auth changes — don't add one without
+  the other.
+- **Auth keys (Tailscale) expire every 90 days max** on Free plan.
+  Calendar reminder.
+- **Profile dropdown is filtered to published images** via
+  `PODCAST_AVAILABLE_PROFILES`. Don't add a profile to the allowlist
+  whose backing pipeline image isn't published.
+- **The published api image only ships `[server]` extras.** Pipeline
+  runs MUST go through Docker job mode (`PODCAST_PIPELINE_EXEC_MODE=docker`,
+  set in prod overlay). In-process pipeline runs would crash on
+  missing `[llm]` deps.
 
 ---
 
