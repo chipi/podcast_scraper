@@ -4,7 +4,11 @@ from __future__ import annotations
 
 from typing import Any
 
+import numpy as np
+import pytest
+
 from podcast_scraper.builders.bridge_builder import build_bridge
+from podcast_scraper.providers.ml import embedding_loader
 
 
 def test_person_gi_only_org_kg_only_topic_both() -> None:
@@ -93,3 +97,41 @@ def test_ignores_non_cil_nodes() -> None:
     kg = {"nodes": [{"id": "kg:episode:u1", "type": "Episode", "properties": {}}]}
     out = build_bridge("e1", gi, kg, fuzzy_reconcile=False)
     assert out["identities"] == []
+
+
+def test_fuzzy_reconcile_reuses_process_embedding_cache(monkeypatch: pytest.MonkeyPatch) -> None:
+    """GH-742: bridge fuzzy pass must use get_embedding_model, not load_embedding_model."""
+    loads: list[int] = []
+
+    class FakeEmbedder:
+        def encode(self, texts: list[str], normalize_embeddings: bool = True, **kwargs: Any):
+            n = len(texts)
+            row = np.array([1.0, 0.0, 0.0], dtype=np.float64)
+            row = row / float(np.linalg.norm(row))
+            return np.tile(row, (n, 1))
+
+    def fake_load(*args: Any, **kwargs: Any) -> FakeEmbedder:
+        loads.append(1)
+        return FakeEmbedder()
+
+    monkeypatch.setattr(embedding_loader, "load_embedding_model", fake_load)
+    monkeypatch.setattr(embedding_loader, "_embedding_models", {})
+
+    gi = {
+        "nodes": [
+            {"id": "person:alice", "type": "Person", "properties": {"name": "Pat Lee"}},
+        ]
+    }
+    kg = {
+        "nodes": [
+            {
+                "id": "person:zed",
+                "type": "Entity",
+                "properties": {"name": "Pat Lee", "kind": "person"},
+            }
+        ],
+    }
+    build_bridge("ep-1", gi, kg, fuzzy_reconcile=True)
+    build_bridge("ep-2", gi, kg, fuzzy_reconcile=True)
+
+    assert len(loads) == 1

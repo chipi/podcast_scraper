@@ -113,9 +113,9 @@ def _fuzzy_reconcile(
     """
     if embedder is None:
         try:
-            from ..providers.ml.embedding_loader import load_embedding_model
+            from ..providers.ml.embedding_loader import get_embedding_model
 
-            embedder = load_embedding_model("minilm-l6", allow_download=False)
+            embedder = get_embedding_model("minilm-l6", allow_download=False)
         except Exception:  # noqa: BLE001
             logger.debug("Embedding model unavailable; skip fuzzy reconciliation")
             return []
