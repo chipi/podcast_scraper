@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
+import { computed, onUnmounted, ref, watch } from 'vue'
 import type { PipelineJobRow } from '../../api/jobsApi'
 import {
   fetchPipelineJobLogTail,
@@ -24,6 +24,7 @@ import {
   type LabelValueRow,
 } from '../../utils/humanizeJsonDocument'
 import { feedRowRunRelativePaths } from '../../utils/feedRunLinking'
+import { usePageVisible } from '../../composables/usePageVisible'
 
 const SUMMARY_KV_COLS = 3
 
@@ -50,6 +51,7 @@ const props = defineProps<{
 type ExploreTab = 'summary' | 'metrics' | 'details'
 
 const shell = useShellStore()
+const { pageVisible } = usePageVisible()
 const tab = ref<ExploreTab>('summary')
 const loading = ref(false)
 const tailText = ref('')
@@ -59,6 +61,67 @@ const corpusDoc = ref<Record<string, unknown> | null>(null)
 const corpusDocErr = ref<string | null>(null)
 const runsSummary = ref<CorpusRunSummaryItem[]>([])
 const manifestDoc = ref<CorpusManifestDocument | null>(null)
+
+let tailPollTimer: ReturnType<typeof setTimeout> | null = null
+let tailPollStableTicks = 0
+let lastTailPollFingerprint = ''
+
+function isLiveJobStatus(): boolean {
+  const s = String(props.job.status).toLowerCase()
+  return s === 'running' || s === 'queued'
+}
+
+function tailPollFingerprint(text: string): string {
+  if (!text) {
+    return '0'
+  }
+  return `${text.length}:${text.slice(-400)}`
+}
+
+function clearTailPollTimer(): void {
+  if (tailPollTimer !== null) {
+    clearTimeout(tailPollTimer)
+    tailPollTimer = null
+  }
+}
+
+function nextTailPollDelayMs(): number {
+  return tailPollStableTicks >= 3 ? 10_000 : 3_000
+}
+
+function scheduleTailPoll(): void {
+  clearTailPollTimer()
+  if (!pageVisible.value || !shell.jobsApiAvailable || !isLiveJobStatus()) {
+    return
+  }
+  const p = props.corpusPath.trim()
+  const jid = props.job.job_id.trim()
+  if (!p || !jid) {
+    return
+  }
+  tailPollTimer = setTimeout(() => {
+    void fetchPipelineJobLogTail(p, jid)
+      .then((res) => {
+        const fp = tailPollFingerprint(res.text)
+        if (fp === lastTailPollFingerprint) {
+          tailPollStableTicks += 1
+        } else {
+          tailPollStableTicks = 0
+        }
+        lastTailPollFingerprint = fp
+        tailText.value = res.text
+        tailTruncated.value = res.truncated
+      })
+      .catch(() => {
+        /* keep prior tail on transient errors */
+      })
+      .finally(() => {
+        if (isLiveJobStatus()) {
+          scheduleTailPoll()
+        }
+      })
+  }, nextTailPollDelayMs())
+}
 
 const structured = computed(() => extractStructuredSummariesFromLogTail(tailText.value))
 
@@ -112,6 +175,9 @@ const corpusIncidentCompactChunks = computed(() =>
 )
 
 async function load(): Promise<void> {
+  clearTailPollTimer()
+  tailPollStableTicks = 0
+  lastTailPollFingerprint = ''
   loading.value = true
   tailErr.value = null
   corpusDocErr.value = null
@@ -158,6 +224,10 @@ async function load(): Promise<void> {
   runsSummary.value = Array.isArray(runsRes?.runs) ? runsRes!.runs : []
   manifestDoc.value = man
   loading.value = false
+  if (isLiveJobStatus()) {
+    lastTailPollFingerprint = tailPollFingerprint(tailText.value)
+    scheduleTailPoll()
+  }
 }
 
 watch(
@@ -169,6 +239,19 @@ watch(
   },
   { immediate: true },
 )
+
+watch(pageVisible, () => {
+  if (pageVisible.value && isLiveJobStatus() && shell.jobsApiAvailable) {
+    tailPollStableTicks = 0
+    scheduleTailPoll()
+  } else {
+    clearTailPollTimer()
+  }
+})
+
+onUnmounted(() => {
+  clearTailPollTimer()
+})
 </script>
 
 <template>
