@@ -26,6 +26,22 @@ export function chartGridColor(): string {
   return rgbaFromToken('--ps-border', 0.35)
 }
 
+/** Muted axis tick / title color (read at ``buildChart`` time; pair with ``useThemeChartReloader``). */
+export function chartTickColor(): string {
+  const raw = getTokenVar('--ps-muted').trim()
+  return raw || '#737373'
+}
+
+/** Axis baseline color between chart area and ticks. */
+export function chartAxisBorderColor(): string {
+  return rgbaFromToken('--ps-border', 0.55)
+}
+
+/** Common Chart.js tick options for x/y scales. */
+export function chartTicks(size: number): { color: string; font: { size: number } } {
+  return { color: chartTickColor(), font: { size } }
+}
+
 /** Max distinct semantic hues before palette repeats (Tufte: avoid rainbow sprawl). */
 export const CHART_SEMANTIC_COLOR_SLOTS = 5
 

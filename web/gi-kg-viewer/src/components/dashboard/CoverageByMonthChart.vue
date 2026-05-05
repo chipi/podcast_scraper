@@ -3,7 +3,14 @@ import { Chart } from 'chart.js'
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import type { CoverageByMonthItem } from '../../api/corpusCoverageApi'
 import { ensureChartJsRegistered } from '../../utils/chartRegister'
-import { rgbaFromToken } from '../../utils/chartTheme'
+import { useThemeChartReloader } from '../../composables/useThemeChartReloader'
+import {
+  chartAxisBorderColor,
+  chartGridColor,
+  chartTickColor,
+  chartTicks,
+  rgbaFromToken,
+} from '../../utils/chartTheme'
 
 const props = defineProps<{
   rows: CoverageByMonthItem[]
@@ -96,13 +103,13 @@ function buildChart(): void {
       const y = yScale.getPixelForValue(m.avg)
       const ctx2 = c.ctx
       ctx2.save()
-      ctx2.strokeStyle = 'var(--ps-border)'
+      ctx2.strokeStyle = chartAxisBorderColor()
       ctx2.lineWidth = 1
       ctx2.beginPath()
       ctx2.moveTo(xScale.left, y)
       ctx2.lineTo(xScale.right, y)
       ctx2.stroke()
-      ctx2.fillStyle = 'var(--ps-muted)'
+      ctx2.fillStyle = chartTickColor()
       ctx2.font = '10px Inter, system-ui, sans-serif'
       ctx2.textAlign = 'right'
       ctx2.fillText(`avg ${m.avg.toFixed(0)}%`, xScale.right, y - 4)
@@ -149,19 +156,30 @@ function buildChart(): void {
       },
       scales: {
         x: {
-          ticks: { font: { size: 10 } },
+          ticks: chartTicks(10),
+          border: { display: true, color: chartAxisBorderColor() },
+          grid: { display: false },
         },
         y: {
           beginAtZero: true,
           max: 100,
-          title: { display: true, text: 'Coverage %', color: 'var(--ps-muted)' },
-          ticks: { maxTicksLimit: 5 },
+          title: {
+            display: true,
+            text: 'Coverage %',
+            color: chartTickColor(),
+            font: { size: 10 },
+          },
+          ticks: { ...chartTicks(10), maxTicksLimit: 5 },
+          border: { display: true, color: chartAxisBorderColor() },
+          grid: { color: chartGridColor() },
         },
       },
     },
     plugins: [avgLinePlugin],
   })
 }
+
+useThemeChartReloader(buildChart)
 
 onMounted(() => {
   buildChart()

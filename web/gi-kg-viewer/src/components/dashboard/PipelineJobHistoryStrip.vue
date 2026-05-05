@@ -4,10 +4,6 @@ import { listPipelineJobs, pipelineJobLogUrl, type PipelineJobRow } from '../../
 import { useShellStore } from '../../stores/shell'
 import PipelineJobExplorePanel from './PipelineJobExplorePanel.vue'
 
-const emit = defineEmits<{
-  'open-run-history': [payload: { relativePath: string }]
-}>()
-
 withDefaults(
   defineProps<{
     embedded?: boolean
@@ -433,7 +429,6 @@ watch(
             class="min-h-0 flex-1 lg:min-h-0"
             :job="selectedJob"
             :corpus-path="root"
-            @open-run-history="emit('open-run-history', $event)"
           />
         </div>
       </div>

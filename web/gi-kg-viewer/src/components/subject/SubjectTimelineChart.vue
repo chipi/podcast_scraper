@@ -7,7 +7,8 @@
 import { Chart } from 'chart.js'
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import type { SubjectMentionsTimeline } from '../../utils/subjectMentionsTimeline'
-import { chartGridColor } from '../../utils/chartTheme'
+import { useThemeChartReloader } from '../../composables/useThemeChartReloader'
+import { chartAxisBorderColor, chartGridColor, chartTicks, rgbaFromToken } from '../../utils/chartTheme'
 import { ensureChartJsRegistered } from '../../utils/chartRegister'
 
 const props = defineProps<{
@@ -44,6 +45,8 @@ function buildChart(): void {
   if (!ctx) return
   const labels = props.timeline.months.map((m) => m.ymd)
   const values = props.timeline.months.map((m) => m.count)
+  const barFill = rgbaFromToken('--ps-primary', 0.65)
+  const barStroke = rgbaFromToken('--ps-primary', 0.95)
   chart = new Chart(ctx, {
     type: 'bar',
     data: {
@@ -52,8 +55,8 @@ function buildChart(): void {
         {
           label: 'Mentions',
           data: values,
-          backgroundColor: 'rgba(76, 110, 245, 0.65)',
-          borderColor: 'rgba(54, 79, 199, 0.9)',
+          backgroundColor: barFill,
+          borderColor: barStroke,
           borderWidth: 1,
         },
       ],
@@ -75,17 +78,21 @@ function buildChart(): void {
       scales: {
         x: {
           grid: { display: false },
-          ticks: { font: { size: 10 } },
+          ticks: chartTicks(10),
+          border: { display: true, color: chartAxisBorderColor() },
         },
         y: {
           beginAtZero: true,
-          ticks: { precision: 0, font: { size: 10 } },
+          ticks: { ...chartTicks(10), precision: 0 },
+          border: { display: true, color: chartAxisBorderColor() },
           grid: { color: chartGridColor() },
         },
       },
     },
   })
 }
+
+useThemeChartReloader(buildChart)
 
 onMounted(buildChart)
 

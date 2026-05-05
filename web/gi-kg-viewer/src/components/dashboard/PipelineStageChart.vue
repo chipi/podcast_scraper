@@ -2,7 +2,8 @@
 import { Chart } from 'chart.js'
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { ensureChartJsRegistered } from '../../utils/chartRegister'
-import { rgbaFromToken } from '../../utils/chartTheme'
+import { useThemeChartReloader } from '../../composables/useThemeChartReloader'
+import { chartTickColor, chartTicks, rgbaFromToken } from '../../utils/chartTheme'
 import { formatDashboardRunDurationSeconds } from '../../utils/formatDuration'
 
 const props = defineProps<{
@@ -74,7 +75,9 @@ function buildChart(): void {
           beginAtZero: true,
         },
         y: {
-          ticks: { font: { size: 11 } },
+          ticks: chartTicks(11),
+          border: { display: false },
+          grid: { display: false },
         },
       },
     },
@@ -85,7 +88,7 @@ function buildChart(): void {
           const meta = c.getDatasetMeta(0)
           const ctx2 = c.ctx
           ctx2.save()
-          ctx2.fillStyle = 'var(--ps-muted)'
+          ctx2.fillStyle = chartTickColor()
           ctx2.font = '10px Inter, system-ui, sans-serif'
           ctx2.textAlign = 'left'
           ctx2.textBaseline = 'middle'
@@ -102,6 +105,8 @@ function buildChart(): void {
     ],
   })
 }
+
+useThemeChartReloader(buildChart)
 
 onMounted(() => {
   buildChart()

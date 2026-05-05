@@ -23,7 +23,6 @@ const props = withDefaults(
 )
 
 const emit = defineEmits<{
-  'open-run-history': [payload: { relativePath: string }]
   /** Embedded Jobs empty state: parent switches Pipeline sub-tab to Job history. */
   'go-to-job-history': []
 }>()
@@ -503,7 +502,6 @@ onUnmounted(() => {
         <PipelineJobExplorePanel
           :job="j"
           :corpus-path="root"
-          @open-run-history="emit('open-run-history', $event)"
         />
         <div class="mt-1 space-y-0.5 text-[9px] leading-snug text-muted">
           <p v-if="j.started_at">

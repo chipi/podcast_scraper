@@ -40,8 +40,6 @@ const dashboardNav = useDashboardNavStore()
 const dashTab = ref<'coverage' | 'intelligence' | 'pipeline'>('coverage')
 /** Sub-tabs inside Pipeline: active jobs, finished job strip, corpus run strip. */
 const pipelineActivityTab = ref<'jobs' | 'job_history' | 'history'>('jobs')
-/** When set, Run history strip highlights this ``run.json`` path (from job summary feed links). */
-const runHistoryHighlightPath = ref<string | null>(null)
 const runs = ref<CorpusRunSummaryItem[]>([])
 const coverage = ref<CorpusCoverageResponse | null>(null)
 const feeds = ref<CorpusFeedItem[]>([])
@@ -61,26 +59,6 @@ function selectTab(tab: 'coverage' | 'intelligence' | 'pipeline'): void {
 
 function selectPipelineActivityTab(tab: 'jobs' | 'job_history' | 'history'): void {
   pipelineActivityTab.value = tab
-}
-
-watch(pipelineActivityTab, (t) => {
-  if (t !== 'history') {
-    runHistoryHighlightPath.value = null
-  }
-})
-
-async function onOpenRunHistoryFromExplore(payload: { relativePath: string }): Promise<void> {
-  const rel = payload.relativePath.trim()
-  if (!rel) {
-    return
-  }
-  runHistoryHighlightPath.value = rel
-  dashTab.value = 'pipeline'
-  pipelineActivityTab.value = 'history'
-  await nextTick()
-  document
-    .querySelector<HTMLElement>('[data-testid="pipeline-jobs-history-panel"]')
-    ?.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
 }
 
 /** From Briefing “Last run” Details — Pipeline tab + Job history (finished HTTP jobs). */
@@ -478,19 +456,16 @@ function openLibraryFailures(): void {
             v-if="pipelineActivityTab === 'jobs'"
             embedded
             active-jobs-only
-            @open-run-history="onOpenRunHistoryFromExplore"
             @go-to-job-history="selectPipelineActivityTab('job_history')"
           />
           <PipelineJobHistoryStrip
             v-else-if="pipelineActivityTab === 'job_history'"
             embedded
-            @open-run-history="onOpenRunHistoryFromExplore"
           />
           <PipelineRunHistoryStrip
             v-else
             embedded
             :runs="runs"
-            :highlight-relative-path="runHistoryHighlightPath"
           />
         </div>
       </div>
