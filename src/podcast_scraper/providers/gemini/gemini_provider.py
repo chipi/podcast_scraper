@@ -320,6 +320,17 @@ class GeminiProvider:
         self._summarization_initialized = True
         logger.debug("Gemini summarization initialized successfully")
 
+    def _gemini_retry_params(self, ctx: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+        """Kwargs for ``retry_with_metrics`` on Gemini HTTP/SDK calls (configurable)."""
+        out: Dict[str, Any] = {
+            "max_retries": self.cfg.gemini_retry_max_retries,
+            "initial_delay": self.cfg.gemini_retry_initial_delay_seconds,
+            "max_delay": self.cfg.gemini_retry_max_delay_seconds,
+        }
+        if ctx:
+            out["retry_context"] = ctx
+        return out
+
     # ============================================================================
     # TranscriptionProvider Protocol Implementation
     # ============================================================================
@@ -434,9 +445,7 @@ class GeminiProvider:
                     contents=cast(Any, contents),
                     config=cast(Any, transcription_config),
                 ),
-                max_retries=2,
-                initial_delay=1.0,
-                max_delay=30.0,
+                **self._gemini_retry_params({"stage": "gemini_transcribe"}),
                 retryable_exceptions=_safe_gemini_retryable(),
             )
 
@@ -601,9 +610,7 @@ class GeminiProvider:
         try:
             text = retry_with_metrics(
                 lambda: self.transcribe(audio_path, language),
-                max_retries=3,
-                initial_delay=1.0,
-                max_delay=30.0,
+                **self._gemini_retry_params({"stage": "gemini_transcribe_outer"}),
                 retryable_exceptions=_safe_gemini_retryable(),
                 metrics=call_metrics,
             )
@@ -771,9 +778,7 @@ class GeminiProvider:
                     contents=user_prompt,
                     config=cast(Any, generation_config),
                 ),
-                max_retries=2,
-                initial_delay=1.0,
-                max_delay=30.0,
+                **self._gemini_retry_params({"stage": "gemini_speaker"}),
                 retryable_exceptions=_safe_gemini_retryable(),
             )
 
@@ -1032,9 +1037,12 @@ class GeminiProvider:
             try:
                 response = retry_with_metrics(
                     _make_api_call,
-                    max_retries=3,
-                    initial_delay=1.0,
-                    max_delay=30.0,
+                    **self._gemini_retry_params(
+                        {
+                            "stage": "gemini_summarize",
+                            "episode_title": (episode_title or "")[:200],
+                        }
+                    ),
                     retryable_exceptions=_safe_gemini_retryable(),
                     metrics=call_metrics,
                 )
@@ -1248,9 +1256,7 @@ class GeminiProvider:
         try:
             resp = retry_with_metrics(
                 _make_api_call,
-                max_retries=3,
-                initial_delay=1.0,
-                max_delay=30.0,
+                **self._gemini_retry_params({"stage": "gemini_megabundle"}),
                 retryable_exceptions=_safe_gemini_retryable(),
                 metrics=call_metrics,
             )
@@ -1338,9 +1344,12 @@ class GeminiProvider:
         try:
             resp = retry_with_metrics(
                 _make_api_call,
-                max_retries=3,
-                initial_delay=1.0,
-                max_delay=30.0,
+                **self._gemini_retry_params(
+                    {
+                        "stage": "gemini_extraction_bundle",
+                        "episode_title": (episode_title or "")[:200],
+                    }
+                ),
                 retryable_exceptions=_safe_gemini_retryable(),
                 metrics=call_metrics,
             )
@@ -1426,9 +1435,12 @@ class GeminiProvider:
         try:
             response = retry_with_metrics(
                 _make_api_call,
-                max_retries=3,
-                initial_delay=1.0,
-                max_delay=30.0,
+                **self._gemini_retry_params(
+                    {
+                        "stage": "gemini_bundled_clean_summary",
+                        "episode_title": (episode_title or "")[:200],
+                    }
+                ),
                 retryable_exceptions=_safe_gemini_retryable(),
                 metrics=call_metrics,
             )
@@ -1720,9 +1732,9 @@ class GeminiProvider:
 
             response = retry_with_metrics(
                 _make_api_call,
-                max_retries=3,
-                initial_delay=1.0,
-                max_delay=30.0,
+                **self._gemini_retry_params(
+                    {"stage": "gemini_kg_transcript", "episode_title": (episode_title or "")[:200]}
+                ),
                 retryable_exceptions=_safe_gemini_retryable(),
             )
             _record_gemini_llm_call(
@@ -1799,9 +1811,9 @@ class GeminiProvider:
 
             response = retry_with_metrics(
                 _make_api_call,
-                max_retries=3,
-                initial_delay=1.0,
-                max_delay=30.0,
+                **self._gemini_retry_params(
+                    {"stage": "gemini_kg_bullets", "episode_title": (episode_title or "")[:200]}
+                ),
                 retryable_exceptions=_safe_gemini_retryable(),
             )
             _record_gemini_llm_call(
@@ -1881,9 +1893,7 @@ class GeminiProvider:
             try:
                 response = retry_with_metrics(
                     _make_api_call,
-                    max_retries=3,
-                    initial_delay=1.0,
-                    max_delay=30.0,
+                    **self._gemini_retry_params({"stage": "gemini_gil_extract_quotes"}),
                     retryable_exceptions=_safe_gemini_retryable(),
                     metrics=call_metrics,
                 )
@@ -2020,9 +2030,7 @@ class GeminiProvider:
         try:
             response = retry_with_metrics(
                 _make_api_call,
-                max_retries=3,
-                initial_delay=1.0,
-                max_delay=30.0,
+                **self._gemini_retry_params({"stage": "gemini_gil_extract_quotes_bundled"}),
                 retryable_exceptions=_safe_gemini_retryable(),
                 metrics=call_metrics,
             )
@@ -2123,9 +2131,7 @@ class GeminiProvider:
             try:
                 response = retry_with_metrics(
                     _make_api_call,
-                    max_retries=3,
-                    initial_delay=1.0,
-                    max_delay=30.0,
+                    **self._gemini_retry_params({"stage": "gemini_gil_score_entailment"}),
                     retryable_exceptions=_safe_gemini_retryable(),
                     metrics=call_metrics,
                 )
@@ -2249,9 +2255,7 @@ class GeminiProvider:
         try:
             response = retry_with_metrics(
                 _make_api_call,
-                max_retries=3,
-                initial_delay=1.0,
-                max_delay=30.0,
+                **self._gemini_retry_params({"stage": "gemini_gil_score_entailment_bundled"}),
                 retryable_exceptions=_safe_gemini_retryable(),
                 metrics=call_metrics,
             )
@@ -2344,9 +2348,7 @@ class GeminiProvider:
             try:
                 response = retry_with_metrics(
                     _make_api_call,
-                    max_retries=3,
-                    initial_delay=1.0,
-                    max_delay=30.0,
+                    **self._gemini_retry_params({"stage": "gemini_clean_transcript"}),
                     retryable_exceptions=_safe_gemini_retryable(),
                     metrics=call_metrics,
                 )
