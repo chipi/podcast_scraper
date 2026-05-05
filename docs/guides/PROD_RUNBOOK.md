@@ -90,6 +90,37 @@ gh variable set PROD_TAILNET_FQDN --repo chipi/podcast_scraper \
   --body "prod-podcast.tail-xxxxx.ts.net"
 ```
 
+### When the live hostname has a numeric suffix (`-1`, `-2`, …) {#tailscale-suffix-drift}
+
+After a failed replace or a stale machine record, Tailscale may keep the
+MagicDNS name `prod-podcast.<tailnet>` on an **offline** orphan while the
+live VPS registers as `prod-podcast-1.<tailnet>` (or `-2`, and so on). That
+breaks copy-paste SSH and `curl` until the name lines up again.
+
+**GitHub Actions:** `deploy-prod.yml` and `backup-corpus-prod.yml` join the
+tailnet, run `scripts/ops/resolve_prod_tailnet_host.sh`, and use the resolved
+FQDN for SSH and the `/api/health` probe. Workflows still require
+`vars.PROD_TAILNET_FQDN` as the operator’s **canonical** intent; the resolver
+falls back to `prod-podcast-1.<tailnet>`, … when the canonical name is not
+online.
+
+**Local laptop (on the tailnet):** print the live host the repo workflows
+would pick:
+
+```bash
+export PROD_TAILNET_FQDN='prod-podcast.tail-xxxxx.ts.net'
+bash scripts/ops/resolve_prod_tailnet_host.sh
+```
+
+For tests without `tailscaled`, set `TAILSCALE_STATUS_JSON_PATH` to a saved
+`tailscale status --json` file.
+
+When the printed name differs from the repo variable, update the variable so
+logs and docs match reality, and remove stale machines in the [Tailscale
+admin machines](https://login.tailscale.com/admin/machines) list if you want
+the unsuffixed name back. See [GitHub issue
+744](https://github.com/chipi/podcast_scraper/issues/744).
+
 ### Stage the host-side `.env` (one-time, post-apply)
 
 The `.env` holds runtime secrets (provider API keys, Grafana credentials,
@@ -623,9 +654,13 @@ ssh deploy@$(tailscale ip -4 prod-podcast)
 If the hostname doesn't resolve: a prior failed deploy may have left
 an orphan device on the tailnet, with the live VPS auto-named
 `prod-podcast-1` (or `-2`, etc.). Check `tailscale status | grep prod-podcast`
-and use whatever the actual current name is. Clean up orphans in
-the [Tailscale admin console](https://login.tailscale.com/admin/machines)
-to reclaim the canonical name.
+and use whatever the actual current name is, or run
+`bash scripts/ops/resolve_prod_tailnet_host.sh` with
+`PROD_TAILNET_FQDN` set to your canonical value (see [When the live hostname
+has a numeric suffix](#tailscale-suffix-drift)).
+Clean up orphans in the [Tailscale admin
+console](https://login.tailscale.com/admin/machines) to reclaim the canonical
+name.
 
 ### HTTPS over the tailnet
 

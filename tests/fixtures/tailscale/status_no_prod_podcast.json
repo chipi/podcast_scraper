@@ -1,0 +1,13 @@
+{
+  "Self": {
+    "DNSName": "gha-runner.tail-test.ts.net.",
+    "Online": true
+  },
+  "Peer": {
+    "n1": {
+      "DNSName": "other-host.tail-test.ts.net.",
+      "Online": true,
+      "HostName": "other-host"
+    }
+  }
+}

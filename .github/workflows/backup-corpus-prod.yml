@@ -10,7 +10,7 @@ name: Backup corpus snapshot (prod VPS)
 # workflow and flips this one's schedule on. Until then this workflow is
 # workflow_dispatch-only (no `schedule:` trigger).
 #
-# Closes #722 (Phase A side).
+# Closes #722 (Phase A side). #744: resolve prod MagicDNS host after join.
 #
 # Operator prerequisites (#714):
 #   secrets: TS_AUTHKEY (Free-plan substitute for OAuth — see PROD_RUNBOOK.md
@@ -58,6 +58,12 @@ jobs:
             echo "skip=false" >> "$GITHUB_OUTPUT"
           fi
 
+      - name: Checkout (resolver script; GH-744)
+        if: steps.preflight.outputs.skip != 'true'
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
       - name: Join the tailnet
         if: steps.preflight.outputs.skip != 'true'
         uses: tailscale/github-action@v2
@@ -66,10 +72,24 @@ jobs:
           tags:    tag:gha-deployer
           version: latest
 
+      - name: Resolve prod MagicDNS host (GH-744)
+        id: ts_host
+        if: steps.preflight.outputs.skip != 'true'
+        env:
+          PROD_TAILNET_FQDN: ${{ vars.PROD_TAILNET_FQDN }}
+        run: |
+          set -euo pipefail
+          R=$(bash scripts/ops/resolve_prod_tailnet_host.sh)
+          echo "resolved_fqdn=$R" >> "$GITHUB_OUTPUT"
+          WANT="${{ vars.PROD_TAILNET_FQDN }}"
+          if [ "$(printf '%s' "$R" | tr '[:upper:]' '[:lower:]')" != "$(printf '%s' "$WANT" | tr '[:upper:]' '[:lower:]')" ]; then
+            echo "::notice::Tailscale live host ($R) differs from vars.PROD_TAILNET_FQDN ($WANT). Using $R for SSH. See PROD_RUNBOOK (suffix drift)."
+          fi
+
       - name: Pull corpus from VPS over Tailscale
         if: steps.preflight.outputs.skip != 'true'
         env:
-          SSH_TARGET: deploy@${{ vars.PROD_TAILNET_FQDN }}
+          SSH_TARGET: deploy@${{ steps.ts_host.outputs.resolved_fqdn }}
         run: |
           set -euo pipefail
           # Stream the corpus dir as a tarball over SSH. Unlike `gh codespace cp`

@@ -8,7 +8,8 @@ name: Deploy to prod VPS
 # (RFC-082 Decision 6).
 #
 # Closes #718 (workflow scaffold), #720 (post-deploy /api/health smoke),
-# #721 (PODCAST_RELEASE=sha-<short> wiring for Sentry release grouping).
+# #721 (PODCAST_RELEASE=sha-<short> wiring for Sentry release grouping),
+# #744 (resolve prod MagicDNS host after Tailscale join; suffix drift).
 #
 # Operator prerequisites (#714):
 #   - secrets: TS_AUTHKEY (Free-plan substitute for OAuth — see PROD_RUNBOOK.md
@@ -58,6 +59,12 @@ jobs:
             echo "skip=false" >> "$GITHUB_OUTPUT"
           fi
 
+      - name: Checkout (resolver script; GH-744)
+        if: steps.preflight.outputs.skip != 'true'
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
       - name: Resolve target image SHA
         id: sha
         if: steps.preflight.outputs.skip != 'true'
@@ -77,6 +84,20 @@ jobs:
           tags:    tag:gha-deployer
           version: latest
 
+      - name: Resolve prod MagicDNS host (GH-744)
+        id: ts_host
+        if: steps.preflight.outputs.skip != 'true'
+        env:
+          PROD_TAILNET_FQDN: ${{ vars.PROD_TAILNET_FQDN }}
+        run: |
+          set -euo pipefail
+          R=$(bash scripts/ops/resolve_prod_tailnet_host.sh)
+          echo "resolved_fqdn=$R" >> "$GITHUB_OUTPUT"
+          WANT="${{ vars.PROD_TAILNET_FQDN }}"
+          if [ "$(printf '%s' "$R" | tr '[:upper:]' '[:lower:]')" != "$(printf '%s' "$WANT" | tr '[:upper:]' '[:lower:]')" ]; then
+            echo "::notice::Tailscale live host ($R) differs from vars.PROD_TAILNET_FQDN ($WANT). Using $R for SSH and probes. See PROD_RUNBOOK (suffix drift)."
+          fi
+
       - name: Wire PODCAST_RELEASE into host .env (#721 — Sentry release grouping)
         # Idempotent: prior PODCAST_RELEASE=... line is removed before the new
         # one is appended, so re-runs don't accumulate duplicates.
@@ -85,7 +106,7 @@ jobs:
         if: steps.preflight.outputs.skip != 'true'
         env:
           SHA_SHORT:  ${{ steps.sha.outputs.short }}
-          SSH_TARGET: deploy@${{ vars.PROD_TAILNET_FQDN }}
+          SSH_TARGET: deploy@${{ steps.ts_host.outputs.resolved_fqdn }}
         run: |
           ssh -o StrictHostKeyChecking=accept-new -o BatchMode=yes "$SSH_TARGET" \
             "sudo sed -i '/^PODCAST_RELEASE=/d' /srv/podcast-scraper/.env && \
@@ -96,7 +117,7 @@ jobs:
         # surface red within the SSH session.
         if: steps.preflight.outputs.skip != 'true'
         env:
-          SSH_TARGET: deploy@${{ vars.PROD_TAILNET_FQDN }}
+          SSH_TARGET: deploy@${{ steps.ts_host.outputs.resolved_fqdn }}
         run: |
           ssh -o StrictHostKeyChecking=accept-new -o BatchMode=yes "$SSH_TARGET" \
             '/srv/podcast-scraper/infra/deploy/deploy.sh'
@@ -107,7 +128,7 @@ jobs:
         # catch any Tailscale-routing/cert issue. 60s timeout (12 × 5s).
         if: steps.preflight.outputs.skip != 'true'
         env:
-          PROBE_URL: https://${{ vars.PROD_TAILNET_FQDN }}/api/health
+          PROBE_URL: https://${{ steps.ts_host.outputs.resolved_fqdn }}/api/health
         run: |
           set -euo pipefail
           for i in $(seq 1 12); do
@@ -119,6 +140,6 @@ jobs:
           done
           echo "::error::/api/health did not return ok within 60s over tailnet"
           ssh -o StrictHostKeyChecking=accept-new -o BatchMode=yes \
-            "deploy@${{ vars.PROD_TAILNET_FQDN }}" \
+            "deploy@${{ steps.ts_host.outputs.resolved_fqdn }}" \
             'docker logs --tail 50 compose-api-1' 2>&1 || true
           exit 1
