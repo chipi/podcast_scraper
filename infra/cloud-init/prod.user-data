@@ -66,6 +66,44 @@ write_files:
     permissions: '0644'
     owner: root:root
 
+%{ if alloy_enabled ~}
+  - path: /var/lib/cloud/data/alloy-host-metrics.river
+    content: |
+      prometheus.exporter.unix "host" {}
+
+      prometheus.scrape "host_metrics" {
+        targets    = prometheus.exporter.unix.host.targets
+        forward_to = [prometheus.remote_write.grafana_cloud.receiver]
+      }
+
+      prometheus.remote_write "grafana_cloud" {
+        endpoint {
+          url = sys.env("GRAFANA_CLOUD_REMOTE_WRITE_URL")
+          basic_auth {
+            username = sys.env("GRAFANA_CLOUD_USER")
+            password = sys.env("GRAFANA_CLOUD_PASSWORD")
+          }
+        }
+      }
+    permissions: '0644'
+    owner: root:root
+
+  - path: /etc/alloy/grafana-cloud.env
+    content: |
+      GRAFANA_CLOUD_REMOTE_WRITE_URL=${grafana_cloud_metrics_remote_write_url}
+      GRAFANA_CLOUD_USER=${grafana_cloud_metrics_username}
+      GRAFANA_CLOUD_PASSWORD=${grafana_cloud_metrics_password}
+    permissions: '0600'
+    owner: root:root
+
+  - path: /etc/systemd/system/alloy.service.d/grafana-cloud-env.conf
+    content: |
+      [Service]
+      EnvironmentFile=/etc/alloy/grafana-cloud.env
+    permissions: '0644'
+    owner: root:root
+%{ endif ~}
+
 runcmd:
   # === Belt-and-suspenders SSH key install ===
   # The `users:` block above SHOULD populate ~deploy/.ssh/authorized_keys, but
@@ -112,6 +150,21 @@ runcmd:
   # === Unattended security upgrades ===
   - dpkg-reconfigure -plow -fnoninteractive unattended-upgrades
 
+%{ if alloy_enabled ~}
+  # === Grafana Alloy: host OS metrics -> Grafana Cloud (remote_write) ===
+  - curl -fsSL https://apt.grafana.com/gpg.key | gpg --dearmor -o /etc/apt/keyrings/grafana.gpg
+  - chmod a+r /etc/apt/keyrings/grafana.gpg
+  - echo "deb [signed-by=/etc/apt/keyrings/grafana.gpg] https://apt.grafana.com stable main" > /etc/apt/sources.list.d/grafana.list
+  - apt-get update
+  - apt-get install -y alloy
+  - cp /var/lib/cloud/data/alloy-host-metrics.river /etc/alloy/config.alloy
+  - chown root:alloy /etc/alloy/config.alloy
+  - chmod 0640 /etc/alloy/config.alloy
+  - chown root:root /etc/alloy/grafana-cloud.env
+  - chmod 0600 /etc/alloy/grafana-cloud.env
+  - systemctl daemon-reload
+  - systemctl enable --now alloy
+%{ endif ~}
   # === Enable systemd unit (will block on .bootstrap-needs-env) ===
   - systemctl enable podcast-scraper.service
   - systemctl start podcast-scraper.service || true

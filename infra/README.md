@@ -17,7 +17,7 @@ infra/
 │   └── terraform.tfstate.enc   # sops+age-encrypted state (committed; appears
 │                               # after first apply)
 ├── cloud-init/
-│   └── prod.user-data          # first-boot bootstrap (Docker, Tailscale, repo pull)
+│   └── prod.user-data          # first-boot bootstrap (Docker, Tailscale, repo pull, optional Alloy)
 └── deploy/
     └── deploy.sh               # called by .github/workflows/deploy-prod.yml
 ```
@@ -41,12 +41,22 @@ Per-operation:
 cd infra
 export HCLOUD_TOKEN=$(op read 'op://Personal/Hetzner Cloud/podcast-scraper-prod/api-token')
 export TF_VAR_tailscale_api_key=$(op read 'op://Personal/Tailscale/podcast-scraper/api-key')
+# Optional — host OS metrics to Grafana Cloud (all three must be set or cloud-init skips Alloy):
+# export TF_VAR_grafana_cloud_metrics_remote_write_url='https://prometheus-prod-…/api/prom/push'
+# export TF_VAR_grafana_cloud_metrics_username='…'
+# export TF_VAR_grafana_cloud_metrics_password=$(op read '…')
 ./tofu init
 ./tofu plan
 ./tofu apply
 ```
 
 The `tofu` wrapper auto-decrypts state before invocation and re-encrypts after.
+
+### Host metrics (Grafana Alloy on the VPS)
+
+When all of `TF_VAR_grafana_cloud_metrics_remote_write_url`, `TF_VAR_grafana_cloud_metrics_username`, and `TF_VAR_grafana_cloud_metrics_password` are non-empty, first-boot cloud-init installs **Grafana Alloy** from `apt.grafana.com`, enables `prometheus.exporter.unix` (node-style host metrics), and **remote_writes** to Grafana Cloud using basic auth. Credentials land in `/etc/alloy/grafana-cloud.env` (mode 0600); River config is `/etc/alloy/config.alloy`.
+
+**Existing prod server:** `hcloud_server.prod` ignores drift on `user_data` (see `main.tf`), so changing these variables does **not** re-run cloud-init on the current instance. Alloy appears only on a **new** server (replace/recreate) or via a **manual** install mirroring the same steps. Remove `lifecycle.ignore_changes` only with an explicit ops decision (data loss / tailnet identity risk is documented in `main.tf`).
 
 ## State encryption model
 

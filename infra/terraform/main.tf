@@ -2,6 +2,15 @@ provider "hcloud" {
   token = var.hcloud_token
 }
 
+locals {
+  # All three must be non-empty to bake Grafana Alloy + remote_write into cloud-init.
+  alloy_host_metrics_enabled = (
+    length(trimspace(var.grafana_cloud_metrics_remote_write_url)) > 0 &&
+    length(trimspace(var.grafana_cloud_metrics_username)) > 0 &&
+    length(trimspace(var.grafana_cloud_metrics_password)) > 0
+  )
+}
+
 # === SSH key registration (operator's laptop pubkey) ===
 resource "hcloud_ssh_key" "operator" {
   name       = var.ssh_public_key_name
@@ -69,6 +78,12 @@ resource "hcloud_server" "prod" {
     tailscale_auth_key = tailscale_tailnet_key.prod.key
     tailnet_hostname   = var.tailnet_hostname
     ssh_public_key     = var.ssh_public_key
+
+    alloy_enabled = local.alloy_host_metrics_enabled
+
+    grafana_cloud_metrics_remote_write_url = var.grafana_cloud_metrics_remote_write_url
+    grafana_cloud_metrics_username         = var.grafana_cloud_metrics_username
+    grafana_cloud_metrics_password         = var.grafana_cloud_metrics_password
   })
 
   labels = {
