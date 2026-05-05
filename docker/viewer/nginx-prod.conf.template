@@ -1,7 +1,10 @@
 # Production nginx config for the always-on Hetzner VPS deploy (RFC-082 + #713).
-# Mounted by compose/docker-compose.vps-prod.yml over /etc/nginx/conf.d/default.conf,
-# so this only activates on prod — Codespaces (pre-prod) keeps the auth-free
-# default at docker/viewer/nginx.conf.
+# Mounted by compose/docker-compose.vps-prod.yml as a TEMPLATE into
+# /etc/nginx/templates/default.conf.template — the nginx:alpine entrypoint
+# envsubst's ${PODCAST_*} placeholders into /etc/nginx/conf.d/default.conf
+# before nginx starts. Codespaces (pre-prod) uses the baked
+# docker/viewer/default.conf.template instead; both files share the
+# runtime env injection pattern (see ``sub_filter`` near the end).
 #
 # Adds HTTP Basic Auth on the SPA + api with a public landing page at /welcome.
 
@@ -72,5 +75,11 @@ server {
 
         root /usr/share/nginx/html;
         try_files $uri $uri/ /index.html;
+        # Runtime env injection — Sentry tags ``env=prod`` on the VPS,
+        # ``env=preprod`` on codespaces, both running the SAME image.
+        # See header for the wider templating story.
+        sub_filter '</head>' '<script>window.__PODCAST_ENV__="${PODCAST_ENV}";window.__PODCAST_RELEASE__="${PODCAST_RELEASE}";</script></head>';
+        sub_filter_once on;
+        sub_filter_types text/html;
     }
 }

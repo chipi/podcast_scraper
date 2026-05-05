@@ -1,4 +1,18 @@
 # Nginx front for gi-kg-viewer SPA + reverse proxy to FastAPI (api:8000).
+#
+# Templated: nginx:alpine's entrypoint runs envsubst on every file in
+# /etc/nginx/templates/*.template and writes the result to
+# /etc/nginx/conf.d/. The Dockerfile sets NGINX_ENVSUBST_FILTER=^PODCAST_
+# so ONLY ${PODCAST_*} vars are substituted — nginx's own ``$host``,
+# ``$uri`` etc. (single-dollar form) are left alone, and would also be
+# left alone by the filter even if they used ``${...}`` form.
+#
+# Runtime env injection (Item 1 / RFC-082 follow-up):
+#   The viewer SPA needs PODCAST_ENV at runtime so Sentry events from
+#   prod tag ``env=prod`` and codespace events tag ``env=preprod`` —
+#   both running the SAME image. ``sub_filter`` rewrites the served
+#   index.html on its way out, injecting a tiny ``<script>`` that sets
+#   window globals. ``main.ts`` reads those at Sentry init.
 upstream api_backend {
     server api:8000;
     keepalive 32;
@@ -34,5 +48,9 @@ server {
     location / {
         root /usr/share/nginx/html;
         try_files $uri $uri/ /index.html;
+        # Runtime env injection — see file header.
+        sub_filter '</head>' '<script>window.__PODCAST_ENV__="${PODCAST_ENV}";window.__PODCAST_RELEASE__="${PODCAST_RELEASE}";</script></head>';
+        sub_filter_once on;
+        sub_filter_types text/html;
     }
 }

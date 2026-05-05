@@ -18,21 +18,36 @@ services:
       context: ..
       dockerfile: docker/viewer/Dockerfile
       args:
-        # Sentry build-time env injection. Vite picks up VITE_*
-        # at build time and bakes them into the SPA bundle. All
-        # three are optional — Vue main.ts only initialises Sentry
-        # when VITE_SENTRY_DSN_VIEWER is set. See RFC-081 §Layer 2.
+        # Sentry build-time injection. Vite bakes VITE_* into the SPA
+        # bundle at build time. ``VITE_PODCAST_ENV`` is intentionally
+        # NOT in this list — env tag is now injected at request time
+        # by nginx ``sub_filter`` (so ONE viewer image serves prod +
+        # preprod with the right Sentry tag). See RFC-081 §Layer 2.
         VITE_SENTRY_DSN_VIEWER: ${VITE_SENTRY_DSN_VIEWER:-}
-        VITE_PODCAST_ENV: ${VITE_PODCAST_ENV:-dev}
         VITE_PODCAST_RELEASE: ${VITE_PODCAST_RELEASE:-}
     image: podcast-scraper-stack-viewer:latest
     ports:
       - "${VIEWER_PORT:-8080}:80"
+    environment:
+      # Read by nginx envsubst at container start to substitute into
+      # ``sub_filter`` directives in default.conf.template (and the
+      # vps-prod overlay's nginx-prod.conf.template). main.ts reads
+      # these at Sentry init via ``window.__PODCAST_*__`` globals
+      # injected into the served index.html. Defaults: ``dev`` /
+      # empty so codespace + dev still work without env staging.
+      PODCAST_ENV: ${PODCAST_ENV:-dev}
+      PODCAST_RELEASE: ${PODCAST_RELEASE:-}
     # #666 review #6: explicit compose-level healthcheck so other services
     # can chain ``depends_on: condition: service_healthy`` on the viewer.
     # Nginx serves the SPA shell on GET /.
     healthcheck:
-      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:80/ > /dev/null"]
+      # Use wget (busybox-only on nginx:alpine; curl isn't installed) and
+      # accept ANY ``HTTP/`` response line (200, 401, etc.) as proof
+      # nginx is alive. The 401 case matters for the prod overlay where
+      # ``auth_basic`` is enabled — a naive 2xx-only probe would mark
+      # the container ``unhealthy`` even when nginx is responding
+      # correctly with an auth challenge.
+      test: ["CMD-SHELL", "wget -qSO /dev/null http://127.0.0.1/ 2>&1 | grep -q 'HTTP/'"]
       interval: 30s
       timeout: 5s
       retries: 3

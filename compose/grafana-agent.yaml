@@ -10,9 +10,13 @@
 #
 # Default behaviour: agent stays running but does NOT ship anything if
 # any of GRAFANA_CLOUD_PROM_URL / GRAFANA_CLOUD_LOKI_URL /
-# GRAFANA_CLOUD_USER / GRAFANA_CLOUD_API_KEY is unset (the
-# remote_write / clients blocks resolve to empty strings; the agent
-# logs once and continues idle).
+# GRAFANA_CLOUD_PROM_USER / GRAFANA_CLOUD_LOKI_USER /
+# GRAFANA_CLOUD_API_KEY is unset (the remote_write / clients blocks
+# resolve to empty strings; the agent logs once and continues idle).
+# Prom and Loki have separate instance IDs in Grafana Cloud (shown as
+# "Username / Instance ID" on each service's Send Metrics / Send Logs
+# page); a single Access Policy token with metrics:write + logs:write
+# scopes authenticates both.
 
 server:
   log_level: info
@@ -60,7 +64,7 @@ metrics:
         # crashes the agent.
         - url: "${GRAFANA_CLOUD_PROM_URL}"
           basic_auth:
-            username: "${GRAFANA_CLOUD_USER}"
+            username: "${GRAFANA_CLOUD_PROM_USER}"
             password: "${GRAFANA_CLOUD_API_KEY}"
 
 logs:
@@ -78,7 +82,7 @@ logs:
     clients:
       - url: "${GRAFANA_CLOUD_LOKI_URL}"
         basic_auth:
-          username: "${GRAFANA_CLOUD_USER}"
+          username: "${GRAFANA_CLOUD_LOKI_USER}"
           password: "${GRAFANA_CLOUD_API_KEY}"
         external_labels:
           env: "${PODCAST_ENV}"

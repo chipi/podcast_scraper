@@ -15,8 +15,13 @@ services:
   viewer:
     volumes:
       # Auth-enabled nginx config replaces the auth-free default that's baked
-      # into the published image.
-      - ../docker/viewer/nginx-prod.conf:/etc/nginx/conf.d/default.conf:ro
+      # into the published image. Mounted as a TEMPLATE into
+      # /etc/nginx/templates/ so the nginx:alpine entrypoint envsubst's
+      # the ``${PODCAST_*}`` placeholders before nginx starts (the
+      # viewer image sets ``NGINX_ENVSUBST_FILTER=^PODCAST_`` to prevent
+      # mangling of nginx's own ``${var}`` references). Result lands at
+      # /etc/nginx/conf.d/default.conf at container start.
+      - ../docker/viewer/nginx-prod.conf.template:/etc/nginx/templates/default.conf.template:ro
       # Landing page for the public /welcome route. Bind-mounted (not COPY'd
       # into the published viewer image) so the prod-only landing surface
       # doesn't leak into Codespaces or alter the image's contents.

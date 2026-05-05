@@ -286,7 +286,6 @@ jobs:
             --cache-from "type=gha,scope=publish-viewer" \
             --cache-to "type=gha,scope=publish-viewer,mode=max" \
             --build-arg "VITE_SENTRY_DSN_VIEWER=${VITE_SENTRY_DSN_VIEWER}" \
-            --build-arg "VITE_PODCAST_ENV=preprod" \
             --build-arg "VITE_PODCAST_RELEASE=podcast-scraper@sha-${SHORT_SHA}" \
             -f docker/viewer/Dockerfile .
           scripts/check/no-secrets-in-image.sh "${IMAGE}:build-${SHORT_SHA}"
@@ -298,7 +297,6 @@ jobs:
             --cache-from "type=gha,scope=publish-viewer" \
             --cache-to "type=gha,scope=publish-viewer,mode=max" \
             --build-arg "VITE_SENTRY_DSN_VIEWER=${VITE_SENTRY_DSN_VIEWER}" \
-            --build-arg "VITE_PODCAST_ENV=preprod" \
             --build-arg "VITE_PODCAST_RELEASE=podcast-scraper@sha-${SHORT_SHA}" \
             -f docker/viewer/Dockerfile .
 
