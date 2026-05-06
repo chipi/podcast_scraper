@@ -14,6 +14,7 @@ nav:
       - Development Guide: guides/DEVELOPMENT_GUIDE.md
       - Release Playbook: guides/RELEASE_PLAYBOOK.md
       - Prod Runbook (always-on VPS): guides/PROD_RUNBOOK.md
+      - Prod Operator Cheat Sheet: guides/PROD_OPERATOR_CHEAT_SHEET.md
       - Polyglot repository layout: guides/POLYGLOT_REPO_GUIDE.md
       - Server Guide: guides/SERVER_GUIDE.md
       - Pipeline and Workflow Guide: guides/PIPELINE_AND_WORKFLOW.md

@@ -4,6 +4,9 @@ Operator-facing runbook for the production deploy defined in
 [RFC-082](../rfc/RFC-082-always-on-pre-prod-and-prod-hosting.md). The RFC
 describes *what we decided*; this runbook describes *what to do today*.
 
+Need the short version for daily ops? Use
+[Prod operator cheat sheet](PROD_OPERATOR_CHEAT_SHEET.md).
+
 > **For the prerequisites checklist** (Hetzner account + Tailscale credentials —
 > auth key + API access token on Free plan, see "Tailscale credentials" below
 > for the why — sops/age + GHA secrets), see
@@ -564,6 +567,12 @@ time, then the pipeline crashes on first provider call with
 | `PODCAST_SENTRY_DSN_API` | Sentry → api project → Settings → Client Keys (DSN) | URL like `https://<key>@o<org>.ingest.de.sentry.io/<project>` |
 | `PODCAST_SENTRY_DSN_PIPELINE` | Sentry → pipeline project → Settings → Client Keys (DSN) | Different project from api so issues stay separable |
 
+> **Operator note:** if your existing prod VPS is already running and Grafana
+> shipping is healthy, harmonizing Grafana env var names in repo templates is a
+> no-op for that live host. It only takes effect on bootstrap/re-provision paths
+> (for example new VPS from cloud-init, DR rebuild, or explicit host-metrics
+> Alloy bootstrap updates).
+
 ### Optional / advanced vars
 
 | Var | Default | Effect when set |
@@ -1086,6 +1095,7 @@ glance. Knowing about them saves debugging time.
 ## Cross-references
 
 - [RFC-082 — design](../rfc/RFC-082-always-on-pre-prod-and-prod-hosting.md)
+- [Prod operator cheat sheet](PROD_OPERATOR_CHEAT_SHEET.md)
 - [`infra/`](https://github.com/chipi/podcast_scraper/tree/main/infra) — IaC code
 - [`tailscale/policy.hujson`](https://github.com/chipi/podcast_scraper/blob/main/tailscale/policy.hujson) — ACL
 - [`.github/workflows/deploy-prod.yml`](https://github.com/chipi/podcast_scraper/blob/main/.github/workflows/deploy-prod.yml)

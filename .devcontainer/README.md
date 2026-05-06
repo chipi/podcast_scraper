@@ -34,6 +34,8 @@ variables → Codespaces**.
 | `PODCAST_SENTRY_DSN_PIPELINE` | Sentry DSN for pipeline subprocesses; unset = skip. |
 | `PODCAST_JOB_WEBHOOK_URL` | Slack incoming-webhook URL (or HA / Shortcuts relay). |
 | `GRAFANA_CLOUD_API_KEY` | Grafana Agent's API key. |
+| `GRAFANA_CLOUD_PROM_USER` | Grafana Cloud Prometheus user / instance ID. |
+| `GRAFANA_CLOUD_LOKI_USER` | Grafana Cloud Loki user / instance ID. |
 | `GRAFANA_CLOUD_PROM_URL` | Grafana Cloud Prometheus remote_write URL. |
 | `GRAFANA_CLOUD_LOKI_URL` | Grafana Cloud Loki push URL. |
 

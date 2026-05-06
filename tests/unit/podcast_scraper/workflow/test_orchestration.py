@@ -647,7 +647,11 @@ class TestSetupJsonlEmitter(unittest.TestCase):
         result = orchestration._setup_jsonl_emitter(cfg, self.output_dir, self.pipeline_metrics)
 
         self.assertEqual(result, mock_emitter)
-        mock_emitter_class.assert_called_once_with(self.pipeline_metrics, "/custom/path.jsonl")
+        mock_emitter_class.assert_called_once_with(
+            self.pipeline_metrics,
+            "/custom/path.jsonl",
+            echo_stdout=cfg.jsonl_metrics_echo_stdout,
+        )
 
 
 @pytest.mark.unit

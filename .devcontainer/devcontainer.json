@@ -59,10 +59,13 @@
       "description": "Slack incoming-webhook URL (or Home Assistant / Shortcuts relay) to receive job-state notifications."
     },
     "GRAFANA_CLOUD_API_KEY": {
-      "description": "Grafana Cloud API key (basic_auth password). The grafana-agent service in compose/docker-compose.prod.yml uses this together with GRAFANA_CLOUD_USER to authenticate Prom remote_write + Loki push."
+      "description": "Grafana Cloud API key (basic_auth password). The grafana-agent service in compose/docker-compose.prod.yml uses this token for both Prom remote_write and Loki push."
     },
-    "GRAFANA_CLOUD_USER": {
-      "description": "Grafana Cloud instance / user ID (basic_auth username). Numeric value from Grafana Cloud's per-integration 'Send' page; same number for both Prom and Loki."
+    "GRAFANA_CLOUD_PROM_USER": {
+      "description": "Grafana Cloud Prometheus user / instance ID (basic_auth username). Numeric value from the Prometheus Send Metrics page."
+    },
+    "GRAFANA_CLOUD_LOKI_USER": {
+      "description": "Grafana Cloud Loki user / instance ID (basic_auth username). Numeric value from the Loki Send Logs page."
     },
     "GRAFANA_CLOUD_PROM_URL": {
       "description": "Grafana Cloud Prometheus remote_write URL."

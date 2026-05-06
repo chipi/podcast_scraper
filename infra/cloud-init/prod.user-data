@@ -80,8 +80,8 @@ write_files:
         endpoint {
           url = sys.env("GRAFANA_CLOUD_REMOTE_WRITE_URL")
           basic_auth {
-            username = sys.env("GRAFANA_CLOUD_USER")
-            password = sys.env("GRAFANA_CLOUD_PASSWORD")
+            username = sys.env("GRAFANA_CLOUD_PROM_USER")
+            password = sys.env("GRAFANA_CLOUD_API_KEY")
           }
         }
       }
@@ -91,8 +91,8 @@ write_files:
   - path: /etc/alloy/grafana-cloud.env
     content: |
       GRAFANA_CLOUD_REMOTE_WRITE_URL=${grafana_cloud_metrics_remote_write_url}
-      GRAFANA_CLOUD_USER=${grafana_cloud_metrics_username}
-      GRAFANA_CLOUD_PASSWORD=${grafana_cloud_metrics_password}
+      GRAFANA_CLOUD_PROM_USER=${grafana_cloud_metrics_username}
+      GRAFANA_CLOUD_API_KEY=${grafana_cloud_metrics_password}
     permissions: '0600'
     owner: root:root
 
