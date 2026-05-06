@@ -42,10 +42,10 @@
     Graph **clicks** route through `focusGraphNode` → rich graph-aware detail;
     `focusTopic` / `focusEntity` from non-graph surfaces (Digest, Search,
     Explore) go through this UXS's higher-level overview panel.
-  - **MVP slice (GitHub #548) preserved**:
-    `web/gi-kg-viewer/src/components/shared/TopicTimelineDialog.vue` from graph
-    **Topic** node detail — CIL `/api/topics/.../timeline` modal; complementary
-    to the rail timeline above.
+  - **Graph-node timeline surface is separate from TEV**:
+    `web/gi-kg-viewer/src/components/graph/NodeDetail.vue` renders the topic/cluster
+    CIL timeline inline inside graph-node **Details** (`node-detail-inline-timeline`),
+    complementary to this rail timeline overview.
 - **Shell IA:** [VIEWER_IA.md](VIEWER_IA.md) — subject rail as single context layer; navigation axes; status bar
 
 ---

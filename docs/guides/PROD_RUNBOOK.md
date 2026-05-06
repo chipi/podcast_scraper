@@ -31,7 +31,7 @@ Need the short version for daily ops? Use
 10. [Tailscale operations](#tailscale-operations)
 11. [Hetzner operations](#hetzner-operations)
 12. [Operator hot-fix workflow](#operator-hot-fix-workflow)
-13. [FAQ / Troubleshooting](#faq-troubleshooting) — includes [corpus path (host vs `/app/output`)](#corpus-directory-host-vs-appoutput), [topic clusters](#topic-clusters-missing-after-a-successful-pipeline-run), and [Cursor or automation cannot `ssh deploy@prod`](#cursor-or-automation-cannot-ssh-deployprod)
+13. [FAQ / Troubleshooting](#faq-troubleshooting) — includes [corpus path (host vs `/app/output`)](#corpus-directory-host-vs-appoutput), [topic clusters](#topic-clusters-missing-after-a-successful-pipeline-run), [reprocess from transcripts](#reprocess-a-corpus-without-re-transcribing-audio), and [Cursor or automation cannot `ssh deploy@prod`](#cursor-or-automation-cannot-ssh-deployprod)
 14. [Constraints to know](#constraints-to-know)
 
 ---
@@ -1039,6 +1039,51 @@ container). Reference clustering design in
   the `docker exec` route in the cheat sheet.
 - **Artifact owned by root** after an in-container write: `chown` back
   to `deploy` (and corpus group) so backups and host tools stay consistent.
+
+### Reprocess a corpus without re-transcribing audio {#reprocess-a-corpus-without-re-transcribing-audio}
+
+Use this when extraction/summarization/index logic changed and you want to
+recompute derived outputs from existing transcript files.
+
+**Safe rule:** keep `transcripts/`; rebuild downstream artifacts only.
+
+1. Resolve corpus root from host env:
+
+   ```bash
+   grep '^PODCAST_CORPUS_HOST_PATH=' /srv/podcast-scraper/.env
+   ```
+
+2. Optional rollback snapshot (derived outputs only), then remove stale
+   derived layers (`search/`, old `metadata/` dirs / old run outputs). Keep
+   `transcripts/` intact.
+
+3. Re-run pipeline with **both** flags:
+
+   - `--skip-existing` (reuse transcript files already on disk)
+   - `--no-transcribe-missing` (do not invoke Whisper/audio transcription)
+
+   Example (host Python route):
+
+   ```bash
+   ssh deploy@prod-podcast.<tailnet>.ts.net
+   cd /srv/podcast-scraper
+   HOST_CORPUS=$(grep '^PODCAST_CORPUS_HOST_PATH=' .env | cut -d= -f2-)
+   .venv/bin/python -m podcast_scraper.cli \
+     --config "$HOST_CORPUS/viewer_operator.yaml" \
+     --feeds-spec "$HOST_CORPUS/feeds.spec.yaml" \
+     --output-dir "$HOST_CORPUS" \
+     --skip-existing \
+     --no-transcribe-missing
+   ```
+
+4. Optional post-step: rebuild topic clusters if the index exists:
+
+   ```bash
+   .venv/bin/python -m podcast_scraper.cli topic-clusters --output-dir "$HOST_CORPUS"
+   ```
+
+For a copy/paste operator sequence (including backup and cleanup commands),
+see [Prod operator cheat sheet — Reprocess from existing transcripts (no re-transcription)](PROD_OPERATOR_CHEAT_SHEET.md#reprocess-from-existing-transcripts-no-re-transcription).
 
 ### "Pipeline fails with `PODCAST_CORPUS_HOST_PATH is missing a value`"
 

@@ -2054,6 +2054,24 @@ class Config(BaseModel):
             "children and build one parent index after all feeds complete."
         ),
     )
+    interim_index_checkpoint_every_episodes: Optional[int] = Field(
+        default=None,
+        ge=0,
+        alias="interim_index_checkpoint_every_episodes",
+        description=(
+            "Optional episode cadence for interim (in-run) vector index checkpoints. "
+            "``None`` uses orchestration defaults; ``0`` disables interim checkpoints."
+        ),
+    )
+    interim_topic_cluster_checkpoint_every_episodes: Optional[int] = Field(
+        default=None,
+        ge=0,
+        alias="interim_topic_cluster_checkpoint_every_episodes",
+        description=(
+            "Optional episode cadence for interim (in-run) topic-clustering checkpoints. "
+            "``None`` uses orchestration defaults; ``0`` disables interim checkpoints."
+        ),
+    )
     vector_index_path: Optional[str] = Field(
         default=None,
         alias="vector_index_path",
@@ -3278,6 +3296,18 @@ class Config(BaseModel):
         # Download resilience (optional; prefixed env vars — config file / kwargs win if set)
         cls._load_int_env_var(
             data, "http_retry_total", "PODCAST_SCRAPER_HTTP_RETRY_TOTAL", min_value=0, max_value=20
+        )
+        cls._load_int_env_var(
+            data,
+            "interim_index_checkpoint_every_episodes",
+            "PODCAST_SCRAPER_INTERIM_INDEX_CHECKPOINT_EVERY_EPISODES",
+            min_value=0,
+        )
+        cls._load_int_env_var(
+            data,
+            "interim_topic_cluster_checkpoint_every_episodes",
+            "PODCAST_SCRAPER_INTERIM_TOPIC_CLUSTER_CHECKPOINT_EVERY_EPISODES",
+            min_value=0,
         )
         cls._load_float_env_var(
             data, "http_backoff_factor", "PODCAST_SCRAPER_HTTP_BACKOFF_FACTOR", 0.0, 10.0

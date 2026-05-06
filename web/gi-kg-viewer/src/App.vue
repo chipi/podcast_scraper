@@ -14,6 +14,7 @@ import { useArtifactsStore } from './stores/artifacts'
 import { useExploreStore } from './stores/explore'
 import { useGraphExpansionStore } from './stores/graphExpansion'
 import { useGraphExplorerStore } from './stores/graphExplorer'
+import { useGraphNavigationStore } from './stores/graphNavigation'
 import { useSearchStore } from './stores/search'
 import { useShellStore } from './stores/shell'
 import { useSubjectStore } from './stores/subject'
@@ -61,6 +62,7 @@ const theme = useThemeStore()
 const subject = useSubjectStore()
 const graphExplorer = useGraphExplorerStore()
 const graphExpansion = useGraphExpansionStore()
+const graphNav = useGraphNavigationStore()
 
 const mainTab = ref<'digest' | 'library' | 'graph' | 'dashboard'>('digest')
 const leftPanelRef = ref<{ focusQuery: () => void } | null>(null)
@@ -121,8 +123,13 @@ useViewerKeyboard({
  * Switch to Graph without re-running corpus auto-sync when the merged graph is already loaded.
  * Tab switches alone must not replace the slice (episode “Open in graph” is highlight-only).
  */
-function activateGraphTab(): void {
+function activateGraphTab(targetNodeId?: string): void {
   mainTab.value = 'graph'
+  const target = targetNodeId?.trim()
+  if (target) {
+    subject.focusTopic(target)
+    graphNav.requestFocusNode(target)
+  }
   const root = shell.corpusPath.trim()
   if (!root || !shell.healthStatus) {
     return
@@ -658,7 +665,7 @@ watch(
             class="h-full min-h-0 max-w-full flex-1 overflow-x-hidden overflow-y-auto p-3"
           >
             <DashboardView
-              @go-graph="activateGraphTab()"
+              @go-graph="activateGraphTab($event)"
               @open-library="mainTab = 'library'"
               @open-digest="mainTab = 'digest'"
             />

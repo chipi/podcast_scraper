@@ -50,6 +50,12 @@ class TestMetricsInitialization(unittest.TestCase):
         self.assertEqual(m.summarize_time_by_episode, {})
         self.assertEqual(m.cleaning_time_by_episode, {})
         self.assertEqual(m.vector_index_seconds, 0.0)
+        self.assertEqual(m.interim_index_checkpoint_attempts, 0)
+        self.assertEqual(m.interim_index_checkpoint_success, 0)
+        self.assertEqual(m.interim_index_checkpoint_failures, 0)
+        self.assertEqual(m.interim_topic_cluster_checkpoint_attempts, 0)
+        self.assertEqual(m.interim_topic_cluster_checkpoint_success, 0)
+        self.assertEqual(m.interim_topic_cluster_checkpoint_failures, 0)
 
     def test_start_time_initialized(self):
         """Test that _start_time is initialized."""
@@ -419,6 +425,19 @@ class TestFinish(unittest.TestCase):
             "time_io_and_waiting",
             "time_writing_storage",
             "vector_index_seconds",
+            "topic_clusters_built",
+            "topic_cluster_count",
+            "topic_cluster_topic_count",
+            "topic_cluster_singletons",
+            "topic_cluster_seconds",
+            "interim_index_checkpoint_attempts",
+            "interim_index_checkpoint_success",
+            "interim_index_checkpoint_failures",
+            "interim_index_checkpoint_seconds_total",
+            "interim_topic_cluster_checkpoint_attempts",
+            "interim_topic_cluster_checkpoint_success",
+            "interim_topic_cluster_checkpoint_failures",
+            "interim_topic_cluster_checkpoint_seconds_total",
             "avg_download_media_seconds",
             "avg_transcribe_seconds",
             "avg_extract_names_seconds",
@@ -577,6 +596,31 @@ class TestFinish(unittest.TestCase):
         self.assertEqual(result["time_parsing"], 0.5)
         self.assertEqual(result["time_normalizing"], 2.0)
         self.assertEqual(result["time_writing_storage"], 0.5)
+
+    def test_finish_includes_interim_checkpoint_metrics(self):
+        """finish() exports interim checkpoint counters and duration totals."""
+        m = metrics.Metrics()
+        m.interim_index_checkpoint_attempts = 2
+        m.interim_index_checkpoint_success = 1
+        m.interim_index_checkpoint_failures = 1
+        m.interim_index_checkpoint_seconds_total = 3.4567
+        m.interim_topic_cluster_checkpoint_attempts = 1
+        m.interim_topic_cluster_checkpoint_success = 1
+        m.interim_topic_cluster_checkpoint_failures = 0
+        m.interim_topic_cluster_checkpoint_seconds_total = 1.2345
+
+        with patch("podcast_scraper.workflow.metrics.time.time", return_value=100.0):
+            m._start_time = 100.0
+            result = m.finish()
+
+        self.assertEqual(result["interim_index_checkpoint_attempts"], 2)
+        self.assertEqual(result["interim_index_checkpoint_success"], 1)
+        self.assertEqual(result["interim_index_checkpoint_failures"], 1)
+        self.assertEqual(result["interim_index_checkpoint_seconds_total"], 3.4567)
+        self.assertEqual(result["interim_topic_cluster_checkpoint_attempts"], 1)
+        self.assertEqual(result["interim_topic_cluster_checkpoint_success"], 1)
+        self.assertEqual(result["interim_topic_cluster_checkpoint_failures"], 0)
+        self.assertEqual(result["interim_topic_cluster_checkpoint_seconds_total"], 1.2345)
 
     def test_finish_includes_operation_counts(self):
         """Test that finish includes operation counts."""

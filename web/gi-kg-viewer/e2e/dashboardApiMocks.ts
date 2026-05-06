@@ -76,6 +76,33 @@ export async function setupCorpusDashboardDataRoutes(page: Page): Promise<void> 
       }),
     })
   })
+  await page.route('**/api/corpus/topic-clusters?**', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        schema_version: '2',
+        cluster_count: 1,
+        clusters: [
+          {
+            cluster_id: 'cluster-1',
+            canonical_label: 'AI policy',
+            canonical_topic_id: 'topic:ai-policy',
+            cil_alias_target_topic_id: 'topic:ai-policy',
+            graph_compound_parent_id: 'tc:ai-policy',
+            members: [
+              {
+                topic_id: 'topic:ai-policy',
+                label: 'AI policy',
+                similarity_to_centroid: 1.0,
+                episode_ids: ['ep-1'],
+              },
+            ],
+          },
+        ],
+      }),
+    })
+  })
 }
 
 /** Minimal API stubs so Dashboard loads without a real corpus server. */

@@ -28,7 +28,7 @@ import TopVoices from './TopVoices.vue'
 import VerticalBarChart from './VerticalBarChart.vue'
 
 const emit = defineEmits<{
-  'go-graph': []
+  'go-graph': [targetTopicId?: string]
   'open-library': []
   'open-digest': []
 }>()
@@ -381,7 +381,7 @@ function openLibraryFailures(): void {
         @open-digest="emit('open-digest')"
       />
       <TopicClustersStatusBlock />
-      <TopicLandscape @go-graph="emit('go-graph')" />
+      <TopicLandscape @go-graph="emit('go-graph', $event)" />
       <PipelineCleanupMetrics :run="latestRun" />
       <PipelineAdExcisionMetrics :run="latestRun" />
       <TopVoices

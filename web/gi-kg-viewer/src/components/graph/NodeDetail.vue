@@ -6,7 +6,14 @@ import { useGraphFilterStore } from '../../stores/graphFilters'
 import { useGraphNavigationStore } from '../../stores/graphNavigation'
 import { useShellStore } from '../../stores/shell'
 import { graphNodeTypeChrome } from '../../utils/colors'
-import { truncate } from '../../utils/formatting'
+import { formatCalendarDateForDisplay, truncate } from '../../utils/formatting'
+import {
+  fetchTopicTimeline,
+  fetchTopicTimelineMerged,
+  type CilArcEpisodeBlock,
+  type CilTopicTimelineMergedResponse,
+  type CilTopicTimelineResponse,
+} from '../../api/cilApi'
 import {
   countPersonEntityIncidentEdges,
   findRawNodeInArtifact,
@@ -15,6 +22,7 @@ import {
   insightRelatedTopicRows,
   insightSupportingQuoteRows,
   insightSupportingTranscriptAggregate,
+  primaryTextFromLooseGiNode,
 } from '../../utils/parsing'
 import { formatInsightPositionHintLine } from '../../utils/insightPositionHint'
 import { graphTypeAvatarLetter } from '../../utils/graphTypeAvatar'
@@ -49,8 +57,8 @@ import {
   topicClusterMemberRowsForDetail,
 } from '../../utils/topicClustersOverlay'
 import GraphConnectionsSection from './GraphConnectionsSection.vue'
-import TopicTimelineDialog from '../shared/TopicTimelineDialog.vue'
 import TranscriptViewerDialog from '../shared/TranscriptViewerDialog.vue'
+import PodcastCover from '../shared/PodcastCover.vue'
 import {
   artifactRelPathsForResolvedRow,
   clusterSiblingEpisodeCap,
@@ -89,7 +97,6 @@ const fullMergedArtifactForMetadata = computed(
 )
 
 const transcriptViewerRef = ref<InstanceType<typeof TranscriptViewerDialog> | null>(null)
-const topicTimelineRef = ref<InstanceType<typeof TopicTimelineDialog> | null>(null)
 /** Per-row catalog load for cluster members missing from the merge. */
 const clusterMemberLoadBusyTopicId = ref<string | null>(null)
 const clusterMemberLoadMessage = ref<string | null>(null)
@@ -722,45 +729,113 @@ const cilTimelineApiUnavailable = computed(
     !shell.hasCorpusPath,
 )
 
-const topicTimelineDisabled = computed((): boolean => {
-  if (!isTopicNode.value) return true
-  const id = props.nodeId
-  if (id == null || !String(id).trim()) return true
-  return cilTimelineApiUnavailable.value
-})
-
 /** Merged CIL timeline for TopicCluster (member topic ids from JSON). */
 const clusterTimelineDisabled = computed((): boolean => {
   if (clusterTimelineTopicIds.value.length === 0) return true
   return cilTimelineApiUnavailable.value
 })
 
-/** Single-topic rail button hidden when JSON-backed cluster uses merged timeline in-cluster. */
-const showSingleTopicTimelineButton = computed(
-  () => isTopicNode.value && props.nodeId && !hasTopicClusterJson.value,
+type InlineTimelineMode = 'single' | 'cluster' | null
+
+const inlineTimelineMode = ref<InlineTimelineMode>(null)
+const inlineTimelineTopicId = ref('')
+const inlineTimelineClusterTopicIds = ref<string[]>([])
+const inlineTimelineLoading = ref(false)
+const inlineTimelineError = ref<string | null>(null)
+const inlineTimelinePayload = ref<CilTopicTimelineResponse | CilTopicTimelineMergedResponse | null>(null)
+const inlineTimelineSortOrder = ref<'asc' | 'desc'>('desc')
+
+const showInlineTopicTimeline = computed(
+  () => isTopicNode.value && Boolean(props.nodeId?.trim()) && !hasTopicClusterJson.value,
 )
 
-function openTopicTimeline(): void {
-  const id = props.nodeId
-  if (id == null) return
-  void topicTimelineRef.value?.open(String(id), {
-    variant: 'entity',
-    entityLabel: nodeType.value,
-  })
+const showInlineClusterTimeline = computed(
+  () => (hasTopicClusterJson.value || isTopicClusterNode.value) && clusterTimelineTopicIds.value.length > 0,
+)
+
+function insightLine(ins: Record<string, unknown>): string {
+  return primaryTextFromLooseGiNode(ins).trim() || '(no text)'
 }
 
-function openClusterTimeline(): void {
-  void topicTimelineRef.value?.openCluster(clusterTimelineTopicIds.value)
+function formatEpisodeDate(raw: string | null | undefined): string {
+  if (!raw?.trim()) return ''
+  return formatCalendarDateForDisplay(raw)
 }
 
-/** One member row: single-topic CIL timeline for that topic id (not merged cluster). */
-function openClusterMemberTopicTimeline(topicId: string): void {
-  const id = String(topicId).trim()
-  if (!id) return
-  void topicTimelineRef.value?.open(id, {
-    variant: 'entity',
-    entityLabel: 'Topic',
+function episodePrimaryHeading(ep: CilArcEpisodeBlock): string {
+  const t = ep.episode_title?.trim()
+  if (t) return t
+  const n = ep.episode_number
+  if (n != null && Number.isFinite(Number(n))) return `Episode ${n}`
+  const f = ep.feed_title?.trim()
+  return f || 'Unnamed episode'
+}
+
+function episodeContextLine(ep: CilArcEpisodeBlock): string | null {
+  const t = ep.episode_title?.trim()
+  const f = ep.feed_title?.trim()
+  const n = ep.episode_number
+  const hasNum = n != null && Number.isFinite(Number(n))
+  if (t && f) return `Podcast: ${f}`
+  if (t && !f && hasNum) return `Episode ${n}`
+  if (!t && f && hasNum) return `Podcast: ${f}`
+  if (!t && f && !hasNum) return 'No episode title in corpus metadata'
+  if (!t && !f && !hasNum) return 'Corpus episode'
+  return null
+}
+
+const inlineTimelineEpisodeCount = computed(
+  () => inlineTimelinePayload.value?.episodes.length ?? 0,
+)
+
+const inlineTimelineTopicIdsLabel = computed((): string => {
+  if (inlineTimelineMode.value === 'cluster') {
+    return inlineTimelineClusterTopicIds.value.join(', ')
+  }
+  return inlineTimelineTopicId.value
+})
+
+const corpusPathForCovers = computed(() =>
+  (shell.resolvedCorpusPath ?? shell.corpusPath ?? '').trim(),
+)
+
+const inlineTimelineSortedEpisodes = computed((): CilArcEpisodeBlock[] => {
+  const eps = inlineTimelinePayload.value?.episodes ?? []
+  const arr = [...eps]
+  arr.sort((a, b) => {
+    const da = (a.publish_date ?? '').trim()
+    const db = (b.publish_date ?? '').trim()
+    const cmp = da.localeCompare(db) || String(a.episode_id).localeCompare(String(b.episode_id))
+    return inlineTimelineSortOrder.value === 'asc' ? cmp : -cmp
   })
+  return arr
+})
+
+async function loadInlineTimeline(): Promise<void> {
+  const path = (shell.resolvedCorpusPath ?? shell.corpusPath).trim()
+  if (!path || cilTimelineApiUnavailable.value) {
+    inlineTimelineError.value = 'Set corpus path and ensure CIL API is available.'
+    inlineTimelinePayload.value = null
+    return
+  }
+  inlineTimelineLoading.value = true
+  inlineTimelineError.value = null
+  inlineTimelinePayload.value = null
+  try {
+    if (inlineTimelineMode.value === 'cluster') {
+      inlineTimelinePayload.value = await fetchTopicTimelineMerged(path, inlineTimelineClusterTopicIds.value)
+      return
+    }
+    if (!inlineTimelineTopicId.value) {
+      inlineTimelineError.value = 'Missing topic id.'
+      return
+    }
+    inlineTimelinePayload.value = await fetchTopicTimeline(path, inlineTimelineTopicId.value)
+  } catch (e) {
+    inlineTimelineError.value = e instanceof Error ? e.message : String(e)
+  } finally {
+    inlineTimelineLoading.value = false
+  }
 }
 
 type RailFullTextCopyUi = 'idle' | 'copied' | 'failed'
@@ -1117,6 +1192,41 @@ watch(
   },
 )
 
+watch(
+  () =>
+    [
+      props.nodeId,
+      shell.corpusPath,
+      shell.resolvedCorpusPath,
+      shell.healthStatus,
+      shell.cilQueriesApiAvailable,
+      clusterTimelineTopicIds.value.join('|'),
+    ] as const,
+  () => {
+    inlineTimelineSortOrder.value = 'desc'
+    inlineTimelineError.value = null
+    inlineTimelinePayload.value = null
+    if (showInlineTopicTimeline.value) {
+      inlineTimelineMode.value = 'single'
+      inlineTimelineTopicId.value = props.nodeId?.trim() ?? ''
+      inlineTimelineClusterTopicIds.value = []
+      void loadInlineTimeline()
+      return
+    }
+    if (showInlineClusterTimeline.value) {
+      inlineTimelineMode.value = 'cluster'
+      inlineTimelineTopicId.value = ''
+      inlineTimelineClusterTopicIds.value = [...clusterTimelineTopicIds.value]
+      void loadInlineTimeline()
+      return
+    }
+    inlineTimelineMode.value = null
+    inlineTimelineTopicId.value = ''
+    inlineTimelineClusterTopicIds.value = []
+  },
+  { immediate: true },
+)
+
 /** Same gate as ``GraphConnectionsSection`` ``centerInView`` (minimap + list hidden when false). */
 const graphConnectionsCenterInView = computed((): boolean => {
   const a = props.viewArtifact
@@ -1311,16 +1421,6 @@ const graphConnectionsCenterInView = computed((): boolean => {
             <span class="font-semibold text-surface-foreground">Member topics</span>
             <div class="flex flex-wrap items-center gap-1.5">
               <button
-                v-if="clusterTimelineTopicIds.length"
-                type="button"
-                class="rounded border border-border bg-canvas px-2 py-0.5 text-[10px] font-medium text-surface-foreground hover:bg-elevated disabled:opacity-40"
-                data-testid="node-detail-cluster-timeline"
-                :disabled="clusterTimelineDisabled"
-                @click="openClusterTimeline"
-              >
-                Cluster timeline
-              </button>
-              <button
                 v-if="topicClusterCollapseCyId"
                 type="button"
                 class="rounded border border-border px-2 py-0.5 text-[10px] hover:bg-overlay"
@@ -1386,16 +1486,6 @@ const graphConnectionsCenterInView = computed((): boolean => {
                 </span>
               </div>
               <div class="flex shrink-0 flex-col items-end gap-1 sm:flex-row sm:items-center">
-                <button
-                  v-if="row.topicId.trim()"
-                  type="button"
-                  class="rounded border border-border bg-canvas px-1.5 py-0.5 text-[10px] font-medium text-surface-foreground hover:bg-elevated disabled:opacity-40"
-                  data-testid="node-detail-cluster-member-timeline"
-                  :disabled="cilTimelineApiUnavailable"
-                  @click="openClusterMemberTopicTimeline(row.topicId)"
-                >
-                  Timeline
-                </button>
                 <button
                   v-if="!row.graphNodeId && hasTopicClusterJson"
                   type="button"
@@ -1752,36 +1842,147 @@ const graphConnectionsCenterInView = computed((): boolean => {
         </HelpTip>
       </div>
 
-      <div
-        v-if="isTopicNode && props.nodeId && showSingleTopicTimelineButton"
-        class="mb-3 flex items-center gap-2"
-        role="group"
-        aria-label="Topic timeline — corpus-wide episode list"
+      <section
+        v-if="showInlineTopicTimeline || showInlineClusterTimeline"
+        class="mb-3 min-w-0 overflow-x-hidden rounded border border-border bg-elevated/40 p-2"
+        data-testid="node-detail-inline-timeline"
       >
-        <button
-          type="button"
-          class="min-w-0 flex-1 rounded border border-border bg-canvas px-2 py-1.5 text-center text-xs font-medium leading-snug text-surface-foreground hover:bg-elevated disabled:opacity-40"
-          data-testid="node-detail-topic-timeline"
-          :disabled="topicTimelineDisabled"
-          @click="openTopicTimeline"
+        <div class="mb-2 flex items-center justify-between gap-2">
+          <div class="flex min-w-0 items-center gap-1.5">
+            <h4 class="truncate text-[10px] font-semibold uppercase tracking-wide text-muted">
+              {{ showInlineClusterTimeline ? 'Cluster timeline' : 'Topic timeline' }}
+            </h4>
+            <HelpTip
+              class="shrink-0"
+              :pref-width="360"
+              :button-aria-label="
+                showInlineClusterTimeline
+                  ? 'About cluster timeline, list legend, and topic ids'
+                  : 'About topic timeline, list legend, and topic id'
+              "
+            >
+              <p class="font-sans text-[10px] leading-snug text-muted">
+                <strong class="font-medium text-surface-foreground">Corpus-wide</strong> timeline from CIL + bridge
+                + GI. {{ showInlineClusterTimeline ? 'Cluster mode merges results for all member topic ids.' : 'Topic mode uses the selected topic id.' }}
+                The list can be empty, one episode, or many; this is match count, not a graph limit.
+              </p>
+              <p
+                v-if="inlineTimelineTopicIdsLabel"
+                class="mt-2 border-t border-border pt-2 text-[10px] leading-snug text-muted"
+              >
+                <span class="mb-1 block font-medium text-surface-foreground">
+                  {{ showInlineClusterTimeline ? 'Topic ids (cluster)' : 'Topic id' }}
+                </span>
+                <span class="block break-all font-mono text-[10px] text-surface-foreground">
+                  {{ inlineTimelineTopicIdsLabel }}
+                </span>
+              </p>
+            </HelpTip>
+          </div>
+          <button
+            type="button"
+            class="rounded border border-border px-2 py-0.5 text-[10px] hover:bg-overlay disabled:opacity-40"
+            :disabled="inlineTimelineLoading || (showInlineClusterTimeline && clusterTimelineDisabled)"
+            @click="loadInlineTimeline"
+          >
+            Refresh
+          </button>
+        </div>
+        <p
+          v-if="inlineTimelineLoading"
+          class="text-[10px] text-muted"
+          data-testid="node-detail-inline-timeline-loading"
         >
-          Topic timeline
-        </button>
-        <HelpTip
-          class="shrink-0 self-center"
-          :pref-width="280"
-          button-aria-label="About topic timeline (CIL)"
+          Loading timeline...
+        </p>
+        <p
+          v-else-if="inlineTimelineError"
+          class="text-[10px] text-destructive"
+          data-testid="node-detail-inline-timeline-error"
         >
-          <p class="font-sans text-[10px] leading-snug text-muted">
-            Opens a <strong class="font-medium text-surface-foreground">corpus-wide</strong> list:
-            every episode under your corpus path with CIL bridge + GI that has insights about this
-            topic. You may see <strong class="font-medium text-surface-foreground">no rows, one episode,
-            or several</strong> — that is how many matched, not a limit of the graph view. Uses the node
-            <strong class="font-medium text-surface-foreground/90">id</strong> (e.g.
-            <span class="font-mono">topic:…</span>).
+          {{ inlineTimelineError }}
+        </p>
+        <p
+          v-else-if="inlineTimelinePayload && inlineTimelinePayload.episodes.length === 0"
+          class="text-[10px] text-muted"
+          data-testid="node-detail-inline-timeline-empty"
+        >
+          No matching episodes found in the current corpus path.
+        </p>
+        <div
+          v-else-if="inlineTimelinePayload"
+          class="space-y-1.5"
+          data-testid="node-detail-inline-timeline-results"
+        >
+          <p class="text-[10px] leading-snug text-muted">
+            {{ inlineTimelineEpisodeCount }}
+            {{ inlineTimelineEpisodeCount === 1 ? 'episode' : 'episodes' }}
+            with insights about
+            {{ showInlineClusterTimeline ? 'this cluster' : 'this topic' }}.
           </p>
-        </HelpTip>
-      </div>
+          <div class="mb-1 flex items-center gap-1.5">
+            <span class="text-[10px] text-muted">Date</span>
+            <button
+              type="button"
+              class="rounded border px-1.5 py-0.5 text-[10px]"
+              :class="inlineTimelineSortOrder === 'asc' ? 'border-gi/60 bg-gi/15' : 'border-border text-muted'"
+              @click="inlineTimelineSortOrder = 'asc'"
+            >
+              Oldest
+            </button>
+            <button
+              type="button"
+              class="rounded border px-1.5 py-0.5 text-[10px]"
+              :class="inlineTimelineSortOrder === 'desc' ? 'border-gi/60 bg-gi/15' : 'border-border text-muted'"
+              @click="inlineTimelineSortOrder = 'desc'"
+            >
+              Newest
+            </button>
+          </div>
+          <ul class="max-h-64 space-y-2 overflow-y-auto overflow-x-hidden pr-1">
+            <li
+              v-for="(ep, ei) in inlineTimelineSortedEpisodes"
+              :key="`${ep.episode_id}-${ei}`"
+              class="flex min-w-0 gap-2 rounded border border-border/70 bg-surface/60 p-2"
+            >
+              <div class="shrink-0 self-start">
+                <PodcastCover
+                  :corpus-path="corpusPathForCovers"
+                  :episode-image-local-relpath="ep.episode_image_local_relpath"
+                  :feed-image-local-relpath="ep.feed_image_local_relpath"
+                  :episode-image-url="ep.episode_image_url"
+                  :feed-image-url="ep.feed_image_url"
+                  :alt="`Cover for ${episodePrimaryHeading(ep)}`"
+                  size-class="h-10 w-10"
+                />
+              </div>
+              <div class="min-w-0 flex-1">
+                <p class="text-[10px] font-medium text-gi/90">
+                  {{ formatEpisodeDate(ep.publish_date) || 'Date unknown' }}
+                </p>
+                <p class="break-words text-[11px] font-semibold leading-snug text-surface-foreground">
+                  {{ episodePrimaryHeading(ep) }}
+                </p>
+                <p
+                  v-if="episodeContextLine(ep)"
+                  class="break-words text-[10px] leading-snug text-muted"
+                >
+                  {{ episodeContextLine(ep) }}
+                </p>
+                <ul class="mt-1 space-y-1">
+                <li
+                  v-for="(ins, ii) in ep.insights"
+                  :key="ii"
+                  class="break-words text-[10px] leading-snug text-muted"
+                >
+                  - {{ insightLine(ins) }}
+                </li>
+                </ul>
+              </div>
+            </li>
+          </ul>
+        </div>
+      </section>
 
       <p
         v-if="bodyTextForTemplate"
@@ -1903,7 +2104,6 @@ const graphConnectionsCenterInView = computed((): boolean => {
     </div>
 
     <TranscriptViewerDialog ref="transcriptViewerRef" />
-    <TopicTimelineDialog ref="topicTimelineRef" />
   </aside>
 </template>
 

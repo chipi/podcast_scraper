@@ -130,7 +130,7 @@ function onClusterActivate(c: TopicClustersCluster): void {
     </p>
     <div
       v-else
-      class="grid gap-2 [grid-template-columns:repeat(auto-fit,minmax(min(100%,12rem),1fr))]"
+      class="max-h-72 overflow-y-auto pr-1 grid gap-2 [grid-template-columns:repeat(auto-fit,minmax(min(100%,12rem),1fr))]"
       role="list"
       aria-label="Topic clusters"
     >

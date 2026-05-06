@@ -344,6 +344,28 @@ const corpusPathModel = computed({
   },
 })
 
+const viewerBuildRelease = computed((): string => {
+  const w = window as Window & { __PODCAST_RELEASE__?: string }
+  const runtime = (w.__PODCAST_RELEASE__ ?? '').trim()
+  if (runtime) {
+    return runtime
+  }
+  const buildTime = (import.meta.env.VITE_PODCAST_RELEASE as string | undefined)?.trim()
+  return buildTime || 'local-dev'
+})
+
+const viewerBuildTimestamp = computed((): string => {
+  const ts = (__VIEWER_BUILD_TIMESTAMP__ || '').trim()
+  if (!ts) {
+    return 'unknown-time'
+  }
+  return ts
+})
+
+const viewerBuildHint = computed(
+  (): string => `Build: ${viewerBuildRelease.value} @ ${viewerBuildTimestamp.value}`,
+)
+
 const feedsApiOpenHref = computed(() => {
   const p = shell.corpusPath.trim()
   if (!p) {
@@ -492,7 +514,7 @@ async function addFeedFromInput(): Promise<void> {
       v-model="corpusPathModel"
       type="text"
       data-testid="status-bar-corpus-path"
-      class="h-7 min-w-[12rem] w-[min(56.25rem,calc(100vw-14rem))] shrink-0 rounded border border-border bg-elevated px-2 py-0.5 font-mono text-[11px] text-elevated-foreground placeholder:text-muted"
+      class="h-7 min-w-[12rem] w-[min(45rem,calc(100vw-18rem))] shrink-0 rounded border border-border bg-elevated px-2 py-0.5 font-mono text-[11px] text-elevated-foreground placeholder:text-muted"
       placeholder="Set corpus path…"
       autocomplete="off"
     >
@@ -535,6 +557,13 @@ async function addFeedFromInput(): Promise<void> {
       >
         Index
       </button>
+      <span
+        class="max-w-[18rem] shrink-0 truncate rounded border border-border bg-elevated px-1.5 py-0.5 font-mono text-[10px] text-elevated-foreground"
+        :title="viewerBuildHint"
+        data-testid="status-bar-build-label"
+      >
+        {{ viewerBuildHint }}
+      </span>
       <button
         v-if="
           shell.healthStatus &&
@@ -580,6 +609,13 @@ async function addFeedFromInput(): Promise<void> {
           <h2 id="status-bar-settings-dialog-title" class="text-sm font-semibold">
             Corpus & API
           </h2>
+          <p
+            class="mt-0.5 max-w-full truncate font-mono text-[10px] text-muted"
+            :title="viewerBuildHint"
+            data-testid="sources-dialog-build-label"
+          >
+            {{ viewerBuildHint }}
+          </p>
         </div>
         <button
           type="button"

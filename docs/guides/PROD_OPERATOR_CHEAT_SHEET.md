@@ -79,6 +79,52 @@ If the JSON file is owned by root after an in-container write, fix ownership so
 `deploy` can manage backups: `sudo chown deploy:docker …/search/topic_clusters.json`
 (adjust group to match your layout).
 
+## Reprocess from existing transcripts (no re-transcription)
+
+Use this when pipeline logic changed and you want fresh metadata / GI / KG / index
+without paying transcription cost again.
+
+**Keep:** corpus `transcripts/` files.
+
+**Rebuild:** derived artifacts (`metadata/`, `search/`, and run outputs that depend
+on old prompts/parsers).
+
+**Host path (recommended, no compose run):**
+
+```bash
+ssh deploy@prod-podcast.<tailnet>.ts.net
+cd /srv/podcast-scraper
+HOST_CORPUS=$(grep '^PODCAST_CORPUS_HOST_PATH=' .env | cut -d= -f2-)
+
+# Optional: keep a rollback copy of derived artifacts only.
+STAMP=$(date +%Y%m%d-%H%M%S)
+mkdir -p "$HOST_CORPUS/.reprocess-backup-$STAMP"
+cp -a "$HOST_CORPUS/search" "$HOST_CORPUS/.reprocess-backup-$STAMP/" 2>/dev/null || true
+cp -a "$HOST_CORPUS/run_"* "$HOST_CORPUS/.reprocess-backup-$STAMP/" 2>/dev/null || true
+
+# Remove only derived layers; keep transcripts/.
+rm -rf "$HOST_CORPUS/search"
+find "$HOST_CORPUS" -type d -name metadata -prune -exec rm -rf {} +
+
+# Re-run from existing transcripts; never transcribe again.
+.venv/bin/python -m podcast_scraper.cli \
+  --config "$HOST_CORPUS/viewer_operator.yaml" \
+  --feeds-spec "$HOST_CORPUS/feeds.spec.yaml" \
+  --output-dir "$HOST_CORPUS" \
+  --skip-existing \
+  --no-transcribe-missing
+
+# Optional post-step when vectors exist
+.venv/bin/python -m podcast_scraper.cli topic-clusters --output-dir "$HOST_CORPUS"
+```
+
+If this run creates root-owned files (for example after mixed host/container history),
+fix ownership before backup jobs:
+
+```bash
+sudo chown -R deploy:docker "$HOST_CORPUS"
+```
+
 ## Daily commands
 
 ```bash
