@@ -73,6 +73,7 @@ coverage.json
 
 # IDE
 .vscode/
+.vscode/settings.json
 
 # GI/KG viewer (Vite / Node / Playwright, RFC-062) — was web/gi-kg-viewer/.gitignore; rules live here
 web/gi-kg-viewer/node_modules/
@@ -120,8 +121,10 @@ config/acceptance/*
 !config/acceptance/fragments/
 !config/acceptance/fragments/*.yaml
 
-# Local-only operator / feeds experiments (entire tree; not committed)
-config/manual/
+# Local-only operator / feeds experiments (YAML etc.); tracked: dashboard import pointer
+config/manual/*
+!config/manual/README.md
+!config/manual/grafana-dashboard-pipeline-execution.json
 
 # CI-related local files under config/ci (optional stem lists, etc.); not committed
 config/ci/*

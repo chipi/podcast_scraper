@@ -29,6 +29,16 @@ ENV VITE_SENTRY_DSN_VIEWER=${VITE_SENTRY_DSN_VIEWER}
 ARG VITE_PODCAST_RELEASE
 ENV VITE_PODCAST_RELEASE=${VITE_PODCAST_RELEASE}
 
+# PostHog Cloud (optional). Same pattern as Sentry: unset build-args yield a no-op
+# bundle — ``main.ts`` only calls ``posthog.init`` when ``VITE_POSTHOG_PROJECT_TOKEN``
+# is non-empty.
+#   docker buildx build --build-arg VITE_POSTHOG_PROJECT_TOKEN=phc_... \
+#     --build-arg VITE_POSTHOG_HOST=https://eu.i.posthog.com ...
+ARG VITE_POSTHOG_PROJECT_TOKEN
+ENV VITE_POSTHOG_PROJECT_TOKEN=${VITE_POSTHOG_PROJECT_TOKEN}
+ARG VITE_POSTHOG_HOST
+ENV VITE_POSTHOG_HOST=${VITE_POSTHOG_HOST}
+
 COPY web/gi-kg-viewer/package.json web/gi-kg-viewer/package-lock.json ./
 RUN npm ci
 

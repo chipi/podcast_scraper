@@ -6,7 +6,8 @@
 import { Chart } from 'chart.js'
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { barEndValuePlugin, setBarEndValueFormatter } from '../../utils/chartBarEndValuePlugin'
-import { chartGridColor, chartSeriesColors } from '../../utils/chartTheme'
+import { useThemeChartReloader } from '../../composables/useThemeChartReloader'
+import { chartAxisBorderColor, chartGridColor, chartSeriesColors, chartTicks } from '../../utils/chartTheme'
 import { ensureChartJsRegistered } from '../../utils/chartRegister'
 
 const props = defineProps<{
@@ -88,12 +89,14 @@ function buildChart(): void {
       scales: {
         x: {
           beginAtZero: true,
-          ticks: { precision: 0, font: { size: 10 } },
+          ticks: { ...chartTicks(10), precision: 0 },
+          border: { display: true, color: chartAxisBorderColor() },
           grid: { color: chartGridColor() },
         },
         y: {
           grid: { display: false },
-          ticks: { font: { size: 10 } },
+          ticks: chartTicks(10),
+          border: { display: true, color: chartAxisBorderColor() },
         },
       },
     },
@@ -103,6 +106,8 @@ function buildChart(): void {
     return `${Number.isFinite(v) ? v.toLocaleString() : '—'} (${pct}%)`
   })
 }
+
+useThemeChartReloader(buildChart)
 
 onMounted(() => {
   buildChart()

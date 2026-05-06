@@ -3,7 +3,8 @@ import { Chart } from 'chart.js'
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { dailyGiKgNewCountsLastDays, type DayGiKgBucket } from '../../utils/artifactMtimeBuckets'
 import { ensureChartJsRegistered } from '../../utils/chartRegister'
-import { rgbaFromToken } from '../../utils/chartTheme'
+import { useThemeChartReloader } from '../../composables/useThemeChartReloader'
+import { chartAxisBorderColor, chartGridColor, chartTickColor, chartTicks, rgbaFromToken } from '../../utils/chartTheme'
 
 const props = defineProps<{
   artifactItems: { kind: string; mtime_utc: string }[]
@@ -91,22 +92,33 @@ function buildChart(): void {
         x: {
           stacked: false,
           ticks: {
+            ...chartTicks(9),
             maxRotation: 0,
             autoSkip: true,
             maxTicksLimit: 8,
-            font: { size: 9 },
           },
+          border: { display: true, color: chartAxisBorderColor() },
+          grid: { color: chartGridColor() },
         },
         y: {
           stacked: false,
           beginAtZero: true,
-          title: { display: true, text: 'New artifacts', color: 'var(--ps-muted)' },
-          ticks: { maxTicksLimit: 5, precision: 0 },
+          title: {
+            display: true,
+            text: 'New artifacts',
+            color: chartTickColor(),
+            font: { size: 10 },
+          },
+          ticks: { ...chartTicks(10), maxTicksLimit: 5, precision: 0 },
+          border: { display: true, color: chartAxisBorderColor() },
+          grid: { color: chartGridColor() },
         },
       },
     },
   })
 }
+
+useThemeChartReloader(buildChart)
 
 onMounted(() => {
   buildChart()

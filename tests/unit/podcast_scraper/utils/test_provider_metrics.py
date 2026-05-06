@@ -92,6 +92,29 @@ class TestRetryWithMetrics(unittest.TestCase):
         self.assertEqual(str(context.exception), "error")
         self.assertEqual(func.call_count, 3)  # Initial + 2 retries
 
+    def test_exhausted_logs_provider_retries_exhausted_with_context(self):
+        """Terminal failure emits structured provider_retries_exhausted (GitHub 741)."""
+        func = Mock(side_effect=Exception("503 UNAVAILABLE"))
+        metrics = ProviderCallMetrics()
+        metrics.set_provider_name("gemini")
+        with patch("time.sleep"):
+            with patch("podcast_scraper.utils.provider_metrics.logger") as mock_logger:
+                with self.assertRaises(Exception):
+                    retry_with_metrics(
+                        func,
+                        max_retries=1,
+                        initial_delay=0.05,
+                        max_delay=1.0,
+                        jitter=False,
+                        metrics=metrics,
+                        retry_context={"stage": "test_stage", "episode_title": "Ep"},
+                    )
+        err_calls = [c for c in mock_logger.error.call_args_list if c.args]
+        self.assertTrue(any("provider_retries_exhausted" in str(c) for c in err_calls))
+        blob = str(err_calls[-1])
+        self.assertIn("gemini", blob)
+        self.assertIn("test_stage", blob)
+
     def test_jitter_adds_variation(self):
         """Test that jitter adds random variation to delays."""
         func = Mock(side_effect=[Exception("error"), "success"])

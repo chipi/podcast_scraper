@@ -36,6 +36,12 @@ export default defineConfig({
       'VITE_DEFAULT_GRAPH_LENS_DAYS=0 npm exec vite -- --port 5174 --strictPort --host 127.0.0.1',
     cwd: __dirname,
     url: 'http://127.0.0.1:5174',
+    env: {
+      ...process.env,
+      VITE_DEFAULT_GRAPH_LENS_DAYS: '0',
+      // Dev server used by E2E must not ship PostHog keys from the operator's shell/.env.local.
+      VITE_POSTHOG_PROJECT_TOKEN: '',
+    },
     /** Reuse a dev server on 5174 when present so local runs do not fail if `CI=true`. */
     reuseExistingServer: true,
     timeout: process.env.CI ? 180_000 : 120_000,

@@ -1,5 +1,6 @@
 import { defineStore } from 'pinia'
 import { computed, reactive, ref } from 'vue'
+import posthog from 'posthog-js'
 import { fetchExploreFiltered, fetchExploreNaturalLanguage, type ExploreApiBody } from '../api/exploreApi'
 import { StaleGeneration } from '../utils/staleGeneration'
 
@@ -228,6 +229,19 @@ export const useExploreStore = defineStore('explore', () => {
         return
       }
       last.value = body
+      const src = body.kind === 'explore' ? body.data : null
+      const srcSummary = src != null ? (src.summary as Record<string, unknown> | undefined) : undefined
+      posthog.capture('explore_filtered_run', {
+        has_topic_filter: Boolean(filters.topic),
+        has_speaker_filter: Boolean(filters.speaker),
+        grounded_only: filters.groundedOnly,
+        has_min_confidence: Boolean(filters.minConfidence),
+        sort_by: filters.sortBy,
+        limit: filters.limit,
+        strict: filters.strict,
+        insight_count: typeof srcSummary?.insight_count === 'number' ? srcSummary.insight_count : null,
+        episodes_searched: src != null && typeof src.episodes_searched === 'number' ? src.episodes_searched : null,
+      })
     } catch (e) {
       if (exploreRunGate.isStale(seq)) {
         return
@@ -264,6 +278,11 @@ export const useExploreStore = defineStore('explore', () => {
         return
       }
       last.value = body
+      posthog.capture('explore_natural_language_run', {
+        question_length: q.length,
+        limit: filters.limit,
+        strict: filters.strict,
+      })
     } catch (e) {
       if (exploreRunGate.isStale(seq)) {
         return

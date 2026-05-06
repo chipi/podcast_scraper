@@ -277,6 +277,9 @@ jobs:
           # Sentry DSN bakes into the SPA bundle at build time; reach
           # for the GHA secret. Other VITE_* vars are optional.
           VITE_SENTRY_DSN_VIEWER: ${{ secrets.VITE_SENTRY_DSN_VIEWER }}
+          # PostHog project token is optional; omit secret for silent analytics in images.
+          VITE_POSTHOG_PROJECT_TOKEN: ${{ secrets.VITE_POSTHOG_PROJECT_TOKEN }}
+          VITE_POSTHOG_HOST: ${{ secrets.VITE_POSTHOG_HOST }}
         run: |
           set -euo pipefail
           docker buildx build \
@@ -286,6 +289,8 @@ jobs:
             --cache-from "type=gha,scope=publish-viewer" \
             --cache-to "type=gha,scope=publish-viewer,mode=max" \
             --build-arg "VITE_SENTRY_DSN_VIEWER=${VITE_SENTRY_DSN_VIEWER}" \
+            --build-arg "VITE_POSTHOG_PROJECT_TOKEN=${VITE_POSTHOG_PROJECT_TOKEN}" \
+            --build-arg "VITE_POSTHOG_HOST=${VITE_POSTHOG_HOST}" \
             --build-arg "VITE_PODCAST_RELEASE=podcast-scraper@sha-${SHORT_SHA}" \
             -f docker/viewer/Dockerfile .
           scripts/check/no-secrets-in-image.sh "${IMAGE}:build-${SHORT_SHA}"
@@ -297,6 +302,8 @@ jobs:
             --cache-from "type=gha,scope=publish-viewer" \
             --cache-to "type=gha,scope=publish-viewer,mode=max" \
             --build-arg "VITE_SENTRY_DSN_VIEWER=${VITE_SENTRY_DSN_VIEWER}" \
+            --build-arg "VITE_POSTHOG_PROJECT_TOKEN=${VITE_POSTHOG_PROJECT_TOKEN}" \
+            --build-arg "VITE_POSTHOG_HOST=${VITE_POSTHOG_HOST}" \
             --build-arg "VITE_PODCAST_RELEASE=podcast-scraper@sha-${SHORT_SHA}" \
             -f docker/viewer/Dockerfile .
 

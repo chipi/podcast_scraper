@@ -498,6 +498,17 @@ async def _finalize_job(
     # See src/podcast_scraper/server/job_webhook.py + RFC-081 §Layer 4.
     rec_after = await asyncio.to_thread(get_job, corpus_root, job_id)
     if rec_after is not None:
+        try:
+            from podcast_scraper.server.pipeline_run_prometheus import (
+                observe_pipeline_terminal_metrics,
+            )
+
+            await asyncio.to_thread(observe_pipeline_terminal_metrics, corpus_root, rec_after)
+        except Exception:
+            logger.exception(
+                "pipeline prometheus observation failed job=%s",
+                job_id,
+            )
         from podcast_scraper.server.job_webhook import emit_job_state_change
 
         await emit_job_state_change(rec_after)

@@ -64,3 +64,22 @@ variable "tailnet_hostname" {
   description = "Hostname the VPS registers with Tailscale. Final URL: https://<tailnet_hostname>.<tailscale_tailnet>/."
   default     = "prod-podcast"
 }
+
+variable "grafana_cloud_metrics_remote_write_url" {
+  type        = string
+  description = "Grafana Cloud Prometheus remote_write URL (…/api/prom/push). If any of the three grafana_cloud_metrics_* vars are empty, cloud-init skips Alloy host metrics."
+  default     = ""
+}
+
+variable "grafana_cloud_metrics_username" {
+  type        = string
+  description = "Grafana Cloud Prometheus basic-auth username (numeric instance / stack user id for remote_write)."
+  default     = ""
+}
+
+variable "grafana_cloud_metrics_password" {
+  type        = string
+  description = "Grafana Cloud access policy token with metrics:write (or legacy API key) for remote_write basic-auth password."
+  default     = ""
+  sensitive   = true
+}

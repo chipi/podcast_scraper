@@ -1,5 +1,6 @@
 import { defineStore } from 'pinia'
 import { reactive, ref } from 'vue'
+import posthog from 'posthog-js'
 import {
   searchCorpus,
   type CorpusSearchLiftStats,
@@ -125,6 +126,17 @@ export const useSearchStore = defineStore('search', () => {
       enrichmentCallFailed.value = Boolean(
         body.enrichment_error && String(body.enrichment_error).trim(),
       )
+      posthog.capture('search_run', {
+        query_length: q.length,
+        result_count: body.results.length,
+        filter_types: filters.types.length ? filters.types : [],
+        has_feed_filter: Boolean(filters.feed),
+        has_speaker_filter: Boolean(filters.speaker),
+        has_since_filter: Boolean(filters.since),
+        grounded_only: filters.groundedOnly,
+        top_k: filters.topK,
+        enrichment_failed: Boolean(body.enrichment_error && String(body.enrichment_error).trim()),
+      })
     } catch (e) {
       if (searchRunGate.isStale(seq)) {
         return

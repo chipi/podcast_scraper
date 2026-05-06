@@ -8,6 +8,7 @@ import {
   submitPipelineJob,
   type PipelineJobRow,
 } from '../../api/jobsApi'
+import { usePageVisible } from '../../composables/usePageVisible'
 import { useShellStore } from '../../stores/shell'
 import PipelineJobExplorePanel from './PipelineJobExplorePanel.vue'
 
@@ -22,12 +23,12 @@ const props = withDefaults(
 )
 
 const emit = defineEmits<{
-  'open-run-history': [payload: { relativePath: string }]
   /** Embedded Jobs empty state: parent switches Pipeline sub-tab to Job history. */
   'go-to-job-history': []
 }>()
 
 const shell = useShellStore()
+const { pageVisible } = usePageVisible()
 
 const jobs = ref<PipelineJobRow[]>([])
 const loading = ref(false)
@@ -71,33 +72,69 @@ const embeddedToolbarLeadKind = computed<'loading' | 'none' | 'hint' | null>(() 
   return null
 })
 
-let pollTimer: ReturnType<typeof setInterval> | null = null
+let pollTimer: ReturnType<typeof setTimeout> | null = null
 let clockTimer: ReturnType<typeof setInterval> | null = null
+/** Counts consecutive quiet refreshes with an unchanged job snapshot (GH-743 backoff). */
+let stableJobPollTicks = 0
+let lastJobsFingerprint = ''
 
-function stopTimers(): void {
-  if (pollTimer) {
-    clearInterval(pollTimer)
+function jobsFingerprint(list: PipelineJobRow[]): string {
+  return list
+    .map(
+      (j) =>
+        `${j.job_id}:${j.status}:${j.queue_position ?? ''}:${j.pid ?? ''}:${j.started_at ?? ''}:${j.ended_at ?? ''}`,
+    )
+    .join('|')
+}
+
+function clearPollTimer(): void {
+  if (pollTimer !== null) {
+    clearTimeout(pollTimer)
     pollTimer = null
   }
+}
+
+function stopTimers(): void {
+  clearPollTimer()
   if (clockTimer) {
     clearInterval(clockTimer)
     clockTimer = null
   }
 }
 
+/** Fast while registry rows churn; slower when the snapshot is stable (GH-743). */
+function nextJobListPollDelayMs(): number {
+  return stableJobPollTicks >= 3 ? 12_000 : 2_500
+}
+
+function scheduleJobListPoll(): void {
+  clearPollTimer()
+  if (!canUseJobs.value || !hasActiveJobs.value || !pageVisible.value) {
+    return
+  }
+  pollTimer = setTimeout(() => {
+    void refresh({ quiet: true })
+  }, nextJobListPollDelayMs())
+}
+
 function syncTimers(): void {
   stopTimers()
   if (!canUseJobs.value) {
+    stableJobPollTicks = 0
+    lastJobsFingerprint = ''
     return
   }
-  if (hasActiveJobs.value) {
+  if (!hasActiveJobs.value) {
+    stableJobPollTicks = 0
+    lastJobsFingerprint = ''
+    return
+  }
+  if (pageVisible.value) {
     clockTimer = setInterval(() => {
       nowTick.value = Date.now()
     }, 1000)
-    pollTimer = setInterval(() => {
-      void refresh({ quiet: true })
-    }, 4000)
   }
+  scheduleJobListPoll()
 }
 
 async function refresh(opts?: { quiet?: boolean }): Promise<void> {
@@ -120,6 +157,17 @@ async function refresh(opts?: { quiet?: boolean }): Promise<void> {
     if (!opts?.quiet) {
       loading.value = false
     }
+    const fp = jobsFingerprint(jobs.value)
+    if (opts?.quiet) {
+      if (fp === lastJobsFingerprint) {
+        stableJobPollTicks += 1
+      } else {
+        stableJobPollTicks = 0
+      }
+    } else {
+      stableJobPollTicks = 0
+    }
+    lastJobsFingerprint = fp
     syncTimers()
   }
 }
@@ -274,6 +322,14 @@ watch(
   { immediate: true },
 )
 
+watch(pageVisible, (vis) => {
+  if (vis && canUseJobs.value && hasActiveJobs.value) {
+    void refresh({ quiet: true })
+  } else {
+    syncTimers()
+  }
+})
+
 onUnmounted(() => {
   stopTimers()
 })
@@ -385,7 +441,7 @@ onUnmounted(() => {
       v-if="hasActiveJobs"
       class="mb-2 text-[10px] text-muted leading-snug"
     >
-      Auto-refresh every 4s while a job is queued or running; elapsed time updates every second.
+      Auto-refresh while a job is queued or running (about every 2.5s when the registry is changing, then slower when stable). Polling pauses when this browser tab is in the background. Elapsed time updates every second while the tab is visible.
     </p>
     <p
       v-if="!props.embedded && loading && !jobs.length"
@@ -446,7 +502,6 @@ onUnmounted(() => {
         <PipelineJobExplorePanel
           :job="j"
           :corpus-path="root"
-          @open-run-history="emit('open-run-history', $event)"
         />
         <div class="mt-1 space-y-0.5 text-[9px] leading-snug text-muted">
           <p v-if="j.started_at">

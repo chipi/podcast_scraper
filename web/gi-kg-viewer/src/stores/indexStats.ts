@@ -18,6 +18,8 @@ const INDEX_REASON_LABELS: Record<string, string> = {
     'The last multi-feed batch reported failures; confirm corpus state before trusting search results.',
 }
 
+let indexRebuildPollVisibilityHooked = false
+
 function expandIndexReasonLines(env: IndexStatsEnvelope): string[] {
   const lines: string[] = []
   const codes = env.reindex_reasons ?? []
@@ -45,29 +47,86 @@ export const useIndexStatsStore = defineStore('indexStats', () => {
   const indexLoading = ref(false)
   const indexError = ref<string | null>(null)
   const rebuildSubmitting = ref(false)
-  let rebuildPollTimer: ReturnType<typeof setInterval> | null = null
+  let rebuildPollTimer: ReturnType<typeof setTimeout> | null = null
+  let rebuildPollCount = 0
+  let rebuildPollStableTicks = 0
+  let lastRebuildPollFingerprint = ''
   const indexStatsRefreshGate = new StaleGeneration()
   const indexRebuildGate = new StaleGeneration()
 
+  function rebuildProgressFingerprint(env: IndexStatsEnvelope): string {
+    const s = env.stats
+    return JSON.stringify({
+      rip: env.rebuild_in_progress === true,
+      lu: s?.last_updated ?? '',
+      tv: s?.total_vectors ?? null,
+      reason: env.reason ?? '',
+    })
+  }
+
+  function nextRebuildPollDelayMs(): number {
+    return rebuildPollStableTicks >= 4 ? 10_000 : 2_500
+  }
+
   function stopRebuildPoll(): void {
     if (rebuildPollTimer !== null) {
-      clearInterval(rebuildPollTimer)
+      clearTimeout(rebuildPollTimer)
       rebuildPollTimer = null
     }
   }
 
-  function startRebuildPoll(): void {
+  function scheduleRebuildPollTick(): void {
     stopRebuildPoll()
-    let ticks = 0
-    rebuildPollTimer = setInterval(() => {
-      ticks += 1
+    if (typeof document !== 'undefined' && document.hidden) {
+      return
+    }
+    rebuildPollTimer = setTimeout(() => {
+      rebuildPollCount += 1
       void refreshIndexStats().then(() => {
         const env = indexEnvelope.value
-        if (!env?.rebuild_in_progress || ticks >= 80) {
+        if (!env?.rebuild_in_progress || rebuildPollCount >= 80) {
           stopRebuildPoll()
+          rebuildPollStableTicks = 0
+          lastRebuildPollFingerprint = ''
+          rebuildPollCount = 0
+          return
         }
+        const fp = rebuildProgressFingerprint(env)
+        if (fp === lastRebuildPollFingerprint) {
+          rebuildPollStableTicks += 1
+        } else {
+          rebuildPollStableTicks = 0
+        }
+        lastRebuildPollFingerprint = fp
+        scheduleRebuildPollTick()
       })
-    }, 2500)
+    }, nextRebuildPollDelayMs())
+  }
+
+  function startRebuildPoll(): void {
+    stopRebuildPoll()
+    rebuildPollCount = 0
+    rebuildPollStableTicks = 0
+    lastRebuildPollFingerprint = ''
+    scheduleRebuildPollTick()
+  }
+
+  function onRebuildPollVisibility(): void {
+    if (typeof document === 'undefined') {
+      return
+    }
+    if (document.hidden) {
+      stopRebuildPoll()
+      return
+    }
+    if (indexEnvelope.value?.rebuild_in_progress && rebuildPollTimer === null) {
+      startRebuildPoll()
+    }
+  }
+
+  if (typeof document !== 'undefined' && !indexRebuildPollVisibilityHooked) {
+    indexRebuildPollVisibilityHooked = true
+    document.addEventListener('visibilitychange', onRebuildPollVisibility)
   }
 
   const indexRows = computed((): MetricRow[] => {

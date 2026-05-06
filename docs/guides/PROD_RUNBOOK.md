@@ -4,6 +4,9 @@ Operator-facing runbook for the production deploy defined in
 [RFC-082](../rfc/RFC-082-always-on-pre-prod-and-prod-hosting.md). The RFC
 describes *what we decided*; this runbook describes *what to do today*.
 
+Need the short version for daily ops? Use
+[Prod operator cheat sheet](PROD_OPERATOR_CHEAT_SHEET.md).
+
 > **For the prerequisites checklist** (Hetzner account + Tailscale credentials —
 > auth key + API access token on Free plan, see "Tailscale credentials" below
 > for the why — sops/age + GHA secrets), see
@@ -12,7 +15,7 @@ describes *what we decided*; this runbook describes *what to do today*.
 
 ## Sections
 
-1. [First-time bootstrap](#first-time-bootstrap)
+1. [First-time bootstrap](#first-time-bootstrap) — includes [API health checks by context](#api-health-checks-by-context) (GH-745)
 2. [Daily operations](#daily-operations)
 3. [Basic-auth credentials](#basic-auth-credentials)
 4. [Corpus migration from pre-prod (Codespace) to prod (VPS)](#corpus-migration)
@@ -20,7 +23,7 @@ describes *what we decided*; this runbook describes *what to do today*.
 6. [Disaster recovery (VPS gone)](#disaster-recovery)
 7. [Credential rotation](#credential-rotation)
 8. [Environment variable reference](#environment-variable-reference)
-9. [Observability setup walkthrough](#observability-setup-walkthrough)
+9. [Observability setup walkthrough](#observability-setup-walkthrough) — includes [Sentry Slack routing (GH-725)](#sentry-slack-routing-prod-vs-pre-prod-gh-725) and [Grafana env filter (GH-726)](#grafana-env-filter-gh-726)
 10. [Tailscale operations](#tailscale-operations)
 11. [Hetzner operations](#hetzner-operations)
 12. [Operator hot-fix workflow](#operator-hot-fix-workflow)
@@ -90,6 +93,37 @@ gh variable set PROD_TAILNET_FQDN --repo chipi/podcast_scraper \
   --body "prod-podcast.tail-xxxxx.ts.net"
 ```
 
+### When the live hostname has a numeric suffix (`-1`, `-2`, …) {#tailscale-suffix-drift}
+
+After a failed replace or a stale machine record, Tailscale may keep the
+MagicDNS name `prod-podcast.<tailnet>` on an **offline** orphan while the
+live VPS registers as `prod-podcast-1.<tailnet>` (or `-2`, and so on). That
+breaks copy-paste SSH and `curl` until the name lines up again.
+
+**GitHub Actions:** `deploy-prod.yml` and `backup-corpus-prod.yml` join the
+tailnet, run `scripts/ops/resolve_prod_tailnet_host.sh`, and use the resolved
+FQDN for SSH and the `/api/health` probe. Workflows still require
+`vars.PROD_TAILNET_FQDN` as the operator’s **canonical** intent; the resolver
+falls back to `prod-podcast-1.<tailnet>`, … when the canonical name is not
+online.
+
+**Local laptop (on the tailnet):** print the live host the repo workflows
+would pick:
+
+```bash
+export PROD_TAILNET_FQDN='prod-podcast.tail-xxxxx.ts.net'
+bash scripts/ops/resolve_prod_tailnet_host.sh
+```
+
+For tests without `tailscaled`, set `TAILSCALE_STATUS_JSON_PATH` to a saved
+`tailscale status --json` file.
+
+When the printed name differs from the repo variable, update the variable so
+logs and docs match reality, and remove stale machines in the [Tailscale
+admin machines](https://login.tailscale.com/admin/machines) list if you want
+the unsuffixed name back. See [GitHub issue
+744](https://github.com/chipi/podcast_scraper/issues/744).
+
 ### Stage the host-side `.env` (one-time, post-apply)
 
 The `.env` holds runtime secrets (provider API keys, Grafana credentials,
@@ -146,7 +180,29 @@ sudo rm /srv/podcast-scraper/.bootstrap-needs-env
 sudo systemctl restart podcast-scraper.service
 ```
 
+### API health checks by context (GH-745) {#api-health-checks-by-context}
+
+Use the right URL for each layer. Mixing them causes false alarms (for
+example `curl http://127.0.0.1:8000/api/health` on the **VPS host** can fail
+while the API container and the tailnet URL are healthy, because compose
+**does not publish** api port `8000` to the host — only `expose` for the
+Docker network).
+
+| Context | Authoritative check | Notes |
+| --- | --- | --- |
+| **Compose / inside `api` container** | `curl -fsS http://127.0.0.1:8000/api/health` | Same as `compose/docker-compose.stack.yml` `healthcheck` and `infra/deploy/deploy.sh` after #745. |
+| **On the VPS host over SSH** | `docker compose -f compose/docker-compose.stack.yml -f compose/docker-compose.prod.yml -f compose/docker-compose.vps-prod.yml exec -T api curl -fsS http://127.0.0.1:8000/api/health` | Runs the check **inside** the api netns. From `/srv/podcast-scraper`, a short form is `docker compose exec -T api curl -fsS http://127.0.0.1:8000/api/health` if your shell already exports the same `-f` list as systemd. |
+| **Host loopback via viewer (nginx → api)** | `curl -fsS http://127.0.0.1:${VIEWER_PORT:-8080}/api/health` | `VIEWER_PORT` defaults to `8080` (`compose/docker-compose.stack.yml`). Exercises the same path as much of the UI; prod nginx leaves `/api/health` **without** basic auth. |
+| **Laptop / CI on the tailnet** | `curl -fsS https://prod-podcast.<tailnet>/api/health` | MagicDNS + `tailscale serve`; this is what `deploy-prod.yml` probes after deploy. |
+
+**Prefer** tailnet or container-local checks when triaging production. Treat
+host `:8000` alone as invalid unless you have added an explicit `ports:` map
+for `api` (not in the stock compose files).
+
 ### Smoke validation
+
+Use the [health-check table](#api-health-checks-by-context) above so
+each step hits the intended layer.
 
 ```bash
 # 1. Tailnet reachability
@@ -511,6 +567,12 @@ time, then the pipeline crashes on first provider call with
 | `PODCAST_SENTRY_DSN_API` | Sentry → api project → Settings → Client Keys (DSN) | URL like `https://<key>@o<org>.ingest.de.sentry.io/<project>` |
 | `PODCAST_SENTRY_DSN_PIPELINE` | Sentry → pipeline project → Settings → Client Keys (DSN) | Different project from api so issues stay separable |
 
+> **Operator note:** if your existing prod VPS is already running and Grafana
+> shipping is healthy, harmonizing Grafana env var names in repo templates is a
+> no-op for that live host. It only takes effect on bootstrap/re-provision paths
+> (for example new VPS from cloud-init, DR rebuild, or explicit host-metrics
+> Alloy bootstrap updates).
+
 ### Optional / advanced vars
 
 | Var | Default | Effect when set |
@@ -567,6 +629,26 @@ ssh deploy@prod-podcast.<tailnet> \
    - Grafana Cloud → **Explore** → **Loki** → query `{env="prod"}` →
      expect log lines from `api`, `viewer`, `grafana-agent`
 
+#### Grafana dashboards and alert rules (env filter) {#grafana-env-filter-gh-726}
+
+When prod and pre-prod both ship metrics and logs to the same Grafana
+Cloud stack, any panel or alert that omits **`env`** will aggregate
+both environments. Track importable JSON and operator steps in GitHub
+[issue #726](https://github.com/chipi/podcast_scraper/issues/726).
+
+**Repo dashboards (`config/grafana/`):** Re-import or overwrite panels
+from git after changes. Each JSON dashboard in the podcast-scraper set
+includes a template variable **`env`** (default **`prod`**; choose
+**`preprod`** for Codespaces — these values match `PODCAST_ENV` in
+`compose/grafana-agent.yaml` `external_labels`, not the prose spelling
+"pre-prod"). Prometheus panels use **`env="$env"`** in selectors; Loki
+panels already used the same pattern.
+
+**Grafana Cloud alert rules (not stored in this repo):** Edit every
+rule whose query touches podcast-scraper metrics and add **`env="prod"`**
+to the PromQL selector so pre-prod traffic cannot fire prod alerts.
+Log-based alerts should filter on **`{env="prod", ...}`** the same way.
+
 ### Sentry (one-time, per project)
 
 1. Create free Sentry account at <https://sentry.io/signup/>.
@@ -580,6 +662,50 @@ ssh deploy@prod-podcast.<tailnet> \
 5. After api recreate, verify with the **Sentry validation ping** in
    the Smoke validation block above. Expect the event in the api
    project under `environment=prod` within ~1 min.
+
+### Sentry Slack routing (prod vs pre-prod, GH-725) {#sentry-slack-routing-prod-vs-pre-prod-gh-725}
+
+**Decision (RFC-082 Open Question 3):** [Option
+B](https://github.com/chipi/podcast_scraper/issues/725) — keep a **single
+DSN per component** and split noise in **Sentry** using the
+**`environment`** tag already set by `init_sentry()` from `PODCAST_ENV`
+(`prod` on the VPS `.env`; `preprod` in the default Codespace — see
+`.devcontainer/devcontainer.json`). Option A (separate prod DSNs) is
+documented in the issue for teams that prefer separate Sentry projects.
+
+**Prod-only Slack path (Sentry UI, per project: api and pipeline):**
+
+1. Ensure Slack is installed under **Settings → Integrations → Slack**
+   for the Sentry org (or use the project-level Slack integration).
+2. Open **Alerts → Create Alert** (Issue alert) for `podcast-scraper-api`.
+3. Set **When** to the issue volume you want (e.g. new issue, or regressed).
+4. Under **If**, add a filter on **event environment** (wording varies by
+   Sentry version: e.g. **The event's environment attribute** or **An
+   event's tags** with key `environment`) **equals** `prod` (must match
+   `PODCAST_ENV` on the VPS exactly).
+5. Under **Then**, choose **Send a notification via an integration** →
+   Slack → channel `#podcast-prod-alerts` (or your prod channel).
+6. Repeat for `podcast-scraper-pipeline` if pipeline issues should also
+   notify Slack.
+
+**Pre-prod path:** create a second alert (or use the same rule with a
+different **Then** branch if your Sentry plan supports it) with
+**If** `environment` **equals** `preprod` targeting `#podcast-preprod-alerts`,
+or **do not** attach Slack (pre-prod stays Sentry-email / UI only).
+
+**Acceptance checks (operator):**
+
+1. From prod: run the **Sentry validation ping** in [Smoke
+   validation](#smoke-validation) and confirm only the **prod** Slack
+   route fires.
+2. From a Codespace (default `PODCAST_ENV=preprod`): send a test event
+   (same Python snippet with `init_sentry("api")`) and confirm it does
+   **not** hit the prod-only rule (it should match the pre-prod rule or
+   stay unrouted).
+
+Sentry product reference: [Issue
+alerts](https://docs.sentry.io/product/alerts/) and filter conditions on
+event attributes.
 
 ### Viewer Sentry (build-time DSN, runtime env)
 
@@ -623,9 +749,13 @@ ssh deploy@$(tailscale ip -4 prod-podcast)
 If the hostname doesn't resolve: a prior failed deploy may have left
 an orphan device on the tailnet, with the live VPS auto-named
 `prod-podcast-1` (or `-2`, etc.). Check `tailscale status | grep prod-podcast`
-and use whatever the actual current name is. Clean up orphans in
-the [Tailscale admin console](https://login.tailscale.com/admin/machines)
-to reclaim the canonical name.
+and use whatever the actual current name is, or run
+`bash scripts/ops/resolve_prod_tailnet_host.sh` with
+`PROD_TAILNET_FQDN` set to your canonical value (see [When the live hostname
+has a numeric suffix](#tailscale-suffix-drift)).
+Clean up orphans in the [Tailscale admin
+console](https://login.tailscale.com/admin/machines) to reclaim the canonical
+name.
 
 ### HTTPS over the tailnet
 
@@ -753,6 +883,15 @@ auto-pull on prod, so you have a window, but don't trust it.
 ---
 
 ## FAQ / Troubleshooting
+
+### "`curl http://127.0.0.1:8000/api/health` fails on the VPS but the app works"
+
+The `api` service listens on `8000` **inside the container** only. Stock
+compose uses `expose`, not `ports`, so nothing listens on the **host's**
+`127.0.0.1:8000`. Use a check from the [API health checks by
+context](#api-health-checks-by-context) table (container `exec`, viewer
+port, or tailnet HTTPS). See [GitHub issue
+745](https://github.com/chipi/podcast_scraper/issues/745).
 
 ### "Why `--env-file`?"
 
@@ -956,6 +1095,7 @@ glance. Knowing about them saves debugging time.
 ## Cross-references
 
 - [RFC-082 — design](../rfc/RFC-082-always-on-pre-prod-and-prod-hosting.md)
+- [Prod operator cheat sheet](PROD_OPERATOR_CHEAT_SHEET.md)
 - [`infra/`](https://github.com/chipi/podcast_scraper/tree/main/infra) — IaC code
 - [`tailscale/policy.hujson`](https://github.com/chipi/podcast_scraper/blob/main/tailscale/policy.hujson) — ACL
 - [`.github/workflows/deploy-prod.yml`](https://github.com/chipi/podcast_scraper/blob/main/.github/workflows/deploy-prod.yml)

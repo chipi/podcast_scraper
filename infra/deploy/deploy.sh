@@ -2,7 +2,9 @@
 # infra/deploy/deploy.sh — invoked by .github/workflows/deploy-prod.yml after
 # the GHA runner has joined the tailnet. Runs ON the VPS as the deploy user.
 #
-# Pulls latest GHCR images, rolls the compose stack, smoke-tests /api/health.
+# Pulls latest GHCR images, rolls the compose stack, smoke-tests /api/health
+# from inside the api container (GH-745: api port 8000 is not published on
+# the host; host loopback :8000 is a false negative).
 #
 # Exit codes:
 #   0  success — stack pulled + up + healthy
@@ -34,18 +36,24 @@ if ! docker compose "${STACK_FILES[@]}" up -d --remove-orphans; then
   exit 2
 fi
 
-# Local smoke check — the calling workflow also probes externally over Tailscale,
-# but a local fail here aborts the SSH session early so the workflow surfaces red
-# without waiting another timeout cycle.
-echo "[$(date -u +%FT%TZ)] waiting for /api/health (up to 60s)..."
+# Container-local smoke check (authoritative on the VPS). The workflow also
+# probes externally over Tailscale; a failure here aborts SSH early.
+# Do not curl http://127.0.0.1:8000 on the host — compose only exposes :8000
+# inside the Docker network. See docs/guides/PROD_RUNBOOK.md
+# "API health checks by context (GH-745)".
+echo "[$(date -u +%FT%TZ)] waiting for /api/health inside api container (up to 60s)..."
 for i in $(seq 1 12); do
-  if curl -fsS http://127.0.0.1:8000/api/health >/dev/null 2>&1; then
-    echo "[$(date -u +%FT%TZ)] /api/health OK after $((i * 5))s"
+  if docker compose "${STACK_FILES[@]}" exec -T api \
+    curl -fsS http://127.0.0.1:8000/api/health >/dev/null 2>&1; then
+    echo "[$(date -u +%FT%TZ)] /api/health OK after $((i * 5))s (container-local)"
     exit 0
   fi
   sleep 5
 done
 
-echo "ERROR: /api/health did not return 200 within 60s. Last 50 api logs:" >&2
+echo "ERROR: /api/health did not return 200 within 60s (container-local exec probe)." >&2
+echo "ERROR: If tailnet curl still works, you were likely misled by host loopback :8000 — api is not published there (GH-745)." >&2
+echo "ERROR: From this host, try viewer proxy: curl -fsS http://127.0.0.1:\${VIEWER_PORT:-8080}/api/health (prod nginx allows /api/health without auth)." >&2
+echo "ERROR: From your laptop, use https://<prod-tailnet-fqdn>/api/health (see PROD_RUNBOOK.md)." >&2
 docker logs --tail 50 compose-api-1 >&2 || true
 exit 3

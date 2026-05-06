@@ -7,11 +7,12 @@ including retries, rate limit sleep time, and token usage.
 from __future__ import annotations
 
 import importlib
+import json
 import logging
 import random
 import time
 from dataclasses import dataclass, field
-from typing import Any, Callable, Optional, Tuple, TypeVar
+from typing import Any, Callable, Dict, Optional, Tuple, TypeVar
 
 from podcast_scraper.utils.log_redaction import format_exception_for_log
 from podcast_scraper.utils.retryable_errors import get_retry_reason, is_retryable_error
@@ -195,6 +196,7 @@ def retry_with_metrics(
     error_context: str = "default",
     circuit_breaker_config: Optional[Any] = None,
     pipeline_metrics: Optional[Any] = None,
+    retry_context: Optional[Dict[str, Any]] = None,
 ) -> T:
     """Retry a function with exponential backoff, jitter, and metrics tracking.
 
@@ -210,6 +212,8 @@ def retry_with_metrics(
                 Jitter prevents thundering herd by randomizing retry timing.
                 Adds ±10% random variation to delay.
         error_context: Passed to :func:`is_retryable_error` (e.g. ``\"ollama_local\"``).
+        retry_context: Optional small dict (stage, episode id, etc.) included in the
+            terminal ``provider_retries_exhausted`` log when all attempts fail.
 
     Returns:
         Result of calling func()
@@ -224,6 +228,7 @@ def retry_with_metrics(
     """
     last_exception: Optional[Exception] = None
     delay = initial_delay
+    total_retry_sleep_seconds = 0.0
 
     # #697: optional per-provider circuit breaker for cloud-API 503 storms.
     # When provided, ``circuit_breaker_config`` is an LLMCircuitBreakerConfig
@@ -319,14 +324,25 @@ def retry_with_metrics(
                     format_exception_for_log(e),
                     sleep_time,
                 )
+                total_retry_sleep_seconds += sleep_time
                 time.sleep(sleep_time)
                 # Exponential backoff: double the delay, but cap at max_delay
                 delay = min(delay * 2, max_delay)
             else:
+                ctx_blob = "{}"
+                if retry_context:
+                    try:
+                        ctx_blob = json.dumps(retry_context, default=str, sort_keys=True)
+                    except (TypeError, ValueError):
+                        ctx_blob = repr(retry_context)
                 logger.error(
-                    "All %d attempts failed. Last error: %s",
+                    "provider_retries_exhausted: provider=%s attempts=%d "
+                    "total_retry_sleep_s=%.3f last_error=%s context=%s",
+                    _provider_name,
                     max_retries + 1,
+                    total_retry_sleep_seconds,
                     format_exception_for_log(e),
+                    ctx_blob,
                 )
         except Exception as e:
             # Non-retryable exception - re-raise immediately

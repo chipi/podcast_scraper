@@ -21,6 +21,7 @@
     "cytoscape": "^3.33.1",
     "cytoscape-navigator": "^2.0.2",
     "pinia": "^3.0.4",
+    "posthog-js": "^1.372.8",
     "vue": "^3.5.30"
   },
   "devDependencies": {

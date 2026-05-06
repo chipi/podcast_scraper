@@ -1366,6 +1366,31 @@ class Config(BaseModel):
         description="Gemini user prompt for speaker detection. "
         "Uses prompt_store  for versioned prompts.",
     )
+    gemini_retry_max_retries: int = Field(
+        default=6,
+        alias="gemini_retry_max_retries",
+        ge=0,
+        le=15,
+        description=(
+            "Max SDK-level retries after the first Gemini attempt fails inside "
+            "retry_with_metrics (total attempts = this value plus one). Higher "
+            "values tolerate 503 UNAVAILABLE bursts; lower values fail faster."
+        ),
+    )
+    gemini_retry_initial_delay_seconds: float = Field(
+        default=1.0,
+        alias="gemini_retry_initial_delay_seconds",
+        ge=0.0,
+        le=120.0,
+        description="First backoff delay (seconds) before the second Gemini attempt.",
+    )
+    gemini_retry_max_delay_seconds: float = Field(
+        default=60.0,
+        alias="gemini_retry_max_delay_seconds",
+        ge=0.0,
+        le=600.0,
+        description="Cap (seconds) on exponential backoff between Gemini retries.",
+    )
     # Anthropic API configuration (Issue #106)
     anthropic_api_key: Optional[str] = Field(
         default=None,
@@ -2183,6 +2208,16 @@ class Config(BaseModel):
             "Path to JSONL metrics output file. "
             "If not specified and jsonl_metrics_enabled=True, "
             "defaults to {effective_output_dir}/run.jsonl."
+        ),
+    )
+    jsonl_metrics_echo_stdout: bool = Field(
+        default=False,
+        alias="jsonl_metrics_echo_stdout",
+        description=(
+            "When True with jsonl_metrics_enabled, each JSONL event is also written "
+            "as a single line to stdout (one JSON object per line). Use on long "
+            "batch runs so Grafana Agent docker log shipping can index events in "
+            "Loki with LogQL | json (GitHub #746). Independent of jsonl_metrics_path."
         ),
     )
     pricing_assumptions_file: str = Field(
@@ -3199,6 +3234,27 @@ class Config(BaseModel):
         cls._load_string_env_var(data, "openai_api_base", "OPENAI_API_BASE")
         cls._load_string_env_var(data, "gemini_api_key", "GEMINI_API_KEY")
         cls._load_string_env_var(data, "gemini_api_base", "GEMINI_API_BASE")
+        cls._load_int_env_var(
+            data,
+            "gemini_retry_max_retries",
+            "GEMINI_RETRY_MAX_RETRIES",
+            min_value=0,
+            max_value=15,
+        )
+        cls._load_float_env_var(
+            data,
+            "gemini_retry_initial_delay_seconds",
+            "GEMINI_RETRY_INITIAL_DELAY_SECONDS",
+            0.0,
+            120.0,
+        )
+        cls._load_float_env_var(
+            data,
+            "gemini_retry_max_delay_seconds",
+            "GEMINI_RETRY_MAX_DELAY_SECONDS",
+            0.0,
+            600.0,
+        )
         cls._load_string_env_var(data, "anthropic_api_key", "ANTHROPIC_API_KEY")
         cls._load_string_env_var(data, "anthropic_api_base", "ANTHROPIC_API_BASE")
         cls._load_string_env_var(data, "mistral_api_key", "MISTRAL_API_KEY")

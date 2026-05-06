@@ -2,7 +2,8 @@
 import { Chart } from 'chart.js'
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { graphNodeLegendLabel } from '../../utils/colors'
-import { chartGridColor } from '../../utils/chartTheme'
+import { useThemeChartReloader } from '../../composables/useThemeChartReloader'
+import { chartAxisBorderColor, chartGridColor, chartTicks, rgbaFromToken } from '../../utils/chartTheme'
 import { barEndValuePlugin, setBarEndValueFormatter } from '../../utils/chartBarEndValuePlugin'
 import { ensureChartJsRegistered } from '../../utils/chartRegister'
 
@@ -64,6 +65,8 @@ function buildChart(): void {
   const total = props.barEndPercentTotal ?? 0
   const useBarEnd = total > 0
   const extraPlugins = useBarEnd ? [barEndValuePlugin] : []
+  const barFill = rgbaFromToken('--ps-primary', 0.65)
+  const barStroke = rgbaFromToken('--ps-primary', 0.95)
   chart = new Chart(ctx, {
     type: 'bar',
     plugins: extraPlugins,
@@ -73,8 +76,8 @@ function buildChart(): void {
         {
           label: 'Count',
           data: values,
-          backgroundColor: 'rgba(76, 110, 245, 0.65)',
-          borderColor: 'rgba(54, 79, 199, 0.9)',
+          backgroundColor: barFill,
+          borderColor: barStroke,
           borderWidth: 1,
         },
       ],
@@ -112,12 +115,14 @@ function buildChart(): void {
       scales: {
         x: {
           beginAtZero: true,
-          ticks: { precision: 0 },
+          ticks: { ...chartTicks(10), precision: 0 },
+          border: { display: true, color: chartAxisBorderColor() },
           grid: { color: chartGridColor() },
         },
         y: {
           grid: { display: false },
-          ticks: { font: { size: 11 } },
+          ticks: chartTicks(11),
+          border: { display: true, color: chartAxisBorderColor() },
         },
       },
     },
@@ -129,6 +134,8 @@ function buildChart(): void {
     })
   }
 }
+
+useThemeChartReloader(buildChart)
 
 onMounted(() => {
   buildChart()

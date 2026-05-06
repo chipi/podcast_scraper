@@ -258,7 +258,9 @@ testpaths = ["tests"]
 # Default: run only unit tests (fast feedback)
 # Note: -m marker filter removed from addopts to avoid conflicts with explicit -m flags
 # Use explicit -m flags in Makefile/CI commands instead
-addopts = "-q -ra"
+# No global -q: local ``make test*/ci`` recipes and ad-hoc pytest show progress (dots/bar).
+# Suites that need quiet pass ``-q`` on the command line (see Makefile / pre-commit hooks).
+addopts = "-ra"
 # Suppress warnings from external libraries that we can't fix
 filterwarnings = [
     # spaCy/Click deprecation warning (external library, will be fixed in future Click version)

@@ -8,6 +8,10 @@ CODESPELL ?= .venv/bin/codespell
 endif
 PACKAGE = podcast_scraper
 
+# Classic dot progress for fast layers (pyproject addopts no longer includes -q).
+# PYTHONUNBUFFERED on fast pytest lines reduces line buffering in IDE/agent terminals.
+PYTEST_PROGRESS_OPTS := -o console_output_style=classic
+
 # GI/KG viewer (Vue + Vite + Playwright). Override if the app moves, e.g. ``make serve-ui WEB_VIEWER_DIR=apps/viewer``.
 WEB_VIEWER_DIR ?= web/gi-kg-viewer
 
@@ -353,7 +357,8 @@ lint-markdown-docs:
 
 # Match CI lint job (python-app.yml): PYTHONPATH includes repo root so imports match Actions.
 type:
-	@export PYTHONPATH="$$PYTHONPATH:$(PWD)" && $(PYTHON) -m mypy --config-file pyproject.toml .
+	@echo "=== type (mypy): starting $$(date '+%Y-%m-%d %H:%M:%S') — may run several minutes with little output when clean ==="
+	@export PYTHONPATH="$$PYTHONPATH:$(PWD)" && PYTHONUNBUFFERED=1 $(PYTHON) -m mypy --config-file pyproject.toml .
 
 security: security-bandit security-audit
 
@@ -1076,18 +1081,18 @@ test-ci-fast:
 	WI=$$($(PYTHON) scripts/tools/calculate_test_workers.py --test-type integration --max-workers 5 2>/dev/null || echo 3); \
 	WE=$$($(PYTHON) scripts/tools/calculate_test_workers.py --test-type e2e --max-workers 4 2>/dev/null || echo 2); \
 	echo "Running unit (test-ci-fast)..."; \
-	$(PYTHON) -m pytest tests/unit/ -m 'not nightly and not integration and not e2e' \
-		-n $$WU --allow-hosts=127.0.0.1,localhost --durations=20 --reruns 3 --reruns-delay 2; \
+	PYTHONUNBUFFERED=1 $(PYTHON) -m pytest tests/unit/ -m 'not nightly and not integration and not e2e' \
+		-n $$WU --allow-hosts=127.0.0.1,localhost --durations=20 --reruns 3 --reruns-delay 2 $(PYTEST_PROGRESS_OPTS); \
 	echo "Running critical path integration (test-ci-fast)..."; \
-	$(PYTHON) -m pytest tests/integration/ -m 'not nightly and integration and critical_path' \
-		-n $$WI --allow-hosts=127.0.0.1,localhost --durations=20 --reruns 3 --reruns-delay 2; \
+	PYTHONUNBUFFERED=1 $(PYTHON) -m pytest tests/integration/ -m 'not nightly and integration and critical_path' \
+		-n $$WI --allow-hosts=127.0.0.1,localhost --durations=20 --reruns 3 --reruns-delay 2 $(PYTEST_PROGRESS_OPTS); \
 	echo "Running critical path E2E (test-ci-fast, non-ML, parallel)..."; \
-	E2E_TEST_MODE=fast $(PYTHON) -m pytest tests/e2e/ -m 'not nightly and e2e and critical_path and not ml_models' \
-		-n $$WE --allow-hosts=127.0.0.1,localhost --durations=20 --reruns 3 --reruns-delay 2; \
+	E2E_TEST_MODE=fast PYTHONUNBUFFERED=1 $(PYTHON) -m pytest tests/e2e/ -m 'not nightly and e2e and critical_path and not ml_models' \
+		-n $$WE --allow-hosts=127.0.0.1,localhost --durations=20 --reruns 3 --reruns-delay 2 $(PYTEST_PROGRESS_OPTS); \
 	echo "Running critical path E2E (test-ci-fast, ML models, sequential)..."; \
 	set +e; \
-	E2E_TEST_MODE=fast $(PYTHON) -m pytest tests/e2e/ -m 'not nightly and e2e and critical_path and ml_models' \
-		-n 1 --allow-hosts=127.0.0.1,localhost --durations=20 --reruns 3 --reruns-delay 2; \
+	E2E_TEST_MODE=fast PYTHONUNBUFFERED=1 $(PYTHON) -m pytest tests/e2e/ -m 'not nightly and e2e and critical_path and ml_models' \
+		-n 1 --allow-hosts=127.0.0.1,localhost --durations=20 --reruns 3 --reruns-delay 2 $(PYTEST_PROGRESS_OPTS); \
 	ec=$$?; \
 	set -e; \
 	if [ $$ec -eq 5 ]; then ec=0; fi; \
@@ -1244,23 +1249,24 @@ test-fast:
 	# Fast tests: unit + critical path integration + critical path e2e (separate runs, then combine coverage)
 	# E2E: non-ml_models parallel, then ml_models with -n 1 (avoids xdist tail / progress stuck around ~80%)
 	# Uses fast feed for E2E (1 episode) via E2E_TEST_MODE=fast. Excludes nightly.
+	# Uses $(PYTEST_PROGRESS_OPTS) for classic dots; PYTHONUNBUFFERED reduces IDE terminal buffering.
 	@echo "Running unit tests (fast) with coverage..."
-	@E2E_TEST_MODE=fast $(PYTHON) -m pytest tests/unit/ -m 'not integration and not e2e' \
+	@E2E_TEST_MODE=fast PYTHONUNBUFFERED=1 $(PYTHON) -m pytest tests/unit/ -m 'not integration and not e2e' \
 		-n $(shell $(PYTHON) scripts/tools/calculate_test_workers.py --test-type unit --max-workers 8 2>/dev/null || echo 4) \
-		--cov=$(PACKAGE) --cov-report=term-missing --disable-socket --allow-hosts=127.0.0.1,localhost -q
+		--cov=$(PACKAGE) --cov-report=term-missing --disable-socket --allow-hosts=127.0.0.1,localhost $(PYTEST_PROGRESS_OPTS)
 	@echo "Running critical path integration tests with coverage (appending)..."
-	@E2E_TEST_MODE=fast $(PYTHON) -m pytest tests/integration/ -m 'integration and critical_path' \
+	@E2E_TEST_MODE=fast PYTHONUNBUFFERED=1 $(PYTHON) -m pytest tests/integration/ -m 'integration and critical_path' \
 		-n $(shell $(PYTHON) scripts/tools/calculate_test_workers.py --test-type integration --max-workers 5 2>/dev/null || echo 3) \
-		--cov=$(PACKAGE) --cov-append --cov-report=term-missing --disable-socket --allow-hosts=127.0.0.1,localhost -q
+		--cov=$(PACKAGE) --cov-append --cov-report=term-missing --disable-socket --allow-hosts=127.0.0.1,localhost $(PYTEST_PROGRESS_OPTS)
 	@echo "Running critical path E2E tests (non-ML, parallel) with coverage (appending)..."
-	@E2E_TEST_MODE=fast $(PYTHON) -m pytest tests/e2e/ -m 'e2e and critical_path and not nightly and not ml_models' \
+	@E2E_TEST_MODE=fast PYTHONUNBUFFERED=1 $(PYTHON) -m pytest tests/e2e/ -m 'e2e and critical_path and not nightly and not ml_models' \
 		-n $(shell $(PYTHON) scripts/tools/calculate_test_workers.py --test-type e2e --max-workers 4 2>/dev/null || echo 2) \
-		--cov=$(PACKAGE) --cov-append --cov-report=term-missing --disable-socket --allow-hosts=127.0.0.1,localhost --durations=20
+		--cov=$(PACKAGE) --cov-append --cov-report=term-missing --disable-socket --allow-hosts=127.0.0.1,localhost $(PYTEST_PROGRESS_OPTS) --durations=20
 	@echo "Running critical path E2E tests (ML models, sequential) with coverage (appending)..."
 	@set +e; \
-	E2E_TEST_MODE=fast $(PYTHON) -m pytest tests/e2e/ -m 'e2e and critical_path and not nightly and ml_models' \
+	E2E_TEST_MODE=fast PYTHONUNBUFFERED=1 $(PYTHON) -m pytest tests/e2e/ -m 'e2e and critical_path and not nightly and ml_models' \
 		-n 1 \
-		--cov=$(PACKAGE) --cov-append --cov-report=term-missing --disable-socket --allow-hosts=127.0.0.1,localhost --durations=20; \
+		--cov=$(PACKAGE) --cov-append --cov-report=term-missing --disable-socket --allow-hosts=127.0.0.1,localhost $(PYTEST_PROGRESS_OPTS) --durations=20; \
 	ec=$$?; \
 	set -e; \
 	if [ $$ec -eq 5 ]; then ec=0; fi; \
@@ -1273,13 +1279,13 @@ test-fast:
 # Pair with make test-ui-e2e (see ci-ui-fast) when validating viewer changes.
 test-fast-no-py-e2e:
 	@echo "Running unit tests (fast) with coverage..."
-	@E2E_TEST_MODE=fast $(PYTHON) -m pytest tests/unit/ -m 'not integration and not e2e' \
+	@E2E_TEST_MODE=fast PYTHONUNBUFFERED=1 $(PYTHON) -m pytest tests/unit/ -m 'not integration and not e2e' \
 		-n $(shell $(PYTHON) scripts/tools/calculate_test_workers.py --test-type unit --max-workers 8 2>/dev/null || echo 4) \
-		--cov=$(PACKAGE) --cov-report=term-missing --disable-socket --allow-hosts=127.0.0.1,localhost -q
+		--cov=$(PACKAGE) --cov-report=term-missing --disable-socket --allow-hosts=127.0.0.1,localhost $(PYTEST_PROGRESS_OPTS)
 	@echo "Running critical path integration tests with coverage (appending)..."
-	@E2E_TEST_MODE=fast $(PYTHON) -m pytest tests/integration/ -m 'integration and critical_path' \
+	@E2E_TEST_MODE=fast PYTHONUNBUFFERED=1 $(PYTHON) -m pytest tests/integration/ -m 'integration and critical_path' \
 		-n $(shell $(PYTHON) scripts/tools/calculate_test_workers.py --test-type integration --max-workers 5 2>/dev/null || echo 3) \
-		--cov=$(PACKAGE) --cov-append --cov-report=term-missing --disable-socket --allow-hosts=127.0.0.1,localhost -q
+		--cov=$(PACKAGE) --cov-append --cov-report=term-missing --disable-socket --allow-hosts=127.0.0.1,localhost $(PYTEST_PROGRESS_OPTS)
 	@echo "Combining coverage..."
 	@$(MAKE) merge-cov-fragments
 	@$(PYTHON) -m coverage report 2>&1 | grep -E "^[[:space:]]*TOTAL" || (echo "No TOTAL line in coverage report"; exit 1)
@@ -1753,12 +1759,54 @@ _ci_body: format-check lint lint-markdown type security complexity deadcode docs
 	# explicit target; public CI does not run it (recurring API cost) and
 	# ``ci`` does not include it for the same reason locally.
 
-ci-fast: cleanup-processes format-check lint lint-markdown type security complexity deadcode docstrings spelling check-test-policy quality-metrics-ci test-fast test-ui build-viewer docs build
+# Sequential sub-makes + banners so long-quiet steps (especially mypy) never look like a hang.
+ci-fast:
 	# Note: ci-fast skips coverage-enforce and test-ui-e2e (Playwright). For viewer work use ci-ui-fast.
+	@set -e; \
+	echo ""; echo "=== ci-fast START $$(date '+%Y-%m-%d %H:%M:%S') ==="; echo ""; \
+	$(MAKE) cleanup-processes; \
+	echo ""; echo "=== ci-fast [$$(date '+%Y-%m-%d %H:%M:%S')] format-check ==="; $(MAKE) format-check; \
+	echo ""; echo "=== ci-fast [$$(date '+%Y-%m-%d %H:%M:%S')] lint ==="; $(MAKE) lint; \
+	echo ""; echo "=== ci-fast [$$(date '+%Y-%m-%d %H:%M:%S')] lint-markdown ==="; $(MAKE) lint-markdown; \
+	echo ""; echo "=== ci-fast [$$(date '+%Y-%m-%d %H:%M:%S')] type (mypy) ==="; $(MAKE) type; \
+	echo ""; echo "=== ci-fast [$$(date '+%Y-%m-%d %H:%M:%S')] security ==="; $(MAKE) security; \
+	echo ""; echo "=== ci-fast [$$(date '+%Y-%m-%d %H:%M:%S')] complexity ==="; $(MAKE) complexity; \
+	echo ""; echo "=== ci-fast [$$(date '+%Y-%m-%d %H:%M:%S')] deadcode ==="; $(MAKE) deadcode; \
+	echo ""; echo "=== ci-fast [$$(date '+%Y-%m-%d %H:%M:%S')] docstrings ==="; $(MAKE) docstrings; \
+	echo ""; echo "=== ci-fast [$$(date '+%Y-%m-%d %H:%M:%S')] spelling ==="; $(MAKE) spelling; \
+	echo ""; echo "=== ci-fast [$$(date '+%Y-%m-%d %H:%M:%S')] check-test-policy ==="; $(MAKE) check-test-policy; \
+	echo ""; echo "=== ci-fast [$$(date '+%Y-%m-%d %H:%M:%S')] quality-metrics-ci ==="; $(MAKE) quality-metrics-ci; \
+	echo ""; echo "=== ci-fast [$$(date '+%Y-%m-%d %H:%M:%S')] test-fast (pytest) ==="; $(MAKE) test-fast; \
+	echo ""; echo "=== ci-fast [$$(date '+%Y-%m-%d %H:%M:%S')] test-ui ==="; $(MAKE) test-ui; \
+	echo ""; echo "=== ci-fast [$$(date '+%Y-%m-%d %H:%M:%S')] build-viewer ==="; $(MAKE) build-viewer; \
+	echo ""; echo "=== ci-fast [$$(date '+%Y-%m-%d %H:%M:%S')] docs ==="; $(MAKE) docs; \
+	echo ""; echo "=== ci-fast [$$(date '+%Y-%m-%d %H:%M:%S')] build ==="; $(MAKE) build; \
+	echo ""; echo "=== ci-fast DONE $$(date '+%Y-%m-%d %H:%M:%S') ==="; echo ""
 
 # Viewer-heavy gate: like ci-fast but skips Python tests/e2e and runs Playwright (longer than Vitest alone).
-ci-ui-fast: cleanup-processes format-check lint lint-markdown type security complexity deadcode docstrings spelling check-test-policy quality-metrics-ci test-fast-no-py-e2e test-ui test-ui-e2e build-viewer docs build
+ci-ui-fast:
 	# Note: ci-ui-fast skips coverage-enforce and Python tests/e2e; Playwright still needs browsers installed.
+	@set -e; \
+	echo ""; echo "=== ci-ui-fast START $$(date '+%Y-%m-%d %H:%M:%S') ==="; echo ""; \
+	$(MAKE) cleanup-processes; \
+	echo ""; echo "=== ci-ui-fast [$$(date '+%Y-%m-%d %H:%M:%S')] format-check ==="; $(MAKE) format-check; \
+	echo ""; echo "=== ci-ui-fast [$$(date '+%Y-%m-%d %H:%M:%S')] lint ==="; $(MAKE) lint; \
+	echo ""; echo "=== ci-ui-fast [$$(date '+%Y-%m-%d %H:%M:%S')] lint-markdown ==="; $(MAKE) lint-markdown; \
+	echo ""; echo "=== ci-ui-fast [$$(date '+%Y-%m-%d %H:%M:%S')] type (mypy) ==="; $(MAKE) type; \
+	echo ""; echo "=== ci-ui-fast [$$(date '+%Y-%m-%d %H:%M:%S')] security ==="; $(MAKE) security; \
+	echo ""; echo "=== ci-ui-fast [$$(date '+%Y-%m-%d %H:%M:%S')] complexity ==="; $(MAKE) complexity; \
+	echo ""; echo "=== ci-ui-fast [$$(date '+%Y-%m-%d %H:%M:%S')] deadcode ==="; $(MAKE) deadcode; \
+	echo ""; echo "=== ci-ui-fast [$$(date '+%Y-%m-%d %H:%M:%S')] docstrings ==="; $(MAKE) docstrings; \
+	echo ""; echo "=== ci-ui-fast [$$(date '+%Y-%m-%d %H:%M:%S')] spelling ==="; $(MAKE) spelling; \
+	echo ""; echo "=== ci-ui-fast [$$(date '+%Y-%m-%d %H:%M:%S')] check-test-policy ==="; $(MAKE) check-test-policy; \
+	echo ""; echo "=== ci-ui-fast [$$(date '+%Y-%m-%d %H:%M:%S')] quality-metrics-ci ==="; $(MAKE) quality-metrics-ci; \
+	echo ""; echo "=== ci-ui-fast [$$(date '+%Y-%m-%d %H:%M:%S')] test-fast-no-py-e2e ==="; $(MAKE) test-fast-no-py-e2e; \
+	echo ""; echo "=== ci-ui-fast [$$(date '+%Y-%m-%d %H:%M:%S')] test-ui ==="; $(MAKE) test-ui; \
+	echo ""; echo "=== ci-ui-fast [$$(date '+%Y-%m-%d %H:%M:%S')] test-ui-e2e ==="; $(MAKE) test-ui-e2e; \
+	echo ""; echo "=== ci-ui-fast [$$(date '+%Y-%m-%d %H:%M:%S')] build-viewer ==="; $(MAKE) build-viewer; \
+	echo ""; echo "=== ci-ui-fast [$$(date '+%Y-%m-%d %H:%M:%S')] docs ==="; $(MAKE) docs; \
+	echo ""; echo "=== ci-ui-fast [$$(date '+%Y-%m-%d %H:%M:%S')] build ==="; $(MAKE) build; \
+	echo ""; echo "=== ci-ui-fast DONE $$(date '+%Y-%m-%d %H:%M:%S') ==="; echo ""
 
 # Full viewer gate: ci-ui-fast plus the Docker stack-test (Playwright vs the
 # real api+viewer+mock-feeds compose stack). Opt-in target — use it before
@@ -1768,10 +1816,32 @@ ci-ui-fast: cleanup-processes format-check lint lint-markdown type security comp
 # post-merge on main, so chip-refactor PRs that pass ci-ui-fast can still
 # break main. ci-ui-full closes that gap locally without slowing down the
 # default per-commit gate.
-ci-ui-full: cleanup-processes format-check lint lint-markdown type security complexity deadcode docstrings spelling check-test-policy quality-metrics-ci test-fast-no-py-e2e test-ui test-ui-e2e build-viewer docs build stack-test-ml-ci
+ci-ui-full:
 	# Note: ci-ui-full = ci-ui-fast + stack-test-ml-ci. Requires Docker
 	# (Buildx + Compose v2). Same airgapped_thin profile as the public CI
 	# Stack-test workflow.
+	@set -e; \
+	echo ""; echo "=== ci-ui-full START $$(date '+%Y-%m-%d %H:%M:%S') ==="; echo ""; \
+	$(MAKE) cleanup-processes; \
+	echo ""; echo "=== ci-ui-full [$$(date '+%Y-%m-%d %H:%M:%S')] format-check ==="; $(MAKE) format-check; \
+	echo ""; echo "=== ci-ui-full [$$(date '+%Y-%m-%d %H:%M:%S')] lint ==="; $(MAKE) lint; \
+	echo ""; echo "=== ci-ui-full [$$(date '+%Y-%m-%d %H:%M:%S')] lint-markdown ==="; $(MAKE) lint-markdown; \
+	echo ""; echo "=== ci-ui-full [$$(date '+%Y-%m-%d %H:%M:%S')] type (mypy) ==="; $(MAKE) type; \
+	echo ""; echo "=== ci-ui-full [$$(date '+%Y-%m-%d %H:%M:%S')] security ==="; $(MAKE) security; \
+	echo ""; echo "=== ci-ui-full [$$(date '+%Y-%m-%d %H:%M:%S')] complexity ==="; $(MAKE) complexity; \
+	echo ""; echo "=== ci-ui-full [$$(date '+%Y-%m-%d %H:%M:%S')] deadcode ==="; $(MAKE) deadcode; \
+	echo ""; echo "=== ci-ui-full [$$(date '+%Y-%m-%d %H:%M:%S')] docstrings ==="; $(MAKE) docstrings; \
+	echo ""; echo "=== ci-ui-full [$$(date '+%Y-%m-%d %H:%M:%S')] spelling ==="; $(MAKE) spelling; \
+	echo ""; echo "=== ci-ui-full [$$(date '+%Y-%m-%d %H:%M:%S')] check-test-policy ==="; $(MAKE) check-test-policy; \
+	echo ""; echo "=== ci-ui-full [$$(date '+%Y-%m-%d %H:%M:%S')] quality-metrics-ci ==="; $(MAKE) quality-metrics-ci; \
+	echo ""; echo "=== ci-ui-full [$$(date '+%Y-%m-%d %H:%M:%S')] test-fast-no-py-e2e ==="; $(MAKE) test-fast-no-py-e2e; \
+	echo ""; echo "=== ci-ui-full [$$(date '+%Y-%m-%d %H:%M:%S')] test-ui ==="; $(MAKE) test-ui; \
+	echo ""; echo "=== ci-ui-full [$$(date '+%Y-%m-%d %H:%M:%S')] test-ui-e2e ==="; $(MAKE) test-ui-e2e; \
+	echo ""; echo "=== ci-ui-full [$$(date '+%Y-%m-%d %H:%M:%S')] build-viewer ==="; $(MAKE) build-viewer; \
+	echo ""; echo "=== ci-ui-full [$$(date '+%Y-%m-%d %H:%M:%S')] docs ==="; $(MAKE) docs; \
+	echo ""; echo "=== ci-ui-full [$$(date '+%Y-%m-%d %H:%M:%S')] build ==="; $(MAKE) build; \
+	echo ""; echo "=== ci-ui-full [$$(date '+%Y-%m-%d %H:%M:%S')] stack-test-ml-ci ==="; $(MAKE) stack-test-ml-ci; \
+	echo ""; echo "=== ci-ui-full DONE $$(date '+%Y-%m-%d %H:%M:%S') ==="; echo ""
 
 ci-clean: clean-all format-check lint lint-markdown type security complexity deadcode docstrings spelling check-test-policy preload-ml-models test test-ui test-ui-e2e build-viewer coverage-enforce docs build
 

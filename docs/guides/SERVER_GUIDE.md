@@ -535,6 +535,21 @@ catalog / DB-backed APIs ([#50][i50], [#347][i347]) — not the RSS-list or RFC-
 [i50]: https://github.com/chipi/podcast_scraper/issues/50
 [i347]: https://github.com/chipi/podcast_scraper/issues/347
 
+## Batch pipeline JSONL and Grafana Loki (#746)
+
+Long **CLI / docker** batch runs can stream structured events through
+`workflow/jsonl_emitter.py` (`run_started`, `episode_finished`, `run_finished`)
+to `run.jsonl` when `jsonl_metrics_enabled` is true. For **Grafana Loki**, each
+line should be ingested as **one JSON log line**. The optional flag
+`jsonl_metrics_echo_stdout` duplicates every JSONL line to **stdout** so the
+existing **Grafana Agent** docker log pipeline (`compose/grafana-agent.yaml`)
+ships them with stable labels (**env**, **release**, **app**=`podcast_scraper`,
+compose **service** surfaced as **service_name** in Grafana Cloud). Use LogQL
+`| json | event_type="run_finished"` in Explore or the imported dashboard
+`config/grafana/grafana-dashboard-pipeline-execution.json` (also linked from
+`config/manual/`). Prometheus **`/metrics`** on the API container remains
+separate from this JSONL path.
+
 ## Related docs
 
 | Document | Description |
@@ -555,6 +570,6 @@ catalog / DB-backed APIs ([#50][i50], [#347][i347]) — not the RSS-list or RFC-
 
 ---
 
-**Version:** 1.2
+**Version:** 1.3
 **Created:** 2026-04-04
-**Updated:** 2026-04-19 — RFC-077 routes, health flags, platform evolution vs `routes/platform/`
+**Updated:** 2026-05-05 — Batch pipeline JSONL / Loki (#746)

@@ -2,7 +2,8 @@
 import { Chart } from 'chart.js'
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { lineEndLabelsPlugin } from '../../utils/chartLineEndLabelsPlugin'
-import { chartGridColor, rgbaFromToken } from '../../utils/chartTheme'
+import { useThemeChartReloader } from '../../composables/useThemeChartReloader'
+import { chartAxisBorderColor, chartGridColor, chartTickColor, chartTicks, rgbaFromToken } from '../../utils/chartTheme'
 import { ensureChartJsRegistered } from '../../utils/chartRegister'
 
 export type LineSeriesSpec = {
@@ -100,16 +101,19 @@ function buildChart(): void {
       },
       scales: {
         x: {
-          ticks: { maxRotation: 45, minRotation: 0, font: { size: 10 } },
+          ticks: { ...chartTicks(10), maxRotation: 45, minRotation: 0 },
+          border: { display: true, color: chartAxisBorderColor() },
           grid: { display: false },
         },
         y: {
           beginAtZero: true,
-          ticks: { precision: 0, font: { size: 10 } },
+          ticks: { ...chartTicks(10), precision: 0 },
+          border: { display: true, color: chartAxisBorderColor() },
           grid: { color: chartGridColor() },
           title: {
             display: Boolean(props.yLabel),
             text: props.yLabel ?? '',
+            color: chartTickColor(),
             font: { size: 10 },
           },
         },
@@ -123,6 +127,8 @@ const hasData = computed(
     props.labels.length > 0 &&
     props.series.some((s) => s.values.length === props.labels.length && s.values.length > 0),
 )
+
+useThemeChartReloader(buildChart)
 
 onMounted(() => {
   buildChart()

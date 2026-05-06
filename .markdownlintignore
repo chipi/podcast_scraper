@@ -9,3 +9,6 @@ docs/DEVELOPMENT_GUIDE.md
 docs/rfc/*.md
 docs/prd/*.md
 docs/releases/*.md
+
+# Claude Code skill references under the viewer (upstream-style notes; not repo docs)
+web/gi-kg-viewer/.claude/

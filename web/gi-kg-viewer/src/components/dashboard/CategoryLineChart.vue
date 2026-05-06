@@ -2,7 +2,8 @@
 import { Chart } from 'chart.js'
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { lineEndLabelsPlugin } from '../../utils/chartLineEndLabelsPlugin'
-import { chartGridColor, rgbaFromToken } from '../../utils/chartTheme'
+import { useThemeChartReloader } from '../../composables/useThemeChartReloader'
+import { chartAxisBorderColor, chartGridColor, chartTicks, rgbaFromToken } from '../../utils/chartTheme'
 import { ensureChartJsRegistered } from '../../utils/chartRegister'
 
 const props = defineProps<{
@@ -84,12 +85,14 @@ function buildChart(): void {
       },
       scales: {
         x: {
-          ticks: { maxRotation: 45, minRotation: 0, font: { size: 10 } },
+          ticks: { ...chartTicks(10), maxRotation: 45, minRotation: 0 },
+          border: { display: true, color: chartAxisBorderColor() },
           grid: { display: false },
         },
         y: {
           beginAtZero: true,
-          ticks: { precision: 0, font: { size: 10 } },
+          ticks: { ...chartTicks(10), precision: 0 },
+          border: { display: true, color: chartAxisBorderColor() },
           grid: { color: chartGridColor() },
         },
       },
@@ -98,6 +101,8 @@ function buildChart(): void {
 }
 
 const hasData = computed(() => props.labels.length > 0 && props.values.length > 0)
+
+useThemeChartReloader(buildChart)
 
 onMounted(() => {
   buildChart()

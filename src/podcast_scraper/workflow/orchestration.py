@@ -917,7 +917,11 @@ def _setup_jsonl_emitter(
     jsonl_path = cfg.jsonl_metrics_path
     if jsonl_path is None:
         jsonl_path = os.path.join(effective_output_dir, "run.jsonl")
-    jsonl_emitter = JSONLEmitter(pipeline_metrics, jsonl_path)
+    jsonl_emitter = JSONLEmitter(
+        pipeline_metrics,
+        jsonl_path,
+        echo_stdout=cfg.jsonl_metrics_echo_stdout,
+    )
     jsonl_emitter.__enter__()
     jsonl_emitter.emit_run_started(cfg, run_id=cfg.run_id)
     return jsonl_emitter

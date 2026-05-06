@@ -1,11 +1,32 @@
 import { createPinia } from 'pinia'
 import * as Sentry from '@sentry/vue'
 import { createApp } from 'vue'
+import posthog from 'posthog-js'
 import './style.css'
 import App from './App.vue'
 import { applyPreset } from './theme/theme'
 
 applyPreset()
+
+/** Non-empty => PostHog Cloud ingestion enabled (public project token only). */
+const POSTHOG_TOKEN = (
+  import.meta.env.VITE_POSTHOG_PROJECT_TOKEN as string | undefined
+)?.trim()
+const POSTHOG_HOST =
+  (import.meta.env.VITE_POSTHOG_HOST as string | undefined)?.trim() ||
+  'https://eu.i.posthog.com'
+
+if (POSTHOG_TOKEN) {
+  posthog.init(POSTHOG_TOKEN, {
+    api_host: POSTHOG_HOST,
+    // Align SDK defaults with current PostHog baseline (performance / surveys posture).
+    defaults: '2026-01-30',
+    // Custom events only — keeps Cloud free tier sane for this SPA (tab churn otherwise spams events).
+    autocapture: false,
+    capture_pageview: false,
+    disable_session_recording: true,
+  })
+}
 
 const app = createApp(App)
 
@@ -27,7 +48,10 @@ const app = createApp(App)
 // ``component=`` tags on each event.
 const SENTRY_DSN_VIEWER = import.meta.env.VITE_SENTRY_DSN_VIEWER as string | undefined
 if (SENTRY_DSN_VIEWER) {
-  const w = window as Window & { __PODCAST_ENV__?: string; __PODCAST_RELEASE__?: string }
+  const w = window as Window & {
+    __PODCAST_ENV__?: string
+    __PODCAST_RELEASE__?: string
+  }
   Sentry.init({
     app,
     dsn: SENTRY_DSN_VIEWER,
@@ -47,4 +71,15 @@ if (SENTRY_DSN_VIEWER) {
 }
 
 app.use(createPinia())
+
+const vueErrorHandler = app.config.errorHandler
+app.config.errorHandler = (err, instance, info) => {
+  if (POSTHOG_TOKEN) {
+    posthog.captureException(err)
+  }
+  if (typeof vueErrorHandler === 'function') {
+    vueErrorHandler(err, instance, info)
+  }
+}
+
 app.mount('#app')

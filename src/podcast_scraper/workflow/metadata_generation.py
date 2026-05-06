@@ -3982,7 +3982,11 @@ def generate_episode_metadata(  # noqa: C901
                     if jsonl_path is None:
                         jsonl_path = os.path.join(output_dir, "run.jsonl")
                     # Open in append mode to add episode event
-                    emitter = JSONLEmitter(pipeline_metrics, jsonl_path)
+                    emitter = JSONLEmitter(
+                        pipeline_metrics,
+                        jsonl_path,
+                        echo_stdout=cfg.jsonl_metrics_echo_stdout,
+                    )
                     emitter.__enter__()
                     emitter.emit_episode_finished(episode_id)
                     emitter.__exit__(None, None, None)
