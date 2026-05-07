@@ -411,12 +411,15 @@ async function loadClusterMemberEpisodes(topicId: string): Promise<void> {
           : 'No new artifact paths to add.'
       return
     }
+    // Mark as graph-internal load to allow auto-merge for cluster expansion
+    artifacts.setLoadSource('graph-internal')
     await artifacts.appendRelativeArtifacts(pathsToAdd)
     clusterMemberLoadMessage.value =
       `Loaded ${addedEpisodes} episode(s) (cap ${cap}).` + (z > 0 ? ` ${z} not in catalog.` : '')
   } catch (e) {
     clusterMemberLoadMessage.value = e instanceof Error ? e.message : String(e)
   } finally {
+    artifacts.clearLoadSource()
     clusterMemberLoadBusyTopicId.value = null
   }
 }

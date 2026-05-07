@@ -37,6 +37,7 @@ import {
   applyGraphFocusPlan,
   graphFocusPlanFromCilPill,
 } from '../../utils/cilGraphFocus'
+import { findTopicClusterContextForGraphNode } from '../../utils/topicClustersOverlay'
 
 const emit = defineEmits<{
   'switch-main-tab': [tab: 'graph' | 'dashboard' | 'library']
@@ -519,8 +520,21 @@ async function openTopicBandInGraph(band: CorpusDigestTopicBand): Promise<void> 
   await artifacts.appendRelativeArtifacts(allPaths)
   
   if (gid) {
-    graphNav.requestFocusNode(gid)
-    subject.focusTopic(gid)
+    // The digest band's graph_topic_id is a CIL topic: ID (e.g., topic:science-research).
+    // Try to map this to the corresponding tc: cluster compound ID.
+    const clusterCtx = findTopicClusterContextForGraphNode(gid, artifacts.topicClustersDoc)
+    if (clusterCtx?.compoundParentId) {
+      // Found a cluster: use tc: cluster ID as primary focus (opens NodeDetail for TopicCluster)
+      // with topic: ID as fallback (in case the compound isn't in the graph yet)
+      graphNav.requestFocusNode(clusterCtx.compoundParentId, gid)
+      subject.focusGraphNode(clusterCtx.compoundParentId)
+    } else {
+      // No cluster found - this is a digest category band without a corresponding cluster.
+      // Just load the graph without focusing on anything (special case for category bands).
+      graphNav.clearPendingFocus()
+      // Request a fit to ensure the camera centers on the loaded content with appropriate zoom
+      graphNav.setRequestFitAfterLoad()
+    }
   }
   
   artifacts.clearLoadSource()  // Clear flag immediately

@@ -491,6 +491,28 @@ function applyViewportPreserveOrFit(
 ): void {
   suspendSelectedNodeZoomAnchorCorrection += 1
   try {
+    // FIRST: If there's a pending focus node, skip all viewport logic and let tryApplyPendingFocus handle the camera
+    if (nav.pendingFocusNodeId) {
+      return
+    }
+    // SECOND: If requestFitAfterLoad is set (external load without focus), force fit at 50% zoom
+    if (nav.requestFitAfterLoad) {
+      try {
+        // For external loads without focus, center on graph with reasonable zoom instead of fitting to extremes
+        const els = core.elements(':visible')
+        const bbox = els.boundingBox()
+        const centerX = (bbox.x1 + bbox.x2) / 2
+        const centerY = (bbox.y1 + bbox.y2) / 2
+        core.zoom(0.5)  // 50% zoom as a reasonable default
+        core.center()  // Center on viewport center
+        // Pan to center the graph's center point
+        core.panBy({ x: -centerX * 0.5, y: -centerY * 0.5 })
+      } catch {
+        /* ignore */
+      }
+      return
+    }
+    // THIRD: Try to preserve viewport from snapshot (if valid)
     if (
       snap &&
       nodeOkForViewportPreserve(core, snap.cyId) &&
@@ -505,10 +527,7 @@ function applyViewportPreserveOrFit(
         /* fall through to fit */
       }
     }
-    // Skip fit if there's a pending focus - tryApplyPendingFocus will handle camera
-    if (nav.pendingFocusNodeId) {
-      return
-    }
+    // LAST: Default fit to visible elements
     try {
       core.fit(core.elements(':visible'), 24)
     } catch {
@@ -1292,6 +1311,8 @@ function finishLayoutPass(core: Core): void {
   applyTopicDegreeHeat(cy)
   applyDegreeVisibility(cy)
   applyViewportPreserveOrFit(cy, snap)
+  // Clear the fit request flag after applying viewport (fit or preserve)
+  nav.clearRequestFitAfterLoad()
 
   lastZoomLevel = cy.zoom()
   updateZoomPercentDisplay(cy)
@@ -1988,7 +2009,12 @@ function runRelayout(): void {
     applyGraphCanvasImmediateHide(graphEl)
   }
 
-  pendingViewportPreserve = captureSelectedViewportAnchor(c)
+  // Only preserve viewport if not explicitly requesting a fit after load
+  if (!nav.requestFitAfterLoad) {
+    pendingViewportPreserve = captureSelectedViewportAnchor(c)
+  } else {
+    pendingViewportPreserve = null
+  }
   const name = preferredLayout.value
   // RFC-080 V3: timeline reads cy node data (publishDate, episodeId)
   // so it builds its preset spec live; other layouts use static opts.
@@ -2142,8 +2168,13 @@ function redraw(): void {
 
     if (useIncrementalLayout && priorCore) {
       // True incremental: add/remove elements on existing instance, no canvas blank
-      // Capture current viewport to preserve zoom/pan after incremental layout
-      pendingViewportPreserve = captureSelectedViewportAnchor(priorCore)
+      // Capture current viewport to preserve zoom/pan after incremental layout,
+      // UNLESS requestFitAfterLoad is set (external load without focus target)
+      if (!nav.requestFitAfterLoad) {
+        pendingViewportPreserve = captureSelectedViewportAnchor(priorCore)
+      } else {
+        pendingViewportPreserve = null
+      }
       
       const el = container.value
       if (!el) {

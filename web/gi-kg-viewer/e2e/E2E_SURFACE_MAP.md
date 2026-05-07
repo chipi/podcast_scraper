@@ -16,6 +16,37 @@ and feature UXS files ([UXS-002](../../../docs/uxs/UXS-002-corpus-digest.md) Dig
 **Related:** [ADR-066](../../../docs/adr/ADR-066-playwright-for-ui-e2e-testing.md). Tracked in
 [GitHub #509](https://github.com/chipi/podcast_scraper/issues/509).
 
+## Graph Incremental Loading & Navigation Fixes
+
+**Issues Fixed**: [#748](https://github.com/chipi/podcast_scraper/issues/748), 
+[#749](https://github.com/chipi/podcast_scraper/issues/749)
+
+**Test Criteria**: [INCREMENTAL_LOADING_TEST_CRITERIA.md](INCREMENTAL_LOADING_TEST_CRITERIA.md)
+
+**Comprehensive E2E Suite Tracked**: [GitHub #750](https://github.com/chipi/podcast_scraper/issues/750)
+
+Three critical fixes for graph navigation and incremental loading behavior:
+
+1. **Fix #1: Topic cluster "Load" button path tracking** (`NodeDetail.vue`)
+   - Load source now correctly set to `'graph-internal'` when loading cluster members
+   - Shell footer path updates to reflect newly loaded episodes
+   - Enables proper auto-merge behavior for graph-internal expansions
+
+2. **Fix #2: Digest topic cluster selection and focus** (`DigestView.vue`)
+   - Clicking Digest topic bands now correctly maps CIL `topic:` IDs to graph `tc:` cluster IDs
+   - NodeDetail panel opens with cluster information (instead of generic TopicEntityView)
+   - Special case: Category bands without clusters show no detail panel (as intended)
+
+3. **Fix #3: Camera centering and zoom** (`GraphCanvas.vue`, `graphNavigation.ts`)
+   - New `requestFitAfterLoad` flag prevents inappropriate viewport preservation
+   - External loads without specific focus targets (e.g., category bands) now center at **50% zoom**
+   - Eliminates the "14% zoom in upper-left corner" issue
+   - Camera behavior is deterministic based on entry point and focus target
+
+**E2E Test Coverage**: All scenarios in `INCREMENTAL_LOADING_TEST_CRITERIA.md` should have
+corresponding Playwright tests validating camera position, selection state, panel content,
+and incremental loading behavior.
+
 ## Runtime
 
 | Item | Value |

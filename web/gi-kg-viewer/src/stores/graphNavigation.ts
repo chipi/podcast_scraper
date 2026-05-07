@@ -20,6 +20,13 @@ export const useGraphNavigationStore = defineStore('graphNavigation', () => {
   const graphEgoFocusCyId = ref<string | null>(null)
 
   /**
+   * When true, signals GraphCanvas to fit the viewport to visible content after the next layout,
+   * instead of preserving the current viewport. Used when loading from external sources without
+   * a specific focus target (e.g., Digest category bands without clusters).
+   */
+  const requestFitAfterLoad = ref(false)
+
+  /**
    * Topic cluster compound ids whose **member Topic nodes** are hidden on the Cytoscape canvas
    * (compound box may remain). Toggle from TopicCluster node detail.
    */
@@ -90,12 +97,21 @@ export const useGraphNavigationStore = defineStore('graphNavigation', () => {
     graphEgoFocusCyId.value = id?.trim() ? id.trim() : null
   }
 
+  function setRequestFitAfterLoad(): void {
+    requestFitAfterLoad.value = true
+  }
+
+  function clearRequestFitAfterLoad(): void {
+    requestFitAfterLoad.value = false
+  }
+
   return {
     pendingFocusNodeId,
     pendingFocusFallbackNodeId,
     libraryHighlightSourceIds,
     pendingFocusCameraIncludeRawIds,
     graphEgoFocusCyId,
+    requestFitAfterLoad,
     topicClusterCanvasCollapsedIds,
     toggleTopicClusterCanvasCollapsed,
     isTopicClusterCanvasCollapsed,
@@ -105,5 +121,7 @@ export const useGraphNavigationStore = defineStore('graphNavigation', () => {
     setLibraryEpisodeHighlights,
     clearLibraryEpisodeHighlights,
     setGraphEgoFocusCyId,
+    setRequestFitAfterLoad,
+    clearRequestFitAfterLoad,
   }
 })
