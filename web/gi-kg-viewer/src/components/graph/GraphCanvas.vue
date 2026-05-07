@@ -357,6 +357,10 @@ let redrawGateDepth = 0
 /** Debounce ``POST /api/corpus/node-episodes`` probes that decide the teal ring (corpus beyond selection). */
 let nodeEpisodesCorpusBeyondDebounce: ReturnType<typeof setTimeout> | null = null
 let redrawPending = false
+/** Debounce rapid-fire redraw() calls from multiple watchers firing in sequence. */
+let redrawDebounceTimer: ReturnType<typeof setTimeout> | null = null
+/** Prevents immediate redraws after layout completion (cooldown for watcher cascades). */
+let layoutCompletionCooldownUntil = 0
 let resizeObs: ResizeObserver | null = null
 let zoomCenterTimer: ReturnType<typeof setTimeout> | null = null
 let lastZoomLevel = 1
@@ -383,6 +387,10 @@ const graphLayoutGate = new StaleGeneration()
 let lastSelectedRelPathsCountAfterLayout = 0
 let lastCommittedFilteredNodeIds = new Set<string>()
 let lastCommittedEgoFocusCyId = ''
+/** Snapshot of ``focusNodeId`` before the ``filteredArtifact`` watcher clears it; used for incremental check. */
+let priorEgoBeforeWatcherClear = ''
+/** Track previous artifact's node set to detect incremental appends (superset) vs full replacements. */
+let prevFilteredArtifactNodeIds = new Set<string>()
 
 /** Captured before relayout or ego exit; consumed in finishLayoutPass to avoid fit() jumping the view. */
 type ViewportPreserveSnap = {
@@ -496,6 +504,10 @@ function applyViewportPreserveOrFit(
       } catch {
         /* fall through to fit */
       }
+    }
+    // Skip fit if there's a pending focus - tryApplyPendingFocus will handle camera
+    if (nav.pendingFocusNodeId) {
+      return
     }
     try {
       core.fit(core.elements(':visible'), 24)
@@ -1304,6 +1316,13 @@ function finishLayoutPass(core: Core): void {
   }
   lastSelectedRelPathsCountAfterLayout = artifacts.selectedRelPaths.length
   lastCommittedEgoFocusCyId = focusNodeId.value?.trim() ?? ''
+  console.log('[GraphCanvas finishLayoutPass] Complete:', {
+    totalNodes: core.nodes().length,
+    totalEdges: core.edges().length,
+    committedEgo: lastCommittedEgoFocusCyId,
+  })
+  // Set cooldown to prevent immediate redraws from watchers reacting to layout state changes
+  layoutCompletionCooldownUntil = Date.now() + 300 // 300ms cooldown
   releaseGraphPaintAfterLayout(core)
 }
 
@@ -2006,6 +2025,30 @@ function runRelayout(): void {
   }
 }
 
+/**
+ * Schedule a debounced redraw to prevent rapid-fire destroy/recreate cycles
+ * when multiple watchers fire in sequence (e.g., filteredArtifact changes).
+ */
+function scheduleRedraw(): void {
+  // Skip if currently in a redraw cycle or actively laying out
+  if (redrawGateDepth > 0 || activeElesLayout !== null) {
+    redrawPending = true
+    return
+  }
+  // Skip if within cooldown period after layout completion (watchers react to state changes)
+  if (Date.now() < layoutCompletionCooldownUntil) {
+    redrawPending = true
+    return
+  }
+  if (redrawDebounceTimer) {
+    clearTimeout(redrawDebounceTimer)
+  }
+  redrawDebounceTimer = setTimeout(() => {
+    redrawDebounceTimer = null
+    redraw()
+  }, 150) // 150ms debounce - catches Vue nextTick cascades, still feels instant
+}
+
 function redraw(): void {
   if (redrawGateDepth > 0) {
     redrawPending = true
@@ -2013,8 +2056,6 @@ function redraw(): void {
   }
   redrawGateDepth += 1
   try {
-    graphContentHiddenUntilLayout.value = true
-
     const priorCore = cy
     const viewArtPreview = gf.viewWithEgo(focusNodeId.value)
     const nextNodeIdSet = new Set<string>()
@@ -2024,11 +2065,40 @@ function redraw(): void {
       }
     }
     const selCount = artifacts.selectedRelPaths.length
-    const egoCur = focusNodeId.value?.trim() ?? ''
+    const egoCur = priorEgoBeforeWatcherClear
     const selectionGrew =
       selCount > lastSelectedRelPathsCountAfterLayout &&
       lastSelectedRelPathsCountAfterLayout > 0
     const egoUnchanged = egoCur === lastCommittedEgoFocusCyId
+    
+    // Incremental ONLY when expanding the SAME cluster/ego (appending members from rail Load).
+    // If ego changed (user clicked a DIFFERENT cluster card), do a full redraw to avoid unbounded growth.
+    const egoChanged = egoCur !== lastCommittedEgoFocusCyId && egoCur !== '' && lastCommittedEgoFocusCyId !== ''
+    
+    // Detect topic cluster switches: DISABLED (same as contextSwitch)
+    // This was triggering false positives during incremental loading
+    const selectionReplaced = false
+    
+    // Detect context switch: DISABLED - let incremental loading handle all cases
+    // The previous logic was too aggressive and caused full redraws when growing the graph
+    const contextSwitch = false
+    
+    // DEBUG LOGGING
+    console.log('[GraphCanvas redraw] Start:', {
+      egoCur,
+      lastCommittedEgo: lastCommittedEgoFocusCyId,
+      egoUnchanged,
+      egoChanged,
+      selCount,
+      lastSelCount: lastSelectedRelPathsCountAfterLayout,
+      selectionGrew,
+      selectionReplaced,
+      contextSwitch,
+      priorCoreExists: !!priorCore,
+      lastCommittedNodeCount: lastCommittedFilteredNodeIds.size,
+      nextNodeCount: nextNodeIdSet.size,
+    })
+    
     const addedNodeIds = new Set<string>()
     if (selectionGrew && egoUnchanged && priorCore && lastCommittedFilteredNodeIds.size > 0) {
       for (const id of nextNodeIdSet) {
@@ -2041,6 +2111,9 @@ function redraw(): void {
     const preservedPositions = new Map<string, CyModelPosition>()
     let useIncrementalLayout = false
     if (
+      !egoChanged &&
+      !selectionReplaced &&
+      !contextSwitch &&
       addedNodeIds.size > 0 &&
       selectionGrew &&
       egoUnchanged &&
@@ -2055,7 +2128,137 @@ function redraw(): void {
       })
       useIncrementalLayout = preservedPositions.size > 0
     }
+    
+    console.log('[GraphCanvas redraw] Decision:', {
+      useIncrementalLayout,
+      addedNodeCount: addedNodeIds.size,
+      preservedNodeCount: preservedPositions.size,
+      willHideCanvas: !useIncrementalLayout,
+    })
 
+    if (!useIncrementalLayout) {
+      graphContentHiddenUntilLayout.value = true
+    }
+
+    if (useIncrementalLayout && priorCore) {
+      // True incremental: add/remove elements on existing instance, no canvas blank
+      // Capture current viewport to preserve zoom/pan after incremental layout
+      pendingViewportPreserve = captureSelectedViewportAnchor(priorCore)
+      
+      const el = container.value
+      if (!el) {
+        graphCyNodeCount.value = 0
+        releaseGraphCanvasLayoutHold()
+        lastSelectedRelPathsCountAfterLayout = 0
+        lastCommittedFilteredNodeIds.clear()
+        lastCommittedEgoFocusCyId = ''
+        return
+      }
+
+      const art = gf.viewWithEgo(focusNodeId.value)
+      if (!art) {
+        destroyCy()
+        el.innerHTML =
+          '<p class="p-4 text-sm text-muted">Load artifacts and use "Load selected" to render the graph.</p>'
+        degreeHistogramCounts.value = {}
+        graphCyNodeCount.value = 0
+        releaseGraphCanvasLayoutHold()
+        lastSelectedRelPathsCountAfterLayout = 0
+        lastCommittedFilteredNodeIds.clear()
+        lastCommittedEgoFocusCyId = ''
+        return
+      }
+
+      const elements = toCytoElements(art, {
+        enableAggregatedEdges: lenses.aggregatedEdges,
+      })
+      const nodeCount = elements.filter((x) => !('source' in x.data)).length
+      if (nodeCount === 0) {
+        destroyCy()
+        el.innerHTML =
+          '<p class="p-4 text-sm text-muted">No nodes in this view (adjust filters).</p>'
+        degreeHistogramCounts.value = {}
+        graphCyNodeCount.value = 0
+        releaseGraphCanvasLayoutHold()
+        lastSelectedRelPathsCountAfterLayout = 0
+        lastCommittedFilteredNodeIds.clear()
+        lastCommittedEgoFocusCyId = ''
+        return
+      }
+
+      // Remove elements no longer in the graph
+      const nextEleIds = new Set(elements.map((e) => e.data.id))
+      const toRemove = priorCore.elements().filter((ele) => !nextEleIds.has(ele.id()))
+      console.log('[GraphCanvas incremental] Removing:', toRemove.length, 'elements')
+      priorCore.remove(toRemove)
+
+      // Add new elements to existing instance
+      const existingIds = new Set<string>()
+      priorCore.elements().forEach((ele) => {
+        const id = ele.id()
+        if (id) existingIds.add(id)
+      })
+      const toAdd = elements.filter((e) => {
+        const id = e.data.id
+        return id && !existingIds.has(id)
+      })
+      console.log('[GraphCanvas incremental] Adding:', toAdd.length, 'elements', 'Total after:', priorCore.elements().length + toAdd.length)
+      priorCore.add(toAdd)
+
+      // Seed positions for new nodes
+      seedPositionsForIncrementalAppend(priorCore, addedNodeIds)
+
+      graphCyNodeCount.value = nodeCount
+
+      const layoutGen = graphLayoutGate.bump()
+      const layoutName = preferredLayout.value
+      const layoutCollection = priorCore.elements().filter((ele) => {
+        if (ele.isNode()) {
+          return addedNodeIds.has(ele.id())
+        }
+        return (
+          addedNodeIds.has(ele.source().id()) || addedNodeIds.has(ele.target().id())
+        )
+      })
+
+      let initialLo: { stop: () => void; one: (ev: string, fn: () => void) => void; run: () => void }
+      try {
+        const layoutOpts = layoutOptionsFor(layoutName)
+        const initialSpec =
+          layoutName === 'timeline'
+            ? timelineLayoutSpec(priorCore)
+            : { ...layoutOpts, name: layoutName }
+        initialLo = layoutCollection.layout(initialSpec as never) as typeof initialLo
+      } catch {
+        releaseGraphCanvasLayoutHold()
+        return
+      }
+
+      activeElesLayout = initialLo
+      initialLo.one('layoutstop', () => {
+        if (graphLayoutGate.isStale(layoutGen)) {
+          return
+        }
+        if (activeElesLayout === initialLo) {
+          activeElesLayout = null
+        }
+        if (!cy || cy !== priorCore) {
+          releaseGraphCanvasLayoutHold()
+          return
+        }
+        finishLayoutPass(priorCore)
+      })
+      try {
+        initialLo.run()
+      } catch {
+        activeElesLayout = null
+        releaseGraphCanvasLayoutHold()
+      }
+      return
+    }
+
+    // FULL REDRAW PATH
+    console.log('[GraphCanvas] FULL REDRAW - destroying and recreating graph')
     destroyCy()
     const el = container.value
     if (!el) {
@@ -2334,7 +2537,7 @@ function redraw(): void {
     if (redrawPending) {
       redrawPending = false
       void nextTick(() => {
-        redraw()
+        scheduleRedraw()
       })
     }
   }
@@ -2425,7 +2628,47 @@ watch(
   () => {
     void nextTick(() => {
       safeGraphWatch('filteredArtifact', () => {
+        // Detect if this is an incremental append (superset) vs a full replacement
+        const currentNodeIds = new Set<string>()
+        if (gf.filteredArtifact) {
+          for (const n of gf.filteredArtifact.data.nodes || []) {
+            if (n.id && typeof n.id === 'string') {
+              currentNodeIds.add(n.id)
+            }
+          }
+        }
+
+        // Check if ALL previous nodes are still present (superset = incremental append)
+        let isIncrementalAppend = false
+        if (prevFilteredArtifactNodeIds.size > 0 && currentNodeIds.size >= prevFilteredArtifactNodeIds.size) {
+          isIncrementalAppend = true
+          for (const id of prevFilteredArtifactNodeIds) {
+            if (!currentNodeIds.has(id)) {
+              isIncrementalAppend = false
+              break
+            }
+          }
+        }
+
+        // Update tracked set for next comparison
+        prevFilteredArtifactNodeIds = currentNodeIds
+
+        console.log('[GraphCanvas filteredArtifact watcher]', {
+          prevNodeCount: prevFilteredArtifactNodeIds.size,
+          currentNodeCount: currentNodeIds.size,
+          isIncrementalAppend,
+        })
+
+        // During incremental appends (auto-merge), skip disruptive operations
+        // The existing redraw() logic will handle incremental layout naturally
+        if (isIncrementalAppend) {
+          console.log('[GraphCanvas filteredArtifact watcher] Skipping disruptive ops for incremental append')
+          return
+        }
+
+        // Full replacement: proceed with normal cleanup
         ge.resetForNewArtifact()
+        priorEgoBeforeWatcherClear = focusNodeId.value?.trim() ?? ''
         focusNodeId.value = null
         selectedNodeId.value = null
         // Keep the subject rail on **Episode** (Library / Digest) or **Graph node** (e.g. TopicCluster
@@ -2463,7 +2706,7 @@ watch(
         } else if (restoreEpisodeCyId) {
           nav.requestFocusNode(restoreEpisodeCyId)
         }
-        redraw()
+        scheduleRedraw()
       })
     })
   },
@@ -2514,7 +2757,7 @@ watch(
       egoPriorFullGraphViewportPreserve = null
       void nextTick(() => {
         try {
-          redraw()
+          scheduleRedraw()
         } catch (e) {
           console.warn('[GraphCanvas] watcher (theme nextTick):', e)
         }

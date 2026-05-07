@@ -111,7 +111,7 @@ useViewerKeyboard({
   isGraphTab,
   setMainTab: (tab) => {
     if (tab === 'graph') {
-      activateGraphTab()
+      void activateGraphTab()
     }
     else {
       mainTab.value = tab
@@ -123,12 +123,22 @@ useViewerKeyboard({
  * Switch to Graph without re-running corpus auto-sync when the merged graph is already loaded.
  * Tab switches alone must not replace the slice (episode “Open in graph” is highlight-only).
  */
-function activateGraphTab(targetNodeId?: string): void {
+async function activateGraphTab(
+  targetNodeId?: string,
+  focusFallbackId?: string,
+): Promise<void> {
   mainTab.value = 'graph'
   const target = targetNodeId?.trim()
+  const fbTrim = focusFallbackId?.trim()
   if (target) {
-    subject.focusTopic(target)
-    graphNav.requestFocusNode(target)
+    // CIL corpus ids (`topic:…`) open TopicEntityView (Digest / Explore handoffs).
+    // Graph cy ids (`tc:…`, `g:…`, compound slugs from topic_clusters.json, …) open NodeDetail.
+    if (target.startsWith('topic:')) {
+      subject.focusTopic(target)
+    } else {
+      subject.focusGraphNode(target)
+    }
+    graphNav.requestFocusNode(target, fbTrim || null)
   }
   const root = shell.corpusPath.trim()
   if (!root || !shell.healthStatus) {
@@ -137,10 +147,24 @@ function activateGraphTab(targetNodeId?: string): void {
   if (artifacts.manualGraphSelection) {
     return
   }
-  if (artifacts.parsedList.length > 0) {
-    return
+
+  graphExplorer.markGraphTabOpenedOnce()
+
+  if (artifacts.parsedList.length === 0) {
+    let bootstrappedFromCluster = false
+    if (target && !target.startsWith('topic:')) {
+      bootstrappedFromCluster =
+        await artifacts.maybeBootstrapGraphFromTopicClusterOnly(target)
+    }
+    if (!bootstrappedFromCluster) {
+      await syncMergedGraphFromCorpusApi()
+    }
   }
-  void syncMergedGraphFromCorpusApi()
+
+  if (target && !target.startsWith('topic:')) {
+    await artifacts.ensureTopicClusterCompoundVisible(target)
+    graphNav.requestFocusNode(target, fbTrim || null)
+  }
 }
 
 watch(mainTab, (tab) => {
@@ -149,7 +173,7 @@ watch(mainTab, (tab) => {
 
 function onSwitchMainTab(tab: 'digest' | 'library' | 'graph' | 'dashboard'): void {
   if (tab === 'graph') {
-    activateGraphTab()
+    void activateGraphTab()
     return
   }
   mainTab.value = tab
@@ -157,7 +181,7 @@ function onSwitchMainTab(tab: 'digest' | 'library' | 'graph' | 'dashboard'): voi
 
 function onStatusBarLocalArtifactsLoaded(loaded: boolean): void {
   if (loaded) {
-    activateGraphTab()
+    void activateGraphTab()
   }
 }
 
@@ -170,16 +194,8 @@ onMounted(() => {
   void shell.fetchHealth()
 })
 
-/** Run sibling merge when Graph is visible and load finished (covers tab switch during load). */
-watch(
-  () => [mainTab.value, artifacts.loading, artifacts.loadError] as const,
-  async ([tab, loading, err]) => {
-    if (tab !== 'graph' || loading || err) {
-      return
-    }
-    await artifacts.maybeMergeClusterSiblingEpisodes(true)
-  },
-)
+// Auto-merge is now triggered directly from artifacts.loadSelected() after load completes
+// (only when lastLoadSource is null, i.e., not an external Digest/Library load)
 
 watch(
   () => shell.corpusPath,
@@ -665,7 +681,7 @@ watch(
             class="h-full min-h-0 max-w-full flex-1 overflow-x-hidden overflow-y-auto p-3"
           >
             <DashboardView
-              @go-graph="activateGraphTab($event)"
+              @go-graph="(id, fb) => activateGraphTab(id, fb)"
               @open-library="mainTab = 'library'"
               @open-digest="mainTab = 'digest'"
             />

@@ -6,6 +6,7 @@ import {
 } from '../../api/corpusTopicClustersApi'
 import { useShellStore } from '../../stores/shell'
 import { clusterDisplayLabel } from '../../utils/topicClusterDisplay'
+import { graphCompoundParentIdFromCluster } from '../../utils/topicClustersOverlay'
 
 /**
  * UXS-006 §5.2 Topic landscape — #656 Stage A.
@@ -22,14 +23,15 @@ import { clusterDisplayLabel } from '../../utils/topicClusterDisplay'
  *     announce the surface correctly
  *   - visible focus ring on each cluster card (keyboard users)
  *
- * Click behavior stays scoped: ``go-graph`` is emitted with the
- * cluster target id so the graph tab opens on that specific cluster
- * when navigation wiring arrives — no consumers rely on the
- * argumentless form today.
+ * Click: emit ``go-graph`` with the best graph focus id — prefer
+ * ``graph_compound_parent_id`` / ``tc:…`` so the rail matches **NodeDetail**
+ * (TopicCluster) and Cytoscape can select the compound; optional second arg is
+ * a member ``topic:…`` id for ``requestFocusNode`` fallback when the compound
+ * is not yet in the rendered graph.
  */
 
 const emit = defineEmits<{
-  (e: 'go-graph', targetTopicId?: string): void
+  (e: 'go-graph', targetId?: string, focusFallbackId?: string): void
 }>()
 
 const shell = useShellStore()
@@ -85,9 +87,30 @@ const insight = computed(() => {
   return `${c.length} topic clusters covering ${topics} distinct topics.`
 })
 
+function firstMemberTopicId(c: TopicClustersCluster): string | undefined {
+  const m = c.members?.find((x) => (x.topic_id ?? '').trim().length > 0)
+  return m?.topic_id?.trim()
+}
+
+/** Prefer TopicCluster compound id for graph + NodeDetail; else CIL topic id. */
+function clusterActivateTargets(c: TopicClustersCluster): {
+  primary?: string
+  fallback?: string
+} {
+  const compound = graphCompoundParentIdFromCluster(c)
+  if (compound) {
+    return { primary: compound, fallback: firstMemberTopicId(c) }
+  }
+  const topic =
+    (c.cil_alias_target_topic_id ?? '').trim() ||
+    (c.canonical_topic_id ?? '').trim() ||
+    firstMemberTopicId(c)
+  return { primary: topic || undefined, fallback: undefined }
+}
+
 function onClusterActivate(c: TopicClustersCluster): void {
-  const target = c.cil_alias_target_topic_id || c.canonical_topic_id || undefined
-  emit('go-graph', target)
+  const { primary, fallback } = clusterActivateTargets(c)
+  emit('go-graph', primary, fallback)
 }
 </script>
 

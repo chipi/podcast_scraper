@@ -6,8 +6,16 @@ import type { ParsedArtifact } from '../types/artifact'
 import type { TopicClustersCluster, TopicClustersDocument } from '../api/corpusTopicClustersApi'
 import type { CorpusResolvedEpisodeArtifact } from '../api/corpusLibraryApi'
 
+/** Maximum number of sibling episodes to auto-load from topic clusters (default: 10). */
 export function clusterSiblingEpisodeCap(): number {
   const raw = import.meta.env.VITE_CLUSTER_SIBLING_EPISODE_CAP
+  const n = raw != null && String(raw).trim() !== '' ? Number.parseInt(String(raw), 10) : 10
+  return Number.isFinite(n) && n >= 0 ? n : 10
+}
+
+/** Maximum number of episodes to load from a Digest category band (default: 10). */
+export function digestCategoryBandEpisodeCap(): number {
+  const raw = import.meta.env.VITE_DIGEST_CATEGORY_BAND_CAP
   const n = raw != null && String(raw).trim() !== '' ? Number.parseInt(String(raw), 10) : 10
   return Number.isFinite(n) && n >= 0 ? n : 10
 }
@@ -71,6 +79,29 @@ export function clusterSiblingEpisodeIdCandidates(
 /**
  * Episode ids listed for a single member topic in one cluster (from ``members[].episode_ids``).
  */
+/** Union of ``members[].episode_ids`` for one cluster (topic_clusters.json). */
+export function allEpisodeIdsListedForCluster(
+  cluster: TopicClustersCluster | null | undefined,
+): string[] {
+  if (!cluster?.members?.length) {
+    return []
+  }
+  const seen = new Set<string>()
+  for (const m of cluster.members) {
+    const eps = m.episode_ids
+    if (!Array.isArray(eps)) {
+      continue
+    }
+    for (const e of eps) {
+      const id = typeof e === 'string' ? e.trim() : ''
+      if (id) {
+        seen.add(id)
+      }
+    }
+  }
+  return [...seen]
+}
+
 export function episodeIdsForClusterMember(
   cluster: TopicClustersCluster | null | undefined,
   topicId: string,

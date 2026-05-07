@@ -106,7 +106,8 @@ test.describe('Dashboard tab', () => {
       .click()
 
     await expect(page.getByTestId('graph-tab-panel')).toBeVisible()
-    await expect(page.getByTestId('topic-entity-view')).toBeVisible()
-    await expect(page.getByTestId('topic-entity-view-name')).toContainText(/ai policy|topic:ai-policy/i)
+    // Intelligence cluster cards prefer `tc:…` compound id → graph node rail (NodeDetail / TopicCluster).
+    await expect(page.getByTestId('graph-node-detail-rail')).toBeVisible({ timeout: 15_000 })
+    await expect(page.getByTestId('graph-node-detail-rail')).toContainText(/TopicCluster/i)
   })
 })

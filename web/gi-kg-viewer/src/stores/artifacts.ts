@@ -6,17 +6,21 @@ import { fetchTopicClustersFromApi } from '../api/corpusTopicClustersApi'
 import type { BridgeDocument } from '../types/bridge'
 import type { ArtifactData, ParsedArtifact } from '../types/artifact'
 import { parseBridgeDocument } from '../utils/bridgeDocument'
-import { parseArtifact } from '../utils/parsing'
+import { findRawNodeInArtifact, parseArtifact } from '../utils/parsing'
 import { fetchResolveEpisodeArtifacts } from '../api/corpusLibraryApi'
 import { buildDisplayArtifact } from '../utils/mergeGiKg'
 import {
+  allEpisodeIdsListedForCluster,
   artifactRelPathsForResolvedRow,
   clusterSiblingEpisodeCap,
   clusterSiblingEpisodeIdCandidates,
   episodeIdsFromParsedArtifacts,
   sortResolvedArtifactsNewestFirst,
 } from '../utils/clusterSiblingMerge'
-import { withTopicClustersOnDisplay } from '../utils/topicClustersOverlay'
+import {
+  findClusterByCompoundId,
+  withTopicClustersOnDisplay,
+} from '../utils/topicClustersOverlay'
 import { StaleGeneration } from '../utils/staleGeneration'
 import { useGraphExpansionStore } from './graphExpansion'
 import { useGraphExplorerStore } from './graphExplorer'
@@ -59,6 +63,14 @@ export const useArtifactsStore = defineStore('artifacts', () => {
   /** True when ``siblingMergeLine`` is from a failed resolve/load (shown as a top alert). */
   const siblingMergeError = ref(false)
   let siblingMergeInFlight: Promise<void> | null = null
+  /** Tracks selected paths snapshot when auto-merge last ran; prevents re-running on tab switch. */
+  let lastAutoMergeSnapshotKey = ''
+  /** 
+   * Tracks the source of the last artifact load to determine if auto-merge should run.
+   * 'digest-external' or 'library-external' = user clicked from outside graph → NO auto-merge
+   * 'graph-internal' or null = in-graph navigation or normal flow → YES auto-merge
+   */
+  let lastLoadSource: 'digest-external' | 'library-external' | 'graph-internal' | null = null
 
   const giArts = computed(() => parsedList.value.filter((p) => p.kind === 'gi'))
   const kgArts = computed(() => parsedList.value.filter((p) => p.kind === 'kg'))
@@ -233,6 +245,10 @@ export const useArtifactsStore = defineStore('artifacts', () => {
    */
   async function loadSelected(opts?: { preserveExpansion?: boolean }): Promise<void> {
     loadError.value = null
+    // Clear auto-merge snapshot only on full reloads (not expansion/append)
+    if (!opts?.preserveExpansion) {
+      lastAutoMergeSnapshotKey = ''
+    }
     // #586 fix: do NOT clear parsedList at the start. An intermediate
     // ``parsedList = []`` triggers the GraphCanvas ``filteredArtifact``
     // watcher → ``redraw()`` on an empty graph while the previous
@@ -419,6 +435,11 @@ export const useArtifactsStore = defineStore('artifacts', () => {
   async function maybeMergeClusterSiblingEpisodes(graphTabActive: boolean): Promise<void> {
     siblingMergeLine.value = null
     siblingMergeError.value = false
+    // Skip if last load was from external source (Digest/Library) - user wants focused view only
+    // Don't clear the flag here - let the caller clear it after all their operations complete
+    if (lastLoadSource === 'digest-external' || lastLoadSource === 'library-external') {
+      return
+    }
     if (!graphTabActive) {
       return
     }
@@ -430,6 +451,12 @@ export const useArtifactsStore = defineStore('artifacts', () => {
     if (cap === 0) {
       return
     }
+    // Don't auto-merge on tab switch if we already ran for this exact artifact set
+    const currentSnapshotKey = selectedRelPaths.value.slice().sort().join('|')
+    if (currentSnapshotKey === lastAutoMergeSnapshotKey) {
+      return
+    }
+    
     if (siblingMergeInFlight) {
       await siblingMergeInFlight
       return
@@ -441,6 +468,8 @@ export const useArtifactsStore = defineStore('artifacts', () => {
       loadedIds,
     )
     if (candidateIds.length === 0) {
+      // No candidates found, update snapshot to current state
+      lastAutoMergeSnapshotKey = currentSnapshotKey
       return
     }
 
@@ -486,6 +515,11 @@ export const useArtifactsStore = defineStore('artifacts', () => {
           `+${addedEpisodes} new · ${mTotal} in cluster · cap ${cap}${miss}`
         if (pathsToAdd.length > 0) {
           await appendRelativeArtifacts(pathsToAdd)
+          // Update snapshot AFTER successful append with the NEW state
+          lastAutoMergeSnapshotKey = selectedRelPaths.value.slice().sort().join('|')
+        } else {
+          // No paths added, keep current snapshot
+          lastAutoMergeSnapshotKey = currentSnapshotKey
         }
       } catch (e) {
         siblingMergeError.value = true
@@ -497,6 +531,128 @@ export const useArtifactsStore = defineStore('artifacts', () => {
       siblingMergeInFlight = null
     })
     await siblingMergeInFlight
+  }
+
+  /**
+   * Append GI/KG for ``topic_clusters.json`` member ``episode_ids`` until the TopicCluster
+   * compound exists in the merged + overlay graph — same catalog path as **Load** on a member
+   * row, without replacing the whole corpus selection.
+   */
+  async function ensureTopicClusterCompoundVisible(compoundParentId: string): Promise<boolean> {
+    const cid = compoundParentId.trim()
+    if (!cid) {
+      return true
+    }
+    const root = corpusPath.value.trim()
+    if (!root) {
+      return false
+    }
+    await syncTopicClustersForCurrentCorpus()
+    const doc = topicClustersDoc.value
+    const cluster = doc?.clusters?.length
+      ? findClusterByCompoundId(doc, cid)
+      : null
+    if (!cluster) {
+      return true
+    }
+
+    const mergedHasCompound = (): boolean => {
+      const da = displayArtifact.value
+      return Boolean(da && findRawNodeInArtifact(da, cid))
+    }
+    if (mergedHasCompound()) {
+      return true
+    }
+
+    const cap = clusterSiblingEpisodeCap()
+    let pool = allEpisodeIdsListedForCluster(cluster)
+    if (pool.length === 0) {
+      return false
+    }
+    let wave = 0
+    while (!mergedHasCompound() && pool.length > 0 && wave < 16) {
+      wave += 1
+      const loaded = episodeIdsFromParsedArtifacts(parsedList.value)
+      const candidateIds = pool.filter((e) => !loaded.has(e))
+      if (candidateIds.length === 0) {
+        break
+      }
+      const res = await fetchResolveEpisodeArtifacts(root, candidateIds)
+      const sorted = sortResolvedArtifactsNewestFirst(res.resolved)
+      const selected = new Set(selectedRelPaths.value.map((p) => p.replace(/\\/g, '/')))
+      const pathsToAdd: string[] = []
+      let addedEpisodes = 0
+      for (const row of sorted) {
+        if (addedEpisodes >= cap) {
+          break
+        }
+        const rels = artifactRelPathsForResolvedRow(row)
+        if (rels.length === 0) {
+          continue
+        }
+        let anyNew = false
+        for (const rel of rels) {
+          const norm = rel.replace(/\\/g, '/')
+          if (!selected.has(norm)) {
+            anyNew = true
+            break
+          }
+        }
+        if (!anyNew) {
+          continue
+        }
+        for (const rel of rels) {
+          const norm = rel.replace(/\\/g, '/')
+          if (!selected.has(norm)) {
+            selected.add(norm)
+            pathsToAdd.push(rel)
+          }
+        }
+        addedEpisodes += 1
+      }
+      if (pathsToAdd.length === 0) {
+        break
+      }
+      await appendRelativeArtifacts(pathsToAdd)
+      const loaded2 = episodeIdsFromParsedArtifacts(parsedList.value)
+      pool = allEpisodeIdsListedForCluster(cluster).filter((e) => !loaded2.has(e))
+    }
+    return mergedHasCompound()
+  }
+
+  /**
+   * When ``parsedList`` is empty and the user focuses a TopicCluster compound, try to populate
+   * the graph **only** from that cluster's ``members[].episode_ids`` (catalog resolve + append).
+   * Returns true if at least one GI/KG file was loaded — then App can **skip** the default
+   * capped corpus-wide ``syncMergedGraphFromCorpusApi`` sweep (avoids clear + full reload flash).
+   */
+  async function maybeBootstrapGraphFromTopicClusterOnly(
+    compoundParentId: string,
+  ): Promise<boolean> {
+    const cid = compoundParentId.trim()
+    if (!cid) {
+      return false
+    }
+    await syncTopicClustersForCurrentCorpus()
+    const doc = topicClustersDoc.value
+    const cluster = doc?.clusters?.length ? findClusterByCompoundId(doc, cid) : null
+    if (!cluster || allEpisodeIdsListedForCluster(cluster).length === 0) {
+      return false
+    }
+    await ensureTopicClusterCompoundVisible(cid)
+    return parsedList.value.length > 0
+  }
+
+  /**
+   * Set the source of the current artifact load to control auto-merge behavior.
+   * External loads (from Digest/Library) suppress auto-merge for focused views.
+   */
+  function setLoadSource(source: 'digest-external' | 'library-external' | 'graph-internal' | null): void {
+    lastLoadSource = source
+  }
+  
+  function clearLoadSource(): void {
+    lastLoadSource = null
   }
 
   return {
@@ -530,5 +686,9 @@ export const useArtifactsStore = defineStore('artifacts', () => {
     appendRelativeArtifacts,
     removeRelativeArtifacts,
     maybeMergeClusterSiblingEpisodes,
+    setLoadSource,
+    clearLoadSource,
+    ensureTopicClusterCompoundVisible,
+    maybeBootstrapGraphFromTopicClusterOnly,
   }
 })

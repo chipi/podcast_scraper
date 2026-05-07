@@ -295,12 +295,14 @@ const TOPIC_CLUSTER_CONNECTIONS_EMPTY =
  */
 const displayName = computed(() => {
   const cl = topicClusterDocEntry.value
-  const art = props.viewArtifact
-  if (cl && art) {
+  if (cl) {
     const raw = cl.canonical_label
     if (typeof raw === 'string' && raw.trim()) {
       return raw.trim()
     }
+  }
+  const art = props.viewArtifact
+  if (cl && art) {
     const cid = topicClusterCompoundId.value?.trim()
     if (cid) {
       const pn = findRawNodeInArtifact(art, cid)
@@ -1237,7 +1239,7 @@ const graphConnectionsCenterInView = computed((): boolean => {
 
 <template>
   <aside
-    v-if="nodeId && node"
+    v-if="nodeId && (node || hasTopicClusterJson)"
     class="relative z-20 text-surface-foreground"
     :class="
       props.embedInRail
@@ -1385,8 +1387,12 @@ const graphConnectionsCenterInView = computed((): boolean => {
     </nav>
 
     <div
-      class="px-2 py-2"
-      :class="props.embedInRail ? 'min-h-0 flex-1 overflow-y-auto' : 'overflow-y-auto px-3'"
+      class="py-2"
+      :class="
+        props.embedInRail
+          ? 'min-h-0 w-full min-w-0 flex-1 overflow-y-auto px-2'
+          : 'overflow-y-auto px-3'
+      "
       :style="props.embedInRail ? undefined : { maxHeight: 'calc(100vh - 12rem)' }"
     >
       <div
@@ -1466,7 +1472,7 @@ const graphConnectionsCenterInView = computed((): boolean => {
           </p>
           <ul
             v-if="topicClusterMemberRows.length"
-            class="mt-2 max-h-40 space-y-1.5 overflow-y-auto"
+            class="mt-2 w-full space-y-1.5"
           >
             <li
               v-for="(row, ri) in topicClusterMemberRows"
@@ -1844,7 +1850,7 @@ const graphConnectionsCenterInView = computed((): boolean => {
 
       <section
         v-if="showInlineTopicTimeline || showInlineClusterTimeline"
-        class="mb-3 min-w-0 overflow-x-hidden rounded border border-border bg-elevated/40 p-2"
+        class="mb-3 min-w-0 w-full overflow-x-clip overflow-y-visible rounded border border-border bg-elevated/40 p-2"
         data-testid="node-detail-inline-timeline"
       >
         <div class="mb-2 flex items-center justify-between gap-2">
@@ -1939,37 +1945,43 @@ const graphConnectionsCenterInView = computed((): boolean => {
               Newest
             </button>
           </div>
-          <ul class="max-h-64 space-y-2 overflow-y-auto overflow-x-hidden pr-1">
+          <ul class="w-full min-w-0 space-y-2 overflow-x-clip overflow-y-visible">
             <li
               v-for="(ep, ei) in inlineTimelineSortedEpisodes"
               :key="`${ep.episode_id}-${ei}`"
-              class="flex min-w-0 gap-2 rounded border border-border/70 bg-surface/60 p-2"
+              class="min-w-0 rounded border border-border/70 bg-surface/60 p-2"
             >
-              <div class="shrink-0 self-start">
-                <PodcastCover
-                  :corpus-path="corpusPathForCovers"
-                  :episode-image-local-relpath="ep.episode_image_local_relpath"
-                  :feed-image-local-relpath="ep.feed_image_local_relpath"
-                  :episode-image-url="ep.episode_image_url"
-                  :feed-image-url="ep.feed_image_url"
-                  :alt="`Cover for ${episodePrimaryHeading(ep)}`"
-                  size-class="h-10 w-10"
-                />
+              <div class="flex gap-2">
+                <div class="shrink-0 self-start">
+                  <PodcastCover
+                    :corpus-path="corpusPathForCovers"
+                    :episode-image-local-relpath="ep.episode_image_local_relpath"
+                    :feed-image-local-relpath="ep.feed_image_local_relpath"
+                    :episode-image-url="ep.episode_image_url"
+                    :feed-image-url="ep.feed_image_url"
+                    :alt="`Cover for ${episodePrimaryHeading(ep)}`"
+                    size-class="h-10 w-10"
+                  />
+                </div>
+                <div class="min-w-0 flex-1">
+                  <p class="text-[10px] font-medium text-gi/90">
+                    {{ formatEpisodeDate(ep.publish_date) || 'Date unknown' }}
+                  </p>
+                  <p class="break-words text-[11px] font-semibold leading-snug text-surface-foreground">
+                    {{ episodePrimaryHeading(ep) }}
+                  </p>
+                  <p
+                    v-if="episodeContextLine(ep)"
+                    class="break-words text-[10px] leading-snug text-muted"
+                  >
+                    {{ episodeContextLine(ep) }}
+                  </p>
+                </div>
               </div>
-              <div class="min-w-0 flex-1">
-                <p class="text-[10px] font-medium text-gi/90">
-                  {{ formatEpisodeDate(ep.publish_date) || 'Date unknown' }}
-                </p>
-                <p class="break-words text-[11px] font-semibold leading-snug text-surface-foreground">
-                  {{ episodePrimaryHeading(ep) }}
-                </p>
-                <p
-                  v-if="episodeContextLine(ep)"
-                  class="break-words text-[10px] leading-snug text-muted"
-                >
-                  {{ episodeContextLine(ep) }}
-                </p>
-                <ul class="mt-1 space-y-1">
+              <ul
+                v-if="ep.insights && ep.insights.length > 0"
+                class="mt-2 w-full list-none space-y-1 border-t border-border/60 pt-2"
+              >
                 <li
                   v-for="(ins, ii) in ep.insights"
                   :key="ii"
@@ -1977,8 +1989,7 @@ const graphConnectionsCenterInView = computed((): boolean => {
                 >
                   - {{ insightLine(ins) }}
                 </li>
-                </ul>
-              </div>
+              </ul>
             </li>
           </ul>
         </div>

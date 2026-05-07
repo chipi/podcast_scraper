@@ -65,8 +65,12 @@ const rawNode = computed(() => {
 
 /** Same type chip as ``NodeDetail``; used as rail heading (Library uses “Episode”). */
 const panelHeading = computed(() => {
-  const n = rawNode.value
   const id = nodeId.value?.trim()
+  /** Compound ids are stable even before ``topicClustersDoc`` sync or graph node resolution. */
+  if (id?.startsWith('tc:')) {
+    return 'TopicCluster'
+  }
+  const n = rawNode.value
   if (!n) {
     return 'Node'
   }

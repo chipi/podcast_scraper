@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, inject, onActivated, onBeforeUnmount, ref, watch } from 'vue'
+import { computed, onActivated, onBeforeUnmount, ref, watch } from 'vue'
 import { storeToRefs } from 'pinia'
 import {
   fetchCorpusDigest,
@@ -16,10 +16,10 @@ import { useArtifactsStore } from '../../stores/artifacts'
 import { useCorpusLensStore } from '../../stores/corpusLens'
 import DateChip from '../shared/DateChip.vue'
 import { useSubjectStore } from '../../stores/subject'
-import { useGraphExplorerStore } from '../../stores/graphExplorer'
 import { useGraphNavigationStore } from '../../stores/graphNavigation'
 import { useDashboardNavStore } from '../../stores/dashboardNav'
 import { useShellStore } from '../../stores/shell'
+import { digestCategoryBandEpisodeCap } from '../../utils/clusterSiblingMerge'
 import {
   digestRowFeedLabelWithCatalog,
   digestRowSummaryPreview,
@@ -33,7 +33,6 @@ import { formatUtcDateTimeForDisplay } from '../../utils/formatting'
 import { normalizeFeedIdForViewer } from '../../utils/feedId'
 import { handleVerticalListArrowKeydown } from '../../utils/listRowArrowNav'
 import { StaleGeneration } from '../../utils/staleGeneration'
-import { corpusGraphBaselineLoaderKey } from '../../corpusGraphBaseline'
 import {
   applyGraphFocusPlan,
   graphFocusPlanFromCilPill,
@@ -48,19 +47,8 @@ const emit = defineEmits<{
 const shell = useShellStore()
 const dashboardNav = useDashboardNavStore()
 const artifacts = useArtifactsStore()
-const graphExplorer = useGraphExplorerStore()
-const loadCorpusGraphBaseline = inject(corpusGraphBaselineLoaderKey, null)
 const graphNav = useGraphNavigationStore()
 
-async function ensureDefaultCorpusGraphIfNeeded(): Promise<void> {
-  if (!loadCorpusGraphBaseline) {
-    return
-  }
-  if (graphExplorer.graphTabOpenedThisSession && artifacts.selectedRelPaths.length > 0) {
-    return
-  }
-  await loadCorpusGraphBaseline()
-}
 const subject = useSubjectStore()
 const corpusLens = useCorpusLensStore()
 const { sinceYmd } = storeToRefs(corpusLens)
@@ -223,7 +211,9 @@ async function openDigestRecentTopicPillInGraph(
   }
   const pill = row.cil_digest_topics?.[pillIndex]
 
-  await ensureDefaultCorpusGraphIfNeeded()
+  // DO NOT call ensureDefaultCorpusGraphIfNeeded() - it sets mainTab to 'graph' which causes double-loading
+  // Mark this as external load from Digest - no auto-merge wanted
+  artifacts.setLoadSource('digest-external')
   await artifacts.appendRelativeArtifacts(cleaned)
   if (digestGraphOpenGate.isStale(seq)) {
     return
@@ -469,7 +459,9 @@ async function openTopicHitInGraph(
     graphActionError.value = 'No GI/KG artifacts on disk for this episode.'
     return
   }
-  await ensureDefaultCorpusGraphIfNeeded()
+  // DO NOT call ensureDefaultCorpusGraphIfNeeded() - it sets mainTab to 'graph' which causes double-loading
+  // Mark this as external load from Digest - no auto-merge wanted
+  artifacts.setLoadSource('digest-external')
   await artifacts.appendRelativeArtifacts(cleaned)
   if (digestGraphOpenGate.isStale(seq)) {
     return
@@ -492,17 +484,47 @@ async function openTopicHitInGraph(
 }
 
 async function openTopicBandInGraph(band: CorpusDigestTopicBand): Promise<void> {
+  const cap = digestCategoryBandEpisodeCap()
   const gid = band.graph_topic_id?.trim()
+  
+  // Collect all artifact paths from hits (up to cap)
+  const allPaths: string[] = []
+  let loadedCount = 0
+  
   for (const h of band.hits) {
+    if (loadedCount >= cap) {
+      break
+    }
     if (h.has_gi || h.has_kg) {
-      await openTopicHitInGraph(h, { graphTopicNodeId: gid })
-      if (gid) {
-        subject.focusTopic(gid)
+      if (h.has_gi && h.gi_relative_path?.trim()) {
+        allPaths.push(h.gi_relative_path.trim())
       }
-      return
+      if (h.has_kg && h.kg_relative_path?.trim()) {
+        allPaths.push(h.kg_relative_path.trim())
+      }
+      loadedCount += 1
     }
   }
-  graphActionError.value = "No GI/KG artifacts for this topic's hits."
+  
+  if (allPaths.length === 0) {
+    graphActionError.value = "No GI/KG artifacts for this topic's hits."
+    return
+  }
+  
+  // DO NOT call ensureDefaultCorpusGraphIfNeeded() - it sets mainTab to 'graph' which causes double-loading
+  // The graph baseline will be loaded by activateGraphTab() if needed
+  
+  // Mark this as external load from Digest - no auto-merge wanted
+  artifacts.setLoadSource('digest-external')
+  await artifacts.appendRelativeArtifacts(allPaths)
+  
+  if (gid) {
+    graphNav.requestFocusNode(gid)
+    subject.focusTopic(gid)
+  }
+  
+  artifacts.clearLoadSource()  // Clear flag immediately
+  emit('switch-main-tab', 'graph')
 }
 
 watch(
