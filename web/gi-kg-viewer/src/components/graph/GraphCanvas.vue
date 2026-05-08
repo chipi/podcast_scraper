@@ -33,6 +33,7 @@ import type { RawGraphNode } from '../../types/artifact'
 import { degreeBucketFor, emptyDegreeCounts } from '../../utils/graphDegreeBuckets'
 import {
   findEpisodeGraphNodeIdForMetadataPath,
+  findEpisodeGraphNodeIdForMetadataPathOrEpisodeId,
   graphCyIdRepresentsEpisodeNode,
   logicalEpisodeIdFromGraphNodeId,
   metadataPathFromEpisodeProperties,
@@ -127,6 +128,20 @@ watch(
  * preserves the manual-control escape hatch (operator can dismiss the
  * strip and the auto-load won't re-try until they re-focus the
  * episode). */
+/** When the user navigates to a different episode, clear the
+ * "already tried" guard so the new episode gets its own auto-load
+ * attempt. Without this, a Library → episode A → (failed slice) →
+ * Library → episode A → click leaves the guard set forever and
+ * camera centering stays broken until full page reload. */
+watch(
+  () => subject.episodeMetadataPath,
+  (next, prev) => {
+    if (next !== prev) {
+      episodeTerritoryAutoLoadTriedPaths.value.clear()
+    }
+  },
+)
+
 watch(
   () => [
     episodeTerritoryMode.value,
@@ -134,22 +149,29 @@ watch(
     episodeTerritoryDismissed.value,
   ] as const,
   () => {
+    console.log('[CAMERA-DBG] autoLoadWatcher FIRED mode=', episodeTerritoryMode.value, 'meta=', subject.episodeMetadataPath, 'dismissed=', episodeTerritoryDismissed.value)
     if (episodeTerritoryMode.value !== 'empty') {
+      console.log('[CAMERA-DBG] autoLoadWatcher SKIP not_empty mode=', episodeTerritoryMode.value)
       return
     }
     if (episodeTerritoryDismissed.value) {
+      console.log('[CAMERA-DBG] autoLoadWatcher SKIP dismissed')
       return
     }
     const meta = subject.episodeMetadataPath?.trim()
     if (!meta) {
+      console.log('[CAMERA-DBG] autoLoadWatcher SKIP no_meta')
       return
     }
     if (episodeTerritoryAutoLoadTriedPaths.value.has(meta)) {
+      console.log('[CAMERA-DBG] autoLoadWatcher SKIP already_tried meta=', meta)
       return
     }
     if (episodeTerritoryLoadBusy.value) {
+      console.log('[CAMERA-DBG] autoLoadWatcher SKIP busy')
       return
     }
+    console.log('[CAMERA-DBG] autoLoadWatcher TRIGGER loadEpisodeSlice meta=', meta)
     episodeTerritoryAutoLoadTriedPaths.value.add(meta)
     void loadEpisodeSliceForTerritoryStrip()
   },
@@ -415,6 +437,47 @@ let selectedNodeZoomAnchor: { x: number; y: number } | null = null
 /** Skip pan-by-anchor in zoom handler while applyViewportPreserveOrFit runs (zoom+pan ordering). */
 let suspendSelectedNodeZoomAnchorCorrection = 0
 
+/**
+ * Camera focus tracking: when a focus action is in progress (Digest pill, Dashboard click,
+ * Library episode open, etc.), the detail panel may open and resize the graph canvas
+ * AFTER the camera animation completes. This causes the centered node to drift off-center.
+ *
+ * Track the focus target and a deadline; the ResizeObserver re-centers on this node
+ * whenever the canvas resizes within the deadline window.
+ */
+let pendingRecenterCyId: string | null = null
+let pendingRecenterUntil = 0
+function armPendingRecenter(cyId: string, durationMs = 5000): void {
+  pendingRecenterCyId = cyId
+  pendingRecenterUntil = Date.now() + durationMs
+  console.log('[CAMERA-DBG] armPendingRecenter cyId=', cyId, 'durationMs=', durationMs)
+}
+/**
+ * Recenter on the pending focus target if still armed. Used by ResizeObserver
+ * (canvas size changed) and by deferred timers after animation (catches resizes
+ * that didn't fire on the observer, e.g. tab switches, rapid clicks, etc.).
+ */
+function recenterIfPending(core: Core, source: string = '?'): void {
+  if (!pendingRecenterCyId || Date.now() >= pendingRecenterUntil) {
+    console.log('[CAMERA-DBG] recenterIfPending SKIP source=', source, 'pending=', pendingRecenterCyId, 'expiredOrNo=', !pendingRecenterCyId || Date.now() >= pendingRecenterUntil)
+    return
+  }
+  try {
+    const tgt = core.$id(pendingRecenterCyId)
+    if (!tgt.empty()) {
+      const before = core.pan()
+      core.resize()
+      core.center(tgt)
+      const after = core.pan()
+      console.log('[CAMERA-DBG] recenterIfPending APPLIED source=', source, 'cyId=', pendingRecenterCyId, 'panBefore=', before, 'panAfter=', after, 'canvasW=', core.width(), 'canvasH=', core.height())
+    } else {
+      console.log('[CAMERA-DBG] recenterIfPending NODE_NOT_FOUND source=', source, 'cyId=', pendingRecenterCyId)
+    }
+  } catch (e) {
+    console.log('[CAMERA-DBG] recenterIfPending ERROR source=', source, 'err=', e)
+  }
+}
+
 function clearSelectedNodeZoomAnchor(): void {
   selectedNodeZoomAnchor = null
 }
@@ -660,22 +723,56 @@ function applyEpisodeRepresentativeFocusIfNeeded(
   core: Core,
   opts?: { skipCamera?: boolean },
 ): void {
+  console.log('[CAMERA-DBG] applyEpisodeRepFocus ENTRY subject.kind=', subject.kind, 'episodeMetadataPath=', subject.episodeMetadataPath, 'graphConnectionsCyId=', subject.graphConnectionsCyId, 'dismissed=', episodeTerritoryDismissed.value, 'skipCamera=', opts?.skipCamera)
   if (episodeTerritoryDismissed.value) {
+    console.log('[CAMERA-DBG] applyEpisodeRepFocus EARLY_DISMISSED')
     clearEpisodeRepresentativeGraphState(core)
     return
   }
   if (subject.kind !== 'episode') {
+    console.log('[CAMERA-DBG] applyEpisodeRepFocus EARLY_KIND_NOT_EPISODE kind=', subject.kind)
     episodeTerritoryMode.value = 'off'
     return
   }
   const meta = subject.episodeMetadataPath?.trim()
   if (!meta) {
+    console.log('[CAMERA-DBG] applyEpisodeRepFocus EARLY_NO_META')
     episodeTerritoryMode.value = 'off'
     return
   }
   const metaNorm = normalizeCorpusMetadataPath(meta)
-  const best = findEpisodeGraphNodeIdForMetadataPath(gf.filteredArtifact, meta)
+  /** Use the episode-id fallback variant: the unified-merge graph emits Episode nodes
+   *  with ``__unified_ep__:UUID`` ids whose properties (``podcast_id``, ``title``,
+   *  ``publish_date``, ``duration_ms``, ``feed_id``) do NOT include ``metadata_relative_path``,
+   *  so a path-only lookup always returns null and camera centering never animates.
+   *  ``findEpisodeGraphNodeIdForMetadataPathOrEpisodeId`` falls back to matching by
+   *  ``logicalEpisodeIdFromGraphNodeId`` (UUID extraction) when path-based resolution misses. */
+  const best = findEpisodeGraphNodeIdForMetadataPathOrEpisodeId(
+    gf.filteredArtifact,
+    meta,
+    subject.episodeId,
+  )
   const preferred = subject.graphConnectionsCyId?.trim() || ''
+  // [CAMERA-DBG] expose artifact node mix to diagnose why lookup misses
+  try {
+    const artNodes = (gf.filteredArtifact?.data?.nodes ?? []) as Array<{ id?: unknown; type?: unknown; properties?: Record<string, unknown> }>
+    const nNodes = artNodes.length
+    const episodeDiagnostics: Array<{ id: string; mp: string | null; propKeys: string[] }> = []
+    for (const n of artNodes) {
+      if (n?.type === 'Episode') {
+        const id = String(n?.id ?? '')
+        const props = (n?.properties ?? {}) as Record<string, unknown>
+        const mp = metadataPathFromEpisodeProperties(n as RawGraphNode)
+        episodeDiagnostics.push({ id, mp, propKeys: Object.keys(props) })
+      }
+    }
+    console.log('[CAMERA-DBG] applyEpisodeRepFocus artifactStats nNodes=', nNodes, 'nEpisode=', episodeDiagnostics.length, 'metaNorm=', metaNorm)
+    for (const d of episodeDiagnostics.slice(0, 5)) {
+      console.log('[CAMERA-DBG]   ep id=', d.id, 'mp=', d.mp, 'propKeys=', d.propKeys)
+    }
+  } catch (e) {
+    console.log('[CAMERA-DBG] applyEpisodeRepFocus artifactStats ERROR', e)
+  }
 
   let cyEpisodeId: string | null = best
   if (preferred) {
@@ -703,16 +800,21 @@ function applyEpisodeRepresentativeFocusIfNeeded(
   }
 
   if (!cyEpisodeId) {
-    episodeTerritoryMode.value = 'empty'
+    console.log('[CAMERA-DBG] applyEpisodeRepFocus NO_CY_EPISODE_ID best=', best, 'preferred=', preferred, 'meta=', meta)
+    /** Order matters: ``clearEpisodeRepresentativeGraphState`` resets mode to 'off' internally; we MUST write 'empty' AFTER so the auto-load watcher sees the correct final value within Vue's batching window (otherwise auto-load never fires and the episode never enters the graph). */
     clearEpisodeRepresentativeGraphState(core)
+    episodeTerritoryMode.value = 'empty'
     return
   }
   const coll = core.$id(cyEpisodeId)
   if (coll.empty()) {
-    episodeTerritoryMode.value = 'empty'
+    console.log('[CAMERA-DBG] applyEpisodeRepFocus COLL_EMPTY cyEpisodeId=', cyEpisodeId)
+    /** See above: clear before setting 'empty' so the watcher observes the correct final mode. */
     clearEpisodeRepresentativeGraphState(core)
+    episodeTerritoryMode.value = 'empty'
     return
   }
+  console.log('[CAMERA-DBG] applyEpisodeRepFocus FOUND cyEpisodeId=', cyEpisodeId)
   episodeTerritoryMode.value = 'off'
   const node = coll.first() as NodeSingular
   const selectedNow = core.nodes(':selected')
@@ -756,12 +858,22 @@ function dismissEpisodeTerritoryStrip(): void {
 async function loadEpisodeSliceForTerritoryStrip(): Promise<void> {
   const meta = subject.episodeMetadataPath?.trim()
   const root = shell.corpusPath.trim()
+  console.log('[CAMERA-DBG] loadEpisodeSlice ENTRY meta=', meta, 'root=', root, 'health=', shell.healthStatus)
   if (!meta || !root || !shell.healthStatus) {
+    console.log('[CAMERA-DBG] loadEpisodeSlice EARLY_PRECONDITION_FAIL')
     return
   }
   episodeTerritoryLoadBusy.value = true
   try {
     const d = await fetchCorpusEpisodeDetail(root, meta)
+    console.log('[CAMERA-DBG] loadEpisodeSlice fetched detail has_gi=', d.has_gi, 'has_kg=', d.has_kg, 'gi=', d.gi_relative_path, 'kg=', d.kg_relative_path, 'episode_id=', d.episode_id)
+    /** Capture the episode UUID so ``applyEpisodeRepresentativeFocusIfNeeded`` can resolve the
+     *  Cytoscape node id via ``__unified_ep__:UUID`` when Episode rows lack ``metadata_relative_path``
+     *  in their properties (the unified-merge graph case). Without this fallback, camera centering
+     *  after Library / Search / Dashboard handoff stays broken. */
+    if (d.episode_id?.trim()) {
+      subject.setEpisodeId(d.episode_id.trim())
+    }
     const paths: string[] = []
     if (d.has_gi && d.gi_relative_path?.trim()) {
       paths.push(d.gi_relative_path.trim())
@@ -770,12 +882,24 @@ async function loadEpisodeSliceForTerritoryStrip(): Promise<void> {
       paths.push(d.kg_relative_path.trim())
     }
     if (paths.length === 0) {
+      console.log('[CAMERA-DBG] loadEpisodeSlice NO_PATHS_TO_LOAD')
       return
     }
+    console.log('[CAMERA-DBG] loadEpisodeSlice appending paths=', paths)
+    /** Tag this append as external (Library-style) navigation so the
+     *  ``filteredArtifact`` watcher does NOT short-circuit the
+     *  ``scheduleRedraw()`` call for "incremental append, no pending
+     *  focus" — without this, second/third "Open in graph" clicks
+     *  load the artifact into ``filteredArtifact`` but never flush
+     *  the new nodes into Cytoscape's ``core``, so ``$id(cy).empty()``
+     *  is true and camera animation never fires. */
+    artifacts.setLoadSource('library-external')
     await artifacts.appendRelativeArtifacts(paths)
+    console.log('[CAMERA-DBG] loadEpisodeSlice append DONE')
     subject.setEpisodeUiLabel(d.episode_title ?? null)
     episodeTerritoryDismissed.value = false
-  } catch {
+  } catch (e) {
+    console.log('[CAMERA-DBG] loadEpisodeSlice ERROR', e)
     /* ignore — caller sees empty strip until retry */
   } finally {
     episodeTerritoryLoadBusy.value = false
@@ -1345,6 +1469,13 @@ function finishLayoutPass(core: Core): void {
   // Set cooldown to prevent immediate redraws from watchers reacting to layout state changes
   layoutCompletionCooldownUntil = Date.now() + 300 // 300ms cooldown
   releaseGraphPaintAfterLayout(core)
+  // Layout just completed and the canvas may have been resizing during it
+  // (Library/Search/Dashboard handoff: graph mounting + detail panel opening
+  // simultaneously). If a focus action is in flight, recenter the target.
+  recenterIfPending(core, 'finishLayoutPass')
+  setTimeout(() => {
+    if (cy === core) recenterIfPending(core, 'finishLayoutPass+250ms')
+  }, 250)
 }
 
 function applyCrossEpisodeExpandHints(core: Core): void {
@@ -1606,10 +1737,20 @@ function animateCameraToFocusedNode(
   cyId: string,
   opts?: { extraRawIds?: readonly string[] | null },
 ): void {
+  console.log('[CAMERA-DBG] animateCameraToFocusedNode ENTRY cyId=', cyId)
   const id = cyId.trim()
   if (!id) return
   const n = core.$id(id)
-  if (n.empty()) return
+  if (n.empty()) {
+    console.log('[CAMERA-DBG] animateCameraToFocusedNode NODE_EMPTY cyId=', cyId)
+    return
+  }
+  // Arm pending-recenter so any canvas resize over the next window recenters on
+  // this node. Catches detail-panel open transitions, tab switches (Library /
+  // Dashboard / Search → Graph), and other layout shifts that happen during or
+  // after the camera animation.
+  armPendingRecenter(cyId)
+  console.log('[CAMERA-DBG] animateCameraToFocusedNode STARTING cyId=', cyId, 'pan=', core.pan(), 'zoom=', core.zoom(), 'canvasW=', core.width(), 'canvasH=', core.height())
   suspendSelectedNodeZoomAnchorCorrection += 1
   try {
     const targetZoom = Math.max(core.zoom(), GRAPH_FOCUS_FRAME_MIN_ZOOM)
@@ -1631,12 +1772,36 @@ function animateCameraToFocusedNode(
       zoom: targetZoom,
       duration: 320,
       complete: () => {
+        // Canvas may have resized during animation (detail panel opening, tab switch,
+        // initial graph mount on Library/Dashboard handoff). Force resize + recenter
+        // against CURRENT canvas dimensions.
+        try {
+          const beforePan = core.pan()
+          core.resize()
+          core.center(centerEles)
+          console.log('[CAMERA-DBG] animation COMPLETE recenter centerEles=', centerEles.id(), 'panBefore=', beforePan, 'panAfter=', core.pan(), 'canvasW=', core.width(), 'canvasH=', core.height())
+        } catch (e) {
+          console.log('[CAMERA-DBG] animation COMPLETE recenter ERROR', e)
+        }
         suspendSelectedNodeZoomAnchorCorrection -= 1
         refreshSelectedNodeZoomAnchor(core)
         lastZoomLevel = core.zoom()
         updateZoomPercentDisplay(core)
       },
     })
+    // Safety net: ResizeObserver may not fire for every layout shift (e.g. tab
+    // switches that mount the graph for the first time, async artifact loads).
+    // Schedule fallback recenters to ensure the node ends up centered even when
+    // no resize event triggers our observer.
+    setTimeout(() => {
+      if (cy === core) recenterIfPending(core, 'animTimer400')
+    }, 400)
+    setTimeout(() => {
+      if (cy === core) recenterIfPending(core, 'animTimer900')
+    }, 900)
+    setTimeout(() => {
+      if (cy === core) recenterIfPending(core, 'animTimer1800')
+    }, 1800)
   } catch {
     suspendSelectedNodeZoomAnchorCorrection -= 1
     try {
@@ -1653,6 +1818,7 @@ function animateCameraToFocusedNode(
 /** @returns ``true`` when pending focus was applied (camera + selection); caller may skip episode-strip camera. */
 function tryApplyPendingFocus(core: Core): boolean {
   const rawId = nav.pendingFocusNodeId
+  console.log('[CAMERA-DBG] tryApplyPendingFocus ENTRY pendingFocusNodeId=', rawId, 'fallback=', nav.pendingFocusFallbackNodeId)
   if (!rawId) return false
   const fallbackRaw = nav.pendingFocusFallbackNodeId
   let cyId = resolveCyNodeId(core, rawId)
@@ -1661,16 +1827,21 @@ function tryApplyPendingFocus(core: Core): boolean {
   }
   /** Do not clear pending: ``redraw`` can leave the graph mid-rebuild; a later ``finishLayoutPass`` / watcher applies. */
   if (!cyId) {
+    console.log('[CAMERA-DBG] tryApplyPendingFocus NO_CYID rawId=', rawId)
     return false
   }
   const n = core.$id(cyId)
   if (n.empty()) {
+    console.log('[CAMERA-DBG] tryApplyPendingFocus NODE_EMPTY cyId=', cyId)
     return false
   }
+  console.log('[CAMERA-DBG] tryApplyPendingFocus FOUND cyId=', cyId)
   const focusNode = n.first() as NodeSingular
   core.nodes().unselect()
   focusNode.select()
   selectedNodeId.value = cyId
+  // Clear zoom anchor before animation to prevent zoom event handler from interfering with camera centering
+  clearSelectedNodeZoomAnchor()
   try {
     applyGraphSelectionDimFromNode(core, focusNode)
   } catch {
@@ -2136,10 +2307,17 @@ function redraw(): void {
 
     const preservedPositions = new Map<string, CyModelPosition>()
     let useIncrementalLayout = false
+    
+    // Check if this is an external navigation (Digest/Library) - if so, force full layout
+    const isExternalNavigation =
+      artifacts.currentLoadSource === 'digest-external' ||
+      artifacts.currentLoadSource === 'library-external'
+    
     if (
       !egoChanged &&
       !selectionReplaced &&
       !contextSwitch &&
+      !isExternalNavigation &&  // Force full layout for external navigation
       addedNodeIds.size > 0 &&
       selectionGrew &&
       egoUnchanged &&
@@ -2157,6 +2335,7 @@ function redraw(): void {
     
     console.log('[GraphCanvas redraw] Decision:', {
       useIncrementalLayout,
+      isExternalNavigation,
       addedNodeCount: addedNodeIds.size,
       preservedNodeCount: preservedPositions.size,
       willHideCanvas: !useIncrementalLayout,
@@ -2425,7 +2604,12 @@ function redraw(): void {
     }
 
     const sync = (): void => {
-      if (cy === core) core.resize()
+      if (cy !== core) return
+      core.resize()
+      // While a focus action is in flight, recenter on the focus target so the
+      // node stays in the middle of the visible graph viewport (catches detail
+      // panel transitions, tab switches, layout shifts).
+      recenterIfPending(core, 'ResizeObserver')
     }
     if (typeof ResizeObserver !== 'undefined') {
       resizeObs = new ResizeObserver(sync)
@@ -2688,14 +2872,26 @@ watch(
           prevNodeCount: prevFilteredArtifactNodeIds.size,
           currentNodeCount: currentNodeIds.size,
           isIncrementalAppend,
+          hasPendingFocus: !!nav.pendingFocusNodeId,
+          loadSource: artifacts.currentLoadSource,
         })
 
-        // During incremental appends (auto-merge), skip disruptive operations
+        // During incremental appends (auto-merge), skip disruptive operations UNLESS there's a pending
+        // focus request from user navigation (e.g., clicking subsequent Digest pills). External loads
+        // from Digest/Library are user navigation and should NOT be skipped.
         // The existing redraw() logic will handle incremental layout naturally
-        if (isIncrementalAppend) {
+        const isExternalNavigation =
+          artifacts.currentLoadSource === 'digest-external' ||
+          artifacts.currentLoadSource === 'library-external'
+        
+        if (isIncrementalAppend && !nav.pendingFocusNodeId && !isExternalNavigation) {
           console.log('[GraphCanvas filteredArtifact watcher] Skipping disruptive ops for incremental append')
+          artifacts.clearLoadSource()  // Clear after decision
           return
         }
+        
+        // Clear load source after checking (external navigation proceeds with disruption)
+        artifacts.clearLoadSource()
 
         // Full replacement: proceed with normal cleanup
         ge.resetForNewArtifact()
@@ -2740,6 +2936,28 @@ watch(
         scheduleRedraw()
       })
     })
+  },
+  { flush: 'post' },
+)
+
+// Watch for pending focus changes to apply focus even when artifacts don't change
+// (e.g., clicking multiple topic pills from the same episode in Digest)
+watch(
+  () => nav.pendingFocusNodeId,
+  (newFocusId) => {
+    if (!newFocusId || !cy) return
+    // Check if the node exists using $id() to handle special characters in IDs
+    const node = cy.$id(newFocusId)
+    if (node.length > 0) {
+      // Node exists - directly apply focus without full redraw
+      void nextTick(() => {
+        safeGraphWatch('pendingFocus', () => {
+          if (cy) {
+            tryApplyPendingFocus(cy)
+          }
+        })
+      })
+    }
   },
   { flush: 'post' },
 )
@@ -2819,6 +3037,7 @@ watch(
       subject.kind,
       subject.episodeMetadataPath,
       subject.episodeUiLabel,
+      subject.episodeId,
       subject.graphConnectionsCyId,
       gf.fullArtifact,
       gf.filteredArtifact,

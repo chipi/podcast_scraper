@@ -301,6 +301,13 @@ export const useArtifactsStore = defineStore('artifacts', () => {
         loadError.value = 'No .gi.json or .kg.json files in selection.'
         return
       }
+      /** Align topic-cluster catalog with the artifact slice before assigning ``parsedList``. */
+      if (!loadGate.isStale(seq)) {
+        await syncTopicClustersForCurrentCorpus()
+      }
+      if (loadGate.isStale(seq)) {
+        return
+      }
       parsedList.value = out
       if (!bridgeDocument.value) {
         const giRel = selectedRelPaths.value.find((p) => p.toLowerCase().endsWith('.gi.json'))
@@ -322,10 +329,6 @@ export const useArtifactsStore = defineStore('artifacts', () => {
           }
         }
       }
-      if (loadGate.isStale(seq)) {
-        return
-      }
-      await syncTopicClustersForCurrentCorpus()
     } catch (e) {
       if (loadGate.isStale(seq)) {
         return
@@ -654,6 +657,14 @@ export const useArtifactsStore = defineStore('artifacts', () => {
   function clearLoadSource(): void {
     lastLoadSource = null
   }
+  
+  /**
+   * Getter for the current load source (readonly).
+   * Used by GraphCanvas to determine if incremental appends should skip disruptive ops.
+   */
+  const currentLoadSource = computed<'digest-external' | 'library-external' | 'graph-internal' | null>(
+    () => lastLoadSource,
+  )
 
   return {
     corpusPath,
@@ -688,6 +699,7 @@ export const useArtifactsStore = defineStore('artifacts', () => {
     maybeMergeClusterSiblingEpisodes,
     setLoadSource,
     clearLoadSource,
+    currentLoadSource,  // Readonly getter for lastLoadSource
     ensureTopicClusterCompoundVisible,
     maybeBootstrapGraphFromTopicClusterOnly,
   }

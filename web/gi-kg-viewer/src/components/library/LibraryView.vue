@@ -351,6 +351,7 @@ async function loadEpisodes(append: boolean): Promise<void> {
 function selectEpisode(row: CorpusEpisodeListItem): void {
   subject.focusEpisode(row.metadata_relative_path, {
     uiTitle: row.episode_title?.trim() || null,
+    episodeId: row.episode_id ?? null,
   })
 }
 
@@ -363,6 +364,7 @@ function selectEpisode(row: CorpusEpisodeListItem): void {
 function openEpisodeInGraph(row: CorpusEpisodeListItem): void {
   subject.focusEpisode(row.metadata_relative_path, {
     uiTitle: row.episode_title?.trim() || null,
+    episodeId: row.episode_id ?? null,
   })
   void ensureDefaultCorpusGraphIfNeeded()
   emit('switch-main-tab', 'graph')

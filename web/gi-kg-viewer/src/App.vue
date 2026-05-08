@@ -194,8 +194,22 @@ onMounted(() => {
   void shell.fetchHealth()
 })
 
-// Auto-merge is now triggered directly from artifacts.loadSelected() after load completes
-// (only when lastLoadSource is null, i.e., not an external Digest/Library load)
+/** Topic-cluster sibling catalog merge: ``artifacts.loadSelected`` does not know the active tab. */
+watch(
+  () =>
+    ({
+      loading: artifacts.loading,
+      parsedLen: artifacts.parsedList.length,
+      tab: mainTab.value,
+    }) as const,
+  async ({ loading, parsedLen, tab }) => {
+    if (loading || parsedLen === 0 || tab !== 'graph') {
+      return
+    }
+    await artifacts.maybeMergeClusterSiblingEpisodes(true)
+  },
+  { flush: 'post' },
+)
 
 watch(
   () => shell.corpusPath,

@@ -7,7 +7,7 @@
 ## Test Results Summary
 
 | Category | Passed | Failed | Total |
-|----------|--------|--------|-------|
+| --- | --- | --- | --- |
 | Fresh start scenarios | 3 | 0 | 3 |
 | State-dependent scenarios | 2 | 0 | 2 |
 | Sequential navigation | 2 | 0 | 2 |
@@ -16,9 +16,11 @@
 ## Detailed Test Results
 
 ### Test 1: Fresh Start → Digest Topic Pill ✓ PASS
+
 **Entry**: Fresh page load → Click "public investment" topic pill  
 **Expected**: Graph loads, topic selected, camera centered, 100%+ zoom  
 **Result**:
+
 - Zoom: 130% ✓
 - Nodes visible: 41 ✓
 - Selected: 1 node ✓
@@ -26,10 +28,12 @@
 - **PASS**: All criteria met
 
 ### Test 2: Graph Tab First → Digest Topic Pill ✓ PASS (Critical Fix Verification)
+
 **Entry**: Click Graph tab → Click Digest tab → Click "urban planning" topic pill  
 **Setup**: This creates a viewport snapshot from the Graph tab visit  
 **Expected**: Topic selected, camera focused on topic (NOT stuck in old viewport)  
 **Result**:
+
 - Zoom: 130% ✓
 - Nodes visible: 41 ✓
 - Selected: 1 node ✓
@@ -40,17 +44,21 @@
 **This was the BROKEN scenario before Fix #3.1**
 
 ### Test 3a: Sequential Topic Pills - First Click ✓ PASS
+
 **Entry**: Click "public investment"  
 **Expected**: Topic selected, proper zoom  
 **Result**:
+
 - Zoom: 130% ✓
 - Selected: 1 node ✓
 - **PASS**
 
 ### Test 3b: Sequential Topic Pills - Second Click ✓ PASS
+
 **Entry**: Return to Digest → Click "urban planning"  
 **Expected**: New topic selected, camera updates  
 **Result**:
+
 - Zoom: 130% ✓
 - Selected: 1 node ✓
 - **PASS**: Sequential navigation works correctly
@@ -58,24 +66,29 @@
 ## Critical Fixes Validated
 
 ### Fix #1: NodeDetail "Load" Button Path Tracking
+
 **Status**: ✓ Implemented  
 **Files**: `NodeDetail.vue`  
 **Changes**: Added `artifacts.setLoadSource('graph-internal')` and `clearLoadSource()` in finally block  
 **Manual Validation Required**: Click cluster → Click "Load" in detail panel → Verify path updates
 
 ### Fix #2: Digest Topic Cluster Selection and Focus
+
 **Status**: ✓ Implemented  
 **Files**: `DigestView.vue`  
-**Changes**: 
+**Changes**:
+
 - Added `findTopicClusterContextForGraphNode` import
 - Implemented CIL topic → TC cluster ID mapping
 - Special case for category bands without clusters
 **Validation**: Tests 1-3 confirm topic selection works correctly
 
 ### Fix #3: Camera Centering and Zoom
+
 **Status**: ✓ Implemented (with Fix #3.1 correction)  
 **Files**: `GraphCanvas.vue`, `graphNavigation.ts`  
 **Changes**:
+
 - Added `requestFitAfterLoad` flag
 - Implemented 50% zoom for category bands without focus
 - **Fix #3.1**: Reordered `applyViewportPreserveOrFit` to check `pendingFocusNodeId` FIRST
@@ -100,12 +113,14 @@ These scenarios from `INCREMENTAL_LOADING_TEST_CRITERIA.md` require manual valid
 ## Key Findings
 
 ### ✓ What's Working
+
 1. **Fresh start topic selection** - Topics focus correctly from clean state
 2. **State-dependent navigation** - Fixed! Topics focus correctly even after Graph tab visit
 3. **Sequential navigation** - Multiple topic clicks work smoothly
 4. **Camera behavior** - Zoom and pan correctly positioned for focused topics
 
 ### ⚠️ What Needs More Testing
+
 1. **Category bands without clusters** - Need to verify 50% zoom (manual test showed it works)
 2. **NodeDetail "Load" button** - Fix #1 implemented but not yet validated
 3. **Dashboard entry points** - Not tested in this suite
@@ -140,6 +155,7 @@ These scenarios from `INCREMENTAL_LOADING_TEST_CRITERIA.md` require manual valid
 The critical fix (Fix #3.1 - viewport logic reordering) successfully resolves the "stuck in old viewport" issue that occurred when visiting Graph tab before clicking Digest topic pills.
 
 The three main fixes are:
+
 - ✓ Fix #1: Implemented (awaiting manual validation)
 - ✓ Fix #2: Implemented and validated
 - ✓ Fix #3 + #3.1: Implemented and validated

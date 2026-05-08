@@ -18,6 +18,16 @@ export const useSubjectStore = defineStore('subject', () => {
   const episodeMetadataPath = ref<string | null>(null)
   /** Optional strip / graph territory label (e.g. episode title). */
   const episodeUiLabel = ref<string | null>(null)
+  /**
+   * Episode UUID (logical id) for the focused episode when known. Used
+   * to resolve the graph Cytoscape node id when Episode rows in the
+   * artifact only carry the UUID in their node id (``__unified_ep__:UUID``)
+   * and do **not** expose ``metadata_relative_path`` as a property — the
+   * common case for the unified-merge graph. Without this, camera
+   * centering after Library / Search / Dashboard handoff cannot resolve
+   * the node and never animates.
+   */
+  const episodeId = ref<string | null>(null)
   const graphNodeCyId = ref<string | null>(null)
   const graphConnectionsCyId = ref<string | null>(null)
   const topicId = ref<string | null>(null)
@@ -26,6 +36,7 @@ export const useSubjectStore = defineStore('subject', () => {
   function clearFields(): void {
     episodeMetadataPath.value = null
     episodeUiLabel.value = null
+    episodeId.value = null
     graphNodeCyId.value = null
     graphConnectionsCyId.value = null
     topicId.value = null
@@ -34,7 +45,11 @@ export const useSubjectStore = defineStore('subject', () => {
 
   function focusEpisode(
     metadataPath: string,
-    opts?: { graphConnectionsCyId?: string | null; uiTitle?: string | null },
+    opts?: {
+      graphConnectionsCyId?: string | null
+      uiTitle?: string | null
+      episodeId?: string | null
+    },
   ): void {
     const t = metadataPath.trim()
     if (!t) {
@@ -58,6 +73,13 @@ export const useSubjectStore = defineStore('subject', () => {
     graphConnectionsCyId.value = cy || null
     const lab = opts?.uiTitle?.trim()
     episodeUiLabel.value = lab ? truncateUiLabel(lab) : null
+    const eid = opts?.episodeId?.trim()
+    episodeId.value = eid ? eid : null
+  }
+
+  function setEpisodeId(v: string | null): void {
+    const t = v?.trim()
+    episodeId.value = t ? t : null
   }
 
   function focusGraphNode(cyNodeId: string): void {
@@ -122,6 +144,7 @@ export const useSubjectStore = defineStore('subject', () => {
     kind,
     episodeMetadataPath,
     episodeUiLabel,
+    episodeId,
     graphNodeCyId,
     graphConnectionsCyId,
     topicId,
@@ -133,5 +156,6 @@ export const useSubjectStore = defineStore('subject', () => {
     focusPerson,
     clearSubject,
     setEpisodeUiLabel,
+    setEpisodeId,
   }
 })
