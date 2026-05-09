@@ -103,7 +103,7 @@ fi
 if grep -q "overwrite a non-default policy file" "$APPLY_LOG"; then
   echo ""
   echo "==> [recover] ACL conflict detected — importing existing ACL..."
-  ( cd infra && ./tofu import tailscale_acl.main acl )
+  ( cd infra && ./tofu import 'tailscale_acl.main[0]' acl )
   echo ""
   echo "==> [recover] Re-running apply after ACL import..."
   run_tofu_apply

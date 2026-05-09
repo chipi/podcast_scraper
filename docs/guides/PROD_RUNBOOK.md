@@ -342,6 +342,8 @@ cd /srv/podcast-scraper
 make restore-corpus               # pulls latest snapshot.tgz from
                                   # chipi/podcast_scraper-backup, untars
                                   # into /srv/podcast-scraper/corpus/
+# Pin a specific backup release (DR drills / audits):
+#   PODCAST_BACKUP_TAG=<release-tag> make restore-corpus
 
 # Verify
 ls -la corpus/feeds/ | head
@@ -426,6 +428,9 @@ Corpus is recoverable to within ~24 h of pre-disaster state (last
 
 [#724](https://github.com/chipi/podcast_scraper/issues/724) tracks the
 end-to-end DR drill that calibrates these numbers against reality.
+Complete the prerequisite checklist ([#751](https://github.com/chipi/podcast_scraper/issues/751),
+copy-paste guide: [RFC-082 DR drill prerequisite checklist](../wip/RFC-082_DR_DRILL_PREREQ_CHECKLIST.md))
+before scheduling that drill.
 
 ---
 
@@ -1104,3 +1109,4 @@ glance. Knowing about them saves debugging time.
 - [#714](https://github.com/chipi/podcast_scraper/issues/714) — account prereqs checklist
 - [#723](https://github.com/chipi/podcast_scraper/issues/723) — Phase B cutover
 - [#724](https://github.com/chipi/podcast_scraper/issues/724) — DR drill
+- [#751](https://github.com/chipi/podcast_scraper/issues/751) — DR drill prerequisites (before #724)

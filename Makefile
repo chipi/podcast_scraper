@@ -852,32 +852,45 @@ codespace-backup-cloud:
 	echo ""; \
 	echo "Watch: gh run watch <id> --repo chipi/podcast_scraper"
 
-# Pull the latest corpus snapshot from chipi/podcast_scraper-backup and
-# untar into ``.codespace_corpus/`` (the workspace-survives-suspend
-# path that the codespace bind-mounts as the corpus root).
+# Pull a corpus snapshot from chipi/podcast_scraper-backup (or PODCAST_BACKUP_REPO)
+# and untar into ``.codespace_corpus/`` (the workspace-survives-suspend path that
+# the codespace bind-mounts as the corpus root).
 #
 # Requires:
-#   * gh auth login with read access to chipi/podcast_scraper-backup
-#     (private repo).
-#   * Run from inside the codespace OR with the workspace path
-#     overridden via WORKSPACE_DIR (default: current dir).
+#   * gh auth login with read access to the backup repo (private by default).
+#   * Run from inside the codespace OR with the workspace path overridden via
+#     WORKSPACE_DIR (default: current dir).
+#
+# Optional: set PODCAST_BACKUP_TAG to a release tag (for example after a drill
+# backup) instead of always taking the latest release. When unset, behaviour is
+# unchanged: restore the most recent release from gh release list.
 restore-corpus:
 	@WORKSPACE_DIR="$${WORKSPACE_DIR:-$$PWD}"; \
 	BACKUP_REPO="$${PODCAST_BACKUP_REPO:-chipi/podcast_scraper-backup}"; \
-	echo "Restoring latest corpus snapshot from $$BACKUP_REPO ..."; \
-	if ! gh release list --repo "$$BACKUP_REPO" --limit 1 >/dev/null 2>&1; then \
-		echo "ERROR: cannot list releases on $$BACKUP_REPO." >&2; \
-		echo "       Confirm the repo exists, your gh CLI is authenticated, and" >&2; \
-		echo "       your token has read access to that private repo." >&2; \
-		exit 2; \
+	if [ -n "$${PODCAST_BACKUP_TAG:-}" ]; then \
+		TAG="$${PODCAST_BACKUP_TAG}"; \
+		echo "Restoring corpus snapshot $$TAG from $$BACKUP_REPO ..."; \
+		if ! gh release view "$$TAG" --repo "$$BACKUP_REPO" >/dev/null 2>&1; then \
+			echo "ERROR: release $$TAG not found on $$BACKUP_REPO." >&2; \
+			echo "       Confirm the tag name and gh read access." >&2; \
+			exit 2; \
+		fi; \
+	else \
+		echo "Restoring latest corpus snapshot from $$BACKUP_REPO ..."; \
+		if ! gh release list --repo "$$BACKUP_REPO" --limit 1 >/dev/null 2>&1; then \
+			echo "ERROR: cannot list releases on $$BACKUP_REPO." >&2; \
+			echo "       Confirm the repo exists, your gh CLI is authenticated, and" >&2; \
+			echo "       your token has read access to that private repo." >&2; \
+			exit 2; \
+		fi; \
+		TAG=$$(gh release list --repo "$$BACKUP_REPO" --limit 1 --json tagName -q '.[0].tagName'); \
+		echo "Latest snapshot: $$TAG"; \
 	fi; \
-	LATEST=$$(gh release list --repo "$$BACKUP_REPO" --limit 1 --json tagName -q '.[0].tagName'); \
-	echo "Latest snapshot: $$LATEST"; \
 	mkdir -p "$$WORKSPACE_DIR/.codespace_corpus"; \
 	cd /tmp && rm -f snapshot.tgz; \
-	gh release download "$$LATEST" --repo "$$BACKUP_REPO" --pattern 'snapshot.tgz' --output /tmp/snapshot.tgz; \
+	gh release download "$$TAG" --repo "$$BACKUP_REPO" --pattern 'snapshot.tgz' --output /tmp/snapshot.tgz; \
 	tar -xzf /tmp/snapshot.tgz -C "$$WORKSPACE_DIR" --strip-components=0; \
-	echo "OK: corpus restored from $$LATEST into $$WORKSPACE_DIR/.codespace_corpus/"
+	echo "OK: corpus restored from $$TAG into $$WORKSPACE_DIR/.codespace_corpus/"
 
 # Vitest unit tests for TypeScript utility logic (no browser needed)
 test-ui:

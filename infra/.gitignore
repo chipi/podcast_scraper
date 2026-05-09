@@ -4,6 +4,7 @@ terraform/terraform.tfstate.backup
 terraform/.terraform/
 terraform/*.tfplan
 terraform/*.tfplan.bin
+terraform/terraform.drill.tfvars
 
 # Local operator overrides (host .env staging, scratch notes)
 .env.local

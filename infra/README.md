@@ -52,6 +52,19 @@ export TF_VAR_tailscale_api_key=$(op read 'op://Personal/Tailscale/podcast-scrap
 
 The `tofu` wrapper auto-decrypts state before invocation and re-encrypts after.
 
+## DR drill workspace (OpenTofu, GitHub #752)
+
+Use a **separate OpenTofu workspace** (e.g. `drill`) and a **Hetzner API token scoped only to the drill project** so `tofu apply` cannot touch production resources.
+
+1. `cd infra/terraform && tofu workspace new drill` (once).
+2. Copy [terraform/terraform.drill.tfvars.example](terraform/terraform.drill.tfvars.example) to a **gitignored** `terraform.drill.tfvars` (or export matching `TF_VAR_*`).
+3. Set **`manage_tailscale_acl = false`** for the drill workspace so this state does **not** manage `tailscale_acl` (the tailnet-wide ACL must stay owned by the default/prod workspace only — two states must not fight the same Tailscale API object).
+4. Set **`tailscale_advertise_tags`** to your drill tag (e.g. `["tag:dr-drill"]`) and **`tailnet_hostname`** distinct from prod (e.g. `dr-podcast`), matching [tailscale/policy.hujson](../tailscale/policy.hujson) `tagOwners` / ACLs.
+5. **`hcloud_environment_label = "drill"`** so the Hetzner server label reflects the stack.
+6. Per-workspace **encrypted state** (separate `.enc` path or `terraform.tfstate.d/<workspace>/` + wrapper updates) is tracked in #752; until then, do not commit plaintext drill state.
+
+Prod / default workspace keeps **`manage_tailscale_acl = true`** (default) and `tailscale_advertise_tags = ["tag:prod"]`.
+
 ### Host metrics (Grafana Alloy on the VPS)
 
 When all of `TF_VAR_grafana_cloud_metrics_remote_write_url`, `TF_VAR_grafana_cloud_metrics_username`, and `TF_VAR_grafana_cloud_metrics_password` are non-empty, first-boot cloud-init installs **Grafana Alloy** from `apt.grafana.com`, enables `prometheus.exporter.unix` (node-style host metrics), and **remote_writes** to Grafana Cloud using basic auth. Credentials land in `/etc/alloy/grafana-cloud.env` (mode 0600); River config is `/etc/alloy/config.alloy`.
@@ -79,3 +92,4 @@ clean up.
 - [PROD_RUNBOOK.md](../docs/guides/PROD_RUNBOOK.md) — full operator runbook
 - [#716](https://github.com/chipi/podcast_scraper/issues/716) — this scaffolding ticket
 - [#719](https://github.com/chipi/podcast_scraper/issues/719) — `infra-ci.yml` (PR plan) and `infra-apply.yml` (manual apply) workflows
+- [#752](https://github.com/chipi/podcast_scraper/issues/752) — recurring DR drill CI (workspace `drill`, prod-only `tailscale_acl`)
