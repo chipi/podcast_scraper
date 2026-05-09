@@ -38,6 +38,8 @@ is green and pins itself to that run's `head_sha` so subsequent pushes don't shi
 On-failure compose log dump (`api` / `viewer` / `pipeline` / `pipeline-llm`) was added so future
 pipeline failures are diagnosable from the workflow log.
 
+**OpenTofu / DR drill (RFC-082 / #752):** `infra-ci.yml` posts the **default** workspace plan on PRs touching `infra/**`. `drill-infra-plan.yml` posts a second comment with the **`drill`** workspace plan (same path filters). Manual apply uses `infra-apply.yml` (environment **prod**) versus `drill-infra-apply.yml` (environment **drill**). See `infra/README.md`.
+
 ---
 
 ## Complete Pipeline Visualization

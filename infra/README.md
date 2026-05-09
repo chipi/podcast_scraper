@@ -14,8 +14,9 @@ infra/
 ├── README.md                   # this file
 ├── terraform/
 │   ├── *.tf                    # OpenTofu config (server, network, Tailscale)
-│   └── terraform.tfstate.enc   # sops+age-encrypted state (committed; appears
-│                               # after first apply)
+│   ├── terraform.drill.ci.tfvars  # non-secret drill defaults for GHA (#752)
+│   ├── terraform.tfstate.enc # sops+age-encrypted state, default workspace (committed after prod apply)
+│   └── terraform.tfstate.enc.drill  # optional; encrypted state for workspace `drill` (#752)
 ├── cloud-init/
 │   └── prod.user-data          # first-boot bootstrap (Docker, Tailscale, repo pull, optional Alloy)
 └── deploy/
@@ -61,7 +62,16 @@ Use a **separate OpenTofu workspace** (e.g. `drill`) and a **Hetzner API token s
 3. Set **`manage_tailscale_acl = false`** for the drill workspace so this state does **not** manage `tailscale_acl` (the tailnet-wide ACL must stay owned by the default/prod workspace only — two states must not fight the same Tailscale API object).
 4. Set **`tailscale_advertise_tags`** to your drill tag (e.g. `["tag:dr-drill"]`) and **`tailnet_hostname`** distinct from prod (e.g. `dr-podcast`), matching [tailscale/policy.hujson](../tailscale/policy.hujson) `tagOwners` / ACLs.
 5. **`hcloud_environment_label = "drill"`** so the Hetzner server label reflects the stack.
-6. Per-workspace **encrypted state** (separate `.enc` path or `terraform.tfstate.d/<workspace>/` + wrapper updates) is tracked in #752; until then, do not commit plaintext drill state.
+6. Encrypted state for workspace **`drill`** is stored separately as **`terraform.tfstate.enc.drill`** (sops+age, same key as `TFSTATE_AGE_KEY` unless you rotate a drill-only key). Commit that file when you want CI to plan against existing drill state; otherwise the first plan starts empty. **Never** commit plaintext under `terraform.tfstate.d/`.
+
+### GitHub Actions (drill, #752)
+
+| Workflow | Purpose |
+| -------- | ------- |
+| [`.github/workflows/drill-infra-plan.yml`](../.github/workflows/drill-infra-plan.yml) | On PRs touching `infra/**` or `tailscale/policy.hujson`, runs `tofu fmt -check`, `validate`, and `tofu plan` in workspace **`drill`** (posts a second PR comment next to `infra-ci.yml`). |
+| [`.github/workflows/drill-infra-apply.yml`](../.github/workflows/drill-infra-apply.yml) | Manual `workflow_dispatch` with confirm **`APPLY`**, GitHub Environment **`drill`**, `tofu apply`, re-encrypt **`terraform.tfstate.enc.drill`**, upload artifact. |
+
+**Secrets (repository):** `HCLOUD_TOKEN_DRILL` (Hetzner token scoped to the drill project only), plus the same `TS_API_KEY` and `TFSTATE_AGE_KEY` as prod infra workflows unless you document a drill-only age key. **Variables:** reuse `OPERATOR_SSH_PUBLIC_KEY` and `TAILNET_NAME` from prod.
 
 Prod / default workspace keeps **`manage_tailscale_acl = true`** (default) and `tailscale_advertise_tags = ["tag:prod"]`.
 
@@ -73,7 +83,9 @@ When all of `TF_VAR_grafana_cloud_metrics_remote_write_url`, `TF_VAR_grafana_clo
 
 ## State encryption model
 
-State lives at `terraform/terraform.tfstate.enc` (sops+age, committed). Plaintext
+State lives at `terraform/terraform.tfstate.enc` (sops+age, committed) for the **default**
+OpenTofu workspace. Workspace **`drill`** uses **`terraform.tfstate.enc.drill`** when managed
+through CI or operators following `infra/README.md` § DR drill. Plaintext
 **never** touches the repo or shell history. The wrapper:
 
 1. Decrypts `.enc` → `terraform/terraform.tfstate` (plaintext, for tofu only).
@@ -92,4 +104,4 @@ clean up.
 - [PROD_RUNBOOK.md](../docs/guides/PROD_RUNBOOK.md) — full operator runbook
 - [#716](https://github.com/chipi/podcast_scraper/issues/716) — this scaffolding ticket
 - [#719](https://github.com/chipi/podcast_scraper/issues/719) — `infra-ci.yml` (PR plan) and `infra-apply.yml` (manual apply) workflows
-- [#752](https://github.com/chipi/podcast_scraper/issues/752) — recurring DR drill CI (workspace `drill`, prod-only `tailscale_acl`)
+- [#752](https://github.com/chipi/podcast_scraper/issues/752) — recurring DR drill CI (`drill-infra-plan.yml`, `drill-infra-apply.yml`, workspace `drill`, prod-only `tailscale_acl`)
