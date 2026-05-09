@@ -69,7 +69,8 @@ services:
     # Docker job-mode wiring (mirror of stack-test). The api spawns
     # ``pipeline-llm`` containers via ``docker compose run --rm`` rather
     # than running pipeline code in-process; the published ``api`` image
-    # only ships ``[server]`` extras, so an in-process pipeline run
+    # only ships the runtime HTTP stack plus ``.[search]`` (not full ``.[dev]`` or
+    # ``.[ml]``), so an in-process pipeline run
     # would crash on missing ``[llm]``/``[ml]`` deps. The mount of
     # ``/var/run/docker.sock`` lets the api shell out to the host
     # docker daemon; the read-only project dir mount makes
@@ -89,7 +90,7 @@ services:
       PODCAST_RELEASE: ${PODCAST_RELEASE:-}
       # Docker job mode: api spawns the pipeline container via compose
       # instead of running pipeline code in-process. Required because
-      # the published ``api`` image only ships ``[server]`` extras.
+      # the published ``api`` image only ships runtime HTTP + search deps.
       PODCAST_PIPELINE_EXEC_MODE: docker
       PODCAST_DOCKER_PROJECT_DIR: ${PODCAST_DOCKER_PROJECT_DIR:?see comment above; required env var (.devcontainer/start.sh for Codespaces, .env for VPS)}
       # Pass-through for the nested ``docker compose run`` the api spawns.

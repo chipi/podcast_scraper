@@ -1,8 +1,7 @@
 """Integration tests for the in-process feed-sweep scheduler (#708).
 
-APScheduler-dependent — lives in ``tests/integration/`` because ``apscheduler``
-is in the ``[server]`` extra (UNIT_TESTING_GUIDE.md gates ``tests/unit/`` to
-``[dev]`` only).
+APScheduler-dependent — lives under ``tests/integration/`` per testing policy
+(keep scheduler wiring out of ``tests/unit/`` even though ``.[dev]`` includes APScheduler).
 """
 
 from __future__ import annotations

@@ -30,7 +30,7 @@ from podcast_scraper.providers.grok.grok_provider import GrokProvider
 from podcast_scraper.providers.mistral.mistral_provider import MistralProvider
 from podcast_scraper.providers.openai.openai_provider import OpenAIProvider
 
-# Moved from tests/unit/ — RFC-081 PR-A1: tests that import [ml]/[llm]/[server]
+# Moved from tests/unit/ — RFC-081 PR-A1: tests that import [ml]/[llm] or viewer HTTP
 # gated modules belong in the integration tier per UNIT_TESTING_GUIDE.md.
 pytestmark = [pytest.mark.integration]
 

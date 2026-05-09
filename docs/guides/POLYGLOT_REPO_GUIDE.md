@@ -15,7 +15,7 @@ Treat them as two toolchains that share one git tree, not one unified `npm` work
 | **Python app** (CLI, pipeline, FastAPI server) | Repo root (`pyproject.toml`, `src/`) | `python3 -m venv .venv`, `source .venv/bin/activate`, `make init` or `pip install -e ".[…]"` |
 | **Viewer UI** (Vue 3 + Vite + TypeScript) | `web/gi-kg-viewer/` (`package.json`) | `cd web/gi-kg-viewer && npm install`; `npm run dev` / `npm run build` / `npm run test:*` |
 
-**End-to-end viewer (API + built SPA in one process):** install `[server]`, build `dist/` under
+**End-to-end viewer (API + built SPA in one process):** install `[dev]`, build `dist/` under
 `web/gi-kg-viewer`, then `python -m podcast_scraper.cli serve --output-dir …`. See
 [Server Guide](SERVER_GUIDE.md) and [web/gi-kg-viewer/README.md](https://github.com/chipi/podcast_scraper/blob/main/web/gi-kg-viewer/README.md).
 

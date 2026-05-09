@@ -5,7 +5,7 @@ import { fetchWithTimeout } from './httpClient'
 function raiseCorpusHttpError(res: Response, bodyText: string): never {
   if (res.status === 404) {
     throw new Error(
-      'Corpus Library endpoint not found (404). Restart the viewer API from a current checkout (pip install -e ".[server]", then make serve-api or podcast serve). Ensure Vite proxies /api to that process (default port 8000).',
+      'Corpus Library endpoint not found (404). Restart the viewer API from a current checkout (pip install -e ".[dev]", then make serve-api or podcast serve). Ensure Vite proxies /api to that process (default port 8000).',
     )
   }
   throw new Error(bodyText || `HTTP ${res.status}`)

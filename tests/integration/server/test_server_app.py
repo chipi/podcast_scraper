@@ -1,6 +1,6 @@
 """Integration tests for FastAPI app factory.
 
-Requires ``fastapi`` (``pip install -e '.[server]'``).
+Requires ``fastapi`` (``pip install -e '.[dev]'``).
 """
 
 from __future__ import annotations

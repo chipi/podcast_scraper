@@ -10,7 +10,7 @@ import pytest
 
 from podcast_scraper.server import cil_queries
 
-# Moved from tests/unit/ — RFC-081 PR-A1: tests that import [ml]/[llm]/[server]
+# Moved from tests/unit/ — RFC-081 PR-A1: tests that import [ml]/[llm] or viewer HTTP
 # gated modules belong in the integration tier per UNIT_TESTING_GUIDE.md.
 pytestmark = [pytest.mark.integration]
 

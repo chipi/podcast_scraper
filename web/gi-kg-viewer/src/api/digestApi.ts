@@ -4,7 +4,7 @@ import { fetchWithTimeout } from './httpClient'
 function raiseDigestHttpError(res: Response, bodyText: string): never {
   if (res.status === 404) {
     throw new Error(
-      'Digest endpoint not found (404). Restart the viewer API from a current checkout (pip install -e ".[server]", then make serve-api or podcast serve).',
+      'Digest endpoint not found (404). Restart the viewer API from a current checkout (pip install -e ".[dev]", then make serve-api or podcast serve).',
     )
   }
   throw new Error(bodyText || `HTTP ${res.status}`)

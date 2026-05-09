@@ -624,7 +624,7 @@ onBeforeUnmount(() => {
       class="text-sm text-danger"
     >
       This API does not expose corpus catalog routes (<code class="text-xs">/api/corpus/*</code>).
-      Restart from a current checkout with <code class="text-xs">.[server]</code> installed.
+      Restart from a current checkout with <code class="text-xs">.[dev]</code> installed.
     </p>
     <p
       v-else-if="!shell.corpusDigestApiAvailable"

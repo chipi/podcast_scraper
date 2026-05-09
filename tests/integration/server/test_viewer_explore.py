@@ -1,6 +1,6 @@
 """Viewer API: GET /api/explore.
 
-Requires ``fastapi`` (``pip install -e '.[server]'``).
+Requires ``fastapi`` (``pip install -e '.[dev]'``).
 """
 
 from __future__ import annotations

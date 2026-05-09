@@ -37,7 +37,7 @@ dependencies = [
 
 [project.optional-dependencies]
 # Canonical extras (no separate [gemini] / [openai] extras):
-#   dev       — tests, lint, typecheck, text eval metrics (ROUGE/BLEU/WER); no torch/transformers
+#   dev       — tests, lint, typecheck, FastAPI/uvicorn (viewer API), text eval metrics; no torch/transformers
 #   ml        — Whisper, spaCy (+models), torch, transformers, sentence-transformers, FAISS,
 #               llama-cpp-python (GGUF hybrid REDUCE, RFC-042), etc.
 #   llm       — API SDKs: openai, google-genai (Gemini), anthropic, mistralai, httpx (Ollama checks)
@@ -45,8 +45,8 @@ dependencies = [
 #               Pulled into the cloud-API pipeline image alongside [llm] so cloud_balanced can
 #               build its FAISS index without dragging in spaCy/Whisper/Pegasus/llama-cpp from [ml].
 #   compare   — Streamlit compare UI (RFC-047)
-#   server    — GI/KG viewer HTTP API: FastAPI + uvicorn (RFC-062 / #489)
 #   monitor   — py-spy + memray optional profiling (RFC-065; `--monitor` needs no extra)
+#   (FastAPI / uvicorn / metrics / scheduler for ``podcast serve`` live in [dev], not a separate extra.)
 # Heavy ML dependencies - only install when needed
 ml = [
   "openai-whisper>=20231117",
@@ -105,27 +105,19 @@ search = [
   "faiss-cpu>=1.13.2,<2.0.0",
   "protobuf>=3.20.0,!=6.33.4,<8.0.0",  # Exclude 6.33.4 due to CVE-2026-0994 (fixed in 6.33.5+)
 ]
-# Local GI/KG viewer API server (RFC-062); install when using `podcast serve` or `make serve-api`
-server = [
-  "fastapi>=0.115.0,<1.0.0",
-  "uvicorn[standard]>=0.32.0,<1.0.0",
-  # Prometheus exporter for /metrics. Wired in src/podcast_scraper/server/app.py
-  # gated on PODCAST_METRICS_ENABLED so default behaviour (no Grafana account)
-  # stays a no-op. Targeted at the Grafana Cloud free tier in pre-prod (RFC-081).
-  "prometheus-fastapi-instrumentator>=7.0.0,<8.0.0",
-  # APScheduler powers the optional in-process feed-sweep scheduler (#708).
-  # Wired in src/podcast_scraper/server/scheduler.py; no-op unless
-  # ``scheduled_jobs:`` is present in viewer_operator.yaml. 3.x is the
-  # stable line; 4.x is a breaking redesign still in beta as of writing.
-  "apscheduler>=3.10.0,<4.0.0",
-]
 # Live pipeline monitor profiling: py-spy + memray (RFC-065; core `--monitor` uses stdlib + psutil + rich)
 monitor = [
   "py-spy>=0.4.2",
   "memray>=1.5.0",
 ]
-# Development tools
+# Development tools plus GI/KG viewer HTTP stack (FastAPI, RFC-062) — same pins as docker/api/Dockerfile
 dev = [
+  "fastapi>=0.115.0,<1.0.0",
+  "uvicorn[standard]>=0.32.0,<1.0.0",
+  # Prometheus exporter for /metrics (gated on PODCAST_METRICS_ENABLED in app.py).
+  "prometheus-fastapi-instrumentator>=7.0.0,<8.0.0",
+  # In-process feed-sweep scheduler (#708); no-op unless ``scheduled_jobs:`` in viewer_operator.yaml.
+  "apscheduler>=3.10.0,<4.0.0",
   "black>=23.0.0,<27.0.0",
   "isort>=8.0.1,<9.0.0",
   "flake8>=6.0.0,<8.0.0",

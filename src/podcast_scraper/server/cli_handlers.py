@@ -59,7 +59,10 @@ def parse_serve_argv(argv: Sequence[str]) -> Namespace:
     """Parse arguments after the ``serve`` token."""
     parser = argparse.ArgumentParser(
         prog="podcast serve",
-        description="Run the GI/KG viewer HTTP API (install .[server] if needed).",
+        description=(
+            "Run the GI/KG viewer HTTP API (use pip install -e '.[dev]' or matching pins from "
+            "docker/api/Dockerfile)."
+        ),
     )
     parser.add_argument(
         "--output-dir",
@@ -122,7 +125,7 @@ def run_serve(args: Namespace, log: logging.Logger) -> int:
         import uvicorn
     except ImportError:
         log.error(
-            "Missing server dependencies. Install with: pip install -e '.[server]'",
+            "Missing server dependencies. Install with: pip install -e '.[dev]'",
         )
         return 1
 

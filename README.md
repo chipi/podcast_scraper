@@ -63,16 +63,16 @@ Browse **Grounded Insight** and **Knowledge Graph** artifacts, use **semantic se
 
 | Goal | Install | Notes |
 | ---- | ------- | ----- |
-| **API + built UI in one process** | `pip install -e ".[server]"` and, once, `cd web/gi-kg-viewer && npm install && npm run build` | `make init` does **not** include `[server]` by default; add the extra if you use `serve`. |
+| **API + built UI in one process** | `pip install -e ".[dev]"` and, once, `cd web/gi-kg-viewer && npm install && npm run build` | `make init` installs `[dev,ml,llm]`; FastAPI ships with `[dev]`. |
 | **Graph only, no Python API** | Just open the UI (e.g. Vite dev) and use **Choose .gi.json / .kg.json files** | Works when `/api/health` fails; no list/search/index from the server. |
-| **Semantic search / index stats** | `[server]` + `[ml]` (FAISS, embeddings) as for `podcast search` | Index lives under `<output_dir>/search/`. See [Semantic Search Guide](docs/guides/SEMANTIC_SEARCH_GUIDE.md). |
+| **Semantic search / index stats** | `[dev]` + `[ml]` (FAISS, embeddings) as for `podcast search` | Index lives under `<output_dir>/search/`. See [Semantic Search Guide](docs/guides/SEMANTIC_SEARCH_GUIDE.md). |
 
 ### Run the server (typical)
 
 From the repository root, with your virtualenv active:
 
 ```bash
-pip install -e ".[server]"
+pip install -e ".[dev]"
 cd web/gi-kg-viewer && npm install && npm run build && cd ../..
 python -m podcast_scraper.cli serve --output-dir /path/to/your/run
 ```
@@ -139,7 +139,7 @@ Choose the installation method based on your use case:
 | **Local ML only** | `pip install -e ".[ml]"` | Core + Whisper, spaCy, torch, transformers, FAISS, **llama-cpp-python** (GGUF), etc. | ~1-3GB |
 | **Both** (recommended) | `pip install -e ".[ml,llm]"` | Local ML + all LLM API SDKs | ~1-3GB |
 | **Run comparison UI** (eval runs) | `pip install -e ".[compare]"` | Streamlit compare tool (RFC-047; `make run-compare`) | moderate |
-| **GI/KG viewer API** | `pip install -e ".[server]"` | FastAPI + uvicorn for `python -m podcast_scraper.cli serve` | small |
+| **GI/KG viewer API** | `pip install -e ".[dev]"` | FastAPI + uvicorn for `python -m podcast_scraper.cli serve` | small |
 | **Monitor profiling extras** (optional) | `pip install -e ".[monitor]"` | `py-spy` + `memray` integrated with `--monitor` / `--memray` (RFC-065); **not** required for `--monitor` alone | small |
 
 **Quick decision guide:**

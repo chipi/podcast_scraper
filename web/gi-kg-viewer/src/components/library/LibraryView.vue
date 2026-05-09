@@ -529,7 +529,7 @@ onBeforeUnmount(() => {
     >
       This viewer API does not expose Corpus Library (<code class="text-xs">/api/corpus/*</code>).
       Stop the process on your API port and restart from a current checkout:
-      <code class="text-xs">pip install -e &quot;.[server]&quot;</code>
+      <code class="text-xs">pip install -e &quot;.[dev]&quot;</code>
       then
       <code class="text-xs">make serve-api</code>
       or

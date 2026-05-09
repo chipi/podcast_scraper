@@ -117,7 +117,7 @@ See [CLI reference](../api/CLI.md#knowledge-graph-kg-subcommands) for examples.
 
 - **File-based**: Scan per-episode KG JSON for corpus analytics (see RFC-056 use cases).
 - **Browser viewer (v2)**: `web/gi-kg-viewer/` + `python -m podcast_scraper.cli serve --output-dir …`
-  (needs `[server]`, built `dist/`). Graph, dashboard, search, explore on the same corpus root.
+  (needs `[dev]`, built `dist/`). Graph, dashboard, search, explore on the same corpus root.
   See
   [web/gi-kg-viewer/README.md](https://github.com/chipi/podcast_scraper/blob/main/web/gi-kg-viewer/README.md).
 - **Database**: Optional relational projection per [PRD-018](../prd/PRD-018-database-projection-gil-kg.md) /

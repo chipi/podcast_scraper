@@ -140,15 +140,15 @@ def test_sanitize():
 ### Unit tests and `pyproject` extras (mandatory for authors)
 
 - **`tests/unit/`** must **only** depend on **`[dev]`** — never on **`[ml]`**, **`[llm]`**,
-  **`[compare]`**, or **`[server]`**. If a test needs any non-`[dev]` extra (FastAPI, torch,
-  spaCy, httpx, faiss, etc.), it belongs in **`tests/integration/`**, not `tests/unit/`.
+  **`[compare]`**, or real ML stacks. If a test needs **FastAPI `TestClient` / `create_app`**, torch,
+  spaCy, httpx, faiss, etc., it belongs in **`tests/integration/`**, not `tests/unit/` (policy, even though `[dev]` ships FastAPI).
 - **Do not use `pytest.importorskip()` in `tests/unit/`** to paper over missing extras.
   `importorskip` causes the test to be silently skipped in CI (which only installs `.[dev]`),
   meaning it never actually runs. Move the test to `tests/integration/` instead.
 - **`[dev]`** is the CI baseline (see `pyproject.toml`); **`check_unit_test_imports.py`** guards
   ML import-time issues.
 - **Viewer / FastAPI tests** belong in **`tests/integration/server/`** where CI installs
-  `.[dev,ml,llm,server]`. Use `pytest.importorskip("fastapi")` there (not in `tests/unit/`).
+  `.[dev,ml,llm]`. Use `pytest.importorskip("fastapi")` there (not in `tests/unit/`).
 - **Local CI parity:** **`make venv-dev-init`** + **`make test-unit-dev-venv`** uses a separate
   **`.venv-dev`** (`.[dev]` only) so you do not strip extras from the main **`.venv`**.
 
@@ -198,7 +198,7 @@ See `docs/guides/INTEGRATION_TESTING_GUIDE.md` § Directory Organization for det
 - If a test cannot run on CI (missing system binary, optional feature), document why
   in the skip reason and verify it runs in at least one CI job.
 - **`tests/unit/`**: zero skips expected on CI `test-unit` (`.[dev]` only).
-- **`tests/integration/`**: zero skips expected on CI integration jobs (`.[dev,ml,llm,server]`).
+- **`tests/integration/`**: zero skips expected on CI integration jobs (`.[dev,ml,llm]`).
 
 ## Automated policy enforcement
 

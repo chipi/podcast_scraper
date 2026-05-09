@@ -74,7 +74,7 @@
       "description": "Grafana Cloud Loki push URL."
     }
   },
-  "postCreateCommand": "make init-no-ml && pip install -e '.[server,dev]'",
+  "postCreateCommand": "make init",
   "postStartCommand": "bash .devcontainer/start.sh",
   "mounts": [],
   "remoteEnv": {

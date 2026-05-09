@@ -21,11 +21,10 @@ Use `pip install -e ".[<extra>]"` from the repo root. Combine extras with commas
 
 | Extra | Purpose |
 | --- | --- |
-| **`dev`** | Tests, lint, typecheck, security, and **text** eval helpers (ROUGE, BLEU, WER: rouge-score, jiwer, nltk). **Embedding cosine** in `evaluation/scorer.py` needs **`[ml]`** (sentence-transformers). |
+| **`dev`** | Tests, lint, typecheck, security, **FastAPI + uvicorn** (GI/KG viewer API, RFC-062), scheduler/metrics deps, and **text** eval helpers (ROUGE, BLEU, WER: rouge-score, jiwer, nltk). **Embedding cosine** in `evaluation/scorer.py` needs **`[ml]`** (sentence-transformers). |
 | **`ml`** | Local ML stack: Whisper, spaCy (+models), torch, transformers, sentence-transformers, FAISS, **llama-cpp-python** (GGUF hybrid REDUCE, RFC-042), etc. |
 | **`compare`** | Streamlit run comparison UI (RFC-047; `make run-compare`). |
 | **`llm`** | API client SDKs bundled for CI/dev: Gemini (`google-genai`), Anthropic, Mistral, **httpx** (Ollama health checks). The **OpenAI** SDK ships with **core** dependencies. |
-| **`server`** | FastAPI + uvicorn for `podcast serve` / GI–KG viewer API (RFC-062). |
 
 **Not defined as extras:** there is no **`[llama]`** (GGUF is under **`[ml]`**), no **`[ollama]`** (use **`[llm]`** for httpx), no **`[gemini]`**, and no **`[docs]`** group — MkDocs builds install `docs/requirements.txt` and, where needed, `pip install -e ".[ml]"` for ML-aware docstrings.
 

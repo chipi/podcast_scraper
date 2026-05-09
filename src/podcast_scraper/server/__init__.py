@@ -1,6 +1,6 @@
 """HTTP API for the GI/KG viewer.
 
-Install optional dependencies: ``pip install -e '.[server]'``.
+Install development dependencies: ``pip install -e '.[dev]'`` (includes FastAPI and uvicorn).
 """
 
 from __future__ import annotations

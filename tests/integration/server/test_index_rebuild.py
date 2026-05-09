@@ -1,6 +1,6 @@
 """POST /api/index/rebuild (GitHub #507 follow-up).
 
-Requires ``fastapi`` and FAISS (``pip install -e '.[server]'``).
+Requires ``fastapi`` and FAISS (``pip install -e '.[dev]'``).
 """
 
 from __future__ import annotations

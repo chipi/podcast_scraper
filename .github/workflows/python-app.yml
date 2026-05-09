@@ -247,7 +247,7 @@ jobs:
         python-version: "3.11.8"
         cache: "pip"
         cache-dependency-path: pyproject.toml
-    - name: Install dev dependencies (no ML; no server — viewer unit tests skip without FastAPI)
+    - name: Install dev dependencies (no ML; includes FastAPI via [dev])
       run: |
         python -m pip install --upgrade pip
         python -m pip install -e .[dev]
@@ -617,10 +617,10 @@ jobs:
       if: steps.validate-cache.outputs.models_complete == 'true'
       run: |
         echo "ML_MODELS_VALIDATED=true" >> $GITHUB_ENV
-    - name: Install full dependencies (including ML + server)
+    - name: Install full dependencies (including ML)
       run: |
         python -m pip install --upgrade pip
-        pip install -e .[dev,ml,llm,server]
+        pip install -e .[dev,ml,llm]
         pip install pytest-socket
     - name: Install ffmpeg (required for Whisper)
       run: |
@@ -814,10 +814,10 @@ jobs:
       if: steps.validate-cache.outputs.models_complete == 'true'
       run: |
         echo "ML_MODELS_VALIDATED=true" >> $GITHUB_ENV
-    - name: Install dev dependencies with ML + server (pytest-socket for network guard)
+    - name: Install dev dependencies with ML (pytest-socket for network guard)
       run: |
         python -m pip install --upgrade pip
-        pip install -e .[dev,ml,llm,server]
+        pip install -e .[dev,ml,llm]
         pip install pytest-socket
     - name: Install ffmpeg (required for Whisper)
       run: |
@@ -969,10 +969,10 @@ jobs:
       if: steps.validate-cache.outputs.models_complete == 'true'
       run: |
         echo "ML_MODELS_VALIDATED=true" >> $GITHUB_ENV
-    - name: Install dev dependencies with server (pytest-socket for network guard)
+    - name: Install dev dependencies (pytest-socket for network guard)
       run: |
         python -m pip install --upgrade pip
-        pip install -e .[dev,ml,llm,server]
+        pip install -e .[dev,ml,llm]
         pip install pytest-socket
     - name: Install ffmpeg (required for Whisper)
       run: |
@@ -1122,10 +1122,10 @@ jobs:
       if: steps.validate-cache.outputs.models_complete == 'true'
       run: |
         echo "ML_MODELS_VALIDATED=true" >> $GITHUB_ENV
-    - name: Install full dependencies (including ML + server)
+    - name: Install full dependencies (including ML)
       run: |
         python -m pip install --upgrade pip
-        pip install -e .[dev,ml,llm,server]
+        pip install -e .[dev,ml,llm]
         pip install pytest-socket
     - name: Install ffmpeg (required for Whisper)
       run: |
@@ -1242,10 +1242,10 @@ jobs:
           test -d "$HF_CACHE/$MODEL_DIR" || { echo "missing hf $model"; exit 1; }
           test "$(find "$HF_CACHE/$MODEL_DIR" -type f 2>/dev/null | head -1)" || { echo "empty hf $model"; exit 1; }
         done
-    - name: Install dependencies (ML + LLM + server for full pipeline acceptance)
+    - name: Install dependencies (ML + LLM for full pipeline acceptance)
       run: |
         python -m pip install --upgrade pip
-        pip install -e .[dev,ml,llm,server]
+        pip install -e .[dev,ml,llm]
     - name: Install ffmpeg
       run: |
         sudo apt-get update

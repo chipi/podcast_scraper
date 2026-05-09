@@ -136,9 +136,9 @@ def load_scheduled_jobs(operator_yaml: Path) -> list[ScheduledJobConfig]:
 #
 # Defined at module scope so they survive scheduler reloads (each reload
 # tears down jobs but reuses the same counter registry). When
-# ``prometheus_client`` is missing — `[server]` extra not installed — the
-# counters degrade to no-ops so the scheduler still works in `[dev]`-only
-# environments (e.g., unit-test runners).
+# ``prometheus_client`` is missing — metrics extras not installed — the
+# counters degrade to no-ops so the scheduler still works in minimal
+# environments (e.g., stripped-down containers without prometheus_client).
 
 _TRIGGERED_COUNTER: Any | None = None
 _FAILED_COUNTER: Any | None = None
@@ -259,7 +259,7 @@ class SchedulerService:
         except ImportError as exc:
             logger.warning(
                 "scheduler: apscheduler not installed (%s); scheduled_jobs disabled. "
-                "Install [server] extras to enable.",
+                "Install with ``pip install -e '.[dev]'`` (or add apscheduler explicitly).",
                 exc,
             )
             return

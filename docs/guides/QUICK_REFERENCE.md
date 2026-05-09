@@ -146,7 +146,7 @@ mkdocs serve                 # http://localhost:8000 (docs site; same default po
 | `make test-ui` | Vitest unit tests for TS utils (fast, no browser) |
 | `make test-ui-e2e` | Playwright tests (Firefox; Vite on **5174** inside config) |
 
-**Prerequisites:** `pip install -e ".[server]"`; once per clone, `cd web/gi-kg-viewer && npm install && npm run build` to serve the built SPA from `serve`.
+**Prerequisites:** `pip install -e ".[dev]"`; once per clone, `cd web/gi-kg-viewer && npm install && npm run build` to serve the built SPA from `serve`.
 
 **Docs:**
 [Server Guide](SERVER_GUIDE.md) (`/api/*`, **`/docs`**)

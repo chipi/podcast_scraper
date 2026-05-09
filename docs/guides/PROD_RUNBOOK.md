@@ -1090,7 +1090,7 @@ glance. Knowing about them saves debugging time.
 - **Profile dropdown is filtered to published images** via
   `PODCAST_AVAILABLE_PROFILES`. Don't add a profile to the allowlist
   whose backing pipeline image isn't published.
-- **The published api image only ships `[server]` extras.** Pipeline
+- **The published api image only ships `[dev]` extras.** Pipeline
   runs MUST go through Docker job mode (`PODCAST_PIPELINE_EXEC_MODE=docker`,
   set in prod overlay). In-process pipeline runs would crash on
   missing `[llm]` deps.

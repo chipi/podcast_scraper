@@ -737,7 +737,7 @@ def pytest_collection_modifyitems(config, items):
 
     This is the only directory-based auto-marker in the suite; integration
     and e2e tiers continue to require explicit markers because those tiers
-    depend on ``[ml]``/``[llm]``/``[server]`` extras that the
+    depend on ``[ml]``/``[llm]``/viewer HTTP stacks that the
     ``check_test_policy.py`` enforcer audits per-file.
     """
     for item in items:

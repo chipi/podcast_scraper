@@ -7,8 +7,8 @@ Checks:
      skips tests when an optional extra is missing, hiding failures in CI.
 
   1b. No FastAPI (or ``import fastapi``) imports in unit tests
-     FastAPI lives in the ``[server]`` extra; PR / dev-venv unit jobs install
-     ``.[dev]`` only. Route tests belong under ``tests/integration/server/``.
+     FastAPI is installed with ``[dev]``, but HTTP route tests belong under
+     ``tests/integration/server/`` so ``tests/unit/`` stays free of ASGI wiring.
 
   2. No @pytest.mark.ml_models in integration tests
      Real ML models belong in tests/e2e/ only. Integration tests must
@@ -50,7 +50,8 @@ AVAILABLE_GUARD_RE = re.compile(
 
 IMPORTORSKIP_RE = re.compile(r"pytest\.importorskip\s*\(")
 
-# FastAPI / TestClient require ``pip install -e '.[server]'`` — not ``[dev]`` alone.
+# FastAPI / TestClient: keep imports out of ``tests/unit/`` (policy).
+# ``.[dev]`` ships FastAPI; ASGI route tests still belong under ``tests/integration/``.
 UNIT_FASTAPI_IMPORT_RE = re.compile(
     r"^\s*(from fastapi\b|import fastapi\b)",
     re.MULTILINE,
@@ -118,7 +119,7 @@ def check_unit_fastapi_imports(files: list[Path]) -> list[Violation]:
                     lineno,
                     "U3-fastapi-in-unit",
                     "FastAPI import in unit test — move to tests/integration/server/ "
-                    "(unit CI uses .[dev] only; FastAPI is in .[server])",
+                    "(policy: no ASGI tests in tests/unit/; .[dev] still installs FastAPI)",
                 )
             )
     return violations
@@ -206,7 +207,7 @@ def main() -> int:
     # Rule U1: No importorskip in unit tests
     violations.extend(check_unit_importorskip(unit_files))
 
-    # Rule U3: No FastAPI imports in unit tests ([server] extra)
+    # Rule U3: No FastAPI imports in unit tests (policy; FastAPI ships with [dev])
     violations.extend(check_unit_fastapi_imports(unit_files))
 
     # Rule U2: No *_AVAILABLE skip guards in unit tests

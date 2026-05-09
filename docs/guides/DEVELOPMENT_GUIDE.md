@@ -642,9 +642,9 @@ semantic search, and explore.
 when `serve` is running. Platform routes under `routes/platform/` are **not** mounted yet (stubs only).
 
 - **Location:** `web/gi-kg-viewer/`
-- **Python extra:** `[server]` (FastAPI + uvicorn) — not part of the default `make init`
-  line (`.[dev,ml,llm]`); add `server` when you work on or run the viewer API.
-  See [Dependencies Guide — Canonical optional extras](DEPENDENCIES_GUIDE.md#canonical-optional-extras) for the full list (`dev`, `ml`, `compare`, `llm`, `server`).
+- **Python extra:** `[dev]` includes FastAPI, uvicorn, and scheduler/metrics deps for `serve`.
+  `make init` installs `.[dev,ml,llm]` — no separate HTTP extra.
+  See [Dependencies Guide — Canonical optional extras](DEPENDENCIES_GUIDE.md#canonical-optional-extras) for the full list (`dev`, `ml`, `compare`, `llm`, …).
 - **End-user flow:** Build `dist/` once (`npm install && npm run build` in
   `web/gi-kg-viewer`), then `python -m podcast_scraper.cli serve --output-dir <run>`;
   open **<http://127.0.0.1:8000>** and set **Corpus root** to that same directory.
@@ -820,14 +820,12 @@ before pushing.
 
 | Extra | Purpose | When to install |
 | ----- | ------- | --------------- |
-| `[dev]` | Tooling (pytest, black, flake8, mypy, etc.) | Always for development |
+| `[dev]` | Tooling plus FastAPI / uvicorn / viewer scheduler deps | Always for development |
 | `[ml]` | Local ML (Whisper, spaCy, torch, FAISS, etc.) | When using local models |
 | `[llm]` | LLM API SDKs (openai, google-genai, anthropic, mistralai, httpx) | When using cloud providers |
-| `[server]` | FastAPI + uvicorn | When running `serve` or working on viewer API |
 | `[compare]` | Streamlit | When using `make run-compare` |
 
-`make init` installs `[dev,ml,llm]`. Add `[server]`
-or `[compare]` manually when needed.
+`make init` installs `[dev,ml,llm]`. Add `[compare]` manually when needed.
 
 ## Markdown Linting
 
