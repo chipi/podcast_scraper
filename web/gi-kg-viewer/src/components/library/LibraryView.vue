@@ -19,6 +19,7 @@ import { useArtifactsStore } from '../../stores/artifacts'
 import { useCorpusLensStore } from '../../stores/corpusLens'
 import { useDashboardNavStore } from '../../stores/dashboardNav'
 import { useGraphExplorerStore } from '../../stores/graphExplorer'
+import { useGraphHandoffStore } from '../../stores/graphHandoff'
 import { useSubjectStore } from '../../stores/subject'
 import { useShellStore } from '../../stores/shell'
 import {
@@ -54,6 +55,7 @@ const corpusLens = useCorpusLensStore()
 const dashboardNav = useDashboardNavStore()
 const artifacts = useArtifactsStore()
 const graphExplorer = useGraphExplorerStore()
+const graphHandoff = useGraphHandoffStore()
 const loadCorpusGraphBaseline = inject(corpusGraphBaselineLoaderKey, null)
 
 async function ensureDefaultCorpusGraphIfNeeded(): Promise<void> {
@@ -360,8 +362,28 @@ function selectEpisode(row: CorpusEpisodeListItem): void {
  * subject rail and switch the main tab to Graph (mirrors the Search
  * result **G** button). The Graph tab's existing handoff path picks
  * up the focused episode + centres the canvas.
+ *
+ * Sync ``setLoadSource`` is the C1 patch (HANDOFF_MATRIX H1.1 / H2.1):
+ * before, the flag was set asynchronously by ``loadEpisodeSliceForTerritoryStrip``
+ * inside ``GraphCanvas.vue`` — a second Library G click hit the
+ * ``filteredArtifact`` early-return at GraphCanvas.vue:2887 with
+ * ``currentLoadSource === null`` and Cytoscape never redrew. Setting it
+ * here at click time matches the symmetry that Digest paths already use
+ * and is replaced wholesale by the C5 orchestrator envelope.
  */
 function openEpisodeInGraph(row: CorpusEpisodeListItem): void {
+  // C5 — record the handoff intent on the FSM. The orchestrator runtime in
+  // ``GraphCanvas.vue`` consults the FSM during apply (C6) to decide barriers.
+  // For now this is additive: existing watchers still drive the canvas.
+  graphHandoff.handoffRequested({
+    kind: 'episode',
+    metadataPath: row.metadata_relative_path,
+    episodeId: row.episode_id ?? undefined,
+    source: 'library',
+    loadSource: 'subject-external',
+    camera: { kind: 'center-on-target' },
+  })
+  artifacts.setLoadSource('subject-external')
   subject.focusEpisode(row.metadata_relative_path, {
     uiTitle: row.episode_title?.trim() || null,
     episodeId: row.episode_id ?? null,

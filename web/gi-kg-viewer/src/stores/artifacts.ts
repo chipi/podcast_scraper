@@ -67,10 +67,10 @@ export const useArtifactsStore = defineStore('artifacts', () => {
   let lastAutoMergeSnapshotKey = ''
   /** 
    * Tracks the source of the last artifact load to determine if auto-merge should run.
-   * 'digest-external' or 'library-external' = user clicked from outside graph → NO auto-merge
+   * 'digest-external' or 'subject-external' = user clicked from outside graph → NO auto-merge
    * 'graph-internal' or null = in-graph navigation or normal flow → YES auto-merge
    */
-  let lastLoadSource: 'digest-external' | 'library-external' | 'graph-internal' | null = null
+  let lastLoadSource: 'digest-external' | 'subject-external' | 'graph-internal' | null = null
 
   const giArts = computed(() => parsedList.value.filter((p) => p.kind === 'gi'))
   const kgArts = computed(() => parsedList.value.filter((p) => p.kind === 'kg'))
@@ -440,7 +440,7 @@ export const useArtifactsStore = defineStore('artifacts', () => {
     siblingMergeError.value = false
     // Skip if last load was from external source (Digest/Library) - user wants focused view only
     // Don't clear the flag here - let the caller clear it after all their operations complete
-    if (lastLoadSource === 'digest-external' || lastLoadSource === 'library-external') {
+    if (lastLoadSource === 'digest-external' || lastLoadSource === 'subject-external') {
       return
     }
     if (!graphTabActive) {
@@ -650,7 +650,7 @@ export const useArtifactsStore = defineStore('artifacts', () => {
    * Set the source of the current artifact load to control auto-merge behavior.
    * External loads (from Digest/Library) suppress auto-merge for focused views.
    */
-  function setLoadSource(source: 'digest-external' | 'library-external' | 'graph-internal' | null): void {
+  function setLoadSource(source: 'digest-external' | 'subject-external' | 'graph-internal' | null): void {
     lastLoadSource = source
   }
   
@@ -662,7 +662,7 @@ export const useArtifactsStore = defineStore('artifacts', () => {
    * Getter for the current load source (readonly).
    * Used by GraphCanvas to determine if incremental appends should skip disruptive ops.
    */
-  const currentLoadSource = computed<'digest-external' | 'library-external' | 'graph-internal' | null>(
+  const currentLoadSource = computed<'digest-external' | 'subject-external' | 'graph-internal' | null>(
     () => lastLoadSource,
   )
 

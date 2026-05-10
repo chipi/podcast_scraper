@@ -100,6 +100,24 @@ state (or an error clears flags when that run is still current).
 Also documented historically: `DashboardView` dashboard refresh, `GraphCanvas` safe watchers,
 `artifacts` single-flight (now via `StaleGeneration`).
 
+### Graph handoff orchestrator: domain-specific FSM
+
+The graph navigation handoff (Library / Digest / Search / Dashboard / Episode panel /
+NodeDetail / canvas-direct → focused node in Cytoscape) is a specialised case of the
+stale-run / single-flight pattern that needs more structure than `StaleGeneration` alone:
+13 entry surfaces with different mutation orders, multi-stage async lifecycle (HTTP
+fetch → artifact merge → layout → apply selection + camera), and a self-healing
+invariant between logical artifact and rendered cy.core. It runs as an explicit
+8-state finite state machine with envelope dispatch and per-event re-entrance policies
+(supersede / queue / drop). Generation tokens enforce the same "newest wins"
+guarantee that `StaleGeneration` provides for simpler async surfaces, applied at
+8+ documented check points in orchestrator code.
+
+See [VIEWER_GRAPH_SPEC.md §"Graph handoff orchestrator"](VIEWER_GRAPH_SPEC.md) for
+the operational reference and
+[ADR-094](../adr/ADR-094-graph-handoff-orchestrator-fsm.md) for the locked decisions
+and rationale.
+
 ## Tests
 
 | File | Intent |

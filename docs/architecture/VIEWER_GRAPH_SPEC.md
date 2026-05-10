@@ -385,6 +385,191 @@ docs/uxs/UXS-001-gi-kg-viewer.md
 
 ---
 
+## Graph handoff orchestrator
+
+**Status:** Active — see [ADR-094](../adr/ADR-094-graph-handoff-orchestrator-fsm.md)
+for the locked decisions and rationale.
+**Repo:** `chipi/podcast_scraper`
+**Target area:** `web/gi-kg-viewer/src/services/graphHandoffFsm.ts`,
+`stores/graphHandoff.ts`, every entry-point component (Library / Digest /
+Search / Dashboard / Episode panel / NodeDetail / GraphConnectionsSection /
+SubjectRail / StatusBar / Explore / App-shell tab / GraphCanvas direct
+interactions).
+**Related docs:** [ADR-094](../adr/ADR-094-graph-handoff-orchestrator-fsm.md)
+(canonical decisions), [VIEWER_ASYNC_STABILITY.md](VIEWER_ASYNC_STABILITY.md)
+(adjacent async patterns),
+`web/gi-kg-viewer/src/services/README.md`
+(code-local FSM contract),
+`web/gi-kg-viewer/e2e/HANDOFF_MATRIX.md`
+(coverage contract).
+**Scope:** Operational reference for adding new entry surfaces and debugging
+handoff bugs. The decisions and rationale live in ADR-094; this section is
+"how the orchestrator integrates with the rest of the graph viewer."
+
+---
+
+### Why the orchestrator exists
+
+Pre-fix, navigating to graph from any of 13 entry surfaces (Library row,
+Digest pill, Search "Show on graph", Dashboard topic landscape, Episode
+panel, NodeDetail Load, GraphConnections neighbour, SubjectRail @go-graph,
+StatusBar @go-graph, Explore focus, App-shell tab, plus canvas direct
+interactions) mutated some combination of three Pinia stores (`subject`,
+`graphNavigation`, `artifacts`) in slightly different orders. No single
+owner enforced the invariant that `filteredArtifact` containing node N
+implies `cy.core.$id(N).nonempty()` before focus / camera asserts. The
+canonical user-visible bug was "second Library G does nothing" — a load-source
+asymmetry let the `filteredArtifact` watcher early-return without scheduling
+a redraw. See
+[docs/wip/GRAPH_NAVIGATION_HANDOFF_ANALYSIS.md](../wip/GRAPH_NAVIGATION_HANDOFF_ANALYSIS.md)
+for the full audit.
+
+The fix: a finite-state machine that owns the handoff lifecycle from
+click to settled selection.
+
+---
+
+### Entry-point catalog (compressed)
+
+Reference for each surface's FSM event + envelope shape. Full per-row test
+coverage in
+`web/gi-kg-viewer/e2e/HANDOFF_MATRIX.md`.
+
+| ID | Surface | FSM event | source | loadSource | camera |
+| --- | --- | --- | --- | --- | --- |
+| L1 | Library row "Open in graph" | `handoffRequested` | `library` | `subject-external` | `center-on-target` |
+| D1 | Digest recent topic pill | `handoffRequested` | `digest` | `digest-external` | `center-on-target` |
+| D2 | Digest topic-band hit row | `handoffRequested` | `digest` | `digest-external` | `center` (topicFocus / eid) |
+| D3 | Digest topic-band title | `handoffRequested` | `digest` | `digest-external` | `fit` (multi-episode) |
+| S1 | Search "Show on graph" | `handoffRequested` (via `activateGraphTab(source: 'search')`) | `search` | `subject-external` | `center-on-target` |
+| E1 | Episode panel "Open in graph" | `handoffRequested` | `episode-panel` | `subject-external` | `center-on-target` |
+| O3 | NodeDetail Load + go-graph | `handoffRequested` (via `activateGraphTab(source: 'node-detail')`) | `node-detail` | `graph-internal` | `center-on-target` |
+| O1/O2/O4–O6 | Dashboard / Explore / SubjectRail / StatusBar @go-graph | `handoffRequested` (via `activateGraphTab(source: …)`) | (per surface) | `subject-external` | `center-on-target` |
+| G1/G2 | Canvas single-tap (incl. onetap rail) | `canvasTapped` | `canvas-tap` | `graph-internal` | `center` (cyId) |
+| G3 | Canvas double-tap expand | `expansionRequested` | `double-tap-expand` | `graph-internal` | `preserve` |
+| G6 | Mini-map / GraphConnections neighbour | `canvasTapped` (with `suppressCamera: true`) | `minimap` | `graph-internal` | `preserve` |
+| K1 | Escape (clear graph focus) | `focusCleared` | — | — | — |
+| — | Corpus path change | `corpusReloaded` | — | — | — |
+| — | First mount with saved preference | internal init `handoffRequested({ source: 'restore-preference' })` | `restore-preference` | `subject-external` | `center` |
+
+The `loadSource` enum has 3 values (decision #2): `subject-external` for
+non-graph surfaces opening a single subject, `digest-external` for Digest
+paths, `graph-internal` for in-graph expansions and direct interactions
+(Definition X — graph-internal = "expansion that preserves layout").
+
+The `camera` strategy has 5 variants
+(decision #11): `center` (explicit cyId + optional bbox includes),
+`center-on-target` (resolve cyId during apply phase from envelope's
+`cyId | metadataPath | episodeId`), `fit` (multi-node loads), `preserve`
+(canvas tap, mini-map), `none` (explicit no-op).
+
+---
+
+### State-walking lifecycle
+
+A typical Library "Open in graph" handoff walks all 8 states:
+
+```text
+idle / ready
+   │
+   │ handoffRequested(envelope)
+   ▼
+loading_fetch                         (territory auto-load HTTP starts)
+   │
+   │ advanceState (in loadEpisodeSliceForTerritoryStrip)
+   ▼
+loading_merge                         (artifacts.appendRelativeArtifacts)
+   │
+   │ filteredArtifact watcher → scheduleRedraw → runRelayout
+   │ runRelayout: graphHandoff.advanceState('redrawing_full')
+   ▼
+redrawing_full                        (cy layout running)
+   │
+   │ lo.one('layoutstop'): graphHandoff.notifyLayoutStop()
+   ▼
+applying                              (finishLayoutPass: select + dim + camera)
+   │
+   │ end of finishLayoutPass: graphHandoff.recordApplied(cyId)
+   ▼
+ready                                 (stuck timer disarmed; lastResult = 'applied')
+```
+
+For canvas direct interactions (G1/G2/G3/G6), the FSM jumps `idle/ready →
+applying → ready` without going through `loading_*` (no artifacts to
+fetch, no layout to run for a tap).
+
+For canvas double-tap expand (G3), the FSM walks `loading_fetch →
+loading_merge → redrawing_incremental → applying → ready` (incremental
+layout preserves positions of unchanged nodes).
+
+---
+
+### Generation-token check points (the bare-await contract)
+
+Every async `await` inside orchestrator code (notably
+`loadEpisodeSliceForTerritoryStrip` in
+`web/gi-kg-viewer/src/components/graph/GraphCanvas.vue`)
+**must** be paired with an `isStale(envelope.generation)` check on the
+next non-empty line. Without it, an in-flight handoff can mutate UI state
+for an envelope that has already been superseded by a newer click —
+producing the exact "old episode wins after rapid clicks" race the FSM is
+designed to prevent.
+
+The 8 documented check points are listed in the
+`web/gi-kg-viewer/src/services/graphHandoffFsm.ts` header.
+Adding a new `await` to an orchestrator path requires a matching
+`isStale()` check; the contract is currently review-only (no automated
+ESLint rule yet).
+
+---
+
+### Adding a new entry surface (recipe)
+
+1. **Build the envelope** with the right `kind` / `cyId | metadataPath |
+   episodeId` / `source` / `loadSource` / `camera` (see catalog above for
+   the right combination per surface type).
+2. **Fire the right FSM event** at click time:
+   - cross-surface handoff (most cases) → `graphHandoff.handoffRequested(envelope)`
+   - canvas direct selection → `graphHandoff.canvasTapped(envelope)`
+   - additive expansion (load more on existing graph) → `graphHandoff.expansionRequested(envelope)`
+3. **Synchronously set the load-source** on `artifacts`
+   (`artifacts.setLoadSource(envelope.loadSource)`). Decision #1: this
+   prevents the canonical "second G does nothing" bug class.
+4. **Add a row to**
+   `web/gi-kg-viewer/e2e/HANDOFF_MATRIX.md`
+   under the right section (cold-start / hot-state / repeat-click /
+   cross-entry / concurrency / failure / lifecycle).
+5. **Write a Playwright contract test** asserting the surface fires the
+   right event with the right envelope payload (see existing examples in
+   `web/gi-kg-viewer/e2e/handoff/contracts.spec.ts`). This mechanically
+   enforces the migration so a future refactor can't silently undo it.
+
+---
+
+### Debugging
+
+- **Inspect the FSM in dev**: `window.__GIKG_FSM__` exposes
+  `{ state, pending, generation, lastResult }` (read-only). Useful in DevTools
+  console while reproducing a stuck handoff.
+- **Inspect Cytoscape directly**: `window.__GIKG_CY_DEV__` (existing
+  pattern, predates the FSM). Combine with `__GIKG_FSM__` to see whether
+  the FSM thinks the handoff completed but cy.core doesn't have the
+  expected node — that's a self-healing reconciliation case.
+- **Read error-strip messages**: failed handoffs render
+  `data-testid="handoff-error-strip"` with reason. Stuck-timeout failures
+  carry `reason: "stuck-timeout after 5000ms"`; HTTP failures carry the
+  `Error.message` of the originating fetch.
+- **Self-healing warnings**: invariant violations log
+  `[graphHandoff invariant] expected nodes missing from cy core: count=N
+  sample=...` on every `layoutstop`. After a targeted reconciliation:
+  `reconciled missing=N via targeted core.add (retry budget consumed for
+  gen=G)`. After exhausted retry: `divergence accepted: missing=N retried=true`.
+- **PostHog telemetry**: `graph_handoff_started/applied/failed/superseded/stuck`
+  events fire from `stores/graphHandoff.ts`. Use to track handoff success
+  rates per source in production.
+
+---
+
 ## Graph visual styling
 
 **Status:** Active — implementation tracks [GitHub #608](https://github.com/chipi/podcast_scraper/issues/608).

@@ -751,7 +751,22 @@ def main() -> None:
             print("")
 
         if not skip_transformers:
-            preload_transformers_models()
+            if args.airgapped_thin:
+                # airgapped_thin profile (config/profiles/airgapped_thin.yaml) uses
+                # ONLY bart-small + long-fast (= facebook/bart-base + allenai/led-base-16384).
+                # Without an explicit list the function defaults to ALSO downloading
+                # google/long-t5-tglobal-base + google/flan-t5-base (~3 GB), which
+                # contradicts the "Skipped vs --production: long-t5, flan-t5" message
+                # printed above and bloats the stack-test image with models the
+                # airgapped_thin profile never loads. Pass the explicit list.
+                preload_transformers_models(
+                    [
+                        config.TEST_DEFAULT_SUMMARY_MODEL,  # facebook/bart-base
+                        config.TEST_DEFAULT_SUMMARY_REDUCE_MODEL,  # allenai/led-base-16384
+                    ]
+                )
+            else:
+                preload_transformers_models()
             print("")
 
         if not skip_gil:

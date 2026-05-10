@@ -18,6 +18,7 @@ import PodcastCover from '../shared/PodcastCover.vue'
 import { useArtifactsStore } from '../../stores/artifacts'
 import { useGraphExplorerStore } from '../../stores/graphExplorer'
 import { useGraphFilterStore } from '../../stores/graphFilters'
+import { useGraphHandoffStore } from '../../stores/graphHandoff'
 import { useGraphNavigationStore } from '../../stores/graphNavigation'
 import { useSubjectStore } from '../../stores/subject'
 import { useShellStore } from '../../stores/shell'
@@ -74,6 +75,7 @@ async function ensureDefaultCorpusGraphIfNeeded(): Promise<void> {
   await loadCorpusGraphBaseline()
 }
 const graphFilters = useGraphFilterStore()
+const graphHandoff = useGraphHandoffStore()
 const graphNav = useGraphNavigationStore()
 const subject = useSubjectStore()
 const { episodeMetadataPath: metadataRelativePath } = storeToRefs(subject)
@@ -425,6 +427,20 @@ async function openInGraph(): Promise<void> {
   const episodeMeta = detail.value.metadata_relative_path?.trim() ?? ''
   const episodeIdForGraph = detail.value.episode_id
   const episodeUiTitle = detail.value.episode_title?.trim() || null
+  // F1.1 — fire FSM event synchronously at click time so the handoff is observable
+  // before any await. Source `episode-panel` per decision #2; subject-external load
+  // source per medium-granularity rule.
+  if (episodeMeta) {
+    artifacts.setLoadSource('subject-external')
+    graphHandoff.handoffRequested({
+      kind: 'episode',
+      metadataPath: episodeMeta,
+      episodeId: episodeIdForGraph || undefined,
+      source: 'episode-panel',
+      loadSource: 'subject-external',
+      camera: { kind: 'center-on-target' },
+    })
+  }
   await ensureDefaultCorpusGraphIfNeeded()
   await artifacts.appendRelativeArtifacts(paths)
   graphNav.clearLibraryEpisodeHighlights()

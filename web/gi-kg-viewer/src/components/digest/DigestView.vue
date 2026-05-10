@@ -16,6 +16,7 @@ import { useArtifactsStore } from '../../stores/artifacts'
 import { useCorpusLensStore } from '../../stores/corpusLens'
 import DateChip from '../shared/DateChip.vue'
 import { useSubjectStore } from '../../stores/subject'
+import { useGraphHandoffStore } from '../../stores/graphHandoff'
 import { useGraphNavigationStore } from '../../stores/graphNavigation'
 import { useDashboardNavStore } from '../../stores/dashboardNav'
 import { useShellStore } from '../../stores/shell'
@@ -48,6 +49,7 @@ const emit = defineEmits<{
 const shell = useShellStore()
 const dashboardNav = useDashboardNavStore()
 const artifacts = useArtifactsStore()
+const graphHandoff = useGraphHandoffStore()
 const graphNav = useGraphNavigationStore()
 
 const subject = useSubjectStore()
@@ -223,11 +225,24 @@ async function openDigestRecentTopicPillInGraph(
   const plan = graphFocusPlanFromCilPill(pill, row.episode_id)
   applyGraphFocusPlan(graphNav, plan)
   const eid = row.episode_id?.trim()
-  if (
-    eid &&
+  const highlights = eid &&
     (plan.kind === 'episode_only' || (plan.kind === 'topic' && plan.fallback))
-  ) {
-    graphNav.setLibraryEpisodeHighlights([eid])
+    ? [eid]
+    : undefined
+  if (highlights) {
+    graphNav.setLibraryEpisodeHighlights(highlights)
+  }
+  // FSM event for the Digest pill handoff (decision #5 / spec).
+  if (plan.kind !== 'none') {
+    graphHandoff.handoffRequested({
+      kind: plan.kind === 'topic' ? 'topic' : 'episode',
+      cyId: plan.primary,
+      episodeId: eid || undefined,
+      source: 'digest',
+      loadSource: 'digest-external',
+      camera: { kind: 'center-on-target' },
+      highlights,
+    })
   }
   emit('switch-main-tab', 'graph')
 }
@@ -470,14 +485,43 @@ async function openTopicHitInGraph(
   graphNav.clearLibraryEpisodeHighlights()
   const topicFocus = opts?.graphTopicNodeId?.trim()
   const eid = h.episode_id?.trim()
+  // F1.5 — D2 Digest topic-hit row fires FSM event with envelope. Camera centres
+  // on the topic (or episode fallback); highlights ride on the envelope per
+  // decision #10 (apply phase resets highlights from envelope).
+  const highlightIds = eid && (topicFocus || !topicFocus) ? [eid] : undefined
   if (topicFocus && eid) {
     graphNav.requestFocusNode(topicFocus, eid)
     graphNav.setLibraryEpisodeHighlights([eid])
+    graphHandoff.handoffRequested({
+      kind: 'topic',
+      cyId: topicFocus,
+      episodeId: eid,
+      source: 'digest',
+      loadSource: 'digest-external',
+      camera: { kind: 'center', cyId: topicFocus },
+      highlights: highlightIds,
+    })
   } else if (topicFocus) {
     graphNav.requestFocusNode(topicFocus)
+    graphHandoff.handoffRequested({
+      kind: 'topic',
+      cyId: topicFocus,
+      source: 'digest',
+      loadSource: 'digest-external',
+      camera: { kind: 'center', cyId: topicFocus },
+    })
   } else if (eid) {
     graphNav.requestFocusNode(eid)
     graphNav.setLibraryEpisodeHighlights([eid])
+    graphHandoff.handoffRequested({
+      kind: 'episode',
+      cyId: eid,
+      episodeId: eid,
+      source: 'digest',
+      loadSource: 'digest-external',
+      camera: { kind: 'center-on-target' },
+      highlights: [eid],
+    })
   } else {
     graphNav.clearPendingFocus()
   }
@@ -524,15 +568,32 @@ async function openTopicBandInGraph(band: CorpusDigestTopicBand): Promise<void> 
     const clusterCtx = findTopicClusterContextForGraphNode(gid, artifacts.topicClustersDoc)
     if (clusterCtx?.compoundParentId) {
       graphNav.requestFocusNode(clusterCtx.compoundParentId, gid)
+      graphHandoff.handoffRequested({
+        kind: 'topic',
+        cyId: clusterCtx.compoundParentId,
+        source: 'digest',
+        loadSource: 'digest-external',
+        camera: { kind: 'center', cyId: clusterCtx.compoundParentId },
+      })
     } else {
       graphNav.requestFocusNode(gid)
       graphNav.setRequestFitAfterLoad()
+      // F1.5 — D3 Digest band title fires FSM event with `camera: { kind: 'fit' }`
+      // (decision #11). Topic band loads multiple episodes; no single focus
+      // node to centre on, so fit the viewport.
+      graphHandoff.handoffRequested({
+        kind: 'topic',
+        cyId: gid,
+        source: 'digest',
+        loadSource: 'digest-external',
+        camera: { kind: 'fit' },
+      })
     }
   } else {
     graphNav.clearPendingFocus()
     graphNav.setRequestFitAfterLoad()
   }
-  
+
   // DO NOT clear loadSource here - let the filteredArtifact watcher see it and clear it
   // artifacts.clearLoadSource()  // Removed: clearing too early, before watcher fires
   emit('switch-main-tab', 'graph')

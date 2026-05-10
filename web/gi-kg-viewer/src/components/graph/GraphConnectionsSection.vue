@@ -3,6 +3,7 @@ import { computed } from 'vue'
 import type { ParsedArtifact } from '../../types/artifact'
 import { useArtifactsStore } from '../../stores/artifacts'
 import { useGraphFilterStore } from '../../stores/graphFilters'
+import { useGraphHandoffStore } from '../../stores/graphHandoff'
 import { useGraphNavigationStore } from '../../stores/graphNavigation'
 import { useShellStore } from '../../stores/shell'
 import { graphNodeTypeChrome } from '../../utils/colors'
@@ -55,6 +56,7 @@ const emit = defineEmits<{
 }>()
 
 const nav = useGraphNavigationStore()
+const graphHandoff = useGraphHandoffStore()
 const shell = useShellStore()
 const artifacts = useArtifactsStore()
 const graphFilters = useGraphFilterStore()
@@ -152,6 +154,17 @@ function semanticPrefillQueryForNeighbor(nb: GraphNeighborRow): string {
 
 function onGraphNeighbor(nbId: string, ev: MouseEvent): void {
   ev.stopPropagation()
+  // F1.4 — fire FSM canvasTapped with `source: 'minimap'` and
+  // `suppressCamera: true` per decision #6. The neighbour rail is the
+  // mini-map proxy: select the neighbour but don't pan the main canvas.
+  graphHandoff.canvasTapped({
+    kind: 'graph-node',
+    cyId: nbId,
+    source: 'minimap',
+    loadSource: 'graph-internal',
+    camera: { kind: 'preserve' },
+    suppressCamera: true,
+  })
   nav.requestFocusNode(nbId)
   emit('go-graph')
 }

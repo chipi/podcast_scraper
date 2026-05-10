@@ -14,11 +14,13 @@ import { useArtifactsStore } from './stores/artifacts'
 import { useExploreStore } from './stores/explore'
 import { useGraphExpansionStore } from './stores/graphExpansion'
 import { useGraphExplorerStore } from './stores/graphExplorer'
+import { useGraphHandoffStore } from './stores/graphHandoff'
 import { useGraphNavigationStore } from './stores/graphNavigation'
 import { useSearchStore } from './stores/search'
 import { useShellStore } from './stores/shell'
 import { useSubjectStore } from './stores/subject'
 import { useThemeStore } from './stores/theme'
+import type { EnvelopeSource } from './services/graphHandoffFsm'
 import {
   GRAPH_DEFAULT_EPISODE_CAP,
   selectRelPathsForGraphLoad,
@@ -62,6 +64,7 @@ const theme = useThemeStore()
 const subject = useSubjectStore()
 const graphExplorer = useGraphExplorerStore()
 const graphExpansion = useGraphExpansionStore()
+const graphHandoff = useGraphHandoffStore()
 const graphNav = useGraphNavigationStore()
 
 const mainTab = ref<'digest' | 'library' | 'graph' | 'dashboard'>('digest')
@@ -106,6 +109,8 @@ useViewerKeyboard({
     })
   },
   clearGraphFocus: () => {
+    // K1 — Escape key. Fires the FSM ``focusCleared`` event (decision #5 / spec).
+    graphHandoff.focusCleared()
     graphCanvasRef.value?.clearInteractionState()
   },
   isGraphTab,
@@ -121,11 +126,18 @@ useViewerKeyboard({
 
 /**
  * Switch to Graph without re-running corpus auto-sync when the merged graph is already loaded.
- * Tab switches alone must not replace the slice (episode “Open in graph” is highlight-only).
+ * Tab switches alone must not replace the slice (episode "Open in graph" is highlight-only).
+ *
+ * C5 — accepts an envelope ``source`` so the FSM can record the originating surface.
+ * Defaults to ``'tab-switch'`` for legacy callers (plain tab activation, e.g. on
+ * ``onSwitchMainTab``). Specific surfaces (Search / Dashboard / NodeDetail / etc.) pass
+ * their own source for accurate FSM telemetry; the existing ``subject.* + requestFocusNode``
+ * triplet is preserved while C6 makes the FSM authoritative.
  */
 async function activateGraphTab(
   targetNodeId?: string,
   focusFallbackId?: string,
+  source: EnvelopeSource = 'tab-switch',
 ): Promise<void> {
   mainTab.value = 'graph'
   const target = targetNodeId?.trim()
@@ -135,8 +147,22 @@ async function activateGraphTab(
     // Graph cy ids (`tc:…`, `g:…`, compound slugs from topic_clusters.json, …) open NodeDetail.
     if (target.startsWith('topic:')) {
       subject.focusTopic(target)
+      graphHandoff.handoffRequested({
+        kind: 'topic',
+        cyId: target,
+        source,
+        loadSource: 'subject-external',
+        camera: { kind: 'center-on-target' },
+      })
     } else {
       subject.focusGraphNode(target)
+      graphHandoff.handoffRequested({
+        kind: 'graph-node',
+        cyId: target,
+        source,
+        loadSource: source === 'node-detail' ? 'graph-internal' : 'subject-external',
+        camera: { kind: 'center-on-target' },
+      })
     }
     graphNav.requestFocusNode(target, fbTrim || null)
   }
@@ -219,6 +245,8 @@ watch(
     const prev = old !== undefined ? String(old ?? '').trim() : null
     const next = String(p ?? '').trim()
     if (prev !== null && prev !== next) {
+      // FSM full reset on corpus change (decision #5 / spec § corpusReloaded).
+      graphHandoff.corpusReloaded()
       graphExplorer.resetGraphLensForNewCorpus()
       artifacts.clearManualGraphSelection()
     }
@@ -661,7 +689,7 @@ watch(
           <div class="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden px-2 pb-4 pt-2">
             <LeftPanel
               ref="leftPanelRef"
-              @go-graph="activateGraphTab()"
+              @go-graph="activateGraphTab(undefined, undefined, 'search')"
               @open-library-episode="onSearchOpenLibraryEpisode"
               @open-episode-summary="onSearchOpenEpisodeSummary"
             />
@@ -695,7 +723,7 @@ watch(
             class="h-full min-h-0 max-w-full flex-1 overflow-x-hidden overflow-y-auto p-3"
           >
             <DashboardView
-              @go-graph="(id, fb) => activateGraphTab(id, fb)"
+              @go-graph="(id, fb) => activateGraphTab(id, fb, 'dashboard')"
               @open-library="mainTab = 'library'"
               @open-digest="mainTab = 'digest'"
             />
@@ -747,7 +775,7 @@ watch(
           <SubjectRail
             :main-tab="mainTab"
             @close-subject="onCloseSubjectRail"
-            @go-graph="activateGraphTab()"
+            @go-graph="activateGraphTab(undefined, undefined, 'subject-rail')"
             @focus-search-handoff="onLibraryFocusSearch"
             @prefill-semantic-search="onGraphNodeTopicPrefillSearch"
             @open-explore-topic-filter="onGraphNodeTopicOpenExploreFilter"
@@ -762,7 +790,7 @@ watch(
       </div>
       <StatusBar
         @local-artifacts-loaded="onStatusBarLocalArtifactsLoaded"
-        @go-graph="activateGraphTab()"
+        @go-graph="activateGraphTab(undefined, undefined, 'status-bar')"
       />
     </div>
   </div>
