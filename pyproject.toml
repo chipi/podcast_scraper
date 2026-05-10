@@ -113,6 +113,9 @@ monitor = [
 # Development tools plus GI/KG viewer HTTP stack (FastAPI, RFC-062) — same pins as docker/api/Dockerfile
 dev = [
   "fastapi>=0.115.0,<1.0.0",
+  # Starlette TestClient (tests/conftest.py preload) requires httpx; not always
+  # pulled as a transitive install in minimal CI venvs.
+  "httpx>=0.28.1,<1.0.0",
   "uvicorn[standard]>=0.32.0,<1.0.0",
   # Prometheus exporter for /metrics (gated on PODCAST_METRICS_ENABLED in app.py).
   "prometheus-fastapi-instrumentator>=7.0.0,<8.0.0",
