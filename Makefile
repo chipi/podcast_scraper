@@ -841,8 +841,9 @@ codespace-restore-local:
 	echo "OK: corpus restored into codespace."
 
 # Trigger the cloud-side backup workflow (.github/workflows/backup-corpus.yml).
-# Tarballs the codespace corpus and uploads to chipi/podcast_scraper-backup
-# as a release asset. Use ``DRY_RUN=true`` to skip the upload; default false.
+# workflow_dispatch only (no cron). Tarballs the codespace corpus and uploads
+# to chipi/podcast_scraper-backup as a release asset. Use ``DRY_RUN=true`` to
+# skip the upload; default false.
 codespace-backup-cloud:
 	@DRY_RUN="$${DRY_RUN:-false}"; \
 	echo "Dispatching backup-corpus.yml workflow (dry_run=$$DRY_RUN) ..."; \

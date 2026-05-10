@@ -3,11 +3,10 @@ name: Backup corpus snapshot (prod VPS)
 # Daily backup of the prod VPS corpus directory to a private GitHub Releases
 # asset on chipi/podcast_scraper-backup. RFC-082 Decision 4 (Phase A).
 #
-# Runs IN PARALLEL with the existing codespace-target backup-corpus.yml
-# during the cutover window so we can spot-check that both produce the same
-# shape of snapshot before disabling the codespace path. After ~1 week of
-# operator confidence, the cutover follow-up (#723) disables the codespace
-# workflow and flips this one's schedule on. Until then this workflow is
+# Complements codespace-target backup-corpus.yml (manual-only; no cron).
+# Same backup repo, different release tag prefix (snapshot-prod-* vs
+# snapshot-*). Cutover follow-up (#723) can add a prod schedule and further
+# retire codespace exports when ready. Until then this workflow stays
 # workflow_dispatch-only (no `schedule:` trigger).
 #
 # Closes #722 (Phase A side). #744: resolve prod MagicDNS host after join.
@@ -60,7 +59,7 @@ jobs:
 
       - name: Checkout (resolver script; GH-744)
         if: steps.preflight.outputs.skip != 'true'
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           fetch-depth: 1
 
@@ -70,7 +69,8 @@ jobs:
         with:
           authkey: ${{ secrets.TS_AUTHKEY }}
           tags:    tag:gha-deployer
-          version: latest
+          # Pinned — `version: latest` broke sha256 verification in GHA (May 2026).
+          version: 1.96.4
 
       - name: Resolve prod MagicDNS host (GH-744)
         id: ts_host

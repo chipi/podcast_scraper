@@ -205,10 +205,14 @@ ssh attempt.
 
 ## Backup / restore
 
-Backup cron (`backup-corpus.yml`, daily 04:17 UTC) tarballs
+**Backup corpus snapshot** (`backup-corpus.yml`) runs on
+**`workflow_dispatch` only** (no schedule — pre-prod codespace is
+operator-driven and often shut down). Start the codespace, then run the
+workflow from GitHub Actions or `make codespace-backup-cloud`. It tarballs
 `/workspaces/podcast_scraper/.codespace_corpus` and uploads to
-`chipi/podcast_scraper-backup` as a release asset. Cron is gated on
-`PODCAST_BACKUP_REPO_READY=true` repo variable.
+`chipi/podcast_scraper-backup` as a release asset. The repo variable
+`PODCAST_BACKUP_REPO_READY` is **no longer** read by this workflow (it
+only gated the old cron).
 
 Restore:
 

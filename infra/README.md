@@ -70,8 +70,9 @@ Use a **separate OpenTofu workspace** (e.g. `drill`) and a **Hetzner API token s
 | -------- | ------- |
 | [`.github/workflows/drill-infra-plan.yml`](../.github/workflows/drill-infra-plan.yml) | On PRs touching `infra/**` or `tailscale/policy.hujson`, runs `tofu fmt -check`, `validate`, and `tofu plan` in workspace **`drill`** (posts a second PR comment next to `infra-ci.yml`). |
 | [`.github/workflows/drill-infra-apply.yml`](../.github/workflows/drill-infra-apply.yml) | Manual `workflow_dispatch` with confirm **`APPLY`**, GitHub Environment **`drill`**, `tofu apply`, re-encrypt **`terraform.tfstate.enc.drill`**, upload artifact. |
+| [`.github/workflows/drill-e2e.yml`](../.github/workflows/drill-e2e.yml) | Manual **`DRILL_SMOKE`** confirm, environment **`drill`**: join tailnet, resolve **`DRILL_TAILNET_FQDN`**, HTTPS **`/api/health`** on the drill host (read-only). Requires ACL **`tag:gha-deployer` → `tag:dr-drill`** (see `tailscale/policy.hujson`) applied via prod **`infra-apply.yml`**. |
 
-**Secrets (repository):** `HCLOUD_TOKEN_DRILL` (Hetzner token scoped to the drill project only), plus the same `TS_API_KEY` and `TFSTATE_AGE_KEY` as prod infra workflows unless you document a drill-only age key. **Variables:** reuse `OPERATOR_SSH_PUBLIC_KEY` and `TAILNET_NAME` from prod.
+**Secrets (repository):** `HCLOUD_TOKEN_DRILL` (Hetzner token scoped to the drill project only), plus the same `TS_API_KEY` and `TFSTATE_AGE_KEY` as prod infra workflows unless you document a drill-only age key. **Variables:** reuse `OPERATOR_SSH_PUBLIC_KEY` and `TAILNET_NAME` from prod. Set **`DRILL_TAILNET_FQDN`** (e.g. `dr-podcast.tail-xxxx.ts.net`, matching `tailnet_hostname` in drill tfvars) for **`drill-e2e.yml`**.
 
 Prod / default workspace keeps **`manage_tailscale_acl = true`** (default) and `tailscale_advertise_tags = ["tag:prod"]`.
 

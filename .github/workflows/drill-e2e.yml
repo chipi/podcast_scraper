@@ -1,0 +1,96 @@
+name: DR drill smoke (Tailscale + /api/health)
+
+# GitHub #752 — read-only smoke against the Hetzner **drill** stack from GHA.
+# Joins the tailnet as tag:gha-deployer, resolves dr-podcast MagicDNS (suffix
+# drift), then curls /api/health over HTTPS (same pattern as deploy-prod.yml).
+#
+# Prerequisites:
+#   secrets: TS_AUTHKEY (reusable ephemeral key with tag:gha-deployer)
+#   vars:    DRILL_TAILNET_FQDN (e.g. dr-podcast.tail-xxxx.ts.net)
+#
+# Tailscale ACL must allow tag:gha-deployer → tag:dr-drill (see
+# tailscale/policy.hujson). Apply **prod** infra (`infra-apply.yml`) so the
+# ACL reaches the tailnet before expecting this workflow to pass.
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: 'Type "DRILL_SMOKE" to confirm read-only drill smoke'
+        required: true
+        default: ''
+
+permissions:
+  contents: read
+
+concurrency:
+  group: drill-e2e
+  cancel-in-progress: false
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment: drill
+    steps:
+      - name: Confirm input
+        run: |
+          if [ "${{ github.event.inputs.confirm }}" != "DRILL_SMOKE" ]; then
+            echo "::error::Must type DRILL_SMOKE to confirm. Got: '${{ github.event.inputs.confirm }}'"
+            exit 1
+          fi
+
+      - name: Pre-flight — required secrets/variables present?
+        env:
+          TS_AUTHKEY:            ${{ secrets.TS_AUTHKEY }}
+          DRILL_TAILNET_FQDN: ${{ vars.DRILL_TAILNET_FQDN }}
+        run: |
+          set -euo pipefail
+          MISSING=""
+          [ -z "${TS_AUTHKEY:-}" ]             && MISSING="$MISSING TS_AUTHKEY"
+          [ -z "${DRILL_TAILNET_FQDN:-}" ] && MISSING="$MISSING DRILL_TAILNET_FQDN"
+          if [ -n "$MISSING" ]; then
+            echo "::error::Missing prereqs:$MISSING Stage per workflow header and infra/README.md (#752)."
+            exit 1
+          fi
+
+      - name: Checkout (resolver script)
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 1
+
+      - name: Join the tailnet
+        uses: tailscale/github-action@v2
+        with:
+          authkey: ${{ secrets.TS_AUTHKEY }}
+          tags:    tag:gha-deployer
+          # Pinned — `version: latest` broke sha256 verification in GHA (May 2026).
+          version: 1.96.4
+
+      - name: Resolve drill MagicDNS host
+        id: ts_host
+        env:
+          DRILL_TAILNET_FQDN: ${{ vars.DRILL_TAILNET_FQDN }}
+        run: |
+          set -euo pipefail
+          R=$(bash scripts/ops/resolve_drill_tailnet_host.sh)
+          echo "resolved_fqdn=$R" >> "$GITHUB_OUTPUT"
+          WANT="${{ vars.DRILL_TAILNET_FQDN }}"
+          if [ "$(printf '%s' "$R" | tr '[:upper:]' '[:lower:]')" != "$(printf '%s' "$WANT" | tr '[:upper:]' '[:lower:]')" ]; then
+            echo "::notice::Tailscale live host ($R) differs from vars.DRILL_TAILNET_FQDN ($WANT). Using $R for probes."
+          fi
+
+      - name: External /api/health probe over Tailscale
+        env:
+          PROBE_URL: https://${{ steps.ts_host.outputs.resolved_fqdn }}/api/health
+        run: |
+          set -euo pipefail
+          for i in $(seq 1 12); do
+            if curl -fsS "$PROBE_URL" | jq -e '.status == "ok"' >/dev/null 2>&1; then
+              echo "::notice::/api/health OK over tailnet after $((i * 5))s"
+              exit 0
+            fi
+            sleep 5
+          done
+          echo "::error::/api/health did not return ok within 60s over tailnet ($PROBE_URL)"
+          exit 1

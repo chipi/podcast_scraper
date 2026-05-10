@@ -9,9 +9,11 @@
 {
   // Tag ownership. Only listed owners can apply these tags to devices.
   //   tag:prod         → the prod VPS (advertised by cloud-init's `tailscale up`)
-  //   tag:gha-deployer → ephemeral GHA runner during deploy-prod.yml
+  //   tag:dr-drill     → Hetzner DR drill VPS (workspace drill; RFC-082 #752)
+  //   tag:gha-deployer → ephemeral GHA runner during deploy-prod.yml / drill-e2e
   "tagOwners": {
     "tag:prod":         ["autogroup:admin"],
+    "tag:dr-drill":     ["autogroup:admin"],
     "tag:gha-deployer": ["autogroup:admin"]
   },
 
@@ -35,6 +37,18 @@
       "action": "accept",
       "src":    ["tag:gha-deployer"],
       "dst":    ["tag:prod:22"]
+    },
+
+    // DR drill VPS — operator + GHA reach SSH and viewer/api over HTTPS.
+    {
+      "action": "accept",
+      "src":    ["autogroup:admin"],
+      "dst":    ["tag:dr-drill:22,80,443"]
+    },
+    {
+      "action": "accept",
+      "src":    ["tag:gha-deployer"],
+      "dst":    ["tag:dr-drill:22,80,443"]
     }
 
     // (Future, for #714 + #723) Home Assistant subscribes to /api/jobs.

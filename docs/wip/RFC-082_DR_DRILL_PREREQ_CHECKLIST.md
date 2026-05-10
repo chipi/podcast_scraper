@@ -20,7 +20,7 @@ Tracking issue for this list: [#751](https://github.com/chipi/podcast_scraper/is
 
 ## 2. Backup and restore (closed loop)
 
-- [ ] Backup workflow understood (`backup-corpus-prod` or documented manual equivalent for the drill host).
+- [ ] Backup workflow understood (`backup-corpus-prod` for prod VPS; codespace path is **`backup-corpus.yml`**, manual dispatch when pre-prod is up; or a documented manual equivalent for the drill host).
 - [ ] Drill path: backup from drill stack → verify release on `chipi/podcast_scraper-backup` → restore **that** tag. From a machine with `gh` auth, pin the tag: `PODCAST_BACKUP_TAG=<tag> make restore-corpus` (optional `PODCAST_BACKUP_REPO=owner/repo`; default backup repo in the repo [Makefile](https://github.com/chipi/podcast_scraper/blob/main/Makefile)). When `PODCAST_BACKUP_TAG` is unset, `restore-corpus` still restores **latest** only.
 - [ ] Corpus seed: enough data on the drill host for backup/restore to be meaningful (synthetic or policy-approved subset).
 
@@ -58,6 +58,7 @@ Pick one **`PODCAST_ENV`** value for the entire drill stack (for example `dr-dri
 
 ## 4. Deploy and smoke baseline
 
+- [ ] **`drill-e2e.yml`** green after drill stack is up (GitHub Actions → **DR drill smoke**, confirm **`DRILL_SMOKE`**; needs repo variable **`DRILL_TAILNET_FQDN`** and Tailscale ACL **`tag:dr-drill`** applied via prod **`infra-apply.yml`**).
 - [ ] Drill host reaches GHCR and runs the same compose overlay story as prod / pre-prod.
 - [ ] Synthetic `.env` for drill (test API keys) documented; operators know what is fake vs prod.
 

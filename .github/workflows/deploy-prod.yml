@@ -61,7 +61,7 @@ jobs:
 
       - name: Checkout (resolver script; GH-744)
         if: steps.preflight.outputs.skip != 'true'
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           fetch-depth: 1
 
@@ -82,7 +82,8 @@ jobs:
         with:
           authkey: ${{ secrets.TS_AUTHKEY }}
           tags:    tag:gha-deployer
-          version: latest
+          # Pinned — `version: latest` broke sha256 verification in GHA (May 2026).
+          version: 1.96.4
 
       - name: Resolve prod MagicDNS host (GH-744)
         id: ts_host
