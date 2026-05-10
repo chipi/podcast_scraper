@@ -101,7 +101,7 @@ The system has **one pipeline** (`workflow.run_pipeline`) and **one configuratio
 | **CLI** | Interactive runs, ad-hoc flags, progress bars | CLI args + optional `--config` file | `podcast-scraper <rss_url>`, repeatable `--rss`, `python -m podcast_scraper.cli`. Multi-feed: `--output-dir` required when ≥2 feeds ([CLI.md](../api/CLI.md#rss-and-multi-feed)). Subcommands: `doctor`, `cache`, `corpus-status` (#506). |
 | **Service** | Daemons, automation, process managers | Config file only (no CLI args) | `python -m podcast_scraper.service --config config.yaml`. YAML `feeds` / `rss_urls` list runs one pipeline per feed when len ≥ 2. Returns `ServiceResult`; exit code 0/1. For supervisor, systemd, etc. |
 | **Docker** | Service-oriented deployment | Config file (default `/app/config.yaml` or `PODCAST_SCRAPER_CONFIG`) | Container runs **service mode**: no CLI arguments, config from file and env. See [Docker Service Guide](../guides/DOCKER_SERVICE_GUIDE.md). |
-| **Server (viewer)** | GI/KG graph, dashboard, semantic search, explore, **Corpus Library**, **index stats / rebuild** | `--output-dir` (corpus path) | `podcast serve --output-dir <path>`. FastAPI + Vue SPA; OpenAPI at **`/docs`**. Needs **`pip install -e ".[server]"`**. See [Server Guide](../guides/SERVER_GUIDE.md) and [API index — HTTP](../api/index.md#http-viewer-api-server-extra). |
+| **Server (viewer)** | GI/KG graph, dashboard, semantic search, explore, **Corpus Library**, **index stats / rebuild** | `--output-dir` (corpus path) | `podcast serve --output-dir <path>`. FastAPI + Vue SPA; OpenAPI at **`/docs`**. Needs **`pip install -e ".[dev]"`**. See [Server Guide](../guides/SERVER_GUIDE.md) and [API index — HTTP](../api/index.md#http-viewer-api-server-extra). |
 
 **Programmatic use:** Import `config.load_config_file`, `Config`, and either `workflow.run_pipeline` (returns count + summary) or `service.run` / `service.run_from_config_file` (returns `ServiceResult`). See [API Reference](../api/REFERENCE.md) and [Service API](../api/SERVICE.md).
 
@@ -723,7 +723,7 @@ and summarization.
 - **Core**: `openai` (OpenAI, DeepSeek, Grok OpenAI-compat)
 - **Optional `[llm]` extra**: `google-genai`, `google-api-core`, `anthropic`, `mistralai`, `httpx` (Ollama health checks; Ollama itself is a separate local server)
 
-**Other optional extras:** `[compare]` (Streamlit run comparison, RFC-047), `[server]` (FastAPI + Uvicorn viewer API, RFC-062), `[dev]` (tooling)
+**Other optional extras:** `[compare]` (Streamlit run comparison, RFC-047), `[dev]` (tooling, typecheck, security, and **FastAPI / uvicorn** for the RFC-062 viewer API), `[monitor]` (optional profiling, RFC-065)
 
 **Search dependencies** (included in `[ml]`):
 `sentence-transformers` (embeddings), `faiss-cpu`

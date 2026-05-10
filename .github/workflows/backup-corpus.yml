@@ -1,8 +1,9 @@
 name: Backup corpus snapshot
 
-# Daily backup of the pre-prod codespace's corpus directory to a
-# private GitHub Releases asset on chipi/podcast_scraper-backup. See
-# RFC-081 §Phase 1E + issue #682.
+# Manual backup of the pre-prod codespace's corpus directory to a private
+# GitHub Releases asset on chipi/podcast_scraper-backup. Pre-prod codespace
+# is operator-driven and often shut down, so there is no schedule — run
+# workflow_dispatch when the codespace is up. See RFC-081 §Phase 1E + issue #682.
 #
 # Operator setup (one-time):
 #   1. Create chipi/podcast_scraper-backup as a PRIVATE repo.
@@ -16,12 +17,8 @@ name: Backup corpus snapshot
 #      into the pre-prod codespace and stream the corpus tarball out.
 #   4. Set ``PREPROD_CODESPACE_NAME`` repo variable to the codespace
 #      name pinned in the deploy-codespace workflow (same value).
-#   5. Set ``PODCAST_BACKUP_REPO_READY`` repo variable to ``true``.
-#      The schedule cron stays gated until this is set.
 #
-# Once those are in place, the daily cron at 04:17 UTC (after pre-prod
-# is quiet) tarballs the codespace's corpus dir and uploads as a
-# release asset. Retention: 7 daily + 4 weekly, older snapshots pruned.
+# Retention after upload: 7 daily + 4 weekly, older snapshots pruned.
 
 on:
   workflow_dispatch:
@@ -31,8 +28,6 @@ on:
         required: false
         type: boolean
         default: true
-  schedule:
-    - cron: "17 4 * * *" # 04:17 UTC daily, after pre-prod is quiet
 
 permissions:
   # No GITHUB_TOKEN write needed — uploads go to a different repo via
@@ -42,10 +37,6 @@ permissions:
 jobs:
   snapshot:
     runs-on: ubuntu-latest
-    # The schedule trigger only runs when the operator has flipped the
-    # readiness flag. workflow_dispatch always runs but defaults to
-    # dry_run=true so an accidental manual trigger logs only.
-    if: ${{ github.event_name == 'workflow_dispatch' || vars.PODCAST_BACKUP_REPO_READY == 'true' }}
     steps:
       - name: Validate prerequisites
         env:
@@ -165,7 +156,7 @@ jobs:
             gh release create "$TAG" snapshot.tgz \
               --repo "$BACKUP_REPO" \
               --title "Corpus snapshot $TAG" \
-              --notes "Automated daily backup of /workspaces/podcast_scraper/.codespace_corpus. Retention 7d + 4w."
+              --notes "Manual codespace backup of /workspaces/podcast_scraper/.codespace_corpus. Retention 7d + 4w."
           fi
           echo "Uploaded snapshot.tgz as release tag $TAG"
 

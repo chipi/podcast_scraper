@@ -24,7 +24,7 @@ GIL_OFFSET_MIN_RATE ?= 0.95
 # only (a global Makefile export previously forced HF offline and broke ``make preload-ml-models*``).
 HF_NET_ENV := env -u HF_HUB_OFFLINE -u TRANSFORMERS_OFFLINE
 
-# Secondary venv matching GitHub ``test-unit``: ``pip install -e .[dev]`` only (no ml/llm/server).
+# Secondary venv matching GitHub ``test-unit``: ``pip install -e .[dev]`` only (no ml/llm).
 # Override path: ``make venv-dev-init VENVDEV=.venv-ci-unit``
 VENVDEV ?= .venv-dev
 VENVDEV_PY = $(VENVDEV)/bin/python
@@ -483,7 +483,7 @@ validate-kg-schema:
 		export PYTHONPATH="${PYTHONPATH}:$(PWD)/src" && $(PYTHON) scripts/tools/validate_kg_schema.py tests/fixtures; \
 	fi
 
-# GI/KG viewer v2 (#489): FastAPI + Vite. Install: pip install -e '.[server]'; cd $(WEB_VIEWER_DIR) && npm install
+# GI/KG viewer v2 (#489): FastAPI + Vite. ``make init`` includes FastAPI via ``[dev]``; cd $(WEB_VIEWER_DIR) && npm install
 .PHONY: serve serve-api serve-ui serve-e2e-mock stack-build stack-build-llm stack-compose-validate stack-up stack-down stack-logs verify-stack-profiles stack-test-build stack-test-build-cloud stack-test-up stack-test-down stack-test-seed stack-test-playwright stack-test-export stack-test-ml stack-test-cloud-thin stack-test-ml-ci deploy-codespace restore-corpus
 SERVE_OUTPUT_DIR ?= ./output
 # Optional corpus-editing + jobs routes (health shows green when on). Override with SERVE_ARGS= to disable.
@@ -841,8 +841,9 @@ codespace-restore-local:
 	echo "OK: corpus restored into codespace."
 
 # Trigger the cloud-side backup workflow (.github/workflows/backup-corpus.yml).
-# Tarballs the codespace corpus and uploads to chipi/podcast_scraper-backup
-# as a release asset. Use ``DRY_RUN=true`` to skip the upload; default false.
+# workflow_dispatch only (no cron). Tarballs the codespace corpus and uploads
+# to chipi/podcast_scraper-backup as a release asset. Use ``DRY_RUN=true`` to
+# skip the upload; default false.
 codespace-backup-cloud:
 	@DRY_RUN="$${DRY_RUN:-false}"; \
 	echo "Dispatching backup-corpus.yml workflow (dry_run=$$DRY_RUN) ..."; \
@@ -852,32 +853,45 @@ codespace-backup-cloud:
 	echo ""; \
 	echo "Watch: gh run watch <id> --repo chipi/podcast_scraper"
 
-# Pull the latest corpus snapshot from chipi/podcast_scraper-backup and
-# untar into ``.codespace_corpus/`` (the workspace-survives-suspend
-# path that the codespace bind-mounts as the corpus root).
+# Pull a corpus snapshot from chipi/podcast_scraper-backup (or PODCAST_BACKUP_REPO)
+# and untar into ``.codespace_corpus/`` (the workspace-survives-suspend path that
+# the codespace bind-mounts as the corpus root).
 #
 # Requires:
-#   * gh auth login with read access to chipi/podcast_scraper-backup
-#     (private repo).
-#   * Run from inside the codespace OR with the workspace path
-#     overridden via WORKSPACE_DIR (default: current dir).
+#   * gh auth login with read access to the backup repo (private by default).
+#   * Run from inside the codespace OR with the workspace path overridden via
+#     WORKSPACE_DIR (default: current dir).
+#
+# Optional: set PODCAST_BACKUP_TAG to a release tag (for example after a drill
+# backup) instead of always taking the latest release. When unset, behaviour is
+# unchanged: restore the most recent release from gh release list.
 restore-corpus:
 	@WORKSPACE_DIR="$${WORKSPACE_DIR:-$$PWD}"; \
 	BACKUP_REPO="$${PODCAST_BACKUP_REPO:-chipi/podcast_scraper-backup}"; \
-	echo "Restoring latest corpus snapshot from $$BACKUP_REPO ..."; \
-	if ! gh release list --repo "$$BACKUP_REPO" --limit 1 >/dev/null 2>&1; then \
-		echo "ERROR: cannot list releases on $$BACKUP_REPO." >&2; \
-		echo "       Confirm the repo exists, your gh CLI is authenticated, and" >&2; \
-		echo "       your token has read access to that private repo." >&2; \
-		exit 2; \
+	if [ -n "$${PODCAST_BACKUP_TAG:-}" ]; then \
+		TAG="$${PODCAST_BACKUP_TAG}"; \
+		echo "Restoring corpus snapshot $$TAG from $$BACKUP_REPO ..."; \
+		if ! gh release view "$$TAG" --repo "$$BACKUP_REPO" >/dev/null 2>&1; then \
+			echo "ERROR: release $$TAG not found on $$BACKUP_REPO." >&2; \
+			echo "       Confirm the tag name and gh read access." >&2; \
+			exit 2; \
+		fi; \
+	else \
+		echo "Restoring latest corpus snapshot from $$BACKUP_REPO ..."; \
+		if ! gh release list --repo "$$BACKUP_REPO" --limit 1 >/dev/null 2>&1; then \
+			echo "ERROR: cannot list releases on $$BACKUP_REPO." >&2; \
+			echo "       Confirm the repo exists, your gh CLI is authenticated, and" >&2; \
+			echo "       your token has read access to that private repo." >&2; \
+			exit 2; \
+		fi; \
+		TAG=$$(gh release list --repo "$$BACKUP_REPO" --limit 1 --json tagName -q '.[0].tagName'); \
+		echo "Latest snapshot: $$TAG"; \
 	fi; \
-	LATEST=$$(gh release list --repo "$$BACKUP_REPO" --limit 1 --json tagName -q '.[0].tagName'); \
-	echo "Latest snapshot: $$LATEST"; \
 	mkdir -p "$$WORKSPACE_DIR/.codespace_corpus"; \
 	cd /tmp && rm -f snapshot.tgz; \
-	gh release download "$$LATEST" --repo "$$BACKUP_REPO" --pattern 'snapshot.tgz' --output /tmp/snapshot.tgz; \
+	gh release download "$$TAG" --repo "$$BACKUP_REPO" --pattern 'snapshot.tgz' --output /tmp/snapshot.tgz; \
 	tar -xzf /tmp/snapshot.tgz -C "$$WORKSPACE_DIR" --strip-components=0; \
-	echo "OK: corpus restored from $$LATEST into $$WORKSPACE_DIR/.codespace_corpus/"
+	echo "OK: corpus restored from $$TAG into $$WORKSPACE_DIR/.codespace_corpus/"
 
 # Vitest unit tests for TypeScript utility logic (no browser needed)
 test-ui:

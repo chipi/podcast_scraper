@@ -137,7 +137,7 @@ runcmd:
   - curl -fsSL "https://pkgs.tailscale.com/stable/ubuntu/$(. /etc/os-release && echo "$VERSION_CODENAME").tailscale-keyring.list" -o /etc/apt/sources.list.d/tailscale.list
   - apt-get update
   - apt-get install -y tailscale
-  - tailscale up --auth-key='${tailscale_auth_key}' --hostname='${tailnet_hostname}' --advertise-tags='tag:prod' --ssh=false
+  - tailscale up --auth-key='${tailscale_auth_key}' --hostname='${tailnet_hostname}' --advertise-tags='${tailscale_advertise_tags_cli}' --ssh=false
 
   # === Repo checkout to /srv/podcast-scraper ===
   - install -d -o deploy -g deploy -m 0755 /srv/podcast-scraper

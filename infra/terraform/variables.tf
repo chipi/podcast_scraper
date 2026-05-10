@@ -65,6 +65,36 @@ variable "tailnet_hostname" {
   default     = "prod-podcast"
 }
 
+variable "manage_tailscale_acl" {
+  type        = bool
+  description = "When true (default), apply tailscale/policy.hujson via tailscale_acl. Set false for a secondary OpenTofu workspace (e.g. drill) so only one state owns the tailnet-wide ACL — see infra/README.md \"DR drill workspace\"."
+  default     = true
+}
+
+variable "tailscale_advertise_tags" {
+  type        = list(string)
+  description = "Tailscale tags for tailscale_tailnet_key and for `tailscale up --advertise-tags` in cloud-init. Prod uses [\"tag:prod\"]; drill uses e.g. [\"tag:dr-drill\"] per tailscale/policy.hujson tagOwners."
+  default     = ["tag:prod"]
+
+  validation {
+    condition = alltrue([
+      for t in var.tailscale_advertise_tags : can(regex("^tag:[a-z][a-z0-9_-]*$", t))
+    ])
+    error_message = "Each tailscale_advertise_tags entry must look like tag:name (lowercase start; letters, digits, hyphen, underscore after tag:)."
+  }
+}
+
+variable "hcloud_environment_label" {
+  type        = string
+  description = "Value for hcloud_server label `environment` (Hetzner UI / API). Use `prod` for production; use `drill` for throwaway DR drill stacks in a separate Hetzner project."
+  default     = "prod"
+
+  validation {
+    condition     = contains(["prod", "drill", "preprod"], var.hcloud_environment_label)
+    error_message = "hcloud_environment_label must be prod, drill, or preprod."
+  }
+}
+
 variable "grafana_cloud_metrics_remote_write_url" {
   type        = string
   description = "Grafana Cloud Prometheus remote_write URL (…/api/prom/push). If any of the three grafana_cloud_metrics_* vars are empty, cloud-init skips Alloy host metrics."

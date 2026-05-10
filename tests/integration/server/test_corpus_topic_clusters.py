@@ -1,6 +1,6 @@
 """Integration tests for GET /api/corpus/topic-clusters.
 
-Requires ``fastapi`` (``pip install -e '.[server]'``).
+Requires ``fastapi`` (``pip install -e '.[dev]'``).
 """
 
 from __future__ import annotations

@@ -65,7 +65,7 @@ root or exactly the server ``operator_config_fixed_path``. Generic helpers
 ``atomic_write_text`` and ``load_feeds_spec_file`` use pragmas documenting that
 callers only pass corpus-anchored or packaged paths.
 
-**CI unit tests (``.[dev]`` without ``.[server]``):** modules imported by unit tests
+**CI unit tests:** ``check_test_policy`` keeps FastAPI out of ``tests/unit/`` even though ``.[dev]`` includes it. Modules imported by unit tests
 must not import FastAPI at import time. ``pipeline_jobs`` and ``operator_paths`` use
 ``typing.Any`` for the app handle; ``operator_config_security`` raises
 ``OperatorYamlUnsafeError`` (stdlib) and routes translate to ``HTTPException``.

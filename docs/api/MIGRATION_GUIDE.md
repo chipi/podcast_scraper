@@ -14,7 +14,7 @@ v2.6.0 adds **viewer and HTTP** capabilities; the core library API is unchanged.
 - **`POST /api/index/rebuild`** — background vector index rebuild; poll **`GET /api/index/stats`** for `rebuild_in_progress` and errors.
 - **Vue viewer** — Library tab and dashboard hooks aligned with the above.
 
-**Migration:** `pip install -e '.[server]'` if you call the HTTP API or run `podcast serve`. No changes required for `run_pipeline` / `service.run` callers.
+**Migration:** `pip install -e '.[dev]'` if you call the HTTP API or run `podcast serve`. No changes required for `run_pipeline` / `service.run` callers.
 
 ### Feeds API and jobs: structured `feeds.spec.yaml` (RFC-077 / #626)
 
@@ -25,7 +25,7 @@ v2.6.0 adds **viewer and HTTP** capabilities; the core library API is unchanged.
 ### Additive: Corpus Digest and health discovery (RFC-068)
 
 - **`GET /api/corpus/digest`** — rolling-window digest of recent episodes (feed-diverse) plus optional semantic topic bands when a vector index exists. See [Server Guide](../guides/SERVER_GUIDE.md) and [RFC-068](../rfc/RFC-068-corpus-digest-api-viewer.md).
-- **`GET /api/health`** — response may include **`corpus_digest_api`** (`bool`). **`false`** disables Digest / glance in the viewer. If the field is **omitted** but **`corpus_library_api`** is true, the GI/KG viewer **infers** digest is available (legacy health JSON); if the running process is too old to mount **`GET /api/corpus/digest`**, the digest request fails — upgrade/restart the API from a current `[server]` install.
+- **`GET /api/health`** — response may include **`corpus_digest_api`** (`bool`). **`false`** disables Digest / glance in the viewer. If the field is **omitted** but **`corpus_library_api`** is true, the GI/KG viewer **infers** digest is available (legacy health JSON); if the running process is too old to mount **`GET /api/corpus/digest`**, the digest request fails — upgrade/restart the API from a current `[dev]` install.
 
 ---
 

@@ -4,7 +4,7 @@ import pytest
 
 from podcast_scraper.server.operator_yaml_profile import parse_pipeline_install_extras
 
-# Moved from tests/unit/ — RFC-081 PR-A1: tests that import [ml]/[llm]/[server]
+# Moved from tests/unit/ — RFC-081 PR-A1: tests that import [ml]/[llm] or viewer HTTP
 # gated modules belong in the integration tier per UNIT_TESTING_GUIDE.md.
 pytestmark = [pytest.mark.integration]
 

@@ -294,14 +294,14 @@ directory).
 - **Integration:** `tests/integration/server/` -- wired `create_app` with real filesystem layouts,
   `TestClient`, and no mocking of route internals (e.g. `test_server_api.py`,
   `test_viewer_corpus_library.py`, `test_index_rebuild.py`, `test_index_rebuild_gate.py`,
-  `test_viewer_index_stats.py`). CI integration jobs install `.[dev,ml,llm,server]`.
+  `test_viewer_index_stats.py`). CI integration jobs install `.[dev,ml,llm]`.
 
 ### Unit tests and optional extras (`pyproject`) {#unit-tests-and-optional-extras-pyproject}
 
 **Contract for `tests/unit/`:**
 
-1. **Never require any non-`[dev]` extra** (`[ml]`, `[llm]`, `[compare]`, `[server]`, etc.).
-   Real FAISS, Whisper, spaCy, FastAPI, httpx, cloud SDKs, etc. belong in **integration** or
+1. **Never require any non-`[dev]` extra** (`[ml]`, `[llm]`, `[compare]`, etc.).
+   Real FAISS, Whisper, spaCy, **FastAPI `TestClient` / `create_app`**, httpx, cloud SDKs, etc. belong in **integration** or
    **E2E** tests (with the workflow installing the right extras). Use **mocks**,
    **`sys.modules` stubs**, or **lazy imports** in unit tests.
 2. **`[dev]`** is the **only baseline** for `tests/unit/`. CI `test-unit` installs
@@ -310,7 +310,7 @@ directory).
 3. **Do not use `pytest.importorskip()` in `tests/unit/`** to guard non-`[dev]` imports.
    It causes silent skips in CI, meaning the test never validates anything. If a test needs
    FastAPI, httpx, faiss, torch, etc., move it to `tests/integration/` where CI installs
-   the full extras (`.[dev,ml,llm,server]`). Do not pull ML into unit tests -- keep
+   the full extras (`.[dev,ml,llm]`). Do not pull ML into unit tests -- keep
    FAISS / torch / spacy out of `tests/unit/` except via mocks.
 
 **Verification (two complementary scripts, both in `make ci` / `make ci-fast`):**

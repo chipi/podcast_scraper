@@ -1,0 +1,145 @@
+name: Drill infra plan (PR)
+
+# GitHub #752 — OpenTofu workspace `drill` plan on PRs touching infra (parallel
+# to infra-ci.yml which plans the default / prod workspace). Posts a separate
+# PR comment so reviewers see drill-scoped changes without switching workspaces
+# locally.
+#
+# Prerequisites: secrets HCLOUD_TOKEN_DRILL, TS_API_KEY, TFSTATE_AGE_KEY; optional
+# committed infra/terraform/terraform.tfstate.enc.drill (sops+age). GitHub
+# Environment protection is not required for plan-only jobs.
+
+on:
+  pull_request:
+    paths:
+      - 'infra/**'
+      - 'tailscale/policy.hujson'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pull-requests: write
+
+concurrency:
+  group: drill-infra-plan-${{ github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: true
+
+jobs:
+  plan:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Pre-flight — required secrets present?
+        id: preflight
+        env:
+          HCLOUD_TOKEN_DRILL: ${{ secrets.HCLOUD_TOKEN_DRILL }}
+          TS_API_KEY:         ${{ secrets.TS_API_KEY }}
+          TFSTATE_AGE_KEY:    ${{ secrets.TFSTATE_AGE_KEY }}
+        run: |
+          set -euo pipefail
+          MISSING=""
+          [ -z "${HCLOUD_TOKEN_DRILL:-}" ] && MISSING="$MISSING HCLOUD_TOKEN_DRILL"
+          [ -z "${TS_API_KEY:-}" ]       && MISSING="$MISSING TS_API_KEY"
+          [ -z "${TFSTATE_AGE_KEY:-}" ]  && MISSING="$MISSING TFSTATE_AGE_KEY"
+          if [ -n "$MISSING" ]; then
+            echo "::warning::Missing prereqs:$MISSING — skipping drill workspace plan."
+            echo "::warning::Add HCLOUD_TOKEN_DRILL (drill-project token) per infra/README.md #752."
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Install OpenTofu
+        if: steps.preflight.outputs.skip != 'true'
+        uses: opentofu/setup-opentofu@v1
+        with:
+          tofu_version: 1.6.0
+
+      - name: Install sops + age
+        if: steps.preflight.outputs.skip != 'true'
+        run: |
+          set -euo pipefail
+          sudo curl -fsSL -o /usr/local/bin/sops \
+            https://github.com/getsops/sops/releases/download/v3.9.4/sops-v3.9.4.linux.amd64
+          sudo chmod +x /usr/local/bin/sops
+          curl -fsSL https://github.com/FiloSottile/age/releases/download/v1.2.1/age-v1.2.1-linux-amd64.tar.gz \
+            | sudo tar -xz -C /usr/local/bin --strip-components=1 age/age age/age-keygen
+
+      - name: tofu fmt -check
+        if: steps.preflight.outputs.skip != 'true'
+        working-directory: infra/terraform
+        run: tofu fmt -check -diff
+
+      - name: tofu init
+        if: steps.preflight.outputs.skip != 'true'
+        working-directory: infra/terraform
+        run: tofu init -input=false
+
+      - name: Select OpenTofu workspace drill
+        if: steps.preflight.outputs.skip != 'true'
+        working-directory: infra/terraform
+        run: tofu workspace select drill || tofu workspace new drill
+
+      - name: Decrypt drill state (if any prior apply has happened)
+        if: steps.preflight.outputs.skip != 'true'
+        env:
+          SOPS_AGE_KEY: ${{ secrets.TFSTATE_AGE_KEY }}
+        run: |
+          set -euo pipefail
+          if [ -f infra/terraform/terraform.tfstate.enc.drill ]; then
+            mkdir -p infra/terraform/terraform.tfstate.d/drill
+            sops -d infra/terraform/terraform.tfstate.enc.drill \
+              > infra/terraform/terraform.tfstate.d/drill/terraform.tfstate
+          fi
+
+      - name: tofu validate
+        if: steps.preflight.outputs.skip != 'true'
+        working-directory: infra/terraform
+        run: tofu validate
+
+      - name: tofu plan (workspace drill)
+        if: steps.preflight.outputs.skip != 'true'
+        id: plan
+        working-directory: infra/terraform
+        env:
+          TF_VAR_hcloud_token:      ${{ secrets.HCLOUD_TOKEN_DRILL }}
+          TF_VAR_tailscale_api_key: ${{ secrets.TS_API_KEY }}
+          TF_VAR_ssh_public_key:    ${{ vars.OPERATOR_SSH_PUBLIC_KEY }}
+          TF_VAR_tailscale_tailnet: ${{ vars.TAILNET_NAME }}
+        run: |
+          set +e
+          tofu plan -no-color -input=false -var-file=terraform.drill.ci.tfvars 2>&1 | tee plan.txt
+          PLAN_EXIT="${PIPESTATUS[0]}"
+          head -c 60000 plan.txt > plan.trunc.txt
+          exit "$PLAN_EXIT"
+
+      - name: Post drill plan as PR comment
+        if: >
+          github.event_name == 'pull_request' &&
+          steps.preflight.outputs.skip != 'true' &&
+          always()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            let plan;
+            try { plan = fs.readFileSync('infra/terraform/plan.trunc.txt', 'utf8'); }
+            catch (e) { plan = '(plan output unavailable — see workflow logs)'; }
+            const body = '## OpenTofu plan (workspace `drill`)\n\n```\n' + plan + '\n```\n\n' +
+                         '_Workflow run: ' + context.runId + '_';
+            github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo:  context.repo.repo,
+              issue_number: context.issue.number,
+              body: body
+            });
+
+      - name: Cleanup plaintext drill state
+        if: always() && steps.preflight.outputs.skip != 'true'
+        run: |
+          rm -rf infra/terraform/terraform.tfstate.d/drill
+          shred -u infra/terraform/terraform.tfstate 2>/dev/null \
+            || rm -f infra/terraform/terraform.tfstate
+          rm -f infra/terraform/plan.txt infra/terraform/plan.trunc.txt

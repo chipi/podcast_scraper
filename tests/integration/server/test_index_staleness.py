@@ -17,7 +17,7 @@ from podcast_scraper.server.index_staleness import (
     REASON_NO_INDEX_BUT_METADATA,
 )
 
-# Moved from tests/unit/ — RFC-081 PR-A1: tests that import [ml]/[llm]/[server]
+# Moved from tests/unit/ — RFC-081 PR-A1: tests that import [ml]/[llm] or viewer HTTP
 # gated modules belong in the integration tier per UNIT_TESTING_GUIDE.md.
 pytestmark = [pytest.mark.integration]
 

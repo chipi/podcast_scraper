@@ -818,7 +818,7 @@ See `web/gi-kg-viewer/playwright.config.ts` for the current configuration
 ### Test Organization
 
 - `web/gi-kg-viewer/e2e/` — browser E2E tests (Playwright)
-- `tests/unit/podcast_scraper/server/` — backend unit tests (pytest; `importorskip("fastapi")` when `[server]` not installed)
+- `tests/unit/podcast_scraper/server/` — backend unit tests (pytest; `importorskip("fastapi")` when `[dev]` not installed)
 - `tests/integration/server/` — backend API integration (pytest): `test_server_api.py`, Corpus Library, index rebuild, index stats, etc.
 
 ### Test Execution

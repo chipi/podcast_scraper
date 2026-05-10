@@ -532,8 +532,9 @@ all the way (no third-party storage vendor)**:
   - One-time setup: create `chipi/podcast_scraper-backup` as a
     **private** repository (free for personal accounts; private so
     backup contents are never publicly readable).
-  - New GHA workflow `.github/workflows/backup-corpus.yml`, scheduled
-    daily.
+  - New GHA workflow `.github/workflows/backup-corpus.yml`, operator
+    **`workflow_dispatch`** when a snapshot is wanted (no cron; the
+    codespace is often shut down).
   - Wakes the codespace, runs `tar -czf snapshot.tgz .codespace_corpus`,
     then `gh release create snapshot-$(date -u +%Y%m%d) snapshot.tgz
     --repo chipi/podcast_scraper-backup --notes "auto"`.

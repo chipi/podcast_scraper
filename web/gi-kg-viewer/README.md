@@ -10,7 +10,7 @@ fits with the root `Makefile`, `.env` files, and CI, see
 
 Use this when you want **list files**, **semantic search**, **explore**, and **dashboard** (everything that talks to `/api/*`).
 
-1. **Python:** `pip install -e ".[server]"` from the repo root (add `[ml]` too if you need FAISS / embeddings on the server, same as `podcast search`).
+1. **Python:** `pip install -e ".[dev]"` from the repo root (add `[ml]` too if you need FAISS / embeddings on the server, same as `podcast search`).
 2. **UI build (once per clone / after UI changes):**  
    `cd web/gi-kg-viewer && npm install && npm run build`  
    This creates `dist/`. When `dist/` exists, `serve` mounts it at `/` so you only run one backend process.
@@ -30,7 +30,7 @@ Use this when you want **list files**, **semantic search**, **explore**, and **d
 ## Prerequisites (contributors)
 
 - Node 20+ and npm
-- Python env with **`[server]`**: `pip install -e '.[server]'` (use `.[dev,ml,llm,server]` if you match `make init` + viewer APIs)
+- Python env with **`[dev]`** (includes FastAPI): `pip install -e '.[dev]'` (use `.[dev,ml,llm]` to match `make init` for full viewer APIs)
 
 ## Development (API + Vite separately)
 
@@ -96,7 +96,7 @@ Use the **Dashboard** tab for artifact metrics (v1-style key/value rows), a **Ch
 
 ## Corpus Library (RFC-067)
 
-The **Library** tab lists **feeds** and **episodes** from on-disk `*.metadata.json` / YAML under your corpus root (same discovery as the pipeline). Select an episode to see **summary bullets** and **Open in graph** (loads sibling `.gi.json` / `.kg.json` via `GET /api/artifacts/...`) or **Prefill semantic search** (opens Search with **Feed** filter and the same field order as **Similar episodes**: summary **title** + **bullets**, else **episode title** — each segment and the total string are length-capped so long recap text in metadata does not flood the query box — then run **Search** against the vector index). After episode detail loads, **Similar episodes** auto-calls `GET /api/corpus/episodes/similar` (FAISS + deduped peers). Endpoints: `GET /api/corpus/feeds`, `GET /api/corpus/episodes`, `GET /api/corpus/episodes/detail`, `GET /api/corpus/episodes/similar`. Requires a healthy API and corpus path set in the left panel. `GET /api/health` includes `corpus_library_api: true` on current servers; a 404 on `/api/corpus/*` usually means an older API process is still running—restart `make serve-api` / `podcast serve` from this repo after `pip install -e ".[server]"`.
+The **Library** tab lists **feeds** and **episodes** from on-disk `*.metadata.json` / YAML under your corpus root (same discovery as the pipeline). Select an episode to see **summary bullets** and **Open in graph** (loads sibling `.gi.json` / `.kg.json` via `GET /api/artifacts/...`) or **Prefill semantic search** (opens Search with **Feed** filter and the same field order as **Similar episodes**: summary **title** + **bullets**, else **episode title** — each segment and the total string are length-capped so long recap text in metadata does not flood the query box — then run **Search** against the vector index). After episode detail loads, **Similar episodes** auto-calls `GET /api/corpus/episodes/similar` (FAISS + deduped peers). Endpoints: `GET /api/corpus/feeds`, `GET /api/corpus/episodes`, `GET /api/corpus/episodes/detail`, `GET /api/corpus/episodes/similar`. Requires a healthy API and corpus path set in the left panel. `GET /api/health` includes `corpus_library_api: true` on current servers; a 404 on `/api/corpus/*` usually means an older API process is still running—restart `make serve-api` / `podcast serve` from this repo after `pip install -e ".[dev]"`.
 
 ## Corpus Digest (RFC-068)
 

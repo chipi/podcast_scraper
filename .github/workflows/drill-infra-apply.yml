@@ -1,0 +1,116 @@
+name: Drill infra apply (manual)
+
+# GitHub #752 — manual apply for OpenTofu workspace `drill` only. Uses
+# HCLOUD_TOKEN_DRILL and GitHub Environment `drill` for approval gates.
+# State is encrypted to terraform.tfstate.enc.drill (parallel to prod
+# terraform.tfstate.enc for the default workspace).
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: 'Type "APPLY" to confirm apply in workspace drill'
+        required: true
+        default: ''
+
+permissions:
+  contents: read
+
+concurrency:
+  group: drill-infra-apply
+  cancel-in-progress: false
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment: drill
+    steps:
+      - name: Confirm input
+        run: |
+          if [ "${{ github.event.inputs.confirm }}" != "APPLY" ]; then
+            echo "::error::Must type APPLY to confirm. Got: '${{ github.event.inputs.confirm }}'"
+            exit 1
+          fi
+
+      - uses: actions/checkout@v5
+
+      - name: Pre-flight — required secrets present?
+        env:
+          HCLOUD_TOKEN_DRILL: ${{ secrets.HCLOUD_TOKEN_DRILL }}
+          TS_API_KEY:         ${{ secrets.TS_API_KEY }}
+          TFSTATE_AGE_KEY:    ${{ secrets.TFSTATE_AGE_KEY }}
+        run: |
+          set -euo pipefail
+          MISSING=""
+          [ -z "${HCLOUD_TOKEN_DRILL:-}" ] && MISSING="$MISSING HCLOUD_TOKEN_DRILL"
+          [ -z "${TS_API_KEY:-}" ]       && MISSING="$MISSING TS_API_KEY"
+          [ -z "${TFSTATE_AGE_KEY:-}" ]  && MISSING="$MISSING TFSTATE_AGE_KEY"
+          if [ -n "$MISSING" ]; then
+            echo "::error::Missing prereqs:$MISSING. Stage them per infra/README.md (#752)."
+            exit 1
+          fi
+
+      - name: Install OpenTofu
+        uses: opentofu/setup-opentofu@v1
+        with:
+          tofu_version: 1.6.0
+
+      - name: Install sops + age
+        run: |
+          set -euo pipefail
+          sudo curl -fsSL -o /usr/local/bin/sops \
+            https://github.com/getsops/sops/releases/download/v3.9.4/sops-v3.9.4.linux.amd64
+          sudo chmod +x /usr/local/bin/sops
+          curl -fsSL https://github.com/FiloSottile/age/releases/download/v1.2.1/age-v1.2.1-linux-amd64.tar.gz \
+            | sudo tar -xz -C /usr/local/bin --strip-components=1 age/age age/age-keygen
+
+      - name: Decrypt drill state (if any prior apply has happened)
+        env:
+          SOPS_AGE_KEY: ${{ secrets.TFSTATE_AGE_KEY }}
+        run: |
+          if [ -f infra/terraform/terraform.tfstate.enc.drill ]; then
+            mkdir -p infra/terraform/terraform.tfstate.d/drill
+            sops -d infra/terraform/terraform.tfstate.enc.drill \
+              > infra/terraform/terraform.tfstate.d/drill/terraform.tfstate
+          fi
+
+      - name: tofu init + workspace drill + apply
+        working-directory: infra/terraform
+        env:
+          TF_VAR_hcloud_token:      ${{ secrets.HCLOUD_TOKEN_DRILL }}
+          TF_VAR_tailscale_api_key: ${{ secrets.TS_API_KEY }}
+          TF_VAR_ssh_public_key:    ${{ vars.OPERATOR_SSH_PUBLIC_KEY }}
+          TF_VAR_tailscale_tailnet: ${{ vars.TAILNET_NAME }}
+        run: |
+          tofu init -input=false
+          tofu workspace select drill || tofu workspace new drill
+          tofu apply -auto-approve -input=false -var-file=terraform.drill.ci.tfvars
+
+      - name: Re-encrypt drill state (always — even if apply failed)
+        if: always()
+        env:
+          SOPS_AGE_KEY: ${{ secrets.TFSTATE_AGE_KEY }}
+        run: |
+          if [ -f infra/terraform/terraform.tfstate.d/drill/terraform.tfstate ]; then
+            sops -e infra/terraform/terraform.tfstate.d/drill/terraform.tfstate \
+              > infra/terraform/terraform.tfstate.enc.drill.new
+            mv infra/terraform/terraform.tfstate.enc.drill.new \
+              infra/terraform/terraform.tfstate.enc.drill
+          fi
+
+      - name: Upload encrypted drill state as artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: terraform-state-after-apply-drill
+          path: infra/terraform/terraform.tfstate.enc.drill
+          if-no-files-found: ignore
+          retention-days: 30
+
+      - name: Cleanup plaintext drill state
+        if: always()
+        run: |
+          rm -rf infra/terraform/terraform.tfstate.d/drill
+          shred -u infra/terraform/terraform.tfstate 2>/dev/null \
+            || rm -f infra/terraform/terraform.tfstate

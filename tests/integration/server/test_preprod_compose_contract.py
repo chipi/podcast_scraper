@@ -10,8 +10,9 @@ defects RFC-081 Phase 1 first shipped cannot regress silently:
   codespace shell.
 * ``PODCAST_PIPELINE_EXEC_MODE=docker`` on api so the Docker job factory
   attaches at startup. Without this, ``POST /api/jobs`` would try to run
-  pipeline code in-process inside the published api image (which only ships
-  ``[server]`` extras) and crash on missing ``[llm]`` deps.
+  pipeline code in-process inside the published api image (runtime HTTP +
+  search stack only, not full ``.[dev]`` or ``.[llm]``) and crash on missing
+  pipeline deps.
 * api mounts ``/var/run/docker.sock`` and the project dir so the nested
   ``docker compose run --rm pipeline-llm`` works.
 * ``PODCAST_DOCKER_COMPOSE_FILES`` references both overlays so the spawned

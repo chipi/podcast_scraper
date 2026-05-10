@@ -14,13 +14,27 @@ resource "tailscale_tailnet_key" "prod" {
   ephemeral     = false
   preauthorized = true
   expiry        = 3600
-  tags          = ["tag:prod"]
-  description   = "podcast-scraper-prod VPS auth key"
+  tags          = var.tailscale_advertise_tags
+  description = format(
+    "podcast-scraper VPS auth key (%s)",
+    join(",", var.tailscale_advertise_tags)
+  )
 }
 
 # Sync the repo's ACL file to the tailnet. Source of truth = tailscale/policy.hujson;
 # every `tofu apply` overwrites the live policy. ACL changes ship as PRs per
 # RFC-082 Decision 2 + Decisions-made #4.
+#
+# When manage_tailscale_acl is false (e.g. OpenTofu workspace "drill"), omit this
+# resource so a second state cannot fight prod for the same tailnet ACL (#752).
 resource "tailscale_acl" "main" {
-  acl = file("${path.module}/../../tailscale/policy.hujson")
+  count = var.manage_tailscale_acl ? 1 : 0
+  acl   = file("${path.module}/../../tailscale/policy.hujson")
+}
+
+# State upgrade: ACL resource gained `count`; prod workspace rewrites address
+# tailscale_acl.main -> tailscale_acl.main[0] on first plan after this change.
+moved {
+  from = tailscale_acl.main
+  to   = tailscale_acl.main[0]
 }

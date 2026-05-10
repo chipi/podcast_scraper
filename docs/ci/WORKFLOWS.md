@@ -38,6 +38,10 @@ is green and pins itself to that run's `head_sha` so subsequent pushes don't shi
 On-failure compose log dump (`api` / `viewer` / `pipeline` / `pipeline-llm`) was added so future
 pipeline failures are diagnosable from the workflow log.
 
+**OpenTofu / DR drill (RFC-082 / #752):** `infra-ci.yml` posts the **default** workspace plan on PRs touching `infra/**`. `drill-infra-plan.yml` posts a second comment with the **`drill`** workspace plan (same path filters). Manual apply uses `infra-apply.yml` (environment **prod**) versus `drill-infra-apply.yml` (environment **drill**). `drill-e2e.yml` (environment **drill**, confirm **`DRILL_SMOKE`**) probes **`/api/health`** on the drill VPS over Tailscale. See `infra/README.md`.
+
+**Corpus backups (RFC-082):** `backup-corpus.yml` (**Backup corpus snapshot**) is **`workflow_dispatch` only** (start the codespace, then dispatch, or `make codespace-backup-cloud`). `backup-corpus-prod.yml` (**Backup corpus snapshot (prod VPS)**) pulls `/srv/podcast-scraper/corpus` over Tailscale; also manual until issue **#723** enables a prod schedule. Release tags: `snapshot-YYYYMMDD` (codespace) vs `snapshot-prod-YYYYMMDD` (VPS).
+
 ---
 
 ## Complete Pipeline Visualization
@@ -1527,7 +1531,7 @@ The system now passes the "minimal docs CI/CD" requirement:
    - Lint job runs without ML dependencies for fast feedback (2-3 min)
    - Unit test job runs without ML dependencies for fast feedback (2-3 min)
    - Integration test job includes full ML stack for complete validation
-   - Optional extras in `pyproject.toml`: `[dev]`, `[ml]`, `[compare]`, `[llm]`, `[server]`; docs builds also use `docs/requirements.txt` and `.[ml]` when mkdocstrings needs ML imports
+   - Optional extras in `pyproject.toml`: `[dev]`, `[ml]`, `[compare]`, `[llm]`; docs builds also use `docs/requirements.txt` and `.[ml]` when mkdocstrings needs ML imports
 
 4. **ML Dependency Import Verification**
    - Automatic check that unit tests can import modules without ML dependencies

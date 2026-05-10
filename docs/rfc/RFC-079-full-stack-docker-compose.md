@@ -67,7 +67,7 @@ This works for local dev but has no path to deployment:
 4. **Production-grade Nginx**: serves pre-built Vue SPA, reverse-proxies `/api/*` to FastAPI,
    handles static caching headers, gzip, and SPA fallback routing
 5. **Reuse existing pipeline Dockerfile** ([`docker/pipeline/Dockerfile`](../docker/pipeline/Dockerfile)) with minimal changes
-6. **New Dockerfiles** under `docker/api/` and `docker/viewer/` for API (`.[server]` + semantic-search deps; not full `.[ml]`) and Nginx (multi-stage Vue build)
+6. **New Dockerfiles** under `docker/api/` and `docker/viewer/` for API (`runtime HTTP stack (see `docker/api/Dockerfile`; not full `.[dev]` tooling) + semantic-search deps; not full `.[ml]`) and Nginx (multi-stage Vue build)
 7. **Health checks** on all long-running containers
 8. **Compose profiles** for CI-override and prod-override use cases — **resolved:** no `compose/docker-compose.dev.yml`; host dev uses `make serve-*`; CI/prod uses stack-test overlay + optional `compose/docker-compose.prod.yml` (see OQ2).
 9. **Document and track** the gap between viewer-triggered jobs and the `pipeline` service,
@@ -85,8 +85,8 @@ This works for local dev but has no path to deployment:
 
 **Assumptions:**
 
-- The API server imports search/FAISS routes at startup: **`pip install -e '.[server]'` alone is
-  not sufficient** for `create_app`. The stack **API image** installs `.[server]` plus NumPy,
+- The API server imports search/FAISS routes at startup: **`pip install -e '.[dev]'` alone is
+  not sufficient** for `create_app`. The stack **API image** installs `runtime HTTP stack (see `docker/api/Dockerfile`; not full `.[dev]` tooling) plus NumPy,
   `faiss-cpu`, and `sentence-transformers` (CPU torch). Full Whisper/spaCy/llama-cpp remains on
   the **pipeline** image. See `docker/api/Dockerfile` and `docs/guides/DOCKER_SERVICE_GUIDE.md`.
 - The Vue viewer builds successfully with `npm run build` (produces `dist/`)
@@ -208,10 +208,11 @@ ENV PYTHONUNBUFFERED=1 \
 
 WORKDIR /app
 
-# Install only server dependencies (no ML)
-COPY pyproject.toml README.md ./
-COPY src/ ./src/
-RUN pip install --no-cache-dir '.[server]'
+# Install HTTP + search stack (see live docker/api/Dockerfile; not full .[dev])
+RUN pip install --no-cache-dir '.[search]' \
+    && pip install --no-cache-dir \
+         "fastapi>=0.115.0,<1.0.0" \
+         "uvicorn[standard]>=0.32.0,<1.0.0"
 
 # Non-root user
 RUN useradd -m -u 1000 -s /bin/bash appuser && \
@@ -386,8 +387,8 @@ stack-logs:
      used for standalone pipeline runs and Docker CI tests. Modifying them would break those
      workflows. The stack compose is a superset that adds viewer + API.
 
-4. **API container: `.[server]` + semantic stack, not full `.[ml]`** (implemented in #659)
-   - **Decision**: Install `.[server]`, CPU `torch`, `numpy`, `faiss-cpu`, and `sentence-transformers`
+4. **API container: `runtime HTTP stack (see `docker/api/Dockerfile`; not full `.[dev]` tooling) + semantic stack, not full `.[ml]`** (implemented in #659)
+   - **Decision**: Install `runtime HTTP stack (see `docker/api/Dockerfile`; not full `.[dev]` tooling), CPU `torch`, `numpy`, `faiss-cpu`, and `sentence-transformers`
      so `create_app` and `/api/search` work against an on-disk index. Omit Whisper/spaCy/llama-cpp
      from `api` to avoid duplicating the pipeline image.
    - **Rationale**: Smaller than fat-ML `api`, while satisfying import-time router dependencies.

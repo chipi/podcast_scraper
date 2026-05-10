@@ -55,9 +55,12 @@ Pre-prod (Codespaces) caveats that motivate prod:
    pre-prod can read prod in 30 minutes.
 4. **Same observability surface.** grafana-agent + Sentry continue to
    work; existing dashboards / Slack alerts don't break.
-5. **Same backup contract.** `backup-corpus.yml` continues to push
-   daily snapshots to `chipi/podcast_scraper-backup` releases; only
-   the source path changes.
+5. **Same backup contract.** Snapshots still land on
+   `chipi/podcast_scraper-backup` releases: pre-prod via
+   **`backup-corpus.yml`** (**`workflow_dispatch` only** when the
+   codespace is up), prod corpus via **`backup-corpus-prod.yml`**
+   (Tailscale + SSH to the VPS). Tags stay distinct (`snapshot-*` vs
+   `snapshot-prod-*`).
 6. **Cost ceiling: ≤ $20/month all-in** for hobby scale.
 7. **Infrastructure-as-code, end-to-end.** The VPS, its network
    surface, its Tailscale registration, the OS bootstrap, and the
@@ -111,7 +114,8 @@ IaC + a GitOps deploy loop**:
   - compose/docker-compose.stack.yml + docker-compose.prod.yml
   - grafana-agent.yaml + Grafana Cloud
   - Sentry init wired in api + pipeline subprocess
-  - backup-corpus.yml uploads to chipi/podcast_scraper-backup
+  - backup-corpus.yml (manual) and backup-corpus-prod.yml upload to
+    chipi/podcast_scraper-backup (different tag prefixes)
   - viewer's mobile control plane (Library / Search / Configuration)
 
 [ New for prod ]
@@ -120,7 +124,7 @@ IaC + a GitOps deploy loop**:
   3. Tailscale daemon on the VPS, auto-joins tailnet via auth key
   4. GHA workflow deploy-prod.yml fires on stack-test success → main
   5. Host bind-mount: /srv/podcast-scraper/corpus
-  6. Backup-corpus.yml points SSH at the VPS over Tailscale
+  6. backup-corpus-prod.yml backs up the VPS corpus over Tailscale
 ```
 
 ### Decision 1 — Hosting target
@@ -650,7 +654,15 @@ ssh deploy@prod-podcast.<tailnet>.ts.net 'cd /srv/podcast-scraper && make restor
 
 **Total wall time: ~15-20 min** assuming the operator knows the
 runbook. The corpus is recoverable to within ~24 h of pre-disaster
-state (last `backup-corpus.yml` run).
+state (last successful **`backup-corpus-prod.yml`** run for prod
+corpus; codespace exports are separate **`backup-corpus.yml`** runs).
+
+Before running the timed DR exercise in GitHub
+[#724](https://github.com/chipi/podcast_scraper/issues/724), complete the
+prerequisite checklist tracked in
+[#751](https://github.com/chipi/podcast_scraper/issues/751) (operator
+copy-paste steps:
+[DR drill prerequisite checklist](../wip/RFC-082_DR_DRILL_PREREQ_CHECKLIST.md)).
 
 If the corpus loss matters more than the speed of recovery,
 optionally enable Hetzner Volume snapshots (€0.0143/GB/month) for a

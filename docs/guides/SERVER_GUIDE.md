@@ -36,10 +36,10 @@ Future **megasketch** platform routes (#50, #347) remain behind `enable_platform
 
 ## Quick start
 
-### 1. Install the `[server]` extra
+### 1. Install the `[dev]` extra
 
 ```bash
-pip install -e '.[server]'
+pip install -e '.[dev]'
 ```
 
 This adds `fastapi` and `uvicorn[standard]`.
@@ -301,7 +301,7 @@ The `serve` sub-command is handled by
 Optional in-process cron scheduler that fires the same pipeline-job path
 as `POST /api/jobs` on the operator's chosen schedule. Built on
 [APScheduler](https://github.com/agronholm/apscheduler) (3.x; in the
-`[server]` extra). Mounts whenever `enable_jobs_api=True` and the operator
+`[dev]` extra). Mounts whenever `enable_jobs_api=True` and the operator
 YAML contains `scheduled_jobs:`.
 
 ### Why API-level (not host-side cron)
@@ -382,7 +382,7 @@ flank this:
 | `podcast_scheduled_jobs_failed_total` | `name`, `reason` | Spawn raised before a job was registered (e.g. invalid cron, event-loop unavailable) |
 
 Both are no-ops when `prometheus_client` is unavailable (i.e. without
-the `[server]` extra).
+the `[dev]` extra).
 
 ### Limitations (V1)
 
@@ -449,14 +449,15 @@ Located in `tests/unit/podcast_scraper/server/`:
 exercises **chunk-to-Insight lift** (#528); `test_gil_chunk_offset_verify.py` covers **Quote vs
 indexed chunk** alignment helpers used by **`verify-gil-chunk-offsets`**.
 
-All test files guard on `pytest.importorskip("fastapi")` so they are
-skipped when the `[server]` extra is not installed.
+All test files guard on `pytest.importorskip("fastapi")` so they stay
+runnable in intentionally stripped environments (the default `test-unit`
+job installs ``.[dev]``, which includes FastAPI).
 Tests use `FastAPI`'s synchronous `TestClient` and `tmp_path` fixtures.
 
-Run them with (requires **`[server]`** so tests are not skipped):
+Run them with (requires **`[dev]`** so FastAPI is present):
 
 ```bash
-pip install -e '.[dev,server]'   # if needed
+pip install -e '.[dev]'   # if needed
 make test-unit -k server
 ```
 

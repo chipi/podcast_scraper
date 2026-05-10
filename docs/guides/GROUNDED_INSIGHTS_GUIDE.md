@@ -235,7 +235,7 @@ Entrypoint: `podcast_scraper gi validate ./output/metadata --strict`, `gi export
 ### Browser visualization
 
 **Viewer v2 (recommended):** Vue + FastAPI app under `web/gi-kg-viewer/` — graph, dashboard,
-semantic search, and explore against your pipeline **`--output-dir`**. Install **`[server]`**,
+semantic search, and explore against your pipeline **`--output-dir`**. Install **`[dev]`**,
 build `dist/` once, then `python -m podcast_scraper.cli serve --output-dir /path/to/run` and
 open **<http://127.0.0.1:8000>**. See
 [web/gi-kg-viewer/README.md](https://github.com/chipi/podcast_scraper/blob/main/web/gi-kg-viewer/README.md)

@@ -1,6 +1,6 @@
 """Integration tests for lazy ``create_app`` export on ``podcast_scraper.server``.
 
-Requires ``fastapi`` (``pip install -e '.[server]'``).
+Requires ``fastapi`` (``pip install -e '.[dev]'``).
 """
 
 from __future__ import annotations

@@ -23,7 +23,7 @@ Thanks for contributing! This guide gets you from zero to your first PR.
 read **[Server Guide](docs/guides/SERVER_GUIDE.md)** (`/api/*`, **`/docs`** OpenAPI) and
 **[API index — HTTP](docs/api/index.md#http-viewer-api-server-extra)**. For UI or Playwright
 selectors, follow **E2E surface map → specs → UXS-001** ([E2E Testing Guide](docs/guides/E2E_TESTING_GUIDE.md#when-you-change-viewer-ux-required-workflow)).
-Install **`pip install -e ".[server]"`** so FastAPI unit tests are not skipped locally.
+``make init`` installs ``.[dev,ml,llm]``, which includes FastAPI for ``serve`` and integration tests.
 
 ---
 
@@ -123,14 +123,12 @@ cp config/examples/.env.example .env
 make ci-fast
 ```
 
-### Optional extras (viewer API, run comparison)
+### Optional extras (run comparison)
 
-`make init` installs `[dev,ml,llm]`. If you work on
-the viewer API or the Streamlit comparison tool, add
-extras manually:
+`make init` installs `[dev,ml,llm]` (includes FastAPI via `[dev]`). Add `[compare]`
+only when you use the Streamlit comparison UI:
 
 ```bash
-pip install -e ".[server]"    # FastAPI viewer API (make serve)
 pip install -e ".[compare]"   # Streamlit run comparison (make run-compare)
 ```
 

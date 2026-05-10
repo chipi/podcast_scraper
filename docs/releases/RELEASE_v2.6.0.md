@@ -8,7 +8,7 @@
 
 v2.6.0 is a **minor release** that ships a **full browser surface** for exploring processed corpora alongside the pipeline: a **Vue 3 + Vite** GI/KG viewer on a **FastAPI** server, **semantic corpus search** (FAISS) exposed in the UI and CLI, **Corpus Library**, **Digest**, and **Dashboard** experiences, and a **graph exploration toolkit** for Cytoscape-based GI/KG views. On the **provider and evaluation** side, the release tightens how you **compare quality and cost**: the **Run Comparison** Streamlit app gains a **Performance** tab tied to **frozen YAML profiles** (RFC-064), sitting on top of the **seven LLM providers** and **hybrid ML** stack delivered in v2.5.0.
 
-The **Python library** surface (`Config`, `run_pipeline`, `service.run`) stays backward compatible. HTTP, the SPA, and server-only routes are **additive** behind `pip install -e '.[server]'`. **GIL** and **KG** reach **Completed** status for **single-layer** artifacts and consumption (RFC-049 / RFC-050, RFC-055 / RFC-056); **cross-layer identity** remains future work (Draft RFC-072). **Multi-feed** corpus layout, manifest, and unified indexing ship per RFC-063.
+The **Python library** surface (`Config`, `run_pipeline`, `service.run`) stays backward compatible. HTTP, the SPA, and server-only routes are **additive** behind `pip install -e '.[dev]'`. **GIL** and **KG** reach **Completed** status for **single-layer** artifacts and consumption (RFC-049 / RFC-050, RFC-055 / RFC-056); **cross-layer identity** remains future work (Draft RFC-072). **Multi-feed** corpus layout, manifest, and unified indexing ship per RFC-063.
 
 ---
 
@@ -18,7 +18,7 @@ v2.5.0 expanded **who** summarizes and detects speakers (providers). v2.6.0 expa
 
 **Stack and entrypoints**
 
-- **FastAPI** — `podcast serve` (optional `[server]` extra), CORS and static SPA, OpenAPI at `/docs`.
+- **FastAPI** — `podcast serve` (optional `[dev]` extra), CORS and static SPA, OpenAPI at `/docs`.
 - **Vue 3 + Vite + Cytoscape** — SPA under `web/gi-kg-viewer`, shell **`corpusPath`**, shared design rules in UXS-001 and feature UXSs (Digest, Library, Graph, Search, Dashboard, …).
 - **Playwright** — UI E2E in `web/gi-kg-viewer/e2e/`; contract summarized in `e2e/E2E_SURFACE_MAP.md`.
 
@@ -149,7 +149,7 @@ Shipped in this release train: **test metrics** and **GitHub Pages** dashboards 
 ## Upgrade notes
 
 - **Library users** — No code changes required for `run_pipeline` / `service.run`.
-- **Viewer or HTTP consumers** — Install **`[server]`**, run `podcast serve` with a valid output directory, and align viewer `corpusPath` with your corpus root. See [Migration Guide](../api/MIGRATION_GUIDE.md#v260-viewer-and-http).
+- **Viewer or HTTP consumers** — Install **`[dev]`**, run `podcast serve` with a valid output directory, and align viewer `corpusPath` with your corpus root. See [Migration Guide](../api/MIGRATION_GUIDE.md#v260-viewer-and-http).
 - **Health JSON** — Prefer explicit **`corpus_digest_api`** once on a current server build; older servers may omit it (see migration notes for Digest behavior).
 
 ---

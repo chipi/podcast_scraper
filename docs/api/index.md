@@ -17,7 +17,7 @@ This directory contains comprehensive API documentation for `podcast_scraper`, i
 | [Data Models](MODELS.md) | Core data structures (`Episode`, `RssFeed`, `TranscriptionJob`) |
 | [Multi-feed corpus artifacts](CORPUS_MULTI_FEED_ARTIFACTS.md) | `corpus_manifest.json` / `corpus_run_summary.json` contracts (#506); links to RFC-063 |
 
-### HTTP / viewer API (`[server]` extra) {: #http-viewer-api-server-extra }
+### HTTP / viewer API (`[dev]` extra) {: #http-viewer-api-server-extra }
 
 The **FastAPI** server and **Vue 3** GI/KG viewer are optional. They are **not** imported from `podcast_scraper` top-level exports; stability is documented in the [Server Guide](../guides/SERVER_GUIDE.md) and OpenAPI (`/docs` when `uvicorn` is running).
 
@@ -57,7 +57,7 @@ The **FastAPI** server and **Vue 3** GI/KG viewer are optional. They are **not**
 
 **For the HTTP viewer (`podcast serve`, `/api/*`):**
 
-1. See [Server Guide](../guides/SERVER_GUIDE.md) — Install `[server]` extra, endpoint reference, CORS and static assets.
+1. See [Server Guide](../guides/SERVER_GUIDE.md) — Install `[dev]` extra, endpoint reference, CORS and static assets.
 
 **For API stability and migration:**
 

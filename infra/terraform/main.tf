@@ -9,6 +9,9 @@ locals {
     length(trimspace(var.grafana_cloud_metrics_username)) > 0 &&
     length(trimspace(var.grafana_cloud_metrics_password)) > 0
   )
+
+  # Comma-separated for `tailscale up --advertise-tags=tag:a,tag:b` (RFC-082 / #752 drill).
+  tailscale_advertise_tags_cli = join(",", var.tailscale_advertise_tags)
 }
 
 # === SSH key registration (operator's laptop pubkey) ===
@@ -79,6 +82,8 @@ resource "hcloud_server" "prod" {
     tailnet_hostname   = var.tailnet_hostname
     ssh_public_key     = var.ssh_public_key
 
+    tailscale_advertise_tags_cli = local.tailscale_advertise_tags_cli
+
     alloy_enabled = local.alloy_host_metrics_enabled
 
     grafana_cloud_metrics_remote_write_url = var.grafana_cloud_metrics_remote_write_url
@@ -88,7 +93,7 @@ resource "hcloud_server" "prod" {
 
   labels = {
     project     = "podcast-scraper"
-    environment = "prod"
+    environment = var.hcloud_environment_label
     managed-by  = "opentofu"
   }
 

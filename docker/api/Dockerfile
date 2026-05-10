@@ -1,7 +1,8 @@
 # GitHub #659: FastAPI viewer API (no bundled SPA — Nginx serves static + proxies /api/*).
 #
-# Preflight: ``.[server]`` alone is not enough for ``create_app`` (routers import FAISS / embeddings).
-# This image installs ``.[server]`` plus CPU torch, FAISS, and sentence-transformers (semantic search)
+# Preflight: the HTTP stack alone is not enough for ``create_app`` (routers import FAISS / embeddings).
+# This image installs the same FastAPI/uvicorn pins as ``[dev]`` in pyproject.toml (no full ``.[dev]`` —
+# avoids pytest/black in production) plus ``.[search]`` (CPU torch, FAISS, sentence-transformers)
 # without the full ``.[ml]`` stack (Whisper/spaCy/llama-cpp). See docs/guides/DOCKER_SERVICE_GUIDE.md.
 #
 # Build from repository root: docker build -f docker/api/Dockerfile .
@@ -44,7 +45,12 @@ COPY src/ ./src/
 RUN --mount=type=cache,target=/root/.cache/pip \
     pip install --upgrade pip \
     && pip install torch --index-url https://download.pytorch.org/whl/cpu \
-    && pip install ".[server,search]" "numpy>=1.24.0" \
+    && pip install \
+         "fastapi>=0.115.0,<1.0.0" \
+         "uvicorn[standard]>=0.32.0,<1.0.0" \
+         "prometheus-fastapi-instrumentator>=7.0.0,<8.0.0" \
+         "apscheduler>=3.10.0,<4.0.0" \
+         ".[search]" "numpy>=1.24.0" \
     && pip install --force-reinstall --no-deps torch --index-url https://download.pytorch.org/whl/cpu \
     && pip install --no-deps . \
     && python -c "from podcast_scraper.server.app import create_app; print('create_app import ok')"

@@ -522,7 +522,7 @@ jobs:
 ## Alternatives Considered
 
 1. **Run natively on the runner (no Docker)**
-   - **Description**: `pip install -e '.[ml,server]'` + `npm run build` + run everything
+   - **Description**: `pip install -e '.[ml,dev]'` + `npm run build` + run everything
      as bare processes
    - **Pros**: Simpler, no Docker build time, reuses existing CI patterns
    - **Cons**: Doesn't validate the Docker topology, can't catch container wiring issues,
@@ -613,7 +613,7 @@ RFC-079 Phase 1 has been implemented:
 - `compose/docker-compose.stack.yml`: viewer (Nginx) + api (FastAPI) + pipeline (profile `pipeline`).
 - `docker/pipeline/Dockerfile` (pipeline / ML / LLM runner).
 - `docker/viewer/Dockerfile` (multi-stage Node 22 + `nginx:alpine`) + `docker/viewer/nginx.conf`.
-- `docker/api/Dockerfile` (`.[server]` + CPU torch / FAISS / sentence-transformers).
+- `docker/api/Dockerfile` (`runtime HTTP stack (see `docker/api/Dockerfile`; not full `.[dev]` tooling) + CPU torch / FAISS / sentence-transformers).
 - `docker/api/entrypoint.sh` (ensures `/app/output` exists before serve).
 - `config/examples/docker-stack.example.yaml` (`output_dir: /app/output`, `dry_run: true`).
 - Makefile: `stack-build`, `stack-up`, `stack-down`, `stack-logs`, `stack-run-pipeline`.

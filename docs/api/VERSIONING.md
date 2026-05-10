@@ -43,7 +43,7 @@ The **Python** public API consists of:
 - `podcast_scraper.models.Episode`
 - `podcast_scraper.models.TranscriptionJob`
 
-### HTTP / viewer API (optional `[server]` extra)
+### HTTP / viewer API (optional `[dev]` extra)
 
 FastAPI routes under `/api/*` and the Vue SPA are **versioned with the same package tag** but are **not** part of the `from podcast_scraper import …` stability contract. They may gain new endpoints and response fields in minor releases. Reference: [Server Guide](../guides/SERVER_GUIDE.md); overview: [API index — HTTP / viewer](index.md#http-viewer-api-server-extra).
 

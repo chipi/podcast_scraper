@@ -162,12 +162,13 @@ def create_app(
                 excluded_handlers=["/metrics"],
             ).instrument(app).expose(app, endpoint="/metrics", include_in_schema=False)
         except ImportError:
-            # ``prometheus-fastapi-instrumentator`` is in [server] extras.
+            # ``prometheus-fastapi-instrumentator`` is listed under ``[dev]``.
             # If a deployment installs core only and sets the flag, fail
             # loud rather than silently shipping no metrics.
             raise RuntimeError(
                 "PODCAST_METRICS_ENABLED is set but prometheus-fastapi-instrumentator "
-                "is not installed. Install via ``pip install '.[server]'``."
+                "is not installed. Install via ``pip install -e '.[dev]'`` "
+                "(or add that package explicitly in minimal images)."
             )
 
     app.include_router(health.router, prefix="/api")
