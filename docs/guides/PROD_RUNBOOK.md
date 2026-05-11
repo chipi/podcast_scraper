@@ -27,7 +27,7 @@ Need the short version for daily ops? Use
 10. [Tailscale operations](#tailscale-operations)
 11. [Hetzner operations](#hetzner-operations)
 12. [Operator hot-fix workflow](#operator-hot-fix-workflow)
-13. [FAQ / Troubleshooting](#faq-troubleshooting)
+13. [FAQ / Troubleshooting](#faq-troubleshooting) — includes [Cursor or automation cannot `ssh deploy@prod`](#cursor-or-automation-cannot-ssh-deployprod)
 14. [Constraints to know](#constraints-to-know)
 
 ---
@@ -58,6 +58,7 @@ gh secret set TS_AUTHKEY            --repo chipi/podcast_scraper --app actions -
 gh secret set TS_API_KEY            --repo chipi/podcast_scraper --app actions --body '<tskey-api-...>'
 gh secret set TFSTATE_AGE_KEY       --repo chipi/podcast_scraper --app actions --body "$(cat ~/.config/sops/age/keys.txt)"
 gh secret set BACKUP_REPO_TOKEN     --repo chipi/podcast_scraper --app actions --body '<backup-repo-pat>'
+# PROD_SSH_PRIVATE_KEY — see [GitHub Actions SSH to prod](#github-actions-ssh-to-prod-prod_ssh_private_key)
 
 # 4. Stage GHA repo variables
 gh variable set OPERATOR_SSH_PUBLIC_KEY --repo chipi/podcast_scraper --body "$(cat ~/.ssh/id_ed25519.pub)"
@@ -65,6 +66,53 @@ gh variable set TAILNET_NAME            --repo chipi/podcast_scraper --body 'tai
 # PROD_TAILNET_FQDN is set after first apply (it depends on the assigned hostname);
 # default value is "prod-podcast.<TAILNET_NAME>".
 ```
+
+### GitHub Actions SSH to prod (`PROD_SSH_PRIVATE_KEY`) {#github-actions-ssh-to-prod-prod_ssh_private_key}
+
+`deploy-prod.yml` and `backup-corpus-prod.yml` run OpenSSH as `deploy@<prod>` **after**
+the runner joins the tailnet. The Tailscale ACL allows **reachability** to port 22;
+OpenSSH still requires a private key whose **public** half is listed in
+`~deploy/.ssh/authorized_keys` on the VPS (Tailscale SSH is intentionally not used;
+see `tailscale/policy.hujson` comments).
+
+**One-time setup**
+
+1. On a trusted machine, generate a **CI-only** Ed25519 key (empty passphrase):
+
+   ```bash
+   ssh-keygen -t ed25519 -f ./gha-prod-deploy -N "" -C "github-actions-prod-deploy"
+   ```
+
+2. SSH to prod using your **operator** key (the same public key OpenTofu passed as
+   `TF_VAR_ssh_public_key` / `vars.OPERATOR_SSH_PUBLIC_KEY`). As `deploy`, append **exactly one line**
+   (the contents of `gha-prod-deploy.pub`) to `~/.ssh/authorized_keys`. Directory `~/.ssh` should be
+   mode `700` and `authorized_keys` mode `600`.
+
+3. Verify key auth before touching GitHub:
+
+   ```bash
+   ssh -i ./gha-prod-deploy -o BatchMode=yes deploy@<prod-tailnet-host> 'echo ok'
+   ```
+
+   Use the same hostname the workflows resolve (see [suffix drift](#tailscale-suffix-drift) if unsure).
+
+4. Store the **private** PEM in a repo Actions secret (entire file, including `BEGIN OPENSSH PRIVATE KEY`
+   / `END` lines):
+
+   ```bash
+   gh secret set PROD_SSH_PRIVATE_KEY --repo chipi/podcast_scraper --app actions < ./gha-prod-deploy
+   ```
+
+5. Remove or securely archive `gha-prod-deploy` on disk; do not commit it.
+
+Workflows load this via the composite action `.github/actions/prod-ssh-key`, which exports
+`SSH_PROD_IDENTITY` for `ssh -i "$SSH_PROD_IDENTITY" -o IdentitiesOnly=yes …`. Any **future** workflow
+that SSHes to prod as `deploy@` should reuse `secrets.PROD_SSH_PRIVATE_KEY` and the same flags so
+GitHub never relies on keys baked into the runner image.
+
+**Rotating the CI key:** generate a new keypair, append the new public key to `authorized_keys` (keep
+the old line until one green workflow run), update `PROD_SSH_PRIVATE_KEY`, re-run `deploy-prod.yml` or
+`backup-corpus-prod.yml`, then delete the superseded public key line on the VPS.
 
 ### First `tofu apply` (operator's laptop)
 
@@ -988,6 +1036,68 @@ Diagnose with:
 ssh deploy@prod-podcast.<tailnet> \
   'docker logs --tail 50 compose-grafana-agent-1 | grep -iE "error|401|403|forbidden"'
 ```
+
+### "Cursor or automation cannot `ssh deploy@prod`"
+
+First confirm **Tailscale** on the machine that runs the command:
+
+```bash
+tailscale status | head -5
+```
+
+You should see `prod-podcast-1` (or similar) as **active**. SSH to the VPS is
+intended **over the tailnet** only; inbound SSH on the public Hetzner IPv4 is
+not exposed in the default firewall.
+
+Then confirm **OpenSSH has a usable key** for that shell:
+
+```bash
+ssh-add -l
+```
+
+If this prints **"The agent has no identities."**, no key is loaded for that
+process. Keys added only in another app (for example Terminal.app) do not
+always end up on the **same** `SSH_AUTH_SOCK` that a Cursor agent subprocess
+inherits.
+
+**Time-limited agent load (recommended for IDE / agent `ssh` to prod):** in
+**Cursor’s integrated terminal** for this workspace, load the operator private
+key into `ssh-agent` with a lifetime so it is not left loaded indefinitely:
+
+```bash
+ssh-add -t 30m ~/.ssh/id_ed25519
+ssh-add -l
+```
+
+After **30 minutes** the key is removed from the agent again; `ssh-add -l` will
+go back to empty and agent-driven `ssh` will fail until you re-run `ssh-add
+-t …`. That matches “it worked earlier today, then stopped.”
+
+If your operator key is not `~/.ssh/id_ed25519`, substitute the path that
+matches `TF_VAR_ssh_public_key` / `vars.OPERATOR_SSH_PUBLIC_KEY`.
+
+**macOS Keychain persistence (optional):** if you prefer the key to survive
+agent restarts until reboot:
+
+```bash
+ssh-add --apple-use-keychain ~/.ssh/id_ed25519
+ssh-add -l
+```
+
+Sanity check:
+
+```bash
+ssh -o IdentitiesOnly=yes -i ~/.ssh/<operator-private-key> \
+  deploy@prod-podcast-1.<tailnet> 'echo ok'
+```
+
+Replace `<tailnet>` with your MagicDNS suffix (for example `tail6d0ed4.ts.net`).
+If this fails but `tailscale status` shows prod as active, you are using the
+wrong private key file for `deploy@`.
+
+**GitHub Actions** does not use your laptop `ssh-agent`; it uses
+**`PROD_SSH_PRIVATE_KEY`** and `.github/actions/prod-ssh-key` (see
+[GitHub Actions SSH to prod](#github-actions-ssh-to-prod-prod_ssh_private_key)).
 
 ### "Tailnet hostname won't resolve from my laptop"
 

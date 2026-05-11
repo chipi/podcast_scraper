@@ -12,8 +12,9 @@ name: Backup corpus snapshot (prod VPS)
 # Closes #722 (Phase A side). #744: resolve prod MagicDNS host after join.
 #
 # Operator prerequisites (#714):
-#   secrets: TS_AUTHKEY (Free-plan substitute for OAuth — see PROD_RUNBOOK.md
-#            "Tailscale credentials"), BACKUP_REPO_TOKEN
+#   secrets: TS_AUTHKEY (see PROD_RUNBOOK.md "Tailscale credentials");
+#            PROD_SSH_PRIVATE_KEY (Ed25519 PEM for deploy@ — see "GitHub Actions SSH to prod");
+#            BACKUP_REPO_TOKEN (required when dry_run is false)
 #   vars:    PROD_TAILNET_FQDN, PODCAST_BACKUP_REPO (defaults to chipi/podcast_scraper-backup)
 
 on:
@@ -38,14 +39,16 @@ jobs:
       - name: Pre-flight — required secrets/variables present?
         id: preflight
         env:
-          TS_AUTHKEY:        ${{ secrets.TS_AUTHKEY }}
-          BACKUP_REPO_TOKEN: ${{ secrets.BACKUP_REPO_TOKEN }}
-          PROD_TAILNET_FQDN: ${{ vars.PROD_TAILNET_FQDN }}
+          TS_AUTHKEY:            ${{ secrets.TS_AUTHKEY }}
+          PROD_SSH_PRIVATE_KEY:  ${{ secrets.PROD_SSH_PRIVATE_KEY }}
+          BACKUP_REPO_TOKEN:     ${{ secrets.BACKUP_REPO_TOKEN }}
+          PROD_TAILNET_FQDN:     ${{ vars.PROD_TAILNET_FQDN }}
         run: |
           set -euo pipefail
           MISSING=""
-          [ -z "${TS_AUTHKEY:-}" ]        && MISSING="$MISSING TS_AUTHKEY"
-          [ -z "${PROD_TAILNET_FQDN:-}" ] && MISSING="$MISSING PROD_TAILNET_FQDN"
+          [ -z "${TS_AUTHKEY:-}" ]            && MISSING="$MISSING TS_AUTHKEY"
+          [ -z "${PROD_SSH_PRIVATE_KEY:-}" ] && MISSING="$MISSING PROD_SSH_PRIVATE_KEY"
+          [ -z "${PROD_TAILNET_FQDN:-}" ]    && MISSING="$MISSING PROD_TAILNET_FQDN"
           if [ "${{ inputs.dry_run }}" = "false" ] && [ -z "${BACKUP_REPO_TOKEN:-}" ]; then
             MISSING="$MISSING BACKUP_REPO_TOKEN"
           fi
@@ -72,6 +75,12 @@ jobs:
           # Pinned — `version: latest` broke sha256 verification in GHA (May 2026).
           version: 1.96.4
 
+      - name: Install SSH identity for deploy@ (PROD_SSH_PRIVATE_KEY)
+        if: steps.preflight.outputs.skip != 'true'
+        uses: ./.github/actions/prod-ssh-key
+        with:
+          ssh_private_key: ${{ secrets.PROD_SSH_PRIVATE_KEY }}
+
       - name: Resolve prod MagicDNS host (GH-744)
         id: ts_host
         if: steps.preflight.outputs.skip != 'true'
@@ -97,7 +106,8 @@ jobs:
           # exit code propagates and we fail fast (no half-tarball that passes
           # naive size checks). The VPS bind-mount path is /srv/podcast-scraper/corpus
           # per RFC-082 Decision 4.
-          ssh -o StrictHostKeyChecking=accept-new -o BatchMode=yes "$SSH_TARGET" \
+          ssh -i "$SSH_PROD_IDENTITY" -o IdentitiesOnly=yes \
+            -o StrictHostKeyChecking=accept-new -o BatchMode=yes "$SSH_TARGET" \
             'tar -czf - -C /srv/podcast-scraper corpus' > snapshot.tgz
 
           echo "Tarball created: $(du -h snapshot.tgz | cut -f1)"
