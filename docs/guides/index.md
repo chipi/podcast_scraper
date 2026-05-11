@@ -32,6 +32,16 @@ Practical guides for using and developing Podcast Scraper.
 | [Dependencies Guide](DEPENDENCIES_GUIDE.md) | Third-party dependencies and rationale |
 | [Markdown Linting](MARKDOWN_LINTING_GUIDE.md) | Markdown style and linting practices |
 
+## Hosting and production
+
+| Guide | Description |
+| ------- | ------------- |
+| [SRE book infra critique](SRE_BOOK_INFRA_CRITIQUE.md) | Reliability rubric (SRE themes): SLIs/SLOs, error budget, toil, alerting, change risk, incidents — for reviewing runbooks, workflows, and ops design |
+| [Hosting and infrastructure](../architecture/HOSTING_AND_INFRASTRUCTURE.md) | Narrative: Tailscale, OpenTofu, GitHub Actions, Compose on the VPS, how CI and prod align; ADR spine (079–085, 082) |
+| [Prod runbook](PROD_RUNBOOK.md) | Always-on Hetzner VPS: bootstrap, deploy, backups, observability, DR |
+| [Prod operator cheat sheet](PROD_OPERATOR_CHEAT_SHEET.md) | Short daily ops: `gh` deploy/backup, health curls, incident triage |
+| [DR drill runbook](DR_DRILL_RUNBOOK.md) | Drill-only GitHub workflows, typed confirms, orchestrator vs piecemeal paths |
+
 ## Testing
 
 | Guide | Description |
@@ -66,7 +76,7 @@ Practical guides for using and developing Podcast Scraper.
 | [Grounded Insights](GROUNDED_INSIGHTS_GUIDE.md) | GIL: **`gi.json`**, quotes, schema, CLI; **`bridge.json`** sibling for canonical ids; optional [browser viewer](DEVELOPMENT_GUIDE.md#gi-kg-browser-viewer-local-prototype) |
 | [Knowledge Graph](KNOWLEDGE_GRAPH_GUIDE.md) | KG: **`kg.json`**, entities/topics/relationships; **bridge** aligns KG with GIL for APIs; same [browser viewer](DEVELOPMENT_GUIDE.md#gi-kg-browser-viewer-local-prototype) |
 | [Preprocessing Profiles](PREPROCESSING_PROFILES_GUIDE.md) | Preprocessing profiles (`cleaning_v4`, `cleaning_hybrid_after_pattern`, …) for transcript cleaning and hybrid_ml MAP input (RFC-042 / Issue #419) |
-| [Docker Compose Guide](DOCKER_COMPOSE_GUIDE.md) | **Recommended** way to run the platform end-to-end: viewer + API + on-demand pipeline jobs, all from your browser |
+| [Docker Compose Guide](DOCKER_COMPOSE_GUIDE.md) | **Recommended** end-to-end stack (viewer + API + on-demand pipeline jobs); same compose shape on prod VPS — [Hosting and infrastructure](../architecture/HOSTING_AND_INFRASTRUCTURE.md) |
 | [Docker Service Guide](DOCKER_SERVICE_GUIDE.md) | Running podcast_scraper as a single-container service (supervisor / systemd / scheduler-driven) |
 | [Docker Variants Guide](DOCKER_VARIANTS_GUIDE.md) | LLM-only vs ML-enabled pipeline image tiers |
 
@@ -74,6 +84,7 @@ Practical guides for using and developing Podcast Scraper.
 
 | Guide | Description |
 | ------- | ----------- |
+| [Chip Huyen ML / AI critique](CHIP_HUYEN_ML_AI_CRITIQUE.md) | ML/AI rubric (seven themes); **experiments vs production** lenses and optional short output tables — inspired by *Designing Machine Learning Systems* and *AI Engineering* |
 | [Experiment Guide](EXPERIMENT_GUIDE.md) | Datasets, baselines, experiments, promotion, metrics, and quality evaluation (RFC-041) |
 | [Evaluation Reports](eval-reports/index.md) | Quality sweeps: ROUGE, embeddings, report library |
 | [Performance Guide](PERFORMANCE.md) | Performance considerations, optimization, and troubleshooting |

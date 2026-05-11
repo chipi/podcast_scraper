@@ -811,6 +811,8 @@ and `data/profiles/README.md`.
 | `make stack-test-ml` | One-shot ml pipeline path: build → up → seed → Playwright (airgapped/whisper-tiny). Stack stays up after. | Local Docker validation, no API keys needed. |
 | `make stack-test-cloud-thin` | Same flow with the `pipeline-llm` image + `cloud_thin` profile. **Local-only** — public CI does not run it (recurring API cost). Requires `.env` with the cloud API keys the profile uses. | Local LLM-path validation before push. |
 
+**Always-on VPS:** the same Compose layers power production on Hetzner behind Tailscale. For how GitHub Actions, OpenTofu, and **`deploy-prod`** fit together, read [Hosting and infrastructure](../architecture/HOSTING_AND_INFRASTRUCTURE.md) (and [ADR-082](../adr/ADR-082-gitops-app-deploy-via-stack-test-and-gha.md) for the promotion contract).
+
 The pre-commit hook runs staged checks (format,
 lint, mypy, markdownlint, JSON/YAML validation) —
 **not** `make ci-fast`. Run `make ci-fast` manually

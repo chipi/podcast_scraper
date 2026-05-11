@@ -7,8 +7,9 @@ Fast companion to the full
 
 - Prod host: Hetzner VPS
 - Access path: tailnet only (`prod-podcast.<tailnet>.ts.net`)
-- Deploy model: GitOps (`main` + green CI -> `deploy-prod.yml`)
+- Deploy model: **`main`** is the source of truth; **Stack test** on `main` gates the Dockerized path; **GHCR** publishes **`api` / `viewer` / `pipeline-llm`** tags including **`sha-<short>`**; **`deploy-prod.yml`** applies images on the VPS (today often **`workflow_dispatch`** until **`workflow_run: Stack test`** is merged — see [ADR-082](../adr/ADR-082-gitops-app-deploy-via-stack-test-and-gha.md)). **Infra** (`infra/**`) applies only via manual **`infra-apply.yml`** after PR plan review.
 - Full procedures and edge cases: see [Prod runbook](PROD_RUNBOOK.md)
+- Architecture narrative (diagrams): [Hosting and infrastructure](../architecture/HOSTING_AND_INFRASTRUCTURE.md)
 
 ## Golden rules
 

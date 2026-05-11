@@ -7,6 +7,8 @@ describes *what we decided*; this runbook describes *what to do today*.
 Need the short version for daily ops? Use
 [Prod operator cheat sheet](PROD_OPERATOR_CHEAT_SHEET.md).
 
+**How hosting fits together (diagrams + planes):** [Hosting and infrastructure](../architecture/HOSTING_AND_INFRASTRUCTURE.md). **Immutable decisions:** [ADR-079](../adr/ADR-079-opentofu-for-always-on-hosting-iac.md)–[ADR-083](../adr/ADR-083-tailscale-private-ingress-always-on-vps.md) (OpenTofu, state, drill workspace, app GitOps contract, tailnet ingress), [ADR-082](../adr/ADR-082-gitops-app-deploy-via-stack-test-and-gha.md) (stack-test gate and deploy nuance), [ADR-084](../adr/ADR-084-full-stack-docker-compose-topology.md)–[ADR-085](../adr/ADR-085-ephemeral-stack-test-integration-gate.md) (Compose + CI stack-test). **CI workflow names:** [WORKFLOWS.md](../ci/WORKFLOWS.md).
+
 > **For the prerequisites checklist** (Hetzner account + Tailscale credentials —
 > auth key + API access token on Free plan, see "Tailscale credentials" below
 > for the why — sops/age + GHA secrets), see
@@ -116,6 +118,10 @@ the old line until one green workflow run), update `PROD_SSH_PRIVATE_KEY`, re-ru
 `backup-corpus-prod.yml`, then delete the superseded public key line on the VPS.
 
 ### GitHub Actions deploy to DR drill (`DRILL_DEPLOY_SSH_PRIVATE_KEY`) {#github-actions-ssh-to-drill-drill_deploy_ssh_private_key}
+
+**Drill workflow matrix, typed confirms, orchestrator, restore/destroy, and drill-only host checks:**
+[DR_DRILL_RUNBOOK.md](DR_DRILL_RUNBOOK.md). This section stays focused on **`deploy-drill`** and
+**`DRILL_DEPLOY_SSH_PRIVATE_KEY`** setup shared with prod-style deploys.
 
 RFC-082 / #752: **`deploy-drill.yml`** mirrors **`deploy-prod.yml`** but targets the **drill** Hetzner
 stack. After **`tailscale/github-action`** joins as **`tag:gha-deployer`**, the job SSHes

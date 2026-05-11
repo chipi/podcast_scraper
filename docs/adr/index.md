@@ -96,10 +96,20 @@ and **Proposed** ADRs).
 | [ADR-076](ADR-076-streamlit-for-operator-run-comparison-and-performance-views.md) | Streamlit for Operator Run Comparison and Performance Views | Accepted | [RFC-047](../rfc/RFC-047-run-comparison-visual-tool.md), [RFC-066](../rfc/RFC-066-run-compare-performance-tab.md) | Eval / Performance UI stays in `tools/run_compare/`; Vue viewer stays corpus-first | Yes |
 | [ADR-077](ADR-077-local-ollama-model-selection.md) | Local Ollama Model Selection | Accepted | — | Default Ollama models per profile and tier | Yes |
 | [ADR-078](ADR-078-gil-evidence-bundling-per-provider-champions.md) | GIL Evidence Stack Bundling — Per-Provider Champion Modes | Accepted | — | `bundled_ab` default; Mistral=`bundled_b_only`; Ollama bundled-only (staged unviable on local) | Yes |
+| [ADR-079](ADR-079-opentofu-for-always-on-hosting-iac.md) | OpenTofu for Always-On Hosting IaC | Accepted | [RFC-082](../rfc/RFC-082-always-on-pre-prod-and-prod-hosting.md) | OpenTofu + `hcloud` + `tailscale` providers; `infra/tofu` entry | Yes |
+| [ADR-080](ADR-080-opentofu-state-sops-age-in-git.md) | OpenTofu State Encrypted In-Repo (sops + age) | Accepted | [RFC-082](../rfc/RFC-082-always-on-pre-prod-and-prod-hosting.md) | Committed `.enc` state; `TFSTATE_AGE_KEY` in CI | Yes |
+| [ADR-081](ADR-081-drill-opentofu-workspace-tailscale-acl-ownership.md) | Drill OpenTofu Workspace and Tailscale ACL Ownership | Accepted | [RFC-082](../rfc/RFC-082-always-on-pre-prod-and-prod-hosting.md) | Workspace `drill`, `HCLOUD_TOKEN_DRILL`, prod-only `tailscale_acl` | Yes |
+| [ADR-082](ADR-082-gitops-app-deploy-via-stack-test-and-gha.md) | GitOps App Deploy via stack-test and GitHub Actions | Accepted | [RFC-082](../rfc/RFC-082-always-on-pre-prod-and-prod-hosting.md) | Stack-test gate + publish + `deploy-prod`; `workflow_run` target; infra apply manual | Yes |
+| [ADR-083](ADR-083-tailscale-private-ingress-always-on-vps.md) | Tailscale as Private Ingress for Always-On VPS | Accepted | [RFC-082](../rfc/RFC-082-always-on-pre-prod-and-prod-hosting.md) | App on tailnet; `tag:gha-deployer` SSH path | Yes |
+| [ADR-084](ADR-084-full-stack-docker-compose-topology.md) | Full-Stack Docker Compose Topology (API, Viewer, Pipeline) | Accepted | [RFC-079](../rfc/RFC-079-full-stack-docker-compose.md) | `compose/docker-compose.stack.yml`; shared volume; optional Docker job exec | Yes |
+| [ADR-085](ADR-085-ephemeral-stack-test-integration-gate.md) | Ephemeral Stack-Test Integration Gate on Main | Accepted | [RFC-078](../rfc/RFC-078-ephemeral-acceptance-smoke-test.md), [RFC-079](../rfc/RFC-079-full-stack-docker-compose.md) | Compose overlay + Playwright `tests/stack-test/`; distinct from ADR-021 | Yes |
+| [ADR-086](ADR-086-canonical-identity-layer-and-bridge-json-cross-layer-join.md) | Canonical Identity Layer and Per-Episode bridge.json Cross-Layer Join | Accepted | [RFC-072](../rfc/RFC-072-canonical-identity-layer-cross-layer-bridge.md) | CIL ids + `bridge.json` seam; GIL or KG stay separate (ADR-052) | Yes |
+| [ADR-087](ADR-087-autoresearch-track-a-v2-dev-held-out-and-judging.md) | Autoresearch Track A v2 — Dev or Held-Out Split and Judging | Accepted | [RFC-073](../rfc/RFC-073-autoresearch-v2-framework.md), [RFC-057](../rfc/RFC-057-autoresearch-optimization-loop.md) | Disjoint held-out; fraction contestation; Efficiency rubric; seed wiring | Yes |
+| [ADR-088](ADR-088-macos-local-ci-process-safety-for-ml-workloads.md) | macOS Local CI Process Safety for ML Workloads | Accepted | [RFC-074](../rfc/RFC-074-process-safety-ml-workloads-macos.md) | No parse-time ML probes; cleanup or zombie checks; agent no-pileup rules | Yes |
 
 ## Gap analysis {:#gaps}
 
-**Counts (reconcile when adding ADRs):** **78** files under `docs/adr/ADR-*.md` (ADR-001–ADR-078;
+**Counts (reconcile when adding ADRs):** **88** files under `docs/adr/ADR-*.md` (ADR-001–ADR-088;
 numbering has historical gaps). From the index table: **2** **Proposed** (**ADR-055**, **ADR-056**),
 **3** **Accepted** with **Code = No** (**ADR-054**, **ADR-058**, **ADR-059**), **2** **Accepted** with
 **Code = Partial** (**ADR-031**, **ADR-047**). **Accepted** means ratified, not necessarily shipped.
@@ -160,7 +170,7 @@ are **Yes**; **ADR-064**–**ADR-066** are implemented; **ADR-021** is reflected
 | Situation | Guidance |
 | --- | --- |
 | **Prefer a new ADR** | Irreversible stack boundary, cross-cutting protocol, frozen empirical default, heavy optional extra, or closure of a large program (e.g. **ADR-073**). |
-| **Often RFC-only** | Bounded HTTP routes or viewer tabs where **ADR-064**–**ADR-066** + UXS already fix the stack (e.g. **RFC-067**, **RFC-068**, **RFC-069**, **RFC-071**). Corpus layout + manifest: **ADR-074**. Frozen resource baselines: **ADR-075**. Streamlit vs Vue for eval tools: **ADR-076**. |
+| **Often RFC-only** | Bounded HTTP routes or viewer tabs where **ADR-064**–**ADR-066** + UXS already fix the stack (e.g. **RFC-067**, **RFC-068**, **RFC-069**, **RFC-071**). Corpus layout + manifest: **ADR-074**. Frozen resource baselines: **ADR-075**. Streamlit vs Vue for eval tools: **ADR-076**. Full-stack Compose + stack-test gate: **ADR-084**, **ADR-085**. CIL + `bridge.json`: **ADR-086**. Autoresearch Track A v2: **ADR-087**. macOS ML `make` safety: **ADR-088**. |
 | **Proposed ADRs** | Promote **ADR-055** / **ADR-056** to **Accepted** (or supersede) when **RFC-053** / **RFC-054** ship end-to-end. |
 
 ### Future triggers
@@ -169,6 +179,7 @@ are **Yes**; **ADR-064**–**ADR-066** are implemented; **ADR-021** is reflected
 - **`.pipeline_status.json` schema** if external monitors depend on it and breaking changes need versioning.
 - **Profile YAML** for **non-Python** consumers beyond `tools/run_compare` / **`make profile-diff`** — partially addressed by **ADR-075**.
 - **RFC-070** + **ADR-060** when platform vector backends land materially.
+- **Full-stack Compose, stack-test, CIL or bridge, autoresearch v2, macOS ML process safety** — see **ADR-084**–**ADR-088** (normative detail remains in **RFC-072**, **RFC-073** v2 file, **RFC-074**, **RFC-078**, **RFC-079**).
 
 **Open decisions without ADRs:** see **Architecture Decision Candidates** below.
 

@@ -136,6 +136,17 @@ mkdocs serve                 # http://localhost:8000 (docs site; same default po
 
 ---
 
+## Hosting and always-on VPS
+
+| Doc | Use when |
+| --- | --- |
+| [Hosting and infrastructure](../architecture/HOSTING_AND_INFRASTRUCTURE.md) | Big picture: Tailscale, OpenTofu, GitHub Actions, Compose on prod, CI gates vs deploy |
+| [Prod runbook](PROD_RUNBOOK.md) | Operator commands for prod |
+| [DR drill runbook](DR_DRILL_RUNBOOK.md) | Drill-only GitHub workflows |
+| [WORKFLOWS](../ci/WORKFLOWS.md) | Workflow file names and triggers |
+
+---
+
 ## GI / KG Viewer (v2, RFC-062)
 
 | Command | What it does |
@@ -348,6 +359,8 @@ make stack-test-seed       # seed the corpus volume (default ml variant)
 make stack-test-down       # tear down (STACK_TEST_DOWN_VOLUMES=1 also drops the corpus)
 ```
 
+On **`main`**, GitHub Actions runs **`stack-test.yml`** against the same topology ([ADR-085](../adr/ADR-085-ephemeral-stack-test-integration-gate.md)). The always-on VPS uses the same compose stack with prod overlays; see [Hosting and infrastructure](../architecture/HOSTING_AND_INFRASTRUCTURE.md).
+
 **See:** [Docker Compose Guide](DOCKER_COMPOSE_GUIDE.md) (recommended), [Docker Service Guide](DOCKER_SERVICE_GUIDE.md) (single-container), [Docker Variants Guide](DOCKER_VARIANTS_GUIDE.md) (image tiers)
 
 ---
@@ -361,6 +374,7 @@ make stack-test-down       # tear down (STACK_TEST_DOWN_VOLUMES=1 also drops the
 - [Experiment Guide](EXPERIMENT_GUIDE.md) - Eval datasets and baselines
 - [Performance Profile Guide](PERFORMANCE_PROFILE_GUIDE.md) - Release timing snapshots
 - [Docker Service Guide](DOCKER_SERVICE_GUIDE.md) - Docker usage and deployment
+- [Hosting and infrastructure](../architecture/HOSTING_AND_INFRASTRUCTURE.md) - Always-on VPS, CI, Tailscale, OpenTofu narrative
 - [Docker Variants Guide](DOCKER_VARIANTS_GUIDE.md) - LLM-only vs ML-enabled
 - [CLI Reference](../api/CLI.md) - All CLI options
 - [Configuration](../api/CONFIGURATION.md) - Config file options

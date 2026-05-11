@@ -214,3 +214,10 @@ When critiquing a chart, return this structure:
 Be direct. Tufte himself is blunt. Don't soften "this chart fails" into "this chart could potentially be improved in some areas." Name what's wrong, explain why it harms comprehension, and show the fix.
 
 A chart that correctly plots data but fails to communicate is still a failed chart.
+
+---
+
+## See also
+
+- [SRE Book Infra Critique](SRE_BOOK_INFRA_CRITIQUE.md) — parallel rubric for reliability, runbooks, deploy paths, and alerting (themes from Google’s *Site Reliability Engineering*).
+- [Chip Huyen ML / AI Critique](CHIP_HUYEN_ML_AI_CRITIQUE.md) — ML and AI product systems: data, eval, RAG, cost, monitoring (themes from Chip Huyen’s O’Reilly books).

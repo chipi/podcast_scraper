@@ -663,6 +663,7 @@ prerequisite checklist tracked in
 [#751](https://github.com/chipi/podcast_scraper/issues/751) (operator
 copy-paste steps:
 [DR drill prerequisite checklist](../wip/RFC-082_DR_DRILL_PREREQ_CHECKLIST.md)).
+Operator workflow index: [DR drill runbook](../guides/DR_DRILL_RUNBOOK.md).
 
 If the corpus loss matters more than the speed of recovery,
 optionally enable Hetzner Volume snapshots (€0.0143/GB/month) for a

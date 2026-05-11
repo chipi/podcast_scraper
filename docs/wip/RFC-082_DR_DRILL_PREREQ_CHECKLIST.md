@@ -5,7 +5,8 @@ recovery drill in GitHub [#724](https://github.com/chipi/podcast_scraper/issues/
 Tracking issue for this list: [#751](https://github.com/chipi/podcast_scraper/issues/751).
 
 **Related docs:** [RFC-082 § Disaster recovery](../rfc/RFC-082-always-on-pre-prod-and-prod-hosting.md),
-[PROD_RUNBOOK — Disaster recovery](../guides/PROD_RUNBOOK.md#disaster-recovery).
+[PROD_RUNBOOK — Disaster recovery](../guides/PROD_RUNBOOK.md#disaster-recovery),
+[DR drill runbook](../guides/DR_DRILL_RUNBOOK.md).
 
 ---
 
@@ -58,7 +59,9 @@ Pick one **`PODCAST_ENV`** value for the entire drill stack (for example `dr-dri
 
 ## 4. Deploy and smoke baseline
 
-- [ ] **`drill-e2e.yml`** green after drill stack is up (GitHub Actions → **DR drill smoke**, confirm **`DRILL_SMOKE`**; needs repo variable **`DRILL_TAILNET_FQDN`** and Tailscale ACL **`tag:dr-drill`** applied via prod **`infra-apply.yml`**).
+- [ ] **`drill-e2e.yml`** green after the drill stack is up (manual dispatch with confirm **`DRILL_SMOKE`**; needs **`DRILL_TAILNET_FQDN`**, **`DRILL_DEPLOY_SSH_PRIVATE_KEY`**, and Tailscale ACL **`tag:gha-deployer` → `tag:dr-drill:22`** applied via prod **`infra-apply.yml`**). The same job is invoked from **`dr-drill-exercise.yml`** after restore.
+- [ ] Optional full-cycle rehearsal: **`dr-drill-exercise.yml`** with confirm **`DRILL_FULL_CYCLE`** or **`DRILL_EXERCISE`** (plan → apply → **`deploy-drill`** → **`drill-restore-corpus`** → **`drill-e2e`**, then **always** **`drill-infra-destroy`**). Piecemeal paths: **`drill-infra-apply`** / **`drill-infra-destroy`**, **`deploy-drill`**, **`drill-restore-corpus`** — see [DR drill runbook](../guides/DR_DRILL_RUNBOOK.md).
+- [ ] Prod corpus restore path understood separately: **`prod-restore-corpus.yml`** (confirm **`PROD_RESTORE`**, **`PROD_SSH_PRIVATE_KEY`**, Environment **`prod`**) — [PROD_RUNBOOK](../guides/PROD_RUNBOOK.md).
 - [ ] Drill host reaches GHCR and runs the same compose overlay story as prod / pre-prod.
 - [ ] Synthetic `.env` for drill (test API keys) documented; operators know what is fake vs prod.
 

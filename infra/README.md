@@ -26,6 +26,8 @@ infra/
 ## Quickstart
 
 > **Full operator runbook:** see [PROD_RUNBOOK.md](../docs/guides/PROD_RUNBOOK.md).
+> **DR drill only (GitHub Actions, confirms, orchestrator):** [DR_DRILL_RUNBOOK.md](../docs/guides/DR_DRILL_RUNBOOK.md).
+> **Architecture narrative (how hosting fits together):** [Hosting and infrastructure](../docs/architecture/HOSTING_AND_INFRASTRUCTURE.md).
 > Account-prerequisite checklist: [#714](https://github.com/chipi/podcast_scraper/issues/714).
 
 One-time setup (per operator):
@@ -107,6 +109,7 @@ clean up.
 
 - [RFC-082 — Decision 5: IaC](../docs/rfc/RFC-082-always-on-pre-prod-and-prod-hosting.md)
 - [PROD_RUNBOOK.md](../docs/guides/PROD_RUNBOOK.md) — full operator runbook
+- [DR_DRILL_RUNBOOK.md](../docs/guides/DR_DRILL_RUNBOOK.md) — drill workflows, confirms, orchestrator
 - [#716](https://github.com/chipi/podcast_scraper/issues/716) — this scaffolding ticket
 - [#719](https://github.com/chipi/podcast_scraper/issues/719) — `infra-ci.yml` (PR plan) and `infra-apply.yml` (manual apply) workflows
 - [#752](https://github.com/chipi/podcast_scraper/issues/752) — recurring DR drill CI (`drill-infra-plan.yml`, `drill-infra-apply.yml`, `drill-infra-destroy.yml`, workspace `drill`, prod-only `tailscale_acl`)

@@ -60,6 +60,8 @@ nav:
       - Optimization Workflow: guides/OPTIMIZATION_WORKFLOW_GUIDE.md
       - Live Pipeline Monitor: guides/LIVE_PIPELINE_MONITOR.md
       - Tufte Chart Critique: guides/TUFTE_CHART_CRITIQUE.md
+      - SRE Book Infra Critique: guides/SRE_BOOK_INFRA_CRITIQUE.md
+      - Chip Huyen ML / AI Critique: guides/CHIP_HUYEN_ML_AI_CRITIQUE.md
       - Glossary: guides/GLOSSARY.md
   - Architecture:
       - architecture/index.md
@@ -67,6 +69,7 @@ nav:
       - Non-Functional Requirements: architecture/NON_FUNCTIONAL_REQUIREMENTS.md
       - Testing Strategy: architecture/TESTING_STRATEGY.md
       - Platform Blueprint: architecture/PLATFORM_ARCHITECTURE_BLUEPRINT.md
+      - Hosting and infrastructure: architecture/HOSTING_AND_INFRASTRUCTURE.md
       - Viewer Frontend: architecture/VIEWER_FRONTEND_ARCHITECTURE.md
       - Viewer graph (implementation): architecture/VIEWER_GRAPH_SPEC.md
       - Viewer async stability: architecture/VIEWER_ASYNC_STABILITY.md

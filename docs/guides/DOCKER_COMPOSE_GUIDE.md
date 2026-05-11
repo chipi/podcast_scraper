@@ -6,7 +6,7 @@ This guide is for **operators and end users**. If you want to develop the Python
 
 ## Why Docker Compose
 
-You get the whole platform with one `docker compose up`. No Python/venv setup on the host, no Node/npm setup, no managing supervisord — Docker handles the lifecycle. The same images and compose files run on your laptop, CI, or a small VPS.
+You get the whole platform with one `docker compose up`. No Python/venv setup on the host, no Node/npm setup, no managing supervisord — Docker handles the lifecycle. The same images and compose files run on your laptop, **CI** (`stack-test.yml` on `main`, see [ADR-085](../adr/ADR-085-ephemeral-stack-test-integration-gate.md)), or a **small VPS** behind Tailscale ([Hosting and infrastructure](../architecture/HOSTING_AND_INFRASTRUCTURE.md), [RFC-079](../rfc/RFC-079-full-stack-docker-compose.md)).
 
 Pipeline jobs run as **one-shot containers** spawned by the API on demand. There is **no long-running pipeline service** — when you click **Run** in the UI, the API calls `docker compose run --rm pipeline ...` (or `pipeline-llm` for cloud profiles), the container processes your feeds, writes artifacts to a shared named volume, and exits. The viewer then reads those artifacts directly.
 

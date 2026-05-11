@@ -563,10 +563,13 @@ The interactive operator-driven flow — viewer SPA + FastAPI + on-demand pipeli
 - Profile choices (airgapped/ml vs cloud-thin/llm) and `.env` setup for cloud keys
 - Persistence, updates, troubleshooting, and production hints
 
+**Prod / always-on:** the same **`compose/docker-compose.stack.yml`** layering (with **`docker-compose.prod.yml`** and site overlays such as **`docker-compose.vps-prod.yml`**) is what runs on the Hetzner VPS behind Tailscale. How that ties to GitHub Actions and OpenTofu is in [Hosting and infrastructure](../architecture/HOSTING_AND_INFRASTRUCTURE.md) (see also [ADR-084](../adr/ADR-084-full-stack-docker-compose-topology.md), [ADR-085](../adr/ADR-085-ephemeral-stack-test-integration-gate.md)).
+
 The single-container deployment style covered in **this** guide is appropriate when you want to run the pipeline as a long-lived service triggered by an external scheduler, not via the operator UI.
 
 ## Related Documentation
 
+- [Hosting and infrastructure](../architecture/HOSTING_AND_INFRASTRUCTURE.md) — always-on VPS, Tailscale, OpenTofu, GitHub Actions, Compose (ADR spine)
 - [Docker Compose guide](DOCKER_COMPOSE_GUIDE.md) - **Recommended** end-to-end stack (viewer + API + on-demand pipeline jobs)
 - [Service API](../api/SERVICE.md) - Service mode API reference
 - [Configuration API](../api/CONFIGURATION.md) - Config file format and options
