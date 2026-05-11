@@ -201,6 +201,25 @@ this user repeatedly. Adherence to these beats every other rule.
 - **No redundant ci-fast runs** to verify a small fix. Run the
   subtarget (`make docs`, `make lint`, `make type`, `make format`)
   — 10s vs 10min. Cost-of-validation matters.
+- **Documentation-only commits** (markdown under `docs/**`, `**/*.md`,
+  `mkdocs.yml`, and no `src/` or runtime app code): prefer **`make fix-md`**
+  (if needed), **`make lint-markdown`**, and **`make docs`**. Do not insist on
+  local **`make ci-fast`** for that profile alone (see **`markdown-pre-commit`**
+  skill). Same idea as `.ai-coding-guidelines-quick.md` *Testing before commit*.
+- **Infra / CI / ops-only commits** (examples: `.github/workflows/**`,
+  `.github/actions/**`, `infra/**`, `tailscale/**`, `scripts/ops/**/*.sh`,
+  Terraform `*.tf`, `.cursorrules`, `CLAUDE.md`): when the operator explicitly
+  waives **`make ci-fast`**, treat that as skipping the **heavy** local gate;
+  still run **`make lint-markdown`** if any markdown changed, and **`make docs`**
+  if `docs/**`, `mkdocs.yml`, or nav-linked docs inputs changed. If nothing
+  under `docs/**` or `**/*.md` moved, no extra default local target beyond what
+  the operator requests.
+- **Why GitHub still runs Python application CI:** `.github/workflows/python-app.yml`
+  uses `on.push.paths` that include **`Makefile`** and **this workflow file**.
+  A push that touches **`Makefile`** (even only new `make drill-*` targets) or
+  **`python-app.yml`** schedules **Python application** on `main` (lint, **build**,
+  tests, etc.). That is path-filter behavior, not “the repo thought you changed
+  Python.” Expect it when editing those paths.
 
 ### When a make target fails
 

@@ -39,6 +39,8 @@ make <target> && echo "PASS" || echo "FAIL $?"
 
 **On a failing `make ci-fast`:** identify the failing SUBTARGET (docs / lint / format / test / etc.) and validate the fix by re-running ONLY that subtarget — `make docs` is 10 s, `make ci-fast` is 10 min. Then run `make ci-fast` ONCE at the very end as the whole-gate confirmation. (See `feedback_no_redundant_ci_fast.md` and `feedback_subtarget_reverify.md` in user memory.)
 
+**Docs-only and infra/CI-only diffs:** see **`.cursorrules` — CI gating** (and **`.ai-coding-guidelines-quick.md`**) for when **`make lint-markdown`** / **`make docs`** replace a local **`ci-fast`**. **GitHub:** **`python-app.yml`** still runs on push when **`Makefile`** or that workflow file changes (`on.push.paths`), including **build** jobs — that is expected.
+
 ## Reference files (load on demand)
 
 - **`.cursorrules`** — index + workflow rules (~180 lines, default load).
