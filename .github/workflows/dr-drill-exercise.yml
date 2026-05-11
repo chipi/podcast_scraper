@@ -2,10 +2,13 @@ name: DR drill exercise (orchestrated)
 
 # Full scratch cycle (RFC-082 / #752):
 #   drill-infra-plan (fmt-check, validate, tofu plan)
-#   → drill-infra-apply
+#   → drill-infra-apply (uploads encrypted state artifact; no git commit needed
+#     for the rest of this run)
 #   → deploy-drill → drill-restore-corpus → drill-e2e
-#   → always tofu destroy (drill workspace) so we return to empty infra
-#     even when a middle job failed.
+#   → ``drill-tfstate-bridge`` copies apply state to artifact ``drill-tfstate-for-teardown``
+#     on this caller run (reusable-workflow artifacts are not always visible to
+#     later ``workflow_call`` jobs). ``drill-infra-destroy`` downloads that (or
+#     apply output as fallback), then ``tofu destroy``, hcloud sweep, Tailscale cleanup.
 #
 # Typed gate: **DRILL_FULL_CYCLE** (alias **DRILL_EXERCISE**). Each reusable
 # workflow keeps its own ``environment: drill`` rules where configured.
@@ -32,7 +35,7 @@ on:
 
 permissions:
   contents: read
-  actions: read
+  actions: write
 
 concurrency:
   group: dr-drill-exercise
@@ -61,6 +64,49 @@ jobs:
     secrets: inherit
     with:
       skip_confirm: true
+
+  drill-tfstate-bridge:
+    # Reusable-workflow artifacts are not always visible to a later ``workflow_call``
+    # in the same parent run. Bridge copies apply output onto this caller run as
+    # ``drill-tfstate-for-teardown`` so ``drill-infra-destroy`` can download it.
+    needs: apply
+    if: always()
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      actions: write
+    steps:
+      - name: Download terraform-state-after-apply-drill (from apply reusable job)
+        continue-on-error: true
+        uses: actions/download-artifact@v4
+        with:
+          name: terraform-state-after-apply-drill
+          path: .bridge-in
+
+      - name: Republish encrypted drill state for teardown
+        id: repub
+        run: |
+          set -euo pipefail
+          mkdir -p .bridge-out
+          FOUND=$(find .bridge-in -type f \
+            \( -name 'terraform.tfstate.enc.drill' -o -name '*.enc.drill' \) \
+            2>/dev/null | head -1 || true)
+          if [ -n "$FOUND" ] && [ -f "$FOUND" ]; then
+            cp "$FOUND" .bridge-out/terraform.tfstate.enc.drill
+            echo "upload=yes" >> "$GITHUB_OUTPUT"
+            echo "Bridged drill encrypted state for teardown."
+          else
+            echo "upload=no" >> "$GITHUB_OUTPUT"
+            echo "No apply artifact to bridge (standalone destroy will use git state)."
+          fi
+
+      - name: Upload drill-tfstate-for-teardown
+        if: steps.repub.outputs.upload == 'yes'
+        uses: actions/upload-artifact@v4
+        with:
+          name: drill-tfstate-for-teardown
+          path: .bridge-out/terraform.tfstate.enc.drill
+          retention-days: 30
 
   deploy:
     needs: apply
@@ -95,7 +141,7 @@ jobs:
           echo "Proceeding to drill-infra-destroy (tofu destroy) regardless of outcomes above."
 
   teardown:
-    needs: finalize
+    needs: [finalize, drill-tfstate-bridge]
     if: always()
     uses: ./.github/workflows/drill-infra-destroy.yml
     secrets: inherit

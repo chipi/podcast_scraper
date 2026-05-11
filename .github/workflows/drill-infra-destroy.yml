@@ -2,9 +2,23 @@ name: Drill infra destroy (manual)
 
 # GitHub #752 — manual ``tofu destroy`` for OpenTofu workspace ``drill`` only.
 # Same secrets and state encryption contract as ``drill-infra-apply.yml``.
-# Destroys Hetzner resources managed by the drill workspace (typically the
-# drill VPS). Does **not** SSH to the host to run ``docker compose down`` first;
-# operators may do that manually if they want a graceful stop before destroy.
+#
+# **State (no git commit required for orchestrator):** when this workflow runs
+# after ``dr-drill-exercise``'s ``drill-tfstate-bridge`` job, it downloads artifact
+# ``drill-tfstate-for-teardown`` (a copy of apply output on the **caller** run).
+# It also tries ``terraform-state-after-apply-drill`` (direct from apply) for
+# compatibility. Without those artifacts (standalone destroy), it uses the
+# encrypted file from the git checkout; commit ``terraform.tfstate.enc.drill``
+# when you apply outside the orchestrator and need destroy to match.
+#
+# After ``tofu destroy``, always runs a **Hetzner hcloud orphan sweep** in the
+# drill-token project, then **Tailscale API** removal of devices tagged
+# ``tag:dr-drill`` or whose hostname matches ``tailnet_hostname`` in
+# ``terraform.drill.ci.tfvars`` (stops orphaned MagicDNS entries after repeated
+# drills).
+#
+# Does **not** SSH to the host to run ``docker compose down`` first; operators
+# may do that manually for a graceful stop before destroy.
 #
 # Manual: type **DRILL_DESTROY** in ``confirm``.
 # Called from ``dr-drill-exercise.yml`` after the finalize job with
@@ -35,6 +49,7 @@ on:
 
 permissions:
   contents: read
+  actions: write
 
 concurrency:
   group: drill-infra-destroy
@@ -61,6 +76,55 @@ jobs:
           exit 1
 
       - uses: actions/checkout@v5
+
+      - name: Download drill-tfstate-for-teardown (orchestrator bridge)
+        continue-on-error: true
+        uses: actions/download-artifact@v4
+        with:
+          name: drill-tfstate-for-teardown
+          path: .downloaded-teardown-drill-state
+
+      - name: Download drill state from apply job (same run, fallback)
+        continue-on-error: true
+        uses: actions/download-artifact@v4
+        with:
+          name: terraform-state-after-apply-drill
+          path: .downloaded-apply-drill-state
+
+      - name: Prefer bridged or apply artifact over git for encrypted drill state
+        run: |
+          set -euo pipefail
+          cd "${GITHUB_WORKSPACE}"
+          DEST="infra/terraform/terraform.tfstate.enc.drill"
+          FOUND=""
+          for base in .downloaded-teardown-drill-state .downloaded-apply-drill-state; do
+            [ -d "$base" ] || continue
+            for cand in \
+              "$base/terraform.tfstate.enc.drill" \
+              "$base/infra/terraform/terraform.tfstate.enc.drill"; do
+              if [ -f "$cand" ]; then
+                FOUND="$cand"
+                break
+              fi
+            done
+            if [ -n "$FOUND" ]; then
+              break
+            fi
+            MORE=$(find "$base" -type f \
+              \( -name 'terraform.tfstate.enc.drill' -o -name '*.enc.drill' \) \
+              2>/dev/null | head -1 || true)
+            if [ -n "$MORE" ] && [ -f "$MORE" ]; then
+              FOUND="$MORE"
+              break
+            fi
+          done
+          if [ -n "$FOUND" ] && [ -f "$FOUND" ]; then
+            mkdir -p "$(dirname "$DEST")"
+            cp "$FOUND" "$DEST"
+            echo "Using encrypted drill state from workflow artifact(s) (orchestrator or retry path)."
+          else
+            echo "No bridged/apply artifact in this run — using terraform.tfstate.enc.drill from git (standalone destroy)."
+          fi
 
       - name: Pre-flight — required secrets present?
         env:
@@ -116,6 +180,125 @@ jobs:
           tofu init -input=false
           tofu workspace select -or-create drill
           tofu destroy -auto-approve -input=false -var-file=terraform.drill.ci.tfvars
+
+      - name: Install Hetzner hcloud CLI (drill orphan sweep)
+        run: |
+          set -euo pipefail
+          HCLOUD_VER="1.46.0"
+          cd /tmp
+          curl -fsSLO "https://github.com/hetznercloud/cli/releases/download/v$HCLOUD_VER/hcloud-linux-amd64.tar.gz"
+          tar -xzf hcloud-linux-amd64.tar.gz
+          sudo install -m755 hcloud /usr/local/bin/hcloud
+          hcloud version
+
+      - name: Hetzner drill orphan sweep (API — empty state safe)
+        env:
+          HCLOUD_TOKEN: ${{ secrets.HCLOUD_TOKEN_DRILL }}
+        run: |
+          set -euo pipefail
+          cd "${GITHUB_WORKSPACE}"
+          DRILL_HOST=$(grep -E '^[[:space:]]*tailnet_hostname[[:space:]]*=' \
+            infra/terraform/terraform.drill.ci.tfvars \
+            | sed -E 's/^[[:space:]]*tailnet_hostname[[:space:]]*=[[:space:]]*"([^"]+)".*/\1/')
+          echo "Drill tailnet hostname / Hetzner server name match: $DRILL_HOST"
+
+          echo "Matching servers (label drill+project OR name)..."
+          IDS=$(hcloud server list -o json | jq -r --arg h "$DRILL_HOST" '
+            [.[] | select(
+              ((.labels.environment? // "") == "drill"
+                and (.labels.project? // "") == "podcast-scraper")
+              or (.name == $h)
+            ) | .id] | unique | .[]')
+          if [ -z "$(echo "$IDS" | tr -d '[:space:]')" ]; then
+            echo "No matching servers in this Hetzner project."
+          else
+            for id in $IDS; do
+              echo "Deleting server id=$id"
+              hcloud server delete --force "$id"
+            done
+            sleep 5
+          fi
+
+          echo "Matching corpus volumes..."
+          hcloud volume list -o json | jq -r '.[] | select(.name == "podcast-scraper-corpus") | .id' \
+            | while read -r vid; do
+              [ -z "$vid" ] && continue
+              echo "Deleting volume id=$vid"
+              hcloud volume delete --force "$vid" || true
+            done
+
+          if hcloud firewall describe podcast-scraper-prod >/dev/null 2>&1; then
+            echo "Deleting firewall podcast-scraper-prod"
+            hcloud firewall delete podcast-scraper-prod || true
+          fi
+
+          if hcloud network describe podcast-scraper-prod >/dev/null 2>&1; then
+            echo "Removing subnets from podcast-scraper-prod (if any)"
+            hcloud network describe podcast-scraper-prod -o json \
+              | jq -r '.subnets[]? | "\(.ip_range)\t\(.network_zone)"' \
+              | while IFS="$(printf '\t')" read -r ipr zone; do
+                  [ -z "$ipr" ] && continue
+                  echo "remove-subnet $ipr zone=$zone"
+                  hcloud network remove-subnet podcast-scraper-prod \
+                    --ip-range "$ipr" --network-zone "$zone" || true
+                done
+            echo "Deleting network podcast-scraper-prod"
+            hcloud network delete podcast-scraper-prod || true
+          fi
+
+          if hcloud ssh-key describe operator-laptop >/dev/null 2>&1; then
+            echo "Deleting ssh-key operator-laptop"
+            hcloud ssh-key delete operator-laptop || true
+          fi
+
+          LEFT=$(hcloud server list -o json | jq --arg h "$DRILL_HOST" '
+            [.[] | select(
+              ((.labels.environment? // "") == "drill")
+              or (.name == $h)
+            )] | length')
+          if [ "$LEFT" != "0" ]; then
+            echo "::error::After OpenTofu destroy + hcloud sweep, $LEFT drill server(s) still exist in this project."
+            hcloud server list -o columns
+            exit 1
+          fi
+          echo "Hetzner drill orphan sweep complete (no matching servers remain)."
+
+      - name: Tailscale — remove drill devices (tag or hostname)
+        env:
+          TS_API_KEY: ${{ secrets.TS_API_KEY }}
+          TAILNET: ${{ vars.TAILNET_NAME }}
+        run: |
+          set -euo pipefail
+          cd "${GITHUB_WORKSPACE}"
+          DRILL_HOST=$(grep -E '^[[:space:]]*tailnet_hostname[[:space:]]*=' \
+            infra/terraform/terraform.drill.ci.tfvars \
+            | sed -E 's/^[[:space:]]*tailnet_hostname[[:space:]]*=[[:space:]]*"([^"]+)".*/\1/')
+          echo "Tailscale cleanup for tailnet=$TAILNET hostname=$DRILL_HOST (tag:dr-drill or hostname match)"
+
+          RESP=$(curl -fsS -H "Authorization: Bearer $TS_API_KEY" \
+            "https://api.tailscale.com/api/v2/tailnet/$TAILNET/devices?fields=all")
+
+          IDS=$(echo "$RESP" | jq -r --arg h "$DRILL_HOST" '
+            (if .devices then .devices elif type == "array" then . else [] end)
+            | .[]
+            | select(
+                ((.tags // []) | index("tag:dr-drill")) != null
+                or (.hostname == $h)
+              )
+            | .id')
+
+          if [ -z "$(echo "$IDS" | tr -d '[:space:]')" ]; then
+            echo "No Tailscale devices matched tag:dr-drill or hostname=$DRILL_HOST."
+            exit 0
+          fi
+
+          for id in $IDS; do
+            echo "DELETE device id=$id"
+            curl -fsS -X DELETE -H "Authorization: Bearer $TS_API_KEY" \
+              "https://api.tailscale.com/api/v2/device/$id" \
+              || echo "::warning::Tailscale DELETE failed for $id (may already be gone)."
+          done
+          echo "Tailscale drill device cleanup finished."
 
       - name: Re-encrypt drill state (always — even if destroy failed)
         if: always()

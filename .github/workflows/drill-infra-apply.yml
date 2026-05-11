@@ -3,7 +3,11 @@ name: Drill infra apply (manual)
 # GitHub #752 — manual apply for OpenTofu workspace `drill` only. Uses
 # HCLOUD_TOKEN_DRILL and GitHub Environment `drill` for approval gates.
 # State is encrypted to terraform.tfstate.enc.drill (parallel to prod
-# terraform.tfstate.enc for the default workspace).
+# terraform.tfstate.enc for the default workspace). Each run uploads artifact
+# ``terraform-state-after-apply-drill`` so ``drill-infra-destroy`` in the same
+# ``dr-drill-exercise`` run can ``tofu destroy`` without a git commit. The same
+# artifact is downloaded at the start of this job (``continue-on-error``) so a
+# **re-run failed apply** in the same workflow run picks up prior state.
 
 on:
   workflow_dispatch:
@@ -30,6 +34,7 @@ on:
 
 permissions:
   contents: read
+  actions: write
 
 concurrency:
   group: drill-infra-apply
@@ -56,6 +61,35 @@ jobs:
           exit 1
 
       - uses: actions/checkout@v5
+
+      - name: Restore drill state from earlier apply attempt (same workflow run)
+        continue-on-error: true
+        uses: actions/download-artifact@v4
+        with:
+          name: terraform-state-after-apply-drill
+          path: .downloaded-self-apply-drill-state
+
+      - name: Prefer prior apply artifact over git for encrypted drill state
+        run: |
+          set -euo pipefail
+          cd "${GITHUB_WORKSPACE}"
+          DEST="infra/terraform/terraform.tfstate.enc.drill"
+          FOUND=""
+          for cand in \
+            ".downloaded-self-apply-drill-state/terraform.tfstate.enc.drill" \
+            ".downloaded-self-apply-drill-state/infra/terraform/terraform.tfstate.enc.drill"; do
+            if [ -f "$cand" ]; then FOUND="$cand"; break; fi
+          done
+          if [ -z "$FOUND" ] && [ -d .downloaded-self-apply-drill-state ]; then
+            FOUND=$(find .downloaded-self-apply-drill-state -type f \
+              \( -name 'terraform.tfstate.enc.drill' -o -name '*.enc.drill' \) \
+              2>/dev/null | head -1 || true)
+          fi
+          if [ -n "$FOUND" ] && [ -f "$FOUND" ]; then
+            mkdir -p "$(dirname "$DEST")"
+            cp "$FOUND" "$DEST"
+            echo "Using encrypted drill state from prior apply attempt in this workflow run."
+          fi
 
       - name: Pre-flight — required secrets present?
         env:
