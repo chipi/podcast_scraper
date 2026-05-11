@@ -180,7 +180,10 @@ jobs:
           TF_VAR_ssh_public_key:    ${{ secrets.OPERATOR_SSH_PUBLIC_KEY }}
           TF_VAR_tailscale_tailnet: ${{ vars.TAILNET_NAME }}
         run: |
-          tofu init -input=false
+          set -euo pipefail
+          # Pipe answers for rare init state-migration prompts; -input=false alone
+          # can still error with "input is disabled" in CI (OpenTofu 1.6).
+          yes | tofu init -input=false
           tofu workspace select -or-create drill
           tofu destroy -auto-approve -input=false -var-file=terraform.drill.ci.tfvars
 

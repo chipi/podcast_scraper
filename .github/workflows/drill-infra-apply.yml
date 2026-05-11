@@ -142,7 +142,8 @@ jobs:
           TF_VAR_ssh_public_key:    ${{ secrets.OPERATOR_SSH_PUBLIC_KEY }}
           TF_VAR_tailscale_tailnet: ${{ vars.TAILNET_NAME }}
         run: |
-          tofu init -input=false
+          set -euo pipefail
+          yes | tofu init -input=false
           # -or-create avoids exit 1 on first run; the opentofu/setup-opentofu
           # tofu_wrapper logs ##[error] for any non-zero child tofu exit.
           tofu workspace select -or-create drill

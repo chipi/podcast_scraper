@@ -92,7 +92,9 @@ jobs:
       - name: tofu init
         if: steps.preflight.outputs.skip != 'true'
         working-directory: infra/terraform
-        run: tofu init -input=false
+        run: |
+          set -euo pipefail
+          yes | tofu init -input=false
 
       - name: Select OpenTofu workspace drill
         if: steps.preflight.outputs.skip != 'true'
