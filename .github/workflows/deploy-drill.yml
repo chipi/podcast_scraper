@@ -111,8 +111,11 @@ jobs:
         run: |
           ssh -i "$SSH_DRILL_IDENTITY" -o IdentitiesOnly=yes \
             -o StrictHostKeyChecking=accept-new -o BatchMode=yes "$SSH_TARGET" \
-            "sudo sed -i '/^PODCAST_RELEASE=/d' /srv/podcast-scraper/.env && \
-             echo 'PODCAST_RELEASE=sha-${SHA_SHORT}' | sudo tee -a /srv/podcast-scraper/.env >/dev/null"
+            "set -euo pipefail; cd /srv/podcast-scraper; \
+             test -f .env || install -m 600 /dev/null .env; \
+             sed -i '/^PODCAST_RELEASE=/d' .env; \
+             echo 'PODCAST_RELEASE=sha-${SHA_SHORT}' >> .env; \
+             chmod 600 .env"
 
       - name: Deploy (git pull + compose pull + compose up + VPS-local /api/health)
         if: steps.preflight.outputs.skip != 'true'
