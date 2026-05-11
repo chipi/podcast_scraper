@@ -14,7 +14,7 @@
 set -euo pipefail
 
 REPO_DIR=/srv/podcast-scraper
-# vps-prod overlay (#713) layers basic-auth nginx + .htpasswd bind-mount on
+# vps-prod overlay (#713) layers prod nginx template + landing page on
 # top of the stack + prod overlays. Codespaces deliberately omits it.
 STACK_FILES=(-f compose/docker-compose.stack.yml -f compose/docker-compose.prod.yml -f compose/docker-compose.vps-prod.yml)
 

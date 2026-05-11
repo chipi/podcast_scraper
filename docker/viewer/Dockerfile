@@ -64,9 +64,8 @@ ENV PODCAST_RELEASE=
 # the template) are NOT mangled.
 ENV NGINX_ENVSUBST_FILTER=^PODCAST_
 
-# Healthcheck: accept ANY HTTP response (200 or 401 with auth_basic
-# in prod) as proof nginx is alive. busybox wget is present on
-# Alpine; ``-S`` dumps response headers to stderr.
+# Healthcheck: accept ANY HTTP response line as proof nginx is alive.
+# busybox wget is present on Alpine; ``-S`` dumps response headers to stderr.
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
     CMD wget -qSO /dev/null http://127.0.0.1/ 2>&1 | grep -q 'HTTP/' || exit 1
 

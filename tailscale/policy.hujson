@@ -21,7 +21,7 @@
   "acls": [
     // Operator's own devices (laptop, phone, iPad — anyone with admin role)
     // reach the viewer + api over HTTPS, AND SSH for hands-on debugging
-    // and the operator bootstrap flow (stage .env, .htpasswd, restart unit).
+    // and the operator bootstrap flow (stage .env, restart unit).
     // Originally restricted SSH to tag:gha-deployer only, but that blocked
     // operator-side bootstrap (no way to stage host secrets); pragmatic to
     // grant SSH to admin too. Defence-in-depth still applies via SSH key auth.

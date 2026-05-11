@@ -24,7 +24,6 @@ Fast companion to the full
 - Health: `https://prod-podcast.<tailnet>.ts.net/api/health`
 - Repo on host: `/srv/podcast-scraper`
 - Runtime env: `/srv/podcast-scraper/.env`
-- Viewer basic auth file: `/srv/podcast-scraper/.htpasswd`
 - Corpus path: `/srv/podcast-scraper/corpus`
 
 ## Daily commands
@@ -84,7 +83,6 @@ ssh deploy@prod-podcast.<tailnet>.ts.net \
 - `TS_API_KEY`: tailnet management API for Terraform provider.
 - `TFSTATE_AGE_KEY`: decrypts encrypted OpenTofu state.
 - Host `.env`: provider API keys, Grafana credentials, Sentry DSNs.
-- `.htpasswd`: viewer basic-auth credentials.
 
 ## Rotation rhythm
 

@@ -42,11 +42,10 @@ services:
     # Nginx serves the SPA shell on GET /.
     healthcheck:
       # Use wget (busybox-only on nginx:alpine; curl isn't installed) and
-      # accept ANY ``HTTP/`` response line (200, 401, etc.) as proof
-      # nginx is alive. The 401 case matters for the prod overlay where
-      # ``auth_basic`` is enabled — a naive 2xx-only probe would mark
-      # the container ``unhealthy`` even when nginx is responding
-      # correctly with an auth challenge.
+      # accept ANY ``HTTP/`` response line (200, 3xx, etc.) as proof
+      # nginx is alive. A naive 2xx-only probe can mark the container
+      # ``unhealthy`` when nginx returns a redirect or other non-2xx
+      # edge case; the prod VPS overlay uses the same pattern.
       test: ["CMD-SHELL", "wget -qSO /dev/null http://127.0.0.1/ 2>&1 | grep -q 'HTTP/'"]
       interval: 30s
       timeout: 5s

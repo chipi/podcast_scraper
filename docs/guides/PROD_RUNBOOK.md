@@ -17,18 +17,17 @@ Need the short version for daily ops? Use
 
 1. [First-time bootstrap](#first-time-bootstrap) — includes [API health checks by context](#api-health-checks-by-context) (GH-745)
 2. [Daily operations](#daily-operations)
-3. [Basic-auth credentials](#basic-auth-credentials)
-4. [Corpus migration from pre-prod (Codespace) to prod (VPS)](#corpus-migration)
-5. [Rollback (deploy went red mid-way)](#rollback)
-6. [Disaster recovery (VPS gone)](#disaster-recovery)
-7. [Credential rotation](#credential-rotation)
-8. [Environment variable reference](#environment-variable-reference)
-9. [Observability setup walkthrough](#observability-setup-walkthrough) — includes [Sentry Slack routing (GH-725)](#sentry-slack-routing-prod-vs-pre-prod-gh-725) and [Grafana env filter (GH-726)](#grafana-env-filter-gh-726)
-10. [Tailscale operations](#tailscale-operations)
-11. [Hetzner operations](#hetzner-operations)
-12. [Operator hot-fix workflow](#operator-hot-fix-workflow)
-13. [FAQ / Troubleshooting](#faq-troubleshooting) — includes [Cursor or automation cannot `ssh deploy@prod`](#cursor-or-automation-cannot-ssh-deployprod)
-14. [Constraints to know](#constraints-to-know)
+3. [Corpus migration from pre-prod (Codespace) to prod (VPS)](#corpus-migration)
+4. [Rollback (deploy went red mid-way)](#rollback)
+5. [Disaster recovery (VPS gone)](#disaster-recovery)
+6. [Credential rotation](#credential-rotation)
+7. [Environment variable reference](#environment-variable-reference)
+8. [Observability setup walkthrough](#observability-setup-walkthrough) — includes [Sentry Slack routing (GH-725)](#sentry-slack-routing-prod-vs-pre-prod-gh-725) and [Grafana env filter (GH-726)](#grafana-env-filter-gh-726)
+9. [Tailscale operations](#tailscale-operations)
+10. [Hetzner operations](#hetzner-operations)
+11. [Operator hot-fix workflow](#operator-hot-fix-workflow)
+12. [FAQ / Troubleshooting](#faq-troubleshooting) — includes [Cursor or automation cannot `ssh deploy@prod`](#cursor-or-automation-cannot-ssh-deployprod)
+13. [Constraints to know](#constraints-to-know)
 
 ---
 
@@ -238,7 +237,6 @@ install -m 600 /dev/stdin /srv/podcast-scraper/.env <<'ENV'
 # === Required: ingress + paths ===
 PODCAST_DOCKER_PROJECT_DIR=/srv/podcast-scraper
 PODCAST_CORPUS_HOST_PATH=/srv/podcast-scraper/corpus
-PODCAST_HTPASSWD_PATH=/srv/podcast-scraper/.htpasswd
 PODCAST_ENV=prod
 PODCAST_AVAILABLE_PROFILES=cloud_balanced,cloud_thin
 PODCAST_DEFAULT_PROFILE=cloud_balanced
@@ -262,11 +260,6 @@ PODCAST_SENTRY_DSN_API=https://...@o....ingest.de.sentry.io/...
 PODCAST_SENTRY_DSN_PIPELINE=https://...@o....ingest.de.sentry.io/...
 ENV
 
-# Stage the basic-auth password file too (see #Basic-auth credentials below).
-sudo htpasswd -bcB /srv/podcast-scraper/.htpasswd <user> <pass>
-sudo chown root:docker /srv/podcast-scraper/.htpasswd
-sudo chmod 640         /srv/podcast-scraper/.htpasswd
-
 # Release the systemd gate.
 sudo rm /srv/podcast-scraper/.bootstrap-needs-env
 sudo systemctl restart podcast-scraper.service
@@ -284,7 +277,7 @@ Docker network).
 | --- | --- | --- |
 | **Compose / inside `api` container** | `curl -fsS http://127.0.0.1:8000/api/health` | Same as `compose/docker-compose.stack.yml` `healthcheck` and `infra/deploy/deploy.sh` after #745. |
 | **On the VPS host over SSH** | `docker compose -f compose/docker-compose.stack.yml -f compose/docker-compose.prod.yml -f compose/docker-compose.vps-prod.yml exec -T api curl -fsS http://127.0.0.1:8000/api/health` | Runs the check **inside** the api netns. From `/srv/podcast-scraper`, a short form is `docker compose exec -T api curl -fsS http://127.0.0.1:8000/api/health` if your shell already exports the same `-f` list as systemd. |
-| **Host loopback via viewer (nginx → api)** | `curl -fsS http://127.0.0.1:${VIEWER_PORT:-8080}/api/health` | `VIEWER_PORT` defaults to `8080` (`compose/docker-compose.stack.yml`). Exercises the same path as much of the UI; prod nginx leaves `/api/health` **without** basic auth. |
+| **Host loopback via viewer (nginx → api)** | `curl -fsS http://127.0.0.1:${VIEWER_PORT:-8080}/api/health` | `VIEWER_PORT` defaults to `8080` (`compose/docker-compose.stack.yml`). Same nginx path as the SPA shell. |
 | **Laptop / CI on the tailnet** | `curl -fsS https://prod-podcast.<tailnet>/api/health` | MagicDNS + `tailscale serve`; this is what `deploy-prod.yml` probes after deploy. |
 
 **Prefer** tailnet or container-local checks when triaging production. Treat
@@ -301,10 +294,9 @@ each step hits the intended layer.
 curl -fsS https://prod-podcast.tail-xxxxx.ts.net/api/health | jq .
 # Expected: {"status":"ok","feeds_api":true,...}
 
-# 2. Basic auth (closes #713 verification)
-curl -i https://prod-podcast.tail-xxxxx.ts.net/                     # expect 401
-curl -i https://prod-podcast.tail-xxxxx.ts.net/welcome              # expect 200 + landing.html
-curl -fsS -u user:pass https://prod-podcast.tail-xxxxx.ts.net/      # expect 200 + SPA HTML
+# 2. Viewer shell (no HTTP Basic Auth on the VPS; tailnet is the gate)
+curl -fsS https://prod-podcast.tail-xxxxx.ts.net/ | head
+curl -fsS https://prod-podcast.tail-xxxxx.ts.net/welcome | head
 
 # 3. grafana-agent shipping
 ssh deploy@prod-podcast.tail-xxxxx.ts.net 'docker logs compose-grafana-agent-1 --tail 20'
@@ -383,52 +375,13 @@ or **`--no-extract`** (list only, no unpack).
 
 ---
 
-## Basic-auth credentials
+## VPS access control (no HTTP Basic Auth)
 
-The viewer is gated by HTTP Basic Auth (#713). Credentials are stored in
-`/srv/podcast-scraper/.htpasswd` on the VPS; nginx reads via the bind-mount
-in `compose/docker-compose.vps-prod.yml`.
-
-### Initial setup
-
-```bash
-ssh deploy@prod-podcast.tail-xxxxx.ts.net
-sudo htpasswd -bcB /srv/podcast-scraper/.htpasswd <user> <pass>
-sudo chown root:docker /srv/podcast-scraper/.htpasswd
-sudo chmod 640         /srv/podcast-scraper/.htpasswd
-sudo systemctl restart podcast-scraper.service   # picks up the new file
-```
-
-The `-c` flag CREATES the file (overwrites if present). Use `-b` only on
-subsequent invocations to add/update users without erasing existing ones.
-
-### Add a collaborator
-
-```bash
-ssh deploy@prod-podcast.tail-xxxxx.ts.net
-sudo htpasswd -bB /srv/podcast-scraper/.htpasswd <new-user> <new-pass>   # NO -c
-sudo systemctl restart podcast-scraper.service
-```
-
-### Remove a user
-
-```bash
-ssh deploy@prod-podcast.tail-xxxxx.ts.net
-sudo htpasswd -D /srv/podcast-scraper/.htpasswd <user>
-sudo systemctl restart podcast-scraper.service
-```
-
-### Programmatic callers
-
-Home Assistant, Slack→GHA→api, and other headless callers send standard
-HTTP Basic Auth headers:
-
-```bash
-curl -fsS -u "$HA_USER:$HA_PASS" https://prod-podcast.tail-xxxxx.ts.net/api/jobs
-```
-
-`/api/health` is intentionally left unauthed so the deploy workflow's external
-probe (#720) can hit it without juggling credentials.
+The VPS nginx overlay (`docker/viewer/nginx-prod.conf.template` via
+`compose/docker-compose.vps-prod.yml`) does **not** enable `auth_basic`.
+Reachability is **tailnet-only** (Hetzner firewall has no public TCP 80/443).
+If you ever open public ingress, add a separate edge layer (for example
+OAuth at a reverse proxy), not only Basic Auth on this nginx template.
 
 ---
 
@@ -516,9 +469,8 @@ cd infra
 # 2. Restore corpus (~3–5 min for ~20 MB snapshot)
 ssh deploy@prod-podcast.tail-xxxxx.ts.net 'cd /srv/podcast-scraper && make restore-corpus'
 
-# 3. Re-stage host-side .env  + .htpasswd (operator's responsibility)
-#    See "First-time bootstrap → Stage the host-side .env"
-#    and "Basic-auth credentials → Initial setup".
+# 3. Re-stage host-side `.env` (operator's responsibility)
+#    See "First-time bootstrap → Stage the host-side `.env`".
 
 # 4. Verify (~5 min)
 #    See "Smoke validation".
@@ -608,11 +560,6 @@ sudo systemctl restart podcast-scraper.service
 
 For multiple keys, edit the `.env` directly: `sudo -e /srv/podcast-scraper/.env`.
 
-### Basic-auth password
-
-See [Basic-auth credentials → Add a collaborator](#basic-auth-credentials):
-overwrite the user with `htpasswd -bB`, then restart the service.
-
 ---
 
 ## Environment variable reference
@@ -634,7 +581,6 @@ truth for runtime config on the VPS. Owned by `deploy:deploy`, mode
 | --- | --- | --- | --- |
 | `PODCAST_DOCKER_PROJECT_DIR` | absolute path | Repo path inside the api container (must match host because of bind mount) | api refuses to start; volume interpolation fails |
 | `PODCAST_CORPUS_HOST_PATH` | absolute path | Where the corpus lives on the host | api spawn fails: `volumes.corpus_data.driver_opts.device: required variable PODCAST_CORPUS_HOST_PATH is missing a value` |
-| `PODCAST_HTPASSWD_PATH` | absolute path | Bind-mount source for nginx `auth_basic` | viewer container fails to start (mount source missing) |
 | `PODCAST_ENV` | `prod` | Tags Sentry + Grafana labels with `env=prod` | events tagged `env=preprod` (default) — wrong dashboard filtering |
 | `PODCAST_AVAILABLE_PROFILES` | csv | Profile dropdown allowlist | dropdown shows ALL on-disk profiles, including ones whose images aren't published in prod (run will fail mid-job) |
 | `PODCAST_DEFAULT_PROFILE` | string | Preselected profile in the viewer | dropdown opens unselected; api 400s if Run hit before Save |
@@ -943,9 +889,8 @@ Hetzner's cloud firewall (managed via terraform) allows ONLY:
 
 Note: there's NO public TCP 80/443 rule. The viewer is reachable
 ONLY over the tailnet (via `tailscale serve`). Adding public ingress
-requires editing `infra/terraform/main.tf` AND removing/relaxing
-`auth_basic` in `nginx-prod.conf.template` (keep auth on for any
-public-internet exposure).
+requires editing `infra/terraform/main.tf` and an explicit edge security
+design (do not rely on nginx Basic Auth alone).
 
 ### API token rotation
 
@@ -1069,13 +1014,9 @@ this error only appears if someone explicitly unset it.
 
 ### "Viewer container shows `unhealthy` but the page loads fine"
 
-The healthcheck probe (`wget` against `/`) gets 401 from `auth_basic`
-in prod. Compose's older healthcheck used `curl -fsS` which both
-isn't installed in `nginx:alpine` AND would fail on 401. The current
-healthcheck (in `compose/docker-compose.stack.yml`) uses
-`wget -qSO /dev/null` and accepts ANY `HTTP/` response as alive.
-If you still see `unhealthy`, you're on an old viewer image — pull
-the latest.
+The healthcheck probe (`wget` against `/`) accepts any `HTTP/` status
+line as alive (`compose/docker-compose.stack.yml`). If you still see
+`unhealthy`, you're on an old viewer image — pull the latest.
 
 ### "Grafana agent restarting / no data in Grafana Cloud"
 

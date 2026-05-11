@@ -6,7 +6,9 @@
 # docker/viewer/default.conf.template instead; both files share the
 # runtime env injection pattern (see ``sub_filter`` near the end).
 #
-# Adds HTTP Basic Auth on the SPA + api with a public landing page at /welcome.
+# Access control is the tailnet (no public 80/443 on Hetzner firewall); the
+# SPA and /api/* are not gated by HTTP Basic Auth. A small public landing
+# page remains at /welcome.
 
 upstream api_backend {
     server api:8000;
@@ -21,43 +23,26 @@ server {
     gzip_types text/plain text/css application/javascript application/json application/xml image/svg+xml;
     gzip_min_length 256;
 
-    # === Public landing page (no auth) ===
-    # Operator hands non-tailnet visitors this URL; click-through to / prompts
-    # for basic-auth creds.
+    # === Public landing page ===
     location = /welcome {
-        auth_basic off;
         root /usr/share/nginx/html;
         try_files /landing.html =404;
     }
 
-    # Vite hashed assets — safe to cache aggressively, safe to leave un-gated.
-    # The bundle filenames don't leak any info beyond "this is a Vue app".
+    # Vite hashed assets — safe to cache aggressively.
     location ^~ /assets/ {
-        auth_basic off;
         root /usr/share/nginx/html;
         add_header Cache-Control "public, max-age=31536000, immutable";
         try_files $uri =404;
     }
 
-    # Health endpoint left unauthed so deploy-prod.yml's external probe
-    # (#720) can hit it without sending Authorization headers.
     location = /api/health {
-        auth_basic off;
         proxy_pass http://api_backend/api/health;
         proxy_http_version 1.1;
         proxy_set_header Host $host;
     }
 
-    # === Authenticated zone — everything else needs basic-auth ===
-    # .htpasswd is bind-mounted from the host's /srv/podcast-scraper/.htpasswd
-    # by compose/docker-compose.vps-prod.yml. Generate with:
-    #   htpasswd -bcB /srv/podcast-scraper/.htpasswd <user> <pass>
-    # See PROD_RUNBOOK.md for the full operator runbook.
-
     location /api/ {
-        auth_basic           "podcast_scraper";
-        auth_basic_user_file /etc/nginx/.htpasswd;
-
         proxy_pass http://api_backend/api/;
         proxy_http_version 1.1;
         proxy_set_header Host $host;
@@ -70,14 +55,10 @@ server {
     }
 
     location / {
-        auth_basic           "podcast_scraper";
-        auth_basic_user_file /etc/nginx/.htpasswd;
-
         root /usr/share/nginx/html;
         try_files $uri $uri/ /index.html;
         # Runtime env injection — Sentry tags ``env=prod`` on the VPS,
         # ``env=preprod`` on codespaces, both running the SAME image.
-        # See header for the wider templating story.
         sub_filter '</head>' '<script>window.__PODCAST_ENV__="${PODCAST_ENV}";window.__PODCAST_RELEASE__="${PODCAST_RELEASE}";</script></head>';
         sub_filter_once on;
         sub_filter_types text/html;
