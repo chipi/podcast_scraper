@@ -39,8 +39,10 @@ const app = createApp(App)
 // ``environment`` is RUNTIME-injected via nginx ``sub_filter`` (Item 1 /
 // RFC-082 follow-up) so ONE viewer image serves prod + preprod with the
 // right Sentry env tag. nginx rewrites the served index.html on its way
-// out, prepending a ``<script>`` that sets ``window.__PODCAST_ENV__``
-// and ``window.__PODCAST_RELEASE__``. See docker/viewer/default.conf.template.
+// out, prepending a ``<script>`` that sets ``window.__PODCAST_ENV__``,
+// ``window.__PODCAST_RELEASE__``, and optionally
+// ``window.__PODCAST_DEFAULT_CORPUS_PATH__``. See
+// docker/viewer/default.conf.template.
 //
 // See RFC-081 §Layer 2 + issue #681. Pairs with the Python-side init
 // in ``src/podcast_scraper/utils/sentry_init.py`` so api / pipeline /

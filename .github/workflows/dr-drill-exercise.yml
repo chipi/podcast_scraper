@@ -1,0 +1,103 @@
+name: DR drill exercise (orchestrated)
+
+# Full scratch cycle (RFC-082 / #752):
+#   drill-infra-plan (fmt-check, validate, tofu plan)
+#   → drill-infra-apply
+#   → deploy-drill → drill-restore-corpus → drill-e2e
+#   → always tofu destroy (drill workspace) so we return to empty infra
+#     even when a middle job failed.
+#
+# Typed gate: **DRILL_FULL_CYCLE** (alias **DRILL_EXERCISE**). Each reusable
+# workflow keeps its own ``environment: drill`` rules where configured.
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: 'Type "DRILL_FULL_CYCLE" (or DRILL_EXERCISE) for plan→apply→app→always destroy'
+        required: true
+        default: ''
+      backup_tag:
+        description: "Restore: release tag (empty = latest snapshot-prod-* on backup repo)"
+        required: false
+        default: ''
+      backup_repo:
+        description: "Restore: GitHub owner/repo for backup releases"
+        required: false
+        default: chipi/podcast_scraper-backup
+      override_image_sha:
+        description: "Deploy: image :sha-<7> (blank = this workflow run SHA short)"
+        required: false
+        default: ''
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: dr-drill-exercise
+  cancel-in-progress: false
+
+jobs:
+  gate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Confirm
+        run: |
+          C="${{ inputs.confirm }}"
+          if [ "$C" != "DRILL_FULL_CYCLE" ] && [ "$C" != "DRILL_EXERCISE" ]; then
+            echo "::error::Must type DRILL_FULL_CYCLE or DRILL_EXERCISE. Got: '$C'"
+            exit 1
+          fi
+
+  plan:
+    needs: gate
+    uses: ./.github/workflows/drill-infra-plan.yml
+    secrets: inherit
+
+  apply:
+    needs: plan
+    uses: ./.github/workflows/drill-infra-apply.yml
+    secrets: inherit
+    with:
+      skip_confirm: true
+
+  deploy:
+    needs: apply
+    uses: ./.github/workflows/deploy-drill.yml
+    secrets: inherit
+    with:
+      override_image_sha: ${{ inputs.override_image_sha }}
+
+  restore:
+    needs: deploy
+    uses: ./.github/workflows/drill-restore-corpus.yml
+    secrets: inherit
+    with:
+      backup_tag:  ${{ inputs.backup_tag }}
+      backup_repo: ${{ inputs.backup_repo }}
+
+  smoke:
+    needs: restore
+    uses: ./.github/workflows/drill-e2e.yml
+    secrets: inherit
+    with:
+      confirm: DRILL_SMOKE
+
+  finalize:
+    needs: [plan, apply, deploy, restore, smoke]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: End-of-cycle marker (always runs before destroy)
+        run: |
+          echo "plan=${{ needs.plan.result }} apply=${{ needs.apply.result }} deploy=${{ needs.deploy.result }} restore=${{ needs.restore.result }} smoke=${{ needs.smoke.result }}"
+          echo "Proceeding to drill-infra-destroy (tofu destroy) regardless of outcomes above."
+
+  teardown:
+    needs: finalize
+    if: always()
+    uses: ./.github/workflows/drill-infra-destroy.yml
+    secrets: inherit
+    with:
+      skip_confirm: true

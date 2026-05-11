@@ -1,0 +1,173 @@
+name: Prod restore corpus (backup → prod VPS)
+
+# Downloads ``snapshot.tgz`` from the backup GitHub Releases repo, restores
+# ``/srv/podcast-scraper/corpus`` on the **production** VPS, recreates **api**
+# and **viewer**. Same host paths and compose stack as ``drill-restore-corpus``.
+#
+# High blast radius — manual only, GitHub Environment **prod**, typed confirm.
+#
+# Prerequisites:
+#   secrets: TS_AUTHKEY, PROD_SSH_PRIVATE_KEY
+#            BACKUP_REPO_TOKEN (optional when backup repo is private)
+#   vars:    PROD_TAILNET_FQDN
+#
+# Operator: type **PROD_RESTORE** in ``confirm`` exactly.
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: 'Type "PROD_RESTORE" to confirm overwriting prod corpus'
+        required: true
+        default: ''
+      backup_tag:
+        description: "Release tag (e.g. snapshot-prod-YYYYMMDD). Empty = latest snapshot-prod-*."
+        required: false
+        default: ''
+      backup_repo:
+        description: "GitHub owner/repo for backup releases"
+        required: false
+        default: chipi/podcast_scraper-backup
+
+permissions:
+  contents: read
+
+concurrency:
+  group: prod-restore-corpus
+  cancel-in-progress: false
+
+jobs:
+  restore:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    environment: prod
+    steps:
+      - name: Confirm
+        run: |
+          if [ "${{ inputs.confirm }}" != "PROD_RESTORE" ]; then
+            echo "::error::Must type PROD_RESTORE to confirm. Got: '${{ inputs.confirm }}'"
+            exit 1
+          fi
+
+      - name: Pre-flight — required secrets/variables present?
+        env:
+          TS_AUTHKEY:           ${{ secrets.TS_AUTHKEY }}
+          PROD_SSH_PRIVATE_KEY: ${{ secrets.PROD_SSH_PRIVATE_KEY }}
+          PROD_TAILNET_FQDN:    ${{ vars.PROD_TAILNET_FQDN }}
+        run: |
+          set -euo pipefail
+          MISSING=""
+          [ -z "${TS_AUTHKEY:-}" ]            && MISSING="$MISSING TS_AUTHKEY"
+          [ -z "${PROD_SSH_PRIVATE_KEY:-}" ] && MISSING="$MISSING PROD_SSH_PRIVATE_KEY"
+          [ -z "${PROD_TAILNET_FQDN:-}" ]    && MISSING="$MISSING PROD_TAILNET_FQDN"
+          if [ -n "$MISSING" ]; then
+            echo "::error::Missing prereqs:$MISSING Stage per PROD_RUNBOOK (#714)."
+            exit 1
+          fi
+
+      - name: Checkout (resolver script + prod-ssh-key action)
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 1
+
+      - name: Install SSH identity for deploy@ (PROD_SSH_PRIVATE_KEY)
+        uses: ./.github/actions/prod-ssh-key
+        with:
+          ssh_private_key: ${{ secrets.PROD_SSH_PRIVATE_KEY }}
+
+      - name: Join the tailnet
+        uses: tailscale/github-action@v2
+        with:
+          authkey: ${{ secrets.TS_AUTHKEY }}
+          tags:    tag:gha-deployer
+          version: 1.96.4
+
+      - name: Resolve prod MagicDNS host
+        id: ts_host
+        env:
+          PROD_TAILNET_FQDN: ${{ vars.PROD_TAILNET_FQDN }}
+        run: |
+          set -euo pipefail
+          R=$(bash scripts/ops/resolve_prod_tailnet_host.sh)
+          echo "resolved_fqdn=$R" >> "$GITHUB_OUTPUT"
+          WANT="${{ vars.PROD_TAILNET_FQDN }}"
+          if [ "$(printf '%s' "$R" | tr '[:upper:]' '[:lower:]')" != "$(printf '%s' "$WANT" | tr '[:upper:]' '[:lower:]')" ]; then
+            echo "::notice::Tailscale live host ($R) differs from vars.PROD_TAILNET_FQDN ($WANT). Using $R for SSH."
+          fi
+
+      - name: Resolve backup release tag
+        id: tag
+        env:
+          BACKUP_REPO: ${{ inputs.backup_repo }}
+          BACKUP_TAG:  ${{ inputs.backup_tag }}
+          BACKUP_REPO_TOKEN: ${{ secrets.BACKUP_REPO_TOKEN }}
+        run: |
+          set -euo pipefail
+          if [ -n "${BACKUP_REPO_TOKEN:-}" ]; then
+            export GH_TOKEN="$BACKUP_REPO_TOKEN"
+          else
+            export GH_TOKEN="${{ github.token }}"
+          fi
+          REPO="${BACKUP_REPO:-chipi/podcast_scraper-backup}"
+          TAG="${BACKUP_TAG}"
+          if [ -z "$TAG" ]; then
+            TAG=$(gh release list -R "$REPO" --exclude-drafts --limit 80 --json tagName,publishedAt \
+              | jq -r '[.[] | select(.tagName | test("^snapshot-prod-"))] | sort_by(.publishedAt) | reverse | .[0].tagName // empty')
+            if [ -z "$TAG" ]; then
+              echo "::error::No snapshot-prod-* release found in $REPO"
+              exit 1
+            fi
+            echo "::notice::Using latest prod snapshot tag: $TAG"
+          else
+            echo "::notice::Using pinned tag: $TAG"
+          fi
+          gh release view "$TAG" -R "$REPO" >/dev/null
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          echo "repo=$REPO" >> "$GITHUB_OUTPUT"
+
+      - name: Download snapshot.tgz
+        env:
+          BACKUP_REPO_TOKEN: ${{ secrets.BACKUP_REPO_TOKEN }}
+        run: |
+          set -euo pipefail
+          if [ -n "${BACKUP_REPO_TOKEN:-}" ]; then
+            export GH_TOKEN="$BACKUP_REPO_TOKEN"
+          else
+            export GH_TOKEN="${{ github.token }}"
+          fi
+          gh release download "${{ steps.tag.outputs.tag }}" -R "${{ steps.tag.outputs.repo }}" -p snapshot.tgz
+          ls -la snapshot.tgz
+          test -f snapshot.tgz
+
+      - name: Upload tarball to prod host
+        env:
+          SSH_TARGET: deploy@${{ steps.ts_host.outputs.resolved_fqdn }}
+        run: |
+          set -euo pipefail
+          scp -i "$SSH_PROD_IDENTITY" -o IdentitiesOnly=yes \
+            -o StrictHostKeyChecking=accept-new -o BatchMode=yes \
+            snapshot.tgz "${SSH_TARGET}:/tmp/snapshot-restore-prod.tgz"
+
+      - name: Extract on prod and recreate api + viewer
+        env:
+          SSH_TARGET: deploy@${{ steps.ts_host.outputs.resolved_fqdn }}
+        run: |
+          set -euo pipefail
+          ssh -i "$SSH_PROD_IDENTITY" -o IdentitiesOnly=yes \
+            -o StrictHostKeyChecking=accept-new -o BatchMode=yes "$SSH_TARGET" \
+            'set -euo pipefail
+             cd /srv/podcast-scraper
+             STAMP=$(date -u +%Y%m%dT%H%M%SZ)
+             if [ -d corpus ]; then mv corpus "corpus.bak.$STAMP"; fi
+             mkdir -p corpus
+             tar -xzf /tmp/snapshot-restore-prod.tgz -C /srv/podcast-scraper
+             chown -R deploy:deploy corpus
+             rm -f /tmp/snapshot-restore-prod.tgz
+             COMPOSE=(docker compose --env-file .env -f compose/docker-compose.stack.yml \
+               -f compose/docker-compose.prod.yml -f compose/docker-compose.vps-prod.yml)
+             "${COMPOSE[@]}" up -d --force-recreate api viewer
+             sleep 8
+             "${COMPOSE[@]}" exec -T api curl -fsS http://127.0.0.1:8000/api/health | head -c 200
+             echo
+             echo "Restore complete on prod host"
+            '

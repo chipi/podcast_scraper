@@ -20,6 +20,17 @@ on:
         description: 'Type "DRILL_SMOKE" to confirm read-only drill smoke'
         required: true
         default: ''
+  workflow_call:
+    secrets:
+      TS_AUTHKEY:
+        required: true
+      DRILL_DEPLOY_SSH_PRIVATE_KEY:
+        required: true
+    inputs:
+      confirm:
+        description: 'Must be DRILL_SMOKE (orchestrator passes this after DRILL_EXERCISE gate)'
+        type: string
+        required: true
 
 permissions:
   contents: read
@@ -36,8 +47,8 @@ jobs:
     steps:
       - name: Confirm input
         run: |
-          if [ "${{ github.event.inputs.confirm }}" != "DRILL_SMOKE" ]; then
-            echo "::error::Must type DRILL_SMOKE to confirm. Got: '${{ github.event.inputs.confirm }}'"
+          if [ "${{ inputs.confirm }}" != "DRILL_SMOKE" ]; then
+            echo "::error::Must type DRILL_SMOKE to confirm. Got: '${{ inputs.confirm }}'"
             exit 1
           fi
 

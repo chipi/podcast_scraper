@@ -59,6 +59,9 @@ COPY docker/viewer/default.conf.template /etc/nginx/templates/default.conf.templ
 # env on the container (Sentry tag falls back to ``dev`` in main.ts).
 ENV PODCAST_ENV=dev
 ENV PODCAST_RELEASE=
+# Optional VPS default for nginx ``sub_filter`` corpus-path injection (empty
+# in Codespaces / local dev).
+ENV PODCAST_DEFAULT_CORPUS_PATH=
 # Restrict envsubst to ``${PODCAST_*}`` so nginx's own ``${host}`` /
 # ``${uri}`` etc. (and any future single-dollar-style nginx vars in
 # the template) are NOT mangled.

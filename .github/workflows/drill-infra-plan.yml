@@ -15,6 +15,16 @@ on:
       - 'infra/**'
       - 'tailscale/policy.hujson'
   workflow_dispatch:
+  workflow_call:
+    secrets:
+      HCLOUD_TOKEN_DRILL:
+        required: true
+      TS_API_KEY:
+        required: true
+      TFSTATE_AGE_KEY:
+        required: true
+      OPERATOR_SSH_PUBLIC_KEY:
+        required: true
 
 permissions:
   contents: read

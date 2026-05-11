@@ -1,15 +1,20 @@
-name: Drill infra apply (manual)
+name: Drill infra destroy (manual)
 
-# GitHub #752 — manual apply for OpenTofu workspace `drill` only. Uses
-# HCLOUD_TOKEN_DRILL and GitHub Environment `drill` for approval gates.
-# State is encrypted to terraform.tfstate.enc.drill (parallel to prod
-# terraform.tfstate.enc for the default workspace).
+# GitHub #752 — manual ``tofu destroy`` for OpenTofu workspace ``drill`` only.
+# Same secrets and state encryption contract as ``drill-infra-apply.yml``.
+# Destroys Hetzner resources managed by the drill workspace (typically the
+# drill VPS). Does **not** SSH to the host to run ``docker compose down`` first;
+# operators may do that manually if they want a graceful stop before destroy.
+#
+# Manual: type **DRILL_DESTROY** in ``confirm``.
+# Called from ``dr-drill-exercise.yml`` after the finalize job with
+# ``skip_confirm: true`` (full-cycle orchestrator always tears down).
 
 on:
   workflow_dispatch:
     inputs:
       confirm:
-        description: 'Type "APPLY" to confirm apply in workspace drill'
+        description: 'Type "DRILL_DESTROY" to confirm destroy in workspace drill'
         required: true
         default: ''
   workflow_call:
@@ -24,7 +29,7 @@ on:
         required: true
     inputs:
       skip_confirm:
-        description: "True when dr-drill-exercise already gated on DRILL_FULL_CYCLE"
+        description: "True when dr-drill-exercise already gated on DRILL_FULL_CYCLE / DRILL_EXERCISE"
         type: boolean
         required: true
 
@@ -32,37 +37,37 @@ permissions:
   contents: read
 
 concurrency:
-  group: drill-infra-apply
+  group: drill-infra-destroy
   cancel-in-progress: false
 
 jobs:
-  apply:
+  destroy:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 25
     environment: drill
     steps:
       - name: Confirm input (manual dispatch only)
         if: github.event_name == 'workflow_dispatch'
         run: |
-          if [ "${{ inputs.confirm }}" != "APPLY" ]; then
-            echo "::error::Must type APPLY to confirm. Got: '${{ inputs.confirm }}'"
+          if [ "${{ inputs.confirm }}" != "DRILL_DESTROY" ]; then
+            echo "::error::Must type DRILL_DESTROY to confirm. Got: '${{ inputs.confirm }}'"
             exit 1
           fi
 
       - name: Reject workflow_call without orchestrator gate
         if: github.event_name == 'workflow_call' && inputs.skip_confirm != true
         run: |
-          echo "::error::workflow_call requires skip_confirm=true (dr-drill-exercise only)."
+          echo "::error::workflow_call requires skip_confirm=true (orchestrated teardown from dr-drill-exercise only)."
           exit 1
 
       - uses: actions/checkout@v5
 
       - name: Pre-flight — required secrets present?
         env:
-          HCLOUD_TOKEN_DRILL:        ${{ secrets.HCLOUD_TOKEN_DRILL }}
-          TS_API_KEY:                ${{ secrets.TS_API_KEY }}
-          TFSTATE_AGE_KEY:           ${{ secrets.TFSTATE_AGE_KEY }}
-          OPERATOR_SSH_PUBLIC_KEY:   ${{ secrets.OPERATOR_SSH_PUBLIC_KEY }}
+          HCLOUD_TOKEN_DRILL:       ${{ secrets.HCLOUD_TOKEN_DRILL }}
+          TS_API_KEY:               ${{ secrets.TS_API_KEY }}
+          TFSTATE_AGE_KEY:          ${{ secrets.TFSTATE_AGE_KEY }}
+          OPERATOR_SSH_PUBLIC_KEY:  ${{ secrets.OPERATOR_SSH_PUBLIC_KEY }}
         run: |
           set -euo pipefail
           MISSING=""
@@ -100,7 +105,7 @@ jobs:
               > terraform/terraform.tfstate.d/drill/terraform.tfstate
           fi
 
-      - name: tofu init + workspace drill + apply
+      - name: tofu init + workspace drill + destroy
         working-directory: infra/terraform
         env:
           TF_VAR_hcloud_token:      ${{ secrets.HCLOUD_TOKEN_DRILL }}
@@ -109,12 +114,10 @@ jobs:
           TF_VAR_tailscale_tailnet: ${{ vars.TAILNET_NAME }}
         run: |
           tofu init -input=false
-          # -or-create avoids exit 1 on first run; the opentofu/setup-opentofu
-          # tofu_wrapper logs ##[error] for any non-zero child tofu exit.
           tofu workspace select -or-create drill
-          tofu apply -auto-approve -input=false -var-file=terraform.drill.ci.tfvars
+          tofu destroy -auto-approve -input=false -var-file=terraform.drill.ci.tfvars
 
-      - name: Re-encrypt drill state (always — even if apply failed)
+      - name: Re-encrypt drill state (always — even if destroy failed)
         if: always()
         working-directory: infra
         env:
@@ -131,7 +134,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: terraform-state-after-apply-drill
+          name: terraform-state-after-destroy-drill
           path: infra/terraform/terraform.tfstate.enc.drill
           if-no-files-found: ignore
           retention-days: 30

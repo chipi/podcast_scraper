@@ -22,6 +22,18 @@ on:
         description: "Image :sha-<7> tag to deploy (blank = current main HEAD short SHA)"
         required: false
         default: ""
+  workflow_call:
+    secrets:
+      TS_AUTHKEY:
+        required: true
+      DRILL_DEPLOY_SSH_PRIVATE_KEY:
+        required: true
+    inputs:
+      override_image_sha:
+        description: "Image :sha-<7> tag (blank = caller workflow github.sha short)"
+        type: string
+        required: false
+        default: ""
 
 permissions:
   actions: read
@@ -67,9 +79,9 @@ jobs:
         id: sha
         if: steps.preflight.outputs.skip != 'true'
         run: |
-          SHA_SHORT="${{ github.event.inputs.override_image_sha }}"
+          SHA_SHORT="${{ inputs.override_image_sha }}"
           if [ -z "$SHA_SHORT" ]; then
-            SHA_SHORT=$(echo "${{ github.event.workflow_run.head_sha || github.sha }}" | cut -c1-7)
+            SHA_SHORT=$(echo "${{ github.sha }}" | cut -c1-7)
           fi
           echo "short=$SHA_SHORT" >> "$GITHUB_OUTPUT"
           echo "::notice::Deploying to drill — image tag sha-$SHA_SHORT"

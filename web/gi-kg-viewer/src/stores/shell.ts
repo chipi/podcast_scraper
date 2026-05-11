@@ -6,6 +6,15 @@ import { StaleGeneration } from '../utils/staleGeneration'
 
 const CORPUS_PATH_STORAGE_KEY = 'ps_corpus_path'
 
+function readRuntimeInjectedCorpusPath(): string {
+  if (typeof window === 'undefined') {
+    return ''
+  }
+  const w = window as Window & { __PODCAST_DEFAULT_CORPUS_PATH__?: string }
+  const raw = w.__PODCAST_DEFAULT_CORPUS_PATH__
+  return typeof raw === 'string' && raw.trim().length > 0 ? raw.trim() : ''
+}
+
 function readInitialCorpusPath(): string {
   try {
     if (typeof localStorage !== 'undefined') {
@@ -17,7 +26,12 @@ function readInitialCorpusPath(): string {
   } catch {
     /* ignore quota / private mode */
   }
-  return (import.meta.env.VITE_DEFAULT_CORPUS_PATH as string | undefined) ?? ''
+  const viteDefault =
+    (import.meta.env.VITE_DEFAULT_CORPUS_PATH as string | undefined) ?? ''
+  if (viteDefault.trim().length > 0) {
+    return viteDefault.trim()
+  }
+  return readRuntimeInjectedCorpusPath()
 }
 
 export type LeftPanelSurface = 'search' | 'explore'

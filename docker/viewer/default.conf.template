@@ -49,7 +49,11 @@ server {
         root /usr/share/nginx/html;
         try_files $uri $uri/ /index.html;
         # Runtime env injection — see file header.
-        sub_filter '</head>' '<script>window.__PODCAST_ENV__="${PODCAST_ENV}";window.__PODCAST_RELEASE__="${PODCAST_RELEASE}";</script></head>';
+        # Optional PODCAST_DEFAULT_CORPUS_PATH (VPS): container corpus mount is
+        # always /app/output — inject so the SPA status bar is pre-filled on
+        # first visit (localStorage bootstrap) and ``shell`` can read
+        # ``window.__PODCAST_DEFAULT_CORPUS_PATH__`` when storage is unavailable.
+        sub_filter '</head>' '<script>(function(){try{var k="ps_corpus_path",d="${PODCAST_DEFAULT_CORPUS_PATH}";if(d&&localStorage.getItem(k)==null)localStorage.setItem(k,d);}catch(e){}})();window.__PODCAST_ENV__="${PODCAST_ENV}";window.__PODCAST_RELEASE__="${PODCAST_RELEASE}";window.__PODCAST_DEFAULT_CORPUS_PATH__="${PODCAST_DEFAULT_CORPUS_PATH}";</script></head>';
         sub_filter_once on;
         sub_filter_types text/html;
     }

@@ -70,7 +70,7 @@ gh variable set TAILNET_NAME            --repo chipi/podcast_scraper --body 'tai
 
 ### GitHub Actions SSH to prod (`PROD_SSH_PRIVATE_KEY`) {#github-actions-ssh-to-prod-prod_ssh_private_key}
 
-`deploy-prod.yml` and `backup-corpus-prod.yml` run OpenSSH as `deploy@<prod>` **after**
+`deploy-prod.yml`, `backup-corpus-prod.yml`, and **`prod-restore-corpus.yml`** run OpenSSH as `deploy@<prod>` **after**
 the runner joins the tailnet. The Tailscale ACL allows **reachability** to port 22;
 OpenSSH still requires a private key whose **public** half is listed in
 `~deploy/.ssh/authorized_keys` on the VPS (Tailscale SSH is intentionally not used;
@@ -191,9 +191,9 @@ MagicDNS name `prod-podcast.<tailnet>` on an **offline** orphan while the
 live VPS registers as `prod-podcast-1.<tailnet>` (or `-2`, and so on). That
 breaks copy-paste SSH and `curl` until the name lines up again.
 
-**GitHub Actions:** `deploy-prod.yml` and `backup-corpus-prod.yml` join the
+**GitHub Actions:** `deploy-prod.yml`, `backup-corpus-prod.yml`, and **`prod-restore-corpus.yml`** join the
 tailnet, run `scripts/ops/resolve_prod_tailnet_host.sh`, and use the resolved
-FQDN for SSH and the `/api/health` probe. Workflows still require
+FQDN for SSH (and the `/api/health` probe where applicable). Workflows still require
 `vars.PROD_TAILNET_FQDN` as the operator’s **canonical** intent; the resolver
 falls back to `prod-podcast-1.<tailnet>`, … when the canonical name is not
 online.
@@ -237,6 +237,8 @@ install -m 600 /dev/stdin /srv/podcast-scraper/.env <<'ENV'
 # === Required: ingress + paths ===
 PODCAST_DOCKER_PROJECT_DIR=/srv/podcast-scraper
 PODCAST_CORPUS_HOST_PATH=/srv/podcast-scraper/corpus
+# Pre-fills the viewer status bar corpus path (container view of the bind mount).
+PODCAST_DEFAULT_CORPUS_PATH=/app/output
 PODCAST_ENV=prod
 PODCAST_AVAILABLE_PROFILES=cloud_balanced,cloud_thin
 PODCAST_DEFAULT_PROFILE=cloud_balanced
@@ -581,6 +583,7 @@ truth for runtime config on the VPS. Owned by `deploy:deploy`, mode
 | --- | --- | --- | --- |
 | `PODCAST_DOCKER_PROJECT_DIR` | absolute path | Repo path inside the api container (must match host because of bind mount) | api refuses to start; volume interpolation fails |
 | `PODCAST_CORPUS_HOST_PATH` | absolute path | Where the corpus lives on the host | api spawn fails: `volumes.corpus_data.driver_opts.device: required variable PODCAST_CORPUS_HOST_PATH is missing a value` |
+| `PODCAST_DEFAULT_CORPUS_PATH` | path (optional) | Viewer-only: nginx injects `/app/output` so the SPA matches the api corpus mount | status bar empty on first load; catalog APIs not called until you paste `/app/output` |
 | `PODCAST_ENV` | `prod` | Tags Sentry + Grafana labels with `env=prod` | events tagged `env=preprod` (default) — wrong dashboard filtering |
 | `PODCAST_AVAILABLE_PROFILES` | csv | Profile dropdown allowlist | dropdown shows ALL on-disk profiles, including ones whose images aren't published in prod (run will fail mid-job) |
 | `PODCAST_DEFAULT_PROFILE` | string | Preselected profile in the viewer | dropdown opens unselected; api 400s if Run hit before Save |
@@ -1218,6 +1221,7 @@ glance. Knowing about them saves debugging time.
 - [`.github/workflows/deploy-prod.yml`](https://github.com/chipi/podcast_scraper/blob/main/.github/workflows/deploy-prod.yml)
 - [`.github/workflows/infra-apply.yml`](https://github.com/chipi/podcast_scraper/blob/main/.github/workflows/infra-apply.yml) — manual apply gate
 - [`.github/workflows/backup-corpus-prod.yml`](https://github.com/chipi/podcast_scraper/blob/main/.github/workflows/backup-corpus-prod.yml)
+- [`.github/workflows/prod-restore-corpus.yml`](https://github.com/chipi/podcast_scraper/blob/main/.github/workflows/prod-restore-corpus.yml) — manual prod corpus restore from backup releases (confirm **PROD_RESTORE**)
 - [#714](https://github.com/chipi/podcast_scraper/issues/714) — account prereqs checklist
 - [#723](https://github.com/chipi/podcast_scraper/issues/723) — Phase B cutover
 - [#724](https://github.com/chipi/podcast_scraper/issues/724) — DR drill

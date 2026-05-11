@@ -14,7 +14,10 @@ vi.stubGlobal('localStorage', {
 
 describe('shell corpus path persistence', () => {
   beforeEach(() => {
+    vi.resetModules()
     storage.clear()
+    const w = window as Window & { __PODCAST_DEFAULT_CORPUS_PATH__?: string }
+    delete w.__PODCAST_DEFAULT_CORPUS_PATH__
     setActivePinia(createPinia())
   })
 
@@ -32,5 +35,14 @@ describe('shell corpus path persistence', () => {
     const { useShellStore } = await import('./shell')
     const shell = useShellStore()
     expect(shell.corpusPath).toBe('/from/storage')
+  })
+
+  it('reads initial corpus path from runtime injection when storage is empty', async () => {
+    const w = window as Window & { __PODCAST_DEFAULT_CORPUS_PATH__?: string }
+    w.__PODCAST_DEFAULT_CORPUS_PATH__ = '/app/output'
+    setActivePinia(createPinia())
+    const { useShellStore } = await import('./shell')
+    const shell = useShellStore()
+    expect(shell.corpusPath).toBe('/app/output')
   })
 })

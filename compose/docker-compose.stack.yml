@@ -37,6 +37,9 @@ services:
       # empty so codespace + dev still work without env staging.
       PODCAST_ENV: ${PODCAST_ENV:-dev}
       PODCAST_RELEASE: ${PODCAST_RELEASE:-}
+      # VPS: set to /app/output so nginx can pre-fill the viewer corpus path
+      # (bind mount target shared with the api). Empty on Codespaces/dev.
+      PODCAST_DEFAULT_CORPUS_PATH: ${PODCAST_DEFAULT_CORPUS_PATH:-}
     # #666 review #6: explicit compose-level healthcheck so other services
     # can chain ``depends_on: condition: service_healthy`` on the viewer.
     # Nginx serves the SPA shell on GET /.
