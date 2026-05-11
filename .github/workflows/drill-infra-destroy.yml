@@ -31,6 +31,11 @@ on:
         description: 'Type "DRILL_DESTROY" to confirm destroy in workspace drill'
         required: true
         default: ''
+      skip_confirm:
+        description: "Leave false for manual runs. Orchestrator sets true via workflow_call."
+        type: boolean
+        required: false
+        default: false
   workflow_call:
     secrets:
       HCLOUD_TOKEN_DRILL:
@@ -61,19 +66,17 @@ jobs:
     timeout-minutes: 25
     environment: drill
     steps:
+      # Reusable workflows inherit the *caller's* github.event_name (often
+      # workflow_dispatch). Gate manual confirmation on skip_confirm, not on
+      # github.event_name, so dr-drill-exercise does not leak DRILL_FULL_CYCLE
+      # into inputs.confirm here.
       - name: Confirm input (manual dispatch only)
-        if: github.event_name == 'workflow_dispatch'
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.skip_confirm != true }}
         run: |
           if [ "${{ inputs.confirm }}" != "DRILL_DESTROY" ]; then
             echo "::error::Must type DRILL_DESTROY to confirm. Got: '${{ inputs.confirm }}'"
             exit 1
           fi
-
-      - name: Reject workflow_call without orchestrator gate
-        if: github.event_name == 'workflow_call' && inputs.skip_confirm != true
-        run: |
-          echo "::error::workflow_call requires skip_confirm=true (orchestrated teardown from dr-drill-exercise only)."
-          exit 1
 
       - uses: actions/checkout@v5
 

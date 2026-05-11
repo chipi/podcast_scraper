@@ -16,6 +16,11 @@ on:
         description: 'Type "APPLY" to confirm apply in workspace drill'
         required: true
         default: ''
+      skip_confirm:
+        description: "Leave false for manual runs. Orchestrator sets true via workflow_call."
+        type: boolean
+        required: false
+        default: false
   workflow_call:
     secrets:
       HCLOUD_TOKEN_DRILL:
@@ -46,19 +51,14 @@ jobs:
     timeout-minutes: 20
     environment: drill
     steps:
+      # See drill-infra-destroy.yml — caller event stays workflow_dispatch inside reuse.
       - name: Confirm input (manual dispatch only)
-        if: github.event_name == 'workflow_dispatch'
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.skip_confirm != true }}
         run: |
           if [ "${{ inputs.confirm }}" != "APPLY" ]; then
             echo "::error::Must type APPLY to confirm. Got: '${{ inputs.confirm }}'"
             exit 1
           fi
-
-      - name: Reject workflow_call without orchestrator gate
-        if: github.event_name == 'workflow_call' && inputs.skip_confirm != true
-        run: |
-          echo "::error::workflow_call requires skip_confirm=true (dr-drill-exercise only)."
-          exit 1
 
       - uses: actions/checkout@v5
 

@@ -28,6 +28,11 @@ on:
         description: "GitHub owner/repo for backup releases"
         required: false
         default: chipi/podcast_scraper-backup
+      skip_confirm:
+        description: "Leave false for manual runs. Orchestrator sets true via workflow_call."
+        type: boolean
+        required: false
+        default: false
   workflow_call:
     secrets:
       TS_AUTHKEY:
@@ -45,6 +50,10 @@ on:
         type: string
         required: false
         default: chipi/podcast_scraper-backup
+      skip_confirm:
+        description: "True when dr-drill-exercise already gated on DRILL_FULL_CYCLE"
+        type: boolean
+        required: true
 
 permissions:
   contents: read
@@ -59,8 +68,9 @@ jobs:
     timeout-minutes: 45
     environment: drill
     steps:
+      # See drill-infra-destroy.yml — caller event stays workflow_dispatch inside reuse.
       - name: Confirm (manual dispatch only)
-        if: github.event_name == 'workflow_dispatch'
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.skip_confirm != true }}
         run: |
           if [ "${{ inputs.confirm }}" != "DRILL_RESTORE" ]; then
             echo "::error::Must type DRILL_RESTORE to confirm. Got: '${{ inputs.confirm }}'"
