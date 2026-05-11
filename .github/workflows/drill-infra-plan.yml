@@ -6,8 +6,12 @@ name: Drill infra plan (PR)
 # locally.
 #
 # Prerequisites: secrets HCLOUD_TOKEN_DRILL, TS_API_KEY, TFSTATE_AGE_KEY; optional
-# committed infra/terraform/terraform.tfstate.enc.drill (sops+age). GitHub
-# Environment protection is not required for plan-only jobs.
+# committed infra/terraform/terraform.tfstate.enc.drill (sops+age).
+# Job uses ``environment: drill`` so the same env-scoped secrets as apply/destroy
+# are visible when this workflow is reused from ``dr-drill-exercise`` (inherit
+# alone does not expose environment secrets to jobs without an environment).
+# Keep the ``drill`` environment free of required reviewers if you want PR plans
+# to run without a manual approval gate.
 
 on:
   pull_request:
@@ -38,6 +42,7 @@ jobs:
   plan:
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    environment: drill
     steps:
       - uses: actions/checkout@v5
 
