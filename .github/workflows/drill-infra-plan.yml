@@ -94,7 +94,9 @@ jobs:
         working-directory: infra/terraform
         run: |
           set -euo pipefail
+          set +o pipefail
           yes | tofu init -input=false
+          set -o pipefail
 
       - name: Select OpenTofu workspace drill
         if: steps.preflight.outputs.skip != 'true'

@@ -143,7 +143,9 @@ jobs:
           TF_VAR_tailscale_tailnet: ${{ vars.TAILNET_NAME }}
         run: |
           set -euo pipefail
+          set +o pipefail
           yes | tofu init -input=false
+          set -o pipefail
           # -or-create avoids exit 1 on first run; the opentofu/setup-opentofu
           # tofu_wrapper logs ##[error] for any non-zero child tofu exit.
           tofu workspace select -or-create drill

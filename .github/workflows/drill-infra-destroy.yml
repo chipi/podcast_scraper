@@ -183,7 +183,11 @@ jobs:
           set -euo pipefail
           # Pipe answers for rare init state-migration prompts; -input=false alone
           # can still error with "input is disabled" in CI (OpenTofu 1.6).
+          # Disable pipefail around ``yes |`` so SIGPIPE on ``yes`` after tofu exits
+          # does not fail the step (pipeline status follows tofu when pipefail is off).
+          set +o pipefail
           yes | tofu init -input=false
+          set -o pipefail
           tofu workspace select -or-create drill
           tofu destroy -auto-approve -input=false -var-file=terraform.drill.ci.tfvars
 
