@@ -214,7 +214,7 @@ jobs:
           else
             for id in $IDS; do
               echo "Deleting server id=$id"
-              hcloud server delete --force "$id"
+              hcloud server delete "$id"
             done
             sleep 5
           fi
@@ -224,7 +224,7 @@ jobs:
             | while read -r vid; do
               [ -z "$vid" ] && continue
               echo "Deleting volume id=$vid"
-              hcloud volume delete --force "$vid" || true
+              hcloud volume delete "$vid" || true
             done
 
           if hcloud firewall describe podcast-scraper-prod >/dev/null 2>&1; then
