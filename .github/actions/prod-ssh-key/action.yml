@@ -1,13 +1,18 @@
 name: Prod deploy SSH identity
 description: |
-  Writes the GitHub Actions secret PROD_SSH_PRIVATE_KEY (full PEM) to a
-  runner-local file and exports SSH_PROD_IDENTITY for ssh -i … in workflows
-  that SSH as deploy@ on the prod VPS (after Tailscale join).
+  Writes a CI SSH private key (full PEM) to a runner-local file and exports an
+  env var (default SSH_PROD_IDENTITY) for ssh -i … as deploy@ on a VPS after
+  Tailscale join. Used by deploy-prod.yml; deploy-drill.yml passes a custom
+  identity_env_name.
 
 inputs:
   ssh_private_key:
-    description: Full PEM contents of the CI-only key trusted by deploy@ on prod.
+    description: Full PEM contents of the CI-only key trusted by deploy@ on the target host.
     required: true
+  identity_env_name:
+    description: Name of the environment variable set to the key file path (A-Z, digits, underscore only).
+    required: false
+    default: SSH_PROD_IDENTITY
 
 runs:
   using: composite
@@ -16,13 +21,18 @@ runs:
       shell: bash
       env:
         KEY_MATERIAL: ${{ inputs.ssh_private_key }}
+        IDENTITY_ENV_NAME: ${{ inputs.identity_env_name }}
       run: |
         set -euo pipefail
         if [ -z "${KEY_MATERIAL}" ]; then
           echo "::error::prod-ssh-key: ssh_private_key input is empty"
           exit 1
         fi
-        key_file="${RUNNER_TEMP}/gha_prod_ssh_ed25519"
+        if [[ ! "${IDENTITY_ENV_NAME}" =~ ^[A-Z][A-Z0-9_]*$ ]]; then
+          echo "::error::prod-ssh-key: identity_env_name must match ^[A-Z][A-Z0-9_]*$"
+          exit 1
+        fi
+        key_file="${RUNNER_TEMP}/gha_deploy_ssh_ed25519"
         printenv KEY_MATERIAL > "$key_file"
         chmod 600 "$key_file"
-        echo "SSH_PROD_IDENTITY=${key_file}" >> "${GITHUB_ENV}"
+        echo "${IDENTITY_ENV_NAME}=${key_file}" >> "${GITHUB_ENV}"

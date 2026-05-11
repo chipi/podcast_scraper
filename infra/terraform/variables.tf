@@ -40,6 +40,7 @@ variable "location" {
 variable "ssh_public_key" {
   type        = string
   description = "Operator's SSH public key. Cloud-init bakes it into deploy@<host>:~/.ssh/authorized_keys."
+  sensitive   = true
 }
 
 variable "ssh_public_key_name" {

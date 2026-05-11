@@ -52,7 +52,7 @@ PYTEST_WORKERS ?= 2
 # Parallel execution via pytest-xdist caused double-runs on CI (exit-code mismatch
 # triggered fallback, doubling wall time).
 
-.PHONY: help init init-no-ml venv-dev-init test-unit-dev-venv download-spacy-wheels format format-check lint lint-markdown lint-markdown-docs fix-md strip-doc-checkmarks strip-doc-emoji strip-docs type security security-bandit security-audit complexity complexity-track deadcode docstrings spelling spelling-docs quality check-unit-imports check-test-policy check-pricing-assumptions validate-gi-schema validate-kg-schema gil-quality-metrics compare-gil-runs kg-quality-metrics quality-metrics-ci fetch-ci-metrics fetch-ci-metrics-validate fetch-nightly-metrics validate-metrics-bundle build-metrics-dashboard-preview metrics-preview-check serve-metrics-dashboard metrics-dashboard-live deps-analyze deps-check deps-graph deps-graph-full call-graph flowcharts visualize release-docs-prep pre-release bump analyze-test-memory cleanup-processes check-zombie check-spotlight test-unit test-unit-sequential test-unit-no-ml test-integration test-integration-sequential test-integration-fast test-ci test-ci-fast test-e2e test-e2e-sequential test-e2e-fast verify-gil-offsets-after-acceptance preload-transformers-integration-summariesuality test-nightly test test-sequential test-fast test-fast-no-py-e2e test-reruns test-track test-track-view test-openai test-openai-multi test-openai-all-feeds test-openai-real test-openai-real-multi test-openai-real-all-feeds test-openai-real-feed coverage coverage-check coverage-check-unit coverage-check-integration coverage-check-e2e coverage-check-combined merge-cov-fragments coverage-report coverage-enforce docs docs-check build _ci_body ci ci-fast ci-ui-fast ci-ui-full ci-sequential ci-clean ci-nightly clean clean-cache clean-model-cache clean-all docker-build docker-build-fast docker-build-full docker-test docker-clean install-hooks preload-ml-models preload-ml-models-production hf-hub-smoke-test backup-cache backup-cache-dry-run backup-cache-list backup-cache-cleanup restore-cache restore-cache-dry-run metadata-generate source-index dataset-create dataset-smoke dataset-benchmark dataset-raw dataset-materialize run-promote baseline-create experiment-run ml-param-sweep autoresearch-score autoresearch-score-bundled silver-pairwise runs-list baselines-list run-compare runs-compare benchmark profile-freeze profile-diff profile-promote serve-gi-kg-viz test-ui test-ui-e2e build-viewer verify-gil-offsets-strict pipeline-validate transcription-sweep infra-plan infra-apply infra-recover
+.PHONY: help init init-no-ml venv-dev-init test-unit-dev-venv download-spacy-wheels format format-check lint lint-markdown lint-markdown-docs fix-md strip-doc-checkmarks strip-doc-emoji strip-docs type security security-bandit security-audit complexity complexity-track deadcode docstrings spelling spelling-docs quality check-unit-imports check-test-policy check-pricing-assumptions validate-gi-schema validate-kg-schema gil-quality-metrics compare-gil-runs kg-quality-metrics quality-metrics-ci fetch-ci-metrics fetch-ci-metrics-validate fetch-nightly-metrics validate-metrics-bundle build-metrics-dashboard-preview metrics-preview-check serve-metrics-dashboard metrics-dashboard-live deps-analyze deps-check deps-graph deps-graph-full call-graph flowcharts visualize release-docs-prep pre-release bump analyze-test-memory cleanup-processes check-zombie check-spotlight test-unit test-unit-sequential test-unit-no-ml test-integration test-integration-sequential test-integration-fast test-ci test-ci-fast test-e2e test-e2e-sequential test-e2e-fast verify-gil-offsets-after-acceptance preload-transformers-integration-summariesuality test-nightly test test-sequential test-fast test-fast-no-py-e2e test-reruns test-track test-track-view test-openai test-openai-multi test-openai-all-feeds test-openai-real test-openai-real-multi test-openai-real-all-feeds test-openai-real-feed coverage coverage-check coverage-check-unit coverage-check-integration coverage-check-e2e coverage-check-combined merge-cov-fragments coverage-report coverage-enforce docs docs-check build _ci_body ci ci-fast ci-ui-fast ci-ui-full ci-sequential ci-clean ci-nightly clean clean-cache clean-model-cache clean-all docker-build docker-build-fast docker-build-full docker-test docker-clean install-hooks preload-ml-models preload-ml-models-production hf-hub-smoke-test backup-cache backup-cache-dry-run backup-cache-list backup-cache-cleanup restore-cache restore-cache-dry-run metadata-generate source-index dataset-create dataset-smoke dataset-benchmark dataset-raw dataset-materialize run-promote baseline-create experiment-run ml-param-sweep autoresearch-score autoresearch-score-bundled silver-pairwise runs-list baselines-list run-compare runs-compare benchmark profile-freeze profile-diff profile-promote serve-gi-kg-viz test-ui test-ui-e2e build-viewer verify-gil-offsets-strict pipeline-validate transcription-sweep infra-plan infra-apply infra-recover drill-env delete-drill-hetzner-orphans
 
 help:
 	@echo "Common developer commands:"
@@ -181,6 +181,8 @@ help:
 	@echo "  make infra-plan      tofu init + plan against the prod Hetzner project (sources infra/.env.local; no state changes)"
 	@echo "  make infra-apply     tofu init + plan + apply (CREATES REAL HETZNER RESOURCES; tofu prompts y/n before any change)"
 	@echo "  make infra-recover   Recover from a failed apply: deletes orphan Hetzner resources by name, wipes stale state, re-runs apply with auto-ACL-import"
+	@echo "  make drill-env       How to set HCLOUD_TOKEN_DRILL for the Hetzner drill project (local shell + make delete-drill-hetzner-orphans)"
+	@echo "  make delete-drill-hetzner-orphans  Sources infra/.env.drill.local; deletes orphan drill Hetzner resources (partial apply cleanup)"
 	@echo ""
 	@echo "Other commands:"
 	@echo "  make docs            Build MkDocs site (strict mode, outputs to .build/site/)"
@@ -3079,3 +3081,28 @@ infra-apply:
 		exit 1; \
 	fi
 	@set -a && . ./$(INFRA_ENV_FILE) && set +a && cd infra && ./tofu init && ./tofu plan && ./tofu apply
+
+INFRA_DRILL_ENV_FILE := infra/.env.drill.local
+
+drill-env:
+	@echo "DR drill Hetzner token (same scope as GitHub secret HCLOUD_TOKEN_DRILL):"
+	@echo "  1. cp infra/.env.drill.local.example infra/.env.drill.local"
+	@echo "  2. Edit infra/.env.drill.local — paste the drill-project API token."
+	@echo "  3. Load into your current shell (make cannot modify the parent shell):"
+	@echo "       set -a && . ./infra/.env.drill.local && set +a"
+	@echo "  4. Or run orphan cleanup without step 3:"
+	@echo "       make delete-drill-hetzner-orphans"
+
+delete-drill-hetzner-orphans:
+	@# Sources infra/.env.drill.local + runs scripts/ops/delete_drill_hetzner_orphans.sh (drill project only).
+	@if [ ! -f $(INFRA_DRILL_ENV_FILE) ]; then \
+		echo "ERROR: $(INFRA_DRILL_ENV_FILE) missing. Run: make drill-env" >&2; \
+		exit 1; \
+	fi; \
+	 set -a && . ./$(INFRA_DRILL_ENV_FILE) && set +a; \
+	 if [ -z "$${HCLOUD_TOKEN_DRILL:-}" ]; then \
+		echo "ERROR: HCLOUD_TOKEN_DRILL not set after sourcing $(INFRA_DRILL_ENV_FILE)" >&2; \
+		exit 1; \
+	 fi; \
+	 ./scripts/ops/delete_drill_hetzner_orphans.sh; \
+	 echo "MAKE_EXIT=$$?"

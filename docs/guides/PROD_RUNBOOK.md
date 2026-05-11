@@ -60,9 +60,11 @@ gh secret set TFSTATE_AGE_KEY       --repo chipi/podcast_scraper --app actions -
 gh secret set BACKUP_REPO_TOKEN     --repo chipi/podcast_scraper --app actions --body '<backup-repo-pat>'
 # PROD_SSH_PRIVATE_KEY — see [GitHub Actions SSH to prod](#github-actions-ssh-to-prod-prod_ssh_private_key)
 
-# 4. Stage GHA repo variables
-gh variable set OPERATOR_SSH_PUBLIC_KEY --repo chipi/podcast_scraper --body "$(cat ~/.ssh/id_ed25519.pub)"
+# 4. Stage GHA repo secrets and variables
+gh secret set OPERATOR_SSH_PUBLIC_KEY --repo chipi/podcast_scraper --body "$(cat ~/.ssh/id_ed25519.pub)"
 gh variable set TAILNET_NAME            --repo chipi/podcast_scraper --body 'tail-xxxxx.ts.net'
+# If OPERATOR_SSH_PUBLIC_KEY was previously a repo variable, add the same value as the secret above,
+# then delete the variable so infra workflows use only the secret (GitHub masks secrets in logs).
 # PROD_TAILNET_FQDN is set after first apply (it depends on the assigned hostname);
 # default value is "prod-podcast.<TAILNET_NAME>".
 ```
@@ -84,7 +86,7 @@ see `tailscale/policy.hujson` comments).
    ```
 
 2. SSH to prod using your **operator** key (the same public key OpenTofu passed as
-   `TF_VAR_ssh_public_key` / `vars.OPERATOR_SSH_PUBLIC_KEY`). As `deploy`, append **exactly one line**
+   `TF_VAR_ssh_public_key` / `secrets.OPERATOR_SSH_PUBLIC_KEY`). As `deploy`, append **exactly one line**
    (the contents of `gha-prod-deploy.pub`) to `~/.ssh/authorized_keys`. Directory `~/.ssh` should be
    mode `700` and `authorized_keys` mode `600`.
 
@@ -113,6 +115,48 @@ GitHub never relies on keys baked into the runner image.
 **Rotating the CI key:** generate a new keypair, append the new public key to `authorized_keys` (keep
 the old line until one green workflow run), update `PROD_SSH_PRIVATE_KEY`, re-run `deploy-prod.yml` or
 `backup-corpus-prod.yml`, then delete the superseded public key line on the VPS.
+
+### GitHub Actions deploy to DR drill (`DRILL_DEPLOY_SSH_PRIVATE_KEY`) {#github-actions-ssh-to-drill-drill_deploy_ssh_private_key}
+
+RFC-082 / #752: **`deploy-drill.yml`** mirrors **`deploy-prod.yml`** but targets the **drill** Hetzner
+stack. After **`tailscale/github-action`** joins as **`tag:gha-deployer`**, the job SSHes
+**`deploy@<resolved-drill-fqdn>`**, appends **`PODCAST_RELEASE=sha-<short>`** to
+**`/srv/podcast-scraper/.env`**, runs **`/srv/podcast-scraper/infra/deploy/deploy.sh`**, then curls
+**`https://<resolved>/api/health`**. Resolver: **`scripts/ops/resolve_drill_tailnet_host.sh`** with
+**`vars.DRILL_TAILNET_FQDN`**. GitHub Environment: **`drill`**.
+
+The composite **`.github/actions/prod-ssh-key`** is invoked with **`identity_env_name: SSH_DRILL_IDENTITY`**
+so the workflow uses **`$SSH_DRILL_IDENTITY`** (prod workflows keep the default **`SSH_PROD_IDENTITY`**).
+
+**One-time drill host setup (same authorized_keys story as prod above):**
+
+1. SSH to the drill VPS with your **operator** key (only that key is present from cloud-init until you extend **`authorized_keys`**).
+2. Append **exactly one line** (contents of **`gha-prod-deploy.pub`**, or a drill-only CI public key) to **`deploy@`** **`~/.ssh/authorized_keys`** (modes **`700`** / **`600`**).
+3. Stage **`/srv/podcast-scraper/.env`**, then **`sudo rm /srv/podcast-scraper/.bootstrap-needs-env`** so Docker Compose can start (see cloud-init **`final_message`** on first boot).
+
+**GitHub secret** (can reuse the same PEM file as prod if the same public key is on drill **`deploy@`**):
+
+```bash
+gh secret set DRILL_DEPLOY_SSH_PRIVATE_KEY --repo chipi/podcast_scraper --app actions < ./gha-prod-deploy
+```
+
+**Dispatch** — the workflow file must exist on **`main`** (merge your branch first). There is **no**
+`make` target; use **`gh`**:
+
+```bash
+gh workflow run deploy-drill.yml -R chipi/podcast_scraper
+gh run watch -R chipi/podcast_scraper "$(gh run list -R chipi/podcast_scraper --workflow=deploy-drill.yml -L1 --json databaseId -q '.[0].databaseId')"
+```
+
+**Local operator check** (optional; use **`ssh-add`** if your key is not already in an agent — see
+the section **Cursor or automation cannot `ssh deploy@prod`** in this runbook for **`ssh-add -t 30m`**):
+
+```bash
+ssh-add -t 30m ~/.ssh/id_ed25519
+ssh -o IdentitiesOnly=yes deploy@<your-drill-magicdns-host> 'echo ok'
+```
+
+**Related infra-only cleanup (local):** **`make delete-drill-hetzner-orphans`** sources **`infra/.env.drill.local`** and deletes orphan Hetzner objects by name after a failed drill **`tofu apply`**; see **`make drill-env`**. Not used for normal deploys.
 
 ### First `tofu apply` (operator's laptop)
 
@@ -1084,7 +1128,7 @@ go back to empty and agent-driven `ssh` will fail until you re-run `ssh-add
 -t …`. That matches “it worked earlier today, then stopped.”
 
 If your operator key is not `~/.ssh/id_ed25519`, substitute the path that
-matches `TF_VAR_ssh_public_key` / `vars.OPERATOR_SSH_PUBLIC_KEY`.
+matches `TF_VAR_ssh_public_key` / `secrets.OPERATOR_SSH_PUBLIC_KEY`.
 
 **macOS Keychain persistence (optional):** if you prefer the key to survive
 agent restarts until reboot:

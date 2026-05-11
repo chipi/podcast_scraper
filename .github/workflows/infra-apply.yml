@@ -49,15 +49,17 @@ jobs:
 
       - name: Pre-flight — required secrets present?
         env:
-          HCLOUD_TOKEN:    ${{ secrets.HCLOUD_TOKEN }}
-          TS_API_KEY:      ${{ secrets.TS_API_KEY }}
-          TFSTATE_AGE_KEY: ${{ secrets.TFSTATE_AGE_KEY }}
+          HCLOUD_TOKEN:            ${{ secrets.HCLOUD_TOKEN }}
+          TS_API_KEY:              ${{ secrets.TS_API_KEY }}
+          TFSTATE_AGE_KEY:         ${{ secrets.TFSTATE_AGE_KEY }}
+          OPERATOR_SSH_PUBLIC_KEY: ${{ secrets.OPERATOR_SSH_PUBLIC_KEY }}
         run: |
           set -euo pipefail
           MISSING=""
-          [ -z "${HCLOUD_TOKEN:-}" ]    && MISSING="$MISSING HCLOUD_TOKEN"
-          [ -z "${TS_API_KEY:-}" ]      && MISSING="$MISSING TS_API_KEY"
-          [ -z "${TFSTATE_AGE_KEY:-}" ] && MISSING="$MISSING TFSTATE_AGE_KEY"
+          [ -z "${HCLOUD_TOKEN:-}" ]            && MISSING="$MISSING HCLOUD_TOKEN"
+          [ -z "${TS_API_KEY:-}" ]              && MISSING="$MISSING TS_API_KEY"
+          [ -z "${TFSTATE_AGE_KEY:-}" ]         && MISSING="$MISSING TFSTATE_AGE_KEY"
+          [ -z "${OPERATOR_SSH_PUBLIC_KEY:-}" ] && MISSING="$MISSING OPERATOR_SSH_PUBLIC_KEY"
           if [ -n "$MISSING" ]; then
             echo "::error::Missing prereqs:$MISSING. Stage them per #714 first."
             exit 1
@@ -90,7 +92,7 @@ jobs:
         env:
           TF_VAR_hcloud_token:      ${{ secrets.HCLOUD_TOKEN }}
           TF_VAR_tailscale_api_key: ${{ secrets.TS_API_KEY }}
-          TF_VAR_ssh_public_key:    ${{ vars.OPERATOR_SSH_PUBLIC_KEY }}
+          TF_VAR_ssh_public_key:    ${{ secrets.OPERATOR_SSH_PUBLIC_KEY }}
           TF_VAR_tailscale_tailnet: ${{ vars.TAILNET_NAME }}
         run: |
           tofu init -input=false

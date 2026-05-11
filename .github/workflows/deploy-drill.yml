@@ -1,0 +1,144 @@
+name: Deploy to drill VPS
+
+# RFC-082 / #752 — same deploy path as deploy-prod.yml but targets the DR
+# drill Hetzner stack (Tailscale + deploy@ + infra/deploy/deploy.sh).
+# Proves the deploy pipeline is parameterized by host/secret names, not only
+# hard-coded prod values.
+#
+# Prerequisites:
+#   - secrets: TS_AUTHKEY, DRILL_DEPLOY_SSH_PRIVATE_KEY (Ed25519 PEM for
+#              deploy@ on the drill host — same pattern as PROD_SSH_PRIVATE_KEY;
+#              public half must be in deploy@ ~/.ssh/authorized_keys; can be
+#              the same keypair as prod if you appended the same .pub to drill)
+#   - vars:    DRILL_TAILNET_FQDN (e.g. dr-podcast.tail-xxxx.ts.net)
+#
+# Host prerequisites: staged /srv/podcast-scraper/.env and removed
+# .bootstrap-needs-env so docker compose can run (see PROD_RUNBOOK / cloud-init).
+
+on:
+  workflow_dispatch:
+    inputs:
+      override_image_sha:
+        description: "Image :sha-<7> tag to deploy (blank = current main HEAD short SHA)"
+        required: false
+        default: ""
+
+permissions:
+  actions: read
+  contents: read
+
+concurrency:
+  group: deploy-drill
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment: drill
+    steps:
+      - name: Pre-flight — required secrets/variables present?
+        id: preflight
+        env:
+          TS_AUTHKEY:                  ${{ secrets.TS_AUTHKEY }}
+          DRILL_DEPLOY_SSH_PRIVATE_KEY: ${{ secrets.DRILL_DEPLOY_SSH_PRIVATE_KEY }}
+          DRILL_TAILNET_FQDN:          ${{ vars.DRILL_TAILNET_FQDN }}
+        run: |
+          set -euo pipefail
+          MISSING=""
+          [ -z "${TS_AUTHKEY:-}" ]                    && MISSING="$MISSING TS_AUTHKEY"
+          [ -z "${DRILL_DEPLOY_SSH_PRIVATE_KEY:-}" ] && MISSING="$MISSING DRILL_DEPLOY_SSH_PRIVATE_KEY"
+          [ -z "${DRILL_TAILNET_FQDN:-}" ]          && MISSING="$MISSING DRILL_TAILNET_FQDN"
+          if [ -n "$MISSING" ]; then
+            echo "::warning::Missing prereqs:$MISSING"
+            echo "::warning::Stage DRILL_DEPLOY_SSH_PRIVATE_KEY + vars per workflow header and infra/README.md (#752)."
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Checkout (resolver script)
+        if: steps.preflight.outputs.skip != 'true'
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 1
+
+      - name: Resolve target image SHA
+        id: sha
+        if: steps.preflight.outputs.skip != 'true'
+        run: |
+          SHA_SHORT="${{ github.event.inputs.override_image_sha }}"
+          if [ -z "$SHA_SHORT" ]; then
+            SHA_SHORT=$(echo "${{ github.event.workflow_run.head_sha || github.sha }}" | cut -c1-7)
+          fi
+          echo "short=$SHA_SHORT" >> "$GITHUB_OUTPUT"
+          echo "::notice::Deploying to drill — image tag sha-$SHA_SHORT"
+
+      - name: Join the tailnet
+        if: steps.preflight.outputs.skip != 'true'
+        uses: tailscale/github-action@v2
+        with:
+          authkey: ${{ secrets.TS_AUTHKEY }}
+          tags:    tag:gha-deployer
+          version: 1.96.4
+
+      - name: Install SSH identity for deploy@ (DRILL_DEPLOY_SSH_PRIVATE_KEY)
+        if: steps.preflight.outputs.skip != 'true'
+        uses: ./.github/actions/prod-ssh-key
+        with:
+          ssh_private_key:   ${{ secrets.DRILL_DEPLOY_SSH_PRIVATE_KEY }}
+          identity_env_name: SSH_DRILL_IDENTITY
+
+      - name: Resolve drill MagicDNS host
+        id: ts_host
+        if: steps.preflight.outputs.skip != 'true'
+        env:
+          DRILL_TAILNET_FQDN: ${{ vars.DRILL_TAILNET_FQDN }}
+        run: |
+          set -euo pipefail
+          R=$(bash scripts/ops/resolve_drill_tailnet_host.sh)
+          echo "resolved_fqdn=$R" >> "$GITHUB_OUTPUT"
+          WANT="${{ vars.DRILL_TAILNET_FQDN }}"
+          if [ "$(printf '%s' "$R" | tr '[:upper:]' '[:lower:]')" != "$(printf '%s' "$WANT" | tr '[:upper:]' '[:lower:]')" ]; then
+            echo "::notice::Tailscale live host ($R) differs from vars.DRILL_TAILNET_FQDN ($WANT). Using $R for SSH and probes."
+          fi
+
+      - name: Wire PODCAST_RELEASE into host .env
+        if: steps.preflight.outputs.skip != 'true'
+        env:
+          SHA_SHORT:  ${{ steps.sha.outputs.short }}
+          SSH_TARGET: deploy@${{ steps.ts_host.outputs.resolved_fqdn }}
+        run: |
+          ssh -i "$SSH_DRILL_IDENTITY" -o IdentitiesOnly=yes \
+            -o StrictHostKeyChecking=accept-new -o BatchMode=yes "$SSH_TARGET" \
+            "sudo sed -i '/^PODCAST_RELEASE=/d' /srv/podcast-scraper/.env && \
+             echo 'PODCAST_RELEASE=sha-${SHA_SHORT}' | sudo tee -a /srv/podcast-scraper/.env >/dev/null"
+
+      - name: Deploy (git pull + compose pull + compose up + VPS-local /api/health)
+        if: steps.preflight.outputs.skip != 'true'
+        env:
+          SSH_TARGET: deploy@${{ steps.ts_host.outputs.resolved_fqdn }}
+        run: |
+          ssh -i "$SSH_DRILL_IDENTITY" -o IdentitiesOnly=yes \
+            -o StrictHostKeyChecking=accept-new -o BatchMode=yes "$SSH_TARGET" \
+            '/srv/podcast-scraper/infra/deploy/deploy.sh'
+
+      - name: External /api/health probe over Tailscale
+        if: steps.preflight.outputs.skip != 'true'
+        env:
+          PROBE_URL: https://${{ steps.ts_host.outputs.resolved_fqdn }}/api/health
+        run: |
+          set -euo pipefail
+          for i in $(seq 1 12); do
+            if curl -fsS "$PROBE_URL" | jq -e '.status == "ok"' >/dev/null 2>&1; then
+              echo "::notice::/api/health OK over tailnet after $((i * 5))s (drill)"
+              exit 0
+            fi
+            sleep 5
+          done
+          echo "::error::/api/health did not return ok within 60s over tailnet (drill)"
+          ssh -i "$SSH_DRILL_IDENTITY" -o IdentitiesOnly=yes \
+            -o StrictHostKeyChecking=accept-new -o BatchMode=yes \
+            "deploy@${{ steps.ts_host.outputs.resolved_fqdn }}" \
+            'docker logs --tail 50 compose-api-1' 2>&1 || true
+          exit 1

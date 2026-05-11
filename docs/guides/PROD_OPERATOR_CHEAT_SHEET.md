@@ -79,6 +79,7 @@ ssh deploy@prod-podcast.<tailnet>.ts.net \
 ## Most important secrets
 
 - `HCLOUD_TOKEN`: Hetzner API (infra apply).
+- `OPERATOR_SSH_PUBLIC_KEY`: operator laptop pubkey for OpenTofu (repo **secret** so CI logs mask it).
 - `TS_AUTHKEY`: tailnet join auth for workflows and machine registration.
 - `TS_API_KEY`: tailnet management API for Terraform provider.
 - `TFSTATE_AGE_KEY`: decrypts encrypted OpenTofu state.

@@ -37,15 +37,17 @@ jobs:
 
       - name: Pre-flight — required secrets present?
         env:
-          HCLOUD_TOKEN_DRILL: ${{ secrets.HCLOUD_TOKEN_DRILL }}
-          TS_API_KEY:         ${{ secrets.TS_API_KEY }}
-          TFSTATE_AGE_KEY:    ${{ secrets.TFSTATE_AGE_KEY }}
+          HCLOUD_TOKEN_DRILL:        ${{ secrets.HCLOUD_TOKEN_DRILL }}
+          TS_API_KEY:                ${{ secrets.TS_API_KEY }}
+          TFSTATE_AGE_KEY:           ${{ secrets.TFSTATE_AGE_KEY }}
+          OPERATOR_SSH_PUBLIC_KEY:   ${{ secrets.OPERATOR_SSH_PUBLIC_KEY }}
         run: |
           set -euo pipefail
           MISSING=""
-          [ -z "${HCLOUD_TOKEN_DRILL:-}" ] && MISSING="$MISSING HCLOUD_TOKEN_DRILL"
-          [ -z "${TS_API_KEY:-}" ]       && MISSING="$MISSING TS_API_KEY"
-          [ -z "${TFSTATE_AGE_KEY:-}" ]  && MISSING="$MISSING TFSTATE_AGE_KEY"
+          [ -z "${HCLOUD_TOKEN_DRILL:-}" ]      && MISSING="$MISSING HCLOUD_TOKEN_DRILL"
+          [ -z "${TS_API_KEY:-}" ]            && MISSING="$MISSING TS_API_KEY"
+          [ -z "${TFSTATE_AGE_KEY:-}" ]       && MISSING="$MISSING TFSTATE_AGE_KEY"
+          [ -z "${OPERATOR_SSH_PUBLIC_KEY:-}" ] && MISSING="$MISSING OPERATOR_SSH_PUBLIC_KEY"
           if [ -n "$MISSING" ]; then
             echo "::error::Missing prereqs:$MISSING. Stage them per infra/README.md (#752)."
             exit 1
@@ -81,11 +83,13 @@ jobs:
         env:
           TF_VAR_hcloud_token:      ${{ secrets.HCLOUD_TOKEN_DRILL }}
           TF_VAR_tailscale_api_key: ${{ secrets.TS_API_KEY }}
-          TF_VAR_ssh_public_key:    ${{ vars.OPERATOR_SSH_PUBLIC_KEY }}
+          TF_VAR_ssh_public_key:    ${{ secrets.OPERATOR_SSH_PUBLIC_KEY }}
           TF_VAR_tailscale_tailnet: ${{ vars.TAILNET_NAME }}
         run: |
           tofu init -input=false
-          tofu workspace select drill || tofu workspace new drill
+          # -or-create avoids exit 1 on first run; the opentofu/setup-opentofu
+          # tofu_wrapper logs ##[error] for any non-zero child tofu exit.
+          tofu workspace select -or-create drill
           tofu apply -auto-approve -input=false -var-file=terraform.drill.ci.tfvars
 
       - name: Re-encrypt drill state (always — even if apply failed)

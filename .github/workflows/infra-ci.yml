@@ -11,7 +11,8 @@ name: Infra CI
 #   secrets: HCLOUD_TOKEN, TS_API_KEY (Free-plan substitute for OAuth — used by
 #            the tailscale Terraform provider; see PROD_RUNBOOK.md "Tailscale
 #            credentials"), TFSTATE_AGE_KEY
-#   vars:    OPERATOR_SSH_PUBLIC_KEY, TAILNET_NAME
+#   secrets: OPERATOR_SSH_PUBLIC_KEY (same value as laptop pubkey; secret so GHA masks logs)
+#   vars:    TAILNET_NAME
 
 on:
   pull_request:
@@ -37,18 +38,20 @@ jobs:
       - name: Pre-flight — required secrets present?
         id: preflight
         env:
-          HCLOUD_TOKEN:    ${{ secrets.HCLOUD_TOKEN }}
-          TS_API_KEY:      ${{ secrets.TS_API_KEY }}
-          TFSTATE_AGE_KEY: ${{ secrets.TFSTATE_AGE_KEY }}
+          HCLOUD_TOKEN:            ${{ secrets.HCLOUD_TOKEN }}
+          TS_API_KEY:              ${{ secrets.TS_API_KEY }}
+          TFSTATE_AGE_KEY:         ${{ secrets.TFSTATE_AGE_KEY }}
+          OPERATOR_SSH_PUBLIC_KEY: ${{ secrets.OPERATOR_SSH_PUBLIC_KEY }}
         run: |
           set -euo pipefail
           MISSING=""
-          [ -z "${HCLOUD_TOKEN:-}" ]    && MISSING="$MISSING HCLOUD_TOKEN"
-          [ -z "${TS_API_KEY:-}" ]      && MISSING="$MISSING TS_API_KEY"
-          [ -z "${TFSTATE_AGE_KEY:-}" ] && MISSING="$MISSING TFSTATE_AGE_KEY"
+          [ -z "${HCLOUD_TOKEN:-}" ]            && MISSING="$MISSING HCLOUD_TOKEN"
+          [ -z "${TS_API_KEY:-}" ]              && MISSING="$MISSING TS_API_KEY"
+          [ -z "${TFSTATE_AGE_KEY:-}" ]         && MISSING="$MISSING TFSTATE_AGE_KEY"
+          [ -z "${OPERATOR_SSH_PUBLIC_KEY:-}" ] && MISSING="$MISSING OPERATOR_SSH_PUBLIC_KEY"
           if [ -n "$MISSING" ]; then
             echo "::warning::Missing prereqs:$MISSING — skipping live plan."
-            echo "::warning::Stage them per #714 to enable PR-time tofu plan."
+            echo '::warning::Stage them per #714 and PROD_RUNBOOK (OPERATOR_SSH_PUBLIC_KEY is a repo Actions secret; remove legacy repo variable with the same name if present).'
             echo "skip=true" >> "$GITHUB_OUTPUT"
           else
             echo "skip=false" >> "$GITHUB_OUTPUT"
@@ -98,7 +101,7 @@ jobs:
         env:
           TF_VAR_hcloud_token:      ${{ secrets.HCLOUD_TOKEN }}
           TF_VAR_tailscale_api_key: ${{ secrets.TS_API_KEY }}
-          TF_VAR_ssh_public_key:    ${{ vars.OPERATOR_SSH_PUBLIC_KEY }}
+          TF_VAR_ssh_public_key:    ${{ secrets.OPERATOR_SSH_PUBLIC_KEY }}
           TF_VAR_tailscale_tailnet: ${{ vars.TAILNET_NAME }}
         run: |
           set +e
