@@ -36,6 +36,8 @@ on:
 permissions:
   contents: read
   actions: write
+  # drill-infra-plan (reusable) posts PR comments when permissions are evaluated for workflow_call.
+  pull-requests: write
 
 concurrency:
   group: dr-drill-exercise
