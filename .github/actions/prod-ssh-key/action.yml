@@ -1,0 +1,28 @@
+name: Prod deploy SSH identity
+description: |
+  Writes the GitHub Actions secret PROD_SSH_PRIVATE_KEY (full PEM) to a
+  runner-local file and exports SSH_PROD_IDENTITY for ssh -i … in workflows
+  that SSH as deploy@ on the prod VPS (after Tailscale join).
+
+inputs:
+  ssh_private_key:
+    description: Full PEM contents of the CI-only key trusted by deploy@ on prod.
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - name: Write PEM to isolated file
+      shell: bash
+      env:
+        KEY_MATERIAL: ${{ inputs.ssh_private_key }}
+      run: |
+        set -euo pipefail
+        if [ -z "${KEY_MATERIAL}" ]; then
+          echo "::error::prod-ssh-key: ssh_private_key input is empty"
+          exit 1
+        fi
+        key_file="${RUNNER_TEMP}/gha_prod_ssh_ed25519"
+        printenv KEY_MATERIAL > "$key_file"
+        chmod 600 "$key_file"
+        echo "SSH_PROD_IDENTITY=${key_file}" >> "${GITHUB_ENV}"

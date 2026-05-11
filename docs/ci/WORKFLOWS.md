@@ -40,7 +40,7 @@ pipeline failures are diagnosable from the workflow log.
 
 **OpenTofu / DR drill (RFC-082 / #752):** `infra-ci.yml` posts the **default** workspace plan on PRs touching `infra/**`. `drill-infra-plan.yml` posts a second comment with the **`drill`** workspace plan (same path filters). Manual apply uses `infra-apply.yml` (environment **prod**) versus `drill-infra-apply.yml` (environment **drill**). `drill-e2e.yml` (environment **drill**, confirm **`DRILL_SMOKE`**) probes **`/api/health`** on the drill VPS over Tailscale. See `infra/README.md`.
 
-**Corpus backups (RFC-082):** `backup-corpus.yml` (**Backup corpus snapshot**) is **`workflow_dispatch` only** (start the codespace, then dispatch, or `make codespace-backup-cloud`). `backup-corpus-prod.yml` (**Backup corpus snapshot (prod VPS)**) pulls `/srv/podcast-scraper/corpus` over Tailscale; also manual until issue **#723** enables a prod schedule. Release tags: `snapshot-YYYYMMDD` (codespace) vs `snapshot-prod-YYYYMMDD` (VPS).
+**Corpus backups (RFC-082):** `backup-corpus.yml` (**Backup corpus snapshot**) is **`workflow_dispatch` only** (start the codespace, then dispatch, or `make codespace-backup-cloud`). `backup-corpus-prod.yml` (**Backup corpus snapshot (prod VPS)**) pulls `/srv/podcast-scraper/corpus` over Tailscale SSH as `deploy@` using **`PROD_SSH_PRIVATE_KEY`** (same as **`deploy-prod.yml`**; see `docs/guides/PROD_RUNBOOK.md` **GitHub Actions SSH to prod**); also manual until issue **#723** enables a prod schedule. Release tags: `snapshot-YYYYMMDD` (codespace) vs `snapshot-prod-YYYYMMDD` (VPS).
 
 ---
 
