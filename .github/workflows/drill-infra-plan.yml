@@ -84,14 +84,15 @@ jobs:
 
       - name: Decrypt drill state (if any prior apply has happened)
         if: steps.preflight.outputs.skip != 'true'
+        working-directory: infra
         env:
           SOPS_AGE_KEY: ${{ secrets.TFSTATE_AGE_KEY }}
         run: |
           set -euo pipefail
-          if [ -f infra/terraform/terraform.tfstate.enc.drill ]; then
-            mkdir -p infra/terraform/terraform.tfstate.d/drill
-            sops -d infra/terraform/terraform.tfstate.enc.drill \
-              > infra/terraform/terraform.tfstate.d/drill/terraform.tfstate
+          if [ -f terraform/terraform.tfstate.enc.drill ]; then
+            mkdir -p terraform/terraform.tfstate.d/drill
+            sops -d terraform/terraform.tfstate.enc.drill \
+              > terraform/terraform.tfstate.d/drill/terraform.tfstate
           fi
 
       - name: tofu validate

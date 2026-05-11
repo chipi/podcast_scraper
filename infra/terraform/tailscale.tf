@@ -15,9 +15,11 @@ resource "tailscale_tailnet_key" "prod" {
   preauthorized = true
   expiry        = 3600
   tags          = var.tailscale_advertise_tags
+  # Tailscale API rejects some punctuation in key descriptions (400). Keep
+  # colons out of the description string even though tag values use "tag:name".
   description = format(
-    "podcast-scraper VPS auth key (%s)",
-    join(",", var.tailscale_advertise_tags)
+    "podcast-scraper-auth-key-%s",
+    replace(join("-", var.tailscale_advertise_tags), ":", "-")
   )
 }
 

@@ -327,6 +327,16 @@ gh run list --workflow backup-corpus-prod.yml --repo chipi/podcast_scraper --lim
 gh release list --repo chipi/podcast_scraper-backup --limit 10 | grep snapshot-prod-
 ```
 
+To download the latest matching **`snapshot-prod-*`** asset, print tarball
+stats, and unpack under **`.tmp_backup_verify/`** (gitignored):
+
+```bash
+./scripts/ops/verify_prod_backup_snapshot.sh
+```
+
+Use **`./scripts/ops/verify_prod_backup_snapshot.sh --help`** for a specific tag
+or **`--no-extract`** (list only, no unpack).
+
 ---
 
 ## Basic-auth credentials

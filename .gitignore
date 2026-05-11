@@ -10,6 +10,8 @@ podcast_scraper.egg-info/
 
 # Test outputs
 .test_outputs/
+# Local prod backup verification (scripts/ops/verify_prod_backup_snapshot.sh)
+.tmp_backup_verify/
 
 # Stack test (Playwright under tests/stack-test/, ``make stack-test-*`` / CI): local logs, export, deps
 .stack-test/
