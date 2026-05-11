@@ -126,22 +126,27 @@ jobs:
             -o StrictHostKeyChecking=accept-new -o BatchMode=yes "$SSH_TARGET" \
             '/srv/podcast-scraper/infra/deploy/deploy.sh'
 
-      - name: External /api/health probe over Tailscale
+      # MagicDNS https://…/ needs `tailscale serve` on the VPS; drill often
+      # lacks that until an operator runs it. GHA already has tailnet SSH, so
+      # curl the viewer on host loopback (same path as PROD_RUNBOOK tailnet row).
+      - name: Tailnet /api/health via SSH (viewer on host loopback)
         if: steps.preflight.outputs.skip != 'true'
         env:
-          PROBE_URL: https://${{ steps.ts_host.outputs.resolved_fqdn }}/api/health
+          SSH_TARGET: deploy@${{ steps.ts_host.outputs.resolved_fqdn }}
         run: |
           set -euo pipefail
           for i in $(seq 1 12); do
-            if curl -fsS "$PROBE_URL" | jq -e '.status == "ok"' >/dev/null 2>&1; then
-              echo "::notice::/api/health OK over tailnet after $((i * 5))s (drill)"
+            if ssh -i "$SSH_DRILL_IDENTITY" -o IdentitiesOnly=yes \
+              -o StrictHostKeyChecking=accept-new -o BatchMode=yes "$SSH_TARGET" \
+              'curl -fsS http://127.0.0.1:8080/api/health' \
+              | jq -e '.status == "ok"' >/dev/null 2>&1; then
+              echo "::notice::/api/health OK via tailnet SSH after $((i * 5))s (drill)"
               exit 0
             fi
             sleep 5
           done
-          echo "::error::/api/health did not return ok within 60s over tailnet (drill)"
+          echo "::error::/api/health did not return ok within 60s (SSH → host :8080 viewer, drill)"
           ssh -i "$SSH_DRILL_IDENTITY" -o IdentitiesOnly=yes \
-            -o StrictHostKeyChecking=accept-new -o BatchMode=yes \
-            "deploy@${{ steps.ts_host.outputs.resolved_fqdn }}" \
+            -o StrictHostKeyChecking=accept-new -o BatchMode=yes "$SSH_TARGET" \
             'docker logs --tail 50 compose-api-1' 2>&1 || true
           exit 1

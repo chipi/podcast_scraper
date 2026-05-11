@@ -868,7 +868,14 @@ name.
 
 `tailscale serve` exposes the in-container viewer (on port 8080) as
 HTTPS port 443 with an auto-issued TLS cert from Tailscale's CA.
-Set up once on the VPS:
+
+On **new or reprovisioned** VPS hosts, cloud-init installs
+`/usr/local/sbin/podcast-tailscale-serve.sh` and `podcast-scraper.service`
+runs it after `docker compose up` (and clears serve on `compose down`).
+Existing servers created before that change keep whatever serve state they
+had; run the manual steps below once if MagicDNS HTTPS still fails.
+
+Set up manually on older hosts (or to verify):
 
 ```bash
 ssh deploy@prod-podcast.<tailnet>

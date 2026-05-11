@@ -50,6 +50,9 @@ for i in $(seq 1 12); do
   if "${COMPOSE[@]}" "${STACK_FILES[@]}" exec -T api \
     curl -fsS http://127.0.0.1:8000/api/health >/dev/null 2>&1; then
     echo "[$(date -u +%FT%TZ)] /api/health OK after $((i * 5))s (container-local)"
+    if command -v sudo >/dev/null 2>&1 && [ -x /usr/local/sbin/podcast-tailscale-serve.sh ]; then
+      sudo -n /usr/local/sbin/podcast-tailscale-serve.sh >/dev/null 2>&1 || true
+    fi
     exit 0
   fi
   sleep 5

@@ -40,6 +40,9 @@
     },
 
     // DR drill VPS — operator + GHA reach SSH and viewer/api over HTTPS.
+    // MagicDNS https://<host>.<tailnet>/ requires `tailscale serve` on the
+    // node (cloud-init wires ExecStartPost on podcast-scraper.service); ACL
+    // alone is not enough if serve was never started.
     {
       "action": "accept",
       "src":    ["autogroup:admin"],

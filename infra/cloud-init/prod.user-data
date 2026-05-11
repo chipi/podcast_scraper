@@ -45,6 +45,39 @@ write_files:
     permissions: '0644'
     owner: root:root
 
+  # After the compose stack is up, expose the viewer (host VIEWER_PORT, default
+  # 8080) as MagicDNS HTTPS :443 so tailnet peers (including tag:gha-deployer)
+  # can curl https://<tailnet_hostname>.<tailnet>/ (see PROD_RUNBOOK.md).
+  - path: /usr/local/sbin/podcast-tailscale-serve.sh
+    content: |
+      #!/bin/bash
+      set -euo pipefail
+      PORT=8080
+      if [ -f /srv/podcast-scraper/.env ]; then
+        line=$$(grep -E '^VIEWER_PORT=' /srv/podcast-scraper/.env | tail -1 || true)
+        if [ -n "$$line" ]; then
+          v=$$(echo "$$line" | cut -d= -f2- | tr -d ' \t"' | tr -d "'")
+          if [ -n "$$v" ]; then PORT="$$v"; fi
+        fi
+      fi
+      for _ in $$(seq 1 60); do
+        if curl -fsS "http://127.0.0.1:$${PORT}/api/health" >/dev/null 2>&1; then
+          break
+        fi
+        sleep 2
+      done
+      /usr/bin/tailscale serve reset || true
+      exec /usr/bin/tailscale serve --bg "$${PORT}"
+    permissions: '0755'
+    owner: root:root
+
+  # Allow deploy@ to refresh MagicDNS HTTPS after GHA runs deploy.sh (systemd
+  # ExecStartPost covers systemctl restarts only).
+  - path: /etc/sudoers.d/99-podcast-deploy-tailscale-serve
+    content: "deploy ALL=(root) NOPASSWD: /usr/local/sbin/podcast-tailscale-serve.sh\n"
+    permissions: '0440'
+    owner: root:root
+
   - path: /etc/systemd/system/podcast-scraper.service
     content: |
       [Unit]
@@ -58,8 +91,10 @@ write_files:
       WorkingDirectory=/srv/podcast-scraper
       EnvironmentFile=/srv/podcast-scraper/.env
       ExecStartPre=/usr/bin/test ! -e /srv/podcast-scraper/.bootstrap-needs-env
-      ExecStart=/usr/bin/docker compose -f compose/docker-compose.stack.yml -f compose/docker-compose.prod.yml -f compose/docker-compose.vps-prod.yml up -d --remove-orphans
-      ExecStop=/usr/bin/docker compose -f compose/docker-compose.stack.yml -f compose/docker-compose.prod.yml -f compose/docker-compose.vps-prod.yml down
+      ExecStart=/usr/bin/docker compose --env-file /srv/podcast-scraper/.env -f compose/docker-compose.stack.yml -f compose/docker-compose.prod.yml -f compose/docker-compose.vps-prod.yml up -d --remove-orphans
+      ExecStartPost=-/usr/local/sbin/podcast-tailscale-serve.sh
+      ExecStop=/usr/bin/docker compose --env-file /srv/podcast-scraper/.env -f compose/docker-compose.stack.yml -f compose/docker-compose.prod.yml -f compose/docker-compose.vps-prod.yml down
+      ExecStopPost=-/usr/bin/tailscale serve reset
 
       [Install]
       WantedBy=multi-user.target

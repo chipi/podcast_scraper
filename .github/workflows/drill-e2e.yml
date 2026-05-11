@@ -2,10 +2,11 @@ name: DR drill smoke (Tailscale + /api/health)
 
 # GitHub #752 — read-only smoke against the Hetzner **drill** stack from GHA.
 # Joins the tailnet as tag:gha-deployer, resolves dr-podcast MagicDNS (suffix
-# drift), then curls /api/health over HTTPS (same pattern as deploy-prod.yml).
+# drift), then curls /api/health over SSH to deploy@ (viewer on host :8080).
+# Does not require `tailscale serve` / MagicDNS HTTPS on the VPS.
 #
 # Prerequisites:
-#   secrets: TS_AUTHKEY (reusable ephemeral key with tag:gha-deployer)
+#   secrets: TS_AUTHKEY, DRILL_DEPLOY_SSH_PRIVATE_KEY (deploy@ PEM, same as deploy-drill)
 #   vars:    DRILL_TAILNET_FQDN (e.g. dr-podcast.tail-xxxx.ts.net)
 #
 # Tailscale ACL must allow tag:gha-deployer → tag:dr-drill (see
@@ -42,22 +43,30 @@ jobs:
 
       - name: Pre-flight — required secrets/variables present?
         env:
-          TS_AUTHKEY:            ${{ secrets.TS_AUTHKEY }}
-          DRILL_TAILNET_FQDN: ${{ vars.DRILL_TAILNET_FQDN }}
+          TS_AUTHKEY:                  ${{ secrets.TS_AUTHKEY }}
+          DRILL_DEPLOY_SSH_PRIVATE_KEY: ${{ secrets.DRILL_DEPLOY_SSH_PRIVATE_KEY }}
+          DRILL_TAILNET_FQDN:          ${{ vars.DRILL_TAILNET_FQDN }}
         run: |
           set -euo pipefail
           MISSING=""
-          [ -z "${TS_AUTHKEY:-}" ]             && MISSING="$MISSING TS_AUTHKEY"
-          [ -z "${DRILL_TAILNET_FQDN:-}" ] && MISSING="$MISSING DRILL_TAILNET_FQDN"
+          [ -z "${TS_AUTHKEY:-}" ]                    && MISSING="$MISSING TS_AUTHKEY"
+          [ -z "${DRILL_DEPLOY_SSH_PRIVATE_KEY:-}" ] && MISSING="$MISSING DRILL_DEPLOY_SSH_PRIVATE_KEY"
+          [ -z "${DRILL_TAILNET_FQDN:-}" ]          && MISSING="$MISSING DRILL_TAILNET_FQDN"
           if [ -n "$MISSING" ]; then
             echo "::error::Missing prereqs:$MISSING Stage per workflow header and infra/README.md (#752)."
             exit 1
           fi
 
-      - name: Checkout (resolver script)
+      - name: Checkout (resolver script + prod-ssh-key action)
         uses: actions/checkout@v5
         with:
           fetch-depth: 1
+
+      - name: Install SSH identity for deploy@ (DRILL_DEPLOY_SSH_PRIVATE_KEY)
+        uses: ./.github/actions/prod-ssh-key
+        with:
+          ssh_private_key:   ${{ secrets.DRILL_DEPLOY_SSH_PRIVATE_KEY }}
+          identity_env_name: SSH_DRILL_IDENTITY
 
       - name: Join the tailnet
         uses: tailscale/github-action@v2
@@ -80,17 +89,20 @@ jobs:
             echo "::notice::Tailscale live host ($R) differs from vars.DRILL_TAILNET_FQDN ($WANT). Using $R for probes."
           fi
 
-      - name: External /api/health probe over Tailscale
+      - name: Tailnet /api/health via SSH (viewer on host loopback)
         env:
-          PROBE_URL: https://${{ steps.ts_host.outputs.resolved_fqdn }}/api/health
+          SSH_TARGET: deploy@${{ steps.ts_host.outputs.resolved_fqdn }}
         run: |
           set -euo pipefail
           for i in $(seq 1 12); do
-            if curl -fsS "$PROBE_URL" | jq -e '.status == "ok"' >/dev/null 2>&1; then
-              echo "::notice::/api/health OK over tailnet after $((i * 5))s"
+            if ssh -i "$SSH_DRILL_IDENTITY" -o IdentitiesOnly=yes \
+              -o StrictHostKeyChecking=accept-new -o BatchMode=yes "$SSH_TARGET" \
+              'curl -fsS http://127.0.0.1:8080/api/health' \
+              | jq -e '.status == "ok"' >/dev/null 2>&1; then
+              echo "::notice::/api/health OK via tailnet SSH after $((i * 5))s (drill)"
               exit 0
             fi
             sleep 5
           done
-          echo "::error::/api/health did not return ok within 60s over tailnet ($PROBE_URL)"
+          echo "::error::/api/health did not return ok within 60s (SSH → host :8080 viewer, drill)"
           exit 1
