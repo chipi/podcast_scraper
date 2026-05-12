@@ -55,9 +55,7 @@ class Candidate:
 
 
 def _tailnet() -> str:
-    t = (
-        os.environ.get("TAILNET_NAME") or os.environ.get("TAILNET") or ""
-    ).strip()
+    t = (os.environ.get("TAILNET_NAME") or os.environ.get("TAILNET") or "").strip()
     if not t:
         print(
             "Set TAILNET_NAME or TAILNET (e.g. tail6d0ed4.ts.net).",
@@ -142,27 +140,19 @@ def _iter_candidates(
         hostname = str(d.get("hostname", "") or d.get("name", "") or "")
         name = str(d.get("name", "") or "")
         last_raw = d.get("lastSeen") or d.get("last_seen")
-        last_raw_s = (
-            str(last_raw).strip() if last_raw is not None else None
-        )
+        last_raw_s = str(last_raw).strip() if last_raw is not None else None
         ls_dt = _parse_last_seen(last_raw_s)
         skip: str | None = None
         idle_h: float | None = None
         if d.get("online") is True:
             skip = "online=true (still active)"
         elif ls_dt is None:
-            skip = (
-                "no lastSeen"
-                " (use --allow-unknown-last-seen to delete anyway)"
-            )
+            skip = "no lastSeen" " (use --allow-unknown-last-seen to delete anyway)"
         else:
             idle = now - ls_dt
             idle_h = idle.total_seconds() / 3600.0
             if idle < min_idle:
-                skip = (
-                    f"idle {idle_h:.2f}h"
-                    f" < min {min_idle.total_seconds() / 3600.0:.2f}h"
-                )
+                skip = f"idle {idle_h:.2f}h" f" < min {min_idle.total_seconds() / 3600.0:.2f}h"
         out.append(
             Candidate(
                 device_id=did,
@@ -188,17 +178,12 @@ def main() -> None:
         type=float,
         default=2.0,
         metavar="H",
-        help=(
-            "Only delete when lastSeen is at least this many hours ago"
-            " (default: 2)."
-        ),
+        help=("Only delete when lastSeen is at least this many hours ago" " (default: 2)."),
     )
     p.add_argument(
         "--allow-unknown-last-seen",
         action="store_true",
-        help=(
-            "Allow deleting devices with no parseable lastSeen (risky)."
-        ),
+        help=("Allow deleting devices with no parseable lastSeen (risky)."),
     )
     args = p.parse_args()
 
@@ -221,23 +206,12 @@ def main() -> None:
     to_delete: list[Candidate] = []
     for c in candidates:
         reason = c.skip_reason
-        if (
-            reason
-            and "no lastSeen" in reason
-            and args.allow_unknown_last_seen
-        ):
+        if reason and "no lastSeen" in reason and args.allow_unknown_last_seen:
             reason = None
         if reason:
-            print(
-                f"SKIP id={c.device_id}"
-                f" host={c.hostname!r} name={c.name!r} {reason}"
-            )
+            print(f"SKIP id={c.device_id}" f" host={c.hostname!r} name={c.name!r} {reason}")
         else:
-            idle = (
-                f"idle_h={c.idle_hours:.2f}"
-                if c.idle_hours is not None
-                else "idle_h=?"
-            )
+            idle = f"idle_h={c.idle_hours:.2f}" if c.idle_hours is not None else "idle_h=?"
             print(
                 f"DROP id={c.device_id}"
                 f" host={c.hostname!r} name={c.name!r}"
@@ -246,10 +220,7 @@ def main() -> None:
             to_delete.append(c)
 
     if not args.apply:
-        print(
-            f"\nDry run. {len(to_delete)} would be deleted."
-            " Re-run with --apply to delete."
-        )
+        print(f"\nDry run. {len(to_delete)} would be deleted." " Re-run with --apply to delete.")
         return
 
     if not to_delete:
