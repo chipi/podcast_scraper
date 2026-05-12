@@ -83,6 +83,11 @@ jobs:
       - uses: actions/checkout@v6
         with:
           fetch-depth: 1
+          show-progress: false
+          sparse-checkout: |
+            infra
+            tailscale
+          sparse-checkout-cone-mode: true
 
       - name: "DR drill — tfstate bridge: download teardown artifact"
         env:
