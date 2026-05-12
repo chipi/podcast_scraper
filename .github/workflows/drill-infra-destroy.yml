@@ -183,12 +183,14 @@ jobs:
           TF_VAR_tailscale_tailnet: ${{ vars.TAILNET_NAME }}
         run: |
           set -euo pipefail
-          # Pipe answers for rare init state-migration prompts; -input=false alone
-          # can still error with "input is disabled" in CI (OpenTofu 1.6).
-          # Disable pipefail around ``yes |`` so SIGPIPE on ``yes`` after tofu exits
-          # does not fail the step (pipeline status follows tofu when pipefail is off).
+          export TF_INPUT=0
+          # Fresh ``.terraform`` avoids stale provider/backend metadata that can
+          # trigger interactive state-migration prompts (``input is disabled``).
+          rm -rf .terraform
+          # Pipe answers for rare init prompts; disable pipefail around ``yes |``
+          # so SIGPIPE on ``yes`` after tofu exits does not fail the step.
           set +o pipefail
-          yes | tofu init -input=false
+          yes | tofu init -input=false -upgrade
           set -o pipefail
           tofu workspace select -or-create drill
           tofu destroy -auto-approve -input=false -var-file=terraform.drill.ci.tfvars

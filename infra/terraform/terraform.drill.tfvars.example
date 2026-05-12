@@ -11,4 +11,5 @@ hcloud_environment_label = "drill"
 
 # Optional: smaller / cheaper while iterating (must match variables.tf validation).
 # server_type = "cx33"
-# location    = "fsn1"
+# CI uses ``terraform.drill.ci.tfvars`` with ``location = "hel1"`` by default.
+# location    = "nbg1"
