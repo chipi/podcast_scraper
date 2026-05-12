@@ -99,6 +99,29 @@ if [[ "${resolved}" == OK\|* ]]; then
 fi
 
 listed="${resolved#NO_MATCH|}"
+
+# One-line roster: ALL peers matching dr-podcast* under this MagicDNS suffix (any
+# Online flag). Helps GH Actions "host not on tailnet yet" loops where only
+# ``Online:false`` orphaned names exist or the domain suffix is wrong vs vars.
+diag=$(
+  jq -r \
+    --arg domain "$DOMAIN" '
+    def raw_nodes: [(.Peer // {}) | to_entries[] | .value];
+    (raw_nodes
+      | map(
+          ((.DNSName // "") | sub("\\.$"; "") | ascii_downcase) as $d
+          | select(
+              ($d != "")
+              and ($d | startswith("dr-podcast"))
+              and ($d | endswith("." + $domain))
+            )
+          | "[\($d) Online=\(.Online)]"
+        )
+      | join(" ")) // ""
+    ' "$tmp"
+)
+echo "::notice::resolve_drill: dr-podcast* peers (any Online) for .${DOMAIN}: ${diag:-none}" >&2
+
 echo "::error::No online drill VPS MagicDNS host matched candidates from DRILL_TAILNET_FQDN=${PRIMARY_N}." >&2
 if [[ -n "${listed}" ]]; then
   echo "::error::Online dr-podcast*.${DOMAIN} seen in tailscale status: ${listed}" >&2

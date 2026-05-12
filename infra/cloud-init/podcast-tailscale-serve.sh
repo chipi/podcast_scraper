@@ -1,7 +1,10 @@
-#!/bin/bash
+#!/bin/sh
 # Expose the viewer stack (host VIEWER_PORT, default 8080) via ``tailscale serve`` HTTPS :443.
-# Kept as a plain file (not Terraform-interpolated) so ``$`` / ``((`` are never mangled on disk.
-set -euo pipefail
+#
+# Must be POSIX ``/bin/sh`` (dash on Ubuntu): cloud-init ``write_files``, systemd
+# ``ExecStartPost``, and ``sudo sh`` paths must not hit bash-only syntax; first-boot
+# Terraform/cloud-init edge cases have produced ``(`` parse errors on broken copies.
+set -eu
 PORT=8080
 if [ -f /srv/podcast-scraper/.env ]; then
   line=$(grep -E '^VIEWER_PORT=' /srv/podcast-scraper/.env | tail -1 || true)
@@ -10,12 +13,13 @@ if [ -f /srv/podcast-scraper/.env ]; then
     if [ -n "$v" ]; then PORT="$v"; fi
   fi
 fi
-# Brace range avoids ``$((n+1))``, which is easy to mis-render when this script is embedded in templates.
-for _ in {1..60}; do
+i=1
+while [ "$i" -le 60 ]; do
   if curl -fsS "http://127.0.0.1:${PORT}/api/health" >/dev/null 2>&1; then
     break
   fi
   sleep 2
+  i=$((i + 1))
 done
 /usr/bin/tailscale serve reset || true
 exec /usr/bin/tailscale serve --bg "$PORT"

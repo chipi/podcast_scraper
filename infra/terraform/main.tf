@@ -90,8 +90,9 @@ resource "hcloud_server" "prod" {
     grafana_cloud_metrics_username         = var.grafana_cloud_metrics_username
     grafana_cloud_metrics_password         = var.grafana_cloud_metrics_password
 
-    # Shell script body is injected via ``file()`` so ``$`` / ``((`` are never passed through
-    # ``templatefile`` twice (avoids broken ``n=$$((n+1))`` on the VPS).
+    # Script body is injected via ``file()`` so ``$`` / ``((`` are never passed through
+    # ``templatefile`` twice (avoids broken ``n=$$((n+1))`` on the VPS). The file
+    # itself is POSIX ``/bin/sh`` so cloud-init + systemd + dash never hit bashisms.
     podcast_tailscale_serve_body = indent(6, chomp(file("${path.module}/../cloud-init/podcast-tailscale-serve.sh")))
   })
 

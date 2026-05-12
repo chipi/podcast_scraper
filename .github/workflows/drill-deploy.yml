@@ -116,16 +116,35 @@ jobs:
           # After a fresh ``tofu apply``, cloud-init + ``tailscale up`` can lag
           # behind the deploy job; poll until the drill host is **Online** in
           # ``tailscale status`` (see scripts/ops/resolve_drill_tailnet_host.sh).
+          # Faster checks in the first two minutes reduce wall time once the VPS
+          # registers (fixes “used to settle ~minute, now wastes 15s gaps”).
           max_wait=480
-          interval=15
           elapsed=0
           R=""
+          out="$(mktemp)"
+          err="$(mktemp)"
+          trap 'rm -f "$out" "$err"' EXIT
+          fqdn_lc="$(printf '%s' "${{ vars.DRILL_TAILNET_FQDN }}" | tr '[:upper:]' '[:lower:]')"
           while [ "$elapsed" -lt "$max_wait" ]; do
-            if R=$(bash scripts/ops/resolve_drill_tailnet_host.sh 2>/dev/null); then
+            if [ "$elapsed" -lt 120 ]; then
+              interval=5
+            else
+              interval=15
+            fi
+            # Nudge datapath discovery before reading status JSON (helps right after runner join).
+            tailscale ping -c 1 --timeout 3s "$fqdn_lc" >/dev/null 2>&1 || true
+            # Do not swallow resolver stderr — ``2>/dev/null`` hid WHY resolution failed for minutes.
+            if bash scripts/ops/resolve_drill_tailnet_host.sh >"$out" 2>"$err"; then
+              R=$(cat "$out")
               echo "::notice::Drill host visible on tailnet after ${elapsed}s."
               break
             fi
-            echo "::notice::Drill host not on tailnet yet (${elapsed}s / ${max_wait}s); sleeping ${interval}s."
+            msg="$(tr '\n' ' ' <"$err")"
+            max_len=700
+            if [ "${#msg}" -gt "$max_len" ]; then
+              msg="${msg:0:$max_len}…"
+            fi
+            echo "::notice::Drill host not on tailnet yet (${elapsed}s / ${max_wait}s). Resolver: ${msg}"
             sleep "$interval"
             elapsed=$((elapsed + interval))
           done
