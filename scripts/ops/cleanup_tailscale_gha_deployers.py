@@ -113,14 +113,12 @@ def _iter_candidates(
 ) -> list[Candidate]:
     out: list[Candidate] = []
     for d in devices:
-        tags = d.get("tags") or []
-        if not isinstance(tags, list) or TAG not in tags:
-            continue
         did = str(d.get("id", "")).strip()
         if not did:
             continue
         hostname = str(d.get("hostname", "") or d.get("name", "") or "")
         name = str(d.get("name", "") or "")
+        tags = d.get("tags") or []
         last_raw = d.get("lastSeen") or d.get("last_seen")
         last_raw_s = str(last_raw).strip() if last_raw is not None else None
         ls_dt = _parse_last_seen(last_raw_s)
@@ -135,6 +133,10 @@ def _iter_candidates(
             idle_h = idle.total_seconds() / 3600.0
             if idle < min_idle:
                 skip = f"idle {idle_h:.2f}h < min {min_idle.total_seconds() / 3600.0:.2f}h"
+        
+        # DEBUG: Add tags to skip reason so we can see them
+        full_skip = f"{skip or ''} tags={tags}".strip()
+        
         out.append(
             Candidate(
                 device_id=did,
@@ -142,7 +144,7 @@ def _iter_candidates(
                 name=name,
                 last_seen=last_raw_s,
                 idle_hours=idle_h,
-                skip_reason=skip,
+                skip_reason=full_skip,
             )
         )
     return out
@@ -187,7 +189,7 @@ def main() -> None:
     print(f"tailnet={tailnet}  tag={TAG}  candidates={len(candidates)}")
     to_delete: list[Candidate] = []
     for c in candidates:
-        reason = c.skip_reason
+        reason = f"DEBUG_SKIP {c.skip_reason}"
         if reason and "no lastSeen" in reason and args.allow_unknown_last_seen:
             reason = None
         if reason:
