@@ -68,6 +68,8 @@ jobs:
           fi
 
       - uses: actions/checkout@v6
+        with:
+          fetch-depth: 1
 
       - name: "DR drill — tofu: restore drill state from earlier apply (same run)"
         env:

@@ -45,6 +45,8 @@ jobs:
     environment: drill
     steps:
       - uses: actions/checkout@v6
+        with:
+          fetch-depth: 1
 
       - name: "DR drill — pre-flight: secrets and tokens (OpenTofu provider)"
         id: preflight
