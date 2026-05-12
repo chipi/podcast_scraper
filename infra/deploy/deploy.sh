@@ -20,6 +20,17 @@ STACK_FILES=(-f compose/docker-compose.stack.yml -f compose/docker-compose.prod.
 
 cd "$REPO_DIR"
 
+# ``docker-compose.prod.yml`` requires ``PODCAST_DOCKER_PROJECT_DIR`` for api
+# volume interpolation. PROD_RUNBOOK stages it in ``.env``; drill GHA may only
+# append ``PODCAST_RELEASE``, so ensure the bind-mount path exists before compose.
+if [ ! -f .env ]; then
+  install -m 600 /dev/null .env
+fi
+if ! grep -qE '^PODCAST_DOCKER_PROJECT_DIR=' .env; then
+  echo "PODCAST_DOCKER_PROJECT_DIR=$REPO_DIR" >> .env
+  chmod 600 .env
+fi
+
 # Compose resolves the project directory from the first `-f` path (`compose/`), so
 # it does not load `/srv/podcast-scraper/.env` by default — pass explicitly (VPS + GHA).
 COMPOSE=(docker compose --env-file .env)
