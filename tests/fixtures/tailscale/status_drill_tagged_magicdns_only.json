@@ -1,0 +1,14 @@
+{
+  "Self": {
+    "DNSName": "gha-runner.tail-test.ts.net.",
+    "Online": true
+  },
+  "Peer": {
+    "n1": {
+      "DNSName": "hetzner-drill-abc.tail-test.ts.net.",
+      "HostName": "hetzner-drill-abc",
+      "Online": true,
+      "Tags": ["tag:dr-drill"]
+    }
+  }
+}

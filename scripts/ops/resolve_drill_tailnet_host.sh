@@ -81,22 +81,35 @@ resolved=$(
         elif ($hn | test("^dr-podcast(-[0-9]+)?$")) then "\($hn).\($domain)"
         else empty end;
 
-    ([raw_nodes[]
-      | select(.Online == true)
-      | drill_fqdn_for_peer
-    ]) as $drill_on
-    | ($drill_on | unique) as $drill_unique
+    # Workspace ``drill`` tags the VPS with ``tag:dr-drill``; MagicDNS can differ
+    # from ``dr-podcast*`` if the host registered under another stable name.
+    def drill_fqdn_for_tagged_drill_peer:
+      select((.Tags // []) | index("tag:dr-drill") != null)
+      | ((.DNSName // "") | sub("\\.$"; "") | ascii_downcase) as $dn
+      | ((.HostName // "") | ascii_downcase) as $hn
+      | if ($dn != "" and ($dn | endswith("." + $domain))) then $dn
+        elif ($hn != "") then "\($hn).\($domain)"
+        else empty end;
+
+    (
+      [raw_nodes[] | select(.Online == true) | drill_fqdn_for_peer]
+      + [raw_nodes[] | select(.Online == true) | drill_fqdn_for_tagged_drill_peer]
+      | map(select(. != null and . != ""))
+      | unique
+    ) as $drill_unique
     | (
         [$primary]
         + (if ("dr-podcast.\($domain)") != $primary then ["dr-podcast.\($domain)"] else [] end)
         + [range(1; 10) | "dr-podcast-\(.).\($domain)" | select(. != $primary)]
       ) as $candidates
     | ($candidates | map(select(. as $c | $drill_unique | index($c) != null)) | first) as $hit
-    | if $hit == null then
+    | if $hit != null then
+        "OK|\($hit)"
+      elif ($drill_unique | length) == 1 then
+        "OK|\($drill_unique[0])"
+      else
         ($drill_unique | join(", ")) as $listed
         | "NO_MATCH|\($listed)"
-      else
-        "OK|\($hit)"
       end
     ' "$tmp"
 )
@@ -136,6 +149,24 @@ diag=$(
     ' "$tmp"
 )
 echo "::notice::resolve_drill: dr-podcast* peers (any Online) for .${DOMAIN}: ${diag:-none}" >&2
+tag_diag=$(
+  jq -r \
+    --arg domain "$DOMAIN" '
+    def raw_nodes: [(.Peer // {}) | to_entries[] | .value];
+    def dns_tail: (.DNSName // "") | sub("\\.$"; "") | ascii_downcase;
+    def hn_tail: ((.HostName // "") | ascii_downcase);
+    (raw_nodes
+      | map(
+          . as $p
+          | select((.Tags // []) | index("tag:dr-drill") != null)
+          | ($p | dns_tail) as $d
+          | ($p | hn_tail) as $h
+          | "[dns=\($d) host=\($h) Online=\($p.Online)]"
+        )
+      | join(" ")) // ""
+    ' "$tmp"
+)
+echo "::notice::resolve_drill: tag:dr-drill peers (any Online) for .${DOMAIN}: ${tag_diag:-none}" >&2
 
 echo "::error::No online drill VPS MagicDNS host matched candidates from DRILL_TAILNET_FQDN=${PRIMARY_N}." >&2
 if [[ -n "${listed}" ]]; then

@@ -8,12 +8,15 @@ provider "tailscale" {
 
 # Per-server auth key. Rotated on every `tofu apply` so a leaked key only
 # affects the window between issuance and re-apply (typically minutes).
-# 1h expiry is enough for cloud-init's `tailscale up` on first boot.
+# Prod: 1h expiry, single-use. Drill: 4h + reusable so cloud-init can retry
+# ``tailscale up`` without burning the key on transient boot networking.
 resource "tailscale_tailnet_key" "prod" {
-  reusable      = false
+  # Drill: reusable keys survive a transient ``tailscale up`` failure (cloud-init
+  # can retry) without burning a one-shot key. Prod stays single-use.
+  reusable      = var.hcloud_environment_label == "drill"
   ephemeral     = false
   preauthorized = true
-  expiry        = 3600
+  expiry        = var.hcloud_environment_label == "drill" ? 14400 : 3600
   tags          = var.tailscale_advertise_tags
   # Tailscale API rejects some punctuation in key descriptions (400). Keep
   # colons out of the description string even though tag values use "tag:name".
