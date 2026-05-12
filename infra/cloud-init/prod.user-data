@@ -175,8 +175,12 @@ runcmd:
   - tailscale up --auth-key='${tailscale_auth_key}' --hostname='${tailnet_hostname}' --advertise-tags='${tailscale_advertise_tags_cli}' --ssh=false
 
   # === Repo checkout to /srv/podcast-scraper ===
+  # ``write_files`` may already have created ``.bootstrap-needs-env`` under this
+  # directory, so ``git clone`` directly into ``/srv/podcast-scraper`` fails
+  # (non-empty destination) and the tree never appears — deploy workflows then
+  # see ``deploy.sh: No such file or directory`` while SSH auth still works.
   - install -d -o deploy -g deploy -m 0755 /srv/podcast-scraper
-  - sudo -u deploy git clone --branch main --depth 50 https://github.com/chipi/podcast_scraper.git /srv/podcast-scraper
+  - sudo -u deploy bash -c 'set -euo pipefail; t=/tmp/podcast-scraper-clone; rm -rf "$t"; git clone --branch main --depth 50 https://github.com/chipi/podcast_scraper.git "$t"; cp -a "$t"/. /srv/podcast-scraper/; rm -rf "$t"'
   - chown -R deploy:deploy /srv/podcast-scraper
 
   # === Corpus mount: prefer attached Volume, fall back to boot-disk dir ===
