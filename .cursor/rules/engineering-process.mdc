@@ -1,0 +1,33 @@
+---
+description: PRD / UXS / RFC / ADR lifecycle — use with docs/guides/ENGINEERING_PROCESS.md
+globs: docs/rfc/**/*.md, docs/adr/**/*.md, docs/prd/**/*.md, docs/uxs/**/*.md, docs/architecture/**/*.md
+---
+
+# Engineering process (Cursor)
+
+## Always load
+
+`read_file` **`docs/guides/ENGINEERING_PROCESS.md`** before adding or restructuring:
+
+- PRDs (`docs/prd/`)
+- UXS (`docs/uxs/`)
+- RFCs (`docs/rfc/`)
+- ADRs (`docs/adr/`)
+- Core architecture narrative (`docs/architecture/`)
+
+## Condensed chain (full detail in the guide)
+
+| Doc | Role |
+| --- | --- |
+| **PRD** | What and why (product); success criteria |
+| **UXS** | UX and visual contract when UI changes |
+| **RFC** | **How** — full technical design, trade-offs, migration |
+| **ADR** | **Law** — brief **Accepted** decisions **taken from** the RFC |
+
+Do **not** put the whole RFC design into an ADR. Do **not** use **Accepted** on RFC headers (RFC uses **Draft** / **Completed**).
+
+## Checklist on exit
+
+- Correct **status vocabulary** for doc type (see `documentation.mdc`).
+- New RFC/ADR: **`docs/rfc/index.md`** / **`docs/adr/index.md`** updated when applicable.
+- **`make docs`** + **`make lint-markdown`** after substantive markdown edits.

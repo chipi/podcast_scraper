@@ -2,19 +2,20 @@
 
 ## Purpose
 
-Architecture Decision Records (ADRs) capture the **what** and **why** of significant architectural decisions in `podcast_scraper`. While RFCs represent the proposal and journey, ADRs serve as the final, immutable record of truth for the project's architecture.
+Architecture Decision Records (ADRs) capture the **what** and **why** of **decisions** taken after
+technical discussion (often in an **RFC** or issue). **RFCs** hold the **full design**, alternatives,
+and implementation journey; **Accepted** ADRs are the **short, immutable** record of what we chose.
 
 ## How ADRs Work
 
 1. **Immutable Records**: Once an ADR is accepted, it remains unchanged unless superseded by a new ADR.
-2. **Context Driven**: They explain the trade-offs and rationale behind a decision.
+2. **Context Driven**: They explain the trade-offs and rationale behind a decision (not the whole solution document).
 3. **Reference for Developers**: They provide onboarding context for why certain patterns (like the Provider Protocol) were chosen.
 
 ## ADR Index
 
 **Code** (last column): **Yes** = reflected in the codebase; **Partial** = incomplete or
-still rolling out; **No** = not started (including accepted ADRs waiting on implementation,
-and **Proposed** ADRs).
+still rolling out; **No** = not started (including accepted ADRs waiting on implementation).
 
 | ADR | Title | Status | Related RFC | Description | Code |
 | :--- | :--- | :--- | :--- | :--- | :--- |
@@ -106,12 +107,15 @@ and **Proposed** ADRs).
 | [ADR-086](ADR-086-canonical-identity-layer-and-bridge-json-cross-layer-join.md) | Canonical Identity Layer and Per-Episode bridge.json Cross-Layer Join | Accepted | [RFC-072](../rfc/RFC-072-canonical-identity-layer-cross-layer-bridge.md) | CIL ids + `bridge.json` seam; GIL or KG stay separate (ADR-052) | Yes |
 | [ADR-087](ADR-087-autoresearch-track-a-v2-dev-held-out-and-judging.md) | Autoresearch Track A v2 — Dev or Held-Out Split and Judging | Accepted | [RFC-073](../rfc/RFC-073-autoresearch-v2-framework.md), [RFC-057](../rfc/RFC-057-autoresearch-optimization-loop.md) | Disjoint held-out; fraction contestation; Efficiency rubric; seed wiring | Yes |
 | [ADR-088](ADR-088-macos-local-ci-process-safety-for-ml-workloads.md) | macOS Local CI Process Safety for ML Workloads | Accepted | [RFC-074](../rfc/RFC-074-process-safety-ml-workloads-macos.md) | No parse-time ML probes; cleanup or zombie checks; agent no-pileup rules | Yes |
+| [ADR-089](ADR-089-prod-failover-orchestrator-separate-from-drill.md) | Prod Failover Orchestrator Separate from DR Drill | Accepted | [RFC-083](../rfc/RFC-083-prod-failover-orchestration-and-cutover.md) | Own workflow family; never call drill destroy; GitHub #764 | No |
+| [ADR-090](ADR-090-prod-failover-dns-first-cutover.md) | Prod Failover — DNS-First Cutover on Tailnet | Accepted | [RFC-083](../rfc/RFC-083-prod-failover-orchestration-and-cutover.md) | Canonical hostname DNS flip primary; floating IP optional | No |
+| [ADR-091](ADR-091-prod-failover-gha-triggers-and-gates.md) | Prod Failover — GHA Triggers and Gates | Accepted | [RFC-083](../rfc/RFC-083-prod-failover-orchestration-and-cutover.md) | `workflow_dispatch` primary; gated `repository_dispatch`; no scheduled cutover v1 | No |
 
 ## Gap analysis {:#gaps}
 
-**Counts (reconcile when adding ADRs):** **88** files under `docs/adr/ADR-*.md` (ADR-001–ADR-088;
+**Counts (reconcile when adding ADRs):** **91** files under `docs/adr/ADR-*.md` (ADR-001–ADR-091;
 numbering has historical gaps). From the index table: **2** **Proposed** (**ADR-055**, **ADR-056**),
-**3** **Accepted** with **Code = No** (**ADR-054**, **ADR-058**, **ADR-059**), **2** **Accepted** with
+**6** **Accepted** with **Code = No** (**ADR-054**, **ADR-058**, **ADR-059**, **ADR-089**, **ADR-090**, **ADR-091**), **2** **Accepted** with
 **Code = Partial** (**ADR-031**, **ADR-047**). **Accepted** means ratified, not necessarily shipped.
 
 ### When to extract a new ADR
@@ -151,6 +155,9 @@ Use an ADR when one or more of these hold; otherwise an **RFC + normative doc** 
 | [ADR-054](ADR-054-relational-postgres-projection-for-gil-and-kg.md) | [RFC-051](../rfc/RFC-051-database-projection-gil-kg.md) | Postgres projection future |
 | [ADR-058](ADR-058-additive-pyannote-diarization-with-separate-extra.md) | [RFC-058](../rfc/RFC-058-audio-speaker-diarization.md) | No `[diarize]` extra in `pyproject.toml` yet |
 | [ADR-059](ADR-059-confidence-scored-multi-signal-commercial-detection.md) | [RFC-060](../rfc/RFC-060-diarization-aware-commercial-cleaning.md) | Commercial detector as designed not landed |
+| [ADR-089](ADR-089-prod-failover-orchestrator-separate-from-drill.md) | [RFC-083](../rfc/RFC-083-prod-failover-orchestration-and-cutover.md) | Prod-failover workflows not landed |
+| [ADR-090](ADR-090-prod-failover-dns-first-cutover.md) | [RFC-083](../rfc/RFC-083-prod-failover-orchestration-and-cutover.md) | Runbook or DNS automation follow-up |
+| [ADR-091](ADR-091-prod-failover-gha-triggers-and-gates.md) | [RFC-083](../rfc/RFC-083-prod-failover-orchestration-and-cutover.md) | `repository_dispatch` + cutover gates not landed |
 
 **Accepted, partial**
 
@@ -170,7 +177,7 @@ are **Yes**; **ADR-064**–**ADR-066** are implemented; **ADR-021** is reflected
 | Situation | Guidance |
 | --- | --- |
 | **Prefer a new ADR** | Irreversible stack boundary, cross-cutting protocol, frozen empirical default, heavy optional extra, or closure of a large program (e.g. **ADR-073**). |
-| **Often RFC-only** | Bounded HTTP routes or viewer tabs where **ADR-064**–**ADR-066** + UXS already fix the stack (e.g. **RFC-067**, **RFC-068**, **RFC-069**, **RFC-071**). Corpus layout + manifest: **ADR-074**. Frozen resource baselines: **ADR-075**. Streamlit vs Vue for eval tools: **ADR-076**. Full-stack Compose + stack-test gate: **ADR-084**, **ADR-085**. CIL + `bridge.json`: **ADR-086**. Autoresearch Track A v2: **ADR-087**. macOS ML `make` safety: **ADR-088**. |
+| **Often RFC-only** | Bounded HTTP routes or viewer tabs where **ADR-064**–**ADR-066** + UXS already fix the stack (e.g. **RFC-067**, **RFC-068**, **RFC-069**, **RFC-071**). Corpus layout + manifest: **ADR-074**. Frozen resource baselines: **ADR-075**. Streamlit vs Vue for eval tools: **ADR-076**. Full-stack Compose + stack-test gate: **ADR-084**, **ADR-085**. CIL + `bridge.json`: **ADR-086**. Autoresearch Track A v2: **ADR-087**. macOS ML `make` safety: **ADR-088**. **Prod failover** design: **[RFC-083](../rfc/RFC-083-prod-failover-orchestration-and-cutover.md)**; decisions **ADR-089**–**ADR-091**. |
 | **Proposed ADRs** | Promote **ADR-055** / **ADR-056** to **Accepted** (or supersede) when **RFC-053** / **RFC-054** ship end-to-end. |
 
 ### Future triggers
@@ -180,6 +187,7 @@ are **Yes**; **ADR-064**–**ADR-066** are implemented; **ADR-021** is reflected
 - **Profile YAML** for **non-Python** consumers beyond `tools/run_compare` / **`make profile-diff`** — partially addressed by **ADR-075**.
 - **RFC-070** + **ADR-060** when platform vector backends land materially.
 - **Full-stack Compose, stack-test, CIL or bridge, autoresearch v2, macOS ML process safety** — see **ADR-084**–**ADR-088** (normative detail remains in **RFC-072**, **RFC-073** v2 file, **RFC-074**, **RFC-078**, **RFC-079**).
+- **Prod failover (stand up spare, validate, gated cutover)** — **[RFC-083](../rfc/RFC-083-prod-failover-orchestration-and-cutover.md)** (Draft); decisions **ADR-089**–**ADR-091**; GitHub #764.
 
 **Open decisions without ADRs:** see **Architecture Decision Candidates** below.
 

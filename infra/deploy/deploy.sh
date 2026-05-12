@@ -82,8 +82,7 @@ for i in $(seq 1 12); do
         sleep 5
       done
       if [ "$ts_ok" != 1 ]; then
-        echo "ERROR: podcast-tailscale-serve.sh failed after 3 attempts (tailnet HTTPS will not work)." >&2
-        exit 4
+        echo "WARNING: podcast-tailscale-serve.sh failed after 3 attempts (MagicDNS HTTPS may be down). Deploy continues; fix script on host or reprovision cloud-init. See infra/cloud-init/prod.user-data." >&2
       fi
     fi
     exit 0

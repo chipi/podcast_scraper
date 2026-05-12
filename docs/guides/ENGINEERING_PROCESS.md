@@ -2,6 +2,18 @@
 
 This document defines how we manage the lifecycle of features, architectural changes, and technical decisions in `podcast_scraper`. Our process is built on a **PRD / UXS / RFC / ADR** chain that keeps product intent, experience contracts, technical design, and durable decisions aligned.
 
+## For AI assistants and reviewers
+
+- **Before** creating or materially editing **`docs/prd/`**, **`docs/uxs/`**, **`docs/rfc/`**, **`docs/adr/`**, or **hosting/architecture narrative** under **`docs/architecture/`**, read **this file** end-to-end (and announce it in the thread, e.g. "Loading ENGINEERING_PROCESS.md…").
+- **RFC** holds the **full technical design** under discussion (Draft or Completed when shipped).
+- **ADR** holds **short, Accepted decisions** extracted from an RFC (the "law"); do not turn an ADR into a second RFC-length design doc.
+- **PRD** uses **Implemented** / Partial / Draft; **RFC** and **ADR** headers use **Draft** / **Completed** (RFC) or **Accepted** (ADR) per `.cursor/rules/documentation.mdc` and [`docs/adr/index.md`](../adr/index.md).
+- When adding a **new** RFC or ADR, update **`docs/rfc/index.md`** and **`docs/adr/index.md`** (and any architecture hub links) in the **same change** unless the user explicitly defers index updates.
+
+## Maintainer review
+
+Re-read this guide when onboarding, after a **process drift** incident (wrong doc type, missing index row, RFC vs ADR confusion), or during periodic doc hygiene. Keep **`.cursorrules`**, **`CLAUDE.md`**, and **`.cursor/rules/engineering-process.mdc`** aligned with the **chain** section below so agents load the right shape of document.
+
 ## Documentation flow
 
 We use distinct document types; **UXS** (UX Specification) runs parallel to RFC when a feature has meaningful UI.
@@ -30,38 +42,38 @@ graph TD
 
 ### 1. PRD (Product Requirements Document)
 
-* **Purpose**: Defines the **WHAT** and **WHY**.
-* **Focus**: User problems, business value, success criteria, and non-goals.
-* **Location**: `docs/prd/`
-* **When to create**: For any significant new capability, major user-facing feature, or workflow change.
-* **Outcome**: Alignment on the goal before any technical design begins.
+- **Purpose**: Defines the **WHAT** and **WHY**.
+- **Focus**: User problems, business value, success criteria, and non-goals.
+- **Location**: `docs/prd/`
+- **When to create**: For any significant new capability, major user-facing feature, or workflow change.
+- **Outcome**: Alignment on the goal before any technical design begins.
 
 ### 2. UXS (UX Specification)
 
-* **Purpose**: Defines the **experience and visual contract** for user-facing surfaces.
-* **Focus**: Semantic design tokens (color, type, spacing), layout density, key components, accessibility expectations, and review checklists — not functional requirements (PRD) or backend design (RFC).
-* **Location**: `docs/uxs/`
-* **When to create**: When a feature adds or significantly changes UI (web viewer, local server UI, in-repo dashboards). Omit for CLI-only features unless terminal presentation is explicitly standardized.
-* **Outcome**: Implementers and reviewers share one token table and UX bar; RFCs reference UXS so Tailwind/CSS/Cytoscape/Chart.js stay aligned.
-* **GI/KG viewer shell IA**: For **`web/gi-kg-viewer/`**, **[VIEWER_IA.md](../uxs/VIEWER_IA.md)** is the canonical spec for **information architecture** (regions, navigation axes, persistence and clearing, first-run). **UXS-001** and feature **UXS** documents hold **tokens and per-surface** visual contracts and **link** VIEWER_IA for shell questions. **RFC-062** owns behavioral timing, debounce, and keyboard maps.
-* **Living contract**: UXS is updated as **shipped** UI evolves; **Draft** is for motion before merge. At ship, **Active** UXS should match the built viewer (see [UX specifications index — Living documents and ship boundary](../uxs/index.md#living-documents-and-ship-boundary)).
+- **Purpose**: Defines the **experience and visual contract** for user-facing surfaces.
+- **Focus**: Semantic design tokens (color, type, spacing), layout density, key components, accessibility expectations, and review checklists — not functional requirements (PRD) or backend design (RFC).
+- **Location**: `docs/uxs/`
+- **When to create**: When a feature adds or significantly changes UI (web viewer, local server UI, in-repo dashboards). Omit for CLI-only features unless terminal presentation is explicitly standardized.
+- **Outcome**: Implementers and reviewers share one token table and UX bar; RFCs reference UXS so Tailwind/CSS/Cytoscape/Chart.js stay aligned.
+- **GI/KG viewer shell IA**: For **`web/gi-kg-viewer/`**, **[VIEWER_IA.md](../uxs/VIEWER_IA.md)** is the canonical spec for **information architecture** (regions, navigation axes, persistence and clearing, first-run). **UXS-001** and feature **UXS** documents hold **tokens and per-surface** visual contracts and **link** VIEWER_IA for shell questions. **RFC-062** owns behavioral timing, debounce, and keyboard maps.
+- **Living contract**: UXS is updated as **shipped** UI evolves; **Draft** is for motion before merge. At ship, **Active** UXS should match the built viewer (see [UX specifications index — Living documents and ship boundary](../uxs/index.md#living-documents-and-ship-boundary)).
 
 ### 3. RFC (Request for Comments)
 
-* **Purpose**: Defines the **HOW** (technical).
-* **Focus**: Technical architecture, code structure, data schemas, and migration plans.
-* **Location**: `docs/rfc/`
-* **When to create**: For any change that requires architectural thought, new dependencies, or complex logic.
-* **Outcome**: A collaborative technical design that has been reviewed for trade-offs and edge cases.
+- **Purpose**: Defines the **HOW** (technical).
+- **Focus**: Technical architecture, code structure, data schemas, and migration plans.
+- **Location**: `docs/rfc/`
+- **When to create**: For any change that requires architectural thought, new dependencies, or complex logic.
+- **Outcome**: A collaborative technical design that has been reviewed for trade-offs and edge cases.
 
 ### 4. ADR (Architecture Decision Record)
 
-* **Purpose**: Defines the **LAW**.
-* **Focus**: The final, immutable decisions extracted from an RFC.
-* **Location**: `docs/adr/`
-* **When to create**: Once an RFC has been **reviewed** and the core architectural decisions are
+- **Purpose**: Defines the **LAW**.
+- **Focus**: The final, immutable decisions extracted from an RFC.
+- **Location**: `docs/adr/`
+- **When to create**: Once an RFC has been **reviewed** and the core architectural decisions are
   ready to freeze (**RFC** status uses **Draft** / **Completed**; **Accepted** is for **ADRs** only).
-* **Outcome**: A permanent record of the project's architectural principles, providing context for future maintainers.
+- **Outcome**: A permanent record of the project's architectural principles, providing context for future maintainers.
 
 ---
 
@@ -77,16 +89,16 @@ graph TD
 
 ## Why We Work This Way
 
-* **AI Isolation**: High-quality documentation provides stable context for AI tools like Cursor, preventing hallucinations and ensuring consistent code style.
-* **Asynchronous Collaboration**: Decisions are documented and reviewable without requiring constant meetings.
-* **Context for the Future**: New contributors can read the ADRs to understand *why* the system is built the way it is, rather than guessing from the code.
-* **Rigor & Stability**: Separating requirements (PRD), experience contracts (UXS), technical design (RFC), and laws (ADR) prevents scope creep and architectural drift.
+- **AI Isolation**: High-quality documentation provides stable context for AI tools like Cursor, preventing hallucinations and ensuring consistent code style.
+- **Asynchronous Collaboration**: Decisions are documented and reviewable without requiring constant meetings.
+- **Context for the Future**: New contributors can read the ADRs to understand *why* the system is built the way it is, rather than guessing from the code.
+- **Rigor & Stability**: Separating requirements (PRD), experience contracts (UXS), technical design (RFC), and laws (ADR) prevents scope creep and architectural drift.
 
 ---
 
 ## Templates
 
-* **[PRD Template](../prd/PRD_TEMPLATE.md)**
-* **[UXS Template](../uxs/UXS_TEMPLATE.md)** — [UX specifications index](../uxs/index.md)
-* **[RFC Template](../rfc/RFC_TEMPLATE.md)**
-* **[ADR Template](../adr/ADR_TEMPLATE.md)**
+- **[PRD Template](../prd/PRD_TEMPLATE.md)**
+- **[UXS Template](../uxs/UXS_TEMPLATE.md)** — [UX specifications index](../uxs/index.md)
+- **[RFC Template](../rfc/RFC_TEMPLATE.md)**
+- **[ADR Template](../adr/ADR_TEMPLATE.md)**

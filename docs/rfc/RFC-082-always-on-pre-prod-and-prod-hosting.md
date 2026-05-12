@@ -840,6 +840,7 @@ The decisions above leave a smaller residual set:
 
 ## References
 
+- [RFC-083](RFC-083-prod-failover-orchestration-and-cutover.md) — production incident spare, DNS cutover, GitHub Actions orchestration (Draft).
 - [RFC-081 (pre-prod)](RFC-081-pre-prod-environment-and-control-plane.md) — what we're lifting from.
 - [docs/wip/CODESPACE_PREPROD_RUNBOOK.md](../wip/CODESPACE_PREPROD_RUNBOOK.md) — operator-facing notes from pre-prod; many of the same gotchas apply (corpus bind mount, image pull on first deploy, agent yaml comment foot-guns).
 - [Hetzner Cloud pricing](https://www.hetzner.com/cloud/) — CX / CCX line.

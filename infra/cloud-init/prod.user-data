@@ -53,18 +53,22 @@ write_files:
       #!/bin/bash
       set -euo pipefail
       PORT=8080
+      # Avoid $(...) subshells here: Terraform templatefile can corrupt $ escaping and leave
+      # invalid (grep / (seq on disk. Use backticks and a numeric while loop instead.
       if [ -f /srv/podcast-scraper/.env ]; then
-        line=$$(grep -E '^VIEWER_PORT=' /srv/podcast-scraper/.env | tail -1 || true)
+        line=`grep -E '^VIEWER_PORT=' /srv/podcast-scraper/.env | tail -1 || true`
         if [ -n "$$line" ]; then
-          v=$$(echo "$$line" | cut -d= -f2- | tr -d ' \t"' | tr -d "'")
+          v=`echo "$$line" | cut -d= -f2- | tr -d ' \t"' | tr -d "'"`
           if [ -n "$$v" ]; then PORT="$$v"; fi
         fi
       fi
-      for _ in $$(seq 1 60); do
+      n=1
+      while [ "$$n" -le 60 ]; do
         if curl -fsS "http://127.0.0.1:$${PORT}/api/health" >/dev/null 2>&1; then
           break
         fi
         sleep 2
+        n=$$((n+1))
       done
       /usr/bin/tailscale serve reset || true
       exec /usr/bin/tailscale serve --bg "$${PORT}"

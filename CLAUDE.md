@@ -55,6 +55,7 @@ make <target> && echo "PASS" || echo "FAIL $?"
 
 When editing files matching these paths, load the listed guide before editing:
 
+- `docs/prd/**`, `docs/uxs/**`, `docs/rfc/**`, `docs/adr/**`, `docs/architecture/**` → **`docs/guides/ENGINEERING_PROCESS.md`** first (PRD/UXS/RFC/ADR chain; RFC = design, ADR = Accepted decisions). Use `.cursor/rules/engineering-process.mdc` when present.
 - `tests/unit/**` → `docs/guides/UNIT_TESTING_GUIDE.md` (`tests/unit/` must not depend on any non-`[dev]` extra; never use `pytest.importorskip()` to sidestep).
 - `tests/integration/**` or `tests/e2e/**` → `docs/guides/TESTING_GUIDE.md`.
 - `config/profiles/*.yaml` → see *Profile completeness* in `.cursorrules`.

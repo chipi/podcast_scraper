@@ -94,8 +94,8 @@ RFCs translate PRD requirements into concrete technical solutions and serve as l
 
 ## Gap analysis {:#gaps}
 
-**Counts (reconcile when moving RFCs):** **82** files under `docs/rfc/RFC-*.md` -- IDs **RFC-001--RFC-082**
-with **no RFC-014**. **3** open (in-flight, partial implementation), **59** completed, and **15** Draft
+**Counts (reconcile when moving RFCs):** **83** files under `docs/rfc/RFC-*.md` -- IDs **RFC-001--RFC-083**
+with **no RFC-014**. **3** open (in-flight, partial implementation), **59** completed, and **16** Draft
 (not indexed until promoted) in the tables above.
 
 **Open RFC clusters:** AI experiment pipeline + ML benchmark CI (**RFC-015**, **RFC-041**).
@@ -106,7 +106,8 @@ metrics alerts (**RFC-043**), Postgres projection (**RFC-051**), adaptive summar
 (**RFC-058**--**RFC-060**), semantic search platform (**RFC-070**), canonical identity layer
 (**RFC-072**), enrichment layer (**RFC-073**), process safety (**RFC-074**),
 ephemeral acceptance smoke test (**RFC-078**), full-stack Docker Compose (**RFC-079**;
-optional doc polish: [RFC-079 §Optional follow-ups](RFC-079-full-stack-docker-compose.md#optional-follow-ups)).
+optional doc polish: [RFC-079 §Optional follow-ups](RFC-079-full-stack-docker-compose.md#optional-follow-ups)),
+prod failover orchestration and cutover (**RFC-083**).
 These are discoverable by filename under `docs/rfc/` but excluded from the index per the
 [index inclusion rule](../guides/MARKDOWN_LINTING_GUIDE.md) (Draft docs are not indexed).
 

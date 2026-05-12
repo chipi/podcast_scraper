@@ -2,6 +2,8 @@
 
 **For complete details:** `docs/guides/MARKDOWN_LINTING_GUIDE.md`
 
+**PRD / UXS / RFC / ADR and architecture narrative:** follow **`docs/guides/ENGINEERING_PROCESS.md`** (and `.cursor/rules/engineering-process.mdc`) for doc roles, lifecycle, and index updates — in addition to this file for prose and markdown mechanics.
+
 ## MANDATORY Workflow Before Committing Markdown
 
 **For the procedure:** Use the **markdown-pre-commit** skill.

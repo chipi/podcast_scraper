@@ -402,6 +402,7 @@ BEFORE proceeding** when the situation matches. Announce loading
 | Writing/modifying Python code | `coding-standards.mdc` |
 | Writing or modifying tests | `testing-strategy.mdc` |
 | Editing markdown / docs | `documentation.mdc` |
+| Creating/editing **PRD, UXS, RFC, ADR**, or **`docs/architecture/**`** narrative | `engineering-process.mdc` + **`docs/guides/ENGINEERING_PROCESS.md`** |
 | Git worktree operations | `git-worktree.mdc` |
 | Refactoring / module boundaries | `module-boundaries.mdc` |
 | About to run git commands that replace tracked content | `git-working-tree-safety.mdc` |
@@ -421,6 +422,15 @@ before editing:
   `docs/guides/TESTING_GUIDE.md`.
 - `config/profiles/*.yaml` → see *Profile completeness* above.
 - `web/gi-kg-viewer/**` → see *GI/KG viewer UX* above.
+- `docs/prd/**`, `docs/uxs/**`, `docs/rfc/**`, `docs/adr/**`, `docs/architecture/**` →
+  **`docs/guides/ENGINEERING_PROCESS.md`** (and `engineering-process.mdc`); RFC carries design,
+  ADR carries **Accepted** decisions extracted from it.
+
+### PRD / RFC / ADR (one-line reminder)
+
+**PRD** = product what/why · **UXS** = UI contract when needed · **RFC** = technical how (Draft →
+Completed) · **ADR** = immutable decision record (**Accepted**), short, sourced from RFC discussion.
+Full flow, templates, lifecycle: **`docs/guides/ENGINEERING_PROCESS.md`**.
 
 ---
 
@@ -453,5 +463,5 @@ PRDs use **Implemented** / Partial / Draft. **Completed** is for
 
 ---
 
-**Version:** 2.6
-**Updated:** 2026-05-02
+**Version:** 2.7
+**Updated:** 2026-05-12
