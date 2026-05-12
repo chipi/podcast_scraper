@@ -113,9 +113,6 @@ def _iter_candidates(
 ) -> list[Candidate]:
     out: list[Candidate] = []
     for d in devices:
-        tags = d.get("tags") or []
-        if not isinstance(tags, list) or TAG not in tags:
-            continue
         did = str(d.get("id", "")).strip()
         if not did:
             continue
@@ -187,7 +184,7 @@ def main() -> None:
     print(f"tailnet={tailnet}  tag={TAG}  candidates={len(candidates)}")
     to_delete: list[Candidate] = []
     for c in candidates:
-        reason = c.skip_reason
+        reason = "LISTING_ONLY"  # Force skip everything
         if reason and "no lastSeen" in reason and args.allow_unknown_last_seen:
             reason = None
         if reason:
