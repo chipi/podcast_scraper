@@ -122,18 +122,17 @@ jobs:
           path: .bridge-out/terraform.tfstate.enc.drill
           retention-days: 30
 
-  # ``tofu apply`` returns when Hetzner API says the server exists; cloud-init still
-  # runs apt/docker/git clone before ``tailscale up`` in ``runcmd``. Deploy polls
-  # ``tailscale status`` immediately — without this margin the runner often sees zero
-  # ``dr-podcast*`` peers for minutes and times out (GH #752 exercise).
+  # ``tofu apply`` returns when Hetzner API says the server exists; cloud-init may
+  # still run. ``tailscale up`` now runs before Docker in ``prod.user-data`` so the
+  # node should register quickly; keep a short margin for tailnet propagation.
   drill_wait_tailnet:
     needs: apply
     runs-on: ubuntu-latest
     steps:
       - name: "DR drill — wait after apply (cloud-init + tailscale up on new VPS)"
         run: |
-          echo "::notice::Sleeping 360s so drill VPS can finish first-boot before deploy joins tailnet."
-          sleep 360
+          echo "::notice::Sleeping 180s after apply (tailnet propagation margin)."
+          sleep 180
 
   deploy:
     needs: [apply, drill_wait_tailnet]
