@@ -231,6 +231,7 @@ jobs:
           hcloud version
 
       - name: Hetzner drill orphan sweep (API — empty state safe)
+        id: hetzner_sweep
         if: always()
         env:
           HCLOUD_TOKEN: ${{ secrets.HCLOUD_TOKEN_DRILL }}
@@ -296,6 +297,7 @@ jobs:
               ((.labels.environment? // "") == "drill")
               or (.name == $h)
             )] | length')
+          echo "remaining=${LEFT}" >> "$GITHUB_OUTPUT"
           if [ "$LEFT" != "0" ]; then
             echo "::error::After OpenTofu destroy + hcloud sweep, $LEFT drill server(s) still exist in this project."
             hcloud server list -o columns
@@ -341,11 +343,28 @@ jobs:
           done
           echo "Tailscale drill device cleanup finished."
 
-      - name: Fail if OpenTofu destroy did not succeed
-        if: ${{ always() && steps.tofu_destroy.outcome == 'failure' && !cancelled() }}
+      # ``tofu destroy`` can still exit non-zero when state drifts (e.g. server
+      # already removed manually) while the Hetzner sweep shows **no** drill VMs.
+      # Treat that as OK; fail only when the sweep reports servers still left.
+      - name: Reconcile OpenTofu destroy outcome with Hetzner sweep
+        if: ${{ always() && !cancelled() && steps.hetzner_sweep.outcome == 'success' }}
+        env:
+          TOFU_OUTCOME: ${{ steps.tofu_destroy.outcome }}
+          REMAINING: ${{ steps.hetzner_sweep.outputs.remaining }}
         run: |
-          echo "::error::OpenTofu destroy failed; Hetzner/Tailscale API sweeps still ran so the next drill run can recover."
-          exit 1
+          set -euo pipefail
+          rem="${REMAINING:-}"
+          if [ -z "$rem" ]; then
+            echo "::warning::Hetzner sweep did not emit remaining count; cannot reconcile destroy."
+            exit 0
+          fi
+          if [ "$rem" != "0" ]; then
+            echo "::error::Hetzner still lists $rem drill server(s) after sweep (should have been caught in sweep step)."
+            exit 1
+          fi
+          if [ "$TOFU_OUTCOME" = "failure" ]; then
+            echo "::notice::OpenTofu destroy failed, but Hetzner has no matching drill servers — infra already gone; teardown OK."
+          fi
 
       - name: Re-encrypt drill state (always — even if destroy failed)
         if: always()
