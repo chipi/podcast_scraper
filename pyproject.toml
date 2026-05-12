@@ -89,8 +89,10 @@ llm = [
   "google-genai>=1.0.0,<2.0.0",
   "google-api-core>=2.30.3,<3.0.0",  # Required by google-genai for some operations
   "anthropic>=0.34.0,<1.0.0",  # Anthropic API provider (Issue #106)
-  # mistralai 2.x: client at mistralai.client.sdk (Dependabot PR #473)
-  "mistralai>=1.0.0,<3.0.0",  # Mistral API provider (Issue #106)
+  # Mistral API provider (Issue #106). PyPI ``mistralai`` is quarantined (no installable
+  # files on https://pypi.org/simple/mistralai/ as of 2026-05). Pin the official v2.4.5
+  # tree (commit matches tag v2.4.5) until PyPI restores the project.
+  "mistralai @ https://github.com/mistralai/client-python/archive/7ebe84b5a9eee0714f81c687c8cf636eaa12476f.tar.gz",
   "httpx>=0.28.1,<1.0.0",  # Ollama provider (Issue #196) - for health checks
 ]
 # Minimum local ML to build the FAISS vector index when running an otherwise cloud-only
