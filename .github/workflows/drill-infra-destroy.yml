@@ -11,8 +11,8 @@ name: Drill infra destroy (manual)
 # encrypted file from the git checkout; commit ``terraform.tfstate.enc.drill``
 # when you apply outside the orchestrator and need destroy to match.
 #
-# After ``tofu destroy``, always runs a **Hetzner hcloud orphan sweep** in the
-# drill-token project, then **Tailscale API** removal of devices tagged
+# After ``tofu destroy`` (or if destroy fails), always runs a **Hetzner hcloud
+# orphan sweep** in the drill-token project, then **Tailscale API** removal of devices tagged
 # ``tag:dr-drill`` or whose hostname matches ``tailnet_hostname`` in
 # ``terraform.drill.ci.tfvars`` (stops orphaned MagicDNS entries after repeated
 # drills).
@@ -31,6 +31,11 @@ on:
         description: 'Type "DRILL_DESTROY" to confirm destroy in workspace drill'
         required: true
         default: ''
+      skip_confirm:
+        description: "Leave false for manual runs. Orchestrator sets true via workflow_call."
+        type: boolean
+        required: false
+        default: false
   workflow_call:
     secrets:
       HCLOUD_TOKEN_DRILL:
@@ -61,19 +66,17 @@ jobs:
     timeout-minutes: 25
     environment: drill
     steps:
+      # Reusable workflows inherit the *caller's* github.event_name (often
+      # workflow_dispatch). Gate manual confirmation on skip_confirm, not on
+      # github.event_name, so dr-drill-exercise does not leak DRILL_FULL_CYCLE
+      # into inputs.confirm here.
       - name: Confirm input (manual dispatch only)
-        if: github.event_name == 'workflow_dispatch'
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.skip_confirm != true }}
         run: |
           if [ "${{ inputs.confirm }}" != "DRILL_DESTROY" ]; then
             echo "::error::Must type DRILL_DESTROY to confirm. Got: '${{ inputs.confirm }}'"
             exit 1
           fi
-
-      - name: Reject workflow_call without orchestrator gate
-        if: github.event_name == 'workflow_call' && inputs.skip_confirm != true
-        run: |
-          echo "::error::workflow_call requires skip_confirm=true (orchestrated teardown from dr-drill-exercise only)."
-          exit 1
 
       - uses: actions/checkout@v5
 
@@ -170,6 +173,8 @@ jobs:
           fi
 
       - name: tofu init + workspace drill + destroy
+        id: tofu_destroy
+        continue-on-error: true
         working-directory: infra/terraform
         env:
           TF_VAR_hcloud_token:      ${{ secrets.HCLOUD_TOKEN_DRILL }}
@@ -177,11 +182,19 @@ jobs:
           TF_VAR_ssh_public_key:    ${{ secrets.OPERATOR_SSH_PUBLIC_KEY }}
           TF_VAR_tailscale_tailnet: ${{ vars.TAILNET_NAME }}
         run: |
-          tofu init -input=false
+          set -euo pipefail
+          # Pipe answers for rare init state-migration prompts; -input=false alone
+          # can still error with "input is disabled" in CI (OpenTofu 1.6).
+          # Disable pipefail around ``yes |`` so SIGPIPE on ``yes`` after tofu exits
+          # does not fail the step (pipeline status follows tofu when pipefail is off).
+          set +o pipefail
+          yes | tofu init -input=false
+          set -o pipefail
           tofu workspace select -or-create drill
           tofu destroy -auto-approve -input=false -var-file=terraform.drill.ci.tfvars
 
       - name: Install Hetzner hcloud CLI (drill orphan sweep)
+        if: always()
         run: |
           set -euo pipefail
           HCLOUD_VER="1.46.0"
@@ -192,6 +205,7 @@ jobs:
           hcloud version
 
       - name: Hetzner drill orphan sweep (API — empty state safe)
+        if: always()
         env:
           HCLOUD_TOKEN: ${{ secrets.HCLOUD_TOKEN_DRILL }}
         run: |
@@ -214,7 +228,7 @@ jobs:
           else
             for id in $IDS; do
               echo "Deleting server id=$id"
-              hcloud server delete --force "$id"
+              hcloud server delete "$id"
             done
             sleep 5
           fi
@@ -224,7 +238,7 @@ jobs:
             | while read -r vid; do
               [ -z "$vid" ] && continue
               echo "Deleting volume id=$vid"
-              hcloud volume delete --force "$vid" || true
+              hcloud volume delete "$vid" || true
             done
 
           if hcloud firewall describe podcast-scraper-prod >/dev/null 2>&1; then
@@ -264,6 +278,7 @@ jobs:
           echo "Hetzner drill orphan sweep complete (no matching servers remain)."
 
       - name: Tailscale — remove drill devices (tag or hostname)
+        if: always()
         env:
           TS_API_KEY: ${{ secrets.TS_API_KEY }}
           TAILNET: ${{ vars.TAILNET_NAME }}
@@ -299,6 +314,12 @@ jobs:
               || echo "::warning::Tailscale DELETE failed for $id (may already be gone)."
           done
           echo "Tailscale drill device cleanup finished."
+
+      - name: Fail if OpenTofu destroy did not succeed
+        if: ${{ always() && steps.tofu_destroy.outcome == 'failure' && !cancelled() }}
+        run: |
+          echo "::error::OpenTofu destroy failed; Hetzner/Tailscale API sweeps still ran so the next drill run can recover."
+          exit 1
 
       - name: Re-encrypt drill state (always — even if destroy failed)
         if: always()

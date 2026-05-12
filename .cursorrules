@@ -43,6 +43,22 @@ this user repeatedly. Adherence to these beats every other rule.
    require approval I haven't gotten?" — answer those before running
    the command.
 
+7. **Own agent-introduced automation; default to in-repo fixes, not
+   homework.** When the user reports broken, flaky, or incomplete
+   behavior in **GitHub Actions, orchestrators, or other CI/infra glue
+   this agent introduced or extended**, do not substitute **long
+   diagnosis, psychology, or a checklist of manual steps** for work you
+   can do in the repo unless **blocked** (missing secrets, org/GitHub
+   settings the repo cannot encode). **Do ask** when there are **real**
+   forks (multiple defensible options, meaningful trade-offs) or when
+   a move **should not** happen without their choice (irreversible or
+   risky beyond the stated task). Default otherwise: **edit
+   workflows/scripts** (retries, timeouts, job `if:` / needs, safer
+   state handling), run **`actionlint`** and any applicable **`make`**
+   targets, and summarize what changed. Rule 3 still forbids unrelated
+   "while I'm here" scope; **hardening the thing they are pointing at**
+   is not optional scope creep.
+
 ---
 
 ## User intent beats procedural defaults
@@ -60,8 +76,23 @@ this user repeatedly. Adherence to these beats every other rule.
 - **When intent is clear**, do the work in-session: run Makefile
   targets, scripts, tests, downloads, fixes. Don't habitually close
   with "you should run X" if the agent can run X.
+- **Never delegate chores you can execute.** If the next step is a
+  repo edit, a `make` target, `actionlint`, `gh`, tests, or another
+  action available in this environment, **do it** — do not end by
+  assigning the same step to the user.
+- **Obvious single path → take it.** Do not pause the thread to
+  "suggest" work you can already do. Reserve questions for **real**
+  forks: multiple defensible options, meaningful trade-offs, or
+  outcomes that **should not** happen without the user choosing (e.g.
+  destructive prod impact, policy-sensitive flags). One focused
+  question beats a list of optional follow-ups.
+- **Agent-built pipelines** (e.g. DR drill orchestrator): if they fail
+  or need resilience, **implement the fix** (YAML, scripts, small
+  helper changes) in the same session when possible — not a persuasive
+  note that the user should re-run or adapt behavior.
 - **Ask only when blocked**: missing secrets, ambiguous scope, unsafe
-  request, or policy needs explicit approval (commit/push).
+  request, genuine multi-way decision where the user must pick, or
+  policy needs explicit approval (commit/push).
 
 ## WORKTREE.md (when present at repo root)
 

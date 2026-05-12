@@ -3,11 +3,18 @@ name: Drill infra apply (manual)
 # GitHub #752 — manual apply for OpenTofu workspace `drill` only. Uses
 # HCLOUD_TOKEN_DRILL and GitHub Environment `drill` for approval gates.
 # State is encrypted to terraform.tfstate.enc.drill (parallel to prod
-# terraform.tfstate.enc for the default workspace). Each run uploads artifact
-# ``terraform-state-after-apply-drill`` so ``drill-infra-destroy`` in the same
-# ``dr-drill-exercise`` run can ``tofu destroy`` without a git commit. The same
-# artifact is downloaded at the start of this job (``continue-on-error``) so a
-# **re-run failed apply** in the same workflow run picks up prior state.
+# terraform.tfstate.enc for the default workspace). On **successful** apply only,
+# this job uploads ``terraform-state-after-apply-drill`` so orchestrated
+# ``drill-infra-destroy`` can destroy without a git commit. Failed apply does **not**
+# publish state (avoids poisoning teardown with partial / wrong encrypted state).
+# The artifact is downloaded at the start of this job (``continue-on-error``) so a
+# **re-run after a green apply** in the same workflow run can pick up that state.
+# ``tofu apply`` may retry up to two extra times **only** when the log matches
+# Hetzner placement-style errors (e.g. ``resource_unavailable``); other failures
+# exit immediately so misconfiguration is not masked. Retries after a match use
+# alternate ``server_type`` values (``cax31``, ``cx33``) — same location, different
+# hardware pools — because network/firewall/SSH succeed first and only server
+# creation hits DC capacity.
 
 on:
   workflow_dispatch:
@@ -16,6 +23,11 @@ on:
         description: 'Type "APPLY" to confirm apply in workspace drill'
         required: true
         default: ''
+      skip_confirm:
+        description: "Leave false for manual runs. Orchestrator sets true via workflow_call."
+        type: boolean
+        required: false
+        default: false
   workflow_call:
     secrets:
       HCLOUD_TOKEN_DRILL:
@@ -43,22 +55,17 @@ concurrency:
 jobs:
   apply:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 25
     environment: drill
     steps:
+      # See drill-infra-destroy.yml — caller event stays workflow_dispatch inside reuse.
       - name: Confirm input (manual dispatch only)
-        if: github.event_name == 'workflow_dispatch'
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.skip_confirm != true }}
         run: |
           if [ "${{ inputs.confirm }}" != "APPLY" ]; then
             echo "::error::Must type APPLY to confirm. Got: '${{ inputs.confirm }}'"
             exit 1
           fi
-
-      - name: Reject workflow_call without orchestrator gate
-        if: github.event_name == 'workflow_call' && inputs.skip_confirm != true
-        run: |
-          echo "::error::workflow_call requires skip_confirm=true (dr-drill-exercise only)."
-          exit 1
 
       - uses: actions/checkout@v5
 
@@ -142,14 +149,66 @@ jobs:
           TF_VAR_ssh_public_key:    ${{ secrets.OPERATOR_SSH_PUBLIC_KEY }}
           TF_VAR_tailscale_tailnet: ${{ vars.TAILNET_NAME }}
         run: |
-          tofu init -input=false
+          set -euo pipefail
+          set +o pipefail
+          yes | tofu init -input=false
+          set -o pipefail
           # -or-create avoids exit 1 on first run; the opentofu/setup-opentofu
           # tofu_wrapper logs ##[error] for any non-zero child tofu exit.
           tofu workspace select -or-create drill
-          tofu apply -auto-approve -input=false -var-file=terraform.drill.ci.tfvars
 
-      - name: Re-encrypt drill state (always — even if apply failed)
-        if: always()
+          # Hetzner-only: retry when API returns placement/capacity style errors.
+          # Dependency order: SSH key / network / firewall are API-only; the server
+          # needs DC capacity, so it can fail alone with resource_unavailable.
+          # No retry on unknown failures (avoids masking bad config).
+          HCLOUD_TRANSIENT_PAT='resource_unavailable|Resource unavailable|hardware not available|Hardware not available|not available in the location|server type.*not available'
+
+          attempt=1
+          max_attempts=3
+          sleep_sec=50
+          while [ "$attempt" -le "$max_attempts" ]; do
+            case "$attempt" in
+              1) EXTRA_TF=() ;;
+              2) EXTRA_TF=(-var 'server_type=cax31') ;;
+              3) EXTRA_TF=(-var 'server_type=cx33') ;;
+              *) EXTRA_TF=() ;;
+            esac
+            if [ "${#EXTRA_TF[@]}" -gt 0 ]; then
+              echo "==> tofu apply attempt ${attempt} of ${max_attempts} (extra: ${EXTRA_TF[*]})"
+            else
+              echo "==> tofu apply attempt ${attempt} of ${max_attempts} (defaults from tfvars / variables)"
+            fi
+            log="$(mktemp)"
+            set +e
+            tofu apply -auto-approve -input=false -var-file=terraform.drill.ci.tfvars \
+              "${EXTRA_TF[@]}" \
+              >"$log" 2>&1
+            ec=$?
+            set -e
+            cat "$log"
+            if [ "$ec" -eq 0 ]; then
+              rm -f "$log"
+              exit 0
+            fi
+            if [ "$attempt" -eq "$max_attempts" ]; then
+              echo "::error::tofu apply failed after ${max_attempts} attempts (exit ${ec})."
+              rm -f "$log"
+              exit "$ec"
+            fi
+            if grep -qiE "$HCLOUD_TRANSIENT_PAT" "$log"; then
+              echo "::warning::Hetzner transient/placement message in apply log; sleeping ${sleep_sec}s before retry."
+              rm -f "$log"
+              sleep "$sleep_sec"
+              attempt=$((attempt + 1))
+            else
+              echo "::error::tofu apply failed (exit ${ec}); log did not match Hetzner transient patterns — not retrying."
+              rm -f "$log"
+              exit "$ec"
+            fi
+          done
+
+      - name: Re-encrypt drill state (green apply only)
+        if: success()
         working-directory: infra
         env:
           SOPS_AGE_KEY: ${{ secrets.TFSTATE_AGE_KEY }}
@@ -162,7 +221,7 @@ jobs:
           fi
 
       - name: Upload encrypted drill state as artifact
-        if: always()
+        if: success()
         uses: actions/upload-artifact@v4
         with:
           name: terraform-state-after-apply-drill
