@@ -1,0 +1,13 @@
+{
+  "Self": {
+    "DNSName": "gha-runner.tail-test.ts.net.",
+    "Online": true
+  },
+  "Peer": {
+    "k": {
+      "DNSName": "",
+      "Online": true,
+      "HostName": "dr-podcast"
+    }
+  }
+}

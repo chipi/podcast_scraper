@@ -40,6 +40,11 @@ def _run(env: dict[str, str]) -> subprocess.CompletedProcess[str]:
             "dr-podcast.tail-test.ts.net",
             "dr-podcast.tail-test.ts.net",
         ),
+        (
+            "status_drill_podcast_hostname_only.json",
+            "dr-podcast.tail-test.ts.net",
+            "dr-podcast.tail-test.ts.net",
+        ),
     ],
 )
 def test_resolver_finds_online_host(fixture: str, primary: str, expected_stdout: str) -> None:

@@ -72,16 +72,28 @@ resolved=$(
     def dns_tail:
       (.DNSName // "") | sub("\\.$"; "") | ascii_downcase;
 
-    (raw_nodes | map(select(.Online == true)) | map(dns_tail) | map(select(length > 0))) as $dns_on
-    | ($dns_on | map(select(startswith("dr-podcast") and endswith("." + $domain)))) as $drill_on
+    # MagicDNS ``DNSName`` can lag ``HostName`` right after ``tailscale up``; derive
+    # ``<host>.<magicdns-domain>`` when ``HostName`` matches dr-podcast / dr-podcast-N.
+    def drill_fqdn_for_peer:
+      ((.DNSName // "") | sub("\\.$"; "") | ascii_downcase) as $dn
+      | ((.HostName // "") | ascii_downcase) as $hn
+      | if ($dn != "" and ($dn | startswith("dr-podcast")) and ($dn | endswith("." + $domain))) then $dn
+        elif ($hn | test("^dr-podcast(-[0-9]+)?$")) then "\($hn).\($domain)"
+        else empty end;
+
+    ([raw_nodes[]
+      | select(.Online == true)
+      | drill_fqdn_for_peer
+    ]) as $drill_on
+    | ($drill_on | unique) as $drill_unique
     | (
         [$primary]
         + (if ("dr-podcast.\($domain)") != $primary then ["dr-podcast.\($domain)"] else [] end)
         + [range(1; 10) | "dr-podcast-\(.).\($domain)" | select(. != $primary)]
       ) as $candidates
-    | ($candidates | map(select(. as $c | $drill_on | index($c) != null)) | first) as $hit
+    | ($candidates | map(select(. as $c | $drill_unique | index($c) != null)) | first) as $hit
     | if $hit == null then
-        ($drill_on | join(", ")) as $listed
+        ($drill_unique | join(", ")) as $listed
         | "NO_MATCH|\($listed)"
       else
         "OK|\($hit)"
@@ -107,15 +119,18 @@ diag=$(
   jq -r \
     --arg domain "$DOMAIN" '
     def raw_nodes: [(.Peer // {}) | to_entries[] | .value];
+    def dns_tail: (.DNSName // "") | sub("\\.$"; "") | ascii_downcase;
+    def hn_tail: ((.HostName // "") | ascii_downcase);
     (raw_nodes
       | map(
-          ((.DNSName // "") | sub("\\.$"; "") | ascii_downcase) as $d
+          . as $p
+          | ($p | dns_tail) as $d
+          | ($p | hn_tail) as $h
           | select(
-              ($d != "")
-              and ($d | startswith("dr-podcast"))
-              and ($d | endswith("." + $domain))
+              ($d != "" and ($d | startswith("dr-podcast")) and ($d | endswith("." + $domain)))
+              or ($h | test("^dr-podcast(-[0-9]+)?$"))
             )
-          | "[\($d) Online=\(.Online)]"
+          | "[dns=\($d) host=\($h) Online=\($p.Online)]"
         )
       | join(" ")) // ""
     ' "$tmp"
