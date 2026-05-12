@@ -17,13 +17,13 @@
 
 ## Abstract
 
-When **production** is unhealthy or untrusted, we need a **repeatable** path to **stand up a spare** environment (same stack contract as prod), **restore corpus**, **validate** (including browser/API gates), **move traffic** to the spare, then **fail back** and decommission—**without** tearing down the spare at the end of the run (unlike **`dr-drill-exercise`**).
+When **production** is unhealthy or untrusted, we need a **repeatable** path to **stand up a spare** environment (same stack contract as prod), **restore corpus**, **validate** (including browser/API gates), **move traffic** to the spare, then **fail back** and decommission—**without** tearing down the spare at the end of the run (unlike **`drill-exercise`**).
 
 This RFC specifies **GitHub Actions orchestration** (manual and, later, automated triggers), **phased gates**, **DNS-first cutover** on the tailnet, **OpenTofu prerequisites** for a distinct spare host, and **explicit non-goals** for v1. **ADRs 089–091** lock the architectural decisions; this RFC holds the **full technical design** and implementation checklist.
 
 ## Problem Statement
 
-**DR drill** ([`dr-drill-exercise.yml`](https://github.com/chipi/podcast_scraper/blob/main/.github/workflows/dr-drill-exercise.yml)) optimizes for **proof** and **cost**: it ends in **`drill-infra-destroy`**. That is correct for drills and wrong for a **live incident**, where the spare must **stay up** until failback.
+**DR drill** ([`drill-exercise.yml`](https://github.com/chipi/podcast_scraper/blob/main/.github/workflows/drill-exercise.yml)) optimizes for **proof** and **cost**: it ends in **`drill-infra-destroy`**. That is correct for drills and wrong for a **live incident**, where the spare must **stay up** until failback.
 
 Today we lack:
 

@@ -29,7 +29,7 @@ on:
         required: true
     inputs:
       skip_confirm:
-        description: "True when dr-drill-exercise already gated on DRILL_FULL_CYCLE"
+        description: "True when drill-exercise already gated on DRILL_FULL_CYCLE"
         type: boolean
         required: true
 
@@ -119,7 +119,8 @@ jobs:
           fi
           ssh -i "$SSH_DRILL_IDENTITY" -o IdentitiesOnly=yes \
             -o StrictHostKeyChecking=accept-new -o BatchMode=yes "$SSH_TARGET" \
-            'sudo -n /usr/local/sbin/podcast-tailscale-serve.sh'
+            'sudo -n /usr/local/sbin/podcast-tailscale-serve.sh' \
+            || echo "::warning::podcast-tailscale-serve.sh exited non-zero on drill host; probing HTTPS :443 anyway (same belt-and-suspenders as drill-deploy.yml)."
           for i in $(seq 1 15); do
             if curl -fsS -k "https://${R}/api/health" | jq -e '.status == "ok"' >/dev/null 2>&1; then
               echo "::notice::HTTPS :443 /api/health OK from runner (attempt ${i})"

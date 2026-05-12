@@ -38,7 +38,7 @@ day-to-day prod operators.
 | `TS_API_KEY` | secret | Same infra workflows (Tailscale provider) |
 | `TFSTATE_AGE_KEY` | secret | sops decrypt/encrypt for drill state |
 | `OPERATOR_SSH_PUBLIC_KEY` | secret | Same as prod infra (public half only; log masking) |
-| `TS_AUTHKEY` | secret | `deploy-drill`, `drill-e2e`, `drill-restore-corpus`, orchestrator app jobs |
+| `TS_AUTHKEY` | secret | `drill-deploy`, `drill-e2e`, `drill-restore-corpus`, orchestrator app jobs |
 | `DRILL_DEPLOY_SSH_PRIVATE_KEY` | secret | Same app jobs (PEM for **`deploy@`** on drill) |
 | `BACKUP_REPO_TOKEN` | secret (optional) | `drill-restore-corpus` when `chipi/podcast_scraper-backup` is private |
 | `TAILNET_NAME` | variable | Infra `TF_VAR_tailscale_tailnet` |
@@ -53,7 +53,7 @@ the usual path to land `tailscale/policy.hujson` changes.
 
 | String | Workflow | Meaning |
 | --- | --- | --- |
-| `DRILL_FULL_CYCLE` or `DRILL_EXERCISE` | `dr-drill-exercise.yml` | Gates full orchestrator (infra + app + always destroy) |
+| `DRILL_FULL_CYCLE` or `DRILL_EXERCISE` | `drill-exercise.yml` | Gates full orchestrator (infra + app + always destroy) |
 | `APPLY` | `drill-infra-apply.yml` (manual only) | OpenTofu apply workspace **`drill`** |
 | `DRILL_DESTROY` | `drill-infra-destroy.yml` (manual only) | **`tofu destroy`** + **Hetzner `hcloud` sweep** + **Tailscale device delete** (`tag:dr-drill` or drill `tailnet_hostname`); standalone uses git state — orchestrator uses apply artifact (same run) |
 | `DRILL_RESTORE` | `drill-restore-corpus.yml` (manual only) | Overwrite drill **`corpus/`** from backup **`snapshot.tgz`** |
@@ -66,14 +66,14 @@ runs still require **`APPLY`** / **`DRILL_DESTROY`** as above.
 
 ---
 
-## Orchestrated full cycle (`dr-drill-exercise.yml`)
+## Orchestrated full cycle (`drill-exercise.yml`)
 
 Ordered jobs:
 
 1. **`drill-infra-plan`** — `tofu fmt -check`, **`tofu validate`**, **`tofu plan`** (no apply).
 2. **`drill-infra-apply`** — **`tofu apply`** for workspace **`drill`**; uploads **`terraform-state-after-apply-drill`**.
 3. **`drill-tfstate-bridge`** — caller job: re-downloads that artifact and uploads **`drill-tfstate-for-teardown`** so **`drill-infra-destroy`** (a reusable workflow) can read state without a git commit.
-4. **`deploy-drill`** — git pull, compose pull/up, host **`/api/health`** smoke.
+4. **`drill-deploy`** — git pull, compose pull/up, host **`/api/health`** smoke.
 5. **`drill-restore-corpus`** — download **`snapshot.tgz`**, extract **`corpus/`**, recreate **api** + **viewer**.
 6. **`drill-e2e`** — tailnet SSH **`curl`**:8080 **`/api/health`** (quick smoke).
 7. **`drill-stack-playwright`** — **`tests/stack-test/stack-viewer.spec.ts`** over **HTTPS** against the live drill host (browser + API + corpus).
@@ -86,7 +86,7 @@ configured reviewers on that environment.
 **Dispatch example:**
 
 ```bash
-gh workflow run dr-drill-exercise.yml -R chipi/podcast_scraper \
+gh workflow run drill-exercise.yml -R chipi/podcast_scraper \
   -f confirm=DRILL_FULL_CYCLE
 ```
 
@@ -98,12 +98,12 @@ Optional inputs: **`backup_tag`**, **`backup_repo`**, **`override_image_sha`** (
 
 Use individual workflows when you already have a drill VM and only want the app pipeline:
 
-- **`deploy-drill.yml`**
+- **`drill-deploy.yml`**
 - **`drill-restore-corpus.yml`** (confirm **`DRILL_RESTORE`**)
 - **`drill-e2e.yml`** (confirm **`DRILL_SMOKE`**)
 - **`drill-stack-playwright.yml`** (confirm **`DRILL_STACK_PLAYWRIGHT`** — runs **`stack-viewer.spec.ts`** against drill HTTPS)
 
-Do **not** use **`dr-drill-exercise.yml`** for that case: it always ends in **`drill-infra-destroy`**.
+Do **not** use **`drill-exercise.yml`** for that case: it always ends in **`drill-infra-destroy`**.
 
 ---
 
@@ -132,7 +132,7 @@ gh workflow run drill-infra-destroy.yml -R chipi/podcast_scraper -f confirm=DRIL
 
 The job runs **`tofu destroy`**, **Hetzner `hcloud` sweep**, and **Tailscale `DELETE /device`** for nodes with **`tag:dr-drill`** or hostname equal to **`tailnet_hostname`** in **`terraform.drill.ci.tfvars`**.
 
-When you run **`dr-drill-exercise`**, **`drill-infra-destroy`** downloads **`drill-tfstate-for-teardown`** from the **`drill-tfstate-bridge`** job (same workflow run), so destroy matches what apply created **without committing** `terraform.tfstate.enc.drill` to git. A **standalone** destroy (only this workflow) still uses the encrypted file from the **git** checkout; commit that file after standalone apply if you need destroy/plan to track that state.
+When you run **`drill-exercise`**, **`drill-infra-destroy`** downloads **`drill-tfstate-for-teardown`** from the **`drill-tfstate-bridge`** job (same workflow run), so destroy matches what apply created **without committing** `terraform.tfstate.enc.drill` to git. A **standalone** destroy (only this workflow) still uses the encrypted file from the **git** checkout; commit that file after standalone apply if you need destroy/plan to track that state.
 
 Download the uploaded **`terraform-state-after-destroy-drill`** artifact when you need to commit an
 updated **`infra/terraform/terraform.tfstate.enc.drill`** (same pattern as **`drill-infra-apply`**).

@@ -43,7 +43,7 @@ and at apply time.
 ## Consequences
 
 - **Positive**: GitHub workflows can plan/apply/destroy **`drill`** independently (see
-  **`drill-infra-*`** and **`dr-drill-exercise.yml`**).
+  **`drill-infra-*`** and **`drill-exercise.yml`**).
 - **Negative**: Operators must remember ACL edits flow through **prod** infra apply, then drill jobs
   consume the updated policy.
 

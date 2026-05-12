@@ -52,7 +52,7 @@ cannot immediately mutate Hetzner or shared Tailscale resources.
   in GitHub Actions once **`workflow_run`** is enabled.
 - **Negative**: If stack-test is red, **`main`** must not be treated as deploy-ready; with manual
    **`deploy-prod`**, operators must not deploy before confirming stack-test green.
-- **Neutral**: Drill uses **`deploy-drill.yml`** with the same image contract, different SSH secret
+- **Neutral**: Drill uses **`drill-deploy.yml`** with the same image contract, different SSH secret
   and environment.
 
 ## Implementation Notes

@@ -120,10 +120,10 @@ the old line until one green workflow run), update `PROD_SSH_PRIVATE_KEY`, re-ru
 ### GitHub Actions deploy to DR drill (`DRILL_DEPLOY_SSH_PRIVATE_KEY`) {#github-actions-ssh-to-drill-drill_deploy_ssh_private_key}
 
 **Drill workflow matrix, typed confirms, orchestrator, restore/destroy, and drill-only host checks:**
-[DR_DRILL_RUNBOOK.md](DR_DRILL_RUNBOOK.md). This section stays focused on **`deploy-drill`** and
+[DR_DRILL_RUNBOOK.md](DR_DRILL_RUNBOOK.md). This section stays focused on **`drill-deploy`** and
 **`DRILL_DEPLOY_SSH_PRIVATE_KEY`** setup shared with prod-style deploys.
 
-RFC-082 / #752: **`deploy-drill.yml`** mirrors **`deploy-prod.yml`** but targets the **drill** Hetzner
+RFC-082 / #752: **`drill-deploy.yml`** mirrors **`deploy-prod.yml`** but targets the **drill** Hetzner
 stack. After **`tailscale/github-action`** joins as **`tag:gha-deployer`**, the job SSHes
 **`deploy@<resolved-drill-fqdn>`**, appends **`PODCAST_RELEASE=sha-<short>`** to
 **`/srv/podcast-scraper/.env`**, runs **`/srv/podcast-scraper/infra/deploy/deploy.sh`**, then curls
@@ -149,8 +149,8 @@ gh secret set DRILL_DEPLOY_SSH_PRIVATE_KEY --repo chipi/podcast_scraper --app ac
 `make` target; use **`gh`**:
 
 ```bash
-gh workflow run deploy-drill.yml -R chipi/podcast_scraper
-gh run watch -R chipi/podcast_scraper "$(gh run list -R chipi/podcast_scraper --workflow=deploy-drill.yml -L1 --json databaseId -q '.[0].databaseId')"
+gh workflow run drill-deploy.yml -R chipi/podcast_scraper
+gh run watch -R chipi/podcast_scraper "$(gh run list -R chipi/podcast_scraper --workflow=drill-deploy.yml -L1 --json databaseId -q '.[0].databaseId')"
 ```
 
 **Local operator check** (optional; use **`ssh-add`** if your key is not already in an agent — see

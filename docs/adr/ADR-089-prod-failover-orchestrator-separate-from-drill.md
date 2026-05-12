@@ -8,11 +8,11 @@
 
 ## Context
 
-**`dr-drill-exercise`** proves infra and app paths on a **throwaway** workspace and **always** runs **`drill-infra-destroy`**. **Production failover** must **keep** the spare running, use **different** confirms and secrets scope, and must **never** be confused with drill automation.
+**`drill-exercise`** proves infra and app paths on a **throwaway** workspace and **always** runs **`drill-infra-destroy`**. **Production failover** must **keep** the spare running, use **different** confirms and secrets scope, and must **never** be confused with drill automation.
 
 ## Decision
 
-1. **Prod failover** is implemented as a **separate GitHub Actions workflow family** (parent + reusables), not a flag on **`dr-drill-exercise`**.
+1. **Prod failover** is implemented as a **separate GitHub Actions workflow family** (parent + reusables), not a flag on **`drill-exercise`**.
 2. That family **must not** `workflow_call` **`drill-infra-destroy`**, **`drill-infra-apply`**, or other drill-only jobs tied to **`HCLOUD_TOKEN_DRILL`** / drill state.
 3. **Reuse** is limited to **patterns** (deploy script, restore tarball flow, stack-test probe) and **documentation**, not to reusing the drill orchestrator graph as-is.
 
@@ -24,4 +24,4 @@
 ## References
 
 - [GitHub #764](https://github.com/chipi/podcast_scraper/issues/764)
-- [`dr-drill-exercise.yml`](https://github.com/chipi/podcast_scraper/blob/main/.github/workflows/dr-drill-exercise.yml)
+- [`drill-exercise.yml`](https://github.com/chipi/podcast_scraper/blob/main/.github/workflows/drill-exercise.yml)

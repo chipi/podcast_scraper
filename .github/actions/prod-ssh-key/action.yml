@@ -2,7 +2,7 @@ name: Prod deploy SSH identity
 description: |
   Writes a CI SSH private key (full PEM) to a runner-local file and exports an
   env var (default SSH_PROD_IDENTITY) for ssh -i … as deploy@ on a VPS after
-  Tailscale join. Used by deploy-prod.yml; deploy-drill.yml passes a custom
+  Tailscale join. Used by deploy-prod.yml; drill-deploy.yml passes a custom
   identity_env_name.
 
 inputs:

@@ -4,7 +4,7 @@ name: DR drill — exercise (orchestrated)
 #   drill-infra-plan (fmt-check, validate, tofu plan)
 #   → drill-infra-apply (uploads encrypted state artifact; no git commit needed
 #     for the rest of this run)
-#   → deploy-drill → drill-restore-corpus → drill-e2e → drill-stack-playwright
+#   → drill-deploy → drill-restore-corpus → drill-e2e → drill-stack-playwright
 #   → ``drill-tfstate-bridge`` copies apply state to artifact ``drill-tfstate-for-teardown``
 #     on this caller run (reusable-workflow artifacts are not always visible to
 #     later ``workflow_call`` jobs). ``drill-infra-destroy`` downloads that (or
@@ -40,7 +40,7 @@ permissions:
   pull-requests: write
 
 concurrency:
-  group: dr-drill-exercise
+  group: drill-exercise
   cancel-in-progress: false
 
 jobs:
@@ -123,7 +123,7 @@ jobs:
 
   deploy:
     needs: apply
-    uses: ./.github/workflows/deploy-drill.yml
+    uses: ./.github/workflows/drill-deploy.yml
     secrets: inherit
     with:
       override_image_sha: ${{ inputs.override_image_sha }}

@@ -50,7 +50,7 @@ phones, and collaborators should reach services only after **tailnet** membershi
 ## Implementation Notes
 
 - **Paths**: `tailscale/policy.hujson`, `infra/terraform/` (firewall, Tailscale auth key material),
-  `.github/workflows/deploy-prod.yml`, `.github/workflows/deploy-drill.yml`
+  `.github/workflows/deploy-prod.yml`, `.github/workflows/drill-deploy.yml`
 - **Docs**: [PROD_RUNBOOK.md](../guides/PROD_RUNBOOK.md)
 
 ## References

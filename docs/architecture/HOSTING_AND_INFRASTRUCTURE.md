@@ -113,7 +113,7 @@ ACL rules allow **SSH from that tag to `tag:prod:22` or `tag:dr-drill:22`**, not
 ```mermaid
 flowchart LR
   subgraph actions["GitHub Actions runner"]
-    JOB["deploy-prod or deploy-drill job"]
+    JOB["deploy-prod or drill-deploy job"]
   end
 
   subgraph ts["Tailscale control plane"]
@@ -296,14 +296,14 @@ before push when they run the full target ([`Makefile` at repo root](https://git
 
 ### 6.3 DR drill automation (outline)
 
-For exercises that must **create and destroy** a throwaway footprint, **`dr-drill-exercise.yml`**
-chains: plan → apply → **`deploy-drill`** → restore corpus snapshot → smoke → **always destroy**.
+For exercises that must **create and destroy** a throwaway footprint, **`drill-exercise.yml`**
+chains: plan → apply → **`drill-deploy`** → restore corpus snapshot → smoke → **always destroy**.
 Typed confirms and environment approvals are documented in [DR_DRILL_RUNBOOK.md](../guides/DR_DRILL_RUNBOOK.md).
 
 ```mermaid
 flowchart LR
   P[drill-infra-plan] --> A[drill-infra-apply]
-  A --> D[deploy-drill]
+  A --> D[drill-deploy]
   D --> R[drill-restore-corpus]
   R --> E[drill-e2e]
   E --> F[finalize]

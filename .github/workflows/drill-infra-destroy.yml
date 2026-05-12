@@ -4,7 +4,7 @@ name: DR drill — infra destroy (OpenTofu)
 # Same secrets and state encryption contract as ``drill-infra-apply.yml``.
 #
 # **State (no git commit required for orchestrator):** when this workflow runs
-# after ``dr-drill-exercise``'s ``drill-tfstate-bridge`` job, it downloads artifact
+# after ``drill-exercise``'s ``drill-tfstate-bridge`` job, it downloads artifact
 # ``drill-tfstate-for-teardown`` (a copy of apply output on the **caller** run).
 # It also tries ``terraform-state-after-apply-drill`` (direct from apply) for
 # compatibility. Optional downloads use ``gh api`` first so missing artifacts
@@ -23,7 +23,7 @@ name: DR drill — infra destroy (OpenTofu)
 # may do that manually for a graceful stop before destroy.
 #
 # Manual: type **DRILL_DESTROY** in ``confirm``.
-# Called from ``dr-drill-exercise.yml`` after the finalize job with
+# Called from ``drill-exercise.yml`` after the finalize job with
 # ``skip_confirm: true`` (full-cycle orchestrator always tears down).
 
 on:
@@ -50,7 +50,7 @@ on:
         required: true
     inputs:
       skip_confirm:
-        description: "True when dr-drill-exercise already gated on DRILL_FULL_CYCLE / DRILL_EXERCISE"
+        description: "True when drill-exercise already gated on DRILL_FULL_CYCLE / DRILL_EXERCISE"
         type: boolean
         required: true
 
@@ -70,7 +70,7 @@ jobs:
     steps:
       # Reusable workflows inherit the *caller's* github.event_name (often
       # workflow_dispatch). Gate manual confirmation on skip_confirm, not on
-      # github.event_name, so dr-drill-exercise does not leak DRILL_FULL_CYCLE
+      # github.event_name, so drill-exercise does not leak DRILL_FULL_CYCLE
       # into inputs.confirm here.
       - name: "DR drill — confirm input (manual dispatch only)"
         if: ${{ github.event_name == 'workflow_dispatch' && inputs.skip_confirm != true }}

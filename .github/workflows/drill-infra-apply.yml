@@ -40,7 +40,7 @@ on:
         required: true
     inputs:
       skip_confirm:
-        description: "True when dr-drill-exercise already gated on DRILL_FULL_CYCLE"
+        description: "True when drill-exercise already gated on DRILL_FULL_CYCLE"
         type: boolean
         required: true
 

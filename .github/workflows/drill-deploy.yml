@@ -44,7 +44,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: deploy-drill
+  group: drill-deploy
   cancel-in-progress: false
 
 jobs:

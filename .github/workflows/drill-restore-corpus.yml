@@ -4,14 +4,14 @@ name: DR drill — restore corpus (backup → host)
 # override repo), uploads to the drill VPS, extracts under
 # ``/srv/podcast-scraper/corpus``, recreates api+viewer. RFC-082 / #752.
 #
-# Prerequisites (same tailnet + SSH contract as deploy-drill / drill-e2e):
+# Prerequisites (same tailnet + SSH contract as drill-deploy / drill-e2e):
 #   secrets: TS_AUTHKEY, DRILL_DEPLOY_SSH_PRIVATE_KEY
 #            BACKUP_REPO_TOKEN (optional — use when backup repo is private;
 #            else ``github.token`` is tried)
 #   vars:    DRILL_TAILNET_FQDN
 #
 # Manual dispatch: type DRILL_RESTORE in ``confirm``.
-# Called from ``dr-drill-exercise.yml``: no extra confirm (orchestrator gates).
+# Called from ``drill-exercise.yml``: no extra confirm (orchestrator gates).
 
 on:
   workflow_dispatch:
@@ -51,7 +51,7 @@ on:
         required: false
         default: chipi/podcast_scraper-backup
       skip_confirm:
-        description: "True when dr-drill-exercise already gated on DRILL_FULL_CYCLE"
+        description: "True when drill-exercise already gated on DRILL_FULL_CYCLE"
         type: boolean
         required: true
 
@@ -89,7 +89,7 @@ jobs:
           [ -z "${DRILL_DEPLOY_SSH_PRIVATE_KEY:-}" ] && MISSING="$MISSING DRILL_DEPLOY_SSH_PRIVATE_KEY"
           [ -z "${DRILL_TAILNET_FQDN:-}" ]          && MISSING="$MISSING DRILL_TAILNET_FQDN"
           if [ -n "$MISSING" ]; then
-            echo "::error::Missing prereqs:$MISSING Stage per deploy-drill / infra/README.md (#752)."
+            echo "::error::Missing prereqs:$MISSING Stage per drill-deploy / infra/README.md (#752)."
             exit 1
           fi
 
