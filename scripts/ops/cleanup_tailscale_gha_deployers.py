@@ -1,9 +1,13 @@
 #!/usr/bin/env python3
-"""Drop stale Tailscale devices tagged ``tag:gha-deployer`` (GitHub Actions runners).
+"""Drop stale Tailscale devices left by GitHub Actions runners.
 
 Ephemeral CI nodes sometimes remain listed after jobs end. This script lists
 them and optionally DELETEs via the Tailscale API (same pattern as
 ``.github/workflows/drill-infra-destroy.yml``).
+
+Matching logic (OR):
+  - Device has ``tag:gha-deployer``
+  - Hostname starts with ``github-runner``
 
 Env (required):
 
@@ -36,6 +40,7 @@ from typing import Any, Iterable
 from urllib.parse import quote
 
 TAG = "tag:gha-deployer"
+HOSTNAME_PREFIX = "github-runner"
 API_BASE = "https://api.tailscale.com/api/v2"
 
 
@@ -50,9 +55,14 @@ class Candidate:
 
 
 def _tailnet() -> str:
-    t = (os.environ.get("TAILNET_NAME") or os.environ.get("TAILNET") or "").strip()
+    t = (
+        os.environ.get("TAILNET_NAME") or os.environ.get("TAILNET") or ""
+    ).strip()
     if not t:
-        print("Set TAILNET_NAME or TAILNET (e.g. tail6d0ed4.ts.net).", file=sys.stderr)
+        print(
+            "Set TAILNET_NAME or TAILNET (e.g. tail6d0ed4.ts.net).",
+            file=sys.stderr,
+        )
         sys.exit(1)
     return t
 
@@ -60,7 +70,10 @@ def _tailnet() -> str:
 def _api_key() -> str:
     k = (os.environ.get("TS_API_KEY") or "").strip()
     if not k:
-        print("Set TS_API_KEY (Tailscale API key, not device TS_AUTHKEY).", file=sys.stderr)
+        print(
+            "Set TS_API_KEY (Tailscale API key, not device TS_AUTHKEY).",
+            file=sys.stderr,
+        )
         sys.exit(1)
     return k
 
@@ -88,7 +101,6 @@ def _parse_last_seen(raw: str | None) -> datetime | None:
     if not raw or not str(raw).strip():
         return None
     s = str(raw).strip().replace("Z", "+00:00")
-    # API may return fractional seconds; fromiso8601 handles .ffffff
     try:
         dt = datetime.fromisoformat(s)
     except ValueError:
@@ -106,6 +118,15 @@ def _devices_payload(data: Any) -> list[dict[str, Any]]:
     return []
 
 
+def _is_gha_device(d: dict[str, Any]) -> bool:
+    """Match GHA runner devices by tag OR hostname prefix."""
+    tags = d.get("tags") or []
+    if isinstance(tags, list) and TAG in tags:
+        return True
+    hostname = str(d.get("hostname", "") or d.get("name", "") or "")
+    return hostname.lower().startswith(HOSTNAME_PREFIX)
+
+
 def _iter_candidates(
     devices: Iterable[dict[str, Any]],
     min_idle: timedelta,
@@ -113,30 +134,35 @@ def _iter_candidates(
 ) -> list[Candidate]:
     out: list[Candidate] = []
     for d in devices:
+        if not _is_gha_device(d):
+            continue
         did = str(d.get("id", "")).strip()
         if not did:
             continue
         hostname = str(d.get("hostname", "") or d.get("name", "") or "")
         name = str(d.get("name", "") or "")
-        tags = d.get("tags") or []
         last_raw = d.get("lastSeen") or d.get("last_seen")
-        last_raw_s = str(last_raw).strip() if last_raw is not None else None
+        last_raw_s = (
+            str(last_raw).strip() if last_raw is not None else None
+        )
         ls_dt = _parse_last_seen(last_raw_s)
         skip: str | None = None
         idle_h: float | None = None
         if d.get("online") is True:
             skip = "online=true (still active)"
         elif ls_dt is None:
-            skip = "no lastSeen (use --allow-unknown-last-seen to delete anyway)"
+            skip = (
+                "no lastSeen"
+                " (use --allow-unknown-last-seen to delete anyway)"
+            )
         else:
             idle = now - ls_dt
             idle_h = idle.total_seconds() / 3600.0
             if idle < min_idle:
-                skip = f"idle {idle_h:.2f}h < min {min_idle.total_seconds() / 3600.0:.2f}h"
-        
-        # DEBUG: Add tags to skip reason so we can see them
-        full_skip = f"{skip or ''} tags={tags}".strip()
-        
+                skip = (
+                    f"idle {idle_h:.2f}h"
+                    f" < min {min_idle.total_seconds() / 3600.0:.2f}h"
+                )
         out.append(
             Candidate(
                 device_id=did,
@@ -144,7 +170,7 @@ def _iter_candidates(
                 name=name,
                 last_seen=last_raw_s,
                 idle_hours=idle_h,
-                skip_reason=full_skip,
+                skip_reason=skip,
             )
         )
     return out
@@ -162,12 +188,17 @@ def main() -> None:
         type=float,
         default=2.0,
         metavar="H",
-        help="Only delete when lastSeen is at least this many hours ago (default: 2).",
+        help=(
+            "Only delete when lastSeen is at least this many hours ago"
+            " (default: 2)."
+        ),
     )
     p.add_argument(
         "--allow-unknown-last-seen",
         action="store_true",
-        help="Allow deleting tag:gha-deployer devices with no parseable lastSeen (risky).",
+        help=(
+            "Allow deleting devices with no parseable lastSeen (risky)."
+        ),
     )
     args = p.parse_args()
 
@@ -183,27 +214,42 @@ def main() -> None:
     candidates = _iter_candidates(devices, min_idle=min_idle, now=now)
 
     if not candidates:
-        print("No devices with tag:gha-deployer.")
+        print("No GHA runner devices found (tag or hostname match).")
         return
 
-    print(f"tailnet={tailnet}  tag={TAG}  candidates={len(candidates)}")
+    print(f"tailnet={tailnet}  candidates={len(candidates)}")
     to_delete: list[Candidate] = []
     for c in candidates:
-        reason = f"DEBUG_SKIP {c.skip_reason}"
-        if reason and "no lastSeen" in reason and args.allow_unknown_last_seen:
+        reason = c.skip_reason
+        if (
+            reason
+            and "no lastSeen" in reason
+            and args.allow_unknown_last_seen
+        ):
             reason = None
         if reason:
-            print(f"SKIP id={c.device_id} host={c.hostname!r} name={c.name!r} {reason}")
-        else:
-            idle = f"idle_h={c.idle_hours:.2f}" if c.idle_hours is not None else "idle_h=?"
             print(
-                f"DROP id={c.device_id} host={c.hostname!r} name={c.name!r} "
-                f"lastSeen={c.last_seen!r} {idle}"
+                f"SKIP id={c.device_id}"
+                f" host={c.hostname!r} name={c.name!r} {reason}"
+            )
+        else:
+            idle = (
+                f"idle_h={c.idle_hours:.2f}"
+                if c.idle_hours is not None
+                else "idle_h=?"
+            )
+            print(
+                f"DROP id={c.device_id}"
+                f" host={c.hostname!r} name={c.name!r}"
+                f" lastSeen={c.last_seen!r} {idle}"
             )
             to_delete.append(c)
 
     if not args.apply:
-        print(f"\nDry run. {len(to_delete)} would be deleted. Re-run with --apply to delete.")
+        print(
+            f"\nDry run. {len(to_delete)} would be deleted."
+            " Re-run with --apply to delete."
+        )
         return
 
     if not to_delete:
