@@ -17,12 +17,15 @@ variable "tailscale_tailnet" {
 
 variable "server_type" {
   type        = string
-  description = "Hetzner Cloud server type. CX43 (chosen, 8 vCPU shared Intel/AMD, 16 GB, EUR 15.11/mo) per RFC-082 Decision 1. CAX31 (ARM Ampere, EUR 19.95/mo) is the anti-jitter premium swap; CCX23 dedicated AMD is the noisy-neighbor escalation. Re-verify prices at hetzner.com/cloud before apply."
+  description = "Hetzner Cloud server type. CX43 (chosen, 8 vCPU shared Intel/AMD, 16 GB, EUR 15.11/mo) per RFC-082 Decision 1. CAX31 (ARM Ampere, EUR 19.95/mo) is the anti-jitter premium swap; CCX23 dedicated AMD is the noisy-neighbor escalation. CPX32 (shared AMD, 4 vCPU / 8 GB) is allowed for drill CI when cost-optimized lines lack placement. Re-verify prices at hetzner.com/cloud before apply."
   default     = "cx43"
 
   validation {
-    condition     = contains(["cx43", "cax31", "ccx23", "cx33", "ccx13"], var.server_type)
-    error_message = "Supported types: cx43 (chosen), cax31 (anti-jitter swap), ccx23 (dedicated escalation), cx33/ccx13 (smaller). See RFC-082 Decision 1."
+    condition = contains(
+      ["cx43", "cax31", "ccx23", "cx33", "ccx13", "cpx32"],
+      var.server_type,
+    )
+    error_message = "Supported types: cx43 (chosen), cax31 (anti-jitter swap), ccx23 (dedicated escalation), cx33/ccx13 (smaller), cpx32 (drill placement fallback). See RFC-082 Decision 1."
   }
 }
 

@@ -9,10 +9,11 @@ name: Drill infra apply (manual)
 # publish state (avoids poisoning teardown with partial / wrong encrypted state).
 # The artifact is downloaded at the start of this job (``continue-on-error``) so a
 # **re-run after a green apply** in the same workflow run can pick up that state.
-# ``tofu apply`` may retry up to two extra times **only** when the log matches
-# Hetzner placement-style errors (e.g. ``resource_unavailable``); other failures
-# exit immediately. Defaults come from ``terraform.drill.ci.tfvars`` (``hel1``).
-# Retries: **nbg1** then **fsn1** last (often saturated) with alternate types.
+# ``tofu apply`` may retry extra attempts **only** when the log matches Hetzner
+# placement-style errors (e.g. ``resource_unavailable``); other failures exit
+# immediately. Defaults come from ``terraform.drill.ci.tfvars`` (``hel1`` +
+# default ``server_type``). Retries: **nbg1**/**fsn1** with alternate types, then
+# **hel1** + ``cpx32`` (higher tier when cost-optimized placement is exhausted).
 
 on:
   workflow_dispatch:
@@ -159,17 +160,18 @@ jobs:
           # Dependency order: SSH key / network / firewall are API-only; the server
           # needs DC capacity, so it can fail alone with resource_unavailable.
           # Placement is per-datacenter; ``terraform.drill.ci.tfvars`` uses hel1 first.
-          # Retries move to nbg1, then fsn1 last (common saturation point).
+          # Retries: alternate DCs/types, then hel1 + cpx32 if placement stays tight.
           HCLOUD_TRANSIENT_PAT='resource_unavailable|Resource unavailable|error during placement|hardware not available|Hardware not available|not available in the location|server type.*not available'
 
           attempt=1
-          max_attempts=3
+          max_attempts=4
           sleep_sec=25
           while [ "$attempt" -le "$max_attempts" ]; do
             case "$attempt" in
               1) EXTRA_TF=() ;;
               2) EXTRA_TF=(-var 'location=nbg1' -var 'server_type=cax31') ;;
               3) EXTRA_TF=(-var 'location=fsn1' -var 'server_type=cx33') ;;
+              4) EXTRA_TF=(-var 'location=hel1' -var 'server_type=cpx32') ;;
               *) EXTRA_TF=() ;;
             esac
             if [ "${#EXTRA_TF[@]}" -gt 0 ]; then
