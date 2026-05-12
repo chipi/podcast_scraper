@@ -50,7 +50,7 @@ concurrency:
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 40
     environment: drill
     steps:
       - name: "DR drill — pre-flight: secrets and variables"
@@ -116,7 +116,7 @@ jobs:
           # After a fresh ``tofu apply``, cloud-init + ``tailscale up`` can lag
           # behind the deploy job; poll until the drill host is **Online** in
           # ``tailscale status`` (see scripts/ops/resolve_drill_tailnet_host.sh).
-          max_wait=480
+          max_wait=900
           elapsed=0
           R=""
           out="$(mktemp)"

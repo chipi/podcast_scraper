@@ -4,7 +4,8 @@ name: DR drill — exercise (orchestrated)
 #   drill-infra-plan (fmt-check, validate, tofu plan)
 #   → drill-infra-apply (uploads encrypted state artifact; no git commit needed
 #     for the rest of this run)
-#   → drill-deploy → drill-restore-corpus → drill-e2e → drill-stack-playwright
+#   → drill_wait_tailnet (first-boot margin) → drill-deploy → drill-restore-corpus
+#   → drill-e2e → drill-stack-playwright
 #   → ``drill-tfstate-bridge`` copies apply state to artifact ``drill-tfstate-for-teardown``
 #     on this caller run (reusable-workflow artifacts are not always visible to
 #     later ``workflow_call`` jobs). ``drill-infra-destroy`` downloads that (or
@@ -121,8 +122,21 @@ jobs:
           path: .bridge-out/terraform.tfstate.enc.drill
           retention-days: 30
 
-  deploy:
+  # ``tofu apply`` returns when Hetzner API says the server exists; cloud-init still
+  # runs apt/docker/git clone before ``tailscale up`` in ``runcmd``. Deploy polls
+  # ``tailscale status`` immediately — without this margin the runner often sees zero
+  # ``dr-podcast*`` peers for minutes and times out (GH #752 exercise).
+  drill_wait_tailnet:
     needs: apply
+    runs-on: ubuntu-latest
+    steps:
+      - name: "DR drill — wait after apply (cloud-init + tailscale up on new VPS)"
+        run: |
+          echo "::notice::Sleeping 360s so drill VPS can finish first-boot before deploy joins tailnet."
+          sleep 360
+
+  deploy:
+    needs: [apply, drill_wait_tailnet]
     uses: ./.github/workflows/drill-deploy.yml
     secrets: inherit
     with:
