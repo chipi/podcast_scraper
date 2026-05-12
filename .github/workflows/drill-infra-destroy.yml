@@ -78,18 +78,18 @@ jobs:
             exit 1
           fi
 
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
 
       - name: Download drill-tfstate-for-teardown (orchestrator bridge)
         continue-on-error: true
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: drill-tfstate-for-teardown
           path: .downloaded-teardown-drill-state
 
       - name: Download drill state from apply job (same run, fallback)
         continue-on-error: true
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: terraform-state-after-apply-drill
           path: .downloaded-apply-drill-state
@@ -148,7 +148,7 @@ jobs:
           fi
 
       - name: Install OpenTofu
-        uses: opentofu/setup-opentofu@v1
+        uses: opentofu/setup-opentofu@v2
         with:
           tofu_version: 1.6.0
 
@@ -338,7 +338,7 @@ jobs:
 
       - name: Upload encrypted drill state as artifact
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: terraform-state-after-destroy-drill
           path: infra/terraform/terraform.tfstate.enc.drill

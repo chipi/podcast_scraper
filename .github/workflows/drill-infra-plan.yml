@@ -44,7 +44,7 @@ jobs:
     timeout-minutes: 10
     environment: drill
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
 
       - name: Pre-flight — required secrets present?
         id: preflight
@@ -70,7 +70,7 @@ jobs:
 
       - name: Install OpenTofu
         if: steps.preflight.outputs.skip != 'true'
-        uses: opentofu/setup-opentofu@v1
+        uses: opentofu/setup-opentofu@v2
         with:
           tofu_version: 1.6.0
 

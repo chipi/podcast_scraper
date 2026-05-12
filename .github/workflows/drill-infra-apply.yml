@@ -66,11 +66,11 @@ jobs:
             exit 1
           fi
 
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
 
       - name: Restore drill state from earlier apply attempt (same workflow run)
         continue-on-error: true
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: terraform-state-after-apply-drill
           path: .downloaded-self-apply-drill-state
@@ -116,7 +116,7 @@ jobs:
           fi
 
       - name: Install OpenTofu
-        uses: opentofu/setup-opentofu@v1
+        uses: opentofu/setup-opentofu@v2
         with:
           tofu_version: 1.6.0
 
@@ -221,7 +221,7 @@ jobs:
 
       - name: Upload encrypted drill state as artifact
         if: success()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: terraform-state-after-apply-drill
           path: infra/terraform/terraform.tfstate.enc.drill

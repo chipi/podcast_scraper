@@ -80,7 +80,7 @@ jobs:
     steps:
       - name: Download terraform-state-after-apply-drill (from apply reusable job)
         continue-on-error: true
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: terraform-state-after-apply-drill
           path: .bridge-in
@@ -104,7 +104,7 @@ jobs:
 
       - name: Upload drill-tfstate-for-teardown
         if: steps.repub.outputs.upload == 'yes'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: drill-tfstate-for-teardown
           path: .bridge-out/terraform.tfstate.enc.drill

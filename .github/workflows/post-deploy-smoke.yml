@@ -160,7 +160,7 @@ jobs:
               'df -h' \
               > /tmp/smoke-artifacts/df.txt 2>&1 || true
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: steps.pre.outputs.skip != 'true' && failure()
         with:
           name: smoke-artifacts-${{ github.run_id }}
