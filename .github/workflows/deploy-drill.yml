@@ -188,9 +188,9 @@ jobs:
           echo "::error::deploy.sh SSH failed after ${mx} attempts."
           exit 1
 
-      # MagicDNS https://…/ needs `tailscale serve` on the VPS; drill often
-      # lacks that until an operator runs it. GHA already has tailnet SSH, so
-      # curl the viewer on host loopback (same path as PROD_RUNBOOK tailnet row).
+      # MagicDNS https://…/ needs ``tailscale serve`` on the VPS. ``deploy.sh``
+      # refreshes it after container health; ``drill-stack-playwright`` also SSH-refreshes
+      # before Playwright. This step curls host loopback :8080 (no serve required).
       - name: Tailnet /api/health via SSH (viewer on host loopback)
         if: steps.preflight.outputs.skip != 'true'
         env:

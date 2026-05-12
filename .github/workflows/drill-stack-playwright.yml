@@ -74,6 +74,12 @@ jobs:
         with:
           fetch-depth: 1
 
+      - name: Install SSH identity for deploy@ (DRILL_DEPLOY_SSH_PRIVATE_KEY)
+        uses: ./.github/actions/prod-ssh-key
+        with:
+          ssh_private_key:   ${{ secrets.DRILL_DEPLOY_SSH_PRIVATE_KEY }}
+          identity_env_name: SSH_DRILL_IDENTITY
+
       - name: Join the tailnet
         uses: tailscale/github-action@v2
         with:
@@ -91,6 +97,29 @@ jobs:
           # Nginx viewer + API via tailscale serve (HTTPS :443); matches operator browser.
           echo "stack_test_base_url=https://${R}" >> "$GITHUB_OUTPUT"
           echo "::notice::STACK_TEST_BASE_URL will be https://${R}"
+
+      # deploy.sh refreshes serve after health, but ``sudo -n`` or a missed path
+      # can leave :443 closed while :8080 works (drill-e2e). Belt-and-suspenders
+      # before Playwright hits MagicDNS HTTPS from the runner (see GH run logs).
+      - name: Refresh tailscale serve on drill + probe HTTPS :443 from runner
+        env:
+          DRILL_TAILNET_FQDN: ${{ vars.DRILL_TAILNET_FQDN }}
+        run: |
+          set -euo pipefail
+          R=$(bash scripts/ops/resolve_drill_tailnet_host.sh)
+          SSH_TARGET="deploy@${R}"
+          ssh -i "$SSH_DRILL_IDENTITY" -o IdentitiesOnly=yes \
+            -o StrictHostKeyChecking=accept-new -o BatchMode=yes "$SSH_TARGET" \
+            'sudo -n /usr/local/sbin/podcast-tailscale-serve.sh'
+          for i in $(seq 1 15); do
+            if curl -fsS -k "https://${R}/api/health" | jq -e '.status == "ok"' >/dev/null 2>&1; then
+              echo "::notice::HTTPS :443 /api/health OK from runner (attempt ${i})"
+              exit 0
+            fi
+            sleep 4
+          done
+          echo "::error::https://${R}/api/health did not return ok from runner (tailscale serve / ACL :443). drill-e2e can still pass via SSH :8080 - fix serve on host."
+          exit 1
 
       - name: Run stack-viewer Playwright (subset)
         working-directory: tests/stack-test

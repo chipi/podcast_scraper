@@ -70,7 +70,21 @@ for i in $(seq 1 12); do
     curl -fsS http://127.0.0.1:8000/api/health >/dev/null 2>&1; then
     echo "[$(date -u +%FT%TZ)] /api/health OK after $((i * 5))s (container-local)"
     if command -v sudo >/dev/null 2>&1 && [ -x /usr/local/sbin/podcast-tailscale-serve.sh ]; then
-      sudo -n /usr/local/sbin/podcast-tailscale-serve.sh >/dev/null 2>&1 || true
+      # MagicDNS HTTPS (:443) for tailnet peers (GHA stack-test, laptops). Do not
+      # swallow failures — drill-stack-playwright and PROD_RUNBOOK rely on serve.
+      ts_ok=0
+      for a in 1 2 3; do
+        if sudo -n /usr/local/sbin/podcast-tailscale-serve.sh; then
+          ts_ok=1
+          break
+        fi
+        echo "[$(date -u +%FT%TZ)] podcast-tailscale-serve.sh attempt $a failed; retrying in 5s..." >&2
+        sleep 5
+      done
+      if [ "$ts_ok" != 1 ]; then
+        echo "ERROR: podcast-tailscale-serve.sh failed after 3 attempts (tailnet HTTPS will not work)." >&2
+        exit 4
+      fi
     fi
     exit 0
   fi
