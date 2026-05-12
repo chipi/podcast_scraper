@@ -108,6 +108,14 @@ jobs:
           set -euo pipefail
           R=$(bash scripts/ops/resolve_drill_tailnet_host.sh)
           SSH_TARGET="deploy@${R}"
+          scp -i "$SSH_DRILL_IDENTITY" -o IdentitiesOnly=yes \
+            -o StrictHostKeyChecking=accept-new -o BatchMode=yes \
+            infra/cloud-init/podcast-tailscale-serve.sh "${SSH_TARGET}:/tmp/podcast-tailscale-serve.ci"
+          if ! ssh -i "$SSH_DRILL_IDENTITY" -o IdentitiesOnly=yes \
+            -o StrictHostKeyChecking=accept-new -o BatchMode=yes "$SSH_TARGET" \
+            'sudo -n /usr/bin/install -m 0755 -o root -g root /tmp/podcast-tailscale-serve.ci /usr/local/sbin/podcast-tailscale-serve.sh'; then
+            echo "::warning::sudo install of podcast-tailscale-serve.sh failed (expected until the drill host has the updated sudoers install rule from cloud-init)."
+          fi
           ssh -i "$SSH_DRILL_IDENTITY" -o IdentitiesOnly=yes \
             -o StrictHostKeyChecking=accept-new -o BatchMode=yes "$SSH_TARGET" \
             'sudo -n /usr/local/sbin/podcast-tailscale-serve.sh'

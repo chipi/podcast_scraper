@@ -47,6 +47,17 @@ COMPOSE=(docker compose --env-file .env)
 git fetch --depth=50 origin main
 git reset --hard origin/main
 
+# Repair ``/usr/local/sbin/podcast-tailscale-serve.sh`` from the repo when cloud-init
+# embedded a broken copy (Terraform ``$$((`` edge case). Requires sudoers ``install`` rule.
+CANONICAL_TS_SERVE="$REPO_DIR/infra/cloud-init/podcast-tailscale-serve.sh"
+if [ -f "$CANONICAL_TS_SERVE" ] && command -v sudo >/dev/null 2>&1; then
+  install -m 0644 "$CANONICAL_TS_SERVE" /tmp/podcast-tailscale-serve.ci
+  if ! sudo -n /usr/bin/install -m 0755 -o root -g root /tmp/podcast-tailscale-serve.ci \
+    /usr/local/sbin/podcast-tailscale-serve.sh; then
+    echo "[$(date -u +%FT%TZ)] WARN: could not refresh podcast-tailscale-serve.sh from repo (sudo install)." >&2
+  fi
+fi
+
 echo "[$(date -u +%FT%TZ)] pulling latest images..."
 if ! "${COMPOSE[@]}" "${STACK_FILES[@]}" pull; then
   echo "ERROR: docker compose pull failed" >&2

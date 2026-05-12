@@ -50,35 +50,16 @@ write_files:
   # can curl https://<tailnet_hostname>.<tailnet>/ (see PROD_RUNBOOK.md).
   - path: /usr/local/sbin/podcast-tailscale-serve.sh
     content: |
-      #!/bin/bash
-      set -euo pipefail
-      PORT=8080
-      # Avoid $(...) subshells here: Terraform templatefile can corrupt $ escaping and leave
-      # invalid (grep / (seq on disk. Use backticks and a numeric while loop instead.
-      if [ -f /srv/podcast-scraper/.env ]; then
-        line=`grep -E '^VIEWER_PORT=' /srv/podcast-scraper/.env | tail -1 || true`
-        if [ -n "$$line" ]; then
-          v=`echo "$$line" | cut -d= -f2- | tr -d ' \t"' | tr -d "'"`
-          if [ -n "$$v" ]; then PORT="$$v"; fi
-        fi
-      fi
-      n=1
-      while [ "$$n" -le 60 ]; do
-        if curl -fsS "http://127.0.0.1:$${PORT}/api/health" >/dev/null 2>&1; then
-          break
-        fi
-        sleep 2
-        n=$$((n+1))
-      done
-      /usr/bin/tailscale serve reset || true
-      exec /usr/bin/tailscale serve --bg "$${PORT}"
+${podcast_tailscale_serve_body}
     permissions: '0755'
     owner: root:root
 
   # Allow deploy@ to refresh MagicDNS HTTPS after GHA runs deploy.sh (systemd
-  # ExecStartPost covers systemctl restarts only).
+  # ExecStartPost covers systemctl restarts only). ``install`` copies the canonical
+  # script from the repo (``/tmp/podcast-tailscale-serve.ci``) so CI can repair a
+  # broken first-boot ``write_files`` render without reprovisioning.
   - path: /etc/sudoers.d/99-podcast-deploy-tailscale-serve
-    content: "deploy ALL=(root) NOPASSWD: /usr/local/sbin/podcast-tailscale-serve.sh\n"
+    content: "deploy ALL=(root) NOPASSWD: /usr/bin/install -m 0755 -o root -g root /tmp/podcast-tailscale-serve.ci /usr/local/sbin/podcast-tailscale-serve.sh, /usr/local/sbin/podcast-tailscale-serve.sh\n"
     permissions: '0440'
     owner: root:root
 

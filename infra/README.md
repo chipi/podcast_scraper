@@ -18,7 +18,8 @@ infra/
 │   ├── terraform.tfstate.enc # sops+age-encrypted state, default workspace (committed after prod apply)
 │   └── terraform.tfstate.enc.drill  # optional; encrypted state for workspace `drill` (#752)
 ├── cloud-init/
-│   └── prod.user-data          # first-boot bootstrap (Docker, Tailscale, repo pull, optional Alloy)
+│   ├── prod.user-data                 # first-boot bootstrap (Docker, Tailscale, repo pull, optional Alloy)
+│   └── podcast-tailscale-serve.sh     # canonical ``tailscale serve`` helper (also injected into prod.user-data)
 └── deploy/
     └── deploy.sh               # called by .github/workflows/deploy-prod.yml
 ```

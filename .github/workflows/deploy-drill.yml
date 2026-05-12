@@ -167,6 +167,29 @@ jobs:
           echo "::error::SSH still failing after ${mx} attempts (publickey). If every attempt fails, key mismatch is likely — see infra README / PROD_RUNBOOK drill SSH."
           exit 1
 
+      # Broken first-boot ``write_files`` / Terraform ``$$((`` can leave
+      # ``/usr/local/sbin/podcast-tailscale-serve.sh`` invalid; deploy.sh then
+      # cannot refresh MagicDNS HTTPS. Push the repo canonical script before
+      # ``git pull`` on the host (same pattern as ``drill-stack-playwright.yml``).
+      - name: Install canonical podcast-tailscale-serve.sh on drill (pre-deploy)
+        if: steps.preflight.outputs.skip != 'true'
+        env:
+          SSH_TARGET: deploy@${{ steps.ts_host.outputs.resolved_fqdn }}
+        run: |
+          set -euo pipefail
+          scp -i "$SSH_DRILL_IDENTITY" -o IdentitiesOnly=yes \
+            -o StrictHostKeyChecking=accept-new -o BatchMode=yes \
+            infra/cloud-init/podcast-tailscale-serve.sh "${SSH_TARGET}:/tmp/podcast-tailscale-serve.ci"
+          if ! ssh -i "$SSH_DRILL_IDENTITY" -o IdentitiesOnly=yes \
+            -o StrictHostKeyChecking=accept-new -o BatchMode=yes "$SSH_TARGET" \
+            'sudo -n /usr/bin/install -m 0755 -o root -g root /tmp/podcast-tailscale-serve.ci /usr/local/sbin/podcast-tailscale-serve.sh'; then
+            echo "::warning::sudo install of podcast-tailscale-serve.sh failed (expected until sudoers on the drill host allows install from /tmp)."
+          fi
+          ssh -i "$SSH_DRILL_IDENTITY" -o IdentitiesOnly=yes \
+            -o StrictHostKeyChecking=accept-new -o BatchMode=yes "$SSH_TARGET" \
+            'sudo -n /usr/local/sbin/podcast-tailscale-serve.sh' \
+            || echo "::warning::podcast-tailscale-serve.sh exited non-zero; deploy.sh will retry after health"
+
       - name: Deploy (git pull + compose pull + compose up + VPS-local /api/health)
         if: steps.preflight.outputs.skip != 'true'
         env:

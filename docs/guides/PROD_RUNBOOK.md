@@ -827,6 +827,10 @@ HTTPS port 443 with an auto-issued TLS cert from Tailscale's CA.
 On **new or reprovisioned** VPS hosts, cloud-init installs
 `/usr/local/sbin/podcast-tailscale-serve.sh` and `podcast-scraper.service`
 runs it after `docker compose up` (and clears serve on `compose down`).
+The canonical script source is `infra/cloud-init/podcast-tailscale-serve.sh`
+(injected by OpenTofu into `prod.user-data`); deploy and drill CI can copy it
+onto the host with `sudo install …` when `/etc/sudoers.d/99-podcast-deploy-tailscale-serve`
+includes that `install` rule.
 Existing servers created before that change keep whatever serve state they
 had; run the manual steps below once if MagicDNS HTTPS still fails.
 

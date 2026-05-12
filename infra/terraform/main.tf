@@ -89,6 +89,10 @@ resource "hcloud_server" "prod" {
     grafana_cloud_metrics_remote_write_url = var.grafana_cloud_metrics_remote_write_url
     grafana_cloud_metrics_username         = var.grafana_cloud_metrics_username
     grafana_cloud_metrics_password         = var.grafana_cloud_metrics_password
+
+    # Shell script body is injected via ``file()`` so ``$`` / ``((`` are never passed through
+    # ``templatefile`` twice (avoids broken ``n=$$((n+1))`` on the VPS).
+    podcast_tailscale_serve_body = indent(6, chomp(file("${path.module}/../cloud-init/podcast-tailscale-serve.sh")))
   })
 
   labels = {
