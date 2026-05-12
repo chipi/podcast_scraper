@@ -1,0 +1,34 @@
+name: Temporary Tailscale Cleanup
+on:
+  workflow_dispatch:
+    inputs:
+      apply:
+        description: 'Actually delete devices'
+        required: true
+        type: boolean
+        default: false
+      min_hours:
+        description: 'Minimum idle hours'
+        required: true
+        type: string
+        default: '3'
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+      - name: Run cleanup script
+        env:
+          TS_API_KEY: ${{ secrets.TS_API_KEY }}
+          TAILNET_NAME: ${{ vars.TAILNET_NAME }}
+        run: |
+          ARGS=""
+          if [ "${{ github.event.inputs.apply }}" = "true" ]; then
+            ARGS="--apply"
+          fi
+          python3 scripts/ops/cleanup_tailscale_gha_deployers.py $ARGS --min-hours ${{ github.event.inputs.min_hours }}
