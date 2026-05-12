@@ -1,4 +1,4 @@
-name: DR drill smoke (Tailscale + /api/health)
+name: DR drill — smoke (Tailscale + /api/health)
 
 # GitHub #752 — read-only smoke against the Hetzner **drill** stack from GHA.
 # Joins the tailnet as tag:gha-deployer, resolves dr-podcast MagicDNS (suffix
@@ -45,14 +45,14 @@ jobs:
     timeout-minutes: 15
     environment: drill
     steps:
-      - name: Confirm input
+      - name: "DR drill — confirm: DRILL_SMOKE"
         run: |
           if [ "${{ inputs.confirm }}" != "DRILL_SMOKE" ]; then
             echo "::error::Must type DRILL_SMOKE to confirm. Got: '${{ inputs.confirm }}'"
             exit 1
           fi
 
-      - name: Pre-flight — required secrets/variables present?
+      - name: "DR drill — pre-flight: secrets and variables"
         env:
           TS_AUTHKEY:                  ${{ secrets.TS_AUTHKEY }}
           DRILL_DEPLOY_SSH_PRIVATE_KEY: ${{ secrets.DRILL_DEPLOY_SSH_PRIVATE_KEY }}
@@ -68,18 +68,18 @@ jobs:
             exit 1
           fi
 
-      - name: Checkout (resolver script + prod-ssh-key action)
+      - name: "DR drill — checkout: shallow (resolver scripts + prod-ssh-key action)"
         uses: actions/checkout@v6
         with:
           fetch-depth: 1
 
-      - name: Install SSH identity for deploy@ (DRILL_DEPLOY_SSH_PRIVATE_KEY)
+      - name: "DR drill — SSH: install identity (deploy@, DRILL_DEPLOY_SSH_PRIVATE_KEY)"
         uses: ./.github/actions/prod-ssh-key
         with:
           ssh_private_key:   ${{ secrets.DRILL_DEPLOY_SSH_PRIVATE_KEY }}
           identity_env_name: SSH_DRILL_IDENTITY
 
-      - name: Join the tailnet
+      - name: "DR drill — join: tailnet (tag:gha-deployer)"
         uses: tailscale/github-action@v2
         with:
           authkey: ${{ secrets.TS_AUTHKEY }}
@@ -87,7 +87,7 @@ jobs:
           # Pinned — `version: latest` broke sha256 verification in GHA (May 2026).
           version: 1.96.4
 
-      - name: Resolve drill MagicDNS host
+      - name: "DR drill — resolve: tailnet host (MagicDNS)"
         id: ts_host
         env:
           DRILL_TAILNET_FQDN: ${{ vars.DRILL_TAILNET_FQDN }}
@@ -100,7 +100,7 @@ jobs:
             echo "::notice::Tailscale live host ($R) differs from vars.DRILL_TAILNET_FQDN ($WANT). Using $R for probes."
           fi
 
-      - name: Tailnet /api/health via SSH (viewer on host loopback)
+      - name: "DR drill — smoke: /api/health via SSH (viewer on host :8080)"
         env:
           SSH_TARGET: deploy@${{ steps.ts_host.outputs.resolved_fqdn }}
         run: |

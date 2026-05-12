@@ -1,4 +1,4 @@
-name: Deploy to drill VPS
+name: DR drill — deploy VPS
 
 # RFC-082 / #752 — same deploy path as deploy-prod.yml but targets the DR
 # drill Hetzner stack (Tailscale + deploy@ + infra/deploy/deploy.sh).
@@ -53,7 +53,7 @@ jobs:
     timeout-minutes: 25
     environment: drill
     steps:
-      - name: Pre-flight — required secrets/variables present?
+      - name: "DR drill — pre-flight: secrets and variables"
         id: preflight
         env:
           TS_AUTHKEY:                  ${{ secrets.TS_AUTHKEY }}
@@ -73,13 +73,13 @@ jobs:
             echo "skip=false" >> "$GITHUB_OUTPUT"
           fi
 
-      - name: Checkout (resolver script)
+      - name: "DR drill — checkout: shallow (resolver scripts)"
         if: steps.preflight.outputs.skip != 'true'
         uses: actions/checkout@v6
         with:
           fetch-depth: 1
 
-      - name: Resolve target image SHA
+      - name: "DR drill — resolve: deploy image SHA (GHCR tag)"
         id: sha
         if: steps.preflight.outputs.skip != 'true'
         run: |
@@ -90,7 +90,7 @@ jobs:
           echo "short=$SHA_SHORT" >> "$GITHUB_OUTPUT"
           echo "::notice::Deploying to drill — image tag sha-$SHA_SHORT"
 
-      - name: Join the tailnet
+      - name: "DR drill — join: tailnet (tag:gha-deployer)"
         if: steps.preflight.outputs.skip != 'true'
         uses: tailscale/github-action@v2
         with:
@@ -98,14 +98,14 @@ jobs:
           tags:    tag:gha-deployer
           version: 1.96.4
 
-      - name: Install SSH identity for deploy@ (DRILL_DEPLOY_SSH_PRIVATE_KEY)
+      - name: "DR drill — SSH: install identity (deploy@, DRILL_DEPLOY_SSH_PRIVATE_KEY)"
         if: steps.preflight.outputs.skip != 'true'
         uses: ./.github/actions/prod-ssh-key
         with:
           ssh_private_key:   ${{ secrets.DRILL_DEPLOY_SSH_PRIVATE_KEY }}
           identity_env_name: SSH_DRILL_IDENTITY
 
-      - name: Resolve drill MagicDNS host
+      - name: "DR drill — resolve: tailnet host (MagicDNS, poll until online)"
         id: ts_host
         if: steps.preflight.outputs.skip != 'true'
         env:
@@ -141,7 +141,7 @@ jobs:
       # First-boot race: Tailscale can show the node Online before cloud-init
       # finishes writing ``deploy@`` ``authorized_keys``. ``publickey`` then is
       # often transient; retry before concluding a keypair mismatch.
-      - name: Wire PODCAST_RELEASE into host .env
+      - name: "DR drill — deploy: wire PODCAST_RELEASE into host .env"
         if: steps.preflight.outputs.skip != 'true'
         env:
           SHA_SHORT:  ${{ steps.sha.outputs.short }}
@@ -171,7 +171,7 @@ jobs:
       # ``/usr/local/sbin/podcast-tailscale-serve.sh`` invalid; deploy.sh then
       # cannot refresh MagicDNS HTTPS. Push the repo canonical script before
       # ``git pull`` on the host (same pattern as ``drill-stack-playwright.yml``).
-      - name: Install canonical podcast-tailscale-serve.sh on drill (pre-deploy)
+      - name: "DR drill — tailscale: install canonical serve script (pre-deploy)"
         if: steps.preflight.outputs.skip != 'true'
         env:
           SSH_TARGET: deploy@${{ steps.ts_host.outputs.resolved_fqdn }}
@@ -190,7 +190,7 @@ jobs:
             'sudo -n /usr/local/sbin/podcast-tailscale-serve.sh' \
             || echo "::warning::podcast-tailscale-serve.sh exited non-zero; deploy.sh will retry after health"
 
-      - name: Deploy (git pull + compose pull + compose up + VPS-local /api/health)
+      - name: "DR drill — deploy: git pull + compose + VPS-local /api/health"
         if: steps.preflight.outputs.skip != 'true'
         env:
           SSH_TARGET: deploy@${{ steps.ts_host.outputs.resolved_fqdn }}
@@ -214,7 +214,7 @@ jobs:
       # MagicDNS https://…/ needs ``tailscale serve`` on the VPS. ``deploy.sh``
       # refreshes it after container health; ``drill-stack-playwright`` also SSH-refreshes
       # before Playwright. This step curls host loopback :8080 (no serve required).
-      - name: Tailnet /api/health via SSH (viewer on host loopback)
+      - name: "DR drill — smoke: /api/health via SSH (viewer on host :8080)"
         if: steps.preflight.outputs.skip != 'true'
         env:
           SSH_TARGET: deploy@${{ steps.ts_host.outputs.resolved_fqdn }}

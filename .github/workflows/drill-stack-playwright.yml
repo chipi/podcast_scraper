@@ -1,4 +1,4 @@
-name: DR drill stack Playwright (stack-test subset)
+name: DR drill — stack Playwright (stack-test)
 
 # GitHub #752 — runs **existing** ``tests/stack-test/stack-viewer.spec.ts`` against
 # the live drill viewer over Tailscale (same contract as local ``make stack-test-playwright``,
@@ -46,7 +46,7 @@ jobs:
     timeout-minutes: 25
     environment: drill
     steps:
-      - name: Confirm input (manual dispatch only)
+      - name: "DR drill — confirm input (manual dispatch only)"
         if: ${{ github.event_name == 'workflow_dispatch' && inputs.skip_confirm != true }}
         run: |
           if [ "${{ inputs.confirm }}" != "DRILL_STACK_PLAYWRIGHT" ]; then
@@ -54,7 +54,7 @@ jobs:
             exit 1
           fi
 
-      - name: Pre-flight — required secrets/variables present?
+      - name: "DR drill — pre-flight: secrets and variables"
         env:
           TS_AUTHKEY:                  ${{ secrets.TS_AUTHKEY }}
           DRILL_DEPLOY_SSH_PRIVATE_KEY: ${{ secrets.DRILL_DEPLOY_SSH_PRIVATE_KEY }}
@@ -70,24 +70,25 @@ jobs:
             exit 1
           fi
 
-      - uses: actions/checkout@v6
+      - name: "DR drill — checkout: shallow (Playwright + resolver scripts)"
+        uses: actions/checkout@v6
         with:
           fetch-depth: 1
 
-      - name: Install SSH identity for deploy@ (DRILL_DEPLOY_SSH_PRIVATE_KEY)
+      - name: "DR drill — SSH: install identity (deploy@, DRILL_DEPLOY_SSH_PRIVATE_KEY)"
         uses: ./.github/actions/prod-ssh-key
         with:
           ssh_private_key:   ${{ secrets.DRILL_DEPLOY_SSH_PRIVATE_KEY }}
           identity_env_name: SSH_DRILL_IDENTITY
 
-      - name: Join the tailnet
+      - name: "DR drill — join: tailnet (tag:gha-deployer)"
         uses: tailscale/github-action@v2
         with:
           authkey: ${{ secrets.TS_AUTHKEY }}
           tags:    tag:gha-deployer
           version: 1.96.4
 
-      - name: Resolve drill viewer base URL
+      - name: "DR drill — resolve: viewer base URL (HTTPS MagicDNS)"
         id: base
         env:
           DRILL_TAILNET_FQDN: ${{ vars.DRILL_TAILNET_FQDN }}
@@ -101,7 +102,7 @@ jobs:
       # deploy.sh refreshes serve after health, but ``sudo -n`` or a missed path
       # can leave :443 closed while :8080 works (drill-e2e). Belt-and-suspenders
       # before Playwright hits MagicDNS HTTPS from the runner (see GH run logs).
-      - name: Refresh tailscale serve on drill + probe HTTPS :443 from runner
+      - name: "DR drill — tailscale: install canonical serve script + probe HTTPS :443"
         env:
           DRILL_TAILNET_FQDN: ${{ vars.DRILL_TAILNET_FQDN }}
         run: |
@@ -129,7 +130,7 @@ jobs:
           echo "::error::https://${R}/api/health did not return ok from runner (tailscale serve / ACL :443). drill-e2e can still pass via SSH :8080 - fix serve on host."
           exit 1
 
-      - name: Run stack-viewer Playwright (subset)
+      - name: "DR drill — stack Playwright: stack-viewer.spec.ts (firefox)"
         working-directory: tests/stack-test
         env:
           STACK_TEST_BASE_URL: ${{ steps.base.outputs.stack_test_base_url }}

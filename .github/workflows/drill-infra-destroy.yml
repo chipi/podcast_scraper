@@ -1,4 +1,4 @@
-name: Drill infra destroy (manual)
+name: DR drill — infra destroy (OpenTofu)
 
 # GitHub #752 — manual ``tofu destroy`` for OpenTofu workspace ``drill`` only.
 # Same secrets and state encryption contract as ``drill-infra-apply.yml``.
@@ -72,7 +72,7 @@ jobs:
       # workflow_dispatch). Gate manual confirmation on skip_confirm, not on
       # github.event_name, so dr-drill-exercise does not leak DRILL_FULL_CYCLE
       # into inputs.confirm here.
-      - name: Confirm input (manual dispatch only)
+      - name: "DR drill — confirm input (manual dispatch only)"
         if: ${{ github.event_name == 'workflow_dispatch' && inputs.skip_confirm != true }}
         run: |
           if [ "${{ inputs.confirm }}" != "DRILL_DESTROY" ]; then
@@ -82,7 +82,7 @@ jobs:
 
       - uses: actions/checkout@v6
 
-      - name: Download drill-tfstate-for-teardown (orchestrator bridge)
+      - name: "DR drill — tfstate bridge: download teardown artifact"
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -100,7 +100,7 @@ jobs:
           mkdir -p "${dest}"
           gh run download "${rid}" -R "${repo}" -n "${name}" -D "${dest}"
 
-      - name: Download drill state from apply job (same run, fallback)
+      - name: "DR drill — tfstate: download apply artifact (same-run fallback)"
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -118,7 +118,7 @@ jobs:
           mkdir -p "${dest}"
           gh run download "${rid}" -R "${repo}" -n "${name}" -D "${dest}"
 
-      - name: Prefer bridged or apply artifact over git for encrypted drill state
+      - name: "DR drill — tfstate: prefer bridge or apply artifact over git"
         run: |
           set -euo pipefail
           cd "${GITHUB_WORKSPACE}"
@@ -153,7 +153,7 @@ jobs:
             echo "No bridged/apply artifact in this run — using terraform.tfstate.enc.drill from git (standalone destroy)."
           fi
 
-      - name: Pre-flight — required secrets present?
+      - name: "DR drill — pre-flight: secrets and tokens (OpenTofu provider)"
         env:
           HCLOUD_TOKEN_DRILL:       ${{ secrets.HCLOUD_TOKEN_DRILL }}
           TS_API_KEY:               ${{ secrets.TS_API_KEY }}
@@ -171,12 +171,12 @@ jobs:
             exit 1
           fi
 
-      - name: Install OpenTofu
+      - name: "DR drill — install: OpenTofu CLI"
         uses: opentofu/setup-opentofu@v2
         with:
           tofu_version: 1.6.0
 
-      - name: Install sops + age
+      - name: "DR drill — install: sops + age"
         run: |
           set -euo pipefail
           sudo curl -fsSL -o /usr/local/bin/sops \
@@ -185,7 +185,7 @@ jobs:
           curl -fsSL https://github.com/FiloSottile/age/releases/download/v1.2.1/age-v1.2.1-linux-amd64.tar.gz \
             | sudo tar -xz -C /usr/local/bin --strip-components=1 age/age age/age-keygen
 
-      - name: Decrypt drill state (if any prior apply has happened)
+      - name: "DR drill — tofu: decrypt state (if prior apply exists)"
         working-directory: infra
         env:
           SOPS_AGE_KEY: ${{ secrets.TFSTATE_AGE_KEY }}
@@ -196,7 +196,7 @@ jobs:
               > terraform/terraform.tfstate.d/drill/terraform.tfstate
           fi
 
-      - name: tofu init + workspace drill + destroy
+      - name: "DR drill — tofu: init + workspace drill + destroy"
         id: tofu_destroy
         continue-on-error: true
         working-directory: infra/terraform
@@ -219,7 +219,7 @@ jobs:
           tofu workspace select -or-create drill
           tofu destroy -auto-approve -input=false -var-file=terraform.drill.ci.tfvars
 
-      - name: Install Hetzner hcloud CLI (drill orphan sweep)
+      - name: "DR drill — hcloud: install CLI (drill orphan sweep)"
         if: always()
         run: |
           set -euo pipefail
@@ -230,7 +230,7 @@ jobs:
           sudo install -m755 hcloud /usr/local/bin/hcloud
           hcloud version
 
-      - name: Hetzner drill orphan sweep (API — empty state safe)
+      - name: "DR drill — hcloud: orphan sweep (API, empty state safe)"
         id: hetzner_sweep
         if: always()
         env:
@@ -305,7 +305,7 @@ jobs:
           fi
           echo "Hetzner drill orphan sweep complete (no matching servers remain)."
 
-      - name: Tailscale — remove drill devices (tag or hostname)
+      - name: "DR drill — tailscale: remove drill devices (tag or hostname)"
         if: always()
         env:
           TS_API_KEY: ${{ secrets.TS_API_KEY }}
@@ -346,7 +346,7 @@ jobs:
       # ``tofu destroy`` can still exit non-zero when state drifts (e.g. server
       # already removed manually) while the Hetzner sweep shows **no** drill VMs.
       # Treat that as OK; fail only when the sweep reports servers still left.
-      - name: Reconcile OpenTofu destroy outcome with Hetzner sweep
+      - name: "DR drill — tofu: reconcile destroy outcome with Hetzner sweep"
         if: ${{ always() && !cancelled() && steps.hetzner_sweep.outcome == 'success' }}
         env:
           TOFU_OUTCOME: ${{ steps.tofu_destroy.outcome }}
@@ -366,7 +366,7 @@ jobs:
             echo "::notice::OpenTofu destroy failed, but Hetzner has no matching drill servers — infra already gone; teardown OK."
           fi
 
-      - name: Re-encrypt drill state (always — even if destroy failed)
+      - name: "DR drill — tofu: re-encrypt state (always, even if destroy failed)"
         if: always()
         working-directory: infra
         env:
@@ -379,7 +379,7 @@ jobs:
               terraform/terraform.tfstate.enc.drill
           fi
 
-      - name: Upload encrypted drill state as artifact
+      - name: "DR drill — tofu: upload encrypted state artifact"
         if: always()
         uses: actions/upload-artifact@v7
         with:
@@ -388,7 +388,7 @@ jobs:
           if-no-files-found: ignore
           retention-days: 30
 
-      - name: Cleanup plaintext drill state
+      - name: "DR drill — tofu: cleanup plaintext drill state"
         if: always()
         run: |
           rm -rf infra/terraform/terraform.tfstate.d/drill

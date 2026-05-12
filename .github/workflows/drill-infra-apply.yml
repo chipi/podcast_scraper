@@ -1,4 +1,4 @@
-name: Drill infra apply (manual)
+name: DR drill — infra apply (OpenTofu)
 
 # GitHub #752 — manual apply for OpenTofu workspace `drill` only. Uses
 # HCLOUD_TOKEN_DRILL and GitHub Environment `drill` for approval gates.
@@ -59,7 +59,7 @@ jobs:
     environment: drill
     steps:
       # See drill-infra-destroy.yml — caller event stays workflow_dispatch inside reuse.
-      - name: Confirm input (manual dispatch only)
+      - name: "DR drill — confirm input (manual dispatch only)"
         if: ${{ github.event_name == 'workflow_dispatch' && inputs.skip_confirm != true }}
         run: |
           if [ "${{ inputs.confirm }}" != "APPLY" ]; then
@@ -69,7 +69,7 @@ jobs:
 
       - uses: actions/checkout@v6
 
-      - name: Restore drill state from earlier apply attempt (same workflow run)
+      - name: "DR drill — tofu: restore drill state from earlier apply (same run)"
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -87,7 +87,7 @@ jobs:
           mkdir -p "${dest}"
           gh run download "${rid}" -R "${repo}" -n "${name}" -D "${dest}"
 
-      - name: Prefer prior apply artifact over git for encrypted drill state
+      - name: "DR drill — tofu: prefer prior apply artifact over git"
         run: |
           set -euo pipefail
           cd "${GITHUB_WORKSPACE}"
@@ -109,7 +109,7 @@ jobs:
             echo "Using encrypted drill state from prior apply attempt in this workflow run."
           fi
 
-      - name: Pre-flight — required secrets present?
+      - name: "DR drill — pre-flight: secrets and tokens (OpenTofu provider)"
         env:
           HCLOUD_TOKEN_DRILL:        ${{ secrets.HCLOUD_TOKEN_DRILL }}
           TS_API_KEY:                ${{ secrets.TS_API_KEY }}
@@ -127,12 +127,12 @@ jobs:
             exit 1
           fi
 
-      - name: Install OpenTofu
+      - name: "DR drill — install: OpenTofu CLI"
         uses: opentofu/setup-opentofu@v2
         with:
           tofu_version: 1.6.0
 
-      - name: Install sops + age
+      - name: "DR drill — install: sops + age"
         run: |
           set -euo pipefail
           sudo curl -fsSL -o /usr/local/bin/sops \
@@ -141,7 +141,7 @@ jobs:
           curl -fsSL https://github.com/FiloSottile/age/releases/download/v1.2.1/age-v1.2.1-linux-amd64.tar.gz \
             | sudo tar -xz -C /usr/local/bin --strip-components=1 age/age age/age-keygen
 
-      - name: Decrypt drill state (if any prior apply has happened)
+      - name: "DR drill — tofu: decrypt state (if prior apply exists)"
         working-directory: infra
         env:
           SOPS_AGE_KEY: ${{ secrets.TFSTATE_AGE_KEY }}
@@ -152,7 +152,7 @@ jobs:
               > terraform/terraform.tfstate.d/drill/terraform.tfstate
           fi
 
-      - name: tofu init + workspace drill + apply
+      - name: "DR drill — tofu: init + workspace drill + apply"
         working-directory: infra/terraform
         env:
           TF_VAR_hcloud_token:      ${{ secrets.HCLOUD_TOKEN_DRILL }}
@@ -218,7 +218,7 @@ jobs:
             fi
           done
 
-      - name: Re-encrypt drill state (green apply only)
+      - name: "DR drill — tofu: re-encrypt state (green apply only)"
         if: success()
         working-directory: infra
         env:
@@ -231,7 +231,7 @@ jobs:
               terraform/terraform.tfstate.enc.drill
           fi
 
-      - name: Upload encrypted drill state as artifact
+      - name: "DR drill — tofu: upload encrypted state artifact"
         if: success()
         uses: actions/upload-artifact@v7
         with:
@@ -240,7 +240,7 @@ jobs:
           if-no-files-found: ignore
           retention-days: 30
 
-      - name: Cleanup plaintext drill state
+      - name: "DR drill — tofu: cleanup plaintext drill state"
         if: always()
         run: |
           rm -rf infra/terraform/terraform.tfstate.d/drill

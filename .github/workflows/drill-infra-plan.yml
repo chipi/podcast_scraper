@@ -1,4 +1,4 @@
-name: Drill infra plan (PR)
+name: DR drill — infra plan (OpenTofu)
 
 # GitHub #752 — OpenTofu workspace `drill` plan on PRs touching infra (parallel
 # to infra-ci.yml which plans the default / prod workspace). Posts a separate
@@ -46,7 +46,7 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
-      - name: Pre-flight — required secrets present?
+      - name: "DR drill — pre-flight: secrets and tokens (OpenTofu provider)"
         id: preflight
         env:
           HCLOUD_TOKEN_DRILL:      ${{ secrets.HCLOUD_TOKEN_DRILL }}
@@ -68,13 +68,13 @@ jobs:
             echo "skip=false" >> "$GITHUB_OUTPUT"
           fi
 
-      - name: Install OpenTofu
+      - name: "DR drill — install: OpenTofu CLI"
         if: steps.preflight.outputs.skip != 'true'
         uses: opentofu/setup-opentofu@v2
         with:
           tofu_version: 1.6.0
 
-      - name: Install sops + age
+      - name: "DR drill — install: sops + age"
         if: steps.preflight.outputs.skip != 'true'
         run: |
           set -euo pipefail
@@ -84,12 +84,12 @@ jobs:
           curl -fsSL https://github.com/FiloSottile/age/releases/download/v1.2.1/age-v1.2.1-linux-amd64.tar.gz \
             | sudo tar -xz -C /usr/local/bin --strip-components=1 age/age age/age-keygen
 
-      - name: tofu fmt -check
+      - name: "DR drill — tofu: fmt -check"
         if: steps.preflight.outputs.skip != 'true'
         working-directory: infra/terraform
         run: tofu fmt -check -diff
 
-      - name: tofu init
+      - name: "DR drill — tofu: init"
         if: steps.preflight.outputs.skip != 'true'
         working-directory: infra/terraform
         run: |
@@ -98,12 +98,12 @@ jobs:
           yes | tofu init -input=false
           set -o pipefail
 
-      - name: Select OpenTofu workspace drill
+      - name: "DR drill — tofu: select workspace drill"
         if: steps.preflight.outputs.skip != 'true'
         working-directory: infra/terraform
         run: tofu workspace select -or-create drill
 
-      - name: Decrypt drill state (if any prior apply has happened)
+      - name: "DR drill — tofu: decrypt state (if prior apply exists)"
         if: steps.preflight.outputs.skip != 'true'
         working-directory: infra
         env:
@@ -116,12 +116,12 @@ jobs:
               > terraform/terraform.tfstate.d/drill/terraform.tfstate
           fi
 
-      - name: tofu validate
+      - name: "DR drill — tofu: validate"
         if: steps.preflight.outputs.skip != 'true'
         working-directory: infra/terraform
         run: tofu validate
 
-      - name: tofu plan (workspace drill)
+      - name: "DR drill — tofu: plan (workspace drill)"
         if: steps.preflight.outputs.skip != 'true'
         id: plan
         working-directory: infra/terraform
@@ -137,7 +137,7 @@ jobs:
           head -c 60000 plan.txt > plan.trunc.txt
           exit "$PLAN_EXIT"
 
-      - name: Post drill plan as PR comment
+      - name: "DR drill — tofu: post plan as PR comment"
         if: >
           github.event_name == 'pull_request' &&
           steps.preflight.outputs.skip != 'true' &&
@@ -158,7 +158,7 @@ jobs:
               body: body
             });
 
-      - name: Cleanup plaintext drill state
+      - name: "DR drill — tofu: cleanup plaintext drill state"
         if: always() && steps.preflight.outputs.skip != 'true'
         run: |
           rm -rf infra/terraform/terraform.tfstate.d/drill

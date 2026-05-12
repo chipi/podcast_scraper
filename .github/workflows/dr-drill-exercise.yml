@@ -1,4 +1,4 @@
-name: DR drill exercise (orchestrated)
+name: DR drill — exercise (orchestrated)
 
 # Full scratch cycle (RFC-082 / #752):
 #   drill-infra-plan (fmt-check, validate, tofu plan)
@@ -47,7 +47,7 @@ jobs:
   gate:
     runs-on: ubuntu-latest
     steps:
-      - name: Confirm
+      - name: "DR drill — confirm DRILL_FULL_CYCLE"
         run: |
           C="${{ inputs.confirm }}"
           if [ "$C" != "DRILL_FULL_CYCLE" ] && [ "$C" != "DRILL_EXERCISE" ]; then
@@ -78,7 +78,7 @@ jobs:
       contents: read
       actions: write
     steps:
-      - name: Download terraform-state-after-apply-drill (from apply reusable job)
+      - name: "DR drill — tfstate bridge — download apply artifact"
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -96,7 +96,7 @@ jobs:
           mkdir -p "${dest}"
           gh run download "${rid}" -R "${repo}" -n "${name}" -D "${dest}"
 
-      - name: Republish encrypted drill state for teardown
+      - name: "DR drill — tfstate bridge — republish encrypted state for teardown"
         id: repub
         run: |
           set -euo pipefail
@@ -113,7 +113,7 @@ jobs:
             echo "No apply artifact to bridge (standalone destroy will use git state)."
           fi
 
-      - name: Upload drill-tfstate-for-teardown
+      - name: "DR drill — tfstate bridge — upload teardown artifact"
         if: steps.repub.outputs.upload == 'yes'
         uses: actions/upload-artifact@v7
         with:
@@ -156,7 +156,7 @@ jobs:
     if: always()
     runs-on: ubuntu-latest
     steps:
-      - name: End-of-cycle marker (always runs before destroy)
+      - name: "DR drill — finalize — log cycle outcomes (always, before destroy)"
         run: |
           echo "plan=${{ needs.plan.result }} apply=${{ needs.apply.result }} deploy=${{ needs.deploy.result }} restore=${{ needs.restore.result }} smoke=${{ needs.smoke.result }} stack-playwright=${{ needs.stack-playwright.result }}"
           echo "Proceeding to drill-infra-destroy (tofu destroy) regardless of outcomes above."

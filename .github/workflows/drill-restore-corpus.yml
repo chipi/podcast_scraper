@@ -1,4 +1,4 @@
-name: DR drill restore corpus (backup → drill host)
+name: DR drill — restore corpus (backup → host)
 
 # Downloads ``snapshot.tgz`` from ``chipi/podcast_scraper-backup`` (or
 # override repo), uploads to the drill VPS, extracts under
@@ -69,7 +69,7 @@ jobs:
     environment: drill
     steps:
       # See drill-infra-destroy.yml — caller event stays workflow_dispatch inside reuse.
-      - name: Confirm (manual dispatch only)
+      - name: "DR drill — confirm input (manual dispatch only)"
         if: ${{ github.event_name == 'workflow_dispatch' && inputs.skip_confirm != true }}
         run: |
           if [ "${{ inputs.confirm }}" != "DRILL_RESTORE" ]; then
@@ -77,7 +77,7 @@ jobs:
             exit 1
           fi
 
-      - name: Pre-flight — required secrets/variables present?
+      - name: "DR drill — pre-flight: secrets and variables"
         env:
           TS_AUTHKEY:                  ${{ secrets.TS_AUTHKEY }}
           DRILL_DEPLOY_SSH_PRIVATE_KEY: ${{ secrets.DRILL_DEPLOY_SSH_PRIVATE_KEY }}
@@ -93,25 +93,25 @@ jobs:
             exit 1
           fi
 
-      - name: Checkout (resolver script + prod-ssh-key action)
+      - name: "DR drill — checkout: shallow (resolver scripts + prod-ssh-key action)"
         uses: actions/checkout@v6
         with:
           fetch-depth: 1
 
-      - name: Install SSH identity for deploy@ (DRILL_DEPLOY_SSH_PRIVATE_KEY)
+      - name: "DR drill — SSH: install identity (deploy@, DRILL_DEPLOY_SSH_PRIVATE_KEY)"
         uses: ./.github/actions/prod-ssh-key
         with:
           ssh_private_key:   ${{ secrets.DRILL_DEPLOY_SSH_PRIVATE_KEY }}
           identity_env_name: SSH_DRILL_IDENTITY
 
-      - name: Join the tailnet
+      - name: "DR drill — join: tailnet (tag:gha-deployer)"
         uses: tailscale/github-action@v2
         with:
           authkey: ${{ secrets.TS_AUTHKEY }}
           tags:    tag:gha-deployer
           version: 1.96.4
 
-      - name: Resolve drill MagicDNS host
+      - name: "DR drill — resolve: tailnet host (MagicDNS)"
         id: ts_host
         env:
           DRILL_TAILNET_FQDN: ${{ vars.DRILL_TAILNET_FQDN }}
@@ -124,7 +124,7 @@ jobs:
             echo "::notice::Tailscale live host ($R) differs from vars.DRILL_TAILNET_FQDN ($WANT). Using $R for SSH."
           fi
 
-      - name: Resolve backup release tag
+      - name: "DR drill — restore: resolve backup release tag"
         id: tag
         env:
           BACKUP_REPO: ${{ inputs.backup_repo }}
@@ -154,7 +154,7 @@ jobs:
           echo "tag=$TAG" >> "$GITHUB_OUTPUT"
           echo "repo=$REPO" >> "$GITHUB_OUTPUT"
 
-      - name: Download snapshot.tgz
+      - name: "DR drill — restore: download snapshot.tgz"
         env:
           BACKUP_REPO_TOKEN: ${{ secrets.BACKUP_REPO_TOKEN }}
         run: |
@@ -168,7 +168,7 @@ jobs:
           ls -la snapshot.tgz
           test -f snapshot.tgz
 
-      - name: Upload tarball to drill host
+      - name: "DR drill — restore: upload tarball to drill host"
         env:
           SSH_TARGET: deploy@${{ steps.ts_host.outputs.resolved_fqdn }}
         run: |
@@ -177,7 +177,7 @@ jobs:
             -o StrictHostKeyChecking=accept-new -o BatchMode=yes \
             snapshot.tgz "${SSH_TARGET}:/tmp/snapshot-restore-drill.tgz"
 
-      - name: Extract on drill and recreate api + viewer
+      - name: "DR drill — restore: extract on drill and recreate api + viewer"
         env:
           SSH_TARGET: deploy@${{ steps.ts_host.outputs.resolved_fqdn }}
         run: |
