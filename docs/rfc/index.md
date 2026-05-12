@@ -26,7 +26,7 @@ RFCs translate PRD requirements into concrete technical solutions and serve as l
 | [RFC-041](RFC-041-podcast-ml-benchmarking-framework.md) | Podcast ML Benchmarking Framework | PRD-007 | Repeatable, objective ML benchmarking system (CI integration pending) |
 | [RFC-077](RFC-077-viewer-feeds-and-serve-pipeline-jobs.md) | Viewer feeds + operator config + jobs & hygiene | [PRD-030](../prd/PRD-030-viewer-feed-sources-and-pipeline-jobs.md) | **Draft:** structured **`feeds.spec.yaml`** + operator YAML API, job lifecycle + stale/reconcile ([#626](https://github.com/chipi/podcast_scraper/issues/626)) |
 | [RFC-081](RFC-081-pre-prod-environment-and-control-plane.md) | Pre-prod environment on GitHub Codespaces (Phase 1) | — | **Draft:** Codespaces deploy auto-fired on Stack-test green; cloud_thin profile via GHCR-published `pipeline-llm`; Grafana Cloud + Sentry free observability; Cloudflare R2 corpus backup; Slack notifications. Always-on host deferred to a follow-up RFC. |
-| [RFC-082](RFC-082-always-on-pre-prod-and-prod-hosting.md) | Always-on pre-prod / production hosting (Phase 2 lift-and-shift from RFC-081) | — | **Draft starter:** picks up where RFC-081 ended. Reuses the published GHCR image set unchanged; chooses VPS host (Hetzner CX/CCX), auth wall (Cloudflare Tunnel + Access OR Tailscale), deploy mechanism (push from GHA), corpus persistence (host bind-mount), and host-side backup cron. Cost ceiling ~$10-16/mo. Open questions: operator geography, existing Cloudflare domain, scheduled-cron feed sweep. |
+| [RFC-082](RFC-082-always-on-pre-prod-and-prod-hosting.md) | Always-on pre-prod / production hosting (Phase 2 lift-and-shift from RFC-081) | — | **Draft starter:** picks up where RFC-081 ended. Reuses the published GHCR image set unchanged; chooses VPS host (Hetzner CX/CCX), auth wall (Cloudflare Tunnel + Access OR Tailscale), deploy mechanism (push from GHA), corpus persistence (host bind-mount), and host-side backup cron. Includes **stack contract vs environment adapters** ([ADR-093](../adr/ADR-093-canonical-stack-contract-and-environment-adapters.md), [#762](https://github.com/chipi/podcast_scraper/issues/762)). Cost ceiling ~$10-16/mo. Open questions: operator geography, existing Cloudflare domain, scheduled-cron feed sweep. |
 
 ## Completed RFCs
 
@@ -94,8 +94,8 @@ RFCs translate PRD requirements into concrete technical solutions and serve as l
 
 ## Gap analysis {:#gaps}
 
-**Counts (reconcile when moving RFCs):** **83** files under `docs/rfc/RFC-*.md` -- IDs **RFC-001--RFC-083**
-with **no RFC-014**. **3** open (in-flight, partial implementation), **59** completed, and **16** Draft
+**Counts (reconcile when moving RFCs):** **84** files under `docs/rfc/RFC-*.md` -- IDs **RFC-001--RFC-084**
+with **no RFC-014**. **3** open (in-flight, partial implementation), **59** completed, and **17** Draft
 (not indexed until promoted) in the tables above.
 
 **Open RFC clusters:** AI experiment pipeline + ML benchmark CI (**RFC-015**, **RFC-041**).
@@ -107,7 +107,8 @@ metrics alerts (**RFC-043**), Postgres projection (**RFC-051**), adaptive summar
 (**RFC-072**), enrichment layer (**RFC-073**), process safety (**RFC-074**),
 ephemeral acceptance smoke test (**RFC-078**), full-stack Docker Compose (**RFC-079**;
 optional doc polish: [RFC-079 §Optional follow-ups](RFC-079-full-stack-docker-compose.md#optional-follow-ups)),
-prod failover orchestration and cutover (**RFC-083**).
+prod failover orchestration and cutover (**RFC-083**), corpus snapshot backup manifest and
+version-aware restore (**RFC-084**; [GitHub #763](https://github.com/chipi/podcast_scraper/issues/763)).
 These are discoverable by filename under `docs/rfc/` but excluded from the index per the
 [index inclusion rule](../guides/MARKDOWN_LINTING_GUIDE.md) (Draft docs are not indexed).
 

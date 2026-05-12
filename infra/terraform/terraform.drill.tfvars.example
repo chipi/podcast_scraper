@@ -9,6 +9,10 @@ tailscale_advertise_tags = ["tag:dr-drill"]
 tailnet_hostname         = "dr-podcast"
 hcloud_environment_label = "drill"
 
+# Optional: allow inbound TCP/22 from these CIDRs for operator SSH when the tailnet is down.
+# CI uses 0.0.0.0/0 and ::/0 in terraform.drill.ci.tfvars; use your /32 here for a tighter drill VM.
+# hcloud_inbound_ssh_troubleshoot_cidrs = ["203.0.113.10/32"]
+
 # Optional: smaller / cheaper while iterating (must match variables.tf validation).
 # server_type = "cx33"
 # CI uses ``terraform.drill.ci.tfvars``: ``hel1`` + ``cpx32`` by default (placement).

@@ -218,6 +218,34 @@ jobs:
             fi
           done
 
+      - name: "DR drill — break-glass SSH (public IPv4, no Tailscale)"
+        if: success()
+        working-directory: infra/terraform
+        env:
+          TF_VAR_hcloud_token:      ${{ secrets.HCLOUD_TOKEN_DRILL }}
+          TF_VAR_tailscale_api_key: ${{ secrets.TS_API_KEY }}
+          TF_VAR_ssh_public_key:    ${{ secrets.OPERATOR_SSH_PUBLIC_KEY }}
+          TF_VAR_tailscale_tailnet: ${{ vars.TAILNET_NAME }}
+        run: |
+          set -euo pipefail
+          tofu workspace select drill
+          IP="$(tofu output -raw ipv4_address)"
+          HINT="$(tofu output -raw ssh_break_glass_deploy_ipv4)"
+          {
+            echo "## Break-glass SSH (Tailscale not required)"
+            echo ""
+            echo "Hetzner firewall allows **TCP/22** when \`hcloud_inbound_ssh_troubleshoot_cidrs\` is set (see \`terraform.drill.ci.tfvars\`)."
+            echo ""
+            echo "**Public IPv4:** \`${IP}\`"
+            echo ""
+            echo "**Example:** \`${HINT}\`"
+            echo ""
+            echo "Use the **private** key that matches the repo secret \`OPERATOR_SSH_PUBLIC_KEY\`. The same key is on **\`root@\`** and **\`deploy@\`** after cloud-init (see \`infra/cloud-init/prod.user-data\`)."
+            echo ""
+            echo "If you do not have that private key, use **Hetzner Cloud Console** in-browser terminal for this server."
+          } >> "$GITHUB_STEP_SUMMARY"
+          echo "::notice title=Break-glass SSH::${HINT}"
+
       - name: "DR drill — tofu: re-encrypt state (green apply only)"
         if: success()
         working-directory: infra

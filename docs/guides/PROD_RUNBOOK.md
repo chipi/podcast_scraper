@@ -404,6 +404,8 @@ ssh deploy@prod-podcast.tail-xxxxx.ts.net
 cd /srv/podcast-scraper
 make restore-corpus               # pulls latest snapshot.tgz from
                                   # chipi/podcast_scraper-backup, untars
+                                  # (post-#763: newest-compatible via manifest; see
+                                  # docs/guides/CORPUS_SNAPSHOT_MANIFEST_AND_RESTORE.md)
                                   # into /srv/podcast-scraper/corpus/
 # Pin a specific backup release (DR drills / audits):
 #   PODCAST_BACKUP_TAG=<release-tag> make restore-corpus

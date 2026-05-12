@@ -20,8 +20,9 @@ paragraph first.
 - **Always-on VPS path:** [ADR-079](../adr/ADR-079-opentofu-for-always-on-hosting-iac.md) through [ADR-083](../adr/ADR-083-tailscale-private-ingress-always-on-vps.md)
 - **Compose + CI gates:** [ADR-084](../adr/ADR-084-full-stack-docker-compose-topology.md), [ADR-085](../adr/ADR-085-ephemeral-stack-test-integration-gate.md)
 - **App promotion contract:** [ADR-082](../adr/ADR-082-gitops-app-deploy-via-stack-test-and-gha.md)
+- **Stack contract vs environment adapters (Codespace, prod VPS, drill, stack-test):** [ADR-093](../adr/ADR-093-canonical-stack-contract-and-environment-adapters.md)
 
-**Last updated:** 2026-05-08.
+**Last updated:** 2026-05-12.
 
 ---
 
@@ -381,7 +382,7 @@ GitOps with Flux) becomes real, add a new ADR and extend this doc with a “grad
 ## 13. Suggested reading order for a new operator
 
 1. This document (context).
-2. [ADR-079](../adr/ADR-079-opentofu-for-always-on-hosting-iac.md)–[ADR-083](../adr/ADR-083-tailscale-private-ingress-always-on-vps.md) (decision record, short).
+2. [ADR-079](../adr/ADR-079-opentofu-for-always-on-hosting-iac.md)–[ADR-083](../adr/ADR-083-tailscale-private-ingress-always-on-vps.md) and [ADR-093](../adr/ADR-093-canonical-stack-contract-and-environment-adapters.md) (immutable decisions: IaC ingress + stack contract discipline).
 3. [`infra/README.md` (repo root)](https://github.com/chipi/podcast_scraper/blob/main/infra/README.md) (hands-on OpenTofu and drill table).
 4. [PROD_RUNBOOK.md](../guides/PROD_RUNBOOK.md) (commands, secrets staging, first boot).
 5. [WORKFLOWS.md](../ci/WORKFLOWS.md) when you need exact workflow names and filters.
@@ -391,7 +392,7 @@ GitOps with Flux) becomes real, add a new ADR and extend this doc with a “grad
 ## References
 
 - [RFC-082: Production hosting](../rfc/RFC-082-always-on-pre-prod-and-prod-hosting.md)
-- [ADR-079](../adr/ADR-079-opentofu-for-always-on-hosting-iac.md)–[ADR-083](../adr/ADR-083-tailscale-private-ingress-always-on-vps.md), [ADR-082](../adr/ADR-082-gitops-app-deploy-via-stack-test-and-gha.md), [ADR-084](../adr/ADR-084-full-stack-docker-compose-topology.md), [ADR-085](../adr/ADR-085-ephemeral-stack-test-integration-gate.md)
+- [ADR-079](../adr/ADR-079-opentofu-for-always-on-hosting-iac.md)–[ADR-083](../adr/ADR-083-tailscale-private-ingress-always-on-vps.md), [ADR-082](../adr/ADR-082-gitops-app-deploy-via-stack-test-and-gha.md), [ADR-084](../adr/ADR-084-full-stack-docker-compose-topology.md), [ADR-085](../adr/ADR-085-ephemeral-stack-test-integration-gate.md), [ADR-093](../adr/ADR-093-canonical-stack-contract-and-environment-adapters.md)
 - [`infra/README.md` (repo root)](https://github.com/chipi/podcast_scraper/blob/main/infra/README.md)
 - [PROD_RUNBOOK.md](../guides/PROD_RUNBOOK.md)
 - [DR_DRILL_RUNBOOK.md](../guides/DR_DRILL_RUNBOOK.md)

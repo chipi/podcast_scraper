@@ -41,6 +41,7 @@ Practical guides for using and developing Podcast Scraper.
 | [Prod runbook](PROD_RUNBOOK.md) | Always-on Hetzner VPS: bootstrap, deploy, backups, observability, DR |
 | [Prod operator cheat sheet](PROD_OPERATOR_CHEAT_SHEET.md) | Short daily ops: `gh` deploy/backup, health curls, incident triage |
 | [DR drill runbook](DR_DRILL_RUNBOOK.md) | Drill-only GitHub workflows, typed confirms, orchestrator vs piecemeal paths |
+| [Corpus snapshot manifest and restore](CORPUS_SNAPSHOT_MANIFEST_AND_RESTORE.md) | **Single hub:** local **`make`** vs GitHub Actions (prod, pre-prod, DR) for `snapshot.manifest.json` — [RFC-084](../rfc/RFC-084-corpus-backup-manifest-and-version-aware-restore.md) / [ADR-092](../adr/ADR-092-corpus-snapshot-backup-manifest-and-newest-compatible-restore.md) |
 
 ## Testing
 

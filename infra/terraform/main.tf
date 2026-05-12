@@ -39,6 +39,16 @@ resource "hcloud_network_subnet" "main" {
 resource "hcloud_firewall" "main" {
   name = "podcast-scraper-prod"
 
+  dynamic "rule" {
+    for_each = length(var.hcloud_inbound_ssh_troubleshoot_cidrs) > 0 ? [1] : []
+    content {
+      direction  = "in"
+      protocol   = "tcp"
+      port       = "22"
+      source_ips = var.hcloud_inbound_ssh_troubleshoot_cidrs
+    }
+  }
+
   rule {
     direction  = "in"
     protocol   = "udp"

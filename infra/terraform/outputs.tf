@@ -18,6 +18,15 @@ output "ssh_target" {
   value       = "deploy@${var.tailnet_hostname}.${var.tailscale_tailnet}"
 }
 
+output "ssh_break_glass_deploy_ipv4" {
+  description = <<-EOT
+    Non-Tailscale SSH over the server's public IPv4 (requires hcloud_inbound_ssh_troubleshoot_cidrs
+    allowing your source, e.g. drill CI tfvars). Use the private key matching OPERATOR_SSH_PUBLIC_KEY
+    / TF_VAR_ssh_public_key. First-boot cloud-init also installs that key for root@ on this IPv4.
+  EOT
+  value       = format("ssh deploy@%s", hcloud_server.prod.ipv4_address)
+}
+
 output "volume_id" {
   description = "Attached Volume ID, or null if no Volume was provisioned."
   value       = var.volume_size_gb > 0 ? hcloud_volume.corpus[0].id : null
