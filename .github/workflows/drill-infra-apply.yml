@@ -68,13 +68,6 @@ jobs:
           fi
 
       - uses: actions/checkout@v6
-        with:
-          fetch-depth: 1
-          show-progress: false
-          sparse-checkout: |
-            infra
-            tailscale
-          sparse-checkout-cone-mode: true
 
       - name: "DR drill — tofu: restore drill state from earlier apply (same run)"
         env:
@@ -175,17 +168,6 @@ jobs:
           # tofu_wrapper logs ##[error] for any non-zero child tofu exit.
           tofu workspace select -or-create drill
 
-          # ``hcloud_server.prod`` uses ``lifecycle { ignore_changes = [user_data] }`` so
-          # prod is not churned on every Tailscale key rotation. That also means
-          # cloud-init edits never reach an *existing* drill VPS — deploy then sees
-          # zero ``dr-podcast*`` peers forever. Force one replacement when the server
-          # is already in state (orchestrated drill / CI only).
-          REPLACE_FLAGS=()
-          if tofu state show -no-color "hcloud_server.prod" >/dev/null 2>&1; then
-            REPLACE_FLAGS=(-replace="hcloud_server.prod")
-            echo "::notice::tofu apply will replace hcloud_server.prod so cloud-init user_data changes take effect."
-          fi
-
           # Hetzner-only: retry when API returns placement/capacity style errors.
           # Dependency order: SSH key / network / firewall are API-only; the server
           # needs DC capacity, so it can fail alone with resource_unavailable.
@@ -210,7 +192,6 @@ jobs:
             log="$(mktemp)"
             set +e
             tofu apply -auto-approve -input=false -var-file=terraform.drill.ci.tfvars \
-              "${REPLACE_FLAGS[@]}" \
               "${EXTRA_TF[@]}" \
               >"$log" 2>&1
             ec=$?

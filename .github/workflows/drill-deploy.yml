@@ -50,7 +50,7 @@ concurrency:
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 25
     environment: drill
     steps:
       - name: "DR drill — pre-flight: secrets and variables"
@@ -116,34 +116,21 @@ jobs:
           # After a fresh ``tofu apply``, cloud-init + ``tailscale up`` can lag
           # behind the deploy job; poll until the drill host is **Online** in
           # ``tailscale status`` (see scripts/ops/resolve_drill_tailnet_host.sh).
-          # Keep this step under ~1m wall time when the host never appears.
-          max_attempts=4
-          sleep_sec=10
+          max_wait=480
+          interval=15
+          elapsed=0
           R=""
-          out="$(mktemp)"
-          err="$(mktemp)"
-          trap 'rm -f "$out" "$err"' EXIT
-          for attempt in $(seq 1 "$max_attempts"); do
-            # Do not swallow resolver stderr — ``2>/dev/null`` hid WHY resolution failed for minutes.
-            if bash scripts/ops/resolve_drill_tailnet_host.sh >"$out" 2>"$err"; then
-              R=$(cat "$out")
-              echo "::notice::Drill host visible on tailnet (attempt ${attempt}/${max_attempts})."
+          while [ "$elapsed" -lt "$max_wait" ]; do
+            if R=$(bash scripts/ops/resolve_drill_tailnet_host.sh 2>/dev/null); then
+              echo "::notice::Drill host visible on tailnet after ${elapsed}s."
               break
             fi
-            msg="$(tr '\n' ' ' <"$err")"
-            max_len=700
-            if [ "${#msg}" -gt "$max_len" ]; then
-              msg="${msg:0:$max_len}…"
-            fi
-            echo "::notice::Drill host not on tailnet yet (attempt ${attempt}/${max_attempts}). Resolver: ${msg}"
-            if [ "$attempt" -eq "$max_attempts" ]; then
-              bash scripts/ops/resolve_drill_tailnet_host.sh
-            fi
-            sleep "$sleep_sec"
+            echo "::notice::Drill host not on tailnet yet (${elapsed}s / ${max_wait}s); sleeping ${interval}s."
+            sleep "$interval"
+            elapsed=$((elapsed + interval))
           done
           if [ -z "$R" ]; then
-            echo "::error::Drill tailnet host not resolved after ${max_attempts} attempts."
-            exit 1
+            R=$(bash scripts/ops/resolve_drill_tailnet_host.sh)
           fi
           echo "resolved_fqdn=$R" >> "$GITHUB_OUTPUT"
           WANT="${{ vars.DRILL_TAILNET_FQDN }}"

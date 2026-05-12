@@ -143,19 +143,6 @@ runcmd:
   - sort -u /root/.ssh/authorized_keys -o /root/.ssh/authorized_keys
   - chmod 600 /root/.ssh/authorized_keys
 
-  # === Tailscale first (join tailnet before heavy Docker install) ===
-  # GHA ``drill-deploy`` polls ``tailscale status`` soon after ``tofu apply``; if
-  # ``tailscale up`` sits after multi-minute Docker apt, the runner sees zero
-  # ``dr-podcast*`` peers until cloud-init finishes (RFC-082 drill exercise).
-  - curl -fsSL "https://pkgs.tailscale.com/stable/ubuntu/$(. /etc/os-release && echo "$VERSION_CODENAME").noarmor.gpg" -o /usr/share/keyrings/tailscale-archive-keyring.gpg
-  - curl -fsSL "https://pkgs.tailscale.com/stable/ubuntu/$(. /etc/os-release && echo "$VERSION_CODENAME").tailscale-keyring.list" -o /etc/apt/sources.list.d/tailscale.list
-  - apt-get update
-  - apt-get install -y tailscale
-  # Retry: first boot networking can flap; one-shot keys used to brick the join.
-  # ``tailscale_tailnet_key`` already embeds ``tags``; omit ``--advertise-tags`` here
-  # so ``tailscale up`` does not reject some tagged-key combinations on first boot.
-  - bash -c "set -euo pipefail; n=0; while [ $$n -lt 30 ]; do tailscale up --auth-key='${tailscale_auth_key}' --hostname='${tailnet_hostname}' --ssh=false && exit 0; n=$$((n+1)); sleep 10; done; exit 1"
-
   # === Docker (official Docker repo) ===
   - install -m 0755 -d /etc/apt/keyrings
   - curl -fsSL https://download.docker.com/linux/ubuntu/gpg -o /etc/apt/keyrings/docker.asc
@@ -164,6 +151,13 @@ runcmd:
   - apt-get update
   - apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
   - systemctl enable --now docker
+
+  # === Tailscale (official tailscale repo; supports both amd64 + arm64) ===
+  - curl -fsSL "https://pkgs.tailscale.com/stable/ubuntu/$(. /etc/os-release && echo "$VERSION_CODENAME").noarmor.gpg" -o /usr/share/keyrings/tailscale-archive-keyring.gpg
+  - curl -fsSL "https://pkgs.tailscale.com/stable/ubuntu/$(. /etc/os-release && echo "$VERSION_CODENAME").tailscale-keyring.list" -o /etc/apt/sources.list.d/tailscale.list
+  - apt-get update
+  - apt-get install -y tailscale
+  - tailscale up --auth-key='${tailscale_auth_key}' --hostname='${tailnet_hostname}' --advertise-tags='${tailscale_advertise_tags_cli}' --ssh=false
 
   # === Repo checkout to /srv/podcast-scraper ===
   # ``write_files`` may already have created ``.bootstrap-needs-env`` under this

@@ -90,9 +90,8 @@ resource "hcloud_server" "prod" {
     grafana_cloud_metrics_username         = var.grafana_cloud_metrics_username
     grafana_cloud_metrics_password         = var.grafana_cloud_metrics_password
 
-    # Script body is injected via ``file()`` so ``$`` / ``((`` are never passed through
-    # ``templatefile`` twice (avoids broken ``n=$$((n+1))`` on the VPS). The file
-    # itself is POSIX ``/bin/sh`` so cloud-init + systemd + dash never hit bashisms.
+    # Shell script body is injected via ``file()`` so ``$`` / ``((`` are never passed through
+    # ``templatefile`` twice (avoids broken ``n=$$((n+1))`` on the VPS).
     podcast_tailscale_serve_body = indent(6, chomp(file("${path.module}/../cloud-init/podcast-tailscale-serve.sh")))
   })
 
@@ -102,10 +101,9 @@ resource "hcloud_server" "prod" {
     managed-by  = "opentofu"
   }
 
-  # Cloud-init only runs once. Re-applying with a rotated auth key would normally
-  # rewrite ``user_data``; we ignore that diff so prod is not replaced on every
-  # ``tofu apply``. **Drill CI** forces ``-replace=hcloud_server.prod`` in
-  # ``drill-infra-apply.yml`` so cloud-init changes still reach a fresh VPS.
+  # Cloud-init only runs once. Re-applying with a rotated auth key would force
+  # server replacement (loses corpus, tailnet identity); ignore the diff so
+  # routine `tofu apply` for non-server resources stays cheap.
   lifecycle {
     ignore_changes = [user_data]
   }
