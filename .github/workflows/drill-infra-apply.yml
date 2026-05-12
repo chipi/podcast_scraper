@@ -7,8 +7,9 @@ name: Drill infra apply (manual)
 # this job uploads ``terraform-state-after-apply-drill`` so orchestrated
 # ``drill-infra-destroy`` can destroy without a git commit. Failed apply does **not**
 # publish state (avoids poisoning teardown with partial / wrong encrypted state).
-# The artifact is downloaded at the start of this job (``continue-on-error``) so a
-# **re-run after a green apply** in the same workflow run can pick up that state.
+# The artifact is restored at the start of this job when it already exists in
+# the **same** workflow run (e.g. re-run apply after a green apply). A shell step
+# lists run artifacts first so missing artifacts do not emit download-action errors.
 # ``tofu apply`` may retry extra attempts **only** when the log matches Hetzner
 # placement-style errors (e.g. ``resource_unavailable``); other failures exit
 # immediately. Defaults come from ``terraform.drill.ci.tfvars`` (**hel1** +
@@ -69,11 +70,22 @@ jobs:
       - uses: actions/checkout@v6
 
       - name: Restore drill state from earlier apply attempt (same workflow run)
-        continue-on-error: true
-        uses: actions/download-artifact@v8
-        with:
-          name: terraform-state-after-apply-drill
-          path: .downloaded-self-apply-drill-state
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          name="terraform-state-after-apply-drill"
+          dest=".downloaded-self-apply-drill-state"
+          repo="${{ github.repository }}"
+          rid="${{ github.run_id }}"
+          n="$(gh api "repos/${repo}/actions/runs/${rid}/artifacts" \
+            --jq "[.artifacts[] | select(.name==\"${name}\")] | length")"
+          if [ "${n:-0}" -eq 0 ]; then
+            echo "::notice::No ${name} in this run yet (normal before first successful apply in this run)."
+            exit 0
+          fi
+          mkdir -p "${dest}"
+          gh run download "${rid}" -R "${repo}" -n "${name}" -D "${dest}"
 
       - name: Prefer prior apply artifact over git for encrypted drill state
         run: |

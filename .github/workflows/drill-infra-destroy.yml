@@ -7,9 +7,11 @@ name: Drill infra destroy (manual)
 # after ``dr-drill-exercise``'s ``drill-tfstate-bridge`` job, it downloads artifact
 # ``drill-tfstate-for-teardown`` (a copy of apply output on the **caller** run).
 # It also tries ``terraform-state-after-apply-drill`` (direct from apply) for
-# compatibility. Without those artifacts (standalone destroy), it uses the
-# encrypted file from the git checkout; commit ``terraform.tfstate.enc.drill``
-# when you apply outside the orchestrator and need destroy to match.
+# compatibility. Optional downloads use ``gh api`` first so missing artifacts
+# do not surface as download-action errors. Without those artifacts (standalone
+# destroy), it uses the encrypted file from the git checkout; commit
+# ``terraform.tfstate.enc.drill`` when you apply outside the orchestrator and
+# need destroy to match.
 #
 # After ``tofu destroy`` (or if destroy fails), always runs a **Hetzner hcloud
 # orphan sweep** in the drill-token project, then **Tailscale API** removal of devices tagged
@@ -81,18 +83,40 @@ jobs:
       - uses: actions/checkout@v6
 
       - name: Download drill-tfstate-for-teardown (orchestrator bridge)
-        continue-on-error: true
-        uses: actions/download-artifact@v8
-        with:
-          name: drill-tfstate-for-teardown
-          path: .downloaded-teardown-drill-state
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          name="drill-tfstate-for-teardown"
+          dest=".downloaded-teardown-drill-state"
+          repo="${{ github.repository }}"
+          rid="${{ github.run_id }}"
+          n="$(gh api "repos/${repo}/actions/runs/${rid}/artifacts" \
+            --jq "[.artifacts[] | select(.name==\"${name}\")] | length")"
+          if [ "${n:-0}" -eq 0 ]; then
+            echo "::notice::No ${name} artifact (bridge did not publish or apply failed)."
+            exit 0
+          fi
+          mkdir -p "${dest}"
+          gh run download "${rid}" -R "${repo}" -n "${name}" -D "${dest}"
 
       - name: Download drill state from apply job (same run, fallback)
-        continue-on-error: true
-        uses: actions/download-artifact@v8
-        with:
-          name: terraform-state-after-apply-drill
-          path: .downloaded-apply-drill-state
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          name="terraform-state-after-apply-drill"
+          dest=".downloaded-apply-drill-state"
+          repo="${{ github.repository }}"
+          rid="${{ github.run_id }}"
+          n="$(gh api "repos/${repo}/actions/runs/${rid}/artifacts" \
+            --jq "[.artifacts[] | select(.name==\"${name}\")] | length")"
+          if [ "${n:-0}" -eq 0 ]; then
+            echo "::notice::No ${name} artifact (apply did not upload successfully)."
+            exit 0
+          fi
+          mkdir -p "${dest}"
+          gh run download "${rid}" -R "${repo}" -n "${name}" -D "${dest}"
 
       - name: Prefer bridged or apply artifact over git for encrypted drill state
         run: |

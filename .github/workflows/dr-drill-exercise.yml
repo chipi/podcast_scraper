@@ -79,11 +79,22 @@ jobs:
       actions: write
     steps:
       - name: Download terraform-state-after-apply-drill (from apply reusable job)
-        continue-on-error: true
-        uses: actions/download-artifact@v8
-        with:
-          name: terraform-state-after-apply-drill
-          path: .bridge-in
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          name="terraform-state-after-apply-drill"
+          dest=".bridge-in"
+          repo="${{ github.repository }}"
+          rid="${{ github.run_id }}"
+          n="$(gh api "repos/${repo}/actions/runs/${rid}/artifacts" \
+            --jq "[.artifacts[] | select(.name==\"${name}\")] | length")"
+          if [ "${n:-0}" -eq 0 ]; then
+            echo "::notice::No ${name} to bridge (apply did not upload or not finished)."
+            exit 0
+          fi
+          mkdir -p "${dest}"
+          gh run download "${rid}" -R "${repo}" -n "${name}" -D "${dest}"
 
       - name: Republish encrypted drill state for teardown
         id: repub
