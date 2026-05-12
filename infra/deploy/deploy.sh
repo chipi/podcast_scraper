@@ -30,6 +30,14 @@ if ! grep -qE '^PODCAST_DOCKER_PROJECT_DIR=' .env; then
   echo "PODCAST_DOCKER_PROJECT_DIR=$REPO_DIR" >> .env
   chmod 600 .env
 fi
+# Same pattern as ``.devcontainer/start.sh`` (Codespaces): prod compose binds
+# corpus_data to ``PODCAST_CORPUS_HOST_PATH`` on the host → ``/app/output`` in
+# containers. VPS default matches cloud-init (``/srv/podcast-scraper/corpus``).
+if ! grep -qE '^PODCAST_CORPUS_HOST_PATH=' .env; then
+  echo "PODCAST_CORPUS_HOST_PATH=$REPO_DIR/corpus" >> .env
+  chmod 600 .env
+fi
+mkdir -p "$REPO_DIR/corpus"
 
 # Compose resolves the project directory from the first `-f` path (`compose/`), so
 # it does not load `/srv/podcast-scraper/.env` by default — pass explicitly (VPS + GHA).
