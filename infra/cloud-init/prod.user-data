@@ -50,7 +50,7 @@ write_files:
   # can curl https://<tailnet_hostname>.<tailnet>/ (see PROD_RUNBOOK.md).
   - path: /usr/local/sbin/podcast-tailscale-serve.sh
     content: |
-${podcast_tailscale_serve_body}
+      ${podcast_tailscale_serve_body}
     permissions: '0755'
     owner: root:root
 
