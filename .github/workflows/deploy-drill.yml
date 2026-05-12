@@ -46,7 +46,7 @@ concurrency:
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 25
     environment: drill
     steps:
       - name: Pre-flight — required secrets/variables present?
@@ -108,7 +108,26 @@ jobs:
           DRILL_TAILNET_FQDN: ${{ vars.DRILL_TAILNET_FQDN }}
         run: |
           set -euo pipefail
-          R=$(bash scripts/ops/resolve_drill_tailnet_host.sh)
+          cd "${GITHUB_WORKSPACE}"
+          # After a fresh ``tofu apply``, cloud-init + ``tailscale up`` can lag
+          # behind the deploy job; poll until the drill host is **Online** in
+          # ``tailscale status`` (see scripts/ops/resolve_drill_tailnet_host.sh).
+          max_wait=480
+          interval=15
+          elapsed=0
+          R=""
+          while [ "$elapsed" -lt "$max_wait" ]; do
+            if R=$(bash scripts/ops/resolve_drill_tailnet_host.sh 2>/dev/null); then
+              echo "::notice::Drill host visible on tailnet after ${elapsed}s."
+              break
+            fi
+            echo "::notice::Drill host not on tailnet yet (${elapsed}s / ${max_wait}s); sleeping ${interval}s."
+            sleep "$interval"
+            elapsed=$((elapsed + interval))
+          done
+          if [ -z "$R" ]; then
+            R=$(bash scripts/ops/resolve_drill_tailnet_host.sh)
+          fi
           echo "resolved_fqdn=$R" >> "$GITHUB_OUTPUT"
           WANT="${{ vars.DRILL_TAILNET_FQDN }}"
           if [ "$(printf '%s' "$R" | tr '[:upper:]' '[:lower:]')" != "$(printf '%s' "$WANT" | tr '[:upper:]' '[:lower:]')" ]; then
