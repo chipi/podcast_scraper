@@ -59,6 +59,16 @@ this user repeatedly. Adherence to these beats every other rule.
    "while I'm here" scope; **hardening the thing they are pointing at**
    is not optional scope creep.
 
+8. **Never guess root cause on failures; always get proof first.** Do
+   not explain **why** CI, Actions, deploy, or infra failed—and do **not**
+   claim something is **fixed**—from memory, analogy, or "usually it's
+   X." **First** pull evidence for **that** run/job: e.g. `gh run view
+   <id> --json jobs` (failed `steps[].name`), `gh run view --log-failed`,
+   or the user's pasted log; local runs: full failing output. Then cite
+   **failing step name** and **error lines** (or quote minimally). If
+   logs are inaccessible, say so once and fetch them or ask for a
+   link—**do not** invent a diagnosis.
+
 ---
 
 ## User intent beats procedural defaults
@@ -93,6 +103,9 @@ this user repeatedly. Adherence to these beats every other rule.
 - **Ask only when blocked**: missing secrets, ambiguous scope, unsafe
   request, genuine multi-way decision where the user must pick, or
   policy needs explicit approval (commit/push).
+- **Evidence before failure diagnosis (rule 8):** for CI/infra/deploy
+  issues, read logs / `gh` output for the **specific** failing step
+  before stating cause or fix—no guessing from pattern memory.
 
 ## WORKTREE.md (when present at repo root)
 

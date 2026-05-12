@@ -13,7 +13,8 @@ These are the patterns where you have failed this user repeatedly:
 5. Read what was last asked, not what you think makes sense.
 6. Validate the cost of an action before taking it (does it restart CI? does it push? does it require approval?).
 7. **Own agent-introduced automation; execute the obvious path.** When the user reports failure or flakiness in **workflows/orchestrators/CI glue you added**, default to **in-repo fixes** (`actionlint`, targeted `make`, YAML/script edits). Do not close with psychology or implied operator homework unless blocked (secrets, org policy). **Do not suggest the user run a step you can run** (same shell/tools/repo). **Do ask** when there are real options or trade-offs, or an irreversible/risky move needs their choice. See `.cursorrules` rule 7 and **Autonomous execution**.
-8. **Make commands MUST be assessable at the end.** ALWAYS invoke `make` with an exit-code terminator from the start, so the LAST line of output unambiguously says PASS/FAIL. NEVER re-run a `make` command "to check the exit code". See [How to run make commands](#how-to-run-make-commands) below.
+8. **Never guess failures; read proof first.** For CI/infra/deploy/runtime issues, pull the **actual** failing job/step (`gh run view … --json jobs`, `--log-failed`) or full local output **before** stating root cause or that something is fixed. Cite **step name** and error lines. If logs are inaccessible, say so—do not invent a diagnosis from memory. See `.cursorrules` rule 8.
+9. **Make commands MUST be assessable at the end.** ALWAYS invoke `make` with an exit-code terminator from the start, so the LAST line of output unambiguously says PASS/FAIL. NEVER re-run a `make` command "to check the exit code". See [How to run make commands](#how-to-run-make-commands) below.
 
 ## How to run make commands
 
