@@ -102,9 +102,10 @@ resource "hcloud_server" "prod" {
     managed-by  = "opentofu"
   }
 
-  # Cloud-init only runs once. Re-applying with a rotated auth key would force
-  # server replacement (loses corpus, tailnet identity); ignore the diff so
-  # routine `tofu apply` for non-server resources stays cheap.
+  # Cloud-init only runs once. Re-applying with a rotated auth key would normally
+  # rewrite ``user_data``; we ignore that diff so prod is not replaced on every
+  # ``tofu apply``. **Drill CI** forces ``-replace=hcloud_server.prod`` in
+  # ``drill-infra-apply.yml`` so cloud-init changes still reach a fresh VPS.
   lifecycle {
     ignore_changes = [user_data]
   }
