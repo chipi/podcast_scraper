@@ -26,6 +26,10 @@ and feature UXS files ([UXS-002](../../../docs/uxs/UXS-002-corpus-digest.md) Dig
 | Browser | Firefox (single project) |
 | Specs | `e2e/*.spec.ts`, shared [fixtures.ts](fixtures.ts), [helpers.ts](helpers.ts) |
 
+### DR drill — live stack (not this `baseURL`)
+
+The orchestrator **`dr-drill-exercise`** (after **`drill-e2e`**) runs **`tests/stack-test/stack-viewer.spec.ts`** against the deployed drill host over Tailscale (**HTTPS** MagicDNS, `STACK_TEST_BASE_URL`, see [playwright.config.ts](../../../tests/stack-test/playwright.config.ts)). That suite asserts SPA + nginx + API + **`/app/output`** corpus; it is the **live** browser check, separate from the mocked specs in this directory.
+
 ## Updated testids — chip-bar refactor (#658 / #669 / #670 / #673 / #674)
 
 The graph + library + digest filter UIs were rebuilt as chip bars. New

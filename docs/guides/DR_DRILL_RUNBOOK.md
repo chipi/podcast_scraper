@@ -58,6 +58,7 @@ the usual path to land `tailscale/policy.hujson` changes.
 | `DRILL_DESTROY` | `drill-infra-destroy.yml` (manual only) | **`tofu destroy`** + **Hetzner `hcloud` sweep** + **Tailscale device delete** (`tag:dr-drill` or drill `tailnet_hostname`); standalone uses git state — orchestrator uses apply artifact (same run) |
 | `DRILL_RESTORE` | `drill-restore-corpus.yml` (manual only) | Overwrite drill **`corpus/`** from backup **`snapshot.tgz`** |
 | `DRILL_SMOKE` | `drill-e2e.yml` (manual or orchestrator) | Read-only **`/api/health`** via tailnet SSH |
+| `DRILL_STACK_PLAYWRIGHT` | `drill-stack-playwright.yml` (manual; orchestrator uses `skip_confirm`) | Run **`tests/stack-test/stack-viewer.spec.ts`** against drill HTTPS |
 
 The orchestrator calls **`drill-infra-apply`** and **`drill-infra-destroy`** with internal
 **`skip_confirm: true`** after the single **`DRILL_FULL_CYCLE`** / **`DRILL_EXERCISE`** gate; standalone
@@ -74,9 +75,10 @@ Ordered jobs:
 3. **`drill-tfstate-bridge`** — caller job: re-downloads that artifact and uploads **`drill-tfstate-for-teardown`** so **`drill-infra-destroy`** (a reusable workflow) can read state without a git commit.
 4. **`deploy-drill`** — git pull, compose pull/up, host **`/api/health`** smoke.
 5. **`drill-restore-corpus`** — download **`snapshot.tgz`**, extract **`corpus/`**, recreate **api** + **viewer**.
-6. **`drill-e2e`** — tailnet SSH **`curl`**:8080 **`/api/health`**.
-7. **`finalize`** — runs **`if: always()`** so the next step still runs when a middle job failed.
-8. **`drill-infra-destroy`** — downloads **`drill-tfstate-for-teardown`** (or apply artifact as fallback), then **`tofu destroy`**, **Hetzner API sweep**, **Tailscale API** removal of drill devices (always after finalize).
+6. **`drill-e2e`** — tailnet SSH **`curl`**:8080 **`/api/health`** (quick smoke).
+7. **`drill-stack-playwright`** — **`tests/stack-test/stack-viewer.spec.ts`** over **HTTPS** against the live drill host (browser + API + corpus).
+8. **`finalize`** — runs **`if: always()`** so the next step still runs when a middle job failed.
+9. **`drill-infra-destroy`** — downloads **`drill-tfstate-for-teardown`** (or apply artifact as fallback), then **`tofu destroy`**, **Hetzner API sweep**, **Tailscale API** removal of drill devices (always after finalize).
 
 Each job that uses GitHub **Environment `drill`** may require a separate approval if your org
 configured reviewers on that environment.
@@ -99,6 +101,7 @@ Use individual workflows when you already have a drill VM and only want the app 
 - **`deploy-drill.yml`**
 - **`drill-restore-corpus.yml`** (confirm **`DRILL_RESTORE`**)
 - **`drill-e2e.yml`** (confirm **`DRILL_SMOKE`**)
+- **`drill-stack-playwright.yml`** (confirm **`DRILL_STACK_PLAYWRIGHT`** — runs **`stack-viewer.spec.ts`** against drill HTTPS)
 
 Do **not** use **`dr-drill-exercise.yml`** for that case: it always ends in **`drill-infra-destroy`**.
 

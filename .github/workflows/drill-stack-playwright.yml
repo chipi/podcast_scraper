@@ -1,0 +1,104 @@
+name: DR drill stack Playwright (stack-test subset)
+
+# GitHub #752 — runs **existing** ``tests/stack-test/stack-viewer.spec.ts`` against
+# the live drill viewer over Tailscale (same contract as local ``make stack-test-playwright``,
+# with ``STACK_TEST_BASE_URL`` pointing at MagicDNS HTTPS). Validates SPA + nginx
+# proxy + API + restored corpus (``/app/output``) after deploy + restore + smoke.
+#
+# Prerequisites: ``TS_AUTHKEY``, ``DRILL_DEPLOY_SSH_PRIVATE_KEY`` (drill env gate),
+# ``vars.DRILL_TAILNET_FQDN``, ACL **tag:gha-deployer** → **tag:dr-drill** for **HTTPS :443**
+# (MagicDNS / ``tailscale serve``) in addition to SSH **:22** used by other drill jobs.
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: 'Type "DRILL_STACK_PLAYWRIGHT" to confirm stack-test against drill'
+        required: true
+        default: ''
+      skip_confirm:
+        description: "Leave false for manual runs. Orchestrator sets true."
+        type: boolean
+        required: false
+        default: false
+  workflow_call:
+    secrets:
+      TS_AUTHKEY:
+        required: true
+      DRILL_DEPLOY_SSH_PRIVATE_KEY:
+        required: true
+    inputs:
+      skip_confirm:
+        description: "True when dr-drill-exercise already gated on DRILL_FULL_CYCLE"
+        type: boolean
+        required: true
+
+permissions:
+  contents: read
+
+concurrency:
+  group: drill-stack-playwright
+  cancel-in-progress: false
+
+jobs:
+  stack-playwright:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    environment: drill
+    steps:
+      - name: Confirm input (manual dispatch only)
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.skip_confirm != true }}
+        run: |
+          if [ "${{ inputs.confirm }}" != "DRILL_STACK_PLAYWRIGHT" ]; then
+            echo "::error::Must type DRILL_STACK_PLAYWRIGHT to confirm. Got: '${{ inputs.confirm }}'"
+            exit 1
+          fi
+
+      - name: Pre-flight — required secrets/variables present?
+        env:
+          TS_AUTHKEY:                  ${{ secrets.TS_AUTHKEY }}
+          DRILL_DEPLOY_SSH_PRIVATE_KEY: ${{ secrets.DRILL_DEPLOY_SSH_PRIVATE_KEY }}
+          DRILL_TAILNET_FQDN:          ${{ vars.DRILL_TAILNET_FQDN }}
+        run: |
+          set -euo pipefail
+          MISSING=""
+          [ -z "${TS_AUTHKEY:-}" ]                    && MISSING="$MISSING TS_AUTHKEY"
+          [ -z "${DRILL_DEPLOY_SSH_PRIVATE_KEY:-}" ] && MISSING="$MISSING DRILL_DEPLOY_SSH_PRIVATE_KEY"
+          [ -z "${DRILL_TAILNET_FQDN:-}" ]          && MISSING="$MISSING DRILL_TAILNET_FQDN"
+          if [ -n "$MISSING" ]; then
+            echo "::error::Missing prereqs:$MISSING Stage per drill-stack-playwright header."
+            exit 1
+          fi
+
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 1
+
+      - name: Join the tailnet
+        uses: tailscale/github-action@v2
+        with:
+          authkey: ${{ secrets.TS_AUTHKEY }}
+          tags:    tag:gha-deployer
+          version: 1.96.4
+
+      - name: Resolve drill viewer base URL
+        id: base
+        env:
+          DRILL_TAILNET_FQDN: ${{ vars.DRILL_TAILNET_FQDN }}
+        run: |
+          set -euo pipefail
+          R=$(bash scripts/ops/resolve_drill_tailnet_host.sh)
+          # Nginx viewer + API via tailscale serve (HTTPS :443); matches operator browser.
+          echo "stack_test_base_url=https://${R}" >> "$GITHUB_OUTPUT"
+          echo "::notice::STACK_TEST_BASE_URL will be https://${R}"
+
+      - name: Run stack-viewer Playwright (subset)
+        working-directory: tests/stack-test
+        env:
+          STACK_TEST_BASE_URL: ${{ steps.base.outputs.stack_test_base_url }}
+          STACK_TEST_INSECURE_TLS: "1"
+        run: |
+          set -euo pipefail
+          npm install
+          ./node_modules/.bin/playwright install firefox
+          ./node_modules/.bin/playwright test stack-viewer.spec.ts
