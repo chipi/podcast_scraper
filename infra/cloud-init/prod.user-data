@@ -152,7 +152,9 @@ runcmd:
   - apt-get update
   - apt-get install -y tailscale
   # Retry: first boot networking can flap; one-shot keys used to brick the join.
-  - bash -c "set -euo pipefail; n=0; while [ $$n -lt 30 ]; do tailscale up --auth-key='${tailscale_auth_key}' --hostname='${tailnet_hostname}' --advertise-tags='${tailscale_advertise_tags_cli}' --ssh=false && exit 0; n=$$((n+1)); sleep 10; done; exit 1"
+  # ``tailscale_tailnet_key`` already embeds ``tags``; omit ``--advertise-tags`` here
+  # so ``tailscale up`` does not reject some tagged-key combinations on first boot.
+  - bash -c "set -euo pipefail; n=0; while [ $$n -lt 30 ]; do tailscale up --auth-key='${tailscale_auth_key}' --hostname='${tailnet_hostname}' --ssh=false && exit 0; n=$$((n+1)); sleep 10; done; exit 1"
 
   # === Docker (official Docker repo) ===
   - install -m 0755 -d /etc/apt/keyrings
