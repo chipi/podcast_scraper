@@ -36,6 +36,8 @@ on:
 permissions:
   contents: read
   actions: write
+  # drill-infra-plan (reusable) posts PR comments when permissions are evaluated for workflow_call.
+  pull-requests: write
 
 concurrency:
   group: dr-drill-exercise
@@ -122,6 +124,7 @@ jobs:
     with:
       backup_tag:  ${{ inputs.backup_tag }}
       backup_repo: ${{ inputs.backup_repo }}
+      skip_confirm: true
 
   smoke:
     needs: restore
