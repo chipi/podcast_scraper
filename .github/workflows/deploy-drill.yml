@@ -12,6 +12,10 @@ name: Deploy to drill VPS
 #              the same keypair as prod if you appended the same .pub to drill)
 #   - vars:    DRILL_TAILNET_FQDN (e.g. dr-podcast.tail-xxxx.ts.net)
 #
+# SSH note: ``Permission denied (publickey,password)`` means TCP + host key
+# worked but the server rejected the offered key (see Wire step retries for
+# first-boot race vs permanent key mismatch in README / PROD_RUNBOOK).
+#
 # Host prerequisites: staged /srv/podcast-scraper/.env and removed
 # .bootstrap-needs-env so docker compose can run (see PROD_RUNBOOK / cloud-init).
 
@@ -134,28 +138,55 @@ jobs:
             echo "::notice::Tailscale live host ($R) differs from vars.DRILL_TAILNET_FQDN ($WANT). Using $R for SSH and probes."
           fi
 
+      # First-boot race: Tailscale can show the node Online before cloud-init
+      # finishes writing ``deploy@`` ``authorized_keys``. ``publickey`` then is
+      # often transient; retry before concluding a keypair mismatch.
       - name: Wire PODCAST_RELEASE into host .env
         if: steps.preflight.outputs.skip != 'true'
         env:
           SHA_SHORT:  ${{ steps.sha.outputs.short }}
           SSH_TARGET: deploy@${{ steps.ts_host.outputs.resolved_fqdn }}
         run: |
-          ssh -i "$SSH_DRILL_IDENTITY" -o IdentitiesOnly=yes \
-            -o StrictHostKeyChecking=accept-new -o BatchMode=yes "$SSH_TARGET" \
-            "set -euo pipefail; cd /srv/podcast-scraper; \
-             test -f .env || install -m 600 /dev/null .env; \
-             sed -i '/^PODCAST_RELEASE=/d' .env; \
-             echo 'PODCAST_RELEASE=sha-${SHA_SHORT}' >> .env; \
-             chmod 600 .env"
+          set -euo pipefail
+          mx=12
+          it=10
+          for a in $(seq 1 "$mx"); do
+            if ssh -i "$SSH_DRILL_IDENTITY" -o IdentitiesOnly=yes \
+              -o StrictHostKeyChecking=accept-new -o BatchMode=yes "$SSH_TARGET" \
+              "set -euo pipefail; cd /srv/podcast-scraper; \
+               test -f .env || install -m 600 /dev/null .env; \
+               sed -i '/^PODCAST_RELEASE=/d' .env; \
+               echo 'PODCAST_RELEASE=sha-${SHA_SHORT}' >> .env; \
+               chmod 600 .env"; then
+              echo "::notice::Wired PODCAST_RELEASE on SSH attempt ${a} of ${mx}"
+              exit 0
+            fi
+            echo "::notice::SSH wire attempt ${a}/${mx} failed; sleeping ${it}s (see workflow header — publickey vs bootstrap)."
+            sleep "$it"
+          done
+          echo "::error::SSH still failing after ${mx} attempts (publickey). If every attempt fails, key mismatch is likely — see infra README / PROD_RUNBOOK drill SSH."
+          exit 1
 
       - name: Deploy (git pull + compose pull + compose up + VPS-local /api/health)
         if: steps.preflight.outputs.skip != 'true'
         env:
           SSH_TARGET: deploy@${{ steps.ts_host.outputs.resolved_fqdn }}
         run: |
-          ssh -i "$SSH_DRILL_IDENTITY" -o IdentitiesOnly=yes \
-            -o StrictHostKeyChecking=accept-new -o BatchMode=yes "$SSH_TARGET" \
-            '/srv/podcast-scraper/infra/deploy/deploy.sh'
+          set -euo pipefail
+          mx=12
+          it=10
+          for a in $(seq 1 "$mx"); do
+            if ssh -i "$SSH_DRILL_IDENTITY" -o IdentitiesOnly=yes \
+              -o StrictHostKeyChecking=accept-new -o BatchMode=yes "$SSH_TARGET" \
+              '/srv/podcast-scraper/infra/deploy/deploy.sh'; then
+              echo "::notice::deploy.sh succeeded on SSH attempt ${a} of ${mx}"
+              exit 0
+            fi
+            echo "::notice::SSH deploy attempt ${a}/${mx} failed; sleeping ${it}s."
+            sleep "$it"
+          done
+          echo "::error::deploy.sh SSH failed after ${mx} attempts."
+          exit 1
 
       # MagicDNS https://…/ needs `tailscale serve` on the VPS; drill often
       # lacks that until an operator runs it. GHA already has tailnet SSH, so
