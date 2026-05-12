@@ -12,9 +12,9 @@ name: Drill infra apply (manual)
 # ``tofu apply`` may retry up to two extra times **only** when the log matches
 # Hetzner placement-style errors (e.g. ``resource_unavailable``); other failures
 # exit immediately so misconfiguration is not masked. Retries after a match use
-# alternate ``server_type`` values (``cax31``, ``cx33``) — same location, different
-# hardware pools — because network/firewall/SSH succeed first and only server
-# creation hits DC capacity.
+# alternate **locations** (``nbg1``, ``hel1``) and ``server_type`` (``cax31``,
+# ``cx33``): placement is per-datacenter; changing type alone can still target the
+# same saturated site (``fsn1``).
 
 on:
   workflow_dispatch:
@@ -55,7 +55,7 @@ concurrency:
 jobs:
   apply:
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 35
     environment: drill
     steps:
       # See drill-infra-destroy.yml — caller event stays workflow_dispatch inside reuse.
@@ -160,17 +160,17 @@ jobs:
           # Hetzner-only: retry when API returns placement/capacity style errors.
           # Dependency order: SSH key / network / firewall are API-only; the server
           # needs DC capacity, so it can fail alone with resource_unavailable.
-          # No retry on unknown failures (avoids masking bad config).
-          HCLOUD_TRANSIENT_PAT='resource_unavailable|Resource unavailable|hardware not available|Hardware not available|not available in the location|server type.*not available'
+          # Placement is per-datacenter: vary **location** on retries, not only type.
+          HCLOUD_TRANSIENT_PAT='resource_unavailable|Resource unavailable|error during placement|hardware not available|Hardware not available|not available in the location|server type.*not available'
 
           attempt=1
           max_attempts=3
-          sleep_sec=50
+          sleep_sec=90
           while [ "$attempt" -le "$max_attempts" ]; do
             case "$attempt" in
               1) EXTRA_TF=() ;;
-              2) EXTRA_TF=(-var 'server_type=cax31') ;;
-              3) EXTRA_TF=(-var 'server_type=cx33') ;;
+              2) EXTRA_TF=(-var 'location=nbg1' -var 'server_type=cax31') ;;
+              3) EXTRA_TF=(-var 'location=hel1' -var 'server_type=cx33') ;;
               *) EXTRA_TF=() ;;
             esac
             if [ "${#EXTRA_TF[@]}" -gt 0 ]; then
