@@ -175,8 +175,8 @@ describe('useGraphHandoffStore — telemetry (T5)', () => {
       const store = useGraphHandoffStore()
       store.handoffRequested(envelope({ source: 'library' }))
       captureSpy.mockClear()
-      // Advance past the 5s stuck-timeout.
-      vi.advanceTimersByTime(5001)
+      // Advance past the 15s stuck-timeout.
+      vi.advanceTimersByTime(15_001)
 
       expect(captureSpy).toHaveBeenCalledWith(
         'graph_handoff_stuck',
@@ -184,7 +184,7 @@ describe('useGraphHandoffStore — telemetry (T5)', () => {
           source: 'library',
           kind: 'episode',
           load_source: 'subject-external',
-          timeout_ms: 5000,
+          timeout_ms: 15_000,
         }),
       )
     } finally {

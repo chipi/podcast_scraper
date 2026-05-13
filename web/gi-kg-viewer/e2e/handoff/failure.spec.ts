@@ -58,11 +58,10 @@ test.describe('Handoff matrix § Section 6 — Failure modes', () => {
     )
   })
 
-  test('H6.3 — Stuck handoff (5s timeout) [F4e]', async ({ page }) => {
+  test('H6.3 — Stuck handoff (15s timeout) [F4e]', async ({ page }) => {
     // F4e — mock the corpus detail endpoint to hang indefinitely; FSM stuck
-    // detector should fire after STUCK_TIMEOUT_MS (5000ms) and clear pending.
-    // This test is bounded at 8s test timeout so the 5s wall clock can fire.
-    test.setTimeout(15_000)
+    // detector should fire after STUCK_TIMEOUT_MS (15000ms) and clear pending.
+    test.setTimeout(25_000)
     await setupHandoffMatrixMocks(page)
     // Make the detail endpoint hang.
     await page.route('**/api/corpus/episodes/detail**', () => {
@@ -82,8 +81,8 @@ test.describe('Handoff matrix § Section 6 — Failure modes', () => {
     await openBtn.click()
     const before = await readFsmState(page)
     expect(before).not.toBeNull()
-    // Wait > STUCK_TIMEOUT_MS (5s); the stuck detector should clear pending.
-    await page.waitForTimeout(6000)
+    // Wait > STUCK_TIMEOUT_MS (15s); the stuck detector should clear pending.
+    await page.waitForTimeout(16_000)
     const after = await readFsmState(page)
     expect(after).not.toBeNull()
     // After stuck detection: pending cleared, lastResultStatus is 'failed'.

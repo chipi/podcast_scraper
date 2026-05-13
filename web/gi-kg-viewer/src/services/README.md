@@ -15,7 +15,7 @@ plus canvas direct interactions and lifecycle events).
   validation, and stuck-detector wall clock.
 
 The Pinia store wrapping the FSM lives at **`stores/graphHandoff.ts`**. The store
-exposes reactive state for components, manages the 5-second stuck-handoff wall-clock
+exposes reactive state for components, manages the 15-second stuck-handoff wall-clock
 timer, and stamps the dev-only `window.__GIKG_FSM__` hook for E2E inspection.
 
 ## Architectural decisions
@@ -94,7 +94,7 @@ structured warning. The retry budget is per envelope generation.
 
 ## Stuck detection
 
-If a `pendingEnvelope` does not reach `ready` within `STUCK_TIMEOUT_MS` (5 seconds wall
+If a `pendingEnvelope` does not reach `ready` within `STUCK_TIMEOUT_MS` (15 seconds wall
 clock), the FSM clears the envelope, emits `handoffStuck` to listeners, and surfaces a
 visible failure via `HandoffErrorStrip.vue`.
 

@@ -187,7 +187,7 @@ export type EventDisposition =
  * allowed and necessary — without one, an in-flight handoff that never
  * resolves stays stuck forever.
  */
-export const STUCK_TIMEOUT_MS = 5000
+export const STUCK_TIMEOUT_MS = 15000
 
 /**
  * Internal mutable FSM state. Constructed via {@link createFsm}.

@@ -557,7 +557,7 @@ ESLint rule yet).
   expected node — that's a self-healing reconciliation case.
 - **Read error-strip messages**: failed handoffs render
   `data-testid="handoff-error-strip"` with reason. Stuck-timeout failures
-  carry `reason: "stuck-timeout after 5000ms"`; HTTP failures carry the
+  carry `reason: "stuck-timeout after 15000ms"`; HTTP failures carry the
   `Error.message` of the originating fetch.
 - **Self-healing warnings**: invariant violations log
   `[graphHandoff invariant] expected nodes missing from cy core: count=N

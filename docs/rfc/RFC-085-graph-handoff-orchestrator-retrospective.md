@@ -127,9 +127,11 @@ points:
 6. **Visible failure UX**: `data-testid="handoff-error-strip"` renders
    when `lastResult.status === 'failed'`. Replaces silent swallow at
    `GraphCanvas.vue:901-903`.
-7. **5s wall-clock stuck-handoff timeout**: the only timer in the
-   orchestrator. Carved out from concern #3 ("no time-based gates") because
-   timeouts are real-time bounds, not synchronisation primitives.
+7. **15s wall-clock stuck-handoff timeout** (originally 5s; raised to 15s
+   after real-world handoffs that include a topic-cluster bootstrap step
+   tripped the timer): the only timer in the orchestrator. Carved out from
+   concern #3 ("no time-based gates") because timeouts are real-time
+   bounds, not synchronisation primitives.
 
 The Pinia store at
 `web/gi-kg-viewer/src/stores/graphHandoff.ts`
@@ -179,7 +181,7 @@ the pivot points:
 - **Decision #14 (8 flat states)**. A pressure-test pass found that
   `loading` and `redrawing` each conflated operations with different
   barrier semantics. Splitting them was non-obvious until that audit.
-- **Decision #16 (5s wall-clock stuck timeout)**. Almost rejected because
+- **Decision #16 (15s wall-clock stuck timeout)**. Almost rejected because
   it violated the spirit of "no time-based gates"; carved out as
   exception because timeouts are categorically different from
   synchronisation. Document the carve-out explicitly to prevent future

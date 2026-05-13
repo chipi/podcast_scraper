@@ -6,7 +6,7 @@
  *   - Hold the FSM as reactive state for component subscribers.
  *   - Stamp the dev-only `window.__GIKG_FSM__` for E2E inspection (matches
  *     `__GIKG_CY_DEV__` pattern).
- *   - Implement the 5s wall-clock stuck-handoff detector (decision #16).
+ *   - Implement the 15s wall-clock stuck-handoff detector (decision #16).
  *   - Provide the public API (handoffRequested, canvasTapped, etc.) that
  *     entry points will migrate to in C5.
  *

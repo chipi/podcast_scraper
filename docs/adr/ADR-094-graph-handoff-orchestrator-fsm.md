@@ -68,7 +68,7 @@ the locked decisions; together they form the contract.
 | 13 | `activateGraphTab` double-fire folds into FSM `loading` state (await topic-cluster bootstrap as part of artifact-ready barrier). | `App.vue:activateGraphTab` |
 | 14 | 8 flat states: `idle` → `loading_fetch` → `loading_bootstrap` → `loading_merge` → `redrawing_incremental` or `redrawing_full` → `applying` → `ready`. | `services/graphHandoffFsm.ts:FsmState` |
 | 15 | Visible failure UX. Failed handoffs render `data-testid="handoff-error-strip"`. Replaces silent swallow. | `web/gi-kg-viewer/src/components/graph/HandoffErrorStrip.vue` |
-| 16 | 5s wall-clock stuck-handoff timeout. The "no time-based gates" rule (concern #3) carves out timeouts (real-time bounds) vs synchronisation (use promises/events). | `stores/graphHandoff.ts:STUCK_TIMEOUT_MS` |
+| 16 | 15s wall-clock stuck-handoff timeout (originally 5s; raised to 15s after slow real-world handoffs — large topic-cluster bootstraps — were tripping it). The "no time-based gates" rule (concern #3) carves out timeouts (real-time bounds) vs synchronisation (use promises/events). | `stores/graphHandoff.ts:STUCK_TIMEOUT_MS` |
 
 ## Rationale
 
@@ -113,7 +113,7 @@ infinite loops, no silent corruption.
 **Wall-clock stuck timeout as carved-out exception.** Concern #3 (no
 time-based gates) is about **synchronisation** (use promises/events).
 Timeouts are about **real-time bounds** — they're a different category. The
-5s `STUCK_TIMEOUT_MS` is the only timer in the orchestrator and is explicitly
+15s `STUCK_TIMEOUT_MS` is the only timer in the orchestrator and is explicitly
 documented as such.
 
 ## Alternatives Considered
