@@ -127,6 +127,45 @@ IaC + a GitOps deploy loop**:
   6. backup-corpus-prod.yml backs up the VPS corpus over Tailscale
 ```
 
+### Stack contract vs environment adapters {#stack-contract-vs-adapters}
+
+The stack is started and validated from **Codespaces**, **prod VPS**, **DR drill VPS**, ephemeral
+Compose in CI (**stack-test**), and orchestrated drill workflows (**#762** discussion). Operators
+automate legitimate **transport** differences (`gh codespace` lifecycle, Tailscale **`deploy@`** SSH,
+runner-local Docker Compose, HTTPS to a drill MagicDNS hostname) but must keep **topology and checks**
+from drifting.
+
+**Stack contract — keep aligned across surfaces**
+
+- **Compose merges and service identities** for each surface documented at the Compose hub (**`compose/`**,
+  **`infra/deploy/deploy.sh`** for prod/drill VPS), not recreated ad hoc in stray scripts.
+- **Corpus semantics** — bind-mount host corpus to **`/app/output`** consistently; maps such as Codespace
+  **`.codespace_corpus`** versus VPS **`/srv/podcast-scraper/corpus`** live next to Compose and runbooks
+  ( **`compose/docker-compose.prod.yml`** comments cover the pattern).
+- **Health checking** respects **GH-745**: prefer **`curl` `/api/health`** from **inside** the **`api`**
+  container (**`:8000`**) where host publish differs; workflows and deploy scripts encode this canonical
+  check for VPS parity.
+- **Behavioral correctness** borrows **`tests/stack-test`** ( **`stack-viewer.spec.ts`** and relatives):
+  trivial smoke is insufficient where we claim a **deployed** stack is trustworthy. DR drill HTTPS
+  Playwright (**`drill-stack-playwright.yml`**) adapts **ingress/TLS**, not different assertions against
+  the product.
+
+**Environment adapters — permitted to diverge intentionally**
+
+Network path only, secrets and typed confirmations (**`PROD_*`**, **`DRILL_*`**, **`TS_AUTHKEY`**), optional
+pinned image SHA, orchestrator bookkeeping. Out of scope: forcing one literal SSH command shape in every
+workflow file.
+
+**Steady playbooks versus recovery drills**
+
+Routine flow is roughly **preflight → deploy/bring-up → health smoke → behavioral gate where required**.
+Restoring corpus from `snapshot.tgz` on the host is **not** the default headline for steady prod or Codespace ops;
+it sits in **DR exercise choreography** and discrete **manual** restore workflows (**`prod-restore-corpus`**,
+ **`drill-restore-corpus`**), isolated in runbooks as high-blast chapters so readers do not treat restore as
+routine post-deploy housekeeping.
+
+Frozen decision record for reviewers: **[ADR-093](../adr/ADR-093-canonical-stack-contract-and-environment-adapters.md)**.
+
 ### Decision 1 — Hosting target
 
 **Hetzner CX43** (8 vCPU shared Intel/AMD, 16 GB RAM, 160 GB SSD,
@@ -811,6 +850,11 @@ direction:
    signal. age private key in 1Password. Migration to Object Storage
    is a one-time `sops -d | tofu state push` if we ever go
    multi-operator.
+7. **Canonical stack contract vs thin environment adapters.** The
+   runnable stack’s topology, corpus-on-disk semantics, host-correct health
+   checks, and **`tests/stack-test`**-grade behavioral posture stay one
+   **contract** everywhere; transport, TLS entrypoints, credential names,
+   and typed confirmations are adapters only (**#762**, **ADR-093**).
 
 ## Open Questions (remaining)
 
@@ -840,6 +884,7 @@ The decisions above leave a smaller residual set:
 
 ## References
 
+- [ADR-093](../adr/ADR-093-canonical-stack-contract-and-environment-adapters.md) — stack contract vs environment adapters; GitHub [#762](https://github.com/chipi/podcast_scraper/issues/762).
 - [RFC-083](RFC-083-prod-failover-orchestration-and-cutover.md) — production incident spare, DNS cutover, GitHub Actions orchestration (Draft).
 - [RFC-081 (pre-prod)](RFC-081-pre-prod-environment-and-control-plane.md) — what we're lifting from.
 - [docs/wip/CODESPACE_PREPROD_RUNBOOK.md](../wip/CODESPACE_PREPROD_RUNBOOK.md) — operator-facing notes from pre-prod; many of the same gotchas apply (corpus bind mount, image pull on first deploy, agent yaml comment foot-guns).

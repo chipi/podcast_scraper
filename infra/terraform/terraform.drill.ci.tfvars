@@ -11,5 +11,7 @@ manage_tailscale_acl     = false
 tailscale_advertise_tags = ["tag:dr-drill"]
 tailnet_hostname         = "dr-podcast"
 hcloud_environment_label = "drill"
-location                 = "hel1"
-server_type              = "cpx32"
+# Break-glass: public SSH while Tailscale join is broken or slow (narrow in a private tfvars).
+hcloud_inbound_ssh_troubleshoot_cidrs = ["0.0.0.0/0", "::/0"]
+location                              = "hel1"
+server_type                           = "cpx32"

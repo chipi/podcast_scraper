@@ -343,6 +343,14 @@ jobs:
           done
           echo "Tailscale drill device cleanup finished."
 
+      - name: "DR drill — tailscale: cleanup stale GHA deployers"
+        if: always()
+        env:
+          TS_API_KEY: ${{ secrets.TS_API_KEY }}
+          TAILNET_NAME: ${{ vars.TAILNET_NAME }}
+        run: |
+          python3 scripts/ops/cleanup_tailscale_gha_deployers.py --apply --min-hours 3
+
       # ``tofu destroy`` can still exit non-zero when state drifts (e.g. server
       # already removed manually) while the Hetzner sweep shows **no** drill VMs.
       # Treat that as OK; fail only when the sweep reports servers still left.

@@ -99,6 +99,18 @@ variable "hcloud_environment_label" {
   }
 }
 
+variable "hcloud_inbound_ssh_troubleshoot_cidrs" {
+  type        = list(string)
+  description = <<-EOT
+    When non-empty, the Hetzner firewall also allows inbound TCP/22 from these CIDRs
+    (in addition to UDP/41641 + ICMP). Default empty: SSH is intended only over Tailscale.
+    Drill CI sets 0.0.0.0/0 and ::/0 so operators can reach deploy@ via the server's public
+    IPv4/IPv6 while debugging Tailscale join or restore; narrow to your /32 in a private tfvars
+    file if you want stricter hygiene on long-lived drill VMs.
+  EOT
+  default     = []
+}
+
 variable "grafana_cloud_metrics_remote_write_url" {
   type        = string
   description = "Grafana Cloud Prometheus remote_write URL (…/api/prom/push). If any of the three grafana_cloud_metrics_* vars are empty, cloud-init skips Alloy host metrics."

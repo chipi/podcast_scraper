@@ -110,13 +110,15 @@ still rolling out; **No** = not started (including accepted ADRs waiting on impl
 | [ADR-089](ADR-089-prod-failover-orchestrator-separate-from-drill.md) | Prod Failover Orchestrator Separate from DR Drill | Accepted | [RFC-083](../rfc/RFC-083-prod-failover-orchestration-and-cutover.md) | Own workflow family; never call drill destroy; GitHub #764 | No |
 | [ADR-090](ADR-090-prod-failover-dns-first-cutover.md) | Prod Failover — DNS-First Cutover on Tailnet | Accepted | [RFC-083](../rfc/RFC-083-prod-failover-orchestration-and-cutover.md) | Canonical hostname DNS flip primary; floating IP optional | No |
 | [ADR-091](ADR-091-prod-failover-gha-triggers-and-gates.md) | Prod Failover — GHA Triggers and Gates | Accepted | [RFC-083](../rfc/RFC-083-prod-failover-orchestration-and-cutover.md) | `workflow_dispatch` primary; gated `repository_dispatch`; no scheduled cutover v1 | No |
+| [ADR-092](ADR-092-corpus-snapshot-backup-manifest-and-newest-compatible-restore.md) | Corpus Snapshot Backup Manifest and Newest-Compatible Restore Default | Accepted | [RFC-084](../rfc/RFC-084-corpus-backup-manifest-and-version-aware-restore.md) | `snapshot.manifest.json`; dual placement; newest-compatible default; fail closed; GitHub #763 | No |
+| [ADR-093](ADR-093-canonical-stack-contract-and-environment-adapters.md) | Canonical Stack Contract Versus Environment Adapters | Accepted | [RFC-082](../rfc/RFC-082-always-on-pre-prod-and-prod-hosting.md) | One topology/health/`stack-test` discipline; adapters for transport/secrets only; steady vs restore playbooks separate; GitHub #762 | Partial |
 
 ## Gap analysis {:#gaps}
 
-**Counts (reconcile when adding ADRs):** **91** files under `docs/adr/ADR-*.md` (ADR-001–ADR-091;
+**Counts (reconcile when adding ADRs):** **93** files under `docs/adr/ADR-*.md` (ADR-001–ADR-093;
 numbering has historical gaps). From the index table: **2** **Proposed** (**ADR-055**, **ADR-056**),
-**6** **Accepted** with **Code = No** (**ADR-054**, **ADR-058**, **ADR-059**, **ADR-089**, **ADR-090**, **ADR-091**), **2** **Accepted** with
-**Code = Partial** (**ADR-031**, **ADR-047**). **Accepted** means ratified, not necessarily shipped.
+**7** **Accepted** with **Code = No** (**ADR-054**, **ADR-058**, **ADR-059**, **ADR-089**, **ADR-090**, **ADR-091**, **ADR-092**), **3** **Accepted** with
+**Code = Partial** (**ADR-031**, **ADR-047**, **ADR-093**). **Accepted** means ratified, not necessarily shipped.
 
 ### When to extract a new ADR
 
@@ -158,6 +160,7 @@ Use an ADR when one or more of these hold; otherwise an **RFC + normative doc** 
 | [ADR-089](ADR-089-prod-failover-orchestrator-separate-from-drill.md) | [RFC-083](../rfc/RFC-083-prod-failover-orchestration-and-cutover.md) | Prod-failover workflows not landed |
 | [ADR-090](ADR-090-prod-failover-dns-first-cutover.md) | [RFC-083](../rfc/RFC-083-prod-failover-orchestration-and-cutover.md) | Runbook or DNS automation follow-up |
 | [ADR-091](ADR-091-prod-failover-gha-triggers-and-gates.md) | [RFC-083](../rfc/RFC-083-prod-failover-orchestration-and-cutover.md) | `repository_dispatch` + cutover gates not landed |
+| [ADR-092](ADR-092-corpus-snapshot-backup-manifest-and-newest-compatible-restore.md) | [RFC-084](../rfc/RFC-084-corpus-backup-manifest-and-version-aware-restore.md) | Backup/restore workflows do not emit or consume manifest yet |
 
 **Accepted, partial**
 
@@ -165,6 +168,7 @@ Use an ADR when one or more of these hold; otherwise an **RFC + normative doc** 
 | --- | --- |
 | [ADR-031](ADR-031-mandatory-pre-release-validation.md) | `make pre-release` / checklist not fully aligned with [RFC-038](../rfc/RFC-038-continuous-review-tooling.md) |
 | [ADR-047](ADR-047-proactive-metric-regression-alerting.md) | Alerts exist; **automated PR comments** not complete |
+| [ADR-093](ADR-093-canonical-stack-contract-and-environment-adapters.md) | Audit matrix + workflow dedupe; [GitHub #762](https://github.com/chipi/podcast_scraper/issues/762) |
 
 ### Stale-audit corrections (reference)
 
@@ -177,7 +181,7 @@ are **Yes**; **ADR-064**–**ADR-066** are implemented; **ADR-021** is reflected
 | Situation | Guidance |
 | --- | --- |
 | **Prefer a new ADR** | Irreversible stack boundary, cross-cutting protocol, frozen empirical default, heavy optional extra, or closure of a large program (e.g. **ADR-073**). |
-| **Often RFC-only** | Bounded HTTP routes or viewer tabs where **ADR-064**–**ADR-066** + UXS already fix the stack (e.g. **RFC-067**, **RFC-068**, **RFC-069**, **RFC-071**). Corpus layout + manifest: **ADR-074**. Frozen resource baselines: **ADR-075**. Streamlit vs Vue for eval tools: **ADR-076**. Full-stack Compose + stack-test gate: **ADR-084**, **ADR-085**. CIL + `bridge.json`: **ADR-086**. Autoresearch Track A v2: **ADR-087**. macOS ML `make` safety: **ADR-088**. **Prod failover** design: **[RFC-083](../rfc/RFC-083-prod-failover-orchestration-and-cutover.md)**; decisions **ADR-089**–**ADR-091**. |
+| **Often RFC-only** | Bounded HTTP routes or viewer tabs where **ADR-064**–**ADR-066** + UXS already fix the stack (e.g. **RFC-067**, **RFC-068**, **RFC-069**, **RFC-071**). Corpus layout + manifest: **ADR-074**. Frozen resource baselines: **ADR-075**. Streamlit vs Vue for eval tools: **ADR-076**. Full-stack Compose + stack-test gate: **ADR-084**, **ADR-085**. CIL + `bridge.json`: **ADR-086**. Autoresearch Track A v2: **ADR-087**. macOS ML `make` safety: **ADR-088**. **Prod failover** design: **[RFC-083](../rfc/RFC-083-prod-failover-orchestration-and-cutover.md)**; decisions **ADR-089**–**ADR-091**. Corpus **snapshot** backup manifest + restore defaults: **[RFC-084](../rfc/RFC-084-corpus-backup-manifest-and-version-aware-restore.md)**; **ADR-092**. **Cross-surface stack contract vs adapters:** **ADR-093** ([#762](https://github.com/chipi/podcast_scraper/issues/762)). |
 | **Proposed ADRs** | Promote **ADR-055** / **ADR-056** to **Accepted** (or supersede) when **RFC-053** / **RFC-054** ship end-to-end. |
 
 ### Future triggers
@@ -188,6 +192,7 @@ are **Yes**; **ADR-064**–**ADR-066** are implemented; **ADR-021** is reflected
 - **RFC-070** + **ADR-060** when platform vector backends land materially.
 - **Full-stack Compose, stack-test, CIL or bridge, autoresearch v2, macOS ML process safety** — see **ADR-084**–**ADR-088** (normative detail remains in **RFC-072**, **RFC-073** v2 file, **RFC-074**, **RFC-078**, **RFC-079**).
 - **Prod failover (stand up spare, validate, gated cutover)** — **[RFC-083](../rfc/RFC-083-prod-failover-orchestration-and-cutover.md)** (Draft); decisions **ADR-089**–**ADR-091**; GitHub #764.
+- **Corpus snapshot tarball metadata + version-aware restore** — **[RFC-084](../rfc/RFC-084-corpus-backup-manifest-and-version-aware-restore.md)** (Draft); **ADR-092**; GitHub #763.
 
 **Open decisions without ADRs:** see **Architecture Decision Candidates** below.
 

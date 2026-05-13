@@ -24,6 +24,7 @@ and **Disaster recovery**).
 | Drill **`deploy@`**, drill workflows, full-cycle orchestrator, drill destroy | This runbook + [`infra/README.md` (repo root)](https://github.com/chipi/podcast_scraper/blob/main/infra/README.md) |
 | OpenTofu state encryption, **`terraform.tfstate.enc.drill`** | [`infra/README.md` (repo root)](https://github.com/chipi/podcast_scraper/blob/main/infra/README.md) |
 | Whole-system narrative (diagrams, prod + drill) | [Hosting and infrastructure](../architecture/HOSTING_AND_INFRASTRUCTURE.md) |
+| Corpus snapshot **manifest**, local **Make** vs **Actions** (prod / pre-prod / drill) | [CORPUS_SNAPSHOT_MANIFEST_AND_RESTORE.md](CORPUS_SNAPSHOT_MANIFEST_AND_RESTORE.md) |
 
 Keeping drill material here avoids duplicating long prod sections and keeps PROD_RUNBOOK shorter for
 day-to-day prod operators.
@@ -37,7 +38,7 @@ day-to-day prod operators.
 | `HCLOUD_TOKEN_DRILL` | secret | `drill-infra-plan`, `drill-infra-apply`, `drill-infra-destroy`, orchestrator |
 | `TS_API_KEY` | secret | Same infra workflows (Tailscale provider) |
 | `TFSTATE_AGE_KEY` | secret | sops decrypt/encrypt for drill state |
-| `OPERATOR_SSH_PUBLIC_KEY` | secret | Same as prod infra (public half only; log masking) |
+| `OPERATOR_SSH_PUBLIC_KEY` | secret | Same as prod infra (public half only; log masking). First-boot `deploy@` `authorized_keys` is written only from this value. |
 | `TS_AUTHKEY` | secret | `drill-deploy`, `drill-e2e`, `drill-restore-corpus`, orchestrator app jobs |
 | `DRILL_DEPLOY_SSH_PRIVATE_KEY` | secret | Same app jobs (PEM for **`deploy@`** on drill) |
 | `BACKUP_REPO_TOKEN` | secret (optional) | `drill-restore-corpus` when `chipi/podcast_scraper-backup` is private |
@@ -46,6 +47,29 @@ day-to-day prod operators.
 
 ACL note: **`tag:gha-deployer` → `tag:dr-drill:22`** must exist for CI SSH; prod **`infra-apply`** is
 the usual path to land `tailscale/policy.hujson` changes.
+
+### Public SSH on the drill VPS (break-glass)
+
+Drill **`terraform.drill.ci.tfvars`** sets **`hcloud_inbound_ssh_troubleshoot_cidrs`** so the Hetzner
+firewall allows **inbound TCP/22** from the listed CIDRs (CI uses **IPv4+IPv6 any**). Use the
+server’s **public IPv4** and the same operator key as **`OPERATOR_SSH_PUBLIC_KEY`**:
+
+```bash
+ssh -i ~/.ssh/<your-operator-key> deploy@<PUBLIC_IPV4>
+```
+
+First-boot **`prod.user-data`** also installs that public key for **`root@<PUBLIC_IPV4>`** if you
+prefer `root` while debugging.
+
+**Where to read `<PUBLIC_IPV4>`:** after a successful **`drill-infra-apply`** or **`drill-infra-plan`**
+run (when drill state already contains a server), open the workflow run’s **Summary** tab — the job
+posts **Break-glass SSH** with the IPv4 and a copy-paste `ssh deploy@…` line. You can still use
+Hetzner console, **`hcloud server list`**, or **`tofu output -raw ipv4_address`** in workspace **`drill`**
+if you prefer.
+
+Use this when **`deploy@<DRILL_TAILNET_FQDN>`** is not reachable because Tailscale has not come up.
+**Prod** leaves **`hcloud_inbound_ssh_troubleshoot_cidrs`** empty (SSH only over the tailnet). For a
+long-lived drill VM, override the CIDR list in a **gitignored** tfvars to your `/32` instead of `0.0.0.0/0`.
 
 ---
 

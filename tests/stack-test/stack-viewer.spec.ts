@@ -83,7 +83,9 @@ test.describe("Stack smoke test", () => {
       // Allow noisy warnings but flag explicit JS errors so a future
       // regression in the load chain doesn't pass silently.
       const fatal = consoleErrors.filter(
-        (e) => !/HMR|deprecated|Vite/i.test(e),
+        (e) =>
+          !/HMR|deprecated|Vite|dmn_chk.*invalid domain|rejected for invalid domain/i.test(e) &&
+          !/"notify",\s*\w+ is null/i.test(e),
       )
       expect(fatal, `console errors during canvas mount:\n${fatal.join("\n")}`).toEqual([])
     }

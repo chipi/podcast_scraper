@@ -137,6 +137,32 @@ jobs:
           head -c 60000 plan.txt > plan.trunc.txt
           exit "$PLAN_EXIT"
 
+      - name: "DR drill — break-glass SSH hint from state (if server exists)"
+        if: success() && steps.preflight.outputs.skip != 'true'
+        working-directory: infra/terraform
+        env:
+          TF_VAR_hcloud_token:      ${{ secrets.HCLOUD_TOKEN_DRILL }}
+          TF_VAR_tailscale_api_key: ${{ secrets.TS_API_KEY }}
+          TF_VAR_ssh_public_key:    ${{ secrets.OPERATOR_SSH_PUBLIC_KEY }}
+          TF_VAR_tailscale_tailnet: ${{ vars.TAILNET_NAME }}
+        run: |
+          set -euo pipefail
+          tofu workspace select drill
+          if ! tofu output -raw ipv4_address >/dev/null 2>&1; then
+            echo "No drill server IPv4 in state yet (first green apply creates it)."
+            exit 0
+          fi
+          IP="$(tofu output -raw ipv4_address)"
+          HINT="$(tofu output -raw ssh_break_glass_deploy_ipv4)"
+          {
+            echo "## Break-glass SSH (from current drill state)"
+            echo ""
+            echo "**Public IPv4:** \`${IP}\` — **example:** \`${HINT}\`"
+            echo ""
+            echo "Key: private half of \`OPERATOR_SSH_PUBLIC_KEY\`, or Hetzner **Console** if you do not have it."
+          } >> "$GITHUB_STEP_SUMMARY"
+          echo "::notice title=Break-glass SSH::${HINT}"
+
       - name: "DR drill — tofu: post plan as PR comment"
         if: >
           github.event_name == 'pull_request' &&
