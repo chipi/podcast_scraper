@@ -18,7 +18,7 @@ dependencies = [
   "platformdirs>=3.11.0,<5.0.0",
   "pydantic>=2.6.0,<3.0.0",
   "PyYAML>=6.0.3,<7.0.0",
-  "python-dotenv>=1.0.0,<2.0.0",  # For .env file support (RFC-013)
+  "python-dotenv>=1.2.2,<2.0.0",  # For .env file support (RFC-013)
   "zipp>=3.19.1,<4.0.0",  # Security fix: CVE-2024-50208 (infinite loop vulnerability)
   "jinja2>=3.1.6,<4.0.0",  # For prompt templating (RFC-017)
   "filelock>=3.20.1,<4.0.0",  # Security fix: CVE-2025-68146 (TOCTOU race condition)
@@ -88,7 +88,7 @@ llm = [
   # 1.x: ThinkingConfig.thinking_budget for gemini-2.5-flash (Issue #572); 0.x lacked the field
   "google-genai>=1.0.0,<2.0.0",
   "google-api-core>=2.30.3,<3.0.0",  # Required by google-genai for some operations
-  "anthropic>=0.34.0,<1.0.0",  # Anthropic API provider (Issue #106)
+  "anthropic>=0.101.0,<1.0.0",  # Anthropic API provider (Issue #106)
   # Mistral API provider (Issue #106). PyPI ``mistralai`` is quarantined (no installable
   # files on https://pypi.org/simple/mistralai/ as of 2026-05). Pin the official v2.4.5
   # tree (commit matches tag v2.4.5) until PyPI restores the project.
@@ -125,10 +125,10 @@ dev = [
   "apscheduler>=3.10.0,<4.0.0",
   "black>=23.0.0,<27.0.0",
   "isort>=8.0.1,<9.0.0",
-  "flake8>=6.0.0,<8.0.0",
+  "flake8>=7.3.0,<8.0.0",
   "pytest>=9.0.3,<10.0.0",
   "pytest-cov>=4.1.0,<8.0.0",
-  "pytest-xdist>=3.5.0,<4.0.0",  # Parallel test execution (RFC-018)
+  "pytest-xdist>=3.8.0,<4.0.0",  # Parallel test execution (RFC-018)
   "pytest-rerunfailures>=14.0,<17.0",  # Flaky test reruns (RFC-018)
   "pytest-socket>=0.7.0,<1.0.0",  # Network blocking for E2E tests (RFC-019)
   "pytest-json-report>=1.5.0,<2.0.0",  # JSON test reports for metrics (RFC-025)
