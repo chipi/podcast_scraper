@@ -25,7 +25,105 @@ Fast companion to the full
 - Health: `https://prod-podcast.<tailnet>.ts.net/api/health`
 - Repo on host: `/srv/podcast-scraper`
 - Runtime env: `/srv/podcast-scraper/.env`
-- Corpus path: `/srv/podcast-scraper/corpus`
+- Viewer basic auth file: `/srv/podcast-scraper/.htpasswd`
+- **Host corpus directory:** take from **`PODCAST_CORPUS_HOST_PATH`** in
+  `/srv/podcast-scraper/.env` (do not assume a path until you check). Typical
+  value on a standard deploy: `/srv/podcast-scraper/corpus`.
+
+```bash
+grep '^PODCAST_CORPUS_HOST_PATH=' /srv/podcast-scraper/.env
+```
+
+- **Same data on the host vs in containers:** SSH and host Python use
+  `$PODCAST_CORPUS_HOST_PATH`. The `api` (and pipeline) containers mount that
+  tree at **`/app/output`** (see `docker/api/Dockerfile` `serve --output-dir`).
+
+## Topic clusters (manual maintenance) {#topic-clusters-manual-maintenance}
+
+A successful **Configuration → Run pipeline** job runs **`full_incremental_pipeline`**
+only. It may rebuild the vector index when `vector_search` is true in the
+profile, but it **does not** run **`topic-clusters`**. The viewer/API read
+`search/topic_clusters.json` if present; Missing file means clustering was never
+built for that corpus. See [RFC-075](../rfc/RFC-075-corpus-topic-clustering.md)
+and [Prod runbook — FAQ](PROD_RUNBOOK.md#corpus-directory-host-vs-appoutput).
+
+**Prerequisite:** `search/vectors.faiss` under the corpus (needs a profile with
+`vector_search: true` for indexing, e.g. `cloud_balanced`).
+
+**Option A — host venv (no container for Python):**
+
+```bash
+ssh deploy@prod-podcast.<tailnet>.ts.net
+cd /srv/podcast-scraper
+HOST_CORPUS=$(grep '^PODCAST_CORPUS_HOST_PATH=' .env | cut -d= -f2-)
+# stock Debian images often need: sudo apt install python3.12-venv
+python3 -m venv .venv
+.venv/bin/pip install -U pip
+.venv/bin/pip install -e ".[search]"
+.venv/bin/python -m podcast_scraper.cli topic-clusters --output-dir "$HOST_CORPUS"
+ls -la "$HOST_CORPUS/search/topic_clusters.json"
+```
+
+**Option B — use Python inside the already-running `api` container** (no
+`compose run`; replace container name if `docker ps` shows a different one):
+
+```bash
+ssh deploy@prod-podcast.<tailnet>.ts.net
+docker exec compose-api-1 python -m podcast_scraper.cli topic-clusters \
+  --output-dir /app/output
+```
+
+**Verify API (optional):** `GET /api/corpus/topic-clusters?path=<host corpus path>`
+
+If the JSON file is owned by root after an in-container write, fix ownership so
+`deploy` can manage backups: `sudo chown deploy:docker …/search/topic_clusters.json`
+(adjust group to match your layout).
+
+## Reprocess from existing transcripts (no re-transcription)
+
+Use this when pipeline logic changed and you want fresh metadata / GI / KG / index
+without paying transcription cost again.
+
+**Keep:** corpus `transcripts/` files.
+
+**Rebuild:** derived artifacts (`metadata/`, `search/`, and run outputs that depend
+on old prompts/parsers).
+
+**Host path (recommended, no compose run):**
+
+```bash
+ssh deploy@prod-podcast.<tailnet>.ts.net
+cd /srv/podcast-scraper
+HOST_CORPUS=$(grep '^PODCAST_CORPUS_HOST_PATH=' .env | cut -d= -f2-)
+
+# Optional: keep a rollback copy of derived artifacts only.
+STAMP=$(date +%Y%m%d-%H%M%S)
+mkdir -p "$HOST_CORPUS/.reprocess-backup-$STAMP"
+cp -a "$HOST_CORPUS/search" "$HOST_CORPUS/.reprocess-backup-$STAMP/" 2>/dev/null || true
+cp -a "$HOST_CORPUS/run_"* "$HOST_CORPUS/.reprocess-backup-$STAMP/" 2>/dev/null || true
+
+# Remove only derived layers; keep transcripts/.
+rm -rf "$HOST_CORPUS/search"
+find "$HOST_CORPUS" -type d -name metadata -prune -exec rm -rf {} +
+
+# Re-run from existing transcripts; never transcribe again.
+.venv/bin/python -m podcast_scraper.cli \
+  --config "$HOST_CORPUS/viewer_operator.yaml" \
+  --feeds-spec "$HOST_CORPUS/feeds.spec.yaml" \
+  --output-dir "$HOST_CORPUS" \
+  --skip-existing \
+  --no-transcribe-missing
+
+# Optional post-step when vectors exist
+.venv/bin/python -m podcast_scraper.cli topic-clusters --output-dir "$HOST_CORPUS"
+```
+
+If this run creates root-owned files (for example after mixed host/container history),
+fix ownership before backup jobs:
+
+```bash
+sudo chown -R deploy:docker "$HOST_CORPUS"
+```
 
 ## Daily commands
 

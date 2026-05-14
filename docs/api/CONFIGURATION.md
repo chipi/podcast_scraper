@@ -1443,6 +1443,25 @@ You can target **one** feed with `rss` (string) or **multiple** feeds with **`fe
 
 **Unified discovery and batch metadata (GitHub #505 / #506):** With **`vector_search: true`** and FAISS, per-feed runs skip automatic indexing and a **single** vector index is built under **`<output_dir>/search`** after the batch. Semantic **`index`**, **`search`**, **`gi explore --topic`**, and the viewer should use the **same corpus parent** path. The batch also writes **`corpus_manifest.json`**, **`corpus_run_summary.json`**, and a structured log line; inspect with **`corpus-status`**. Advanced: **`skip_auto_vector_index`** (default `false`) suppresses finalize-time indexing when you need to call **`index_corpus`** yourself.
 
+**Interim search maintenance checkpoints:** During long runs, orchestration can trigger best-effort interim
+indexing/topic clustering before finalize. Optional fields:
+
+- **`interim_index_checkpoint_every_episodes`**: successful-episode cadence for interim vector indexing.
+- **`interim_topic_cluster_checkpoint_every_episodes`**: successful-episode cadence for interim topic
+  clustering.
+
+Semantics for both fields:
+
+- **unset**: use orchestration defaults (index `25`, topic clusters `100`)
+- **positive integer**: enable interim checkpoints at that cadence
+- **`0`**: disable interim checkpointing for that stage
+
+Guidance:
+
+- Dev/debug: index `1-10`, topic clusters `25-100`
+- Prod/slow runs: index `25-100`, topic clusters `100-500`
+- Very low values increase overhead; keep finalize enabled for authoritative end-of-run refresh.
+
 **GI / KG inspect by episode:** **`gi inspect`** and **`kg inspect`** accept **`--output-dir`** as the corpus parent; if the same **`episode_id`** exists in multiple feeds, pass **`--feed-id`** (same value as metadata **`feed.feed_id`**).
 
 **YAML examples:**

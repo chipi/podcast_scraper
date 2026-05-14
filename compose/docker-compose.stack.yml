@@ -101,6 +101,11 @@ services:
         # to ``airgapped-thin`` so the stack-test pipeline image is smaller and
         # license-clean (no SummLlama / Pegasus / hybrid models).
         PRELOAD_VARIANT: ${STACK_PIPELINE_PRELOAD_VARIANT:-production}
+        # Per-model wall-clock timeout (seconds) for the ML preload script.
+        # Default 1200s (20 minutes): airgapped-thin uses the script's 600s
+        # default which is too tight for cold downloads on slow networks.
+        # Override via ``STACK_PIPELINE_PRELOAD_TIMEOUT=N make stack-test-build``.
+        PRELOAD_TIMEOUT: ${STACK_PIPELINE_PRELOAD_TIMEOUT:-1200}
     image: podcast-scraper-stack-pipeline:latest
     volumes:
       - corpus_data:/app/output

@@ -154,7 +154,7 @@ function onPrefillSearch(): void {
 
 <template>
   <div
-    class="mx-3 flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden"
+    class="mx-3 flex min-h-0 w-full min-w-0 flex-1 flex-col overflow-hidden"
     role="region"
     aria-label="Topic or entity"
     data-testid="topic-entity-view"
@@ -172,7 +172,7 @@ function onPrefillSearch(): void {
         {{ subjectName }}
       </h2>
     </div>
-    <div class="min-h-0 flex-1 space-y-3 overflow-y-auto px-1 py-2">
+    <div class="min-h-0 w-full min-w-0 flex-1 space-y-3 overflow-y-auto py-2">
       <p
         v-if="subjectAliases"
         class="text-[11px] text-muted"
@@ -199,7 +199,10 @@ function onPrefillSearch(): void {
           v-if="timeline.undated > 0"
         >; {{ timeline.undated }} undated</span>).
       </p>
-      <section aria-label="Mentions by month">
+      <section
+        class="w-full min-w-0"
+        aria-label="Mentions by month"
+      >
         <h3 class="mb-1 text-[10px] font-semibold uppercase tracking-wider text-muted">
           Mentions by month
         </h3>
@@ -210,6 +213,7 @@ function onPrefillSearch(): void {
       </section>
       <section
         v-if="mentionRows.length > 0"
+        class="w-full min-w-0"
         aria-label="Linked insights and quotes"
       >
         <h3 class="mb-1 text-[10px] font-semibold uppercase tracking-wider text-muted">

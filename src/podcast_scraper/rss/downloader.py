@@ -363,7 +363,11 @@ def _open_http_request(
 ) -> Optional[requests.Response]:
     """Execute an HTTP GET request and return the response if successful."""
     normalized_url = normalize_url(url)
-    headers: Dict[str, str] = {"User-Agent": user_agent}
+    # ``requests.Session.get`` types ``headers`` as
+    # ``MutableMapping[str, str | bytes] | None`` in newer types-requests stubs;
+    # ``CaseInsensitiveDict`` satisfies that contract where a bare ``dict[str, str]``
+    # trips invariance.
+    headers: CaseInsensitiveDict = CaseInsensitiveDict({"User-Agent": user_agent})
     if extra_headers:
         headers.update(extra_headers)
 
@@ -435,7 +439,9 @@ def http_head(url: str, user_agent: str, timeout: int) -> Optional[requests.Resp
         Response object with headers, or None if request failed
     """
     normalized_url = normalize_url(url)
-    headers = {"User-Agent": user_agent}
+    # ``CaseInsensitiveDict`` satisfies the ``MutableMapping[str, str | bytes]``
+    # contract that newer ``types-requests`` stubs require for ``Session.head``.
+    headers: CaseInsensitiveDict = CaseInsensitiveDict({"User-Agent": user_agent})
     br = http_policy._STATE.circuit
     if br is not None:
         try:

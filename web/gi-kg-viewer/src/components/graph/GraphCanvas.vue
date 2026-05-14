@@ -25,6 +25,7 @@ import { useGraphExpansionStore } from '../../stores/graphExpansion'
 import { useGraphExplorerStore } from '../../stores/graphExplorer'
 import { useGraphFilterStore } from '../../stores/graphFilters'
 import { useGraphLensesStore } from '../../stores/graphLenses'
+import { useGraphHandoffStore } from '../../stores/graphHandoff'
 import { useGraphNavigationStore } from '../../stores/graphNavigation'
 import { useSearchStore } from '../../stores/search'
 import { useShellStore } from '../../stores/shell'
@@ -33,6 +34,7 @@ import type { RawGraphNode } from '../../types/artifact'
 import { degreeBucketFor, emptyDegreeCounts } from '../../utils/graphDegreeBuckets'
 import {
   findEpisodeGraphNodeIdForMetadataPath,
+  findEpisodeGraphNodeIdForMetadataPathOrEpisodeId,
   graphCyIdRepresentsEpisodeNode,
   logicalEpisodeIdFromGraphNodeId,
   metadataPathFromEpisodeProperties,
@@ -40,6 +42,10 @@ import {
   resolveEpisodeMetadataFromLoadedArtifacts,
   resolveEpisodeMetadataViaCorpusCatalog,
 } from '../../utils/graphEpisodeMetadata'
+import {
+  computeNodeIdSetDifference,
+  decideReconcileAction,
+} from '../../utils/graphHandoffInvariant'
 import * as giKgCoseLayout from '../../utils/cyCoseLayoutOptions'
 import { syncGraphLabelTierClasses } from '../../utils/cyGraphLabelTier'
 import { buildGiKgCyStylesheet, cytoscapeSideLabelMarginXCallback } from '../../utils/cyGraphStylesheet'
@@ -80,6 +86,7 @@ const lenses = useGraphLensesStore()
 const ge = useGraphExplorerStore()
 const { preferredLayout, minimapOpen, activeDegreeBucket } = storeToRefs(ge)
 const nav = useGraphNavigationStore()
+const graphHandoff = useGraphHandoffStore()
 const subject = useSubjectStore()
 const artifacts = useArtifactsStore()
 const graphExpansion = useGraphExpansionStore()
@@ -127,6 +134,20 @@ watch(
  * preserves the manual-control escape hatch (operator can dismiss the
  * strip and the auto-load won't re-try until they re-focus the
  * episode). */
+/** When the user navigates to a different episode, clear the
+ * "already tried" guard so the new episode gets its own auto-load
+ * attempt. Without this, a Library → episode A → (failed slice) →
+ * Library → episode A → click leaves the guard set forever and
+ * camera centering stays broken until full page reload. */
+watch(
+  () => subject.episodeMetadataPath,
+  (next, prev) => {
+    if (next !== prev) {
+      episodeTerritoryAutoLoadTriedPaths.value.clear()
+    }
+  },
+)
+
 watch(
   () => [
     episodeTerritoryMode.value,
@@ -357,6 +378,10 @@ let redrawGateDepth = 0
 /** Debounce ``POST /api/corpus/node-episodes`` probes that decide the teal ring (corpus beyond selection). */
 let nodeEpisodesCorpusBeyondDebounce: ReturnType<typeof setTimeout> | null = null
 let redrawPending = false
+/** Debounce rapid-fire redraw() calls from multiple watchers firing in sequence. */
+let redrawDebounceTimer: ReturnType<typeof setTimeout> | null = null
+/** Prevents immediate redraws after layout completion (cooldown for watcher cascades). */
+let layoutCompletionCooldownUntil = 0
 let resizeObs: ResizeObserver | null = null
 let zoomCenterTimer: ReturnType<typeof setTimeout> | null = null
 let lastZoomLevel = 1
@@ -383,6 +408,17 @@ const graphLayoutGate = new StaleGeneration()
 let lastSelectedRelPathsCountAfterLayout = 0
 let lastCommittedFilteredNodeIds = new Set<string>()
 let lastCommittedEgoFocusCyId = ''
+/**
+ * F4 — single-retry budget per envelope generation for the self-healing
+ * reconciliation pass. Tracks the last envelope generation that consumed
+ * its retry; if the same generation hits the invariant again, we accept
+ * divergence + log instead of looping.
+ */
+let handoffReconcileRetryGen: number | null = null
+/** Snapshot of ``focusNodeId`` before the ``filteredArtifact`` watcher clears it; used for incremental check. */
+let priorEgoBeforeWatcherClear = ''
+/** Track previous artifact's node set to detect incremental appends (superset) vs full replacements. */
+let prevFilteredArtifactNodeIds = new Set<string>()
 
 /** Captured before relayout or ego exit; consumed in finishLayoutPass to avoid fit() jumping the view. */
 type ViewportPreserveSnap = {
@@ -406,6 +442,40 @@ let selectedNodeZoomAnchor: { x: number; y: number } | null = null
 
 /** Skip pan-by-anchor in zoom handler while applyViewportPreserveOrFit runs (zoom+pan ordering). */
 let suspendSelectedNodeZoomAnchorCorrection = 0
+
+/**
+ * Camera focus tracking: when a focus action is in progress (Digest pill, Dashboard click,
+ * Library episode open, etc.), the detail panel may open and resize the graph canvas
+ * AFTER the camera animation completes. This causes the centered node to drift off-center.
+ *
+ * Track the focus target and a deadline; the ResizeObserver re-centers on this node
+ * whenever the canvas resizes within the deadline window.
+ */
+let pendingRecenterCyId: string | null = null
+let pendingRecenterUntil = 0
+function armPendingRecenter(cyId: string, durationMs = 5000): void {
+  pendingRecenterCyId = cyId
+  pendingRecenterUntil = Date.now() + durationMs
+}
+/**
+ * Recenter on the pending focus target if still armed. Used by ResizeObserver
+ * (canvas size changed) and by deferred timers after animation (catches resizes
+ * that didn't fire on the observer, e.g. tab switches, rapid clicks, etc.).
+ */
+function recenterIfPending(core: Core): void {
+  if (!pendingRecenterCyId || Date.now() >= pendingRecenterUntil) {
+    return
+  }
+  try {
+    const tgt = core.$id(pendingRecenterCyId)
+    if (!tgt.empty()) {
+      core.resize()
+      core.center(tgt)
+    }
+  } catch {
+    // ignore — pending recenter is best-effort.
+  }
+}
 
 function clearSelectedNodeZoomAnchor(): void {
   selectedNodeZoomAnchor = null
@@ -483,6 +553,28 @@ function applyViewportPreserveOrFit(
 ): void {
   suspendSelectedNodeZoomAnchorCorrection += 1
   try {
+    // FIRST: If there's a pending focus node, skip all viewport logic and let tryApplyPendingFocus handle the camera
+    if (nav.pendingFocusNodeId) {
+      return
+    }
+    // SECOND: If requestFitAfterLoad is set (external load without focus), force fit at 50% zoom
+    if (nav.requestFitAfterLoad) {
+      try {
+        // For external loads without focus, center on graph with reasonable zoom instead of fitting to extremes
+        const els = core.elements(':visible')
+        const bbox = els.boundingBox()
+        const centerX = (bbox.x1 + bbox.x2) / 2
+        const centerY = (bbox.y1 + bbox.y2) / 2
+        core.zoom(0.5)  // 50% zoom as a reasonable default
+        core.center()  // Center on viewport center
+        // Pan to center the graph's center point
+        core.panBy({ x: -centerX * 0.5, y: -centerY * 0.5 })
+      } catch {
+        /* ignore */
+      }
+      return
+    }
+    // THIRD: Try to preserve viewport from snapshot (if valid)
     if (
       snap &&
       nodeOkForViewportPreserve(core, snap.cyId) &&
@@ -497,6 +589,7 @@ function applyViewportPreserveOrFit(
         /* fall through to fit */
       }
     }
+    // LAST: Default fit to visible elements
     try {
       core.fit(core.elements(':visible'), 24)
     } catch {
@@ -643,7 +736,17 @@ function applyEpisodeRepresentativeFocusIfNeeded(
     return
   }
   const metaNorm = normalizeCorpusMetadataPath(meta)
-  const best = findEpisodeGraphNodeIdForMetadataPath(gf.filteredArtifact, meta)
+  /** Use the episode-id fallback variant: the unified-merge graph emits Episode nodes
+   *  with ``__unified_ep__:UUID`` ids whose properties (``podcast_id``, ``title``,
+   *  ``publish_date``, ``duration_ms``, ``feed_id``) do NOT include ``metadata_relative_path``,
+   *  so a path-only lookup always returns null and camera centering never animates.
+   *  ``findEpisodeGraphNodeIdForMetadataPathOrEpisodeId`` falls back to matching by
+   *  ``logicalEpisodeIdFromGraphNodeId`` (UUID extraction) when path-based resolution misses. */
+  const best = findEpisodeGraphNodeIdForMetadataPathOrEpisodeId(
+    gf.filteredArtifact,
+    meta,
+    subject.episodeId,
+  )
   const preferred = subject.graphConnectionsCyId?.trim() || ''
 
   let cyEpisodeId: string | null = best
@@ -672,14 +775,16 @@ function applyEpisodeRepresentativeFocusIfNeeded(
   }
 
   if (!cyEpisodeId) {
-    episodeTerritoryMode.value = 'empty'
+    /** Order matters: ``clearEpisodeRepresentativeGraphState`` resets mode to 'off' internally; we MUST write 'empty' AFTER so the auto-load watcher sees the correct final value within Vue's batching window (otherwise auto-load never fires and the episode never enters the graph). */
     clearEpisodeRepresentativeGraphState(core)
+    episodeTerritoryMode.value = 'empty'
     return
   }
   const coll = core.$id(cyEpisodeId)
   if (coll.empty()) {
-    episodeTerritoryMode.value = 'empty'
+    /** See above: clear before setting 'empty' so the watcher observes the correct final mode. */
     clearEpisodeRepresentativeGraphState(core)
+    episodeTerritoryMode.value = 'empty'
     return
   }
   episodeTerritoryMode.value = 'off'
@@ -729,8 +834,26 @@ async function loadEpisodeSliceForTerritoryStrip(): Promise<void> {
     return
   }
   episodeTerritoryLoadBusy.value = true
+  // F2 — generation token for stale-await checks (decision #4 / spec § 8 check points).
+  const territoryGen = graphHandoff.generation
   try {
+    // Advance to loading_fetch if we're at idle/ready (FSM may already be there
+    // via handoffRequested from the entry point).
+    if (graphHandoff.state === 'idle' || graphHandoff.state === 'ready') {
+      graphHandoff.advanceState('loading_fetch')
+    }
     const d = await fetchCorpusEpisodeDetail(root, meta)
+    // F2 — stale-check after fetch await (decision #4 / 8+ check points).
+    if (graphHandoff.isStale(territoryGen)) {
+      return
+    }
+    /** Capture the episode UUID so ``applyEpisodeRepresentativeFocusIfNeeded`` can resolve the
+     *  Cytoscape node id via ``__unified_ep__:UUID`` when Episode rows lack ``metadata_relative_path``
+     *  in their properties (the unified-merge graph case). Without this fallback, camera centering
+     *  after Library / Search / Dashboard handoff stays broken. */
+    if (d.episode_id?.trim()) {
+      subject.setEpisodeId(d.episode_id.trim())
+    }
     const paths: string[] = []
     if (d.has_gi && d.gi_relative_path?.trim()) {
       paths.push(d.gi_relative_path.trim())
@@ -741,11 +864,31 @@ async function loadEpisodeSliceForTerritoryStrip(): Promise<void> {
     if (paths.length === 0) {
       return
     }
+    /** Tag this append as external (Library-style) navigation so the
+     *  ``filteredArtifact`` watcher does NOT short-circuit the
+     *  ``scheduleRedraw()`` call for "incremental append, no pending
+     *  focus" — without this, second/third "Open in graph" clicks
+     *  load the artifact into ``filteredArtifact`` but never flush
+     *  the new nodes into Cytoscape's ``core``, so ``$id(cy).empty()``
+     *  is true and camera animation never fires. */
+    artifacts.setLoadSource('subject-external')
+    // F2 — advance to loading_merge before the artifact append; the
+    // filteredArtifact watcher transitions into redrawing_full via runRelayout.
+    if (graphHandoff.state === 'loading_fetch' || graphHandoff.state === 'loading_bootstrap') {
+      graphHandoff.advanceState('loading_merge')
+    }
     await artifacts.appendRelativeArtifacts(paths)
+    if (graphHandoff.isStale(territoryGen)) {
+      return
+    }
     subject.setEpisodeUiLabel(d.episode_title ?? null)
     episodeTerritoryDismissed.value = false
-  } catch {
-    /* ignore — caller sees empty strip until retry */
+  } catch (e) {
+    // C6 / decision #15 — surface failed handoffs through the FSM so the
+    // error strip in C7 can render. Replaces the silent swallow that left
+    // users with "I clicked, nothing happened, no feedback" UX.
+    const reason = e instanceof Error ? e.message : 'territory fetch failed'
+    graphHandoff.handoffFailed(`territory fetch: ${reason}`)
   } finally {
     episodeTerritoryLoadBusy.value = false
   }
@@ -1280,6 +1423,8 @@ function finishLayoutPass(core: Core): void {
   applyTopicDegreeHeat(cy)
   applyDegreeVisibility(cy)
   applyViewportPreserveOrFit(cy, snap)
+  // Clear the fit request flag after applying viewport (fit or preserve)
+  nav.clearRequestFitAfterLoad()
 
   lastZoomLevel = cy.zoom()
   updateZoomPercentDisplay(cy)
@@ -1304,7 +1449,86 @@ function finishLayoutPass(core: Core): void {
   }
   lastSelectedRelPathsCountAfterLayout = artifacts.selectedRelPaths.length
   lastCommittedEgoFocusCyId = focusNodeId.value?.trim() ?? ''
+
+  // F4 — production self-healing invariant + retry budget (decision #5 /
+  // FSM spec § exact predicate). Set-difference check between the logical
+  // artifact view (under current ego) and Cytoscape's `core.nodes()`.
+  // Predicate + reconcile-action decision are pure functions in
+  // `utils/graphHandoffInvariant.ts` (unit-tested in T2a); this block is
+  // the Cytoscape-aware consumer that actually applies the reconciliation.
+  try {
+    const viewArtForInvariant = gf.viewWithEgo(focusNodeId.value)
+    if (viewArtForInvariant) {
+      const expected = new Set(
+        toGraphElements(viewArtForInvariant).visNodes.map((v) => v.id),
+      )
+      const actual = new Set<string>()
+      core.nodes().forEach((n) => {
+        actual.add(n.id())
+      })
+      const { missing } = computeNodeIdSetDifference(expected, actual)
+      if (missing.length > 0) {
+        const envelopeGen = graphHandoff.pending?.generation ?? null
+        const alreadyRetried =
+          envelopeGen !== null &&
+          handoffReconcileRetryGen === envelopeGen
+        const decision = decideReconcileAction(missing, alreadyRetried)
+        if (decision === 'reconcile' && envelopeGen !== null) {
+          // Targeted reconciliation: re-add missing visNodes from the logical
+          // view. A subsequent layoutstop will run the invariant again and
+          // accept divergence if still violated (single retry budget).
+          handoffReconcileRetryGen = envelopeGen
+          try {
+            const elements = toGraphElements(viewArtForInvariant)
+            const nodesToAdd = elements.visNodes.filter((v) =>
+              missing.includes(v.id),
+            )
+            if (nodesToAdd.length > 0) {
+              core.add(
+                nodesToAdd.map((n) => ({
+                  group: 'nodes',
+                  data: { ...n, id: n.id },
+                })),
+              )
+              console.warn(
+                `[graphHandoff invariant] reconciled missing=${missing.length} via targeted core.add (retry budget consumed for gen=${envelopeGen})`,
+              )
+            }
+          } catch (e) {
+            console.warn(
+              `[graphHandoff invariant] reconciliation failed: ${e instanceof Error ? e.message : String(e)}`,
+            )
+          }
+        } else if (decision === 'accept-divergence') {
+          // Either retry already used, or missing.length above threshold —
+          // accept divergence + log.
+          console.warn(
+            `[graphHandoff invariant] divergence accepted: missing=${missing.length} sample=${missing.slice(0, 3).join(',')} retried=${alreadyRetried}`,
+          )
+        }
+      }
+    }
+  } catch {
+    // Invariant check must not affect runtime behaviour.
+  }
+  // C5 — mark the in-flight handoff as applied so the FSM transitions back
+  // to `ready` and the stuck timer disarms. Without this the FSM would stay
+  // in `loading_fetch` after every entry-point click and false-alarm at 5s.
+  // C6 will replace with full FSM-driven layout barriers.
+  if (graphHandoff.pending) {
+    const appliedCyId = selectedNodeId.value || focusNodeId.value || ''
+    graphHandoff.recordApplied(appliedCyId)
+  }
+  // Set cooldown to prevent immediate redraws from watchers reacting to layout state changes
+  layoutCompletionCooldownUntil = Date.now() + 300 // 300ms cooldown
   releaseGraphPaintAfterLayout(core)
+  // Layout just completed and the canvas may have been resizing during it
+  // (Library/Search/Dashboard handoff: graph mounting + detail panel opening
+  // simultaneously). If a focus action is in flight, recenter the target.
+  recenterIfPending(core)
+  setTimeout(() => {
+    if (cy === core) recenterIfPending(core)
+  }, 250)
 }
 
 function applyCrossEpisodeExpandHints(core: Core): void {
@@ -1569,7 +1793,19 @@ function animateCameraToFocusedNode(
   const id = cyId.trim()
   if (!id) return
   const n = core.$id(id)
-  if (n.empty()) return
+  if (n.empty()) {
+    return
+  }
+  // F3a — generation-token check point #7 (FSM spec § 8 sites). Capture
+  // generation at entry; abort the animation if a newer handoff supersedes it
+  // (e.g. user clicks a different node mid-animation). Also stops `cy.animate`
+  // already in flight by setting a fresh `centerEles` only when fresh.
+  const animateGen = graphHandoff.generation
+  // Arm pending-recenter so any canvas resize over the next window recenters on
+  // this node. Catches detail-panel open transitions, tab switches (Library /
+  // Dashboard / Search → Graph), and other layout shifts that happen during or
+  // after the camera animation.
+  armPendingRecenter(cyId)
   suspendSelectedNodeZoomAnchorCorrection += 1
   try {
     const targetZoom = Math.max(core.zoom(), GRAPH_FOCUS_FRAME_MIN_ZOOM)
@@ -1586,17 +1822,59 @@ function animateCameraToFocusedNode(
         }
       }
     }
+    if (graphHandoff.isStale(animateGen)) {
+      suspendSelectedNodeZoomAnchorCorrection -= 1
+      return
+    }
     core.animate({
       center: { eles: centerEles },
       zoom: targetZoom,
       duration: 320,
       complete: () => {
+        // F3a — generation check inside animation `complete` (FSM spec § 8 sites).
+        // If the user has clicked something else mid-animation, don't continue
+        // with stale recenter logic.
+        if (graphHandoff.isStale(animateGen)) {
+          suspendSelectedNodeZoomAnchorCorrection -= 1
+          return
+        }
+        // Canvas may have resized during animation (detail panel opening, tab switch,
+        // initial graph mount on Library/Dashboard handoff). Force resize + recenter
+        // against CURRENT canvas dimensions.
+        try {
+          core.resize()
+          core.center(centerEles)
+        } catch {
+          // ignore — best-effort post-animation recenter.
+        }
         suspendSelectedNodeZoomAnchorCorrection -= 1
         refreshSelectedNodeZoomAnchor(core)
         lastZoomLevel = core.zoom()
         updateZoomPercentDisplay(core)
       },
     })
+    // F3d — INTENTIONAL TIME-BASED SAFETY NETS. ResizeObserver may not fire
+    // for every layout shift (tab switches that mount the graph for the first
+    // time; async artifact loads; tab switches that resize the canvas mid-
+    // animation). The 400/900/1800ms cadence catches three distinct timing
+    // classes: post-paint (~400ms), post-detail-panel-open (~900ms), and
+    // post-async-load (~1800ms). Each `recenterIfPending` is a no-op if the
+    // pending recenter has already been consumed or expired.
+    //
+    // These are TIMEOUTS (real-time safety bounds), not synchronization
+    // primitives — the FSM "no time-based gates" rule (concern #3) explicitly
+    // carves out timeouts. Per FSM design: replace with event-driven barriers
+    // only when there's a corresponding Cytoscape event that fires reliably
+    // for every meaningful resize. Today there isn't one.
+    setTimeout(() => {
+      if (cy === core) recenterIfPending(core)
+    }, 400)
+    setTimeout(() => {
+      if (cy === core) recenterIfPending(core)
+    }, 900)
+    setTimeout(() => {
+      if (cy === core) recenterIfPending(core)
+    }, 1800)
   } catch {
     suspendSelectedNodeZoomAnchorCorrection -= 1
     try {
@@ -1612,6 +1890,9 @@ function animateCameraToFocusedNode(
 
 /** @returns ``true`` when pending focus was applied (camera + selection); caller may skip episode-strip camera. */
 function tryApplyPendingFocus(core: Core): boolean {
+  // F3a — generation-token check point #6 (FSM spec § 8 sites). If a newer
+  // handoff has bumped generation since this watcher fired, abandon the apply.
+  const entryGen = graphHandoff.generation
   const rawId = nav.pendingFocusNodeId
   if (!rawId) return false
   const fallbackRaw = nav.pendingFocusFallbackNodeId
@@ -1623,6 +1904,9 @@ function tryApplyPendingFocus(core: Core): boolean {
   if (!cyId) {
     return false
   }
+  if (graphHandoff.isStale(entryGen)) {
+    return false
+  }
   const n = core.$id(cyId)
   if (n.empty()) {
     return false
@@ -1631,6 +1915,8 @@ function tryApplyPendingFocus(core: Core): boolean {
   core.nodes().unselect()
   focusNode.select()
   selectedNodeId.value = cyId
+  // Clear zoom anchor before animation to prevent zoom event handler from interfering with camera centering
+  clearSelectedNodeZoomAnchor()
   try {
     applyGraphSelectionDimFromNode(core, focusNode)
   } catch {
@@ -1969,7 +2255,12 @@ function runRelayout(): void {
     applyGraphCanvasImmediateHide(graphEl)
   }
 
-  pendingViewportPreserve = captureSelectedViewportAnchor(c)
+  // Only preserve viewport if not explicitly requesting a fit after load
+  if (!nav.requestFitAfterLoad) {
+    pendingViewportPreserve = captureSelectedViewportAnchor(c)
+  } else {
+    pendingViewportPreserve = null
+  }
   const name = preferredLayout.value
   // RFC-080 V3: timeline reads cy node data (publishDate, episodeId)
   // so it builds its preset spec live; other layouts use static opts.
@@ -1985,6 +2276,15 @@ function runRelayout(): void {
     return
   }
   activeElesLayout = lo
+  // F2 — advance FSM through loading_merge → redrawing_full when a relayout starts.
+  // The orchestrator runtime now tracks state at every barrier point.
+  if (graphHandoff.state === 'loading_merge') {
+    graphHandoff.advanceState('redrawing_full')
+  } else if (graphHandoff.state === 'idle' || graphHandoff.state === 'ready') {
+    // Layout from internal scheduler (theme change, lens toggle, etc.) — start
+    // a fresh redraw cycle from quiescent state.
+    graphHandoff.advanceState('redrawing_full')
+  }
   lo.one('layoutstop', () => {
     if (graphLayoutGate.isStale(gen)) {
       return
@@ -1996,6 +2296,8 @@ function runRelayout(): void {
       releaseGraphCanvasLayoutHold()
       return
     }
+    // F2 — advance redrawing_full → applying via the FSM event API.
+    graphHandoff.notifyLayoutStop()
     finishLayoutPass(cy)
   })
   try {
@@ -2006,6 +2308,30 @@ function runRelayout(): void {
   }
 }
 
+/**
+ * Schedule a debounced redraw to prevent rapid-fire destroy/recreate cycles
+ * when multiple watchers fire in sequence (e.g., filteredArtifact changes).
+ */
+function scheduleRedraw(): void {
+  // Skip if currently in a redraw cycle or actively laying out
+  if (redrawGateDepth > 0 || activeElesLayout !== null) {
+    redrawPending = true
+    return
+  }
+  // Skip if within cooldown period after layout completion (watchers react to state changes)
+  if (Date.now() < layoutCompletionCooldownUntil) {
+    redrawPending = true
+    return
+  }
+  if (redrawDebounceTimer) {
+    clearTimeout(redrawDebounceTimer)
+  }
+  redrawDebounceTimer = setTimeout(() => {
+    redrawDebounceTimer = null
+    redraw()
+  }, 150) // 150ms debounce - catches Vue nextTick cascades, still feels instant
+}
+
 function redraw(): void {
   if (redrawGateDepth > 0) {
     redrawPending = true
@@ -2013,8 +2339,6 @@ function redraw(): void {
   }
   redrawGateDepth += 1
   try {
-    graphContentHiddenUntilLayout.value = true
-
     const priorCore = cy
     const viewArtPreview = gf.viewWithEgo(focusNodeId.value)
     const nextNodeIdSet = new Set<string>()
@@ -2024,11 +2348,28 @@ function redraw(): void {
       }
     }
     const selCount = artifacts.selectedRelPaths.length
-    const egoCur = focusNodeId.value?.trim() ?? ''
+    const egoCur = priorEgoBeforeWatcherClear
     const selectionGrew =
       selCount > lastSelectedRelPathsCountAfterLayout &&
       lastSelectedRelPathsCountAfterLayout > 0
     const egoUnchanged = egoCur === lastCommittedEgoFocusCyId
+    
+    // Incremental ONLY when expanding the SAME cluster/ego (appending members from rail Load).
+    // If ego changed (user clicked a DIFFERENT cluster card), do a full redraw to avoid unbounded growth.
+    const egoChanged = egoCur !== lastCommittedEgoFocusCyId && egoCur !== '' && lastCommittedEgoFocusCyId !== ''
+    
+    /**
+     * ``selectionReplaced`` and ``contextSwitch`` are hard-coded ``false`` and load-bearing — do
+     * NOT delete without an FSM-based replacement (planned for C6, /Users/markodragoljevic/.claude/plans/in-this-b-tanch-gentle-pillow.md).
+     * They invert the incremental-layout gate on lines below: with both ``false``, the predicate
+     * becomes "incremental allowed unless egoChanged or external-nav", which is the *opposite*
+     * of the original gate. Removing them reverts behaviour to a state nobody has tested in
+     * months. The C2 stabilization keeps them as documented inverted gates; C6 replaces both
+     * with explicit FSM transitions (``redrawing_incremental`` vs ``redrawing_full``).
+     */
+    const selectionReplaced = false
+    const contextSwitch = false
+
     const addedNodeIds = new Set<string>()
     if (selectionGrew && egoUnchanged && priorCore && lastCommittedFilteredNodeIds.size > 0) {
       for (const id of nextNodeIdSet) {
@@ -2040,7 +2381,17 @@ function redraw(): void {
 
     const preservedPositions = new Map<string, CyModelPosition>()
     let useIncrementalLayout = false
+    
+    // Check if this is an external navigation (Digest/Library) - if so, force full layout
+    const isExternalNavigation =
+      artifacts.currentLoadSource === 'digest-external' ||
+      artifacts.currentLoadSource === 'subject-external'
+    
     if (
+      !egoChanged &&
+      !selectionReplaced &&
+      !contextSwitch &&
+      !isExternalNavigation &&  // Force full layout for external navigation
       addedNodeIds.size > 0 &&
       selectionGrew &&
       egoUnchanged &&
@@ -2056,6 +2407,134 @@ function redraw(): void {
       useIncrementalLayout = preservedPositions.size > 0
     }
 
+    if (!useIncrementalLayout) {
+      graphContentHiddenUntilLayout.value = true
+    }
+
+    if (useIncrementalLayout && priorCore) {
+      // True incremental: add/remove elements on existing instance, no canvas blank
+      // Capture current viewport to preserve zoom/pan after incremental layout,
+      // UNLESS requestFitAfterLoad is set (external load without focus target)
+      if (!nav.requestFitAfterLoad) {
+        pendingViewportPreserve = captureSelectedViewportAnchor(priorCore)
+      } else {
+        pendingViewportPreserve = null
+      }
+      
+      const el = container.value
+      if (!el) {
+        graphCyNodeCount.value = 0
+        releaseGraphCanvasLayoutHold()
+        lastSelectedRelPathsCountAfterLayout = 0
+        lastCommittedFilteredNodeIds.clear()
+        lastCommittedEgoFocusCyId = ''
+        return
+      }
+
+      const art = gf.viewWithEgo(focusNodeId.value)
+      if (!art) {
+        destroyCy()
+        el.innerHTML =
+          '<p class="p-4 text-sm text-muted">Load artifacts and use "Load selected" to render the graph.</p>'
+        degreeHistogramCounts.value = {}
+        graphCyNodeCount.value = 0
+        releaseGraphCanvasLayoutHold()
+        lastSelectedRelPathsCountAfterLayout = 0
+        lastCommittedFilteredNodeIds.clear()
+        lastCommittedEgoFocusCyId = ''
+        return
+      }
+
+      const elements = toCytoElements(art, {
+        enableAggregatedEdges: lenses.aggregatedEdges,
+      })
+      const nodeCount = elements.filter((x) => !('source' in x.data)).length
+      if (nodeCount === 0) {
+        destroyCy()
+        el.innerHTML =
+          '<p class="p-4 text-sm text-muted">No nodes in this view (adjust filters).</p>'
+        degreeHistogramCounts.value = {}
+        graphCyNodeCount.value = 0
+        releaseGraphCanvasLayoutHold()
+        lastSelectedRelPathsCountAfterLayout = 0
+        lastCommittedFilteredNodeIds.clear()
+        lastCommittedEgoFocusCyId = ''
+        return
+      }
+
+      // Remove elements no longer in the graph
+      const nextEleIds = new Set(elements.map((e) => e.data.id))
+      const toRemove = priorCore.elements().filter((ele) => !nextEleIds.has(ele.id()))
+      console.log('[GraphCanvas incremental] Removing:', toRemove.length, 'elements')
+      priorCore.remove(toRemove)
+
+      // Add new elements to existing instance
+      const existingIds = new Set<string>()
+      priorCore.elements().forEach((ele) => {
+        const id = ele.id()
+        if (id) existingIds.add(id)
+      })
+      const toAdd = elements.filter((e) => {
+        const id = e.data.id
+        return id && !existingIds.has(id)
+      })
+      console.log('[GraphCanvas incremental] Adding:', toAdd.length, 'elements', 'Total after:', priorCore.elements().length + toAdd.length)
+      priorCore.add(toAdd)
+
+      // Seed positions for new nodes
+      seedPositionsForIncrementalAppend(priorCore, addedNodeIds)
+
+      graphCyNodeCount.value = nodeCount
+
+      const layoutGen = graphLayoutGate.bump()
+      const layoutName = preferredLayout.value
+      const layoutCollection = priorCore.elements().filter((ele) => {
+        if (ele.isNode()) {
+          return addedNodeIds.has(ele.id())
+        }
+        return (
+          addedNodeIds.has(ele.source().id()) || addedNodeIds.has(ele.target().id())
+        )
+      })
+
+      let initialLo: { stop: () => void; one: (ev: string, fn: () => void) => void; run: () => void }
+      try {
+        const layoutOpts = layoutOptionsFor(layoutName)
+        const initialSpec =
+          layoutName === 'timeline'
+            ? timelineLayoutSpec(priorCore)
+            : { ...layoutOpts, name: layoutName }
+        initialLo = layoutCollection.layout(initialSpec as never) as typeof initialLo
+      } catch {
+        releaseGraphCanvasLayoutHold()
+        return
+      }
+
+      activeElesLayout = initialLo
+      initialLo.one('layoutstop', () => {
+        if (graphLayoutGate.isStale(layoutGen)) {
+          return
+        }
+        if (activeElesLayout === initialLo) {
+          activeElesLayout = null
+        }
+        if (!cy || cy !== priorCore) {
+          releaseGraphCanvasLayoutHold()
+          return
+        }
+        finishLayoutPass(priorCore)
+      })
+      try {
+        initialLo.run()
+      } catch {
+        activeElesLayout = null
+        releaseGraphCanvasLayoutHold()
+      }
+      return
+    }
+
+    // FULL REDRAW PATH
+    console.log('[GraphCanvas] FULL REDRAW - destroying and recreating graph')
     destroyCy()
     const el = container.value
     if (!el) {
@@ -2191,7 +2670,12 @@ function redraw(): void {
     }
 
     const sync = (): void => {
-      if (cy === core) core.resize()
+      if (cy !== core) return
+      core.resize()
+      // While a focus action is in flight, recenter on the focus target so the
+      // node stays in the middle of the visible graph viewport (catches detail
+      // panel transitions, tab switches, layout shifts).
+      recenterIfPending(core)
     }
     if (typeof ResizeObserver !== 'undefined') {
       resizeObs = new ResizeObserver(sync)
@@ -2250,7 +2734,18 @@ function redraw(): void {
     const t = evt.target
     if (typeof t.isNode === 'function' && t.isNode()) {
       const id = t.id()
+      // F1.2 — fire FSM canvasTapped before opening rail. The tap is direct
+      // (no load barriers needed); FSM transitions to `applying` then `ready`
+      // via supersession or finishLayoutPass apply phase.
       const rawNode = rawNodeForRailInteraction(id)
+      const isEpisodeNode = rawNode?.type === 'Episode'
+      graphHandoff.canvasTapped({
+        kind: isEpisodeNode ? 'episode' : 'graph-node',
+        cyId: id,
+        source: 'canvas-tap',
+        loadSource: 'graph-internal',
+        camera: { kind: 'center', cyId: id },
+      })
       void openGraphEpisodeOrNodeRail(id, rawNode)
       /** Match ``tryApplyPendingFocus`` / digest episode handoff: centre the tapped node in view. */
       animateCameraToFocusedNode(core, id)
@@ -2286,6 +2781,16 @@ function redraw(): void {
       core.nodes().unselect()
       t.select()
       selectedNodeId.value = id
+      // F1.3 — fire FSM expansionRequested. Decision #5: expansion always queues
+      // (additive; cancelling loses user work). Definition X: graph-internal =
+      // preserves layout. Camera stays where the user left it.
+      graphHandoff.expansionRequested({
+        kind: 'graph-node',
+        cyId: id,
+        source: 'double-tap-expand',
+        loadSource: 'graph-internal',
+        camera: { kind: 'preserve' },
+      })
       void expandOrCollapseGraphNode(core, id)
       refreshSelectedNodeZoomAnchor(core)
       return
@@ -2334,7 +2839,7 @@ function redraw(): void {
     if (redrawPending) {
       redrawPending = false
       void nextTick(() => {
-        redraw()
+        scheduleRedraw()
       })
     }
   }
@@ -2425,7 +2930,58 @@ watch(
   () => {
     void nextTick(() => {
       safeGraphWatch('filteredArtifact', () => {
+        // Detect if this is an incremental append (superset) vs a full replacement
+        const currentNodeIds = new Set<string>()
+        if (gf.filteredArtifact) {
+          for (const n of gf.filteredArtifact.data.nodes || []) {
+            if (n.id && typeof n.id === 'string') {
+              currentNodeIds.add(n.id)
+            }
+          }
+        }
+
+        // Check if ALL previous nodes are still present (superset = incremental append)
+        let isIncrementalAppend = false
+        if (prevFilteredArtifactNodeIds.size > 0 && currentNodeIds.size >= prevFilteredArtifactNodeIds.size) {
+          isIncrementalAppend = true
+          for (const id of prevFilteredArtifactNodeIds) {
+            if (!currentNodeIds.has(id)) {
+              isIncrementalAppend = false
+              break
+            }
+          }
+        }
+
+        // Update tracked set for next comparison
+        prevFilteredArtifactNodeIds = currentNodeIds
+
+        // F3c — replaces the previous early-return at this site (was the
+        // load-bearing-wrong gate from the original WIP analysis). Per the FSM
+        // spec § "Always redraw on growth": during a node-id-set growth event,
+        // schedule a redraw unconditionally. The disruptive-state-reset ops
+        // below (focus clear, subject clear, etc.) are still gated to incremental
+        // appends so we don't tear down the rail when the user is just expanding
+        // the existing graph (e.g. NodeDetail Load, double-tap expand).
+        const isExternalNavigation =
+          artifacts.currentLoadSource === 'digest-external' ||
+          artifacts.currentLoadSource === 'subject-external'
+
+        // Clear load source — observed once, regardless of the path taken below.
+        artifacts.clearLoadSource()
+
+        if (isIncrementalAppend && !nav.pendingFocusNodeId && !isExternalNavigation) {
+          // Internal incremental append (auto-merge, double-tap expand, etc.):
+          // schedule redraw so Cytoscape picks up the new nodes, but DON'T
+          // tear down the user's selection / subject / highlights. C7's
+          // self-healing invariant in finishLayoutPass catches any divergence
+          // between the merged artifact and the cy core.
+          scheduleRedraw()
+          return
+        }
+
+        // Full replacement: proceed with normal cleanup
         ge.resetForNewArtifact()
+        priorEgoBeforeWatcherClear = focusNodeId.value?.trim() ?? ''
         focusNodeId.value = null
         selectedNodeId.value = null
         // Keep the subject rail on **Episode** (Library / Digest) or **Graph node** (e.g. TopicCluster
@@ -2459,13 +3015,56 @@ watch(
           }
         }
         if (restoreGraphNodeId) {
+          // F3b — route restore through orchestrator instead of self-triggering
+          // the meta-watcher with `nav.requestFocusNode`. The FSM observes this
+          // as `source: 'restore-preference'` (decision #8 / FSM spec) so it
+          // looks like a normal handoff from outside. Self-trigger is structurally
+          // impossible because `handoffRequested` from inside this watcher fires
+          // a fresh envelope rather than mutating `pendingFocusNodeId` directly.
+          graphHandoff.handoffRequested({
+            kind: 'graph-node',
+            cyId: restoreGraphNodeId,
+            source: 'restore-preference',
+            loadSource: 'subject-external',
+            camera: { kind: 'center', cyId: restoreGraphNodeId },
+          })
           nav.requestFocusNode(restoreGraphNodeId)
         } else if (restoreEpisodeCyId) {
+          // Same routing as above for the episode case.
+          graphHandoff.handoffRequested({
+            kind: 'episode',
+            cyId: restoreEpisodeCyId,
+            source: 'restore-preference',
+            loadSource: 'subject-external',
+            camera: { kind: 'center', cyId: restoreEpisodeCyId },
+          })
           nav.requestFocusNode(restoreEpisodeCyId)
         }
-        redraw()
+        scheduleRedraw()
       })
     })
+  },
+  { flush: 'post' },
+)
+
+// Watch for pending focus changes to apply focus even when artifacts don't change
+// (e.g., clicking multiple topic pills from the same episode in Digest)
+watch(
+  () => nav.pendingFocusNodeId,
+  (newFocusId) => {
+    if (!newFocusId || !cy) return
+    // Check if the node exists using $id() to handle special characters in IDs
+    const node = cy.$id(newFocusId)
+    if (node.length > 0) {
+      // Node exists - directly apply focus without full redraw
+      void nextTick(() => {
+        safeGraphWatch('pendingFocus', () => {
+          if (cy) {
+            tryApplyPendingFocus(cy)
+          }
+        })
+      })
+    }
   },
   { flush: 'post' },
 )
@@ -2514,7 +3113,7 @@ watch(
       egoPriorFullGraphViewportPreserve = null
       void nextTick(() => {
         try {
-          redraw()
+          scheduleRedraw()
         } catch (e) {
           console.warn('[GraphCanvas] watcher (theme nextTick):', e)
         }
@@ -2545,6 +3144,7 @@ watch(
       subject.kind,
       subject.episodeMetadataPath,
       subject.episodeUiLabel,
+      subject.episodeId,
       subject.graphConnectionsCyId,
       gf.fullArtifact,
       gf.filteredArtifact,

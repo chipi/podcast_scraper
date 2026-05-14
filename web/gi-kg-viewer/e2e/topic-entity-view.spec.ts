@@ -229,5 +229,7 @@ test.describe('Topic / Entity rail panel (TEV)', () => {
     // Action buttons present.
     await expect(page.getByTestId('topic-entity-view-go-graph')).toBeVisible()
     await expect(page.getByTestId('topic-entity-view-prefill-search')).toBeVisible()
+    // TEV does not launch the legacy topic timeline popup.
+    await expect(page.getByTestId('topic-timeline-dialog')).toHaveCount(0)
   })
 })

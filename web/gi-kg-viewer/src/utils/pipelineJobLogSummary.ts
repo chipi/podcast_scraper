@@ -84,11 +84,13 @@ function extractAfterMarker(tail: string, marker: string): unknown | null {
 export interface PipelineLogStructuredSummaries {
   multiFeedBatch: unknown | null
   corpusMultiFeedSummary: unknown | null
+  topicClustersSummary: unknown | null
 }
 
 export function extractStructuredSummariesFromLogTail(tail: string): PipelineLogStructuredSummaries {
   return {
     multiFeedBatch: extractAfterMarker(tail, 'multi_feed_batch:'),
     corpusMultiFeedSummary: extractAfterMarker(tail, 'corpus_multi_feed_summary:'),
+    topicClustersSummary: extractAfterMarker(tail, 'topic_clusters_summary:'),
   }
 }

@@ -176,6 +176,65 @@ test.describe('Search → graph (mocked API)', () => {
       })
     })
 
+    await page.route('**/api/topics/topic%3Aci-policy/timeline?**', async (route) => {
+      const url = new URL(route.request().url())
+      const path = url.searchParams.get('path') || '/mock/corpus'
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          path,
+          topic_id: 'topic:ci-policy',
+          episodes: [
+            {
+              episode_id: 'ci-fixture',
+              publish_date: '2020-01-01',
+              episode_title: 'CI fixture episode',
+              feed_title: 'Stub feed',
+              episode_number: 1,
+              episode_image_url: null,
+              episode_image_local_relpath: null,
+              feed_image_url: null,
+              feed_image_local_relpath: null,
+              insights: [{ text: 'Climate policy appears in the timeline.' }],
+            },
+          ],
+        }),
+      })
+    })
+
+    await page.route('**/api/topics/timeline', async (route) => {
+      if (route.request().method().toUpperCase() !== 'POST') {
+        await route.continue()
+        return
+      }
+      const body = route.request().postDataJSON() as { path?: string; topic_ids?: string[] }
+      const path = typeof body.path === 'string' && body.path.trim() ? body.path.trim() : '/mock/corpus'
+      const ids = Array.isArray(body.topic_ids) ? body.topic_ids : ['topic:ci-policy']
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          path,
+          topic_ids: ids,
+          episodes: [
+            {
+              episode_id: 'ci-fixture',
+              publish_date: '2020-01-01',
+              episode_title: 'CI fixture episode',
+              feed_title: 'Stub feed',
+              episode_number: 1,
+              episode_image_url: null,
+              episode_image_local_relpath: null,
+              feed_image_url: null,
+              feed_image_local_relpath: null,
+              insights: [{ text: 'Merged cluster timeline insight.' }],
+            },
+          ],
+        }),
+      })
+    })
+
     await setupCorpusDashboardDataRoutes(page)
   })
 
@@ -357,6 +416,13 @@ test.describe('Search → graph (mocked API)', () => {
       timeout: 10_000,
     })
     await expect(page.getByTestId('node-detail-full-topic')).toContainText('Climate policy')
+    const inlineTimeline = page.getByTestId('node-detail-inline-timeline')
+    await expect(inlineTimeline).toBeVisible()
+    await expect(inlineTimeline).toContainText('Cluster timeline')
+    await expect(inlineTimeline).toContainText('CI fixture episode')
+    await expect(inlineTimeline).toContainText('1 episode with insights about this cluster.')
+    await expect(page.getByTestId('topic-timeline-dialog')).toHaveCount(0)
+    await expect(page.getByTestId('node-detail-topic-timeline')).toHaveCount(0)
 
     await page.locator('#search-q').fill('climate insights')
     await page
@@ -436,6 +502,54 @@ test.describe('Search → graph (mocked API)', () => {
     const hint = page.getByTestId('supporting-quote-speaker-unavailable')
     await expect(hint).toBeVisible()
     await expect(hint).toContainText('No speaker detected')
+  })
+
+  test('topic detail renders inline topic timeline when cluster overlay is absent', async ({
+    page,
+  }) => {
+    await page.unroute('**/api/corpus/topic-clusters**')
+    await page.route('**/api/corpus/topic-clusters**', async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          schema_version: '2',
+          clusters: [],
+          topic_count: 0,
+          cluster_count: 0,
+          singletons: 0,
+        }),
+      })
+    })
+
+    await page.goto('/')
+    await page.getByRole('heading', { name: SHELL_HEADING_RE }).waitFor()
+    await statusBarCorpusPathInput(page).fill('/mock/corpus')
+    await mainViewsNav(page).getByRole('button', { name: 'Graph' }).click()
+    await page.getByRole('button', { name: 'Fit' }).waitFor({ state: 'visible', timeout: 30_000 })
+
+    await page.locator('#search-q').fill('climate insights')
+    await page
+      .locator('section')
+      .filter({ has: page.getByRole('heading', { name: 'Semantic search' }) })
+      .getByRole('button', { name: 'Search', exact: true })
+      .click()
+    await page.getByText('Summary insight (stub)', { exact: false }).waitFor({ timeout: 10_000 })
+    await page.getByRole('button', { name: 'Show on graph' }).click()
+    await page.getByRole('button', { name: 'Fit' }).waitFor({ state: 'visible', timeout: 30_000 })
+    await page.getByTestId('node-detail-rail-tab-details').click()
+    await page
+      .getByTestId('node-detail-insight-related-topic-row')
+      .filter({ hasText: 'Climate policy' })
+      .click()
+
+    const inlineTimeline = page.getByTestId('node-detail-inline-timeline')
+    await expect(inlineTimeline).toBeVisible()
+    await expect(inlineTimeline).toContainText('Topic timeline')
+    await expect(inlineTimeline).toContainText('CI fixture episode')
+    await expect(inlineTimeline).toContainText('1 episode with insights about this topic.')
+    await expect(page.getByTestId('topic-timeline-dialog')).toHaveCount(0)
+    await expect(page.getByTestId('node-detail-topic-timeline')).toHaveCount(0)
   })
 
   test('transcript hit with lifted quote timing and no speaker shows muted lifted hint', async ({

@@ -2,6 +2,7 @@
 import { storeToRefs } from 'pinia'
 import { ref } from 'vue'
 import GraphCanvas from './GraphCanvas.vue'
+import HandoffErrorStrip from './HandoffErrorStrip.vue'
 import { useArtifactsStore } from '../../stores/artifacts'
 import { useGraphExpansionStore } from '../../stores/graphExpansion'
 
@@ -28,6 +29,7 @@ defineExpose({
     class="flex min-h-0 min-h-[280px] flex-1 flex-col overflow-hidden"
     data-testid="graph-tab-panel"
   >
+    <HandoffErrorStrip />
     <p
       v-if="artifacts.siblingMergeLine && !artifacts.siblingMergeError"
       class="shrink-0 border-b border-border bg-elevated/40 px-2 py-1 text-[10px] leading-snug text-muted"

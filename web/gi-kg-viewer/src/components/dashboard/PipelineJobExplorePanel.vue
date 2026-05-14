@@ -11,7 +11,6 @@ import { pipelineJobRunDetailsText } from '../../utils/pipelineJobRunDetailsText
 import { extractStructuredSummariesFromLogTail } from '../../utils/pipelineJobLogSummary'
 import {
   buildCorpusLikeDocumentView,
-  buildMultiFeedBatchView,
   type CorpusLikeDocumentView,
 } from '../../utils/humanizeJsonDocument'
 import { usePageVisible } from '../../composables/usePageVisible'
@@ -94,7 +93,30 @@ function scheduleTailPoll(): void {
 
 const structured = computed(() => extractStructuredSummariesFromLogTail(tailText.value))
 
-const logBatchView = computed(() => buildMultiFeedBatchView(structured.value.multiFeedBatch))
+type TopicClustersSummaryView = {
+  built: boolean
+  topicCount: number
+  clusterCount: number
+  singletons: number
+  seconds: number
+  schemaVersion: string
+}
+
+const topicClustersSummaryView = computed((): TopicClustersSummaryView | null => {
+  const s = structured.value.topicClustersSummary
+  if (!s || typeof s !== 'object' || Array.isArray(s)) {
+    return null
+  }
+  const obj = s as Record<string, unknown>
+  return {
+    built: Boolean(obj.built),
+    topicCount: Number(obj.topic_count ?? 0),
+    clusterCount: Number(obj.cluster_count ?? 0),
+    singletons: Number(obj.singletons ?? 0),
+    seconds: Number(obj.seconds ?? 0),
+    schemaVersion: String(obj.schema_version ?? ''),
+  }
+})
 
 const logCorpusLineView = computed((): CorpusLikeDocumentView | null => {
   const s = structured.value.corpusMultiFeedSummary
@@ -105,15 +127,14 @@ const logCorpusLineView = computed((): CorpusLikeDocumentView | null => {
 })
 
 const metricsHasContent = computed(() => {
-  const b = logBatchView.value
   const c = logCorpusLineView.value
   return (
-    (b.metaRows.length > 0 || (b.feedsTable?.rows.length ?? 0) > 0) ||
-    (c != null &&
-      (c.corpusParentRow != null ||
-        c.metaRows.length > 0 ||
-        c.incidentRows.length > 0 ||
-        (c.feedsTable?.rows.length ?? 0) > 0))
+    topicClustersSummaryView.value != null ||
+    c != null &&
+    (c.corpusParentRow != null ||
+      c.metaRows.length > 0 ||
+      c.incidentRows.length > 0 ||
+      (c.feedsTable?.rows.length ?? 0) > 0)
   )
 })
 
@@ -225,63 +246,53 @@ onUnmounted(() => {
         </p>
 
         <div
-          v-if="logBatchView.metaRows.length > 0 || logBatchView.feedsTable"
-          class="space-y-2 rounded border border-border/60 bg-canvas/50 p-2 text-canvas-foreground"
+          v-if="topicClustersSummaryView"
+          class="space-y-1 rounded border border-border/60 bg-canvas/50 p-2 text-canvas-foreground"
+          data-testid="pipeline-job-topic-clusters-summary"
         >
           <p class="font-medium text-surface-foreground">
-            multi_feed_batch
+            topic_clusters_summary
           </p>
-          <dl
-            v-if="logBatchView.metaRows.length"
-            class="grid grid-cols-[minmax(0,10rem)_1fr] gap-x-2 gap-y-0.5"
-          >
-            <template
-              v-for="row in logBatchView.metaRows"
-              :key="row.label"
-            >
+          <dl class="grid grid-cols-[minmax(0,10rem)_1fr] gap-x-2 gap-y-0.5">
+            <dt class="text-muted">
+              built
+            </dt>
+            <dd class="font-mono text-[8px] text-surface-foreground">
+              {{ topicClustersSummaryView.built ? 'true' : 'false' }}
+            </dd>
+            <dt class="text-muted">
+              topic_count
+            </dt>
+            <dd class="font-mono text-[8px] text-surface-foreground">
+              {{ topicClustersSummaryView.topicCount }}
+            </dd>
+            <dt class="text-muted">
+              cluster_count
+            </dt>
+            <dd class="font-mono text-[8px] text-surface-foreground">
+              {{ topicClustersSummaryView.clusterCount }}
+            </dd>
+            <dt class="text-muted">
+              singletons
+            </dt>
+            <dd class="font-mono text-[8px] text-surface-foreground">
+              {{ topicClustersSummaryView.singletons }}
+            </dd>
+            <dt class="text-muted">
+              seconds
+            </dt>
+            <dd class="font-mono text-[8px] text-surface-foreground">
+              {{ topicClustersSummaryView.seconds.toFixed(3) }}
+            </dd>
+            <template v-if="topicClustersSummaryView.schemaVersion">
               <dt class="text-muted">
-                {{ row.label }}
+                schema_version
               </dt>
-              <dd class="break-words font-mono text-[8px] text-surface-foreground">
-                {{ row.value }}
+              <dd class="font-mono text-[8px] text-surface-foreground">
+                {{ topicClustersSummaryView.schemaVersion }}
               </dd>
             </template>
           </dl>
-          <div v-if="logBatchView.feedsTable">
-            <p class="mb-1 text-[8px] font-medium text-surface-foreground">
-              Feeds
-            </p>
-            <div class="max-h-36 overflow-auto rounded border border-border">
-              <table class="w-full border-collapse text-left text-[8px]">
-                <thead class="sticky top-0 bg-overlay">
-                  <tr>
-                    <th
-                      v-for="h in logBatchView.feedsTable.headers"
-                      :key="h"
-                      class="border-b border-border px-1 py-0.5 font-medium text-muted"
-                    >
-                      {{ h }}
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr
-                    v-for="(r, ri) in logBatchView.feedsTable.rows"
-                    :key="ri"
-                    class="border-b border-border/40 last:border-0"
-                  >
-                    <td
-                      v-for="(c, ci) in r"
-                      :key="ci"
-                      class="px-1 py-0.5 align-top font-mono text-surface-foreground"
-                    >
-                      {{ c }}
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-          </div>
         </div>
 
         <div

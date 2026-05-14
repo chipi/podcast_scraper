@@ -772,6 +772,45 @@ class TestValidationEdgeCases(unittest.TestCase):
         )
         self.assertTrue(cfg.skip_auto_vector_index)
 
+    def test_interim_checkpoint_intervals_default_none(self):
+        cfg = Config(rss_url="https://example.com/feed.xml")
+        self.assertIsNone(cfg.interim_index_checkpoint_every_episodes)
+        self.assertIsNone(cfg.interim_topic_cluster_checkpoint_every_episodes)
+
+    def test_interim_checkpoint_intervals_allow_zero_disable(self):
+        cfg = Config(
+            rss_url="https://example.com/feed.xml",
+            interim_index_checkpoint_every_episodes=0,
+            interim_topic_cluster_checkpoint_every_episodes=0,
+        )
+        self.assertEqual(cfg.interim_index_checkpoint_every_episodes, 0)
+        self.assertEqual(cfg.interim_topic_cluster_checkpoint_every_episodes, 0)
+
+    def test_interim_checkpoint_intervals_reject_negative(self):
+        with self.assertRaises(ValidationError):
+            Config(
+                rss_url="https://example.com/feed.xml",
+                interim_index_checkpoint_every_episodes=-1,
+            )
+        with self.assertRaises(ValidationError):
+            Config(
+                rss_url="https://example.com/feed.xml",
+                interim_topic_cluster_checkpoint_every_episodes=-1,
+            )
+
+    @patch.dict(
+        os.environ,
+        {
+            "PODCAST_SCRAPER_INTERIM_INDEX_CHECKPOINT_EVERY_EPISODES": "7",
+            "PODCAST_SCRAPER_INTERIM_TOPIC_CLUSTER_CHECKPOINT_EVERY_EPISODES": "11",
+        },
+        clear=False,
+    )
+    def test_interim_checkpoint_intervals_load_from_env(self):
+        cfg = Config(rss_url="https://example.com/feed.xml")
+        self.assertEqual(cfg.interim_index_checkpoint_every_episodes, 7)
+        self.assertEqual(cfg.interim_topic_cluster_checkpoint_every_episodes, 11)
+
     def test_vector_index_path_optional_relative(self):
         cfg = Config(
             rss_url="https://example.com/feed.xml",

@@ -975,6 +975,103 @@ class TestCleanupProviders(unittest.TestCase):
 
 
 @pytest.mark.unit
+class TestInterimCheckpointManager(unittest.TestCase):
+    """Tests for asynchronous interim index/topic-cluster checkpoint scheduling."""
+
+    def setUp(self):
+        from podcast_scraper.workflow import metrics
+
+        self.pipeline_metrics = metrics.Metrics()
+        self.cfg = config.Config(
+            rss_url="https://example.com/feed.xml",
+            vector_search=True,
+        )
+
+    def test_defaults_use_25_100_when_unset(self):
+        mgr = orchestration._InterimCheckpointManager(self.cfg, "/tmp/out", self.pipeline_metrics)
+        self.assertEqual(mgr._index_interval, 25)
+        self.assertEqual(mgr._cluster_interval, 100)
+
+    def test_zero_disables_checkpoints(self):
+        cfg = config.Config(
+            rss_url="https://example.com/feed.xml",
+            vector_search=True,
+            interim_index_checkpoint_every_episodes=0,
+            interim_topic_cluster_checkpoint_every_episodes=0,
+        )
+        mgr = orchestration._InterimCheckpointManager(cfg, "/tmp/out", self.pipeline_metrics)
+        self.assertFalse(mgr.is_enabled())
+
+    @patch.object(orchestration._InterimCheckpointManager, "_enqueue_index")
+    def test_cadence_triggers_at_threshold_boundaries(self, mock_enqueue):
+        cfg = config.Config(
+            rss_url="https://example.com/feed.xml",
+            vector_search=True,
+            interim_index_checkpoint_every_episodes=2,
+            interim_topic_cluster_checkpoint_every_episodes=3,
+        )
+        mgr = orchestration._InterimCheckpointManager(cfg, "/tmp/out", self.pipeline_metrics)
+        mgr._maybe_schedule_for_success_count(1)
+        mgr._maybe_schedule_for_success_count(2)
+        mgr._maybe_schedule_for_success_count(3)
+        # Episode 2 triggers index checkpoint.
+        mock_enqueue.assert_any_call(cluster_requested=False)
+        # Episode 3 triggers cluster checkpoint (which requires index first).
+        mock_enqueue.assert_any_call(cluster_requested=True)
+
+    def test_enqueue_coalesces_when_index_worker_running(self):
+        mgr = orchestration._InterimCheckpointManager(self.cfg, "/tmp/out", self.pipeline_metrics)
+        running_thread = Mock()
+        running_thread.is_alive.return_value = True
+        mgr._index_thread = running_thread
+
+        mgr._enqueue_index(cluster_requested=True)
+
+        self.assertTrue(mgr._index_pending)
+        self.assertTrue(mgr._cluster_pending)
+
+    @patch("podcast_scraper.workflow.orchestration._maybe_build_topic_clusters_after_index")
+    @patch("podcast_scraper.search.indexer.maybe_index_corpus")
+    def test_index_worker_runs_cluster_when_requested(self, mock_maybe_index, mock_topic_clusters):
+        cfg = config.Config(
+            rss_url="https://example.com/feed.xml",
+            vector_search=True,
+            interim_index_checkpoint_every_episodes=1,
+            interim_topic_cluster_checkpoint_every_episodes=1,
+        )
+        mgr = orchestration._InterimCheckpointManager(cfg, "/tmp/out", self.pipeline_metrics)
+        mgr._cluster_requested = True
+        mgr._run_index_worker()
+
+        mock_maybe_index.assert_called_once_with("/tmp/out", cfg)
+        mock_topic_clusters.assert_called_once()
+        self.assertEqual(self.pipeline_metrics.interim_index_checkpoint_attempts, 1)
+        self.assertEqual(self.pipeline_metrics.interim_index_checkpoint_success, 1)
+        self.assertEqual(self.pipeline_metrics.interim_topic_cluster_checkpoint_attempts, 1)
+        self.assertEqual(self.pipeline_metrics.interim_topic_cluster_checkpoint_success, 1)
+
+    @patch("podcast_scraper.workflow.orchestration._maybe_build_topic_clusters_after_index")
+    @patch("podcast_scraper.search.indexer.maybe_index_corpus")
+    def test_index_failure_is_best_effort_and_skips_cluster(
+        self, mock_maybe_index, mock_topic_clusters
+    ):
+        mock_maybe_index.side_effect = RuntimeError("index fail")
+        cfg = config.Config(
+            rss_url="https://example.com/feed.xml",
+            vector_search=True,
+            interim_index_checkpoint_every_episodes=1,
+            interim_topic_cluster_checkpoint_every_episodes=1,
+        )
+        mgr = orchestration._InterimCheckpointManager(cfg, "/tmp/out", self.pipeline_metrics)
+        mgr._cluster_requested = True
+        mgr._run_index_worker()
+
+        mock_topic_clusters.assert_not_called()
+        self.assertEqual(self.pipeline_metrics.interim_index_checkpoint_attempts, 1)
+        self.assertEqual(self.pipeline_metrics.interim_index_checkpoint_failures, 1)
+
+
+@pytest.mark.unit
 class TestFinalizePipeline(unittest.TestCase):
     """Tests for _finalize_pipeline helper function."""
 
@@ -1151,6 +1248,84 @@ class TestFinalizePipeline(unittest.TestCase):
             )
 
             mock_create_index.assert_not_called()
+
+    @patch("podcast_scraper.workflow.orchestration._maybe_build_topic_clusters_after_index")
+    @patch("podcast_scraper.search.indexer.maybe_index_corpus")
+    @patch("podcast_scraper.workflow.orchestration.wf_helpers.generate_pipeline_summary")
+    @patch("podcast_scraper.workflow.orchestration.wf_helpers.cleanup_pipeline")
+    @patch("podcast_scraper.workflow.orchestration._log_episode_results")
+    def test_finalize_pipeline_runs_topic_clusters_after_index(
+        self,
+        _mock_log_results,
+        _mock_cleanup,
+        mock_generate_summary,
+        mock_maybe_index_corpus,
+        mock_topic_clusters,
+    ):
+        """Vector-search finalize runs topic-cluster build after indexing."""
+        cfg = config.Config(
+            rss_url="https://example.com/feed.xml",
+            dry_run=False,
+            run_id="test-run",
+            vector_search=True,
+        )
+        mock_generate_summary.return_value = (5, "Summary")
+
+        orchestration._finalize_pipeline(
+            cfg,
+            5,
+            self.transcription_resources,
+            self.output_dir,
+            self.run_suffix,
+            self.pipeline_metrics,
+            self.episodes,
+            None,
+            None,
+            None,
+            None,
+        )
+
+        mock_maybe_index_corpus.assert_called_once_with(self.output_dir, cfg)
+        mock_topic_clusters.assert_called_once_with(self.output_dir, self.pipeline_metrics)
+
+    @patch("podcast_scraper.workflow.orchestration._maybe_build_topic_clusters_after_index")
+    @patch("podcast_scraper.search.indexer.maybe_index_corpus")
+    @patch("podcast_scraper.workflow.orchestration.wf_helpers.generate_pipeline_summary")
+    @patch("podcast_scraper.workflow.orchestration.wf_helpers.cleanup_pipeline")
+    @patch("podcast_scraper.workflow.orchestration._log_episode_results")
+    def test_finalize_pipeline_skips_topic_clusters_when_vector_search_disabled(
+        self,
+        _mock_log_results,
+        _mock_cleanup,
+        mock_generate_summary,
+        mock_maybe_index_corpus,
+        mock_topic_clusters,
+    ):
+        """Vector-search disabled skips both indexing and topic-cluster build."""
+        cfg = config.Config(
+            rss_url="https://example.com/feed.xml",
+            dry_run=False,
+            run_id="test-run",
+            vector_search=False,
+        )
+        mock_generate_summary.return_value = (5, "Summary")
+
+        orchestration._finalize_pipeline(
+            cfg,
+            5,
+            self.transcription_resources,
+            self.output_dir,
+            self.run_suffix,
+            self.pipeline_metrics,
+            self.episodes,
+            None,
+            None,
+            None,
+            None,
+        )
+
+        mock_maybe_index_corpus.assert_not_called()
+        mock_topic_clusters.assert_not_called()
 
 
 @pytest.mark.unit

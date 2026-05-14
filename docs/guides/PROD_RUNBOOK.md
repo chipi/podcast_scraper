@@ -6,6 +6,8 @@ describes *what we decided*; this runbook describes *what to do today*.
 
 Need the short version for daily ops? Use
 [Prod operator cheat sheet](PROD_OPERATOR_CHEAT_SHEET.md).
+**Other Docker Compose apps on the same VPS:** see
+[VPS multi-app onboarding](VPS_MULTI_APP_ONBOARDING.md).
 
 **How hosting fits together (diagrams + planes):** [Hosting and infrastructure](../architecture/HOSTING_AND_INFRASTRUCTURE.md). **Immutable decisions:** [ADR-079](../adr/ADR-079-opentofu-for-always-on-hosting-iac.md)–[ADR-083](../adr/ADR-083-tailscale-private-ingress-always-on-vps.md) (OpenTofu, state, drill workspace, app GitOps contract, tailnet ingress), [ADR-082](../adr/ADR-082-gitops-app-deploy-via-stack-test-and-gha.md) (stack-test gate and deploy nuance), [ADR-084](../adr/ADR-084-full-stack-docker-compose-topology.md)–[ADR-085](../adr/ADR-085-ephemeral-stack-test-integration-gate.md) (Compose + CI stack-test). **CI workflow names:** [WORKFLOWS.md](../ci/WORKFLOWS.md).
 
@@ -19,17 +21,18 @@ Need the short version for daily ops? Use
 
 1. [First-time bootstrap](#first-time-bootstrap) — includes [API health checks by context](#api-health-checks-by-context) (GH-745)
 2. [Daily operations](#daily-operations)
-3. [Corpus migration from pre-prod (Codespace) to prod (VPS)](#corpus-migration)
-4. [Rollback (deploy went red mid-way)](#rollback)
-5. [Disaster recovery (VPS gone)](#disaster-recovery)
-6. [Credential rotation](#credential-rotation)
-7. [Environment variable reference](#environment-variable-reference)
-8. [Observability setup walkthrough](#observability-setup-walkthrough) — includes [Sentry Slack routing (GH-725)](#sentry-slack-routing-prod-vs-pre-prod-gh-725) and [Grafana env filter (GH-726)](#grafana-env-filter-gh-726)
-9. [Tailscale operations](#tailscale-operations)
-10. [Hetzner operations](#hetzner-operations)
-11. [Operator hot-fix workflow](#operator-hot-fix-workflow)
-12. [FAQ / Troubleshooting](#faq-troubleshooting) — includes [Cursor or automation cannot `ssh deploy@prod`](#cursor-or-automation-cannot-ssh-deployprod)
-13. [Constraints to know](#constraints-to-know)
+3. [VPS access control (no HTTP Basic Auth)](#vps-access-control-no-http-basic-auth)
+4. [Corpus migration from pre-prod (Codespace) to prod (VPS)](#corpus-migration)
+5. [Rollback (deploy went red mid-way)](#rollback)
+6. [Disaster recovery (VPS gone)](#disaster-recovery)
+7. [Credential rotation](#credential-rotation)
+8. [Environment variable reference](#environment-variable-reference)
+9. [Observability setup walkthrough](#observability-setup-walkthrough) — includes [Sentry Slack routing (GH-725)](#sentry-slack-routing-prod-vs-pre-prod-gh-725) and [Grafana env filter (GH-726)](#grafana-env-filter-gh-726)
+10. [Tailscale operations](#tailscale-operations)
+11. [Hetzner operations](#hetzner-operations)
+12. [Operator hot-fix workflow](#operator-hot-fix-workflow)
+13. [FAQ / Troubleshooting](#faq-troubleshooting) — includes [corpus path (host vs `/app/output`)](#corpus-directory-host-vs-appoutput), [topic clusters](#topic-clusters-missing-after-a-successful-pipeline-run), [reprocess from transcripts](#reprocess-a-corpus-without-re-transcribing-audio), and [Cursor or automation cannot `ssh deploy@prod`](#cursor-or-automation-cannot-ssh-deployprod)
+14. [Constraints to know](#constraints-to-know)
 
 ---
 
@@ -982,6 +985,106 @@ process inherits regardless of project-dir resolution.
 When running compose directly (deploy / debugging / hot-fix), always
 pass `--env-file /srv/podcast-scraper/.env` explicitly.
 
+### Corpus directory (host vs `/app/output` in containers) {#corpus-directory-host-vs-appoutput}
+
+**Source of truth on disk:** the host directory in
+`PODCAST_CORPUS_HOST_PATH` inside `/srv/podcast-scraper/.env`. Always
+confirm before runbooks, backups, or one-off CLI:
+
+```bash
+grep '^PODCAST_CORPUS_HOST_PATH=' /srv/podcast-scraper/.env
+```
+
+The [cheat sheet](PROD_OPERATOR_CHEAT_SHEET.md) must not hard-code a corpus
+path without telling operators to run that `grep`.
+
+**Inside `api` / pipeline containers** the same tree is mounted at
+`/app/output` (default `serve --output-dir` in `docker/api/Dockerfile`).
+
+Compose may implement `corpus_data` as a **named volume** whose data
+directory still reflects that host path from the initial bind
+definition in `compose/docker-compose.prod.yml` — validate with
+`docker inspect <api-container>` mounts if you need to see Docker's
+view.
+
+### Topic clusters missing after a successful pipeline run {#topic-clusters-missing-after-a-successful-pipeline-run}
+
+**Expected behaviour:** `POST /api/jobs` runs
+`full_incremental_pipeline` only. Finalize calls `maybe_index_corpus`
+when `vector_search` is true in the profile (see
+`src/podcast_scraper/workflow/orchestration.py`), but nothing in that
+path runs `topic-clusters`. So `search/topic_clusters.json` can be
+absent even when `search/vectors.faiss` exists.
+
+**Profiles:** `cloud_thin` sets `vector_search: false` — no FAISS index
+from the pipeline; clustering cannot run until an indexing-capable
+profile has built `vectors.faiss`. See profile YAMLs under
+`config/profiles/`.
+
+**What to run:** follow [Prod operator cheat sheet — Topic clusters](PROD_OPERATOR_CHEAT_SHEET.md#topic-clusters-manual-maintenance)
+(host venv with `.[search]`, or `docker exec` into the running `api`
+container). Reference clustering design in
+[RFC-075](../rfc/RFC-075-corpus-topic-clustering.md) and the API in
+[Server guide — `GET /api/corpus/topic-clusters`](SERVER_GUIDE.md).
+
+**Troubleshooting:**
+
+- **`topic-clusters` exits with missing FAISS:** ensure
+  `$HOST_CORPUS/search/vectors.faiss` exists (or
+  `/app/output/search/vectors.faiss` in-container).
+- **404 on `GET /api/corpus/topic-clusters`:** artifact not built or wrong
+  `path` query versus server default.
+- **Host `python3 -m venv` fails (`ensurepip`):** install
+  `python3.12-venv` (or distribution equivalent) with sudo once, or use
+  the `docker exec` route in the cheat sheet.
+- **Artifact owned by root** after an in-container write: `chown` back
+  to `deploy` (and corpus group) so backups and host tools stay consistent.
+
+### Reprocess a corpus without re-transcribing audio {#reprocess-a-corpus-without-re-transcribing-audio}
+
+Use this when extraction/summarization/index logic changed and you want to
+recompute derived outputs from existing transcript files.
+
+**Safe rule:** keep `transcripts/`; rebuild downstream artifacts only.
+
+1. Resolve corpus root from host env:
+
+   ```bash
+   grep '^PODCAST_CORPUS_HOST_PATH=' /srv/podcast-scraper/.env
+   ```
+
+2. Optional rollback snapshot (derived outputs only), then remove stale
+   derived layers (`search/`, old `metadata/` dirs / old run outputs). Keep
+   `transcripts/` intact.
+
+3. Re-run pipeline with **both** flags:
+
+   - `--skip-existing` (reuse transcript files already on disk)
+   - `--no-transcribe-missing` (do not invoke Whisper/audio transcription)
+
+   Example (host Python route):
+
+   ```bash
+   ssh deploy@prod-podcast.<tailnet>.ts.net
+   cd /srv/podcast-scraper
+   HOST_CORPUS=$(grep '^PODCAST_CORPUS_HOST_PATH=' .env | cut -d= -f2-)
+   .venv/bin/python -m podcast_scraper.cli \
+     --config "$HOST_CORPUS/viewer_operator.yaml" \
+     --feeds-spec "$HOST_CORPUS/feeds.spec.yaml" \
+     --output-dir "$HOST_CORPUS" \
+     --skip-existing \
+     --no-transcribe-missing
+   ```
+
+4. Optional post-step: rebuild topic clusters if the index exists:
+
+   ```bash
+   .venv/bin/python -m podcast_scraper.cli topic-clusters --output-dir "$HOST_CORPUS"
+   ```
+
+For a copy/paste operator sequence (including backup and cleanup commands),
+see [Prod operator cheat sheet — Reprocess from existing transcripts (no re-transcription)](PROD_OPERATOR_CHEAT_SHEET.md#reprocess-from-existing-transcripts-no-re-transcription).
+
 ### "Pipeline fails with `PODCAST_CORPUS_HOST_PATH is missing a value`"
 
 The api spawned a nested `docker compose run pipeline-llm` but couldn't
@@ -1227,7 +1330,9 @@ glance. Knowing about them saves debugging time.
 ## Cross-references
 
 - [RFC-082 — design](../rfc/RFC-082-always-on-pre-prod-and-prod-hosting.md)
+- [RFC-083 — public edge + multi-compose (Draft)](../rfc/RFC-083-vps-public-edge-multi-compose.md)
 - [Prod operator cheat sheet](PROD_OPERATOR_CHEAT_SHEET.md)
+- [VPS multi-app onboarding](VPS_MULTI_APP_ONBOARDING.md)
 - [`infra/`](https://github.com/chipi/podcast_scraper/tree/main/infra) — IaC code
 - [`tailscale/policy.hujson`](https://github.com/chipi/podcast_scraper/blob/main/tailscale/policy.hujson) — ACL
 - [`.github/workflows/deploy-prod.yml`](https://github.com/chipi/podcast_scraper/blob/main/.github/workflows/deploy-prod.yml)

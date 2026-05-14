@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, inject, onActivated, onBeforeUnmount, ref, watch } from 'vue'
+import { computed, onActivated, onBeforeUnmount, ref, watch } from 'vue'
 import { storeToRefs } from 'pinia'
 import {
   fetchCorpusDigest,
@@ -16,10 +16,11 @@ import { useArtifactsStore } from '../../stores/artifacts'
 import { useCorpusLensStore } from '../../stores/corpusLens'
 import DateChip from '../shared/DateChip.vue'
 import { useSubjectStore } from '../../stores/subject'
-import { useGraphExplorerStore } from '../../stores/graphExplorer'
+import { useGraphHandoffStore } from '../../stores/graphHandoff'
 import { useGraphNavigationStore } from '../../stores/graphNavigation'
 import { useDashboardNavStore } from '../../stores/dashboardNav'
 import { useShellStore } from '../../stores/shell'
+import { digestCategoryBandEpisodeCap } from '../../utils/clusterSiblingMerge'
 import {
   digestRowFeedLabelWithCatalog,
   digestRowSummaryPreview,
@@ -33,11 +34,11 @@ import { formatUtcDateTimeForDisplay } from '../../utils/formatting'
 import { normalizeFeedIdForViewer } from '../../utils/feedId'
 import { handleVerticalListArrowKeydown } from '../../utils/listRowArrowNav'
 import { StaleGeneration } from '../../utils/staleGeneration'
-import { corpusGraphBaselineLoaderKey } from '../../corpusGraphBaseline'
 import {
   applyGraphFocusPlan,
   graphFocusPlanFromCilPill,
 } from '../../utils/cilGraphFocus'
+import { findTopicClusterContextForGraphNode } from '../../utils/topicClustersOverlay'
 
 const emit = defineEmits<{
   'switch-main-tab': [tab: 'graph' | 'dashboard' | 'library']
@@ -48,19 +49,9 @@ const emit = defineEmits<{
 const shell = useShellStore()
 const dashboardNav = useDashboardNavStore()
 const artifacts = useArtifactsStore()
-const graphExplorer = useGraphExplorerStore()
-const loadCorpusGraphBaseline = inject(corpusGraphBaselineLoaderKey, null)
+const graphHandoff = useGraphHandoffStore()
 const graphNav = useGraphNavigationStore()
 
-async function ensureDefaultCorpusGraphIfNeeded(): Promise<void> {
-  if (!loadCorpusGraphBaseline) {
-    return
-  }
-  if (graphExplorer.graphTabOpenedThisSession && artifacts.selectedRelPaths.length > 0) {
-    return
-  }
-  await loadCorpusGraphBaseline()
-}
 const subject = useSubjectStore()
 const corpusLens = useCorpusLensStore()
 const { sinceYmd } = storeToRefs(corpusLens)
@@ -223,7 +214,9 @@ async function openDigestRecentTopicPillInGraph(
   }
   const pill = row.cil_digest_topics?.[pillIndex]
 
-  await ensureDefaultCorpusGraphIfNeeded()
+  // DO NOT call ensureDefaultCorpusGraphIfNeeded() - it sets mainTab to 'graph' which causes double-loading
+  // Mark this as external load from Digest - no auto-merge wanted
+  artifacts.setLoadSource('digest-external')
   await artifacts.appendRelativeArtifacts(cleaned)
   if (digestGraphOpenGate.isStale(seq)) {
     return
@@ -232,11 +225,24 @@ async function openDigestRecentTopicPillInGraph(
   const plan = graphFocusPlanFromCilPill(pill, row.episode_id)
   applyGraphFocusPlan(graphNav, plan)
   const eid = row.episode_id?.trim()
-  if (
-    eid &&
+  const highlights = eid &&
     (plan.kind === 'episode_only' || (plan.kind === 'topic' && plan.fallback))
-  ) {
-    graphNav.setLibraryEpisodeHighlights([eid])
+    ? [eid]
+    : undefined
+  if (highlights) {
+    graphNav.setLibraryEpisodeHighlights(highlights)
+  }
+  // FSM event for the Digest pill handoff (decision #5 / spec).
+  if (plan.kind !== 'none') {
+    graphHandoff.handoffRequested({
+      kind: plan.kind === 'topic' ? 'topic' : 'episode',
+      cyId: plan.primary,
+      episodeId: eid || undefined,
+      source: 'digest',
+      loadSource: 'digest-external',
+      camera: { kind: 'center-on-target' },
+      highlights,
+    })
   }
   emit('switch-main-tab', 'graph')
 }
@@ -469,7 +475,9 @@ async function openTopicHitInGraph(
     graphActionError.value = 'No GI/KG artifacts on disk for this episode.'
     return
   }
-  await ensureDefaultCorpusGraphIfNeeded()
+  // DO NOT call ensureDefaultCorpusGraphIfNeeded() - it sets mainTab to 'graph' which causes double-loading
+  // Mark this as external load from Digest - no auto-merge wanted
+  artifacts.setLoadSource('digest-external')
   await artifacts.appendRelativeArtifacts(cleaned)
   if (digestGraphOpenGate.isStale(seq)) {
     return
@@ -477,14 +485,43 @@ async function openTopicHitInGraph(
   graphNav.clearLibraryEpisodeHighlights()
   const topicFocus = opts?.graphTopicNodeId?.trim()
   const eid = h.episode_id?.trim()
+  // F1.5 — D2 Digest topic-hit row fires FSM event with envelope. Camera centres
+  // on the topic (or episode fallback); highlights ride on the envelope per
+  // decision #10 (apply phase resets highlights from envelope).
+  const highlightIds = eid && (topicFocus || !topicFocus) ? [eid] : undefined
   if (topicFocus && eid) {
     graphNav.requestFocusNode(topicFocus, eid)
     graphNav.setLibraryEpisodeHighlights([eid])
+    graphHandoff.handoffRequested({
+      kind: 'topic',
+      cyId: topicFocus,
+      episodeId: eid,
+      source: 'digest',
+      loadSource: 'digest-external',
+      camera: { kind: 'center', cyId: topicFocus },
+      highlights: highlightIds,
+    })
   } else if (topicFocus) {
     graphNav.requestFocusNode(topicFocus)
+    graphHandoff.handoffRequested({
+      kind: 'topic',
+      cyId: topicFocus,
+      source: 'digest',
+      loadSource: 'digest-external',
+      camera: { kind: 'center', cyId: topicFocus },
+    })
   } else if (eid) {
     graphNav.requestFocusNode(eid)
     graphNav.setLibraryEpisodeHighlights([eid])
+    graphHandoff.handoffRequested({
+      kind: 'episode',
+      cyId: eid,
+      episodeId: eid,
+      source: 'digest',
+      loadSource: 'digest-external',
+      camera: { kind: 'center-on-target' },
+      highlights: [eid],
+    })
   } else {
     graphNav.clearPendingFocus()
   }
@@ -492,17 +529,74 @@ async function openTopicHitInGraph(
 }
 
 async function openTopicBandInGraph(band: CorpusDigestTopicBand): Promise<void> {
+  const cap = digestCategoryBandEpisodeCap()
   const gid = band.graph_topic_id?.trim()
+  
+  // Collect all artifact paths from hits (up to cap)
+  const allPaths: string[] = []
+  let loadedCount = 0
+  
   for (const h of band.hits) {
+    if (loadedCount >= cap) {
+      break
+    }
     if (h.has_gi || h.has_kg) {
-      await openTopicHitInGraph(h, { graphTopicNodeId: gid })
-      if (gid) {
-        subject.focusTopic(gid)
+      if (h.has_gi && h.gi_relative_path?.trim()) {
+        allPaths.push(h.gi_relative_path.trim())
       }
-      return
+      if (h.has_kg && h.kg_relative_path?.trim()) {
+        allPaths.push(h.kg_relative_path.trim())
+      }
+      loadedCount += 1
     }
   }
-  graphActionError.value = "No GI/KG artifacts for this topic's hits."
+  
+  if (allPaths.length === 0) {
+    graphActionError.value = "No GI/KG artifacts for this topic's hits."
+    return
+  }
+  
+  // DO NOT call ensureDefaultCorpusGraphIfNeeded() - it sets mainTab to 'graph' which causes double-loading
+  // The graph baseline will be loaded by activateGraphTab() if needed
+  
+  // Mark this as external load from Digest - no auto-merge wanted
+  artifacts.setLoadSource('digest-external')
+  await artifacts.appendRelativeArtifacts(allPaths)
+  
+  if (gid) {
+    subject.focusTopic(gid)
+    const clusterCtx = findTopicClusterContextForGraphNode(gid, artifacts.topicClustersDoc)
+    if (clusterCtx?.compoundParentId) {
+      graphNav.requestFocusNode(clusterCtx.compoundParentId, gid)
+      graphHandoff.handoffRequested({
+        kind: 'topic',
+        cyId: clusterCtx.compoundParentId,
+        source: 'digest',
+        loadSource: 'digest-external',
+        camera: { kind: 'center', cyId: clusterCtx.compoundParentId },
+      })
+    } else {
+      graphNav.requestFocusNode(gid)
+      graphNav.setRequestFitAfterLoad()
+      // F1.5 — D3 Digest band title fires FSM event with `camera: { kind: 'fit' }`
+      // (decision #11). Topic band loads multiple episodes; no single focus
+      // node to centre on, so fit the viewport.
+      graphHandoff.handoffRequested({
+        kind: 'topic',
+        cyId: gid,
+        source: 'digest',
+        loadSource: 'digest-external',
+        camera: { kind: 'fit' },
+      })
+    }
+  } else {
+    graphNav.clearPendingFocus()
+    graphNav.setRequestFitAfterLoad()
+  }
+
+  // DO NOT clear loadSource here - let the filteredArtifact watcher see it and clear it
+  // artifacts.clearLoadSource()  // Removed: clearing too early, before watcher fires
+  emit('switch-main-tab', 'graph')
 }
 
 watch(

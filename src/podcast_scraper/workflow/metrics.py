@@ -142,6 +142,20 @@ class Metrics:
     kg_times: List[float] = field(default_factory=list)  # KG artifact generation times per episode
     # Wall time for maybe_index_corpus; 0 if skipped or disabled
     vector_index_seconds: float = 0.0
+    # Topic clustering artifact stats (post-index finalize step)
+    topic_clusters_built: bool = False
+    topic_cluster_count: int = 0
+    topic_cluster_topic_count: int = 0
+    topic_cluster_singletons: int = 0
+    topic_cluster_seconds: float = 0.0
+    interim_index_checkpoint_attempts: int = 0
+    interim_index_checkpoint_success: int = 0
+    interim_index_checkpoint_failures: int = 0
+    interim_index_checkpoint_seconds_total: float = 0.0
+    interim_topic_cluster_checkpoint_attempts: int = 0
+    interim_topic_cluster_checkpoint_success: int = 0
+    interim_topic_cluster_checkpoint_failures: int = 0
+    interim_topic_cluster_checkpoint_seconds_total: float = 0.0
 
     # LLM API call tracking (for cost estimation)
     llm_transcription_calls: int = 0  # Number of transcription API calls
@@ -1230,6 +1244,29 @@ class Metrics:
             "gi_count": len(self.gi_times),
             "kg_count": len(self.kg_times),
             "vector_index_seconds": round(self.vector_index_seconds, 4),
+            "topic_clusters_built": self.topic_clusters_built,
+            "topic_cluster_count": self.topic_cluster_count,
+            "topic_cluster_topic_count": self.topic_cluster_topic_count,
+            "topic_cluster_singletons": self.topic_cluster_singletons,
+            "topic_cluster_seconds": round(self.topic_cluster_seconds, 4),
+            "interim_index_checkpoint_attempts": self.interim_index_checkpoint_attempts,
+            "interim_index_checkpoint_success": self.interim_index_checkpoint_success,
+            "interim_index_checkpoint_failures": self.interim_index_checkpoint_failures,
+            "interim_index_checkpoint_seconds_total": round(
+                self.interim_index_checkpoint_seconds_total, 4
+            ),
+            "interim_topic_cluster_checkpoint_attempts": (
+                self.interim_topic_cluster_checkpoint_attempts
+            ),
+            "interim_topic_cluster_checkpoint_success": (
+                self.interim_topic_cluster_checkpoint_success
+            ),
+            "interim_topic_cluster_checkpoint_failures": (
+                self.interim_topic_cluster_checkpoint_failures
+            ),
+            "interim_topic_cluster_checkpoint_seconds_total": round(
+                self.interim_topic_cluster_checkpoint_seconds_total, 4
+            ),
             # LLM API call tracking
             "llm_transcription_calls": self.llm_transcription_calls,
             "llm_transcription_audio_minutes": round(self.llm_transcription_audio_minutes, 2),

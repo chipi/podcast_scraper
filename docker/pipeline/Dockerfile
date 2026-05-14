@@ -122,6 +122,14 @@ RUN --mount=type=cache,target=/root/.cache/pip \
 ARG PRELOAD_VARIANT
 ENV PRELOAD_VARIANT=${PRELOAD_VARIANT}
 
+# Per-model wall-clock timeout for the ML preload script (seconds). Default 1200s
+# (20 minutes) — production-mode preloads use the script's internal 7200s default,
+# but airgapped-thin uses 600s by default, which is too tight for cold downloads
+# of LongT5/FLAN-T5 + LED + BART on slow networks. See
+# `scripts/cache/preload_ml_models.py:_arm_preload_alarm`.
+ARG PRELOAD_TIMEOUT=1200
+ENV PRELOAD_TIMEOUT=${PRELOAD_TIMEOUT}
+
 # hadolint ignore=SC2261
 # Preload ML models when INSTALL_EXTRAS=ml and PRELOAD_ML_MODELS=true.
 # Variant selects the bundle: ``production`` (full nightly bundle) or

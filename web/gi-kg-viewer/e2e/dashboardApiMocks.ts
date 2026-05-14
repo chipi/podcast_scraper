@@ -76,6 +76,47 @@ export async function setupCorpusDashboardDataRoutes(page: Page): Promise<void> 
       }),
     })
   })
+  /**
+   * Register **after** per-spec handlers when using ``setupDashboardApiMocks`` (last route wins).
+   * Include **both** the CI graph fixture cluster and the Dashboard Intelligence landscape cluster so
+   * ``search-to-graph-mocks`` and ``dashboard.spec`` stay aligned.
+   */
+  await page.route('**/api/corpus/topic-clusters**', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        schema_version: '2',
+        cluster_count: 2,
+        topic_count: 2,
+        singletons: 0,
+        clusters: [
+          {
+            graph_compound_parent_id: 'tc:ci-policy-cluster',
+            cil_alias_target_topic_id: 'topic:ci-policy',
+            canonical_label: 'Climate policy cluster',
+            member_count: 1,
+            members: [{ topic_id: 'topic:ci-policy' }],
+          },
+          {
+            cluster_id: 'cluster-1',
+            canonical_label: 'AI policy',
+            canonical_topic_id: 'topic:ai-policy',
+            cil_alias_target_topic_id: 'topic:ai-policy',
+            graph_compound_parent_id: 'tc:ai-policy',
+            members: [
+              {
+                topic_id: 'topic:ai-policy',
+                label: 'AI policy',
+                similarity_to_centroid: 1.0,
+                episode_ids: ['ep-1'],
+              },
+            ],
+          },
+        ],
+      }),
+    })
+  })
 }
 
 /** Minimal API stubs so Dashboard loads without a real corpus server. */

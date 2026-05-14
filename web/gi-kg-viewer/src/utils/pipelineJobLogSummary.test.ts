@@ -9,6 +9,7 @@ describe('extractStructuredSummariesFromLogTail', () => {
       feeds: [{ feed_url: 'https://a', ok: true, episodes_processed: 3 }],
     })
     expect(out.corpusMultiFeedSummary).toBeNull()
+    expect(out.topicClustersSummary).toBeNull()
   })
 
   it('prefers last occurrence of marker', () => {
@@ -22,5 +23,18 @@ describe('extractStructuredSummariesFromLogTail', () => {
     const tail = 'corpus_multi_feed_summary: {"schema_version":"1","overall_ok":true}\n'
     const out = extractStructuredSummariesFromLogTail(tail)
     expect(out.corpusMultiFeedSummary).toEqual({ schema_version: '1', overall_ok: true })
+  })
+
+  it('parses topic_clusters_summary line', () => {
+    const tail =
+      'topic_clusters_summary: {"built":true,"cluster_count":83,"topic_count":205,"singletons":22,"seconds":1.234}\n'
+    const out = extractStructuredSummariesFromLogTail(tail)
+    expect(out.topicClustersSummary).toEqual({
+      built: true,
+      cluster_count: 83,
+      topic_count: 205,
+      singletons: 22,
+      seconds: 1.234,
+    })
   })
 })

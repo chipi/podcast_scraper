@@ -6,6 +6,7 @@ Low MI (radon): see docs/ci/CODE_QUALITY_TRENDS.md § Low-MI modules.
 
 from __future__ import annotations
 
+import json
 import logging
 import os
 import threading
@@ -698,6 +699,7 @@ def finalize_deferred_multi_feed_ml_cleanup() -> None:
 # Scaled up for large episode counts — see _thread_join_timeout().
 _THREAD_JOIN_TIMEOUT_BASE = 600  # seconds
 _THREAD_JOIN_TIMEOUT_PER_EPISODE = 120  # additional seconds per episode
+_INTERIM_CHECKPOINT_COOLDOWN_SECONDS = 30.0
 
 
 def _thread_join_timeout(num_episodes: int) -> float:
@@ -707,6 +709,190 @@ def _thread_join_timeout(num_episodes: int) -> float:
     A fixed 600s cap is too short for 20-episode batches.
     """
     return _THREAD_JOIN_TIMEOUT_BASE + max(0, num_episodes) * _THREAD_JOIN_TIMEOUT_PER_EPISODE
+
+
+class _InterimCheckpointManager:
+    """Best-effort, non-blocking checkpoint scheduler for index/topic clusters."""
+
+    def __init__(self, cfg: config.Config, output_dir: str, pipeline_metrics: Any) -> None:
+        self._cfg = cfg
+        self._output_dir = output_dir
+        self._pipeline_metrics = pipeline_metrics
+        self._lock = threading.Lock()
+        self._stop_event = threading.Event()
+        self._watcher_thread: Optional[threading.Thread] = None
+        self._index_thread: Optional[threading.Thread] = None
+        self._index_pending = False
+        self._cluster_pending = False
+        self._cluster_requested = False
+        self._last_index_started_at = 0.0
+        self._last_cluster_started_at = 0.0
+        self._last_seen_success_count = 0
+        self._next_index_threshold = 0
+        self._next_cluster_threshold = 0
+
+        index_cfg = cfg.interim_index_checkpoint_every_episodes
+        cluster_cfg = cfg.interim_topic_cluster_checkpoint_every_episodes
+        self._index_interval = 25 if index_cfg is None else max(0, int(index_cfg))
+        self._cluster_interval = 100 if cluster_cfg is None else max(0, int(cluster_cfg))
+
+        if self._index_interval > 0:
+            self._next_index_threshold = self._index_interval
+        if self._cluster_interval > 0:
+            self._next_cluster_threshold = self._cluster_interval
+
+    def is_enabled(self) -> bool:
+        return getattr(self._cfg, "vector_search", False) and (
+            self._index_interval > 0 or self._cluster_interval > 0
+        )
+
+    def start(self) -> None:
+        if not self.is_enabled():
+            return
+        self._watcher_thread = threading.Thread(
+            target=self._watch_success_progress,
+            name="InterimCheckpointWatcher",
+            daemon=True,
+        )
+        self._watcher_thread.start()
+
+    def stop(self) -> None:
+        self._stop_event.set()
+        if self._watcher_thread is not None:
+            self._watcher_thread.join(timeout=2.0)
+        if self._index_thread is not None:
+            self._index_thread.join(timeout=5.0)
+            if self._index_thread.is_alive():
+                logger.warning("interim-checkpoint: index worker still running during shutdown")
+
+    def _watch_success_progress(self) -> None:
+        while not self._stop_event.is_set():
+            success_count = int(getattr(self._pipeline_metrics, "transcripts_downloaded", 0)) + int(
+                getattr(self._pipeline_metrics, "transcripts_transcribed", 0)
+            )
+            if success_count > self._last_seen_success_count:
+                self._last_seen_success_count = success_count
+                self._maybe_schedule_for_success_count(success_count)
+            self._stop_event.wait(1.0)
+
+    def _maybe_schedule_for_success_count(self, success_count: int) -> None:
+        trigger_index = False
+        trigger_cluster = False
+        with self._lock:
+            if self._index_interval > 0 and success_count >= self._next_index_threshold:
+                trigger_index = True
+                while self._next_index_threshold <= success_count:
+                    self._next_index_threshold += self._index_interval
+            if self._cluster_interval > 0 and success_count >= self._next_cluster_threshold:
+                trigger_cluster = True
+                while self._next_cluster_threshold <= success_count:
+                    self._next_cluster_threshold += self._cluster_interval
+
+        if trigger_index:
+            self._enqueue_index(cluster_requested=False)
+        if trigger_cluster:
+            # Cluster checkpoints require an index refresh first.
+            self._enqueue_index(cluster_requested=True)
+
+    def _enqueue_index(self, cluster_requested: bool) -> None:
+        now = time.monotonic()
+        with self._lock:
+            if cluster_requested:
+                self._cluster_requested = True
+            worker_running = self._index_thread is not None and self._index_thread.is_alive()
+            in_cooldown = (now - self._last_index_started_at) < _INTERIM_CHECKPOINT_COOLDOWN_SECONDS
+            if worker_running or in_cooldown:
+                self._index_pending = True
+                if cluster_requested:
+                    self._cluster_pending = True
+                logger.info(
+                    "interim-checkpoint enqueue: kind=index pending=%s cluster_requested=%s",
+                    True,
+                    cluster_requested,
+                )
+                return
+            self._last_index_started_at = now
+            self._index_thread = threading.Thread(
+                target=self._run_index_worker,
+                name="InterimIndexCheckpoint",
+                daemon=True,
+            )
+            self._index_thread.start()
+
+    def _run_index_worker(self) -> None:
+        cluster_requested = False
+        index_ok = False
+        self._pipeline_metrics.interim_index_checkpoint_attempts += 1
+        started_at = time.perf_counter()
+        try:
+            from podcast_scraper.search.indexer import maybe_index_corpus
+
+            with self._lock:
+                cluster_requested = self._cluster_requested
+            logger.info(
+                "interim-checkpoint start: kind=index success_count=%s cluster_requested=%s",
+                self._last_seen_success_count,
+                cluster_requested,
+            )
+            maybe_index_corpus(self._output_dir, self._cfg)
+            index_ok = True
+            self._pipeline_metrics.interim_index_checkpoint_success += 1
+        except Exception as exc:
+            self._pipeline_metrics.interim_index_checkpoint_failures += 1
+            logger.warning(
+                "interim-checkpoint fail: kind=index error=%s",
+                format_exception_for_log(exc),
+            )
+        finally:
+            duration = time.perf_counter() - started_at
+            self._pipeline_metrics.interim_index_checkpoint_seconds_total += duration
+            logger.info(
+                "interim-checkpoint finish: kind=index ok=%s seconds=%.3f",
+                index_ok,
+                duration,
+            )
+
+        if cluster_requested and index_ok:
+            self._run_cluster_checkpoint()
+
+        with self._lock:
+            rerun_needed = self._index_pending
+            rerun_cluster = self._cluster_pending
+            self._index_pending = False
+            self._cluster_pending = False
+            self._cluster_requested = False
+            if rerun_cluster:
+                self._cluster_requested = True
+        if rerun_needed and not self._stop_event.is_set():
+            self._enqueue_index(cluster_requested=rerun_cluster)
+
+    def _run_cluster_checkpoint(self) -> None:
+        now = time.monotonic()
+        if (now - self._last_cluster_started_at) < _INTERIM_CHECKPOINT_COOLDOWN_SECONDS:
+            return
+        self._last_cluster_started_at = now
+        self._pipeline_metrics.interim_topic_cluster_checkpoint_attempts += 1
+        started_at = time.perf_counter()
+        try:
+            logger.info(
+                "interim-checkpoint start: kind=topic_cluster success_count=%s",
+                self._last_seen_success_count,
+            )
+            _maybe_build_topic_clusters_after_index(self._output_dir, self._pipeline_metrics)
+            self._pipeline_metrics.interim_topic_cluster_checkpoint_success += 1
+        except Exception as exc:
+            self._pipeline_metrics.interim_topic_cluster_checkpoint_failures += 1
+            logger.warning(
+                "interim-checkpoint fail: kind=topic_cluster error=%s",
+                format_exception_for_log(exc),
+            )
+        finally:
+            duration = time.perf_counter() - started_at
+            self._pipeline_metrics.interim_topic_cluster_checkpoint_seconds_total += duration
+            logger.info(
+                "interim-checkpoint finish: kind=topic_cluster seconds=%.3f",
+                duration,
+            )
 
 
 def _both_providers_use_mps(
@@ -1444,6 +1630,7 @@ def _finalize_pipeline(
             episode_total=len(episodes),
         )
         maybe_index_corpus(effective_output_dir, cfg)
+        _maybe_build_topic_clusters_after_index(effective_output_dir, pipeline_metrics)
     pipeline_metrics.vector_index_seconds = round(time.perf_counter() - _vidx_t0, 4)
     if metrics_path:
         try:
@@ -1469,6 +1656,49 @@ def _finalize_pipeline(
     return wf_helpers.generate_pipeline_summary(
         cfg, saved, transcription_resources, effective_output_dir, pipeline_metrics, episodes
     )
+
+
+def _maybe_build_topic_clusters_after_index(output_dir: str, pipeline_metrics: Any) -> None:
+    """Build ``search/topic_clusters.json`` when the FAISS index exists.
+
+    The full incremental pipeline always runs this after vector indexing for
+    vector-search-enabled profiles. If the index file is missing, we log and
+    return so pipeline finalize stays resilient in first-run or partial-data
+    scenarios.
+    """
+    from podcast_scraper.search.faiss_store import VECTORS_FILE
+
+    index_dir = Path(output_dir).resolve() / "search"
+    vectors_path = index_dir / VECTORS_FILE
+    if not vectors_path.is_file():
+        logger.warning("topic-clusters: skipped (missing vector index at %s)", vectors_path)
+        pipeline_metrics.topic_clusters_built = False
+        return
+
+    from podcast_scraper.search.topic_clusters import build_topic_clusters_for_corpus
+
+    _t0 = time.perf_counter()
+    payload = build_topic_clusters_for_corpus(output_dir, index_dir=index_dir)
+    pipeline_metrics.topic_clusters_built = True
+    pipeline_metrics.topic_cluster_count = int(payload.get("cluster_count") or 0)
+    pipeline_metrics.topic_cluster_topic_count = int(payload.get("topic_count") or 0)
+    pipeline_metrics.topic_cluster_singletons = int(payload.get("singletons") or 0)
+    pipeline_metrics.topic_cluster_seconds = round(time.perf_counter() - _t0, 4)
+    summary = {
+        "built": True,
+        "topic_count": pipeline_metrics.topic_cluster_topic_count,
+        "cluster_count": pipeline_metrics.topic_cluster_count,
+        "singletons": pipeline_metrics.topic_cluster_singletons,
+        "seconds": pipeline_metrics.topic_cluster_seconds,
+        "schema_version": payload.get("schema_version"),
+    }
+    logger.info(
+        "topic-clusters: schema_version=%s topics=%s clusters=%s",
+        payload.get("schema_version"),
+        payload.get("topic_count"),
+        payload.get("cluster_count"),
+    )
+    logger.info("topic_clusters_summary: %s", json.dumps(summary, sort_keys=True))
 
 
 def _preload_ml_models_if_needed(cfg: config.Config) -> None:  # noqa: F811
@@ -1515,6 +1745,7 @@ def _process_episodes_with_threading(
     summary_provider: Optional[Any],
     transcription_provider: Optional[Any],
     normalizing_start: float,
+    interim_checkpoint_manager: Optional[_InterimCheckpointManager] = None,
 ) -> int:
     """Process episodes with concurrent downloads, transcription, and metadata generation.
 
@@ -1544,6 +1775,8 @@ def _process_episodes_with_threading(
         Number of episodes successfully processed (saved count)
     """
     # Step 7: Prepare episode processing arguments with speaker detection
+    if interim_checkpoint_manager is not None:
+        interim_checkpoint_manager.start()
     download_args = wf_stages.processing.prepare_episode_download_args(
         episodes,
         cfg,
@@ -2060,6 +2293,11 @@ def run_pipeline(cfg: config.Config) -> Tuple[int, str]:
         # Wrap processing + finalize: JSONL must stay open until _finalize_pipeline
         # calls emit_run_finished (see _finalize_emit_and_save). Closing the emitter in
         # the inner finally was too early and broke run_finished emission.
+        interim_checkpoint_manager = _InterimCheckpointManager(
+            cfg=cfg,
+            output_dir=effective_output_dir,
+            pipeline_metrics=pipeline_metrics,
+        )
         try:
             try:
                 saved = _process_episodes_with_threading(
@@ -2076,9 +2314,11 @@ def run_pipeline(cfg: config.Config) -> Tuple[int, str]:
                     summary_provider=summary_provider,
                     transcription_provider=transcription_provider,
                     normalizing_start=normalizing_start,
+                    interim_checkpoint_manager=interim_checkpoint_manager,
                 )
 
             finally:
+                interim_checkpoint_manager.stop()
                 # Step 9.5: Unload models to free memory
                 _cleanup_providers(transcription_resources, summary_provider)
 

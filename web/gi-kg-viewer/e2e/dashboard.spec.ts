@@ -87,4 +87,27 @@ test.describe('Dashboard tab', () => {
     await mainViewsNav(page).getByRole('button', { name: 'Dashboard' }).click()
     await expect(page.getByTestId('briefing-card')).toBeVisible()
   })
+
+  test('Intelligence topic click opens Graph and topic detail rail', async ({ page }) => {
+    await mockDashboardApis(page)
+    await page.goto('/')
+    await page.getByRole('heading', { name: SHELL_HEADING_RE }).waitFor()
+    await statusBarCorpusPathInput(page).fill('/mock/corpus')
+    await mainViewsNav(page).getByRole('button', { name: 'Dashboard' }).click()
+
+    const tablist = page.getByRole('tablist', { name: 'Dashboard tabs' })
+    await tablist.getByRole('tab', { name: 'Intelligence' }).click()
+    await expect(page.getByTestId('intelligence-topic-landscape')).toBeVisible()
+
+    await page
+      .getByTestId('intelligence-topic-landscape')
+      .locator('button[role="listitem"]')
+      .first()
+      .click()
+
+    await expect(page.getByTestId('graph-tab-panel')).toBeVisible()
+    // Intelligence cluster cards prefer `tc:…` compound id → graph node rail (NodeDetail / TopicCluster).
+    await expect(page.getByTestId('graph-node-detail-rail')).toBeVisible({ timeout: 15_000 })
+    await expect(page.getByTestId('graph-node-detail-rail')).toContainText(/TopicCluster/i)
+  })
 })
