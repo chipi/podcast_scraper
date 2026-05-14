@@ -196,6 +196,12 @@ export const useGraphHandoffStore = defineStore('graphHandoff', () => {
   }
 
   function focusCleared(): EventDisposition {
+    // The Escape contract is "the user wants the prior selection gone."
+    // Drop ``lastResult`` so any downstream consumer that restores
+    // selection from the FSM's last applied id (e.g. the post-layout
+    // selection-restore in ``GraphCanvas.finishLayoutPass``) doesn't
+    // re-anchor onto the just-Escaped target on the next layoutstop.
+    lastResult.value = null
     return applyEvent({ type: 'focusCleared' })
   }
 
@@ -204,6 +210,12 @@ export const useGraphHandoffStore = defineStore('graphHandoff', () => {
   }
 
   function corpusReloaded(): EventDisposition {
+    // A fresh corpus has no prior selection to preserve. Clear
+    // ``lastResult`` for the same reason as ``focusCleared`` above —
+    // the FSM's last applied cyId belongs to the *previous* corpus and
+    // any restore attempt would either fail (node not in cy) or hit a
+    // collision with an unrelated node.
+    lastResult.value = null
     return applyEvent({ type: 'corpusReloaded' })
   }
 

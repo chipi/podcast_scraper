@@ -1435,6 +1435,64 @@ function finishLayoutPass(core: Core): void {
    * duplicate ``animateCameraToFocusedNode`` when pending focus was consumed. */
   const appliedPending = tryApplyPendingFocus(core)
   applyEpisodeRepresentativeFocusIfNeeded(core, { skipCamera: appliedPending })
+  // GH #771 — restore the FSM-applied selection + camera after a redraw
+  // that destroyed them. Canonical trigger: KG-second-wave full-redraw
+  // arrives ~1-2 s after a Digest topic-pill handoff applied (GI-only
+  // graph 214 nodes → GI+KG graph 595 nodes); the full layout rebuilds
+  // Cytoscape with no selection and ``fit()`` collapses zoom to ~0.10.
+  // Without this hook the FSM is "applied" but the canvas looks blank.
+  // Gated to only run when:
+  //   - selection was lost in this pass (something else holding selection
+  //     is honoured; this is purely a fill-in for the empty-selection case)
+  //   - no envelope is currently in flight (an active handoff drives its
+  //     own selection via ``tryApplyPendingFocus`` above)
+  //   - FSM has a successful prior application worth restoring
+  if (
+    !selectedNodeId.value &&
+    !appliedPending &&
+    graphHandoff.pending === null &&
+    graphHandoff.lastResult?.status === 'applied'
+  ) {
+    const lastAppliedCyId = graphHandoff.lastResult.appliedCyId?.trim() || ''
+    if (lastAppliedCyId) {
+      // Same logical node may now be addressable under a different
+      // ``g:`` / ``k:`` prefix if KG joined GI-only data between layout
+      // passes (or vice-versa). Try the exact id first, then the
+      // alternative-prefix variant; finally try prefixing if the id is
+      // bare.
+      const candidateIds: string[] = [lastAppliedCyId]
+      if (lastAppliedCyId.startsWith('g:')) {
+        candidateIds.push('k:' + lastAppliedCyId.slice(2))
+      } else if (lastAppliedCyId.startsWith('k:')) {
+        candidateIds.push('g:' + lastAppliedCyId.slice(2))
+      } else {
+        candidateIds.push('g:' + lastAppliedCyId, 'k:' + lastAppliedCyId)
+      }
+      let restored: NodeSingular | null = null
+      for (const candId of candidateIds) {
+        const n = core.$id(candId)
+        if (n.length > 0) {
+          restored = n.first() as NodeSingular
+          break
+        }
+      }
+      if (restored) {
+        core.nodes().unselect()
+        restored.select()
+        selectedNodeId.value = restored.id()
+        try {
+          applyGraphSelectionDimFromNode(core, restored)
+        } catch {
+          /* dimming is cosmetic; never let a styling error abort restore */
+        }
+        // Centre the camera on the restored node with the regular
+        // animation path so zoom + pan look intentional (not a fit-all
+        // jump). Preserves zoom semantics via the function's
+        // ``GRAPH_FOCUS_FRAME_MIN_ZOOM`` floor.
+        animateCameraToFocusedNode(core, restored.id())
+      }
+    }
+  }
   reapplySelectionDimmingIfAny(core)
   applyTopicClusterMemberCollapse(core)
   applyCrossEpisodeExpandHints(core)
