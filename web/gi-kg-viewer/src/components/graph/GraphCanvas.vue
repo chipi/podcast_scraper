@@ -1441,19 +1441,34 @@ function finishLayoutPass(core: Core): void {
   // graph 214 nodes → GI+KG graph 595 nodes); the full layout rebuilds
   // Cytoscape with no selection and ``fit()`` collapses zoom to ~0.10.
   // Without this hook the FSM is "applied" but the canvas looks blank.
-  // Gated to only run when:
-  //   - selection was lost in this pass (something else holding selection
-  //     is honoured; this is purely a fill-in for the empty-selection case)
-  //   - no envelope is currently in flight (an active handoff drives its
-  //     own selection via ``tryApplyPendingFocus`` above)
-  //   - FSM has a successful prior application worth restoring
+  //
+  // The gate accepts two recoverable cases:
+  //
+  //   (a) ``lastResult.status === 'applied'`` — clean apply followed by a
+  //       downstream redraw that destroyed selection.
+  //
+  //   (b) ``lastResult.status === 'failed' && reason.startsWith('stuck-timeout')`` —
+  //       the FSM gave up waiting (``STUCK_TIMEOUT_MS``) but the underlying
+  //       layout may still be in flight and a subsequent layoutstop can
+  //       restore the user's intent. The stuck-timer hook in
+  //       ``stores/graphHandoff.ts`` preserves ``envelope.cyId`` as
+  //       ``lastResult.appliedCyId`` precisely for this path.
+  //
+  // Other failure modes (``territory-fetch-404`` etc.) are NOT restored —
+  // their target may not exist in the rebuilt graph. The candidate-id
+  // existence check below naturally filters these out, but we also gate
+  // on the reason prefix as an explicit contract.
+  const lr = graphHandoff.lastResult
+  const lrRecoverable =
+    lr?.status === 'applied' ||
+    (lr?.status === 'failed' && (lr.reason?.startsWith('stuck-timeout') ?? false))
   if (
     !selectedNodeId.value &&
     !appliedPending &&
     graphHandoff.pending === null &&
-    graphHandoff.lastResult?.status === 'applied'
+    lrRecoverable
   ) {
-    const lastAppliedCyId = graphHandoff.lastResult.appliedCyId?.trim() || ''
+    const lastAppliedCyId = lr?.appliedCyId?.trim() || ''
     if (lastAppliedCyId) {
       // Same logical node may now be addressable under a different
       // ``g:`` / ``k:`` prefix if KG joined GI-only data between layout
@@ -1571,10 +1586,22 @@ function finishLayoutPass(core: Core): void {
   }
   // C5 — mark the in-flight handoff as applied so the FSM transitions back
   // to `ready` and the stuck timer disarms. Without this the FSM would stay
-  // in `loading_fetch` after every entry-point click and false-alarm at 5s.
-  // C6 will replace with full FSM-driven layout barriers.
+  // in `loading_fetch` after every entry-point click and false-alarm.
+  //
+  // Fall back to the pending envelope's intended ``cyId`` when neither
+  // ``selectedNodeId`` nor ``focusNodeId`` is set (typical on the first
+  // layoutstop of a KG-second-wave load: artifacts merged but the target
+  // node hasn't been resolved + selected yet). Without this fallback
+  // ``lastResult.appliedCyId`` would be empty and the post-layout restore
+  // hook at the top of ``finishLayoutPass`` would have nothing to anchor
+  // on — selection + camera stay lost across subsequent layoutstops
+  // (the GH #771 failure mode for rapid digest pills on a heavy graph).
   if (graphHandoff.pending) {
-    const appliedCyId = selectedNodeId.value || focusNodeId.value || ''
+    const appliedCyId =
+      selectedNodeId.value ||
+      focusNodeId.value ||
+      graphHandoff.pending.cyId ||
+      ''
     graphHandoff.recordApplied(appliedCyId)
   }
   // Set cooldown to prevent immediate redraws from watchers reacting to layout state changes

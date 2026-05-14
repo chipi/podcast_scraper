@@ -101,11 +101,19 @@ export const useGraphHandoffStore = defineStore('graphHandoff', () => {
         /* telemetry must not affect runtime */
       }
       // Force the FSM back to ready so the next event proceeds normally.
+      // Preserve the envelope's intended ``cyId`` on ``appliedCyId`` even
+      // though we're reporting `failed`: layout that's still settling in the
+      // background may eventually finish and ``GraphCanvas.finishLayoutPass``
+      // can use this id to restore selection + camera. Without this hook the
+      // user sees an empty selection and fit-all camera after every stuck
+      // handoff that eventually completes (rapid digest pills on a heavy
+      // KG-second-wave merged graph — see GH #771).
       fsm.pending = null
       fsm.state = 'ready'
       lastResult.value = {
         status: 'failed',
         reason: `stuck-timeout after ${STUCK_TIMEOUT_MS}ms`,
+        appliedCyId: envelope.cyId,
       }
       syncReactive()
       for (const fn of stuckListeners) {
