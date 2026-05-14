@@ -70,7 +70,23 @@ export const useArtifactsStore = defineStore('artifacts', () => {
    * 'digest-external' or 'subject-external' = user clicked from outside graph → NO auto-merge
    * 'graph-internal' or null = in-graph navigation or normal flow → YES auto-merge
    */
-  let lastLoadSource: 'digest-external' | 'subject-external' | 'graph-internal' | null = null
+  // Reactive ref (not a plain ``let``) — the GraphCanvas meta-watcher reads
+  // ``artifacts.currentLoadSource`` (a computed wrapping this) to decide
+  // between incremental-append and full-replacement paths. A plain JS
+  // variable cannot trigger Vue's reactivity; ``clearLoadSource()`` would
+  // mutate without notifying subscribers, and ``currentLoadSource`` would
+  // return its stale first-eval value (or never update at all). On the
+  // KG-second-wave the watcher then read ``digest-external`` even though
+  // the first wave had already cleared it — full-replacement path fired,
+  // ``selectedNodeId.value = null``, redraw rebuilt cy without selection,
+  // user saw a ~1 s "selection lost + fit-all camera" window before some
+  // downstream effect re-applied. Making this a ``ref`` fixes the
+  // reactivity, the watcher correctly takes the incremental path on the
+  // KG-second-wave, and the prior selection survives the redraw. (See
+  // diagnostic trace 2026-05-15.)
+  const lastLoadSource = ref<
+    'digest-external' | 'subject-external' | 'graph-internal' | null
+  >(null)
 
   const giArts = computed(() => parsedList.value.filter((p) => p.kind === 'gi'))
   const kgArts = computed(() => parsedList.value.filter((p) => p.kind === 'kg'))
@@ -440,7 +456,7 @@ export const useArtifactsStore = defineStore('artifacts', () => {
     siblingMergeError.value = false
     // Skip if last load was from external source (Digest/Library) - user wants focused view only
     // Don't clear the flag here - let the caller clear it after all their operations complete
-    if (lastLoadSource === 'digest-external' || lastLoadSource === 'subject-external') {
+    if (lastLoadSource.value === 'digest-external' || lastLoadSource.value === 'subject-external') {
       return
     }
     if (!graphTabActive) {
@@ -651,19 +667,19 @@ export const useArtifactsStore = defineStore('artifacts', () => {
    * External loads (from Digest/Library) suppress auto-merge for focused views.
    */
   function setLoadSource(source: 'digest-external' | 'subject-external' | 'graph-internal' | null): void {
-    lastLoadSource = source
+    lastLoadSource.value = source
   }
-  
+
   function clearLoadSource(): void {
-    lastLoadSource = null
+    lastLoadSource.value = null
   }
-  
+
   /**
    * Getter for the current load source (readonly).
    * Used by GraphCanvas to determine if incremental appends should skip disruptive ops.
    */
   const currentLoadSource = computed<'digest-external' | 'subject-external' | 'graph-internal' | null>(
-    () => lastLoadSource,
+    () => lastLoadSource.value,
   )
 
   return {

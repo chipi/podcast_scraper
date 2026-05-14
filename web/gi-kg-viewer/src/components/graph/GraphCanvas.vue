@@ -1462,8 +1462,19 @@ function finishLayoutPass(core: Core): void {
   const lrRecoverable =
     lr?.status === 'applied' ||
     (lr?.status === 'failed' && (lr.reason?.startsWith('stuck-timeout') ?? false))
+  // Read cy's *actual* selection state, not the Vue ref. The two diverge
+  // during a full-redraw: Cytoscape's ``cy.elements().remove()`` wipes
+  // selection but ``selectedNodeId.value`` isn't auto-synced (no listener
+  // on selection-cleared from rebuild). Without this fix the gate
+  // `!selectedNodeId.value` would be false during the KG-second-wave
+  // layoutstop where selection is genuinely lost, restore would skip,
+  // and the user would see ~2 s of empty selection + fit-all camera
+  // until a downstream watcher eventually re-applies (GH #771 follow-up,
+  // Test A timeline 2026-05-14: t+4s collapse → t+6s recover; with this
+  // fix the recovery happens at t+4s in the same layoutstop).
+  const cyHasSelection = core.nodes(':selected').length > 0
   if (
-    !selectedNodeId.value &&
+    !cyHasSelection &&
     !appliedPending &&
     graphHandoff.pending === null &&
     lrRecoverable
@@ -2011,6 +2022,16 @@ function tryApplyPendingFocus(core: Core): boolean {
   void openGraphEpisodeOrNodeRail(cyId, rawNode)
   const extras = [...nav.pendingFocusCameraIncludeRawIds]
   nav.clearPendingFocus()
+  // Record the apply with the FSM so it transitions back to ``ready``.
+  // ``finishLayoutPass`` would do this too, but on rapid sequential clicks the
+  // layoutstop listener captured by an earlier ``redraw()`` often bails at the
+  // ``cy !== core`` guard (a later redraw stomped its captured ``core``); the
+  // FSM would then sit in ``loading_fetch`` until the stuck-timeout. Calling
+  // ``recordApplied`` here gives every successful focus-apply a path to
+  // ``ready`` regardless of which redraw's layoutstop wins the race.
+  if (graphHandoff.pending) {
+    graphHandoff.recordApplied(cyId)
+  }
   /** While the canvas host is hidden for first paint, ``animate`` uses wrong bounds; defer until ``releaseGraphCanvasLayoutHold``. */
   if (graphContentHiddenUntilLayout.value) {
     pendingFocusCameraAfterLayoutHold = { cyId, extras }
@@ -2681,6 +2702,25 @@ function redraw(): void {
     cy = core
     if (import.meta.env.DEV) {
       ;(window as unknown as { __GIKG_CY_DEV__?: Core }).__GIKG_CY_DEV__ = core
+    }
+
+    // GH #771 follow-up — restore selection on the freshly built ``cy`` IMMEDIATELY.
+    // Previously this lived at the bottom of ``redraw()`` (still does, as a
+    // belt-and-braces fallback); on heavy KG-second-wave redraws (213 → 595
+    // nodes) the gap between ``cytoscape({elements})`` returning and the
+    // bottom of ``redraw()`` was ~1 second of user-visible "selection lost +
+    // fit-all camera". Selecting at cy-creation closes that window —
+    // ``cy.$(':selected')`` reads correct from the first frame the new cy
+    // is observable. ``selectedNodeId.value`` is the Vue ref that ``redraw``
+    // never clears for the incremental-append path (only the full-replacement
+    // path clears it), so during a KG-second-wave merge it still carries
+    // the user's intent from the prior FSM apply.
+    const earlySid = selectedNodeId.value
+    if (earlySid) {
+      const earlyNode = core.$id(earlySid)
+      if (earlyNode.length > 0) {
+        earlyNode.select()
+      }
     }
 
     if (useIncrementalLayout) {
