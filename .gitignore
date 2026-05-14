@@ -79,6 +79,13 @@ coverage.json
 
 # GI/KG viewer (Vite / Node / Playwright, RFC-062) — was web/gi-kg-viewer/.gitignore; rules live here
 web/gi-kg-viewer/node_modules/
+# Catch-all: stray ``node_modules/`` at the repo root (or anywhere else) is always a
+# transient artifact. The legitimate Node project lives under ``web/gi-kg-viewer/``; a
+# root-level ``node_modules/`` typically appears when Vitest is invoked with CWD=repo
+# root (e.g. ``npm exec --prefix web/gi-kg-viewer …``) — see VIEWER_TESTING_LOCAL.md.
+# Always ``cd web/gi-kg-viewer`` before running ``vitest`` / ``playwright`` so caches
+# land in the viewer's own ``node_modules/.vite/``.
+node_modules/
 web/gi-kg-viewer/dist/
 web/gi-kg-viewer/dist-ssr/
 web/gi-kg-viewer/logs/
