@@ -3014,7 +3014,47 @@ watch(
               findEpisodeGraphNodeIdForMetadataPath(gf.filteredArtifact, meta) || ''
           }
         }
-        if (restoreGraphNodeId) {
+        // Suppress the restore-preference emission when either:
+        //   (a) a cross-surface handoff is already in flight, OR
+        //   (b) the proposed restore target normalises to the same
+        //       logical node the FSM JUST applied successfully.
+        //
+        // (a) catches the "click 2nd digest pill" case (Symptom 2): the
+        // stale prior-pill id would otherwise be re-dispatched as a fresh
+        // envelope, bump the generation, and supersede the click intent.
+        //
+        // (b) catches the "heavy graph, KG loads later" case (Symptom 3):
+        // a successful FSM cycle applies (e.g.) ``g:topic:foo`` from a
+        // GI-only artifact set. KG data arrives via downstream watchers,
+        // grows ``filteredArtifact`` (214 → 595 nodes), and the focus-apply
+        // path overwrites ``subject.graphNodeCyId`` with ``k:topic:foo``
+        // (FSM resolution prefers k: when both g: and k: exist for the
+        // same logical id). The meta-watcher would then emit a fresh
+        // restore-preference for ``k:topic:foo`` — same logical target,
+        // wrong viewport math because the layout is still settling, and
+        // the camera collapses to fit-all. ``sameLogicalCyId`` strips the
+        // 1-char ``g:`` / ``k:`` prefix used by GI/KG artifacts so the
+        // FSM's last applied id and the proposed restore id compare as
+        // equal whenever they refer to the same logical topic / entity.
+        const handoffInFlight = graphHandoff.pending !== null
+        const sameLogicalCyId = (a: string, b: string): boolean => {
+          if (!a || !b) return false
+          if (a === b) return true
+          const strip = (s: string): string =>
+            s.startsWith('g:') || s.startsWith('k:') ? s.slice(2) : s
+          return strip(a) === strip(b)
+        }
+        const lastAppliedCyId =
+          graphHandoff.lastResult?.status === 'applied'
+            ? graphHandoff.lastResult.appliedCyId?.trim() || ''
+            : ''
+        const restoreTargetAlreadyApplied = (cyId: string): boolean =>
+          !!lastAppliedCyId && sameLogicalCyId(cyId, lastAppliedCyId)
+        if (
+          restoreGraphNodeId &&
+          !handoffInFlight &&
+          !restoreTargetAlreadyApplied(restoreGraphNodeId)
+        ) {
           // F3b — route restore through orchestrator instead of self-triggering
           // the meta-watcher with `nav.requestFocusNode`. The FSM observes this
           // as `source: 'restore-preference'` (decision #8 / FSM spec) so it
@@ -3029,7 +3069,11 @@ watch(
             camera: { kind: 'center', cyId: restoreGraphNodeId },
           })
           nav.requestFocusNode(restoreGraphNodeId)
-        } else if (restoreEpisodeCyId) {
+        } else if (
+          restoreEpisodeCyId &&
+          !handoffInFlight &&
+          !restoreTargetAlreadyApplied(restoreEpisodeCyId)
+        ) {
           // Same routing as above for the episode case.
           graphHandoff.handoffRequested({
             kind: 'episode',

@@ -217,10 +217,19 @@ async function openDigestRecentTopicPillInGraph(
   // DO NOT call ensureDefaultCorpusGraphIfNeeded() - it sets mainTab to 'graph' which causes double-loading
   // Mark this as external load from Digest - no auto-merge wanted
   artifacts.setLoadSource('digest-external')
-  await artifacts.appendRelativeArtifacts(cleaned)
-  if (digestGraphOpenGate.isStale(seq)) {
-    return
-  }
+
+  // **Sequencing matters.** ``appendRelativeArtifacts`` below awakens the
+  // meta-watcher in ``GraphCanvas.vue:3017+`` mid-await; if we haven't
+  // already (a) synced ``subject`` to the click intent and (b) fired the
+  // FSM envelope, the watcher reads the *prior* pill's stale
+  // ``subject.graphNodeCyId`` AND sees ``graphHandoff.pending === null``,
+  // then re-dispatches a fresh ``restore-preference`` envelope with the
+  // stale id. On heavy graphs that second envelope wins a generation race,
+  // selection sticks on the prior pill, and the camera collapses to
+  // fit-all when ``CameraStrategy.center`` falls through with no anchor
+  // (see ADR-094 decision #4 / #11; live Playwright trace 2026-05-14).
+  // Order both writes BEFORE the await; both Fix A (fresh subject) and
+  // Fix B (pending != null) gates then close the window structurally.
   graphNav.clearLibraryEpisodeHighlights()
   const plan = graphFocusPlanFromCilPill(pill, row.episode_id)
   applyGraphFocusPlan(graphNav, plan)
@@ -232,7 +241,16 @@ async function openDigestRecentTopicPillInGraph(
   if (highlights) {
     graphNav.setLibraryEpisodeHighlights(highlights)
   }
-  // FSM event for the Digest pill handoff (decision #5 / spec).
+  if (plan.kind === 'topic') {
+    subject.focusGraphNode(plan.primary)
+  } else if (plan.kind === 'episode_only' && row.metadata_relative_path) {
+    subject.focusEpisode(row.metadata_relative_path, {
+      graphConnectionsCyId: plan.primary,
+    })
+  }
+  // FSM event for the Digest pill handoff (decision #5 / spec). Fires
+  // before the await so ``graphHandoff.pending`` is set when the
+  // meta-watcher wakes up during ``appendRelativeArtifacts``.
   if (plan.kind !== 'none') {
     graphHandoff.handoffRequested({
       kind: plan.kind === 'topic' ? 'topic' : 'episode',
@@ -243,6 +261,11 @@ async function openDigestRecentTopicPillInGraph(
       camera: { kind: 'center-on-target' },
       highlights,
     })
+  }
+
+  await artifacts.appendRelativeArtifacts(cleaned)
+  if (digestGraphOpenGate.isStale(seq)) {
+    return
   }
   emit('switch-main-tab', 'graph')
 }
