@@ -33,7 +33,9 @@ export async function readCyState(page: Page): Promise<{
     if (!cy) return null
     const selected = cy.nodes(':selected')
     const ids: string[] = []
-    selected.forEach((n) => ids.push(n.id()))
+    selected.forEach((n) => {
+      ids.push(n.id())
+    })
     return {
       totalNodes: cy.nodes().length,
       selectedIds: ids,

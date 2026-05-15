@@ -407,7 +407,8 @@ test.describe('Handoff matrix § Section 1 — Cold-start', () => {
         window as unknown as { __GIKG_CY_DEV__?: import('cytoscape').Core }
       ).__GIKG_CY_DEV__
       if (!cy) return false
-      cy.trigger('tap', { target: cy })
+      // Cytoscape trigger expects an event object array; cast to satisfy TS.
+      ;(cy.trigger as (n: string, p: unknown) => unknown)('tap', { target: cy })
       return true
     })
     expect(tappedOk).toBe(true)
