@@ -9,8 +9,10 @@
 import { expect, test } from '@playwright/test'
 import { mainViewsNav, SHELL_HEADING_RE, statusBarCorpusPathInput } from '../helpers'
 import {
+  assertFsmEventEnvelope,
   assertHandoffApplied,
   captureConsoleErrors,
+  readFsmEventLog,
   readFsmState,
   setupHandoffMatrixMocks,
 } from './_handoff-helpers'
@@ -77,7 +79,36 @@ test.describe('Handoff matrix § Section 4 — Cross-entry sequences', () => {
     // contract here is "envelopes dispatched, no contamination, no
     // console errors", not "full apply for every step." (UI-driven
     // segments above were already exercised in H1.1, H1.2, etc.)
-    expect(errs.errors).toEqual([])
+    // All three surfaces' envelopes were observed with their correct
+    // source / load-source / camera triple — no contamination across
+    // surfaces.
+    // Library row → Episode panel → "Open in graph" fires source='episode-panel'
+    // (E1 surface). Library row click alone doesn't fire a handoff — the
+    // panel button does.
+    await assertFsmEventEnvelope(page, {
+      type: 'handoffRequested',
+      source: 'episode-panel',
+      kind: 'episode',
+      loadSource: 'subject-external',
+      cameraKind: 'center-on-target',
+      errors: errs,
+    })
+    await assertFsmEventEnvelope(page, {
+      type: 'handoffRequested',
+      source: 'digest',
+      kind: 'topic',
+      loadSource: 'digest-external',
+      cameraKind: 'center-on-target',
+      errors: errs,
+    })
+    await assertFsmEventEnvelope(page, {
+      type: 'handoffRequested',
+      source: 'search',
+      kind: 'topic',
+      loadSource: 'subject-external',
+      cameraKind: 'center-on-target',
+      errors: errs,
+    })
   })
 
   test('H4.2 — Digest band → Library row → Digest pill [F4d]', async ({ page }) => {
@@ -171,6 +202,26 @@ test.describe('Handoff matrix § Section 4 — Cross-entry sequences', () => {
     const after = await readFsmState(page)
     expect(after).not.toBeNull()
     expect(after!.generation).toBeGreaterThanOrEqual(startGen + 3)
-    expect(errs.errors).toEqual([])
+    // Three envelopes recorded: search → node-detail → search. Search
+    // events carry ``subject-external`` (Definition X: new context);
+    // node-detail carries ``graph-internal`` (preserves layout).
+    const log = await readFsmEventLog(page)
+    const handoffs = log.filter((e) => e.type === 'handoffRequested')
+    expect(handoffs.length).toBeGreaterThanOrEqual(3)
+    const searchEvents = handoffs.filter((e) => e.envelope?.source === 'search')
+    expect(searchEvents.length).toBeGreaterThanOrEqual(2)
+    for (const e of searchEvents) {
+      expect(e.envelope?.kind).toBe('topic')
+      expect(e.envelope?.loadSource).toBe('subject-external')
+      expect(e.envelope?.camera?.kind).toBe('center-on-target')
+    }
+    await assertFsmEventEnvelope(page, {
+      type: 'handoffRequested',
+      source: 'node-detail',
+      kind: 'graph-node',
+      loadSource: 'graph-internal',
+      cameraKind: 'center-on-target',
+      errors: errs,
+    })
   })
 })

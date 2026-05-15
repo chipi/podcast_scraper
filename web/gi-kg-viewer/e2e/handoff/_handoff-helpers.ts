@@ -543,7 +543,86 @@ export async function assertHandoffApplied(
     )
   }
 
-  // 5. Optional: Episode panel visible with right title.
+  // 5. Subject-store correctness (L5).
+  //
+  // The rail panels read the subject store, not cy directly — a "successful
+  // handoff" must therefore also leave the subject store reflecting the
+  // envelope target. We infer the expected role from the ``expectedCyId``
+  // prefix and verify that at least one of the corresponding id fields
+  // carries the resolved value.
+  //
+  // Topic dispatches have two valid shapes today, both internally
+  // consistent — keep both legal here, surface the distinction at the
+  // FSM-envelope layer (``assertFsmEventEnvelope``) instead:
+  //   - ``subject.kind='topic'``  + ``topicId`` set to the bare CIL id
+  //     (``topic:ci-policy``). This is what App.activateGraphTab does
+  //     when the target arrives WITHOUT a ``g:`` / ``k:`` prefix.
+  //   - ``subject.kind='graph-node'`` + ``graphNodeCyId`` set to the full
+  //     cy id (``g:topic:ci-policy``). This is what happens when the
+  //     target arrives prefixed; the rail still renders the right
+  //     surface because NodeDetail dispatches on the resolved cy node.
+  const subj = await readSubjectState(page)
+  if (subj === null) {
+    throw new Error(
+      'assertHandoffApplied: subject store not exposed via __GIKG_SUBJECT__',
+    )
+  }
+  const norm = (s: string): string => {
+    if (s.startsWith('__unified_ep__:')) return 'episode:' + s.slice('__unified_ep__:'.length)
+    if (s.startsWith('g:') || s.startsWith('k:')) return s.slice(2)
+    return s
+  }
+  const normalized = norm(expectedCyId)
+  let inferredRole: 'episode' | 'topic' | 'person' | null = null
+  if (normalized.startsWith('episode:')) inferredRole = 'episode'
+  else if (normalized.startsWith('topic:')) inferredRole = 'topic'
+  else if (normalized.startsWith('person:')) inferredRole = 'person'
+  // Opaque ids (e.g. ``tc:*`` compounds, bare graph node ids) — don't pin.
+  if (inferredRole === 'episode') {
+    if (subj.kind !== 'episode') {
+      throw new Error(
+        `assertHandoffApplied: subject.kind=${subj.kind} (expected episode from cyId ${expectedCyId})`,
+      )
+    }
+    if (!subj.episodeMetadataPath && !subj.episodeId) {
+      throw new Error(
+        `assertHandoffApplied: subject.kind=episode but both episodeMetadataPath and episodeId are null`,
+      )
+    }
+  } else if (inferredRole === 'topic') {
+    // Either canonical topic subject OR graph-node subject pointing at
+    // the topic cy id.
+    if (subj.kind === 'topic') {
+      if (!subj.topicId || norm(subj.topicId) !== normalized) {
+        throw new Error(
+          `assertHandoffApplied: subject.kind=topic but subject.topicId=${subj.topicId} does not match expected ${expectedCyId}`,
+        )
+      }
+    } else if (subj.kind === 'graph-node') {
+      if (!subj.graphNodeCyId || norm(subj.graphNodeCyId) !== normalized) {
+        throw new Error(
+          `assertHandoffApplied: subject.kind=graph-node but subject.graphNodeCyId=${subj.graphNodeCyId} does not match expected ${expectedCyId}`,
+        )
+      }
+    } else {
+      throw new Error(
+        `assertHandoffApplied: subject.kind=${subj.kind} (expected topic or graph-node from cyId ${expectedCyId})`,
+      )
+    }
+  } else if (inferredRole === 'person') {
+    if (subj.kind !== 'person') {
+      throw new Error(
+        `assertHandoffApplied: subject.kind=${subj.kind} (expected person from cyId ${expectedCyId})`,
+      )
+    }
+    if (!subj.personId) {
+      throw new Error(
+        `assertHandoffApplied: subject.kind=person but subject.personId is null`,
+      )
+    }
+  }
+
+  // 6. Optional: Episode panel visible with right title.
   if (opts.episodePanelTitle) {
     const visible = await page
       .getByRole('region', { name: 'Episode', exact: true })
@@ -556,6 +635,98 @@ export async function assertHandoffApplied(
       )
     }
   }
+}
+
+/**
+ * Assert that the FSM event log contains exactly the expected envelope shape
+ * for the most recent event of the given type. Used by dev-hook-driven matrix
+ * rows (Section 1 entry surfaces with no UI fixture: Search / Dashboard /
+ * SubjectRail / StatusBar / NodeDetail / Mini-map) to pin the full FSM event
+ * contract — not just ``source``, but also ``kind``, ``loadSource``, and
+ * ``camera.kind``.
+ *
+ * For UI-driven rows, prefer ``assertHandoffApplied`` (the full 6-point
+ * outcome contract).
+ */
+export async function assertFsmEventEnvelope(
+  page: Page,
+  expect: {
+    type: 'handoffRequested' | 'canvasTapped' | 'expansionRequested'
+    source: string
+    kind?: 'episode' | 'topic' | 'graph-node' | 'person'
+    loadSource?: 'subject-external' | 'digest-external' | 'graph-internal'
+    cameraKind?: 'center' | 'center-on-target' | 'fit' | 'preserve' | 'none'
+    errors: { errors: string[] }
+  },
+): Promise<void> {
+  const log = await readFsmEventLog(page)
+  const match = log.find(
+    (e) => e.type === expect.type && e.envelope?.source === expect.source,
+  )
+  if (!match) {
+    throw new Error(
+      `assertFsmEventEnvelope: no ${expect.type} event with source=${expect.source} in log (${log.length} events: ${log.map((e) => `${e.type}:${e.envelope?.source ?? 'n/a'}`).join(', ')})`,
+    )
+  }
+  const env = match.envelope!
+  if (expect.kind !== undefined && env.kind !== expect.kind) {
+    throw new Error(
+      `assertFsmEventEnvelope: ${expect.type}@${expect.source} kind=${env.kind} (expected ${expect.kind})`,
+    )
+  }
+  if (expect.loadSource !== undefined && env.loadSource !== expect.loadSource) {
+    throw new Error(
+      `assertFsmEventEnvelope: ${expect.type}@${expect.source} loadSource=${env.loadSource} (expected ${expect.loadSource})`,
+    )
+  }
+  if (expect.cameraKind !== undefined && env.camera?.kind !== expect.cameraKind) {
+    throw new Error(
+      `assertFsmEventEnvelope: ${expect.type}@${expect.source} camera.kind=${env.camera?.kind} (expected ${expect.cameraKind})`,
+    )
+  }
+  if (expect.errors.errors.length > 0) {
+    throw new Error(
+      `assertFsmEventEnvelope: ${expect.errors.errors.length} console error(s): ${expect.errors.errors.slice(0, 3).join(' | ')}`,
+    )
+  }
+}
+
+/**
+ * Read the live subject-store state exposed via ``window.__GIKG_SUBJECT__``
+ * (dev-only hook stamped by ``useSubjectStore``). Returns `null` in production
+ * builds where the hook is stripped.
+ */
+export async function readSubjectState(page: Page): Promise<{
+  kind: 'episode' | 'topic' | 'person' | 'graph-node' | null
+  episodeMetadataPath: string | null
+  episodeId: string | null
+  graphNodeCyId: string | null
+  topicId: string | null
+  personId: string | null
+} | null> {
+  return page.evaluate(() => {
+    const s = (
+      window as unknown as {
+        __GIKG_SUBJECT__?: {
+          kind: 'episode' | 'topic' | 'person' | 'graph-node' | null
+          episodeMetadataPath: string | null
+          episodeId: string | null
+          graphNodeCyId: string | null
+          topicId: string | null
+          personId: string | null
+        }
+      }
+    ).__GIKG_SUBJECT__
+    if (!s) return null
+    return {
+      kind: s.kind,
+      episodeMetadataPath: s.episodeMetadataPath,
+      episodeId: s.episodeId,
+      graphNodeCyId: s.graphNodeCyId,
+      topicId: s.topicId,
+      personId: s.personId,
+    }
+  })
 }
 
 /**

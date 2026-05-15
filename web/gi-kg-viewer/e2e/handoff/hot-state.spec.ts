@@ -8,8 +8,10 @@
 import { expect, test } from '@playwright/test'
 import { mainViewsNav, SHELL_HEADING_RE, statusBarCorpusPathInput } from '../helpers'
 import {
+  assertFsmEventEnvelope,
   assertHandoffApplied,
   captureConsoleErrors,
+  readFsmEventLog,
   readFsmState,
   setupHandoffMatrixMocks,
 } from './_handoff-helpers'
@@ -122,6 +124,17 @@ test.describe('Handoff matrix § Section 2 — Hot state', () => {
     const after = await readFsmState(page)
     expect(after).not.toBeNull()
     expect(after!.generation).toBeGreaterThanOrEqual(startGen + 2)
+    // 2 search envelopes fired with the same source/kind/loadSource.
+    const log = await readFsmEventLog(page)
+    const searchEvents = log.filter(
+      (e) => e.type === 'handoffRequested' && e.envelope?.source === 'search',
+    )
+    expect(searchEvents.length).toBeGreaterThanOrEqual(2)
+    for (const e of searchEvents) {
+      expect(e.envelope?.kind).toBe('topic')
+      expect(e.envelope?.loadSource).toBe('subject-external')
+      expect(e.envelope?.camera?.kind).toBe('center-on-target')
+    }
     expect(errs.errors).toEqual([])
   })
 
@@ -272,6 +285,24 @@ test.describe('Handoff matrix § Section 2 — Hot state', () => {
     const after = await readFsmState(page)
     expect(after).not.toBeNull()
     expect(after!.generation).toBeGreaterThanOrEqual(startGen + 2)
-    expect(errs.errors).toEqual([])
+    // Both envelopes recorded with the right shape: search uses
+    // ``subject-external``; node-detail uses ``graph-internal`` (Definition X:
+    // preserves layout). Camera strategy carries through unchanged.
+    await assertFsmEventEnvelope(page, {
+      type: 'handoffRequested',
+      source: 'search',
+      kind: 'topic',
+      loadSource: 'subject-external',
+      cameraKind: 'center-on-target',
+      errors: errs,
+    })
+    await assertFsmEventEnvelope(page, {
+      type: 'handoffRequested',
+      source: 'node-detail',
+      kind: 'graph-node',
+      loadSource: 'graph-internal',
+      cameraKind: 'center-on-target',
+      errors: errs,
+    })
   })
 })

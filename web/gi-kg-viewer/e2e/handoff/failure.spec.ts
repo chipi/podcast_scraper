@@ -9,7 +9,9 @@
 import { expect, test } from '@playwright/test'
 import { mainViewsNav, SHELL_HEADING_RE, statusBarCorpusPathInput } from '../helpers'
 import {
+  assertFsmEventEnvelope,
   captureConsoleErrors,
+  readFsmEventLog,
   readFsmState,
   setupHandoffMatrixMocks,
 } from './_handoff-helpers'
@@ -41,13 +43,19 @@ test.describe('Handoff matrix § Section 6 — Failure modes', () => {
     if (await openBtn.isVisible({ timeout: 2000 }).catch(() => false)) {
       await openBtn.click()
     }
-    // The error strip renders when handoff fails. Either it appears (because
-    // the territory load failed) or the FSM otherwise records the failure.
-    // Allow either path — the test pins that no console errors leak from a
-    // legitimate API 404 path.
-    void errs
-    void readFsmState
-    expect(true).toBe(true)
+    // Failure-mode contract: after a 404, the FSM must NOT be left stuck
+    // with ``pending`` set, and the user must not see leaked console errors
+    // from the API layer (the 404 itself is "expected behaviour" — the
+    // viewer should surface it, not log noise).
+    await page.waitForTimeout(2000)
+    const settled = await readFsmState(page)
+    expect(settled).not.toBeNull()
+    expect(settled!.pending).toBeNull()
+    // ``lastResult`` may be null (no handoff was ever fired because the
+    // detail panel never rendered) OR ``failed`` (handoff was fired and
+    // failed). The contract is "not applied" — i.e. the FSM did not lie.
+    expect(settled!.lastResultStatus).not.toBe('applied')
+    expect(errs.errors).toEqual([])
   })
 
   test('H6.2 — Handoff target id resolves to non-existent cy node [F4e]', async ({
@@ -91,7 +99,17 @@ test.describe('Handoff matrix § Section 6 — Failure modes', () => {
     // apply path can't find the cyId in cy; either the orchestrator clears
     // pending after the stale-check, or the stuck-timeout eventually fires.
     // Either path is a clean failure; the contract here is "no console
-    // errors and no envelope leak after settle."
+    // errors and no envelope leak after settle." The envelope itself must
+    // be observable in the event log with the right shape — proves the
+    // FSM heard the request even though it could not satisfy it.
+    await assertFsmEventEnvelope(page, {
+      type: 'handoffRequested',
+      source: 'restore-preference',
+      kind: 'graph-node',
+      loadSource: 'graph-internal',
+      cameraKind: 'preserve',
+      errors: errs,
+    })
     await page.waitForTimeout(2000)
     const settled = await readFsmState(page)
     expect(settled).not.toBeNull()
@@ -142,6 +160,19 @@ test.describe('Handoff matrix § Section 6 — Failure modes', () => {
     const beforeStuck = await readFsmState(page)
     expect(beforeStuck).not.toBeNull()
     expect(beforeStuck!.pending).not.toBeNull()
+    // The envelope reached the FSM with its full shape (source, kind,
+    // loadSource, cameraKind) — important so the stuck-timer fires
+    // against the right surface, not against some stale envelope from
+    // an earlier path.
+    const log = await readFsmEventLog(page)
+    const stuckEnv = log.find(
+      (e) => e.type === 'handoffRequested' && e.envelope?.cyId === 'g:topic:stuck-test-target-never-resolves',
+    )
+    expect(stuckEnv, 'stuck-target envelope reached the FSM').toBeDefined()
+    expect(stuckEnv?.envelope?.source).toBe('restore-preference')
+    expect(stuckEnv?.envelope?.kind).toBe('graph-node')
+    expect(stuckEnv?.envelope?.loadSource).toBe('subject-external')
+    expect(stuckEnv?.envelope?.camera?.kind).toBe('center-on-target')
 
     // Wait > STUCK_TIMEOUT_MS (15 s). The detector forces ``pending = null``
     // and records ``lastResult.status = 'failed'`` with reason

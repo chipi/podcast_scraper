@@ -8,6 +8,7 @@
 import { expect, test } from '@playwright/test'
 import { mainViewsNav, SHELL_HEADING_RE, statusBarCorpusPathInput } from '../helpers'
 import {
+  assertFsmEventEnvelope,
   assertHandoffApplied,
   captureConsoleErrors,
   readFsmState,
@@ -56,20 +57,19 @@ test.describe('Handoff matrix § Section 7 — Lifecycle', () => {
       })
     })
     await page.waitForTimeout(500)
-    const log = await page.evaluate(
-      () =>
-        ((window as unknown as { __GIKG_FSM_EVENT_LOG__?: unknown[] })
-          .__GIKG_FSM_EVENT_LOG__ ?? []) as Array<{
-          type: string
-          envelope?: Record<string, unknown>
-        }>,
-    )
-    const restore = log.find(
-      (e) => e.envelope?.['source'] === 'restore-preference',
-    )
-    expect(restore, 'restore-preference envelope reached the FSM').toBeDefined()
-    expect(restore?.envelope?.['kind']).toBe('graph-node')
-    expect(errs.errors).toEqual([])
+    // Restore-preference envelope reached the FSM with its full shape.
+    // ``loadSource: 'subject-external'`` matches the production restore
+    // path (decision #8 — restore is semantically a fresh subject focus,
+    // not a graph-internal expansion); camera is ``center`` so the saved
+    // target is recentred on first mount.
+    await assertFsmEventEnvelope(page, {
+      type: 'handoffRequested',
+      source: 'restore-preference',
+      kind: 'graph-node',
+      loadSource: 'subject-external',
+      cameraKind: 'center',
+      errors: errs,
+    })
   })
 
   test('H7.2 — Tab-switch round-trip: reconcile-only [F4e]', async ({ page }) => {

@@ -9,6 +9,7 @@
 import { expect, test } from '@playwright/test'
 import { mainViewsNav, SHELL_HEADING_RE, statusBarCorpusPathInput } from '../helpers'
 import {
+  assertFsmEventEnvelope,
   assertHandoffApplied,
   captureConsoleErrors,
   readFsmState,
@@ -127,19 +128,14 @@ test.describe('Handoff matrix § Section 1 — Cold-start', () => {
       })
     })
     await page.waitForTimeout(300)
-    const log = await page.evaluate(
-      () =>
-        ((window as unknown as { __GIKG_FSM_EVENT_LOG__?: unknown[] })
-          .__GIKG_FSM_EVENT_LOG__ ?? []) as Array<{
-          type: string
-          envelope?: Record<string, unknown>
-        }>,
-    )
-    const searchEvent = log.find((e) => e.envelope?.['source'] === 'search')
-    expect(searchEvent, 'search envelope reached the FSM').toBeDefined()
-    expect(searchEvent?.envelope?.['kind']).toBe('topic')
-    expect(searchEvent?.envelope?.['loadSource']).toBe('subject-external')
-    expect(errs.errors).toEqual([])
+    await assertFsmEventEnvelope(page, {
+      type: 'handoffRequested',
+      source: 'search',
+      kind: 'topic',
+      loadSource: 'subject-external',
+      cameraKind: 'center-on-target',
+      errors: errs,
+    })
   })
 
   test('H1.6 — Episode panel "Open in graph" (cold start) [F1.1]', async ({ page }) => {
@@ -194,18 +190,14 @@ test.describe('Handoff matrix § Section 1 — Cold-start', () => {
       })
     })
     await page.waitForTimeout(300)
-    const log = await page.evaluate(
-      () =>
-        ((window as unknown as { __GIKG_FSM_EVENT_LOG__?: unknown[] })
-          .__GIKG_FSM_EVENT_LOG__ ?? []) as Array<{
-          type: string
-          envelope?: Record<string, unknown>
-        }>,
-    )
-    const dash = log.find((e) => e.envelope?.['source'] === 'dashboard')
-    expect(dash, 'dashboard envelope reached the FSM').toBeDefined()
-    expect(dash?.envelope?.['loadSource']).toBe('subject-external')
-    expect(errs.errors).toEqual([])
+    await assertFsmEventEnvelope(page, {
+      type: 'handoffRequested',
+      source: 'dashboard',
+      kind: 'topic',
+      loadSource: 'subject-external',
+      cameraKind: 'center-on-target',
+      errors: errs,
+    })
   })
 
   test('H1.9 — SubjectRail @go-graph (O5)', async ({ page }) => {
@@ -240,17 +232,14 @@ test.describe('Handoff matrix § Section 1 — Cold-start', () => {
       })
     })
     await page.waitForTimeout(300)
-    const log = await page.evaluate(
-      () =>
-        ((window as unknown as { __GIKG_FSM_EVENT_LOG__?: unknown[] })
-          .__GIKG_FSM_EVENT_LOG__ ?? []) as Array<{
-          type: string
-          envelope?: Record<string, unknown>
-        }>,
-    )
-    const sr = log.find((e) => e.envelope?.['source'] === 'subject-rail')
-    expect(sr, 'subject-rail envelope reached the FSM').toBeDefined()
-    expect(errs.errors).toEqual([])
+    await assertFsmEventEnvelope(page, {
+      type: 'handoffRequested',
+      source: 'subject-rail',
+      kind: 'graph-node',
+      loadSource: 'subject-external',
+      cameraKind: 'center-on-target',
+      errors: errs,
+    })
   })
 
   test('H1.10 — StatusBar @go-graph (O6)', async ({ page }) => {
@@ -284,17 +273,14 @@ test.describe('Handoff matrix § Section 1 — Cold-start', () => {
       })
     })
     await page.waitForTimeout(300)
-    const log = await page.evaluate(
-      () =>
-        ((window as unknown as { __GIKG_FSM_EVENT_LOG__?: unknown[] })
-          .__GIKG_FSM_EVENT_LOG__ ?? []) as Array<{
-          type: string
-          envelope?: Record<string, unknown>
-        }>,
-    )
-    const sb = log.find((e) => e.envelope?.['source'] === 'status-bar')
-    expect(sb, 'status-bar envelope reached the FSM').toBeDefined()
-    expect(errs.errors).toEqual([])
+    await assertFsmEventEnvelope(page, {
+      type: 'handoffRequested',
+      source: 'status-bar',
+      kind: 'graph-node',
+      loadSource: 'subject-external',
+      cameraKind: 'center-on-target',
+      errors: errs,
+    })
   })
 
   test('H1.11 — Mini-map / GraphConnectionsSection click (G6)', async ({
@@ -335,20 +321,14 @@ test.describe('Handoff matrix § Section 1 — Cold-start', () => {
       })
     })
     await page.waitForTimeout(300)
-    const log = await page.evaluate(
-      () =>
-        ((window as unknown as { __GIKG_FSM_EVENT_LOG__?: unknown[] })
-          .__GIKG_FSM_EVENT_LOG__ ?? []) as Array<{
-          type: string
-          envelope?: Record<string, unknown>
-        }>,
-    )
-    const mm = log.find(
-      (e) => e.type === 'canvasTapped' && e.envelope?.['source'] === 'minimap',
-    )
-    expect(mm, 'minimap canvasTapped envelope reached the FSM').toBeDefined()
-    expect(mm?.envelope?.['camera']).toMatchObject({ kind: 'preserve' })
-    expect(errs.errors).toEqual([])
+    await assertFsmEventEnvelope(page, {
+      type: 'canvasTapped',
+      source: 'minimap',
+      kind: 'graph-node',
+      loadSource: 'graph-internal',
+      cameraKind: 'preserve',
+      errors: errs,
+    })
   })
 
   test('H1.12 — Escape key clears focus (K1)', async ({ page }) => {
@@ -452,20 +432,15 @@ test.describe('Handoff matrix § Section 1 — Cold-start', () => {
       })
     })
     await page.waitForTimeout(300)
-    const log = await page.evaluate(
-      () =>
-        ((window as unknown as { __GIKG_FSM_EVENT_LOG__?: unknown[] })
-          .__GIKG_FSM_EVENT_LOG__ ?? []) as Array<{
-          type: string
-          envelope?: Record<string, unknown>
-        }>,
-    )
-    const nd = log.find((e) => e.envelope?.['source'] === 'node-detail')
-    expect(nd, 'node-detail envelope reached the FSM').toBeDefined()
-    expect(nd?.envelope?.['kind']).toBe('graph-node')
     // Definition X — NodeDetail Load preserves layout, so loadSource is
     // graph-internal (not subject-external).
-    expect(nd?.envelope?.['loadSource']).toBe('graph-internal')
-    expect(errs.errors).toEqual([])
+    await assertFsmEventEnvelope(page, {
+      type: 'handoffRequested',
+      source: 'node-detail',
+      kind: 'graph-node',
+      loadSource: 'graph-internal',
+      cameraKind: 'center-on-target',
+      errors: errs,
+    })
   })
 })
