@@ -872,8 +872,22 @@ async function loadEpisodeSliceForTerritoryStrip(): Promise<void> {
      *  the new nodes into Cytoscape's ``core``, so ``$id(cy).empty()``
      *  is true and camera animation never fires. */
     artifacts.setLoadSource('subject-external')
-    // F2 — advance to loading_merge before the artifact append; the
-    // filteredArtifact watcher transitions into redrawing_full via runRelayout.
+    // Advance the FSM to ``loading_merge`` only when there's an
+    // in-flight envelope it's driving (``loading_fetch`` or
+    // ``loading_bootstrap``). This function is called from two places:
+    //
+    //   (a) As the primary fetch+merge for a Library / Episode-panel
+    //       handoff — FSM is in ``loading_fetch``, advance is correct.
+    //   (b) Reactively from subject changes that happen *after* the FSM
+    //       has settled to ``ready`` (e.g. the user clicks a different
+    //       Library row's preview, or a subject-rail tab return). In
+    //       this case the FSM should NOT be advanced backwards into
+    //       ``loading_merge`` — that's the "details panel impacts graph"
+    //       loop we want to prevent.
+    //
+    // The guard below already protects case (b) — only advance if the
+    // primary handoff is mid-flight. Case (a) gets the advance; case
+    // (b) leaves FSM in ``ready``.
     if (graphHandoff.state === 'loading_fetch' || graphHandoff.state === 'loading_bootstrap') {
       graphHandoff.advanceState('loading_merge')
     }
@@ -3190,38 +3204,32 @@ watch(
             : ''
         const restoreTargetAlreadyApplied = (cyId: string): boolean =>
           !!lastAppliedCyId && sameLogicalCyId(cyId, lastAppliedCyId)
+        // Architectural principle: **the details / subject rail must not
+        // drive graph state via watchers.** Only deliberate user clicks
+        // route through the FSM. This meta-watcher used to fire
+        // ``handoffRequested({source:'restore-preference'})`` whenever the
+        // artifact set changed — that was a side-effect → handoff loop.
+        // The post-layout restore-applied hook at the top of
+        // ``finishLayoutPass`` is the canonical path: it re-selects the
+        // FSM's last applied target after any redraw that destroyed
+        // selection. The watcher's role here is reduced to:
+        //   1. Capture the prior subject's intent in ``pendingFocusNodeId``
+        //      via ``nav.requestFocusNode`` (legacy pending-focus path,
+        //      consumed by the watcher at this file's nav.pendingFocusNodeId
+        //      watch).
+        //   2. ``scheduleRedraw()`` for the new artifact set.
+        // No autonomous FSM envelope dispatch from a side-effect path.
         if (
           restoreGraphNodeId &&
           !handoffInFlight &&
           !restoreTargetAlreadyApplied(restoreGraphNodeId)
         ) {
-          // F3b — route restore through orchestrator instead of self-triggering
-          // the meta-watcher with `nav.requestFocusNode`. The FSM observes this
-          // as `source: 'restore-preference'` (decision #8 / FSM spec) so it
-          // looks like a normal handoff from outside. Self-trigger is structurally
-          // impossible because `handoffRequested` from inside this watcher fires
-          // a fresh envelope rather than mutating `pendingFocusNodeId` directly.
-          graphHandoff.handoffRequested({
-            kind: 'graph-node',
-            cyId: restoreGraphNodeId,
-            source: 'restore-preference',
-            loadSource: 'subject-external',
-            camera: { kind: 'center', cyId: restoreGraphNodeId },
-          })
           nav.requestFocusNode(restoreGraphNodeId)
         } else if (
           restoreEpisodeCyId &&
           !handoffInFlight &&
           !restoreTargetAlreadyApplied(restoreEpisodeCyId)
         ) {
-          // Same routing as above for the episode case.
-          graphHandoff.handoffRequested({
-            kind: 'episode',
-            cyId: restoreEpisodeCyId,
-            source: 'restore-preference',
-            loadSource: 'subject-external',
-            camera: { kind: 'center', cyId: restoreEpisodeCyId },
-          })
           nav.requestFocusNode(restoreEpisodeCyId)
         }
         scheduleRedraw()
