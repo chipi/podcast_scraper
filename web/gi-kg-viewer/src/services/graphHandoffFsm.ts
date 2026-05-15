@@ -155,6 +155,14 @@ export type FsmEvent =
   | { type: 'handoffFailed'; reason: string }
   | { type: 'layoutstop' }
   | { type: 'layoutstart' }
+  /**
+   * F2 — apply phase completed externally (typically from
+   * ``tryApplyPendingFocus`` for the "node already in cy, no redraw
+   * needed" path). Route through ``applyEvent`` so the FSM's transition
+   * table validates the shortcut rather than bypassing the table via
+   * direct state mutation.
+   */
+  | { type: 'recordApplied'; appliedCyId: string; fallbackApplied: boolean }
 
 /**
  * Disposition of an event from the FSM's perspective. The orchestrator runtime
@@ -425,6 +433,40 @@ export function applyEvent(fsm: Fsm, event: FsmEvent): EventDisposition {
         }
       }
       return { kind: 'drop', reason: `layoutstart ignored in state=${fsm.state}` }
+    }
+    case 'recordApplied': {
+      // F2 — validated apply shortcut. Tolerated source states:
+      //
+      //   - ``applying``: canonical end-of-pipeline (finishLayoutPass after a
+      //     full redraw → layoutstop → applying).
+      //   - ``loading_fetch`` / ``loading_bootstrap`` / ``loading_merge`` /
+      //     ``redrawing_incremental`` / ``redrawing_full``: the "node already
+      //     in cy, no redraw needed" path (``tryApplyPendingFocus`` resolves
+      //     the cy id immediately after a handoffRequested without waiting
+      //     for layoutstop). The FSM's FORWARD_TRANSITIONS table allows these
+      //     jumps to ``ready``; validate explicitly.
+      //   - ``ready``: idempotent double-call (no-op). Skip the state mutation
+      //     but still update lastResult / disarm the stuck timer.
+      //   - ``idle``: explicit no-op — no pending envelope means nothing to
+      //     mark applied. Caller is buggy; drop.
+      if (fsm.state === 'idle') {
+        return { kind: 'drop', reason: `recordApplied in idle (no pending envelope)` }
+      }
+      if (fsm.state !== 'ready' && !isValidAdvance(fsm.state, 'ready')) {
+        return {
+          kind: 'drop',
+          reason: `recordApplied: invalid transition from ${fsm.state} to ready`,
+        }
+      }
+      const previousPending = fsm.pending
+      fsm.pending = null
+      fsm.state = 'ready'
+      return {
+        kind: 'accept',
+        nextState: 'ready',
+        envelope: previousPending,
+        supersededInFlight: false,
+      }
     }
   }
 }

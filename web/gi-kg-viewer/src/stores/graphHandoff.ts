@@ -319,14 +319,28 @@ export const useGraphHandoffStore = defineStore('graphHandoff', () => {
    * apply-phase transition.
    */
   function recordApplied(appliedCyId: string, fallbackApplied = false): void {
+    // F2 — route through the FSM transition table so the apply shortcut is
+    // validated rather than silently bypassing the state graph. The FSM's
+    // ``recordApplied`` event accepts the shortcut from ``loading_*`` /
+    // ``redrawing_*`` / ``applying`` (all states with a documented path to
+    // ``ready``) and drops it from ``idle`` (no pending envelope to apply).
     const previousPending = fsm.pending
+    const disposition = fsmApplyEvent(fsm, {
+      type: 'recordApplied',
+      appliedCyId,
+      fallbackApplied,
+    })
+    if (disposition.kind === 'drop') {
+      // Off-table transition (e.g. recordApplied called with no pending).
+      // Don't mutate lastResult — preserves any prior `failed`/`applied`
+      // status for the failure UI strip to render correctly.
+      return
+    }
     lastResult.value = {
       status: 'applied',
       appliedCyId,
       fallbackApplied,
     }
-    fsm.pending = null
-    fsm.state = 'ready'
     syncReactive()
     clearStuckTimer()
     // F6 — telemetry: record successful handoff completion.
