@@ -99,33 +99,59 @@ test.describe('Handoff matrix § Section 6 — Failure modes', () => {
   })
 
   test('H6.3 — Stuck handoff (15s timeout) [F4e]', async ({ page }) => {
-    // F4e — mock the corpus detail endpoint to hang indefinitely; FSM stuck
-    // detector should fire after STUCK_TIMEOUT_MS (15000ms) and clear pending.
+    // F4e — verify the FSM stuck-detector clears `pending` after
+    // ``STUCK_TIMEOUT_MS`` (15 s) when an envelope cannot reach `ready`.
+    // Drive the FSM directly via the dev hook so the test doesn't depend
+    // on the Episode panel rendering — the FSM-side contract is what the
+    // matrix row pins. The orchestrator's stuck-detection callback
+    // recognises a non-superseded envelope whose ``loading_*`` state never
+    // advanced and forces FSM back to ``ready`` with
+    // ``lastResult.status = 'failed'``. (No UI fixture would change that
+    // contract; a UI-driven test would just be a slower way to exercise
+    // the same callback.)
     test.setTimeout(25_000)
     await setupHandoffMatrixMocks(page)
-    // Make the detail endpoint hang.
-    await page.route('**/api/corpus/episodes/detail**', () => {
-      // Never fulfill — the request hangs until test teardown.
-      return new Promise(() => {})
-    })
     await page.goto('/')
     await page.getByRole('heading', { name: SHELL_HEADING_RE }).waitFor()
     await statusBarCorpusPathInput(page).fill('/mock/corpus')
-    await mainViewsNav(page).getByRole('button', { name: 'Library' }).click()
-    await page.getByRole('button', { name: 'Mock Episode Title, Mock Show' }).click()
-    const openBtn = page.getByRole('button', { name: 'Open in graph' })
-    if (!(await openBtn.isVisible({ timeout: 2000 }).catch(() => false))) {
-      test.skip(true, 'Episode panel not reachable when detail endpoint hangs.')
-      return
-    }
-    await openBtn.click()
-    const before = await readFsmState(page)
-    expect(before).not.toBeNull()
-    // Wait > STUCK_TIMEOUT_MS (15s); the stuck detector should clear pending.
+    // Drop us onto the graph tab so the dev hook is available.
+    await mainViewsNav(page).getByRole('button', { name: 'Graph' }).click()
+    await page.waitForTimeout(500)
+
+    // Fire an envelope that the FSM will never be able to resolve — its
+    // cyId references a node that doesn't exist in the empty/initial graph
+    // AND we deliberately don't drive recordApplied. The stuck-timer is
+    // the only escape path; if it doesn't fire, ``pending`` stays set.
+    await page.evaluate(() => {
+      const store = (
+        window as unknown as {
+          __GIKG_HANDOFF_STORE__?: {
+            handoffRequested: (env: Record<string, unknown>) => void
+          }
+        }
+      ).__GIKG_HANDOFF_STORE__
+      store?.handoffRequested({
+        kind: 'graph-node',
+        cyId: 'g:topic:stuck-test-target-never-resolves',
+        source: 'restore-preference',
+        loadSource: 'subject-external',
+        camera: { kind: 'center-on-target' },
+      })
+    })
+
+    const beforeStuck = await readFsmState(page)
+    expect(beforeStuck).not.toBeNull()
+    expect(beforeStuck!.pending).not.toBeNull()
+
+    // Wait > STUCK_TIMEOUT_MS (15 s). The detector forces ``pending = null``
+    // and records ``lastResult.status = 'failed'`` with reason
+    // ``stuck-timeout after 15000ms`` (envelope.cyId is preserved on
+    // ``lastResult.appliedCyId`` so a downstream layoutstop can still
+    // restore — but the *pending* slot must be cleared).
     await page.waitForTimeout(16_000)
-    const after = await readFsmState(page)
-    expect(after).not.toBeNull()
-    // After stuck detection: pending cleared, lastResultStatus is 'failed'.
-    expect(after!.pending).toBeNull()
+    const afterStuck = await readFsmState(page)
+    expect(afterStuck).not.toBeNull()
+    expect(afterStuck!.pending).toBeNull()
+    expect(afterStuck!.lastResultStatus).toBe('failed')
   })
 })
