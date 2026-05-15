@@ -36,8 +36,8 @@ Usage:
     # Skip GIL evidence models (QA + NLI)
     SKIP_GIL=1 python scripts/cache/preload_ml_models.py
 
-    # Wall-clock cap for the whole run (SIGALRM on Unix). Default is short for dev preload;
-    # ``--production`` uses a larger default because cold HF downloads exceed 10 minutes.
+    # Wall-clock cap for the whole run (SIGALRM on Unix). Default is 1200s for dev preload;
+    # ``--production`` uses a larger default because cold HF downloads exceed 20 minutes.
     # Use PRELOAD_TIMEOUT=0 to disable the alarm.
     PRELOAD_TIMEOUT=7200 python scripts/cache/preload_ml_models.py --production
 
@@ -58,7 +58,7 @@ from typing import List, Optional
 # Wall-clock timeout to prevent indefinite hangs during model
 # downloads or loads that can trigger macOS APFS kernel lock contention.
 # Effective value is set in main() after parsing --production (see _arm_preload_alarm).
-_PRELOAD_TIMEOUT_EFFECTIVE: int = 600
+_PRELOAD_TIMEOUT_EFFECTIVE: int = 1200
 
 
 def _timeout_handler(signum, frame):
@@ -76,10 +76,10 @@ def _arm_preload_alarm(*, production: bool) -> None:
     """Configure SIGALRM duration for this run (Unix only).
 
     ``PRELOAD_TIMEOUT`` overrides defaults. ``0`` disables the alarm.
-    Non-production default stays at 600s so local dev preloads do not hang forever.
-    Production default is 7200s: cold cache downloads (Whisper + HF + GIL) exceed 600s
-    on both CI and developer machines, which previously aborted mid first large model
-    (often ``bart-small`` / ``facebook/bart-base``).
+    Non-production default is 1200s so a cold HF sequence (several ~1--2 GB models) can
+    finish without hanging unbounded.
+    Production default is 7200s: cold cache downloads (Whisper + HF + GIL) can exceed
+    20 minutes on both CI and developer machines.
     """
     global _PRELOAD_TIMEOUT_EFFECTIVE
     raw = os.environ.get("PRELOAD_TIMEOUT")
@@ -88,7 +88,7 @@ def _arm_preload_alarm(*, production: bool) -> None:
     elif production:
         _PRELOAD_TIMEOUT_EFFECTIVE = 7200
     else:
-        _PRELOAD_TIMEOUT_EFFECTIVE = 600
+        _PRELOAD_TIMEOUT_EFFECTIVE = 1200
     if _PRELOAD_TIMEOUT_EFFECTIVE < 0:
         print("ERROR: PRELOAD_TIMEOUT must be >= 0 (use 0 to disable the alarm)", file=sys.stderr)
         sys.exit(2)

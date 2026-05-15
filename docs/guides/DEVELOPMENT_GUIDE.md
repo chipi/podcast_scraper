@@ -560,7 +560,7 @@ and can cause processes to enter uninterruptible wait (`UE` state) where
 - **Offline mode** -- `HF_HUB_OFFLINE=1` and `TRANSFORMERS_OFFLINE=1`
   are exported for all Makefile recipes, preventing accidental model
   downloads during builds.
-- **Preload timeout** -- `preload_ml_models.py` has a 600-second
+- **Preload timeout** -- `preload_ml_models.py` has a 1200-second
   `signal.alarm` hard timeout to prevent indefinite hangs.
 
 **Diagnostic commands:**

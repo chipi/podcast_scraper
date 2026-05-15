@@ -1056,7 +1056,7 @@ after reboot.
 | CI targets | `cleanup-processes` runs as a prerequisite to `ci` and `ci-fast` | `Makefile` |
 | Offline mode | Pytest: `tests/conftest.py`; `make ci` probe: inline env; preload/smoke: `env -u` so Hub works | `Makefile`, `tests/conftest.py` |
 | Pre-commit hook | 120-second watchdog timeout; process group cleanup on exit (`kill -- -$$`) | `.github/hooks/pre-commit` |
-| Preload script | 600-second `signal.alarm` hard timeout | `scripts/cache/preload_ml_models.py` |
+| Preload script | 1200-second `signal.alarm` hard timeout | `scripts/cache/preload_ml_models.py` |
 | Agent rules | Rules 10/10a/10b in `.cursorrules`: no retrying stuck commands, no overlapping `make ci`, mandatory `cleanup-processes` after hung runs | `.cursorrules` |
 | Session hook | Cursor `sessionStart` hook runs `check-zombie.sh` to detect UE processes before any work begins | `.cursor/hooks/` |
 

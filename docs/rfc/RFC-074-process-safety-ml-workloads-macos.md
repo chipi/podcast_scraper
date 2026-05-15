@@ -347,9 +347,9 @@ The following macOS settings are prerequisites for safe ML development:
 The project already has `src/podcast_scraper/utils/timeout.py` using
 `threading.Timer`. `preload_ml_models.py` uses `SIGALRM` (Unix) instead.
 
-Defaults (after parsing CLI args): non-production preloads use **600s**;
+Defaults (after parsing CLI args): non-production preloads use **1200s**;
 ``--production`` uses **7200s** because cold Whisper + Hugging Face + GIL
-evidence downloads exceed 10 minutes on CI and locally. Environment variable
+evidence downloads can exceed 20 minutes on CI and locally. Environment variable
 ``PRELOAD_TIMEOUT`` overrides both; ``0`` disables the alarm.
 
 Arm the alarm after ``argparse`` (so ``--production`` is known), before
