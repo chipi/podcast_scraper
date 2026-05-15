@@ -80,11 +80,25 @@ export function captureConsoleErrors(page: Page): { errors: string[] } {
  * matrix specs share. Mirrors the patterns from `library.spec.ts`,
  * `digest.spec.ts`, and `search-to-graph-mocks.spec.ts` beforeEach blocks.
  *
- * Provides one episode (`metadata/ep1.metadata.json`, episode_id `e1`) and one
- * digest with a topic pill — enough to exercise Library, Episode panel, Digest
- * pill, and Search handoffs from a single fixture.
+ * Provides one episode (`metadata/ep1.metadata.json`, episode_id `e1`).
+ *
+ * Optional rich fixtures (default off — most matrix specs only need the
+ * minimum):
+ *   - `digest`: populates `/api/corpus/digest` with one recent row that has
+ *     CIL pills targeting ``topic:ci-policy`` (a node already present in
+ *     the CI GI fixture), plus a topic band hit referencing the same
+ *     episode. Unblocks D1 / D2 / D3 cold-start and hot-state matrix rows.
+ *   - `search`: populates `/api/search` with one result wired to the same
+ *     ``topic:ci-policy`` node so the search "Show on graph" handoff
+ *     reaches the same target. Unblocks S1 rows.
+ *   - `clusters`: populates `/api/corpus/topic-clusters` with a cluster
+ *     containing ``topic:ci-policy`` so NodeDetail's "Load" / sibling-merge
+ *     paths have data to expand. Unblocks O3 / H2.7 / H4.3.
  */
-export async function setupHandoffMatrixMocks(page: Page): Promise<void> {
+export async function setupHandoffMatrixMocks(
+  page: Page,
+  opts?: { digest?: boolean; search?: boolean; clusters?: boolean },
+): Promise<void> {
   await page.route('**/api/health', (r) =>
     r.fulfill({
       status: 200,
@@ -210,32 +224,127 @@ export async function setupHandoffMatrixMocks(page: Page): Promise<void> {
       body: ARTIFACT_JSON,
     }),
   )
-  // Topic clusters endpoint: empty result (corpus has no topic-cluster doc).
-  // Prevents a noisy console error when the viewer queries it on graph mount.
+  // Topic clusters endpoint
   await page.route('**/api/corpus/topic-clusters**', (r) =>
     r.fulfill({
       status: 200,
       contentType: 'application/json',
-      body: JSON.stringify({
-        path: '/mock/corpus',
-        topic_clusters: [],
-        compounds: [],
-      }),
+      body: JSON.stringify(
+        opts?.clusters
+          ? {
+              schema_version: '2',
+              clusters: [
+                {
+                  graph_compound_parent_id: 'tc:ci-policy-cluster',
+                  cil_alias_target_topic_id: 'topic:ci-policy',
+                  canonical_label: 'CI policy cluster',
+                  member_count: 1,
+                  members: [{ topic_id: 'topic:ci-policy' }],
+                },
+              ],
+              topic_count: 1,
+              cluster_count: 1,
+              singletons: 0,
+            }
+          : { path: '/mock/corpus', topic_clusters: [], compounds: [] },
+      ),
     }),
   )
-  // Digest endpoint: empty digest. Some viewer code calls /api/corpus/digest
-  // on mount; a 200 with no rows keeps the FSM contract surfaces unaffected.
+  // Digest endpoint
   await page.route('**/api/corpus/digest**', (r) =>
     r.fulfill({
       status: 200,
       contentType: 'application/json',
-      body: JSON.stringify({
-        path: '/mock/corpus',
-        recent: [],
-        topic_bands: [],
-      }),
+      body: JSON.stringify(
+        opts?.digest
+          ? {
+              path: '/mock/corpus',
+              window: 'all',
+              window_start_utc: '1970-01-01T00:00:00Z',
+              window_end_utc: '2024-06-08T00:00:00Z',
+              compact: false,
+              rows: [
+                {
+                  metadata_relative_path: 'metadata/ep1.metadata.json',
+                  feed_id: 'f1',
+                  feed_display_title: 'Mock Show',
+                  episode_id: 'e1',
+                  episode_title: 'Mock Episode Title',
+                  publish_date: '2024-06-05',
+                  summary_title: 'Mock summary',
+                  summary_bullets_preview: ['Mock bullet'],
+                  summary_bullet_graph_topic_ids: ['topic:ci-policy'],
+                  summary_preview: 'Mock summary — Mock bullet',
+                  gi_relative_path: 'metadata/ep1.gi.json',
+                  kg_relative_path: 'metadata/ep1.kg.json',
+                  has_gi: true,
+                  has_kg: true,
+                  cil_digest_topics: [
+                    {
+                      topic_id: 'topic:ci-policy',
+                      label: 'CI Policy',
+                      in_topic_cluster: true,
+                      topic_cluster_compound_id: 'tc:ci-policy-cluster',
+                    },
+                  ],
+                },
+              ],
+              topics: [
+                {
+                  topic_id: 't1',
+                  label: 'CI Policy Band',
+                  query: 'ci policy',
+                  graph_topic_id: 'topic:ci-policy',
+                  hits: [
+                    {
+                      metadata_relative_path: 'metadata/ep1.metadata.json',
+                      episode_title: 'Mock Episode Title',
+                      feed_id: 'f1',
+                      feed_display_title: 'Mock Show',
+                      publish_date: '2024-06-05',
+                      score: 0.91,
+                      summary_preview: 'Mock summary — Mock bullet',
+                      episode_id: 'e1',
+                      gi_relative_path: 'metadata/ep1.gi.json',
+                      kg_relative_path: 'metadata/ep1.kg.json',
+                      has_gi: true,
+                      has_kg: true,
+                    },
+                  ],
+                },
+              ],
+              topics_unavailable_reason: null,
+            }
+          : { path: '/mock/corpus', recent: [], topic_bands: [] },
+      ),
     }),
   )
+  // Search endpoint (only when explicitly enabled)
+  if (opts?.search) {
+    await page.route('**/api/search?**', (r) =>
+      r.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          query: 'ci policy',
+          results: [
+            {
+              doc_id: 'doc-ci-policy',
+              score: 0.95,
+              text: 'CI policy mention (stub).',
+              metadata: {
+                doc_type: 'topic',
+                source_id: 'topic:ci-policy',
+                episode_id: 'e1',
+                source_metadata_relative_path: 'metadata/ep1.metadata.json',
+                graph_topic_id: 'topic:ci-policy',
+              },
+            },
+          ],
+        }),
+      }),
+    )
+  }
 }
 
 /**

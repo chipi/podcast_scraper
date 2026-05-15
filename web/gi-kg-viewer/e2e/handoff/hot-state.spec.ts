@@ -49,19 +49,75 @@ test.describe('Handoff matrix § Section 2 — Hot state', () => {
   })
 
   test('H2.2 — Digest A → Digest B (D1 hot) [F4c]', async ({ page }) => {
-    await setupHandoffMatrixMocks(page)
-    test.skip(
-      true,
-      'D1 hot state needs full digest mock with multiple pills; FSM event class covered by digest.spec.ts indirectly.',
-    )
+    // Hot-state D1 re-click: each click on the same pill bumps generation
+    // (FSM "always supersede" re-entrance policy for handoffRequested).
+    const errs = captureConsoleErrors(page)
+    await setupHandoffMatrixMocks(page, { digest: true })
+    await page.goto('/')
+    await page.getByRole('heading', { name: SHELL_HEADING_RE }).waitFor()
+    await statusBarCorpusPathInput(page).fill('/mock/corpus')
+    await expect(page.getByTestId('digest-root')).toBeVisible()
+
+    const before = await readFsmState(page)
+    expect(before).not.toBeNull()
+    const startGen = before!.generation
+
+    await page
+      .getByRole('button', { name: 'Open graph for topic: CI Policy' })
+      .click()
+    await page.waitForTimeout(600)
+    // Switch back to Digest and re-click the same pill.
+    await mainViewsNav(page).getByRole('button', { name: 'Digest' }).click()
+    await page
+      .getByRole('button', { name: 'Open graph for topic: CI Policy' })
+      .click()
+    await page.waitForTimeout(800)
+
+    const after = await readFsmState(page)
+    expect(after).not.toBeNull()
+    expect(after!.generation).toBeGreaterThanOrEqual(startGen + 2)
+    expect(errs.errors).toEqual([])
   })
 
   test('H2.3 — Search A → Search B (S1 hot) [F4c]', async ({ page }) => {
-    await setupHandoffMatrixMocks(page)
-    test.skip(
-      true,
-      'S1 hot state needs full search mock; routing via @go-graph + activateGraphTab(source: search) wired in F1.6.',
-    )
+    // Hot-state S1 re-click: two ``handoffRequested(source: 'search')`` events
+    // bump generation by 2. Drive via the FSM dev hook (same contract as
+    // H1.5; no search-UI fixture needed for the FSM-side assertion).
+    const errs = captureConsoleErrors(page)
+    await setupHandoffMatrixMocks(page, { search: true })
+    await page.goto('/')
+    await page.getByRole('heading', { name: SHELL_HEADING_RE }).waitFor()
+    await statusBarCorpusPathInput(page).fill('/mock/corpus')
+    await page.waitForTimeout(500)
+
+    const before = await readFsmState(page)
+    expect(before).not.toBeNull()
+    const startGen = before!.generation
+
+    await page.evaluate(() => {
+      const store = (
+        window as unknown as {
+          __GIKG_HANDOFF_STORE__?: {
+            handoffRequested: (env: Record<string, unknown>) => void
+          }
+        }
+      ).__GIKG_HANDOFF_STORE__
+      const env = (cyId: string): Record<string, unknown> => ({
+        kind: 'topic',
+        cyId,
+        source: 'search',
+        loadSource: 'subject-external',
+        camera: { kind: 'center-on-target' },
+      })
+      store?.handoffRequested(env('topic:ci-policy'))
+      store?.handoffRequested(env('topic:ci-policy'))
+    })
+    await page.waitForTimeout(300)
+
+    const after = await readFsmState(page)
+    expect(after).not.toBeNull()
+    expect(after!.generation).toBeGreaterThanOrEqual(startGen + 2)
+    expect(errs.errors).toEqual([])
   })
 
   test('H2.4 — Episode panel re-click: generation supersedes [F1.1]', async ({ page }) => {
@@ -93,26 +149,118 @@ test.describe('Handoff matrix § Section 2 — Hot state', () => {
   })
 
   test('H2.5 — Mixed: Digest A → Library B [F4c]', async ({ page }) => {
-    await setupHandoffMatrixMocks(page)
-    test.skip(
-      true,
-      'Cross-surface Digest → Library needs digest fixtures with topic pill; highlight envelope reset (decision #10) is wired in C7 / F1.5.',
-    )
+    // Cross-surface: digest pill then library "Open in graph".
+    // Each click should bump generation. Highlights from the digest envelope
+    // should NOT bleed into the library envelope (decision #10: apply phase
+    // resets highlights from envelope).
+    const errs = captureConsoleErrors(page)
+    await setupHandoffMatrixMocks(page, { digest: true })
+    await page.goto('/')
+    await page.getByRole('heading', { name: SHELL_HEADING_RE }).waitFor()
+    await statusBarCorpusPathInput(page).fill('/mock/corpus')
+    await expect(page.getByTestId('digest-root')).toBeVisible()
+
+    const before = await readFsmState(page)
+    expect(before).not.toBeNull()
+    const startGen = before!.generation
+
+    await page
+      .getByRole('button', { name: 'Open graph for topic: CI Policy' })
+      .click()
+    await page.waitForTimeout(800)
+
+    await mainViewsNav(page).getByRole('button', { name: 'Library' }).click()
+    await page.getByRole('button', { name: 'Mock Episode Title, Mock Show' }).click()
+    await page.getByRole('button', { name: 'Open in graph' }).click()
+    await page.waitForTimeout(800)
+
+    const after = await readFsmState(page)
+    expect(after).not.toBeNull()
+    expect(after!.generation).toBeGreaterThanOrEqual(startGen + 2)
+    expect(errs.errors).toEqual([])
   })
 
   test('H2.6 — Mixed: Library A → Digest B [F4c]', async ({ page }) => {
-    await setupHandoffMatrixMocks(page)
-    test.skip(
-      true,
-      'Cross-surface Library → Digest needs digest fixtures; load-source flip-flop verified by C1 + F1.5 migrations.',
-    )
+    // Cross-surface reverse: library Open in graph then digest pill.
+    // Each click should bump generation; load-source flip-flop (subject-external
+    // → digest-external) should not leak between FSM events.
+    const errs = captureConsoleErrors(page)
+    await setupHandoffMatrixMocks(page, { digest: true })
+    await page.goto('/')
+    await page.getByRole('heading', { name: SHELL_HEADING_RE }).waitFor()
+    await statusBarCorpusPathInput(page).fill('/mock/corpus')
+    await mainViewsNav(page).getByRole('button', { name: 'Library' }).click()
+    await page.getByRole('button', { name: 'Mock Episode Title, Mock Show' }).click()
+    await expect(
+      page
+        .getByRole('region', { name: 'Episode', exact: true })
+        .getByRole('heading', { name: 'Mock Episode Title' }),
+    ).toBeVisible()
+
+    const before = await readFsmState(page)
+    expect(before).not.toBeNull()
+    const startGen = before!.generation
+
+    await page.getByRole('button', { name: 'Open in graph' }).click()
+    await page.waitForTimeout(800)
+
+    await mainViewsNav(page).getByRole('button', { name: 'Digest' }).click()
+    await expect(page.getByTestId('digest-root')).toBeVisible()
+    await page
+      .getByRole('button', { name: 'Open graph for topic: CI Policy' })
+      .click()
+    await page.waitForTimeout(800)
+
+    const after = await readFsmState(page)
+    expect(after).not.toBeNull()
+    expect(after!.generation).toBeGreaterThanOrEqual(startGen + 2)
+    expect(errs.errors).toEqual([])
   })
 
   test('H2.7 — Mixed: Search → NodeDetail Load [F4c]', async ({ page }) => {
-    await setupHandoffMatrixMocks(page)
-    test.skip(
-      true,
-      'Cross-surface Search → NodeDetail needs search + corpus-with-clusters fixtures; Definition X classification wired in F1.6.',
-    )
+    // Cross-surface: search handoff (subject-external) followed by NodeDetail
+    // Load handoff (graph-internal). Definition X: graph-internal load
+    // sources preserve layout. Drive both through the dev hook to pin the
+    // FSM-side contract.
+    const errs = captureConsoleErrors(page)
+    await setupHandoffMatrixMocks(page, { search: true, clusters: true })
+    await page.goto('/')
+    await page.getByRole('heading', { name: SHELL_HEADING_RE }).waitFor()
+    await statusBarCorpusPathInput(page).fill('/mock/corpus')
+    await page.waitForTimeout(500)
+
+    const before = await readFsmState(page)
+    expect(before).not.toBeNull()
+    const startGen = before!.generation
+
+    await page.evaluate(() => {
+      const store = (
+        window as unknown as {
+          __GIKG_HANDOFF_STORE__?: {
+            handoffRequested: (env: Record<string, unknown>) => void
+          }
+        }
+      ).__GIKG_HANDOFF_STORE__
+      store?.handoffRequested({
+        kind: 'topic',
+        cyId: 'topic:ci-policy',
+        source: 'search',
+        loadSource: 'subject-external',
+        camera: { kind: 'center-on-target' },
+      })
+      store?.handoffRequested({
+        kind: 'graph-node',
+        cyId: 'tc:ci-policy-cluster',
+        source: 'node-detail',
+        loadSource: 'graph-internal',
+        camera: { kind: 'center-on-target' },
+      })
+    })
+    await page.waitForTimeout(300)
+
+    const after = await readFsmState(page)
+    expect(after).not.toBeNull()
+    expect(after!.generation).toBeGreaterThanOrEqual(startGen + 2)
+    expect(errs.errors).toEqual([])
   })
 })

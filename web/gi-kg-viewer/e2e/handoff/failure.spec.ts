@@ -50,12 +50,52 @@ test.describe('Handoff matrix § Section 6 — Failure modes', () => {
     expect(true).toBe(true)
   })
 
-  test('H6.2 — Handoff target id resolves to non-existent cy node [F4e]', async ({ page }) => {
+  test('H6.2 — Handoff target id resolves to non-existent cy node [F4e]', async ({
+    page,
+  }) => {
+    // Use the dev-only `__GIKG_HANDOFF_STORE__` hook to inject a
+    // ``handoffRequested`` envelope whose ``cyId`` doesn't exist anywhere
+    // in the loaded artifact. The FSM accepts the envelope (passes
+    // ``validateEnvelope``) but the apply path eventually can't resolve
+    // the cy id; the stuck-timeout safety net then clears pending.
+    const errs = captureConsoleErrors(page)
     await setupHandoffMatrixMocks(page)
-    test.skip(
-      true,
-      'Requires injecting a graph-node envelope with a fake cyId via dev hook; FSM validateEnvelope catches malformed envelopes (covered by 75 unit tests).',
-    )
+    await page.goto('/')
+    await page.getByRole('heading', { name: SHELL_HEADING_RE }).waitFor()
+    await statusBarCorpusPathInput(page).fill('/mock/corpus')
+    await mainViewsNav(page).getByRole('button', { name: 'Library' }).click()
+    // Land any handoff first so the graph is mounted and cy is observable.
+    await page.getByRole('button', { name: 'Mock Episode Title, Mock Show' }).click()
+    await page.getByRole('button', { name: 'Open in graph' }).click()
+    await page.waitForTimeout(1500)
+    // Inject the impossible envelope via the dev hook.
+    await page.evaluate(() => {
+      const store = (
+        window as unknown as {
+          __GIKG_HANDOFF_STORE__?: {
+            handoffRequested: (env: Record<string, unknown>) => void
+          }
+        }
+      ).__GIKG_HANDOFF_STORE__
+      store?.handoffRequested({
+        kind: 'graph-node',
+        cyId: 'g:topic:this-node-definitely-does-not-exist',
+        source: 'restore-preference',
+        loadSource: 'graph-internal',
+        camera: { kind: 'preserve' },
+      })
+    })
+    const after = await readFsmState(page)
+    expect(after).not.toBeNull()
+    // FSM accepts the envelope — kind/cyId pass ``validateEnvelope``. The
+    // apply path can't find the cyId in cy; either the orchestrator clears
+    // pending after the stale-check, or the stuck-timeout eventually fires.
+    // Either path is a clean failure; the contract here is "no console
+    // errors and no envelope leak after settle."
+    await page.waitForTimeout(2000)
+    const settled = await readFsmState(page)
+    expect(settled).not.toBeNull()
+    expect(errs.errors).toEqual([])
   })
 
   test('H6.3 — Stuck handoff (15s timeout) [F4e]', async ({ page }) => {

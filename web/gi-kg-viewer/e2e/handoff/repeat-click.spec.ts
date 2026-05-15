@@ -45,11 +45,33 @@ test.describe('Handoff matrix § Section 3 — Repeated click', () => {
   })
 
   test('H3.2 — Digest pill × 2 (same topic) [F4d]', async ({ page }) => {
-    await setupHandoffMatrixMocks(page)
-    test.skip(
-      true,
-      'Digest pill repeat needs full digest fixture with CIL pills; FSM event class verified by H3.1 supersession + D1 migration.',
-    )
+    // Two rapid clicks on the same digest pill bump generation by 2 each
+    // time — FSM "always supersede" re-entrance policy for handoffRequested.
+    const errs = captureConsoleErrors(page)
+    await setupHandoffMatrixMocks(page, { digest: true })
+    await page.goto('/')
+    await page.getByRole('heading', { name: SHELL_HEADING_RE }).waitFor()
+    await statusBarCorpusPathInput(page).fill('/mock/corpus')
+    await expect(page.getByTestId('digest-root')).toBeVisible()
+
+    const before = await readFsmState(page)
+    expect(before).not.toBeNull()
+    const startGen = before!.generation
+
+    await page
+      .getByRole('button', { name: 'Open graph for topic: CI Policy' })
+      .click()
+    await page.waitForTimeout(600)
+    await mainViewsNav(page).getByRole('button', { name: 'Digest' }).click()
+    await page
+      .getByRole('button', { name: 'Open graph for topic: CI Policy' })
+      .click()
+    await page.waitForTimeout(800)
+
+    const after = await readFsmState(page)
+    expect(after).not.toBeNull()
+    expect(after!.generation).toBeGreaterThanOrEqual(startGen + 2)
+    expect(errs.errors).toEqual([])
   })
 
   test('H3.3 — Canvas tap fires canvasTapped on FSM [F1.2]', async ({ page }) => {
