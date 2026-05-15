@@ -3,7 +3,7 @@
 **Status:** Draft (rewrite pass 1 — April 2026)
 **Author:** Marko + Claude
 **Repo:** `chipi/podcast_scraper`
-**Related:** UXS-004, GRAPH-CHROME-REDESIGN, GRAPH-INITIAL-LOAD-V2,
+**Related:** UXS-004, GRAPH-INITIAL-LOAD-V2,
 RFC-062, RFC-075, RFC-076, #656 (confidence-weighted ABOUT edges)
 **Stack:** Cytoscape 3.33.1, cytoscape-navigator 2.0.2
 

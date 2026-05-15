@@ -7,7 +7,16 @@ describes *what we decided*; this runbook describes *what to do today*.
 Need the short version for daily ops? Use
 [Prod operator cheat sheet](PROD_OPERATOR_CHEAT_SHEET.md).
 
-**How hosting fits together (diagrams + planes):** [Hosting and infrastructure](../architecture/HOSTING_AND_INFRASTRUCTURE.md). **Immutable decisions:** [ADR-079](../adr/ADR-079-opentofu-for-always-on-hosting-iac.md)–[ADR-083](../adr/ADR-083-tailscale-private-ingress-always-on-vps.md) (OpenTofu, state, drill workspace, app GitOps contract, tailnet ingress), [ADR-082](../adr/ADR-082-gitops-app-deploy-via-stack-test-and-gha.md) (stack-test gate and deploy nuance), [ADR-084](../adr/ADR-084-full-stack-docker-compose-topology.md)–[ADR-085](../adr/ADR-085-ephemeral-stack-test-integration-gate.md) (Compose + CI stack-test). **CI workflow names:** [WORKFLOWS.md](../ci/WORKFLOWS.md).
+**How hosting fits together (diagrams + planes):** [Hosting and infrastructure](../architecture/HOSTING_AND_INFRASTRUCTURE.md). **Immutable decisions:** [ADR-079](../adr/ADR-079-opentofu-for-always-on-hosting-iac.md)–[ADR-083](../adr/ADR-083-tailscale-private-ingress-always-on-vps.md) (OpenTofu, state, drill workspace, app GitOps contract, tailnet ingress), [ADR-082](../adr/ADR-082-gitops-app-deploy-via-stack-test-and-gha.md) (stack-test gate and deploy nuance), [ADR-084](../adr/ADR-084-full-stack-docker-compose-topology.md)–[ADR-085](../adr/ADR-085-ephemeral-stack-test-integration-gate.md) (Compose + CI stack-test), [ADR-093](../adr/ADR-093-canonical-stack-contract-and-environment-adapters.md) (stack contract vs adapters). **Surface audit table:** [STACK_CONTRACT.md](STACK_CONTRACT.md). **CI workflow names:** [WORKFLOWS.md](../ci/WORKFLOWS.md).
+
+## Steady-state playbook (routine prod)
+
+For day-to-day prod (not DR drill, not manual corpus restore): **preflight** (secrets and
+`PROD_TAILNET_FQDN`) → **deploy** (`deploy-prod.yml` → `infra/deploy/deploy.sh`) → **health**
+(in-container `/api/health` on the api service — [API health checks by context](#api-health-checks-by-context))
+→ **behavioral gate on main** (`stack-test.yml` before GHCR publish). Restoring corpus from
+`snapshot.tgz` is **not** part of this path; see [Disaster recovery](#disaster-recovery) and
+[STACK_CONTRACT.md](STACK_CONTRACT.md).
 
 > **For the prerequisites checklist** (Hetzner account + Tailscale credentials —
 > auth key + API access token on Free plan, see "Tailscale credentials" below
@@ -379,7 +388,10 @@ stats, and unpack under **`.tmp_backup_verify/`** (gitignored):
 ```
 
 Use **`./scripts/ops/verify_prod_backup_snapshot.sh --help`** for a specific tag
-or **`--no-extract`** (list only, no unpack).
+or **`--no-extract`** (list only, no unpack). Releases after RFC-084 also ship
+**`snapshot.manifest.json`**; default restore picks the **newest compatible**
+`snapshot-prod-*` (fail closed if none match — pin **`backup_tag`** / **`PODCAST_BACKUP_TAG`**).
+See [Corpus snapshot manifest and restore](CORPUS_SNAPSHOT_MANIFEST_AND_RESTORE.md).
 
 ---
 
@@ -395,21 +407,24 @@ OAuth at a reverse proxy), not only Basic Auth on this nginx template.
 
 ## Corpus migration
 
-One-time migration on cutover day. Use the latest snapshot from the backup
+One-time migration on cutover day. Use the newest **compatible** snapshot from the backup
 repo rather than streaming files between hosts (more reliable; matches RFC-082
 Decision 4).
+
+**Preferred on prod:** run **`prod-restore-corpus.yml`** in GitHub Actions (confirm
+**`PROD_RESTORE`**). On-host rehearsal or migration-only SSH:
 
 ```bash
 ssh deploy@prod-podcast.tail-xxxxx.ts.net
 cd /srv/podcast-scraper
-make restore-corpus               # pulls latest snapshot.tgz from
-                                  # chipi/podcast_scraper-backup, untars
-                                  # (post-#763: newest-compatible via manifest; see
-                                  # docs/guides/CORPUS_SNAPSHOT_MANIFEST_AND_RESTORE.md)
-                                  # into /srv/podcast-scraper/corpus/
+make restore-corpus-prod          # newest-compatible snapshot-prod-* → corpus/
 # Pin a specific backup release (DR drills / audits):
-#   PODCAST_BACKUP_TAG=<release-tag> make restore-corpus
+#   PODCAST_BACKUP_TAG=<release-tag> make restore-corpus-prod
+```
 
+See [Corpus snapshot manifest and restore](CORPUS_SNAPSHOT_MANIFEST_AND_RESTORE.md).
+
+```bash
 # Verify
 ls -la corpus/feeds/ | head
 find corpus -name '*.gi.json' | wc -l
@@ -477,7 +492,9 @@ cd infra
                           # (cloud-init re-runs the bootstrap)
 
 # 2. Restore corpus (~3–5 min for ~20 MB snapshot)
-ssh deploy@prod-podcast.tail-xxxxx.ts.net 'cd /srv/podcast-scraper && make restore-corpus'
+#    Preferred: prod-restore-corpus.yml (confirm PROD_RESTORE).
+#    On-host: ssh deploy@prod-podcast.tail-xxxxx.ts.net \
+#      'cd /srv/podcast-scraper && make restore-corpus-prod'
 
 # 3. Re-stage host-side `.env` (operator's responsibility)
 #    See "First-time bootstrap → Stage the host-side `.env`".
@@ -492,8 +509,7 @@ Corpus is recoverable to within ~24 h of pre-disaster state (last
 
 [#724](https://github.com/chipi/podcast_scraper/issues/724) tracks the
 end-to-end DR drill that calibrates these numbers against reality.
-Complete the prerequisite checklist ([#751](https://github.com/chipi/podcast_scraper/issues/751),
-copy-paste guide: [RFC-082 DR drill prerequisite checklist](../wip/RFC-082_DR_DRILL_PREREQ_CHECKLIST.md))
+Complete readiness ([#751](https://github.com/chipi/podcast_scraper/issues/751)) and use [DR drill runbook](DR_DRILL_RUNBOOK.md)
 before scheduling that drill.
 
 ---

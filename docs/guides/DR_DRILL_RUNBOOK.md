@@ -12,7 +12,20 @@ and **Disaster recovery**).
 
 **Workflow index (CI file names and triggers):** [WORKFLOWS.md](../ci/WORKFLOWS.md) (OpenTofu / DR drill paragraph).
 
-**Timed exercise prerequisites:** [RFC-082 DR drill prerequisite checklist](../wip/RFC-082_DR_DRILL_PREREQ_CHECKLIST.md).
+**Stack contract (audit table, steady vs recovery):** [STACK_CONTRACT.md](STACK_CONTRACT.md) ([ADR-093](../adr/ADR-093-canonical-stack-contract-and-environment-adapters.md)).
+
+**Timed exercise:** use this runbook and [GitHub #724](https://github.com/chipi/podcast_scraper/issues/724); readiness is tracked in [#751](https://github.com/chipi/podcast_scraper/issues/751).
+
+## Steady-state vs full drill cycle
+
+**Routine validation** on a drill host (deploy only): preflight → `drill-deploy` → `drill-e2e`
+smoke and/or `drill-stack-playwright` — same stack discipline as prod; see
+[STACK_CONTRACT.md](STACK_CONTRACT.md).
+
+**Full orchestrated exercise** adds infra apply, **simulated corpus restore**
+(`drill-restore-corpus`), and **always destroy** — see
+[Orchestrated full cycle](#orchestrated-full-cycle-drill-exerciseyml) below. Restore is **not**
+implied for steady prod or Codespace bring-up.
 
 ---
 
@@ -81,7 +94,7 @@ long-lived drill VM, override the CIDR list in a **gitignored** tfvars to your `
 | `APPLY` | `drill-infra-apply.yml` (manual only) | OpenTofu apply workspace **`drill`** |
 | `DRILL_DESTROY` | `drill-infra-destroy.yml` (manual only) | **`tofu destroy`** + **Hetzner `hcloud` sweep** + **Tailscale device delete** (`tag:dr-drill` or drill `tailnet_hostname`); standalone uses git state — orchestrator uses apply artifact (same run) |
 | `DRILL_RESTORE` | `drill-restore-corpus.yml` (manual only) | Overwrite drill **`corpus/`** from backup **`snapshot.tgz`** |
-| `DRILL_SMOKE` | `drill-e2e.yml` (manual or orchestrator) | Read-only **`/api/health`** via tailnet SSH |
+| `DRILL_SMOKE` | `drill-e2e.yml` (manual or orchestrator) | Read-only **`/api/health`** via tailnet SSH (host viewer **`:8080`** adapter) |
 | `DRILL_STACK_PLAYWRIGHT` | `drill-stack-playwright.yml` (manual; orchestrator uses `skip_confirm`) | Run **`tests/stack-test/stack-viewer.spec.ts`** against drill HTTPS |
 
 The orchestrator calls **`drill-infra-apply`** and **`drill-infra-destroy`** with internal
@@ -97,9 +110,12 @@ Ordered jobs:
 1. **`drill-infra-plan`** — `tofu fmt -check`, **`tofu validate`**, **`tofu plan`** (no apply).
 2. **`drill-infra-apply`** — **`tofu apply`** for workspace **`drill`**; uploads **`terraform-state-after-apply-drill`**.
 3. **`drill-tfstate-bridge`** — caller job: re-downloads that artifact and uploads **`drill-tfstate-for-teardown`** so **`drill-infra-destroy`** (a reusable workflow) can read state without a git commit.
-4. **`drill-deploy`** — git pull, compose pull/up, host **`/api/health`** smoke.
-5. **`drill-restore-corpus`** — download **`snapshot.tgz`**, extract **`corpus/`**, recreate **api** + **viewer**.
-6. **`drill-e2e`** — tailnet SSH **`curl`**:8080 **`/api/health`** (quick smoke).
+4. **`drill-deploy`** — `infra/deploy/deploy.sh` (in-container **`api`** `:8000` **`/api/health`**);
+   workflow may also curl host viewer **`:8080`** as an adapter smoke (see [STACK_CONTRACT](STACK_CONTRACT.md)).
+5. **`drill-restore-corpus`** — resolve **newest compatible** `snapshot-prod-*` via
+   **`snapshot.manifest.json`** (or pin **`backup_tag`**); **`download_and_verify_snapshot.sh`**
+   on the runner, then **`restore_corpus_from_tarball_host.sh`** on the drill host ([manifest hub](CORPUS_SNAPSHOT_MANIFEST_AND_RESTORE.md)).
+6. **`drill-e2e`** — tailnet SSH adapter smoke: host viewer **`:8080`** **`/api/health`** (read-only).
 7. **`drill-stack-playwright`** — **`tests/stack-test/stack-viewer.spec.ts`** over **HTTPS** against the live drill host (browser + API + corpus).
 8. **`finalize`** — runs **`if: always()`** so the next step still runs when a middle job failed.
 9. **`drill-infra-destroy`** — downloads **`drill-tfstate-for-teardown`** (or apply artifact as fallback), then **`tofu destroy`**, **Hetzner API sweep**, **Tailscale API** removal of drill devices (always after finalize).

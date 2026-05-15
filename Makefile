@@ -486,7 +486,7 @@ validate-kg-schema:
 	fi
 
 # GI/KG viewer v2 (#489): FastAPI + Vite. ``make init`` includes FastAPI via ``[dev]``; cd $(WEB_VIEWER_DIR) && npm install
-.PHONY: serve serve-api serve-ui serve-e2e-mock stack-build stack-build-llm stack-compose-validate stack-up stack-down stack-logs verify-stack-profiles stack-test-build stack-test-build-cloud stack-test-up stack-test-down stack-test-seed stack-test-playwright stack-test-export stack-test-ml stack-test-cloud-thin stack-test-ml-ci deploy-codespace restore-corpus
+.PHONY: serve serve-api serve-ui serve-e2e-mock stack-build stack-build-llm stack-compose-validate stack-up stack-down stack-logs verify-stack-profiles stack-test-build stack-test-build-cloud stack-test-up stack-test-down stack-test-seed stack-test-playwright stack-test-export stack-test-ml stack-test-cloud-thin stack-test-ml-ci deploy-codespace restore-corpus restore-corpus-prod corpus-snapshot-manifest-validate corpus-snapshot-select-tag corpus-snapshot-select-tag-prod corpus-snapshot-selftest corpus-snapshot-integration
 SERVE_OUTPUT_DIR ?= ./output
 # Optional corpus-editing + jobs routes (health shows green when on). Override with SERVE_ARGS= to disable.
 SERVE_ARGS ?= --enable-feeds-api --enable-operator-config-api --enable-jobs-api
@@ -844,16 +844,35 @@ codespace-restore-local:
 
 # Trigger the cloud-side backup workflow (.github/workflows/backup-corpus.yml).
 # workflow_dispatch only (no cron). Tarballs the codespace corpus and uploads
-# to chipi/podcast_scraper-backup as a release asset. Use ``DRY_RUN=true`` to
-# skip the upload; default false.
+# to chipi/podcast_scraper-backup as a release asset. Matches workflow default:
+# ``DRY_RUN=true`` skips upload; set ``DRY_RUN=false`` to publish.
 codespace-backup-cloud:
-	@DRY_RUN="$${DRY_RUN:-false}"; \
+	@DRY_RUN="$${DRY_RUN:-true}"; \
 	echo "Dispatching backup-corpus.yml workflow (dry_run=$$DRY_RUN) ..."; \
 	gh workflow run backup-corpus.yml --repo chipi/podcast_scraper -f dry_run=$$DRY_RUN; \
 	sleep 3; \
 	gh run list --workflow=backup-corpus.yml --repo chipi/podcast_scraper -L 1; \
 	echo ""; \
 	echo "Watch: gh run watch <id> --repo chipi/podcast_scraper"
+
+# Corpus snapshot manifest helpers (RFC-084 / ADR-092 / #763).
+corpus-snapshot-manifest-validate:
+	@if [ -z "$(FILE)" ]; then \
+		echo "FILE is required (path to snapshot.manifest.json)"; exit 2; \
+	fi
+	@bash scripts/ops/corpus_snapshot/validate_snapshot_manifest.sh "$(FILE)"
+
+corpus-snapshot-select-tag:
+	@BACKUP_REPO="$${PODCAST_BACKUP_REPO:-chipi/podcast_scraper-backup}"; \
+	TAG_REGEX="$${TAG_REGEX:-^snapshot-[0-9]{8}$$}"; \
+	export BACKUP_REPO TAG_REGEX PODCAST_BACKUP_TAG; \
+	bash scripts/ops/corpus_snapshot/select_release_tag.sh
+
+corpus-snapshot-selftest:
+	@$(PYTHON) -m pytest tests/unit/scripts/test_corpus_snapshot_manifest.py tests/unit/scripts/test_stack_contract_restore_scripts.py -q && echo "MAKE_EXIT=0" || echo "MAKE_EXIT=$$?"
+
+corpus-snapshot-integration:
+	@$(PYTHON) -m pytest tests/unit/scripts/test_corpus_snapshot_manifest.py tests/unit/scripts/test_corpus_snapshot_integration.py tests/unit/scripts/test_stack_contract_restore_scripts.py -q && echo "MAKE_EXIT=0" || echo "MAKE_EXIT=$$?"
 
 # Pull a corpus snapshot from chipi/podcast_scraper-backup (or PODCAST_BACKUP_REPO)
 # and untar into ``.codespace_corpus/`` (the workspace-survives-suspend path that
@@ -864,36 +883,25 @@ codespace-backup-cloud:
 #   * Run from inside the codespace OR with the workspace path overridden via
 #     WORKSPACE_DIR (default: current dir).
 #
-# Optional: set PODCAST_BACKUP_TAG to a release tag (for example after a drill
-# backup) instead of always taking the latest release. When unset, behaviour is
-# unchanged: restore the most recent release from gh release list.
+corpus-snapshot-select-tag-prod:
+	@BACKUP_REPO="$${PODCAST_BACKUP_REPO:-chipi/podcast_scraper-backup}"; \
+	TAG_REGEX="$${TAG_REGEX:-^snapshot-prod-[0-9]{8}$$}"; \
+	export BACKUP_REPO TAG_REGEX PODCAST_BACKUP_TAG; \
+	bash scripts/ops/corpus_snapshot/select_release_tag.sh
+
+# Codespace / pre-prod layout (``.codespace_corpus/`` in tarball). For prod VPS use
+# ``restore-corpus-prod`` or ``prod-restore-corpus.yml`` / ``drill-restore-corpus.yml``.
 restore-corpus:
 	@WORKSPACE_DIR="$${WORKSPACE_DIR:-$$PWD}"; \
-	BACKUP_REPO="$${PODCAST_BACKUP_REPO:-chipi/podcast_scraper-backup}"; \
-	if [ -n "$${PODCAST_BACKUP_TAG:-}" ]; then \
-		TAG="$${PODCAST_BACKUP_TAG}"; \
-		echo "Restoring corpus snapshot $$TAG from $$BACKUP_REPO ..."; \
-		if ! gh release view "$$TAG" --repo "$$BACKUP_REPO" >/dev/null 2>&1; then \
-			echo "ERROR: release $$TAG not found on $$BACKUP_REPO." >&2; \
-			echo "       Confirm the tag name and gh read access." >&2; \
-			exit 2; \
-		fi; \
-	else \
-		echo "Restoring latest corpus snapshot from $$BACKUP_REPO ..."; \
-		if ! gh release list --repo "$$BACKUP_REPO" --limit 1 >/dev/null 2>&1; then \
-			echo "ERROR: cannot list releases on $$BACKUP_REPO." >&2; \
-			echo "       Confirm the repo exists, your gh CLI is authenticated, and" >&2; \
-			echo "       your token has read access to that private repo." >&2; \
-			exit 2; \
-		fi; \
-		TAG=$$(gh release list --repo "$$BACKUP_REPO" --limit 1 --json tagName -q '.[0].tagName'); \
-		echo "Latest snapshot: $$TAG"; \
-	fi; \
-	mkdir -p "$$WORKSPACE_DIR/.codespace_corpus"; \
-	cd /tmp && rm -f snapshot.tgz; \
-	gh release download "$$TAG" --repo "$$BACKUP_REPO" --pattern 'snapshot.tgz' --output /tmp/snapshot.tgz; \
-	tar -xzf /tmp/snapshot.tgz -C "$$WORKSPACE_DIR" --strip-components=0; \
-	echo "OK: corpus restored from $$TAG into $$WORKSPACE_DIR/.codespace_corpus/"
+	export WORKSPACE_DIR PODCAST_BACKUP_REPO PODCAST_BACKUP_TAG TAG_REGEX='^snapshot-[0-9]{8}$$'; \
+	bash scripts/ops/corpus_snapshot/restore_corpus_release.sh --layout codespace
+
+# Prod VPS layout (top-level ``corpus/`` in tarball). Default parent ``/srv/podcast-scraper``
+# when unset; override with ``WORKSPACE_DIR`` for local rehearsal.
+restore-corpus-prod:
+	@WORKSPACE_DIR="$${WORKSPACE_DIR:-/srv/podcast-scraper}"; \
+	export WORKSPACE_DIR PODCAST_BACKUP_REPO PODCAST_BACKUP_TAG TAG_REGEX='^snapshot-prod-[0-9]{8}$$'; \
+	bash scripts/ops/corpus_snapshot/restore_corpus_release.sh --layout prod
 
 # Vitest unit tests for TypeScript utility logic (no browser needed)
 test-ui:
@@ -1793,6 +1801,7 @@ ci-fast:
 	echo ""; echo "=== ci-fast [$$(date '+%Y-%m-%d %H:%M:%S')] check-test-policy ==="; $(MAKE) check-test-policy; \
 	echo ""; echo "=== ci-fast [$$(date '+%Y-%m-%d %H:%M:%S')] quality-metrics-ci ==="; $(MAKE) quality-metrics-ci; \
 	echo ""; echo "=== ci-fast [$$(date '+%Y-%m-%d %H:%M:%S')] test-fast (pytest) ==="; $(MAKE) test-fast; \
+	echo ""; echo "=== ci-fast [$$(date '+%Y-%m-%d %H:%M:%S')] corpus-snapshot-selftest ==="; $(MAKE) corpus-snapshot-selftest; \
 	echo ""; echo "=== ci-fast [$$(date '+%Y-%m-%d %H:%M:%S')] test-ui ==="; $(MAKE) test-ui; \
 	echo ""; echo "=== ci-fast [$$(date '+%Y-%m-%d %H:%M:%S')] build-viewer ==="; $(MAKE) build-viewer; \
 	echo ""; echo "=== ci-fast [$$(date '+%Y-%m-%d %H:%M:%S')] docs ==="; $(MAKE) docs; \

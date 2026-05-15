@@ -4,6 +4,8 @@ Compose definitions for running the platform end-to-end. **Build context is `..`
 
 For the operator's run-it-on-your-machine guide, start at [`docs/guides/DOCKER_COMPOSE_GUIDE.md`](../docs/guides/DOCKER_COMPOSE_GUIDE.md).
 
+**Cross-surface contract (which overlays apply where):** [`docs/guides/STACK_CONTRACT.md`](../docs/guides/STACK_CONTRACT.md).
+
 ## Files
 
 | File | Purpose |
@@ -12,6 +14,7 @@ For the operator's run-it-on-your-machine guide, start at [`docs/guides/DOCKER_C
 | `docker-compose.stack-test.yml` | **Overlay** — adds `mock-feeds` (Nginx sidecar serving bundled RSS / audio / transcripts) plus the Docker job-mode wiring on the `api` service so the API factory can spawn pipeline containers. Used by `make stack-test-*` and the GitHub stack-test workflow. |
 | `docker-compose.jobs-docker.yml` | **Overlay** — production equivalent of the stack-test overlay's job-mode wiring: bind-mounts the host repo + `/var/run/docker.sock` into `api` and sets `PODCAST_PIPELINE_EXEC_MODE=docker`. Merge this on top of `stack.yml` when you want production deployments to spawn jobs the same way the stack-test does, without the `mock-feeds` sidecar. |
 | `docker-compose.prod.yml` | **Overlay** — restart policies for long-running services (`viewer`, `api`). Site-local volume / network changes go in your own override on top of this. |
+| `docker-compose.vps-prod.yml` | **Overlay** — prod/drill VPS nginx template, landing page, and host publish for viewer **`:8080`**; merge with **`stack.yml`** + **`prod.yml`** on always-on hosts (omitted on Codespaces). See [STACK_CONTRACT.md](../docs/guides/STACK_CONTRACT.md). |
 
 ## Quick reference
 

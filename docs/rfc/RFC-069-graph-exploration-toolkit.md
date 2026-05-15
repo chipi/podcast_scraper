@@ -13,7 +13,7 @@
   - [UXS-001: GI/KG viewer](../uxs/UXS-001-gi-kg-viewer.md) — shared shell tokens
 - **Related Documents**:
   - [E2E surface map](https://github.com/chipi/podcast_scraper/blob/main/web/gi-kg-viewer/e2e/E2E_SURFACE_MAP.md)
-  - [GRAPH-CHROME-REDESIGN](../wip/GRAPH-CHROME-REDESIGN.md) — shipped chrome layout (**Types** + **⚙** popover + **`GraphBottomBar`**); §1 of this RFC updated **2026-04** to match.
+  - [UXS-004 Graph chrome](../uxs/UXS-004-graph-exploration.md#graph-chrome-toolbar-bottom-bar-filters-popover) — shipped chrome layout (**Types** + **⚙** popover + **`GraphBottomBar`**); §1 of this RFC updated **2026-04** to match.
 
 ## Abstract
 
@@ -59,7 +59,7 @@ All proposed features must **compose** with this baseline (no breaking tap/dblta
 
 Original RFC placed **Fit** / zoom / **Export PNG** on the top row and considered a **second toolbar row** or collapsible **Graph tools** for minimap, layout `<select>`, edges, and histograms.
 
-**Shipped layout** ([GRAPH-CHROME-REDESIGN](../wip/GRAPH-CHROME-REDESIGN.md), `GraphBottomBar.vue`, `GraphFiltersPopover.vue`):
+**Shipped layout** ([UXS-004 Graph chrome](../uxs/UXS-004-graph-exploration.md#graph-chrome-toolbar-bottom-bar-filters-popover), `GraphBottomBar.vue`, `GraphFiltersPopover.vue`):
 
 - **Top row** (`GraphCanvas.vue`, **`graph-toolbar-types`**): **Types** filters + **all** / **none** + **`graph-toolbar-more-filters`** (**⚙**) opening **`graph-filters-popover`** (**Sources**, **Edges**, **Degree** buckets + clear — satisfies edge + degree “histogram” interaction without a separate histogram strip).
 - **Bottom bar** under the canvas (**`graph-bottom-bar`**): **Left** — minimap **⊞** (`graph-minimap-toggle`), **Re-layout**, **layout cycle** (advances **cose → breadthfirst → circle → grid** and re-layouts). **Centre** — **`graph-status-line`** (lens, counts). **Right** — **Fit**, **Zoom −** / **+**, **Zoom %** readout (`Math.round(cy.zoom() * 100)`), **100%** (`cy.zoom(1)` then center `:visible`), **Gestures**, **Export PNG**; optional bar collapse (**Alt+B**, `localStorage`).
@@ -129,7 +129,7 @@ Original RFC placed **Fit** / zoom / **Export PNG** on the top row and considere
 | Zoom reset | **`cy.zoom(1)`** — **100%** scale; **Fit** stays separate. |
 | Extra layouts | **Simple only** — cose, breadthfirst, circle, grid; **no fcose**. |
 | Degree histogram | **Acts as filter** — click bucket toggles filter; clear control or second click clears. |
-| Toolbar density | **Yes** — implemented as **Types** row + **⚙** popover + **`GraphBottomBar`** (see [GRAPH-CHROME-REDESIGN](../wip/GRAPH-CHROME-REDESIGN.md)); satisfies intent of second row / collapsible tools without duplicating that literal structure. |
+| Toolbar density | **Yes** — implemented as **Types** row + **⚙** popover + **`GraphBottomBar`** (see [UXS-004 Graph chrome](../uxs/UXS-004-graph-exploration.md#graph-chrome-toolbar-bottom-bar-filters-popover)); satisfies intent of second row / collapsible tools without duplicating that literal structure. |
 | Box zoom | **Shift+drag** on background; rectangle + `fit` intersecting elements. |
 | Layout vs degree filter | **Layout uses visible elements only** — matches user perception; see §7 step 6. |
 

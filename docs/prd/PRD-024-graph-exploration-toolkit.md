@@ -4,7 +4,7 @@
 
 ## Summary
 
-Expand the **Graph** tab in the GI/KG viewer (`web/gi-kg-viewer`) with a **single delivery pass** of graph-native controls: clearer zoom/pan affordances, **minimap (in v1)**, type/degree summaries (degree buckets **act as a filter** when clicked), edge visibility controls, **simple** built-in layouts only (cose, breadthfirst, circle, grid), **Shift+drag** box zoom, and zoom **%** readout (zoom controls live in the **graph bottom bar** after [GRAPH-CHROME-REDESIGN](../wip/GRAPH-CHROME-REDESIGN.md)). **Zoom reset = 100%** (`zoom(1)`); **Fit** remains fit-to-viewport. Goal is to make large merged corpora explorable without leaving the graph surface, while preserving existing behavior (filters, search highlights, ego neighborhood, export).
+Expand the **Graph** tab in the GI/KG viewer (`web/gi-kg-viewer`) with a **single delivery pass** of graph-native controls: clearer zoom/pan affordances, **minimap (in v1)**, type/degree summaries (degree buckets **act as a filter** when clicked), edge visibility controls, **simple** built-in layouts only (cose, breadthfirst, circle, grid), **Shift+drag** box zoom, and zoom **%** readout (zoom controls live in the **graph bottom bar** after [UXS-004 Graph chrome](../uxs/UXS-004-graph-exploration.md#graph-chrome-toolbar-bottom-bar-filters-popover)). **Zoom reset = 100%** (`zoom(1)`); **Fit** remains fit-to-viewport. Goal is to make large merged corpora explorable without leaving the graph surface, while preserving existing behavior (filters, search highlights, ego neighborhood, export).
 
 ## Background & Context
 
@@ -57,7 +57,7 @@ Today the graph (Cytoscape.js, see [RFC-062](../rfc/RFC-062-gi-kg-viewer-v2.md))
 ### FR4: Edge & layout controls
 
 - **FR4.1**: Filter edges by **edge type** (or grouped types) without breaking node filters; state lives in graph filter store or sibling store.
-- **FR4.2**: Layout choice among **cose** (default), **breadthfirst**, **circle**, **grid** only — Cytoscape built-ins; **no fcose** in this pass. **UI (2026-04):** shipped as a **layout cycle** control in the bottom bar (same four algorithms); see [GRAPH-CHROME-REDESIGN](../wip/GRAPH-CHROME-REDESIGN.md).
+- **FR4.2**: Layout choice among **cose** (default), **breadthfirst**, **circle**, **grid** only — Cytoscape built-ins; **no fcose** in this pass. **UI (2026-04):** shipped as a **layout cycle** control in the bottom bar (same four algorithms); see [UXS-004 Graph chrome](../uxs/UXS-004-graph-exploration.md#graph-chrome-toolbar-bottom-bar-filters-popover).
 
 ### FR5: Quality & docs
 
@@ -66,7 +66,7 @@ Today the graph (Cytoscape.js, see [RFC-062](../rfc/RFC-062-gi-kg-viewer-v2.md))
 
 ### FR6: Chrome density
 
-- **FR6.1** (**met, revised layout**): Controls are **graph-local** without a literal second toolbar row: **Types** on the top row (**`graph-toolbar-types`**) + **`graph-toolbar-more-filters`** (**⚙**) popover (**Sources** / **Edges** / **Degree**), plus **`GraphBottomBar`** under the canvas (**minimap ⊞**, **Re-layout**, **layout cycle**, **Fit** / zoom / **Gestures** / **Export PNG**, optional collapse). Normative: [GRAPH-CHROME-REDESIGN](../wip/GRAPH-CHROME-REDESIGN.md), [RFC-069](../rfc/RFC-069-graph-exploration-toolkit.md) §1 (updated), [UXS-004](../uxs/UXS-004-graph-exploration.md).
+- **FR6.1** (**met, revised layout**): Controls are **graph-local** without a literal second toolbar row: **Types** on the top row (**`graph-toolbar-types`**) + **`graph-toolbar-more-filters`** (**⚙**) popover (**Sources** / **Edges** / **Degree**), plus **`GraphBottomBar`** under the canvas (**minimap ⊞**, **Re-layout**, **layout cycle**, **Fit** / zoom / **Gestures** / **Export PNG**, optional collapse). Normative: [UXS-004 Graph chrome](../uxs/UXS-004-graph-exploration.md#graph-chrome-toolbar-bottom-bar-filters-popover), [RFC-069](../rfc/RFC-069-graph-exploration-toolkit.md) §1 (updated), [UXS-004](../uxs/UXS-004-graph-exploration.md).
 
 ## Success Criteria
 
@@ -78,5 +78,5 @@ Today the graph (Cytoscape.js, see [RFC-062](../rfc/RFC-062-gi-kg-viewer-v2.md))
 
 - **RFC**: [RFC-069](../rfc/RFC-069-graph-exploration-toolkit.md) (technical design).
 - **Viewer**: [RFC-062](../rfc/RFC-062-gi-kg-viewer-v2.md), [UXS-004](../uxs/UXS-004-graph-exploration.md), [UXS-001](../uxs/UXS-001-gi-kg-viewer.md).
-- **Chrome layout (2026-04)**: [GRAPH-CHROME-REDESIGN](../wip/GRAPH-CHROME-REDESIGN.md) — **Types** row, **⚙** popover, **`GraphBottomBar`**.
+- **Chrome layout (2026-04)**: [UXS-004 Graph chrome](../uxs/UXS-004-graph-exploration.md#graph-chrome-toolbar-bottom-bar-filters-popover) — **Types** row, **⚙** popover, **`GraphBottomBar`**.
 - **Automation**: [E2E surface map](https://github.com/chipi/podcast_scraper/blob/main/web/gi-kg-viewer/e2e/E2E_SURFACE_MAP.md).

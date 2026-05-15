@@ -48,8 +48,11 @@ steps end to end.
     restore), or runbook sections explicitly labeled disaster recovery — not the default headline
     sequence for steady operations.
 5. **Implementation coupling**: mirrored automation (**e.g.** prod versus drill corpus restore steps)
-    must share **Makefile targets** or **`scripts/ops/`** implementations so mechanically identical
-    procedures cannot silently diverge (**#762** follow-up).
+    must share **`scripts/ops/`** (or thin **`Makefile`** wrappers) so mechanically identical
+    procedures cannot silently diverge. **#762** landed shared VPS restore scripts and workflow
+    upload paths; future contract edits must update [STACK_CONTRACT.md](../guides/STACK_CONTRACT.md)
+    and [CORPUS_SNAPSHOT_MANIFEST_AND_RESTORE.md](../guides/CORPUS_SNAPSHOT_MANIFEST_AND_RESTORE.md)
+    together.
 
 ## Rationale
 
@@ -75,18 +78,24 @@ steps end to end.
   shared Playwright contract across CI and drill.
 - **Negative**: Requires keeping an **audit table** (or equivalent hub doc) and indices in sync as
   new surfaces appear.
-- **Neutral**: Does not by itself delete duplicated workflow bash; that is **tracked work** on
-  **#762** after drill orchestration is stable.
+- **Neutral**: Does not by itself mandate a single reusable deploy workflow YAML; prod and drill
+  deploy stay parallel callers of **`deploy.sh`**.
 
 ## Implementation Notes
 
-- **Hub** (to be extended under **#762**): operator matrix (compose files, corpus host path, health
-  command, who runs Playwright/smoke) linked from **`infra/README.md`**, runbooks, and
-  **`docs/ci/WORKFLOWS.md`**.
+- **Hub**: [STACK_CONTRACT.md](../guides/STACK_CONTRACT.md) — audit table and steady vs recovery
+  playbooks; linked from **`infra/README.md`**, runbooks, **`docs/ci/WORKFLOWS.md`**, and
+  **`compose/README.md`**.
 - **VPS deploy script**: **`infra/deploy/deploy.sh`** is the canonical deploy path for prod and
   drill app deploy over SSH.
+- **VPS corpus restore**: **`scripts/ops/restore_corpus_from_tarball_host.sh`** and
+  **`scripts/ops/resolve_latest_snapshot_prod_tag.sh`** and runner
+  **`scripts/ops/corpus_snapshot/download_and_verify_snapshot.sh`** — shared by **`prod-restore-corpus.yml`**
+  and **`drill-restore-corpus.yml`** (runner uploads script + tarball over Tailscale SSH).
 - **CI gate**: **`.github/workflows/stack-test.yml`** + **`tests/stack-test/`**; drill uses
   **`drill-stack-playwright.yml`** with HTTPS adapter only.
+- **Corpus manifest and version-aware restore:** [ADR-092](ADR-092-corpus-snapshot-backup-manifest-and-newest-compatible-restore.md),
+  [CORPUS_SNAPSHOT_MANIFEST_AND_RESTORE.md](../guides/CORPUS_SNAPSHOT_MANIFEST_AND_RESTORE.md).
 
 ## References
 

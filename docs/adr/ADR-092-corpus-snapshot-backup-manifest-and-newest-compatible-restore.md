@@ -62,14 +62,16 @@ artifact** metadata on **`snapshot.tgz`**.
 ## Implementation Notes
 
 - **Normative detail**: [RFC-084](../rfc/RFC-084-corpus-backup-manifest-and-version-aware-restore.md).
-- **Single implementation surface**: repo **scripts** (emit / validate / select) plus thin **`make`
-  targets**; **GitHub Actions** call those entrypoints so local `restore-corpus` and CI restores stay
+- **Single implementation surface**: repo **scripts** (emit / validate / select / download) plus thin
+  **`make` targets**; **GitHub Actions** call those entrypoints so local restore and CI restores stay
   aligned (RFC §5).
 - **Workflows** (current tree): `backup-corpus-prod.yml`, `backup-corpus.yml`,
   `drill-restore-corpus.yml`, `prod-restore-corpus.yml` (paths may change; RFC remains source for
   behavior).
-- **Code**: not landed at ADR acceptance time; index **Code** column should read **No** until backups
-  emit manifests and restores consume them.
+- **Code**: landed in `scripts/ops/corpus_snapshot/`, thin **`make`** targets, and the workflows
+  above; index **Code** column reads **Yes** ([#763](https://github.com/chipi/podcast_scraper/issues/763)).
+- **Cross-surface steady vs recovery playbooks:** [ADR-093](ADR-093-canonical-stack-contract-and-environment-adapters.md),
+  [STACK_CONTRACT.md](../guides/STACK_CONTRACT.md).
 
 ## References
 

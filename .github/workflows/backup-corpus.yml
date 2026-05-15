@@ -38,6 +38,11 @@ jobs:
   snapshot:
     runs-on: ubuntu-latest
     steps:
+      - name: Checkout (manifest scripts)
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 1
+
       - name: Validate prerequisites
         env:
           CODESPACES_PAT: ${{ secrets.CODESPACES_PAT }}
@@ -128,6 +133,16 @@ jobs:
             exit 1
           fi
 
+      - name: Finalize snapshot manifest
+        if: ${{ inputs.dry_run != true }}
+        env:
+          GITHUB_SHA: ${{ github.sha }}
+          BACKUP_WORKFLOW_NAME: backup-corpus
+          BACKUP_WORKFLOW_RUN_ID: ${{ github.run_id }}
+        run: |
+          set -euo pipefail
+          bash scripts/ops/corpus_snapshot/finalize_backup_bundle.sh snapshot.tgz
+
       - name: Upload snapshot to backup repo
         if: ${{ inputs.dry_run != true }}
         env:
@@ -150,10 +165,10 @@ jobs:
           # the backup repo's actual default branch is used) or upload.
           if gh release view "$TAG" --repo "$BACKUP_REPO" >/dev/null 2>&1; then
             echo "Release $TAG already exists; uploading asset (will clobber)."
-            gh release upload "$TAG" snapshot.tgz --repo "$BACKUP_REPO" --clobber
+            gh release upload "$TAG" snapshot.tgz snapshot.manifest.json --repo "$BACKUP_REPO" --clobber
           else
             echo "Release $TAG does not exist; creating with asset."
-            gh release create "$TAG" snapshot.tgz \
+            gh release create "$TAG" snapshot.tgz snapshot.manifest.json \
               --repo "$BACKUP_REPO" \
               --title "Corpus snapshot $TAG" \
               --notes "Manual codespace backup of /workspaces/podcast_scraper/.codespace_corpus. Retention 7d + 4w."

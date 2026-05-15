@@ -21,7 +21,7 @@ infra/
 │   ├── prod.user-data                 # first-boot bootstrap (Docker, Tailscale, repo pull, optional Alloy)
 │   └── podcast-tailscale-serve.sh     # canonical ``tailscale serve`` helper (also injected into prod.user-data)
 └── deploy/
-    └── deploy.sh               # called by .github/workflows/deploy-prod.yml
+    └── deploy.sh               # called by deploy-prod.yml and drill-deploy.yml
 ```
 
 ## Quickstart
@@ -29,6 +29,7 @@ infra/
 > **Full operator runbook:** see [PROD_RUNBOOK.md](../docs/guides/PROD_RUNBOOK.md).
 > **DR drill only (GitHub Actions, confirms, orchestrator):** [DR_DRILL_RUNBOOK.md](../docs/guides/DR_DRILL_RUNBOOK.md).
 > **Architecture narrative (how hosting fits together):** [Hosting and infrastructure](../docs/architecture/HOSTING_AND_INFRASTRUCTURE.md).
+> **Stack contract (compose, health, gates by surface):** [STACK_CONTRACT.md](../docs/guides/STACK_CONTRACT.md).
 > Account-prerequisite checklist: [#714](https://github.com/chipi/podcast_scraper/issues/714).
 
 One-time setup (per operator):

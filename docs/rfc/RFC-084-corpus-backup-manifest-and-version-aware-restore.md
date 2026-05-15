@@ -1,6 +1,6 @@
 # RFC-084: Corpus Snapshot Backup Manifest and Version-Aware Restore
 
-- **Status**: Draft
+- **Status**: Completed
 - **Authors**: Podcast Scraper Team
 - **Created**: 2026-05-12
 - **Domain**: Infrastructure / backups / disaster recovery
@@ -197,9 +197,9 @@ Given deploy **reader** compatibility `[min,max]` and a list of backup candidate
 
 | Layer | Responsibility |
 | ----- | -------------- |
-| **Repo scripts** | Canonical helpers under a single ops entry (e.g. `scripts/ops/snapshot-manifest/`): **(a)** after `snapshot.tgz` exists — compute `archive.sha256`, fill `producer`, optional `backup_workflow`, write `snapshot.manifest.json`; **(b)** inject that file into the tarball at the well-known path before upload; **(c)** validate a manifest against v1 required fields; **(d)** given reader `min`/`max`, list release candidates (newest first), fetch sibling manifests, **select newest compatible** or exit non-zero with a clear message. Shell or Python is fine if aligned with existing ops tooling. |
-| **Makefile** | Thin targets that call the same scripts: extend **`restore-corpus`** so that when `PODCAST_BACKUP_TAG` (or equivalent) is **unset**, it runs **newest-compatible** selection before download; when set, skip selection but may still **validate** manifest ↔ tarball when cheap. Add targets such as **`snapshot-manifest-write`** / **`snapshot-manifest-validate`** (names TBD) for CI and operator preflight. Keep **`codespace-backup-cloud`** behavior documented relative to manifest (cloud workflow owns emit). |
-| **Workflows** | **`backup-corpus-prod.yml`**, **`backup-corpus.yml`**, and any drill backup: after tarball build, invoke script or `make` to emit manifest, pack it **into** the archive, upload **two** assets (tarball + sibling manifest). **`drill-restore-corpus.yml`**, **`prod-restore-corpus.yml`**: resolve reader support range (env, image label, or small checked-in file — see Open Questions), then invoke the **same** selection script or `make` target; preserve explicit pin inputs. |
+| **Repo scripts** | Canonical helpers under `scripts/ops/corpus_snapshot/`: **`emit_manifest.sh`**, **`finalize_backup_bundle.sh`**, **`validate_snapshot_manifest.sh`**, **`select_release_tag.sh`**, **`download_and_verify_snapshot.sh`**, **`restore_corpus_release.sh`**; prod workflows call **`resolve_latest_snapshot_prod_tag.sh`**. |
+| **Makefile** | **`corpus-snapshot-manifest-validate`**, **`corpus-snapshot-select-tag`**, **`corpus-snapshot-select-tag-prod`**, **`corpus-snapshot-selftest`**, **`restore-corpus`** (codespace layout), **`restore-corpus-prod`** (VPS layout). Unset **`PODCAST_BACKUP_TAG`** → newest-compatible selection; set pin → skip scan but still validate when a sibling manifest exists. **`codespace-backup-cloud`** / **`backup-corpus.yml`** own cloud emit. |
+| **Workflows** | **`backup-corpus-prod.yml`**, **`backup-corpus.yml`**: after tarball build, **`finalize_backup_bundle.sh`**, upload **`snapshot.tgz`** + sibling **`snapshot.manifest.json`** when **`dry_run`** is false. **`drill-restore-corpus.yml`**, **`prod-restore-corpus.yml`**: **`resolve_latest_snapshot_prod_tag.sh`** (or pin), runner **`download_and_verify_snapshot.sh`**, host restore via **`restore_corpus_from_tarball_host.sh`**. |
 | **CI** | Optional: **`make`**-driven check job (or workflow step) that runs manifest validation on fixtures and/or tests the selection helper with golden JSON; optional path guard when “breaking” corpus layout paths change without a documented `corpus_format_version` bump (see §9). |
 
 **Mapping to [GitHub #763](https://github.com/chipi/podcast_scraper/issues/763):** backup **writes** manifest + dual placement; restore **reads** manifests and **enforces** newest-compatible / fail closed; **scripts + Make + workflows** together cover the deliverable — not Actions-only logic with no local equivalent.
@@ -225,7 +225,7 @@ risk is high; schema and RFC can land earlier.
 ### 7. Restore workflows and scripts
 
 **Scope**: `.github/workflows/drill-restore-corpus.yml`, `prod-restore-corpus.yml`, shared restore
-scripts called by them, and **`restore-corpus`** in the `Makefile`.
+scripts called by them, and **`restore-corpus`** / **`restore-corpus-prod`** in the `Makefile`.
 
 1. Resolve reader supported range (from env baked into image, or from a small repo file read by the
    script).
@@ -236,10 +236,11 @@ scripts called by them, and **`restore-corpus`** in the `Makefile`.
 
 ### 8. Documentation
 
-- DR and prod runbooks: section **“When latest is wrong”** (rollback, format bump, mixed-age hosts).
+- DR and prod runbooks: **when newest-compatible default is wrong** (rollback, format bump,
+  mixed-age hosts) — see [CORPUS_SNAPSHOT_MANIFEST_AND_RESTORE.md](../guides/CORPUS_SNAPSHOT_MANIFEST_AND_RESTORE.md).
 - Cross-link this RFC and [ADR-092](../adr/ADR-092-corpus-snapshot-backup-manifest-and-newest-compatible-restore.md).
-- Document **`restore-corpus`** / env vars (`PODCAST_BACKUP_TAG`, `PODCAST_BACKUP_REPO`) vs default
-  selection behavior after implementation.
+- Document **`restore-corpus`**, **`restore-corpus-prod`**, and env vars (`PODCAST_BACKUP_TAG`,
+  `PODCAST_BACKUP_REPO`) vs default selection behavior after implementation.
 
 ### 9. Testing and CI (optional follow-up)
 
@@ -263,17 +264,17 @@ scripts called by them, and **`restore-corpus`** in the `Makefile`.
 1. **Schema + example** in repo; ADR ratified ([ADR-092](../adr/ADR-092-corpus-snapshot-backup-manifest-and-newest-compatible-restore.md)).
 2. **Shared scripts** + **`make`** targets for emit, validate, and select-newest-compatible (§5).
 3. **Backup** workflows call shared emit path; upload tarball + sibling manifest.
-4. **Restore** workflows and **`restore-corpus`** call shared selection path; explicit pins unchanged.
+4. **Restore** workflows and **`restore-corpus`** / **`restore-corpus-prod`** call shared selection
+   and download paths; explicit pins unchanged.
 5. **Docs** and runbooks updated; optional CI check (§9).
 
 ## Open Questions
 
-1. Exact **path inside tarball** for `snapshot.manifest.json` (root vs `metadata/`): pick one and
-   document in workflow comments.
-2. Whether **drill** backups use the same naming as prod or a prefix; selection logic should stay
-   pattern-agnostic if possible.
-3. Central **reader range** in Python vs duplicate in shell: prefer single source (e.g. generated
-   constant or small JSON in repo).
+Resolved in implementation:
+
+1. **`snapshot.manifest.json` at tarball archive root** (alongside `corpus/` or `.codespace_corpus/`).
+2. **Drill restore** uses **`snapshot-prod-*`** tags via `scripts/ops/resolve_latest_snapshot_prod_tag.sh` (same as prod).
+3. **Reader range** in `config/corpus_snapshot_reader_support.json`; producer format in `config/corpus_snapshot_format.json`.
 
 ## References
 
