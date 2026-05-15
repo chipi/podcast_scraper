@@ -23,6 +23,19 @@ RESTORE_RELEASE = REPO_ROOT / "scripts" / "ops" / "corpus_snapshot" / "restore_c
 GIT_SHA = "a1b2c3d4e5f6789012345678901234567890abcd"
 
 
+def _safe_extract_test_tarball(tarball: Path, dest: Path) -> None:
+    """Extract a test-built tarball with path traversal checks (bandit B202)."""
+    dest_root = dest.resolve()
+    with tarfile.open(tarball, "r:gz") as tar:
+        for member in tar.getmembers():
+            if member.issym() or member.islnk():
+                raise AssertionError(f"unexpected link in test tarball: {member.name}")
+            target = (dest_root / member.name).resolve()
+            if target != dest_root and not str(target).startswith(f"{dest_root}{os.sep}"):
+                raise AssertionError(f"unsafe tar member path: {member.name}")
+            tar.extract(member, path=dest_root)
+
+
 def _run(
     script: Path, *args: str, env: dict[str, str] | None = None
 ) -> subprocess.CompletedProcess[str]:
@@ -140,8 +153,7 @@ def test_finalize_round_trip_extracts_layout(tmp_path: Path, arcname: str) -> No
 
     extract_root = tmp_path / "extract"
     extract_root.mkdir()
-    with tarfile.open(tarball, "r:gz") as tar:
-        tar.extractall(path=extract_root)
+    _safe_extract_test_tarball(tarball, extract_root)
     assert (extract_root / arcname / "marker.txt").read_text(encoding="utf-8") == "ok"
     assert (extract_root / "snapshot.manifest.json").is_file()
     proc = _run(VALIDATE, str(extract_root / "snapshot.manifest.json"))
