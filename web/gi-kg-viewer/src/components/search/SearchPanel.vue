@@ -1,5 +1,7 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
+import { useArtifactsStore } from '../../stores/artifacts'
+import { useGraphHandoffStore } from '../../stores/graphHandoff'
 import { useGraphNavigationStore } from '../../stores/graphNavigation'
 import { useSearchStore } from '../../stores/search'
 import { useShellStore } from '../../stores/shell'
@@ -22,6 +24,8 @@ const shell = useShellStore()
 const search = useSearchStore()
 const nav = useGraphNavigationStore()
 const subject = useSubjectStore()
+const artifacts = useArtifactsStore()
+const graphHandoff = useGraphHandoffStore()
 
 const queryRef = ref<HTMLTextAreaElement | null>(null)
 const advancedDialogRef = ref<HTMLDialogElement | null>(null)
@@ -99,8 +103,28 @@ function topicClusterCompoundIdForCamera(hit: SearchHit): string | null {
 function onFocusHit(hit: SearchHit): void {
   const id = graphNodeIdFromSearchHit(hit)
   if (!id) return
-  subject.focusGraphNode(id)
   const tcParent = topicClusterCompoundIdForCamera(hit)
+  // F1.6 — dispatch FSM handoff synchronously at click time so the search
+  // surface is observable on ``__GIKG_FSM_EVENT_LOG__`` and lands a
+  // ``subject-external`` load-source. Without this the search surface
+  // would route via ``App.activateGraphTab(undefined, undefined, 'search')``
+  // which gates ``handoffRequested`` dispatch on a target arg and returns
+  // without firing — the FSM would never see the event. Kind inferred
+  // from the bare id prefix: ``topic:*`` → topic, ``episode:*`` → episode,
+  // else graph-node.
+  const kind: 'topic' | 'episode' | 'graph-node' =
+    id.startsWith('topic:') ? 'topic' :
+    id.startsWith('episode:') ? 'episode' :
+    'graph-node'
+  artifacts.setLoadSource('subject-external')
+  graphHandoff.handoffRequested({
+    kind,
+    cyId: id,
+    source: 'search',
+    loadSource: 'subject-external',
+    camera: { kind: 'center-on-target' },
+  })
+  subject.focusGraphNode(id)
   nav.requestFocusNode(id, undefined, tcParent ? [tcParent] : undefined)
   emit('go-graph')
 }

@@ -94,48 +94,43 @@ test.describe('Handoff matrix § Section 1 — Cold-start', () => {
   })
 
   test('H1.5 — Search "Show on graph" (cold start) [F4b]', async ({ page }) => {
-    // S1 — search routes via @go-graph → App.activateGraphTab(source:'search').
-    // The reliable test of that contract is via the FSM dev hook: fire the
-    // same event the search panel produces, then assert it reached the FSM.
-    // (Driving the search UI requires a Vite-only set of fixtures that
-    // overlap with search-to-graph-mocks.spec.ts; the FSM-side contract is
-    // what the matrix row pins.)
+    // S1 — UI-driven: type a query in the SearchPanel, run the search, click
+    // the focusable "G" (Show on graph) button on the result card.
+    // ``onFocusHit`` in SearchPanel fires ``handoffRequested({source:'search',
+    // kind:'topic', loadSource:'subject-external', camera:'center-on-target'})``
+    // synchronously, then emits ``@go-graph`` to switch to the Graph tab.
+    // The mock result uses ``doc_type: 'kg_topic'`` + ``source_id:
+    // 'topic:ci-policy'`` so the card renders a focusable G button.
     const errs = captureConsoleErrors(page)
     await setupHandoffMatrixMocks(page, { search: true })
     await page.goto('/')
     await page.getByRole('heading', { name: SHELL_HEADING_RE }).waitFor()
     await statusBarCorpusPathInput(page).fill('/mock/corpus')
+    // Land on Graph tab so cy mounts and the corpus auto-loads. Wait
+    // for cy to actually have nodes before triggering the search —
+    // without that, tryApplyPendingFocus bails on empty graph and the
+    // FSM stays in loading_fetch waiting for data that won't arrive.
+    await mainViewsNav(page).getByRole('button', { name: 'Graph' }).click()
+    await page.waitForFunction(
+      () => {
+        const cy = (window as unknown as { __GIKG_CY_DEV__?: { nodes(): { length: number } } }).__GIKG_CY_DEV__
+        return cy ? cy.nodes().length > 0 : false
+      },
+      undefined,
+      { timeout: 15_000 },
+    )
 
-    await page.waitForTimeout(800)
-    await page.evaluate(() => {
-      const w = window as unknown as { __GIKG_FSM_EVENT_LOG__?: unknown[] }
-      w.__GIKG_FSM_EVENT_LOG__ = []
-    })
-    await page.evaluate(() => {
-      const store = (
-        window as unknown as {
-          __GIKG_HANDOFF_STORE__?: {
-            handoffRequested: (env: Record<string, unknown>) => void
-          }
-        }
-      ).__GIKG_HANDOFF_STORE__
-      store?.handoffRequested({
-        kind: 'topic',
-        cyId: 'topic:ci-policy',
-        source: 'search',
-        loadSource: 'subject-external',
-        camera: { kind: 'center-on-target' },
-      })
-    })
-    await page.waitForTimeout(300)
-    await assertFsmEventEnvelope(page, {
-      type: 'handoffRequested',
-      source: 'search',
-      kind: 'topic',
-      loadSource: 'subject-external',
-      cameraKind: 'center-on-target',
-      errors: errs,
-    })
+    await page.locator('#search-q').fill('ci policy')
+    await page
+      .locator('section')
+      .filter({ has: page.getByRole('heading', { name: 'Semantic search' }) })
+      .getByRole('button', { name: 'Search', exact: true })
+      .click()
+    await page.getByText('CI policy mention (stub)').waitFor({ timeout: 10_000 })
+    await page.getByRole('button', { name: /^Show on graph/ }).first().click()
+
+    // Full outcome contract — UI-driven path reaches L2+L3+L5+L6.
+    await assertHandoffApplied(page, 'g:topic:ci-policy', { errors: errs })
   })
 
   test('H1.6 — Episode panel "Open in graph" (cold start) [F1.1]', async ({ page }) => {
@@ -158,46 +153,76 @@ test.describe('Handoff matrix § Section 1 — Cold-start', () => {
   })
 
   test('H1.8 — Dashboard TopicLandscape → graph (O1)', async ({ page }) => {
-    // Dashboard emits @go-graph → App.activateGraphTab(source: 'dashboard')
-    // → handoffRequested. Drive the same event via the dev hook to pin
-    // the FSM-side contract; full Dashboard fixture overlaps with
-    // existing dashboard specs.
+    // O1 — UI-driven: click a topic-cluster chip in the Dashboard's
+    // Intelligence tab. Triggers ``TopicLandscape.onClusterActivate`` →
+    // ``emit('go-graph', 'tc:ci-policy-cluster', undefined)`` →
+    // ``App.activateGraphTab(target, fallback, 'dashboard')`` →
+    // ``handoffRequested({source:'dashboard', kind:'graph-node',
+    // cyId:'tc:ci-policy-cluster', loadSource:'subject-external',
+    // camera:'center-on-target'})``. Mocks `clusters: true` so the
+    // chip renders, plus minimum Dashboard endpoints so the Dashboard
+    // tab paints (briefing-card + intelligence tab).
     const errs = captureConsoleErrors(page)
-    await setupHandoffMatrixMocks(page)
+    await setupHandoffMatrixMocks(page, { clusters: true })
+    // Minimum extra mocks for Dashboard tab to render. The matrix mocks
+    // already cover ``/api/health``, ``/api/artifacts?``, digest, feeds,
+    // topic-clusters. Stub the remaining endpoints Dashboard reads from.
+    await page.route('**/api/corpus/stats?**', (r) =>
+      r.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          path: '/mock/corpus',
+          publish_month_histogram: { '2024-06': 1 },
+          catalog_episode_count: 1,
+          catalog_feed_count: 1,
+          digest_topics_configured: 1,
+        }),
+      }),
+    )
+    await page.route('**/api/corpus/coverage?**', (r) =>
+      r.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ path: '/mock/corpus', items: [] }),
+      }),
+    )
+    await page.route('**/api/corpus/persons/top?**', (r) =>
+      r.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ path: '/mock/corpus', items: [] }),
+      }),
+    )
+    await page.route('**/api/corpus/runs/summary?**', (r) =>
+      r.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ path: '/mock/corpus', items: [] }),
+      }),
+    )
     await page.goto('/')
     await page.getByRole('heading', { name: SHELL_HEADING_RE }).waitFor()
     await statusBarCorpusPathInput(page).fill('/mock/corpus')
-    await page.waitForTimeout(500)
 
-    await page.evaluate(() => {
-      const w = window as unknown as { __GIKG_FSM_EVENT_LOG__?: unknown[] }
-      w.__GIKG_FSM_EVENT_LOG__ = []
-    })
-    await page.evaluate(() => {
-      const store = (
-        window as unknown as {
-          __GIKG_HANDOFF_STORE__?: {
-            handoffRequested: (env: Record<string, unknown>) => void
-          }
-        }
-      ).__GIKG_HANDOFF_STORE__
-      store?.handoffRequested({
-        kind: 'topic',
-        cyId: 'topic:ci-policy',
-        source: 'dashboard',
-        loadSource: 'subject-external',
-        camera: { kind: 'center-on-target' },
-      })
-    })
-    await page.waitForTimeout(300)
-    await assertFsmEventEnvelope(page, {
-      type: 'handoffRequested',
-      source: 'dashboard',
-      kind: 'topic',
-      loadSource: 'subject-external',
-      cameraKind: 'center-on-target',
-      errors: errs,
-    })
+    await mainViewsNav(page).getByRole('button', { name: 'Dashboard' }).click()
+    await page.getByTestId('briefing-card').waitFor({ state: 'visible', timeout: 15_000 })
+    await page
+      .getByRole('tablist', { name: 'Dashboard tabs' })
+      .getByRole('tab', { name: 'Intelligence' })
+      .click()
+    // The TopicLandscape renders a button-list of clusters. Wait for the
+    // first cluster chip then click it.
+    const chip = page
+      .getByTestId('intelligence-topic-landscape')
+      .getByRole('listitem')
+      .first()
+    await chip.waitFor({ state: 'visible', timeout: 10_000 })
+    await chip.click()
+
+    // Full outcome contract — UI-driven path reaches L2+L3+L5+L6 for the
+    // topic-cluster compound cy id.
+    await assertHandoffApplied(page, 'tc:ci-policy-cluster', { errors: errs })
   })
 
   test('H1.9 — SubjectRail @go-graph (O5)', async ({ page }) => {
@@ -399,48 +424,84 @@ test.describe('Handoff matrix § Section 1 — Cold-start', () => {
   })
 
   test('H1.7 — NodeDetail Load (cold start) [F4b]', async ({ page }) => {
-    // O3 — NodeDetail "Load" routes via @go-graph → activateGraphTab(source:'node-detail').
-    // Same FSM contract as S1; pin the event signature via the dev hook
-    // because building a NodeDetail with a cluster-compound parent in the
-    // test corpus requires multi-step graph navigation that overlaps with
-    // existing dedicated specs.
+    // O3 — UI-driven: navigate to a topic-cluster compound node via the
+    // Dashboard, which opens NodeDetail for the compound. Click "Focus"
+    // on a cluster member to fire ``expansionRequested({source:
+    // 'node-detail', kind:'graph-node', cyId:<member>, loadSource:
+    // 'graph-internal'})``. Definition X — NodeDetail Load preserves
+    // layout (graph-internal load source).
     const errs = captureConsoleErrors(page)
     await setupHandoffMatrixMocks(page, { clusters: true })
+    // Dashboard's minimum mocks (same as H1.8) so we can click into the
+    // topic-cluster compound from the Intelligence tab.
+    await page.route('**/api/corpus/stats?**', (r) =>
+      r.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          path: '/mock/corpus',
+          publish_month_histogram: { '2024-06': 1 },
+          catalog_episode_count: 1,
+          catalog_feed_count: 1,
+          digest_topics_configured: 1,
+        }),
+      }),
+    )
+    await page.route('**/api/corpus/coverage?**', (r) =>
+      r.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ path: '/mock/corpus', items: [] }),
+      }),
+    )
+    await page.route('**/api/corpus/persons/top?**', (r) =>
+      r.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ path: '/mock/corpus', items: [] }),
+      }),
+    )
+    await page.route('**/api/corpus/runs/summary?**', (r) =>
+      r.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ path: '/mock/corpus', items: [] }),
+      }),
+    )
     await page.goto('/')
     await page.getByRole('heading', { name: SHELL_HEADING_RE }).waitFor()
     await statusBarCorpusPathInput(page).fill('/mock/corpus')
 
-    await page.waitForTimeout(800)
-    await page.evaluate(() => {
-      const w = window as unknown as { __GIKG_FSM_EVENT_LOG__?: unknown[] }
-      w.__GIKG_FSM_EVENT_LOG__ = []
-    })
-    await page.evaluate(() => {
-      const store = (
-        window as unknown as {
-          __GIKG_HANDOFF_STORE__?: {
-            handoffRequested: (env: Record<string, unknown>) => void
-          }
-        }
-      ).__GIKG_HANDOFF_STORE__
-      store?.handoffRequested({
-        kind: 'graph-node',
-        cyId: 'tc:ci-policy-cluster',
-        source: 'node-detail',
-        loadSource: 'graph-internal',
-        camera: { kind: 'center-on-target' },
-      })
-    })
-    await page.waitForTimeout(300)
-    // Definition X — NodeDetail Load preserves layout, so loadSource is
-    // graph-internal (not subject-external).
-    await assertFsmEventEnvelope(page, {
-      type: 'handoffRequested',
-      source: 'node-detail',
-      kind: 'graph-node',
-      loadSource: 'graph-internal',
-      cameraKind: 'center-on-target',
-      errors: errs,
-    })
+    // Land on the topic-cluster compound by activating it from Dashboard
+    // (already exercised in H1.8). This opens NodeDetail for the compound
+    // node and renders the cluster-members list.
+    await mainViewsNav(page).getByRole('button', { name: 'Dashboard' }).click()
+    await page.getByTestId('briefing-card').waitFor({ state: 'visible', timeout: 15_000 })
+    await page
+      .getByRole('tablist', { name: 'Dashboard tabs' })
+      .getByRole('tab', { name: 'Intelligence' })
+      .click()
+    const chip = page
+      .getByTestId('intelligence-topic-landscape')
+      .getByRole('listitem')
+      .first()
+    await chip.click()
+    // Wait for the compound to settle (Dashboard handoff lands).
+    await page.waitForFunction(
+      () => {
+        const fsm = (window as unknown as { __GIKG_FSM__?: { state: string } }).__GIKG_FSM__
+        return fsm?.state === 'ready'
+      },
+      undefined,
+      { timeout: 15_000 },
+    )
+
+    // Now click "Focus" on the cluster member row. The NodeDetail panel
+    // renders a `Focus` button per cluster member that triggers
+    // ``focusTopicClusterMember`` → ``expansionRequested({source:'node-detail'})``.
+    await page.getByRole('button', { name: 'Focus', exact: true }).first().click()
+
+    // Full outcome contract for the cluster member topic node.
+    await assertHandoffApplied(page, 'g:topic:ci-policy', { errors: errs })
   })
 })

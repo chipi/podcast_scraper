@@ -114,7 +114,27 @@ export async function setupHandoffMatrixMocks(
     r.fulfill({
       status: 200,
       contentType: 'application/json',
-      body: JSON.stringify({ path: '/mock/corpus', artifacts: [] }),
+      body: JSON.stringify({
+        path: '/mock/corpus',
+        artifacts: [
+          {
+            name: 'ep1.gi.json',
+            relative_path: 'metadata/ep1.gi.json',
+            kind: 'gi',
+            size_bytes: 1024,
+            mtime_utc: '2024-06-01T00:00:00Z',
+            publish_date: '2024-06-01',
+          },
+          {
+            name: 'ep1.kg.json',
+            relative_path: 'metadata/ep1.kg.json',
+            kind: 'kg',
+            size_bytes: 1024,
+            mtime_utc: '2024-06-01T00:00:00Z',
+            publish_date: '2024-06-01',
+          },
+        ],
+      }),
     }),
   )
   await page.route('**/api/corpus/feeds**', (r) =>
@@ -333,7 +353,9 @@ export async function setupHandoffMatrixMocks(
               score: 0.95,
               text: 'CI policy mention (stub).',
               metadata: {
-                doc_type: 'topic',
+                // ``kg_topic`` is in ``FOCUSABLE_DOC_TYPES`` so the result
+                // card renders a clickable "Show on graph" (G) button.
+                doc_type: 'kg_topic',
                 source_id: 'topic:ci-policy',
                 episode_id: 'ci-fixture',
                 source_metadata_relative_path: 'metadata/ep1.metadata.json',

@@ -55,31 +55,34 @@ ground the layering:
 | **L5** | Subject store correctness: `subject.kind` + matching id field reflects the target | `__GIKG_SUBJECT__` | `assertHandoffApplied` |
 | **L6** | Self-healing invariant: `expected ⊖ actual === ∅` after most recent `finishLayoutPass` | `__GIKG_FSM__.lastInvariant` | `assertHandoffApplied` |
 
-**UI-driven rows** (L1.1-L1.4, L1.6, L1.12-L1.13, H2.1-H2.2, H2.4-H2.6, H3.1-H3.2,
+**UI-driven rows** (H1.1-H1.8, H1.12-H1.13, H2.1-H2.2, H2.4-H2.6, H3.1-H3.2,
 H4.2, H7.2) drive the full pipeline via real DOM clicks and assert
-**L0+L1+L2+L3+L5+L6+L6** through `assertHandoffApplied`. L6 is advisory (accepts ``null``
-when no layoutstop fired since the handoff — typical when the target was already in
-the graph and no redraw was needed); a non-null snapshot must have empty
-`missing` / `extra` arrays.
+**L0+L1+L2+L3+L5+L6** through `assertHandoffApplied`. L6 is advisory (accepts
+``null`` when no layoutstop fired since the handoff — typical when the target
+was already in the graph and no redraw was needed); a non-null snapshot must have
+empty `missing` / `extra` arrays.
 
-**Dev-hook-driven rows** (L1.5, L1.7-L1.11, H2.3, H2.7, H4.1, H4.3, H6.1-H6.3, H7.1)
-dispatch envelopes via `__GIKG_HANDOFF_STORE__` (surfaces whose UI fixtures duplicate
-those exercised elsewhere) and assert **L0+L1+L4** through `assertFsmEventEnvelope`.
-These rows can't reach `applied` without a real graph change → they pin the FSM-event
-contract instead of the full outcome contract.
+**Dev-hook-driven rows** (H1.9-H1.11, H2.3, H2.7, H4.1, H4.3, H6.1-H6.3, H7.1)
+dispatch envelopes via `__GIKG_HANDOFF_STORE__` and assert **L0+L1+L4** through
+`assertFsmEventEnvelope`. These surfaces fall into three categories:
 
-**Filter rows** (Section 8) assert the inverse: no `handoffRequested` fired and FSM
-state quiescent — filters must not drive graph state.
+- **No-target emit funnels** (H1.9 SubjectRail, H1.10 StatusBar, H1.11 Mini-map):
+  emit `@go-graph` without a target — they're tab-switch shortcuts, not handoffs
+  to a specific node. The apply path is shared with H1.1 / H4.2 (UI-driven).
+- **Composite sequences** (H2.3, H2.7, H4.1, H4.3, H7.1): exercise multi-envelope
+  sequences or lifecycle events; a real UI walk would duplicate other rows.
+- **Failure modes** (H6.1-H6.3): force pathological FSM state (non-existent cy
+  id, stuck timer) that no UI path can produce.
 
-**Why dev-hook rows aren't promoted to UI-driven today.** Several surfaces (Search,
-NodeDetail Load, SubjectRail @go-graph, StatusBar @go-graph) emit `@go-graph` without
-a target argument. `App.activateGraphTab(undefined, undefined, source)` then gates
-its `handoffRequested` dispatch on `target` and returns without firing the FSM
-event. The handoff "happens" via `nav.requestFocusNode` + a downstream watcher in
-`GraphCanvas`, which is not the FSM-authoritative path. Promoting these to L2/L5
-requires the F1.6 follow-up work (plumb `source` through `@go-graph` and dispatch
-`handoffRequested` from the surfaces themselves). Until then, the dev-hook test pins
-the FSM-side contract that F1.6 will produce.
+**Filter rows** (Section 8) assert the inverse: no `handoffRequested` fired and
+FSM state quiescent — filters must not drive graph state.
+
+**F1.6 wiring landed.** Previously, SearchPanel `onFocusHit` and NodeDetail
+`focusTopicClusterMember` / `focusNeighborOnGraph` emitted `@go-graph` without
+firing an FSM event — the handoff was invisible to the FSM. They now dispatch
+``handoffRequested({source:'search'})`` and
+``expansionRequested({source:'node-detail'})`` synchronously at click time, so
+H1.5 and H1.7 are full UI-driven matrix rows.
 
 ## Matrix
 
@@ -94,10 +97,10 @@ touched yet. No prior selection, no prior state.
 | H1.2 | Digest recent topic pill (D1) | `cold-start.spec.ts` | `handoffRequested({source:'digest'})` | L0+L1+L2+L3+L5+L6 | ✅ `test()` |
 | H1.3 | Digest topic band hit row (D2) | `cold-start.spec.ts` | `handoffRequested({source:'digest'})` | L0+L1+L2+L3+L5+L6 | ✅ `test()` |
 | H1.4 | Digest topic band title (D3) | `cold-start.spec.ts` | `handoffRequested({source:'digest', camera:{kind:'fit'}})` | L0+L1+L2+L3+L5+L6 | ✅ `test()` |
-| H1.5 | Search "Show on graph" (S1) | `cold-start.spec.ts` | `handoffRequested({source:'search'})` | L0+L1+L4 | ✅ `test()` |
+| H1.5 | Search "Show on graph" (S1) | `cold-start.spec.ts` | `handoffRequested({source:'search'})` | L0+L1+L2+L3+L5+L6 | ✅ `test()` |
 | H1.6 | Episode panel "Open in graph" (E1) | `cold-start.spec.ts` | `handoffRequested({source:'episode-panel'})` | L0+L1+L2+L3+L5+L6 | ✅ `test()` |
-| H1.7 | NodeDetail Load (O3) | `cold-start.spec.ts` | `expansionRequested({source:'node-detail'})` | L0+L1+L4 | ✅ `test()` |
-| H1.8 | Dashboard TopicLandscape → graph (O1) | `cold-start.spec.ts` | `handoffRequested({source:'dashboard'})` | L0+L1+L4 | ✅ `test()` |
+| H1.7 | NodeDetail Load (O3) | `cold-start.spec.ts` | `expansionRequested({source:'node-detail'})` | L0+L1+L2+L3+L5+L6 | ✅ `test()` |
+| H1.8 | Dashboard TopicLandscape → graph (O1) | `cold-start.spec.ts` | `handoffRequested({source:'dashboard'})` | L0+L1+L2+L3+L5+L6 | ✅ `test()` |
 | H1.9 | SubjectRail @go-graph (O5) | `cold-start.spec.ts` | `handoffRequested({source:'subject-rail'})` | L0+L1+L4 | ✅ `test()` |
 | H1.10 | StatusBar @go-graph (O6) | `cold-start.spec.ts` | `handoffRequested({source:'status-bar'})` | L0+L1+L4 | ✅ `test()` |
 | H1.11 | Mini-map / GraphConnectionsSection click (G6) | `cold-start.spec.ts` | `canvasTapped({source:'minimap',suppressCamera:true})` | L0+L1+L4 | ✅ `test()` |
