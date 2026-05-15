@@ -200,6 +200,263 @@ test.describe('Handoff matrix § Section 1 — Cold-start', () => {
     expect(errs.errors).toEqual([])
   })
 
+  test('H1.8 — Dashboard TopicLandscape → graph (O1)', async ({ page }) => {
+    // Dashboard emits @go-graph → App.activateGraphTab(source: 'dashboard')
+    // → handoffRequested. Drive the same event via the dev hook to pin
+    // the FSM-side contract; full Dashboard fixture overlaps with
+    // existing dashboard specs.
+    const errs = captureConsoleErrors(page)
+    await setupHandoffMatrixMocks(page)
+    await page.goto('/')
+    await page.getByRole('heading', { name: SHELL_HEADING_RE }).waitFor()
+    await statusBarCorpusPathInput(page).fill('/mock/corpus')
+    await page.waitForTimeout(500)
+
+    await page.evaluate(() => {
+      const w = window as unknown as { __GIKG_FSM_EVENT_LOG__?: unknown[] }
+      w.__GIKG_FSM_EVENT_LOG__ = []
+    })
+    await page.evaluate(() => {
+      const store = (
+        window as unknown as {
+          __GIKG_HANDOFF_STORE__?: {
+            handoffRequested: (env: Record<string, unknown>) => void
+          }
+        }
+      ).__GIKG_HANDOFF_STORE__
+      store?.handoffRequested({
+        kind: 'topic',
+        cyId: 'topic:ci-policy',
+        source: 'dashboard',
+        loadSource: 'subject-external',
+        camera: { kind: 'center-on-target' },
+      })
+    })
+    await page.waitForTimeout(300)
+    const log = await page.evaluate(
+      () =>
+        ((window as unknown as { __GIKG_FSM_EVENT_LOG__?: unknown[] })
+          .__GIKG_FSM_EVENT_LOG__ ?? []) as Array<{
+          type: string
+          envelope?: Record<string, unknown>
+        }>,
+    )
+    const dash = log.find((e) => e.envelope?.['source'] === 'dashboard')
+    expect(dash, 'dashboard envelope reached the FSM').toBeDefined()
+    expect(dash?.envelope?.['loadSource']).toBe('subject-external')
+    expect(errs.errors).toEqual([])
+  })
+
+  test('H1.9 — SubjectRail @go-graph (O5)', async ({ page }) => {
+    // SubjectRail emits @go-graph with no target id → App.activateGraphTab
+    // passes source='subject-rail'. Tests the FSM-side observation
+    // contract.
+    const errs = captureConsoleErrors(page)
+    await setupHandoffMatrixMocks(page)
+    await page.goto('/')
+    await page.getByRole('heading', { name: SHELL_HEADING_RE }).waitFor()
+    await statusBarCorpusPathInput(page).fill('/mock/corpus')
+    await page.waitForTimeout(500)
+
+    await page.evaluate(() => {
+      const w = window as unknown as { __GIKG_FSM_EVENT_LOG__?: unknown[] }
+      w.__GIKG_FSM_EVENT_LOG__ = []
+    })
+    await page.evaluate(() => {
+      const store = (
+        window as unknown as {
+          __GIKG_HANDOFF_STORE__?: {
+            handoffRequested: (env: Record<string, unknown>) => void
+          }
+        }
+      ).__GIKG_HANDOFF_STORE__
+      store?.handoffRequested({
+        kind: 'graph-node',
+        cyId: 'g:topic:ci-policy',
+        source: 'subject-rail',
+        loadSource: 'subject-external',
+        camera: { kind: 'center-on-target' },
+      })
+    })
+    await page.waitForTimeout(300)
+    const log = await page.evaluate(
+      () =>
+        ((window as unknown as { __GIKG_FSM_EVENT_LOG__?: unknown[] })
+          .__GIKG_FSM_EVENT_LOG__ ?? []) as Array<{
+          type: string
+          envelope?: Record<string, unknown>
+        }>,
+    )
+    const sr = log.find((e) => e.envelope?.['source'] === 'subject-rail')
+    expect(sr, 'subject-rail envelope reached the FSM').toBeDefined()
+    expect(errs.errors).toEqual([])
+  })
+
+  test('H1.10 — StatusBar @go-graph (O6)', async ({ page }) => {
+    // StatusBar emits @go-graph; App.activateGraphTab routes it with
+    // source='status-bar'.
+    const errs = captureConsoleErrors(page)
+    await setupHandoffMatrixMocks(page)
+    await page.goto('/')
+    await page.getByRole('heading', { name: SHELL_HEADING_RE }).waitFor()
+    await statusBarCorpusPathInput(page).fill('/mock/corpus')
+    await page.waitForTimeout(500)
+
+    await page.evaluate(() => {
+      const w = window as unknown as { __GIKG_FSM_EVENT_LOG__?: unknown[] }
+      w.__GIKG_FSM_EVENT_LOG__ = []
+    })
+    await page.evaluate(() => {
+      const store = (
+        window as unknown as {
+          __GIKG_HANDOFF_STORE__?: {
+            handoffRequested: (env: Record<string, unknown>) => void
+          }
+        }
+      ).__GIKG_HANDOFF_STORE__
+      store?.handoffRequested({
+        kind: 'graph-node',
+        cyId: 'g:topic:ci-policy',
+        source: 'status-bar',
+        loadSource: 'subject-external',
+        camera: { kind: 'center-on-target' },
+      })
+    })
+    await page.waitForTimeout(300)
+    const log = await page.evaluate(
+      () =>
+        ((window as unknown as { __GIKG_FSM_EVENT_LOG__?: unknown[] })
+          .__GIKG_FSM_EVENT_LOG__ ?? []) as Array<{
+          type: string
+          envelope?: Record<string, unknown>
+        }>,
+    )
+    const sb = log.find((e) => e.envelope?.['source'] === 'status-bar')
+    expect(sb, 'status-bar envelope reached the FSM').toBeDefined()
+    expect(errs.errors).toEqual([])
+  })
+
+  test('H1.11 — Mini-map / GraphConnectionsSection click (G6)', async ({
+    page,
+  }) => {
+    // G6 — mini-map and graph-rail connection clicks fire
+    // ``canvasTapped({source:'minimap', suppressCamera:true})`` per
+    // decision #6 (view-only preview, no camera chase).
+    const errs = captureConsoleErrors(page)
+    await setupHandoffMatrixMocks(page)
+    await page.goto('/')
+    await page.getByRole('heading', { name: SHELL_HEADING_RE }).waitFor()
+    await statusBarCorpusPathInput(page).fill('/mock/corpus')
+    await mainViewsNav(page).getByRole('button', { name: 'Library' }).click()
+    await page.getByRole('button', { name: 'Mock Episode Title, Mock Show' }).click()
+    await page.getByRole('button', { name: 'Open in graph' }).click()
+    await page.waitForTimeout(1500)
+
+    await page.evaluate(() => {
+      const w = window as unknown as { __GIKG_FSM_EVENT_LOG__?: unknown[] }
+      w.__GIKG_FSM_EVENT_LOG__ = []
+    })
+    await page.evaluate(() => {
+      const store = (
+        window as unknown as {
+          __GIKG_HANDOFF_STORE__?: {
+            canvasTapped: (env: Record<string, unknown>) => void
+          }
+        }
+      ).__GIKG_HANDOFF_STORE__
+      store?.canvasTapped({
+        kind: 'graph-node',
+        cyId: 'g:topic:ci-policy',
+        source: 'minimap',
+        loadSource: 'graph-internal',
+        camera: { kind: 'preserve' },
+        suppressCamera: true,
+      })
+    })
+    await page.waitForTimeout(300)
+    const log = await page.evaluate(
+      () =>
+        ((window as unknown as { __GIKG_FSM_EVENT_LOG__?: unknown[] })
+          .__GIKG_FSM_EVENT_LOG__ ?? []) as Array<{
+          type: string
+          envelope?: Record<string, unknown>
+        }>,
+    )
+    const mm = log.find(
+      (e) => e.type === 'canvasTapped' && e.envelope?.['source'] === 'minimap',
+    )
+    expect(mm, 'minimap canvasTapped envelope reached the FSM').toBeDefined()
+    expect(mm?.envelope?.['camera']).toMatchObject({ kind: 'preserve' })
+    expect(errs.errors).toEqual([])
+  })
+
+  test('H1.12 — Escape key clears focus (K1)', async ({ page }) => {
+    // K1 — Escape fires ``graphHandoff.focusCleared()`` per decision #5.
+    // Verifies the event reaches the FSM and lastResult is null'd
+    // (consistent with the focusCleared Escape contract).
+    const errs = captureConsoleErrors(page)
+    await setupHandoffMatrixMocks(page)
+    await page.goto('/')
+    await page.getByRole('heading', { name: SHELL_HEADING_RE }).waitFor()
+    await statusBarCorpusPathInput(page).fill('/mock/corpus')
+    await mainViewsNav(page).getByRole('button', { name: 'Library' }).click()
+    await page.getByRole('button', { name: 'Mock Episode Title, Mock Show' }).click()
+    await page.getByRole('button', { name: 'Open in graph' }).click()
+    await page.waitForTimeout(1500)
+
+    const before = await readFsmState(page)
+    expect(before).not.toBeNull()
+    const startGen = before!.generation
+
+    await page.keyboard.press('Escape')
+    await page.waitForTimeout(500)
+
+    const after = await readFsmState(page)
+    expect(after).not.toBeNull()
+    // Escape bumps generation (always-supersede policy for focusCleared)
+    // and resets lastResult so a downstream restore doesn't re-anchor.
+    expect(after!.generation).toBeGreaterThan(startGen)
+    expect(after!.lastResultStatus).toBeNull()
+    expect(errs.errors).toEqual([])
+  })
+
+  test('H1.13 — Background canvas tap clears subject (G7)', async ({ page }) => {
+    // G7 — tapping the canvas background (not a node) clears subject
+    // and selection. The tap fires through Cytoscape's tap event with
+    // ``evt.target === core`` (no node target).
+    const errs = captureConsoleErrors(page)
+    await setupHandoffMatrixMocks(page)
+    await page.goto('/')
+    await page.getByRole('heading', { name: SHELL_HEADING_RE }).waitFor()
+    await statusBarCorpusPathInput(page).fill('/mock/corpus')
+    await mainViewsNav(page).getByRole('button', { name: 'Library' }).click()
+    await page.getByRole('button', { name: 'Mock Episode Title, Mock Show' }).click()
+    await page.getByRole('button', { name: 'Open in graph' }).click()
+    await page.waitForTimeout(1500)
+
+    // Simulate background tap by triggering the tap event on cy itself
+    // (target === core path in the GraphCanvas onetap handler).
+    const tappedOk = await page.evaluate(() => {
+      const cy = (
+        window as unknown as { __GIKG_CY_DEV__?: import('cytoscape').Core }
+      ).__GIKG_CY_DEV__
+      if (!cy) return false
+      cy.trigger('tap', { target: cy })
+      return true
+    })
+    expect(tappedOk).toBe(true)
+    await page.waitForTimeout(400)
+    // After background tap: cy has no selected node.
+    const selCount = await page.evaluate(() => {
+      const cy = (
+        window as unknown as { __GIKG_CY_DEV__?: import('cytoscape').Core }
+      ).__GIKG_CY_DEV__
+      return cy ? cy.nodes(':selected').length : -1
+    })
+    expect(selCount).toBe(0)
+    expect(errs.errors).toEqual([])
+  })
+
   test('H1.7 — NodeDetail Load (cold start) [F4b]', async ({ page }) => {
     // O3 — NodeDetail "Load" routes via @go-graph → activateGraphTab(source:'node-detail').
     // Same FSM contract as S1; pin the event signature via the dev hook

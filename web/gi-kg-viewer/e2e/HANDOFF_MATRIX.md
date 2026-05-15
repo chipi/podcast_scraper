@@ -2,7 +2,9 @@
 
 This is the **authoritative coverage matrix** for graph navigation handoffs across
 all entry points. Every row maps to a named Playwright spec under `e2e/handoff/`.
-All 28 rows are real `test()` assertions. The matrix
+All 41 rows are real `test()` assertions across 8 sections (cold-start /
+hot-state / repeat-click / cross-entry / concurrency / failure / lifecycle
+/ filters). The matrix
 contract: every architectural decision in
 [ADR-094](../../../docs/adr/ADR-094-graph-handoff-orchestrator-fsm.md) is either
 verified by a row here or by a unit test in
@@ -54,6 +56,12 @@ touched yet. No prior selection, no prior state.
 | H1.5 | Search "Show on graph" (S1) | `cold-start.spec.ts` | `handoffRequested({source:'search'})` | ✅ `test()` |
 | H1.6 | Episode panel "Open in graph" (E1) | `cold-start.spec.ts` | `handoffRequested({source:'episode-panel'})` | ✅ `test()` |
 | H1.7 | NodeDetail Load (O3) | `cold-start.spec.ts` | `expansionRequested({source:'node-detail'})` | ✅ `test()` |
+| H1.8 | Dashboard TopicLandscape → graph (O1) | `cold-start.spec.ts` | `handoffRequested({source:'dashboard'})` | ✅ `test()` |
+| H1.9 | SubjectRail @go-graph (O5) | `cold-start.spec.ts` | `handoffRequested({source:'subject-rail'})` | ✅ `test()` |
+| H1.10 | StatusBar @go-graph (O6) | `cold-start.spec.ts` | `handoffRequested({source:'status-bar'})` | ✅ `test()` |
+| H1.11 | Mini-map / GraphConnectionsSection click (G6) | `cold-start.spec.ts` | `canvasTapped({source:'minimap',suppressCamera:true})` | ✅ `test()` |
+| H1.12 | Escape key clears focus (K1) | `cold-start.spec.ts` | `focusCleared()` | ✅ `test()` |
+| H1.13 | Background canvas tap clears subject (G7) | `cold-start.spec.ts` | Cytoscape `tap` with `target === core` | ✅ `test()` |
 
 ### Section 2 — Hot state with prior selection (7 rows)
 
@@ -124,19 +132,40 @@ Initialization and tab-return events that go through the FSM as internal events
 | H7.1 | First mount with saved `restoreEpisodeCyId` preference | `lifecycle.spec.ts` | FSM bootstrap fires internal `handoffRequested({source:'restore-preference'})` once on first idle→ready (decision #8) | ✅ `test()` |
 | H7.2 | Tab-switch round-trip: reconcile-only | `lifecycle.spec.ts` | Reconcile no-op when consistent; targeted `core.add()` when missing nodes (decision #7 + self-healing predicate) | ✅ `test()` |
 
+### Section 8 — Filters (7 rows)
+
+Filter / view-only surfaces in Digest / Library / Graph. These are the
+"negative space" of the matrix: actions that *shouldn't* fire FSM
+handoff events, and shouldn't surface console errors. Catches the bug
+class where a filter toggle accidentally triggers a redraw that tears
+down selection (or fires a spurious handoff).
+
+| ID | Surface | Spec file | Contract | Status |
+| --- | --- | --- | --- | --- |
+| H8.1 | Digest date chip (window selector) | `filters.spec.ts` | No `handoffRequested` fires; state quiescent after | ✅ `test()` |
+| H8.2 | Library title filter input | `filters.spec.ts` | No `handoffRequested` fires; state quiescent after | ✅ `test()` |
+| H8.3 | Library summary filter input | `filters.spec.ts` | No `handoffRequested` fires; state quiescent after | ✅ `test()` |
+| H8.4 | Graph layout cycle | `filters.spec.ts` | Runs new layout; no `handoffRequested` fires; FSM advances back to `ready` | ✅ `test()` |
+| H8.5 | Graph relayout button | `filters.spec.ts` | Re-runs current layout; no `handoffRequested` fires | ✅ `test()` |
+| H8.6 | Graph minimap toggle | `filters.spec.ts` | UI-only; no `handoffRequested` fires | ✅ `test()` |
+| H8.7 | Graph zoom in / out / fit | `filters.spec.ts` | Camera-only; no `handoffRequested` fires; selection preserved | ✅ `test()` |
+
 ---
 
-## Total: 28 rows
+## Total: 41 rows
 
 Distribution:
 
-- **All 28 rows** pass with real `test()` assertions. Rows that drive UI
-  surfaces directly (Library / Digest / Episode panel) click through the
-  mocked DOM. Rows whose surfaces require infrastructure outside the
-  handoff suite's scope (Search-UI fixture, NodeDetail TopicCluster
-  fixtures) instead drive the same FSM event the production surface emits
-  via the dev-only `window.__GIKG_HANDOFF_STORE__` hook — same envelope
-  shape, same FSM contract surface as the user-driven path.
+- **All 41 rows** pass with real `test()` assertions. Rows that drive
+  UI surfaces directly (Library / Digest / Episode panel) click through
+  the mocked DOM. Rows whose surfaces require infrastructure outside
+  the handoff suite's scope (Search-UI fixture, NodeDetail TopicCluster
+  fixtures, Dashboard topic-landscape fixtures, SubjectRail / StatusBar
+  go-graph emitters) instead drive the same FSM event the production
+  surface emits via the dev-only `window.__GIKG_HANDOFF_STORE__` hook —
+  same envelope shape, same FSM contract surface as the user-driven
+  path. Section 8 covers filter / view-only surfaces (the "negative
+  space" of the matrix: actions that *shouldn't* fire handoff events).
 - **0 rows** remain as `test.skip()` or `test.fail()`. GH #754 (the
   follow-up that tracked the prior 17 skips) is now closed in favour of
   these end-to-end assertions.
@@ -161,13 +190,14 @@ Beyond the 28-row matrix, these specs guard against architectural drift:
 
 ```text
 e2e/handoff/
-  cold-start.spec.ts      // 7 rows (Section 1)
+  cold-start.spec.ts      // 13 rows (Section 1)
   hot-state.spec.ts       // 7 rows (Section 2)
   repeat-click.spec.ts    // 4 rows (Section 3)
   cross-entry.spec.ts     // 3 rows (Section 4)
   concurrency.spec.ts     // 2 rows (Section 5)
   failure.spec.ts         // 3 rows (Section 6)
   lifecycle.spec.ts       // 2 rows (Section 7)
+  filters.spec.ts         // 7 rows (Section 8)
 ```
 
 All seven files share `helpers.ts` for fixture setup, dev-only state inspection

@@ -1614,6 +1614,21 @@ function finishLayoutPass(core: Core): void {
       graphHandoff.pending.cyId ||
       ''
     graphHandoff.recordApplied(appliedCyId)
+  } else if (
+    graphHandoff.state === 'applying' ||
+    graphHandoff.state === 'loading_fetch' ||
+    graphHandoff.state === 'loading_bootstrap' ||
+    graphHandoff.state === 'loading_merge' ||
+    graphHandoff.state === 'redrawing_incremental' ||
+    graphHandoff.state === 'redrawing_full'
+  ) {
+    // No in-flight envelope, but FSM is in some intermediate state from
+    // a filter-class side-effect (layout cycle, relayout, lens toggle,
+    // minimap toggle that triggers a subject-driven artifact append,
+    // etc.). The FSM should not stay parked in an intermediate state
+    // when there's no envelope to drive the transitions — advance to
+    // ``ready`` so the next user action gets a clean baseline.
+    graphHandoff.advanceState('ready')
   }
   // Set cooldown to prevent immediate redraws from watchers reacting to layout state changes
   layoutCompletionCooldownUntil = Date.now() + 300 // 300ms cooldown
