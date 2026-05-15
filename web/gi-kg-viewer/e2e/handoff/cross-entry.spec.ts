@@ -9,6 +9,7 @@
 import { expect, test } from '@playwright/test'
 import { mainViewsNav, SHELL_HEADING_RE, statusBarCorpusPathInput } from '../helpers'
 import {
+  assertHandoffApplied,
   captureConsoleErrors,
   readFsmState,
   setupHandoffMatrixMocks,
@@ -59,7 +60,7 @@ test.describe('Handoff matrix § Section 4 — Cross-entry sequences', () => {
       ).__GIKG_HANDOFF_STORE__
       store?.handoffRequested({
         kind: 'topic',
-        cyId: 'topic:ci-policy',
+        cyId: 'g:topic:ci-policy',
         source: 'search',
         loadSource: 'subject-external',
         camera: { kind: 'center-on-target' },
@@ -70,6 +71,12 @@ test.describe('Handoff matrix § Section 4 — Cross-entry sequences', () => {
     const after = await readFsmState(page)
     expect(after).not.toBeNull()
     expect(after!.generation).toBeGreaterThanOrEqual(startGen + 3)
+    // Final action was a dev-hook search envelope. Without a real
+    // ``redraw → layoutstop`` triggered by new data, the FSM has no
+    // path to ``applied`` for the third envelope on its own — the
+    // contract here is "envelopes dispatched, no contamination, no
+    // console errors", not "full apply for every step." (UI-driven
+    // segments above were already exercised in H1.1, H1.2, etc.)
     expect(errs.errors).toEqual([])
   })
 
@@ -106,12 +113,12 @@ test.describe('Handoff matrix § Section 4 — Cross-entry sequences', () => {
     await page
       .getByRole('button', { name: 'Open graph for topic: CI Policy' })
       .click()
-    await page.waitForTimeout(700)
 
     const after = await readFsmState(page)
     expect(after).not.toBeNull()
     expect(after!.generation).toBeGreaterThanOrEqual(startGen + 3)
-    expect(errs.errors).toEqual([])
+    // Final action: Digest CIL pill → topic.
+    await assertHandoffApplied(page, 'g:topic:ci-policy', { errors: errs })
   })
 
   test('H4.3 — Search → NodeDetail Load → Search [F4d]', async ({ page }) => {
@@ -139,7 +146,7 @@ test.describe('Handoff matrix § Section 4 — Cross-entry sequences', () => {
       ).__GIKG_HANDOFF_STORE__
       store?.handoffRequested({
         kind: 'topic',
-        cyId: 'topic:ci-policy',
+        cyId: 'g:topic:ci-policy',
         source: 'search',
         loadSource: 'subject-external',
         camera: { kind: 'center-on-target' },
@@ -153,7 +160,7 @@ test.describe('Handoff matrix § Section 4 — Cross-entry sequences', () => {
       })
       store?.handoffRequested({
         kind: 'topic',
-        cyId: 'topic:ci-policy',
+        cyId: 'g:topic:ci-policy',
         source: 'search',
         loadSource: 'subject-external',
         camera: { kind: 'center-on-target' },

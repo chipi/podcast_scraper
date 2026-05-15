@@ -8,6 +8,7 @@
 import { expect, test } from '@playwright/test'
 import { mainViewsNav, SHELL_HEADING_RE, statusBarCorpusPathInput } from '../helpers'
 import {
+  assertHandoffApplied,
   captureConsoleErrors,
   readFsmState,
   setupHandoffMatrixMocks,
@@ -87,9 +88,12 @@ test.describe('Handoff matrix § Section 7 — Lifecycle', () => {
         .getByRole('heading', { name: 'Mock Episode Title' }),
     ).toBeVisible()
 
-    // Initial handoff
+    // Initial handoff — assert full outcome.
     await page.getByRole('button', { name: 'Open in graph' }).click()
-    await page.waitForTimeout(500) // let the handoff settle
+    await assertHandoffApplied(page, 'g:episode:ci-fixture', {
+      errors: errs,
+      episodePanelTitle: 'Mock Episode Title',
+    })
 
     const afterFirst = await readFsmState(page)
     expect(afterFirst).not.toBeNull()

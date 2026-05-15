@@ -8,6 +8,7 @@
 import { expect, test } from '@playwright/test'
 import { mainViewsNav, SHELL_HEADING_RE, statusBarCorpusPathInput } from '../helpers'
 import {
+  assertHandoffApplied,
   captureConsoleErrors,
   readFsmState,
   setupHandoffMatrixMocks,
@@ -42,10 +43,15 @@ test.describe('Handoff matrix § Section 2 — Hot state', () => {
     await mainViewsNav(page).getByRole('button', { name: 'Library' }).click()
     await page.getByRole('button', { name: 'Open in graph' }).click()
 
+    // After two clicks: generation up by ≥2 (supersession). Final state
+    // applied to the same episode (same target each time).
     const after = await readFsmState(page)
     expect(after).not.toBeNull()
     expect(after!.generation).toBeGreaterThanOrEqual(startGen + 2)
-    expect(errs.errors).toEqual([])
+    await assertHandoffApplied(page, 'g:episode:ci-fixture', {
+      errors: errs,
+      episodePanelTitle: 'Mock Episode Title',
+    })
   })
 
   test('H2.2 — Digest A → Digest B (D1 hot) [F4c]', async ({ page }) => {
@@ -71,12 +77,11 @@ test.describe('Handoff matrix § Section 2 — Hot state', () => {
     await page
       .getByRole('button', { name: 'Open graph for topic: CI Policy' })
       .click()
-    await page.waitForTimeout(800)
 
     const after = await readFsmState(page)
     expect(after).not.toBeNull()
     expect(after!.generation).toBeGreaterThanOrEqual(startGen + 2)
-    expect(errs.errors).toEqual([])
+    await assertHandoffApplied(page, 'g:topic:ci-policy', { errors: errs })
   })
 
   test('H2.3 — Search A → Search B (S1 hot) [F4c]', async ({ page }) => {
@@ -145,7 +150,10 @@ test.describe('Handoff matrix § Section 2 — Hot state', () => {
     const after = await readFsmState(page)
     expect(after).not.toBeNull()
     expect(after!.generation).toBeGreaterThanOrEqual(startGen + 2)
-    expect(errs.errors).toEqual([])
+    await assertHandoffApplied(page, 'g:episode:ci-fixture', {
+      errors: errs,
+      episodePanelTitle: 'Mock Episode Title',
+    })
   })
 
   test('H2.5 — Mixed: Digest A → Library B [F4c]', async ({ page }) => {
@@ -172,12 +180,15 @@ test.describe('Handoff matrix § Section 2 — Hot state', () => {
     await mainViewsNav(page).getByRole('button', { name: 'Library' }).click()
     await page.getByRole('button', { name: 'Mock Episode Title, Mock Show' }).click()
     await page.getByRole('button', { name: 'Open in graph' }).click()
-    await page.waitForTimeout(800)
 
     const after = await readFsmState(page)
     expect(after).not.toBeNull()
     expect(after!.generation).toBeGreaterThanOrEqual(startGen + 2)
-    expect(errs.errors).toEqual([])
+    // Final action was Library Open-in-graph → episode is the target.
+    await assertHandoffApplied(page, 'g:episode:ci-fixture', {
+      errors: errs,
+      episodePanelTitle: 'Mock Episode Title',
+    })
   })
 
   test('H2.6 — Mixed: Library A → Digest B [F4c]', async ({ page }) => {
@@ -209,12 +220,12 @@ test.describe('Handoff matrix § Section 2 — Hot state', () => {
     await page
       .getByRole('button', { name: 'Open graph for topic: CI Policy' })
       .click()
-    await page.waitForTimeout(800)
 
     const after = await readFsmState(page)
     expect(after).not.toBeNull()
     expect(after!.generation).toBeGreaterThanOrEqual(startGen + 2)
-    expect(errs.errors).toEqual([])
+    // Final action was Digest CIL pill → topic is the target.
+    await assertHandoffApplied(page, 'g:topic:ci-policy', { errors: errs })
   })
 
   test('H2.7 — Mixed: Search → NodeDetail Load [F4c]', async ({ page }) => {

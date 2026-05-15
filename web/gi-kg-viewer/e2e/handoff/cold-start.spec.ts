@@ -25,25 +25,14 @@ test.describe('Handoff matrix § Section 1 — Cold-start', () => {
     await mainViewsNav(page).getByRole('button', { name: 'Library' }).click()
     await expect(page.getByTestId('library-root')).toBeVisible()
 
-    const before = await readFsmState(page)
-    expect(before).not.toBeNull()
+    // Open the row's episode panel + click "Open in graph".
+    await page.getByRole('button', { name: 'Mock Episode Title, Mock Show' }).click()
+    await page.getByRole('button', { name: 'Open in graph' }).click()
 
-    // Hover to reveal the Library row "Open in graph" affordance, then click it.
-    const row = page.getByRole('button', { name: 'Mock Episode Title, Mock Show' })
-    await row.hover()
-    const openInGraphBtn = page.getByRole('button', { name: /open .* in graph/i }).first()
-    if (await openInGraphBtn.isVisible({ timeout: 500 }).catch(() => false)) {
-      await openInGraphBtn.click()
-    } else {
-      // Fallback: click the row itself if the hover affordance isn't reachable.
-      await row.click()
-      await page.getByRole('button', { name: 'Open in graph' }).click()
-    }
-
-    const after = await readFsmState(page)
-    expect(after).not.toBeNull()
-    expect(after!.generation).toBeGreaterThan(before!.generation)
-    expect(errs.errors).toEqual([])
+    await assertHandoffApplied(page, 'g:episode:ci-fixture', {
+      errors: errs,
+      episodePanelTitle: 'Mock Episode Title',
+    })
   })
 
   test('H1.2 — Digest recent topic pill (cold start) [F4b]', async ({ page }) => {
@@ -54,20 +43,13 @@ test.describe('Handoff matrix § Section 1 — Cold-start', () => {
     await statusBarCorpusPathInput(page).fill('/mock/corpus')
     await expect(page.getByTestId('digest-root')).toBeVisible()
 
-    const before = await readFsmState(page)
-    expect(before).not.toBeNull()
-
     await page
       .getByRole('button', { name: 'Open graph for topic: CI Policy' })
       .click()
-    // D1 handoff awaits ``appendRelativeArtifacts`` before firing the FSM
-    // event — give the async chain time to settle.
-    await page.waitForTimeout(800)
 
-    const after = await readFsmState(page)
-    expect(after).not.toBeNull()
-    expect(after!.generation).toBeGreaterThan(before!.generation)
-    expect(errs.errors).toEqual([])
+    // D1 pill targets ``topic:ci-policy`` — should land on the cy topic
+    // node with the GI prefix.
+    await assertHandoffApplied(page, 'g:topic:ci-policy', { errors: errs })
   })
 
   test('H1.3 — Digest topic band hit row (cold start) [F4b]', async ({ page }) => {
@@ -78,23 +60,16 @@ test.describe('Handoff matrix § Section 1 — Cold-start', () => {
     await statusBarCorpusPathInput(page).fill('/mock/corpus')
     await expect(page.getByTestId('digest-root')).toBeVisible()
 
-    const before = await readFsmState(page)
-    expect(before).not.toBeNull()
-
-    // Topic-band hit row (D2). The aria-label pattern is "Open graph and
-    // episode details: <title>, <show>, <similarity>" per DigestView.
+    // D2 — topic-band hit row opens the episode AND focuses the band's
+    // graph topic id. Per ``DigestView.onTopicHitRowActivate`` →
+    // ``openTopicHitInGraph``, the envelope ``cyId`` is the band's
+    // ``graph_topic_id`` (``topic:ci-policy`` in our mock).
     await page
       .getByRole('button', { name: /Open graph and episode details/ })
       .first()
       .click()
-    // D2 handoff awaits ``appendRelativeArtifacts`` before firing the FSM
-    // event — give the async chain time to settle.
-    await page.waitForTimeout(800)
 
-    const after = await readFsmState(page)
-    expect(after).not.toBeNull()
-    expect(after!.generation).toBeGreaterThan(before!.generation)
-    expect(errs.errors).toEqual([])
+    await assertHandoffApplied(page, 'g:topic:ci-policy', { errors: errs })
   })
 
   test('H1.4 — Digest topic band title (cold start) [F4b]', async ({ page }) => {
@@ -105,9 +80,6 @@ test.describe('Handoff matrix § Section 1 — Cold-start', () => {
     await statusBarCorpusPathInput(page).fill('/mock/corpus')
     await expect(page.getByTestId('digest-root')).toBeVisible()
 
-    const before = await readFsmState(page)
-    expect(before).not.toBeNull()
-
     // D3 — clicking the band title routes through the same activateGraphTab
     // surface as D2, so we exercise the same kind of FSM event. The band
     // title is rendered as a clickable header; we route the click through
@@ -116,12 +88,8 @@ test.describe('Handoff matrix § Section 1 — Cold-start', () => {
       .getByRole('button', { name: /Open graph and episode details/ })
       .first()
       .click()
-    await page.waitForTimeout(800)
 
-    const after = await readFsmState(page)
-    expect(after).not.toBeNull()
-    expect(after!.generation).toBeGreaterThan(before!.generation)
-    expect(errs.errors).toEqual([])
+    await assertHandoffApplied(page, 'g:topic:ci-policy', { errors: errs })
   })
 
   test('H1.5 — Search "Show on graph" (cold start) [F4b]', async ({ page }) => {

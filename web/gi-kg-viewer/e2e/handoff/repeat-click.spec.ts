@@ -8,6 +8,7 @@
 import { expect, test } from '@playwright/test'
 import { loadGraphViaFilePicker, mainViewsNav, SHELL_HEADING_RE, statusBarCorpusPathInput } from '../helpers'
 import {
+  assertHandoffApplied,
   captureConsoleErrors,
   readFsmState,
   setupHandoffMatrixMocks,
@@ -41,7 +42,10 @@ test.describe('Handoff matrix § Section 3 — Repeated click', () => {
     const after = await readFsmState(page)
     expect(after).not.toBeNull()
     expect(after!.generation).toBeGreaterThanOrEqual(startGen + 2)
-    expect(errs.errors).toEqual([])
+    await assertHandoffApplied(page, 'g:episode:ci-fixture', {
+      errors: errs,
+      episodePanelTitle: 'Mock Episode Title',
+    })
   })
 
   test('H3.2 — Digest pill × 2 (same topic) [F4d]', async ({ page }) => {
@@ -66,12 +70,11 @@ test.describe('Handoff matrix § Section 3 — Repeated click', () => {
     await page
       .getByRole('button', { name: 'Open graph for topic: CI Policy' })
       .click()
-    await page.waitForTimeout(800)
 
     const after = await readFsmState(page)
     expect(after).not.toBeNull()
     expect(after!.generation).toBeGreaterThanOrEqual(startGen + 2)
-    expect(errs.errors).toEqual([])
+    await assertHandoffApplied(page, 'g:topic:ci-policy', { errors: errs })
   })
 
   test('H3.3 — Canvas tap fires canvasTapped on FSM [F1.2]', async ({ page }) => {
