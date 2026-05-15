@@ -53,10 +53,14 @@ ground the layering:
 | **L3** | Camera zoom in sane range; no console errors; Episode panel title (when relevant) | `__GIKG_CY_DEV__` + `console.error` | `assertHandoffApplied` |
 | **L4** | FSM event log envelope contract: `type`, `source`, `kind`, `loadSource`, `camera.kind` | `__GIKG_FSM_EVENT_LOG__` | `assertFsmEventEnvelope` |
 | **L5** | Subject store correctness: `subject.kind` + matching id field reflects the target | `__GIKG_SUBJECT__` | `assertHandoffApplied` |
+| **L6** | Self-healing invariant: `expected ⊖ actual === ∅` after most recent `finishLayoutPass` | `__GIKG_FSM__.lastInvariant` | `assertHandoffApplied` |
 
 **UI-driven rows** (L1.1-L1.4, L1.6, L1.12-L1.13, H2.1-H2.2, H2.4-H2.6, H3.1-H3.2,
-H4.2, H7.2) drive the full pipeline via real DOM clicks and assert **L0+L1+L2+L3+L5**
-through `assertHandoffApplied`.
+H4.2, H7.2) drive the full pipeline via real DOM clicks and assert
+**L0+L1+L2+L3+L5+L6+L6** through `assertHandoffApplied`. L6 is advisory (accepts ``null``
+when no layoutstop fired since the handoff — typical when the target was already in
+the graph and no redraw was needed); a non-null snapshot must have empty
+`missing` / `extra` arrays.
 
 **Dev-hook-driven rows** (L1.5, L1.7-L1.11, H2.3, H2.7, H4.1, H4.3, H6.1-H6.3, H7.1)
 dispatch envelopes via `__GIKG_HANDOFF_STORE__` (surfaces whose UI fixtures duplicate
@@ -67,6 +71,16 @@ contract instead of the full outcome contract.
 **Filter rows** (Section 8) assert the inverse: no `handoffRequested` fired and FSM
 state quiescent — filters must not drive graph state.
 
+**Why dev-hook rows aren't promoted to UI-driven today.** Several surfaces (Search,
+NodeDetail Load, SubjectRail @go-graph, StatusBar @go-graph) emit `@go-graph` without
+a target argument. `App.activateGraphTab(undefined, undefined, source)` then gates
+its `handoffRequested` dispatch on `target` and returns without firing the FSM
+event. The handoff "happens" via `nav.requestFocusNode` + a downstream watcher in
+`GraphCanvas`, which is not the FSM-authoritative path. Promoting these to L2/L5
+requires the F1.6 follow-up work (plumb `source` through `@go-graph` and dispatch
+`handoffRequested` from the surfaces themselves). Until then, the dev-hook test pins
+the FSM-side contract that F1.6 will produce.
+
 ## Matrix
 
 ### Section 1 — Cold-start happy path (7 rows)
@@ -76,12 +90,12 @@ touched yet. No prior selection, no prior state.
 
 | ID | Entry point | Spec file | FSM event | Layers | Status |
 | --- | --- | --- | --- | --- | --- |
-| H1.1 | Library row "Open in graph" (L1) | `cold-start.spec.ts` | `handoffRequested({source:'library'})` | L0+L1+L2+L3+L5 | ✅ `test()` |
-| H1.2 | Digest recent topic pill (D1) | `cold-start.spec.ts` | `handoffRequested({source:'digest'})` | L0+L1+L2+L3+L5 | ✅ `test()` |
-| H1.3 | Digest topic band hit row (D2) | `cold-start.spec.ts` | `handoffRequested({source:'digest'})` | L0+L1+L2+L3+L5 | ✅ `test()` |
-| H1.4 | Digest topic band title (D3) | `cold-start.spec.ts` | `handoffRequested({source:'digest', camera:{kind:'fit'}})` | L0+L1+L2+L3+L5 | ✅ `test()` |
+| H1.1 | Library row "Open in graph" (L1) | `cold-start.spec.ts` | `handoffRequested({source:'library'})` | L0+L1+L2+L3+L5+L6 | ✅ `test()` |
+| H1.2 | Digest recent topic pill (D1) | `cold-start.spec.ts` | `handoffRequested({source:'digest'})` | L0+L1+L2+L3+L5+L6 | ✅ `test()` |
+| H1.3 | Digest topic band hit row (D2) | `cold-start.spec.ts` | `handoffRequested({source:'digest'})` | L0+L1+L2+L3+L5+L6 | ✅ `test()` |
+| H1.4 | Digest topic band title (D3) | `cold-start.spec.ts` | `handoffRequested({source:'digest', camera:{kind:'fit'}})` | L0+L1+L2+L3+L5+L6 | ✅ `test()` |
 | H1.5 | Search "Show on graph" (S1) | `cold-start.spec.ts` | `handoffRequested({source:'search'})` | L0+L1+L4 | ✅ `test()` |
-| H1.6 | Episode panel "Open in graph" (E1) | `cold-start.spec.ts` | `handoffRequested({source:'episode-panel'})` | L0+L1+L2+L3+L5 | ✅ `test()` |
+| H1.6 | Episode panel "Open in graph" (E1) | `cold-start.spec.ts` | `handoffRequested({source:'episode-panel'})` | L0+L1+L2+L3+L5+L6 | ✅ `test()` |
 | H1.7 | NodeDetail Load (O3) | `cold-start.spec.ts` | `expansionRequested({source:'node-detail'})` | L0+L1+L4 | ✅ `test()` |
 | H1.8 | Dashboard TopicLandscape → graph (O1) | `cold-start.spec.ts` | `handoffRequested({source:'dashboard'})` | L0+L1+L4 | ✅ `test()` |
 | H1.9 | SubjectRail @go-graph (O5) | `cold-start.spec.ts` | `handoffRequested({source:'subject-rail'})` | L0+L1+L4 | ✅ `test()` |
@@ -97,12 +111,12 @@ each entry point. Tests "second click works as well as first."
 
 | ID | Entry point | Spec file | Asymmetry exercised | Layers | Status |
 | --- | --- | --- | --- | --- | --- |
-| H2.1 | Library row re-click (L1 hot) | `hot-state.spec.ts` | Asymmetry #1 (L1 sync setLoadSource); supersession | L0+L1+L2+L3+L5 | ✅ `test()` |
-| H2.2 | Digest A → Digest B (D1 hot) | `hot-state.spec.ts` | Highlight clearing (asymmetry #10) | L0+L1+L2+L3+L5 | ✅ `test()` |
+| H2.1 | Library row re-click (L1 hot) | `hot-state.spec.ts` | Asymmetry #1 (L1 sync setLoadSource); supersession | L0+L1+L2+L3+L5+L6 | ✅ `test()` |
+| H2.2 | Digest A → Digest B (D1 hot) | `hot-state.spec.ts` | Highlight clearing (asymmetry #10) | L0+L1+L2+L3+L5+L6 | ✅ `test()` |
 | H2.3 | Search A → Search B (S1 hot) | `hot-state.spec.ts` | Generation supersession | L0+L1+L4 | ✅ `test()` |
-| H2.4 | Episode panel re-click (E1 hot) | `hot-state.spec.ts` | Asymmetry #2 (E1 missing setLoadSource) | L0+L1+L2+L3+L5 | ✅ `test()` |
-| H2.5 | Mixed: Digest → Library (D1→L1) | `hot-state.spec.ts` | Highlight cleared on Library (asymmetry #10) | L0+L1+L2+L3+L5 | ✅ `test()` |
-| H2.6 | Mixed: Library → Digest (L1→D1) | `hot-state.spec.ts` | Load-source flip-flop | L0+L1+L2+L3+L5 | ✅ `test()` |
+| H2.4 | Episode panel re-click (E1 hot) | `hot-state.spec.ts` | Asymmetry #2 (E1 missing setLoadSource) | L0+L1+L2+L3+L5+L6 | ✅ `test()` |
+| H2.5 | Mixed: Digest → Library (D1→L1) | `hot-state.spec.ts` | Highlight cleared on Library (asymmetry #10) | L0+L1+L2+L3+L5+L6 | ✅ `test()` |
+| H2.6 | Mixed: Library → Digest (L1→D1) | `hot-state.spec.ts` | Load-source flip-flop | L0+L1+L2+L3+L5+L6 | ✅ `test()` |
 | H2.7 | Mixed: Search → NodeDetail Load (S1→O3) | `hot-state.spec.ts` | graph-internal vs subject-external | L0+L1+L4 | ✅ `test()` |
 
 ### Section 3 — Repeated click on same target (4 rows)
@@ -112,8 +126,8 @@ same-target" re-entrance policy (decision #5 / FSM spec).
 
 | ID | Trigger | Spec file | Re-entrance policy | Layers | Status |
 | --- | --- | --- | --- | --- | --- |
-| H3.1 | Library row × 2 (same episode) | `repeat-click.spec.ts` | `handoffRequested` always supersedes | L0+L1+L2+L3+L5 | ✅ `test()` |
-| H3.2 | Digest pill × 2 (same topic) | `repeat-click.spec.ts` | Same as H3.1 for source: 'digest' | L0+L1+L2+L3+L5 | ✅ `test()` |
+| H3.1 | Library row × 2 (same episode) | `repeat-click.spec.ts` | `handoffRequested` always supersedes | L0+L1+L2+L3+L5+L6 | ✅ `test()` |
+| H3.2 | Digest pill × 2 (same topic) | `repeat-click.spec.ts` | Same as H3.1 for source: 'digest' | L0+L1+L2+L3+L5+L6 | ✅ `test()` |
 | H3.3 | Canvas tap fires canvasTapped on FSM | `repeat-click.spec.ts` | Verifies canvas onetap fires `graphHandoff.canvasTapped` | L0+L1+L4 | ✅ `test()` |
 | H3.4 | Double-tap expand fires expansionRequested | `repeat-click.spec.ts` | Verifies canvas dbltap fires `graphHandoff.expansionRequested` | L0+L1+L4 | ✅ `test()` |
 
@@ -126,7 +140,7 @@ INCREMENTAL_LOADING_TEST_CRITERIA.md).
 | ID | Sequence | Spec file | Validates | Layers | Status |
 | --- | --- | --- | --- | --- | --- |
 | H4.1 | Library → Digest → Search | `cross-entry.spec.ts` | 3 different load-sources tracked + cleared in order | L0+L1+L4 | ✅ `test()` |
-| H4.2 | Digest band → Library row → Digest pill | `cross-entry.spec.ts` | Camera strategy switch (`fit` → `center`) | L0+L1+L2+L3+L5 | ✅ `test()` |
+| H4.2 | Digest band → Library row → Digest pill | `cross-entry.spec.ts` | Camera strategy switch (`fit` → `center`) | L0+L1+L2+L3+L5+L6 | ✅ `test()` |
 | H4.3 | Search → NodeDetail Load → Search | `cross-entry.spec.ts` | `subject-external` → `graph-internal` → `subject-external` | L0+L1+L4 | ✅ `test()` |
 
 ### Section 5 — Concurrency (2 rows)
@@ -157,7 +171,7 @@ Initialization and tab-return events that go through the FSM as internal events
 | ID | Trigger | Spec file | FSM expectation | Layers | Status |
 | --- | --- | --- | --- | --- | --- |
 | H7.1 | First mount with saved `restoreEpisodeCyId` preference | `lifecycle.spec.ts` | FSM bootstrap fires internal `handoffRequested({source:'restore-preference'})` once on first idle→ready (decision #8) | L0+L1+L4 | ✅ `test()` |
-| H7.2 | Tab-switch round-trip: reconcile-only | `lifecycle.spec.ts` | Reconcile no-op when consistent; targeted `core.add()` when missing nodes (decision #7 + self-healing predicate) | L0+L1+L2+L3+L5 | ✅ `test()` |
+| H7.2 | Tab-switch round-trip: reconcile-only | `lifecycle.spec.ts` | Reconcile no-op when consistent; targeted `core.add()` when missing nodes (decision #7 + self-healing predicate) | L0+L1+L2+L3+L5+L6 | ✅ `test()` |
 
 ### Section 8 — Filters (7 rows)
 
