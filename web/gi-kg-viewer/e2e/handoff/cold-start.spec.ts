@@ -9,6 +9,7 @@
 import { expect, test } from '@playwright/test'
 import { mainViewsNav, SHELL_HEADING_RE, statusBarCorpusPathInput } from '../helpers'
 import {
+  assertHandoffApplied,
   captureConsoleErrors,
   readFsmState,
   setupHandoffMatrixMocks,
@@ -180,24 +181,16 @@ test.describe('Handoff matrix § Section 1 — Cold-start', () => {
     await page.getByRole('heading', { name: SHELL_HEADING_RE }).waitFor()
     await statusBarCorpusPathInput(page).fill('/mock/corpus')
     await mainViewsNav(page).getByRole('button', { name: 'Library' }).click()
-    await expect(page.getByTestId('library-root')).toBeVisible()
     await page.getByRole('button', { name: 'Mock Episode Title, Mock Show' }).click()
-    await expect(
-      page
-        .getByRole('region', { name: 'Episode', exact: true })
-        .getByRole('heading', { name: 'Mock Episode Title' }),
-    ).toBeVisible()
-
-    const before = await readFsmState(page)
-    expect(before).not.toBeNull()
-    expect(['idle', 'ready']).toContain(before!.state)
-
     await page.getByRole('button', { name: 'Open in graph' }).click()
 
-    const after = await readFsmState(page)
-    expect(after).not.toBeNull()
-    expect(after!.generation).toBeGreaterThan(before!.generation)
-    expect(errs.errors).toEqual([])
+    // Full 6-point assertion: FSM reaches ready with applied status,
+    // selection is on the expected episode cy node, camera in sane range,
+    // episode panel visible with the right title, no console errors.
+    await assertHandoffApplied(page, 'g:episode:ci-fixture', {
+      errors: errs,
+      episodePanelTitle: 'Mock Episode Title',
+    })
   })
 
   test('H1.8 — Dashboard TopicLandscape → graph (O1)', async ({ page }) => {

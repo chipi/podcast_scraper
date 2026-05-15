@@ -143,7 +143,7 @@ export async function setupHandoffMatrixMocks(
             summary_title: 'Summary head',
             summary_bullets_preview: ['Point one'],
             summary_preview: 'Summary head — Point one',
-            episode_id: 'e1',
+            episode_id: 'ci-fixture',
             episode_title: 'Mock Episode Title',
             publish_date: '2024-06-01',
             gi_relative_path: 'metadata/ep1.gi.json',
@@ -165,7 +165,7 @@ export async function setupHandoffMatrixMocks(
         path: '/mock/corpus',
         metadata_relative_path: 'metadata/ep1.metadata.json',
         feed_id: 'f1',
-        episode_id: 'e1',
+        episode_id: 'ci-fixture',
         episode_title: 'Mock Episode Title',
         publish_date: '2024-06-01',
         summary_title: 'Summary head',
@@ -268,7 +268,7 @@ export async function setupHandoffMatrixMocks(
                   metadata_relative_path: 'metadata/ep1.metadata.json',
                   feed_id: 'f1',
                   feed_display_title: 'Mock Show',
-                  episode_id: 'e1',
+                  episode_id: 'ci-fixture',
                   episode_title: 'Mock Episode Title',
                   publish_date: '2024-06-05',
                   summary_title: 'Mock summary',
@@ -304,7 +304,7 @@ export async function setupHandoffMatrixMocks(
                       publish_date: '2024-06-05',
                       score: 0.91,
                       summary_preview: 'Mock summary — Mock bullet',
-                      episode_id: 'e1',
+                      episode_id: 'ci-fixture',
                       gi_relative_path: 'metadata/ep1.gi.json',
                       kg_relative_path: 'metadata/ep1.kg.json',
                       has_gi: true,
@@ -335,7 +335,7 @@ export async function setupHandoffMatrixMocks(
               metadata: {
                 doc_type: 'topic',
                 source_id: 'topic:ci-policy',
-                episode_id: 'e1',
+                episode_id: 'ci-fixture',
                 source_metadata_relative_path: 'metadata/ep1.metadata.json',
                 graph_topic_id: 'topic:ci-policy',
               },
@@ -421,6 +421,141 @@ export async function readFsmStateHistory(page: Page): Promise<string[]> {
     const w = window as unknown as { __GIKG_FSM_STATE_HISTORY__?: string[] }
     return w.__GIKG_FSM_STATE_HISTORY__ ?? []
   })
+}
+
+/**
+ * Outcome contract for a "successful handoff" — encodes the 6-point standard
+ * assertion documented in HANDOFF_MATRIX.md §"Standard assertions". A real
+ * end-to-end handoff means more than "an envelope was dispatched"; it means
+ * the user actually got the outcome they expected:
+ *
+ *   1. FSM is back at ``ready`` with ``pending: null`` and
+ *      ``lastResult.status === 'applied'``.
+ *   2. Cytoscape has exactly one node selected, and its id matches the
+ *      expected target (modulo ``g:`` / ``k:`` prefix variants for the
+ *      same logical topic / entity).
+ *   3. Camera zoom is in a sane range (not collapsed to fit-all).
+ *   4. No console errors leaked.
+ *   5. For episode handoffs: the Episode panel is visible with the right
+ *      title.
+ *
+ * Use this helper from UI-driven matrix tests so the matrix actually asserts
+ * the user-visible outcome, not just the envelope. Dev-hook-driven tests
+ * (e.g. Search, NodeDetail, Dashboard — surfaces whose full UI fixture
+ * overlaps with other specs) assert against the FSM event log instead;
+ * see ``readFsmEventLog``.
+ */
+export async function assertHandoffApplied(
+  page: Page,
+  expectedCyId: string,
+  opts: {
+    errors: { errors: string[] }
+    /** Optional: assert the Episode panel shows this title after the handoff. */
+    episodePanelTitle?: string
+    /** Max time to wait for the FSM to reach ``ready`` (default 15 s). */
+    waitForReadyMs?: number
+    /** Min zoom to accept (default 0.2 — anything below is "fit-all collapsed"). */
+    minZoom?: number
+    /** Max zoom to accept (default 5 — anything above is "zoomed into the void"). */
+    maxZoom?: number
+  },
+): Promise<void> {
+  const waitMs = opts.waitForReadyMs ?? 15_000
+  const minZoom = opts.minZoom ?? 0.2
+  const maxZoom = opts.maxZoom ?? 5
+
+  // 1. Wait for FSM to settle.
+  const deadline = Date.now() + waitMs
+  let fsm: Awaited<ReturnType<typeof readFsmState>> = null
+  while (Date.now() < deadline) {
+    fsm = await readFsmState(page)
+    if (fsm?.state === 'ready' && fsm.pending === null) break
+    await page.waitForTimeout(200)
+  }
+  if (!fsm || fsm.state !== 'ready' || fsm.pending !== null) {
+    throw new Error(
+      `assertHandoffApplied: FSM did not reach ready within ${waitMs}ms (state=${fsm?.state}, pending=${fsm?.pending?.cyId ?? 'null'})`,
+    )
+  }
+  if (fsm.lastResultStatus !== 'applied') {
+    throw new Error(
+      `assertHandoffApplied: lastResult.status=${fsm.lastResultStatus} (expected 'applied')`,
+    )
+  }
+
+  // 2. Selection contract — exactly one node selected, id matches expected.
+  const sel = await page.evaluate(() => {
+    const cy = (
+      window as unknown as { __GIKG_CY_DEV__?: import('cytoscape').Core }
+    ).__GIKG_CY_DEV__
+    if (!cy) return null
+    return cy.nodes(':selected').map((n) => n.id())
+  })
+  if (sel === null) {
+    throw new Error('assertHandoffApplied: cy core not exposed via __GIKG_CY_DEV__')
+  }
+  if (sel.length !== 1) {
+    throw new Error(
+      `assertHandoffApplied: expected exactly 1 node selected, got ${sel.length} (${JSON.stringify(sel)})`,
+    )
+  }
+  /**
+   * Normalize a cy id to its "logical" form so equivalent ids compare
+   * equal even if the rendered prefix differs:
+   *   - ``g:episode:X``, ``k:episode:X``, ``__unified_ep__:X`` all
+   *     normalise to ``episode:X`` (an episode with GI-only, KG-only, or
+   *     merged-into-unified data is still the same logical episode)
+   *   - ``g:topic:X`` and ``k:topic:X`` normalise to ``topic:X``
+   *   - other prefixes (``tc:``, plain ``episode:`` / ``topic:`` / etc.)
+   *     pass through unchanged
+   */
+  const normalize = (s: string): string => {
+    if (s.startsWith('__unified_ep__:')) return 'episode:' + s.slice('__unified_ep__:'.length)
+    if (s.startsWith('g:') || s.startsWith('k:')) return s.slice(2)
+    return s
+  }
+  if (normalize(sel[0]) !== normalize(expectedCyId)) {
+    throw new Error(
+      `assertHandoffApplied: selected node ${sel[0]} does not match expected ${expectedCyId} (modulo g:/k:/__unified_ep__: prefix)`,
+    )
+  }
+
+  // 3. Camera zoom in sane range.
+  const zoom = await page.evaluate(() => {
+    const cy = (
+      window as unknown as { __GIKG_CY_DEV__?: import('cytoscape').Core }
+    ).__GIKG_CY_DEV__
+    return cy ? cy.zoom() : null
+  })
+  if (zoom === null) {
+    throw new Error('assertHandoffApplied: cy core not exposed')
+  }
+  if (zoom < minZoom || zoom > maxZoom) {
+    throw new Error(
+      `assertHandoffApplied: zoom=${zoom.toFixed(3)} outside sane range [${minZoom}, ${maxZoom}]`,
+    )
+  }
+
+  // 4. No console errors.
+  if (opts.errors.errors.length > 0) {
+    throw new Error(
+      `assertHandoffApplied: ${opts.errors.errors.length} console error(s): ${opts.errors.errors.slice(0, 3).join(' | ')}`,
+    )
+  }
+
+  // 5. Optional: Episode panel visible with right title.
+  if (opts.episodePanelTitle) {
+    const visible = await page
+      .getByRole('region', { name: 'Episode', exact: true })
+      .getByRole('heading', { name: opts.episodePanelTitle })
+      .isVisible({ timeout: 2000 })
+      .catch(() => false)
+    if (!visible) {
+      throw new Error(
+        `assertHandoffApplied: Episode panel not visible with title "${opts.episodePanelTitle}"`,
+      )
+    }
+  }
 }
 
 /**

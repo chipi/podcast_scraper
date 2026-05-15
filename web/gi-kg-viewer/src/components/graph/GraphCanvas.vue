@@ -1627,7 +1627,19 @@ function finishLayoutPass(core: Core): void {
       focusNodeId.value ||
       graphHandoff.pending.cyId ||
       ''
-    graphHandoff.recordApplied(appliedCyId)
+    if (appliedCyId) {
+      graphHandoff.recordApplied(appliedCyId)
+    } else {
+      // No real cyId resolved — the apply path couldn't find the target in
+      // cy. ``recordApplied('')`` would silently mark the FSM as applied
+      // with an empty appliedCyId, which is a lie: nothing was actually
+      // applied. Surface the failure instead so the error strip can
+      // render and the matrix tests can distinguish "succeeded" from
+      // "envelope went through pipeline but applied nothing."
+      graphHandoff.handoffFailed(
+        `apply failed: no cy node found for envelope target (cyId=${graphHandoff.pending.cyId ?? 'none'}, metadataPath=${graphHandoff.pending.metadataPath ?? 'none'})`,
+      )
+    }
   } else if (
     graphHandoff.state === 'applying' ||
     graphHandoff.state === 'loading_fetch' ||
@@ -2808,6 +2820,25 @@ function redraw(): void {
       }
       finishLayoutPass(core)
     })
+    // Advance FSM state through the redraw barrier so ``layoutstop`` lands
+    // in a state where the FSM accepts the transition. Without this,
+    // ``redraw()`` runs ``initialLo`` while state is still ``loading_fetch``
+    // (the territory-strip's ``advanceState('loading_merge')`` hasn't fired
+    // yet because the subject watcher runs *after* the initial
+    // ``appendRelativeArtifacts → filteredArtifact change`` cascade). The
+    // layoutstop event is then dropped (loading_fetch isn't a valid
+    // pre-state for layoutstop) and ``finishLayoutPass`` runs with the FSM
+    // marooned in ``loading_fetch``. Walking the FSM through the proper
+    // pipeline here is what the state-walking integration test asserts.
+    if (
+      graphHandoff.state === 'loading_fetch' ||
+      graphHandoff.state === 'loading_bootstrap'
+    ) {
+      graphHandoff.advanceState('loading_merge')
+    }
+    if (graphHandoff.state === 'loading_merge') {
+      graphHandoff.advanceState('redrawing_full')
+    }
     try {
       initialLo.run()
     } catch {
