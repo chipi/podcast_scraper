@@ -480,11 +480,27 @@ export async function assertHandoffApplied(
     minZoom?: number
     /** Max zoom to accept (default 5 — anything above is "zoomed into the void"). */
     maxZoom?: number
+    /**
+     * Skip the camera-centering check (GH #771 class: zoom OK but pan
+     * misaligned). Set ``true`` for ``camera: 'fit'`` / ``'preserve'``
+     * envelopes where the target node isn't guaranteed to be at the
+     * viewport center.
+     */
+    skipCameraCenter?: boolean
+    /**
+     * Max distance from viewport center the target node's rendered
+     * position may be, as a fraction of viewport dimension. Default 0.35
+     * — node may sit anywhere within the inner 70% × 70% of the
+     * viewport. Tighten to 0.15 for "really centered" claims; loosen to
+     * catch only "off-screen" bugs.
+     */
+    cameraCenterTolerance?: number
   },
 ): Promise<void> {
   const waitMs = opts.waitForReadyMs ?? 15_000
   const minZoom = opts.minZoom ?? 0.2
   const maxZoom = opts.maxZoom ?? 5
+  const centerTolerance = opts.cameraCenterTolerance ?? 0.35
 
   // 1. Wait for FSM to settle.
   const deadline = Date.now() + waitMs
@@ -542,7 +558,7 @@ export async function assertHandoffApplied(
     )
   }
 
-  // 3. Camera zoom in sane range.
+  // 3a. Camera zoom in sane range.
   const zoom = await page.evaluate(() => {
     const cy = (
       window as unknown as { __GIKG_CY_DEV__?: import('cytoscape').Core }
@@ -556,6 +572,91 @@ export async function assertHandoffApplied(
     throw new Error(
       `assertHandoffApplied: zoom=${zoom.toFixed(3)} outside sane range [${minZoom}, ${maxZoom}]`,
     )
+  }
+
+  // 3b. Camera-center check (GH #771 class — zoom OK but pan misaligned).
+  //
+  // ``cy.zoom()`` alone passes for the "fit-all collapsed → zoomed back in
+  // but panned to the wrong place" failure mode where the user sees a
+  // zoomed view of empty space or wrong nodes. ``node.renderedPosition()``
+  // returns the actual pixel coordinates of the node in the viewport after
+  // zoom + pan are applied; we require those to be within the inner
+  // ``centerTolerance`` × viewport-dimension box around the viewport
+  // center.
+  //
+  // Camera animation runs async after ``recordApplied`` (FSM ``ready`` is
+  // marked before ``cy.animate`` finishes), so poll until the position is
+  // stable for two consecutive reads, capped at 2.5 s. Skip entirely when
+  // the envelope's camera kind isn't centering (``fit`` / ``preserve`` /
+  // ``none``) — caller passes ``skipCameraCenter: true``.
+  if (!opts.skipCameraCenter) {
+    const settled = await page.evaluate(
+      async ({ maxMs, pollMs }) => {
+        const cy = (
+          window as unknown as { __GIKG_CY_DEV__?: import('cytoscape').Core }
+        ).__GIKG_CY_DEV__
+        if (!cy) return null
+        const sel = cy.nodes(':selected')
+        if (sel.length !== 1) return null
+        const node = sel.first()
+        let lastX = Number.POSITIVE_INFINITY
+        let lastY = Number.POSITIVE_INFINITY
+        let stableReads = 0
+        const deadline = Date.now() + maxMs
+        // eslint-disable-next-line no-constant-condition
+        while (true) {
+          const rp = node.renderedPosition()
+          if (
+            Math.abs(rp.x - lastX) < 1 &&
+            Math.abs(rp.y - lastY) < 1
+          ) {
+            stableReads++
+            if (stableReads >= 2) {
+              return {
+                renderedX: rp.x,
+                renderedY: rp.y,
+                viewportW: cy.width(),
+                viewportH: cy.height(),
+              }
+            }
+          } else {
+            stableReads = 0
+          }
+          lastX = rp.x
+          lastY = rp.y
+          if (Date.now() >= deadline) {
+            return {
+              renderedX: rp.x,
+              renderedY: rp.y,
+              viewportW: cy.width(),
+              viewportH: cy.height(),
+            }
+          }
+          await new Promise((resolve) => setTimeout(resolve, pollMs))
+        }
+      },
+      { maxMs: 2500, pollMs: 100 },
+    )
+    if (settled === null) {
+      throw new Error(
+        'assertHandoffApplied: camera-center check could not read node viewport position',
+      )
+    }
+    const cx = settled.viewportW / 2
+    const cy0 = settled.viewportH / 2
+    const dx = Math.abs(settled.renderedX - cx)
+    const dy = Math.abs(settled.renderedY - cy0)
+    const maxDx = settled.viewportW * centerTolerance
+    const maxDy = settled.viewportH * centerTolerance
+    if (dx > maxDx || dy > maxDy) {
+      throw new Error(
+        `assertHandoffApplied: target node not centered in viewport. ` +
+          `rendered=(${settled.renderedX.toFixed(0)}, ${settled.renderedY.toFixed(0)}) ` +
+          `viewportCenter=(${cx.toFixed(0)}, ${cy0.toFixed(0)}) ` +
+          `dx=${dx.toFixed(0)}/${maxDx.toFixed(0)} dy=${dy.toFixed(0)}/${maxDy.toFixed(0)} ` +
+          `(tolerance=${centerTolerance})`,
+      )
+    }
   }
 
   // 4. No console errors.

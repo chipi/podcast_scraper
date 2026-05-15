@@ -33,10 +33,16 @@ via `window.__GIKG_SUBJECT__`:
    `NO_CY_EPISODE_ID` errors in console.
 3. **Subject store** — `subject.kind` matches the envelope kind; `subject.episodeId` /
    `subject.graphNodeCyId` / `subject.topicId` match the resolved id.
-4. **Pending handoff** — `__GIKG_FSM__.state === 'ready'`;
+4. **Camera state** — `cy.zoom()` is within `[minZoom, maxZoom]` (default 0.2..5;
+   catches fit-all collapse + zoom-into-void), AND the target node's
+   `renderedPosition()` is within the inner ``cameraCenterTolerance × viewport``
+   box around the viewport center (default 0.35; catches GH #771-class bugs where
+   zoom is fine but pan misaligned). Skip via ``skipCameraCenter: true`` for
+   ``camera: 'fit'`` / ``'preserve'`` rows.
+5. **Pending handoff** — `__GIKG_FSM__.state === 'ready'`;
    `__GIKG_FSM__.pending === null`; `lastResult.status === 'applied'`.
-5. **No console errors** — `[]` from `consoleMessages.filter(m => m.type() === 'error')`.
-6. **Self-healing invariant** — set-difference predicate `expected ⊖ actual === ∅` over
+6. **No console errors** — `[]` from `consoleMessages.filter(m => m.type() === 'error')`.
+7. **Self-healing invariant** — set-difference predicate `expected ⊖ actual === ∅` over
    `viewWithEgo(focusNodeId)` ids vs. `core.nodes()` ids. (FSM-only; pre-FSM rows skip.)
 
 ## Assertion layers (L0–L5)
@@ -50,7 +56,7 @@ ground the layering:
 | **L0** | API mocks return the expected shape (corpus, digest, search, artifacts) | n/a | `setupHandoffMatrixMocks` |
 | **L1** | FSM ready, pending=null, lastResult.status=applied, generation bumped | `__GIKG_FSM__` | `readFsmState` |
 | **L2** | One node selected with matching cy id (modulo `g:`/`k:`/`__unified_ep__:`) | `__GIKG_CY_DEV__` | `assertHandoffApplied` |
-| **L3** | Camera zoom in sane range; no console errors; Episode panel title (when relevant) | `__GIKG_CY_DEV__` + `console.error` | `assertHandoffApplied` |
+| **L3** | Camera zoom in sane range + target node centered in viewport; no console errors; Episode panel title (when relevant) | `__GIKG_CY_DEV__` + `console.error` | `assertHandoffApplied` |
 | **L4** | FSM event log envelope contract: `type`, `source`, `kind`, `loadSource`, `camera.kind` | `__GIKG_FSM_EVENT_LOG__` | `assertFsmEventEnvelope` |
 | **L5** | Subject store correctness: `subject.kind` + matching id field reflects the target | `__GIKG_SUBJECT__` | `assertHandoffApplied` |
 | **L6** | Self-healing invariant: `expected ⊖ actual === ∅` after most recent `finishLayoutPass` | `__GIKG_FSM__.lastInvariant` | `assertHandoffApplied` |
