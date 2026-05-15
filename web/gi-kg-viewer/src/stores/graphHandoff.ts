@@ -35,6 +35,18 @@ import {
 
 export type GraphHandoffStuckListener = (envelope: GraphHandoffEnvelope) => void
 
+/**
+ * Module-level invariant snapshot. Persisted at the module scope rather than
+ * inside the Pinia store closure so it survives Pinia HMR re-creating the
+ * store (which would otherwise create a fresh ``lastInvariant`` ref and lose
+ * the value). The dev hook reads from here directly.
+ */
+let _moduleLastInvariant: {
+  missing: string[]
+  extra: string[]
+  ts: number
+} | null = null
+
 export const useGraphHandoffStore = defineStore('graphHandoff', () => {
   const fsm: Fsm = createFsm()
 
@@ -45,6 +57,40 @@ export const useGraphHandoffStore = defineStore('graphHandoff', () => {
 
   /** Last `HandoffResult` emitted; consumed by the failure UI strip (C7). */
   const lastResult = ref<HandoffResult | null>(null)
+
+  /**
+   * Self-healing invariant snapshot captured at the most recent
+   * ``finishLayoutPass`` after a handoff settled. ``missing`` are nodes the
+   * logical view (``viewWithEgo(focusNodeId)``) expects but Cytoscape lacks;
+   * ``extra`` are nodes Cytoscape has but the logical view doesn't expect.
+   * Both empty ⇒ canvas and store are in sync. Matrix L6 reads this to assert
+   * "no divergence after settle" without re-implementing ``viewWithEgo``.
+   */
+  const lastInvariant = ref<{
+    missing: string[]
+    extra: string[]
+    ts: number
+  } | null>(null)
+
+  function recordInvariant(missing: string[], extra: string[]): void {
+    const snap = { missing, extra, ts: Date.now() }
+    lastInvariant.value = snap
+    _moduleLastInvariant = snap
+    // Last-resort persistence layer for the matrix L6 assertion: write to
+    // sessionStorage so the snapshot survives Pinia HMR replacing module
+    // closures AND dev-hook re-stamping (which has been observed swapping
+    // the visible closure mid-test). Read by ``readInvariant`` in tests.
+    if (typeof window !== 'undefined' && import.meta.env?.DEV) {
+      try {
+        window.sessionStorage.setItem(
+          '__GIKG_FSM_LAST_INVARIANT__',
+          JSON.stringify(snap),
+        )
+      } catch {
+        /* sessionStorage may be disabled in some test contexts */
+      }
+    }
+  }
 
   /** Bookkeeping for the wall-clock stuck-handoff timer. */
   let stuckTimer: ReturnType<typeof setTimeout> | null = null
@@ -327,6 +373,13 @@ export const useGraphHandoffStore = defineStore('graphHandoff', () => {
       get lastResult() {
         return lastResult.value
       },
+      get lastInvariant() {
+        // Read from module-level scope — survives Pinia store HMR which
+        // would otherwise create a fresh closure ref. Falls back to
+        // ``lastInvariant.value`` for the very first read before any
+        // ``recordInvariant`` write.
+        return _moduleLastInvariant ?? lastInvariant.value
+      },
     }
     // T4 / T5 dev-only test hook: expose the store's event methods so
     // Playwright contract tests can trigger FSM events (e.g. `handoffFailed`)
@@ -358,6 +411,7 @@ export const useGraphHandoffStore = defineStore('graphHandoff', () => {
     pending,
     generation,
     lastResult,
+    lastInvariant,
     isQuiescent,
     handoffRequested,
     canvasTapped,
@@ -371,6 +425,7 @@ export const useGraphHandoffStore = defineStore('graphHandoff', () => {
     isStale,
     advanceState,
     recordApplied,
+    recordInvariant,
     onStuck,
   }
 })

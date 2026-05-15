@@ -622,7 +622,29 @@ export async function assertHandoffApplied(
     }
   }
 
-  // 6. Optional: Episode panel visible with right title.
+  // 6. Self-healing invariant (L6) — set-difference predicate over the
+  //    logical view (``viewWithEgo(focusNodeId)``) vs actual Cytoscape
+  //    nodes. ``null`` is acceptable: if no layoutstop fired since the
+  //    handoff (typical when the target was already in the graph and no
+  //    redraw was needed), there's no fresh snapshot to inspect.
+  //    Non-null ⇒ both arrays MUST be empty. Production reconciliation
+  //    runs the same predicate every layoutstop, so any divergence here
+  //    is either an unresolved retry-budget exhaustion or a real bug.
+  const inv = await readInvariant(page)
+  if (inv !== null) {
+    if (inv.missing.length > 0) {
+      throw new Error(
+        `assertHandoffApplied: invariant violated — ${inv.missing.length} node(s) missing from cy: ${inv.missing.slice(0, 5).join(', ')}`,
+      )
+    }
+    if (inv.extra.length > 0) {
+      throw new Error(
+        `assertHandoffApplied: invariant violated — ${inv.extra.length} extra node(s) in cy: ${inv.extra.slice(0, 5).join(', ')}`,
+      )
+    }
+  }
+
+  // 7. Optional: Episode panel visible with right title.
   if (opts.episodePanelTitle) {
     const visible = await page
       .getByRole('region', { name: 'Episode', exact: true })
@@ -765,5 +787,40 @@ export async function readFsmState(page: Page): Promise<{
         | 'superseded'
         | null) ?? null,
     }
+  })
+}
+
+/**
+ * Read the latest self-healing invariant snapshot stashed by ``finishLayoutPass``
+ * (decision #5 / FSM spec section). ``missing`` are nodes the logical view
+ * expects but Cytoscape lacks; ``extra`` are nodes Cytoscape has but the
+ * logical view doesn't. Both empty ⇒ canvas matches the logical view.
+ *
+ * Returns ``null`` if no layout pass has run yet OR in production builds.
+ */
+export async function readInvariant(page: Page): Promise<{
+  missing: string[]
+  extra: string[]
+  ts: number
+} | null> {
+  return page.evaluate(() => {
+    // Prefer sessionStorage — survives Pinia HMR / dev-hook re-stamping mid-test.
+    try {
+      const raw = window.sessionStorage.getItem('__GIKG_FSM_LAST_INVARIANT__')
+      if (raw) {
+        return JSON.parse(raw) as { missing: string[]; extra: string[]; ts: number }
+      }
+    } catch {
+      /* fall through to dev-hook getter */
+    }
+    const fsm = (
+      window as unknown as {
+        __GIKG_FSM__?: {
+          lastInvariant?: { missing: string[]; extra: string[]; ts: number } | null
+        }
+      }
+    ).__GIKG_FSM__
+    if (!fsm) return null
+    return fsm.lastInvariant ?? null
   })
 }

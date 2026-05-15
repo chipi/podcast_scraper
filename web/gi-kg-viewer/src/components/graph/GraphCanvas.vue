@@ -1554,6 +1554,11 @@ function finishLayoutPass(core: Core): void {
   // Predicate + reconcile-action decision are pure functions in
   // `utils/graphHandoffInvariant.ts` (unit-tested in T2a); this block is
   // the Cytoscape-aware consumer that actually applies the reconciliation.
+  // L6 — always stash an invariant snapshot, even on the empty-view fast
+  // path. Tests read it via ``__GIKG_FSM__.lastInvariant``; absence ⇒ "no
+  // layout pass ran"; empty diff ⇒ "layout ran, canvas matches view".
+  let invariantMissing: string[] = []
+  let invariantExtra: string[] = []
   try {
     const viewArtForInvariant = gf.viewWithEgo(focusNodeId.value)
     if (viewArtForInvariant) {
@@ -1564,7 +1569,9 @@ function finishLayoutPass(core: Core): void {
       core.nodes().forEach((n) => {
         actual.add(n.id())
       })
-      const { missing } = computeNodeIdSetDifference(expected, actual)
+      const { missing, extra } = computeNodeIdSetDifference(expected, actual)
+      invariantMissing = missing
+      invariantExtra = extra
       if (missing.length > 0) {
         const envelopeGen = graphHandoff.pending?.generation ?? null
         const alreadyRetried =
@@ -1609,6 +1616,10 @@ function finishLayoutPass(core: Core): void {
   } catch {
     // Invariant check must not affect runtime behaviour.
   }
+  // L6 — always record (even if the try block threw, ``invariantMissing``
+  // and ``invariantExtra`` default to empty arrays so the matrix can
+  // distinguish "no layoutstop yet" from "layoutstop ran, view consistent").
+  graphHandoff.recordInvariant(invariantMissing, invariantExtra)
   // C5 — mark the in-flight handoff as applied so the FSM transitions back
   // to `ready` and the stuck timer disarms. Without this the FSM would stay
   // in `loading_fetch` after every entry-point click and false-alarm.
