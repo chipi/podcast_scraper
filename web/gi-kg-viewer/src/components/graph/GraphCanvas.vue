@@ -1633,14 +1633,17 @@ function finishLayoutPass(core: Core): void {
   // on — selection + camera stay lost across subsequent layoutstops
   // (the GH #771 failure mode for rapid digest pills on a heavy graph).
   if (graphHandoff.pending) {
-    // V2-class fix: verify the fallback cyId actually exists in cy before
-    // declaring applied. Previously the code accepted any non-empty
-    // candidate, but ``graphHandoff.pending.cyId`` is the *requested*
-    // target which may not have a corresponding cy node (e.g. Digest pill
-    // targets ``topic:foo`` but no episode mentioning that topic is
-    // currently loaded). Marking that "applied" is a lie — selection is
-    // still empty, the user sees nothing focused, the matrix's L2
-    // assertion fails truthfully.
+    // V2-class fix: verify the appliedCyId actually exists in cy before
+    // declaring applied. ``graphHandoff.pending.cyId`` may be undefined
+    // when the envelope is keyed by metadata path (Episode panel kind
+    // 'episode' carries ``metadataPath`` / ``episodeId`` but no ``cyId``)
+    // or absent altogether (Digest band pill — bucket id, no real node).
+    // Try in order: selected → focus → cyId → episode resolver via
+    // metadata/episodeId (V5 fix — Episode-panel hot-state landed
+    // ``finishLayoutPass`` with empty selection + null focus and the
+    // pending had no cyId, so the previous resolver candidates list was
+    // empty → handoffFailed fired even though the target episode IS in
+    // cy).
     const candidates = [
       selectedNodeId.value || '',
       focusNodeId.value || '',
@@ -1648,21 +1651,28 @@ function finishLayoutPass(core: Core): void {
     ].filter(Boolean)
     let appliedCyId = ''
     for (const c of candidates) {
-      // Allow the canonical id as-is OR try prefix variants via the
-      // pure resolver (same one Search and tryApplyPendingFocus use).
       const resolved = resolveCyNodeId(core, c)
       if (resolved) {
         appliedCyId = resolved
         break
       }
     }
+    if (!appliedCyId && graphHandoff.pending.kind === 'episode') {
+      // V5 — episode envelopes carry metadataPath + episodeId, not cyId.
+      // Use the same resolver the rest of the codebase uses.
+      const epCy = findEpisodeGraphNodeIdForMetadataPathOrEpisodeId(
+        gf.filteredArtifact,
+        graphHandoff.pending.metadataPath,
+        graphHandoff.pending.episodeId,
+      )
+      if (epCy) {
+        const resolved = resolveCyNodeId(core, epCy)
+        if (resolved) appliedCyId = resolved
+      }
+    }
     if (appliedCyId) {
       graphHandoff.recordApplied(appliedCyId)
     } else {
-      // No real cyId resolved — the apply path couldn't find the target in
-      // cy. Surface the failure so the error strip renders and the matrix
-      // tests can distinguish "succeeded" from "envelope went through
-      // pipeline but no node ended up selected."
       graphHandoff.handoffFailed(
         `apply failed: no cy node found for envelope target (cyId=${graphHandoff.pending.cyId ?? 'none'}, metadataPath=${graphHandoff.pending.metadataPath ?? 'none'})`,
       )
@@ -2454,6 +2464,21 @@ function runRelayout(): void {
   // The orchestrator runtime now tracks state at every barrier point.
   if (graphHandoff.state === 'loading_merge') {
     graphHandoff.advanceState('redrawing_full')
+  } else if (
+    graphHandoff.state === 'loading_fetch' ||
+    graphHandoff.state === 'loading_bootstrap'
+  ) {
+    // V5 fix: hot-state Episode panel "Open in graph" fires
+    // ``handoffRequested`` (state → loading_fetch) and then calls
+    // ``artifacts.appendRelativeArtifacts`` directly — bypassing the
+    // ``loadEpisodeSliceForTerritoryStrip`` path that would normally
+    // advance loading_fetch → loading_merge. When that artifact change
+    // triggers this ``redraw()``, FSM is still in loading_fetch and
+    // the transition to ``redrawing_full`` is invalid — the FSM sits
+    // until the 15s stuck-timer fires (V5 reproducer). Walk through
+    // ``loading_merge`` first so the pipeline reaches the apply phase.
+    graphHandoff.advanceState('loading_merge')
+    graphHandoff.advanceState('redrawing_full')
   } else if (graphHandoff.state === 'idle' || graphHandoff.state === 'ready') {
     // Layout from internal scheduler (theme change, lens toggle, etc.) — start
     // a fresh redraw cycle from quiescent state.
@@ -2492,9 +2517,36 @@ function scheduleRedraw(): void {
     redrawPending = true
     return
   }
-  // Skip if within cooldown period after layout completion (watchers react to state changes)
+  // V5 fix: previously this set ``redrawPending = true`` and bailed, but
+  // ``redrawPending`` is only flushed at the END of a running ``redraw()``
+  // (the ``finally`` block at the bottom of ``redraw``). With no redraw
+  // running, the pending flag never gets consumed → FSM-pipeline-driving
+  // redraws triggered during the post-layout cooldown window are lost
+  // entirely. Episode-panel "Open in graph" hot-state hits this:
+  // ``handoffRequested`` → ``loading_fetch``, then ``appendRelativeArtifacts``
+  // → filteredArtifact watcher → scheduleRedraw → bails on cooldown → no
+  // redraw fires → FSM stuck for 15 s until stuck-timer (V5).
+  //
+  // Schedule a deferred redraw that fires AFTER the cooldown ends so the
+  // FSM-driving pipeline actually runs.
   if (Date.now() < layoutCompletionCooldownUntil) {
     redrawPending = true
+    if (redrawDebounceTimer) {
+      clearTimeout(redrawDebounceTimer)
+    }
+    const remaining = Math.max(0, layoutCompletionCooldownUntil - Date.now())
+    // Add the existing 150ms debounce ON TOP of the cooldown remainder so
+    // we don't fire mid-cooldown and so subsequent watchers coalesce.
+    redrawDebounceTimer = setTimeout(() => {
+      redrawDebounceTimer = null
+      // Re-enter scheduleRedraw rather than calling redraw() directly so
+      // we re-check redrawGateDepth / activeElesLayout / cooldown (which
+      // may have been bumped again in the interim).
+      if (redrawPending) {
+        redrawPending = false
+        scheduleRedraw()
+      }
+    }, remaining + 150)
     return
   }
   if (redrawDebounceTimer) {
@@ -2685,8 +2737,14 @@ function redraw(): void {
       }
 
       activeElesLayout = initialLo
+      // V5 — notify the FSM that a layout is running so the 15 s stuck-timer
+      // doesn't fire on big incremental layouts (300+ added elements can
+      // take >15 s on real-backend hot-state Episode-panel handoff).
+      graphHandoff.notifyLayoutStart()
       initialLo.one('layoutstop', () => {
-        if (graphLayoutGate.isStale(layoutGen)) {
+        graphHandoff.notifyLayoutStop()
+        const stale = graphLayoutGate.isStale(layoutGen)
+        if (stale) {
           return
         }
         if (activeElesLayout === initialLo) {

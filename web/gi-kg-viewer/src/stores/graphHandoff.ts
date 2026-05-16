@@ -96,6 +96,15 @@ export const useGraphHandoffStore = defineStore('graphHandoff', () => {
   let stuckTimer: ReturnType<typeof setTimeout> | null = null
   const stuckListeners: GraphHandoffStuckListener[] = []
 
+  /**
+   * Count of layouts currently running in Cytoscape. Bumped by
+   * ``notifyLayoutStart`` and decremented by ``notifyLayoutStop``.
+   * Stuck-timer checks this before declaring a handoff failed — a
+   * heavy real-backend layout can legitimately take >15 s and shouldn't
+   * be misreported as a stuck handoff (V5 fix).
+   */
+  let activeLayoutCount = 0
+
   function syncReactive(): void {
     state.value = fsm.state
     pending.value = fsm.pending
@@ -129,6 +138,20 @@ export const useGraphHandoffStore = defineStore('graphHandoff', () => {
       // try again and the new generation resolves cleanly.
       if (fsmIsStale(fsm, envelope.generation)) {
         // Already superseded; nothing to do.
+        return
+      }
+      // V5 fix: if a layout is actively running (real-backend hot-state
+      // Episode-panel handoff with ~300+ added elements can take >15 s
+      // for incremental layout to complete), reschedule the stuck-timer
+      // for another full window. The original 15 s is a "something
+      // broke" safety net, not "your big-graph layout is too slow".
+      // ``activeLayoutCount`` is bumped via ``notifyLayoutStart`` and
+      // decremented via ``notifyLayoutStop`` from GraphCanvas.
+      if (activeLayoutCount > 0) {
+        console.warn(
+          `[graphHandoff] stuck-timer fired but layout active (count=${activeLayoutCount}); rescheduling`,
+        )
+        scheduleStuckTimer(envelope)
         return
       }
       console.warn(
@@ -278,10 +301,12 @@ export const useGraphHandoffStore = defineStore('graphHandoff', () => {
   }
 
   function notifyLayoutStart(): EventDisposition {
+    activeLayoutCount += 1
     return applyEvent({ type: 'layoutstart' })
   }
 
   function notifyLayoutStop(): EventDisposition {
+    if (activeLayoutCount > 0) activeLayoutCount -= 1
     return applyEvent({ type: 'layoutstop' })
   }
 
