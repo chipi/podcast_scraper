@@ -7,10 +7,13 @@ behaviour drifts.
 
 Usage:
     python scripts/build_production_shaped_fixture.py \\
-        --corpus /Users/.../.test_outputs/manual/my-manual-run-10 \\
+        --corpus /abs/path/to/your/real-corpus \\
         --api http://localhost:8000 \\
         --output web/gi-kg-viewer/e2e/fixtures/production-shaped \\
         [--episodes-per-feed 5] [--max-feeds 5]
+
+The ``--corpus`` argument is operator-supplied; committed code never
+names a specific local corpus path (copyright + per-operator privacy).
 
 Requires ``make serve`` running so the API endpoints respond. The script
 trims artifact files to keep the fixture under ~5 MB.

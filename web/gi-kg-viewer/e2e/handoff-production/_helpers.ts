@@ -1,9 +1,11 @@
 /**
  * Tier-2 production-shaped matrix helpers (RFC-086 / ADR-095).
  *
- * Serves a checked-in fixture extracted from a real corpus
- * (``my-manual-run-10``) so the matrix rows exercise scale + timing
- * conditions the 1-episode fast-matrix fixture cannot reach:
+ * Serves a checked-in fixture extracted from a real corpus snapshot
+ * (operator-supplied at fixture-build time — see
+ * ``scripts/build_production_shaped_fixture.py``). The matrix rows
+ * exercise scale + timing conditions the 1-episode fast-matrix fixture
+ * cannot reach:
  *
  * - 9 episodes across 5 feeds (~270 cy nodes after GI+KG merge)
  * - 150 topic clusters defined; compound parents formed for any cluster

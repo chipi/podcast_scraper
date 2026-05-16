@@ -22,13 +22,34 @@ import {
 } from '../helpers'
 
 /**
- * Corpus path priority:
- *   1. ``CORPUS_PATH`` env var (set by ``make ci-ui-validation CORPUS=...``)
- *   2. Hard-coded fallback for ad-hoc local runs
+ * Corpus path is REQUIRED via ``CORPUS_PATH`` env var.
+ *
+ * Why no fallback: committed code never names a specific local corpus
+ * (copyright + per-operator privacy). The corpus is always supplied by
+ * the operator at invocation time:
+ *
+ *   make ci-ui-validation CORPUS=/abs/path/to/your/corpus
+ *
+ * or directly:
+ *
+ *   CORPUS_PATH=/abs/path/to/your/corpus \
+ *     node_modules/.bin/playwright test --config playwright.validation.config.ts
+ *
+ * Tier-2 (production-shaped) covers the in-process surface with a
+ * checked-in deterministic fixture, so this Tier-3 gate is for drift
+ * detection against the real backend only — and the operator drives
+ * which corpus to validate against.
  */
-const CORPUS_PATH =
-  process.env.CORPUS_PATH ||
-  '/Users/markodragoljevic/Projects/podcast_scraper-FUTURE/.test_outputs/manual/my-manual-run-10'
+const CORPUS_PATH = process.env.CORPUS_PATH ?? ''
+if (!CORPUS_PATH) {
+  // Fail at module load so a misconfigured run fails loudly instead of
+  // silently passing against a stale or unintended corpus.
+  throw new Error(
+    'Tier-3 validation requires CORPUS_PATH. ' +
+      'Set CORPUS_PATH=/abs/path/to/your/corpus or run via ' +
+      '`make ci-ui-validation CORPUS=/abs/path/to/your/corpus`.',
+  )
+}
 
 type ConsoleErrCapture = { errors: string[] }
 

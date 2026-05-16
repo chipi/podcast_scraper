@@ -119,8 +119,9 @@ supersession path doesn't cancel cleanly).
 
 **Assumptions:**
 
-- `my-manual-run-10` (or a similar on-disk corpus) is representative of
-  production complexity for the test surfaces that matter.
+- An operator-supplied real-corpus snapshot (multi-feed, multi-episode,
+  GI + KG populated) is representative of production complexity for the
+  test surfaces that matter.
 - The 41 matrix rows are the right coverage contract; the new tier mirrors
   them rather than introducing new rows.
 - Future surfaces (e.g. F1.6-style new entry points) will land matrix
@@ -195,8 +196,8 @@ production-shaped/
 
 **Authoring approach:**
 
-A script `scripts/build_production_shaped_fixture.py` takes a real
-corpus path (e.g. `my-manual-run-10`) and:
+A script `scripts/build_production_shaped_fixture.py` takes an
+operator-supplied real corpus path and:
 
 1. Picks 5 episodes per feed (deterministic — first 5 by publish_date).
 2. Copies their `*.metadata.json`, `*.gi.json`, `*.kg.json` into the
@@ -310,7 +311,7 @@ wrong-place" bug class without the maintenance burden.
 ### Phase 1 — Production-shaped fixture (~1 day)
 
 Build `scripts/build_production_shaped_fixture.py`. Extract a deterministic
-slice from `my-manual-run-10` into
+slice from an operator-supplied real-corpus snapshot into
 `web/gi-kg-viewer/e2e/fixtures/production-shaped/`. Verify total size <5 MB.
 Verify all referenced files exist. Commit the fixture + the script.
 
@@ -370,9 +371,9 @@ arbitrary corpora.
    Recommendation: only `ci-ui-full` for now; promote to PR-blocking if
    it proves stable and fast enough.
 3. **Multi-corpus Tier 3**: should the validation walk run against
-   multiple corpora (e.g. `my-manual-run-10` + a single-feed corpus)?
-   Deferred to Phase 5; start with one corpus and expand if drift is
-   observed.
+   multiple operator-supplied corpora (e.g. a multi-feed run plus a
+   single-feed run)? Deferred to Phase 5; start with one corpus and
+   expand if drift is observed.
 
 ## References
 
