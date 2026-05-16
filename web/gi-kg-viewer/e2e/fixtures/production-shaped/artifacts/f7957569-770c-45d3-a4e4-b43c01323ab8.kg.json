@@ -1,0 +1,419 @@
+{
+  "schema_version": "1.2",
+  "episode_id": "f7957569-770c-45d3-a4e4-b43c01323ab8",
+  "extraction": {
+    "model_version": "provider:gemini-2.5-flash-lite",
+    "extracted_at": "2026-05-06T12:03:36Z",
+    "transcript_ref": "transcripts/0002 - Inside the Booming Market for Dinosaur Fossils_20260506-135048_ba02775e.txt"
+  },
+  "nodes": [
+    {
+      "id": "episode:f7957569-770c-45d3-a4e4-b43c01323ab8",
+      "type": "Episode",
+      "properties": {
+        "podcast_id": "sha256:1cd6aecdd31c0ae82c2c76efdb6327b54e6026924b47852c51ffb406a9f2b19c",
+        "title": "Inside the Booming Market for Dinosaur Fossils",
+        "publish_date": "2026-05-02T08:00:00+00:00",
+        "feed_id": "sha256:1cd6aecdd31c0ae82c2c76efdb6327b54e6026924b47852c51ffb406a9f2b19c"
+      }
+    },
+    {
+      "id": "topic:fossil-market",
+      "type": "Topic",
+      "properties": {
+        "label": "fossil market",
+        "slug": "fossil-market"
+      }
+    },
+    {
+      "id": "topic:dinosaur-fossils",
+      "type": "Topic",
+      "properties": {
+        "label": "dinosaur fossils",
+        "slug": "dinosaur-fossils"
+      }
+    },
+    {
+      "id": "topic:art-market",
+      "type": "Topic",
+      "properties": {
+        "label": "art market",
+        "slug": "art-market"
+      }
+    },
+    {
+      "id": "topic:antiquities-market",
+      "type": "Topic",
+      "properties": {
+        "label": "antiquities market",
+        "slug": "antiquities-market"
+      }
+    },
+    {
+      "id": "topic:provenance-verification",
+      "type": "Topic",
+      "properties": {
+        "label": "provenance verification",
+        "slug": "provenance-verification"
+      }
+    },
+    {
+      "id": "topic:fossil-excavation",
+      "type": "Topic",
+      "properties": {
+        "label": "fossil excavation",
+        "slug": "fossil-excavation"
+      }
+    },
+    {
+      "id": "topic:market-pricing",
+      "type": "Topic",
+      "properties": {
+        "label": "market pricing",
+        "slug": "market-pricing"
+      }
+    },
+    {
+      "id": "topic:collector-interest",
+      "type": "Topic",
+      "properties": {
+        "label": "collector interest",
+        "slug": "collector-interest"
+      }
+    },
+    {
+      "id": "topic:specimen-completeness",
+      "type": "Topic",
+      "properties": {
+        "label": "specimen completeness",
+        "slug": "specimen-completeness"
+      }
+    },
+    {
+      "id": "topic:legal-regulations",
+      "type": "Topic",
+      "properties": {
+        "label": "legal regulations",
+        "slug": "legal-regulations"
+      }
+    },
+    {
+      "id": "org:bloomberg-audio-studios",
+      "type": "Entity",
+      "properties": {
+        "name": "Bloomberg Audio Studios",
+        "label": "Bloomberg Audio Studios",
+        "kind": "org",
+        "role": "mentioned"
+      }
+    },
+    {
+      "id": "person:tracy-alloway",
+      "type": "Entity",
+      "properties": {
+        "name": "Tracy Alloway",
+        "label": "Tracy Alloway",
+        "kind": "person",
+        "role": "mentioned"
+      }
+    },
+    {
+      "id": "person:joe",
+      "type": "Entity",
+      "properties": {
+        "name": "Joe",
+        "label": "Joe",
+        "kind": "person",
+        "role": "mentioned"
+      }
+    },
+    {
+      "id": "org:jurassic-park",
+      "type": "Entity",
+      "properties": {
+        "name": "Jurassic Park",
+        "label": "Jurassic Park",
+        "kind": "org",
+        "role": "mentioned"
+      }
+    },
+    {
+      "id": "person:ken-griffin",
+      "type": "Entity",
+      "properties": {
+        "name": "Ken Griffin",
+        "label": "Ken Griffin",
+        "kind": "person",
+        "role": "mentioned"
+      }
+    },
+    {
+      "id": "org:david-aaron",
+      "type": "Entity",
+      "properties": {
+        "name": "David Aaron",
+        "label": "David Aaron",
+        "kind": "org",
+        "role": "mentioned"
+      }
+    },
+    {
+      "id": "person:salomon-aaron",
+      "type": "Entity",
+      "properties": {
+        "name": "Salomon Aaron",
+        "label": "Salomon Aaron",
+        "kind": "person",
+        "role": "mentioned"
+      }
+    },
+    {
+      "id": "person:wyoming",
+      "type": "Entity",
+      "properties": {
+        "name": "Wyoming",
+        "label": "Wyoming",
+        "kind": "person",
+        "role": "mentioned"
+      }
+    },
+    {
+      "id": "person:montana",
+      "type": "Entity",
+      "properties": {
+        "name": "Montana",
+        "label": "Montana",
+        "kind": "person",
+        "role": "mentioned"
+      }
+    },
+    {
+      "id": "person:south-dakota",
+      "type": "Entity",
+      "properties": {
+        "name": "South Dakota",
+        "label": "South Dakota",
+        "kind": "person",
+        "role": "mentioned"
+      }
+    },
+    {
+      "id": "org:christies",
+      "type": "Entity",
+      "properties": {
+        "name": "Christie's",
+        "label": "Christie's",
+        "kind": "org",
+        "role": "mentioned"
+      }
+    },
+    {
+      "id": "org:sothebys",
+      "type": "Entity",
+      "properties": {
+        "name": "Sotheby's",
+        "label": "Sotheby's",
+        "kind": "org",
+        "role": "mentioned"
+      }
+    },
+    {
+      "id": "org:abu-dhabi-natural-history-museum",
+      "type": "Entity",
+      "properties": {
+        "name": "Abu Dhabi Natural History Museum",
+        "label": "Abu Dhabi Natural History Museum",
+        "kind": "org",
+        "role": "mentioned"
+      }
+    },
+    {
+      "id": "person:chicago",
+      "type": "Entity",
+      "properties": {
+        "name": "Chicago",
+        "label": "Chicago",
+        "kind": "person",
+        "role": "mentioned"
+      }
+    },
+    {
+      "id": "org:big-job",
+      "type": "Entity",
+      "properties": {
+        "name": "Big Job",
+        "label": "Big Job",
+        "kind": "org",
+        "role": "mentioned"
+      }
+    },
+    {
+      "id": "person:bloomberg",
+      "type": "Entity",
+      "properties": {
+        "name": "Bloomberg",
+        "label": "Bloomberg",
+        "kind": "person",
+        "role": "host"
+      }
+    }
+  ],
+  "edges": [
+    {
+      "from": "topic:fossil-market",
+      "to": "episode:f7957569-770c-45d3-a4e4-b43c01323ab8",
+      "type": "MENTIONS",
+      "properties": {}
+    },
+    {
+      "from": "topic:dinosaur-fossils",
+      "to": "episode:f7957569-770c-45d3-a4e4-b43c01323ab8",
+      "type": "MENTIONS",
+      "properties": {}
+    },
+    {
+      "from": "topic:art-market",
+      "to": "episode:f7957569-770c-45d3-a4e4-b43c01323ab8",
+      "type": "MENTIONS",
+      "properties": {}
+    },
+    {
+      "from": "topic:antiquities-market",
+      "to": "episode:f7957569-770c-45d3-a4e4-b43c01323ab8",
+      "type": "MENTIONS",
+      "properties": {}
+    },
+    {
+      "from": "topic:provenance-verification",
+      "to": "episode:f7957569-770c-45d3-a4e4-b43c01323ab8",
+      "type": "MENTIONS",
+      "properties": {}
+    },
+    {
+      "from": "topic:fossil-excavation",
+      "to": "episode:f7957569-770c-45d3-a4e4-b43c01323ab8",
+      "type": "MENTIONS",
+      "properties": {}
+    },
+    {
+      "from": "topic:market-pricing",
+      "to": "episode:f7957569-770c-45d3-a4e4-b43c01323ab8",
+      "type": "MENTIONS",
+      "properties": {}
+    },
+    {
+      "from": "topic:collector-interest",
+      "to": "episode:f7957569-770c-45d3-a4e4-b43c01323ab8",
+      "type": "MENTIONS",
+      "properties": {}
+    },
+    {
+      "from": "topic:specimen-completeness",
+      "to": "episode:f7957569-770c-45d3-a4e4-b43c01323ab8",
+      "type": "MENTIONS",
+      "properties": {}
+    },
+    {
+      "from": "topic:legal-regulations",
+      "to": "episode:f7957569-770c-45d3-a4e4-b43c01323ab8",
+      "type": "MENTIONS",
+      "properties": {}
+    },
+    {
+      "from": "org:bloomberg-audio-studios",
+      "to": "episode:f7957569-770c-45d3-a4e4-b43c01323ab8",
+      "type": "MENTIONS",
+      "properties": {}
+    },
+    {
+      "from": "person:tracy-alloway",
+      "to": "episode:f7957569-770c-45d3-a4e4-b43c01323ab8",
+      "type": "MENTIONS",
+      "properties": {}
+    },
+    {
+      "from": "person:joe",
+      "to": "episode:f7957569-770c-45d3-a4e4-b43c01323ab8",
+      "type": "MENTIONS",
+      "properties": {}
+    },
+    {
+      "from": "org:jurassic-park",
+      "to": "episode:f7957569-770c-45d3-a4e4-b43c01323ab8",
+      "type": "MENTIONS",
+      "properties": {}
+    },
+    {
+      "from": "person:ken-griffin",
+      "to": "episode:f7957569-770c-45d3-a4e4-b43c01323ab8",
+      "type": "MENTIONS",
+      "properties": {}
+    },
+    {
+      "from": "org:david-aaron",
+      "to": "episode:f7957569-770c-45d3-a4e4-b43c01323ab8",
+      "type": "MENTIONS",
+      "properties": {}
+    },
+    {
+      "from": "person:salomon-aaron",
+      "to": "episode:f7957569-770c-45d3-a4e4-b43c01323ab8",
+      "type": "MENTIONS",
+      "properties": {}
+    },
+    {
+      "from": "person:wyoming",
+      "to": "episode:f7957569-770c-45d3-a4e4-b43c01323ab8",
+      "type": "MENTIONS",
+      "properties": {}
+    },
+    {
+      "from": "person:montana",
+      "to": "episode:f7957569-770c-45d3-a4e4-b43c01323ab8",
+      "type": "MENTIONS",
+      "properties": {}
+    },
+    {
+      "from": "person:south-dakota",
+      "to": "episode:f7957569-770c-45d3-a4e4-b43c01323ab8",
+      "type": "MENTIONS",
+      "properties": {}
+    },
+    {
+      "from": "org:christies",
+      "to": "episode:f7957569-770c-45d3-a4e4-b43c01323ab8",
+      "type": "MENTIONS",
+      "properties": {}
+    },
+    {
+      "from": "org:sothebys",
+      "to": "episode:f7957569-770c-45d3-a4e4-b43c01323ab8",
+      "type": "MENTIONS",
+      "properties": {}
+    },
+    {
+      "from": "org:abu-dhabi-natural-history-museum",
+      "to": "episode:f7957569-770c-45d3-a4e4-b43c01323ab8",
+      "type": "MENTIONS",
+      "properties": {}
+    },
+    {
+      "from": "person:chicago",
+      "to": "episode:f7957569-770c-45d3-a4e4-b43c01323ab8",
+      "type": "MENTIONS",
+      "properties": {}
+    },
+    {
+      "from": "org:big-job",
+      "to": "episode:f7957569-770c-45d3-a4e4-b43c01323ab8",
+      "type": "MENTIONS",
+      "properties": {}
+    },
+    {
+      "from": "person:bloomberg",
+      "to": "episode:f7957569-770c-45d3-a4e4-b43c01323ab8",
+      "type": "MENTIONS",
+      "properties": {}
+    }
+  ]
+}

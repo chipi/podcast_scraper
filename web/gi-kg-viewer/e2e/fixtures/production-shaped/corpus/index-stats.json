@@ -1,0 +1,38 @@
+{
+  "artifact_newest_mtime": "2026-05-06T12:49:47Z",
+  "available": true,
+  "index_path": "/Users/markodragoljevic/Projects/podcast_scraper-FUTURE/.test_outputs/manual/my-manual-run-10/search",
+  "reason": null,
+  "rebuild_in_progress": false,
+  "rebuild_last_error": null,
+  "reindex_reasons": [],
+  "reindex_recommended": false,
+  "search_root_hints": [],
+  "stats": {
+    "doc_type_counts": {
+      "insight": 1628,
+      "kg_entity": 2147,
+      "kg_topic": 1358,
+      "quote": 2659,
+      "summary": 822,
+      "transcript": 3936
+    },
+    "embedding_dim": 384,
+    "embedding_model": "sentence-transformers/all-MiniLM-L6-v2",
+    "feeds_indexed": [
+      "sha256:0da4183fe4339afdc81d079b469f31da7e85039e5121f085013230f92e72e13c",
+      "sha256:1cd6aecdd31c0ae82c2c76efdb6327b54e6026924b47852c51ffb406a9f2b19c",
+      "sha256:2441bde6297de0efab1c6add06c0a80e1e4e96938f7ce303cbc7d7672688495c",
+      "sha256:8025356ebfbe105cbd206ed4a4eabbc06f4562a0360517fd129e954ee2ef1871",
+      "sha256:b7d7fd554788c6b3f362e5e2d0254cdd2bd8bc523dd913d264c6baa39c06f868",
+      "sha256:b816b9958525bb08cce2ab8b7c5f73930248465169342178e5fb09ebe889db91",
+      "sha256:bbafc8bf5404721c94cc1e14ee3a14ae0876af05af7aaf00914c3cff28fcf713",
+      "sha256:c17f67de8ab0f0ee390cebffcce08c6f5b6c99b6799ea9d946a71afaa5e908d8",
+      "sha256:ef15faeacb5c506dcadea13a0fbbf46c823163dbd8c86053784b27fe8bee26f7",
+      "sha256:ff030825160cdb575fcdcc3850cb2c155865b96b55cb693791097dd92972e651"
+    ],
+    "index_size_bytes": 38858769,
+    "last_updated": "2026-05-06T18:07:28Z",
+    "total_vectors": 12550
+  }
+}

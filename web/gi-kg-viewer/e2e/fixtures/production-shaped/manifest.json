@@ -1,0 +1,97 @@
+{
+  "artifact_count": 18,
+  "detail_count": 9,
+  "picked": {
+    "episodes": [
+      {
+        "episode_id": "4255b42e-3a9e-11f1-8eee-179e850fd703",
+        "feed_id": "sha256:0da4183fe4339afdc81d079b469f31da7e85039e5121f085013230f92e72e13c",
+        "gi_relative_path": "feeds/rss_feeds.megaphone.fm_755f5437/run_20260421-175429_8eb5f9d2/metadata/0001 - Scaling Global Organizations in _20260421-175429_8eb5f9d2.gi.json",
+        "kg_relative_path": "feeds/rss_feeds.megaphone.fm_755f5437/run_20260421-175429_8eb5f9d2/metadata/0001 - Scaling Global Organizations in _20260421-175429_8eb5f9d2.kg.json",
+        "metadata_relative_path": "feeds/rss_feeds.megaphone.fm_755f5437/run_20260421-175429_8eb5f9d2/metadata/0001 - Scaling Global Organizations in _20260421-175429_8eb5f9d2.metadata.json",
+        "publish_date": "2026-04-17"
+      },
+      {
+        "episode_id": "74a9745d-6825-4bfc-abc3-b43601639f72",
+        "feed_id": "sha256:1cd6aecdd31c0ae82c2c76efdb6327b54e6026924b47852c51ffb406a9f2b19c",
+        "gi_relative_path": "feeds/rss_www.omnycontent.com_c9fdce2d/run_20260506-135048_ba02775e/metadata/0005 - What_s Actually Going On With Pr_20260506-135048_ba02775e.gi.json",
+        "kg_relative_path": "feeds/rss_www.omnycontent.com_c9fdce2d/run_20260506-135048_ba02775e/metadata/0005 - What_s Actually Going On With Pr_20260506-135048_ba02775e.kg.json",
+        "metadata_relative_path": "feeds/rss_www.omnycontent.com_c9fdce2d/run_20260506-135048_ba02775e/metadata/0005 - What_s Actually Going On With Pr_20260506-135048_ba02775e.metadata.json",
+        "publish_date": "2026-04-27"
+      },
+      {
+        "episode_id": "4cec22d8-717e-46c6-ab87-b43b01512ecb",
+        "feed_id": "sha256:1cd6aecdd31c0ae82c2c76efdb6327b54e6026924b47852c51ffb406a9f2b19c",
+        "gi_relative_path": "feeds/rss_www.omnycontent.com_c9fdce2d/run_20260506-135048_ba02775e/metadata/0004 - BlackRock_s Rob Goldstein on the_20260506-135048_ba02775e.gi.json",
+        "kg_relative_path": "feeds/rss_www.omnycontent.com_c9fdce2d/run_20260506-135048_ba02775e/metadata/0004 - BlackRock_s Rob Goldstein on the_20260506-135048_ba02775e.kg.json",
+        "metadata_relative_path": "feeds/rss_www.omnycontent.com_c9fdce2d/run_20260506-135048_ba02775e/metadata/0004 - BlackRock_s Rob Goldstein on the_20260506-135048_ba02775e.metadata.json",
+        "publish_date": "2026-04-30"
+      },
+      {
+        "episode_id": "f7904791-f77c-421b-a3d3-b43b015542d2",
+        "feed_id": "sha256:1cd6aecdd31c0ae82c2c76efdb6327b54e6026924b47852c51ffb406a9f2b19c",
+        "gi_relative_path": "feeds/rss_www.omnycontent.com_c9fdce2d/run_20260506-135048_ba02775e/metadata/0003 - How Taiwan Became the World_s Mo_20260506-135048_ba02775e.gi.json",
+        "kg_relative_path": "feeds/rss_www.omnycontent.com_c9fdce2d/run_20260506-135048_ba02775e/metadata/0003 - How Taiwan Became the World_s Mo_20260506-135048_ba02775e.kg.json",
+        "metadata_relative_path": "feeds/rss_www.omnycontent.com_c9fdce2d/run_20260506-135048_ba02775e/metadata/0003 - How Taiwan Became the World_s Mo_20260506-135048_ba02775e.metadata.json",
+        "publish_date": "2026-05-01"
+      },
+      {
+        "episode_id": "f7957569-770c-45d3-a4e4-b43c01323ab8",
+        "feed_id": "sha256:1cd6aecdd31c0ae82c2c76efdb6327b54e6026924b47852c51ffb406a9f2b19c",
+        "gi_relative_path": "feeds/rss_www.omnycontent.com_c9fdce2d/run_20260506-135048_ba02775e/metadata/0002 - Inside the Booming Market for Di_20260506-135048_ba02775e.gi.json",
+        "kg_relative_path": "feeds/rss_www.omnycontent.com_c9fdce2d/run_20260506-135048_ba02775e/metadata/0002 - Inside the Booming Market for Di_20260506-135048_ba02775e.kg.json",
+        "metadata_relative_path": "feeds/rss_www.omnycontent.com_c9fdce2d/run_20260506-135048_ba02775e/metadata/0002 - Inside the Booming Market for Di_20260506-135048_ba02775e.metadata.json",
+        "publish_date": "2026-05-02"
+      },
+      {
+        "episode_id": "653bb844-d3b0-425e-9e28-b43e00ee5196",
+        "feed_id": "sha256:1cd6aecdd31c0ae82c2c76efdb6327b54e6026924b47852c51ffb406a9f2b19c",
+        "gi_relative_path": "feeds/rss_www.omnycontent.com_c9fdce2d/run_20260506-135048_ba02775e/metadata/0001 - How Baltimore_s Mayor Is Fightin_20260506-135048_ba02775e.gi.json",
+        "kg_relative_path": "feeds/rss_www.omnycontent.com_c9fdce2d/run_20260506-135048_ba02775e/metadata/0001 - How Baltimore_s Mayor Is Fightin_20260506-135048_ba02775e.kg.json",
+        "metadata_relative_path": "feeds/rss_www.omnycontent.com_c9fdce2d/run_20260506-135048_ba02775e/metadata/0001 - How Baltimore_s Mayor Is Fightin_20260506-135048_ba02775e.metadata.json",
+        "publish_date": "2026-05-04"
+      },
+      {
+        "episode_id": "ff1edd82-3cf7-11f1-ac10-7bfe891bf8ed",
+        "feed_id": "sha256:2441bde6297de0efab1c6add06c0a80e1e4e96938f7ce303cbc7d7672688495c",
+        "gi_relative_path": "feeds/rss_video-api.wsj.com_9acc908e/run_20260421-175539_8eb5f9d2/metadata/0001 - How Iran_s Regime Changed...for _20260421-175539_8eb5f9d2.gi.json",
+        "kg_relative_path": "feeds/rss_video-api.wsj.com_9acc908e/run_20260421-175539_8eb5f9d2/metadata/0001 - How Iran_s Regime Changed...for _20260421-175539_8eb5f9d2.kg.json",
+        "metadata_relative_path": "feeds/rss_video-api.wsj.com_9acc908e/run_20260421-175539_8eb5f9d2/metadata/0001 - How Iran_s Regime Changed...for _20260421-175539_8eb5f9d2.metadata.json",
+        "publish_date": "2026-04-20"
+      },
+      {
+        "episode_id": "25d702f6-ed6a-4565-8065-e729eb0f2650",
+        "feed_id": "sha256:8025356ebfbe105cbd206ed4a4eabbc06f4562a0360517fd129e954ee2ef1871",
+        "gi_relative_path": "feeds/rss_feeds.simplecast.com_2e104dc7/run_20260421-175353_8eb5f9d2/metadata/0001 - A.I. Backlash Turns Violent _ Ka_20260421-175353_8eb5f9d2.gi.json",
+        "kg_relative_path": "feeds/rss_feeds.simplecast.com_2e104dc7/run_20260421-175353_8eb5f9d2/metadata/0001 - A.I. Backlash Turns Violent _ Ka_20260421-175353_8eb5f9d2.kg.json",
+        "metadata_relative_path": "feeds/rss_feeds.simplecast.com_2e104dc7/run_20260421-175353_8eb5f9d2/metadata/0001 - A.I. Backlash Turns Violent _ Ka_20260421-175353_8eb5f9d2.metadata.json",
+        "publish_date": "2026-04-17"
+      },
+      {
+        "episode_id": "c1864c80-3766-11f1-a17b-8323ac12a047",
+        "feed_id": "sha256:b7d7fd554788c6b3f362e5e2d0254cdd2bd8bc523dd913d264c6baa39c06f868",
+        "gi_relative_path": "feeds/rss_feeds.megaphone.fm_370fb395/run_20260421-180025_8eb5f9d2/metadata/0001 - How AI Will Change Quantum Compu_20260421-180025_8eb5f9d2.gi.json",
+        "kg_relative_path": "feeds/rss_feeds.megaphone.fm_370fb395/run_20260421-180025_8eb5f9d2/metadata/0001 - How AI Will Change Quantum Compu_20260421-180025_8eb5f9d2.kg.json",
+        "metadata_relative_path": "feeds/rss_feeds.megaphone.fm_370fb395/run_20260421-180025_8eb5f9d2/metadata/0001 - How AI Will Change Quantum Compu_20260421-180025_8eb5f9d2.metadata.json",
+        "publish_date": "2026-04-14"
+      }
+    ],
+    "feeds": [
+      "sha256:0da4183fe4339afdc81d079b469f31da7e85039e5121f085013230f92e72e13c",
+      "sha256:1cd6aecdd31c0ae82c2c76efdb6327b54e6026924b47852c51ffb406a9f2b19c",
+      "sha256:2441bde6297de0efab1c6add06c0a80e1e4e96938f7ce303cbc7d7672688495c",
+      "sha256:8025356ebfbe105cbd206ed4a4eabbc06f4562a0360517fd129e954ee2ef1871",
+      "sha256:b7d7fd554788c6b3f362e5e2d0254cdd2bd8bc523dd913d264c6baa39c06f868"
+    ],
+    "queries": [
+      "AI",
+      "policy",
+      "economy",
+      "Taiwan",
+      "climate"
+    ]
+  },
+  "schema_version": "1",
+  "source_corpus": "/Users/markodragoljevic/Projects/podcast_scraper-FUTURE/.test_outputs/manual/my-manual-run-10",
+  "total_size_bytes": 777891
+}

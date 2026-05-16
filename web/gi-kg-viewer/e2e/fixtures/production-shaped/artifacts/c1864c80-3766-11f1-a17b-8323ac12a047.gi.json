@@ -1,0 +1,1273 @@
+{
+  "schema_version": "2.0",
+  "model_version": "gemini-2.5-flash-lite",
+  "prompt_version": "v1",
+  "episode_id": "c1864c80-3766-11f1-a17b-8323ac12a047",
+  "nodes": [
+    {
+      "id": "episode:c1864c80-3766-11f1-a17b-8323ac12a047",
+      "type": "Episode",
+      "properties": {
+        "podcast_id": "sha256:b7d7fd554788c6b3f362e5e2d0254cdd2bd8bc523dd913d264c6baa39c06f868",
+        "title": "How AI Will Change Quantum Computing - Ep. 294",
+        "publish_date": "2026-04-14T14:00:00",
+        "duration_ms": 1888000
+      }
+    },
+    {
+      "id": "topic:quantum-computing-utilizes-quantum-mechanical-objects-as-switches-qubits-instead",
+      "type": "Topic",
+      "properties": {
+        "label": "Quantum computing utilizes quantum mechanical objects as switches (qubits) instead of classical transistors, enabling solutions to problems previously intractable due to exponential or strong polynomi"
+      }
+    },
+    {
+      "id": "topic:quantum-computers-are-not-universally-superior-their-transformative-power-is-lim",
+      "type": "Topic",
+      "properties": {
+        "label": "Quantum computers are not universally superior; their transformative power is limited to specific application areas like simulating quantum systems, developing new drugs, and creating novel materials."
+      }
+    },
+    {
+      "id": "topic:current-quantum-hardware-development-is-at-an-inflection-point-transitioning-fro",
+      "type": "Topic",
+      "properties": {
+        "label": "Current quantum hardware development is at an inflection point, transitioning from experimental to larger-scale systems integrated with supercomputers, with significant progress expected soon."
+      }
+    },
+    {
+      "id": "topic:building-quantum-processors-qpus-faces-challenges-in-controlling-and-maintaining",
+      "type": "Topic",
+      "properties": {
+        "label": "Building quantum processors (QPUs) faces challenges in controlling and maintaining qubits, requiring robust quantum error correction to manage fundamental noise and achieve reliable computation."
+      }
+    },
+    {
+      "id": "topic:ai-is-poised-to-unlock-significant-progress-in-quantum-computing-particularly-in",
+      "type": "Topic",
+      "properties": {
+        "label": "AI is poised to unlock significant progress in quantum computing, particularly in mastering quantum error correction by processing vast amounts of data rapidly to infer and correct qubit errors."
+      }
+    },
+    {
+      "id": "topic:nvidias-open-models-ising-offer-pre-trained-ai-models-for-quantum-computing-work",
+      "type": "Topic",
+      "properties": {
+        "label": "NVIDIA's open models, 'Ising,' offer pre-trained AI models for quantum computing workloads, including calibration and decoding for quantum error correction, accelerating research and development."
+      }
+    },
+    {
+      "id": "topic:early-useful-applications-of-quantum-computing-are-expected-in-simulating-quantu",
+      "type": "Topic",
+      "properties": {
+        "label": "Early useful applications of quantum computing are expected in simulating quantum systems, such as molecular interactions for drug discovery, which are inherently quantum mechanical problems."
+      }
+    },
+    {
+      "id": "topic:ai-can-assist-in-discovering-new-quantum-applications-by-understanding-deeper-pa",
+      "type": "Topic",
+      "properties": {
+        "label": "AI can assist in discovering new quantum applications by understanding deeper patterns in quantum algorithms and compiling applications in ways that may be counterintuitive to humans."
+      }
+    },
+    {
+      "id": "topic:quantum-hardware-is-materially-different-from-classical-hardware-with-diverse-ap",
+      "type": "Topic",
+      "properties": {
+        "label": "Quantum hardware is materially different from classical hardware, with diverse approaches to building qubits, necessitating flexible AI tools that can accommodate various hardware architectures."
+      }
+    },
+    {
+      "id": "topic:scaling-quantum-computers-requires-a-massive-increase-in-qubits-potentially-mill",
+      "type": "Topic",
+      "properties": {
+        "label": "Scaling quantum computers requires a massive increase in qubits (potentially millions) to support error correction overheads, leveraging accelerated computing and classical algorithms for control and "
+      }
+    },
+    {
+      "id": "insight:b9a6e820e2ca6488",
+      "type": "Insight",
+      "properties": {
+        "text": "Quantum computing uses quantum mechanical objects as switches, enabling solutions to problems intractable for classical computers.",
+        "episode_id": "c1864c80-3766-11f1-a17b-8323ac12a047",
+        "grounded": true,
+        "insight_type": "unknown",
+        "position_hint": 0.04
+      },
+      "confidence": 1.0
+    },
+    {
+      "id": "quote:5dc7b242a19fb53a",
+      "type": "Quote",
+      "properties": {
+        "text": "Quantum computing kind of asks what if your switch was a quantum mechanical object, something that obeys quantum laws of physics can do very strange things.",
+        "episode_id": "c1864c80-3766-11f1-a17b-8323ac12a047",
+        "speaker_id": null,
+        "char_start": 1290,
+        "char_end": 1446,
+        "timestamp_start_ms": 74680,
+        "timestamp_end_ms": 89680,
+        "transcript_ref": "transcripts/0001 - How AI Will Change Quantum Compu_20260421-180025_8eb5f9d2.txt"
+      }
+    },
+    {
+      "id": "quote:5571fa91e8554db1",
+      "type": "Quote",
+      "properties": {
+        "text": "And so if you do that, it turns out if you can build such a device, and you can integrate it into a supercomputer, you can start to solve problems with computing that we just wouldn't have even thought of as being addressable, they were just too hard or outside of the scope of computing.",
+        "episode_id": "c1864c80-3766-11f1-a17b-8323ac12a047",
+        "speaker_id": null,
+        "char_start": 1502,
+        "char_end": 1790,
+        "timestamp_start_ms": 89680,
+        "timestamp_end_ms": 106160,
+        "transcript_ref": "transcripts/0001 - How AI Will Change Quantum Compu_20260421-180025_8eb5f9d2.txt"
+      }
+    },
+    {
+      "id": "insight:39bf70bd515f2600",
+      "type": "Insight",
+      "properties": {
+        "text": "Quantum computers offer exponential or strong polynomial advantages for specific, complex problems, not just speed.",
+        "episode_id": "c1864c80-3766-11f1-a17b-8323ac12a047",
+        "grounded": true,
+        "insight_type": "unknown",
+        "position_hint": 0.08
+      },
+      "confidence": 1.0
+    },
+    {
+      "id": "quote:1635941ef844b37a",
+      "type": "Quote",
+      "properties": {
+        "text": "In many cases, it's so much faster that the problems just were not tractable at all.",
+        "episode_id": "c1864c80-3766-11f1-a17b-8323ac12a047",
+        "speaker_id": null,
+        "char_start": 2317,
+        "char_end": 2401,
+        "timestamp_start_ms": 133839,
+        "timestamp_end_ms": 141279,
+        "transcript_ref": "transcripts/0001 - How AI Will Change Quantum Compu_20260421-180025_8eb5f9d2.txt"
+      }
+    },
+    {
+      "id": "quote:484fc174e63bb38c",
+      "type": "Quote",
+      "properties": {
+        "text": "In some cases, quantum computing can give us a kind of exponential or even like a very strong polynomial advantage over a normal computer.",
+        "episode_id": "c1864c80-3766-11f1-a17b-8323ac12a047",
+        "speaker_id": null,
+        "char_start": 2501,
+        "char_end": 2639,
+        "timestamp_start_ms": 144600,
+        "timestamp_end_ms": 155559,
+        "transcript_ref": "transcripts/0001 - How AI Will Change Quantum Compu_20260421-180025_8eb5f9d2.txt"
+      }
+    },
+    {
+      "id": "quote:fb7965fbea1167bb",
+      "type": "Quote",
+      "properties": {
+        "text": "Meaning that as you make the problem you're trying to solve, just a bit bigger, very quickly, it becomes just impossible on any other kind of computing device.",
+        "episode_id": "c1864c80-3766-11f1-a17b-8323ac12a047",
+        "speaker_id": null,
+        "char_start": 2640,
+        "char_end": 2799,
+        "timestamp_start_ms": 152080,
+        "timestamp_end_ms": 165440,
+        "transcript_ref": "transcripts/0001 - How AI Will Change Quantum Compu_20260421-180025_8eb5f9d2.txt"
+      }
+    },
+    {
+      "id": "insight:b92c08f8b6320275",
+      "type": "Insight",
+      "properties": {
+        "text": "Current quantum computing is transitioning from experiments to larger-scale systems integrated with supercomputers.",
+        "episode_id": "c1864c80-3766-11f1-a17b-8323ac12a047",
+        "grounded": true,
+        "insight_type": "unknown",
+        "position_hint": 0.09
+      },
+      "confidence": 1.0
+    },
+    {
+      "id": "quote:553cbd1b78271e4b",
+      "type": "Quote",
+      "properties": {
+        "text": "But we're really seeing an inflection point where we're transitioning from kind of experiments, or sort of demonstrative systems to the larger scale kind of systems that you need.",
+        "episode_id": "c1864c80-3766-11f1-a17b-8323ac12a047",
+        "speaker_id": null,
+        "char_start": 3401,
+        "char_end": 3580,
+        "timestamp_start_ms": 197520,
+        "timestamp_end_ms": 210759,
+        "transcript_ref": "transcripts/0001 - How AI Will Change Quantum Compu_20260421-180025_8eb5f9d2.txt"
+      }
+    },
+    {
+      "id": "quote:e1c09d92591376d0",
+      "type": "Quote",
+      "properties": {
+        "text": "And that you can kind of integrate with supercomputing to start to solve some of these really promising and important problems.",
+        "episode_id": "c1864c80-3766-11f1-a17b-8323ac12a047",
+        "speaker_id": null,
+        "char_start": 3581,
+        "char_end": 3708,
+        "timestamp_start_ms": 207360,
+        "timestamp_end_ms": 220000,
+        "transcript_ref": "transcripts/0001 - How AI Will Change Quantum Compu_20260421-180025_8eb5f9d2.txt"
+      }
+    },
+    {
+      "id": "quote:61ab813ec4f7d044",
+      "type": "Quote",
+      "properties": {
+        "text": "So it's really a new kind of technology that augments our existing kind of GPU supercomputers with whole new capabilities.",
+        "episode_id": "c1864c80-3766-11f1-a17b-8323ac12a047",
+        "speaker_id": null,
+        "char_start": 1791,
+        "char_end": 1913,
+        "timestamp_start_ms": 102879,
+        "timestamp_end_ms": 112839,
+        "transcript_ref": "transcripts/0001 - How AI Will Change Quantum Compu_20260421-180025_8eb5f9d2.txt"
+      }
+    },
+    {
+      "id": "insight:9dfabac80beb6417",
+      "type": "Insight",
+      "properties": {
+        "text": "Building quantum systems faces challenges, primarily controlling fragile qubits and mastering quantum error correction.",
+        "episode_id": "c1864c80-3766-11f1-a17b-8323ac12a047",
+        "grounded": true,
+        "insight_type": "unknown",
+        "position_hint": 0.21
+      },
+      "confidence": 1.0
+    },
+    {
+      "id": "quote:1e9cd0fcf5dd7d04",
+      "type": "Quote",
+      "properties": {
+        "text": "so when you try and build a quantum processor, as we call it, a QPU, quantum processing unit, that unit uses instead of bits like you'd use in the normal computer, it uses what we call quantum bits or qubits. They're very difficult to control and to keep going, basically, they experience a fundamental kind of noise. And you have to continually kind of try and correct them. And that process is called quantum error correction. And it's really important because all of the big applications people talk about for quantum computing, kind of assume that your qubits are not noisy.",
+        "episode_id": "c1864c80-3766-11f1-a17b-8323ac12a047",
+        "speaker_id": null,
+        "char_start": 4257,
+        "char_end": 4835,
+        "timestamp_start_ms": 246279,
+        "timestamp_end_ms": 282440,
+        "transcript_ref": "transcripts/0001 - How AI Will Change Quantum Compu_20260421-180025_8eb5f9d2.txt"
+      }
+    },
+    {
+      "id": "quote:e7ae30ea5b1b4509",
+      "type": "Quote",
+      "properties": {
+        "text": "And so one of the big challenges in building useful quantum hardware that can, you know, do useful quantum, accelerated supercomputing tasks, one of the important things is to be able to master quantum error correction.",
+        "episode_id": "c1864c80-3766-11f1-a17b-8323ac12a047",
+        "speaker_id": null,
+        "char_start": 4836,
+        "char_end": 5055,
+        "timestamp_start_ms": 278880,
+        "timestamp_end_ms": 295559,
+        "transcript_ref": "transcripts/0001 - How AI Will Change Quantum Compu_20260421-180025_8eb5f9d2.txt"
+      }
+    },
+    {
+      "id": "quote:59e6ea8dcff2e85a",
+      "type": "Quote",
+      "properties": {
+        "text": "And so quantum error correction seeks to do what seems impossible, which is to look at those qubits to find out if they're correct, if they've got errors in them. But at the same time, you don't want to touch them or look at them.",
+        "episode_id": "c1864c80-3766-11f1-a17b-8323ac12a047",
+        "speaker_id": null,
+        "char_start": 7444,
+        "char_end": 7674,
+        "timestamp_start_ms": 419119,
+        "timestamp_end_ms": 434640,
+        "transcript_ref": "transcripts/0001 - How AI Will Change Quantum Compu_20260421-180025_8eb5f9d2.txt"
+      }
+    },
+    {
+      "id": "quote:e4cb2cac978375a2",
+      "type": "Quote",
+      "properties": {
+        "text": "So there are a lot of challenges we still face to scale up quantum computing.",
+        "episode_id": "c1864c80-3766-11f1-a17b-8323ac12a047",
+        "speaker_id": null,
+        "char_start": 5362,
+        "char_end": 5439,
+        "timestamp_start_ms": 308920,
+        "timestamp_end_ms": 314799,
+        "transcript_ref": "transcripts/0001 - How AI Will Change Quantum Compu_20260421-180025_8eb5f9d2.txt"
+      }
+    },
+    {
+      "id": "quote:1951e05fc0543d62",
+      "type": "Quote",
+      "properties": {
+        "text": "But those devices are still a little way away, or at least those devices still need to crack quantum error correction, and be fault tolerant and be able to deal with those errors.",
+        "episode_id": "c1864c80-3766-11f1-a17b-8323ac12a047",
+        "speaker_id": null,
+        "char_start": 13513,
+        "char_end": 13692,
+        "timestamp_start_ms": 741320,
+        "timestamp_end_ms": 754479,
+        "transcript_ref": "transcripts/0001 - How AI Will Change Quantum Compu_20260421-180025_8eb5f9d2.txt"
+      }
+    },
+    {
+      "id": "insight:4d71e18e4152bedb",
+      "type": "Insight",
+      "properties": {
+        "text": "AI can significantly accelerate progress in quantum computing, particularly in areas like quantum error correction.",
+        "episode_id": "c1864c80-3766-11f1-a17b-8323ac12a047",
+        "grounded": true,
+        "insight_type": "unknown",
+        "position_hint": 0.55
+      },
+      "confidence": 1.0
+    },
+    {
+      "id": "quote:1feec39a990e3694",
+      "type": "Quote",
+      "properties": {
+        "text": "And so decoders are one example of a task in quantum computing, that we think AI or we are seeing that AI can have a really big impact.",
+        "episode_id": "c1864c80-3766-11f1-a17b-8323ac12a047",
+        "speaker_id": null,
+        "char_start": 9158,
+        "char_end": 9293,
+        "timestamp_start_ms": 505119,
+        "timestamp_end_ms": 515960,
+        "transcript_ref": "transcripts/0001 - How AI Will Change Quantum Compu_20260421-180025_8eb5f9d2.txt"
+      }
+    },
+    {
+      "id": "quote:3eb6ab773a0d55fc",
+      "type": "Quote",
+      "properties": {
+        "text": "And this has been a huge missing part of the quantum computing community, access to open AI models to really use the latest in AI technology to help us accelerate how we get to these useful quantum applications.",
+        "episode_id": "c1864c80-3766-11f1-a17b-8323ac12a047",
+        "speaker_id": null,
+        "char_start": 17335,
+        "char_end": 17546,
+        "timestamp_start_ms": 955440,
+        "timestamp_end_ms": 972080,
+        "transcript_ref": "transcripts/0001 - How AI Will Change Quantum Compu_20260421-180025_8eb5f9d2.txt"
+      }
+    },
+    {
+      "id": "quote:0e7163d720ccffd8",
+      "type": "Quote",
+      "properties": {
+        "text": "So we talked about algorithms, you know, if you're trying to build a quantum computer that's useful as quickly as you can, there's two things you can do, you can make the quantum hardware like bigger and better. But you can also make the applications you want to run on that hardware less demanding. And where you meet when suddenly you've got enough hardware to run the thing you want, that's when you can be useful. So there's also a lot of work you can do in optimizing existing applications or the algorithms that perform them, or even discovering entirely new ones. And AI is being very, very promising at that.",
+        "episode_id": "c1864c80-3766-11f1-a17b-8323ac12a047",
+        "speaker_id": null,
+        "char_start": 30085,
+        "char_end": 30701,
+        "timestamp_start_ms": 1671599,
+        "timestamp_end_ms": 1710199,
+        "transcript_ref": "transcripts/0001 - How AI Will Change Quantum Compu_20260421-180025_8eb5f9d2.txt"
+      }
+    },
+    {
+      "id": "insight:e4fc7fecf058719f",
+      "type": "Insight",
+      "properties": {
+        "text": "Qubits exist in a delicate superposition that is destroyed by observation or environmental interaction.",
+        "episode_id": "c1864c80-3766-11f1-a17b-8323ac12a047",
+        "grounded": true,
+        "insight_type": "unknown",
+        "position_hint": 0.21
+      },
+      "confidence": 1.0
+    },
+    {
+      "id": "quote:e73aef8791d12ba0",
+      "type": "Quote",
+      "properties": {
+        "text": "But it's a very delicate combination. And it's fragile. And if you go in and you touch the qubit or something bumps into it, or interacts with its environment, you'll destroy that delicate superposition that you will have engineered correctly to do your quantum computation.",
+        "episode_id": "c1864c80-3766-11f1-a17b-8323ac12a047",
+        "speaker_id": null,
+        "char_start": 7163,
+        "char_end": 7437,
+        "timestamp_start_ms": 401399,
+        "timestamp_end_ms": 423200,
+        "transcript_ref": "transcripts/0001 - How AI Will Change Quantum Compu_20260421-180025_8eb5f9d2.txt"
+      }
+    },
+    {
+      "id": "quote:801a4d4b3bebcb5f",
+      "type": "Quote",
+      "properties": {
+        "text": "So the way a qubit works is that instead of just having a zero or one, like in a transistor, if you think of it like a switch, it's zero or it's one, you can kind of have what's called a superposition of the two.",
+        "episode_id": "c1864c80-3766-11f1-a17b-8323ac12a047",
+        "speaker_id": null,
+        "char_start": 6745,
+        "char_end": 6957,
+        "timestamp_start_ms": 382519,
+        "timestamp_end_ms": 395239,
+        "transcript_ref": "transcripts/0001 - How AI Will Change Quantum Compu_20260421-180025_8eb5f9d2.txt"
+      }
+    },
+    {
+      "id": "quote:53ed025324732a1f",
+      "type": "Quote",
+      "properties": {
+        "text": "And so quantum error correction seeks to do what seems impossible, which is to look at those qubits to find out if they're correct, if they've got errors in them. But at the same time, you don't want to touch them or look at them.",
+        "episode_id": "c1864c80-3766-11f1-a17b-8323ac12a047",
+        "speaker_id": null,
+        "char_start": 7444,
+        "char_end": 7674,
+        "timestamp_start_ms": 419119,
+        "timestamp_end_ms": 434640,
+        "transcript_ref": "transcripts/0001 - How AI Will Change Quantum Compu_20260421-180025_8eb5f9d2.txt"
+      }
+    },
+    {
+      "id": "insight:d570bcda34e3ca4b",
+      "type": "Insight",
+      "properties": {
+        "text": "Quantum error correction links and entangles qubits, sacrificing some to gain information about others without direct disturbance.",
+        "episode_id": "c1864c80-3766-11f1-a17b-8323ac12a047",
+        "grounded": true,
+        "insight_type": "unknown",
+        "position_hint": 0.23
+      },
+      "confidence": 1.0
+    },
+    {
+      "id": "quote:68c61e3d0567a1d8",
+      "type": "Quote",
+      "properties": {
+        "text": "And then some very clever people discovered in the 90s, that actually, if you have a lot of qubits, you can link them all together in a special way, you can what we call entangle them, and you can look at some of them and you destroy those ones, you sacrifice them. But in return, you learn just enough about the other ones through the kind of links between them to learn where the errors are, but without having disturbed them enough for it to really matter.",
+        "episode_id": "c1864c80-3766-11f1-a17b-8323ac12a047",
+        "speaker_id": null,
+        "char_start": 7884,
+        "char_end": 8343,
+        "timestamp_start_ms": 442119,
+        "timestamp_end_ms": 467760,
+        "transcript_ref": "transcripts/0001 - How AI Will Change Quantum Compu_20260421-180025_8eb5f9d2.txt"
+      }
+    },
+    {
+      "id": "insight:0ac00b6aee9d72e0",
+      "type": "Insight",
+      "properties": {
+        "text": "AI-powered decoders are crucial for processing vast amounts of data quickly to infer and correct errors in quantum systems.",
+        "episode_id": "c1864c80-3766-11f1-a17b-8323ac12a047",
+        "grounded": true,
+        "insight_type": "unknown",
+        "position_hint": 0.33
+      },
+      "confidence": 1.0
+    },
+    {
+      "id": "quote:10fbd7f999c06132",
+      "type": "Quote",
+      "properties": {
+        "text": "And that's actually something at NVIDIA that we're working towards, because a huge part of performing quantum error correction is a classical, a conventional kind of algorithm or computation you need to run called a decoder that kind of enables the quantum error correction.",
+        "episode_id": "c1864c80-3766-11f1-a17b-8323ac12a047",
+        "speaker_id": null,
+        "char_start": 5087,
+        "char_end": 5361,
+        "timestamp_start_ms": 292559,
+        "timestamp_end_ms": 311720,
+        "transcript_ref": "transcripts/0001 - How AI Will Change Quantum Compu_20260421-180025_8eb5f9d2.txt"
+      }
+    },
+    {
+      "id": "quote:47fea84af56464fe",
+      "type": "Quote",
+      "properties": {
+        "text": "And so NVIDIA icing at launch has got two sets of models in it. It's got models for doing calibration. That means for tweaking quantum hardware very quickly to correct any kind of imperfections in the way things are aligned or the hardware is set up, you need to continually calibrate it. That's a visual language model that looks at the output from a quantum computer and decides what the correction should be. And then we also have icing decoding that runs the decoding algorithms you need for quantum error correction, that really crucial task that kind of lets you continually correct the errors that are kind of fundamental to qubits and quantum computing.",
+        "episode_id": "c1864c80-3766-11f1-a17b-8323ac12a047",
+        "speaker_id": null,
+        "char_start": 17547,
+        "char_end": 18208,
+        "timestamp_start_ms": 968119,
+        "timestamp_end_ms": 1009640,
+        "transcript_ref": "transcripts/0001 - How AI Will Change Quantum Compu_20260421-180025_8eb5f9d2.txt"
+      }
+    },
+    {
+      "id": "insight:a1f820c2834169bb",
+      "type": "Insight",
+      "properties": {
+        "text": "Open AI models are essential for quantum researchers to fine-tune AI for diverse and specific quantum hardware.",
+        "episode_id": "c1864c80-3766-11f1-a17b-8323ac12a047",
+        "grounded": true,
+        "insight_type": "unknown",
+        "position_hint": 0.51
+      },
+      "confidence": 1.0
+    },
+    {
+      "id": "quote:1f232ef339ce4e22",
+      "type": "Quote",
+      "properties": {
+        "text": "this has been a huge missing part of the quantum computing community, access to open AI models to really use the latest in AI technology to help us accelerate how we get to these useful quantum applications.",
+        "episode_id": "c1864c80-3766-11f1-a17b-8323ac12a047",
+        "speaker_id": null,
+        "char_start": 17339,
+        "char_end": 17546,
+        "timestamp_start_ms": 955440,
+        "timestamp_end_ms": 972080,
+        "transcript_ref": "transcripts/0001 - How AI Will Change Quantum Compu_20260421-180025_8eb5f9d2.txt"
+      }
+    },
+    {
+      "id": "insight:2f10507987539206",
+      "type": "Insight",
+      "properties": {
+        "text": "Early applications of quantum computing are expected in simulating quantum systems, such as drug discovery and materials science.",
+        "episode_id": "c1864c80-3766-11f1-a17b-8323ac12a047",
+        "grounded": true,
+        "insight_type": "unknown",
+        "position_hint": 0.31
+      },
+      "confidence": 1.0
+    },
+    {
+      "id": "quote:5167a7a8d0ed5d03",
+      "type": "Quote",
+      "properties": {
+        "text": "Things like developing new drugs, and simulating and developing new kinds of materials.",
+        "episode_id": "c1864c80-3766-11f1-a17b-8323ac12a047",
+        "speaker_id": null,
+        "char_start": 3709,
+        "char_end": 3796,
+        "timestamp_start_ms": 214080,
+        "timestamp_end_ms": 222880,
+        "transcript_ref": "transcripts/0001 - How AI Will Change Quantum Compu_20260421-180025_8eb5f9d2.txt"
+      }
+    },
+    {
+      "id": "quote:27d548a205b68780",
+      "type": "Quote",
+      "properties": {
+        "text": "So for example, if you're trying to develop a new drug, you might be trying to simulate how some part of a biological cell will interact with a molecule that's your candidate drug.",
+        "episode_id": "c1864c80-3766-11f1-a17b-8323ac12a047",
+        "speaker_id": null,
+        "char_start": 12857,
+        "char_end": 13037,
+        "timestamp_start_ms": 705479,
+        "timestamp_end_ms": 717559,
+        "transcript_ref": "transcripts/0001 - How AI Will Change Quantum Compu_20260421-180025_8eb5f9d2.txt"
+      }
+    },
+    {
+      "id": "quote:376455863c35f21b",
+      "type": "Quote",
+      "properties": {
+        "text": "So you can list things out like, you know, pharmaceuticals, materials development, financial services, logistics, but across those applications, some of them are ones that we believe earlier generation quantum computers will be able to handle.",
+        "episode_id": "c1864c80-3766-11f1-a17b-8323ac12a047",
+        "speaker_id": null,
+        "char_start": 12361,
+        "char_end": 12604,
+        "timestamp_start_ms": 681280,
+        "timestamp_end_ms": 697760,
+        "transcript_ref": "transcripts/0001 - How AI Will Change Quantum Compu_20260421-180025_8eb5f9d2.txt"
+      }
+    },
+    {
+      "id": "quote:a7ec580001d602f0",
+      "type": "Quote",
+      "properties": {
+        "text": "So we expect the sort of earlier, probably smaller quantum computers, relatively speaking, to be able to work really well on those applications.",
+        "episode_id": "c1864c80-3766-11f1-a17b-8323ac12a047",
+        "speaker_id": null,
+        "char_start": 13368,
+        "char_end": 13512,
+        "timestamp_start_ms": 733280,
+        "timestamp_end_ms": 744799,
+        "transcript_ref": "transcripts/0001 - How AI Will Change Quantum Compu_20260421-180025_8eb5f9d2.txt"
+      }
+    }
+  ],
+  "edges": [
+    {
+      "type": "HAS_INSIGHT",
+      "from": "episode:c1864c80-3766-11f1-a17b-8323ac12a047",
+      "to": "insight:b9a6e820e2ca6488"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:b9a6e820e2ca6488",
+      "to": "topic:quantum-computing-utilizes-quantum-mechanical-objects-as-switches-qubits-instead"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:b9a6e820e2ca6488",
+      "to": "topic:quantum-computers-are-not-universally-superior-their-transformative-power-is-lim"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:b9a6e820e2ca6488",
+      "to": "topic:current-quantum-hardware-development-is-at-an-inflection-point-transitioning-fro"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:b9a6e820e2ca6488",
+      "to": "topic:building-quantum-processors-qpus-faces-challenges-in-controlling-and-maintaining"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:b9a6e820e2ca6488",
+      "to": "topic:ai-is-poised-to-unlock-significant-progress-in-quantum-computing-particularly-in"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:b9a6e820e2ca6488",
+      "to": "topic:nvidias-open-models-ising-offer-pre-trained-ai-models-for-quantum-computing-work"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:b9a6e820e2ca6488",
+      "to": "topic:early-useful-applications-of-quantum-computing-are-expected-in-simulating-quantu"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:b9a6e820e2ca6488",
+      "to": "topic:ai-can-assist-in-discovering-new-quantum-applications-by-understanding-deeper-pa"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:b9a6e820e2ca6488",
+      "to": "topic:quantum-hardware-is-materially-different-from-classical-hardware-with-diverse-ap"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:b9a6e820e2ca6488",
+      "to": "topic:scaling-quantum-computers-requires-a-massive-increase-in-qubits-potentially-mill"
+    },
+    {
+      "type": "SUPPORTED_BY",
+      "from": "insight:b9a6e820e2ca6488",
+      "to": "quote:5dc7b242a19fb53a"
+    },
+    {
+      "type": "SUPPORTED_BY",
+      "from": "insight:b9a6e820e2ca6488",
+      "to": "quote:5571fa91e8554db1"
+    },
+    {
+      "type": "HAS_INSIGHT",
+      "from": "episode:c1864c80-3766-11f1-a17b-8323ac12a047",
+      "to": "insight:39bf70bd515f2600"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:39bf70bd515f2600",
+      "to": "topic:quantum-computing-utilizes-quantum-mechanical-objects-as-switches-qubits-instead"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:39bf70bd515f2600",
+      "to": "topic:quantum-computers-are-not-universally-superior-their-transformative-power-is-lim"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:39bf70bd515f2600",
+      "to": "topic:current-quantum-hardware-development-is-at-an-inflection-point-transitioning-fro"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:39bf70bd515f2600",
+      "to": "topic:building-quantum-processors-qpus-faces-challenges-in-controlling-and-maintaining"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:39bf70bd515f2600",
+      "to": "topic:ai-is-poised-to-unlock-significant-progress-in-quantum-computing-particularly-in"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:39bf70bd515f2600",
+      "to": "topic:nvidias-open-models-ising-offer-pre-trained-ai-models-for-quantum-computing-work"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:39bf70bd515f2600",
+      "to": "topic:early-useful-applications-of-quantum-computing-are-expected-in-simulating-quantu"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:39bf70bd515f2600",
+      "to": "topic:ai-can-assist-in-discovering-new-quantum-applications-by-understanding-deeper-pa"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:39bf70bd515f2600",
+      "to": "topic:quantum-hardware-is-materially-different-from-classical-hardware-with-diverse-ap"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:39bf70bd515f2600",
+      "to": "topic:scaling-quantum-computers-requires-a-massive-increase-in-qubits-potentially-mill"
+    },
+    {
+      "type": "SUPPORTED_BY",
+      "from": "insight:39bf70bd515f2600",
+      "to": "quote:1635941ef844b37a"
+    },
+    {
+      "type": "SUPPORTED_BY",
+      "from": "insight:39bf70bd515f2600",
+      "to": "quote:484fc174e63bb38c"
+    },
+    {
+      "type": "SUPPORTED_BY",
+      "from": "insight:39bf70bd515f2600",
+      "to": "quote:fb7965fbea1167bb"
+    },
+    {
+      "type": "HAS_INSIGHT",
+      "from": "episode:c1864c80-3766-11f1-a17b-8323ac12a047",
+      "to": "insight:b92c08f8b6320275"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:b92c08f8b6320275",
+      "to": "topic:quantum-computing-utilizes-quantum-mechanical-objects-as-switches-qubits-instead"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:b92c08f8b6320275",
+      "to": "topic:quantum-computers-are-not-universally-superior-their-transformative-power-is-lim"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:b92c08f8b6320275",
+      "to": "topic:current-quantum-hardware-development-is-at-an-inflection-point-transitioning-fro"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:b92c08f8b6320275",
+      "to": "topic:building-quantum-processors-qpus-faces-challenges-in-controlling-and-maintaining"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:b92c08f8b6320275",
+      "to": "topic:ai-is-poised-to-unlock-significant-progress-in-quantum-computing-particularly-in"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:b92c08f8b6320275",
+      "to": "topic:nvidias-open-models-ising-offer-pre-trained-ai-models-for-quantum-computing-work"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:b92c08f8b6320275",
+      "to": "topic:early-useful-applications-of-quantum-computing-are-expected-in-simulating-quantu"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:b92c08f8b6320275",
+      "to": "topic:ai-can-assist-in-discovering-new-quantum-applications-by-understanding-deeper-pa"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:b92c08f8b6320275",
+      "to": "topic:quantum-hardware-is-materially-different-from-classical-hardware-with-diverse-ap"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:b92c08f8b6320275",
+      "to": "topic:scaling-quantum-computers-requires-a-massive-increase-in-qubits-potentially-mill"
+    },
+    {
+      "type": "SUPPORTED_BY",
+      "from": "insight:b92c08f8b6320275",
+      "to": "quote:553cbd1b78271e4b"
+    },
+    {
+      "type": "SUPPORTED_BY",
+      "from": "insight:b92c08f8b6320275",
+      "to": "quote:e1c09d92591376d0"
+    },
+    {
+      "type": "SUPPORTED_BY",
+      "from": "insight:b92c08f8b6320275",
+      "to": "quote:61ab813ec4f7d044"
+    },
+    {
+      "type": "HAS_INSIGHT",
+      "from": "episode:c1864c80-3766-11f1-a17b-8323ac12a047",
+      "to": "insight:9dfabac80beb6417"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:9dfabac80beb6417",
+      "to": "topic:quantum-computing-utilizes-quantum-mechanical-objects-as-switches-qubits-instead"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:9dfabac80beb6417",
+      "to": "topic:quantum-computers-are-not-universally-superior-their-transformative-power-is-lim"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:9dfabac80beb6417",
+      "to": "topic:current-quantum-hardware-development-is-at-an-inflection-point-transitioning-fro"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:9dfabac80beb6417",
+      "to": "topic:building-quantum-processors-qpus-faces-challenges-in-controlling-and-maintaining"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:9dfabac80beb6417",
+      "to": "topic:ai-is-poised-to-unlock-significant-progress-in-quantum-computing-particularly-in"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:9dfabac80beb6417",
+      "to": "topic:nvidias-open-models-ising-offer-pre-trained-ai-models-for-quantum-computing-work"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:9dfabac80beb6417",
+      "to": "topic:early-useful-applications-of-quantum-computing-are-expected-in-simulating-quantu"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:9dfabac80beb6417",
+      "to": "topic:ai-can-assist-in-discovering-new-quantum-applications-by-understanding-deeper-pa"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:9dfabac80beb6417",
+      "to": "topic:quantum-hardware-is-materially-different-from-classical-hardware-with-diverse-ap"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:9dfabac80beb6417",
+      "to": "topic:scaling-quantum-computers-requires-a-massive-increase-in-qubits-potentially-mill"
+    },
+    {
+      "type": "SUPPORTED_BY",
+      "from": "insight:9dfabac80beb6417",
+      "to": "quote:1e9cd0fcf5dd7d04"
+    },
+    {
+      "type": "SUPPORTED_BY",
+      "from": "insight:9dfabac80beb6417",
+      "to": "quote:e7ae30ea5b1b4509"
+    },
+    {
+      "type": "SUPPORTED_BY",
+      "from": "insight:9dfabac80beb6417",
+      "to": "quote:59e6ea8dcff2e85a"
+    },
+    {
+      "type": "SUPPORTED_BY",
+      "from": "insight:9dfabac80beb6417",
+      "to": "quote:e4cb2cac978375a2"
+    },
+    {
+      "type": "SUPPORTED_BY",
+      "from": "insight:9dfabac80beb6417",
+      "to": "quote:1951e05fc0543d62"
+    },
+    {
+      "type": "HAS_INSIGHT",
+      "from": "episode:c1864c80-3766-11f1-a17b-8323ac12a047",
+      "to": "insight:4d71e18e4152bedb"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:4d71e18e4152bedb",
+      "to": "topic:quantum-computing-utilizes-quantum-mechanical-objects-as-switches-qubits-instead"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:4d71e18e4152bedb",
+      "to": "topic:quantum-computers-are-not-universally-superior-their-transformative-power-is-lim"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:4d71e18e4152bedb",
+      "to": "topic:current-quantum-hardware-development-is-at-an-inflection-point-transitioning-fro"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:4d71e18e4152bedb",
+      "to": "topic:building-quantum-processors-qpus-faces-challenges-in-controlling-and-maintaining"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:4d71e18e4152bedb",
+      "to": "topic:ai-is-poised-to-unlock-significant-progress-in-quantum-computing-particularly-in"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:4d71e18e4152bedb",
+      "to": "topic:nvidias-open-models-ising-offer-pre-trained-ai-models-for-quantum-computing-work"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:4d71e18e4152bedb",
+      "to": "topic:early-useful-applications-of-quantum-computing-are-expected-in-simulating-quantu"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:4d71e18e4152bedb",
+      "to": "topic:ai-can-assist-in-discovering-new-quantum-applications-by-understanding-deeper-pa"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:4d71e18e4152bedb",
+      "to": "topic:quantum-hardware-is-materially-different-from-classical-hardware-with-diverse-ap"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:4d71e18e4152bedb",
+      "to": "topic:scaling-quantum-computers-requires-a-massive-increase-in-qubits-potentially-mill"
+    },
+    {
+      "type": "SUPPORTED_BY",
+      "from": "insight:4d71e18e4152bedb",
+      "to": "quote:1feec39a990e3694"
+    },
+    {
+      "type": "SUPPORTED_BY",
+      "from": "insight:4d71e18e4152bedb",
+      "to": "quote:3eb6ab773a0d55fc"
+    },
+    {
+      "type": "SUPPORTED_BY",
+      "from": "insight:4d71e18e4152bedb",
+      "to": "quote:0e7163d720ccffd8"
+    },
+    {
+      "type": "HAS_INSIGHT",
+      "from": "episode:c1864c80-3766-11f1-a17b-8323ac12a047",
+      "to": "insight:e4fc7fecf058719f"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:e4fc7fecf058719f",
+      "to": "topic:quantum-computing-utilizes-quantum-mechanical-objects-as-switches-qubits-instead"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:e4fc7fecf058719f",
+      "to": "topic:quantum-computers-are-not-universally-superior-their-transformative-power-is-lim"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:e4fc7fecf058719f",
+      "to": "topic:current-quantum-hardware-development-is-at-an-inflection-point-transitioning-fro"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:e4fc7fecf058719f",
+      "to": "topic:building-quantum-processors-qpus-faces-challenges-in-controlling-and-maintaining"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:e4fc7fecf058719f",
+      "to": "topic:ai-is-poised-to-unlock-significant-progress-in-quantum-computing-particularly-in"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:e4fc7fecf058719f",
+      "to": "topic:nvidias-open-models-ising-offer-pre-trained-ai-models-for-quantum-computing-work"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:e4fc7fecf058719f",
+      "to": "topic:early-useful-applications-of-quantum-computing-are-expected-in-simulating-quantu"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:e4fc7fecf058719f",
+      "to": "topic:ai-can-assist-in-discovering-new-quantum-applications-by-understanding-deeper-pa"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:e4fc7fecf058719f",
+      "to": "topic:quantum-hardware-is-materially-different-from-classical-hardware-with-diverse-ap"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:e4fc7fecf058719f",
+      "to": "topic:scaling-quantum-computers-requires-a-massive-increase-in-qubits-potentially-mill"
+    },
+    {
+      "type": "SUPPORTED_BY",
+      "from": "insight:e4fc7fecf058719f",
+      "to": "quote:e73aef8791d12ba0"
+    },
+    {
+      "type": "SUPPORTED_BY",
+      "from": "insight:e4fc7fecf058719f",
+      "to": "quote:801a4d4b3bebcb5f"
+    },
+    {
+      "type": "SUPPORTED_BY",
+      "from": "insight:e4fc7fecf058719f",
+      "to": "quote:53ed025324732a1f"
+    },
+    {
+      "type": "HAS_INSIGHT",
+      "from": "episode:c1864c80-3766-11f1-a17b-8323ac12a047",
+      "to": "insight:d570bcda34e3ca4b"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:d570bcda34e3ca4b",
+      "to": "topic:quantum-computing-utilizes-quantum-mechanical-objects-as-switches-qubits-instead"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:d570bcda34e3ca4b",
+      "to": "topic:quantum-computers-are-not-universally-superior-their-transformative-power-is-lim"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:d570bcda34e3ca4b",
+      "to": "topic:current-quantum-hardware-development-is-at-an-inflection-point-transitioning-fro"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:d570bcda34e3ca4b",
+      "to": "topic:building-quantum-processors-qpus-faces-challenges-in-controlling-and-maintaining"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:d570bcda34e3ca4b",
+      "to": "topic:ai-is-poised-to-unlock-significant-progress-in-quantum-computing-particularly-in"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:d570bcda34e3ca4b",
+      "to": "topic:nvidias-open-models-ising-offer-pre-trained-ai-models-for-quantum-computing-work"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:d570bcda34e3ca4b",
+      "to": "topic:early-useful-applications-of-quantum-computing-are-expected-in-simulating-quantu"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:d570bcda34e3ca4b",
+      "to": "topic:ai-can-assist-in-discovering-new-quantum-applications-by-understanding-deeper-pa"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:d570bcda34e3ca4b",
+      "to": "topic:quantum-hardware-is-materially-different-from-classical-hardware-with-diverse-ap"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:d570bcda34e3ca4b",
+      "to": "topic:scaling-quantum-computers-requires-a-massive-increase-in-qubits-potentially-mill"
+    },
+    {
+      "type": "SUPPORTED_BY",
+      "from": "insight:d570bcda34e3ca4b",
+      "to": "quote:68c61e3d0567a1d8"
+    },
+    {
+      "type": "HAS_INSIGHT",
+      "from": "episode:c1864c80-3766-11f1-a17b-8323ac12a047",
+      "to": "insight:0ac00b6aee9d72e0"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:0ac00b6aee9d72e0",
+      "to": "topic:quantum-computing-utilizes-quantum-mechanical-objects-as-switches-qubits-instead"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:0ac00b6aee9d72e0",
+      "to": "topic:quantum-computers-are-not-universally-superior-their-transformative-power-is-lim"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:0ac00b6aee9d72e0",
+      "to": "topic:current-quantum-hardware-development-is-at-an-inflection-point-transitioning-fro"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:0ac00b6aee9d72e0",
+      "to": "topic:building-quantum-processors-qpus-faces-challenges-in-controlling-and-maintaining"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:0ac00b6aee9d72e0",
+      "to": "topic:ai-is-poised-to-unlock-significant-progress-in-quantum-computing-particularly-in"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:0ac00b6aee9d72e0",
+      "to": "topic:nvidias-open-models-ising-offer-pre-trained-ai-models-for-quantum-computing-work"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:0ac00b6aee9d72e0",
+      "to": "topic:early-useful-applications-of-quantum-computing-are-expected-in-simulating-quantu"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:0ac00b6aee9d72e0",
+      "to": "topic:ai-can-assist-in-discovering-new-quantum-applications-by-understanding-deeper-pa"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:0ac00b6aee9d72e0",
+      "to": "topic:quantum-hardware-is-materially-different-from-classical-hardware-with-diverse-ap"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:0ac00b6aee9d72e0",
+      "to": "topic:scaling-quantum-computers-requires-a-massive-increase-in-qubits-potentially-mill"
+    },
+    {
+      "type": "SUPPORTED_BY",
+      "from": "insight:0ac00b6aee9d72e0",
+      "to": "quote:10fbd7f999c06132"
+    },
+    {
+      "type": "SUPPORTED_BY",
+      "from": "insight:0ac00b6aee9d72e0",
+      "to": "quote:47fea84af56464fe"
+    },
+    {
+      "type": "HAS_INSIGHT",
+      "from": "episode:c1864c80-3766-11f1-a17b-8323ac12a047",
+      "to": "insight:a1f820c2834169bb"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:a1f820c2834169bb",
+      "to": "topic:quantum-computing-utilizes-quantum-mechanical-objects-as-switches-qubits-instead"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:a1f820c2834169bb",
+      "to": "topic:quantum-computers-are-not-universally-superior-their-transformative-power-is-lim"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:a1f820c2834169bb",
+      "to": "topic:current-quantum-hardware-development-is-at-an-inflection-point-transitioning-fro"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:a1f820c2834169bb",
+      "to": "topic:building-quantum-processors-qpus-faces-challenges-in-controlling-and-maintaining"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:a1f820c2834169bb",
+      "to": "topic:ai-is-poised-to-unlock-significant-progress-in-quantum-computing-particularly-in"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:a1f820c2834169bb",
+      "to": "topic:nvidias-open-models-ising-offer-pre-trained-ai-models-for-quantum-computing-work"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:a1f820c2834169bb",
+      "to": "topic:early-useful-applications-of-quantum-computing-are-expected-in-simulating-quantu"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:a1f820c2834169bb",
+      "to": "topic:ai-can-assist-in-discovering-new-quantum-applications-by-understanding-deeper-pa"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:a1f820c2834169bb",
+      "to": "topic:quantum-hardware-is-materially-different-from-classical-hardware-with-diverse-ap"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:a1f820c2834169bb",
+      "to": "topic:scaling-quantum-computers-requires-a-massive-increase-in-qubits-potentially-mill"
+    },
+    {
+      "type": "SUPPORTED_BY",
+      "from": "insight:a1f820c2834169bb",
+      "to": "quote:1f232ef339ce4e22"
+    },
+    {
+      "type": "HAS_INSIGHT",
+      "from": "episode:c1864c80-3766-11f1-a17b-8323ac12a047",
+      "to": "insight:2f10507987539206"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:2f10507987539206",
+      "to": "topic:quantum-computing-utilizes-quantum-mechanical-objects-as-switches-qubits-instead"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:2f10507987539206",
+      "to": "topic:quantum-computers-are-not-universally-superior-their-transformative-power-is-lim"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:2f10507987539206",
+      "to": "topic:current-quantum-hardware-development-is-at-an-inflection-point-transitioning-fro"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:2f10507987539206",
+      "to": "topic:building-quantum-processors-qpus-faces-challenges-in-controlling-and-maintaining"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:2f10507987539206",
+      "to": "topic:ai-is-poised-to-unlock-significant-progress-in-quantum-computing-particularly-in"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:2f10507987539206",
+      "to": "topic:nvidias-open-models-ising-offer-pre-trained-ai-models-for-quantum-computing-work"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:2f10507987539206",
+      "to": "topic:early-useful-applications-of-quantum-computing-are-expected-in-simulating-quantu"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:2f10507987539206",
+      "to": "topic:ai-can-assist-in-discovering-new-quantum-applications-by-understanding-deeper-pa"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:2f10507987539206",
+      "to": "topic:quantum-hardware-is-materially-different-from-classical-hardware-with-diverse-ap"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:2f10507987539206",
+      "to": "topic:scaling-quantum-computers-requires-a-massive-increase-in-qubits-potentially-mill"
+    },
+    {
+      "type": "SUPPORTED_BY",
+      "from": "insight:2f10507987539206",
+      "to": "quote:5167a7a8d0ed5d03"
+    },
+    {
+      "type": "SUPPORTED_BY",
+      "from": "insight:2f10507987539206",
+      "to": "quote:27d548a205b68780"
+    },
+    {
+      "type": "SUPPORTED_BY",
+      "from": "insight:2f10507987539206",
+      "to": "quote:376455863c35f21b"
+    },
+    {
+      "type": "SUPPORTED_BY",
+      "from": "insight:2f10507987539206",
+      "to": "quote:a7ec580001d602f0"
+    }
+  ]
+}

@@ -1,0 +1,934 @@
+{
+  "schema_version": "2.0",
+  "model_version": "gemini-2.5-flash-lite",
+  "prompt_version": "v1",
+  "episode_id": "4cec22d8-717e-46c6-ab87-b43b01512ecb",
+  "nodes": [
+    {
+      "id": "episode:4cec22d8-717e-46c6-ab87-b43b01512ecb",
+      "type": "Episode",
+      "properties": {
+        "podcast_id": "sha256:1cd6aecdd31c0ae82c2c76efdb6327b54e6026924b47852c51ffb406a9f2b19c",
+        "title": "BlackRock's Rob Goldstein on the Next Megatrends in Finance",
+        "publish_date": "2026-04-30T08:00:00+00:00",
+        "duration_ms": 3373000,
+        "feed_id": "sha256:1cd6aecdd31c0ae82c2c76efdb6327b54e6026924b47852c51ffb406a9f2b19c"
+      }
+    },
+    {
+      "id": "topic:asset-management",
+      "type": "Topic",
+      "properties": {
+        "label": "Asset management"
+      }
+    },
+    {
+      "id": "topic:financial-technology",
+      "type": "Topic",
+      "properties": {
+        "label": "Financial technology"
+      }
+    },
+    {
+      "id": "topic:artificial-intelligence",
+      "type": "Topic",
+      "properties": {
+        "label": "Artificial intelligence"
+      }
+    },
+    {
+      "id": "topic:risk-management",
+      "type": "Topic",
+      "properties": {
+        "label": "Risk management"
+      }
+    },
+    {
+      "id": "topic:private-markets",
+      "type": "Topic",
+      "properties": {
+        "label": "Private markets"
+      }
+    },
+    {
+      "id": "topic:market-consolidation",
+      "type": "Topic",
+      "properties": {
+        "label": "Market consolidation"
+      }
+    },
+    {
+      "id": "topic:data-analytics",
+      "type": "Topic",
+      "properties": {
+        "label": "Data analytics"
+      }
+    },
+    {
+      "id": "topic:enterprise-platforms",
+      "type": "Topic",
+      "properties": {
+        "label": "Enterprise platforms"
+      }
+    },
+    {
+      "id": "topic:algorithmic-trading",
+      "type": "Topic",
+      "properties": {
+        "label": "Algorithmic trading"
+      }
+    },
+    {
+      "id": "topic:regulatory-compliance",
+      "type": "Topic",
+      "properties": {
+        "label": "Regulatory compliance"
+      }
+    },
+    {
+      "id": "insight:b68d7c753e76c602",
+      "type": "Insight",
+      "properties": {
+        "text": "Finance has experienced significant shifts, including the growth of asset management, the pervasive influence of technology, the expansion of private markets, and the consolidation of market power among a few large entities.",
+        "episode_id": "4cec22d8-717e-46c6-ab87-b43b01512ecb",
+        "grounded": true,
+        "insight_type": "fact",
+        "position_hint": 0.02
+      },
+      "confidence": 1.0
+    },
+    {
+      "id": "quote:69f40b55c213aba8",
+      "type": "Quote",
+      "properties": {
+        "text": "then you have this extraordinary growth in the asset management industry.",
+        "episode_id": "4cec22d8-717e-46c6-ab87-b43b01512ecb",
+        "speaker_id": null,
+        "char_start": 692,
+        "char_end": 765,
+        "timestamp_start_ms": 45760,
+        "timestamp_end_ms": 49440,
+        "transcript_ref": "transcripts/0004 - BlackRock_s Rob Goldstein on the Next Megatrends in Finance_20260506-135048_ba02775e.txt"
+      }
+    },
+    {
+      "id": "quote:c118c3258c8cd529",
+      "type": "Quote",
+      "properties": {
+        "text": "mega trend, I don't know, rise of private markets right.",
+        "episode_id": "4cec22d8-717e-46c6-ab87-b43b01512ecb",
+        "speaker_id": null,
+        "char_start": 990,
+        "char_end": 1046,
+        "timestamp_start_ms": 61720,
+        "timestamp_end_ms": 64440,
+        "transcript_ref": "transcripts/0004 - BlackRock_s Rob Goldstein on the Next Megatrends in Finance_20260506-135048_ba02775e.txt"
+      }
+    },
+    {
+      "id": "insight:c31cbe1114ff5792",
+      "type": "Insight",
+      "properties": {
+        "text": "The current technological wave, particularly AI, is creating an urgent demand within the finance industry for involvement and integration.",
+        "episode_id": "4cec22d8-717e-46c6-ab87-b43b01512ecb",
+        "grounded": true,
+        "insight_type": "fact",
+        "position_hint": 0.03
+      },
+      "confidence": 1.0
+    },
+    {
+      "id": "quote:80706cf53ca0e26d",
+      "type": "Quote",
+      "properties": {
+        "text": "we're in this new sort of technological wave with AI.",
+        "episode_id": "4cec22d8-717e-46c6-ab87-b43b01512ecb",
+        "speaker_id": null,
+        "char_start": 1627,
+        "char_end": 1680,
+        "timestamp_start_ms": 91800,
+        "timestamp_end_ms": 94479,
+        "transcript_ref": "transcripts/0004 - BlackRock_s Rob Goldstein on the Next Megatrends in Finance_20260506-135048_ba02775e.txt"
+      }
+    },
+    {
+      "id": "quote:06e6a0d84c577e8e",
+      "type": "Quote",
+      "properties": {
+        "text": "It very much feels like everyone in professional finance wants",
+        "episode_id": "4cec22d8-717e-46c6-ab87-b43b01512ecb",
+        "speaker_id": null,
+        "char_start": 1691,
+        "char_end": 1753,
+        "timestamp_start_ms": 94720,
+        "timestamp_end_ms": 98360,
+        "transcript_ref": "transcripts/0004 - BlackRock_s Rob Goldstein on the Next Megatrends in Finance_20260506-135048_ba02775e.txt"
+      }
+    },
+    {
+      "id": "quote:fad68867f32e6834",
+      "type": "Quote",
+      "properties": {
+        "text": "there's this like urgency. Yeah, and there's a perennial question",
+        "episode_id": "4cec22d8-717e-46c6-ab87-b43b01512ecb",
+        "speaker_id": null,
+        "char_start": 2234,
+        "char_end": 2299,
+        "timestamp_start_ms": 118039,
+        "timestamp_end_ms": 121160,
+        "transcript_ref": "transcripts/0004 - BlackRock_s Rob Goldstein on the Next Megatrends in Finance_20260506-135048_ba02775e.txt"
+      }
+    },
+    {
+      "id": "insight:6ffe43384496f0cc",
+      "type": "Insight",
+      "properties": {
+        "text": "Financial institutions are actively preparing to integrate historical data into AI models, indicating a strategic shift towards leveraging advanced analytics.",
+        "episode_id": "4cec22d8-717e-46c6-ab87-b43b01512ecb",
+        "grounded": false,
+        "insight_type": "fact"
+      }
+    },
+    {
+      "id": "insight:e37bc89881b1c5dc",
+      "type": "Insight",
+      "properties": {
+        "text": "A key debate exists regarding the true productivity and utility of AI in finance, distinguishing between genuine technological advancement and trend-chasing by management.",
+        "episode_id": "4cec22d8-717e-46c6-ab87-b43b01512ecb",
+        "grounded": true,
+        "insight_type": "opinion",
+        "position_hint": 0.04
+      },
+      "confidence": 1.0
+    },
+    {
+      "id": "quote:1e7b0295dc12b657",
+      "type": "Quote",
+      "properties": {
+        "text": "to become productive, useful technology for finance.",
+        "episode_id": "4cec22d8-717e-46c6-ab87-b43b01512ecb",
+        "speaker_id": null,
+        "char_start": 2695,
+        "char_end": 2747,
+        "timestamp_start_ms": 139000,
+        "timestamp_end_ms": 142600,
+        "transcript_ref": "transcripts/0004 - BlackRock_s Rob Goldstein on the Next Megatrends in Finance_20260506-135048_ba02775e.txt"
+      }
+    },
+    {
+      "id": "insight:8330d99d71bdde94",
+      "type": "Insight",
+      "properties": {
+        "text": "BlackRock's foundational strategy was built on technological innovation, using accessible computing to offer risk transparency in financial instruments.",
+        "episode_id": "4cec22d8-717e-46c6-ab87-b43b01512ecb",
+        "grounded": true,
+        "insight_type": "fact",
+        "position_hint": 0.11
+      },
+      "confidence": 1.0
+    },
+    {
+      "id": "quote:1bd334cab2c6fb39",
+      "type": "Quote",
+      "properties": {
+        "text": "So the thesis behind forming Blackrock was that we could actually",
+        "episode_id": "4cec22d8-717e-46c6-ab87-b43b01512ecb",
+        "speaker_id": null,
+        "char_start": 6520,
+        "char_end": 6585,
+        "timestamp_start_ms": 345240,
+        "timestamp_end_ms": 350600,
+        "transcript_ref": "transcripts/0004 - BlackRock_s Rob Goldstein on the Next Megatrends in Finance_20260506-135048_ba02775e.txt"
+      }
+    },
+    {
+      "id": "quote:8ebe79e5e995687a",
+      "type": "Quote",
+      "properties": {
+        "text": "we bring those technology capabilities which were not really available",
+        "episode_id": "4cec22d8-717e-46c6-ab87-b43b01512ecb",
+        "speaker_id": null,
+        "char_start": 7221,
+        "char_end": 7291,
+        "timestamp_start_ms": 392440,
+        "timestamp_end_ms": 397800,
+        "transcript_ref": "transcripts/0004 - BlackRock_s Rob Goldstein on the Next Megatrends in Finance_20260506-135048_ba02775e.txt"
+      }
+    },
+    {
+      "id": "quote:bc08f468e36ff6d3",
+      "type": "Quote",
+      "properties": {
+        "text": "founding thesis, and I think one of the real success factors.",
+        "episode_id": "4cec22d8-717e-46c6-ab87-b43b01512ecb",
+        "speaker_id": null,
+        "char_start": 7413,
+        "char_end": 7474,
+        "timestamp_start_ms": 404520,
+        "timestamp_end_ms": 409240,
+        "transcript_ref": "transcripts/0004 - BlackRock_s Rob Goldstein on the Next Megatrends in Finance_20260506-135048_ba02775e.txt"
+      }
+    },
+    {
+      "id": "insight:2aeb87ff4c52362b",
+      "type": "Insight",
+      "properties": {
+        "text": "Early asset management success was significantly influenced by a pioneering approach to data, technology, and information processing.",
+        "episode_id": "4cec22d8-717e-46c6-ab87-b43b01512ecb",
+        "grounded": true,
+        "insight_type": "fact",
+        "position_hint": 0.12
+      },
+      "confidence": 1.0
+    },
+    {
+      "id": "quote:1b904c50800ea161",
+      "type": "Quote",
+      "properties": {
+        "text": "think the history of Blackrock is very reflective of what",
+        "episode_id": "4cec22d8-717e-46c6-ab87-b43b01512ecb",
+        "speaker_id": null,
+        "char_start": 5387,
+        "char_end": 5444,
+        "timestamp_start_ms": 279880,
+        "timestamp_end_ms": 284039,
+        "transcript_ref": "transcripts/0004 - BlackRock_s Rob Goldstein on the Next Megatrends in Finance_20260506-135048_ba02775e.txt"
+      }
+    },
+    {
+      "id": "quote:c71f9f3277aa1877",
+      "type": "Quote",
+      "properties": {
+        "text": "management business at its core is an information processing business.",
+        "episode_id": "4cec22d8-717e-46c6-ab87-b43b01512ecb",
+        "speaker_id": null,
+        "char_start": 8121,
+        "char_end": 8191,
+        "timestamp_start_ms": 448400,
+        "timestamp_end_ms": 452400,
+        "transcript_ref": "transcripts/0004 - BlackRock_s Rob Goldstein on the Next Megatrends in Finance_20260506-135048_ba02775e.txt"
+      }
+    },
+    {
+      "id": "quote:7403e6e1d44135c8",
+      "type": "Quote",
+      "properties": {
+        "text": "twenty thirty years ago, that was a very unique novel concept.",
+        "episode_id": "4cec22d8-717e-46c6-ab87-b43b01512ecb",
+        "speaker_id": null,
+        "char_start": 8260,
+        "char_end": 8322,
+        "timestamp_start_ms": 457000,
+        "timestamp_end_ms": 461360,
+        "transcript_ref": "transcripts/0004 - BlackRock_s Rob Goldstein on the Next Megatrends in Finance_20260506-135048_ba02775e.txt"
+      }
+    },
+    {
+      "id": "insight:8e70f90c2ee191c8",
+      "type": "Insight",
+      "properties": {
+        "text": "The current computing trend suggests that localized, interconnected systems can replicate the power of large-scale infrastructure, potentially democratizing advanced capabilities.",
+        "episode_id": "4cec22d8-717e-46c6-ab87-b43b01512ecb",
+        "grounded": true,
+        "insight_type": "claim",
+        "position_hint": 0.14
+      },
+      "confidence": 1.0
+    },
+    {
+      "id": "quote:0e0c8fb8a6ecef55",
+      "type": "Quote",
+      "properties": {
+        "text": "or the future back a little bit these currently in computing.",
+        "episode_id": "4cec22d8-717e-46c6-ab87-b43b01512ecb",
+        "speaker_id": null,
+        "char_start": 8587,
+        "char_end": 8648,
+        "timestamp_start_ms": 473560,
+        "timestamp_end_ms": 477320,
+        "transcript_ref": "transcripts/0004 - BlackRock_s Rob Goldstein on the Next Megatrends in Finance_20260506-135048_ba02775e.txt"
+      }
+    },
+    {
+      "id": "quote:ab1ade61b05f4e00",
+      "type": "Quote",
+      "properties": {
+        "text": "other company's data center for unlimited token usage.",
+        "episode_id": "4cec22d8-717e-46c6-ab87-b43b01512ecb",
+        "speaker_id": null,
+        "char_start": 9005,
+        "char_end": 9059,
+        "timestamp_start_ms": 492400,
+        "timestamp_end_ms": 495600,
+        "transcript_ref": "transcripts/0004 - BlackRock_s Rob Goldstein on the Next Megatrends in Finance_20260506-135048_ba02775e.txt"
+      }
+    },
+    {
+      "id": "quote:572ec6c3fd33635d",
+      "type": "Quote",
+      "properties": {
+        "text": "is gonna kind of come back.",
+        "episode_id": "4cec22d8-717e-46c6-ab87-b43b01512ecb",
+        "speaker_id": null,
+        "char_start": 9078,
+        "char_end": 9105,
+        "timestamp_start_ms": 495680,
+        "timestamp_end_ms": 496680,
+        "transcript_ref": "transcripts/0004 - BlackRock_s Rob Goldstein on the Next Megatrends in Finance_20260506-135048_ba02775e.txt"
+      }
+    },
+    {
+      "id": "insight:1498f981d6c31f10",
+      "type": "Insight",
+      "properties": {
+        "text": "AI's high capital and energy requirements differentiate it from previous technology trends, raising questions about its ultimate accessibility and cost-effectiveness.",
+        "episode_id": "4cec22d8-717e-46c6-ab87-b43b01512ecb",
+        "grounded": true,
+        "insight_type": "opinion",
+        "position_hint": 0.16
+      },
+      "confidence": 1.0
+    },
+    {
+      "id": "quote:81b69779f9d9a57c",
+      "type": "Quote",
+      "properties": {
+        "text": "happening with AI, you could convert energy to intelligence, and",
+        "episode_id": "4cec22d8-717e-46c6-ab87-b43b01512ecb",
+        "speaker_id": null,
+        "char_start": 9486,
+        "char_end": 9550,
+        "timestamp_start_ms": 515280,
+        "timestamp_end_ms": 521720,
+        "transcript_ref": "transcripts/0004 - BlackRock_s Rob Goldstein on the Next Megatrends in Finance_20260506-135048_ba02775e.txt"
+      }
+    },
+    {
+      "id": "quote:f5b6995cb722a52c",
+      "type": "Quote",
+      "properties": {
+        "text": "is a technology trend that requires capital, and it requires",
+        "episode_id": "4cec22d8-717e-46c6-ab87-b43b01512ecb",
+        "speaker_id": null,
+        "char_start": 9766,
+        "char_end": 9826,
+        "timestamp_start_ms": 532600,
+        "timestamp_end_ms": 537199,
+        "transcript_ref": "transcripts/0004 - BlackRock_s Rob Goldstein on the Next Megatrends in Finance_20260506-135048_ba02775e.txt"
+      }
+    },
+    {
+      "id": "quote:cb83380116e2622e",
+      "type": "Quote",
+      "properties": {
+        "text": "expensive technology or if this will ultimately wind up being",
+        "episode_id": "4cec22d8-717e-46c6-ab87-b43b01512ecb",
+        "speaker_id": null,
+        "char_start": 9954,
+        "char_end": 10015,
+        "timestamp_start_ms": 544080,
+        "timestamp_end_ms": 548200,
+        "transcript_ref": "transcripts/0004 - BlackRock_s Rob Goldstein on the Next Megatrends in Finance_20260506-135048_ba02775e.txt"
+      }
+    },
+    {
+      "id": "insight:00f3709c05a09647",
+      "type": "Insight",
+      "properties": {
+        "text": "AI's non-deterministic output and lack of inherent explainability present significant challenges for finance, an industry that relies on predictability and auditability.",
+        "episode_id": "4cec22d8-717e-46c6-ab87-b43b01512ecb",
+        "grounded": true,
+        "insight_type": "fact",
+        "position_hint": 0.17
+      },
+      "confidence": 1.0
+    },
+    {
+      "id": "quote:74f2efdb5108a563",
+      "type": "Quote",
+      "properties": {
+        "text": "you don't really know what You never know if you're",
+        "episode_id": "4cec22d8-717e-46c6-ab87-b43b01512ecb",
+        "speaker_id": null,
+        "char_start": 10601,
+        "char_end": 10652,
+        "timestamp_start_ms": 578840,
+        "timestamp_end_ms": 581360,
+        "transcript_ref": "transcripts/0004 - BlackRock_s Rob Goldstein on the Next Megatrends in Finance_20260506-135048_ba02775e.txt"
+      }
+    },
+    {
+      "id": "quote:4ac9da83a1786274",
+      "type": "Quote",
+      "properties": {
+        "text": "models can't explain themselves, and this is an issue for finance,",
+        "episode_id": "4cec22d8-717e-46c6-ab87-b43b01512ecb",
+        "speaker_id": null,
+        "char_start": 10800,
+        "char_end": 10866,
+        "timestamp_start_ms": 588200,
+        "timestamp_end_ms": 591200,
+        "transcript_ref": "transcripts/0004 - BlackRock_s Rob Goldstein on the Next Megatrends in Finance_20260506-135048_ba02775e.txt"
+      }
+    },
+    {
+      "id": "quote:5707332951adeb52",
+      "type": "Quote",
+      "properties": {
+        "text": "you think about how that fits into the history of technology,",
+        "episode_id": "4cec22d8-717e-46c6-ab87-b43b01512ecb",
+        "speaker_id": null,
+        "char_start": 11080,
+        "char_end": 11141,
+        "timestamp_start_ms": 599800,
+        "timestamp_end_ms": 603520,
+        "transcript_ref": "transcripts/0004 - BlackRock_s Rob Goldstein on the Next Megatrends in Finance_20260506-135048_ba02775e.txt"
+      }
+    },
+    {
+      "id": "insight:4f493ddb5303bca1",
+      "type": "Insight",
+      "properties": {
+        "text": "The tolerance for errors made by AI systems may be lower than for human errors, especially in public perception and regulated sectors.",
+        "episode_id": "4cec22d8-717e-46c6-ab87-b43b01512ecb",
+        "grounded": true,
+        "insight_type": "opinion",
+        "position_hint": 0.19
+      },
+      "confidence": 1.0
+    },
+    {
+      "id": "quote:12c1df0c333d30f6",
+      "type": "Quote",
+      "properties": {
+        "text": "No question? Absolutely, no question. And just to give an analogy, Okay,",
+        "episode_id": "4cec22d8-717e-46c6-ab87-b43b01512ecb",
+        "speaker_id": null,
+        "char_start": 11596,
+        "char_end": 11668,
+        "timestamp_start_ms": 622679,
+        "timestamp_end_ms": 627320,
+        "transcript_ref": "transcripts/0004 - BlackRock_s Rob Goldstein on the Next Megatrends in Finance_20260506-135048_ba02775e.txt"
+      }
+    },
+    {
+      "id": "quote:97493f6dbe93ed37",
+      "type": "Quote",
+      "properties": {
+        "text": "tolerance people have for humans to make mistakes. So that's",
+        "episode_id": "4cec22d8-717e-46c6-ab87-b43b01512ecb",
+        "speaker_id": null,
+        "char_start": 12050,
+        "char_end": 12110,
+        "timestamp_start_ms": 647520,
+        "timestamp_end_ms": 651320,
+        "transcript_ref": "transcripts/0004 - BlackRock_s Rob Goldstein on the Next Megatrends in Finance_20260506-135048_ba02775e.txt"
+      }
+    },
+    {
+      "id": "insight:d2e37530f10b94a9",
+      "type": "Insight",
+      "properties": {
+        "text": "AI's ability to generate code, including fixing bugs, reflects a more human-like thinking process rather than traditional binary computation.",
+        "episode_id": "4cec22d8-717e-46c6-ab87-b43b01512ecb",
+        "grounded": false,
+        "insight_type": "claim"
+      }
+    },
+    {
+      "id": "insight:e191fe09c26abadc",
+      "type": "Insight",
+      "properties": {
+        "text": "The implementation of AI in enterprise settings, particularly in regulated industries, requires significant organizational redesign and business process re-engineering, suggesting that widespread adoption is still in its early stages.",
+        "episode_id": "4cec22d8-717e-46c6-ab87-b43b01512ecb",
+        "grounded": true,
+        "insight_type": "fact",
+        "position_hint": 0.23
+      },
+      "confidence": 1.0
+    },
+    {
+      "id": "quote:89cc28cd9fdad16b",
+      "type": "Quote",
+      "properties": {
+        "text": "frontier model providers, they use this term regulated industries, and",
+        "episode_id": "4cec22d8-717e-46c6-ab87-b43b01512ecb",
+        "speaker_id": null,
+        "char_start": 13354,
+        "char_end": 13424,
+        "timestamp_start_ms": 723600,
+        "timestamp_end_ms": 728360,
+        "transcript_ref": "transcripts/0004 - BlackRock_s Rob Goldstein on the Next Megatrends in Finance_20260506-135048_ba02775e.txt"
+      }
+    },
+    {
+      "id": "quote:20c5a013d8948581",
+      "type": "Quote",
+      "properties": {
+        "text": "It requires organizational design business process re engineering, like implementing",
+        "episode_id": "4cec22d8-717e-46c6-ab87-b43b01512ecb",
+        "speaker_id": null,
+        "char_start": 15125,
+        "char_end": 15209,
+        "timestamp_start_ms": 834520,
+        "timestamp_end_ms": 840880,
+        "transcript_ref": "transcripts/0004 - BlackRock_s Rob Goldstein on the Next Megatrends in Finance_20260506-135048_ba02775e.txt"
+      }
+    }
+  ],
+  "edges": [
+    {
+      "type": "HAS_INSIGHT",
+      "from": "episode:4cec22d8-717e-46c6-ab87-b43b01512ecb",
+      "to": "insight:b68d7c753e76c602"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:b68d7c753e76c602",
+      "to": "topic:financial-technology",
+      "properties": {
+        "confidence": 0.5431
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:b68d7c753e76c602",
+      "to": "topic:market-consolidation",
+      "properties": {
+        "confidence": 0.4353
+      }
+    },
+    {
+      "type": "SUPPORTED_BY",
+      "from": "insight:b68d7c753e76c602",
+      "to": "quote:69f40b55c213aba8"
+    },
+    {
+      "type": "SUPPORTED_BY",
+      "from": "insight:b68d7c753e76c602",
+      "to": "quote:c118c3258c8cd529"
+    },
+    {
+      "type": "HAS_INSIGHT",
+      "from": "episode:4cec22d8-717e-46c6-ab87-b43b01512ecb",
+      "to": "insight:c31cbe1114ff5792"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:c31cbe1114ff5792",
+      "to": "topic:financial-technology",
+      "properties": {
+        "confidence": 0.5531
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:c31cbe1114ff5792",
+      "to": "topic:artificial-intelligence",
+      "properties": {
+        "confidence": 0.3824
+      }
+    },
+    {
+      "type": "SUPPORTED_BY",
+      "from": "insight:c31cbe1114ff5792",
+      "to": "quote:80706cf53ca0e26d"
+    },
+    {
+      "type": "SUPPORTED_BY",
+      "from": "insight:c31cbe1114ff5792",
+      "to": "quote:06e6a0d84c577e8e"
+    },
+    {
+      "type": "SUPPORTED_BY",
+      "from": "insight:c31cbe1114ff5792",
+      "to": "quote:fad68867f32e6834"
+    },
+    {
+      "type": "HAS_INSIGHT",
+      "from": "episode:4cec22d8-717e-46c6-ab87-b43b01512ecb",
+      "to": "insight:6ffe43384496f0cc"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:6ffe43384496f0cc",
+      "to": "topic:financial-technology",
+      "properties": {
+        "confidence": 0.4453
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:6ffe43384496f0cc",
+      "to": "topic:data-analytics",
+      "properties": {
+        "confidence": 0.3976
+      }
+    },
+    {
+      "type": "HAS_INSIGHT",
+      "from": "episode:4cec22d8-717e-46c6-ab87-b43b01512ecb",
+      "to": "insight:e37bc89881b1c5dc"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:e37bc89881b1c5dc",
+      "to": "topic:financial-technology",
+      "properties": {
+        "confidence": 0.4894
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:e37bc89881b1c5dc",
+      "to": "topic:algorithmic-trading",
+      "properties": {
+        "confidence": 0.3523
+      }
+    },
+    {
+      "type": "SUPPORTED_BY",
+      "from": "insight:e37bc89881b1c5dc",
+      "to": "quote:1e7b0295dc12b657"
+    },
+    {
+      "type": "HAS_INSIGHT",
+      "from": "episode:4cec22d8-717e-46c6-ab87-b43b01512ecb",
+      "to": "insight:8330d99d71bdde94"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:8330d99d71bdde94",
+      "to": "topic:financial-technology",
+      "properties": {
+        "confidence": 0.5694
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:8330d99d71bdde94",
+      "to": "topic:enterprise-platforms",
+      "properties": {
+        "confidence": 0.4066
+      }
+    },
+    {
+      "type": "SUPPORTED_BY",
+      "from": "insight:8330d99d71bdde94",
+      "to": "quote:1bd334cab2c6fb39"
+    },
+    {
+      "type": "SUPPORTED_BY",
+      "from": "insight:8330d99d71bdde94",
+      "to": "quote:8ebe79e5e995687a"
+    },
+    {
+      "type": "SUPPORTED_BY",
+      "from": "insight:8330d99d71bdde94",
+      "to": "quote:bc08f468e36ff6d3"
+    },
+    {
+      "type": "HAS_INSIGHT",
+      "from": "episode:4cec22d8-717e-46c6-ab87-b43b01512ecb",
+      "to": "insight:2aeb87ff4c52362b"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:2aeb87ff4c52362b",
+      "to": "topic:asset-management",
+      "properties": {
+        "confidence": 0.6041
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:2aeb87ff4c52362b",
+      "to": "topic:financial-technology",
+      "properties": {
+        "confidence": 0.4117
+      }
+    },
+    {
+      "type": "SUPPORTED_BY",
+      "from": "insight:2aeb87ff4c52362b",
+      "to": "quote:1b904c50800ea161"
+    },
+    {
+      "type": "SUPPORTED_BY",
+      "from": "insight:2aeb87ff4c52362b",
+      "to": "quote:c71f9f3277aa1877"
+    },
+    {
+      "type": "SUPPORTED_BY",
+      "from": "insight:2aeb87ff4c52362b",
+      "to": "quote:7403e6e1d44135c8"
+    },
+    {
+      "type": "HAS_INSIGHT",
+      "from": "episode:4cec22d8-717e-46c6-ab87-b43b01512ecb",
+      "to": "insight:8e70f90c2ee191c8"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:8e70f90c2ee191c8",
+      "to": "topic:enterprise-platforms",
+      "properties": {
+        "confidence": 0.3497
+      }
+    },
+    {
+      "type": "SUPPORTED_BY",
+      "from": "insight:8e70f90c2ee191c8",
+      "to": "quote:0e0c8fb8a6ecef55"
+    },
+    {
+      "type": "SUPPORTED_BY",
+      "from": "insight:8e70f90c2ee191c8",
+      "to": "quote:ab1ade61b05f4e00"
+    },
+    {
+      "type": "SUPPORTED_BY",
+      "from": "insight:8e70f90c2ee191c8",
+      "to": "quote:572ec6c3fd33635d"
+    },
+    {
+      "type": "HAS_INSIGHT",
+      "from": "episode:4cec22d8-717e-46c6-ab87-b43b01512ecb",
+      "to": "insight:1498f981d6c31f10"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:1498f981d6c31f10",
+      "to": "topic:artificial-intelligence",
+      "properties": {
+        "confidence": 0.3531
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:1498f981d6c31f10",
+      "to": "topic:financial-technology",
+      "properties": {
+        "confidence": 0.3309
+      }
+    },
+    {
+      "type": "SUPPORTED_BY",
+      "from": "insight:1498f981d6c31f10",
+      "to": "quote:81b69779f9d9a57c"
+    },
+    {
+      "type": "SUPPORTED_BY",
+      "from": "insight:1498f981d6c31f10",
+      "to": "quote:f5b6995cb722a52c"
+    },
+    {
+      "type": "SUPPORTED_BY",
+      "from": "insight:1498f981d6c31f10",
+      "to": "quote:cb83380116e2622e"
+    },
+    {
+      "type": "HAS_INSIGHT",
+      "from": "episode:4cec22d8-717e-46c6-ab87-b43b01512ecb",
+      "to": "insight:00f3709c05a09647"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:00f3709c05a09647",
+      "to": "topic:financial-technology",
+      "properties": {
+        "confidence": 0.4317
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:00f3709c05a09647",
+      "to": "topic:algorithmic-trading",
+      "properties": {
+        "confidence": 0.3601
+      }
+    },
+    {
+      "type": "SUPPORTED_BY",
+      "from": "insight:00f3709c05a09647",
+      "to": "quote:74f2efdb5108a563"
+    },
+    {
+      "type": "SUPPORTED_BY",
+      "from": "insight:00f3709c05a09647",
+      "to": "quote:4ac9da83a1786274"
+    },
+    {
+      "type": "SUPPORTED_BY",
+      "from": "insight:00f3709c05a09647",
+      "to": "quote:5707332951adeb52"
+    },
+    {
+      "type": "HAS_INSIGHT",
+      "from": "episode:4cec22d8-717e-46c6-ab87-b43b01512ecb",
+      "to": "insight:4f493ddb5303bca1"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:4f493ddb5303bca1",
+      "to": "topic:artificial-intelligence",
+      "properties": {
+        "confidence": 0.3881
+      }
+    },
+    {
+      "type": "SUPPORTED_BY",
+      "from": "insight:4f493ddb5303bca1",
+      "to": "quote:12c1df0c333d30f6"
+    },
+    {
+      "type": "SUPPORTED_BY",
+      "from": "insight:4f493ddb5303bca1",
+      "to": "quote:97493f6dbe93ed37"
+    },
+    {
+      "type": "HAS_INSIGHT",
+      "from": "episode:4cec22d8-717e-46c6-ab87-b43b01512ecb",
+      "to": "insight:d2e37530f10b94a9"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:d2e37530f10b94a9",
+      "to": "topic:artificial-intelligence",
+      "properties": {
+        "confidence": 0.4746
+      }
+    },
+    {
+      "type": "HAS_INSIGHT",
+      "from": "episode:4cec22d8-717e-46c6-ab87-b43b01512ecb",
+      "to": "insight:e191fe09c26abadc"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:e191fe09c26abadc",
+      "to": "topic:enterprise-platforms",
+      "properties": {
+        "confidence": 0.3842
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:e191fe09c26abadc",
+      "to": "topic:artificial-intelligence",
+      "properties": {
+        "confidence": 0.3764
+      }
+    },
+    {
+      "type": "SUPPORTED_BY",
+      "from": "insight:e191fe09c26abadc",
+      "to": "quote:89cc28cd9fdad16b"
+    },
+    {
+      "type": "SUPPORTED_BY",
+      "from": "insight:e191fe09c26abadc",
+      "to": "quote:20c5a013d8948581"
+    }
+  ]
+}

@@ -1633,20 +1633,36 @@ function finishLayoutPass(core: Core): void {
   // on — selection + camera stay lost across subsequent layoutstops
   // (the GH #771 failure mode for rapid digest pills on a heavy graph).
   if (graphHandoff.pending) {
-    const appliedCyId =
-      selectedNodeId.value ||
-      focusNodeId.value ||
-      graphHandoff.pending.cyId ||
-      ''
+    // V2-class fix: verify the fallback cyId actually exists in cy before
+    // declaring applied. Previously the code accepted any non-empty
+    // candidate, but ``graphHandoff.pending.cyId`` is the *requested*
+    // target which may not have a corresponding cy node (e.g. Digest pill
+    // targets ``topic:foo`` but no episode mentioning that topic is
+    // currently loaded). Marking that "applied" is a lie — selection is
+    // still empty, the user sees nothing focused, the matrix's L2
+    // assertion fails truthfully.
+    const candidates = [
+      selectedNodeId.value || '',
+      focusNodeId.value || '',
+      graphHandoff.pending.cyId || '',
+    ].filter(Boolean)
+    let appliedCyId = ''
+    for (const c of candidates) {
+      // Allow the canonical id as-is OR try prefix variants via the
+      // pure resolver (same one Search and tryApplyPendingFocus use).
+      const resolved = resolveCyNodeId(core, c)
+      if (resolved) {
+        appliedCyId = resolved
+        break
+      }
+    }
     if (appliedCyId) {
       graphHandoff.recordApplied(appliedCyId)
     } else {
       // No real cyId resolved — the apply path couldn't find the target in
-      // cy. ``recordApplied('')`` would silently mark the FSM as applied
-      // with an empty appliedCyId, which is a lie: nothing was actually
-      // applied. Surface the failure instead so the error strip can
-      // render and the matrix tests can distinguish "succeeded" from
-      // "envelope went through pipeline but applied nothing."
+      // cy. Surface the failure so the error strip renders and the matrix
+      // tests can distinguish "succeeded" from "envelope went through
+      // pipeline but no node ended up selected."
       graphHandoff.handoffFailed(
         `apply failed: no cy node found for envelope target (cyId=${graphHandoff.pending.cyId ?? 'none'}, metadataPath=${graphHandoff.pending.metadataPath ?? 'none'})`,
       )

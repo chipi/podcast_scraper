@@ -1,0 +1,968 @@
+{
+  "schema_version": "2.0",
+  "model_version": "gemini-2.5-flash-lite",
+  "prompt_version": "v1",
+  "episode_id": "4255b42e-3a9e-11f1-8eee-179e850fd703",
+  "nodes": [
+    {
+      "id": "episode:4255b42e-3a9e-11f1-8eee-179e850fd703",
+      "type": "Episode",
+      "properties": {
+        "podcast_id": "sha256:0da4183fe4339afdc81d079b469f31da7e85039e5121f085013230f92e72e13c",
+        "title": "Scaling Global Organizations in the Age of AI with ServiceNow CEO Bill McDermott",
+        "publish_date": "2026-04-17T20:44:00",
+        "duration_ms": 3447000
+      }
+    },
+    {
+      "id": "topic:customer-focus-resilience-and-disciplined-execution-are-timeless-leadership-prin",
+      "type": "Topic",
+      "properties": {
+        "label": "Customer focus, resilience, and disciplined execution are timeless leadership principles, even in a rapidly changing tech landscape."
+      }
+    },
+    {
+      "id": "topic:enterprise-platforms-like-servicenow-offer-deterministic-workflows-and-contextua",
+      "type": "Topic",
+      "properties": {
+        "label": "Enterprise platforms like ServiceNow offer deterministic workflows and contextual understanding that language models currently lack for complex business problem-solving."
+      }
+    },
+    {
+      "id": "topic:replicating-enterprise-platform-functionality-with-llms-can-be-significantly-mor",
+      "type": "Topic",
+      "properties": {
+        "label": "Replicating enterprise platform functionality with LLMs can be significantly more expensive (up to 10x) and less reliable."
+      }
+    },
+    {
+      "id": "topic:ai-should-serve-to-enhance-human-ambition-and-capabilities-not-replace-them-with",
+      "type": "Topic",
+      "properties": {
+        "label": "AI should serve to enhance human ambition and capabilities, not replace them, with human connection remaining critical."
+      }
+    },
+    {
+      "id": "topic:servicenow-aims-to-be-an-ai-control-tower-integrating-with-hyperscalers-llms-and",
+      "type": "Topic",
+      "properties": {
+        "label": "ServiceNow aims to be an 'AI control tower' integrating with hyperscalers, LLMs, and existing systems to enable agentic businesses."
+      }
+    },
+    {
+      "id": "topic:embracing-change-and-viewing-challenges-as-opportunities-is-key-to-innovation-an",
+      "type": "Topic",
+      "properties": {
+        "label": "Embracing change and viewing challenges as opportunities is key to innovation and developing 'superpowers' in leadership."
+      }
+    },
+    {
+      "id": "insight:f4af7e71c074c316",
+      "type": "Insight",
+      "properties": {
+        "text": "the cost to replace an enterprise platform in this SaaSpocalypse that people talk about is an extraordinary expense.",
+        "episode_id": "4255b42e-3a9e-11f1-8eee-179e850fd703",
+        "grounded": true,
+        "insight_type": "claim",
+        "position_hint": 0.4
+      },
+      "confidence": 1.0
+    },
+    {
+      "id": "quote:8e5e96951f944d45",
+      "type": "Quote",
+      "properties": {
+        "text": "to replace an enterprise platform in this SaaSpocalypse that people talk about is an extraordinary expense.",
+        "episode_id": "4255b42e-3a9e-11f1-8eee-179e850fd703",
+        "speaker_id": null,
+        "char_start": 0,
+        "char_end": 107,
+        "timestamp_start_ms": 0,
+        "timestamp_end_ms": 8000,
+        "transcript_ref": "transcripts/0001 - Scaling Global Organizations in _20260421-175429_8eb5f9d2.txt"
+      }
+    },
+    {
+      "id": "quote:e0ed07236f7b76ee",
+      "type": "Quote",
+      "properties": {
+        "text": "We've actually done the math on this. And so for a simple application on our platform, it would be 10 times greater in cost to try to replicate it with a language model.",
+        "episode_id": "4255b42e-3a9e-11f1-8eee-179e850fd703",
+        "speaker_id": null,
+        "char_start": 20119,
+        "char_end": 20288,
+        "timestamp_start_ms": 1368000,
+        "timestamp_end_ms": 1380000,
+        "transcript_ref": "transcripts/0001 - Scaling Global Organizations in _20260421-175429_8eb5f9d2.txt"
+      }
+    },
+    {
+      "id": "insight:48054910dac69138",
+      "type": "Insight",
+      "properties": {
+        "text": "for a simple application on our platform, it would be 10 times greater in cost to try to replicate it with a language model.",
+        "episode_id": "4255b42e-3a9e-11f1-8eee-179e850fd703",
+        "grounded": true,
+        "insight_type": "claim",
+        "position_hint": 0.01
+      },
+      "confidence": 1.0
+    },
+    {
+      "id": "quote:35b6feac39b03769",
+      "type": "Quote",
+      "properties": {
+        "text": "for a simple application on our platform, it would be 10 times greater in cost to try to replicate it with a language model.",
+        "episode_id": "4255b42e-3a9e-11f1-8eee-179e850fd703",
+        "speaker_id": null,
+        "char_start": 399,
+        "char_end": 523,
+        "timestamp_start_ms": 27000,
+        "timestamp_end_ms": 36000,
+        "transcript_ref": "transcripts/0001 - Scaling Global Organizations in _20260421-175429_8eb5f9d2.txt"
+      }
+    },
+    {
+      "id": "insight:480b7b1145c6456a",
+      "type": "Insight",
+      "properties": {
+        "text": "People that run businesses understand that people make mistakes. They never will forgive software for making a mistake.",
+        "episode_id": "4255b42e-3a9e-11f1-8eee-179e850fd703",
+        "grounded": true,
+        "insight_type": "claim",
+        "position_hint": 0.01
+      },
+      "confidence": 1.0
+    },
+    {
+      "id": "quote:fd1ae6059f7ce437",
+      "type": "Quote",
+      "properties": {
+        "text": "People that run businesses understand that people make mistakes. They never will forgive software for making a mistake.",
+        "episode_id": "4255b42e-3a9e-11f1-8eee-179e850fd703",
+        "speaker_id": null,
+        "char_start": 524,
+        "char_end": 643,
+        "timestamp_start_ms": 36000,
+        "timestamp_end_ms": 44000,
+        "transcript_ref": "transcripts/0001 - Scaling Global Organizations in _20260421-175429_8eb5f9d2.txt"
+      }
+    },
+    {
+      "id": "insight:e6dfdf7fd7795bfc",
+      "type": "Insight",
+      "properties": {
+        "text": "In the end, the customer and the customer alone determines whether you win or lose.",
+        "episode_id": "4255b42e-3a9e-11f1-8eee-179e850fd703",
+        "grounded": true,
+        "insight_type": "claim",
+        "position_hint": 0.4
+      },
+      "confidence": 1.0
+    },
+    {
+      "id": "quote:45ab02f3c96d4b78",
+      "type": "Quote",
+      "properties": {
+        "text": "In the end, the customer and the customer alone determines whether you win or lose.",
+        "episode_id": "4255b42e-3a9e-11f1-8eee-179e850fd703",
+        "speaker_id": null,
+        "char_start": 2258,
+        "char_end": 2341,
+        "timestamp_start_ms": 149000,
+        "timestamp_end_ms": 154000,
+        "transcript_ref": "transcripts/0001 - Scaling Global Organizations in _20260421-175429_8eb5f9d2.txt"
+      }
+    },
+    {
+      "id": "quote:1182bedddfe7dd41",
+      "type": "Quote",
+      "properties": {
+        "text": "And it's a very simple equation. If you keep them coming back, you've got a good chance. And if you don't, you lose.",
+        "episode_id": "4255b42e-3a9e-11f1-8eee-179e850fd703",
+        "speaker_id": null,
+        "char_start": 2342,
+        "char_end": 2458,
+        "timestamp_start_ms": 154000,
+        "timestamp_end_ms": 162000,
+        "transcript_ref": "transcripts/0001 - Scaling Global Organizations in _20260421-175429_8eb5f9d2.txt"
+      }
+    },
+    {
+      "id": "quote:8e542c9c8fe87aa2",
+      "type": "Quote",
+      "properties": {
+        "text": "So if you take care of your customer, you know who your customer is, and you give them what they want just the way they want it, no matter what business you're in, you've got a really good chance.",
+        "episode_id": "4255b42e-3a9e-11f1-8eee-179e850fd703",
+        "speaker_id": null,
+        "char_start": 3613,
+        "char_end": 3809,
+        "timestamp_start_ms": 237000,
+        "timestamp_end_ms": 250000,
+        "transcript_ref": "transcripts/0001 - Scaling Global Organizations in _20260421-175429_8eb5f9d2.txt"
+      }
+    },
+    {
+      "id": "quote:18d8c9f9301e1b35",
+      "type": "Quote",
+      "properties": {
+        "text": "I feel that I really get grounded with the customers and understanding what they're trying to accomplish and how I can help them.",
+        "episode_id": "4255b42e-3a9e-11f1-8eee-179e850fd703",
+        "speaker_id": null,
+        "char_start": 45795,
+        "char_end": 45924,
+        "timestamp_start_ms": 3134000,
+        "timestamp_end_ms": 3142000,
+        "transcript_ref": "transcripts/0001 - Scaling Global Organizations in _20260421-175429_8eb5f9d2.txt"
+      }
+    },
+    {
+      "id": "quote:5574a48e715fca0f",
+      "type": "Quote",
+      "properties": {
+        "text": "A lot of people talk about sales and the idea of running corporations. It's all based on the customer and the customer alone. They determine whether you win or lose.",
+        "episode_id": "4255b42e-3a9e-11f1-8eee-179e850fd703",
+        "speaker_id": null,
+        "char_start": 45925,
+        "char_end": 46090,
+        "timestamp_start_ms": 3143000,
+        "timestamp_end_ms": 3158000,
+        "transcript_ref": "transcripts/0001 - Scaling Global Organizations in _20260421-175429_8eb5f9d2.txt"
+      }
+    },
+    {
+      "id": "insight:d4649faf17b7c6eb",
+      "type": "Insight",
+      "properties": {
+        "text": "If you take care of your customer, you know who your customer is, and you give them what they want just the way they want it, no matter what business you're in, you've got a really good chance.",
+        "episode_id": "4255b42e-3a9e-11f1-8eee-179e850fd703",
+        "grounded": true,
+        "insight_type": "claim",
+        "position_hint": 0.07
+      },
+      "confidence": 1.0
+    },
+    {
+      "id": "quote:b1516b3d405b18d8",
+      "type": "Quote",
+      "properties": {
+        "text": "if you take care of your customer, you know who your customer is, and you give them what they want just the way they want it, no matter what business you're in, you've got a really good chance.",
+        "episode_id": "4255b42e-3a9e-11f1-8eee-179e850fd703",
+        "speaker_id": null,
+        "char_start": 3616,
+        "char_end": 3809,
+        "timestamp_start_ms": 237000,
+        "timestamp_end_ms": 250000,
+        "transcript_ref": "transcripts/0001 - Scaling Global Organizations in _20260421-175429_8eb5f9d2.txt"
+      }
+    },
+    {
+      "id": "insight:6d9c0247f73d3b35",
+      "type": "Insight",
+      "properties": {
+        "text": "the EQ that comes with dealing with 500 customers a day is worth a lot.",
+        "episode_id": "4255b42e-3a9e-11f1-8eee-179e850fd703",
+        "grounded": true,
+        "insight_type": "claim",
+        "position_hint": 0.07
+      },
+      "confidence": 1.0
+    },
+    {
+      "id": "quote:602edc6d887b4948",
+      "type": "Quote",
+      "properties": {
+        "text": "the EQ that comes with dealing with 500 customers a day is worth a lot.",
+        "episode_id": "4255b42e-3a9e-11f1-8eee-179e850fd703",
+        "speaker_id": null,
+        "char_start": 3929,
+        "char_end": 4000,
+        "timestamp_start_ms": 258000,
+        "timestamp_end_ms": 265000,
+        "transcript_ref": "transcripts/0001 - Scaling Global Organizations in _20260421-175429_8eb5f9d2.txt"
+      }
+    },
+    {
+      "id": "insight:3eed9b7d466eb65e",
+      "type": "Insight",
+      "properties": {
+        "text": "leadership is the greatest profession in the world.",
+        "episode_id": "4255b42e-3a9e-11f1-8eee-179e850fd703",
+        "grounded": true,
+        "insight_type": "opinion",
+        "position_hint": 0.15
+      },
+      "confidence": 1.0
+    },
+    {
+      "id": "quote:7d30781350f6daa3",
+      "type": "Quote",
+      "properties": {
+        "text": "And I think leadership is the greatest profession in the world.",
+        "episode_id": "4255b42e-3a9e-11f1-8eee-179e850fd703",
+        "speaker_id": null,
+        "char_start": 8146,
+        "char_end": 8209,
+        "timestamp_start_ms": 523000,
+        "timestamp_end_ms": 527000,
+        "transcript_ref": "transcripts/0001 - Scaling Global Organizations in _20260421-175429_8eb5f9d2.txt"
+      }
+    },
+    {
+      "id": "insight:23091751cb4f1955",
+      "type": "Insight",
+      "properties": {
+        "text": "In this environment we're in today, which is changing, and it's dynamic like never before, and it's fast like never before. I tell them it is fast, but it'll never move this slow again.",
+        "episode_id": "4255b42e-3a9e-11f1-8eee-179e850fd703",
+        "grounded": true,
+        "insight_type": "claim",
+        "position_hint": 0.15
+      },
+      "confidence": 1.0
+    },
+    {
+      "id": "quote:f0c1b92729bf25ad",
+      "type": "Quote",
+      "properties": {
+        "text": "in this environment we're in today, which is changing, and it's dynamic like never before, and it's fast like never before.",
+        "episode_id": "4255b42e-3a9e-11f1-8eee-179e850fd703",
+        "speaker_id": null,
+        "char_start": 8214,
+        "char_end": 8337,
+        "timestamp_start_ms": 527000,
+        "timestamp_end_ms": 537000,
+        "transcript_ref": "transcripts/0001 - Scaling Global Organizations in _20260421-175429_8eb5f9d2.txt"
+      }
+    },
+    {
+      "id": "quote:21cbc1743b6a0bad",
+      "type": "Quote",
+      "properties": {
+        "text": "I tell them it is fast, but it'll never move this slow again.",
+        "episode_id": "4255b42e-3a9e-11f1-8eee-179e850fd703",
+        "speaker_id": null,
+        "char_start": 8338,
+        "char_end": 8399,
+        "timestamp_start_ms": 537000,
+        "timestamp_end_ms": 541000,
+        "transcript_ref": "transcripts/0001 - Scaling Global Organizations in _20260421-175429_8eb5f9d2.txt"
+      }
+    },
+    {
+      "id": "insight:e4c9a9580524de46",
+      "type": "Insight",
+      "properties": {
+        "text": "AI is to serve people. And to make the human ambition greater, not to take it away from us.",
+        "episode_id": "4255b42e-3a9e-11f1-8eee-179e850fd703",
+        "grounded": true,
+        "insight_type": "claim",
+        "position_hint": 0.25
+      },
+      "confidence": 1.0
+    },
+    {
+      "id": "quote:71b980cf1f7ab362",
+      "type": "Quote",
+      "properties": {
+        "text": "So I think somehow in the mixture of things with AI and today's society, we're losing a little bit of the human power that we all have to connect with each other and do magical things together and just make sure we remember AI is to serve people. And to make the human ambition greater, not to take it away from us.",
+        "episode_id": "4255b42e-3a9e-11f1-8eee-179e850fd703",
+        "speaker_id": null,
+        "char_start": 13197,
+        "char_end": 13512,
+        "timestamp_start_ms": 863000,
+        "timestamp_end_ms": 892000,
+        "transcript_ref": "transcripts/0001 - Scaling Global Organizations in _20260421-175429_8eb5f9d2.txt"
+      }
+    },
+    {
+      "id": "insight:b87c25e908ea9712",
+      "type": "Insight",
+      "properties": {
+        "text": "people are just more important now than ever.",
+        "episode_id": "4255b42e-3a9e-11f1-8eee-179e850fd703",
+        "grounded": true,
+        "insight_type": "opinion",
+        "position_hint": 0.26
+      },
+      "confidence": 1.0
+    },
+    {
+      "id": "quote:8b26eabd0b09d025",
+      "type": "Quote",
+      "properties": {
+        "text": "in many ways, the essence of leadership, human connection, people are just more important now than ever.",
+        "episode_id": "4255b42e-3a9e-11f1-8eee-179e850fd703",
+        "speaker_id": null,
+        "char_start": 13586,
+        "char_end": 13690,
+        "timestamp_start_ms": 899000,
+        "timestamp_end_ms": 909000,
+        "transcript_ref": "transcripts/0001 - Scaling Global Organizations in _20260421-175429_8eb5f9d2.txt"
+      }
+    },
+    {
+      "id": "insight:6deabaff04b2c08f",
+      "type": "Insight",
+      "properties": {
+        "text": "The era of AI has disrupted every industry, every business, every person, and everybody needs to really rethink everything.",
+        "episode_id": "4255b42e-3a9e-11f1-8eee-179e850fd703",
+        "grounded": true,
+        "insight_type": "claim",
+        "position_hint": 0.33
+      },
+      "confidence": 1.0
+    },
+    {
+      "id": "quote:29b98b3924fc7699",
+      "type": "Quote",
+      "properties": {
+        "text": "The era of AI has disrupted every industry, every business, every person, and everybody needs to really rethink everything.",
+        "episode_id": "4255b42e-3a9e-11f1-8eee-179e850fd703",
+        "speaker_id": null,
+        "char_start": 16804,
+        "char_end": 16927,
+        "timestamp_start_ms": 1124000,
+        "timestamp_end_ms": 1136000,
+        "transcript_ref": "transcripts/0001 - Scaling Global Organizations in _20260421-175429_8eb5f9d2.txt"
+      }
+    },
+    {
+      "id": "insight:aa58580308647530",
+      "type": "Insight",
+      "properties": {
+        "text": "AI think but workflow acts.",
+        "episode_id": "4255b42e-3a9e-11f1-8eee-179e850fd703",
+        "grounded": true,
+        "insight_type": "claim",
+        "position_hint": 0.37
+      },
+      "confidence": 1.0
+    },
+    {
+      "id": "quote:6212d9400908d0e9",
+      "type": "Quote",
+      "properties": {
+        "text": "And it was also important to have AI think but workflow acts.",
+        "episode_id": "4255b42e-3a9e-11f1-8eee-179e850fd703",
+        "speaker_id": null,
+        "char_start": 18702,
+        "char_end": 18763,
+        "timestamp_start_ms": 1264000,
+        "timestamp_end_ms": 1269000,
+        "transcript_ref": "transcripts/0001 - Scaling Global Organizations in _20260421-175429_8eb5f9d2.txt"
+      }
+    }
+  ],
+  "edges": [
+    {
+      "type": "HAS_INSIGHT",
+      "from": "episode:4255b42e-3a9e-11f1-8eee-179e850fd703",
+      "to": "insight:f4af7e71c074c316"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:f4af7e71c074c316",
+      "to": "topic:customer-focus-resilience-and-disciplined-execution-are-timeless-leadership-prin"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:f4af7e71c074c316",
+      "to": "topic:enterprise-platforms-like-servicenow-offer-deterministic-workflows-and-contextua"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:f4af7e71c074c316",
+      "to": "topic:replicating-enterprise-platform-functionality-with-llms-can-be-significantly-mor"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:f4af7e71c074c316",
+      "to": "topic:ai-should-serve-to-enhance-human-ambition-and-capabilities-not-replace-them-with"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:f4af7e71c074c316",
+      "to": "topic:servicenow-aims-to-be-an-ai-control-tower-integrating-with-hyperscalers-llms-and"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:f4af7e71c074c316",
+      "to": "topic:embracing-change-and-viewing-challenges-as-opportunities-is-key-to-innovation-an"
+    },
+    {
+      "type": "SUPPORTED_BY",
+      "from": "insight:f4af7e71c074c316",
+      "to": "quote:8e5e96951f944d45"
+    },
+    {
+      "type": "SUPPORTED_BY",
+      "from": "insight:f4af7e71c074c316",
+      "to": "quote:e0ed07236f7b76ee"
+    },
+    {
+      "type": "HAS_INSIGHT",
+      "from": "episode:4255b42e-3a9e-11f1-8eee-179e850fd703",
+      "to": "insight:48054910dac69138"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:48054910dac69138",
+      "to": "topic:customer-focus-resilience-and-disciplined-execution-are-timeless-leadership-prin"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:48054910dac69138",
+      "to": "topic:enterprise-platforms-like-servicenow-offer-deterministic-workflows-and-contextua"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:48054910dac69138",
+      "to": "topic:replicating-enterprise-platform-functionality-with-llms-can-be-significantly-mor"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:48054910dac69138",
+      "to": "topic:ai-should-serve-to-enhance-human-ambition-and-capabilities-not-replace-them-with"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:48054910dac69138",
+      "to": "topic:servicenow-aims-to-be-an-ai-control-tower-integrating-with-hyperscalers-llms-and"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:48054910dac69138",
+      "to": "topic:embracing-change-and-viewing-challenges-as-opportunities-is-key-to-innovation-an"
+    },
+    {
+      "type": "SUPPORTED_BY",
+      "from": "insight:48054910dac69138",
+      "to": "quote:35b6feac39b03769"
+    },
+    {
+      "type": "HAS_INSIGHT",
+      "from": "episode:4255b42e-3a9e-11f1-8eee-179e850fd703",
+      "to": "insight:480b7b1145c6456a"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:480b7b1145c6456a",
+      "to": "topic:customer-focus-resilience-and-disciplined-execution-are-timeless-leadership-prin"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:480b7b1145c6456a",
+      "to": "topic:enterprise-platforms-like-servicenow-offer-deterministic-workflows-and-contextua"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:480b7b1145c6456a",
+      "to": "topic:replicating-enterprise-platform-functionality-with-llms-can-be-significantly-mor"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:480b7b1145c6456a",
+      "to": "topic:ai-should-serve-to-enhance-human-ambition-and-capabilities-not-replace-them-with"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:480b7b1145c6456a",
+      "to": "topic:servicenow-aims-to-be-an-ai-control-tower-integrating-with-hyperscalers-llms-and"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:480b7b1145c6456a",
+      "to": "topic:embracing-change-and-viewing-challenges-as-opportunities-is-key-to-innovation-an"
+    },
+    {
+      "type": "SUPPORTED_BY",
+      "from": "insight:480b7b1145c6456a",
+      "to": "quote:fd1ae6059f7ce437"
+    },
+    {
+      "type": "HAS_INSIGHT",
+      "from": "episode:4255b42e-3a9e-11f1-8eee-179e850fd703",
+      "to": "insight:e6dfdf7fd7795bfc"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:e6dfdf7fd7795bfc",
+      "to": "topic:customer-focus-resilience-and-disciplined-execution-are-timeless-leadership-prin"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:e6dfdf7fd7795bfc",
+      "to": "topic:enterprise-platforms-like-servicenow-offer-deterministic-workflows-and-contextua"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:e6dfdf7fd7795bfc",
+      "to": "topic:replicating-enterprise-platform-functionality-with-llms-can-be-significantly-mor"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:e6dfdf7fd7795bfc",
+      "to": "topic:ai-should-serve-to-enhance-human-ambition-and-capabilities-not-replace-them-with"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:e6dfdf7fd7795bfc",
+      "to": "topic:servicenow-aims-to-be-an-ai-control-tower-integrating-with-hyperscalers-llms-and"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:e6dfdf7fd7795bfc",
+      "to": "topic:embracing-change-and-viewing-challenges-as-opportunities-is-key-to-innovation-an"
+    },
+    {
+      "type": "SUPPORTED_BY",
+      "from": "insight:e6dfdf7fd7795bfc",
+      "to": "quote:45ab02f3c96d4b78"
+    },
+    {
+      "type": "SUPPORTED_BY",
+      "from": "insight:e6dfdf7fd7795bfc",
+      "to": "quote:1182bedddfe7dd41"
+    },
+    {
+      "type": "SUPPORTED_BY",
+      "from": "insight:e6dfdf7fd7795bfc",
+      "to": "quote:8e542c9c8fe87aa2"
+    },
+    {
+      "type": "SUPPORTED_BY",
+      "from": "insight:e6dfdf7fd7795bfc",
+      "to": "quote:18d8c9f9301e1b35"
+    },
+    {
+      "type": "SUPPORTED_BY",
+      "from": "insight:e6dfdf7fd7795bfc",
+      "to": "quote:5574a48e715fca0f"
+    },
+    {
+      "type": "HAS_INSIGHT",
+      "from": "episode:4255b42e-3a9e-11f1-8eee-179e850fd703",
+      "to": "insight:d4649faf17b7c6eb"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:d4649faf17b7c6eb",
+      "to": "topic:customer-focus-resilience-and-disciplined-execution-are-timeless-leadership-prin"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:d4649faf17b7c6eb",
+      "to": "topic:enterprise-platforms-like-servicenow-offer-deterministic-workflows-and-contextua"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:d4649faf17b7c6eb",
+      "to": "topic:replicating-enterprise-platform-functionality-with-llms-can-be-significantly-mor"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:d4649faf17b7c6eb",
+      "to": "topic:ai-should-serve-to-enhance-human-ambition-and-capabilities-not-replace-them-with"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:d4649faf17b7c6eb",
+      "to": "topic:servicenow-aims-to-be-an-ai-control-tower-integrating-with-hyperscalers-llms-and"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:d4649faf17b7c6eb",
+      "to": "topic:embracing-change-and-viewing-challenges-as-opportunities-is-key-to-innovation-an"
+    },
+    {
+      "type": "SUPPORTED_BY",
+      "from": "insight:d4649faf17b7c6eb",
+      "to": "quote:b1516b3d405b18d8"
+    },
+    {
+      "type": "HAS_INSIGHT",
+      "from": "episode:4255b42e-3a9e-11f1-8eee-179e850fd703",
+      "to": "insight:6d9c0247f73d3b35"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:6d9c0247f73d3b35",
+      "to": "topic:customer-focus-resilience-and-disciplined-execution-are-timeless-leadership-prin"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:6d9c0247f73d3b35",
+      "to": "topic:enterprise-platforms-like-servicenow-offer-deterministic-workflows-and-contextua"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:6d9c0247f73d3b35",
+      "to": "topic:replicating-enterprise-platform-functionality-with-llms-can-be-significantly-mor"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:6d9c0247f73d3b35",
+      "to": "topic:ai-should-serve-to-enhance-human-ambition-and-capabilities-not-replace-them-with"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:6d9c0247f73d3b35",
+      "to": "topic:servicenow-aims-to-be-an-ai-control-tower-integrating-with-hyperscalers-llms-and"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:6d9c0247f73d3b35",
+      "to": "topic:embracing-change-and-viewing-challenges-as-opportunities-is-key-to-innovation-an"
+    },
+    {
+      "type": "SUPPORTED_BY",
+      "from": "insight:6d9c0247f73d3b35",
+      "to": "quote:602edc6d887b4948"
+    },
+    {
+      "type": "HAS_INSIGHT",
+      "from": "episode:4255b42e-3a9e-11f1-8eee-179e850fd703",
+      "to": "insight:3eed9b7d466eb65e"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:3eed9b7d466eb65e",
+      "to": "topic:customer-focus-resilience-and-disciplined-execution-are-timeless-leadership-prin"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:3eed9b7d466eb65e",
+      "to": "topic:enterprise-platforms-like-servicenow-offer-deterministic-workflows-and-contextua"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:3eed9b7d466eb65e",
+      "to": "topic:replicating-enterprise-platform-functionality-with-llms-can-be-significantly-mor"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:3eed9b7d466eb65e",
+      "to": "topic:ai-should-serve-to-enhance-human-ambition-and-capabilities-not-replace-them-with"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:3eed9b7d466eb65e",
+      "to": "topic:servicenow-aims-to-be-an-ai-control-tower-integrating-with-hyperscalers-llms-and"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:3eed9b7d466eb65e",
+      "to": "topic:embracing-change-and-viewing-challenges-as-opportunities-is-key-to-innovation-an"
+    },
+    {
+      "type": "SUPPORTED_BY",
+      "from": "insight:3eed9b7d466eb65e",
+      "to": "quote:7d30781350f6daa3"
+    },
+    {
+      "type": "HAS_INSIGHT",
+      "from": "episode:4255b42e-3a9e-11f1-8eee-179e850fd703",
+      "to": "insight:23091751cb4f1955"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:23091751cb4f1955",
+      "to": "topic:customer-focus-resilience-and-disciplined-execution-are-timeless-leadership-prin"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:23091751cb4f1955",
+      "to": "topic:enterprise-platforms-like-servicenow-offer-deterministic-workflows-and-contextua"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:23091751cb4f1955",
+      "to": "topic:replicating-enterprise-platform-functionality-with-llms-can-be-significantly-mor"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:23091751cb4f1955",
+      "to": "topic:ai-should-serve-to-enhance-human-ambition-and-capabilities-not-replace-them-with"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:23091751cb4f1955",
+      "to": "topic:servicenow-aims-to-be-an-ai-control-tower-integrating-with-hyperscalers-llms-and"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:23091751cb4f1955",
+      "to": "topic:embracing-change-and-viewing-challenges-as-opportunities-is-key-to-innovation-an"
+    },
+    {
+      "type": "SUPPORTED_BY",
+      "from": "insight:23091751cb4f1955",
+      "to": "quote:f0c1b92729bf25ad"
+    },
+    {
+      "type": "SUPPORTED_BY",
+      "from": "insight:23091751cb4f1955",
+      "to": "quote:21cbc1743b6a0bad"
+    },
+    {
+      "type": "HAS_INSIGHT",
+      "from": "episode:4255b42e-3a9e-11f1-8eee-179e850fd703",
+      "to": "insight:e4c9a9580524de46"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:e4c9a9580524de46",
+      "to": "topic:customer-focus-resilience-and-disciplined-execution-are-timeless-leadership-prin"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:e4c9a9580524de46",
+      "to": "topic:enterprise-platforms-like-servicenow-offer-deterministic-workflows-and-contextua"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:e4c9a9580524de46",
+      "to": "topic:replicating-enterprise-platform-functionality-with-llms-can-be-significantly-mor"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:e4c9a9580524de46",
+      "to": "topic:ai-should-serve-to-enhance-human-ambition-and-capabilities-not-replace-them-with"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:e4c9a9580524de46",
+      "to": "topic:servicenow-aims-to-be-an-ai-control-tower-integrating-with-hyperscalers-llms-and"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:e4c9a9580524de46",
+      "to": "topic:embracing-change-and-viewing-challenges-as-opportunities-is-key-to-innovation-an"
+    },
+    {
+      "type": "SUPPORTED_BY",
+      "from": "insight:e4c9a9580524de46",
+      "to": "quote:71b980cf1f7ab362"
+    },
+    {
+      "type": "HAS_INSIGHT",
+      "from": "episode:4255b42e-3a9e-11f1-8eee-179e850fd703",
+      "to": "insight:b87c25e908ea9712"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:b87c25e908ea9712",
+      "to": "topic:customer-focus-resilience-and-disciplined-execution-are-timeless-leadership-prin"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:b87c25e908ea9712",
+      "to": "topic:enterprise-platforms-like-servicenow-offer-deterministic-workflows-and-contextua"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:b87c25e908ea9712",
+      "to": "topic:replicating-enterprise-platform-functionality-with-llms-can-be-significantly-mor"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:b87c25e908ea9712",
+      "to": "topic:ai-should-serve-to-enhance-human-ambition-and-capabilities-not-replace-them-with"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:b87c25e908ea9712",
+      "to": "topic:servicenow-aims-to-be-an-ai-control-tower-integrating-with-hyperscalers-llms-and"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:b87c25e908ea9712",
+      "to": "topic:embracing-change-and-viewing-challenges-as-opportunities-is-key-to-innovation-an"
+    },
+    {
+      "type": "SUPPORTED_BY",
+      "from": "insight:b87c25e908ea9712",
+      "to": "quote:8b26eabd0b09d025"
+    },
+    {
+      "type": "HAS_INSIGHT",
+      "from": "episode:4255b42e-3a9e-11f1-8eee-179e850fd703",
+      "to": "insight:6deabaff04b2c08f"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:6deabaff04b2c08f",
+      "to": "topic:customer-focus-resilience-and-disciplined-execution-are-timeless-leadership-prin"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:6deabaff04b2c08f",
+      "to": "topic:enterprise-platforms-like-servicenow-offer-deterministic-workflows-and-contextua"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:6deabaff04b2c08f",
+      "to": "topic:replicating-enterprise-platform-functionality-with-llms-can-be-significantly-mor"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:6deabaff04b2c08f",
+      "to": "topic:ai-should-serve-to-enhance-human-ambition-and-capabilities-not-replace-them-with"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:6deabaff04b2c08f",
+      "to": "topic:servicenow-aims-to-be-an-ai-control-tower-integrating-with-hyperscalers-llms-and"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:6deabaff04b2c08f",
+      "to": "topic:embracing-change-and-viewing-challenges-as-opportunities-is-key-to-innovation-an"
+    },
+    {
+      "type": "SUPPORTED_BY",
+      "from": "insight:6deabaff04b2c08f",
+      "to": "quote:29b98b3924fc7699"
+    },
+    {
+      "type": "HAS_INSIGHT",
+      "from": "episode:4255b42e-3a9e-11f1-8eee-179e850fd703",
+      "to": "insight:aa58580308647530"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:aa58580308647530",
+      "to": "topic:customer-focus-resilience-and-disciplined-execution-are-timeless-leadership-prin"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:aa58580308647530",
+      "to": "topic:enterprise-platforms-like-servicenow-offer-deterministic-workflows-and-contextua"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:aa58580308647530",
+      "to": "topic:replicating-enterprise-platform-functionality-with-llms-can-be-significantly-mor"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:aa58580308647530",
+      "to": "topic:ai-should-serve-to-enhance-human-ambition-and-capabilities-not-replace-them-with"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:aa58580308647530",
+      "to": "topic:servicenow-aims-to-be-an-ai-control-tower-integrating-with-hyperscalers-llms-and"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:aa58580308647530",
+      "to": "topic:embracing-change-and-viewing-challenges-as-opportunities-is-key-to-innovation-an"
+    },
+    {
+      "type": "SUPPORTED_BY",
+      "from": "insight:aa58580308647530",
+      "to": "quote:6212d9400908d0e9"
+    }
+  ]
+}

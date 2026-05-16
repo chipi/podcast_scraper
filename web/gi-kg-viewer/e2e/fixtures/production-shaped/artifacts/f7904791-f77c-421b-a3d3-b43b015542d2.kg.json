@@ -1,0 +1,435 @@
+{
+  "schema_version": "1.2",
+  "episode_id": "f7904791-f77c-421b-a3d3-b43b015542d2",
+  "extraction": {
+    "model_version": "provider:gemini-2.5-flash-lite",
+    "extracted_at": "2026-05-06T12:02:46Z",
+    "transcript_ref": "transcripts/0003 - How Taiwan Became the World_s Most Perilous Geopolitical Chokepoint_20260506-135048_ba02775e.txt"
+  },
+  "nodes": [
+    {
+      "id": "episode:f7904791-f77c-421b-a3d3-b43b015542d2",
+      "type": "Episode",
+      "properties": {
+        "podcast_id": "sha256:1cd6aecdd31c0ae82c2c76efdb6327b54e6026924b47852c51ffb406a9f2b19c",
+        "title": "How Taiwan Became the World's Most Perilous Geopolitical Chokepoint",
+        "publish_date": "2026-05-01T08:00:00+00:00",
+        "feed_id": "sha256:1cd6aecdd31c0ae82c2c76efdb6327b54e6026924b47852c51ffb406a9f2b19c"
+      }
+    },
+    {
+      "id": "topic:geopolitical-blockades",
+      "type": "Topic",
+      "properties": {
+        "label": "geopolitical blockades",
+        "slug": "geopolitical-blockades"
+      }
+    },
+    {
+      "id": "topic:china-taiwan",
+      "type": "Topic",
+      "properties": {
+        "label": "china taiwan",
+        "slug": "china-taiwan"
+      }
+    },
+    {
+      "id": "topic:strait-of-hormuz",
+      "type": "Topic",
+      "properties": {
+        "label": "strait of hormuz",
+        "slug": "strait-of-hormuz"
+      }
+    },
+    {
+      "id": "topic:semiconductor-supply",
+      "type": "Topic",
+      "properties": {
+        "label": "semiconductor supply",
+        "slug": "semiconductor-supply"
+      }
+    },
+    {
+      "id": "topic:us-china-policy",
+      "type": "Topic",
+      "properties": {
+        "label": "us china policy",
+        "slug": "us-china-policy"
+      }
+    },
+    {
+      "id": "topic:strategic-ambiguity",
+      "type": "Topic",
+      "properties": {
+        "label": "strategic ambiguity",
+        "slug": "strategic-ambiguity"
+      }
+    },
+    {
+      "id": "topic:taiwanese-politics",
+      "type": "Topic",
+      "properties": {
+        "label": "taiwanese politics",
+        "slug": "taiwanese-politics"
+      }
+    },
+    {
+      "id": "topic:civil-war",
+      "type": "Topic",
+      "properties": {
+        "label": "civil war",
+        "slug": "civil-war"
+      }
+    },
+    {
+      "id": "topic:political-legitimacy",
+      "type": "Topic",
+      "properties": {
+        "label": "political legitimacy",
+        "slug": "political-legitimacy"
+      }
+    },
+    {
+      "id": "topic:global-economy",
+      "type": "Topic",
+      "properties": {
+        "label": "global economy",
+        "slug": "global-economy"
+      }
+    },
+    {
+      "id": "org:bloomberg-audio-studios",
+      "type": "Entity",
+      "properties": {
+        "name": "Bloomberg Audio Studios",
+        "label": "Bloomberg Audio Studios",
+        "kind": "org",
+        "role": "mentioned"
+      }
+    },
+    {
+      "id": "org:odd-thoughts-podcast",
+      "type": "Entity",
+      "properties": {
+        "name": "Odd Thoughts Podcast",
+        "label": "Odd Thoughts Podcast",
+        "kind": "org",
+        "role": "mentioned"
+      }
+    },
+    {
+      "id": "person:tracy-alloway",
+      "type": "Entity",
+      "properties": {
+        "name": "Tracy Alloway",
+        "label": "Tracy Alloway",
+        "kind": "person",
+        "role": "mentioned"
+      }
+    },
+    {
+      "id": "person:joe-wisenthal",
+      "type": "Entity",
+      "properties": {
+        "name": "Joe Wisenthal",
+        "label": "Joe Wisenthal",
+        "kind": "person",
+        "role": "mentioned"
+      }
+    },
+    {
+      "id": "person:iran",
+      "type": "Entity",
+      "properties": {
+        "name": "Iran",
+        "label": "Iran",
+        "kind": "person",
+        "role": "mentioned"
+      }
+    },
+    {
+      "id": "person:strait-of-hormuz",
+      "type": "Entity",
+      "properties": {
+        "name": "Strait of Hormuz",
+        "label": "Strait of Hormuz",
+        "kind": "person",
+        "role": "mentioned"
+      }
+    },
+    {
+      "id": "person:china",
+      "type": "Entity",
+      "properties": {
+        "name": "China",
+        "label": "China",
+        "kind": "person",
+        "role": "mentioned"
+      }
+    },
+    {
+      "id": "person:taiwan",
+      "type": "Entity",
+      "properties": {
+        "name": "Taiwan",
+        "label": "Taiwan",
+        "kind": "person",
+        "role": "mentioned"
+      }
+    },
+    {
+      "id": "person:ike-freiman",
+      "type": "Entity",
+      "properties": {
+        "name": "Ike Freiman",
+        "label": "Ike Freiman",
+        "kind": "person",
+        "role": "mentioned"
+      }
+    },
+    {
+      "id": "org:stanford",
+      "type": "Entity",
+      "properties": {
+        "name": "Stanford",
+        "label": "Stanford",
+        "kind": "org",
+        "role": "mentioned"
+      }
+    },
+    {
+      "id": "org:hoover",
+      "type": "Entity",
+      "properties": {
+        "name": "Hoover",
+        "label": "Hoover",
+        "kind": "org",
+        "role": "mentioned"
+      }
+    },
+    {
+      "id": "person:xi-jinping",
+      "type": "Entity",
+      "properties": {
+        "name": "Xi Jinping",
+        "label": "Xi Jinping",
+        "kind": "person",
+        "role": "mentioned"
+      }
+    },
+    {
+      "id": "person:sri-lanka",
+      "type": "Entity",
+      "properties": {
+        "name": "Sri Lanka",
+        "label": "Sri Lanka",
+        "kind": "person",
+        "role": "mentioned"
+      }
+    },
+    {
+      "id": "person:tanzania",
+      "type": "Entity",
+      "properties": {
+        "name": "Tanzania",
+        "label": "Tanzania",
+        "kind": "person",
+        "role": "mentioned"
+      }
+    },
+    {
+      "id": "person:greece",
+      "type": "Entity",
+      "properties": {
+        "name": "Greece",
+        "label": "Greece",
+        "kind": "person",
+        "role": "mentioned"
+      }
+    },
+    {
+      "id": "person:bloomberg",
+      "type": "Entity",
+      "properties": {
+        "name": "Bloomberg",
+        "label": "Bloomberg",
+        "kind": "person",
+        "role": "host"
+      }
+    },
+    {
+      "id": "person:eyck-freymann",
+      "type": "Entity",
+      "properties": {
+        "name": "Eyck Freymann",
+        "label": "Eyck Freymann",
+        "kind": "person",
+        "role": "guest"
+      }
+    }
+  ],
+  "edges": [
+    {
+      "from": "topic:geopolitical-blockades",
+      "to": "episode:f7904791-f77c-421b-a3d3-b43b015542d2",
+      "type": "MENTIONS",
+      "properties": {}
+    },
+    {
+      "from": "topic:china-taiwan",
+      "to": "episode:f7904791-f77c-421b-a3d3-b43b015542d2",
+      "type": "MENTIONS",
+      "properties": {}
+    },
+    {
+      "from": "topic:strait-of-hormuz",
+      "to": "episode:f7904791-f77c-421b-a3d3-b43b015542d2",
+      "type": "MENTIONS",
+      "properties": {}
+    },
+    {
+      "from": "topic:semiconductor-supply",
+      "to": "episode:f7904791-f77c-421b-a3d3-b43b015542d2",
+      "type": "MENTIONS",
+      "properties": {}
+    },
+    {
+      "from": "topic:us-china-policy",
+      "to": "episode:f7904791-f77c-421b-a3d3-b43b015542d2",
+      "type": "MENTIONS",
+      "properties": {}
+    },
+    {
+      "from": "topic:strategic-ambiguity",
+      "to": "episode:f7904791-f77c-421b-a3d3-b43b015542d2",
+      "type": "MENTIONS",
+      "properties": {}
+    },
+    {
+      "from": "topic:taiwanese-politics",
+      "to": "episode:f7904791-f77c-421b-a3d3-b43b015542d2",
+      "type": "MENTIONS",
+      "properties": {}
+    },
+    {
+      "from": "topic:civil-war",
+      "to": "episode:f7904791-f77c-421b-a3d3-b43b015542d2",
+      "type": "MENTIONS",
+      "properties": {}
+    },
+    {
+      "from": "topic:political-legitimacy",
+      "to": "episode:f7904791-f77c-421b-a3d3-b43b015542d2",
+      "type": "MENTIONS",
+      "properties": {}
+    },
+    {
+      "from": "topic:global-economy",
+      "to": "episode:f7904791-f77c-421b-a3d3-b43b015542d2",
+      "type": "MENTIONS",
+      "properties": {}
+    },
+    {
+      "from": "org:bloomberg-audio-studios",
+      "to": "episode:f7904791-f77c-421b-a3d3-b43b015542d2",
+      "type": "MENTIONS",
+      "properties": {}
+    },
+    {
+      "from": "org:odd-thoughts-podcast",
+      "to": "episode:f7904791-f77c-421b-a3d3-b43b015542d2",
+      "type": "MENTIONS",
+      "properties": {}
+    },
+    {
+      "from": "person:tracy-alloway",
+      "to": "episode:f7904791-f77c-421b-a3d3-b43b015542d2",
+      "type": "MENTIONS",
+      "properties": {}
+    },
+    {
+      "from": "person:joe-wisenthal",
+      "to": "episode:f7904791-f77c-421b-a3d3-b43b015542d2",
+      "type": "MENTIONS",
+      "properties": {}
+    },
+    {
+      "from": "person:iran",
+      "to": "episode:f7904791-f77c-421b-a3d3-b43b015542d2",
+      "type": "MENTIONS",
+      "properties": {}
+    },
+    {
+      "from": "person:strait-of-hormuz",
+      "to": "episode:f7904791-f77c-421b-a3d3-b43b015542d2",
+      "type": "MENTIONS",
+      "properties": {}
+    },
+    {
+      "from": "person:china",
+      "to": "episode:f7904791-f77c-421b-a3d3-b43b015542d2",
+      "type": "MENTIONS",
+      "properties": {}
+    },
+    {
+      "from": "person:taiwan",
+      "to": "episode:f7904791-f77c-421b-a3d3-b43b015542d2",
+      "type": "MENTIONS",
+      "properties": {}
+    },
+    {
+      "from": "person:ike-freiman",
+      "to": "episode:f7904791-f77c-421b-a3d3-b43b015542d2",
+      "type": "MENTIONS",
+      "properties": {}
+    },
+    {
+      "from": "org:stanford",
+      "to": "episode:f7904791-f77c-421b-a3d3-b43b015542d2",
+      "type": "MENTIONS",
+      "properties": {}
+    },
+    {
+      "from": "org:hoover",
+      "to": "episode:f7904791-f77c-421b-a3d3-b43b015542d2",
+      "type": "MENTIONS",
+      "properties": {}
+    },
+    {
+      "from": "person:xi-jinping",
+      "to": "episode:f7904791-f77c-421b-a3d3-b43b015542d2",
+      "type": "MENTIONS",
+      "properties": {}
+    },
+    {
+      "from": "person:sri-lanka",
+      "to": "episode:f7904791-f77c-421b-a3d3-b43b015542d2",
+      "type": "MENTIONS",
+      "properties": {}
+    },
+    {
+      "from": "person:tanzania",
+      "to": "episode:f7904791-f77c-421b-a3d3-b43b015542d2",
+      "type": "MENTIONS",
+      "properties": {}
+    },
+    {
+      "from": "person:greece",
+      "to": "episode:f7904791-f77c-421b-a3d3-b43b015542d2",
+      "type": "MENTIONS",
+      "properties": {}
+    },
+    {
+      "from": "person:bloomberg",
+      "to": "episode:f7904791-f77c-421b-a3d3-b43b015542d2",
+      "type": "MENTIONS",
+      "properties": {}
+    },
+    {
+      "from": "person:eyck-freymann",
+      "to": "episode:f7904791-f77c-421b-a3d3-b43b015542d2",
+      "type": "MENTIONS",
+      "properties": {}
+    }
+  ]
+}

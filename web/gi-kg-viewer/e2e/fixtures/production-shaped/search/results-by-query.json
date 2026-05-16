@@ -1,0 +1,626 @@
+{
+  "AI": {
+    "detail": null,
+    "error": null,
+    "lift_stats": {
+      "lift_applied": 0,
+      "transcript_hits_returned": 0
+    },
+    "query": "AI",
+    "results": [
+      {
+        "doc_id": "kg_entity:sha256_1cd6aecdd31c0ae82c2c76efdb6327b54e6026924b47852c51ffb406a9f2b19c__a1c70b67-17a8-4b1e-9edb-b4160128bf2c:org:ai",
+        "lifted": null,
+        "metadata": {
+          "doc_type": "kg_entity",
+          "entity_kind": "organization",
+          "episode_id": "a1c70b67-17a8-4b1e-9edb-b4160128bf2c",
+          "episode_title": "David Shor and Byrne Hobart on the Politics of a White-Collar Wipeout",
+          "feed_id": "sha256:1cd6aecdd31c0ae82c2c76efdb6327b54e6026924b47852c51ffb406a9f2b19c",
+          "feed_title": "Odd Lots",
+          "publish_date": "2026-03-24T08:00:00+00:00",
+          "source_id": "org:ai",
+          "source_metadata_relative_path": "feeds/rss_www.omnycontent.com_c9fdce2d/run_20260506-135048_ba02775e/metadata/0033 - David Shor and Byrne Hobart on t_20260506-135048_ba02775e.metadata.json"
+        },
+        "score": 1.0000001192092896,
+        "supporting_quotes": null,
+        "text": "AI"
+      },
+      {
+        "doc_id": "kg_topic:sha256_1cd6aecdd31c0ae82c2c76efdb6327b54e6026924b47852c51ffb406a9f2b19c__59308efc-3576-4375-8cf2-b40b00329583:topic:ai-agents",
+        "lifted": null,
+        "metadata": {
+          "doc_type": "kg_topic",
+          "episode_id": "59308efc-3576-4375-8cf2-b40b00329583",
+          "episode_title": "Legendary Hacker Matt Suiche on Cyberwar in the Age of AI",
+          "feed_id": "sha256:1cd6aecdd31c0ae82c2c76efdb6327b54e6026924b47852c51ffb406a9f2b19c",
+          "feed_title": "Odd Lots",
+          "kg_surface_episode_ids": [
+            "59308efc-3576-4375-8cf2-b40b00329583",
+            "6984f1b25dd05b2251899031"
+          ],
+          "kg_surface_match_count": 2,
+          "publish_date": "2026-03-12T08:00:00+00:00",
+          "source_id": "topic:ai-agents",
+          "source_metadata_relative_path": "feeds/rss_www.omnycontent.com_c9fdce2d/run_20260506-135048_ba02775e/metadata/0041 - Legendary Hacker Matt Suiche on _20260506-135048_ba02775e.metadata.json"
+        },
+        "score": 0.8283690214157104,
+        "supporting_quotes": null,
+        "text": "ai agents"
+      },
+      {
+        "doc_id": "kg_topic:sha256_1cd6aecdd31c0ae82c2c76efdb6327b54e6026924b47852c51ffb406a9f2b19c__8077744f-ec1b-41ce-9dcc-b3d401223ab6:topic:artificial-intelligence",
+        "lifted": null,
+        "metadata": {
+          "doc_type": "kg_topic",
+          "episode_id": "8077744f-ec1b-41ce-9dcc-b3d401223ab6",
+          "episode_title": "Why the Tech World Is Going Crazy for Claude Code",
+          "feed_id": "sha256:1cd6aecdd31c0ae82c2c76efdb6327b54e6026924b47852c51ffb406a9f2b19c",
+          "feed_title": "Odd Lots",
+          "kg_surface_episode_ids": [
+            "8077744f-ec1b-41ce-9dcc-b3d401223ab6",
+            "3220a86a-8dcd-4d57-8be1-b3f0014ddd5e",
+            "1539622b-e41c-4e30-9bda-b4050183dfff",
+            "59308efc-3576-4375-8cf2-b40b00329583",
+            "1a294fa6-1498-40b1-9add-b41801878a66",
+            "5971661f-5322-45b9-90f0-b41a015da220",
+            "53fa2d7c-330f-42e3-b997-b41a015dd3ab",
+            "ff4f5daf-7813-40a9-aa95-b42001543192",
+            "0f69af23-639c-4945-b255-b42001763c8a",
+            "949eeae0-b6c8-45c5-a33d-b4260134bd2a",
+            "2ff3db06-a25b-4d7b-9de9-b42f01476d14",
+            "96deb7b5-7fae-4040-a3c7-b4350008bd04",
+            "4cec22d8-717e-46c6-ab87-b43b01512ecb",
+            "6984f1b25dd05b2251899031"
+          ],
+          "kg_surface_match_count": 14,
+          "publish_date": "2026-01-19T09:00:00+00:00",
+          "source_id": "topic:artificial-intelligence",
+          "source_metadata_relative_path": "feeds/rss_www.omnycontent.com_c9fdce2d/run_20260506-135048_ba02775e/metadata/0074 - Why the Tech World Is Going Craz_20260506-135048_ba02775e.metadata.json"
+        },
+        "score": 0.791246235370636,
+        "supporting_quotes": null,
+        "text": "artificial intelligence"
+      },
+      {
+        "doc_id": "kg_topic:sha256_1cd6aecdd31c0ae82c2c76efdb6327b54e6026924b47852c51ffb406a9f2b19c__5971661f-5322-45b9-90f0-b41a015da220:topic:commercial-ai",
+        "lifted": null,
+        "metadata": {
+          "doc_type": "kg_topic",
+          "episode_id": "5971661f-5322-45b9-90f0-b41a015da220",
+          "episode_title": "Anthropic, the Pentagon, and the Future of Autonomous Weapons",
+          "feed_id": "sha256:1cd6aecdd31c0ae82c2c76efdb6327b54e6026924b47852c51ffb406a9f2b19c",
+          "feed_title": "Odd Lots",
+          "publish_date": "2026-03-28T08:00:00+00:00",
+          "source_id": "topic:commercial-ai",
+          "source_metadata_relative_path": "feeds/rss_www.omnycontent.com_c9fdce2d/run_20260506-135048_ba02775e/metadata/0029 - Anthropic_ the Pentagon_ and the_20260506-135048_ba02775e.metadata.json"
+        },
+        "score": 0.7905964255332947,
+        "supporting_quotes": null,
+        "text": "commercial ai"
+      },
+      {
+        "doc_id": "kg_topic:sha256_8025356ebfbe105cbd206ed4a4eabbc06f4562a0360517fd129e954ee2ef1871__25d702f6-ed6a-4565-8065-e729eb0f2650:topic:ai-industry",
+        "lifted": null,
+        "metadata": {
+          "doc_type": "kg_topic",
+          "episode_id": "25d702f6-ed6a-4565-8065-e729eb0f2650",
+          "episode_title": "A.I. Backlash Turns Violent + Kara Swisher on Healthmaxxing + The Zuck Bot Is Coming",
+          "feed_id": "sha256:8025356ebfbe105cbd206ed4a4eabbc06f4562a0360517fd129e954ee2ef1871",
+          "feed_title": "Hard Fork",
+          "kg_surface_episode_ids": [
+            "25d702f6-ed6a-4565-8065-e729eb0f2650",
+            "6949974ce2b7985fa24ee0df"
+          ],
+          "kg_surface_match_count": 2,
+          "publish_date": "2026-04-17T11:00:00+00:00",
+          "source_id": "topic:ai-industry",
+          "source_metadata_relative_path": "feeds/rss_feeds.simplecast.com_2e104dc7/run_20260421-175353_8eb5f9d2/metadata/0001 - A.I. Backlash Turns Violent _ Ka_20260421-175353_8eb5f9d2.metadata.json",
+          "topic_cluster": {
+            "canonical_label": "AI industry",
+            "cil_alias_target_topic_id": "topic:ai-industry",
+            "graph_compound_parent_id": "tc:ai-industry"
+          }
+        },
+        "score": 0.7747306227684021,
+        "supporting_quotes": null,
+        "text": "AI industry"
+      }
+    ]
+  },
+  "Taiwan": {
+    "detail": null,
+    "error": null,
+    "lift_stats": {
+      "lift_applied": 0,
+      "transcript_hits_returned": 0
+    },
+    "query": "Taiwan",
+    "results": [
+      {
+        "doc_id": "kg_entity:sha256_1cd6aecdd31c0ae82c2c76efdb6327b54e6026924b47852c51ffb406a9f2b19c__f7904791-f77c-421b-a3d3-b43b015542d2:person:taiwan",
+        "lifted": null,
+        "metadata": {
+          "doc_type": "kg_entity",
+          "entity_kind": "person",
+          "episode_id": "f7904791-f77c-421b-a3d3-b43b015542d2",
+          "episode_title": "How Taiwan Became the World's Most Perilous Geopolitical Chokepoint",
+          "feed_id": "sha256:1cd6aecdd31c0ae82c2c76efdb6327b54e6026924b47852c51ffb406a9f2b19c",
+          "feed_title": "Odd Lots",
+          "publish_date": "2026-05-01T08:00:00+00:00",
+          "source_id": "person:taiwan",
+          "source_metadata_relative_path": "feeds/rss_www.omnycontent.com_c9fdce2d/run_20260506-135048_ba02775e/metadata/0003 - How Taiwan Became the World_s Mo_20260506-135048_ba02775e.metadata.json"
+        },
+        "score": 1.0,
+        "supporting_quotes": null,
+        "text": "Taiwan"
+      },
+      {
+        "doc_id": "kg_topic:sha256_1cd6aecdd31c0ae82c2c76efdb6327b54e6026924b47852c51ffb406a9f2b19c__f7904791-f77c-421b-a3d3-b43b015542d2:topic:china-taiwan",
+        "lifted": null,
+        "metadata": {
+          "doc_type": "kg_topic",
+          "episode_id": "f7904791-f77c-421b-a3d3-b43b015542d2",
+          "episode_title": "How Taiwan Became the World's Most Perilous Geopolitical Chokepoint",
+          "feed_id": "sha256:1cd6aecdd31c0ae82c2c76efdb6327b54e6026924b47852c51ffb406a9f2b19c",
+          "feed_title": "Odd Lots",
+          "publish_date": "2026-05-01T08:00:00+00:00",
+          "source_id": "topic:china-taiwan",
+          "source_metadata_relative_path": "feeds/rss_www.omnycontent.com_c9fdce2d/run_20260506-135048_ba02775e/metadata/0003 - How Taiwan Became the World_s Mo_20260506-135048_ba02775e.metadata.json"
+        },
+        "score": 0.9438327550888062,
+        "supporting_quotes": null,
+        "text": "china taiwan"
+      },
+      {
+        "doc_id": "kg_entity:sha256_1cd6aecdd31c0ae82c2c76efdb6327b54e6026924b47852c51ffb406a9f2b19c__48fc9d48-5209-4689-92c7-b4100164eb6a:person:asia",
+        "lifted": null,
+        "metadata": {
+          "doc_type": "kg_entity",
+          "entity_kind": "person",
+          "episode_id": "48fc9d48-5209-4689-92c7-b4100164eb6a",
+          "episode_title": "War in Iran Is Redrawing the Map for Natural Gas",
+          "feed_id": "sha256:1cd6aecdd31c0ae82c2c76efdb6327b54e6026924b47852c51ffb406a9f2b19c",
+          "feed_title": "Odd Lots",
+          "kg_surface_episode_ids": [
+            "48fc9d48-5209-4689-92c7-b4100164eb6a",
+            "69a734f5ddf4d3439a40ad85"
+          ],
+          "kg_surface_match_count": 2,
+          "publish_date": "2026-03-18T08:00:00+00:00",
+          "source_id": "person:asia",
+          "source_metadata_relative_path": "feeds/rss_www.omnycontent.com_c9fdce2d/run_20260506-135048_ba02775e/metadata/0038 - War in Iran Is Redrawing the Map_20260506-135048_ba02775e.metadata.json"
+        },
+        "score": 0.7307291030883789,
+        "supporting_quotes": null,
+        "text": "Asia"
+      },
+      {
+        "doc_id": "kg_entity:sha256_1cd6aecdd31c0ae82c2c76efdb6327b54e6026924b47852c51ffb406a9f2b19c__bcb72efb-4d99-44c9-9eb5-b3f001587dc0:person:china",
+        "lifted": null,
+        "metadata": {
+          "doc_type": "kg_entity",
+          "entity_kind": "person",
+          "episode_id": "bcb72efb-4d99-44c9-9eb5-b3f001587dc0",
+          "episode_title": "The Sixth Bureau, Episode 1: Your Friend From Nanjing",
+          "feed_id": "sha256:1cd6aecdd31c0ae82c2c76efdb6327b54e6026924b47852c51ffb406a9f2b19c",
+          "feed_title": "Odd Lots",
+          "kg_surface_episode_ids": [
+            "bcb72efb-4d99-44c9-9eb5-b3f001587dc0",
+            "4e5e7c1f-739e-4feb-b9ba-b409016c9734",
+            "0f69af23-639c-4945-b255-b42001763c8a",
+            "70a89907-473d-48a7-a753-b42b01691276",
+            "0604c399-d1e3-4a1d-8bd3-b42c01471fca",
+            "68f13478ace6eea8f828f16e",
+            "6939a79d34867e026d3be2bd",
+            "696fe5a1f66127afddcfa7d2",
+            "64b23f78-7816-4c55-b471-b3d30161f15c",
+            "59656198-8f0d-41b8-a709-b3e5016ee6b8",
+            "b26130d7-356b-4ae1-90f2-b4040041865c",
+            "a5a6b4f5-c80b-4457-9e1e-b40c01517125",
+            "909a3b0a-de94-45cb-80fb-b41701517b04",
+            "1a294fa6-1498-40b1-9add-b41801878a66",
+            "f7904791-f77c-421b-a3d3-b43b015542d2",
+            "f9cfb15c-9665-493f-8f6a-b3e2001c9fe1",
+            "0d42906b-88ba-4213-b092-b3e700f32bcb",
+            "6e543d48-a84e-4ddf-b699-b40b016d6f82"
+          ],
+          "kg_surface_match_count": 18,
+          "publish_date": "2026-02-15T13:00:00+00:00",
+          "source_id": "person:china",
+          "source_metadata_relative_path": "feeds/rss_www.omnycontent.com_c9fdce2d/run_20260506-135048_ba02775e/metadata/0058 - The Sixth Bureau_ Episode 1_ You_20260506-135048_ba02775e.metadata.json"
+        },
+        "score": 0.7252020835876465,
+        "supporting_quotes": null,
+        "text": "China"
+      },
+      {
+        "doc_id": "kg_topic:sha256_1cd6aecdd31c0ae82c2c76efdb6327b54e6026924b47852c51ffb406a9f2b19c__f7904791-f77c-421b-a3d3-b43b015542d2:topic:taiwanese-politics",
+        "lifted": null,
+        "metadata": {
+          "doc_type": "kg_topic",
+          "episode_id": "f7904791-f77c-421b-a3d3-b43b015542d2",
+          "episode_title": "How Taiwan Became the World's Most Perilous Geopolitical Chokepoint",
+          "feed_id": "sha256:1cd6aecdd31c0ae82c2c76efdb6327b54e6026924b47852c51ffb406a9f2b19c",
+          "feed_title": "Odd Lots",
+          "publish_date": "2026-05-01T08:00:00+00:00",
+          "source_id": "topic:taiwanese-politics",
+          "source_metadata_relative_path": "feeds/rss_www.omnycontent.com_c9fdce2d/run_20260506-135048_ba02775e/metadata/0003 - How Taiwan Became the World_s Mo_20260506-135048_ba02775e.metadata.json"
+        },
+        "score": 0.6937469244003296,
+        "supporting_quotes": null,
+        "text": "taiwanese politics"
+      }
+    ]
+  },
+  "climate": {
+    "detail": null,
+    "error": null,
+    "lift_stats": {
+      "lift_applied": 0,
+      "transcript_hits_returned": 0
+    },
+    "query": "climate",
+    "results": [
+      {
+        "doc_id": "quote:sha256_1cd6aecdd31c0ae82c2c76efdb6327b54e6026924b47852c51ffb406a9f2b19c__2249a9b7-c225-4d4f-acf4-b43301384ccb:quote:94bb565e0ea45246",
+        "lifted": null,
+        "metadata": {
+          "char_end": 21210,
+          "char_start": 21146,
+          "doc_type": "quote",
+          "episode_id": "2249a9b7-c225-4d4f-acf4-b43301384ccb",
+          "episode_title": "Daniel Yergin Sees a 'Different World' Emerging After the Hormuz Crisis",
+          "feed_id": "sha256:1cd6aecdd31c0ae82c2c76efdb6327b54e6026924b47852c51ffb406a9f2b19c",
+          "feed_title": "Odd Lots",
+          "publish_date": "2026-04-22T08:00:00+00:00",
+          "source_id": "quote:94bb565e0ea45246",
+          "source_metadata_relative_path": "feeds/rss_www.omnycontent.com_c9fdce2d/run_20260506-135048_ba02775e/metadata/0010 - Daniel Yergin Sees a _Different _20260506-135048_ba02775e.metadata.json",
+          "speaker_id": null,
+          "timestamp_end_ms": 1054000,
+          "timestamp_start_ms": 1049800
+        },
+        "score": 0.5939685702323914,
+        "supporting_quotes": null,
+        "text": "less about climate now and more about a part of diversification,"
+      },
+      {
+        "doc_id": "kg_entity:sha256_1cd6aecdd31c0ae82c2c76efdb6327b54e6026924b47852c51ffb406a9f2b19c__5341e85d-38ff-4a6d-b2cb-b419014bbd23:person:siberia",
+        "lifted": null,
+        "metadata": {
+          "doc_type": "kg_entity",
+          "entity_kind": "person",
+          "episode_id": "5341e85d-38ff-4a6d-b2cb-b419014bbd23",
+          "episode_title": "Now There's a Helium Shortage and It Affects More Than Balloons",
+          "feed_id": "sha256:1cd6aecdd31c0ae82c2c76efdb6327b54e6026924b47852c51ffb406a9f2b19c",
+          "feed_title": "Odd Lots",
+          "publish_date": "2026-03-27T08:00:00+00:00",
+          "source_id": "person:siberia",
+          "source_metadata_relative_path": "feeds/rss_www.omnycontent.com_c9fdce2d/run_20260506-135048_ba02775e/metadata/0030 - Now There_s a Helium Shortage an_20260506-135048_ba02775e.metadata.json"
+        },
+        "score": 0.47962555289268494,
+        "supporting_quotes": null,
+        "text": "Siberia"
+      },
+      {
+        "doc_id": "quote:sha256_1cd6aecdd31c0ae82c2c76efdb6327b54e6026924b47852c51ffb406a9f2b19c__f7957569-770c-45d3-a4e4-b43c01323ab8:quote:07603885786f0590",
+        "lifted": null,
+        "metadata": {
+          "char_end": 20554,
+          "char_start": 20485,
+          "doc_type": "quote",
+          "episode_id": "f7957569-770c-45d3-a4e4-b43c01323ab8",
+          "episode_title": "Inside the Booming Market for Dinosaur Fossils",
+          "feed_id": "sha256:1cd6aecdd31c0ae82c2c76efdb6327b54e6026924b47852c51ffb406a9f2b19c",
+          "feed_title": "Odd Lots",
+          "publish_date": "2026-05-02T08:00:00+00:00",
+          "source_id": "quote:07603885786f0590",
+          "source_metadata_relative_path": "feeds/rss_www.omnycontent.com_c9fdce2d/run_20260506-135048_ba02775e/metadata/0002 - Inside the Booming Market for Di_20260506-135048_ba02775e.metadata.json",
+          "speaker_id": null,
+          "timestamp_end_ms": 1071520,
+          "timestamp_start_ms": 1068160
+        },
+        "score": 0.4422474503517151,
+        "supporting_quotes": null,
+        "text": "Speaker 4: climates that make it easier to dig in, like, for example,"
+      },
+      {
+        "doc_id": "kg_entity:sha256_1cd6aecdd31c0ae82c2c76efdb6327b54e6026924b47852c51ffb406a9f2b19c__48fc9d48-5209-4689-92c7-b4100164eb6a:person:asia",
+        "lifted": null,
+        "metadata": {
+          "doc_type": "kg_entity",
+          "entity_kind": "person",
+          "episode_id": "48fc9d48-5209-4689-92c7-b4100164eb6a",
+          "episode_title": "War in Iran Is Redrawing the Map for Natural Gas",
+          "feed_id": "sha256:1cd6aecdd31c0ae82c2c76efdb6327b54e6026924b47852c51ffb406a9f2b19c",
+          "feed_title": "Odd Lots",
+          "kg_surface_episode_ids": [
+            "48fc9d48-5209-4689-92c7-b4100164eb6a",
+            "69a734f5ddf4d3439a40ad85"
+          ],
+          "kg_surface_match_count": 2,
+          "publish_date": "2026-03-18T08:00:00+00:00",
+          "source_id": "person:asia",
+          "source_metadata_relative_path": "feeds/rss_www.omnycontent.com_c9fdce2d/run_20260506-135048_ba02775e/metadata/0038 - War in Iran Is Redrawing the Map_20260506-135048_ba02775e.metadata.json"
+        },
+        "score": 0.42432647943496704,
+        "supporting_quotes": null,
+        "text": "Asia"
+      },
+      {
+        "doc_id": "quote:sha256_1cd6aecdd31c0ae82c2c76efdb6327b54e6026924b47852c51ffb406a9f2b19c__f7957569-770c-45d3-a4e4-b43c01323ab8:quote:9be389e36ebd1066",
+        "lifted": null,
+        "metadata": {
+          "char_end": 20740,
+          "char_start": 20683,
+          "doc_type": "quote",
+          "episode_id": "f7957569-770c-45d3-a4e4-b43c01323ab8",
+          "episode_title": "Inside the Booming Market for Dinosaur Fossils",
+          "feed_id": "sha256:1cd6aecdd31c0ae82c2c76efdb6327b54e6026924b47852c51ffb406a9f2b19c",
+          "feed_title": "Odd Lots",
+          "publish_date": "2026-05-02T08:00:00+00:00",
+          "source_id": "quote:9be389e36ebd1066",
+          "source_metadata_relative_path": "feeds/rss_www.omnycontent.com_c9fdce2d/run_20260506-135048_ba02775e/metadata/0002 - Inside the Booming Market for Di_20260506-135048_ba02775e.metadata.json",
+          "speaker_id": null,
+          "timestamp_end_ms": 1081320,
+          "timestamp_start_ms": 1078000
+        },
+        "score": 0.40838634967803955,
+        "supporting_quotes": null,
+        "text": "Speaker 4: of churn of weather that that kind of mixes up"
+      }
+    ]
+  },
+  "economy": {
+    "detail": null,
+    "error": null,
+    "lift_stats": {
+      "lift_applied": 0,
+      "transcript_hits_returned": 0
+    },
+    "query": "economy",
+    "results": [
+      {
+        "doc_id": "kg_topic:sha256_bbafc8bf5404721c94cc1e14ee3a14ae0876af05af7aaf00914c3cff28fcf713__69446436f13209aaa3edddb1:topic:us-economy",
+        "lifted": null,
+        "metadata": {
+          "doc_type": "kg_topic",
+          "episode_id": "69446436f13209aaa3edddb1",
+          "episode_title": "Three numbers that matter",
+          "feed_id": "sha256:bbafc8bf5404721c94cc1e14ee3a14ae0876af05af7aaf00914c3cff28fcf713",
+          "feed_title": "Unhedged",
+          "kg_surface_episode_ids": [
+            "69446436f13209aaa3edddb1",
+            "69d7e5ae97d78f9e2bf750e7"
+          ],
+          "kg_surface_match_count": 2,
+          "publish_date": "2025-12-18T21:00:00+00:00",
+          "source_id": "topic:us-economy",
+          "source_metadata_relative_path": ".reprocess-backup-20260506-132210/run_20260421-190016_2606de6d/metadata/0036 - Three numbers that matter_20260421-190016_2606de6d.metadata.json",
+          "topic_cluster": {
+            "canonical_label": "US economy",
+            "cil_alias_target_topic_id": "topic:us-economy",
+            "graph_compound_parent_id": "tc:us-economy"
+          }
+        },
+        "score": 0.8422707915306091,
+        "supporting_quotes": null,
+        "text": "US economy"
+      },
+      {
+        "doc_id": "kg_topic:sha256_1cd6aecdd31c0ae82c2c76efdb6327b54e6026924b47852c51ffb406a9f2b19c__f7904791-f77c-421b-a3d3-b43b015542d2:topic:global-economy",
+        "lifted": null,
+        "metadata": {
+          "doc_type": "kg_topic",
+          "episode_id": "f7904791-f77c-421b-a3d3-b43b015542d2",
+          "episode_title": "How Taiwan Became the World's Most Perilous Geopolitical Chokepoint",
+          "feed_id": "sha256:1cd6aecdd31c0ae82c2c76efdb6327b54e6026924b47852c51ffb406a9f2b19c",
+          "feed_title": "Odd Lots",
+          "kg_surface_episode_ids": [
+            "f7904791-f77c-421b-a3d3-b43b015542d2",
+            "69c5846cc2759aa9b1c70a8d"
+          ],
+          "kg_surface_match_count": 2,
+          "publish_date": "2026-05-01T08:00:00+00:00",
+          "source_id": "topic:global-economy",
+          "source_metadata_relative_path": "feeds/rss_www.omnycontent.com_c9fdce2d/run_20260506-135048_ba02775e/metadata/0003 - How Taiwan Became the World_s Mo_20260506-135048_ba02775e.metadata.json",
+          "topic_cluster": {
+            "canonical_label": "global economic impact",
+            "cil_alias_target_topic_id": "topic:global-economic-impact",
+            "graph_compound_parent_id": "tc:global-economic-impact"
+          }
+        },
+        "score": 0.7655441761016846,
+        "supporting_quotes": null,
+        "text": "global economy"
+      },
+      {
+        "doc_id": "kg_topic:sha256_1cd6aecdd31c0ae82c2c76efdb6327b54e6026924b47852c51ffb406a9f2b19c__59b2863d-d2fe-4fc9-b836-b3f701751323:topic:political-economy",
+        "lifted": null,
+        "metadata": {
+          "doc_type": "kg_topic",
+          "episode_id": "59b2863d-d2fe-4fc9-b836-b3f701751323",
+          "episode_title": "Jamee Moudud on the Intellectual Roots of Zohranomics",
+          "feed_id": "sha256:1cd6aecdd31c0ae82c2c76efdb6327b54e6026924b47852c51ffb406a9f2b19c",
+          "feed_title": "Odd Lots",
+          "publish_date": "2026-02-21T09:00:00+00:00",
+          "source_id": "topic:political-economy",
+          "source_metadata_relative_path": "feeds/rss_www.omnycontent.com_c9fdce2d/run_20260506-135048_ba02775e/metadata/0054 - Jamee Moudud on the Intellectual_20260506-135048_ba02775e.metadata.json"
+        },
+        "score": 0.7621681094169617,
+        "supporting_quotes": null,
+        "text": "political economy"
+      },
+      {
+        "doc_id": "kg_topic:sha256_1cd6aecdd31c0ae82c2c76efdb6327b54e6026924b47852c51ffb406a9f2b19c__0b483f16-0d3c-4ad5-a89b-b3e80108c563:topic:economic-policy",
+        "lifted": null,
+        "metadata": {
+          "doc_type": "kg_topic",
+          "episode_id": "0b483f16-0d3c-4ad5-a89b-b3e80108c563",
+          "episode_title": "How a Former Fed Vice-Chair Is thinking About the Next Fed Chair",
+          "feed_id": "sha256:1cd6aecdd31c0ae82c2c76efdb6327b54e6026924b47852c51ffb406a9f2b19c",
+          "feed_title": "Odd Lots",
+          "kg_surface_episode_ids": [
+            "0b483f16-0d3c-4ad5-a89b-b3e80108c563",
+            "48d57b14-c285-46e9-9c8b-b3e901436211"
+          ],
+          "kg_surface_match_count": 2,
+          "publish_date": "2026-02-06T09:00:00+00:00",
+          "source_id": "topic:economic-policy",
+          "source_metadata_relative_path": "feeds/rss_www.omnycontent.com_c9fdce2d/run_20260506-135048_ba02775e/metadata/0064 - How a Former Fed Vice-Chair Is t_20260506-135048_ba02775e.metadata.json",
+          "topic_cluster": {
+            "canonical_label": "Trump administration economic policy",
+            "cil_alias_target_topic_id": "topic:trump-administration-economic-policy",
+            "graph_compound_parent_id": "tc:trump-administration-economic-policy"
+          }
+        },
+        "score": 0.7420846223831177,
+        "supporting_quotes": null,
+        "text": "economic policy"
+      },
+      {
+        "doc_id": "kg_topic:sha256_1cd6aecdd31c0ae82c2c76efdb6327b54e6026924b47852c51ffb406a9f2b19c__1a294fa6-1498-40b1-9add-b41801878a66:topic:european-economy",
+        "lifted": null,
+        "metadata": {
+          "doc_type": "kg_topic",
+          "episode_id": "1a294fa6-1498-40b1-9add-b41801878a66",
+          "episode_title": "This Is How Big Money Is Trading the War in Iran",
+          "feed_id": "sha256:1cd6aecdd31c0ae82c2c76efdb6327b54e6026924b47852c51ffb406a9f2b19c",
+          "feed_title": "Odd Lots",
+          "kg_surface_episode_ids": [
+            "1a294fa6-1498-40b1-9add-b41801878a66",
+            "69d7e5ae97d78f9e2bf750e7"
+          ],
+          "kg_surface_match_count": 2,
+          "publish_date": "2026-03-26T08:00:00+00:00",
+          "source_id": "topic:european-economy",
+          "source_metadata_relative_path": "feeds/rss_www.omnycontent.com_c9fdce2d/run_20260506-135048_ba02775e/metadata/0031 - This Is How Big Money Is Trading_20260506-135048_ba02775e.metadata.json"
+        },
+        "score": 0.7060317397117615,
+        "supporting_quotes": null,
+        "text": "european economy"
+      }
+    ]
+  },
+  "policy": {
+    "detail": null,
+    "error": null,
+    "lift_stats": {
+      "lift_applied": 0,
+      "transcript_hits_returned": 0
+    },
+    "query": "policy",
+    "results": [
+      {
+        "doc_id": "kg_topic:sha256_1cd6aecdd31c0ae82c2c76efdb6327b54e6026924b47852c51ffb406a9f2b19c__0b483f16-0d3c-4ad5-a89b-b3e80108c563:topic:economic-policy",
+        "lifted": null,
+        "metadata": {
+          "doc_type": "kg_topic",
+          "episode_id": "0b483f16-0d3c-4ad5-a89b-b3e80108c563",
+          "episode_title": "How a Former Fed Vice-Chair Is thinking About the Next Fed Chair",
+          "feed_id": "sha256:1cd6aecdd31c0ae82c2c76efdb6327b54e6026924b47852c51ffb406a9f2b19c",
+          "feed_title": "Odd Lots",
+          "kg_surface_episode_ids": [
+            "0b483f16-0d3c-4ad5-a89b-b3e80108c563",
+            "48d57b14-c285-46e9-9c8b-b3e901436211"
+          ],
+          "kg_surface_match_count": 2,
+          "publish_date": "2026-02-06T09:00:00+00:00",
+          "source_id": "topic:economic-policy",
+          "source_metadata_relative_path": "feeds/rss_www.omnycontent.com_c9fdce2d/run_20260506-135048_ba02775e/metadata/0064 - How a Former Fed Vice-Chair Is t_20260506-135048_ba02775e.metadata.json",
+          "topic_cluster": {
+            "canonical_label": "Trump administration economic policy",
+            "cil_alias_target_topic_id": "topic:trump-administration-economic-policy",
+            "graph_compound_parent_id": "tc:trump-administration-economic-policy"
+          }
+        },
+        "score": 0.7459481954574585,
+        "supporting_quotes": null,
+        "text": "economic policy"
+      },
+      {
+        "doc_id": "kg_topic:sha256_1cd6aecdd31c0ae82c2c76efdb6327b54e6026924b47852c51ffb406a9f2b19c__59b2863d-d2fe-4fc9-b836-b3f701751323:topic:industrial-policy",
+        "lifted": null,
+        "metadata": {
+          "doc_type": "kg_topic",
+          "episode_id": "59b2863d-d2fe-4fc9-b836-b3f701751323",
+          "episode_title": "Jamee Moudud on the Intellectual Roots of Zohranomics",
+          "feed_id": "sha256:1cd6aecdd31c0ae82c2c76efdb6327b54e6026924b47852c51ffb406a9f2b19c",
+          "feed_title": "Odd Lots",
+          "kg_surface_episode_ids": [
+            "59b2863d-d2fe-4fc9-b836-b3f701751323",
+            "0d42906b-88ba-4213-b092-b3e700f32bcb"
+          ],
+          "kg_surface_match_count": 2,
+          "publish_date": "2026-02-21T09:00:00+00:00",
+          "source_id": "topic:industrial-policy",
+          "source_metadata_relative_path": "feeds/rss_www.omnycontent.com_c9fdce2d/run_20260506-135048_ba02775e/metadata/0054 - Jamee Moudud on the Intellectual_20260506-135048_ba02775e.metadata.json"
+        },
+        "score": 0.6970162391662598,
+        "supporting_quotes": null,
+        "text": "industrial policy"
+      },
+      {
+        "doc_id": "kg_topic:sha256_1cd6aecdd31c0ae82c2c76efdb6327b54e6026924b47852c51ffb406a9f2b19c__0d8e4d7e-be05-4892-beb7-b3e20143f709:topic:policy-shifts",
+        "lifted": null,
+        "metadata": {
+          "doc_type": "kg_topic",
+          "episode_id": "0d8e4d7e-be05-4892-beb7-b3e20143f709",
+          "episode_title": "Lots More With Skanda Amarnath on the Risks of Kevin Warsh",
+          "feed_id": "sha256:1cd6aecdd31c0ae82c2c76efdb6327b54e6026924b47852c51ffb406a9f2b19c",
+          "feed_title": "Odd Lots",
+          "publish_date": "2026-01-30T20:00:00+00:00",
+          "source_id": "topic:policy-shifts",
+          "source_metadata_relative_path": "feeds/rss_www.omnycontent.com_c9fdce2d/run_20260506-135048_ba02775e/metadata/0068 - Lots More With Skanda Amarnath o_20260506-135048_ba02775e.metadata.json"
+        },
+        "score": 0.6730223894119263,
+        "supporting_quotes": null,
+        "text": "policy shifts"
+      },
+      {
+        "doc_id": "kg_topic:sha256_1cd6aecdd31c0ae82c2c76efdb6327b54e6026924b47852c51ffb406a9f2b19c__020c9d95-1841-4b91-8832-b3fd017be95d:topic:trade-policy",
+        "lifted": null,
+        "metadata": {
+          "doc_type": "kg_topic",
+          "episode_id": "020c9d95-1841-4b91-8832-b3fd017be95d",
+          "episode_title": "The Scramble Is On for Businesses to Get Their Tariff Refund Checks",
+          "feed_id": "sha256:1cd6aecdd31c0ae82c2c76efdb6327b54e6026924b47852c51ffb406a9f2b19c",
+          "feed_title": "Odd Lots",
+          "publish_date": "2026-02-27T09:00:00+00:00",
+          "source_id": "topic:trade-policy",
+          "source_metadata_relative_path": "feeds/rss_www.omnycontent.com_c9fdce2d/run_20260506-135048_ba02775e/metadata/0051 - The Scramble Is On for Businesse_20260506-135048_ba02775e.metadata.json",
+          "topic_cluster": {
+            "canonical_label": "trade policy",
+            "cil_alias_target_topic_id": "topic:trade-policy",
+            "graph_compound_parent_id": "tc:trade-policy"
+          }
+        },
+        "score": 0.6411314010620117,
+        "supporting_quotes": null,
+        "text": "trade policy"
+      },
+      {
+        "doc_id": "kg_topic:sha256_8025356ebfbe105cbd206ed4a4eabbc06f4562a0360517fd129e954ee2ef1871__25d702f6-ed6a-4565-8065-e729eb0f2650:topic:ai-policy",
+        "lifted": null,
+        "metadata": {
+          "doc_type": "kg_topic",
+          "episode_id": "25d702f6-ed6a-4565-8065-e729eb0f2650",
+          "episode_title": "A.I. Backlash Turns Violent + Kara Swisher on Healthmaxxing + The Zuck Bot Is Coming",
+          "feed_id": "sha256:8025356ebfbe105cbd206ed4a4eabbc06f4562a0360517fd129e954ee2ef1871",
+          "feed_title": "Hard Fork",
+          "publish_date": "2026-04-17T11:00:00+00:00",
+          "source_id": "topic:ai-policy",
+          "source_metadata_relative_path": "feeds/rss_feeds.simplecast.com_2e104dc7/run_20260421-175353_8eb5f9d2/metadata/0001 - A.I. Backlash Turns Violent _ Ka_20260421-175353_8eb5f9d2.metadata.json",
+          "topic_cluster": {
+            "canonical_label": "AI policy",
+            "cil_alias_target_topic_id": "topic:ai-policy",
+            "graph_compound_parent_id": "tc:ai-policy"
+          }
+        },
+        "score": 0.6316695213317871,
+        "supporting_quotes": null,
+        "text": "AI policy"
+      }
+    ]
+  }
+}

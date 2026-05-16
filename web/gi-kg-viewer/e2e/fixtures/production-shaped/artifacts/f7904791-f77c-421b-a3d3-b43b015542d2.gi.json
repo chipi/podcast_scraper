@@ -1,0 +1,924 @@
+{
+  "schema_version": "2.0",
+  "model_version": "gemini-2.5-flash-lite",
+  "prompt_version": "v1",
+  "episode_id": "f7904791-f77c-421b-a3d3-b43b015542d2",
+  "nodes": [
+    {
+      "id": "episode:f7904791-f77c-421b-a3d3-b43b015542d2",
+      "type": "Episode",
+      "properties": {
+        "podcast_id": "sha256:1cd6aecdd31c0ae82c2c76efdb6327b54e6026924b47852c51ffb406a9f2b19c",
+        "title": "How Taiwan Became the World's Most Perilous Geopolitical Chokepoint",
+        "publish_date": "2026-05-01T08:00:00+00:00",
+        "duration_ms": 3406000,
+        "feed_id": "sha256:1cd6aecdd31c0ae82c2c76efdb6327b54e6026924b47852c51ffb406a9f2b19c"
+      }
+    },
+    {
+      "id": "topic:geopolitical-blockades",
+      "type": "Topic",
+      "properties": {
+        "label": "Geopolitical blockades"
+      }
+    },
+    {
+      "id": "topic:china-taiwan",
+      "type": "Topic",
+      "properties": {
+        "label": "China Taiwan"
+      }
+    },
+    {
+      "id": "topic:strait-of-hormuz",
+      "type": "Topic",
+      "properties": {
+        "label": "Strait of Hormuz"
+      }
+    },
+    {
+      "id": "topic:semiconductor-supply",
+      "type": "Topic",
+      "properties": {
+        "label": "Semiconductor supply"
+      }
+    },
+    {
+      "id": "topic:us-china-policy",
+      "type": "Topic",
+      "properties": {
+        "label": "US China policy"
+      }
+    },
+    {
+      "id": "topic:strategic-ambiguity",
+      "type": "Topic",
+      "properties": {
+        "label": "Strategic ambiguity"
+      }
+    },
+    {
+      "id": "topic:taiwanese-politics",
+      "type": "Topic",
+      "properties": {
+        "label": "Taiwanese politics"
+      }
+    },
+    {
+      "id": "topic:civil-war",
+      "type": "Topic",
+      "properties": {
+        "label": "Civil war"
+      }
+    },
+    {
+      "id": "topic:political-legitimacy",
+      "type": "Topic",
+      "properties": {
+        "label": "Political legitimacy"
+      }
+    },
+    {
+      "id": "topic:global-economy",
+      "type": "Topic",
+      "properties": {
+        "label": "Global economy"
+      }
+    },
+    {
+      "id": "insight:a5541743feb6d576",
+      "type": "Insight",
+      "properties": {
+        "text": "Geopolitical strategists previously focused on two major hypothetical blockades: Iran in the Strait of Hormuz and China concerning Taiwan.",
+        "episode_id": "f7904791-f77c-421b-a3d3-b43b015542d2",
+        "grounded": true,
+        "insight_type": "fact",
+        "position_hint": 0.01
+      },
+      "confidence": 1.0
+    },
+    {
+      "id": "quote:40351860f8222157",
+      "type": "Quote",
+      "properties": {
+        "text": "Up until recently, very recently, I would say there areSpeaker 2: or were two hypothetical blockades that kind of loomed largeSpeaker 2: in the minds of geopolitical strategists everywhere.",
+        "episode_id": "f7904791-f77c-421b-a3d3-b43b015542d2",
+        "speaker_id": null,
+        "char_start": 221,
+        "char_end": 410,
+        "timestamp_start_ms": 23960,
+        "timestamp_end_ms": 35360,
+        "transcript_ref": "transcripts/0003 - How Taiwan Became the World_s Most Perilous Geopolitical Chokepoint_20260506-135048_ba02775e.txt"
+      }
+    },
+    {
+      "id": "quote:802332fddf0b47b0",
+      "type": "Quote",
+      "properties": {
+        "text": "And the first was,Speaker 2: of course, Iran blockading the Strait of War moves.",
+        "episode_id": "f7904791-f77c-421b-a3d3-b43b015542d2",
+        "speaker_id": null,
+        "char_start": 411,
+        "char_end": 491,
+        "timestamp_start_ms": 31640,
+        "timestamp_end_ms": 38840,
+        "transcript_ref": "transcripts/0003 - How Taiwan Became the World_s Most Perilous Geopolitical Chokepoint_20260506-135048_ba02775e.txt"
+      }
+    },
+    {
+      "id": "quote:6ab49dd2d82c2669",
+      "type": "Quote",
+      "properties": {
+        "text": "And so the big hypothetical blockade that we're left withSpeaker 2: to ponder is China potentially doing something with Taiwan.",
+        "episode_id": "f7904791-f77c-421b-a3d3-b43b015542d2",
+        "speaker_id": null,
+        "char_start": 655,
+        "char_end": 782,
+        "timestamp_start_ms": 45159,
+        "timestamp_end_ms": 53360,
+        "transcript_ref": "transcripts/0003 - How Taiwan Became the World_s Most Perilous Geopolitical Chokepoint_20260506-135048_ba02775e.txt"
+      }
+    },
+    {
+      "id": "insight:681e271c55b6928d",
+      "type": "Insight",
+      "properties": {
+        "text": "The blockade of the Strait of Hormuz has transitioned from a hypothetical scenario to a present reality.",
+        "episode_id": "f7904791-f77c-421b-a3d3-b43b015542d2",
+        "grounded": true,
+        "insight_type": "fact",
+        "position_hint": 0.01
+      },
+      "confidence": 1.0
+    },
+    {
+      "id": "quote:3dc19cb3ddfc5615",
+      "type": "Quote",
+      "properties": {
+        "text": "That'sSpeaker 2: clearly not a hypothetical on anymore. It's actually happened. It's reality,Speaker 2: and we've been doing a lot of episodes about it.",
+        "episode_id": "f7904791-f77c-421b-a3d3-b43b015542d2",
+        "speaker_id": null,
+        "char_start": 492,
+        "char_end": 644,
+        "timestamp_start_ms": 35479,
+        "timestamp_end_ms": 44800,
+        "transcript_ref": "transcripts/0003 - How Taiwan Became the World_s Most Perilous Geopolitical Chokepoint_20260506-135048_ba02775e.txt"
+      }
+    },
+    {
+      "id": "insight:49c53791574bfcd1",
+      "type": "Insight",
+      "properties": {
+        "text": "China's potential blockade of Taiwan has been a long-standing concern for geopolitical strategists, intensifying over years.",
+        "episode_id": "f7904791-f77c-421b-a3d3-b43b015542d2",
+        "grounded": true,
+        "insight_type": "fact",
+        "position_hint": 0.02
+      },
+      "confidence": 1.0
+    },
+    {
+      "id": "quote:124454314c8492b5",
+      "type": "Quote",
+      "properties": {
+        "text": "That was the thing that everyone has been talking aboutSpeaker 3: for years and years with growing intensity.",
+        "episode_id": "f7904791-f77c-421b-a3d3-b43b015542d2",
+        "speaker_id": null,
+        "char_start": 1048,
+        "char_end": 1157,
+        "timestamp_start_ms": 66240,
+        "timestamp_end_ms": 71800,
+        "transcript_ref": "transcripts/0003 - How Taiwan Became the World_s Most Perilous Geopolitical Chokepoint_20260506-135048_ba02775e.txt"
+      }
+    },
+    {
+      "id": "quote:4209db6c6eefabbb",
+      "type": "Quote",
+      "properties": {
+        "text": "So, as you mentioned, it obviously hasn't happened yet,Speaker 2: but people have been writing and thinking about it forSpeaker 2: years and years and years,",
+        "episode_id": "f7904791-f77c-421b-a3d3-b43b015542d2",
+        "speaker_id": null,
+        "char_start": 1589,
+        "char_end": 1746,
+        "timestamp_start_ms": 89720,
+        "timestamp_end_ms": 97959,
+        "transcript_ref": "transcripts/0003 - How Taiwan Became the World_s Most Perilous Geopolitical Chokepoint_20260506-135048_ba02775e.txt"
+      }
+    },
+    {
+      "id": "insight:2ff3767af2013acc",
+      "type": "Insight",
+      "properties": {
+        "text": "The resolution of the Strait of Hormuz situation is expected to bring the question of Taiwan back to the forefront of geopolitical discussions.",
+        "episode_id": "f7904791-f77c-421b-a3d3-b43b015542d2",
+        "grounded": true,
+        "insight_type": "opinion",
+        "position_hint": 0.02
+      },
+      "confidence": 1.0
+    },
+    {
+      "id": "quote:fc2041b690d63253",
+      "type": "Quote",
+      "properties": {
+        "text": "But when this resolves, If this resolves,Speaker 3: et cetera, I believe the question of Taiwan will verySpeaker 3: quickly return to the fore.",
+        "episode_id": "f7904791-f77c-421b-a3d3-b43b015542d2",
+        "speaker_id": null,
+        "char_start": 1420,
+        "char_end": 1563,
+        "timestamp_start_ms": 79800,
+        "timestamp_end_ms": 89560,
+        "transcript_ref": "transcripts/0003 - How Taiwan Became the World_s Most Perilous Geopolitical Chokepoint_20260506-135048_ba02775e.txt"
+      }
+    },
+    {
+      "id": "insight:df34d44564c56c6b",
+      "type": "Insight",
+      "properties": {
+        "text": "Taiwan's president canceled a visit to Eswatini due to air route issues and alleged Chinese pressure.",
+        "episode_id": "f7904791-f77c-421b-a3d3-b43b015542d2",
+        "grounded": true,
+        "insight_type": "fact",
+        "position_hint": 0.05
+      },
+      "confidence": 1.0
+    },
+    {
+      "id": "quote:134f36bbe19c3a43",
+      "type": "Quote",
+      "properties": {
+        "text": "So we actually had one this morning. We're recording onSpeaker 2: April twenty. First, the headline is Taiwan's president canceled hisSpeaker 2: visit to Swatini. Do you know where that is?",
+        "episode_id": "f7904791-f77c-421b-a3d3-b43b015542d2",
+        "speaker_id": null,
+        "char_start": 2624,
+        "char_end": 2813,
+        "timestamp_start_ms": 140639,
+        "timestamp_end_ms": 151400,
+        "transcript_ref": "transcripts/0003 - How Taiwan Became the World_s Most Perilous Geopolitical Chokepoint_20260506-135048_ba02775e.txt"
+      }
+    },
+    {
+      "id": "quote:33e31b185029d598",
+      "type": "Quote",
+      "properties": {
+        "text": "Taiwan's president offices citingSpeaker 2: air root issues. I'm doing air quotes for those whoSpeaker 2: can't see this video, and China pressure.",
+        "episode_id": "f7904791-f77c-421b-a3d3-b43b015542d2",
+        "speaker_id": null,
+        "char_start": 3363,
+        "char_end": 3510,
+        "timestamp_start_ms": 176880,
+        "timestamp_end_ms": 188640,
+        "transcript_ref": "transcripts/0003 - How Taiwan Became the World_s Most Perilous Geopolitical Chokepoint_20260506-135048_ba02775e.txt"
+      }
+    },
+    {
+      "id": "insight:23f82e54551ecb98",
+      "type": "Insight",
+      "properties": {
+        "text": "Disruption to semiconductor supply chains would have a significantly greater impact on global markets than a disruption to oil supply.",
+        "episode_id": "f7904791-f77c-421b-a3d3-b43b015542d2",
+        "grounded": true,
+        "insight_type": "claim",
+        "position_hint": 0.06
+      },
+      "confidence": 1.0
+    },
+    {
+      "id": "quote:a882160d321a1caf",
+      "type": "Quote",
+      "properties": {
+        "text": "But as we've kind of learned over theSpeaker 2: past six or seven weeks, oil might not actually beSpeaker 2: the thing that like powers markets. Right if you thinkSpeaker 2: about the true, true, the thing that matters for markets,Speaker 2: it might be something much closer to AI and semiconductorSpeaker 2: evaluation is.",
+        "episode_id": "f7904791-f77c-421b-a3d3-b43b015542d2",
+        "speaker_id": null,
+        "char_start": 3815,
+        "char_end": 4139,
+        "timestamp_start_ms": 199720,
+        "timestamp_end_ms": 219760,
+        "transcript_ref": "transcripts/0003 - How Taiwan Became the World_s Most Perilous Geopolitical Chokepoint_20260506-135048_ba02775e.txt"
+      }
+    },
+    {
+      "id": "quote:4510a9329275dc71",
+      "type": "Quote",
+      "properties": {
+        "text": "Cut right, Yes, totally. I mean, evidently the world couldSpeaker 3: go a few weeks and not grind to a haltSpeaker 3: if the straight of horm moves is closed for aSpeaker 3: few weeks, I believe the reaction in markets would be",
+        "episode_id": "f7904791-f77c-421b-a3d3-b43b015542d2",
+        "speaker_id": null,
+        "char_start": 4150,
+        "char_end": 4377,
+        "timestamp_start_ms": 219720,
+        "timestamp_end_ms": 233240,
+        "transcript_ref": "transcripts/0003 - How Taiwan Became the World_s Most Perilous Geopolitical Chokepoint_20260506-135048_ba02775e.txt"
+      }
+    },
+    {
+      "id": "quote:a4e40ff5c1331f7a",
+      "type": "Quote",
+      "properties": {
+        "text": "and really can everythingSpeaker 3: would be orders of magnitude differently off someone's like no chips,Speaker 3: no chips coming out. That would be such a bigger deal.",
+        "episode_id": "f7904791-f77c-421b-a3d3-b43b015542d2",
+        "speaker_id": null,
+        "char_start": 4419,
+        "char_end": 4589,
+        "timestamp_start_ms": 233360,
+        "timestamp_end_ms": 242480,
+        "transcript_ref": "transcripts/0003 - How Taiwan Became the World_s Most Perilous Geopolitical Chokepoint_20260506-135048_ba02775e.txt"
+      }
+    },
+    {
+      "id": "insight:8db50a1aa76c3ab8",
+      "type": "Insight",
+      "properties": {
+        "text": "Ike Freiman's book \"Defending Taiwan\" explores strategies to prevent war with China.",
+        "episode_id": "f7904791-f77c-421b-a3d3-b43b015542d2",
+        "grounded": true,
+        "insight_type": "fact",
+        "position_hint": 0.08
+      },
+      "confidence": 1.0
+    },
+    {
+      "id": "quote:063d69bf4857e6b3",
+      "type": "Quote",
+      "properties": {
+        "text": "we do, in fact have the perfectSpeaker 2: guests to talk about all of this, someone who hasSpeaker 2: just written a book on exactly this topic called Defending Taiwan,Speaker 2: a Strategy to Prevent War with China.",
+        "episode_id": "f7904791-f77c-421b-a3d3-b43b015542d2",
+        "speaker_id": null,
+        "char_start": 5322,
+        "char_end": 5538,
+        "timestamp_start_ms": 280440,
+        "timestamp_end_ms": 291960,
+        "transcript_ref": "transcripts/0003 - How Taiwan Became the World_s Most Perilous Geopolitical Chokepoint_20260506-135048_ba02775e.txt"
+      }
+    },
+    {
+      "id": "insight:436ff8d447f56b82",
+      "type": "Insight",
+      "properties": {
+        "text": "Freiman finds it difficult to conduct useful research in China due to increased risks and limited access to archives and interviews.",
+        "episode_id": "f7904791-f77c-421b-a3d3-b43b015542d2",
+        "grounded": true,
+        "insight_type": "fact",
+        "position_hint": 0.09
+      },
+      "confidence": 1.0
+    },
+    {
+      "id": "quote:7426c6bbe880028d",
+      "type": "Quote",
+      "properties": {
+        "text": "And I can't do useful research there anymore. It's notSpeaker 5: like there's archives I can access, interviews.",
+        "episode_id": "f7904791-f77c-421b-a3d3-b43b015542d2",
+        "speaker_id": null,
+        "char_start": 6128,
+        "char_end": 6240,
+        "timestamp_start_ms": 313640,
+        "timestamp_end_ms": 319720,
+        "transcript_ref": "transcripts/0003 - How Taiwan Became the World_s Most Perilous Geopolitical Chokepoint_20260506-135048_ba02775e.txt"
+      }
+    },
+    {
+      "id": "quote:66190661b3e9633b",
+      "type": "Quote",
+      "properties": {
+        "text": "So the value of it for research is going downSpeaker 5: for me, but also the risk of my person andSpeaker 5: the risk.",
+        "episode_id": "f7904791-f77c-421b-a3d3-b43b015542d2",
+        "speaker_id": null,
+        "char_start": 6271,
+        "char_end": 6389,
+        "timestamp_start_ms": 320000,
+        "timestamp_end_ms": 324919,
+        "transcript_ref": "transcripts/0003 - How Taiwan Became the World_s Most Perilous Geopolitical Chokepoint_20260506-135048_ba02775e.txt"
+      }
+    },
+    {
+      "id": "insight:cbee361908e04872",
+      "type": "Insight",
+      "properties": {
+        "text": "China's \"Belt and Road\" initiative is viewed as a campaign to mobilize the party-state behind Xi Jinping.",
+        "episode_id": "f7904791-f77c-421b-a3d3-b43b015542d2",
+        "grounded": true,
+        "insight_type": "claim",
+        "position_hint": 0.1
+      },
+      "confidence": 1.0
+    },
+    {
+      "id": "quote:befa2191ce9f2d6e",
+      "type": "Quote",
+      "properties": {
+        "text": "my background is as a China scholar looking atSpeaker 5: the China's global investment campaign. My first book was aboutSpeaker 5: the Belton Road and I looked at a bunch ofSpeaker 5: Chinese language sources that show how it works under theSpeaker 5: hood as a campaign to mobilize the party state behindSpeaker 5: Seson Ping,",
+        "episode_id": "f7904791-f77c-421b-a3d3-b43b015542d2",
+        "speaker_id": null,
+        "char_start": 6705,
+        "char_end": 7032,
+        "timestamp_start_ms": 342279,
+        "timestamp_end_ms": 361000,
+        "transcript_ref": "transcripts/0003 - How Taiwan Became the World_s Most Perilous Geopolitical Chokepoint_20260506-135048_ba02775e.txt"
+      }
+    },
+    {
+      "id": "insight:1c8456c2dca1f8ab",
+      "type": "Insight",
+      "properties": {
+        "text": "China possesses a formidable toolkit for blending economic power with geopolitical objectives.",
+        "episode_id": "f7904791-f77c-421b-a3d3-b43b015542d2",
+        "grounded": true,
+        "insight_type": "claim",
+        "position_hint": 0.11
+      },
+      "confidence": 1.0
+    },
+    {
+      "id": "quote:d04a2f9f4ca6b478",
+      "type": "Quote",
+      "properties": {
+        "text": "what I learned in the process of doing thisSpeaker 5: book is that China has this formidable toolkit for blendingSpeaker 5: economic power with its geopolitical objectives.",
+        "episode_id": "f7904791-f77c-421b-a3d3-b43b015542d2",
+        "speaker_id": null,
+        "char_start": 7404,
+        "char_end": 7576,
+        "timestamp_start_ms": 375600,
+        "timestamp_end_ms": 389520,
+        "transcript_ref": "transcripts/0003 - How Taiwan Became the World_s Most Perilous Geopolitical Chokepoint_20260506-135048_ba02775e.txt"
+      }
+    },
+    {
+      "id": "insight:2fe4fce92e4eca92",
+      "type": "Insight",
+      "properties": {
+        "text": "A Chinese seizure or disabling of Taiwan's semiconductor fabs would constitute a hard reset of the global economic system.",
+        "episode_id": "f7904791-f77c-421b-a3d3-b43b015542d2",
+        "grounded": true,
+        "insight_type": "claim",
+        "position_hint": 0.14
+      },
+      "confidence": 1.0
+    },
+    {
+      "id": "quote:e5f0558ccb989520",
+      "type": "Quote",
+      "properties": {
+        "text": "And then finally it's an economic problem.Speaker 5: It's a question of global economic order, because if TaiwanSpeaker 5: falls by force or coercion and China seizes the FABS,Speaker 5: the semiconductor FABS, or the FABS are disabled or destroyed,Speaker 5: that is a hard reset of the entire global economicSpeaker 5: system that we have had since nineteen eighty nine andSpeaker 5: arguably back to nineteen forty five.",
+        "episode_id": "f7904791-f77c-421b-a3d3-b43b015542d2",
+        "speaker_id": null,
+        "char_start": 9258,
+        "char_end": 9681,
+        "timestamp_start_ms": 465680,
+        "timestamp_end_ms": 488040,
+        "transcript_ref": "transcripts/0003 - How Taiwan Became the World_s Most Perilous Geopolitical Chokepoint_20260506-135048_ba02775e.txt"
+      }
+    },
+    {
+      "id": "insight:c0f79ba93292046a",
+      "type": "Insight",
+      "properties": {
+        "text": "China's interest in Taiwan is primarily driven by the historical imperative to \"make China whole\" and achieve political legitimacy, not solely by semiconductor production.",
+        "episode_id": "f7904791-f77c-421b-a3d3-b43b015542d2",
+        "grounded": true,
+        "insight_type": "claim",
+        "position_hint": 0.17
+      },
+      "confidence": 1.0
+    },
+    {
+      "id": "quote:d9154bc7c553e6fc",
+      "type": "Quote",
+      "properties": {
+        "text": "The first thing toSpeaker 5: understand is that it's not about the chips.",
+        "episode_id": "f7904791-f77c-421b-a3d3-b43b015542d2",
+        "speaker_id": null,
+        "char_start": 10701,
+        "char_end": 10774,
+        "timestamp_start_ms": 530800,
+        "timestamp_end_ms": 535680,
+        "transcript_ref": "transcripts/0003 - How Taiwan Became the World_s Most Perilous Geopolitical Chokepoint_20260506-135048_ba02775e.txt"
+      }
+    },
+    {
+      "id": "quote:43bcb38c06735434",
+      "type": "Quote",
+      "properties": {
+        "text": "For China.Speaker 5: The chips are a co benefit. But China cared aboutSpeaker 5: time I won long before they made hips, and theySpeaker 5: would care about them if they didn't make chips.",
+        "episode_id": "f7904791-f77c-421b-a3d3-b43b015542d2",
+        "speaker_id": null,
+        "char_start": 10785,
+        "char_end": 10972,
+        "timestamp_start_ms": 536120,
+        "timestamp_end_ms": 544480,
+        "transcript_ref": "transcripts/0003 - How Taiwan Became the World_s Most Perilous Geopolitical Chokepoint_20260506-135048_ba02775e.txt"
+      }
+    },
+    {
+      "id": "quote:6724914ecc36a495",
+      "type": "Quote",
+      "properties": {
+        "text": "Speaker 5: is the unfinished business of China's Civil War.",
+        "episode_id": "f7904791-f77c-421b-a3d3-b43b015542d2",
+        "speaker_id": null,
+        "char_start": 10979,
+        "char_end": 11038,
+        "timestamp_start_ms": 544600,
+        "timestamp_end_ms": 548640,
+        "transcript_ref": "transcripts/0003 - How Taiwan Became the World_s Most Perilous Geopolitical Chokepoint_20260506-135048_ba02775e.txt"
+      }
+    },
+    {
+      "id": "quote:d6c014219da96ebf",
+      "type": "Quote",
+      "properties": {
+        "text": "a fundamental question ofSpeaker 5: the legitimacy of the Chinese Communist Party, and so itSpeaker 5: became this tootemic propaganda point. We will liberate Taiwan fromSpeaker 5: the imperialists, and in the process we will make China whole.",
+        "episode_id": "f7904791-f77c-421b-a3d3-b43b015542d2",
+        "speaker_id": null,
+        "char_start": 11956,
+        "char_end": 12199,
+        "timestamp_start_ms": 590679,
+        "timestamp_end_ms": 604760,
+        "transcript_ref": "transcripts/0003 - How Taiwan Became the World_s Most Perilous Geopolitical Chokepoint_20260506-135048_ba02775e.txt"
+      }
+    },
+    {
+      "id": "quote:8df0f0c4215f2f9f",
+      "type": "Quote",
+      "properties": {
+        "text": "So this is why it's sensitive. It's notSpeaker 5: just about the status of Taiwan. It's about what China means,Speaker 5: and that has always been bound up in competition withSpeaker 5: the United States.",
+        "episode_id": "f7904791-f77c-421b-a3d3-b43b015542d2",
+        "speaker_id": null,
+        "char_start": 12771,
+        "char_end": 12975,
+        "timestamp_start_ms": 629440,
+        "timestamp_end_ms": 641040,
+        "transcript_ref": "transcripts/0003 - How Taiwan Became the World_s Most Perilous Geopolitical Chokepoint_20260506-135048_ba02775e.txt"
+      }
+    }
+  ],
+  "edges": [
+    {
+      "type": "HAS_INSIGHT",
+      "from": "episode:f7904791-f77c-421b-a3d3-b43b015542d2",
+      "to": "insight:a5541743feb6d576"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:a5541743feb6d576",
+      "to": "topic:geopolitical-blockades",
+      "properties": {
+        "confidence": 0.739
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:a5541743feb6d576",
+      "to": "topic:strait-of-hormuz",
+      "properties": {
+        "confidence": 0.4728
+      }
+    },
+    {
+      "type": "SUPPORTED_BY",
+      "from": "insight:a5541743feb6d576",
+      "to": "quote:40351860f8222157"
+    },
+    {
+      "type": "SUPPORTED_BY",
+      "from": "insight:a5541743feb6d576",
+      "to": "quote:802332fddf0b47b0"
+    },
+    {
+      "type": "SUPPORTED_BY",
+      "from": "insight:a5541743feb6d576",
+      "to": "quote:6ab49dd2d82c2669"
+    },
+    {
+      "type": "HAS_INSIGHT",
+      "from": "episode:f7904791-f77c-421b-a3d3-b43b015542d2",
+      "to": "insight:681e271c55b6928d"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:681e271c55b6928d",
+      "to": "topic:strait-of-hormuz",
+      "properties": {
+        "confidence": 0.5977
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:681e271c55b6928d",
+      "to": "topic:geopolitical-blockades",
+      "properties": {
+        "confidence": 0.5183
+      }
+    },
+    {
+      "type": "SUPPORTED_BY",
+      "from": "insight:681e271c55b6928d",
+      "to": "quote:3dc19cb3ddfc5615"
+    },
+    {
+      "type": "HAS_INSIGHT",
+      "from": "episode:f7904791-f77c-421b-a3d3-b43b015542d2",
+      "to": "insight:49c53791574bfcd1"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:49c53791574bfcd1",
+      "to": "topic:geopolitical-blockades",
+      "properties": {
+        "confidence": 0.6037
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:49c53791574bfcd1",
+      "to": "topic:us-china-policy",
+      "properties": {
+        "confidence": 0.5042
+      }
+    },
+    {
+      "type": "SUPPORTED_BY",
+      "from": "insight:49c53791574bfcd1",
+      "to": "quote:124454314c8492b5"
+    },
+    {
+      "type": "SUPPORTED_BY",
+      "from": "insight:49c53791574bfcd1",
+      "to": "quote:4209db6c6eefabbb"
+    },
+    {
+      "type": "HAS_INSIGHT",
+      "from": "episode:f7904791-f77c-421b-a3d3-b43b015542d2",
+      "to": "insight:2ff3767af2013acc"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:2ff3767af2013acc",
+      "to": "topic:strait-of-hormuz",
+      "properties": {
+        "confidence": 0.5599
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:2ff3767af2013acc",
+      "to": "topic:taiwanese-politics",
+      "properties": {
+        "confidence": 0.454
+      }
+    },
+    {
+      "type": "SUPPORTED_BY",
+      "from": "insight:2ff3767af2013acc",
+      "to": "quote:fc2041b690d63253"
+    },
+    {
+      "type": "HAS_INSIGHT",
+      "from": "episode:f7904791-f77c-421b-a3d3-b43b015542d2",
+      "to": "insight:df34d44564c56c6b"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:df34d44564c56c6b",
+      "to": "topic:taiwanese-politics",
+      "properties": {
+        "confidence": 0.3639
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:df34d44564c56c6b",
+      "to": "topic:china-taiwan",
+      "properties": {
+        "confidence": 0.3217
+      }
+    },
+    {
+      "type": "SUPPORTED_BY",
+      "from": "insight:df34d44564c56c6b",
+      "to": "quote:134f36bbe19c3a43"
+    },
+    {
+      "type": "SUPPORTED_BY",
+      "from": "insight:df34d44564c56c6b",
+      "to": "quote:33e31b185029d598"
+    },
+    {
+      "type": "HAS_INSIGHT",
+      "from": "episode:f7904791-f77c-421b-a3d3-b43b015542d2",
+      "to": "insight:23f82e54551ecb98"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:23f82e54551ecb98",
+      "to": "topic:semiconductor-supply",
+      "properties": {
+        "confidence": 0.3479
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:23f82e54551ecb98",
+      "to": "topic:strategic-ambiguity",
+      "properties": {
+        "confidence": 0.3123
+      }
+    },
+    {
+      "type": "SUPPORTED_BY",
+      "from": "insight:23f82e54551ecb98",
+      "to": "quote:a882160d321a1caf"
+    },
+    {
+      "type": "SUPPORTED_BY",
+      "from": "insight:23f82e54551ecb98",
+      "to": "quote:4510a9329275dc71"
+    },
+    {
+      "type": "SUPPORTED_BY",
+      "from": "insight:23f82e54551ecb98",
+      "to": "quote:a4e40ff5c1331f7a"
+    },
+    {
+      "type": "HAS_INSIGHT",
+      "from": "episode:f7904791-f77c-421b-a3d3-b43b015542d2",
+      "to": "insight:8db50a1aa76c3ab8"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:8db50a1aa76c3ab8",
+      "to": "topic:taiwanese-politics",
+      "properties": {
+        "confidence": 0.5677
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:8db50a1aa76c3ab8",
+      "to": "topic:china-taiwan",
+      "properties": {
+        "confidence": 0.5576
+      }
+    },
+    {
+      "type": "SUPPORTED_BY",
+      "from": "insight:8db50a1aa76c3ab8",
+      "to": "quote:063d69bf4857e6b3"
+    },
+    {
+      "type": "HAS_INSIGHT",
+      "from": "episode:f7904791-f77c-421b-a3d3-b43b015542d2",
+      "to": "insight:436ff8d447f56b82"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:436ff8d447f56b82",
+      "to": "topic:us-china-policy",
+      "properties": {
+        "confidence": 0.3061
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:436ff8d447f56b82",
+      "to": "topic:china-taiwan",
+      "properties": {
+        "confidence": 0.2657
+      }
+    },
+    {
+      "type": "SUPPORTED_BY",
+      "from": "insight:436ff8d447f56b82",
+      "to": "quote:7426c6bbe880028d"
+    },
+    {
+      "type": "SUPPORTED_BY",
+      "from": "insight:436ff8d447f56b82",
+      "to": "quote:66190661b3e9633b"
+    },
+    {
+      "type": "HAS_INSIGHT",
+      "from": "episode:f7904791-f77c-421b-a3d3-b43b015542d2",
+      "to": "insight:cbee361908e04872"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:cbee361908e04872",
+      "to": "topic:us-china-policy",
+      "properties": {
+        "confidence": 0.5133
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:cbee361908e04872",
+      "to": "topic:taiwanese-politics",
+      "properties": {
+        "confidence": 0.3299
+      }
+    },
+    {
+      "type": "SUPPORTED_BY",
+      "from": "insight:cbee361908e04872",
+      "to": "quote:befa2191ce9f2d6e"
+    },
+    {
+      "type": "HAS_INSIGHT",
+      "from": "episode:f7904791-f77c-421b-a3d3-b43b015542d2",
+      "to": "insight:1c8456c2dca1f8ab"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:1c8456c2dca1f8ab",
+      "to": "topic:us-china-policy",
+      "properties": {
+        "confidence": 0.5411
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:1c8456c2dca1f8ab",
+      "to": "topic:global-economy",
+      "properties": {
+        "confidence": 0.4797
+      }
+    },
+    {
+      "type": "SUPPORTED_BY",
+      "from": "insight:1c8456c2dca1f8ab",
+      "to": "quote:d04a2f9f4ca6b478"
+    },
+    {
+      "type": "HAS_INSIGHT",
+      "from": "episode:f7904791-f77c-421b-a3d3-b43b015542d2",
+      "to": "insight:2fe4fce92e4eca92"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:2fe4fce92e4eca92",
+      "to": "topic:us-china-policy",
+      "properties": {
+        "confidence": 0.3986
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:2fe4fce92e4eca92",
+      "to": "topic:global-economy",
+      "properties": {
+        "confidence": 0.3742
+      }
+    },
+    {
+      "type": "SUPPORTED_BY",
+      "from": "insight:2fe4fce92e4eca92",
+      "to": "quote:e5f0558ccb989520"
+    },
+    {
+      "type": "HAS_INSIGHT",
+      "from": "episode:f7904791-f77c-421b-a3d3-b43b015542d2",
+      "to": "insight:c0f79ba93292046a"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:c0f79ba93292046a",
+      "to": "topic:china-taiwan",
+      "properties": {
+        "confidence": 0.5914
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:c0f79ba93292046a",
+      "to": "topic:taiwanese-politics",
+      "properties": {
+        "confidence": 0.5898
+      }
+    },
+    {
+      "type": "SUPPORTED_BY",
+      "from": "insight:c0f79ba93292046a",
+      "to": "quote:d9154bc7c553e6fc"
+    },
+    {
+      "type": "SUPPORTED_BY",
+      "from": "insight:c0f79ba93292046a",
+      "to": "quote:43bcb38c06735434"
+    },
+    {
+      "type": "SUPPORTED_BY",
+      "from": "insight:c0f79ba93292046a",
+      "to": "quote:6724914ecc36a495"
+    },
+    {
+      "type": "SUPPORTED_BY",
+      "from": "insight:c0f79ba93292046a",
+      "to": "quote:d6c014219da96ebf"
+    },
+    {
+      "type": "SUPPORTED_BY",
+      "from": "insight:c0f79ba93292046a",
+      "to": "quote:8df0f0c4215f2f9f"
+    }
+  ]
+}

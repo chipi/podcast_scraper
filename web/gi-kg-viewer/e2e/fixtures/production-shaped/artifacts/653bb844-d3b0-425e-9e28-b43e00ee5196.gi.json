@@ -1,0 +1,764 @@
+{
+  "schema_version": "2.0",
+  "model_version": "gemini-2.5-flash-lite",
+  "prompt_version": "v1",
+  "episode_id": "653bb844-d3b0-425e-9e28-b43e00ee5196",
+  "nodes": [
+    {
+      "id": "episode:653bb844-d3b0-425e-9e28-b43e00ee5196",
+      "type": "Episode",
+      "properties": {
+        "podcast_id": "sha256:1cd6aecdd31c0ae82c2c76efdb6327b54e6026924b47852c51ffb406a9f2b19c",
+        "title": "How Baltimore's Mayor Is Fighting the City's Vacant Housing Crisis",
+        "publish_date": "2026-05-04T08:00:00+00:00",
+        "duration_ms": 2962000,
+        "feed_id": "sha256:1cd6aecdd31c0ae82c2c76efdb6327b54e6026924b47852c51ffb406a9f2b19c"
+      }
+    },
+    {
+      "id": "topic:vacant-housing",
+      "type": "Topic",
+      "properties": {
+        "label": "vacant housing"
+      }
+    },
+    {
+      "id": "topic:urban-planning",
+      "type": "Topic",
+      "properties": {
+        "label": "urban planning"
+      }
+    },
+    {
+      "id": "topic:neighborhood-revitalization",
+      "type": "Topic",
+      "properties": {
+        "label": "neighborhood revitalization"
+      }
+    },
+    {
+      "id": "topic:racial-redlining",
+      "type": "Topic",
+      "properties": {
+        "label": "racial redlining"
+      }
+    },
+    {
+      "id": "topic:city-government",
+      "type": "Topic",
+      "properties": {
+        "label": "city government"
+      }
+    },
+    {
+      "id": "topic:community-development",
+      "type": "Topic",
+      "properties": {
+        "label": "community development"
+      }
+    },
+    {
+      "id": "topic:housing-policy",
+      "type": "Topic",
+      "properties": {
+        "label": "housing policy"
+      }
+    },
+    {
+      "id": "topic:public-investment",
+      "type": "Topic",
+      "properties": {
+        "label": "public investment"
+      }
+    },
+    {
+      "id": "topic:historical-context",
+      "type": "Topic",
+      "properties": {
+        "label": "historical context"
+      }
+    },
+    {
+      "id": "topic:private-capital",
+      "type": "Topic",
+      "properties": {
+        "label": "private capital"
+      }
+    },
+    {
+      "id": "insight:e7a937122206d464",
+      "type": "Insight",
+      "properties": {
+        "text": "Housing shortages present distinct challenges in different urban and rural environments.",
+        "episode_id": "653bb844-d3b0-425e-9e28-b43e00ee5196",
+        "grounded": true,
+        "insight_type": "fact",
+        "position_hint": 0.03
+      },
+      "confidence": 1.0
+    },
+    {
+      "id": "quote:fcd4aec88db54797",
+      "type": "Quote",
+      "properties": {
+        "text": "It's very sparse and rural. Even there, there's a housing shortage,",
+        "episode_id": "653bb844-d3b0-425e-9e28-b43e00ee5196",
+        "speaker_id": null,
+        "char_start": 1358,
+        "char_end": 1425,
+        "timestamp_start_ms": 79920,
+        "timestamp_end_ms": 82880,
+        "transcript_ref": "transcripts/0001 - How Baltimore_s Mayor Is Fighting the City_s Vacant Housing Crisis_20260506-135048_ba02775e.txt"
+      }
+    },
+    {
+      "id": "insight:ae9805f84186a89a",
+      "type": "Insight",
+      "properties": {
+        "text": "Baltimore's vacant housing problem is a direct consequence of historical racial redlining and purposeful disinvestment.",
+        "episode_id": "653bb844-d3b0-425e-9e28-b43e00ee5196",
+        "grounded": true,
+        "insight_type": "fact",
+        "position_hint": 0.09
+      },
+      "confidence": 1.0
+    },
+    {
+      "id": "quote:6e6f3dcccd53078a",
+      "type": "Quote",
+      "properties": {
+        "text": "something that I discovered when I became the mayor of Baltimore.",
+        "episode_id": "653bb844-d3b0-425e-9e28-b43e00ee5196",
+        "speaker_id": null,
+        "char_start": 4686,
+        "char_end": 4751,
+        "timestamp_start_ms": 231600,
+        "timestamp_end_ms": 234480,
+        "transcript_ref": "transcripts/0001 - How Baltimore_s Mayor Is Fighting the City_s Vacant Housing Crisis_20260506-135048_ba02775e.txt"
+      }
+    },
+    {
+      "id": "quote:36e5f0b6b0164bee",
+      "type": "Quote",
+      "properties": {
+        "text": "correlation to purposeful disinvestment into those neighborhoods, and all the",
+        "episode_id": "653bb844-d3b0-425e-9e28-b43e00ee5196",
+        "speaker_id": null,
+        "char_start": 6411,
+        "char_end": 6488,
+        "timestamp_start_ms": 316240,
+        "timestamp_end_ms": 320279,
+        "transcript_ref": "transcripts/0001 - How Baltimore_s Mayor Is Fighting the City_s Vacant Housing Crisis_20260506-135048_ba02775e.txt"
+      }
+    },
+    {
+      "id": "insight:4283f326c0668380",
+      "type": "Insight",
+      "properties": {
+        "text": "The number of vacant properties in Baltimore remained largely unchanged for two decades prior to the current administration's strategy.",
+        "episode_id": "653bb844-d3b0-425e-9e28-b43e00ee5196",
+        "grounded": true,
+        "insight_type": "fact",
+        "position_hint": 0.09
+      },
+      "confidence": 1.0
+    },
+    {
+      "id": "quote:64d003c08a63f898",
+      "type": "Quote",
+      "properties": {
+        "text": "thousand vacant properties. The number essentially had not moved.",
+        "episode_id": "653bb844-d3b0-425e-9e28-b43e00ee5196",
+        "speaker_id": null,
+        "char_start": 5504,
+        "char_end": 5569,
+        "timestamp_start_ms": 270520,
+        "timestamp_end_ms": 275080,
+        "transcript_ref": "transcripts/0001 - How Baltimore_s Mayor Is Fighting the City_s Vacant Housing Crisis_20260506-135048_ba02775e.txt"
+      }
+    },
+    {
+      "id": "insight:1efd68c571d5d13b",
+      "type": "Insight",
+      "properties": {
+        "text": "Previous administrations focused on short-term solutions for vacant housing, whereas the current strategy is a long-term, community-wide initiative.",
+        "episode_id": "653bb844-d3b0-425e-9e28-b43e00ee5196",
+        "grounded": false,
+        "insight_type": "claim"
+      }
+    },
+    {
+      "id": "insight:f4f1437b46a98b94",
+      "type": "Insight",
+      "properties": {
+        "text": "A unified strategy involving city government, state, philanthropy, and residents is essential for addressing Baltimore's housing crisis.",
+        "episode_id": "653bb844-d3b0-425e-9e28-b43e00ee5196",
+        "grounded": true,
+        "insight_type": "claim",
+        "position_hint": 0.39
+      },
+      "confidence": 1.0
+    },
+    {
+      "id": "quote:d815754bc71a3996",
+      "type": "Quote",
+      "properties": {
+        "text": "that has relationships with churches and communities and mosque and",
+        "episode_id": "653bb844-d3b0-425e-9e28-b43e00ee5196",
+        "speaker_id": null,
+        "char_start": 8714,
+        "char_end": 8781,
+        "timestamp_start_ms": 428760,
+        "timestamp_end_ms": 432720,
+        "transcript_ref": "transcripts/0001 - How Baltimore_s Mayor Is Fighting the City_s Vacant Housing Crisis_20260506-135048_ba02775e.txt"
+      }
+    },
+    {
+      "id": "quote:956117f487968ec9",
+      "type": "Quote",
+      "properties": {
+        "text": "philanthropic investment into the vacant strategy. So it's really everybody",
+        "episode_id": "653bb844-d3b0-425e-9e28-b43e00ee5196",
+        "speaker_id": null,
+        "char_start": 38791,
+        "char_end": 38866,
+        "timestamp_start_ms": 1878480,
+        "timestamp_end_ms": 1883080,
+        "transcript_ref": "transcripts/0001 - How Baltimore_s Mayor Is Fighting the City_s Vacant Housing Crisis_20260506-135048_ba02775e.txt"
+      }
+    },
+    {
+      "id": "insight:821c6518307bf82b",
+      "type": "Insight",
+      "properties": {
+        "text": "State government support, including $50 million annually, has enabled significant progress in reducing vacant properties.",
+        "episode_id": "653bb844-d3b0-425e-9e28-b43e00ee5196",
+        "grounded": false,
+        "insight_type": "fact"
+      }
+    },
+    {
+      "id": "insight:ad051d8feab3d8d6",
+      "type": "Insight",
+      "properties": {
+        "text": "Many vacant properties in Baltimore are privately owned, posing challenges for city intervention and redevelopment.",
+        "episode_id": "653bb844-d3b0-425e-9e28-b43e00ee5196",
+        "grounded": true,
+        "insight_type": "fact",
+        "position_hint": 0.18
+      },
+      "confidence": 1.0
+    },
+    {
+      "id": "quote:6077190451f9dfca",
+      "type": "Quote",
+      "properties": {
+        "text": "city of Baltimore are not owned by the City of Baltimore.",
+        "episode_id": "653bb844-d3b0-425e-9e28-b43e00ee5196",
+        "speaker_id": null,
+        "char_start": 10577,
+        "char_end": 10634,
+        "timestamp_start_ms": 521039,
+        "timestamp_end_ms": 524000,
+        "transcript_ref": "transcripts/0001 - How Baltimore_s Mayor Is Fighting the City_s Vacant Housing Crisis_20260506-135048_ba02775e.txt"
+      }
+    },
+    {
+      "id": "quote:75deaa02cb573faf",
+      "type": "Quote",
+      "properties": {
+        "text": "They're owned by private folks who are sitting on them,",
+        "episode_id": "653bb844-d3b0-425e-9e28-b43e00ee5196",
+        "speaker_id": null,
+        "char_start": 10645,
+        "char_end": 10700,
+        "timestamp_start_ms": 524159,
+        "timestamp_end_ms": 526520,
+        "transcript_ref": "transcripts/0001 - How Baltimore_s Mayor Is Fighting the City_s Vacant Housing Crisis_20260506-135048_ba02775e.txt"
+      }
+    },
+    {
+      "id": "insight:981fe297bfac18a4",
+      "type": "Insight",
+      "properties": {
+        "text": "The process of acquiring and renovating vacant properties is lengthy and complex, often requiring court intervention.",
+        "episode_id": "653bb844-d3b0-425e-9e28-b43e00ee5196",
+        "grounded": true,
+        "insight_type": "fact",
+        "position_hint": 0.28
+      },
+      "confidence": 1.0
+    },
+    {
+      "id": "quote:899d677c5bf433a6",
+      "type": "Quote",
+      "properties": {
+        "text": "worked with the court. We have a special inrim docket,",
+        "episode_id": "653bb844-d3b0-425e-9e28-b43e00ee5196",
+        "speaker_id": null,
+        "char_start": 17296,
+        "char_end": 17350,
+        "timestamp_start_ms": 839559,
+        "timestamp_end_ms": 842040,
+        "transcript_ref": "transcripts/0001 - How Baltimore_s Mayor Is Fighting the City_s Vacant Housing Crisis_20260506-135048_ba02775e.txt"
+      }
+    },
+    {
+      "id": "insight:88e92de7ee1bf9fa",
+      "type": "Insight",
+      "properties": {
+        "text": "Baltimore's strategy involves block-level planning to tailor redevelopment to specific neighborhood needs and aesthetics.",
+        "episode_id": "653bb844-d3b0-425e-9e28-b43e00ee5196",
+        "grounded": true,
+        "insight_type": "claim",
+        "position_hint": 0.34
+      },
+      "confidence": 1.0
+    },
+    {
+      "id": "quote:3900ad99ddb7853c",
+      "type": "Quote",
+      "properties": {
+        "text": "Speaker 5: in the game. That's where the block by block comes. Okay, really,",
+        "episode_id": "653bb844-d3b0-425e-9e28-b43e00ee5196",
+        "speaker_id": null,
+        "char_start": 15275,
+        "char_end": 15351,
+        "timestamp_start_ms": 746080,
+        "timestamp_end_ms": 748680,
+        "transcript_ref": "transcripts/0001 - How Baltimore_s Mayor Is Fighting the City_s Vacant Housing Crisis_20260506-135048_ba02775e.txt"
+      }
+    },
+    {
+      "id": "quote:bdc866ff8316612a",
+      "type": "Quote",
+      "properties": {
+        "text": "Speaker 5: neighborhoods love their neighborhood aesthetic and they want to keep",
+        "episode_id": "653bb844-d3b0-425e-9e28-b43e00ee5196",
+        "speaker_id": null,
+        "char_start": 25346,
+        "char_end": 25426,
+        "timestamp_start_ms": 1247000,
+        "timestamp_end_ms": 1250480,
+        "transcript_ref": "transcripts/0001 - How Baltimore_s Mayor Is Fighting the City_s Vacant Housing Crisis_20260506-135048_ba02775e.txt"
+      }
+    },
+    {
+      "id": "quote:9963e8c384b5d019",
+      "type": "Quote",
+      "properties": {
+        "text": "Speaker 5: neighborhood strategic investment areas, identifying those things before we get",
+        "episode_id": "653bb844-d3b0-425e-9e28-b43e00ee5196",
+        "speaker_id": null,
+        "char_start": 21899,
+        "char_end": 21989,
+        "timestamp_start_ms": 1067480,
+        "timestamp_end_ms": 1073000,
+        "transcript_ref": "transcripts/0001 - How Baltimore_s Mayor Is Fighting the City_s Vacant Housing Crisis_20260506-135048_ba02775e.txt"
+      }
+    },
+    {
+      "id": "insight:5b4b2a3d6e49e405",
+      "type": "Insight",
+      "properties": {
+        "text": "The city is using Tax Increment Financing (TIF) for non-contiguous areas, an innovative approach to incentivize development in disinvested neighborhoods.",
+        "episode_id": "653bb844-d3b0-425e-9e28-b43e00ee5196",
+        "grounded": false,
+        "insight_type": "claim"
+      }
+    },
+    {
+      "id": "insight:0a0df835df5cdf2b",
+      "type": "Insight",
+      "properties": {
+        "text": "Baltimore's revitalization efforts are strategically focused on historically redlined and disinvested areas.",
+        "episode_id": "653bb844-d3b0-425e-9e28-b43e00ee5196",
+        "grounded": true,
+        "insight_type": "claim",
+        "position_hint": 0.2
+      },
+      "confidence": 1.0
+    },
+    {
+      "id": "quote:661c20126a1f2b53",
+      "type": "Quote",
+      "properties": {
+        "text": "even the vacant smap today, it's the same neighborhoods, literally",
+        "episode_id": "653bb844-d3b0-425e-9e28-b43e00ee5196",
+        "speaker_id": null,
+        "char_start": 5955,
+        "char_end": 6021,
+        "timestamp_start_ms": 293360,
+        "timestamp_end_ms": 297560,
+        "transcript_ref": "transcripts/0001 - How Baltimore_s Mayor Is Fighting the City_s Vacant Housing Crisis_20260506-135048_ba02775e.txt"
+      }
+    },
+    {
+      "id": "quote:41ea0c690cd127b4",
+      "type": "Quote",
+      "properties": {
+        "text": "correlation to purposeful disinvestment into those neighborhoods, and all the",
+        "episode_id": "653bb844-d3b0-425e-9e28-b43e00ee5196",
+        "speaker_id": null,
+        "char_start": 6411,
+        "char_end": 6488,
+        "timestamp_start_ms": 316240,
+        "timestamp_end_ms": 320279,
+        "transcript_ref": "transcripts/0001 - How Baltimore_s Mayor Is Fighting the City_s Vacant Housing Crisis_20260506-135048_ba02775e.txt"
+      }
+    },
+    {
+      "id": "quote:91645e44dc5e1cd4",
+      "type": "Quote",
+      "properties": {
+        "text": "been disinvested in in the butterfly or the red line neighborhoods.",
+        "episode_id": "653bb844-d3b0-425e-9e28-b43e00ee5196",
+        "speaker_id": null,
+        "char_start": 24093,
+        "char_end": 24160,
+        "timestamp_start_ms": 1172240,
+        "timestamp_end_ms": 1176000,
+        "transcript_ref": "transcripts/0001 - How Baltimore_s Mayor Is Fighting the City_s Vacant Housing Crisis_20260506-135048_ba02775e.txt"
+      }
+    },
+    {
+      "id": "insight:bfb2db9a6f8811c8",
+      "type": "Insight",
+      "properties": {
+        "text": "The city aims to balance private development and profit with the goal of improving neighborhoods and providing affordable housing.",
+        "episode_id": "653bb844-d3b0-425e-9e28-b43e00ee5196",
+        "grounded": false,
+        "insight_type": "claim"
+      }
+    }
+  ],
+  "edges": [
+    {
+      "type": "HAS_INSIGHT",
+      "from": "episode:653bb844-d3b0-425e-9e28-b43e00ee5196",
+      "to": "insight:e7a937122206d464"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:e7a937122206d464",
+      "to": "topic:housing-policy",
+      "properties": {
+        "confidence": 0.5488
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:e7a937122206d464",
+      "to": "topic:vacant-housing",
+      "properties": {
+        "confidence": 0.4792
+      }
+    },
+    {
+      "type": "SUPPORTED_BY",
+      "from": "insight:e7a937122206d464",
+      "to": "quote:fcd4aec88db54797"
+    },
+    {
+      "type": "HAS_INSIGHT",
+      "from": "episode:653bb844-d3b0-425e-9e28-b43e00ee5196",
+      "to": "insight:ae9805f84186a89a"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:ae9805f84186a89a",
+      "to": "topic:racial-redlining",
+      "properties": {
+        "confidence": 0.5331
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:ae9805f84186a89a",
+      "to": "topic:vacant-housing",
+      "properties": {
+        "confidence": 0.4326
+      }
+    },
+    {
+      "type": "SUPPORTED_BY",
+      "from": "insight:ae9805f84186a89a",
+      "to": "quote:6e6f3dcccd53078a"
+    },
+    {
+      "type": "SUPPORTED_BY",
+      "from": "insight:ae9805f84186a89a",
+      "to": "quote:36e5f0b6b0164bee"
+    },
+    {
+      "type": "HAS_INSIGHT",
+      "from": "episode:653bb844-d3b0-425e-9e28-b43e00ee5196",
+      "to": "insight:4283f326c0668380"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:4283f326c0668380",
+      "to": "topic:vacant-housing",
+      "properties": {
+        "confidence": 0.4804
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:4283f326c0668380",
+      "to": "topic:neighborhood-revitalization",
+      "properties": {
+        "confidence": 0.3027
+      }
+    },
+    {
+      "type": "SUPPORTED_BY",
+      "from": "insight:4283f326c0668380",
+      "to": "quote:64d003c08a63f898"
+    },
+    {
+      "type": "HAS_INSIGHT",
+      "from": "episode:653bb844-d3b0-425e-9e28-b43e00ee5196",
+      "to": "insight:1efd68c571d5d13b"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:1efd68c571d5d13b",
+      "to": "topic:housing-policy",
+      "properties": {
+        "confidence": 0.4659
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:1efd68c571d5d13b",
+      "to": "topic:vacant-housing",
+      "properties": {
+        "confidence": 0.4576
+      }
+    },
+    {
+      "type": "HAS_INSIGHT",
+      "from": "episode:653bb844-d3b0-425e-9e28-b43e00ee5196",
+      "to": "insight:f4f1437b46a98b94"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:f4f1437b46a98b94",
+      "to": "topic:housing-policy",
+      "properties": {
+        "confidence": 0.4813
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:f4f1437b46a98b94",
+      "to": "topic:city-government",
+      "properties": {
+        "confidence": 0.4625
+      }
+    },
+    {
+      "type": "SUPPORTED_BY",
+      "from": "insight:f4f1437b46a98b94",
+      "to": "quote:d815754bc71a3996"
+    },
+    {
+      "type": "SUPPORTED_BY",
+      "from": "insight:f4f1437b46a98b94",
+      "to": "quote:956117f487968ec9"
+    },
+    {
+      "type": "HAS_INSIGHT",
+      "from": "episode:653bb844-d3b0-425e-9e28-b43e00ee5196",
+      "to": "insight:821c6518307bf82b"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:821c6518307bf82b",
+      "to": "topic:vacant-housing",
+      "properties": {
+        "confidence": 0.4327
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:821c6518307bf82b",
+      "to": "topic:housing-policy",
+      "properties": {
+        "confidence": 0.3801
+      }
+    },
+    {
+      "type": "HAS_INSIGHT",
+      "from": "episode:653bb844-d3b0-425e-9e28-b43e00ee5196",
+      "to": "insight:ad051d8feab3d8d6"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:ad051d8feab3d8d6",
+      "to": "topic:vacant-housing",
+      "properties": {
+        "confidence": 0.5383
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:ad051d8feab3d8d6",
+      "to": "topic:private-capital",
+      "properties": {
+        "confidence": 0.453
+      }
+    },
+    {
+      "type": "SUPPORTED_BY",
+      "from": "insight:ad051d8feab3d8d6",
+      "to": "quote:6077190451f9dfca"
+    },
+    {
+      "type": "SUPPORTED_BY",
+      "from": "insight:ad051d8feab3d8d6",
+      "to": "quote:75deaa02cb573faf"
+    },
+    {
+      "type": "HAS_INSIGHT",
+      "from": "episode:653bb844-d3b0-425e-9e28-b43e00ee5196",
+      "to": "insight:981fe297bfac18a4"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:981fe297bfac18a4",
+      "to": "topic:vacant-housing",
+      "properties": {
+        "confidence": 0.4347
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:981fe297bfac18a4",
+      "to": "topic:neighborhood-revitalization",
+      "properties": {
+        "confidence": 0.2971
+      }
+    },
+    {
+      "type": "SUPPORTED_BY",
+      "from": "insight:981fe297bfac18a4",
+      "to": "quote:899d677c5bf433a6"
+    },
+    {
+      "type": "HAS_INSIGHT",
+      "from": "episode:653bb844-d3b0-425e-9e28-b43e00ee5196",
+      "to": "insight:88e92de7ee1bf9fa"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:88e92de7ee1bf9fa",
+      "to": "topic:urban-planning",
+      "properties": {
+        "confidence": 0.5068
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:88e92de7ee1bf9fa",
+      "to": "topic:neighborhood-revitalization",
+      "properties": {
+        "confidence": 0.4861
+      }
+    },
+    {
+      "type": "SUPPORTED_BY",
+      "from": "insight:88e92de7ee1bf9fa",
+      "to": "quote:3900ad99ddb7853c"
+    },
+    {
+      "type": "SUPPORTED_BY",
+      "from": "insight:88e92de7ee1bf9fa",
+      "to": "quote:bdc866ff8316612a"
+    },
+    {
+      "type": "SUPPORTED_BY",
+      "from": "insight:88e92de7ee1bf9fa",
+      "to": "quote:9963e8c384b5d019"
+    },
+    {
+      "type": "HAS_INSIGHT",
+      "from": "episode:653bb844-d3b0-425e-9e28-b43e00ee5196",
+      "to": "insight:5b4b2a3d6e49e405"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:5b4b2a3d6e49e405",
+      "to": "topic:neighborhood-revitalization",
+      "properties": {
+        "confidence": 0.4358
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:5b4b2a3d6e49e405",
+      "to": "topic:urban-planning",
+      "properties": {
+        "confidence": 0.4107
+      }
+    },
+    {
+      "type": "HAS_INSIGHT",
+      "from": "episode:653bb844-d3b0-425e-9e28-b43e00ee5196",
+      "to": "insight:0a0df835df5cdf2b"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:0a0df835df5cdf2b",
+      "to": "topic:neighborhood-revitalization",
+      "properties": {
+        "confidence": 0.4571
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:0a0df835df5cdf2b",
+      "to": "topic:racial-redlining",
+      "properties": {
+        "confidence": 0.3855
+      }
+    },
+    {
+      "type": "SUPPORTED_BY",
+      "from": "insight:0a0df835df5cdf2b",
+      "to": "quote:661c20126a1f2b53"
+    },
+    {
+      "type": "SUPPORTED_BY",
+      "from": "insight:0a0df835df5cdf2b",
+      "to": "quote:41ea0c690cd127b4"
+    },
+    {
+      "type": "SUPPORTED_BY",
+      "from": "insight:0a0df835df5cdf2b",
+      "to": "quote:91645e44dc5e1cd4"
+    },
+    {
+      "type": "HAS_INSIGHT",
+      "from": "episode:653bb844-d3b0-425e-9e28-b43e00ee5196",
+      "to": "insight:bfb2db9a6f8811c8"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:bfb2db9a6f8811c8",
+      "to": "topic:neighborhood-revitalization",
+      "properties": {
+        "confidence": 0.4899
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:bfb2db9a6f8811c8",
+      "to": "topic:urban-planning",
+      "properties": {
+        "confidence": 0.4708
+      }
+    }
+  ]
+}

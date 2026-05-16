@@ -1,0 +1,254 @@
+{
+  "schema_version": "1.2",
+  "episode_id": "c1864c80-3766-11f1-a17b-8323ac12a047",
+  "extraction": {
+    "model_version": "provider:gemini-2.5-flash-lite",
+    "extracted_at": "2026-04-21T16:01:54Z",
+    "transcript_ref": "transcripts/0001 - How AI Will Change Quantum Compu_20260421-180025_8eb5f9d2.txt"
+  },
+  "nodes": [
+    {
+      "id": "episode:c1864c80-3766-11f1-a17b-8323ac12a047",
+      "type": "Episode",
+      "properties": {
+        "podcast_id": "sha256:b7d7fd554788c6b3f362e5e2d0254cdd2bd8bc523dd913d264c6baa39c06f868",
+        "title": "How AI Will Change Quantum Computing - Ep. 294",
+        "publish_date": "2026-04-14T14:00:00"
+      }
+    },
+    {
+      "id": "topic:ai-in-quantum-computing",
+      "type": "Topic",
+      "properties": {
+        "label": "AI in quantum computing",
+        "slug": "ai-in-quantum-computing",
+        "description": "AI is seen as a key technology to unlock progress and breakthroughs in quantum computing, particularly in areas like error correction and discovering new applications."
+      }
+    },
+    {
+      "id": "topic:quantum-error-correction",
+      "type": "Topic",
+      "properties": {
+        "label": "Quantum error correction",
+        "slug": "quantum-error-correction",
+        "description": "A crucial process for building useful quantum hardware, it involves correcting errors in qubits without directly observing them, which is a complex challenge."
+      }
+    },
+    {
+      "id": "topic:quantum-computing-basics",
+      "type": "Topic",
+      "properties": {
+        "label": "Quantum computing basics",
+        "slug": "quantum-computing-basics",
+        "description": "Quantum computing uses quantum mechanical objects as switches (qubits) instead of transistors, enabling it to solve problems intractable for classical computers."
+      }
+    },
+    {
+      "id": "topic:qubit-properties",
+      "type": "Topic",
+      "properties": {
+        "label": "Qubit properties",
+        "slug": "qubit-properties",
+        "description": "Qubits can exist in a superposition of states (0 and 1) and are very fragile, easily losing their quantum information if disturbed."
+      }
+    },
+    {
+      "id": "topic:quantum-hardware-development",
+      "type": "Topic",
+      "properties": {
+        "label": "Quantum hardware development",
+        "slug": "quantum-hardware-development",
+        "description": "Building quantum processors (QPUs) is a new kind of hardware endeavor with many different approaches to creating qubits, making standardization challenging."
+      }
+    },
+    {
+      "id": "topic:quantum-computing-applications",
+      "type": "Topic",
+      "properties": {
+        "label": "Quantum computing applications",
+        "slug": "quantum-computing-applications",
+        "description": "Potential applications include pharmaceuticals, materials development, financial services, and logistics, with early benefits expected in simulating quantum systems like molecules."
+      }
+    },
+    {
+      "id": "topic:nvidia-ai-podcast",
+      "type": "Topic",
+      "properties": {
+        "label": "NVIDIA AI podcast",
+        "slug": "nvidia-ai-podcast",
+        "description": "A podcast discussing advancements in artificial intelligence, featuring guests from the tech industry."
+      }
+    },
+    {
+      "id": "topic:nvidia-ising-models",
+      "type": "Topic",
+      "properties": {
+        "label": "NVIDIA Ising models",
+        "slug": "nvidia-ising-models",
+        "description": "A family of open AI models specifically designed for quantum computing workloads, including calibration and decoding for quantum error correction."
+      }
+    },
+    {
+      "id": "topic:scaling-quantum-hardware",
+      "type": "Topic",
+      "properties": {
+        "label": "Scaling quantum hardware",
+        "slug": "scaling-quantum-hardware",
+        "description": "A major challenge is scaling up quantum systems to millions of qubits, which is necessary for tasks like error correction and requires leveraging supercomputing advancements."
+      }
+    },
+    {
+      "id": "topic:hybrid-quantum-classical-systems",
+      "type": "Topic",
+      "properties": {
+        "label": "Hybrid quantum-classical systems",
+        "slug": "hybrid-quantum-classical-systems",
+        "description": "The future of quantum computing is expected to involve integration with classical supercomputing, where quantum processors augment existing frameworks."
+      }
+    },
+    {
+      "id": "org:nvidia",
+      "type": "Entity",
+      "properties": {
+        "name": "NVIDIA",
+        "label": "NVIDIA",
+        "kind": "org",
+        "role": "mentioned"
+      }
+    },
+    {
+      "id": "person:nick-harrigan",
+      "type": "Entity",
+      "properties": {
+        "name": "Nick Harrigan",
+        "label": "Nick Harrigan",
+        "kind": "person",
+        "role": "mentioned",
+        "description": "Product marketing manager for quantum computing at NVIDIA, featured as a guest on the podcast."
+      }
+    },
+    {
+      "id": "person:noah-kravitz",
+      "type": "Entity",
+      "properties": {
+        "name": "Noah Kravitz",
+        "label": "Noah Kravitz",
+        "kind": "person",
+        "role": "mentioned",
+        "description": "Host of the NVIDIA AI podcast."
+      }
+    },
+    {
+      "id": "org:nvidia-ai-podcast",
+      "type": "Entity",
+      "properties": {
+        "name": "NVIDIA AI podcast",
+        "label": "NVIDIA AI podcast",
+        "kind": "org",
+        "role": "mentioned"
+      }
+    },
+    {
+      "id": "person:the-ai-podcast",
+      "type": "Entity",
+      "properties": {
+        "name": "The AI Podcast",
+        "label": "The AI Podcast",
+        "kind": "person",
+        "role": "host"
+      }
+    }
+  ],
+  "edges": [
+    {
+      "from": "topic:ai-in-quantum-computing",
+      "to": "episode:c1864c80-3766-11f1-a17b-8323ac12a047",
+      "type": "MENTIONS",
+      "properties": {}
+    },
+    {
+      "from": "topic:quantum-error-correction",
+      "to": "episode:c1864c80-3766-11f1-a17b-8323ac12a047",
+      "type": "MENTIONS",
+      "properties": {}
+    },
+    {
+      "from": "topic:quantum-computing-basics",
+      "to": "episode:c1864c80-3766-11f1-a17b-8323ac12a047",
+      "type": "MENTIONS",
+      "properties": {}
+    },
+    {
+      "from": "topic:qubit-properties",
+      "to": "episode:c1864c80-3766-11f1-a17b-8323ac12a047",
+      "type": "MENTIONS",
+      "properties": {}
+    },
+    {
+      "from": "topic:quantum-hardware-development",
+      "to": "episode:c1864c80-3766-11f1-a17b-8323ac12a047",
+      "type": "MENTIONS",
+      "properties": {}
+    },
+    {
+      "from": "topic:quantum-computing-applications",
+      "to": "episode:c1864c80-3766-11f1-a17b-8323ac12a047",
+      "type": "MENTIONS",
+      "properties": {}
+    },
+    {
+      "from": "topic:nvidia-ai-podcast",
+      "to": "episode:c1864c80-3766-11f1-a17b-8323ac12a047",
+      "type": "MENTIONS",
+      "properties": {}
+    },
+    {
+      "from": "topic:nvidia-ising-models",
+      "to": "episode:c1864c80-3766-11f1-a17b-8323ac12a047",
+      "type": "MENTIONS",
+      "properties": {}
+    },
+    {
+      "from": "topic:scaling-quantum-hardware",
+      "to": "episode:c1864c80-3766-11f1-a17b-8323ac12a047",
+      "type": "MENTIONS",
+      "properties": {}
+    },
+    {
+      "from": "topic:hybrid-quantum-classical-systems",
+      "to": "episode:c1864c80-3766-11f1-a17b-8323ac12a047",
+      "type": "MENTIONS",
+      "properties": {}
+    },
+    {
+      "from": "org:nvidia",
+      "to": "episode:c1864c80-3766-11f1-a17b-8323ac12a047",
+      "type": "MENTIONS",
+      "properties": {}
+    },
+    {
+      "from": "person:nick-harrigan",
+      "to": "episode:c1864c80-3766-11f1-a17b-8323ac12a047",
+      "type": "MENTIONS",
+      "properties": {}
+    },
+    {
+      "from": "person:noah-kravitz",
+      "to": "episode:c1864c80-3766-11f1-a17b-8323ac12a047",
+      "type": "MENTIONS",
+      "properties": {}
+    },
+    {
+      "from": "org:nvidia-ai-podcast",
+      "to": "episode:c1864c80-3766-11f1-a17b-8323ac12a047",
+      "type": "MENTIONS",
+      "properties": {}
+    },
+    {
+      "from": "person:the-ai-podcast",
+      "to": "episode:c1864c80-3766-11f1-a17b-8323ac12a047",
+      "type": "MENTIONS",
+      "properties": {}
+    }
+  ]
+}

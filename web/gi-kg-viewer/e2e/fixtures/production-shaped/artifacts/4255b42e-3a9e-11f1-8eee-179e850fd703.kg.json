@@ -1,0 +1,402 @@
+{
+  "schema_version": "1.2",
+  "episode_id": "4255b42e-3a9e-11f1-8eee-179e850fd703",
+  "extraction": {
+    "model_version": "provider:gemini-2.5-flash-lite",
+    "extracted_at": "2026-04-21T15:55:39Z",
+    "transcript_ref": "transcripts/0001 - Scaling Global Organizations in _20260421-175429_8eb5f9d2.txt"
+  },
+  "nodes": [
+    {
+      "id": "episode:4255b42e-3a9e-11f1-8eee-179e850fd703",
+      "type": "Episode",
+      "properties": {
+        "podcast_id": "sha256:0da4183fe4339afdc81d079b469f31da7e85039e5121f085013230f92e72e13c",
+        "title": "Scaling Global Organizations in the Age of AI with ServiceNow CEO Bill McDermott",
+        "publish_date": "2026-04-17T20:44:00"
+      }
+    },
+    {
+      "id": "topic:enterprise-platform-replacement",
+      "type": "Topic",
+      "properties": {
+        "label": "enterprise platform replacement",
+        "slug": "enterprise-platform-replacement"
+      }
+    },
+    {
+      "id": "topic:ai-and-business-models",
+      "type": "Topic",
+      "properties": {
+        "label": "AI and business models",
+        "slug": "ai-and-business-models"
+      }
+    },
+    {
+      "id": "topic:customer-relationship-management",
+      "type": "Topic",
+      "properties": {
+        "label": "customer relationship management",
+        "slug": "customer-relationship-management"
+      }
+    },
+    {
+      "id": "topic:leadership-in-the-age-of-ai",
+      "type": "Topic",
+      "properties": {
+        "label": "leadership in the age of AI",
+        "slug": "leadership-in-the-age-of-ai"
+      }
+    },
+    {
+      "id": "topic:servicenow-platform-capabilities",
+      "type": "Topic",
+      "properties": {
+        "label": "ServiceNow platform capabilities",
+        "slug": "servicenow-platform-capabilities"
+      }
+    },
+    {
+      "id": "topic:language-models-vs-enterprise-platforms",
+      "type": "Topic",
+      "properties": {
+        "label": "language models vs enterprise platforms",
+        "slug": "language-models-vs-enterprise-platforms"
+      }
+    },
+    {
+      "id": "topic:human-capital-and-technology",
+      "type": "Topic",
+      "properties": {
+        "label": "human capital and technology",
+        "slug": "human-capital-and-technology"
+      }
+    },
+    {
+      "id": "topic:digital-transformation-and-change",
+      "type": "Topic",
+      "properties": {
+        "label": "digital transformation and change",
+        "slug": "digital-transformation-and-change"
+      }
+    },
+    {
+      "id": "topic:agentic-business-operations",
+      "type": "Topic",
+      "properties": {
+        "label": "agentic business operations",
+        "slug": "agentic-business-operations"
+      }
+    },
+    {
+      "id": "topic:cybersecurity-and-it-management",
+      "type": "Topic",
+      "properties": {
+        "label": "cybersecurity and IT management",
+        "slug": "cybersecurity-and-it-management"
+      }
+    },
+    {
+      "id": "person:bill-mcdermott",
+      "type": "Entity",
+      "properties": {
+        "name": "Bill McDermott",
+        "label": "Bill McDermott",
+        "kind": "person",
+        "role": "mentioned"
+      }
+    },
+    {
+      "id": "org:servicenow",
+      "type": "Entity",
+      "properties": {
+        "name": "ServiceNow",
+        "label": "ServiceNow",
+        "kind": "org",
+        "role": "mentioned"
+      }
+    },
+    {
+      "id": "person:sarah-guo",
+      "type": "Entity",
+      "properties": {
+        "name": "Sarah Guo",
+        "label": "Sarah Guo",
+        "kind": "person",
+        "role": "mentioned"
+      }
+    },
+    {
+      "id": "org:xerox",
+      "type": "Entity",
+      "properties": {
+        "name": "Xerox",
+        "label": "Xerox",
+        "kind": "org",
+        "role": "mentioned"
+      }
+    },
+    {
+      "id": "person:deming",
+      "type": "Entity",
+      "properties": {
+        "name": "Deming",
+        "label": "Deming",
+        "kind": "person",
+        "role": "mentioned"
+      }
+    },
+    {
+      "id": "person:david-kearns",
+      "type": "Entity",
+      "properties": {
+        "name": "David Kearns",
+        "label": "David Kearns",
+        "kind": "person",
+        "role": "mentioned"
+      }
+    },
+    {
+      "id": "person:emerson-fullwood",
+      "type": "Entity",
+      "properties": {
+        "name": "Emerson Fullwood",
+        "label": "Emerson Fullwood",
+        "kind": "person",
+        "role": "mentioned"
+      }
+    },
+    {
+      "id": "org:rochester-institute-of-technology",
+      "type": "Entity",
+      "properties": {
+        "name": "Rochester Institute of Technology",
+        "label": "Rochester Institute of Technology",
+        "kind": "org",
+        "role": "mentioned"
+      }
+    },
+    {
+      "id": "org:armis",
+      "type": "Entity",
+      "properties": {
+        "name": "Armis",
+        "label": "Armis",
+        "kind": "org",
+        "role": "mentioned"
+      }
+    },
+    {
+      "id": "org:moveworks",
+      "type": "Entity",
+      "properties": {
+        "name": "MoveWorks",
+        "label": "MoveWorks",
+        "kind": "org",
+        "role": "mentioned"
+      }
+    },
+    {
+      "id": "org:invesa",
+      "type": "Entity",
+      "properties": {
+        "name": "Invesa",
+        "label": "Invesa",
+        "kind": "org",
+        "role": "mentioned"
+      }
+    },
+    {
+      "id": "org:sap",
+      "type": "Entity",
+      "properties": {
+        "name": "SAP",
+        "label": "SAP",
+        "kind": "org",
+        "role": "mentioned"
+      }
+    },
+    {
+      "id": "org:sunmark-industries",
+      "type": "Entity",
+      "properties": {
+        "name": "Sunmark Industries",
+        "label": "Sunmark Industries",
+        "kind": "org",
+        "role": "mentioned"
+      }
+    },
+    {
+      "id": "org:sunoco",
+      "type": "Entity",
+      "properties": {
+        "name": "Sunoco",
+        "label": "Sunoco",
+        "kind": "org",
+        "role": "mentioned"
+      }
+    },
+    {
+      "id": "person:conviction",
+      "type": "Entity",
+      "properties": {
+        "name": "Conviction",
+        "label": "Conviction",
+        "kind": "person",
+        "role": "host"
+      }
+    }
+  ],
+  "edges": [
+    {
+      "from": "topic:enterprise-platform-replacement",
+      "to": "episode:4255b42e-3a9e-11f1-8eee-179e850fd703",
+      "type": "MENTIONS",
+      "properties": {}
+    },
+    {
+      "from": "topic:ai-and-business-models",
+      "to": "episode:4255b42e-3a9e-11f1-8eee-179e850fd703",
+      "type": "MENTIONS",
+      "properties": {}
+    },
+    {
+      "from": "topic:customer-relationship-management",
+      "to": "episode:4255b42e-3a9e-11f1-8eee-179e850fd703",
+      "type": "MENTIONS",
+      "properties": {}
+    },
+    {
+      "from": "topic:leadership-in-the-age-of-ai",
+      "to": "episode:4255b42e-3a9e-11f1-8eee-179e850fd703",
+      "type": "MENTIONS",
+      "properties": {}
+    },
+    {
+      "from": "topic:servicenow-platform-capabilities",
+      "to": "episode:4255b42e-3a9e-11f1-8eee-179e850fd703",
+      "type": "MENTIONS",
+      "properties": {}
+    },
+    {
+      "from": "topic:language-models-vs-enterprise-platforms",
+      "to": "episode:4255b42e-3a9e-11f1-8eee-179e850fd703",
+      "type": "MENTIONS",
+      "properties": {}
+    },
+    {
+      "from": "topic:human-capital-and-technology",
+      "to": "episode:4255b42e-3a9e-11f1-8eee-179e850fd703",
+      "type": "MENTIONS",
+      "properties": {}
+    },
+    {
+      "from": "topic:digital-transformation-and-change",
+      "to": "episode:4255b42e-3a9e-11f1-8eee-179e850fd703",
+      "type": "MENTIONS",
+      "properties": {}
+    },
+    {
+      "from": "topic:agentic-business-operations",
+      "to": "episode:4255b42e-3a9e-11f1-8eee-179e850fd703",
+      "type": "MENTIONS",
+      "properties": {}
+    },
+    {
+      "from": "topic:cybersecurity-and-it-management",
+      "to": "episode:4255b42e-3a9e-11f1-8eee-179e850fd703",
+      "type": "MENTIONS",
+      "properties": {}
+    },
+    {
+      "from": "person:bill-mcdermott",
+      "to": "episode:4255b42e-3a9e-11f1-8eee-179e850fd703",
+      "type": "MENTIONS",
+      "properties": {}
+    },
+    {
+      "from": "org:servicenow",
+      "to": "episode:4255b42e-3a9e-11f1-8eee-179e850fd703",
+      "type": "MENTIONS",
+      "properties": {}
+    },
+    {
+      "from": "person:sarah-guo",
+      "to": "episode:4255b42e-3a9e-11f1-8eee-179e850fd703",
+      "type": "MENTIONS",
+      "properties": {}
+    },
+    {
+      "from": "org:xerox",
+      "to": "episode:4255b42e-3a9e-11f1-8eee-179e850fd703",
+      "type": "MENTIONS",
+      "properties": {}
+    },
+    {
+      "from": "person:deming",
+      "to": "episode:4255b42e-3a9e-11f1-8eee-179e850fd703",
+      "type": "MENTIONS",
+      "properties": {}
+    },
+    {
+      "from": "person:david-kearns",
+      "to": "episode:4255b42e-3a9e-11f1-8eee-179e850fd703",
+      "type": "MENTIONS",
+      "properties": {}
+    },
+    {
+      "from": "person:emerson-fullwood",
+      "to": "episode:4255b42e-3a9e-11f1-8eee-179e850fd703",
+      "type": "MENTIONS",
+      "properties": {}
+    },
+    {
+      "from": "org:rochester-institute-of-technology",
+      "to": "episode:4255b42e-3a9e-11f1-8eee-179e850fd703",
+      "type": "MENTIONS",
+      "properties": {}
+    },
+    {
+      "from": "org:armis",
+      "to": "episode:4255b42e-3a9e-11f1-8eee-179e850fd703",
+      "type": "MENTIONS",
+      "properties": {}
+    },
+    {
+      "from": "org:moveworks",
+      "to": "episode:4255b42e-3a9e-11f1-8eee-179e850fd703",
+      "type": "MENTIONS",
+      "properties": {}
+    },
+    {
+      "from": "org:invesa",
+      "to": "episode:4255b42e-3a9e-11f1-8eee-179e850fd703",
+      "type": "MENTIONS",
+      "properties": {}
+    },
+    {
+      "from": "org:sap",
+      "to": "episode:4255b42e-3a9e-11f1-8eee-179e850fd703",
+      "type": "MENTIONS",
+      "properties": {}
+    },
+    {
+      "from": "org:sunmark-industries",
+      "to": "episode:4255b42e-3a9e-11f1-8eee-179e850fd703",
+      "type": "MENTIONS",
+      "properties": {}
+    },
+    {
+      "from": "org:sunoco",
+      "to": "episode:4255b42e-3a9e-11f1-8eee-179e850fd703",
+      "type": "MENTIONS",
+      "properties": {}
+    },
+    {
+      "from": "person:conviction",
+      "to": "episode:4255b42e-3a9e-11f1-8eee-179e850fd703",
+      "type": "MENTIONS",
+      "properties": {}
+    }
+  ]
+}

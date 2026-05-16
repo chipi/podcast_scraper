@@ -1,0 +1,419 @@
+{
+  "schema_version": "1.2",
+  "episode_id": "653bb844-d3b0-425e-9e28-b43e00ee5196",
+  "extraction": {
+    "model_version": "provider:gemini-2.5-flash-lite",
+    "extracted_at": "2026-05-06T12:04:37Z",
+    "transcript_ref": "transcripts/0001 - How Baltimore_s Mayor Is Fighting the City_s Vacant Housing Crisis_20260506-135048_ba02775e.txt"
+  },
+  "nodes": [
+    {
+      "id": "episode:653bb844-d3b0-425e-9e28-b43e00ee5196",
+      "type": "Episode",
+      "properties": {
+        "podcast_id": "sha256:1cd6aecdd31c0ae82c2c76efdb6327b54e6026924b47852c51ffb406a9f2b19c",
+        "title": "How Baltimore's Mayor Is Fighting the City's Vacant Housing Crisis",
+        "publish_date": "2026-05-04T08:00:00+00:00",
+        "feed_id": "sha256:1cd6aecdd31c0ae82c2c76efdb6327b54e6026924b47852c51ffb406a9f2b19c"
+      }
+    },
+    {
+      "id": "topic:vacant-housing",
+      "type": "Topic",
+      "properties": {
+        "label": "vacant housing",
+        "slug": "vacant-housing"
+      }
+    },
+    {
+      "id": "topic:urban-planning",
+      "type": "Topic",
+      "properties": {
+        "label": "urban planning",
+        "slug": "urban-planning"
+      }
+    },
+    {
+      "id": "topic:neighborhood-revitalization",
+      "type": "Topic",
+      "properties": {
+        "label": "neighborhood revitalization",
+        "slug": "neighborhood-revitalization"
+      }
+    },
+    {
+      "id": "topic:racial-redlining",
+      "type": "Topic",
+      "properties": {
+        "label": "racial redlining",
+        "slug": "racial-redlining"
+      }
+    },
+    {
+      "id": "topic:city-government",
+      "type": "Topic",
+      "properties": {
+        "label": "city government",
+        "slug": "city-government"
+      }
+    },
+    {
+      "id": "topic:community-development",
+      "type": "Topic",
+      "properties": {
+        "label": "community development",
+        "slug": "community-development"
+      }
+    },
+    {
+      "id": "topic:housing-policy",
+      "type": "Topic",
+      "properties": {
+        "label": "housing policy",
+        "slug": "housing-policy"
+      }
+    },
+    {
+      "id": "topic:public-investment",
+      "type": "Topic",
+      "properties": {
+        "label": "public investment",
+        "slug": "public-investment"
+      }
+    },
+    {
+      "id": "topic:historical-context",
+      "type": "Topic",
+      "properties": {
+        "label": "historical context",
+        "slug": "historical-context"
+      }
+    },
+    {
+      "id": "topic:private-capital",
+      "type": "Topic",
+      "properties": {
+        "label": "private capital",
+        "slug": "private-capital"
+      }
+    },
+    {
+      "id": "org:bloomberg",
+      "type": "Entity",
+      "properties": {
+        "name": "Bloomberg",
+        "label": "Bloomberg",
+        "kind": "org",
+        "role": "mentioned"
+      }
+    },
+    {
+      "id": "org:adlots-podcast",
+      "type": "Entity",
+      "properties": {
+        "name": "Adlots podcast",
+        "label": "Adlots podcast",
+        "kind": "org",
+        "role": "mentioned"
+      }
+    },
+    {
+      "id": "person:tracy-alloway",
+      "type": "Entity",
+      "properties": {
+        "name": "Tracy Alloway",
+        "label": "Tracy Alloway",
+        "kind": "person",
+        "role": "mentioned"
+      }
+    },
+    {
+      "id": "person:joe-wisenthal",
+      "type": "Entity",
+      "properties": {
+        "name": "Joe Wisenthal",
+        "label": "Joe Wisenthal",
+        "kind": "person",
+        "role": "mentioned"
+      }
+    },
+    {
+      "id": "person:baltimore",
+      "type": "Entity",
+      "properties": {
+        "name": "Baltimore",
+        "label": "Baltimore",
+        "kind": "person",
+        "role": "mentioned"
+      }
+    },
+    {
+      "id": "person:mount-airy-north-carolina",
+      "type": "Entity",
+      "properties": {
+        "name": "Mount Airy, North Carolina",
+        "label": "Mount Airy, North Carolina",
+        "kind": "person",
+        "role": "mentioned"
+      }
+    },
+    {
+      "id": "person:annapolis",
+      "type": "Entity",
+      "properties": {
+        "name": "Annapolis",
+        "label": "Annapolis",
+        "kind": "person",
+        "role": "mentioned"
+      }
+    },
+    {
+      "id": "person:detroit",
+      "type": "Entity",
+      "properties": {
+        "name": "Detroit",
+        "label": "Detroit",
+        "kind": "person",
+        "role": "mentioned"
+      }
+    },
+    {
+      "id": "person:brandon-scott",
+      "type": "Entity",
+      "properties": {
+        "name": "Brandon Scott",
+        "label": "Brandon Scott",
+        "kind": "person",
+        "role": "mentioned"
+      }
+    },
+    {
+      "id": "person:maryland",
+      "type": "Entity",
+      "properties": {
+        "name": "Maryland",
+        "label": "Maryland",
+        "kind": "person",
+        "role": "mentioned"
+      }
+    },
+    {
+      "id": "org:community-and-build",
+      "type": "Entity",
+      "properties": {
+        "name": "Community and Build",
+        "label": "Community and Build",
+        "kind": "org",
+        "role": "mentioned"
+      }
+    },
+    {
+      "id": "org:general-motors",
+      "type": "Entity",
+      "properties": {
+        "name": "General Motors",
+        "label": "General Motors",
+        "kind": "org",
+        "role": "mentioned"
+      }
+    },
+    {
+      "id": "org:bethlehem-steel",
+      "type": "Entity",
+      "properties": {
+        "name": "Bethlehem Steel",
+        "label": "Bethlehem Steel",
+        "kind": "org",
+        "role": "mentioned"
+      }
+    },
+    {
+      "id": "org:the-wire",
+      "type": "Entity",
+      "properties": {
+        "name": "The Wire",
+        "label": "The Wire",
+        "kind": "org",
+        "role": "mentioned"
+      }
+    },
+    {
+      "id": "org:nypd-blue",
+      "type": "Entity",
+      "properties": {
+        "name": "NYPD Blue",
+        "label": "NYPD Blue",
+        "kind": "org",
+        "role": "mentioned"
+      }
+    },
+    {
+      "id": "person:bloomberg",
+      "type": "Entity",
+      "properties": {
+        "name": "Bloomberg",
+        "label": "Bloomberg",
+        "kind": "person",
+        "role": "host"
+      }
+    }
+  ],
+  "edges": [
+    {
+      "from": "topic:vacant-housing",
+      "to": "episode:653bb844-d3b0-425e-9e28-b43e00ee5196",
+      "type": "MENTIONS",
+      "properties": {}
+    },
+    {
+      "from": "topic:urban-planning",
+      "to": "episode:653bb844-d3b0-425e-9e28-b43e00ee5196",
+      "type": "MENTIONS",
+      "properties": {}
+    },
+    {
+      "from": "topic:neighborhood-revitalization",
+      "to": "episode:653bb844-d3b0-425e-9e28-b43e00ee5196",
+      "type": "MENTIONS",
+      "properties": {}
+    },
+    {
+      "from": "topic:racial-redlining",
+      "to": "episode:653bb844-d3b0-425e-9e28-b43e00ee5196",
+      "type": "MENTIONS",
+      "properties": {}
+    },
+    {
+      "from": "topic:city-government",
+      "to": "episode:653bb844-d3b0-425e-9e28-b43e00ee5196",
+      "type": "MENTIONS",
+      "properties": {}
+    },
+    {
+      "from": "topic:community-development",
+      "to": "episode:653bb844-d3b0-425e-9e28-b43e00ee5196",
+      "type": "MENTIONS",
+      "properties": {}
+    },
+    {
+      "from": "topic:housing-policy",
+      "to": "episode:653bb844-d3b0-425e-9e28-b43e00ee5196",
+      "type": "MENTIONS",
+      "properties": {}
+    },
+    {
+      "from": "topic:public-investment",
+      "to": "episode:653bb844-d3b0-425e-9e28-b43e00ee5196",
+      "type": "MENTIONS",
+      "properties": {}
+    },
+    {
+      "from": "topic:historical-context",
+      "to": "episode:653bb844-d3b0-425e-9e28-b43e00ee5196",
+      "type": "MENTIONS",
+      "properties": {}
+    },
+    {
+      "from": "topic:private-capital",
+      "to": "episode:653bb844-d3b0-425e-9e28-b43e00ee5196",
+      "type": "MENTIONS",
+      "properties": {}
+    },
+    {
+      "from": "org:bloomberg",
+      "to": "episode:653bb844-d3b0-425e-9e28-b43e00ee5196",
+      "type": "MENTIONS",
+      "properties": {}
+    },
+    {
+      "from": "org:adlots-podcast",
+      "to": "episode:653bb844-d3b0-425e-9e28-b43e00ee5196",
+      "type": "MENTIONS",
+      "properties": {}
+    },
+    {
+      "from": "person:tracy-alloway",
+      "to": "episode:653bb844-d3b0-425e-9e28-b43e00ee5196",
+      "type": "MENTIONS",
+      "properties": {}
+    },
+    {
+      "from": "person:joe-wisenthal",
+      "to": "episode:653bb844-d3b0-425e-9e28-b43e00ee5196",
+      "type": "MENTIONS",
+      "properties": {}
+    },
+    {
+      "from": "person:baltimore",
+      "to": "episode:653bb844-d3b0-425e-9e28-b43e00ee5196",
+      "type": "MENTIONS",
+      "properties": {}
+    },
+    {
+      "from": "person:mount-airy-north-carolina",
+      "to": "episode:653bb844-d3b0-425e-9e28-b43e00ee5196",
+      "type": "MENTIONS",
+      "properties": {}
+    },
+    {
+      "from": "person:annapolis",
+      "to": "episode:653bb844-d3b0-425e-9e28-b43e00ee5196",
+      "type": "MENTIONS",
+      "properties": {}
+    },
+    {
+      "from": "person:detroit",
+      "to": "episode:653bb844-d3b0-425e-9e28-b43e00ee5196",
+      "type": "MENTIONS",
+      "properties": {}
+    },
+    {
+      "from": "person:brandon-scott",
+      "to": "episode:653bb844-d3b0-425e-9e28-b43e00ee5196",
+      "type": "MENTIONS",
+      "properties": {}
+    },
+    {
+      "from": "person:maryland",
+      "to": "episode:653bb844-d3b0-425e-9e28-b43e00ee5196",
+      "type": "MENTIONS",
+      "properties": {}
+    },
+    {
+      "from": "org:community-and-build",
+      "to": "episode:653bb844-d3b0-425e-9e28-b43e00ee5196",
+      "type": "MENTIONS",
+      "properties": {}
+    },
+    {
+      "from": "org:general-motors",
+      "to": "episode:653bb844-d3b0-425e-9e28-b43e00ee5196",
+      "type": "MENTIONS",
+      "properties": {}
+    },
+    {
+      "from": "org:bethlehem-steel",
+      "to": "episode:653bb844-d3b0-425e-9e28-b43e00ee5196",
+      "type": "MENTIONS",
+      "properties": {}
+    },
+    {
+      "from": "org:the-wire",
+      "to": "episode:653bb844-d3b0-425e-9e28-b43e00ee5196",
+      "type": "MENTIONS",
+      "properties": {}
+    },
+    {
+      "from": "org:nypd-blue",
+      "to": "episode:653bb844-d3b0-425e-9e28-b43e00ee5196",
+      "type": "MENTIONS",
+      "properties": {}
+    },
+    {
+      "from": "person:bloomberg",
+      "to": "episode:653bb844-d3b0-425e-9e28-b43e00ee5196",
+      "type": "MENTIONS",
+      "properties": {}
+    }
+  ]
+}

@@ -1,0 +1,949 @@
+{
+  "schema_version": "2.0",
+  "model_version": "gemini-2.5-flash-lite",
+  "prompt_version": "v1",
+  "episode_id": "ff1edd82-3cf7-11f1-ac10-7bfe891bf8ed",
+  "nodes": [
+    {
+      "id": "episode:ff1edd82-3cf7-11f1-ac10-7bfe891bf8ed",
+      "type": "Episode",
+      "properties": {
+        "podcast_id": "sha256:2441bde6297de0efab1c6add06c0a80e1e4e96938f7ce303cbc7d7672688495c",
+        "title": "How Iran's Regime Changed...for the Worse",
+        "publish_date": "2026-04-20T20:16:00",
+        "duration_ms": 1113000
+      }
+    },
+    {
+      "id": "topic:us-and-israeli-attempts-at-regime-change-in-iran-through-targeted-assassinations",
+      "type": "Topic",
+      "properties": {
+        "label": "US and Israeli attempts at regime change in Iran through targeted assassinations have backfired, strengthening hardliners."
+      }
+    },
+    {
+      "id": "topic:the-war-has-led-to-the-consolidation-of-power-by-radical-elements-within-irans-l",
+      "type": "Topic",
+      "properties": {
+        "label": "The war has led to the consolidation of power by radical elements within Iran's leadership, including the Revolutionary Guards."
+      }
+    },
+    {
+      "id": "topic:mushtaba-khamenei-son-of-the-former-supreme-leader-has-emerged-as-a-key-figure-p",
+      "type": "Topic",
+      "properties": {
+        "label": "Mushtaba Khamenei, son of the former Supreme Leader, has emerged as a key figure, promoting hardliners and continuity."
+      }
+    },
+    {
+      "id": "topic:new-appointments-in-key-security-and-military-roles-are-filled-by-individuals-wi",
+      "type": "Topic",
+      "properties": {
+        "label": "New appointments in key security and military roles are filled by individuals with radical ideologies and controversial pasts."
+      }
+    },
+    {
+      "id": "topic:despite-significant-war-damage-iran-projects-defiance-and-has-leveraged-its-stra",
+      "type": "Topic",
+      "properties": {
+        "label": "Despite significant war damage, Iran projects defiance and has leveraged its strategic position, like the Strait of Hormuz."
+      }
+    },
+    {
+      "id": "topic:economic-pressures-from-war-losses-are-forcing-iran-to-consider-negotiations-whi",
+      "type": "Topic",
+      "properties": {
+        "label": "Economic pressures from war losses are forcing Iran to consider negotiations, while internal dissent is being harshly suppressed."
+      }
+    },
+    {
+      "id": "insight:64865359bd3c9874",
+      "type": "Insight",
+      "properties": {
+        "text": "When the US and Israel began their war with Iran, one of the main goals appeared to be regime change.",
+        "episode_id": "ff1edd82-3cf7-11f1-ac10-7bfe891bf8ed",
+        "grounded": true,
+        "insight_type": "fact",
+        "position_hint": 0.09
+      },
+      "confidence": 1.0
+    },
+    {
+      "id": "quote:3a6cd30fca835cc0",
+      "type": "Quote",
+      "properties": {
+        "text": "When the US and Israel began their war with Iran, one of the main goals appeared to be regime change.",
+        "episode_id": "ff1edd82-3cf7-11f1-ac10-7bfe891bf8ed",
+        "speaker_id": null,
+        "char_start": 0,
+        "char_end": 101,
+        "timestamp_start_ms": 0,
+        "timestamp_end_ms": 12760,
+        "transcript_ref": "transcripts/0001 - How Iran_s Regime Changed...for _20260421-175539_8eb5f9d2.txt"
+      }
+    },
+    {
+      "id": "quote:f868fbcf9bee1c4e",
+      "type": "Quote",
+      "properties": {
+        "text": "So one of the assumptions of the war was that by killing senior Iranian officials, that could pave the way for the collapse of the regime so that people would rise up and overthrow their leaders.",
+        "episode_id": "ff1edd82-3cf7-11f1-ac10-7bfe891bf8ed",
+        "speaker_id": null,
+        "char_start": 780,
+        "char_end": 975,
+        "timestamp_start_ms": 60519,
+        "timestamp_end_ms": 78000,
+        "transcript_ref": "transcripts/0001 - How Iran_s Regime Changed...for _20260421-175539_8eb5f9d2.txt"
+      }
+    },
+    {
+      "id": "quote:5d37a5032e6bf25b",
+      "type": "Quote",
+      "properties": {
+        "text": "Has regime change happened in the way that the US and Israel hoped it would?",
+        "episode_id": "ff1edd82-3cf7-11f1-ac10-7bfe891bf8ed",
+        "speaker_id": null,
+        "char_start": 1107,
+        "char_end": 1183,
+        "timestamp_start_ms": 88160,
+        "timestamp_end_ms": 96560,
+        "transcript_ref": "transcripts/0001 - How Iran_s Regime Changed...for _20260421-175539_8eb5f9d2.txt"
+      }
+    },
+    {
+      "id": "quote:89b286b86ae332d6",
+      "type": "Quote",
+      "properties": {
+        "text": "how attempts to push out the Iranian regime backfired.",
+        "episode_id": "ff1edd82-3cf7-11f1-ac10-7bfe891bf8ed",
+        "speaker_id": null,
+        "char_start": 1664,
+        "char_end": 1718,
+        "timestamp_start_ms": 136160,
+        "timestamp_end_ms": 157400,
+        "transcript_ref": "transcripts/0001 - How Iran_s Regime Changed...for _20260421-175539_8eb5f9d2.txt"
+      }
+    },
+    {
+      "id": "insight:c47bafdc06c93315",
+      "type": "Insight",
+      "properties": {
+        "text": "Iranian state media has confirmed its supreme leader Ayatollah Khomeini has been killed in his compound.",
+        "episode_id": "ff1edd82-3cf7-11f1-ac10-7bfe891bf8ed",
+        "grounded": true,
+        "insight_type": "fact",
+        "position_hint": 0.01
+      },
+      "confidence": 1.0
+    },
+    {
+      "id": "quote:65902d812d44d7d0",
+      "type": "Quote",
+      "properties": {
+        "text": "Iranian state media has confirmed its supreme leader Ayatollah Khomeini has been killed in his compound.",
+        "episode_id": "ff1edd82-3cf7-11f1-ac10-7bfe891bf8ed",
+        "speaker_id": null,
+        "char_start": 160,
+        "char_end": 264,
+        "timestamp_start_ms": 16600,
+        "timestamp_end_ms": 23360,
+        "transcript_ref": "transcripts/0001 - How Iran_s Regime Changed...for _20260421-175539_8eb5f9d2.txt"
+      }
+    },
+    {
+      "id": "insight:22def97c00b2b928",
+      "type": "Insight",
+      "properties": {
+        "text": "The more extreme elements of the Revolutionary Guards and hardliners in the political system are now much more firmly in control than they were before the war.",
+        "episode_id": "ff1edd82-3cf7-11f1-ac10-7bfe891bf8ed",
+        "grounded": true,
+        "insight_type": "claim",
+        "position_hint": 0.36
+      },
+      "confidence": 1.0
+    },
+    {
+      "id": "quote:63550234817318ed",
+      "type": "Quote",
+      "properties": {
+        "text": "The more extreme elements of the Revolutionary Guards and hardliners in the political system are now much more firmly in control than they were before the war.",
+        "episode_id": "ff1edd82-3cf7-11f1-ac10-7bfe891bf8ed",
+        "speaker_id": null,
+        "char_start": 1305,
+        "char_end": 1464,
+        "timestamp_start_ms": 105160,
+        "timestamp_end_ms": 114960,
+        "transcript_ref": "transcripts/0001 - How Iran_s Regime Changed...for _20260421-175539_8eb5f9d2.txt"
+      }
+    },
+    {
+      "id": "quote:320d9b650a236f80",
+      "type": "Quote",
+      "properties": {
+        "text": "War hardens moderates and allows hardliners to rise faster.",
+        "episode_id": "ff1edd82-3cf7-11f1-ac10-7bfe891bf8ed",
+        "speaker_id": null,
+        "char_start": 7174,
+        "char_end": 7233,
+        "timestamp_start_ms": 548160,
+        "timestamp_end_ms": 553760,
+        "transcript_ref": "transcripts/0001 - How Iran_s Regime Changed...for _20260421-175539_8eb5f9d2.txt"
+      }
+    },
+    {
+      "id": "quote:9ad636c468456579",
+      "type": "Quote",
+      "properties": {
+        "text": "What we're seeing is that the void is being filled by leaders who in most cases are more radical than the people who have replaced.",
+        "episode_id": "ff1edd82-3cf7-11f1-ac10-7bfe891bf8ed",
+        "speaker_id": null,
+        "char_start": 7267,
+        "char_end": 7398,
+        "timestamp_start_ms": 555680,
+        "timestamp_end_ms": 564160,
+        "transcript_ref": "transcripts/0001 - How Iran_s Regime Changed...for _20260421-175539_8eb5f9d2.txt"
+      }
+    },
+    {
+      "id": "insight:252c5435ce864073",
+      "type": "Insight",
+      "properties": {
+        "text": "The Iranian regime has been a thorn in the US's side, practically since its formation, almost 50 years ago.",
+        "episode_id": "ff1edd82-3cf7-11f1-ac10-7bfe891bf8ed",
+        "grounded": true,
+        "insight_type": "fact",
+        "position_hint": 0.14
+      },
+      "confidence": 1.0
+    },
+    {
+      "id": "quote:15ce0fa5f3071f03",
+      "type": "Quote",
+      "properties": {
+        "text": "The Iranian regime has been a thorn in the US's side, practically since its formation, almost 50 years ago.",
+        "episode_id": "ff1edd82-3cf7-11f1-ac10-7bfe891bf8ed",
+        "speaker_id": null,
+        "char_start": 1719,
+        "char_end": 1826,
+        "timestamp_start_ms": 157400,
+        "timestamp_end_ms": 165120,
+        "transcript_ref": "transcripts/0001 - How Iran_s Regime Changed...for _20260421-175539_8eb5f9d2.txt"
+      }
+    },
+    {
+      "id": "insight:c93093e00672a81b",
+      "type": "Insight",
+      "properties": {
+        "text": "Iran's supreme leader Ayatollah Ali Khamenei was killed in that strike at the start of the war.",
+        "episode_id": "ff1edd82-3cf7-11f1-ac10-7bfe891bf8ed",
+        "grounded": true,
+        "insight_type": "fact",
+        "position_hint": 0.23
+      },
+      "confidence": 1.0
+    },
+    {
+      "id": "quote:9335916cfdc83a20",
+      "type": "Quote",
+      "properties": {
+        "text": "Iran's supreme leader Ayatollah Ali Khamenei was killed in that strike at the start of the war.",
+        "episode_id": "ff1edd82-3cf7-11f1-ac10-7bfe891bf8ed",
+        "speaker_id": null,
+        "char_start": 3138,
+        "char_end": 3233,
+        "timestamp_start_ms": 259440,
+        "timestamp_end_ms": 264960,
+        "transcript_ref": "transcripts/0001 - How Iran_s Regime Changed...for _20260421-175539_8eb5f9d2.txt"
+      }
+    },
+    {
+      "id": "insight:135b640cee4d04c4",
+      "type": "Insight",
+      "properties": {
+        "text": "The person they chose was Khamenei's son, Mushtaaba Khamenei, who before the war wasn't necessarily considered a leading contender for the job.",
+        "episode_id": "ff1edd82-3cf7-11f1-ac10-7bfe891bf8ed",
+        "grounded": true,
+        "insight_type": "fact",
+        "position_hint": 0.24
+      },
+      "confidence": 1.0
+    },
+    {
+      "id": "quote:e644a874febb97c0",
+      "type": "Quote",
+      "properties": {
+        "text": "who before the war wasn't necessarily considered a leading contender for the job.",
+        "episode_id": "ff1edd82-3cf7-11f1-ac10-7bfe891bf8ed",
+        "speaker_id": null,
+        "char_start": 3360,
+        "char_end": 3441,
+        "timestamp_start_ms": 269920,
+        "timestamp_end_ms": 278640,
+        "transcript_ref": "transcripts/0001 - How Iran_s Regime Changed...for _20260421-175539_8eb5f9d2.txt"
+      }
+    },
+    {
+      "id": "insight:8eb4c9689f3ce4a2",
+      "type": "Insight",
+      "properties": {
+        "text": "We are not sure he's even alive.",
+        "episode_id": "ff1edd82-3cf7-11f1-ac10-7bfe891bf8ed",
+        "grounded": true,
+        "insight_type": "claim",
+        "position_hint": 0.3
+      },
+      "confidence": 1.0
+    },
+    {
+      "id": "quote:686c6636cd58b34e",
+      "type": "Quote",
+      "properties": {
+        "text": "We are not sure he's even alive.",
+        "episode_id": "ff1edd82-3cf7-11f1-ac10-7bfe891bf8ed",
+        "speaker_id": null,
+        "char_start": 4091,
+        "char_end": 4123,
+        "timestamp_start_ms": 329280,
+        "timestamp_end_ms": 331039,
+        "transcript_ref": "transcripts/0001 - How Iran_s Regime Changed...for _20260421-175539_8eb5f9d2.txt"
+      }
+    },
+    {
+      "id": "insight:859d3988cc967539",
+      "type": "Insight",
+      "properties": {
+        "text": "Mushtaba used his influence to help swing the vote.",
+        "episode_id": "ff1edd82-3cf7-11f1-ac10-7bfe891bf8ed",
+        "grounded": true,
+        "insight_type": "claim",
+        "position_hint": 0.38
+      },
+      "confidence": 1.0
+    },
+    {
+      "id": "quote:bd2d6e30cf8e86fd",
+      "type": "Quote",
+      "properties": {
+        "text": "used his influence to help swing the vote.",
+        "episode_id": "ff1edd82-3cf7-11f1-ac10-7bfe891bf8ed",
+        "speaker_id": null,
+        "char_start": 5450,
+        "char_end": 5492,
+        "timestamp_start_ms": 420720,
+        "timestamp_end_ms": 423440,
+        "transcript_ref": "transcripts/0001 - How Iran_s Regime Changed...for _20260421-175539_8eb5f9d2.txt"
+      }
+    },
+    {
+      "id": "insight:eeade606f218cea2",
+      "type": "Insight",
+      "properties": {
+        "text": "Iran's new national security chief is someone called Mohammed Baghez-Zoradr.",
+        "episode_id": "ff1edd82-3cf7-11f1-ac10-7bfe891bf8ed",
+        "grounded": true,
+        "insight_type": "fact",
+        "position_hint": 0.42
+      },
+      "confidence": 1.0
+    },
+    {
+      "id": "quote:cdba49a65dc81761",
+      "type": "Quote",
+      "properties": {
+        "text": "Iran's new national security chief is someone called Mohammed Baghez-Zoradr.",
+        "episode_id": "ff1edd82-3cf7-11f1-ac10-7bfe891bf8ed",
+        "speaker_id": null,
+        "char_start": 6056,
+        "char_end": 6132,
+        "timestamp_start_ms": 465440,
+        "timestamp_end_ms": 471360,
+        "transcript_ref": "transcripts/0001 - How Iran_s Regime Changed...for _20260421-175539_8eb5f9d2.txt"
+      }
+    },
+    {
+      "id": "insight:bd0adc466d19768f",
+      "type": "Insight",
+      "properties": {
+        "text": "Ahmad Vahidi, he's the new chief of the Revolutionary Guard.",
+        "episode_id": "ff1edd82-3cf7-11f1-ac10-7bfe891bf8ed",
+        "grounded": true,
+        "insight_type": "fact",
+        "position_hint": 0.46
+      },
+      "confidence": 1.0
+    },
+    {
+      "id": "quote:61ab856a89de8404",
+      "type": "Quote",
+      "properties": {
+        "text": "Ahmad Vahidi, he's the new chief of the Revolutionary Guard.",
+        "episode_id": "ff1edd82-3cf7-11f1-ac10-7bfe891bf8ed",
+        "speaker_id": null,
+        "char_start": 6704,
+        "char_end": 6764,
+        "timestamp_start_ms": 512880,
+        "timestamp_end_ms": 516960,
+        "transcript_ref": "transcripts/0001 - How Iran_s Regime Changed...for _20260421-175539_8eb5f9d2.txt"
+      }
+    },
+    {
+      "id": "insight:6c0ff97d6157bc1f",
+      "type": "Insight",
+      "properties": {
+        "text": "Many of Iran's leaders believe in something called the cult of mechanism, which is an ancient messianic Islamist doctrine.",
+        "episode_id": "ff1edd82-3cf7-11f1-ac10-7bfe891bf8ed",
+        "grounded": true,
+        "insight_type": "fact",
+        "position_hint": 0.52
+      },
+      "confidence": 1.0
+    },
+    {
+      "id": "quote:deaf9681398f1aa1",
+      "type": "Quote",
+      "properties": {
+        "text": "many of Iran's leaders believe in something called the cult of mechanism, which is an ancient messianic Islamist doctrine.",
+        "episode_id": "ff1edd82-3cf7-11f1-ac10-7bfe891bf8ed",
+        "speaker_id": null,
+        "char_start": 7657,
+        "char_end": 7779,
+        "timestamp_start_ms": 583520,
+        "timestamp_end_ms": 593680,
+        "transcript_ref": "transcripts/0001 - How Iran_s Regime Changed...for _20260421-175539_8eb5f9d2.txt"
+      }
+    },
+    {
+      "id": "insight:2ee9651f87240f5a",
+      "type": "Insight",
+      "properties": {
+        "text": "The regime is taking this very defiant, very confident stance in its posture toward negotiating with the US.",
+        "episode_id": "ff1edd82-3cf7-11f1-ac10-7bfe891bf8ed",
+        "grounded": true,
+        "insight_type": "claim",
+        "position_hint": 0.66
+      },
+      "confidence": 1.0
+    },
+    {
+      "id": "quote:00fd398f7b296178",
+      "type": "Quote",
+      "properties": {
+        "text": "The regime is taking this very defiant, very confident stance in its posture toward negotiating with the US.",
+        "episode_id": "ff1edd82-3cf7-11f1-ac10-7bfe891bf8ed",
+        "speaker_id": null,
+        "char_start": 9422,
+        "char_end": 9530,
+        "timestamp_start_ms": 733439,
+        "timestamp_end_ms": 745040,
+        "transcript_ref": "transcripts/0001 - How Iran_s Regime Changed...for _20260421-175539_8eb5f9d2.txt"
+      }
+    }
+  ],
+  "edges": [
+    {
+      "type": "HAS_INSIGHT",
+      "from": "episode:ff1edd82-3cf7-11f1-ac10-7bfe891bf8ed",
+      "to": "insight:64865359bd3c9874"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:64865359bd3c9874",
+      "to": "topic:us-and-israeli-attempts-at-regime-change-in-iran-through-targeted-assassinations"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:64865359bd3c9874",
+      "to": "topic:the-war-has-led-to-the-consolidation-of-power-by-radical-elements-within-irans-l"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:64865359bd3c9874",
+      "to": "topic:mushtaba-khamenei-son-of-the-former-supreme-leader-has-emerged-as-a-key-figure-p"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:64865359bd3c9874",
+      "to": "topic:new-appointments-in-key-security-and-military-roles-are-filled-by-individuals-wi"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:64865359bd3c9874",
+      "to": "topic:despite-significant-war-damage-iran-projects-defiance-and-has-leveraged-its-stra"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:64865359bd3c9874",
+      "to": "topic:economic-pressures-from-war-losses-are-forcing-iran-to-consider-negotiations-whi"
+    },
+    {
+      "type": "SUPPORTED_BY",
+      "from": "insight:64865359bd3c9874",
+      "to": "quote:3a6cd30fca835cc0"
+    },
+    {
+      "type": "SUPPORTED_BY",
+      "from": "insight:64865359bd3c9874",
+      "to": "quote:f868fbcf9bee1c4e"
+    },
+    {
+      "type": "SUPPORTED_BY",
+      "from": "insight:64865359bd3c9874",
+      "to": "quote:5d37a5032e6bf25b"
+    },
+    {
+      "type": "SUPPORTED_BY",
+      "from": "insight:64865359bd3c9874",
+      "to": "quote:89b286b86ae332d6"
+    },
+    {
+      "type": "HAS_INSIGHT",
+      "from": "episode:ff1edd82-3cf7-11f1-ac10-7bfe891bf8ed",
+      "to": "insight:c47bafdc06c93315"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:c47bafdc06c93315",
+      "to": "topic:us-and-israeli-attempts-at-regime-change-in-iran-through-targeted-assassinations"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:c47bafdc06c93315",
+      "to": "topic:the-war-has-led-to-the-consolidation-of-power-by-radical-elements-within-irans-l"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:c47bafdc06c93315",
+      "to": "topic:mushtaba-khamenei-son-of-the-former-supreme-leader-has-emerged-as-a-key-figure-p"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:c47bafdc06c93315",
+      "to": "topic:new-appointments-in-key-security-and-military-roles-are-filled-by-individuals-wi"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:c47bafdc06c93315",
+      "to": "topic:despite-significant-war-damage-iran-projects-defiance-and-has-leveraged-its-stra"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:c47bafdc06c93315",
+      "to": "topic:economic-pressures-from-war-losses-are-forcing-iran-to-consider-negotiations-whi"
+    },
+    {
+      "type": "SUPPORTED_BY",
+      "from": "insight:c47bafdc06c93315",
+      "to": "quote:65902d812d44d7d0"
+    },
+    {
+      "type": "HAS_INSIGHT",
+      "from": "episode:ff1edd82-3cf7-11f1-ac10-7bfe891bf8ed",
+      "to": "insight:22def97c00b2b928"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:22def97c00b2b928",
+      "to": "topic:us-and-israeli-attempts-at-regime-change-in-iran-through-targeted-assassinations"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:22def97c00b2b928",
+      "to": "topic:the-war-has-led-to-the-consolidation-of-power-by-radical-elements-within-irans-l"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:22def97c00b2b928",
+      "to": "topic:mushtaba-khamenei-son-of-the-former-supreme-leader-has-emerged-as-a-key-figure-p"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:22def97c00b2b928",
+      "to": "topic:new-appointments-in-key-security-and-military-roles-are-filled-by-individuals-wi"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:22def97c00b2b928",
+      "to": "topic:despite-significant-war-damage-iran-projects-defiance-and-has-leveraged-its-stra"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:22def97c00b2b928",
+      "to": "topic:economic-pressures-from-war-losses-are-forcing-iran-to-consider-negotiations-whi"
+    },
+    {
+      "type": "SUPPORTED_BY",
+      "from": "insight:22def97c00b2b928",
+      "to": "quote:63550234817318ed"
+    },
+    {
+      "type": "SUPPORTED_BY",
+      "from": "insight:22def97c00b2b928",
+      "to": "quote:320d9b650a236f80"
+    },
+    {
+      "type": "SUPPORTED_BY",
+      "from": "insight:22def97c00b2b928",
+      "to": "quote:9ad636c468456579"
+    },
+    {
+      "type": "HAS_INSIGHT",
+      "from": "episode:ff1edd82-3cf7-11f1-ac10-7bfe891bf8ed",
+      "to": "insight:252c5435ce864073"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:252c5435ce864073",
+      "to": "topic:us-and-israeli-attempts-at-regime-change-in-iran-through-targeted-assassinations"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:252c5435ce864073",
+      "to": "topic:the-war-has-led-to-the-consolidation-of-power-by-radical-elements-within-irans-l"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:252c5435ce864073",
+      "to": "topic:mushtaba-khamenei-son-of-the-former-supreme-leader-has-emerged-as-a-key-figure-p"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:252c5435ce864073",
+      "to": "topic:new-appointments-in-key-security-and-military-roles-are-filled-by-individuals-wi"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:252c5435ce864073",
+      "to": "topic:despite-significant-war-damage-iran-projects-defiance-and-has-leveraged-its-stra"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:252c5435ce864073",
+      "to": "topic:economic-pressures-from-war-losses-are-forcing-iran-to-consider-negotiations-whi"
+    },
+    {
+      "type": "SUPPORTED_BY",
+      "from": "insight:252c5435ce864073",
+      "to": "quote:15ce0fa5f3071f03"
+    },
+    {
+      "type": "HAS_INSIGHT",
+      "from": "episode:ff1edd82-3cf7-11f1-ac10-7bfe891bf8ed",
+      "to": "insight:c93093e00672a81b"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:c93093e00672a81b",
+      "to": "topic:us-and-israeli-attempts-at-regime-change-in-iran-through-targeted-assassinations"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:c93093e00672a81b",
+      "to": "topic:the-war-has-led-to-the-consolidation-of-power-by-radical-elements-within-irans-l"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:c93093e00672a81b",
+      "to": "topic:mushtaba-khamenei-son-of-the-former-supreme-leader-has-emerged-as-a-key-figure-p"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:c93093e00672a81b",
+      "to": "topic:new-appointments-in-key-security-and-military-roles-are-filled-by-individuals-wi"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:c93093e00672a81b",
+      "to": "topic:despite-significant-war-damage-iran-projects-defiance-and-has-leveraged-its-stra"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:c93093e00672a81b",
+      "to": "topic:economic-pressures-from-war-losses-are-forcing-iran-to-consider-negotiations-whi"
+    },
+    {
+      "type": "SUPPORTED_BY",
+      "from": "insight:c93093e00672a81b",
+      "to": "quote:9335916cfdc83a20"
+    },
+    {
+      "type": "HAS_INSIGHT",
+      "from": "episode:ff1edd82-3cf7-11f1-ac10-7bfe891bf8ed",
+      "to": "insight:135b640cee4d04c4"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:135b640cee4d04c4",
+      "to": "topic:us-and-israeli-attempts-at-regime-change-in-iran-through-targeted-assassinations"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:135b640cee4d04c4",
+      "to": "topic:the-war-has-led-to-the-consolidation-of-power-by-radical-elements-within-irans-l"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:135b640cee4d04c4",
+      "to": "topic:mushtaba-khamenei-son-of-the-former-supreme-leader-has-emerged-as-a-key-figure-p"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:135b640cee4d04c4",
+      "to": "topic:new-appointments-in-key-security-and-military-roles-are-filled-by-individuals-wi"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:135b640cee4d04c4",
+      "to": "topic:despite-significant-war-damage-iran-projects-defiance-and-has-leveraged-its-stra"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:135b640cee4d04c4",
+      "to": "topic:economic-pressures-from-war-losses-are-forcing-iran-to-consider-negotiations-whi"
+    },
+    {
+      "type": "SUPPORTED_BY",
+      "from": "insight:135b640cee4d04c4",
+      "to": "quote:e644a874febb97c0"
+    },
+    {
+      "type": "HAS_INSIGHT",
+      "from": "episode:ff1edd82-3cf7-11f1-ac10-7bfe891bf8ed",
+      "to": "insight:8eb4c9689f3ce4a2"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:8eb4c9689f3ce4a2",
+      "to": "topic:us-and-israeli-attempts-at-regime-change-in-iran-through-targeted-assassinations"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:8eb4c9689f3ce4a2",
+      "to": "topic:the-war-has-led-to-the-consolidation-of-power-by-radical-elements-within-irans-l"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:8eb4c9689f3ce4a2",
+      "to": "topic:mushtaba-khamenei-son-of-the-former-supreme-leader-has-emerged-as-a-key-figure-p"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:8eb4c9689f3ce4a2",
+      "to": "topic:new-appointments-in-key-security-and-military-roles-are-filled-by-individuals-wi"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:8eb4c9689f3ce4a2",
+      "to": "topic:despite-significant-war-damage-iran-projects-defiance-and-has-leveraged-its-stra"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:8eb4c9689f3ce4a2",
+      "to": "topic:economic-pressures-from-war-losses-are-forcing-iran-to-consider-negotiations-whi"
+    },
+    {
+      "type": "SUPPORTED_BY",
+      "from": "insight:8eb4c9689f3ce4a2",
+      "to": "quote:686c6636cd58b34e"
+    },
+    {
+      "type": "HAS_INSIGHT",
+      "from": "episode:ff1edd82-3cf7-11f1-ac10-7bfe891bf8ed",
+      "to": "insight:859d3988cc967539"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:859d3988cc967539",
+      "to": "topic:us-and-israeli-attempts-at-regime-change-in-iran-through-targeted-assassinations"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:859d3988cc967539",
+      "to": "topic:the-war-has-led-to-the-consolidation-of-power-by-radical-elements-within-irans-l"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:859d3988cc967539",
+      "to": "topic:mushtaba-khamenei-son-of-the-former-supreme-leader-has-emerged-as-a-key-figure-p"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:859d3988cc967539",
+      "to": "topic:new-appointments-in-key-security-and-military-roles-are-filled-by-individuals-wi"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:859d3988cc967539",
+      "to": "topic:despite-significant-war-damage-iran-projects-defiance-and-has-leveraged-its-stra"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:859d3988cc967539",
+      "to": "topic:economic-pressures-from-war-losses-are-forcing-iran-to-consider-negotiations-whi"
+    },
+    {
+      "type": "SUPPORTED_BY",
+      "from": "insight:859d3988cc967539",
+      "to": "quote:bd2d6e30cf8e86fd"
+    },
+    {
+      "type": "HAS_INSIGHT",
+      "from": "episode:ff1edd82-3cf7-11f1-ac10-7bfe891bf8ed",
+      "to": "insight:eeade606f218cea2"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:eeade606f218cea2",
+      "to": "topic:us-and-israeli-attempts-at-regime-change-in-iran-through-targeted-assassinations"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:eeade606f218cea2",
+      "to": "topic:the-war-has-led-to-the-consolidation-of-power-by-radical-elements-within-irans-l"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:eeade606f218cea2",
+      "to": "topic:mushtaba-khamenei-son-of-the-former-supreme-leader-has-emerged-as-a-key-figure-p"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:eeade606f218cea2",
+      "to": "topic:new-appointments-in-key-security-and-military-roles-are-filled-by-individuals-wi"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:eeade606f218cea2",
+      "to": "topic:despite-significant-war-damage-iran-projects-defiance-and-has-leveraged-its-stra"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:eeade606f218cea2",
+      "to": "topic:economic-pressures-from-war-losses-are-forcing-iran-to-consider-negotiations-whi"
+    },
+    {
+      "type": "SUPPORTED_BY",
+      "from": "insight:eeade606f218cea2",
+      "to": "quote:cdba49a65dc81761"
+    },
+    {
+      "type": "HAS_INSIGHT",
+      "from": "episode:ff1edd82-3cf7-11f1-ac10-7bfe891bf8ed",
+      "to": "insight:bd0adc466d19768f"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:bd0adc466d19768f",
+      "to": "topic:us-and-israeli-attempts-at-regime-change-in-iran-through-targeted-assassinations"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:bd0adc466d19768f",
+      "to": "topic:the-war-has-led-to-the-consolidation-of-power-by-radical-elements-within-irans-l"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:bd0adc466d19768f",
+      "to": "topic:mushtaba-khamenei-son-of-the-former-supreme-leader-has-emerged-as-a-key-figure-p"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:bd0adc466d19768f",
+      "to": "topic:new-appointments-in-key-security-and-military-roles-are-filled-by-individuals-wi"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:bd0adc466d19768f",
+      "to": "topic:despite-significant-war-damage-iran-projects-defiance-and-has-leveraged-its-stra"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:bd0adc466d19768f",
+      "to": "topic:economic-pressures-from-war-losses-are-forcing-iran-to-consider-negotiations-whi"
+    },
+    {
+      "type": "SUPPORTED_BY",
+      "from": "insight:bd0adc466d19768f",
+      "to": "quote:61ab856a89de8404"
+    },
+    {
+      "type": "HAS_INSIGHT",
+      "from": "episode:ff1edd82-3cf7-11f1-ac10-7bfe891bf8ed",
+      "to": "insight:6c0ff97d6157bc1f"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:6c0ff97d6157bc1f",
+      "to": "topic:us-and-israeli-attempts-at-regime-change-in-iran-through-targeted-assassinations"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:6c0ff97d6157bc1f",
+      "to": "topic:the-war-has-led-to-the-consolidation-of-power-by-radical-elements-within-irans-l"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:6c0ff97d6157bc1f",
+      "to": "topic:mushtaba-khamenei-son-of-the-former-supreme-leader-has-emerged-as-a-key-figure-p"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:6c0ff97d6157bc1f",
+      "to": "topic:new-appointments-in-key-security-and-military-roles-are-filled-by-individuals-wi"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:6c0ff97d6157bc1f",
+      "to": "topic:despite-significant-war-damage-iran-projects-defiance-and-has-leveraged-its-stra"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:6c0ff97d6157bc1f",
+      "to": "topic:economic-pressures-from-war-losses-are-forcing-iran-to-consider-negotiations-whi"
+    },
+    {
+      "type": "SUPPORTED_BY",
+      "from": "insight:6c0ff97d6157bc1f",
+      "to": "quote:deaf9681398f1aa1"
+    },
+    {
+      "type": "HAS_INSIGHT",
+      "from": "episode:ff1edd82-3cf7-11f1-ac10-7bfe891bf8ed",
+      "to": "insight:2ee9651f87240f5a"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:2ee9651f87240f5a",
+      "to": "topic:us-and-israeli-attempts-at-regime-change-in-iran-through-targeted-assassinations"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:2ee9651f87240f5a",
+      "to": "topic:the-war-has-led-to-the-consolidation-of-power-by-radical-elements-within-irans-l"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:2ee9651f87240f5a",
+      "to": "topic:mushtaba-khamenei-son-of-the-former-supreme-leader-has-emerged-as-a-key-figure-p"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:2ee9651f87240f5a",
+      "to": "topic:new-appointments-in-key-security-and-military-roles-are-filled-by-individuals-wi"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:2ee9651f87240f5a",
+      "to": "topic:despite-significant-war-damage-iran-projects-defiance-and-has-leveraged-its-stra"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:2ee9651f87240f5a",
+      "to": "topic:economic-pressures-from-war-losses-are-forcing-iran-to-consider-negotiations-whi"
+    },
+    {
+      "type": "SUPPORTED_BY",
+      "from": "insight:2ee9651f87240f5a",
+      "to": "quote:00fd398f7b296178"
+    }
+  ]
+}

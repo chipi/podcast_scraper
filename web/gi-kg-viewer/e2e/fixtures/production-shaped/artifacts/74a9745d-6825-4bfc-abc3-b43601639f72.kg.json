@@ -1,0 +1,451 @@
+{
+  "schema_version": "1.2",
+  "episode_id": "74a9745d-6825-4bfc-abc3-b43601639f72",
+  "extraction": {
+    "model_version": "provider:gemini-2.5-flash-lite",
+    "extracted_at": "2026-05-06T12:05:25Z",
+    "transcript_ref": "transcripts/0005 - What_s Actually Going On With Private Credit_20260506-135048_ba02775e.txt"
+  },
+  "nodes": [
+    {
+      "id": "episode:74a9745d-6825-4bfc-abc3-b43601639f72",
+      "type": "Episode",
+      "properties": {
+        "podcast_id": "sha256:1cd6aecdd31c0ae82c2c76efdb6327b54e6026924b47852c51ffb406a9f2b19c",
+        "title": "What's Actually Going On With Private Credit",
+        "publish_date": "2026-04-27T08:00:00+00:00",
+        "feed_id": "sha256:1cd6aecdd31c0ae82c2c76efdb6327b54e6026924b47852c51ffb406a9f2b19c"
+      }
+    },
+    {
+      "id": "topic:private-credit",
+      "type": "Topic",
+      "properties": {
+        "label": "private credit",
+        "slug": "private-credit"
+      }
+    },
+    {
+      "id": "topic:bond-market",
+      "type": "Topic",
+      "properties": {
+        "label": "bond market",
+        "slug": "bond-market"
+      }
+    },
+    {
+      "id": "topic:financial-crisis",
+      "type": "Topic",
+      "properties": {
+        "label": "financial crisis",
+        "slug": "financial-crisis"
+      }
+    },
+    {
+      "id": "topic:leveraged-loans",
+      "type": "Topic",
+      "properties": {
+        "label": "leveraged loans",
+        "slug": "leveraged-loans"
+      }
+    },
+    {
+      "id": "topic:high-yield",
+      "type": "Topic",
+      "properties": {
+        "label": "high yield",
+        "slug": "high-yield"
+      }
+    },
+    {
+      "id": "topic:bank-lending",
+      "type": "Topic",
+      "properties": {
+        "label": "bank lending",
+        "slug": "bank-lending"
+      }
+    },
+    {
+      "id": "topic:credit-underwriting",
+      "type": "Topic",
+      "properties": {
+        "label": "credit underwriting",
+        "slug": "credit-underwriting"
+      }
+    },
+    {
+      "id": "topic:investor-demand",
+      "type": "Topic",
+      "properties": {
+        "label": "investor demand",
+        "slug": "investor-demand"
+      }
+    },
+    {
+      "id": "topic:regulatory-requirements",
+      "type": "Topic",
+      "properties": {
+        "label": "regulatory requirements",
+        "slug": "regulatory-requirements"
+      }
+    },
+    {
+      "id": "topic:asset-financing",
+      "type": "Topic",
+      "properties": {
+        "label": "asset financing",
+        "slug": "asset-financing"
+      }
+    },
+    {
+      "id": "org:bloomberg-audio-studios",
+      "type": "Entity",
+      "properties": {
+        "name": "Bloomberg Audio Studios",
+        "label": "Bloomberg Audio Studios",
+        "kind": "org",
+        "role": "mentioned"
+      }
+    },
+    {
+      "id": "org:audults-podcast",
+      "type": "Entity",
+      "properties": {
+        "name": "Audults podcast",
+        "label": "Audults podcast",
+        "kind": "org",
+        "role": "mentioned"
+      }
+    },
+    {
+      "id": "person:tracy-alloway",
+      "type": "Entity",
+      "properties": {
+        "name": "Tracy Alloway",
+        "label": "Tracy Alloway",
+        "kind": "person",
+        "role": "mentioned"
+      }
+    },
+    {
+      "id": "person:joe-wisenthal",
+      "type": "Entity",
+      "properties": {
+        "name": "Joe Wisenthal",
+        "label": "Joe Wisenthal",
+        "kind": "person",
+        "role": "mentioned"
+      }
+    },
+    {
+      "id": "person:jamie-diamond",
+      "type": "Entity",
+      "properties": {
+        "name": "Jamie Diamond",
+        "label": "Jamie Diamond",
+        "kind": "person",
+        "role": "mentioned"
+      }
+    },
+    {
+      "id": "org:osterweis",
+      "type": "Entity",
+      "properties": {
+        "name": "Osterweis",
+        "label": "Osterweis",
+        "kind": "org",
+        "role": "mentioned"
+      }
+    },
+    {
+      "id": "person:john-sheen",
+      "type": "Entity",
+      "properties": {
+        "name": "John Sheen",
+        "label": "John Sheen",
+        "kind": "person",
+        "role": "mentioned"
+      }
+    },
+    {
+      "id": "person:craig-manchuk",
+      "type": "Entity",
+      "properties": {
+        "name": "Craig Manchuk",
+        "label": "Craig Manchuk",
+        "kind": "person",
+        "role": "mentioned"
+      }
+    },
+    {
+      "id": "org:osterweis-capital-management",
+      "type": "Entity",
+      "properties": {
+        "name": "Osterweis Capital Management",
+        "label": "Osterweis Capital Management",
+        "kind": "org",
+        "role": "mentioned"
+      }
+    },
+    {
+      "id": "org:strategic-income-fund",
+      "type": "Entity",
+      "properties": {
+        "name": "Strategic Income Fund",
+        "label": "Strategic Income Fund",
+        "kind": "org",
+        "role": "mentioned"
+      }
+    },
+    {
+      "id": "person:carl-kaufman",
+      "type": "Entity",
+      "properties": {
+        "name": "Carl Kaufman",
+        "label": "Carl Kaufman",
+        "kind": "person",
+        "role": "mentioned"
+      }
+    },
+    {
+      "id": "person:john-osterweis",
+      "type": "Entity",
+      "properties": {
+        "name": "John Osterweis",
+        "label": "John Osterweis",
+        "kind": "person",
+        "role": "mentioned"
+      }
+    },
+    {
+      "id": "org:ge-capital",
+      "type": "Entity",
+      "properties": {
+        "name": "GE Capital",
+        "label": "GE Capital",
+        "kind": "org",
+        "role": "mentioned"
+      }
+    },
+    {
+      "id": "org:heller-financial",
+      "type": "Entity",
+      "properties": {
+        "name": "Heller Financial",
+        "label": "Heller Financial",
+        "kind": "org",
+        "role": "mentioned"
+      }
+    },
+    {
+      "id": "org:cit",
+      "type": "Entity",
+      "properties": {
+        "name": "CIT",
+        "label": "CIT",
+        "kind": "org",
+        "role": "mentioned"
+      }
+    },
+    {
+      "id": "person:bloomberg",
+      "type": "Entity",
+      "properties": {
+        "name": "Bloomberg",
+        "label": "Bloomberg",
+        "kind": "person",
+        "role": "host"
+      }
+    },
+    {
+      "id": "person:john-sheehan",
+      "type": "Entity",
+      "properties": {
+        "name": "John Sheehan",
+        "label": "John Sheehan",
+        "kind": "person",
+        "role": "guest"
+      }
+    },
+    {
+      "id": "person:craig-manchuck",
+      "type": "Entity",
+      "properties": {
+        "name": "Craig Manchuck",
+        "label": "Craig Manchuck",
+        "kind": "person",
+        "role": "guest"
+      }
+    }
+  ],
+  "edges": [
+    {
+      "from": "topic:private-credit",
+      "to": "episode:74a9745d-6825-4bfc-abc3-b43601639f72",
+      "type": "MENTIONS",
+      "properties": {}
+    },
+    {
+      "from": "topic:bond-market",
+      "to": "episode:74a9745d-6825-4bfc-abc3-b43601639f72",
+      "type": "MENTIONS",
+      "properties": {}
+    },
+    {
+      "from": "topic:financial-crisis",
+      "to": "episode:74a9745d-6825-4bfc-abc3-b43601639f72",
+      "type": "MENTIONS",
+      "properties": {}
+    },
+    {
+      "from": "topic:leveraged-loans",
+      "to": "episode:74a9745d-6825-4bfc-abc3-b43601639f72",
+      "type": "MENTIONS",
+      "properties": {}
+    },
+    {
+      "from": "topic:high-yield",
+      "to": "episode:74a9745d-6825-4bfc-abc3-b43601639f72",
+      "type": "MENTIONS",
+      "properties": {}
+    },
+    {
+      "from": "topic:bank-lending",
+      "to": "episode:74a9745d-6825-4bfc-abc3-b43601639f72",
+      "type": "MENTIONS",
+      "properties": {}
+    },
+    {
+      "from": "topic:credit-underwriting",
+      "to": "episode:74a9745d-6825-4bfc-abc3-b43601639f72",
+      "type": "MENTIONS",
+      "properties": {}
+    },
+    {
+      "from": "topic:investor-demand",
+      "to": "episode:74a9745d-6825-4bfc-abc3-b43601639f72",
+      "type": "MENTIONS",
+      "properties": {}
+    },
+    {
+      "from": "topic:regulatory-requirements",
+      "to": "episode:74a9745d-6825-4bfc-abc3-b43601639f72",
+      "type": "MENTIONS",
+      "properties": {}
+    },
+    {
+      "from": "topic:asset-financing",
+      "to": "episode:74a9745d-6825-4bfc-abc3-b43601639f72",
+      "type": "MENTIONS",
+      "properties": {}
+    },
+    {
+      "from": "org:bloomberg-audio-studios",
+      "to": "episode:74a9745d-6825-4bfc-abc3-b43601639f72",
+      "type": "MENTIONS",
+      "properties": {}
+    },
+    {
+      "from": "org:audults-podcast",
+      "to": "episode:74a9745d-6825-4bfc-abc3-b43601639f72",
+      "type": "MENTIONS",
+      "properties": {}
+    },
+    {
+      "from": "person:tracy-alloway",
+      "to": "episode:74a9745d-6825-4bfc-abc3-b43601639f72",
+      "type": "MENTIONS",
+      "properties": {}
+    },
+    {
+      "from": "person:joe-wisenthal",
+      "to": "episode:74a9745d-6825-4bfc-abc3-b43601639f72",
+      "type": "MENTIONS",
+      "properties": {}
+    },
+    {
+      "from": "person:jamie-diamond",
+      "to": "episode:74a9745d-6825-4bfc-abc3-b43601639f72",
+      "type": "MENTIONS",
+      "properties": {}
+    },
+    {
+      "from": "org:osterweis",
+      "to": "episode:74a9745d-6825-4bfc-abc3-b43601639f72",
+      "type": "MENTIONS",
+      "properties": {}
+    },
+    {
+      "from": "person:john-sheen",
+      "to": "episode:74a9745d-6825-4bfc-abc3-b43601639f72",
+      "type": "MENTIONS",
+      "properties": {}
+    },
+    {
+      "from": "person:craig-manchuk",
+      "to": "episode:74a9745d-6825-4bfc-abc3-b43601639f72",
+      "type": "MENTIONS",
+      "properties": {}
+    },
+    {
+      "from": "org:osterweis-capital-management",
+      "to": "episode:74a9745d-6825-4bfc-abc3-b43601639f72",
+      "type": "MENTIONS",
+      "properties": {}
+    },
+    {
+      "from": "org:strategic-income-fund",
+      "to": "episode:74a9745d-6825-4bfc-abc3-b43601639f72",
+      "type": "MENTIONS",
+      "properties": {}
+    },
+    {
+      "from": "person:carl-kaufman",
+      "to": "episode:74a9745d-6825-4bfc-abc3-b43601639f72",
+      "type": "MENTIONS",
+      "properties": {}
+    },
+    {
+      "from": "person:john-osterweis",
+      "to": "episode:74a9745d-6825-4bfc-abc3-b43601639f72",
+      "type": "MENTIONS",
+      "properties": {}
+    },
+    {
+      "from": "org:ge-capital",
+      "to": "episode:74a9745d-6825-4bfc-abc3-b43601639f72",
+      "type": "MENTIONS",
+      "properties": {}
+    },
+    {
+      "from": "org:heller-financial",
+      "to": "episode:74a9745d-6825-4bfc-abc3-b43601639f72",
+      "type": "MENTIONS",
+      "properties": {}
+    },
+    {
+      "from": "org:cit",
+      "to": "episode:74a9745d-6825-4bfc-abc3-b43601639f72",
+      "type": "MENTIONS",
+      "properties": {}
+    },
+    {
+      "from": "person:bloomberg",
+      "to": "episode:74a9745d-6825-4bfc-abc3-b43601639f72",
+      "type": "MENTIONS",
+      "properties": {}
+    },
+    {
+      "from": "person:john-sheehan",
+      "to": "episode:74a9745d-6825-4bfc-abc3-b43601639f72",
+      "type": "MENTIONS",
+      "properties": {}
+    },
+    {
+      "from": "person:craig-manchuck",
+      "to": "episode:74a9745d-6825-4bfc-abc3-b43601639f72",
+      "type": "MENTIONS",
+      "properties": {}
+    }
+  ]
+}

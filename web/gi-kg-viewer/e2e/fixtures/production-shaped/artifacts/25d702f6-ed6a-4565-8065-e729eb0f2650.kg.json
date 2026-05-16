@@ -1,0 +1,418 @@
+{
+  "schema_version": "1.2",
+  "episode_id": "25d702f6-ed6a-4565-8065-e729eb0f2650",
+  "extraction": {
+    "model_version": "provider:gemini-2.5-flash-lite",
+    "extracted_at": "2026-04-21T15:54:27Z",
+    "transcript_ref": "transcripts/0001 - A.I. Backlash Turns Violent _ Ka_20260421-175353_8eb5f9d2.txt"
+  },
+  "nodes": [
+    {
+      "id": "episode:25d702f6-ed6a-4565-8065-e729eb0f2650",
+      "type": "Episode",
+      "properties": {
+        "podcast_id": "sha256:8025356ebfbe105cbd206ed4a4eabbc06f4562a0360517fd129e954ee2ef1871",
+        "title": "A.I. Backlash Turns Violent + Kara Swisher on Healthmaxxing + The Zuck Bot Is Coming",
+        "publish_date": "2026-04-17T11:00:00+00:00"
+      }
+    },
+    {
+      "id": "topic:ai-backlash",
+      "type": "Topic",
+      "properties": {
+        "label": "AI backlash",
+        "slug": "ai-backlash"
+      }
+    },
+    {
+      "id": "topic:ai-violence",
+      "type": "Topic",
+      "properties": {
+        "label": "AI violence",
+        "slug": "ai-violence"
+      }
+    },
+    {
+      "id": "topic:data-center-resistance",
+      "type": "Topic",
+      "properties": {
+        "label": "data center resistance",
+        "slug": "data-center-resistance"
+      }
+    },
+    {
+      "id": "topic:public-sentiment-on-ai",
+      "type": "Topic",
+      "properties": {
+        "label": "public sentiment on AI",
+        "slug": "public-sentiment-on-ai"
+      }
+    },
+    {
+      "id": "topic:ai-regulation",
+      "type": "Topic",
+      "properties": {
+        "label": "AI regulation",
+        "slug": "ai-regulation"
+      }
+    },
+    {
+      "id": "topic:existential-risk-of-ai",
+      "type": "Topic",
+      "properties": {
+        "label": "existential risk of AI",
+        "slug": "existential-risk-of-ai"
+      }
+    },
+    {
+      "id": "topic:ai-industry",
+      "type": "Topic",
+      "properties": {
+        "label": "AI industry",
+        "slug": "ai-industry"
+      }
+    },
+    {
+      "id": "topic:silicon-valley",
+      "type": "Topic",
+      "properties": {
+        "label": "Silicon Valley",
+        "slug": "silicon-valley"
+      }
+    },
+    {
+      "id": "topic:ceo-self-replacement",
+      "type": "Topic",
+      "properties": {
+        "label": "CEO self-replacement",
+        "slug": "ceo-self-replacement"
+      }
+    },
+    {
+      "id": "topic:ai-policy",
+      "type": "Topic",
+      "properties": {
+        "label": "AI policy",
+        "slug": "ai-policy"
+      }
+    },
+    {
+      "id": "person:casey-noon",
+      "type": "Entity",
+      "properties": {
+        "name": "Casey Noon",
+        "label": "Casey Noon",
+        "kind": "person",
+        "role": "mentioned"
+      }
+    },
+    {
+      "id": "person:kevin-russo",
+      "type": "Entity",
+      "properties": {
+        "name": "Kevin Russo",
+        "label": "Kevin Russo",
+        "kind": "person",
+        "role": "mentioned"
+      }
+    },
+    {
+      "id": "person:kara-swisher",
+      "type": "Entity",
+      "properties": {
+        "name": "Kara Swisher",
+        "label": "Kara Swisher",
+        "kind": "person",
+        "role": "mentioned"
+      }
+    },
+    {
+      "id": "person:mark-zuckerberg",
+      "type": "Entity",
+      "properties": {
+        "name": "Mark Zuckerberg",
+        "label": "Mark Zuckerberg",
+        "kind": "person",
+        "role": "mentioned"
+      }
+    },
+    {
+      "id": "person:sam-altman",
+      "type": "Entity",
+      "properties": {
+        "name": "Sam Altman",
+        "label": "Sam Altman",
+        "kind": "person",
+        "role": "mentioned"
+      }
+    },
+    {
+      "id": "person:ron-gibson",
+      "type": "Entity",
+      "properties": {
+        "name": "Ron Gibson",
+        "label": "Ron Gibson",
+        "kind": "person",
+        "role": "mentioned"
+      }
+    },
+    {
+      "id": "person:bernie-sanders",
+      "type": "Entity",
+      "properties": {
+        "name": "Bernie Sanders",
+        "label": "Bernie Sanders",
+        "kind": "person",
+        "role": "mentioned"
+      }
+    },
+    {
+      "id": "person:aoc",
+      "type": "Entity",
+      "properties": {
+        "name": "AOC",
+        "label": "AOC",
+        "kind": "person",
+        "role": "mentioned"
+      }
+    },
+    {
+      "id": "person:elon-musk",
+      "type": "Entity",
+      "properties": {
+        "name": "Elon Musk",
+        "label": "Elon Musk",
+        "kind": "person",
+        "role": "mentioned"
+      }
+    },
+    {
+      "id": "org:new-york-times",
+      "type": "Entity",
+      "properties": {
+        "name": "New York Times",
+        "label": "New York Times",
+        "kind": "org",
+        "role": "mentioned"
+      }
+    },
+    {
+      "id": "org:platformer",
+      "type": "Entity",
+      "properties": {
+        "name": "Platformer",
+        "label": "Platformer",
+        "kind": "org",
+        "role": "mentioned"
+      }
+    },
+    {
+      "id": "org:openai",
+      "type": "Entity",
+      "properties": {
+        "name": "OpenAI",
+        "label": "OpenAI",
+        "kind": "org",
+        "role": "mentioned"
+      }
+    },
+    {
+      "id": "org:microsoft",
+      "type": "Entity",
+      "properties": {
+        "name": "Microsoft",
+        "label": "Microsoft",
+        "kind": "org",
+        "role": "mentioned"
+      }
+    },
+    {
+      "id": "org:perplexity",
+      "type": "Entity",
+      "properties": {
+        "name": "Perplexity",
+        "label": "Perplexity",
+        "kind": "org",
+        "role": "mentioned"
+      }
+    },
+    {
+      "id": "org:anthropic",
+      "type": "Entity",
+      "properties": {
+        "name": "Anthropic",
+        "label": "Anthropic",
+        "kind": "org",
+        "role": "mentioned"
+      }
+    },
+    {
+      "id": "person:the-new-york-times",
+      "type": "Entity",
+      "properties": {
+        "name": "The New York Times",
+        "label": "The New York Times",
+        "kind": "person",
+        "role": "host"
+      }
+    }
+  ],
+  "edges": [
+    {
+      "from": "topic:ai-backlash",
+      "to": "episode:25d702f6-ed6a-4565-8065-e729eb0f2650",
+      "type": "MENTIONS",
+      "properties": {}
+    },
+    {
+      "from": "topic:ai-violence",
+      "to": "episode:25d702f6-ed6a-4565-8065-e729eb0f2650",
+      "type": "MENTIONS",
+      "properties": {}
+    },
+    {
+      "from": "topic:data-center-resistance",
+      "to": "episode:25d702f6-ed6a-4565-8065-e729eb0f2650",
+      "type": "MENTIONS",
+      "properties": {}
+    },
+    {
+      "from": "topic:public-sentiment-on-ai",
+      "to": "episode:25d702f6-ed6a-4565-8065-e729eb0f2650",
+      "type": "MENTIONS",
+      "properties": {}
+    },
+    {
+      "from": "topic:ai-regulation",
+      "to": "episode:25d702f6-ed6a-4565-8065-e729eb0f2650",
+      "type": "MENTIONS",
+      "properties": {}
+    },
+    {
+      "from": "topic:existential-risk-of-ai",
+      "to": "episode:25d702f6-ed6a-4565-8065-e729eb0f2650",
+      "type": "MENTIONS",
+      "properties": {}
+    },
+    {
+      "from": "topic:ai-industry",
+      "to": "episode:25d702f6-ed6a-4565-8065-e729eb0f2650",
+      "type": "MENTIONS",
+      "properties": {}
+    },
+    {
+      "from": "topic:silicon-valley",
+      "to": "episode:25d702f6-ed6a-4565-8065-e729eb0f2650",
+      "type": "MENTIONS",
+      "properties": {}
+    },
+    {
+      "from": "topic:ceo-self-replacement",
+      "to": "episode:25d702f6-ed6a-4565-8065-e729eb0f2650",
+      "type": "MENTIONS",
+      "properties": {}
+    },
+    {
+      "from": "topic:ai-policy",
+      "to": "episode:25d702f6-ed6a-4565-8065-e729eb0f2650",
+      "type": "MENTIONS",
+      "properties": {}
+    },
+    {
+      "from": "person:casey-noon",
+      "to": "episode:25d702f6-ed6a-4565-8065-e729eb0f2650",
+      "type": "MENTIONS",
+      "properties": {}
+    },
+    {
+      "from": "person:kevin-russo",
+      "to": "episode:25d702f6-ed6a-4565-8065-e729eb0f2650",
+      "type": "MENTIONS",
+      "properties": {}
+    },
+    {
+      "from": "person:kara-swisher",
+      "to": "episode:25d702f6-ed6a-4565-8065-e729eb0f2650",
+      "type": "MENTIONS",
+      "properties": {}
+    },
+    {
+      "from": "person:mark-zuckerberg",
+      "to": "episode:25d702f6-ed6a-4565-8065-e729eb0f2650",
+      "type": "MENTIONS",
+      "properties": {}
+    },
+    {
+      "from": "person:sam-altman",
+      "to": "episode:25d702f6-ed6a-4565-8065-e729eb0f2650",
+      "type": "MENTIONS",
+      "properties": {}
+    },
+    {
+      "from": "person:ron-gibson",
+      "to": "episode:25d702f6-ed6a-4565-8065-e729eb0f2650",
+      "type": "MENTIONS",
+      "properties": {}
+    },
+    {
+      "from": "person:bernie-sanders",
+      "to": "episode:25d702f6-ed6a-4565-8065-e729eb0f2650",
+      "type": "MENTIONS",
+      "properties": {}
+    },
+    {
+      "from": "person:aoc",
+      "to": "episode:25d702f6-ed6a-4565-8065-e729eb0f2650",
+      "type": "MENTIONS",
+      "properties": {}
+    },
+    {
+      "from": "person:elon-musk",
+      "to": "episode:25d702f6-ed6a-4565-8065-e729eb0f2650",
+      "type": "MENTIONS",
+      "properties": {}
+    },
+    {
+      "from": "org:new-york-times",
+      "to": "episode:25d702f6-ed6a-4565-8065-e729eb0f2650",
+      "type": "MENTIONS",
+      "properties": {}
+    },
+    {
+      "from": "org:platformer",
+      "to": "episode:25d702f6-ed6a-4565-8065-e729eb0f2650",
+      "type": "MENTIONS",
+      "properties": {}
+    },
+    {
+      "from": "org:openai",
+      "to": "episode:25d702f6-ed6a-4565-8065-e729eb0f2650",
+      "type": "MENTIONS",
+      "properties": {}
+    },
+    {
+      "from": "org:microsoft",
+      "to": "episode:25d702f6-ed6a-4565-8065-e729eb0f2650",
+      "type": "MENTIONS",
+      "properties": {}
+    },
+    {
+      "from": "org:perplexity",
+      "to": "episode:25d702f6-ed6a-4565-8065-e729eb0f2650",
+      "type": "MENTIONS",
+      "properties": {}
+    },
+    {
+      "from": "org:anthropic",
+      "to": "episode:25d702f6-ed6a-4565-8065-e729eb0f2650",
+      "type": "MENTIONS",
+      "properties": {}
+    },
+    {
+      "from": "person:the-new-york-times",
+      "to": "episode:25d702f6-ed6a-4565-8065-e729eb0f2650",
+      "type": "MENTIONS",
+      "properties": {}
+    }
+  ]
+}

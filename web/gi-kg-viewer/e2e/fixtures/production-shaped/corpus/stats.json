@@ -1,0 +1,16 @@
+{
+  "catalog_episode_count": 137,
+  "catalog_feed_count": 10,
+  "digest_topics_configured": 3,
+  "path": "/Users/markodragoljevic/Projects/podcast_scraper-FUTURE/.test_outputs/manual/my-manual-run-10",
+  "publish_month_histogram": {
+    "2025-10": 6,
+    "2025-11": 7,
+    "2025-12": 9,
+    "2026-01": 17,
+    "2026-02": 26,
+    "2026-03": 32,
+    "2026-04": 37,
+    "2026-05": 3
+  }
+}
