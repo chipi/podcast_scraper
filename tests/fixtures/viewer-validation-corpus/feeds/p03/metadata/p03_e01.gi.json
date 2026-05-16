@@ -1,0 +1,142 @@
+{
+  "edges": [
+    {
+      "from": "episode:a283fe88-fdec-51b4-8014-431b4a7ce670",
+      "to": "topic:welcome-back-to",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:a283fe88-fdec-51b4-8014-431b4a7ce670",
+      "to": "topic:the-calmest-diver-is",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:a283fe88-fdec-51b4-8014-431b4a7ce670",
+      "to": "topic:what-do-you-recommend",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:a283fe88-fdec-51b4-8014-431b4a7ce670",
+      "to": "insight:23f9c526b4cdfacc",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "episode:a283fe88-fdec-51b4-8014-431b4a7ce670",
+      "to": "insight:be613e1ac0583126",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "episode:a283fe88-fdec-51b4-8014-431b4a7ce670",
+      "to": "insight:0df817e3f8b25504",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "episode:a283fe88-fdec-51b4-8014-431b4a7ce670",
+      "to": "quote:52bc07b2a5cbb682",
+      "type": "HAS_QUOTE"
+    },
+    {
+      "from": "episode:a283fe88-fdec-51b4-8014-431b4a7ce670",
+      "to": "quote:a46de42e01a1485a",
+      "type": "HAS_QUOTE"
+    },
+    {
+      "from": "episode:a283fe88-fdec-51b4-8014-431b4a7ce670",
+      "to": "quote:c7b2c6ad2dc1698d",
+      "type": "HAS_QUOTE"
+    }
+  ],
+  "episode_id": "a283fe88-fdec-51b4-8014-431b4a7ce670",
+  "model_version": "synthetic-validation-corpus-v1",
+  "nodes": [
+    {
+      "id": "episode:a283fe88-fdec-51b4-8014-431b4a7ce670",
+      "properties": {
+        "duration_ms": 1800000,
+        "episode_id": "a283fe88-fdec-51b4-8014-431b4a7ce670",
+        "metadata_relative_path": "feeds/p03/metadata/p03_e01.metadata.json",
+        "podcast_id": "sha256:16de36c98e7e4b95d699380d14d84d2f13717c2c151f935076564a9a5f5e979b",
+        "publish_date": "2026-05-14T12:00:00",
+        "title": "Below the Surface \u2014 Episode 1"
+      },
+      "type": "Episode"
+    },
+    {
+      "id": "topic:welcome-back-to",
+      "properties": {
+        "label": "welcome back to",
+        "score": 0.8
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:the-calmest-diver-is",
+      "properties": {
+        "label": "the calmest diver is",
+        "score": 0.8
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:what-do-you-recommend",
+      "properties": {
+        "label": "what do you recommend",
+        "score": 0.8
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "insight:23f9c526b4cdfacc",
+      "properties": {
+        "confidence": 0.7,
+        "grounded": true,
+        "text": "# Below the Surface \u2014 Episode\n## Wreck Diving Fundamentals\nHost: Rina\nGuest: Marco\nRina: Welcome back to Below the Surface."
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "insight:be613e1ac0583126",
+      "properties": {
+        "confidence": 0.7,
+        "grounded": true,
+        "text": "Today we\u2019re talking about wreck diving fundamentals, and I\u2019m joined by Marco."
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "insight:0df817e3f8b25504",
+      "properties": {
+        "confidence": 0.7,
+        "grounded": true,
+        "text": "I\u2019m excited\u2014this is a topic people care about, and there\u2019s a lot of practical nuance."
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "quote:52bc07b2a5cbb682",
+      "properties": {
+        "speaker": "Speaker 1",
+        "text": "Okay, let\u2019s get specific."
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:a46de42e01a1485a",
+      "properties": {
+        "speaker": "Speaker 1",
+        "text": "The calmest diver is often the safest diver because calm keeps breathing slow and decisions deliberate."
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:c7b2c6ad2dc1698d",
+      "properties": {
+        "speaker": "Speaker 1",
+        "text": "For navigation, pick one primary reference and one backup: heading plus depth or reef contour plus current direction."
+      },
+      "type": "Quote"
+    }
+  ],
+  "prompt_version": "n/a",
+  "schema_version": "2"
+}

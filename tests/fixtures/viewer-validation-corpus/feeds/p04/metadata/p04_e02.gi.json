@@ -1,0 +1,142 @@
+{
+  "edges": [
+    {
+      "from": "episode:9833b47e-0cc8-50b9-a6da-65dc0f6d053f",
+      "to": "topic:workflow-in-the",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:9833b47e-0cc8-50b9-a6da-65dc0f6d053f",
+      "to": "topic:welcome-back-to",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:9833b47e-0cc8-50b9-a6da-65dc0f6d053f",
+      "to": "topic:underwater-photography-is-mostly",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:9833b47e-0cc8-50b9-a6da-65dc0f6d053f",
+      "to": "insight:41017ff3f83946ea",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "episode:9833b47e-0cc8-50b9-a6da-65dc0f6d053f",
+      "to": "insight:098fcf3ac1eeafef",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "episode:9833b47e-0cc8-50b9-a6da-65dc0f6d053f",
+      "to": "insight:0df817e3f8b25504",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "episode:9833b47e-0cc8-50b9-a6da-65dc0f6d053f",
+      "to": "quote:13304a0d0da810fa",
+      "type": "HAS_QUOTE"
+    },
+    {
+      "from": "episode:9833b47e-0cc8-50b9-a6da-65dc0f6d053f",
+      "to": "quote:88f0dcb795aa4b8a",
+      "type": "HAS_QUOTE"
+    },
+    {
+      "from": "episode:9833b47e-0cc8-50b9-a6da-65dc0f6d053f",
+      "to": "quote:87577da43f7e0259",
+      "type": "HAS_QUOTE"
+    }
+  ],
+  "episode_id": "9833b47e-0cc8-50b9-a6da-65dc0f6d053f",
+  "model_version": "synthetic-validation-corpus-v1",
+  "nodes": [
+    {
+      "id": "episode:9833b47e-0cc8-50b9-a6da-65dc0f6d053f",
+      "properties": {
+        "duration_ms": 1800000,
+        "episode_id": "9833b47e-0cc8-50b9-a6da-65dc0f6d053f",
+        "metadata_relative_path": "feeds/p04/metadata/p04_e02.metadata.json",
+        "podcast_id": "sha256:acf6d1026eaa400425afb658fa014e874a2eb50129923b7a92fe82290004a6e7",
+        "publish_date": "2026-05-11T12:00:00",
+        "title": "Frame & Light \u2014 Episode 2"
+      },
+      "type": "Episode"
+    },
+    {
+      "id": "topic:workflow-in-the",
+      "properties": {
+        "label": "workflow in the",
+        "score": 0.8
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:welcome-back-to",
+      "properties": {
+        "label": "welcome back to",
+        "score": 0.8
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:underwater-photography-is-mostly",
+      "properties": {
+        "label": "underwater photography is mostly",
+        "score": 0.8
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "insight:41017ff3f83946ea",
+      "properties": {
+        "confidence": 0.7,
+        "grounded": true,
+        "text": "# Frame & Light \u2014 Episode\n## Documentary Workflow in the Field\nHost: Leo\nGuest: Tariq\nLeo: Welcome back to Frame & Light."
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "insight:098fcf3ac1eeafef",
+      "properties": {
+        "confidence": 0.7,
+        "grounded": true,
+        "text": "Today we\u2019re talking about documentary workflow in the field, and I\u2019m joined by Tariq."
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "insight:0df817e3f8b25504",
+      "properties": {
+        "confidence": 0.7,
+        "grounded": true,
+        "text": "I\u2019m excited\u2014this is a topic people care about, and there\u2019s a lot of practical nuance."
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "quote:13304a0d0da810fa",
+      "properties": {
+        "speaker": "Speaker 1",
+        "text": "Let\u2019s zoom out for a second."
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:88f0dcb795aa4b8a",
+      "properties": {
+        "speaker": "Speaker 1",
+        "text": "Underwater photography is mostly lighting and positioning; the camera is rarely the limiting factor."
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:87577da43f7e0259",
+      "properties": {
+        "speaker": "Speaker 1",
+        "text": "A small strobe angle change can reduce backscatter dramatically by moving the beam away from the lens axis."
+      },
+      "type": "Quote"
+    }
+  ],
+  "prompt_version": "n/a",
+  "schema_version": "2"
+}

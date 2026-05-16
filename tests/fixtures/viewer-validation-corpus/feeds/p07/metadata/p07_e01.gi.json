@@ -1,0 +1,142 @@
+{
+  "edges": [
+    {
+      "from": "episode:5ef53e66-e083-5fcb-b555-a3814ebb6b39",
+      "to": "topic:where-do-the-trade",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:5ef53e66-e083-5fcb-b555-a3814ebb6b39",
+      "to": "topic:one-underrated-lever-is",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:5ef53e66-e083-5fcb-b555-a3814ebb6b39",
+      "to": "topic:give-me-a-concrete",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:5ef53e66-e083-5fcb-b555-a3814ebb6b39",
+      "to": "insight:b72c3fe1f1af4ba4",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "episode:5ef53e66-e083-5fcb-b555-a3814ebb6b39",
+      "to": "insight:aff029b964332002",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "episode:5ef53e66-e083-5fcb-b555-a3814ebb6b39",
+      "to": "insight:b890c16f1af8131b",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "episode:5ef53e66-e083-5fcb-b555-a3814ebb6b39",
+      "to": "quote:8342c859d3813162",
+      "type": "HAS_QUOTE"
+    },
+    {
+      "from": "episode:5ef53e66-e083-5fcb-b555-a3814ebb6b39",
+      "to": "quote:24f3d9d4a0708a91",
+      "type": "HAS_QUOTE"
+    },
+    {
+      "from": "episode:5ef53e66-e083-5fcb-b555-a3814ebb6b39",
+      "to": "quote:c14313c1eba961b5",
+      "type": "HAS_QUOTE"
+    }
+  ],
+  "episode_id": "5ef53e66-e083-5fcb-b555-a3814ebb6b39",
+  "model_version": "synthetic-validation-corpus-v1",
+  "nodes": [
+    {
+      "id": "episode:5ef53e66-e083-5fcb-b555-a3814ebb6b39",
+      "properties": {
+        "duration_ms": 1800000,
+        "episode_id": "5ef53e66-e083-5fcb-b555-a3814ebb6b39",
+        "metadata_relative_path": "feeds/p07/metadata/p07_e01.metadata.json",
+        "podcast_id": "sha256:9e4a8b34d0b761bb138fb239ee0ace25609c27381d49bf78622ee8a40c7ce4ab",
+        "publish_date": "2026-05-16T12:00:00",
+        "title": "The Long View \u2014 Episode 1"
+      },
+      "type": "Episode"
+    },
+    {
+      "id": "topic:where-do-the-trade",
+      "properties": {
+        "label": "where do the trade",
+        "score": 0.8
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:one-underrated-lever-is",
+      "properties": {
+        "label": "one underrated lever is",
+        "score": 0.8
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:give-me-a-concrete",
+      "properties": {
+        "label": "give me a concrete",
+        "score": 0.8
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "insight:b72c3fe1f1af4ba4",
+      "properties": {
+        "confidence": 0.7,
+        "grounded": true,
+        "text": "The Long View\nEpisode: What Sustainability Really Means (And Why Everyone Is Talking About It)\nHost: Alex Morgan\nGuest: Dr."
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "insight:aff029b964332002",
+      "properties": {
+        "confidence": 0.7,
+        "grounded": true,
+        "text": "Elena Fischer\n\nAlex Morgan: Today\u2019s topic is sustainability\u2014what it means, why it\u2019s everywhere, and what it requires in practice."
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "insight:b890c16f1af8131b",
+      "properties": {
+        "confidence": 0.7,
+        "grounded": true,
+        "text": "Alex Morgan: Let\u2019s zoom out for a moment and frame sustainability as a systems question."
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "quote:8342c859d3813162",
+      "properties": {
+        "speaker": "Speaker 1",
+        "text": "And I think the most useful way to approach this is to ask what must stay true over time."
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:24f3d9d4a0708a91",
+      "properties": {
+        "speaker": "Speaker 1",
+        "text": "Alex Morgan: Where do the trade-offs show up most sharply?"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:c14313c1eba961b5",
+      "properties": {
+        "speaker": "Speaker 1",
+        "text": "Elena Fischer: A helpful mental model is to look for feedback loops: reinforcing loops that accelerate change, and balancing loops that slow it down."
+      },
+      "type": "Quote"
+    }
+  ],
+  "prompt_version": "n/a",
+  "schema_version": "2"
+}

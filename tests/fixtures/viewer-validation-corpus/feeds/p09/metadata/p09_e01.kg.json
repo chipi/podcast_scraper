@@ -1,0 +1,59 @@
+{
+  "edges": [
+    {
+      "from": "episode:22aa61d4-d535-5e72-ae9b-d44d9a3054d1",
+      "to": "entity:biohacking-in",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:22aa61d4-d535-5e72-ae9b-d44d9a3054d1",
+      "to": "entity:in-this-episode",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:22aa61d4-d535-5e72-ae9b-d44d9a3054d1",
+      "to": "topic:biohacking-in",
+      "type": "RELATES_TO"
+    }
+  ],
+  "episode_id": "22aa61d4-d535-5e72-ae9b-d44d9a3054d1",
+  "extraction": {
+    "model": "n/a",
+    "provider": "synthetic"
+  },
+  "nodes": [
+    {
+      "id": "episode:22aa61d4-d535-5e72-ae9b-d44d9a3054d1",
+      "properties": {
+        "episode_id": "22aa61d4-d535-5e72-ae9b-d44d9a3054d1",
+        "metadata_relative_path": "feeds/p09/metadata/p09_e01.metadata.json",
+        "title": "The Long View: Biohacking \u2014 Episode 1"
+      },
+      "type": "Episode"
+    },
+    {
+      "id": "entity:biohacking-in",
+      "properties": {
+        "category": "Concept",
+        "label": "Biohacking In"
+      },
+      "type": "Entity"
+    },
+    {
+      "id": "entity:in-this-episode",
+      "properties": {
+        "category": "Concept",
+        "label": "In This Episode"
+      },
+      "type": "Entity"
+    },
+    {
+      "id": "topic:biohacking-in",
+      "properties": {
+        "label": "biohacking in"
+      },
+      "type": "Topic"
+    }
+  ],
+  "schema_version": "2"
+}

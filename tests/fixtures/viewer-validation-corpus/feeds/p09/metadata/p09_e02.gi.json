@@ -1,0 +1,142 @@
+{
+  "edges": [
+    {
+      "from": "episode:d24c1620-8d16-54dd-b681-2f2e06c0b579",
+      "to": "topic:in-this-episode",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:d24c1620-8d16-54dd-b681-2f2e06c0b579",
+      "to": "topic:where-the-field-is",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:d24c1620-8d16-54dd-b681-2f2e06c0b579",
+      "to": "topic:if-a-protocol-only",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:d24c1620-8d16-54dd-b681-2f2e06c0b579",
+      "to": "insight:9b38637b4c4d2e0d",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "episode:d24c1620-8d16-54dd-b681-2f2e06c0b579",
+      "to": "insight:de1876082b36b0d4",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "episode:d24c1620-8d16-54dd-b681-2f2e06c0b579",
+      "to": "insight:1ea26d5ea166b6ae",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "episode:d24c1620-8d16-54dd-b681-2f2e06c0b579",
+      "to": "quote:eee0c952d51f4059",
+      "type": "HAS_QUOTE"
+    },
+    {
+      "from": "episode:d24c1620-8d16-54dd-b681-2f2e06c0b579",
+      "to": "quote:944d48e6a5dc9ed2",
+      "type": "HAS_QUOTE"
+    },
+    {
+      "from": "episode:d24c1620-8d16-54dd-b681-2f2e06c0b579",
+      "to": "quote:17532e413f565461",
+      "type": "HAS_QUOTE"
+    }
+  ],
+  "episode_id": "d24c1620-8d16-54dd-b681-2f2e06c0b579",
+  "model_version": "synthetic-validation-corpus-v1",
+  "nodes": [
+    {
+      "id": "episode:d24c1620-8d16-54dd-b681-2f2e06c0b579",
+      "properties": {
+        "duration_ms": 1800000,
+        "episode_id": "d24c1620-8d16-54dd-b681-2f2e06c0b579",
+        "metadata_relative_path": "feeds/p09/metadata/p09_e02.metadata.json",
+        "podcast_id": "sha256:255b515964dcdf7f0f2123a46053fbf8c961882868ea3c88bb8ba794824c52e8",
+        "publish_date": "2026-05-12T12:00:00",
+        "title": "The Long View: Biohacking \u2014 Episode 2"
+      },
+      "type": "Episode"
+    },
+    {
+      "id": "topic:in-this-episode",
+      "properties": {
+        "label": "in this episode",
+        "score": 0.8
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:where-the-field-is",
+      "properties": {
+        "label": "where the field is",
+        "score": 0.8
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:if-a-protocol-only",
+      "properties": {
+        "label": "if a protocol only",
+        "score": 0.8
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "insight:9b38637b4c4d2e0d",
+      "properties": {
+        "confidence": 0.7,
+        "grounded": true,
+        "text": "In this episode, I\u2019m going to build a grounded map: what\u2019s real, what\u2019s uncertain, and what you can do without turning your life into an optimization project."
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "insight:de1876082b36b0d4",
+      "properties": {
+        "confidence": 0.7,
+        "grounded": true,
+        "text": "Alex Morgan: Where the field is right now."
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "insight:1ea26d5ea166b6ae",
+      "properties": {
+        "confidence": 0.7,
+        "grounded": true,
+        "text": "Alex Morgan: If a protocol only works when life is perfect, it is not a protocol; it is a performance."
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "quote:eee0c952d51f4059",
+      "properties": {
+        "speaker": "Speaker 1",
+        "text": "Alex Morgan: The second step is to separate interventions that improve fundamentals from interventions that just create the feeling of progress."
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:944d48e6a5dc9ed2",
+      "properties": {
+        "speaker": "Speaker 1",
+        "text": "Alex Morgan: Finally, remember that biology is adaptive."
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:17532e413f565461",
+      "properties": {
+        "speaker": "Speaker 1",
+        "text": "The goal is resilience, not a permanent state of peak performance."
+      },
+      "type": "Quote"
+    }
+  ],
+  "prompt_version": "n/a",
+  "schema_version": "2"
+}

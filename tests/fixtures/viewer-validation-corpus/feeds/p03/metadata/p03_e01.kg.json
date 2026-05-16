@@ -1,0 +1,59 @@
+{
+  "edges": [
+    {
+      "from": "episode:a283fe88-fdec-51b4-8014-431b4a7ce670",
+      "to": "entity:welcome-back-to",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:a283fe88-fdec-51b4-8014-431b4a7ce670",
+      "to": "entity:the-calmest-diver-is",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:a283fe88-fdec-51b4-8014-431b4a7ce670",
+      "to": "topic:welcome-back-to",
+      "type": "RELATES_TO"
+    }
+  ],
+  "episode_id": "a283fe88-fdec-51b4-8014-431b4a7ce670",
+  "extraction": {
+    "model": "n/a",
+    "provider": "synthetic"
+  },
+  "nodes": [
+    {
+      "id": "episode:a283fe88-fdec-51b4-8014-431b4a7ce670",
+      "properties": {
+        "episode_id": "a283fe88-fdec-51b4-8014-431b4a7ce670",
+        "metadata_relative_path": "feeds/p03/metadata/p03_e01.metadata.json",
+        "title": "Below the Surface \u2014 Episode 1"
+      },
+      "type": "Episode"
+    },
+    {
+      "id": "entity:welcome-back-to",
+      "properties": {
+        "category": "Concept",
+        "label": "Welcome Back To"
+      },
+      "type": "Entity"
+    },
+    {
+      "id": "entity:the-calmest-diver-is",
+      "properties": {
+        "category": "Concept",
+        "label": "The Calmest Diver Is"
+      },
+      "type": "Entity"
+    },
+    {
+      "id": "topic:welcome-back-to",
+      "properties": {
+        "label": "welcome back to"
+      },
+      "type": "Topic"
+    }
+  ],
+  "schema_version": "2"
+}

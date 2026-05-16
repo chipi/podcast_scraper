@@ -1,0 +1,59 @@
+{
+  "edges": [
+    {
+      "from": "episode:e1743bda-76ff-5586-9e39-3fa45e41ef9a",
+      "to": "entity:welcome-back-to",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:e1743bda-76ff-5586-9e39-3fa45e41ef9a",
+      "to": "entity:if-you-can",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:e1743bda-76ff-5586-9e39-3fa45e41ef9a",
+      "to": "topic:welcome-back-to",
+      "type": "RELATES_TO"
+    }
+  ],
+  "episode_id": "e1743bda-76ff-5586-9e39-3fa45e41ef9a",
+  "extraction": {
+    "model": "n/a",
+    "provider": "synthetic"
+  },
+  "nodes": [
+    {
+      "id": "episode:e1743bda-76ff-5586-9e39-3fa45e41ef9a",
+      "properties": {
+        "episode_id": "e1743bda-76ff-5586-9e39-3fa45e41ef9a",
+        "metadata_relative_path": "feeds/p04/metadata/p04_e03.metadata.json",
+        "title": "Frame & Light \u2014 Episode 3"
+      },
+      "type": "Episode"
+    },
+    {
+      "id": "entity:welcome-back-to",
+      "properties": {
+        "category": "Concept",
+        "label": "Welcome Back To"
+      },
+      "type": "Entity"
+    },
+    {
+      "id": "entity:if-you-can",
+      "properties": {
+        "category": "Concept",
+        "label": "If You Can"
+      },
+      "type": "Entity"
+    },
+    {
+      "id": "topic:welcome-back-to",
+      "properties": {
+        "label": "welcome back to"
+      },
+      "type": "Topic"
+    }
+  ],
+  "schema_version": "2"
+}

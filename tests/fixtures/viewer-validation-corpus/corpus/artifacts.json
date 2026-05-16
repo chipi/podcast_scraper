@@ -1,0 +1,373 @@
+{
+  "artifacts": [
+    {
+      "kind": "gi",
+      "mtime_utc": "2026-05-01T00:00:00Z",
+      "name": "p01_e01.gi.json",
+      "publish_date": "2026-05-16",
+      "relative_path": "feeds/p01/metadata/p01_e01.gi.json",
+      "size_bytes": 4051
+    },
+    {
+      "kind": "kg",
+      "mtime_utc": "2026-05-01T00:00:00Z",
+      "name": "p01_e01.kg.json",
+      "publish_date": "2026-05-16",
+      "relative_path": "feeds/p01/metadata/p01_e01.kg.json",
+      "size_bytes": 1427
+    },
+    {
+      "kind": "gi",
+      "mtime_utc": "2026-05-01T00:00:00Z",
+      "name": "p01_e02.gi.json",
+      "publish_date": "2026-05-14",
+      "relative_path": "feeds/p01/metadata/p01_e02.gi.json",
+      "size_bytes": 3937
+    },
+    {
+      "kind": "kg",
+      "mtime_utc": "2026-05-01T00:00:00Z",
+      "name": "p01_e02.kg.json",
+      "publish_date": "2026-05-14",
+      "relative_path": "feeds/p01/metadata/p01_e02.kg.json",
+      "size_bytes": 1385
+    },
+    {
+      "kind": "gi",
+      "mtime_utc": "2026-05-01T00:00:00Z",
+      "name": "p01_e03.gi.json",
+      "publish_date": "2026-05-12",
+      "relative_path": "feeds/p01/metadata/p01_e03.gi.json",
+      "size_bytes": 4045
+    },
+    {
+      "kind": "kg",
+      "mtime_utc": "2026-05-01T00:00:00Z",
+      "name": "p01_e03.kg.json",
+      "publish_date": "2026-05-12",
+      "relative_path": "feeds/p01/metadata/p01_e03.kg.json",
+      "size_bytes": 1403
+    },
+    {
+      "kind": "gi",
+      "mtime_utc": "2026-05-01T00:00:00Z",
+      "name": "p02_e01.gi.json",
+      "publish_date": "2026-05-15",
+      "relative_path": "feeds/p02/metadata/p02_e01.gi.json",
+      "size_bytes": 4097
+    },
+    {
+      "kind": "kg",
+      "mtime_utc": "2026-05-01T00:00:00Z",
+      "name": "p02_e01.kg.json",
+      "publish_date": "2026-05-15",
+      "relative_path": "feeds/p02/metadata/p02_e01.kg.json",
+      "size_bytes": 1418
+    },
+    {
+      "kind": "gi",
+      "mtime_utc": "2026-05-01T00:00:00Z",
+      "name": "p02_e02.gi.json",
+      "publish_date": "2026-05-13",
+      "relative_path": "feeds/p02/metadata/p02_e02.gi.json",
+      "size_bytes": 4117
+    },
+    {
+      "kind": "kg",
+      "mtime_utc": "2026-05-01T00:00:00Z",
+      "name": "p02_e02.kg.json",
+      "publish_date": "2026-05-13",
+      "relative_path": "feeds/p02/metadata/p02_e02.kg.json",
+      "size_bytes": 1418
+    },
+    {
+      "kind": "gi",
+      "mtime_utc": "2026-05-01T00:00:00Z",
+      "name": "p02_e03.gi.json",
+      "publish_date": "2026-05-11",
+      "relative_path": "feeds/p02/metadata/p02_e03.gi.json",
+      "size_bytes": 3978
+    },
+    {
+      "kind": "kg",
+      "mtime_utc": "2026-05-01T00:00:00Z",
+      "name": "p02_e03.kg.json",
+      "publish_date": "2026-05-11",
+      "relative_path": "feeds/p02/metadata/p02_e03.kg.json",
+      "size_bytes": 1382
+    },
+    {
+      "kind": "gi",
+      "mtime_utc": "2026-05-01T00:00:00Z",
+      "name": "p03_e01.gi.json",
+      "publish_date": "2026-05-14",
+      "relative_path": "feeds/p03/metadata/p03_e01.gi.json",
+      "size_bytes": 4040
+    },
+    {
+      "kind": "kg",
+      "mtime_utc": "2026-05-01T00:00:00Z",
+      "name": "p03_e01.kg.json",
+      "publish_date": "2026-05-14",
+      "relative_path": "feeds/p03/metadata/p03_e01.kg.json",
+      "size_bytes": 1421
+    },
+    {
+      "kind": "gi",
+      "mtime_utc": "2026-05-01T00:00:00Z",
+      "name": "p03_e02.gi.json",
+      "publish_date": "2026-05-12",
+      "relative_path": "feeds/p03/metadata/p03_e02.gi.json",
+      "size_bytes": 4013
+    },
+    {
+      "kind": "kg",
+      "mtime_utc": "2026-05-01T00:00:00Z",
+      "name": "p03_e02.kg.json",
+      "publish_date": "2026-05-12",
+      "relative_path": "feeds/p03/metadata/p03_e02.kg.json",
+      "size_bytes": 1382
+    },
+    {
+      "kind": "gi",
+      "mtime_utc": "2026-05-01T00:00:00Z",
+      "name": "p03_e03.gi.json",
+      "publish_date": "2026-05-16",
+      "relative_path": "feeds/p03/metadata/p03_e03.gi.json",
+      "size_bytes": 4046
+    },
+    {
+      "kind": "kg",
+      "mtime_utc": "2026-05-01T00:00:00Z",
+      "name": "p03_e03.kg.json",
+      "publish_date": "2026-05-16",
+      "relative_path": "feeds/p03/metadata/p03_e03.kg.json",
+      "size_bytes": 1445
+    },
+    {
+      "kind": "gi",
+      "mtime_utc": "2026-05-01T00:00:00Z",
+      "name": "p04_e01.gi.json",
+      "publish_date": "2026-05-13",
+      "relative_path": "feeds/p04/metadata/p04_e01.gi.json",
+      "size_bytes": 4017
+    },
+    {
+      "kind": "kg",
+      "mtime_utc": "2026-05-01T00:00:00Z",
+      "name": "p04_e01.kg.json",
+      "publish_date": "2026-05-13",
+      "relative_path": "feeds/p04/metadata/p04_e01.kg.json",
+      "size_bytes": 1405
+    },
+    {
+      "kind": "gi",
+      "mtime_utc": "2026-05-01T00:00:00Z",
+      "name": "p04_e02.gi.json",
+      "publish_date": "2026-05-11",
+      "relative_path": "feeds/p04/metadata/p04_e02.gi.json",
+      "size_bytes": 4050
+    },
+    {
+      "kind": "kg",
+      "mtime_utc": "2026-05-01T00:00:00Z",
+      "name": "p04_e02.kg.json",
+      "publish_date": "2026-05-11",
+      "relative_path": "feeds/p04/metadata/p04_e02.kg.json",
+      "size_bytes": 1402
+    },
+    {
+      "kind": "gi",
+      "mtime_utc": "2026-05-01T00:00:00Z",
+      "name": "p04_e03.gi.json",
+      "publish_date": "2026-05-15",
+      "relative_path": "feeds/p04/metadata/p04_e03.gi.json",
+      "size_bytes": 3999
+    },
+    {
+      "kind": "kg",
+      "mtime_utc": "2026-05-01T00:00:00Z",
+      "name": "p04_e03.kg.json",
+      "publish_date": "2026-05-15",
+      "relative_path": "feeds/p04/metadata/p04_e03.kg.json",
+      "size_bytes": 1387
+    },
+    {
+      "kind": "gi",
+      "mtime_utc": "2026-05-01T00:00:00Z",
+      "name": "p05_e01.gi.json",
+      "publish_date": "2026-05-12",
+      "relative_path": "feeds/p05/metadata/p05_e01.gi.json",
+      "size_bytes": 3956
+    },
+    {
+      "kind": "kg",
+      "mtime_utc": "2026-05-01T00:00:00Z",
+      "name": "p05_e01.kg.json",
+      "publish_date": "2026-05-12",
+      "relative_path": "feeds/p05/metadata/p05_e01.kg.json",
+      "size_bytes": 1383
+    },
+    {
+      "kind": "gi",
+      "mtime_utc": "2026-05-01T00:00:00Z",
+      "name": "p05_e02.gi.json",
+      "publish_date": "2026-05-16",
+      "relative_path": "feeds/p05/metadata/p05_e02.gi.json",
+      "size_bytes": 4016
+    },
+    {
+      "kind": "kg",
+      "mtime_utc": "2026-05-01T00:00:00Z",
+      "name": "p05_e02.kg.json",
+      "publish_date": "2026-05-16",
+      "relative_path": "feeds/p05/metadata/p05_e02.kg.json",
+      "size_bytes": 1419
+    },
+    {
+      "kind": "gi",
+      "mtime_utc": "2026-05-01T00:00:00Z",
+      "name": "p05_e03.gi.json",
+      "publish_date": "2026-05-14",
+      "relative_path": "feeds/p05/metadata/p05_e03.gi.json",
+      "size_bytes": 3978
+    },
+    {
+      "kind": "kg",
+      "mtime_utc": "2026-05-01T00:00:00Z",
+      "name": "p05_e03.kg.json",
+      "publish_date": "2026-05-14",
+      "relative_path": "feeds/p05/metadata/p05_e03.kg.json",
+      "size_bytes": 1401
+    },
+    {
+      "kind": "gi",
+      "mtime_utc": "2026-05-01T00:00:00Z",
+      "name": "p06_e01.gi.json",
+      "publish_date": "2026-05-11",
+      "relative_path": "feeds/p06/metadata/p06_e01.gi.json",
+      "size_bytes": 4049
+    },
+    {
+      "kind": "kg",
+      "mtime_utc": "2026-05-01T00:00:00Z",
+      "name": "p06_e01.kg.json",
+      "publish_date": "2026-05-11",
+      "relative_path": "feeds/p06/metadata/p06_e01.kg.json",
+      "size_bytes": 1425
+    },
+    {
+      "kind": "gi",
+      "mtime_utc": "2026-05-01T00:00:00Z",
+      "name": "p06_e02.gi.json",
+      "publish_date": "2026-05-15",
+      "relative_path": "feeds/p06/metadata/p06_e02.gi.json",
+      "size_bytes": 4049
+    },
+    {
+      "kind": "kg",
+      "mtime_utc": "2026-05-01T00:00:00Z",
+      "name": "p06_e02.kg.json",
+      "publish_date": "2026-05-15",
+      "relative_path": "feeds/p06/metadata/p06_e02.kg.json",
+      "size_bytes": 1425
+    },
+    {
+      "kind": "gi",
+      "mtime_utc": "2026-05-01T00:00:00Z",
+      "name": "p06_e03.gi.json",
+      "publish_date": "2026-05-13",
+      "relative_path": "feeds/p06/metadata/p06_e03.gi.json",
+      "size_bytes": 4049
+    },
+    {
+      "kind": "kg",
+      "mtime_utc": "2026-05-01T00:00:00Z",
+      "name": "p06_e03.kg.json",
+      "publish_date": "2026-05-13",
+      "relative_path": "feeds/p06/metadata/p06_e03.kg.json",
+      "size_bytes": 1425
+    },
+    {
+      "kind": "gi",
+      "mtime_utc": "2026-05-01T00:00:00Z",
+      "name": "p07_e01.gi.json",
+      "publish_date": "2026-05-16",
+      "relative_path": "feeds/p07/metadata/p07_e01.gi.json",
+      "size_bytes": 4137
+    },
+    {
+      "kind": "kg",
+      "mtime_utc": "2026-05-01T00:00:00Z",
+      "name": "p07_e01.kg.json",
+      "publish_date": "2026-05-16",
+      "relative_path": "feeds/p07/metadata/p07_e01.kg.json",
+      "size_bytes": 1444
+    },
+    {
+      "kind": "gi",
+      "mtime_utc": "2026-05-01T00:00:00Z",
+      "name": "p08_e01.gi.json",
+      "publish_date": "2026-05-15",
+      "relative_path": "feeds/p08/metadata/p08_e01.gi.json",
+      "size_bytes": 4209
+    },
+    {
+      "kind": "kg",
+      "mtime_utc": "2026-05-01T00:00:00Z",
+      "name": "p08_e01.kg.json",
+      "publish_date": "2026-05-15",
+      "relative_path": "feeds/p08/metadata/p08_e01.kg.json",
+      "size_bytes": 1414
+    },
+    {
+      "kind": "gi",
+      "mtime_utc": "2026-05-01T00:00:00Z",
+      "name": "p09_e01.gi.json",
+      "publish_date": "2026-05-14",
+      "relative_path": "feeds/p09/metadata/p09_e01.gi.json",
+      "size_bytes": 4136
+    },
+    {
+      "kind": "kg",
+      "mtime_utc": "2026-05-01T00:00:00Z",
+      "name": "p09_e01.kg.json",
+      "publish_date": "2026-05-14",
+      "relative_path": "feeds/p09/metadata/p09_e01.kg.json",
+      "size_bytes": 1402
+    },
+    {
+      "kind": "gi",
+      "mtime_utc": "2026-05-01T00:00:00Z",
+      "name": "p09_e02.gi.json",
+      "publish_date": "2026-05-12",
+      "relative_path": "feeds/p09/metadata/p09_e02.gi.json",
+      "size_bytes": 4047
+    },
+    {
+      "kind": "kg",
+      "mtime_utc": "2026-05-01T00:00:00Z",
+      "name": "p09_e02.kg.json",
+      "publish_date": "2026-05-12",
+      "relative_path": "feeds/p09/metadata/p09_e02.kg.json",
+      "size_bytes": 1423
+    },
+    {
+      "kind": "gi",
+      "mtime_utc": "2026-05-01T00:00:00Z",
+      "name": "p09_e03.gi.json",
+      "publish_date": "2026-05-16",
+      "relative_path": "feeds/p09/metadata/p09_e03.gi.json",
+      "size_bytes": 4254
+    },
+    {
+      "kind": "kg",
+      "mtime_utc": "2026-05-01T00:00:00Z",
+      "name": "p09_e03.kg.json",
+      "publish_date": "2026-05-16",
+      "relative_path": "feeds/p09/metadata/p09_e03.kg.json",
+      "size_bytes": 1423
+    }
+  ],
+  "path": "/Users/markodragoljevic/Projects/podcast_scraper-FUTURE/tests/fixtures/viewer-validation-corpus"
+}

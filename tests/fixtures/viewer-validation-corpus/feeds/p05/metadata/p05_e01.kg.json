@@ -1,0 +1,59 @@
+{
+  "edges": [
+    {
+      "from": "episode:ac5784fa-1c94-5cd8-99c6-c4f0be157a64",
+      "to": "entity:without-the",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ac5784fa-1c94-5cd8-99c6-c4f0be157a64",
+      "to": "entity:welcome-back-to",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ac5784fa-1c94-5cd8-99c6-c4f0be157a64",
+      "to": "topic:without-the",
+      "type": "RELATES_TO"
+    }
+  ],
+  "episode_id": "ac5784fa-1c94-5cd8-99c6-c4f0be157a64",
+  "extraction": {
+    "model": "n/a",
+    "provider": "synthetic"
+  },
+  "nodes": [
+    {
+      "id": "episode:ac5784fa-1c94-5cd8-99c6-c4f0be157a64",
+      "properties": {
+        "episode_id": "ac5784fa-1c94-5cd8-99c6-c4f0be157a64",
+        "metadata_relative_path": "feeds/p05/metadata/p05_e01.metadata.json",
+        "title": "Long Horizon Notes \u2014 Episode 1"
+      },
+      "type": "Episode"
+    },
+    {
+      "id": "entity:without-the",
+      "properties": {
+        "category": "Concept",
+        "label": "Without The"
+      },
+      "type": "Entity"
+    },
+    {
+      "id": "entity:welcome-back-to",
+      "properties": {
+        "category": "Concept",
+        "label": "Welcome Back To"
+      },
+      "type": "Entity"
+    },
+    {
+      "id": "topic:without-the",
+      "properties": {
+        "label": "without the"
+      },
+      "type": "Topic"
+    }
+  ],
+  "schema_version": "2"
+}

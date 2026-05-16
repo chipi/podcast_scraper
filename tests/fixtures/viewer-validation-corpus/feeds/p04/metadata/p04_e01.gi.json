@@ -1,0 +1,142 @@
+{
+  "edges": [
+    {
+      "from": "episode:09ead36d-954f-5cbb-ae3f-6f0d5985233d",
+      "to": "topic:welcome-back-to",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:09ead36d-954f-5cbb-ae3f-6f0d5985233d",
+      "to": "topic:how-do-you-teach",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:09ead36d-954f-5cbb-ae3f-6f0d5985233d",
+      "to": "topic:great-images-usually-come",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:09ead36d-954f-5cbb-ae3f-6f0d5985233d",
+      "to": "insight:0afee1649ef910d9",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "episode:09ead36d-954f-5cbb-ae3f-6f0d5985233d",
+      "to": "insight:bf2c9f6f46179893",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "episode:09ead36d-954f-5cbb-ae3f-6f0d5985233d",
+      "to": "insight:0df817e3f8b25504",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "episode:09ead36d-954f-5cbb-ae3f-6f0d5985233d",
+      "to": "quote:b090e378081f02aa",
+      "type": "HAS_QUOTE"
+    },
+    {
+      "from": "episode:09ead36d-954f-5cbb-ae3f-6f0d5985233d",
+      "to": "quote:d672a56677ccd2b1",
+      "type": "HAS_QUOTE"
+    },
+    {
+      "from": "episode:09ead36d-954f-5cbb-ae3f-6f0d5985233d",
+      "to": "quote:87577da43f7e0259",
+      "type": "HAS_QUOTE"
+    }
+  ],
+  "episode_id": "09ead36d-954f-5cbb-ae3f-6f0d5985233d",
+  "model_version": "synthetic-validation-corpus-v1",
+  "nodes": [
+    {
+      "id": "episode:09ead36d-954f-5cbb-ae3f-6f0d5985233d",
+      "properties": {
+        "duration_ms": 1800000,
+        "episode_id": "09ead36d-954f-5cbb-ae3f-6f0d5985233d",
+        "metadata_relative_path": "feeds/p04/metadata/p04_e01.metadata.json",
+        "podcast_id": "sha256:acf6d1026eaa400425afb658fa014e874a2eb50129923b7a92fe82290004a6e7",
+        "publish_date": "2026-05-13T12:00:00",
+        "title": "Frame & Light \u2014 Episode 1"
+      },
+      "type": "Episode"
+    },
+    {
+      "id": "topic:welcome-back-to",
+      "properties": {
+        "label": "welcome back to",
+        "score": 0.8
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:how-do-you-teach",
+      "properties": {
+        "label": "how do you teach",
+        "score": 0.8
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:great-images-usually-come",
+      "properties": {
+        "label": "great images usually come",
+        "score": 0.8
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "insight:0afee1649ef910d9",
+      "properties": {
+        "confidence": 0.7,
+        "grounded": true,
+        "text": "# Frame & Light \u2014 Episode\n## Underwater Images That Feel Alive\nHost: Leo\nGuest: Ava\nLeo: Welcome back to Frame & Light."
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "insight:bf2c9f6f46179893",
+      "properties": {
+        "confidence": 0.7,
+        "grounded": true,
+        "text": "Today we\u2019re talking about underwater images that feel alive, and I\u2019m joined by Ava."
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "insight:0df817e3f8b25504",
+      "properties": {
+        "confidence": 0.7,
+        "grounded": true,
+        "text": "I\u2019m excited\u2014this is a topic people care about, and there\u2019s a lot of practical nuance."
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "quote:b090e378081f02aa",
+      "properties": {
+        "speaker": "Speaker 1",
+        "text": "How do you teach that to someone new?"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:d672a56677ccd2b1",
+      "properties": {
+        "speaker": "Speaker 1",
+        "text": "Great images usually come from a clear idea and a simple setup executed consistently."
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:87577da43f7e0259",
+      "properties": {
+        "speaker": "Speaker 1",
+        "text": "A small strobe angle change can reduce backscatter dramatically by moving the beam away from the lens axis."
+      },
+      "type": "Quote"
+    }
+  ],
+  "prompt_version": "n/a",
+  "schema_version": "2"
+}

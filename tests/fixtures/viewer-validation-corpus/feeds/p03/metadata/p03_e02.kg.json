@@ -1,0 +1,59 @@
+{
+  "edges": [
+    {
+      "from": "episode:254fe2be-b570-592e-84cd-c22cb9e271e9",
+      "to": "entity:biology-for",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:254fe2be-b570-592e-84cd-c22cb9e271e9",
+      "to": "entity:welcome-back-to",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:254fe2be-b570-592e-84cd-c22cb9e271e9",
+      "to": "topic:biology-for",
+      "type": "RELATES_TO"
+    }
+  ],
+  "episode_id": "254fe2be-b570-592e-84cd-c22cb9e271e9",
+  "extraction": {
+    "model": "n/a",
+    "provider": "synthetic"
+  },
+  "nodes": [
+    {
+      "id": "episode:254fe2be-b570-592e-84cd-c22cb9e271e9",
+      "properties": {
+        "episode_id": "254fe2be-b570-592e-84cd-c22cb9e271e9",
+        "metadata_relative_path": "feeds/p03/metadata/p03_e02.metadata.json",
+        "title": "Below the Surface \u2014 Episode 2"
+      },
+      "type": "Episode"
+    },
+    {
+      "id": "entity:biology-for",
+      "properties": {
+        "category": "Concept",
+        "label": "Biology For"
+      },
+      "type": "Entity"
+    },
+    {
+      "id": "entity:welcome-back-to",
+      "properties": {
+        "category": "Concept",
+        "label": "Welcome Back To"
+      },
+      "type": "Entity"
+    },
+    {
+      "id": "topic:biology-for",
+      "properties": {
+        "label": "biology for"
+      },
+      "type": "Topic"
+    }
+  ],
+  "schema_version": "2"
+}

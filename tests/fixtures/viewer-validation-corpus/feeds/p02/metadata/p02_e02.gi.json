@@ -1,0 +1,142 @@
+{
+  "edges": [
+    {
+      "from": "episode:096240a2-e115-5a3c-98b4-2d852b096eda",
+      "to": "topic:welcome-back-to",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:096240a2-e115-5a3c-98b4-2d852b096eda",
+      "to": "topic:what-does-that-look",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:096240a2-e115-5a3c-98b4-2d852b096eda",
+      "to": "topic:architecture-decisions-are-mostly",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:096240a2-e115-5a3c-98b4-2d852b096eda",
+      "to": "insight:16471211f052ff2a",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "episode:096240a2-e115-5a3c-98b4-2d852b096eda",
+      "to": "insight:6b6744ae4decd6c8",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "episode:096240a2-e115-5a3c-98b4-2d852b096eda",
+      "to": "insight:0df817e3f8b25504",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "episode:096240a2-e115-5a3c-98b4-2d852b096eda",
+      "to": "quote:d15d4bd534d9064d",
+      "type": "HAS_QUOTE"
+    },
+    {
+      "from": "episode:096240a2-e115-5a3c-98b4-2d852b096eda",
+      "to": "quote:c1f15cf59d0b0c92",
+      "type": "HAS_QUOTE"
+    },
+    {
+      "from": "episode:096240a2-e115-5a3c-98b4-2d852b096eda",
+      "to": "quote:fdd92cf3d711f4ad",
+      "type": "HAS_QUOTE"
+    }
+  ],
+  "episode_id": "096240a2-e115-5a3c-98b4-2d852b096eda",
+  "model_version": "synthetic-validation-corpus-v1",
+  "nodes": [
+    {
+      "id": "episode:096240a2-e115-5a3c-98b4-2d852b096eda",
+      "properties": {
+        "duration_ms": 1800000,
+        "episode_id": "096240a2-e115-5a3c-98b4-2d852b096eda",
+        "metadata_relative_path": "feeds/p02/metadata/p02_e02.metadata.json",
+        "podcast_id": "sha256:05eff208d6fd774940bed9fd154c6a46b9325e32cf95e1769f8eb679505ef414",
+        "publish_date": "2026-05-13T12:00:00",
+        "title": "Practical Systems \u2014 Episode 2"
+      },
+      "type": "Episode"
+    },
+    {
+      "id": "topic:welcome-back-to",
+      "properties": {
+        "label": "welcome back to",
+        "score": 0.8
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:what-does-that-look",
+      "properties": {
+        "label": "what does that look",
+        "score": 0.8
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:architecture-decisions-are-mostly",
+      "properties": {
+        "label": "architecture decisions are mostly",
+        "score": 0.8
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "insight:16471211f052ff2a",
+      "properties": {
+        "confidence": 0.7,
+        "grounded": true,
+        "text": "# Practical Systems \u2014 Episode\n## Staff Engineer Communication Patterns\nHost: Ethan\nGuest: Jonas\nEthan: Welcome back to Practical Systems."
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "insight:6b6744ae4decd6c8",
+      "properties": {
+        "confidence": 0.7,
+        "grounded": true,
+        "text": "Today we\u2019re talking about staff engineer communication patterns, and I\u2019m joined by Jonas."
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "insight:0df817e3f8b25504",
+      "properties": {
+        "confidence": 0.7,
+        "grounded": true,
+        "text": "I\u2019m excited\u2014this is a topic people care about, and there\u2019s a lot of practical nuance."
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "quote:d15d4bd534d9064d",
+      "properties": {
+        "speaker": "Speaker 1",
+        "text": "What does that look like on a normal day?"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:c1f15cf59d0b0c92",
+      "properties": {
+        "speaker": "Speaker 1",
+        "text": "Architecture decisions are mostly tradeoffs: cost versus reliability, speed versus correctness, autonomy versus consistency."
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:fdd92cf3d711f4ad",
+      "properties": {
+        "speaker": "Speaker 1",
+        "text": "Error budgets work when they change behavior, not when they are charts no one looks at during planning."
+      },
+      "type": "Quote"
+    }
+  ],
+  "prompt_version": "n/a",
+  "schema_version": "2"
+}

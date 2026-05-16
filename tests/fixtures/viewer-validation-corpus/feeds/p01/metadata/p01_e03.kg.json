@@ -1,0 +1,59 @@
+{
+  "edges": [
+    {
+      "from": "episode:f6f1df34-2251-5301-b1c7-68ee8468bf65",
+      "to": "entity:mechanics-of-a",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:f6f1df34-2251-5301-b1c7-68ee8468bf65",
+      "to": "entity:welcome-back-to",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:f6f1df34-2251-5301-b1c7-68ee8468bf65",
+      "to": "topic:mechanics-of-a",
+      "type": "RELATES_TO"
+    }
+  ],
+  "episode_id": "f6f1df34-2251-5301-b1c7-68ee8468bf65",
+  "extraction": {
+    "model": "n/a",
+    "provider": "synthetic"
+  },
+  "nodes": [
+    {
+      "id": "episode:f6f1df34-2251-5301-b1c7-68ee8468bf65",
+      "properties": {
+        "episode_id": "f6f1df34-2251-5301-b1c7-68ee8468bf65",
+        "metadata_relative_path": "feeds/p01/metadata/p01_e03.metadata.json",
+        "title": "Singletrack Sessions \u2014 Episode 3"
+      },
+      "type": "Episode"
+    },
+    {
+      "id": "entity:mechanics-of-a",
+      "properties": {
+        "category": "Concept",
+        "label": "Mechanics Of A"
+      },
+      "type": "Entity"
+    },
+    {
+      "id": "entity:welcome-back-to",
+      "properties": {
+        "category": "Concept",
+        "label": "Welcome Back To"
+      },
+      "type": "Entity"
+    },
+    {
+      "id": "topic:mechanics-of-a",
+      "properties": {
+        "label": "mechanics of a"
+      },
+      "type": "Topic"
+    }
+  ],
+  "schema_version": "2"
+}

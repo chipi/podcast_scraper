@@ -1,0 +1,142 @@
+{
+  "edges": [
+    {
+      "from": "episode:d2fb36a0-6f97-55ee-a67a-e97dba3b7f27",
+      "to": "topic:security-as",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:d2fb36a0-6f97-55ee-a67a-e97dba3b7f27",
+      "to": "topic:welcome-back-to",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:d2fb36a0-6f97-55ee-a67a-e97dba3b7f27",
+      "to": "topic:healthy-systems-treat-failures",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:d2fb36a0-6f97-55ee-a67a-e97dba3b7f27",
+      "to": "insight:d7bde203ff394fb8",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "episode:d2fb36a0-6f97-55ee-a67a-e97dba3b7f27",
+      "to": "insight:77f18af82cc49c51",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "episode:d2fb36a0-6f97-55ee-a67a-e97dba3b7f27",
+      "to": "insight:d045b35d91ebf2a8",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "episode:d2fb36a0-6f97-55ee-a67a-e97dba3b7f27",
+      "to": "quote:0df817e3f8b25504",
+      "type": "HAS_QUOTE"
+    },
+    {
+      "from": "episode:d2fb36a0-6f97-55ee-a67a-e97dba3b7f27",
+      "to": "quote:52bc07b2a5cbb682",
+      "type": "HAS_QUOTE"
+    },
+    {
+      "from": "episode:d2fb36a0-6f97-55ee-a67a-e97dba3b7f27",
+      "to": "quote:6eb51626940ccab7",
+      "type": "HAS_QUOTE"
+    }
+  ],
+  "episode_id": "d2fb36a0-6f97-55ee-a67a-e97dba3b7f27",
+  "model_version": "synthetic-validation-corpus-v1",
+  "nodes": [
+    {
+      "id": "episode:d2fb36a0-6f97-55ee-a67a-e97dba3b7f27",
+      "properties": {
+        "duration_ms": 1800000,
+        "episode_id": "d2fb36a0-6f97-55ee-a67a-e97dba3b7f27",
+        "metadata_relative_path": "feeds/p02/metadata/p02_e03.metadata.json",
+        "podcast_id": "sha256:05eff208d6fd774940bed9fd154c6a46b9325e32cf95e1769f8eb679505ef414",
+        "publish_date": "2026-05-11T12:00:00",
+        "title": "Practical Systems \u2014 Episode 3"
+      },
+      "type": "Episode"
+    },
+    {
+      "id": "topic:security-as",
+      "properties": {
+        "label": "security as",
+        "score": 0.8
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:welcome-back-to",
+      "properties": {
+        "label": "welcome back to",
+        "score": 0.8
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:healthy-systems-treat-failures",
+      "properties": {
+        "label": "healthy systems treat failures",
+        "score": 0.8
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "insight:d7bde203ff394fb8",
+      "properties": {
+        "confidence": 0.7,
+        "grounded": true,
+        "text": "# Practical Systems \u2014 Episode\n## Security as Design, Not a Checklist\nHost: Ethan\nGuest: Camila\nEthan: Welcome back to Practical Systems."
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "insight:77f18af82cc49c51",
+      "properties": {
+        "confidence": 0.7,
+        "grounded": true,
+        "text": "Today we\u2019re talking about security as design, not a checklist, and I\u2019m joined by Camila."
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "insight:d045b35d91ebf2a8",
+      "properties": {
+        "confidence": 0.7,
+        "grounded": true,
+        "text": "Camila, thanks for being here."
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "quote:0df817e3f8b25504",
+      "properties": {
+        "speaker": "Speaker 1",
+        "text": "I\u2019m excited\u2014this is a topic people care about, and there\u2019s a lot of practical nuance."
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:52bc07b2a5cbb682",
+      "properties": {
+        "speaker": "Speaker 1",
+        "text": "Okay, let\u2019s get specific."
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:6eb51626940ccab7",
+      "properties": {
+        "speaker": "Speaker 1",
+        "text": "Healthy systems treat failures as expected and contain them with timeouts, retries, and clear ownership."
+      },
+      "type": "Quote"
+    }
+  ],
+  "prompt_version": "n/a",
+  "schema_version": "2"
+}

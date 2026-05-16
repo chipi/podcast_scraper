@@ -1,0 +1,142 @@
+{
+  "edges": [
+    {
+      "from": "episode:5b39965f-22a2-54c9-9c42-e7a19d8da2da",
+      "to": "topic:welcome-back-to",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:5b39965f-22a2-54c9-9c42-e7a19d8da2da",
+      "to": "topic:what-do-you-recommend",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:5b39965f-22a2-54c9-9c42-e7a19d8da2da",
+      "to": "topic:tire-pressure-and-casing",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:5b39965f-22a2-54c9-9c42-e7a19d8da2da",
+      "to": "insight:a9007839a644d4d8",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "episode:5b39965f-22a2-54c9-9c42-e7a19d8da2da",
+      "to": "insight:a9fddee3c4eaf7cc",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "episode:5b39965f-22a2-54c9-9c42-e7a19d8da2da",
+      "to": "insight:0df817e3f8b25504",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "episode:5b39965f-22a2-54c9-9c42-e7a19d8da2da",
+      "to": "quote:7472cd9afc44b88f",
+      "type": "HAS_QUOTE"
+    },
+    {
+      "from": "episode:5b39965f-22a2-54c9-9c42-e7a19d8da2da",
+      "to": "quote:712c7762d6e1252c",
+      "type": "HAS_QUOTE"
+    },
+    {
+      "from": "episode:5b39965f-22a2-54c9-9c42-e7a19d8da2da",
+      "to": "quote:805dce103a03fd46",
+      "type": "HAS_QUOTE"
+    }
+  ],
+  "episode_id": "5b39965f-22a2-54c9-9c42-e7a19d8da2da",
+  "model_version": "synthetic-validation-corpus-v1",
+  "nodes": [
+    {
+      "id": "episode:5b39965f-22a2-54c9-9c42-e7a19d8da2da",
+      "properties": {
+        "duration_ms": 1800000,
+        "episode_id": "5b39965f-22a2-54c9-9c42-e7a19d8da2da",
+        "metadata_relative_path": "feeds/p01/metadata/p01_e01.metadata.json",
+        "podcast_id": "sha256:90167c0635d0f3d31fe8ebc87b372f75cd15166e02da8abb2df7dfeca65aa588",
+        "publish_date": "2026-05-16T12:00:00",
+        "title": "Singletrack Sessions \u2014 Episode 1"
+      },
+      "type": "Episode"
+    },
+    {
+      "id": "topic:welcome-back-to",
+      "properties": {
+        "label": "welcome back to",
+        "score": 0.8
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:what-do-you-recommend",
+      "properties": {
+        "label": "what do you recommend",
+        "score": 0.8
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:tire-pressure-and-casing",
+      "properties": {
+        "label": "tire pressure and casing",
+        "score": 0.8
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "insight:a9007839a644d4d8",
+      "properties": {
+        "confidence": 0.7,
+        "grounded": true,
+        "text": "# Singletrack Sessions \u2014 Episode\n## Building Trails That Last\nHost: Maya\nGuest: Liam\nMaya: Welcome back to Singletrack Sessions."
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "insight:a9fddee3c4eaf7cc",
+      "properties": {
+        "confidence": 0.7,
+        "grounded": true,
+        "text": "Today we\u2019re talking about building trails that last, and I\u2019m joined by Liam."
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "insight:0df817e3f8b25504",
+      "properties": {
+        "confidence": 0.7,
+        "grounded": true,
+        "text": "I\u2019m excited\u2014this is a topic people care about, and there\u2019s a lot of practical nuance."
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "quote:7472cd9afc44b88f",
+      "properties": {
+        "speaker": "Speaker 1",
+        "text": "Let\u2019s put some structure around that."
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:712c7762d6e1252c",
+      "properties": {
+        "speaker": "Speaker 1",
+        "text": "A lot of speed comes from braking earlier and smoother, not from taking bigger risks."
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:805dce103a03fd46",
+      "properties": {
+        "speaker": "Speaker 1",
+        "text": "On a berm, you want your eyes through the exit, hips centered, and pressure building gradually rather than spiking."
+      },
+      "type": "Quote"
+    }
+  ],
+  "prompt_version": "n/a",
+  "schema_version": "2"
+}

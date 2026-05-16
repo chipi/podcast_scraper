@@ -1,0 +1,142 @@
+{
+  "edges": [
+    {
+      "from": "episode:f6f1df34-2251-5301-b1c7-68ee8468bf65",
+      "to": "topic:mechanics-of-a",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:f6f1df34-2251-5301-b1c7-68ee8468bf65",
+      "to": "topic:welcome-back-to",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:f6f1df34-2251-5301-b1c7-68ee8468bf65",
+      "to": "topic:the-bike-should-feel",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:f6f1df34-2251-5301-b1c7-68ee8468bf65",
+      "to": "insight:713c89323723fe81",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "episode:f6f1df34-2251-5301-b1c7-68ee8468bf65",
+      "to": "insight:a90aa00bc0ca250d",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "episode:f6f1df34-2251-5301-b1c7-68ee8468bf65",
+      "to": "insight:0df817e3f8b25504",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "episode:f6f1df34-2251-5301-b1c7-68ee8468bf65",
+      "to": "quote:0571b2c881041dd4",
+      "type": "HAS_QUOTE"
+    },
+    {
+      "from": "episode:f6f1df34-2251-5301-b1c7-68ee8468bf65",
+      "to": "quote:29e1ddd6b7bf3a45",
+      "type": "HAS_QUOTE"
+    },
+    {
+      "from": "episode:f6f1df34-2251-5301-b1c7-68ee8468bf65",
+      "to": "quote:5a0c0e2a7abc5a1d",
+      "type": "HAS_QUOTE"
+    }
+  ],
+  "episode_id": "f6f1df34-2251-5301-b1c7-68ee8468bf65",
+  "model_version": "synthetic-validation-corpus-v1",
+  "nodes": [
+    {
+      "id": "episode:f6f1df34-2251-5301-b1c7-68ee8468bf65",
+      "properties": {
+        "duration_ms": 1800000,
+        "episode_id": "f6f1df34-2251-5301-b1c7-68ee8468bf65",
+        "metadata_relative_path": "feeds/p01/metadata/p01_e03.metadata.json",
+        "podcast_id": "sha256:90167c0635d0f3d31fe8ebc87b372f75cd15166e02da8abb2df7dfeca65aa588",
+        "publish_date": "2026-05-12T12:00:00",
+        "title": "Singletrack Sessions \u2014 Episode 3"
+      },
+      "type": "Episode"
+    },
+    {
+      "id": "topic:mechanics-of-a",
+      "properties": {
+        "label": "mechanics of a",
+        "score": 0.8
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:welcome-back-to",
+      "properties": {
+        "label": "welcome back to",
+        "score": 0.8
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:the-bike-should-feel",
+      "properties": {
+        "label": "the bike should feel",
+        "score": 0.8
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "insight:713c89323723fe81",
+      "properties": {
+        "confidence": 0.7,
+        "grounded": true,
+        "text": "# Singletrack Sessions \u2014 Episode\n## The Mechanics of a Quiet, Fast Bike\nHost: Maya\nGuest: Noah\nMaya: Welcome back to Singletrack Sessions."
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "insight:a90aa00bc0ca250d",
+      "properties": {
+        "confidence": 0.7,
+        "grounded": true,
+        "text": "Today we\u2019re talking about the mechanics of a quiet, fast bike, and I\u2019m joined by Noah."
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "insight:0df817e3f8b25504",
+      "properties": {
+        "confidence": 0.7,
+        "grounded": true,
+        "text": "I\u2019m excited\u2014this is a topic people care about, and there\u2019s a lot of practical nuance."
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "quote:0571b2c881041dd4",
+      "properties": {
+        "speaker": "Speaker 1",
+        "text": "I want to challenge that a little."
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:29e1ddd6b7bf3a45",
+      "properties": {
+        "speaker": "Speaker 1",
+        "text": "The bike should feel quiet and predictable so your attention stays on the trail, not on noises or surprises."
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:5a0c0e2a7abc5a1d",
+      "properties": {
+        "speaker": "Speaker 1",
+        "text": "For climbs, a consistent cadence reduces drivetrain load and makes small traction changes easier to manage."
+      },
+      "type": "Quote"
+    }
+  ],
+  "prompt_version": "n/a",
+  "schema_version": "2"
+}

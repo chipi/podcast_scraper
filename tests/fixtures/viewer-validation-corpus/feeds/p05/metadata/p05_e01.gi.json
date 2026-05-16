@@ -1,0 +1,142 @@
+{
+  "edges": [
+    {
+      "from": "episode:ac5784fa-1c94-5cd8-99c6-c4f0be157a64",
+      "to": "topic:without-the",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ac5784fa-1c94-5cd8-99c6-c4f0be157a64",
+      "to": "topic:welcome-back-to",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ac5784fa-1c94-5cd8-99c6-c4f0be157a64",
+      "to": "topic:risk-is-you-know",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ac5784fa-1c94-5cd8-99c6-c4f0be157a64",
+      "to": "insight:83e86afd480f434f",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "episode:ac5784fa-1c94-5cd8-99c6-c4f0be157a64",
+      "to": "insight:b212978317de6869",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "episode:ac5784fa-1c94-5cd8-99c6-c4f0be157a64",
+      "to": "insight:4ba774bae707cf97",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "episode:ac5784fa-1c94-5cd8-99c6-c4f0be157a64",
+      "to": "quote:0df817e3f8b25504",
+      "type": "HAS_QUOTE"
+    },
+    {
+      "from": "episode:ac5784fa-1c94-5cd8-99c6-c4f0be157a64",
+      "to": "quote:52bc07b2a5cbb682",
+      "type": "HAS_QUOTE"
+    },
+    {
+      "from": "episode:ac5784fa-1c94-5cd8-99c6-c4f0be157a64",
+      "to": "quote:09a7b11d7da6c64a",
+      "type": "HAS_QUOTE"
+    }
+  ],
+  "episode_id": "ac5784fa-1c94-5cd8-99c6-c4f0be157a64",
+  "model_version": "synthetic-validation-corpus-v1",
+  "nodes": [
+    {
+      "id": "episode:ac5784fa-1c94-5cd8-99c6-c4f0be157a64",
+      "properties": {
+        "duration_ms": 1800000,
+        "episode_id": "ac5784fa-1c94-5cd8-99c6-c4f0be157a64",
+        "metadata_relative_path": "feeds/p05/metadata/p05_e01.metadata.json",
+        "podcast_id": "sha256:f4abc2ce662eb5875453632ed70c87b2fbc7394bbeef83c9d1d0918febd5bebe",
+        "publish_date": "2026-05-12T12:00:00",
+        "title": "Long Horizon Notes \u2014 Episode 1"
+      },
+      "type": "Episode"
+    },
+    {
+      "id": "topic:without-the",
+      "properties": {
+        "label": "without the",
+        "score": 0.8
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:welcome-back-to",
+      "properties": {
+        "label": "welcome back to",
+        "score": 0.8
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:risk-is-you-know",
+      "properties": {
+        "label": "risk is you know",
+        "score": 0.8
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "insight:83e86afd480f434f",
+      "properties": {
+        "confidence": 0.7,
+        "grounded": true,
+        "text": "# Long Horizon Notes \u2014 Episode\n## Index Investing Without the Myths\nHost: Nora\nGuest: Daniel\nNora: Welcome back to Long Horizon Notes."
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "insight:b212978317de6869",
+      "properties": {
+        "confidence": 0.7,
+        "grounded": true,
+        "text": "Today we\u2019re talking about index investing without the myths, and I\u2019m joined by Daniel."
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "insight:4ba774bae707cf97",
+      "properties": {
+        "confidence": 0.7,
+        "grounded": true,
+        "text": "Daniel, thanks for being here."
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "quote:0df817e3f8b25504",
+      "properties": {
+        "speaker": "Speaker 1",
+        "text": "I\u2019m excited\u2014this is a topic people care about, and there\u2019s a lot of practical nuance."
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:52bc07b2a5cbb682",
+      "properties": {
+        "speaker": "Speaker 1",
+        "text": "Okay, let\u2019s get specific."
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:09a7b11d7da6c64a",
+      "properties": {
+        "speaker": "Speaker 1",
+        "text": "Risk is you know not the same as volatility; risk is you know the chance of not meeting your goals or suffering permanent loss."
+      },
+      "type": "Quote"
+    }
+  ],
+  "prompt_version": "n/a",
+  "schema_version": "2"
+}

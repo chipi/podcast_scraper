@@ -1,0 +1,142 @@
+{
+  "edges": [
+    {
+      "from": "episode:e1743bda-76ff-5586-9e39-3fa45e41ef9a",
+      "to": "topic:welcome-back-to",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:e1743bda-76ff-5586-9e39-3fa45e41ef9a",
+      "to": "topic:if-you-can",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:e1743bda-76ff-5586-9e39-3fa45e41ef9a",
+      "to": "topic:what-do-you-recommend",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:e1743bda-76ff-5586-9e39-3fa45e41ef9a",
+      "to": "insight:8e0b50dd30468f78",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "episode:e1743bda-76ff-5586-9e39-3fa45e41ef9a",
+      "to": "insight:36dbb3e6057295fd",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "episode:e1743bda-76ff-5586-9e39-3fa45e41ef9a",
+      "to": "insight:0df817e3f8b25504",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "episode:e1743bda-76ff-5586-9e39-3fa45e41ef9a",
+      "to": "quote:0571b2c881041dd4",
+      "type": "HAS_QUOTE"
+    },
+    {
+      "from": "episode:e1743bda-76ff-5586-9e39-3fa45e41ef9a",
+      "to": "quote:69e101a484a5a701",
+      "type": "HAS_QUOTE"
+    },
+    {
+      "from": "episode:e1743bda-76ff-5586-9e39-3fa45e41ef9a",
+      "to": "quote:9971addb588ac4f0",
+      "type": "HAS_QUOTE"
+    }
+  ],
+  "episode_id": "e1743bda-76ff-5586-9e39-3fa45e41ef9a",
+  "model_version": "synthetic-validation-corpus-v1",
+  "nodes": [
+    {
+      "id": "episode:e1743bda-76ff-5586-9e39-3fa45e41ef9a",
+      "properties": {
+        "duration_ms": 1800000,
+        "episode_id": "e1743bda-76ff-5586-9e39-3fa45e41ef9a",
+        "metadata_relative_path": "feeds/p04/metadata/p04_e03.metadata.json",
+        "podcast_id": "sha256:acf6d1026eaa400425afb658fa014e874a2eb50129923b7a92fe82290004a6e7",
+        "publish_date": "2026-05-15T12:00:00",
+        "title": "Frame & Light \u2014 Episode 3"
+      },
+      "type": "Episode"
+    },
+    {
+      "id": "topic:welcome-back-to",
+      "properties": {
+        "label": "welcome back to",
+        "score": 0.8
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:if-you-can",
+      "properties": {
+        "label": "if you can",
+        "score": 0.8
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:what-do-you-recommend",
+      "properties": {
+        "label": "what do you recommend",
+        "score": 0.8
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "insight:8e0b50dd30468f78",
+      "properties": {
+        "confidence": 0.7,
+        "grounded": true,
+        "text": "# Frame & Light \u2014 Episode\n## Lighting Decisions That Save a Shoot\nHost: Leo\nGuest: Elise\nLeo: Welcome back to Frame & Light."
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "insight:36dbb3e6057295fd",
+      "properties": {
+        "confidence": 0.7,
+        "grounded": true,
+        "text": "Today we\u2019re talking about lighting decisions that save a shoot, and I\u2019m joined by Elise."
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "insight:0df817e3f8b25504",
+      "properties": {
+        "confidence": 0.7,
+        "grounded": true,
+        "text": "I\u2019m excited\u2014this is a topic people care about, and there\u2019s a lot of practical nuance."
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "quote:0571b2c881041dd4",
+      "properties": {
+        "speaker": "Speaker 1",
+        "text": "I want to challenge that a little."
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:69e101a484a5a701",
+      "properties": {
+        "speaker": "Speaker 1",
+        "text": "If you can\u2019t explain why a light is there, you probably don\u2019t need that light yet."
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:9971addb588ac4f0",
+      "properties": {
+        "speaker": "Speaker 1",
+        "text": "One\u2011light practice teaches you more than a complicated kit because it forces you to learn placement."
+      },
+      "type": "Quote"
+    }
+  ],
+  "prompt_version": "n/a",
+  "schema_version": "2"
+}

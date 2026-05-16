@@ -1,0 +1,59 @@
+{
+  "edges": [
+    {
+      "from": "episode:e741f35a-8dd9-5c40-9d5c-905f4dca4122",
+      "to": "entity:welcome-back-to",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:e741f35a-8dd9-5c40-9d5c-905f4dca4122",
+      "to": "entity:what-do-you-recommend",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:e741f35a-8dd9-5c40-9d5c-905f4dca4122",
+      "to": "topic:welcome-back-to",
+      "type": "RELATES_TO"
+    }
+  ],
+  "episode_id": "e741f35a-8dd9-5c40-9d5c-905f4dca4122",
+  "extraction": {
+    "model": "n/a",
+    "provider": "synthetic"
+  },
+  "nodes": [
+    {
+      "id": "episode:e741f35a-8dd9-5c40-9d5c-905f4dca4122",
+      "properties": {
+        "episode_id": "e741f35a-8dd9-5c40-9d5c-905f4dca4122",
+        "metadata_relative_path": "feeds/p06/metadata/p06_e01.metadata.json",
+        "title": "Edge Cases Podcast \u2014 Episode 1"
+      },
+      "type": "Episode"
+    },
+    {
+      "id": "entity:welcome-back-to",
+      "properties": {
+        "category": "Concept",
+        "label": "Welcome Back To"
+      },
+      "type": "Entity"
+    },
+    {
+      "id": "entity:what-do-you-recommend",
+      "properties": {
+        "category": "Concept",
+        "label": "What Do You Recommend"
+      },
+      "type": "Entity"
+    },
+    {
+      "id": "topic:welcome-back-to",
+      "properties": {
+        "label": "welcome back to"
+      },
+      "type": "Topic"
+    }
+  ],
+  "schema_version": "2"
+}

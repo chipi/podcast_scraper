@@ -1,0 +1,142 @@
+{
+  "edges": [
+    {
+      "from": "episode:3d0ec494-98ba-5f71-b2bd-c8559c779786",
+      "to": "topic:welcome-back-to",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:3d0ec494-98ba-5f71-b2bd-c8559c779786",
+      "to": "topic:what-does-that-look",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:3d0ec494-98ba-5f71-b2bd-c8559c779786",
+      "to": "topic:what-do-you-recommend",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:3d0ec494-98ba-5f71-b2bd-c8559c779786",
+      "to": "insight:a40128db12f3c2f7",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "episode:3d0ec494-98ba-5f71-b2bd-c8559c779786",
+      "to": "insight:d68f93751fbaae38",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "episode:3d0ec494-98ba-5f71-b2bd-c8559c779786",
+      "to": "insight:0df817e3f8b25504",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "episode:3d0ec494-98ba-5f71-b2bd-c8559c779786",
+      "to": "quote:d15d4bd534d9064d",
+      "type": "HAS_QUOTE"
+    },
+    {
+      "from": "episode:3d0ec494-98ba-5f71-b2bd-c8559c779786",
+      "to": "quote:8fce7ce4dbac3534",
+      "type": "HAS_QUOTE"
+    },
+    {
+      "from": "episode:3d0ec494-98ba-5f71-b2bd-c8559c779786",
+      "to": "quote:be13454c829f4731",
+      "type": "HAS_QUOTE"
+    }
+  ],
+  "episode_id": "3d0ec494-98ba-5f71-b2bd-c8559c779786",
+  "model_version": "synthetic-validation-corpus-v1",
+  "nodes": [
+    {
+      "id": "episode:3d0ec494-98ba-5f71-b2bd-c8559c779786",
+      "properties": {
+        "duration_ms": 1800000,
+        "episode_id": "3d0ec494-98ba-5f71-b2bd-c8559c779786",
+        "metadata_relative_path": "feeds/p02/metadata/p02_e01.metadata.json",
+        "podcast_id": "sha256:05eff208d6fd774940bed9fd154c6a46b9325e32cf95e1769f8eb679505ef414",
+        "publish_date": "2026-05-15T12:00:00",
+        "title": "Practical Systems \u2014 Episode 1"
+      },
+      "type": "Episode"
+    },
+    {
+      "id": "topic:welcome-back-to",
+      "properties": {
+        "label": "welcome back to",
+        "score": 0.8
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:what-does-that-look",
+      "properties": {
+        "label": "what does that look",
+        "score": 0.8
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:what-do-you-recommend",
+      "properties": {
+        "label": "what do you recommend",
+        "score": 0.8
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "insight:a40128db12f3c2f7",
+      "properties": {
+        "confidence": 0.7,
+        "grounded": true,
+        "text": "# Practical Systems \u2014 Episode\n## On-Call That Doesn\u2019t Break People\nHost: Ethan\nGuest: Priya\nEthan: Welcome back to Practical Systems."
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "insight:d68f93751fbaae38",
+      "properties": {
+        "confidence": 0.7,
+        "grounded": true,
+        "text": "Today we\u2019re talking about on-call that doesn\u2019t break people, and I\u2019m joined by Priya."
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "insight:0df817e3f8b25504",
+      "properties": {
+        "confidence": 0.7,
+        "grounded": true,
+        "text": "I\u2019m excited\u2014this is a topic people care about, and there\u2019s a lot of practical nuance."
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "quote:d15d4bd534d9064d",
+      "properties": {
+        "speaker": "Speaker 1",
+        "text": "What does that look like on a normal day?"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:8fce7ce4dbac3534",
+      "properties": {
+        "speaker": "Speaker 1",
+        "text": "A good on\u2011call rotation is kind of designed so that waking up is kind of rare, and when it happens the response is kind of obvious."
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:be13454c829f4731",
+      "properties": {
+        "speaker": "Speaker 1",
+        "text": "Secrets handling improves when tokens are short\u2011lived, scoped narrowly, and rotated with automation."
+      },
+      "type": "Quote"
+    }
+  ],
+  "prompt_version": "n/a",
+  "schema_version": "2"
+}

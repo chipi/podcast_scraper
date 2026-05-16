@@ -1,0 +1,1111 @@
+{
+  "feed_id": null,
+  "items": [
+    {
+      "cil_digest_topics": [
+        {
+          "in_topic_cluster": false,
+          "label": "welcome back to",
+          "topic_cluster_compound_id": null,
+          "topic_id": "topic:welcome-back-to"
+        },
+        {
+          "in_topic_cluster": false,
+          "label": "what do you recommend",
+          "topic_cluster_compound_id": null,
+          "topic_id": "topic:what-do-you-recommend"
+        }
+      ],
+      "duration_seconds": 1800,
+      "episode_id": "5b39965f-22a2-54c9-9c42-e7a19d8da2da",
+      "episode_image_url": null,
+      "episode_title": "Singletrack Sessions \u2014 Episode 1",
+      "feed_description": "Mountain biking talk: trails, technique, gear, and the people who build the ride.",
+      "feed_display_title": "Singletrack Sessions",
+      "feed_id": "sha256:90167c0635d0f3d31fe8ebc87b372f75cd15166e02da8abb2df7dfeca65aa588",
+      "feed_image_url": null,
+      "feed_rss_url": "http://localhost/",
+      "gi_relative_path": "feeds/p01/metadata/p01_e01.gi.json",
+      "has_gi": true,
+      "has_kg": true,
+      "kg_relative_path": "feeds/p01/metadata/p01_e01.kg.json",
+      "metadata_relative_path": "feeds/p01/metadata/p01_e01.metadata.json",
+      "publish_date": "2026-05-16",
+      "summary_bullet_graph_topic_ids": [
+        "topic:welcome-back-to",
+        "topic:what-do-you-recommend",
+        "topic:tire-pressure-and-casing"
+      ],
+      "summary_bullets_preview": [
+        "# Singletrack Sessions \u2014 Episode\n## Building Trails That Last\nHost: Maya\nGuest: Liam\nMaya: Welcome back to Singletrack Sessions.",
+        "Today we\u2019re talking about building trails that last, and I\u2019m joined by Liam.",
+        "I\u2019m excited\u2014this is a topic people care about, and there\u2019s a lot of practical nuance."
+      ],
+      "summary_preview": "# Singletrack Sessions \u2014 Episode\n## Building Trails That Last\nHost: Maya\nGuest: Liam\nMaya: Welcome back to Singletrack Sessions.",
+      "summary_title": "Singletrack Sessions \u2014 Episode 1 \u2014 synthetic",
+      "topics": [
+        "welcome back to",
+        "what do you recommend",
+        "tire pressure and casing"
+      ]
+    },
+    {
+      "cil_digest_topics": [
+        {
+          "in_topic_cluster": false,
+          "label": "without the",
+          "topic_cluster_compound_id": null,
+          "topic_id": "topic:without-the"
+        },
+        {
+          "in_topic_cluster": false,
+          "label": "welcome back to",
+          "topic_cluster_compound_id": null,
+          "topic_id": "topic:welcome-back-to"
+        }
+      ],
+      "duration_seconds": 1800,
+      "episode_id": "799ba6c0-3117-50e1-8c97-c2d8b695cce4",
+      "episode_image_url": null,
+      "episode_title": "Singletrack Sessions \u2014 Episode 2",
+      "feed_description": "Mountain biking talk: trails, technique, gear, and the people who build the ride.",
+      "feed_display_title": "Singletrack Sessions",
+      "feed_id": "sha256:90167c0635d0f3d31fe8ebc87b372f75cd15166e02da8abb2df7dfeca65aa588",
+      "feed_image_url": null,
+      "feed_rss_url": "http://localhost/",
+      "gi_relative_path": "feeds/p01/metadata/p01_e02.gi.json",
+      "has_gi": true,
+      "has_kg": true,
+      "kg_relative_path": "feeds/p01/metadata/p01_e02.kg.json",
+      "metadata_relative_path": "feeds/p01/metadata/p01_e02.metadata.json",
+      "publish_date": "2026-05-14",
+      "summary_bullet_graph_topic_ids": [
+        "topic:without-the",
+        "topic:welcome-back-to",
+        "topic:tire-pressure-and-casing"
+      ],
+      "summary_bullets_preview": [
+        "# Singletrack Sessions \u2014 Episode\n## Enduro Skills Without the Hype\nHost: Maya\nGuest: Sophie\nMaya: Welcome back to Singletrack Sessions.",
+        "Today we\u2019re talking about enduro skills without the hype, and I\u2019m joined by Sophie.",
+        "Sophie, thanks for being here."
+      ],
+      "summary_preview": "# Singletrack Sessions \u2014 Episode\n## Enduro Skills Without the Hype\nHost: Maya\nGuest: Sophie\nMaya: Welcome back to Singletrack Sessions.",
+      "summary_title": "Singletrack Sessions \u2014 Episode 2 \u2014 synthetic",
+      "topics": [
+        "without the",
+        "welcome back to",
+        "tire pressure and casing"
+      ]
+    },
+    {
+      "cil_digest_topics": [
+        {
+          "in_topic_cluster": false,
+          "label": "mechanics of a",
+          "topic_cluster_compound_id": null,
+          "topic_id": "topic:mechanics-of-a"
+        },
+        {
+          "in_topic_cluster": false,
+          "label": "welcome back to",
+          "topic_cluster_compound_id": null,
+          "topic_id": "topic:welcome-back-to"
+        }
+      ],
+      "duration_seconds": 1800,
+      "episode_id": "f6f1df34-2251-5301-b1c7-68ee8468bf65",
+      "episode_image_url": null,
+      "episode_title": "Singletrack Sessions \u2014 Episode 3",
+      "feed_description": "Mountain biking talk: trails, technique, gear, and the people who build the ride.",
+      "feed_display_title": "Singletrack Sessions",
+      "feed_id": "sha256:90167c0635d0f3d31fe8ebc87b372f75cd15166e02da8abb2df7dfeca65aa588",
+      "feed_image_url": null,
+      "feed_rss_url": "http://localhost/",
+      "gi_relative_path": "feeds/p01/metadata/p01_e03.gi.json",
+      "has_gi": true,
+      "has_kg": true,
+      "kg_relative_path": "feeds/p01/metadata/p01_e03.kg.json",
+      "metadata_relative_path": "feeds/p01/metadata/p01_e03.metadata.json",
+      "publish_date": "2026-05-12",
+      "summary_bullet_graph_topic_ids": [
+        "topic:mechanics-of-a",
+        "topic:welcome-back-to",
+        "topic:the-bike-should-feel"
+      ],
+      "summary_bullets_preview": [
+        "# Singletrack Sessions \u2014 Episode\n## The Mechanics of a Quiet, Fast Bike\nHost: Maya\nGuest: Noah\nMaya: Welcome back to Singletrack Sessions.",
+        "Today we\u2019re talking about the mechanics of a quiet, fast bike, and I\u2019m joined by Noah.",
+        "I\u2019m excited\u2014this is a topic people care about, and there\u2019s a lot of practical nuance."
+      ],
+      "summary_preview": "# Singletrack Sessions \u2014 Episode\n## The Mechanics of a Quiet, Fast Bike\nHost: Maya\nGuest: Noah\nMaya: Welcome back to Singletrack Sessions.",
+      "summary_title": "Singletrack Sessions \u2014 Episode 3 \u2014 synthetic",
+      "topics": [
+        "mechanics of a",
+        "welcome back to",
+        "the bike should feel"
+      ]
+    },
+    {
+      "cil_digest_topics": [
+        {
+          "in_topic_cluster": false,
+          "label": "welcome back to",
+          "topic_cluster_compound_id": null,
+          "topic_id": "topic:welcome-back-to"
+        },
+        {
+          "in_topic_cluster": false,
+          "label": "what does that look",
+          "topic_cluster_compound_id": null,
+          "topic_id": "topic:what-does-that-look"
+        }
+      ],
+      "duration_seconds": 1800,
+      "episode_id": "3d0ec494-98ba-5f71-b2bd-c8559c779786",
+      "episode_image_url": null,
+      "episode_title": "Practical Systems \u2014 Episode 1",
+      "feed_description": "Software engineering conversations: reliability, architecture, delivery, and the tradeoffs nobody puts in the blog post.",
+      "feed_display_title": "Practical Systems",
+      "feed_id": "sha256:05eff208d6fd774940bed9fd154c6a46b9325e32cf95e1769f8eb679505ef414",
+      "feed_image_url": null,
+      "feed_rss_url": "http://localhost/",
+      "gi_relative_path": "feeds/p02/metadata/p02_e01.gi.json",
+      "has_gi": true,
+      "has_kg": true,
+      "kg_relative_path": "feeds/p02/metadata/p02_e01.kg.json",
+      "metadata_relative_path": "feeds/p02/metadata/p02_e01.metadata.json",
+      "publish_date": "2026-05-15",
+      "summary_bullet_graph_topic_ids": [
+        "topic:welcome-back-to",
+        "topic:what-does-that-look",
+        "topic:what-do-you-recommend"
+      ],
+      "summary_bullets_preview": [
+        "# Practical Systems \u2014 Episode\n## On-Call That Doesn\u2019t Break People\nHost: Ethan\nGuest: Priya\nEthan: Welcome back to Practical Systems.",
+        "Today we\u2019re talking about on-call that doesn\u2019t break people, and I\u2019m joined by Priya.",
+        "I\u2019m excited\u2014this is a topic people care about, and there\u2019s a lot of practical nuance."
+      ],
+      "summary_preview": "# Practical Systems \u2014 Episode\n## On-Call That Doesn\u2019t Break People\nHost: Ethan\nGuest: Priya\nEthan: Welcome back to Practical Systems.",
+      "summary_title": "Practical Systems \u2014 Episode 1 \u2014 synthetic",
+      "topics": [
+        "welcome back to",
+        "what does that look",
+        "what do you recommend"
+      ]
+    },
+    {
+      "cil_digest_topics": [
+        {
+          "in_topic_cluster": false,
+          "label": "welcome back to",
+          "topic_cluster_compound_id": null,
+          "topic_id": "topic:welcome-back-to"
+        },
+        {
+          "in_topic_cluster": false,
+          "label": "what does that look",
+          "topic_cluster_compound_id": null,
+          "topic_id": "topic:what-does-that-look"
+        }
+      ],
+      "duration_seconds": 1800,
+      "episode_id": "096240a2-e115-5a3c-98b4-2d852b096eda",
+      "episode_image_url": null,
+      "episode_title": "Practical Systems \u2014 Episode 2",
+      "feed_description": "Software engineering conversations: reliability, architecture, delivery, and the tradeoffs nobody puts in the blog post.",
+      "feed_display_title": "Practical Systems",
+      "feed_id": "sha256:05eff208d6fd774940bed9fd154c6a46b9325e32cf95e1769f8eb679505ef414",
+      "feed_image_url": null,
+      "feed_rss_url": "http://localhost/",
+      "gi_relative_path": "feeds/p02/metadata/p02_e02.gi.json",
+      "has_gi": true,
+      "has_kg": true,
+      "kg_relative_path": "feeds/p02/metadata/p02_e02.kg.json",
+      "metadata_relative_path": "feeds/p02/metadata/p02_e02.metadata.json",
+      "publish_date": "2026-05-13",
+      "summary_bullet_graph_topic_ids": [
+        "topic:welcome-back-to",
+        "topic:what-does-that-look",
+        "topic:architecture-decisions-are-mostly"
+      ],
+      "summary_bullets_preview": [
+        "# Practical Systems \u2014 Episode\n## Staff Engineer Communication Patterns\nHost: Ethan\nGuest: Jonas\nEthan: Welcome back to Practical Systems.",
+        "Today we\u2019re talking about staff engineer communication patterns, and I\u2019m joined by Jonas.",
+        "I\u2019m excited\u2014this is a topic people care about, and there\u2019s a lot of practical nuance."
+      ],
+      "summary_preview": "# Practical Systems \u2014 Episode\n## Staff Engineer Communication Patterns\nHost: Ethan\nGuest: Jonas\nEthan: Welcome back to Practical Systems.",
+      "summary_title": "Practical Systems \u2014 Episode 2 \u2014 synthetic",
+      "topics": [
+        "welcome back to",
+        "what does that look",
+        "architecture decisions are mostly"
+      ]
+    },
+    {
+      "cil_digest_topics": [
+        {
+          "in_topic_cluster": false,
+          "label": "security as",
+          "topic_cluster_compound_id": null,
+          "topic_id": "topic:security-as"
+        },
+        {
+          "in_topic_cluster": false,
+          "label": "welcome back to",
+          "topic_cluster_compound_id": null,
+          "topic_id": "topic:welcome-back-to"
+        }
+      ],
+      "duration_seconds": 1800,
+      "episode_id": "d2fb36a0-6f97-55ee-a67a-e97dba3b7f27",
+      "episode_image_url": null,
+      "episode_title": "Practical Systems \u2014 Episode 3",
+      "feed_description": "Software engineering conversations: reliability, architecture, delivery, and the tradeoffs nobody puts in the blog post.",
+      "feed_display_title": "Practical Systems",
+      "feed_id": "sha256:05eff208d6fd774940bed9fd154c6a46b9325e32cf95e1769f8eb679505ef414",
+      "feed_image_url": null,
+      "feed_rss_url": "http://localhost/",
+      "gi_relative_path": "feeds/p02/metadata/p02_e03.gi.json",
+      "has_gi": true,
+      "has_kg": true,
+      "kg_relative_path": "feeds/p02/metadata/p02_e03.kg.json",
+      "metadata_relative_path": "feeds/p02/metadata/p02_e03.metadata.json",
+      "publish_date": "2026-05-11",
+      "summary_bullet_graph_topic_ids": [
+        "topic:security-as",
+        "topic:welcome-back-to",
+        "topic:healthy-systems-treat-failures"
+      ],
+      "summary_bullets_preview": [
+        "# Practical Systems \u2014 Episode\n## Security as Design, Not a Checklist\nHost: Ethan\nGuest: Camila\nEthan: Welcome back to Practical Systems.",
+        "Today we\u2019re talking about security as design, not a checklist, and I\u2019m joined by Camila.",
+        "Camila, thanks for being here."
+      ],
+      "summary_preview": "# Practical Systems \u2014 Episode\n## Security as Design, Not a Checklist\nHost: Ethan\nGuest: Camila\nEthan: Welcome back to Practical Systems.",
+      "summary_title": "Practical Systems \u2014 Episode 3 \u2014 synthetic",
+      "topics": [
+        "security as",
+        "welcome back to",
+        "healthy systems treat failures"
+      ]
+    },
+    {
+      "cil_digest_topics": [
+        {
+          "in_topic_cluster": false,
+          "label": "welcome back to",
+          "topic_cluster_compound_id": null,
+          "topic_id": "topic:welcome-back-to"
+        },
+        {
+          "in_topic_cluster": false,
+          "label": "the calmest diver is",
+          "topic_cluster_compound_id": null,
+          "topic_id": "topic:the-calmest-diver-is"
+        }
+      ],
+      "duration_seconds": 1800,
+      "episode_id": "a283fe88-fdec-51b4-8014-431b4a7ce670",
+      "episode_image_url": null,
+      "episode_title": "Below the Surface \u2014 Episode 1",
+      "feed_description": "Scuba diving stories and skills: safety, marine life, travel, and calm thinking underwater.",
+      "feed_display_title": "Below the Surface",
+      "feed_id": "sha256:16de36c98e7e4b95d699380d14d84d2f13717c2c151f935076564a9a5f5e979b",
+      "feed_image_url": null,
+      "feed_rss_url": "http://localhost/",
+      "gi_relative_path": "feeds/p03/metadata/p03_e01.gi.json",
+      "has_gi": true,
+      "has_kg": true,
+      "kg_relative_path": "feeds/p03/metadata/p03_e01.kg.json",
+      "metadata_relative_path": "feeds/p03/metadata/p03_e01.metadata.json",
+      "publish_date": "2026-05-14",
+      "summary_bullet_graph_topic_ids": [
+        "topic:welcome-back-to",
+        "topic:the-calmest-diver-is",
+        "topic:what-do-you-recommend"
+      ],
+      "summary_bullets_preview": [
+        "# Below the Surface \u2014 Episode\n## Wreck Diving Fundamentals\nHost: Rina\nGuest: Marco\nRina: Welcome back to Below the Surface.",
+        "Today we\u2019re talking about wreck diving fundamentals, and I\u2019m joined by Marco.",
+        "I\u2019m excited\u2014this is a topic people care about, and there\u2019s a lot of practical nuance."
+      ],
+      "summary_preview": "# Below the Surface \u2014 Episode\n## Wreck Diving Fundamentals\nHost: Rina\nGuest: Marco\nRina: Welcome back to Below the Surface.",
+      "summary_title": "Below the Surface \u2014 Episode 1 \u2014 synthetic",
+      "topics": [
+        "welcome back to",
+        "the calmest diver is",
+        "what do you recommend"
+      ]
+    },
+    {
+      "cil_digest_topics": [
+        {
+          "in_topic_cluster": false,
+          "label": "biology for",
+          "topic_cluster_compound_id": null,
+          "topic_id": "topic:biology-for"
+        },
+        {
+          "in_topic_cluster": false,
+          "label": "welcome back to",
+          "topic_cluster_compound_id": null,
+          "topic_id": "topic:welcome-back-to"
+        }
+      ],
+      "duration_seconds": 1800,
+      "episode_id": "254fe2be-b570-592e-84cd-c22cb9e271e9",
+      "episode_image_url": null,
+      "episode_title": "Below the Surface \u2014 Episode 2",
+      "feed_description": "Scuba diving stories and skills: safety, marine life, travel, and calm thinking underwater.",
+      "feed_display_title": "Below the Surface",
+      "feed_id": "sha256:16de36c98e7e4b95d699380d14d84d2f13717c2c151f935076564a9a5f5e979b",
+      "feed_image_url": null,
+      "feed_rss_url": "http://localhost/",
+      "gi_relative_path": "feeds/p03/metadata/p03_e02.gi.json",
+      "has_gi": true,
+      "has_kg": true,
+      "kg_relative_path": "feeds/p03/metadata/p03_e02.kg.json",
+      "metadata_relative_path": "feeds/p03/metadata/p03_e02.metadata.json",
+      "publish_date": "2026-05-12",
+      "summary_bullet_graph_topic_ids": [
+        "topic:biology-for",
+        "topic:welcome-back-to",
+        "topic:the-calmest-diver-is"
+      ],
+      "summary_bullets_preview": [
+        "# Below the Surface \u2014 Episode\n## Marine Biology for Divers\nHost: Rina\nGuest: Hanna\nRina: Welcome back to Below the Surface.",
+        "Today we\u2019re talking about marine biology for divers, and I\u2019m joined by Hanna.",
+        "I\u2019m excited\u2014this is a topic people care about, and there\u2019s a lot of practical nuance."
+      ],
+      "summary_preview": "# Below the Surface \u2014 Episode\n## Marine Biology for Divers\nHost: Rina\nGuest: Hanna\nRina: Welcome back to Below the Surface.",
+      "summary_title": "Below the Surface \u2014 Episode 2 \u2014 synthetic",
+      "topics": [
+        "biology for",
+        "welcome back to",
+        "the calmest diver is"
+      ]
+    },
+    {
+      "cil_digest_topics": [
+        {
+          "in_topic_cluster": false,
+          "label": "welcome back to",
+          "topic_cluster_compound_id": null,
+          "topic_id": "topic:welcome-back-to"
+        },
+        {
+          "in_topic_cluster": false,
+          "label": "most underwater stress comes",
+          "topic_cluster_compound_id": null,
+          "topic_id": "topic:most-underwater-stress-comes"
+        }
+      ],
+      "duration_seconds": 1800,
+      "episode_id": "9a2d05c1-8854-5ae6-8ad0-14fcf37d1de9",
+      "episode_image_url": null,
+      "episode_title": "Below the Surface \u2014 Episode 3",
+      "feed_description": "Scuba diving stories and skills: safety, marine life, travel, and calm thinking underwater.",
+      "feed_display_title": "Below the Surface",
+      "feed_id": "sha256:16de36c98e7e4b95d699380d14d84d2f13717c2c151f935076564a9a5f5e979b",
+      "feed_image_url": null,
+      "feed_rss_url": "http://localhost/",
+      "gi_relative_path": "feeds/p03/metadata/p03_e03.gi.json",
+      "has_gi": true,
+      "has_kg": true,
+      "kg_relative_path": "feeds/p03/metadata/p03_e03.kg.json",
+      "metadata_relative_path": "feeds/p03/metadata/p03_e03.metadata.json",
+      "publish_date": "2026-05-16",
+      "summary_bullet_graph_topic_ids": [
+        "topic:welcome-back-to",
+        "topic:most-underwater-stress-comes",
+        "topic:what-do-you-recommend"
+      ],
+      "summary_bullets_preview": [
+        "# Below the Surface \u2014 Episode\n## Calm Under Pressure\nHost: Rina\nGuest: Owen\nRina: Welcome back to Below the Surface.",
+        "Today we\u2019re talking about calm under pressure, and I\u2019m joined by Owen.",
+        "I\u2019m excited\u2014this is a topic people care about, and there\u2019s a lot of practical nuance."
+      ],
+      "summary_preview": "# Below the Surface \u2014 Episode\n## Calm Under Pressure\nHost: Rina\nGuest: Owen\nRina: Welcome back to Below the Surface.",
+      "summary_title": "Below the Surface \u2014 Episode 3 \u2014 synthetic",
+      "topics": [
+        "welcome back to",
+        "most underwater stress comes",
+        "what do you recommend"
+      ]
+    },
+    {
+      "cil_digest_topics": [
+        {
+          "in_topic_cluster": false,
+          "label": "welcome back to",
+          "topic_cluster_compound_id": null,
+          "topic_id": "topic:welcome-back-to"
+        },
+        {
+          "in_topic_cluster": false,
+          "label": "how do you teach",
+          "topic_cluster_compound_id": null,
+          "topic_id": "topic:how-do-you-teach"
+        }
+      ],
+      "duration_seconds": 1800,
+      "episode_id": "09ead36d-954f-5cbb-ae3f-6f0d5985233d",
+      "episode_image_url": null,
+      "episode_title": "Frame & Light \u2014 Episode 1",
+      "feed_description": "Photography conversations: craft, storytelling, workflow, and making images under real constraints.",
+      "feed_display_title": "Frame & Light",
+      "feed_id": "sha256:acf6d1026eaa400425afb658fa014e874a2eb50129923b7a92fe82290004a6e7",
+      "feed_image_url": null,
+      "feed_rss_url": "http://localhost/",
+      "gi_relative_path": "feeds/p04/metadata/p04_e01.gi.json",
+      "has_gi": true,
+      "has_kg": true,
+      "kg_relative_path": "feeds/p04/metadata/p04_e01.kg.json",
+      "metadata_relative_path": "feeds/p04/metadata/p04_e01.metadata.json",
+      "publish_date": "2026-05-13",
+      "summary_bullet_graph_topic_ids": [
+        "topic:welcome-back-to",
+        "topic:how-do-you-teach",
+        "topic:great-images-usually-come"
+      ],
+      "summary_bullets_preview": [
+        "# Frame & Light \u2014 Episode\n## Underwater Images That Feel Alive\nHost: Leo\nGuest: Ava\nLeo: Welcome back to Frame & Light.",
+        "Today we\u2019re talking about underwater images that feel alive, and I\u2019m joined by Ava.",
+        "I\u2019m excited\u2014this is a topic people care about, and there\u2019s a lot of practical nuance."
+      ],
+      "summary_preview": "# Frame & Light \u2014 Episode\n## Underwater Images That Feel Alive\nHost: Leo\nGuest: Ava\nLeo: Welcome back to Frame & Light.",
+      "summary_title": "Frame & Light \u2014 Episode 1 \u2014 synthetic",
+      "topics": [
+        "welcome back to",
+        "how do you teach",
+        "great images usually come"
+      ]
+    },
+    {
+      "cil_digest_topics": [
+        {
+          "in_topic_cluster": false,
+          "label": "workflow in the",
+          "topic_cluster_compound_id": null,
+          "topic_id": "topic:workflow-in-the"
+        },
+        {
+          "in_topic_cluster": false,
+          "label": "welcome back to",
+          "topic_cluster_compound_id": null,
+          "topic_id": "topic:welcome-back-to"
+        }
+      ],
+      "duration_seconds": 1800,
+      "episode_id": "9833b47e-0cc8-50b9-a6da-65dc0f6d053f",
+      "episode_image_url": null,
+      "episode_title": "Frame & Light \u2014 Episode 2",
+      "feed_description": "Photography conversations: craft, storytelling, workflow, and making images under real constraints.",
+      "feed_display_title": "Frame & Light",
+      "feed_id": "sha256:acf6d1026eaa400425afb658fa014e874a2eb50129923b7a92fe82290004a6e7",
+      "feed_image_url": null,
+      "feed_rss_url": "http://localhost/",
+      "gi_relative_path": "feeds/p04/metadata/p04_e02.gi.json",
+      "has_gi": true,
+      "has_kg": true,
+      "kg_relative_path": "feeds/p04/metadata/p04_e02.kg.json",
+      "metadata_relative_path": "feeds/p04/metadata/p04_e02.metadata.json",
+      "publish_date": "2026-05-11",
+      "summary_bullet_graph_topic_ids": [
+        "topic:workflow-in-the",
+        "topic:welcome-back-to",
+        "topic:underwater-photography-is-mostly"
+      ],
+      "summary_bullets_preview": [
+        "# Frame & Light \u2014 Episode\n## Documentary Workflow in the Field\nHost: Leo\nGuest: Tariq\nLeo: Welcome back to Frame & Light.",
+        "Today we\u2019re talking about documentary workflow in the field, and I\u2019m joined by Tariq.",
+        "I\u2019m excited\u2014this is a topic people care about, and there\u2019s a lot of practical nuance."
+      ],
+      "summary_preview": "# Frame & Light \u2014 Episode\n## Documentary Workflow in the Field\nHost: Leo\nGuest: Tariq\nLeo: Welcome back to Frame & Light.",
+      "summary_title": "Frame & Light \u2014 Episode 2 \u2014 synthetic",
+      "topics": [
+        "workflow in the",
+        "welcome back to",
+        "underwater photography is mostly"
+      ]
+    },
+    {
+      "cil_digest_topics": [
+        {
+          "in_topic_cluster": false,
+          "label": "welcome back to",
+          "topic_cluster_compound_id": null,
+          "topic_id": "topic:welcome-back-to"
+        },
+        {
+          "in_topic_cluster": false,
+          "label": "if you can",
+          "topic_cluster_compound_id": null,
+          "topic_id": "topic:if-you-can"
+        }
+      ],
+      "duration_seconds": 1800,
+      "episode_id": "e1743bda-76ff-5586-9e39-3fa45e41ef9a",
+      "episode_image_url": null,
+      "episode_title": "Frame & Light \u2014 Episode 3",
+      "feed_description": "Photography conversations: craft, storytelling, workflow, and making images under real constraints.",
+      "feed_display_title": "Frame & Light",
+      "feed_id": "sha256:acf6d1026eaa400425afb658fa014e874a2eb50129923b7a92fe82290004a6e7",
+      "feed_image_url": null,
+      "feed_rss_url": "http://localhost/",
+      "gi_relative_path": "feeds/p04/metadata/p04_e03.gi.json",
+      "has_gi": true,
+      "has_kg": true,
+      "kg_relative_path": "feeds/p04/metadata/p04_e03.kg.json",
+      "metadata_relative_path": "feeds/p04/metadata/p04_e03.metadata.json",
+      "publish_date": "2026-05-15",
+      "summary_bullet_graph_topic_ids": [
+        "topic:welcome-back-to",
+        "topic:if-you-can",
+        "topic:what-do-you-recommend"
+      ],
+      "summary_bullets_preview": [
+        "# Frame & Light \u2014 Episode\n## Lighting Decisions That Save a Shoot\nHost: Leo\nGuest: Elise\nLeo: Welcome back to Frame & Light.",
+        "Today we\u2019re talking about lighting decisions that save a shoot, and I\u2019m joined by Elise.",
+        "I\u2019m excited\u2014this is a topic people care about, and there\u2019s a lot of practical nuance."
+      ],
+      "summary_preview": "# Frame & Light \u2014 Episode\n## Lighting Decisions That Save a Shoot\nHost: Leo\nGuest: Elise\nLeo: Welcome back to Frame & Light.",
+      "summary_title": "Frame & Light \u2014 Episode 3 \u2014 synthetic",
+      "topics": [
+        "welcome back to",
+        "if you can",
+        "what do you recommend"
+      ]
+    },
+    {
+      "cil_digest_topics": [
+        {
+          "in_topic_cluster": false,
+          "label": "without the",
+          "topic_cluster_compound_id": null,
+          "topic_id": "topic:without-the"
+        },
+        {
+          "in_topic_cluster": false,
+          "label": "welcome back to",
+          "topic_cluster_compound_id": null,
+          "topic_id": "topic:welcome-back-to"
+        }
+      ],
+      "duration_seconds": 1800,
+      "episode_id": "ac5784fa-1c94-5cd8-99c6-c4f0be157a64",
+      "episode_image_url": null,
+      "episode_title": "Long Horizon Notes \u2014 Episode 1",
+      "feed_description": "Investing conversations for normal humans: frameworks, risk, and the habits that matter more than predictions.",
+      "feed_display_title": "Long Horizon Notes",
+      "feed_id": "sha256:f4abc2ce662eb5875453632ed70c87b2fbc7394bbeef83c9d1d0918febd5bebe",
+      "feed_image_url": null,
+      "feed_rss_url": "http://localhost/",
+      "gi_relative_path": "feeds/p05/metadata/p05_e01.gi.json",
+      "has_gi": true,
+      "has_kg": true,
+      "kg_relative_path": "feeds/p05/metadata/p05_e01.kg.json",
+      "metadata_relative_path": "feeds/p05/metadata/p05_e01.metadata.json",
+      "publish_date": "2026-05-12",
+      "summary_bullet_graph_topic_ids": [
+        "topic:without-the",
+        "topic:welcome-back-to",
+        "topic:risk-is-you-know"
+      ],
+      "summary_bullets_preview": [
+        "# Long Horizon Notes \u2014 Episode\n## Index Investing Without the Myths\nHost: Nora\nGuest: Daniel\nNora: Welcome back to Long Horizon Notes.",
+        "Today we\u2019re talking about index investing without the myths, and I\u2019m joined by Daniel.",
+        "Daniel, thanks for being here."
+      ],
+      "summary_preview": "# Long Horizon Notes \u2014 Episode\n## Index Investing Without the Myths\nHost: Nora\nGuest: Daniel\nNora: Welcome back to Long Horizon Notes.",
+      "summary_title": "Long Horizon Notes \u2014 Episode 1 \u2014 synthetic",
+      "topics": [
+        "without the",
+        "welcome back to",
+        "risk is you know"
+      ]
+    },
+    {
+      "cil_digest_topics": [
+        {
+          "in_topic_cluster": false,
+          "label": "welcome back to",
+          "topic_cluster_compound_id": null,
+          "topic_id": "topic:welcome-back-to"
+        },
+        {
+          "in_topic_cluster": false,
+          "label": "what does that look",
+          "topic_cluster_compound_id": null,
+          "topic_id": "topic:what-does-that-look"
+        }
+      ],
+      "duration_seconds": 1800,
+      "episode_id": "78741d49-00ad-5f5f-b127-8fd1c1b6844c",
+      "episode_image_url": null,
+      "episode_title": "Long Horizon Notes \u2014 Episode 2",
+      "feed_description": "Investing conversations for normal humans: frameworks, risk, and the habits that matter more than predictions.",
+      "feed_display_title": "Long Horizon Notes",
+      "feed_id": "sha256:f4abc2ce662eb5875453632ed70c87b2fbc7394bbeef83c9d1d0918febd5bebe",
+      "feed_image_url": null,
+      "feed_rss_url": "http://localhost/",
+      "gi_relative_path": "feeds/p05/metadata/p05_e02.gi.json",
+      "has_gi": true,
+      "has_kg": true,
+      "kg_relative_path": "feeds/p05/metadata/p05_e02.kg.json",
+      "metadata_relative_path": "feeds/p05/metadata/p05_e02.metadata.json",
+      "publish_date": "2026-05-16",
+      "summary_bullet_graph_topic_ids": [
+        "topic:welcome-back-to",
+        "topic:what-does-that-look",
+        "topic:index-investing-works-because"
+      ],
+      "summary_bullets_preview": [
+        "# Long Horizon Notes \u2014 Episode\n## Real Estate: Numbers Before Narratives\nHost: Nora\nGuest: Isabel\nNora: Welcome back to Long Horizon Notes.",
+        "Today we\u2019re talking about real estate: numbers before narratives, and I\u2019m joined by Isabel.",
+        "Isabel, thanks for being here."
+      ],
+      "summary_preview": "# Long Horizon Notes \u2014 Episode\n## Real Estate: Numbers Before Narratives\nHost: Nora\nGuest: Isabel\nNora: Welcome back to Long Horizon Notes.",
+      "summary_title": "Long Horizon Notes \u2014 Episode 2 \u2014 synthetic",
+      "topics": [
+        "welcome back to",
+        "what does that look",
+        "index investing works because"
+      ]
+    },
+    {
+      "cil_digest_topics": [
+        {
+          "in_topic_cluster": false,
+          "label": "management for",
+          "topic_cluster_compound_id": null,
+          "topic_id": "topic:management-for"
+        },
+        {
+          "in_topic_cluster": false,
+          "label": "welcome back to",
+          "topic_cluster_compound_id": null,
+          "topic_id": "topic:welcome-back-to"
+        }
+      ],
+      "duration_seconds": 1800,
+      "episode_id": "7f877683-ea36-55d1-94f7-a5cc051ff3d0",
+      "episode_image_url": null,
+      "episode_title": "Long Horizon Notes \u2014 Episode 3",
+      "feed_description": "Investing conversations for normal humans: frameworks, risk, and the habits that matter more than predictions.",
+      "feed_display_title": "Long Horizon Notes",
+      "feed_id": "sha256:f4abc2ce662eb5875453632ed70c87b2fbc7394bbeef83c9d1d0918febd5bebe",
+      "feed_image_url": null,
+      "feed_rss_url": "http://localhost/",
+      "gi_relative_path": "feeds/p05/metadata/p05_e03.gi.json",
+      "has_gi": true,
+      "has_kg": true,
+      "kg_relative_path": "feeds/p05/metadata/p05_e03.kg.json",
+      "metadata_relative_path": "feeds/p05/metadata/p05_e03.metadata.json",
+      "publish_date": "2026-05-14",
+      "summary_bullet_graph_topic_ids": [
+        "topic:management-for",
+        "topic:welcome-back-to",
+        "topic:how-do-you-teach"
+      ],
+      "summary_bullets_preview": [
+        "# Long Horizon Notes \u2014 Episode\n## Risk Management for People Who Hate Spreadsheets\nHost: Nora\nGuest: Kasper\nNora: Welcome back to Long Horizon Notes.",
+        "Today we\u2019re talking about risk management for people who hate spreadsheets, and I\u2019m joined by Kasper.",
+        "Kasper, thanks for being here."
+      ],
+      "summary_preview": "# Long Horizon Notes \u2014 Episode\n## Risk Management for People Who Hate Spreadsheets\nHost: Nora\nGuest: Kasper\nNora: Welcome back to Long Horiz\u2026",
+      "summary_title": "Long Horizon Notes \u2014 Episode 3 \u2014 synthetic",
+      "topics": [
+        "management for",
+        "welcome back to",
+        "how do you teach"
+      ]
+    },
+    {
+      "cil_digest_topics": [
+        {
+          "in_topic_cluster": false,
+          "label": "welcome back to",
+          "topic_cluster_compound_id": null,
+          "topic_id": "topic:welcome-back-to"
+        },
+        {
+          "in_topic_cluster": false,
+          "label": "what do you recommend",
+          "topic_cluster_compound_id": null,
+          "topic_id": "topic:what-do-you-recommend"
+        }
+      ],
+      "duration_seconds": 1800,
+      "episode_id": "e741f35a-8dd9-5c40-9d5c-905f4dca4122",
+      "episode_image_url": null,
+      "episode_title": "Edge Cases Podcast \u2014 Episode 1",
+      "feed_description": "Testing edge cases: special characters, unicode, long titles, missing fields.",
+      "feed_display_title": "Edge Cases Podcast",
+      "feed_id": "sha256:d517d39c803a89d395740e81b17ace57ebb95aa5ec504129b1c306c7e592f10c",
+      "feed_image_url": null,
+      "feed_rss_url": "http://localhost/",
+      "gi_relative_path": "feeds/p06/metadata/p06_e01.gi.json",
+      "has_gi": true,
+      "has_kg": true,
+      "kg_relative_path": "feeds/p06/metadata/p06_e01.kg.json",
+      "metadata_relative_path": "feeds/p06/metadata/p06_e01.metadata.json",
+      "publish_date": "2026-05-11",
+      "summary_bullet_graph_topic_ids": [
+        "topic:welcome-back-to",
+        "topic:what-do-you-recommend",
+        "topic:tire-pressure-and-casing"
+      ],
+      "summary_bullets_preview": [
+        "# Singletrack Sessions \u2014 Episode\n## Building Trails That Last\nHost: Maya\nGuest: Liam\nMaya: Welcome back to Singletrack Sessions.",
+        "Today we\u2019re talking about building trails that last, and I\u2019m joined by Liam.",
+        "I\u2019m excited\u2014this is a topic people care about, and there\u2019s a lot of practical nuance."
+      ],
+      "summary_preview": "# Singletrack Sessions \u2014 Episode\n## Building Trails That Last\nHost: Maya\nGuest: Liam\nMaya: Welcome back to Singletrack Sessions.",
+      "summary_title": "Edge Cases Podcast \u2014 Episode 1 \u2014 synthetic",
+      "topics": [
+        "welcome back to",
+        "what do you recommend",
+        "tire pressure and casing"
+      ]
+    },
+    {
+      "cil_digest_topics": [
+        {
+          "in_topic_cluster": false,
+          "label": "welcome back to",
+          "topic_cluster_compound_id": null,
+          "topic_id": "topic:welcome-back-to"
+        },
+        {
+          "in_topic_cluster": false,
+          "label": "what do you recommend",
+          "topic_cluster_compound_id": null,
+          "topic_id": "topic:what-do-you-recommend"
+        }
+      ],
+      "duration_seconds": 1800,
+      "episode_id": "e3d8c7e5-2b7b-572b-a226-ddec128285ca",
+      "episode_image_url": null,
+      "episode_title": "Edge Cases Podcast \u2014 Episode 2",
+      "feed_description": "Testing edge cases: special characters, unicode, long titles, missing fields.",
+      "feed_display_title": "Edge Cases Podcast",
+      "feed_id": "sha256:d517d39c803a89d395740e81b17ace57ebb95aa5ec504129b1c306c7e592f10c",
+      "feed_image_url": null,
+      "feed_rss_url": "http://localhost/",
+      "gi_relative_path": "feeds/p06/metadata/p06_e02.gi.json",
+      "has_gi": true,
+      "has_kg": true,
+      "kg_relative_path": "feeds/p06/metadata/p06_e02.kg.json",
+      "metadata_relative_path": "feeds/p06/metadata/p06_e02.metadata.json",
+      "publish_date": "2026-05-15",
+      "summary_bullet_graph_topic_ids": [
+        "topic:welcome-back-to",
+        "topic:what-do-you-recommend",
+        "topic:tire-pressure-and-casing"
+      ],
+      "summary_bullets_preview": [
+        "# Singletrack Sessions \u2014 Episode\n## Building Trails That Last\nHost: Maya\nGuest: Liam\nMaya: Welcome back to Singletrack Sessions.",
+        "Today we\u2019re talking about building trails that last, and I\u2019m joined by Liam.",
+        "I\u2019m excited\u2014this is a topic people care about, and there\u2019s a lot of practical nuance."
+      ],
+      "summary_preview": "# Singletrack Sessions \u2014 Episode\n## Building Trails That Last\nHost: Maya\nGuest: Liam\nMaya: Welcome back to Singletrack Sessions.",
+      "summary_title": "Edge Cases Podcast \u2014 Episode 2 \u2014 synthetic",
+      "topics": [
+        "welcome back to",
+        "what do you recommend",
+        "tire pressure and casing"
+      ]
+    },
+    {
+      "cil_digest_topics": [
+        {
+          "in_topic_cluster": false,
+          "label": "welcome back to",
+          "topic_cluster_compound_id": null,
+          "topic_id": "topic:welcome-back-to"
+        },
+        {
+          "in_topic_cluster": false,
+          "label": "what do you recommend",
+          "topic_cluster_compound_id": null,
+          "topic_id": "topic:what-do-you-recommend"
+        }
+      ],
+      "duration_seconds": 1800,
+      "episode_id": "01835c28-431e-5b5a-adbb-5ec01411a299",
+      "episode_image_url": null,
+      "episode_title": "Edge Cases Podcast \u2014 Episode 3",
+      "feed_description": "Testing edge cases: special characters, unicode, long titles, missing fields.",
+      "feed_display_title": "Edge Cases Podcast",
+      "feed_id": "sha256:d517d39c803a89d395740e81b17ace57ebb95aa5ec504129b1c306c7e592f10c",
+      "feed_image_url": null,
+      "feed_rss_url": "http://localhost/",
+      "gi_relative_path": "feeds/p06/metadata/p06_e03.gi.json",
+      "has_gi": true,
+      "has_kg": true,
+      "kg_relative_path": "feeds/p06/metadata/p06_e03.kg.json",
+      "metadata_relative_path": "feeds/p06/metadata/p06_e03.metadata.json",
+      "publish_date": "2026-05-13",
+      "summary_bullet_graph_topic_ids": [
+        "topic:welcome-back-to",
+        "topic:what-do-you-recommend",
+        "topic:tire-pressure-and-casing"
+      ],
+      "summary_bullets_preview": [
+        "# Singletrack Sessions \u2014 Episode\n## Building Trails That Last\nHost: Maya\nGuest: Liam\nMaya: Welcome back to Singletrack Sessions.",
+        "Today we\u2019re talking about building trails that last, and I\u2019m joined by Liam.",
+        "I\u2019m excited\u2014this is a topic people care about, and there\u2019s a lot of practical nuance."
+      ],
+      "summary_preview": "# Singletrack Sessions \u2014 Episode\n## Building Trails That Last\nHost: Maya\nGuest: Liam\nMaya: Welcome back to Singletrack Sessions.",
+      "summary_title": "Edge Cases Podcast \u2014 Episode 3 \u2014 synthetic",
+      "topics": [
+        "welcome back to",
+        "what do you recommend",
+        "tire pressure and casing"
+      ]
+    },
+    {
+      "cil_digest_topics": [
+        {
+          "in_topic_cluster": false,
+          "label": "where do the trade",
+          "topic_cluster_compound_id": null,
+          "topic_id": "topic:where-do-the-trade"
+        },
+        {
+          "in_topic_cluster": false,
+          "label": "one underrated lever is",
+          "topic_cluster_compound_id": null,
+          "topic_id": "topic:one-underrated-lever-is"
+        }
+      ],
+      "duration_seconds": 1800,
+      "episode_id": "5ef53e66-e083-5fcb-b555-a3814ebb6b39",
+      "episode_image_url": null,
+      "episode_title": "The Long View \u2014 Episode 1",
+      "feed_description": "Long-form conversations about sustainability, systems thinking, and the ideas shaping our shared future.",
+      "feed_display_title": "The Long View",
+      "feed_id": "sha256:9e4a8b34d0b761bb138fb239ee0ace25609c27381d49bf78622ee8a40c7ce4ab",
+      "feed_image_url": null,
+      "feed_rss_url": "http://localhost/",
+      "gi_relative_path": "feeds/p07/metadata/p07_e01.gi.json",
+      "has_gi": true,
+      "has_kg": true,
+      "kg_relative_path": "feeds/p07/metadata/p07_e01.kg.json",
+      "metadata_relative_path": "feeds/p07/metadata/p07_e01.metadata.json",
+      "publish_date": "2026-05-16",
+      "summary_bullet_graph_topic_ids": [
+        "topic:where-do-the-trade",
+        "topic:one-underrated-lever-is",
+        "topic:give-me-a-concrete"
+      ],
+      "summary_bullets_preview": [
+        "The Long View\nEpisode: What Sustainability Really Means (And Why Everyone Is Talking About It)\nHost: Alex Morgan\nGuest: Dr.",
+        "Elena Fischer\n\nAlex Morgan: Today\u2019s topic is sustainability\u2014what it means, why it\u2019s everywhere, and what it requires in practice.",
+        "Alex Morgan: Let\u2019s zoom out for a moment and frame sustainability as a systems question."
+      ],
+      "summary_preview": "The Long View\nEpisode: What Sustainability Really Means (And Why Everyone Is Talking About It)\nHost: Alex Morgan\nGuest: Dr.",
+      "summary_title": "The Long View \u2014 Episode 1 \u2014 synthetic",
+      "topics": [
+        "where do the trade",
+        "one underrated lever is",
+        "give me a concrete"
+      ]
+    },
+    {
+      "cil_digest_topics": [
+        {
+          "in_topic_cluster": false,
+          "label": "energy in the",
+          "topic_cluster_compound_id": null,
+          "topic_id": "topic:energy-in-the"
+        },
+        {
+          "in_topic_cluster": false,
+          "label": "people often talk about",
+          "topic_cluster_compound_id": null,
+          "topic_id": "topic:people-often-talk-about"
+        }
+      ],
+      "duration_seconds": 1800,
+      "episode_id": "15a1cbea-1449-50ac-bb1c-11784d7421c3",
+      "episode_image_url": null,
+      "episode_title": "The Long View \u2014 Episode 1",
+      "feed_description": "Extended conversations on energy, technology, and long-term transitions shaping the near future.",
+      "feed_display_title": "The Long View",
+      "feed_id": "sha256:5ffc16f86af9856b053a670e3a580eb8f0e2888d6c6ccf09d988a2619350ed2a",
+      "feed_image_url": null,
+      "feed_rss_url": "http://localhost/",
+      "gi_relative_path": "feeds/p08/metadata/p08_e01.gi.json",
+      "has_gi": true,
+      "has_kg": true,
+      "kg_relative_path": "feeds/p08/metadata/p08_e01.kg.json",
+      "metadata_relative_path": "feeds/p08/metadata/p08_e01.metadata.json",
+      "publish_date": "2026-05-15",
+      "summary_bullet_graph_topic_ids": [
+        "topic:energy-in-the",
+        "topic:people-often-talk-about",
+        "topic:we-should-distinguish-between"
+      ],
+      "summary_bullets_preview": [
+        "The Long View\nEpisode: The Role of Solar Energy in the Near Future\nHost: Alex Morgan\nGuest: Dr.",
+        "Rafael Mendes\n\nAlex Morgan: Today we\u2019re talking about solar energy: what it can realistically do in the next 10\u201320 years, and what has to change around it.",
+        "Alex Morgan: People often talk about solar energy as if it\u2019s one thing, but it\u2019s really a bundle of trade-offs."
+      ],
+      "summary_preview": "The Long View\nEpisode: The Role of Solar Energy in the Near Future\nHost: Alex Morgan\nGuest: Dr.",
+      "summary_title": "The Long View \u2014 Episode 1 \u2014 synthetic",
+      "topics": [
+        "energy in the",
+        "people often talk about",
+        "we should distinguish between"
+      ]
+    },
+    {
+      "cil_digest_topics": [
+        {
+          "in_topic_cluster": false,
+          "label": "biohacking in",
+          "topic_cluster_compound_id": null,
+          "topic_id": "topic:biohacking-in"
+        },
+        {
+          "in_topic_cluster": false,
+          "label": "in this episode",
+          "topic_cluster_compound_id": null,
+          "topic_id": "topic:in-this-episode"
+        }
+      ],
+      "duration_seconds": 1800,
+      "episode_id": "22aa61d4-d535-5e72-ae9b-d44d9a3054d1",
+      "episode_image_url": null,
+      "episode_title": "The Long View: Biohacking \u2014 Episode 1",
+      "feed_description": "Solo, long-form reflections on biohacking: the state of the field in 2025, what actually works, and the ethics and limits of human optimization.",
+      "feed_display_title": "The Long View: Biohacking",
+      "feed_id": "sha256:255b515964dcdf7f0f2123a46053fbf8c961882868ea3c88bb8ba794824c52e8",
+      "feed_image_url": null,
+      "feed_rss_url": "http://localhost/",
+      "gi_relative_path": "feeds/p09/metadata/p09_e01.gi.json",
+      "has_gi": true,
+      "has_kg": true,
+      "kg_relative_path": "feeds/p09/metadata/p09_e01.kg.json",
+      "metadata_relative_path": "feeds/p09/metadata/p09_e01.metadata.json",
+      "publish_date": "2026-05-14",
+      "summary_bullet_graph_topic_ids": [
+        "topic:biohacking-in",
+        "topic:in-this-episode",
+        "topic:where-the-field-is"
+      ],
+      "summary_bullets_preview": [
+        "Alex Morgan: Biohacking in 2025: From Fringe to Framework\n\nAlex Morgan: In 2025, biohacking is everywhere in public conversation, but the signal is often mixed with hype.",
+        "In this episode, I\u2019m going to build a grounded map: what\u2019s real, what\u2019s uncertain, and what you can do without turning your life into an optimization project.",
+        "Alex Morgan: Where the field is right now."
+      ],
+      "summary_preview": "Alex Morgan: Biohacking in 2025: From Fringe to Framework\n\nAlex Morgan: In 2025, biohacking is everywhere in public conversation, but the si\u2026",
+      "summary_title": "The Long View: Biohacking \u2014 Episode 1 \u2014 synthetic",
+      "topics": [
+        "biohacking in",
+        "in this episode",
+        "where the field is"
+      ]
+    },
+    {
+      "cil_digest_topics": [
+        {
+          "in_topic_cluster": false,
+          "label": "in this episode",
+          "topic_cluster_compound_id": null,
+          "topic_id": "topic:in-this-episode"
+        },
+        {
+          "in_topic_cluster": false,
+          "label": "where the field is",
+          "topic_cluster_compound_id": null,
+          "topic_id": "topic:where-the-field-is"
+        }
+      ],
+      "duration_seconds": 1800,
+      "episode_id": "d24c1620-8d16-54dd-b681-2f2e06c0b579",
+      "episode_image_url": null,
+      "episode_title": "The Long View: Biohacking \u2014 Episode 2",
+      "feed_description": "Solo, long-form reflections on biohacking: the state of the field in 2025, what actually works, and the ethics and limits of human optimization.",
+      "feed_display_title": "The Long View: Biohacking",
+      "feed_id": "sha256:255b515964dcdf7f0f2123a46053fbf8c961882868ea3c88bb8ba794824c52e8",
+      "feed_image_url": null,
+      "feed_rss_url": "http://localhost/",
+      "gi_relative_path": "feeds/p09/metadata/p09_e02.gi.json",
+      "has_gi": true,
+      "has_kg": true,
+      "kg_relative_path": "feeds/p09/metadata/p09_e02.kg.json",
+      "metadata_relative_path": "feeds/p09/metadata/p09_e02.metadata.json",
+      "publish_date": "2026-05-12",
+      "summary_bullet_graph_topic_ids": [
+        "topic:in-this-episode",
+        "topic:where-the-field-is",
+        "topic:if-a-protocol-only"
+      ],
+      "summary_bullets_preview": [
+        "In this episode, I\u2019m going to build a grounded map: what\u2019s real, what\u2019s uncertain, and what you can do without turning your life into an optimization project.",
+        "Alex Morgan: Where the field is right now.",
+        "Alex Morgan: If a protocol only works when life is perfect, it is not a protocol; it is a performance."
+      ],
+      "summary_preview": "In this episode, I\u2019m going to build a grounded map: what\u2019s real, what\u2019s uncertain, and what you can do without turning your life into an opt\u2026",
+      "summary_title": "The Long View: Biohacking \u2014 Episode 2 \u2014 synthetic",
+      "topics": [
+        "in this episode",
+        "where the field is",
+        "if a protocol only"
+      ]
+    },
+    {
+      "cil_digest_topics": [
+        {
+          "in_topic_cluster": false,
+          "label": "in this episode",
+          "topic_cluster_compound_id": null,
+          "topic_id": "topic:in-this-episode"
+        },
+        {
+          "in_topic_cluster": false,
+          "label": "where the field is",
+          "topic_cluster_compound_id": null,
+          "topic_id": "topic:where-the-field-is"
+        }
+      ],
+      "duration_seconds": 1800,
+      "episode_id": "79fb44f3-5be0-5fc7-9d43-2f39049f7f2d",
+      "episode_image_url": null,
+      "episode_title": "The Long View: Biohacking \u2014 Episode 3",
+      "feed_description": "Solo, long-form reflections on biohacking: the state of the field in 2025, what actually works, and the ethics and limits of human optimization.",
+      "feed_display_title": "The Long View: Biohacking",
+      "feed_id": "sha256:255b515964dcdf7f0f2123a46053fbf8c961882868ea3c88bb8ba794824c52e8",
+      "feed_image_url": null,
+      "feed_rss_url": "http://localhost/",
+      "gi_relative_path": "feeds/p09/metadata/p09_e03.gi.json",
+      "has_gi": true,
+      "has_kg": true,
+      "kg_relative_path": "feeds/p09/metadata/p09_e03.kg.json",
+      "metadata_relative_path": "feeds/p09/metadata/p09_e03.metadata.json",
+      "publish_date": "2026-05-16",
+      "summary_bullet_graph_topic_ids": [
+        "topic:in-this-episode",
+        "topic:where-the-field-is",
+        "topic:the-second-step-is"
+      ],
+      "summary_bullets_preview": [
+        "In this episode, I\u2019m going to build a grounded map: what\u2019s real, what\u2019s uncertain, and what you can do without turning your life into an optimization project.",
+        "Alex Morgan: Where the field is right now.",
+        "Alex Morgan: The second step is to separate interventions that improve fundamentals from interventions that just create the feeling of progress."
+      ],
+      "summary_preview": "In this episode, I\u2019m going to build a grounded map: what\u2019s real, what\u2019s uncertain, and what you can do without turning your life into an opt\u2026",
+      "summary_title": "The Long View: Biohacking \u2014 Episode 3 \u2014 synthetic",
+      "topics": [
+        "in this episode",
+        "where the field is",
+        "the second step is"
+      ]
+    }
+  ],
+  "next_cursor": null,
+  "path": "/Users/markodragoljevic/Projects/podcast_scraper-FUTURE/tests/fixtures/viewer-validation-corpus"
+}

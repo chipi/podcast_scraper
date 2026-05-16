@@ -1,0 +1,9 @@
+{
+  "catalog_episode_count": 23,
+  "catalog_feed_count": 9,
+  "digest_topics_configured": 0,
+  "path": "/Users/markodragoljevic/Projects/podcast_scraper-FUTURE/tests/fixtures/viewer-validation-corpus",
+  "publish_month_histogram": {
+    "2026-05": 23
+  }
+}

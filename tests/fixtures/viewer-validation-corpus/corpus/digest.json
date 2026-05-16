@@ -1,0 +1,251 @@
+{
+  "compact": false,
+  "path": "/Users/markodragoljevic/Projects/podcast_scraper-FUTURE/tests/fixtures/viewer-validation-corpus",
+  "rows": [
+    {
+      "cil_digest_topics": [
+        {
+          "in_topic_cluster": false,
+          "label": "welcome back to",
+          "topic_cluster_compound_id": null,
+          "topic_id": "topic:welcome-back-to"
+        },
+        {
+          "in_topic_cluster": false,
+          "label": "what do you recommend",
+          "topic_cluster_compound_id": null,
+          "topic_id": "topic:what-do-you-recommend"
+        }
+      ],
+      "duration_seconds": 1800,
+      "episode_id": "5b39965f-22a2-54c9-9c42-e7a19d8da2da",
+      "episode_image_url": null,
+      "episode_title": "Singletrack Sessions \u2014 Episode 1",
+      "feed_description": "Mountain biking talk: trails, technique, gear, and the people who build the ride.",
+      "feed_display_title": "Singletrack Sessions",
+      "feed_id": "sha256:90167c0635d0f3d31fe8ebc87b372f75cd15166e02da8abb2df7dfeca65aa588",
+      "feed_image_url": null,
+      "feed_rss_url": "http://localhost/",
+      "gi_relative_path": "feeds/p01/metadata/p01_e01.gi.json",
+      "has_gi": true,
+      "has_kg": true,
+      "kg_relative_path": "feeds/p01/metadata/p01_e01.kg.json",
+      "metadata_relative_path": "feeds/p01/metadata/p01_e01.metadata.json",
+      "publish_date": "2026-05-16",
+      "summary_bullet_graph_topic_ids": [
+        "topic:welcome-back-to",
+        "topic:what-do-you-recommend",
+        "topic:tire-pressure-and-casing"
+      ],
+      "summary_bullets_preview": [
+        "# Singletrack Sessions \u2014 Episode\n## Building Trails That Last\nHost: Maya\nGuest: Liam\nMaya: Welcome back to Singletrack Sessions.",
+        "Today we\u2019re talking about building trails that last, and I\u2019m joined by Liam.",
+        "I\u2019m excited\u2014this is a topic people care about, and there\u2019s a lot of practical nuance."
+      ],
+      "summary_preview": "# Singletrack Sessions \u2014 Episode\n## Building Trails That Last\nHost: Maya\nGuest: Liam\nMaya: Welcome back to Singletrack Sessions.",
+      "summary_title": "Singletrack Sessions \u2014 Episode 1 \u2014 synthetic",
+      "topics": [
+        "welcome back to",
+        "what do you recommend",
+        "tire pressure and casing"
+      ]
+    },
+    {
+      "cil_digest_topics": [
+        {
+          "in_topic_cluster": false,
+          "label": "without the",
+          "topic_cluster_compound_id": null,
+          "topic_id": "topic:without-the"
+        },
+        {
+          "in_topic_cluster": false,
+          "label": "welcome back to",
+          "topic_cluster_compound_id": null,
+          "topic_id": "topic:welcome-back-to"
+        }
+      ],
+      "duration_seconds": 1800,
+      "episode_id": "799ba6c0-3117-50e1-8c97-c2d8b695cce4",
+      "episode_image_url": null,
+      "episode_title": "Singletrack Sessions \u2014 Episode 2",
+      "feed_description": "Mountain biking talk: trails, technique, gear, and the people who build the ride.",
+      "feed_display_title": "Singletrack Sessions",
+      "feed_id": "sha256:90167c0635d0f3d31fe8ebc87b372f75cd15166e02da8abb2df7dfeca65aa588",
+      "feed_image_url": null,
+      "feed_rss_url": "http://localhost/",
+      "gi_relative_path": "feeds/p01/metadata/p01_e02.gi.json",
+      "has_gi": true,
+      "has_kg": true,
+      "kg_relative_path": "feeds/p01/metadata/p01_e02.kg.json",
+      "metadata_relative_path": "feeds/p01/metadata/p01_e02.metadata.json",
+      "publish_date": "2026-05-14",
+      "summary_bullet_graph_topic_ids": [
+        "topic:without-the",
+        "topic:welcome-back-to",
+        "topic:tire-pressure-and-casing"
+      ],
+      "summary_bullets_preview": [
+        "# Singletrack Sessions \u2014 Episode\n## Enduro Skills Without the Hype\nHost: Maya\nGuest: Sophie\nMaya: Welcome back to Singletrack Sessions.",
+        "Today we\u2019re talking about enduro skills without the hype, and I\u2019m joined by Sophie.",
+        "Sophie, thanks for being here."
+      ],
+      "summary_preview": "# Singletrack Sessions \u2014 Episode\n## Enduro Skills Without the Hype\nHost: Maya\nGuest: Sophie\nMaya: Welcome back to Singletrack Sessions.",
+      "summary_title": "Singletrack Sessions \u2014 Episode 2 \u2014 synthetic",
+      "topics": [
+        "without the",
+        "welcome back to",
+        "tire pressure and casing"
+      ]
+    },
+    {
+      "cil_digest_topics": [
+        {
+          "in_topic_cluster": false,
+          "label": "mechanics of a",
+          "topic_cluster_compound_id": null,
+          "topic_id": "topic:mechanics-of-a"
+        },
+        {
+          "in_topic_cluster": false,
+          "label": "welcome back to",
+          "topic_cluster_compound_id": null,
+          "topic_id": "topic:welcome-back-to"
+        }
+      ],
+      "duration_seconds": 1800,
+      "episode_id": "f6f1df34-2251-5301-b1c7-68ee8468bf65",
+      "episode_image_url": null,
+      "episode_title": "Singletrack Sessions \u2014 Episode 3",
+      "feed_description": "Mountain biking talk: trails, technique, gear, and the people who build the ride.",
+      "feed_display_title": "Singletrack Sessions",
+      "feed_id": "sha256:90167c0635d0f3d31fe8ebc87b372f75cd15166e02da8abb2df7dfeca65aa588",
+      "feed_image_url": null,
+      "feed_rss_url": "http://localhost/",
+      "gi_relative_path": "feeds/p01/metadata/p01_e03.gi.json",
+      "has_gi": true,
+      "has_kg": true,
+      "kg_relative_path": "feeds/p01/metadata/p01_e03.kg.json",
+      "metadata_relative_path": "feeds/p01/metadata/p01_e03.metadata.json",
+      "publish_date": "2026-05-12",
+      "summary_bullet_graph_topic_ids": [
+        "topic:mechanics-of-a",
+        "topic:welcome-back-to",
+        "topic:the-bike-should-feel"
+      ],
+      "summary_bullets_preview": [
+        "# Singletrack Sessions \u2014 Episode\n## The Mechanics of a Quiet, Fast Bike\nHost: Maya\nGuest: Noah\nMaya: Welcome back to Singletrack Sessions.",
+        "Today we\u2019re talking about the mechanics of a quiet, fast bike, and I\u2019m joined by Noah.",
+        "I\u2019m excited\u2014this is a topic people care about, and there\u2019s a lot of practical nuance."
+      ],
+      "summary_preview": "# Singletrack Sessions \u2014 Episode\n## The Mechanics of a Quiet, Fast Bike\nHost: Maya\nGuest: Noah\nMaya: Welcome back to Singletrack Sessions.",
+      "summary_title": "Singletrack Sessions \u2014 Episode 3 \u2014 synthetic",
+      "topics": [
+        "mechanics of a",
+        "welcome back to",
+        "the bike should feel"
+      ]
+    },
+    {
+      "cil_digest_topics": [
+        {
+          "in_topic_cluster": false,
+          "label": "welcome back to",
+          "topic_cluster_compound_id": null,
+          "topic_id": "topic:welcome-back-to"
+        },
+        {
+          "in_topic_cluster": false,
+          "label": "what does that look",
+          "topic_cluster_compound_id": null,
+          "topic_id": "topic:what-does-that-look"
+        }
+      ],
+      "duration_seconds": 1800,
+      "episode_id": "3d0ec494-98ba-5f71-b2bd-c8559c779786",
+      "episode_image_url": null,
+      "episode_title": "Practical Systems \u2014 Episode 1",
+      "feed_description": "Software engineering conversations: reliability, architecture, delivery, and the tradeoffs nobody puts in the blog post.",
+      "feed_display_title": "Practical Systems",
+      "feed_id": "sha256:05eff208d6fd774940bed9fd154c6a46b9325e32cf95e1769f8eb679505ef414",
+      "feed_image_url": null,
+      "feed_rss_url": "http://localhost/",
+      "gi_relative_path": "feeds/p02/metadata/p02_e01.gi.json",
+      "has_gi": true,
+      "has_kg": true,
+      "kg_relative_path": "feeds/p02/metadata/p02_e01.kg.json",
+      "metadata_relative_path": "feeds/p02/metadata/p02_e01.metadata.json",
+      "publish_date": "2026-05-15",
+      "summary_bullet_graph_topic_ids": [
+        "topic:welcome-back-to",
+        "topic:what-does-that-look",
+        "topic:what-do-you-recommend"
+      ],
+      "summary_bullets_preview": [
+        "# Practical Systems \u2014 Episode\n## On-Call That Doesn\u2019t Break People\nHost: Ethan\nGuest: Priya\nEthan: Welcome back to Practical Systems.",
+        "Today we\u2019re talking about on-call that doesn\u2019t break people, and I\u2019m joined by Priya.",
+        "I\u2019m excited\u2014this is a topic people care about, and there\u2019s a lot of practical nuance."
+      ],
+      "summary_preview": "# Practical Systems \u2014 Episode\n## On-Call That Doesn\u2019t Break People\nHost: Ethan\nGuest: Priya\nEthan: Welcome back to Practical Systems.",
+      "summary_title": "Practical Systems \u2014 Episode 1 \u2014 synthetic",
+      "topics": [
+        "welcome back to",
+        "what does that look",
+        "what do you recommend"
+      ]
+    },
+    {
+      "cil_digest_topics": [
+        {
+          "in_topic_cluster": false,
+          "label": "welcome back to",
+          "topic_cluster_compound_id": null,
+          "topic_id": "topic:welcome-back-to"
+        },
+        {
+          "in_topic_cluster": false,
+          "label": "what does that look",
+          "topic_cluster_compound_id": null,
+          "topic_id": "topic:what-does-that-look"
+        }
+      ],
+      "duration_seconds": 1800,
+      "episode_id": "096240a2-e115-5a3c-98b4-2d852b096eda",
+      "episode_image_url": null,
+      "episode_title": "Practical Systems \u2014 Episode 2",
+      "feed_description": "Software engineering conversations: reliability, architecture, delivery, and the tradeoffs nobody puts in the blog post.",
+      "feed_display_title": "Practical Systems",
+      "feed_id": "sha256:05eff208d6fd774940bed9fd154c6a46b9325e32cf95e1769f8eb679505ef414",
+      "feed_image_url": null,
+      "feed_rss_url": "http://localhost/",
+      "gi_relative_path": "feeds/p02/metadata/p02_e02.gi.json",
+      "has_gi": true,
+      "has_kg": true,
+      "kg_relative_path": "feeds/p02/metadata/p02_e02.kg.json",
+      "metadata_relative_path": "feeds/p02/metadata/p02_e02.metadata.json",
+      "publish_date": "2026-05-13",
+      "summary_bullet_graph_topic_ids": [
+        "topic:welcome-back-to",
+        "topic:what-does-that-look",
+        "topic:architecture-decisions-are-mostly"
+      ],
+      "summary_bullets_preview": [
+        "# Practical Systems \u2014 Episode\n## Staff Engineer Communication Patterns\nHost: Ethan\nGuest: Jonas\nEthan: Welcome back to Practical Systems.",
+        "Today we\u2019re talking about staff engineer communication patterns, and I\u2019m joined by Jonas.",
+        "I\u2019m excited\u2014this is a topic people care about, and there\u2019s a lot of practical nuance."
+      ],
+      "summary_preview": "# Practical Systems \u2014 Episode\n## Staff Engineer Communication Patterns\nHost: Ethan\nGuest: Jonas\nEthan: Welcome back to Practical Systems.",
+      "summary_title": "Practical Systems \u2014 Episode 2 \u2014 synthetic",
+      "topics": [
+        "welcome back to",
+        "what does that look",
+        "architecture decisions are mostly"
+      ]
+    }
+  ],
+  "topic_bands": [],
+  "topics_unavailable_reason": "synthetic-validation-corpus has no topic bands",
+  "window": "all",
+  "window_end_utc": "2027-01-01T00:00:00Z",
+  "window_start_utc": "2025-01-01T00:00:00Z"
+}

@@ -1,0 +1,59 @@
+{
+  "edges": [
+    {
+      "from": "episode:5ef53e66-e083-5fcb-b555-a3814ebb6b39",
+      "to": "entity:where-do-the-trade",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:5ef53e66-e083-5fcb-b555-a3814ebb6b39",
+      "to": "entity:one-underrated-lever-is",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:5ef53e66-e083-5fcb-b555-a3814ebb6b39",
+      "to": "topic:where-do-the-trade",
+      "type": "RELATES_TO"
+    }
+  ],
+  "episode_id": "5ef53e66-e083-5fcb-b555-a3814ebb6b39",
+  "extraction": {
+    "model": "n/a",
+    "provider": "synthetic"
+  },
+  "nodes": [
+    {
+      "id": "episode:5ef53e66-e083-5fcb-b555-a3814ebb6b39",
+      "properties": {
+        "episode_id": "5ef53e66-e083-5fcb-b555-a3814ebb6b39",
+        "metadata_relative_path": "feeds/p07/metadata/p07_e01.metadata.json",
+        "title": "The Long View \u2014 Episode 1"
+      },
+      "type": "Episode"
+    },
+    {
+      "id": "entity:where-do-the-trade",
+      "properties": {
+        "category": "Concept",
+        "label": "Where Do The Trade"
+      },
+      "type": "Entity"
+    },
+    {
+      "id": "entity:one-underrated-lever-is",
+      "properties": {
+        "category": "Concept",
+        "label": "One Underrated Lever Is"
+      },
+      "type": "Entity"
+    },
+    {
+      "id": "topic:where-do-the-trade",
+      "properties": {
+        "label": "where do the trade"
+      },
+      "type": "Topic"
+    }
+  ],
+  "schema_version": "2"
+}

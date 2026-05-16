@@ -1,0 +1,59 @@
+{
+  "edges": [
+    {
+      "from": "episode:15a1cbea-1449-50ac-bb1c-11784d7421c3",
+      "to": "entity:energy-in-the",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:15a1cbea-1449-50ac-bb1c-11784d7421c3",
+      "to": "entity:people-often-talk-about",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:15a1cbea-1449-50ac-bb1c-11784d7421c3",
+      "to": "topic:energy-in-the",
+      "type": "RELATES_TO"
+    }
+  ],
+  "episode_id": "15a1cbea-1449-50ac-bb1c-11784d7421c3",
+  "extraction": {
+    "model": "n/a",
+    "provider": "synthetic"
+  },
+  "nodes": [
+    {
+      "id": "episode:15a1cbea-1449-50ac-bb1c-11784d7421c3",
+      "properties": {
+        "episode_id": "15a1cbea-1449-50ac-bb1c-11784d7421c3",
+        "metadata_relative_path": "feeds/p08/metadata/p08_e01.metadata.json",
+        "title": "The Long View \u2014 Episode 1"
+      },
+      "type": "Episode"
+    },
+    {
+      "id": "entity:energy-in-the",
+      "properties": {
+        "category": "Concept",
+        "label": "Energy In The"
+      },
+      "type": "Entity"
+    },
+    {
+      "id": "entity:people-often-talk-about",
+      "properties": {
+        "category": "Concept",
+        "label": "People Often Talk About"
+      },
+      "type": "Entity"
+    },
+    {
+      "id": "topic:energy-in-the",
+      "properties": {
+        "label": "energy in the"
+      },
+      "type": "Topic"
+    }
+  ],
+  "schema_version": "2"
+}
