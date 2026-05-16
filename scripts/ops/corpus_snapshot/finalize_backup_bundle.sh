@@ -78,7 +78,8 @@ bash "$SCRIPT_DIR/validate_snapshot_manifest.sh" "$INNER_MANIFEST"
 
 # Pack outside $WORKDIR so we never archive snapshot.tgz while it is being written
 # (GNU/BSD tar: "file changed as we read it" when output lives under ".").
-NEW_TARBALL="$(mktemp "${TMPDIR:-/tmp}/snapshot-finalize.XXXXXX.tgz")"
+# Template must end in XXXXXX (BSD mktemp); do not append .tgz after Xs (parallel mkstemp races).
+NEW_TARBALL="$(mktemp "${TMPDIR:-/tmp}/snapshot-finalize.XXXXXX")"
 tar -czf "$NEW_TARBALL" -C "$WORKDIR" .
 
 if command -v sha256sum >/dev/null 2>&1; then
