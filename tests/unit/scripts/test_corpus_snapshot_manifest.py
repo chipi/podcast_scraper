@@ -24,11 +24,22 @@ RESOLVE = REPO_ROOT / "scripts" / "ops" / "resolve_latest_snapshot_prod_tag.sh"
 RESTORE_RELEASE = REPO_ROOT / "scripts" / "ops" / "corpus_snapshot" / "restore_corpus_release.sh"
 
 
+def _script_env(**overrides: str) -> dict[str, str]:
+    """Subprocess env for bash ops scripts.
+
+    Drop GITHUB_OUTPUT so local tests match stdout contract.
+    """
+    env = os.environ.copy()
+    env.pop("GITHUB_OUTPUT", None)
+    env.update(overrides)
+    return env
+
+
 def _run(
     script: Path, *args: str, env: dict[str, str] | None = None
 ) -> subprocess.CompletedProcess[str]:
     assert script.is_file(), f"missing {script}"
-    full_env = {**os.environ, **(env or {})}
+    full_env = _script_env(**(env or {}))
     return subprocess.run(
         ["/usr/bin/env", "bash", str(script), *args],
         cwd=str(REPO_ROOT),
