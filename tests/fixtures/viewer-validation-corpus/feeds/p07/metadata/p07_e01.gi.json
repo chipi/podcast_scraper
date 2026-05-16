@@ -2,17 +2,17 @@
   "edges": [
     {
       "from": "episode:5ef53e66-e083-5fcb-b555-a3814ebb6b39",
+      "to": "topic:environment",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:5ef53e66-e083-5fcb-b555-a3814ebb6b39",
+      "to": "topic:health",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:5ef53e66-e083-5fcb-b555-a3814ebb6b39",
       "to": "topic:where-do-the-trade",
-      "type": "MENTIONS"
-    },
-    {
-      "from": "episode:5ef53e66-e083-5fcb-b555-a3814ebb6b39",
-      "to": "topic:one-underrated-lever-is",
-      "type": "MENTIONS"
-    },
-    {
-      "from": "episode:5ef53e66-e083-5fcb-b555-a3814ebb6b39",
-      "to": "topic:give-me-a-concrete",
       "type": "MENTIONS"
     },
     {
@@ -62,25 +62,25 @@
       "type": "Episode"
     },
     {
+      "id": "topic:environment",
+      "properties": {
+        "label": "environment",
+        "score": 0.8
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:health",
+      "properties": {
+        "label": "health",
+        "score": 0.8
+      },
+      "type": "Topic"
+    },
+    {
       "id": "topic:where-do-the-trade",
       "properties": {
         "label": "where do the trade",
-        "score": 0.8
-      },
-      "type": "Topic"
-    },
-    {
-      "id": "topic:one-underrated-lever-is",
-      "properties": {
-        "label": "one underrated lever is",
-        "score": 0.8
-      },
-      "type": "Topic"
-    },
-    {
-      "id": "topic:give-me-a-concrete",
-      "properties": {
-        "label": "give me a concrete",
         "score": 0.8
       },
       "type": "Topic"

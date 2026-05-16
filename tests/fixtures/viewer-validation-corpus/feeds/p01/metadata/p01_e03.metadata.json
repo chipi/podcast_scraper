@@ -1,9 +1,44 @@
 {
+  "cil_digest_topics": [
+    {
+      "in_topic_cluster": true,
+      "label": "outdoor activities",
+      "topic_cluster_compound_id": "tc:outdoor-activities-cluster",
+      "topic_id": "topic:outdoor-activities"
+    },
+    {
+      "in_topic_cluster": true,
+      "label": "gear",
+      "topic_cluster_compound_id": "tc:gear-cluster",
+      "topic_id": "topic:gear"
+    }
+  ],
   "episode_id": "f6f1df34-2251-5301-b1c7-68ee8468bf65",
   "episode_title": "Singletrack Sessions \u2014 Episode 3",
+  "feed_display_title": "Singletrack Sessions",
   "feed_id": "sha256:90167c0635d0f3d31fe8ebc87b372f75cd15166e02da8abb2df7dfeca65aa588",
   "gi_relative_path": "feeds/p01/metadata/p01_e03.gi.json",
+  "has_gi": true,
+  "has_kg": true,
   "kg_relative_path": "feeds/p01/metadata/p01_e03.kg.json",
   "publish_date": "2026-05-12",
-  "schema_version": "1"
+  "schema_version": "1",
+  "summary_bullet_graph_topic_ids": [
+    "topic:outdoor-activities",
+    "topic:gear",
+    "topic:mechanics-of-a"
+  ],
+  "summary_bullets": [
+    "# Singletrack Sessions \u2014 Episode\n## The Mechanics of a Quiet, Fast Bike\nHost: Maya\nGuest: Noah\nMaya: Welcome back to Singletrack Sessions.",
+    "Today we\u2019re talking about the mechanics of a quiet, fast bike, and I\u2019m joined by Noah.",
+    "I\u2019m excited\u2014this is a topic people care about, and there\u2019s a lot of practical nuance."
+  ],
+  "summary_preview": "# Singletrack Sessions \u2014 Episode\n## The Mechanics of a Quiet, Fast Bike\nHost: Maya\nGuest: Noah\nMaya: Welcome back to Singletrack Sessions.",
+  "summary_text": "# Singletrack Sessions \u2014 Episode\n## The Mechanics of a Quiet, Fast Bike\nHost: Maya\nGuest: Noah\nMaya: Welcome back to Singletrack Sessions.\nToday we\u2019re talking about the mechanics of a quiet, fast bike, and I\u2019m joined by Noah.\nI\u2019m excited\u2014this is a topic people care about, and there\u2019s a lot of practical nuance.",
+  "summary_title": "Singletrack Sessions \u2014 Episode 3 \u2014 synthetic",
+  "topics": [
+    "outdoor activities",
+    "gear",
+    "mechanics of a"
+  ]
 }

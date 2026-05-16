@@ -2,17 +2,17 @@
   "edges": [
     {
       "from": "episode:e1743bda-76ff-5586-9e39-3fa45e41ef9a",
+      "to": "topic:technology",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:e1743bda-76ff-5586-9e39-3fa45e41ef9a",
+      "to": "topic:gear",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:e1743bda-76ff-5586-9e39-3fa45e41ef9a",
       "to": "topic:welcome-back-to",
-      "type": "MENTIONS"
-    },
-    {
-      "from": "episode:e1743bda-76ff-5586-9e39-3fa45e41ef9a",
-      "to": "topic:if-you-can",
-      "type": "MENTIONS"
-    },
-    {
-      "from": "episode:e1743bda-76ff-5586-9e39-3fa45e41ef9a",
-      "to": "topic:what-do-you-recommend",
       "type": "MENTIONS"
     },
     {
@@ -62,25 +62,25 @@
       "type": "Episode"
     },
     {
+      "id": "topic:technology",
+      "properties": {
+        "label": "technology",
+        "score": 0.8
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:gear",
+      "properties": {
+        "label": "gear",
+        "score": 0.8
+      },
+      "type": "Topic"
+    },
+    {
       "id": "topic:welcome-back-to",
       "properties": {
         "label": "welcome back to",
-        "score": 0.8
-      },
-      "type": "Topic"
-    },
-    {
-      "id": "topic:if-you-can",
-      "properties": {
-        "label": "if you can",
-        "score": 0.8
-      },
-      "type": "Topic"
-    },
-    {
-      "id": "topic:what-do-you-recommend",
-      "properties": {
-        "label": "what do you recommend",
         "score": 0.8
       },
       "type": "Topic"

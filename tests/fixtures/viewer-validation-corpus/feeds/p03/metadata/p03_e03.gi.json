@@ -2,17 +2,17 @@
   "edges": [
     {
       "from": "episode:9a2d05c1-8854-5ae6-8ad0-14fcf37d1de9",
+      "to": "topic:outdoor-activities",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:9a2d05c1-8854-5ae6-8ad0-14fcf37d1de9",
+      "to": "topic:gear",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:9a2d05c1-8854-5ae6-8ad0-14fcf37d1de9",
       "to": "topic:welcome-back-to",
-      "type": "MENTIONS"
-    },
-    {
-      "from": "episode:9a2d05c1-8854-5ae6-8ad0-14fcf37d1de9",
-      "to": "topic:most-underwater-stress-comes",
-      "type": "MENTIONS"
-    },
-    {
-      "from": "episode:9a2d05c1-8854-5ae6-8ad0-14fcf37d1de9",
-      "to": "topic:what-do-you-recommend",
       "type": "MENTIONS"
     },
     {
@@ -62,25 +62,25 @@
       "type": "Episode"
     },
     {
+      "id": "topic:outdoor-activities",
+      "properties": {
+        "label": "outdoor activities",
+        "score": 0.8
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:gear",
+      "properties": {
+        "label": "gear",
+        "score": 0.8
+      },
+      "type": "Topic"
+    },
+    {
       "id": "topic:welcome-back-to",
       "properties": {
         "label": "welcome back to",
-        "score": 0.8
-      },
-      "type": "Topic"
-    },
-    {
-      "id": "topic:most-underwater-stress-comes",
-      "properties": {
-        "label": "most underwater stress comes",
-        "score": 0.8
-      },
-      "type": "Topic"
-    },
-    {
-      "id": "topic:what-do-you-recommend",
-      "properties": {
-        "label": "what do you recommend",
         "score": 0.8
       },
       "type": "Topic"

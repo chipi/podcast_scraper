@@ -1,9 +1,44 @@
 {
+  "cil_digest_topics": [
+    {
+      "in_topic_cluster": true,
+      "label": "outdoor activities",
+      "topic_cluster_compound_id": "tc:outdoor-activities-cluster",
+      "topic_id": "topic:outdoor-activities"
+    },
+    {
+      "in_topic_cluster": true,
+      "label": "gear",
+      "topic_cluster_compound_id": "tc:gear-cluster",
+      "topic_id": "topic:gear"
+    }
+  ],
   "episode_id": "a283fe88-fdec-51b4-8014-431b4a7ce670",
   "episode_title": "Below the Surface \u2014 Episode 1",
+  "feed_display_title": "Below the Surface",
   "feed_id": "sha256:16de36c98e7e4b95d699380d14d84d2f13717c2c151f935076564a9a5f5e979b",
   "gi_relative_path": "feeds/p03/metadata/p03_e01.gi.json",
+  "has_gi": true,
+  "has_kg": true,
   "kg_relative_path": "feeds/p03/metadata/p03_e01.kg.json",
   "publish_date": "2026-05-14",
-  "schema_version": "1"
+  "schema_version": "1",
+  "summary_bullet_graph_topic_ids": [
+    "topic:outdoor-activities",
+    "topic:gear",
+    "topic:welcome-back-to"
+  ],
+  "summary_bullets": [
+    "# Below the Surface \u2014 Episode\n## Wreck Diving Fundamentals\nHost: Rina\nGuest: Marco\nRina: Welcome back to Below the Surface.",
+    "Today we\u2019re talking about wreck diving fundamentals, and I\u2019m joined by Marco.",
+    "I\u2019m excited\u2014this is a topic people care about, and there\u2019s a lot of practical nuance."
+  ],
+  "summary_preview": "# Below the Surface \u2014 Episode\n## Wreck Diving Fundamentals\nHost: Rina\nGuest: Marco\nRina: Welcome back to Below the Surface.",
+  "summary_text": "# Below the Surface \u2014 Episode\n## Wreck Diving Fundamentals\nHost: Rina\nGuest: Marco\nRina: Welcome back to Below the Surface.\nToday we\u2019re talking about wreck diving fundamentals, and I\u2019m joined by Marco.\nI\u2019m excited\u2014this is a topic people care about, and there\u2019s a lot of practical nuance.",
+  "summary_title": "Below the Surface \u2014 Episode 1 \u2014 synthetic",
+  "topics": [
+    "outdoor activities",
+    "gear",
+    "welcome back to"
+  ]
 }

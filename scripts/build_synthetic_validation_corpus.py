@@ -44,6 +44,28 @@ def slug(text: str, max_len: int = 40) -> str:
     return s[:max_len] or "x"
 
 
+# Cross-cutting umbrella topics injected into each podcast's episodes so
+# the synthetic corpus has enough topic overlap for V2 (Digest pill) +
+# V4 (Dashboard cluster) validation. Maps ``p01 → [topic, ...]``.
+# Designed so each umbrella spans 2+ podcasts:
+#   technology     → p02, p04, p08, p09   (4 podcasts)
+#   outdoor        → p01, p03             (2 podcasts)
+#   gear           → p01, p03, p04        (3 podcasts)
+#   environment    → p07, p08             (2 podcasts)
+#   health         → p07, p09             (2 podcasts)
+CROSS_CUTTING_TOPICS: dict[str, list[str]] = {
+    "p01": ["outdoor activities", "gear"],
+    "p02": ["technology"],
+    "p03": ["outdoor activities", "gear"],
+    "p04": ["technology", "gear"],
+    "p05": [],  # standalone — "investing" is its own niche
+    "p06": [],  # edge cases — no umbrella
+    "p07": ["environment", "health"],
+    "p08": ["environment", "technology"],
+    "p09": ["technology", "health"],
+}
+
+
 def stable_feed_id(rss_basename: str) -> str:
     return "sha256:" + hashlib.sha256(rss_basename.encode("utf-8")).hexdigest()
 
@@ -338,6 +360,14 @@ def main() -> int:
             kg_rel = f"feeds/{feed_prefix}/metadata/{ep_label}.kg.json"
 
             excerpts = read_transcript_excerpts(transcript_path)
+            # #774a — inject cross-cutting umbrella topics so multiple
+            # podcasts share topic ids. Without these, topic-bands and
+            # topic-clusters are all singletons (no cross-episode hits)
+            # and V2 / V4 validation rows fail. Umbrella topics go FIRST
+            # in the list so they appear in summary_bullet_graph_topic_ids
+            # (the digest topic-band hits are derived from these).
+            umbrellas = CROSS_CUTTING_TOPICS.get(feed_prefix, [])
+            excerpts["topics"] = umbrellas + excerpts["topics"][: max(0, 3 - len(umbrellas))]
             gi = build_gi(
                 ep_uuid,
                 podcast_id,
@@ -358,6 +388,19 @@ def main() -> int:
             gi_full.parent.mkdir(parents=True, exist_ok=True)
             gi_full.write_text(json.dumps(gi, indent=2, sort_keys=True) + "\n")
             kg_full.write_text(json.dumps(kg, indent=2, sort_keys=True) + "\n")
+            # #774a — rich metadata so the API's dynamic digest /
+            # corpus-library computations have ``cil_digest_topics``,
+            # ``summary_*`` etc. to work with. Minimal versions caused
+            # the digest endpoint to return empty bands.
+            ep_topics_for_metadata = excerpts["topics"][:3]
+            ep_summary_for_metadata = (
+                excerpts["insights"][0]
+                if excerpts["insights"]
+                else f"Synthesised summary for {ep_label}."
+            )
+            ep_bullets_for_metadata = excerpts["insights"][:3] or [
+                f"Bullet {n + 1}" for n in range(3)
+            ]
             metadata_full.write_text(
                 json.dumps(
                     {
@@ -366,8 +409,34 @@ def main() -> int:
                         "episode_title": title,
                         "publish_date": publish,
                         "feed_id": podcast_id,
+                        "feed_display_title": feed_meta["display_title"],
+                        "summary_title": f"{title} — synthetic",
+                        "summary_bullets": ep_bullets_for_metadata,
+                        "summary_text": "\n".join(ep_bullets_for_metadata),
+                        "summary_preview": (
+                            ep_summary_for_metadata[:140] + "…"
+                            if len(ep_summary_for_metadata) > 140
+                            else ep_summary_for_metadata
+                        ),
+                        "topics": ep_topics_for_metadata,
+                        "summary_bullet_graph_topic_ids": [
+                            f"topic:{slug(t)}" for t in ep_topics_for_metadata
+                        ],
+                        "cil_digest_topics": [
+                            {
+                                "topic_id": f"topic:{slug(t)}",
+                                "label": t,
+                                "in_topic_cluster": t in umbrellas,
+                                "topic_cluster_compound_id": (
+                                    f"tc:{slug(t)}-cluster" if t in umbrellas else None
+                                ),
+                            }
+                            for t in ep_topics_for_metadata[:2]
+                        ],
                         "gi_relative_path": gi_rel,
                         "kg_relative_path": kg_rel,
+                        "has_gi": True,
+                        "has_kg": True,
                     },
                     indent=2,
                     sort_keys=True,
@@ -479,23 +548,90 @@ def main() -> int:
     )
     write("corpus/episode-details.json", episode_details)
 
-    # Topic clusters: gather all topic ids, cluster trivially (every topic alone).
-    all_topics: dict[str, str] = {}
+    # #774a — topic clusters + digest topic-bands derived from the
+    # umbrella topics. For each umbrella (technology, outdoor, gear,
+    # environment, health), gather every episode whose topic_ids include
+    # the umbrella's slug. Multi-member clusters and multi-hit topic-bands
+    # emerge naturally from the cross-podcast injection.
+    umbrella_labels: set[str] = set()
+    for labels in CROSS_CUTTING_TOPICS.values():
+        umbrella_labels.update(labels)
+    by_umbrella: dict[str, list[dict[str, Any]]] = {label: [] for label in umbrella_labels}
+    for ep in episodes:
+        for t_label in ep["topics"]:
+            if t_label in umbrella_labels:
+                by_umbrella[t_label].append(ep)
+
+    clusters: list[dict[str, Any]] = []
+    topic_bands: list[dict[str, Any]] = []
+    for label, eps_in_umbrella in by_umbrella.items():
+        if not eps_in_umbrella:
+            continue
+        topic_id = f"topic:{slug(label)}"
+        compound_id = f"tc:{slug(label)}-cluster"
+        clusters.append(
+            {
+                "graph_compound_parent_id": compound_id,
+                "cil_alias_target_topic_id": topic_id,
+                "canonical_label": label.title(),
+                "canonical_topic_id": topic_id,
+                "member_count": 1,
+                "members": [{"topic_id": topic_id}],
+            }
+        )
+        # Mark these episodes as participating in the cluster.
+        for ep in eps_in_umbrella:
+            for tid in ep["cil_digest_topics"]:
+                if tid["topic_id"] == topic_id:
+                    tid["in_topic_cluster"] = True
+                    tid["topic_cluster_compound_id"] = compound_id
+        # Digest topic band: list of hits per umbrella.
+        topic_bands.append(
+            {
+                "topic_id": f"t-{slug(label)}",
+                "label": label.title(),
+                "query": label,
+                "graph_topic_id": topic_id,
+                "hits": [
+                    {
+                        "metadata_relative_path": ep["metadata_relative_path"],
+                        "episode_title": ep["episode_title"],
+                        "feed_id": ep["feed_id"],
+                        "feed_display_title": ep["feed_display_title"],
+                        "publish_date": ep["publish_date"],
+                        "score": 0.85,
+                        "summary_preview": ep["summary_preview"],
+                        "episode_id": ep["episode_id"],
+                        "gi_relative_path": ep["gi_relative_path"],
+                        "kg_relative_path": ep["kg_relative_path"],
+                        "has_gi": True,
+                        "has_kg": True,
+                    }
+                    for ep in eps_in_umbrella
+                ],
+            }
+        )
+
+    # All singletons (non-umbrella topics that only appear once).
+    all_topic_ids: set[str] = set()
     for ep in episodes:
         for tid_info in ep["cil_digest_topics"]:
-            all_topics[tid_info["topic_id"]] = tid_info["label"]
+            all_topic_ids.add(tid_info["topic_id"])
+    umbrella_ids = {f"topic:{slug(label)}" for label in umbrella_labels}
+    singletons = all_topic_ids - umbrella_ids
+
     write(
         "corpus/topic-clusters.json",
         {
             "schema_version": "2",
-            "clusters": [],  # No multi-member clusters in synthetic data
-            "topic_count": len(all_topics),
-            "cluster_count": 0,
-            "singletons": len(all_topics),
+            "clusters": clusters,
+            "topic_count": len(all_topic_ids),
+            "cluster_count": len(clusters),
+            "singletons": len(singletons),
         },
     )
 
-    # Digest: recent rows from episodes, topic bands trivially.
+    # Digest: recent rows from episodes + topic bands derived above.
     digest_recent = episodes[:5]
     write(
         "corpus/digest.json",
@@ -506,8 +642,10 @@ def main() -> int:
             "window_end_utc": "2027-01-01T00:00:00Z",
             "compact": False,
             "rows": digest_recent,
-            "topic_bands": [],
-            "topics_unavailable_reason": "synthetic-validation-corpus has no topic bands",
+            "topic_bands": topic_bands,
+            "topics_unavailable_reason": (
+                None if topic_bands else "synthetic-validation-corpus has no topic bands"
+            ),
         },
     )
 

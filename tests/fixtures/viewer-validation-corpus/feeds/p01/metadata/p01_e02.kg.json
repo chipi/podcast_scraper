@@ -2,17 +2,17 @@
   "edges": [
     {
       "from": "episode:799ba6c0-3117-50e1-8c97-c2d8b695cce4",
-      "to": "entity:without-the",
+      "to": "entity:outdoor-activities",
       "type": "MENTIONS"
     },
     {
       "from": "episode:799ba6c0-3117-50e1-8c97-c2d8b695cce4",
-      "to": "entity:welcome-back-to",
+      "to": "entity:gear",
       "type": "MENTIONS"
     },
     {
       "from": "episode:799ba6c0-3117-50e1-8c97-c2d8b695cce4",
-      "to": "topic:without-the",
+      "to": "topic:outdoor-activities",
       "type": "RELATES_TO"
     }
   ],
@@ -32,25 +32,25 @@
       "type": "Episode"
     },
     {
-      "id": "entity:without-the",
+      "id": "entity:outdoor-activities",
       "properties": {
         "category": "Concept",
-        "label": "Without The"
+        "label": "Outdoor Activities"
       },
       "type": "Entity"
     },
     {
-      "id": "entity:welcome-back-to",
+      "id": "entity:gear",
       "properties": {
         "category": "Concept",
-        "label": "Welcome Back To"
+        "label": "Gear"
       },
       "type": "Entity"
     },
     {
-      "id": "topic:without-the",
+      "id": "topic:outdoor-activities",
       "properties": {
-        "label": "without the"
+        "label": "outdoor activities"
       },
       "type": "Topic"
     }

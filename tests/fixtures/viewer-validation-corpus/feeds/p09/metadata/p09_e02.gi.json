@@ -2,17 +2,17 @@
   "edges": [
     {
       "from": "episode:d24c1620-8d16-54dd-b681-2f2e06c0b579",
+      "to": "topic:technology",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:d24c1620-8d16-54dd-b681-2f2e06c0b579",
+      "to": "topic:health",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:d24c1620-8d16-54dd-b681-2f2e06c0b579",
       "to": "topic:in-this-episode",
-      "type": "MENTIONS"
-    },
-    {
-      "from": "episode:d24c1620-8d16-54dd-b681-2f2e06c0b579",
-      "to": "topic:where-the-field-is",
-      "type": "MENTIONS"
-    },
-    {
-      "from": "episode:d24c1620-8d16-54dd-b681-2f2e06c0b579",
-      "to": "topic:if-a-protocol-only",
       "type": "MENTIONS"
     },
     {
@@ -62,25 +62,25 @@
       "type": "Episode"
     },
     {
+      "id": "topic:technology",
+      "properties": {
+        "label": "technology",
+        "score": 0.8
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:health",
+      "properties": {
+        "label": "health",
+        "score": 0.8
+      },
+      "type": "Topic"
+    },
+    {
       "id": "topic:in-this-episode",
       "properties": {
         "label": "in this episode",
-        "score": 0.8
-      },
-      "type": "Topic"
-    },
-    {
-      "id": "topic:where-the-field-is",
-      "properties": {
-        "label": "where the field is",
-        "score": 0.8
-      },
-      "type": "Topic"
-    },
-    {
-      "id": "topic:if-a-protocol-only",
-      "properties": {
-        "label": "if a protocol only",
         "score": 0.8
       },
       "type": "Topic"

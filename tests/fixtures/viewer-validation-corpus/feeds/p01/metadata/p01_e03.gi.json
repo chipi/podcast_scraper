@@ -2,17 +2,17 @@
   "edges": [
     {
       "from": "episode:f6f1df34-2251-5301-b1c7-68ee8468bf65",
+      "to": "topic:outdoor-activities",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:f6f1df34-2251-5301-b1c7-68ee8468bf65",
+      "to": "topic:gear",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:f6f1df34-2251-5301-b1c7-68ee8468bf65",
       "to": "topic:mechanics-of-a",
-      "type": "MENTIONS"
-    },
-    {
-      "from": "episode:f6f1df34-2251-5301-b1c7-68ee8468bf65",
-      "to": "topic:welcome-back-to",
-      "type": "MENTIONS"
-    },
-    {
-      "from": "episode:f6f1df34-2251-5301-b1c7-68ee8468bf65",
-      "to": "topic:the-bike-should-feel",
       "type": "MENTIONS"
     },
     {
@@ -62,25 +62,25 @@
       "type": "Episode"
     },
     {
+      "id": "topic:outdoor-activities",
+      "properties": {
+        "label": "outdoor activities",
+        "score": 0.8
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:gear",
+      "properties": {
+        "label": "gear",
+        "score": 0.8
+      },
+      "type": "Topic"
+    },
+    {
       "id": "topic:mechanics-of-a",
       "properties": {
         "label": "mechanics of a",
-        "score": 0.8
-      },
-      "type": "Topic"
-    },
-    {
-      "id": "topic:welcome-back-to",
-      "properties": {
-        "label": "welcome back to",
-        "score": 0.8
-      },
-      "type": "Topic"
-    },
-    {
-      "id": "topic:the-bike-should-feel",
-      "properties": {
-        "label": "the bike should feel",
         "score": 0.8
       },
       "type": "Topic"

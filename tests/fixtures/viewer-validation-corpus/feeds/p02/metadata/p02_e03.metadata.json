@@ -1,9 +1,44 @@
 {
+  "cil_digest_topics": [
+    {
+      "in_topic_cluster": true,
+      "label": "technology",
+      "topic_cluster_compound_id": "tc:technology-cluster",
+      "topic_id": "topic:technology"
+    },
+    {
+      "in_topic_cluster": false,
+      "label": "security as",
+      "topic_cluster_compound_id": null,
+      "topic_id": "topic:security-as"
+    }
+  ],
   "episode_id": "d2fb36a0-6f97-55ee-a67a-e97dba3b7f27",
   "episode_title": "Practical Systems \u2014 Episode 3",
+  "feed_display_title": "Practical Systems",
   "feed_id": "sha256:05eff208d6fd774940bed9fd154c6a46b9325e32cf95e1769f8eb679505ef414",
   "gi_relative_path": "feeds/p02/metadata/p02_e03.gi.json",
+  "has_gi": true,
+  "has_kg": true,
   "kg_relative_path": "feeds/p02/metadata/p02_e03.kg.json",
   "publish_date": "2026-05-11",
-  "schema_version": "1"
+  "schema_version": "1",
+  "summary_bullet_graph_topic_ids": [
+    "topic:technology",
+    "topic:security-as",
+    "topic:welcome-back-to"
+  ],
+  "summary_bullets": [
+    "# Practical Systems \u2014 Episode\n## Security as Design, Not a Checklist\nHost: Ethan\nGuest: Camila\nEthan: Welcome back to Practical Systems.",
+    "Today we\u2019re talking about security as design, not a checklist, and I\u2019m joined by Camila.",
+    "Camila, thanks for being here."
+  ],
+  "summary_preview": "# Practical Systems \u2014 Episode\n## Security as Design, Not a Checklist\nHost: Ethan\nGuest: Camila\nEthan: Welcome back to Practical Systems.",
+  "summary_text": "# Practical Systems \u2014 Episode\n## Security as Design, Not a Checklist\nHost: Ethan\nGuest: Camila\nEthan: Welcome back to Practical Systems.\nToday we\u2019re talking about security as design, not a checklist, and I\u2019m joined by Camila.\nCamila, thanks for being here.",
+  "summary_title": "Practical Systems \u2014 Episode 3 \u2014 synthetic",
+  "topics": [
+    "technology",
+    "security as",
+    "welcome back to"
+  ]
 }

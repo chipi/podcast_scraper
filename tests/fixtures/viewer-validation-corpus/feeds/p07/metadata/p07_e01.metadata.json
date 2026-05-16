@@ -1,9 +1,44 @@
 {
+  "cil_digest_topics": [
+    {
+      "in_topic_cluster": true,
+      "label": "environment",
+      "topic_cluster_compound_id": "tc:environment-cluster",
+      "topic_id": "topic:environment"
+    },
+    {
+      "in_topic_cluster": true,
+      "label": "health",
+      "topic_cluster_compound_id": "tc:health-cluster",
+      "topic_id": "topic:health"
+    }
+  ],
   "episode_id": "5ef53e66-e083-5fcb-b555-a3814ebb6b39",
   "episode_title": "The Long View \u2014 Episode 1",
+  "feed_display_title": "The Long View",
   "feed_id": "sha256:9e4a8b34d0b761bb138fb239ee0ace25609c27381d49bf78622ee8a40c7ce4ab",
   "gi_relative_path": "feeds/p07/metadata/p07_e01.gi.json",
+  "has_gi": true,
+  "has_kg": true,
   "kg_relative_path": "feeds/p07/metadata/p07_e01.kg.json",
   "publish_date": "2026-05-16",
-  "schema_version": "1"
+  "schema_version": "1",
+  "summary_bullet_graph_topic_ids": [
+    "topic:environment",
+    "topic:health",
+    "topic:where-do-the-trade"
+  ],
+  "summary_bullets": [
+    "The Long View\nEpisode: What Sustainability Really Means (And Why Everyone Is Talking About It)\nHost: Alex Morgan\nGuest: Dr.",
+    "Elena Fischer\n\nAlex Morgan: Today\u2019s topic is sustainability\u2014what it means, why it\u2019s everywhere, and what it requires in practice.",
+    "Alex Morgan: Let\u2019s zoom out for a moment and frame sustainability as a systems question."
+  ],
+  "summary_preview": "The Long View\nEpisode: What Sustainability Really Means (And Why Everyone Is Talking About It)\nHost: Alex Morgan\nGuest: Dr.",
+  "summary_text": "The Long View\nEpisode: What Sustainability Really Means (And Why Everyone Is Talking About It)\nHost: Alex Morgan\nGuest: Dr.\nElena Fischer\n\nAlex Morgan: Today\u2019s topic is sustainability\u2014what it means, why it\u2019s everywhere, and what it requires in practice.\nAlex Morgan: Let\u2019s zoom out for a moment and frame sustainability as a systems question.",
+  "summary_title": "The Long View \u2014 Episode 1 \u2014 synthetic",
+  "topics": [
+    "environment",
+    "health",
+    "where do the trade"
+  ]
 }

@@ -1,9 +1,44 @@
 {
+  "cil_digest_topics": [
+    {
+      "in_topic_cluster": true,
+      "label": "technology",
+      "topic_cluster_compound_id": "tc:technology-cluster",
+      "topic_id": "topic:technology"
+    },
+    {
+      "in_topic_cluster": true,
+      "label": "health",
+      "topic_cluster_compound_id": "tc:health-cluster",
+      "topic_id": "topic:health"
+    }
+  ],
   "episode_id": "22aa61d4-d535-5e72-ae9b-d44d9a3054d1",
   "episode_title": "The Long View: Biohacking \u2014 Episode 1",
+  "feed_display_title": "The Long View: Biohacking",
   "feed_id": "sha256:255b515964dcdf7f0f2123a46053fbf8c961882868ea3c88bb8ba794824c52e8",
   "gi_relative_path": "feeds/p09/metadata/p09_e01.gi.json",
+  "has_gi": true,
+  "has_kg": true,
   "kg_relative_path": "feeds/p09/metadata/p09_e01.kg.json",
   "publish_date": "2026-05-14",
-  "schema_version": "1"
+  "schema_version": "1",
+  "summary_bullet_graph_topic_ids": [
+    "topic:technology",
+    "topic:health",
+    "topic:biohacking-in"
+  ],
+  "summary_bullets": [
+    "Alex Morgan: Biohacking in 2025: From Fringe to Framework\n\nAlex Morgan: In 2025, biohacking is everywhere in public conversation, but the signal is often mixed with hype.",
+    "In this episode, I\u2019m going to build a grounded map: what\u2019s real, what\u2019s uncertain, and what you can do without turning your life into an optimization project.",
+    "Alex Morgan: Where the field is right now."
+  ],
+  "summary_preview": "Alex Morgan: Biohacking in 2025: From Fringe to Framework\n\nAlex Morgan: In 2025, biohacking is everywhere in public conversation, but the si\u2026",
+  "summary_text": "Alex Morgan: Biohacking in 2025: From Fringe to Framework\n\nAlex Morgan: In 2025, biohacking is everywhere in public conversation, but the signal is often mixed with hype.\nIn this episode, I\u2019m going to build a grounded map: what\u2019s real, what\u2019s uncertain, and what you can do without turning your life into an optimization project.\nAlex Morgan: Where the field is right now.",
+  "summary_title": "The Long View: Biohacking \u2014 Episode 1 \u2014 synthetic",
+  "topics": [
+    "technology",
+    "health",
+    "biohacking in"
+  ]
 }

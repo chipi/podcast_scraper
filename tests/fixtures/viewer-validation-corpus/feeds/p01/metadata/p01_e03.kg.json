@@ -2,17 +2,17 @@
   "edges": [
     {
       "from": "episode:f6f1df34-2251-5301-b1c7-68ee8468bf65",
-      "to": "entity:mechanics-of-a",
+      "to": "entity:outdoor-activities",
       "type": "MENTIONS"
     },
     {
       "from": "episode:f6f1df34-2251-5301-b1c7-68ee8468bf65",
-      "to": "entity:welcome-back-to",
+      "to": "entity:gear",
       "type": "MENTIONS"
     },
     {
       "from": "episode:f6f1df34-2251-5301-b1c7-68ee8468bf65",
-      "to": "topic:mechanics-of-a",
+      "to": "topic:outdoor-activities",
       "type": "RELATES_TO"
     }
   ],
@@ -32,25 +32,25 @@
       "type": "Episode"
     },
     {
-      "id": "entity:mechanics-of-a",
+      "id": "entity:outdoor-activities",
       "properties": {
         "category": "Concept",
-        "label": "Mechanics Of A"
+        "label": "Outdoor Activities"
       },
       "type": "Entity"
     },
     {
-      "id": "entity:welcome-back-to",
+      "id": "entity:gear",
       "properties": {
         "category": "Concept",
-        "label": "Welcome Back To"
+        "label": "Gear"
       },
       "type": "Entity"
     },
     {
-      "id": "topic:mechanics-of-a",
+      "id": "topic:outdoor-activities",
       "properties": {
-        "label": "mechanics of a"
+        "label": "outdoor activities"
       },
       "type": "Topic"
     }

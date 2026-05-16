@@ -1,9 +1,44 @@
 {
+  "cil_digest_topics": [
+    {
+      "in_topic_cluster": true,
+      "label": "outdoor activities",
+      "topic_cluster_compound_id": "tc:outdoor-activities-cluster",
+      "topic_id": "topic:outdoor-activities"
+    },
+    {
+      "in_topic_cluster": true,
+      "label": "gear",
+      "topic_cluster_compound_id": "tc:gear-cluster",
+      "topic_id": "topic:gear"
+    }
+  ],
   "episode_id": "254fe2be-b570-592e-84cd-c22cb9e271e9",
   "episode_title": "Below the Surface \u2014 Episode 2",
+  "feed_display_title": "Below the Surface",
   "feed_id": "sha256:16de36c98e7e4b95d699380d14d84d2f13717c2c151f935076564a9a5f5e979b",
   "gi_relative_path": "feeds/p03/metadata/p03_e02.gi.json",
+  "has_gi": true,
+  "has_kg": true,
   "kg_relative_path": "feeds/p03/metadata/p03_e02.kg.json",
   "publish_date": "2026-05-12",
-  "schema_version": "1"
+  "schema_version": "1",
+  "summary_bullet_graph_topic_ids": [
+    "topic:outdoor-activities",
+    "topic:gear",
+    "topic:biology-for"
+  ],
+  "summary_bullets": [
+    "# Below the Surface \u2014 Episode\n## Marine Biology for Divers\nHost: Rina\nGuest: Hanna\nRina: Welcome back to Below the Surface.",
+    "Today we\u2019re talking about marine biology for divers, and I\u2019m joined by Hanna.",
+    "I\u2019m excited\u2014this is a topic people care about, and there\u2019s a lot of practical nuance."
+  ],
+  "summary_preview": "# Below the Surface \u2014 Episode\n## Marine Biology for Divers\nHost: Rina\nGuest: Hanna\nRina: Welcome back to Below the Surface.",
+  "summary_text": "# Below the Surface \u2014 Episode\n## Marine Biology for Divers\nHost: Rina\nGuest: Hanna\nRina: Welcome back to Below the Surface.\nToday we\u2019re talking about marine biology for divers, and I\u2019m joined by Hanna.\nI\u2019m excited\u2014this is a topic people care about, and there\u2019s a lot of practical nuance.",
+  "summary_title": "Below the Surface \u2014 Episode 2 \u2014 synthetic",
+  "topics": [
+    "outdoor activities",
+    "gear",
+    "biology for"
+  ]
 }

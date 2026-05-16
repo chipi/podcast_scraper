@@ -1,9 +1,44 @@
 {
+  "cil_digest_topics": [
+    {
+      "in_topic_cluster": false,
+      "label": "management for",
+      "topic_cluster_compound_id": null,
+      "topic_id": "topic:management-for"
+    },
+    {
+      "in_topic_cluster": false,
+      "label": "welcome back to",
+      "topic_cluster_compound_id": null,
+      "topic_id": "topic:welcome-back-to"
+    }
+  ],
   "episode_id": "7f877683-ea36-55d1-94f7-a5cc051ff3d0",
   "episode_title": "Long Horizon Notes \u2014 Episode 3",
+  "feed_display_title": "Long Horizon Notes",
   "feed_id": "sha256:f4abc2ce662eb5875453632ed70c87b2fbc7394bbeef83c9d1d0918febd5bebe",
   "gi_relative_path": "feeds/p05/metadata/p05_e03.gi.json",
+  "has_gi": true,
+  "has_kg": true,
   "kg_relative_path": "feeds/p05/metadata/p05_e03.kg.json",
   "publish_date": "2026-05-14",
-  "schema_version": "1"
+  "schema_version": "1",
+  "summary_bullet_graph_topic_ids": [
+    "topic:management-for",
+    "topic:welcome-back-to",
+    "topic:how-do-you-teach"
+  ],
+  "summary_bullets": [
+    "# Long Horizon Notes \u2014 Episode\n## Risk Management for People Who Hate Spreadsheets\nHost: Nora\nGuest: Kasper\nNora: Welcome back to Long Horizon Notes.",
+    "Today we\u2019re talking about risk management for people who hate spreadsheets, and I\u2019m joined by Kasper.",
+    "Kasper, thanks for being here."
+  ],
+  "summary_preview": "# Long Horizon Notes \u2014 Episode\n## Risk Management for People Who Hate Spreadsheets\nHost: Nora\nGuest: Kasper\nNora: Welcome back to Long Horiz\u2026",
+  "summary_text": "# Long Horizon Notes \u2014 Episode\n## Risk Management for People Who Hate Spreadsheets\nHost: Nora\nGuest: Kasper\nNora: Welcome back to Long Horizon Notes.\nToday we\u2019re talking about risk management for people who hate spreadsheets, and I\u2019m joined by Kasper.\nKasper, thanks for being here.",
+  "summary_title": "Long Horizon Notes \u2014 Episode 3 \u2014 synthetic",
+  "topics": [
+    "management for",
+    "welcome back to",
+    "how do you teach"
+  ]
 }

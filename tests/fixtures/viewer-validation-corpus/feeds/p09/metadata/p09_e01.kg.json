@@ -2,17 +2,17 @@
   "edges": [
     {
       "from": "episode:22aa61d4-d535-5e72-ae9b-d44d9a3054d1",
-      "to": "entity:biohacking-in",
+      "to": "entity:technology",
       "type": "MENTIONS"
     },
     {
       "from": "episode:22aa61d4-d535-5e72-ae9b-d44d9a3054d1",
-      "to": "entity:in-this-episode",
+      "to": "entity:health",
       "type": "MENTIONS"
     },
     {
       "from": "episode:22aa61d4-d535-5e72-ae9b-d44d9a3054d1",
-      "to": "topic:biohacking-in",
+      "to": "topic:technology",
       "type": "RELATES_TO"
     }
   ],
@@ -32,25 +32,25 @@
       "type": "Episode"
     },
     {
-      "id": "entity:biohacking-in",
+      "id": "entity:technology",
       "properties": {
         "category": "Concept",
-        "label": "Biohacking In"
+        "label": "Technology"
       },
       "type": "Entity"
     },
     {
-      "id": "entity:in-this-episode",
+      "id": "entity:health",
       "properties": {
         "category": "Concept",
-        "label": "In This Episode"
+        "label": "Health"
       },
       "type": "Entity"
     },
     {
-      "id": "topic:biohacking-in",
+      "id": "topic:technology",
       "properties": {
-        "label": "biohacking in"
+        "label": "technology"
       },
       "type": "Topic"
     }

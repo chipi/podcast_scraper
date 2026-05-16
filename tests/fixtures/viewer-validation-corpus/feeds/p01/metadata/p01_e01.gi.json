@@ -2,17 +2,17 @@
   "edges": [
     {
       "from": "episode:5b39965f-22a2-54c9-9c42-e7a19d8da2da",
+      "to": "topic:outdoor-activities",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:5b39965f-22a2-54c9-9c42-e7a19d8da2da",
+      "to": "topic:gear",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:5b39965f-22a2-54c9-9c42-e7a19d8da2da",
       "to": "topic:welcome-back-to",
-      "type": "MENTIONS"
-    },
-    {
-      "from": "episode:5b39965f-22a2-54c9-9c42-e7a19d8da2da",
-      "to": "topic:what-do-you-recommend",
-      "type": "MENTIONS"
-    },
-    {
-      "from": "episode:5b39965f-22a2-54c9-9c42-e7a19d8da2da",
-      "to": "topic:tire-pressure-and-casing",
       "type": "MENTIONS"
     },
     {
@@ -62,25 +62,25 @@
       "type": "Episode"
     },
     {
+      "id": "topic:outdoor-activities",
+      "properties": {
+        "label": "outdoor activities",
+        "score": 0.8
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:gear",
+      "properties": {
+        "label": "gear",
+        "score": 0.8
+      },
+      "type": "Topic"
+    },
+    {
       "id": "topic:welcome-back-to",
       "properties": {
         "label": "welcome back to",
-        "score": 0.8
-      },
-      "type": "Topic"
-    },
-    {
-      "id": "topic:what-do-you-recommend",
-      "properties": {
-        "label": "what do you recommend",
-        "score": 0.8
-      },
-      "type": "Topic"
-    },
-    {
-      "id": "topic:tire-pressure-and-casing",
-      "properties": {
-        "label": "tire pressure and casing",
         "score": 0.8
       },
       "type": "Topic"

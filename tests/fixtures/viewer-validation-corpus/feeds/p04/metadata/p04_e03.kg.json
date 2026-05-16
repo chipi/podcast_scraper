@@ -2,17 +2,17 @@
   "edges": [
     {
       "from": "episode:e1743bda-76ff-5586-9e39-3fa45e41ef9a",
-      "to": "entity:welcome-back-to",
+      "to": "entity:technology",
       "type": "MENTIONS"
     },
     {
       "from": "episode:e1743bda-76ff-5586-9e39-3fa45e41ef9a",
-      "to": "entity:if-you-can",
+      "to": "entity:gear",
       "type": "MENTIONS"
     },
     {
       "from": "episode:e1743bda-76ff-5586-9e39-3fa45e41ef9a",
-      "to": "topic:welcome-back-to",
+      "to": "topic:technology",
       "type": "RELATES_TO"
     }
   ],
@@ -32,25 +32,25 @@
       "type": "Episode"
     },
     {
-      "id": "entity:welcome-back-to",
+      "id": "entity:technology",
       "properties": {
         "category": "Concept",
-        "label": "Welcome Back To"
+        "label": "Technology"
       },
       "type": "Entity"
     },
     {
-      "id": "entity:if-you-can",
+      "id": "entity:gear",
       "properties": {
         "category": "Concept",
-        "label": "If You Can"
+        "label": "Gear"
       },
       "type": "Entity"
     },
     {
-      "id": "topic:welcome-back-to",
+      "id": "topic:technology",
       "properties": {
-        "label": "welcome back to"
+        "label": "technology"
       },
       "type": "Topic"
     }

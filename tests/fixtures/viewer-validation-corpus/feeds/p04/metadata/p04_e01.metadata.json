@@ -1,9 +1,44 @@
 {
+  "cil_digest_topics": [
+    {
+      "in_topic_cluster": true,
+      "label": "technology",
+      "topic_cluster_compound_id": "tc:technology-cluster",
+      "topic_id": "topic:technology"
+    },
+    {
+      "in_topic_cluster": true,
+      "label": "gear",
+      "topic_cluster_compound_id": "tc:gear-cluster",
+      "topic_id": "topic:gear"
+    }
+  ],
   "episode_id": "09ead36d-954f-5cbb-ae3f-6f0d5985233d",
   "episode_title": "Frame & Light \u2014 Episode 1",
+  "feed_display_title": "Frame & Light",
   "feed_id": "sha256:acf6d1026eaa400425afb658fa014e874a2eb50129923b7a92fe82290004a6e7",
   "gi_relative_path": "feeds/p04/metadata/p04_e01.gi.json",
+  "has_gi": true,
+  "has_kg": true,
   "kg_relative_path": "feeds/p04/metadata/p04_e01.kg.json",
   "publish_date": "2026-05-13",
-  "schema_version": "1"
+  "schema_version": "1",
+  "summary_bullet_graph_topic_ids": [
+    "topic:technology",
+    "topic:gear",
+    "topic:welcome-back-to"
+  ],
+  "summary_bullets": [
+    "# Frame & Light \u2014 Episode\n## Underwater Images That Feel Alive\nHost: Leo\nGuest: Ava\nLeo: Welcome back to Frame & Light.",
+    "Today we\u2019re talking about underwater images that feel alive, and I\u2019m joined by Ava.",
+    "I\u2019m excited\u2014this is a topic people care about, and there\u2019s a lot of practical nuance."
+  ],
+  "summary_preview": "# Frame & Light \u2014 Episode\n## Underwater Images That Feel Alive\nHost: Leo\nGuest: Ava\nLeo: Welcome back to Frame & Light.",
+  "summary_text": "# Frame & Light \u2014 Episode\n## Underwater Images That Feel Alive\nHost: Leo\nGuest: Ava\nLeo: Welcome back to Frame & Light.\nToday we\u2019re talking about underwater images that feel alive, and I\u2019m joined by Ava.\nI\u2019m excited\u2014this is a topic people care about, and there\u2019s a lot of practical nuance.",
+  "summary_title": "Frame & Light \u2014 Episode 1 \u2014 synthetic",
+  "topics": [
+    "technology",
+    "gear",
+    "welcome back to"
+  ]
 }

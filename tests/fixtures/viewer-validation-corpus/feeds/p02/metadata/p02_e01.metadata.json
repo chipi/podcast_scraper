@@ -1,9 +1,44 @@
 {
+  "cil_digest_topics": [
+    {
+      "in_topic_cluster": true,
+      "label": "technology",
+      "topic_cluster_compound_id": "tc:technology-cluster",
+      "topic_id": "topic:technology"
+    },
+    {
+      "in_topic_cluster": false,
+      "label": "welcome back to",
+      "topic_cluster_compound_id": null,
+      "topic_id": "topic:welcome-back-to"
+    }
+  ],
   "episode_id": "3d0ec494-98ba-5f71-b2bd-c8559c779786",
   "episode_title": "Practical Systems \u2014 Episode 1",
+  "feed_display_title": "Practical Systems",
   "feed_id": "sha256:05eff208d6fd774940bed9fd154c6a46b9325e32cf95e1769f8eb679505ef414",
   "gi_relative_path": "feeds/p02/metadata/p02_e01.gi.json",
+  "has_gi": true,
+  "has_kg": true,
   "kg_relative_path": "feeds/p02/metadata/p02_e01.kg.json",
   "publish_date": "2026-05-15",
-  "schema_version": "1"
+  "schema_version": "1",
+  "summary_bullet_graph_topic_ids": [
+    "topic:technology",
+    "topic:welcome-back-to",
+    "topic:what-does-that-look"
+  ],
+  "summary_bullets": [
+    "# Practical Systems \u2014 Episode\n## On-Call That Doesn\u2019t Break People\nHost: Ethan\nGuest: Priya\nEthan: Welcome back to Practical Systems.",
+    "Today we\u2019re talking about on-call that doesn\u2019t break people, and I\u2019m joined by Priya.",
+    "I\u2019m excited\u2014this is a topic people care about, and there\u2019s a lot of practical nuance."
+  ],
+  "summary_preview": "# Practical Systems \u2014 Episode\n## On-Call That Doesn\u2019t Break People\nHost: Ethan\nGuest: Priya\nEthan: Welcome back to Practical Systems.",
+  "summary_text": "# Practical Systems \u2014 Episode\n## On-Call That Doesn\u2019t Break People\nHost: Ethan\nGuest: Priya\nEthan: Welcome back to Practical Systems.\nToday we\u2019re talking about on-call that doesn\u2019t break people, and I\u2019m joined by Priya.\nI\u2019m excited\u2014this is a topic people care about, and there\u2019s a lot of practical nuance.",
+  "summary_title": "Practical Systems \u2014 Episode 1 \u2014 synthetic",
+  "topics": [
+    "technology",
+    "welcome back to",
+    "what does that look"
+  ]
 }

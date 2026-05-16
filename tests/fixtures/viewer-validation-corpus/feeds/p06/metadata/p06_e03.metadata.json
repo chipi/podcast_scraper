@@ -1,9 +1,44 @@
 {
+  "cil_digest_topics": [
+    {
+      "in_topic_cluster": false,
+      "label": "welcome back to",
+      "topic_cluster_compound_id": null,
+      "topic_id": "topic:welcome-back-to"
+    },
+    {
+      "in_topic_cluster": false,
+      "label": "what do you recommend",
+      "topic_cluster_compound_id": null,
+      "topic_id": "topic:what-do-you-recommend"
+    }
+  ],
   "episode_id": "01835c28-431e-5b5a-adbb-5ec01411a299",
   "episode_title": "Edge Cases Podcast \u2014 Episode 3",
+  "feed_display_title": "Edge Cases Podcast",
   "feed_id": "sha256:d517d39c803a89d395740e81b17ace57ebb95aa5ec504129b1c306c7e592f10c",
   "gi_relative_path": "feeds/p06/metadata/p06_e03.gi.json",
+  "has_gi": true,
+  "has_kg": true,
   "kg_relative_path": "feeds/p06/metadata/p06_e03.kg.json",
   "publish_date": "2026-05-13",
-  "schema_version": "1"
+  "schema_version": "1",
+  "summary_bullet_graph_topic_ids": [
+    "topic:welcome-back-to",
+    "topic:what-do-you-recommend",
+    "topic:tire-pressure-and-casing"
+  ],
+  "summary_bullets": [
+    "# Singletrack Sessions \u2014 Episode\n## Building Trails That Last\nHost: Maya\nGuest: Liam\nMaya: Welcome back to Singletrack Sessions.",
+    "Today we\u2019re talking about building trails that last, and I\u2019m joined by Liam.",
+    "I\u2019m excited\u2014this is a topic people care about, and there\u2019s a lot of practical nuance."
+  ],
+  "summary_preview": "# Singletrack Sessions \u2014 Episode\n## Building Trails That Last\nHost: Maya\nGuest: Liam\nMaya: Welcome back to Singletrack Sessions.",
+  "summary_text": "# Singletrack Sessions \u2014 Episode\n## Building Trails That Last\nHost: Maya\nGuest: Liam\nMaya: Welcome back to Singletrack Sessions.\nToday we\u2019re talking about building trails that last, and I\u2019m joined by Liam.\nI\u2019m excited\u2014this is a topic people care about, and there\u2019s a lot of practical nuance.",
+  "summary_title": "Edge Cases Podcast \u2014 Episode 3 \u2014 synthetic",
+  "topics": [
+    "welcome back to",
+    "what do you recommend",
+    "tire pressure and casing"
+  ]
 }

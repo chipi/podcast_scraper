@@ -2,17 +2,17 @@
   "edges": [
     {
       "from": "episode:a283fe88-fdec-51b4-8014-431b4a7ce670",
-      "to": "entity:welcome-back-to",
+      "to": "entity:outdoor-activities",
       "type": "MENTIONS"
     },
     {
       "from": "episode:a283fe88-fdec-51b4-8014-431b4a7ce670",
-      "to": "entity:the-calmest-diver-is",
+      "to": "entity:gear",
       "type": "MENTIONS"
     },
     {
       "from": "episode:a283fe88-fdec-51b4-8014-431b4a7ce670",
-      "to": "topic:welcome-back-to",
+      "to": "topic:outdoor-activities",
       "type": "RELATES_TO"
     }
   ],
@@ -32,25 +32,25 @@
       "type": "Episode"
     },
     {
-      "id": "entity:welcome-back-to",
+      "id": "entity:outdoor-activities",
       "properties": {
         "category": "Concept",
-        "label": "Welcome Back To"
+        "label": "Outdoor Activities"
       },
       "type": "Entity"
     },
     {
-      "id": "entity:the-calmest-diver-is",
+      "id": "entity:gear",
       "properties": {
         "category": "Concept",
-        "label": "The Calmest Diver Is"
+        "label": "Gear"
       },
       "type": "Entity"
     },
     {
-      "id": "topic:welcome-back-to",
+      "id": "topic:outdoor-activities",
       "properties": {
-        "label": "welcome back to"
+        "label": "outdoor activities"
       },
       "type": "Topic"
     }
