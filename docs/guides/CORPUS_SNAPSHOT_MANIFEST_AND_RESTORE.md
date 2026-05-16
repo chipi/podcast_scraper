@@ -12,66 +12,92 @@ paths), and DR drill. Detailed environment secrets, SSH users, and typed confirm
 ## Principles
 
 1. **One behavior** — emit `snapshot.manifest.json`, validate, and **newest-compatible** selection
-   are implemented in **repo scripts**; **Make** and **workflows** call those entry points (RFC §5).
+   are implemented in **`scripts/ops/corpus_snapshot/`**; **Make** and **workflows** call those
+   entry points (RFC §5).
 2. **Local loop** — use **`make`** on a laptop (with `gh` auth to the backup repo where needed) to
-   dry-run selection, validate fixtures, and run **`restore-corpus`** without opening prod or drill
-   workflows.
+   validate manifests, rehearse tag selection, and run **`restore-corpus`** without opening prod or
+   drill workflows.
 3. **Remote execution** — **GitHub Actions** runs the same paths on the right project/host: prod
    restore/backup workflows for always-on VPS, drill restore for the drill stack, pre-prod/codespace
    backup via the pre-prod workflow family.
 
-Until scripts and workflow wiring land, behavior remains **tag/date** driven; after implementation,
-this page stays the hub for **which surface runs which target**.
+**Compatibility config:** `config/corpus_snapshot_reader_support.json` (reader min/max) and
+`config/corpus_snapshot_format.json` (producer `corpus_format_version` on new backups). Bump both
+when on-disk corpus layout changes in a breaking way ([ADR-092](../adr/ADR-092-corpus-snapshot-backup-manifest-and-newest-compatible-restore.md)).
 
 ## Surface matrix
 
 | Surface | Typical goal | Entry (target) | Detail |
 | ------- | ------------ | -------------- | ------ |
-| **Local dev** | Validate manifest JSON; test selection logic; download restore without GHA | **`make`** targets calling `scripts/ops/…` (names TBD in RFC rollout); existing **`make restore-corpus`** with `PODCAST_BACKUP_*` | Requires network + `gh auth` for private backup repo when pulling releases. |
-| **Pre-prod / Codespace** | Cloud backup tarball to backup repo; optional local pull | **`.github/workflows/backup-corpus.yml`**; **`make codespace-backup-cloud`** (dispatch); **`make restore-corpus`** on the machine that holds corpus path | [Makefile restore-corpus](https://github.com/chipi/podcast_scraper/blob/main/Makefile); pre-prod layout in [RFC-081](../rfc/RFC-081-pre-prod-environment-and-control-plane.md). |
-| **Production VPS** | Scheduled/manual corpus snapshot; controlled restore | **`backup-corpus-prod.yml`**, **`prod-restore-corpus.yml`** | [Prod runbook — backup / restore](PROD_RUNBOOK.md) (search **restore-corpus**, **backup-corpus-prod**). |
-| **DR drill** | Restore drill host from backup repo; full cycle under drill confirms | **`drill-restore-corpus.yml`** (and orchestrator that includes restore) | [DR drill runbook](DR_DRILL_RUNBOOK.md); same backup repo conventions as prod unless runbook says otherwise. |
+| **Local dev** | Validate manifest JSON; test selection; download restore without GHA | **`make corpus-snapshot-manifest-validate`**, **`make corpus-snapshot-select-tag`**, **`make restore-corpus`** | Codespace layout (``.codespace_corpus/``). Requires network + `gh auth` for private backup repo when pulling releases. |
+| **Pre-prod / Codespace** | Cloud backup tarball to backup repo; optional local pull | **`backup-corpus.yml`**; **`make codespace-backup-cloud`**; **`make restore-corpus`** | Codespace tags: `snapshot-YYYYMMDD`. |
+| **Production VPS** | Corpus snapshot; controlled restore | **`backup-corpus-prod.yml`**, **`prod-restore-corpus.yml`**; on-host rehearsal: **`make restore-corpus-prod`** | Prod tags: `snapshot-prod-YYYYMMDD`; tarball top-level **`corpus/`**. |
+| **DR drill** | Restore drill host from backup repo | **`drill-restore-corpus.yml`** | Uses **`snapshot-prod-*`** selection like prod. |
 
-**GitHub projects:** All workflows above live on **`chipi/podcast_scraper`** (application repo).
-Published assets go to **`chipi/podcast_scraper-backup`** (or `PODCAST_BACKUP_REPO`) unless you
-override. DR drill **does not** change that contract by itself — it changes **which host** receives
-the restore, not the manifest schema.
+**GitHub projects:** Workflows live on **`chipi/podcast_scraper`**. Published assets go to
+**`chipi/podcast_scraper-backup`** (or `PODCAST_BACKUP_REPO`) unless overridden.
 
 ## Local testing (Make-first)
 
-Use this order once implementation exists:
+1. **Validate** — `make corpus-snapshot-manifest-validate FILE=path/to/snapshot.manifest.json`
+2. **Select** — `make corpus-snapshot-select-tag` or **`make corpus-snapshot-select-tag-prod`**
+   (optional `TAG_REGEX=…`, `PODCAST_BACKUP_TAG=…`, `PODCAST_BACKUP_REPO=…`); exits non-zero when
+   no compatible release has a sibling manifest.
+3. **Restore** — **`make restore-corpus`** (codespace layout; unset `PODCAST_BACKUP_TAG` → newest
+   compatible `snapshot-YYYYMMDD`). On a prod VPS or local prod rehearsal: **`make restore-corpus-prod`**
+   (`snapshot-prod-*`, top-level **`corpus/`**). Pin with `PODCAST_BACKUP_TAG=…`. See
+   [VPS restore: Make vs GitHub Actions](#vps-restore-make-vs-github-actions).
+4. **Selftest** — `make corpus-snapshot-selftest` (fixture validation + finalize smoke; no `gh`).
 
-1. **Validate** — `make` target runs manifest schema checks on a file path (fixture or downloaded
-   `snapshot.manifest.json`).
-2. **Select (dry-run)** — `make` target lists candidate releases (newest first), prints which tag would
-   be chosen for the **reader range** baked into the checkout (or `CORPUS_FORMAT_*` env), exits
-   non-zero when nothing is compatible.
-3. **Restore** — **`make restore-corpus`** with or without **`PODCAST_BACKUP_TAG`**; unset tag uses
-   **newest-compatible** selection (post-#763); set tag keeps explicit pin (may still validate
-   manifest when cheap).
-
-Exact target names will be added to the **Makefile** and cross-linked here in the same change that
-ships scripts.
-
-**Today (pre-implementation):** `make restore-corpus` still follows existing behavior (e.g. latest
-when tag unset — see Makefile comments). Treat **compatibility checks** as forthcoming until
-[RFC-084](../rfc/RFC-084-corpus-backup-manifest-and-version-aware-restore.md) rollout completes.
+**Verify prod asset without restore:** `scripts/ops/verify_prod_backup_snapshot.sh` (manifest +
+tarball inspection).
 
 ## GitHub Actions (remote hosts)
 
 | Workflow | Surface | Role |
 | -------- | ------- | ---- |
-| `backup-corpus.yml` | Pre-prod / Codespace path | Build snapshot, **emit manifest** (post-763), publish release on backup repo. |
-| `backup-corpus-prod.yml` | Prod VPS | Same for production corpus path on tailnet host. |
-| `prod-restore-corpus.yml` | Prod | **Select** compatible snapshot (post-763) or honor pin; SSH as `deploy@` per prod runbook. |
-| `drill-restore-corpus.yml` | DR drill | Same selection semantics on drill **`deploy@`** target. |
+| `backup-corpus.yml` | Pre-prod / Codespace | Tarball + **`finalize_backup_bundle.sh`** → upload `snapshot.tgz` + `snapshot.manifest.json` when **`dry_run`** is false. |
+| `backup-corpus-prod.yml` | Prod VPS | Same for `/srv/podcast-scraper/corpus` (default **`dry_run=true`** until operator sets false). |
+| `prod-restore-corpus.yml` | Prod | **`resolve_latest_snapshot_prod_tag.sh`** then **`download_and_verify_snapshot.sh`**; host extract: **`restore_corpus_from_tarball_host.sh`**. |
+| `drill-restore-corpus.yml` | DR drill | Same runner download/verify path; same host restore script on drill **`deploy@`**. |
 
-Workflow file names are stable in-repo; triggers and confirms are summarized in [WORKFLOWS.md](../ci/WORKFLOWS.md)
-and the two runbooks.
+See [WORKFLOWS.md](../ci/WORKFLOWS.md) and the two runbooks for confirms and secrets.
+
+## VPS restore: Make vs GitHub Actions
+
+Both paths share **`scripts/ops/corpus_snapshot/`** for tag selection and tarball verification
+([ADR-092](../adr/ADR-092-corpus-snapshot-backup-manifest-and-newest-compatible-restore.md)). They
+diverge **after extract** on the VPS:
+
+| Path | When | After extract |
+| ---- | ---- | ------------- |
+| **`make restore-corpus-prod`** | On-host rehearsal, migration SSH, laptop prod-layout rehearsal | Downloads and verifies assets, extracts top-level **`corpus/`** under **`WORKSPACE_DIR`** (default **`/srv/podcast-scraper`**). Does **not** recreate containers — recycle **`api`** + **`viewer`** per [Prod runbook](PROD_RUNBOOK.md) corpus migration. |
+| **`prod-restore-corpus.yml`** / **`drill-restore-corpus.yml`** | Controlled GHA restore (typed confirm on manual runs) | Runner uploads tarball + **`restore_corpus_from_tarball_host.sh`**; host script backs up prior **`corpus/`**, extracts, asserts **`corpus/`**, **`compose up --force-recreate api viewer`**, in-container **`/api/health`** on **`api`** `:8000`. |
+
+Codespace layout restore stays on **`make restore-corpus`** (``.codespace_corpus/`` in tarball).
+
+## When newest-compatible default is wrong
+
+Default restore (unset tag) picks the **newest** backup whose sibling **`snapshot.manifest.json`**
+reports a **`corpus_format_version`** inside `config/corpus_snapshot_reader_support.json`. That is
+**not** always the right choice:
+
+- **Rollback** — deploy an older app build but need a corpus from an **older** compatible release:
+  pin **`PODCAST_BACKUP_TAG`** / workflow **`backup_tag`**.
+- **Format bump** — after a breaking corpus layout change, older releases may be skipped until
+  manifests exist; if none match, selection **fails closed** (pin an explicit tag or publish a new
+  backup).
+- **Mixed-age hosts** — reader range in the repo may differ from what is deployed on a host; pin or
+  align config before restore.
+
+Pre-manifest releases (no sibling manifest) are skipped by default selection until a post-merge backup
+exists.
 
 ## Related
 
-- [Prod runbook](PROD_RUNBOOK.md) — prod SSH, secrets, **`make restore-corpus`** on VPS.
+- [Stack contract](STACK_CONTRACT.md) — cross-surface compose, health, and gate audit table
+  ([ADR-093](../adr/ADR-093-canonical-stack-contract-and-environment-adapters.md)).
+- [Prod runbook](PROD_RUNBOOK.md) — prod SSH, secrets, **`prod-restore-corpus.yml`** (primary restore).
 - [DR drill runbook](DR_DRILL_RUNBOOK.md) — drill-only confirms and destroy rules.
 - [Hosting and infrastructure](../architecture/HOSTING_AND_INFRASTRUCTURE.md) — prod vs drill
   topology.

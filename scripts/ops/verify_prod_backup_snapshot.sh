@@ -13,7 +13,7 @@
 #
 # Env:
 #   PODCAST_BACKUP_REPO (optional) — default chipi/podcast_scraper-backup
-#   PODCAST_BACKUP_TAG (optional) — explicit tag; overrides auto “latest”
+#   PODCAST_BACKUP_TAG (optional) — explicit tag; overrides auto newest-compatible selection
 #
 # Output: under repo root ``.tmp_backup_verify/`` (gitignored): snapshot.tgz
 # and, unless ``--no-extract``, unpacked ``corpus/`` tree.
@@ -84,14 +84,13 @@ if [[ -z "$TAG" ]]; then
 fi
 
 if [[ -z "$TAG" ]]; then
-  TAG="$(
-    gh release list --repo "$BACKUP_REPO" --limit 200 --json tagName \
-      -q '.[].tagName' | grep -E '^snapshot-prod-[0-9]{8}$' | head -n1 || true
-  )"
+  export BACKUP_REPO="$BACKUP_REPO"
+  export TAG_REGEX='^snapshot-prod-[0-9]{8}$'
+  TAG="$(bash "$SCRIPT_DIR/corpus_snapshot/select_release_tag.sh")"
 fi
 
 if [[ -z "$TAG" ]]; then
-  echo "No snapshot-prod-YYYYMMDD tag found in $BACKUP_REPO (and none passed)." >&2
+  echo "No compatible snapshot-prod-YYYYMMDD tag found in $BACKUP_REPO (and none passed)." >&2
   echo "Set PODCAST_BACKUP_TAG or pass the tag as the first argument." >&2
   exit 1
 fi
@@ -105,7 +104,8 @@ echo "Backup repo: $BACKUP_REPO"
 echo "Release tag: $TAG"
 echo "Work dir:    $WORKDIR"
 
-gh release download "$TAG" --repo "$BACKUP_REPO" --pattern snapshot.tgz
+bash "$SCRIPT_DIR/corpus_snapshot/download_and_verify_snapshot.sh" \
+  --tag "$TAG" --output-dir "$WORKDIR"
 
 ls -lh snapshot.tgz
 

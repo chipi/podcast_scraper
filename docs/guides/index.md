@@ -38,7 +38,8 @@ Practical guides for using and developing Podcast Scraper.
 | Guide | Description |
 | ------- | ------------- |
 | [SRE book infra critique](SRE_BOOK_INFRA_CRITIQUE.md) | Reliability rubric (SRE themes): SLIs/SLOs, error budget, toil, alerting, change risk, incidents — for reviewing runbooks, workflows, and ops design |
-| [Hosting and infrastructure](../architecture/HOSTING_AND_INFRASTRUCTURE.md) | Narrative: Tailscale, OpenTofu, GitHub Actions, Compose on the VPS, how CI and prod align; ADR spine (079–085, 082) |
+| [Hosting and infrastructure](../architecture/HOSTING_AND_INFRASTRUCTURE.md) | Narrative: Tailscale, OpenTofu, GitHub Actions, Compose on the VPS, how CI and prod align; ADR spine (079–085, 082, 093) |
+| [Stack contract](STACK_CONTRACT.md) | Cross-surface audit table, steady vs recovery playbooks ([ADR-093](../adr/ADR-093-canonical-stack-contract-and-environment-adapters.md)) |
 | [Prod runbook](PROD_RUNBOOK.md) | Always-on Hetzner VPS: bootstrap, deploy, backups, observability, DR |
 | [Prod operator cheat sheet](PROD_OPERATOR_CHEAT_SHEET.md) | Short daily ops: `gh` deploy/backup, health curls, incident triage |
 | [DR drill runbook](DR_DRILL_RUNBOOK.md) | Drill-only GitHub workflows, typed confirms, orchestrator vs piecemeal paths |

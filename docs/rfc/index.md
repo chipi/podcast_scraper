@@ -91,11 +91,12 @@ RFCs translate PRD requirements into concrete technical solutions and serve as l
 | [RFC-069](RFC-069-graph-exploration-toolkit.md) | GI/KG Viewer — Graph Exploration Toolkit | PRD-024 | v2.6.0 | Zoom controls, % readout, Shift+drag box zoom, minimap v1, degree-bucket filter, built-in layouts, edge filters; extends RFC-062 |
 | [RFC-071](RFC-071-corpus-intelligence-dashboard-viewer.md) | Corpus Intelligence Dashboard (GI/KG Viewer) | PRD-025 | v2.6.0 | **Dashboard** tab: **`/api/corpus/*`** aggregates + Chart.js (**Pipeline** / **Content intelligence**); manifest + capped **`run.json`** discovery; index/digest/GI-KG timelines; [PRD-025](../prd/PRD-025-corpus-intelligence-dashboard-viewer.md) |
 | [RFC-076](RFC-076-progressive-graph-expansion.md) | Progressive graph expansion (cross-episode) | #581 | v2.6.0 | `POST /api/corpus/node-episodes`, `onetap` rail / `dbltap` expand-collapse, bridge-only scan; extends RFC-069 |
+| [RFC-084](RFC-084-corpus-backup-manifest-and-version-aware-restore.md) | Corpus snapshot backup manifest and version-aware restore | — | v2.6.0 | `snapshot.manifest.json`, `scripts/ops/corpus_snapshot/`, backup/restore workflows + `make restore-corpus` / `restore-corpus-prod`; GitHub #763 |
 
 ## Gap analysis {:#gaps}
 
 **Counts (reconcile when moving RFCs):** **84** files under `docs/rfc/RFC-*.md` -- IDs **RFC-001--RFC-084**
-with **no RFC-014**. **3** open (in-flight, partial implementation), **59** completed, and **17** Draft
+with **no RFC-014**. **3** open (in-flight, partial implementation), **60** completed, and **16** Draft
 (not indexed until promoted) in the tables above.
 
 **Open RFC clusters:** AI experiment pipeline + ML benchmark CI (**RFC-015**, **RFC-041**).
@@ -107,8 +108,7 @@ metrics alerts (**RFC-043**), Postgres projection (**RFC-051**), adaptive summar
 (**RFC-072**), enrichment layer (**RFC-073**), process safety (**RFC-074**),
 ephemeral acceptance smoke test (**RFC-078**), full-stack Docker Compose (**RFC-079**;
 optional doc polish: [RFC-079 §Optional follow-ups](RFC-079-full-stack-docker-compose.md#optional-follow-ups)),
-prod failover orchestration and cutover (**RFC-083**), corpus snapshot backup manifest and
-version-aware restore (**RFC-084**; [GitHub #763](https://github.com/chipi/podcast_scraper/issues/763)).
+prod failover orchestration and cutover (**RFC-083**).
 These are discoverable by filename under `docs/rfc/` but excluded from the index per the
 [index inclusion rule](../guides/MARKDOWN_LINTING_GUIDE.md) (Draft docs are not indexed).
 

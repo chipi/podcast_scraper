@@ -548,9 +548,9 @@ all the way (no third-party storage vendor)**:
 
 **Restore path:**
 
-- `make restore-corpus` Makefile target: pulls the latest snapshot
-  via `gh release download <tag> --repo
-  chipi/podcast_scraper-backup` and untars into `.codespace_corpus/`.
+- `make restore-corpus` Makefile target: pulls the newest **compatible**
+  `snapshot-YYYYMMDD` via `gh release download` (sibling manifest when present) and
+  untars into `.codespace_corpus/`.
 - Works from a fresh codespace (resurrected after delete).
 
 Why GitHub Releases for Phase 1:

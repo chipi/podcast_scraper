@@ -2,7 +2,9 @@ name: DR drill — restore corpus (backup → host)
 
 # Downloads ``snapshot.tgz`` from ``chipi/podcast_scraper-backup`` (or
 # override repo), uploads to the drill VPS, extracts under
-# ``/srv/podcast-scraper/corpus``, recreates api+viewer. RFC-082 / #752.
+# ``/srv/podcast-scraper/corpus``, recreates api+viewer. Tag default: newest
+# **compatible** ``snapshot-prod-*`` with sibling ``snapshot.manifest.json``
+# (ADR-092); optional pin ``backup_tag``. RFC-082 / #752.
 #
 # Prerequisites (same tailnet + SSH contract as drill-deploy / drill-e2e):
 #   secrets: TS_AUTHKEY, DRILL_DEPLOY_SSH_PRIVATE_KEY
@@ -21,7 +23,7 @@ on:
         required: true
         default: ''
       backup_tag:
-        description: "Release tag (e.g. snapshot-prod-YYYYMMDD). Empty = latest snapshot-prod-*."
+        description: "Release tag (e.g. snapshot-prod-YYYYMMDD). Empty = newest compatible snapshot-prod-* (manifest required)."
         required: false
         default: ''
       backup_repo:
@@ -130,31 +132,10 @@ jobs:
           BACKUP_REPO: ${{ inputs.backup_repo }}
           BACKUP_TAG:  ${{ inputs.backup_tag }}
           BACKUP_REPO_TOKEN: ${{ secrets.BACKUP_REPO_TOKEN }}
-        run: |
-          set -euo pipefail
-          if [ -n "${BACKUP_REPO_TOKEN:-}" ]; then
-            export GH_TOKEN="$BACKUP_REPO_TOKEN"
-          else
-            export GH_TOKEN="${{ github.token }}"
-          fi
-          REPO="${BACKUP_REPO:-chipi/podcast_scraper-backup}"
-          TAG="${BACKUP_TAG}"
-          if [ -z "$TAG" ]; then
-            TAG=$(gh release list -R "$REPO" --exclude-drafts --limit 80 --json tagName,publishedAt \
-              | jq -r '[.[] | select(.tagName | test("^snapshot-prod-"))] | sort_by(.publishedAt) | reverse | .[0].tagName // empty')
-            if [ -z "$TAG" ]; then
-              echo "::error::No snapshot-prod-* release found in $REPO"
-              exit 1
-            fi
-            echo "::notice::Using latest prod snapshot tag: $TAG"
-          else
-            echo "::notice::Using pinned tag: $TAG"
-          fi
-          gh release view "$TAG" -R "$REPO" >/dev/null
-          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
-          echo "repo=$REPO" >> "$GITHUB_OUTPUT"
+          GITHUB_TOKEN: ${{ github.token }}
+        run: bash scripts/ops/resolve_latest_snapshot_prod_tag.sh
 
-      - name: "DR drill — restore: download snapshot.tgz"
+      - name: "DR drill — restore: download and verify snapshot release assets"
         env:
           BACKUP_REPO_TOKEN: ${{ secrets.BACKUP_REPO_TOKEN }}
         run: |
@@ -164,11 +145,18 @@ jobs:
           else
             export GH_TOKEN="${{ github.token }}"
           fi
-          gh release download "${{ steps.tag.outputs.tag }}" -R "${{ steps.tag.outputs.repo }}" -p snapshot.tgz
+          export BACKUP_REPO="${{ steps.tag.outputs.repo }}"
+          bash scripts/ops/corpus_snapshot/download_and_verify_snapshot.sh \
+            --tag "${{ steps.tag.outputs.tag }}" \
+            --output-dir .
+          if [ -f snapshot.manifest.json ]; then
+            jq -r '"corpus_format_version=\(.corpus_format_version) producer_git_sha=\(.producer.git_sha // "n/a") archive_sha256=\(.archive.sha256 // "n/a")"' \
+              snapshot.manifest.json
+          fi
           ls -la snapshot.tgz
           test -f snapshot.tgz
 
-      - name: "DR drill — restore: upload tarball to drill host"
+      - name: "DR drill — restore: upload tarball and restore script to drill host"
         env:
           SSH_TARGET: deploy@${{ steps.ts_host.outputs.resolved_fqdn }}
         run: |
@@ -176,6 +164,10 @@ jobs:
           scp -i "$SSH_DRILL_IDENTITY" -o IdentitiesOnly=yes \
             -o StrictHostKeyChecking=accept-new -o BatchMode=yes \
             snapshot.tgz "${SSH_TARGET}:/tmp/snapshot-restore-drill.tgz"
+          scp -i "$SSH_DRILL_IDENTITY" -o IdentitiesOnly=yes \
+            -o StrictHostKeyChecking=accept-new -o BatchMode=yes \
+            scripts/ops/restore_corpus_from_tarball_host.sh \
+            "${SSH_TARGET}:/tmp/restore_corpus_from_tarball_host.sh"
 
       - name: "DR drill — restore: extract on drill and recreate api + viewer"
         env:
@@ -184,19 +176,4 @@ jobs:
           set -euo pipefail
           ssh -i "$SSH_DRILL_IDENTITY" -o IdentitiesOnly=yes \
             -o StrictHostKeyChecking=accept-new -o BatchMode=yes "$SSH_TARGET" \
-            'set -euo pipefail
-             cd /srv/podcast-scraper
-             STAMP=$(date -u +%Y%m%dT%H%M%SZ)
-             if [ -d corpus ]; then mv corpus "corpus.bak.$STAMP"; fi
-             mkdir -p corpus
-             tar -xzf /tmp/snapshot-restore-drill.tgz -C /srv/podcast-scraper
-             chown -R deploy:deploy corpus
-             rm -f /tmp/snapshot-restore-drill.tgz
-             COMPOSE=(docker compose --env-file .env -f compose/docker-compose.stack.yml \
-               -f compose/docker-compose.prod.yml -f compose/docker-compose.vps-prod.yml)
-             "${COMPOSE[@]}" up -d --force-recreate api viewer
-             sleep 8
-             "${COMPOSE[@]}" exec -T api curl -fsS http://127.0.0.1:8000/api/health | head -c 200
-             echo
-             echo "Restore complete on drill host"
-            '
+            'bash /tmp/restore_corpus_from_tarball_host.sh /tmp/snapshot-restore-drill.tgz'

@@ -1382,7 +1382,7 @@ ignores keys when focus is outside the overlay (graph chrome).
 With the overlay handling first-time teaching, the **top** toolbar row is
 **Types** + **⚙** filters only — **no** persistent Shift / double-click / ring prose.
 The **search highlight** chip (when applicable) sits in the **bottom bar** centre
-zone under the canvas (see [GRAPH-CHROME-REDESIGN](../wip/GRAPH-CHROME-REDESIGN.md)).
+zone under the canvas (see [UXS-004 Graph chrome](../uxs/UXS-004-graph-exploration.md#graph-chrome-toolbar-bottom-bar-filters-popover)).
 
 **Requirement:** Removing that copy **requires** either the optional **Gestures**
 reopen control (Section 7) or another minimal affordance (e.g. a **?** entry) so
@@ -1471,7 +1471,7 @@ Test cases:
 - Ring colours in `cyGraphStylesheet.ts` — unchanged (overlay references
   them visually but does not own them)
 
-- All other graph chrome (**layout cycle**, **Re-layout**, minimap, **Fit** / zoom / **Export PNG** in **`GraphBottomBar`**) — behaviour unchanged by the overlay; only placement vs legacy canvas overlays evolved per [GRAPH-CHROME-REDESIGN](../wip/GRAPH-CHROME-REDESIGN.md)
+- All other graph chrome (**layout cycle**, **Re-layout**, minimap, **Fit** / zoom / **Export PNG** in **`GraphBottomBar`**) — behaviour unchanged by the overlay; only placement vs legacy canvas overlays evolved per [UXS-004 Graph chrome](../uxs/UXS-004-graph-exploration.md#graph-chrome-toolbar-bottom-bar-filters-popover)
 - Token system — uses only existing UXS-001 tokens
 
 ---

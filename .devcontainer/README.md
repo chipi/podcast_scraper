@@ -78,7 +78,7 @@ specific SHA for incident-response or to `:pr-NNN` for collaborator UAT.
 - If the codespace is deleted (30-day inactivity default), the daily
   backup workflow has snapshotted the corpus to
   `chipi/podcast_scraper-backup` as a release asset; restore via
-  `make restore-corpus`.
+  `make restore-corpus` (newest compatible `snapshot-YYYYMMDD`).
 
 See [RFC-081](../docs/rfc/RFC-081-pre-prod-environment-and-control-plane.md)
 for the full design.

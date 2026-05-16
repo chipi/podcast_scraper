@@ -202,8 +202,10 @@ PODCAST_IMAGE_TAG=sha-<previous-good-short-sha> \
                  -f compose/docker-compose.vps-prod.yml \
   up -d --remove-orphans
 
-# Restore corpus from latest backup release
-make restore-corpus
+# Restore corpus from backup release (prod layout)
+# Preferred: prod-restore-corpus.yml in GitHub Actions (confirm PROD_RESTORE).
+# On-host Make only: make restore-corpus-prod, then recycle api + viewer (see PROD_RUNBOOK).
+make restore-corpus-prod
 ```
 
 ## When to use full runbook

@@ -165,6 +165,8 @@ it sits in **DR exercise choreography** and discrete **manual** restore workflow
 routine post-deploy housekeeping.
 
 Frozen decision record for reviewers: **[ADR-093](../adr/ADR-093-canonical-stack-contract-and-environment-adapters.md)**.
+**Operator audit table (surfaces × compose × health × gates):** [STACK_CONTRACT.md](../guides/STACK_CONTRACT.md).
+**Corpus tarball manifest and restore (Make vs Actions):** [CORPUS_SNAPSHOT_MANIFEST_AND_RESTORE.md](../guides/CORPUS_SNAPSHOT_MANIFEST_AND_RESTORE.md).
 
 ### Decision 1 — Hosting target
 
@@ -436,7 +438,7 @@ changed" signal. If we ever go multi-operator, swap to Object Storage
 
 **Replacement flow:** `tofu destroy && tofu apply` — fresh VPS, same
 hostname (Tailscale assigns based on machine name in code), corpus
-restored from latest backup-repo release. <30 min wall.
+restored from a newest-compatible backup-repo release. <30 min wall.
 
 ### Decision 6 — GitOps loop
 
@@ -615,11 +617,9 @@ release (cleanest path) rather than `gh codespace cp` between hosts
 sync).
 
 ```bash
-# On the VPS, as the deploy user:
+# On the VPS, as the deploy user (or use prod-restore-corpus.yml):
 cd /srv/podcast-scraper
-make restore-corpus               # Makefile target; pulls latest snapshot.tgz
-                                  # from chipi/podcast_scraper-backup,
-                                  # untars into /srv/podcast-scraper/corpus/
+make restore-corpus-prod            # newest-compatible snapshot-prod-* → corpus/
 
 # Verify
 ls -la corpus/feeds/ | head
@@ -682,7 +682,7 @@ cd infra/terraform
 ../tofu apply              # same hostname, same Tailscale registration
 
 # 2. Restore corpus (~3-5 min for 18 MB snapshot)
-ssh deploy@prod-podcast.<tailnet>.ts.net 'cd /srv/podcast-scraper && make restore-corpus'
+ssh deploy@prod-podcast.<tailnet>.ts.net 'cd /srv/podcast-scraper && make restore-corpus-prod'
 
 # 3. Re-stage the .env (operator's responsibility; not in Tofu state)
 #    — see "First-time bootstrap" → "Stage the host-side .env"
@@ -697,12 +697,9 @@ state (last successful **`backup-corpus-prod.yml`** run for prod
 corpus; codespace exports are separate **`backup-corpus.yml`** runs).
 
 Before running the timed DR exercise in GitHub
-[#724](https://github.com/chipi/podcast_scraper/issues/724), complete the
-prerequisite checklist tracked in
-[#751](https://github.com/chipi/podcast_scraper/issues/751) (operator
-copy-paste steps:
-[DR drill prerequisite checklist](../wip/RFC-082_DR_DRILL_PREREQ_CHECKLIST.md)).
-Operator workflow index: [DR drill runbook](../guides/DR_DRILL_RUNBOOK.md).
+[#724](https://github.com/chipi/podcast_scraper/issues/724), complete readiness tracked in
+[#751](https://github.com/chipi/podcast_scraper/issues/751). Operator workflow index:
+[DR drill runbook](../guides/DR_DRILL_RUNBOOK.md).
 
 If the corpus loss matters more than the speed of recovery,
 optionally enable Hetzner Volume snapshots (€0.0143/GB/month) for a
@@ -885,9 +882,10 @@ The decisions above leave a smaller residual set:
 ## References
 
 - [ADR-093](../adr/ADR-093-canonical-stack-contract-and-environment-adapters.md) — stack contract vs environment adapters; GitHub [#762](https://github.com/chipi/podcast_scraper/issues/762).
+- [STACK_CONTRACT.md](../guides/STACK_CONTRACT.md) — operator audit table for Codespace, prod, drill, stack-test.
+- [CORPUS_SNAPSHOT_MANIFEST_AND_RESTORE.md](../guides/CORPUS_SNAPSHOT_MANIFEST_AND_RESTORE.md) — corpus tarball manifest and restore surfaces.
 - [RFC-083](RFC-083-prod-failover-orchestration-and-cutover.md) — production incident spare, DNS cutover, GitHub Actions orchestration (Draft).
-- [RFC-081 (pre-prod)](RFC-081-pre-prod-environment-and-control-plane.md) — what we're lifting from.
-- [docs/wip/CODESPACE_PREPROD_RUNBOOK.md](../wip/CODESPACE_PREPROD_RUNBOOK.md) — operator-facing notes from pre-prod; many of the same gotchas apply (corpus bind mount, image pull on first deploy, agent yaml comment foot-guns).
+- [RFC-081 (pre-prod)](RFC-081-pre-prod-environment-and-control-plane.md) — what we're lifting from; pre-prod Codespace corpus bind mount, deploy, and agent gotchas.
 - [Hetzner Cloud pricing](https://www.hetzner.com/cloud/) — CX / CCX line.
 - [Tailscale GitHub Actions integration](https://tailscale.com/kb/1276/tailscale-github-action) — ephemeral runner-to-tailnet auth via OAuth.
 - [Tailscale MagicDNS + cert](https://tailscale.com/kb/1153/enabling-https) — TLS without Let's Encrypt boilerplate.

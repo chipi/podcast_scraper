@@ -21,7 +21,7 @@ on:
         required: true
         default: ''
       backup_tag:
-        description: "Restore: release tag (empty = latest snapshot-prod-* on backup repo)"
+        description: "Restore: release tag (empty = newest compatible snapshot-prod-*; sibling snapshot.manifest.json required)"
         required: false
         default: ''
       backup_repo:
