@@ -1659,7 +1659,12 @@ function finishLayoutPass(core: Core): void {
     }
     if (!appliedCyId && graphHandoff.pending.kind === 'episode') {
       // V5 — episode envelopes carry metadataPath + episodeId, not cyId.
-      // Use the same resolver the rest of the codebase uses.
+      // First try the logical artifact resolver (finds via metadata-path
+      // match on Episode-typed nodes), then fall back to direct cy id
+      // pattern lookup for the well-known episode id schemes. The fallback
+      // matters when the artifact-side filteredArtifact hasn't yet
+      // re-rendered to include the just-appended episode at the moment
+      // finishLayoutPass runs (race between artifact pinia + cy core).
       const epCy = findEpisodeGraphNodeIdForMetadataPathOrEpisodeId(
         gf.filteredArtifact,
         graphHandoff.pending.metadataPath,
@@ -1668,6 +1673,36 @@ function finishLayoutPass(core: Core): void {
       if (epCy) {
         const resolved = resolveCyNodeId(core, epCy)
         if (resolved) appliedCyId = resolved
+      }
+      if (!appliedCyId && graphHandoff.pending.episodeId) {
+        // #775 — direct cy id lookup by episode_id. ``resolveCyNodeId``
+        // already tries the 10 prefix variants; the episode_id is the
+        // logical id used to derive ``__unified_ep__:<UUID>`` and
+        // ``g:episode:<UUID>`` / ``k:episode:<UUID>``.
+        const directResolved = resolveCyNodeId(core, graphHandoff.pending.episodeId)
+        if (directResolved) appliedCyId = directResolved
+      }
+      if (!appliedCyId) {
+        // #775 — last resort: scan cy directly for an Episode-typed node
+        // whose data matches the envelope's metadataPath / episodeId.
+        // ``filteredArtifact`` may lag cy briefly after a full redraw
+        // (Pinia state update timing), so artifact-based resolvers can
+        // miss. Iterating cy is O(N) but bounded by node count (~400
+        // for production-shaped) — acceptable for the fallback path.
+        const wantMeta = graphHandoff.pending.metadataPath ?? ''
+        const wantEid = graphHandoff.pending.episodeId ?? ''
+        const found = core.nodes().filter((n) => {
+          const data = n.data() as Record<string, unknown>
+          const type = String(data.type ?? data.kind ?? '')
+          if (type !== 'Episode' && type !== 'episode') return false
+          const props = (data.properties ?? {}) as Record<string, unknown>
+          const mp = String(props.metadata_relative_path ?? data.metadata_relative_path ?? '')
+          const eid = String(props.episode_id ?? data.episode_id ?? '')
+          return (wantMeta && mp === wantMeta) || (wantEid && eid === wantEid)
+        })
+        if (found.length > 0) {
+          appliedCyId = found.first().id()
+        }
       }
     }
     if (appliedCyId) {
@@ -2613,11 +2648,23 @@ function redraw(): void {
       artifacts.currentLoadSource === 'digest-external' ||
       artifacts.currentLoadSource === 'subject-external'
     
+    // #775 — incremental layout was designed for small expansions
+    // (NodeDetail Load, sibling-merge: typically 5-30 added nodes). Large
+    // additions (whole episode's worth, 100+ nodes) hit Cytoscape COSE
+    // convergence failures on the filtered layout collection: edges
+    // reference existing-but-not-included nodes; COSE can't position new
+    // nodes against anchors it doesn't see. Falling back to full redraw
+    // is more reliable and the user-visible difference is minimal at
+    // this scale (full graph re-layout vs partial new-only layout).
+    const INCREMENTAL_LAYOUT_MAX_ADDS = 100
+    const tooBigForIncremental = addedNodeIds.size > INCREMENTAL_LAYOUT_MAX_ADDS
+
     if (
       !egoChanged &&
       !selectionReplaced &&
       !contextSwitch &&
       !isExternalNavigation &&  // Force full layout for external navigation
+      !tooBigForIncremental &&  // #775 — large adds → full redraw
       addedNodeIds.size > 0 &&
       selectionGrew &&
       egoUnchanged &&
@@ -2741,7 +2788,43 @@ function redraw(): void {
       // doesn't fire on big incremental layouts (300+ added elements can
       // take >15 s on real-backend hot-state Episode-panel handoff).
       graphHandoff.notifyLayoutStart()
+      // #775 — graceful layout timeout. The Cytoscape COSE layout on the
+      // filtered incremental collection sometimes doesn't converge (the
+      // collection contains edges referencing existing-but-not-included
+      // nodes; COSE struggles to position new nodes relative to anchors
+      // it doesn't see). Without this, the FSM stays in loading_fetch
+      // indefinitely (the stuck-timer now reschedules while a layout is
+      // active — see notifyLayoutStart). Cap at 8 s: most incremental
+      // layouts complete in <2 s; legitimate big ones in <5 s; 8 s is a
+      // safety net, not a normal completion time.
+      let layoutSettled = false
+      const layoutTimeoutMs = 8000
+      const layoutTimeout = setTimeout(() => {
+        if (layoutSettled) return
+        layoutSettled = true
+        console.warn(
+          `[GraphCanvas incremental] layout timeout after ${layoutTimeoutMs}ms — aborting and forcing layoutstop (added=${addedNodeIds.size} total=${priorCore.elements().length})`,
+        )
+        try {
+          initialLo.stop()
+        } catch {
+          /* ignore */
+        }
+        graphHandoff.notifyLayoutStop()
+        if (graphLayoutGate.isStale(layoutGen)) return
+        if (activeElesLayout === initialLo) {
+          activeElesLayout = null
+        }
+        if (!cy || cy !== priorCore) {
+          releaseGraphCanvasLayoutHold()
+          return
+        }
+        finishLayoutPass(priorCore)
+      }, layoutTimeoutMs)
       initialLo.one('layoutstop', () => {
+        if (layoutSettled) return
+        layoutSettled = true
+        clearTimeout(layoutTimeout)
         graphHandoff.notifyLayoutStop()
         const stale = graphLayoutGate.isStale(layoutGen)
         if (stale) {
