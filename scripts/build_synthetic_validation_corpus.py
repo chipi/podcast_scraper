@@ -33,10 +33,14 @@ import json
 import re
 import sys
 import uuid
-import xml.etree.ElementTree as ET
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any
+
+# Use defusedxml to satisfy bandit B314 (untrusted-XML risk). Our input is
+# the checked-in RSS test fixtures (low real-world risk), but defusedxml
+# is the standards-compliant safe parser and is already a project dep.
+import defusedxml.ElementTree as ET
 
 
 def slug(text: str, max_len: int = 40) -> str:
