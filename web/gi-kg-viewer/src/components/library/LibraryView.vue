@@ -388,61 +388,52 @@ async function openEpisodeInGraph(row: CorpusEpisodeListItem): Promise<void> {
     uiTitle: row.episode_title?.trim() || null,
     episodeId: row.episode_id ?? null,
   })
-  // Await the baseline load BEFORE the proactive append: running them
-  // in parallel (void + await) raced ``selectedRelPaths`` updates and
-  // produced partial graphs with off-screen camera anchors (Tier-2 P1.1
-  // / P1.6 / P2.1 / P2.4 / P3.1 regression).
-  await ensureDefaultCorpusGraphIfNeeded()
-  // Proactively load this episode's GI/KG artifacts so the FSM's apply
-  // step can resolve the target cy node. Same fix class as V3 (Search →
-  // Graph): when a prior handoff (e.g. Digest topic-pill) left the graph
-  // populated with content that does NOT contain THIS episode, the
-  // automatic territory-strip watcher in ``GraphCanvas.vue`` does not
-  // always fire (cy state from the prior subject may make
-  // ``applyEpisodeRepresentativeFocusIfNeeded`` think the new episode is
-  // resolvable when it isn't, or no redraw is triggered to drive
-  // ``finishLayoutPass``). Without this, the FSM stuck-times-out after
-  // 15s and the user sees the error strip. ``appendRelativeArtifacts``
-  // is a near-no-op when the artifacts are already loaded.
-  const paths: string[] = []
-  if (row.has_gi && row.gi_relative_path?.trim()) {
-    paths.push(row.gi_relative_path.trim())
-  }
-  if (row.has_kg && row.kg_relative_path?.trim()) {
-    paths.push(row.kg_relative_path.trim())
-  }
-  if (paths.length > 0) {
-    try {
-      // Snapshot before-count to detect the no-op short-circuit in
-      // ``appendRelativeArtifacts`` (early-returns when every requested
-      // path is already in the current selection). On a no-op the natural
-      // redraw chain doesn't fire, the FSM stays in ``loading_fetch``,
-      // and the apply path never runs → stuck-timeout at 15s. The
-      // ``loadSelected`` follow-up forces a re-parse + redraw which
-      // drives ``finishLayoutPass``. When the append DOES add new paths,
-      // the natural redraw is enough — an extra ``loadSelected`` would
-      // re-trigger layout AFTER ``finishLayoutPass`` already centered
-      // the camera, pushing the selected node off-centre (H2.6 hot-state
-      // class). Gate the force on whether append actually changed state.
-      const beforeCount = artifacts.selectedRelPaths.length
-      await artifacts.appendRelativeArtifacts(paths)
-      if (artifacts.selectedRelPaths.length === beforeCount) {
-        // Wait briefly so the natural chain (subject change → watcher →
-        // tab-activate → tryApplyPendingFocus) gets a chance to drive
-        // the FSM to ready on its own. Only force a redraw when the FSM
-        // is still stuck — that's the same-tab-already-active case the
-        // Tier-3 P2.5/P2.6 walk catches.
-        await new Promise<void>((r) => setTimeout(r, 600))
-        const stillStuck =
-          graphHandoff.state === 'loading_fetch' ||
-          graphHandoff.state === 'loading_bootstrap' ||
-          graphHandoff.state === 'loading_merge'
-        if (stillStuck) {
-          await artifacts.loadSelected({ preserveExpansion: true })
+  // Proactive episode-artifact load is needed ONLY when the graph
+  // already has content from a prior handoff (e.g. a Digest pill loaded
+  // a topic band's hits, and this Library click targets an episode whose
+  // artifacts are now also "in the store" — the natural watcher chain
+  // doesn't fire because there's nothing new to fetch → FSM
+  // stuck-timeout). Tier-3 P2.5 / P2.6 catch this.
+  //
+  // When the graph is EMPTY (first click of session), the baseline load
+  // ``ensureCorpusGraphBaselineForHandoff`` is already in flight and
+  // running it in parallel with my append races ``selectedRelPaths``
+  // and produces a partial graph (Tier-2 P1.1 / P1.6 / P2.1 / P2.4 /
+  // P3.1 regression — node rendered at y=-470 well off-canvas). In that
+  // case skip the proactive append and let the baseline load do its job;
+  // the natural redraw + ``finishLayoutPass`` chain handles apply.
+  const hasExistingGraphContent = artifacts.selectedRelPaths.length > 0
+  void ensureDefaultCorpusGraphIfNeeded()
+  if (hasExistingGraphContent) {
+    const paths: string[] = []
+    if (row.has_gi && row.gi_relative_path?.trim()) {
+      paths.push(row.gi_relative_path.trim())
+    }
+    if (row.has_kg && row.kg_relative_path?.trim()) {
+      paths.push(row.kg_relative_path.trim())
+    }
+    if (paths.length > 0) {
+      try {
+        const beforeCount = artifacts.selectedRelPaths.length
+        await artifacts.appendRelativeArtifacts(paths)
+        if (artifacts.selectedRelPaths.length === beforeCount) {
+          // No-op append (all paths already loaded). Wait briefly so the
+          // natural chain (subject change → watcher → tab-activate →
+          // tryApplyPendingFocus) gets a chance to drive the FSM to
+          // ready on its own. Only force a redraw when the FSM is still
+          // stuck — that's the same-tab-already-active Tier-3 case.
+          await new Promise<void>((r) => setTimeout(r, 600))
+          const stillStuck =
+            graphHandoff.state === 'loading_fetch' ||
+            graphHandoff.state === 'loading_bootstrap' ||
+            graphHandoff.state === 'loading_merge'
+          if (stillStuck) {
+            await artifacts.loadSelected({ preserveExpansion: true })
+          }
         }
+      } catch {
+        /* FSM will surface the apply failure if the cy node remains missing */
       }
-    } catch {
-      /* FSM will surface the apply failure if the cy node remains missing */
     }
   }
   emit('switch-main-tab', 'graph')
