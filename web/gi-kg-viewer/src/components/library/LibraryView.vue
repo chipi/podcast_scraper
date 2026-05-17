@@ -388,7 +388,11 @@ async function openEpisodeInGraph(row: CorpusEpisodeListItem): Promise<void> {
     uiTitle: row.episode_title?.trim() || null,
     episodeId: row.episode_id ?? null,
   })
-  void ensureDefaultCorpusGraphIfNeeded()
+  // Await the baseline load BEFORE the proactive append: running them
+  // in parallel (void + await) raced ``selectedRelPaths`` updates and
+  // produced partial graphs with off-screen camera anchors (Tier-2 P1.1
+  // / P1.6 / P2.1 / P2.4 / P3.1 regression).
+  await ensureDefaultCorpusGraphIfNeeded()
   // Proactively load this episode's GI/KG artifacts so the FSM's apply
   // step can resolve the target cy node. Same fix class as V3 (Search →
   // Graph): when a prior handoff (e.g. Digest topic-pill) left the graph
