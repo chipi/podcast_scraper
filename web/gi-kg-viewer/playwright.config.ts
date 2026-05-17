@@ -9,6 +9,13 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url))
  */
 export default defineConfig({
   testDir: './e2e',
+  // ``e2e/validation/`` holds Tier-3 specs that require a running ``make
+  // serve`` stack + an operator-supplied ``CORPUS_PATH`` env var. They
+  // hard-error at module load when ``CORPUS_PATH`` is unset (intentional —
+  // see ``e2e/validation/real-corpus.spec.ts`` header), so the default
+  // viewer-e2e GHA job must not pick them up. They run under their own
+  // ``playwright.validation.config.ts`` invoked by ``make ci-ui-validation``.
+  testIgnore: ['**/validation/**'],
   fullyParallel: true,
   forbidOnly: Boolean(process.env.CI),
   retries: process.env.CI ? 1 : 0,
