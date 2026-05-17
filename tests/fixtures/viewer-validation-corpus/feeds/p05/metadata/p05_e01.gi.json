@@ -2,17 +2,17 @@
   "edges": [
     {
       "from": "episode:ac5784fa-1c94-5cd8-99c6-c4f0be157a64",
+      "to": "topic:science-research",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ac5784fa-1c94-5cd8-99c6-c4f0be157a64",
       "to": "topic:without-the",
       "type": "MENTIONS"
     },
     {
       "from": "episode:ac5784fa-1c94-5cd8-99c6-c4f0be157a64",
       "to": "topic:welcome-back-to",
-      "type": "MENTIONS"
-    },
-    {
-      "from": "episode:ac5784fa-1c94-5cd8-99c6-c4f0be157a64",
-      "to": "topic:risk-is-you-know",
       "type": "MENTIONS"
     },
     {
@@ -62,6 +62,14 @@
       "type": "Episode"
     },
     {
+      "id": "topic:science-research",
+      "properties": {
+        "label": "Science & research",
+        "score": 0.8
+      },
+      "type": "Topic"
+    },
+    {
       "id": "topic:without-the",
       "properties": {
         "label": "without the",
@@ -73,14 +81,6 @@
       "id": "topic:welcome-back-to",
       "properties": {
         "label": "welcome back to",
-        "score": 0.8
-      },
-      "type": "Topic"
-    },
-    {
-      "id": "topic:risk-is-you-know",
-      "properties": {
-        "label": "risk is you know",
         "score": 0.8
       },
       "type": "Topic"

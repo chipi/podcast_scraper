@@ -7,12 +7,12 @@
     },
     {
       "from": "episode:096240a2-e115-5a3c-98b4-2d852b096eda",
-      "to": "topic:welcome-back-to",
+      "to": "topic:technology",
       "type": "MENTIONS"
     },
     {
       "from": "episode:096240a2-e115-5a3c-98b4-2d852b096eda",
-      "to": "topic:what-does-that-look",
+      "to": "topic:welcome-back-to",
       "type": "MENTIONS"
     },
     {
@@ -70,17 +70,17 @@
       "type": "Topic"
     },
     {
-      "id": "topic:welcome-back-to",
+      "id": "topic:technology",
       "properties": {
-        "label": "welcome back to",
+        "label": "Technology",
         "score": 0.8
       },
       "type": "Topic"
     },
     {
-      "id": "topic:what-does-that-look",
+      "id": "topic:welcome-back-to",
       "properties": {
-        "label": "what does that look",
+        "label": "welcome back to",
         "score": 0.8
       },
       "type": "Topic"

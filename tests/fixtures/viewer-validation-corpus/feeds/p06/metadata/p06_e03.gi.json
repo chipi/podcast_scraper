@@ -2,17 +2,17 @@
   "edges": [
     {
       "from": "episode:01835c28-431e-5b5a-adbb-5ec01411a299",
+      "to": "topic:business-markets",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:01835c28-431e-5b5a-adbb-5ec01411a299",
       "to": "topic:welcome-back-to",
       "type": "MENTIONS"
     },
     {
       "from": "episode:01835c28-431e-5b5a-adbb-5ec01411a299",
       "to": "topic:what-do-you-recommend",
-      "type": "MENTIONS"
-    },
-    {
-      "from": "episode:01835c28-431e-5b5a-adbb-5ec01411a299",
-      "to": "topic:tire-pressure-and-casing",
       "type": "MENTIONS"
     },
     {
@@ -62,6 +62,14 @@
       "type": "Episode"
     },
     {
+      "id": "topic:business-markets",
+      "properties": {
+        "label": "Business & markets",
+        "score": 0.8
+      },
+      "type": "Topic"
+    },
+    {
       "id": "topic:welcome-back-to",
       "properties": {
         "label": "welcome back to",
@@ -73,14 +81,6 @@
       "id": "topic:what-do-you-recommend",
       "properties": {
         "label": "what do you recommend",
-        "score": 0.8
-      },
-      "type": "Topic"
-    },
-    {
-      "id": "topic:tire-pressure-and-casing",
-      "properties": {
-        "label": "tire pressure and casing",
         "score": 0.8
       },
       "type": "Topic"

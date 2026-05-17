@@ -13,20 +13,49 @@
       "topic_id": "topic:health"
     }
   ],
+  "episode": {
+    "episode_id": "22aa61d4-d535-5e72-ae9b-d44d9a3054d1",
+    "published_date": "2026-05-14",
+    "title": "The Long View: Biohacking \u2014 Episode 1"
+  },
   "episode_id": "22aa61d4-d535-5e72-ae9b-d44d9a3054d1",
   "episode_title": "The Long View: Biohacking \u2014 Episode 1",
+  "feed": {
+    "description": "Solo, long-form reflections on biohacking: the state of the field in 2025, what actually works, and the ethics and limits of human optimization.",
+    "feed_id": "sha256:255b515964dcdf7f0f2123a46053fbf8c961882868ea3c88bb8ba794824c52e8",
+    "title": "The Long View: Biohacking",
+    "url": "http://localhost/"
+  },
   "feed_display_title": "The Long View: Biohacking",
   "feed_id": "sha256:255b515964dcdf7f0f2123a46053fbf8c961882868ea3c88bb8ba794824c52e8",
   "gi_relative_path": "feeds/p09/metadata/p09_e01.gi.json",
+  "grounded_insights": {
+    "artifact_path": "feeds/p09/metadata/p09_e01.gi.json",
+    "schema_version": "1.0"
+  },
   "has_gi": true,
   "has_kg": true,
   "kg_relative_path": "feeds/p09/metadata/p09_e01.kg.json",
+  "knowledge_graph": {
+    "artifact_path": "feeds/p09/metadata/p09_e01.kg.json",
+    "schema_version": "1.1"
+  },
   "publish_date": "2026-05-14",
   "schema_version": "1",
+  "summary": {
+    "bullets": [
+      "Alex Morgan: Biohacking in 2025: From Fringe to Framework\n\nAlex Morgan: In 2025, biohacking is everywhere in public conversation, but the signal is often mixed with hype.",
+      "In this episode, I\u2019m going to build a grounded map: what\u2019s real, what\u2019s uncertain, and what you can do without turning your life into an optimization project.",
+      "Alex Morgan: Where the field is right now."
+    ],
+    "preview": "Alex Morgan: Biohacking in 2025: From Fringe to Framework\n\nAlex Morgan: In 2025, biohacking is everywhere in public conversation, but the si\u2026",
+    "text": "Alex Morgan: Biohacking in 2025: From Fringe to Framework\n\nAlex Morgan: In 2025, biohacking is everywhere in public conversation, but the signal is often mixed with hype.\nIn this episode, I\u2019m going to build a grounded map: what\u2019s real, what\u2019s uncertain, and what you can do without turning your life into an optimization project.\nAlex Morgan: Where the field is right now.",
+    "title": "The Long View: Biohacking \u2014 Episode 1 \u2014 synthetic"
+  },
   "summary_bullet_graph_topic_ids": [
     "topic:technology",
     "topic:health",
-    "topic:biohacking-in"
+    "topic:science-research"
   ],
   "summary_bullets": [
     "Alex Morgan: Biohacking in 2025: From Fringe to Framework\n\nAlex Morgan: In 2025, biohacking is everywhere in public conversation, but the signal is often mixed with hype.",
@@ -39,6 +68,6 @@
   "topics": [
     "technology",
     "health",
-    "biohacking in"
+    "Science & research"
   ]
 }

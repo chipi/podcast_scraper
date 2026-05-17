@@ -8,25 +8,54 @@
     },
     {
       "in_topic_cluster": false,
-      "label": "welcome back to",
+      "label": "Technology",
       "topic_cluster_compound_id": null,
-      "topic_id": "topic:welcome-back-to"
+      "topic_id": "topic:technology"
     }
   ],
+  "episode": {
+    "episode_id": "096240a2-e115-5a3c-98b4-2d852b096eda",
+    "published_date": "2026-05-13",
+    "title": "Practical Systems \u2014 Episode 2"
+  },
   "episode_id": "096240a2-e115-5a3c-98b4-2d852b096eda",
   "episode_title": "Practical Systems \u2014 Episode 2",
+  "feed": {
+    "description": "Software engineering conversations: reliability, architecture, delivery, and the tradeoffs nobody puts in the blog post.",
+    "feed_id": "sha256:05eff208d6fd774940bed9fd154c6a46b9325e32cf95e1769f8eb679505ef414",
+    "title": "Practical Systems",
+    "url": "http://localhost/"
+  },
   "feed_display_title": "Practical Systems",
   "feed_id": "sha256:05eff208d6fd774940bed9fd154c6a46b9325e32cf95e1769f8eb679505ef414",
   "gi_relative_path": "feeds/p02/metadata/p02_e02.gi.json",
+  "grounded_insights": {
+    "artifact_path": "feeds/p02/metadata/p02_e02.gi.json",
+    "schema_version": "1.0"
+  },
   "has_gi": true,
   "has_kg": true,
   "kg_relative_path": "feeds/p02/metadata/p02_e02.kg.json",
+  "knowledge_graph": {
+    "artifact_path": "feeds/p02/metadata/p02_e02.kg.json",
+    "schema_version": "1.1"
+  },
   "publish_date": "2026-05-13",
   "schema_version": "1",
+  "summary": {
+    "bullets": [
+      "# Practical Systems \u2014 Episode\n## Staff Engineer Communication Patterns\nHost: Ethan\nGuest: Jonas\nEthan: Welcome back to Practical Systems.",
+      "Today we\u2019re talking about staff engineer communication patterns, and I\u2019m joined by Jonas.",
+      "I\u2019m excited\u2014this is a topic people care about, and there\u2019s a lot of practical nuance."
+    ],
+    "preview": "# Practical Systems \u2014 Episode\n## Staff Engineer Communication Patterns\nHost: Ethan\nGuest: Jonas\nEthan: Welcome back to Practical Systems.",
+    "text": "# Practical Systems \u2014 Episode\n## Staff Engineer Communication Patterns\nHost: Ethan\nGuest: Jonas\nEthan: Welcome back to Practical Systems.\nToday we\u2019re talking about staff engineer communication patterns, and I\u2019m joined by Jonas.\nI\u2019m excited\u2014this is a topic people care about, and there\u2019s a lot of practical nuance.",
+    "title": "Practical Systems \u2014 Episode 2 \u2014 synthetic"
+  },
   "summary_bullet_graph_topic_ids": [
     "topic:technology",
-    "topic:welcome-back-to",
-    "topic:what-does-that-look"
+    "topic:technology",
+    "topic:welcome-back-to"
   ],
   "summary_bullets": [
     "# Practical Systems \u2014 Episode\n## Staff Engineer Communication Patterns\nHost: Ethan\nGuest: Jonas\nEthan: Welcome back to Practical Systems.",
@@ -38,7 +67,7 @@
   "summary_title": "Practical Systems \u2014 Episode 2 \u2014 synthetic",
   "topics": [
     "technology",
-    "welcome back to",
-    "what does that look"
+    "Technology",
+    "welcome back to"
   ]
 }

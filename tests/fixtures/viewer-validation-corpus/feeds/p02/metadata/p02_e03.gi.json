@@ -7,12 +7,12 @@
     },
     {
       "from": "episode:d2fb36a0-6f97-55ee-a67a-e97dba3b7f27",
-      "to": "topic:security-as",
+      "to": "topic:business-markets",
       "type": "MENTIONS"
     },
     {
       "from": "episode:d2fb36a0-6f97-55ee-a67a-e97dba3b7f27",
-      "to": "topic:welcome-back-to",
+      "to": "topic:security-as",
       "type": "MENTIONS"
     },
     {
@@ -70,17 +70,17 @@
       "type": "Topic"
     },
     {
-      "id": "topic:security-as",
+      "id": "topic:business-markets",
       "properties": {
-        "label": "security as",
+        "label": "Business & markets",
         "score": 0.8
       },
       "type": "Topic"
     },
     {
-      "id": "topic:welcome-back-to",
+      "id": "topic:security-as",
       "properties": {
-        "label": "welcome back to",
+        "label": "security as",
         "score": 0.8
       },
       "type": "Topic"

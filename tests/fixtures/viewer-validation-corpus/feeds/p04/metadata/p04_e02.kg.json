@@ -14,6 +14,11 @@
       "from": "episode:9833b47e-0cc8-50b9-a6da-65dc0f6d053f",
       "to": "topic:technology",
       "type": "RELATES_TO"
+    },
+    {
+      "from": "episode:9833b47e-0cc8-50b9-a6da-65dc0f6d053f",
+      "to": "topic:gear",
+      "type": "RELATES_TO"
     }
   ],
   "episode_id": "9833b47e-0cc8-50b9-a6da-65dc0f6d053f",
@@ -51,6 +56,13 @@
       "id": "topic:technology",
       "properties": {
         "label": "technology"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:gear",
+      "properties": {
+        "label": "gear"
       },
       "type": "Topic"
     }

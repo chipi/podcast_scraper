@@ -12,7 +12,7 @@
     },
     {
       "from": "episode:799ba6c0-3117-50e1-8c97-c2d8b695cce4",
-      "to": "topic:without-the",
+      "to": "topic:technology",
       "type": "MENTIONS"
     },
     {
@@ -78,9 +78,9 @@
       "type": "Topic"
     },
     {
-      "id": "topic:without-the",
+      "id": "topic:technology",
       "properties": {
-        "label": "without the",
+        "label": "Technology",
         "score": 0.8
       },
       "type": "Topic"

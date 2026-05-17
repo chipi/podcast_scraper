@@ -2,31 +2,60 @@
   "cil_digest_topics": [
     {
       "in_topic_cluster": false,
-      "label": "welcome back to",
+      "label": "Technology",
       "topic_cluster_compound_id": null,
-      "topic_id": "topic:welcome-back-to"
+      "topic_id": "topic:technology"
     },
     {
       "in_topic_cluster": false,
-      "label": "what does that look",
+      "label": "welcome back to",
       "topic_cluster_compound_id": null,
-      "topic_id": "topic:what-does-that-look"
+      "topic_id": "topic:welcome-back-to"
     }
   ],
+  "episode": {
+    "episode_id": "78741d49-00ad-5f5f-b127-8fd1c1b6844c",
+    "published_date": "2026-05-16",
+    "title": "Long Horizon Notes \u2014 Episode 2"
+  },
   "episode_id": "78741d49-00ad-5f5f-b127-8fd1c1b6844c",
   "episode_title": "Long Horizon Notes \u2014 Episode 2",
+  "feed": {
+    "description": "Investing conversations for normal humans: frameworks, risk, and the habits that matter more than predictions.",
+    "feed_id": "sha256:f4abc2ce662eb5875453632ed70c87b2fbc7394bbeef83c9d1d0918febd5bebe",
+    "title": "Long Horizon Notes",
+    "url": "http://localhost/"
+  },
   "feed_display_title": "Long Horizon Notes",
   "feed_id": "sha256:f4abc2ce662eb5875453632ed70c87b2fbc7394bbeef83c9d1d0918febd5bebe",
   "gi_relative_path": "feeds/p05/metadata/p05_e02.gi.json",
+  "grounded_insights": {
+    "artifact_path": "feeds/p05/metadata/p05_e02.gi.json",
+    "schema_version": "1.0"
+  },
   "has_gi": true,
   "has_kg": true,
   "kg_relative_path": "feeds/p05/metadata/p05_e02.kg.json",
+  "knowledge_graph": {
+    "artifact_path": "feeds/p05/metadata/p05_e02.kg.json",
+    "schema_version": "1.1"
+  },
   "publish_date": "2026-05-16",
   "schema_version": "1",
+  "summary": {
+    "bullets": [
+      "# Long Horizon Notes \u2014 Episode\n## Real Estate: Numbers Before Narratives\nHost: Nora\nGuest: Isabel\nNora: Welcome back to Long Horizon Notes.",
+      "Today we\u2019re talking about real estate: numbers before narratives, and I\u2019m joined by Isabel.",
+      "Isabel, thanks for being here."
+    ],
+    "preview": "# Long Horizon Notes \u2014 Episode\n## Real Estate: Numbers Before Narratives\nHost: Nora\nGuest: Isabel\nNora: Welcome back to Long Horizon Notes.",
+    "text": "# Long Horizon Notes \u2014 Episode\n## Real Estate: Numbers Before Narratives\nHost: Nora\nGuest: Isabel\nNora: Welcome back to Long Horizon Notes.\nToday we\u2019re talking about real estate: numbers before narratives, and I\u2019m joined by Isabel.\nIsabel, thanks for being here.",
+    "title": "Long Horizon Notes \u2014 Episode 2 \u2014 synthetic"
+  },
   "summary_bullet_graph_topic_ids": [
+    "topic:technology",
     "topic:welcome-back-to",
-    "topic:what-does-that-look",
-    "topic:index-investing-works-because"
+    "topic:what-does-that-look"
   ],
   "summary_bullets": [
     "# Long Horizon Notes \u2014 Episode\n## Real Estate: Numbers Before Narratives\nHost: Nora\nGuest: Isabel\nNora: Welcome back to Long Horizon Notes.",
@@ -37,8 +66,8 @@
   "summary_text": "# Long Horizon Notes \u2014 Episode\n## Real Estate: Numbers Before Narratives\nHost: Nora\nGuest: Isabel\nNora: Welcome back to Long Horizon Notes.\nToday we\u2019re talking about real estate: numbers before narratives, and I\u2019m joined by Isabel.\nIsabel, thanks for being here.",
   "summary_title": "Long Horizon Notes \u2014 Episode 2 \u2014 synthetic",
   "topics": [
+    "Technology",
     "welcome back to",
-    "what does that look",
-    "index investing works because"
+    "what does that look"
   ]
 }

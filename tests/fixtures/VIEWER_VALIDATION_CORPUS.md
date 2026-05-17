@@ -42,7 +42,9 @@ schema changes.
 
 The API's `--output-dir` must be a parent of (or equal to) the fixture
 path. The default `make serve` uses `.test_outputs/` as the root; use
-the dedicated target instead:
+the dedicated target instead.
+
+For V1 / V5 only (no vector index required):
 
 ```bash
 # Terminal 1
@@ -52,32 +54,48 @@ make serve-for-validation
 make ci-ui-validation CORPUS=$PWD/tests/fixtures/viewer-validation-corpus
 ```
 
+For the full set (V1, V2, V4, V5 — V3 still cleanly skips), build the
+FAISS index + topic clusters first:
+
+```bash
+# One-time prereq (downloads ~80MB MiniLM model on first run):
+make preload-ml-models
+
+# Build the in-corpus FAISS index + topic_clusters.json
+make build-validation-index
+
+# Then terminal 1 + terminal 2 as above.
+```
+
 ## What works against the synthetic corpus
 
 - **V1 — Library row "Open in graph"** ✓ Episode resolves, camera
   centers, full 6-point contract holds.
-- **V3 — Search "Show on graph"** — cleanly skipped (no vector index,
-  expected per RFC-086).
+- **V2 — Digest topic pill "Open in graph"** ✓ (after
+  `make build-validation-index`) — the FAISS index gives
+  `/api/corpus/digest` real `kg_topic` + `insight` embeddings to
+  derive topic-bands from.
+- **V3 — Search "Show on graph"** ✓ (after
+  `make build-validation-index`) — the FAISS index lets semantic search
+  return focusable hits with a "Show on graph" affordance; the FSM
+  resolves them like any other handoff.
+- **V4 — Dashboard topic-cluster chip** ✓ (after
+  `make build-validation-index`) — `topic_clusters.json` is built at
+  threshold 0.35, calibrated for this corpus's umbrella-topic structure
+  (typically yields 2 multi-member clusters — e.g. "outdoor activities"
+  with "environment", "technology" with variants).
 - **V5 — Hot-state Library → Library** ✓ (FIXED in #775 via
   `EpisodeDetailPanel.openInGraph` microtask retry).
 
-## Known gaps
+## Why the prereq instead of a checked-in index
 
-- **V2 — Digest topic pill** ✗ The API's `/api/corpus/digest` endpoint
-  computes topic bands **dynamically from the corpus's vector index**
-  (FAISS). The synthetic corpus has no index → digest returns empty
-  bands → no pills render → V2 times out. The script DOES inject 5
-  cross-cutting umbrella topics into each episode's
-  `cil_digest_topics` so future API changes that read pre-built digest
-  data would surface them.
-- **V4 — Dashboard topic-cluster chip** ✗ Same root cause — the
-  Dashboard's TopicLandscape reads cluster data the API derives from
-  indexed content.
-
-To enable V2/V4 against the synthetic corpus, future work needs
-either: (a) a checked-in vector index (large, complex), or (b) an API
-change that lets the digest endpoint optionally read pre-built
-`digest.json`. Tracked in #774.
+`vectors.faiss` + `metadata.json` are binary / hash-keyed by embedding
+model id, so they would churn on every model-version bump and bloat
+the repo. Building the index at CI step 0 (or via
+`make build-validation-index` locally) is ~30s on a warm runner and
+exercises the same indexer code that runs against operator corpora —
+making the Tier-3 walk a real end-to-end probe of the indexing path,
+not just a viewer walk.
 
 ## When to use which corpus
 

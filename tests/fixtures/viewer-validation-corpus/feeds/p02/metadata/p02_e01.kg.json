@@ -7,12 +7,22 @@
     },
     {
       "from": "episode:3d0ec494-98ba-5f71-b2bd-c8559c779786",
-      "to": "entity:welcome-back-to",
+      "to": "entity:science-research",
       "type": "MENTIONS"
     },
     {
       "from": "episode:3d0ec494-98ba-5f71-b2bd-c8559c779786",
       "to": "topic:technology",
+      "type": "RELATES_TO"
+    },
+    {
+      "from": "episode:3d0ec494-98ba-5f71-b2bd-c8559c779786",
+      "to": "topic:science-research",
+      "type": "RELATES_TO"
+    },
+    {
+      "from": "episode:3d0ec494-98ba-5f71-b2bd-c8559c779786",
+      "to": "topic:welcome-back-to",
       "type": "RELATES_TO"
     }
   ],
@@ -40,10 +50,10 @@
       "type": "Entity"
     },
     {
-      "id": "entity:welcome-back-to",
+      "id": "entity:science-research",
       "properties": {
         "category": "Concept",
-        "label": "Welcome Back To"
+        "label": "Science & Research"
       },
       "type": "Entity"
     },
@@ -51,6 +61,20 @@
       "id": "topic:technology",
       "properties": {
         "label": "technology"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:science-research",
+      "properties": {
+        "label": "Science & research"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:welcome-back-to",
+      "properties": {
+        "label": "welcome back to"
       },
       "type": "Topic"
     }

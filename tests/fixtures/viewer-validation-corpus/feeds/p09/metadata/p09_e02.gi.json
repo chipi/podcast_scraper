@@ -12,7 +12,7 @@
     },
     {
       "from": "episode:d24c1620-8d16-54dd-b681-2f2e06c0b579",
-      "to": "topic:in-this-episode",
+      "to": "topic:technology",
       "type": "MENTIONS"
     },
     {
@@ -78,9 +78,9 @@
       "type": "Topic"
     },
     {
-      "id": "topic:in-this-episode",
+      "id": "topic:technology",
       "properties": {
-        "label": "in this episode",
+        "label": "Technology",
         "score": 0.8
       },
       "type": "Topic"

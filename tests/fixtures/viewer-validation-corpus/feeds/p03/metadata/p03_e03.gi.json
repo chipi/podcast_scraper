@@ -12,7 +12,7 @@
     },
     {
       "from": "episode:9a2d05c1-8854-5ae6-8ad0-14fcf37d1de9",
-      "to": "topic:welcome-back-to",
+      "to": "topic:business-markets",
       "type": "MENTIONS"
     },
     {
@@ -78,9 +78,9 @@
       "type": "Topic"
     },
     {
-      "id": "topic:welcome-back-to",
+      "id": "topic:business-markets",
       "properties": {
-        "label": "welcome back to",
+        "label": "Business & markets",
         "score": 0.8
       },
       "type": "Topic"

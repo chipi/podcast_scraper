@@ -2,18 +2,6 @@
   "cluster_count": 5,
   "clusters": [
     {
-      "canonical_label": "Gear",
-      "canonical_topic_id": "topic:gear",
-      "cil_alias_target_topic_id": "topic:gear",
-      "graph_compound_parent_id": "tc:gear-cluster",
-      "member_count": 1,
-      "members": [
-        {
-          "topic_id": "topic:gear"
-        }
-      ]
-    },
-    {
       "canonical_label": "Outdoor Activities",
       "canonical_topic_id": "topic:outdoor-activities",
       "cil_alias_target_topic_id": "topic:outdoor-activities",
@@ -26,14 +14,14 @@
       ]
     },
     {
-      "canonical_label": "Environment",
-      "canonical_topic_id": "topic:environment",
-      "cil_alias_target_topic_id": "topic:environment",
-      "graph_compound_parent_id": "tc:environment-cluster",
+      "canonical_label": "Technology",
+      "canonical_topic_id": "topic:technology",
+      "cil_alias_target_topic_id": "topic:technology",
+      "graph_compound_parent_id": "tc:technology-cluster",
       "member_count": 1,
       "members": [
         {
-          "topic_id": "topic:environment"
+          "topic_id": "topic:technology"
         }
       ]
     },
@@ -50,19 +38,31 @@
       ]
     },
     {
-      "canonical_label": "Technology",
-      "canonical_topic_id": "topic:technology",
-      "cil_alias_target_topic_id": "topic:technology",
-      "graph_compound_parent_id": "tc:technology-cluster",
+      "canonical_label": "Environment",
+      "canonical_topic_id": "topic:environment",
+      "cil_alias_target_topic_id": "topic:environment",
+      "graph_compound_parent_id": "tc:environment-cluster",
       "member_count": 1,
       "members": [
         {
-          "topic_id": "topic:technology"
+          "topic_id": "topic:environment"
+        }
+      ]
+    },
+    {
+      "canonical_label": "Gear",
+      "canonical_topic_id": "topic:gear",
+      "cil_alias_target_topic_id": "topic:gear",
+      "graph_compound_parent_id": "tc:gear-cluster",
+      "member_count": 1,
+      "members": [
+        {
+          "topic_id": "topic:gear"
         }
       ]
     }
   ],
   "schema_version": "2",
-  "singletons": 6,
-  "topic_count": 11
+  "singletons": 5,
+  "topic_count": 10
 }

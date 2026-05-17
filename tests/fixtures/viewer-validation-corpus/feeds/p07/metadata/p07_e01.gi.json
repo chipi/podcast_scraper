@@ -12,7 +12,7 @@
     },
     {
       "from": "episode:5ef53e66-e083-5fcb-b555-a3814ebb6b39",
-      "to": "topic:where-do-the-trade",
+      "to": "topic:science-research",
       "type": "MENTIONS"
     },
     {
@@ -78,9 +78,9 @@
       "type": "Topic"
     },
     {
-      "id": "topic:where-do-the-trade",
+      "id": "topic:science-research",
       "properties": {
-        "label": "where do the trade",
+        "label": "Science & research",
         "score": 0.8
       },
       "type": "Topic"

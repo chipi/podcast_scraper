@@ -9,11 +9,12 @@ name: Tier-3 viewer validation
 # This is the "we are in control, not just now but always" loop from
 # RFC-086 §"The institutional rule".
 #
-# What it covers (against the synthetic corpus, which has no vector
-# index — so V2/V4 are not exercised here; only operator real corpora
-# can validate those):
+# What it covers (against the synthetic corpus, with an in-CI-built
+# FAISS index + topic_clusters.json):
 #   V1  Library row "Open in graph"            ✓
-#   V3  Search "Show on graph"                  cleanly skipped (no index)
+#   V2  Digest topic pill "Open in graph"      ✓ (FAISS-backed)
+#   V3  Search "Show on graph"                  ✓ (FAISS-backed)
+#   V4  Dashboard topic-cluster chip            ✓ (topic_clusters.json)
 #   V5  Hot-state Library → Library             ✓ (post-#775 fix)
 #
 # Triggers: weekly Sunday 07:00 UTC + manual dispatch.
@@ -79,6 +80,42 @@ jobs:
           # against the latest text fixtures; if the checked-in corpus
           # has drifted from the script output, the diff will surface.
           .venv/bin/python scripts/build_synthetic_validation_corpus.py
+
+      - name: Cache HuggingFace hub (sentence-transformers MiniLM-L6-v2 ~80MB)
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/huggingface
+          key: hf-hub-minilm-l6-v2
+          restore-keys: |
+            hf-hub-
+
+      - name: Preload sentence-transformers embedding model
+        run: |
+          # ``index_corpus`` runs with allow_download=False — the model
+          # MUST be cached before indexing. preload_ml_models.py is the
+          # production way to populate the HF cache for embedding-only
+          # use (SKIP_GIL=1 would skip the embedding model — we need it).
+          .venv/bin/python scripts/cache/preload_ml_models.py
+
+      - name: Build FAISS index against synthetic corpus (V2 prereq)
+        run: |
+          # /api/corpus/digest derives topic-bands dynamically from
+          # FAISS semantic search over kg_topic + insight embeddings.
+          # Without this step, the digest endpoint returns empty bands
+          # and V2 (Digest topic pill "Open in graph") times out.
+          .venv/bin/python -m podcast_scraper.cli index \
+            --output-dir tests/fixtures/viewer-validation-corpus \
+            --rebuild --vector-faiss-index-mode flat
+
+      - name: Build topic clusters (V4 prereq)
+        run: |
+          # /api/corpus/topic-clusters reads <corpus>/search/topic_clusters.json
+          # directly. The threshold (0.35) is calibrated for the synthetic
+          # corpus's umbrella-topic structure — see
+          # tests/fixtures/VIEWER_VALIDATION_CORPUS.md.
+          .venv/bin/python -m podcast_scraper.cli topic-clusters \
+            --output-dir tests/fixtures/viewer-validation-corpus \
+            --threshold 0.35
 
       - name: Start serve-for-validation (API + UI) in background
         run: |
@@ -169,11 +206,14 @@ jobs:
                 '## What this catches',
                 '',
                 '- V1 — Library row "Open in graph" full 6-point contract',
-                '- V3 — cleanly skipped (no vector index)',
+                '- V2 — Digest topic pill "Open in graph" (FAISS-backed)',
+                '- V3 — Search "Show on graph" (FAISS-backed)',
+                '- V4 — Dashboard topic-cluster chip',
                 '- V5 — Hot-state Library → Library supersession',
                 '',
-                'V2 / V4 are NOT exercised here — they require a real vector index.',
-                'Operator validation against a real corpus remains the path for those.',
+                'V2 / V4 prerequisites are built in-CI (FAISS index +',
+                '``topic_clusters.json``) before the validation walk. See',
+                '``tests/fixtures/VIEWER_VALIDATION_CORPUS.md``.',
                 '',
                 '## Next steps',
                 '',

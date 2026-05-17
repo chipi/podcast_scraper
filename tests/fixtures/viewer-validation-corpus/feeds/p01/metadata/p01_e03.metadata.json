@@ -13,20 +13,49 @@
       "topic_id": "topic:gear"
     }
   ],
+  "episode": {
+    "episode_id": "f6f1df34-2251-5301-b1c7-68ee8468bf65",
+    "published_date": "2026-05-12",
+    "title": "Singletrack Sessions \u2014 Episode 3"
+  },
   "episode_id": "f6f1df34-2251-5301-b1c7-68ee8468bf65",
   "episode_title": "Singletrack Sessions \u2014 Episode 3",
+  "feed": {
+    "description": "Mountain biking talk: trails, technique, gear, and the people who build the ride.",
+    "feed_id": "sha256:90167c0635d0f3d31fe8ebc87b372f75cd15166e02da8abb2df7dfeca65aa588",
+    "title": "Singletrack Sessions",
+    "url": "http://localhost/"
+  },
   "feed_display_title": "Singletrack Sessions",
   "feed_id": "sha256:90167c0635d0f3d31fe8ebc87b372f75cd15166e02da8abb2df7dfeca65aa588",
   "gi_relative_path": "feeds/p01/metadata/p01_e03.gi.json",
+  "grounded_insights": {
+    "artifact_path": "feeds/p01/metadata/p01_e03.gi.json",
+    "schema_version": "1.0"
+  },
   "has_gi": true,
   "has_kg": true,
   "kg_relative_path": "feeds/p01/metadata/p01_e03.kg.json",
+  "knowledge_graph": {
+    "artifact_path": "feeds/p01/metadata/p01_e03.kg.json",
+    "schema_version": "1.1"
+  },
   "publish_date": "2026-05-12",
   "schema_version": "1",
+  "summary": {
+    "bullets": [
+      "# Singletrack Sessions \u2014 Episode\n## The Mechanics of a Quiet, Fast Bike\nHost: Maya\nGuest: Noah\nMaya: Welcome back to Singletrack Sessions.",
+      "Today we\u2019re talking about the mechanics of a quiet, fast bike, and I\u2019m joined by Noah.",
+      "I\u2019m excited\u2014this is a topic people care about, and there\u2019s a lot of practical nuance."
+    ],
+    "preview": "# Singletrack Sessions \u2014 Episode\n## The Mechanics of a Quiet, Fast Bike\nHost: Maya\nGuest: Noah\nMaya: Welcome back to Singletrack Sessions.",
+    "text": "# Singletrack Sessions \u2014 Episode\n## The Mechanics of a Quiet, Fast Bike\nHost: Maya\nGuest: Noah\nMaya: Welcome back to Singletrack Sessions.\nToday we\u2019re talking about the mechanics of a quiet, fast bike, and I\u2019m joined by Noah.\nI\u2019m excited\u2014this is a topic people care about, and there\u2019s a lot of practical nuance.",
+    "title": "Singletrack Sessions \u2014 Episode 3 \u2014 synthetic"
+  },
   "summary_bullet_graph_topic_ids": [
     "topic:outdoor-activities",
     "topic:gear",
-    "topic:mechanics-of-a"
+    "topic:business-markets"
   ],
   "summary_bullets": [
     "# Singletrack Sessions \u2014 Episode\n## The Mechanics of a Quiet, Fast Bike\nHost: Maya\nGuest: Noah\nMaya: Welcome back to Singletrack Sessions.",
@@ -39,6 +68,6 @@
   "topics": [
     "outdoor activities",
     "gear",
-    "mechanics of a"
+    "Business & markets"
   ]
 }

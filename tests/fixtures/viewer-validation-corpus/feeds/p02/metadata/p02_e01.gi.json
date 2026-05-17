@@ -7,12 +7,12 @@
     },
     {
       "from": "episode:3d0ec494-98ba-5f71-b2bd-c8559c779786",
-      "to": "topic:welcome-back-to",
+      "to": "topic:science-research",
       "type": "MENTIONS"
     },
     {
       "from": "episode:3d0ec494-98ba-5f71-b2bd-c8559c779786",
-      "to": "topic:what-does-that-look",
+      "to": "topic:welcome-back-to",
       "type": "MENTIONS"
     },
     {
@@ -70,17 +70,17 @@
       "type": "Topic"
     },
     {
-      "id": "topic:welcome-back-to",
+      "id": "topic:science-research",
       "properties": {
-        "label": "welcome back to",
+        "label": "Science & research",
         "score": 0.8
       },
       "type": "Topic"
     },
     {
-      "id": "topic:what-does-that-look",
+      "id": "topic:welcome-back-to",
       "properties": {
-        "label": "what does that look",
+        "label": "welcome back to",
         "score": 0.8
       },
       "type": "Topic"

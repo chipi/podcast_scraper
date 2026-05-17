@@ -2,17 +2,17 @@
   "edges": [
     {
       "from": "episode:7f877683-ea36-55d1-94f7-a5cc051ff3d0",
+      "to": "topic:business-markets",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:7f877683-ea36-55d1-94f7-a5cc051ff3d0",
       "to": "topic:management-for",
       "type": "MENTIONS"
     },
     {
       "from": "episode:7f877683-ea36-55d1-94f7-a5cc051ff3d0",
       "to": "topic:welcome-back-to",
-      "type": "MENTIONS"
-    },
-    {
-      "from": "episode:7f877683-ea36-55d1-94f7-a5cc051ff3d0",
-      "to": "topic:how-do-you-teach",
       "type": "MENTIONS"
     },
     {
@@ -62,6 +62,14 @@
       "type": "Episode"
     },
     {
+      "id": "topic:business-markets",
+      "properties": {
+        "label": "Business & markets",
+        "score": 0.8
+      },
+      "type": "Topic"
+    },
+    {
       "id": "topic:management-for",
       "properties": {
         "label": "management for",
@@ -73,14 +81,6 @@
       "id": "topic:welcome-back-to",
       "properties": {
         "label": "welcome back to",
-        "score": 0.8
-      },
-      "type": "Topic"
-    },
-    {
-      "id": "topic:how-do-you-teach",
-      "properties": {
-        "label": "how do you teach",
         "score": 0.8
       },
       "type": "Topic"

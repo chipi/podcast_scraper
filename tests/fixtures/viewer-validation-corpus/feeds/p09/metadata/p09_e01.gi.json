@@ -12,7 +12,7 @@
     },
     {
       "from": "episode:22aa61d4-d535-5e72-ae9b-d44d9a3054d1",
-      "to": "topic:biohacking-in",
+      "to": "topic:science-research",
       "type": "MENTIONS"
     },
     {
@@ -78,9 +78,9 @@
       "type": "Topic"
     },
     {
-      "id": "topic:biohacking-in",
+      "id": "topic:science-research",
       "properties": {
-        "label": "biohacking in",
+        "label": "Science & research",
         "score": 0.8
       },
       "type": "Topic"

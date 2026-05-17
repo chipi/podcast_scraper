@@ -14,6 +14,16 @@
       "from": "episode:09ead36d-954f-5cbb-ae3f-6f0d5985233d",
       "to": "topic:technology",
       "type": "RELATES_TO"
+    },
+    {
+      "from": "episode:09ead36d-954f-5cbb-ae3f-6f0d5985233d",
+      "to": "topic:gear",
+      "type": "RELATES_TO"
+    },
+    {
+      "from": "episode:09ead36d-954f-5cbb-ae3f-6f0d5985233d",
+      "to": "topic:science-research",
+      "type": "RELATES_TO"
     }
   ],
   "episode_id": "09ead36d-954f-5cbb-ae3f-6f0d5985233d",
@@ -51,6 +61,20 @@
       "id": "topic:technology",
       "properties": {
         "label": "technology"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:gear",
+      "properties": {
+        "label": "gear"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:science-research",
+      "properties": {
+        "label": "Science & research"
       },
       "type": "Topic"
     }

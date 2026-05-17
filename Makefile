@@ -1906,6 +1906,27 @@ serve-for-validation:
 	@echo "  $(PWD)/tests/fixtures/viewer-validation-corpus"
 	@SERVE_OUTPUT_DIR=$(PWD) $(MAKE) -j2 serve-api serve-ui
 
+build-validation-index:
+	# Build the FAISS index + topic_clusters.json against the in-repo
+	# synthetic validation corpus so V2 (digest topic-band) and V4
+	# (dashboard topic-cluster chip) can be exercised. Run this BEFORE
+	# ``make serve-for-validation`` if you want V2/V4 to work — V1/V5
+	# do not require it.
+	@CORPUS=$(if $(CORPUS),$(CORPUS),$(PWD)/tests/fixtures/viewer-validation-corpus); \
+	echo "=== Building FAISS index at $$CORPUS/search ==="; \
+	$(PYTHON) -m podcast_scraper.cli index \
+		--output-dir $$CORPUS \
+		--rebuild --vector-faiss-index-mode flat
+	@CORPUS=$(if $(CORPUS),$(CORPUS),$(PWD)/tests/fixtures/viewer-validation-corpus); \
+	echo "=== Building topic_clusters.json at $$CORPUS/search ==="; \
+	$(PYTHON) -m podcast_scraper.cli topic-clusters \
+		--output-dir $$CORPUS \
+		--threshold 0.35
+	@echo ""
+	@echo "Done. Now run:"
+	@echo "  make serve-for-validation       (terminal 1)"
+	@echo "  make ci-ui-validation CORPUS=\$$PWD/tests/fixtures/viewer-validation-corpus  (terminal 2)"
+
 ci-clean: clean-all format-check lint lint-markdown type security complexity deadcode docstrings spelling check-test-policy preload-ml-models test test-ui test-ui-e2e build-viewer coverage-enforce docs build
 
 ci-nightly: format-check lint lint-markdown type security complexity deadcode docstrings spelling check-test-policy preload-ml-models-production test-unit test-integration test-e2e test-nightly test-ui test-ui-e2e build-viewer coverage-enforce docs build

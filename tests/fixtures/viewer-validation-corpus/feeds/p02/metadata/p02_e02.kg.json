@@ -7,12 +7,17 @@
     },
     {
       "from": "episode:096240a2-e115-5a3c-98b4-2d852b096eda",
-      "to": "entity:welcome-back-to",
+      "to": "entity:technology",
       "type": "MENTIONS"
     },
     {
       "from": "episode:096240a2-e115-5a3c-98b4-2d852b096eda",
       "to": "topic:technology",
+      "type": "RELATES_TO"
+    },
+    {
+      "from": "episode:096240a2-e115-5a3c-98b4-2d852b096eda",
+      "to": "topic:welcome-back-to",
       "type": "RELATES_TO"
     }
   ],
@@ -40,10 +45,10 @@
       "type": "Entity"
     },
     {
-      "id": "entity:welcome-back-to",
+      "id": "entity:technology",
       "properties": {
         "category": "Concept",
-        "label": "Welcome Back To"
+        "label": "Technology"
       },
       "type": "Entity"
     },
@@ -51,6 +56,13 @@
       "id": "topic:technology",
       "properties": {
         "label": "technology"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:welcome-back-to",
+      "properties": {
+        "label": "welcome back to"
       },
       "type": "Topic"
     }

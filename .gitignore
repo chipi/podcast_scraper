@@ -3,6 +3,15 @@
 podcast_scraper.egg-info/
 .wily/
 
+# FAISS index + topic_clusters.json built at CI step 0 for the synthetic
+# validation corpus (GH #774). Binary, embedding-model-hash-keyed — would
+# churn on every model bump and bloat the repo. Built via
+# ``make build-validation-index``.
+tests/fixtures/viewer-validation-corpus/search/
+
+# lean-ctx local cache (per-user, not shared)
+.lean-ctx/
+
 # Virtual environment
 .venv/
 # Secondary env: ``make venv-dev-init`` (``.[dev]`` only, CI ``test-unit`` parity)

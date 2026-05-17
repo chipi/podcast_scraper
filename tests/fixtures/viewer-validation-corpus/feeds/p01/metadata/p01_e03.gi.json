@@ -12,7 +12,7 @@
     },
     {
       "from": "episode:f6f1df34-2251-5301-b1c7-68ee8468bf65",
-      "to": "topic:mechanics-of-a",
+      "to": "topic:business-markets",
       "type": "MENTIONS"
     },
     {
@@ -78,9 +78,9 @@
       "type": "Topic"
     },
     {
-      "id": "topic:mechanics-of-a",
+      "id": "topic:business-markets",
       "properties": {
-        "label": "mechanics of a",
+        "label": "Business & markets",
         "score": 0.8
       },
       "type": "Topic"

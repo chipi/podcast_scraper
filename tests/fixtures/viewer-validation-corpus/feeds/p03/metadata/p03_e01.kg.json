@@ -14,6 +14,16 @@
       "from": "episode:a283fe88-fdec-51b4-8014-431b4a7ce670",
       "to": "topic:outdoor-activities",
       "type": "RELATES_TO"
+    },
+    {
+      "from": "episode:a283fe88-fdec-51b4-8014-431b4a7ce670",
+      "to": "topic:gear",
+      "type": "RELATES_TO"
+    },
+    {
+      "from": "episode:a283fe88-fdec-51b4-8014-431b4a7ce670",
+      "to": "topic:science-research",
+      "type": "RELATES_TO"
     }
   ],
   "episode_id": "a283fe88-fdec-51b4-8014-431b4a7ce670",
@@ -51,6 +61,20 @@
       "id": "topic:outdoor-activities",
       "properties": {
         "label": "outdoor activities"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:gear",
+      "properties": {
+        "label": "gear"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:science-research",
+      "properties": {
+        "label": "Science & research"
       },
       "type": "Topic"
     }

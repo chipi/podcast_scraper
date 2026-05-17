@@ -2,17 +2,27 @@
   "edges": [
     {
       "from": "episode:e3d8c7e5-2b7b-572b-a226-ddec128285ca",
+      "to": "entity:technology",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:e3d8c7e5-2b7b-572b-a226-ddec128285ca",
       "to": "entity:welcome-back-to",
       "type": "MENTIONS"
     },
     {
       "from": "episode:e3d8c7e5-2b7b-572b-a226-ddec128285ca",
-      "to": "entity:what-do-you-recommend",
-      "type": "MENTIONS"
+      "to": "topic:technology",
+      "type": "RELATES_TO"
     },
     {
       "from": "episode:e3d8c7e5-2b7b-572b-a226-ddec128285ca",
       "to": "topic:welcome-back-to",
+      "type": "RELATES_TO"
+    },
+    {
+      "from": "episode:e3d8c7e5-2b7b-572b-a226-ddec128285ca",
+      "to": "topic:what-do-you-recommend",
       "type": "RELATES_TO"
     }
   ],
@@ -32,6 +42,14 @@
       "type": "Episode"
     },
     {
+      "id": "entity:technology",
+      "properties": {
+        "category": "Concept",
+        "label": "Technology"
+      },
+      "type": "Entity"
+    },
+    {
       "id": "entity:welcome-back-to",
       "properties": {
         "category": "Concept",
@@ -40,17 +58,23 @@
       "type": "Entity"
     },
     {
-      "id": "entity:what-do-you-recommend",
+      "id": "topic:technology",
       "properties": {
-        "category": "Concept",
-        "label": "What Do You Recommend"
+        "label": "Technology"
       },
-      "type": "Entity"
+      "type": "Topic"
     },
     {
       "id": "topic:welcome-back-to",
       "properties": {
         "label": "welcome back to"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:what-do-you-recommend",
+      "properties": {
+        "label": "what do you recommend"
       },
       "type": "Topic"
     }

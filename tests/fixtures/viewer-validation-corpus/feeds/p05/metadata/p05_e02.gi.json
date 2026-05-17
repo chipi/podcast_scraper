@@ -2,17 +2,17 @@
   "edges": [
     {
       "from": "episode:78741d49-00ad-5f5f-b127-8fd1c1b6844c",
+      "to": "topic:technology",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:78741d49-00ad-5f5f-b127-8fd1c1b6844c",
       "to": "topic:welcome-back-to",
       "type": "MENTIONS"
     },
     {
       "from": "episode:78741d49-00ad-5f5f-b127-8fd1c1b6844c",
       "to": "topic:what-does-that-look",
-      "type": "MENTIONS"
-    },
-    {
-      "from": "episode:78741d49-00ad-5f5f-b127-8fd1c1b6844c",
-      "to": "topic:index-investing-works-because",
       "type": "MENTIONS"
     },
     {
@@ -62,6 +62,14 @@
       "type": "Episode"
     },
     {
+      "id": "topic:technology",
+      "properties": {
+        "label": "Technology",
+        "score": 0.8
+      },
+      "type": "Topic"
+    },
+    {
       "id": "topic:welcome-back-to",
       "properties": {
         "label": "welcome back to",
@@ -73,14 +81,6 @@
       "id": "topic:what-does-that-look",
       "properties": {
         "label": "what does that look",
-        "score": 0.8
-      },
-      "type": "Topic"
-    },
-    {
-      "id": "topic:index-investing-works-because",
-      "properties": {
-        "label": "index investing works because",
         "score": 0.8
       },
       "type": "Topic"

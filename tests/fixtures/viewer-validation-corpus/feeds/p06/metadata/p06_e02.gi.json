@@ -2,17 +2,17 @@
   "edges": [
     {
       "from": "episode:e3d8c7e5-2b7b-572b-a226-ddec128285ca",
+      "to": "topic:technology",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:e3d8c7e5-2b7b-572b-a226-ddec128285ca",
       "to": "topic:welcome-back-to",
       "type": "MENTIONS"
     },
     {
       "from": "episode:e3d8c7e5-2b7b-572b-a226-ddec128285ca",
       "to": "topic:what-do-you-recommend",
-      "type": "MENTIONS"
-    },
-    {
-      "from": "episode:e3d8c7e5-2b7b-572b-a226-ddec128285ca",
-      "to": "topic:tire-pressure-and-casing",
       "type": "MENTIONS"
     },
     {
@@ -62,6 +62,14 @@
       "type": "Episode"
     },
     {
+      "id": "topic:technology",
+      "properties": {
+        "label": "Technology",
+        "score": 0.8
+      },
+      "type": "Topic"
+    },
+    {
       "id": "topic:welcome-back-to",
       "properties": {
         "label": "welcome back to",
@@ -73,14 +81,6 @@
       "id": "topic:what-do-you-recommend",
       "properties": {
         "label": "what do you recommend",
-        "score": 0.8
-      },
-      "type": "Topic"
-    },
-    {
-      "id": "topic:tire-pressure-and-casing",
-      "properties": {
-        "label": "tire pressure and casing",
         "score": 0.8
       },
       "type": "Topic"

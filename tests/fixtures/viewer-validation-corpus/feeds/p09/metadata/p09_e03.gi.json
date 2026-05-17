@@ -12,7 +12,7 @@
     },
     {
       "from": "episode:79fb44f3-5be0-5fc7-9d43-2f39049f7f2d",
-      "to": "topic:in-this-episode",
+      "to": "topic:business-markets",
       "type": "MENTIONS"
     },
     {
@@ -78,9 +78,9 @@
       "type": "Topic"
     },
     {
-      "id": "topic:in-this-episode",
+      "id": "topic:business-markets",
       "properties": {
-        "label": "in this episode",
+        "label": "Business & markets",
         "score": 0.8
       },
       "type": "Topic"

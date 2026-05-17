@@ -12,7 +12,7 @@
     },
     {
       "from": "episode:254fe2be-b570-592e-84cd-c22cb9e271e9",
-      "to": "topic:biology-for",
+      "to": "topic:technology",
       "type": "MENTIONS"
     },
     {
@@ -78,9 +78,9 @@
       "type": "Topic"
     },
     {
-      "id": "topic:biology-for",
+      "id": "topic:technology",
       "properties": {
-        "label": "biology for",
+        "label": "Technology",
         "score": 0.8
       },
       "type": "Topic"

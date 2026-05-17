@@ -65,6 +65,20 @@ CROSS_CUTTING_TOPICS: dict[str, list[str]] = {
     "p09": ["technology", "health"],
 }
 
+# Digest endpoint defaults (``src/podcast_scraper/server/corpus_digest.py``
+# DEFAULT_DIGEST_TOPICS). When a user clicks a digest topic pill the viewer
+# builds a graph handoff envelope targeting ``topic:<slug>`` (e.g.
+# ``topic:science-research``). For the FSM apply step to succeed, a kg_topic
+# node with that exact id MUST exist somewhere in the loaded graph. Without
+# these, V2 (digest pill) fails with "no cy node found for envelope target".
+# Each label is added to one episode of every feed so the topics span the
+# corpus (matching real digest hit distribution).
+DIGEST_HEADLINE_TOPICS: list[str] = [
+    "Science & research",
+    "Technology",
+    "Business & markets",
+]
+
 
 def stable_feed_id(rss_basename: str) -> str:
     return "sha256:" + hashlib.sha256(rss_basename.encode("utf-8")).hexdigest()
@@ -253,10 +267,18 @@ def build_kg(
             }
         )
         edges.append({"type": "MENTIONS", "from": ep_node_id, "to": eid})
-    # Carry over a Topic for cross-link parity with GI.
-    if excerpts["topics"]:
-        label = excerpts["topics"][0]
+    # Carry every topic over as a KG Topic node for cross-link parity with
+    # GI. Single-topic-only KGs were insufficient: V2 (digest pill click)
+    # requires the kg_topic node matching ``topic:<digest-headline-slug>``
+    # to exist on at least one loaded episode for the FSM apply to find
+    # it. Emitting all topics also makes V4 (topic-cluster) richer and is
+    # what production KGs do.
+    seen_tids: set[str] = set()
+    for label in excerpts["topics"]:
         tid = f"topic:{slug(label)}"
+        if tid in seen_tids:
+            continue
+        seen_tids.add(tid)
         nodes.append({"id": tid, "type": "Topic", "properties": {"label": label}})
         edges.append({"type": "RELATES_TO", "from": ep_node_id, "to": tid})
     return {
@@ -367,7 +389,14 @@ def main() -> int:
             # in the list so they appear in summary_bullet_graph_topic_ids
             # (the digest topic-band hits are derived from these).
             umbrellas = CROSS_CUTTING_TOPICS.get(feed_prefix, [])
-            excerpts["topics"] = umbrellas + excerpts["topics"][: max(0, 3 - len(umbrellas))]
+            # Inject one rotating digest-headline topic per episode so that
+            # at least one episode in each feed carries each headline label.
+            # The cycle (ei % len) gives every episode index a different
+            # headline; across 23 episodes every headline appears 7-8x.
+            headline_topic = DIGEST_HEADLINE_TOPICS[ei % len(DIGEST_HEADLINE_TOPICS)]
+            excerpts["topics"] = (
+                umbrellas + [headline_topic] + excerpts["topics"][: max(0, 3 - len(umbrellas) - 1)]
+            )
             gi = build_gi(
                 ep_uuid,
                 podcast_id,
@@ -385,9 +414,35 @@ def main() -> int:
             gi_full = out / gi_rel
             kg_full = out / kg_rel
             metadata_full = out / metadata_rel
+            bridge_rel = f"feeds/{feed_prefix}/metadata/{ep_label}.bridge.json"
+            bridge_full = out / bridge_rel
             gi_full.parent.mkdir(parents=True, exist_ok=True)
             gi_full.write_text(json.dumps(gi, indent=2, sort_keys=True) + "\n")
             kg_full.write_text(json.dumps(kg, indent=2, sort_keys=True) + "\n")
+            # bridge.json — required by
+            # ``build_cil_digest_topics_for_row`` in the API server. Without
+            # one, ``cil_digest_topics`` is empty in the digest response,
+            # so the per-row CIL topic pills don't render and V2 has no
+            # clickable handoff target. Identities mirror the episode's
+            # topic list (umbrellas + headline + transcript-derived).
+            bridge_full.write_text(
+                json.dumps(
+                    {
+                        "schema_version": "1",
+                        "episode_id": ep_uuid,
+                        "identities": [
+                            {
+                                "id": f"topic:{slug(t)}",
+                                "display_name": t,
+                            }
+                            for t in excerpts["topics"]
+                        ],
+                    },
+                    indent=2,
+                    sort_keys=True,
+                )
+                + "\n"
+            )
             # #774a — rich metadata so the API's dynamic digest /
             # corpus-library computations have ``cil_digest_topics``,
             # ``summary_*`` etc. to work with. Minimal versions caused
@@ -401,10 +456,47 @@ def main() -> int:
             ep_bullets_for_metadata = excerpts["insights"][:3] or [
                 f"Bullet {n + 1}" for n in range(3)
             ]
+            # Production-shaped nested schema. ``corpus_catalog`` +
+            # ``indexer`` both read ``doc["episode"]["episode_id"]`` /
+            # ``doc["feed"]["feed_id"]`` / ``doc["grounded_insights"]
+            # ["artifact_path"]`` / ``doc["knowledge_graph"]["artifact_path"]``.
+            # Flat top-level fields (``summary_*``, ``cil_digest_topics``)
+            # remain for any consumer that reads them directly.
             metadata_full.write_text(
                 json.dumps(
                     {
                         "schema_version": "1",
+                        "episode": {
+                            "episode_id": ep_uuid,
+                            "title": title,
+                            "published_date": publish,
+                        },
+                        "feed": {
+                            "feed_id": podcast_id,
+                            "title": feed_meta["display_title"],
+                            "url": feed_meta["rss_url"],
+                            "description": feed_meta["description"],
+                        },
+                        "grounded_insights": {
+                            "artifact_path": gi_rel,
+                            "schema_version": "1.0",
+                        },
+                        "knowledge_graph": {
+                            "artifact_path": kg_rel,
+                            "schema_version": "1.1",
+                        },
+                        "summary": {
+                            "title": f"{title} — synthetic",
+                            "bullets": ep_bullets_for_metadata,
+                            "text": "\n".join(ep_bullets_for_metadata),
+                            "preview": (
+                                ep_summary_for_metadata[:140] + "…"
+                                if len(ep_summary_for_metadata) > 140
+                                else ep_summary_for_metadata
+                            ),
+                        },
+                        # Flat compatibility fields (read directly by older
+                        # callers and digest topic-band derivation):
                         "episode_id": ep_uuid,
                         "episode_title": title,
                         "publish_date": publish,

@@ -14,6 +14,11 @@
       "from": "episode:d24c1620-8d16-54dd-b681-2f2e06c0b579",
       "to": "topic:technology",
       "type": "RELATES_TO"
+    },
+    {
+      "from": "episode:d24c1620-8d16-54dd-b681-2f2e06c0b579",
+      "to": "topic:health",
+      "type": "RELATES_TO"
     }
   ],
   "episode_id": "d24c1620-8d16-54dd-b681-2f2e06c0b579",
@@ -51,6 +56,13 @@
       "id": "topic:technology",
       "properties": {
         "label": "technology"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:health",
+      "properties": {
+        "label": "health"
       },
       "type": "Topic"
     }

@@ -13,20 +13,49 @@
       "topic_id": "topic:health"
     }
   ],
+  "episode": {
+    "episode_id": "5ef53e66-e083-5fcb-b555-a3814ebb6b39",
+    "published_date": "2026-05-16",
+    "title": "The Long View \u2014 Episode 1"
+  },
   "episode_id": "5ef53e66-e083-5fcb-b555-a3814ebb6b39",
   "episode_title": "The Long View \u2014 Episode 1",
+  "feed": {
+    "description": "Long-form conversations about sustainability, systems thinking, and the ideas shaping our shared future.",
+    "feed_id": "sha256:9e4a8b34d0b761bb138fb239ee0ace25609c27381d49bf78622ee8a40c7ce4ab",
+    "title": "The Long View",
+    "url": "http://localhost/"
+  },
   "feed_display_title": "The Long View",
   "feed_id": "sha256:9e4a8b34d0b761bb138fb239ee0ace25609c27381d49bf78622ee8a40c7ce4ab",
   "gi_relative_path": "feeds/p07/metadata/p07_e01.gi.json",
+  "grounded_insights": {
+    "artifact_path": "feeds/p07/metadata/p07_e01.gi.json",
+    "schema_version": "1.0"
+  },
   "has_gi": true,
   "has_kg": true,
   "kg_relative_path": "feeds/p07/metadata/p07_e01.kg.json",
+  "knowledge_graph": {
+    "artifact_path": "feeds/p07/metadata/p07_e01.kg.json",
+    "schema_version": "1.1"
+  },
   "publish_date": "2026-05-16",
   "schema_version": "1",
+  "summary": {
+    "bullets": [
+      "The Long View\nEpisode: What Sustainability Really Means (And Why Everyone Is Talking About It)\nHost: Alex Morgan\nGuest: Dr.",
+      "Elena Fischer\n\nAlex Morgan: Today\u2019s topic is sustainability\u2014what it means, why it\u2019s everywhere, and what it requires in practice.",
+      "Alex Morgan: Let\u2019s zoom out for a moment and frame sustainability as a systems question."
+    ],
+    "preview": "The Long View\nEpisode: What Sustainability Really Means (And Why Everyone Is Talking About It)\nHost: Alex Morgan\nGuest: Dr.",
+    "text": "The Long View\nEpisode: What Sustainability Really Means (And Why Everyone Is Talking About It)\nHost: Alex Morgan\nGuest: Dr.\nElena Fischer\n\nAlex Morgan: Today\u2019s topic is sustainability\u2014what it means, why it\u2019s everywhere, and what it requires in practice.\nAlex Morgan: Let\u2019s zoom out for a moment and frame sustainability as a systems question.",
+    "title": "The Long View \u2014 Episode 1 \u2014 synthetic"
+  },
   "summary_bullet_graph_topic_ids": [
     "topic:environment",
     "topic:health",
-    "topic:where-do-the-trade"
+    "topic:science-research"
   ],
   "summary_bullets": [
     "The Long View\nEpisode: What Sustainability Really Means (And Why Everyone Is Talking About It)\nHost: Alex Morgan\nGuest: Dr.",
@@ -39,6 +68,6 @@
   "topics": [
     "environment",
     "health",
-    "where do the trade"
+    "Science & research"
   ]
 }

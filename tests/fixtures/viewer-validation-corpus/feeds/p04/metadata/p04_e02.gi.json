@@ -12,7 +12,7 @@
     },
     {
       "from": "episode:9833b47e-0cc8-50b9-a6da-65dc0f6d053f",
-      "to": "topic:workflow-in-the",
+      "to": "topic:technology",
       "type": "MENTIONS"
     },
     {
@@ -78,9 +78,9 @@
       "type": "Topic"
     },
     {
-      "id": "topic:workflow-in-the",
+      "id": "topic:technology",
       "properties": {
-        "label": "workflow in the",
+        "label": "Technology",
         "score": 0.8
       },
       "type": "Topic"

@@ -12,7 +12,7 @@
     },
     {
       "from": "episode:5b39965f-22a2-54c9-9c42-e7a19d8da2da",
-      "to": "topic:welcome-back-to",
+      "to": "topic:science-research",
       "type": "MENTIONS"
     },
     {
@@ -78,9 +78,9 @@
       "type": "Topic"
     },
     {
-      "id": "topic:welcome-back-to",
+      "id": "topic:science-research",
       "properties": {
-        "label": "welcome back to",
+        "label": "Science & research",
         "score": 0.8
       },
       "type": "Topic"

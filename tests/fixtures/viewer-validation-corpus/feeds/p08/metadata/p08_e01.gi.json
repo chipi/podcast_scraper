@@ -12,7 +12,7 @@
     },
     {
       "from": "episode:15a1cbea-1449-50ac-bb1c-11784d7421c3",
-      "to": "topic:energy-in-the",
+      "to": "topic:science-research",
       "type": "MENTIONS"
     },
     {
@@ -78,9 +78,9 @@
       "type": "Topic"
     },
     {
-      "id": "topic:energy-in-the",
+      "id": "topic:science-research",
       "properties": {
-        "label": "energy in the",
+        "label": "Science & research",
         "score": 0.8
       },
       "type": "Topic"

@@ -7,12 +7,22 @@
     },
     {
       "from": "episode:d2fb36a0-6f97-55ee-a67a-e97dba3b7f27",
-      "to": "entity:security-as",
+      "to": "entity:business-markets",
       "type": "MENTIONS"
     },
     {
       "from": "episode:d2fb36a0-6f97-55ee-a67a-e97dba3b7f27",
       "to": "topic:technology",
+      "type": "RELATES_TO"
+    },
+    {
+      "from": "episode:d2fb36a0-6f97-55ee-a67a-e97dba3b7f27",
+      "to": "topic:business-markets",
+      "type": "RELATES_TO"
+    },
+    {
+      "from": "episode:d2fb36a0-6f97-55ee-a67a-e97dba3b7f27",
+      "to": "topic:security-as",
       "type": "RELATES_TO"
     }
   ],
@@ -40,10 +50,10 @@
       "type": "Entity"
     },
     {
-      "id": "entity:security-as",
+      "id": "entity:business-markets",
       "properties": {
         "category": "Concept",
-        "label": "Security As"
+        "label": "Business & Markets"
       },
       "type": "Entity"
     },
@@ -51,6 +61,20 @@
       "id": "topic:technology",
       "properties": {
         "label": "technology"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:business-markets",
+      "properties": {
+        "label": "Business & markets"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:security-as",
+      "properties": {
+        "label": "security as"
       },
       "type": "Topic"
     }

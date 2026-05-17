@@ -2,17 +2,27 @@
   "edges": [
     {
       "from": "episode:e741f35a-8dd9-5c40-9d5c-905f4dca4122",
+      "to": "entity:science-research",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:e741f35a-8dd9-5c40-9d5c-905f4dca4122",
       "to": "entity:welcome-back-to",
       "type": "MENTIONS"
     },
     {
       "from": "episode:e741f35a-8dd9-5c40-9d5c-905f4dca4122",
-      "to": "entity:what-do-you-recommend",
-      "type": "MENTIONS"
+      "to": "topic:science-research",
+      "type": "RELATES_TO"
     },
     {
       "from": "episode:e741f35a-8dd9-5c40-9d5c-905f4dca4122",
       "to": "topic:welcome-back-to",
+      "type": "RELATES_TO"
+    },
+    {
+      "from": "episode:e741f35a-8dd9-5c40-9d5c-905f4dca4122",
+      "to": "topic:what-do-you-recommend",
       "type": "RELATES_TO"
     }
   ],
@@ -32,6 +42,14 @@
       "type": "Episode"
     },
     {
+      "id": "entity:science-research",
+      "properties": {
+        "category": "Concept",
+        "label": "Science & Research"
+      },
+      "type": "Entity"
+    },
+    {
       "id": "entity:welcome-back-to",
       "properties": {
         "category": "Concept",
@@ -40,17 +58,23 @@
       "type": "Entity"
     },
     {
-      "id": "entity:what-do-you-recommend",
+      "id": "topic:science-research",
       "properties": {
-        "category": "Concept",
-        "label": "What Do You Recommend"
+        "label": "Science & research"
       },
-      "type": "Entity"
+      "type": "Topic"
     },
     {
       "id": "topic:welcome-back-to",
       "properties": {
         "label": "welcome back to"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:what-do-you-recommend",
+      "properties": {
+        "label": "what do you recommend"
       },
       "type": "Topic"
     }

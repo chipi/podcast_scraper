@@ -34,7 +34,7 @@
       "summary_bullet_graph_topic_ids": [
         "topic:outdoor-activities",
         "topic:gear",
-        "topic:welcome-back-to"
+        "topic:science-research"
       ],
       "summary_bullets_preview": [
         "# Singletrack Sessions \u2014 Episode\n## Building Trails That Last\nHost: Maya\nGuest: Liam\nMaya: Welcome back to Singletrack Sessions.",
@@ -46,7 +46,7 @@
       "topics": [
         "outdoor activities",
         "gear",
-        "welcome back to"
+        "Science & research"
       ]
     },
     {
@@ -82,7 +82,7 @@
       "summary_bullet_graph_topic_ids": [
         "topic:outdoor-activities",
         "topic:gear",
-        "topic:without-the"
+        "topic:technology"
       ],
       "summary_bullets_preview": [
         "# Singletrack Sessions \u2014 Episode\n## Enduro Skills Without the Hype\nHost: Maya\nGuest: Sophie\nMaya: Welcome back to Singletrack Sessions.",
@@ -94,7 +94,7 @@
       "topics": [
         "outdoor activities",
         "gear",
-        "without the"
+        "Technology"
       ]
     },
     {
@@ -130,7 +130,7 @@
       "summary_bullet_graph_topic_ids": [
         "topic:outdoor-activities",
         "topic:gear",
-        "topic:mechanics-of-a"
+        "topic:business-markets"
       ],
       "summary_bullets_preview": [
         "# Singletrack Sessions \u2014 Episode\n## The Mechanics of a Quiet, Fast Bike\nHost: Maya\nGuest: Noah\nMaya: Welcome back to Singletrack Sessions.",
@@ -142,7 +142,7 @@
       "topics": [
         "outdoor activities",
         "gear",
-        "mechanics of a"
+        "Business & markets"
       ]
     },
     {
@@ -155,9 +155,9 @@
         },
         {
           "in_topic_cluster": false,
-          "label": "welcome back to",
+          "label": "Science & research",
           "topic_cluster_compound_id": null,
-          "topic_id": "topic:welcome-back-to"
+          "topic_id": "topic:science-research"
         }
       ],
       "duration_seconds": 1800,
@@ -177,8 +177,8 @@
       "publish_date": "2026-05-15",
       "summary_bullet_graph_topic_ids": [
         "topic:technology",
-        "topic:welcome-back-to",
-        "topic:what-does-that-look"
+        "topic:science-research",
+        "topic:welcome-back-to"
       ],
       "summary_bullets_preview": [
         "# Practical Systems \u2014 Episode\n## On-Call That Doesn\u2019t Break People\nHost: Ethan\nGuest: Priya\nEthan: Welcome back to Practical Systems.",
@@ -189,8 +189,8 @@
       "summary_title": "Practical Systems \u2014 Episode 1 \u2014 synthetic",
       "topics": [
         "technology",
-        "welcome back to",
-        "what does that look"
+        "Science & research",
+        "welcome back to"
       ]
     },
     {
@@ -203,9 +203,9 @@
         },
         {
           "in_topic_cluster": false,
-          "label": "welcome back to",
+          "label": "Technology",
           "topic_cluster_compound_id": null,
-          "topic_id": "topic:welcome-back-to"
+          "topic_id": "topic:technology"
         }
       ],
       "duration_seconds": 1800,
@@ -225,8 +225,8 @@
       "publish_date": "2026-05-13",
       "summary_bullet_graph_topic_ids": [
         "topic:technology",
-        "topic:welcome-back-to",
-        "topic:what-does-that-look"
+        "topic:technology",
+        "topic:welcome-back-to"
       ],
       "summary_bullets_preview": [
         "# Practical Systems \u2014 Episode\n## Staff Engineer Communication Patterns\nHost: Ethan\nGuest: Jonas\nEthan: Welcome back to Practical Systems.",
@@ -237,8 +237,8 @@
       "summary_title": "Practical Systems \u2014 Episode 2 \u2014 synthetic",
       "topics": [
         "technology",
-        "welcome back to",
-        "what does that look"
+        "Technology",
+        "welcome back to"
       ]
     },
     {
@@ -251,9 +251,9 @@
         },
         {
           "in_topic_cluster": false,
-          "label": "security as",
+          "label": "Business & markets",
           "topic_cluster_compound_id": null,
-          "topic_id": "topic:security-as"
+          "topic_id": "topic:business-markets"
         }
       ],
       "duration_seconds": 1800,
@@ -273,8 +273,8 @@
       "publish_date": "2026-05-11",
       "summary_bullet_graph_topic_ids": [
         "topic:technology",
-        "topic:security-as",
-        "topic:welcome-back-to"
+        "topic:business-markets",
+        "topic:security-as"
       ],
       "summary_bullets_preview": [
         "# Practical Systems \u2014 Episode\n## Security as Design, Not a Checklist\nHost: Ethan\nGuest: Camila\nEthan: Welcome back to Practical Systems.",
@@ -285,8 +285,8 @@
       "summary_title": "Practical Systems \u2014 Episode 3 \u2014 synthetic",
       "topics": [
         "technology",
-        "security as",
-        "welcome back to"
+        "Business & markets",
+        "security as"
       ]
     },
     {
@@ -322,7 +322,7 @@
       "summary_bullet_graph_topic_ids": [
         "topic:outdoor-activities",
         "topic:gear",
-        "topic:welcome-back-to"
+        "topic:science-research"
       ],
       "summary_bullets_preview": [
         "# Below the Surface \u2014 Episode\n## Wreck Diving Fundamentals\nHost: Rina\nGuest: Marco\nRina: Welcome back to Below the Surface.",
@@ -334,7 +334,7 @@
       "topics": [
         "outdoor activities",
         "gear",
-        "welcome back to"
+        "Science & research"
       ]
     },
     {
@@ -370,7 +370,7 @@
       "summary_bullet_graph_topic_ids": [
         "topic:outdoor-activities",
         "topic:gear",
-        "topic:biology-for"
+        "topic:technology"
       ],
       "summary_bullets_preview": [
         "# Below the Surface \u2014 Episode\n## Marine Biology for Divers\nHost: Rina\nGuest: Hanna\nRina: Welcome back to Below the Surface.",
@@ -382,7 +382,7 @@
       "topics": [
         "outdoor activities",
         "gear",
-        "biology for"
+        "Technology"
       ]
     },
     {
@@ -418,7 +418,7 @@
       "summary_bullet_graph_topic_ids": [
         "topic:outdoor-activities",
         "topic:gear",
-        "topic:welcome-back-to"
+        "topic:business-markets"
       ],
       "summary_bullets_preview": [
         "# Below the Surface \u2014 Episode\n## Calm Under Pressure\nHost: Rina\nGuest: Owen\nRina: Welcome back to Below the Surface.",
@@ -430,7 +430,7 @@
       "topics": [
         "outdoor activities",
         "gear",
-        "welcome back to"
+        "Business & markets"
       ]
     },
     {
@@ -466,7 +466,7 @@
       "summary_bullet_graph_topic_ids": [
         "topic:technology",
         "topic:gear",
-        "topic:welcome-back-to"
+        "topic:science-research"
       ],
       "summary_bullets_preview": [
         "# Frame & Light \u2014 Episode\n## Underwater Images That Feel Alive\nHost: Leo\nGuest: Ava\nLeo: Welcome back to Frame & Light.",
@@ -478,7 +478,7 @@
       "topics": [
         "technology",
         "gear",
-        "welcome back to"
+        "Science & research"
       ]
     },
     {
@@ -514,7 +514,7 @@
       "summary_bullet_graph_topic_ids": [
         "topic:technology",
         "topic:gear",
-        "topic:workflow-in-the"
+        "topic:technology"
       ],
       "summary_bullets_preview": [
         "# Frame & Light \u2014 Episode\n## Documentary Workflow in the Field\nHost: Leo\nGuest: Tariq\nLeo: Welcome back to Frame & Light.",
@@ -526,7 +526,7 @@
       "topics": [
         "technology",
         "gear",
-        "workflow in the"
+        "Technology"
       ]
     },
     {
@@ -562,7 +562,7 @@
       "summary_bullet_graph_topic_ids": [
         "topic:technology",
         "topic:gear",
-        "topic:welcome-back-to"
+        "topic:business-markets"
       ],
       "summary_bullets_preview": [
         "# Frame & Light \u2014 Episode\n## Lighting Decisions That Save a Shoot\nHost: Leo\nGuest: Elise\nLeo: Welcome back to Frame & Light.",
@@ -574,22 +574,22 @@
       "topics": [
         "technology",
         "gear",
-        "welcome back to"
+        "Business & markets"
       ]
     },
     {
       "cil_digest_topics": [
         {
           "in_topic_cluster": false,
-          "label": "without the",
+          "label": "Science & research",
           "topic_cluster_compound_id": null,
-          "topic_id": "topic:without-the"
+          "topic_id": "topic:science-research"
         },
         {
           "in_topic_cluster": false,
-          "label": "welcome back to",
+          "label": "without the",
           "topic_cluster_compound_id": null,
-          "topic_id": "topic:welcome-back-to"
+          "topic_id": "topic:without-the"
         }
       ],
       "duration_seconds": 1800,
@@ -608,9 +608,9 @@
       "metadata_relative_path": "feeds/p05/metadata/p05_e01.metadata.json",
       "publish_date": "2026-05-12",
       "summary_bullet_graph_topic_ids": [
+        "topic:science-research",
         "topic:without-the",
-        "topic:welcome-back-to",
-        "topic:risk-is-you-know"
+        "topic:welcome-back-to"
       ],
       "summary_bullets_preview": [
         "# Long Horizon Notes \u2014 Episode\n## Index Investing Without the Myths\nHost: Nora\nGuest: Daniel\nNora: Welcome back to Long Horizon Notes.",
@@ -620,24 +620,24 @@
       "summary_preview": "# Long Horizon Notes \u2014 Episode\n## Index Investing Without the Myths\nHost: Nora\nGuest: Daniel\nNora: Welcome back to Long Horizon Notes.",
       "summary_title": "Long Horizon Notes \u2014 Episode 1 \u2014 synthetic",
       "topics": [
+        "Science & research",
         "without the",
-        "welcome back to",
-        "risk is you know"
+        "welcome back to"
       ]
     },
     {
       "cil_digest_topics": [
         {
           "in_topic_cluster": false,
-          "label": "welcome back to",
+          "label": "Technology",
           "topic_cluster_compound_id": null,
-          "topic_id": "topic:welcome-back-to"
+          "topic_id": "topic:technology"
         },
         {
           "in_topic_cluster": false,
-          "label": "what does that look",
+          "label": "welcome back to",
           "topic_cluster_compound_id": null,
-          "topic_id": "topic:what-does-that-look"
+          "topic_id": "topic:welcome-back-to"
         }
       ],
       "duration_seconds": 1800,
@@ -656,9 +656,9 @@
       "metadata_relative_path": "feeds/p05/metadata/p05_e02.metadata.json",
       "publish_date": "2026-05-16",
       "summary_bullet_graph_topic_ids": [
+        "topic:technology",
         "topic:welcome-back-to",
-        "topic:what-does-that-look",
-        "topic:index-investing-works-because"
+        "topic:what-does-that-look"
       ],
       "summary_bullets_preview": [
         "# Long Horizon Notes \u2014 Episode\n## Real Estate: Numbers Before Narratives\nHost: Nora\nGuest: Isabel\nNora: Welcome back to Long Horizon Notes.",
@@ -668,24 +668,24 @@
       "summary_preview": "# Long Horizon Notes \u2014 Episode\n## Real Estate: Numbers Before Narratives\nHost: Nora\nGuest: Isabel\nNora: Welcome back to Long Horizon Notes.",
       "summary_title": "Long Horizon Notes \u2014 Episode 2 \u2014 synthetic",
       "topics": [
+        "Technology",
         "welcome back to",
-        "what does that look",
-        "index investing works because"
+        "what does that look"
       ]
     },
     {
       "cil_digest_topics": [
         {
           "in_topic_cluster": false,
-          "label": "management for",
+          "label": "Business & markets",
           "topic_cluster_compound_id": null,
-          "topic_id": "topic:management-for"
+          "topic_id": "topic:business-markets"
         },
         {
           "in_topic_cluster": false,
-          "label": "welcome back to",
+          "label": "management for",
           "topic_cluster_compound_id": null,
-          "topic_id": "topic:welcome-back-to"
+          "topic_id": "topic:management-for"
         }
       ],
       "duration_seconds": 1800,
@@ -704,9 +704,9 @@
       "metadata_relative_path": "feeds/p05/metadata/p05_e03.metadata.json",
       "publish_date": "2026-05-14",
       "summary_bullet_graph_topic_ids": [
+        "topic:business-markets",
         "topic:management-for",
-        "topic:welcome-back-to",
-        "topic:how-do-you-teach"
+        "topic:welcome-back-to"
       ],
       "summary_bullets_preview": [
         "# Long Horizon Notes \u2014 Episode\n## Risk Management for People Who Hate Spreadsheets\nHost: Nora\nGuest: Kasper\nNora: Welcome back to Long Horizon Notes.",
@@ -716,24 +716,24 @@
       "summary_preview": "# Long Horizon Notes \u2014 Episode\n## Risk Management for People Who Hate Spreadsheets\nHost: Nora\nGuest: Kasper\nNora: Welcome back to Long Horiz\u2026",
       "summary_title": "Long Horizon Notes \u2014 Episode 3 \u2014 synthetic",
       "topics": [
+        "Business & markets",
         "management for",
-        "welcome back to",
-        "how do you teach"
+        "welcome back to"
       ]
     },
     {
       "cil_digest_topics": [
         {
           "in_topic_cluster": false,
-          "label": "welcome back to",
+          "label": "Science & research",
           "topic_cluster_compound_id": null,
-          "topic_id": "topic:welcome-back-to"
+          "topic_id": "topic:science-research"
         },
         {
           "in_topic_cluster": false,
-          "label": "what do you recommend",
+          "label": "welcome back to",
           "topic_cluster_compound_id": null,
-          "topic_id": "topic:what-do-you-recommend"
+          "topic_id": "topic:welcome-back-to"
         }
       ],
       "duration_seconds": 1800,
@@ -752,9 +752,9 @@
       "metadata_relative_path": "feeds/p06/metadata/p06_e01.metadata.json",
       "publish_date": "2026-05-11",
       "summary_bullet_graph_topic_ids": [
+        "topic:science-research",
         "topic:welcome-back-to",
-        "topic:what-do-you-recommend",
-        "topic:tire-pressure-and-casing"
+        "topic:what-do-you-recommend"
       ],
       "summary_bullets_preview": [
         "# Singletrack Sessions \u2014 Episode\n## Building Trails That Last\nHost: Maya\nGuest: Liam\nMaya: Welcome back to Singletrack Sessions.",
@@ -764,24 +764,24 @@
       "summary_preview": "# Singletrack Sessions \u2014 Episode\n## Building Trails That Last\nHost: Maya\nGuest: Liam\nMaya: Welcome back to Singletrack Sessions.",
       "summary_title": "Edge Cases Podcast \u2014 Episode 1 \u2014 synthetic",
       "topics": [
+        "Science & research",
         "welcome back to",
-        "what do you recommend",
-        "tire pressure and casing"
+        "what do you recommend"
       ]
     },
     {
       "cil_digest_topics": [
         {
           "in_topic_cluster": false,
-          "label": "welcome back to",
+          "label": "Technology",
           "topic_cluster_compound_id": null,
-          "topic_id": "topic:welcome-back-to"
+          "topic_id": "topic:technology"
         },
         {
           "in_topic_cluster": false,
-          "label": "what do you recommend",
+          "label": "welcome back to",
           "topic_cluster_compound_id": null,
-          "topic_id": "topic:what-do-you-recommend"
+          "topic_id": "topic:welcome-back-to"
         }
       ],
       "duration_seconds": 1800,
@@ -800,9 +800,9 @@
       "metadata_relative_path": "feeds/p06/metadata/p06_e02.metadata.json",
       "publish_date": "2026-05-15",
       "summary_bullet_graph_topic_ids": [
+        "topic:technology",
         "topic:welcome-back-to",
-        "topic:what-do-you-recommend",
-        "topic:tire-pressure-and-casing"
+        "topic:what-do-you-recommend"
       ],
       "summary_bullets_preview": [
         "# Singletrack Sessions \u2014 Episode\n## Building Trails That Last\nHost: Maya\nGuest: Liam\nMaya: Welcome back to Singletrack Sessions.",
@@ -812,24 +812,24 @@
       "summary_preview": "# Singletrack Sessions \u2014 Episode\n## Building Trails That Last\nHost: Maya\nGuest: Liam\nMaya: Welcome back to Singletrack Sessions.",
       "summary_title": "Edge Cases Podcast \u2014 Episode 2 \u2014 synthetic",
       "topics": [
+        "Technology",
         "welcome back to",
-        "what do you recommend",
-        "tire pressure and casing"
+        "what do you recommend"
       ]
     },
     {
       "cil_digest_topics": [
         {
           "in_topic_cluster": false,
-          "label": "welcome back to",
+          "label": "Business & markets",
           "topic_cluster_compound_id": null,
-          "topic_id": "topic:welcome-back-to"
+          "topic_id": "topic:business-markets"
         },
         {
           "in_topic_cluster": false,
-          "label": "what do you recommend",
+          "label": "welcome back to",
           "topic_cluster_compound_id": null,
-          "topic_id": "topic:what-do-you-recommend"
+          "topic_id": "topic:welcome-back-to"
         }
       ],
       "duration_seconds": 1800,
@@ -848,9 +848,9 @@
       "metadata_relative_path": "feeds/p06/metadata/p06_e03.metadata.json",
       "publish_date": "2026-05-13",
       "summary_bullet_graph_topic_ids": [
+        "topic:business-markets",
         "topic:welcome-back-to",
-        "topic:what-do-you-recommend",
-        "topic:tire-pressure-and-casing"
+        "topic:what-do-you-recommend"
       ],
       "summary_bullets_preview": [
         "# Singletrack Sessions \u2014 Episode\n## Building Trails That Last\nHost: Maya\nGuest: Liam\nMaya: Welcome back to Singletrack Sessions.",
@@ -860,9 +860,9 @@
       "summary_preview": "# Singletrack Sessions \u2014 Episode\n## Building Trails That Last\nHost: Maya\nGuest: Liam\nMaya: Welcome back to Singletrack Sessions.",
       "summary_title": "Edge Cases Podcast \u2014 Episode 3 \u2014 synthetic",
       "topics": [
+        "Business & markets",
         "welcome back to",
-        "what do you recommend",
-        "tire pressure and casing"
+        "what do you recommend"
       ]
     },
     {
@@ -898,7 +898,7 @@
       "summary_bullet_graph_topic_ids": [
         "topic:environment",
         "topic:health",
-        "topic:where-do-the-trade"
+        "topic:science-research"
       ],
       "summary_bullets_preview": [
         "The Long View\nEpisode: What Sustainability Really Means (And Why Everyone Is Talking About It)\nHost: Alex Morgan\nGuest: Dr.",
@@ -910,7 +910,7 @@
       "topics": [
         "environment",
         "health",
-        "where do the trade"
+        "Science & research"
       ]
     },
     {
@@ -946,7 +946,7 @@
       "summary_bullet_graph_topic_ids": [
         "topic:environment",
         "topic:technology",
-        "topic:energy-in-the"
+        "topic:science-research"
       ],
       "summary_bullets_preview": [
         "The Long View\nEpisode: The Role of Solar Energy in the Near Future\nHost: Alex Morgan\nGuest: Dr.",
@@ -958,7 +958,7 @@
       "topics": [
         "environment",
         "technology",
-        "energy in the"
+        "Science & research"
       ]
     },
     {
@@ -994,7 +994,7 @@
       "summary_bullet_graph_topic_ids": [
         "topic:technology",
         "topic:health",
-        "topic:biohacking-in"
+        "topic:science-research"
       ],
       "summary_bullets_preview": [
         "Alex Morgan: Biohacking in 2025: From Fringe to Framework\n\nAlex Morgan: In 2025, biohacking is everywhere in public conversation, but the signal is often mixed with hype.",
@@ -1006,7 +1006,7 @@
       "topics": [
         "technology",
         "health",
-        "biohacking in"
+        "Science & research"
       ]
     },
     {
@@ -1042,7 +1042,7 @@
       "summary_bullet_graph_topic_ids": [
         "topic:technology",
         "topic:health",
-        "topic:in-this-episode"
+        "topic:technology"
       ],
       "summary_bullets_preview": [
         "In this episode, I\u2019m going to build a grounded map: what\u2019s real, what\u2019s uncertain, and what you can do without turning your life into an optimization project.",
@@ -1054,7 +1054,7 @@
       "topics": [
         "technology",
         "health",
-        "in this episode"
+        "Technology"
       ]
     },
     {
@@ -1090,7 +1090,7 @@
       "summary_bullet_graph_topic_ids": [
         "topic:technology",
         "topic:health",
-        "topic:in-this-episode"
+        "topic:business-markets"
       ],
       "summary_bullets_preview": [
         "In this episode, I\u2019m going to build a grounded map: what\u2019s real, what\u2019s uncertain, and what you can do without turning your life into an optimization project.",
@@ -1102,7 +1102,7 @@
       "topics": [
         "technology",
         "health",
-        "in this episode"
+        "Business & markets"
       ]
     }
   ],
