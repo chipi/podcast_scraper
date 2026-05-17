@@ -100,7 +100,7 @@ function topicClusterCompoundIdForCamera(hit: SearchHit): string | null {
   return typeof g === 'string' && g.trim() ? g.trim() : null
 }
 
-function onFocusHit(hit: SearchHit): void {
+async function onFocusHit(hit: SearchHit): Promise<void> {
   const id = graphNodeIdFromSearchHit(hit)
   if (!id) return
   const tcParent = topicClusterCompoundIdForCamera(hit)
@@ -117,6 +117,26 @@ function onFocusHit(hit: SearchHit): void {
     id.startsWith('episode:') ? 'episode' :
     'graph-node'
   artifacts.setLoadSource('subject-external')
+  // V3 fix — load the hit's episode artifacts up front so the FSM's apply
+  // step can resolve ``id`` to a real cy node. Without this the handoff
+  // depends on whatever the current time-slice happens to contain; for
+  // archived / old corpora the slice may be empty or may not include the
+  // hit's episode, and the FSM fails with "no cy node found for envelope
+  // target". The hit carries ``source_metadata_relative_path`` (stamped
+  // by the vector indexer); derive the GI/KG paths from it the same way
+  // ``corpus_catalog._gi_kg_relpaths_from_metadata`` does server-side.
+  const metaRel = sourceMetadataRelativePathFromSearchHit(hit)
+  if (metaRel) {
+    const stem = metaRel.endsWith('.metadata.json')
+      ? metaRel.slice(0, -'.metadata.json'.length)
+      : metaRel.replace(/\.(metadata\.ya?ml|json)$/i, '')
+    const paths = [`${stem}.gi.json`, `${stem}.kg.json`].filter(Boolean)
+    try {
+      await artifacts.appendRelativeArtifacts(paths)
+    } catch {
+      /* fall through: FSM will surface failure if cy node still missing */
+    }
+  }
   graphHandoff.handoffRequested({
     kind,
     cyId: id,
@@ -452,7 +472,7 @@ const advancedFeedCombinedTitle = computed(() =>
           :key="`${h.doc_id}-${i}`"
           :hit="h"
           :library-opens-enabled="libraryOpensEnabled"
-          @focus="onFocusHit"
+          @focus="(hit: SearchHit) => void onFocusHit(hit)"
           @open-library="onOpenLibraryHit"
           @open-episode-summary="onOpenEpisodeSummaryHit"
         />

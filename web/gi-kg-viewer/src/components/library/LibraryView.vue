@@ -371,7 +371,7 @@ function selectEpisode(row: CorpusEpisodeListItem): void {
  * here at click time matches the symmetry that Digest paths already use
  * and is replaced wholesale by the C5 orchestrator envelope.
  */
-function openEpisodeInGraph(row: CorpusEpisodeListItem): void {
+async function openEpisodeInGraph(row: CorpusEpisodeListItem): Promise<void> {
   // C5 — record the handoff intent on the FSM. The orchestrator runtime in
   // ``GraphCanvas.vue`` consults the FSM during apply (C6) to decide barriers.
   // For now this is additive: existing watchers still drive the canvas.
@@ -389,6 +389,40 @@ function openEpisodeInGraph(row: CorpusEpisodeListItem): void {
     episodeId: row.episode_id ?? null,
   })
   void ensureDefaultCorpusGraphIfNeeded()
+  // Proactively load this episode's GI/KG artifacts so the FSM's apply
+  // step can resolve the target cy node. Same fix class as V3 (Search →
+  // Graph): when a prior handoff (e.g. Digest topic-pill) left the graph
+  // populated with content that does NOT contain THIS episode, the
+  // automatic territory-strip watcher in ``GraphCanvas.vue`` does not
+  // always fire (cy state from the prior subject may make
+  // ``applyEpisodeRepresentativeFocusIfNeeded`` think the new episode is
+  // resolvable when it isn't, or no redraw is triggered to drive
+  // ``finishLayoutPass``). Without this, the FSM stuck-times-out after
+  // 15s and the user sees the error strip. ``appendRelativeArtifacts``
+  // is a near-no-op when the artifacts are already loaded.
+  const paths: string[] = []
+  if (row.has_gi && row.gi_relative_path?.trim()) {
+    paths.push(row.gi_relative_path.trim())
+  }
+  if (row.has_kg && row.kg_relative_path?.trim()) {
+    paths.push(row.kg_relative_path.trim())
+  }
+  if (paths.length > 0) {
+    try {
+      await artifacts.appendRelativeArtifacts(paths)
+      // ``appendRelativeArtifacts`` early-returns when every requested
+      // path is already in the current selection — but that early return
+      // skips the redraw that drives the FSM ``loading_fetch → applying →
+      // ready`` chain. After a prior digest topic-pill handoff the
+      // episode's artifacts are likely already loaded, so the proactive
+      // append is a no-op. Force a re-parse + redraw via ``loadSelected``
+      // so ``finishLayoutPass`` can apply the new envelope; otherwise the
+      // FSM stuck-times-out at 15s.
+      await artifacts.loadSelected({ preserveExpansion: true })
+    } catch {
+      /* FSM will surface the apply failure if the cy node remains missing */
+    }
+  }
   emit('switch-main-tab', 'graph')
 }
 
@@ -743,7 +777,7 @@ onBeforeUnmount(() => {
                           data-testid="library-row-open-graph"
                           title="Open this episode in Graph"
                           aria-label="Open this episode in Graph"
-                          @click.stop="openEpisodeInGraph(e)"
+                          @click.stop="void openEpisodeInGraph(e)"
                           @keydown.enter.stop
                           @keydown.space.stop
                         >G</button>

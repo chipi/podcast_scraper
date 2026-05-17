@@ -38,7 +38,6 @@ import {
   applyGraphFocusPlan,
   graphFocusPlanFromCilPill,
 } from '../../utils/cilGraphFocus'
-import { findTopicClusterContextForGraphNode } from '../../utils/topicClustersOverlay'
 
 const emit = defineEmits<{
   'switch-main-tab': [tab: 'graph' | 'dashboard' | 'library']
@@ -264,6 +263,16 @@ async function openDigestRecentTopicPillInGraph(
   }
 
   await artifacts.appendRelativeArtifacts(cleaned)
+  if (digestGraphOpenGate.isStale(seq)) {
+    return
+  }
+  // ``appendRelativeArtifacts`` early-returns when every path is already
+  // loaded (e.g. user clicked a digest pill after a prior Library row
+  // already pulled the episode in). The early return skips the redraw,
+  // FSM stays in ``loading_fetch``, and the apply path never runs →
+  // stuck-timeout at 15s. Forcing a re-parse via ``loadSelected`` drives
+  // ``finishLayoutPass`` so the FSM transitions cleanly to ``ready``.
+  await artifacts.loadSelected({ preserveExpansion: true })
   if (digestGraphOpenGate.isStale(seq)) {
     return
   }
@@ -551,77 +560,6 @@ async function openTopicHitInGraph(
   emit('switch-main-tab', 'graph')
 }
 
-async function openTopicBandInGraph(band: CorpusDigestTopicBand): Promise<void> {
-  const cap = digestCategoryBandEpisodeCap()
-  const gid = band.graph_topic_id?.trim()
-  
-  // Collect all artifact paths from hits (up to cap)
-  const allPaths: string[] = []
-  let loadedCount = 0
-  
-  for (const h of band.hits) {
-    if (loadedCount >= cap) {
-      break
-    }
-    if (h.has_gi || h.has_kg) {
-      if (h.has_gi && h.gi_relative_path?.trim()) {
-        allPaths.push(h.gi_relative_path.trim())
-      }
-      if (h.has_kg && h.kg_relative_path?.trim()) {
-        allPaths.push(h.kg_relative_path.trim())
-      }
-      loadedCount += 1
-    }
-  }
-  
-  if (allPaths.length === 0) {
-    graphActionError.value = "No GI/KG artifacts for this topic's hits."
-    return
-  }
-  
-  // DO NOT call ensureDefaultCorpusGraphIfNeeded() - it sets mainTab to 'graph' which causes double-loading
-  // The graph baseline will be loaded by activateGraphTab() if needed
-  
-  // Mark this as external load from Digest - no auto-merge wanted
-  artifacts.setLoadSource('digest-external')
-  await artifacts.appendRelativeArtifacts(allPaths)
-  
-  if (gid) {
-    subject.focusTopic(gid)
-    const clusterCtx = findTopicClusterContextForGraphNode(gid, artifacts.topicClustersDoc)
-    if (clusterCtx?.compoundParentId) {
-      graphNav.requestFocusNode(clusterCtx.compoundParentId, gid)
-      graphHandoff.handoffRequested({
-        kind: 'topic',
-        cyId: clusterCtx.compoundParentId,
-        source: 'digest',
-        loadSource: 'digest-external',
-        camera: { kind: 'center', cyId: clusterCtx.compoundParentId },
-      })
-    } else {
-      graphNav.requestFocusNode(gid)
-      graphNav.setRequestFitAfterLoad()
-      // F1.5 — D3 Digest band title fires FSM event with `camera: { kind: 'fit' }`
-      // (decision #11). Topic band loads multiple episodes; no single focus
-      // node to centre on, so fit the viewport.
-      graphHandoff.handoffRequested({
-        kind: 'topic',
-        cyId: gid,
-        source: 'digest',
-        loadSource: 'digest-external',
-        camera: { kind: 'fit' },
-      })
-    }
-  } else {
-    graphNav.clearPendingFocus()
-    graphNav.setRequestFitAfterLoad()
-  }
-
-  // DO NOT clear loadSource here - let the filteredArtifact watcher see it and clear it
-  // artifacts.clearLoadSource()  // Removed: clearing too early, before watcher fires
-  emit('switch-main-tab', 'graph')
-}
-
 watch(
   () =>
     [
@@ -784,16 +722,25 @@ onBeforeUnmount(() => {
             :aria-label="`Topic ${band.label}`"
           >
             <div class="flex flex-wrap items-center justify-between gap-1.5">
-              <button
-                type="button"
-                class="min-w-0 flex-1 rounded px-0.5 py-0.5 text-left hover:bg-overlay/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
-                :aria-label="`Open graph for topic ${band.label} (top hit with GI or KG)`"
-                @click="void openTopicBandInGraph(band)"
+              <!--
+                Headline topic bands are editorial defaults from
+                ``DEFAULT_DIGEST_TOPICS`` in the server (e.g. "Science &
+                research", "Technology", "Business & markets"). They do
+                NOT correspond to KG topic nodes in arbitrary corpora —
+                clicking them would build an envelope targeting
+                ``topic:<editorial-slug>`` that the FSM cannot resolve.
+                Render as static text; the "Search topic" button next to
+                it remains as the actionable affordance (runs the query
+                via FAISS to surface real, focusable hits).
+              -->
+              <span
+                class="min-w-0 flex-1 px-0.5 py-0.5 text-left"
+                :aria-label="`Topic band ${band.label}`"
               >
                 <span :class="bandTitleClass(band)">{{
                   band.label
                 }}</span>
-              </button>
+              </span>
               <button
                 type="button"
                 class="shrink-0 rounded bg-primary px-2 py-0.5 text-[10px] font-medium text-primary-foreground"

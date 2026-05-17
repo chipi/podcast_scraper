@@ -25,6 +25,7 @@ import {
   GRAPH_DEFAULT_EPISODE_CAP,
   selectRelPathsForGraphLoad,
 } from './utils/graphEpisodeSelection'
+import { localYmdDaysAgo } from './utils/localCalendarDate'
 import { sourceMetadataRelativePathFromSearchHit } from './utils/searchHitLibrary'
 import { corpusGraphBaselineLoaderKey } from './corpusGraphBaseline'
 import { StaleGeneration } from './utils/staleGeneration'
@@ -295,12 +296,37 @@ async function runCorpusGraphSyncBody(): Promise<void> {
     kind: a.kind,
     publish_date: a.publish_date ?? '',
   }))
-  const { selectedRelPaths, wasCapped } = selectRelPathsForGraphLoad(
-    rows,
-    graphExplorer.sinceYmd,
-    GRAPH_DEFAULT_EPISODE_CAP,
-    artifacts.topicClustersDoc,
-  )
+  // Auto-widen the time lens if the default window has no content. The
+  // graph default is "last 7d" (snappy for daily-ingest operators); for
+  // older/static corpora that returns zero episodes → empty canvas +
+  // stuck-timeout. Walk the window outward (7d → 30d → 90d → all) until
+  // we find data, and update ``sinceYmd`` so the UI lens control reflects
+  // what was actually loaded.
+  let selectedRelPaths: string[] = []
+  let wasCapped = false
+  const widenSchedule: ReadonlyArray<{ sinceYmd: string; label: string }> = [
+    { sinceYmd: graphExplorer.sinceYmd, label: 'default' },
+    { sinceYmd: localYmdDaysAgo(30), label: '30d' },
+    { sinceYmd: localYmdDaysAgo(90), label: '90d' },
+    { sinceYmd: '', label: 'all' },
+  ]
+  let appliedStep: (typeof widenSchedule)[number] | null = null
+  for (const step of widenSchedule) {
+    const attempt = selectRelPathsForGraphLoad(
+      rows,
+      step.sinceYmd,
+      GRAPH_DEFAULT_EPISODE_CAP,
+      artifacts.topicClustersDoc,
+    )
+    selectedRelPaths = attempt.selectedRelPaths
+    wasCapped = attempt.wasCapped
+    appliedStep = step
+    if (selectedRelPaths.length > 0) break
+  }
+  // Sync the lens control to the window we actually used.
+  if (appliedStep && appliedStep.sinceYmd !== graphExplorer.sinceYmd) {
+    graphExplorer.setSinceYmd(appliedStep.sinceYmd)
+  }
   graphExplorer.setLastAutoLoadCapped(wasCapped)
   if (selectedRelPaths.length === 0) {
     artifacts.clearSelection()
@@ -312,6 +338,7 @@ async function runCorpusGraphSyncBody(): Promise<void> {
   posthog.capture('graph_corpus_synced', {
     episode_count: selectedRelPaths.length,
     was_capped: wasCapped,
+    window_widened_to: appliedStep?.label ?? 'default',
   })
 }
 

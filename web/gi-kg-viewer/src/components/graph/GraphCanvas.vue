@@ -2156,6 +2156,99 @@ function tryApplyPendingFocus(core: Core): boolean {
   return true
 }
 
+/**
+ * Try to resolve and apply an in-flight FSM envelope WITHOUT going through
+ * a full ``finishLayoutPass``. Used by ``onActivated`` to recover from the
+ * "user tabbed away mid-handoff, came back, FSM still in-flight, no
+ * layoutstop coming" UX hole. Returns true when an apply landed; FSM is
+ * advanced to ``ready`` on success or ``failed`` on miss.
+ *
+ * Mirrors the resolver order of ``finishLayoutPass`` (selected → focus →
+ * cyId → episode resolver → direct cy id → cy scan); the difference is
+ * that this is callable outside the layoutstop path.
+ */
+function tryApplyPendingFsmEnvelopeFromTabReturn(core: Core): boolean {
+  const env = graphHandoff.pending
+  if (!env) return false
+  // Only fire from ``loading_*`` / ``redrawing_*`` / ``applying`` states.
+  // If FSM is already ``ready``, leave it alone.
+  const inFlight =
+    graphHandoff.state === 'loading_fetch' ||
+    graphHandoff.state === 'loading_bootstrap' ||
+    graphHandoff.state === 'loading_merge' ||
+    graphHandoff.state === 'redrawing_incremental' ||
+    graphHandoff.state === 'redrawing_full' ||
+    graphHandoff.state === 'applying'
+  if (!inFlight) return false
+
+  const candidates = [
+    selectedNodeId.value || '',
+    focusNodeId.value || '',
+    env.cyId || '',
+  ].filter(Boolean)
+  let appliedCyId = ''
+  for (const c of candidates) {
+    const resolved = resolveCyNodeId(core, c)
+    if (resolved) {
+      appliedCyId = resolved
+      break
+    }
+  }
+  if (!appliedCyId && env.kind === 'episode') {
+    const epCy = findEpisodeGraphNodeIdForMetadataPathOrEpisodeId(
+      gf.filteredArtifact,
+      env.metadataPath,
+      env.episodeId,
+    )
+    if (epCy) {
+      const resolved = resolveCyNodeId(core, epCy)
+      if (resolved) appliedCyId = resolved
+    }
+    if (!appliedCyId && env.episodeId) {
+      const directResolved = resolveCyNodeId(core, env.episodeId)
+      if (directResolved) appliedCyId = directResolved
+    }
+    if (!appliedCyId) {
+      const wantMeta = env.metadataPath ?? ''
+      const wantEid = env.episodeId ?? ''
+      const found = core.nodes().filter((n) => {
+        const data = n.data() as Record<string, unknown>
+        const type = String(data.type ?? data.kind ?? '')
+        if (type !== 'Episode' && type !== 'episode') return false
+        const props = (data.properties ?? {}) as Record<string, unknown>
+        const mp = String(props.metadata_relative_path ?? data.metadata_relative_path ?? '')
+        const eid = String(props.episode_id ?? data.episode_id ?? '')
+        return (wantMeta && mp === wantMeta) || (wantEid && eid === wantEid)
+      })
+      if (found.length > 0) appliedCyId = found.first().id()
+    }
+  }
+  if (appliedCyId) {
+    const n = core.$id(appliedCyId)
+    if (!n.empty()) {
+      try {
+        core.nodes().unselect()
+        ;(n.first() as NodeSingular).select()
+        selectedNodeId.value = appliedCyId
+        applyGraphSelectionDimFromNode(core, n.first() as NodeSingular)
+      } catch {
+        /* ignore */
+      }
+      try {
+        animateCameraToFocusedNode(core, appliedCyId)
+      } catch {
+        /* ignore */
+      }
+    }
+    graphHandoff.recordApplied(appliedCyId)
+    return true
+  }
+  // Target not in cy → can't apply yet. Do NOT mark failed (a layoutstop
+  // may still drive apply correctly); leave FSM in-flight + let stuck-
+  // timer surface the failure if no progress.
+  return false
+}
+
 /** Re-apply neighbourhood dimming when ``select`` handlers were not wired yet or async rail races layout. */
 function reapplySelectionDimmingIfAny(core: Core): void {
   const sid = selectedNodeId.value?.trim()
@@ -3650,6 +3743,17 @@ onActivated(() => {
     if (!graphContentHiddenUntilLayout.value) {
       try {
         const applied = tryApplyPendingFocus(c)
+        // UX fix: when the user tabbed away mid-handoff, the FSM is left
+        // in an in-flight state (``loading_fetch`` / ``loading_merge`` /
+        // ``redrawing_*``) with a pending envelope. ``tryApplyPendingFocus``
+        // only covers the ``nav.pendingFocusNodeId`` case (set by Search /
+        // Digest paths); Library L1 doesn't set it, so the FSM would
+        // stuck-timeout 15 s after the user returned. Drive forward from
+        // the FSM's own pending envelope so the user sees the episode
+        // open, not an empty canvas + error strip.
+        if (!applied && graphHandoff.pending) {
+          tryApplyPendingFsmEnvelopeFromTabReturn(c)
+        }
         applyEpisodeRepresentativeFocusIfNeeded(c, { skipCamera: applied })
       } catch (e) {
         console.warn('[GraphCanvas] onActivated graph focus sync:', e)
