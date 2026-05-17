@@ -77,10 +77,12 @@ crash_dump_*.log
 # OS files
 .DS_Store
 
-# Coverage
+# Coverage (pytest output at repo root only — the unscoped pattern was
+# accidentally catching ``web/gi-kg-viewer/e2e/fixtures/production-shaped/
+# corpus/coverage.json`` which is a Tier-2 mock-response fixture).
 .coverage
 .coverage.*
-coverage.json
+/coverage.json
 
 # IDE
 .vscode/

@@ -262,19 +262,42 @@ async function openDigestRecentTopicPillInGraph(
     })
   }
 
+  // Snapshot the selection length BEFORE append so we can detect the
+  // ``appendRelativeArtifacts`` no-op short-circuit (all paths already
+  // loaded). In that case the natural redraw chain doesn't fire and the
+  // FSM stays in ``loading_fetch`` → stuck-timeout at 15s. The
+  // ``loadSelected`` follow-up forces a re-parse + redraw which drives
+  // ``finishLayoutPass`` → ``recordApplied``. When the append DOES add
+  // new paths, the natural redraw is enough — calling ``loadSelected``
+  // anyway triggers a SECOND redraw that re-runs layout and moves the
+  // camera-target after centering (H2.6 regression class). So gate it.
+  const beforeCount = artifacts.selectedRelPaths.length
   await artifacts.appendRelativeArtifacts(cleaned)
   if (digestGraphOpenGate.isStale(seq)) {
     return
   }
-  // ``appendRelativeArtifacts`` early-returns when every path is already
-  // loaded (e.g. user clicked a digest pill after a prior Library row
-  // already pulled the episode in). The early return skips the redraw,
-  // FSM stays in ``loading_fetch``, and the apply path never runs →
-  // stuck-timeout at 15s. Forcing a re-parse via ``loadSelected`` drives
-  // ``finishLayoutPass`` so the FSM transitions cleanly to ``ready``.
-  await artifacts.loadSelected({ preserveExpansion: true })
-  if (digestGraphOpenGate.isStale(seq)) {
-    return
+  if (artifacts.selectedRelPaths.length === beforeCount) {
+    // Append was a no-op (all paths already loaded). Wait briefly so
+    // the natural chain (subject change → watcher → tab-activate →
+    // tryApplyPendingFocus) gets a chance to drive the FSM to ready
+    // on its own (typical when emit('switch-main-tab') causes an
+    // actual tab change). Only force a redraw when the FSM is still
+    // stuck in a load state — that's the same-tab-already-active case
+    // (Tier-3 P2.5/P2.6).
+    await new Promise<void>((r) => setTimeout(r, 600))
+    if (digestGraphOpenGate.isStale(seq)) {
+      return
+    }
+    const stillStuck =
+      graphHandoff.state === 'loading_fetch' ||
+      graphHandoff.state === 'loading_bootstrap' ||
+      graphHandoff.state === 'loading_merge'
+    if (stillStuck) {
+      await artifacts.loadSelected({ preserveExpansion: true })
+      if (digestGraphOpenGate.isStale(seq)) {
+        return
+      }
+    }
   }
   emit('switch-main-tab', 'graph')
 }

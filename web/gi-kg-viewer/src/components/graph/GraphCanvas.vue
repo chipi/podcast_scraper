@@ -2180,6 +2180,20 @@ function tryApplyPendingFsmEnvelopeFromTabReturn(core: Core): boolean {
     graphHandoff.state === 'redrawing_full' ||
     graphHandoff.state === 'applying'
   if (!inFlight) return false
+  // Bail when an artifact load OR a Cytoscape animation is in flight.
+  // Both signals mean the natural ``finishLayoutPass`` chain is about
+  // to (or did just) apply + animate the camera; firing apply +
+  // animateCamera here would race and leave the target offscreen
+  // (H2.6 Library → Digest hot-state regression). The recovery hook
+  // is for the "natural chain stalled" scenario only — tab-switched
+  // away mid-load, came back to a quiescent canvas with a pending
+  // envelope nobody is driving.
+  if (artifacts.loading) return false
+  try {
+    if (core.animated()) return false
+  } catch {
+    /* defensive: cy may be in a transitional state */
+  }
 
   const candidates = [
     selectedNodeId.value || '',

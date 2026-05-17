@@ -229,10 +229,13 @@ test.describe('Corpus Digest tab', () => {
         .getByTestId('digest-root')
         .getByRole('button', { name: 'First bullet', exact: true }),
     ).toHaveCount(0)
+    // Headline topic-band title is now a <span> (not a button) per the
+    // V2 architectural change — the editorial headlines from the server's
+    // DEFAULT_DIGEST_TOPICS don't correspond to KG nodes in arbitrary
+    // corpora, so the click affordance was removed. The title text is
+    // still rendered; verify the text presence instead of the role.
     await expect(
-      page.getByRole('button', {
-        name: 'Open graph for topic Mock Topic Band (top hit with GI or KG)',
-      }),
+      page.getByRole('region', { name: 'Topic bands' }).getByText('Mock Topic Band'),
     ).toBeVisible()
     await expect(
       page.getByRole('region', { name: 'Topic bands' }).getByText('Strong match'),
@@ -307,49 +310,16 @@ test.describe('Corpus Digest tab', () => {
     ).toBeVisible()
   })
 
-  test('topic band title loads mocked GI and opens graph with canvas', async ({ page }) => {
-    const ep1Gi = JSON.stringify({
-      schema_version: '1.0',
-      model_version: 'stub',
-      prompt_version: 'v1',
-      episode_id: 'e1',
-      nodes: [
-        {
-          id: 'episode:e1',
-          type: 'Episode',
-          properties: {
-            podcast_id: 'podcast:unknown',
-            title: 'Digest Episode Alpha',
-            publish_date: '2020-01-01T00:00:00Z',
-          },
-        },
-        {
-          id: 'topic:mock-topic-band',
-          type: 'Topic',
-          properties: { label: 'Mock Topic Band' },
-        },
-      ],
-      edges: [],
-    })
-    await page.route('**/api/artifacts/metadata/ep1.gi.json**', async (route) => {
-      await route.fulfill({
-        status: 200,
-        contentType: 'application/json',
-        body: ep1Gi,
-      })
-    })
-    await page.goto('/')
-    await page.getByRole('heading', { name: SHELL_HEADING_RE }).waitFor()
-    await statusBarCorpusPathInput(page).fill('/mock/corpus')
-    await expect(page.getByTestId('digest-root')).toBeVisible()
-    await page
-      .getByRole('button', {
-        name: 'Open graph for topic Mock Topic Band (top hit with GI or KG)',
-      })
-      .click()
-    await page.getByRole('button', { name: 'Fit' }).waitFor({ state: 'visible', timeout: 30_000 })
-    await expect(page.locator('.graph-canvas')).toBeVisible()
-  })
+  // ``topic band title loads mocked GI and opens graph with canvas`` —
+  // removed. The V2 architectural change disabled the click affordance
+  // on the topic-band headline (``DEFAULT_DIGEST_TOPICS`` editorial
+  // labels don't correspond to KG nodes in arbitrary corpora, so the
+  // click handler produced silent ``handoffFailed`` on most operator
+  // corpora). The title now renders as ``<span>`` for display only;
+  // there is no graph-handoff path from this surface. The per-row CIL
+  // pills (``digest Recent CIL topic pill opens graph with mocked GI``
+  // immediately below) cover the surviving topic-pill graph-handoff
+  // path.
 
   test('digest Recent CIL topic pill opens graph with mocked GI', async ({ page }) => {
     const ep1Gi = JSON.stringify({
@@ -532,17 +502,18 @@ test.describe('Corpus Digest tab', () => {
     await statusBarCorpusPathInput(page).fill('/mock/corpus')
     const digestRoot = page.getByTestId('digest-root')
     await expect(digestRoot).toBeVisible()
-    await expect(
-      digestRoot.getByRole('button', { name: 'Open graph for topic Fourth Band (top hit with GI or KG)' }),
-    ).toHaveCount(0)
+    // Pre-V2-fix this assertion looked for the headline pill BUTTON;
+    // post-fix the title renders as a <span> (display only — see digest
+    // .spec.ts headline-disabled comment above). Switch to a text-based
+    // selector that captures the actual show/hide UI behaviour.
+    const topicBands = digestRoot.getByRole('region', { name: 'Topic bands' })
+    await expect(topicBands.getByText('Fourth Band')).toHaveCount(0)
     const showMore = digestRoot.getByTestId('digest-topic-bands-show-more')
     await expect(showMore).toBeVisible()
     await expect(showMore).toHaveText('Show 1 more topics')
     await showMore.click()
     await expect(showMore).toHaveCount(0)
-    await expect(
-      digestRoot.getByRole('button', { name: 'Open graph for topic Fourth Band (top hit with GI or KG)' }),
-    ).toBeVisible()
+    await expect(topicBands.getByText('Fourth Band')).toBeVisible()
   })
 
   test('digest Recent shows recency dot img when publish_date is today (local)', async ({

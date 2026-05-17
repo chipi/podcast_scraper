@@ -409,16 +409,34 @@ async function openEpisodeInGraph(row: CorpusEpisodeListItem): Promise<void> {
   }
   if (paths.length > 0) {
     try {
+      // Snapshot before-count to detect the no-op short-circuit in
+      // ``appendRelativeArtifacts`` (early-returns when every requested
+      // path is already in the current selection). On a no-op the natural
+      // redraw chain doesn't fire, the FSM stays in ``loading_fetch``,
+      // and the apply path never runs → stuck-timeout at 15s. The
+      // ``loadSelected`` follow-up forces a re-parse + redraw which
+      // drives ``finishLayoutPass``. When the append DOES add new paths,
+      // the natural redraw is enough — an extra ``loadSelected`` would
+      // re-trigger layout AFTER ``finishLayoutPass`` already centered
+      // the camera, pushing the selected node off-centre (H2.6 hot-state
+      // class). Gate the force on whether append actually changed state.
+      const beforeCount = artifacts.selectedRelPaths.length
       await artifacts.appendRelativeArtifacts(paths)
-      // ``appendRelativeArtifacts`` early-returns when every requested
-      // path is already in the current selection — but that early return
-      // skips the redraw that drives the FSM ``loading_fetch → applying →
-      // ready`` chain. After a prior digest topic-pill handoff the
-      // episode's artifacts are likely already loaded, so the proactive
-      // append is a no-op. Force a re-parse + redraw via ``loadSelected``
-      // so ``finishLayoutPass`` can apply the new envelope; otherwise the
-      // FSM stuck-times-out at 15s.
-      await artifacts.loadSelected({ preserveExpansion: true })
+      if (artifacts.selectedRelPaths.length === beforeCount) {
+        // Wait briefly so the natural chain (subject change → watcher →
+        // tab-activate → tryApplyPendingFocus) gets a chance to drive
+        // the FSM to ready on its own. Only force a redraw when the FSM
+        // is still stuck — that's the same-tab-already-active case the
+        // Tier-3 P2.5/P2.6 walk catches.
+        await new Promise<void>((r) => setTimeout(r, 600))
+        const stillStuck =
+          graphHandoff.state === 'loading_fetch' ||
+          graphHandoff.state === 'loading_bootstrap' ||
+          graphHandoff.state === 'loading_merge'
+        if (stillStuck) {
+          await artifacts.loadSelected({ preserveExpansion: true })
+        }
+      }
     } catch {
       /* FSM will surface the apply failure if the cy node remains missing */
     }
