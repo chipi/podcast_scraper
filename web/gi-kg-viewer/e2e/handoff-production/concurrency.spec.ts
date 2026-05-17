@@ -73,4 +73,26 @@ test.describe('Handoff matrix § Tier 2 — Concurrency (production-shaped)', ()
     // whichever envelope actually applied (the third, ideally).
     expect(errs.errors).toEqual([])
   })
+
+  // P5.2 — Tab-switch during handoff (FSM applies on return)
+  //
+  // Originally planned as a Tier-2 regression test for the UX fix in
+  // ``GraphCanvas.onActivated → tryApplyPendingFsmEnvelopeFromTabReturn``.
+  // Empirically determined this isn't deterministically reproducible in
+  // Tier-2's mock environment: Vue's KeepAlive activated/deactivated
+  // lifecycle interacts with Cytoscape layout timing in ways that
+  // Firefox-on-Playwright with a mocked artifact backend doesn't
+  // faithfully reproduce (FSM remains in ``loading_fetch`` even with a
+  // 6s poll budget post-return).
+  //
+  // Coverage of this contract is split:
+  //   - Tier-3 ``handoff-matrix-real-corpus.spec.ts::P5.2`` catches it
+  //     against the real backend with real layout timing — the
+  //     authoritative end-to-end test.
+  //   - Tier-1 should add a unit test of
+  //     ``tryApplyPendingFsmEnvelopeFromTabReturn`` in isolation,
+  //     mocking the cy core + FSM pending envelope inputs. That covers
+  //     the helper's resolver logic deterministically.
+  //
+  // Documented here so future readers don't re-add a flaky Tier-2 row.
 })
