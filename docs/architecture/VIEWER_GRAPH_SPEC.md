@@ -546,6 +546,41 @@ ESLint rule yet).
 
 ---
 
+### Tab-switch during in-flight handoff — institutional contract
+
+**The rule:** when `GraphCanvas.onActivated` fires and `graphHandoff.pending`
+is non-null with FSM in any in-flight state (`loading_fetch` / `loading_bootstrap` /
+`loading_merge` / `redrawing_*` / `applying`), the helper
+`tryApplyPendingFsmEnvelopeFromTabReturn(cy)` must drive the FSM forward to
+`applied` (when the target resolves in cy) or leave it for the stuck-timer
+to surface as `failed`.
+
+**Why this exists:** without the helper, an L1 / E1 / D1 click followed by an
+immediate tab-switch leaves the FSM in `loading_fetch` with no path to
+terminal — the user returns to the Graph tab to find an empty canvas + a
+15-second-delayed "stuck-timeout" error strip. The natural redraw-driven
+apply path (`finishLayoutPass` → `recordApplied`) only fires after a real
+`layoutstop`, which may not happen if the load completed while the tab was
+inactive.
+
+**Don't regress:** if you refactor `GraphCanvas.onActivated`, preserve the
+call to `tryApplyPendingFsmEnvelopeFromTabReturn` on every activation where
+`graphHandoff.pending` is non-null. The Tier-3 P5.2 spec at
+`web/gi-kg-viewer/e2e/validation/handoff-matrix-real-corpus.spec.ts` catches
+removal of this hook end-to-end.
+
+**Related fix in click handlers:** the L1 (`LibraryView.openEpisodeInGraph`)
+and D1 (`DigestView.openDigestRecentTopicPillInGraph`) handlers also call
+`artifacts.loadSelected({ preserveExpansion: true })` after
+`appendRelativeArtifacts` to force a redraw when the target's artifacts are
+already in the store (so the append is a no-op). Without this, two
+in-rapid-succession handoffs targeting the same episode stuck-timeout.
+Tier-2 `e2e/handoff-production/cross-entry.spec.ts::P2.5` pins this
+regression deterministically; Tier-3 `handoff-matrix-real-corpus.spec.ts::P2.5/P2.6`
+covers it end-to-end.
+
+---
+
 ### Debugging
 
 - **Inspect the FSM in dev**: `window.__GIKG_FSM__` exposes

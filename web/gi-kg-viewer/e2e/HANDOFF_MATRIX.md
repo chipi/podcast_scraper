@@ -223,6 +223,42 @@ Distribution:
   `__GIKG_FSM__` / `__GIKG_FSM_EVENT_LOG__` / `__GIKG_FSM_STATE_HISTORY__` /
   `__GIKG_HANDOFF_STORE__` hooks is verified across all real tests.
 
+### Tier-3 real-corpus coverage (29 of 41 rows)
+
+`e2e/validation/handoff-matrix-real-corpus.spec.ts` extends matrix
+coverage end-to-end against a real `make serve` stack and an on-disk
+operator corpus. Catches behaviours that depend on real-backend timing,
+real Cytoscape layout, or real-FAISS-derived content — things mock-driven
+Tier-1/2 can't faithfully reproduce.
+
+Covered: P1.1–P1.3, P1.5, P1.6, P1.8, P1.10, P1.12, P1.13, P2.1–P2.6,
+P3.1–P3.3, P4.1–P4.3, P5.1, P5.2, P6.1, P6.2, P7.1, P7.2, P8.1–P8.7.
+
+Not in Tier-3:
+
+- **P1.4** Digest band title — affordance disabled during the V2 fix
+  (headline pills are editorial labels not graph nodes; they no longer
+  carry a graph-handoff click)
+- **P1.7 / P1.9 / P1.11 / P2.7 / P3.4** — require multi-step UI setup
+  (select graph node → wait for NodeDetail / GraphConnections /
+  SubjectRail to populate → click specific affordance). Better suited
+  to Tier-2 where mock setup is deterministic; Tier-3 catches their
+  envelope contract through related rows
+- **P6.3** stuck handoff — covered by P6.2 (same FSM transition class)
+
+**Tier-3 catches what Tier-1/2 can't:**
+
+- L1/D1 stuck-timeout when target artifacts already loaded
+  (`appendRelativeArtifacts` short-circuit class) — Tier-2 P2.5 in
+  `cross-entry.spec.ts` pins the deterministic regression
+- Tab-switch during in-flight handoff (`onActivated` →
+  `tryApplyPendingFsmEnvelopeFromTabReturn` recovery) — Tier-3-only
+  (Vue KeepAlive timing doesn't reproduce in Tier-2 mock env; see the
+  P5.2 doc comment in `concurrency.spec.ts`)
+- Auto-widening of the 7-day graph lens for stale corpora
+- Default digest headline topics' lack of resolution in arbitrary
+  corpora (now sidestepped by disabling headline-pill clicks)
+
 ### Supplemental coverage (T-series)
 
 Beyond the 28-row matrix, these specs guard against architectural drift:
