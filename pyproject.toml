@@ -62,7 +62,7 @@ ml = [
   # sentence-transformers 5.x allows transformers 4.41–5.x; keep <5 until we vendor
   # extractive QA: transformers 5 removed the ``question-answering`` pipeline task (CI preload).
   # CVE-2026-1839 (Trainer rng_state / torch.load): fixed in 5.0.0rc3+ only; pip-audit ignore in Makefile until 5.x stable.
-  "transformers>=4.41.0,<5.0.0",
+  "transformers>=4.57.6,<5.0.0",
   "sentencepiece>=0.1.99,<1.0.0",
   # GIL evidence stack: SentenceTransformer + CrossEncoder (NLI); Docker .[ml] preload
   # v3+ CrossEncoder: pass local_files_only on constructor, not inside tokenizer/automodel kwargs
@@ -101,7 +101,7 @@ llm = [
 search = [
   "torch>=2.11.0,<3.0.0",
   # Pinned compatible with sentence-transformers 5.x — see [ml] for rationale.
-  "transformers>=4.41.0,<5.0.0",
+  "transformers>=4.57.6,<5.0.0",
   "sentencepiece>=0.1.99,<1.0.0",
   "sentence-transformers>=5.4.1,<6.0.0",
   "faiss-cpu>=1.13.2,<2.0.0",
