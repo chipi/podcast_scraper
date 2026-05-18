@@ -2248,14 +2248,22 @@ function tryApplyPendingFsmEnvelopeFromTabReturn(core: Core): boolean {
       } catch {
         /* ignore */
       }
-      // NOTE: deliberately NOT calling ``animateCameraToFocusedNode``
-      // here. If a layoutstop is going to fire (natural chain still
-      // running), ``finishLayoutPass`` will animate the camera. Firing
-      // our own animate races that and produces an off-canvas final
-      // position (Tier-2 P1.1 / P1.6 / P2.1 / P2.4 / P3.1 regression).
-      // Tier-3 P5.2 (the original UX bug we're recovering from) only
-      // cares about FSM reaching ``ready`` + selection set — camera
-      // centering is best-effort on tab return.
+      // Camera-animate IS required here. The naive concern was that
+      // ``finishLayoutPass`` would later fire its own animate and the
+      // two would race — but ``recordApplied`` below clears
+      // ``graphHandoff.pending``, which is precisely what
+      // ``finishLayoutPass``'s apply branch keys off. With pending
+      // cleared, ``finishLayoutPass`` only advances FSM state (no
+      // animate). So this animate is the ONLY camera centering for
+      // the tab-return path; omitting it leaves the camera at default
+      // layout coords (Tier-2 P1.1 cold-click regression: rendered=
+      // (513, -470) for an episode that should be near viewport
+      // center).
+      try {
+        animateCameraToFocusedNode(core, appliedCyId)
+      } catch {
+        /* ignore */
+      }
     }
     graphHandoff.recordApplied(appliedCyId)
     return true
