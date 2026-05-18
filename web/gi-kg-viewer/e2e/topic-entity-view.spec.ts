@@ -189,12 +189,65 @@ test.describe('Topic / Entity rail panel (TEV)', () => {
     })
   })
 
-  // ``digest topic title → TEV renders the contract surface`` — removed.
-  // The headline-pill click affordance was disabled in the V2
-  // architectural change (see ``DigestView.vue`` headline span and the
-  // corresponding comment in ``digest.spec.ts``). The headline is now a
-  // ``<span>`` for display only — there is no click path from this
-  // surface to either the graph or the TEV. The TEV contract surface
-  // itself is still covered by the other tests in this file (graph node
-  // click, dashboard topic-cluster chip, etc.).
+  test('TEV renders the contract surface for a focused topic', async ({ page }) => {
+    // ENTRY POINT NOTE — The original spec drove this through the digest
+    // topic-band-title click affordance. That click handler was removed
+    // in the V2 architectural change (``DEFAULT_DIGEST_TOPICS`` editorial
+    // labels don't correspond to KG nodes in arbitrary corpora — see the
+    // headline ``<span>`` in ``DigestView.vue`` and the comment in
+    // ``digest.spec.ts``). TEV is still reachable from other surfaces:
+    //
+    //   - Dashboard topic-cluster chip → ``activateGraphTab(topic:…)`` →
+    //     ``subject.focusTopic`` (App.vue:150)
+    //   - ``@go-graph`` emit with a ``topic:…`` target id from any surface
+    //
+    // The valuable assertion set is the TEV contract surface itself
+    // (data-testids per E2E_SURFACE_MAP §224). Drive ``subject.focusTopic``
+    // directly via the DEV-only ``__GIKG_SUBJECT__`` hook so this spec
+    // verifies the panel contract without coupling to whichever entry
+    // point happens to be wired today.
+    await page.goto('/')
+    await page.getByRole('heading', { name: SHELL_HEADING_RE }).waitFor()
+    await statusBarCorpusPathInput(page).fill('/mock/corpus')
+    await expect(page.getByTestId('digest-root')).toBeVisible()
+
+    // Open the Graph workspace so the artifact slice loads and TEV can
+    // resolve the topic node when ``subject.focusTopic`` fires.
+    await mainViewsNav(page).getByRole('button', { name: 'Graph' }).click()
+    await page.getByRole('button', { name: 'Fit' }).waitFor({ state: 'visible', timeout: 30_000 })
+
+    // Drive TEV via the DEV hook (DEV-only mutator on ``__GIKG_SUBJECT__``).
+    await page.evaluate((id) => {
+      const subj = (window as unknown as { __GIKG_SUBJECT__?: { focusTopic: (i: string) => void } })
+        .__GIKG_SUBJECT__
+      if (!subj?.focusTopic) {
+        throw new Error('__GIKG_SUBJECT__.focusTopic not exposed; DEV-only hook missing')
+      }
+      subj.focusTopic(id)
+    }, GRAPH_TOPIC_ID)
+
+    // TEV contract surface (E2E_SURFACE_MAP §224).
+    const view = page.getByTestId('topic-entity-view')
+    await expect(view).toBeVisible({ timeout: 10_000 })
+
+    await expect(page.getByTestId('topic-entity-view-kind')).toContainText(/topic|entity/i)
+    await expect(page.getByTestId('topic-entity-view-name')).toContainText(TOPIC_LABEL)
+
+    // The fixture has a Topic node with no mentions, so the stats sentence
+    // (gated on timeline.total > 0) is absent and the empty placeholder
+    // renders instead. Either branch satisfies the contract.
+    const stats = view.getByTestId('topic-entity-view-stats')
+    const empty = view.getByTestId('topic-entity-view-empty')
+    const mentions = view.getByTestId('topic-entity-view-mentions')
+    const statsCount = await stats.count()
+    const emptyCount = await empty.count()
+    const mentionsCount = await mentions.count()
+    expect(statsCount + emptyCount + mentionsCount).toBeGreaterThan(0)
+
+    // Action buttons present.
+    await expect(page.getByTestId('topic-entity-view-go-graph')).toBeVisible()
+    await expect(page.getByTestId('topic-entity-view-prefill-search')).toBeVisible()
+    // TEV does not launch the legacy topic timeline popup.
+    await expect(page.getByTestId('topic-timeline-dialog')).toHaveCount(0)
+  })
 })

@@ -170,6 +170,13 @@ export const useSubjectStore = defineStore('subject', () => {
       get personId() {
         return personId.value
       },
+      // E2E-only mutators. The TEV contract Playwright spec drives the
+      // panel via ``focusTopic`` after the V2 architectural change removed
+      // the digest topic-band-title click affordance; other handoff specs
+      // use the FSM store dev hook. Mutators stay DEV-gated.
+      focusTopic,
+      focusEntity,
+      clearSubject,
     }
   }
 
