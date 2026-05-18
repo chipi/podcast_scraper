@@ -2248,11 +2248,14 @@ function tryApplyPendingFsmEnvelopeFromTabReturn(core: Core): boolean {
       } catch {
         /* ignore */
       }
-      try {
-        animateCameraToFocusedNode(core, appliedCyId)
-      } catch {
-        /* ignore */
-      }
+      // NOTE: deliberately NOT calling ``animateCameraToFocusedNode``
+      // here. If a layoutstop is going to fire (natural chain still
+      // running), ``finishLayoutPass`` will animate the camera. Firing
+      // our own animate races that and produces an off-canvas final
+      // position (Tier-2 P1.1 / P1.6 / P2.1 / P2.4 / P3.1 regression).
+      // Tier-3 P5.2 (the original UX bug we're recovering from) only
+      // cares about FSM reaching ``ready`` + selection set — camera
+      // centering is best-effort on tab return.
     }
     graphHandoff.recordApplied(appliedCyId)
     return true
