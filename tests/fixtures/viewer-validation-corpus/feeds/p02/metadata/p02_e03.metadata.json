@@ -1,0 +1,73 @@
+{
+  "cil_digest_topics": [
+    {
+      "in_topic_cluster": true,
+      "label": "technology",
+      "topic_cluster_compound_id": "tc:technology-cluster",
+      "topic_id": "topic:technology"
+    },
+    {
+      "in_topic_cluster": false,
+      "label": "Business & markets",
+      "topic_cluster_compound_id": null,
+      "topic_id": "topic:business-markets"
+    }
+  ],
+  "episode": {
+    "episode_id": "d2fb36a0-6f97-55ee-a67a-e97dba3b7f27",
+    "published_date": "2026-05-11",
+    "title": "Practical Systems \u2014 Episode 3"
+  },
+  "episode_id": "d2fb36a0-6f97-55ee-a67a-e97dba3b7f27",
+  "episode_title": "Practical Systems \u2014 Episode 3",
+  "feed": {
+    "description": "Software engineering conversations: reliability, architecture, delivery, and the tradeoffs nobody puts in the blog post.",
+    "feed_id": "sha256:05eff208d6fd774940bed9fd154c6a46b9325e32cf95e1769f8eb679505ef414",
+    "title": "Practical Systems",
+    "url": "http://localhost/"
+  },
+  "feed_display_title": "Practical Systems",
+  "feed_id": "sha256:05eff208d6fd774940bed9fd154c6a46b9325e32cf95e1769f8eb679505ef414",
+  "gi_relative_path": "feeds/p02/metadata/p02_e03.gi.json",
+  "grounded_insights": {
+    "artifact_path": "feeds/p02/metadata/p02_e03.gi.json",
+    "schema_version": "1.0"
+  },
+  "has_gi": true,
+  "has_kg": true,
+  "kg_relative_path": "feeds/p02/metadata/p02_e03.kg.json",
+  "knowledge_graph": {
+    "artifact_path": "feeds/p02/metadata/p02_e03.kg.json",
+    "schema_version": "1.1"
+  },
+  "publish_date": "2026-05-11",
+  "schema_version": "1",
+  "summary": {
+    "bullets": [
+      "# Practical Systems \u2014 Episode\n## Security as Design, Not a Checklist\nHost: Ethan\nGuest: Camila\nEthan: Welcome back to Practical Systems.",
+      "Today we\u2019re talking about security as design, not a checklist, and I\u2019m joined by Camila.",
+      "Camila, thanks for being here."
+    ],
+    "preview": "# Practical Systems \u2014 Episode\n## Security as Design, Not a Checklist\nHost: Ethan\nGuest: Camila\nEthan: Welcome back to Practical Systems.",
+    "text": "# Practical Systems \u2014 Episode\n## Security as Design, Not a Checklist\nHost: Ethan\nGuest: Camila\nEthan: Welcome back to Practical Systems.\nToday we\u2019re talking about security as design, not a checklist, and I\u2019m joined by Camila.\nCamila, thanks for being here.",
+    "title": "Practical Systems \u2014 Episode 3 \u2014 synthetic"
+  },
+  "summary_bullet_graph_topic_ids": [
+    "topic:technology",
+    "topic:business-markets",
+    "topic:security-as"
+  ],
+  "summary_bullets": [
+    "# Practical Systems \u2014 Episode\n## Security as Design, Not a Checklist\nHost: Ethan\nGuest: Camila\nEthan: Welcome back to Practical Systems.",
+    "Today we\u2019re talking about security as design, not a checklist, and I\u2019m joined by Camila.",
+    "Camila, thanks for being here."
+  ],
+  "summary_preview": "# Practical Systems \u2014 Episode\n## Security as Design, Not a Checklist\nHost: Ethan\nGuest: Camila\nEthan: Welcome back to Practical Systems.",
+  "summary_text": "# Practical Systems \u2014 Episode\n## Security as Design, Not a Checklist\nHost: Ethan\nGuest: Camila\nEthan: Welcome back to Practical Systems.\nToday we\u2019re talking about security as design, not a checklist, and I\u2019m joined by Camila.\nCamila, thanks for being here.",
+  "summary_title": "Practical Systems \u2014 Episode 3 \u2014 synthetic",
+  "topics": [
+    "technology",
+    "Business & markets",
+    "security as"
+  ]
+}

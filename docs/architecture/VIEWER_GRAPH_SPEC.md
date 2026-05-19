@@ -441,9 +441,9 @@ coverage in
 | D1 | Digest recent topic pill | `handoffRequested` | `digest` | `digest-external` | `center-on-target` |
 | D2 | Digest topic-band hit row | `handoffRequested` | `digest` | `digest-external` | `center` (topicFocus / eid) |
 | D3 | Digest topic-band title | `handoffRequested` | `digest` | `digest-external` | `fit` (multi-episode) |
-| S1 | Search "Show on graph" | `handoffRequested` (via `activateGraphTab(source: 'search')`) | `search` | `subject-external` | `center-on-target` |
+| S1 | Search "Show on graph" | `handoffRequested` (dispatched directly from `SearchPanel.onFocusHit`) | `search` | `subject-external` | `center-on-target` |
 | E1 | Episode panel "Open in graph" | `handoffRequested` | `episode-panel` | `subject-external` | `center-on-target` |
-| O3 | NodeDetail Load + go-graph | `handoffRequested` (via `activateGraphTab(source: 'node-detail')`) | `node-detail` | `graph-internal` | `center-on-target` |
+| O3 | NodeDetail Load + neighbour go-graph | `expansionRequested` (dispatched directly from `NodeDetail.focusTopicClusterMember` / `focusNeighborOnGraph`) | `node-detail` | `graph-internal` | `center-on-target` |
 | O1/O2/O4–O6 | Dashboard / Explore / SubjectRail / StatusBar @go-graph | `handoffRequested` (via `activateGraphTab(source: …)`) | (per surface) | `subject-external` | `center-on-target` |
 | G1/G2 | Canvas single-tap (incl. onetap rail) | `canvasTapped` | `canvas-tap` | `graph-internal` | `center` (cyId) |
 | G3 | Canvas double-tap expand | `expansionRequested` | `double-tap-expand` | `graph-internal` | `preserve` |
@@ -546,6 +546,41 @@ ESLint rule yet).
 
 ---
 
+### Tab-switch during in-flight handoff — institutional contract
+
+**The rule:** when `GraphCanvas.onActivated` fires and `graphHandoff.pending`
+is non-null with FSM in any in-flight state (`loading_fetch` / `loading_bootstrap` /
+`loading_merge` / `redrawing_*` / `applying`), the helper
+`tryApplyPendingFsmEnvelopeFromTabReturn(cy)` must drive the FSM forward to
+`applied` (when the target resolves in cy) or leave it for the stuck-timer
+to surface as `failed`.
+
+**Why this exists:** without the helper, an L1 / E1 / D1 click followed by an
+immediate tab-switch leaves the FSM in `loading_fetch` with no path to
+terminal — the user returns to the Graph tab to find an empty canvas + a
+15-second-delayed "stuck-timeout" error strip. The natural redraw-driven
+apply path (`finishLayoutPass` → `recordApplied`) only fires after a real
+`layoutstop`, which may not happen if the load completed while the tab was
+inactive.
+
+**Don't regress:** if you refactor `GraphCanvas.onActivated`, preserve the
+call to `tryApplyPendingFsmEnvelopeFromTabReturn` on every activation where
+`graphHandoff.pending` is non-null. The Tier-3 P5.2 spec at
+`web/gi-kg-viewer/e2e/validation/handoff-matrix-real-corpus.spec.ts` catches
+removal of this hook end-to-end.
+
+**Related fix in click handlers:** the L1 (`LibraryView.openEpisodeInGraph`)
+and D1 (`DigestView.openDigestRecentTopicPillInGraph`) handlers also call
+`artifacts.loadSelected({ preserveExpansion: true })` after
+`appendRelativeArtifacts` to force a redraw when the target's artifacts are
+already in the store (so the append is a no-op). Without this, two
+in-rapid-succession handoffs targeting the same episode stuck-timeout.
+Tier-2 `e2e/handoff-production/cross-entry.spec.ts::P2.5` pins this
+regression deterministically; Tier-3 `handoff-matrix-real-corpus.spec.ts::P2.5/P2.6`
+covers it end-to-end.
+
+---
+
 ### Debugging
 
 - **Inspect the FSM in dev**: `window.__GIKG_FSM__` exposes
@@ -567,6 +602,58 @@ ESLint rule yet).
 - **PostHog telemetry**: `graph_handoff_started/applied/failed/superseded/stuck`
   events fire from `stores/graphHandoff.ts`. Use to track handoff success
   rates per source in production.
+
+---
+
+### Matrix assertion layers (L0–L6)
+
+The 41-row `web/gi-kg-viewer/e2e/HANDOFF_MATRIX.md` drives the 6-point
+standard contract through six composable assertion layers. Each row asserts as deeply as its fixture allows; the layer profile
+per row is recorded in the matrix doc's "Layers" column.
+
+| Layer | What it asserts | Hook | Helper |
+| --- | --- | --- | --- |
+| **L0** | API mocks return expected shape | n/a | `setupHandoffMatrixMocks` |
+| **L1** | FSM `ready` + `pending=null` + `lastResult.status=applied` + generation bumped | `__GIKG_FSM__` | `readFsmState` |
+| **L2** | Exactly 1 cy node selected with id matching expected (modulo `g:`/`k:`/`__unified_ep__:` prefix) | `__GIKG_CY_DEV__` | `assertHandoffApplied` |
+| **L3** | Camera zoom in `[0.2, 5]` AND target node `renderedPosition` within inner `cameraCenterTolerance × viewport` (default 0.35) box; no console errors; Episode panel title (when relevant) | `__GIKG_CY_DEV__` + `console.error` | `assertHandoffApplied` |
+| **L4** | FSM event envelope shape: `type` + `source` + `kind` + `loadSource` + `camera.kind` | `__GIKG_FSM_EVENT_LOG__` | `assertFsmEventEnvelope` |
+| **L5** | Subject store: `subject.kind` + matching id field reflects target | `__GIKG_SUBJECT__` | `assertHandoffApplied` |
+| **L6** | Self-healing invariant: `viewWithEgo(focusNodeId)` ⊖ `core.nodes()` is empty after most recent `finishLayoutPass` | `__GIKG_FSM__.lastInvariant` | `assertHandoffApplied` |
+
+**UI-driven rows** (Library / Digest pill / Search "Show on graph" /
+Episode panel / NodeDetail Load / Dashboard topic-cluster chip / hot-state /
+repeat / cross-entry / lifecycle tab-reconcile) assert **L0+L1+L2+L3+L5+L6**
+through `assertHandoffApplied`. L6 is advisory (accepts `null` when no
+layoutstop fired since the handoff — typical when the target was already
+in the graph and no redraw was needed).
+
+**Dev-hook-driven rows** (SubjectRail / StatusBar / Mini-map no-target
+funnels, composite multi-envelope sequences, failure modes, lifecycle
+restore) assert **L0+L1+L4** through `assertFsmEventEnvelope`. They
+dispatch envelopes via `__GIKG_HANDOFF_STORE__` and can't reach the
+"applied" outcome without a real graph change, so they pin the FSM-event
+contract instead of the full outcome contract.
+
+**Filter rows** (Section 8) assert the inverse: no `handoffRequested`
+fires and FSM state stays quiescent — filters must not drive graph state.
+
+The **camera-center check** (part of L3) addresses the GH #771 failure
+class where `cy.zoom()` is fine but pan misaligned, leaving the user
+looking at empty space or wrong nodes. Implementation polls
+`node.renderedPosition()` until it stabilizes (2-consecutive identical
+reads, cap 2.5 s — waits for `cy.animate` to settle since `recordApplied`
+marks `ready` before animation completes), then asserts pixel distance
+from viewport center. Skip via `skipCameraCenter: true` for envelopes
+with `camera: 'fit'` / `'preserve'`.
+
+The **L6 self-healing invariant** is stashed by `finishLayoutPass` on
+every layoutstop (in production, not just dev) via
+`graphHandoff.recordInvariant(missing, extra)`. The same predicate drives
+production reconciliation: `< 20` missing nodes triggers a targeted
+`core.add()`; subsequent layoutstop reruns the invariant; second violation
+accepts divergence with a logged warning (single retry budget per
+envelope generation).
 
 ---
 

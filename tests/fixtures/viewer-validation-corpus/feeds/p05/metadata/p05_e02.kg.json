@@ -1,0 +1,83 @@
+{
+  "edges": [
+    {
+      "from": "episode:78741d49-00ad-5f5f-b127-8fd1c1b6844c",
+      "to": "entity:technology",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:78741d49-00ad-5f5f-b127-8fd1c1b6844c",
+      "to": "entity:welcome-back-to",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:78741d49-00ad-5f5f-b127-8fd1c1b6844c",
+      "to": "topic:technology",
+      "type": "RELATES_TO"
+    },
+    {
+      "from": "episode:78741d49-00ad-5f5f-b127-8fd1c1b6844c",
+      "to": "topic:welcome-back-to",
+      "type": "RELATES_TO"
+    },
+    {
+      "from": "episode:78741d49-00ad-5f5f-b127-8fd1c1b6844c",
+      "to": "topic:what-does-that-look",
+      "type": "RELATES_TO"
+    }
+  ],
+  "episode_id": "78741d49-00ad-5f5f-b127-8fd1c1b6844c",
+  "extraction": {
+    "model": "n/a",
+    "provider": "synthetic"
+  },
+  "nodes": [
+    {
+      "id": "episode:78741d49-00ad-5f5f-b127-8fd1c1b6844c",
+      "properties": {
+        "episode_id": "78741d49-00ad-5f5f-b127-8fd1c1b6844c",
+        "metadata_relative_path": "feeds/p05/metadata/p05_e02.metadata.json",
+        "title": "Long Horizon Notes \u2014 Episode 2"
+      },
+      "type": "Episode"
+    },
+    {
+      "id": "entity:technology",
+      "properties": {
+        "category": "Concept",
+        "label": "Technology"
+      },
+      "type": "Entity"
+    },
+    {
+      "id": "entity:welcome-back-to",
+      "properties": {
+        "category": "Concept",
+        "label": "Welcome Back To"
+      },
+      "type": "Entity"
+    },
+    {
+      "id": "topic:technology",
+      "properties": {
+        "label": "Technology"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:welcome-back-to",
+      "properties": {
+        "label": "welcome back to"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:what-does-that-look",
+      "properties": {
+        "label": "what does that look"
+      },
+      "type": "Topic"
+    }
+  ],
+  "schema_version": "2"
+}

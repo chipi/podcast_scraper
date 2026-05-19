@@ -1,0 +1,142 @@
+{
+  "edges": [
+    {
+      "from": "episode:22aa61d4-d535-5e72-ae9b-d44d9a3054d1",
+      "to": "topic:technology",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:22aa61d4-d535-5e72-ae9b-d44d9a3054d1",
+      "to": "topic:health",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:22aa61d4-d535-5e72-ae9b-d44d9a3054d1",
+      "to": "topic:science-research",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:22aa61d4-d535-5e72-ae9b-d44d9a3054d1",
+      "to": "insight:08ec81c53dedc909",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "episode:22aa61d4-d535-5e72-ae9b-d44d9a3054d1",
+      "to": "insight:9b38637b4c4d2e0d",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "episode:22aa61d4-d535-5e72-ae9b-d44d9a3054d1",
+      "to": "insight:de1876082b36b0d4",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "episode:22aa61d4-d535-5e72-ae9b-d44d9a3054d1",
+      "to": "quote:3b9a72bdc810c118",
+      "type": "HAS_QUOTE"
+    },
+    {
+      "from": "episode:22aa61d4-d535-5e72-ae9b-d44d9a3054d1",
+      "to": "quote:d6b9f931a102c46d",
+      "type": "HAS_QUOTE"
+    },
+    {
+      "from": "episode:22aa61d4-d535-5e72-ae9b-d44d9a3054d1",
+      "to": "quote:eee0c952d51f4059",
+      "type": "HAS_QUOTE"
+    }
+  ],
+  "episode_id": "22aa61d4-d535-5e72-ae9b-d44d9a3054d1",
+  "model_version": "synthetic-validation-corpus-v1",
+  "nodes": [
+    {
+      "id": "episode:22aa61d4-d535-5e72-ae9b-d44d9a3054d1",
+      "properties": {
+        "duration_ms": 1800000,
+        "episode_id": "22aa61d4-d535-5e72-ae9b-d44d9a3054d1",
+        "metadata_relative_path": "feeds/p09/metadata/p09_e01.metadata.json",
+        "podcast_id": "sha256:255b515964dcdf7f0f2123a46053fbf8c961882868ea3c88bb8ba794824c52e8",
+        "publish_date": "2026-05-14T12:00:00",
+        "title": "The Long View: Biohacking \u2014 Episode 1"
+      },
+      "type": "Episode"
+    },
+    {
+      "id": "topic:technology",
+      "properties": {
+        "label": "technology",
+        "score": 0.8
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:health",
+      "properties": {
+        "label": "health",
+        "score": 0.8
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:science-research",
+      "properties": {
+        "label": "Science & research",
+        "score": 0.8
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "insight:08ec81c53dedc909",
+      "properties": {
+        "confidence": 0.7,
+        "grounded": true,
+        "text": "Alex Morgan: Biohacking in 2025: From Fringe to Framework\n\nAlex Morgan: In 2025, biohacking is everywhere in public conversation, but the signal is often mixed with hype."
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "insight:9b38637b4c4d2e0d",
+      "properties": {
+        "confidence": 0.7,
+        "grounded": true,
+        "text": "In this episode, I\u2019m going to build a grounded map: what\u2019s real, what\u2019s uncertain, and what you can do without turning your life into an optimization project."
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "insight:de1876082b36b0d4",
+      "properties": {
+        "confidence": 0.7,
+        "grounded": true,
+        "text": "Alex Morgan: Where the field is right now."
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "quote:3b9a72bdc810c118",
+      "properties": {
+        "speaker": "Speaker 1",
+        "text": "Alex Morgan: When measurement helps, it should answer a question."
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:d6b9f931a102c46d",
+      "properties": {
+        "speaker": "Speaker 1",
+        "text": "When it becomes constant surveillance, it often increases anxiety and makes outcomes worse."
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:eee0c952d51f4059",
+      "properties": {
+        "speaker": "Speaker 1",
+        "text": "Alex Morgan: The second step is to separate interventions that improve fundamentals from interventions that just create the feeling of progress."
+      },
+      "type": "Quote"
+    }
+  ],
+  "prompt_version": "n/a",
+  "schema_version": "2"
+}

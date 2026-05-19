@@ -1,0 +1,142 @@
+{
+  "edges": [
+    {
+      "from": "episode:254fe2be-b570-592e-84cd-c22cb9e271e9",
+      "to": "topic:outdoor-activities",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:254fe2be-b570-592e-84cd-c22cb9e271e9",
+      "to": "topic:gear",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:254fe2be-b570-592e-84cd-c22cb9e271e9",
+      "to": "topic:technology",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:254fe2be-b570-592e-84cd-c22cb9e271e9",
+      "to": "insight:3c07a9ec6895756b",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "episode:254fe2be-b570-592e-84cd-c22cb9e271e9",
+      "to": "insight:1411b5c089481fd9",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "episode:254fe2be-b570-592e-84cd-c22cb9e271e9",
+      "to": "insight:0df817e3f8b25504",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "episode:254fe2be-b570-592e-84cd-c22cb9e271e9",
+      "to": "quote:52bc07b2a5cbb682",
+      "type": "HAS_QUOTE"
+    },
+    {
+      "from": "episode:254fe2be-b570-592e-84cd-c22cb9e271e9",
+      "to": "quote:a46de42e01a1485a",
+      "type": "HAS_QUOTE"
+    },
+    {
+      "from": "episode:254fe2be-b570-592e-84cd-c22cb9e271e9",
+      "to": "quote:6ec2715156954c2b",
+      "type": "HAS_QUOTE"
+    }
+  ],
+  "episode_id": "254fe2be-b570-592e-84cd-c22cb9e271e9",
+  "model_version": "synthetic-validation-corpus-v1",
+  "nodes": [
+    {
+      "id": "episode:254fe2be-b570-592e-84cd-c22cb9e271e9",
+      "properties": {
+        "duration_ms": 1800000,
+        "episode_id": "254fe2be-b570-592e-84cd-c22cb9e271e9",
+        "metadata_relative_path": "feeds/p03/metadata/p03_e02.metadata.json",
+        "podcast_id": "sha256:16de36c98e7e4b95d699380d14d84d2f13717c2c151f935076564a9a5f5e979b",
+        "publish_date": "2026-05-12T12:00:00",
+        "title": "Below the Surface \u2014 Episode 2"
+      },
+      "type": "Episode"
+    },
+    {
+      "id": "topic:outdoor-activities",
+      "properties": {
+        "label": "outdoor activities",
+        "score": 0.8
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:gear",
+      "properties": {
+        "label": "gear",
+        "score": 0.8
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:technology",
+      "properties": {
+        "label": "Technology",
+        "score": 0.8
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "insight:3c07a9ec6895756b",
+      "properties": {
+        "confidence": 0.7,
+        "grounded": true,
+        "text": "# Below the Surface \u2014 Episode\n## Marine Biology for Divers\nHost: Rina\nGuest: Hanna\nRina: Welcome back to Below the Surface."
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "insight:1411b5c089481fd9",
+      "properties": {
+        "confidence": 0.7,
+        "grounded": true,
+        "text": "Today we\u2019re talking about marine biology for divers, and I\u2019m joined by Hanna."
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "insight:0df817e3f8b25504",
+      "properties": {
+        "confidence": 0.7,
+        "grounded": true,
+        "text": "I\u2019m excited\u2014this is a topic people care about, and there\u2019s a lot of practical nuance."
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "quote:52bc07b2a5cbb682",
+      "properties": {
+        "speaker": "Speaker 1",
+        "text": "Okay, let\u2019s get specific."
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:a46de42e01a1485a",
+      "properties": {
+        "speaker": "Speaker 1",
+        "text": "The calmest diver is often the safest diver because calm keeps breathing slow and decisions deliberate."
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:6ec2715156954c2b",
+      "properties": {
+        "speaker": "Speaker 1",
+        "text": "If a regulator free\u2011flows, the sound is alarming, but the procedure is simple when you\u2019ve practiced it calmly."
+      },
+      "type": "Quote"
+    }
+  ],
+  "prompt_version": "n/a",
+  "schema_version": "2"
+}

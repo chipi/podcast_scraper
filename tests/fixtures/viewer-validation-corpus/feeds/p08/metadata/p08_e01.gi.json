@@ -1,0 +1,142 @@
+{
+  "edges": [
+    {
+      "from": "episode:15a1cbea-1449-50ac-bb1c-11784d7421c3",
+      "to": "topic:environment",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:15a1cbea-1449-50ac-bb1c-11784d7421c3",
+      "to": "topic:technology",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:15a1cbea-1449-50ac-bb1c-11784d7421c3",
+      "to": "topic:science-research",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:15a1cbea-1449-50ac-bb1c-11784d7421c3",
+      "to": "insight:7d99f87f18477b95",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "episode:15a1cbea-1449-50ac-bb1c-11784d7421c3",
+      "to": "insight:1c6e27c443d1abc5",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "episode:15a1cbea-1449-50ac-bb1c-11784d7421c3",
+      "to": "insight:6c71b8dd72f6a0f1",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "episode:15a1cbea-1449-50ac-bb1c-11784d7421c3",
+      "to": "quote:16227549ade3f1cb",
+      "type": "HAS_QUOTE"
+    },
+    {
+      "from": "episode:15a1cbea-1449-50ac-bb1c-11784d7421c3",
+      "to": "quote:91eb700de8d2964e",
+      "type": "HAS_QUOTE"
+    },
+    {
+      "from": "episode:15a1cbea-1449-50ac-bb1c-11784d7421c3",
+      "to": "quote:cdd83e3eb7ba727f",
+      "type": "HAS_QUOTE"
+    }
+  ],
+  "episode_id": "15a1cbea-1449-50ac-bb1c-11784d7421c3",
+  "model_version": "synthetic-validation-corpus-v1",
+  "nodes": [
+    {
+      "id": "episode:15a1cbea-1449-50ac-bb1c-11784d7421c3",
+      "properties": {
+        "duration_ms": 1800000,
+        "episode_id": "15a1cbea-1449-50ac-bb1c-11784d7421c3",
+        "metadata_relative_path": "feeds/p08/metadata/p08_e01.metadata.json",
+        "podcast_id": "sha256:5ffc16f86af9856b053a670e3a580eb8f0e2888d6c6ccf09d988a2619350ed2a",
+        "publish_date": "2026-05-15T12:00:00",
+        "title": "The Long View \u2014 Episode 1"
+      },
+      "type": "Episode"
+    },
+    {
+      "id": "topic:environment",
+      "properties": {
+        "label": "environment",
+        "score": 0.8
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:technology",
+      "properties": {
+        "label": "technology",
+        "score": 0.8
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:science-research",
+      "properties": {
+        "label": "Science & research",
+        "score": 0.8
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "insight:7d99f87f18477b95",
+      "properties": {
+        "confidence": 0.7,
+        "grounded": true,
+        "text": "The Long View\nEpisode: The Role of Solar Energy in the Near Future\nHost: Alex Morgan\nGuest: Dr."
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "insight:1c6e27c443d1abc5",
+      "properties": {
+        "confidence": 0.7,
+        "grounded": true,
+        "text": "Rafael Mendes\n\nAlex Morgan: Today we\u2019re talking about solar energy: what it can realistically do in the next 10\u201320 years, and what has to change around it."
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "insight:6c71b8dd72f6a0f1",
+      "properties": {
+        "confidence": 0.7,
+        "grounded": true,
+        "text": "Alex Morgan: People often talk about solar energy as if it\u2019s one thing, but it\u2019s really a bundle of trade-offs."
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "quote:16227549ade3f1cb",
+      "properties": {
+        "speaker": "Speaker 1",
+        "text": "Rafael Mendes: Yes, and it helps to name the hidden assumptions people bring into the conversation."
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:91eb700de8d2964e",
+      "properties": {
+        "speaker": "Speaker 1",
+        "text": "Alex Morgan: What\u2019s the common misconception you see in the public debate?"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:cdd83e3eb7ba727f",
+      "properties": {
+        "speaker": "Speaker 1",
+        "text": "Rafael Mendes: We should distinguish between first-order impacts and second-order effects, because the second-order effects tend to dominate over time."
+      },
+      "type": "Quote"
+    }
+  ],
+  "prompt_version": "n/a",
+  "schema_version": "2"
+}

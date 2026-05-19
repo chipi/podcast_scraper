@@ -1,0 +1,73 @@
+{
+  "cil_digest_topics": [
+    {
+      "in_topic_cluster": false,
+      "label": "Science & research",
+      "topic_cluster_compound_id": null,
+      "topic_id": "topic:science-research"
+    },
+    {
+      "in_topic_cluster": false,
+      "label": "without the",
+      "topic_cluster_compound_id": null,
+      "topic_id": "topic:without-the"
+    }
+  ],
+  "episode": {
+    "episode_id": "ac5784fa-1c94-5cd8-99c6-c4f0be157a64",
+    "published_date": "2026-05-12",
+    "title": "Long Horizon Notes \u2014 Episode 1"
+  },
+  "episode_id": "ac5784fa-1c94-5cd8-99c6-c4f0be157a64",
+  "episode_title": "Long Horizon Notes \u2014 Episode 1",
+  "feed": {
+    "description": "Investing conversations for normal humans: frameworks, risk, and the habits that matter more than predictions.",
+    "feed_id": "sha256:f4abc2ce662eb5875453632ed70c87b2fbc7394bbeef83c9d1d0918febd5bebe",
+    "title": "Long Horizon Notes",
+    "url": "http://localhost/"
+  },
+  "feed_display_title": "Long Horizon Notes",
+  "feed_id": "sha256:f4abc2ce662eb5875453632ed70c87b2fbc7394bbeef83c9d1d0918febd5bebe",
+  "gi_relative_path": "feeds/p05/metadata/p05_e01.gi.json",
+  "grounded_insights": {
+    "artifact_path": "feeds/p05/metadata/p05_e01.gi.json",
+    "schema_version": "1.0"
+  },
+  "has_gi": true,
+  "has_kg": true,
+  "kg_relative_path": "feeds/p05/metadata/p05_e01.kg.json",
+  "knowledge_graph": {
+    "artifact_path": "feeds/p05/metadata/p05_e01.kg.json",
+    "schema_version": "1.1"
+  },
+  "publish_date": "2026-05-12",
+  "schema_version": "1",
+  "summary": {
+    "bullets": [
+      "# Long Horizon Notes \u2014 Episode\n## Index Investing Without the Myths\nHost: Nora\nGuest: Daniel\nNora: Welcome back to Long Horizon Notes.",
+      "Today we\u2019re talking about index investing without the myths, and I\u2019m joined by Daniel.",
+      "Daniel, thanks for being here."
+    ],
+    "preview": "# Long Horizon Notes \u2014 Episode\n## Index Investing Without the Myths\nHost: Nora\nGuest: Daniel\nNora: Welcome back to Long Horizon Notes.",
+    "text": "# Long Horizon Notes \u2014 Episode\n## Index Investing Without the Myths\nHost: Nora\nGuest: Daniel\nNora: Welcome back to Long Horizon Notes.\nToday we\u2019re talking about index investing without the myths, and I\u2019m joined by Daniel.\nDaniel, thanks for being here.",
+    "title": "Long Horizon Notes \u2014 Episode 1 \u2014 synthetic"
+  },
+  "summary_bullet_graph_topic_ids": [
+    "topic:science-research",
+    "topic:without-the",
+    "topic:welcome-back-to"
+  ],
+  "summary_bullets": [
+    "# Long Horizon Notes \u2014 Episode\n## Index Investing Without the Myths\nHost: Nora\nGuest: Daniel\nNora: Welcome back to Long Horizon Notes.",
+    "Today we\u2019re talking about index investing without the myths, and I\u2019m joined by Daniel.",
+    "Daniel, thanks for being here."
+  ],
+  "summary_preview": "# Long Horizon Notes \u2014 Episode\n## Index Investing Without the Myths\nHost: Nora\nGuest: Daniel\nNora: Welcome back to Long Horizon Notes.",
+  "summary_text": "# Long Horizon Notes \u2014 Episode\n## Index Investing Without the Myths\nHost: Nora\nGuest: Daniel\nNora: Welcome back to Long Horizon Notes.\nToday we\u2019re talking about index investing without the myths, and I\u2019m joined by Daniel.\nDaniel, thanks for being here.",
+  "summary_title": "Long Horizon Notes \u2014 Episode 1 \u2014 synthetic",
+  "topics": [
+    "Science & research",
+    "without the",
+    "welcome back to"
+  ]
+}

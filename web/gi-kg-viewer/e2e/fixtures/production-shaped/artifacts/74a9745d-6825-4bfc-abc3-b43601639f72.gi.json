@@ -1,0 +1,1057 @@
+{
+  "schema_version": "2.0",
+  "model_version": "gemini-2.5-flash-lite",
+  "prompt_version": "v1",
+  "episode_id": "74a9745d-6825-4bfc-abc3-b43601639f72",
+  "nodes": [
+    {
+      "id": "episode:74a9745d-6825-4bfc-abc3-b43601639f72",
+      "type": "Episode",
+      "properties": {
+        "podcast_id": "sha256:1cd6aecdd31c0ae82c2c76efdb6327b54e6026924b47852c51ffb406a9f2b19c",
+        "title": "What's Actually Going On With Private Credit",
+        "publish_date": "2026-04-27T08:00:00+00:00",
+        "duration_ms": 3047000,
+        "feed_id": "sha256:1cd6aecdd31c0ae82c2c76efdb6327b54e6026924b47852c51ffb406a9f2b19c"
+      }
+    },
+    {
+      "id": "topic:private-credit",
+      "type": "Topic",
+      "properties": {
+        "label": "private credit"
+      }
+    },
+    {
+      "id": "topic:bond-market",
+      "type": "Topic",
+      "properties": {
+        "label": "bond market"
+      }
+    },
+    {
+      "id": "topic:financial-crisis",
+      "type": "Topic",
+      "properties": {
+        "label": "financial crisis"
+      }
+    },
+    {
+      "id": "topic:leveraged-loans",
+      "type": "Topic",
+      "properties": {
+        "label": "leveraged loans"
+      }
+    },
+    {
+      "id": "topic:high-yield",
+      "type": "Topic",
+      "properties": {
+        "label": "high yield"
+      }
+    },
+    {
+      "id": "topic:bank-lending",
+      "type": "Topic",
+      "properties": {
+        "label": "bank lending"
+      }
+    },
+    {
+      "id": "topic:credit-underwriting",
+      "type": "Topic",
+      "properties": {
+        "label": "credit underwriting"
+      }
+    },
+    {
+      "id": "topic:investor-demand",
+      "type": "Topic",
+      "properties": {
+        "label": "investor demand"
+      }
+    },
+    {
+      "id": "topic:regulatory-requirements",
+      "type": "Topic",
+      "properties": {
+        "label": "regulatory requirements"
+      }
+    },
+    {
+      "id": "topic:asset-financing",
+      "type": "Topic",
+      "properties": {
+        "label": "asset financing"
+      }
+    },
+    {
+      "id": "insight:ff7658e130fae613",
+      "type": "Insight",
+      "properties": {
+        "text": "Private credit's current prominence is often discussed with polarized viewpoints, ranging from minor market fluctuations to predictions of a major financial crisis.",
+        "episode_id": "74a9745d-6825-4bfc-abc3-b43601639f72",
+        "grounded": true,
+        "insight_type": "opinion",
+        "position_hint": 0.02
+      },
+      "confidence": 1.0
+    },
+    {
+      "id": "quote:7c68521edec916da",
+      "type": "Quote",
+      "properties": {
+        "text": "point zero, right, and it's very difficult to find nuanced",
+        "episode_id": "74a9745d-6825-4bfc-abc3-b43601639f72",
+        "speaker_id": null,
+        "char_start": 1546,
+        "char_end": 1604,
+        "timestamp_start_ms": 88840,
+        "timestamp_end_ms": 92399,
+        "transcript_ref": "transcripts/0005 - What_s Actually Going On With Private Credit_20260506-135048_ba02775e.txt"
+      }
+    },
+    {
+      "id": "quote:0da22387183b9d9a",
+      "type": "Quote",
+      "properties": {
+        "text": "We keep getting these headlines over the last several weeks,",
+        "episode_id": "74a9745d-6825-4bfc-abc3-b43601639f72",
+        "speaker_id": null,
+        "char_start": 441,
+        "char_end": 501,
+        "timestamp_start_ms": 35479,
+        "timestamp_end_ms": 38919,
+        "transcript_ref": "transcripts/0005 - What_s Actually Going On With Private Credit_20260506-135048_ba02775e.txt"
+      }
+    },
+    {
+      "id": "insight:97f259ce44a7b7ca",
+      "type": "Insight",
+      "properties": {
+        "text": "The historical evolution of the bond market, from investment grade and high-yield to leveraged loans, created the conditions for private credit's emergence.",
+        "episode_id": "74a9745d-6825-4bfc-abc3-b43601639f72",
+        "grounded": true,
+        "insight_type": "fact",
+        "position_hint": 0.14
+      },
+      "confidence": 1.0
+    },
+    {
+      "id": "quote:d83ff75c1c6f11ff",
+      "type": "Quote",
+      "properties": {
+        "text": "highly levered companies companies that didn't have investment grade balance",
+        "episode_id": "74a9745d-6825-4bfc-abc3-b43601639f72",
+        "speaker_id": null,
+        "char_start": 7808,
+        "char_end": 7884,
+        "timestamp_start_ms": 420839,
+        "timestamp_end_ms": 425640,
+        "transcript_ref": "transcripts/0005 - What_s Actually Going On With Private Credit_20260506-135048_ba02775e.txt"
+      }
+    },
+    {
+      "id": "quote:2007e1df3b8cde08",
+      "type": "Quote",
+      "properties": {
+        "text": "That evolved into the leverage loan market.",
+        "episode_id": "74a9745d-6825-4bfc-abc3-b43601639f72",
+        "speaker_id": null,
+        "char_start": 8235,
+        "char_end": 8278,
+        "timestamp_start_ms": 445000,
+        "timestamp_end_ms": 448120,
+        "transcript_ref": "transcripts/0005 - What_s Actually Going On With Private Credit_20260506-135048_ba02775e.txt"
+      }
+    },
+    {
+      "id": "insight:e214479f81201777",
+      "type": "Insight",
+      "properties": {
+        "text": "Post-2008 financial crisis regulations on banks, specifically concerning leverage limits, created a lending vacuum that private credit filled.",
+        "episode_id": "74a9745d-6825-4bfc-abc3-b43601639f72",
+        "grounded": true,
+        "insight_type": "fact",
+        "position_hint": 0.16
+      },
+      "confidence": 1.0
+    },
+    {
+      "id": "quote:424d546053ee8125",
+      "type": "Quote",
+      "properties": {
+        "text": "There is an explicit prevention from banks lending to companies",
+        "episode_id": "74a9745d-6825-4bfc-abc3-b43601639f72",
+        "speaker_id": null,
+        "char_start": 8918,
+        "char_end": 8981,
+        "timestamp_start_ms": 485280,
+        "timestamp_end_ms": 488640,
+        "transcript_ref": "transcripts/0005 - What_s Actually Going On With Private Credit_20260506-135048_ba02775e.txt"
+      }
+    },
+    {
+      "id": "quote:409ba3f83b19455d",
+      "type": "Quote",
+      "properties": {
+        "text": "for lending outside of the bank market.",
+        "episode_id": "74a9745d-6825-4bfc-abc3-b43601639f72",
+        "speaker_id": null,
+        "char_start": 9063,
+        "char_end": 9102,
+        "timestamp_start_ms": 493160,
+        "timestamp_end_ms": 497320,
+        "transcript_ref": "transcripts/0005 - What_s Actually Going On With Private Credit_20260506-135048_ba02775e.txt"
+      }
+    },
+    {
+      "id": "quote:3cb5613f06913ea2",
+      "type": "Quote",
+      "properties": {
+        "text": "both corporated and individuals, so you saw pretty strict capital requirements.",
+        "episode_id": "74a9745d-6825-4bfc-abc3-b43601639f72",
+        "speaker_id": null,
+        "char_start": 8828,
+        "char_end": 8907,
+        "timestamp_start_ms": 479080,
+        "timestamp_end_ms": 484960,
+        "transcript_ref": "transcripts/0005 - What_s Actually Going On With Private Credit_20260506-135048_ba02775e.txt"
+      }
+    },
+    {
+      "id": "insight:88ad7e7d59cb7a73",
+      "type": "Insight",
+      "properties": {
+        "text": "GE Capital's historical financing of diverse assets like aircraft and healthcare equipment represents an early, significant form of private credit.",
+        "episode_id": "74a9745d-6825-4bfc-abc3-b43601639f72",
+        "grounded": true,
+        "insight_type": "fact",
+        "position_hint": 0.18
+      },
+      "confidence": 1.0
+    },
+    {
+      "id": "quote:a9585cee92283c50",
+      "type": "Quote",
+      "properties": {
+        "text": "credit under the GE umbrella for many, many, many years.",
+        "episode_id": "74a9745d-6825-4bfc-abc3-b43601639f72",
+        "speaker_id": null,
+        "char_start": 10160,
+        "char_end": 10216,
+        "timestamp_start_ms": 551720,
+        "timestamp_end_ms": 555040,
+        "transcript_ref": "transcripts/0005 - What_s Actually Going On With Private Credit_20260506-135048_ba02775e.txt"
+      }
+    },
+    {
+      "id": "quote:d5cad612a66ad301",
+      "type": "Quote",
+      "properties": {
+        "text": "financing railcars, they were financing aircraft engines, they were financing",
+        "episode_id": "74a9745d-6825-4bfc-abc3-b43601639f72",
+        "speaker_id": null,
+        "char_start": 10299,
+        "char_end": 10376,
+        "timestamp_start_ms": 558120,
+        "timestamp_end_ms": 562720,
+        "transcript_ref": "transcripts/0005 - What_s Actually Going On With Private Credit_20260506-135048_ba02775e.txt"
+      }
+    },
+    {
+      "id": "insight:2c9551d2f0fcf44c",
+      "type": "Insight",
+      "properties": {
+        "text": "The growth of private credit is driven by both investor demand for higher yields and borrowers' restricted access to traditional bank lending.",
+        "episode_id": "74a9745d-6825-4bfc-abc3-b43601639f72",
+        "grounded": true,
+        "insight_type": "fact",
+        "position_hint": 0.3
+      },
+      "confidence": 1.0
+    },
+    {
+      "id": "quote:51a706b3e49db158",
+      "type": "Quote",
+      "properties": {
+        "text": "together at the same time and really fueled the growth",
+        "episode_id": "74a9745d-6825-4bfc-abc3-b43601639f72",
+        "speaker_id": null,
+        "char_start": 17118,
+        "char_end": 17172,
+        "timestamp_start_ms": 929800,
+        "timestamp_end_ms": 932600,
+        "transcript_ref": "transcripts/0005 - What_s Actually Going On With Private Credit_20260506-135048_ba02775e.txt"
+      }
+    },
+    {
+      "id": "quote:6908ba93957a2cdb",
+      "type": "Quote",
+      "properties": {
+        "text": "they needed to find alternatives to fund their businesses and",
+        "episode_id": "74a9745d-6825-4bfc-abc3-b43601639f72",
+        "speaker_id": null,
+        "char_start": 16985,
+        "char_end": 17046,
+        "timestamp_start_ms": 922800,
+        "timestamp_end_ms": 926240,
+        "transcript_ref": "transcripts/0005 - What_s Actually Going On With Private Credit_20260506-135048_ba02775e.txt"
+      }
+    },
+    {
+      "id": "quote:532117abec9078fc",
+      "type": "Quote",
+      "properties": {
+        "text": "and better performing assets than they had in the early",
+        "episode_id": "74a9745d-6825-4bfc-abc3-b43601639f72",
+        "speaker_id": null,
+        "char_start": 16587,
+        "char_end": 16642,
+        "timestamp_start_ms": 901160,
+        "timestamp_end_ms": 903800,
+        "transcript_ref": "transcripts/0005 - What_s Actually Going On With Private Credit_20260506-135048_ba02775e.txt"
+      }
+    },
+    {
+      "id": "insight:e9e263873facb2e1",
+      "type": "Insight",
+      "properties": {
+        "text": "The private credit market has become highly competitive, potentially leading to less favorable terms for lenders, such as reduced interest rates and weaker covenants.",
+        "episode_id": "74a9745d-6825-4bfc-abc3-b43601639f72",
+        "grounded": true,
+        "insight_type": "claim",
+        "position_hint": 0.41
+      },
+      "confidence": 1.0
+    },
+    {
+      "id": "quote:85d2b617b8c931a0",
+      "type": "Quote",
+      "properties": {
+        "text": "the investment opportunity and then they go call the funds.",
+        "episode_id": "74a9745d-6825-4bfc-abc3-b43601639f72",
+        "speaker_id": null,
+        "char_start": 22831,
+        "char_end": 22890,
+        "timestamp_start_ms": 1222440,
+        "timestamp_end_ms": 1225520,
+        "transcript_ref": "transcripts/0005 - What_s Actually Going On With Private Credit_20260506-135048_ba02775e.txt"
+      }
+    },
+    {
+      "id": "quote:5950c8c1d36e5716",
+      "type": "Quote",
+      "properties": {
+        "text": "find investments, which creates this competitive environment that you alluded",
+        "episode_id": "74a9745d-6825-4bfc-abc3-b43601639f72",
+        "speaker_id": null,
+        "char_start": 23121,
+        "char_end": 23198,
+        "timestamp_start_ms": 1235359,
+        "timestamp_end_ms": 1239640,
+        "transcript_ref": "transcripts/0005 - What_s Actually Going On With Private Credit_20260506-135048_ba02775e.txt"
+      }
+    },
+    {
+      "id": "quote:19a4e21fca4aba8f",
+      "type": "Quote",
+      "properties": {
+        "text": "in the credit world is either lower interest rate, weaker covenance,",
+        "episode_id": "74a9745d-6825-4bfc-abc3-b43601639f72",
+        "speaker_id": null,
+        "char_start": 23514,
+        "char_end": 23582,
+        "timestamp_start_ms": 1253359,
+        "timestamp_end_ms": 1258000,
+        "transcript_ref": "transcripts/0005 - What_s Actually Going On With Private Credit_20260506-135048_ba02775e.txt"
+      }
+    },
+    {
+      "id": "insight:cc63bba3dc37efe7",
+      "type": "Insight",
+      "properties": {
+        "text": "Institutional private credit funds typically operate on a draw-down basis, matching LP commitments with sourced assets over a defined term.",
+        "episode_id": "74a9745d-6825-4bfc-abc3-b43601639f72",
+        "grounded": true,
+        "insight_type": "fact",
+        "position_hint": 0.42
+      },
+      "confidence": 1.0
+    },
+    {
+      "id": "quote:2c22afb6a8b862d1",
+      "type": "Quote",
+      "properties": {
+        "text": "those institutional funds are generally DRAWDOUN funds, so they're allowed",
+        "episode_id": "74a9745d-6825-4bfc-abc3-b43601639f72",
+        "speaker_id": null,
+        "char_start": 24102,
+        "char_end": 24176,
+        "timestamp_start_ms": 1282560,
+        "timestamp_end_ms": 1286639,
+        "transcript_ref": "transcripts/0005 - What_s Actually Going On With Private Credit_20260506-135048_ba02775e.txt"
+      }
+    },
+    {
+      "id": "insight:c21ad1f569f3dfc8",
+      "type": "Insight",
+      "properties": {
+        "text": "Private credit funds targeting retail investors may offer liquidity concessions, creating pressure to invest capital rapidly.",
+        "episode_id": "74a9745d-6825-4bfc-abc3-b43601639f72",
+        "grounded": true,
+        "insight_type": "fact",
+        "position_hint": 0.44
+      },
+      "confidence": 1.0
+    },
+    {
+      "id": "quote:fb0c253fabb19840",
+      "type": "Quote",
+      "properties": {
+        "text": "concessions on the liquidity right, because it makes it easier",
+        "episode_id": "74a9745d-6825-4bfc-abc3-b43601639f72",
+        "speaker_id": null,
+        "char_start": 25109,
+        "char_end": 25171,
+        "timestamp_start_ms": 1336400,
+        "timestamp_end_ms": 1339800,
+        "transcript_ref": "transcripts/0005 - What_s Actually Going On With Private Credit_20260506-135048_ba02775e.txt"
+      }
+    },
+    {
+      "id": "quote:707c7b8fe1b10a2b",
+      "type": "Quote",
+      "properties": {
+        "text": "to raise money really fast.",
+        "episode_id": "74a9745d-6825-4bfc-abc3-b43601639f72",
+        "speaker_id": null,
+        "char_start": 25377,
+        "char_end": 25404,
+        "timestamp_start_ms": 1350080,
+        "timestamp_end_ms": 1352920,
+        "transcript_ref": "transcripts/0005 - What_s Actually Going On With Private Credit_20260506-135048_ba02775e.txt"
+      }
+    },
+    {
+      "id": "quote:d469b4ea1d17cff8",
+      "type": "Quote",
+      "properties": {
+        "text": "because they've just said, Okay, we can raise a lot",
+        "episode_id": "74a9745d-6825-4bfc-abc3-b43601639f72",
+        "speaker_id": null,
+        "char_start": 25439,
+        "char_end": 25490,
+        "timestamp_start_ms": 1353320,
+        "timestamp_end_ms": 1355320,
+        "transcript_ref": "transcripts/0005 - What_s Actually Going On With Private Credit_20260506-135048_ba02775e.txt"
+      }
+    },
+    {
+      "id": "insight:6b1efc25178caedf",
+      "type": "Insight",
+      "properties": {
+        "text": "Rapid deployment of capital in private credit funds can lead to a degradation of credit underwriting standards.",
+        "episode_id": "74a9745d-6825-4bfc-abc3-b43601639f72",
+        "grounded": true,
+        "insight_type": "claim",
+        "position_hint": 0.46
+      },
+      "confidence": 1.0
+    },
+    {
+      "id": "quote:987efcbc9ee8082a",
+      "type": "Quote",
+      "properties": {
+        "text": "is too strong work, but really more bad underwriting, weaker underwriting,",
+        "episode_id": "74a9745d-6825-4bfc-abc3-b43601639f72",
+        "speaker_id": null,
+        "char_start": 27669,
+        "char_end": 27743,
+        "timestamp_start_ms": 1460680,
+        "timestamp_end_ms": 1465240,
+        "transcript_ref": "transcripts/0005 - What_s Actually Going On With Private Credit_20260506-135048_ba02775e.txt"
+      }
+    },
+    {
+      "id": "quote:6841b7eec1a52349",
+      "type": "Quote",
+      "properties": {
+        "text": "because they've just said, Okay, we can raise a lot",
+        "episode_id": "74a9745d-6825-4bfc-abc3-b43601639f72",
+        "speaker_id": null,
+        "char_start": 25439,
+        "char_end": 25490,
+        "timestamp_start_ms": 1353320,
+        "timestamp_end_ms": 1355320,
+        "transcript_ref": "transcripts/0005 - What_s Actually Going On With Private Credit_20260506-135048_ba02775e.txt"
+      }
+    },
+    {
+      "id": "quote:b6bd988a0ccfc1cc",
+      "type": "Quote",
+      "properties": {
+        "text": "of credit underwriting because if you don't invest those dollars quickly,",
+        "episode_id": "74a9745d-6825-4bfc-abc3-b43601639f72",
+        "speaker_id": null,
+        "char_start": 25824,
+        "char_end": 25897,
+        "timestamp_start_ms": 1370440,
+        "timestamp_end_ms": 1374640,
+        "transcript_ref": "transcripts/0005 - What_s Actually Going On With Private Credit_20260506-135048_ba02775e.txt"
+      }
+    },
+    {
+      "id": "insight:d9ed08ad28eab748",
+      "type": "Insight",
+      "properties": {
+        "text": "The Osterweis Strategic Income Fund operates with an unconstrained mandate, allowing flexibility across the fixed income spectrum.",
+        "episode_id": "74a9745d-6825-4bfc-abc3-b43601639f72",
+        "grounded": true,
+        "insight_type": "fact",
+        "position_hint": 0.1
+      },
+      "confidence": 1.0
+    },
+    {
+      "id": "quote:b7983f11c0b774d8",
+      "type": "Quote",
+      "properties": {
+        "text": "only fixed income fund that our private clients needed.",
+        "episode_id": "74a9745d-6825-4bfc-abc3-b43601639f72",
+        "speaker_id": null,
+        "char_start": 5399,
+        "char_end": 5454,
+        "timestamp_start_ms": 284159,
+        "timestamp_end_ms": 287400,
+        "transcript_ref": "transcripts/0005 - What_s Actually Going On With Private Credit_20260506-135048_ba02775e.txt"
+      }
+    },
+    {
+      "id": "quote:3000b565f55075ed",
+      "type": "Quote",
+      "properties": {
+        "text": "we have an extremely broad mandate.",
+        "episode_id": "74a9745d-6825-4bfc-abc3-b43601639f72",
+        "speaker_id": null,
+        "char_start": 5468,
+        "char_end": 5503,
+        "timestamp_start_ms": 287800,
+        "timestamp_end_ms": 290400,
+        "transcript_ref": "transcripts/0005 - What_s Actually Going On With Private Credit_20260506-135048_ba02775e.txt"
+      }
+    },
+    {
+      "id": "quote:ff3ab6d88a1a3833",
+      "type": "Quote",
+      "properties": {
+        "text": "risky ways to play those most attractive parts at any",
+        "episode_id": "74a9745d-6825-4bfc-abc3-b43601639f72",
+        "speaker_id": null,
+        "char_start": 5860,
+        "char_end": 5913,
+        "timestamp_start_ms": 311560,
+        "timestamp_end_ms": 315159,
+        "transcript_ref": "transcripts/0005 - What_s Actually Going On With Private Credit_20260506-135048_ba02775e.txt"
+      }
+    },
+    {
+      "id": "insight:f26e738c4229fa13",
+      "type": "Insight",
+      "properties": {
+        "text": "Insurance companies are natural investors in private credit due to their long-duration liabilities and ability to harvest illiquidity premiums.",
+        "episode_id": "74a9745d-6825-4bfc-abc3-b43601639f72",
+        "grounded": true,
+        "insight_type": "fact",
+        "position_hint": 0.38
+      },
+      "confidence": 1.0
+    },
+    {
+      "id": "quote:6333de0e68e77b7a",
+      "type": "Quote",
+      "properties": {
+        "text": "assets and there's generally not a rush for those assets.",
+        "episode_id": "74a9745d-6825-4bfc-abc3-b43601639f72",
+        "speaker_id": null,
+        "char_start": 21731,
+        "char_end": 21788,
+        "timestamp_start_ms": 1164880,
+        "timestamp_end_ms": 1168440,
+        "transcript_ref": "transcripts/0005 - What_s Actually Going On With Private Credit_20260506-135048_ba02775e.txt"
+      }
+    },
+    {
+      "id": "quote:b6c2741c402df963",
+      "type": "Quote",
+      "properties": {
+        "text": "insurance companies have long been investors in private assets, and",
+        "episode_id": "74a9745d-6825-4bfc-abc3-b43601639f72",
+        "speaker_id": null,
+        "char_start": 21205,
+        "char_end": 21272,
+        "timestamp_start_ms": 1139119,
+        "timestamp_end_ms": 1142280,
+        "transcript_ref": "transcripts/0005 - What_s Actually Going On With Private Credit_20260506-135048_ba02775e.txt"
+      }
+    },
+    {
+      "id": "insight:fb9f5ef9145a2b18",
+      "type": "Insight",
+      "properties": {
+        "text": "The sourcing of private credit deals requires a proactive, door-knocking approach, differing from the more passive deal-finding methods in other markets.",
+        "episode_id": "74a9745d-6825-4bfc-abc3-b43601639f72",
+        "grounded": true,
+        "insight_type": "fact",
+        "position_hint": 0.39
+      },
+      "confidence": 1.0
+    },
+    {
+      "id": "quote:595504eb7d48c3a9",
+      "type": "Quote",
+      "properties": {
+        "text": "Private credit, most of these funds work where they've taken",
+        "episode_id": "74a9745d-6825-4bfc-abc3-b43601639f72",
+        "speaker_id": null,
+        "char_start": 22927,
+        "char_end": 22987,
+        "timestamp_start_ms": 1226800,
+        "timestamp_end_ms": 1229879,
+        "transcript_ref": "transcripts/0005 - What_s Actually Going On With Private Credit_20260506-135048_ba02775e.txt"
+      }
+    },
+    {
+      "id": "quote:82a2bf57d90525dc",
+      "type": "Quote",
+      "properties": {
+        "text": "find investments, which creates this competitive environment that you alluded",
+        "episode_id": "74a9745d-6825-4bfc-abc3-b43601639f72",
+        "speaker_id": null,
+        "char_start": 23121,
+        "char_end": 23198,
+        "timestamp_start_ms": 1235359,
+        "timestamp_end_ms": 1239640,
+        "transcript_ref": "transcripts/0005 - What_s Actually Going On With Private Credit_20260506-135048_ba02775e.txt"
+      }
+    },
+    {
+      "id": "quote:6da4657d374b6993",
+      "type": "Quote",
+      "properties": {
+        "text": "They need a team of bankers to go",
+        "episode_id": "74a9745d-6825-4bfc-abc3-b43601639f72",
+        "speaker_id": null,
+        "char_start": 20669,
+        "char_end": 20702,
+        "timestamp_start_ms": 1114640,
+        "timestamp_end_ms": 1116439,
+        "transcript_ref": "transcripts/0005 - What_s Actually Going On With Private Credit_20260506-135048_ba02775e.txt"
+      }
+    }
+  ],
+  "edges": [
+    {
+      "type": "HAS_INSIGHT",
+      "from": "episode:74a9745d-6825-4bfc-abc3-b43601639f72",
+      "to": "insight:ff7658e130fae613"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:ff7658e130fae613",
+      "to": "topic:private-credit",
+      "properties": {
+        "confidence": 0.582
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:ff7658e130fae613",
+      "to": "topic:financial-crisis",
+      "properties": {
+        "confidence": 0.4482
+      }
+    },
+    {
+      "type": "SUPPORTED_BY",
+      "from": "insight:ff7658e130fae613",
+      "to": "quote:7c68521edec916da"
+    },
+    {
+      "type": "SUPPORTED_BY",
+      "from": "insight:ff7658e130fae613",
+      "to": "quote:0da22387183b9d9a"
+    },
+    {
+      "type": "HAS_INSIGHT",
+      "from": "episode:74a9745d-6825-4bfc-abc3-b43601639f72",
+      "to": "insight:97f259ce44a7b7ca"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:97f259ce44a7b7ca",
+      "to": "topic:bond-market",
+      "properties": {
+        "confidence": 0.6284
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:97f259ce44a7b7ca",
+      "to": "topic:leveraged-loans",
+      "properties": {
+        "confidence": 0.5402
+      }
+    },
+    {
+      "type": "SUPPORTED_BY",
+      "from": "insight:97f259ce44a7b7ca",
+      "to": "quote:d83ff75c1c6f11ff"
+    },
+    {
+      "type": "SUPPORTED_BY",
+      "from": "insight:97f259ce44a7b7ca",
+      "to": "quote:2007e1df3b8cde08"
+    },
+    {
+      "type": "HAS_INSIGHT",
+      "from": "episode:74a9745d-6825-4bfc-abc3-b43601639f72",
+      "to": "insight:e214479f81201777"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:e214479f81201777",
+      "to": "topic:leveraged-loans",
+      "properties": {
+        "confidence": 0.5656
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:e214479f81201777",
+      "to": "topic:private-credit",
+      "properties": {
+        "confidence": 0.5518
+      }
+    },
+    {
+      "type": "SUPPORTED_BY",
+      "from": "insight:e214479f81201777",
+      "to": "quote:424d546053ee8125"
+    },
+    {
+      "type": "SUPPORTED_BY",
+      "from": "insight:e214479f81201777",
+      "to": "quote:409ba3f83b19455d"
+    },
+    {
+      "type": "SUPPORTED_BY",
+      "from": "insight:e214479f81201777",
+      "to": "quote:3cb5613f06913ea2"
+    },
+    {
+      "type": "HAS_INSIGHT",
+      "from": "episode:74a9745d-6825-4bfc-abc3-b43601639f72",
+      "to": "insight:88ad7e7d59cb7a73"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:88ad7e7d59cb7a73",
+      "to": "topic:asset-financing",
+      "properties": {
+        "confidence": 0.5253
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:88ad7e7d59cb7a73",
+      "to": "topic:private-credit",
+      "properties": {
+        "confidence": 0.4772
+      }
+    },
+    {
+      "type": "SUPPORTED_BY",
+      "from": "insight:88ad7e7d59cb7a73",
+      "to": "quote:a9585cee92283c50"
+    },
+    {
+      "type": "SUPPORTED_BY",
+      "from": "insight:88ad7e7d59cb7a73",
+      "to": "quote:d5cad612a66ad301"
+    },
+    {
+      "type": "HAS_INSIGHT",
+      "from": "episode:74a9745d-6825-4bfc-abc3-b43601639f72",
+      "to": "insight:2c9551d2f0fcf44c"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:2c9551d2f0fcf44c",
+      "to": "topic:private-credit",
+      "properties": {
+        "confidence": 0.5809
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:2c9551d2f0fcf44c",
+      "to": "topic:bank-lending",
+      "properties": {
+        "confidence": 0.5133
+      }
+    },
+    {
+      "type": "SUPPORTED_BY",
+      "from": "insight:2c9551d2f0fcf44c",
+      "to": "quote:51a706b3e49db158"
+    },
+    {
+      "type": "SUPPORTED_BY",
+      "from": "insight:2c9551d2f0fcf44c",
+      "to": "quote:6908ba93957a2cdb"
+    },
+    {
+      "type": "SUPPORTED_BY",
+      "from": "insight:2c9551d2f0fcf44c",
+      "to": "quote:532117abec9078fc"
+    },
+    {
+      "type": "HAS_INSIGHT",
+      "from": "episode:74a9745d-6825-4bfc-abc3-b43601639f72",
+      "to": "insight:e9e263873facb2e1"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:e9e263873facb2e1",
+      "to": "topic:private-credit",
+      "properties": {
+        "confidence": 0.5585
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:e9e263873facb2e1",
+      "to": "topic:bank-lending",
+      "properties": {
+        "confidence": 0.4156
+      }
+    },
+    {
+      "type": "SUPPORTED_BY",
+      "from": "insight:e9e263873facb2e1",
+      "to": "quote:85d2b617b8c931a0"
+    },
+    {
+      "type": "SUPPORTED_BY",
+      "from": "insight:e9e263873facb2e1",
+      "to": "quote:5950c8c1d36e5716"
+    },
+    {
+      "type": "SUPPORTED_BY",
+      "from": "insight:e9e263873facb2e1",
+      "to": "quote:19a4e21fca4aba8f"
+    },
+    {
+      "type": "HAS_INSIGHT",
+      "from": "episode:74a9745d-6825-4bfc-abc3-b43601639f72",
+      "to": "insight:cc63bba3dc37efe7"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:cc63bba3dc37efe7",
+      "to": "topic:private-credit",
+      "properties": {
+        "confidence": 0.479
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:cc63bba3dc37efe7",
+      "to": "topic:asset-financing",
+      "properties": {
+        "confidence": 0.4211
+      }
+    },
+    {
+      "type": "SUPPORTED_BY",
+      "from": "insight:cc63bba3dc37efe7",
+      "to": "quote:2c22afb6a8b862d1"
+    },
+    {
+      "type": "HAS_INSIGHT",
+      "from": "episode:74a9745d-6825-4bfc-abc3-b43601639f72",
+      "to": "insight:c21ad1f569f3dfc8"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:c21ad1f569f3dfc8",
+      "to": "topic:private-credit",
+      "properties": {
+        "confidence": 0.5106
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:c21ad1f569f3dfc8",
+      "to": "topic:asset-financing",
+      "properties": {
+        "confidence": 0.4676
+      }
+    },
+    {
+      "type": "SUPPORTED_BY",
+      "from": "insight:c21ad1f569f3dfc8",
+      "to": "quote:fb0c253fabb19840"
+    },
+    {
+      "type": "SUPPORTED_BY",
+      "from": "insight:c21ad1f569f3dfc8",
+      "to": "quote:707c7b8fe1b10a2b"
+    },
+    {
+      "type": "SUPPORTED_BY",
+      "from": "insight:c21ad1f569f3dfc8",
+      "to": "quote:d469b4ea1d17cff8"
+    },
+    {
+      "type": "HAS_INSIGHT",
+      "from": "episode:74a9745d-6825-4bfc-abc3-b43601639f72",
+      "to": "insight:6b1efc25178caedf"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:6b1efc25178caedf",
+      "to": "topic:credit-underwriting",
+      "properties": {
+        "confidence": 0.5314
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:6b1efc25178caedf",
+      "to": "topic:private-credit",
+      "properties": {
+        "confidence": 0.4756
+      }
+    },
+    {
+      "type": "SUPPORTED_BY",
+      "from": "insight:6b1efc25178caedf",
+      "to": "quote:987efcbc9ee8082a"
+    },
+    {
+      "type": "SUPPORTED_BY",
+      "from": "insight:6b1efc25178caedf",
+      "to": "quote:6841b7eec1a52349"
+    },
+    {
+      "type": "SUPPORTED_BY",
+      "from": "insight:6b1efc25178caedf",
+      "to": "quote:b6bd988a0ccfc1cc"
+    },
+    {
+      "type": "HAS_INSIGHT",
+      "from": "episode:74a9745d-6825-4bfc-abc3-b43601639f72",
+      "to": "insight:d9ed08ad28eab748"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:d9ed08ad28eab748",
+      "to": "topic:asset-financing",
+      "properties": {
+        "confidence": 0.3013
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:d9ed08ad28eab748",
+      "to": "topic:regulatory-requirements",
+      "properties": {
+        "confidence": 0.2743
+      }
+    },
+    {
+      "type": "SUPPORTED_BY",
+      "from": "insight:d9ed08ad28eab748",
+      "to": "quote:b7983f11c0b774d8"
+    },
+    {
+      "type": "SUPPORTED_BY",
+      "from": "insight:d9ed08ad28eab748",
+      "to": "quote:3000b565f55075ed"
+    },
+    {
+      "type": "SUPPORTED_BY",
+      "from": "insight:d9ed08ad28eab748",
+      "to": "quote:ff3ab6d88a1a3833"
+    },
+    {
+      "type": "HAS_INSIGHT",
+      "from": "episode:74a9745d-6825-4bfc-abc3-b43601639f72",
+      "to": "insight:f26e738c4229fa13"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:f26e738c4229fa13",
+      "to": "topic:private-credit",
+      "properties": {
+        "confidence": 0.5264
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:f26e738c4229fa13",
+      "to": "topic:asset-financing",
+      "properties": {
+        "confidence": 0.4463
+      }
+    },
+    {
+      "type": "SUPPORTED_BY",
+      "from": "insight:f26e738c4229fa13",
+      "to": "quote:6333de0e68e77b7a"
+    },
+    {
+      "type": "SUPPORTED_BY",
+      "from": "insight:f26e738c4229fa13",
+      "to": "quote:b6c2741c402df963"
+    },
+    {
+      "type": "HAS_INSIGHT",
+      "from": "episode:74a9745d-6825-4bfc-abc3-b43601639f72",
+      "to": "insight:fb9f5ef9145a2b18"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:fb9f5ef9145a2b18",
+      "to": "topic:private-credit",
+      "properties": {
+        "confidence": 0.5451
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:fb9f5ef9145a2b18",
+      "to": "topic:credit-underwriting",
+      "properties": {
+        "confidence": 0.3739
+      }
+    },
+    {
+      "type": "SUPPORTED_BY",
+      "from": "insight:fb9f5ef9145a2b18",
+      "to": "quote:595504eb7d48c3a9"
+    },
+    {
+      "type": "SUPPORTED_BY",
+      "from": "insight:fb9f5ef9145a2b18",
+      "to": "quote:82a2bf57d90525dc"
+    },
+    {
+      "type": "SUPPORTED_BY",
+      "from": "insight:fb9f5ef9145a2b18",
+      "to": "quote:6da4657d374b6993"
+    }
+  ]
+}

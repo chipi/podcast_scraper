@@ -1,0 +1,138 @@
+{
+  "by_feed": [
+    {
+      "display_title": "No Priors: Artificial Intelligence | Technology | Startups",
+      "feed_id": "sha256:0da4183fe4339afdc81d079b469f31da7e85039e5121f085013230f92e72e13c",
+      "total": 1,
+      "with_gi": 1,
+      "with_kg": 1
+    },
+    {
+      "display_title": "Odd Lots",
+      "feed_id": "sha256:1cd6aecdd31c0ae82c2c76efdb6327b54e6026924b47852c51ffb406a9f2b19c",
+      "total": 75,
+      "with_gi": 75,
+      "with_kg": 75
+    },
+    {
+      "display_title": "The Journal.",
+      "feed_id": "sha256:2441bde6297de0efab1c6add06c0a80e1e4e96938f7ce303cbc7d7672688495c",
+      "total": 1,
+      "with_gi": 1,
+      "with_kg": 1
+    },
+    {
+      "display_title": "Hard Fork",
+      "feed_id": "sha256:8025356ebfbe105cbd206ed4a4eabbc06f4562a0360517fd129e954ee2ef1871",
+      "total": 1,
+      "with_gi": 1,
+      "with_kg": 1
+    },
+    {
+      "display_title": "NVIDIA AI Podcast",
+      "feed_id": "sha256:b7d7fd554788c6b3f362e5e2d0254cdd2bd8bc523dd913d264c6baa39c06f868",
+      "total": 1,
+      "with_gi": 1,
+      "with_kg": 1
+    },
+    {
+      "display_title": "The Daily",
+      "feed_id": "sha256:b816b9958525bb08cce2ab8b7c5f73930248465169342178e5fb09ebe889db91",
+      "total": 1,
+      "with_gi": 1,
+      "with_kg": 1
+    },
+    {
+      "display_title": "Unhedged",
+      "feed_id": "sha256:bbafc8bf5404721c94cc1e14ee3a14ae0876af05af7aaf00914c3cff28fcf713",
+      "total": 54,
+      "with_gi": 54,
+      "with_kg": 54
+    },
+    {
+      "display_title": "Invest Like the Best with Patrick O'Shaughnessy",
+      "feed_id": "sha256:c17f67de8ab0f0ee390cebffcce08c6f5b6c99b6799ea9d946a71afaa5e908d8",
+      "total": 1,
+      "with_gi": 1,
+      "with_kg": 1
+    },
+    {
+      "display_title": "Planet Money",
+      "feed_id": "sha256:ef15faeacb5c506dcadea13a0fbbf46c823163dbd8c86053784b27fe8bee26f7",
+      "total": 1,
+      "with_gi": 1,
+      "with_kg": 1
+    },
+    {
+      "display_title": "Latent Space: The AI Engineer Podcast",
+      "feed_id": "sha256:ff030825160cdb575fcdcc3850cb2c155865b96b55cb693791097dd92972e651",
+      "total": 1,
+      "with_gi": 1,
+      "with_kg": 1
+    }
+  ],
+  "by_month": [
+    {
+      "month": "2025-10",
+      "total": 6,
+      "with_both": 6,
+      "with_gi": 6,
+      "with_kg": 6
+    },
+    {
+      "month": "2025-11",
+      "total": 7,
+      "with_both": 7,
+      "with_gi": 7,
+      "with_kg": 7
+    },
+    {
+      "month": "2025-12",
+      "total": 9,
+      "with_both": 9,
+      "with_gi": 9,
+      "with_kg": 9
+    },
+    {
+      "month": "2026-01",
+      "total": 17,
+      "with_both": 17,
+      "with_gi": 17,
+      "with_kg": 17
+    },
+    {
+      "month": "2026-02",
+      "total": 26,
+      "with_both": 26,
+      "with_gi": 26,
+      "with_kg": 26
+    },
+    {
+      "month": "2026-03",
+      "total": 32,
+      "with_both": 32,
+      "with_gi": 32,
+      "with_kg": 32
+    },
+    {
+      "month": "2026-04",
+      "total": 37,
+      "with_both": 37,
+      "with_gi": 37,
+      "with_kg": 37
+    },
+    {
+      "month": "2026-05",
+      "total": 3,
+      "with_both": 3,
+      "with_gi": 3,
+      "with_kg": 3
+    }
+  ],
+  "path": "/Users/markodragoljevic/Projects/podcast_scraper-FUTURE/.test_outputs/manual/my-manual-run-10",
+  "total_episodes": 137,
+  "with_both": 137,
+  "with_gi": 137,
+  "with_kg": 137,
+  "with_neither": 0
+}

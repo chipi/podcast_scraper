@@ -1,0 +1,50 @@
+{
+  "feeds": [
+    {
+      "description": "At this moment of inflection in technology, co-hosts Elad Gil and Sarah Guo talk to the world's leading AI engineers, researchers and founders about the biggest questions: How far away is AGI? What markets are at risk for disruption? How will commerce, culture, and society change? What\u2019s happening in state-of-the-art in research? \u201cNo Priors\u201d is your guide to the AI revolution. Email feedback to show@no-priors.com. Sarah Guo is a startup investor and the founder of Conviction, an investment firm purpose-built to serve intelligent software, or \"Software 3.0\" companies. She spent nearly a decade incubating and investing at venture firm Greylock Partners. Elad Gil is a serial entrepreneur and a startup investor. He was co-founder of Color Health, Mixer Labs (which was acquired by Twitter). He has invested in over 40 companies now worth $1B or more each, and is also author of the High Growth Handbook.",
+      "display_title": "No Priors: Artificial Intelligence | Technology | Startups",
+      "episode_count": 1,
+      "feed_id": "sha256:0da4183fe4339afdc81d079b469f31da7e85039e5121f085013230f92e72e13c",
+      "image_local_relpath": null,
+      "image_url": "https://megaphone.imgix.net/podcasts/803e0244-9d0f-11ed-923a-4bb54bf77468/image/NO_PRIORS_ALBUM_and_PROFILE_PIC-01.jpg?ixlib=rails-4.3.1&max-w=3000&max-h=3000&fit=crop&auto=format,compress",
+      "rss_url": "https://feeds.megaphone.fm/nopriors"
+    },
+    {
+      "description": "Bloomberg's Joe Weisenthal and Tracy Alloway explore the most interesting topics in finance, markets and economics. Join the conversation every Monday and Thursday.",
+      "display_title": "Odd Lots",
+      "episode_count": 5,
+      "feed_id": "sha256:1cd6aecdd31c0ae82c2c76efdb6327b54e6026924b47852c51ffb406a9f2b19c",
+      "image_local_relpath": null,
+      "image_url": "https://www.omnycontent.com/d/playlist/e73c998e-6e60-432f-8610-ae210140c5b1/8a94442e-5a74-4fa2-8b8d-ae27003a8d6b/982f5071-765c-403d-969d-ae27003a8d83/image.jpg?t=1681322812&size=Large",
+      "rss_url": "https://www.omnycontent.com/d/playlist/e73c998e-6e60-432f-8610-ae210140c5b1/8a94442e-5a74-4fa2-8b8d-ae27003a8d6b/982f5071-765c-403d-969d-ae27003a8d83/podcast.rss"
+    },
+    {
+      "description": "The most important stories about money, business and power. Hosted by Ryan Knutson and Jessica Mendoza. The Journal is a co-production of Spotify and The Wall Street Journal. Get show merch here: https://wsjshop.com/collections/clothing",
+      "display_title": "The Journal.",
+      "episode_count": 1,
+      "feed_id": "sha256:2441bde6297de0efab1c6add06c0a80e1e4e96938f7ce303cbc7d7672688495c",
+      "image_local_relpath": null,
+      "image_url": "https://megaphone.imgix.net/podcasts/b84f9932-8174-11e9-bbd8-7f261513f0c9/image/d84a4f4d55158df9d14f6f2d4b219a28.jpg?ixlib=rails-4.3.1&max-w=3000&max-h=3000&fit=crop&auto=format,compress",
+      "rss_url": "https://video-api.wsj.com/podcast/rss/wsj/the-journal"
+    },
+    {
+      "description": "\u201cHard Fork\u201d is a show about the future that\u2019s already here. Each week, journalists Kevin Roose and Casey Newton explore and make sense of the latest in the rapidly changing world of tech. Subscribe today at nytimes.com/podcasts or on Apple Podcasts and Spotify. You can also subscribe via your favorite podcast app here https://www.nytimes.com/activate-access/audio?source=podcatcher. For more podcasts and narrated articles, download The New York Times app at nytimes.com/app.",
+      "display_title": "Hard Fork",
+      "episode_count": 1,
+      "feed_id": "sha256:8025356ebfbe105cbd206ed4a4eabbc06f4562a0360517fd129e954ee2ef1871",
+      "image_local_relpath": null,
+      "image_url": "https://image.simplecastcdn.com/images/4105a47a-42e5-4ccc-887a-832af7989986/23965394-f5e4-4fdb-b150-639f4910353e/3000x3000/nyt-hf-album-art-3000-2.jpg?aid=rss_feed",
+      "rss_url": "https://feeds.simplecast.com/l2i9YnTd"
+    },
+    {
+      "description": "Explore how the latest technologies are shaping our world, from groundbreaking discoveries to transformative sustainability efforts. The NVIDIA AI Podcast shines a light on the stories and solutions behind the most innovative changes, helping to inspire and educate listeners. More information: https://ai-podcast.nvidia.com/",
+      "display_title": "NVIDIA AI Podcast",
+      "episode_count": 1,
+      "feed_id": "sha256:b7d7fd554788c6b3f362e5e2d0254cdd2bd8bc523dd913d264c6baa39c06f868",
+      "image_local_relpath": null,
+      "image_url": "https://megaphone.imgix.net/podcasts/b569e226-f45b-11ef-8eab-87014600b959/image/8cfc4762974a610994e63ee630a53918.png?ixlib=rails-4.3.1&max-w=3000&max-h=3000&fit=crop&auto=format,compress",
+      "rss_url": "https://feeds.megaphone.fm/nvidiaaipodcast"
+    }
+  ],
+  "path": "/Users/markodragoljevic/Projects/podcast_scraper-FUTURE/.test_outputs/manual/my-manual-run-10"
+}

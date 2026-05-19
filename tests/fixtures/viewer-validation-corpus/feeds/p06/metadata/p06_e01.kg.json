@@ -1,0 +1,83 @@
+{
+  "edges": [
+    {
+      "from": "episode:e741f35a-8dd9-5c40-9d5c-905f4dca4122",
+      "to": "entity:science-research",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:e741f35a-8dd9-5c40-9d5c-905f4dca4122",
+      "to": "entity:welcome-back-to",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:e741f35a-8dd9-5c40-9d5c-905f4dca4122",
+      "to": "topic:science-research",
+      "type": "RELATES_TO"
+    },
+    {
+      "from": "episode:e741f35a-8dd9-5c40-9d5c-905f4dca4122",
+      "to": "topic:welcome-back-to",
+      "type": "RELATES_TO"
+    },
+    {
+      "from": "episode:e741f35a-8dd9-5c40-9d5c-905f4dca4122",
+      "to": "topic:what-do-you-recommend",
+      "type": "RELATES_TO"
+    }
+  ],
+  "episode_id": "e741f35a-8dd9-5c40-9d5c-905f4dca4122",
+  "extraction": {
+    "model": "n/a",
+    "provider": "synthetic"
+  },
+  "nodes": [
+    {
+      "id": "episode:e741f35a-8dd9-5c40-9d5c-905f4dca4122",
+      "properties": {
+        "episode_id": "e741f35a-8dd9-5c40-9d5c-905f4dca4122",
+        "metadata_relative_path": "feeds/p06/metadata/p06_e01.metadata.json",
+        "title": "Edge Cases Podcast \u2014 Episode 1"
+      },
+      "type": "Episode"
+    },
+    {
+      "id": "entity:science-research",
+      "properties": {
+        "category": "Concept",
+        "label": "Science & Research"
+      },
+      "type": "Entity"
+    },
+    {
+      "id": "entity:welcome-back-to",
+      "properties": {
+        "category": "Concept",
+        "label": "Welcome Back To"
+      },
+      "type": "Entity"
+    },
+    {
+      "id": "topic:science-research",
+      "properties": {
+        "label": "Science & research"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:welcome-back-to",
+      "properties": {
+        "label": "welcome back to"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:what-do-you-recommend",
+      "properties": {
+        "label": "what do you recommend"
+      },
+      "type": "Topic"
+    }
+  ],
+  "schema_version": "2"
+}

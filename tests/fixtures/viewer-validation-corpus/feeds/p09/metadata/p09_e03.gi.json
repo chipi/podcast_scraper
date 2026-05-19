@@ -1,0 +1,142 @@
+{
+  "edges": [
+    {
+      "from": "episode:79fb44f3-5be0-5fc7-9d43-2f39049f7f2d",
+      "to": "topic:technology",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:79fb44f3-5be0-5fc7-9d43-2f39049f7f2d",
+      "to": "topic:health",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:79fb44f3-5be0-5fc7-9d43-2f39049f7f2d",
+      "to": "topic:business-markets",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:79fb44f3-5be0-5fc7-9d43-2f39049f7f2d",
+      "to": "insight:9b38637b4c4d2e0d",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "episode:79fb44f3-5be0-5fc7-9d43-2f39049f7f2d",
+      "to": "insight:de1876082b36b0d4",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "episode:79fb44f3-5be0-5fc7-9d43-2f39049f7f2d",
+      "to": "insight:eee0c952d51f4059",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "episode:79fb44f3-5be0-5fc7-9d43-2f39049f7f2d",
+      "to": "quote:65c95a0310373c91",
+      "type": "HAS_QUOTE"
+    },
+    {
+      "from": "episode:79fb44f3-5be0-5fc7-9d43-2f39049f7f2d",
+      "to": "quote:f7e2889773e82c16",
+      "type": "HAS_QUOTE"
+    },
+    {
+      "from": "episode:79fb44f3-5be0-5fc7-9d43-2f39049f7f2d",
+      "to": "quote:1ea26d5ea166b6ae",
+      "type": "HAS_QUOTE"
+    }
+  ],
+  "episode_id": "79fb44f3-5be0-5fc7-9d43-2f39049f7f2d",
+  "model_version": "synthetic-validation-corpus-v1",
+  "nodes": [
+    {
+      "id": "episode:79fb44f3-5be0-5fc7-9d43-2f39049f7f2d",
+      "properties": {
+        "duration_ms": 1800000,
+        "episode_id": "79fb44f3-5be0-5fc7-9d43-2f39049f7f2d",
+        "metadata_relative_path": "feeds/p09/metadata/p09_e03.metadata.json",
+        "podcast_id": "sha256:255b515964dcdf7f0f2123a46053fbf8c961882868ea3c88bb8ba794824c52e8",
+        "publish_date": "2026-05-16T12:00:00",
+        "title": "The Long View: Biohacking \u2014 Episode 3"
+      },
+      "type": "Episode"
+    },
+    {
+      "id": "topic:technology",
+      "properties": {
+        "label": "technology",
+        "score": 0.8
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:health",
+      "properties": {
+        "label": "health",
+        "score": 0.8
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:business-markets",
+      "properties": {
+        "label": "Business & markets",
+        "score": 0.8
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "insight:9b38637b4c4d2e0d",
+      "properties": {
+        "confidence": 0.7,
+        "grounded": true,
+        "text": "In this episode, I\u2019m going to build a grounded map: what\u2019s real, what\u2019s uncertain, and what you can do without turning your life into an optimization project."
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "insight:de1876082b36b0d4",
+      "properties": {
+        "confidence": 0.7,
+        "grounded": true,
+        "text": "Alex Morgan: Where the field is right now."
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "insight:eee0c952d51f4059",
+      "properties": {
+        "confidence": 0.7,
+        "grounded": true,
+        "text": "Alex Morgan: The second step is to separate interventions that improve fundamentals from interventions that just create the feeling of progress."
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "quote:65c95a0310373c91",
+      "properties": {
+        "speaker": "Speaker 1",
+        "text": "Alex Morgan: The most useful starting point is to ask what problem you\u2019re trying to solve, and what constraints you can\u2019t wish away: time, stress, sleep, money, and attention."
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:f7e2889773e82c16",
+      "properties": {
+        "speaker": "Speaker 1",
+        "text": "Alex Morgan: A good heuristic is to prefer boring things that compound: regular sleep timing, strength, protein, daylight, and social stability."
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:1ea26d5ea166b6ae",
+      "properties": {
+        "speaker": "Speaker 1",
+        "text": "Alex Morgan: If a protocol only works when life is perfect, it is not a protocol; it is a performance."
+      },
+      "type": "Quote"
+    }
+  ],
+  "prompt_version": "n/a",
+  "schema_version": "2"
+}

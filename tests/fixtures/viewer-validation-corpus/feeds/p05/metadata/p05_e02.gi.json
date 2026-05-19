@@ -1,0 +1,142 @@
+{
+  "edges": [
+    {
+      "from": "episode:78741d49-00ad-5f5f-b127-8fd1c1b6844c",
+      "to": "topic:technology",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:78741d49-00ad-5f5f-b127-8fd1c1b6844c",
+      "to": "topic:welcome-back-to",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:78741d49-00ad-5f5f-b127-8fd1c1b6844c",
+      "to": "topic:what-does-that-look",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:78741d49-00ad-5f5f-b127-8fd1c1b6844c",
+      "to": "insight:75fca224addd5258",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "episode:78741d49-00ad-5f5f-b127-8fd1c1b6844c",
+      "to": "insight:93fb0fbe13b8e881",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "episode:78741d49-00ad-5f5f-b127-8fd1c1b6844c",
+      "to": "insight:1bc052c2cd922b94",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "episode:78741d49-00ad-5f5f-b127-8fd1c1b6844c",
+      "to": "quote:0df817e3f8b25504",
+      "type": "HAS_QUOTE"
+    },
+    {
+      "from": "episode:78741d49-00ad-5f5f-b127-8fd1c1b6844c",
+      "to": "quote:d15d4bd534d9064d",
+      "type": "HAS_QUOTE"
+    },
+    {
+      "from": "episode:78741d49-00ad-5f5f-b127-8fd1c1b6844c",
+      "to": "quote:5c724070ff5112cf",
+      "type": "HAS_QUOTE"
+    }
+  ],
+  "episode_id": "78741d49-00ad-5f5f-b127-8fd1c1b6844c",
+  "model_version": "synthetic-validation-corpus-v1",
+  "nodes": [
+    {
+      "id": "episode:78741d49-00ad-5f5f-b127-8fd1c1b6844c",
+      "properties": {
+        "duration_ms": 1800000,
+        "episode_id": "78741d49-00ad-5f5f-b127-8fd1c1b6844c",
+        "metadata_relative_path": "feeds/p05/metadata/p05_e02.metadata.json",
+        "podcast_id": "sha256:f4abc2ce662eb5875453632ed70c87b2fbc7394bbeef83c9d1d0918febd5bebe",
+        "publish_date": "2026-05-16T12:00:00",
+        "title": "Long Horizon Notes \u2014 Episode 2"
+      },
+      "type": "Episode"
+    },
+    {
+      "id": "topic:technology",
+      "properties": {
+        "label": "Technology",
+        "score": 0.8
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:welcome-back-to",
+      "properties": {
+        "label": "welcome back to",
+        "score": 0.8
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:what-does-that-look",
+      "properties": {
+        "label": "what does that look",
+        "score": 0.8
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "insight:75fca224addd5258",
+      "properties": {
+        "confidence": 0.7,
+        "grounded": true,
+        "text": "# Long Horizon Notes \u2014 Episode\n## Real Estate: Numbers Before Narratives\nHost: Nora\nGuest: Isabel\nNora: Welcome back to Long Horizon Notes."
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "insight:93fb0fbe13b8e881",
+      "properties": {
+        "confidence": 0.7,
+        "grounded": true,
+        "text": "Today we\u2019re talking about real estate: numbers before narratives, and I\u2019m joined by Isabel."
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "insight:1bc052c2cd922b94",
+      "properties": {
+        "confidence": 0.7,
+        "grounded": true,
+        "text": "Isabel, thanks for being here."
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "quote:0df817e3f8b25504",
+      "properties": {
+        "speaker": "Speaker 1",
+        "text": "I\u2019m excited\u2014this is a topic people care about, and there\u2019s a lot of practical nuance."
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:d15d4bd534d9064d",
+      "properties": {
+        "speaker": "Speaker 1",
+        "text": "What does that look like on a normal day?"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:5c724070ff5112cf",
+      "properties": {
+        "speaker": "Speaker 1",
+        "text": "Index investing works because it reduces costs and decision errors, not because it predicts the future."
+      },
+      "type": "Quote"
+    }
+  ],
+  "prompt_version": "n/a",
+  "schema_version": "2"
+}

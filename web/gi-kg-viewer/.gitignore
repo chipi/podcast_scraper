@@ -1,1 +1,6 @@
 .env.local
+
+# Playwright outputs — traces, screenshots, error-context, test-results
+validation-results/
+test-results/
+playwright-report/

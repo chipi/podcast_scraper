@@ -127,13 +127,37 @@ Pure TypeScript utility logic (parsing, merge, metrics, formatting, colors, visu
 search-focus mapping) is covered by **Vitest** unit tests co-located with source:
 
 ```bash
+# Always cd into this directory first — see "Always run from this directory" below.
+cd web/gi-kg-viewer
 npm run test:unit           # single run
 npm run test:unit:watch     # watch mode
 ```
 
-From repo root: **`make test-ui`**. Tests: `src/utils/*.test.ts`, `src/stores/*.test.ts`,
-`src/api/*.test.ts` (e.g. `corpusLibraryApi.test.ts`). Config:
-`vite.config.ts` `test` block. CI job: **`viewer-unit`**.
+From repo root: **`make test-ui`** (the target handles cwd itself). Tests:
+`src/utils/*.test.ts`, `src/stores/*.test.ts`, `src/api/*.test.ts` (e.g.
+`corpusLibraryApi.test.ts`). Config: `vite.config.ts` `test` block. CI job:
+**`viewer-unit`**.
+
+### Always run from this directory
+
+When invoking Vitest or Playwright **outside `make`**, always set CWD to
+`web/gi-kg-viewer/` so caches and reports land in the viewer's own
+`node_modules/.vite/` and `playwright-report/`. Examples:
+
+```bash
+# ✅ Correct — viewer is CWD; everything stays scoped to this subtree
+cd web/gi-kg-viewer
+npm run test:unit
+node_modules/.bin/vitest run src/services/graphHandoffFsm.test.ts
+
+# ❌ Avoid — CWD stays at repo root; Vitest creates a stray
+#    `<repo-root>/node_modules/.vite/` cache that does not belong here.
+npm exec --prefix web/gi-kg-viewer -- vitest run
+```
+
+The `--prefix` flag only resolves the binary; it does **not** change CWD.
+A root-level `node_modules/` is always a transient artifact (gitignored
+since [#770]) and should be deleted on sight.
 
 ## Browser E2E (M7)
 

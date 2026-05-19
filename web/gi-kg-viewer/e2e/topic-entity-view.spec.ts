@@ -189,24 +189,42 @@ test.describe('Topic / Entity rail panel (TEV)', () => {
     })
   })
 
-  test('digest topic title → TEV renders the contract surface', async ({ page }) => {
+  test('TEV renders the contract surface for a focused topic', async ({ page }) => {
+    // ENTRY POINT NOTE — The original spec drove this through the digest
+    // topic-band-title click affordance. That click handler was removed
+    // in the V2 architectural change (``DEFAULT_DIGEST_TOPICS`` editorial
+    // labels don't correspond to KG nodes in arbitrary corpora — see the
+    // headline ``<span>`` in ``DigestView.vue`` and the comment in
+    // ``digest.spec.ts``). TEV is still reachable from other surfaces:
+    //
+    //   - Dashboard topic-cluster chip → ``activateGraphTab(topic:…)`` →
+    //     ``subject.focusTopic`` (App.vue:150)
+    //   - ``@go-graph`` emit with a ``topic:…`` target id from any surface
+    //
+    // The valuable assertion set is the TEV contract surface itself
+    // (data-testids per E2E_SURFACE_MAP §224). Drive ``subject.focusTopic``
+    // directly via the DEV-only ``__GIKG_SUBJECT__`` hook so this spec
+    // verifies the panel contract without coupling to whichever entry
+    // point happens to be wired today.
     await page.goto('/')
     await page.getByRole('heading', { name: SHELL_HEADING_RE }).waitFor()
-
     await statusBarCorpusPathInput(page).fill('/mock/corpus')
-    await mainViewsNav(page).getByRole('button', { name: 'Digest' }).click()
+    await expect(page.getByTestId('digest-root')).toBeVisible()
 
-    // Click the topic band title — this drives ``openTopicBandInGraph``
-    // which opens the graph workspace AND calls ``subject.focusTopic``.
-    await page
-      .getByRole('button', {
-        name: `Open graph for topic ${TOPIC_LABEL} (top hit with GI or KG)`,
-      })
-      .click()
-
-    // Graph workspace must finish loading before TEV renders the topic
-    // node's stats; the Fit toolbar button is the load gate.
+    // Open the Graph workspace so the artifact slice loads and TEV can
+    // resolve the topic node when ``subject.focusTopic`` fires.
+    await mainViewsNav(page).getByRole('button', { name: 'Graph' }).click()
     await page.getByRole('button', { name: 'Fit' }).waitFor({ state: 'visible', timeout: 30_000 })
+
+    // Drive TEV via the DEV hook (DEV-only mutator on ``__GIKG_SUBJECT__``).
+    await page.evaluate((id) => {
+      const subj = (window as unknown as { __GIKG_SUBJECT__?: { focusTopic: (i: string) => void } })
+        .__GIKG_SUBJECT__
+      if (!subj?.focusTopic) {
+        throw new Error('__GIKG_SUBJECT__.focusTopic not exposed; DEV-only hook missing')
+      }
+      subj.focusTopic(id)
+    }, GRAPH_TOPIC_ID)
 
     // TEV contract surface (E2E_SURFACE_MAP §224).
     const view = page.getByTestId('topic-entity-view')

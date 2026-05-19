@@ -1,0 +1,73 @@
+{
+  "cil_digest_topics": [
+    {
+      "in_topic_cluster": true,
+      "label": "technology",
+      "topic_cluster_compound_id": "tc:technology-cluster",
+      "topic_id": "topic:technology"
+    },
+    {
+      "in_topic_cluster": true,
+      "label": "health",
+      "topic_cluster_compound_id": "tc:health-cluster",
+      "topic_id": "topic:health"
+    }
+  ],
+  "episode": {
+    "episode_id": "79fb44f3-5be0-5fc7-9d43-2f39049f7f2d",
+    "published_date": "2026-05-16",
+    "title": "The Long View: Biohacking \u2014 Episode 3"
+  },
+  "episode_id": "79fb44f3-5be0-5fc7-9d43-2f39049f7f2d",
+  "episode_title": "The Long View: Biohacking \u2014 Episode 3",
+  "feed": {
+    "description": "Solo, long-form reflections on biohacking: the state of the field in 2025, what actually works, and the ethics and limits of human optimization.",
+    "feed_id": "sha256:255b515964dcdf7f0f2123a46053fbf8c961882868ea3c88bb8ba794824c52e8",
+    "title": "The Long View: Biohacking",
+    "url": "http://localhost/"
+  },
+  "feed_display_title": "The Long View: Biohacking",
+  "feed_id": "sha256:255b515964dcdf7f0f2123a46053fbf8c961882868ea3c88bb8ba794824c52e8",
+  "gi_relative_path": "feeds/p09/metadata/p09_e03.gi.json",
+  "grounded_insights": {
+    "artifact_path": "feeds/p09/metadata/p09_e03.gi.json",
+    "schema_version": "1.0"
+  },
+  "has_gi": true,
+  "has_kg": true,
+  "kg_relative_path": "feeds/p09/metadata/p09_e03.kg.json",
+  "knowledge_graph": {
+    "artifact_path": "feeds/p09/metadata/p09_e03.kg.json",
+    "schema_version": "1.1"
+  },
+  "publish_date": "2026-05-16",
+  "schema_version": "1",
+  "summary": {
+    "bullets": [
+      "In this episode, I\u2019m going to build a grounded map: what\u2019s real, what\u2019s uncertain, and what you can do without turning your life into an optimization project.",
+      "Alex Morgan: Where the field is right now.",
+      "Alex Morgan: The second step is to separate interventions that improve fundamentals from interventions that just create the feeling of progress."
+    ],
+    "preview": "In this episode, I\u2019m going to build a grounded map: what\u2019s real, what\u2019s uncertain, and what you can do without turning your life into an opt\u2026",
+    "text": "In this episode, I\u2019m going to build a grounded map: what\u2019s real, what\u2019s uncertain, and what you can do without turning your life into an optimization project.\nAlex Morgan: Where the field is right now.\nAlex Morgan: The second step is to separate interventions that improve fundamentals from interventions that just create the feeling of progress.",
+    "title": "The Long View: Biohacking \u2014 Episode 3 \u2014 synthetic"
+  },
+  "summary_bullet_graph_topic_ids": [
+    "topic:technology",
+    "topic:health",
+    "topic:business-markets"
+  ],
+  "summary_bullets": [
+    "In this episode, I\u2019m going to build a grounded map: what\u2019s real, what\u2019s uncertain, and what you can do without turning your life into an optimization project.",
+    "Alex Morgan: Where the field is right now.",
+    "Alex Morgan: The second step is to separate interventions that improve fundamentals from interventions that just create the feeling of progress."
+  ],
+  "summary_preview": "In this episode, I\u2019m going to build a grounded map: what\u2019s real, what\u2019s uncertain, and what you can do without turning your life into an opt\u2026",
+  "summary_text": "In this episode, I\u2019m going to build a grounded map: what\u2019s real, what\u2019s uncertain, and what you can do without turning your life into an optimization project.\nAlex Morgan: Where the field is right now.\nAlex Morgan: The second step is to separate interventions that improve fundamentals from interventions that just create the feeling of progress.",
+  "summary_title": "The Long View: Biohacking \u2014 Episode 3 \u2014 synthetic",
+  "topics": [
+    "technology",
+    "health",
+    "Business & markets"
+  ]
+}

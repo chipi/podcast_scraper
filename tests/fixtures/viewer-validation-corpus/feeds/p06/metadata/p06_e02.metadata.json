@@ -1,0 +1,73 @@
+{
+  "cil_digest_topics": [
+    {
+      "in_topic_cluster": false,
+      "label": "Technology",
+      "topic_cluster_compound_id": null,
+      "topic_id": "topic:technology"
+    },
+    {
+      "in_topic_cluster": false,
+      "label": "welcome back to",
+      "topic_cluster_compound_id": null,
+      "topic_id": "topic:welcome-back-to"
+    }
+  ],
+  "episode": {
+    "episode_id": "e3d8c7e5-2b7b-572b-a226-ddec128285ca",
+    "published_date": "2026-05-15",
+    "title": "Edge Cases Podcast \u2014 Episode 2"
+  },
+  "episode_id": "e3d8c7e5-2b7b-572b-a226-ddec128285ca",
+  "episode_title": "Edge Cases Podcast \u2014 Episode 2",
+  "feed": {
+    "description": "Testing edge cases: special characters, unicode, long titles, missing fields.",
+    "feed_id": "sha256:d517d39c803a89d395740e81b17ace57ebb95aa5ec504129b1c306c7e592f10c",
+    "title": "Edge Cases Podcast",
+    "url": "http://localhost/"
+  },
+  "feed_display_title": "Edge Cases Podcast",
+  "feed_id": "sha256:d517d39c803a89d395740e81b17ace57ebb95aa5ec504129b1c306c7e592f10c",
+  "gi_relative_path": "feeds/p06/metadata/p06_e02.gi.json",
+  "grounded_insights": {
+    "artifact_path": "feeds/p06/metadata/p06_e02.gi.json",
+    "schema_version": "1.0"
+  },
+  "has_gi": true,
+  "has_kg": true,
+  "kg_relative_path": "feeds/p06/metadata/p06_e02.kg.json",
+  "knowledge_graph": {
+    "artifact_path": "feeds/p06/metadata/p06_e02.kg.json",
+    "schema_version": "1.1"
+  },
+  "publish_date": "2026-05-15",
+  "schema_version": "1",
+  "summary": {
+    "bullets": [
+      "# Singletrack Sessions \u2014 Episode\n## Building Trails That Last\nHost: Maya\nGuest: Liam\nMaya: Welcome back to Singletrack Sessions.",
+      "Today we\u2019re talking about building trails that last, and I\u2019m joined by Liam.",
+      "I\u2019m excited\u2014this is a topic people care about, and there\u2019s a lot of practical nuance."
+    ],
+    "preview": "# Singletrack Sessions \u2014 Episode\n## Building Trails That Last\nHost: Maya\nGuest: Liam\nMaya: Welcome back to Singletrack Sessions.",
+    "text": "# Singletrack Sessions \u2014 Episode\n## Building Trails That Last\nHost: Maya\nGuest: Liam\nMaya: Welcome back to Singletrack Sessions.\nToday we\u2019re talking about building trails that last, and I\u2019m joined by Liam.\nI\u2019m excited\u2014this is a topic people care about, and there\u2019s a lot of practical nuance.",
+    "title": "Edge Cases Podcast \u2014 Episode 2 \u2014 synthetic"
+  },
+  "summary_bullet_graph_topic_ids": [
+    "topic:technology",
+    "topic:welcome-back-to",
+    "topic:what-do-you-recommend"
+  ],
+  "summary_bullets": [
+    "# Singletrack Sessions \u2014 Episode\n## Building Trails That Last\nHost: Maya\nGuest: Liam\nMaya: Welcome back to Singletrack Sessions.",
+    "Today we\u2019re talking about building trails that last, and I\u2019m joined by Liam.",
+    "I\u2019m excited\u2014this is a topic people care about, and there\u2019s a lot of practical nuance."
+  ],
+  "summary_preview": "# Singletrack Sessions \u2014 Episode\n## Building Trails That Last\nHost: Maya\nGuest: Liam\nMaya: Welcome back to Singletrack Sessions.",
+  "summary_text": "# Singletrack Sessions \u2014 Episode\n## Building Trails That Last\nHost: Maya\nGuest: Liam\nMaya: Welcome back to Singletrack Sessions.\nToday we\u2019re talking about building trails that last, and I\u2019m joined by Liam.\nI\u2019m excited\u2014this is a topic people care about, and there\u2019s a lot of practical nuance.",
+  "summary_title": "Edge Cases Podcast \u2014 Episode 2 \u2014 synthetic",
+  "topics": [
+    "Technology",
+    "welcome back to",
+    "what do you recommend"
+  ]
+}

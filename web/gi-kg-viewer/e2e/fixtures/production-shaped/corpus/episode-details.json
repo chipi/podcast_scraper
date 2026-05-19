@@ -1,0 +1,637 @@
+{
+  "feeds/rss_feeds.megaphone.fm_370fb395/run_20260421-180025_8eb5f9d2/metadata/0001 - How AI Will Change Quantum Compu_20260421-180025_8eb5f9d2.metadata.json": {
+    "bridge_partition": {
+      "both": 10,
+      "gi_only": 0,
+      "kg_only": 5,
+      "total": 15
+    },
+    "bridge_relative_path": "feeds/rss_feeds.megaphone.fm_370fb395/run_20260421-180025_8eb5f9d2/metadata/0001 - How AI Will Change Quantum Compu_20260421-180025_8eb5f9d2.bridge.json",
+    "cil_digest_topics": [
+      {
+        "in_topic_cluster": false,
+        "label": "AI in quantum computing",
+        "topic_cluster_compound_id": null,
+        "topic_id": "topic:ai-in-quantum-computing"
+      },
+      {
+        "in_topic_cluster": false,
+        "label": "Hybrid quantum-classical systems",
+        "topic_cluster_compound_id": null,
+        "topic_id": "topic:hybrid-quantum-classical-systems"
+      },
+      {
+        "in_topic_cluster": false,
+        "label": "NVIDIA AI podcast",
+        "topic_cluster_compound_id": null,
+        "topic_id": "topic:nvidia-ai-podcast"
+      },
+      {
+        "in_topic_cluster": false,
+        "label": "NVIDIA Ising models",
+        "topic_cluster_compound_id": null,
+        "topic_id": "topic:nvidia-ising-models"
+      },
+      {
+        "in_topic_cluster": false,
+        "label": "Quantum computing applications",
+        "topic_cluster_compound_id": null,
+        "topic_id": "topic:quantum-computing-applications"
+      }
+    ],
+    "duration_seconds": 1888,
+    "episode_id": "c1864c80-3766-11f1-a17b-8323ac12a047",
+    "episode_image_local_relpath": null,
+    "episode_image_url": "https://megaphone.imgix.net/podcasts/c1864c80-3766-11f1-a17b-8323ac12a047/image/9c6acdaa659e91677a84ee29c371b5ea.png?ixlib=rails-4.3.1&max-w=3000&max-h=3000&fit=crop&auto=format,compress",
+    "episode_number": null,
+    "episode_title": "How AI Will Change Quantum Computing - Ep. 294",
+    "feed_description": "Explore how the latest technologies are shaping our world, from groundbreaking discoveries to transformative sustainability efforts. The NVIDIA AI Podcast shines a light on the stories and solutions behind the most innovative changes, helping to inspire and educate listeners. More information: https://ai-podcast.nvidia.com/",
+    "feed_id": "sha256:b7d7fd554788c6b3f362e5e2d0254cdd2bd8bc523dd913d264c6baa39c06f868",
+    "feed_image_local_relpath": null,
+    "feed_image_url": "https://megaphone.imgix.net/podcasts/b569e226-f45b-11ef-8eab-87014600b959/image/8cfc4762974a610994e63ee630a53918.png?ixlib=rails-4.3.1&max-w=3000&max-h=3000&fit=crop&auto=format,compress",
+    "feed_rss_url": "https://feeds.megaphone.fm/nvidiaaipodcast",
+    "gi_relative_path": "feeds/rss_feeds.megaphone.fm_370fb395/run_20260421-180025_8eb5f9d2/metadata/0001 - How AI Will Change Quantum Compu_20260421-180025_8eb5f9d2.gi.json",
+    "has_bridge": true,
+    "has_gi": true,
+    "has_kg": true,
+    "kg_relative_path": "feeds/rss_feeds.megaphone.fm_370fb395/run_20260421-180025_8eb5f9d2/metadata/0001 - How AI Will Change Quantum Compu_20260421-180025_8eb5f9d2.kg.json",
+    "metadata_relative_path": "feeds/rss_feeds.megaphone.fm_370fb395/run_20260421-180025_8eb5f9d2/metadata/0001 - How AI Will Change Quantum Compu_20260421-180025_8eb5f9d2.metadata.json",
+    "path": "/Users/markodragoljevic/Projects/podcast_scraper-FUTURE/.test_outputs/manual/my-manual-run-10",
+    "publish_date": "2026-04-14",
+    "summary_bullets": [
+      "Quantum computing utilizes quantum mechanical objects as switches (qubits) instead of classical transistors, enabling solutions to problems previously intractable due to exponential or strong polynomial advantages over conventional computers.",
+      "Quantum computers are not universally superior; their transformative power is limited to specific application areas like simulating quantum systems, developing new drugs, and creating novel materials.",
+      "Current quantum hardware development is at an inflection point, transitioning from experimental to larger-scale systems integrated with supercomputers, with significant progress expected soon.",
+      "Building quantum processors (QPUs) faces challenges in controlling and maintaining qubits, requiring robust quantum error correction to manage fundamental noise and achieve reliable computation.",
+      "AI is poised to unlock significant progress in quantum computing, particularly in mastering quantum error correction by processing vast amounts of data rapidly to infer and correct qubit errors.",
+      "NVIDIA's open models, 'Ising,' offer pre-trained AI models for quantum computing workloads, including calibration and decoding for quantum error correction, accelerating research and development.",
+      "Early useful applications of quantum computing are expected in simulating quantum systems, such as molecular interactions for drug discovery, which are inherently quantum mechanical problems.",
+      "AI can assist in discovering new quantum applications by understanding deeper patterns in quantum algorithms and compiling applications in ways that may be counterintuitive to humans.",
+      "Quantum hardware is materially different from classical hardware, with diverse approaches to building qubits, necessitating flexible AI tools that can accommodate various hardware architectures.",
+      "Scaling quantum computers requires a massive increase in qubits (potentially millions) to support error correction overheads, leveraging accelerated computing and classical algorithms for control and error management.",
+      "NVIDIA's Q2Q software platform, NVLink hardware architecture, and Ising models provide a framework for integrating quantum processes into existing supercomputing infrastructure, paving the way for future standards."
+    ],
+    "summary_text": "Quantum computing utilizes quantum mechanical objects as switches (qubits) instead of classical transistors, enabling solutions to problems previously intractable due to exponential or strong polynomial advantages over conventional computers. Quantum computers are not universally superior; their transformative power is limited to specific application areas like simulating quantum systems, developing new drugs, and creating novel materials.",
+    "summary_title": "Quantum Computing and the Role of AI"
+  },
+  "feeds/rss_feeds.megaphone.fm_755f5437/run_20260421-175429_8eb5f9d2/metadata/0001 - Scaling Global Organizations in _20260421-175429_8eb5f9d2.metadata.json": {
+    "bridge_partition": {
+      "both": 10,
+      "gi_only": 0,
+      "kg_only": 15,
+      "total": 25
+    },
+    "bridge_relative_path": "feeds/rss_feeds.megaphone.fm_755f5437/run_20260421-175429_8eb5f9d2/metadata/0001 - Scaling Global Organizations in _20260421-175429_8eb5f9d2.bridge.json",
+    "cil_digest_topics": [
+      {
+        "in_topic_cluster": true,
+        "label": "AI and business models",
+        "topic_cluster_compound_id": "tc:ai-and-business-models",
+        "topic_id": "topic:ai-and-business-models"
+      },
+      {
+        "in_topic_cluster": true,
+        "label": "enterprise platform replacement",
+        "topic_cluster_compound_id": "tc:enterprise-platforms",
+        "topic_id": "topic:enterprise-platform-replacement"
+      },
+      {
+        "in_topic_cluster": true,
+        "label": "human capital and technology",
+        "topic_cluster_compound_id": "tc:human-capital",
+        "topic_id": "topic:human-capital-and-technology"
+      },
+      {
+        "in_topic_cluster": false,
+        "label": "agentic business operations",
+        "topic_cluster_compound_id": null,
+        "topic_id": "topic:agentic-business-operations"
+      },
+      {
+        "in_topic_cluster": false,
+        "label": "customer relationship management",
+        "topic_cluster_compound_id": null,
+        "topic_id": "topic:customer-relationship-management"
+      }
+    ],
+    "duration_seconds": 3447,
+    "episode_id": "4255b42e-3a9e-11f1-8eee-179e850fd703",
+    "episode_image_local_relpath": null,
+    "episode_image_url": "https://megaphone.imgix.net/podcasts/4255b42e-3a9e-11f1-8eee-179e850fd703/image/c11b2eb6b63e2737dc49fe08e9d2e2f2.png?ixlib=rails-4.3.1&max-w=3000&max-h=3000&fit=crop&auto=format,compress",
+    "episode_number": 157,
+    "episode_title": "Scaling Global Organizations in the Age of AI with ServiceNow CEO Bill McDermott",
+    "feed_description": "At this moment of inflection in technology, co-hosts Elad Gil and Sarah Guo talk to the world's leading AI engineers, researchers and founders about the biggest questions: How far away is AGI? What markets are at risk for disruption? How will commerce, culture, and society change? What\u2019s happening in state-of-the-art in research? \u201cNo Priors\u201d is your guide to the AI revolution. Email feedback to show@no-priors.com. Sarah Guo is a startup investor and the founder of Conviction, an investment firm purpose-built to serve intelligent software, or \"Software 3.0\" companies. She spent nearly a decade incubating and investing at venture firm Greylock Partners. Elad Gil is a serial entrepreneur and a startup investor. He was co-founder of Color Health, Mixer Labs (which was acquired by Twitter). He has invested in over 40 companies now worth $1B or more each, and is also author of the High Growth Handbook.",
+    "feed_id": "sha256:0da4183fe4339afdc81d079b469f31da7e85039e5121f085013230f92e72e13c",
+    "feed_image_local_relpath": null,
+    "feed_image_url": "https://megaphone.imgix.net/podcasts/803e0244-9d0f-11ed-923a-4bb54bf77468/image/NO_PRIORS_ALBUM_and_PROFILE_PIC-01.jpg?ixlib=rails-4.3.1&max-w=3000&max-h=3000&fit=crop&auto=format,compress",
+    "feed_rss_url": "https://feeds.megaphone.fm/nopriors",
+    "gi_relative_path": "feeds/rss_feeds.megaphone.fm_755f5437/run_20260421-175429_8eb5f9d2/metadata/0001 - Scaling Global Organizations in _20260421-175429_8eb5f9d2.gi.json",
+    "has_bridge": true,
+    "has_gi": true,
+    "has_kg": true,
+    "kg_relative_path": "feeds/rss_feeds.megaphone.fm_755f5437/run_20260421-175429_8eb5f9d2/metadata/0001 - Scaling Global Organizations in _20260421-175429_8eb5f9d2.kg.json",
+    "metadata_relative_path": "feeds/rss_feeds.megaphone.fm_755f5437/run_20260421-175429_8eb5f9d2/metadata/0001 - Scaling Global Organizations in _20260421-175429_8eb5f9d2.metadata.json",
+    "path": "/Users/markodragoljevic/Projects/podcast_scraper-FUTURE/.test_outputs/manual/my-manual-run-10",
+    "publish_date": "2026-04-17",
+    "summary_bullets": [
+      "Customer focus, resilience, and disciplined execution are timeless leadership principles, even in a rapidly changing tech landscape.",
+      "Enterprise platforms like ServiceNow offer deterministic workflows and contextual understanding that language models currently lack for complex business problem-solving.",
+      "Replicating enterprise platform functionality with LLMs can be significantly more expensive (up to 10x) and less reliable.",
+      "AI should serve to enhance human ambition and capabilities, not replace them, with human connection remaining critical.",
+      "ServiceNow aims to be an 'AI control tower' integrating with hyperscalers, LLMs, and existing systems to enable agentic businesses.",
+      "Embracing change and viewing challenges as opportunities is key to innovation and developing 'superpowers' in leadership."
+    ],
+    "summary_text": "Customer focus, resilience, and disciplined execution are timeless leadership principles, even in a rapidly changing tech landscape. Enterprise platforms like ServiceNow offer deterministic workflows and contextual understanding that language models currently lack for complex business problem-solving.",
+    "summary_title": "Bill McDermott on Leadership, AI, and the Future of Enterprise Platforms"
+  },
+  "feeds/rss_feeds.simplecast.com_2e104dc7/run_20260421-175353_8eb5f9d2/metadata/0001 - A.I. Backlash Turns Violent _ Ka_20260421-175353_8eb5f9d2.metadata.json": {
+    "bridge_partition": {
+      "both": 10,
+      "gi_only": 0,
+      "kg_only": 16,
+      "total": 26
+    },
+    "bridge_relative_path": "feeds/rss_feeds.simplecast.com_2e104dc7/run_20260421-175353_8eb5f9d2/metadata/0001 - A.I. Backlash Turns Violent _ Ka_20260421-175353_8eb5f9d2.bridge.json",
+    "cil_digest_topics": [
+      {
+        "in_topic_cluster": true,
+        "label": "AI industry",
+        "topic_cluster_compound_id": "tc:ai-industry",
+        "topic_id": "topic:ai-industry"
+      },
+      {
+        "in_topic_cluster": true,
+        "label": "AI policy",
+        "topic_cluster_compound_id": "tc:ai-policy",
+        "topic_id": "topic:ai-policy"
+      },
+      {
+        "in_topic_cluster": true,
+        "label": "AI regulation",
+        "topic_cluster_compound_id": "tc:ai-policy",
+        "topic_id": "topic:ai-regulation"
+      },
+      {
+        "in_topic_cluster": false,
+        "label": "AI backlash",
+        "topic_cluster_compound_id": null,
+        "topic_id": "topic:ai-backlash"
+      },
+      {
+        "in_topic_cluster": false,
+        "label": "AI violence",
+        "topic_cluster_compound_id": null,
+        "topic_id": "topic:ai-violence"
+      }
+    ],
+    "duration_seconds": 3801,
+    "episode_id": "25d702f6-ed6a-4565-8065-e729eb0f2650",
+    "episode_image_local_relpath": null,
+    "episode_image_url": null,
+    "episode_number": 190,
+    "episode_title": "A.I. Backlash Turns Violent + Kara Swisher on Healthmaxxing + The Zuck Bot Is Coming",
+    "feed_description": "\u201cHard Fork\u201d is a show about the future that\u2019s already here. Each week, journalists Kevin Roose and Casey Newton explore and make sense of the latest in the rapidly changing world of tech. Subscribe today at nytimes.com/podcasts or on Apple Podcasts and Spotify. You can also subscribe via your favorite podcast app here https://www.nytimes.com/activate-access/audio?source=podcatcher. For more podcasts and narrated articles, download The New York Times app at nytimes.com/app.",
+    "feed_id": "sha256:8025356ebfbe105cbd206ed4a4eabbc06f4562a0360517fd129e954ee2ef1871",
+    "feed_image_local_relpath": null,
+    "feed_image_url": "https://image.simplecastcdn.com/images/4105a47a-42e5-4ccc-887a-832af7989986/23965394-f5e4-4fdb-b150-639f4910353e/3000x3000/nyt-hf-album-art-3000-2.jpg?aid=rss_feed",
+    "feed_rss_url": "https://feeds.simplecast.com/l2i9YnTd",
+    "gi_relative_path": "feeds/rss_feeds.simplecast.com_2e104dc7/run_20260421-175353_8eb5f9d2/metadata/0001 - A.I. Backlash Turns Violent _ Ka_20260421-175353_8eb5f9d2.gi.json",
+    "has_bridge": true,
+    "has_gi": true,
+    "has_kg": true,
+    "kg_relative_path": "feeds/rss_feeds.simplecast.com_2e104dc7/run_20260421-175353_8eb5f9d2/metadata/0001 - A.I. Backlash Turns Violent _ Ka_20260421-175353_8eb5f9d2.kg.json",
+    "metadata_relative_path": "feeds/rss_feeds.simplecast.com_2e104dc7/run_20260421-175353_8eb5f9d2/metadata/0001 - A.I. Backlash Turns Violent _ Ka_20260421-175353_8eb5f9d2.metadata.json",
+    "path": "/Users/markodragoljevic/Projects/podcast_scraper-FUTURE/.test_outputs/manual/my-manual-run-10",
+    "publish_date": "2026-04-17",
+    "summary_bullets": [
+      "The AI backlash has escalated to violence, with incidents like an attack on Sam Altman's home and threats against a city councilman over data centers.",
+      "Data centers are becoming a flashpoint for public resistance to AI, leading to moratoriums and restrictions in various locations.",
+      "Public trust in AI and government regulation of AI is declining, particularly in the United States.",
+      "Economic anxieties about job displacement and the tangible impact of AI on daily life are significant drivers of public concern.",
+      "The perception of AI development as an elitist, top-down project with limited public control fuels anti-AI sentiment.",
+      "AI companies face a dilemma in communicating risks, with extreme rhetoric from leaders contributing to public fear, while lobbying against accountability measures further erodes trust."
+    ],
+    "summary_text": "The AI backlash has escalated to violence, with incidents like an attack on Sam Altman's home and threats against a city councilman over data centers. Data centers are becoming a flashpoint for public resistance to AI, leading to moratoriums and restrictions in various locations.",
+    "summary_title": "AI Backlash Turns Violent, Data Centers Face Resistance, and CEOs' Self-Replacement"
+  },
+  "feeds/rss_video-api.wsj.com_9acc908e/run_20260421-175539_8eb5f9d2/metadata/0001 - How Iran_s Regime Changed...for _20260421-175539_8eb5f9d2.metadata.json": {
+    "bridge_partition": {
+      "both": 10,
+      "gi_only": 0,
+      "kg_only": 17,
+      "total": 27
+    },
+    "bridge_relative_path": "feeds/rss_video-api.wsj.com_9acc908e/run_20260421-175539_8eb5f9d2/metadata/0001 - How Iran_s Regime Changed...for _20260421-175539_8eb5f9d2.bridge.json",
+    "cil_digest_topics": [
+      {
+        "in_topic_cluster": true,
+        "label": "Hardliners in Iranian politics",
+        "topic_cluster_compound_id": "tc:hardliners-in-iranian-politics",
+        "topic_id": "topic:hardliners-in-iranian-politics"
+      },
+      {
+        "in_topic_cluster": true,
+        "label": "Iranian regime change attempts",
+        "topic_cluster_compound_id": "tc:regime-criticism-in-iran",
+        "topic_id": "topic:iranian-regime-change-attempts"
+      },
+      {
+        "in_topic_cluster": true,
+        "label": "US-Iran conflict",
+        "topic_cluster_compound_id": "tc:iran-conflict",
+        "topic_id": "topic:us-iran-conflict"
+      },
+      {
+        "in_topic_cluster": false,
+        "label": "Apocalyptic military ideology",
+        "topic_cluster_compound_id": null,
+        "topic_id": "topic:apocalyptic-military-ideology"
+      },
+      {
+        "in_topic_cluster": false,
+        "label": "Iranian Revolutionary Guard Corps",
+        "topic_cluster_compound_id": null,
+        "topic_id": "topic:iranian-revolutionary-guard-corps"
+      }
+    ],
+    "duration_seconds": 1113,
+    "episode_id": "ff1edd82-3cf7-11f1-ac10-7bfe891bf8ed",
+    "episode_image_local_relpath": null,
+    "episode_image_url": null,
+    "episode_number": null,
+    "episode_title": "How Iran's Regime Changed...for the Worse",
+    "feed_description": "The most important stories about money, business and power. Hosted by Ryan Knutson and Jessica Mendoza. The Journal is a co-production of Spotify and The Wall Street Journal. Get show merch here: https://wsjshop.com/collections/clothing",
+    "feed_id": "sha256:2441bde6297de0efab1c6add06c0a80e1e4e96938f7ce303cbc7d7672688495c",
+    "feed_image_local_relpath": null,
+    "feed_image_url": "https://megaphone.imgix.net/podcasts/b84f9932-8174-11e9-bbd8-7f261513f0c9/image/d84a4f4d55158df9d14f6f2d4b219a28.jpg?ixlib=rails-4.3.1&max-w=3000&max-h=3000&fit=crop&auto=format,compress",
+    "feed_rss_url": "https://video-api.wsj.com/podcast/rss/wsj/the-journal",
+    "gi_relative_path": "feeds/rss_video-api.wsj.com_9acc908e/run_20260421-175539_8eb5f9d2/metadata/0001 - How Iran_s Regime Changed...for _20260421-175539_8eb5f9d2.gi.json",
+    "has_bridge": true,
+    "has_gi": true,
+    "has_kg": true,
+    "kg_relative_path": "feeds/rss_video-api.wsj.com_9acc908e/run_20260421-175539_8eb5f9d2/metadata/0001 - How Iran_s Regime Changed...for _20260421-175539_8eb5f9d2.kg.json",
+    "metadata_relative_path": "feeds/rss_video-api.wsj.com_9acc908e/run_20260421-175539_8eb5f9d2/metadata/0001 - How Iran_s Regime Changed...for _20260421-175539_8eb5f9d2.metadata.json",
+    "path": "/Users/markodragoljevic/Projects/podcast_scraper-FUTURE/.test_outputs/manual/my-manual-run-10",
+    "publish_date": "2026-04-20",
+    "summary_bullets": [
+      "US and Israeli attempts at regime change in Iran through targeted assassinations have backfired, strengthening hardliners.",
+      "The war has led to the consolidation of power by radical elements within Iran's leadership, including the Revolutionary Guards.",
+      "Mushtaba Khamenei, son of the former Supreme Leader, has emerged as a key figure, promoting hardliners and continuity.",
+      "New appointments in key security and military roles are filled by individuals with radical ideologies and controversial pasts.",
+      "Despite significant war damage, Iran projects defiance and has leveraged its strategic position, like the Strait of Hormuz.",
+      "Economic pressures from war losses are forcing Iran to consider negotiations, while internal dissent is being harshly suppressed."
+    ],
+    "summary_text": "US and Israeli attempts at regime change in Iran through targeted assassinations have backfired, strengthening hardliners. The war has led to the consolidation of power by radical elements within Iran's leadership, including the Revolutionary Guards.",
+    "summary_title": "Iran's Regime Change Backfires: Hardliners Consolidate Power Amidst War"
+  },
+  "feeds/rss_www.omnycontent.com_c9fdce2d/run_20260506-135048_ba02775e/metadata/0001 - How Baltimore_s Mayor Is Fightin_20260506-135048_ba02775e.metadata.json": {
+    "bridge_partition": {
+      "both": 10,
+      "gi_only": 0,
+      "kg_only": 16,
+      "total": 26
+    },
+    "bridge_relative_path": "feeds/rss_www.omnycontent.com_c9fdce2d/run_20260506-135048_ba02775e/metadata/0001 - How Baltimore_s Mayor Is Fightin_20260506-135048_ba02775e.bridge.json",
+    "cil_digest_topics": [
+      {
+        "in_topic_cluster": true,
+        "label": "public investment",
+        "topic_cluster_compound_id": "tc:private-investment",
+        "topic_id": "topic:public-investment"
+      },
+      {
+        "in_topic_cluster": true,
+        "label": "urban planning",
+        "topic_cluster_compound_id": "tc:urban-development",
+        "topic_id": "topic:urban-planning"
+      },
+      {
+        "in_topic_cluster": false,
+        "label": "city government",
+        "topic_cluster_compound_id": null,
+        "topic_id": "topic:city-government"
+      },
+      {
+        "in_topic_cluster": false,
+        "label": "community development",
+        "topic_cluster_compound_id": null,
+        "topic_id": "topic:community-development"
+      },
+      {
+        "in_topic_cluster": false,
+        "label": "historical context",
+        "topic_cluster_compound_id": null,
+        "topic_id": "topic:historical-context"
+      }
+    ],
+    "duration_seconds": 2962,
+    "episode_id": "653bb844-d3b0-425e-9e28-b43e00ee5196",
+    "episode_image_local_relpath": null,
+    "episode_image_url": "https://www.omnycontent.com/d/playlist/e73c998e-6e60-432f-8610-ae210140c5b1/8a94442e-5a74-4fa2-8b8d-ae27003a8d6b/982f5071-765c-403d-969d-ae27003a8d83/image.jpg?t=1681322812&size=Large",
+    "episode_number": null,
+    "episode_title": "How Baltimore's Mayor Is Fighting the City's Vacant Housing Crisis",
+    "feed_description": "Bloomberg's Joe Weisenthal and Tracy Alloway explore the most interesting topics in finance, markets and economics. Join the conversation every Monday and Thursday.",
+    "feed_id": "sha256:1cd6aecdd31c0ae82c2c76efdb6327b54e6026924b47852c51ffb406a9f2b19c",
+    "feed_image_local_relpath": null,
+    "feed_image_url": "https://www.omnycontent.com/d/playlist/e73c998e-6e60-432f-8610-ae210140c5b1/8a94442e-5a74-4fa2-8b8d-ae27003a8d6b/982f5071-765c-403d-969d-ae27003a8d83/image.jpg?t=1681322812&size=Large",
+    "feed_rss_url": "https://www.omnycontent.com/d/playlist/e73c998e-6e60-432f-8610-ae210140c5b1/8a94442e-5a74-4fa2-8b8d-ae27003a8d6b/982f5071-765c-403d-969d-ae27003a8d83/podcast.rss",
+    "gi_relative_path": "feeds/rss_www.omnycontent.com_c9fdce2d/run_20260506-135048_ba02775e/metadata/0001 - How Baltimore_s Mayor Is Fightin_20260506-135048_ba02775e.gi.json",
+    "has_bridge": true,
+    "has_gi": true,
+    "has_kg": true,
+    "kg_relative_path": "feeds/rss_www.omnycontent.com_c9fdce2d/run_20260506-135048_ba02775e/metadata/0001 - How Baltimore_s Mayor Is Fightin_20260506-135048_ba02775e.kg.json",
+    "metadata_relative_path": "feeds/rss_www.omnycontent.com_c9fdce2d/run_20260506-135048_ba02775e/metadata/0001 - How Baltimore_s Mayor Is Fightin_20260506-135048_ba02775e.metadata.json",
+    "path": "/Users/markodragoljevic/Projects/podcast_scraper-FUTURE/.test_outputs/manual/my-manual-run-10",
+    "publish_date": "2026-05-04",
+    "summary_bullets": [
+      "Baltimore faces a persistent vacant housing crisis, directly linked to historical racial redlining and disinvestment.",
+      "Mayor Brandon Scott's administration has implemented a long-term, community-wide strategy to address vacant housing, involving various stakeholders.",
+      "State funding of $50 million annually has been crucial in reducing the number of vacant properties in Baltimore.",
+      "The city is using innovative financing tools like Tax Increment Financing (TIF) for non-contiguous areas to attract investment in disinvested neighborhoods.",
+      "Revitalization efforts prioritize block-level planning, respecting neighborhood aesthetics and specific community needs.",
+      "Baltimore is actively working to overcome the challenges of vacant property ownership and redevelopment through streamlined processes and strategic partnerships."
+    ],
+    "summary_text": "Baltimore faces a persistent vacant housing crisis, directly linked to historical racial redlining and disinvestment. Mayor Brandon Scott's administration has implemented a long-term, community-wide strategy to address vacant housing, involving various stakeholders.",
+    "summary_title": "Baltimore's Vacant Housing Crisis: A Mayor's Strategy for Neighborhood Revitalization"
+  },
+  "feeds/rss_www.omnycontent.com_c9fdce2d/run_20260506-135048_ba02775e/metadata/0002 - Inside the Booming Market for Di_20260506-135048_ba02775e.metadata.json": {
+    "bridge_partition": {
+      "both": 10,
+      "gi_only": 0,
+      "kg_only": 16,
+      "total": 26
+    },
+    "bridge_relative_path": "feeds/rss_www.omnycontent.com_c9fdce2d/run_20260506-135048_ba02775e/metadata/0002 - Inside the Booming Market for Di_20260506-135048_ba02775e.bridge.json",
+    "cil_digest_topics": [
+      {
+        "in_topic_cluster": false,
+        "label": "antiquities market",
+        "topic_cluster_compound_id": null,
+        "topic_id": "topic:antiquities-market"
+      },
+      {
+        "in_topic_cluster": false,
+        "label": "art market",
+        "topic_cluster_compound_id": null,
+        "topic_id": "topic:art-market"
+      },
+      {
+        "in_topic_cluster": false,
+        "label": "collector interest",
+        "topic_cluster_compound_id": null,
+        "topic_id": "topic:collector-interest"
+      },
+      {
+        "in_topic_cluster": false,
+        "label": "dinosaur fossils",
+        "topic_cluster_compound_id": null,
+        "topic_id": "topic:dinosaur-fossils"
+      },
+      {
+        "in_topic_cluster": false,
+        "label": "fossil excavation",
+        "topic_cluster_compound_id": null,
+        "topic_id": "topic:fossil-excavation"
+      }
+    ],
+    "duration_seconds": 2933,
+    "episode_id": "f7957569-770c-45d3-a4e4-b43c01323ab8",
+    "episode_image_local_relpath": null,
+    "episode_image_url": "https://www.omnycontent.com/d/playlist/e73c998e-6e60-432f-8610-ae210140c5b1/8a94442e-5a74-4fa2-8b8d-ae27003a8d6b/982f5071-765c-403d-969d-ae27003a8d83/image.jpg?t=1681322812&size=Large",
+    "episode_number": null,
+    "episode_title": "Inside the Booming Market for Dinosaur Fossils",
+    "feed_description": "Bloomberg's Joe Weisenthal and Tracy Alloway explore the most interesting topics in finance, markets and economics. Join the conversation every Monday and Thursday.",
+    "feed_id": "sha256:1cd6aecdd31c0ae82c2c76efdb6327b54e6026924b47852c51ffb406a9f2b19c",
+    "feed_image_local_relpath": null,
+    "feed_image_url": "https://www.omnycontent.com/d/playlist/e73c998e-6e60-432f-8610-ae210140c5b1/8a94442e-5a74-4fa2-8b8d-ae27003a8d6b/982f5071-765c-403d-969d-ae27003a8d83/image.jpg?t=1681322812&size=Large",
+    "feed_rss_url": "https://www.omnycontent.com/d/playlist/e73c998e-6e60-432f-8610-ae210140c5b1/8a94442e-5a74-4fa2-8b8d-ae27003a8d6b/982f5071-765c-403d-969d-ae27003a8d83/podcast.rss",
+    "gi_relative_path": "feeds/rss_www.omnycontent.com_c9fdce2d/run_20260506-135048_ba02775e/metadata/0002 - Inside the Booming Market for Di_20260506-135048_ba02775e.gi.json",
+    "has_bridge": true,
+    "has_gi": true,
+    "has_kg": true,
+    "kg_relative_path": "feeds/rss_www.omnycontent.com_c9fdce2d/run_20260506-135048_ba02775e/metadata/0002 - Inside the Booming Market for Di_20260506-135048_ba02775e.kg.json",
+    "metadata_relative_path": "feeds/rss_www.omnycontent.com_c9fdce2d/run_20260506-135048_ba02775e/metadata/0002 - Inside the Booming Market for Di_20260506-135048_ba02775e.metadata.json",
+    "path": "/Users/markodragoljevic/Projects/podcast_scraper-FUTURE/.test_outputs/manual/my-manual-run-10",
+    "publish_date": "2026-05-02",
+    "summary_bullets": [
+      "The dinosaur fossil market is a rapidly growing sector, drawing parallels to the art and antiquities markets.",
+      "Record-breaking sales, like Ken Griffin's $45 million Stegosaurus purchase, highlight the market's increasing value.",
+      "Sourcing dinosaur fossils, especially in the US, involves strict legal and ethical considerations regarding private land ownership and excavation.",
+      "Provenance and authenticity are critical, with rigorous due diligence required to verify the origin and completeness of fossils.",
+      "Fossils are often incomplete and assembled with reconstructed or 3D-printed parts, necessitating transparency about their composition.",
+      "The market has seen an extraordinary surge in pricing, with T-Rex skeletons selling for tens of millions of dollars."
+    ],
+    "summary_text": "The dinosaur fossil market is a rapidly growing sector, drawing parallels to the art and antiquities markets. Record-breaking sales, like Ken Griffin's $45 million Stegosaurus purchase, highlight the market's increasing value.",
+    "summary_title": "The Booming Dinosaur Fossil Market: From Museums to Million-Dollar Sales"
+  },
+  "feeds/rss_www.omnycontent.com_c9fdce2d/run_20260506-135048_ba02775e/metadata/0003 - How Taiwan Became the World_s Mo_20260506-135048_ba02775e.metadata.json": {
+    "bridge_partition": {
+      "both": 10,
+      "gi_only": 0,
+      "kg_only": 17,
+      "total": 27
+    },
+    "bridge_relative_path": "feeds/rss_www.omnycontent.com_c9fdce2d/run_20260506-135048_ba02775e/metadata/0003 - How Taiwan Became the World_s Mo_20260506-135048_ba02775e.bridge.json",
+    "cil_digest_topics": [
+      {
+        "in_topic_cluster": true,
+        "label": "global economy",
+        "topic_cluster_compound_id": "tc:global-economic-impact",
+        "topic_id": "topic:global-economy"
+      },
+      {
+        "in_topic_cluster": false,
+        "label": "china taiwan",
+        "topic_cluster_compound_id": null,
+        "topic_id": "topic:china-taiwan"
+      },
+      {
+        "in_topic_cluster": false,
+        "label": "civil war",
+        "topic_cluster_compound_id": null,
+        "topic_id": "topic:civil-war"
+      },
+      {
+        "in_topic_cluster": false,
+        "label": "geopolitical blockades",
+        "topic_cluster_compound_id": null,
+        "topic_id": "topic:geopolitical-blockades"
+      },
+      {
+        "in_topic_cluster": false,
+        "label": "political legitimacy",
+        "topic_cluster_compound_id": null,
+        "topic_id": "topic:political-legitimacy"
+      }
+    ],
+    "duration_seconds": 3406,
+    "episode_id": "f7904791-f77c-421b-a3d3-b43b015542d2",
+    "episode_image_local_relpath": null,
+    "episode_image_url": "https://www.omnycontent.com/d/playlist/e73c998e-6e60-432f-8610-ae210140c5b1/8a94442e-5a74-4fa2-8b8d-ae27003a8d6b/982f5071-765c-403d-969d-ae27003a8d83/image.jpg?t=1681322812&size=Large",
+    "episode_number": null,
+    "episode_title": "How Taiwan Became the World's Most Perilous Geopolitical Chokepoint",
+    "feed_description": "Bloomberg's Joe Weisenthal and Tracy Alloway explore the most interesting topics in finance, markets and economics. Join the conversation every Monday and Thursday.",
+    "feed_id": "sha256:1cd6aecdd31c0ae82c2c76efdb6327b54e6026924b47852c51ffb406a9f2b19c",
+    "feed_image_local_relpath": null,
+    "feed_image_url": "https://www.omnycontent.com/d/playlist/e73c998e-6e60-432f-8610-ae210140c5b1/8a94442e-5a74-4fa2-8b8d-ae27003a8d6b/982f5071-765c-403d-969d-ae27003a8d83/image.jpg?t=1681322812&size=Large",
+    "feed_rss_url": "https://www.omnycontent.com/d/playlist/e73c998e-6e60-432f-8610-ae210140c5b1/8a94442e-5a74-4fa2-8b8d-ae27003a8d6b/982f5071-765c-403d-969d-ae27003a8d83/podcast.rss",
+    "gi_relative_path": "feeds/rss_www.omnycontent.com_c9fdce2d/run_20260506-135048_ba02775e/metadata/0003 - How Taiwan Became the World_s Mo_20260506-135048_ba02775e.gi.json",
+    "has_bridge": true,
+    "has_gi": true,
+    "has_kg": true,
+    "kg_relative_path": "feeds/rss_www.omnycontent.com_c9fdce2d/run_20260506-135048_ba02775e/metadata/0003 - How Taiwan Became the World_s Mo_20260506-135048_ba02775e.kg.json",
+    "metadata_relative_path": "feeds/rss_www.omnycontent.com_c9fdce2d/run_20260506-135048_ba02775e/metadata/0003 - How Taiwan Became the World_s Mo_20260506-135048_ba02775e.metadata.json",
+    "path": "/Users/markodragoljevic/Projects/podcast_scraper-FUTURE/.test_outputs/manual/my-manual-run-10",
+    "publish_date": "2026-05-01",
+    "summary_bullets": [
+      "The Strait of Hormuz blockade is a current reality, while a China blockade of Taiwan remains a significant geopolitical hypothetical.",
+      "China's interest in Taiwan is rooted in historical civil war \"unfinished business\" and the pursuit of political legitimacy, not primarily in semiconductor production.",
+      "The US policy of \"strategic ambiguity\" towards Taiwan, while historically effective, faces challenges due to the shifting global power balance.",
+      "Taiwan's domestic politics are divided between the KMT, which favors a \"one China, respective interpretations\" approach, and the DPP, which asserts Taiwan's distinct national identity.",
+      "Disruption to Taiwan's semiconductor supply chain, particularly from TSMC, would have a more severe global economic impact than an oil blockade.",
+      "The Taiwan issue is a complex, multidisciplinary problem involving military, industrial, technological, diplomatic, and economic considerations."
+    ],
+    "summary_text": "The Strait of Hormuz blockade is a current reality, while a China blockade of Taiwan remains a significant geopolitical hypothetical. China's interest in Taiwan is rooted in historical civil war \"unfinished business\" and the pursuit of political legitimacy, not primarily in semiconductor production.",
+    "summary_title": "Odd Thoughts Podcast: China, Taiwan, and the Geopolitical Blockade Dilemma"
+  },
+  "feeds/rss_www.omnycontent.com_c9fdce2d/run_20260506-135048_ba02775e/metadata/0004 - BlackRock_s Rob Goldstein on the_20260506-135048_ba02775e.metadata.json": {
+    "bridge_partition": {
+      "both": 10,
+      "gi_only": 0,
+      "kg_only": 12,
+      "total": 22
+    },
+    "bridge_relative_path": "feeds/rss_www.omnycontent.com_c9fdce2d/run_20260506-135048_ba02775e/metadata/0004 - BlackRock_s Rob Goldstein on the_20260506-135048_ba02775e.bridge.json",
+    "cil_digest_topics": [
+      {
+        "in_topic_cluster": true,
+        "label": "asset management",
+        "topic_cluster_compound_id": "tc:asset-management",
+        "topic_id": "topic:asset-management"
+      },
+      {
+        "in_topic_cluster": true,
+        "label": "enterprise platforms",
+        "topic_cluster_compound_id": "tc:enterprise-platforms",
+        "topic_id": "topic:enterprise-platforms"
+      },
+      {
+        "in_topic_cluster": true,
+        "label": "market consolidation",
+        "topic_cluster_compound_id": "tc:market-consolidation",
+        "topic_id": "topic:market-consolidation"
+      },
+      {
+        "in_topic_cluster": true,
+        "label": "private markets",
+        "topic_cluster_compound_id": "tc:public-markets",
+        "topic_id": "topic:private-markets"
+      },
+      {
+        "in_topic_cluster": true,
+        "label": "regulatory compliance",
+        "topic_cluster_compound_id": "tc:regulatory-environment",
+        "topic_id": "topic:regulatory-compliance"
+      }
+    ],
+    "duration_seconds": 3373,
+    "episode_id": "4cec22d8-717e-46c6-ab87-b43b01512ecb",
+    "episode_image_local_relpath": null,
+    "episode_image_url": "https://www.omnycontent.com/d/playlist/e73c998e-6e60-432f-8610-ae210140c5b1/8a94442e-5a74-4fa2-8b8d-ae27003a8d6b/982f5071-765c-403d-969d-ae27003a8d83/image.jpg?t=1681322812&size=Large",
+    "episode_number": null,
+    "episode_title": "BlackRock's Rob Goldstein on the Next Megatrends in Finance",
+    "feed_description": "Bloomberg's Joe Weisenthal and Tracy Alloway explore the most interesting topics in finance, markets and economics. Join the conversation every Monday and Thursday.",
+    "feed_id": "sha256:1cd6aecdd31c0ae82c2c76efdb6327b54e6026924b47852c51ffb406a9f2b19c",
+    "feed_image_local_relpath": null,
+    "feed_image_url": "https://www.omnycontent.com/d/playlist/e73c998e-6e60-432f-8610-ae210140c5b1/8a94442e-5a74-4fa2-8b8d-ae27003a8d6b/982f5071-765c-403d-969d-ae27003a8d83/image.jpg?t=1681322812&size=Large",
+    "feed_rss_url": "https://www.omnycontent.com/d/playlist/e73c998e-6e60-432f-8610-ae210140c5b1/8a94442e-5a74-4fa2-8b8d-ae27003a8d6b/982f5071-765c-403d-969d-ae27003a8d83/podcast.rss",
+    "gi_relative_path": "feeds/rss_www.omnycontent.com_c9fdce2d/run_20260506-135048_ba02775e/metadata/0004 - BlackRock_s Rob Goldstein on the_20260506-135048_ba02775e.gi.json",
+    "has_bridge": true,
+    "has_gi": true,
+    "has_kg": true,
+    "kg_relative_path": "feeds/rss_www.omnycontent.com_c9fdce2d/run_20260506-135048_ba02775e/metadata/0004 - BlackRock_s Rob Goldstein on the_20260506-135048_ba02775e.kg.json",
+    "metadata_relative_path": "feeds/rss_www.omnycontent.com_c9fdce2d/run_20260506-135048_ba02775e/metadata/0004 - BlackRock_s Rob Goldstein on the_20260506-135048_ba02775e.metadata.json",
+    "path": "/Users/markodragoljevic/Projects/podcast_scraper-FUTURE/.test_outputs/manual/my-manual-run-10",
+    "publish_date": "2026-04-30",
+    "summary_bullets": [
+      "Four major trends in finance include the rise of the buy-side, the impact of technology, the growth of private markets, and the dominance of large companies.",
+      "BlackRock's founding was driven by a technological thesis to provide risk transparency using accessible computing power, contrasting with expensive supercomputers of the time.",
+      "The current AI wave presents both opportunities and challenges for finance, with questions about its long-term productivity and integration into regulated environments.",
+      "AI's non-deterministic nature poses a challenge for finance, which typically requires explicability and consistent, reproducible results.",
+      "BlackRock's Aladdin platform is evolving with AI, particularly in coding, to enhance user access and efficiency while maintaining strict controls.",
+      "Despite the proliferation of coding tools, complex and regulated platforms like Aladdin are expected to remain central to the financial ecosystem due to their specialized data, security, and workflow capabilities."
+    ],
+    "summary_text": "Four major trends in finance include the rise of the buy-side, the impact of technology, the growth of private markets, and the dominance of large companies. BlackRock's founding was driven by a technological thesis to provide risk transparency using accessible computing power, contrasting with expensive supercomputers of the time.",
+    "summary_title": "Odd Lots Podcast: AI's Impact on Finance and BlackRock's Aladdin Platform"
+  },
+  "feeds/rss_www.omnycontent.com_c9fdce2d/run_20260506-135048_ba02775e/metadata/0005 - What_s Actually Going On With Pr_20260506-135048_ba02775e.metadata.json": {
+    "bridge_partition": {
+      "both": 10,
+      "gi_only": 0,
+      "kg_only": 18,
+      "total": 28
+    },
+    "bridge_relative_path": "feeds/rss_www.omnycontent.com_c9fdce2d/run_20260506-135048_ba02775e/metadata/0005 - What_s Actually Going On With Pr_20260506-135048_ba02775e.bridge.json",
+    "cil_digest_topics": [
+      {
+        "in_topic_cluster": true,
+        "label": "bank lending",
+        "topic_cluster_compound_id": "tc:alternative-lending",
+        "topic_id": "topic:bank-lending"
+      },
+      {
+        "in_topic_cluster": true,
+        "label": "bond market",
+        "topic_cluster_compound_id": "tc:bond-market",
+        "topic_id": "topic:bond-market"
+      },
+      {
+        "in_topic_cluster": true,
+        "label": "financial crisis",
+        "topic_cluster_compound_id": "tc:financial-crisis",
+        "topic_id": "topic:financial-crisis"
+      },
+      {
+        "in_topic_cluster": true,
+        "label": "investor demand",
+        "topic_cluster_compound_id": "tc:equity-demand",
+        "topic_id": "topic:investor-demand"
+      },
+      {
+        "in_topic_cluster": true,
+        "label": "private credit",
+        "topic_cluster_compound_id": "tc:private-credit-markets",
+        "topic_id": "topic:private-credit"
+      }
+    ],
+    "duration_seconds": 3047,
+    "episode_id": "74a9745d-6825-4bfc-abc3-b43601639f72",
+    "episode_image_local_relpath": null,
+    "episode_image_url": "https://www.omnycontent.com/d/playlist/e73c998e-6e60-432f-8610-ae210140c5b1/8a94442e-5a74-4fa2-8b8d-ae27003a8d6b/982f5071-765c-403d-969d-ae27003a8d83/image.jpg?t=1681322812&size=Large",
+    "episode_number": null,
+    "episode_title": "What's Actually Going On With Private Credit",
+    "feed_description": "Bloomberg's Joe Weisenthal and Tracy Alloway explore the most interesting topics in finance, markets and economics. Join the conversation every Monday and Thursday.",
+    "feed_id": "sha256:1cd6aecdd31c0ae82c2c76efdb6327b54e6026924b47852c51ffb406a9f2b19c",
+    "feed_image_local_relpath": null,
+    "feed_image_url": "https://www.omnycontent.com/d/playlist/e73c998e-6e60-432f-8610-ae210140c5b1/8a94442e-5a74-4fa2-8b8d-ae27003a8d6b/982f5071-765c-403d-969d-ae27003a8d83/image.jpg?t=1681322812&size=Large",
+    "feed_rss_url": "https://www.omnycontent.com/d/playlist/e73c998e-6e60-432f-8610-ae210140c5b1/8a94442e-5a74-4fa2-8b8d-ae27003a8d6b/982f5071-765c-403d-969d-ae27003a8d83/podcast.rss",
+    "gi_relative_path": "feeds/rss_www.omnycontent.com_c9fdce2d/run_20260506-135048_ba02775e/metadata/0005 - What_s Actually Going On With Pr_20260506-135048_ba02775e.gi.json",
+    "has_bridge": true,
+    "has_gi": true,
+    "has_kg": true,
+    "kg_relative_path": "feeds/rss_www.omnycontent.com_c9fdce2d/run_20260506-135048_ba02775e/metadata/0005 - What_s Actually Going On With Pr_20260506-135048_ba02775e.kg.json",
+    "metadata_relative_path": "feeds/rss_www.omnycontent.com_c9fdce2d/run_20260506-135048_ba02775e/metadata/0005 - What_s Actually Going On With Pr_20260506-135048_ba02775e.metadata.json",
+    "path": "/Users/markodragoljevic/Projects/podcast_scraper-FUTURE/.test_outputs/manual/my-manual-run-10",
+    "publish_date": "2026-04-27",
+    "summary_bullets": [
+      "Private credit has experienced significant growth since the 2008 financial crisis, largely due to increased regulatory scrutiny on traditional banks.",
+      "The evolution of the bond market, including the growth of high-yield and leveraged loan markets, paved the way for private credit.",
+      "Entities like GE Capital played an early, often overlooked, role in private credit by financing specialized assets and developing experienced lending teams.",
+      "Investor demand for yield and borrowers' limited access to bank financing are the primary drivers behind private credit's expansion.",
+      "The competitive nature of the private credit market has led to deal terms that may favor borrowers, such as lower interest rates and weaker covenants.",
+      "Structural differences in private credit funds, particularly regarding liquidity for retail investors, can create pressure for rapid capital deployment and potentially affect underwriting standards."
+    ],
+    "summary_text": "Private credit has experienced significant growth since the 2008 financial crisis, largely due to increased regulatory scrutiny on traditional banks. The evolution of the bond market, including the growth of high-yield and leveraged loan markets, paved the way for private credit.",
+    "summary_title": "The Rise and Evolution of Private Credit: A Deep Dive with Osterweis"
+  }
+}

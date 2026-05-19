@@ -1,0 +1,142 @@
+{
+  "edges": [
+    {
+      "from": "episode:9a2d05c1-8854-5ae6-8ad0-14fcf37d1de9",
+      "to": "topic:outdoor-activities",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:9a2d05c1-8854-5ae6-8ad0-14fcf37d1de9",
+      "to": "topic:gear",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:9a2d05c1-8854-5ae6-8ad0-14fcf37d1de9",
+      "to": "topic:business-markets",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:9a2d05c1-8854-5ae6-8ad0-14fcf37d1de9",
+      "to": "insight:18077314d5cf9c74",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "episode:9a2d05c1-8854-5ae6-8ad0-14fcf37d1de9",
+      "to": "insight:705e0079d91dee65",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "episode:9a2d05c1-8854-5ae6-8ad0-14fcf37d1de9",
+      "to": "insight:0df817e3f8b25504",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "episode:9a2d05c1-8854-5ae6-8ad0-14fcf37d1de9",
+      "to": "quote:0571b2c881041dd4",
+      "type": "HAS_QUOTE"
+    },
+    {
+      "from": "episode:9a2d05c1-8854-5ae6-8ad0-14fcf37d1de9",
+      "to": "quote:3ce01bf978e3900c",
+      "type": "HAS_QUOTE"
+    },
+    {
+      "from": "episode:9a2d05c1-8854-5ae6-8ad0-14fcf37d1de9",
+      "to": "quote:8eebe5dcca86567f",
+      "type": "HAS_QUOTE"
+    }
+  ],
+  "episode_id": "9a2d05c1-8854-5ae6-8ad0-14fcf37d1de9",
+  "model_version": "synthetic-validation-corpus-v1",
+  "nodes": [
+    {
+      "id": "episode:9a2d05c1-8854-5ae6-8ad0-14fcf37d1de9",
+      "properties": {
+        "duration_ms": 1800000,
+        "episode_id": "9a2d05c1-8854-5ae6-8ad0-14fcf37d1de9",
+        "metadata_relative_path": "feeds/p03/metadata/p03_e03.metadata.json",
+        "podcast_id": "sha256:16de36c98e7e4b95d699380d14d84d2f13717c2c151f935076564a9a5f5e979b",
+        "publish_date": "2026-05-16T12:00:00",
+        "title": "Below the Surface \u2014 Episode 3"
+      },
+      "type": "Episode"
+    },
+    {
+      "id": "topic:outdoor-activities",
+      "properties": {
+        "label": "outdoor activities",
+        "score": 0.8
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:gear",
+      "properties": {
+        "label": "gear",
+        "score": 0.8
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:business-markets",
+      "properties": {
+        "label": "Business & markets",
+        "score": 0.8
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "insight:18077314d5cf9c74",
+      "properties": {
+        "confidence": 0.7,
+        "grounded": true,
+        "text": "# Below the Surface \u2014 Episode\n## Calm Under Pressure\nHost: Rina\nGuest: Owen\nRina: Welcome back to Below the Surface."
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "insight:705e0079d91dee65",
+      "properties": {
+        "confidence": 0.7,
+        "grounded": true,
+        "text": "Today we\u2019re talking about calm under pressure, and I\u2019m joined by Owen."
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "insight:0df817e3f8b25504",
+      "properties": {
+        "confidence": 0.7,
+        "grounded": true,
+        "text": "I\u2019m excited\u2014this is a topic people care about, and there\u2019s a lot of practical nuance."
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "quote:0571b2c881041dd4",
+      "properties": {
+        "speaker": "Speaker 1",
+        "text": "I want to challenge that a little."
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:3ce01bf978e3900c",
+      "properties": {
+        "speaker": "Speaker 1",
+        "text": "Most underwater stress comes from surprise plus lack of rehearsal, not from the difficulty of the problem itself."
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:8eebe5dcca86567f",
+      "properties": {
+        "speaker": "Speaker 1",
+        "text": "A wreck can feel like a hallway, but silt can turn it into a blank room in seconds if you fin hard."
+      },
+      "type": "Quote"
+    }
+  ],
+  "prompt_version": "n/a",
+  "schema_version": "2"
+}

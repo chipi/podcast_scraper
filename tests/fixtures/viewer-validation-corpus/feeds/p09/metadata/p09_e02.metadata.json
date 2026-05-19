@@ -1,0 +1,73 @@
+{
+  "cil_digest_topics": [
+    {
+      "in_topic_cluster": true,
+      "label": "technology",
+      "topic_cluster_compound_id": "tc:technology-cluster",
+      "topic_id": "topic:technology"
+    },
+    {
+      "in_topic_cluster": true,
+      "label": "health",
+      "topic_cluster_compound_id": "tc:health-cluster",
+      "topic_id": "topic:health"
+    }
+  ],
+  "episode": {
+    "episode_id": "d24c1620-8d16-54dd-b681-2f2e06c0b579",
+    "published_date": "2026-05-12",
+    "title": "The Long View: Biohacking \u2014 Episode 2"
+  },
+  "episode_id": "d24c1620-8d16-54dd-b681-2f2e06c0b579",
+  "episode_title": "The Long View: Biohacking \u2014 Episode 2",
+  "feed": {
+    "description": "Solo, long-form reflections on biohacking: the state of the field in 2025, what actually works, and the ethics and limits of human optimization.",
+    "feed_id": "sha256:255b515964dcdf7f0f2123a46053fbf8c961882868ea3c88bb8ba794824c52e8",
+    "title": "The Long View: Biohacking",
+    "url": "http://localhost/"
+  },
+  "feed_display_title": "The Long View: Biohacking",
+  "feed_id": "sha256:255b515964dcdf7f0f2123a46053fbf8c961882868ea3c88bb8ba794824c52e8",
+  "gi_relative_path": "feeds/p09/metadata/p09_e02.gi.json",
+  "grounded_insights": {
+    "artifact_path": "feeds/p09/metadata/p09_e02.gi.json",
+    "schema_version": "1.0"
+  },
+  "has_gi": true,
+  "has_kg": true,
+  "kg_relative_path": "feeds/p09/metadata/p09_e02.kg.json",
+  "knowledge_graph": {
+    "artifact_path": "feeds/p09/metadata/p09_e02.kg.json",
+    "schema_version": "1.1"
+  },
+  "publish_date": "2026-05-12",
+  "schema_version": "1",
+  "summary": {
+    "bullets": [
+      "In this episode, I\u2019m going to build a grounded map: what\u2019s real, what\u2019s uncertain, and what you can do without turning your life into an optimization project.",
+      "Alex Morgan: Where the field is right now.",
+      "Alex Morgan: If a protocol only works when life is perfect, it is not a protocol; it is a performance."
+    ],
+    "preview": "In this episode, I\u2019m going to build a grounded map: what\u2019s real, what\u2019s uncertain, and what you can do without turning your life into an opt\u2026",
+    "text": "In this episode, I\u2019m going to build a grounded map: what\u2019s real, what\u2019s uncertain, and what you can do without turning your life into an optimization project.\nAlex Morgan: Where the field is right now.\nAlex Morgan: If a protocol only works when life is perfect, it is not a protocol; it is a performance.",
+    "title": "The Long View: Biohacking \u2014 Episode 2 \u2014 synthetic"
+  },
+  "summary_bullet_graph_topic_ids": [
+    "topic:technology",
+    "topic:health",
+    "topic:technology"
+  ],
+  "summary_bullets": [
+    "In this episode, I\u2019m going to build a grounded map: what\u2019s real, what\u2019s uncertain, and what you can do without turning your life into an optimization project.",
+    "Alex Morgan: Where the field is right now.",
+    "Alex Morgan: If a protocol only works when life is perfect, it is not a protocol; it is a performance."
+  ],
+  "summary_preview": "In this episode, I\u2019m going to build a grounded map: what\u2019s real, what\u2019s uncertain, and what you can do without turning your life into an opt\u2026",
+  "summary_text": "In this episode, I\u2019m going to build a grounded map: what\u2019s real, what\u2019s uncertain, and what you can do without turning your life into an optimization project.\nAlex Morgan: Where the field is right now.\nAlex Morgan: If a protocol only works when life is perfect, it is not a protocol; it is a performance.",
+  "summary_title": "The Long View: Biohacking \u2014 Episode 2 \u2014 synthetic",
+  "topics": [
+    "technology",
+    "health",
+    "Technology"
+  ]
+}

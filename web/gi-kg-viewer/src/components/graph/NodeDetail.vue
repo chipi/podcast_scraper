@@ -3,6 +3,7 @@ import { computed, ref, watch } from 'vue'
 import type { BridgeDocument } from '../../types/bridge'
 import type { ParsedArtifact } from '../../types/artifact'
 import { useGraphFilterStore } from '../../stores/graphFilters'
+import { useGraphHandoffStore } from '../../stores/graphHandoff'
 import { useGraphNavigationStore } from '../../stores/graphNavigation'
 import { useShellStore } from '../../stores/shell'
 import { graphNodeTypeChrome } from '../../utils/colors'
@@ -90,6 +91,7 @@ const shell = useShellStore()
 const graphNav = useGraphNavigationStore()
 const artifacts = useArtifactsStore()
 const graphFilters = useGraphFilterStore()
+const graphHandoff = useGraphHandoffStore()
 
 /** Merged GI/KG before per-type visibility filters (quotes/speakers/episodes off by default on canvas). */
 const fullMergedArtifactForMetadata = computed(
@@ -323,6 +325,18 @@ function focusTopicClusterMember(graphNodeId: string): void {
   if (!id) {
     return
   }
+  // F1.6 — fire FSM ``expansionRequested`` so the NodeDetail Load surface is
+  // observable on ``__GIKG_FSM_EVENT_LOG__``. Decision #3 / Definition X:
+  // node-detail expansion preserves the existing graph layout
+  // (``loadSource: 'graph-internal'``); camera centres on the targeted
+  // cluster member.
+  graphHandoff.expansionRequested({
+    kind: 'graph-node',
+    cyId: id,
+    source: 'node-detail',
+    loadSource: 'graph-internal',
+    camera: { kind: 'center-on-target' },
+  })
   graphNav.requestFocusNode(id)
   emit('go-graph')
 }
@@ -722,6 +736,16 @@ function focusNeighborOnGraph(nbId: string, ev: MouseEvent): void {
   ev.stopPropagation()
   const id = nbId.trim()
   if (!id) return
+  // F1.6 — same as ``focusTopicClusterMember``: NodeDetail "neighbour
+  // go-graph" is a graph-internal expansion (preserves layout) targeted at
+  // a specific neighbour node.
+  graphHandoff.expansionRequested({
+    kind: 'graph-node',
+    cyId: id,
+    source: 'node-detail',
+    loadSource: 'graph-internal',
+    camera: { kind: 'center-on-target' },
+  })
   graphNav.requestFocusNode(id)
   emit('go-graph')
 }

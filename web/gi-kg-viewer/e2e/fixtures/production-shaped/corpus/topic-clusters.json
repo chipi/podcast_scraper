@@ -1,0 +1,4306 @@
+{
+  "cluster_count": 150,
+  "clusters": [
+    {
+      "canonical_label": "farmer economics",
+      "cil_alias_target_topic_id": "topic:farmer-economics",
+      "graph_compound_parent_id": "tc:farmer-economics",
+      "member_count": 3,
+      "members": [
+        {
+          "episode_ids": [
+            "4e5e7c1f-739e-4feb-b9ba-b409016c9734"
+          ],
+          "label": "agricultural economics",
+          "similarity_to_centroid": 0.956851,
+          "topic_id": "topic:agricultural-economics"
+        },
+        {
+          "episode_ids": [
+            "f578715f-8efb-47a4-93f6-b411015899d8"
+          ],
+          "label": "farm economics",
+          "similarity_to_centroid": 0.96305,
+          "topic_id": "topic:farm-economics"
+        },
+        {
+          "episode_ids": [
+            "4e5e7c1f-739e-4feb-b9ba-b409016c9734"
+          ],
+          "label": "farmer economics",
+          "similarity_to_centroid": 0.97467,
+          "topic_id": "topic:farmer-economics"
+        }
+      ]
+    },
+    {
+      "canonical_label": "AI and business models",
+      "cil_alias_target_topic_id": "topic:ai-and-business-models",
+      "graph_compound_parent_id": "tc:ai-and-business-models",
+      "member_count": 2,
+      "members": [
+        {
+          "episode_ids": [
+            "4255b42e-3a9e-11f1-8eee-179e850fd703"
+          ],
+          "label": "AI and business models",
+          "similarity_to_centroid": 0.951692,
+          "topic_id": "topic:ai-and-business-models"
+        },
+        {
+          "episode_ids": [
+            "1539622b-e41c-4e30-9bda-b4050183dfff"
+          ],
+          "label": "business models",
+          "similarity_to_centroid": 0.951692,
+          "topic_id": "topic:business-models"
+        }
+      ]
+    },
+    {
+      "canonical_label": "AI industry",
+      "cil_alias_target_topic_id": "topic:ai-industry",
+      "graph_compound_parent_id": "tc:ai-industry",
+      "member_count": 3,
+      "members": [
+        {
+          "episode_ids": [
+            "699e03f4123f974082f7fe7e"
+          ],
+          "label": "AI and employment",
+          "similarity_to_centroid": 0.903994,
+          "topic_id": "topic:ai-and-employment"
+        },
+        {
+          "episode_ids": [
+            "699e03f4123f974082f7fe7e"
+          ],
+          "label": "AI and software companies",
+          "similarity_to_centroid": 0.928162,
+          "topic_id": "topic:ai-and-software-companies"
+        },
+        {
+          "episode_ids": [
+            "25d702f6-ed6a-4565-8065-e729eb0f2650",
+            "6949974ce2b7985fa24ee0df"
+          ],
+          "label": "AI industry",
+          "similarity_to_centroid": 0.945939,
+          "topic_id": "topic:ai-industry"
+        }
+      ]
+    },
+    {
+      "canonical_label": "AI bubble concerns",
+      "cil_alias_target_topic_id": "topic:ai-bubble-concerns",
+      "graph_compound_parent_id": "tc:ai-bubble-concerns",
+      "member_count": 3,
+      "members": [
+        {
+          "episode_ids": [
+            "6939a79d34867e026d3be2bd"
+          ],
+          "label": "AI bubble",
+          "similarity_to_centroid": 0.954755,
+          "topic_id": "topic:ai-bubble"
+        },
+        {
+          "episode_ids": [
+            "691cd589b958098159dd00f4",
+            "69430fc81443762d1fbd7282"
+          ],
+          "label": "AI bubble comparison",
+          "similarity_to_centroid": 0.91148,
+          "topic_id": "topic:ai-bubble-comparison"
+        },
+        {
+          "episode_ids": [
+            "691f6a64087c4173ab243235",
+            "6925fe9ecaf6efa70370725c"
+          ],
+          "label": "AI bubble concerns",
+          "similarity_to_centroid": 0.95796,
+          "topic_id": "topic:ai-bubble-concerns"
+        }
+      ]
+    },
+    {
+      "canonical_label": "ai build-out",
+      "cil_alias_target_topic_id": "topic:ai-build-out",
+      "graph_compound_parent_id": "tc:ai-build-out",
+      "member_count": 2,
+      "members": [
+        {
+          "episode_ids": [
+            "0143cf2a-af2d-4f59-877d-b3e20164ef0d"
+          ],
+          "label": "ai build-out",
+          "similarity_to_centroid": 0.940199,
+          "topic_id": "topic:ai-build-out"
+        },
+        {
+          "episode_ids": [
+            "b5332c19-d958-475c-ad93-b4360136c71d"
+          ],
+          "label": "ai progress",
+          "similarity_to_centroid": 0.940199,
+          "topic_id": "topic:ai-progress"
+        }
+      ]
+    },
+    {
+      "canonical_label": "ai coding",
+      "cil_alias_target_topic_id": "topic:ai-coding",
+      "graph_compound_parent_id": "tc:ai-coding",
+      "member_count": 2,
+      "members": [
+        {
+          "episode_ids": [
+            "76d0c28e-da20-4879-bd66-b3f50183cbe0"
+          ],
+          "label": "ai code generation",
+          "similarity_to_centroid": 0.958568,
+          "topic_id": "topic:ai-code-generation"
+        },
+        {
+          "episode_ids": [
+            "8077744f-ec1b-41ce-9dcc-b3d401223ab6"
+          ],
+          "label": "ai coding",
+          "similarity_to_centroid": 0.958568,
+          "topic_id": "topic:ai-coding"
+        }
+      ]
+    },
+    {
+      "canonical_label": "AI data center investment",
+      "cil_alias_target_topic_id": "topic:ai-data-center-investment",
+      "graph_compound_parent_id": "tc:ai-data-center-investment",
+      "member_count": 2,
+      "members": [
+        {
+          "episode_ids": [
+            "698e2f4c1506be1a7e3d1141"
+          ],
+          "label": "AI data center construction",
+          "similarity_to_centroid": 0.961282,
+          "topic_id": "topic:ai-data-center-construction"
+        },
+        {
+          "episode_ids": [
+            "69010f2ad1baee58aa046cf9"
+          ],
+          "label": "AI data center investment",
+          "similarity_to_centroid": 0.961283,
+          "topic_id": "topic:ai-data-center-investment"
+        }
+      ]
+    },
+    {
+      "canonical_label": "ai development",
+      "cil_alias_target_topic_id": "topic:ai-development",
+      "graph_compound_parent_id": "tc:ai-development",
+      "member_count": 2,
+      "members": [
+        {
+          "episode_ids": [
+            "1539622b-e41c-4e30-9bda-b4050183dfff",
+            "a1c70b67-17a8-4b1e-9edb-b4160128bf2c"
+          ],
+          "label": "ai development",
+          "similarity_to_centroid": 0.966315,
+          "topic_id": "topic:ai-development"
+        },
+        {
+          "episode_ids": [
+            "690a57c3b27ff20cebd2d7fa"
+          ],
+          "label": "artificial intelligence development",
+          "similarity_to_centroid": 0.966315,
+          "topic_id": "topic:artificial-intelligence-development"
+        }
+      ]
+    },
+    {
+      "canonical_label": "artificial intelligence impact",
+      "cil_alias_target_topic_id": "topic:artificial-intelligence-impact",
+      "graph_compound_parent_id": "tc:artificial-intelligence-impact",
+      "member_count": 2,
+      "members": [
+        {
+          "episode_ids": [
+            "e6affaa0-5653-4711-883c-b3e90139136c",
+            "fa341e50-661d-4c9b-8a45-b3da014b0668"
+          ],
+          "label": "ai impact",
+          "similarity_to_centroid": 0.949481,
+          "topic_id": "topic:ai-impact"
+        },
+        {
+          "episode_ids": [
+            "699e03f4123f974082f7fe7e"
+          ],
+          "label": "artificial intelligence impact",
+          "similarity_to_centroid": 0.949481,
+          "topic_id": "topic:artificial-intelligence-impact"
+        }
+      ]
+    },
+    {
+      "canonical_label": "ai training",
+      "cil_alias_target_topic_id": "topic:ai-training",
+      "graph_compound_parent_id": "tc:ai-training",
+      "member_count": 2,
+      "members": [
+        {
+          "episode_ids": [
+            "690a57c3b27ff20cebd2d7fa"
+          ],
+          "label": "AI model training",
+          "similarity_to_centroid": 0.961994,
+          "topic_id": "topic:ai-model-training"
+        },
+        {
+          "episode_ids": [
+            "3220a86a-8dcd-4d57-8be1-b3f0014ddd5e"
+          ],
+          "label": "ai training",
+          "similarity_to_centroid": 0.961994,
+          "topic_id": "topic:ai-training"
+        }
+      ]
+    },
+    {
+      "canonical_label": "AI policy",
+      "cil_alias_target_topic_id": "topic:ai-policy",
+      "graph_compound_parent_id": "tc:ai-policy",
+      "member_count": 2,
+      "members": [
+        {
+          "episode_ids": [
+            "25d702f6-ed6a-4565-8065-e729eb0f2650"
+          ],
+          "label": "AI policy",
+          "similarity_to_centroid": 0.949953,
+          "topic_id": "topic:ai-policy"
+        },
+        {
+          "episode_ids": [
+            "25d702f6-ed6a-4565-8065-e729eb0f2650"
+          ],
+          "label": "AI regulation",
+          "similarity_to_centroid": 0.949953,
+          "topic_id": "topic:ai-regulation"
+        }
+      ]
+    },
+    {
+      "canonical_label": "ai safety",
+      "cil_alias_target_topic_id": "topic:ai-safety",
+      "graph_compound_parent_id": "tc:ai-safety",
+      "member_count": 2,
+      "members": [
+        {
+          "episode_ids": [
+            "b5332c19-d958-475c-ad93-b4360136c71d"
+          ],
+          "label": "ai risks",
+          "similarity_to_centroid": 0.948327,
+          "topic_id": "topic:ai-risks"
+        },
+        {
+          "episode_ids": [
+            "b5332c19-d958-475c-ad93-b4360136c71d"
+          ],
+          "label": "ai safety",
+          "similarity_to_centroid": 0.948327,
+          "topic_id": "topic:ai-safety"
+        }
+      ]
+    },
+    {
+      "canonical_label": "ai scenario",
+      "cil_alias_target_topic_id": "topic:ai-scenario",
+      "graph_compound_parent_id": "tc:ai-scenario",
+      "member_count": 2,
+      "members": [
+        {
+          "episode_ids": [
+            "2407d49c-df67-4d81-8598-b3ff003a440b"
+          ],
+          "label": "ai scenario",
+          "similarity_to_centroid": 0.941565,
+          "topic_id": "topic:ai-scenario"
+        },
+        {
+          "episode_ids": [
+            "53fa2d7c-330f-42e3-b997-b41a015dd3ab"
+          ],
+          "label": "ai strategy",
+          "similarity_to_centroid": 0.941565,
+          "topic_id": "topic:ai-strategy"
+        }
+      ]
+    },
+    {
+      "canonical_label": "alternative economic data",
+      "cil_alias_target_topic_id": "topic:alternative-economic-data",
+      "graph_compound_parent_id": "tc:alternative-economic-data",
+      "member_count": 2,
+      "members": [
+        {
+          "episode_ids": [
+            "690cdcf0120d3662b7be682e"
+          ],
+          "label": "alternative economic data",
+          "similarity_to_centroid": 0.972459,
+          "topic_id": "topic:alternative-economic-data"
+        },
+        {
+          "episode_ids": [
+            "69446436f13209aaa3edddb1",
+            "6984f1b25dd05b2251899031"
+          ],
+          "label": "economic data",
+          "similarity_to_centroid": 0.972459,
+          "topic_id": "topic:economic-data"
+        }
+      ]
+    },
+    {
+      "canonical_label": "alternative lending",
+      "cil_alias_target_topic_id": "topic:alternative-lending",
+      "graph_compound_parent_id": "tc:alternative-lending",
+      "member_count": 2,
+      "members": [
+        {
+          "episode_ids": [
+            "69b30446bffd975a45cdf7fd"
+          ],
+          "label": "alternative lending",
+          "similarity_to_centroid": 0.939248,
+          "topic_id": "topic:alternative-lending"
+        },
+        {
+          "episode_ids": [
+            "74a9745d-6825-4bfc-abc3-b43601639f72"
+          ],
+          "label": "bank lending",
+          "similarity_to_centroid": 0.939248,
+          "topic_id": "topic:bank-lending"
+        }
+      ]
+    },
+    {
+      "canonical_label": "asset management",
+      "cil_alias_target_topic_id": "topic:asset-management",
+      "graph_compound_parent_id": "tc:asset-management",
+      "member_count": 2,
+      "members": [
+        {
+          "episode_ids": [
+            "4cec22d8-717e-46c6-ab87-b43b01512ecb",
+            "940b6e1c-92f4-4226-aa35-b3e9014f2f6b",
+            "fa341e50-661d-4c9b-8a45-b3da014b0668"
+          ],
+          "label": "asset management",
+          "similarity_to_centroid": 0.974901,
+          "topic_id": "topic:asset-management"
+        },
+        {
+          "episode_ids": [
+            "69693d79ba10553fe9b777f5"
+          ],
+          "label": "asset management industry",
+          "similarity_to_centroid": 0.974901,
+          "topic_id": "topic:asset-management-industry"
+        }
+      ]
+    },
+    {
+      "canonical_label": "automation",
+      "cil_alias_target_topic_id": "topic:automation",
+      "graph_compound_parent_id": "tc:automation",
+      "member_count": 3,
+      "members": [
+        {
+          "episode_ids": [
+            "8077744f-ec1b-41ce-9dcc-b3d401223ab6"
+          ],
+          "label": "automation",
+          "similarity_to_centroid": 0.937983,
+          "topic_id": "topic:automation"
+        },
+        {
+          "episode_ids": [
+            "949eeae0-b6c8-45c5-a33d-b4260134bd2a"
+          ],
+          "label": "job automation",
+          "similarity_to_centroid": 0.922796,
+          "topic_id": "topic:job-automation"
+        },
+        {
+          "episode_ids": [
+            "2ff3db06-a25b-4d7b-9de9-b42f01476d14"
+          ],
+          "label": "task automation",
+          "similarity_to_centroid": 0.925832,
+          "topic_id": "topic:task-automation"
+        }
+      ]
+    },
+    {
+      "canonical_label": "ballistic missiles",
+      "cil_alias_target_topic_id": "topic:ballistic-missiles",
+      "graph_compound_parent_id": "tc:ballistic-missiles",
+      "member_count": 2,
+      "members": [
+        {
+          "episode_ids": [
+            "a5a6b4f5-c80b-4457-9e1e-b40c01517125"
+          ],
+          "label": "ballistic missiles",
+          "similarity_to_centroid": 0.952442,
+          "topic_id": "topic:ballistic-missiles"
+        },
+        {
+          "episode_ids": [
+            "a5a6b4f5-c80b-4457-9e1e-b40c01517125"
+          ],
+          "label": "missile defense",
+          "similarity_to_centroid": 0.952442,
+          "topic_id": "topic:missile-defense"
+        }
+      ]
+    },
+    {
+      "canonical_label": "big tech stocks",
+      "cil_alias_target_topic_id": "topic:big-tech-stocks",
+      "graph_compound_parent_id": "tc:big-tech-stocks",
+      "member_count": 2,
+      "members": [
+        {
+          "episode_ids": [
+            "699e03f4123f974082f7fe7e"
+          ],
+          "label": "big tech stocks",
+          "similarity_to_centroid": 0.942274,
+          "topic_id": "topic:big-tech-stocks"
+        },
+        {
+          "episode_ids": [
+            "69693d79ba10553fe9b777f5",
+            "69d571f33ae78d6f11e453fd"
+          ],
+          "label": "tech stock performance",
+          "similarity_to_centroid": 0.942274,
+          "topic_id": "topic:tech-stock-performance"
+        }
+      ]
+    },
+    {
+      "canonical_label": "bond market",
+      "cil_alias_target_topic_id": "topic:bond-market",
+      "graph_compound_parent_id": "tc:bond-market",
+      "member_count": 3,
+      "members": [
+        {
+          "episode_ids": [
+            "74a9745d-6825-4bfc-abc3-b43601639f72"
+          ],
+          "label": "bond market",
+          "similarity_to_centroid": 0.947828,
+          "topic_id": "topic:bond-market"
+        },
+        {
+          "episode_ids": [
+            "690a57c3b27ff20cebd2d7fa"
+          ],
+          "label": "corporate bond markets",
+          "similarity_to_centroid": 0.944693,
+          "topic_id": "topic:corporate-bond-markets"
+        },
+        {
+          "episode_ids": [
+            "692f3cb6fb6ea8e378b1decc"
+          ],
+          "label": "global bond markets",
+          "similarity_to_centroid": 0.939305,
+          "topic_id": "topic:global-bond-markets"
+        }
+      ]
+    },
+    {
+      "canonical_label": "bond yields",
+      "cil_alias_target_topic_id": "topic:bond-yields",
+      "graph_compound_parent_id": "tc:bond-yields",
+      "member_count": 2,
+      "members": [
+        {
+          "episode_ids": [
+            "ae05dcf9-1ada-4a93-82fe-b3da00296d7f"
+          ],
+          "label": "bond yields",
+          "similarity_to_centroid": 0.963057,
+          "topic_id": "topic:bond-yields"
+        },
+        {
+          "episode_ids": [
+            "69010f2ad1baee58aa046cf9"
+          ],
+          "label": "Treasury yields",
+          "similarity_to_centroid": 0.963057,
+          "topic_id": "topic:treasury-yields"
+        }
+      ]
+    },
+    {
+      "canonical_label": "stock market",
+      "cil_alias_target_topic_id": "topic:stock-market",
+      "graph_compound_parent_id": "tc:stock-market",
+      "member_count": 5,
+      "members": [
+        {
+          "episode_ids": [
+            "5ac07e49-f12a-4a0f-915d-b3f60130ce1a",
+            "fa341e50-661d-4c9b-8a45-b3da014b0668"
+          ],
+          "label": "capital markets",
+          "similarity_to_centroid": 0.909834,
+          "topic_id": "topic:capital-markets"
+        },
+        {
+          "episode_ids": [
+            "69b994f70bec1f2a53ed15c2"
+          ],
+          "label": "equity markets",
+          "similarity_to_centroid": 0.898758,
+          "topic_id": "topic:equity-markets"
+        },
+        {
+          "episode_ids": [
+            "0b483f16-0d3c-4ad5-a89b-b3e80108c563",
+            "6949974ce2b7985fa24ee0df",
+            "d092dbb8-3e42-469b-9c50-b3fe016f2c9d"
+          ],
+          "label": "financial markets",
+          "similarity_to_centroid": 0.927372,
+          "topic_id": "topic:financial-markets"
+        },
+        {
+          "episode_ids": [
+            "64b23f78-7816-4c55-b471-b3d30161f15c"
+          ],
+          "label": "stock market",
+          "similarity_to_centroid": 0.93876,
+          "topic_id": "topic:stock-market"
+        },
+        {
+          "episode_ids": [
+            "696fe5a1f66127afddcfa7d2"
+          ],
+          "label": "US stock market",
+          "similarity_to_centroid": 0.878203,
+          "topic_id": "topic:us-stock-market"
+        }
+      ]
+    },
+    {
+      "canonical_label": "central banking",
+      "cil_alias_target_topic_id": "topic:central-banking",
+      "graph_compound_parent_id": "tc:central-banking",
+      "member_count": 3,
+      "members": [
+        {
+          "episode_ids": [
+            "698259ed75cd3563574f519a"
+          ],
+          "label": "central bank independence",
+          "similarity_to_centroid": 0.909572,
+          "topic_id": "topic:central-bank-independence"
+        },
+        {
+          "episode_ids": [
+            "690cdcf0120d3662b7be682e",
+            "69bc42647878605e1133d131"
+          ],
+          "label": "central bank policy",
+          "similarity_to_centroid": 0.92147,
+          "topic_id": "topic:central-bank-policy"
+        },
+        {
+          "episode_ids": [
+            "0d8e4d7e-be05-4892-beb7-b3e20143f709",
+            "48d57b14-c285-46e9-9c8b-b3e901436211"
+          ],
+          "label": "central banking",
+          "similarity_to_centroid": 0.937954,
+          "topic_id": "topic:central-banking"
+        }
+      ]
+    },
+    {
+      "canonical_label": "commodity markets",
+      "cil_alias_target_topic_id": "topic:commodity-markets",
+      "graph_compound_parent_id": "tc:commodity-markets",
+      "member_count": 3,
+      "members": [
+        {
+          "episode_ids": [
+            "6941b8147e21d19ff23a7e07"
+          ],
+          "label": "commodity market trends",
+          "similarity_to_centroid": 0.949126,
+          "topic_id": "topic:commodity-market-trends"
+        },
+        {
+          "episode_ids": [
+            "3220a86a-8dcd-4d57-8be1-b3f0014ddd5e",
+            "48fc9d48-5209-4689-92c7-b4100164eb6a",
+            "592a7424-fc6f-48ed-a1c6-b4090032d552",
+            "f93d9375-70e2-4aa9-86c4-b404016214e2"
+          ],
+          "label": "commodity markets",
+          "similarity_to_centroid": 0.962622,
+          "topic_id": "topic:commodity-markets"
+        },
+        {
+          "episode_ids": [
+            "f9cfb15c-9665-493f-8f6a-b3e2001c9fe1"
+          ],
+          "label": "commodity prices",
+          "similarity_to_centroid": 0.947943,
+          "topic_id": "topic:commodity-prices"
+        }
+      ]
+    },
+    {
+      "canonical_label": "company valuations",
+      "cil_alias_target_topic_id": "topic:company-valuations",
+      "graph_compound_parent_id": "tc:company-valuations",
+      "member_count": 4,
+      "members": [
+        {
+          "episode_ids": [
+            "302c4830-b753-40ae-b495-b43300ee4db2",
+            "813df158-0443-4237-a6e8-b40700d8f3ff"
+          ],
+          "label": "company valuation",
+          "similarity_to_centroid": 0.967386,
+          "topic_id": "topic:company-valuation"
+        },
+        {
+          "episode_ids": [
+            "1539622b-e41c-4e30-9bda-b4050183dfff",
+            "5ac07e49-f12a-4a0f-915d-b3f60130ce1a"
+          ],
+          "label": "company valuations",
+          "similarity_to_centroid": 0.976174,
+          "topic_id": "topic:company-valuations"
+        },
+        {
+          "episode_ids": [
+            "75ffbd86-1485-4a64-a9d0-b428014f200e"
+          ],
+          "label": "stock valuations",
+          "similarity_to_centroid": 0.878112,
+          "topic_id": "topic:stock-valuations"
+        },
+        {
+          "episode_ids": [
+            "690a57c3b27ff20cebd2d7fa"
+          ],
+          "label": "tech company valuations",
+          "similarity_to_centroid": 0.913527,
+          "topic_id": "topic:tech-company-valuations"
+        }
+      ]
+    },
+    {
+      "canonical_label": "Congressional trade regulation",
+      "cil_alias_target_topic_id": "topic:congressional-trade-regulation",
+      "graph_compound_parent_id": "tc:congressional-trade-regulation",
+      "member_count": 2,
+      "members": [
+        {
+          "episode_ids": [
+            "69a0aed50e30955851cbea6d"
+          ],
+          "label": "Congressional trade regulation",
+          "similarity_to_centroid": 0.958568,
+          "topic_id": "topic:congressional-trade-regulation"
+        },
+        {
+          "episode_ids": [
+            "67fb57d4-9424-4edf-9642-b4270156b4bb"
+          ],
+          "label": "trade regulation",
+          "similarity_to_centroid": 0.958568,
+          "topic_id": "topic:trade-regulation"
+        }
+      ]
+    },
+    {
+      "canonical_label": "corporate banking",
+      "cil_alias_target_topic_id": "topic:corporate-banking",
+      "graph_compound_parent_id": "tc:corporate-banking",
+      "member_count": 2,
+      "members": [
+        {
+          "episode_ids": [
+            "e39903f3-d6b9-4e0e-acf0-b3db0140da64"
+          ],
+          "label": "corporate banking",
+          "similarity_to_centroid": 0.937983,
+          "topic_id": "topic:corporate-banking"
+        },
+        {
+          "episode_ids": [
+            "ff4f5daf-7813-40a9-aa95-b42001543192"
+          ],
+          "label": "investment banking",
+          "similarity_to_centroid": 0.937983,
+          "topic_id": "topic:investment-banking"
+        }
+      ]
+    },
+    {
+      "canonical_label": "corporate dealmaking financing",
+      "cil_alias_target_topic_id": "topic:corporate-dealmaking-financing",
+      "graph_compound_parent_id": "tc:corporate-dealmaking-financing",
+      "member_count": 2,
+      "members": [
+        {
+          "episode_ids": [
+            "69946e792a42aa7d9b153ff4"
+          ],
+          "label": "corporate dealmaking financing",
+          "similarity_to_centroid": 0.94002,
+          "topic_id": "topic:corporate-dealmaking-financing"
+        },
+        {
+          "episode_ids": [
+            "694996ae184761c021fb72be",
+            "6949974ce2b7985fa24ee0df",
+            "695ff901d8ac698e7e142b2c",
+            "ff4f5daf-7813-40a9-aa95-b42001543192"
+          ],
+          "label": "corporate finance",
+          "similarity_to_centroid": 0.94002,
+          "topic_id": "topic:corporate-finance"
+        }
+      ]
+    },
+    {
+      "canonical_label": "corporate earnings reports",
+      "cil_alias_target_topic_id": "topic:corporate-earnings-reports",
+      "graph_compound_parent_id": "tc:corporate-earnings-reports",
+      "member_count": 2,
+      "members": [
+        {
+          "episode_ids": [
+            "6939a79d34867e026d3be2bd"
+          ],
+          "label": "corporate earnings",
+          "similarity_to_centroid": 0.971199,
+          "topic_id": "topic:corporate-earnings"
+        },
+        {
+          "episode_ids": [
+            "690cdcf0120d3662b7be682e"
+          ],
+          "label": "corporate earnings reports",
+          "similarity_to_centroid": 0.971199,
+          "topic_id": "topic:corporate-earnings-reports"
+        }
+      ]
+    },
+    {
+      "canonical_label": "Corporate governance reforms",
+      "cil_alias_target_topic_id": "topic:corporate-governance-reforms",
+      "graph_compound_parent_id": "tc:corporate-governance-reforms",
+      "member_count": 2,
+      "members": [
+        {
+          "episode_ids": [
+            "694996ae184761c021fb72be"
+          ],
+          "label": "corporate governance",
+          "similarity_to_centroid": 0.959647,
+          "topic_id": "topic:corporate-governance"
+        },
+        {
+          "episode_ids": [
+            "698b75b5337b2a3b2e169814"
+          ],
+          "label": "Corporate governance reforms",
+          "similarity_to_centroid": 0.959647,
+          "topic_id": "topic:corporate-governance-reforms"
+        }
+      ]
+    },
+    {
+      "canonical_label": "corruption",
+      "cil_alias_target_topic_id": "topic:corruption",
+      "graph_compound_parent_id": "tc:corruption",
+      "member_count": 2,
+      "members": [
+        {
+          "episode_ids": [
+            "832ec3cc-e520-4c9b-83c4-b3e00168d506"
+          ],
+          "label": "corruption",
+          "similarity_to_centroid": 0.969912,
+          "topic_id": "topic:corruption"
+        },
+        {
+          "episode_ids": [
+            "64b23f78-7816-4c55-b471-b3d30161f15c"
+          ],
+          "label": "government corruption",
+          "similarity_to_centroid": 0.969912,
+          "topic_id": "topic:government-corruption"
+        }
+      ]
+    },
+    {
+      "canonical_label": "Supreme Court cases",
+      "cil_alias_target_topic_id": "topic:supreme-court-cases",
+      "graph_compound_parent_id": "tc:supreme-court-cases",
+      "member_count": 2,
+      "members": [
+        {
+          "episode_ids": [
+            "020c9d95-1841-4b91-8832-b3fd017be95d"
+          ],
+          "label": "court cases",
+          "similarity_to_centroid": 0.959455,
+          "topic_id": "topic:court-cases"
+        },
+        {
+          "episode_ids": [
+            "6966a4ca023744df1110bc8b"
+          ],
+          "label": "Supreme Court cases",
+          "similarity_to_centroid": 0.959455,
+          "topic_id": "topic:supreme-court-cases"
+        }
+      ]
+    },
+    {
+      "canonical_label": "Private credit markets",
+      "cil_alias_target_topic_id": "topic:private-credit-markets",
+      "graph_compound_parent_id": "tc:private-credit-markets",
+      "member_count": 4,
+      "members": [
+        {
+          "episode_ids": [
+            "e6affaa0-5653-4711-883c-b3e90139136c"
+          ],
+          "label": "credit markets",
+          "similarity_to_centroid": 0.884042,
+          "topic_id": "topic:credit-markets"
+        },
+        {
+          "episode_ids": [
+            "2407d49c-df67-4d81-8598-b3ff003a440b",
+            "74a9745d-6825-4bfc-abc3-b43601639f72",
+            "e6affaa0-5653-4711-883c-b3e90139136c",
+            "fa341e50-661d-4c9b-8a45-b3da014b0668"
+          ],
+          "label": "private credit",
+          "similarity_to_centroid": 0.893498,
+          "topic_id": "topic:private-credit"
+        },
+        {
+          "episode_ids": [
+            "69b30446bffd975a45cdf7fd",
+            "69b994f70bec1f2a53ed15c2"
+          ],
+          "label": "private credit market",
+          "similarity_to_centroid": 0.973842,
+          "topic_id": "topic:private-credit-market"
+        },
+        {
+          "episode_ids": [
+            "691f6a64087c4173ab243235",
+            "699e03f4123f974082f7fe7e"
+          ],
+          "label": "Private credit markets",
+          "similarity_to_centroid": 0.979351,
+          "topic_id": "topic:private-credit-markets"
+        }
+      ]
+    },
+    {
+      "canonical_label": "cryptocurrency markets",
+      "cil_alias_target_topic_id": "topic:cryptocurrency-markets",
+      "graph_compound_parent_id": "tc:cryptocurrency-markets",
+      "member_count": 2,
+      "members": [
+        {
+          "episode_ids": [
+            "69d7e5ae97d78f9e2bf750e7"
+          ],
+          "label": "cryptocurrency",
+          "similarity_to_centroid": 0.964237,
+          "topic_id": "topic:cryptocurrency"
+        },
+        {
+          "episode_ids": [
+            "e6affaa0-5653-4711-883c-b3e90139136c"
+          ],
+          "label": "cryptocurrency markets",
+          "similarity_to_centroid": 0.964237,
+          "topic_id": "topic:cryptocurrency-markets"
+        }
+      ]
+    },
+    {
+      "canonical_label": "currency dynamics",
+      "cil_alias_target_topic_id": "topic:currency-dynamics",
+      "graph_compound_parent_id": "tc:currency-dynamics",
+      "member_count": 3,
+      "members": [
+        {
+          "episode_ids": [
+            "554c535f-c537-4dff-a5ae-b42d016661d4"
+          ],
+          "label": "currency",
+          "similarity_to_centroid": 0.917694,
+          "topic_id": "topic:currency"
+        },
+        {
+          "episode_ids": [
+            "75bd7644-5dae-4e6c-a3f1-b41301068fc7"
+          ],
+          "label": "currency dynamics",
+          "similarity_to_centroid": 0.924088,
+          "topic_id": "topic:currency-dynamics"
+        },
+        {
+          "episode_ids": [
+            "1a294fa6-1498-40b1-9add-b41801878a66"
+          ],
+          "label": "currency markets",
+          "similarity_to_centroid": 0.917668,
+          "topic_id": "topic:currency-markets"
+        }
+      ]
+    },
+    {
+      "canonical_label": "data center",
+      "cil_alias_target_topic_id": "topic:data-center",
+      "graph_compound_parent_id": "tc:data-center",
+      "member_count": 3,
+      "members": [
+        {
+          "episode_ids": [
+            "302c4830-b753-40ae-b495-b43300ee4db2"
+          ],
+          "label": "data center",
+          "similarity_to_centroid": 0.976611,
+          "topic_id": "topic:data-center"
+        },
+        {
+          "episode_ids": [
+            "690a57c3b27ff20cebd2d7fa"
+          ],
+          "label": "data center construction",
+          "similarity_to_centroid": 0.946977,
+          "topic_id": "topic:data-center-construction"
+        },
+        {
+          "episode_ids": [
+            "59308efc-3576-4375-8cf2-b40b00329583"
+          ],
+          "label": "data centers",
+          "similarity_to_centroid": 0.961107,
+          "topic_id": "topic:data-centers"
+        }
+      ]
+    },
+    {
+      "canonical_label": "Deal journalism",
+      "cil_alias_target_topic_id": "topic:deal-journalism",
+      "graph_compound_parent_id": "tc:deal-journalism",
+      "member_count": 2,
+      "members": [
+        {
+          "episode_ids": [
+            "693882ea6957d1e181e705d7"
+          ],
+          "label": "Deal journalism",
+          "similarity_to_centroid": 0.938827,
+          "topic_id": "topic:deal-journalism"
+        },
+        {
+          "episode_ids": [
+            "bd5bdaa1-16fd-4e1a-ac57-b41f01310614"
+          ],
+          "label": "journalism ethics",
+          "similarity_to_centroid": 0.938827,
+          "topic_id": "topic:journalism-ethics"
+        }
+      ]
+    },
+    {
+      "canonical_label": "debt issuance strategy",
+      "cil_alias_target_topic_id": "topic:debt-issuance-strategy",
+      "graph_compound_parent_id": "tc:debt-issuance-strategy",
+      "member_count": 2,
+      "members": [
+        {
+          "episode_ids": [
+            "692f3cb6fb6ea8e378b1decc"
+          ],
+          "label": "debt issuance strategy",
+          "similarity_to_centroid": 0.938473,
+          "topic_id": "topic:debt-issuance-strategy"
+        },
+        {
+          "episode_ids": [
+            "68ee980f06cd1a7c23a7dfbf"
+          ],
+          "label": "debt management",
+          "similarity_to_centroid": 0.938473,
+          "topic_id": "topic:debt-management"
+        }
+      ]
+    },
+    {
+      "canonical_label": "economic indicators",
+      "cil_alias_target_topic_id": "topic:economic-indicators",
+      "graph_compound_parent_id": "tc:economic-indicators",
+      "member_count": 2,
+      "members": [
+        {
+          "episode_ids": [
+            "690cdcf0120d3662b7be682e"
+          ],
+          "label": "DIY economic indicators",
+          "similarity_to_centroid": 0.961176,
+          "topic_id": "topic:diy-economic-indicators"
+        },
+        {
+          "episode_ids": [
+            "691f6a64087c4173ab243235",
+            "f9cfb15c-9665-493f-8f6a-b3e2001c9fe1"
+          ],
+          "label": "economic indicators",
+          "similarity_to_centroid": 0.961176,
+          "topic_id": "topic:economic-indicators"
+        }
+      ]
+    },
+    {
+      "canonical_label": "economic diversification",
+      "cil_alias_target_topic_id": "topic:economic-diversification",
+      "graph_compound_parent_id": "tc:economic-diversification",
+      "member_count": 4,
+      "members": [
+        {
+          "episode_ids": [
+            "ae05dcf9-1ada-4a93-82fe-b3da00296d7f"
+          ],
+          "label": "dollar diversification",
+          "similarity_to_centroid": 0.892407,
+          "topic_id": "topic:dollar-diversification"
+        },
+        {
+          "episode_ids": [
+            "46787222-f543-40cc-b506-b4280175207e",
+            "48d57b14-c285-46e9-9c8b-b3e901436211"
+          ],
+          "label": "economic diversification",
+          "similarity_to_centroid": 0.933682,
+          "topic_id": "topic:economic-diversification"
+        },
+        {
+          "episode_ids": [
+            "699769c6e1d87731192658c0"
+          ],
+          "label": "global investor diversification",
+          "similarity_to_centroid": 0.923718,
+          "topic_id": "topic:global-investor-diversification"
+        },
+        {
+          "episode_ids": [
+            "697284f2df8275aa076c0fd1"
+          ],
+          "label": "investor diversification strategies",
+          "similarity_to_centroid": 0.917416,
+          "topic_id": "topic:investor-diversification-strategies"
+        }
+      ]
+    },
+    {
+      "canonical_label": "Yen currency movements",
+      "cil_alias_target_topic_id": "topic:yen-currency-movements",
+      "graph_compound_parent_id": "tc:yen-currency-movements",
+      "member_count": 2,
+      "members": [
+        {
+          "episode_ids": [
+            "697bbba765c54ec9195dbd80"
+          ],
+          "label": "dollar-yen market",
+          "similarity_to_centroid": 0.946324,
+          "topic_id": "topic:dollar-yen-market"
+        },
+        {
+          "episode_ids": [
+            "698b75b5337b2a3b2e169814"
+          ],
+          "label": "Yen currency movements",
+          "similarity_to_centroid": 0.946324,
+          "topic_id": "topic:yen-currency-movements"
+        }
+      ]
+    },
+    {
+      "canonical_label": "market bubbles",
+      "cil_alias_target_topic_id": "topic:market-bubbles",
+      "graph_compound_parent_id": "tc:market-bubbles",
+      "member_count": 3,
+      "members": [
+        {
+          "episode_ids": [
+            "6949974ce2b7985fa24ee0df"
+          ],
+          "label": "economic bubbles",
+          "similarity_to_centroid": 0.917842,
+          "topic_id": "topic:economic-bubbles"
+        },
+        {
+          "episode_ids": [
+            "6913979ddac02c1fcfbdd404",
+            "695ff901d8ac698e7e142b2c"
+          ],
+          "label": "market bubbles",
+          "similarity_to_centroid": 0.969363,
+          "topic_id": "topic:market-bubbles"
+        },
+        {
+          "episode_ids": [
+            "69430fc81443762d1fbd7282"
+          ],
+          "label": "Market timing and bubbles",
+          "similarity_to_centroid": 0.923511,
+          "topic_id": "topic:market-timing-and-bubbles"
+        }
+      ]
+    },
+    {
+      "canonical_label": "economic disruption",
+      "cil_alias_target_topic_id": "topic:economic-disruption",
+      "graph_compound_parent_id": "tc:economic-disruption",
+      "member_count": 2,
+      "members": [
+        {
+          "episode_ids": [
+            "2407d49c-df67-4d81-8598-b3ff003a440b"
+          ],
+          "label": "economic disruption",
+          "similarity_to_centroid": 0.948771,
+          "topic_id": "topic:economic-disruption"
+        },
+        {
+          "episode_ids": [
+            "1539622b-e41c-4e30-9bda-b4050183dfff",
+            "ad26f6f7-20fc-4412-b654-b41300517a43"
+          ],
+          "label": "market disruption",
+          "similarity_to_centroid": 0.948771,
+          "topic_id": "topic:market-disruption"
+        }
+      ]
+    },
+    {
+      "canonical_label": "economic forecasting",
+      "cil_alias_target_topic_id": "topic:economic-forecasting",
+      "graph_compound_parent_id": "tc:economic-forecasting",
+      "member_count": 2,
+      "members": [
+        {
+          "episode_ids": [
+            "b87e2dc3-177c-4ee1-9e35-b426016992c9"
+          ],
+          "label": "economic forecasting",
+          "similarity_to_centroid": 0.963852,
+          "topic_id": "topic:economic-forecasting"
+        },
+        {
+          "episode_ids": [
+            "68ee980f06cd1a7c23a7dfbf"
+          ],
+          "label": "economic growth forecasts",
+          "similarity_to_centroid": 0.963852,
+          "topic_id": "topic:economic-growth-forecasts"
+        }
+      ]
+    },
+    {
+      "canonical_label": "economic impact",
+      "cil_alias_target_topic_id": "topic:economic-impact",
+      "graph_compound_parent_id": "tc:economic-impact",
+      "member_count": 2,
+      "members": [
+        {
+          "episode_ids": [
+            "1539622b-e41c-4e30-9bda-b4050183dfff",
+            "2ff3db06-a25b-4d7b-9de9-b42f01476d14",
+            "900daa27-2e57-49d5-99ed-b41d0131a867",
+            "a1c70b67-17a8-4b1e-9edb-b4160128bf2c",
+            "ad26f6f7-20fc-4412-b654-b41300517a43"
+          ],
+          "label": "economic impact",
+          "similarity_to_centroid": 0.969807,
+          "topic_id": "topic:economic-impact"
+        },
+        {
+          "episode_ids": [
+            "69a0aed50e30955851cbea6d"
+          ],
+          "label": "US economic impact",
+          "similarity_to_centroid": 0.969807,
+          "topic_id": "topic:us-economic-impact"
+        }
+      ]
+    },
+    {
+      "canonical_label": "economic instability",
+      "cil_alias_target_topic_id": "topic:economic-instability",
+      "graph_compound_parent_id": "tc:economic-instability",
+      "member_count": 2,
+      "members": [
+        {
+          "episode_ids": [
+            "832ec3cc-e520-4c9b-83c4-b3e00168d506"
+          ],
+          "label": "economic instability",
+          "similarity_to_centroid": 0.961028,
+          "topic_id": "topic:economic-instability"
+        },
+        {
+          "episode_ids": [
+            "6966a4ca023744df1110bc8b",
+            "ecf2f4a5-6ecb-4460-8521-b41301530309"
+          ],
+          "label": "economic stability",
+          "similarity_to_centroid": 0.961028,
+          "topic_id": "topic:economic-stability"
+        }
+      ]
+    },
+    {
+      "canonical_label": "Trump administration economic policy",
+      "cil_alias_target_topic_id": "topic:trump-administration-economic-policy",
+      "graph_compound_parent_id": "tc:trump-administration-economic-policy",
+      "member_count": 4,
+      "members": [
+        {
+          "episode_ids": [
+            "0b483f16-0d3c-4ad5-a89b-b3e80108c563",
+            "48d57b14-c285-46e9-9c8b-b3e901436211"
+          ],
+          "label": "economic policy",
+          "similarity_to_centroid": 0.927201,
+          "topic_id": "topic:economic-policy"
+        },
+        {
+          "episode_ids": [
+            "69010f2ad1baee58aa046cf9"
+          ],
+          "label": "Trump administration economic policy",
+          "similarity_to_centroid": 0.951699,
+          "topic_id": "topic:trump-administration-economic-policy"
+        },
+        {
+          "episode_ids": [
+            "697284f2df8275aa076c0fd1"
+          ],
+          "label": "Trump's economic policy",
+          "similarity_to_centroid": 0.951375,
+          "topic_id": "topic:trumps-economic-policy"
+        },
+        {
+          "episode_ids": [
+            "697bbba765c54ec9195dbd80"
+          ],
+          "label": "U.S. economic policy",
+          "similarity_to_centroid": 0.945322,
+          "topic_id": "topic:us-economic-policy"
+        }
+      ]
+    },
+    {
+      "canonical_label": "policy uncertainty",
+      "cil_alias_target_topic_id": "topic:policy-uncertainty",
+      "graph_compound_parent_id": "tc:policy-uncertainty",
+      "member_count": 2,
+      "members": [
+        {
+          "episode_ids": [
+            "69bc42647878605e1133d131"
+          ],
+          "label": "economic uncertainty",
+          "similarity_to_centroid": 0.937703,
+          "topic_id": "topic:economic-uncertainty"
+        },
+        {
+          "episode_ids": [
+            "695ff901d8ac698e7e142b2c"
+          ],
+          "label": "policy uncertainty",
+          "similarity_to_centroid": 0.937703,
+          "topic_id": "topic:policy-uncertainty"
+        }
+      ]
+    },
+    {
+      "canonical_label": "electric vehicles",
+      "cil_alias_target_topic_id": "topic:electric-vehicles",
+      "graph_compound_parent_id": "tc:electric-vehicles",
+      "member_count": 2,
+      "members": [
+        {
+          "episode_ids": [
+            "68f13478ace6eea8f828f16e"
+          ],
+          "label": "electric vehicle production",
+          "similarity_to_centroid": 0.945639,
+          "topic_id": "topic:electric-vehicle-production"
+        },
+        {
+          "episode_ids": [
+            "2249a9b7-c225-4d4f-acf4-b43301384ccb"
+          ],
+          "label": "electric vehicles",
+          "similarity_to_centroid": 0.945639,
+          "topic_id": "topic:electric-vehicles"
+        }
+      ]
+    },
+    {
+      "canonical_label": "energy crisis",
+      "cil_alias_target_topic_id": "topic:energy-crisis",
+      "graph_compound_parent_id": "tc:energy-crisis",
+      "member_count": 2,
+      "members": [
+        {
+          "episode_ids": [
+            "b2d2fa26-3a1f-4ff7-add7-b41e012553dd"
+          ],
+          "label": "energy crisis",
+          "similarity_to_centroid": 0.967767,
+          "topic_id": "topic:energy-crisis"
+        },
+        {
+          "episode_ids": [
+            "69cebc0fd2e95f51317280ab"
+          ],
+          "label": "global energy crisis",
+          "similarity_to_centroid": 0.967767,
+          "topic_id": "topic:global-energy-crisis"
+        }
+      ]
+    },
+    {
+      "canonical_label": "energy infrastructure",
+      "cil_alias_target_topic_id": "topic:energy-infrastructure",
+      "graph_compound_parent_id": "tc:energy-infrastructure",
+      "member_count": 2,
+      "members": [
+        {
+          "episode_ids": [
+            "0143cf2a-af2d-4f59-877d-b3e20164ef0d",
+            "48fc9d48-5209-4689-92c7-b4100164eb6a",
+            "ad26f6f7-20fc-4412-b654-b41300517a43"
+          ],
+          "label": "energy infrastructure",
+          "similarity_to_centroid": 0.963861,
+          "topic_id": "topic:energy-infrastructure"
+        },
+        {
+          "episode_ids": [
+            "695d5ff10c30a1408dc88dde"
+          ],
+          "label": "Energy infrastructure investment",
+          "similarity_to_centroid": 0.963861,
+          "topic_id": "topic:energy-infrastructure-investment"
+        }
+      ]
+    },
+    {
+      "canonical_label": "enterprise platforms",
+      "cil_alias_target_topic_id": "topic:enterprise-platforms",
+      "graph_compound_parent_id": "tc:enterprise-platforms",
+      "member_count": 2,
+      "members": [
+        {
+          "episode_ids": [
+            "4255b42e-3a9e-11f1-8eee-179e850fd703"
+          ],
+          "label": "enterprise platform replacement",
+          "similarity_to_centroid": 0.956937,
+          "topic_id": "topic:enterprise-platform-replacement"
+        },
+        {
+          "episode_ids": [
+            "4cec22d8-717e-46c6-ab87-b43b01512ecb"
+          ],
+          "label": "enterprise platforms",
+          "similarity_to_centroid": 0.956937,
+          "topic_id": "topic:enterprise-platforms"
+        }
+      ]
+    },
+    {
+      "canonical_label": "equity demand",
+      "cil_alias_target_topic_id": "topic:equity-demand",
+      "graph_compound_parent_id": "tc:equity-demand",
+      "member_count": 2,
+      "members": [
+        {
+          "episode_ids": [
+            "e6affaa0-5653-4711-883c-b3e90139136c"
+          ],
+          "label": "equity demand",
+          "similarity_to_centroid": 0.938524,
+          "topic_id": "topic:equity-demand"
+        },
+        {
+          "episode_ids": [
+            "74a9745d-6825-4bfc-abc3-b43601639f72"
+          ],
+          "label": "investor demand",
+          "similarity_to_centroid": 0.938524,
+          "topic_id": "topic:investor-demand"
+        }
+      ]
+    },
+    {
+      "canonical_label": "Federal Reserve policy",
+      "cil_alias_target_topic_id": "topic:federal-reserve-policy",
+      "graph_compound_parent_id": "tc:federal-reserve-policy",
+      "member_count": 3,
+      "members": [
+        {
+          "episode_ids": [
+            "0b483f16-0d3c-4ad5-a89b-b3e80108c563",
+            "0d8e4d7e-be05-4892-beb7-b3e20143f709",
+            "69446436f13209aaa3edddb1"
+          ],
+          "label": "federal reserve",
+          "similarity_to_centroid": 0.920244,
+          "topic_id": "topic:federal-reserve"
+        },
+        {
+          "episode_ids": [
+            "698e2f4c1506be1a7e3d1141"
+          ],
+          "label": "Federal Reserve interest rate policy",
+          "similarity_to_centroid": 0.912009,
+          "topic_id": "topic:federal-reserve-interest-rate-policy"
+        },
+        {
+          "episode_ids": [
+            "6931e96838a11f5f3eb66ffc",
+            "6939a79d34867e026d3be2bd"
+          ],
+          "label": "Federal Reserve policy",
+          "similarity_to_centroid": 0.973924,
+          "topic_id": "topic:federal-reserve-policy"
+        }
+      ]
+    },
+    {
+      "canonical_label": "fertilizer market",
+      "cil_alias_target_topic_id": "topic:fertilizer-market",
+      "graph_compound_parent_id": "tc:fertilizer-market",
+      "member_count": 2,
+      "members": [
+        {
+          "episode_ids": [
+            "4e5e7c1f-739e-4feb-b9ba-b409016c9734"
+          ],
+          "label": "fertilizer market",
+          "similarity_to_centroid": 0.945661,
+          "topic_id": "topic:fertilizer-market"
+        },
+        {
+          "episode_ids": [
+            "b2d2fa26-3a1f-4ff7-add7-b41e012553dd",
+            "f578715f-8efb-47a4-93f6-b411015899d8"
+          ],
+          "label": "fertilizer prices",
+          "similarity_to_centroid": 0.945661,
+          "topic_id": "topic:fertilizer-prices"
+        }
+      ]
+    },
+    {
+      "canonical_label": "financial crisis",
+      "cil_alias_target_topic_id": "topic:financial-crisis",
+      "graph_compound_parent_id": "tc:financial-crisis",
+      "member_count": 4,
+      "members": [
+        {
+          "episode_ids": [
+            "6903bec1076a402ee28ca4f8"
+          ],
+          "label": "financial crises",
+          "similarity_to_centroid": 0.940858,
+          "topic_id": "topic:financial-crises"
+        },
+        {
+          "episode_ids": [
+            "0d8e4d7e-be05-4892-beb7-b3e20143f709",
+            "74a9745d-6825-4bfc-abc3-b43601639f72"
+          ],
+          "label": "financial crisis",
+          "similarity_to_centroid": 0.960983,
+          "topic_id": "topic:financial-crisis"
+        },
+        {
+          "episode_ids": [
+            "b26130d7-356b-4ae1-90f2-b4040041865c"
+          ],
+          "label": "financial crisis response",
+          "similarity_to_centroid": 0.904456,
+          "topic_id": "topic:financial-crisis-response"
+        },
+        {
+          "episode_ids": [
+            "69b30446bffd975a45cdf7fd"
+          ],
+          "label": "financial crisis risk",
+          "similarity_to_centroid": 0.889176,
+          "topic_id": "topic:financial-crisis-risk"
+        }
+      ]
+    },
+    {
+      "canonical_label": "financial industry",
+      "cil_alias_target_topic_id": "topic:financial-industry",
+      "graph_compound_parent_id": "tc:financial-industry",
+      "member_count": 4,
+      "members": [
+        {
+          "episode_ids": [
+            "ff4f5daf-7813-40a9-aa95-b42001543192"
+          ],
+          "label": "financial industry",
+          "similarity_to_centroid": 0.934908,
+          "topic_id": "topic:financial-industry"
+        },
+        {
+          "episode_ids": [
+            "940b6e1c-92f4-4226-aa35-b3e9014f2f6b"
+          ],
+          "label": "financial institutions",
+          "similarity_to_centroid": 0.908527,
+          "topic_id": "topic:financial-institutions"
+        },
+        {
+          "episode_ids": [
+            "e39903f3-d6b9-4e0e-acf0-b3db0140da64"
+          ],
+          "label": "financial sector",
+          "similarity_to_centroid": 0.923432,
+          "topic_id": "topic:financial-sector"
+        },
+        {
+          "episode_ids": [
+            "2407d49c-df67-4d81-8598-b3ff003a440b",
+            "554c535f-c537-4dff-a5ae-b42d016661d4"
+          ],
+          "label": "financial system",
+          "similarity_to_centroid": 0.901211,
+          "topic_id": "topic:financial-system"
+        }
+      ]
+    },
+    {
+      "canonical_label": "financial innovation",
+      "cil_alias_target_topic_id": "topic:financial-innovation",
+      "graph_compound_parent_id": "tc:financial-innovation",
+      "member_count": 2,
+      "members": [
+        {
+          "episode_ids": [
+            "813df158-0443-4237-a6e8-b40700d8f3ff"
+          ],
+          "label": "financial innovation",
+          "similarity_to_centroid": 0.97708,
+          "topic_id": "topic:financial-innovation"
+        },
+        {
+          "episode_ids": [
+            "69b30446bffd975a45cdf7fd"
+          ],
+          "label": "financial market innovation",
+          "similarity_to_centroid": 0.97708,
+          "topic_id": "topic:financial-market-innovation"
+        }
+      ]
+    },
+    {
+      "canonical_label": "US stock market performance",
+      "cil_alias_target_topic_id": "topic:us-stock-market-performance",
+      "graph_compound_parent_id": "tc:us-stock-market-performance",
+      "member_count": 4,
+      "members": [
+        {
+          "episode_ids": [
+            "69b994f70bec1f2a53ed15c2"
+          ],
+          "label": "financial market performance",
+          "similarity_to_centroid": 0.889089,
+          "topic_id": "topic:financial-market-performance"
+        },
+        {
+          "episode_ids": [
+            "6915fc857a0043834ae9f8b3",
+            "69c2d3de1861d127d5274302",
+            "69d7e5ae97d78f9e2bf750e7"
+          ],
+          "label": "stock market performance",
+          "similarity_to_centroid": 0.930881,
+          "topic_id": "topic:stock-market-performance"
+        },
+        {
+          "episode_ids": [
+            "699e03f4123f974082f7fe7e"
+          ],
+          "label": "US market performance",
+          "similarity_to_centroid": 0.900501,
+          "topic_id": "topic:us-market-performance"
+        },
+        {
+          "episode_ids": [
+            "6939a79d34867e026d3be2bd"
+          ],
+          "label": "US stock market performance",
+          "similarity_to_centroid": 0.950378,
+          "topic_id": "topic:us-stock-market-performance"
+        }
+      ]
+    },
+    {
+      "canonical_label": "Financial market regulation",
+      "cil_alias_target_topic_id": "topic:financial-market-regulation",
+      "graph_compound_parent_id": "tc:financial-market-regulation",
+      "member_count": 2,
+      "members": [
+        {
+          "episode_ids": [
+            "69de7f452cab0d3ec8a3dc22"
+          ],
+          "label": "Financial market regulation",
+          "similarity_to_centroid": 0.961233,
+          "topic_id": "topic:financial-market-regulation"
+        },
+        {
+          "episode_ids": [
+            "07a6f60e-2a51-45c1-9c59-b3ef000d1c35"
+          ],
+          "label": "market regulation",
+          "similarity_to_centroid": 0.961233,
+          "topic_id": "topic:market-regulation"
+        }
+      ]
+    },
+    {
+      "canonical_label": "financial stability",
+      "cil_alias_target_topic_id": "topic:financial-stability",
+      "graph_compound_parent_id": "tc:financial-stability",
+      "member_count": 3,
+      "members": [
+        {
+          "episode_ids": [
+            "69010f2ad1baee58aa046cf9"
+          ],
+          "label": "financial market stability",
+          "similarity_to_centroid": 0.949904,
+          "topic_id": "topic:financial-market-stability"
+        },
+        {
+          "episode_ids": [
+            "fa341e50-661d-4c9b-8a45-b3da014b0668"
+          ],
+          "label": "financial stability",
+          "similarity_to_centroid": 0.973215,
+          "topic_id": "topic:financial-stability"
+        },
+        {
+          "episode_ids": [
+            "6931e96838a11f5f3eb66ffc"
+          ],
+          "label": "financial stability risks",
+          "similarity_to_centroid": 0.945096,
+          "topic_id": "topic:financial-stability-risks"
+        }
+      ]
+    },
+    {
+      "canonical_label": "Financial markets analysis",
+      "cil_alias_target_topic_id": "topic:financial-markets-analysis",
+      "graph_compound_parent_id": "tc:financial-markets-analysis",
+      "member_count": 2,
+      "members": [
+        {
+          "episode_ids": [
+            "693882ea6957d1e181e705d7"
+          ],
+          "label": "Financial markets analysis",
+          "similarity_to_centroid": 0.96562,
+          "topic_id": "topic:financial-markets-analysis"
+        },
+        {
+          "episode_ids": [
+            "695ff901d8ac698e7e142b2c"
+          ],
+          "label": "stock market analysis",
+          "similarity_to_centroid": 0.96562,
+          "topic_id": "topic:stock-market-analysis"
+        }
+      ]
+    },
+    {
+      "canonical_label": "leveraged financial system",
+      "cil_alias_target_topic_id": "topic:leveraged-financial-system",
+      "graph_compound_parent_id": "tc:leveraged-financial-system",
+      "member_count": 3,
+      "members": [
+        {
+          "episode_ids": [
+            "69446436f13209aaa3edddb1"
+          ],
+          "label": "financial system leverage",
+          "similarity_to_centroid": 0.960099,
+          "topic_id": "topic:financial-system-leverage"
+        },
+        {
+          "episode_ids": [
+            "69b30446bffd975a45cdf7fd"
+          ],
+          "label": "leveraged financial system",
+          "similarity_to_centroid": 0.970697,
+          "topic_id": "topic:leveraged-financial-system"
+        },
+        {
+          "episode_ids": [
+            "69791200e23c68f310b5af73"
+          ],
+          "label": "leveraged investment",
+          "similarity_to_centroid": 0.910759,
+          "topic_id": "topic:leveraged-investment"
+        }
+      ]
+    },
+    {
+      "canonical_label": "financialization of everything",
+      "cil_alias_target_topic_id": "topic:financialization-of-everything",
+      "graph_compound_parent_id": "tc:financialization-of-everything",
+      "member_count": 2,
+      "members": [
+        {
+          "episode_ids": [
+            "6913979ddac02c1fcfbdd404"
+          ],
+          "label": "financialization",
+          "similarity_to_centroid": 0.966687,
+          "topic_id": "topic:financialization"
+        },
+        {
+          "episode_ids": [
+            "694996ae184761c021fb72be"
+          ],
+          "label": "financialization of everything",
+          "similarity_to_centroid": 0.966687,
+          "topic_id": "topic:financialization-of-everything"
+        }
+      ]
+    },
+    {
+      "canonical_label": "fiscal policy",
+      "cil_alias_target_topic_id": "topic:fiscal-policy",
+      "graph_compound_parent_id": "tc:fiscal-policy",
+      "member_count": 4,
+      "members": [
+        {
+          "episode_ids": [
+            "68fa774b5149d2d6f2bdbef2"
+          ],
+          "label": "Fiscal adjustment policies",
+          "similarity_to_centroid": 0.91117,
+          "topic_id": "topic:fiscal-adjustment-policies"
+        },
+        {
+          "episode_ids": [
+            "692f3cb6fb6ea8e378b1decc"
+          ],
+          "label": "fiscal policy",
+          "similarity_to_centroid": 0.954757,
+          "topic_id": "topic:fiscal-policy"
+        },
+        {
+          "episode_ids": [
+            "68ee980f06cd1a7c23a7dfbf"
+          ],
+          "label": "fiscal policy challenges",
+          "similarity_to_centroid": 0.9235,
+          "topic_id": "topic:fiscal-policy-challenges"
+        },
+        {
+          "episode_ids": [
+            "69010f2ad1baee58aa046cf9"
+          ],
+          "label": "fiscal policy influence",
+          "similarity_to_centroid": 0.914687,
+          "topic_id": "topic:fiscal-policy-influence"
+        }
+      ]
+    },
+    {
+      "canonical_label": "future of Japanese markets",
+      "cil_alias_target_topic_id": "topic:future-of-japanese-markets",
+      "graph_compound_parent_id": "tc:future-of-japanese-markets",
+      "member_count": 2,
+      "members": [
+        {
+          "episode_ids": [
+            "694323f2959d6e49509de9bc"
+          ],
+          "label": "future of Japanese markets",
+          "similarity_to_centroid": 0.942572,
+          "topic_id": "topic:future-of-japanese-markets"
+        },
+        {
+          "episode_ids": [
+            "698b75b5337b2a3b2e169814"
+          ],
+          "label": "Japanese stock market performance",
+          "similarity_to_centroid": 0.942572,
+          "topic_id": "topic:japanese-stock-market-performance"
+        }
+      ]
+    },
+    {
+      "canonical_label": "futures markets",
+      "cil_alias_target_topic_id": "topic:futures-markets",
+      "graph_compound_parent_id": "tc:futures-markets",
+      "member_count": 2,
+      "members": [
+        {
+          "episode_ids": [
+            "67659bec-3226-4db8-9435-cd13553693a7"
+          ],
+          "label": "futures markets",
+          "similarity_to_centroid": 0.943567,
+          "topic_id": "topic:futures-markets"
+        },
+        {
+          "episode_ids": [
+            "69b072f6a54b09a74a584d24"
+          ],
+          "label": "oil futures market",
+          "similarity_to_centroid": 0.943567,
+          "topic_id": "topic:oil-futures-market"
+        }
+      ]
+    },
+    {
+      "canonical_label": "gas prices",
+      "cil_alias_target_topic_id": "topic:gas-prices",
+      "graph_compound_parent_id": "tc:gas-prices",
+      "member_count": 2,
+      "members": [
+        {
+          "episode_ids": [
+            "69cebc0fd2e95f51317280ab"
+          ],
+          "label": "gas prices",
+          "similarity_to_centroid": 0.960376,
+          "topic_id": "topic:gas-prices"
+        },
+        {
+          "episode_ids": [
+            "69a734f5ddf4d3439a40ad85"
+          ],
+          "label": "natural gas prices",
+          "similarity_to_centroid": 0.960376,
+          "topic_id": "topic:natural-gas-prices"
+        }
+      ]
+    },
+    {
+      "canonical_label": "geopolitical alliances",
+      "cil_alias_target_topic_id": "topic:geopolitical-alliances",
+      "graph_compound_parent_id": "tc:geopolitical-alliances",
+      "member_count": 2,
+      "members": [
+        {
+          "episode_ids": [
+            "46787222-f543-40cc-b506-b4280175207e"
+          ],
+          "label": "geopolitical alliances",
+          "similarity_to_centroid": 0.956365,
+          "topic_id": "topic:geopolitical-alliances"
+        },
+        {
+          "episode_ids": [
+            "6931e96838a11f5f3eb66ffc"
+          ],
+          "label": "international alliances",
+          "similarity_to_centroid": 0.956365,
+          "topic_id": "topic:international-alliances"
+        }
+      ]
+    },
+    {
+      "canonical_label": "geopolitical conflict",
+      "cil_alias_target_topic_id": "topic:geopolitical-conflict",
+      "graph_compound_parent_id": "tc:geopolitical-conflict",
+      "member_count": 7,
+      "members": [
+        {
+          "episode_ids": [
+            "ecf2f4a5-6ecb-4460-8521-b41301530309"
+          ],
+          "label": "geopolitical ambiguity",
+          "similarity_to_centroid": 0.876801,
+          "topic_id": "topic:geopolitical-ambiguity"
+        },
+        {
+          "episode_ids": [
+            "69d7e5ae97d78f9e2bf750e7"
+          ],
+          "label": "geopolitical conflict",
+          "similarity_to_centroid": 0.935572,
+          "topic_id": "topic:geopolitical-conflict"
+        },
+        {
+          "episode_ids": [
+            "4e5e7c1f-739e-4feb-b9ba-b409016c9734",
+            "69bc42647878605e1133d131",
+            "75bd7644-5dae-4e6c-a3f1-b41301068fc7"
+          ],
+          "label": "geopolitical events",
+          "similarity_to_centroid": 0.908861,
+          "topic_id": "topic:geopolitical-events"
+        },
+        {
+          "episode_ids": [
+            "69cebc0fd2e95f51317280ab"
+          ],
+          "label": "geopolitical impact",
+          "similarity_to_centroid": 0.924997,
+          "topic_id": "topic:geopolitical-impact"
+        },
+        {
+          "episode_ids": [
+            "a70f0f76-f2a3-4f8d-9316-b435012b46b0"
+          ],
+          "label": "geopolitical influence",
+          "similarity_to_centroid": 0.911166,
+          "topic_id": "topic:geopolitical-influence"
+        },
+        {
+          "episode_ids": [
+            "bcb72efb-4d99-44c9-9eb5-b3f001587dc0"
+          ],
+          "label": "geopolitical rivalry",
+          "similarity_to_centroid": 0.896518,
+          "topic_id": "topic:geopolitical-rivalry"
+        },
+        {
+          "episode_ids": [
+            "b26130d7-356b-4ae1-90f2-b4040041865c"
+          ],
+          "label": "geopolitical shifts",
+          "similarity_to_centroid": 0.878362,
+          "topic_id": "topic:geopolitical-shifts"
+        }
+      ]
+    },
+    {
+      "canonical_label": "geopolitical impact on markets",
+      "cil_alias_target_topic_id": "topic:geopolitical-impact-on-markets",
+      "graph_compound_parent_id": "tc:geopolitical-impact-on-markets",
+      "member_count": 4,
+      "members": [
+        {
+          "episode_ids": [
+            "695ff901d8ac698e7e142b2c"
+          ],
+          "label": "geopolitical impact on markets",
+          "similarity_to_centroid": 0.955415,
+          "topic_id": "topic:geopolitical-impact-on-markets"
+        },
+        {
+          "episode_ids": [
+            "694996ae184761c021fb72be"
+          ],
+          "label": "geopolitical market impact",
+          "similarity_to_centroid": 0.952233,
+          "topic_id": "topic:geopolitical-market-impact"
+        },
+        {
+          "episode_ids": [
+            "695d5ff10c30a1408dc88dde"
+          ],
+          "label": "Market reaction to geopolitical events",
+          "similarity_to_centroid": 0.934695,
+          "topic_id": "topic:market-reaction-to-geopolitical-events"
+        },
+        {
+          "episode_ids": [
+            "69b072f6a54b09a74a584d24"
+          ],
+          "label": "market reaction to geopolitics",
+          "similarity_to_centroid": 0.929579,
+          "topic_id": "topic:market-reaction-to-geopolitics"
+        }
+      ]
+    },
+    {
+      "canonical_label": "geopolitical risk",
+      "cil_alias_target_topic_id": "topic:geopolitical-risk",
+      "graph_compound_parent_id": "tc:geopolitical-risk",
+      "member_count": 4,
+      "members": [
+        {
+          "episode_ids": [
+            "1a294fa6-1498-40b1-9add-b41801878a66",
+            "2249a9b7-c225-4d4f-acf4-b43301384ccb",
+            "592a7424-fc6f-48ed-a1c6-b4090032d552",
+            "696fe5a1f66127afddcfa7d2",
+            "6e543d48-a84e-4ddf-b699-b40b016d6f82",
+            "ad26f6f7-20fc-4412-b654-b41300517a43",
+            "ae05dcf9-1ada-4a93-82fe-b3da00296d7f",
+            "f9cfb15c-9665-493f-8f6a-b3e2001c9fe1"
+          ],
+          "label": "geopolitical risk",
+          "similarity_to_centroid": 0.979833,
+          "topic_id": "topic:geopolitical-risk"
+        },
+        {
+          "episode_ids": [
+            "695d5ff10c30a1408dc88dde"
+          ],
+          "label": "Geopolitical risk in markets",
+          "similarity_to_centroid": 0.95188,
+          "topic_id": "topic:geopolitical-risk-in-markets"
+        },
+        {
+          "episode_ids": [
+            "69a734f5ddf4d3439a40ad85"
+          ],
+          "label": "geopolitical risk premium",
+          "similarity_to_centroid": 0.909696,
+          "topic_id": "topic:geopolitical-risk-premium"
+        },
+        {
+          "episode_ids": [
+            "69b994f70bec1f2a53ed15c2"
+          ],
+          "label": "geopolitical risks",
+          "similarity_to_centroid": 0.953625,
+          "topic_id": "topic:geopolitical-risks"
+        }
+      ]
+    },
+    {
+      "canonical_label": "middle east",
+      "cil_alias_target_topic_id": "topic:middle-east",
+      "graph_compound_parent_id": "tc:middle-east",
+      "member_count": 3,
+      "members": [
+        {
+          "episode_ids": [
+            "f93d9375-70e2-4aa9-86c4-b404016214e2"
+          ],
+          "label": "geopolitics middle east",
+          "similarity_to_centroid": 0.924552,
+          "topic_id": "topic:geopolitics-middle-east"
+        },
+        {
+          "episode_ids": [
+            "46787222-f543-40cc-b506-b4280175207e",
+            "6e543d48-a84e-4ddf-b699-b40b016d6f82"
+          ],
+          "label": "middle east",
+          "similarity_to_centroid": 0.935104,
+          "topic_id": "topic:middle-east"
+        },
+        {
+          "episode_ids": [
+            "69a734f5ddf4d3439a40ad85",
+            "69b994f70bec1f2a53ed15c2",
+            "69cebc0fd2e95f51317280ab"
+          ],
+          "label": "Middle East conflict",
+          "similarity_to_centroid": 0.922633,
+          "topic_id": "topic:middle-east-conflict"
+        }
+      ]
+    },
+    {
+      "canonical_label": "global capital",
+      "cil_alias_target_topic_id": "topic:global-capital",
+      "graph_compound_parent_id": "tc:global-capital",
+      "member_count": 2,
+      "members": [
+        {
+          "episode_ids": [
+            "ecf2f4a5-6ecb-4460-8521-b41301530309"
+          ],
+          "label": "global capital",
+          "similarity_to_centroid": 0.942105,
+          "topic_id": "topic:global-capital"
+        },
+        {
+          "episode_ids": [
+            "698b75b5337b2a3b2e169814"
+          ],
+          "label": "Global capital flows",
+          "similarity_to_centroid": 0.942105,
+          "topic_id": "topic:global-capital-flows"
+        }
+      ]
+    },
+    {
+      "canonical_label": "global economic impact",
+      "cil_alias_target_topic_id": "topic:global-economic-impact",
+      "graph_compound_parent_id": "tc:global-economic-impact",
+      "member_count": 4,
+      "members": [
+        {
+          "episode_ids": [
+            "69a734f5ddf4d3439a40ad85"
+          ],
+          "label": "global economic impact",
+          "similarity_to_centroid": 0.947313,
+          "topic_id": "topic:global-economic-impact"
+        },
+        {
+          "episode_ids": [
+            "69bc42647878605e1133d131"
+          ],
+          "label": "global economic outlook",
+          "similarity_to_centroid": 0.917705,
+          "topic_id": "topic:global-economic-outlook"
+        },
+        {
+          "episode_ids": [
+            "69c5846cc2759aa9b1c70a8d",
+            "f7904791-f77c-421b-a3d3-b43b015542d2"
+          ],
+          "label": "global economy",
+          "similarity_to_centroid": 0.911731,
+          "topic_id": "topic:global-economy"
+        },
+        {
+          "episode_ids": [
+            "697bbba765c54ec9195dbd80"
+          ],
+          "label": "global market impact",
+          "similarity_to_centroid": 0.898757,
+          "topic_id": "topic:global-market-impact"
+        }
+      ]
+    },
+    {
+      "canonical_label": "global finance",
+      "cil_alias_target_topic_id": "topic:global-finance",
+      "graph_compound_parent_id": "tc:global-finance",
+      "member_count": 3,
+      "members": [
+        {
+          "episode_ids": [
+            "554c535f-c537-4dff-a5ae-b42d016661d4"
+          ],
+          "label": "global finance",
+          "similarity_to_centroid": 0.961931,
+          "topic_id": "topic:global-finance"
+        },
+        {
+          "episode_ids": [
+            "6913979ddac02c1fcfbdd404"
+          ],
+          "label": "global financial system",
+          "similarity_to_centroid": 0.924766,
+          "topic_id": "topic:global-financial-system"
+        },
+        {
+          "episode_ids": [
+            "68ee980f06cd1a7c23a7dfbf"
+          ],
+          "label": "international finance",
+          "similarity_to_centroid": 0.921261,
+          "topic_id": "topic:international-finance"
+        }
+      ]
+    },
+    {
+      "canonical_label": "global markets",
+      "cil_alias_target_topic_id": "topic:global-markets",
+      "graph_compound_parent_id": "tc:global-markets",
+      "member_count": 2,
+      "members": [
+        {
+          "episode_ids": [
+            "0f69af23-639c-4945-b255-b42001763c8a"
+          ],
+          "label": "global markets",
+          "similarity_to_centroid": 0.965234,
+          "topic_id": "topic:global-markets"
+        },
+        {
+          "episode_ids": [
+            "6939a79d34867e026d3be2bd"
+          ],
+          "label": "global stock markets",
+          "similarity_to_centroid": 0.965234,
+          "topic_id": "topic:global-stock-markets"
+        }
+      ]
+    },
+    {
+      "canonical_label": "oil prices",
+      "cil_alias_target_topic_id": "topic:oil-prices",
+      "graph_compound_parent_id": "tc:oil-prices",
+      "member_count": 3,
+      "members": [
+        {
+          "episode_ids": [
+            "695d5ff10c30a1408dc88dde"
+          ],
+          "label": "Global oil prices",
+          "similarity_to_centroid": 0.929516,
+          "topic_id": "topic:global-oil-prices"
+        },
+        {
+          "episode_ids": [
+            "69b994f70bec1f2a53ed15c2"
+          ],
+          "label": "oil price dynamics",
+          "similarity_to_centroid": 0.933093,
+          "topic_id": "topic:oil-price-dynamics"
+        },
+        {
+          "episode_ids": [
+            "1a294fa6-1498-40b1-9add-b41801878a66",
+            "20bb1678-3931-456e-8f40-b4300150bb16",
+            "46787222-f543-40cc-b506-b4280175207e",
+            "554c535f-c537-4dff-a5ae-b42d016661d4",
+            "592a7424-fc6f-48ed-a1c6-b4090032d552",
+            "69c2d3de1861d127d5274302",
+            "69d7e5ae97d78f9e2bf750e7",
+            "69e137540b4baf3bf2eab59f",
+            "6e543d48-a84e-4ddf-b699-b40b016d6f82",
+            "ad26f6f7-20fc-4412-b654-b41300517a43",
+            "b2d2fa26-3a1f-4ff7-add7-b41e012553dd"
+          ],
+          "label": "oil prices",
+          "similarity_to_centroid": 0.966244,
+          "topic_id": "topic:oil-prices"
+        }
+      ]
+    },
+    {
+      "canonical_label": "international trade",
+      "cil_alias_target_topic_id": "topic:international-trade",
+      "graph_compound_parent_id": "tc:international-trade",
+      "member_count": 2,
+      "members": [
+        {
+          "episode_ids": [
+            "020c9d95-1841-4b91-8832-b3fd017be95d",
+            "48fc9d48-5209-4689-92c7-b4100164eb6a",
+            "f93d9375-70e2-4aa9-86c4-b404016214e2"
+          ],
+          "label": "global trade",
+          "similarity_to_centroid": 0.974173,
+          "topic_id": "topic:global-trade"
+        },
+        {
+          "episode_ids": [
+            "832ec3cc-e520-4c9b-83c4-b3e00168d506"
+          ],
+          "label": "international trade",
+          "similarity_to_centroid": 0.974173,
+          "topic_id": "topic:international-trade"
+        }
+      ]
+    },
+    {
+      "canonical_label": "globalization",
+      "cil_alias_target_topic_id": "topic:globalization",
+      "graph_compound_parent_id": "tc:globalization",
+      "member_count": 2,
+      "members": [
+        {
+          "episode_ids": [
+            "696fe5a1f66127afddcfa7d2"
+          ],
+          "label": "globalization",
+          "similarity_to_centroid": 0.959179,
+          "topic_id": "topic:globalization"
+        },
+        {
+          "episode_ids": [
+            "b26130d7-356b-4ae1-90f2-b4040041865c"
+          ],
+          "label": "globalization cycles",
+          "similarity_to_centroid": 0.959179,
+          "topic_id": "topic:globalization-cycles"
+        }
+      ]
+    },
+    {
+      "canonical_label": "gold market",
+      "cil_alias_target_topic_id": "topic:gold-market",
+      "graph_compound_parent_id": "tc:gold-market",
+      "member_count": 3,
+      "members": [
+        {
+          "episode_ids": [
+            "1a294fa6-1498-40b1-9add-b41801878a66"
+          ],
+          "label": "gold market",
+          "similarity_to_centroid": 0.964939,
+          "topic_id": "topic:gold-market"
+        },
+        {
+          "episode_ids": [
+            "6941b8147e21d19ff23a7e07"
+          ],
+          "label": "gold market dynamics",
+          "similarity_to_centroid": 0.940662,
+          "topic_id": "topic:gold-market-dynamics"
+        },
+        {
+          "episode_ids": [
+            "69693d79ba10553fe9b777f5"
+          ],
+          "label": "silver and gold markets",
+          "similarity_to_centroid": 0.935983,
+          "topic_id": "topic:silver-and-gold-markets"
+        }
+      ]
+    },
+    {
+      "canonical_label": "gold price surge",
+      "cil_alias_target_topic_id": "topic:gold-price-surge",
+      "graph_compound_parent_id": "tc:gold-price-surge",
+      "member_count": 2,
+      "members": [
+        {
+          "episode_ids": [
+            "69791200e23c68f310b5af73"
+          ],
+          "label": "gold price surge",
+          "similarity_to_centroid": 0.937697,
+          "topic_id": "topic:gold-price-surge"
+        },
+        {
+          "episode_ids": [
+            "6941b8147e21d19ff23a7e07",
+            "69791200e23c68f310b5af73"
+          ],
+          "label": "silver price surge",
+          "similarity_to_centroid": 0.937697,
+          "topic_id": "topic:silver-price-surge"
+        }
+      ]
+    },
+    {
+      "canonical_label": "private equity",
+      "cil_alias_target_topic_id": "topic:private-equity",
+      "graph_compound_parent_id": "tc:private-equity",
+      "member_count": 3,
+      "members": [
+        {
+          "episode_ids": [
+            "694323f2959d6e49509de9bc"
+          ],
+          "label": "government policy on private equity",
+          "similarity_to_centroid": 0.917592,
+          "topic_id": "topic:government-policy-on-private-equity"
+        },
+        {
+          "episode_ids": [
+            "694996ae184761c021fb72be"
+          ],
+          "label": "private equity",
+          "similarity_to_centroid": 0.964263,
+          "topic_id": "topic:private-equity"
+        },
+        {
+          "episode_ids": [
+            "69b30446bffd975a45cdf7fd"
+          ],
+          "label": "private equity firms",
+          "similarity_to_centroid": 0.92596,
+          "topic_id": "topic:private-equity-firms"
+        }
+      ]
+    },
+    {
+      "canonical_label": "Hardliners in Iranian politics",
+      "cil_alias_target_topic_id": "topic:hardliners-in-iranian-politics",
+      "graph_compound_parent_id": "tc:hardliners-in-iranian-politics",
+      "member_count": 2,
+      "members": [
+        {
+          "episode_ids": [
+            "ff1edd82-3cf7-11f1-ac10-7bfe891bf8ed"
+          ],
+          "label": "Hardliners in Iranian politics",
+          "similarity_to_centroid": 0.951011,
+          "topic_id": "topic:hardliners-in-iranian-politics"
+        },
+        {
+          "episode_ids": [
+            "ad26f6f7-20fc-4412-b654-b41300517a43"
+          ],
+          "label": "iranian politics",
+          "similarity_to_centroid": 0.951011,
+          "topic_id": "topic:iranian-politics"
+        }
+      ]
+    },
+    {
+      "canonical_label": "hedge fund flows",
+      "cil_alias_target_topic_id": "topic:hedge-fund-flows",
+      "graph_compound_parent_id": "tc:hedge-fund-flows",
+      "member_count": 2,
+      "members": [
+        {
+          "episode_ids": [
+            "e6affaa0-5653-4711-883c-b3e90139136c"
+          ],
+          "label": "hedge fund flows",
+          "similarity_to_centroid": 0.943551,
+          "topic_id": "topic:hedge-fund-flows"
+        },
+        {
+          "episode_ids": [
+            "69c5846cc2759aa9b1c70a8d"
+          ],
+          "label": "hedge fund trading",
+          "similarity_to_centroid": 0.943551,
+          "topic_id": "topic:hedge-fund-trading"
+        }
+      ]
+    },
+    {
+      "canonical_label": "Hedge fund short selling strategies",
+      "cil_alias_target_topic_id": "topic:hedge-fund-short-selling-strategies",
+      "graph_compound_parent_id": "tc:hedge-fund-short-selling-strategies",
+      "member_count": 2,
+      "members": [
+        {
+          "episode_ids": [
+            "6925fe9ecaf6efa70370725c"
+          ],
+          "label": "Hedge fund short selling strategies",
+          "similarity_to_centroid": 0.952995,
+          "topic_id": "topic:hedge-fund-short-selling-strategies"
+        },
+        {
+          "episode_ids": [
+            "69693d79ba10553fe9b777f5"
+          ],
+          "label": "short selling strategies",
+          "similarity_to_centroid": 0.952995,
+          "topic_id": "topic:short-selling-strategies"
+        }
+      ]
+    },
+    {
+      "canonical_label": "human capital",
+      "cil_alias_target_topic_id": "topic:human-capital",
+      "graph_compound_parent_id": "tc:human-capital",
+      "member_count": 2,
+      "members": [
+        {
+          "episode_ids": [
+            "48d57b14-c285-46e9-9c8b-b3e901436211"
+          ],
+          "label": "human capital",
+          "similarity_to_centroid": 0.955597,
+          "topic_id": "topic:human-capital"
+        },
+        {
+          "episode_ids": [
+            "4255b42e-3a9e-11f1-8eee-179e850fd703"
+          ],
+          "label": "human capital and technology",
+          "similarity_to_centroid": 0.955596,
+          "topic_id": "topic:human-capital-and-technology"
+        }
+      ]
+    },
+    {
+      "canonical_label": "industrial metal demand",
+      "cil_alias_target_topic_id": "topic:industrial-metal-demand",
+      "graph_compound_parent_id": "tc:industrial-metal-demand",
+      "member_count": 2,
+      "members": [
+        {
+          "episode_ids": [
+            "6941b8147e21d19ff23a7e07"
+          ],
+          "label": "industrial metal demand",
+          "similarity_to_centroid": 0.940429,
+          "topic_id": "topic:industrial-metal-demand"
+        },
+        {
+          "episode_ids": [
+            "69791200e23c68f310b5af73"
+          ],
+          "label": "industrial silver demand",
+          "similarity_to_centroid": 0.940429,
+          "topic_id": "topic:industrial-silver-demand"
+        }
+      ]
+    },
+    {
+      "canonical_label": "market consolidation",
+      "cil_alias_target_topic_id": "topic:market-consolidation",
+      "graph_compound_parent_id": "tc:market-consolidation",
+      "member_count": 2,
+      "members": [
+        {
+          "episode_ids": [
+            "20bb1678-3931-456e-8f40-b4300150bb16",
+            "691cd589b958098159dd00f4"
+          ],
+          "label": "industry consolidation",
+          "similarity_to_centroid": 0.945069,
+          "topic_id": "topic:industry-consolidation"
+        },
+        {
+          "episode_ids": [
+            "4cec22d8-717e-46c6-ab87-b43b01512ecb"
+          ],
+          "label": "market consolidation",
+          "similarity_to_centroid": 0.945069,
+          "topic_id": "topic:market-consolidation"
+        }
+      ]
+    },
+    {
+      "canonical_label": "inflation concerns",
+      "cil_alias_target_topic_id": "topic:inflation-concerns",
+      "graph_compound_parent_id": "tc:inflation-concerns",
+      "member_count": 4,
+      "members": [
+        {
+          "episode_ids": [
+            "0b483f16-0d3c-4ad5-a89b-b3e80108c563",
+            "69446436f13209aaa3edddb1",
+            "69d7e5ae97d78f9e2bf750e7"
+          ],
+          "label": "inflation",
+          "similarity_to_centroid": 0.926331,
+          "topic_id": "topic:inflation"
+        },
+        {
+          "episode_ids": [
+            "0d8e4d7e-be05-4892-beb7-b3e20143f709",
+            "75bd7644-5dae-4e6c-a3f1-b41301068fc7"
+          ],
+          "label": "inflation concerns",
+          "similarity_to_centroid": 0.956796,
+          "topic_id": "topic:inflation-concerns"
+        },
+        {
+          "episode_ids": [
+            "6939a79d34867e026d3be2bd",
+            "695ff901d8ac698e7e142b2c"
+          ],
+          "label": "inflation risks",
+          "similarity_to_centroid": 0.913597,
+          "topic_id": "topic:inflation-risks"
+        },
+        {
+          "episode_ids": [
+            "698e2f4c1506be1a7e3d1141"
+          ],
+          "label": "inflation targets",
+          "similarity_to_centroid": 0.906973,
+          "topic_id": "topic:inflation-targets"
+        }
+      ]
+    },
+    {
+      "canonical_label": "inflationary pressures",
+      "cil_alias_target_topic_id": "topic:inflationary-pressures",
+      "graph_compound_parent_id": "tc:inflationary-pressures",
+      "member_count": 2,
+      "members": [
+        {
+          "episode_ids": [
+            "ae05dcf9-1ada-4a93-82fe-b3da00296d7f"
+          ],
+          "label": "inflationary pressure",
+          "similarity_to_centroid": 0.990342,
+          "topic_id": "topic:inflationary-pressure"
+        },
+        {
+          "episode_ids": [
+            "6931e96838a11f5f3eb66ffc",
+            "69a734f5ddf4d3439a40ad85",
+            "69bc42647878605e1133d131"
+          ],
+          "label": "inflationary pressures",
+          "similarity_to_centroid": 0.990342,
+          "topic_id": "topic:inflationary-pressures"
+        }
+      ]
+    },
+    {
+      "canonical_label": "infrastructure development",
+      "cil_alias_target_topic_id": "topic:infrastructure-development",
+      "graph_compound_parent_id": "tc:infrastructure-development",
+      "member_count": 2,
+      "members": [
+        {
+          "episode_ids": [
+            "832ec3cc-e520-4c9b-83c4-b3e00168d506"
+          ],
+          "label": "infrastructure development",
+          "similarity_to_centroid": 0.963106,
+          "topic_id": "topic:infrastructure-development"
+        },
+        {
+          "episode_ids": [
+            "c65255ab-904f-4862-93b4-b3fd0000b68d"
+          ],
+          "label": "infrastructure projects",
+          "similarity_to_centroid": 0.963106,
+          "topic_id": "topic:infrastructure-projects"
+        }
+      ]
+    },
+    {
+      "canonical_label": "insider trading",
+      "cil_alias_target_topic_id": "topic:insider-trading",
+      "graph_compound_parent_id": "tc:insider-trading",
+      "member_count": 2,
+      "members": [
+        {
+          "episode_ids": [
+            "07a6f60e-2a51-45c1-9c59-b3ef000d1c35"
+          ],
+          "label": "insider trading",
+          "similarity_to_centroid": 0.971122,
+          "topic_id": "topic:insider-trading"
+        },
+        {
+          "episode_ids": [
+            "69c2d3de1861d127d5274302"
+          ],
+          "label": "insider trading concerns",
+          "similarity_to_centroid": 0.971122,
+          "topic_id": "topic:insider-trading-concerns"
+        }
+      ]
+    },
+    {
+      "canonical_label": "interest rate decisions",
+      "cil_alias_target_topic_id": "topic:interest-rate-decisions",
+      "graph_compound_parent_id": "tc:interest-rate-decisions",
+      "member_count": 2,
+      "members": [
+        {
+          "episode_ids": [
+            "6966a4ca023744df1110bc8b",
+            "69bc42647878605e1133d131"
+          ],
+          "label": "interest rate decisions",
+          "similarity_to_centroid": 0.960907,
+          "topic_id": "topic:interest-rate-decisions"
+        },
+        {
+          "episode_ids": [
+            "0b483f16-0d3c-4ad5-a89b-b3e80108c563",
+            "1a294fa6-1498-40b1-9add-b41801878a66",
+            "698259ed75cd3563574f519a",
+            "6984f1b25dd05b2251899031"
+          ],
+          "label": "interest rates",
+          "similarity_to_centroid": 0.960907,
+          "topic_id": "topic:interest-rates"
+        }
+      ]
+    },
+    {
+      "canonical_label": "international investment returns",
+      "cil_alias_target_topic_id": "topic:international-investment-returns",
+      "graph_compound_parent_id": "tc:international-investment-returns",
+      "member_count": 2,
+      "members": [
+        {
+          "episode_ids": [
+            "697bbba765c54ec9195dbd80"
+          ],
+          "label": "international investment returns",
+          "similarity_to_centroid": 0.946942,
+          "topic_id": "topic:international-investment-returns"
+        },
+        {
+          "episode_ids": [
+            "698b75b5337b2a3b2e169814"
+          ],
+          "label": "International investment strategies",
+          "similarity_to_centroid": 0.946942,
+          "topic_id": "topic:international-investment-strategies"
+        }
+      ]
+    },
+    {
+      "canonical_label": "internet advertising market",
+      "cil_alias_target_topic_id": "topic:internet-advertising-market",
+      "graph_compound_parent_id": "tc:internet-advertising-market",
+      "member_count": 2,
+      "members": [
+        {
+          "episode_ids": [
+            "69cc16ee4bc3c0b5cec6c21a"
+          ],
+          "label": "internet advertising market",
+          "similarity_to_centroid": 0.938079,
+          "topic_id": "topic:internet-advertising-market"
+        },
+        {
+          "episode_ids": [
+            "96deb7b5-7fae-4040-a3c7-b4350008bd04"
+          ],
+          "label": "search advertising",
+          "similarity_to_centroid": 0.938079,
+          "topic_id": "topic:search-advertising"
+        }
+      ]
+    },
+    {
+      "canonical_label": "investment strategies",
+      "cil_alias_target_topic_id": "topic:investment-strategies",
+      "graph_compound_parent_id": "tc:investment-strategies",
+      "member_count": 3,
+      "members": [
+        {
+          "episode_ids": [
+            "1539622b-e41c-4e30-9bda-b4050183dfff",
+            "691f6a64087c4173ab243235",
+            "813df158-0443-4237-a6e8-b40700d8f3ff"
+          ],
+          "label": "investment strategies",
+          "similarity_to_centroid": 0.973742,
+          "topic_id": "topic:investment-strategies"
+        },
+        {
+          "episode_ids": [
+            "0143cf2a-af2d-4f59-877d-b3e20164ef0d",
+            "1a294fa6-1498-40b1-9add-b41801878a66",
+            "75bd7644-5dae-4e6c-a3f1-b41301068fc7"
+          ],
+          "label": "investment strategy",
+          "similarity_to_centroid": 0.963292,
+          "topic_id": "topic:investment-strategy"
+        },
+        {
+          "episode_ids": [
+            "69de7f452cab0d3ec8a3dc22"
+          ],
+          "label": "Stock market investment strategies",
+          "similarity_to_centroid": 0.932053,
+          "topic_id": "topic:stock-market-investment-strategies"
+        }
+      ]
+    },
+    {
+      "canonical_label": "return on investment",
+      "cil_alias_target_topic_id": "topic:return-on-investment",
+      "graph_compound_parent_id": "tc:return-on-investment",
+      "member_count": 2,
+      "members": [
+        {
+          "episode_ids": [
+            "20bb1678-3931-456e-8f40-b4300150bb16"
+          ],
+          "label": "investor returns",
+          "similarity_to_centroid": 0.958778,
+          "topic_id": "topic:investor-returns"
+        },
+        {
+          "episode_ids": [
+            "53fa2d7c-330f-42e3-b997-b41a015dd3ab"
+          ],
+          "label": "return on investment",
+          "similarity_to_centroid": 0.958778,
+          "topic_id": "topic:return-on-investment"
+        }
+      ]
+    },
+    {
+      "canonical_label": "investor sentiment",
+      "cil_alias_target_topic_id": "topic:investor-sentiment",
+      "graph_compound_parent_id": "tc:investor-sentiment",
+      "member_count": 2,
+      "members": [
+        {
+          "episode_ids": [
+            "690a57c3b27ff20cebd2d7fa",
+            "692f3cb6fb6ea8e378b1decc",
+            "695ff901d8ac698e7e142b2c",
+            "699769c6e1d87731192658c0",
+            "69b072f6a54b09a74a584d24",
+            "69b994f70bec1f2a53ed15c2",
+            "76d0c28e-da20-4879-bd66-b3f50183cbe0"
+          ],
+          "label": "investor sentiment",
+          "similarity_to_centroid": 0.97474,
+          "topic_id": "topic:investor-sentiment"
+        },
+        {
+          "episode_ids": [
+            "69de7f452cab0d3ec8a3dc22"
+          ],
+          "label": "Investor sentiment and hype",
+          "similarity_to_centroid": 0.97474,
+          "topic_id": "topic:investor-sentiment-and-hype"
+        }
+      ]
+    },
+    {
+      "canonical_label": "iran conflict",
+      "cil_alias_target_topic_id": "topic:iran-conflict",
+      "graph_compound_parent_id": "tc:iran-conflict",
+      "member_count": 3,
+      "members": [
+        {
+          "episode_ids": [
+            "69c2d3de1861d127d5274302",
+            "ad26f6f7-20fc-4412-b654-b41300517a43"
+          ],
+          "label": "iran conflict",
+          "similarity_to_centroid": 0.969667,
+          "topic_id": "topic:iran-conflict"
+        },
+        {
+          "episode_ids": [
+            "69e137540b4baf3bf2eab59f"
+          ],
+          "label": "Iran situation",
+          "similarity_to_centroid": 0.901222,
+          "topic_id": "topic:iran-situation"
+        },
+        {
+          "episode_ids": [
+            "69b072f6a54b09a74a584d24",
+            "7f489f19-81c9-4077-91e8-e963a438ebb1",
+            "ff1edd82-3cf7-11f1-ac10-7bfe891bf8ed"
+          ],
+          "label": "US-Iran conflict",
+          "similarity_to_centroid": 0.950721,
+          "topic_id": "topic:us-iran-conflict"
+        }
+      ]
+    },
+    {
+      "canonical_label": "Regime criticism in Iran",
+      "cil_alias_target_topic_id": "topic:regime-criticism-in-iran",
+      "graph_compound_parent_id": "tc:regime-criticism-in-iran",
+      "member_count": 2,
+      "members": [
+        {
+          "episode_ids": [
+            "ff1edd82-3cf7-11f1-ac10-7bfe891bf8ed"
+          ],
+          "label": "Iranian regime change attempts",
+          "similarity_to_centroid": 0.947824,
+          "topic_id": "topic:iranian-regime-change-attempts"
+        },
+        {
+          "episode_ids": [
+            "7f489f19-81c9-4077-91e8-e963a438ebb1"
+          ],
+          "label": "Regime criticism in Iran",
+          "similarity_to_centroid": 0.947824,
+          "topic_id": "topic:regime-criticism-in-iran"
+        }
+      ]
+    },
+    {
+      "canonical_label": "jobs report",
+      "cil_alias_target_topic_id": "topic:jobs-report",
+      "graph_compound_parent_id": "tc:jobs-report",
+      "member_count": 2,
+      "members": [
+        {
+          "episode_ids": [
+            "69446436f13209aaa3edddb1"
+          ],
+          "label": "jobs report",
+          "similarity_to_centroid": 0.964148,
+          "topic_id": "topic:jobs-report"
+        },
+        {
+          "episode_ids": [
+            "698e2f4c1506be1a7e3d1141"
+          ],
+          "label": "US jobs report",
+          "similarity_to_centroid": 0.964148,
+          "topic_id": "topic:us-jobs-report"
+        }
+      ]
+    },
+    {
+      "canonical_label": "labor market",
+      "cil_alias_target_topic_id": "topic:labor-market",
+      "graph_compound_parent_id": "tc:labor-market",
+      "member_count": 3,
+      "members": [
+        {
+          "episode_ids": [
+            "eb4d0306-44c8-4b54-88dd-b42e01171174"
+          ],
+          "label": "labor economics",
+          "similarity_to_centroid": 0.935173,
+          "topic_id": "topic:labor-economics"
+        },
+        {
+          "episode_ids": [
+            "2ff3db06-a25b-4d7b-9de9-b42f01476d14",
+            "a1c70b67-17a8-4b1e-9edb-b4160128bf2c",
+            "c852a07a-28d5-49d2-b87a-b3ef015ffdea"
+          ],
+          "label": "labor market",
+          "similarity_to_centroid": 0.957632,
+          "topic_id": "topic:labor-market"
+        },
+        {
+          "episode_ids": [
+            "69d571f33ae78d6f11e453fd"
+          ],
+          "label": "labor market dynamics",
+          "similarity_to_centroid": 0.944497,
+          "topic_id": "topic:labor-market-dynamics"
+        }
+      ]
+    },
+    {
+      "canonical_label": "left-wing populism",
+      "cil_alias_target_topic_id": "topic:left-wing-populism",
+      "graph_compound_parent_id": "tc:left-wing-populism",
+      "member_count": 3,
+      "members": [
+        {
+          "episode_ids": [
+            "6903bec1076a402ee28ca4f8"
+          ],
+          "label": "left-wing populism",
+          "similarity_to_centroid": 0.969484,
+          "topic_id": "topic:left-wing-populism"
+        },
+        {
+          "episode_ids": [
+            "a70f0f76-f2a3-4f8d-9316-b435012b46b0"
+          ],
+          "label": "populist movements",
+          "similarity_to_centroid": 0.896404,
+          "topic_id": "topic:populist-movements"
+        },
+        {
+          "episode_ids": [
+            "6903bec1076a402ee28ca4f8"
+          ],
+          "label": "right-wing populism",
+          "similarity_to_centroid": 0.9682,
+          "topic_id": "topic:right-wing-populism"
+        }
+      ]
+    },
+    {
+      "canonical_label": "luxury market",
+      "cil_alias_target_topic_id": "topic:luxury-market",
+      "graph_compound_parent_id": "tc:luxury-market",
+      "member_count": 2,
+      "members": [
+        {
+          "episode_ids": [
+            "6949974ce2b7985fa24ee0df"
+          ],
+          "label": "luxury consumer goods",
+          "similarity_to_centroid": 0.951605,
+          "topic_id": "topic:luxury-consumer-goods"
+        },
+        {
+          "episode_ids": [
+            "ecf2f4a5-6ecb-4460-8521-b41301530309"
+          ],
+          "label": "luxury market",
+          "similarity_to_centroid": 0.951605,
+          "topic_id": "topic:luxury-market"
+        }
+      ]
+    },
+    {
+      "canonical_label": "market dynamics",
+      "cil_alias_target_topic_id": "topic:market-dynamics",
+      "graph_compound_parent_id": "tc:market-dynamics",
+      "member_count": 2,
+      "members": [
+        {
+          "episode_ids": [
+            "0143cf2a-af2d-4f59-877d-b3e20164ef0d",
+            "592a7424-fc6f-48ed-a1c6-b4090032d552"
+          ],
+          "label": "market analysis",
+          "similarity_to_centroid": 0.946234,
+          "topic_id": "topic:market-analysis"
+        },
+        {
+          "episode_ids": [
+            "5ac07e49-f12a-4a0f-915d-b3f60130ce1a",
+            "75ffbd86-1485-4a64-a9d0-b428014f200e"
+          ],
+          "label": "market dynamics",
+          "similarity_to_centroid": 0.946234,
+          "topic_id": "topic:market-dynamics"
+        }
+      ]
+    },
+    {
+      "canonical_label": "Market corrections",
+      "cil_alias_target_topic_id": "topic:market-corrections",
+      "graph_compound_parent_id": "tc:market-corrections",
+      "member_count": 2,
+      "members": [
+        {
+          "episode_ids": [
+            "76d0c28e-da20-4879-bd66-b3f50183cbe0",
+            "e6affaa0-5653-4711-883c-b3e90139136c"
+          ],
+          "label": "market correction",
+          "similarity_to_centroid": 0.964693,
+          "topic_id": "topic:market-correction"
+        },
+        {
+          "episode_ids": [
+            "691f6a64087c4173ab243235"
+          ],
+          "label": "Market corrections",
+          "similarity_to_centroid": 0.964693,
+          "topic_id": "topic:market-corrections"
+        }
+      ]
+    },
+    {
+      "canonical_label": "market design",
+      "cil_alias_target_topic_id": "topic:market-design",
+      "graph_compound_parent_id": "tc:market-design",
+      "member_count": 2,
+      "members": [
+        {
+          "episode_ids": [
+            "eb4d0306-44c8-4b54-88dd-b42e01171174"
+          ],
+          "label": "market design",
+          "similarity_to_centroid": 0.946301,
+          "topic_id": "topic:market-design"
+        },
+        {
+          "episode_ids": [
+            "b87e2dc3-177c-4ee1-9e35-b426016992c9",
+            "d092dbb8-3e42-469b-9c50-b3fe016f2c9d"
+          ],
+          "label": "market structure",
+          "similarity_to_centroid": 0.946301,
+          "topic_id": "topic:market-structure"
+        }
+      ]
+    },
+    {
+      "canonical_label": "market predictions",
+      "cil_alias_target_topic_id": "topic:market-predictions",
+      "graph_compound_parent_id": "tc:market-predictions",
+      "member_count": 2,
+      "members": [
+        {
+          "episode_ids": [
+            "6939a79d34867e026d3be2bd"
+          ],
+          "label": "market predictions",
+          "similarity_to_centroid": 0.96584,
+          "topic_id": "topic:market-predictions"
+        },
+        {
+          "episode_ids": [
+            "07a6f60e-2a51-45c1-9c59-b3ef000d1c35",
+            "67659bec-3226-4db8-9435-cd13553693a7",
+            "694996ae184761c021fb72be",
+            "b87e2dc3-177c-4ee1-9e35-b426016992c9"
+          ],
+          "label": "prediction markets",
+          "similarity_to_centroid": 0.96584,
+          "topic_id": "topic:prediction-markets"
+        }
+      ]
+    },
+    {
+      "canonical_label": "market reactions",
+      "cil_alias_target_topic_id": "topic:market-reactions",
+      "graph_compound_parent_id": "tc:market-reactions",
+      "member_count": 2,
+      "members": [
+        {
+          "episode_ids": [
+            "2407d49c-df67-4d81-8598-b3ff003a440b",
+            "69d7e5ae97d78f9e2bf750e7"
+          ],
+          "label": "market reaction",
+          "similarity_to_centroid": 0.988154,
+          "topic_id": "topic:market-reaction"
+        },
+        {
+          "episode_ids": [
+            "6966a4ca023744df1110bc8b"
+          ],
+          "label": "market reactions",
+          "similarity_to_centroid": 0.988154,
+          "topic_id": "topic:market-reactions"
+        }
+      ]
+    },
+    {
+      "canonical_label": "market sentiment",
+      "cil_alias_target_topic_id": "topic:market-sentiment",
+      "graph_compound_parent_id": "tc:market-sentiment",
+      "member_count": 2,
+      "members": [
+        {
+          "episode_ids": [
+            "69a734f5ddf4d3439a40ad85",
+            "fa341e50-661d-4c9b-8a45-b3da014b0668"
+          ],
+          "label": "market sentiment",
+          "similarity_to_centroid": 0.97092,
+          "topic_id": "topic:market-sentiment"
+        },
+        {
+          "episode_ids": [
+            "6941b8147e21d19ff23a7e07",
+            "699e03f4123f974082f7fe7e"
+          ],
+          "label": "market sentiment analysis",
+          "similarity_to_centroid": 0.970919,
+          "topic_id": "topic:market-sentiment-analysis"
+        }
+      ]
+    },
+    {
+      "canonical_label": "market volatility",
+      "cil_alias_target_topic_id": "topic:market-volatility",
+      "graph_compound_parent_id": "tc:market-volatility",
+      "member_count": 3,
+      "members": [
+        {
+          "episode_ids": [
+            "0b483f16-0d3c-4ad5-a89b-b3e80108c563",
+            "1a294fa6-1498-40b1-9add-b41801878a66",
+            "691f6a64087c4173ab243235",
+            "692f3cb6fb6ea8e378b1decc",
+            "696fe5a1f66127afddcfa7d2",
+            "6984f1b25dd05b2251899031",
+            "69c2d3de1861d127d5274302",
+            "69cebc0fd2e95f51317280ab",
+            "e6affaa0-5653-4711-883c-b3e90139136c"
+          ],
+          "label": "market volatility",
+          "similarity_to_centroid": 0.967215,
+          "topic_id": "topic:market-volatility"
+        },
+        {
+          "episode_ids": [
+            "6925fe9ecaf6efa70370725c"
+          ],
+          "label": "Market volatility and sentiment",
+          "similarity_to_centroid": 0.904181,
+          "topic_id": "topic:market-volatility-and-sentiment"
+        },
+        {
+          "episode_ids": [
+            "694996ae184761c021fb72be",
+            "698e2f4c1506be1a7e3d1141",
+            "699e03f4123f974082f7fe7e"
+          ],
+          "label": "stock market volatility",
+          "similarity_to_centroid": 0.937693,
+          "topic_id": "topic:stock-market-volatility"
+        }
+      ]
+    },
+    {
+      "canonical_label": "mergers acquisitions",
+      "cil_alias_target_topic_id": "topic:mergers-acquisitions",
+      "graph_compound_parent_id": "tc:mergers-acquisitions",
+      "member_count": 2,
+      "members": [
+        {
+          "episode_ids": [
+            "302c4830-b753-40ae-b495-b43300ee4db2",
+            "ff4f5daf-7813-40a9-aa95-b42001543192"
+          ],
+          "label": "mergers acquisitions",
+          "similarity_to_centroid": 0.994736,
+          "topic_id": "topic:mergers-acquisitions"
+        },
+        {
+          "episode_ids": [
+            "693882ea6957d1e181e705d7"
+          ],
+          "label": "Mergers and acquisitions",
+          "similarity_to_centroid": 0.994736,
+          "topic_id": "topic:mergers-and-acquisitions"
+        }
+      ]
+    },
+    {
+      "canonical_label": "Michael Burry's investment history",
+      "cil_alias_target_topic_id": "topic:michael-burrys-investment-history",
+      "graph_compound_parent_id": "tc:michael-burrys-investment-history",
+      "member_count": 2,
+      "members": [
+        {
+          "episode_ids": [
+            "6925fe9ecaf6efa70370725c"
+          ],
+          "label": "Michael Burry's investment history",
+          "similarity_to_centroid": 0.973214,
+          "topic_id": "topic:michael-burrys-investment-history"
+        },
+        {
+          "episode_ids": [
+            "69430fc81443762d1fbd7282"
+          ],
+          "label": "Michael Burry's investment strategies",
+          "similarity_to_centroid": 0.973214,
+          "topic_id": "topic:michael-burrys-investment-strategies"
+        }
+      ]
+    },
+    {
+      "canonical_label": "monetary policy",
+      "cil_alias_target_topic_id": "topic:monetary-policy",
+      "graph_compound_parent_id": "tc:monetary-policy",
+      "member_count": 5,
+      "members": [
+        {
+          "episode_ids": [
+            "0b483f16-0d3c-4ad5-a89b-b3e80108c563",
+            "0d8e4d7e-be05-4892-beb7-b3e20143f709",
+            "6903bec1076a402ee28ca4f8",
+            "6913979ddac02c1fcfbdd404",
+            "6915fc857a0043834ae9f8b3",
+            "6966a4ca023744df1110bc8b",
+            "698259ed75cd3563574f519a",
+            "c852a07a-28d5-49d2-b87a-b3ef015ffdea"
+          ],
+          "label": "monetary policy",
+          "similarity_to_centroid": 0.950588,
+          "topic_id": "topic:monetary-policy"
+        },
+        {
+          "episode_ids": [
+            "69bc42647878605e1133d131"
+          ],
+          "label": "monetary policy challenges",
+          "similarity_to_centroid": 0.921915,
+          "topic_id": "topic:monetary-policy-challenges"
+        },
+        {
+          "episode_ids": [
+            "6931e96838a11f5f3eb66ffc"
+          ],
+          "label": "monetary policy decisions",
+          "similarity_to_centroid": 0.922561,
+          "topic_id": "topic:monetary-policy-decisions"
+        },
+        {
+          "episode_ids": [
+            "699769c6e1d87731192658c0"
+          ],
+          "label": "monetary policy risks",
+          "similarity_to_centroid": 0.903646,
+          "topic_id": "topic:monetary-policy-risks"
+        },
+        {
+          "episode_ids": [
+            "69010f2ad1baee58aa046cf9"
+          ],
+          "label": "monetary policy shifts",
+          "similarity_to_centroid": 0.87496,
+          "topic_id": "topic:monetary-policy-shifts"
+        }
+      ]
+    },
+    {
+      "canonical_label": "online censorship",
+      "cil_alias_target_topic_id": "topic:online-censorship",
+      "graph_compound_parent_id": "tc:online-censorship",
+      "member_count": 2,
+      "members": [
+        {
+          "episode_ids": [
+            "59656198-8f0d-41b8-a709-b3e5016ee6b8"
+          ],
+          "label": "online censorship",
+          "similarity_to_centroid": 0.955441,
+          "topic_id": "topic:online-censorship"
+        },
+        {
+          "episode_ids": [
+            "59656198-8f0d-41b8-a709-b3e5016ee6b8"
+          ],
+          "label": "self-censorship",
+          "similarity_to_centroid": 0.955441,
+          "topic_id": "topic:self-censorship"
+        }
+      ]
+    },
+    {
+      "canonical_label": "passive investing",
+      "cil_alias_target_topic_id": "topic:passive-investing",
+      "graph_compound_parent_id": "tc:passive-investing",
+      "member_count": 2,
+      "members": [
+        {
+          "episode_ids": [
+            "6915fc857a0043834ae9f8b3"
+          ],
+          "label": "passive investing",
+          "similarity_to_centroid": 0.972152,
+          "topic_id": "topic:passive-investing"
+        },
+        {
+          "episode_ids": [
+            "69430fc81443762d1fbd7282"
+          ],
+          "label": "Passive vs. active investing",
+          "similarity_to_centroid": 0.972152,
+          "topic_id": "topic:passive-vs-active-investing"
+        }
+      ]
+    },
+    {
+      "canonical_label": "private investment",
+      "cil_alias_target_topic_id": "topic:private-investment",
+      "graph_compound_parent_id": "tc:private-investment",
+      "member_count": 2,
+      "members": [
+        {
+          "episode_ids": [
+            "900daa27-2e57-49d5-99ed-b41d0131a867"
+          ],
+          "label": "private investment",
+          "similarity_to_centroid": 0.957769,
+          "topic_id": "topic:private-investment"
+        },
+        {
+          "episode_ids": [
+            "653bb844-d3b0-425e-9e28-b43e00ee5196"
+          ],
+          "label": "public investment",
+          "similarity_to_centroid": 0.957769,
+          "topic_id": "topic:public-investment"
+        }
+      ]
+    },
+    {
+      "canonical_label": "public markets",
+      "cil_alias_target_topic_id": "topic:public-markets",
+      "graph_compound_parent_id": "tc:public-markets",
+      "member_count": 2,
+      "members": [
+        {
+          "episode_ids": [
+            "4cec22d8-717e-46c6-ab87-b43b01512ecb",
+            "5ac07e49-f12a-4a0f-915d-b3f60130ce1a",
+            "813df158-0443-4237-a6e8-b40700d8f3ff"
+          ],
+          "label": "private markets",
+          "similarity_to_centroid": 0.96609,
+          "topic_id": "topic:private-markets"
+        },
+        {
+          "episode_ids": [
+            "5ac07e49-f12a-4a0f-915d-b3f60130ce1a"
+          ],
+          "label": "public markets",
+          "similarity_to_centroid": 0.96609,
+          "topic_id": "topic:public-markets"
+        }
+      ]
+    },
+    {
+      "canonical_label": "Protest and state violence",
+      "cil_alias_target_topic_id": "topic:protest-and-state-violence",
+      "graph_compound_parent_id": "tc:protest-and-state-violence",
+      "member_count": 2,
+      "members": [
+        {
+          "episode_ids": [
+            "7f489f19-81c9-4077-91e8-e963a438ebb1"
+          ],
+          "label": "Protest and state violence",
+          "similarity_to_centroid": 0.936797,
+          "topic_id": "topic:protest-and-state-violence"
+        },
+        {
+          "episode_ids": [
+            "64b23f78-7816-4c55-b471-b3d30161f15c"
+          ],
+          "label": "protest dynamics",
+          "similarity_to_centroid": 0.936797,
+          "topic_id": "topic:protest-dynamics"
+        }
+      ]
+    },
+    {
+      "canonical_label": "rare earth elements",
+      "cil_alias_target_topic_id": "topic:rare-earth-elements",
+      "graph_compound_parent_id": "tc:rare-earth-elements",
+      "member_count": 2,
+      "members": [
+        {
+          "episode_ids": [
+            "68f13478ace6eea8f828f16e"
+          ],
+          "label": "rare earth elements",
+          "similarity_to_centroid": 0.96143,
+          "topic_id": "topic:rare-earth-elements"
+        },
+        {
+          "episode_ids": [
+            "0d42906b-88ba-4213-b092-b3e700f32bcb"
+          ],
+          "label": "rare earths",
+          "similarity_to_centroid": 0.96143,
+          "topic_id": "topic:rare-earths"
+        }
+      ]
+    },
+    {
+      "canonical_label": "real estate",
+      "cil_alias_target_topic_id": "topic:real-estate",
+      "graph_compound_parent_id": "tc:real-estate",
+      "member_count": 2,
+      "members": [
+        {
+          "episode_ids": [
+            "940b6e1c-92f4-4226-aa35-b3e9014f2f6b"
+          ],
+          "label": "real estate",
+          "similarity_to_centroid": 0.956585,
+          "topic_id": "topic:real-estate"
+        },
+        {
+          "episode_ids": [
+            "ecf2f4a5-6ecb-4460-8521-b41301530309"
+          ],
+          "label": "real estate market",
+          "similarity_to_centroid": 0.956585,
+          "topic_id": "topic:real-estate-market"
+        }
+      ]
+    },
+    {
+      "canonical_label": "regulatory environment",
+      "cil_alias_target_topic_id": "topic:regulatory-environment",
+      "graph_compound_parent_id": "tc:regulatory-environment",
+      "member_count": 2,
+      "members": [
+        {
+          "episode_ids": [
+            "4cec22d8-717e-46c6-ab87-b43b01512ecb",
+            "b87e2dc3-177c-4ee1-9e35-b426016992c9"
+          ],
+          "label": "regulatory compliance",
+          "similarity_to_centroid": 0.944412,
+          "topic_id": "topic:regulatory-compliance"
+        },
+        {
+          "episode_ids": [
+            "813df158-0443-4237-a6e8-b40700d8f3ff"
+          ],
+          "label": "regulatory environment",
+          "similarity_to_centroid": 0.944412,
+          "topic_id": "topic:regulatory-environment"
+        }
+      ]
+    },
+    {
+      "canonical_label": "renewable energy",
+      "cil_alias_target_topic_id": "topic:renewable-energy",
+      "graph_compound_parent_id": "tc:renewable-energy",
+      "member_count": 2,
+      "members": [
+        {
+          "episode_ids": [
+            "0604c399-d1e3-4a1d-8bd3-b42c01471fca",
+            "2249a9b7-c225-4d4f-acf4-b43301384ccb",
+            "70a89907-473d-48a7-a753-b42b01691276"
+          ],
+          "label": "renewable energy",
+          "similarity_to_centroid": 0.963987,
+          "topic_id": "topic:renewable-energy"
+        },
+        {
+          "episode_ids": [
+            "69c2d3de1861d127d5274302"
+          ],
+          "label": "renewable energy sources",
+          "similarity_to_centroid": 0.963987,
+          "topic_id": "topic:renewable-energy-sources"
+        }
+      ]
+    },
+    {
+      "canonical_label": "retail investor protection",
+      "cil_alias_target_topic_id": "topic:retail-investor-protection",
+      "graph_compound_parent_id": "tc:retail-investor-protection",
+      "member_count": 2,
+      "members": [
+        {
+          "episode_ids": [
+            "b26130d7-356b-4ae1-90f2-b4040041865c"
+          ],
+          "label": "retail investor protection",
+          "similarity_to_centroid": 0.94484,
+          "topic_id": "topic:retail-investor-protection"
+        },
+        {
+          "episode_ids": [
+            "813df158-0443-4237-a6e8-b40700d8f3ff"
+          ],
+          "label": "retail investors",
+          "similarity_to_centroid": 0.944839,
+          "topic_id": "topic:retail-investors"
+        }
+      ]
+    },
+    {
+      "canonical_label": "risk management in finance",
+      "cil_alias_target_topic_id": "topic:risk-management-in-finance",
+      "graph_compound_parent_id": "tc:risk-management-in-finance",
+      "member_count": 2,
+      "members": [
+        {
+          "episode_ids": [
+            "4cec22d8-717e-46c6-ab87-b43b01512ecb",
+            "f578715f-8efb-47a4-93f6-b411015899d8"
+          ],
+          "label": "risk management",
+          "similarity_to_centroid": 0.963253,
+          "topic_id": "topic:risk-management"
+        },
+        {
+          "episode_ids": [
+            "69a9ed42f6d1583bb88d6bec"
+          ],
+          "label": "risk management in finance",
+          "similarity_to_centroid": 0.963253,
+          "topic_id": "topic:risk-management-in-finance"
+        }
+      ]
+    },
+    {
+      "canonical_label": "semiconductor industry",
+      "cil_alias_target_topic_id": "topic:semiconductor-industry",
+      "graph_compound_parent_id": "tc:semiconductor-industry",
+      "member_count": 2,
+      "members": [
+        {
+          "episode_ids": [
+            "3220a86a-8dcd-4d57-8be1-b3f0014ddd5e",
+            "68f13478ace6eea8f828f16e",
+            "6939a79d34867e026d3be2bd"
+          ],
+          "label": "semiconductor industry",
+          "similarity_to_centroid": 0.971788,
+          "topic_id": "topic:semiconductor-industry"
+        },
+        {
+          "episode_ids": [
+            "5341e85d-38ff-4a6d-b2cb-b419014bbd23"
+          ],
+          "label": "semiconductor manufacturing",
+          "similarity_to_centroid": 0.971788,
+          "topic_id": "topic:semiconductor-manufacturing"
+        }
+      ]
+    },
+    {
+      "canonical_label": "space exploration",
+      "cil_alias_target_topic_id": "topic:space-exploration",
+      "graph_compound_parent_id": "tc:space-exploration",
+      "member_count": 2,
+      "members": [
+        {
+          "episode_ids": [
+            "900daa27-2e57-49d5-99ed-b41d0131a867"
+          ],
+          "label": "space exploration",
+          "similarity_to_centroid": 0.944699,
+          "topic_id": "topic:space-exploration"
+        },
+        {
+          "episode_ids": [
+            "69de7f452cab0d3ec8a3dc22"
+          ],
+          "label": "Space exploration and commercialization",
+          "similarity_to_centroid": 0.944699,
+          "topic_id": "topic:space-exploration-and-commercialization"
+        }
+      ]
+    },
+    {
+      "canonical_label": "speculative investment",
+      "cil_alias_target_topic_id": "topic:speculative-investment",
+      "graph_compound_parent_id": "tc:speculative-investment",
+      "member_count": 3,
+      "members": [
+        {
+          "episode_ids": [
+            "699e03f4123f974082f7fe7e"
+          ],
+          "label": "speculative financial research",
+          "similarity_to_centroid": 0.930973,
+          "topic_id": "topic:speculative-financial-research"
+        },
+        {
+          "episode_ids": [
+            "69791200e23c68f310b5af73"
+          ],
+          "label": "speculative investment",
+          "similarity_to_centroid": 0.952495,
+          "topic_id": "topic:speculative-investment"
+        },
+        {
+          "episode_ids": [
+            "69e137540b4baf3bf2eab59f"
+          ],
+          "label": "speculative trading",
+          "similarity_to_centroid": 0.937331,
+          "topic_id": "topic:speculative-trading"
+        }
+      ]
+    },
+    {
+      "canonical_label": "stagflation fears",
+      "cil_alias_target_topic_id": "topic:stagflation-fears",
+      "graph_compound_parent_id": "tc:stagflation-fears",
+      "member_count": 2,
+      "members": [
+        {
+          "episode_ids": [
+            "69d571f33ae78d6f11e453fd"
+          ],
+          "label": "stagflation fears",
+          "similarity_to_centroid": 0.971471,
+          "topic_id": "topic:stagflation-fears"
+        },
+        {
+          "episode_ids": [
+            "69c5846cc2759aa9b1c70a8d"
+          ],
+          "label": "stagflation risk",
+          "similarity_to_centroid": 0.971471,
+          "topic_id": "topic:stagflation-risk"
+        }
+      ]
+    },
+    {
+      "canonical_label": "strategic reserve",
+      "cil_alias_target_topic_id": "topic:strategic-reserve",
+      "graph_compound_parent_id": "tc:strategic-reserve",
+      "member_count": 3,
+      "members": [
+        {
+          "episode_ids": [
+            "69a734f5ddf4d3439a40ad85"
+          ],
+          "label": "strategic petroleum reserve",
+          "similarity_to_centroid": 0.915127,
+          "topic_id": "topic:strategic-petroleum-reserve"
+        },
+        {
+          "episode_ids": [
+            "5341e85d-38ff-4a6d-b2cb-b419014bbd23"
+          ],
+          "label": "strategic reserve",
+          "similarity_to_centroid": 0.962848,
+          "topic_id": "topic:strategic-reserve"
+        },
+        {
+          "episode_ids": [
+            "592a7424-fc6f-48ed-a1c6-b4090032d552",
+            "6e543d48-a84e-4ddf-b699-b40b016d6f82"
+          ],
+          "label": "strategic reserves",
+          "similarity_to_centroid": 0.955649,
+          "topic_id": "topic:strategic-reserves"
+        }
+      ]
+    },
+    {
+      "canonical_label": "supply chain",
+      "cil_alias_target_topic_id": "topic:supply-chain",
+      "graph_compound_parent_id": "tc:supply-chain",
+      "member_count": 5,
+      "members": [
+        {
+          "episode_ids": [
+            "020c9d95-1841-4b91-8832-b3fd017be95d",
+            "0604c399-d1e3-4a1d-8bd3-b42c01471fca",
+            "2249a9b7-c225-4d4f-acf4-b43301384ccb",
+            "302c4830-b753-40ae-b495-b43300ee4db2",
+            "3220a86a-8dcd-4d57-8be1-b3f0014ddd5e",
+            "48fc9d48-5209-4689-92c7-b4100164eb6a",
+            "4e5e7c1f-739e-4feb-b9ba-b409016c9734",
+            "5341e85d-38ff-4a6d-b2cb-b419014bbd23",
+            "554c535f-c537-4dff-a5ae-b42d016661d4",
+            "592a7424-fc6f-48ed-a1c6-b4090032d552",
+            "6e543d48-a84e-4ddf-b699-b40b016d6f82",
+            "70a89907-473d-48a7-a753-b42b01691276",
+            "bb852961-db5b-4336-9f1f-b3f7016c9dc1",
+            "f9cfb15c-9665-493f-8f6a-b3e2001c9fe1"
+          ],
+          "label": "supply chain",
+          "similarity_to_centroid": 0.930057,
+          "topic_id": "topic:supply-chain"
+        },
+        {
+          "episode_ids": [
+            "909a3b0a-de94-45cb-80fb-b41701517b04"
+          ],
+          "label": "supply chain disruption",
+          "similarity_to_centroid": 0.92763,
+          "topic_id": "topic:supply-chain-disruption"
+        },
+        {
+          "episode_ids": [
+            "69bc42647878605e1133d131"
+          ],
+          "label": "supply chain disruptions",
+          "similarity_to_centroid": 0.919699,
+          "topic_id": "topic:supply-chain-disruptions"
+        },
+        {
+          "episode_ids": [
+            "69cebc0fd2e95f51317280ab"
+          ],
+          "label": "supply chain issues",
+          "similarity_to_centroid": 0.921217,
+          "topic_id": "topic:supply-chain-issues"
+        },
+        {
+          "episode_ids": [
+            "0f69af23-639c-4945-b255-b42001763c8a",
+            "a5a6b4f5-c80b-4457-9e1e-b40c01517125"
+          ],
+          "label": "supply chains",
+          "similarity_to_centroid": 0.924598,
+          "topic_id": "topic:supply-chains"
+        }
+      ]
+    },
+    {
+      "canonical_label": "supply chain vulnerabilities",
+      "cil_alias_target_topic_id": "topic:supply-chain-vulnerabilities",
+      "graph_compound_parent_id": "tc:supply-chain-vulnerabilities",
+      "member_count": 2,
+      "members": [
+        {
+          "episode_ids": [
+            "f93d9375-70e2-4aa9-86c4-b404016214e2"
+          ],
+          "label": "supply chain risk",
+          "similarity_to_centroid": 0.946094,
+          "topic_id": "topic:supply-chain-risk"
+        },
+        {
+          "episode_ids": [
+            "68f13478ace6eea8f828f16e"
+          ],
+          "label": "supply chain vulnerabilities",
+          "similarity_to_centroid": 0.946095,
+          "topic_id": "topic:supply-chain-vulnerabilities"
+        }
+      ]
+    },
+    {
+      "canonical_label": "tariff reimbursements",
+      "cil_alias_target_topic_id": "topic:tariff-reimbursements",
+      "graph_compound_parent_id": "tc:tariff-reimbursements",
+      "member_count": 2,
+      "members": [
+        {
+          "episode_ids": [
+            "020c9d95-1841-4b91-8832-b3fd017be95d"
+          ],
+          "label": "tariff refunds",
+          "similarity_to_centroid": 0.943062,
+          "topic_id": "topic:tariff-refunds"
+        },
+        {
+          "episode_ids": [
+            "69a0aed50e30955851cbea6d"
+          ],
+          "label": "tariff reimbursements",
+          "similarity_to_centroid": 0.943062,
+          "topic_id": "topic:tariff-reimbursements"
+        }
+      ]
+    },
+    {
+      "canonical_label": "trade policy",
+      "cil_alias_target_topic_id": "topic:trade-policy",
+      "graph_compound_parent_id": "tc:trade-policy",
+      "member_count": 4,
+      "members": [
+        {
+          "episode_ids": [
+            "6931e96838a11f5f3eb66ffc"
+          ],
+          "label": "tariffs and trade policy",
+          "similarity_to_centroid": 0.929743,
+          "topic_id": "topic:tariffs-and-trade-policy"
+        },
+        {
+          "episode_ids": [
+            "020c9d95-1841-4b91-8832-b3fd017be95d"
+          ],
+          "label": "trade policy",
+          "similarity_to_centroid": 0.965946,
+          "topic_id": "topic:trade-policy"
+        },
+        {
+          "episode_ids": [
+            "6939a79d34867e026d3be2bd"
+          ],
+          "label": "trade policy impact",
+          "similarity_to_centroid": 0.932541,
+          "topic_id": "topic:trade-policy-impact"
+        },
+        {
+          "episode_ids": [
+            "6949974ce2b7985fa24ee0df"
+          ],
+          "label": "US trade policy",
+          "similarity_to_centroid": 0.95973,
+          "topic_id": "topic:us-trade-policy"
+        }
+      ]
+    },
+    {
+      "canonical_label": "taxation policy",
+      "cil_alias_target_topic_id": "topic:taxation-policy",
+      "graph_compound_parent_id": "tc:taxation-policy",
+      "member_count": 2,
+      "members": [
+        {
+          "episode_ids": [
+            "59b2863d-d2fe-4fc9-b836-b3f701751323"
+          ],
+          "label": "tax policy",
+          "similarity_to_centroid": 0.980093,
+          "topic_id": "topic:tax-policy"
+        },
+        {
+          "episode_ids": [
+            "68ee980f06cd1a7c23a7dfbf"
+          ],
+          "label": "taxation policy",
+          "similarity_to_centroid": 0.980093,
+          "topic_id": "topic:taxation-policy"
+        }
+      ]
+    },
+    {
+      "canonical_label": "tech competition",
+      "cil_alias_target_topic_id": "topic:tech-competition",
+      "graph_compound_parent_id": "tc:tech-competition",
+      "member_count": 2,
+      "members": [
+        {
+          "episode_ids": [
+            "96deb7b5-7fae-4040-a3c7-b4350008bd04"
+          ],
+          "label": "tech competition",
+          "similarity_to_centroid": 0.966247,
+          "topic_id": "topic:tech-competition"
+        },
+        {
+          "episode_ids": [
+            "0f69af23-639c-4945-b255-b42001763c8a"
+          ],
+          "label": "technology competition",
+          "similarity_to_centroid": 0.966247,
+          "topic_id": "topic:technology-competition"
+        }
+      ]
+    },
+    {
+      "canonical_label": "tech sector",
+      "cil_alias_target_topic_id": "topic:tech-sector",
+      "graph_compound_parent_id": "tc:tech-sector",
+      "member_count": 2,
+      "members": [
+        {
+          "episode_ids": [
+            "047e678b-5fd3-40a4-95a6-b43701357b01"
+          ],
+          "label": "tech industry",
+          "similarity_to_centroid": 0.96041,
+          "topic_id": "topic:tech-industry"
+        },
+        {
+          "episode_ids": [
+            "75ffbd86-1485-4a64-a9d0-b428014f200e"
+          ],
+          "label": "tech sector",
+          "similarity_to_centroid": 0.96041,
+          "topic_id": "topic:tech-sector"
+        }
+      ]
+    },
+    {
+      "canonical_label": "technological advancement",
+      "cil_alias_target_topic_id": "topic:technological-advancement",
+      "graph_compound_parent_id": "tc:technological-advancement",
+      "member_count": 4,
+      "members": [
+        {
+          "episode_ids": [
+            "bcb72efb-4d99-44c9-9eb5-b3f001587dc0"
+          ],
+          "label": "technological advancement",
+          "similarity_to_centroid": 0.938761,
+          "topic_id": "topic:technological-advancement"
+        },
+        {
+          "episode_ids": [
+            "d092dbb8-3e42-469b-9c50-b3fe016f2c9d"
+          ],
+          "label": "technological evolution",
+          "similarity_to_centroid": 0.905293,
+          "topic_id": "topic:technological-evolution"
+        },
+        {
+          "episode_ids": [
+            "2407d49c-df67-4d81-8598-b3ff003a440b"
+          ],
+          "label": "technological revolution",
+          "similarity_to_centroid": 0.905092,
+          "topic_id": "topic:technological-revolution"
+        },
+        {
+          "episode_ids": [
+            "a1c70b67-17a8-4b1e-9edb-b4160128bf2c"
+          ],
+          "label": "technological transition",
+          "similarity_to_centroid": 0.929859,
+          "topic_id": "topic:technological-transition"
+        }
+      ]
+    },
+    {
+      "canonical_label": "tokenization efforts",
+      "cil_alias_target_topic_id": "topic:tokenization-efforts",
+      "graph_compound_parent_id": "tc:tokenization-efforts",
+      "member_count": 2,
+      "members": [
+        {
+          "episode_ids": [
+            "940b6e1c-92f4-4226-aa35-b3e9014f2f6b"
+          ],
+          "label": "tokenization adoption",
+          "similarity_to_centroid": 0.957977,
+          "topic_id": "topic:tokenization-adoption"
+        },
+        {
+          "episode_ids": [
+            "813df158-0443-4237-a6e8-b40700d8f3ff"
+          ],
+          "label": "tokenization efforts",
+          "similarity_to_centroid": 0.957977,
+          "topic_id": "topic:tokenization-efforts"
+        }
+      ]
+    },
+    {
+      "canonical_label": "US Treasury market",
+      "cil_alias_target_topic_id": "topic:us-treasury-market",
+      "graph_compound_parent_id": "tc:us-treasury-market",
+      "member_count": 2,
+      "members": [
+        {
+          "episode_ids": [
+            "0b483f16-0d3c-4ad5-a89b-b3e80108c563"
+          ],
+          "label": "treasury market",
+          "similarity_to_centroid": 0.988821,
+          "topic_id": "topic:treasury-market"
+        },
+        {
+          "episode_ids": [
+            "696fe5a1f66127afddcfa7d2"
+          ],
+          "label": "US Treasury market",
+          "similarity_to_centroid": 0.988821,
+          "topic_id": "topic:us-treasury-market"
+        }
+      ]
+    },
+    {
+      "canonical_label": "us foreign policy",
+      "cil_alias_target_topic_id": "topic:us-foreign-policy",
+      "graph_compound_parent_id": "tc:us-foreign-policy",
+      "member_count": 2,
+      "members": [
+        {
+          "episode_ids": [
+            "695d5ff10c30a1408dc88dde"
+          ],
+          "label": "Trump administration foreign policy",
+          "similarity_to_centroid": 0.973684,
+          "topic_id": "topic:trump-administration-foreign-policy"
+        },
+        {
+          "episode_ids": [
+            "a70f0f76-f2a3-4f8d-9316-b435012b46b0",
+            "ad26f6f7-20fc-4412-b654-b41300517a43"
+          ],
+          "label": "us foreign policy",
+          "similarity_to_centroid": 0.973684,
+          "topic_id": "topic:us-foreign-policy"
+        }
+      ]
+    },
+    {
+      "canonical_label": "UK government bonds",
+      "cil_alias_target_topic_id": "topic:uk-government-bonds",
+      "graph_compound_parent_id": "tc:uk-government-bonds",
+      "member_count": 3,
+      "members": [
+        {
+          "episode_ids": [
+            "692f3cb6fb6ea8e378b1decc"
+          ],
+          "label": "UK government bond market",
+          "similarity_to_centroid": 0.932294,
+          "topic_id": "topic:uk-government-bond-market"
+        },
+        {
+          "episode_ids": [
+            "69c5846cc2759aa9b1c70a8d"
+          ],
+          "label": "UK government bonds",
+          "similarity_to_centroid": 0.963469,
+          "topic_id": "topic:uk-government-bonds"
+        },
+        {
+          "episode_ids": [
+            "68ee980f06cd1a7c23a7dfbf"
+          ],
+          "label": "UK government bonds (gilts)",
+          "similarity_to_centroid": 0.911809,
+          "topic_id": "topic:uk-government-bonds-gilts"
+        }
+      ]
+    },
+    {
+      "canonical_label": "urban development",
+      "cil_alias_target_topic_id": "topic:urban-development",
+      "graph_compound_parent_id": "tc:urban-development",
+      "member_count": 2,
+      "members": [
+        {
+          "episode_ids": [
+            "ecf2f4a5-6ecb-4460-8521-b41301530309"
+          ],
+          "label": "urban development",
+          "similarity_to_centroid": 0.937797,
+          "topic_id": "topic:urban-development"
+        },
+        {
+          "episode_ids": [
+            "653bb844-d3b0-425e-9e28-b43e00ee5196"
+          ],
+          "label": "urban planning",
+          "similarity_to_centroid": 0.937797,
+          "topic_id": "topic:urban-planning"
+        }
+      ]
+    },
+    {
+      "canonical_label": "US-China trade war",
+      "cil_alias_target_topic_id": "topic:us-china-trade-war",
+      "graph_compound_parent_id": "tc:us-china-trade-war",
+      "member_count": 2,
+      "members": [
+        {
+          "episode_ids": [
+            "69a0aed50e30955851cbea6d"
+          ],
+          "label": "US-China trade relations",
+          "similarity_to_centroid": 0.949826,
+          "topic_id": "topic:us-china-trade-relations"
+        },
+        {
+          "episode_ids": [
+            "68f13478ace6eea8f828f16e"
+          ],
+          "label": "US-China trade war",
+          "similarity_to_centroid": 0.949826,
+          "topic_id": "topic:us-china-trade-war"
+        }
+      ]
+    },
+    {
+      "canonical_label": "US dollar value",
+      "cil_alias_target_topic_id": "topic:us-dollar-value",
+      "graph_compound_parent_id": "tc:us-dollar-value",
+      "member_count": 2,
+      "members": [
+        {
+          "episode_ids": [
+            "75bd7644-5dae-4e6c-a3f1-b41301068fc7"
+          ],
+          "label": "us dollar",
+          "similarity_to_centroid": 0.961122,
+          "topic_id": "topic:us-dollar"
+        },
+        {
+          "episode_ids": [
+            "696fe5a1f66127afddcfa7d2"
+          ],
+          "label": "US dollar value",
+          "similarity_to_centroid": 0.961122,
+          "topic_id": "topic:us-dollar-value"
+        }
+      ]
+    },
+    {
+      "canonical_label": "US dollar dominance",
+      "cil_alias_target_topic_id": "topic:us-dollar-dominance",
+      "graph_compound_parent_id": "tc:us-dollar-dominance",
+      "member_count": 2,
+      "members": [
+        {
+          "episode_ids": [
+            "6913979ddac02c1fcfbdd404"
+          ],
+          "label": "US dollar dominance",
+          "similarity_to_centroid": 0.95298,
+          "topic_id": "topic:us-dollar-dominance"
+        },
+        {
+          "episode_ids": [
+            "697284f2df8275aa076c0fd1"
+          ],
+          "label": "US economic dominance",
+          "similarity_to_centroid": 0.95298,
+          "topic_id": "topic:us-economic-dominance"
+        }
+      ]
+    },
+    {
+      "canonical_label": "US economy",
+      "cil_alias_target_topic_id": "topic:us-economy",
+      "graph_compound_parent_id": "tc:us-economy",
+      "member_count": 2,
+      "members": [
+        {
+          "episode_ids": [
+            "695ff901d8ac698e7e142b2c"
+          ],
+          "label": "US economic outlook",
+          "similarity_to_centroid": 0.946671,
+          "topic_id": "topic:us-economic-outlook"
+        },
+        {
+          "episode_ids": [
+            "69446436f13209aaa3edddb1",
+            "69d7e5ae97d78f9e2bf750e7"
+          ],
+          "label": "US economy",
+          "similarity_to_centroid": 0.946671,
+          "topic_id": "topic:us-economy"
+        }
+      ]
+    },
+    {
+      "canonical_label": "venezuelan oil",
+      "cil_alias_target_topic_id": "topic:venezuelan-oil",
+      "graph_compound_parent_id": "tc:venezuelan-oil",
+      "member_count": 2,
+      "members": [
+        {
+          "episode_ids": [
+            "695d5ff10c30a1408dc88dde"
+          ],
+          "label": "Venezuelan heavy oil production",
+          "similarity_to_centroid": 0.962367,
+          "topic_id": "topic:venezuelan-heavy-oil-production"
+        },
+        {
+          "episode_ids": [
+            "a70f0f76-f2a3-4f8d-9316-b435012b46b0"
+          ],
+          "label": "venezuelan oil",
+          "similarity_to_centroid": 0.962367,
+          "topic_id": "topic:venezuelan-oil"
+        }
+      ]
+    },
+    {
+      "canonical_label": "wage growth",
+      "cil_alias_target_topic_id": "topic:wage-growth",
+      "graph_compound_parent_id": "tc:wage-growth",
+      "member_count": 2,
+      "members": [
+        {
+          "episode_ids": [
+            "c852a07a-28d5-49d2-b87a-b3ef015ffdea"
+          ],
+          "label": "wage growth",
+          "similarity_to_centroid": 0.978588,
+          "topic_id": "topic:wage-growth"
+        },
+        {
+          "episode_ids": [
+            "698e2f4c1506be1a7e3d1141"
+          ],
+          "label": "wage growth dynamics",
+          "similarity_to_centroid": 0.978588,
+          "topic_id": "topic:wage-growth-dynamics"
+        }
+      ]
+    }
+  ],
+  "model": "sentence-transformers/all-MiniLM-L6-v2",
+  "schema_version": "2",
+  "singletons": 746,
+  "threshold": 0.75,
+  "topic_count": 1114
+}

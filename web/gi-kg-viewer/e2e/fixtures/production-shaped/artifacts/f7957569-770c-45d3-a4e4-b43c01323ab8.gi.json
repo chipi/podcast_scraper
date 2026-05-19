@@ -1,0 +1,954 @@
+{
+  "schema_version": "2.0",
+  "model_version": "gemini-2.5-flash-lite",
+  "prompt_version": "v1",
+  "episode_id": "f7957569-770c-45d3-a4e4-b43c01323ab8",
+  "nodes": [
+    {
+      "id": "episode:f7957569-770c-45d3-a4e4-b43c01323ab8",
+      "type": "Episode",
+      "properties": {
+        "podcast_id": "sha256:1cd6aecdd31c0ae82c2c76efdb6327b54e6026924b47852c51ffb406a9f2b19c",
+        "title": "Inside the Booming Market for Dinosaur Fossils",
+        "publish_date": "2026-05-02T08:00:00+00:00",
+        "duration_ms": 2933000,
+        "feed_id": "sha256:1cd6aecdd31c0ae82c2c76efdb6327b54e6026924b47852c51ffb406a9f2b19c"
+      }
+    },
+    {
+      "id": "topic:fossil-market",
+      "type": "Topic",
+      "properties": {
+        "label": "Fossil market"
+      }
+    },
+    {
+      "id": "topic:dinosaur-fossils",
+      "type": "Topic",
+      "properties": {
+        "label": "Dinosaur fossils"
+      }
+    },
+    {
+      "id": "topic:art-market",
+      "type": "Topic",
+      "properties": {
+        "label": "Art market"
+      }
+    },
+    {
+      "id": "topic:antiquities-market",
+      "type": "Topic",
+      "properties": {
+        "label": "Antiquities market"
+      }
+    },
+    {
+      "id": "topic:provenance-verification",
+      "type": "Topic",
+      "properties": {
+        "label": "Provenance verification"
+      }
+    },
+    {
+      "id": "topic:fossil-excavation",
+      "type": "Topic",
+      "properties": {
+        "label": "Fossil excavation"
+      }
+    },
+    {
+      "id": "topic:market-pricing",
+      "type": "Topic",
+      "properties": {
+        "label": "Market pricing"
+      }
+    },
+    {
+      "id": "topic:collector-interest",
+      "type": "Topic",
+      "properties": {
+        "label": "Collector interest"
+      }
+    },
+    {
+      "id": "topic:specimen-completeness",
+      "type": "Topic",
+      "properties": {
+        "label": "Specimen completeness"
+      }
+    },
+    {
+      "id": "topic:legal-regulations",
+      "type": "Topic",
+      "properties": {
+        "label": "Legal regulations"
+      }
+    },
+    {
+      "id": "insight:c9a1318e25b0b79a",
+      "type": "Insight",
+      "properties": {
+        "text": "Pterodactyls are not technically classified as dinosaurs.",
+        "episode_id": "f7957569-770c-45d3-a4e4-b43c01323ab8",
+        "grounded": true,
+        "insight_type": "fact",
+        "position_hint": 0.02
+      },
+      "confidence": 1.0
+    },
+    {
+      "id": "quote:f345e59483b147d8",
+      "type": "Quote",
+      "properties": {
+        "text": "Dad, pterodactyl is not technically",
+        "episode_id": "f7957569-770c-45d3-a4e4-b43c01323ab8",
+        "speaker_id": null,
+        "char_start": 834,
+        "char_end": 869,
+        "timestamp_start_ms": 51440,
+        "timestamp_end_ms": 55320,
+        "transcript_ref": "transcripts/0002 - Inside the Booming Market for Dinosaur Fossils_20260506-135048_ba02775e.txt"
+      }
+    },
+    {
+      "id": "insight:499e7f5ac4043bf3",
+      "type": "Insight",
+      "properties": {
+        "text": "The dinosaur fossil market is relatively underdeveloped compared to established art markets.",
+        "episode_id": "f7957569-770c-45d3-a4e4-b43c01323ab8",
+        "grounded": true,
+        "insight_type": "fact",
+        "position_hint": 0.13
+      },
+      "confidence": 1.0
+    },
+    {
+      "id": "quote:a412be0d73aca9fe",
+      "type": "Quote",
+      "properties": {
+        "text": "Speaker 4: to resemble other areas of the art market, but it's",
+        "episode_id": "f7957569-770c-45d3-a4e4-b43c01323ab8",
+        "speaker_id": null,
+        "char_start": 7290,
+        "char_end": 7352,
+        "timestamp_start_ms": 362640,
+        "timestamp_end_ms": 366160,
+        "transcript_ref": "transcripts/0002 - Inside the Booming Market for Dinosaur Fossils_20260506-135048_ba02775e.txt"
+      }
+    },
+    {
+      "id": "quote:7ce96b73d91fe5dc",
+      "type": "Quote",
+      "properties": {
+        "text": "Speaker 4: being that it's a very underdeveloped, recent, recently growing and",
+        "episode_id": "f7957569-770c-45d3-a4e4-b43c01323ab8",
+        "speaker_id": null,
+        "char_start": 7423,
+        "char_end": 7501,
+        "timestamp_start_ms": 369960,
+        "timestamp_end_ms": 377560,
+        "transcript_ref": "transcripts/0002 - Inside the Booming Market for Dinosaur Fossils_20260506-135048_ba02775e.txt"
+      }
+    },
+    {
+      "id": "quote:53316e58b83c85e3",
+      "type": "Quote",
+      "properties": {
+        "text": "Speaker 4: can delve into, kind of condition, authenticity, attribution, provenance. All",
+        "episode_id": "f7957569-770c-45d3-a4e4-b43c01323ab8",
+        "speaker_id": null,
+        "char_start": 7831,
+        "char_end": 7919,
+        "timestamp_start_ms": 398880,
+        "timestamp_end_ms": 405560,
+        "transcript_ref": "transcripts/0002 - Inside the Booming Market for Dinosaur Fossils_20260506-135048_ba02775e.txt"
+      }
+    },
+    {
+      "id": "insight:cde38fd08f9e46e6",
+      "type": "Insight",
+      "properties": {
+        "text": "The rising prices of dinosaur fossils incentivize more extensive excavation efforts.",
+        "episode_id": "f7957569-770c-45d3-a4e4-b43c01323ab8",
+        "grounded": true,
+        "insight_type": "fact",
+        "position_hint": 0.17
+      },
+      "confidence": 1.0
+    },
+    {
+      "id": "quote:97b1414674f8b08c",
+      "type": "Quote",
+      "properties": {
+        "text": "Speaker 4: prices are hugely increasing the supply of dinosaur fossils.",
+        "episode_id": "f7957569-770c-45d3-a4e4-b43c01323ab8",
+        "speaker_id": null,
+        "char_start": 9906,
+        "char_end": 9977,
+        "timestamp_start_ms": 510720,
+        "timestamp_end_ms": 515520,
+        "transcript_ref": "transcripts/0002 - Inside the Booming Market for Dinosaur Fossils_20260506-135048_ba02775e.txt"
+      }
+    },
+    {
+      "id": "insight:e895d892bc784d64",
+      "type": "Insight",
+      "properties": {
+        "text": "American dinosaur fossils found on private land are legally sellable with landowner permission.",
+        "episode_id": "f7957569-770c-45d3-a4e4-b43c01323ab8",
+        "grounded": true,
+        "insight_type": "fact",
+        "position_hint": 0.19
+      },
+      "confidence": 1.0
+    },
+    {
+      "id": "quote:d21a8de4c8124633",
+      "type": "Quote",
+      "properties": {
+        "text": "Speaker 4: permission of all parties, the landowner, the dinosaur hunter, et cetera.",
+        "episode_id": "f7957569-770c-45d3-a4e4-b43c01323ab8",
+        "speaker_id": null,
+        "char_start": 10927,
+        "char_end": 11011,
+        "timestamp_start_ms": 568200,
+        "timestamp_end_ms": 572800,
+        "transcript_ref": "transcripts/0002 - Inside the Booming Market for Dinosaur Fossils_20260506-135048_ba02775e.txt"
+      }
+    },
+    {
+      "id": "insight:278142bd03f9cf18",
+      "type": "Insight",
+      "properties": {
+        "text": "Meticulous due diligence, including GPS coordinates and land deeds, is crucial for verifying fossil provenance.",
+        "episode_id": "f7957569-770c-45d3-a4e4-b43c01323ab8",
+        "grounded": true,
+        "insight_type": "fact",
+        "position_hint": 0.24
+      },
+      "confidence": 1.0
+    },
+    {
+      "id": "quote:2d95fbedd9a6e03d",
+      "type": "Quote",
+      "properties": {
+        "text": "Speaker 4: insist on GPS coordinates.",
+        "episode_id": "f7957569-770c-45d3-a4e4-b43c01323ab8",
+        "speaker_id": null,
+        "char_start": 13070,
+        "char_end": 13107,
+        "timestamp_start_ms": 684920,
+        "timestamp_end_ms": 688040,
+        "transcript_ref": "transcripts/0002 - Inside the Booming Market for Dinosaur Fossils_20260506-135048_ba02775e.txt"
+      }
+    },
+    {
+      "id": "quote:685db13d27839f69",
+      "type": "Quote",
+      "properties": {
+        "text": "Speaker 4: deeds showing that whoever owns it proves their legal title",
+        "episode_id": "f7957569-770c-45d3-a4e4-b43c01323ab8",
+        "speaker_id": null,
+        "char_start": 13132,
+        "char_end": 13202,
+        "timestamp_start_ms": 688080,
+        "timestamp_end_ms": 692040,
+        "transcript_ref": "transcripts/0002 - Inside the Booming Market for Dinosaur Fossils_20260506-135048_ba02775e.txt"
+      }
+    },
+    {
+      "id": "quote:70303bf6db36e167",
+      "type": "Quote",
+      "properties": {
+        "text": "Speaker 4: of the sale arrangements between the dinosaur hunter and the landowner.",
+        "episode_id": "f7957569-770c-45d3-a4e4-b43c01323ab8",
+        "speaker_id": null,
+        "char_start": 13275,
+        "char_end": 13357,
+        "timestamp_start_ms": 696360,
+        "timestamp_end_ms": 699880,
+        "transcript_ref": "transcripts/0002 - Inside the Booming Market for Dinosaur Fossils_20260506-135048_ba02775e.txt"
+      }
+    },
+    {
+      "id": "insight:5f84bfee3488c136",
+      "type": "Insight",
+      "properties": {
+        "text": "Fossils are rarely discovered intact and are often completed with reconstructed or 3D-printed elements.",
+        "episode_id": "f7957569-770c-45d3-a4e4-b43c01323ab8",
+        "grounded": true,
+        "insight_type": "fact",
+        "position_hint": 0.31
+      },
+      "confidence": 1.0
+    },
+    {
+      "id": "quote:eb983b7855c78fcd",
+      "type": "Quote",
+      "properties": {
+        "text": "Speaker 4: completely intact, virtually never discovered completely intact.",
+        "episode_id": "f7957569-770c-45d3-a4e4-b43c01323ab8",
+        "speaker_id": null,
+        "char_start": 16929,
+        "char_end": 17004,
+        "timestamp_start_ms": 894120,
+        "timestamp_end_ms": 898800,
+        "transcript_ref": "transcripts/0002 - Inside the Booming Market for Dinosaur Fossils_20260506-135048_ba02775e.txt"
+      }
+    },
+    {
+      "id": "quote:0dcf672d835ae0cf",
+      "type": "Quote",
+      "properties": {
+        "text": "Speaker 4: with resin parts or three D printed bones to complete",
+        "episode_id": "f7957569-770c-45d3-a4e4-b43c01323ab8",
+        "speaker_id": null,
+        "char_start": 17085,
+        "char_end": 17149,
+        "timestamp_start_ms": 901880,
+        "timestamp_end_ms": 906040,
+        "transcript_ref": "transcripts/0002 - Inside the Booming Market for Dinosaur Fossils_20260506-135048_ba02775e.txt"
+      }
+    },
+    {
+      "id": "insight:8128e8f537814ecf",
+      "type": "Insight",
+      "properties": {
+        "text": "Transparency regarding the percentage of original bone in a fossil specimen is developing as a market standard.",
+        "episode_id": "f7957569-770c-45d3-a4e4-b43c01323ab8",
+        "grounded": true,
+        "insight_type": "fact",
+        "position_hint": 0.32
+      },
+      "confidence": 1.0
+    },
+    {
+      "id": "quote:1573d31bfd2cacdb",
+      "type": "Quote",
+      "properties": {
+        "text": "Speaker 4: fossil needs to know what they're buying, and that's something",
+        "episode_id": "f7957569-770c-45d3-a4e4-b43c01323ab8",
+        "speaker_id": null,
+        "char_start": 17217,
+        "char_end": 17290,
+        "timestamp_start_ms": 910040,
+        "timestamp_end_ms": 912920,
+        "transcript_ref": "transcripts/0002 - Inside the Booming Market for Dinosaur Fossils_20260506-135048_ba02775e.txt"
+      }
+    },
+    {
+      "id": "quote:066b03f0dd8eaaef",
+      "type": "Quote",
+      "properties": {
+        "text": "Speaker 4: if an element of that bone is present, they'll say, oh, yeah,",
+        "episode_id": "f7957569-770c-45d3-a4e4-b43c01323ab8",
+        "speaker_id": null,
+        "char_start": 17699,
+        "char_end": 17771,
+        "timestamp_start_ms": 931400,
+        "timestamp_end_ms": 934960,
+        "transcript_ref": "transcripts/0002 - Inside the Booming Market for Dinosaur Fossils_20260506-135048_ba02775e.txt"
+      }
+    },
+    {
+      "id": "quote:60bcab43c8a358d1",
+      "type": "Quote",
+      "properties": {
+        "text": "Speaker 4: actually have five percent of that particular bone.",
+        "episode_id": "f7957569-770c-45d3-a4e4-b43c01323ab8",
+        "speaker_id": null,
+        "char_start": 17964,
+        "char_end": 18026,
+        "timestamp_start_ms": 942760,
+        "timestamp_end_ms": 945960,
+        "transcript_ref": "transcripts/0002 - Inside the Booming Market for Dinosaur Fossils_20260506-135048_ba02775e.txt"
+      }
+    },
+    {
+      "id": "quote:f00871f972afbe3b",
+      "type": "Quote",
+      "properties": {
+        "text": "Speaker 4: a result, a item that looks very complete on a",
+        "episode_id": "f7957569-770c-45d3-a4e4-b43c01323ab8",
+        "speaker_id": null,
+        "char_start": 18033,
+        "char_end": 18090,
+        "timestamp_start_ms": 946000,
+        "timestamp_end_ms": 949280,
+        "transcript_ref": "transcripts/0002 - Inside the Booming Market for Dinosaur Fossils_20260506-135048_ba02775e.txt"
+      }
+    },
+    {
+      "id": "insight:e288b8e7c7da7f91",
+      "type": "Insight",
+      "properties": {
+        "text": "The sale of the T-Rex skeleton 'Stan' for $31 million significantly impacted and inflated the fossil market.",
+        "episode_id": "f7957569-770c-45d3-a4e4-b43c01323ab8",
+        "grounded": true,
+        "insight_type": "fact",
+        "position_hint": 0.39
+      },
+      "confidence": 1.0
+    },
+    {
+      "id": "quote:2e6355df49afd3e1",
+      "type": "Quote",
+      "properties": {
+        "text": "Speaker 4: when we're discussing antiquities or Islamic car and we buy",
+        "episode_id": "f7957569-770c-45d3-a4e4-b43c01323ab8",
+        "speaker_id": null,
+        "char_start": 21375,
+        "char_end": 21445,
+        "timestamp_start_ms": 1113640,
+        "timestamp_end_ms": 1115960,
+        "transcript_ref": "transcripts/0002 - Inside the Booming Market for Dinosaur Fossils_20260506-135048_ba02775e.txt"
+      }
+    },
+    {
+      "id": "quote:e4989cf5ca217353",
+      "type": "Quote",
+      "properties": {
+        "text": "Speaker 4: that the prices, and I'll give you kind of concrete examples,",
+        "episode_id": "f7957569-770c-45d3-a4e4-b43c01323ab8",
+        "speaker_id": null,
+        "char_start": 21825,
+        "char_end": 21897,
+        "timestamp_start_ms": 1131240,
+        "timestamp_end_ms": 1134359,
+        "transcript_ref": "transcripts/0002 - Inside the Booming Market for Dinosaur Fossils_20260506-135048_ba02775e.txt"
+      }
+    },
+    {
+      "id": "quote:adca969c94aa98c3",
+      "type": "Quote",
+      "properties": {
+        "text": "Speaker 4: a super complete, high profile, widely published, iconic t rex",
+        "episode_id": "f7957569-770c-45d3-a4e4-b43c01323ab8",
+        "speaker_id": null,
+        "char_start": 22080,
+        "char_end": 22153,
+        "timestamp_start_ms": 1144640,
+        "timestamp_end_ms": 1149680,
+        "transcript_ref": "transcripts/0002 - Inside the Booming Market for Dinosaur Fossils_20260506-135048_ba02775e.txt"
+      }
+    },
+    {
+      "id": "insight:09438bd54a0afe69",
+      "type": "Insight",
+      "properties": {
+        "text": "The dinosaur fossil market is experiencing a 'flight to quality' as it matures.",
+        "episode_id": "f7957569-770c-45d3-a4e4-b43c01323ab8",
+        "grounded": true,
+        "insight_type": "claim",
+        "position_hint": 0.15
+      },
+      "confidence": 1.0
+    },
+    {
+      "id": "quote:4f6f172d35f79b3b",
+      "type": "Quote",
+      "properties": {
+        "text": "Speaker 4: finally getting that, you know, the recognition, and others which",
+        "episode_id": "f7957569-770c-45d3-a4e4-b43c01323ab8",
+        "speaker_id": null,
+        "char_start": 8316,
+        "char_end": 8392,
+        "timestamp_start_ms": 426520,
+        "timestamp_end_ms": 430040,
+        "transcript_ref": "transcripts/0002 - Inside the Booming Market for Dinosaur Fossils_20260506-135048_ba02775e.txt"
+      }
+    },
+    {
+      "id": "insight:435a95dbdaae2fa9",
+      "type": "Insight",
+      "properties": {
+        "text": "Geographical factors and climate conditions influence the feasibility of dinosaur fossil excavation.",
+        "episode_id": "f7957569-770c-45d3-a4e4-b43c01323ab8",
+        "grounded": true,
+        "insight_type": "fact",
+        "position_hint": 0.37
+      },
+      "confidence": 1.0
+    },
+    {
+      "id": "quote:07603885786f0590",
+      "type": "Quote",
+      "properties": {
+        "text": "Speaker 4: climates that make it easier to dig in, like, for example,",
+        "episode_id": "f7957569-770c-45d3-a4e4-b43c01323ab8",
+        "speaker_id": null,
+        "char_start": 20485,
+        "char_end": 20554,
+        "timestamp_start_ms": 1068160,
+        "timestamp_end_ms": 1071520,
+        "transcript_ref": "transcripts/0002 - Inside the Booming Market for Dinosaur Fossils_20260506-135048_ba02775e.txt"
+      }
+    },
+    {
+      "id": "quote:82c40666d980e43b",
+      "type": "Quote",
+      "properties": {
+        "text": "Speaker 4: it becomes quite difficult.",
+        "episode_id": "f7957569-770c-45d3-a4e4-b43c01323ab8",
+        "speaker_id": null,
+        "char_start": 20616,
+        "char_end": 20654,
+        "timestamp_start_ms": 1075480,
+        "timestamp_end_ms": 1078000,
+        "transcript_ref": "transcripts/0002 - Inside the Booming Market for Dinosaur Fossils_20260506-135048_ba02775e.txt"
+      }
+    },
+    {
+      "id": "quote:9be389e36ebd1066",
+      "type": "Quote",
+      "properties": {
+        "text": "Speaker 4: of churn of weather that that kind of mixes up",
+        "episode_id": "f7957569-770c-45d3-a4e4-b43c01323ab8",
+        "speaker_id": null,
+        "char_start": 20683,
+        "char_end": 20740,
+        "timestamp_start_ms": 1078000,
+        "timestamp_end_ms": 1081320,
+        "transcript_ref": "transcripts/0002 - Inside the Booming Market for Dinosaur Fossils_20260506-135048_ba02775e.txt"
+      }
+    },
+    {
+      "id": "insight:f1ce1cac08af028c",
+      "type": "Insight",
+      "properties": {
+        "text": "The market for dinosaur fossils is driven by a new generation of wealthy collectors and advisors.",
+        "episode_id": "f7957569-770c-45d3-a4e4-b43c01323ab8",
+        "grounded": true,
+        "insight_type": "claim",
+        "position_hint": 0.42
+      },
+      "confidence": 1.0
+    },
+    {
+      "id": "quote:210e423b160199fe",
+      "type": "Quote",
+      "properties": {
+        "text": "Speaker 4: collectors kind of descended on the market with advisors and",
+        "episode_id": "f7957569-770c-45d3-a4e4-b43c01323ab8",
+        "speaker_id": null,
+        "char_start": 23939,
+        "char_end": 24010,
+        "timestamp_start_ms": 1240960,
+        "timestamp_end_ms": 1244919,
+        "transcript_ref": "transcripts/0002 - Inside the Booming Market for Dinosaur Fossils_20260506-135048_ba02775e.txt"
+      }
+    },
+    {
+      "id": "insight:e60217e559e5ce3d",
+      "type": "Insight",
+      "properties": {
+        "text": "The historical pricing of dinosaur fossils lacked logic prior to increased market visibility and auction house involvement.",
+        "episode_id": "f7957569-770c-45d3-a4e4-b43c01323ab8",
+        "grounded": true,
+        "insight_type": "claim",
+        "position_hint": 0.45
+      },
+      "confidence": 1.0
+    },
+    {
+      "id": "quote:4f5f12d47ce0aa96",
+      "type": "Quote",
+      "properties": {
+        "text": "Speaker 4: primary dinosaur hunters or landowners to auction, and then once",
+        "episode_id": "f7957569-770c-45d3-a4e4-b43c01323ab8",
+        "speaker_id": null,
+        "char_start": 25263,
+        "char_end": 25338,
+        "timestamp_start_ms": 1306240,
+        "timestamp_end_ms": 1311320,
+        "transcript_ref": "transcripts/0002 - Inside the Booming Market for Dinosaur Fossils_20260506-135048_ba02775e.txt"
+      }
+    },
+    {
+      "id": "quote:3276f4009cab487c",
+      "type": "Quote",
+      "properties": {
+        "text": "Speaker 4: you a bit of context about the complete change in",
+        "episode_id": "f7957569-770c-45d3-a4e4-b43c01323ab8",
+        "speaker_id": null,
+        "char_start": 25535,
+        "char_end": 25595,
+        "timestamp_start_ms": 1321359,
+        "timestamp_end_ms": 1323960,
+        "transcript_ref": "transcripts/0002 - Inside the Booming Market for Dinosaur Fossils_20260506-135048_ba02775e.txt"
+      }
+    }
+  ],
+  "edges": [
+    {
+      "type": "HAS_INSIGHT",
+      "from": "episode:f7957569-770c-45d3-a4e4-b43c01323ab8",
+      "to": "insight:c9a1318e25b0b79a"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:c9a1318e25b0b79a",
+      "to": "topic:dinosaur-fossils",
+      "properties": {
+        "confidence": 0.5195
+      }
+    },
+    {
+      "type": "SUPPORTED_BY",
+      "from": "insight:c9a1318e25b0b79a",
+      "to": "quote:f345e59483b147d8"
+    },
+    {
+      "type": "HAS_INSIGHT",
+      "from": "episode:f7957569-770c-45d3-a4e4-b43c01323ab8",
+      "to": "insight:499e7f5ac4043bf3"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:499e7f5ac4043bf3",
+      "to": "topic:fossil-market",
+      "properties": {
+        "confidence": 0.6538
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:499e7f5ac4043bf3",
+      "to": "topic:dinosaur-fossils",
+      "properties": {
+        "confidence": 0.5604
+      }
+    },
+    {
+      "type": "SUPPORTED_BY",
+      "from": "insight:499e7f5ac4043bf3",
+      "to": "quote:a412be0d73aca9fe"
+    },
+    {
+      "type": "SUPPORTED_BY",
+      "from": "insight:499e7f5ac4043bf3",
+      "to": "quote:7ce96b73d91fe5dc"
+    },
+    {
+      "type": "SUPPORTED_BY",
+      "from": "insight:499e7f5ac4043bf3",
+      "to": "quote:53316e58b83c85e3"
+    },
+    {
+      "type": "HAS_INSIGHT",
+      "from": "episode:f7957569-770c-45d3-a4e4-b43c01323ab8",
+      "to": "insight:cde38fd08f9e46e6"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:cde38fd08f9e46e6",
+      "to": "topic:fossil-excavation",
+      "properties": {
+        "confidence": 0.6719
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:cde38fd08f9e46e6",
+      "to": "topic:dinosaur-fossils",
+      "properties": {
+        "confidence": 0.5956
+      }
+    },
+    {
+      "type": "SUPPORTED_BY",
+      "from": "insight:cde38fd08f9e46e6",
+      "to": "quote:97b1414674f8b08c"
+    },
+    {
+      "type": "HAS_INSIGHT",
+      "from": "episode:f7957569-770c-45d3-a4e4-b43c01323ab8",
+      "to": "insight:e895d892bc784d64"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:e895d892bc784d64",
+      "to": "topic:dinosaur-fossils",
+      "properties": {
+        "confidence": 0.5544
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:e895d892bc784d64",
+      "to": "topic:fossil-market",
+      "properties": {
+        "confidence": 0.5358
+      }
+    },
+    {
+      "type": "SUPPORTED_BY",
+      "from": "insight:e895d892bc784d64",
+      "to": "quote:d21a8de4c8124633"
+    },
+    {
+      "type": "HAS_INSIGHT",
+      "from": "episode:f7957569-770c-45d3-a4e4-b43c01323ab8",
+      "to": "insight:278142bd03f9cf18"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:278142bd03f9cf18",
+      "to": "topic:provenance-verification",
+      "properties": {
+        "confidence": 0.5336
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:278142bd03f9cf18",
+      "to": "topic:fossil-excavation",
+      "properties": {
+        "confidence": 0.5048
+      }
+    },
+    {
+      "type": "SUPPORTED_BY",
+      "from": "insight:278142bd03f9cf18",
+      "to": "quote:2d95fbedd9a6e03d"
+    },
+    {
+      "type": "SUPPORTED_BY",
+      "from": "insight:278142bd03f9cf18",
+      "to": "quote:685db13d27839f69"
+    },
+    {
+      "type": "SUPPORTED_BY",
+      "from": "insight:278142bd03f9cf18",
+      "to": "quote:70303bf6db36e167"
+    },
+    {
+      "type": "HAS_INSIGHT",
+      "from": "episode:f7957569-770c-45d3-a4e4-b43c01323ab8",
+      "to": "insight:5f84bfee3488c136"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:5f84bfee3488c136",
+      "to": "topic:fossil-excavation",
+      "properties": {
+        "confidence": 0.5908
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:5f84bfee3488c136",
+      "to": "topic:dinosaur-fossils",
+      "properties": {
+        "confidence": 0.5475
+      }
+    },
+    {
+      "type": "SUPPORTED_BY",
+      "from": "insight:5f84bfee3488c136",
+      "to": "quote:eb983b7855c78fcd"
+    },
+    {
+      "type": "SUPPORTED_BY",
+      "from": "insight:5f84bfee3488c136",
+      "to": "quote:0dcf672d835ae0cf"
+    },
+    {
+      "type": "HAS_INSIGHT",
+      "from": "episode:f7957569-770c-45d3-a4e4-b43c01323ab8",
+      "to": "insight:8128e8f537814ecf"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:8128e8f537814ecf",
+      "to": "topic:fossil-market",
+      "properties": {
+        "confidence": 0.5837
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:8128e8f537814ecf",
+      "to": "topic:fossil-excavation",
+      "properties": {
+        "confidence": 0.4727
+      }
+    },
+    {
+      "type": "SUPPORTED_BY",
+      "from": "insight:8128e8f537814ecf",
+      "to": "quote:1573d31bfd2cacdb"
+    },
+    {
+      "type": "SUPPORTED_BY",
+      "from": "insight:8128e8f537814ecf",
+      "to": "quote:066b03f0dd8eaaef"
+    },
+    {
+      "type": "SUPPORTED_BY",
+      "from": "insight:8128e8f537814ecf",
+      "to": "quote:60bcab43c8a358d1"
+    },
+    {
+      "type": "SUPPORTED_BY",
+      "from": "insight:8128e8f537814ecf",
+      "to": "quote:f00871f972afbe3b"
+    },
+    {
+      "type": "HAS_INSIGHT",
+      "from": "episode:f7957569-770c-45d3-a4e4-b43c01323ab8",
+      "to": "insight:e288b8e7c7da7f91"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:e288b8e7c7da7f91",
+      "to": "topic:fossil-market",
+      "properties": {
+        "confidence": 0.6027
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:e288b8e7c7da7f91",
+      "to": "topic:dinosaur-fossils",
+      "properties": {
+        "confidence": 0.4971
+      }
+    },
+    {
+      "type": "SUPPORTED_BY",
+      "from": "insight:e288b8e7c7da7f91",
+      "to": "quote:2e6355df49afd3e1"
+    },
+    {
+      "type": "SUPPORTED_BY",
+      "from": "insight:e288b8e7c7da7f91",
+      "to": "quote:e4989cf5ca217353"
+    },
+    {
+      "type": "SUPPORTED_BY",
+      "from": "insight:e288b8e7c7da7f91",
+      "to": "quote:adca969c94aa98c3"
+    },
+    {
+      "type": "HAS_INSIGHT",
+      "from": "episode:f7957569-770c-45d3-a4e4-b43c01323ab8",
+      "to": "insight:09438bd54a0afe69"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:09438bd54a0afe69",
+      "to": "topic:fossil-market",
+      "properties": {
+        "confidence": 0.6314
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:09438bd54a0afe69",
+      "to": "topic:dinosaur-fossils",
+      "properties": {
+        "confidence": 0.6142
+      }
+    },
+    {
+      "type": "SUPPORTED_BY",
+      "from": "insight:09438bd54a0afe69",
+      "to": "quote:4f6f172d35f79b3b"
+    },
+    {
+      "type": "HAS_INSIGHT",
+      "from": "episode:f7957569-770c-45d3-a4e4-b43c01323ab8",
+      "to": "insight:435a95dbdaae2fa9"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:435a95dbdaae2fa9",
+      "to": "topic:fossil-excavation",
+      "properties": {
+        "confidence": 0.7241
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:435a95dbdaae2fa9",
+      "to": "topic:dinosaur-fossils",
+      "properties": {
+        "confidence": 0.6597
+      }
+    },
+    {
+      "type": "SUPPORTED_BY",
+      "from": "insight:435a95dbdaae2fa9",
+      "to": "quote:07603885786f0590"
+    },
+    {
+      "type": "SUPPORTED_BY",
+      "from": "insight:435a95dbdaae2fa9",
+      "to": "quote:82c40666d980e43b"
+    },
+    {
+      "type": "SUPPORTED_BY",
+      "from": "insight:435a95dbdaae2fa9",
+      "to": "quote:9be389e36ebd1066"
+    },
+    {
+      "type": "HAS_INSIGHT",
+      "from": "episode:f7957569-770c-45d3-a4e4-b43c01323ab8",
+      "to": "insight:f1ce1cac08af028c"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:f1ce1cac08af028c",
+      "to": "topic:fossil-market",
+      "properties": {
+        "confidence": 0.6774
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:f1ce1cac08af028c",
+      "to": "topic:dinosaur-fossils",
+      "properties": {
+        "confidence": 0.577
+      }
+    },
+    {
+      "type": "SUPPORTED_BY",
+      "from": "insight:f1ce1cac08af028c",
+      "to": "quote:210e423b160199fe"
+    },
+    {
+      "type": "HAS_INSIGHT",
+      "from": "episode:f7957569-770c-45d3-a4e4-b43c01323ab8",
+      "to": "insight:e60217e559e5ce3d"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:e60217e559e5ce3d",
+      "to": "topic:fossil-market",
+      "properties": {
+        "confidence": 0.4738
+      }
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:e60217e559e5ce3d",
+      "to": "topic:dinosaur-fossils",
+      "properties": {
+        "confidence": 0.473
+      }
+    },
+    {
+      "type": "SUPPORTED_BY",
+      "from": "insight:e60217e559e5ce3d",
+      "to": "quote:4f5f12d47ce0aa96"
+    },
+    {
+      "type": "SUPPORTED_BY",
+      "from": "insight:e60217e559e5ce3d",
+      "to": "quote:3276f4009cab487c"
+    }
+  ]
+}

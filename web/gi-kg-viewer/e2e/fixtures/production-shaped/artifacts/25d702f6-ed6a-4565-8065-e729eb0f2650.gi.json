@@ -1,0 +1,949 @@
+{
+  "schema_version": "2.0",
+  "model_version": "gemini-2.5-flash-lite",
+  "prompt_version": "v1",
+  "episode_id": "25d702f6-ed6a-4565-8065-e729eb0f2650",
+  "nodes": [
+    {
+      "id": "episode:25d702f6-ed6a-4565-8065-e729eb0f2650",
+      "type": "Episode",
+      "properties": {
+        "podcast_id": "sha256:8025356ebfbe105cbd206ed4a4eabbc06f4562a0360517fd129e954ee2ef1871",
+        "title": "A.I. Backlash Turns Violent + Kara Swisher on Healthmaxxing + The Zuck Bot Is Coming",
+        "publish_date": "2026-04-17T11:00:00+00:00",
+        "duration_ms": 3801000
+      }
+    },
+    {
+      "id": "topic:the-ai-backlash-has-escalated-to-violence-with-incidents-like-an-attack-on-sam-a",
+      "type": "Topic",
+      "properties": {
+        "label": "The AI backlash has escalated to violence, with incidents like an attack on Sam Altman's home and threats against a city councilman over data centers."
+      }
+    },
+    {
+      "id": "topic:data-centers-are-becoming-a-flashpoint-for-public-resistance-to-ai-leading-to-mo",
+      "type": "Topic",
+      "properties": {
+        "label": "Data centers are becoming a flashpoint for public resistance to AI, leading to moratoriums and restrictions in various locations."
+      }
+    },
+    {
+      "id": "topic:public-trust-in-ai-and-government-regulation-of-ai-is-declining-particularly-in-",
+      "type": "Topic",
+      "properties": {
+        "label": "Public trust in AI and government regulation of AI is declining, particularly in the United States."
+      }
+    },
+    {
+      "id": "topic:economic-anxieties-about-job-displacement-and-the-tangible-impact-of-ai-on-daily",
+      "type": "Topic",
+      "properties": {
+        "label": "Economic anxieties about job displacement and the tangible impact of AI on daily life are significant drivers of public concern."
+      }
+    },
+    {
+      "id": "topic:the-perception-of-ai-development-as-an-elitist-top-down-project-with-limited-pub",
+      "type": "Topic",
+      "properties": {
+        "label": "The perception of AI development as an elitist, top-down project with limited public control fuels anti-AI sentiment."
+      }
+    },
+    {
+      "id": "topic:ai-companies-face-a-dilemma-in-communicating-risks-with-extreme-rhetoric-from-le",
+      "type": "Topic",
+      "properties": {
+        "label": "AI companies face a dilemma in communicating risks, with extreme rhetoric from leaders contributing to public fear, while lobbying against accountability measures further erodes trust."
+      }
+    },
+    {
+      "id": "insight:e6ac0c4fb8495c33",
+      "type": "Insight",
+      "properties": {
+        "text": "We exchange articles. And so having read the same article, we can discuss it.",
+        "episode_id": "25d702f6-ed6a-4565-8065-e729eb0f2650",
+        "grounded": true,
+        "insight_type": "fact",
+        "position_hint": 0.0
+      },
+      "confidence": 1.0
+    },
+    {
+      "id": "quote:85d4c875a69e1004",
+      "type": "Quote",
+      "properties": {
+        "text": "We exchange articles. And so having read the same article, we can discuss it.",
+        "episode_id": "25d702f6-ed6a-4565-8065-e729eb0f2650",
+        "speaker_id": null,
+        "char_start": 39,
+        "char_end": 116,
+        "timestamp_start_ms": 2799,
+        "timestamp_end_ms": 7360,
+        "transcript_ref": "transcripts/0001 - A.I. Backlash Turns Violent _ Ka_20260421-175353_8eb5f9d2.txt"
+      }
+    },
+    {
+      "id": "insight:d734501310f5d807",
+      "type": "Insight",
+      "properties": {
+        "text": "She sent me a year-long subscription so I have access to all the games.",
+        "episode_id": "25d702f6-ed6a-4565-8065-e729eb0f2650",
+        "grounded": true,
+        "insight_type": "fact",
+        "position_hint": 0.0
+      },
+      "confidence": 1.0
+    },
+    {
+      "id": "quote:c695ec8ea794d8b4",
+      "type": "Quote",
+      "properties": {
+        "text": "She sent me a year-long subscription so I have access to all the games.",
+        "episode_id": "25d702f6-ed6a-4565-8065-e729eb0f2650",
+        "speaker_id": null,
+        "char_start": 117,
+        "char_end": 188,
+        "timestamp_start_ms": 7360,
+        "timestamp_end_ms": 10720,
+        "transcript_ref": "transcripts/0001 - A.I. Backlash Turns Violent _ Ka_20260421-175353_8eb5f9d2.txt"
+      }
+    },
+    {
+      "id": "insight:89831acac63efb83",
+      "type": "Insight",
+      "properties": {
+        "text": "The New York Times contributes to our quality time together. It enriches our relationship.",
+        "episode_id": "25d702f6-ed6a-4565-8065-e729eb0f2650",
+        "grounded": true,
+        "insight_type": "opinion",
+        "position_hint": 0.0
+      },
+      "confidence": 1.0
+    },
+    {
+      "id": "quote:e35deb81467af863",
+      "type": "Quote",
+      "properties": {
+        "text": "The New York Times contributes to our quality time together.",
+        "episode_id": "25d702f6-ed6a-4565-8065-e729eb0f2650",
+        "speaker_id": null,
+        "char_start": 189,
+        "char_end": 249,
+        "timestamp_start_ms": 10720,
+        "timestamp_end_ms": 14119,
+        "transcript_ref": "transcripts/0001 - A.I. Backlash Turns Violent _ Ka_20260421-175353_8eb5f9d2.txt"
+      }
+    },
+    {
+      "id": "quote:4b68e74b711d52a1",
+      "type": "Quote",
+      "properties": {
+        "text": "It enriches our relationship.",
+        "episode_id": "25d702f6-ed6a-4565-8065-e729eb0f2650",
+        "speaker_id": null,
+        "char_start": 250,
+        "char_end": 279,
+        "timestamp_start_ms": 14119,
+        "timestamp_end_ms": 16000,
+        "transcript_ref": "transcripts/0001 - A.I. Backlash Turns Violent _ Ka_20260421-175353_8eb5f9d2.txt"
+      }
+    },
+    {
+      "id": "insight:b757fa70ab8cabbe",
+      "type": "Insight",
+      "properties": {
+        "text": "It was such a cool and thoughtful gift.",
+        "episode_id": "25d702f6-ed6a-4565-8065-e729eb0f2650",
+        "grounded": true,
+        "insight_type": "opinion",
+        "position_hint": 0.0
+      },
+      "confidence": 1.0
+    },
+    {
+      "id": "quote:b1b7e5e3a2684d32",
+      "type": "Quote",
+      "properties": {
+        "text": "It was such a cool and thoughtful gift.",
+        "episode_id": "25d702f6-ed6a-4565-8065-e729eb0f2650",
+        "speaker_id": null,
+        "char_start": 280,
+        "char_end": 319,
+        "timestamp_start_ms": 16000,
+        "timestamp_end_ms": 18719,
+        "transcript_ref": "transcripts/0001 - A.I. Backlash Turns Violent _ Ka_20260421-175353_8eb5f9d2.txt"
+      }
+    },
+    {
+      "id": "insight:cf1e67ed8ad5f762",
+      "type": "Insight",
+      "properties": {
+        "text": "I'm Kevin Russo, tech columnist at the New York Times.",
+        "episode_id": "25d702f6-ed6a-4565-8065-e729eb0f2650",
+        "grounded": true,
+        "insight_type": "fact",
+        "position_hint": 0.02
+      },
+      "confidence": 1.0
+    },
+    {
+      "id": "quote:c94a13f21709695a",
+      "type": "Quote",
+      "properties": {
+        "text": "I'm Kevin Russo, tech columnist at the New York Times.",
+        "episode_id": "25d702f6-ed6a-4565-8065-e729eb0f2650",
+        "speaker_id": null,
+        "char_start": 1204,
+        "char_end": 1258,
+        "timestamp_start_ms": 83319,
+        "timestamp_end_ms": 85440,
+        "transcript_ref": "transcripts/0001 - A.I. Backlash Turns Violent _ Ka_20260421-175353_8eb5f9d2.txt"
+      }
+    },
+    {
+      "id": "insight:be5008b0893dc2fe",
+      "type": "Insight",
+      "properties": {
+        "text": "I'm Casey Noon from Platformer.",
+        "episode_id": "25d702f6-ed6a-4565-8065-e729eb0f2650",
+        "grounded": true,
+        "insight_type": "fact",
+        "position_hint": 0.02
+      },
+      "confidence": 1.0
+    },
+    {
+      "id": "quote:8d6f700f7373d198",
+      "type": "Quote",
+      "properties": {
+        "text": "I'm Casey Noon from Platformer.",
+        "episode_id": "25d702f6-ed6a-4565-8065-e729eb0f2650",
+        "speaker_id": null,
+        "char_start": 1259,
+        "char_end": 1290,
+        "timestamp_start_ms": 85440,
+        "timestamp_end_ms": 87000,
+        "transcript_ref": "transcripts/0001 - A.I. Backlash Turns Violent _ Ka_20260421-175353_8eb5f9d2.txt"
+      }
+    },
+    {
+      "id": "insight:a4199e04f3f21793",
+      "type": "Insight",
+      "properties": {
+        "text": "This week, the AI backlash has turned violent.",
+        "episode_id": "25d702f6-ed6a-4565-8065-e729eb0f2650",
+        "grounded": true,
+        "insight_type": "fact",
+        "position_hint": 0.06
+      },
+      "confidence": 1.0
+    },
+    {
+      "id": "quote:17655de9c1927ad8",
+      "type": "Quote",
+      "properties": {
+        "text": "This week, the AI backlash has turned violent.",
+        "episode_id": "25d702f6-ed6a-4565-8065-e729eb0f2650",
+        "speaker_id": null,
+        "char_start": 1314,
+        "char_end": 1360,
+        "timestamp_start_ms": 88120,
+        "timestamp_end_ms": 90879,
+        "transcript_ref": "transcripts/0001 - A.I. Backlash Turns Violent _ Ka_20260421-175353_8eb5f9d2.txt"
+      }
+    },
+    {
+      "id": "quote:972eab96fc5513c7",
+      "type": "Quote",
+      "properties": {
+        "text": "So most of our listeners have probably heard by now that late last week, there was an attempted attack on Sam Altman at his house in San Francisco.",
+        "episode_id": "25d702f6-ed6a-4565-8065-e729eb0f2650",
+        "speaker_id": null,
+        "char_start": 3585,
+        "char_end": 3732,
+        "timestamp_start_ms": 221479,
+        "timestamp_end_ms": 231320,
+        "transcript_ref": "transcripts/0001 - A.I. Backlash Turns Violent _ Ka_20260421-175353_8eb5f9d2.txt"
+      }
+    },
+    {
+      "id": "quote:fbaa9271a9bf5eb3",
+      "type": "Quote",
+      "properties": {
+        "text": "Yeah, so in that incident, an Indianapolis city councilman named Ron Gibson and his son woke up to more than a dozen gunshots being fired at their front door and a note tucked under their doormat that read, no data centers.",
+        "episode_id": "25d702f6-ed6a-4565-8065-e729eb0f2650",
+        "speaker_id": null,
+        "char_start": 4513,
+        "char_end": 4736,
+        "timestamp_start_ms": 286000,
+        "timestamp_end_ms": 300839,
+        "transcript_ref": "transcripts/0001 - A.I. Backlash Turns Violent _ Ka_20260421-175353_8eb5f9d2.txt"
+      }
+    },
+    {
+      "id": "quote:66afd1e0ec1b4042",
+      "type": "Quote",
+      "properties": {
+        "text": "And I think this is just part of what I am worried is a growing trend of anti-AI radicalization and violence.",
+        "episode_id": "25d702f6-ed6a-4565-8065-e729eb0f2650",
+        "speaker_id": null,
+        "char_start": 4899,
+        "char_end": 5008,
+        "timestamp_start_ms": 310720,
+        "timestamp_end_ms": 320079,
+        "transcript_ref": "transcripts/0001 - A.I. Backlash Turns Violent _ Ka_20260421-175353_8eb5f9d2.txt"
+      }
+    },
+    {
+      "id": "insight:e210c831a9518ce7",
+      "type": "Insight",
+      "properties": {
+        "text": "We'll debate what's making it so unpopular.",
+        "episode_id": "25d702f6-ed6a-4565-8065-e729eb0f2650",
+        "grounded": true,
+        "insight_type": "claim",
+        "position_hint": 0.04
+      },
+      "confidence": 1.0
+    },
+    {
+      "id": "quote:1e2dbb0a79ec5bb1",
+      "type": "Quote",
+      "properties": {
+        "text": "This week, the AI backlash has turned violent. We'll debate what's making it so unpopular.",
+        "episode_id": "25d702f6-ed6a-4565-8065-e729eb0f2650",
+        "speaker_id": null,
+        "char_start": 1314,
+        "char_end": 1404,
+        "timestamp_start_ms": 88120,
+        "timestamp_end_ms": 93599,
+        "transcript_ref": "transcripts/0001 - A.I. Backlash Turns Violent _ Ka_20260421-175353_8eb5f9d2.txt"
+      }
+    },
+    {
+      "id": "quote:ae9b59bd92bcf8ca",
+      "type": "Quote",
+      "properties": {
+        "text": "I think you and I both over the past few months have seen public sentiment really begin to turn against AI. And this week, unfortunately, we saw that sentiment spill over into violence.",
+        "episode_id": "25d702f6-ed6a-4565-8065-e729eb0f2650",
+        "speaker_id": null,
+        "char_start": 3393,
+        "char_end": 3578,
+        "timestamp_start_ms": 208559,
+        "timestamp_end_ms": 220600,
+        "transcript_ref": "transcripts/0001 - A.I. Backlash Turns Violent _ Ka_20260421-175353_8eb5f9d2.txt"
+      }
+    },
+    {
+      "id": "insight:cda9efb3451fc524",
+      "type": "Insight",
+      "properties": {
+        "text": "Then Kara Swisher returns to the show to discuss her new documentary on Silicon Valley's obsession with living longer.",
+        "episode_id": "25d702f6-ed6a-4565-8065-e729eb0f2650",
+        "grounded": true,
+        "insight_type": "fact",
+        "position_hint": 0.02
+      },
+      "confidence": 1.0
+    },
+    {
+      "id": "quote:e76dd191e148b879",
+      "type": "Quote",
+      "properties": {
+        "text": "Then Kara Swisher returns to the show to discuss her new documentary on Silicon Valley's obsession with living longer.",
+        "episode_id": "25d702f6-ed6a-4565-8065-e729eb0f2650",
+        "speaker_id": null,
+        "char_start": 1405,
+        "char_end": 1523,
+        "timestamp_start_ms": 93599,
+        "timestamp_end_ms": 100120,
+        "transcript_ref": "transcripts/0001 - A.I. Backlash Turns Violent _ Ka_20260421-175353_8eb5f9d2.txt"
+      }
+    },
+    {
+      "id": "insight:12f1ab91dd974f8b",
+      "type": "Insight",
+      "properties": {
+        "text": "And finally, can CEOs replace themselves with AI?",
+        "episode_id": "25d702f6-ed6a-4565-8065-e729eb0f2650",
+        "grounded": true,
+        "insight_type": "claim",
+        "position_hint": 0.03
+      },
+      "confidence": 1.0
+    },
+    {
+      "id": "quote:9da4ac5f573bd7ce",
+      "type": "Quote",
+      "properties": {
+        "text": "And finally, can CEOs replace themselves with AI?",
+        "episode_id": "25d702f6-ed6a-4565-8065-e729eb0f2650",
+        "speaker_id": null,
+        "char_start": 1524,
+        "char_end": 1573,
+        "timestamp_start_ms": 100120,
+        "timestamp_end_ms": 103440,
+        "transcript_ref": "transcripts/0001 - A.I. Backlash Turns Violent _ Ka_20260421-175353_8eb5f9d2.txt"
+      }
+    },
+    {
+      "id": "insight:d445a5c14450bbae",
+      "type": "Insight",
+      "properties": {
+        "text": "Mark Zuckerberg may be giving it a shot.",
+        "episode_id": "25d702f6-ed6a-4565-8065-e729eb0f2650",
+        "grounded": true,
+        "insight_type": "claim",
+        "position_hint": 0.03
+      },
+      "confidence": 1.0
+    },
+    {
+      "id": "quote:edbbf1b2152c0743",
+      "type": "Quote",
+      "properties": {
+        "text": "can CEOs replace themselves with AI? Mark Zuckerberg may be giving it a shot.",
+        "episode_id": "25d702f6-ed6a-4565-8065-e729eb0f2650",
+        "speaker_id": null,
+        "char_start": 1537,
+        "char_end": 1614,
+        "timestamp_start_ms": 100120,
+        "timestamp_end_ms": 106239,
+        "transcript_ref": "transcripts/0001 - A.I. Backlash Turns Violent _ Ka_20260421-175353_8eb5f9d2.txt"
+      }
+    },
+    {
+      "id": "insight:d398496b35de05b1",
+      "type": "Insight",
+      "properties": {
+        "text": "And we wish him the best. Godspeed.",
+        "episode_id": "25d702f6-ed6a-4565-8065-e729eb0f2650",
+        "grounded": true,
+        "insight_type": "opinion",
+        "position_hint": 0.03
+      },
+      "confidence": 1.0
+    },
+    {
+      "id": "quote:f579bd5cf03acc1c",
+      "type": "Quote",
+      "properties": {
+        "text": "And we wish him the best. Godspeed.",
+        "episode_id": "25d702f6-ed6a-4565-8065-e729eb0f2650",
+        "speaker_id": null,
+        "char_start": 1615,
+        "char_end": 1650,
+        "timestamp_start_ms": 106239,
+        "timestamp_end_ms": 108040,
+        "transcript_ref": "transcripts/0001 - A.I. Backlash Turns Violent _ Ka_20260421-175353_8eb5f9d2.txt"
+      }
+    }
+  ],
+  "edges": [
+    {
+      "type": "HAS_INSIGHT",
+      "from": "episode:25d702f6-ed6a-4565-8065-e729eb0f2650",
+      "to": "insight:e6ac0c4fb8495c33"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:e6ac0c4fb8495c33",
+      "to": "topic:the-ai-backlash-has-escalated-to-violence-with-incidents-like-an-attack-on-sam-a"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:e6ac0c4fb8495c33",
+      "to": "topic:data-centers-are-becoming-a-flashpoint-for-public-resistance-to-ai-leading-to-mo"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:e6ac0c4fb8495c33",
+      "to": "topic:public-trust-in-ai-and-government-regulation-of-ai-is-declining-particularly-in-"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:e6ac0c4fb8495c33",
+      "to": "topic:economic-anxieties-about-job-displacement-and-the-tangible-impact-of-ai-on-daily"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:e6ac0c4fb8495c33",
+      "to": "topic:the-perception-of-ai-development-as-an-elitist-top-down-project-with-limited-pub"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:e6ac0c4fb8495c33",
+      "to": "topic:ai-companies-face-a-dilemma-in-communicating-risks-with-extreme-rhetoric-from-le"
+    },
+    {
+      "type": "SUPPORTED_BY",
+      "from": "insight:e6ac0c4fb8495c33",
+      "to": "quote:85d4c875a69e1004"
+    },
+    {
+      "type": "HAS_INSIGHT",
+      "from": "episode:25d702f6-ed6a-4565-8065-e729eb0f2650",
+      "to": "insight:d734501310f5d807"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:d734501310f5d807",
+      "to": "topic:the-ai-backlash-has-escalated-to-violence-with-incidents-like-an-attack-on-sam-a"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:d734501310f5d807",
+      "to": "topic:data-centers-are-becoming-a-flashpoint-for-public-resistance-to-ai-leading-to-mo"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:d734501310f5d807",
+      "to": "topic:public-trust-in-ai-and-government-regulation-of-ai-is-declining-particularly-in-"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:d734501310f5d807",
+      "to": "topic:economic-anxieties-about-job-displacement-and-the-tangible-impact-of-ai-on-daily"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:d734501310f5d807",
+      "to": "topic:the-perception-of-ai-development-as-an-elitist-top-down-project-with-limited-pub"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:d734501310f5d807",
+      "to": "topic:ai-companies-face-a-dilemma-in-communicating-risks-with-extreme-rhetoric-from-le"
+    },
+    {
+      "type": "SUPPORTED_BY",
+      "from": "insight:d734501310f5d807",
+      "to": "quote:c695ec8ea794d8b4"
+    },
+    {
+      "type": "HAS_INSIGHT",
+      "from": "episode:25d702f6-ed6a-4565-8065-e729eb0f2650",
+      "to": "insight:89831acac63efb83"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:89831acac63efb83",
+      "to": "topic:the-ai-backlash-has-escalated-to-violence-with-incidents-like-an-attack-on-sam-a"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:89831acac63efb83",
+      "to": "topic:data-centers-are-becoming-a-flashpoint-for-public-resistance-to-ai-leading-to-mo"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:89831acac63efb83",
+      "to": "topic:public-trust-in-ai-and-government-regulation-of-ai-is-declining-particularly-in-"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:89831acac63efb83",
+      "to": "topic:economic-anxieties-about-job-displacement-and-the-tangible-impact-of-ai-on-daily"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:89831acac63efb83",
+      "to": "topic:the-perception-of-ai-development-as-an-elitist-top-down-project-with-limited-pub"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:89831acac63efb83",
+      "to": "topic:ai-companies-face-a-dilemma-in-communicating-risks-with-extreme-rhetoric-from-le"
+    },
+    {
+      "type": "SUPPORTED_BY",
+      "from": "insight:89831acac63efb83",
+      "to": "quote:e35deb81467af863"
+    },
+    {
+      "type": "SUPPORTED_BY",
+      "from": "insight:89831acac63efb83",
+      "to": "quote:4b68e74b711d52a1"
+    },
+    {
+      "type": "HAS_INSIGHT",
+      "from": "episode:25d702f6-ed6a-4565-8065-e729eb0f2650",
+      "to": "insight:b757fa70ab8cabbe"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:b757fa70ab8cabbe",
+      "to": "topic:the-ai-backlash-has-escalated-to-violence-with-incidents-like-an-attack-on-sam-a"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:b757fa70ab8cabbe",
+      "to": "topic:data-centers-are-becoming-a-flashpoint-for-public-resistance-to-ai-leading-to-mo"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:b757fa70ab8cabbe",
+      "to": "topic:public-trust-in-ai-and-government-regulation-of-ai-is-declining-particularly-in-"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:b757fa70ab8cabbe",
+      "to": "topic:economic-anxieties-about-job-displacement-and-the-tangible-impact-of-ai-on-daily"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:b757fa70ab8cabbe",
+      "to": "topic:the-perception-of-ai-development-as-an-elitist-top-down-project-with-limited-pub"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:b757fa70ab8cabbe",
+      "to": "topic:ai-companies-face-a-dilemma-in-communicating-risks-with-extreme-rhetoric-from-le"
+    },
+    {
+      "type": "SUPPORTED_BY",
+      "from": "insight:b757fa70ab8cabbe",
+      "to": "quote:b1b7e5e3a2684d32"
+    },
+    {
+      "type": "HAS_INSIGHT",
+      "from": "episode:25d702f6-ed6a-4565-8065-e729eb0f2650",
+      "to": "insight:cf1e67ed8ad5f762"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:cf1e67ed8ad5f762",
+      "to": "topic:the-ai-backlash-has-escalated-to-violence-with-incidents-like-an-attack-on-sam-a"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:cf1e67ed8ad5f762",
+      "to": "topic:data-centers-are-becoming-a-flashpoint-for-public-resistance-to-ai-leading-to-mo"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:cf1e67ed8ad5f762",
+      "to": "topic:public-trust-in-ai-and-government-regulation-of-ai-is-declining-particularly-in-"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:cf1e67ed8ad5f762",
+      "to": "topic:economic-anxieties-about-job-displacement-and-the-tangible-impact-of-ai-on-daily"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:cf1e67ed8ad5f762",
+      "to": "topic:the-perception-of-ai-development-as-an-elitist-top-down-project-with-limited-pub"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:cf1e67ed8ad5f762",
+      "to": "topic:ai-companies-face-a-dilemma-in-communicating-risks-with-extreme-rhetoric-from-le"
+    },
+    {
+      "type": "SUPPORTED_BY",
+      "from": "insight:cf1e67ed8ad5f762",
+      "to": "quote:c94a13f21709695a"
+    },
+    {
+      "type": "HAS_INSIGHT",
+      "from": "episode:25d702f6-ed6a-4565-8065-e729eb0f2650",
+      "to": "insight:be5008b0893dc2fe"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:be5008b0893dc2fe",
+      "to": "topic:the-ai-backlash-has-escalated-to-violence-with-incidents-like-an-attack-on-sam-a"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:be5008b0893dc2fe",
+      "to": "topic:data-centers-are-becoming-a-flashpoint-for-public-resistance-to-ai-leading-to-mo"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:be5008b0893dc2fe",
+      "to": "topic:public-trust-in-ai-and-government-regulation-of-ai-is-declining-particularly-in-"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:be5008b0893dc2fe",
+      "to": "topic:economic-anxieties-about-job-displacement-and-the-tangible-impact-of-ai-on-daily"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:be5008b0893dc2fe",
+      "to": "topic:the-perception-of-ai-development-as-an-elitist-top-down-project-with-limited-pub"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:be5008b0893dc2fe",
+      "to": "topic:ai-companies-face-a-dilemma-in-communicating-risks-with-extreme-rhetoric-from-le"
+    },
+    {
+      "type": "SUPPORTED_BY",
+      "from": "insight:be5008b0893dc2fe",
+      "to": "quote:8d6f700f7373d198"
+    },
+    {
+      "type": "HAS_INSIGHT",
+      "from": "episode:25d702f6-ed6a-4565-8065-e729eb0f2650",
+      "to": "insight:a4199e04f3f21793"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:a4199e04f3f21793",
+      "to": "topic:the-ai-backlash-has-escalated-to-violence-with-incidents-like-an-attack-on-sam-a"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:a4199e04f3f21793",
+      "to": "topic:data-centers-are-becoming-a-flashpoint-for-public-resistance-to-ai-leading-to-mo"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:a4199e04f3f21793",
+      "to": "topic:public-trust-in-ai-and-government-regulation-of-ai-is-declining-particularly-in-"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:a4199e04f3f21793",
+      "to": "topic:economic-anxieties-about-job-displacement-and-the-tangible-impact-of-ai-on-daily"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:a4199e04f3f21793",
+      "to": "topic:the-perception-of-ai-development-as-an-elitist-top-down-project-with-limited-pub"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:a4199e04f3f21793",
+      "to": "topic:ai-companies-face-a-dilemma-in-communicating-risks-with-extreme-rhetoric-from-le"
+    },
+    {
+      "type": "SUPPORTED_BY",
+      "from": "insight:a4199e04f3f21793",
+      "to": "quote:17655de9c1927ad8"
+    },
+    {
+      "type": "SUPPORTED_BY",
+      "from": "insight:a4199e04f3f21793",
+      "to": "quote:972eab96fc5513c7"
+    },
+    {
+      "type": "SUPPORTED_BY",
+      "from": "insight:a4199e04f3f21793",
+      "to": "quote:fbaa9271a9bf5eb3"
+    },
+    {
+      "type": "SUPPORTED_BY",
+      "from": "insight:a4199e04f3f21793",
+      "to": "quote:66afd1e0ec1b4042"
+    },
+    {
+      "type": "HAS_INSIGHT",
+      "from": "episode:25d702f6-ed6a-4565-8065-e729eb0f2650",
+      "to": "insight:e210c831a9518ce7"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:e210c831a9518ce7",
+      "to": "topic:the-ai-backlash-has-escalated-to-violence-with-incidents-like-an-attack-on-sam-a"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:e210c831a9518ce7",
+      "to": "topic:data-centers-are-becoming-a-flashpoint-for-public-resistance-to-ai-leading-to-mo"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:e210c831a9518ce7",
+      "to": "topic:public-trust-in-ai-and-government-regulation-of-ai-is-declining-particularly-in-"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:e210c831a9518ce7",
+      "to": "topic:economic-anxieties-about-job-displacement-and-the-tangible-impact-of-ai-on-daily"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:e210c831a9518ce7",
+      "to": "topic:the-perception-of-ai-development-as-an-elitist-top-down-project-with-limited-pub"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:e210c831a9518ce7",
+      "to": "topic:ai-companies-face-a-dilemma-in-communicating-risks-with-extreme-rhetoric-from-le"
+    },
+    {
+      "type": "SUPPORTED_BY",
+      "from": "insight:e210c831a9518ce7",
+      "to": "quote:1e2dbb0a79ec5bb1"
+    },
+    {
+      "type": "SUPPORTED_BY",
+      "from": "insight:e210c831a9518ce7",
+      "to": "quote:ae9b59bd92bcf8ca"
+    },
+    {
+      "type": "HAS_INSIGHT",
+      "from": "episode:25d702f6-ed6a-4565-8065-e729eb0f2650",
+      "to": "insight:cda9efb3451fc524"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:cda9efb3451fc524",
+      "to": "topic:the-ai-backlash-has-escalated-to-violence-with-incidents-like-an-attack-on-sam-a"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:cda9efb3451fc524",
+      "to": "topic:data-centers-are-becoming-a-flashpoint-for-public-resistance-to-ai-leading-to-mo"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:cda9efb3451fc524",
+      "to": "topic:public-trust-in-ai-and-government-regulation-of-ai-is-declining-particularly-in-"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:cda9efb3451fc524",
+      "to": "topic:economic-anxieties-about-job-displacement-and-the-tangible-impact-of-ai-on-daily"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:cda9efb3451fc524",
+      "to": "topic:the-perception-of-ai-development-as-an-elitist-top-down-project-with-limited-pub"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:cda9efb3451fc524",
+      "to": "topic:ai-companies-face-a-dilemma-in-communicating-risks-with-extreme-rhetoric-from-le"
+    },
+    {
+      "type": "SUPPORTED_BY",
+      "from": "insight:cda9efb3451fc524",
+      "to": "quote:e76dd191e148b879"
+    },
+    {
+      "type": "HAS_INSIGHT",
+      "from": "episode:25d702f6-ed6a-4565-8065-e729eb0f2650",
+      "to": "insight:12f1ab91dd974f8b"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:12f1ab91dd974f8b",
+      "to": "topic:the-ai-backlash-has-escalated-to-violence-with-incidents-like-an-attack-on-sam-a"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:12f1ab91dd974f8b",
+      "to": "topic:data-centers-are-becoming-a-flashpoint-for-public-resistance-to-ai-leading-to-mo"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:12f1ab91dd974f8b",
+      "to": "topic:public-trust-in-ai-and-government-regulation-of-ai-is-declining-particularly-in-"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:12f1ab91dd974f8b",
+      "to": "topic:economic-anxieties-about-job-displacement-and-the-tangible-impact-of-ai-on-daily"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:12f1ab91dd974f8b",
+      "to": "topic:the-perception-of-ai-development-as-an-elitist-top-down-project-with-limited-pub"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:12f1ab91dd974f8b",
+      "to": "topic:ai-companies-face-a-dilemma-in-communicating-risks-with-extreme-rhetoric-from-le"
+    },
+    {
+      "type": "SUPPORTED_BY",
+      "from": "insight:12f1ab91dd974f8b",
+      "to": "quote:9da4ac5f573bd7ce"
+    },
+    {
+      "type": "HAS_INSIGHT",
+      "from": "episode:25d702f6-ed6a-4565-8065-e729eb0f2650",
+      "to": "insight:d445a5c14450bbae"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:d445a5c14450bbae",
+      "to": "topic:the-ai-backlash-has-escalated-to-violence-with-incidents-like-an-attack-on-sam-a"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:d445a5c14450bbae",
+      "to": "topic:data-centers-are-becoming-a-flashpoint-for-public-resistance-to-ai-leading-to-mo"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:d445a5c14450bbae",
+      "to": "topic:public-trust-in-ai-and-government-regulation-of-ai-is-declining-particularly-in-"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:d445a5c14450bbae",
+      "to": "topic:economic-anxieties-about-job-displacement-and-the-tangible-impact-of-ai-on-daily"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:d445a5c14450bbae",
+      "to": "topic:the-perception-of-ai-development-as-an-elitist-top-down-project-with-limited-pub"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:d445a5c14450bbae",
+      "to": "topic:ai-companies-face-a-dilemma-in-communicating-risks-with-extreme-rhetoric-from-le"
+    },
+    {
+      "type": "SUPPORTED_BY",
+      "from": "insight:d445a5c14450bbae",
+      "to": "quote:edbbf1b2152c0743"
+    },
+    {
+      "type": "HAS_INSIGHT",
+      "from": "episode:25d702f6-ed6a-4565-8065-e729eb0f2650",
+      "to": "insight:d398496b35de05b1"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:d398496b35de05b1",
+      "to": "topic:the-ai-backlash-has-escalated-to-violence-with-incidents-like-an-attack-on-sam-a"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:d398496b35de05b1",
+      "to": "topic:data-centers-are-becoming-a-flashpoint-for-public-resistance-to-ai-leading-to-mo"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:d398496b35de05b1",
+      "to": "topic:public-trust-in-ai-and-government-regulation-of-ai-is-declining-particularly-in-"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:d398496b35de05b1",
+      "to": "topic:economic-anxieties-about-job-displacement-and-the-tangible-impact-of-ai-on-daily"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:d398496b35de05b1",
+      "to": "topic:the-perception-of-ai-development-as-an-elitist-top-down-project-with-limited-pub"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:d398496b35de05b1",
+      "to": "topic:ai-companies-face-a-dilemma-in-communicating-risks-with-extreme-rhetoric-from-le"
+    },
+    {
+      "type": "SUPPORTED_BY",
+      "from": "insight:d398496b35de05b1",
+      "to": "quote:f579bd5cf03acc1c"
+    }
+  ]
+}

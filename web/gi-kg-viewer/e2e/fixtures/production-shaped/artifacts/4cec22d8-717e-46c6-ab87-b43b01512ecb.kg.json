@@ -1,0 +1,355 @@
+{
+  "schema_version": "1.2",
+  "episode_id": "4cec22d8-717e-46c6-ab87-b43b01512ecb",
+  "extraction": {
+    "model_version": "provider:gemini-2.5-flash-lite",
+    "extracted_at": "2026-05-06T12:04:48Z",
+    "transcript_ref": "transcripts/0004 - BlackRock_s Rob Goldstein on the Next Megatrends in Finance_20260506-135048_ba02775e.txt"
+  },
+  "nodes": [
+    {
+      "id": "episode:4cec22d8-717e-46c6-ab87-b43b01512ecb",
+      "type": "Episode",
+      "properties": {
+        "podcast_id": "sha256:1cd6aecdd31c0ae82c2c76efdb6327b54e6026924b47852c51ffb406a9f2b19c",
+        "title": "BlackRock's Rob Goldstein on the Next Megatrends in Finance",
+        "publish_date": "2026-04-30T08:00:00+00:00",
+        "feed_id": "sha256:1cd6aecdd31c0ae82c2c76efdb6327b54e6026924b47852c51ffb406a9f2b19c"
+      }
+    },
+    {
+      "id": "topic:asset-management",
+      "type": "Topic",
+      "properties": {
+        "label": "asset management",
+        "slug": "asset-management"
+      }
+    },
+    {
+      "id": "topic:financial-technology",
+      "type": "Topic",
+      "properties": {
+        "label": "financial technology",
+        "slug": "financial-technology"
+      }
+    },
+    {
+      "id": "topic:artificial-intelligence",
+      "type": "Topic",
+      "properties": {
+        "label": "artificial intelligence",
+        "slug": "artificial-intelligence"
+      }
+    },
+    {
+      "id": "topic:risk-management",
+      "type": "Topic",
+      "properties": {
+        "label": "risk management",
+        "slug": "risk-management"
+      }
+    },
+    {
+      "id": "topic:private-markets",
+      "type": "Topic",
+      "properties": {
+        "label": "private markets",
+        "slug": "private-markets"
+      }
+    },
+    {
+      "id": "topic:market-consolidation",
+      "type": "Topic",
+      "properties": {
+        "label": "market consolidation",
+        "slug": "market-consolidation"
+      }
+    },
+    {
+      "id": "topic:data-analytics",
+      "type": "Topic",
+      "properties": {
+        "label": "data analytics",
+        "slug": "data-analytics"
+      }
+    },
+    {
+      "id": "topic:enterprise-platforms",
+      "type": "Topic",
+      "properties": {
+        "label": "enterprise platforms",
+        "slug": "enterprise-platforms"
+      }
+    },
+    {
+      "id": "topic:algorithmic-trading",
+      "type": "Topic",
+      "properties": {
+        "label": "algorithmic trading",
+        "slug": "algorithmic-trading"
+      }
+    },
+    {
+      "id": "topic:regulatory-compliance",
+      "type": "Topic",
+      "properties": {
+        "label": "regulatory compliance",
+        "slug": "regulatory-compliance"
+      }
+    },
+    {
+      "id": "org:bloomberg",
+      "type": "Entity",
+      "properties": {
+        "name": "Bloomberg",
+        "label": "Bloomberg",
+        "kind": "org",
+        "role": "mentioned"
+      }
+    },
+    {
+      "id": "org:odd-lots-podcast",
+      "type": "Entity",
+      "properties": {
+        "name": "Odd Lots podcast",
+        "label": "Odd Lots podcast",
+        "kind": "org",
+        "role": "mentioned"
+      }
+    },
+    {
+      "id": "person:tracy-alloway",
+      "type": "Entity",
+      "properties": {
+        "name": "Tracy Alloway",
+        "label": "Tracy Alloway",
+        "kind": "person",
+        "role": "mentioned"
+      }
+    },
+    {
+      "id": "person:joe-weisenthal",
+      "type": "Entity",
+      "properties": {
+        "name": "Joe Weisenthal",
+        "label": "Joe Weisenthal",
+        "kind": "person",
+        "role": "mentioned"
+      }
+    },
+    {
+      "id": "person:rob-goldstein",
+      "type": "Entity",
+      "properties": {
+        "name": "Rob Goldstein",
+        "label": "Rob Goldstein",
+        "kind": "person",
+        "role": "mentioned"
+      }
+    },
+    {
+      "id": "org:blackrock",
+      "type": "Entity",
+      "properties": {
+        "name": "BlackRock",
+        "label": "BlackRock",
+        "kind": "org",
+        "role": "mentioned"
+      }
+    },
+    {
+      "id": "org:sun-workstation",
+      "type": "Entity",
+      "properties": {
+        "name": "Sun workstation",
+        "label": "Sun workstation",
+        "kind": "org",
+        "role": "mentioned"
+      }
+    },
+    {
+      "id": "org:mit",
+      "type": "Entity",
+      "properties": {
+        "name": "MIT",
+        "label": "MIT",
+        "kind": "org",
+        "role": "mentioned"
+      }
+    },
+    {
+      "id": "org:aladdin",
+      "type": "Entity",
+      "properties": {
+        "name": "Aladdin",
+        "label": "Aladdin",
+        "kind": "org",
+        "role": "mentioned"
+      }
+    },
+    {
+      "id": "org:bloomberg-terminal",
+      "type": "Entity",
+      "properties": {
+        "name": "Bloomberg Terminal",
+        "label": "Bloomberg Terminal",
+        "kind": "org",
+        "role": "mentioned"
+      }
+    },
+    {
+      "id": "person:tony-kim",
+      "type": "Entity",
+      "properties": {
+        "name": "Tony Kim",
+        "label": "Tony Kim",
+        "kind": "person",
+        "role": "mentioned"
+      }
+    },
+    {
+      "id": "person:bloomberg",
+      "type": "Entity",
+      "properties": {
+        "name": "Bloomberg",
+        "label": "Bloomberg",
+        "kind": "person",
+        "role": "host"
+      }
+    }
+  ],
+  "edges": [
+    {
+      "from": "topic:asset-management",
+      "to": "episode:4cec22d8-717e-46c6-ab87-b43b01512ecb",
+      "type": "MENTIONS",
+      "properties": {}
+    },
+    {
+      "from": "topic:financial-technology",
+      "to": "episode:4cec22d8-717e-46c6-ab87-b43b01512ecb",
+      "type": "MENTIONS",
+      "properties": {}
+    },
+    {
+      "from": "topic:artificial-intelligence",
+      "to": "episode:4cec22d8-717e-46c6-ab87-b43b01512ecb",
+      "type": "MENTIONS",
+      "properties": {}
+    },
+    {
+      "from": "topic:risk-management",
+      "to": "episode:4cec22d8-717e-46c6-ab87-b43b01512ecb",
+      "type": "MENTIONS",
+      "properties": {}
+    },
+    {
+      "from": "topic:private-markets",
+      "to": "episode:4cec22d8-717e-46c6-ab87-b43b01512ecb",
+      "type": "MENTIONS",
+      "properties": {}
+    },
+    {
+      "from": "topic:market-consolidation",
+      "to": "episode:4cec22d8-717e-46c6-ab87-b43b01512ecb",
+      "type": "MENTIONS",
+      "properties": {}
+    },
+    {
+      "from": "topic:data-analytics",
+      "to": "episode:4cec22d8-717e-46c6-ab87-b43b01512ecb",
+      "type": "MENTIONS",
+      "properties": {}
+    },
+    {
+      "from": "topic:enterprise-platforms",
+      "to": "episode:4cec22d8-717e-46c6-ab87-b43b01512ecb",
+      "type": "MENTIONS",
+      "properties": {}
+    },
+    {
+      "from": "topic:algorithmic-trading",
+      "to": "episode:4cec22d8-717e-46c6-ab87-b43b01512ecb",
+      "type": "MENTIONS",
+      "properties": {}
+    },
+    {
+      "from": "topic:regulatory-compliance",
+      "to": "episode:4cec22d8-717e-46c6-ab87-b43b01512ecb",
+      "type": "MENTIONS",
+      "properties": {}
+    },
+    {
+      "from": "org:bloomberg",
+      "to": "episode:4cec22d8-717e-46c6-ab87-b43b01512ecb",
+      "type": "MENTIONS",
+      "properties": {}
+    },
+    {
+      "from": "org:odd-lots-podcast",
+      "to": "episode:4cec22d8-717e-46c6-ab87-b43b01512ecb",
+      "type": "MENTIONS",
+      "properties": {}
+    },
+    {
+      "from": "person:tracy-alloway",
+      "to": "episode:4cec22d8-717e-46c6-ab87-b43b01512ecb",
+      "type": "MENTIONS",
+      "properties": {}
+    },
+    {
+      "from": "person:joe-weisenthal",
+      "to": "episode:4cec22d8-717e-46c6-ab87-b43b01512ecb",
+      "type": "MENTIONS",
+      "properties": {}
+    },
+    {
+      "from": "person:rob-goldstein",
+      "to": "episode:4cec22d8-717e-46c6-ab87-b43b01512ecb",
+      "type": "MENTIONS",
+      "properties": {}
+    },
+    {
+      "from": "org:blackrock",
+      "to": "episode:4cec22d8-717e-46c6-ab87-b43b01512ecb",
+      "type": "MENTIONS",
+      "properties": {}
+    },
+    {
+      "from": "org:sun-workstation",
+      "to": "episode:4cec22d8-717e-46c6-ab87-b43b01512ecb",
+      "type": "MENTIONS",
+      "properties": {}
+    },
+    {
+      "from": "org:mit",
+      "to": "episode:4cec22d8-717e-46c6-ab87-b43b01512ecb",
+      "type": "MENTIONS",
+      "properties": {}
+    },
+    {
+      "from": "org:aladdin",
+      "to": "episode:4cec22d8-717e-46c6-ab87-b43b01512ecb",
+      "type": "MENTIONS",
+      "properties": {}
+    },
+    {
+      "from": "org:bloomberg-terminal",
+      "to": "episode:4cec22d8-717e-46c6-ab87-b43b01512ecb",
+      "type": "MENTIONS",
+      "properties": {}
+    },
+    {
+      "from": "person:tony-kim",
+      "to": "episode:4cec22d8-717e-46c6-ab87-b43b01512ecb",
+      "type": "MENTIONS",
+      "properties": {}
+    },
+    {
+      "from": "person:bloomberg",
+      "to": "episode:4cec22d8-717e-46c6-ab87-b43b01512ecb",
+      "type": "MENTIONS",
+      "properties": {}
+    }
+  ]
+}

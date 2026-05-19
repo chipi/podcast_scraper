@@ -38,7 +38,6 @@ import {
   applyGraphFocusPlan,
   graphFocusPlanFromCilPill,
 } from '../../utils/cilGraphFocus'
-import { findTopicClusterContextForGraphNode } from '../../utils/topicClustersOverlay'
 
 const emit = defineEmits<{
   'switch-main-tab': [tab: 'graph' | 'dashboard' | 'library']
@@ -217,10 +216,19 @@ async function openDigestRecentTopicPillInGraph(
   // DO NOT call ensureDefaultCorpusGraphIfNeeded() - it sets mainTab to 'graph' which causes double-loading
   // Mark this as external load from Digest - no auto-merge wanted
   artifacts.setLoadSource('digest-external')
-  await artifacts.appendRelativeArtifacts(cleaned)
-  if (digestGraphOpenGate.isStale(seq)) {
-    return
-  }
+
+  // **Sequencing matters.** ``appendRelativeArtifacts`` below awakens the
+  // meta-watcher in ``GraphCanvas.vue:3017+`` mid-await; if we haven't
+  // already (a) synced ``subject`` to the click intent and (b) fired the
+  // FSM envelope, the watcher reads the *prior* pill's stale
+  // ``subject.graphNodeCyId`` AND sees ``graphHandoff.pending === null``,
+  // then re-dispatches a fresh ``restore-preference`` envelope with the
+  // stale id. On heavy graphs that second envelope wins a generation race,
+  // selection sticks on the prior pill, and the camera collapses to
+  // fit-all when ``CameraStrategy.center`` falls through with no anchor
+  // (see ADR-094 decision #4 / #11; live Playwright trace 2026-05-14).
+  // Order both writes BEFORE the await; both Fix A (fresh subject) and
+  // Fix B (pending != null) gates then close the window structurally.
   graphNav.clearLibraryEpisodeHighlights()
   const plan = graphFocusPlanFromCilPill(pill, row.episode_id)
   applyGraphFocusPlan(graphNav, plan)
@@ -232,7 +240,16 @@ async function openDigestRecentTopicPillInGraph(
   if (highlights) {
     graphNav.setLibraryEpisodeHighlights(highlights)
   }
-  // FSM event for the Digest pill handoff (decision #5 / spec).
+  if (plan.kind === 'topic') {
+    subject.focusGraphNode(plan.primary)
+  } else if (plan.kind === 'episode_only' && row.metadata_relative_path) {
+    subject.focusEpisode(row.metadata_relative_path, {
+      graphConnectionsCyId: plan.primary,
+    })
+  }
+  // FSM event for the Digest pill handoff (decision #5 / spec). Fires
+  // before the await so ``graphHandoff.pending`` is set when the
+  // meta-watcher wakes up during ``appendRelativeArtifacts``.
   if (plan.kind !== 'none') {
     graphHandoff.handoffRequested({
       kind: plan.kind === 'topic' ? 'topic' : 'episode',
@@ -243,6 +260,44 @@ async function openDigestRecentTopicPillInGraph(
       camera: { kind: 'center-on-target' },
       highlights,
     })
+  }
+
+  // Snapshot the selection length BEFORE append so we can detect the
+  // ``appendRelativeArtifacts`` no-op short-circuit (all paths already
+  // loaded). In that case the natural redraw chain doesn't fire and the
+  // FSM stays in ``loading_fetch`` → stuck-timeout at 15s. The
+  // ``loadSelected`` follow-up forces a re-parse + redraw which drives
+  // ``finishLayoutPass`` → ``recordApplied``. When the append DOES add
+  // new paths, the natural redraw is enough — calling ``loadSelected``
+  // anyway triggers a SECOND redraw that re-runs layout and moves the
+  // camera-target after centering (H2.6 regression class). So gate it.
+  const beforeCount = artifacts.selectedRelPaths.length
+  await artifacts.appendRelativeArtifacts(cleaned)
+  if (digestGraphOpenGate.isStale(seq)) {
+    return
+  }
+  if (artifacts.selectedRelPaths.length === beforeCount) {
+    // Append was a no-op (all paths already loaded). Wait briefly so
+    // the natural chain (subject change → watcher → tab-activate →
+    // tryApplyPendingFocus) gets a chance to drive the FSM to ready
+    // on its own (typical when emit('switch-main-tab') causes an
+    // actual tab change). Only force a redraw when the FSM is still
+    // stuck in a load state — that's the same-tab-already-active case
+    // (Tier-3 P2.5/P2.6).
+    await new Promise<void>((r) => setTimeout(r, 600))
+    if (digestGraphOpenGate.isStale(seq)) {
+      return
+    }
+    const stillStuck =
+      graphHandoff.state === 'loading_fetch' ||
+      graphHandoff.state === 'loading_bootstrap' ||
+      graphHandoff.state === 'loading_merge'
+    if (stillStuck) {
+      await artifacts.loadSelected({ preserveExpansion: true })
+      if (digestGraphOpenGate.isStale(seq)) {
+        return
+      }
+    }
   }
   emit('switch-main-tab', 'graph')
 }
@@ -528,77 +583,6 @@ async function openTopicHitInGraph(
   emit('switch-main-tab', 'graph')
 }
 
-async function openTopicBandInGraph(band: CorpusDigestTopicBand): Promise<void> {
-  const cap = digestCategoryBandEpisodeCap()
-  const gid = band.graph_topic_id?.trim()
-  
-  // Collect all artifact paths from hits (up to cap)
-  const allPaths: string[] = []
-  let loadedCount = 0
-  
-  for (const h of band.hits) {
-    if (loadedCount >= cap) {
-      break
-    }
-    if (h.has_gi || h.has_kg) {
-      if (h.has_gi && h.gi_relative_path?.trim()) {
-        allPaths.push(h.gi_relative_path.trim())
-      }
-      if (h.has_kg && h.kg_relative_path?.trim()) {
-        allPaths.push(h.kg_relative_path.trim())
-      }
-      loadedCount += 1
-    }
-  }
-  
-  if (allPaths.length === 0) {
-    graphActionError.value = "No GI/KG artifacts for this topic's hits."
-    return
-  }
-  
-  // DO NOT call ensureDefaultCorpusGraphIfNeeded() - it sets mainTab to 'graph' which causes double-loading
-  // The graph baseline will be loaded by activateGraphTab() if needed
-  
-  // Mark this as external load from Digest - no auto-merge wanted
-  artifacts.setLoadSource('digest-external')
-  await artifacts.appendRelativeArtifacts(allPaths)
-  
-  if (gid) {
-    subject.focusTopic(gid)
-    const clusterCtx = findTopicClusterContextForGraphNode(gid, artifacts.topicClustersDoc)
-    if (clusterCtx?.compoundParentId) {
-      graphNav.requestFocusNode(clusterCtx.compoundParentId, gid)
-      graphHandoff.handoffRequested({
-        kind: 'topic',
-        cyId: clusterCtx.compoundParentId,
-        source: 'digest',
-        loadSource: 'digest-external',
-        camera: { kind: 'center', cyId: clusterCtx.compoundParentId },
-      })
-    } else {
-      graphNav.requestFocusNode(gid)
-      graphNav.setRequestFitAfterLoad()
-      // F1.5 — D3 Digest band title fires FSM event with `camera: { kind: 'fit' }`
-      // (decision #11). Topic band loads multiple episodes; no single focus
-      // node to centre on, so fit the viewport.
-      graphHandoff.handoffRequested({
-        kind: 'topic',
-        cyId: gid,
-        source: 'digest',
-        loadSource: 'digest-external',
-        camera: { kind: 'fit' },
-      })
-    }
-  } else {
-    graphNav.clearPendingFocus()
-    graphNav.setRequestFitAfterLoad()
-  }
-
-  // DO NOT clear loadSource here - let the filteredArtifact watcher see it and clear it
-  // artifacts.clearLoadSource()  // Removed: clearing too early, before watcher fires
-  emit('switch-main-tab', 'graph')
-}
-
 watch(
   () =>
     [
@@ -761,16 +745,25 @@ onBeforeUnmount(() => {
             :aria-label="`Topic ${band.label}`"
           >
             <div class="flex flex-wrap items-center justify-between gap-1.5">
-              <button
-                type="button"
-                class="min-w-0 flex-1 rounded px-0.5 py-0.5 text-left hover:bg-overlay/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
-                :aria-label="`Open graph for topic ${band.label} (top hit with GI or KG)`"
-                @click="void openTopicBandInGraph(band)"
+              <!--
+                Headline topic bands are editorial defaults from
+                ``DEFAULT_DIGEST_TOPICS`` in the server (e.g. "Science &
+                research", "Technology", "Business & markets"). They do
+                NOT correspond to KG topic nodes in arbitrary corpora —
+                clicking them would build an envelope targeting
+                ``topic:<editorial-slug>`` that the FSM cannot resolve.
+                Render as static text; the "Search topic" button next to
+                it remains as the actionable affordance (runs the query
+                via FAISS to surface real, focusable hits).
+              -->
+              <span
+                class="min-w-0 flex-1 px-0.5 py-0.5 text-left"
+                :aria-label="`Topic band ${band.label}`"
               >
                 <span :class="bandTitleClass(band)">{{
                   band.label
                 }}</span>
-              </button>
+              </span>
               <button
                 type="button"
                 class="shrink-0 rounded bg-primary px-2 py-0.5 text-[10px] font-medium text-primary-foreground"

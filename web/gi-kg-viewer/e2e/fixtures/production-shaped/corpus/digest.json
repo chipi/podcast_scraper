@@ -1,0 +1,1488 @@
+{
+  "compact": false,
+  "path": "/Users/markodragoljevic/Projects/podcast_scraper-FUTURE/.test_outputs/manual/my-manual-run-10",
+  "rows": [
+    {
+      "cil_digest_topics": [
+        {
+          "in_topic_cluster": true,
+          "label": "public investment",
+          "topic_cluster_compound_id": "tc:private-investment",
+          "topic_id": "topic:public-investment"
+        },
+        {
+          "in_topic_cluster": true,
+          "label": "urban planning",
+          "topic_cluster_compound_id": "tc:urban-development",
+          "topic_id": "topic:urban-planning"
+        },
+        {
+          "in_topic_cluster": false,
+          "label": "city government",
+          "topic_cluster_compound_id": null,
+          "topic_id": "topic:city-government"
+        },
+        {
+          "in_topic_cluster": false,
+          "label": "community development",
+          "topic_cluster_compound_id": null,
+          "topic_id": "topic:community-development"
+        },
+        {
+          "in_topic_cluster": false,
+          "label": "historical context",
+          "topic_cluster_compound_id": null,
+          "topic_id": "topic:historical-context"
+        }
+      ],
+      "duration_seconds": 2962,
+      "episode_id": "653bb844-d3b0-425e-9e28-b43e00ee5196",
+      "episode_image_local_relpath": null,
+      "episode_image_url": "https://www.omnycontent.com/d/playlist/e73c998e-6e60-432f-8610-ae210140c5b1/8a94442e-5a74-4fa2-8b8d-ae27003a8d6b/982f5071-765c-403d-969d-ae27003a8d83/image.jpg?t=1681322812&size=Large",
+      "episode_number": null,
+      "episode_title": "How Baltimore's Mayor Is Fighting the City's Vacant Housing Crisis",
+      "feed_description": "Bloomberg's Joe Weisenthal and Tracy Alloway explore the most interesting topics in finance, markets and economics. Join the conversation every Monday and Thursday.",
+      "feed_display_title": "Odd Lots",
+      "feed_id": "sha256:1cd6aecdd31c0ae82c2c76efdb6327b54e6026924b47852c51ffb406a9f2b19c",
+      "feed_image_local_relpath": null,
+      "feed_image_url": "https://www.omnycontent.com/d/playlist/e73c998e-6e60-432f-8610-ae210140c5b1/8a94442e-5a74-4fa2-8b8d-ae27003a8d6b/982f5071-765c-403d-969d-ae27003a8d83/image.jpg?t=1681322812&size=Large",
+      "feed_rss_url": "https://www.omnycontent.com/d/playlist/e73c998e-6e60-432f-8610-ae210140c5b1/8a94442e-5a74-4fa2-8b8d-ae27003a8d6b/982f5071-765c-403d-969d-ae27003a8d83/podcast.rss",
+      "gi_relative_path": "feeds/rss_www.omnycontent.com_c9fdce2d/run_20260506-135048_ba02775e/metadata/0001 - How Baltimore_s Mayor Is Fightin_20260506-135048_ba02775e.gi.json",
+      "has_gi": true,
+      "has_kg": true,
+      "kg_relative_path": "feeds/rss_www.omnycontent.com_c9fdce2d/run_20260506-135048_ba02775e/metadata/0001 - How Baltimore_s Mayor Is Fightin_20260506-135048_ba02775e.kg.json",
+      "metadata_relative_path": "feeds/rss_www.omnycontent.com_c9fdce2d/run_20260506-135048_ba02775e/metadata/0001 - How Baltimore_s Mayor Is Fightin_20260506-135048_ba02775e.metadata.json",
+      "publish_date": "2026-05-04",
+      "summary_bullet_graph_topic_ids": [
+        "topic:baltimore-faces-a-persistent-vacant-housing-crisis-directly-linked-to-historical",
+        "topic:mayor-brandon-scotts-administration-has-implemented-a-long-term-community-wide-s",
+        "topic:state-funding-of-50-million-annually-has-been-crucial-in-reducing-the-number-of-",
+        "topic:the-city-is-using-innovative-financing-tools-like-tax-increment-financing-tif-fo"
+      ],
+      "summary_bullets_preview": [
+        "Baltimore faces a persistent vacant housing crisis, directly linked to historical racial redlining and disinvestment.",
+        "Mayor Brandon Scott's administration has implemented a long-term, community-wide strategy to address vacant housing, involving various stakeholders.",
+        "State funding of $50 million annually has been crucial in reducing the number of vacant properties in Baltimore.",
+        "The city is using innovative financing tools like Tax Increment Financing (TIF) for non-contiguous areas to attract investment in disinvested neighborhoods."
+      ],
+      "summary_preview": "Baltimore's Vacant Housing Crisis: A Mayor's Strategy for Neighborhood Revitalization \u2014 Baltimore faces a persistent vacant housing crisis, directly linked to historical racial redlining and disinvestment. \u00b7 Mayor Brandon Scott's administr\u2026",
+      "summary_title": "Baltimore's Vacant Housing Crisis: A Mayor's Strategy for Neighborhood Revitalization"
+    },
+    {
+      "cil_digest_topics": [
+        {
+          "in_topic_cluster": false,
+          "label": "biotech investing",
+          "topic_cluster_compound_id": null,
+          "topic_id": "topic:biotech-investing"
+        },
+        {
+          "in_topic_cluster": false,
+          "label": "cardiovascular health",
+          "topic_cluster_compound_id": null,
+          "topic_id": "topic:cardiovascular-health"
+        },
+        {
+          "in_topic_cluster": false,
+          "label": "drug commercialization",
+          "topic_cluster_compound_id": null,
+          "topic_id": "topic:drug-commercialization"
+        },
+        {
+          "in_topic_cluster": false,
+          "label": "GLP-1 medicines",
+          "topic_cluster_compound_id": null,
+          "topic_id": "topic:glp-1-medicines"
+        },
+        {
+          "in_topic_cluster": false,
+          "label": "health stack",
+          "topic_cluster_compound_id": null,
+          "topic_id": "topic:health-stack"
+        }
+      ],
+      "duration_seconds": 5540,
+      "episode_id": "cbc5538c-3d2c-11f1-abeb-8fa0b9345ba8",
+      "episode_image_local_relpath": null,
+      "episode_image_url": "https://megaphone.imgix.net/podcasts/cbc5538c-3d2c-11f1-abeb-8fa0b9345ba8/image/7338c7270d70078f65b4911eb9cd5b0b.jpg?ixlib=rails-4.3.1&max-w=3000&max-h=3000&fit=crop&auto=format,compress",
+      "episode_number": 467,
+      "episode_title": "Alex Karnal - The Trillion-Dollar Health Revolution",
+      "feed_description": "Conversations with the best investors and business leaders in the world. We explore their ideas, methods, and stories to help you better invest your time and money. Hear stock market and boardroom insights you can't find anywhere else. If you're a professional investor, CEO, entrepreneur, or business strategist, this is for you. Explore all our episodes and learn more at https://www.colossus.com",
+      "feed_display_title": "Invest Like the Best with Patrick O'Shaughnessy",
+      "feed_id": "sha256:c17f67de8ab0f0ee390cebffcce08c6f5b6c99b6799ea9d946a71afaa5e908d8",
+      "feed_image_local_relpath": null,
+      "feed_image_url": "https://megaphone.imgix.net/podcasts/ef669774-cccd-11ed-889b-c36caad6646f/image/158efdddfb983d2678b3530d484e8aa2.jpg?ixlib=rails-4.3.1&max-w=3000&max-h=3000&fit=crop&auto=format,compress",
+      "feed_rss_url": "https://feeds.megaphone.fm/investlikethebest",
+      "gi_relative_path": "feeds/rss_feeds.megaphone.fm_3581c092/run_20260421-175631_8eb5f9d2/metadata/0001 - Alex Karnal - The Trillion-Dolla_20260421-175631_8eb5f9d2.gi.json",
+      "has_gi": true,
+      "has_kg": true,
+      "kg_relative_path": "feeds/rss_feeds.megaphone.fm_3581c092/run_20260421-175631_8eb5f9d2/metadata/0001 - Alex Karnal - The Trillion-Dolla_20260421-175631_8eb5f9d2.kg.json",
+      "metadata_relative_path": "feeds/rss_feeds.megaphone.fm_3581c092/run_20260421-175631_8eb5f9d2/metadata/0001 - Alex Karnal - The Trillion-Dolla_20260421-175631_8eb5f9d2.metadata.json",
+      "publish_date": "2026-04-21",
+      "summary_bullet_graph_topic_ids": [
+        "topic:the-current-era-in-medicine-particularly-with-the-success-of-glp-1-drugs-represe",
+        "topic:the-health-stack-is-a-proactive-multi-dimensional-approach-to-extending-lifespan",
+        "topic:glp-1-medicines-are-proving-to-be-a-game-changer-with-broad-applications-beyond-",
+        "topic:consumer-demand-for-glp-1s-is-driven-by-a-desire-for-overall-health-advantage-an"
+      ],
+      "summary_bullets_preview": [
+        "The current era in medicine, particularly with the success of GLP-1 drugs, represents the most exciting period in healthcare innovation in decades.",
+        "The \"health stack\" is a proactive, multi-dimensional approach to extending lifespan, encompassing lipid optimization, cardio-metabolic health, neurocognitive health, inflammatory health, and blood pressure.",
+        "GLP-1 medicines are proving to be a \"game changer\" with broad applications beyond diabetes, including cardiovascular protection, addiction treatment, and significant long-term health benefits.",
+        "Consumer demand for GLP-1s is driven by a desire for overall health advantage and long-term well-being, not just weight loss, with price and accessibility being key factors."
+      ],
+      "summary_preview": "Alex Carnell on the Health Stack Revolution and the Future of Medicine \u2014 The current era in medicine, particularly with the success of GLP-1 drugs, represents the most exciting period in healthcare innovation in decades. \u00b7 The \"health stac\u2026",
+      "summary_title": "Alex Carnell on the Health Stack Revolution and the Future of Medicine"
+    },
+    {
+      "cil_digest_topics": [
+        {
+          "in_topic_cluster": true,
+          "label": "Protest and state violence",
+          "topic_cluster_compound_id": "tc:protest-and-state-violence",
+          "topic_id": "topic:protest-and-state-violence"
+        },
+        {
+          "in_topic_cluster": true,
+          "label": "Regime criticism in Iran",
+          "topic_cluster_compound_id": "tc:regime-criticism-in-iran",
+          "topic_id": "topic:regime-criticism-in-iran"
+        },
+        {
+          "in_topic_cluster": true,
+          "label": "US-Iran conflict",
+          "topic_cluster_compound_id": "tc:iran-conflict",
+          "topic_id": "topic:us-iran-conflict"
+        },
+        {
+          "in_topic_cluster": false,
+          "label": "Communication blackouts",
+          "topic_cluster_compound_id": null,
+          "topic_id": "topic:communication-blackouts"
+        },
+        {
+          "in_topic_cluster": false,
+          "label": "Cultural expression under repression",
+          "topic_cluster_compound_id": null,
+          "topic_id": "topic:cultural-expression-under-repression"
+        }
+      ],
+      "duration_seconds": 2179,
+      "episode_id": "7f489f19-81c9-4077-91e8-e963a438ebb1",
+      "episode_image_local_relpath": null,
+      "episode_image_url": "https://image.simplecastcdn.com/images/34e5431c-f7f7-4edd-9b5d-0277e197a71b/2c9be749-6e76-41fe-aaf0-b7055b67e46a/3000x3000/21thedaily_applespotify_1.jpg?aid=rss_feed",
+      "episode_number": null,
+      "episode_title": "How Iranians See the War",
+      "feed_description": "This is what the news should sound like. The biggest stories of our time, told by the best journalists in the world. Hosted by Michael Barbaro, Rachel Abrams and Natalie Kitroeff. Twenty minutes a day, six days a week, ready by 6 a.m. Subscribe today at nytimes.com/podcasts or on Apple Podcasts and Spotify. You can also subscribe via your favorite podcast app here https://www.nytimes.com/activate-access/audio?source=podcatcher.",
+      "feed_display_title": "The Daily",
+      "feed_id": "sha256:b816b9958525bb08cce2ab8b7c5f73930248465169342178e5fb09ebe889db91",
+      "feed_image_local_relpath": null,
+      "feed_image_url": "https://image.simplecastcdn.com/images/7f2f4c05-9c2f-4deb-82b7-b538062bc22d/73549bf1-94b3-40ff-8aeb-b4054848ec1b/3000x3000/the-daily-album-art-original.jpg?aid=rss_feed",
+      "feed_rss_url": "https://feeds.simplecast.com/54nAGcIl",
+      "gi_relative_path": "feeds/rss_feeds.simplecast.com_999571cd/run_20260421-175921_8eb5f9d2/metadata/0001 - How Iranians See the War_20260421-175921_8eb5f9d2.gi.json",
+      "has_gi": true,
+      "has_kg": true,
+      "kg_relative_path": "feeds/rss_feeds.simplecast.com_999571cd/run_20260421-175921_8eb5f9d2/metadata/0001 - How Iranians See the War_20260421-175921_8eb5f9d2.kg.json",
+      "metadata_relative_path": "feeds/rss_feeds.simplecast.com_999571cd/run_20260421-175921_8eb5f9d2/metadata/0001 - How Iranians See the War_20260421-175921_8eb5f9d2.metadata.json",
+      "publish_date": "2026-04-21",
+      "summary_bullet_graph_topic_ids": [
+        "topic:iranians-views-on-the-war-with-the-us-and-israel-are-diverse-ranging-from-hope-f",
+        "topic:communication-with-iranians-during-the-conflict-was-severely-hampered-by-interne",
+        "topic:personal-experiences-of-repression-ideological-indoctrination-and-violent-crackd",
+        "topic:some-iranians-like-c-have-become-disillusioned-with-protest-after-witnessing-vio"
+      ],
+      "summary_bullets_preview": [
+        "Iranians' views on the war with the US and Israel are diverse, ranging from hope for regime change to fear of external intervention and its consequences.",
+        "Communication with Iranians during the conflict was severely hampered by internet blackouts and government surveillance, making it difficult to gauge public opinion.",
+        "Personal experiences of repression, ideological indoctrination, and violent crackdowns have shaped individual resistance and views on the best path to change in Iran.",
+        "Some Iranians, like 'C', have become disillusioned with protest after witnessing violent state repression, viewing external conflict as a desperate last resort."
+      ],
+      "summary_preview": "Iranians' Perspectives on War, Regime, and Resistance: A Deep Dive \u2014 Iranians' views on the war with the US and Israel are diverse, ranging from hope for regime change to fear of external intervention and its consequences. \u00b7 Communication \u2026",
+      "summary_title": "Iranians' Perspectives on War, Regime, and Resistance: A Deep Dive"
+    },
+    {
+      "cil_digest_topics": [
+        {
+          "in_topic_cluster": false,
+          "label": "AI in oncology",
+          "topic_cluster_compound_id": null,
+          "topic_id": "topic:ai-in-oncology"
+        },
+        {
+          "in_topic_cluster": false,
+          "label": "biomarker discovery",
+          "topic_cluster_compound_id": null,
+          "topic_id": "topic:biomarker-discovery"
+        },
+        {
+          "in_topic_cluster": false,
+          "label": "cancer drug development",
+          "topic_cluster_compound_id": null,
+          "topic_id": "topic:cancer-drug-development"
+        },
+        {
+          "in_topic_cluster": false,
+          "label": "data generation strategy",
+          "topic_cluster_compound_id": null,
+          "topic_id": "topic:data-generation-strategy"
+        },
+        {
+          "in_topic_cluster": false,
+          "label": "histology and pathology",
+          "topic_cluster_compound_id": null,
+          "topic_id": "topic:histology-and-pathology"
+        }
+      ],
+      "duration_seconds": 5121,
+      "episode_id": "substack:post:194810752",
+      "episode_image_local_relpath": null,
+      "episode_image_url": "https://substackcdn.com/feed/podcast/1084089/post/194810752/3a87f1aa9c0d9002c08d675c5183aae1.jpg",
+      "episode_number": null,
+      "episode_title": "\ud83d\udd2c Training Transformers to solve 95% failure rate of Cancer Trials \u2014 Ron Alfa & Daniel Bear, Noetik",
+      "feed_description": "The podcast by and for AI Engineers! In 2025, over 10 million readers and listeners came to Latent Space to hear about news, papers and interviews in Software 3.0. We cover Foundation Models changing every domain in Code Generation, Multimodality, AI Agents, GPU Infra and more, directly from the founders, builders, and thinkers involved in pushing the cutting edge. Striving to give you both the definitive take on the Current Thing down to the first introduction to the tech you'll be using in the next 3 months! We break news and exclusive interviews from OpenAI, Anthropic, Gemini, Meta (Soumith Chintala), Sierra (Bret Taylor), tiny (George Hotz), Databricks/MosaicML (Jon Frankle), Modular (Chris Lattner), Answer.ai (Jeremy Howard), et al. Full show notes always on https://latent.space www.latent.space",
+      "feed_display_title": "Latent Space: The AI Engineer Podcast",
+      "feed_id": "sha256:ff030825160cdb575fcdcc3850cb2c155865b96b55cb693791097dd92972e651",
+      "feed_image_local_relpath": null,
+      "feed_image_url": "https://substackcdn.com/feed/podcast/1084089/ca7468da5614a246d2906ee8926f6de7.jpg",
+      "feed_rss_url": "https://rss.flightcast.com/vgnxzgiwwzwke85ym53fjnzu.xml",
+      "gi_relative_path": "feeds/rss_rss.flightcast.com_c63dc3c0/run_20260421-175837_8eb5f9d2/metadata/0001 - _ Training Transformers to solve_20260421-175837_8eb5f9d2.gi.json",
+      "has_gi": true,
+      "has_kg": true,
+      "kg_relative_path": "feeds/rss_rss.flightcast.com_c63dc3c0/run_20260421-175837_8eb5f9d2/metadata/0001 - _ Training Transformers to solve_20260421-175837_8eb5f9d2.kg.json",
+      "metadata_relative_path": "feeds/rss_rss.flightcast.com_c63dc3c0/run_20260421-175837_8eb5f9d2/metadata/0001 - _ Training Transformers to solve_20260421-175837_8eb5f9d2.metadata.json",
+      "publish_date": "2026-04-20",
+      "summary_bullet_graph_topic_ids": [
+        "topic:noetek-aims-to-reduce-cancer-drug-failure-rates-by-improving-patient-selection-t",
+        "topic:the-company-utilizes-multi-modal-data-including-histology-protein-expression-spa",
+        "topic:current-preclinical-models-like-cell-lines-and-animal-models-often-fail-to-accur",
+        "topic:noeteks-approach-allows-for-identifying-therapeutically-relevant-cancer-subtypes"
+      ],
+      "summary_bullets_preview": [
+        "NoeTek aims to reduce cancer drug failure rates by improving patient selection through AI-driven biological understanding.",
+        "The company utilizes multi-modal data, including histology, protein expression, spatial transcriptomics, and genomics, to train AI models.",
+        "Current preclinical models like cell lines and animal models often fail to accurately represent human tumor biology, leading to poor clinical translation.",
+        "NoeTek's approach allows for identifying therapeutically relevant cancer subtypes that are missed by traditional, simplistic biomarkers."
+      ],
+      "summary_preview": "NoeTek: Revolutionizing Cancer Drug Development with AI and Multi-Modal Data \u2014 NoeTek aims to reduce cancer drug failure rates by improving patient selection through AI-driven biological understanding. \u00b7 The company utilizes multi-modal da\u2026",
+      "summary_title": "NoeTek: Revolutionizing Cancer Drug Development with AI and Multi-Modal Data"
+    },
+    {
+      "cil_digest_topics": [
+        {
+          "in_topic_cluster": true,
+          "label": "Hardliners in Iranian politics",
+          "topic_cluster_compound_id": "tc:hardliners-in-iranian-politics",
+          "topic_id": "topic:hardliners-in-iranian-politics"
+        },
+        {
+          "in_topic_cluster": true,
+          "label": "Iranian regime change attempts",
+          "topic_cluster_compound_id": "tc:regime-criticism-in-iran",
+          "topic_id": "topic:iranian-regime-change-attempts"
+        },
+        {
+          "in_topic_cluster": true,
+          "label": "US-Iran conflict",
+          "topic_cluster_compound_id": "tc:iran-conflict",
+          "topic_id": "topic:us-iran-conflict"
+        },
+        {
+          "in_topic_cluster": false,
+          "label": "Apocalyptic military ideology",
+          "topic_cluster_compound_id": null,
+          "topic_id": "topic:apocalyptic-military-ideology"
+        },
+        {
+          "in_topic_cluster": false,
+          "label": "Iranian Revolutionary Guard Corps",
+          "topic_cluster_compound_id": null,
+          "topic_id": "topic:iranian-revolutionary-guard-corps"
+        }
+      ],
+      "duration_seconds": 1113,
+      "episode_id": "ff1edd82-3cf7-11f1-ac10-7bfe891bf8ed",
+      "episode_image_local_relpath": null,
+      "episode_image_url": null,
+      "episode_number": null,
+      "episode_title": "How Iran's Regime Changed...for the Worse",
+      "feed_description": "The most important stories about money, business and power. Hosted by Ryan Knutson and Jessica Mendoza. The Journal is a co-production of Spotify and The Wall Street Journal. Get show merch here: https://wsjshop.com/collections/clothing",
+      "feed_display_title": "The Journal.",
+      "feed_id": "sha256:2441bde6297de0efab1c6add06c0a80e1e4e96938f7ce303cbc7d7672688495c",
+      "feed_image_local_relpath": null,
+      "feed_image_url": "https://megaphone.imgix.net/podcasts/b84f9932-8174-11e9-bbd8-7f261513f0c9/image/d84a4f4d55158df9d14f6f2d4b219a28.jpg?ixlib=rails-4.3.1&max-w=3000&max-h=3000&fit=crop&auto=format,compress",
+      "feed_rss_url": "https://video-api.wsj.com/podcast/rss/wsj/the-journal",
+      "gi_relative_path": "feeds/rss_video-api.wsj.com_9acc908e/run_20260421-175539_8eb5f9d2/metadata/0001 - How Iran_s Regime Changed...for _20260421-175539_8eb5f9d2.gi.json",
+      "has_gi": true,
+      "has_kg": true,
+      "kg_relative_path": "feeds/rss_video-api.wsj.com_9acc908e/run_20260421-175539_8eb5f9d2/metadata/0001 - How Iran_s Regime Changed...for _20260421-175539_8eb5f9d2.kg.json",
+      "metadata_relative_path": "feeds/rss_video-api.wsj.com_9acc908e/run_20260421-175539_8eb5f9d2/metadata/0001 - How Iran_s Regime Changed...for _20260421-175539_8eb5f9d2.metadata.json",
+      "publish_date": "2026-04-20",
+      "summary_bullet_graph_topic_ids": [
+        "topic:us-and-israeli-attempts-at-regime-change-in-iran-through-targeted-assassinations",
+        "topic:the-war-has-led-to-the-consolidation-of-power-by-radical-elements-within-irans-l",
+        "topic:mushtaba-khamenei-son-of-the-former-supreme-leader-has-emerged-as-a-key-figure-p",
+        "topic:new-appointments-in-key-security-and-military-roles-are-filled-by-individuals-wi"
+      ],
+      "summary_bullets_preview": [
+        "US and Israeli attempts at regime change in Iran through targeted assassinations have backfired, strengthening hardliners.",
+        "The war has led to the consolidation of power by radical elements within Iran's leadership, including the Revolutionary Guards.",
+        "Mushtaba Khamenei, son of the former Supreme Leader, has emerged as a key figure, promoting hardliners and continuity.",
+        "New appointments in key security and military roles are filled by individuals with radical ideologies and controversial pasts."
+      ],
+      "summary_preview": "Iran's Regime Change Backfires: Hardliners Consolidate Power Amidst War \u2014 US and Israeli attempts at regime change in Iran through targeted assassinations have backfired, strengthening hardliners. \u00b7 The war has led to the consolidation of \u2026",
+      "summary_title": "Iran's Regime Change Backfires: Hardliners Consolidate Power Amidst War"
+    },
+    {
+      "cil_digest_topics": [
+        {
+          "in_topic_cluster": true,
+          "label": "futures markets",
+          "topic_cluster_compound_id": "tc:futures-markets",
+          "topic_id": "topic:futures-markets"
+        },
+        {
+          "in_topic_cluster": true,
+          "label": "prediction markets",
+          "topic_cluster_compound_id": "tc:market-predictions",
+          "topic_id": "topic:prediction-markets"
+        },
+        {
+          "in_topic_cluster": false,
+          "label": "degenerate traders",
+          "topic_cluster_compound_id": null,
+          "topic_id": "topic:degenerate-traders"
+        },
+        {
+          "in_topic_cluster": false,
+          "label": "derivatives trading",
+          "topic_cluster_compound_id": null,
+          "topic_id": "topic:derivatives-trading"
+        },
+        {
+          "in_topic_cluster": false,
+          "label": "financial instruments",
+          "topic_cluster_compound_id": null,
+          "topic_id": "topic:financial-instruments"
+        }
+      ],
+      "duration_seconds": 1945,
+      "episode_id": "67659bec-3226-4db8-9435-cd13553693a7",
+      "episode_image_local_relpath": null,
+      "episode_image_url": "https://npr.brightspotcdn.com/dims3/default/strip/false/crop/3000x3000+0+0/resize/3000/quality/66/format/jpg/?url=http%3A%2F%2Fnpr-brightspot.s3.amazonaws.com%2F38%2F3f%2F2d2835284a718a80a254a96783cb%2F3bded080-8530-4045-b338-577b4066ad09.jpg",
+      "episode_number": null,
+      "episode_title": "Do prediction market bettors make anything better?",
+      "feed_description": "Wanna see a trick? Give us any topic and we can tie it back to the economy. At Planet Money , we explore the forces that shape our lives and bring you along for the ride. Don't just understand the economy \u2013 understand the world. Wanna go deeper? Subscribe to Planet Money+ and get sponsor-free episodes of Planet Money, The Indicator, and Planet Money Summer School. Plus access to bonus content. It's a new way to support the show you love. Learn more at plus.npr.org/planetmoney",
+      "feed_display_title": "Planet Money",
+      "feed_id": "sha256:ef15faeacb5c506dcadea13a0fbbf46c823163dbd8c86053784b27fe8bee26f7",
+      "feed_image_local_relpath": null,
+      "feed_image_url": "https://media.npr.org/assets/img/2022/10/24/pm_new_tile_2022_sq-e543deddd0a46a98be481b46e6a72efa6b52236f.jpg?s=1400&c=66&f=jpg",
+      "feed_rss_url": "https://feeds.npr.org/510289/podcast.xml",
+      "gi_relative_path": "feeds/rss_feeds.npr.org_7ce5b183/run_20260421-175753_8eb5f9d2/metadata/0001 - Do prediction market bettors mak_20260421-175753_8eb5f9d2.gi.json",
+      "has_gi": true,
+      "has_kg": true,
+      "kg_relative_path": "feeds/rss_feeds.npr.org_7ce5b183/run_20260421-175753_8eb5f9d2/metadata/0001 - Do prediction market bettors mak_20260421-175753_8eb5f9d2.kg.json",
+      "metadata_relative_path": "feeds/rss_feeds.npr.org_7ce5b183/run_20260421-175753_8eb5f9d2/metadata/0001 - Do prediction market bettors mak_20260421-175753_8eb5f9d2.metadata.json",
+      "publish_date": "2026-04-18",
+      "summary_bullet_graph_topic_ids": [
+        "topic:prediction-markets-exemplified-by-kalshi-allow-users-to-bet-on-the-outcomes-of-a",
+        "topic:early-skepticism-focused-on-the-potential-for-addiction-and-financial-ruin-but-a",
+        "topic:kalshis-ceo-argues-these-markets-are-legitimate-financial-instruments-akin-to-de",
+        "topic:critics-and-hosts-experienced-a-disengaging-arcade-like-betting-environment-that"
+      ],
+      "summary_bullets_preview": [
+        "Prediction markets, exemplified by Kalshi, allow users to bet on the outcomes of a wide range of future events, from sports to politics.",
+        "Early skepticism focused on the potential for addiction and financial ruin, but a community of sophisticated traders seeking 'alpha' has emerged.",
+        "Kalshi's CEO argues these markets are legitimate financial instruments, akin to derivatives, offering a democratized trading experience and a 'truth machine'.",
+        "Critics and hosts experienced a disengaging, arcade-like betting environment that felt more like gambling than informed decision-making."
+      ],
+      "summary_preview": "Prediction Markets: The Next Frontier of Online Gambling or a New Form of Trading? \u2014 Prediction markets, exemplified by Kalshi, allow users to bet on the outcomes of a wide range of future events, from sports to politics. \u00b7 Early skepticis\u2026",
+      "summary_title": "Prediction Markets: The Next Frontier of Online Gambling or a New Form of Trading?"
+    },
+    {
+      "cil_digest_topics": [
+        {
+          "in_topic_cluster": true,
+          "label": "AI and business models",
+          "topic_cluster_compound_id": "tc:ai-and-business-models",
+          "topic_id": "topic:ai-and-business-models"
+        },
+        {
+          "in_topic_cluster": true,
+          "label": "enterprise platform replacement",
+          "topic_cluster_compound_id": "tc:enterprise-platforms",
+          "topic_id": "topic:enterprise-platform-replacement"
+        },
+        {
+          "in_topic_cluster": true,
+          "label": "human capital and technology",
+          "topic_cluster_compound_id": "tc:human-capital",
+          "topic_id": "topic:human-capital-and-technology"
+        },
+        {
+          "in_topic_cluster": false,
+          "label": "agentic business operations",
+          "topic_cluster_compound_id": null,
+          "topic_id": "topic:agentic-business-operations"
+        },
+        {
+          "in_topic_cluster": false,
+          "label": "customer relationship management",
+          "topic_cluster_compound_id": null,
+          "topic_id": "topic:customer-relationship-management"
+        }
+      ],
+      "duration_seconds": 3447,
+      "episode_id": "4255b42e-3a9e-11f1-8eee-179e850fd703",
+      "episode_image_local_relpath": null,
+      "episode_image_url": "https://megaphone.imgix.net/podcasts/4255b42e-3a9e-11f1-8eee-179e850fd703/image/c11b2eb6b63e2737dc49fe08e9d2e2f2.png?ixlib=rails-4.3.1&max-w=3000&max-h=3000&fit=crop&auto=format,compress",
+      "episode_number": 157,
+      "episode_title": "Scaling Global Organizations in the Age of AI with ServiceNow CEO Bill McDermott",
+      "feed_description": "At this moment of inflection in technology, co-hosts Elad Gil and Sarah Guo talk to the world's leading AI engineers, researchers and founders about the biggest questions: How far away is AGI? What markets are at risk for disruption? How will commerce, culture, and society change? What\u2019s happening in state-of-the-art in research? \u201cNo Priors\u201d is your guide to the AI revolution. Email feedback to show@no-priors.com. Sarah Guo is a startup investor and the founder of Conviction, an investment firm purpose-built to serve intelligent software, or \"Software 3.0\" companies. She spent nearly a decade incubating and investing at venture firm Greylock Partners. Elad Gil is a serial entrepreneur and a startup investor. He was co-founder of Color Health, Mixer Labs (which was acquired by Twitter). He has invested in over 40 companies now worth $1B or more each, and is also author of the High Growth Handbook.",
+      "feed_display_title": "No Priors: Artificial Intelligence | Technology | Startups",
+      "feed_id": "sha256:0da4183fe4339afdc81d079b469f31da7e85039e5121f085013230f92e72e13c",
+      "feed_image_local_relpath": null,
+      "feed_image_url": "https://megaphone.imgix.net/podcasts/803e0244-9d0f-11ed-923a-4bb54bf77468/image/NO_PRIORS_ALBUM_and_PROFILE_PIC-01.jpg?ixlib=rails-4.3.1&max-w=3000&max-h=3000&fit=crop&auto=format,compress",
+      "feed_rss_url": "https://feeds.megaphone.fm/nopriors",
+      "gi_relative_path": "feeds/rss_feeds.megaphone.fm_755f5437/run_20260421-175429_8eb5f9d2/metadata/0001 - Scaling Global Organizations in _20260421-175429_8eb5f9d2.gi.json",
+      "has_gi": true,
+      "has_kg": true,
+      "kg_relative_path": "feeds/rss_feeds.megaphone.fm_755f5437/run_20260421-175429_8eb5f9d2/metadata/0001 - Scaling Global Organizations in _20260421-175429_8eb5f9d2.kg.json",
+      "metadata_relative_path": "feeds/rss_feeds.megaphone.fm_755f5437/run_20260421-175429_8eb5f9d2/metadata/0001 - Scaling Global Organizations in _20260421-175429_8eb5f9d2.metadata.json",
+      "publish_date": "2026-04-17",
+      "summary_bullet_graph_topic_ids": [
+        "topic:customer-focus-resilience-and-disciplined-execution-are-timeless-leadership-prin",
+        "topic:enterprise-platforms-like-servicenow-offer-deterministic-workflows-and-contextua",
+        "topic:replicating-enterprise-platform-functionality-with-llms-can-be-significantly-mor",
+        "topic:ai-should-serve-to-enhance-human-ambition-and-capabilities-not-replace-them-with"
+      ],
+      "summary_bullets_preview": [
+        "Customer focus, resilience, and disciplined execution are timeless leadership principles, even in a rapidly changing tech landscape.",
+        "Enterprise platforms like ServiceNow offer deterministic workflows and contextual understanding that language models currently lack for complex business problem-solving.",
+        "Replicating enterprise platform functionality with LLMs can be significantly more expensive (up to 10x) and less reliable.",
+        "AI should serve to enhance human ambition and capabilities, not replace them, with human connection remaining critical."
+      ],
+      "summary_preview": "Bill McDermott on Leadership, AI, and the Future of Enterprise Platforms \u2014 Customer focus, resilience, and disciplined execution are timeless leadership principles, even in a rapidly changing tech landscape. \u00b7 Enterprise platforms like Ser\u2026",
+      "summary_title": "Bill McDermott on Leadership, AI, and the Future of Enterprise Platforms"
+    },
+    {
+      "cil_digest_topics": [
+        {
+          "in_topic_cluster": true,
+          "label": "AI industry",
+          "topic_cluster_compound_id": "tc:ai-industry",
+          "topic_id": "topic:ai-industry"
+        },
+        {
+          "in_topic_cluster": true,
+          "label": "AI policy",
+          "topic_cluster_compound_id": "tc:ai-policy",
+          "topic_id": "topic:ai-policy"
+        },
+        {
+          "in_topic_cluster": true,
+          "label": "AI regulation",
+          "topic_cluster_compound_id": "tc:ai-policy",
+          "topic_id": "topic:ai-regulation"
+        },
+        {
+          "in_topic_cluster": false,
+          "label": "AI backlash",
+          "topic_cluster_compound_id": null,
+          "topic_id": "topic:ai-backlash"
+        },
+        {
+          "in_topic_cluster": false,
+          "label": "AI violence",
+          "topic_cluster_compound_id": null,
+          "topic_id": "topic:ai-violence"
+        }
+      ],
+      "duration_seconds": 3801,
+      "episode_id": "25d702f6-ed6a-4565-8065-e729eb0f2650",
+      "episode_image_local_relpath": null,
+      "episode_image_url": null,
+      "episode_number": 190,
+      "episode_title": "A.I. Backlash Turns Violent + Kara Swisher on Healthmaxxing + The Zuck Bot Is Coming",
+      "feed_description": "\u201cHard Fork\u201d is a show about the future that\u2019s already here. Each week, journalists Kevin Roose and Casey Newton explore and make sense of the latest in the rapidly changing world of tech. Subscribe today at nytimes.com/podcasts or on Apple Podcasts and Spotify. You can also subscribe via your favorite podcast app here https://www.nytimes.com/activate-access/audio?source=podcatcher. For more podcasts and narrated articles, download The New York Times app at nytimes.com/app.",
+      "feed_display_title": "Hard Fork",
+      "feed_id": "sha256:8025356ebfbe105cbd206ed4a4eabbc06f4562a0360517fd129e954ee2ef1871",
+      "feed_image_local_relpath": null,
+      "feed_image_url": "https://image.simplecastcdn.com/images/4105a47a-42e5-4ccc-887a-832af7989986/23965394-f5e4-4fdb-b150-639f4910353e/3000x3000/nyt-hf-album-art-3000-2.jpg?aid=rss_feed",
+      "feed_rss_url": "https://feeds.simplecast.com/l2i9YnTd",
+      "gi_relative_path": "feeds/rss_feeds.simplecast.com_2e104dc7/run_20260421-175353_8eb5f9d2/metadata/0001 - A.I. Backlash Turns Violent _ Ka_20260421-175353_8eb5f9d2.gi.json",
+      "has_gi": true,
+      "has_kg": true,
+      "kg_relative_path": "feeds/rss_feeds.simplecast.com_2e104dc7/run_20260421-175353_8eb5f9d2/metadata/0001 - A.I. Backlash Turns Violent _ Ka_20260421-175353_8eb5f9d2.kg.json",
+      "metadata_relative_path": "feeds/rss_feeds.simplecast.com_2e104dc7/run_20260421-175353_8eb5f9d2/metadata/0001 - A.I. Backlash Turns Violent _ Ka_20260421-175353_8eb5f9d2.metadata.json",
+      "publish_date": "2026-04-17",
+      "summary_bullet_graph_topic_ids": [
+        "topic:the-ai-backlash-has-escalated-to-violence-with-incidents-like-an-attack-on-sam-a",
+        "topic:data-centers-are-becoming-a-flashpoint-for-public-resistance-to-ai-leading-to-mo",
+        "topic:public-trust-in-ai-and-government-regulation-of-ai-is-declining-particularly-in-",
+        "topic:economic-anxieties-about-job-displacement-and-the-tangible-impact-of-ai-on-daily"
+      ],
+      "summary_bullets_preview": [
+        "The AI backlash has escalated to violence, with incidents like an attack on Sam Altman's home and threats against a city councilman over data centers.",
+        "Data centers are becoming a flashpoint for public resistance to AI, leading to moratoriums and restrictions in various locations.",
+        "Public trust in AI and government regulation of AI is declining, particularly in the United States.",
+        "Economic anxieties about job displacement and the tangible impact of AI on daily life are significant drivers of public concern."
+      ],
+      "summary_preview": "AI Backlash Turns Violent, Data Centers Face Resistance, and CEOs' Self-Replacement \u2014 The AI backlash has escalated to violence, with incidents like an attack on Sam Altman's home and threats against a city councilman over data centers. \u00b7 \u2026",
+      "summary_title": "AI Backlash Turns Violent, Data Centers Face Resistance, and CEOs' Self-Replacement"
+    },
+    {
+      "cil_digest_topics": [
+        {
+          "in_topic_cluster": true,
+          "label": "Iran situation",
+          "topic_cluster_compound_id": "tc:iran-conflict",
+          "topic_id": "topic:iran-situation"
+        },
+        {
+          "in_topic_cluster": true,
+          "label": "oil prices",
+          "topic_cluster_compound_id": "tc:oil-prices",
+          "topic_id": "topic:oil-prices"
+        },
+        {
+          "in_topic_cluster": true,
+          "label": "speculative trading",
+          "topic_cluster_compound_id": "tc:speculative-investment",
+          "topic_id": "topic:speculative-trading"
+        },
+        {
+          "in_topic_cluster": false,
+          "label": "AI commoditization",
+          "topic_cluster_compound_id": null,
+          "topic_id": "topic:ai-commoditization"
+        },
+        {
+          "in_topic_cluster": false,
+          "label": "AI pivot",
+          "topic_cluster_compound_id": null,
+          "topic_id": "topic:ai-pivot"
+        }
+      ],
+      "duration_seconds": 1288,
+      "episode_id": "69e137540b4baf3bf2eab59f",
+      "episode_image_local_relpath": null,
+      "episode_image_url": "https://assets.pippa.io/shows/6478a825654260001190a7cb/1763129300404-a4dc3443-6e6e-4386-bdd2-6aaad3bd2ef6.jpeg",
+      "episode_number": null,
+      "episode_title": "Boing! Springtime for the markets",
+      "feed_description": "Katie Martin, Robert Armstrong and other markets nerds at the Financial Times explain the big ideas behind what\u2019s happening in finance right now. Every Tuesday and Thursday. Hosted on Acast. See acast.com/privacy for more information.",
+      "feed_display_title": "Unhedged",
+      "feed_id": "sha256:bbafc8bf5404721c94cc1e14ee3a14ae0876af05af7aaf00914c3cff28fcf713",
+      "feed_image_local_relpath": null,
+      "feed_image_url": "https://assets.pippa.io/shows/6478a825654260001190a7cb/1763129300404-a4dc3443-6e6e-4386-bdd2-6aaad3bd2ef6.jpeg",
+      "feed_rss_url": "https://feeds.acast.com/public/shows/6478a825654260001190a7cb",
+      "gi_relative_path": ".reprocess-backup-20260506-132210/run_20260421-190016_2606de6d/metadata/0001 - Boing_ Springtime for the market_20260421-190016_2606de6d.gi.json",
+      "has_gi": true,
+      "has_kg": true,
+      "kg_relative_path": ".reprocess-backup-20260506-132210/run_20260421-190016_2606de6d/metadata/0001 - Boing_ Springtime for the market_20260421-190016_2606de6d.kg.json",
+      "metadata_relative_path": ".reprocess-backup-20260506-132210/run_20260421-190016_2606de6d/metadata/0001 - Boing_ Springtime for the market_20260421-190016_2606de6d.metadata.json",
+      "publish_date": "2026-04-16",
+      "summary_bullet_graph_topic_ids": [
+        "topic:us-stock-markets-have-reached-new-record-highs-driven-by-a-general-sense-of-mark",
+        "topic:despite-ongoing-geopolitical-tensions-and-high-oil-prices-markets-are-pricing-in",
+        "topic:the-surge-in-allbirds-stock-after-announcing-a-pivot-to-ai-exemplifies-speculati",
+        "topic:a-key-question-for-the-future-is-who-will-capture-the-value-generated-by-ai-the-"
+      ],
+      "summary_bullets_preview": [
+        "US stock markets have reached new record highs, driven by a general sense of market euphoria and anticipation of positive future outcomes.",
+        "Despite ongoing geopolitical tensions and high oil prices, markets are pricing in a potential resolution and a return to normalcy.",
+        "The surge in Allbirds' stock after announcing a pivot to AI exemplifies speculative market behavior, where buzzwords like 'AI' can dramatically inflate a company's valuation.",
+        "A key question for the future is who will capture the value generated by AI: the companies developing the technology or the broader economy."
+      ],
+      "summary_preview": "AI Frenzy, Market Euphoria, and the Future of Value Capture \u2014 US stock markets have reached new record highs, driven by a general sense of market euphoria and anticipation of positive future outcomes. \u00b7 Despite ongoing geopolitical tension\u2026",
+      "summary_title": "AI Frenzy, Market Euphoria, and the Future of Value Capture"
+    },
+    {
+      "cil_digest_topics": [
+        {
+          "in_topic_cluster": false,
+          "label": "AI in quantum computing",
+          "topic_cluster_compound_id": null,
+          "topic_id": "topic:ai-in-quantum-computing"
+        },
+        {
+          "in_topic_cluster": false,
+          "label": "Hybrid quantum-classical systems",
+          "topic_cluster_compound_id": null,
+          "topic_id": "topic:hybrid-quantum-classical-systems"
+        },
+        {
+          "in_topic_cluster": false,
+          "label": "NVIDIA AI podcast",
+          "topic_cluster_compound_id": null,
+          "topic_id": "topic:nvidia-ai-podcast"
+        },
+        {
+          "in_topic_cluster": false,
+          "label": "NVIDIA Ising models",
+          "topic_cluster_compound_id": null,
+          "topic_id": "topic:nvidia-ising-models"
+        },
+        {
+          "in_topic_cluster": false,
+          "label": "Quantum computing applications",
+          "topic_cluster_compound_id": null,
+          "topic_id": "topic:quantum-computing-applications"
+        }
+      ],
+      "duration_seconds": 1888,
+      "episode_id": "c1864c80-3766-11f1-a17b-8323ac12a047",
+      "episode_image_local_relpath": null,
+      "episode_image_url": "https://megaphone.imgix.net/podcasts/c1864c80-3766-11f1-a17b-8323ac12a047/image/9c6acdaa659e91677a84ee29c371b5ea.png?ixlib=rails-4.3.1&max-w=3000&max-h=3000&fit=crop&auto=format,compress",
+      "episode_number": null,
+      "episode_title": "How AI Will Change Quantum Computing - Ep. 294",
+      "feed_description": "Explore how the latest technologies are shaping our world, from groundbreaking discoveries to transformative sustainability efforts. The NVIDIA AI Podcast shines a light on the stories and solutions behind the most innovative changes, helping to inspire and educate listeners. More information: https://ai-podcast.nvidia.com/",
+      "feed_display_title": "NVIDIA AI Podcast",
+      "feed_id": "sha256:b7d7fd554788c6b3f362e5e2d0254cdd2bd8bc523dd913d264c6baa39c06f868",
+      "feed_image_local_relpath": null,
+      "feed_image_url": "https://megaphone.imgix.net/podcasts/b569e226-f45b-11ef-8eab-87014600b959/image/8cfc4762974a610994e63ee630a53918.png?ixlib=rails-4.3.1&max-w=3000&max-h=3000&fit=crop&auto=format,compress",
+      "feed_rss_url": "https://feeds.megaphone.fm/nvidiaaipodcast",
+      "gi_relative_path": "feeds/rss_feeds.megaphone.fm_370fb395/run_20260421-180025_8eb5f9d2/metadata/0001 - How AI Will Change Quantum Compu_20260421-180025_8eb5f9d2.gi.json",
+      "has_gi": true,
+      "has_kg": true,
+      "kg_relative_path": "feeds/rss_feeds.megaphone.fm_370fb395/run_20260421-180025_8eb5f9d2/metadata/0001 - How AI Will Change Quantum Compu_20260421-180025_8eb5f9d2.kg.json",
+      "metadata_relative_path": "feeds/rss_feeds.megaphone.fm_370fb395/run_20260421-180025_8eb5f9d2/metadata/0001 - How AI Will Change Quantum Compu_20260421-180025_8eb5f9d2.metadata.json",
+      "publish_date": "2026-04-14",
+      "summary_bullet_graph_topic_ids": [
+        "topic:quantum-computing-utilizes-quantum-mechanical-objects-as-switches-qubits-instead",
+        "topic:quantum-computers-are-not-universally-superior-their-transformative-power-is-lim",
+        "topic:current-quantum-hardware-development-is-at-an-inflection-point-transitioning-fro",
+        "topic:building-quantum-processors-qpus-faces-challenges-in-controlling-and-maintaining"
+      ],
+      "summary_bullets_preview": [
+        "Quantum computing utilizes quantum mechanical objects as switches (qubits) instead of classical transistors, enabling solutions to problems previously intractable due to exponential or strong polynomial advantages over conventional computers.",
+        "Quantum computers are not universally superior; their transformative power is limited to specific application areas like simulating quantum systems, developing new drugs, and creating novel materials.",
+        "Current quantum hardware development is at an inflection point, transitioning from experimental to larger-scale systems integrated with supercomputers, with significant progress expected soon.",
+        "Building quantum processors (QPUs) faces challenges in controlling and maintaining qubits, requiring robust quantum error correction to manage fundamental noise and achieve reliable computation."
+      ],
+      "summary_preview": "Quantum Computing and the Role of AI \u2014 Quantum computing utilizes quantum mechanical objects as switches (qubits) instead of classical transistors, enabling solutions to problems previously intractable due to exponential or strong polynomi\u2026",
+      "summary_title": "Quantum Computing and the Role of AI"
+    },
+    {
+      "cil_digest_topics": [
+        {
+          "in_topic_cluster": false,
+          "label": "antiquities market",
+          "topic_cluster_compound_id": null,
+          "topic_id": "topic:antiquities-market"
+        },
+        {
+          "in_topic_cluster": false,
+          "label": "art market",
+          "topic_cluster_compound_id": null,
+          "topic_id": "topic:art-market"
+        },
+        {
+          "in_topic_cluster": false,
+          "label": "collector interest",
+          "topic_cluster_compound_id": null,
+          "topic_id": "topic:collector-interest"
+        },
+        {
+          "in_topic_cluster": false,
+          "label": "dinosaur fossils",
+          "topic_cluster_compound_id": null,
+          "topic_id": "topic:dinosaur-fossils"
+        },
+        {
+          "in_topic_cluster": false,
+          "label": "fossil excavation",
+          "topic_cluster_compound_id": null,
+          "topic_id": "topic:fossil-excavation"
+        }
+      ],
+      "duration_seconds": 2933,
+      "episode_id": "f7957569-770c-45d3-a4e4-b43c01323ab8",
+      "episode_image_local_relpath": null,
+      "episode_image_url": "https://www.omnycontent.com/d/playlist/e73c998e-6e60-432f-8610-ae210140c5b1/8a94442e-5a74-4fa2-8b8d-ae27003a8d6b/982f5071-765c-403d-969d-ae27003a8d83/image.jpg?t=1681322812&size=Large",
+      "episode_number": null,
+      "episode_title": "Inside the Booming Market for Dinosaur Fossils",
+      "feed_description": "Bloomberg's Joe Weisenthal and Tracy Alloway explore the most interesting topics in finance, markets and economics. Join the conversation every Monday and Thursday.",
+      "feed_display_title": "Odd Lots",
+      "feed_id": "sha256:1cd6aecdd31c0ae82c2c76efdb6327b54e6026924b47852c51ffb406a9f2b19c",
+      "feed_image_local_relpath": null,
+      "feed_image_url": "https://www.omnycontent.com/d/playlist/e73c998e-6e60-432f-8610-ae210140c5b1/8a94442e-5a74-4fa2-8b8d-ae27003a8d6b/982f5071-765c-403d-969d-ae27003a8d83/image.jpg?t=1681322812&size=Large",
+      "feed_rss_url": "https://www.omnycontent.com/d/playlist/e73c998e-6e60-432f-8610-ae210140c5b1/8a94442e-5a74-4fa2-8b8d-ae27003a8d6b/982f5071-765c-403d-969d-ae27003a8d83/podcast.rss",
+      "gi_relative_path": "feeds/rss_www.omnycontent.com_c9fdce2d/run_20260506-135048_ba02775e/metadata/0002 - Inside the Booming Market for Di_20260506-135048_ba02775e.gi.json",
+      "has_gi": true,
+      "has_kg": true,
+      "kg_relative_path": "feeds/rss_www.omnycontent.com_c9fdce2d/run_20260506-135048_ba02775e/metadata/0002 - Inside the Booming Market for Di_20260506-135048_ba02775e.kg.json",
+      "metadata_relative_path": "feeds/rss_www.omnycontent.com_c9fdce2d/run_20260506-135048_ba02775e/metadata/0002 - Inside the Booming Market for Di_20260506-135048_ba02775e.metadata.json",
+      "publish_date": "2026-05-02",
+      "summary_bullet_graph_topic_ids": [
+        "topic:the-dinosaur-fossil-market-is-a-rapidly-growing-sector-drawing-parallels-to-the-",
+        "topic:record-breaking-sales-like-ken-griffins-45-million-stegosaurus-purchase-highligh",
+        "topic:sourcing-dinosaur-fossils-especially-in-the-us-involves-strict-legal-and-ethical",
+        "topic:provenance-and-authenticity-are-critical-with-rigorous-due-diligence-required-to"
+      ],
+      "summary_bullets_preview": [
+        "The dinosaur fossil market is a rapidly growing sector, drawing parallels to the art and antiquities markets.",
+        "Record-breaking sales, like Ken Griffin's $45 million Stegosaurus purchase, highlight the market's increasing value.",
+        "Sourcing dinosaur fossils, especially in the US, involves strict legal and ethical considerations regarding private land ownership and excavation.",
+        "Provenance and authenticity are critical, with rigorous due diligence required to verify the origin and completeness of fossils."
+      ],
+      "summary_preview": "The Booming Dinosaur Fossil Market: From Museums to Million-Dollar Sales \u2014 The dinosaur fossil market is a rapidly growing sector, drawing parallels to the art and antiquities markets. \u00b7 Record-breaking sales, like Ken Griffin's $45 millio\u2026",
+      "summary_title": "The Booming Dinosaur Fossil Market: From Museums to Million-Dollar Sales"
+    },
+    {
+      "cil_digest_topics": [
+        {
+          "in_topic_cluster": true,
+          "label": "Iran situation",
+          "topic_cluster_compound_id": "tc:iran-conflict",
+          "topic_id": "topic:iran-situation"
+        },
+        {
+          "in_topic_cluster": true,
+          "label": "oil prices",
+          "topic_cluster_compound_id": "tc:oil-prices",
+          "topic_id": "topic:oil-prices"
+        },
+        {
+          "in_topic_cluster": true,
+          "label": "speculative trading",
+          "topic_cluster_compound_id": "tc:speculative-investment",
+          "topic_id": "topic:speculative-trading"
+        },
+        {
+          "in_topic_cluster": false,
+          "label": "AI commoditization",
+          "topic_cluster_compound_id": null,
+          "topic_id": "topic:ai-commoditization"
+        },
+        {
+          "in_topic_cluster": false,
+          "label": "AI pivot",
+          "topic_cluster_compound_id": null,
+          "topic_id": "topic:ai-pivot"
+        }
+      ],
+      "duration_seconds": 1288,
+      "episode_id": "69e137540b4baf3bf2eab59f",
+      "episode_image_local_relpath": null,
+      "episode_image_url": "https://assets.pippa.io/shows/6478a825654260001190a7cb/1763129300404-a4dc3443-6e6e-4386-bdd2-6aaad3bd2ef6.jpeg",
+      "episode_number": null,
+      "episode_title": "Boing! Springtime for the markets",
+      "feed_description": "Katie Martin, Robert Armstrong and other markets nerds at the Financial Times explain the big ideas behind what\u2019s happening in finance right now. Every Tuesday and Thursday. Hosted on Acast. See acast.com/privacy for more information.",
+      "feed_display_title": "Unhedged",
+      "feed_id": "sha256:bbafc8bf5404721c94cc1e14ee3a14ae0876af05af7aaf00914c3cff28fcf713",
+      "feed_image_local_relpath": null,
+      "feed_image_url": "https://assets.pippa.io/shows/6478a825654260001190a7cb/1763129300404-a4dc3443-6e6e-4386-bdd2-6aaad3bd2ef6.jpeg",
+      "feed_rss_url": "https://feeds.acast.com/public/shows/6478a825654260001190a7cb",
+      "gi_relative_path": "feeds/rss_feeds.acast.com_f08ef8e2/run_20260421-180154_8eb5f9d2/metadata/0001 - Boing_ Springtime for the market_20260421-180154_8eb5f9d2.gi.json",
+      "has_gi": true,
+      "has_kg": true,
+      "kg_relative_path": "feeds/rss_feeds.acast.com_f08ef8e2/run_20260421-180154_8eb5f9d2/metadata/0001 - Boing_ Springtime for the market_20260421-180154_8eb5f9d2.kg.json",
+      "metadata_relative_path": "feeds/rss_feeds.acast.com_f08ef8e2/run_20260421-180154_8eb5f9d2/metadata/0001 - Boing_ Springtime for the market_20260421-180154_8eb5f9d2.metadata.json",
+      "publish_date": "2026-04-16",
+      "summary_bullet_graph_topic_ids": [
+        "topic:us-stock-markets-have-reached-new-record-highs-driven-by-a-general-sense-of-mark",
+        "topic:despite-ongoing-geopolitical-tensions-and-high-oil-prices-markets-are-pricing-in",
+        "topic:the-surge-in-allbirds-stock-after-announcing-a-pivot-to-ai-exemplifies-speculati",
+        "topic:a-key-question-for-the-future-is-who-will-capture-the-value-generated-by-ai-the-"
+      ],
+      "summary_bullets_preview": [
+        "US stock markets have reached new record highs, driven by a general sense of market euphoria and anticipation of positive future outcomes.",
+        "Despite ongoing geopolitical tensions and high oil prices, markets are pricing in a potential resolution and a return to normalcy.",
+        "The surge in Allbirds' stock after announcing a pivot to AI exemplifies speculative market behavior, where buzzwords like 'AI' can dramatically inflate a company's valuation.",
+        "A key question for the future is who will capture the value generated by AI: the companies developing the technology or the broader economy."
+      ],
+      "summary_preview": "AI Frenzy, Market Euphoria, and the Future of Value Capture \u2014 US stock markets have reached new record highs, driven by a general sense of market euphoria and anticipation of positive future outcomes. \u00b7 Despite ongoing geopolitical tension\u2026",
+      "summary_title": "AI Frenzy, Market Euphoria, and the Future of Value Capture"
+    },
+    {
+      "cil_digest_topics": [
+        {
+          "in_topic_cluster": true,
+          "label": "global economy",
+          "topic_cluster_compound_id": "tc:global-economic-impact",
+          "topic_id": "topic:global-economy"
+        },
+        {
+          "in_topic_cluster": false,
+          "label": "china taiwan",
+          "topic_cluster_compound_id": null,
+          "topic_id": "topic:china-taiwan"
+        },
+        {
+          "in_topic_cluster": false,
+          "label": "civil war",
+          "topic_cluster_compound_id": null,
+          "topic_id": "topic:civil-war"
+        },
+        {
+          "in_topic_cluster": false,
+          "label": "geopolitical blockades",
+          "topic_cluster_compound_id": null,
+          "topic_id": "topic:geopolitical-blockades"
+        },
+        {
+          "in_topic_cluster": false,
+          "label": "political legitimacy",
+          "topic_cluster_compound_id": null,
+          "topic_id": "topic:political-legitimacy"
+        }
+      ],
+      "duration_seconds": 3406,
+      "episode_id": "f7904791-f77c-421b-a3d3-b43b015542d2",
+      "episode_image_local_relpath": null,
+      "episode_image_url": "https://www.omnycontent.com/d/playlist/e73c998e-6e60-432f-8610-ae210140c5b1/8a94442e-5a74-4fa2-8b8d-ae27003a8d6b/982f5071-765c-403d-969d-ae27003a8d83/image.jpg?t=1681322812&size=Large",
+      "episode_number": null,
+      "episode_title": "How Taiwan Became the World's Most Perilous Geopolitical Chokepoint",
+      "feed_description": "Bloomberg's Joe Weisenthal and Tracy Alloway explore the most interesting topics in finance, markets and economics. Join the conversation every Monday and Thursday.",
+      "feed_display_title": "Odd Lots",
+      "feed_id": "sha256:1cd6aecdd31c0ae82c2c76efdb6327b54e6026924b47852c51ffb406a9f2b19c",
+      "feed_image_local_relpath": null,
+      "feed_image_url": "https://www.omnycontent.com/d/playlist/e73c998e-6e60-432f-8610-ae210140c5b1/8a94442e-5a74-4fa2-8b8d-ae27003a8d6b/982f5071-765c-403d-969d-ae27003a8d83/image.jpg?t=1681322812&size=Large",
+      "feed_rss_url": "https://www.omnycontent.com/d/playlist/e73c998e-6e60-432f-8610-ae210140c5b1/8a94442e-5a74-4fa2-8b8d-ae27003a8d6b/982f5071-765c-403d-969d-ae27003a8d83/podcast.rss",
+      "gi_relative_path": "feeds/rss_www.omnycontent.com_c9fdce2d/run_20260506-135048_ba02775e/metadata/0003 - How Taiwan Became the World_s Mo_20260506-135048_ba02775e.gi.json",
+      "has_gi": true,
+      "has_kg": true,
+      "kg_relative_path": "feeds/rss_www.omnycontent.com_c9fdce2d/run_20260506-135048_ba02775e/metadata/0003 - How Taiwan Became the World_s Mo_20260506-135048_ba02775e.kg.json",
+      "metadata_relative_path": "feeds/rss_www.omnycontent.com_c9fdce2d/run_20260506-135048_ba02775e/metadata/0003 - How Taiwan Became the World_s Mo_20260506-135048_ba02775e.metadata.json",
+      "publish_date": "2026-05-01",
+      "summary_bullet_graph_topic_ids": [
+        "topic:the-strait-of-hormuz-blockade-is-a-current-reality-while-a-china-blockade-of-tai",
+        "topic:chinas-interest-in-taiwan-is-rooted-in-historical-civil-war-unfinished-business-",
+        "topic:the-us-policy-of-strategic-ambiguity-towards-taiwan-while-historically-effective",
+        "topic:taiwans-domestic-politics-are-divided-between-the-kmt-which-favors-a-one-china-r"
+      ],
+      "summary_bullets_preview": [
+        "The Strait of Hormuz blockade is a current reality, while a China blockade of Taiwan remains a significant geopolitical hypothetical.",
+        "China's interest in Taiwan is rooted in historical civil war \"unfinished business\" and the pursuit of political legitimacy, not primarily in semiconductor production.",
+        "The US policy of \"strategic ambiguity\" towards Taiwan, while historically effective, faces challenges due to the shifting global power balance.",
+        "Taiwan's domestic politics are divided between the KMT, which favors a \"one China, respective interpretations\" approach, and the DPP, which asserts Taiwan's distinct national identity."
+      ],
+      "summary_preview": "Odd Thoughts Podcast: China, Taiwan, and the Geopolitical Blockade Dilemma \u2014 The Strait of Hormuz blockade is a current reality, while a China blockade of Taiwan remains a significant geopolitical hypothetical. \u00b7 China's interest in Taiwan\u2026",
+      "summary_title": "Odd Thoughts Podcast: China, Taiwan, and the Geopolitical Blockade Dilemma"
+    },
+    {
+      "cil_digest_topics": [
+        {
+          "in_topic_cluster": true,
+          "label": "Financial market regulation",
+          "topic_cluster_compound_id": "tc:financial-market-regulation",
+          "topic_id": "topic:financial-market-regulation"
+        },
+        {
+          "in_topic_cluster": true,
+          "label": "Investor sentiment and hype",
+          "topic_cluster_compound_id": "tc:investor-sentiment",
+          "topic_id": "topic:investor-sentiment-and-hype"
+        },
+        {
+          "in_topic_cluster": true,
+          "label": "Space exploration and commercialization",
+          "topic_cluster_compound_id": "tc:space-exploration",
+          "topic_id": "topic:space-exploration-and-commercialization"
+        },
+        {
+          "in_topic_cluster": true,
+          "label": "Stock market investment strategies",
+          "topic_cluster_compound_id": "tc:investment-strategies",
+          "topic_id": "topic:stock-market-investment-strategies"
+        },
+        {
+          "in_topic_cluster": false,
+          "label": "Artificial intelligence in space",
+          "topic_cluster_compound_id": null,
+          "topic_id": "topic:artificial-intelligence-in-space"
+        }
+      ],
+      "duration_seconds": 1422,
+      "episode_id": "69de7f452cab0d3ec8a3dc22",
+      "episode_image_local_relpath": null,
+      "episode_image_url": "https://assets.pippa.io/shows/6478a825654260001190a7cb/1763129300404-a4dc3443-6e6e-4386-bdd2-6aaad3bd2ef6.jpeg",
+      "episode_number": null,
+      "episode_title": "Space ecstasy",
+      "feed_description": "Katie Martin, Robert Armstrong and other markets nerds at the Financial Times explain the big ideas behind what\u2019s happening in finance right now. Every Tuesday and Thursday. Hosted on Acast. See acast.com/privacy for more information.",
+      "feed_display_title": "Unhedged",
+      "feed_id": "sha256:bbafc8bf5404721c94cc1e14ee3a14ae0876af05af7aaf00914c3cff28fcf713",
+      "feed_image_local_relpath": null,
+      "feed_image_url": "https://assets.pippa.io/shows/6478a825654260001190a7cb/1763129300404-a4dc3443-6e6e-4386-bdd2-6aaad3bd2ef6.jpeg",
+      "feed_rss_url": "https://feeds.acast.com/public/shows/6478a825654260001190a7cb",
+      "gi_relative_path": ".reprocess-backup-20260506-132210/run_20260421-190016_2606de6d/metadata/0002 - Space ecstasy_20260421-190016_2606de6d.gi.json",
+      "has_gi": true,
+      "has_kg": true,
+      "kg_relative_path": ".reprocess-backup-20260506-132210/run_20260421-190016_2606de6d/metadata/0002 - Space ecstasy_20260421-190016_2606de6d.kg.json",
+      "metadata_relative_path": ".reprocess-backup-20260506-132210/run_20260421-190016_2606de6d/metadata/0002 - Space ecstasy_20260421-190016_2606de6d.metadata.json",
+      "publish_date": "2026-04-14",
+      "summary_bullet_graph_topic_ids": [
+        "topic:elon-musk-plans-to-list-spacex-on-the-stock-market-with-an-ambitious-valuation-o",
+        "topic:spacex-has-achieved-significant-milestones-including-being-the-first-private-com",
+        "topic:musk-is-attempting-to-integrate-spacex-with-other-ventures-like-xai-and-x-former",
+        "topic:the-potential-ipo-faces-scrutiny-due-to-teslas-recent-stock-performance-and-a-po"
+      ],
+      "summary_bullets_preview": [
+        "Elon Musk plans to list SpaceX on the stock market with an ambitious valuation of $1.75 trillion.",
+        "SpaceX has achieved significant milestones, including being the first private company to orbit a rocket and establishing a leading satellite communications network (Starlink).",
+        "Musk is attempting to integrate SpaceX with other ventures like XAI and X (formerly Twitter) to create a new type of conglomerate.",
+        "The potential IPO faces scrutiny due to Tesla's recent stock performance and a potentially shifting market mood."
+      ],
+      "summary_preview": "Elon Musk's SpaceX IPO: Hype, Finance, and the Future of Space \u2014 Elon Musk plans to list SpaceX on the stock market with an ambitious valuation of $1.75 trillion. \u00b7 SpaceX has achieved significant milestones, including being the first priv\u2026",
+      "summary_title": "Elon Musk's SpaceX IPO: Hype, Finance, and the Future of Space"
+    }
+  ],
+  "topics": [
+    {
+      "graph_topic_id": "topic:science-research",
+      "hits": [
+        {
+          "duration_seconds": 1314,
+          "episode_id": "693882ea6957d1e181e705d7",
+          "episode_image_local_relpath": null,
+          "episode_image_url": "https://assets.pippa.io/shows/6478a825654260001190a7cb/1763129300404-a4dc3443-6e6e-4386-bdd2-6aaad3bd2ef6.jpeg",
+          "episode_number": null,
+          "episode_title": "Who gets to buy Warner Bros Discovery?",
+          "feed_description": "Katie Martin, Robert Armstrong and other markets nerds at the Financial Times explain the big ideas behind what\u2019s happening in finance right now. Every Tuesday and Thursday. Hosted on Acast. See acast.com/privacy for more information.",
+          "feed_display_title": "Unhedged",
+          "feed_id": "sha256:bbafc8bf5404721c94cc1e14ee3a14ae0876af05af7aaf00914c3cff28fcf713",
+          "feed_image_local_relpath": null,
+          "feed_image_url": "https://assets.pippa.io/shows/6478a825654260001190a7cb/1763129300404-a4dc3443-6e6e-4386-bdd2-6aaad3bd2ef6.jpeg",
+          "feed_rss_url": "https://feeds.acast.com/public/shows/6478a825654260001190a7cb",
+          "gi_relative_path": ".reprocess-backup-20260506-132210/run_20260421-190016_2606de6d/metadata/0039 - Who gets to buy Warner Bros Disc_20260421-190016_2606de6d.gi.json",
+          "has_gi": true,
+          "has_kg": true,
+          "kg_relative_path": ".reprocess-backup-20260506-132210/run_20260421-190016_2606de6d/metadata/0039 - Who gets to buy Warner Bros Disc_20260421-190016_2606de6d.kg.json",
+          "metadata_relative_path": ".reprocess-backup-20260506-132210/run_20260421-190016_2606de6d/metadata/0039 - Who gets to buy Warner Bros Disc_20260421-190016_2606de6d.metadata.json",
+          "publish_date": "2025-12-09",
+          "score": 0.7265971302986145,
+          "summary_preview": "Warner Bros. Discovery Dealmaking: Netflix, Paramount, and the Future of Entertainment \u2014 Warner Bros. Discovery (WBD) is at the center of a complex bidding war involving Netflix and Paramount. \u00b7 WBD CEO David Zaslav initiated a breakup of \u2026"
+        },
+        {
+          "duration_seconds": 3066,
+          "episode_id": "96deb7b5-7fae-4040-a3c7-b4350008bd04",
+          "episode_image_local_relpath": null,
+          "episode_image_url": "https://www.omnycontent.com/d/playlist/e73c998e-6e60-432f-8610-ae210140c5b1/8a94442e-5a74-4fa2-8b8d-ae27003a8d6b/982f5071-765c-403d-969d-ae27003a8d83/image.jpg?t=1681322812&size=Large",
+          "episode_number": null,
+          "episode_title": "Google's Liz Reid on Who Will Own Search in a World of AI",
+          "feed_description": "Bloomberg's Joe Weisenthal and Tracy Alloway explore the most interesting topics in finance, markets and economics. Join the conversation every Monday and Thursday.",
+          "feed_display_title": "Odd Lots",
+          "feed_id": "sha256:1cd6aecdd31c0ae82c2c76efdb6327b54e6026924b47852c51ffb406a9f2b19c",
+          "feed_image_local_relpath": null,
+          "feed_image_url": "https://www.omnycontent.com/d/playlist/e73c998e-6e60-432f-8610-ae210140c5b1/8a94442e-5a74-4fa2-8b8d-ae27003a8d6b/982f5071-765c-403d-969d-ae27003a8d83/image.jpg?t=1681322812&size=Large",
+          "feed_rss_url": "https://www.omnycontent.com/d/playlist/e73c998e-6e60-432f-8610-ae210140c5b1/8a94442e-5a74-4fa2-8b8d-ae27003a8d6b/982f5071-765c-403d-969d-ae27003a8d83/podcast.rss",
+          "gi_relative_path": "feeds/rss_www.omnycontent.com_c9fdce2d/run_20260506-135048_ba02775e/metadata/0009 - Google_s Liz Reid on Who Will Ow_20260506-135048_ba02775e.gi.json",
+          "has_gi": true,
+          "has_kg": true,
+          "kg_relative_path": "feeds/rss_www.omnycontent.com_c9fdce2d/run_20260506-135048_ba02775e/metadata/0009 - Google_s Liz Reid on Who Will Ow_20260506-135048_ba02775e.kg.json",
+          "metadata_relative_path": "feeds/rss_www.omnycontent.com_c9fdce2d/run_20260506-135048_ba02775e/metadata/0009 - Google_s Liz Reid on Who Will Ow_20260506-135048_ba02775e.metadata.json",
+          "publish_date": "2026-04-23",
+          "score": 0.6035891771316528,
+          "summary_preview": "Odd Lots Podcast: Google Search's AI Evolution and the Future of Information Discovery \u2014 Google is integrating AI into its search engine, facing competition from independent AI labs. \u00b7 AI overviews in search present a potential challenge t\u2026"
+        },
+        {
+          "duration_seconds": 5540,
+          "episode_id": "cbc5538c-3d2c-11f1-abeb-8fa0b9345ba8",
+          "episode_image_local_relpath": null,
+          "episode_image_url": "https://megaphone.imgix.net/podcasts/cbc5538c-3d2c-11f1-abeb-8fa0b9345ba8/image/7338c7270d70078f65b4911eb9cd5b0b.jpg?ixlib=rails-4.3.1&max-w=3000&max-h=3000&fit=crop&auto=format,compress",
+          "episode_number": 467,
+          "episode_title": "Alex Karnal - The Trillion-Dollar Health Revolution",
+          "feed_description": "Conversations with the best investors and business leaders in the world. We explore their ideas, methods, and stories to help you better invest your time and money. Hear stock market and boardroom insights you can't find anywhere else. If you're a professional investor, CEO, entrepreneur, or business strategist, this is for you. Explore all our episodes and learn more at https://www.colossus.com",
+          "feed_display_title": "Invest Like the Best with Patrick O'Shaughnessy",
+          "feed_id": "sha256:c17f67de8ab0f0ee390cebffcce08c6f5b6c99b6799ea9d946a71afaa5e908d8",
+          "feed_image_local_relpath": null,
+          "feed_image_url": "https://megaphone.imgix.net/podcasts/ef669774-cccd-11ed-889b-c36caad6646f/image/158efdddfb983d2678b3530d484e8aa2.jpg?ixlib=rails-4.3.1&max-w=3000&max-h=3000&fit=crop&auto=format,compress",
+          "feed_rss_url": "https://feeds.megaphone.fm/investlikethebest",
+          "gi_relative_path": "feeds/rss_feeds.megaphone.fm_3581c092/run_20260421-175631_8eb5f9d2/metadata/0001 - Alex Karnal - The Trillion-Dolla_20260421-175631_8eb5f9d2.gi.json",
+          "has_gi": true,
+          "has_kg": true,
+          "kg_relative_path": "feeds/rss_feeds.megaphone.fm_3581c092/run_20260421-175631_8eb5f9d2/metadata/0001 - Alex Karnal - The Trillion-Dolla_20260421-175631_8eb5f9d2.kg.json",
+          "metadata_relative_path": "feeds/rss_feeds.megaphone.fm_3581c092/run_20260421-175631_8eb5f9d2/metadata/0001 - Alex Karnal - The Trillion-Dolla_20260421-175631_8eb5f9d2.metadata.json",
+          "publish_date": "2026-04-21",
+          "score": 0.45529454946517944,
+          "summary_preview": "Alex Carnell on the Health Stack Revolution and the Future of Medicine \u2014 The current era in medicine, particularly with the success of GLP-1 drugs, represents the most exciting period in healthcare innovation in decades. \u00b7 The \"health stac\u2026"
+        },
+        {
+          "duration_seconds": 5121,
+          "episode_id": "substack:post:194810752",
+          "episode_image_local_relpath": null,
+          "episode_image_url": "https://substackcdn.com/feed/podcast/1084089/post/194810752/3a87f1aa9c0d9002c08d675c5183aae1.jpg",
+          "episode_number": null,
+          "episode_title": "\ud83d\udd2c Training Transformers to solve 95% failure rate of Cancer Trials \u2014 Ron Alfa & Daniel Bear, Noetik",
+          "feed_description": "The podcast by and for AI Engineers! In 2025, over 10 million readers and listeners came to Latent Space to hear about news, papers and interviews in Software 3.0. We cover Foundation Models changing every domain in Code Generation, Multimodality, AI Agents, GPU Infra and more, directly from the founders, builders, and thinkers involved in pushing the cutting edge. Striving to give you both the definitive take on the Current Thing down to the first introduction to the tech you'll be using in the next 3 months! We break news and exclusive interviews from OpenAI, Anthropic, Gemini, Meta (Soumith Chintala), Sierra (Bret Taylor), tiny (George Hotz), Databricks/MosaicML (Jon Frankle), Modular (Chris Lattner), Answer.ai (Jeremy Howard), et al. Full show notes always on https://latent.space www.latent.space",
+          "feed_display_title": "Latent Space: The AI Engineer Podcast",
+          "feed_id": "sha256:ff030825160cdb575fcdcc3850cb2c155865b96b55cb693791097dd92972e651",
+          "feed_image_local_relpath": null,
+          "feed_image_url": "https://substackcdn.com/feed/podcast/1084089/ca7468da5614a246d2906ee8926f6de7.jpg",
+          "feed_rss_url": "https://rss.flightcast.com/vgnxzgiwwzwke85ym53fjnzu.xml",
+          "gi_relative_path": "feeds/rss_rss.flightcast.com_c63dc3c0/run_20260421-175837_8eb5f9d2/metadata/0001 - _ Training Transformers to solve_20260421-175837_8eb5f9d2.gi.json",
+          "has_gi": true,
+          "has_kg": true,
+          "kg_relative_path": "feeds/rss_rss.flightcast.com_c63dc3c0/run_20260421-175837_8eb5f9d2/metadata/0001 - _ Training Transformers to solve_20260421-175837_8eb5f9d2.kg.json",
+          "metadata_relative_path": "feeds/rss_rss.flightcast.com_c63dc3c0/run_20260421-175837_8eb5f9d2/metadata/0001 - _ Training Transformers to solve_20260421-175837_8eb5f9d2.metadata.json",
+          "publish_date": "2026-04-20",
+          "score": 0.43266046047210693,
+          "summary_preview": "NoeTek: Revolutionizing Cancer Drug Development with AI and Multi-Modal Data \u2014 NoeTek aims to reduce cancer drug failure rates by improving patient selection through AI-driven biological understanding. \u00b7 The company utilizes multi-modal da\u2026"
+        },
+        {
+          "duration_seconds": 763,
+          "episode_id": "bcb72efb-4d99-44c9-9eb5-b3f001587dc0",
+          "episode_image_local_relpath": null,
+          "episode_image_url": "https://www.omnycontent.com/d/clips/e73c998e-6e60-432f-8610-ae210140c5b1/825d4e29-b616-46f4-afd7-ae2b0013005c/37243ecd-d65c-4551-8b5b-b3ef016b2a67/image.jpg?t=1771362839&size=Large",
+          "episode_number": null,
+          "episode_title": "The Sixth Bureau, Episode 1: Your Friend From Nanjing",
+          "feed_description": "Bloomberg's Joe Weisenthal and Tracy Alloway explore the most interesting topics in finance, markets and economics. Join the conversation every Monday and Thursday.",
+          "feed_display_title": "Odd Lots",
+          "feed_id": "sha256:1cd6aecdd31c0ae82c2c76efdb6327b54e6026924b47852c51ffb406a9f2b19c",
+          "feed_image_local_relpath": null,
+          "feed_image_url": "https://www.omnycontent.com/d/playlist/e73c998e-6e60-432f-8610-ae210140c5b1/8a94442e-5a74-4fa2-8b8d-ae27003a8d6b/982f5071-765c-403d-969d-ae27003a8d83/image.jpg?t=1681322812&size=Large",
+          "feed_rss_url": "https://www.omnycontent.com/d/playlist/e73c998e-6e60-432f-8610-ae210140c5b1/8a94442e-5a74-4fa2-8b8d-ae27003a8d6b/982f5071-765c-403d-969d-ae27003a8d83/podcast.rss",
+          "gi_relative_path": "feeds/rss_www.omnycontent.com_c9fdce2d/run_20260506-135048_ba02775e/metadata/0058 - The Sixth Bureau_ Episode 1_ You_20260506-135048_ba02775e.gi.json",
+          "has_gi": true,
+          "has_kg": true,
+          "kg_relative_path": "feeds/rss_www.omnycontent.com_c9fdce2d/run_20260506-135048_ba02775e/metadata/0058 - The Sixth Bureau_ Episode 1_ You_20260506-135048_ba02775e.kg.json",
+          "metadata_relative_path": "feeds/rss_www.omnycontent.com_c9fdce2d/run_20260506-135048_ba02775e/metadata/0058 - The Sixth Bureau_ Episode 1_ You_20260506-135048_ba02775e.metadata.json",
+          "publish_date": "2026-02-15",
+          "score": 0.4275062382221222,
+          "summary_preview": "The Sixth Bureau: Unraveling China's Spy Network and the Jet Engine Heist \u2014 An undercover FBI operation successfully lured and arrested Chinese spy Xu Yanjun, a significant achievement against the MSS. \u00b7 Xu Yanjun's arrest provided the FBI\u2026"
+        },
+        {
+          "duration_seconds": 2944,
+          "episode_id": "48d57b14-c285-46e9-9c8b-b3e901436211",
+          "episode_image_local_relpath": null,
+          "episode_image_url": "https://www.omnycontent.com/d/playlist/e73c998e-6e60-432f-8610-ae210140c5b1/8a94442e-5a74-4fa2-8b8d-ae27003a8d6b/982f5071-765c-403d-969d-ae27003a8d83/image.jpg?t=1681322812&size=Large",
+          "episode_number": null,
+          "episode_title": "Ricardo Hausmann Explains How the Venezuelan Economy Collapsed",
+          "feed_description": "Bloomberg's Joe Weisenthal and Tracy Alloway explore the most interesting topics in finance, markets and economics. Join the conversation every Monday and Thursday.",
+          "feed_display_title": "Odd Lots",
+          "feed_id": "sha256:1cd6aecdd31c0ae82c2c76efdb6327b54e6026924b47852c51ffb406a9f2b19c",
+          "feed_image_local_relpath": null,
+          "feed_image_url": "https://www.omnycontent.com/d/playlist/e73c998e-6e60-432f-8610-ae210140c5b1/8a94442e-5a74-4fa2-8b8d-ae27003a8d6b/982f5071-765c-403d-969d-ae27003a8d83/image.jpg?t=1681322812&size=Large",
+          "feed_rss_url": "https://www.omnycontent.com/d/playlist/e73c998e-6e60-432f-8610-ae210140c5b1/8a94442e-5a74-4fa2-8b8d-ae27003a8d6b/982f5071-765c-403d-969d-ae27003a8d83/podcast.rss",
+          "gi_relative_path": "feeds/rss_www.omnycontent.com_c9fdce2d/run_20260506-135048_ba02775e/metadata/0061 - Ricardo Hausmann Explains How th_20260506-135048_ba02775e.gi.json",
+          "has_gi": true,
+          "has_kg": true,
+          "kg_relative_path": "feeds/rss_www.omnycontent.com_c9fdce2d/run_20260506-135048_ba02775e/metadata/0061 - Ricardo Hausmann Explains How th_20260506-135048_ba02775e.kg.json",
+          "metadata_relative_path": "feeds/rss_www.omnycontent.com_c9fdce2d/run_20260506-135048_ba02775e/metadata/0061 - Ricardo Hausmann Explains How th_20260506-135048_ba02775e.metadata.json",
+          "publish_date": "2026-02-09",
+          "score": 0.4197709560394287,
+          "summary_preview": "Venezuela's Economic Collapse: From Oil Wealth to Hyperinflation and Exodus \u2014 Venezuela experienced a period of rapid growth and prosperity in the early to mid-20th century, driven by its oil exports and significant immigration. \u00b7 The 1980\u2026"
+        },
+        {
+          "duration_seconds": 3322,
+          "episode_id": "a1c70b67-17a8-4b1e-9edb-b4160128bf2c",
+          "episode_image_local_relpath": null,
+          "episode_image_url": "https://www.omnycontent.com/d/playlist/e73c998e-6e60-432f-8610-ae210140c5b1/8a94442e-5a74-4fa2-8b8d-ae27003a8d6b/982f5071-765c-403d-969d-ae27003a8d83/image.jpg?t=1681322812&size=Large",
+          "episode_number": null,
+          "episode_title": "David Shor and Byrne Hobart on the Politics of a White-Collar Wipeout",
+          "feed_description": "Bloomberg's Joe Weisenthal and Tracy Alloway explore the most interesting topics in finance, markets and economics. Join the conversation every Monday and Thursday.",
+          "feed_display_title": "Odd Lots",
+          "feed_id": "sha256:1cd6aecdd31c0ae82c2c76efdb6327b54e6026924b47852c51ffb406a9f2b19c",
+          "feed_image_local_relpath": null,
+          "feed_image_url": "https://www.omnycontent.com/d/playlist/e73c998e-6e60-432f-8610-ae210140c5b1/8a94442e-5a74-4fa2-8b8d-ae27003a8d6b/982f5071-765c-403d-969d-ae27003a8d83/image.jpg?t=1681322812&size=Large",
+          "feed_rss_url": "https://www.omnycontent.com/d/playlist/e73c998e-6e60-432f-8610-ae210140c5b1/8a94442e-5a74-4fa2-8b8d-ae27003a8d6b/982f5071-765c-403d-969d-ae27003a8d83/podcast.rss",
+          "gi_relative_path": "feeds/rss_www.omnycontent.com_c9fdce2d/run_20260506-135048_ba02775e/metadata/0033 - David Shor and Byrne Hobart on t_20260506-135048_ba02775e.gi.json",
+          "has_gi": true,
+          "has_kg": true,
+          "kg_relative_path": "feeds/rss_www.omnycontent.com_c9fdce2d/run_20260506-135048_ba02775e/metadata/0033 - David Shor and Byrne Hobart on t_20260506-135048_ba02775e.kg.json",
+          "metadata_relative_path": "feeds/rss_www.omnycontent.com_c9fdce2d/run_20260506-135048_ba02775e/metadata/0033 - David Shor and Byrne Hobart on t_20260506-135048_ba02775e.metadata.json",
+          "publish_date": "2026-03-24",
+          "score": 0.41956788301467896,
+          "summary_preview": "AI's Impact on White-Collar Jobs and Political Response \u2014 Artificial intelligence is advancing at an exponential rate, with significant implications for white-collar employment. \u00b7 Politicians must address public concerns about AI-driven jo\u2026"
+        },
+        {
+          "duration_seconds": 1056,
+          "episode_id": "68f13478ace6eea8f828f16e",
+          "episode_image_local_relpath": null,
+          "episode_image_url": "https://assets.pippa.io/shows/6478a825654260001190a7cb/1763129300404-a4dc3443-6e6e-4386-bdd2-6aaad3bd2ef6.jpeg",
+          "episode_number": null,
+          "episode_title": "Rare earth quake",
+          "feed_description": "Katie Martin, Robert Armstrong and other markets nerds at the Financial Times explain the big ideas behind what\u2019s happening in finance right now. Every Tuesday and Thursday. Hosted on Acast. See acast.com/privacy for more information.",
+          "feed_display_title": "Unhedged",
+          "feed_id": "sha256:bbafc8bf5404721c94cc1e14ee3a14ae0876af05af7aaf00914c3cff28fcf713",
+          "feed_image_local_relpath": null,
+          "feed_image_url": "https://assets.pippa.io/shows/6478a825654260001190a7cb/1763129300404-a4dc3443-6e6e-4386-bdd2-6aaad3bd2ef6.jpeg",
+          "feed_rss_url": "https://feeds.acast.com/public/shows/6478a825654260001190a7cb",
+          "gi_relative_path": ".reprocess-backup-20260506-132210/run_20260421-190016_2606de6d/metadata/0053 - Rare earth quake_20260421-190016_2606de6d.gi.json",
+          "has_gi": true,
+          "has_kg": true,
+          "kg_relative_path": ".reprocess-backup-20260506-132210/run_20260421-190016_2606de6d/metadata/0053 - Rare earth quake_20260421-190016_2606de6d.kg.json",
+          "metadata_relative_path": ".reprocess-backup-20260506-132210/run_20260421-190016_2606de6d/metadata/0053 - Rare earth quake_20260421-190016_2606de6d.metadata.json",
+          "publish_date": "2025-10-16",
+          "score": 0.4188852310180664,
+          "summary_preview": "Rare Earths, Trade Wars, and the Elasticity of Supply: Unhedged Podcast \u2014 China's dominance in rare earth mining and processing gives it significant leverage in international trade negotiations. \u00b7 The market reacted volatilely to China's p\u2026"
+        }
+      ],
+      "label": "Science & research",
+      "query": "scientific research discovery experiment",
+      "topic_id": "science"
+    },
+    {
+      "graph_topic_id": "topic:technology",
+      "hits": [
+        {
+          "duration_seconds": 1398,
+          "episode_id": "690a57c3b27ff20cebd2d7fa",
+          "episode_image_local_relpath": null,
+          "episode_image_url": "https://assets.pippa.io/shows/6478a825654260001190a7cb/1763129300404-a4dc3443-6e6e-4386-bdd2-6aaad3bd2ef6.jpeg",
+          "episode_number": null,
+          "episode_title": "Is Big Tech spending too much money?",
+          "feed_description": "Katie Martin, Robert Armstrong and other markets nerds at the Financial Times explain the big ideas behind what\u2019s happening in finance right now. Every Tuesday and Thursday. Hosted on Acast. See acast.com/privacy for more information.",
+          "feed_display_title": "Unhedged",
+          "feed_id": "sha256:bbafc8bf5404721c94cc1e14ee3a14ae0876af05af7aaf00914c3cff28fcf713",
+          "feed_image_local_relpath": null,
+          "feed_image_url": "https://assets.pippa.io/shows/6478a825654260001190a7cb/1763129300404-a4dc3443-6e6e-4386-bdd2-6aaad3bd2ef6.jpeg",
+          "feed_rss_url": "https://feeds.acast.com/public/shows/6478a825654260001190a7cb",
+          "gi_relative_path": ".reprocess-backup-20260506-132210/run_20260421-190016_2606de6d/metadata/0048 - Is Big Tech spending too much mo_20260421-190016_2606de6d.gi.json",
+          "has_gi": true,
+          "has_kg": true,
+          "kg_relative_path": ".reprocess-backup-20260506-132210/run_20260421-190016_2606de6d/metadata/0048 - Is Big Tech spending too much mo_20260421-190016_2606de6d.kg.json",
+          "metadata_relative_path": ".reprocess-backup-20260506-132210/run_20260421-190016_2606de6d/metadata/0048 - Is Big Tech spending too much mo_20260421-190016_2606de6d.metadata.json",
+          "publish_date": "2025-11-04",
+          "score": 0.6749774813652039,
+          "summary_preview": "Big Tech's AI Spending Spree: Meta's Bond Issuance and Market Reactions \u2014 Big tech companies, led by Meta, are undertaking massive spending on AI infrastructure, with Meta announcing $72 billion for this year and more for 2026. \u00b7 Meta's de\u2026"
+        },
+        {
+          "duration_seconds": 3284,
+          "episode_id": "8077744f-ec1b-41ce-9dcc-b3d401223ab6",
+          "episode_image_local_relpath": null,
+          "episode_image_url": "https://www.omnycontent.com/d/playlist/e73c998e-6e60-432f-8610-ae210140c5b1/8a94442e-5a74-4fa2-8b8d-ae27003a8d6b/982f5071-765c-403d-969d-ae27003a8d83/image.jpg?t=1681322812&size=Large",
+          "episode_number": null,
+          "episode_title": "Why the Tech World Is Going Crazy for Claude Code",
+          "feed_description": "Bloomberg's Joe Weisenthal and Tracy Alloway explore the most interesting topics in finance, markets and economics. Join the conversation every Monday and Thursday.",
+          "feed_display_title": "Odd Lots",
+          "feed_id": "sha256:1cd6aecdd31c0ae82c2c76efdb6327b54e6026924b47852c51ffb406a9f2b19c",
+          "feed_image_local_relpath": null,
+          "feed_image_url": "https://www.omnycontent.com/d/playlist/e73c998e-6e60-432f-8610-ae210140c5b1/8a94442e-5a74-4fa2-8b8d-ae27003a8d6b/982f5071-765c-403d-969d-ae27003a8d83/image.jpg?t=1681322812&size=Large",
+          "feed_rss_url": "https://www.omnycontent.com/d/playlist/e73c998e-6e60-432f-8610-ae210140c5b1/8a94442e-5a74-4fa2-8b8d-ae27003a8d6b/982f5071-765c-403d-969d-ae27003a8d83/podcast.rss",
+          "gi_relative_path": "feeds/rss_www.omnycontent.com_c9fdce2d/run_20260506-135048_ba02775e/metadata/0074 - Why the Tech World Is Going Craz_20260506-135048_ba02775e.gi.json",
+          "has_gi": true,
+          "has_kg": true,
+          "kg_relative_path": "feeds/rss_www.omnycontent.com_c9fdce2d/run_20260506-135048_ba02775e/metadata/0074 - Why the Tech World Is Going Craz_20260506-135048_ba02775e.kg.json",
+          "metadata_relative_path": "feeds/rss_www.omnycontent.com_c9fdce2d/run_20260506-135048_ba02775e/metadata/0074 - Why the Tech World Is Going Craz_20260506-135048_ba02775e.metadata.json",
+          "publish_date": "2026-01-19",
+          "score": 0.6481621265411377,
+          "summary_preview": "Odd Lots: The Rise of Claude Code and AI-Powered Software Development \u2014 AI coding tools like Claude Code are significantly lowering the barrier to entry for software development, enabling individuals with less technical expertise to create\u2026"
+        },
+        {
+          "duration_seconds": 3149,
+          "episode_id": "53fa2d7c-330f-42e3-b997-b41a015dd3ab",
+          "episode_image_local_relpath": null,
+          "episode_image_url": "https://www.omnycontent.com/d/playlist/e73c998e-6e60-432f-8610-ae210140c5b1/8a94442e-5a74-4fa2-8b8d-ae27003a8d6b/982f5071-765c-403d-969d-ae27003a8d83/image.jpg?t=1681322812&size=Large",
+          "episode_number": null,
+          "episode_title": "Goldman CIO Marco Argenti on the Warp-Speed Improvements in AI",
+          "feed_description": "Bloomberg's Joe Weisenthal and Tracy Alloway explore the most interesting topics in finance, markets and economics. Join the conversation every Monday and Thursday.",
+          "feed_display_title": "Odd Lots",
+          "feed_id": "sha256:1cd6aecdd31c0ae82c2c76efdb6327b54e6026924b47852c51ffb406a9f2b19c",
+          "feed_image_local_relpath": null,
+          "feed_image_url": "https://www.omnycontent.com/d/playlist/e73c998e-6e60-432f-8610-ae210140c5b1/8a94442e-5a74-4fa2-8b8d-ae27003a8d6b/982f5071-765c-403d-969d-ae27003a8d83/image.jpg?t=1681322812&size=Large",
+          "feed_rss_url": "https://www.omnycontent.com/d/playlist/e73c998e-6e60-432f-8610-ae210140c5b1/8a94442e-5a74-4fa2-8b8d-ae27003a8d6b/982f5071-765c-403d-969d-ae27003a8d83/podcast.rss",
+          "gi_relative_path": "feeds/rss_www.omnycontent.com_c9fdce2d/run_20260506-135048_ba02775e/metadata/0028 - Goldman CIO Marco Argenti on the_20260506-135048_ba02775e.gi.json",
+          "has_gi": true,
+          "has_kg": true,
+          "kg_relative_path": "feeds/rss_www.omnycontent.com_c9fdce2d/run_20260506-135048_ba02775e/metadata/0028 - Goldman CIO Marco Argenti on the_20260506-135048_ba02775e.kg.json",
+          "metadata_relative_path": "feeds/rss_www.omnycontent.com_c9fdce2d/run_20260506-135048_ba02775e/metadata/0028 - Goldman CIO Marco Argenti on the_20260506-135048_ba02775e.metadata.json",
+          "publish_date": "2026-03-30",
+          "score": 0.6282475590705872,
+          "summary_preview": "AI's Evolution: From Experimentation to Mission-Critical Applications at Goldman Sachs \u2014 AI has rapidly advanced from an experimental phase to being used for mission-critical applications, transforming workflows across industries. \u00b7 Goldma\u2026"
+        },
+        {
+          "duration_seconds": 2729,
+          "episode_id": "3220a86a-8dcd-4d57-8be1-b3f0014ddd5e",
+          "episode_image_local_relpath": null,
+          "episode_image_url": "https://www.omnycontent.com/d/playlist/e73c998e-6e60-432f-8610-ae210140c5b1/8a94442e-5a74-4fa2-8b8d-ae27003a8d6b/982f5071-765c-403d-969d-ae27003a8d83/image.jpg?t=1681322812&size=Large",
+          "episode_number": null,
+          "episode_title": "Ray Wang on How AI Is Causing DRAM Prices to Surge",
+          "feed_description": "Bloomberg's Joe Weisenthal and Tracy Alloway explore the most interesting topics in finance, markets and economics. Join the conversation every Monday and Thursday.",
+          "feed_display_title": "Odd Lots",
+          "feed_id": "sha256:1cd6aecdd31c0ae82c2c76efdb6327b54e6026924b47852c51ffb406a9f2b19c",
+          "feed_image_local_relpath": null,
+          "feed_image_url": "https://www.omnycontent.com/d/playlist/e73c998e-6e60-432f-8610-ae210140c5b1/8a94442e-5a74-4fa2-8b8d-ae27003a8d6b/982f5071-765c-403d-969d-ae27003a8d83/image.jpg?t=1681322812&size=Large",
+          "feed_rss_url": "https://www.omnycontent.com/d/playlist/e73c998e-6e60-432f-8610-ae210140c5b1/8a94442e-5a74-4fa2-8b8d-ae27003a8d6b/982f5071-765c-403d-969d-ae27003a8d83/podcast.rss",
+          "gi_relative_path": "feeds/rss_www.omnycontent.com_c9fdce2d/run_20260506-135048_ba02775e/metadata/0057 - Ray Wang on How AI Is Causing DR_20260506-135048_ba02775e.gi.json",
+          "has_gi": true,
+          "has_kg": true,
+          "kg_relative_path": "feeds/rss_www.omnycontent.com_c9fdce2d/run_20260506-135048_ba02775e/metadata/0057 - Ray Wang on How AI Is Causing DR_20260506-135048_ba02775e.kg.json",
+          "metadata_relative_path": "feeds/rss_www.omnycontent.com_c9fdce2d/run_20260506-135048_ba02775e/metadata/0057 - Ray Wang on How AI Is Causing DR_20260506-135048_ba02775e.metadata.json",
+          "publish_date": "2026-02-16",
+          "score": 0.6042894124984741,
+          "summary_preview": "Odd Lots Podcast: AI's Insatiable Demand for Memory Chips and the Coming Super Cycle \u2014 The rapid growth of Artificial Intelligence is creating an unprecedented demand for memory chips, particularly High Bandwidth Memory (HBM). \u00b7 Manufactur\u2026"
+        },
+        {
+          "duration_seconds": 2703,
+          "episode_id": "1539622b-e41c-4e30-9bda-b4050183dfff",
+          "episode_image_local_relpath": null,
+          "episode_image_url": "https://www.omnycontent.com/d/playlist/e73c998e-6e60-432f-8610-ae210140c5b1/8a94442e-5a74-4fa2-8b8d-ae27003a8d6b/982f5071-765c-403d-969d-ae27003a8d83/image.jpg?t=1681322812&size=Large",
+          "episode_number": null,
+          "episode_title": "Henry Blodget on the Software Selloff Hysteria and the Problem for OpenAI",
+          "feed_description": "Bloomberg's Joe Weisenthal and Tracy Alloway explore the most interesting topics in finance, markets and economics. Join the conversation every Monday and Thursday.",
+          "feed_display_title": "Odd Lots",
+          "feed_id": "sha256:1cd6aecdd31c0ae82c2c76efdb6327b54e6026924b47852c51ffb406a9f2b19c",
+          "feed_image_local_relpath": null,
+          "feed_image_url": "https://www.omnycontent.com/d/playlist/e73c998e-6e60-432f-8610-ae210140c5b1/8a94442e-5a74-4fa2-8b8d-ae27003a8d6b/982f5071-765c-403d-969d-ae27003a8d83/image.jpg?t=1681322812&size=Large",
+          "feed_rss_url": "https://www.omnycontent.com/d/playlist/e73c998e-6e60-432f-8610-ae210140c5b1/8a94442e-5a74-4fa2-8b8d-ae27003a8d6b/982f5071-765c-403d-969d-ae27003a8d83/podcast.rss",
+          "gi_relative_path": "feeds/rss_www.omnycontent.com_c9fdce2d/run_20260506-135048_ba02775e/metadata/0045 - Henry Blodget on the Software Se_20260506-135048_ba02775e.gi.json",
+          "has_gi": true,
+          "has_kg": true,
+          "kg_relative_path": "feeds/rss_www.omnycontent.com_c9fdce2d/run_20260506-135048_ba02775e/metadata/0045 - Henry Blodget on the Software Se_20260506-135048_ba02775e.kg.json",
+          "metadata_relative_path": "feeds/rss_www.omnycontent.com_c9fdce2d/run_20260506-135048_ba02775e/metadata/0045 - Henry Blodget on the Software Se_20260506-135048_ba02775e.metadata.json",
+          "publish_date": "2026-03-07",
+          "score": 0.6042894124984741,
+          "summary_preview": "AI's Market Impact: Hype, Disruption, and the Future of Business \u2014 The current AI boom is compared to the early internet era, characterized by a wide spectrum of predictions and rapidly increasing company valuations. \u00b7 A recent doomsday pr\u2026"
+        },
+        {
+          "duration_seconds": 2943,
+          "episode_id": "59308efc-3576-4375-8cf2-b40b00329583",
+          "episode_image_local_relpath": null,
+          "episode_image_url": "https://www.omnycontent.com/d/playlist/e73c998e-6e60-432f-8610-ae210140c5b1/8a94442e-5a74-4fa2-8b8d-ae27003a8d6b/982f5071-765c-403d-969d-ae27003a8d83/image.jpg?t=1681322812&size=Large",
+          "episode_number": null,
+          "episode_title": "Legendary Hacker Matt Suiche on Cyberwar in the Age of AI",
+          "feed_description": "Bloomberg's Joe Weisenthal and Tracy Alloway explore the most interesting topics in finance, markets and economics. Join the conversation every Monday and Thursday.",
+          "feed_display_title": "Odd Lots",
+          "feed_id": "sha256:1cd6aecdd31c0ae82c2c76efdb6327b54e6026924b47852c51ffb406a9f2b19c",
+          "feed_image_local_relpath": null,
+          "feed_image_url": "https://www.omnycontent.com/d/playlist/e73c998e-6e60-432f-8610-ae210140c5b1/8a94442e-5a74-4fa2-8b8d-ae27003a8d6b/982f5071-765c-403d-969d-ae27003a8d83/image.jpg?t=1681322812&size=Large",
+          "feed_rss_url": "https://www.omnycontent.com/d/playlist/e73c998e-6e60-432f-8610-ae210140c5b1/8a94442e-5a74-4fa2-8b8d-ae27003a8d6b/982f5071-765c-403d-969d-ae27003a8d83/podcast.rss",
+          "gi_relative_path": "feeds/rss_www.omnycontent.com_c9fdce2d/run_20260506-135048_ba02775e/metadata/0041 - Legendary Hacker Matt Suiche on _20260506-135048_ba02775e.gi.json",
+          "has_gi": true,
+          "has_kg": true,
+          "kg_relative_path": "feeds/rss_www.omnycontent.com_c9fdce2d/run_20260506-135048_ba02775e/metadata/0041 - Legendary Hacker Matt Suiche on _20260506-135048_ba02775e.kg.json",
+          "metadata_relative_path": "feeds/rss_www.omnycontent.com_c9fdce2d/run_20260506-135048_ba02775e/metadata/0041 - Legendary Hacker Matt Suiche on _20260506-135048_ba02775e.metadata.json",
+          "publish_date": "2026-03-12",
+          "score": 0.6042894124984741,
+          "summary_preview": "Iran's Cyber Capabilities, AI in Warfare, and the Shifting Landscape of Software Development \u2014 Geopolitical tensions, particularly involving Iran, are raising concerns about potential cyber attacks on critical financial infrastructure. \u00b7 A\u2026"
+        },
+        {
+          "duration_seconds": 2399,
+          "episode_id": "1a294fa6-1498-40b1-9add-b41801878a66",
+          "episode_image_local_relpath": null,
+          "episode_image_url": "https://www.omnycontent.com/d/playlist/e73c998e-6e60-432f-8610-ae210140c5b1/8a94442e-5a74-4fa2-8b8d-ae27003a8d6b/982f5071-765c-403d-969d-ae27003a8d83/image.jpg?t=1681322812&size=Large",
+          "episode_number": null,
+          "episode_title": "This Is How Big Money Is Trading the War in Iran",
+          "feed_description": "Bloomberg's Joe Weisenthal and Tracy Alloway explore the most interesting topics in finance, markets and economics. Join the conversation every Monday and Thursday.",
+          "feed_display_title": "Odd Lots",
+          "feed_id": "sha256:1cd6aecdd31c0ae82c2c76efdb6327b54e6026924b47852c51ffb406a9f2b19c",
+          "feed_image_local_relpath": null,
+          "feed_image_url": "https://www.omnycontent.com/d/playlist/e73c998e-6e60-432f-8610-ae210140c5b1/8a94442e-5a74-4fa2-8b8d-ae27003a8d6b/982f5071-765c-403d-969d-ae27003a8d83/image.jpg?t=1681322812&size=Large",
+          "feed_rss_url": "https://www.omnycontent.com/d/playlist/e73c998e-6e60-432f-8610-ae210140c5b1/8a94442e-5a74-4fa2-8b8d-ae27003a8d6b/982f5071-765c-403d-969d-ae27003a8d83/podcast.rss",
+          "gi_relative_path": "feeds/rss_www.omnycontent.com_c9fdce2d/run_20260506-135048_ba02775e/metadata/0031 - This Is How Big Money Is Trading_20260506-135048_ba02775e.gi.json",
+          "has_gi": true,
+          "has_kg": true,
+          "kg_relative_path": "feeds/rss_www.omnycontent.com_c9fdce2d/run_20260506-135048_ba02775e/metadata/0031 - This Is How Big Money Is Trading_20260506-135048_ba02775e.kg.json",
+          "metadata_relative_path": "feeds/rss_www.omnycontent.com_c9fdce2d/run_20260506-135048_ba02775e/metadata/0031 - This Is How Big Money Is Trading_20260506-135048_ba02775e.metadata.json",
+          "publish_date": "2026-03-26",
+          "score": 0.6042894124984741,
+          "summary_preview": "Odd Lots: Navigating Headline-Driven Markets Amidst Geopolitical Uncertainty \u2014 Financial markets are currently characterized by extreme volatility driven by geopolitical headlines, particularly those related to Iran. \u00b7 Traders are struggli\u2026"
+        },
+        {
+          "duration_seconds": 3105,
+          "episode_id": "5971661f-5322-45b9-90f0-b41a015da220",
+          "episode_image_local_relpath": null,
+          "episode_image_url": "https://www.omnycontent.com/d/playlist/e73c998e-6e60-432f-8610-ae210140c5b1/8a94442e-5a74-4fa2-8b8d-ae27003a8d6b/982f5071-765c-403d-969d-ae27003a8d83/image.jpg?t=1681322812&size=Large",
+          "episode_number": null,
+          "episode_title": "Anthropic, the Pentagon, and the Future of Autonomous Weapons",
+          "feed_description": "Bloomberg's Joe Weisenthal and Tracy Alloway explore the most interesting topics in finance, markets and economics. Join the conversation every Monday and Thursday.",
+          "feed_display_title": "Odd Lots",
+          "feed_id": "sha256:1cd6aecdd31c0ae82c2c76efdb6327b54e6026924b47852c51ffb406a9f2b19c",
+          "feed_image_local_relpath": null,
+          "feed_image_url": "https://www.omnycontent.com/d/playlist/e73c998e-6e60-432f-8610-ae210140c5b1/8a94442e-5a74-4fa2-8b8d-ae27003a8d6b/982f5071-765c-403d-969d-ae27003a8d83/image.jpg?t=1681322812&size=Large",
+          "feed_rss_url": "https://www.omnycontent.com/d/playlist/e73c998e-6e60-432f-8610-ae210140c5b1/8a94442e-5a74-4fa2-8b8d-ae27003a8d6b/982f5071-765c-403d-969d-ae27003a8d83/podcast.rss",
+          "gi_relative_path": "feeds/rss_www.omnycontent.com_c9fdce2d/run_20260506-135048_ba02775e/metadata/0029 - Anthropic_ the Pentagon_ and the_20260506-135048_ba02775e.gi.json",
+          "has_gi": true,
+          "has_kg": true,
+          "kg_relative_path": "feeds/rss_www.omnycontent.com_c9fdce2d/run_20260506-135048_ba02775e/metadata/0029 - Anthropic_ the Pentagon_ and the_20260506-135048_ba02775e.kg.json",
+          "metadata_relative_path": "feeds/rss_www.omnycontent.com_c9fdce2d/run_20260506-135048_ba02775e/metadata/0029 - Anthropic_ the Pentagon_ and the_20260506-135048_ba02775e.metadata.json",
+          "publish_date": "2026-03-28",
+          "score": 0.6042894124984741,
+          "summary_preview": "Odd Lots Podcast: AI, Autonomous Weapons, and the Pentagon's Contract Dispute \u2014 The U.S. Department of Defense is using AI, including large language models from companies like Anthropic, to process intelligence data and aid in military pla\u2026"
+        }
+      ],
+      "label": "Technology",
+      "query": "software artificial intelligence technology engineering",
+      "topic_id": "technology"
+    },
+    {
+      "graph_topic_id": "topic:business-markets",
+      "hits": [
+        {
+          "duration_seconds": 2911,
+          "episode_id": "5ac07e49-f12a-4a0f-915d-b3f60130ce1a",
+          "episode_image_local_relpath": null,
+          "episode_image_url": "https://www.omnycontent.com/d/playlist/e73c998e-6e60-432f-8610-ae210140c5b1/8a94442e-5a74-4fa2-8b8d-ae27003a8d6b/982f5071-765c-403d-969d-ae27003a8d83/image.jpg?t=1681322812&size=Large",
+          "episode_number": null,
+          "episode_title": "A16Z's David George on How Private and Public Markets Fused Into One",
+          "feed_description": "Bloomberg's Joe Weisenthal and Tracy Alloway explore the most interesting topics in finance, markets and economics. Join the conversation every Monday and Thursday.",
+          "feed_display_title": "Odd Lots",
+          "feed_id": "sha256:1cd6aecdd31c0ae82c2c76efdb6327b54e6026924b47852c51ffb406a9f2b19c",
+          "feed_image_local_relpath": null,
+          "feed_image_url": "https://www.omnycontent.com/d/playlist/e73c998e-6e60-432f-8610-ae210140c5b1/8a94442e-5a74-4fa2-8b8d-ae27003a8d6b/982f5071-765c-403d-969d-ae27003a8d83/image.jpg?t=1681322812&size=Large",
+          "feed_rss_url": "https://www.omnycontent.com/d/playlist/e73c998e-6e60-432f-8610-ae210140c5b1/8a94442e-5a74-4fa2-8b8d-ae27003a8d6b/982f5071-765c-403d-969d-ae27003a8d83/podcast.rss",
+          "gi_relative_path": "feeds/rss_www.omnycontent.com_c9fdce2d/run_20260506-135048_ba02775e/metadata/0055 - A16Z_s David George on How Priva_20260506-135048_ba02775e.gi.json",
+          "has_gi": true,
+          "has_kg": true,
+          "kg_relative_path": "feeds/rss_www.omnycontent.com_c9fdce2d/run_20260506-135048_ba02775e/metadata/0055 - A16Z_s David George on How Priva_20260506-135048_ba02775e.kg.json",
+          "metadata_relative_path": "feeds/rss_www.omnycontent.com_c9fdce2d/run_20260506-135048_ba02775e/metadata/0055 - A16Z_s David George on How Priva_20260506-135048_ba02775e.metadata.json",
+          "publish_date": "2026-02-20",
+          "score": 0.6926217079162598,
+          "summary_preview": "Odd Lots: The Rise of Private Markets and Companies Staying Private Longer \u2014 Prominent technology companies are increasingly choosing to remain private for longer durations, delaying or forgoing IPOs. \u00b7 The private market for highly valued\u2026"
+        },
+        {
+          "duration_seconds": 2168,
+          "episode_id": "75ffbd86-1485-4a64-a9d0-b428014f200e",
+          "episode_image_local_relpath": null,
+          "episode_image_url": "https://www.omnycontent.com/d/playlist/e73c998e-6e60-432f-8610-ae210140c5b1/8a94442e-5a74-4fa2-8b8d-ae27003a8d6b/982f5071-765c-403d-969d-ae27003a8d83/image.jpg?t=1681322812&size=Large",
+          "episode_number": null,
+          "episode_title": "The Big Macro Force That's Been Driving Stocks Higher for Years",
+          "feed_description": "Bloomberg's Joe Weisenthal and Tracy Alloway explore the most interesting topics in finance, markets and economics. Join the conversation every Monday and Thursday.",
+          "feed_display_title": "Odd Lots",
+          "feed_id": "sha256:1cd6aecdd31c0ae82c2c76efdb6327b54e6026924b47852c51ffb406a9f2b19c",
+          "feed_image_local_relpath": null,
+          "feed_image_url": "https://www.omnycontent.com/d/playlist/e73c998e-6e60-432f-8610-ae210140c5b1/8a94442e-5a74-4fa2-8b8d-ae27003a8d6b/982f5071-765c-403d-969d-ae27003a8d83/image.jpg?t=1681322812&size=Large",
+          "feed_rss_url": "https://www.omnycontent.com/d/playlist/e73c998e-6e60-432f-8610-ae210140c5b1/8a94442e-5a74-4fa2-8b8d-ae27003a8d6b/982f5071-765c-403d-969d-ae27003a8d83/podcast.rss",
+          "gi_relative_path": "feeds/rss_www.omnycontent.com_c9fdce2d/run_20260506-135048_ba02775e/metadata/0019 - The Big Macro Force That_s Been _20260506-135048_ba02775e.gi.json",
+          "has_gi": true,
+          "has_kg": true,
+          "kg_relative_path": "feeds/rss_www.omnycontent.com_c9fdce2d/run_20260506-135048_ba02775e/metadata/0019 - The Big Macro Force That_s Been _20260506-135048_ba02775e.kg.json",
+          "metadata_relative_path": "feeds/rss_www.omnycontent.com_c9fdce2d/run_20260506-135048_ba02775e/metadata/0019 - The Big Macro Force That_s Been _20260506-135048_ba02775e.metadata.json",
+          "publish_date": "2026-04-11",
+          "score": 0.6926217079162598,
+          "summary_preview": "Odd Lots: Stock Market Valuations, Free Cash Flow, and the Shifting Corporate Landscape \u2014 Large, profitable American companies are shifting from generating free cash flow to making significant capital expenditures, particularly in data cen\u2026"
+        },
+        {
+          "duration_seconds": 3056,
+          "episode_id": "b87e2dc3-177c-4ee1-9e35-b426016992c9",
+          "episode_image_local_relpath": null,
+          "episode_image_url": "https://www.omnycontent.com/d/playlist/e73c998e-6e60-432f-8610-ae210140c5b1/8a94442e-5a74-4fa2-8b8d-ae27003a8d6b/982f5071-765c-403d-969d-ae27003a8d83/image.jpg?t=1681322812&size=Large",
+          "episode_number": null,
+          "episode_title": "Thomas Peterffy on Interactive Brokers' Plan to Professionalize Prediction Markets",
+          "feed_description": "Bloomberg's Joe Weisenthal and Tracy Alloway explore the most interesting topics in finance, markets and economics. Join the conversation every Monday and Thursday.",
+          "feed_display_title": "Odd Lots",
+          "feed_id": "sha256:1cd6aecdd31c0ae82c2c76efdb6327b54e6026924b47852c51ffb406a9f2b19c",
+          "feed_image_local_relpath": null,
+          "feed_image_url": "https://www.omnycontent.com/d/playlist/e73c998e-6e60-432f-8610-ae210140c5b1/8a94442e-5a74-4fa2-8b8d-ae27003a8d6b/982f5071-765c-403d-969d-ae27003a8d83/image.jpg?t=1681322812&size=Large",
+          "feed_rss_url": "https://www.omnycontent.com/d/playlist/e73c998e-6e60-432f-8610-ae210140c5b1/8a94442e-5a74-4fa2-8b8d-ae27003a8d6b/982f5071-765c-403d-969d-ae27003a8d83/podcast.rss",
+          "gi_relative_path": "feeds/rss_www.omnycontent.com_c9fdce2d/run_20260506-135048_ba02775e/metadata/0021 - Thomas Peterffy on Interactive B_20260506-135048_ba02775e.gi.json",
+          "has_gi": true,
+          "has_kg": true,
+          "kg_relative_path": "feeds/rss_www.omnycontent.com_c9fdce2d/run_20260506-135048_ba02775e/metadata/0021 - Thomas Peterffy on Interactive B_20260506-135048_ba02775e.kg.json",
+          "metadata_relative_path": "feeds/rss_www.omnycontent.com_c9fdce2d/run_20260506-135048_ba02775e/metadata/0021 - Thomas Peterffy on Interactive B_20260506-135048_ba02775e.metadata.json",
+          "publish_date": "2026-04-09",
+          "score": 0.653693675994873,
+          "summary_preview": "Prediction Markets: From Silly Bets to Serious Investment Tools with Tamas\u00e9\u00a0P\u00e9t\u00f6fi \u2014 Prediction markets offer a unique mechanism for aggregating expert consensus on future events, potentially serving as valuable tools for institutional inv\u2026"
+        },
+        {
+          "duration_seconds": 2765,
+          "episode_id": "0143cf2a-af2d-4f59-877d-b3e20164ef0d",
+          "episode_image_local_relpath": null,
+          "episode_image_url": "https://www.omnycontent.com/d/playlist/e73c998e-6e60-432f-8610-ae210140c5b1/8a94442e-5a74-4fa2-8b8d-ae27003a8d6b/982f5071-765c-403d-969d-ae27003a8d83/image.jpg?t=1681322812&size=Large",
+          "episode_number": null,
+          "episode_title": "The Utilities Analyst Who Says the Data Center Demand Story Doesn't Add Up",
+          "feed_description": "Bloomberg's Joe Weisenthal and Tracy Alloway explore the most interesting topics in finance, markets and economics. Join the conversation every Monday and Thursday.",
+          "feed_display_title": "Odd Lots",
+          "feed_id": "sha256:1cd6aecdd31c0ae82c2c76efdb6327b54e6026924b47852c51ffb406a9f2b19c",
+          "feed_image_local_relpath": null,
+          "feed_image_url": "https://www.omnycontent.com/d/playlist/e73c998e-6e60-432f-8610-ae210140c5b1/8a94442e-5a74-4fa2-8b8d-ae27003a8d6b/982f5071-765c-403d-969d-ae27003a8d83/image.jpg?t=1681322812&size=Large",
+          "feed_rss_url": "https://www.omnycontent.com/d/playlist/e73c998e-6e60-432f-8610-ae210140c5b1/8a94442e-5a74-4fa2-8b8d-ae27003a8d6b/982f5071-765c-403d-969d-ae27003a8d83/podcast.rss",
+          "gi_relative_path": "feeds/rss_www.omnycontent.com_c9fdce2d/run_20260506-135048_ba02775e/metadata/0067 - The Utilities Analyst Who Says t_20260506-135048_ba02775e.gi.json",
+          "has_gi": true,
+          "has_kg": true,
+          "kg_relative_path": "feeds/rss_www.omnycontent.com_c9fdce2d/run_20260506-135048_ba02775e/metadata/0067 - The Utilities Analyst Who Says t_20260506-135048_ba02775e.kg.json",
+          "metadata_relative_path": "feeds/rss_www.omnycontent.com_c9fdce2d/run_20260506-135048_ba02775e/metadata/0067 - The Utilities Analyst Who Says t_20260506-135048_ba02775e.metadata.json",
+          "publish_date": "2026-02-02",
+          "score": 0.6461795568466187,
+          "summary_preview": "AI's Energy Demand: A Utilities Analyst's Contrarian View on Data Center Growth \u2014 Utilities analysts, once focused on bond-like characteristics and regulatory matters, are now in high demand due to the energy needs of the AI and data cente\u2026"
+        },
+        {
+          "duration_seconds": 2195,
+          "episode_id": "592a7424-fc6f-48ed-a1c6-b4090032d552",
+          "episode_image_local_relpath": null,
+          "episode_image_url": "https://www.omnycontent.com/d/playlist/e73c998e-6e60-432f-8610-ae210140c5b1/8a94442e-5a74-4fa2-8b8d-ae27003a8d6b/982f5071-765c-403d-969d-ae27003a8d83/image.jpg?t=1681322812&size=Large",
+          "episode_number": null,
+          "episode_title": "Rory Johnston on How Oil Could Surge to Over $200 a Barrel",
+          "feed_description": "Bloomberg's Joe Weisenthal and Tracy Alloway explore the most interesting topics in finance, markets and economics. Join the conversation every Monday and Thursday.",
+          "feed_display_title": "Odd Lots",
+          "feed_id": "sha256:1cd6aecdd31c0ae82c2c76efdb6327b54e6026924b47852c51ffb406a9f2b19c",
+          "feed_image_local_relpath": null,
+          "feed_image_url": "https://www.omnycontent.com/d/playlist/e73c998e-6e60-432f-8610-ae210140c5b1/8a94442e-5a74-4fa2-8b8d-ae27003a8d6b/982f5071-765c-403d-969d-ae27003a8d83/image.jpg?t=1681322812&size=Large",
+          "feed_rss_url": "https://www.omnycontent.com/d/playlist/e73c998e-6e60-432f-8610-ae210140c5b1/8a94442e-5a74-4fa2-8b8d-ae27003a8d6b/982f5071-765c-403d-969d-ae27003a8d83/podcast.rss",
+          "gi_relative_path": "feeds/rss_www.omnycontent.com_c9fdce2d/run_20260506-135048_ba02775e/metadata/0043 - Rory Johnston on How Oil Could S_20260506-135048_ba02775e.gi.json",
+          "has_gi": true,
+          "has_kg": true,
+          "kg_relative_path": "feeds/rss_www.omnycontent.com_c9fdce2d/run_20260506-135048_ba02775e/metadata/0043 - Rory Johnston on How Oil Could S_20260506-135048_ba02775e.kg.json",
+          "metadata_relative_path": "feeds/rss_www.omnycontent.com_c9fdce2d/run_20260506-135048_ba02775e/metadata/0043 - Rory Johnston on How Oil Could S_20260506-135048_ba02775e.metadata.json",
+          "publish_date": "2026-03-10",
+          "score": 0.6461795568466187,
+          "summary_preview": "Odd Lots Podcast: Oil Market Shock and the Strait of Hormuz Crisis \u2014 The oil market experienced a significant price surge due to escalating tensions involving Iran and the Strait of Hormuz, exceeding prior trader expectations. \u00b7 Past resil\u2026"
+        },
+        {
+          "duration_seconds": 2341,
+          "episode_id": "eb4d0306-44c8-4b54-88dd-b42e01171174",
+          "episode_image_local_relpath": null,
+          "episode_image_url": "https://www.omnycontent.com/d/playlist/e73c998e-6e60-432f-8610-ae210140c5b1/8a94442e-5a74-4fa2-8b8d-ae27003a8d6b/982f5071-765c-403d-969d-ae27003a8d83/image.jpg?t=1681322812&size=Large",
+          "episode_number": null,
+          "episode_title": "Planet Money Turned Everyday Annoyances Into an Economics Book",
+          "feed_description": "Bloomberg's Joe Weisenthal and Tracy Alloway explore the most interesting topics in finance, markets and economics. Join the conversation every Monday and Thursday.",
+          "feed_display_title": "Odd Lots",
+          "feed_id": "sha256:1cd6aecdd31c0ae82c2c76efdb6327b54e6026924b47852c51ffb406a9f2b19c",
+          "feed_image_local_relpath": null,
+          "feed_image_url": "https://www.omnycontent.com/d/playlist/e73c998e-6e60-432f-8610-ae210140c5b1/8a94442e-5a74-4fa2-8b8d-ae27003a8d6b/982f5071-765c-403d-969d-ae27003a8d83/image.jpg?t=1681322812&size=Large",
+          "feed_rss_url": "https://www.omnycontent.com/d/playlist/e73c998e-6e60-432f-8610-ae210140c5b1/8a94442e-5a74-4fa2-8b8d-ae27003a8d6b/982f5071-765c-403d-969d-ae27003a8d83/podcast.rss",
+          "gi_relative_path": "feeds/rss_www.omnycontent.com_c9fdce2d/run_20260506-135048_ba02775e/metadata/0014 - Planet Money Turned Everyday Ann_20260506-135048_ba02775e.gi.json",
+          "has_gi": true,
+          "has_kg": true,
+          "kg_relative_path": "feeds/rss_www.omnycontent.com_c9fdce2d/run_20260506-135048_ba02775e/metadata/0014 - Planet Money Turned Everyday Ann_20260506-135048_ba02775e.kg.json",
+          "metadata_relative_path": "feeds/rss_www.omnycontent.com_c9fdce2d/run_20260506-135048_ba02775e/metadata/0014 - Planet Money Turned Everyday Ann_20260506-135048_ba02775e.metadata.json",
+          "publish_date": "2026-04-17",
+          "score": 0.6409999132156372,
+          "summary_preview": "Odd Thoughts: The Economic Forces Shaping Our Lives with Planet Money's Alex Mayassi and Mary Childs \u2014 The book \"Planet Money: A Guide to the Economic Forces that Shape Your Life\" is structured as a field guide to understanding everyday ec\u2026"
+        },
+        {
+          "duration_seconds": 3337,
+          "episode_id": "d092dbb8-3e42-469b-9c50-b3fe016f2c9d",
+          "episode_image_local_relpath": null,
+          "episode_image_url": "https://www.omnycontent.com/d/playlist/e73c998e-6e60-432f-8610-ae210140c5b1/8a94442e-5a74-4fa2-8b8d-ae27003a8d6b/982f5071-765c-403d-969d-ae27003a8d83/image.jpg?t=1681322812&size=Large",
+          "episode_number": null,
+          "episode_title": "How the Speed of a Trade Got Down to Nearly the Speed of Light",
+          "feed_description": "Bloomberg's Joe Weisenthal and Tracy Alloway explore the most interesting topics in finance, markets and economics. Join the conversation every Monday and Thursday.",
+          "feed_display_title": "Odd Lots",
+          "feed_id": "sha256:1cd6aecdd31c0ae82c2c76efdb6327b54e6026924b47852c51ffb406a9f2b19c",
+          "feed_image_local_relpath": null,
+          "feed_image_url": "https://www.omnycontent.com/d/playlist/e73c998e-6e60-432f-8610-ae210140c5b1/8a94442e-5a74-4fa2-8b8d-ae27003a8d6b/982f5071-765c-403d-969d-ae27003a8d83/image.jpg?t=1681322812&size=Large",
+          "feed_rss_url": "https://www.omnycontent.com/d/playlist/e73c998e-6e60-432f-8610-ae210140c5b1/8a94442e-5a74-4fa2-8b8d-ae27003a8d6b/982f5071-765c-403d-969d-ae27003a8d83/podcast.rss",
+          "gi_relative_path": "feeds/rss_www.omnycontent.com_c9fdce2d/run_20260506-135048_ba02775e/metadata/0048 - How the Speed of a Trade Got Dow_20260506-135048_ba02775e.gi.json",
+          "has_gi": true,
+          "has_kg": true,
+          "kg_relative_path": "feeds/rss_www.omnycontent.com_c9fdce2d/run_20260506-135048_ba02775e/metadata/0048 - How the Speed of a Trade Got Dow_20260506-135048_ba02775e.kg.json",
+          "metadata_relative_path": "feeds/rss_www.omnycontent.com_c9fdce2d/run_20260506-135048_ba02775e/metadata/0048 - How the Speed of a Trade Got Dow_20260506-135048_ba02775e.metadata.json",
+          "publish_date": "2026-03-02",
+          "score": 0.6399713158607483,
+          "summary_preview": "The Odd Lots Podcast: Deconstructing High-Frequency Trading and Market Structure \u2014 High-frequency trading (HFT) has evolved from exploiting algorithms to exploiting market structure and speed. \u00b7 Technological advancements have shifted trad\u2026"
+        },
+        {
+          "duration_seconds": 1326,
+          "episode_id": "940b6e1c-92f4-4226-aa35-b3e9014f2f6b",
+          "episode_image_local_relpath": null,
+          "episode_image_url": "https://www.omnycontent.com/d/clips/e73c998e-6e60-432f-8610-ae210140c5b1/8a94442e-5a74-4fa2-8b8d-ae27003a8d6b/940b6e1c-92f4-4226-aa35-b3e9014f2f6b/image.jpg?t=1770409727&size=Large",
+          "episode_number": null,
+          "episode_title": "Evolving Money: The Tokenization Tipping Point (Sponsored Content)",
+          "feed_description": "Bloomberg's Joe Weisenthal and Tracy Alloway explore the most interesting topics in finance, markets and economics. Join the conversation every Monday and Thursday.",
+          "feed_display_title": "Odd Lots",
+          "feed_id": "sha256:1cd6aecdd31c0ae82c2c76efdb6327b54e6026924b47852c51ffb406a9f2b19c",
+          "feed_image_local_relpath": null,
+          "feed_image_url": "https://www.omnycontent.com/d/playlist/e73c998e-6e60-432f-8610-ae210140c5b1/8a94442e-5a74-4fa2-8b8d-ae27003a8d6b/982f5071-765c-403d-969d-ae27003a8d83/image.jpg?t=1681322812&size=Large",
+          "feed_rss_url": "https://www.omnycontent.com/d/playlist/e73c998e-6e60-432f-8610-ae210140c5b1/8a94442e-5a74-4fa2-8b8d-ae27003a8d6b/982f5071-765c-403d-969d-ae27003a8d83/podcast.rss",
+          "gi_relative_path": "feeds/rss_www.omnycontent.com_c9fdce2d/run_20260506-135048_ba02775e/metadata/0062 - Evolving Money_ The Tokenization_20260506-135048_ba02775e.gi.json",
+          "has_gi": true,
+          "has_kg": true,
+          "kg_relative_path": "feeds/rss_www.omnycontent.com_c9fdce2d/run_20260506-135048_ba02775e/metadata/0062 - Evolving Money_ The Tokenization_20260506-135048_ba02775e.kg.json",
+          "metadata_relative_path": "feeds/rss_www.omnycontent.com_c9fdce2d/run_20260506-135048_ba02775e/metadata/0062 - Evolving Money_ The Tokenization_20260506-135048_ba02775e.metadata.json",
+          "publish_date": "2026-02-08",
+          "score": 0.623557984828949,
+          "summary_preview": "Evolving Money: Tokenization's Impact on Financial Institutions and Investment Platforms \u2014 Tokenization is rapidly being adopted by traditional financial institutions, representing a significant evolution in the monetary system. \u00b7 Rick Ede\u2026"
+        }
+      ],
+      "label": "Business & markets",
+      "query": "business markets economics strategy",
+      "topic_id": "business"
+    }
+  ],
+  "topics_unavailable_reason": null,
+  "window": "all",
+  "window_end_utc": "2026-05-16T10:42:44.068586Z",
+  "window_start_utc": "1970-01-01T00:00:00Z"
+}

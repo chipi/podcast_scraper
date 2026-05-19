@@ -872,8 +872,22 @@ async function loadEpisodeSliceForTerritoryStrip(): Promise<void> {
      *  the new nodes into Cytoscape's ``core``, so ``$id(cy).empty()``
      *  is true and camera animation never fires. */
     artifacts.setLoadSource('subject-external')
-    // F2 — advance to loading_merge before the artifact append; the
-    // filteredArtifact watcher transitions into redrawing_full via runRelayout.
+    // Advance the FSM to ``loading_merge`` only when there's an
+    // in-flight envelope it's driving (``loading_fetch`` or
+    // ``loading_bootstrap``). This function is called from two places:
+    //
+    //   (a) As the primary fetch+merge for a Library / Episode-panel
+    //       handoff — FSM is in ``loading_fetch``, advance is correct.
+    //   (b) Reactively from subject changes that happen *after* the FSM
+    //       has settled to ``ready`` (e.g. the user clicks a different
+    //       Library row's preview, or a subject-rail tab return). In
+    //       this case the FSM should NOT be advanced backwards into
+    //       ``loading_merge`` — that's the "details panel impacts graph"
+    //       loop we want to prevent.
+    //
+    // The guard below already protects case (b) — only advance if the
+    // primary handoff is mid-flight. Case (a) gets the advance; case
+    // (b) leaves FSM in ``ready``.
     if (graphHandoff.state === 'loading_fetch' || graphHandoff.state === 'loading_bootstrap') {
       graphHandoff.advanceState('loading_merge')
     }
@@ -1435,6 +1449,90 @@ function finishLayoutPass(core: Core): void {
    * duplicate ``animateCameraToFocusedNode`` when pending focus was consumed. */
   const appliedPending = tryApplyPendingFocus(core)
   applyEpisodeRepresentativeFocusIfNeeded(core, { skipCamera: appliedPending })
+  // GH #771 — restore the FSM-applied selection + camera after a redraw
+  // that destroyed them. Canonical trigger: KG-second-wave full-redraw
+  // arrives ~1-2 s after a Digest topic-pill handoff applied (GI-only
+  // graph 214 nodes → GI+KG graph 595 nodes); the full layout rebuilds
+  // Cytoscape with no selection and ``fit()`` collapses zoom to ~0.10.
+  // Without this hook the FSM is "applied" but the canvas looks blank.
+  //
+  // The gate accepts two recoverable cases:
+  //
+  //   (a) ``lastResult.status === 'applied'`` — clean apply followed by a
+  //       downstream redraw that destroyed selection.
+  //
+  //   (b) ``lastResult.status === 'failed' && reason.startsWith('stuck-timeout')`` —
+  //       the FSM gave up waiting (``STUCK_TIMEOUT_MS``) but the underlying
+  //       layout may still be in flight and a subsequent layoutstop can
+  //       restore the user's intent. The stuck-timer hook in
+  //       ``stores/graphHandoff.ts`` preserves ``envelope.cyId`` as
+  //       ``lastResult.appliedCyId`` precisely for this path.
+  //
+  // Other failure modes (``territory-fetch-404`` etc.) are NOT restored —
+  // their target may not exist in the rebuilt graph. The candidate-id
+  // existence check below naturally filters these out, but we also gate
+  // on the reason prefix as an explicit contract.
+  const lr = graphHandoff.lastResult
+  const lrRecoverable =
+    lr?.status === 'applied' ||
+    (lr?.status === 'failed' && (lr.reason?.startsWith('stuck-timeout') ?? false))
+  // Read cy's *actual* selection state, not the Vue ref. The two diverge
+  // during a full-redraw: Cytoscape's ``cy.elements().remove()`` wipes
+  // selection but ``selectedNodeId.value`` isn't auto-synced (no listener
+  // on selection-cleared from rebuild). Without this fix the gate
+  // `!selectedNodeId.value` would be false during the KG-second-wave
+  // layoutstop where selection is genuinely lost, restore would skip,
+  // and the user would see ~2 s of empty selection + fit-all camera
+  // until a downstream watcher eventually re-applies (GH #771 follow-up,
+  // Test A timeline 2026-05-14: t+4s collapse → t+6s recover; with this
+  // fix the recovery happens at t+4s in the same layoutstop).
+  const cyHasSelection = core.nodes(':selected').length > 0
+  if (
+    !cyHasSelection &&
+    !appliedPending &&
+    graphHandoff.pending === null &&
+    lrRecoverable
+  ) {
+    const lastAppliedCyId = lr?.appliedCyId?.trim() || ''
+    if (lastAppliedCyId) {
+      // Same logical node may now be addressable under a different
+      // ``g:`` / ``k:`` prefix if KG joined GI-only data between layout
+      // passes (or vice-versa). Try the exact id first, then the
+      // alternative-prefix variant; finally try prefixing if the id is
+      // bare.
+      const candidateIds: string[] = [lastAppliedCyId]
+      if (lastAppliedCyId.startsWith('g:')) {
+        candidateIds.push('k:' + lastAppliedCyId.slice(2))
+      } else if (lastAppliedCyId.startsWith('k:')) {
+        candidateIds.push('g:' + lastAppliedCyId.slice(2))
+      } else {
+        candidateIds.push('g:' + lastAppliedCyId, 'k:' + lastAppliedCyId)
+      }
+      let restored: NodeSingular | null = null
+      for (const candId of candidateIds) {
+        const n = core.$id(candId)
+        if (n.length > 0) {
+          restored = n.first() as NodeSingular
+          break
+        }
+      }
+      if (restored) {
+        core.nodes().unselect()
+        restored.select()
+        selectedNodeId.value = restored.id()
+        try {
+          applyGraphSelectionDimFromNode(core, restored)
+        } catch {
+          /* dimming is cosmetic; never let a styling error abort restore */
+        }
+        // Centre the camera on the restored node with the regular
+        // animation path so zoom + pan look intentional (not a fit-all
+        // jump). Preserves zoom semantics via the function's
+        // ``GRAPH_FOCUS_FRAME_MIN_ZOOM`` floor.
+        animateCameraToFocusedNode(core, restored.id())
+      }
+    }
+  }
   reapplySelectionDimmingIfAny(core)
   applyTopicClusterMemberCollapse(core)
   applyCrossEpisodeExpandHints(core)
@@ -1456,6 +1554,11 @@ function finishLayoutPass(core: Core): void {
   // Predicate + reconcile-action decision are pure functions in
   // `utils/graphHandoffInvariant.ts` (unit-tested in T2a); this block is
   // the Cytoscape-aware consumer that actually applies the reconciliation.
+  // L6 — always stash an invariant snapshot, even on the empty-view fast
+  // path. Tests read it via ``__GIKG_FSM__.lastInvariant``; absence ⇒ "no
+  // layout pass ran"; empty diff ⇒ "layout ran, canvas matches view".
+  let invariantMissing: string[] = []
+  let invariantExtra: string[] = []
   try {
     const viewArtForInvariant = gf.viewWithEgo(focusNodeId.value)
     if (viewArtForInvariant) {
@@ -1466,7 +1569,9 @@ function finishLayoutPass(core: Core): void {
       core.nodes().forEach((n) => {
         actual.add(n.id())
       })
-      const { missing } = computeNodeIdSetDifference(expected, actual)
+      const { missing, extra } = computeNodeIdSetDifference(expected, actual)
+      invariantMissing = missing
+      invariantExtra = extra
       if (missing.length > 0) {
         const envelopeGen = graphHandoff.pending?.generation ?? null
         const alreadyRetried =
@@ -1511,13 +1616,117 @@ function finishLayoutPass(core: Core): void {
   } catch {
     // Invariant check must not affect runtime behaviour.
   }
+  // L6 — always record (even if the try block threw, ``invariantMissing``
+  // and ``invariantExtra`` default to empty arrays so the matrix can
+  // distinguish "no layoutstop yet" from "layoutstop ran, view consistent").
+  graphHandoff.recordInvariant(invariantMissing, invariantExtra)
   // C5 — mark the in-flight handoff as applied so the FSM transitions back
   // to `ready` and the stuck timer disarms. Without this the FSM would stay
-  // in `loading_fetch` after every entry-point click and false-alarm at 5s.
-  // C6 will replace with full FSM-driven layout barriers.
+  // in `loading_fetch` after every entry-point click and false-alarm.
+  //
+  // Fall back to the pending envelope's intended ``cyId`` when neither
+  // ``selectedNodeId`` nor ``focusNodeId`` is set (typical on the first
+  // layoutstop of a KG-second-wave load: artifacts merged but the target
+  // node hasn't been resolved + selected yet). Without this fallback
+  // ``lastResult.appliedCyId`` would be empty and the post-layout restore
+  // hook at the top of ``finishLayoutPass`` would have nothing to anchor
+  // on — selection + camera stay lost across subsequent layoutstops
+  // (the GH #771 failure mode for rapid digest pills on a heavy graph).
   if (graphHandoff.pending) {
-    const appliedCyId = selectedNodeId.value || focusNodeId.value || ''
-    graphHandoff.recordApplied(appliedCyId)
+    // V2-class fix: verify the appliedCyId actually exists in cy before
+    // declaring applied. ``graphHandoff.pending.cyId`` may be undefined
+    // when the envelope is keyed by metadata path (Episode panel kind
+    // 'episode' carries ``metadataPath`` / ``episodeId`` but no ``cyId``)
+    // or absent altogether (Digest band pill — bucket id, no real node).
+    // Try in order: selected → focus → cyId → episode resolver via
+    // metadata/episodeId (V5 fix — Episode-panel hot-state landed
+    // ``finishLayoutPass`` with empty selection + null focus and the
+    // pending had no cyId, so the previous resolver candidates list was
+    // empty → handoffFailed fired even though the target episode IS in
+    // cy).
+    const candidates = [
+      selectedNodeId.value || '',
+      focusNodeId.value || '',
+      graphHandoff.pending.cyId || '',
+    ].filter(Boolean)
+    let appliedCyId = ''
+    for (const c of candidates) {
+      const resolved = resolveCyNodeId(core, c)
+      if (resolved) {
+        appliedCyId = resolved
+        break
+      }
+    }
+    if (!appliedCyId && graphHandoff.pending.kind === 'episode') {
+      // V5 — episode envelopes carry metadataPath + episodeId, not cyId.
+      // First try the logical artifact resolver (finds via metadata-path
+      // match on Episode-typed nodes), then fall back to direct cy id
+      // pattern lookup for the well-known episode id schemes. The fallback
+      // matters when the artifact-side filteredArtifact hasn't yet
+      // re-rendered to include the just-appended episode at the moment
+      // finishLayoutPass runs (race between artifact pinia + cy core).
+      const epCy = findEpisodeGraphNodeIdForMetadataPathOrEpisodeId(
+        gf.filteredArtifact,
+        graphHandoff.pending.metadataPath,
+        graphHandoff.pending.episodeId,
+      )
+      if (epCy) {
+        const resolved = resolveCyNodeId(core, epCy)
+        if (resolved) appliedCyId = resolved
+      }
+      if (!appliedCyId && graphHandoff.pending.episodeId) {
+        // #775 — direct cy id lookup by episode_id. ``resolveCyNodeId``
+        // already tries the 10 prefix variants; the episode_id is the
+        // logical id used to derive ``__unified_ep__:<UUID>`` and
+        // ``g:episode:<UUID>`` / ``k:episode:<UUID>``.
+        const directResolved = resolveCyNodeId(core, graphHandoff.pending.episodeId)
+        if (directResolved) appliedCyId = directResolved
+      }
+      if (!appliedCyId) {
+        // #775 — last resort: scan cy directly for an Episode-typed node
+        // whose data matches the envelope's metadataPath / episodeId.
+        // ``filteredArtifact`` may lag cy briefly after a full redraw
+        // (Pinia state update timing), so artifact-based resolvers can
+        // miss. Iterating cy is O(N) but bounded by node count (~400
+        // for production-shaped) — acceptable for the fallback path.
+        const wantMeta = graphHandoff.pending.metadataPath ?? ''
+        const wantEid = graphHandoff.pending.episodeId ?? ''
+        const found = core.nodes().filter((n) => {
+          const data = n.data() as Record<string, unknown>
+          const type = String(data.type ?? data.kind ?? '')
+          if (type !== 'Episode' && type !== 'episode') return false
+          const props = (data.properties ?? {}) as Record<string, unknown>
+          const mp = String(props.metadata_relative_path ?? data.metadata_relative_path ?? '')
+          const eid = String(props.episode_id ?? data.episode_id ?? '')
+          return (wantMeta && mp === wantMeta) || (wantEid && eid === wantEid)
+        })
+        if (found.length > 0) {
+          appliedCyId = found.first().id()
+        }
+      }
+    }
+    if (appliedCyId) {
+      graphHandoff.recordApplied(appliedCyId)
+    } else {
+      graphHandoff.handoffFailed(
+        `apply failed: no cy node found for envelope target (cyId=${graphHandoff.pending.cyId ?? 'none'}, metadataPath=${graphHandoff.pending.metadataPath ?? 'none'})`,
+      )
+    }
+  } else if (
+    graphHandoff.state === 'applying' ||
+    graphHandoff.state === 'loading_fetch' ||
+    graphHandoff.state === 'loading_bootstrap' ||
+    graphHandoff.state === 'loading_merge' ||
+    graphHandoff.state === 'redrawing_incremental' ||
+    graphHandoff.state === 'redrawing_full'
+  ) {
+    // No in-flight envelope, but FSM is in some intermediate state from
+    // a filter-class side-effect (layout cycle, relayout, lens toggle,
+    // minimap toggle that triggers a subject-driven artifact append,
+    // etc.). The FSM should not stay parked in an intermediate state
+    // when there's no envelope to drive the transitions — advance to
+    // ``ready`` so the next user action gets a clean baseline.
+    graphHandoff.advanceState('ready')
   }
   // Set cooldown to prevent immediate redraws from watchers reacting to layout state changes
   layoutCompletionCooldownUntil = Date.now() + 300 // 300ms cooldown
@@ -1926,6 +2135,16 @@ function tryApplyPendingFocus(core: Core): boolean {
   void openGraphEpisodeOrNodeRail(cyId, rawNode)
   const extras = [...nav.pendingFocusCameraIncludeRawIds]
   nav.clearPendingFocus()
+  // Record the apply with the FSM so it transitions back to ``ready``.
+  // ``finishLayoutPass`` would do this too, but on rapid sequential clicks the
+  // layoutstop listener captured by an earlier ``redraw()`` often bails at the
+  // ``cy !== core`` guard (a later redraw stomped its captured ``core``); the
+  // FSM would then sit in ``loading_fetch`` until the stuck-timeout. Calling
+  // ``recordApplied`` here gives every successful focus-apply a path to
+  // ``ready`` regardless of which redraw's layoutstop wins the race.
+  if (graphHandoff.pending) {
+    graphHandoff.recordApplied(cyId)
+  }
   /** While the canvas host is hidden for first paint, ``animate`` uses wrong bounds; defer until ``releaseGraphCanvasLayoutHold``. */
   if (graphContentHiddenUntilLayout.value) {
     pendingFocusCameraAfterLayoutHold = { cyId, extras }
@@ -1935,6 +2154,124 @@ function tryApplyPendingFocus(core: Core): boolean {
     })
   }
   return true
+}
+
+/**
+ * Try to resolve and apply an in-flight FSM envelope WITHOUT going through
+ * a full ``finishLayoutPass``. Used by ``onActivated`` to recover from the
+ * "user tabbed away mid-handoff, came back, FSM still in-flight, no
+ * layoutstop coming" UX hole. Returns true when an apply landed; FSM is
+ * advanced to ``ready`` on success or ``failed`` on miss.
+ *
+ * Mirrors the resolver order of ``finishLayoutPass`` (selected → focus →
+ * cyId → episode resolver → direct cy id → cy scan); the difference is
+ * that this is callable outside the layoutstop path.
+ */
+function tryApplyPendingFsmEnvelopeFromTabReturn(core: Core): boolean {
+  const env = graphHandoff.pending
+  if (!env) return false
+  // Only fire from ``loading_*`` / ``redrawing_*`` / ``applying`` states.
+  // If FSM is already ``ready``, leave it alone.
+  const inFlight =
+    graphHandoff.state === 'loading_fetch' ||
+    graphHandoff.state === 'loading_bootstrap' ||
+    graphHandoff.state === 'loading_merge' ||
+    graphHandoff.state === 'redrawing_incremental' ||
+    graphHandoff.state === 'redrawing_full' ||
+    graphHandoff.state === 'applying'
+  if (!inFlight) return false
+  // Bail when an artifact load OR a Cytoscape animation is in flight.
+  // Both signals mean the natural ``finishLayoutPass`` chain is about
+  // to (or did just) apply + animate the camera; firing apply +
+  // animateCamera here would race and leave the target offscreen
+  // (H2.6 Library → Digest hot-state regression). The recovery hook
+  // is for the "natural chain stalled" scenario only — tab-switched
+  // away mid-load, came back to a quiescent canvas with a pending
+  // envelope nobody is driving.
+  if (artifacts.loading) return false
+  try {
+    if (core.animated()) return false
+  } catch {
+    /* defensive: cy may be in a transitional state */
+  }
+
+  const candidates = [
+    selectedNodeId.value || '',
+    focusNodeId.value || '',
+    env.cyId || '',
+  ].filter(Boolean)
+  let appliedCyId = ''
+  for (const c of candidates) {
+    const resolved = resolveCyNodeId(core, c)
+    if (resolved) {
+      appliedCyId = resolved
+      break
+    }
+  }
+  if (!appliedCyId && env.kind === 'episode') {
+    const epCy = findEpisodeGraphNodeIdForMetadataPathOrEpisodeId(
+      gf.filteredArtifact,
+      env.metadataPath,
+      env.episodeId,
+    )
+    if (epCy) {
+      const resolved = resolveCyNodeId(core, epCy)
+      if (resolved) appliedCyId = resolved
+    }
+    if (!appliedCyId && env.episodeId) {
+      const directResolved = resolveCyNodeId(core, env.episodeId)
+      if (directResolved) appliedCyId = directResolved
+    }
+    if (!appliedCyId) {
+      const wantMeta = env.metadataPath ?? ''
+      const wantEid = env.episodeId ?? ''
+      const found = core.nodes().filter((n) => {
+        const data = n.data() as Record<string, unknown>
+        const type = String(data.type ?? data.kind ?? '')
+        if (type !== 'Episode' && type !== 'episode') return false
+        const props = (data.properties ?? {}) as Record<string, unknown>
+        const mp = String(props.metadata_relative_path ?? data.metadata_relative_path ?? '')
+        const eid = String(props.episode_id ?? data.episode_id ?? '')
+        return (wantMeta && mp === wantMeta) || (wantEid && eid === wantEid)
+      })
+      if (found.length > 0) appliedCyId = found.first().id()
+    }
+  }
+  if (appliedCyId) {
+    const n = core.$id(appliedCyId)
+    if (!n.empty()) {
+      try {
+        core.nodes().unselect()
+        ;(n.first() as NodeSingular).select()
+        selectedNodeId.value = appliedCyId
+        applyGraphSelectionDimFromNode(core, n.first() as NodeSingular)
+      } catch {
+        /* ignore */
+      }
+      // Camera-animate IS required here. The naive concern was that
+      // ``finishLayoutPass`` would later fire its own animate and the
+      // two would race — but ``recordApplied`` below clears
+      // ``graphHandoff.pending``, which is precisely what
+      // ``finishLayoutPass``'s apply branch keys off. With pending
+      // cleared, ``finishLayoutPass`` only advances FSM state (no
+      // animate). So this animate is the ONLY camera centering for
+      // the tab-return path; omitting it leaves the camera at default
+      // layout coords (Tier-2 P1.1 cold-click regression: rendered=
+      // (513, -470) for an episode that should be near viewport
+      // center).
+      try {
+        animateCameraToFocusedNode(core, appliedCyId)
+      } catch {
+        /* ignore */
+      }
+    }
+    graphHandoff.recordApplied(appliedCyId)
+    return true
+  }
+  // Target not in cy → can't apply yet. Do NOT mark failed (a layoutstop
+  // may still drive apply correctly); leave FSM in-flight + let stuck-
+  // timer surface the failure if no progress.
+  return false
 }
 
 /** Re-apply neighbourhood dimming when ``select`` handlers were not wired yet or async rail races layout. */
@@ -2280,6 +2617,21 @@ function runRelayout(): void {
   // The orchestrator runtime now tracks state at every barrier point.
   if (graphHandoff.state === 'loading_merge') {
     graphHandoff.advanceState('redrawing_full')
+  } else if (
+    graphHandoff.state === 'loading_fetch' ||
+    graphHandoff.state === 'loading_bootstrap'
+  ) {
+    // V5 fix: hot-state Episode panel "Open in graph" fires
+    // ``handoffRequested`` (state → loading_fetch) and then calls
+    // ``artifacts.appendRelativeArtifacts`` directly — bypassing the
+    // ``loadEpisodeSliceForTerritoryStrip`` path that would normally
+    // advance loading_fetch → loading_merge. When that artifact change
+    // triggers this ``redraw()``, FSM is still in loading_fetch and
+    // the transition to ``redrawing_full`` is invalid — the FSM sits
+    // until the 15s stuck-timer fires (V5 reproducer). Walk through
+    // ``loading_merge`` first so the pipeline reaches the apply phase.
+    graphHandoff.advanceState('loading_merge')
+    graphHandoff.advanceState('redrawing_full')
   } else if (graphHandoff.state === 'idle' || graphHandoff.state === 'ready') {
     // Layout from internal scheduler (theme change, lens toggle, etc.) — start
     // a fresh redraw cycle from quiescent state.
@@ -2318,9 +2670,36 @@ function scheduleRedraw(): void {
     redrawPending = true
     return
   }
-  // Skip if within cooldown period after layout completion (watchers react to state changes)
+  // V5 fix: previously this set ``redrawPending = true`` and bailed, but
+  // ``redrawPending`` is only flushed at the END of a running ``redraw()``
+  // (the ``finally`` block at the bottom of ``redraw``). With no redraw
+  // running, the pending flag never gets consumed → FSM-pipeline-driving
+  // redraws triggered during the post-layout cooldown window are lost
+  // entirely. Episode-panel "Open in graph" hot-state hits this:
+  // ``handoffRequested`` → ``loading_fetch``, then ``appendRelativeArtifacts``
+  // → filteredArtifact watcher → scheduleRedraw → bails on cooldown → no
+  // redraw fires → FSM stuck for 15 s until stuck-timer (V5).
+  //
+  // Schedule a deferred redraw that fires AFTER the cooldown ends so the
+  // FSM-driving pipeline actually runs.
   if (Date.now() < layoutCompletionCooldownUntil) {
     redrawPending = true
+    if (redrawDebounceTimer) {
+      clearTimeout(redrawDebounceTimer)
+    }
+    const remaining = Math.max(0, layoutCompletionCooldownUntil - Date.now())
+    // Add the existing 150ms debounce ON TOP of the cooldown remainder so
+    // we don't fire mid-cooldown and so subsequent watchers coalesce.
+    redrawDebounceTimer = setTimeout(() => {
+      redrawDebounceTimer = null
+      // Re-enter scheduleRedraw rather than calling redraw() directly so
+      // we re-check redrawGateDepth / activeElesLayout / cooldown (which
+      // may have been bumped again in the interim).
+      if (redrawPending) {
+        redrawPending = false
+        scheduleRedraw()
+      }
+    }, remaining + 150)
     return
   }
   if (redrawDebounceTimer) {
@@ -2387,11 +2766,23 @@ function redraw(): void {
       artifacts.currentLoadSource === 'digest-external' ||
       artifacts.currentLoadSource === 'subject-external'
     
+    // #775 — incremental layout was designed for small expansions
+    // (NodeDetail Load, sibling-merge: typically 5-30 added nodes). Large
+    // additions (whole episode's worth, 100+ nodes) hit Cytoscape COSE
+    // convergence failures on the filtered layout collection: edges
+    // reference existing-but-not-included nodes; COSE can't position new
+    // nodes against anchors it doesn't see. Falling back to full redraw
+    // is more reliable and the user-visible difference is minimal at
+    // this scale (full graph re-layout vs partial new-only layout).
+    const INCREMENTAL_LAYOUT_MAX_ADDS = 100
+    const tooBigForIncremental = addedNodeIds.size > INCREMENTAL_LAYOUT_MAX_ADDS
+
     if (
       !egoChanged &&
       !selectionReplaced &&
       !contextSwitch &&
       !isExternalNavigation &&  // Force full layout for external navigation
+      !tooBigForIncremental &&  // #775 — large adds → full redraw
       addedNodeIds.size > 0 &&
       selectionGrew &&
       egoUnchanged &&
@@ -2511,8 +2902,50 @@ function redraw(): void {
       }
 
       activeElesLayout = initialLo
+      // V5 — notify the FSM that a layout is running so the 15 s stuck-timer
+      // doesn't fire on big incremental layouts (300+ added elements can
+      // take >15 s on real-backend hot-state Episode-panel handoff).
+      graphHandoff.notifyLayoutStart()
+      // #775 — graceful layout timeout. The Cytoscape COSE layout on the
+      // filtered incremental collection sometimes doesn't converge (the
+      // collection contains edges referencing existing-but-not-included
+      // nodes; COSE struggles to position new nodes relative to anchors
+      // it doesn't see). Without this, the FSM stays in loading_fetch
+      // indefinitely (the stuck-timer now reschedules while a layout is
+      // active — see notifyLayoutStart). Cap at 8 s: most incremental
+      // layouts complete in <2 s; legitimate big ones in <5 s; 8 s is a
+      // safety net, not a normal completion time.
+      let layoutSettled = false
+      const layoutTimeoutMs = 8000
+      const layoutTimeout = setTimeout(() => {
+        if (layoutSettled) return
+        layoutSettled = true
+        console.warn(
+          `[GraphCanvas incremental] layout timeout after ${layoutTimeoutMs}ms — aborting and forcing layoutstop (added=${addedNodeIds.size} total=${priorCore.elements().length})`,
+        )
+        try {
+          initialLo.stop()
+        } catch {
+          /* ignore */
+        }
+        graphHandoff.notifyLayoutStop()
+        if (graphLayoutGate.isStale(layoutGen)) return
+        if (activeElesLayout === initialLo) {
+          activeElesLayout = null
+        }
+        if (!cy || cy !== priorCore) {
+          releaseGraphCanvasLayoutHold()
+          return
+        }
+        finishLayoutPass(priorCore)
+      }, layoutTimeoutMs)
       initialLo.one('layoutstop', () => {
-        if (graphLayoutGate.isStale(layoutGen)) {
+        if (layoutSettled) return
+        layoutSettled = true
+        clearTimeout(layoutTimeout)
+        graphHandoff.notifyLayoutStop()
+        const stale = graphLayoutGate.isStale(layoutGen)
+        if (stale) {
           return
         }
         if (activeElesLayout === initialLo) {
@@ -2598,6 +3031,25 @@ function redraw(): void {
       ;(window as unknown as { __GIKG_CY_DEV__?: Core }).__GIKG_CY_DEV__ = core
     }
 
+    // GH #771 follow-up — restore selection on the freshly built ``cy`` IMMEDIATELY.
+    // Previously this lived at the bottom of ``redraw()`` (still does, as a
+    // belt-and-braces fallback); on heavy KG-second-wave redraws (213 → 595
+    // nodes) the gap between ``cytoscape({elements})`` returning and the
+    // bottom of ``redraw()`` was ~1 second of user-visible "selection lost +
+    // fit-all camera". Selecting at cy-creation closes that window —
+    // ``cy.$(':selected')`` reads correct from the first frame the new cy
+    // is observable. ``selectedNodeId.value`` is the Vue ref that ``redraw``
+    // never clears for the incremental-append path (only the full-replacement
+    // path clears it), so during a KG-second-wave merge it still carries
+    // the user's intent from the prior FSM apply.
+    const earlySid = selectedNodeId.value
+    if (earlySid) {
+      const earlyNode = core.$id(earlySid)
+      if (earlyNode.length > 0) {
+        earlyNode.select()
+      }
+    }
+
     if (useIncrementalLayout) {
       core.batch(() => {
         for (const [id, pos] of preservedPositions) {
@@ -2654,6 +3106,25 @@ function redraw(): void {
       }
       finishLayoutPass(core)
     })
+    // Advance FSM state through the redraw barrier so ``layoutstop`` lands
+    // in a state where the FSM accepts the transition. Without this,
+    // ``redraw()`` runs ``initialLo`` while state is still ``loading_fetch``
+    // (the territory-strip's ``advanceState('loading_merge')`` hasn't fired
+    // yet because the subject watcher runs *after* the initial
+    // ``appendRelativeArtifacts → filteredArtifact change`` cascade). The
+    // layoutstop event is then dropped (loading_fetch isn't a valid
+    // pre-state for layoutstop) and ``finishLayoutPass`` runs with the FSM
+    // marooned in ``loading_fetch``. Walking the FSM through the proper
+    // pipeline here is what the state-walking integration test asserts.
+    if (
+      graphHandoff.state === 'loading_fetch' ||
+      graphHandoff.state === 'loading_bootstrap'
+    ) {
+      graphHandoff.advanceState('loading_merge')
+    }
+    if (graphHandoff.state === 'loading_merge') {
+      graphHandoff.advanceState('redrawing_full')
+    }
     try {
       initialLo.run()
     } catch {
@@ -3014,30 +3485,68 @@ watch(
               findEpisodeGraphNodeIdForMetadataPath(gf.filteredArtifact, meta) || ''
           }
         }
-        if (restoreGraphNodeId) {
-          // F3b — route restore through orchestrator instead of self-triggering
-          // the meta-watcher with `nav.requestFocusNode`. The FSM observes this
-          // as `source: 'restore-preference'` (decision #8 / FSM spec) so it
-          // looks like a normal handoff from outside. Self-trigger is structurally
-          // impossible because `handoffRequested` from inside this watcher fires
-          // a fresh envelope rather than mutating `pendingFocusNodeId` directly.
-          graphHandoff.handoffRequested({
-            kind: 'graph-node',
-            cyId: restoreGraphNodeId,
-            source: 'restore-preference',
-            loadSource: 'subject-external',
-            camera: { kind: 'center', cyId: restoreGraphNodeId },
-          })
+        // Suppress the restore-preference emission when either:
+        //   (a) a cross-surface handoff is already in flight, OR
+        //   (b) the proposed restore target normalises to the same
+        //       logical node the FSM JUST applied successfully.
+        //
+        // (a) catches the "click 2nd digest pill" case (Symptom 2): the
+        // stale prior-pill id would otherwise be re-dispatched as a fresh
+        // envelope, bump the generation, and supersede the click intent.
+        //
+        // (b) catches the "heavy graph, KG loads later" case (Symptom 3):
+        // a successful FSM cycle applies (e.g.) ``g:topic:foo`` from a
+        // GI-only artifact set. KG data arrives via downstream watchers,
+        // grows ``filteredArtifact`` (214 → 595 nodes), and the focus-apply
+        // path overwrites ``subject.graphNodeCyId`` with ``k:topic:foo``
+        // (FSM resolution prefers k: when both g: and k: exist for the
+        // same logical id). The meta-watcher would then emit a fresh
+        // restore-preference for ``k:topic:foo`` — same logical target,
+        // wrong viewport math because the layout is still settling, and
+        // the camera collapses to fit-all. ``sameLogicalCyId`` strips the
+        // 1-char ``g:`` / ``k:`` prefix used by GI/KG artifacts so the
+        // FSM's last applied id and the proposed restore id compare as
+        // equal whenever they refer to the same logical topic / entity.
+        const handoffInFlight = graphHandoff.pending !== null
+        const sameLogicalCyId = (a: string, b: string): boolean => {
+          if (!a || !b) return false
+          if (a === b) return true
+          const strip = (s: string): string =>
+            s.startsWith('g:') || s.startsWith('k:') ? s.slice(2) : s
+          return strip(a) === strip(b)
+        }
+        const lastAppliedCyId =
+          graphHandoff.lastResult?.status === 'applied'
+            ? graphHandoff.lastResult.appliedCyId?.trim() || ''
+            : ''
+        const restoreTargetAlreadyApplied = (cyId: string): boolean =>
+          !!lastAppliedCyId && sameLogicalCyId(cyId, lastAppliedCyId)
+        // Architectural principle: **the details / subject rail must not
+        // drive graph state via watchers.** Only deliberate user clicks
+        // route through the FSM. This meta-watcher used to fire
+        // ``handoffRequested({source:'restore-preference'})`` whenever the
+        // artifact set changed — that was a side-effect → handoff loop.
+        // The post-layout restore-applied hook at the top of
+        // ``finishLayoutPass`` is the canonical path: it re-selects the
+        // FSM's last applied target after any redraw that destroyed
+        // selection. The watcher's role here is reduced to:
+        //   1. Capture the prior subject's intent in ``pendingFocusNodeId``
+        //      via ``nav.requestFocusNode`` (legacy pending-focus path,
+        //      consumed by the watcher at this file's nav.pendingFocusNodeId
+        //      watch).
+        //   2. ``scheduleRedraw()`` for the new artifact set.
+        // No autonomous FSM envelope dispatch from a side-effect path.
+        if (
+          restoreGraphNodeId &&
+          !handoffInFlight &&
+          !restoreTargetAlreadyApplied(restoreGraphNodeId)
+        ) {
           nav.requestFocusNode(restoreGraphNodeId)
-        } else if (restoreEpisodeCyId) {
-          // Same routing as above for the episode case.
-          graphHandoff.handoffRequested({
-            kind: 'episode',
-            cyId: restoreEpisodeCyId,
-            source: 'restore-preference',
-            loadSource: 'subject-external',
-            camera: { kind: 'center', cyId: restoreEpisodeCyId },
-          })
+        } else if (
+          restoreEpisodeCyId &&
+          !handoffInFlight &&
+          !restoreTargetAlreadyApplied(restoreEpisodeCyId)
+        ) {
           nav.requestFocusNode(restoreEpisodeCyId)
         }
         scheduleRedraw()
@@ -3259,6 +3768,17 @@ onActivated(() => {
     if (!graphContentHiddenUntilLayout.value) {
       try {
         const applied = tryApplyPendingFocus(c)
+        // UX fix: when the user tabbed away mid-handoff, the FSM is left
+        // in an in-flight state (``loading_fetch`` / ``loading_merge`` /
+        // ``redrawing_*``) with a pending envelope. ``tryApplyPendingFocus``
+        // only covers the ``nav.pendingFocusNodeId`` case (set by Search /
+        // Digest paths); Library L1 doesn't set it, so the FSM would
+        // stuck-timeout 15 s after the user returned. Drive forward from
+        // the FSM's own pending envelope so the user sees the episode
+        // open, not an empty canvas + error strip.
+        if (!applied && graphHandoff.pending) {
+          tryApplyPendingFsmEnvelopeFromTabReturn(c)
+        }
         applyEpisodeRepresentativeFocusIfNeeded(c, { skipCamera: applied })
       } catch (e) {
         console.warn('[GraphCanvas] onActivated graph focus sync:', e)

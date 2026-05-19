@@ -1,0 +1,434 @@
+{
+  "schema_version": "1.2",
+  "episode_id": "ff1edd82-3cf7-11f1-ac10-7bfe891bf8ed",
+  "extraction": {
+    "model_version": "provider:gemini-2.5-flash-lite",
+    "extracted_at": "2026-04-21T15:56:31Z",
+    "transcript_ref": "transcripts/0001 - How Iran_s Regime Changed...for _20260421-175539_8eb5f9d2.txt"
+  },
+  "nodes": [
+    {
+      "id": "episode:ff1edd82-3cf7-11f1-ac10-7bfe891bf8ed",
+      "type": "Episode",
+      "properties": {
+        "podcast_id": "sha256:2441bde6297de0efab1c6add06c0a80e1e4e96938f7ce303cbc7d7672688495c",
+        "title": "How Iran's Regime Changed...for the Worse",
+        "publish_date": "2026-04-20T20:16:00"
+      }
+    },
+    {
+      "id": "topic:iranian-regime-change-attempts",
+      "type": "Topic",
+      "properties": {
+        "label": "Iranian regime change attempts",
+        "slug": "iranian-regime-change-attempts"
+      }
+    },
+    {
+      "id": "topic:us-iran-conflict",
+      "type": "Topic",
+      "properties": {
+        "label": "US-Iran conflict",
+        "slug": "us-iran-conflict"
+      }
+    },
+    {
+      "id": "topic:iranian-revolutionary-guard-corps",
+      "type": "Topic",
+      "properties": {
+        "label": "Iranian Revolutionary Guard Corps",
+        "slug": "iranian-revolutionary-guard-corps"
+      }
+    },
+    {
+      "id": "topic:supreme-leader-of-iran",
+      "type": "Topic",
+      "properties": {
+        "label": "Supreme Leader of Iran",
+        "slug": "supreme-leader-of-iran"
+      }
+    },
+    {
+      "id": "topic:mushtaba-khamenei-succession",
+      "type": "Topic",
+      "properties": {
+        "label": "Mushtaba Khamenei succession",
+        "slug": "mushtaba-khamenei-succession"
+      }
+    },
+    {
+      "id": "topic:hardliners-in-iranian-politics",
+      "type": "Topic",
+      "properties": {
+        "label": "Hardliners in Iranian politics",
+        "slug": "hardliners-in-iranian-politics"
+      }
+    },
+    {
+      "id": "topic:apocalyptic-military-ideology",
+      "type": "Topic",
+      "properties": {
+        "label": "Apocalyptic military ideology",
+        "slug": "apocalyptic-military-ideology"
+      }
+    },
+    {
+      "id": "topic:strait-of-hormuz-leverage",
+      "type": "Topic",
+      "properties": {
+        "label": "Strait of Hormuz leverage",
+        "slug": "strait-of-hormuz-leverage"
+      }
+    },
+    {
+      "id": "topic:irans-nuclear-program",
+      "type": "Topic",
+      "properties": {
+        "label": "Iran's nuclear program",
+        "slug": "irans-nuclear-program"
+      }
+    },
+    {
+      "id": "topic:irans-internal-dissent",
+      "type": "Topic",
+      "properties": {
+        "label": "Iran's internal dissent",
+        "slug": "irans-internal-dissent"
+      }
+    },
+    {
+      "id": "person:ayatollah-khomeini",
+      "type": "Entity",
+      "properties": {
+        "name": "Ayatollah Khomeini",
+        "label": "Ayatollah Khomeini",
+        "kind": "person",
+        "role": "mentioned"
+      }
+    },
+    {
+      "id": "person:ali-khamenei",
+      "type": "Entity",
+      "properties": {
+        "name": "Ali Khamenei",
+        "label": "Ali Khamenei",
+        "kind": "person",
+        "role": "mentioned"
+      }
+    },
+    {
+      "id": "person:margarita-stancati",
+      "type": "Entity",
+      "properties": {
+        "name": "Margarita Stancati",
+        "label": "Margarita Stancati",
+        "kind": "person",
+        "role": "mentioned"
+      }
+    },
+    {
+      "id": "person:ryan-knudsen",
+      "type": "Entity",
+      "properties": {
+        "name": "Ryan Knudsen",
+        "label": "Ryan Knudsen",
+        "kind": "person",
+        "role": "mentioned"
+      }
+    },
+    {
+      "id": "org:iranian-revolutionary-guard-corps",
+      "type": "Entity",
+      "properties": {
+        "name": "Iranian Revolutionary Guard Corps",
+        "label": "Iranian Revolutionary Guard Corps",
+        "kind": "org",
+        "role": "mentioned"
+      }
+    },
+    {
+      "id": "person:mushtaba-khamenei",
+      "type": "Entity",
+      "properties": {
+        "name": "Mushtaba Khamenei",
+        "label": "Mushtaba Khamenei",
+        "kind": "person",
+        "role": "mentioned"
+      }
+    },
+    {
+      "id": "person:mahmoud-ahmadinejad",
+      "type": "Entity",
+      "properties": {
+        "name": "Mahmoud Ahmadinejad",
+        "label": "Mahmoud Ahmadinejad",
+        "kind": "person",
+        "role": "mentioned"
+      }
+    },
+    {
+      "id": "person:mohammed-bagher-zoradr",
+      "type": "Entity",
+      "properties": {
+        "name": "Mohammed Bagher-Zoradr",
+        "label": "Mohammed Bagher-Zoradr",
+        "kind": "person",
+        "role": "mentioned"
+      }
+    },
+    {
+      "id": "person:ali-larijani",
+      "type": "Entity",
+      "properties": {
+        "name": "Ali Larijani",
+        "label": "Ali Larijani",
+        "kind": "person",
+        "role": "mentioned"
+      }
+    },
+    {
+      "id": "person:ahmad-vahidi",
+      "type": "Entity",
+      "properties": {
+        "name": "Ahmad Vahidi",
+        "label": "Ahmad Vahidi",
+        "kind": "person",
+        "role": "mentioned"
+      }
+    },
+    {
+      "id": "person:imam-mahdi",
+      "type": "Entity",
+      "properties": {
+        "name": "Imam Mahdi",
+        "label": "Imam Mahdi",
+        "kind": "person",
+        "role": "mentioned"
+      }
+    },
+    {
+      "id": "person:trump",
+      "type": "Entity",
+      "properties": {
+        "name": "Trump",
+        "label": "Trump",
+        "kind": "person",
+        "role": "mentioned"
+      }
+    },
+    {
+      "id": "person:walth-al-khan",
+      "type": "Entity",
+      "properties": {
+        "name": "Walth al-Khan",
+        "label": "Walth al-Khan",
+        "kind": "person",
+        "role": "mentioned"
+      }
+    },
+    {
+      "id": "person:hennamu-savi",
+      "type": "Entity",
+      "properties": {
+        "name": "Hennamu Savi",
+        "label": "Hennamu Savi",
+        "kind": "person",
+        "role": "mentioned"
+      }
+    },
+    {
+      "id": "org:spotify",
+      "type": "Entity",
+      "properties": {
+        "name": "Spotify",
+        "label": "Spotify",
+        "kind": "org",
+        "role": "mentioned"
+      }
+    },
+    {
+      "id": "person:the-wall-street-journal",
+      "type": "Entity",
+      "properties": {
+        "name": "The Wall Street Journal",
+        "label": "The Wall Street Journal",
+        "kind": "person",
+        "role": "host"
+      }
+    },
+    {
+      "id": "person:the-wall-street-journal-spotify-studios",
+      "type": "Entity",
+      "properties": {
+        "name": "The Wall Street Journal & Spotify Studios",
+        "label": "The Wall Street Journal & Spotify Studios",
+        "kind": "person",
+        "role": "host"
+      }
+    }
+  ],
+  "edges": [
+    {
+      "from": "topic:iranian-regime-change-attempts",
+      "to": "episode:ff1edd82-3cf7-11f1-ac10-7bfe891bf8ed",
+      "type": "MENTIONS",
+      "properties": {}
+    },
+    {
+      "from": "topic:us-iran-conflict",
+      "to": "episode:ff1edd82-3cf7-11f1-ac10-7bfe891bf8ed",
+      "type": "MENTIONS",
+      "properties": {}
+    },
+    {
+      "from": "topic:iranian-revolutionary-guard-corps",
+      "to": "episode:ff1edd82-3cf7-11f1-ac10-7bfe891bf8ed",
+      "type": "MENTIONS",
+      "properties": {}
+    },
+    {
+      "from": "topic:supreme-leader-of-iran",
+      "to": "episode:ff1edd82-3cf7-11f1-ac10-7bfe891bf8ed",
+      "type": "MENTIONS",
+      "properties": {}
+    },
+    {
+      "from": "topic:mushtaba-khamenei-succession",
+      "to": "episode:ff1edd82-3cf7-11f1-ac10-7bfe891bf8ed",
+      "type": "MENTIONS",
+      "properties": {}
+    },
+    {
+      "from": "topic:hardliners-in-iranian-politics",
+      "to": "episode:ff1edd82-3cf7-11f1-ac10-7bfe891bf8ed",
+      "type": "MENTIONS",
+      "properties": {}
+    },
+    {
+      "from": "topic:apocalyptic-military-ideology",
+      "to": "episode:ff1edd82-3cf7-11f1-ac10-7bfe891bf8ed",
+      "type": "MENTIONS",
+      "properties": {}
+    },
+    {
+      "from": "topic:strait-of-hormuz-leverage",
+      "to": "episode:ff1edd82-3cf7-11f1-ac10-7bfe891bf8ed",
+      "type": "MENTIONS",
+      "properties": {}
+    },
+    {
+      "from": "topic:irans-nuclear-program",
+      "to": "episode:ff1edd82-3cf7-11f1-ac10-7bfe891bf8ed",
+      "type": "MENTIONS",
+      "properties": {}
+    },
+    {
+      "from": "topic:irans-internal-dissent",
+      "to": "episode:ff1edd82-3cf7-11f1-ac10-7bfe891bf8ed",
+      "type": "MENTIONS",
+      "properties": {}
+    },
+    {
+      "from": "person:ayatollah-khomeini",
+      "to": "episode:ff1edd82-3cf7-11f1-ac10-7bfe891bf8ed",
+      "type": "MENTIONS",
+      "properties": {}
+    },
+    {
+      "from": "person:ali-khamenei",
+      "to": "episode:ff1edd82-3cf7-11f1-ac10-7bfe891bf8ed",
+      "type": "MENTIONS",
+      "properties": {}
+    },
+    {
+      "from": "person:margarita-stancati",
+      "to": "episode:ff1edd82-3cf7-11f1-ac10-7bfe891bf8ed",
+      "type": "MENTIONS",
+      "properties": {}
+    },
+    {
+      "from": "person:ryan-knudsen",
+      "to": "episode:ff1edd82-3cf7-11f1-ac10-7bfe891bf8ed",
+      "type": "MENTIONS",
+      "properties": {}
+    },
+    {
+      "from": "org:iranian-revolutionary-guard-corps",
+      "to": "episode:ff1edd82-3cf7-11f1-ac10-7bfe891bf8ed",
+      "type": "MENTIONS",
+      "properties": {}
+    },
+    {
+      "from": "person:mushtaba-khamenei",
+      "to": "episode:ff1edd82-3cf7-11f1-ac10-7bfe891bf8ed",
+      "type": "MENTIONS",
+      "properties": {}
+    },
+    {
+      "from": "person:mahmoud-ahmadinejad",
+      "to": "episode:ff1edd82-3cf7-11f1-ac10-7bfe891bf8ed",
+      "type": "MENTIONS",
+      "properties": {}
+    },
+    {
+      "from": "person:mohammed-bagher-zoradr",
+      "to": "episode:ff1edd82-3cf7-11f1-ac10-7bfe891bf8ed",
+      "type": "MENTIONS",
+      "properties": {}
+    },
+    {
+      "from": "person:ali-larijani",
+      "to": "episode:ff1edd82-3cf7-11f1-ac10-7bfe891bf8ed",
+      "type": "MENTIONS",
+      "properties": {}
+    },
+    {
+      "from": "person:ahmad-vahidi",
+      "to": "episode:ff1edd82-3cf7-11f1-ac10-7bfe891bf8ed",
+      "type": "MENTIONS",
+      "properties": {}
+    },
+    {
+      "from": "person:imam-mahdi",
+      "to": "episode:ff1edd82-3cf7-11f1-ac10-7bfe891bf8ed",
+      "type": "MENTIONS",
+      "properties": {}
+    },
+    {
+      "from": "person:trump",
+      "to": "episode:ff1edd82-3cf7-11f1-ac10-7bfe891bf8ed",
+      "type": "MENTIONS",
+      "properties": {}
+    },
+    {
+      "from": "person:walth-al-khan",
+      "to": "episode:ff1edd82-3cf7-11f1-ac10-7bfe891bf8ed",
+      "type": "MENTIONS",
+      "properties": {}
+    },
+    {
+      "from": "person:hennamu-savi",
+      "to": "episode:ff1edd82-3cf7-11f1-ac10-7bfe891bf8ed",
+      "type": "MENTIONS",
+      "properties": {}
+    },
+    {
+      "from": "org:spotify",
+      "to": "episode:ff1edd82-3cf7-11f1-ac10-7bfe891bf8ed",
+      "type": "MENTIONS",
+      "properties": {}
+    },
+    {
+      "from": "person:the-wall-street-journal",
+      "to": "episode:ff1edd82-3cf7-11f1-ac10-7bfe891bf8ed",
+      "type": "MENTIONS",
+      "properties": {}
+    },
+    {
+      "from": "person:the-wall-street-journal-spotify-studios",
+      "to": "episode:ff1edd82-3cf7-11f1-ac10-7bfe891bf8ed",
+      "type": "MENTIONS",
+      "properties": {}
+    }
+  ]
+}

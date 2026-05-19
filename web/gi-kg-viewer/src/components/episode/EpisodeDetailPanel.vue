@@ -445,12 +445,33 @@ async function openInGraph(): Promise<void> {
   await artifacts.appendRelativeArtifacts(paths)
   graphNav.clearLibraryEpisodeHighlights()
   if (episodeMeta) {
-    const epCy =
-      findEpisodeGraphNodeIdForMetadataPathOrEpisodeId(
-        graphFilters.filteredArtifact,
-        episodeMeta,
-        episodeIdForGraph,
-      ) || ''
+    // #775 — resolve epCy with retry to bridge the
+    // ``appendRelativeArtifacts`` → ``filteredArtifact`` (Pinia
+    // computed) propagation gap. The first attempt may race the Pinia
+    // re-computation (especially on the second hot-state click after
+    // KG-second-wave loads). Three attempts with microtask spacing
+    // gives the computed time to update without blocking on a real
+    // timer. Without this: the second hot-state Library → Library
+    // handoff finds no epCy → requestFocusNode never fires → only the
+    // FSM ``pending`` envelope drives apply → ``finishLayoutPass``'s
+    // 3-tier resolver may still miss in some race windows.
+    let epCy = ''
+    for (let attempt = 0; attempt < 3; attempt++) {
+      const candidate =
+        findEpisodeGraphNodeIdForMetadataPathOrEpisodeId(
+          graphFilters.filteredArtifact,
+          episodeMeta,
+          episodeIdForGraph,
+        ) || ''
+      if (candidate) {
+        epCy = candidate
+        break
+      }
+      // Yield to the microtask queue so any pending Pinia computed
+      // re-evaluation can run. ``Promise.resolve()`` is the cheapest
+      // way to defer; ``await`` ensures we wait before the next read.
+      await Promise.resolve()
+    }
     subject.focusEpisode(episodeMeta, {
       uiTitle: episodeUiTitle,
       ...(epCy ? { graphConnectionsCyId: epCy } : {}),

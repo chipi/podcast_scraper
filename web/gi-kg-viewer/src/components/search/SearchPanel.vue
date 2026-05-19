@@ -1,5 +1,7 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
+import { useArtifactsStore } from '../../stores/artifacts'
+import { useGraphHandoffStore } from '../../stores/graphHandoff'
 import { useGraphNavigationStore } from '../../stores/graphNavigation'
 import { useSearchStore } from '../../stores/search'
 import { useShellStore } from '../../stores/shell'
@@ -22,6 +24,8 @@ const shell = useShellStore()
 const search = useSearchStore()
 const nav = useGraphNavigationStore()
 const subject = useSubjectStore()
+const artifacts = useArtifactsStore()
+const graphHandoff = useGraphHandoffStore()
 
 const queryRef = ref<HTMLTextAreaElement | null>(null)
 const advancedDialogRef = ref<HTMLDialogElement | null>(null)
@@ -96,11 +100,51 @@ function topicClusterCompoundIdForCamera(hit: SearchHit): string | null {
   return typeof g === 'string' && g.trim() ? g.trim() : null
 }
 
-function onFocusHit(hit: SearchHit): void {
+async function onFocusHit(hit: SearchHit): Promise<void> {
   const id = graphNodeIdFromSearchHit(hit)
   if (!id) return
-  subject.focusGraphNode(id)
   const tcParent = topicClusterCompoundIdForCamera(hit)
+  // F1.6 — dispatch FSM handoff synchronously at click time so the search
+  // surface is observable on ``__GIKG_FSM_EVENT_LOG__`` and lands a
+  // ``subject-external`` load-source. Without this the search surface
+  // would route via ``App.activateGraphTab(undefined, undefined, 'search')``
+  // which gates ``handoffRequested`` dispatch on a target arg and returns
+  // without firing — the FSM would never see the event. Kind inferred
+  // from the bare id prefix: ``topic:*`` → topic, ``episode:*`` → episode,
+  // else graph-node.
+  const kind: 'topic' | 'episode' | 'graph-node' =
+    id.startsWith('topic:') ? 'topic' :
+    id.startsWith('episode:') ? 'episode' :
+    'graph-node'
+  artifacts.setLoadSource('subject-external')
+  // V3 fix — load the hit's episode artifacts up front so the FSM's apply
+  // step can resolve ``id`` to a real cy node. Without this the handoff
+  // depends on whatever the current time-slice happens to contain; for
+  // archived / old corpora the slice may be empty or may not include the
+  // hit's episode, and the FSM fails with "no cy node found for envelope
+  // target". The hit carries ``source_metadata_relative_path`` (stamped
+  // by the vector indexer); derive the GI/KG paths from it the same way
+  // ``corpus_catalog._gi_kg_relpaths_from_metadata`` does server-side.
+  const metaRel = sourceMetadataRelativePathFromSearchHit(hit)
+  if (metaRel) {
+    const stem = metaRel.endsWith('.metadata.json')
+      ? metaRel.slice(0, -'.metadata.json'.length)
+      : metaRel.replace(/\.(metadata\.ya?ml|json)$/i, '')
+    const paths = [`${stem}.gi.json`, `${stem}.kg.json`].filter(Boolean)
+    try {
+      await artifacts.appendRelativeArtifacts(paths)
+    } catch {
+      /* fall through: FSM will surface failure if cy node still missing */
+    }
+  }
+  graphHandoff.handoffRequested({
+    kind,
+    cyId: id,
+    source: 'search',
+    loadSource: 'subject-external',
+    camera: { kind: 'center-on-target' },
+  })
+  subject.focusGraphNode(id)
   nav.requestFocusNode(id, undefined, tcParent ? [tcParent] : undefined)
   emit('go-graph')
 }
@@ -428,7 +472,7 @@ const advancedFeedCombinedTitle = computed(() =>
           :key="`${h.doc_id}-${i}`"
           :hit="h"
           :library-opens-enabled="libraryOpensEnabled"
-          @focus="onFocusHit"
+          @focus="(hit: SearchHit) => void onFocusHit(hit)"
           @open-library="onOpenLibraryHit"
           @open-episode-summary="onOpenEpisodeSummaryHit"
         />

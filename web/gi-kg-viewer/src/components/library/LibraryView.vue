@@ -371,7 +371,7 @@ function selectEpisode(row: CorpusEpisodeListItem): void {
  * here at click time matches the symmetry that Digest paths already use
  * and is replaced wholesale by the C5 orchestrator envelope.
  */
-function openEpisodeInGraph(row: CorpusEpisodeListItem): void {
+async function openEpisodeInGraph(row: CorpusEpisodeListItem): Promise<void> {
   // C5 — record the handoff intent on the FSM. The orchestrator runtime in
   // ``GraphCanvas.vue`` consults the FSM during apply (C6) to decide barriers.
   // For now this is additive: existing watchers still drive the canvas.
@@ -388,7 +388,54 @@ function openEpisodeInGraph(row: CorpusEpisodeListItem): void {
     uiTitle: row.episode_title?.trim() || null,
     episodeId: row.episode_id ?? null,
   })
+  // Proactive episode-artifact load is needed ONLY when the graph
+  // already has content from a prior handoff (e.g. a Digest pill loaded
+  // a topic band's hits, and this Library click targets an episode whose
+  // artifacts are now also "in the store" — the natural watcher chain
+  // doesn't fire because there's nothing new to fetch → FSM
+  // stuck-timeout). Tier-3 P2.5 / P2.6 catch this.
+  //
+  // When the graph is EMPTY (first click of session), the baseline load
+  // ``ensureCorpusGraphBaselineForHandoff`` is already in flight and
+  // running it in parallel with my append races ``selectedRelPaths``
+  // and produces a partial graph (Tier-2 P1.1 / P1.6 / P2.1 / P2.4 /
+  // P3.1 regression — node rendered at y=-470 well off-canvas). In that
+  // case skip the proactive append and let the baseline load do its job;
+  // the natural redraw + ``finishLayoutPass`` chain handles apply.
+  const hasExistingGraphContent = artifacts.selectedRelPaths.length > 0
   void ensureDefaultCorpusGraphIfNeeded()
+  if (hasExistingGraphContent) {
+    const paths: string[] = []
+    if (row.has_gi && row.gi_relative_path?.trim()) {
+      paths.push(row.gi_relative_path.trim())
+    }
+    if (row.has_kg && row.kg_relative_path?.trim()) {
+      paths.push(row.kg_relative_path.trim())
+    }
+    if (paths.length > 0) {
+      try {
+        const beforeCount = artifacts.selectedRelPaths.length
+        await artifacts.appendRelativeArtifacts(paths)
+        if (artifacts.selectedRelPaths.length === beforeCount) {
+          // No-op append (all paths already loaded). Wait briefly so the
+          // natural chain (subject change → watcher → tab-activate →
+          // tryApplyPendingFocus) gets a chance to drive the FSM to
+          // ready on its own. Only force a redraw when the FSM is still
+          // stuck — that's the same-tab-already-active Tier-3 case.
+          await new Promise<void>((r) => setTimeout(r, 600))
+          const stillStuck =
+            graphHandoff.state === 'loading_fetch' ||
+            graphHandoff.state === 'loading_bootstrap' ||
+            graphHandoff.state === 'loading_merge'
+          if (stillStuck) {
+            await artifacts.loadSelected({ preserveExpansion: true })
+          }
+        }
+      } catch {
+        /* FSM will surface the apply failure if the cy node remains missing */
+      }
+    }
+  }
   emit('switch-main-tab', 'graph')
 }
 
@@ -743,7 +790,7 @@ onBeforeUnmount(() => {
                           data-testid="library-row-open-graph"
                           title="Open this episode in Graph"
                           aria-label="Open this episode in Graph"
-                          @click.stop="openEpisodeInGraph(e)"
+                          @click.stop="void openEpisodeInGraph(e)"
                           @keydown.enter.stop
                           @keydown.space.stop
                         >G</button>

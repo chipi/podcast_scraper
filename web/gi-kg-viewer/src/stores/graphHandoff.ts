@@ -35,6 +35,18 @@ import {
 
 export type GraphHandoffStuckListener = (envelope: GraphHandoffEnvelope) => void
 
+/**
+ * Module-level invariant snapshot. Persisted at the module scope rather than
+ * inside the Pinia store closure so it survives Pinia HMR re-creating the
+ * store (which would otherwise create a fresh ``lastInvariant`` ref and lose
+ * the value). The dev hook reads from here directly.
+ */
+let _moduleLastInvariant: {
+  missing: string[]
+  extra: string[]
+  ts: number
+} | null = null
+
 export const useGraphHandoffStore = defineStore('graphHandoff', () => {
   const fsm: Fsm = createFsm()
 
@@ -46,9 +58,52 @@ export const useGraphHandoffStore = defineStore('graphHandoff', () => {
   /** Last `HandoffResult` emitted; consumed by the failure UI strip (C7). */
   const lastResult = ref<HandoffResult | null>(null)
 
+  /**
+   * Self-healing invariant snapshot captured at the most recent
+   * ``finishLayoutPass`` after a handoff settled. ``missing`` are nodes the
+   * logical view (``viewWithEgo(focusNodeId)``) expects but Cytoscape lacks;
+   * ``extra`` are nodes Cytoscape has but the logical view doesn't expect.
+   * Both empty ⇒ canvas and store are in sync. Matrix L6 reads this to assert
+   * "no divergence after settle" without re-implementing ``viewWithEgo``.
+   */
+  const lastInvariant = ref<{
+    missing: string[]
+    extra: string[]
+    ts: number
+  } | null>(null)
+
+  function recordInvariant(missing: string[], extra: string[]): void {
+    const snap = { missing, extra, ts: Date.now() }
+    lastInvariant.value = snap
+    _moduleLastInvariant = snap
+    // Last-resort persistence layer for the matrix L6 assertion: write to
+    // sessionStorage so the snapshot survives Pinia HMR replacing module
+    // closures AND dev-hook re-stamping (which has been observed swapping
+    // the visible closure mid-test). Read by ``readInvariant`` in tests.
+    if (typeof window !== 'undefined' && import.meta.env?.DEV) {
+      try {
+        window.sessionStorage.setItem(
+          '__GIKG_FSM_LAST_INVARIANT__',
+          JSON.stringify(snap),
+        )
+      } catch {
+        /* sessionStorage may be disabled in some test contexts */
+      }
+    }
+  }
+
   /** Bookkeeping for the wall-clock stuck-handoff timer. */
   let stuckTimer: ReturnType<typeof setTimeout> | null = null
   const stuckListeners: GraphHandoffStuckListener[] = []
+
+  /**
+   * Count of layouts currently running in Cytoscape. Bumped by
+   * ``notifyLayoutStart`` and decremented by ``notifyLayoutStop``.
+   * Stuck-timer checks this before declaring a handoff failed — a
+   * heavy real-backend layout can legitimately take >15 s and shouldn't
+   * be misreported as a stuck handoff (V5 fix).
+   */
+  let activeLayoutCount = 0
 
   function syncReactive(): void {
     state.value = fsm.state
@@ -85,6 +140,20 @@ export const useGraphHandoffStore = defineStore('graphHandoff', () => {
         // Already superseded; nothing to do.
         return
       }
+      // V5 fix: if a layout is actively running (real-backend hot-state
+      // Episode-panel handoff with ~300+ added elements can take >15 s
+      // for incremental layout to complete), reschedule the stuck-timer
+      // for another full window. The original 15 s is a "something
+      // broke" safety net, not "your big-graph layout is too slow".
+      // ``activeLayoutCount`` is bumped via ``notifyLayoutStart`` and
+      // decremented via ``notifyLayoutStop`` from GraphCanvas.
+      if (activeLayoutCount > 0) {
+        console.warn(
+          `[graphHandoff] stuck-timer fired but layout active (count=${activeLayoutCount}); rescheduling`,
+        )
+        scheduleStuckTimer(envelope)
+        return
+      }
       console.warn(
         `[graphHandoff] handoffStuck source=${envelope.source} kind=${envelope.kind} generation=${envelope.generation}`,
       )
@@ -101,11 +170,19 @@ export const useGraphHandoffStore = defineStore('graphHandoff', () => {
         /* telemetry must not affect runtime */
       }
       // Force the FSM back to ready so the next event proceeds normally.
+      // Preserve the envelope's intended ``cyId`` on ``appliedCyId`` even
+      // though we're reporting `failed`: layout that's still settling in the
+      // background may eventually finish and ``GraphCanvas.finishLayoutPass``
+      // can use this id to restore selection + camera. Without this hook the
+      // user sees an empty selection and fit-all camera after every stuck
+      // handoff that eventually completes (rapid digest pills on a heavy
+      // KG-second-wave merged graph — see GH #771).
       fsm.pending = null
       fsm.state = 'ready'
       lastResult.value = {
         status: 'failed',
         reason: `stuck-timeout after ${STUCK_TIMEOUT_MS}ms`,
+        appliedCyId: envelope.cyId,
       }
       syncReactive()
       for (const fn of stuckListeners) {
@@ -196,6 +273,12 @@ export const useGraphHandoffStore = defineStore('graphHandoff', () => {
   }
 
   function focusCleared(): EventDisposition {
+    // The Escape contract is "the user wants the prior selection gone."
+    // Drop ``lastResult`` so any downstream consumer that restores
+    // selection from the FSM's last applied id (e.g. the post-layout
+    // selection-restore in ``GraphCanvas.finishLayoutPass``) doesn't
+    // re-anchor onto the just-Escaped target on the next layoutstop.
+    lastResult.value = null
     return applyEvent({ type: 'focusCleared' })
   }
 
@@ -204,6 +287,12 @@ export const useGraphHandoffStore = defineStore('graphHandoff', () => {
   }
 
   function corpusReloaded(): EventDisposition {
+    // A fresh corpus has no prior selection to preserve. Clear
+    // ``lastResult`` for the same reason as ``focusCleared`` above —
+    // the FSM's last applied cyId belongs to the *previous* corpus and
+    // any restore attempt would either fail (node not in cy) or hit a
+    // collision with an unrelated node.
+    lastResult.value = null
     return applyEvent({ type: 'corpusReloaded' })
   }
 
@@ -212,10 +301,12 @@ export const useGraphHandoffStore = defineStore('graphHandoff', () => {
   }
 
   function notifyLayoutStart(): EventDisposition {
+    activeLayoutCount += 1
     return applyEvent({ type: 'layoutstart' })
   }
 
   function notifyLayoutStop(): EventDisposition {
+    if (activeLayoutCount > 0) activeLayoutCount -= 1
     return applyEvent({ type: 'layoutstop' })
   }
 
@@ -253,14 +344,28 @@ export const useGraphHandoffStore = defineStore('graphHandoff', () => {
    * apply-phase transition.
    */
   function recordApplied(appliedCyId: string, fallbackApplied = false): void {
+    // F2 — route through the FSM transition table so the apply shortcut is
+    // validated rather than silently bypassing the state graph. The FSM's
+    // ``recordApplied`` event accepts the shortcut from ``loading_*`` /
+    // ``redrawing_*`` / ``applying`` (all states with a documented path to
+    // ``ready``) and drops it from ``idle`` (no pending envelope to apply).
     const previousPending = fsm.pending
+    const disposition = fsmApplyEvent(fsm, {
+      type: 'recordApplied',
+      appliedCyId,
+      fallbackApplied,
+    })
+    if (disposition.kind === 'drop') {
+      // Off-table transition (e.g. recordApplied called with no pending).
+      // Don't mutate lastResult — preserves any prior `failed`/`applied`
+      // status for the failure UI strip to render correctly.
+      return
+    }
     lastResult.value = {
       status: 'applied',
       appliedCyId,
       fallbackApplied,
     }
-    fsm.pending = null
-    fsm.state = 'ready'
     syncReactive()
     clearStuckTimer()
     // F6 — telemetry: record successful handoff completion.
@@ -307,6 +412,13 @@ export const useGraphHandoffStore = defineStore('graphHandoff', () => {
       get lastResult() {
         return lastResult.value
       },
+      get lastInvariant() {
+        // Read from module-level scope — survives Pinia store HMR which
+        // would otherwise create a fresh closure ref. Falls back to
+        // ``lastInvariant.value`` for the very first read before any
+        // ``recordInvariant`` write.
+        return _moduleLastInvariant ?? lastInvariant.value
+      },
     }
     // T4 / T5 dev-only test hook: expose the store's event methods so
     // Playwright contract tests can trigger FSM events (e.g. `handoffFailed`)
@@ -338,6 +450,7 @@ export const useGraphHandoffStore = defineStore('graphHandoff', () => {
     pending,
     generation,
     lastResult,
+    lastInvariant,
     isQuiescent,
     handoffRequested,
     canvasTapped,
@@ -351,6 +464,7 @@ export const useGraphHandoffStore = defineStore('graphHandoff', () => {
     isStale,
     advanceState,
     recordApplied,
+    recordInvariant,
     onStuck,
   }
 })

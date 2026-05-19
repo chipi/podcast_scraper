@@ -140,6 +140,46 @@ export const useSubjectStore = defineStore('subject', () => {
     episodeUiLabel.value = t ? truncateUiLabel(t) : null
   }
 
+  // -------------------------------------------------------------------------
+  // Dev hook for E2E specs (L5 subject-store correctness assertion).
+  //
+  // After every handoff the subject store must reflect the envelope target —
+  // ``kind`` matches the envelope's ``kind``, and the id field for that kind
+  // (``episodeId`` / ``graphNodeCyId`` / ``topicId`` / ``personId``) carries
+  // the resolved value. ``assertHandoffApplied`` reads this to pin the
+  // user-visible "the rail shows the right thing" contract — selection
+  // alone isn't enough because rail panels read this store, not cy directly.
+  // -------------------------------------------------------------------------
+  if (typeof window !== 'undefined' && import.meta.env?.DEV) {
+    ;(window as unknown as { __GIKG_SUBJECT__?: object }).__GIKG_SUBJECT__ = {
+      get kind() {
+        return kind.value
+      },
+      get episodeMetadataPath() {
+        return episodeMetadataPath.value
+      },
+      get episodeId() {
+        return episodeId.value
+      },
+      get graphNodeCyId() {
+        return graphNodeCyId.value
+      },
+      get topicId() {
+        return topicId.value
+      },
+      get personId() {
+        return personId.value
+      },
+      // E2E-only mutators. The TEV contract Playwright spec drives the
+      // panel via ``focusTopic`` after the V2 architectural change removed
+      // the digest topic-band-title click affordance; other handoff specs
+      // use the FSM store dev hook. Mutators stay DEV-gated.
+      focusTopic,
+      focusEntity,
+      clearSubject,
+    }
+  }
+
   return {
     kind,
     episodeMetadataPath,
