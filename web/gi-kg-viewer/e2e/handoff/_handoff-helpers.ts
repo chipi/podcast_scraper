@@ -73,6 +73,15 @@ export function captureConsoleErrors(page: Page): { errors: string[] } {
     if (msg.type() === 'error') {
       ref.errors.push(msg.text())
     }
+    // Forward [CI-DIAG] browser logs to test-runner stdout so they appear in
+    // CI logs. Temporary — paired with the [CI-DIAG] log emitters in
+    // ``GraphCanvas.vue``; remove both when the Tier-2 P1.1/etc. CI-only
+    // camera failure is rooted.
+    const text = msg.text()
+    if (text.startsWith('[CI-DIAG]')) {
+      // eslint-disable-next-line no-console
+      console.log(text)
+    }
   })
   return ref
 }
