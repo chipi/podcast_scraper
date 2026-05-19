@@ -73,15 +73,6 @@ export function captureConsoleErrors(page: Page): { errors: string[] } {
     if (msg.type() === 'error') {
       ref.errors.push(msg.text())
     }
-    // Forward [CI-DIAG] browser logs to test-runner stdout so they appear in
-    // CI logs. Temporary — paired with the [CI-DIAG] log emitters in
-    // ``GraphCanvas.vue``; remove both when the Tier-2 P1.1/etc. CI-only
-    // camera failure is rooted.
-    const text = msg.text()
-    if (text.startsWith('[CI-DIAG]')) {
-      // eslint-disable-next-line no-console
-      console.log(text)
-    }
   })
   return ref
 }
@@ -596,10 +587,23 @@ export async function assertHandoffApplied(
   // center.
   //
   // Camera animation runs async after ``recordApplied`` (FSM ``ready`` is
-  // marked before ``cy.animate`` finishes), so poll until the position is
-  // stable for two consecutive reads, capped at 2.5 s. Skip entirely when
-  // the envelope's camera kind isn't centering (``fit`` / ``preserve`` /
-  // ``none``) — caller passes ``skipCameraCenter: true``.
+  // marked before ``cy.animate`` finishes). The viewer fires multiple
+  // chained camera animations during a handoff (initial fit → animate
+  // ENTRY → recenterIfPending APPLIED → second animate ENTRY when the
+  // canvas un-hides → 400/900/1800 ms safety-net recenters). Production-
+  // shaped Tier-2 graph (270 nodes) on CI Linux Firefox spans this chain
+  // across ~1 s; the previous 2.5 s deadline + 100 ms poll was capturing
+  // **mid-animation transient positions** because ``cy.animated()`` was
+  // still true when the deadline hit. Local macOS Firefox happened to
+  // finish the chain in ~200 ms, hiding the bug.
+  //
+  // Fix: wait first for ``cy.animated() === false`` (no animation in
+  // flight), THEN apply the 2-read stability check. Bumped deadline to
+  // 5 s to cover the heavy-graph case; the explicit ``animated()`` gate
+  // short-circuits the wait for tier-1 tests so they still finish fast.
+  // Skip entirely when the envelope's camera kind isn't centering
+  // (``fit`` / ``preserve`` / ``none``) — caller passes
+  // ``skipCameraCenter: true``.
   if (!opts.skipCameraCenter) {
     const settled = await page.evaluate(
       async ({ maxMs, pollMs }) => {
@@ -617,7 +621,19 @@ export async function assertHandoffApplied(
         // eslint-disable-next-line no-constant-condition
         while (true) {
           const rp = node.renderedPosition()
+          let animating = false
+          try {
+            animating = cy.animated()
+          } catch {
+            /* defensive */
+          }
+          // Only count stable reads when no animation is in flight. An
+          // in-flight ``cy.animate`` may render two consecutive frames at
+          // identical sub-pixel positions even though the camera is still
+          // mid-transition; gating on ``animated()`` rules out those
+          // false-positive "stable" reads.
           if (
+            !animating &&
             Math.abs(rp.x - lastX) < 1 &&
             Math.abs(rp.y - lastY) < 1
           ) {
@@ -646,7 +662,7 @@ export async function assertHandoffApplied(
           await new Promise((resolve) => setTimeout(resolve, pollMs))
         }
       },
-      { maxMs: 2500, pollMs: 100 },
+      { maxMs: 5000, pollMs: 100 },
     )
     if (settled === null) {
       throw new Error(

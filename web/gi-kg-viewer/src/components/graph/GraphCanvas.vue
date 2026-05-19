@@ -464,28 +464,13 @@ function armPendingRecenter(cyId: string, durationMs = 5000): void {
  */
 function recenterIfPending(core: Core): void {
   if (!pendingRecenterCyId || Date.now() >= pendingRecenterUntil) {
-    if (import.meta.env.DEV) {
-      console.log(
-        `[CI-DIAG] recenterIfPending SKIP id=${pendingRecenterCyId ?? '<none>'} expired=${pendingRecenterCyId ? Date.now() >= pendingRecenterUntil : 'no-id'}`,
-      )
-    }
     return
   }
   try {
     const tgt = core.$id(pendingRecenterCyId)
     if (!tgt.empty()) {
-      const before = tgt.renderedPosition()
       core.resize()
       core.center(tgt)
-      if (import.meta.env.DEV) {
-        const after = tgt.renderedPosition()
-        const pan = core.pan()
-        console.log(
-          `[CI-DIAG] recenterIfPending APPLIED id=${pendingRecenterCyId} canvas=(${core.width()}x${core.height()}) pan=(${pan.x.toFixed(0)},${pan.y.toFixed(0)}) rendered=${before.x.toFixed(0)},${before.y.toFixed(0)}→${after.x.toFixed(0)},${after.y.toFixed(0)}`,
-        )
-      }
-    } else if (import.meta.env.DEV) {
-      console.log(`[CI-DIAG] recenterIfPending TARGET-EMPTY id=${pendingRecenterCyId}`)
     }
   } catch {
     // ignore — pending recenter is best-effort.
@@ -607,12 +592,6 @@ function applyViewportPreserveOrFit(
     // LAST: Default fit to visible elements
     try {
       core.fit(core.elements(':visible'), 24)
-      if (import.meta.env.DEV) {
-        const p = core.pan()
-        console.log(
-          `[CI-DIAG] applyViewportPreserveOrFit FIT-ALL zoom=${core.zoom().toFixed(3)} pan=(${p.x.toFixed(0)},${p.y.toFixed(0)}) canvas=(${core.width()}x${core.height()})`,
-        )
-      }
     } catch {
       /* ignore */
     }
@@ -828,11 +807,6 @@ function applyEpisodeRepresentativeFocusIfNeeded(
   }
   refreshSelectedNodeZoomAnchor(core)
   applySearchHighlights(core)
-  if (import.meta.env.DEV) {
-    console.log(
-      `[CI-DIAG] applyEpisodeRepresentativeFocus cyEpisodeId=${cyEpisodeId} skipCamera=${opts?.skipCamera ?? false} hidden=${graphContentHiddenUntilLayout.value}`,
-    )
-  }
   if (!opts?.skipCamera) {
     try {
       /** ``fit(closedNeighborhood())`` zoomed out on hub episodes and fought ``tryApplyPendingFocus``. */
@@ -1474,11 +1448,6 @@ function finishLayoutPass(core: Core): void {
   /** ``tryApplyPendingFocus`` first so Library/Digest **Open in graph** camera wins; episode strip skips
    * duplicate ``animateCameraToFocusedNode`` when pending focus was consumed. */
   const appliedPending = tryApplyPendingFocus(core)
-  if (import.meta.env.DEV) {
-    console.log(
-      `[CI-DIAG] finishLayoutPass branches appliedPending=${appliedPending} navPending=${nav.pendingFocusNodeId ?? '<none>'} fsmPending=${graphHandoff.pending?.cyId ?? graphHandoff.pending?.episodeId ?? '<none>'} subjectKind=${subject.kind} subjectMeta=${subject.episodeMetadataPath ?? '<none>'} hidden=${graphContentHiddenUntilLayout.value} fsm=${graphHandoff.state}`,
-    )
-  }
   applyEpisodeRepresentativeFocusIfNeeded(core, { skipCamera: appliedPending })
   // GH #771 — restore the FSM-applied selection + camera after a redraw
   // that destroyed them. Canonical trigger: KG-second-wave full-redraw
@@ -2066,19 +2035,6 @@ function animateCameraToFocusedNode(
       suspendSelectedNodeZoomAnchorCorrection -= 1
       return
     }
-    // CI-DIAG (temporary): capture camera-animate entry state. Removed once
-    // the Tier-2 P1.1/P1.6/P2.1/P2.4/P3.1 CI-only failure is rooted.
-    if (import.meta.env.DEV) {
-      try {
-        const rp0 = n.renderedPosition()
-        const p0 = core.pan()
-        console.log(
-          `[CI-DIAG] animateCamera ENTRY id=${id} zoom=${core.zoom().toFixed(3)}→${targetZoom.toFixed(3)} pan=(${p0.x.toFixed(0)},${p0.y.toFixed(0)}) canvas=(${core.width()}x${core.height()}) rendered=(${rp0.x.toFixed(0)},${rp0.y.toFixed(0)}) hidden=${graphContentHiddenUntilLayout.value} fsm=${graphHandoff.state} gen=${animateGen}`,
-        )
-      } catch {
-        /* ignore diag */
-      }
-    }
     core.animate({
       center: { eles: centerEles },
       zoom: targetZoom,
@@ -2089,9 +2045,6 @@ function animateCameraToFocusedNode(
         // with stale recenter logic.
         if (graphHandoff.isStale(animateGen)) {
           suspendSelectedNodeZoomAnchorCorrection -= 1
-          if (import.meta.env.DEV) {
-            console.log(`[CI-DIAG] animateCamera COMPLETE-STALE id=${id} gen=${animateGen}`)
-          }
           return
         }
         // Canvas may have resized during animation (detail panel opening, tab switch,
@@ -2107,17 +2060,6 @@ function animateCameraToFocusedNode(
         refreshSelectedNodeZoomAnchor(core)
         lastZoomLevel = core.zoom()
         updateZoomPercentDisplay(core)
-        if (import.meta.env.DEV) {
-          try {
-            const rp1 = core.$id(id).renderedPosition()
-            const p1 = core.pan()
-            console.log(
-              `[CI-DIAG] animateCamera COMPLETE-OK id=${id} zoom=${core.zoom().toFixed(3)} pan=(${p1.x.toFixed(0)},${p1.y.toFixed(0)}) canvas=(${core.width()}x${core.height()}) rendered=(${rp1.x.toFixed(0)},${rp1.y.toFixed(0)}) hidden=${graphContentHiddenUntilLayout.value} fsm=${graphHandoff.state}`,
-            )
-          } catch {
-            /* ignore diag */
-          }
-        }
       },
     })
     // F3d — INTENTIONAL TIME-BASED SAFETY NETS. ResizeObserver may not fire
