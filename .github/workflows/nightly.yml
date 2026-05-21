@@ -771,7 +771,7 @@ jobs:
 
       - name: File auto-issue on regression
         if: steps.tier3.outcome == 'failure' && github.event_name == 'schedule'
-        uses: actions/github-script@v7
+        uses: actions/github-script@v9
         with:
           script: |
             const { owner, repo } = context.repo;

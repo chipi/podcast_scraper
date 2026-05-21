@@ -21,7 +21,7 @@ dependencies = [
   "python-dotenv>=1.2.2,<2.0.0",  # For .env file support (RFC-013)
   "zipp>=3.19.1,<4.0.0",  # Security fix: CVE-2024-50208 (infinite loop vulnerability)
   "jinja2>=3.1.6,<4.0.0",  # For prompt templating (RFC-017)
-  "filelock>=3.20.1,<4.0.0",  # Security fix: CVE-2025-68146 (TOCTOU race condition)
+  "filelock>=3.29.0,<4.0.0",  # Security fix: CVE-2025-68146 (TOCTOU race condition)
   # CVE-2026-4539 (ReDoS in AdlLexer, NVD/GHSA: 2.19.0–2.19.2): stay on 2.18.x until 2.19.3+; pip-audit still needs --ignore-vuln until OSV range matches
   # TODO(CVE-2026-4539): After pygments ships a fixed release and pip-audit/OSV match NVD ranges, bump the cap and drop Makefile ignore.
   "pygments>=2.20.0,<2.21.0",
@@ -62,7 +62,7 @@ ml = [
   # sentence-transformers 5.x allows transformers 4.41–5.x; keep <5 until we vendor
   # extractive QA: transformers 5 removed the ``question-answering`` pipeline task (CI preload).
   # CVE-2026-1839 (Trainer rng_state / torch.load): fixed in 5.0.0rc3+ only; pip-audit ignore in Makefile until 5.x stable.
-  "transformers>=4.41.0,<5.0.0",
+  "transformers>=4.57.6,<5.0.0",
   "sentencepiece>=0.1.99,<1.0.0",
   # GIL evidence stack: SentenceTransformer + CrossEncoder (NLI); Docker .[ml] preload
   # v3+ CrossEncoder: pass local_files_only on constructor, not inside tokenizer/automodel kwargs
@@ -72,7 +72,7 @@ ml = [
   "accelerate>=1.13.0,<2.0.0",
   "protobuf>=3.20.0,!=6.33.4,<8.0.0",  # Exclude 6.33.4 due to CVE-2026-0994 (fixed in 6.33.5+)
   # GGUF in-process inference for hybrid_ml Tier 2 REDUCE (RFC-042, Issue #352); Ollama needs no extra
-  "llama-cpp-python>=0.2.0,<0.4.0",
+  "llama-cpp-python>=0.3.23,<0.4.0",
 ]
 # Streamlit run comparison UI (RFC-047, Issue #373)
 compare = [
@@ -101,7 +101,7 @@ llm = [
 search = [
   "torch>=2.11.0,<3.0.0",
   # Pinned compatible with sentence-transformers 5.x — see [ml] for rationale.
-  "transformers>=4.41.0,<5.0.0",
+  "transformers>=4.57.6,<5.0.0",
   "sentencepiece>=0.1.99,<1.0.0",
   "sentence-transformers>=5.4.1,<6.0.0",
   "faiss-cpu>=1.13.2,<2.0.0",
@@ -110,7 +110,7 @@ search = [
 # Live pipeline monitor profiling: py-spy + memray (RFC-065; core `--monitor` uses stdlib + psutil + rich)
 monitor = [
   "py-spy>=0.4.2",
-  "memray>=1.5.0",
+  "memray>=1.19.3",
 ]
 # Development tools plus GI/KG viewer HTTP stack (FastAPI, RFC-062) — same pins as docker/api/Dockerfile
 dev = [
@@ -122,7 +122,7 @@ dev = [
   # Prometheus exporter for /metrics (gated on PODCAST_METRICS_ENABLED in app.py).
   "prometheus-fastapi-instrumentator>=7.0.0,<8.0.0",
   # In-process feed-sweep scheduler (#708); no-op unless ``scheduled_jobs:`` in viewer_operator.yaml.
-  "apscheduler>=3.10.0,<4.0.0",
+  "apscheduler>=3.11.2,<4.0.0",
   "black>=23.0.0,<27.0.0",
   "isort>=8.0.1,<9.0.0",
   "flake8>=7.3.0,<8.0.0",

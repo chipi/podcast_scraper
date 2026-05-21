@@ -78,7 +78,7 @@ jobs:
           ssh_private_key: ${{ secrets.PROD_SSH_PRIVATE_KEY }}
 
       - name: Join the tailnet
-        uses: tailscale/github-action@v2
+        uses: tailscale/github-action@v4
         with:
           authkey: ${{ secrets.TS_AUTHKEY }}
           tags:    tag:gha-deployer

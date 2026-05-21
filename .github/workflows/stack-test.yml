@@ -214,7 +214,7 @@ jobs:
       # setup-qemu-action must come before setup-buildx-action so the
       # builder picks up the registered binfmt_misc handlers.
       - name: Set up QEMU (arm64 emulation)
-        uses: docker/setup-qemu-action@v3
+        uses: docker/setup-qemu-action@v4
         with:
           platforms: linux/arm64
 

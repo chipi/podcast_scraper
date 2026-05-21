@@ -80,7 +80,7 @@ jobs:
           identity_env_name: SSH_DRILL_IDENTITY
 
       - name: "DR drill — join: tailnet (tag:gha-deployer)"
-        uses: tailscale/github-action@v2
+        uses: tailscale/github-action@v4
         with:
           authkey: ${{ secrets.TS_AUTHKEY }}
           tags:    tag:gha-deployer
