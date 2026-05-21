@@ -1667,7 +1667,7 @@ function finishLayoutPass(core: Core): void {
       // finishLayoutPass runs (race between artifact pinia + cy core).
       const epCy = findEpisodeGraphNodeIdForMetadataPathOrEpisodeId(
         gf.filteredArtifact,
-        graphHandoff.pending.metadataPath,
+        graphHandoff.pending.metadataPath ?? '',
         graphHandoff.pending.episodeId,
       )
       if (epCy) {
@@ -1698,7 +1698,7 @@ function finishLayoutPass(core: Core): void {
           const props = (data.properties ?? {}) as Record<string, unknown>
           const mp = String(props.metadata_relative_path ?? data.metadata_relative_path ?? '')
           const eid = String(props.episode_id ?? data.episode_id ?? '')
-          return (wantMeta && mp === wantMeta) || (wantEid && eid === wantEid)
+          return Boolean((wantMeta && mp === wantMeta) || (wantEid && eid === wantEid))
         })
         if (found.length > 0) {
           appliedCyId = found.first().id()
@@ -2211,7 +2211,7 @@ function tryApplyPendingFsmEnvelopeFromTabReturn(core: Core): boolean {
   if (!appliedCyId && env.kind === 'episode') {
     const epCy = findEpisodeGraphNodeIdForMetadataPathOrEpisodeId(
       gf.filteredArtifact,
-      env.metadataPath,
+      env.metadataPath ?? '',
       env.episodeId,
     )
     if (epCy) {
@@ -2232,7 +2232,7 @@ function tryApplyPendingFsmEnvelopeFromTabReturn(core: Core): boolean {
         const props = (data.properties ?? {}) as Record<string, unknown>
         const mp = String(props.metadata_relative_path ?? data.metadata_relative_path ?? '')
         const eid = String(props.episode_id ?? data.episode_id ?? '')
-        return (wantMeta && mp === wantMeta) || (wantEid && eid === wantEid)
+        return Boolean((wantMeta && mp === wantMeta) || (wantEid && eid === wantEid))
       })
       if (found.length > 0) appliedCyId = found.first().id()
     }
