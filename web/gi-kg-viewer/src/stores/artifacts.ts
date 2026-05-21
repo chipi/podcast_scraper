@@ -288,28 +288,77 @@ export const useArtifactsStore = defineStore('artifacts', () => {
     const seq = loadGate.bump()
     loading.value = true
     try {
+      // #768 — parallelize: dispatch the main set AND the sibling-bridge
+      // candidate (if any) concurrently in one ``Promise.all``. Old code
+      // awaited each ``fetchArtifactJson`` serially; with 4–30 files on
+      // cold corpora the round-trip latency stacked into the dominant
+      // share of cross-surface "Open in graph" wall-clock time.
+      //
+      // Invariants this refactor preserves vs. the old sequential code:
+      //  - Stale-check fires ONCE after the join (the old per-iteration
+      //    check couldn't help anyway because in-flight fetches can't be
+      //    cancelled — a mid-iteration ``isStale`` just abandons later
+      //    fetches, doesn't stop the ones already issued).
+      //  - In-selection ``.bridge.json`` WINS over sibling-bridge
+      //    fallback (sibling is only consulted when nothing in the main
+      //    selection ended up populating ``bridgeDocument``).
+      //  - Main-fetch rejection still fails fast via ``Promise.all``
+      //    rejecting on first error → outer ``catch`` sets ``loadError``.
+      //  - Sibling-bridge rejection stays silent (it's optional metadata).
+      //
+      // Tests pinning each invariant: ``artifacts.loadSelected.test.ts``
+      // (search for ``#768``).
+      const selected = selectedRelPaths.value
+      const giRelForSibling = selected.find((p) => p.toLowerCase().endsWith('.gi.json'))
+      const hasBridgeInSelection = selected.some((p) =>
+        p.toLowerCase().endsWith('.bridge.json'),
+      )
+      const siblingBridgeRel =
+        !hasBridgeInSelection && giRelForSibling
+          ? (() => {
+              const br = giRelForSibling.replace(/\.gi\.json$/i, '.bridge.json')
+              return br !== giRelForSibling ? br : null
+            })()
+          : null
+
+      // Main-set promises: rejections propagate (fail-fast). Sibling-bridge
+      // promise is wrapped to resolve-to-null on failure (silent / optional).
+      const mainPromises = selected.map((rel) => fetchArtifactJson(root, rel))
+      const siblingPromise = siblingBridgeRel
+        ? fetchArtifactJson(root, siblingBridgeRel).catch(() => null)
+        : Promise.resolve(null)
+
+      const [mainResults, siblingData] = await Promise.all([
+        Promise.all(mainPromises),
+        siblingPromise,
+      ])
+
+      // F3a — single stale-check after the join. If the operator clicked
+      // something else mid-flight, drop all post-join state writes.
+      if (loadGate.isStale(seq)) {
+        return
+      }
+
+      // Apply results in original selection order so ``parsedList`` is
+      // deterministic and ``bridgeDocument`` resolution is predictable.
       const out: ParsedArtifact[] = []
-      for (const rel of selectedRelPaths.value) {
-        if (loadGate.isStale(seq)) {
-          return
-        }
+      let bridgeFromSelection: ReturnType<typeof parseBridgeDocument> = null
+      for (let i = 0; i < selected.length; i++) {
+        const rel = selected[i]!
+        const data = mainResults[i]!
         const lower = rel.toLowerCase()
         if (lower.endsWith('.bridge.json')) {
           try {
-            const data = await fetchArtifactJson(root, rel)
-            bridgeDocument.value = parseBridgeDocument(data)
+            bridgeFromSelection = parseBridgeDocument(data)
           } catch {
             /* optional */
           }
           continue
         }
-        const data = await fetchArtifactJson(root, rel)
         const base = rel.includes('/') ? rel.split('/').pop() || rel : rel
         out.push(parseArtifact(base, data, rel))
       }
-      if (loadGate.isStale(seq)) {
-        return
-      }
+
       if (out.length === 0) {
         // Only clear on definite "nothing to show" — matches pre-#586
         // behaviour for this branch.
@@ -317,32 +366,24 @@ export const useArtifactsStore = defineStore('artifacts', () => {
         loadError.value = 'No .gi.json or .kg.json files in selection.'
         return
       }
+
       /** Align topic-cluster catalog with the artifact slice before assigning ``parsedList``. */
-      if (!loadGate.isStale(seq)) {
-        await syncTopicClustersForCurrentCorpus()
-      }
+      await syncTopicClustersForCurrentCorpus()
       if (loadGate.isStale(seq)) {
         return
       }
+
       parsedList.value = out
-      if (!bridgeDocument.value) {
-        const giRel = selectedRelPaths.value.find((p) => p.toLowerCase().endsWith('.gi.json'))
-        if (giRel) {
-          const br = giRel.replace(/\.gi\.json$/i, '.bridge.json')
-          if (br !== giRel) {
-            try {
-              if (loadGate.isStale(seq)) {
-                return
-              }
-              const data = await fetchArtifactJson(root, br)
-              if (loadGate.isStale(seq)) {
-                return
-              }
-              bridgeDocument.value = parseBridgeDocument(data)
-            } catch {
-              /* sibling bridge is optional */
-            }
-          }
+      // In-selection bridge WINS over sibling-bridge fallback. The
+      // sibling fetch already fired in parallel; its result is only
+      // applied when the selection itself didn't carry a bridge.
+      if (bridgeFromSelection) {
+        bridgeDocument.value = bridgeFromSelection
+      } else if (siblingData) {
+        try {
+          bridgeDocument.value = parseBridgeDocument(siblingData)
+        } catch {
+          /* sibling bridge is optional */
         }
       }
     } catch (e) {
