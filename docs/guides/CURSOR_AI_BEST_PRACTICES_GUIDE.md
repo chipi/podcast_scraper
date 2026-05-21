@@ -1,5 +1,14 @@
 # Cursor AI Best Practices for podcast_scraper
 
+> **2026-05-21 restructure note:** the canonical agent rules (stack, commands,
+> "rules you keep breaking", git workflow, tool usage) now live in `AGENTS.md`
+> at the repo root. `.cursorrules` is now a thin Cursor-specific overlay
+> (~68 lines) that points at `AGENTS.md` and carries only the Cursor-native
+> `.cursor/rules/*.mdc` auto-load matrix. References below to "what
+> `.cursorrules` contains" describe the legacy 467-line file; the *mechanism*
+> (Cursor always loads `.cursorrules`) is unchanged — but Cursor will now
+> follow its pointer to `AGENTS.md` for actual rule content.
+
 ## Quick Reference: Model Selection
 
 **Default Rule of Thumb:**

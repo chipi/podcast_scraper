@@ -12,7 +12,7 @@ This document defines how we manage the lifecycle of features, architectural cha
 
 ## Maintainer review
 
-Re-read this guide when onboarding, after a **process drift** incident (wrong doc type, missing index row, RFC vs ADR confusion), or during periodic doc hygiene. Keep **`.cursorrules`**, **`CLAUDE.md`**, and **`.cursor/rules/engineering-process.mdc`** aligned with the **chain** section below so agents load the right shape of document.
+Re-read this guide when onboarding, after a **process drift** incident (wrong doc type, missing index row, RFC vs ADR confusion), or during periodic doc hygiene. Keep **`AGENTS.md`** (canonical agent rules) and **`.cursor/rules/engineering-process.mdc`** aligned with the **chain** section below so agents load the right shape of document. `.cursorrules` and `CLAUDE.md` are thin tool-overlays that defer to `AGENTS.md` and don't need separate updates.
 
 ## Documentation flow
 
