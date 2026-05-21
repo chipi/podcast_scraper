@@ -109,7 +109,7 @@ test.describe('Handoff matrix § Tier 2 — Cross-entry (production-shaped)', ()
 
     const fsm = await readFsmState(page)
     // eslint-disable-next-line no-console
-    console.log('[Tier-2 P2.5]', JSON.stringify({ state: fsm?.state, lastResult: fsm?.lastResult }))
+    console.log('[Tier-2 P2.5]', JSON.stringify({ state: fsm?.state, lastResultStatus: fsm?.lastResultStatus }))
     expect(fsm).not.toBeNull()
     // FSM MUST reach ``ready`` within 3s post-click. Before the
     // ``loadSelected`` fix the FSM would still be in ``loading_fetch``

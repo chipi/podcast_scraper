@@ -92,7 +92,7 @@ jobs:
 
       - name: "DR drill — join: tailnet (tag:gha-deployer)"
         if: steps.preflight.outputs.skip != 'true'
-        uses: tailscale/github-action@v2
+        uses: tailscale/github-action@v4
         with:
           authkey: ${{ secrets.TS_AUTHKEY }}
           tags:    tag:gha-deployer

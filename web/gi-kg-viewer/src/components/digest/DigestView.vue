@@ -20,7 +20,6 @@ import { useGraphHandoffStore } from '../../stores/graphHandoff'
 import { useGraphNavigationStore } from '../../stores/graphNavigation'
 import { useDashboardNavStore } from '../../stores/dashboardNav'
 import { useShellStore } from '../../stores/shell'
-import { digestCategoryBandEpisodeCap } from '../../utils/clusterSiblingMerge'
 import {
   digestRowFeedLabelWithCatalog,
   digestRowSummaryPreview,

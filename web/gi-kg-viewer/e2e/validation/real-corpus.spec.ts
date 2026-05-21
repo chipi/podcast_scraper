@@ -314,7 +314,7 @@ test.describe('Real-corpus validation', () => {
         await new Promise((r) => setTimeout(r, 200))
       }
       const w2 = window as unknown as {
-        __GIKG_FSM__?: { state: string; lastResult: unknown }
+        __GIKG_FSM__?: { state: string; lastResult: { status: string; reason?: string } | null }
       }
       return {
         state: w2.__GIKG_FSM__?.state ?? 'unknown',
@@ -387,7 +387,7 @@ test.describe('Real-corpus validation', () => {
         await new Promise((r) => setTimeout(r, 200))
       }
       const w2 = window as unknown as {
-        __GIKG_FSM__?: { state: string; lastResult: unknown }
+        __GIKG_FSM__?: { state: string; lastResult: { status: string; reason?: string } | null }
       }
       return {
         state: w2.__GIKG_FSM__?.state ?? 'unknown',

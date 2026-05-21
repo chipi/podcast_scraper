@@ -426,10 +426,74 @@ quality: complexity deadcode docstrings spelling
 	#   ambient ``pip`` on the runner (26.0.1); PyPI has no newer pip yet (fix merged, unreleased). CI only
 	#   installs from trusted indexes; revisit when pip >26.0.1 includes https://github.com/pypa/pip/pull/13870.
 	# TODO(CVE-2026-3219): Remove --ignore-vuln after a patched pip release is published and GHA images pick it up.
+	#
+	# --- ML-stack deserialization class (joblib / nltk / torch / transformers) ---
+	# 22 PYSECs below all share the same shape: vulnerable code path is reached
+	# only when the program deserialises an attacker-supplied artifact (joblib
+	# pickle, torch checkpoint, transformers conversion script, nltk user-path).
+	# In this project we (1) only load model weights from pinned HuggingFace
+	# repos that we control, (2) only joblib-cache values we computed in-process,
+	# (3) never expose ``nltk.util.filestring`` to user input, and (4) don't use
+	# any of the transformers conversion utilities (X-CLIP / Trainer / etc.).
+	# Re-evaluate per package when a fixed release is published.
+	#
+	# Ignore PYSEC-2024-277 (joblib NumpyArrayWrapper.read_array deserialization).
+	#   Disputed by maintainer ("only used during caching of trusted content").
+	#   No fix version exists; affects all joblib through 1.5.3.
+	# TODO(PYSEC-2024-277): drop ignore if joblib upstream addresses the dispute.
+	#
+	# Ignore PYSEC-2026-97 (nltk.util.filestring arbitrary file read).
+	#   We use nltk only for tokeniser/stopwords; ``filestring`` is never called
+	#   on user-supplied paths. No fix version yet; affects all nltk through 3.9.4.
+	# TODO(PYSEC-2026-97): drop ignore when nltk releases a sanitised filestring.
+	#
+	# Ignore PYSEC-2025-189..197, PYSEC-2025-210, PYSEC-2026-139 (torch checkpoint /
+	#   operator deserialization class). 11 advisories against torch <= 2.12.0 with
+	#   NO fix versions (2.12.0 IS the latest). We only ``torch.load`` HuggingFace
+	#   weights pinned in pyproject.toml; no user-supplied checkpoints.
+	# TODO(torch PYSECs): drop ignores when upstream ships fixed versions and we
+	#   bump the torch pin.
+	#
+	# Ignore PYSEC-2025-211..218 (transformers X-CLIP / Trainer / conversion-script
+	#   deserialization, all RCE-class but require attacker-controlled checkpoint).
+	#   8 advisories against transformers 4.x with NO fix in the 4.x line — fixes
+	#   live only in the 5.x branch which we don't ship yet (sentence-transformers
+	#   5.x allows transformers 4.41–5.x; we cap at <5 until extractive QA path
+	#   is vendored — see [ml] in pyproject.toml).
+	# TODO(transformers PYSECs): drop ignores after bumping transformers to a
+	#   patched 5.x release (paired with the CVE-2026-1839 ignore above).
+	#
 	# Note: If protobuf is updated to >=6.33.5 or >=7.0.0, this ignore can be removed
 	# Note: en-core-web-sm is installed from GitHub (not PyPI), so it cannot be audited by pip-audit
 	#       If it appears in audit output, it can be safely ignored as it's not from PyPI
-	$(PYTHON) -m pip_audit --skip-editable --ignore-vuln PYSEC-2022-42969 --ignore-vuln CVE-2026-0994 --ignore-vuln CVE-2026-4539 --ignore-vuln CVE-2026-1839 --ignore-vuln CVE-2025-69872 --ignore-vuln CVE-2026-3219
+	$(PYTHON) -m pip_audit --skip-editable \
+		--ignore-vuln PYSEC-2022-42969 \
+		--ignore-vuln CVE-2026-0994 \
+		--ignore-vuln CVE-2026-4539 \
+		--ignore-vuln CVE-2026-1839 \
+		--ignore-vuln CVE-2025-69872 \
+		--ignore-vuln CVE-2026-3219 \
+		--ignore-vuln PYSEC-2024-277 \
+		--ignore-vuln PYSEC-2026-97 \
+		--ignore-vuln PYSEC-2025-189 \
+		--ignore-vuln PYSEC-2025-190 \
+		--ignore-vuln PYSEC-2025-191 \
+		--ignore-vuln PYSEC-2025-192 \
+		--ignore-vuln PYSEC-2025-193 \
+		--ignore-vuln PYSEC-2025-194 \
+		--ignore-vuln PYSEC-2025-195 \
+		--ignore-vuln PYSEC-2025-196 \
+		--ignore-vuln PYSEC-2025-197 \
+		--ignore-vuln PYSEC-2025-210 \
+		--ignore-vuln PYSEC-2026-139 \
+		--ignore-vuln PYSEC-2025-211 \
+		--ignore-vuln PYSEC-2025-212 \
+		--ignore-vuln PYSEC-2025-213 \
+		--ignore-vuln PYSEC-2025-214 \
+		--ignore-vuln PYSEC-2025-215 \
+		--ignore-vuln PYSEC-2025-216 \
+		--ignore-vuln PYSEC-2025-217 \
+		--ignore-vuln PYSEC-2025-218
 
 docs:
 	$(PYTHON) -m mkdocs build --strict

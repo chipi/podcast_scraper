@@ -832,11 +832,11 @@ test.describe('Handoff matrix § Tier 3 expanded (real backend + real corpus)', 
         .nodes()
         .filter((n) => !n.selected())
         .filter((n) => {
-          const p = n.renderedPosition()
+          const p = (n as import('cytoscape').NodeSingular).renderedPosition()
           return p.x >= 10 && p.x <= W - 10 && p.y >= 10 && p.y <= H - 10
         })
       if (candidates.length === 0) return null
-      const node = candidates.first()
+      const node = candidates.first() as import('cytoscape').NodeSingular
       const pos = node.renderedPosition()
       return { id: node.id(), px: rect.left + pos.x, py: rect.top + pos.y }
     })
