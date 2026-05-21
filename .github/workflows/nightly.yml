@@ -663,7 +663,13 @@ jobs:
         run: |
           python -m venv .venv
           .venv/bin/python -m pip install --upgrade pip
-          .venv/bin/python -m pip install -e ".[dev]"
+          # ``[search]`` = sentence-transformers + faiss-cpu + torch — the
+          # minimum needed by the indexing step below. ``[dev]`` adds the
+          # FastAPI / uvicorn stack the in-process viewer API needs. We
+          # deliberately do NOT install ``[ml]`` (whisper / spaCy / etc.) —
+          # tier-3 doesn't transcribe or summarise; it only indexes for
+          # the digest/search FAISS lookup.
+          .venv/bin/python -m pip install -e ".[search,dev]"
 
       - name: Install viewer deps
         working-directory: web/gi-kg-viewer
@@ -689,11 +695,18 @@ jobs:
             hf-hub-
 
       - name: Preload sentence-transformers embedding model
+        env:
+          # Skip whisper / spaCy / transformers preload — they aren't
+          # installed under ``[search,dev]`` and tier-3 doesn't need them.
+          # SKIP_GIL stays unset because the GIL evidence stack includes
+          # the embedding model (MiniLM-L6-v2) that ``cli index`` requires.
+          SKIP_WHISPER: "1"
+          SKIP_SPACY: "1"
+          SKIP_TRANSFORMERS: "1"
         run: |
           # ``index_corpus`` runs with allow_download=False — the model
           # MUST be cached before indexing. preload_ml_models.py is the
-          # production way to populate the HF cache for embedding-only
-          # use (SKIP_GIL=1 would skip the embedding model — we need it).
+          # production way to populate the HF cache for embedding-only use.
           .venv/bin/python scripts/cache/preload_ml_models.py
 
       - name: Build FAISS index against synthetic corpus (V2 prereq)
