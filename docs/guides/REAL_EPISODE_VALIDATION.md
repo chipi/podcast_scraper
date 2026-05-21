@@ -18,7 +18,7 @@ shipped bugs that all unit tests had missed:
 All four were caught by harnesses living in `scripts/validate/`. None
 by unit tests.
 
-## The rule (from CLAUDE.md)
+## The rule (from AGENTS.md)
 
 > Before pushing any change that touches a production pipeline stage
 > (summarization dispatch, GI/KG extraction, transcription preprocessing,
@@ -148,7 +148,7 @@ Pair them. Neither alone is enough for a production-facing change.
 
 ## Related
 
-- `CLAUDE.md` — *Final validation before push: real episodes, not just
+- `AGENTS.md` — *Final validation before push: real episodes, not just
   unit tests* section.
 - `scripts/validate/validate_phase3c.py` — canonical dispatch harness.
 - `scripts/validate/validate_layout_644.py` — canonical CLI harness.

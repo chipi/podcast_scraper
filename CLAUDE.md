@@ -1,81 +1,42 @@
 # Claude Code instructions for podcast_scraper
 
-The primary rules live in **`.cursorrules`**. Read it.
+This file is a **thin Claude Code-specific overlay**. The canonical rules —
+stack, commands, "rules you keep breaking", git workflow, tool usage, code
+quality — live in **`AGENTS.md`** (repo root). Read it first.
 
-## Top of `.cursorrules` — RULES YOU KEEP BREAKING
+Detail manuals (load on demand):
 
-These are the patterns where you have failed this user repeatedly:
+- `.ai-coding-guidelines-quick.md` — 90-line quick reference
+- `.ai-coding-guidelines.md` — deep reference manual (~2,500 lines)
+- `docs/guides/*` — topic-specific guides
 
-1. Never push without explicit user approval.
-2. Never sync an open PR's branch with main unprompted (any push to a PR's HEAD restarts ALL CI checks; that's ~30 min of burned time for "avoiding a future merge conflict" you could resolve in seconds at squash-merge).
-3. Do exactly what was asked, nothing more — no "while I'm here" steps.
-4. When the user is frustrated, stop proposing actions; acknowledge and wait.
-5. Read what was last asked, not what you think makes sense.
-6. Validate the cost of an action before taking it (does it restart CI? does it push? does it require approval?).
-7. **Own agent-introduced automation; execute the obvious path.** When the user reports failure or flakiness in **workflows/orchestrators/CI glue you added**, default to **in-repo fixes** (`actionlint`, targeted `make`, YAML/script edits). Do not close with psychology or implied operator homework unless blocked (secrets, org policy). **Do not suggest the user run a step you can run** (same shell/tools/repo). **Do ask** when there are real options or trade-offs, or an irreversible/risky move needs their choice. See `.cursorrules` rule 7 and **Autonomous execution**.
-8. **Never guess failures; read proof first.** For CI/infra/deploy/runtime issues, pull the **actual** failing job/step (`gh run view … --json jobs`, `--log-failed`) or full local output **before** stating root cause or that something is fixed. Cite **step name** and error lines. If logs are inaccessible, say so—do not invent a diagnosis from memory. See `.cursorrules` rule 8.
-9. **Make commands MUST be assessable at the end.** ALWAYS invoke `make` with an exit-code terminator from the start, so the LAST line of output unambiguously says PASS/FAIL. NEVER re-run a `make` command "to check the exit code". See [How to run make commands](#how-to-run-make-commands) below.
+---
 
-## How to run make commands
+## Claude Code-specific: resuming from context-window compaction
 
-You repeatedly burn 5–10 minutes by running `make ci-fast` (or any other long `make` target), failing to extract the exit status from the output, then re-running it "to verify". This is a permanent prohibition.
+When a conversation summary carries over a todo tagged "deferred", "risky",
+or "follow-up", do **not** silently act on it — also do **not** silently keep
+it deferred if it would break the diff. Re-state the item and ask.
 
-**The rule: every `make <target>` invocation MUST end with an exit-code terminator from the very first run, so PASS/FAIL is the last visible line.** Choose ONE form per call:
+This rule is Claude-specific because Claude's auto-compaction can silently
+drop or re-frame the deferral context; other agents either don't compact or
+compact differently. The risk is acting on a fragmentary memory of a
+deferred decision instead of the user's actual intent.
 
-```bash
-# Form A — the default, always-safe form. Last line is "MAKE_EXIT=0" or "MAKE_EXIT=N".
-make <target>; echo "MAKE_EXIT=$?"
+---
 
-# Form B — single-shot interpretable terminator. Last line is "PASS" or "FAIL N".
-make <target> && echo "PASS" || echo "FAIL $?"
-```
+## Claude Code-specific: skills, hooks, memory
 
-**Why both lines instead of trusting the prior output:** `make` exits non-zero on the first failing subtarget but the FINAL printed line of a long run is whatever the last subtarget happened to print (often a build success message even when an earlier step failed). The output's *trailing prose* is NOT the exit code. Without the explicit terminator, you cannot tell PASS from FAIL by inspection — and you should NOT re-run the whole target to find out.
+- Skills (`.claude/skills/`) auto-load when their trigger conditions match.
+  Read the skill description before invoking.
+- Memory files at `~/.claude/projects/<project-slug>/memory/MEMORY.md`
+  persist across sessions. Treat them as the operator's prior-session
+  context, not as authoritative — verify against the current code before
+  acting.
+- Hooks (`settings.json`) execute around tool calls; respect what they
+  return. Don't bypass a `PreToolUse` deny.
 
-**Forbidden:**
+---
 
-- Running `make X` without an exit-code terminator, then running it again "to check".
-- Piping `make X` through `tail`, `grep`, `head` without `set -o pipefail` AND an exit-code echo at the end.
-- Treating "no obvious error in the last 60 lines" as PASS. Inspect the explicit `MAKE_EXIT=` / `PASS` / `FAIL` line.
-- Re-running `make ci-fast` to "verify the exit code" of a previous run. If the prior run lacked the terminator, that is on you — work with what you have, ask the user, or grep the prior output for explicit failure markers. Do NOT spend another 10 minutes.
-
-**On a failing `make ci-fast`:** identify the failing SUBTARGET (docs / lint / format / test / etc.) and validate the fix by re-running ONLY that subtarget — `make docs` is 10 s, `make ci-fast` is 10 min. Then run `make ci-fast` ONCE at the very end as the whole-gate confirmation. (See `feedback_no_redundant_ci_fast.md` and `feedback_subtarget_reverify.md` in user memory.)
-
-**Docs-only and infra/CI-only diffs:** see **`.cursorrules` — CI gating** (and **`.ai-coding-guidelines-quick.md`**) for when **`make lint-markdown`** / **`make docs`** replace a local **`ci-fast`**. **GitHub:** **`python-app.yml`** still runs on push when **`Makefile`** or that workflow file changes (`on.push.paths`), including **build** jobs — that is expected.
-
-## Reference files (load on demand)
-
-- **`.cursorrules`** — index + workflow rules (~180 lines, default load).
-- **`.ai-coding-guidelines-quick.md`** — 90-line summary with quick commands and decision trees.
-- **`.cursor/rules/*.mdc`** — topic-specific detail (testing, module boundaries, browser bug loop, etc.). Auto-load by file path; see `.cursorrules` "Auto-loading detailed rules" section.
-- **`.ai-coding-guidelines.md`** — deep reference manual (~2,500 lines). Load specific sections on-demand only; don't load wholesale.
-- **`.cursor/commands/*.md`** — saved slash-command prompts (`/review-changes-gaps`, etc.).
-
-## Auto-load by file path
-
-When editing files matching these paths, load the listed guide before editing:
-
-- `docs/prd/**`, `docs/uxs/**`, `docs/rfc/**`, `docs/adr/**`, `docs/architecture/**` → **`docs/guides/ENGINEERING_PROCESS.md`** first (PRD/UXS/RFC/ADR chain; RFC = design, ADR = Accepted decisions). Use `.cursor/rules/engineering-process.mdc` when present.
-- `tests/unit/**` → `docs/guides/UNIT_TESTING_GUIDE.md` (`tests/unit/` must not depend on any non-`[dev]` extra; never use `pytest.importorskip()` to sidestep).
-- `tests/integration/**` or `tests/e2e/**` → `docs/guides/TESTING_GUIDE.md`.
-- `config/profiles/*.yaml` → see *Profile completeness* in `.cursorrules`.
-- `web/gi-kg-viewer/**` → see *GI/KG viewer UX* in `.cursorrules`.
-
-## Project-specific rules not in `.cursorrules`
-
-### Half-wired features are worse than no feature
-
-A new `Literal[...]` value, `Config` field, CLI flag, or provider method is only complete when **every code path the user could hit actually does the different thing**. "Method exists but pipeline still calls the old one" is a regression, not a stub. If full end-to-end wiring is genuinely out of scope, do NOT change profile defaults, do NOT publicise the flag, and do NOT add the `Literal` value. The `#643 Phase 3C` near-miss (shipping `llm_pipeline_mode: mega_bundled` while the dispatch was deferred) is the canonical example.
-
-### Resuming from compaction: re-confirm deferred items
-
-When a conversation summary carries over a todo tagged "deferred", "risky", or "follow-up", do **not** silently act on it — also do **not** silently keep it deferred if it would break the diff. Re-state the item and ask.
-
-### Final validation before push: real episodes, not just unit tests
-
-Mocked unit tests prove dispatch routes correctly; they do NOT prove the feature works against real provider responses, real transcripts, or the real end-to-end pipeline. Before pushing any change touching a production pipeline stage:
-
-1. Run one real episode end-to-end with the changed code path (`.env` keys are checked first).
-2. Measure the claim numerically (LLM calls, file size, KG nodes — whatever the change claims to improve).
-3. Inspect one artifact by eye.
-4. Only then push.
+**Canonical rules:** `AGENTS.md`
+**Detail:** `.ai-coding-guidelines.md` / `docs/guides/*`
