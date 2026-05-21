@@ -474,6 +474,7 @@ async function openInGraph(): Promise<void> {
     }
     subject.focusEpisode(episodeMeta, {
       uiTitle: episodeUiTitle,
+      ...(episodeIdForGraph ? { episodeId: episodeIdForGraph } : {}),
       ...(epCy ? { graphConnectionsCyId: epCy } : {}),
     })
     if (epCy) {

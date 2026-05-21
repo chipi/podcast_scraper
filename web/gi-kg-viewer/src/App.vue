@@ -207,6 +207,15 @@ watch(mainTab, (tab) => {
 
 function onSwitchMainTab(tab: 'digest' | 'library' | 'graph' | 'dashboard'): void {
   if (tab === 'graph') {
+    // P4.1 race fix: when a handoff is already pending (e.g. Digest pill
+    // mid-await), the orchestrator owns the load. Calling
+    // ``activateGraphTab()`` here would either double-bootstrap or fire a
+    // fresh ``tab-switch`` envelope that supersedes the in-flight one.
+    // Just flip the tab — the pending FSM event drives the rest.
+    if (graphHandoff.pending) {
+      mainTab.value = 'graph'
+      return
+    }
     void activateGraphTab()
     return
   }

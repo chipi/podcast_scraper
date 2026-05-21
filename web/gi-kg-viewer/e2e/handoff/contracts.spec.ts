@@ -21,6 +21,7 @@ import {
 } from '../helpers'
 import {
   readFsmEventLog,
+  readFsmState,
   resetFsmEventLog,
   setupHandoffMatrixMocks,
 } from './_handoff-helpers'
@@ -122,6 +123,14 @@ test.describe('Handoff contracts § T3 architectural invariants', () => {
     const log = await readFsmEventLog(page)
     const events = log.filter((e) => e.type === 'corpusReloaded')
     expect(events.length).toBeGreaterThanOrEqual(1)
+
+    // Full reset follow-up: state must return to `idle`, no pending envelope,
+    // and the FSM generation must have advanced (locks decision #5 / RFC ref).
+    const after = await readFsmState(page)
+    expect(after).not.toBeNull()
+    expect(after!.state).toBe('idle')
+    expect(after!.pending).toBeNull()
+    expect(after!.generation).toBeGreaterThan(0)
   })
 
   test('G1/G2 — canvas onetap on graph node fires canvasTapped with source=canvas-tap', async ({

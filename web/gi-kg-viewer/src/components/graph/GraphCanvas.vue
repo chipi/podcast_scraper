@@ -224,7 +224,10 @@ async function openGraphEpisodeOrNodeRail(
   }
   if (graphEpisodeOpenGate.isStale(token)) return
   if (meta) {
-    subject.focusEpisode(meta, { graphConnectionsCyId: cyId })
+    subject.focusEpisode(meta, {
+      graphConnectionsCyId: cyId,
+      ...(eid ? { episodeId: eid } : {}),
+    })
   } else {
     subject.focusGraphNode(cyId)
   }

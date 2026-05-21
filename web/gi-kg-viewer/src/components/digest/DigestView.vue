@@ -261,6 +261,17 @@ async function openDigestRecentTopicPillInGraph(
     })
   }
 
+  // P4.1 race fix: emit the tab switch SYNCHRONOUSLY now (before any
+  // ``await``) so user intent to land on Graph is honored immediately.
+  // Previously this emit fired at the bottom of the handler — after
+  // ``await appendRelativeArtifacts`` plus an optional 600 ms
+  // ``stillStuck`` wait. If the user (or test) clicked another tab in
+  // that window, the deferred emit raced back to Graph after their
+  // click. ``handoffRequested`` above set ``graphHandoff.pending`` so
+  // ``onSwitchMainTab`` in App.vue short-circuits and just flips
+  // ``mainTab`` (no double bootstrap, no superseded envelope).
+  emit('switch-main-tab', 'graph')
+
   // Snapshot the selection length BEFORE append so we can detect the
   // ``appendRelativeArtifacts`` no-op short-circuit (all paths already
   // loaded). In that case the natural redraw chain doesn't fire and the
@@ -298,7 +309,8 @@ async function openDigestRecentTopicPillInGraph(
       }
     }
   }
-  emit('switch-main-tab', 'graph')
+  // (No final ``emit('switch-main-tab', 'graph')`` — fired
+  // synchronously above to avoid the P4.1 cross-tab race.)
 }
 
 /** Distinct from **Recent** digest cards (same episode can appear in both lists). */
@@ -532,10 +544,15 @@ async function openTopicHitInGraph(
   // DO NOT call ensureDefaultCorpusGraphIfNeeded() - it sets mainTab to 'graph' which causes double-loading
   // Mark this as external load from Digest - no auto-merge wanted
   artifacts.setLoadSource('digest-external')
-  await artifacts.appendRelativeArtifacts(cleaned)
-  if (digestGraphOpenGate.isStale(seq)) {
-    return
-  }
+
+  // P4.1 race fix: dispatch the FSM envelope + switch tabs
+  // SYNCHRONOUSLY before any await. The previous order awaited
+  // ``appendRelativeArtifacts`` first and emitted the tab switch at the
+  // very end — if the user (or test) clicked another tab while the await
+  // was in flight, the deferred emit would race back to Graph after
+  // their click. Subject and envelope setup happen here with sync data
+  // already on ``h`` and ``opts``; the FSM waits for ``loading_merge``
+  // before applying focus, so the post-append order remains correct.
   graphNav.clearLibraryEpisodeHighlights()
   const topicFocus = opts?.graphTopicNodeId?.trim()
   const eid = h.episode_id?.trim()
@@ -579,7 +596,17 @@ async function openTopicHitInGraph(
   } else {
     graphNav.clearPendingFocus()
   }
+  // Fire tab switch synchronously — ``onSwitchMainTab`` in App.vue
+  // short-circuits when ``graphHandoff.pending`` is set (just flips
+  // ``mainTab`` without re-entering ``activateGraphTab``).
   emit('switch-main-tab', 'graph')
+
+  // Now do the artifact merge. The FSM is already in ``loading_*`` and
+  // will reach ``ready`` via the natural ``finishLayoutPass`` chain.
+  await artifacts.appendRelativeArtifacts(cleaned)
+  if (digestGraphOpenGate.isStale(seq)) {
+    return
+  }
 }
 
 watch(

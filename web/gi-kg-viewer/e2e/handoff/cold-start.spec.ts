@@ -13,6 +13,7 @@ import {
   assertHandoffApplied,
   captureConsoleErrors,
   readFsmState,
+  readSubjectState,
   setupHandoffMatrixMocks,
 } from './_handoff-helpers'
 
@@ -150,6 +151,18 @@ test.describe('Handoff matrix § Section 1 — Cold-start', () => {
       errors: errs,
       episodePanelTitle: 'Mock Episode Title',
     })
+
+    // H1.6 follow-up — subject.episodeId asymmetry. After the FSM applies,
+    // the Pinia subject store must reflect BOTH episodeMetadataPath AND
+    // episodeId for an episode whose UUID is known at click time. Pre-fix,
+    // EpisodeDetailPanel.openInGraph called ``subject.focusEpisode`` without
+    // passing ``opts.episodeId`` → ``focusEpisode`` nulled the field even
+    // though the panel knew the UUID. Lock the fix in by asserting both
+    // identity fields populate.
+    const subj = await readSubjectState(page)
+    expect(subj?.kind).toBe('episode')
+    expect(subj?.episodeMetadataPath).toBeTruthy()
+    expect(subj?.episodeId).toBeTruthy()
   })
 
   test('H1.8 — Dashboard TopicLandscape → graph (O1)', async ({ page }) => {

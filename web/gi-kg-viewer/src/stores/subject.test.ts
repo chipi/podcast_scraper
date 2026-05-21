@@ -59,4 +59,30 @@ describe('useSubjectStore', () => {
     expect(s.graphConnectionsCyId).toBe('g:episode:x')
     expect(s.episodeUiLabel).toBe('T2')
   })
+
+  // H1.6 follow-up — Episode panel knew the UUID but
+  // ``focusEpisode`` was called without ``opts.episodeId``, nulling the
+  // field. Lock in that opts.episodeId is preserved when supplied AND that
+  // re-focusing the same path with episodeId updates it without clearing.
+  it('focusEpisode preserves opts.episodeId on initial focus', () => {
+    const s = useSubjectStore()
+    s.focusEpisode('metadata/a.json', {
+      uiTitle: 'T',
+      episodeId: 'ep-uuid-123',
+    })
+    expect(s.kind).toBe('episode')
+    expect(s.episodeMetadataPath).toBe('metadata/a.json')
+    expect(s.episodeId).toBe('ep-uuid-123')
+  })
+
+  it('focusEpisode same path with episodeId updates without nulling', () => {
+    const s = useSubjectStore()
+    s.focusEpisode('metadata/a.json', { episodeId: 'ep-uuid-1' })
+    s.focusEpisode('metadata/a.json', {
+      graphConnectionsCyId: 'g:episode:x',
+      episodeId: 'ep-uuid-1',
+    })
+    expect(s.episodeId).toBe('ep-uuid-1')
+    expect(s.graphConnectionsCyId).toBe('g:episode:x')
+  })
 })

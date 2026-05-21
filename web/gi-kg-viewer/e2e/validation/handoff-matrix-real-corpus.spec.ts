@@ -122,6 +122,26 @@ async function clickFirstLibraryRow(page: Page): Promise<void> {
   await row.click({ timeout: 15_000 })
 }
 
+/** Click the Nth Library row (0-indexed) with re-render-safe retry.
+ *  Library re-mounts when navigating back from another tab (subject/highlights
+ *  changing trigger re-render); ``locator.nth(N).click()`` races the DOM detach.
+ *  Wait for library-root + row to attach, scroll into view, snapshot
+ *  aria-label, then click by exact label so Playwright resolves a fresh
+ *  element under the re-rendered subtree. */
+async function clickNthLibraryRowStable(page: Page, n: number): Promise<void> {
+  await page.getByTestId('library-root').waitFor({ state: 'visible', timeout: 15_000 })
+  const rows = page.getByRole('button', { name: /, / }).filter({ hasNotText: 'Open in graph' })
+  await rows.nth(n).waitFor({ state: 'attached', timeout: 15_000 })
+  await rows.nth(n).scrollIntoViewIfNeeded()
+  const label = await rows.nth(n).getAttribute('aria-label')
+  if (!label) {
+    throw new Error(`clickNthLibraryRowStable: row ${n} has no aria-label`)
+  }
+  const target = page.getByRole('button', { name: label, exact: true }).first()
+  await target.waitFor({ state: 'visible', timeout: 15_000 })
+  await target.click({ timeout: 15_000 })
+}
+
 /** Click the Library "Open in graph" affordance (E1 entry point via episode panel).
  *  Scrolls the button into view first — when the right rail is showing
  *  a different subject (e.g. a topic cluster from a prior digest click),
@@ -518,8 +538,7 @@ test.describe('Handoff matrix § Tier 3 expanded (real backend + real corpus)', 
 
     // 3. Library again (different row)
     await mainViewsNav(page).getByRole('button', { name: 'Library' }).click()
-    const rows = page.getByRole('button', { name: /, / }).filter({ hasNotText: 'Open in graph' })
-    await rows.nth(1).click({ timeout: 15_000 })
+    await clickNthLibraryRowStable(page, 1)
     await clickOpenInGraphButton(page)
     const finalFsm = await waitForFsmTerminal(page)
 
