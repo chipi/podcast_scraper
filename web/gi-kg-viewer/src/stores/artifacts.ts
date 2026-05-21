@@ -98,19 +98,39 @@ export const useArtifactsStore = defineStore('artifacts', () => {
     ),
   )
 
-  function applyTopicClustersFetchResult(tc: TopicClustersFetchResult): void {
+  // #769 — memoize the topic-clusters HTTP fetch per corpus root.
+  //
+  // ``ensureTopicClusterCompoundVisible`` calls ``syncTopicClustersForCurrentCorpus``
+  // at the top of every invocation, and on first-open graph paths the
+  // App.vue ``activateGraphTab`` orchestrator can invoke
+  // ``ensureTopicClusterCompoundVisible`` up to 3 times per click (bootstrap
+  // path + post-bootstrap call + watcher cascade). The HTTP fetch is
+  // identical each time. Memoizing it via this sentinel saves 100-400 ms
+  // per redundant call.
+  //
+  // Invalidation contract: ``topicClustersFetchedForRoot`` is set ONLY by
+  // ``applyTopicClustersFetchResult`` on a successful 'ok' result, and
+  // cleared at every site that nulls ``topicClustersDoc.value``. The
+  // sentinel + doc form the cache key; the memoize path is taken only
+  // when BOTH the root matches AND the doc is still populated.
+  let topicClustersFetchedForRoot: string | null = null
+
+  function applyTopicClustersFetchResult(tc: TopicClustersFetchResult, root: string): void {
     if (tc.status === 'ok') {
       topicClustersDoc.value = tc.document
+      topicClustersFetchedForRoot = root
       topicClustersLoadState.value = 'ok'
       topicClustersErrorDetail.value = null
       topicClustersSchemaWarning.value = tc.schemaWarning ?? null
     } else if (tc.status === 'missing') {
       topicClustersDoc.value = null
+      topicClustersFetchedForRoot = null
       topicClustersLoadState.value = 'missing'
       topicClustersErrorDetail.value = null
       topicClustersSchemaWarning.value = null
     } else {
       topicClustersDoc.value = null
+      topicClustersFetchedForRoot = null
       topicClustersLoadState.value = 'error'
       topicClustersErrorDetail.value = tc.message
       topicClustersSchemaWarning.value = null
@@ -120,17 +140,24 @@ export const useArtifactsStore = defineStore('artifacts', () => {
   /**
    * Fetch ``/api/corpus/topic-clusters`` for the current ``corpusPath`` (no artifact load required).
    * Safe to call as soon as corpus root + healthy API are known so the Dashboard corpus workspace can show status.
+   *
+   * #769 memoized: if the most recent successful fetch was for the same
+   * root AND the doc is still populated, the HTTP call is skipped.
    */
   async function syncTopicClustersForCurrentCorpus(): Promise<void> {
     const root = corpusPath.value.trim()
     if (!root) {
       return
     }
+    if (topicClustersFetchedForRoot === root && topicClustersDoc.value !== null) {
+      return
+    }
     try {
       const tc = await fetchTopicClustersFromApi(root)
-      applyTopicClustersFetchResult(tc)
+      applyTopicClustersFetchResult(tc, root)
     } catch (e) {
       topicClustersDoc.value = null
+      topicClustersFetchedForRoot = null
       topicClustersLoadState.value = 'error'
       topicClustersErrorDetail.value = e instanceof Error ? e.message : String(e)
       topicClustersSchemaWarning.value = null
@@ -145,6 +172,7 @@ export const useArtifactsStore = defineStore('artifacts', () => {
     parsedList.value = []
     bridgeDocument.value = null
     topicClustersDoc.value = null
+    topicClustersFetchedForRoot = null
     topicClustersLoadState.value = 'idle'
     topicClustersErrorDetail.value = null
     topicClustersSchemaWarning.value = null
@@ -227,6 +255,7 @@ export const useArtifactsStore = defineStore('artifacts', () => {
       parsedList.value = kept
       selectedRelPaths.value = kept.map((p) => p.name)
       topicClustersDoc.value = null
+      topicClustersFetchedForRoot = null
       topicClustersLoadState.value = 'local_files'
       topicClustersErrorDetail.value = null
       topicClustersSchemaWarning.value = null
@@ -399,7 +428,15 @@ export const useArtifactsStore = defineStore('artifacts', () => {
   }
 
   function setCorpusPath(p: string): void {
-    corpusPath.value = p
+    const next = String(p)
+    // #769 — invalidate the topic-clusters cache whenever the corpus
+    // root changes. The sentinel is also reset by clearSelection /
+    // loadFromLocalFiles / fetch-error paths; this handles the direct
+    // ``setCorpusPath`` case (operator typed a new path).
+    if (next.trim() !== corpusPath.value.trim()) {
+      topicClustersFetchedForRoot = null
+    }
+    corpusPath.value = next
   }
 
   function toggleSelection(rel: string): void {
@@ -417,6 +454,7 @@ export const useArtifactsStore = defineStore('artifacts', () => {
     parsedList.value = []
     bridgeDocument.value = null
     topicClustersDoc.value = null
+    topicClustersFetchedForRoot = null
     topicClustersLoadState.value = 'idle'
     topicClustersErrorDetail.value = null
     topicClustersSchemaWarning.value = null

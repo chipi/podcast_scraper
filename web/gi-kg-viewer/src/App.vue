@@ -177,8 +177,13 @@ async function activateGraphTab(
 
   graphExplorer.markGraphTabOpenedOnce()
 
+  // #769 — track whether the bootstrap path already called
+  // ``ensureTopicClusterCompoundVisible`` so we can skip the duplicate
+  // call below. ``maybeBootstrapGraphFromTopicClusterOnly`` invokes it
+  // internally (artifacts.ts:705); without this skip the same compound-
+  // visibility work runs twice on every first-open graph click.
+  let bootstrappedFromCluster = false
   if (artifacts.parsedList.length === 0) {
-    let bootstrappedFromCluster = false
     if (target && !target.startsWith('topic:')) {
       bootstrappedFromCluster =
         await artifacts.maybeBootstrapGraphFromTopicClusterOnly(target)
@@ -189,7 +194,9 @@ async function activateGraphTab(
   }
 
   if (target && !target.startsWith('topic:')) {
-    await artifacts.ensureTopicClusterCompoundVisible(target)
+    if (!bootstrappedFromCluster) {
+      await artifacts.ensureTopicClusterCompoundVisible(target)
+    }
     graphNav.requestFocusNode(target, fbTrim || null)
   }
 }
