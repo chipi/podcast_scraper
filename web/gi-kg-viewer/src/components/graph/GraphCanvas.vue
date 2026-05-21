@@ -975,20 +975,20 @@ function applyTopicDegreeHeat(core: Core): void {
   })
 }
 
-function layoutOptionsFor(name: string): Record<string, unknown> {
+function layoutOptionsFor(name: string, opts?: { numIter?: number }): Record<string, unknown> {
   if (name === 'cose') {
     // Namespace import + fallback: avoids rare `ReferenceError` from named-import/HMR chunks.
     try {
       const fn = giKgCoseLayout.giKgCoseLayoutOptionsMain
       if (typeof fn === 'function') {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        return fn() as any
+        return fn(opts?.numIter) as any
       }
     } catch (e) {
       console.warn('[GraphCanvas] giKgCoseLayoutOptionsMain failed, using fallback', e)
     }
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    return giKgCoseLayout.giKgCoseLayoutOptionsMainFallback() as any
+    return giKgCoseLayout.giKgCoseLayoutOptionsMainFallback(opts?.numIter) as any
   }
   // 'timeline' is handled by `timelineLayoutSpec(core)` at the caller —
   // it needs the live Cytoscape collection to read publishDate +
@@ -2075,15 +2075,15 @@ function animateCameraToFocusedNode(
     // carves out timeouts. Per FSM design: replace with event-driven barriers
     // only when there's a corresponding Cytoscape event that fires reliably
     // for every meaningful resize. Today there isn't one.
-    setTimeout(() => {
-      if (cy === core) recenterIfPending(core)
-    }, 400)
-    setTimeout(() => {
-      if (cy === core) recenterIfPending(core)
-    }, 900)
-    setTimeout(() => {
-      if (cy === core) recenterIfPending(core)
-    }, 1800)
+    // #767-C — safety-net tail timings live in
+    // ``RECENTER_SAFETY_TAIL_TIMINGS_MS`` (source-of-truth +
+    // behavior-contract artifact). One entry = one ``setTimeout`` armed
+    // per call; the constant pins the before/after for the trim.
+    for (const ms of giKgCoseLayout.RECENTER_SAFETY_TAIL_TIMINGS_MS) {
+      setTimeout(() => {
+        if (cy === core) recenterIfPending(core)
+      }, ms)
+    }
   } catch {
     suspendSelectedNodeZoomAnchorCorrection -= 1
     try {
@@ -2705,10 +2705,14 @@ function scheduleRedraw(): void {
   if (redrawDebounceTimer) {
     clearTimeout(redrawDebounceTimer)
   }
+  // #767-B — debounce window source-of-truth + behavior contract:
+  // ``redrawDebounceMs(hasPendingHandoff)``. Returns 0 ms when an FSM
+  // envelope is pending (cross-surface handoff in flight), 150 ms
+  // otherwise (coalesce Vue nextTick cascades).
   redrawDebounceTimer = setTimeout(() => {
     redrawDebounceTimer = null
     redraw()
-  }, 150) // 150ms debounce - catches Vue nextTick cascades, still feels instant
+  }, giKgCoseLayout.redrawDebounceMs(graphHandoff.pending !== null))
 }
 
 function redraw(): void {
@@ -3019,7 +3023,23 @@ function redraw(): void {
     // data, so it returns a self-contained spec (`{ name: 'preset',
     // positions, ... }`). For other layouts the caller still spreads
     // `name` over the static opts.
-    const layoutOpts = layoutOptionsFor(layoutName)
+    //
+    // #767-A — for cose redraws under an external-nav load source, cap
+    // ``numIter`` by node count (``200 + 8 × N``). The default 2500
+    // iterations is calibrated for first paint on an unknown corpus
+    // size; the actual converge-by iteration is well below 2500 for
+    // graphs ≤ 300 nodes. External-nav redraws (Library / Digest
+    // "Open in graph") are the visible latency tax — capping shaves
+    // 100-600 ms off cose convergence without affecting final layout
+    // quality (cose has already settled by the cap).
+    const isExternalNavRedraw =
+      layoutName === 'cose' &&
+      (artifacts.currentLoadSource === 'subject-external' ||
+        artifacts.currentLoadSource === 'digest-external')
+    const numIterCap = isExternalNavRedraw
+      ? giKgCoseLayout.giKgCoseNumIterCapped(nodeCount)
+      : undefined
+    const layoutOpts = layoutOptionsFor(layoutName, { numIter: numIterCap })
     const core = cytoscape({
       container: el,
       elements,
