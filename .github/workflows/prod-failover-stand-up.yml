@@ -129,6 +129,8 @@ jobs:
 
       - name: "Prod failover — resolve: tailnet host (MagicDNS)"
         id: ts_host
+        env:
+          DRILL_TAILNET_FQDN: ${{ vars.DRILL_TAILNET_FQDN }}
         run: |
           set -euo pipefail
           R=$(bash scripts/ops/resolve_drill_tailnet_host.sh)
