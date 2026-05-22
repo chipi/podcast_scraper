@@ -565,13 +565,17 @@ ADR-089 prohibits the orchestrator from composing `drill-exercise` or
 
 5. **Verify ingestion is frozen on the spare.** The `freeze-ingestion`
    job strips `scheduled_jobs` from `corpus/viewer_operator.yaml` on
-   the spare and restarts api so APScheduler refuses to start (RFC-083
-   §6 dual-writer guard). Verify on the spare:
+   the spare (RFC-083 §6 dual-writer guard). The api is **not** restarted
+   in this step — the spare is not serving traffic during stand-up
+   validation, so the existing process can keep running with its
+   pre-freeze config. APScheduler reads the key-less yaml on the api's
+   next natural restart (cutover in phase E, or any host/compose
+   redeploy in the post-D window). Verify the on-disk yaml on the spare:
 
    ```bash
    ssh deploy@<DRILL_TAILNET_FQDN> \
-     'curl -fsS http://127.0.0.1:8080/api/scheduled-jobs | jq .'
-   # expect: {"jobs": []}  ← empty
+     'grep -c "^scheduled_jobs:" /srv/podcast-scraper/corpus/viewer_operator.yaml || true'
+   # expect: 0   ← key absent (the ``|| true`` keeps grep's exit 1 from tripping set -e)
    ```
 
 ### Phase E (manual): cutover
