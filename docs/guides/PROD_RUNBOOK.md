@@ -34,14 +34,15 @@ For day-to-day prod (not DR drill, not manual corpus restore): **preflight** (se
 4. [Corpus migration from pre-prod (Codespace) to prod (VPS)](#corpus-migration)
 5. [Rollback (deploy went red mid-way)](#rollback)
 6. [Disaster recovery (VPS gone)](#disaster-recovery)
-7. [Credential rotation](#credential-rotation)
-8. [Environment variable reference](#environment-variable-reference)
-9. [Observability setup walkthrough](#observability-setup-walkthrough) — includes [Sentry Slack routing (GH-725)](#sentry-slack-routing-prod-vs-pre-prod-gh-725) and [Grafana env filter (GH-726)](#grafana-env-filter-gh-726)
-10. [Tailscale operations](#tailscale-operations)
-11. [Hetzner operations](#hetzner-operations)
-12. [Operator hot-fix workflow](#operator-hot-fix-workflow)
-13. [FAQ / Troubleshooting](#faq-troubleshooting) — includes [corpus path (host vs `/app/output`)](#corpus-directory-host-vs-appoutput), [topic clusters](#topic-clusters-missing-after-a-successful-pipeline-run), [reprocess from transcripts](#reprocess-a-corpus-without-re-transcribing-audio), and [Cursor or automation cannot `ssh deploy@prod`](#cursor-or-automation-cannot-ssh-deployprod)
-14. [Constraints to know](#constraints-to-know)
+7. [Prod failover (stand up spare on DR row)](#prod-failover)
+8. [Credential rotation](#credential-rotation)
+9. [Environment variable reference](#environment-variable-reference)
+10. [Observability setup walkthrough](#observability-setup-walkthrough) — includes [Sentry Slack routing (GH-725)](#sentry-slack-routing-prod-vs-pre-prod-gh-725) and [Grafana env filter (GH-726)](#grafana-env-filter-gh-726)
+11. [Tailscale operations](#tailscale-operations)
+12. [Hetzner operations](#hetzner-operations)
+13. [Operator hot-fix workflow](#operator-hot-fix-workflow)
+14. [FAQ / Troubleshooting](#faq-troubleshooting) — includes [corpus path (host vs `/app/output`)](#corpus-directory-host-vs-appoutput), [topic clusters](#topic-clusters-missing-after-a-successful-pipeline-run), [reprocess from transcripts](#reprocess-a-corpus-without-re-transcribing-audio), and [Cursor or automation cannot `ssh deploy@prod`](#cursor-or-automation-cannot-ssh-deployprod)
+15. [Constraints to know](#constraints-to-know)
 
 ---
 
@@ -514,6 +515,179 @@ Corpus is recoverable to within ~24 h of pre-disaster state (last
 end-to-end DR drill that calibrates these numbers against reality.
 Complete readiness ([#751](https://github.com/chipi/podcast_scraper/issues/751)) and use [DR drill runbook](DR_DRILL_RUNBOOK.md)
 before scheduling that drill.
+
+---
+
+## Prod failover (stand up spare on DR row) {#prod-failover}
+
+When prod is degraded but the VPS is still reachable enough to keep
+serving — or when you want a hot spare ready for a planned cutover —
+**dispatch `prod-failover-stand-up.yml`**
+to bring up a spare on the DR drill VPS row without destroying it.
+
+Phases (RFC-083):
+
+| Phase | Automated? | What runs |
+| --- | --- | --- |
+| A — Provision | ✅ | `drill-infra-plan` + `drill-infra-apply` (no-op if spare already up) |
+| B — Deploy | ✅ | `drill-deploy` (pinned to current image SHA unless overridden) |
+| C — Restore | ✅ | `drill-restore-corpus` (newest `snapshot-prod-*` with sibling `snapshot.manifest.json`) |
+| D — Validate | ✅ | freeze ingestion → `drill-e2e` → `drill-stack-playwright` |
+| **E — Cutover** | ❌ **MANUAL** | DNS flip off-band (operator's laptop, see below) |
+| **F — Failback** | ❌ **MANUAL** | Reverse DNS flip + spare teardown (see below) |
+
+ADR-089 prohibits the orchestrator from composing `drill-exercise` or
+`drill-infra-destroy`. Spare decommission is a separate manual
+`drill-infra-destroy` dispatch with its own `DRILL_DESTROY` confirm
+(ADR-091).
+
+### Phase A–D: dispatch the workflow
+
+1. **Decide the image to deploy.** Default is the workflow's own SHA.
+   Override only if you need to pin an older known-good tag.
+2. **Decide the backup tag.** Leave blank for newest
+   `snapshot-prod-*` that has a sibling `snapshot.manifest.json`
+   (ADR-092 / RFC-084). Override only for replay scenarios.
+3. **Dispatch the workflow:**
+
+   ```bash
+   gh workflow run prod-failover-stand-up.yml \
+     -f confirm=PROD_FAILOVER_STAND_UP \
+     -f override_image_sha= \
+     -f backup_tag= \
+     -f backup_repo=chipi/podcast_scraper-backup
+   ```
+
+4. **Watch the run.** Phases A–D take ~8–12 min in aggregate. If any
+   phase fails the spare stays up (no auto-destroy) so you can SSH and
+   triage. The `finalize` step prints `::notice::` with the spare's
+   tailnet FQDN on success.
+
+5. **Verify ingestion is frozen on the spare.** The `freeze-ingestion`
+   job strips `scheduled_jobs` from `corpus/viewer_operator.yaml` on
+   the spare and restarts api so APScheduler refuses to start (RFC-083
+   §6 dual-writer guard). Verify on the spare:
+
+   ```bash
+   ssh deploy@<DRILL_TAILNET_FQDN> \
+     'curl -fsS http://127.0.0.1:8080/api/scheduled-jobs | jq .'
+   # expect: {"jobs": []}  ← empty
+   ```
+
+### Phase E (manual): cutover
+
+> **Do not cut over until the workflow's `finalize` step prints
+> "Spare validated".** A failed D phase means the spare cannot serve.
+
+The cutover is a **DNS flip** (ADR-090). The exact mechanism depends on
+where `podcast.tail-xxxxx.ts.net` (or whichever name your operator
+clients use) is resolved.
+
+1. **Pre-cutover snapshot of prod.** Prod is still up; trigger one
+   final corpus backup so the spare has the freshest data when you
+   flip over. From the operator's laptop:
+
+   ```bash
+   gh workflow run backup-corpus.yml \
+     -f confirm=PROD_BACKUP \
+     -f release_tag=snapshot-prod-pre-cutover-$(date -u +%Y%m%dT%H%M%SZ)
+   ```
+
+   Then dispatch `prod-failover-stand-up.yml` again with the new tag
+   in `backup_tag=` so the spare is one snapshot fresher. (Optional;
+   skip if drift is acceptable.)
+
+2. **Freeze ingestion on prod.** Mirror the spare's state on prod
+   itself so two stacks don't both write to corpus:
+
+   ```bash
+   ssh deploy@<PROD_TAILNET_FQDN> '
+     cd /srv/podcast-scraper
+     cp -p corpus/viewer_operator.yaml corpus/viewer_operator.yaml.before-cutover
+     python3 -c "
+   import yaml, sys
+   p = \"corpus/viewer_operator.yaml\"
+   d = yaml.safe_load(open(p)) or {}
+   d.pop(\"scheduled_jobs\", None)
+   yaml.safe_dump(d, open(p, \"w\"), sort_keys=False)
+   "
+     docker compose -f compose/docker-compose.prod.yml restart api
+   '
+   ```
+
+3. **Flip the DNS / client target.** Update wherever clients resolve
+   prod to point at the spare's tailnet FQDN. Typical paths:
+
+   - **Tailscale serve / funnel rule on prod VPS:** disable the rule
+     so traffic stops landing there.
+   - **Operator DNS shortcut / bookmark:** repoint to the spare's
+     MagicDNS name.
+   - **External DNS** (if any): change the CNAME / A record. Watch
+     the TTL — flips with TTL > 60s can leave clients pinned to prod
+     for several minutes.
+
+4. **Verify the spare is now the primary.** From the operator's
+   laptop:
+
+   ```bash
+   # 4a. Spare answers on the operator-facing URL
+   curl -fsS https://<OPERATOR_URL>/api/health | jq .
+
+   # 4b. Re-enable scheduled_jobs on the spare so it starts ingesting
+   ssh deploy@<DRILL_TAILNET_FQDN> '
+     cd /srv/podcast-scraper
+     # restore the YAML from the pre-failover backup (the freeze
+     # script wrote *.preserved-by-failover.<UTC-stamp>)
+     cp -p corpus/viewer_operator.yaml.preserved-by-failover.* \
+           corpus/viewer_operator.yaml
+     docker compose -f compose/docker-compose.prod.yml restart api
+     curl -fsS http://127.0.0.1:8080/api/scheduled-jobs | jq ".jobs | length"
+   '
+   ```
+
+The spare is now the primary. Prod is a "warm reserve" with frozen
+ingestion.
+
+### Phase F (manual): failback
+
+Failback is the cutover in reverse. The spare keeps running while you
+catch prod up.
+
+1. **Freshen prod from spare's corpus.** Dispatch
+   `backup-corpus.yml` against the spare (run from the operator's
+   laptop, with the spare's FQDN in the env override), then
+   `prod-restore-corpus.yml` against prod.
+
+   > 2.6 `backup-corpus.yml` targets prod by hardcoded FQDN; for v2.6
+   > failback, copy the corpus by `rsync` between spare and prod on
+   > the tailnet:
+   > `rsync -av --delete deploy@<DRILL_TAILNET_FQDN>:/srv/podcast-scraper/corpus/ deploy@<PROD_TAILNET_FQDN>:/srv/podcast-scraper/corpus/`
+
+2. **Freeze ingestion on the spare** (mirror Phase E step 2 against
+   the drill FQDN).
+
+3. **Flip DNS back to prod.** Re-enable prod's tailscale serve rule;
+   update operator DNS / bookmark back to prod.
+
+4. **Verify prod is primary again** (mirror Phase E step 4 against the
+   prod FQDN).
+
+5. **Decommission the spare** by dispatching
+   `drill-infra-destroy.yml` with `confirm=DRILL_DESTROY`. This is
+   a separate workflow per ADR-091.
+
+### Failover constraints (RFC-083)
+
+- The spare reuses the **DR drill VPS row** of the canonical stack
+  contract (ADR-093) — same Tailscale auth, same
+  `DRILL_DEPLOY_SSH_PRIVATE_KEY`, same MagicDNS FQDN.
+- The orchestrator is **idempotent at the VPS layer**: re-dispatching
+  with the spare already up is a no-op for phase A.
+- The orchestrator **NEVER** auto-destroys the spare. ADR-089 forbids
+  composing `drill-infra-destroy` into the failover workflow.
+- The freeze-ingestion guard is **not optional** — without it the
+  spare and prod will both fire `scheduled_jobs` against the same
+  upstreams (dual-writer corruption).
 
 ---
 

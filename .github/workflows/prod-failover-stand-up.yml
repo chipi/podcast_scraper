@@ -1,0 +1,209 @@
+name: Prod failover — stand up spare (orchestrated)
+
+# Brings up a prod failover spare on the DR drill VPS row (ADR-089, ADR-091,
+# ADR-093) without destroying it. v1: phases A–D are automated; cutover (E)
+# and failback (F) are manual per RFC-083.
+#
+# Phase mapping (RFC-083):
+#   A provision (drill-infra-plan + drill-infra-apply — no-op if VPS already up)
+#   B deploy    (drill-deploy)
+#   C restore   (drill-restore-corpus)
+#   D validate  (freeze-ingestion → drill-e2e → drill-stack-playwright)
+#   E cutover   — MANUAL (PROD_RUNBOOK § failover)
+#   F failback  — MANUAL (PROD_RUNBOOK § failover)
+#
+# This orchestrator MUST NOT call drill-exercise or drill-infra-destroy
+# (ADR-089). Spare decommission is a separate manual ``drill-infra-destroy``
+# dispatch with its own DRILL_DESTROY confirm (ADR-091).
+#
+# Ingestion freeze: APScheduler reads ``scheduled_jobs`` from
+# ``corpus/viewer_operator.yaml``. The ``freeze-ingestion`` job strips that
+# key on the spare after restore so the in-process scheduler will not start
+# (see src/podcast_scraper/server/scheduler.py:271). This is the dual-writer
+# guard that lets prod keep ingesting while the spare holds restored corpus.
+#
+# Reuses the drill VPS row of the stack contract: same Tailscale auth, same
+# DRILL_DEPLOY_SSH_PRIVATE_KEY, same MagicDNS FQDN. Operator runs cutover by
+# flipping DNS off-band per PROD_RUNBOOK.
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: 'Type "PROD_FAILOVER_STAND_UP" to bring up the failover spare (no auto-destroy).'
+        required: true
+        default: ''
+      backup_tag:
+        description: "Restore: release tag (empty = newest compatible snapshot-prod-*; sibling snapshot.manifest.json required)"
+        required: false
+        default: ''
+      backup_repo:
+        description: "Restore: GitHub owner/repo for backup releases"
+        required: false
+        default: chipi/podcast_scraper-backup
+      override_image_sha:
+        description: "Deploy: image :sha-<7> (blank = this workflow run SHA short)"
+        required: false
+        default: ''
+
+permissions:
+  contents: read
+  actions: write
+  # drill-infra-plan (reusable) posts PR comments when permissions are
+  # evaluated for workflow_call.
+  pull-requests: write
+
+concurrency:
+  group: prod-failover
+  cancel-in-progress: false
+
+jobs:
+  gate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: "Prod failover — confirm PROD_FAILOVER_STAND_UP"
+        run: |
+          C="${{ inputs.confirm }}"
+          if [ "$C" != "PROD_FAILOVER_STAND_UP" ]; then
+            echo "::error::Must type PROD_FAILOVER_STAND_UP. Got: '$C'"
+            exit 1
+          fi
+
+  plan:
+    needs: gate
+    uses: ./.github/workflows/drill-infra-plan.yml
+    secrets: inherit
+
+  apply:
+    needs: plan
+    uses: ./.github/workflows/drill-infra-apply.yml
+    secrets: inherit
+    with:
+      skip_confirm: true
+
+  deploy:
+    needs: apply
+    uses: ./.github/workflows/drill-deploy.yml
+    secrets: inherit
+    with:
+      override_image_sha: ${{ inputs.override_image_sha }}
+
+  restore:
+    needs: deploy
+    uses: ./.github/workflows/drill-restore-corpus.yml
+    secrets: inherit
+    with:
+      backup_tag:  ${{ inputs.backup_tag }}
+      backup_repo: ${{ inputs.backup_repo }}
+      skip_confirm: true
+
+  freeze-ingestion:
+    # ADR-091 / RFC-083 §6: spare must NEVER fire scheduled_jobs while prod
+    # still owns the corpus. Strip ``scheduled_jobs`` from the restored
+    # ``corpus/viewer_operator.yaml`` and restart the api container so the
+    # in-process APScheduler reloads with zero enabled jobs (see
+    # src/podcast_scraper/server/scheduler.py:271 — scheduler is not started
+    # when no enabled jobs are present).
+    needs: restore
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment: drill
+    steps:
+      - name: "Prod failover — checkout: shallow (resolver scripts + prod-ssh-key action)"
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 1
+
+      - name: "Prod failover — join: tailnet (tag:gha-deployer)"
+        uses: tailscale/github-action@v4
+        with:
+          authkey: ${{ secrets.TS_AUTHKEY }}
+          tags:    tag:gha-deployer
+          version: 1.96.4
+
+      - name: "Prod failover — SSH: install identity (deploy@, DRILL_DEPLOY_SSH_PRIVATE_KEY)"
+        uses: ./.github/actions/prod-ssh-key
+        with:
+          ssh_private_key:   ${{ secrets.DRILL_DEPLOY_SSH_PRIVATE_KEY }}
+          identity_env_name: SSH_DRILL_IDENTITY
+
+      - name: "Prod failover — resolve: tailnet host (MagicDNS)"
+        id: ts_host
+        run: |
+          set -euo pipefail
+          R=$(bash scripts/ops/resolve_drill_tailnet_host.sh)
+          echo "resolved_fqdn=$R" >> "$GITHUB_OUTPUT"
+
+      - name: "Prod failover — freeze ingestion: copy adapter script to spare"
+        env:
+          SSH_TARGET: deploy@${{ steps.ts_host.outputs.resolved_fqdn }}
+        run: |
+          set -euo pipefail
+          scp -i "$SSH_DRILL_IDENTITY" -o IdentitiesOnly=yes \
+            -o StrictHostKeyChecking=accept-new -o BatchMode=yes \
+            scripts/ops/failover/freeze_ingestion_on_spare.sh \
+            "${SSH_TARGET}:/tmp/freeze_ingestion_on_spare.sh"
+
+      - name: "Prod failover — freeze ingestion: strip scheduled_jobs + restart api"
+        env:
+          SSH_TARGET: deploy@${{ steps.ts_host.outputs.resolved_fqdn }}
+        run: |
+          set -euo pipefail
+          ssh -i "$SSH_DRILL_IDENTITY" -o IdentitiesOnly=yes \
+            -o StrictHostKeyChecking=accept-new -o BatchMode=yes "$SSH_TARGET" \
+            'sudo -n bash /tmp/freeze_ingestion_on_spare.sh'
+
+      - name: "Prod failover — verify: scheduler not running on spare"
+        env:
+          SSH_TARGET: deploy@${{ steps.ts_host.outputs.resolved_fqdn }}
+        run: |
+          set -euo pipefail
+          # ``GET /api/scheduled-jobs`` returns the loaded job set; with the
+          # freeze applied this should be an empty list (or the endpoint may
+          # 404 if the api is mid-restart — retry briefly).
+          for i in $(seq 1 6); do
+            BODY=$(ssh -i "$SSH_DRILL_IDENTITY" -o IdentitiesOnly=yes \
+              -o StrictHostKeyChecking=accept-new -o BatchMode=yes "$SSH_TARGET" \
+              'curl -fsS http://127.0.0.1:8080/api/scheduled-jobs 2>/dev/null' || true)
+            if [ -n "$BODY" ]; then
+              if echo "$BODY" | jq -e '(.jobs // []) | length == 0' >/dev/null 2>&1; then
+                echo "::notice::spare scheduler is empty after $((i * 5))s — ingestion frozen ✓"
+                exit 0
+              fi
+              echo "::warning::spare reports jobs (attempt ${i}/6): $BODY"
+            fi
+            sleep 5
+          done
+          echo "::error::could not confirm scheduler is empty on spare after freeze-ingestion"
+          exit 1
+
+  smoke:
+    needs: freeze-ingestion
+    uses: ./.github/workflows/drill-e2e.yml
+    secrets: inherit
+    with:
+      confirm: DRILL_SMOKE
+
+  stack-playwright:
+    needs: smoke
+    uses: ./.github/workflows/drill-stack-playwright.yml
+    secrets: inherit
+    with:
+      skip_confirm: true
+
+  finalize:
+    needs: [plan, apply, deploy, restore, freeze-ingestion, smoke, stack-playwright]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: "Prod failover — finalize: log phase outcomes + manual cutover hint"
+        env:
+          DRILL_FQDN: ${{ vars.DRILL_TAILNET_FQDN }}
+        run: |
+          echo "plan=${{ needs.plan.result }} apply=${{ needs.apply.result }} deploy=${{ needs.deploy.result }} restore=${{ needs.restore.result }} freeze-ingestion=${{ needs.freeze-ingestion.result }} smoke=${{ needs.smoke.result }} stack-playwright=${{ needs.stack-playwright.result }}"
+          if [ "${{ needs.smoke.result }}" = "success" ] && [ "${{ needs.stack-playwright.result }}" = "success" ] && [ "${{ needs.freeze-ingestion.result }}" = "success" ]; then
+            echo "::notice::Spare validated at ${DRILL_FQDN}. Cutover (phase E) is MANUAL — see docs/guides/PROD_RUNBOOK.md § failover."
+          else
+            echo "::warning::Spare NOT validated. DO NOT cut over. Investigate failed phases above; spare remains up (no auto-destroy) for triage."
+          fi
+          echo "::notice::Spare is NOT destroyed automatically. To decommission after cutover or abort: dispatch drill-infra-destroy.yml with DRILL_DESTROY (ADR-089/091)."
