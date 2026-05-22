@@ -94,6 +94,7 @@ const similarQueryUsed = ref('')
 const similarRanOk = ref(false)
 
 const detailLoadGate = new StaleGeneration()
+const episodeOpenGraphGate = new StaleGeneration()
 
 const feedDisplayTitleById = computed(() => {
   const m: Record<string, string> = {}
@@ -427,6 +428,10 @@ async function openInGraph(): Promise<void> {
   const episodeMeta = detail.value.metadata_relative_path?.trim() ?? ''
   const episodeIdForGraph = detail.value.episode_id
   const episodeUiTitle = detail.value.episode_title?.trim() || null
+  // P5.1 stale-gate: rapid re-clicks must supersede the prior run so we
+  // never apply a stale ``focusEpisode`` / ``requestFocusNode`` after a
+  // newer handoff has taken over. Matches the DigestView P4.1 pattern.
+  const seq = episodeOpenGraphGate.bump()
   // F1.1 — fire FSM event synchronously at click time so the handoff is observable
   // before any await. Source `episode-panel` per decision #2; subject-external load
   // source per medium-granularity rule.
@@ -441,8 +446,21 @@ async function openInGraph(): Promise<void> {
       camera: { kind: 'center-on-target' },
     })
   }
+  // P5.1 race fix: emit the tab switch SYNCHRONOUSLY now (before any
+  // ``await``). Same rationale as the DigestView P4.1 fix — the user
+  // intent to land on Graph is honored immediately, and a fast follow-up
+  // click that supersedes this envelope can't be raced by a deferred emit
+  // landing back on Graph after their navigation away.
+  emit('switch-main-tab', 'graph')
   await ensureDefaultCorpusGraphIfNeeded()
+  if (episodeOpenGraphGate.isStale(seq)) {
+    return
+  }
+  const beforeCount = artifacts.selectedRelPaths.length
   await artifacts.appendRelativeArtifacts(paths)
+  if (episodeOpenGraphGate.isStale(seq)) {
+    return
+  }
   graphNav.clearLibraryEpisodeHighlights()
   if (episodeMeta) {
     // #775 — resolve epCy with retry to bridge the
@@ -471,6 +489,9 @@ async function openInGraph(): Promise<void> {
       // re-evaluation can run. ``Promise.resolve()`` is the cheapest
       // way to defer; ``await`` ensures we wait before the next read.
       await Promise.resolve()
+      if (episodeOpenGraphGate.isStale(seq)) {
+        return
+      }
     }
     subject.focusEpisode(episodeMeta, {
       uiTitle: episodeUiTitle,
@@ -483,7 +504,27 @@ async function openInGraph(): Promise<void> {
   } else {
     subject.setEpisodeUiLabel(episodeUiTitle)
   }
-  emit('switch-main-tab', 'graph')
+  // P5.1 no-op append rescue: when the second rapid click targets the
+  // same artifacts already loaded by the first, ``appendRelativeArtifacts``
+  // is a no-op and the natural redraw chain doesn't fire — leaving the
+  // FSM stuck in a load state until the 15s wall clock. Force a
+  // ``loadSelected`` follow-up only when the append was a no-op AND the
+  // FSM is still in a load state. Mirrors the DigestView fix.
+  if (artifacts.selectedRelPaths.length === beforeCount) {
+    await new Promise<void>((r) => setTimeout(r, 600))
+    if (episodeOpenGraphGate.isStale(seq)) {
+      return
+    }
+    const stillStuck =
+      graphHandoff.state === 'loading_fetch' ||
+      graphHandoff.state === 'loading_bootstrap' ||
+      graphHandoff.state === 'loading_merge'
+    if (stillStuck) {
+      await artifacts.loadSelected({ preserveExpansion: true })
+    }
+  }
+  // (No final ``emit('switch-main-tab', 'graph')`` — fired synchronously
+  // above to avoid the P5.1 cross-tab race.)
 }
 
 async function openDetailCilTopicInGraph(pillIndex: number): Promise<void> {
