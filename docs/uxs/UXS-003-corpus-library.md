@@ -199,4 +199,4 @@ the E2E Testing Guide.
 
 ## Related — Digest & Library UX improvement spec
 
-Detailed layout deltas, recency dot, checkpoints, and file lists for Digest **and** Library live in one place: [UXS-002 § Supplement — Digest & Library UX improvements (full spec)](UXS-002-corpus-digest.md#supplement--digest--library-ux-improvements-full-spec).
+Detailed layout deltas, recency dot, checkpoints, and file lists for Digest **and** Library live in one place: [UXS-002 § Supplement — Digest & Library UX improvements (full spec)](UXS-002-corpus-digest.md#supplement-digest-library-ux-improvements-full-spec).

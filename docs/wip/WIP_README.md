@@ -1,39 +1,46 @@
 # Work In Progress (WIP) Documentation
 
-This folder contains temporary documentation, ideas, references, and work-in-progress notes that
-are not yet finalized or integrated into the main documentation.
+This folder holds early-stage notes, backlog plans, and reference material that has
+not been promoted to a PRD, RFC, ADR, runbook, or release note. Content here is
+**not authoritative** — when an item is ready, it moves to its proper home and the
+WIP file is removed.
 
-## Purpose
+## Promotion targets
 
-- **Temporary Ideas**: Early-stage concepts and brainstorming
-- **Architecture Assessments**: Modularity evaluations and refactoring opportunities
-- **Quick References**: Temporary reference materials
-- **Draft Documents**: Documents being developed but not yet ready for main docs
+- Long-term feature ideas → **PRD** in `docs/prd/` and the relevant **RFC** in `docs/rfc/`
+- Architectural decisions → **ADR** in `docs/adr/`
+- Operator-facing procedures → **guide** in `docs/guides/`
+- Post-release retrospective → reference from the corresponding release note in `docs/releases/`
 
-## Current Contents
+## Current contents
 
 | File | Description | Status |
-| ------ | ------------- | -------- |
-| `file-based-validation-plan.md` | Plan for file-based validation and impacted test discovery system | Active |
-| `METRICS_GAP_ANALYSIS.md` | Gap analysis for metrics implementation | Active |
-| `REMAINING_WORK.md` | Summary of remaining implementation work | Active |
-| `TYPE_HINTS_ANALYSIS.md` | Analysis of type hints usage | Active |
+| ---- | ----------- | ------ |
+| `EXPLORE_EXPANSION_IDEAS.md` | Explore-tab feature brainstorming | Idea |
+| `HOME_AI_HARDWARE_PLAN.md` | Local hardware / on-prem AI plan | Idea |
+| `LORA_HYBRID_PIPELINE_PLAN.md` | LoRA + hybrid pipeline exploration | Idea |
+| `METRICS_DOCS_AND_DASHBOARD_V2.md` | Metrics docs / dashboard redesign | Partial |
+| `POST_REINGESTION_PLAN.md` | Post-pipeline-rev validation plan | Reference |
+| `PROD_RUN_ANALYSIS_100EP.md` | 100-episode production run retrospective | Reference |
+| `QUALITY_IMPROVEMENTS_BACKLOG.md` | Quality / GI / KG improvement backlog | Backlog |
+| `RESEARCH_POWERED_REGISTRY_PLAN.md` | Research-driven registry concept | Idea |
+| `UNIFIED_QUALITY_PLAN.md` | Unified quality framework draft | Draft |
+| `issue-382-transformers-v5-upgrade-plan.md` | transformers v5 upgrade plan | Reference |
+| `manual-test-plan-gi-kg.md` | Manual GI/KG smoke checklist | Reference |
+| `wip-concurrent-pipeline-http-retry-metrics.md` | Open documentation gap for `http_urllib3_retry_events` | Open |
+| `wip-topic-clusters-validation-reference.yaml` | Reference topic-cluster validation config | Reference |
 
 ## Guidelines
 
-- Documents here are **not** part of the official documentation
-- They may be incomplete, outdated, or experimental
-- When ready, documents should be moved to appropriate locations:
-  - Architecture docs → `docs/architecture/ARCHITECTURE.md` or new architecture docs
-  - RFCs → `docs/rfc/`
-  - PRDs → `docs/prd/`
-  - Release notes → `docs/releases/`
-- Feel free to add new WIP documents here as needed
+- Documents here are **not** part of the official documentation site.
+- Documents may be incomplete, outdated, or experimental.
+- Periodically review and either:
+  1. Promote to the appropriate doc category (PRD / RFC / ADR / guide / release note).
+  2. Delete if obsolete or superseded.
+  3. Keep as backlog / reference if it still has signal.
 
-## Cleanup
+## Recent cleanups
 
-Periodically review and either:
-
-1. Move finalized documents to their proper location
-2. Delete outdated or obsolete documents
-3. Archive important historical documents
+- **2026-05-22** — Removed `GRAPH_NAVIGATION_HANDOFF_ANALYSIS.md`; superseded by
+  shipped graph handoff orchestrator ([ADR-094](../adr/ADR-094-graph-handoff-orchestrator-fsm.md),
+  [RFC-085](../rfc/RFC-085-graph-handoff-orchestrator-retrospective.md)).

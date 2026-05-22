@@ -6,7 +6,7 @@
 - **Related RFCs**:
   - `docs/rfc/RFC-072-canonical-identity-layer-cross-layer-bridge.md` -- CIL topic
     identity (`topic:{slug}`) and bridge artifact that powers cross-episode queries
-  - `docs/rfc/RFC-073-enrichment-layer-architecture.md` -- `topic_cooccurrence` and
+  - `docs/rfc/RFC-088-enrichment-layer-architecture.md` -- `topic_cooccurrence` and
     `temporal_velocity` enrichers that provide the data this view consumes
   - `docs/rfc/RFC-062-gi-kg-viewer-v2.md` -- viewer SPA shell and tab model
   - `docs/rfc/RFC-069-graph-exploration-toolkit.md` -- graph chrome (Cytoscape)
@@ -60,7 +60,7 @@ and a search panel. Topics appear as nodes in the graph and as filter values in 
 But there is no way to navigate *to* a topic and see the full corpus picture for that
 concept.
 
-The `temporal_velocity` enricher (RFC-073) computes monthly topic mention counts and
+The `temporal_velocity` enricher (RFC-088) computes monthly topic mention counts and
 trend signals across the corpus. The `topic_cooccurrence` enricher computes which topics
 appear together. The bridge (RFC-072) links KG MENTIONS edges (which episodes) with GIL
 ABOUT edges (what Insights were grounded). These three artifacts together contain
@@ -238,7 +238,7 @@ topic label, consistent with existing "Search topic" affordance in Digest (UXS-0
 | GI-enriched bar segments | `bridge.json` per episode (`sources.gi`) | No (bridge is core) |
 | Insights list | `gi.json` (ABOUT edges -> Insight -> Quote nodes) | No (core artifact) |
 | Person attribution | `gi.json` (SPOKEN_BY edges) + `bridge.json` | No (core artifacts) |
-| Person grounding badge | `grounding_rate` corpus enricher (RFC-073) | Yes -- `grounding_rate` |
+| Person grounding badge | `grounding_rate` corpus enricher (RFC-088) | Yes -- `grounding_rate` |
 | Related topics | `topic_cooccurrence` corpus enricher | Yes -- `topic_cooccurrence` |
 
 **Graceful degradation:** If enrichers have not run, the view degrades cleanly:
@@ -284,8 +284,8 @@ Response shape:
 ```
 
 The endpoint reads from enricher output files and core artifacts on the filesystem --
-no database required. This is the **first read-side consumer** of RFC-073 enrichment
-outputs, driving the server changes that RFC-073 Section "Server and Viewer
+no database required. This is the **first read-side consumer** of RFC-088 enrichment
+outputs, driving the server changes that RFC-088 Section "Server and Viewer
 Consumption" explicitly deferred to a follow-up PRD.
 
 **Pagination:** The `insights` array supports `limit` and `offset` query parameters
@@ -321,7 +321,7 @@ Content Intelligence section.
 ## References
 
 - `docs/rfc/RFC-072-canonical-identity-layer-cross-layer-bridge.md`
-- `docs/rfc/RFC-073-enrichment-layer-architecture.md`
+- `docs/rfc/RFC-088-enrichment-layer-architecture.md`
 - `docs/rfc/RFC-062-gi-kg-viewer-v2.md`
 - `docs/uxs/UXS-001-gi-kg-viewer.md`
 - `docs/architecture/kg/ontology.md`

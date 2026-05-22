@@ -6,7 +6,7 @@ Before tagging a release, follow the [Release Playbook](../guides/RELEASE_PLAYBO
 
 ## Latest Release
 
-- **[v2.6.0](RELEASE_v2.6.0.md)** — GI/KG viewer (Library, Digest, Dashboard, Graph, Search), semantic search, multi-feed corpus, Run Compare Performance + frozen profiles (April 2026)
+- **[v2.6.0](RELEASE_v2.6.0.md)** — GI/KG viewer (Library, Digest, Dashboard, Graph, Search), semantic search, multi-feed corpus, Run Compare Performance + frozen profiles, **graph handoff FSM**, **viewer test pyramid**, **always-on hosting + backup/restore**, AGENTS.md canonicalization (May 2026)
 - **[v2.5.0](RELEASE_v2.5.0.md)** — LLM Provider Expansion & Production Hardening (released February 2026)
 - **[v2.4.0](RELEASE_v2.4.0.md)** — Provider ecosystem & production readiness
 

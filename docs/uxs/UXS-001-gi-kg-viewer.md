@@ -106,7 +106,7 @@ debounce intervals, resize/collapse logic, keyboard shortcuts) belong in
   contexts; dark mode is the design baseline
 - **Breakpoints:** desktop only (minimum 1024px assumed; no mobile breakpoints).
   Approximate three-column widths at 1024px are recorded in
-  [VIEWER_IA.md — Viewport](VIEWER_IA.md#viewport--three-column-widths-1024px-baseline).
+  [VIEWER_IA.md — Shell layout](VIEWER_IA.md#shell-layout).
 
 ---
 

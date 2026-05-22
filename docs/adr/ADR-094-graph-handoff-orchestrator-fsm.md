@@ -33,8 +33,10 @@ in the `filteredArtifact` watcher, and Cytoscape never redrew. The
 asymmetry was load-bearing-wrong: every other entry point set `loadSource`
 synchronously at the click site; Library did not.
 
-The deeper analysis is in
-[docs/wip/GRAPH_NAVIGATION_HANDOFF_ANALYSIS.md](../wip/GRAPH_NAVIGATION_HANDOFF_ANALYSIS.md).
+The pre-fix audit (originally `docs/wip/GRAPH_NAVIGATION_HANDOFF_ANALYSIS.md`) has
+been retired since the orchestrator shipped; its findings are summarised in the
+"Context" / "Decision" sections below and in
+[RFC-085](../rfc/RFC-085-graph-handoff-orchestrator-retrospective.md).
 
 After diagnosis, the user explicitly broadened the scope from "fix the bugs"
 to addressing **six architectural concerns**: robustness (bounded outcomes,
@@ -206,7 +208,7 @@ documented as such.
 
 ## References
 
-- [docs/wip/GRAPH_NAVIGATION_HANDOFF_ANALYSIS.md](../wip/GRAPH_NAVIGATION_HANDOFF_ANALYSIS.md) — pre-fix audit
+- Pre-fix audit (formerly `docs/wip/GRAPH_NAVIGATION_HANDOFF_ANALYSIS.md`) — retired after the orchestrator shipped; findings preserved in this ADR and in [RFC-085](../rfc/RFC-085-graph-handoff-orchestrator-retrospective.md)
 - [RFC-062: GI/KG viewer v2](../rfc/RFC-062-gi-kg-viewer-v2.md)
 - [RFC-080: Graph visualization extensions](../rfc/RFC-080-graph-visualization-extensions.md)
 - [ADR-066: Playwright for UI E2E testing](ADR-066-playwright-for-ui-e2e-testing.md)

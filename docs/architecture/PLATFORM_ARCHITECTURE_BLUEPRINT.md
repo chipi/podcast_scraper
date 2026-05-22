@@ -2450,14 +2450,14 @@ This is a **v3.0 effort** -- after podcast capabilities are fully solid:
 | GI/KG Viewer v2 (RFC-062) | Shipped |
 | Canonical Identity Layer + bridge (RFC-072) | Shipped |
 | Semantic search (RFC-061) | Shipped |
-| Enrichment layer (RFC-073) | In progress |
+| Enrichment layer (RFC-088) | In progress |
 | Postgres projection (RFC-051) | Next major infrastructure |
 | Adaptive routing (RFC-053) | Planned |
 | Platform blueprint v1 operational (workers, queues) | This document |
 
 **Parallel work during v2.x:** Keep module boundaries clean; design Postgres schema with
 generic `content_item_id` (not `episode_id`) in new tables; design adaptive routing to
-accept content type as an input dimension. RFC-072 and RFC-073 are already content-agnostic
+accept content type as an input dimension. RFC-072 and RFC-088 are already content-agnostic
 by design -- their protocols work for any content type producing GIL/KG/bridge artifacts.
 
 ### G.8 Full specification
@@ -2534,7 +2534,7 @@ viewer v3, cross-content-type KG, prompt routing, scheduling) -- lives in the
 - [RFC-070: Semantic corpus search -- platform & future](../rfc/RFC-070-semantic-corpus-search-platform-future.md)
 - [RFC-071: Corpus Intelligence Dashboard](../rfc/RFC-071-corpus-intelligence-dashboard-viewer.md)
 - [RFC-072: Canonical Identity Layer & cross-layer bridge](../rfc/RFC-072-canonical-identity-layer-cross-layer-bridge.md)
-- [RFC-073: Enrichment Layer architecture](../rfc/RFC-073-enrichment-layer-architecture.md)
+- [RFC-088: Enrichment Layer architecture](../rfc/RFC-088-enrichment-layer-architecture.md)
 - [RFC-074: Process safety for ML workloads on macOS](../rfc/RFC-074-process-safety-ml-workloads-macos.md)
 
 ### Architecture decisions (ADRs)

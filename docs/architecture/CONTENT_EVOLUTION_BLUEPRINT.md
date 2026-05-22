@@ -10,7 +10,7 @@
   -- infrastructure evolution (tenancy, workers, queues, Postgres, deployment)
 - [RFC-072: Canonical Identity Layer + Bridge](../rfc/RFC-072-canonical-identity-layer-cross-layer-bridge.md)
   -- cross-layer identity foundation. Shipped.
-- [RFC-073: Enrichment Layer Architecture](../rfc/RFC-073-enrichment-layer-architecture.md)
+- [RFC-088: Enrichment Layer Architecture](../rfc/RFC-088-enrichment-layer-architecture.md)
   -- fourth artifact tier for derived signals. In progress.
 
 **Purpose:** Describes how the system evolves beyond podcasts via a generic
@@ -100,7 +100,7 @@ dependencies stay out of the core:
 │              │  └────────┘  │                            │
 │  ┌────────┐  │  ┌────────┐  │  ┌─────────────────────┐  │
 │  │Social  │  │  │Folder  │  │  │ Enrichment Layer     │  │
-│  │(external)│ │  │Watch   │  │  │ (RFC-073: optional   │  │
+│  │(external)│ │  │Watch   │  │  │ (RFC-088: optional   │  │
 │  └────────┘  │  │(external)│ │  │  derived signals)    │  │
 │              │  └────────┘  │  └─────────────────────┘  │
 │              │              │                            │
@@ -173,7 +173,7 @@ class ProcessingConfig(Protocol):
     summary_model: str
     gi_enabled: bool
     kg_enabled: bool
-    enrichment_enabled: bool  # RFC-073 enrichment pass
+    enrichment_enabled: bool  # RFC-088 enrichment pass
     output_dir: Path
     # ... processing-relevant fields only
 ```
@@ -606,7 +606,7 @@ src/podcast_scraper/
 ├── gi/                            # GI extraction (UNCHANGED, uses ContentItem)
 ├── kg/                            # KG extraction (UNCHANGED, uses ContentItem)
 ├── builders/                      # Bridge builder (RFC-072, UNCHANGED)
-├── enrichment/                    # Enrichment layer (RFC-073, UNCHANGED)
+├── enrichment/                    # Enrichment layer (RFC-088, UNCHANGED)
 │   ├── protocol.py                # Enricher, EnricherManifest, EpisodeArtifactBundle
 │   ├── registry.py                # Builtin enricher registry
 │   ├── enrichment_pass.py         # Two-phase runner
@@ -627,7 +627,7 @@ src/podcast_scraper/
 - **GI / KG extraction** -- operates on text + metadata, not RSS
 - **Summarization** -- operates on text
 - **Search / vector indexing** -- operates on documents with metadata
-- **Enrichment layer (RFC-073)** -- the enricher protocol (`Enricher`,
+- **Enrichment layer (RFC-088)** -- the enricher protocol (`Enricher`,
   `EnricherManifest`, `EpisodeArtifactBundle`) is already content-agnostic.
   Enrichers read core artifacts (GIL, KG, bridge) and produce derived signals.
   When the pipeline processes non-podcast content types, enrichers work
@@ -709,7 +709,7 @@ The refactoring is **not speculative** -- podcast + RSS validate every interface
 anticipations during platform work -- each costs almost nothing now (a column
 name, a field in a payload) but saves schema migrations and rework later.
 
-Two v2.x efforts -- RFC-072 (Canonical Identity Layer) and RFC-073
+Two v2.x efforts -- RFC-072 (Canonical Identity Layer) and RFC-088
 (Enrichment Layer) -- are already content-agnostic by design. Their patterns
 (canonical IDs, bridge artifact, enricher protocol, plugin registry) are
 **implemented precursors** that the v3.0 content evolution will generalise.
@@ -919,7 +919,7 @@ CREATE TABLE summaries (
 CREATE INDEX idx_summaries_content_item ON summaries(content_item_id);
 ```
 
-**Enrichment outputs (RFC-073 alignment):** If projecting enrichment outputs
+**Enrichment outputs (RFC-088 alignment):** If projecting enrichment outputs
 to Postgres, the same generic naming applies. Enricher outputs reference
 `content_item_id` and canonical IDs from the bridge:
 
@@ -1275,14 +1275,14 @@ implement, changing it is a breaking change.
 
 | Platform RFC/Feature | Specific Anticipation | Concrete Action |
 | --- | --- | --- |
-| **RFC-051** (Postgres projection) | Anticipation #1 | Use `content_item_id`, `source_id`, `content_type`, `source_transport` in all table schemas. Add `content_type` index. Project RFC-072 bridge identities into `canonical_identities` + `content_item_identities` join table. Project RFC-073 enrichment outputs into `enrichment_outputs` table. |
+| **RFC-051** (Postgres projection) | Anticipation #1 | Use `content_item_id`, `source_id`, `content_type`, `source_transport` in all table schemas. Add `content_type` index. Project RFC-072 bridge identities into `canonical_identities` + `content_item_identities` join table. Project RFC-088 enrichment outputs into `enrichment_outputs` table. |
 | **Part A** (catalog + subscriptions) | Anticipation #2 | Name the table `sources` (not `feeds`). Add `source_type`, `transport`, `content_type` columns. Use `config JSONB` for transport-specific fields. Create `feeds` view for backwards compat. |
 | **Part B** (workers + queues) | Anticipation #3 | Job payload uses `content_item_id`, `source_id`, `content_type`, `source_transport`, `source_config` dict. Worker dispatches on these fields (v2.x: always podcast). Include `enrichment_enabled` in processing config. |
 | **A.4** (pipeline fingerprinting) | Anticipation #4 | Dedup key is `content_item_id:fingerprint`. Caller computes `content_item_id` (podcast module uses existing `generate_episode_id`). |
 | **RFC-053** (adaptive routing) | Anticipation #5 | Routing input includes `content_type` and `prompt_profile`. Routing rules are content-type-scoped. |
 | **RFC-062** (viewer/server) | No change needed | Viewer already operates on artifacts with UXS hub-and-spoke model. New content types add feature UXS files; shared design system (UXS-001) is reused. |
 | **RFC-072** (CIL + bridge) | Already shipped | Canonical IDs (`person:`, `org:`, `topic:`) are content-agnostic. Bridge artifact pattern works for any content type. Postgres projection should use these as join keys (see Anticipation #1). |
-| **RFC-073** (enrichment layer) | Already content-agnostic | Enricher protocol reads core artifacts, produces derived signals. No anticipation needed -- the protocol works for any content type that produces GIL/KG/bridge artifacts. |
+| **RFC-088** (enrichment layer) | Already content-agnostic | Enricher protocol reads core artifacts, produces derived signals. No anticipation needed -- the protocol works for any content type that produces GIL/KG/bridge artifacts. |
 | **Part E** (observability) | No change needed | Add `content_type` as a label/dimension on metrics (e.g., `pipeline_duration{content_type="podcast"}`). Free metadata. |
 | **B.16** (Alembic migrations) | No change needed | Having Alembic from day one makes v3.0 schema changes (if any) trivial to manage. |
 
@@ -1309,7 +1309,7 @@ content identity:
   `topic:{slug}` are already content-agnostic. The bridge artifact and CIL
   patterns work unchanged for any content type that produces GIL/KG artifacts.
   The slugifier is a shared utility.
-- **Enrichment layer** (RFC-073) -- enricher protocol reads core artifacts
+- **Enrichment layer** (RFC-088) -- enricher protocol reads core artifacts
   (GIL, KG, bridge) and produces derived signals. Content-agnostic by design.
   Enrichers that operate on transcript text (e.g. `insight_density`) will need
   content-type-specific variants, but the protocol and registry are generic.
@@ -1335,7 +1335,7 @@ them, except for the four anticipations noted in Part 6.
 | GI/KG Viewer v2 | RFC-062, Phase D | Shipped | **None.** Pure podcast UI. UXS split (UXS-001 through UXS-008) already separates shared design system from feature-specific contracts -- extends naturally to v3 content-type views. |
 | Semantic search | RFC-061 | Shipped | **None.** Operates on text + embeddings, already generic. |
 | Canonical Identity Layer + bridge | RFC-072 | Shipped | **PRECURSOR.** `person:{slug}`, `org:{slug}`, `topic:{slug}` are content-agnostic canonical IDs. The bridge artifact and CIL patterns are the **implemented foundation** for cross-content-type entity resolution (Phase 3 / F.3). Postgres schema (Anticipation #1) should use these canonical IDs directly. |
-| Enrichment layer | RFC-073 | In progress | **None.** Enricher protocol is content-agnostic -- reads core artifacts (GIL, KG, bridge), produces derived signals. Works unchanged for any content type that produces the same artifact shapes. First consumers: PRD-026 (Topic Entity View), PRD-027 (Enriched Search). |
+| Enrichment layer | RFC-088 | In progress | **None.** Enricher protocol is content-agnostic -- reads core artifacts (GIL, KG, bridge), produces derived signals. Works unchanged for any content type that produces the same artifact shapes. First consumers: PRD-026 (Topic Entity View), PRD-027 (Enriched Search). |
 | Evaluation framework | RFC-041/057 | In progress | **None.** Needed later for content-type prompt tuning. |
 | Postgres projection | RFC-051, Phase C | Next major | **ANTICIPATE** -- see Anticipation #1 and #2 in Part 6. RFC-072 canonical IDs (`person:{slug}`, `topic:{slug}`) should be the identity columns, not ad-hoc slugs. |
 | Catalog + subscriptions | Part A, Phase A | Planned | **ANTICIPATE** -- see Anticipation #2 in Part 6. |
@@ -1355,10 +1355,10 @@ being in place.
 
 | Item | Content Evolution Ref | Depends On (Platform) |
 | --- | --- | --- |
-| Core protocols + registry | Phase 1-2 | Postgres schema (to know what `ContentItem` maps to in DB). **Note:** RFC-072 CIL patterns (`person:{slug}`, `topic:{slug}`, bridge artifact) and RFC-073 enricher protocol are already content-agnostic -- the core protocols should reference these as proven patterns for identity and enrichment. |
+| Core protocols + registry | Phase 1-2 | Postgres schema (to know what `ContentItem` maps to in DB). **Note:** RFC-072 CIL patterns (`person:{slug}`, `topic:{slug}`, bridge artifact) and RFC-088 enricher protocol are already content-agnostic -- the core protocols should reference these as proven patterns for identity and enrichment. |
 | Podcast + RSS as plugins | Phase 2-3 | Nothing -- internal refactoring |
 | Module reorganization | Phase 4 | Nothing -- internal refactoring |
-| ProcessingConfig extraction | Phase 5 | Worker implementation (to know what config workers consume). Should include `enrichment_enabled` (RFC-073). |
+| ProcessingConfig extraction | Phase 5 | Worker implementation (to know what config workers consume). Should include `enrichment_enabled` (RFC-088). |
 | Multi-source config (`sources:` field) | Phase 5 | Catalog model in Postgres (to know how sources are stored) |
 | CLI plugin commands | Phase 6 | Registry implementation (Phase 1) |
 
@@ -1389,7 +1389,7 @@ For consistency across all platform code, use these names:
 | `source` | `feed` (in generic/platform code) | Python variable names, API schemas |
 | `person:{slug}` | `speaker:{slug}` (GIL), `entity:person:{slug}` (KG) | CIL canonical IDs (RFC-072), bridge.json, Postgres `canonical_identities`, API responses, cross-layer joins |
 | `org:{slug}` | `entity:organization:{slug}` (KG) | CIL canonical IDs (RFC-072), bridge.json, Postgres `canonical_identities`, API responses |
-| `topic:{slug}` | *(already shared, now formalised)* | CIL canonical IDs (RFC-072), bridge.json, Postgres `canonical_identities`, enrichment outputs (RFC-073) |
+| `topic:{slug}` | *(already shared, now formalised)* | CIL canonical IDs (RFC-072), bridge.json, Postgres `canonical_identities`, enrichment outputs (RFC-088) |
 
 **Exception:** Inside the podcast module itself (`content_types/podcast/`,
 `transports/rss/`), continue using `Episode`, `RssFeed`, `episode_id`,
@@ -1452,7 +1452,7 @@ PR-A3  Canonical Identity Layer + bridge (RFC-072)             [SHIPPED]
               are content-agnostic -- the same canonical IDs will work for
               any content type that produces GIL/KG artifacts.
 
-PR-A4  Enrichment layer (RFC-073)                           [IN PROGRESS]
+PR-A4  Enrichment layer (RFC-088)                           [IN PROGRESS]
        ──────────────────────────
        Scope: Enricher protocol, registry, enrichment pass in pipeline,
               deterministic enrichers (topic_cooccurrence, temporal_velocity,
@@ -1659,7 +1659,7 @@ PR-D1  Core protocols, manifests, and registry
            and bridge builder patterns are the reference implementation.
            PluginRegistry should validate that content types can produce
            bridge-compatible identity declarations.
-         - **RFC-073 alignment:** ProcessingConfig protocol should include
+         - **RFC-088 alignment:** ProcessingConfig protocol should include
            `enrichment_enabled: bool`. The enricher protocol and registry
            are already content-agnostic -- they read artifacts via
            EpisodeArtifactBundle and produce derived signals. The core
@@ -1669,7 +1669,7 @@ PR-D1  Core protocols, manifests, and registry
          - NO behavior changes -- existing pipeline untouched
        Delivers: Content Evolution Phase 1. The interface layer exists.
        Depends on: PR-B1 (Postgres schema informs ContentItem fields).
-              RFC-072 CIL patterns and RFC-073 enricher protocol are
+              RFC-072 CIL patterns and RFC-088 enricher protocol are
               reference implementations for identity and enrichment.
        Size: Medium -- new package, protocols, registry, tests.
              ~800-1200 lines.
@@ -1695,7 +1695,7 @@ PR-D2  Podcast + RSS as plugins + module reorganization
            produces bridge.json (CIL identities). The manifest includes
            `produces_bridge: true`. The existing bridge_builder.py is
            the reference implementation.
-         - **RFC-073 alignment:** PodcastContentHandler declares that it
+         - **RFC-088 alignment:** PodcastContentHandler declares that it
            supports enrichment (enricher protocol). The manifest includes
            `supports_enrichment: true`. Existing enrichers work unchanged.
          - Update imports across codebase (the noisy part -- but mechanical)
@@ -1739,11 +1739,11 @@ PR-D4  ProcessingConfig extraction + multi-source config
          - Extract `ProcessingConfig` from `Config`:
            `core/config.py` -- ProcessingConfig Pydantic model with
              summary_provider, summary_model, gi_enabled, kg_enabled,
-             enrichment_enabled (RFC-073), output_dir, workers,
+             enrichment_enabled (RFC-088), output_dir, workers,
              provider API keys/models, etc.
          - `Config` composes `ProcessingConfig` (has-a, not is-a)
          - `Config.processing` property returns ProcessingConfig
-         - **RFC-073 alignment:** Include `enrichment` section in config
+         - **RFC-088 alignment:** Include `enrichment` section in config
            with `enabled`, `opt_in` list, and per-enricher overrides.
            The existing enrichment config pattern is the reference.
          - Add `sources` field to Config (optional list of SourceConfig):
@@ -1799,7 +1799,7 @@ Stream A (podcast capabilities)
   A1 (viewer v2, RFC-062)          [SHIPPED] ──────────────────┐
   A2 (semantic search, RFC-061)    [SHIPPED] ──────────────────┤
   A3 (CIL + bridge, RFC-072)      [SHIPPED] ──────────────────┤
-  A4 (enrichment layer, RFC-073)   [IN PROGRESS] ─────────────┤
+  A4 (enrichment layer, RFC-088)   [IN PROGRESS] ─────────────┤
   A5 (eval framework)              [IN PROGRESS] ─────────────┤
                                                                │
 Stream B (platform infrastructure -- v2.x)                     │
@@ -1825,7 +1825,7 @@ Stream C (adaptive routing -- parallel with late B)            │
                                                                │
 Stream D (content evolution -- v3.0)                           │
   D1 (core protocols + registry) ◄─────────────────────────────┘
-       │  (references RFC-072 CIL patterns + RFC-073 enricher protocol)
+       │  (references RFC-072 CIL patterns + RFC-088 enricher protocol)
        │
   D2 (podcast + RSS as plugins + module reorg)
        │
@@ -1846,7 +1846,7 @@ Stream D (content evolution -- v3.0)                           │
 | A1 | A | Viewer v2 (RFC-062) | Large | Shipped | -- | -- |
 | A2 | A | Semantic search (RFC-061) | Large | Shipped | -- | -- |
 | A3 | A | CIL + bridge (RFC-072) | Large | Shipped | -- | -- |
-| A4 | A | Enrichment layer (RFC-073) | Large | In progress | -- | -- |
+| A4 | A | Enrichment layer (RFC-088) | Large | In progress | -- | -- |
 | A5 | A | Eval framework | Medium | In progress | -- | -- |
 | B1 | B | Postgres + projection | Large | -- | -- | #1 (generic schema + CIL projection) |
 | B2 | B | Catalog + sources | Medium-large | -- | B1 | #2 (generic catalog) |
@@ -1856,7 +1856,7 @@ Stream D (content evolution -- v3.0)                           │
 | B6 | B | Auth stage 2 | Small | -- | B4 | -- |
 | B7 | B | Docker prod profile | Medium | -- | B1-B6 | -- |
 | C1 | C | Adaptive routing | Medium | -- | -- | #5 (content type in routing) |
-| D1 | D | Core protocols + registry | Medium | -- | B1 | RFC-072 CIL patterns, RFC-073 enricher protocol |
+| D1 | D | Core protocols + registry | Medium | -- | B1 | RFC-072 CIL patterns, RFC-088 enricher protocol |
 | D2 | D | Podcast/RSS as plugins | Large | -- | D1 | bridge + enrichment manifest flags |
 | D3 | D | Generic orchestration | Medium | -- | D2 | -- |
 | D4 | D | ProcessingConfig + multi-source | Large | -- | D3, B3 | -- |
@@ -1962,7 +1962,7 @@ new feature UXS files for content-type-specific views, shared tokens in UXS-001.
 enrichments) which are content-type-agnostic. Content-type-specific rendering
 (audio player, etc.) is handled by optional UI components that register per
 content type -- mirroring the backend plugin architecture. The enrichment layer
-(RFC-073) and its consumers (PRD-026 Topic Entity View, PRD-027 Enriched Search)
+(RFC-088) and its consumers (PRD-026 Topic Entity View, PRD-027 Enriched Search)
 demonstrate this: they consume derived signals from any content type that
 produces GIL/KG/bridge artifacts, without hardcoding podcast assumptions.
 
@@ -2002,7 +2002,7 @@ designed to extend to cross-content-type resolution (Phase 3).
 2. **Within-type corpus KG (implemented -- RFC-072)** -- canonical identity
    resolution across episodes of the same podcast via bridge artifact.
    `person:{slug}` and `topic:{slug}` IDs are stable across episodes.
-   Enrichers (RFC-073) consume these identities to compute cross-episode
+   Enrichers (RFC-088) consume these identities to compute cross-episode
    signals (topic co-occurrence, temporal velocity, grounding rate).
 3. **Cross-type corpus KG** -- entity resolution across content types. This is
    where the real value is and where the hard problems live. The bridge
@@ -2093,7 +2093,7 @@ types happens after podcast capabilities are fully nailed down:
 - GI/KG viewer v2 complete (RFC-062) -- shipped
 - Canonical Identity Layer + bridge (RFC-072) -- shipped (precursor to
   cross-content-type entity resolution)
-- Enrichment layer (RFC-073) -- in progress (content-agnostic enricher
+- Enrichment layer (RFC-088) -- in progress (content-agnostic enricher
   protocol; first consumers: PRD-026, PRD-027)
 - Postgres projection (RFC-051) -- next major infrastructure
 - Semantic search (RFC-061) -- shipped
@@ -2113,14 +2113,14 @@ types happens after podcast capabilities are fully nailed down:
 
 - Keep module boundaries clean in current work -- don't add more podcast
   coupling to the processing pipeline
-- RFC-072 (CIL/bridge) and RFC-073 (enrichment) are already content-agnostic
+- RFC-072 (CIL/bridge) and RFC-088 (enrichment) are already content-agnostic
   by design -- their protocols work for any content type that produces
   GIL/KG/bridge artifacts
 - When introducing Postgres, design the schema to be content-type-extensible
   (use generic `content_item_id` instead of `episode_id` in new tables)
 - When building adaptive routing, design the routing interface to accept
   content type as an input dimension
-- Enricher registry (RFC-073) uses the same module-attribute discovery pattern
+- Enricher registry (RFC-088) uses the same module-attribute discovery pattern
   proposed for content-type plugins -- validates the approach before v3.0
 
 This way, the v3.0 refactoring is smaller because v2.x work already
@@ -2147,7 +2147,7 @@ anticipated it.
 | [Platform Blueprint](PLATFORM_ARCHITECTURE_BLUEPRINT.md) | Infrastructure evolution | How do we scale to a platform? (tenancy, workers, queues, DB, deployment) |
 | **This document** | Content evolution | How do we evolve beyond podcasts? (content types, transports, plugins, cross-source KG) |
 | [RFC-072](../rfc/RFC-072-canonical-identity-layer-cross-layer-bridge.md) | Identity layer | How do entities get canonical IDs across episodes? (precursor to cross-content-type resolution) |
-| [RFC-073](../rfc/RFC-073-enrichment-layer-architecture.md) | Enrichment layer | How do derived signals layer on top of core artifacts? (content-agnostic protocol) |
+| [RFC-088](../rfc/RFC-088-enrichment-layer-architecture.md) | Enrichment layer | How do derived signals layer on top of core artifacts? (content-agnostic protocol) |
 | [PRD-026](../prd/PRD-026-topic-entity-view.md) / [PRD-027](../prd/PRD-027-enriched-search.md) | Enrichment consumers | First features consuming enricher outputs (topic view, enriched search) |
 | [Non-Functional Requirements](NON_FUNCTIONAL_REQUIREMENTS.md) | Quality attributes | What are the performance, reliability, security targets? |
 
@@ -2159,7 +2159,7 @@ anticipated it.
   (Postgres, workers, queues)
 - Architecture doc should reference this doc in the "Architecture Evolution"
   section as the v3.0 direction
-- RFC-073 enrichment layer is content-agnostic and extends naturally to
+- RFC-088 enrichment layer is content-agnostic and extends naturally to
   non-podcast content types (no changes needed when new types arrive)
 - RFC-072 CIL/bridge is the implemented precursor to cross-content-type entity
   resolution (F.3) -- the canonical ID scheme (`person:{slug}`, `topic:{slug}`)

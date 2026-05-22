@@ -4,7 +4,7 @@
 - **Authors**: Marko
 - **Target Release**: TBD
 - **Related RFCs**:
-  - `docs/rfc/RFC-073-enrichment-layer-architecture.md` -- enrichment layer trust
+  - `docs/rfc/RFC-088-enrichment-layer-architecture.md` -- enrichment layer trust
     contract (`derived: true`, tier classification, opt-in); query-time enricher
     protocol to be defined as Phase 4 extension
   - `docs/rfc/RFC-072-canonical-identity-layer-cross-layer-bridge.md` -- bridge artifact
@@ -77,16 +77,16 @@ offset overlap, then lifted to an Insight via SUPPORTED_BY, then attributed to a
 via SPOKEN_BY. This path was anticipated in RFC-072 Known Limitations §1 (char offset
 alignment must be verified before enabling).
 
-RFC-073 (Enrichment Layer) defines the batch enricher protocol for episode-scope and
+RFC-088 (Enrichment Layer) defines the batch enricher protocol for episode-scope and
 corpus-scope enrichers that run after the core pipeline. Query-time enrichment --
 running an LLM enricher per-search-request -- is architecturally different: it takes
 a query + FAISS results as input and returns a response, rather than writing a file.
-This PRD requires a **QueryEnricher** protocol that shares RFC-073's trust contract
+This PRD requires a **QueryEnricher** protocol that shares RFC-088's trust contract
 (`derived: true`, tier classification, provider opt-in) but operates at request time.
-The QueryEnricher protocol will be defined as an RFC-073 Phase 4 extension or a
+The QueryEnricher protocol will be defined as an RFC-088 Phase 4 extension or a
 companion RFC.
 
-**Phase numbering disambiguation:** "RFC-073 Phase 4" refers to the QueryEnricher
+**Phase numbering disambiguation:** "RFC-088 Phase 4" refers to the QueryEnricher
 protocol extension (request-time enrichment). "RFC-072 Phase 4" refers to CIL query
 patterns (cross-layer joins, topic/person queries). These are distinct capabilities
 in different RFCs that happen to share the same phase number.
@@ -192,7 +192,7 @@ search panel header indicating enriched results are active.
 **FR2.4** -- Provider compatibility: the `llm_search_synthesis` enricher declares
 which providers it supports via the enricher manifest. Providers that do not support
 enrichment (e.g. a provider that only supports transcription) are excluded silently.
-The user configures enrichment via the existing `enrichment` config block (RFC-073):
+The user configures enrichment via the existing `enrichment` config block (RFC-088):
 
 ```yaml
 enrichment:
@@ -204,10 +204,10 @@ enrichment:
       provider: openai   # or anthropic, ollama, gemini -- uses existing provider config
 ```
 
-**RFC-073 extension note:** The `provider` field per enricher entry is new -- RFC-073's
+**RFC-088 extension note:** The `provider` field per enricher entry is new -- RFC-088's
 current config schema does not include per-enricher provider selection. Batch enrichers
 (deterministic tier) do not need it. LLM-tier and query-time enrichers do. This field
-will be added as part of the QueryEnricher protocol extension (RFC-073 Phase 4).
+will be added as part of the QueryEnricher protocol extension (RFC-088 Phase 4).
 
 ### Degraded States
 
@@ -271,7 +271,7 @@ GIL lift -- Quotes -> Insights (SUPPORTED_BY) -> Persons (SPOKEN_BY) -> Topics (
     ↓
 Filter: grounded: true only
     ↓
-QueryEnricher: llm_search_synthesis (RFC-073 Phase 4 extension)
+QueryEnricher: llm_search_synthesis (RFC-088 Phase 4 extension)
     ↓
 Enriched answer with sources
     ↓
@@ -365,7 +365,7 @@ Advanced search when unavailable.
    is a verification task against the eval corpus, not a code change. Enriched Search
    cannot ship until this is confirmed green.
 
-2. **RFC-073 Phase 4: QueryEnricher protocol** -- The batch enricher protocol
+2. **RFC-088 Phase 4: QueryEnricher protocol** -- The batch enricher protocol
    (episode/corpus scope) does not cover request-time enrichment. A QueryEnricher
    protocol extension must be defined before `llm_search_synthesis` can be
    implemented. This PRD defines the product requirements; the protocol RFC is a
@@ -395,7 +395,7 @@ Advanced search when unavailable.
 
 ## References
 
-- `docs/rfc/RFC-073-enrichment-layer-architecture.md`
+- `docs/rfc/RFC-088-enrichment-layer-architecture.md`
 - `docs/rfc/RFC-072-canonical-identity-layer-cross-layer-bridge.md`
 - `docs/rfc/RFC-061-semantic-corpus-search.md`
 - `docs/prd/PRD-021-semantic-corpus-search.md`

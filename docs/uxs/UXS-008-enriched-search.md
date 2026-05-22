@@ -8,7 +8,7 @@
   - [PRD-027: Enriched Search](../prd/PRD-027-enriched-search.md) -- full requirements,
     data flow, and dependencies
 - **Related RFCs**:
-  - [RFC-073: Enrichment Layer Architecture](../rfc/RFC-073-enrichment-layer-architecture.md) --
+  - [RFC-088: Enrichment Layer Architecture](../rfc/RFC-088-enrichment-layer-architecture.md) --
     enrichment trust contract; QueryEnricher protocol (Phase 4 extension)
   - [RFC-072: Canonical Identity Layer](../rfc/RFC-072-canonical-identity-layer-cross-layer-bridge.md) --
     bridge artifact enabling chunk-to-Insight lift

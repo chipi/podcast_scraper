@@ -583,7 +583,7 @@ Each item below is **also** listed on **[#659](https://github.com/chipi/podcast_
 | ----- | ---------------- |
 | Stack compose + images | [`compose/docker-compose.stack.yml`](https://github.com/chipi/podcast_scraper/blob/main/compose/docker-compose.stack.yml), [`docker/pipeline/Dockerfile`](https://github.com/chipi/podcast_scraper/blob/main/docker/pipeline/Dockerfile), [`docker/api/Dockerfile`](https://github.com/chipi/podcast_scraper/blob/main/docker/api/Dockerfile), [`docker/viewer/Dockerfile`](https://github.com/chipi/podcast_scraper/blob/main/docker/viewer/Dockerfile) |
 | Makefile targets | `Makefile` (`stack-*`, `smoke-*`, `verify-stack-profiles`) |
-| Secrets / `.env` | [`DOCKER_SERVICE_GUIDE.md` § Full stack → Secrets (stack)](../guides/DOCKER_SERVICE_GUIDE.md#secrets-stack) |
+| Secrets / `.env` | [`DOCKER_SERVICE_GUIDE.md` § Secrets Management](../guides/DOCKER_SERVICE_GUIDE.md#secrets-management) |
 | Native vs Docker jobs | [§Native vs Docker](#native-vs-docker); [#660](https://github.com/chipi/podcast_scraper/issues/660) |
 | Profile ↔ image tier | `scripts/tools/validate_profile_docker_tier.py`; RFC-079 [§Pipeline image tiers](#pipeline-image-tiers) |
 | Ephemeral CI smoke | [RFC-078](RFC-078-ephemeral-acceptance-smoke-test.md), `compose/docker-compose.stack-test.yml`, `make stack-test-*` |

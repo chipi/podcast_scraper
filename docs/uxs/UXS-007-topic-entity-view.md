@@ -8,7 +8,7 @@
   - [PRD-026: Topic Entity View](../prd/PRD-026-topic-entity-view.md) -- full
     requirements and data sources
 - **Related RFCs**:
-  - [RFC-073: Enrichment Layer Architecture](../rfc/RFC-073-enrichment-layer-architecture.md) --
+  - [RFC-088: Enrichment Layer Architecture](../rfc/RFC-088-enrichment-layer-architecture.md) --
     `topic_cooccurrence` and `temporal_velocity` enrichers that provide the data
   - [RFC-072: Canonical Identity Layer](../rfc/RFC-072-canonical-identity-layer-cross-layer-bridge.md) --
     bridge artifact powering cross-episode topic queries

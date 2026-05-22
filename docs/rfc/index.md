@@ -27,6 +27,7 @@ RFCs translate PRD requirements into concrete technical solutions and serve as l
 | [RFC-077](RFC-077-viewer-feeds-and-serve-pipeline-jobs.md) | Viewer feeds + operator config + jobs & hygiene | [PRD-030](../prd/PRD-030-viewer-feed-sources-and-pipeline-jobs.md) | **Draft:** structured **`feeds.spec.yaml`** + operator YAML API, job lifecycle + stale/reconcile ([#626](https://github.com/chipi/podcast_scraper/issues/626)) |
 | [RFC-081](RFC-081-pre-prod-environment-and-control-plane.md) | Pre-prod environment on GitHub Codespaces (Phase 1) | — | **Draft:** Codespaces deploy auto-fired on Stack-test green; cloud_thin profile via GHCR-published `pipeline-llm`; Grafana Cloud + Sentry free observability; Cloudflare R2 corpus backup; Slack notifications. Always-on host deferred to a follow-up RFC. |
 | [RFC-082](RFC-082-always-on-pre-prod-and-prod-hosting.md) | Always-on pre-prod / production hosting (Phase 2 lift-and-shift from RFC-081) | — | **Draft starter:** picks up where RFC-081 ended. Reuses the published GHCR image set unchanged; chooses VPS host (Hetzner CX/CCX), auth wall (Cloudflare Tunnel + Access OR Tailscale), deploy mechanism (push from GHA), corpus persistence (host bind-mount), and host-side backup cron. Includes **stack contract vs environment adapters** ([ADR-093](../adr/ADR-093-canonical-stack-contract-and-environment-adapters.md), [#762](https://github.com/chipi/podcast_scraper/issues/762)). Cost ceiling ~$10-16/mo. Open questions: operator geography, existing Cloudflare domain, scheduled-cron feed sweep. |
+| [RFC-087](RFC-087-vps-public-edge-multi-compose.md) | VPS public edge and multi–Docker Compose hosting | — | **Draft:** optional **public TLS edge** (Caddy / Traefik / Cloudflare Tunnel) terminating HTTPS for multi-host VPS routing while operators stay on **Tailscale**; isolation + GitOps pattern for additional repos on the same VPS. Cross-links: [PROD_RUNBOOK](../guides/PROD_RUNBOOK.md), [VPS_MULTI_APP_ONBOARDING](../guides/VPS_MULTI_APP_ONBOARDING.md). |
 
 ## Completed RFCs
 
@@ -92,11 +93,13 @@ RFCs translate PRD requirements into concrete technical solutions and serve as l
 | [RFC-071](RFC-071-corpus-intelligence-dashboard-viewer.md) | Corpus Intelligence Dashboard (GI/KG Viewer) | PRD-025 | v2.6.0 | **Dashboard** tab: **`/api/corpus/*`** aggregates + Chart.js (**Pipeline** / **Content intelligence**); manifest + capped **`run.json`** discovery; index/digest/GI-KG timelines; [PRD-025](../prd/PRD-025-corpus-intelligence-dashboard-viewer.md) |
 | [RFC-076](RFC-076-progressive-graph-expansion.md) | Progressive graph expansion (cross-episode) | #581 | v2.6.0 | `POST /api/corpus/node-episodes`, `onetap` rail / `dbltap` expand-collapse, bridge-only scan; extends RFC-069 |
 | [RFC-084](RFC-084-corpus-backup-manifest-and-version-aware-restore.md) | Corpus snapshot backup manifest and version-aware restore | — | v2.6.0 | `snapshot.manifest.json`, `scripts/ops/corpus_snapshot/`, backup/restore workflows + `make restore-corpus` / `restore-corpus-prod`; GitHub #763 |
+| [RFC-085](RFC-085-graph-handoff-orchestrator-retrospective.md) | Graph handoff orchestrator stabilization (retrospective) | PRD-024 | v2.6.0 | 8-state FSM with envelope + generation tokens across 13 entry points; viewer-side stuck detection + error strip; matrix-driven E2E coverage. Decisions in [ADR-094](../adr/ADR-094-graph-handoff-orchestrator-fsm.md). |
+| [RFC-086](RFC-086-viewer-test-pyramid-and-production-shaped-fixtures.md) | Viewer test pyramid — three tiers (mocks, production-shaped, real corpus) | PRD-024 | v2.6.0 | Tier-1 mocked, Tier-2 production-shaped fixtures, Tier-3 real-corpus matrix; `make ci-ui-validation`; real-bug-first matrix-row rule. Decisions in [ADR-095](../adr/ADR-095-viewer-test-pyramid.md). |
 
 ## Gap analysis {:#gaps}
 
-**Counts (reconcile when moving RFCs):** **84** files under `docs/rfc/RFC-*.md` -- IDs **RFC-001--RFC-084**
-with **no RFC-014**. **3** open (in-flight, partial implementation), **60** completed, and **16** Draft
+**Counts (reconcile when moving RFCs):** **87** files under `docs/rfc/RFC-*.md` -- IDs **RFC-001--RFC-087**
+with **no RFC-014**. **6** open (in-flight, partial implementation), **62** completed, and **16** Draft
 (not indexed until promoted) in the tables above.
 
 **Open RFC clusters:** AI experiment pipeline + ML benchmark CI (**RFC-015**, **RFC-041**).

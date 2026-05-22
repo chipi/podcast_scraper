@@ -1,4 +1,4 @@
-# RFC-083: VPS public edge and multi–Docker Compose hosting
+# RFC-087: VPS public edge and multi–Docker Compose hosting
 
 - **Status**: Draft
 - **Authors**: Marko + assistant

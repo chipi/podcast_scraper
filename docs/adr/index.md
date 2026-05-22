@@ -112,10 +112,12 @@ still rolling out; **No** = not started (including accepted ADRs waiting on impl
 | [ADR-091](ADR-091-prod-failover-gha-triggers-and-gates.md) | Prod Failover — GHA Triggers and Gates | Accepted | [RFC-083](../rfc/RFC-083-prod-failover-orchestration-and-cutover.md) | Manual cutover/failback/teardown; freeze prod schedules; spare schedules off after restore | No |
 | [ADR-092](ADR-092-corpus-snapshot-backup-manifest-and-newest-compatible-restore.md) | Corpus Snapshot Backup Manifest and Newest-Compatible Restore Default | Accepted | [RFC-084](../rfc/RFC-084-corpus-backup-manifest-and-version-aware-restore.md) | `snapshot.manifest.json`; dual placement; newest-compatible default; fail closed; GitHub #763 | Yes |
 | [ADR-093](ADR-093-canonical-stack-contract-and-environment-adapters.md) | Canonical Stack Contract Versus Environment Adapters | Accepted | [RFC-082](../rfc/RFC-082-always-on-pre-prod-and-prod-hosting.md) | One topology/health/`stack-test` discipline; adapters for transport/secrets only; steady vs restore playbooks separate; GitHub #762 | Yes |
+| [ADR-094](ADR-094-graph-handoff-orchestrator-fsm.md) | Graph Handoff Orchestrator — 8-State FSM with Envelope and Generation Tokens | Accepted | [RFC-085](../rfc/RFC-085-graph-handoff-orchestrator-retrospective.md) | Single FSM authoritative across 13 entry points; envelope contract; generation supersession; viewer-side stuck detection + error strip | Yes |
+| [ADR-095](ADR-095-viewer-test-pyramid.md) | Viewer Test Pyramid — Three Tiers (Mocks, Production-Shaped, Real Corpus) | Accepted | [RFC-086](../rfc/RFC-086-viewer-test-pyramid-and-production-shaped-fixtures.md) | Tier-1 mocked, Tier-2 production-shaped fixtures, Tier-3 real-corpus matrix; `make ci-ui-validation`; real-bug-first matrix-row rule | Yes |
 
 ## Gap analysis {:#gaps}
 
-**Counts (reconcile when adding ADRs):** **93** files under `docs/adr/ADR-*.md` (ADR-001–ADR-093;
+**Counts (reconcile when adding ADRs):** **95** files under `docs/adr/ADR-*.md` (ADR-001–ADR-095;
 numbering has historical gaps). From the index table: **2** **Proposed** (**ADR-055**, **ADR-056**),
 **7** **Accepted** with **Code = No** (**ADR-054**, **ADR-058**, **ADR-059**, **ADR-089**, **ADR-090**, **ADR-091**), **2** **Accepted** with
 **Code = Partial** (**ADR-031**, **ADR-047**). **Accepted** means ratified, not necessarily shipped.

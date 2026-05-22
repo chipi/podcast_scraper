@@ -98,5 +98,5 @@ Document `PODCAST_IMAGE_TAG`-style variable names per app.
 - [Prod runbook](PROD_RUNBOOK.md) — bootstrap, health checks, constraints.
 - [Prod operator cheat sheet](PROD_OPERATOR_CHEAT_SHEET.md) — quick commands.
 - [RFC-082](../rfc/RFC-082-always-on-pre-prod-and-prod-hosting.md) — hosting and GitOps decisions.
-- [RFC-083](../rfc/RFC-083-vps-public-edge-multi-compose.md) — optional public TLS edge + multi-vhost
+- [RFC-087](../rfc/RFC-087-vps-public-edge-multi-compose.md) — optional public TLS edge + multi-vhost
   design (operators stay on Tailscale).

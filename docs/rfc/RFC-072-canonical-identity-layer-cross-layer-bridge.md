@@ -20,7 +20,7 @@
   - `docs/rfc/RFC-056-knowledge-graph-layer-use-cases.md` (single-layer consumption;
     cross-layer use cases now live here)
   - `docs/rfc/RFC-061-semantic-corpus-search.md`
-  - `docs/rfc/RFC-073-enrichment-layer-architecture.md` -- enrichment layer; provides
+  - `docs/rfc/RFC-088-enrichment-layer-architecture.md` -- enrichment layer; provides
     `grounding_rate`, `topic_cooccurrence`, `temporal_velocity`, and
     `nli_contradiction` enrichers that feed PRDs 026--029
 - **Related Documents**:
@@ -406,7 +406,7 @@ last successful build**. None of the following freezes identity for all time:
   clustering) may change canonical `topic:` / `person:` / `org:` strings, merge graph
   nodes, or regenerate **`topic_clusters.json`** and **`graph_compound_parent_id`**
   (`tc:`) values.
-- **RFC-073 enrichers** must never mutate `*.gi.json`, `*.kg.json`, or `*.bridge.json`, but
+- **RFC-088 enrichers** must never mutate `*.gi.json`, `*.kg.json`, or `*.bridge.json`, but
   they still **read** whatever version is current; enrichment outputs may need
   **re-computation** after a core rebuild so derived files stay aligned with new core
   content.
@@ -420,7 +420,7 @@ product requires continuity; record **run id** / **tool versions** in session me
 comparing analyses over time.
 
 See also: [GIL / KG / CIL cross-layer guide](../guides/GIL_KG_CIL_CROSS_LAYER.md),
-[RFC-073 enrichment layer](RFC-073-enrichment-layer-architecture.md),
+[RFC-088 enrichment layer](RFC-088-enrichment-layer-architecture.md),
 [Architecture — GIL, KG, CIL](../architecture/ARCHITECTURE.md#gil-kg-and-canonical-cross-layer-cil).
 
 ---
@@ -1398,7 +1398,7 @@ chunk-to-Insight lift to search result enrichment. No FAISS rebuild required.
 
 **`grounding_rate` source note:** The `grounding_rate` statistic used in PRD-026
 (Topic Entity View, person chip badge) and PRD-029 (Person Profile) comes from
-RFC-073's `grounding_rate` corpus enricher, not from an analysis layer pass.
+RFC-088's `grounding_rate` corpus enricher, not from an analysis layer pass.
 
 ---
 

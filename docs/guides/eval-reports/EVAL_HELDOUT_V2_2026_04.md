@@ -51,7 +51,7 @@ Final blended score = `0.70 * ROUGE-L + 0.30 * judge_mean`. Higher better.
 
 > Quality is one dimension. Once latency and cost are counted, **Gemini 2.0-flash** is the
 > default pick for balanced use cases (0.562 quality, 2.0s/ep, $0.00035/ep). See the
-> [Compound analysis § Pareto frontier](#compound-analysis--pareto-frontier) and
+> [Compound analysis § Pareto frontier](#compound-analysis-pareto-frontier) and
 > [Recommended option order by use case](#recommended-option-order-by-use-case) for full
 > quality × latency × cost tradeoffs.
 
@@ -503,7 +503,7 @@ is a legitimate choice there. OpenAI, Grok, Gemini show the classic "attention s
 Ordered cheapest → most expensive (output tokens): **Gemini < DeepSeek < Mistral < Grok <
 Anthropic Haiku < OpenAI GPT-4o**. 33× spread from cheapest to most expensive.
 
-Actual measured per-episode latency and cost are in the [Full matrix](#full-matrix-with-latency-and-cost-non-bundled-bullets-held-out) above. See [Compound analysis](#compound-analysis--pareto-frontier) for recommended option order.
+Actual measured per-episode latency and cost are in the [Full matrix](#full-matrix-with-latency-and-cost-non-bundled-bullets-held-out) above. See [Compound analysis](#compound-analysis-pareto-frontier) for recommended option order.
 
 ---
 
