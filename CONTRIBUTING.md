@@ -2,6 +2,11 @@
 
 Thanks for contributing! This guide gets you from zero to your first PR.
 
+> **Single source of truth:** **[AGENTS.md](AGENTS.md)** is canonical for stack, commands,
+> code-quality rules, git workflow, and the "rules you keep breaking" sections. This file
+> is the human-onboarding overlay; assistant-specific overlays live in `CLAUDE.md` and
+> `.cursorrules`.
+
 ---
 
 ## New Contributor Quick Path
@@ -11,13 +16,14 @@ Thanks for contributing! This guide gets you from zero to your first PR.
 | Step | Document | Time | What You'll Learn |
 | ---- | -------- | ---- | ----------------- |
 | 1 | [README](README.md) | 5 min | What this project does |
-| 2 | [Engineering Process](docs/guides/ENGINEERING_PROCESS.md) | 5 min | **The "Triad of Truth": PRDs, RFCs, and ADRs** |
-| 3 | [Architecture](docs/architecture/ARCHITECTURE.md) | 10 min | How it's structured |
-| 4 | [Quick Reference](docs/guides/QUICK_REFERENCE.md) | 5 min | Common commands |
-| 5 | [Testing Guide](docs/guides/TESTING_GUIDE.md) | 5 min | How to run tests |
-| 6 | [Development Guide](docs/guides/DEVELOPMENT_GUIDE.md) | 10 min | Code patterns |
-| 7 | [Polyglot repository guide](docs/guides/POLYGLOT_REPO_GUIDE.md) | 5 min | Python vs Node, env files, `make test-ui` / viewer paths |
-| 8 | Pick an issue! | - | [Good first issues](https://github.com/chipi/podcast_scraper/labels/good%20first%20issue) |
+| 2 | [AGENTS.md](AGENTS.md) | 10 min | **Canonical rules**: stack, commands, code quality, git workflow |
+| 3 | [Engineering Process](docs/guides/ENGINEERING_PROCESS.md) | 5 min | **The "Triad of Truth": PRDs, RFCs, and ADRs** |
+| 4 | [Architecture](docs/architecture/ARCHITECTURE.md) | 10 min | How it's structured |
+| 5 | [Quick Reference](docs/guides/QUICK_REFERENCE.md) | 5 min | Common commands |
+| 6 | [Testing Guide](docs/guides/TESTING_GUIDE.md) | 5 min | How to run tests |
+| 7 | [Development Guide](docs/guides/DEVELOPMENT_GUIDE.md) | 10 min | Code patterns |
+| 8 | [Polyglot repository guide](docs/guides/POLYGLOT_REPO_GUIDE.md) | 5 min | Python vs Node, env files, `make test-ui` / viewer paths |
+| 9 | Pick an issue! | - | [Good first issues](https://github.com/chipi/podcast_scraper/labels/good%20first%20issue) |
 
 **Viewer or FastAPI:** If you touch **`src/podcast_scraper/server/`** or **`web/gi-kg-viewer/`**,
 read **[Server Guide](docs/guides/SERVER_GUIDE.md)** (`/api/*`, **`/docs`** OpenAPI) and
@@ -388,6 +394,10 @@ Before submitting:
 - [ ] `make ci-fast` passes locally (`make ci` for full suite including Playwright)
 - [ ] If `web/gi-kg-viewer/` changed: `make test-ui` and `make test-ui-e2e` pass
 - [ ] If viewer **UX** changed: `E2E_SURFACE_MAP.md` and Playwright specs/helpers updated; UXS-001 updated if the visual contract changed ([checklist](docs/guides/E2E_TESTING_GUIDE.md#when-you-change-viewer-ux-required-workflow))
+- [ ] If you renamed `data-testid`s or refactored chip / Status-bar surfaces: `make ci-ui-full` (not `ci-ui-fast`) before push — `tests/stack-test/` only runs in `ci` / `ci-ui-full`
+- [ ] If you fixed a real-corpus viewer bug: a **Tier-2 matrix row** reproducing it landed first ([ADR-095](docs/adr/ADR-095-viewer-test-pyramid.md))
+- [ ] If you touched `.devcontainer/*`, `compose/docker-compose.prod.yml`, `deploy-codespace.yml`, or `backup-corpus.yml`: a real codespace boot + operator workflow ran end-to-end
+- [ ] If any `*.md` changed: `make docs` (strict) passes
 - [ ] Tests added/updated for changes
 - [ ] Documentation updated if needed
 - [ ] Commit messages follow conventional format

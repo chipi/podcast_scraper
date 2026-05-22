@@ -1,12 +1,18 @@
-# Release v2.6.0 — Corpus Intelligence UI, Semantic Search, and Operator Tooling
+# Release v2.6.0 — Corpus Intelligence UI, Semantic Search, Operator Tooling, and Production Stability
 
-**Release Date:** April 2026  
-**Type:** Minor Release  
-**Last Updated:** April 2026
+**Release Date:** May 2026
+**Type:** Minor Release
+**Last Updated:** 2026-05-22
 
 ## Summary
 
-v2.6.0 is a **minor release** that ships a **full browser surface** for exploring processed corpora alongside the pipeline: a **Vue 3 + Vite** GI/KG viewer on a **FastAPI** server, **semantic corpus search** (FAISS) exposed in the UI and CLI, **Corpus Library**, **Digest**, and **Dashboard** experiences, and a **graph exploration toolkit** for Cytoscape-based GI/KG views. On the **provider and evaluation** side, the release tightens how you **compare quality and cost**: the **Run Comparison** Streamlit app gains a **Performance** tab tied to **frozen YAML profiles** (RFC-064), sitting on top of the **seven LLM providers** and **hybrid ML** stack delivered in v2.5.0.
+v2.6.0 is a **minor release** that ships three substantial bodies of work on top of v2.5.0:
+
+1. **A full browser surface** for exploring processed corpora — a **Vue 3 + Vite** GI/KG viewer on a **FastAPI** server, **semantic corpus search** (FAISS) exposed in the UI and CLI, **Corpus Library**, **Digest**, **Graph**, and **Dashboard** experiences, and a **graph exploration toolkit** for Cytoscape-based GI/KG views.
+2. **A hardened pipeline-to-viewer experience** — **graph handoff orchestrator** (8-state FSM with envelope contract and generation-token concurrency across 13 entry points, ADR-094 / RFC-085), **viewer test pyramid** (Tier-1 mocks → Tier-2 production-shaped fixtures → Tier-3 real corpus, ADR-095 / RFC-086), and viewer performance tail trims (#767/#768/#769).
+3. **Operator and hosting maturity** — **always-on hosting** design and the Hetzner VPS playbook (RFC-082), **corpus snapshot backup manifest + version-aware restore** (RFC-084, ADR-092, `make restore-corpus` / `restore-corpus-prod`), **canonical stack contract + environment adapters** (ADR-093), prod-failover decisions (ADR-089/090/091), and the **AGENTS.md** canonicalization (PR #786 — single source of truth across all AI assistants).
+
+On the **provider and evaluation** side, the release tightens how you **compare quality and cost**: the **Run Comparison** Streamlit app gains a **Performance** tab tied to **frozen YAML profiles** (RFC-064 / RFC-066), sitting on top of the **seven LLM providers** and **hybrid ML** stack delivered in v2.5.0.
 
 The **Python library** surface (`Config`, `run_pipeline`, `service.run`) stays backward compatible. HTTP, the SPA, and server-only routes are **additive** behind `pip install -e '.[dev]'`. **GIL** and **KG** reach **Completed** status for **single-layer** artifacts and consumption (RFC-049 / RFC-050, RFC-055 / RFC-056); **cross-layer identity** remains future work (Draft RFC-072). **Multi-feed** corpus layout, manifest, and unified indexing ship per RFC-063.
 
@@ -132,6 +138,91 @@ Together, the v2.5.0 **provider breadth** and v2.6.0 **Performance tab + frozen 
 ## Operational observability (partial PRD-016)
 
 Shipped in this release train: **test metrics** and **GitHub Pages** dashboards (RFC-025 / RFC-026), **live monitor** (RFC-065), **frozen profiles** and **Run Compare Performance** (RFC-064 / RFC-066). **RFC-027** items (for example CSV export) remain open.
+
+---
+
+## Spotlight — Graph handoff orchestrator and viewer test pyramid
+
+Two architectural pieces shipped late in the 2.6 cycle to stabilize the viewer and make
+its behavior testable end-to-end.
+
+### Graph handoff orchestrator — 8-state FSM (RFC-085, ADR-094)
+
+Before this work the viewer had **13 entry surfaces** that could open something in the
+graph tab (Library, Digest, Search, Dashboard, NodeDetail, Explore, episode panel,
+double-tap, minimap, App-shell `activateGraphTab`, lifecycle restore, etc.), each with
+its own combination of subject + load-source + camera writes. The result was hard-to-
+reproduce stuck states ("clicked the G button, nothing happened, no feedback") and
+no single owner of the artifact-⇔-Cytoscape invariant.
+
+v2.6 replaces this with a **single Pinia-backed FSM** at
+`web/gi-kg-viewer/src/services/graphHandoffFsm.ts` and `stores/graphHandoff.ts`:
+
+- **8 states** (`idle → loading_fetch → loading_bootstrap → loading_merge → redrawing_incremental | redrawing_full → applying → ready`)
+- **One `GraphHandoffEnvelope`** carrying source / kind / load-source / camera-strategy / generation token
+- **Generation-token concurrency**: rapid clicks deterministically supersede; older work is dropped, no UI flicker, no half-applied state
+- **5-second stuck detector** + visible **`HandoffErrorStrip`** replaces the silent swallow
+- **Production self-healing**: invariant watcher on `layoutstop` + targeted `core.add()` reconciliation with single-retry budget
+- **Dev hook** `window.__GIKG_FSM__` for state inspection
+- **Telemetry**: `graph_handoff_started/applied/failed/superseded/stuck`
+
+See [ADR-094](../adr/ADR-094-graph-handoff-orchestrator-fsm.md), [RFC-085](../rfc/RFC-085-graph-handoff-orchestrator-retrospective.md), and the in-tree contract in `web/gi-kg-viewer/src/services/README.md`.
+
+### Viewer test pyramid (RFC-086, ADR-095)
+
+Three-tier strategy that closes the gap between unit tests and "did it work on real
+data":
+
+- **Tier 1 — Mocks.** Per-request route mocks; fast; runs in `make ci-ui-fast`.
+- **Tier 2 — Production-shaped fixtures.** A small, realistic corpus snapshot that exercises real Cytoscape rendering and the FSM end-to-end against representative artifact shapes. Runs in `make ci-ui-full`.
+- **Tier 3 — Real corpus matrix.** Operator-supplied real corpus via `make ci-ui-validation CORPUS=/abs/path`. Surfaces real-bug-first matrix rows.
+
+**Rule (ADR-095):** every real-corpus bug must land a Tier-2 matrix row reproducing it
+**before** the fix PR merges. This keeps the pyramid honest — it's coverage by construction,
+not a regression pile.
+
+See [ADR-095](../adr/ADR-095-viewer-test-pyramid.md) and [RFC-086](../rfc/RFC-086-viewer-test-pyramid-and-production-shaped-fixtures.md). Viewer perf tails (#767/#768/#769) ship alongside as
+browser-observable demos under `web/gi-kg-viewer/e2e/perf/`.
+
+---
+
+## Spotlight — Operator playbook, backup/restore, and stack contract
+
+### Always-on hosting and prod-failover decisions
+
+[RFC-082](../rfc/RFC-082-always-on-pre-prod-and-prod-hosting.md) lifts the published GHCR
+image set onto a **Hetzner VPS** with **Tailscale-only ingress** by default. [ADR-079
+through ADR-083](../adr/index.md) lock OpenTofu, encrypted in-repo state, the drill
+workspace and ACL ownership, GitOps deploy after `stack-test`, and the Tailscale ingress
+choice. Prod-failover orchestration (DNS-first cutover, GHA triggers, drill-vs-incident
+separation) is designed under [RFC-083](../rfc/RFC-083-prod-failover-orchestration-and-cutover.md)
+with [ADR-089](../adr/ADR-089-prod-failover-orchestrator-separate-from-drill.md)–[ADR-091](../adr/ADR-091-prod-failover-gha-triggers-and-gates.md);
+implementation lands post-2.6. Optional public TLS edge + multi-app hosting is documented
+in [RFC-087](../rfc/RFC-087-vps-public-edge-multi-compose.md).
+
+Operator-facing playbooks: [PROD_RUNBOOK.md](../guides/PROD_RUNBOOK.md), [PROD_OPERATOR_CHEAT_SHEET.md](../guides/PROD_OPERATOR_CHEAT_SHEET.md), [VPS_MULTI_APP_ONBOARDING.md](../guides/VPS_MULTI_APP_ONBOARDING.md).
+
+### Corpus snapshot backup manifest + version-aware restore (RFC-084, ADR-092)
+
+A backup is now self-describing. Every snapshot writes a `snapshot.manifest.json`
+recording app version, schema version, included paths, and SHA-256 hashes; restore is
+version-aware and refuses incompatible combinations rather than silently corrupting
+state. Tooling lives under `scripts/ops/corpus_snapshot/` with `make restore-corpus` and
+`make restore-corpus-prod` entry points. GitHub Actions ship matching `backup-corpus.yml`
+and restore workflows.
+
+### Canonical stack contract vs. environment adapters (ADR-093)
+
+One topology, one health surface, one `stack-test` discipline across local dev, codespace,
+pre-prod VPS, and (eventually) prod. Per-environment differences are confined to
+**adapters** (transport, secrets) and clearly labeled **playbooks** (steady-state vs.
+restore). Eliminates the prior "is this dev or prod?" branching in tests.
+
+### AGENTS.md canonicalization (PR #786)
+
+A single canonical source of truth for AI assistants and contributors lives at the repo
+root in [AGENTS.md](https://github.com/chipi/podcast_scraper/blob/main/AGENTS.md). [CLAUDE.md](https://github.com/chipi/podcast_scraper/blob/main/CLAUDE.md)
+and `.cursorrules` are now thin, assistant-specific overlays that import from AGENTS.md.
 
 ---
 

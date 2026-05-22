@@ -666,6 +666,7 @@ when `serve` is running. Platform routes under `routes/platform/` are **not** mo
 | `make serve-ui` | Vite dev server only (`web/gi-kg-viewer`, port **5173**, proxies `/api` → 8000). |
 | `make test-ui` | Vitest unit tests for TS utility logic (parsing, merge, metrics, formatting). Fast (~150 ms), no browser. |
 | `make test-ui-e2e` | Playwright browser tests: `npm install`, `playwright install firefox`, `npm run test:e2e` (Vite on **5174** inside Playwright config — no clash with 5173). |
+| `make ci-ui-validation CORPUS=/abs/path` | **Tier-3** real-corpus matrix validation per [ADR-095](../adr/ADR-095-viewer-test-pyramid.md). Required when shipping a real-corpus bug fix — Tier-2 matrix row reproducing must land first. |
 | `make verify-gil-offsets-strict` | **Quote** vs **indexed transcript chunk** character alignment on a corpus (set **`GIL_OFFSET_VERIFY_DIR`**; optional **`GIL_OFFSET_MIN_RATE`**, default **0.95**). Supports **feed-nested** metadata. See [Semantic Search Guide — lift & verification](SEMANTIC_SEARCH_GUIDE.md#chunk-to-insight-lift-and-offset-verification-rfc-072--528). |
 
 **Contributor notes:**

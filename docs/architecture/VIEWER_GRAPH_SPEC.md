@@ -420,9 +420,11 @@ owner enforced the invariant that `filteredArtifact` containing node N
 implies `cy.core.$id(N).nonempty()` before focus / camera asserts. The
 canonical user-visible bug was "second Library G does nothing" — a load-source
 asymmetry let the `filteredArtifact` watcher early-return without scheduling
-a redraw. See
-[docs/wip/GRAPH_NAVIGATION_HANDOFF_ANALYSIS.md](../wip/GRAPH_NAVIGATION_HANDOFF_ANALYSIS.md)
-for the full audit.
+a redraw. See [ADR-094](../adr/ADR-094-graph-handoff-orchestrator-fsm.md) and
+[RFC-085](../rfc/RFC-085-graph-handoff-orchestrator-retrospective.md) for the
+audit and decisions (the original pre-fix audit at
+`docs/wip/GRAPH_NAVIGATION_HANDOFF_ANALYSIS.md` was retired after the
+orchestrator shipped).
 
 The fix: a finite-state machine that owns the handoff lifecycle from
 click to settled selection.

@@ -1,6 +1,6 @@
 # RFC-086: Viewer three-tier test pyramid + production-shaped fixtures
 
-- **Status**: Draft
+- **Status**: Completed
 - **Authors**: Marko Dragoljevic
 - **Stakeholders**: Viewer maintainers, anyone touching graph navigation,
   release gate operators

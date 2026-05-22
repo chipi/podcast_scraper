@@ -1346,7 +1346,7 @@ glance. Knowing about them saves debugging time.
 ## Cross-references
 
 - [RFC-082 — design](../rfc/RFC-082-always-on-pre-prod-and-prod-hosting.md)
-- [RFC-083 — public edge + multi-compose (Draft)](../rfc/RFC-083-vps-public-edge-multi-compose.md)
+- [RFC-087 — public edge + multi-compose (Draft)](../rfc/RFC-087-vps-public-edge-multi-compose.md)
 - [Prod operator cheat sheet](PROD_OPERATOR_CHEAT_SHEET.md)
 - [VPS multi-app onboarding](VPS_MULTI_APP_ONBOARDING.md)
 - [`infra/`](https://github.com/chipi/podcast_scraper/tree/main/infra) — IaC code

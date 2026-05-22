@@ -15,7 +15,7 @@
   - `docs/architecture/VIEWER_GRAPH_SPEC.md` (operational reference)
   - `docs/architecture/VIEWER_ASYNC_STABILITY.md` (adjacent async patterns)
   - `web/gi-kg-viewer/e2e/HANDOFF_MATRIX.md` (test coverage contract)
-  - `docs/wip/GRAPH_NAVIGATION_HANDOFF_ANALYSIS.md` (pre-fix audit)
+  - Pre-fix audit (originally `docs/wip/GRAPH_NAVIGATION_HANDOFF_ANALYSIS.md`, retired after the orchestrator shipped — findings folded into this RFC and ADR-094)
 
 ## Abstract
 
@@ -270,6 +270,6 @@ rendering (T4 — 2 Playwright tests), and PostHog telemetry firing (T5 —
 - [ADR-094](../adr/ADR-094-graph-handoff-orchestrator-fsm.md)
 - [VIEWER_GRAPH_SPEC.md](../architecture/VIEWER_GRAPH_SPEC.md)
 - [VIEWER_ASYNC_STABILITY.md](../architecture/VIEWER_ASYNC_STABILITY.md)
-- [docs/wip/GRAPH_NAVIGATION_HANDOFF_ANALYSIS.md](../wip/GRAPH_NAVIGATION_HANDOFF_ANALYSIS.md)
+- Pre-fix audit `docs/wip/GRAPH_NAVIGATION_HANDOFF_ANALYSIS.md` — retired (findings folded into this RFC and ADR-094)
 - GH issues closed by this work: #748, #749, #750
 - GH issue tracking deferred matrix work: #754

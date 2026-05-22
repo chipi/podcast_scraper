@@ -2,17 +2,17 @@
 
 This document lists **open work only** — items that are not yet fully implemented. For completed work, see [RFC index](rfc/index.md) (Completed table) and [Release notes](releases/index.md).
 
-**Last audited**: 2026-04-11 (PRD / RFC / ADR **Gap analysis** sections on each index:
+**Last audited**: 2026-05-22 (PRD / RFC / ADR **Gap analysis** sections on each index:
 [`docs/prd/index.md`](prd/index.md#gaps), [`docs/rfc/index.md`](rfc/index.md#gaps),
 [`docs/adr/index.md`](adr/index.md#gaps))
 
 ## Current Status
 
-- **Open RFCs**: **13** (see [RFC index](rfc/index.md); includes Draft [RFC-070](rfc/RFC-070-semantic-corpus-search-platform-future.md))
-- **Completed RFCs**: **58** (see [RFC index](rfc/index.md); includes [RFC-061](rfc/RFC-061-semantic-corpus-search.md) FAISS, [RFC-050](rfc/RFC-050-grounded-insight-layer-use-cases.md) / [RFC-056](rfc/RFC-056-knowledge-graph-layer-use-cases.md) single-layer GIL/KG, [RFC-057](rfc/RFC-057-autoresearch-optimization-loop.md) per [ADR-073](adr/ADR-073-rfc057-autoresearch-closure.md))
+- **Open RFCs**: **6** (see [RFC index](rfc/index.md); includes Draft [RFC-070](rfc/RFC-070-semantic-corpus-search-platform-future.md), [RFC-082](rfc/RFC-082-always-on-pre-prod-and-prod-hosting.md), [RFC-083](rfc/RFC-083-prod-failover-orchestration-and-cutover.md), [RFC-087](rfc/RFC-087-vps-public-edge-multi-compose.md))
+- **Completed RFCs**: **62** (see [RFC index](rfc/index.md); includes [RFC-061](rfc/RFC-061-semantic-corpus-search.md) FAISS, [RFC-050](rfc/RFC-050-grounded-insight-layer-use-cases.md) / [RFC-056](rfc/RFC-056-knowledge-graph-layer-use-cases.md) single-layer GIL/KG, [RFC-057](rfc/RFC-057-autoresearch-optimization-loop.md) per [ADR-073](adr/ADR-073-rfc057-autoresearch-closure.md), [RFC-084](rfc/RFC-084-corpus-backup-manifest-and-version-aware-restore.md) backup manifest, [RFC-085](rfc/RFC-085-graph-handoff-orchestrator-retrospective.md) graph FSM, [RFC-086](rfc/RFC-086-viewer-test-pyramid-and-production-shaped-fixtures.md) test pyramid)
 - **Open PRDs**: **7** (see [PRD index](prd/index.md))
 
-**Completed reference (not backlog):** [RFC-062](rfc/RFC-062-gi-kg-viewer-v2.md) viewer v2; [RFC-063](rfc/RFC-063-multi-feed-corpus-append-resume.md)–[RFC-071](rfc/RFC-071-corpus-intelligence-dashboard-viewer.md) v2.6.0 corpus/viewer track.
+**Completed reference (not backlog):** [RFC-062](rfc/RFC-062-gi-kg-viewer-v2.md) viewer v2; [RFC-063](rfc/RFC-063-multi-feed-corpus-append-resume.md)–[RFC-071](rfc/RFC-071-corpus-intelligence-dashboard-viewer.md) v2.6.0 corpus/viewer track; [RFC-084](rfc/RFC-084-corpus-backup-manifest-and-version-aware-restore.md) / [RFC-085](rfc/RFC-085-graph-handoff-orchestrator-retrospective.md) / [RFC-086](rfc/RFC-086-viewer-test-pyramid-and-production-shaped-fixtures.md) v2.6.0 stabilization track ([ADR-092](adr/ADR-092-corpus-snapshot-backup-manifest-and-newest-compatible-restore.md), [ADR-093](adr/ADR-093-canonical-stack-contract-and-environment-adapters.md), [ADR-094](adr/ADR-094-graph-handoff-orchestrator-fsm.md), [ADR-095](adr/ADR-095-viewer-test-pyramid.md)).
 
 ## Tier 1 — Active / Near-Term
 
