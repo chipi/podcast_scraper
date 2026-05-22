@@ -84,4 +84,4 @@ if [[ -n "$git_sha" && ! "$git_sha" =~ ^[0-9a-fA-F]{40}$ ]]; then
   exit 1
 fi
 
-echo "OK: $MANIFEST"
+echo "OK: $MANIFEST" >&2

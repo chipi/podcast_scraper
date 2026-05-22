@@ -138,7 +138,8 @@ def _manifest_for_tarball(tarball: Path) -> dict[str, object]:
 def test_validate_accepts_fixture_manifest() -> None:
     proc = _run(VALIDATE, str(FIXTURES / "manifest_v1_ok.json"))
     assert proc.returncode == 0, proc.stderr
-    assert "OK:" in proc.stdout
+    assert "OK:" in proc.stderr
+    assert proc.stdout == ""
 
 
 def test_validate_rejects_missing_producer() -> None:
@@ -253,9 +254,7 @@ def test_resolve_latest_snapshot_prod_tag_honors_pin(tmp_path: Path) -> None:
         },
     )
     assert proc.returncode == 0, proc.stderr + proc.stdout
-    lines = [
-        line for line in proc.stdout.splitlines() if line.strip() and not line.startswith("OK:")
-    ]
+    lines = [line for line in proc.stdout.splitlines() if line.strip()]
     assert lines[0] == "snapshot-prod-20260511"
     assert lines[1] == "owner/backup"
 
@@ -362,9 +361,7 @@ def test_resolve_latest_snapshot_prod_tag_defaults_to_newest_compatible(
         },
     )
     assert proc.returncode == 0, proc.stderr + proc.stdout
-    lines = [
-        line for line in proc.stdout.splitlines() if line.strip() and not line.startswith("OK:")
-    ]
+    lines = [line for line in proc.stdout.splitlines() if line.strip()]
     assert lines[0] == "snapshot-prod-20261201"
     assert lines[1] == "owner/backup"
 
