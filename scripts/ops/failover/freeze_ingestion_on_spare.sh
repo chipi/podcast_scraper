@@ -14,7 +14,6 @@ set -euo pipefail
 
 REPO_DIR="${PODCAST_REPO_DIR:-/srv/podcast-scraper}"
 OPERATOR_YAML="${REPO_DIR}/corpus/viewer_operator.yaml"
-COMPOSE_FILE="${REPO_DIR}/compose/docker-compose.prod.yml"
 
 if [ ! -f "$OPERATOR_YAML" ]; then
   echo "freeze-ingestion: $OPERATOR_YAML missing — scheduler cannot start without it; nothing to freeze."
@@ -38,8 +37,15 @@ count = len(removed) if isinstance(removed, list) else (1 if removed else 0)
 print(f"freeze-ingestion: removed {count} scheduled_jobs entries from {path}")
 PY
 
-if [ -f "$COMPOSE_FILE" ]; then
-  docker compose -f "$COMPOSE_FILE" restart api 2>&1 | tail -10
-else
-  echo "freeze-ingestion: $COMPOSE_FILE missing — skipping api restart (deploy step should have created it)."
-fi
+# Restart api with the same compose stack + env-file as drill-restore-corpus
+# (restore_corpus_from_tarball_host.sh). docker compose validates volume
+# interpolation even on ``restart``, so PODCAST_CORPUS_HOST_PATH from
+# ${REPO_DIR}/.env must be present; --env-file is required.
+cd "$REPO_DIR"
+COMPOSE=(
+  docker compose --env-file .env
+  -f compose/docker-compose.stack.yml
+  -f compose/docker-compose.prod.yml
+  -f compose/docker-compose.vps-prod.yml
+)
+"${COMPOSE[@]}" restart api 2>&1 | tail -10
