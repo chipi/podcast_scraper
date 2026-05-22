@@ -151,9 +151,15 @@ jobs:
           SSH_TARGET: deploy@${{ steps.ts_host.outputs.resolved_fqdn }}
         run: |
           set -euo pipefail
+          # The freeze script edits /srv/podcast-scraper/corpus/viewer_operator.yaml
+          # (owned by deploy after drill-restore-corpus extracts the tarball there)
+          # and runs ``docker compose restart api`` (deploy is in the docker group).
+          # No sudo required — matches the contract of restore_corpus_from_tarball_host.sh
+          # which also runs unprivileged. The drill VPS row does not grant deploy
+          # passwordless sudo, so ``sudo -n`` would (and did) fail.
           ssh -i "$SSH_DRILL_IDENTITY" -o IdentitiesOnly=yes \
             -o StrictHostKeyChecking=accept-new -o BatchMode=yes "$SSH_TARGET" \
-            'sudo -n bash /tmp/freeze_ingestion_on_spare.sh'
+            'bash /tmp/freeze_ingestion_on_spare.sh'
 
       - name: "Prod failover — verify: scheduler not running on spare"
         env:
