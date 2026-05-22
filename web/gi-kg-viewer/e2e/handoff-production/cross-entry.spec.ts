@@ -96,25 +96,52 @@ test.describe('Handoff matrix § Tier 2 — Cross-entry (production-shaped)', ()
     const pill = page.getByRole('button', { name: /Open graph for topic/ }).first()
     await pill.waitFor({ state: 'visible', timeout: 30_000 })
     await pill.click()
-    await page.waitForTimeout(1500) // let the first handoff settle
+    // Poll for the first handoff to reach ``ready``. A static
+    // ``waitForTimeout`` is brittle under parallel-worker CPU
+    // contention: the dev server + Cytoscape compete with sibling
+    // workers and the settle can exceed any fixed wall clock. We
+    // assert the invariant directly (FSM reaches ``ready``) with a
+    // generous timeout — the bug this test catches (stuck-timeout in
+    // ``loading_fetch``) is still surfaced because the FSM's 15 s
+    // stuck-detector would fire before this 10 s poll completes if
+    // the rescue path were missing.
+    await page.waitForFunction(
+      () => {
+        const w = window as unknown as { __GIKG_FSM__?: { state: string } }
+        return w.__GIKG_FSM__?.state === 'ready'
+      },
+      undefined,
+      { timeout: 10_000 },
+    )
 
     // Step 2: Click a Library row's G button. The episode's artifacts
     // are likely already loaded from step 1 (Digest band hits cover the
     // production-shaped fixture's episodes). Without the loadSelected
     // fix, this second click would stuck-timeout.
     await mainViewsNav(page).getByRole('button', { name: 'Library' }).click()
-    await page.waitForTimeout(800)
+    await page.getByTestId('library-row-open-graph').first().waitFor({ state: 'visible', timeout: 15_000 })
     await page.getByTestId('library-row-open-graph').first().click({ timeout: 15_000 })
-    await page.waitForTimeout(3000)
+    // Poll again: the second handoff is the one this test was written
+    // for — the ``appendRelativeArtifacts`` short-circuit + 600 ms
+    // ``loadSelected`` rescue runs entirely inside this window. Pre-
+    // fix the FSM would sit in ``loading_fetch`` until the 15 s
+    // stuck-timeout; post-fix it reaches ``ready`` once the rescue's
+    // redraw cycle settles.
+    await page.waitForFunction(
+      () => {
+        const w = window as unknown as { __GIKG_FSM__?: { state: string } }
+        return w.__GIKG_FSM__?.state === 'ready'
+      },
+      undefined,
+      { timeout: 10_000 },
+    )
 
     const fsm = await readFsmState(page)
     // eslint-disable-next-line no-console
     console.log('[Tier-2 P2.5]', JSON.stringify({ state: fsm?.state, lastResultStatus: fsm?.lastResultStatus }))
     expect(fsm).not.toBeNull()
-    // FSM MUST reach ``ready`` within 3s post-click. Before the
-    // ``loadSelected`` fix the FSM would still be in ``loading_fetch``
-    // here (and stuck-timeout at 15s).
     expect(fsm!.state).toBe('ready')
+    expect(fsm!.lastResultStatus).toBe('applied')
     expect(errs.errors).toEqual([])
   })
 
