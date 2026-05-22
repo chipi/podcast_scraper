@@ -222,7 +222,7 @@ before or with implementation. Dedicated Playwright coverage lives in
 Shared decisions that affect Digest (and sometimes Library) live here; Library-only layout rules remain in [UXS-003](UXS-003-corpus-library.md).
 
 **Status:** Decided (feeds implementation in repo)
-**Spec:** [Supplement — Digest & Library UX improvements (full spec)](UXS-002-corpus-digest.md#supplement--digest--library-ux-improvements-full-spec)
+**Spec:** [Supplement — Digest & Library UX improvements (full spec)](UXS-002-corpus-digest.md#supplement-digest-library-ux-improvements-full-spec)
 **GitHub:** [#610](https://github.com/chipi/podcast_scraper/issues/610)
 
 ### §2.3 Similarity (topic band hit rows)

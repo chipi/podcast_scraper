@@ -1,4 +1,4 @@
-# RFC-073: Enrichment Layer Architecture
+# RFC-088: Enrichment Layer Architecture
 
 - **Status**: Draft
 - **Authors**: Marko
@@ -1144,11 +1144,11 @@ covers the **QueryEnricher protocol** required by PRD-027 (Enriched Search) -- a
 request-time enricher that operates on FAISS results rather than writing files.
 Ideas for future LLM enrichers include search synthesis and profile summarisation.
 
-**Phase numbering disambiguation:** "RFC-073 Phase 4" (this section) refers to the
+**Phase numbering disambiguation:** "RFC-088 Phase 4" (this section) refers to the
 **QueryEnricher protocol** extension for request-time LLM enrichment. "RFC-072
 Phase 4" refers to **CIL query patterns** (cross-layer joins, `position_arc` and
 `person_profile` queries). These are distinct capabilities in different RFCs that
-happen to share the same phase number. PRD-027 (Enriched Search) depends on RFC-073
+happen to share the same phase number. PRD-027 (Enriched Search) depends on RFC-088
 Phase 4; PRD-028/029 (Position Tracker/Person Profile) depend on RFC-072 Phase 4.
 
 ---

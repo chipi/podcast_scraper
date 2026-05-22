@@ -183,10 +183,10 @@ schema stabilises output. Bundled is the correct local-deployment choice for par
   than Ollama but operationally simpler (no daemon, one Python process). **Pick this for
   paragraph-first deployments or when Ollama can't be run.** For bullet-heavy workloads,
   qwen3.5:9b bundled stays the better local pick. See
-  [Held-out v2 report §6a](eval-reports/EVAL_HELDOUT_V2_2026_04.md#6a-ml-transformers-standalone-hf-not-ollama--2026-04-16).
+  [Held-out v2 report §6a](eval-reports/EVAL_HELDOUT_V2_2026_04.md#6a-ml-transformers-standalone-hf-not-ollama-2026-04-16).
 
 **Default picks by use case** (compound-scored across quality, latency, cost — see
-[Held-out v2 report §Compound analysis](eval-reports/EVAL_HELDOUT_V2_2026_04.md#compound-analysis--pareto-frontier)):
+[Held-out v2 report §Compound analysis](eval-reports/EVAL_HELDOUT_V2_2026_04.md#compound-analysis-pareto-frontier)):
 
 | Priority | Best pick | Why |
 | :------- | :-------- | :-- |

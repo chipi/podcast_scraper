@@ -103,6 +103,8 @@ flags. Changing `corpusPath` triggers cascading refreshes across stores
 
   graphNavigation  ────>  (pending focus, library highlights, ego focus)
   graphExplorer  ──────>  (layout preference, minimap, degree bucket)
+  graphHandoff    ─────>  (FSM state, pending envelope, generation, retry budget,
+                            stuck-handoff timer; ADR-094 / RFC-085)
 
   search  ─────────────>  (query, results, filters)
        \__ uses graphNavigation (highlight resets)
@@ -184,7 +186,7 @@ is in flight.
 ### Gate inventory
 
 A full per-surface gate table is maintained in
-[Viewer async stability](VIEWER_ASYNC_STABILITY.md#stale-run--single-flight-guards).
+[Viewer async stability](VIEWER_ASYNC_STABILITY.md#stale-run-single-flight-guards).
 Key surfaces:
 
 | Surface | Gate(s) | Notes |
@@ -283,6 +285,52 @@ functions that use them.
 | `localCalendarDate.ts` | Date helpers for corpus lens presets |
 | `listRowArrowNav.ts` | Keyboard arrow navigation for vertical lists |
 
+## Graph handoff orchestrator (FSM)
+
+Every cross-surface graph handoff — Library "Open in graph", Digest topic pill,
+Search "Show on graph", canvas tap, mini-map click, Episode panel "Open in
+graph", `@go-graph` emitters — funnels through a single 8-state FSM in
+`stores/graphHandoff.ts` / `services/graphHandoffFsm.ts`
+([ADR-094](../adr/ADR-094-graph-handoff-orchestrator-fsm.md),
+[RFC-085](../rfc/RFC-085-graph-handoff-orchestrator-retrospective.md)).
+
+```text
+idle
+  → loading_fetch       HTTP fetchCorpusEpisodeDetail
+  → loading_bootstrap   topic-cluster bootstrap + compound mount
+  → loading_merge       appendRelativeArtifacts into Pinia
+  → redrawing_incremental | redrawing_full
+  → applying            selection + dimming + camera
+  → ready
+```
+
+Key contracts:
+
+- **Single envelope** (`GraphHandoffEnvelope`) carries `kind`, optional `cyId` /
+  `metadataPath` / `episodeId`, `loadSource`, typed `CameraStrategy`, and an
+  explicit `source` per surface.
+- **Generation tokens** guard every `await`. Newer envelopes supersede in-flight
+  work via `isStale(gen)` checks at ≥ 8 documented points.
+- **Per-event re-entrance policy**: `handoffRequested` always supersedes;
+  `expansionRequested` always queues; `tabReturned` reconciles only when
+  `state === 'ready'`; `corpusReloaded` is a full reset.
+- **Stuck-handoff detector**: a 5 s wall clock fires `handoffStuck` and surfaces
+  a visible `data-testid="handoff-error-strip"`. The strip is the only carve-out
+  to the "no time-based gates" rule.
+- **Self-healing invariant**: on every `layoutstop`, the orchestrator compares
+  `viewWithEgo(focusNodeId)` IDs against `core.nodes()` IDs and applies a
+  targeted `core.add()` for small diffs (single retry budget; then accept and
+  log).
+- **Dev hook**: `window.__GIKG_FSM__` exposes `{ state, pendingEnvelope,
+  currentGeneration, history }` in dev builds so contract tests and operators
+  can inspect the FSM without UI coupling.
+
+The full state-walk lifecycle, event re-entrance matrix, and entry-point catalog
+are in [VIEWER_GRAPH_SPEC](VIEWER_GRAPH_SPEC.md) §Graph handoff orchestrator.
+Coverage is enforced by `web/gi-kg-viewer/e2e/handoff/contracts.spec.ts` — one
+contract test per surface, locked to the FSM event + source + load-source it
+must fire.
+
 ## Testing
 
 | Layer | Tool | Location | Command |
@@ -291,8 +339,16 @@ functions that use them.
 | E2E (browser) | Playwright (Firefox) | `e2e/*.spec.ts` | `make test-ui-e2e` |
 | API (Python) | pytest | `tests/unit/podcast_scraper/server/`, `tests/integration/server/` | `make test-fast` |
 
+The viewer applies a three-tier pyramid with production-shaped fixtures
+([ADR-095](../adr/ADR-095-viewer-test-pyramid.md),
+[RFC-086](../rfc/RFC-086-viewer-test-pyramid-and-production-shaped-fixtures.md)):
+Tier 1 unit (Vitest, pure logic), Tier 2 contract specs (Playwright handoff
+matrix under `e2e/handoff/`, mocked corpus), Tier 3 real-corpus walks. Real
+bugs land a Tier-2 matrix row reproducing them **before** the fix PR merges.
+
 The E2E surface contract is documented in
-`web/gi-kg-viewer/e2e/E2E_SURFACE_MAP.md` (outside the docs tree).
+`web/gi-kg-viewer/e2e/E2E_SURFACE_MAP.md` (outside the docs tree); the handoff
+coverage matrix is at `web/gi-kg-viewer/e2e/HANDOFF_MATRIX.md`.
 
 ## Related documents
 

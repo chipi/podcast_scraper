@@ -120,6 +120,9 @@ nav:
       - PRD-025 Corpus Intelligence Dashboard Viewer: prd/PRD-025-corpus-intelligence-dashboard-viewer.md
       - PRD-026 Topic Entity View: prd/PRD-026-topic-entity-view.md
       - PRD-027 Enriched Search: prd/PRD-027-enriched-search.md
+      - PRD-028 Position Tracker: prd/PRD-028-position-tracker.md
+      - PRD-029 Person Profile: prd/PRD-029-person-profile.md
+      - PRD-030 Viewer Operator Surface — Feeds, Config, Jobs: prd/PRD-030-viewer-feed-sources-and-pipeline-jobs.md
       - PRD Template: prd/PRD_TEMPLATE.md
   - UX Specifications:
       - uxs/index.md
@@ -131,6 +134,8 @@ nav:
       - UXS-006 Dashboard: uxs/UXS-006-dashboard.md
       - UXS-007 Topic Entity View: uxs/UXS-007-topic-entity-view.md
       - UXS-008 Enriched Search: uxs/UXS-008-enriched-search.md
+      - UXS-009 Position Tracker: uxs/UXS-009-position-tracker.md
+      - UXS-010 Person Profile: uxs/UXS-010-person-profile.md
       - UXS Template: uxs/UXS_TEMPLATE.md
   - Architecture Decisions:
       - adr/index.md
@@ -210,6 +215,25 @@ nav:
       - ADR-074 Multi-Feed Corpus Parent Layout and Manifest: adr/ADR-074-multi-feed-corpus-parent-layout-and-manifest.md
       - ADR-075 Frozen YAML Performance Profiles for Release Baselines: adr/ADR-075-frozen-yaml-performance-profiles-for-release-baselines.md
       - ADR-076 Streamlit for Operator Run Comparison and Performance Views: adr/ADR-076-streamlit-for-operator-run-comparison-and-performance-views.md
+      - ADR-077 Local Ollama Model Selection — Core 5 from 11: adr/ADR-077-local-ollama-model-selection.md
+      - ADR-078 GIL Evidence Stack Bundling — Per-Provider Champion Modes: adr/ADR-078-gil-evidence-bundling-per-provider-champions.md
+      - ADR-079 OpenTofu for Always-On Hosting IaC: adr/ADR-079-opentofu-for-always-on-hosting-iac.md
+      - ADR-080 OpenTofu State Encrypted In-Repo (sops + age): adr/ADR-080-opentofu-state-sops-age-in-git.md
+      - ADR-081 Drill OpenTofu Workspace and Tailscale ACL Ownership: adr/ADR-081-drill-opentofu-workspace-tailscale-acl-ownership.md
+      - ADR-082 GitOps App Deploy via stack-test and GitHub Actions: adr/ADR-082-gitops-app-deploy-via-stack-test-and-gha.md
+      - ADR-083 Tailscale as Private Ingress for Always-On VPS: adr/ADR-083-tailscale-private-ingress-always-on-vps.md
+      - ADR-084 Full-Stack Docker Compose Topology (API, Viewer, Pipeline): adr/ADR-084-full-stack-docker-compose-topology.md
+      - ADR-085 Ephemeral Stack-Test Integration Gate on Main: adr/ADR-085-ephemeral-stack-test-integration-gate.md
+      - ADR-086 Canonical Identity Layer and Per-Episode bridge.json Cross-Layer Join: adr/ADR-086-canonical-identity-layer-and-bridge-json-cross-layer-join.md
+      - ADR-087 Autoresearch Track A v2 — Dev/Held-Out Split and Judging: adr/ADR-087-autoresearch-track-a-v2-dev-held-out-and-judging.md
+      - ADR-088 macOS Local CI Process Safety for ML Workloads: adr/ADR-088-macos-local-ci-process-safety-for-ml-workloads.md
+      - ADR-089 Prod Failover Orchestrator Is Separate from DR Drill: adr/ADR-089-prod-failover-orchestrator-separate-from-drill.md
+      - ADR-090 Prod Failover — DNS-First Cutover on Tailnet: adr/ADR-090-prod-failover-dns-first-cutover.md
+      - ADR-091 Prod Failover — GitHub Actions Triggers and Gates: adr/ADR-091-prod-failover-gha-triggers-and-gates.md
+      - ADR-092 Corpus Snapshot Backup Manifest and Newest-Compatible Restore Default: adr/ADR-092-corpus-snapshot-backup-manifest-and-newest-compatible-restore.md
+      - ADR-093 Canonical Stack Contract Versus Environment Adapters: adr/ADR-093-canonical-stack-contract-and-environment-adapters.md
+      - ADR-094 Graph Handoff Orchestrator FSM: adr/ADR-094-graph-handoff-orchestrator-fsm.md
+      - ADR-095 Three-Tier Viewer Test Pyramid + Production-Shaped Fixtures: adr/ADR-095-viewer-test-pyramid.md
       - ADR Template: adr/ADR_TEMPLATE.md
   - RFCs:
       - rfc/index.md
@@ -284,9 +308,22 @@ nav:
       - RFC-070 Semantic Corpus Search Platform Future: rfc/RFC-070-semantic-corpus-search-platform-future.md
       - RFC-071 Corpus Intelligence Dashboard Viewer: rfc/RFC-071-corpus-intelligence-dashboard-viewer.md
       - RFC-072 Canonical Identity Layer (CIL) & Cross-Layer Bridge: rfc/RFC-072-canonical-identity-layer-cross-layer-bridge.md
-      - RFC-073 Enrichment Layer Architecture: rfc/RFC-073-enrichment-layer-architecture.md
+      - RFC-073 Autoresearch v2 Framework — Dev/Held-Out, Fixed Judges, Cross-Approach Comparison: rfc/RFC-073-autoresearch-v2-framework.md
       - RFC-074 Process Safety for ML Workloads (macOS): rfc/RFC-074-process-safety-ml-workloads-macos.md
       - RFC-075 Corpus Topic Clustering Layer: rfc/RFC-075-corpus-topic-clustering.md
+      - RFC-076 Progressive Graph Expansion (Cross-Episode Explore): rfc/RFC-076-progressive-graph-expansion.md
+      - RFC-077 Viewer Feeds API, Operator Config, Job Runner, Process Hygiene (`serve`): rfc/RFC-077-viewer-feeds-and-serve-pipeline-jobs.md
+      - RFC-078 Ephemeral Acceptance Smoke Test (Post-Build Full-Stack Validation): rfc/RFC-078-ephemeral-acceptance-smoke-test.md
+      - RFC-079 Full-Stack Docker Compose Topology: rfc/RFC-079-full-stack-docker-compose.md
+      - RFC-080 Graph Visualization Extensions: rfc/RFC-080-graph-visualization-extensions.md
+      - RFC-081 Pre-prod Environment, Minimal Observability, and Mobile Control Plane: rfc/RFC-081-pre-prod-environment-and-control-plane.md
+      - RFC-082 Production Hosting (Always-On VPS, IaC + GitOps): rfc/RFC-082-always-on-pre-prod-and-prod-hosting.md
+      - RFC-083 Production Failover — Orchestration, Spare Stack, and Traffic Cutover: rfc/RFC-083-prod-failover-orchestration-and-cutover.md
+      - RFC-084 Corpus Snapshot Backup Manifest and Version-Aware Restore: rfc/RFC-084-corpus-backup-manifest-and-version-aware-restore.md
+      - RFC-085 Graph Handoff Orchestrator — Stabilization Retrospective: rfc/RFC-085-graph-handoff-orchestrator-retrospective.md
+      - RFC-086 Viewer Three-Tier Test Pyramid + Production-Shaped Fixtures: rfc/RFC-086-viewer-test-pyramid-and-production-shaped-fixtures.md
+      - RFC-087 VPS Public Edge and Multi-Compose Hosting: rfc/RFC-087-vps-public-edge-multi-compose.md
+      - RFC-088 Enrichment Layer Architecture: rfc/RFC-088-enrichment-layer-architecture.md
       - RFC Template: rfc/RFC_TEMPLATE.md
   - API:
       - API Overview: api/index.md
