@@ -105,7 +105,10 @@ describe('buildGiKgCyStylesheet', () => {
     expect(rule).toBeTruthy()
     expect(rule.style['background-opacity']).toBe(0.06)
     expect(rule.style['border-style']).toBe('dashed')
-    expect(rule.style['background-color']).toBe('var(--ps-kg)')
+    // Cytoscape's parser does not resolve CSS `var(--…)`. The stylesheet
+    // builder resolves theme tokens to hex at build time and falls back to
+    // the dark-theme palette in jsdom (no live `getComputedStyle`).
+    expect(rule.style['background-color']).toBe('#c4a8ff')
   })
 
   it('includes cross-episode expandable and expanded-seed ring rules (full graph)', () => {
@@ -140,7 +143,7 @@ describe('buildGiKgCyStylesheet', () => {
       (r) => (r as { selector?: string }).selector === 'edge[edgeType = "(unknown)"]',
     ) as { style: Record<string, unknown> }
     expect(rule).toBeTruthy()
-    expect(rule.style['line-color']).toBe('var(--ps-muted)')
+    expect(rule.style['line-color']).toBe('#8f99a8')
   })
 
   // RFC-080 V2 — Insight grounding selector lives in the stylesheet
@@ -225,7 +228,7 @@ describe('buildGiKgCyStylesheet', () => {
     ) as { style: Record<string, unknown> }
     expect(rule).toBeTruthy()
     expect(String(rule.style.width)).toMatch(/^mapData\(weight, 1, \d+, [\d.]+, [\d.]+\)$/)
-    expect(rule.style['line-color']).toBe('var(--ps-gi)')
+    expect(rule.style['line-color']).toBe('#7dd3a0')
   })
 
   it('V1: includes graph-edge-spoke-in-agg width mapping by data(weight)', () => {
@@ -235,7 +238,7 @@ describe('buildGiKgCyStylesheet', () => {
     ) as { style: Record<string, unknown> }
     expect(rule).toBeTruthy()
     expect(String(rule.style.width)).toMatch(/^mapData\(weight, 1, \d+, [\d.]+, [\d.]+\)$/)
-    expect(rule.style['line-color']).toBe('var(--ps-primary)')
+    expect(rule.style['line-color']).toBe('#4c90f0')
     expect(rule.style['target-arrow-shape']).toBe('triangle')
   })
 })
