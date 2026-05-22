@@ -143,3 +143,19 @@ When a new UI surface needs to navigate to graph:
 - `recordApplied(cyId)` marks the terminal `applying → ready` transition and clears the
   stuck timer.
 - Tests assert FSM state via `window.__GIKG_FSM__` (dev hook).
+
+## FSM ready ≠ camera animation complete
+
+`recordApplied` fires synchronously before `animateCameraToFocusedNode` kicks off
+`core.animate({ duration: 320 })` (plus resize + recenter inside the animation
+`complete` callback). The FSM transitions to `ready` while the camera animation is
+still running — by design. The contract is:
+
+- `ready` = selection applied, subject store set, focus rules applied
+- Camera animation is a presentation concern that runs async with its own generation
+  token guards (FSM spec § 8 sites #7).
+
+Matrix tests accommodate this via `assertHandoffApplied`'s default
+`cameraCenterTolerance: 0.35` (node anywhere within the inner 70% × 70% of viewport).
+Tests needing pixel-perfect camera centering should poll for animation completion
+after `ready` rather than treating `ready` as a camera barrier.

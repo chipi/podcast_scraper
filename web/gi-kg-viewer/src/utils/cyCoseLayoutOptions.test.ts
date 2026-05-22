@@ -7,8 +7,12 @@ import {
   giKgCoseLayoutOptionsMain,
   giKgCoseLayoutOptionsMainFallback,
   giKgCoseNodeRepulsionFromData,
+  giKgCoseNumIterCapped,
   isIntraTopicClusterEdgeParents,
   isTopicClusterParentId,
+  REDRAW_DEBOUNCE_INTERNAL_MS,
+  RECENTER_SAFETY_TAIL_TIMINGS_MS,
+  redrawDebounceMs,
 } from './cyCoseLayoutOptions'
 
 describe('isTopicClusterParentId', () => {
@@ -117,5 +121,102 @@ describe('giKgCoseLayoutOptionsCompact', () => {
     expect(o.gravity).toBe(0.32)
     expect(o.animate).toBe(false)
     expect(o.nestingFactor).toBe(1.52)
+  })
+})
+
+describe('#767-A — giKgCoseNumIterCapped + numIter override', () => {
+  // Default ``MAIN.numIter`` is 2500 per cyCoseLayoutOptions.ts. The cap
+  // formula is ``Math.min(2500, 200 + 8 × N)`` — keep these tests pinned
+  // to that formula so any future re-tune of the cap is explicit.
+
+  it('returns the cap for small graphs (well below 2500)', () => {
+    expect(giKgCoseNumIterCapped(50)).toBe(600) // 200 + 8×50
+    expect(giKgCoseNumIterCapped(100)).toBe(1000) // 200 + 8×100
+    expect(giKgCoseNumIterCapped(200)).toBe(1800) // 200 + 8×200
+  })
+
+  it('saturates at the default 2500 for large graphs', () => {
+    expect(giKgCoseNumIterCapped(290)).toBe(2500) // 200 + 8×290 = 2520 → clamped
+    expect(giKgCoseNumIterCapped(500)).toBe(2500)
+    expect(giKgCoseNumIterCapped(2000)).toBe(2500)
+  })
+
+  it('production-shaped corpus (270 nodes) gets a moderate cap', () => {
+    expect(giKgCoseNumIterCapped(270)).toBe(2360) // 200 + 8×270
+  })
+
+  it('defends against bad input — non-positive / NaN returns the default', () => {
+    expect(giKgCoseNumIterCapped(0)).toBe(2500)
+    expect(giKgCoseNumIterCapped(-5)).toBe(2500)
+    expect(giKgCoseNumIterCapped(NaN)).toBe(2500)
+  })
+
+  it('giKgCoseLayoutOptionsMain accepts a numIter override', () => {
+    const def = giKgCoseLayoutOptionsMain()
+    expect(def.numIter).toBe(2500)
+
+    const capped = giKgCoseLayoutOptionsMain(1800)
+    expect(capped.numIter).toBe(1800)
+  })
+
+  it('giKgCoseLayoutOptionsMainFallback accepts a numIter override too', () => {
+    const def = giKgCoseLayoutOptionsMainFallback()
+    expect(def.numIter).toBe(2500)
+
+    const capped = giKgCoseLayoutOptionsMainFallback(1000)
+    expect(capped.numIter).toBe(1000)
+  })
+})
+
+describe('#767-B — redrawDebounceMs (behavior contract)', () => {
+  // The constant + branch pin the before/after for the bypass: prior
+  // code always used 150 ms; the new path returns 0 ms whenever an FSM
+  // envelope is pending. If a future change reintroduces the slack, the
+  // first assertion goes red.
+
+  it('returns 0 ms when an FSM envelope is pending (handoff in flight)', () => {
+    expect(redrawDebounceMs(true)).toBe(0)
+  })
+
+  it('returns the internal-cascade debounce (150 ms) when no handoff is pending', () => {
+    expect(redrawDebounceMs(false)).toBe(REDRAW_DEBOUNCE_INTERNAL_MS)
+    expect(REDRAW_DEBOUNCE_INTERNAL_MS).toBe(150)
+  })
+
+  it('saves at least 150 ms per cross-surface handoff click vs the always-debounce baseline', () => {
+    // The "before this fix" baseline was a flat 150 ms regardless of
+    // handoff state. Pin the contrast so the optimisation's user-visible
+    // delta is locked in code.
+    const before = 150 // legacy: setTimeout(redraw, 150)
+    const after = redrawDebounceMs(true)
+    expect(before - after).toBeGreaterThanOrEqual(150)
+  })
+})
+
+describe('#767-C — RECENTER_SAFETY_TAIL_TIMINGS_MS (behavior contract)', () => {
+  // ``animateCameraToFocusedNode`` arms one ``setTimeout`` per entry in
+  // this list. The before/after artifact is the array itself: the prior
+  // code hard-coded three calls at 400 / 900 / 1800 ms; the new code
+  // iterates this constant.
+
+  it('contains exactly one entry — the 400 ms anchor', () => {
+    expect(RECENTER_SAFETY_TAIL_TIMINGS_MS).toEqual([400])
+  })
+
+  it('saves the 900 ms and 1800 ms tail vs the legacy schedule', () => {
+    const legacy = [400, 900, 1800]
+    const current = [...RECENTER_SAFETY_TAIL_TIMINGS_MS]
+    const removed = legacy.filter((ms) => !current.includes(ms))
+    expect(removed).toEqual([900, 1800])
+    // Perceived-tail saving = max(removed) - max(kept) when both are non-empty
+    const perceivedSavingMs = Math.max(...legacy) - Math.max(...current)
+    expect(perceivedSavingMs).toBe(1400)
+  })
+
+  it('is a readonly tuple — accidental push to the array would not compile', () => {
+    // Type-level guarantee (``readonly number[]``); also pin the runtime
+    // shape so the constant is the single source of truth for the schedule.
+    expect(Array.isArray(RECENTER_SAFETY_TAIL_TIMINGS_MS)).toBe(true)
+    expect(RECENTER_SAFETY_TAIL_TIMINGS_MS.length).toBeLessThanOrEqual(3)
   })
 })

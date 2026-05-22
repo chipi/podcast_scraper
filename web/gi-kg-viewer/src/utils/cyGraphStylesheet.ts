@@ -28,6 +28,35 @@ export function cytoscapeNodeLabelHaloColorFromTheme(): string {
   return '#111418'
 }
 
+/**
+ * Cytoscape's stylesheet parser does not resolve CSS `var(--…)` references —
+ * it expects literal color values. Resolve at build time via
+ * `getComputedStyle()` (matches the live theme), with a hex fallback for SSR
+ * / jsdom / pre-mount contexts where the document hasn't applied tokens yet.
+ *
+ * Default fallbacks track the dark-theme palette in `src/styles/tokens.css`.
+ */
+const PS_TOKEN_FALLBACKS: Record<string, string> = {
+  '--ps-canvas': '#111418',
+  '--ps-canvas-foreground': '#e5e8eb',
+  '--ps-border': '#404854',
+  '--ps-muted': '#8f99a8',
+  '--ps-primary': '#4c90f0',
+  '--ps-warning': '#ec9a3c',
+  '--ps-gi': '#7dd3a0',
+  '--ps-kg': '#c4a8ff',
+}
+
+export function resolveThemeColor(varName: string, fallback?: string): string {
+  try {
+    const v = getComputedStyle(document.documentElement).getPropertyValue(varName).trim()
+    if (v) return v
+  } catch {
+    /* ignore */
+  }
+  return fallback ?? PS_TOKEN_FALLBACKS[varName] ?? '#868e96'
+}
+
 const VISUAL_TYPES = [
   'Episode',
   'Insight',
@@ -248,6 +277,14 @@ export function buildGiKgCyStylesheet(options?: {
   const fs = compact ? '7px' : '9px'
   const tw = compact ? '72px' : '140px'
   const halo = cytoscapeNodeLabelHaloColorFromTheme()
+  // Resolve theme tokens once. Cytoscape's stylesheet parser does not
+  // resolve CSS `var(--…)` — using literals avoids the "invalid property"
+  // warnings while still tracking the active theme.
+  const psMuted = resolveThemeColor('--ps-muted')
+  const psPrimary = resolveThemeColor('--ps-primary')
+  const psWarning = resolveThemeColor('--ps-warning')
+  const psGi = resolveThemeColor('--ps-gi')
+  const psKg = resolveThemeColor('--ps-kg')
   const placement: GiKgNodeLabelPlacement = options?.nodeLabelPlacement ?? 'side'
   const labelPos = nodeLabelOffsetStyle(placement, nw, nh, compact)
   const outlineW = compact ? 2 : 2.75
@@ -299,8 +336,8 @@ export function buildGiKgCyStylesheet(options?: {
         width: compact ? 1 : 1.5,
         'curve-style': 'bezier',
         'target-arrow-shape': 'triangle',
-        'target-arrow-color': 'var(--ps-muted)',
-        'line-color': 'var(--ps-muted)',
+        'target-arrow-color': psMuted,
+        'line-color': psMuted,
         'line-style': 'solid',
         label: '',
         'font-size': compact ? '6px' : '8px',
@@ -364,7 +401,7 @@ export function buildGiKgCyStylesheet(options?: {
     style: {
       'border-width': compact ? 1.25 : 1.5,
       'border-style': 'dashed',
-      'border-color': 'var(--ps-warning, #f59f00)',
+      'border-color': psWarning,
       'border-opacity': 0.7,
     },
   })
@@ -373,7 +410,7 @@ export function buildGiKgCyStylesheet(options?: {
     selector: 'node[type = "Topic"]',
     style: {
       'border-width': (ele: NodeSingular) => topicBorderWidthForHeat(ele, compact),
-      'border-color': 'var(--ps-kg)',
+      'border-color': psKg,
       'border-opacity': 0.55,
     },
   })
@@ -391,38 +428,22 @@ export function buildGiKgCyStylesheet(options?: {
   style.push({
     selector: 'node[type = "TopicCluster"]',
     style: {
-      'background-color': 'var(--ps-kg)',
+      'background-color': psKg,
       'background-opacity': 0.06,
       'border-width': compact ? 1.25 : 1.5,
       'border-style': 'dashed',
-      'border-color': 'var(--ps-kg)',
+      'border-color': psKg,
       'border-opacity': 0.4,
       shape: 'roundrectangle',
       padding: tcPad,
     },
   })
 
-  style.push({
-    selector: 'node[type = "Insight"], node[type = "Topic"]',
-    style: {
-      'shadow-blur': compact ? 6 : 8,
-      'shadow-color': 'var(--ps-border)',
-      'shadow-offset-x': 0,
-      'shadow-offset-y': 2,
-      'shadow-opacity': 0.6,
-    },
-  })
-
-  style.push({
-    selector: 'node[type = "Topic"].graph-topic-heat-high',
-    style: {
-      'shadow-blur': 12,
-      'shadow-color': 'var(--ps-kg)',
-      'shadow-offset-x': 0,
-      'shadow-offset-y': 2,
-      'shadow-opacity': 0.5,
-    },
-  })
+  // Cytoscape 3.x core does not support `shadow-*` style properties (would
+  // emit "shadow-blur: 8 is invalid" warnings on every load). The depth cue
+  // they were intended to provide is already carried by border-color +
+  // border-width on the same selectors above; the rules were never
+  // visually applied, so they have been removed.
 
   style.push({
     selector: 'node.graph-label-tier-none',
@@ -456,10 +477,10 @@ export function buildGiKgCyStylesheet(options?: {
       selector: 'edge[edgeType = "HAS_INSIGHT"]',
       style: {
         width: compact ? 1.5 : 2,
-        'line-color': 'var(--ps-primary)',
+        'line-color': psPrimary,
         'line-style': 'solid',
         'target-arrow-shape': 'triangle',
-        'target-arrow-color': 'var(--ps-primary)',
+        'target-arrow-color': psPrimary,
       },
     },
     {
@@ -471,7 +492,7 @@ export function buildGiKgCyStylesheet(options?: {
       selector: 'edge[edgeType = "ABOUT"]',
       style: {
         width: aboutConfidenceWidth(compact ? 1.5 : 2),
-        'line-color': 'var(--ps-gi)',
+        'line-color': psGi,
         'line-style': 'solid',
         'line-opacity': aboutConfidenceOpacity(),
         'target-arrow-shape': 'none',
@@ -481,17 +502,17 @@ export function buildGiKgCyStylesheet(options?: {
       selector: 'edge[edgeType = "SUPPORTED_BY"]',
       style: {
         width: compact ? 0.85 : 1,
-        'line-color': 'var(--ps-muted)',
+        'line-color': psMuted,
         'line-style': 'dashed',
         'target-arrow-shape': 'triangle',
-        'target-arrow-color': 'var(--ps-muted)',
+        'target-arrow-color': psMuted,
       },
     },
     {
       selector: 'edge[edgeType = "RELATED_TO"]',
       style: {
         width: compact ? 1 : 1,
-        'line-color': 'var(--ps-kg)',
+        'line-color': psKg,
         'line-style': 'solid',
         'target-arrow-shape': 'none',
       },
@@ -500,7 +521,7 @@ export function buildGiKgCyStylesheet(options?: {
       selector: 'edge[edgeType = "MENTIONS"]',
       style: {
         width: compact ? 1 : 1,
-        'line-color': 'var(--ps-muted)',
+        'line-color': psMuted,
         'line-style': 'dotted',
         'target-arrow-shape': 'none',
       },
@@ -509,17 +530,17 @@ export function buildGiKgCyStylesheet(options?: {
       selector: 'edge[edgeType = "SPOKE_IN"]',
       style: {
         width: compact ? 1.5 : 2,
-        'line-color': 'var(--ps-primary)',
+        'line-color': psPrimary,
         'line-style': 'solid',
         'target-arrow-shape': 'triangle',
-        'target-arrow-color': 'var(--ps-primary)',
+        'target-arrow-color': psPrimary,
       },
     },
     {
       selector: 'edge[edgeType = "HAS_MEMBER"]',
       style: {
         width: compact ? 1.25 : 1.5,
-        'line-color': 'var(--ps-kg)',
+        'line-color': psKg,
         'line-style': 'solid',
         'target-arrow-shape': 'none',
         'line-opacity': 0.6,
@@ -536,10 +557,10 @@ export function buildGiKgCyStylesheet(options?: {
     style: {
       width: compact ? 1 : 1.5,
       'curve-style': 'bezier',
-      'line-color': 'var(--ps-muted)',
+      'line-color': psMuted,
       'line-style': 'solid',
       'target-arrow-shape': 'triangle',
-      'target-arrow-color': 'var(--ps-muted)',
+      'target-arrow-color': psMuted,
     },
   })
 
@@ -582,7 +603,7 @@ export function buildGiKgCyStylesheet(options?: {
     selector: 'edge.graph-edge-about-agg',
     style: {
       width: `mapData(weight, 1, 12, ${aboutAggBaseWidth}, ${aboutAggMaxWidth})`,
-      'line-color': 'var(--ps-gi)',
+      'line-color': psGi,
       'line-style': 'solid',
       'line-opacity': 0.85,
       'target-arrow-shape': 'none',
@@ -596,11 +617,11 @@ export function buildGiKgCyStylesheet(options?: {
     selector: 'edge.graph-edge-spoke-in-agg',
     style: {
       width: `mapData(weight, 1, 8, ${aboutAggBaseWidth}, ${aboutAggMaxWidth})`,
-      'line-color': 'var(--ps-primary)',
+      'line-color': psPrimary,
       'line-style': 'solid',
       'line-opacity': 0.85,
       'target-arrow-shape': 'triangle',
-      'target-arrow-color': 'var(--ps-primary)',
+      'target-arrow-color': psPrimary,
       'z-index': 5,
     },
   })

@@ -164,7 +164,72 @@ export function giKgCoseEdgeElasticity(edge: EdgeSingular, profile: 'main' | 'co
   return semanticEdgeElasticity(et, profile)
 }
 
-export function giKgCoseLayoutOptionsMain(): Record<string, unknown> {
+/**
+ * #767-B — redraw debounce window.
+ *
+ *   - 150 ms catches Vue ``nextTick`` cascades on internal flows; still
+ *     feels instant to the user.
+ *   - 0 ms when an FSM envelope is pending — the FSM is in
+ *     ``loading_*`` waiting for the redraw to drive it forward; the
+ *     debounce slack stacks against the stuck-handoff timeout.
+ *
+ * Behavior contract pinned by ``redrawDebounceMs.test.ts``:
+ *
+ *   before this rule (always 150 ms):  redrawDebounceMs(true)  → 150
+ *   after  this rule:                  redrawDebounceMs(true)  →   0
+ *                                      redrawDebounceMs(false) → 150
+ *
+ * Saving: 150 ms per cross-surface handoff click.
+ */
+export const REDRAW_DEBOUNCE_INTERNAL_MS = 150
+export function redrawDebounceMs(hasPendingHandoff: boolean): number {
+  return hasPendingHandoff ? 0 : REDRAW_DEBOUNCE_INTERNAL_MS
+}
+
+/**
+ * #767-C — post-animation safety-net recenter timings.
+ *
+ * ``animateCameraToFocusedNode`` animates the camera over 320 ms then
+ * schedules ``recenterIfPending`` at the timings below. Each timer fires
+ * a best-effort ``core.center(targetNode)`` so the camera converges on
+ * the focus target even if the canvas resized mid-animation.
+ *
+ * Behavior contract pinned by ``recenterSafetyTailTimings.test.ts``:
+ *
+ *   before this rule:  [400, 900, 1800]  → 1800 ms perceived tail
+ *   after  this rule:  [400]              →  400 ms perceived tail
+ *
+ * Saving: ~1400 ms perceived-latency tail on every successful handoff.
+ * The 400 ms catches the common detail-panel-slid-in / tab-transitioned
+ * case in time; ``armPendingRecenter`` keeps the target armed for 5 s,
+ * so any later ResizeObserver-driven recenter can still home if it does
+ * fire (the original 900 / 1800 ms timers were dead weight in practice).
+ */
+export const RECENTER_SAFETY_TAIL_TIMINGS_MS: readonly number[] = [400]
+
+/**
+ * #767-A — derive cose `numIter` from node count for external-nav redraws.
+ *
+ * Default is `MAIN.numIter` = 2500 iterations regardless of graph size.
+ * For external-nav redraws (Library / Digest "Open in graph") on graphs
+ * already past 50 nodes, the prior layout is a good warm start — cose
+ * converges well below 2500 iterations and the extra work is pure tail
+ * latency. Cap at `Math.min(2500, 200 + 8 × nodeCount)`:
+ *
+ *   - 50 nodes  → 600 iter (cose still has room to settle from scratch)
+ *   - 200 nodes → 1800 iter
+ *   - 270 nodes → 2360 iter (production-shaped fixture)
+ *   - 300+ nodes → 2500 (cap)
+ *
+ * First paint (no warm start) still gets the full 2500 — caller decides
+ * which mode applies.
+ */
+export function giKgCoseNumIterCapped(nodeCount: number): number {
+  if (!Number.isFinite(nodeCount) || nodeCount <= 0) return MAIN.numIter
+  return Math.min(MAIN.numIter, 200 + Math.floor(nodeCount) * 8)
+}
+
+export function giKgCoseLayoutOptionsMain(numIterOverride?: number): Record<string, unknown> {
   return {
     name: 'cose',
     padding: MAIN.padding,
@@ -174,7 +239,7 @@ export function giKgCoseLayoutOptionsMain(): Record<string, unknown> {
     edgeElasticity: (edge: EdgeSingular) => giKgCoseEdgeElasticity(edge, 'main'),
     gravity: MAIN.gravity,
     nestingFactor: MAIN.nestingFactor,
-    numIter: MAIN.numIter,
+    numIter: numIterOverride ?? MAIN.numIter,
     nodeDimensionsIncludeLabels: MAIN.nodeDimensionsIncludeLabels,
   }
 }
@@ -183,7 +248,9 @@ export function giKgCoseLayoutOptionsMain(): Record<string, unknown> {
  * Static COSE options if `giKgCoseLayoutOptionsMain` fails at runtime (broken HMR chunk, etc.).
  * Keeps the graph usable; topic-cluster tuning is best-effort only.
  */
-export function giKgCoseLayoutOptionsMainFallback(): Record<string, unknown> {
+export function giKgCoseLayoutOptionsMainFallback(
+  numIterOverride?: number,
+): Record<string, unknown> {
   return {
     name: 'cose',
     padding: MAIN.padding,
@@ -193,7 +260,7 @@ export function giKgCoseLayoutOptionsMainFallback(): Record<string, unknown> {
     edgeElasticity: () => MAIN.edgeElasticity,
     gravity: MAIN.gravity,
     nestingFactor: MAIN.nestingFactor,
-    numIter: MAIN.numIter,
+    numIter: numIterOverride ?? MAIN.numIter,
     nodeDimensionsIncludeLabels: MAIN.nodeDimensionsIncludeLabels,
   }
 }

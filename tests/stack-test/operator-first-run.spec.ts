@@ -37,7 +37,14 @@ import { expect, test } from '@playwright/test'
  * on first GET.
  */
 
-const CORPUS = '/app/output/firstrun-empty'
+// Unique-per-run subdir so repeated local ``make ci-ui-full`` invocations
+// don't see state from previous runs (the ``stack-test-ml-ci`` recipe tears
+// down containers but preserves the ``corpus_data`` volume, so a prior
+// run's test 3 ``Add feed`` would leave ``firstrun-empty/feeds.spec.yaml``
+// behind and break test 2's ``no feeds yet`` assertion on the next run).
+// CI runners always start with empty volumes so this only bites locally —
+// but the bug is real test isolation, not env-only.
+const CORPUS = `/app/output/firstrun-empty-${Date.now()}`
 const MOCK_FEED = 'http://mock-feeds/p01_fast_with_transcript.xml'
 
 function stackTestProgress(msg: string): void {

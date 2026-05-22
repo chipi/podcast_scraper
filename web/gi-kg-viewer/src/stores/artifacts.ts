@@ -98,19 +98,39 @@ export const useArtifactsStore = defineStore('artifacts', () => {
     ),
   )
 
-  function applyTopicClustersFetchResult(tc: TopicClustersFetchResult): void {
+  // #769 — memoize the topic-clusters HTTP fetch per corpus root.
+  //
+  // ``ensureTopicClusterCompoundVisible`` calls ``syncTopicClustersForCurrentCorpus``
+  // at the top of every invocation, and on first-open graph paths the
+  // App.vue ``activateGraphTab`` orchestrator can invoke
+  // ``ensureTopicClusterCompoundVisible`` up to 3 times per click (bootstrap
+  // path + post-bootstrap call + watcher cascade). The HTTP fetch is
+  // identical each time. Memoizing it via this sentinel saves 100-400 ms
+  // per redundant call.
+  //
+  // Invalidation contract: ``topicClustersFetchedForRoot`` is set ONLY by
+  // ``applyTopicClustersFetchResult`` on a successful 'ok' result, and
+  // cleared at every site that nulls ``topicClustersDoc.value``. The
+  // sentinel + doc form the cache key; the memoize path is taken only
+  // when BOTH the root matches AND the doc is still populated.
+  let topicClustersFetchedForRoot: string | null = null
+
+  function applyTopicClustersFetchResult(tc: TopicClustersFetchResult, root: string): void {
     if (tc.status === 'ok') {
       topicClustersDoc.value = tc.document
+      topicClustersFetchedForRoot = root
       topicClustersLoadState.value = 'ok'
       topicClustersErrorDetail.value = null
       topicClustersSchemaWarning.value = tc.schemaWarning ?? null
     } else if (tc.status === 'missing') {
       topicClustersDoc.value = null
+      topicClustersFetchedForRoot = null
       topicClustersLoadState.value = 'missing'
       topicClustersErrorDetail.value = null
       topicClustersSchemaWarning.value = null
     } else {
       topicClustersDoc.value = null
+      topicClustersFetchedForRoot = null
       topicClustersLoadState.value = 'error'
       topicClustersErrorDetail.value = tc.message
       topicClustersSchemaWarning.value = null
@@ -120,17 +140,24 @@ export const useArtifactsStore = defineStore('artifacts', () => {
   /**
    * Fetch ``/api/corpus/topic-clusters`` for the current ``corpusPath`` (no artifact load required).
    * Safe to call as soon as corpus root + healthy API are known so the Dashboard corpus workspace can show status.
+   *
+   * #769 memoized: if the most recent successful fetch was for the same
+   * root AND the doc is still populated, the HTTP call is skipped.
    */
   async function syncTopicClustersForCurrentCorpus(): Promise<void> {
     const root = corpusPath.value.trim()
     if (!root) {
       return
     }
+    if (topicClustersFetchedForRoot === root && topicClustersDoc.value !== null) {
+      return
+    }
     try {
       const tc = await fetchTopicClustersFromApi(root)
-      applyTopicClustersFetchResult(tc)
+      applyTopicClustersFetchResult(tc, root)
     } catch (e) {
       topicClustersDoc.value = null
+      topicClustersFetchedForRoot = null
       topicClustersLoadState.value = 'error'
       topicClustersErrorDetail.value = e instanceof Error ? e.message : String(e)
       topicClustersSchemaWarning.value = null
@@ -145,6 +172,7 @@ export const useArtifactsStore = defineStore('artifacts', () => {
     parsedList.value = []
     bridgeDocument.value = null
     topicClustersDoc.value = null
+    topicClustersFetchedForRoot = null
     topicClustersLoadState.value = 'idle'
     topicClustersErrorDetail.value = null
     topicClustersSchemaWarning.value = null
@@ -227,6 +255,7 @@ export const useArtifactsStore = defineStore('artifacts', () => {
       parsedList.value = kept
       selectedRelPaths.value = kept.map((p) => p.name)
       topicClustersDoc.value = null
+      topicClustersFetchedForRoot = null
       topicClustersLoadState.value = 'local_files'
       topicClustersErrorDetail.value = null
       topicClustersSchemaWarning.value = null
@@ -288,28 +317,77 @@ export const useArtifactsStore = defineStore('artifacts', () => {
     const seq = loadGate.bump()
     loading.value = true
     try {
+      // #768 — parallelize: dispatch the main set AND the sibling-bridge
+      // candidate (if any) concurrently in one ``Promise.all``. Old code
+      // awaited each ``fetchArtifactJson`` serially; with 4–30 files on
+      // cold corpora the round-trip latency stacked into the dominant
+      // share of cross-surface "Open in graph" wall-clock time.
+      //
+      // Invariants this refactor preserves vs. the old sequential code:
+      //  - Stale-check fires ONCE after the join (the old per-iteration
+      //    check couldn't help anyway because in-flight fetches can't be
+      //    cancelled — a mid-iteration ``isStale`` just abandons later
+      //    fetches, doesn't stop the ones already issued).
+      //  - In-selection ``.bridge.json`` WINS over sibling-bridge
+      //    fallback (sibling is only consulted when nothing in the main
+      //    selection ended up populating ``bridgeDocument``).
+      //  - Main-fetch rejection still fails fast via ``Promise.all``
+      //    rejecting on first error → outer ``catch`` sets ``loadError``.
+      //  - Sibling-bridge rejection stays silent (it's optional metadata).
+      //
+      // Tests pinning each invariant: ``artifacts.loadSelected.test.ts``
+      // (search for ``#768``).
+      const selected = selectedRelPaths.value
+      const giRelForSibling = selected.find((p) => p.toLowerCase().endsWith('.gi.json'))
+      const hasBridgeInSelection = selected.some((p) =>
+        p.toLowerCase().endsWith('.bridge.json'),
+      )
+      const siblingBridgeRel =
+        !hasBridgeInSelection && giRelForSibling
+          ? (() => {
+              const br = giRelForSibling.replace(/\.gi\.json$/i, '.bridge.json')
+              return br !== giRelForSibling ? br : null
+            })()
+          : null
+
+      // Main-set promises: rejections propagate (fail-fast). Sibling-bridge
+      // promise is wrapped to resolve-to-null on failure (silent / optional).
+      const mainPromises = selected.map((rel) => fetchArtifactJson(root, rel))
+      const siblingPromise = siblingBridgeRel
+        ? fetchArtifactJson(root, siblingBridgeRel).catch(() => null)
+        : Promise.resolve(null)
+
+      const [mainResults, siblingData] = await Promise.all([
+        Promise.all(mainPromises),
+        siblingPromise,
+      ])
+
+      // F3a — single stale-check after the join. If the operator clicked
+      // something else mid-flight, drop all post-join state writes.
+      if (loadGate.isStale(seq)) {
+        return
+      }
+
+      // Apply results in original selection order so ``parsedList`` is
+      // deterministic and ``bridgeDocument`` resolution is predictable.
       const out: ParsedArtifact[] = []
-      for (const rel of selectedRelPaths.value) {
-        if (loadGate.isStale(seq)) {
-          return
-        }
+      let bridgeFromSelection: ReturnType<typeof parseBridgeDocument> = null
+      for (let i = 0; i < selected.length; i++) {
+        const rel = selected[i]!
+        const data = mainResults[i]!
         const lower = rel.toLowerCase()
         if (lower.endsWith('.bridge.json')) {
           try {
-            const data = await fetchArtifactJson(root, rel)
-            bridgeDocument.value = parseBridgeDocument(data)
+            bridgeFromSelection = parseBridgeDocument(data)
           } catch {
             /* optional */
           }
           continue
         }
-        const data = await fetchArtifactJson(root, rel)
         const base = rel.includes('/') ? rel.split('/').pop() || rel : rel
         out.push(parseArtifact(base, data, rel))
       }
-      if (loadGate.isStale(seq)) {
-        return
-      }
+
       if (out.length === 0) {
         // Only clear on definite "nothing to show" — matches pre-#586
         // behaviour for this branch.
@@ -317,32 +395,24 @@ export const useArtifactsStore = defineStore('artifacts', () => {
         loadError.value = 'No .gi.json or .kg.json files in selection.'
         return
       }
+
       /** Align topic-cluster catalog with the artifact slice before assigning ``parsedList``. */
-      if (!loadGate.isStale(seq)) {
-        await syncTopicClustersForCurrentCorpus()
-      }
+      await syncTopicClustersForCurrentCorpus()
       if (loadGate.isStale(seq)) {
         return
       }
+
       parsedList.value = out
-      if (!bridgeDocument.value) {
-        const giRel = selectedRelPaths.value.find((p) => p.toLowerCase().endsWith('.gi.json'))
-        if (giRel) {
-          const br = giRel.replace(/\.gi\.json$/i, '.bridge.json')
-          if (br !== giRel) {
-            try {
-              if (loadGate.isStale(seq)) {
-                return
-              }
-              const data = await fetchArtifactJson(root, br)
-              if (loadGate.isStale(seq)) {
-                return
-              }
-              bridgeDocument.value = parseBridgeDocument(data)
-            } catch {
-              /* sibling bridge is optional */
-            }
-          }
+      // In-selection bridge WINS over sibling-bridge fallback. The
+      // sibling fetch already fired in parallel; its result is only
+      // applied when the selection itself didn't carry a bridge.
+      if (bridgeFromSelection) {
+        bridgeDocument.value = bridgeFromSelection
+      } else if (siblingData) {
+        try {
+          bridgeDocument.value = parseBridgeDocument(siblingData)
+        } catch {
+          /* sibling bridge is optional */
         }
       }
     } catch (e) {
@@ -358,7 +428,15 @@ export const useArtifactsStore = defineStore('artifacts', () => {
   }
 
   function setCorpusPath(p: string): void {
-    corpusPath.value = p
+    const next = String(p)
+    // #769 — invalidate the topic-clusters cache whenever the corpus
+    // root changes. The sentinel is also reset by clearSelection /
+    // loadFromLocalFiles / fetch-error paths; this handles the direct
+    // ``setCorpusPath`` case (operator typed a new path).
+    if (next.trim() !== corpusPath.value.trim()) {
+      topicClustersFetchedForRoot = null
+    }
+    corpusPath.value = next
   }
 
   function toggleSelection(rel: string): void {
@@ -376,6 +454,7 @@ export const useArtifactsStore = defineStore('artifacts', () => {
     parsedList.value = []
     bridgeDocument.value = null
     topicClustersDoc.value = null
+    topicClustersFetchedForRoot = null
     topicClustersLoadState.value = 'idle'
     topicClustersErrorDetail.value = null
     topicClustersSchemaWarning.value = null
