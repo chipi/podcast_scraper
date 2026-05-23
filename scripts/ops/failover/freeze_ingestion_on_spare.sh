@@ -4,9 +4,18 @@
 # before validation.
 #
 # Why: the in-process APScheduler (src/podcast_scraper/server/scheduler.py)
-# starts only when ``corpus/viewer_operator.yaml`` has any enabled
-# ``scheduled_jobs`` entry. Strip the key so the spare cannot fire ingestion
-# jobs while prod still owns the corpus (dual-writer guard, RFC-083 §6).
+# reads ``corpus/viewer_operator.yaml`` at api startup and only enables jobs
+# present under ``scheduled_jobs``. Strip the key on the spare so that when
+# the operator runs the manual cutover (PROD_RUNBOOK § failover), the spare
+# starts with zero scheduled jobs and cannot dual-write against prod's
+# corpus (RFC-083 §6 dual-writer guard).
+#
+# The api is NOT restarted here. The spare is not serving traffic during
+# preprod stand-up validation; the api will re-read the (now key-less)
+# yaml on its next natural restart — manual cutover, host reboot, or full
+# compose redeploy. Restarting it here only couples the freeze step to the
+# full prod compose overlay stack (env-file, PODCAST_CORPUS_HOST_PATH, all
+# three overlay files) for zero validation benefit.
 #
 # Idempotent: a second invocation finds no scheduled_jobs key and exits 0.
 
@@ -37,15 +46,17 @@ count = len(removed) if isinstance(removed, list) else (1 if removed else 0)
 print(f"freeze-ingestion: removed {count} scheduled_jobs entries from {path}")
 PY
 
-# Restart api with the same compose stack + env-file as drill-restore-corpus
-# (restore_corpus_from_tarball_host.sh). docker compose validates volume
-# interpolation even on ``restart``, so PODCAST_CORPUS_HOST_PATH from
-# ${REPO_DIR}/.env must be present; --env-file is required.
-cd "$REPO_DIR"
-COMPOSE=(
-  docker compose --env-file .env
-  -f compose/docker-compose.stack.yml
-  -f compose/docker-compose.prod.yml
-  -f compose/docker-compose.vps-prod.yml
-)
-"${COMPOSE[@]}" restart api 2>&1 | tail -10
+# Read-back verification — confirm the key is gone from the on-disk yaml.
+# The spare api will pick this up on its next start (cutover time, manual).
+python3 - "$OPERATOR_YAML" <<'PY'
+import sys
+import yaml
+
+path = sys.argv[1]
+with open(path) as fh:
+    data = yaml.safe_load(fh) or {}
+if "scheduled_jobs" in data:
+    print(f"freeze-ingestion: ERROR scheduled_jobs still present in {path}", file=sys.stderr)
+    sys.exit(1)
+print(f"freeze-ingestion: verified scheduled_jobs absent from {path}")
+PY
