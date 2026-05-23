@@ -194,18 +194,16 @@ export function redrawDebounceMs(hasPendingHandoff: boolean): number {
  * a best-effort ``core.center(targetNode)`` so the camera converges on
  * the focus target even if the canvas resized mid-animation.
  *
- * Behavior contract pinned by ``recenterSafetyTailTimings.test.ts``:
- *
- *   before this rule:  [400, 900, 1800]  → 1800 ms perceived tail
- *   after  this rule:  [400]              →  400 ms perceived tail
- *
- * Saving: ~1400 ms perceived-latency tail on every successful handoff.
- * The 400 ms catches the common detail-panel-slid-in / tab-transitioned
- * case in time; ``armPendingRecenter`` keeps the target armed for 5 s,
- * so any later ResizeObserver-driven recenter can still home if it does
- * fire (the original 900 / 1800 ms timers were dead weight in practice).
+ * The schedule is ``[400, 900, 1800]``. #787 originally trimmed this to
+ * ``[400]`` based on linux-CI observation, but the Tier-2 production-shaped
+ * matrix (``e2e/handoff-production/``) ran red on firefox-mac: cytoscape
+ * canvas resize on first graph mount settles past 400 ms locally, so the
+ * 900 / 1800 ms timers were catching the late recenter that the trimmed
+ * schedule no longer fires. Restored to keep cross-platform stability;
+ * each timer is a no-op when the pending recenter is already consumed,
+ * so the cost on linux is negligible.
  */
-export const RECENTER_SAFETY_TAIL_TIMINGS_MS: readonly number[] = [400]
+export const RECENTER_SAFETY_TAIL_TIMINGS_MS: readonly number[] = [400, 900, 1800]
 
 /**
  * #767-A — derive cose `numIter` from node count for external-nav redraws.

@@ -195,22 +195,15 @@ describe('#767-B — redrawDebounceMs (behavior contract)', () => {
 
 describe('#767-C — RECENTER_SAFETY_TAIL_TIMINGS_MS (behavior contract)', () => {
   // ``animateCameraToFocusedNode`` arms one ``setTimeout`` per entry in
-  // this list. The before/after artifact is the array itself: the prior
-  // code hard-coded three calls at 400 / 900 / 1800 ms; the new code
-  // iterates this constant.
+  // this list. The schedule is the three-anchor [400, 900, 1800] tail;
+  // #787 attempted to trim to [400] for perceived-latency savings but
+  // firefox-mac Tier-2 production-shaped specs (``e2e/handoff-production/``)
+  // surfaced a regression — local canvas-resize settle is past 400 ms,
+  // so the late timers were catching missed recenters that linux-CI
+  // never needed. Schedule restored.
 
-  it('contains exactly one entry — the 400 ms anchor', () => {
-    expect(RECENTER_SAFETY_TAIL_TIMINGS_MS).toEqual([400])
-  })
-
-  it('saves the 900 ms and 1800 ms tail vs the legacy schedule', () => {
-    const legacy = [400, 900, 1800]
-    const current = [...RECENTER_SAFETY_TAIL_TIMINGS_MS]
-    const removed = legacy.filter((ms) => !current.includes(ms))
-    expect(removed).toEqual([900, 1800])
-    // Perceived-tail saving = max(removed) - max(kept) when both are non-empty
-    const perceivedSavingMs = Math.max(...legacy) - Math.max(...current)
-    expect(perceivedSavingMs).toBe(1400)
+  it('matches the three-anchor schedule [400, 900, 1800]', () => {
+    expect(RECENTER_SAFETY_TAIL_TIMINGS_MS).toEqual([400, 900, 1800])
   })
 
   it('is a readonly tuple — accidental push to the array would not compile', () => {

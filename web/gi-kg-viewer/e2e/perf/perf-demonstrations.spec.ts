@@ -155,21 +155,16 @@ test.describe('Perf demonstrations (#767 / #768 / #769)', () => {
   })
 
   /**
-   * #767-C — recenter safety-net tail trim.
+   * #767-C — recenter safety-net tail schedule.
    *
    * NOTE: the #767-C behavior contract is pinned at the UNIT level via
-   * ``RECENTER_SAFETY_TAIL_TIMINGS_MS === [400]`` in
-   * ``cyCoseLayoutOptions.test.ts``. A browser-level "camera stable
-   * after t=X" test was attempted here but the production-shaped
-   * handoff flow fires multiple distinct camera animations (initial
-   * fit → deferred focus animate released after canvas-hold lifts →
-   * subsequent watcher-cascade refits) that are spaced by ≥500 ms but
-   * normal — they're not the legacy 900/1800 ms recenters this fix
-   * removed. Distinguishing "intentional multi-animate" from "legacy
-   * recenter" in the browser is structurally fragile.
-   *
-   * The unit-level constant assertion catches the exact failure mode:
-   * if a future change adds 900 / 1800 back into the schedule, that
-   * test goes red. No browser test needed for this one.
+   * ``RECENTER_SAFETY_TAIL_TIMINGS_MS === [400, 900, 1800]`` in
+   * ``cyCoseLayoutOptions.test.ts``. #787 originally trimmed the
+   * schedule to ``[400]`` on the assumption that the 900 / 1800 ms
+   * timers were dead weight; the Tier-2 production-shaped matrix
+   * (``e2e/handoff-production/``) surfaced that they actually catch a
+   * mac-firefox-only late-resize after-effect. The schedule is the
+   * three-anchor list — unit-level assertion blocks any future trim
+   * without an explicit cross-platform cost analysis.
    */
 })
