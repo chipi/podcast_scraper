@@ -426,6 +426,10 @@ quality: complexity deadcode docstrings spelling
 	#   ambient ``pip`` on the runner (26.0.1); PyPI has no newer pip yet (fix merged, unreleased). CI only
 	#   installs from trusted indexes; revisit when pip >26.0.1 includes https://github.com/pypa/pip/pull/13870.
 	# TODO(CVE-2026-3219): Remove --ignore-vuln after a patched pip release is published and GHA images pick it up.
+	# Ignore CVE-2026-6357: pip vulnerability fixed in 26.1 — same shape as CVE-2026-3219 (runner ambient
+	#   ``pip``, not a project dep). The GHA runner ships 26.0.1; we don't upgrade pip in the audit job since
+	#   the install path is trusted (PyPI-only, no third-party indexes). Revisit once GHA images ship pip>=26.1.
+	# TODO(CVE-2026-6357): Remove --ignore-vuln once the GHA runner's bundled pip is >=26.1.
 	#
 	# --- ML-stack deserialization class (joblib / nltk / torch / transformers) ---
 	# 22 PYSECs below all share the same shape: vulnerable code path is reached
@@ -473,6 +477,7 @@ quality: complexity deadcode docstrings spelling
 		--ignore-vuln CVE-2026-1839 \
 		--ignore-vuln CVE-2025-69872 \
 		--ignore-vuln CVE-2026-3219 \
+		--ignore-vuln CVE-2026-6357 \
 		--ignore-vuln PYSEC-2024-277 \
 		--ignore-vuln PYSEC-2026-97 \
 		--ignore-vuln PYSEC-2025-189 \
