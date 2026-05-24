@@ -256,6 +256,16 @@ tests or committing.
 - **Documentation-only commits** (markdown under `docs/**`, `**/*.md`,
   `mkdocs.yml`, no `src/` or runtime code): use `make fix-md` (if needed),
   `make lint-markdown`, and `make docs`. Skip `make ci-fast`.
+- **Pushing docs changes to `main` is a HARD GATE on `make docs` passing
+  locally first.** `make docs` runs mkdocs in **strict mode** — any
+  unresolved cross-reference (e.g., a link to a file you renamed without
+  updating its referrers) fails the build with `Aborted with N warnings in
+  strict mode!`. Pre-commit hooks do NOT catch this; only `make docs`
+  does. Nightly will fail the next morning if you skip this step.
+  - **After ANY file rename inside `docs/`**, also run
+    `grep -rn "<old-filename-stem>" docs/` to find stale referrers before
+    `make docs` — strict mode catches them eventually, but a grep is
+    seconds vs. a 12 s build cycle per attempt.
 - **Infra / CI / ops-only commits**: when the operator waives `make ci-fast`,
   still run `make lint-markdown` for markdown changes and `make docs` for
   doc-input changes. Otherwise no extra default local target.
