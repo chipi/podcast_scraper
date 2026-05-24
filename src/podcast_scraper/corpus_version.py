@@ -71,6 +71,7 @@ def read_produced_by(corpus_root: Path) -> dict[str, Any] | None:
 
 
 def corpus_code_version(produced_by: dict[str, Any] | None) -> str | None:
+    """Extract ``code_version`` from a ``produced_by`` dict, if present."""
     if not produced_by:
         return None
     raw = produced_by.get("code_version")
