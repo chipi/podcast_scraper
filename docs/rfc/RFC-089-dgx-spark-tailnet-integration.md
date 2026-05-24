@@ -227,7 +227,19 @@ The financial argument is not "save money." The argument is "for the same monthl
 
 Each phase ends with an explicit checkpoint. Stop-and-ship after any phase if priorities shift; nothing later builds load-bearing assumptions on later phases.
 
-## Alternatives Considered
+## Integration with v2.7 issues (optional touchpoints)
+
+This RFC is **independent of every v2.7 infra issue filed** (#796–#806). Nothing in those issues requires DGX to ship; nothing in this RFC requires those issues to ship. The two tracks can land in any order.
+
+There are three soft touchpoints where DGX-work *enhances* an existing issue when both happen to be available — but in each case the issue ships first as a complete unit, and DGX adds a quality upgrade later if/when its phase lands:
+
+| Issue | Soft touchpoint with RFC-089 |
+| --- | --- |
+| **#800 parkable pre-prod** | Pre-prod ships with cloud LLM (or laptop Ollama) as the v1 backend. When RFC-089 P3 lands, pre-prod gains a tailnet-resident LLM backend (DGX-hosted) that makes the `airgapped_*` path realistic + free to validate. No code change to #800's deliverables — only a config flip in pre-prod's `.env`. |
+| **#803 deploy observability + MCP** | The MCP server in #803 D3 ships with 7 prod-state tools. When RFC-089 P0+ is up, an optional 8th tool `dgx_health()` can surface DGX availability to the same agent surface. Not in the #803 acceptance criteria; additive. |
+| **#804 LLM cost monitoring** | #804's daily cost rollup + soft caps cover cloud LLM spend regardless of DGX. RFC-089's AI comparison guide cites measurements from #804's metrics for the "DGX vs cloud" cost section. Bidirectional reuse, no dependency direction. |
+
+Hard rule for the next agent picking up any of these: **do not write code or docs that assume DGX exists.** Treat DGX as "if available, route to it; if not, the v1 path is the contract." This protects both tracks from rotting if one slips.
 
 | Option | Pro | Con | Why rejected |
 | --- | --- | --- | --- |
