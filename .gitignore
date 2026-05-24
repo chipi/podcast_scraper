@@ -191,6 +191,10 @@ autoresearch/**/eval/autoresearch_cfg_*.yaml
 
 # Autoresearch run logs
 autoresearch/logs/
+logs/
+
+# Claude Code local settings (per-clone permission overrides)
+.claude/settings.json
 
 # Worktree-specific files
 WORKTREE.md
