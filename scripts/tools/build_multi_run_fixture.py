@@ -204,7 +204,15 @@ def _build_run_json(*, run_id: str, created_at: dt.datetime) -> dict:
 
 
 def _build_metrics_json(*, episodes_scraped: int) -> dict:
-    """Per-run metrics — deliberately omits *_cost_usd to reproduce #823."""
+    """Per-run metrics — mirrors the prod state for #823 reproducer.
+
+    Critical detail: per-stage ``*_cost_usd`` fields are PRESENT but all 0.0.
+    That's what the prod corpus actually shows (the per-call cost-recording
+    path silently dropped data, leaving the default 0.0 values). The
+    aggregator in :mod:`workflow.corpus_cost_aggregation` sets
+    ``cost_appears_uninstrumented=True`` when this pattern is detected
+    (#823 hotfix).
+    """
     return {
         "schema_version": "1.0.0",
         "run_duration_seconds": float(episodes_scraped * 70),
@@ -218,10 +226,15 @@ def _build_metrics_json(*, episodes_scraped: int) -> dict:
         "gi_failures": 0,
         "kg_artifacts_generated": episodes_scraped,
         "kg_failures": 0,
-        # NOTE: deliberately omit estimated_cost_usd / *_cost_usd fields here.
-        # The cost-rollup aggregator (#823) must detect "field missing"
-        # vs "field present but zero" and surface the gap rather than
-        # silently rolling up as $0.00.
+        # Cost fields present but all 0.0 — reproduces the prod state where
+        # per-call cost recording silently dropped (#823).
+        "llm_transcription_cost_usd": 0.0,
+        "llm_summarization_cost_usd": 0.0,
+        "llm_speaker_detection_cost_usd": 0.0,
+        "llm_cleaning_cost_usd": 0.0,
+        "llm_gi_cost_usd": 0.0,
+        "llm_kg_cost_usd": 0.0,
+        "llm_bundled_clean_summary_cost_usd": 0.0,
     }
 
 

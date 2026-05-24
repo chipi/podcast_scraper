@@ -46,6 +46,14 @@ def aggregate_corpus_costs(corpus_parent: Path | str) -> Dict[str, Any]:
     - ``run_count``: number of ``metrics.json`` files aggregated.
     - ``metrics_files_missing_cost_fields``: count of files that lacked
       any of the stage fields (likely pre-#650 artifacts).
+    - ``cost_appears_uninstrumented`` (v2.6.1 #823): True when LLM calls
+      happened (``run_count > 0`` and at least one file had cost fields
+      present) but ``total_cost_usd == 0``. That combination indicates
+      the per-call cost-recording path silently dropped data (typically
+      because :func:`workflow.helpers.calculate_provider_cost` returned
+      ``None`` so :meth:`workflow.metrics.Metrics.record_llm_*` skipped
+      accumulation). Operators should treat a True flag as "cost in
+      this corpus is unknown, not zero."
 
     Malformed ``metrics.json`` files are logged and skipped; the aggregate
     reflects everything successfully parsed. Empty corpora return zeros.
@@ -56,6 +64,7 @@ def aggregate_corpus_costs(corpus_parent: Path | str) -> Dict[str, Any]:
     by_stage: Dict[str, float] = {f: 0.0 for f in _STAGE_COST_FIELDS}
     run_count = 0
     missing_cost_fields = 0
+    files_with_cost_fields_present = 0  # for #823 uninstrumented-cost detection
 
     # Multi-feed (corpus) layout: <root>/feeds/<slug>/run_*/metrics.json
     # Single-feed layout:         <root>/run_*/metrics.json
@@ -84,18 +93,36 @@ def aggregate_corpus_costs(corpus_parent: Path | str) -> Dict[str, Any]:
                 any_field_present = True
         if not any_field_present:
             missing_cost_fields += 1
+        else:
+            files_with_cost_fields_present += 1
 
-    return _build_result(by_stage, run_count, missing_cost_fields)
+    return _build_result(
+        by_stage,
+        run_count,
+        missing_cost_fields,
+        files_with_cost_fields_present,
+    )
 
 
 def _build_result(
-    by_stage: Dict[str, float], run_count: int, missing_cost_fields: int
+    by_stage: Dict[str, float],
+    run_count: int,
+    missing_cost_fields: int,
+    files_with_cost_fields_present: int,
 ) -> Dict[str, Any]:
     transcription = by_stage["llm_transcription_cost_usd"]
     llm_non_transcription = sum(
         by_stage[f] for f in _STAGE_COST_FIELDS if f != "llm_transcription_cost_usd"
     )
     total = transcription + llm_non_transcription
+
+    # v2.6.1 #823: if metrics.json files exist with cost fields present but
+    # the sum is exactly 0.0, the per-call cost-recording path silently
+    # dropped data. Flag this so operators don't read the rollup as
+    # "this corpus was free."
+    cost_appears_uninstrumented = (
+        run_count > 0 and files_with_cost_fields_present > 0 and total == 0.0
+    )
 
     return {
         "total_transcription_cost_usd": round(transcription, 6),
@@ -104,4 +131,5 @@ def _build_result(
         "by_stage": {f: round(v, 6) for f, v in by_stage.items()},
         "run_count": run_count,
         "metrics_files_missing_cost_fields": missing_cost_fields,
+        "cost_appears_uninstrumented": cost_appears_uninstrumented,
     }

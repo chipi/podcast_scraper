@@ -203,6 +203,34 @@ def test_corpus_episodes_limit_supports_at_least_500_818() -> None:
 
 
 @fixture_required
+def test_corpus_cost_uninstrumented_flag_823() -> None:
+    """#823 — aggregator must flag the "cost fields present but all zero" pattern.
+
+    The fixture's metrics.json files have every ``llm_*_cost_usd`` field
+    present and 0.0 (mirroring prod after the first real pipeline run).
+    The aggregator should set ``cost_appears_uninstrumented=True`` so the
+    operator sees "cost data missing", not "this corpus was free."
+    """
+    from podcast_scraper.workflow.corpus_cost_aggregation import aggregate_corpus_costs
+
+    rollup = aggregate_corpus_costs(FIXTURE_DIR)
+    assert rollup["run_count"] == EXPECTED_TOTAL_RUN_COUNT, (
+        f"aggregator saw {rollup['run_count']} runs, expected " f"{EXPECTED_TOTAL_RUN_COUNT}."
+    )
+    assert rollup["metrics_files_missing_cost_fields"] == 0, (
+        "fixture's metrics.json files have cost fields PRESENT; "
+        "aggregator shouldn't count any as missing."
+    )
+    assert rollup["total_cost_usd"] == 0.0
+    assert rollup["cost_appears_uninstrumented"] is True, (
+        "When metrics.json files have cost fields present but the total is "
+        "exactly 0.0, the aggregator must set cost_appears_uninstrumented=True. "
+        "Otherwise operators read $0 as 'free corpus' rather than 'cost data "
+        "missing'. (#823)"
+    )
+
+
+@fixture_required
 def test_corpus_feeds_per_feed_count_is_cumulative_unique_820() -> None:
     """#820 — Dashboard 'Total Episodes per Feed' widget reads /api/corpus/feeds.
 
