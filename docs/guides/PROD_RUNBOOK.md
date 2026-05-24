@@ -340,7 +340,8 @@ sentry_sdk.capture_message(\"prod bootstrap validation ping\", level=\"info\")
 ### Trigger the first deploy
 
 ```bash
-gh workflow run deploy-prod.yml --repo chipi/podcast_scraper
+gh workflow run deploy-prod.yml --repo chipi/podcast_scraper \
+  -f confirm=PROD_DEPLOY
 gh run watch --repo chipi/podcast_scraper
 ```
 
@@ -602,6 +603,70 @@ Result: **v2.6.0 / sha-4edfee5** deployed successfully. Follow-up hardening: [#7
 - Compatibility matrix: [COMPATIBILITY.md](../COMPATIBILITY.md)
 - Corpus restore: [Corpus snapshot manifest and restore](CORPUS_SNAPSHOT_MANIFEST_AND_RESTORE.md)
 - Reprocess without re-transcription: [Reprocess a corpus without re-transcribing audio](#reprocess-a-corpus-without-re-transcribing-audio)
+
+### Inspecting compatibility locally
+
+Before dispatching deploy, or when the viewer shows a yellow **corpus version** banner, check the on-disk corpus against the running server:
+
+```bash
+# On the VPS (server default output_dir is the corpus mount)
+curl -fsS https://prod-podcast.tail-xxxxx.ts.net/api/health | jq \
+  '.code_version, .min_supported_corpus_code_version, .corpus_code_version, .corpus_version_warning'
+
+# Viewer-entered path (same query the status bar uses when a corpus path is set)
+curl -fsS --get 'https://prod-podcast.tail-xxxxx.ts.net/api/health' \
+  --data-urlencode 'path=/srv/podcast-scraper/corpus' | jq \
+  '.corpus_produced_by, .corpus_version_warning'
+```
+
+Off-host, against a corpus directory you can read:
+
+```bash
+make corpus-compat-check CORPUS_DIR=/path/to/corpus
+```
+
+Exit code **0** when `produced_by.code_version` meets `min_supported_corpus_code_version`; **1** when a warning would appear in `/api/health`.
+
+### Single-feed vs multi-feed `produced_by`
+
+`corpus_manifest.produced_by` is written only on **multi-feed finalize** (`write_corpus_manifest` after a batch with two or more feeds). Single-feed pipeline runs may leave a manifest with `tool_version` but no `produced_by` object. `/api/health` then emits `corpus_version_warning` and the viewer shows the status-bar banner until you:
+
+1. Run a multi-feed batch that rewrites the manifest, or
+2. Use `make reprocess-corpus-from-transcripts CORPUS_DIR=…` (see below).
+
+Legacy corpora without any manifest still warn; readers fall back to per-artifact `schema_version` and migration helpers.
+
+### Post-deploy smoke inventory
+
+`scripts/ops/post_deploy_smoke.sh` (GHA step in `deploy-prod.yml`, local `make smoke-prod`) probes **six** surfaces when `--corpus-path` is set:
+
+| # | Route | Viewer surface |
+| --- | --- | --- |
+| 1 | `GET /api/health` | Status bar / subsystem flags |
+| 2 | `GET /api/corpus/episodes` | Library |
+| 3 | `GET /api/corpus/digest` | Digest |
+| 4 | `GET /api/artifacts` | Graph (GI/KG/bridge files) |
+| 5 | `GET /api/corpus/topic-clusters` | Graph topic overlay |
+| 6 | `GET /api/search` | Search |
+
+Health-only mode (no `--corpus-path`) is intentional for stacks without a mounted corpus. Prod deploy passes `SMOKE_CORPUS_PATH` from repo vars when configured.
+
+### Viewer warning banner
+
+When `corpus_version_warning` is non-null, the viewer renders **`data-testid="corpus-version-warning-banner"`** above the status bar. The message is informational — routes may still return 200 with empty panels. Treat it as **compound risk**: deploy succeeded but content may be stale relative to code. Prefer reprocess or restore before relying on Digest / Graph / Search for operator decisions.
+
+### When to reprocess vs restore vs roll back code
+
+| Situation | Action |
+| --- | --- |
+| Code deployed; corpus age OK but missing new artifact types | `make reprocess-corpus-from-transcripts CORPUS_DIR=…` then re-run smoke |
+| Corpus mutated by newer code; rolling code back | Restore snapshot **before** the bad deploy (`prod-restore-corpus.yml`), **then** code rollback with pinned `override_image_sha` |
+| `corpus_version_warning` only (semver below minimum) | Reprocess first; restore only if reprocess fails or disk is corrupt |
+| Smoke fails on `/api/artifacts` or topic-clusters | Check pipeline last run + index build; do not treat green health as sufficient |
+
+### Release checklist tie-in
+
+`scripts/pre_release_check.py` and `scripts/tools/create_release_notes_draft.py` both require a row for the shipping version in [`docs/COMPATIBILITY.md`](../COMPATIBILITY.md). CI job **`test-corpus-version-compat`** runs current server code against the N-1 fixture corpus (`tests/integration/server/test_corpus_version_compat.py`).
 
 ---
 
@@ -1106,7 +1171,7 @@ To wire viewer Sentry (one-time):
    chipi/podcast_scraper --app actions --body 'https://...'`.
 4. Wait for the next push to `main` — `stack-test.yml`'s viewer
    publish step bakes the DSN into the new image.
-5. Pull + restart on prod: `gh workflow run deploy-prod.yml`.
+5. Pull + restart on prod: `gh workflow run deploy-prod.yml --repo chipi/podcast_scraper -f confirm=PROD_DEPLOY`.
 
 DSNs are write-only public tokens designed to ship with frontend code
 — baking into the public GHCR image is the standard pattern.

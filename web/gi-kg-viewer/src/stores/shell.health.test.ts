@@ -186,4 +186,37 @@ describe('useShellStore /api/health discovery flags', () => {
     expect(shell.artifactsApiAvailable).toBe(false)
     expect(shell.searchApiAvailable).toBe(true)
   })
+
+  it('sets corpusVersionWarning from health JSON', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => ({
+        ok: true,
+        json: async () => ({
+          status: 'ok',
+          corpus_version_warning: 'Corpus has no produced_by stamp.',
+        }),
+      })) as unknown as typeof fetch,
+    )
+    const shell = useShellStore()
+    await shell.fetchHealth()
+    expect(shell.corpusVersionWarning).toBe('Corpus has no produced_by stamp.')
+  })
+
+  it('passes corpus path as health query when set', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: RequestInfo | URL) => {
+        const url = String(input)
+        expect(url).toContain('path=%2Fmock%2Fcorpus')
+        return {
+          ok: true,
+          json: async () => ({ status: 'ok' }),
+        }
+      }) as unknown as typeof fetch,
+    )
+    const shell = useShellStore()
+    shell.corpusPath = '/mock/corpus'
+    await shell.fetchHealth()
+  })
 })

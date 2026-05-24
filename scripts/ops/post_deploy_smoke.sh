@@ -6,12 +6,13 @@
 #   scripts/ops/post_deploy_smoke.sh <tailnet-fqdn>
 #   scripts/ops/post_deploy_smoke.sh <tailnet-fqdn> --corpus-path /srv/podcast-scraper/corpus
 #
-# Hits five critical surfaces (see docs/architecture/CORPUS_ARTIFACTS_AND_SURFACES.md):
+# Hits six critical surfaces (see docs/architecture/CORPUS_ARTIFACTS_AND_SURFACES.md):
 #   1. GET /api/health          — status ok + core subsystem flags true
-#   2. GET /api/corpus/episodes — at least one episode (populated prod corpus)
-#   3. GET /api/corpus/digest   — structured 200 (rows may be empty)
-#   4. GET /api/corpus/topic-clusters — clusters present when index built
-#   5. GET /api/search          — 200, non-5xx (hits optional)
+#   2. GET /api/corpus/episodes — at least one episode (Library)
+#   3. GET /api/corpus/digest   — structured 200 (Digest; rows may be empty)
+#   4. GET /api/artifacts       — at least one GI/KG/bridge file (Graph)
+#   5. GET /api/corpus/topic-clusters — clusters when index built (Graph overlay)
+#   6. GET /api/search          — 200, non-5xx (Search; hits optional)
 #
 # Exit codes:
 #   0  all green
@@ -140,7 +141,21 @@ if ! digest_json=$(retry_probe "corpus/digest" \
 fi
 log "digest rows=$(printf '%s' "$digest_json" | jq '.rows | length')"
 
-# --- 4. Topic clusters ---
+# --- 4. Graph / artifacts ---
+artifacts_json=""
+if ! artifacts_json=$(retry_probe "artifacts" \
+  "${BASE_URL}/api/artifacts?${PATH_Q}" \
+  '.artifacts | type == "array"'); then
+  echo "ERROR: /api/artifacts failed" >&2
+  exit 2
+fi
+if [ "$EXPECT_POPULATED" = "1" ] && [ "$(printf '%s' "$artifacts_json" | jq '.artifacts | length')" -lt 1 ]; then
+  echo "ERROR: /api/artifacts returned zero files (expected populated prod corpus)" >&2
+  exit 3
+fi
+log "artifacts count=$(printf '%s' "$artifacts_json" | jq '.artifacts | length')"
+
+# --- 5. Topic clusters ---
 tc_tmp=$(mktemp)
 tc_code=$(fetch_with_code "${BASE_URL}/api/corpus/topic-clusters?${PATH_Q}" "$tc_tmp")
 if [ "$tc_code" -ge 500 ]; then
@@ -173,7 +188,7 @@ else
 fi
 rm -f "$tc_tmp"
 
-# --- 5. Search ---
+# --- 6. Search ---
 search_tmp=$(mktemp)
 search_code=$(fetch_with_code "${BASE_URL}/api/search?${PATH_Q}&q=ai&top_k=1" "$search_tmp")
 if [ "$search_code" -ge 500 ]; then

@@ -50,6 +50,30 @@ class TestRollupCorpusIncidentsForMultiFeedSummary(unittest.TestCase):
 
 
 @pytest.mark.unit
+class TestWriteCorpusManifestProducedBy(unittest.TestCase):
+    def test_manifest_includes_produced_by_stamp(self) -> None:
+        with tempfile.TemporaryDirectory() as corpus:
+            fr = MultiFeedFeedResult(
+                feed_url="https://feeds.example/podcast.xml",
+                ok=True,
+                error=None,
+                episodes_processed=1,
+                finished_at="2026-05-23T12:00:00Z",
+            )
+            corpus_operations.write_corpus_manifest(corpus, [fr])
+            doc = json.loads((Path(corpus) / "corpus_manifest.json").read_text(encoding="utf-8"))
+            self.assertEqual(
+                doc["schema_version"], corpus_operations.CORPUS_MANIFEST_SCHEMA_VERSION
+            )
+            produced_by = doc.get("produced_by")
+            self.assertIsInstance(produced_by, dict)
+            assert isinstance(produced_by, dict)
+            self.assertTrue(produced_by.get("code_version"))
+            self.assertTrue(produced_by.get("git_sha"))
+            self.assertTrue(produced_by.get("produced_at"))
+
+
+@pytest.mark.unit
 class TestFinalizeMultiFeedBatchIncidentRollup(unittest.TestCase):
     def test_summary_includes_batch_incidents_and_per_feed_counts(self) -> None:
         with tempfile.TemporaryDirectory() as corpus:

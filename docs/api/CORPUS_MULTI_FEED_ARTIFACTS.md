@@ -14,11 +14,13 @@ Rolling **per-feed operational** snapshot (updated each multi-feed finalize).
 
 | Field | Type | Required | Description |
 | ----- | ---- | -------- | ----------- |
-| `schema_version` | string | yes | Contract version; currently `1.0.0`. |
+| `schema_version` | string | yes | Contract version; currently `1.1.0` (cost rollup on finalize). |
 | `tool_version` | string | yes | `podcast_scraper` package version when written. |
+| `produced_by` | object | yes | Code/content stamp written on each multi-feed finalize ([#796](https://github.com/chipi/podcast_scraper/issues/796)): `code_version`, `git_sha`, `produced_at` (UTC ISO 8601 `Z`). |
 | `corpus_parent` | string | yes | Absolute, normalized corpus parent path. |
 | `updated_at` | string | yes | UTC ISO 8601 with `Z` when the manifest was written. |
 | `feeds` | array | yes | One object per feed row in the batch (see below). |
+| `cost_rollup` | object | yes | Aggregated LLM cost across corpus runs (see `corpus_cost_aggregation`). |
 
 **`feeds[]` object:**
 

@@ -63,3 +63,15 @@ def test_prior_release_corpus_surfaces_do_not_500(prior_release_corpus: Path) ->
     ):
         response = client.get(route)
         assert response.status_code < 500, route
+
+
+def test_health_path_query_scopes_version_warning(prior_release_corpus: Path) -> None:
+    """``path=`` on /api/health preflights the viewer-entered corpus root."""
+    app = create_app(prior_release_corpus, static_dir=False)
+    client = TestClient(app)
+    path = str(prior_release_corpus.resolve())
+    response = client.get("/api/health", params={"path": path})
+    assert response.status_code == 200
+    body = response.json()
+    assert body["corpus_code_version"] == "2.5.0"
+    assert body["corpus_version_warning"] is not None

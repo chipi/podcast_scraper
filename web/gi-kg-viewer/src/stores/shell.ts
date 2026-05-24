@@ -133,7 +133,12 @@ export const useShellStore = defineStore('shell', () => {
     const seq = healthFetchGate.bump()
     healthError.value = null
     try {
-      const res = await fetchWithTimeout('/api/health')
+      const trimmedPath = corpusPath.value.trim()
+      const healthUrl =
+        trimmedPath.length > 0
+          ? `/api/health?${new URLSearchParams({ path: trimmedPath }).toString()}`
+          : '/api/health'
+      const res = await fetchWithTimeout(healthUrl)
       if (!res.ok) {
         throw new Error(`HTTP ${res.status}`)
       }

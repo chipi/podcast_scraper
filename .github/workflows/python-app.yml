@@ -450,6 +450,30 @@ jobs:
     # Network isolation is enforced by pytest-socket (--disable-socket --allow-hosts)
     # The dedicated test file was removed as the blocking feature is now disabled
 
+  # N-1 corpus compat — current server code × prior-release fixture (#796).
+  test-corpus-version-compat:
+    name: N-1 corpus compat (current code × prior fixture)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    needs: [detect-changes, test-unit]
+    if: needs.detect-changes.outputs.python == 'true'
+    steps:
+    - uses: actions/checkout@v6
+    - name: Set up Python 3.11
+      uses: actions/setup-python@v6
+      with:
+        python-version: "3.11.8"
+        cache: "pip"
+        cache-dependency-path: pyproject.toml
+    - name: Install dev dependencies
+      run: |
+        python -m pip install --upgrade pip
+        python -m pip install -e .[dev]
+    - name: Run N-1 corpus version compat integration tests
+      run: |
+        export PYTHONPATH="${PYTHONPATH}:$(pwd)"
+        pytest tests/integration/server/test_corpus_version_compat.py -v --tb=short
+
   # GI/KG viewer v2 — Vitest unit tests (same parallel segment as security-quality + test-unit)
   viewer-unit:
     runs-on: ubuntu-latest
