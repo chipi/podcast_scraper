@@ -509,6 +509,7 @@ quality: complexity deadcode docstrings spelling
 	# TODO(PYSEC-2026-161): Drop this ignore once fastapi releases a version that
 	# validates against starlette>=1.0, then bump both atomically.
 
+# PR #815: path-filter touch to re-trigger CI on feat/2.7 HEAD.
 docs:
 	$(PYTHON) -m mkdocs build --strict
 
