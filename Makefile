@@ -564,7 +564,7 @@ validate-kg-schema:
 	fi
 
 # GI/KG viewer v2 (#489): FastAPI + Vite. ``make init`` includes FastAPI via ``[dev]``; cd $(WEB_VIEWER_DIR) && npm install
-.PHONY: serve serve-api serve-ui serve-e2e-mock stack-build stack-build-llm stack-compose-validate stack-up stack-down stack-logs verify-stack-profiles stack-test-build stack-test-build-cloud stack-test-up stack-test-down stack-test-seed stack-test-playwright stack-test-export stack-test-ml stack-test-cloud-thin stack-test-ml-ci deploy-codespace restore-corpus restore-corpus-prod corpus-snapshot-manifest-validate corpus-snapshot-select-tag corpus-snapshot-select-tag-prod corpus-snapshot-selftest corpus-snapshot-integration
+.PHONY: serve serve-api serve-ui serve-e2e-mock stack-build stack-build-llm stack-compose-validate stack-up stack-down stack-logs verify-stack-profiles stack-test-build stack-test-build-cloud stack-test-up stack-test-down stack-test-seed stack-test-playwright stack-test-export stack-test-ml stack-test-cloud-thin stack-test-ml-ci deploy-codespace restore-corpus restore-corpus-prod reprocess-corpus-from-transcripts corpus-snapshot-manifest-validate corpus-snapshot-select-tag corpus-snapshot-select-tag-prod corpus-snapshot-selftest corpus-snapshot-integration
 SERVE_OUTPUT_DIR ?= ./output
 # Optional corpus-editing + jobs routes (health shows green when on). Override with SERVE_ARGS= to disable.
 SERVE_ARGS ?= --enable-feeds-api --enable-operator-config-api --enable-jobs-api
@@ -980,6 +980,23 @@ restore-corpus-prod:
 	@WORKSPACE_DIR="$${WORKSPACE_DIR:-/srv/podcast-scraper}"; \
 	export WORKSPACE_DIR PODCAST_BACKUP_REPO PODCAST_BACKUP_TAG TAG_REGEX='^snapshot-prod-[0-9]{8}$$'; \
 	bash scripts/ops/corpus_snapshot/restore_corpus_release.sh --layout prod
+
+# Recompute GI/KG/search from on-disk transcripts without re-transcribing (#796).
+# Requires CORPUS_DIR (corpus parent with feeds.spec.yaml + transcripts/).
+reprocess-corpus-from-transcripts:
+	@test -n "$${CORPUS_DIR:-}" || (echo "CORPUS_DIR required (corpus parent path)"; exit 1); \
+	test -f "$${CORPUS_DIR}/feeds.spec.yaml" || (echo "Missing $${CORPUS_DIR}/feeds.spec.yaml"; exit 1); \
+	OP_CFG="$${CORPUS_DIR}/viewer_operator.yaml"; \
+	test -f "$$OP_CFG" || OP_CFG="config/profiles/cloud_balanced.yaml"; \
+	echo "Reprocessing $${CORPUS_DIR} (skip-existing + no-transcribe-missing)..."; \
+	$(PYTHON) -m podcast_scraper.cli \
+	  --config "$$OP_CFG" \
+	  --feeds-spec "$${CORPUS_DIR}/feeds.spec.yaml" \
+	  --output-dir "$${CORPUS_DIR}" \
+	  --skip-existing \
+	  --no-transcribe-missing; \
+	echo "Optional: rebuild topic clusters when search/ index exists:"; \
+	echo "  $(PYTHON) -m podcast_scraper.cli topic-clusters --output-dir $${CORPUS_DIR}"
 
 # Vitest unit tests for TypeScript utility logic (no browser needed)
 test-ui:

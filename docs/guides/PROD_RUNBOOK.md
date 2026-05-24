@@ -363,12 +363,54 @@ follow-up PR that flips `deploy-prod.yml` to also auto-trigger on
 
 ### Manual deploy
 
+Typed confirm matches sibling prod mutators (`PROD_RESTORE`, `PROD_FAILOVER_STAND_UP`).
+
+#### Pre-flight (operator laptop)
+
+1. Confirm **Stack test** (or the target SHA) is green on `main`:
+   `gh run list --workflow stack-test.yml --limit 3`
+2. Note the image tag you intend to ship (`sha-<7>` from the green run, or blank = workflow SHA).
+3. Confirm prod secrets/vars are staged (`TS_AUTHKEY`, `PROD_SSH_PRIVATE_KEY`, `PROD_TAILNET_FQDN`).
+4. Optional rollback pin: keep the previous good `sha-<7>` from the last green deploy run.
+
+#### Dispatch
+
 ```bash
 gh workflow run deploy-prod.yml --repo chipi/podcast_scraper \
-  -f override_image_sha=                       # blank = deploy current main
-# or pin to a specific image:
+  -f confirm=PROD_DEPLOY \
+  -f override_image_sha=                       # blank = deploy workflow SHA
+# or pin to a specific image (rollback / hotfix):
 gh workflow run deploy-prod.yml --repo chipi/podcast_scraper \
+  -f confirm=PROD_DEPLOY \
   -f override_image_sha=abc1234
+```
+
+The workflow validates `override_image_sha` shape (`^[a-f0-9]{7,40}$`) and checks that
+`:sha-<short>` manifests exist on GHCR **before** SSH. `deploy.sh` resets git to the same
+ref and sets `PODCAST_IMAGE_TAG=sha-<short>` so compose files and images stay aligned.
+
+#### Post-deploy smoke (automated + operator)
+
+The workflow runs:
+
+1. VPS-local `/api/health` inside the api container (`deploy.sh`)
+2. External `/api/health` over Tailscale MagicDNS
+3. Four-tab surface probe: Library (`/api/corpus/feeds`), Digest, Graph artifacts, Search (non-5xx)
+
+Operator spot-check in the viewer (over Tailscale): open **Library**, **Digest**, **Graph**, and run one **Search** query against the prod corpus path.
+
+Watch for `corpus_version_warning` in `/api/health` or the viewer status bar when the on-disk corpus predates the server's minimum supported code version — reprocess per [Reprocess a corpus without re-transcribing audio](#reprocess-a-corpus-without-re-transcribing-audio) or `make reprocess-corpus-from-transcripts`.
+
+#### Rollback (same workflow, pinned SHA)
+
+Re-dispatch with `override_image_sha=<previous-good-short-sha>`. See [Rollback](#rollback) for failure-mode detail.
+
+#### Legacy cleanup
+
+Commit `7c20b74` removed nginx HTTP Basic Auth from the VPS overlay. If `/etc/nginx/.htpasswd` (or a bind-mounted copy) still exists on an older host, it is inert — safe to delete:
+
+```bash
+ssh deploy@prod-podcast.<tailnet>.ts.net 'sudo rm -f /etc/nginx/.htpasswd'
 ```
 
 ### Pipeline run via the viewer
@@ -1278,6 +1320,14 @@ recompute derived outputs from existing transcript files.
 
 For a copy/paste operator sequence (including backup and cleanup commands),
 see [Prod operator cheat sheet — Reprocess from existing transcripts (no re-transcription)](PROD_OPERATOR_CHEAT_SHEET.md#reprocess-from-existing-transcripts-no-re-transcription).
+
+**Makefile shortcut (host checkout with venv):**
+
+```bash
+make reprocess-corpus-from-transcripts CORPUS_DIR=/srv/podcast-scraper/corpus
+```
+
+Requires `CORPUS_DIR` pointing at the corpus parent (contains `feeds.spec.yaml` and `transcripts/`).
 
 ### "Pipeline fails with `PODCAST_CORPUS_HOST_PATH is missing a value`"
 
