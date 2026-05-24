@@ -45,6 +45,10 @@ def _write_minimal_release_tree(
         f"# History\n\n- [{version}](RELEASE_v{version}.md)\n",
         encoding="utf-8",
     )
+    (base / "docs" / "COMPATIBILITY.md").write_text(
+        f"# Matrix\n\n| Code | Notes |\n| --- | --- |\n| {version} | ok |\n",
+        encoding="utf-8",
+    )
 
 
 def test_run_checks_passes_when_consistent(tmp_path: Path) -> None:
@@ -70,6 +74,17 @@ def test_run_checks_fails_when_release_file_missing(tmp_path: Path) -> None:
 def test_run_checks_fails_when_index_missing_version(tmp_path: Path) -> None:
     _write_minimal_release_tree(tmp_path, version="1.0.0")
     (tmp_path / "docs" / "releases" / "index.md").write_text("# No links\n", encoding="utf-8")
+    with pytest.raises(SystemExit) as exc:
+        run_checks(tmp_path)
+    assert exc.value.code == 1
+
+
+def test_run_checks_fails_when_compatibility_matrix_missing_version(tmp_path: Path) -> None:
+    _write_minimal_release_tree(tmp_path, version="1.0.0")
+    (tmp_path / "docs" / "COMPATIBILITY.md").write_text(
+        "# Matrix\n\n| 9.9.9 | old |\n",
+        encoding="utf-8",
+    )
     with pytest.raises(SystemExit) as exc:
         run_checks(tmp_path)
     assert exc.value.code == 1

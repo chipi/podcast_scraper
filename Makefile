@@ -564,7 +564,7 @@ validate-kg-schema:
 	fi
 
 # GI/KG viewer v2 (#489): FastAPI + Vite. ``make init`` includes FastAPI via ``[dev]``; cd $(WEB_VIEWER_DIR) && npm install
-.PHONY: serve serve-api serve-ui serve-e2e-mock stack-build stack-build-llm stack-compose-validate stack-up stack-down stack-logs verify-stack-profiles stack-test-build stack-test-build-cloud stack-test-up stack-test-down stack-test-seed stack-test-playwright stack-test-export stack-test-ml stack-test-cloud-thin stack-test-ml-ci deploy-codespace restore-corpus restore-corpus-prod reprocess-corpus-from-transcripts corpus-snapshot-manifest-validate corpus-snapshot-select-tag corpus-snapshot-select-tag-prod corpus-snapshot-selftest corpus-snapshot-integration
+.PHONY: serve serve-api serve-ui serve-e2e-mock stack-build stack-build-llm stack-compose-validate stack-up stack-down stack-logs verify-stack-profiles stack-test-build stack-test-build-cloud stack-test-up stack-test-down stack-test-seed stack-test-playwright stack-test-export stack-test-ml stack-test-cloud-thin stack-test-ml-ci deploy-codespace restore-corpus restore-corpus-prod reprocess-corpus-from-transcripts smoke-prod corpus-snapshot-manifest-validate corpus-snapshot-select-tag corpus-snapshot-select-tag-prod corpus-snapshot-selftest corpus-snapshot-integration
 SERVE_OUTPUT_DIR ?= ./output
 # Optional corpus-editing + jobs routes (health shows green when on). Override with SERVE_ARGS= to disable.
 SERVE_ARGS ?= --enable-feeds-api --enable-operator-config-api --enable-jobs-api
@@ -997,6 +997,14 @@ reprocess-corpus-from-transcripts:
 	  --no-transcribe-missing; \
 	echo "Optional: rebuild topic clusters when search/ index exists:"; \
 	echo "  $(PYTHON) -m podcast_scraper.cli topic-clusters --output-dir $${CORPUS_DIR}"
+
+# Post-deploy prod smoke over Tailscale HTTPS (#797). Requires PROD_TAILNET_FQDN.
+# Optional: SMOKE_CORPUS_PATH (host path as seen by the API, e.g. /srv/podcast-scraper/corpus).
+smoke-prod:
+	@test -n "$${PROD_TAILNET_FQDN:-}" || (echo "PROD_TAILNET_FQDN required (MagicDNS FQDN)"; exit 1); \
+	args="$$PROD_TAILNET_FQDN"; \
+	if [ -n "$${SMOKE_CORPUS_PATH:-}" ]; then args="$$args --corpus-path $$SMOKE_CORPUS_PATH"; fi; \
+	bash scripts/ops/post_deploy_smoke.sh $$args
 
 # Vitest unit tests for TypeScript utility logic (no browser needed)
 test-ui:

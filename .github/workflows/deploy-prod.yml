@@ -201,10 +201,10 @@ jobs:
             'docker logs --tail 50 compose-api-1' 2>&1 || true
           exit 1
 
-      - name: Post-deploy feature-surface smoke (Library / Digest / Graph / Search)
+      - name: Post-deploy smoke (Library / Digest / topic-clusters / Search)
         if: steps.preflight.outputs.skip != 'true'
         env:
-          PROBE_BASE: https://${{ steps.ts_host.outputs.resolved_fqdn }}
+          PROBE_FQDN: ${{ steps.ts_host.outputs.resolved_fqdn }}
           SSH_TARGET: deploy@${{ steps.ts_host.outputs.resolved_fqdn }}
         run: |
           set -euo pipefail
@@ -215,4 +215,4 @@ jobs:
             echo "::error::PODCAST_CORPUS_HOST_PATH missing from host .env"
             exit 1
           fi
-          bash scripts/ops/prod_post_deploy_surface_smoke.sh "$PROBE_BASE" "$CORPUS"
+          bash scripts/ops/post_deploy_smoke.sh "$PROBE_FQDN" --corpus-path "$CORPUS"

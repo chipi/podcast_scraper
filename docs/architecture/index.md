@@ -10,6 +10,7 @@ vision for where the system is heading.
 | --- | --- |
 | [Architecture](ARCHITECTURE.md) | System design — pipeline flow, module map, configuration, ways to run, ADR index |
 | [Hosting and infrastructure](HOSTING_AND_INFRASTRUCTURE.md) | Always-on VPS, Tailscale, OpenTofu, GitHub Actions, Compose on host — narrative companion to infra ADRs and RFC-082 |
+| [Corpus artifacts and viewer surfaces](CORPUS_ARTIFACTS_AND_SURFACES.md) | Pipeline artifact inventory, API route dependencies, viewer tab map (#797) |
 | [Non-Functional Requirements](NON_FUNCTIONAL_REQUIREMENTS.md) | Quality constraints — performance, security, reliability, observability, maintainability, scalability |
 | [Testing Strategy](TESTING_STRATEGY.md) | Test pyramid, patterns, decision criteria, CI integration |
 | [Tech Debt](TECH_DEBT.md) | Recognised technical debt -- current coping strategy, options, and triggers to revisit |

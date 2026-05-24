@@ -395,11 +395,20 @@ The workflow runs:
 
 1. VPS-local `/api/health` inside the api container (`deploy.sh`)
 2. External `/api/health` over Tailscale MagicDNS
-3. Four-tab surface probe: Library (`/api/corpus/feeds`), Digest, Graph artifacts, Search (non-5xx)
+3. Four-tab surface probe via `scripts/ops/post_deploy_smoke.sh` (Library episodes, Digest, topic-clusters, Search)
 
 Operator spot-check in the viewer (over Tailscale): open **Library**, **Digest**, **Graph**, and run one **Search** query against the prod corpus path.
 
 Watch for `corpus_version_warning` in `/api/health` or the viewer status bar when the on-disk corpus predates the server's minimum supported code version — reprocess per [Reprocess a corpus without re-transcribing audio](#reprocess-a-corpus-without-re-transcribing-audio) or `make reprocess-corpus-from-transcripts`.
+
+**Local smoke (tailnet required):**
+
+```bash
+export PROD_TAILNET_FQDN=prod-podcast.<tailnet>.ts.net
+make smoke-prod SMOKE_CORPUS_PATH=/srv/podcast-scraper/corpus
+```
+
+See [Code/content compatibility](#codecontent-compatibility) for the full decision tree.
 
 #### Rollback (same workflow, pinned SHA)
 
@@ -523,6 +532,76 @@ never garbage-collected.
 **Symptom:** workflow green, but operator notices the bug from the viewer.
 **Recovery:** same as Failure 2. Then file a bug + ship a fix-forward via the
 hotfix path.
+
+---
+
+## Code/content compatibility {#codecontent-compatibility}
+
+Operator framework for **code** (GHCR image / git tag on the VPS) vs **content** (corpus on disk from a prior pipeline run). Sibling automation lives in [GitHub #796](https://github.com/chipi/podcast_scraper/issues/796) (`produced_by`, `/api/health` preflight, CI matrix). This section is the manual decision tree; [GitHub #797](https://github.com/chipi/podcast_scraper/issues/797) tracks the docs + smoke script.
+
+### Why this section exists
+
+Prod deploy updates **code** every time you dispatch `deploy-prod.yml`. The **corpus** on `/srv/podcast-scraper/corpus` (or `PODCAST_CORPUS_HOST_PATH`) only changes when a pipeline run or restore rewrites it. Those clocks drift. A green `/api/health` only proves the API process is up — not that every viewer tab can read the artifacts it expects. Use this section before each deploy and after each smoke run.
+
+### The risk class — four kinds of mismatch
+
+| Kind | Example |
+| --- | --- |
+| **New required field** | Code reads `artifact.foo`; old GI/KG file lacks `foo` → `KeyError` or empty rail |
+| **New artifact type** | Code reads `search/topic_clusters.json`; file never built → 404 / empty Intelligence panel |
+| **Removed/renamed artifact** | Code still loads `*.bridge.json` but pipeline stopped writing bridges |
+| **Format restructure** | `nodes: [...]` became `{nodes: {...}}`; parser returns 500 |
+
+### What we defend with today
+
+| Defense | Where |
+| --- | --- |
+| Per-artifact `schema_version` | GIL **2.0**, KG **1.2**, `corpus_manifest` **1.1.0**, `topic_clusters.json` **2** — bump this table when code changes |
+| Read-time migrations | `src/podcast_scraper/migrations/gil_kg_identity_migrations.py` |
+| Corpus-level stamp + health preflight | `corpus_manifest.produced_by` + `corpus_version_warning` in `/api/health` ([#796](https://github.com/chipi/podcast_scraper/issues/796)) |
+| Post-deploy smoke | `scripts/ops/post_deploy_smoke.sh` wired in `deploy-prod.yml`; local: `make smoke-prod` |
+| Dependency map | [`docs/architecture/CORPUS_ARTIFACTS_AND_SURFACES.md`](../architecture/CORPUS_ARTIFACTS_AND_SURFACES.md) |
+| Release matrix | [`docs/COMPATIBILITY.md`](../COMPATIBILITY.md) |
+
+### Decision tree before any deploy
+
+| Question | Yes → | No → |
+| --- | --- | --- |
+| Are new viewer surfaces / endpoints reading artifacts the old pipeline did not produce? | **High risk** — verify files exist on disk or routes return empty cleanly | Likely low risk |
+| Did the `schema_version` of any artifact bump? | Check migration helper + smoke that surface | Low risk |
+| Is the corpus's last pipeline run date far from the deployed code? | **Compound risk** — prefer reprocess or restore | Close dates → lower risk |
+| Recent backup snapshot exists? | Rollback path exists ([Corpus snapshot manifest and restore](CORPUS_SNAPSHOT_MANIFEST_AND_RESTORE.md)) | **Do not deploy** — fix backups first |
+| Does post-deploy smoke hit every surface that reads corpus data? | Real coverage (`make smoke-prod` or GHA step) | `/api/health` alone is **not** sufficient |
+
+### Forward compatibility (rollback is asymmetric)
+
+Rolling **code back** to an older image does not undo corpus mutations from the newer code (new files, bumped `schema_version`, optional fields now required by old readers). Treat **code rollback** and **corpus restore** as separate levers:
+
+- **Code rollback:** re-dispatch `deploy-prod.yml` with `override_image_sha=<prior-sha>` (see [Rollback](#rollback)).
+- **Corpus rollback:** `prod-restore-corpus.yml` or `make restore-corpus-prod` from a snapshot **before** the bad deploy.
+
+**Mitigation when shipping:** deprecated fields stay readable for at least one release; release notes state the oldest code tag still safe to roll back to ([COMPATIBILITY.md](../COMPATIBILITY.md)).
+
+### Worked example — v2.6.0 first prod deploy (2026-05-23)
+
+| Check | Outcome |
+| --- | --- |
+| New surfaces vs old artifacts | Viewer tabs read GI/KG/bridge/search artifacts the v2.5-era pipeline already wrote |
+| Schema bumps in the 18-day window | None required for deploy |
+| Corpus vs code age | Snapshot from previous day; corpus actively ingested |
+| Backup | `snapshot-prod-*` release available |
+| Smoke | `/api/health` + Library/Digest/Graph/Search routes returned structured 200s |
+
+Result: **v2.6.0 / sha-4edfee5** deployed successfully. Follow-up hardening: [#796](https://github.com/chipi/podcast_scraper/issues/796), [#797](https://github.com/chipi/podcast_scraper/issues/797).
+
+### Pointers
+
+- Framework + smoke tooling: [#797](https://github.com/chipi/podcast_scraper/issues/797)
+- Automated contract: [#796](https://github.com/chipi/podcast_scraper/issues/796)
+- Artifact ↔ surface map: [CORPUS_ARTIFACTS_AND_SURFACES.md](../architecture/CORPUS_ARTIFACTS_AND_SURFACES.md)
+- Compatibility matrix: [COMPATIBILITY.md](../COMPATIBILITY.md)
+- Corpus restore: [Corpus snapshot manifest and restore](CORPUS_SNAPSHOT_MANIFEST_AND_RESTORE.md)
+- Reprocess without re-transcription: [Reprocess a corpus without re-transcribing audio](#reprocess-a-corpus-without-re-transcribing-audio)
 
 ---
 
