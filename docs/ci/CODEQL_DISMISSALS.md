@@ -232,6 +232,9 @@ number, file, line, date, and a short comment.
 | 2 | #320 | .github/workflows/drill-infra-destroy.yml | 103 | 2026-05-12 | Type 2: tfstate artifact download in same workflow_call chain (same run_id); only repo admins can trigger; no external input controls artifact content |
 | 3 | #298 | docker/pipeline (lcms2/liblcms2-2@2.16-2) | — | 2026-05-02 | Type 3: SNYK-DEBIAN13-LCMS2-16104015 (CVE-2026-41254 incorrect-behavior-order). Transitive system dep via ffmpeg / image libs. Pipeline processes audio + text only; no PIL/Pillow image color-management invocation in src/ (``grep -r "from PIL"`` empty). Latest in Debian 13 trixie apt index; ``apt-get upgrade`` would auto-pull a backport once published. Dismissed ``gh api`` (won't fix; not reachable). |
 | 3 | #312 | docker/pipeline (gnutls28/libgnutls30t64@3.8.9-3+deb13u2) | — | 2026-05-02 | Type 3: SNYK-DEBIAN13-GNUTLS28-16344314 (CVE-2026-33845 DTLS handshake integer underflow). Snyk explicitly: "no fixed version for Debian:13 gnutls28". Pipeline uses HTTP/HTTPS via httpx + requests (OpenSSL TLS), not gnutls's DTLS path; we do not accept inbound DTLS handshakes. Dismissed ``gh api`` (won't fix; not reachable). |
+| 1 | #327 | server/pathutil.py | 116 | 2026-05-24 | Type 1: ``corpus_s`` inline ``normpath`` + ``startswith(safe_prefix)`` under ``anchor_str`` before manifest join (``read_manifest_produced_by_under_anchor``; PR #815) |
+| 1 | #328 | server/pathutil.py | 125 | 2026-05-24 | Type 1: ``manifest_s`` inline ``normpath`` + ``startswith(safe_prefix)`` before ``os.path.isfile`` (same function; PR #815) |
+| 1 | #329 | server/pathutil.py | 129 | 2026-05-24 | Type 1: ``manifest_s`` same inline sanitizer chain before ``read_text`` (PR #815) |
 
 ## Still open (not yet dismissed)
 

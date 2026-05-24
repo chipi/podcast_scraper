@@ -13,7 +13,6 @@ from pathlib import Path
 from typing import Any
 
 from podcast_scraper.corpus_version import CORPUS_MANIFEST_FILE, parse_produced_by_from_manifest_doc
-from podcast_scraper.utils.path_validation import normpath_if_under_root, safe_resolve_directory
 
 
 class CorpusPathRequestError(Exception):
@@ -112,21 +111,19 @@ def read_manifest_produced_by_under_anchor(
     anchor: Path,
 ) -> dict[str, Any] | None:
     """Load ``produced_by`` from ``corpus_manifest.json`` under a verified anchor."""
-    root_s = str(safe_resolve_directory(anchor))
+    anchor_str = os.path.normpath(str(anchor.expanduser().resolve()))
     corpus_s = os.path.normpath(str(corpus_dir.resolve()))
-    verified = normpath_if_under_root(corpus_s, root_s)
-    if not verified:
+    safe_prefix = anchor_str + os.sep
+    if corpus_s != anchor_str and not corpus_s.startswith(safe_prefix):
         return None
-    manifest_s = os.path.normpath(os.path.join(verified, CORPUS_MANIFEST_FILE))
-    verified_m = normpath_if_under_root(manifest_s, root_s)
-    if not verified_m:
+    manifest_s = os.path.normpath(os.path.join(corpus_s, CORPUS_MANIFEST_FILE))
+    manifest_s = os.path.normpath(manifest_s)
+    if manifest_s != anchor_str and not manifest_s.startswith(safe_prefix):
         return None
-    # codeql[py/path-injection] -- verified_m from normpath_if_under_root(manifest_s, root_s).
-    if not os.path.isfile(verified_m):
+    if not os.path.isfile(manifest_s):
         return None
     try:
-        # codeql[py/path-injection] -- verified_m (same sanitizer chain as isfile above).
-        doc = json.loads(Path(verified_m).read_text(encoding="utf-8"))
+        doc = json.loads(Path(manifest_s).read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError):
         return None
     return parse_produced_by_from_manifest_doc(doc)

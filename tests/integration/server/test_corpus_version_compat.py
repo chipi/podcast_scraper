@@ -75,3 +75,11 @@ def test_health_path_query_scopes_version_warning(prior_release_corpus: Path) ->
     body = response.json()
     assert body["corpus_code_version"] == "2.5.0"
     assert body["corpus_version_warning"] is not None
+
+
+def test_health_rejects_path_outside_default_corpus(prior_release_corpus: Path) -> None:
+    """Invalid ``path=`` returns 400 instead of reading outside the anchor."""
+    app = create_app(prior_release_corpus, static_dir=False)
+    client = TestClient(app)
+    response = client.get("/api/health", params={"path": "/etc/passwd"})
+    assert response.status_code == 400
