@@ -4,7 +4,7 @@
 - **Date**: 2026-05-23
 - **Authors**: Podcast Scraper Team
 - **Related RFCs**: [RFC-089](../rfc/RFC-089-dgx-spark-tailnet-integration.md)
-- **Related ADRs**: [ADR-096](ADR-096-dgx-spark-non-prod-scope.md) (companion — DGX non-prod scope)
+- **Related ADRs**: [ADR-096](ADR-096-dgx-spark-prod-primary-with-fallback.md) (companion — DGX in prod via primary-with-fallback contract)
 
 ## Context
 
