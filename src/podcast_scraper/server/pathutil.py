@@ -1,7 +1,8 @@
 """Corpus path resolution for the viewer API.
 
 Uses ``os.path.normpath`` + ``str.startswith`` — the sanitiser pair that
-CodeQL's ``py/path-injection`` query recognises as safe.
+CodeQL's ``py/path-injection`` query recognises as safe. Manifest reads for
+``/api/health`` use ``read_manifest_produced_by_under_anchor``.
 """
 
 from __future__ import annotations

@@ -21,6 +21,9 @@ on:
       - 'docs/wip/**'
       - 'docs/javascripts/**'
       - 'docs/architecture/**'
+      - 'docs/adr/**'
+      - 'docs/rfc/**'
+      - 'docs/ci/**'
       - 'mkdocs.yml'
       - '**.py'  # Python files for API docs (mkdocstrings)
       - 'README.md'
@@ -41,6 +44,9 @@ on:
       - 'docs/wip/**'
       - 'docs/javascripts/**'
       - 'docs/architecture/**'
+      - 'docs/adr/**'
+      - 'docs/rfc/**'
+      - 'docs/ci/**'
       - 'mkdocs.yml'
       - '**.py'  # Python files for API docs (mkdocstrings)
       - 'README.md'
