@@ -396,7 +396,8 @@ The workflow runs:
 
 1. VPS-local `/api/health` inside the api container (`deploy.sh`)
 2. External `/api/health` over Tailscale MagicDNS
-3. Four-tab surface probe via `scripts/ops/post_deploy_smoke.sh` (Library episodes, Digest, topic-clusters, Search)
+3. Six-surface probe via `scripts/ops/post_deploy_smoke.sh` (health, Library episodes,
+   Digest, Graph artifacts, topic-clusters, Search)
 
 Operator spot-check in the viewer (over Tailscale): open **Library**, **Digest**, **Graph**, and run one **Search** query against the prod corpus path.
 

@@ -57,6 +57,15 @@ _set_env_kv() {
 DEPLOY_GIT_SHA="${DEPLOY_GIT_SHA:-}"
 DEPLOY_IMAGE_SHA="${DEPLOY_IMAGE_SHA:-}"
 
+if [ -n "$DEPLOY_GIT_SHA" ] && [ -n "$DEPLOY_IMAGE_SHA" ]; then
+  _git7="${DEPLOY_GIT_SHA:0:7}"
+  _img7="${DEPLOY_IMAGE_SHA:0:7}"
+  if [ "$_git7" != "$_img7" ]; then
+    echo "ERROR: DEPLOY_GIT_SHA (${DEPLOY_GIT_SHA}) and DEPLOY_IMAGE_SHA (${DEPLOY_IMAGE_SHA}) must match (7-char prefix)" >&2
+    exit 4
+  fi
+fi
+
 if [ -n "$DEPLOY_IMAGE_SHA" ]; then
   if ! [[ "$DEPLOY_IMAGE_SHA" =~ ^[a-f0-9]{7,40}$ ]]; then
     echo "ERROR: DEPLOY_IMAGE_SHA must match ^[a-f0-9]{7,40}$ (got: ${DEPLOY_IMAGE_SHA})" >&2

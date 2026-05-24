@@ -2,7 +2,7 @@
 
 **Companion to:** [Prod Runbook](PROD_RUNBOOK.md) § [Code/content compatibility](PROD_RUNBOOK.md#codecontent-compatibility)
 
-Operator and developer checklist for verifying [#796](https://github.com/chipi/podcast_scraper/issues/796) (version contract, deploy hardening) and [#797](https://github.com/chipi/podcast_scraper/issues/797) (smoke script, dependency map, release matrix). Run **Tier 1–2** before every PR; **Tier 3–4** before release; **Tier 5–6** only on drill/prod hosts.
+Operator and developer checklist for verifying [#796](https://github.com/chipi/podcast_scraper/issues/796) (version contract, deploy hardening), [#797](https://github.com/chipi/podcast_scraper/issues/797) (smoke script, dependency map, release matrix), [#798](https://github.com/chipi/podcast_scraper/issues/798) (compose backup-restore verify), and [#799](https://github.com/chipi/podcast_scraper/issues/799) (scheduled DR drill). Run **Tier 1–2** before every PR; **Tier 3–4** before release; **Tier 5–8** only on drill/prod hosts or post-merge on `main`.
 
 ---
 
@@ -16,8 +16,10 @@ Operator and developer checklist for verifying [#796](https://github.com/chipi/p
 | **4 — CI** | GitHub job `N-1 corpus compat (current code × prior fixture)` | CI | Push / PR |
 | **5 — Drill deploy** | `drill-deploy.yml` SHA validation + `DEPLOY_GIT_SHA` on drill VPS | ~25 min | Drill secrets + GHCR image |
 | **6 — Prod deploy + smoke** | `deploy-prod.yml` + `make smoke-prod` over tailnet HTTPS | ~30 min | Prod secrets, populated corpus |
+| **7 — Backup restore verify (#798)** | `verify-backup-restore.yml` on `main` (compose + smoke) | ~10 min | `BACKUP_REPO_TOKEN`, GHCR read |
+| **8 — DR drill exercise (#799)** | `drill-exercise.yml` full cycle + `assert-post-conditions` | ~45 min | Drill env secrets, Hetzner drill project |
 
-**Stop before Tier 6** when validating a branch locally — prod dispatch is operator-only and restarts prod CI.
+**Stop before Tier 6** when validating a branch locally — prod dispatch is operator-only and restarts prod CI. Tiers **7–8** run on **`main`** after merge (cron or manual dispatch).
 
 ---
 
@@ -42,7 +44,9 @@ npm run test:e2e -- e2e/corpus-version-warning.spec.ts
 
 cd ../..
 make lint-markdown && make docs
-actionlint .github/workflows/drill-deploy.yml .github/workflows/deploy-prod.yml
+actionlint .github/workflows/drill-deploy.yml .github/workflows/deploy-prod.yml \
+  .github/workflows/drill-exercise.yml .github/workflows/drill-e2e.yml \
+  .github/workflows/verify-backup-restore.yml .github/workflows/python-app.yml
 ```
 
 **Pass:** all commands exit 0.
@@ -177,6 +181,33 @@ make smoke-prod
 **Pass:** workflow green; smoke exits **0** with six probes including **`artifacts count≥1`** on populated prod.
 
 See [Prod Runbook — Code/content compatibility](PROD_RUNBOOK.md#codecontent-compatibility) for the decision tree before dispatch.
+
+---
+
+## Tier 7 — Backup restore verify (#798, post-merge on `main`)
+
+```bash
+gh workflow run verify-backup-restore.yml --repo chipi/podcast_scraper
+gh run watch --repo chipi/podcast_scraper
+```
+
+**Pass:** job green; log shows restore from **`snapshot-prod-*`**, compose up, **`post_deploy_smoke`** six probes on `http://127.0.0.1:8090`, teardown.
+
+**Cron:** Sundays 04:00 UTC. Requires **`BACKUP_REPO_TOKEN`** (or readable backup repo via `GITHUB_TOKEN`). Optional **`SMOKE_WEBHOOK_URL`** for failure alerts.
+
+---
+
+## Tier 8 — DR drill exercise (#799, post-merge on `main`)
+
+```bash
+gh workflow run drill-exercise.yml --repo chipi/podcast_scraper \
+  -f confirm=DRILL_FULL_CYCLE
+gh run watch --repo chipi/podcast_scraper
+```
+
+**Pass:** all orchestrator jobs **`success`**; **`assert-post-conditions`** green; **`delete_drill_hetzner_orphans --check-only`** finds no orphans.
+
+**Cron:** Wednesdays 02:00 UTC (no typed confirm). Scheduled failures ping **`SMOKE_WEBHOOK_URL`** when set.
 
 ---
 

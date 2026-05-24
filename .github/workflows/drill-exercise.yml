@@ -222,6 +222,12 @@ jobs:
             echo "::error::DR drill post-conditions failed — see job results above."
             exit 1
           fi
+          echo "Post-condition evidence map (#799):"
+          echo "  provision: apply=success (tofu apply + state artifact uploaded)"
+          echo "  deploy: deploy=success (deploy.sh + drill-deploy :8080 health adapter)"
+          echo "  restore: restore=success (snapshot-prod-* → /srv/podcast-scraper/corpus)"
+          echo "  corpus readable + episodes>0: smoke=success (post_deploy_smoke EXPECT_POPULATED=1)"
+          echo "  destroy clean: teardown=success + Hetzner orphan check below"
           echo "All DR drill post-conditions green."
 
       - name: "DR drill — checkout (orphan check script)"

@@ -201,7 +201,7 @@ jobs:
             'docker logs --tail 50 compose-api-1' 2>&1 || true
           exit 1
 
-      - name: Post-deploy smoke (Library / Digest / topic-clusters / Search)
+      - name: Post-deploy smoke (six API surfaces)
         if: steps.preflight.outputs.skip != 'true'
         env:
           PROBE_FQDN: ${{ steps.ts_host.outputs.resolved_fqdn }}
@@ -213,6 +213,12 @@ jobs:
             "grep '^PODCAST_CORPUS_HOST_PATH=' /srv/podcast-scraper/.env | cut -d= -f2-")
           if [ -z "${CORPUS:-}" ]; then
             echo "::error::PODCAST_CORPUS_HOST_PATH missing from host .env"
+            exit 1
+          fi
+          if ! ssh -i "$SSH_PROD_IDENTITY" -o IdentitiesOnly=yes \
+            -o StrictHostKeyChecking=accept-new -o BatchMode=yes "$SSH_TARGET" \
+            "test -d '$CORPUS'"; then
+            echo "::error::PODCAST_CORPUS_HOST_PATH is not a directory on host: $CORPUS"
             exit 1
           fi
           bash scripts/ops/post_deploy_smoke.sh "$PROBE_FQDN" --corpus-path "$CORPUS"

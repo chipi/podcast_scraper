@@ -128,7 +128,7 @@ Ordered jobs:
 7. **`drill-stack-playwright`** — **`tests/stack-test/stack-viewer.spec.ts`** over **HTTPS** against the live drill host (browser + API + corpus).
 8. **`finalize`** — runs **`if: always()`** so teardown still runs when a middle job failed.
 9. **`drill-infra-destroy`** — downloads **`drill-tfstate-for-teardown`** (or apply artifact as fallback), then **`tofu destroy`**, **Hetzner API sweep**, **Tailscale API** removal of drill devices (always after finalize).
-10. **`assert-post-conditions`** — fails the workflow when any job above is not **`success`**, or when **`delete_drill_hetzner_orphans.sh --check-only`** finds leftover drill resources.
+10. **`assert-post-conditions`** — fails the workflow when any job above is not **`success`**, or when **`delete_drill_hetzner_orphans.sh --check-only`** finds leftover drill resources. Job log maps each #799 post-condition to the green job that proved it (smoke **`EXPECT_POPULATED=1`** covers episode count &gt; 0).
 
 Each job that uses GitHub **Environment `drill`** may require a separate approval if your org
 configured reviewers on that environment.
