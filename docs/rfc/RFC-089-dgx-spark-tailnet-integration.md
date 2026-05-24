@@ -6,7 +6,7 @@
 
 The operator has acquired an **NVIDIA DGX Spark Founders Edition** (GB10 Grace Blackwell superchip, 128 GB unified memory, ~1 PFLOP FP16). The machine lives at home, always-on, on residential power + ISP. This RFC defines how it integrates into the existing podcast_scraper flows — laptop, GitHub Actions, prod VPS, drill VPS — via Tailscale, and how it changes the cost / quality / latency math for LLM-heavy work.
 
-The proposal is **explicitly scoped to non-prod**. DGX augments the system as a tailnet-resident LLM + embedding backend for dev iteration, autoresearch eval, and pre-prod LLM validation. It does **not** sit in the prod request path: prod stays on cloud providers (Gemini, OpenAI). This keeps the prod blast-radius story (RFC-082) intact while unlocking meaningful capacity gains for everything upstream of prod.
+The initial proposal scoped DGX to non-prod only. **Revised same day** (before any implementation): DGX is allowed in prod under a **primary-with-fallback contract** per [ADR-096](../adr/ADR-096-dgx-spark-prod-primary-with-fallback.md). Every prod LLM stage that targets DGX must specify a cloud fallback; the provider abstraction auto-falls-back on DGX failure. Residential-SPOF becomes a non-event because cloud is always one health-check away. The cost-arbitrage win on Whisper transcription (~90% of per-episode cost on OpenAI) is meaningful enough to justify the additional engineering for a hobby-scale operation.
 
 Three tiers of integration ship in sequence:
 
@@ -37,7 +37,7 @@ A fourth, latent issue: **the AI comparison guide currently lists local models t
 
 ## Non-Goals
 
-1. **DGX is not in the prod request path.** Prod stays on Gemini + OpenAI per RFC-082. DGX downtime cannot affect prod.
+1. **DGX is not allowed in prod *without* the primary-with-fallback contract.** Prod profiles that target DGX MUST specify a cloud fallback per stage; absent fallback = configuration validation error. See [ADR-096](../adr/ADR-096-dgx-spark-prod-primary-with-fallback.md). DGX *downtime* never causes prod failure because cloud is always one health-check away.
 2. **DGX is not a backup or failover target.** Backup-corpus lives in `chipi/podcast_scraper-backup`; failover lives on the DR drill row. DGX has no role in either.
 3. **No public ingress to DGX.** DGX is reachable only via tailnet, same model as prod (RFC-082).
 4. **No multi-user serving.** Single operator; no rate limiting or per-tenant quotas needed.
@@ -98,13 +98,20 @@ ACL changes in `tailscale/policy.hujson`:
       "src":    ["autogroup:admin", "tag:gha-deployer"],
       "dst":    ["tag:dgx-llm-host:11434", "tag:dgx-llm-host:8001"]
     },
-    // Drill VPS reaches DGX for pre-prod LLM validation; prod VPS does NOT
+    // Drill VPS reaches DGX for pre-prod LLM validation
     {
       "action": "accept",
       "src":    ["tag:drill-app"],
       "dst":    ["tag:dgx-llm-host:11434", "tag:dgx-llm-host:8001"]
     },
-    // Explicitly: no rule allowing tag:prod-app → tag:dgx-llm-host
+    // Prod VPS reaches DGX as cost-optimized primary for specific stages
+    // (Whisper at v1; expansion gated by ADR-096 §"Expansion criteria").
+    // Cloud fallback is mandatory at the profile-config layer, not the ACL.
+    {
+      "action": "accept",
+      "src":    ["tag:prod-app"],
+      "dst":    ["tag:dgx-llm-host:11434", "tag:dgx-llm-host:8001"]
+    },
   ],
 }
 ```
@@ -245,7 +252,8 @@ Hard rule for the next agent picking up any of these: **do not write code or doc
 | --- | --- | --- | --- |
 | **A. Keep Ollama on laptop, no DGX** | Status quo, no setup | 32B ceiling; laptop contention; AI comparison guide stays theoretical | This is the problem the RFC is solving |
 | **B. Use cloud GPU for non-prod (RunPod / Modal / Lambda)** | Pay-per-use; no capex | Per-hour cost adds up fast for autoresearch; no model persistence; cold starts | Operator already owns DGX |
-| **C. DGX in prod request path** | Cost savings on cloud LLM spend; smaller cloud bill | Residential SPOF; prod blast radius depends on home power + ISP; conflicts with RFC-082 isolation goals | Non-goal; documented above |
+| **C. DGX in prod request path (naive — no fallback)** | Cost savings on cloud LLM spend | Residential SPOF would directly affect prod | Rejected; superseded by C′ |
+| **C′. DGX in prod request path WITH mandatory cloud fallback** | Cost savings on cloud LLM spend; residential SPOF becomes a non-event | Adds the failover code path + monitoring; slight latency variance during failover | **Accepted** per ADR-096; v1 stage is Whisper transcription |
 | **D. DGX as backup/snapshot target** | Local storage; cheap | Duplicates `chipi/podcast_scraper-backup`; introduces home dependency on backup path | Non-goal; backups stay in their own repo |
 | **E. vLLM instead of Ollama at v1** | ~5-10× throughput on large models | Operator already runs Ollama locally; model management more complex | Defer; add vLLM behind separate port if measurements justify |
 | **F. Public ingress on DGX (Cloudflare Tunnel + OAuth)** | Operator can reach from anywhere | Adds attack surface; not needed (tailnet client on every device the operator uses) | Operator's laptop and phone are already on the tailnet |
@@ -257,8 +265,8 @@ Hard rule for the next agent picking up any of these: **do not write code or doc
 1. **Always-on, no power management.** Operator commits to leaving DGX powered. RFC adds no wake/sleep automation.
 2. **Tailnet-only, no public ingress.** Same trust model as prod.
 3. **Ollama at v1**, vLLM deferred to a measurement-driven decision; explicit trigger pinned under "Locked-in answers" below.
-4. **DGX excluded from prod path by ACL.** `tag:prod-app` → `tag:dgx-llm-host` has no rule; explicit non-rule.
-5. **Cloud fallback mandatory** for every consumer. No hard-required-DGX code paths.
+4. **DGX in prod via primary-with-fallback contract per [ADR-096](../adr/ADR-096-dgx-spark-prod-primary-with-fallback.md).** ACL permits `tag:prod-app` → `tag:dgx-llm-host`. Every prod profile that targets DGX must specify a cloud fallback per stage; absent fallback = config validation error. V1 stage is Whisper transcription only.
+5. **Cloud fallback mandatory** for every consumer (prod, pre-prod, autoresearch, CLI). No hard-required-DGX code paths.
 6. **GHA self-hosted runner is opt-in via explicit allow-list**, never default.
 7. **Model SHAs pinned in autoresearch configs** for reproducibility — not floating Ollama tags.
 8. **No model cache backup.** Models are redownloadable; document the re-pull procedure in `DGX_RUNBOOK.md`.
