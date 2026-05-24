@@ -46,15 +46,8 @@ def build_produced_by(*, produced_at: str) -> dict[str, str]:
     }
 
 
-def read_produced_by(corpus_root: Path) -> dict[str, Any] | None:
-    """Load ``produced_by`` from corpus manifest, with legacy ``tool_version`` fallback."""
-    manifest = corpus_root / CORPUS_MANIFEST_FILE
-    if not manifest.is_file():
-        return None
-    try:
-        doc = json.loads(manifest.read_text(encoding="utf-8"))
-    except (OSError, json.JSONDecodeError):
-        return None
+def parse_produced_by_from_manifest_doc(doc: object) -> dict[str, Any] | None:
+    """Parse ``produced_by`` (or legacy ``tool_version``) from a manifest JSON object."""
     if not isinstance(doc, dict):
         return None
     produced_by = doc.get("produced_by")
@@ -68,6 +61,24 @@ def read_produced_by(corpus_root: Path) -> dict[str, Any] | None:
             "produced_at": doc.get("updated_at", ""),
         }
     return None
+
+
+def read_produced_by(corpus_root: Path) -> dict[str, Any] | None:
+    """Load ``produced_by`` from corpus manifest (trusted local paths only).
+
+    HTTP handlers must use ``server.pathutil.read_manifest_produced_by_under_anchor``
+    so request-derived paths are sanitized inline before filesystem access.
+    """
+    manifest = corpus_root / CORPUS_MANIFEST_FILE
+    # codeql[py/path-injection] -- CLI/Makefile trusted local corpus root only (Type 1).
+    if not manifest.is_file():
+        return None
+    try:
+        # codeql[py/path-injection] -- same trusted-caller chain as is_file above.
+        doc = json.loads(manifest.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return None
+    return parse_produced_by_from_manifest_doc(doc)
 
 
 def corpus_code_version(produced_by: dict[str, Any] | None) -> str | None:

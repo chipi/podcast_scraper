@@ -6,8 +6,13 @@ CodeQL's ``py/path-injection`` query recognises as safe.
 
 from __future__ import annotations
 
+import json
 import os
 from pathlib import Path
+from typing import Any
+
+from podcast_scraper.corpus_version import CORPUS_MANIFEST_FILE, parse_produced_by_from_manifest_doc
+from podcast_scraper.utils.path_validation import normpath_if_under_root, safe_resolve_directory
 
 
 class CorpusPathRequestError(Exception):
@@ -99,3 +104,28 @@ def resolved_corpus_root_str(root: Path, anchor: Path | None) -> str:
     if norm_root != anchor_str and not norm_root.startswith(safe_prefix):
         return anchor_str
     return norm_root
+
+
+def read_manifest_produced_by_under_anchor(
+    corpus_dir: Path,
+    anchor: Path,
+) -> dict[str, Any] | None:
+    """Load ``produced_by`` from ``corpus_manifest.json`` under a verified anchor."""
+    root_s = str(safe_resolve_directory(anchor))
+    corpus_s = os.path.normpath(str(corpus_dir.resolve()))
+    verified = normpath_if_under_root(corpus_s, root_s)
+    if not verified:
+        return None
+    manifest_s = os.path.normpath(os.path.join(verified, CORPUS_MANIFEST_FILE))
+    verified_m = normpath_if_under_root(manifest_s, root_s)
+    if not verified_m:
+        return None
+    # codeql[py/path-injection] -- verified_m from normpath_if_under_root(manifest_s, root_s).
+    if not os.path.isfile(verified_m):
+        return None
+    try:
+        # codeql[py/path-injection] -- verified_m (same sanitizer chain as isfile above).
+        doc = json.loads(Path(verified_m).read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return None
+    return parse_produced_by_from_manifest_doc(doc)

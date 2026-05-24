@@ -11,9 +11,12 @@ from podcast_scraper.corpus_version import (
     assess_corpus_version_compat,
     corpus_code_version,
     MIN_SUPPORTED_CORPUS_CODE_VERSION,
-    read_produced_by,
 )
-from podcast_scraper.server.pathutil import CorpusPathRequestError, resolve_corpus_path_param
+from podcast_scraper.server.pathutil import (
+    CorpusPathRequestError,
+    read_manifest_produced_by_under_anchor,
+    resolve_corpus_path_param,
+)
 from podcast_scraper.server.schemas import CorpusProducedBy, HealthResponse
 
 router = APIRouter(tags=["health"])
@@ -57,8 +60,8 @@ async def health(
             raise HTTPException(status_code=exc.status_code, detail=exc.detail) from exc
     else:
         corpus_dir = _corpus_dir_for_health(None, anchor)
-    if corpus_dir is not None and corpus_dir.is_dir():
-        produced_by_raw = read_produced_by(corpus_dir)
+    if corpus_dir is not None and anchor is not None:
+        produced_by_raw = read_manifest_produced_by_under_anchor(corpus_dir, anchor)
         corpus_ver, warning = assess_corpus_version_compat(produced_by_raw)
     corpus_produced_by = None
     if produced_by_raw:
