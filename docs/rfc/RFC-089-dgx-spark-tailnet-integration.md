@@ -252,22 +252,27 @@ Hard rule for the next agent picking up any of these: **do not write code or doc
 
 ## Decisions made
 
+### Foundational (locked at draft)
+
 1. **Always-on, no power management.** Operator commits to leaving DGX powered. RFC adds no wake/sleep automation.
 2. **Tailnet-only, no public ingress.** Same trust model as prod.
-3. **Ollama at v1**, vLLM deferred to measurement-driven decision.
+3. **Ollama at v1**, vLLM deferred to a measurement-driven decision; explicit trigger pinned under "Locked-in answers" below.
 4. **DGX excluded from prod path by ACL.** `tag:prod-app` → `tag:dgx-llm-host` has no rule; explicit non-rule.
 5. **Cloud fallback mandatory** for every consumer. No hard-required-DGX code paths.
 6. **GHA self-hosted runner is opt-in via explicit allow-list**, never default.
 7. **Model SHAs pinned in autoresearch configs** for reproducibility — not floating Ollama tags.
 8. **No model cache backup.** Models are redownloadable; document the re-pull procedure in `DGX_RUNBOOK.md`.
 
-## Open Questions
+### Locked-in answers to the pre-draft open questions
 
-1. **GHA self-hosted runner security audit.** Before P3 lands, walk through the GitHub-documented threats for self-hosted runners on public repos. Specifically: forked-PR workflows that try to escalate, persistent state pollution between runs, runner-token compromise. Outcome: explicit `allow-list` policy doc + a test that proves a fork-PR cannot trigger self-hosted runs.
-2. **Embedding model determinism — GPU vs CPU.** sentence-transformers on GPU can produce slightly different float values vs CPU due to non-deterministic reductions. Need to validate that FAISS indexes built with DGX-embedding are interchangeable with laptop-CPU-embedding (likely yes within tolerance; verify before pre-prod uses DGX embedding).
-3. **vLLM vs Ollama measurement criterion.** What throughput threshold justifies adding vLLM? Suggest: if any autoresearch eval sweep takes >2h on Ollama and would take <30min on vLLM, switch. Pin in the RFC after first measurement.
-4. **DGX as a graph-analysis backend?** The viewer's graph layout (Cytoscape on the client) is fine, but heavier graph algorithms (community detection, centrality at scale) could run on DGX. Defer to v2.8 — not blocking.
-5. **Tailnet bandwidth for large model pulls.** Pulling a 70B model (~140 GB) over residential ISP is a one-time hour-or-more. Document the pre-stage step in `DGX_RUNBOOK.md` so future models don't surprise an operator on a slow day.
+1. **Self-hosted runner safety on a public repo.** Three mandatory layers before P3 ships:
+   - Runner runs in **ephemeral mode** (workspace + runner reset between every job) — defeats persistent-state poisoning.
+   - Repo setting **"Require approval for all outside collaborators"** stays enabled — defeats unreviewed-fork-PR workflow triggers.
+   - **Explicit workflow allow-list** at `.github/SELF_HOSTED_RUNNER_ALLOWLIST.md`. Pre-commit hook or CI check refuses any new workflow that adds `runs-on: [self-hosted, dgx-spark]` while not in the allow-list. Build / deploy / release / security workflows never on self-hosted.
+2. **Embedding GPU vs CPU determinism — known quirk, accept the gap.** sentence-transformers on GPU produces vectors that are **not bit-identical** to CPU but **functionally equivalent** (top-K query results within ~1 rank shuffle). FAISS index files built on DGX are not byte-comparable to laptop-CPU-built indexes; tests assert functional equivalence (top-K membership), not byte equality. Documented in `DGX_RUNBOOK.md` so future contributors don't hunt this.
+3. **Ollama → vLLM switch trigger.** Stay on Ollama until **a recurring autoresearch matrix takes >2h end-to-end on Ollama** for in-scope eval models. At that point: spike vLLM on the same matrix, measure, decide on numbers. Until that trigger fires, vLLM is off the roadmap.
+4. **DGX as graph-analysis backend — deferred to v2.8.** Reopens when BOTH conditions are met: corpus exceeds ~1000 episodes (today ~100) AND graph algorithms on the api container become CPU-bound. New RFC at that point; no DGX-graph work in 2.7.
+5. **Model pulls: directly from public registry to DGX, pre-staged off the critical path.** Never relay model files through other tailnet hosts. Documented in `DGX_RUNBOOK.md` as a "do it overnight or during a meeting" task. If a model is needed urgently and not pre-staged, fall back to cloud for that stage.
 
 ## References
 
