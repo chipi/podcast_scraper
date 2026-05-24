@@ -14,6 +14,7 @@ nav:
       - Development Guide: guides/DEVELOPMENT_GUIDE.md
       - Release Playbook: guides/RELEASE_PLAYBOOK.md
       - Prod Runbook (always-on VPS): guides/PROD_RUNBOOK.md
+      - Prod compat validation (#796/#797): guides/PROD_COMPAT_VALIDATION.md
       - Stack contract (cross-surface audit): guides/STACK_CONTRACT.md
       - Corpus snapshot manifest and restore: guides/CORPUS_SNAPSHOT_MANIFEST_AND_RESTORE.md
       - Prod Operator Cheat Sheet: guides/PROD_OPERATOR_CHEAT_SHEET.md

@@ -1,10 +1,11 @@
 #!/usr/bin/env bash
-# Post-deploy smoke — codified viewer-surface probes over tailnet HTTPS (#797).
+# Post-deploy smoke — codified viewer-surface probes (#797).
 #
 # Usage:
 #   PROD_TAILNET_FQDN=prod.example.ts.net scripts/ops/post_deploy_smoke.sh
 #   scripts/ops/post_deploy_smoke.sh <tailnet-fqdn>
 #   scripts/ops/post_deploy_smoke.sh <tailnet-fqdn> --corpus-path /srv/podcast-scraper/corpus
+#   scripts/ops/post_deploy_smoke.sh --base-url http://127.0.0.1:8090 --corpus-path /app/output
 #
 # Hits six critical surfaces (see docs/architecture/CORPUS_ARTIFACTS_AND_SURFACES.md):
 #   1. GET /api/health          — status ok + core subsystem flags true
@@ -23,16 +24,21 @@ set -euo pipefail
 
 FQDN=""
 CORPUS_PATH=""
+BASE_URL="${SMOKE_BASE_URL:-}"
 EXPECT_POPULATED="${EXPECT_POPULATED:-1}"
 
 usage() {
-  sed -n '2,20p' "$0" | sed 's/^# \?//'
+  sed -n '2,22p' "$0" | sed 's/^# \?//'
   exit 2
 }
 
 while [ $# -gt 0 ]; do
   case "$1" in
     -h|--help) usage ;;
+    --base-url)
+      shift
+      BASE_URL="${1:?--base-url requires a value}"
+      ;;
     --corpus-path)
       shift
       CORPUS_PATH="${1:?--corpus-path requires a value}"
@@ -57,12 +63,14 @@ while [ $# -gt 0 ]; do
 done
 
 FQDN="${FQDN:-${PROD_TAILNET_FQDN:-}}"
-if [ -z "$FQDN" ]; then
-  echo "ERROR: tailnet FQDN required (arg or PROD_TAILNET_FQDN)" >&2
-  exit 2
+if [ -z "$BASE_URL" ]; then
+  if [ -z "$FQDN" ]; then
+    echo "ERROR: tailnet FQDN required (arg or PROD_TAILNET_FQDN) unless --base-url is set" >&2
+    exit 2
+  fi
+  BASE_URL="https://${FQDN}"
 fi
-
-BASE_URL="https://${FQDN}"
+BASE_URL="${BASE_URL%/}"
 ENC_PATH=""
 if [ -n "$CORPUS_PATH" ]; then
   ENC_PATH=$(python3 -c "import urllib.parse,sys; print(urllib.parse.quote(sys.argv[1]))" "$CORPUS_PATH")

@@ -433,10 +433,17 @@ control plane as pre-prod. Profile dropdown is restricted to
 
 ```bash
 gh run list --workflow backup-corpus-prod.yml --repo chipi/podcast_scraper --limit 5
+gh run list --workflow verify-backup-restore.yml --repo chipi/podcast_scraper --limit 5
 gh release list --repo chipi/podcast_scraper-backup --limit 10 | grep snapshot-prod-
 ```
 
-To download the latest matching **`snapshot-prod-*`** asset, print tarball
+**Weekly compose restore verify (#798):** `verify-backup-restore.yml` runs **Sundays 04:00 UTC**
+(plus `workflow_dispatch`). It downloads the newest compatible **`snapshot-prod-*`**, restores
+into ephemeral Docker Compose on a GHA runner, runs **`post_deploy_smoke.sh`**, then tears down.
+Failures go red + optional **`SMOKE_WEBHOOK_URL`** alert. Sister cadence: real-Hetzner DR drill
+**Wednesdays 02:00 UTC** — see [DR drill runbook](DR_DRILL_RUNBOOK.md).
+
+To download the latest matching **`snapshot-prod-*`** asset locally, print tarball
 stats, and unpack under **`.tmp_backup_verify/`** (gitignored):
 
 ```bash
@@ -668,9 +675,18 @@ When `corpus_version_warning` is non-null, the viewer renders **`data-testid="co
 
 `scripts/pre_release_check.py` and `scripts/tools/create_release_notes_draft.py` both require a row for the shipping version in [`docs/COMPATIBILITY.md`](../COMPATIBILITY.md). CI job **`test-corpus-version-compat`** runs current server code against the N-1 fixture corpus (`tests/integration/server/test_corpus_version_compat.py`).
 
+**Validation checklist:** step-by-step local + CI + drill/prod tiers — [Prod compat validation guide](PROD_COMPAT_VALIDATION.md).
+
 ---
 
 ## Disaster recovery
+
+**Weekly automated drills (#799):** `drill-exercise.yml` runs **Wednesdays 02:00 UTC** (full
+provision → deploy → restore → smoke → destroy). Check **`gh run list --workflow drill-exercise.yml`**
+for the latest green run. Interpret failures via [DR drill runbook](DR_DRILL_RUNBOOK.md).
+
+**Weekly backup restore proof (#798):** `verify-backup-restore.yml` runs **Sundays 04:00 UTC** on
+a GHA runner (no Hetzner cost). See [Backup status](#backup-status).
 
 If the Hetzner instance is irrecoverable (account issue, hardware failure,
 accidental `tofu destroy`):

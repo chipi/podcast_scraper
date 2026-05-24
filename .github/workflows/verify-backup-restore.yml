@@ -1,0 +1,127 @@
+name: Verify backup restore (compose smoke)
+
+# GitHub #798 — weekly proof that the latest snapshot-prod-* release in
+# chipi/podcast_scraper-backup is downloadable, manifest-valid, restorable,
+# and readable by the published GHCR stack (ephemeral compose on GHA).
+#
+# Sister cadence: real-Hetzner DR drill runs Wednesdays 02:00 UTC (#799).
+#
+# Prerequisites:
+#   secrets: BACKUP_REPO_TOKEN (when backup repo is private; else GITHUB_TOKEN)
+#   optional: SMOKE_WEBHOOK_URL — Slack/HA alert on failure
+#
+# See docs/guides/PROD_RUNBOOK.md § Backup status.
+
+on:
+  schedule:
+    - cron: '0 4 * * 0' # Sundays 04:00 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: read
+
+concurrency:
+  group: verify-backup-restore
+  cancel-in-progress: false
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      BACKUP_REPO: chipi/podcast_scraper-backup
+      TAG_REGEX: '^snapshot-prod-[0-9]{8}$'
+      RESTORE_ROOT: ${{ github.workspace }}/.verify-restore
+      VIEWER_PORT: '8090'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 1
+
+      - name: Pre-flight — backup repo token
+        id: preflight
+        env:
+          BACKUP_REPO_TOKEN: ${{ secrets.BACKUP_REPO_TOKEN }}
+        run: |
+          set -euo pipefail
+          if [ -n "${BACKUP_REPO_TOKEN:-}" ]; then
+            echo "GH_TOKEN=${BACKUP_REPO_TOKEN}" >> "$GITHUB_ENV"
+            echo "token=backup" >> "$GITHUB_OUTPUT"
+          else
+            echo "GH_TOKEN=${{ secrets.GITHUB_TOKEN }}" >> "$GITHUB_ENV"
+            echo "token=github" >> "$GITHUB_OUTPUT"
+            echo "::notice::BACKUP_REPO_TOKEN unset — using GITHUB_TOKEN (must read ${BACKUP_REPO})."
+          fi
+
+      - name: Restore latest compatible snapshot (prod layout)
+        run: |
+          set -euo pipefail
+          mkdir -p "${RESTORE_ROOT}"
+          export WORKSPACE_DIR="${RESTORE_ROOT}"
+          export TAG_REGEX BACKUP_REPO PODCAST_BACKUP_REPO="${BACKUP_REPO}"
+          bash scripts/ops/corpus_snapshot/restore_corpus_release.sh --layout prod
+          test -d "${RESTORE_ROOT}/corpus"
+          echo "corpus_bytes=$(du -sb "${RESTORE_ROOT}/corpus" | awk '{print $1}')" >> "$GITHUB_ENV"
+
+      - name: Write ephemeral compose env
+        run: |
+          set -euo pipefail
+          {
+            echo "PODCAST_DOCKER_PROJECT_DIR=${{ github.workspace }}"
+            echo "PODCAST_CORPUS_HOST_PATH=${RESTORE_ROOT}/corpus"
+            echo "PODCAST_DEFAULT_CORPUS_PATH=/app/output"
+            echo "VIEWER_PORT=${VIEWER_PORT}"
+            echo "PODCAST_IMAGE_TAG=main"
+            echo "PODCAST_ENV=preprod"
+            echo "COMPOSE_PROJECT_NAME=verify-restore"
+          } > compose/.env.verify-restore
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Pull and start stack (api + viewer)
+        run: |
+          set -euo pipefail
+          COMPOSE="docker compose --env-file compose/.env.verify-restore \
+            -f compose/docker-compose.stack.yml \
+            -f compose/docker-compose.prod.yml"
+          $COMPOSE pull api viewer
+          $COMPOSE up -d api viewer
+
+      - name: Post-deploy smoke (localhost)
+        run: |
+          set -euo pipefail
+          bash scripts/ops/post_deploy_smoke.sh \
+            --base-url "http://127.0.0.1:${VIEWER_PORT}" \
+            --corpus-path /app/output
+
+      - name: Tear down compose stack
+        if: always()
+        run: |
+          set -euo pipefail
+          docker compose --env-file compose/.env.verify-restore \
+            -f compose/docker-compose.stack.yml \
+            -f compose/docker-compose.prod.yml \
+            down -v --remove-orphans || true
+          rm -rf "${RESTORE_ROOT}" compose/.env.verify-restore
+
+      - name: Webhook alert on failure
+        if: failure()
+        env:
+          SMOKE_WEBHOOK_URL: ${{ secrets.SMOKE_WEBHOOK_URL }}
+        run: |
+          set -euo pipefail
+          if [ -z "${SMOKE_WEBHOOK_URL:-}" ]; then
+            echo "::notice::SMOKE_WEBHOOK_URL not set; skipping webhook alert."
+            exit 0
+          fi
+          MSG="Backup restore verify (#798): FAILED on \`${GITHUB_SHA:0:7}\` — see verify-backup-restore workflow run."
+          curl -fsS -X POST -H "Content-Type: application/json" \
+            -d "{\"text\":\"${MSG}\"}" \
+            "$SMOKE_WEBHOOK_URL" || echo "::warning::webhook ping failed (non-fatal)"

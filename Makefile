@@ -3280,5 +3280,5 @@ delete-drill-hetzner-orphans:
 		echo "ERROR: HCLOUD_TOKEN_DRILL not set after sourcing $(INFRA_DRILL_ENV_FILE)" >&2; \
 		exit 1; \
 	 fi; \
-	 ./scripts/ops/delete_drill_hetzner_orphans.sh; \
+	 ./scripts/ops/delete_drill_hetzner_orphans.sh $(if $(filter 1 true yes,$(DRY_RUN)),--check-only,); \
 	 echo "MAKE_EXIT=$$?"

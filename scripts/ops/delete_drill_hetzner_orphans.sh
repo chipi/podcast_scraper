@@ -8,12 +8,20 @@
 # Usage:
 #   export HCLOUD_TOKEN_DRILL='…'   # token scoped to the drill Hetzner project
 #   ./scripts/ops/delete_drill_hetzner_orphans.sh
+#   ./scripts/ops/delete_drill_hetzner_orphans.sh --check-only   # list orphans; exit 1 if any
+#   make delete-drill-hetzner-orphans DRY_RUN=1                  # same as --check-only
 #
 # Optional env (defaults match ``terraform.drill.ci.tfvars`` / variables.tf):
 #   DRILL_TAILNET_HOSTNAME — default dr-podcast
 #   DRILL_SSH_KEY_NAME     — default operator-laptop
 
 set -euo pipefail
+
+CHECK_ONLY=0
+if [[ "${1:-}" == "--check-only" || "${1:-}" == "--dry-run" ]]; then
+  CHECK_ONLY=1
+  shift
+fi
 
 if [[ -z "${HCLOUD_TOKEN_DRILL:-}" ]]; then
   echo "ERROR: Set HCLOUD_TOKEN_DRILL to the drill-project Hetzner API token." >&2
@@ -30,6 +38,8 @@ NETWORK_NAME="podcast-scraper-prod"
 SERVER_NAME="${DRILL_TAILNET_HOSTNAME:-dr-podcast}"
 VOLUME_NAME="podcast-scraper-corpus"
 
+ORPHANS_FOUND=0
+
 delete_by_name() {
   local kind="$1"
   local name="$2"
@@ -44,6 +54,14 @@ delete_by_name() {
     echo "  $kind '$name': not found"
     return 0
   fi
+  ORPHANS_FOUND=1
+  if [[ "$CHECK_ONLY" -eq 1 ]]; then
+    while read -r id; do
+      [[ -z "$id" ]] && continue
+      echo "  $kind '$name' id=$id: FOUND (orphan)"
+    done <<< "$ids"
+    return 0
+  fi
   while read -r id; do
     [[ -z "$id" ]] && continue
     if curl -fsS -X DELETE -H "$AUTH_HEADER" "$API/$kind/$id" >/dev/null 2>&1; then
@@ -54,10 +72,22 @@ delete_by_name() {
   done <<< "$ids"
 }
 
-echo "==> Deleting drill Hetzner orphans (server → volume → firewall → network → ssh_key)..."
+if [[ "$CHECK_ONLY" -eq 1 ]]; then
+  echo "==> Checking for drill Hetzner orphans (server → volume → firewall → network → ssh_key)..."
+else
+  echo "==> Deleting drill Hetzner orphans (server → volume → firewall → network → ssh_key)..."
+fi
 delete_by_name servers "$SERVER_NAME"
 delete_by_name volumes "$VOLUME_NAME"
 delete_by_name firewalls "$FIREWALL_NAME"
 delete_by_name networks "$NETWORK_NAME"
 delete_by_name ssh_keys "$SSH_KEY_NAME"
-echo "==> Done."
+if [[ "$CHECK_ONLY" -eq 1 ]]; then
+  if [[ "$ORPHANS_FOUND" -eq 1 ]]; then
+    echo "ERROR: orphan drill Hetzner resources still present (--check-only)" >&2
+    exit 1
+  fi
+  echo "==> OK: no drill Hetzner orphans."
+else
+  echo "==> Done."
+fi
