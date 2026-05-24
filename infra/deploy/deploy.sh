@@ -43,9 +43,41 @@ mkdir -p "$REPO_DIR/corpus"
 # it does not load `/srv/podcast-scraper/.env` by default — pass explicitly (VPS + GHA).
 COMPOSE=(docker compose --env-file .env)
 
-# Refresh repo so compose files (not the images) match the deployed tag.
-git fetch --depth=50 origin main
-git reset --hard origin/main
+_set_env_kv() {
+  local key="$1"
+  local value="$2"
+  if grep -qE "^${key}=" .env; then
+    sed -i "s|^${key}=.*|${key}=${value}|" .env
+  else
+    echo "${key}=${value}" >> .env
+  fi
+  chmod 600 .env
+}
+
+DEPLOY_GIT_SHA="${DEPLOY_GIT_SHA:-}"
+DEPLOY_IMAGE_SHA="${DEPLOY_IMAGE_SHA:-}"
+
+if [ -n "$DEPLOY_IMAGE_SHA" ]; then
+  if ! [[ "$DEPLOY_IMAGE_SHA" =~ ^[a-f0-9]{7,40}$ ]]; then
+    echo "ERROR: DEPLOY_IMAGE_SHA must match ^[a-f0-9]{7,40}$ (got: ${DEPLOY_IMAGE_SHA})" >&2
+    exit 4
+  fi
+  _set_env_kv PODCAST_IMAGE_TAG "sha-${DEPLOY_IMAGE_SHA}"
+  echo "[$(date -u +%FT%TZ)] pinned PODCAST_IMAGE_TAG=sha-${DEPLOY_IMAGE_SHA}"
+fi
+
+# Refresh repo so compose files match the deployed git ref (not always origin/main).
+if [ -n "$DEPLOY_GIT_SHA" ]; then
+  if ! [[ "$DEPLOY_GIT_SHA" =~ ^[a-f0-9]{7,40}$ ]]; then
+    echo "ERROR: DEPLOY_GIT_SHA must match ^[a-f0-9]{7,40}$ (got: ${DEPLOY_GIT_SHA})" >&2
+    exit 4
+  fi
+  git fetch --depth=50 origin "$DEPLOY_GIT_SHA"
+  git reset --hard "$DEPLOY_GIT_SHA"
+else
+  git fetch --depth=50 origin main
+  git reset --hard origin/main
+fi
 
 # Repair ``/usr/local/sbin/podcast-tailscale-serve.sh`` from the repo when cloud-init
 # embedded a broken copy (Terraform ``$$((`` edge case). Requires sudoers ``install`` rule.
