@@ -235,6 +235,9 @@ number, file, line, date, and a short comment.
 | 1 | #327 | server/pathutil.py | 116 | 2026-05-24 | Type 1: ``corpus_s`` inline ``normpath`` + ``startswith(safe_prefix)`` under ``anchor_str`` before manifest join (``read_manifest_produced_by_under_anchor``; PR #815) |
 | 1 | #328 | server/pathutil.py | 125 | 2026-05-24 | Type 1: ``manifest_s`` inline ``normpath`` + ``startswith(safe_prefix)`` before ``os.path.isfile`` (same function; PR #815) |
 | 1 | #329 | server/pathutil.py | 129 | 2026-05-24 | Type 1: ``manifest_s`` same inline sanitizer chain before ``read_text`` (PR #815) |
+| 1 | #330 | server/pathutil.py | 115 | 2026-05-24 | Type 1: post-refactor ``corpus_s`` inline ``normpath`` + ``startswith`` (PR #815) |
+| 1 | #331 | server/pathutil.py | 123 | 2026-05-24 | Type 1: ``manifest_s`` inline sanitizer before ``os.path.isfile`` (PR #815) |
+| 1 | #332 | server/pathutil.py | 126 | 2026-05-24 | Type 1: ``manifest_s`` inline sanitizer before ``read_text`` (PR #815) |
 
 ## Still open (not yet dismissed)
 
