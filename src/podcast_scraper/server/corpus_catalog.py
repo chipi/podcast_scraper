@@ -12,7 +12,11 @@ from pathlib import Path
 from typing import Any, Iterable, Mapping, Optional
 
 from podcast_scraper.builders.bridge_artifact_paths import bridge_json_path_adjacent_to_metadata
-from podcast_scraper.search.corpus_scope import discover_metadata_files, normalize_feed_id
+from podcast_scraper.search.corpus_scope import (
+    discover_all_metadata_files,
+    discover_metadata_files,
+    normalize_feed_id,
+)
 from podcast_scraper.utils.corpus_artwork import CORPUS_ART_REL_PREFIX
 from podcast_scraper.utils.path_validation import (
     normpath_if_under_root,
@@ -340,6 +344,123 @@ def build_catalog_rows(corpus_root: Path) -> list[CatalogEpisodeRow]:
                 feed_description=feed_desc,
             )
         )
+    rows.sort(key=lambda r: r.sort_key())
+    return rows
+
+
+def build_catalog_rows_cumulative(corpus_root: Path) -> list[CatalogEpisodeRow]:
+    """Cumulative-unique catalog rows across ALL runs (v2.6.1 hotfix #818/#820/#821).
+
+    Differs from :func:`build_catalog_rows`:
+
+    - Walks **every** ``run_*/metadata/*.metadata.json`` file (uses
+      :func:`discover_all_metadata_files`), not just the latest run per feed.
+    - Deduplicates by ``(feed_id, episode_id)`` — when the same episode appears
+      in multiple runs (skip_existing scenario), the row whose metadata file
+      lives under the lexicographically-greatest ``run_*`` segment wins.
+
+    Use for the operator-facing library / stats endpoints. Index rebuild,
+    digest, and topic-clusters continue using :func:`build_catalog_rows`
+    (which is last-run-only and faster for rebuild work).
+    """
+    root = safe_resolve_directory(corpus_root)
+    if root is None:
+        return []
+    root_s = os.path.normpath(str(root))
+    safe_prefix = root_s + os.sep
+
+    # Build rows for ALL files, then dedupe by (feed_id, episode_id) keeping
+    # the row whose metadata_relative_path has the greatest run segment.
+    all_rows: list[CatalogEpisodeRow] = []
+    for meta_path in discover_all_metadata_files(root):
+        try:
+            rel = meta_path.relative_to(root).as_posix()
+        except ValueError:
+            continue
+        doc = _load_metadata_doc(str(meta_path))
+        if doc is None:
+            continue
+        fid_norm, eid = _feed_and_episode_ids(doc)
+        feed_id = fid_norm or ""
+        feed_title = _feed_display_title(doc)
+        episode_title = _episode_title(doc)
+        ep = doc.get("episode")
+        pub_raw = None
+        if isinstance(ep, dict):
+            pub_raw = ep.get("published_date")
+        publish_date = _parse_publish_date_str(pub_raw)
+        stitle, sbullets = _summary_fields(doc)
+        sbody = _summary_body_text(doc)
+        f_img, e_img, dur_s, ep_n, f_loc, e_loc = _visual_fields_from_doc(root, doc)
+        feed_url = _feed_rss_url(doc)
+        feed_desc = _feed_description(doc)
+        gi_rel, kg_rel = _gi_kg_relpaths_from_metadata(rel)
+        bridge_rel = bridge_json_path_adjacent_to_metadata(rel)
+        gi_safe = safe_relpath_under_corpus_root(root, gi_rel)
+        kg_safe = safe_relpath_under_corpus_root(root, kg_rel)
+        bridge_safe = safe_relpath_under_corpus_root(root, bridge_rel)
+        if gi_safe:
+            gi_safe = os.path.normpath(gi_safe)
+        if kg_safe:
+            kg_safe = os.path.normpath(kg_safe)
+        if bridge_safe:
+            bridge_safe = os.path.normpath(bridge_safe)
+        has_gi = bool(gi_safe and gi_safe.startswith(safe_prefix) and os.path.isfile(gi_safe))
+        has_kg = bool(kg_safe and kg_safe.startswith(safe_prefix) and os.path.isfile(kg_safe))
+        has_bridge = bool(
+            bridge_safe and bridge_safe.startswith(safe_prefix) and os.path.isfile(bridge_safe)
+        )
+        all_rows.append(
+            CatalogEpisodeRow(
+                metadata_relative_path=rel,
+                feed_id=feed_id,
+                feed_title=feed_title,
+                episode_id=eid,
+                episode_title=episode_title,
+                publish_date=publish_date,
+                summary_title=stitle,
+                summary_bullets=tuple(sbullets),
+                summary_text=sbody,
+                gi_relative_path=gi_rel,
+                kg_relative_path=kg_rel,
+                bridge_relative_path=bridge_rel,
+                has_gi=has_gi,
+                has_kg=has_kg,
+                has_bridge=has_bridge,
+                feed_image_url=f_img,
+                episode_image_url=e_img,
+                duration_seconds=dur_s,
+                episode_number=ep_n,
+                feed_image_local_relpath=f_loc,
+                episode_image_local_relpath=e_loc,
+                feed_rss_url=feed_url,
+                feed_description=feed_desc,
+            )
+        )
+
+    # Dedupe: prefer the row whose path has the lexicographically-greatest
+    # run_<...> segment. Tiebreak by path (stable).
+    def _run_segment(path: str) -> str:
+        for part in path.split("/"):
+            if part.startswith("run_"):
+                return part
+        return ""
+
+    deduped: dict[tuple[str, Optional[str]], CatalogEpisodeRow] = {}
+    for row in all_rows:
+        key = (row.feed_id, row.episode_id)
+        existing = deduped.get(key)
+        if existing is None:
+            deduped[key] = row
+            continue
+        new_run = _run_segment(row.metadata_relative_path)
+        old_run = _run_segment(existing.metadata_relative_path)
+        if new_run > old_run or (
+            new_run == old_run and row.metadata_relative_path > existing.metadata_relative_path
+        ):
+            deduped[key] = row
+
+    rows = list(deduped.values())
     rows.sort(key=lambda r: r.sort_key())
     return rows
 

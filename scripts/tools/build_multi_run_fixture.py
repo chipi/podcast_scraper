@@ -98,6 +98,9 @@ def _build_metadata(
             "description": f"Synthetic fixture episode {episode_title}.",
             "published_date": _iso(_ts(24 * 60 + publish_offset_days * 24)),
             "guid": episode_guid,
+            # episode_id is the field corpus_catalog reads for dedup; mirror
+            # guid so cumulative-unique counting works against the fixture.
+            "episode_id": episode_guid,
             "link": f"https://example.invalid/episode/{episode_guid}",
             "duration_seconds": duration_seconds,
             "episode_number": episode_idx,
