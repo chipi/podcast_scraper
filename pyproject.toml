@@ -32,7 +32,7 @@ dependencies = [
   # Init is gated on PODCAST_SENTRY_DSN_API / PODCAST_SENTRY_DSN_PIPELINE so
   # default (no DSN) stays a true no-op.  ~3 MB install footprint.
   # See RFC-081 §Layer 2 + issue #681.
-  "sentry-sdk>=2.0.0,<3.0.0",
+  "sentry-sdk>=2.60.0,<3.0.0",
 ]
 
 [project.optional-dependencies]
