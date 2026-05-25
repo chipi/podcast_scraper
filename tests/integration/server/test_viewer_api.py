@@ -23,13 +23,16 @@ pytestmark = [pytest.mark.integration, pytest.mark.critical_path]
 
 
 def test_health_ok(tmp_path: Path) -> None:
-    """Health JSON matches :class:`HealthResponse` defaults (full router wiring)."""
+    """Health JSON includes version contract fields when output_dir is set."""
     app = create_app(tmp_path, static_dir=False)
     client = TestClient(app)
     response = client.get("/api/health")
     assert response.status_code == 200
     body = HealthResponse.model_validate(response.json())
-    assert body == HealthResponse()
+    assert body.status == "ok"
+    assert body.code_version
+    assert body.min_supported_corpus_code_version
+    assert body.corpus_version_warning is not None  # empty corpus — no produced_by
 
 
 def test_list_artifacts_finds_gi_and_kg(tmp_path: Path) -> None:

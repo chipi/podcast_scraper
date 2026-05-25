@@ -1,13 +1,18 @@
 """Corpus path resolution for the viewer API.
 
 Uses ``os.path.normpath`` + ``str.startswith`` — the sanitiser pair that
-CodeQL's ``py/path-injection`` query recognises as safe.
+CodeQL's ``py/path-injection`` query recognises as safe. Manifest reads for
+``/api/health`` use ``read_manifest_produced_by_under_anchor``.
 """
 
 from __future__ import annotations
 
+import json
 import os
 from pathlib import Path
+from typing import Any
+
+from podcast_scraper.corpus_version import CORPUS_MANIFEST_FILE, parse_produced_by_from_manifest_doc
 
 
 class CorpusPathRequestError(Exception):
@@ -99,3 +104,26 @@ def resolved_corpus_root_str(root: Path, anchor: Path | None) -> str:
     if norm_root != anchor_str and not norm_root.startswith(safe_prefix):
         return anchor_str
     return norm_root
+
+
+def read_manifest_produced_by_under_anchor(
+    corpus_dir: Path,
+    anchor: Path,
+) -> dict[str, Any] | None:
+    """Load ``produced_by`` from ``corpus_manifest.json`` under a verified anchor."""
+    anchor_str = os.path.normpath(str(anchor.expanduser().resolve()))
+    corpus_s = os.path.normpath(str(corpus_dir.resolve()))
+    safe_prefix = anchor_str + os.sep
+    if corpus_s != anchor_str and not corpus_s.startswith(safe_prefix):
+        return None
+    manifest_s = os.path.normpath(os.path.join(corpus_s, CORPUS_MANIFEST_FILE))
+    manifest_s = os.path.normpath(manifest_s)
+    if manifest_s != anchor_str and not manifest_s.startswith(safe_prefix):
+        return None
+    if not os.path.isfile(manifest_s):
+        return None
+    try:
+        doc = json.loads(Path(manifest_s).read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return None
+    return parse_produced_by_from_manifest_doc(doc)

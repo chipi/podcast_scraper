@@ -131,11 +131,17 @@ sudo chown -R deploy:docker "$HOST_CORPUS"
 # Confirm deploy history
 gh run list --workflow deploy-prod.yml --repo chipi/podcast_scraper --limit 5
 
-# Manual deploy (latest main image tags)
-gh workflow run deploy-prod.yml --repo chipi/podcast_scraper
+# Manual deploy (latest main image tags; confirm token required since #796)
+gh workflow run deploy-prod.yml --repo chipi/podcast_scraper \
+  -f confirm=PROD_DEPLOY
 
-# Confirm backup freshness
+# Post-deploy smoke over tailnet (same probes as deploy-prod workflow step 3)
+export PROD_TAILNET_FQDN=prod-podcast.<tailnet>.ts.net
+make smoke-prod SMOKE_CORPUS_PATH=/srv/podcast-scraper/corpus
+
+# Confirm backup freshness + weekly restore verify (#798)
 gh run list --workflow backup-corpus-prod.yml --repo chipi/podcast_scraper --limit 5
+gh run list --workflow verify-backup-restore.yml --repo chipi/podcast_scraper --limit 5
 gh release list --repo chipi/podcast_scraper-backup --limit 10 | rg snapshot-prod-
 ```
 

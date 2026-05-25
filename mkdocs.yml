@@ -14,6 +14,7 @@ nav:
       - Development Guide: guides/DEVELOPMENT_GUIDE.md
       - Release Playbook: guides/RELEASE_PLAYBOOK.md
       - Prod Runbook (always-on VPS): guides/PROD_RUNBOOK.md
+      - Prod compat validation (#796/#797): guides/PROD_COMPAT_VALIDATION.md
       - Stack contract (cross-surface audit): guides/STACK_CONTRACT.md
       - Corpus snapshot manifest and restore: guides/CORPUS_SNAPSHOT_MANIFEST_AND_RESTORE.md
       - Prod Operator Cheat Sheet: guides/PROD_OPERATOR_CHEAT_SHEET.md
@@ -72,6 +73,7 @@ nav:
       - Testing Strategy: architecture/TESTING_STRATEGY.md
       - Platform Blueprint: architecture/PLATFORM_ARCHITECTURE_BLUEPRINT.md
       - Hosting and infrastructure: architecture/HOSTING_AND_INFRASTRUCTURE.md
+      - Corpus artifacts and viewer surfaces: architecture/CORPUS_ARTIFACTS_AND_SURFACES.md
       - Viewer Frontend: architecture/VIEWER_FRONTEND_ARCHITECTURE.md
       - Viewer graph (implementation): architecture/VIEWER_GRAPH_SPEC.md
       - Viewer async stability: architecture/VIEWER_ASYNC_STABILITY.md
@@ -349,6 +351,7 @@ nav:
       - KG Ontology (draft): architecture/kg/ontology.md
   - Releases:
       - releases/index.md
+      - Code/content compatibility matrix: COMPATIBILITY.md
       - v2.6.0 - Viewer Corpus Library & Index Operations: releases/RELEASE_v2.6.0.md
       - v2.5.0 - LLM Provider Expansion & Production Hardening: releases/RELEASE_v2.5.0.md
       - v2.4.0 - Provider Ecosystem & Production Readiness: releases/RELEASE_v2.4.0.md

@@ -42,6 +42,7 @@ on:
 permissions:
   actions: read
   contents: read
+  packages: read
 
 concurrency:
   group: drill-deploy
@@ -82,13 +83,34 @@ jobs:
       - name: "DR drill — resolve: deploy image SHA (GHCR tag)"
         id: sha
         if: steps.preflight.outputs.skip != 'true'
+        env:
+          OVERRIDE: ${{ inputs.override_image_sha }}
         run: |
-          SHA_SHORT="${{ inputs.override_image_sha }}"
+          set -euo pipefail
+          SHA_SHORT="${OVERRIDE:-}"
           if [ -z "$SHA_SHORT" ]; then
             SHA_SHORT=$(echo "${{ github.sha }}" | cut -c1-7)
           fi
+          if ! [[ "$SHA_SHORT" =~ ^[a-f0-9]{7,40}$ ]]; then
+            echo "::error::override_image_sha must match ^[a-f0-9]{7,40}$ (got: ${SHA_SHORT})"
+            exit 1
+          fi
           echo "short=$SHA_SHORT" >> "$GITHUB_OUTPUT"
-          echo "::notice::Deploying to drill — image tag sha-$SHA_SHORT"
+          echo "git_ref=$SHA_SHORT" >> "$GITHUB_OUTPUT"
+          echo "::notice::Deploying to drill — image tag sha-$SHA_SHORT (git reset target: $SHA_SHORT)"
+
+      - name: "DR drill — validate: GHCR image manifest exists (pre-SSH)"
+        if: steps.preflight.outputs.skip != 'true'
+        env:
+          SHA_SHORT: ${{ steps.sha.outputs.short }}
+        run: |
+          set -euo pipefail
+          echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
+          for svc in api viewer pipeline-llm; do
+            ref="ghcr.io/chipi/podcast-scraper-stack-${svc}:sha-${SHA_SHORT}"
+            echo "::notice::Checking manifest: ${ref}"
+            docker manifest inspect "$ref" >/dev/null
+          done
 
       - name: "DR drill — join: tailnet (tag:gha-deployer)"
         if: steps.preflight.outputs.skip != 'true'
@@ -193,6 +215,8 @@ jobs:
       - name: "DR drill — deploy: git pull + compose + VPS-local /api/health"
         if: steps.preflight.outputs.skip != 'true'
         env:
+          SHA_SHORT:  ${{ steps.sha.outputs.short }}
+          GIT_REF:    ${{ steps.sha.outputs.git_ref }}
           SSH_TARGET: deploy@${{ steps.ts_host.outputs.resolved_fqdn }}
         run: |
           set -euo pipefail
@@ -201,7 +225,7 @@ jobs:
           for a in $(seq 1 "$mx"); do
             if ssh -i "$SSH_DRILL_IDENTITY" -o IdentitiesOnly=yes \
               -o StrictHostKeyChecking=accept-new -o BatchMode=yes "$SSH_TARGET" \
-              '/srv/podcast-scraper/infra/deploy/deploy.sh'; then
+              "DEPLOY_GIT_SHA='${GIT_REF}' DEPLOY_IMAGE_SHA='${SHA_SHORT}' /srv/podcast-scraper/infra/deploy/deploy.sh"; then
               echo "::notice::deploy.sh succeeded on SSH attempt ${a} of ${mx}"
               exit 0
             fi

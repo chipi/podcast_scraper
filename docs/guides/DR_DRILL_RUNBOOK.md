@@ -94,7 +94,7 @@ long-lived drill VM, override the CIDR list in a **gitignored** tfvars to your `
 | `APPLY` | `drill-infra-apply.yml` (manual only) | OpenTofu apply workspace **`drill`** |
 | `DRILL_DESTROY` | `drill-infra-destroy.yml` (manual only) | **`tofu destroy`** + **Hetzner `hcloud` sweep** + **Tailscale device delete** (`tag:dr-drill` or drill `tailnet_hostname`); standalone uses git state — orchestrator uses apply artifact (same run) |
 | `DRILL_RESTORE` | `drill-restore-corpus.yml` (manual only) | Overwrite drill **`corpus/`** from backup **`snapshot.tgz`** |
-| `DRILL_SMOKE` | `drill-e2e.yml` (manual or orchestrator) | Read-only **`/api/health`** via tailnet SSH (host viewer **`:8080`** adapter) |
+| `DRILL_SMOKE` | `drill-e2e.yml` (manual or orchestrator) | Read-only **`post_deploy_smoke.sh`** over tailnet HTTPS (same probes as prod) |
 | `DRILL_STACK_PLAYWRIGHT` | `drill-stack-playwright.yml` (manual; orchestrator uses `skip_confirm`) | Run **`tests/stack-test/stack-viewer.spec.ts`** against drill HTTPS |
 
 The orchestrator calls **`drill-infra-apply`** and **`drill-infra-destroy`** with internal
@@ -104,6 +104,14 @@ runs still require **`APPLY`** / **`DRILL_DESTROY`** as above.
 ---
 
 ## Orchestrated full cycle (`drill-exercise.yml`)
+
+**Schedule (#799):** Wednesdays **02:00 UTC** (`cron: 0 2 * * 3`). Scheduled runs skip the
+typed **`DRILL_FULL_CYCLE`** gate; manual dispatch still requires it. Failures on scheduled
+runs ping **`SMOKE_WEBHOOK_URL`** when configured. Estimated cost: ~€0.0025 per run (~30 min at
+drill VPS rates).
+
+**Sister cadence:** compose-only backup restore verify runs **Sundays 04:00 UTC**
+(`verify-backup-restore.yml`, #798) — see [PROD_RUNBOOK § Backup status](PROD_RUNBOOK.md#backup-status).
 
 Ordered jobs:
 
@@ -115,10 +123,12 @@ Ordered jobs:
 5. **`drill-restore-corpus`** — resolve **newest compatible** `snapshot-prod-*` via
    **`snapshot.manifest.json`** (or pin **`backup_tag`**); **`download_and_verify_snapshot.sh`**
    on the runner, then **`restore_corpus_from_tarball_host.sh`** on the drill host ([manifest hub](CORPUS_SNAPSHOT_MANIFEST_AND_RESTORE.md)).
-6. **`drill-e2e`** — tailnet SSH adapter smoke: host viewer **`:8080`** **`/api/health`** (read-only).
+6. **`drill-e2e`** — tailnet HTTPS **`post_deploy_smoke.sh`** (Library/Digest/Graph/Search probes;
+   corpus path **`/srv/podcast-scraper/corpus`**).
 7. **`drill-stack-playwright`** — **`tests/stack-test/stack-viewer.spec.ts`** over **HTTPS** against the live drill host (browser + API + corpus).
-8. **`finalize`** — runs **`if: always()`** so the next step still runs when a middle job failed.
+8. **`finalize`** — runs **`if: always()`** so teardown still runs when a middle job failed.
 9. **`drill-infra-destroy`** — downloads **`drill-tfstate-for-teardown`** (or apply artifact as fallback), then **`tofu destroy`**, **Hetzner API sweep**, **Tailscale API** removal of drill devices (always after finalize).
+10. **`assert-post-conditions`** — fails the workflow when any job above is not **`success`**, or when **`delete_drill_hetzner_orphans.sh --check-only`** finds leftover drill resources. Job log maps each #799 post-condition to the green job that proved it (smoke **`EXPECT_POPULATED=1`** covers episode count &gt; 0).
 
 Each job that uses GitHub **Environment `drill`** may require a separate approval if your org
 configured reviewers on that environment.

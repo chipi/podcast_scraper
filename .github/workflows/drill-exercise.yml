@@ -1,6 +1,6 @@
 name: DR drill — exercise (orchestrated)
 
-# Full scratch cycle (RFC-082 / #752):
+# Full scratch cycle (RFC-082 / #752 / #799):
 #   drill-infra-plan (fmt-check, validate, tofu plan)
 #   → drill-infra-apply (uploads encrypted state artifact; no git commit needed
 #     for the rest of this run)
@@ -9,8 +9,12 @@ name: DR drill — exercise (orchestrated)
 #     on this caller run (reusable-workflow artifacts are not always visible to
 #     later ``workflow_call`` jobs). ``drill-infra-destroy`` downloads that (or
 #     apply output as fallback), then ``tofu destroy``, hcloud sweep, Tailscale cleanup.
+#   → ``assert-post-conditions`` fails the run when any step red or Hetzner orphans remain.
 #
-# Typed gate: **DRILL_FULL_CYCLE** (alias **DRILL_EXERCISE**). Each reusable
+# Schedule: Wednesdays 02:00 UTC (``github.event_name == schedule`` skips typed confirm).
+# Sister cadence: compose backup-restore verify Sundays 04:00 UTC (#798).
+#
+# Typed gate (manual only): **DRILL_FULL_CYCLE** (alias **DRILL_EXERCISE**). Each reusable
 # workflow keeps its own ``environment: drill`` rules where configured.
 
 on:
@@ -32,6 +36,8 @@ on:
         description: "Deploy: image :sha-<7> (blank = this workflow run SHA short)"
         required: false
         default: ''
+  schedule:
+    - cron: '0 2 * * 3' # Wednesdays 02:00 UTC (#799)
 
 permissions:
   contents: read
@@ -47,7 +53,12 @@ jobs:
   gate:
     runs-on: ubuntu-latest
     steps:
+      - name: "DR drill — scheduled run (skip typed confirm)"
+        if: github.event_name == 'schedule'
+        run: echo "Scheduled DR drill — DRILL_FULL_CYCLE implied (#799)."
+
       - name: "DR drill — confirm DRILL_FULL_CYCLE"
+        if: github.event_name == 'workflow_dispatch'
         run: |
           C="${{ inputs.confirm }}"
           if [ "$C" != "DRILL_FULL_CYCLE" ] && [ "$C" != "DRILL_EXERCISE" ]; then
@@ -168,3 +179,84 @@ jobs:
     secrets: inherit
     with:
       skip_confirm: true
+
+  assert-post-conditions:
+    needs: [plan, apply, deploy, restore, smoke, stack-playwright, teardown]
+    if: always()
+    runs-on: ubuntu-latest
+    environment: drill
+    steps:
+      - name: "DR drill — assert cycle outcomes (fail on red)"
+        run: |
+          set -euo pipefail
+          fail=0
+          check() {
+            local name="$1"
+            local result="$2"
+            case "$result" in
+              success)
+                echo "$name: success"
+                ;;
+              skipped)
+                echo "::error::$name: skipped (upstream failure or not run)"
+                fail=1
+                ;;
+              failure)
+                echo "::error::$name: failure"
+                fail=1
+                ;;
+              *)
+                echo "::error::$name: $result"
+                fail=1
+                ;;
+            esac
+          }
+          check plan "${{ needs.plan.result }}"
+          check apply "${{ needs.apply.result }}"
+          check deploy "${{ needs.deploy.result }}"
+          check restore "${{ needs.restore.result }}"
+          check smoke "${{ needs.smoke.result }}"
+          check stack-playwright "${{ needs.stack-playwright.result }}"
+          check teardown "${{ needs.teardown.result }}"
+          if [ "$fail" -ne 0 ]; then
+            echo "::error::DR drill post-conditions failed — see job results above."
+            exit 1
+          fi
+          echo "Post-condition evidence map (#799):"
+          echo "  provision: apply=success (tofu apply + state artifact uploaded)"
+          echo "  deploy: deploy=success (deploy.sh + drill-deploy :8080 health adapter)"
+          echo "  restore: restore=success (snapshot-prod-* → /srv/podcast-scraper/corpus)"
+          echo "  corpus readable + episodes>0: smoke=success (post_deploy_smoke EXPECT_POPULATED=1)"
+          echo "  destroy clean: teardown=success + Hetzner orphan check below"
+          echo "All DR drill post-conditions green."
+
+      - name: "DR drill — checkout (orphan check script)"
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 1
+
+      - name: "DR drill — assert no Hetzner orphans after destroy"
+        env:
+          HCLOUD_TOKEN_DRILL: ${{ secrets.HCLOUD_TOKEN_DRILL }}
+        run: |
+          set -euo pipefail
+          bash scripts/ops/delete_drill_hetzner_orphans.sh --check-only
+
+  alert-on-failure:
+    needs: [assert-post-conditions]
+    if: failure() && github.event_name == 'schedule'
+    runs-on: ubuntu-latest
+    steps:
+      - name: "DR drill — webhook alert (scheduled failure)"
+        env:
+          SMOKE_WEBHOOK_URL: ${{ secrets.SMOKE_WEBHOOK_URL }}
+        run: |
+          set -euo pipefail
+          if [ -z "${SMOKE_WEBHOOK_URL:-}" ]; then
+            echo "::notice::SMOKE_WEBHOOK_URL not set; skipping webhook alert."
+            exit 0
+          fi
+          MSG="DR drill (#799): FAILED on scheduled run \`${GITHUB_SHA:0:7}\` — see drill-exercise workflow."
+          curl -fsS -X POST -H "Content-Type: application/json" \
+            -d "{\"text\":\"${MSG}\"}" \
+            "$SMOKE_WEBHOOK_URL" || echo "::warning::webhook ping failed (non-fatal)"

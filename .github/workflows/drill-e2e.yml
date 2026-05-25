@@ -1,17 +1,17 @@
-name: DR drill — smoke (Tailscale + /api/health)
+name: DR drill — smoke (post_deploy_smoke)
 
-# GitHub #752 — read-only smoke against the Hetzner **drill** stack from GHA.
+# GitHub #752 / #799 — read-only smoke against the Hetzner **drill** stack from GHA.
 # Joins the tailnet as tag:gha-deployer, resolves dr-podcast MagicDNS (suffix
-# drift), then curls /api/health over SSH to deploy@ (viewer on host :8080).
-# Does not require `tailscale serve` / MagicDNS HTTPS on the VPS.
+# drift), then runs scripts/ops/post_deploy_smoke.sh over HTTPS (same probes as
+# prod make smoke-prod).
 #
 # Prerequisites:
 #   secrets: TS_AUTHKEY, DRILL_DEPLOY_SSH_PRIVATE_KEY (deploy@ PEM, same as drill-deploy)
 #   vars:    DRILL_TAILNET_FQDN (e.g. dr-podcast.tail-xxxx.ts.net)
 #
-# Tailscale ACL must allow tag:gha-deployer → tag:dr-drill (see
-# tailscale/policy.hujson). Apply **prod** infra (`infra-apply.yml`) so the
-# ACL reaches the tailnet before expecting this workflow to pass.
+# Tailscale ACL must allow tag:gha-deployer → tag:dr-drill:443 for HTTPS in
+# addition to :22 for SSH-heavy jobs. Apply **prod** infra (`infra-apply.yml`) so
+# the ACL reaches the tailnet before expecting this workflow to pass.
 
 on:
   workflow_dispatch:
@@ -68,7 +68,7 @@ jobs:
             exit 1
           fi
 
-      - name: "DR drill — checkout: shallow (resolver scripts + prod-ssh-key action)"
+      - name: "DR drill — checkout: shallow (smoke + resolver scripts)"
         uses: actions/checkout@v6
         with:
           fetch-depth: 1
@@ -100,20 +100,11 @@ jobs:
             echo "::notice::Tailscale live host ($R) differs from vars.DRILL_TAILNET_FQDN ($WANT). Using $R for probes."
           fi
 
-      - name: "DR drill — smoke: /api/health via SSH (viewer on host :8080)"
+      - name: "DR drill — smoke: post_deploy_smoke.sh (HTTPS + corpus path)"
         env:
-          SSH_TARGET: deploy@${{ steps.ts_host.outputs.resolved_fqdn }}
+          DRILL_FQDN: ${{ steps.ts_host.outputs.resolved_fqdn }}
+          SMOKE_CORPUS_PATH: /srv/podcast-scraper/corpus
         run: |
           set -euo pipefail
-          for i in $(seq 1 12); do
-            if ssh -i "$SSH_DRILL_IDENTITY" -o IdentitiesOnly=yes \
-              -o StrictHostKeyChecking=accept-new -o BatchMode=yes "$SSH_TARGET" \
-              'curl -fsS http://127.0.0.1:8080/api/health' \
-              | jq -e '.status == "ok"' >/dev/null 2>&1; then
-              echo "::notice::/api/health OK via tailnet SSH after $((i * 5))s (drill)"
-              exit 0
-            fi
-            sleep 5
-          done
-          echo "::error::/api/health did not return ok within 60s (SSH → host :8080 viewer, drill)"
-          exit 1
+          bash scripts/ops/post_deploy_smoke.sh "$DRILL_FQDN" \
+            --corpus-path "$SMOKE_CORPUS_PATH"

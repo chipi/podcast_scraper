@@ -509,6 +509,7 @@ quality: complexity deadcode docstrings spelling
 	# TODO(PYSEC-2026-161): Drop this ignore once fastapi releases a version that
 	# validates against starlette>=1.0, then bump both atomically.
 
+# PR #815: path-filter touch to re-trigger CI on feat/2.7 HEAD.
 docs:
 	$(PYTHON) -m mkdocs build --strict
 
@@ -564,7 +565,7 @@ validate-kg-schema:
 	fi
 
 # GI/KG viewer v2 (#489): FastAPI + Vite. ``make init`` includes FastAPI via ``[dev]``; cd $(WEB_VIEWER_DIR) && npm install
-.PHONY: serve serve-api serve-ui serve-e2e-mock stack-build stack-build-llm stack-compose-validate stack-up stack-down stack-logs verify-stack-profiles stack-test-build stack-test-build-cloud stack-test-up stack-test-down stack-test-seed stack-test-playwright stack-test-export stack-test-ml stack-test-cloud-thin stack-test-ml-ci deploy-codespace restore-corpus restore-corpus-prod corpus-snapshot-manifest-validate corpus-snapshot-select-tag corpus-snapshot-select-tag-prod corpus-snapshot-selftest corpus-snapshot-integration
+.PHONY: serve serve-api serve-ui serve-e2e-mock stack-build stack-build-llm stack-compose-validate stack-up stack-down stack-logs verify-stack-profiles stack-test-build stack-test-build-cloud stack-test-up stack-test-down stack-test-seed stack-test-playwright stack-test-export stack-test-ml stack-test-cloud-thin stack-test-ml-ci deploy-codespace restore-corpus restore-corpus-prod reprocess-corpus-from-transcripts corpus-compat-check smoke-prod corpus-snapshot-manifest-validate corpus-snapshot-select-tag corpus-snapshot-select-tag-prod corpus-snapshot-selftest corpus-snapshot-integration
 SERVE_OUTPUT_DIR ?= ./output
 # Optional corpus-editing + jobs routes (health shows green when on). Override with SERVE_ARGS= to disable.
 SERVE_ARGS ?= --enable-feeds-api --enable-operator-config-api --enable-jobs-api
@@ -980,6 +981,36 @@ restore-corpus-prod:
 	@WORKSPACE_DIR="$${WORKSPACE_DIR:-/srv/podcast-scraper}"; \
 	export WORKSPACE_DIR PODCAST_BACKUP_REPO PODCAST_BACKUP_TAG TAG_REGEX='^snapshot-prod-[0-9]{8}$$'; \
 	bash scripts/ops/corpus_snapshot/restore_corpus_release.sh --layout prod
+
+# Recompute GI/KG/search from on-disk transcripts without re-transcribing (#796).
+# Requires CORPUS_DIR (corpus parent with feeds.spec.yaml + transcripts/).
+reprocess-corpus-from-transcripts:
+	@test -n "$${CORPUS_DIR:-}" || (echo "CORPUS_DIR required (corpus parent path)"; exit 1); \
+	test -f "$${CORPUS_DIR}/feeds.spec.yaml" || (echo "Missing $${CORPUS_DIR}/feeds.spec.yaml"; exit 1); \
+	OP_CFG="$${CORPUS_DIR}/viewer_operator.yaml"; \
+	test -f "$$OP_CFG" || OP_CFG="config/profiles/cloud_balanced.yaml"; \
+	echo "Reprocessing $${CORPUS_DIR} (skip-existing + no-transcribe-missing)..."; \
+	$(PYTHON) -m podcast_scraper.cli \
+	  --config "$$OP_CFG" \
+	  --feeds-spec "$${CORPUS_DIR}/feeds.spec.yaml" \
+	  --output-dir "$${CORPUS_DIR}" \
+	  --skip-existing \
+	  --no-transcribe-missing; \
+	echo "Optional: rebuild topic clusters when search/ index exists:"; \
+	echo "  $(PYTHON) -m podcast_scraper.cli topic-clusters --output-dir $${CORPUS_DIR}"
+
+# Report corpus/code compatibility for a on-disk corpus parent (#796 / #797).
+corpus-compat-check:
+	@test -n "$${CORPUS_DIR:-}" || (echo "CORPUS_DIR required (corpus parent path)"; exit 1); \
+	$(PYTHON) -c "from pathlib import Path; from podcast_scraper.corpus_version import read_produced_by, assess_corpus_version_compat, MIN_SUPPORTED_CORPUS_CODE_VERSION; from podcast_scraper import __version__; root = Path('$${CORPUS_DIR}').expanduser().resolve(); pb = read_produced_by(root); ver, warn = assess_corpus_version_compat(pb); print(f'server={__version__} min_supported={MIN_SUPPORTED_CORPUS_CODE_VERSION}'); print(f'corpus_code_version={ver!r}'); print(f'produced_by={pb!r}'); import sys; (print(f'WARNING: {warn}') or sys.exit(1)) if warn else print('COMPAT OK')"
+
+# Post-deploy prod smoke over Tailscale HTTPS (#797). Requires PROD_TAILNET_FQDN.
+# Optional: SMOKE_CORPUS_PATH (host path as seen by the API, e.g. /srv/podcast-scraper/corpus).
+smoke-prod:
+	@test -n "$${PROD_TAILNET_FQDN:-}" || (echo "PROD_TAILNET_FQDN required (MagicDNS FQDN)"; exit 1); \
+	args="$$PROD_TAILNET_FQDN"; \
+	if [ -n "$${SMOKE_CORPUS_PATH:-}" ]; then args="$$args --corpus-path $$SMOKE_CORPUS_PATH"; fi; \
+	bash scripts/ops/post_deploy_smoke.sh $$args
 
 # Vitest unit tests for TypeScript utility logic (no browser needed)
 test-ui:
@@ -3250,5 +3281,5 @@ delete-drill-hetzner-orphans:
 		echo "ERROR: HCLOUD_TOKEN_DRILL not set after sourcing $(INFRA_DRILL_ENV_FILE)" >&2; \
 		exit 1; \
 	 fi; \
-	 ./scripts/ops/delete_drill_hetzner_orphans.sh; \
+	 ./scripts/ops/delete_drill_hetzner_orphans.sh $(if $(filter 1 true yes,$(DRY_RUN)),--check-only,); \
 	 echo "MAKE_EXIT=$$?"

@@ -504,10 +504,19 @@ async function addFeedFromInput(): Promise<void> {
 </script>
 
 <template>
-  <footer
-    class="flex h-9 min-w-0 shrink-0 items-center gap-2 border-t border-border bg-canvas px-2 text-xs text-canvas-foreground"
-    data-testid="app-status-bar"
-  >
+  <div class="shrink-0">
+    <div
+      v-if="shell.corpusVersionWarning"
+      role="alert"
+      data-testid="corpus-version-warning-banner"
+      class="border-b border-warning/40 bg-warning/10 px-2 py-1 text-[10px] text-warning"
+    >
+      {{ shell.corpusVersionWarning }}
+    </div>
+    <footer
+      class="flex h-9 min-w-0 shrink-0 items-center gap-2 border-t border-border bg-canvas px-2 text-xs text-canvas-foreground"
+      data-testid="app-status-bar"
+    >
     <label class="sr-only" for="status-bar-corpus-path-input">Corpus path</label>
     <input
       id="status-bar-corpus-path-input"
@@ -594,6 +603,7 @@ async function addFeedFromInput(): Promise<void> {
       </button>
     </div>
   </footer>
+  </div>
 
   <dialog
     ref="sourcesDialogRef"

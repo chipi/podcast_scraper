@@ -4,6 +4,7 @@
 Validates:
   - ``pyproject.toml`` ``[project].version`` matches ``__version__`` in ``__init__.py``
   - ``docs/releases/RELEASE_vX.Y.Z.md`` exists for that version
+  - ``docs/COMPATIBILITY.md`` contains a row for that version (#797)
   - Release notes file and ``docs/releases/index.md`` mention the version
 
 Does **not** run tests or MkDocs; run ``make pre-release`` (Makefile) for the full gate.
@@ -77,6 +78,23 @@ def _check_releases_index(root: Path, version: str) -> None:
         sys.exit(1)
 
 
+def _check_compatibility_matrix(root: Path, version: str) -> None:
+    compat = root / "docs" / "COMPATIBILITY.md"
+    if not compat.is_file():
+        print(
+            "pre_release_check: missing docs/COMPATIBILITY.md — add a row for this release (#797)",
+            file=sys.stderr,
+        )
+        sys.exit(1)
+    body = compat.read_text(encoding="utf-8")
+    if version not in body:
+        print(
+            f"pre_release_check: docs/COMPATIBILITY.md must mention version {version!r}",
+            file=sys.stderr,
+        )
+        sys.exit(1)
+
+
 def run_checks(root: Path | None = None) -> str:
     """Run all checks. Returns the resolved version string.
 
@@ -94,6 +112,7 @@ def run_checks(root: Path | None = None) -> str:
         raise SystemExit(1)
     _check_release_notes(base, pv)
     _check_releases_index(base, pv)
+    _check_compatibility_matrix(base, pv)
     return pv
 
 

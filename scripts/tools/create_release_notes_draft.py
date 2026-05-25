@@ -24,11 +24,33 @@ def get_version_from_pyproject(root: Path) -> str:
     return match.group(1) if match else ""
 
 
+def _check_compatibility_matrix(root: Path, version: str) -> bool:
+    compat = root / "docs" / "COMPATIBILITY.md"
+    if not compat.is_file():
+        print(
+            "create_release_notes_draft: missing docs/COMPATIBILITY.md — "
+            "add a row for this release (#797)",
+            file=sys.stderr,
+        )
+        return False
+    body = compat.read_text(encoding="utf-8")
+    if version not in body:
+        print(
+            f"create_release_notes_draft: docs/COMPATIBILITY.md must mention version {version!r}",
+            file=sys.stderr,
+        )
+        return False
+    return True
+
+
 def main() -> int:
     root = Path(__file__).resolve().parents[2]
     version = get_version_from_pyproject(root)
     if not version:
         print("Could not read version from pyproject.toml", file=sys.stderr)
+        return 1
+
+    if not _check_compatibility_matrix(root, version):
         return 1
 
     releases_dir = root / "docs" / "releases"

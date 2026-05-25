@@ -14,3 +14,7 @@ def test_deploy_sh_uses_compose_exec_for_api_health() -> None:
     assert "exec -T api" in text
     assert "GH-745" in text
     assert "127.0.0.1:8000/api/health" in text
+    assert "DEPLOY_GIT_SHA" in text
+    assert "DEPLOY_IMAGE_SHA" in text
+    assert "7-char prefix" in text
+    assert "PODCAST_IMAGE_TAG" in text

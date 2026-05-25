@@ -63,6 +63,8 @@ export const useShellStore = defineStore('shell', () => {
   })
   const healthStatus = ref<string | null>(null)
   const healthError = ref<string | null>(null)
+  /** From GET /api/health when corpus/code versions may be mismatched (#796). */
+  const corpusVersionWarning = ref<string | null>(null)
   /** True only when /api/health reports corpus_library_api (avoids 404 on /api/corpus/* catalog). */
   const corpusLibraryApiAvailable = ref(false)
   /**
@@ -131,7 +133,12 @@ export const useShellStore = defineStore('shell', () => {
     const seq = healthFetchGate.bump()
     healthError.value = null
     try {
-      const res = await fetchWithTimeout('/api/health')
+      const trimmedPath = corpusPath.value.trim()
+      const healthUrl =
+        trimmedPath.length > 0
+          ? `/api/health?${new URLSearchParams({ path: trimmedPath }).toString()}`
+          : '/api/health'
+      const res = await fetchWithTimeout(healthUrl)
       if (!res.ok) {
         throw new Error(`HTTP ${res.status}`)
       }
@@ -150,6 +157,7 @@ export const useShellStore = defineStore('shell', () => {
         feeds_api?: boolean
         operator_config_api?: boolean
         jobs_api?: boolean
+        corpus_version_warning?: string | null
       }
       if (healthFetchGate.isStale(seq)) {
         return
@@ -178,6 +186,9 @@ export const useShellStore = defineStore('shell', () => {
       feedsApiAvailable.value = body.feeds_api === true
       operatorConfigApiAvailable.value = body.operator_config_api === true
       jobsApiAvailable.value = body.jobs_api === true
+      const warn = body.corpus_version_warning
+      corpusVersionWarning.value =
+        typeof warn === 'string' && warn.trim().length > 0 ? warn.trim() : null
     } catch (e) {
       if (healthFetchGate.isStale(seq)) {
         return
@@ -196,6 +207,7 @@ export const useShellStore = defineStore('shell', () => {
       feedsApiAvailable.value = false
       operatorConfigApiAvailable.value = false
       jobsApiAvailable.value = false
+      corpusVersionWarning.value = null
       healthError.value = e instanceof Error ? e.message : String(e)
     }
   }
@@ -261,6 +273,7 @@ export const useShellStore = defineStore('shell', () => {
     healthStatus,
     healthStatusDisplay,
     healthError,
+    corpusVersionWarning,
     corpusLibraryApiAvailable,
     corpusDigestApiAvailable,
     corpusBinaryApiAvailable,

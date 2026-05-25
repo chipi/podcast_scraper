@@ -9,25 +9,33 @@ name: Deploy to prod VPS
 #
 # Closes #718 (workflow scaffold), #720 (post-deploy /api/health smoke),
 # #721 (PODCAST_RELEASE=sha-<short> wiring for Sentry release grouping),
-# #744 (resolve prod MagicDNS host after Tailscale join; suffix drift).
+# #744 (resolve prod MagicDNS host after Tailscale join; suffix drift),
+# #796 (typed confirm, SHA validation, deploy.sh/git/image alignment).
 #
 # Operator prerequisites (#714):
 #   - secrets: TS_AUTHKEY (see PROD_RUNBOOK.md "Tailscale credentials");
 #              PROD_SSH_PRIVATE_KEY (Ed25519 PEM for deploy@ — see PROD_RUNBOOK
 #              "GitHub Actions SSH to prod")
 #   - vars:    PROD_TAILNET_FQDN (e.g. "prod-podcast.example.ts.net")
+#
+# Operator: type **PROD_DEPLOY** in ``confirm`` exactly.
 
 on:
   workflow_dispatch:
     inputs:
+      confirm:
+        description: 'Type "PROD_DEPLOY" to confirm deploying to production'
+        required: true
+        default: ''
       override_image_sha:
-        description: "Image :sha-<7> tag to deploy (blank = current main HEAD short SHA)"
+        description: "Image :sha-<7> tag to deploy (blank = current workflow SHA short)"
         required: false
         default: ""
 
 permissions:
   actions: read
   contents: read
+  packages: read
 
 concurrency:
   # Serialize prod deploys. A second deploy waits for the first; we don't
@@ -40,7 +48,15 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    environment: prod
     steps:
+      - name: Confirm PROD_DEPLOY
+        run: |
+          if [ "${{ inputs.confirm }}" != "PROD_DEPLOY" ]; then
+            echo "::error::Must type PROD_DEPLOY to confirm. Got: '${{ inputs.confirm }}'"
+            exit 1
+          fi
+
       - name: Pre-flight — required secrets/variables present?
         id: preflight
         env:
@@ -70,13 +86,34 @@ jobs:
       - name: Resolve target image SHA
         id: sha
         if: steps.preflight.outputs.skip != 'true'
+        env:
+          OVERRIDE: ${{ github.event.inputs.override_image_sha }}
         run: |
-          SHA_SHORT="${{ github.event.inputs.override_image_sha }}"
+          set -euo pipefail
+          SHA_SHORT="${OVERRIDE:-}"
           if [ -z "$SHA_SHORT" ]; then
             SHA_SHORT=$(echo "${{ github.event.workflow_run.head_sha || github.sha }}" | cut -c1-7)
           fi
+          if ! [[ "$SHA_SHORT" =~ ^[a-f0-9]{7,40}$ ]]; then
+            echo "::error::override_image_sha must match ^[a-f0-9]{7,40}$ (got: ${SHA_SHORT})"
+            exit 1
+          fi
           echo "short=$SHA_SHORT" >> "$GITHUB_OUTPUT"
-          echo "::notice::Deploying image tag sha-$SHA_SHORT"
+          echo "git_ref=$SHA_SHORT" >> "$GITHUB_OUTPUT"
+          echo "::notice::Deploying image tag sha-$SHA_SHORT (git reset target: $SHA_SHORT)"
+
+      - name: Validate GHCR image manifest exists (pre-SSH)
+        if: steps.preflight.outputs.skip != 'true'
+        env:
+          SHA_SHORT: ${{ steps.sha.outputs.short }}
+        run: |
+          set -euo pipefail
+          echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
+          for svc in api viewer pipeline-llm; do
+            ref="ghcr.io/chipi/podcast-scraper-stack-${svc}:sha-${SHA_SHORT}"
+            echo "::notice::Checking manifest: ${ref}"
+            docker manifest inspect "$ref" >/dev/null
+          done
 
       - name: Join the tailnet
         if: steps.preflight.outputs.skip != 'true'
@@ -125,18 +162,20 @@ jobs:
              echo 'PODCAST_RELEASE=sha-${SHA_SHORT}' >> .env; \
              chmod 600 .env"
 
-      - name: Deploy (git pull + compose pull + compose up + VPS-local /api/health)
+      - name: Deploy (git reset + compose pull + compose up + VPS-local /api/health)
         # deploy.sh on the VPS exits 0 only on healthy stack — failures here
         # surface red within the SSH session. VPS-local probe is
         # container-local (docker compose exec api curl 127.0.0.1:8000), not
         # host loopback :8000 (GH-745).
         if: steps.preflight.outputs.skip != 'true'
         env:
+          SHA_SHORT:  ${{ steps.sha.outputs.short }}
+          GIT_REF:    ${{ steps.sha.outputs.git_ref }}
           SSH_TARGET: deploy@${{ steps.ts_host.outputs.resolved_fqdn }}
         run: |
           ssh -i "$SSH_PROD_IDENTITY" -o IdentitiesOnly=yes \
             -o StrictHostKeyChecking=accept-new -o BatchMode=yes "$SSH_TARGET" \
-            '/srv/podcast-scraper/infra/deploy/deploy.sh'
+            "DEPLOY_GIT_SHA='${GIT_REF}' DEPLOY_IMAGE_SHA='${SHA_SHORT}' /srv/podcast-scraper/infra/deploy/deploy.sh"
 
       - name: External /api/health probe over Tailscale (#720)
         # Belt-and-suspenders: deploy.sh already hit /api/health inside the api
@@ -161,3 +200,25 @@ jobs:
             "deploy@${{ steps.ts_host.outputs.resolved_fqdn }}" \
             'docker logs --tail 50 compose-api-1' 2>&1 || true
           exit 1
+
+      - name: Post-deploy smoke (six API surfaces)
+        if: steps.preflight.outputs.skip != 'true'
+        env:
+          PROBE_FQDN: ${{ steps.ts_host.outputs.resolved_fqdn }}
+          SSH_TARGET: deploy@${{ steps.ts_host.outputs.resolved_fqdn }}
+        run: |
+          set -euo pipefail
+          CORPUS=$(ssh -i "$SSH_PROD_IDENTITY" -o IdentitiesOnly=yes \
+            -o StrictHostKeyChecking=accept-new -o BatchMode=yes "$SSH_TARGET" \
+            "grep '^PODCAST_CORPUS_HOST_PATH=' /srv/podcast-scraper/.env | cut -d= -f2-")
+          if [ -z "${CORPUS:-}" ]; then
+            echo "::error::PODCAST_CORPUS_HOST_PATH missing from host .env"
+            exit 1
+          fi
+          if ! ssh -i "$SSH_PROD_IDENTITY" -o IdentitiesOnly=yes \
+            -o StrictHostKeyChecking=accept-new -o BatchMode=yes "$SSH_TARGET" \
+            "test -d '$CORPUS'"; then
+            echo "::error::PODCAST_CORPUS_HOST_PATH is not a directory on host: $CORPUS"
+            exit 1
+          fi
+          bash scripts/ops/post_deploy_smoke.sh "$PROBE_FQDN" --corpus-path "$CORPUS"

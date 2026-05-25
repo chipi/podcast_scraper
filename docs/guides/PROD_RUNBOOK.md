@@ -340,7 +340,8 @@ sentry_sdk.capture_message(\"prod bootstrap validation ping\", level=\"info\")
 ### Trigger the first deploy
 
 ```bash
-gh workflow run deploy-prod.yml --repo chipi/podcast_scraper
+gh workflow run deploy-prod.yml --repo chipi/podcast_scraper \
+  -f confirm=PROD_DEPLOY
 gh run watch --repo chipi/podcast_scraper
 ```
 
@@ -363,12 +364,64 @@ follow-up PR that flips `deploy-prod.yml` to also auto-trigger on
 
 ### Manual deploy
 
+Typed confirm matches sibling prod mutators (`PROD_RESTORE`, `PROD_FAILOVER_STAND_UP`).
+
+#### Pre-flight (operator laptop)
+
+1. Confirm **Stack test** (or the target SHA) is green on `main`:
+   `gh run list --workflow stack-test.yml --limit 3`
+2. Note the image tag you intend to ship (`sha-<7>` from the green run, or blank = workflow SHA).
+3. Confirm prod secrets/vars are staged (`TS_AUTHKEY`, `PROD_SSH_PRIVATE_KEY`, `PROD_TAILNET_FQDN`).
+4. Optional rollback pin: keep the previous good `sha-<7>` from the last green deploy run.
+
+#### Dispatch
+
 ```bash
 gh workflow run deploy-prod.yml --repo chipi/podcast_scraper \
-  -f override_image_sha=                       # blank = deploy current main
-# or pin to a specific image:
+  -f confirm=PROD_DEPLOY \
+  -f override_image_sha=                       # blank = deploy workflow SHA
+# or pin to a specific image (rollback / hotfix):
 gh workflow run deploy-prod.yml --repo chipi/podcast_scraper \
+  -f confirm=PROD_DEPLOY \
   -f override_image_sha=abc1234
+```
+
+The workflow validates `override_image_sha` shape (`^[a-f0-9]{7,40}$`) and checks that
+`:sha-<short>` manifests exist on GHCR **before** SSH. `deploy.sh` resets git to the same
+ref and sets `PODCAST_IMAGE_TAG=sha-<short>` so compose files and images stay aligned.
+
+#### Post-deploy smoke (automated + operator)
+
+The workflow runs:
+
+1. VPS-local `/api/health` inside the api container (`deploy.sh`)
+2. External `/api/health` over Tailscale MagicDNS
+3. Six-surface probe via `scripts/ops/post_deploy_smoke.sh` (health, Library episodes,
+   Digest, Graph artifacts, topic-clusters, Search)
+
+Operator spot-check in the viewer (over Tailscale): open **Library**, **Digest**, **Graph**, and run one **Search** query against the prod corpus path.
+
+Watch for `corpus_version_warning` in `/api/health` or the viewer status bar when the on-disk corpus predates the server's minimum supported code version — reprocess per [Reprocess a corpus without re-transcribing audio](#reprocess-a-corpus-without-re-transcribing-audio) or `make reprocess-corpus-from-transcripts`.
+
+**Local smoke (tailnet required):**
+
+```bash
+export PROD_TAILNET_FQDN=prod-podcast.<tailnet>.ts.net
+make smoke-prod SMOKE_CORPUS_PATH=/srv/podcast-scraper/corpus
+```
+
+See [Code/content compatibility](#codecontent-compatibility) for the full decision tree.
+
+#### Rollback (same workflow, pinned SHA)
+
+Re-dispatch with `override_image_sha=<previous-good-short-sha>`. See [Rollback](#rollback) for failure-mode detail.
+
+#### Legacy cleanup
+
+Commit `7c20b74` removed nginx HTTP Basic Auth from the VPS overlay. If `/etc/nginx/.htpasswd` (or a bind-mounted copy) still exists on an older host, it is inert — safe to delete:
+
+```bash
+ssh deploy@prod-podcast.<tailnet>.ts.net 'sudo rm -f /etc/nginx/.htpasswd'
 ```
 
 ### Pipeline run via the viewer
@@ -381,10 +434,17 @@ control plane as pre-prod. Profile dropdown is restricted to
 
 ```bash
 gh run list --workflow backup-corpus-prod.yml --repo chipi/podcast_scraper --limit 5
+gh run list --workflow verify-backup-restore.yml --repo chipi/podcast_scraper --limit 5
 gh release list --repo chipi/podcast_scraper-backup --limit 10 | grep snapshot-prod-
 ```
 
-To download the latest matching **`snapshot-prod-*`** asset, print tarball
+**Weekly compose restore verify (#798):** `verify-backup-restore.yml` runs **Sundays 04:00 UTC**
+(plus `workflow_dispatch`). It downloads the newest compatible **`snapshot-prod-*`**, restores
+into ephemeral Docker Compose on a GHA runner, runs **`post_deploy_smoke.sh`**, then tears down.
+Failures go red + optional **`SMOKE_WEBHOOK_URL`** alert. Sister cadence: real-Hetzner DR drill
+**Wednesdays 02:00 UTC** — see [DR drill runbook](DR_DRILL_RUNBOOK.md).
+
+To download the latest matching **`snapshot-prod-*`** asset locally, print tarball
 stats, and unpack under **`.tmp_backup_verify/`** (gitignored):
 
 ```bash
@@ -484,7 +544,150 @@ hotfix path.
 
 ---
 
+## Code/content compatibility {#codecontent-compatibility}
+
+Operator framework for **code** (GHCR image / git tag on the VPS) vs **content** (corpus on disk from a prior pipeline run). Sibling automation lives in [GitHub #796](https://github.com/chipi/podcast_scraper/issues/796) (`produced_by`, `/api/health` preflight, CI matrix). This section is the manual decision tree; [GitHub #797](https://github.com/chipi/podcast_scraper/issues/797) tracks the docs + smoke script.
+
+### Why this section exists
+
+Prod deploy updates **code** every time you dispatch `deploy-prod.yml`. The **corpus** on `/srv/podcast-scraper/corpus` (or `PODCAST_CORPUS_HOST_PATH`) only changes when a pipeline run or restore rewrites it. Those clocks drift. A green `/api/health` only proves the API process is up — not that every viewer tab can read the artifacts it expects. Use this section before each deploy and after each smoke run.
+
+### The risk class — four kinds of mismatch
+
+| Kind | Example |
+| --- | --- |
+| **New required field** | Code reads `artifact.foo`; old GI/KG file lacks `foo` → `KeyError` or empty rail |
+| **New artifact type** | Code reads `search/topic_clusters.json`; file never built → 404 / empty Intelligence panel |
+| **Removed/renamed artifact** | Code still loads `*.bridge.json` but pipeline stopped writing bridges |
+| **Format restructure** | `nodes: [...]` became `{nodes: {...}}`; parser returns 500 |
+
+### What we defend with today
+
+| Defense | Where |
+| --- | --- |
+| Per-artifact `schema_version` | GIL **2.0**, KG **1.2**, `corpus_manifest` **1.1.0**, `topic_clusters.json` **2** — bump this table when code changes |
+| Read-time migrations | `src/podcast_scraper/migrations/gil_kg_identity_migrations.py` |
+| Corpus-level stamp + health preflight | `corpus_manifest.produced_by` + `corpus_version_warning` in `/api/health` ([#796](https://github.com/chipi/podcast_scraper/issues/796)) |
+| Post-deploy smoke | `scripts/ops/post_deploy_smoke.sh` wired in `deploy-prod.yml`; local: `make smoke-prod` |
+| Dependency map | [`docs/architecture/CORPUS_ARTIFACTS_AND_SURFACES.md`](../architecture/CORPUS_ARTIFACTS_AND_SURFACES.md) |
+| Release matrix | [`docs/COMPATIBILITY.md`](../COMPATIBILITY.md) |
+
+### Decision tree before any deploy
+
+| Question | Yes → | No → |
+| --- | --- | --- |
+| Are new viewer surfaces / endpoints reading artifacts the old pipeline did not produce? | **High risk** — verify files exist on disk or routes return empty cleanly | Likely low risk |
+| Did the `schema_version` of any artifact bump? | Check migration helper + smoke that surface | Low risk |
+| Is the corpus's last pipeline run date far from the deployed code? | **Compound risk** — prefer reprocess or restore | Close dates → lower risk |
+| Recent backup snapshot exists? | Rollback path exists ([Corpus snapshot manifest and restore](CORPUS_SNAPSHOT_MANIFEST_AND_RESTORE.md)) | **Do not deploy** — fix backups first |
+| Does post-deploy smoke hit every surface that reads corpus data? | Real coverage (`make smoke-prod` or GHA step) | `/api/health` alone is **not** sufficient |
+
+### Forward compatibility (rollback is asymmetric)
+
+Rolling **code back** to an older image does not undo corpus mutations from the newer code (new files, bumped `schema_version`, optional fields now required by old readers). Treat **code rollback** and **corpus restore** as separate levers:
+
+- **Code rollback:** re-dispatch `deploy-prod.yml` with `override_image_sha=<prior-sha>` (see [Rollback](#rollback)).
+- **Corpus rollback:** `prod-restore-corpus.yml` or `make restore-corpus-prod` from a snapshot **before** the bad deploy.
+
+**Mitigation when shipping:** deprecated fields stay readable for at least one release; release notes state the oldest code tag still safe to roll back to ([COMPATIBILITY.md](../COMPATIBILITY.md)).
+
+### Worked example — v2.6.0 first prod deploy (2026-05-23)
+
+| Check | Outcome |
+| --- | --- |
+| New surfaces vs old artifacts | Viewer tabs read GI/KG/bridge/search artifacts the v2.5-era pipeline already wrote |
+| Schema bumps in the 18-day window | None required for deploy |
+| Corpus vs code age | Snapshot from previous day; corpus actively ingested |
+| Backup | `snapshot-prod-*` release available |
+| Smoke | `/api/health` + Library/Digest/Graph/Search routes returned structured 200s |
+
+Result: **v2.6.0 / sha-4edfee5** deployed successfully. Follow-up hardening: [#796](https://github.com/chipi/podcast_scraper/issues/796), [#797](https://github.com/chipi/podcast_scraper/issues/797).
+
+### Pointers
+
+- Framework + smoke tooling: [#797](https://github.com/chipi/podcast_scraper/issues/797)
+- Automated contract: [#796](https://github.com/chipi/podcast_scraper/issues/796)
+- Artifact ↔ surface map: [CORPUS_ARTIFACTS_AND_SURFACES.md](../architecture/CORPUS_ARTIFACTS_AND_SURFACES.md)
+- Compatibility matrix: [COMPATIBILITY.md](../COMPATIBILITY.md)
+- Corpus restore: [Corpus snapshot manifest and restore](CORPUS_SNAPSHOT_MANIFEST_AND_RESTORE.md)
+- Reprocess without re-transcription: [Reprocess a corpus without re-transcribing audio](#reprocess-a-corpus-without-re-transcribing-audio)
+
+### Inspecting compatibility locally
+
+Before dispatching deploy, or when the viewer shows a yellow **corpus version** banner, check the on-disk corpus against the running server:
+
+```bash
+# On the VPS (server default output_dir is the corpus mount)
+curl -fsS https://prod-podcast.tail-xxxxx.ts.net/api/health | jq \
+  '.code_version, .min_supported_corpus_code_version, .corpus_code_version, .corpus_version_warning'
+
+# Viewer-entered path (same query the status bar uses when a corpus path is set)
+curl -fsS --get 'https://prod-podcast.tail-xxxxx.ts.net/api/health' \
+  --data-urlencode 'path=/srv/podcast-scraper/corpus' | jq \
+  '.corpus_produced_by, .corpus_version_warning'
+```
+
+Off-host, against a corpus directory you can read:
+
+```bash
+make corpus-compat-check CORPUS_DIR=/path/to/corpus
+```
+
+Exit code **0** when `produced_by.code_version` meets `min_supported_corpus_code_version`; **1** when a warning would appear in `/api/health`.
+
+### Single-feed vs multi-feed `produced_by`
+
+`corpus_manifest.produced_by` is written only on **multi-feed finalize** (`write_corpus_manifest` after a batch with two or more feeds). Single-feed pipeline runs may leave a manifest with `tool_version` but no `produced_by` object. `/api/health` then emits `corpus_version_warning` and the viewer shows the status-bar banner until you:
+
+1. Run a multi-feed batch that rewrites the manifest, or
+2. Use `make reprocess-corpus-from-transcripts CORPUS_DIR=…` (see below).
+
+Legacy corpora without any manifest still warn; readers fall back to per-artifact `schema_version` and migration helpers.
+
+### Post-deploy smoke inventory
+
+`scripts/ops/post_deploy_smoke.sh` (GHA step in `deploy-prod.yml`, local `make smoke-prod`) probes **six** surfaces when `--corpus-path` is set:
+
+| # | Route | Viewer surface |
+| --- | --- | --- |
+| 1 | `GET /api/health` | Status bar / subsystem flags |
+| 2 | `GET /api/corpus/episodes` | Library |
+| 3 | `GET /api/corpus/digest` | Digest |
+| 4 | `GET /api/artifacts` | Graph (GI/KG/bridge files) |
+| 5 | `GET /api/corpus/topic-clusters` | Graph topic overlay |
+| 6 | `GET /api/search` | Search |
+
+Health-only mode (no `--corpus-path`) is intentional for stacks without a mounted corpus. Prod deploy passes `SMOKE_CORPUS_PATH` from repo vars when configured.
+
+### Viewer warning banner
+
+When `corpus_version_warning` is non-null, the viewer renders **`data-testid="corpus-version-warning-banner"`** above the status bar. The message is informational — routes may still return 200 with empty panels. Treat it as **compound risk**: deploy succeeded but content may be stale relative to code. Prefer reprocess or restore before relying on Digest / Graph / Search for operator decisions.
+
+### When to reprocess vs restore vs roll back code
+
+| Situation | Action |
+| --- | --- |
+| Code deployed; corpus age OK but missing new artifact types | `make reprocess-corpus-from-transcripts CORPUS_DIR=…` then re-run smoke |
+| Corpus mutated by newer code; rolling code back | Restore snapshot **before** the bad deploy (`prod-restore-corpus.yml`), **then** code rollback with pinned `override_image_sha` |
+| `corpus_version_warning` only (semver below minimum) | Reprocess first; restore only if reprocess fails or disk is corrupt |
+| Smoke fails on `/api/artifacts` or topic-clusters | Check pipeline last run + index build; do not treat green health as sufficient |
+
+### Release checklist tie-in
+
+`scripts/pre_release_check.py` and `scripts/tools/create_release_notes_draft.py` both require a row for the shipping version in [`docs/COMPATIBILITY.md`](../COMPATIBILITY.md). CI job **`test-corpus-version-compat`** runs current server code against the N-1 fixture corpus (`tests/integration/server/test_corpus_version_compat.py`).
+
+**Validation checklist:** step-by-step local + CI + drill/prod tiers — [Prod compat validation guide](PROD_COMPAT_VALIDATION.md).
+
+---
+
 ## Disaster recovery
+
+**Weekly automated drills (#799):** `drill-exercise.yml` runs **Wednesdays 02:00 UTC** (full
+provision → deploy → restore → smoke → destroy). Check **`gh run list --workflow drill-exercise.yml`**
+for the latest green run. Interpret failures via [DR drill runbook](DR_DRILL_RUNBOOK.md).
+
+**Weekly backup restore proof (#798):** `verify-backup-restore.yml` runs **Sundays 04:00 UTC** on
+a GHA runner (no Hetzner cost). See [Backup status](#backup-status).
 
 If the Hetzner instance is irrecoverable (account issue, hardware failure,
 accidental `tofu destroy`):
@@ -985,7 +1188,7 @@ To wire viewer Sentry (one-time):
    chipi/podcast_scraper --app actions --body 'https://...'`.
 4. Wait for the next push to `main` — `stack-test.yml`'s viewer
    publish step bakes the DSN into the new image.
-5. Pull + restart on prod: `gh workflow run deploy-prod.yml`.
+5. Pull + restart on prod: `gh workflow run deploy-prod.yml --repo chipi/podcast_scraper -f confirm=PROD_DEPLOY`.
 
 DSNs are write-only public tokens designed to ship with frontend code
 — baking into the public GHCR image is the standard pattern.
@@ -1278,6 +1481,14 @@ recompute derived outputs from existing transcript files.
 
 For a copy/paste operator sequence (including backup and cleanup commands),
 see [Prod operator cheat sheet — Reprocess from existing transcripts (no re-transcription)](PROD_OPERATOR_CHEAT_SHEET.md#reprocess-from-existing-transcripts-no-re-transcription).
+
+**Makefile shortcut (host checkout with venv):**
+
+```bash
+make reprocess-corpus-from-transcripts CORPUS_DIR=/srv/podcast-scraper/corpus
+```
+
+Requires `CORPUS_DIR` pointing at the corpus parent (contains `feeds.spec.yaml` and `transcripts/`).
 
 ### "Pipeline fails with `PODCAST_CORPUS_HOST_PATH is missing a value`"
 

@@ -10,6 +10,7 @@ from pathlib import Path
 from typing import Any, Dict, List, Literal, Optional, TYPE_CHECKING
 
 from podcast_scraper import __version__
+from podcast_scraper.corpus_version import build_produced_by
 from podcast_scraper.utils import filesystem
 from podcast_scraper.utils.audio_payload_limits import is_provider_audio_payload_limit_error
 
@@ -217,11 +218,13 @@ def write_corpus_manifest(
     from podcast_scraper.workflow.corpus_cost_aggregation import aggregate_corpus_costs
 
     cost_rollup = aggregate_corpus_costs(parent)
+    updated_at = _utc_iso()
     doc = {
         "schema_version": CORPUS_MANIFEST_SCHEMA_VERSION,
         "tool_version": __version__,
+        "produced_by": build_produced_by(produced_at=updated_at),
         "corpus_parent": str(parent),
-        "updated_at": _utc_iso(),
+        "updated_at": updated_at,
         "feeds": feeds_out,
         "cost_rollup": cost_rollup,
     }

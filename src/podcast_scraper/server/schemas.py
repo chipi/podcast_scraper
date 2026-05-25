@@ -34,10 +34,38 @@ class ArtifactListResponse(BaseModel):
     )
 
 
+class CorpusProducedBy(BaseModel):
+    """Corpus stamp from ``corpus_manifest.json`` ``produced_by`` (GitHub #796)."""
+
+    code_version: str = Field(description="Semver of podcast_scraper that produced the corpus.")
+    git_sha: str = Field(description="Short git commit SHA from the producing pipeline run.")
+    produced_at: str = Field(description="UTC ISO-8601 timestamp when the stamp was written.")
+
+
 class HealthResponse(BaseModel):
     """Response for GET /api/health."""
 
     status: Literal["ok"] = "ok"
+    code_version: str = Field(
+        default="",
+        description="Running server package version (``podcast_scraper.__version__``).",
+    )
+    min_supported_corpus_code_version: str = Field(
+        default="",
+        description="Minimum ``produced_by.code_version`` the server supports without warning.",
+    )
+    corpus_produced_by: CorpusProducedBy | None = Field(
+        default=None,
+        description="Stamp from default corpus manifest when ``output_dir`` is configured.",
+    )
+    corpus_code_version: str | None = Field(
+        default=None,
+        description="Effective corpus semver (from ``produced_by`` or legacy ``tool_version``).",
+    )
+    corpus_version_warning: str | None = Field(
+        default=None,
+        description="Non-fatal mismatch between on-disk corpus and server expectations.",
+    )
     artifacts_api: bool = Field(
         default=True,
         description="True when GET /api/artifacts (GI/KG list + load for graph) is mounted.",

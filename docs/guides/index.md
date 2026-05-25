@@ -41,6 +41,7 @@ Practical guides for using and developing Podcast Scraper.
 | [Hosting and infrastructure](../architecture/HOSTING_AND_INFRASTRUCTURE.md) | Narrative: Tailscale, OpenTofu, GitHub Actions, Compose on the VPS, how CI and prod align; ADR spine (079–085, 082, 093) |
 | [Stack contract](STACK_CONTRACT.md) | Cross-surface audit table, steady vs recovery playbooks ([ADR-093](../adr/ADR-093-canonical-stack-contract-and-environment-adapters.md)) |
 | [Prod runbook](PROD_RUNBOOK.md) | Always-on Hetzner VPS: bootstrap, deploy, backups, observability, DR |
+| [Prod compat validation](PROD_COMPAT_VALIDATION.md) | Tiered test plan for #796/#797: health `path=`, smoke probes, CI N-1 job, drill/prod gates |
 | [Prod operator cheat sheet](PROD_OPERATOR_CHEAT_SHEET.md) | Short daily ops: `gh` deploy/backup, health curls, incident triage |
 | [DR drill runbook](DR_DRILL_RUNBOOK.md) | Drill-only GitHub workflows, typed confirms, orchestrator vs piecemeal paths |
 | [Corpus snapshot manifest and restore](CORPUS_SNAPSHOT_MANIFEST_AND_RESTORE.md) | **Single hub:** local **`make`** vs GitHub Actions (prod, pre-prod, DR) for `snapshot.manifest.json` — [RFC-084](../rfc/RFC-084-corpus-backup-manifest-and-version-aware-restore.md) / [ADR-092](../adr/ADR-092-corpus-snapshot-backup-manifest-and-newest-compatible-restore.md) |
