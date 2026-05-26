@@ -78,6 +78,14 @@ permissions:
   pages: write
   id-token: write
 
+# Cancel an in-progress run for the same (workflow, ref) when a newer push
+# arrives. Different branches + PRs stay independent. CI-only — release /
+# deploy / backup workflows must keep ``cancel-in-progress: false`` (which
+# they already have explicitly).
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   # Detect what changed so heavy CI segments can skip when irrelevant.
   # - ``docs-only``  → only docs/markdown changed; everything heavy skips

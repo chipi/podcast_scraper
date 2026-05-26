@@ -21,6 +21,13 @@ on:
 permissions:
   contents: read
 
+# Newer push to same (workflow, ref) cancels the in-progress run — Docker
+# build is expensive (ML variant ~17 min) and the old run's image is
+# obsolete the moment the new commit lands.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   # Fast Docker build for PRs (LLM-only variant, sub-3 min target)
   # Builds LLM-only variant for fast feedback on PRs

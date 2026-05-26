@@ -24,6 +24,13 @@ permissions:
   contents: read
   security-events: write
 
+# Cancel in-progress scan when a newer push to the same ref arrives.
+# Snyk runs are 3-18 min; old run's findings are superseded the moment a
+# new commit lands.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   # Scan Python dependencies
   snyk-dependencies:
