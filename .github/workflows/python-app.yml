@@ -222,6 +222,16 @@ jobs:
         pip show black | grep Version
     - name: Install markdownlint
       run: npm install -g markdownlint-cli
+    - name: Install actionlint
+      run: |
+        # Pinned latest stable from rhysd/actionlint releases. Validates
+        # .github/workflows/*.yml against the GHA schema + runs shellcheck
+        # on inline ``run:`` blocks. Catches workflow regressions before
+        # they hit prod (e.g. typo in branch list, missing input, bad
+        # if-expression). Local equivalent: ``brew install actionlint``.
+        bash <(curl -fsSL https://raw.githubusercontent.com/rhysd/actionlint/main/scripts/download-actionlint.bash)
+        sudo mv actionlint /usr/local/bin/
+        actionlint -version
     - name: Run fast lint checks
       run: |
         export PYTHONPATH="${PYTHONPATH}:$(pwd)"
@@ -229,6 +239,12 @@ jobs:
         make lint
         make lint-markdown
         make type
+    - name: Lint GitHub Actions workflows
+      # Validates every workflow in .github/workflows/ — fails fast on
+      # schema violations, undefined refs, unsafe ${{ }} interpolation,
+      # shellcheck issues in inline run: blocks.
+      run: |
+        actionlint .github/workflows/*.yml
 
   # Security and quality checks - gated by lint/build, runs independently to coverage-unified (does not gate tests)
   security-quality:
