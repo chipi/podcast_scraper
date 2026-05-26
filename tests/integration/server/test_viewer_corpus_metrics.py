@@ -20,12 +20,16 @@ def _episode_doc(
     *,
     feed_id: str = "myfeed",
     episode_title: str = "Hello",
+    episode_id: str = "ep1",
     published: str = "2024-03-10T00:00:00",
 ) -> dict:
+    # episode_id parameterized (v2.6.1 #821): /api/corpus/stats now dedupes
+    # by (feed_id, episode_id) — tests with multiple distinct episodes must
+    # supply distinct ids, not rely on the default.
     return {
         "feed": {"feed_id": feed_id, "title": "My Show"},
         "episode": {
-            "episode_id": "ep1",
+            "episode_id": episode_id,
             "title": episode_title,
             "published_date": published,
         },
@@ -37,16 +41,23 @@ def test_corpus_stats_publish_month_histogram(tmp_path: Path) -> None:
     meta = tmp_path / "metadata"
     meta.mkdir()
     (meta / "a.metadata.json").write_text(
-        json.dumps(_episode_doc(published="2024-01-05T00:00:00")),
+        json.dumps(_episode_doc(episode_id="ep_a", published="2024-01-05T00:00:00")),
         encoding="utf-8",
     )
     (meta / "b.metadata.json").write_text(
-        json.dumps(_episode_doc(episode_title="B", published="2024-01-20T00:00:00")),
+        json.dumps(
+            _episode_doc(
+                episode_id="ep_b",
+                episode_title="B",
+                published="2024-01-20T00:00:00",
+            ),
+        ),
         encoding="utf-8",
     )
     (meta / "c.metadata.json").write_text(
         json.dumps(
             _episode_doc(
+                episode_id="ep_c",
                 episode_title="C",
                 published="2024-02-01T00:00:00",
                 feed_id="otherfeed",
