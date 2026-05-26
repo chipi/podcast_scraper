@@ -480,6 +480,28 @@ else
     echo ""
 fi
 
+# Lint staged GitHub Actions workflows with actionlint when present locally.
+# Same binary CI runs (rhysd/actionlint) — fails fast on schema errors,
+# undefined refs, unsafe ${{ }} interpolation, shellcheck issues in
+# inline run: blocks. Install locally: ``brew install actionlint``.
+STAGED_WORKFLOWS=""
+for yaml_file in $STAGED_YAML; do
+    case "$yaml_file" in
+        .github/workflows/*.yml|.github/workflows/*.yaml)
+            STAGED_WORKFLOWS="${STAGED_WORKFLOWS}${STAGED_WORKFLOWS:+ }$yaml_file"
+            ;;
+    esac
+done
+if [ -n "$STAGED_WORKFLOWS" ]; then
+    if command_exists actionlint; then
+        # shellcheck disable=SC2086
+        run_check "actionlint (GitHub Actions workflows)" "actionlint $STAGED_WORKFLOWS"
+    else
+        echo -e "${YELLOW}⚠${NC} actionlint not installed locally — staged workflow files skipped (CI will catch errors). Install: brew install actionlint"
+        echo ""
+    fi
+fi
+
 # Kill the watchdog before exiting normally
 kill $_WATCHDOG_PID 2>/dev/null || true
 
