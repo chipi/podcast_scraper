@@ -520,6 +520,16 @@ class CorpusEpisodesResponse(BaseModel):
     )
     items: list[CorpusEpisodeListItem] = Field(default_factory=list)
     next_cursor: str | None = None
+    total: int = Field(
+        default=0,
+        ge=0,
+        description=(
+            "Total cumulative-unique episode count across all runs that match the "
+            "request's filters (feed_id, q, topic_q, since, until, has_gi, "
+            "topic_cluster_only). Independent of pagination ``limit``/``cursor`` — "
+            "callers can render 'X of Y' counts (v2.6.1 #818/#819)."
+        ),
+    )
 
 
 class CorpusEpisodeDetailResponse(BaseModel):

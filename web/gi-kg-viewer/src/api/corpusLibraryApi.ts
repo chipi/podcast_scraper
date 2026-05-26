@@ -63,6 +63,12 @@ export type CorpusEpisodesResponse = {
   feed_id: string | null
   items: CorpusEpisodeListItem[]
   next_cursor: string | null
+  /**
+   * Cumulative-unique total episode count matching the current filter set
+   * (independent of pagination). Added in v2.6.1 hotfix (#818). Pre-v2.6.1
+   * servers omit the field; default to 0 so callers can render gracefully.
+   */
+  total?: number
 }
 
 /**
