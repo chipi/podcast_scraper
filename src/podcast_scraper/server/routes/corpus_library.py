@@ -22,6 +22,7 @@ from podcast_scraper.server.cil_queries import (
 from podcast_scraper.server.corpus_catalog import (
     aggregate_feeds,
     build_catalog_rows,
+    build_catalog_rows_cumulative,
     catalog_row_for_metadata_path,
     CatalogEpisodeRow,
     decode_catalog_cursor,
@@ -210,10 +211,17 @@ async def corpus_feeds(
         description="Corpus root (contains metadata/). Omit to use server default output_dir.",
     ),
 ) -> CorpusFeedsResponse:
-    """List feeds and per-feed episode counts for the corpus library API."""
+    """List feeds and per-feed episode counts for the corpus library API.
+
+    v2.6.1 #820: per-feed ``episode_count`` is cumulative-unique across all
+    runs (was last-run-only). Dashboard "Total Episodes per Feed" widget
+    consumes this; operator's expectation is "how many unique episodes does
+    this feed have in the corpus", not "how many were processed in the
+    most recent run."
+    """
     anchor = getattr(request.app.state, "output_dir", None)
     root = _resolve_corpus_root(path, anchor)
-    rows = build_catalog_rows(root)
+    rows = build_catalog_rows_cumulative(root)
     feeds_raw = aggregate_feeds(rows)
     feeds = [
         CorpusFeedItem(
@@ -252,13 +260,19 @@ async def corpus_episodes(
         "topic-cluster member that lists this episode's id in episode_ids "
         "(requires bridge.json + search/topic_clusters.json from topic clustering).",
     ),
-    limit: int = Query(default=50, ge=1, le=200),
+    limit: int = Query(default=50, ge=1, le=1000),
     cursor: str | None = Query(default=None, description="Pagination cursor from previous page."),
 ) -> CorpusEpisodesResponse:
-    """Paginated episode list with optional feed, title, topic, and date filters."""
+    """Paginated episode list with optional feed, title, topic, and date filters.
+
+    v2.6.1 #818: uses ``build_catalog_rows_cumulative`` so the response
+    reflects every unique episode in the corpus across all runs (not just
+    the latest run per feed). ``limit`` raised from 200 → 1000 so callers
+    can fetch the full operator-facing set in one request when desired.
+    """
     anchor = getattr(request.app.state, "output_dir", None)
     root = _resolve_corpus_root(path, anchor)
-    rows = build_catalog_rows(root)
+    rows = build_catalog_rows_cumulative(root)
     titles_by_feed = feed_display_title_by_feed_id(rows)
     rss_by_feed = feed_rss_url_by_feed_id(rows)
     desc_by_feed = feed_description_by_feed_id(rows)
@@ -314,6 +328,7 @@ async def corpus_episodes(
         feed_id=feed_echo,
         items=items,
         next_cursor=next_cur,
+        total=len(filtered),
     )
 
 

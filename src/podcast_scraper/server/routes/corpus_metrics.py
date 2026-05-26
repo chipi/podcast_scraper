@@ -13,7 +13,7 @@ from fastapi import APIRouter, HTTPException, Query, Request
 from fastapi.responses import JSONResponse
 
 from podcast_scraper.search.corpus_scope import normalize_feed_id
-from podcast_scraper.server.corpus_catalog import build_catalog_rows
+from podcast_scraper.server.corpus_catalog import build_catalog_rows_cumulative
 from podcast_scraper.server.corpus_digest import load_digest_topics
 from podcast_scraper.server.pathutil import resolved_corpus_root_str
 from podcast_scraper.server.routes.corpus_library import _resolve_corpus_root
@@ -133,10 +133,15 @@ async def corpus_stats(
         description="Corpus root. Omit to use server default output_dir.",
     ),
 ) -> CorpusStatsResponse:
-    """Publish-month histogram from catalog scan (one pass)."""
+    """Publish-month histogram from catalog scan (one pass).
+
+    v2.6.1 #821: ``catalog_episode_count`` is the cumulative-unique total
+    across all runs (was last-run sum). Same change for the histogram —
+    it now reflects every unique episode in the corpus.
+    """
     anchor = getattr(request.app.state, "output_dir", None)
     root = _resolve_corpus_root(path, anchor)
-    rows = build_catalog_rows(root)
+    rows = build_catalog_rows_cumulative(root)
     hist: dict[str, int] = {}
     feed_ids: set[str] = set()
     for r in rows:

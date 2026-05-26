@@ -174,3 +174,56 @@ def discover_metadata_files(output_root: Path) -> List[Path]:
     corpus_path = Path(root_normed)
     deduped = filter_metadata_paths_to_latest_feed_run(corpus_path, list(set(found)))
     return sorted(deduped)
+
+
+def discover_all_metadata_files(output_root: Path) -> List[Path]:
+    """Like :func:`discover_metadata_files` but WITHOUT the last-run-only filter.
+
+    Returns every ``*.metadata.json`` under ``feeds/<feedDir>/run_*/metadata/``
+    (and the flat top-level ``metadata/``) for every run. Used by the corpus
+    library + stats routes which need cumulative-unique counts across all
+    runs (v2.6.1 hotfix: #818 / #820 / #821).
+
+    Indexing, digest, and topic-clusters still call :func:`discover_metadata_files`
+    so they continue seeing one-run-per-feed (load-bearing for index rebuild
+    performance).
+    """
+    corpus_root = safe_resolve_directory(output_root)
+    if corpus_root is None:
+        return []
+
+    root_normed = os.path.normpath(str(corpus_root))
+    if not root_normed.startswith(os.sep):
+        return []
+
+    safe_prefix = root_normed + os.sep
+    patterns = ("*.metadata.json", "*.metadata.yaml", "*.metadata.yml")
+    found: List[Path] = []
+
+    def _collect(meta_dir_str: str) -> None:
+        md = os.path.normpath(meta_dir_str)
+        if not md.startswith(safe_prefix) and md != root_normed:
+            return
+        if not os.path.isdir(md):
+            return
+        for pat in patterns:
+            for hit_str in _glob.glob(os.path.join(md, pat)):
+                h = os.path.normpath(hit_str)
+                if not h.startswith(safe_prefix) and h != root_normed:
+                    continue
+                if os.path.isfile(h):
+                    found.append(Path(h))
+
+    feeds_str = os.path.normpath(os.path.join(root_normed, "feeds"))
+    if feeds_str.startswith(safe_prefix) and os.path.isdir(feeds_str):
+        for dirpath, _dirnames, _filenames in os.walk(root_normed):
+            dp = os.path.normpath(dirpath)
+            if not dp.startswith(safe_prefix) and dp != root_normed:
+                continue
+            if os.path.basename(dp) == filesystem.METADATA_SUBDIR:
+                _collect(dp)
+        _collect(os.path.join(root_normed, filesystem.METADATA_SUBDIR))
+    else:
+        _collect(os.path.join(root_normed, filesystem.METADATA_SUBDIR))
+
+    return sorted(set(found))

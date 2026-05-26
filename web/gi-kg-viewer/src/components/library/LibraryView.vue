@@ -123,6 +123,13 @@ const episodes = ref<CorpusEpisodeListItem[]>([])
 const episodesError = ref<string | null>(null)
 const episodesLoading = ref(false)
 const nextCursor = ref<string | null>(null)
+/**
+ * Cumulative-unique total episode count matching the current filter set
+ * (independent of pagination). Populated from the response's ``total``
+ * field added in v2.6.1 (#818); falls back to 0 against pre-v2.6.1
+ * servers. Used by the "X of Y" count display (#819).
+ */
+const episodesTotal = ref(0)
 const titleQ = ref('')
 /** Substring filter on summary title or bullets (typed or cleared manually). */
 const topicQ = ref('')
@@ -167,18 +174,33 @@ function clearAllLibraryFilters(): void {
   applySinceDateReloadEpisodesNow()
 }
 
-/** Shown next to **Episodes** heading: loaded row count; **+** when more pages exist. */
+/**
+ * Shown next to **Episodes** heading.
+ *
+ * v2.6.1 (#819): when the server returns a ``total`` field (cumulative-unique
+ * count for the current filter set), render ``(N of TOTAL)`` so the operator
+ * can see what's loaded vs what exists. Pre-v2.6.1 servers omit ``total``
+ * (defaults to 0); the display falls back to the prior ``(N)`` /``(N+)``
+ * behaviour so older deployments keep working.
+ */
 const libraryEpisodesCountDisplay = computed(() => {
   if (episodesLoading.value && episodes.value.length === 0) {
     return ''
   }
   const n = episodes.value.length
   if (n === 0 && !episodesLoading.value) {
-    return '(0)'
+    return episodesTotal.value > 0 ? `(0 of ${episodesTotal.value})` : '(0)'
   }
   if (n === 0) {
     return ''
   }
+  // Server returned a `total` field — display "X of Y" form.
+  if (episodesTotal.value > 0) {
+    return n < episodesTotal.value
+      ? `(${n} of ${episodesTotal.value})`
+      : `(${n})`
+  }
+  // Fallback (pre-v2.6.1 server, or empty corpus): prior behaviour.
   return nextCursor.value ? `(${n}+)` : `(${n})`
 })
 
@@ -287,6 +309,7 @@ async function loadEpisodes(append: boolean): Promise<void> {
   if (!root || !shell.healthStatus) {
     episodes.value = []
     nextCursor.value = null
+    episodesTotal.value = 0
     return
   }
   episodesLoading.value = true
@@ -315,6 +338,9 @@ async function loadEpisodes(append: boolean): Promise<void> {
       episodes.value = body.items
     }
     nextCursor.value = body.next_cursor
+    // v2.6.1 #819: capture cumulative-unique total for "X of Y" display.
+    // Optional field (pre-v2.6.1 servers omit it).
+    episodesTotal.value = body.total ?? 0
   } catch (e) {
     if (libraryEpisodesGate.isStale(seq)) {
       return
