@@ -5,7 +5,7 @@ on:
     branches:
       - main
       # Note: Only deploy from main as "latest" documentation
-      # Release branches (release/2.4, release/2.5) are for stabilization and may contain
+      # Release branches (release/2.4, release/2.5, release/2.6) are for stabilization and may contain
       # unstable changes. Production docs should reference the tagged release.
     paths:
       # Only files that are part of the MkDocs site (see mkdocs.yml nav)
@@ -28,7 +28,7 @@ on:
       - '**.py'  # Python files for API docs (mkdocstrings)
       - 'README.md'
   pull_request:
-    branches: [ "main", "release/2.4", "release/2.5" ]
+    branches: [ "main", "release/2.4", "release/2.5", "release/2.6" ]
     # PRs can still be tested against both branches, but only main deploys
     paths:
       # Only files that are part of the MkDocs site (see mkdocs.yml nav)
