@@ -32,7 +32,7 @@ on:
   workflow_run:
     workflows: ["Python application"]
     types: [completed]
-    branches: [main]
+    branches: [main, release/2.4, release/2.5, release/2.6]
   workflow_dispatch:
 
 permissions:
@@ -43,6 +43,17 @@ permissions:
   contents: read
   actions: read
   checks: write
+
+# Cancel an in-progress Stack test for the same (workflow, ref) when a
+# newer Python application run completes on the same branch. Without
+# this, every successful Python app run queues a Stack test independent
+# of whether the next commit already invalidated it — and Stack test is
+# expensive (~1h, ML preload + full compose). Match the CI-side
+# cancel-in-progress pattern; deploy / release / backup workflows
+# explicitly keep ``cancel-in-progress: false``.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.workflow_run.head_branch || github.ref }}
+  cancel-in-progress: true
 
 jobs:
   stack-test:
