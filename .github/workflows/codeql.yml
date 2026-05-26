@@ -25,6 +25,13 @@ on:
   schedule:
     - cron: '17 13 * * 4'
 
+# Cancel in-progress analysis when a newer push to the same ref arrives.
+# Scheduled runs use a different ref (refs/heads/<default>) so they don't
+# conflict with push/PR runs.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   analyze:
     name: Analyze (${{ matrix.language }})
