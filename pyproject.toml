@@ -16,10 +16,10 @@ dependencies = [
   "rich>=15.0.0,<16.0.0",
   "defusedxml>=0.7.1,<1.0.0",
   "platformdirs>=3.11.0,<5.0.0",
-  "pydantic>=2.6.0,<3.0.0",
+  "pydantic>=2.13.4,<3.0.0",
   "PyYAML>=6.0.3,<7.0.0",
   "python-dotenv>=1.2.2,<2.0.0",  # For .env file support (RFC-013)
-  "zipp>=3.19.1,<4.0.0",  # Security fix: CVE-2024-50208 (infinite loop vulnerability)
+  "zipp>=4.1.0,<5.0.0",  # Security fix: CVE-2024-50208 (infinite loop vulnerability)
   "jinja2>=3.1.6,<4.0.0",  # For prompt templating (RFC-017)
   "filelock>=3.29.0,<4.0.0",  # Security fix: CVE-2025-68146 (TOCTOU race condition)
   # CVE-2026-4539 (ReDoS in AdlLexer, NVD/GHSA: 2.19.0–2.19.2): stay on 2.18.x until 2.19.3+; pip-audit still needs --ignore-vuln until OSV range matches
@@ -32,7 +32,7 @@ dependencies = [
   # Init is gated on PODCAST_SENTRY_DSN_API / PODCAST_SENTRY_DSN_PIPELINE so
   # default (no DSN) stays a true no-op.  ~3 MB install footprint.
   # See RFC-081 §Layer 2 + issue #681.
-  "sentry-sdk>=2.0.0,<3.0.0",
+  "sentry-sdk>=2.60.0,<3.0.0",
 ]
 
 [project.optional-dependencies]
@@ -127,7 +127,7 @@ dev = [
   # Starlette TestClient (tests/conftest.py preload) requires httpx; not always
   # pulled as a transitive install in minimal CI venvs.
   "httpx>=0.28.1,<1.0.0",
-  "uvicorn[standard]>=0.32.0,<1.0.0",
+  "uvicorn[standard]>=0.48.0,<1.0.0",
   # Prometheus exporter for /metrics (gated on PODCAST_METRICS_ENABLED in app.py).
   "prometheus-fastapi-instrumentator>=7.0.0,<8.0.0",
   # In-process feed-sweep scheduler (#708); no-op unless ``scheduled_jobs:`` in viewer_operator.yaml.
@@ -139,7 +139,7 @@ dev = [
   "pytest-cov>=4.1.0,<8.0.0",
   "pytest-xdist>=3.8.0,<4.0.0",  # Parallel test execution (RFC-018)
   "pytest-rerunfailures>=14.0,<17.0",  # Flaky test reruns (RFC-018)
-  "pytest-socket>=0.7.0,<1.0.0",  # Network blocking for E2E tests (RFC-019)
+  "pytest-socket>=0.8.0,<1.0.0",  # Network blocking for E2E tests (RFC-019)
   "pytest-json-report>=1.5.0,<2.0.0",  # JSON test reports for metrics (RFC-025)
   "mypy>=1.5.0,<2.0.0",
   "types-PyYAML>=6.0.12,<7.0.0",
