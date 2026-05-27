@@ -151,8 +151,9 @@ RUN bash -c 'set -e; \
         echo "Preloading ML models (variant=${PRELOAD_VARIANT:-production}, flag=$preload_flag)..."; \
         echo "Working directory: $(pwd)"; \
         python scripts/cache/preload_ml_models.py "$preload_flag" || { \
+            rc=$?; \
             echo ""; \
-            echo "ERROR: ML model preloading failed with exit code $?"; \
+            echo "ERROR: ML model preloading failed with exit code $rc"; \
             echo "This may be due to network, disk space, or missing dependencies."; \
             echo "To skip: rebuild with --build-arg PRELOAD_ML_MODELS=false (see make docker-build-fast)."; \
             exit 1; \

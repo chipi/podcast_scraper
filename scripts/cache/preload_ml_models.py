@@ -209,8 +209,16 @@ def preload_spacy_models(model_names: Optional[List[str]] = None) -> None:
     """
     try:
         import spacy
-    except ImportError:
-        print("ERROR: spacy not installed. Install with: pip install spacy")
+    except ImportError as exc:
+        # Print the real exception + traceback. Bare ``ImportError`` from
+        # ``import spacy`` can mean the package is missing OR that one of
+        # its C extensions (thinc/blis/cymem/murmurhash) failed to load
+        # at import time — a misleading "not installed" message hides ABI
+        # / glibc / numpy compat failures from the build log.
+        import traceback
+
+        print(f"ERROR: importing spacy failed: {exc!r}")
+        traceback.print_exc()
         sys.exit(1)
 
     if model_names is None:
