@@ -77,7 +77,12 @@ if [ -n "$CORPUS_PATH" ]; then
 fi
 
 log() {
-  echo "[$(date -u +%FT%TZ)] post_deploy_smoke: $*"
+  # stderr — retry_probe() is called via command substitution to capture
+  # the response body to stdout, so any log() emit from inside it would
+  # otherwise be interleaved with the body. jq downstream then sees a log
+  # line + JSON and errors with "Invalid numeric literal" trying to parse
+  # the leading "[YYYY-MM-DD..." as a JSON array (#830).
+  echo "[$(date -u +%FT%TZ)] post_deploy_smoke: $*" >&2
 }
 
 retry_probe() {
