@@ -51,6 +51,15 @@ dependencies = [
 ml = [
   "openai-whisper>=20231117",
   "spacy>=3.7.0,<4.0.0",
+  # spaCy's CLI imports ``click`` via typer (``spacy/cli/_util.py``).
+  # typer-0.26.0+ dropped click from its hard deps in favour of having
+  # consumers depend on it directly. The cloud-thin / API images still
+  # get click transitively (uvicorn / fastapi), but the [ml] pipeline
+  # image has no such fallback — ``import spacy`` fails with
+  # ``ModuleNotFoundError: No module named 'click'`` if click isn't
+  # explicit here. Surfaced 2026-05-27 when typer-0.26.1 first appeared
+  # in resolution.
+  "click>=8.0.0,<9.0.0",
   # spaCy language models are distributed via GitHub releases (not PyPI) due to size constraints.
   # This is the official and standard method recommended by spaCy.
   # Version compatibility: spaCy 3.7.x requires en_core_web_sm 3.7.x and en_core_web_trf 3.7.x
