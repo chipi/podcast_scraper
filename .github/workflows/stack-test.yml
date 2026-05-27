@@ -113,7 +113,7 @@ jobs:
 
       - name: Wait for /api/health
         run: |
-          for i in $(seq 1 60); do
+          for _ in $(seq 1 60); do
             if curl -fsS "http://127.0.0.1:8090/api/health" >/dev/null; then
               echo "health ok"
               exit 0
@@ -245,9 +245,11 @@ jobs:
           set -euo pipefail
           SHA="${{ github.event.workflow_run.head_sha || github.sha }}"
           SHORT="${SHA:0:7}"
-          echo "short_sha=${SHORT}" >> "$GITHUB_OUTPUT"
-          echo "ref_main=:main" >> "$GITHUB_OUTPUT"
-          echo "ref_sha=:sha-${SHORT}" >> "$GITHUB_OUTPUT"
+          {
+            echo "short_sha=${SHORT}"
+            echo "ref_main=:main"
+            echo "ref_sha=:sha-${SHORT}"
+          } >> "$GITHUB_OUTPUT"
 
       # #712: each publish step does two buildx invocations.
       # Step 1: build linux/amd64 only with --load so the no-secrets-in-image

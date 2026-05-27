@@ -89,7 +89,7 @@ jobs:
 
     - name: Validate Dockerfile with hadolint
       run: |
-        docker run --rm -v $(pwd):/workspace -w /workspace hadolint/hadolint:latest hadolint docker/pipeline/Dockerfile
+        docker run --rm -v "$(pwd):/workspace" -w /workspace hadolint/hadolint:latest hadolint docker/pipeline/Dockerfile
 
   # Full Docker build for main branch (both variants in parallel)
   # Builds both LLM-only and ML-enabled variants to ensure full validation
@@ -160,4 +160,4 @@ jobs:
     - name: Validate Dockerfile with hadolint
       if: matrix.name == 'llm-only'
       run: |
-        docker run --rm -v $(pwd):/workspace -w /workspace hadolint/hadolint:latest hadolint docker/pipeline/Dockerfile
+        docker run --rm -v "$(pwd):/workspace" -w /workspace hadolint/hadolint:latest hadolint docker/pipeline/Dockerfile

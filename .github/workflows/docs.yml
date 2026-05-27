@@ -89,7 +89,8 @@ jobs:
 
       - name: Build MkDocs site
         run: |
-          export PYTHONPATH="${PYTHONPATH}:$(pwd)"
+          PYTHONPATH="${PYTHONPATH}:$(pwd)"
+          export PYTHONPATH
           # Generate deployment metadata
           DEPLOY_TIME=$(date -u +"%Y-%m-%d %H:%M UTC")
           DEPLOY_BRANCH="${{ github.ref_name }}"
@@ -136,7 +137,7 @@ jobs:
         if: github.event_name == 'push'
         run: |
           # Move any files from subdirectories to main metrics directory
-          find .build/site/metrics -name "*.json" -o -name "*.jsonl" -o -name "*.html" | while read file; do
+          find .build/site/metrics -name "*.json" -o -name "*.jsonl" -o -name "*.html" | while IFS= read -r file; do
             if [ "$(dirname "$file")" != ".build/site/metrics" ]; then
               mv "$file" .build/site/metrics/
             fi

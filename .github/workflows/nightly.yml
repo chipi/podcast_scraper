@@ -97,7 +97,7 @@ jobs:
     - name: Install full dependencies (including ML)
       run: |
         python -m pip install --upgrade pip
-        pip install -e .[dev,ml,llm]
+        pip install -e ".[dev,ml,llm]"
 
     - name: Validate ML model cache
       id: validate-cache
@@ -128,7 +128,7 @@ jobs:
         # Production models: facebook/bart-base (MAP), llama3.2:3b via Ollama (REDUCE)
         # Note: allenai/led-base-16384 retained as pure-ML fallback reduce model
         for model in "facebook/bart-base" "allenai/led-base-16384" "google/long-t5-tglobal-base" "google/flan-t5-base"; do
-          MODEL_DIR="models--$(echo $model | sed 's|/|--|g')"
+          MODEL_DIR="models--${model//\//--}"
           MODEL_PATH="$HF_CACHE/$MODEL_DIR"
           if [ -d "$MODEL_PATH/snapshots" ] && [ "$(find "$MODEL_PATH/snapshots" -type f 2>/dev/null | head -1)" ]; then
             SIZE=$(du -sh "$MODEL_PATH" | cut -f1)
@@ -143,10 +143,10 @@ jobs:
         echo ""
         if [ "$MODELS_COMPLETE" = true ]; then
           echo "✅ All required ML models are cached!"
-          echo "models_complete=true" >> $GITHUB_OUTPUT
+          echo "models_complete=true" >> "$GITHUB_OUTPUT"
         else
           echo "⚠️  Some models are missing. Will run preload..."
-          echo "models_complete=false" >> $GITHUB_OUTPUT
+          echo "models_complete=false" >> "$GITHUB_OUTPUT"
         fi
 
     - name: Preload production ML models (if incomplete)
@@ -170,7 +170,7 @@ jobs:
         # Production models: facebook/bart-base (MAP), llama3.2:3b via Ollama (REDUCE)
         # Note: allenai/led-base-16384 retained as pure-ML fallback reduce model
         for model in "facebook/bart-base" "allenai/led-base-16384" "google/long-t5-tglobal-base" "google/flan-t5-base"; do
-          MODEL_DIR="models--$(echo $model | sed 's|/|--|g')"
+          MODEL_DIR="models--${model//\//--}"
           if [ ! -d "$HF_CACHE/$MODEL_DIR/snapshots" ]; then
             echo "❌ HF $model still missing!"
             CACHE_VALID=false
@@ -219,7 +219,7 @@ jobs:
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
-        python -m pip install -e .[dev]
+        python -m pip install -e ".[dev]"
 
     - name: Install markdownlint
       run: npm install -g markdownlint-cli
@@ -250,7 +250,7 @@ jobs:
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
-        python -m pip install -e .[dev]
+        python -m pip install -e ".[dev]"
 
     - name: Run security checks
       run: |
@@ -295,7 +295,7 @@ jobs:
       run: |
         python -m pip install --upgrade pip
         pip install -r docs/requirements.txt
-        pip install -e .[ml]
+        pip install -e ".[ml]"
 
     - name: Build docs
       run: make docs
@@ -355,7 +355,7 @@ jobs:
     - name: Install dev dependencies (no ML; includes FastAPI via [dev])
       run: |
         python -m pip install --upgrade pip
-        python -m pip install -e .[dev]
+        python -m pip install -e ".[dev]"
         python -m pip install pytest-json-report
 
     - name: Install ffmpeg (required for audio preprocessing unit tests)
@@ -365,18 +365,20 @@ jobs:
 
     - name: Verify unit tests can import without ML dependencies
       run: |
-        export PYTHONPATH="${PYTHONPATH}:$(pwd)"
+        PYTHONPATH="${PYTHONPATH}:$(pwd)"
+        export PYTHONPATH
         python scripts/tools/check_unit_test_imports.py
       env:
         PACKAGE: podcast_scraper
 
     - name: Run unit tests with coverage (parallel execution)
       run: |
-        export PYTHONPATH="${PYTHONPATH}:$(pwd)"
+        PYTHONPATH="${PYTHONPATH}:$(pwd)"
+        export PYTHONPATH
         mkdir -p reports
         # Run tests with coverage and capture output and exit code
         set +e
-        OUTPUT=$(pytest tests/unit/ -v --tb=short -n $(python3 -c "import os; print(max(1, (os.cpu_count() or 2) - 2))") --json-report --json-report-file=reports/pytest-unit.json --junitxml=reports/junit-unit.xml --cov=podcast_scraper --cov-report=xml:reports/coverage-unit.xml --cov-report=term-missing --reruns 2 --reruns-delay 1 --durations=20 2>&1)
+        OUTPUT=$(pytest tests/unit/ -v --tb=short -n "$(python3 -c 'import os; print(max(1, (os.cpu_count() or 2) - 2))')" --json-report --json-report-file=reports/pytest-unit.json --junitxml=reports/junit-unit.xml --cov=podcast_scraper --cov-report=xml:reports/coverage-unit.xml --cov-report=term-missing --reruns 2 --reruns-delay 1 --durations=20 2>&1)
         PYTEST_EXIT_CODE=$?
         set -e
         echo "$OUTPUT"
@@ -466,7 +468,7 @@ jobs:
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
-        pip install -e .[dev,ml,llm]
+        pip install -e ".[dev,ml,llm]"
         pip install pytest-socket pytest-json-report
 
     - name: Install ffmpeg
@@ -476,11 +478,12 @@ jobs:
 
     - name: Run integration tests with coverage (network guard, parallel)
       run: |
-        export PYTHONPATH="${PYTHONPATH}:$(pwd)"
+        PYTHONPATH="${PYTHONPATH}:$(pwd)"
+        export PYTHONPATH
         mkdir -p reports
         # Run integration tests with coverage and network guard
         set +e
-        OUTPUT=$(pytest tests/integration/ -v -m integration -n $(python3 -c "import os; print(max(1, (os.cpu_count() or 2) - 2))") --json-report --json-report-file=reports/pytest-integration.json --junitxml=reports/junit-integration.xml --cov=podcast_scraper --cov-append --cov-report=xml:reports/coverage-integration.xml --cov-report=term-missing --cov-fail-under=42 --disable-socket --allow-hosts=127.0.0.1,localhost --reruns 2 --reruns-delay 1 --durations=20 2>&1)
+        OUTPUT=$(pytest tests/integration/ -v -m integration -n "$(python3 -c 'import os; print(max(1, (os.cpu_count() or 2) - 2))')" --json-report --json-report-file=reports/pytest-integration.json --junitxml=reports/junit-integration.xml --cov=podcast_scraper --cov-append --cov-report=xml:reports/coverage-integration.xml --cov-report=term-missing --cov-fail-under=42 --disable-socket --allow-hosts=127.0.0.1,localhost --reruns 2 --reruns-delay 1 --durations=20 2>&1)
         PYTEST_EXIT_CODE=$?
         set -e
         echo "$OUTPUT"
@@ -549,7 +552,7 @@ jobs:
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
-        pip install -e .[dev,ml,llm]
+        pip install -e ".[dev,ml,llm]"
         pip install pytest-socket pytest-json-report
 
     - name: Install ffmpeg
@@ -559,10 +562,11 @@ jobs:
 
     - name: Run E2E tests with coverage (network guard, xdist)
       run: |
-        export PYTHONPATH="${PYTHONPATH}:$(pwd)"
+        PYTHONPATH="${PYTHONPATH}:$(pwd)"
+        export PYTHONPATH
         mkdir -p reports
         set +e
-        OUTPUT=$(E2E_TEST_MODE=multi_episode pytest tests/e2e/ -v -m "e2e and not nightly" -n $(python3 -c "import os; print(max(1, (os.cpu_count() or 2) - 2))") --json-report --json-report-file=reports/pytest-e2e.json --junitxml=reports/junit-e2e.xml --cov=podcast_scraper --cov-report=xml:reports/coverage-e2e.xml --cov-report=term-missing --cov-fail-under=40 --disable-socket --allow-hosts=127.0.0.1,localhost --reruns 2 --reruns-delay 1 --durations=20 2>&1)
+        OUTPUT=$(E2E_TEST_MODE=multi_episode pytest tests/e2e/ -v -m "e2e and not nightly" -n "$(python3 -c 'import os; print(max(1, (os.cpu_count() or 2) - 2))')" --json-report --json-report-file=reports/pytest-e2e.json --junitxml=reports/junit-e2e.xml --cov=podcast_scraper --cov-report=xml:reports/coverage-e2e.xml --cov-report=term-missing --cov-fail-under=40 --disable-socket --allow-hosts=127.0.0.1,localhost --reruns 2 --reruns-delay 1 --durations=20 2>&1)
         PYTEST_EXIT_CODE=$?
         set -e
         echo "$OUTPUT"
@@ -896,7 +900,7 @@ jobs:
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
-        pip install -e .[dev,ml,llm]
+        pip install -e ".[dev,ml,llm]"
         pip install pytest-socket pytest-json-report
 
     - name: Install ffmpeg
@@ -909,7 +913,8 @@ jobs:
 
     - name: Verify test collection before running
       run: |
-        export PYTHONPATH="${PYTHONPATH}:$(pwd)"
+        PYTHONPATH="${PYTHONPATH}:$(pwd)"
+        export PYTHONPATH
         echo "🔍 Verifying nightly test collection..."
         pytest tests/e2e/ -m "nightly and not llm" --collect-only -q || {
           echo "❌ Test collection failed!"
@@ -921,7 +926,8 @@ jobs:
     - name: Run nightly-only tests with production models (sequential)
       timeout-minutes: 100  # ~75 min typical + buffer
       run: |
-        export PYTHONPATH="${PYTHONPATH}:$(pwd)"
+        PYTHONPATH="${PYTHONPATH}:$(pwd)"
+        export PYTHONPATH
         # Uses production models: Whisper base.en, BART-large-cnn, LED-large-16384
         # Processes all 15 episodes across 5 podcasts (p01-p05)
         echo "🚀 Starting nightly tests at $(date)"
@@ -1231,7 +1237,11 @@ jobs:
       if: failure()
       run: |
         echo "=== Metrics Files ==="
-        ls -la metrics/ || echo "No metrics directory"
+        if [ -d metrics ]; then
+          find metrics -maxdepth 1 -printf '%M %u %s %TF %TR %f\n'
+        else
+          echo "No metrics directory"
+        fi
         echo ""
         echo "=== Latest JSON (first 30 lines) ==="
         head -30 metrics/latest-nightly.json || echo "No latest-nightly.json"
@@ -1240,7 +1250,11 @@ jobs:
         wc -l metrics/history-nightly.jsonl || echo "No history-nightly.jsonl"
         echo ""
         echo "=== Reports directory ==="
-        ls -la reports/ | head -20
+        if [ -d reports ]; then
+          find reports -maxdepth 1 -printf '%M %u %s %TF %TR %f\n' | head -20
+        else
+          echo "No reports directory"
+        fi
 
     - name: Update metrics history
       run: |
@@ -1271,20 +1285,21 @@ jobs:
 
     - name: Generate job summary
       run: |
-        echo "# 📊 Nightly Test Results" >> $GITHUB_STEP_SUMMARY
-        echo "" >> $GITHUB_STEP_SUMMARY
-
-        # Job status summary
-        echo "## Job Status" >> $GITHUB_STEP_SUMMARY
-        echo "- **Lint**: ${{ needs.nightly-lint.result }}" >> $GITHUB_STEP_SUMMARY
-        echo "- **Security/Quality**: ${{ needs.nightly-security-quality.result }}" >> $GITHUB_STEP_SUMMARY
-        echo "- **Build**: ${{ needs.nightly-build.result }}" >> $GITHUB_STEP_SUMMARY
-        echo "- **Docs**: Runs after metrics (no dependency to avoid cycle)" >> $GITHUB_STEP_SUMMARY
-        echo "- **Unit Tests**: ${{ needs.nightly-test-unit.result }}" >> $GITHUB_STEP_SUMMARY
-        echo "- **Integration Tests**: ${{ needs.nightly-test-integration.result }}" >> $GITHUB_STEP_SUMMARY
-        echo "- **E2E Tests**: ${{ needs.nightly-test-e2e.result }}" >> $GITHUB_STEP_SUMMARY
-        echo "- **Nightly-Only Tests**: ${{ needs.nightly-only-tests.result }}" >> $GITHUB_STEP_SUMMARY
-        echo "" >> $GITHUB_STEP_SUMMARY
+        {
+          echo "# 📊 Nightly Test Results"
+          echo ""
+          # Job status summary
+          echo "## Job Status"
+          echo "- **Lint**: ${{ needs.nightly-lint.result }}"
+          echo "- **Security/Quality**: ${{ needs.nightly-security-quality.result }}"
+          echo "- **Build**: ${{ needs.nightly-build.result }}"
+          echo "- **Docs**: Runs after metrics (no dependency to avoid cycle)"
+          echo "- **Unit Tests**: ${{ needs.nightly-test-unit.result }}"
+          echo "- **Integration Tests**: ${{ needs.nightly-test-integration.result }}"
+          echo "- **E2E Tests**: ${{ needs.nightly-test-e2e.result }}"
+          echo "- **Nightly-Only Tests**: ${{ needs.nightly-only-tests.result }}"
+          echo ""
+        } >> "$GITHUB_STEP_SUMMARY"
 
         # Extract metrics from pytest JSON reports
         for report in reports/pytest-*.json; do
@@ -1296,29 +1311,33 @@ jobs:
             DURATION=$(jq -r '.duration // 0' "$report" 2>/dev/null || echo "0")
             REPORT_NAME=$(basename "$report" .json)
 
-            echo "## Test Summary ($REPORT_NAME)" >> $GITHUB_STEP_SUMMARY
-            echo "- **Total Tests**: $TOTAL" >> $GITHUB_STEP_SUMMARY
-            echo "- **Passed**: ✅ $PASSED" >> $GITHUB_STEP_SUMMARY
-            echo "- **Failed**: ❌ $FAILED" >> $GITHUB_STEP_SUMMARY
-            echo "- **Skipped**: ⏭️ $SKIPPED" >> $GITHUB_STEP_SUMMARY
-            echo "- **Duration**: ${DURATION}s" >> $GITHUB_STEP_SUMMARY
-            echo "" >> $GITHUB_STEP_SUMMARY
+            {
+              echo "## Test Summary ($REPORT_NAME)"
+              echo "- **Total Tests**: $TOTAL"
+              echo "- **Passed**: ✅ $PASSED"
+              echo "- **Failed**: ❌ $FAILED"
+              echo "- **Skipped**: ⏭️ $SKIPPED"
+              echo "- **Duration**: ${DURATION}s"
+              echo ""
+            } >> "$GITHUB_STEP_SUMMARY"
           fi
         done
 
         # Extract coverage from coverage.xml
         if [ -f reports/coverage.xml ]; then
           COVERAGE=$(python -c "import xml.etree.ElementTree as ET; tree = ET.parse('reports/coverage.xml'); root = tree.getroot(); print(f\"{float(root.attrib.get('line-rate', 0)) * 100:.1f}%\")" 2>/dev/null || echo "N/A")
-          echo "## Coverage" >> $GITHUB_STEP_SUMMARY
-          echo "- **Overall Coverage**: $COVERAGE" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
+          {
+            echo "## Coverage"
+            echo "- **Overall Coverage**: $COVERAGE"
+            echo ""
+          } >> "$GITHUB_STEP_SUMMARY"
         fi
 
         # Extract slowest tests from JUnit XML reports
         for junit in reports/pytest-*.json; do
           if [ -f "$junit" ]; then
-            echo "## Slowest Tests (Top 10)" >> $GITHUB_STEP_SUMMARY
-            echo '```' >> $GITHUB_STEP_SUMMARY
+            echo "## Slowest Tests (Top 10)" >> "$GITHUB_STEP_SUMMARY"
+            echo '```' >> "$GITHUB_STEP_SUMMARY"
             python3 -c "
         import json, sys
         try:
@@ -1330,8 +1349,8 @@ jobs:
                 print(f'{time:.2f}s - {name}')
         except Exception as e:
             print(f'Error: {e}', file=sys.stderr)
-        " >> $GITHUB_STEP_SUMMARY 2>&1 || echo "Unable to parse" >> $GITHUB_STEP_SUMMARY
-            echo '```' >> $GITHUB_STEP_SUMMARY
+        " >> "$GITHUB_STEP_SUMMARY" 2>&1 || echo "Unable to parse" >> "$GITHUB_STEP_SUMMARY"
+            echo '```' >> "$GITHUB_STEP_SUMMARY"
             break  # Only show once
           fi
         done
@@ -1342,14 +1361,16 @@ jobs:
             # Match generate_metrics.py: pytest-json-report uses outcome=="rerun" + call.passed
             FLAKY_COUNT=$(jq -r '[.tests[] | select((.outcome == "rerun" and .call.outcome == "passed") or (.outcome == "passed" and .rerun == true))] | length' "$report" 2>/dev/null || echo "0")
             if [ "${FLAKY_COUNT:-0}" -gt 0 ]; then
-              echo "" >> $GITHUB_STEP_SUMMARY
-              echo "## ⚠️ Flaky Tests Detected" >> $GITHUB_STEP_SUMMARY
-              echo "- **Count**: $FLAKY_COUNT tests passed on rerun" >> $GITHUB_STEP_SUMMARY
-              echo "" >> $GITHUB_STEP_SUMMARY
-              echo "### Flaky Test Names:" >> $GITHUB_STEP_SUMMARY
-              echo '```' >> $GITHUB_STEP_SUMMARY
-              jq -r '.tests[] | select((.outcome == "rerun" and .call.outcome == "passed") or (.outcome == "passed" and .rerun == true)) | "\(.nodeid)"' "$report" 2>/dev/null >> $GITHUB_STEP_SUMMARY || echo "Unable to extract"
-              echo '```' >> $GITHUB_STEP_SUMMARY
+              {
+                echo ""
+                echo "## ⚠️ Flaky Tests Detected"
+                echo "- **Count**: $FLAKY_COUNT tests passed on rerun"
+                echo ""
+                echo "### Flaky Test Names:"
+                echo '```'
+                jq -r '.tests[] | select((.outcome == "rerun" and .call.outcome == "passed") or (.outcome == "passed" and .rerun == true)) | "\(.nodeid)"' "$report" 2>/dev/null || echo "Unable to extract"
+                echo '```'
+              } >> "$GITHUB_STEP_SUMMARY"
             fi
           fi
         done
@@ -1358,13 +1379,13 @@ jobs:
         if [ -f metrics/latest-nightly.json ]; then
           ALERT_COUNT=$(jq -r '.alerts | length' metrics/latest-nightly.json 2>/dev/null || echo "0")
           if [ "$ALERT_COUNT" -gt 0 ]; then
-            echo "" >> $GITHUB_STEP_SUMMARY
-            echo "## 🚨 Metric Alerts" >> $GITHUB_STEP_SUMMARY
+            echo "" >> "$GITHUB_STEP_SUMMARY"
+            echo "## 🚨 Metric Alerts" >> "$GITHUB_STEP_SUMMARY"
             jq -r '.alerts[] |
               if .severity == "error" then "🔴 **ERROR**: \(.message)"
               elif .severity == "warning" then "⚠️ **WARNING**: \(.message)"
               else "ℹ️ **INFO**: \(.message)"
-              end' metrics/latest-nightly.json 2>/dev/null >> $GITHUB_STEP_SUMMARY || echo "Unable to extract alerts"
+              end' metrics/latest-nightly.json 2>/dev/null >> "$GITHUB_STEP_SUMMARY" || echo "Unable to extract alerts"
           fi
         fi
 

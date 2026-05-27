@@ -494,11 +494,10 @@ for yaml_file in $STAGED_YAML; do
 done
 if [ -n "$STAGED_WORKFLOWS" ]; then
     if command_exists actionlint; then
-        # -shellcheck="" disables actionlint's shellcheck integration to
-        # match CI behavior (existing workflows have ~190 pre-existing
-        # shellcheck warnings that aren't blocking concerns).
+        # Full actionlint (including shellcheck integration) — pre-existing
+        # ~195 warnings were cleaned in #831 so shellcheck is now enforced.
         # shellcheck disable=SC2086
-        run_check "actionlint (GitHub Actions workflows)" "actionlint -shellcheck=\"\" $STAGED_WORKFLOWS"
+        run_check "actionlint (GitHub Actions workflows)" "actionlint $STAGED_WORKFLOWS"
     else
         echo -e "${YELLOW}⚠${NC} actionlint not installed locally — staged workflow files skipped (CI will catch errors). Install: brew install actionlint"
         echo ""

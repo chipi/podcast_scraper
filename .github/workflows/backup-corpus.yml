@@ -98,7 +98,11 @@ jobs:
           # ``make codespace-backup-local``). Surface what cp actually wrote
           # so the next failure is debuggable from the workflow log alone.
           echo "=== cp completed; runner pwd contents ==="
-          ls -la .codespace_corpus 2>/dev/null | head -10 || echo "(.codespace_corpus missing)"
+          if [ -d .codespace_corpus ]; then
+            find .codespace_corpus -maxdepth 1 -printf '%M %u %s %TF %TR %f\n' 2>/dev/null | head -10
+          else
+            echo "(.codespace_corpus missing)"
+          fi
           echo "=== gi.json files seen ==="
           find .codespace_corpus -name '*.gi.json' -print 2>/dev/null | head -5 || true
           gi_count=$(find .codespace_corpus -name '*.gi.json' 2>/dev/null | wc -l)
@@ -106,10 +110,12 @@ jobs:
           echo "=== gh CLI version (relevant to cp behavior) ==="
           gh --version 2>&1 | head -2
           echo "=== ssh keys (relevant to cp transport) ==="
-          ls -la "$HOME/.ssh/" 2>/dev/null | grep -iE 'codespaces|ed25519|rsa' || echo "(no relevant keys)"
+          find "$HOME/.ssh" -maxdepth 1 -type f \
+            \( -iname '*codespaces*' -o -iname '*ed25519*' -o -iname '*rsa*' \) \
+            2>/dev/null | head || echo "(no relevant keys)"
           tar -czf snapshot.tgz .codespace_corpus
           rm -rf .codespace_corpus
-          echo "Tarball created: $(ls -lh snapshot.tgz | awk '{print $5}')"
+          echo "Tarball created: $(numfmt --to=iec "$(stat -c%s snapshot.tgz)")"
           # Sanity: refuse to upload empty / suspiciously small tarballs.
           size=$(stat -c%s snapshot.tgz)
           if [ "$size" -lt 1024 ]; then
@@ -229,7 +235,12 @@ jobs:
         run: |
           set -euo pipefail
           echo "=== Dry-run mode ==="
-          echo "Tarball size: $(ls -lh snapshot.tgz 2>/dev/null | awk '{print $5}' || echo 'NONE')"
+          SNAP_SIZE=$(stat -c%s snapshot.tgz 2>/dev/null || echo 0)
+          if [ "$SNAP_SIZE" -gt 0 ]; then
+            echo "Tarball size: $(numfmt --to=iec "$SNAP_SIZE")"
+          else
+            echo "Tarball size: NONE"
+          fi
           echo "Tarball contents (top-level):"
           tar -tzf snapshot.tgz 2>/dev/null | head -5 || echo "(empty)"
           if [ -n "${GH_TOKEN:-}" ]; then

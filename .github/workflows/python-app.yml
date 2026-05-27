@@ -215,7 +215,7 @@ jobs:
     - name: Install lint dependencies (no ML packages)
       run: |
         python -m pip install --upgrade pip
-        python -m pip install -e .[dev]
+        python -m pip install -e ".[dev]"
     - name: Check black version
       run: |
         python -m black --version
@@ -234,23 +234,19 @@ jobs:
         actionlint -version
     - name: Run fast lint checks
       run: |
-        export PYTHONPATH="${PYTHONPATH}:$(pwd)"
+        PYTHONPATH="${PYTHONPATH}:$(pwd)"
+        export PYTHONPATH
         make format-check
         make lint
         make lint-markdown
         make type
     - name: Lint GitHub Actions workflows
-      # Validates every workflow in .github/workflows/ — fails fast on
-      # schema violations, undefined refs, unsafe ${{ }} interpolation.
-      #
-      # shellcheck integration is disabled (-shellcheck="") because the
-      # workflow corpus has ~190 pre-existing bash-style warnings (ls vs
-      # find, unquoted vars) that aren't bugs and weren't introduced by
-      # the current change set. Re-enable shellcheck once those are
-      # cleaned up in a dedicated follow-up; until then, schema +
-      # expression checks alone catch the high-value class of bugs.
+      # Validates every workflow in .github/workflows/ — fails fast on:
+      # schema violations, undefined refs, unsafe ${{ }} interpolation,
+      # AND shellcheck issues in inline run: blocks (re-enabled in #831
+      # after cleaning the ~195 pre-existing warnings).
       run: |
-        actionlint -shellcheck="" .github/workflows/*.yml
+        actionlint .github/workflows/*.yml
 
   # Security and quality checks - gated by lint/build, runs independently to coverage-unified (does not gate tests)
   security-quality:
@@ -271,52 +267,52 @@ jobs:
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
-        python -m pip install -e .[dev]
+        python -m pip install -e ".[dev]"
     - name: Run security checks
       run: |
-        export PYTHONPATH="${PYTHONPATH}:$(pwd)"
+        PYTHONPATH="${PYTHONPATH}:$(pwd)"
+        export PYTHONPATH
         make security
     - name: Run quality checks
       run: |
-        export PYTHONPATH="${PYTHONPATH}:$(pwd)"
+        PYTHONPATH="${PYTHONPATH}:$(pwd)"
+        export PYTHONPATH
         make quality
     - name: Code quality report
       if: always()
       continue-on-error: true
       run: |
-        export PYTHONPATH="${PYTHONPATH}:$(pwd)"
-        echo "## Code Quality Report" >> $GITHUB_STEP_SUMMARY
-        echo "" >> $GITHUB_STEP_SUMMARY
-
-        echo "### Complexity Analysis" >> $GITHUB_STEP_SUMMARY
-        echo '```' >> $GITHUB_STEP_SUMMARY
-        radon cc src/podcast_scraper/ -a -s --total-average >> $GITHUB_STEP_SUMMARY 2>&1 || echo "No complexity data available"
-        echo '```' >> $GITHUB_STEP_SUMMARY
-        echo "" >> $GITHUB_STEP_SUMMARY
-
-        echo "### Maintainability Index" >> $GITHUB_STEP_SUMMARY
-        echo '```' >> $GITHUB_STEP_SUMMARY
-        radon mi src/podcast_scraper/ -s >> $GITHUB_STEP_SUMMARY 2>&1 || echo "No maintainability data available"
-        echo '```' >> $GITHUB_STEP_SUMMARY
-        echo "" >> $GITHUB_STEP_SUMMARY
-
-        echo "### Docstring Coverage" >> $GITHUB_STEP_SUMMARY
-        echo '```' >> $GITHUB_STEP_SUMMARY
-        interrogate src/podcast_scraper/ -v >> $GITHUB_STEP_SUMMARY 2>&1 || echo "No docstring data available"
-        echo '```' >> $GITHUB_STEP_SUMMARY
-        echo "" >> $GITHUB_STEP_SUMMARY
-
-        echo "### Dead Code Detection" >> $GITHUB_STEP_SUMMARY
-        echo '```' >> $GITHUB_STEP_SUMMARY
-        vulture src/podcast_scraper/ .vulture_whitelist.py --min-confidence 80 >> $GITHUB_STEP_SUMMARY 2>&1 || echo "No dead code detected"
-        echo '```' >> $GITHUB_STEP_SUMMARY
-        echo "" >> $GITHUB_STEP_SUMMARY
-
-        echo "### Spell Checking" >> $GITHUB_STEP_SUMMARY
-        echo '```' >> $GITHUB_STEP_SUMMARY
-        codespell src/ docs/ --skip="*.pyc,*.json,*.xml,*.lock,*.mp3,*.whl" >> $GITHUB_STEP_SUMMARY 2>&1 || echo "No spelling errors found"
-        echo '```' >> $GITHUB_STEP_SUMMARY
-        echo "" >> $GITHUB_STEP_SUMMARY
+        PYTHONPATH="${PYTHONPATH}:$(pwd)"
+        export PYTHONPATH
+        {
+          echo "## Code Quality Report"
+          echo ""
+          echo "### Complexity Analysis"
+          echo '```'
+          radon cc src/podcast_scraper/ -a -s --total-average 2>&1 || echo "No complexity data available"
+          echo '```'
+          echo ""
+          echo "### Maintainability Index"
+          echo '```'
+          radon mi src/podcast_scraper/ -s 2>&1 || echo "No maintainability data available"
+          echo '```'
+          echo ""
+          echo "### Docstring Coverage"
+          echo '```'
+          interrogate src/podcast_scraper/ -v 2>&1 || echo "No docstring data available"
+          echo '```'
+          echo ""
+          echo "### Dead Code Detection"
+          echo '```'
+          vulture src/podcast_scraper/ .vulture_whitelist.py --min-confidence 80 2>&1 || echo "No dead code detected"
+          echo '```'
+          echo ""
+          echo "### Spell Checking"
+          echo '```'
+          codespell src/ docs/ --skip="*.pyc,*.json,*.xml,*.lock,*.mp3,*.whl" 2>&1 || echo "No spelling errors found"
+          echo '```'
+          echo ""
+        } >> "$GITHUB_STEP_SUMMARY"
 
         # Save complexity metrics to file for metrics generation
         mkdir -p reports
@@ -343,11 +339,12 @@ jobs:
     - name: Install dev dependencies (no ML; includes FastAPI via [dev])
       run: |
         python -m pip install --upgrade pip
-        python -m pip install -e .[dev]
+        python -m pip install -e ".[dev]"
     - name: Verify packaged profiles vs Docker pipeline tier (#660)
       if: needs.detect-changes.outputs.stack-profiles == 'true'
       run: |
-        export PYTHONPATH="${PYTHONPATH}:$(pwd)/src"
+        PYTHONPATH="${PYTHONPATH}:$(pwd)/src"
+        export PYTHONPATH
         make verify-stack-profiles
     - name: Validate stack Compose file merges (no build)
       if: needs.detect-changes.outputs.stack-compose == 'true'
@@ -361,13 +358,15 @@ jobs:
         sudo apt-get install -y --no-install-recommends ffmpeg
     - name: Verify unit tests can import without ML dependencies
       run: |
-        export PYTHONPATH="${PYTHONPATH}:$(pwd)"
+        PYTHONPATH="${PYTHONPATH}:$(pwd)"
+        export PYTHONPATH
         python scripts/tools/check_unit_test_imports.py
       env:
         PACKAGE: podcast_scraper
     - name: GIL and KG quality metrics on CI fixtures (PRD-017 / PRD-019)
       run: |
-        export PYTHONPATH="${PYTHONPATH}:$(pwd)/src"
+        PYTHONPATH="${PYTHONPATH}:$(pwd)/src"
+        export PYTHONPATH
         python scripts/tools/gil_quality_metrics.py tests/fixtures/gil_kg_ci_enforce \
           --enforce --strict-schema --fail-on-errors \
           --min-extraction-coverage 1.0 \
@@ -385,12 +384,13 @@ jobs:
         PACKAGE: podcast_scraper
     - name: Run unit tests with coverage (network isolation enforced, parallel execution)
       run: |
-        export PYTHONPATH="${PYTHONPATH}:$(pwd)"
+        PYTHONPATH="${PYTHONPATH}:$(pwd)"
+        export PYTHONPATH
         # Create reports directory for coverage output
         mkdir -p reports
         # Run tests with coverage and capture output and exit code
         set +e  # Don't exit on non-zero return code yet
-        OUTPUT=$(pytest tests/unit/ -v --tb=short -n $(python3 -c "import os; print(max(1, (os.cpu_count() or 2) - 2))") --json-report --json-report-file=reports/pytest-unit.json --junitxml=reports/junit-unit.xml --cov=podcast_scraper --cov-report=xml:reports/coverage.xml --cov-report=term-missing --reruns 2 --reruns-delay 1 2>&1)
+        OUTPUT=$(pytest tests/unit/ -v --tb=short -n "$(python3 -c 'import os; print(max(1, (os.cpu_count() or 2) - 2))')" --json-report --json-report-file=reports/pytest-unit.json --junitxml=reports/junit-unit.xml --cov=podcast_scraper --cov-report=xml:reports/coverage.xml --cov-report=term-missing --reruns 2 --reruns-delay 1 2>&1)
         PYTEST_EXIT_CODE=$?
         set -e  # Re-enable exit on error
         echo "$OUTPUT"
@@ -416,7 +416,8 @@ jobs:
     - name: Export coverage data for unified merge
       if: success()
       run: |
-        export PYTHONPATH="${PYTHONPATH}:$(pwd)"
+        PYTHONPATH="${PYTHONPATH}:$(pwd)"
+        export PYTHONPATH
         coverage combine || true
         mkdir -p reports
         if [ -f .coverage ]; then
@@ -428,36 +429,30 @@ jobs:
     - name: Generate coverage summary
       if: always()
       run: |
-        echo "# 📊 Test Coverage Report" >> $GITHUB_STEP_SUMMARY
-        echo "" >> $GITHUB_STEP_SUMMARY
-
-        # Extract coverage from coverage.xml
-        if [ -f reports/coverage.xml ]; then
-          COVERAGE=$(python3 -c "import xml.etree.ElementTree as ET; tree = ET.parse('reports/coverage.xml'); root = tree.getroot(); print(f\"{float(root.attrib.get('line-rate', 0)) * 100:.1f}%\")" 2>/dev/null || echo "N/A")
-          BRANCH_COVERAGE=$(python3 -c "import xml.etree.ElementTree as ET; tree = ET.parse('reports/coverage.xml'); root = tree.getroot(); print(f\"{float(root.attrib.get('branch-rate', 0)) * 100:.1f}%\")" 2>/dev/null || echo "N/A")
-
-          echo "## Coverage Summary" >> $GITHUB_STEP_SUMMARY
-          echo "- **Line Coverage**: $COVERAGE" >> $GITHUB_STEP_SUMMARY
-          echo "- **Branch Coverage**: $BRANCH_COVERAGE" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-
-          # Coverage threshold - for display only on unit tests
-          # Note: Unit tests typically achieve 70-80% coverage
-          # Threshold is only enforced on COMBINED coverage (see coverage-unified job)
-          THRESHOLD=70
-          echo "- **Combined Threshold**: ${THRESHOLD}% *(enforced on combined coverage only)*" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-
-          # Check if coverage meets threshold (informational for unit tests)
-          COVERAGE_NUM=$(echo "$COVERAGE" | sed 's/%//' | cut -d. -f1)
-          if [ "$COVERAGE_NUM" != "N/A" ] && [ "$COVERAGE_NUM" -ge "${THRESHOLD}" ]; then
-            echo "✅ Unit coverage meets combined threshold!" >> $GITHUB_STEP_SUMMARY
-          elif [ "$COVERAGE_NUM" != "N/A" ]; then
-            echo "ℹ️ Unit coverage below combined threshold (expected - combined includes integration/E2E)" >> $GITHUB_STEP_SUMMARY
+        {
+          echo "# 📊 Test Coverage Report"
+          echo ""
+          if [ -f reports/coverage.xml ]; then
+            COVERAGE=$(python3 -c "import xml.etree.ElementTree as ET; tree = ET.parse('reports/coverage.xml'); root = tree.getroot(); print(f\"{float(root.attrib.get('line-rate', 0)) * 100:.1f}%\")" 2>/dev/null || echo "N/A")
+            BRANCH_COVERAGE=$(python3 -c "import xml.etree.ElementTree as ET; tree = ET.parse('reports/coverage.xml'); root = tree.getroot(); print(f\"{float(root.attrib.get('branch-rate', 0)) * 100:.1f}%\")" 2>/dev/null || echo "N/A")
+            echo "## Coverage Summary"
+            echo "- **Line Coverage**: $COVERAGE"
+            echo "- **Branch Coverage**: $BRANCH_COVERAGE"
+            echo ""
+            THRESHOLD=70
+            echo "- **Combined Threshold**: ${THRESHOLD}% *(enforced on combined coverage only)*"
+            echo ""
+            COVERAGE_NUM="${COVERAGE%\%}"
+            COVERAGE_NUM="${COVERAGE_NUM%%.*}"
+            if [ "$COVERAGE_NUM" != "N/A" ] && [ "$COVERAGE_NUM" -ge "${THRESHOLD}" ]; then
+              echo "✅ Unit coverage meets combined threshold!"
+            elif [ "$COVERAGE_NUM" != "N/A" ]; then
+              echo "ℹ️ Unit coverage below combined threshold (expected - combined includes integration/E2E)"
+            fi
+          else
+            echo "⚠️ Coverage report not found"
           fi
-        else
-          echo "⚠️ Coverage report not found" >> $GITHUB_STEP_SUMMARY
-        fi
+        } >> "$GITHUB_STEP_SUMMARY"
     - name: Upload coverage artifacts
       if: always()
       uses: actions/upload-artifact@v7
@@ -498,10 +493,11 @@ jobs:
     - name: Install dev dependencies
       run: |
         python -m pip install --upgrade pip
-        python -m pip install -e .[dev]
+        python -m pip install -e ".[dev]"
     - name: Run N-1 corpus version compat integration tests
       run: |
-        export PYTHONPATH="${PYTHONPATH}:$(pwd)"
+        PYTHONPATH="${PYTHONPATH}:$(pwd)"
+        export PYTHONPATH
         pytest tests/integration/server/test_corpus_version_compat.py -v --tb=short
 
   # GI/KG viewer v2 — Vitest unit tests (same parallel segment as security-quality + test-unit)
@@ -576,7 +572,7 @@ jobs:
       if: (needs.detect-changes.outputs.docs-only != 'true' || needs.detect-changes.outputs.code == 'true') && steps.cache-models.outputs.cache-hit != 'true'
       run: |
         python -m pip install --upgrade pip
-        pip install -e .[dev,ml,llm]
+        pip install -e ".[dev,ml,llm]"
     - name: Preload ML models (only if cache miss)
       if: (needs.detect-changes.outputs.docs-only != 'true' || needs.detect-changes.outputs.code == 'true') && steps.cache-models.outputs.cache-hit != 'true'
       run: make preload-ml-models-production
@@ -598,20 +594,20 @@ jobs:
         echo "  HF_CACHE exists: $([ -d "$HF_CACHE" ] && echo 'yes' || echo 'no')"
         if [ -d "$HF_CACHE" ]; then
           echo "  Contents of HF_CACHE:"
-          ls -la "$HF_CACHE" | head -20
+          find "$HF_CACHE" -maxdepth 1 -printf '%M %u %s %TF %TR %f\n' | head -20
         fi
         for model in "facebook/bart-base" "allenai/led-base-16384" "google/long-t5-tglobal-base" "google/flan-t5-base"; do
-          MODEL_DIR="models--$(echo $model | sed 's|/|--|g')"
+          MODEL_DIR="models--${model//\//--}"
           MODEL_PATH="$HF_CACHE/$MODEL_DIR"
           echo "  Checking $model:"
           echo "    MODEL_PATH: $MODEL_PATH"
           echo "    MODEL_PATH exists: $([ -d "$MODEL_PATH" ] && echo 'yes' || echo 'no')"
           if [ -d "$MODEL_PATH" ]; then
             echo "    Contents of MODEL_PATH:"
-            ls -la "$MODEL_PATH" | head -10
+            find "$MODEL_PATH" -maxdepth 1 -printf '%M %u %s %TF %TR %f\n' | head -10
             if [ -d "$MODEL_PATH/snapshots" ]; then
               echo "    snapshots/ exists, contents:"
-              ls -la "$MODEL_PATH/snapshots" | head -5
+              find "$MODEL_PATH/snapshots" -maxdepth 1 -printf '%M %u %s %TF %TR %f\n' | head -5
             else
               echo "    snapshots/ does NOT exist"
             fi
@@ -706,7 +702,7 @@ jobs:
         echo "📦 Hugging Face models:"
         HF_CACHE="$HOME/.cache/huggingface/hub"
         for model in "facebook/bart-base" "allenai/led-base-16384" "google/long-t5-tglobal-base" "google/flan-t5-base"; do
-          MODEL_DIR="models--$(echo $model | sed 's|/|--|g')"
+          MODEL_DIR="models--${model//\//--}"
           MODEL_PATH="$HF_CACHE/$MODEL_DIR"
           # Check if model has files anywhere (blobs, snapshots, or root)
           # HuggingFace cache structure: files in blobs/, symlinks in snapshots/
@@ -724,20 +720,20 @@ jobs:
         echo ""
         if [ "$MODELS_COMPLETE" = true ]; then
           echo "✅ All required ML models are cached!"
-          echo "models_complete=true" >> $GITHUB_OUTPUT
+          echo "models_complete=true" >> "$GITHUB_OUTPUT"
         else
           echo "⚠️  Some models are missing: $MISSING_MODELS"
-          echo "models_complete=false" >> $GITHUB_OUTPUT
+          echo "models_complete=false" >> "$GITHUB_OUTPUT"
           exit 1
         fi
     - name: Set ML_MODELS_VALIDATED (only if cache validated)
       if: steps.validate-cache.outputs.models_complete == 'true'
       run: |
-        echo "ML_MODELS_VALIDATED=true" >> $GITHUB_ENV
+        echo "ML_MODELS_VALIDATED=true" >> "$GITHUB_ENV"
     - name: Install full dependencies (including ML)
       run: |
         python -m pip install --upgrade pip
-        pip install -e .[dev,ml,llm]
+        pip install -e ".[dev,ml,llm]"
         pip install pytest-socket
     - name: Install ffmpeg (required for Whisper)
       run: |
@@ -745,12 +741,13 @@ jobs:
         sudo apt-get install -y --no-install-recommends ffmpeg
     - name: Run all integration tests with coverage (full suite, with network guard)
       run: |
-        export PYTHONPATH="${PYTHONPATH}:$(pwd)"
+        PYTHONPATH="${PYTHONPATH}:$(pwd)"
+        export PYTHONPATH
         # Create reports directory for coverage output
         mkdir -p reports
         # Run all integration tests with coverage and network guard
         set +e  # Don't exit on non-zero return code yet
-        OUTPUT=$(pytest tests/integration/ -v -m integration -n $(python3 -c "import os; print(max(1, (os.cpu_count() or 2) - 2))") --json-report --json-report-file=reports/pytest-integration.json --junitxml=reports/junit-integration.xml --cov=podcast_scraper --cov-append --cov-report=xml:reports/coverage-integration.xml --cov-report=term-missing --cov-fail-under=42 --disable-socket --allow-hosts=127.0.0.1,localhost --reruns 2 --reruns-delay 1 2>&1)
+        OUTPUT=$(pytest tests/integration/ -v -m integration -n "$(python3 -c 'import os; print(max(1, (os.cpu_count() or 2) - 2))')" --json-report --json-report-file=reports/pytest-integration.json --junitxml=reports/junit-integration.xml --cov=podcast_scraper --cov-append --cov-report=xml:reports/coverage-integration.xml --cov-report=term-missing --cov-fail-under=42 --disable-socket --allow-hosts=127.0.0.1,localhost --reruns 2 --reruns-delay 1 2>&1)
         PYTEST_EXIT_CODE=$?
         set -e  # Re-enable exit on error
         echo "$OUTPUT"
@@ -774,7 +771,8 @@ jobs:
     - name: Export coverage data for unified merge
       if: success()
       run: |
-        export PYTHONPATH="${PYTHONPATH}:$(pwd)"
+        PYTHONPATH="${PYTHONPATH}:$(pwd)"
+        export PYTHONPATH
         coverage combine || true
         mkdir -p reports
         if [ -f .coverage ]; then
@@ -875,21 +873,21 @@ jobs:
         echo "  HF_CACHE exists: $([ -d "$HF_CACHE" ] && echo 'yes' || echo 'no')"
         if [ -d "$HF_CACHE" ]; then
           echo "  Contents of HF_CACHE:"
-          ls -la "$HF_CACHE" | head -20
+          find "$HF_CACHE" -maxdepth 1 -printf '%M %u %s %TF %TR %f\n' | head -20
           echo "  Total size: $(du -sh "$HF_CACHE" 2>/dev/null | cut -f1)"
         fi
         for model in "facebook/bart-base" "allenai/led-base-16384" "google/long-t5-tglobal-base" "google/flan-t5-base"; do
-          MODEL_DIR="models--$(echo $model | sed 's|/|--|g')"
+          MODEL_DIR="models--${model//\//--}"
           MODEL_PATH="$HF_CACHE/$MODEL_DIR"
           echo "  Checking $model:"
           echo "    MODEL_PATH: $MODEL_PATH"
           echo "    MODEL_PATH exists: $([ -d "$MODEL_PATH" ] && echo 'yes' || echo 'no')"
           if [ -d "$MODEL_PATH" ]; then
             echo "    Contents of MODEL_PATH:"
-            ls -la "$MODEL_PATH" | head -10
+            find "$MODEL_PATH" -maxdepth 1 -printf '%M %u %s %TF %TR %f\n' | head -10
           if [ -d "$MODEL_PATH/snapshots" ]; then
             echo "    snapshots/ exists, contents:"
-            ls -la "$MODEL_PATH/snapshots" | head -5
+            find "$MODEL_PATH/snapshots" -maxdepth 1 -printf '%M %u %s %TF %TR %f\n' | head -5
             FILE_COUNT_SNAPSHOTS=$(find "$MODEL_PATH/snapshots" -type f -o -type l 2>/dev/null | wc -l)
             echo "    File/symlink count in snapshots/: $FILE_COUNT_SNAPSHOTS"
           else
@@ -897,7 +895,7 @@ jobs:
           fi
           if [ -d "$MODEL_PATH/blobs" ]; then
             echo "    blobs/ exists, contents:"
-            ls -la "$MODEL_PATH/blobs" | head -5
+            find "$MODEL_PATH/blobs" -maxdepth 1 -printf '%M %u %s %TF %TR %f\n' | head -5
             FILE_COUNT_BLOBS=$(find "$MODEL_PATH/blobs" -type f 2>/dev/null | wc -l)
             echo "    File count in blobs/: $FILE_COUNT_BLOBS"
           else
@@ -923,20 +921,20 @@ jobs:
         echo ""
         if [ "$MODELS_COMPLETE" = true ]; then
           echo "✅ All required ML models are cached!"
-          echo "models_complete=true" >> $GITHUB_OUTPUT
+          echo "models_complete=true" >> "$GITHUB_OUTPUT"
         else
           echo "⚠️  Some models are missing: $MISSING_MODELS"
-          echo "models_complete=false" >> $GITHUB_OUTPUT
+          echo "models_complete=false" >> "$GITHUB_OUTPUT"
           exit 1
         fi
     - name: Set ML_MODELS_VALIDATED (only if cache validated)
       if: steps.validate-cache.outputs.models_complete == 'true'
       run: |
-        echo "ML_MODELS_VALIDATED=true" >> $GITHUB_ENV
+        echo "ML_MODELS_VALIDATED=true" >> "$GITHUB_ENV"
     - name: Install dev dependencies with ML (pytest-socket for network guard)
       run: |
         python -m pip install --upgrade pip
-        pip install -e .[dev,ml,llm]
+        pip install -e ".[dev,ml,llm]"
         pip install pytest-socket
     - name: Install ffmpeg (required for Whisper)
       run: |
@@ -944,14 +942,15 @@ jobs:
         sudo apt-get install -y --no-install-recommends ffmpeg
     - name: Run fast integration tests with coverage (critical path only, with network guard)
       run: |
-        export PYTHONPATH="${PYTHONPATH}:$(pwd)"
+        PYTHONPATH="${PYTHONPATH}:$(pwd)"
+        export PYTHONPATH
         # Create reports directory for coverage output
         mkdir -p reports
         # Run tests with coverage and network guard: --disable-socket --allow-hosts=127.0.0.1,localhost
         # Critical path tests only for faster CI feedback
         # Note: Fast tests don't enforce coverage threshold (they're a subset, full suite enforces threshold)
         set +e  # Don't exit on non-zero return code yet
-        OUTPUT=$(pytest tests/integration/ -v -m "integration and critical_path" -n $(python3 -c "import os; print(max(1, (os.cpu_count() or 2) - 2))") --cov=podcast_scraper --cov-append --cov-report=xml:reports/coverage-integration.xml --cov-report=term-missing --disable-socket --allow-hosts=127.0.0.1,localhost --reruns 2 --reruns-delay 1 --durations=20 2>&1)
+        OUTPUT=$(pytest tests/integration/ -v -m "integration and critical_path" -n "$(python3 -c 'import os; print(max(1, (os.cpu_count() or 2) - 2))')" --cov=podcast_scraper --cov-append --cov-report=xml:reports/coverage-integration.xml --cov-report=term-missing --disable-socket --allow-hosts=127.0.0.1,localhost --reruns 2 --reruns-delay 1 --durations=20 2>&1)
         PYTEST_EXIT_CODE=$?
         set -e  # Re-enable exit on error
         echo "$OUTPUT"
@@ -975,7 +974,8 @@ jobs:
     - name: Export coverage data for unified merge
       if: success()
       run: |
-        export PYTHONPATH="${PYTHONPATH}:$(pwd)"
+        PYTHONPATH="${PYTHONPATH}:$(pwd)"
+        export PYTHONPATH
         coverage combine || true
         mkdir -p reports
         if [ -f .coverage ]; then
@@ -1062,7 +1062,7 @@ jobs:
         echo "📦 Hugging Face models:"
         HF_CACHE="$HOME/.cache/huggingface/hub"
         for model in "facebook/bart-base" "allenai/led-base-16384" "google/long-t5-tglobal-base" "google/flan-t5-base"; do
-          MODEL_DIR="models--$(echo $model | sed 's|/|--|g')"
+          MODEL_DIR="models--${model//\//--}"
           MODEL_PATH="$HF_CACHE/$MODEL_DIR"
           # Check if model has files anywhere (blobs, snapshots, or root)
           # HuggingFace cache structure: files in blobs/, symlinks in snapshots/
@@ -1080,20 +1080,20 @@ jobs:
         echo ""
         if [ "$MODELS_COMPLETE" = true ]; then
           echo "✅ All required ML models are cached!"
-          echo "models_complete=true" >> $GITHUB_OUTPUT
+          echo "models_complete=true" >> "$GITHUB_OUTPUT"
         else
           echo "⚠️  Some models are missing: $MISSING_MODELS"
-          echo "models_complete=false" >> $GITHUB_OUTPUT
+          echo "models_complete=false" >> "$GITHUB_OUTPUT"
           exit 1
         fi
     - name: Set ML_MODELS_VALIDATED (only if cache validated)
       if: steps.validate-cache.outputs.models_complete == 'true'
       run: |
-        echo "ML_MODELS_VALIDATED=true" >> $GITHUB_ENV
+        echo "ML_MODELS_VALIDATED=true" >> "$GITHUB_ENV"
     - name: Install dev dependencies (pytest-socket for network guard)
       run: |
         python -m pip install --upgrade pip
-        pip install -e .[dev,ml,llm]
+        pip install -e ".[dev,ml,llm]"
         pip install pytest-socket
     - name: Install ffmpeg (required for Whisper)
       run: |
@@ -1101,7 +1101,8 @@ jobs:
         sudo apt-get install -y --no-install-recommends ffmpeg
     - name: Run fast E2E tests with coverage (critical path only, with network guard)
       run: |
-        export PYTHONPATH="${PYTHONPATH}:$(pwd)"
+        PYTHONPATH="${PYTHONPATH}:$(pwd)"
+        export PYTHONPATH
         export E2E_TEST_MODE=fast
         # Create reports directory for coverage output
         mkdir -p reports
@@ -1109,7 +1110,7 @@ jobs:
         # Critical path tests only for faster CI feedback
         # Note: Fast tests don't enforce coverage threshold (they're a subset, full suite enforces threshold)
         set +e  # Don't exit on non-zero return code yet
-        OUTPUT=$(E2E_TEST_MODE=fast pytest tests/e2e/ -v -m "e2e and critical_path" -n $(python3 -c "import os; print(max(1, (os.cpu_count() or 2) - 2))") --cov=podcast_scraper --cov-report=xml:reports/coverage-e2e.xml --cov-report=term-missing --disable-socket --allow-hosts=127.0.0.1,localhost --reruns 2 --reruns-delay 1 --durations=20 2>&1)
+        OUTPUT=$(E2E_TEST_MODE=fast pytest tests/e2e/ -v -m "e2e and critical_path" -n "$(python3 -c 'import os; print(max(1, (os.cpu_count() or 2) - 2))')" --cov=podcast_scraper --cov-report=xml:reports/coverage-e2e.xml --cov-report=term-missing --disable-socket --allow-hosts=127.0.0.1,localhost --reruns 2 --reruns-delay 1 --durations=20 2>&1)
         PYTEST_EXIT_CODE=$?
         set -e  # Re-enable exit on error
         echo "$OUTPUT"
@@ -1133,7 +1134,8 @@ jobs:
     - name: Export coverage data for unified merge
       if: success()
       run: |
-        export PYTHONPATH="${PYTHONPATH}:$(pwd)"
+        PYTHONPATH="${PYTHONPATH}:$(pwd)"
+        export PYTHONPATH
         coverage combine || true
         mkdir -p reports
         if [ -f .coverage ]; then
@@ -1218,7 +1220,7 @@ jobs:
         echo "📦 Hugging Face models:"
         HF_CACHE="$HOME/.cache/huggingface/hub"
         for model in "facebook/bart-base" "allenai/led-base-16384" "google/long-t5-tglobal-base" "google/flan-t5-base"; do
-          MODEL_DIR="models--$(echo $model | sed 's|/|--|g')"
+          MODEL_DIR="models--${model//\//--}"
           MODEL_PATH="$HF_CACHE/$MODEL_DIR"
           TOTAL_FILES=$(find "$MODEL_PATH" -type f 2>/dev/null | wc -l)
           if [ -d "$MODEL_PATH" ] && [ "$TOTAL_FILES" -gt 0 ]; then
@@ -1234,20 +1236,20 @@ jobs:
         echo ""
         if [ "$MODELS_COMPLETE" = true ]; then
           echo "✅ All required ML models are cached!"
-          echo "models_complete=true" >> $GITHUB_OUTPUT
+          echo "models_complete=true" >> "$GITHUB_OUTPUT"
         else
           echo "⚠️  Some models are missing: $MISSING_MODELS"
-          echo "models_complete=false" >> $GITHUB_OUTPUT
+          echo "models_complete=false" >> "$GITHUB_OUTPUT"
           exit 1
         fi
     - name: Set ML_MODELS_VALIDATED (only if cache validated)
       if: steps.validate-cache.outputs.models_complete == 'true'
       run: |
-        echo "ML_MODELS_VALIDATED=true" >> $GITHUB_ENV
+        echo "ML_MODELS_VALIDATED=true" >> "$GITHUB_ENV"
     - name: Install full dependencies (including ML)
       run: |
         python -m pip install --upgrade pip
-        pip install -e .[dev,ml,llm]
+        pip install -e ".[dev,ml,llm]"
         pip install pytest-socket
     - name: Install ffmpeg (required for Whisper)
       run: |
@@ -1255,13 +1257,14 @@ jobs:
         sudo apt-get install -y --no-install-recommends ffmpeg
     - name: Run all E2E tests with coverage (full suite, with network guard)
       run: |
-        export PYTHONPATH="${PYTHONPATH}:$(pwd)"
+        PYTHONPATH="${PYTHONPATH}:$(pwd)"
+        export PYTHONPATH
         export E2E_TEST_MODE=multi_episode
         # Create reports directory for coverage output
         mkdir -p reports
         # Run all E2E tests with coverage and network guard (single xdist run; no @pytest.mark.serial in suite)
         set +e  # Don't exit on non-zero return code yet
-        OUTPUT=$(E2E_TEST_MODE=multi_episode pytest tests/e2e/ -v -m "e2e" -n $(python3 -c "import os; print(max(1, (os.cpu_count() or 2) - 2))") --json-report --json-report-file=reports/pytest-e2e.json --junitxml=reports/junit-e2e.xml --cov=podcast_scraper --cov-report=xml:reports/coverage-e2e.xml --cov-report=term-missing --cov-fail-under=40 --disable-socket --allow-hosts=127.0.0.1,localhost --reruns 2 --reruns-delay 1 2>&1)
+        OUTPUT=$(E2E_TEST_MODE=multi_episode pytest tests/e2e/ -v -m "e2e" -n "$(python3 -c 'import os; print(max(1, (os.cpu_count() or 2) - 2))')" --json-report --json-report-file=reports/pytest-e2e.json --junitxml=reports/junit-e2e.xml --cov=podcast_scraper --cov-report=xml:reports/coverage-e2e.xml --cov-report=term-missing --cov-fail-under=40 --disable-socket --allow-hosts=127.0.0.1,localhost --reruns 2 --reruns-delay 1 2>&1)
         PYTEST_EXIT_CODE=$?
         set -e  # Re-enable exit on error
         echo "$OUTPUT"
@@ -1285,7 +1288,8 @@ jobs:
     - name: Export coverage data for unified merge
       if: success()
       run: |
-        export PYTHONPATH="${PYTHONPATH}:$(pwd)"
+        PYTHONPATH="${PYTHONPATH}:$(pwd)"
+        export PYTHONPATH
         coverage combine || true
         mkdir -p reports
         if [ -f .coverage ]; then
@@ -1362,26 +1366,28 @@ jobs:
         done
         HF_CACHE="$HOME/.cache/huggingface/hub"
         for model in facebook/bart-base allenai/led-base-16384 google/long-t5-tglobal-base google/flan-t5-base; do
-          MODEL_DIR="models--$(echo $model | sed 's|/|--|g')"
+          MODEL_DIR="models--${model//\//--}"
           test -d "$HF_CACHE/$MODEL_DIR" || { echo "missing hf $model"; exit 1; }
           test "$(find "$HF_CACHE/$MODEL_DIR" -type f 2>/dev/null | head -1)" || { echo "empty hf $model"; exit 1; }
         done
     - name: Install dependencies (ML + LLM for full pipeline acceptance)
       run: |
         python -m pip install --upgrade pip
-        pip install -e .[dev,ml,llm]
+        pip install -e ".[dev,ml,llm]"
     - name: Install ffmpeg
       run: |
         sudo apt-get update
         sudo apt-get install -y --no-install-recommends ffmpeg
     - name: Run acceptance fast matrix with E2E fixtures
       run: |
-        export PYTHONPATH="${PYTHONPATH}:$(pwd)"
+        PYTHONPATH="${PYTHONPATH}:$(pwd)"
+        export PYTHONPATH
         # Fast matrix is four cloud/dev rows (no airgapped Whisper-heavy preset); 900s per config.
         TIMEOUT=900 PER_RUN_WALL_SECONDS=600 make test-acceptance-fixtures-fast
     - name: Verify GIL Quote vs FAISS transcript chunk offsets (acceptance corpora)
       run: |
-        export PYTHONPATH="${PYTHONPATH}:$(pwd)"
+        PYTHONPATH="${PYTHONPATH}:$(pwd)"
+        export PYTHONPATH
         # #528: each successful acceptance run_* with vector_search + generate_gi must
         # align Quote char spans with indexed transcript chunks (feeds nightly / lift contract).
         make verify-gil-offsets-after-acceptance
@@ -1413,7 +1419,7 @@ jobs:
       run: |
         python -m pip install --upgrade pip
         pip install -r docs/requirements.txt
-        pip install -e .[ml]
+        pip install -e ".[ml]"
     - name: Build docs
       run: make docs
 
@@ -1515,7 +1521,8 @@ jobs:
         ls -la reports/pytest-*.json 2>/dev/null || true
     - name: Combine coverage with coverage.py (matches local make coverage-enforce)
       run: |
-        export PYTHONPATH="${PYTHONPATH}:$(pwd)"
+        PYTHONPATH="${PYTHONPATH}:$(pwd)"
+        export PYTHONPATH
         mkdir -p reports
         set -e
         # Merge unit + integration + E2E using the same engine as `coverage combine` locally.
@@ -1540,37 +1547,30 @@ jobs:
     - name: Generate unified coverage summary
       if: always()
       run: |
-        echo "# 📊 Unified Test Coverage Report" >> $GITHUB_STEP_SUMMARY
-        echo "" >> $GITHUB_STEP_SUMMARY
-
-        # Extract coverage from unified report
-        if [ -f reports/coverage-unified.xml ]; then
-          COVERAGE=$(python3 -c "import xml.etree.ElementTree as ET; tree = ET.parse('reports/coverage-unified.xml'); root = tree.getroot(); print(f\"{float(root.attrib.get('line-rate', 0)) * 100:.1f}%\")" 2>/dev/null || echo "N/A")
-          BRANCH_COVERAGE=$(python3 -c "import xml.etree.ElementTree as ET; tree = ET.parse('reports/coverage-unified.xml'); root = tree.getroot(); print(f\"{float(root.attrib.get('branch-rate', 0)) * 100:.1f}%\")" 2>/dev/null || echo "N/A")
-
-          echo "## Unified Coverage Summary" >> $GITHUB_STEP_SUMMARY
-          echo "- **Line Coverage**: $COVERAGE" >> $GITHUB_STEP_SUMMARY
-          echo "- **Branch Coverage**: $BRANCH_COVERAGE" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-
-          # Coverage threshold for combined coverage (not per-test-type)
-          # Note: Individual test types (unit/integration/e2e) have different expected coverage:
-          # - Unit: ~70-80%, Integration: ~50-60%, E2E: ~50-55%
-          # Only COMBINED coverage is enforced against this threshold
-          THRESHOLD=70
-          echo "- **Threshold**: ${THRESHOLD}%" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-
-          # Check if coverage meets threshold
-          COVERAGE_NUM=$(echo "$COVERAGE" | sed 's/%//' | cut -d. -f1)
-          if [ "$COVERAGE_NUM" != "N/A" ] && [ "$COVERAGE_NUM" -ge "${THRESHOLD}" ]; then
-            echo "✅ Coverage meets threshold!" >> $GITHUB_STEP_SUMMARY
-          elif [ "$COVERAGE_NUM" != "N/A" ]; then
-            echo "⚠️ Coverage below threshold (${THRESHOLD}%)" >> $GITHUB_STEP_SUMMARY
+        {
+          echo "# 📊 Unified Test Coverage Report"
+          echo ""
+          if [ -f reports/coverage-unified.xml ]; then
+            COVERAGE=$(python3 -c "import xml.etree.ElementTree as ET; tree = ET.parse('reports/coverage-unified.xml'); root = tree.getroot(); print(f\"{float(root.attrib.get('line-rate', 0)) * 100:.1f}%\")" 2>/dev/null || echo "N/A")
+            BRANCH_COVERAGE=$(python3 -c "import xml.etree.ElementTree as ET; tree = ET.parse('reports/coverage-unified.xml'); root = tree.getroot(); print(f\"{float(root.attrib.get('branch-rate', 0)) * 100:.1f}%\")" 2>/dev/null || echo "N/A")
+            echo "## Unified Coverage Summary"
+            echo "- **Line Coverage**: $COVERAGE"
+            echo "- **Branch Coverage**: $BRANCH_COVERAGE"
+            echo ""
+            THRESHOLD=70
+            echo "- **Threshold**: ${THRESHOLD}%"
+            echo ""
+            COVERAGE_NUM="${COVERAGE%\%}"
+            COVERAGE_NUM="${COVERAGE_NUM%%.*}"
+            if [ "$COVERAGE_NUM" != "N/A" ] && [ "$COVERAGE_NUM" -ge "${THRESHOLD}" ]; then
+              echo "✅ Coverage meets threshold!"
+            elif [ "$COVERAGE_NUM" != "N/A" ]; then
+              echo "⚠️ Coverage below threshold (${THRESHOLD}%)"
+            fi
+          else
+            echo "⚠️ Unified coverage report not found"
           fi
-        else
-          echo "⚠️ Unified coverage report not found" >> $GITHUB_STEP_SUMMARY
-        fi
+        } >> "$GITHUB_STEP_SUMMARY"
 
         # Flaky tests (passed after pytest-rerunfailures retry; match generate_metrics.py / nightly.yml)
         shopt -s nullglob
@@ -1578,14 +1578,16 @@ jobs:
           if [ -f "$report" ]; then
             FLAKY_COUNT=$(jq -r '[.tests[] | select((.outcome == "rerun" and .call.outcome == "passed") or (.outcome == "passed" and .rerun == true))] | length' "$report" 2>/dev/null || echo "0")
             if [ "${FLAKY_COUNT:-0}" -gt 0 ]; then
-              echo "" >> $GITHUB_STEP_SUMMARY
-              echo "## ⚠️ Flaky tests (passed on rerun)" >> $GITHUB_STEP_SUMMARY
-              echo "- **Report**: \`$(basename "$report")\` — **count**: $FLAKY_COUNT" >> $GITHUB_STEP_SUMMARY
-              echo "" >> $GITHUB_STEP_SUMMARY
-              echo "### Node IDs" >> $GITHUB_STEP_SUMMARY
-              echo '```' >> $GITHUB_STEP_SUMMARY
-              jq -r '.tests[] | select((.outcome == "rerun" and .call.outcome == "passed") or (.outcome == "passed" and .rerun == true)) | .nodeid' "$report" 2>/dev/null >> $GITHUB_STEP_SUMMARY || echo "Unable to extract" >> $GITHUB_STEP_SUMMARY
-              echo '```' >> $GITHUB_STEP_SUMMARY
+              {
+                echo ""
+                echo "## ⚠️ Flaky tests (passed on rerun)"
+                echo "- **Report**: \`$(basename "$report")\` — **count**: $FLAKY_COUNT"
+                echo ""
+                echo "### Node IDs"
+                echo '```'
+                jq -r '.tests[] | select((.outcome == "rerun" and .call.outcome == "passed") or (.outcome == "passed" and .rerun == true)) | .nodeid' "$report" 2>/dev/null || echo "Unable to extract"
+                echo '```'
+              } >> "$GITHUB_STEP_SUMMARY"
             fi
           fi
         done
@@ -1641,7 +1643,7 @@ jobs:
       if: always() && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/release/2.4' || github.ref == 'refs/heads/release/2.5' || github.ref == 'refs/heads/release/2.6')
       run: |
         # Install ML dependencies for pipeline execution
-        pip install -e .[ml] || echo "⚠️ ML dependencies not available, skipping pipeline metrics"
+        pip install -e ".[ml]" || echo "⚠️ ML dependencies not available, skipping pipeline metrics"
         # Run minimal pipeline to collect performance metrics
         python scripts/dashboard/collect_pipeline_metrics.py \
           --output reports/output/pipeline_metrics.json \
