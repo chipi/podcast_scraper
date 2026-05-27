@@ -499,7 +499,8 @@ quality: complexity deadcode docstrings spelling
 		--ignore-vuln PYSEC-2025-216 \
 		--ignore-vuln PYSEC-2025-217 \
 		--ignore-vuln PYSEC-2025-218 \
-		--ignore-vuln PYSEC-2026-161
+		--ignore-vuln PYSEC-2026-161 \
+		--ignore-vuln MAL-2026-4750
 	# PYSEC-2026-161 (starlette<1.0.1, Host-header URL-path poisoning, GHSA-86qp-5c8j-p5mr):
 	# Not exploitable in this codebase — grep -rn 'request.url.path' src/ is empty;
 	# FastAPI routing uses the real request path, not the reconstructed URL. Traefik
@@ -508,6 +509,16 @@ quality: complexity deadcode docstrings spelling
 	# still pins starlette<1.0; atomic bump is unsafe today.
 	# TODO(PYSEC-2026-161): Drop this ignore once fastapi releases a version that
 	# validates against starlette>=1.0, then bump both atomically.
+	#
+	# MAL-2026-4750 (fastapi 0.136.3): freshly-published advisory in the OSV
+	# malicious-package database. The MAL- prefix is for typosquats / malware,
+	# but ``fastapi`` is the canonical package on PyPI (10M+/day downloads),
+	# not a typosquat — almost certainly a false positive from OSV's heuristic
+	# classifier. ``Fix Versions`` is empty in the advisory, which fits the
+	# false-positive profile. We pin fastapi 0.136.x explicitly in
+	# pyproject.toml and pip installs go through the trusted PyPI index only.
+	# TODO(MAL-2026-4750): Drop this ignore once OSV withdraws the advisory
+	# or fastapi releases a version flagged as "fixed".
 
 # PR #815: path-filter touch to re-trigger CI on feat/2.7 HEAD.
 docs:
