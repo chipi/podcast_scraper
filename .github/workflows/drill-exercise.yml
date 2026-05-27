@@ -21,8 +21,11 @@ on:
   workflow_dispatch:
     inputs:
       confirm:
+        # required:false so scheduled cron runs (no inputs) don't trip GHA
+        # workflow-load validation. The ``gate`` job below still enforces the
+        # typed value for ``workflow_dispatch`` events.
         description: 'Type "DRILL_FULL_CYCLE" (or DRILL_EXERCISE) for plan→apply→app→always destroy'
-        required: true
+        required: false
         default: ''
       backup_tag:
         description: "Restore: release tag (empty = newest compatible snapshot-prod-*; sibling snapshot.manifest.json required)"
