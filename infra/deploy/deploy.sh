@@ -81,7 +81,14 @@ if [ -n "$DEPLOY_GIT_SHA" ]; then
     echo "ERROR: DEPLOY_GIT_SHA must match ^[a-f0-9]{7,40}$ (got: ${DEPLOY_GIT_SHA})" >&2
     exit 4
   fi
-  git fetch --depth=50 origin "$DEPLOY_GIT_SHA"
+  # GitHub doesn't honor ``git fetch origin <SHA>`` for arbitrary commit
+  # SHAs (only for SHAs that happen to be a branch/tag tip). Fetch all
+  # branch refs shallow so the SHA is reachable locally, then reset.
+  # First-deploy chicken-and-egg: this branch + the matching deploy-prod.yml
+  # change land together; the FIRST deploy after this commit still runs
+  # the OLD deploy.sh (the one being replaced), so a redeploy is needed
+  # to actually exercise the new code path.
+  git fetch --depth=50 origin "+refs/heads/*:refs/remotes/origin/*"
   git reset --hard "$DEPLOY_GIT_SHA"
 else
   git fetch --depth=50 origin main
