@@ -88,9 +88,10 @@ resource "hcloud_server" "prod" {
   }
 
   user_data = templatefile("${path.module}/../cloud-init/prod.user-data", {
-    tailscale_auth_key = tailscale_tailnet_key.prod.key
-    tailnet_hostname   = var.tailnet_hostname
-    ssh_public_key     = var.ssh_public_key
+    tailscale_auth_key         = tailscale_tailnet_key.prod.key
+    tailnet_hostname           = var.tailnet_hostname
+    ssh_public_key             = var.ssh_public_key
+    additional_authorized_keys = var.additional_authorized_keys
 
     tailscale_advertise_tags_cli = local.tailscale_advertise_tags_cli
 

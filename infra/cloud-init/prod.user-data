@@ -20,6 +20,9 @@ users:
     sudo: false
     ssh_authorized_keys:
       - "${ssh_public_key}"
+%{ for k in additional_authorized_keys ~}
+      - "${k}"
+%{ endfor ~}
 
 package_update: true
 package_upgrade: true
@@ -132,7 +135,15 @@ runcmd:
   # via runcmd — this runs unconditionally after the user is (or should have
   # been) created.
   - install -d -m 700 -o deploy -g deploy /home/deploy/.ssh || (useradd -m -s /bin/bash -G docker deploy && install -d -m 700 -o deploy -g deploy /home/deploy/.ssh)
-  - echo '${ssh_public_key}' > /home/deploy/.ssh/authorized_keys
+  # Multi-key write via heredoc — primary operator key plus each
+  # ``additional_authorized_keys`` entry on its own line. ``join`` renders
+  # at templatefile time; the ``\n    `` separator preserves the 4-space
+  # YAML literal-block indent for every subsequent key, otherwise the
+  # render breaks YAML parsing.
+  - |
+    cat > /home/deploy/.ssh/authorized_keys <<'AUTHKEYS_EOF'
+    ${join("\n    ", concat([ssh_public_key], additional_authorized_keys))}
+    AUTHKEYS_EOF
   - chown deploy:deploy /home/deploy/.ssh/authorized_keys
   - chmod 600 /home/deploy/.ssh/authorized_keys
   # Also ensure root's authorized_keys has it, so emergency access is possible
