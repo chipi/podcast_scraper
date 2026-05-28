@@ -79,7 +79,7 @@ jobs:
 
       - name: Upload Snyk results to GitHub Code Scanning
         uses: github/codeql-action/upload-sarif@v4
-        if: always()
+        if: always() && hashFiles('snyk.sarif') != ''
         with:
           sarif_file: snyk.sarif
           wait-for-processing: true
@@ -90,23 +90,35 @@ jobs:
   snyk-docker:
     name: Snyk - Docker
     runs-on: ubuntu-latest
+    # ML+preload bake can run ~17 min; do not cancel mid-build when another push lands.
+    timeout-minutes: 45
     if: github.event_name != 'schedule'
+    concurrency:
+      group: snyk-docker-${{ github.ref }}
+      cancel-in-progress: false
     steps:
       - uses: actions/checkout@v6
 
+      # Match docker.yml (#703): hosted toolchains are unused for pure docker builds.
       - name: Free disk space
         run: |
-          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /home/linuxbrew/.linuxbrew
+          echo "before:"
+          df -h /
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /home/linuxbrew/.linuxbrew \
+            /opt/hostedtoolcache /usr/share/swift /usr/local/share/boost || true
+          sudo apt-get clean || true
+          sudo rm -rf /var/lib/apt/lists/* || true
           docker image prune -af || true
-          sudo apt-get clean
-          sudo rm -rf /var/lib/apt/lists/*
+          echo "after:"
+          df -h /
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v4
         with:
-          driver-opts: image=moby/buildkit:latest
+          driver-opts: |
+            image=moby/buildkit:latest
 
-      # PRs: same variant as docker-build-fast (INSTALL_EXTRAS=); shares GHA cache scope with it.
+      # PRs: same as docker-build-fast — cache-from only (no cache-to; avoids GHA 502 on export).
       - name: Build Docker image (PR — LLM-only, fast)
         if: github.event_name == 'pull_request'
         uses: docker/build-push-action@v7
@@ -119,9 +131,8 @@ jobs:
           load: true
           tags: podcast-scraper:snyk-scan
           cache-from: type=gha,scope=llm-only
-          cache-to: type=gha,mode=max,scope=llm-only
 
-      # Push / workflow_dispatch: identical ML variant to docker-build-full `ml` (prod-like bake)
+      # Push / workflow_dispatch: same ML matrix args + GHA cache as docker-build-full `ml`.
       - name: Build Docker image (main — ML + preload)
         if: github.event_name != 'pull_request'
         uses: docker/build-push-action@v7
@@ -135,7 +146,7 @@ jobs:
           load: true
           tags: podcast-scraper:snyk-scan
           cache-from: type=gha,scope=ml
-          cache-to: type=gha,mode=max,scope=ml
+          cache-to: type=gha,mode=min,scope=ml
 
       - name: Verify Docker image exists
         run: |
@@ -153,7 +164,10 @@ jobs:
 
       - name: Upload Snyk Docker results to GitHub Code Scanning
         uses: github/codeql-action/upload-sarif@v4
-        if: always() && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
+        if: |
+          always()
+          && hashFiles('snyk-docker.sarif') != ''
+          && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
         with:
           sarif_file: snyk-docker.sarif
           wait-for-processing: true
