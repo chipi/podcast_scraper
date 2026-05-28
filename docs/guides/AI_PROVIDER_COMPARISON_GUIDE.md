@@ -805,8 +805,22 @@ orderings. See [eval methodology](eval-reports/index.md) for detail.
 
 ---
 
+## DGX-hosted local models (RFC-089)
+
+When the operator DGX Spark is on the tailnet, 70B-class Ollama models become
+practical for autoresearch and `local_dgx_*` profiles. Fill this section from
+`data/eval/runs/` after running configs such as
+`autoresearch_prompt_ollama_llama33_70b_dgx_smoke_bullets_v1` with
+`OLLAMA_API_BASE` pointed at DGX.
+
+Procedure: [DGX_RUNBOOK](DGX_RUNBOOK.md). Cost comparison uses #804 rollups plus
+electricity notes in the runbook.
+
+---
+
 ## Related Documentation
 
+- [DGX Spark runbook](DGX_RUNBOOK.md) — tailnet bring-up, profiles, prod Whisper
 - [Provider Deep Dives](PROVIDER_DEEP_DIVES.md) — per-provider cards, magic quadrant,
   visual comparisons
 - [Evaluation Reports](eval-reports/index.md) — methodology, metrics, and full

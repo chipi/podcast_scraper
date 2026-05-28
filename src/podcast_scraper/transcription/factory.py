@@ -81,11 +81,18 @@ def create_transcription_provider(
         # Experiment-based mode
         provider_type_str = str(cfg_or_provider_type)
         # Type narrowing: validate it's one of the allowed values
-        if provider_type_str not in ("whisper", "openai", "gemini", "mistral"):
+        if provider_type_str not in (
+            "whisper",
+            "openai",
+            "gemini",
+            "mistral",
+            "tailnet_dgx_whisper",
+        ):
             raise ValueError(f"Invalid provider type: {provider_type_str}")
 
         provider_type_value = cast(
-            Literal["whisper", "openai", "gemini", "mistral"], provider_type_str
+            Literal["whisper", "openai", "gemini", "mistral", "tailnet_dgx_whisper"],
+            provider_type_str,
         )
         experiment_mode = True
         provider_type = provider_type_value
@@ -236,8 +243,22 @@ def create_transcription_provider(
         # Runtime protocol verification (dev-mode only)
         verify_protocol_compliance(provider, TranscriptionProvider, "TranscriptionProvider")
         return provider
+    elif provider_type == "tailnet_dgx_whisper":
+        from ..providers.tailnet_dgx.whisper_provider import (
+            TailnetDgxWhisperTranscriptionProvider,
+        )
+
+        if experiment_mode:
+            raise ValueError("tailnet_dgx_whisper is not supported in experiment mode")
+        provider = cast(
+            TranscriptionProvider,
+            TailnetDgxWhisperTranscriptionProvider(cfg),
+        )
+        verify_protocol_compliance(provider, TranscriptionProvider, "TranscriptionProvider")
+        return provider
     else:
         raise ValueError(
             f"Unsupported transcription provider: {provider_type}. "
-            "Supported providers: 'whisper', 'openai', 'gemini', 'mistral', 'anthropic'"
+            "Supported providers: 'whisper', 'openai', 'gemini', 'mistral', "
+            "'anthropic', 'tailnet_dgx_whisper'"
         )

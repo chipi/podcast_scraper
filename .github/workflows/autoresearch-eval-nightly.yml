@@ -1,0 +1,57 @@
+# Nightly autoresearch smoke on DGX self-hosted runner when registered (RFC-089 P3).
+# Until the ephemeral dgx-spark runner exists, the job queues; register per DGX_RUNBOOK.
+
+name: Autoresearch eval nightly (DGX)
+
+on:
+  schedule:
+    - cron: "0 3 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: autoresearch-eval-nightly
+  cancel-in-progress: true
+
+jobs:
+  dgx-smoke:
+    name: DGX autoresearch smoke (allow-listed)
+    runs-on: [self-hosted, dgx-spark]
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.11.8"
+          cache: pip
+          cache-dependency-path: pyproject.toml
+
+      - name: Install package (dev)
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+
+      - name: Ollama health (tailnet)
+        env:
+          DGX_TAILNET_FQDN: ${{ vars.DGX_TAILNET_FQDN }}
+        run: |
+          if [ -z "${DGX_TAILNET_FQDN}" ]; then
+            echo "DGX_TAILNET_FQDN repo variable unset; skipping tailnet probe"
+            exit 0
+          fi
+          host=$(bash scripts/ops/resolve_dgx_tailnet_host.sh)
+          curl -fsS --max-time 5 "http://${host}:11434/api/tags" | head -c 200
+
+      - name: Autoresearch score smoke (optional)
+        env:
+          OLLAMA_API_BASE: ${{ vars.DGX_OLLAMA_API_BASE }}
+        run: |
+          if [ -z "${OLLAMA_API_BASE}" ]; then
+            echo "DGX_OLLAMA_API_BASE unset; smoke skipped until operator configures vars"
+            exit 0
+          fi
+          make autoresearch-score SMOKE=1 || true

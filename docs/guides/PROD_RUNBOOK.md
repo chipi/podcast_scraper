@@ -8,6 +8,8 @@ Need the short version for daily ops? Use
 [Prod operator cheat sheet](PROD_OPERATOR_CHEAT_SHEET.md).
 **Other Docker Compose apps on the same VPS:** see
 [VPS multi-app onboarding](VPS_MULTI_APP_ONBOARDING.md).
+**Optional DGX Whisper primary (cost optimization):** [DGX_RUNBOOK](DGX_RUNBOOK.md) and profile
+`cloud_with_dgx_whisper_primary` per [ADR-096](../adr/ADR-096-dgx-spark-prod-primary-with-fallback.md).
 
 **How hosting fits together (diagrams + planes):** [Hosting and infrastructure](../architecture/HOSTING_AND_INFRASTRUCTURE.md). **Immutable decisions:** [ADR-079](../adr/ADR-079-opentofu-for-always-on-hosting-iac.md)–[ADR-083](../adr/ADR-083-tailscale-private-ingress-always-on-vps.md) (OpenTofu, state, drill workspace, app GitOps contract, tailnet ingress), [ADR-082](../adr/ADR-082-gitops-app-deploy-via-stack-test-and-gha.md) (stack-test gate and deploy nuance), [ADR-084](../adr/ADR-084-full-stack-docker-compose-topology.md)–[ADR-085](../adr/ADR-085-ephemeral-stack-test-integration-gate.md) (Compose + CI stack-test), [ADR-093](../adr/ADR-093-canonical-stack-contract-and-environment-adapters.md) (stack contract vs adapters). **Surface audit table:** [STACK_CONTRACT.md](STACK_CONTRACT.md). **CI workflow names:** [WORKFLOWS.md](../ci/WORKFLOWS.md).
 

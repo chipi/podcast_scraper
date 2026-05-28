@@ -227,7 +227,7 @@ The financial argument is not "save money." The argument is "for the same monthl
 
 | Phase | Scope | Acceptance |
 | --- | --- | --- |
-| **P0 — DGX bring-up** | Hardware on tailnet, Ollama installed, 4 models pulled, embedding shim deployed, ACL updated, `resolve_dgx_tailnet_host.sh` added. | Operator can `curl http://dgx-llm-1.<tailnet>:11434/api/tags` from laptop and get a populated model list. ACL refuses prod VPS. |
+| **P0 — DGX bring-up** | Hardware on tailnet, Ollama installed, 4 models pulled, embedding shim deployed, ACL updated, `resolve_dgx_tailnet_host.sh` added. | Operator can `curl http://dgx-llm-1.<tailnet>:11434/api/tags` from laptop and get a populated model list. ACL permits prod/drill/admin/gha-deployer to DGX per ADR-096. |
 | **P1 — Tier 1 shipped** | Laptop's Ollama config flipped to DGX; autoresearch sample run completed against DGX; embedding shim wired into one CLI tool. | One end-to-end autoresearch eval run produces results identical (within determinism noise) to cloud baseline. |
 | **P2 — Tier 2 shipped** | `TailnetDgxProvider` lands; `local_dgx_*` profiles ship; AI comparison guide updated with measurements. | A pipeline run with `--profile local_dgx_balanced` produces an episode end-to-end identical (within determinism) to `cloud_balanced` for the LLM-driven stages. Comparison-guide PR cites real numbers. |
 | **P3 — Tier 3 shipped** | GHA self-hosted runner registered; allow-list policy in place; nightly autoresearch runs on DGX; pre-prod (per #800) uses DGX. | Autoresearch nightly workflow runs on `[self-hosted, dgx-spark]` for ≥7 consecutive nights without operator intervention. |

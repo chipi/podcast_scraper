@@ -159,6 +159,7 @@ def encode(
     return_numpy: bool = False,
     batch_size: int = 64,
     allow_download: bool = False,
+    remote_endpoint: Optional[str] = None,
 ) -> Union[List[float], List[List[float]], Any]:
     """Encode text(s) to embedding vectors.
 
@@ -175,7 +176,26 @@ def encode(
     Returns:
         Single list of floats, list of lists, or ndarray(s) depending on input count
         and ``return_numpy``.
+
+    When ``remote_endpoint`` is set, vectors are fetched from the DGX HTTP shim
+    (RFC-089) instead of loading sentence-transformers locally.
     """
+    if isinstance(remote_endpoint, str) and remote_endpoint.strip():
+        from .embedding_remote import encode_via_endpoint
+
+        rows = encode_via_endpoint(
+            texts,
+            remote_endpoint.strip(),
+            model_id=model_id,
+            normalize=normalize,
+        )
+        if isinstance(texts, str):
+            single = rows[0]
+            return single if not return_numpy else __import__("numpy").array(single)
+        if return_numpy:
+            return __import__("numpy").array(rows)
+        return rows
+
     model = get_embedding_model(
         model_id, device=device, cache_dir=cache_dir, allow_download=allow_download
     )

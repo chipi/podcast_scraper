@@ -114,6 +114,8 @@ still rolling out; **No** = not started (including accepted ADRs waiting on impl
 | [ADR-093](ADR-093-canonical-stack-contract-and-environment-adapters.md) | Canonical Stack Contract Versus Environment Adapters | Accepted | [RFC-082](../rfc/RFC-082-always-on-pre-prod-and-prod-hosting.md) | One topology/health/`stack-test` discipline; adapters for transport/secrets only; steady vs restore playbooks separate; GitHub #762 | Yes |
 | [ADR-094](ADR-094-graph-handoff-orchestrator-fsm.md) | Graph Handoff Orchestrator — 8-State FSM with Envelope and Generation Tokens | Accepted | [RFC-085](../rfc/RFC-085-graph-handoff-orchestrator-retrospective.md) | Single FSM authoritative across 13 entry points; envelope contract; generation supersession; viewer-side stuck detection + error strip | Yes |
 | [ADR-095](ADR-095-viewer-test-pyramid.md) | Viewer Test Pyramid — Three Tiers (Mocks, Production-Shaped, Real Corpus) | Accepted | [RFC-086](../rfc/RFC-086-viewer-test-pyramid-and-production-shaped-fixtures.md) | Tier-1 mocked, Tier-2 production-shaped fixtures, Tier-3 real-corpus matrix; `make ci-ui-validation`; real-bug-first matrix-row rule | Yes |
+| [ADR-096](ADR-096-dgx-spark-prod-primary-with-fallback.md) | DGX Spark in prod — primary-with-fallback contract | Accepted | [RFC-089](../rfc/RFC-089-dgx-spark-tailnet-integration.md) | Prod may use DGX when each stage names a cloud fallback; v1 stage is Whisper | Partial |
+| [ADR-097](ADR-097-self-hosted-gha-runner-policy.md) | GitHub Actions self-hosted runner policy on public repos | Accepted | [RFC-089](../rfc/RFC-089-dgx-spark-tailnet-integration.md) | Ephemeral runner + fork approval + workflow allowlist before `dgx-spark` | Partial |
 
 ## Gap analysis {:#gaps}
 

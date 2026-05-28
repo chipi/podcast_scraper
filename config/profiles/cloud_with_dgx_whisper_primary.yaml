@@ -1,0 +1,46 @@
+# Profile: cloud_with_dgx_whisper_primary — prod Whisper on DGX, cloud fallback (ADR-096)
+#
+# Summarization / GI / KG remain on cloud_balanced defaults (Gemini).
+# Requires prod VPS tailnet reachability to tag:dgx-llm-host and OPENAI_API_KEY for fallback.
+
+transcription:
+  primary: tailnet_dgx_whisper
+  fallback: openai
+
+dgx_tailnet_host: dgx-llm-1.tail6d0ed4.ts.net
+dgx_whisper_model: whisper-large-v3
+transcription_fallback_provider: openai
+
+openai_transcription_model: whisper-1
+
+audio_preprocessing_profile: speech_optimal_v1
+
+speaker_detector_provider: gemini
+auto_speakers: true
+
+summary_provider: gemini
+gemini_summary_model: gemini-2.5-flash-lite
+preprocessing_enabled: true
+llm_pipeline_mode: mega_bundled
+cloud_llm_structured_min_output_tokens: 4096
+
+generate_gi: true
+gi_insight_source: provider
+gi_max_insights: 12
+gi_require_grounding: true
+gil_evidence_quote_mode: bundled
+gil_evidence_nli_mode: bundled
+
+generate_kg: true
+kg_extraction_source: provider
+kg_max_topics: 10
+kg_max_entities: 15
+
+vector_search: true
+vector_backend: faiss
+llm_circuit_breaker_enabled: true
+
+generate_metadata: true
+generate_summaries: true
+language: en
+log_level: INFO

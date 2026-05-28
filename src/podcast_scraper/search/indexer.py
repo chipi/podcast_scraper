@@ -680,6 +680,7 @@ def index_corpus(
                     return_numpy=False,
                     batch_size=64,
                     allow_download=False,
+                    remote_endpoint=cfg.vector_embedding_endpoint,
                 )
             except Exception as exc:
                 stats.errors.append(f"encode {episode_id}: {exc}")
