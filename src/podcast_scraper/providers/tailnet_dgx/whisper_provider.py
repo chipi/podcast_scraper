@@ -39,11 +39,9 @@ class TailnetDgxWhisperTranscriptionProvider:
             return
         if not self._host:
             raise ValueError("dgx_tailnet_host is required for tailnet_dgx_whisper")
-        fb_cfg = self.cfg.model_copy(
-            update={
-                "transcription_provider": self._fallback_name,
-            }
-        )
+        fb_data = self.cfg.model_dump()
+        fb_data["transcription_provider"] = self._fallback_name
+        fb_cfg = config.Config.model_validate(fb_data)
         self._fallback = create_transcription_provider(fb_cfg)
         self._fallback.initialize()
         self._initialized = True

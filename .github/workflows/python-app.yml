@@ -247,6 +247,8 @@ jobs:
       # after cleaning the ~195 pre-existing warnings).
       run: |
         actionlint .github/workflows/*.yml
+    - name: Self-hosted runner allowlist (ADR-097)
+      run: make check-test-policy
 
   # Security and quality checks - gated by lint/build, runs independently to coverage-unified (does not gate tests)
   security-quality:

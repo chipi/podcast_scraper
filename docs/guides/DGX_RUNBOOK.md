@@ -67,6 +67,9 @@ All three layers required before registering the runner:
 2. Repo setting **Require approval for all outside collaborators** (see [REPO_SETTINGS_AUDIT](../operations/REPO_SETTINGS_AUDIT.md)).
 3. Workflow listed in `.github/SELF_HOSTED_RUNNER_ALLOWLIST.md`.
 
+CI enforces the allowlist via `make check-test-policy` (runs
+`scripts/tools/check_self_hosted_runner_allowlist.py` on every `python-app` lint job).
+
 Register labels `self-hosted`, `dgx-spark`. Set GitHub repo variables `DGX_TAILNET_FQDN`, `DGX_OLLAMA_API_BASE` for `autoresearch-eval-nightly.yml`.
 
 ## P4 — Prod Whisper primary (ADR-096)

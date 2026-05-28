@@ -35,6 +35,30 @@ def test_config_rejects_dgx_without_fallback() -> None:
         )
 
 
+def test_gemini_fallback_requires_api_key() -> None:
+    with pytest.raises(ValueError, match="transcription_fallback"):
+        Config.model_validate(
+            {
+                "rss_url": "https://example.com/feed.xml",
+                "transcription_provider": "tailnet_dgx_whisper",
+                "transcription_fallback_provider": "gemini",
+                "dgx_tailnet_host": "dgx-llm-1.tail-test.ts.net",
+            }
+        )
+
+
+def test_mistral_fallback_requires_api_key() -> None:
+    with pytest.raises(ValueError, match="transcription_fallback"):
+        Config.model_validate(
+            {
+                "rss_url": "https://example.com/feed.xml",
+                "transcription_provider": "tailnet_dgx_whisper",
+                "transcription_fallback_provider": "mistral",
+                "dgx_tailnet_host": "dgx-llm-1.tail-test.ts.net",
+            }
+        )
+
+
 def test_nested_transcription_yaml_flattens() -> None:
     cfg = Config.model_validate(
         {
@@ -55,7 +79,9 @@ def test_nested_transcription_yaml_flattens() -> None:
 @patch(
     "podcast_scraper.providers.tailnet_dgx.whisper_provider.check_ollama_health", return_value=False
 )
+@patch("podcast_scraper.providers.tailnet_dgx.whisper_provider.time.sleep")
 def test_falls_back_when_dgx_unhealthy(
+    mock_sleep: MagicMock,
     _health: MagicMock,
     _breadcrumb: MagicMock,
     tmp_path,
@@ -77,3 +103,103 @@ def test_falls_back_when_dgx_unhealthy(
     assert text == "cloud text"
     fallback.transcribe_with_segments.assert_called_once()
     _breadcrumb.assert_called_once()
+    mock_sleep.assert_called_once()
+
+
+@patch("podcast_scraper.providers.tailnet_dgx.whisper_provider.emit_dgx_fallback_breadcrumb")
+@patch(
+    "podcast_scraper.providers.tailnet_dgx.whisper_provider.check_ollama_health",
+    side_effect=[False, True],
+)
+@patch("podcast_scraper.providers.tailnet_dgx.whisper_provider.time.sleep")
+@patch.object(TailnetDgxWhisperTranscriptionProvider, "_transcribe_ollama")
+def test_retries_once_before_success(
+    mock_ollama: MagicMock,
+    mock_sleep: MagicMock,
+    _health: MagicMock,
+    _breadcrumb: MagicMock,
+    tmp_path,
+) -> None:
+    audio = tmp_path / "ep.mp3"
+    audio.write_bytes(b"\x00\x01")
+    mock_ollama.return_value = ("dgx text", [], 0.5)
+
+    provider = TailnetDgxWhisperTranscriptionProvider(_dgx_cfg())
+    provider._fallback = MagicMock()
+    provider._initialized = True
+
+    assert provider.transcribe(str(audio)) == "dgx text"
+    mock_sleep.assert_called_once()
+    mock_ollama.assert_called_once()
+    _breadcrumb.assert_not_called()
+
+
+@patch(
+    "podcast_scraper.providers.tailnet_dgx.whisper_provider.check_ollama_health",
+    return_value=True,
+)
+@patch.object(TailnetDgxWhisperTranscriptionProvider, "_transcribe_ollama")
+def test_healthy_dgx_path(
+    mock_ollama: MagicMock,
+    _health: MagicMock,
+    tmp_path,
+) -> None:
+    audio = tmp_path / "ep.mp3"
+    audio.write_bytes(b"\x00\x01")
+    mock_ollama.return_value = ("from dgx", [{"start": 0}], 1.2)
+
+    provider = TailnetDgxWhisperTranscriptionProvider(_dgx_cfg())
+    provider._fallback = MagicMock()
+    provider._initialized = True
+
+    assert provider.transcribe(str(audio)) == "from dgx"
+    provider._fallback.transcribe_with_segments.assert_not_called()
+
+
+@patch("podcast_scraper.providers.tailnet_dgx.whisper_provider.emit_dgx_fallback_breadcrumb")
+@patch(
+    "podcast_scraper.providers.tailnet_dgx.whisper_provider.check_ollama_health", return_value=True
+)
+@patch.object(TailnetDgxWhisperTranscriptionProvider, "_transcribe_ollama")
+def test_falls_back_when_ollama_returns_empty(
+    mock_ollama: MagicMock,
+    _health: MagicMock,
+    _breadcrumb: MagicMock,
+    tmp_path,
+) -> None:
+    audio = tmp_path / "ep.mp3"
+    audio.write_bytes(b"\x00\x01")
+    mock_ollama.side_effect = ValueError("empty transcription from DGX Ollama")
+
+    provider = TailnetDgxWhisperTranscriptionProvider(_dgx_cfg())
+    fallback = MagicMock()
+    fallback.transcribe_with_segments.return_value = (
+        {"text": "fallback", "segments": [], "language": "en"},
+        2.0,
+    )
+    provider._fallback = fallback
+    provider._initialized = True
+
+    assert provider.transcribe(str(audio)) == "fallback"
+    _breadcrumb.assert_called_once()
+
+
+@patch("httpx.Client")
+def test_transcribe_ollama_parses_response(mock_client_cls: MagicMock, tmp_path) -> None:
+    audio = tmp_path / "clip.mp3"
+    audio.write_bytes(b"abc")
+
+    mock_resp = MagicMock()
+    mock_resp.json.return_value = {
+        "text": " hello ",
+        "segments": [{"start": 0.0, "end": 1.0, "text": "hello"}],
+    }
+    mock_client = MagicMock()
+    mock_client.__enter__.return_value = mock_client
+    mock_client.post.return_value = mock_resp
+    mock_client_cls.return_value = mock_client
+
+    provider = TailnetDgxWhisperTranscriptionProvider(_dgx_cfg())
+    text, segments, _dur = provider._transcribe_ollama(str(audio), "en")
+    assert text == "hello"
+    assert len(segments) == 1

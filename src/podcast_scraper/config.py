@@ -4282,6 +4282,11 @@ class Config(BaseModel):
         gemini_providers_used = []
         if self.transcription_provider == "gemini":
             gemini_providers_used.append("transcription")
+        if (
+            self.transcription_provider == "tailnet_dgx_whisper"
+            and self.transcription_fallback_provider == "gemini"
+        ):
+            gemini_providers_used.append("transcription_fallback")
         if self.speaker_detector_provider == "gemini":
             gemini_providers_used.append("speaker_detection")
         if self.summary_provider == "gemini":
@@ -4407,6 +4412,11 @@ class Config(BaseModel):
         mistral_providers_used = []
         if self.transcription_provider == "mistral":
             mistral_providers_used.append("transcription")
+        if (
+            self.transcription_provider == "tailnet_dgx_whisper"
+            and self.transcription_fallback_provider == "mistral"
+        ):
+            mistral_providers_used.append("transcription_fallback")
         if self.speaker_detector_provider == "mistral":
             mistral_providers_used.append("speaker_detection")
         if self.summary_provider == "mistral":

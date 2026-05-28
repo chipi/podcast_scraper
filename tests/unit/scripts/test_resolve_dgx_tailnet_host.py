@@ -38,6 +38,18 @@ def test_resolver_finds_online_dgx_host() -> None:
     assert proc.stdout.strip() == "dgx-llm-1.tail-test.ts.net"
 
 
+def test_resolver_warns_on_suffix_drift() -> None:
+    proc = _run(
+        {
+            "DGX_TAILNET_FQDN": "dgx-llm-2.tail-test.ts.net",
+            "TAILSCALE_STATUS_JSON_PATH": str(FIXTURES / "status_dgx_llm_drift.json"),
+        }
+    )
+    assert proc.returncode == 0, proc.stderr
+    assert proc.stdout.strip() == "dgx-llm-1.tail-test.ts.net"
+    assert "suffix drift" in proc.stderr.lower()
+
+
 def test_resolver_fails_when_no_dgx_online() -> None:
     proc = _run(
         {

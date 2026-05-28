@@ -119,10 +119,10 @@ still rolling out; **No** = not started (including accepted ADRs waiting on impl
 
 ## Gap analysis {:#gaps}
 
-**Counts (reconcile when adding ADRs):** **95** files under `docs/adr/ADR-*.md` (ADR-001–ADR-095;
+**Counts (reconcile when adding ADRs):** **97** files under `docs/adr/ADR-*.md` (ADR-001–ADR-097;
 numbering has historical gaps). From the index table: **2** **Proposed** (**ADR-055**, **ADR-056**),
-**7** **Accepted** with **Code = No** (**ADR-054**, **ADR-058**, **ADR-059**, **ADR-089**, **ADR-090**, **ADR-091**), **2** **Accepted** with
-**Code = Partial** (**ADR-031**, **ADR-047**). **Accepted** means ratified, not necessarily shipped.
+**7** **Accepted** with **Code = No** (**ADR-054**, **ADR-058**, **ADR-059**, **ADR-089**, **ADR-090**, **ADR-091**), **4** **Accepted** with
+**Code = Partial** (**ADR-031**, **ADR-047**, **ADR-096**, **ADR-097**). **Accepted** means ratified, not necessarily shipped.
 
 ### When to extract a new ADR
 

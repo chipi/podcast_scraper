@@ -216,7 +216,7 @@ New section in PROD_RUNBOOK or a separate `docs/guides/DGX_RUNBOOK.md`:
 | Capex | $0 | One-time DGX Spark purchase (~$3-4k retail) | already paid; treat as sunk |
 | Operator laptop | unchanged | freed from GPU work | qualitative |
 | Cloud LLM spend (dev / autoresearch) | ~$10-30/month estimated (Gemini, OpenAI for eval matrix) | ~$0-5/month (most eval runs DGX) | $5-25/mo saved |
-| Cloud LLM spend (prod) | unchanged | unchanged (prod doesn't touch DGX) | $0 |
+| Cloud LLM spend (prod) | baseline | lower when DGX-primary stages run (ADR-096); cloud fallback on failure | small saving when Whisper primary is stable |
 | GHA minutes (heavy ML jobs) | a few hundred / month | DGX self-hosted = ~0 GHA minutes for those jobs | small saving (operator is below GHA free-tier ceiling anyway) |
 | Electricity | unchanged | DGX always-on at ~150-300W → ~$15-30/month at $0.20/kWh | -$15-30/mo |
 | Net monthly | baseline | -$10 to +$10 (depends on eval intensity) | Roughly neutral; the win is qualitative (capacity, ergonomics, breadth) |
