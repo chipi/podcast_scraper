@@ -2,25 +2,32 @@
 
 from __future__ import annotations
 
+import importlib.util
 import subprocess
 import sys
 from pathlib import Path
+from types import ModuleType
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 SCRIPT = REPO_ROOT / "scripts" / "tools" / "check_self_hosted_runner_allowlist.py"
 
-from scripts.tools.check_self_hosted_runner_allowlist import (  # noqa: E402
-    runs_on_uses_self_hosted,
-    workflow_uses_self_hosted,
-)
+
+def _load_checker_module() -> ModuleType:
+    spec = importlib.util.spec_from_file_location("check_self_hosted_runner_allowlist", SCRIPT)
+    assert spec is not None and spec.loader is not None
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
 
 
 def test_runs_on_detects_multiline_self_hosted_list() -> None:
-    assert runs_on_uses_self_hosted(["self-hosted", "dgx-spark"])
-    assert not runs_on_uses_self_hosted("ubuntu-latest")
+    mod = _load_checker_module()
+    assert mod.runs_on_uses_self_hosted(["self-hosted", "dgx-spark"])
+    assert not mod.runs_on_uses_self_hosted("ubuntu-latest")
 
 
 def test_workflow_uses_self_hosted_multiline_runs_on(tmp_path: Path) -> None:
+    mod = _load_checker_module()
     wf = tmp_path / "evil.yml"
     wf.write_text(
         """
@@ -36,10 +43,11 @@ jobs:
 """.strip() + "\n",
         encoding="utf-8",
     )
-    assert workflow_uses_self_hosted(wf)
+    assert mod.workflow_uses_self_hosted(wf)
 
 
 def test_main_flags_unlisted_self_hosted_workflow(tmp_path: Path, monkeypatch) -> None:
+    mod = _load_checker_module()
     workflows = tmp_path / "workflows"
     workflows.mkdir()
     rogue_yaml = (
@@ -49,8 +57,6 @@ def test_main_flags_unlisted_self_hosted_workflow(tmp_path: Path, monkeypatch) -
     (workflows / "rogue.yml").write_text(rogue_yaml, encoding="utf-8")
     allowlist = tmp_path / "SELF_HOSTED_RUNNER_ALLOWLIST.md"
     allowlist.write_text("# empty\n", encoding="utf-8")
-
-    import scripts.tools.check_self_hosted_runner_allowlist as mod
 
     monkeypatch.setattr(mod, "REPO_ROOT", tmp_path)
     monkeypatch.setattr(mod, "WORKFLOWS", workflows)
