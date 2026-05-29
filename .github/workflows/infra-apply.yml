@@ -31,6 +31,10 @@ on:
         description: 'Optional: Hetzner server ID to force-delete via API before tofu runs. Use when state diverged (e.g. failed re-encrypt left a server tofu does not know about, blocking subnet destroy).'
         required: false
         default: ''
+      orphan_ssh_key_ids:
+        description: 'Optional CSV: Hetzner ssh_key IDs to force-delete via API before tofu runs. Use when an orphan ssh_key with the same fingerprint as the current operator key blocks creation (Hetzner 409 uniqueness_error).'
+        required: false
+        default: ''
 
 permissions:
   contents: read
@@ -115,6 +119,30 @@ jobs:
             sops -d infra/terraform/terraform.tfstate.enc > infra/terraform/terraform.tfstate
           fi
 
+      - name: Force-delete orphan Hetzner ssh_keys (state-divergence recovery)
+        if: ${{ github.event.inputs.orphan_ssh_key_ids != '' }}
+        env:
+          HCLOUD_TOKEN: ${{ secrets.HCLOUD_TOKEN }}
+          IDS:          ${{ github.event.inputs.orphan_ssh_key_ids }}
+        run: |
+          set -euo pipefail
+          IFS=',' read -ra ID_ARR <<< "$IDS"
+          for raw in "${ID_ARR[@]}"; do
+            id=$(echo "$raw" | tr -d ' ')
+            [ -z "$id" ] && continue
+            echo "Deleting Hetzner ssh_key id=$id"
+            STATUS=$(curl -s -o /tmp/sk.body -w '%{http_code}' \
+              -X DELETE "https://api.hetzner.cloud/v1/ssh_keys/${id}" \
+              -H "Authorization: Bearer ${HCLOUD_TOKEN}")
+            echo "  API status: $STATUS"
+            cat /tmp/sk.body; echo
+            case "$STATUS" in
+              200|201|202|204) echo "  delete OK" ;;
+              404)             echo "  already gone (404) — OK" ;;
+              *)               echo "::error::unexpected status $STATUS deleting ssh_key $id"; exit 1 ;;
+            esac
+          done
+
       - name: Force-delete orphan Hetzner server (recovery from state divergence)
         if: ${{ github.event.inputs.orphan_server_id != '' }}
         env:
@@ -160,6 +188,15 @@ jobs:
             echo "::group::tofu destroy (clean-slate rebuild)"
             tofu destroy -auto-approve -input=false
             echo "::endgroup::"
+            # tailscale_acl has no real "delete" semantic on the Tailscale API
+            # — destroy removes it from tofu state but the ACL persists on the
+            # tailnet. A subsequent ``apply`` that tries to ``create`` it then
+            # fails with "412 invalid old hash" because the create has no
+            # etag. Re-importing post-destroy turns the next operation into
+            # an ``update`` (with the correct etag), which works.
+            echo "::group::tofu import tailscale_acl post-destroy"
+            tofu import 'tailscale_acl.main[0]' acl
+            echo "::endgroup::"
           fi
           tofu apply -auto-approve -input=false
 
@@ -168,8 +205,11 @@ jobs:
         env:
           SOPS_AGE_KEY: ${{ secrets.TFSTATE_AGE_KEY }}
         run: |
+          # ``--config`` makes sops find creation_rules deterministically
+          # regardless of CWD. Walking-up from terraform/terraform.tfstate
+          # to find infra/.sops.yaml previously failed on the GH runner.
           if [ -f infra/terraform/terraform.tfstate ]; then
-            sops -e infra/terraform/terraform.tfstate > infra/terraform/terraform.tfstate.enc.new
+            sops --config infra/.sops.yaml -e infra/terraform/terraform.tfstate > infra/terraform/terraform.tfstate.enc.new
             mv infra/terraform/terraform.tfstate.enc.new infra/terraform/terraform.tfstate.enc
           fi
 
