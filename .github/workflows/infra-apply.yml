@@ -17,9 +17,16 @@ on:
   workflow_dispatch:
     inputs:
       confirm:
-        description: 'Type "APPLY" to confirm you want to apply'
+        description: 'Type "APPLY" (apply mode) or "DESTROY_THEN_APPLY" (full rebuild) to confirm'
         required: true
         default: ''
+      mode:
+        description: 'apply (default) or destroy-then-apply (full clean-slate recreate)'
+        type: choice
+        options:
+          - apply
+          - destroy-then-apply
+        default: apply
 
 permissions:
   contents: read
@@ -40,10 +47,27 @@ jobs:
     steps:
       - name: Confirm input
         run: |
-          if [ "${{ github.event.inputs.confirm }}" != "APPLY" ]; then
-            echo "::error::Must type APPLY to confirm. Got: '${{ github.event.inputs.confirm }}'"
-            exit 1
-          fi
+          MODE='${{ github.event.inputs.mode }}'
+          CONFIRM='${{ github.event.inputs.confirm }}'
+          case "$MODE" in
+            apply)
+              if [ "$CONFIRM" != "APPLY" ]; then
+                echo "::error::mode=apply requires confirm=APPLY. Got: '$CONFIRM'"
+                exit 1
+              fi
+              ;;
+            destroy-then-apply)
+              if [ "$CONFIRM" != "DESTROY_THEN_APPLY" ]; then
+                echo "::error::mode=destroy-then-apply requires confirm=DESTROY_THEN_APPLY. Got: '$CONFIRM'"
+                exit 1
+              fi
+              ;;
+            *)
+              echo "::error::Unknown mode: '$MODE'"
+              exit 1
+              ;;
+          esac
+          echo "mode=$MODE confirmed"
 
       - uses: actions/checkout@v6
 
@@ -87,15 +111,22 @@ jobs:
             sops -d infra/terraform/terraform.tfstate.enc > infra/terraform/terraform.tfstate
           fi
 
-      - name: tofu init + apply
+      - name: tofu init + (destroy +) apply
         working-directory: infra/terraform
         env:
           TF_VAR_hcloud_token:      ${{ secrets.HCLOUD_TOKEN }}
           TF_VAR_tailscale_api_key: ${{ secrets.TS_API_KEY }}
           TF_VAR_ssh_public_key:    ${{ secrets.OPERATOR_SSH_PUBLIC_KEY }}
           TF_VAR_tailscale_tailnet: ${{ vars.TAILNET_NAME }}
+          MODE:                     ${{ github.event.inputs.mode }}
         run: |
+          set -euo pipefail
           tofu init -input=false
+          if [ "$MODE" = "destroy-then-apply" ]; then
+            echo "::group::tofu destroy (clean-slate rebuild)"
+            tofu destroy -auto-approve -input=false
+            echo "::endgroup::"
+          fi
           tofu apply -auto-approve -input=false
 
       - name: Re-encrypt state (always — even if apply failed; preserves partial state)
