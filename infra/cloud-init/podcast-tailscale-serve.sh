@@ -21,5 +21,12 @@ while [ "$i" -le 60 ]; do
   sleep 2
   i=$((i + 1))
 done
-/usr/bin/tailscale serve reset || true
+# Port-scoped clear (#845): ``tailscale serve reset`` wipes the entire
+# serve config — including other co-tenant apps' publishes (orrery on
+# :8443, etc.). Using ``--https=443 off`` clears only this app's :443
+# entry, leaving co-tenants' ports untouched. ``tailscale serve --bg``
+# below is itself idempotent for the same port, so the ``off`` is only
+# needed for the ``$PORT`` rotation case (8080 → 8081 etc.) where the
+# backend mapping changes between deploys.
+/usr/bin/tailscale serve --https=443 off || true
 exec /usr/bin/tailscale serve --bg "$PORT"

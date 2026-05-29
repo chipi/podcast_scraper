@@ -4,9 +4,11 @@
 # Phase 1 (chipi/orrery#260): no systemd unit, invoked by cloud-init runcmd
 # at first boot + by orrery's deploy workflow via narrow sudo allowlist.
 #
-# Intentionally does NOT call ``tailscale serve reset`` — that would wipe
-# podcast_scraper's :443 publish. Additive publish only. The reset call in
-# podcast-tailscale-serve.sh is a co-tenancy hazard tracked separately.
+# Co-tenant rule (#845): never ``tailscale serve reset`` — wipes ALL
+# co-tenants' publishes. Use port-scoped ``--https=8443 off`` if a clear
+# is needed for backend rotation; ``--bg`` is already idempotent for the
+# same port so additive-only is fine when the backend stays put.
+# podcast-tailscale-serve.sh uses the same pattern (per #845).
 #
 # POSIX ``/bin/sh`` (dash on Ubuntu) — cloud-init ``write_files`` and
 # ``sudo sh`` paths must not hit bash-only syntax.

@@ -654,6 +654,22 @@ Inputs:
 
 The orphan-ID inputs (`orphan_server_id`, `orphan_ssh_key_ids`, `orphan_network_ids`, `orphan_firewall_ids`) are present for surgical cleanup but **prefer `wipe-then-apply` once divergence is suspected** — the orphan path leads to death-by-a-thousand-cuts as new orphans surface mid-recovery.
 
+### Co-tenant tailnet publish rules {#co-tenant-tailscale-serve-rules}
+
+The prod VPS hosts multiple apps that share **one** `tailscaled` daemon (one tailnet identity, one serve config). Each app publishes on its own port: podcast_scraper `:443 → 8080`, orrery `:8443 → 8090`, etc. The configs coexist without conflict, but they share global state.
+
+**Rule: every co-tenant's wrapper script must use port-scoped `tailscale serve --https=<port> off`, never the global `tailscale serve reset`.** Reset wipes ALL ports for ALL co-tenants. The 2026-05-29 incident's "every podcast deploy kills orrery's `:8443`" sharp edge was the wrong-shape reset in `podcast-tailscale-serve.sh` — see #845 for the fix.
+
+When adding a third co-tenant (Grafana, status page, anything else that wants tailnet exposure):
+
+1. Pick a unique tailnet HTTPS port (not 443 / 8443 / anything already taken).
+2. Write a wrapper at `infra/cloud-init/<app>-tailscale-serve.sh`, mirroring `orrery-tailscale-serve.sh`'s shape.
+3. The wrapper does additive publish only, OR port-scoped clear-then-publish — never global reset.
+4. Cloud-init `write_files` installs it root-owned; a parallel sudoers file gives `deploy@` narrow NOPASSWD invocation rights.
+5. Wire it into the new app's deploy workflow as a post-compose-up step, same pattern as podcast's `deploy.sh` belt-and-suspenders.
+
+The orchestration sibling — one wrapper per app, narrow sudo per script, additive serve config — scales linearly with co-tenant count without ever needing tailscaled-side coordination.
+
 ---
 
 ## Code/content compatibility {#codecontent-compatibility}
