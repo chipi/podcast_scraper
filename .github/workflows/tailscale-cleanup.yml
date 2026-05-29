@@ -1,0 +1,65 @@
+name: Tailscale cleanup (gha-deployer devices)
+
+# Drops stale Tailscale devices left by ephemeral GitHub Actions runners.
+# Wraps scripts/ops/cleanup_tailscale_gha_deployers.py with the existing
+# TS_API_KEY secret + TAILNET_NAME var, so the operator (or a workflow on
+# a cron later) can prune the tailnet without exporting credentials
+# locally. Idempotent — devices newer than ``min_hours`` are never touched.
+
+on:
+  workflow_dispatch:
+    inputs:
+      min_hours:
+        description: 'Only delete devices idle for at least this many hours (default 3).'
+        required: false
+        default: '3'
+      dry_run:
+        description: 'List candidates without deleting (default false = apply).'
+        type: choice
+        options:
+          - 'false'
+          - 'true'
+        default: 'false'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: tailscale-cleanup
+  cancel-in-progress: false
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Pre-flight — required env present?
+        env:
+          TS_API_KEY:    ${{ secrets.TS_API_KEY }}
+          TAILNET_NAME:  ${{ vars.TAILNET_NAME }}
+        run: |
+          set -euo pipefail
+          MISSING=""
+          [ -z "${TS_API_KEY:-}" ]   && MISSING="$MISSING TS_API_KEY"
+          [ -z "${TAILNET_NAME:-}" ] && MISSING="$MISSING TAILNET_NAME"
+          if [ -n "$MISSING" ]; then
+            echo "::error::Missing prereqs:$MISSING."
+            exit 1
+          fi
+
+      - name: Run cleanup
+        env:
+          TS_API_KEY:   ${{ secrets.TS_API_KEY }}
+          TAILNET_NAME: ${{ vars.TAILNET_NAME }}
+          MIN_HOURS:    ${{ github.event.inputs.min_hours }}
+          DRY_RUN:      ${{ github.event.inputs.dry_run }}
+        run: |
+          set -euo pipefail
+          ARGS="--min-hours $MIN_HOURS"
+          if [ "$DRY_RUN" != "true" ]; then
+            ARGS="$ARGS --apply"
+          fi
+          echo "Invoking cleanup with: $ARGS"
+          python3 scripts/ops/cleanup_tailscale_gha_deployers.py $ARGS
