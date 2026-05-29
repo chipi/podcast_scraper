@@ -267,7 +267,7 @@ Drift detection is the structural prevention: a daily / weekly cron that runs `t
 - [PROD_RUNBOOK § Disaster recovery](../guides/PROD_RUNBOOK.md#disaster-recovery)
 - [PROD_RUNBOOK § Co-tenant tailnet publish rules](../guides/PROD_RUNBOOK.md#co-tenant-tailscale-serve-rules)
 - [RELEASE_PLAYBOOK § Phase 6 + 8](../guides/RELEASE_PLAYBOOK.md)
-- [AGENTS.md rules 10 + 11](../../AGENTS.md)
+- [AGENTS.md rules 10 + 11](https://github.com/chipi/podcast_scraper/blob/main/AGENTS.md)
 
 ### Prior PIRs
 

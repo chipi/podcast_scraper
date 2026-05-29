@@ -80,4 +80,4 @@ that" is process commentary that belongs in the improvement plan
 
 - [PROD_RUNBOOK § Disaster recovery](../guides/PROD_RUNBOOK.md#disaster-recovery) — what to do during an incident.
 - [RELEASE_PLAYBOOK § Phase 8](../guides/RELEASE_PLAYBOOK.md) — release verification (catches a class of issues before they become incidents).
-- [AGENTS.md "RULES YOU KEEP BREAKING"](../../AGENTS.md) — agent-side rules accumulated from prior incidents.
+- [AGENTS.md "RULES YOU KEEP BREAKING"](https://github.com/chipi/podcast_scraper/blob/main/AGENTS.md) — agent-side rules accumulated from prior incidents.
