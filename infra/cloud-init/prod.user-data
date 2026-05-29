@@ -37,16 +37,12 @@ packages:
   - git
 
 write_files:
-  # Operator drops .env into /srv/podcast-scraper/.env after first boot, then
-  # `sudo rm` this sentinel to release the systemd unit. start.sh is gated
-  # on the file's absence (ExecStartPre).
-  - path: /srv/podcast-scraper/.bootstrap-needs-env
-    content: |
-      Operator: stage /srv/podcast-scraper/.env (mode 600, owner deploy:deploy)
-      then `sudo rm /srv/podcast-scraper/.bootstrap-needs-env` to start the stack.
-      See docs/guides/PROD_RUNBOOK.md for the .env shape.
-    permissions: '0644'
-    owner: root:root
+  # ``.bootstrap-needs-env`` sentinel removed per #844 once .env became
+  # workflow-staged (#841): deploy-prod.yml / prod-restore-corpus.yml
+  # render /srv/podcast-scraper/.env from GH Secrets at deploy time.
+  # The systemd unit's ExecStartPre now positively checks for .env's
+  # presence (refuses to start if .env is missing — same protection,
+  # self-explanatory error).
 
   # After the compose stack is up, expose the viewer (host VIEWER_PORT, default
   # 8080) as MagicDNS HTTPS :443 so tailnet peers (including tag:gha-deployer)
@@ -94,7 +90,11 @@ write_files:
       RemainAfterExit=yes
       WorkingDirectory=/srv/podcast-scraper
       EnvironmentFile=/srv/podcast-scraper/.env
-      ExecStartPre=/usr/bin/test ! -e /srv/podcast-scraper/.bootstrap-needs-env
+      # Positive check (#844): refuse to start unless .env exists. Same
+      # protection as the prior .bootstrap-needs-env sentinel (no
+      # broken-running-prod with empty secrets) but self-explanatory:
+      # missing .env means "deploy hasn't staged it yet — run deploy-prod.yml".
+      ExecStartPre=/usr/bin/test -f /srv/podcast-scraper/.env
       ExecStart=/usr/bin/docker compose --env-file /srv/podcast-scraper/.env -f compose/docker-compose.stack.yml -f compose/docker-compose.prod.yml -f compose/docker-compose.vps-prod.yml up -d --remove-orphans
       ExecStartPost=-/usr/local/sbin/podcast-tailscale-serve.sh
       ExecStop=/usr/bin/docker compose --env-file /srv/podcast-scraper/.env -f compose/docker-compose.stack.yml -f compose/docker-compose.prod.yml -f compose/docker-compose.vps-prod.yml down

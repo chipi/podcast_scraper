@@ -234,57 +234,52 @@ admin machines](https://login.tailscale.com/admin/machines) list if you want
 the unsuffixed name back. See [GitHub issue
 744](https://github.com/chipi/podcast_scraper/issues/744).
 
-### Stage the host-side `.env` (one-time, post-apply)
+### Stage `.env` (workflow-staged from GH Secrets — #841)
 
-The `.env` holds runtime secrets (provider API keys, Grafana credentials,
-Sentry DSN). Cloud-init drops a sentinel file `/srv/podcast-scraper/.bootstrap-needs-env`;
-the systemd unit refuses to start while it exists.
+As of #841, `/srv/podcast-scraper/.env` is rendered on the host by
+`deploy-prod.yml` (and `prod-restore-corpus.yml`) from `PROD_*` GH Secrets
+at deploy time. The operator's only step is **staging the 15 secrets once
+in repo settings** — the workflow handles file creation, atomic delivery,
+and permissions. No SSH, no manual `.env` editing.
 
-> See **[Environment variable reference](#environment-variable-reference)**
-> below for the *complete* list with intent + format for each var. The
-> heredoc here is the minimum to boot — anything missing from it must be
-> added before the relevant subsystem (Sentry, Grafana, the LLM pipeline,
-> etc.) will function. **The exact variable names matter** — typos like
-> `OPENAI_KEY` instead of `OPENAI_API_KEY` cost an hour of debugging the
-> first time around.
+#### Required PROD_* GH Secrets
+
+Repo Settings → Secrets → Actions → New repository secret. Stage these
+15 secrets with prod values from each provider's dashboard:
+
+| Secret name | Purpose | Source |
+| --- | --- | --- |
+| `PROD_OPENAI_API_KEY` | LLM (OpenAI) | platform.openai.com → API keys |
+| `PROD_ANTHROPIC_API_KEY` | LLM (Anthropic) | console.anthropic.com → API keys |
+| `PROD_GEMINI_API_KEY` | LLM (Gemini) | aistudio.google.com → API keys |
+| `PROD_MISTRAL_API_KEY` | LLM (Mistral) | console.mistral.ai → API keys |
+| `PROD_DEEPSEEK_API_KEY` | LLM (DeepSeek) | platform.deepseek.com → API keys |
+| `PROD_GROK_API_KEY` | LLM (Grok) | console.x.ai → API keys |
+| `PROD_SENTRY_DSN_API` | Sentry (api project) | sentry.io → project settings → Client Keys (DSN) |
+| `PROD_SENTRY_DSN_PIPELINE` | Sentry (pipeline project) | sentry.io → project settings → Client Keys (DSN) |
+| `PROD_SENTRY_DSN_VIEWER` | Sentry (viewer SPA — baked into Vite bundle) | sentry.io → project settings → Client Keys (DSN) |
+| `PROD_GRAFANA_CLOUD_API_KEY` | Grafana Cloud auth | grafana.com → My Account → Access Policies / Tokens |
+| `PROD_GRAFANA_CLOUD_LOKI_URL` | Loki push URL | grafana.com → My Account → Details (per-stack) |
+| `PROD_GRAFANA_CLOUD_LOKI_USER` | Loki tenant ID | grafana.com → My Account → Details (per-stack) |
+| `PROD_GRAFANA_CLOUD_PROM_URL` | Prom remote_write URL | grafana.com → My Account → Details (per-stack) |
+| `PROD_GRAFANA_CLOUD_PROM_USER` | Prom tenant ID | grafana.com → My Account → Details (per-stack) |
+| `PROD_JOB_WEBHOOK_URL` | Outbound pipeline-completion webhook (optional) | your config |
+
+Missing secret → empty value in `.env` → compose `${VAR:-}` default → that
+feature is off (stack still starts). Stage incrementally as needed.
+
+#### Verifying after a deploy
+
+After the next `deploy-prod.yml` run, SSH in and inspect:
 
 ```bash
-ssh deploy@prod-podcast.tail-xxxxx.ts.net   # over Tailscale
-# `deploy` user has no sudo (cloud-init: sudo: false) but owns
-# /srv/podcast-scraper, so write directly — no `sudo install` needed.
-install -m 600 /dev/stdin /srv/podcast-scraper/.env <<'ENV'
-# === Required: ingress + paths ===
-PODCAST_DOCKER_PROJECT_DIR=/srv/podcast-scraper
-PODCAST_CORPUS_HOST_PATH=/srv/podcast-scraper/corpus
-# Pre-fills the viewer status bar corpus path (container view of the bind mount).
-PODCAST_DEFAULT_CORPUS_PATH=/app/output
-PODCAST_ENV=prod
-PODCAST_AVAILABLE_PROFILES=cloud_balanced,cloud_thin
-PODCAST_DEFAULT_PROFILE=cloud_balanced
-
-# === LLM provider keys (cloud_balanced uses openai + gemini) ===
-OPENAI_API_KEY=sk-...
-GEMINI_API_KEY=AIza...
-# Optional providers — set only if you intend to use them
-ANTHROPIC_API_KEY=sk-ant-...
-
-# === Grafana Cloud — separate Prom + Loki user IDs ===
-# (Single GRAFANA_CLOUD_USER no longer works; see env var reference.)
-GRAFANA_CLOUD_PROM_URL=https://prometheus-prod-NN-prod-REGION.grafana.net/api/prom/push
-GRAFANA_CLOUD_LOKI_URL=https://logs-prod-NNN.grafana.net/loki/api/v1/push
-GRAFANA_CLOUD_PROM_USER=NNNNNNN
-GRAFANA_CLOUD_LOKI_USER=NNNNNNN
-GRAFANA_CLOUD_API_KEY=glc_eyJ...
-
-# === Sentry DSNs — one per project ===
-PODCAST_SENTRY_DSN_API=https://...@o....ingest.de.sentry.io/...
-PODCAST_SENTRY_DSN_PIPELINE=https://...@o....ingest.de.sentry.io/...
-ENV
-
-# Release the systemd gate.
-sudo rm /srv/podcast-scraper/.bootstrap-needs-env
-sudo systemctl restart podcast-scraper.service
+ssh deploy@prod-podcast.tail-xxxxx.ts.net 'cat /srv/podcast-scraper/.env | wc -l && head -3 /srv/podcast-scraper/.env'
+# expect: ≥21 lines (6 static + 15 secrets), mode 600 owner deploy:deploy
 ```
+
+The systemd unit's `ExecStartPre` is now `test -f /srv/podcast-scraper/.env`
+(positive check, #844). Service refuses to start until `.env` exists — same
+protection as the prior `.bootstrap-needs-env` sentinel but self-explanatory.
 
 ### API health checks by context (GH-745) {#api-health-checks-by-context}
 
@@ -622,11 +617,9 @@ gh workflow run "Deploy to prod VPS" \
 
 **Verify**: tailnet `:443` and `:8443` (orrery) reachable; `/api/health` returns 200; Sentry shows a test event; Grafana receives metrics.
 
-### Recovering `.env` after destroy (until #841 lands)
+### Recovering `.env` after destroy
 
-Until the GH-Secrets-driven `.env` work lands, `.env` is reconstructed by hand from each provider's dashboard. Use the template in [Stage the host-side `.env`](#stage-the-host-side-env-one-time-post-apply) above. After it's staged, `sudo rm /srv/podcast-scraper/.bootstrap-needs-env && sudo systemctl restart podcast-scraper.service` (or the workflow's `docker compose up -d --force-recreate` will pick it up on next deploy).
-
-**Once #841 lands**: this step disappears. `deploy-prod.yml` renders `.env` from GH Secrets onto the host at deploy time.
+`.env` is workflow-staged from GH Secrets (#841), so it auto-rebuilds on the next `deploy-prod.yml` or `prod-restore-corpus.yml` run. No manual step. If you've never staged the secrets before, follow [Stage `.env` (workflow-staged from GH Secrets)](#stage-env-workflow-staged-from-gh-secrets--841) one-time.
 
 ### State drift gotchas
 
