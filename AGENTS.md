@@ -86,6 +86,18 @@ operator repeatedly. Adherence beats every other rule.
    subtarget (`make docs` is 10 s, `make ci-fast` is 10 min). Re-run
    `make ci-fast` ONCE at the very end as whole-gate confirmation.
 
+10. **Red CI / Codecov / coverage gates are requirements, not advice.** Tests,
+    `coverage-unified`, and Codecov PR statuses (e.g. `codecov/patch`) exist to
+    tell you what is still wrong. A red required check means fix until green —
+    add or extend tests, fix the code, re-run the smallest proving target, then
+    the gate — not "advisory," not "waive in repo settings," not "another job
+    passed so ignore this one." `fail_ci_if_error: false` on the Codecov upload
+    step does **not** mean patch coverage is optional when the PR still shows
+    `codecov/patch` failed. Review findings that mention missing tests or
+    coverage are in scope for the same task unless the user explicitly defers
+    them. Infra-only PRs still need patch coverage on new lines when Codecov
+    reports a failure.
+
 ---
 
 ## User intent beats procedural defaults
