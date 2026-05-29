@@ -179,6 +179,16 @@ runcmd:
   - sudo -u deploy bash -c 'set -euo pipefail; t=/tmp/podcast-scraper-clone; rm -rf "$t"; git clone --branch main --depth 50 https://github.com/chipi/podcast_scraper.git "$t"; cp -a "$t"/. /srv/podcast-scraper/; rm -rf "$t"'
   - chown -R deploy:deploy /srv/podcast-scraper
 
+  # === Repo checkout to /srv/orrery (mirror of /srv/podcast-scraper above) ===
+  # Co-tenant deploy on the same VPS (chipi/orrery#260 / #261). Phase 1 has no
+  # secret env or systemd unit gating, so the clone-to-tmp + cp -a dance from
+  # the podcast_scraper block isn't strictly needed — but mirror it anyway so
+  # the two app checkouts are structurally identical and survive any future
+  # write_files entry under /srv/orrery without surprises.
+  - install -d -o deploy -g deploy -m 0755 /srv/orrery
+  - sudo -u deploy bash -c 'set -euo pipefail; t=/tmp/orrery-clone; rm -rf "$t"; git clone --branch main --depth 50 https://github.com/chipi/orrery.git "$t"; cp -a "$t"/. /srv/orrery/; rm -rf "$t"'
+  - chown -R deploy:deploy /srv/orrery
+
   # === Corpus mount: prefer attached Volume, fall back to boot-disk dir ===
   - VOLUME_PATH=$(ls -d /mnt/HC_Volume_* 2>/dev/null | head -1); if [ -n "$VOLUME_PATH" ]; then mkdir -p "$VOLUME_PATH/corpus"; chown -R deploy:deploy "$VOLUME_PATH/corpus"; ln -sfn "$VOLUME_PATH/corpus" /srv/podcast-scraper/corpus; else install -d -o deploy -g deploy /srv/podcast-scraper/corpus; fi
 
