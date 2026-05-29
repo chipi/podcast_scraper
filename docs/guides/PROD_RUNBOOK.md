@@ -543,6 +543,11 @@ hotfix path.
 
 Use this when the prod VPS is gone or stuck in a state that surgical fixes can't reach (cloud-init crashed before tailnet join, tofu state and Hetzner have drifted past reconciliation, server destroyed by an unintended apply cascade). 2026-05-29 incident playbook, distilled.
 
+> **After any incident that triggers this section, write a post-incident
+> review.** See [docs/incidents/README.md](../incidents/README.md) for
+> the process, template, and prior reviews. PIRs are how we close the
+> learning loop — without them, the same patterns repeat.
+
 ### What survives a VPS rebuild
 
 | Artifact | Where it lives | Survives VPS destroy? |
