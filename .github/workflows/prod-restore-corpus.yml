@@ -127,6 +127,68 @@ jobs:
           ls -la snapshot.tgz
           test -f snapshot.tgz
 
+      - name: Stage /srv/podcast-scraper/.env from GH Secrets (#841)
+        # Same shape as deploy-prod.yml. Restore runs ``docker compose
+        # --env-file .env up`` — without this step, restore on a freshly
+        # rebuilt VPS would come up in degraded mode (no LLM, no Sentry,
+        # no Grafana). Tmpfile in /dev/shm, SCP to .env.deploy-staged,
+        # ssh mv → .env atomically.
+        env:
+          SSH_TARGET: deploy@${{ steps.ts_host.outputs.resolved_fqdn }}
+          PROD_OPENAI_API_KEY:          ${{ secrets.PROD_OPENAI_API_KEY }}
+          PROD_ANTHROPIC_API_KEY:       ${{ secrets.PROD_ANTHROPIC_API_KEY }}
+          PROD_GEMINI_API_KEY:          ${{ secrets.PROD_GEMINI_API_KEY }}
+          PROD_MISTRAL_API_KEY:         ${{ secrets.PROD_MISTRAL_API_KEY }}
+          PROD_DEEPSEEK_API_KEY:        ${{ secrets.PROD_DEEPSEEK_API_KEY }}
+          PROD_GROK_API_KEY:            ${{ secrets.PROD_GROK_API_KEY }}
+          PROD_SENTRY_DSN_API:          ${{ secrets.PROD_SENTRY_DSN_API }}
+          PROD_SENTRY_DSN_PIPELINE:     ${{ secrets.PROD_SENTRY_DSN_PIPELINE }}
+          PROD_SENTRY_DSN_VIEWER:       ${{ secrets.PROD_SENTRY_DSN_VIEWER }}
+          PROD_GRAFANA_CLOUD_API_KEY:   ${{ secrets.PROD_GRAFANA_CLOUD_API_KEY }}
+          PROD_GRAFANA_CLOUD_LOKI_URL:  ${{ secrets.PROD_GRAFANA_CLOUD_LOKI_URL }}
+          PROD_GRAFANA_CLOUD_LOKI_USER: ${{ secrets.PROD_GRAFANA_CLOUD_LOKI_USER }}
+          PROD_GRAFANA_CLOUD_PROM_URL:  ${{ secrets.PROD_GRAFANA_CLOUD_PROM_URL }}
+          PROD_GRAFANA_CLOUD_PROM_USER: ${{ secrets.PROD_GRAFANA_CLOUD_PROM_USER }}
+          PROD_JOB_WEBHOOK_URL:         ${{ secrets.PROD_JOB_WEBHOOK_URL }}
+        run: |
+          set -euo pipefail
+          ENVTMP=$(mktemp -p /dev/shm prod-env.XXXXXX)
+          trap 'shred -u "$ENVTMP" 2>/dev/null || rm -f "$ENVTMP"' EXIT
+          chmod 600 "$ENVTMP"
+          {
+            printf '%s=%s\n' PODCAST_DOCKER_PROJECT_DIR /srv/podcast-scraper
+            printf '%s=%s\n' PODCAST_CORPUS_HOST_PATH   /srv/podcast-scraper/corpus
+            printf '%s=%s\n' PODCAST_DEFAULT_CORPUS_PATH /app/output
+            printf '%s=%s\n' PODCAST_ENV                 prod
+            printf '%s=%s\n' PODCAST_AVAILABLE_PROFILES  cloud_balanced,cloud_thin
+            printf '%s=%s\n' PODCAST_DEFAULT_PROFILE     cloud_balanced
+            printf '%s=%s\n' OPENAI_API_KEY     "$PROD_OPENAI_API_KEY"
+            printf '%s=%s\n' ANTHROPIC_API_KEY  "$PROD_ANTHROPIC_API_KEY"
+            printf '%s=%s\n' GEMINI_API_KEY     "$PROD_GEMINI_API_KEY"
+            printf '%s=%s\n' MISTRAL_API_KEY    "$PROD_MISTRAL_API_KEY"
+            printf '%s=%s\n' DEEPSEEK_API_KEY   "$PROD_DEEPSEEK_API_KEY"
+            printf '%s=%s\n' GROK_API_KEY       "$PROD_GROK_API_KEY"
+            printf '%s=%s\n' PODCAST_SENTRY_DSN_API      "$PROD_SENTRY_DSN_API"
+            printf '%s=%s\n' PODCAST_SENTRY_DSN_PIPELINE "$PROD_SENTRY_DSN_PIPELINE"
+            printf '%s=%s\n' VITE_SENTRY_DSN_VIEWER      "$PROD_SENTRY_DSN_VIEWER"
+            printf '%s=%s\n' GRAFANA_CLOUD_API_KEY   "$PROD_GRAFANA_CLOUD_API_KEY"
+            printf '%s=%s\n' GRAFANA_CLOUD_LOKI_URL  "$PROD_GRAFANA_CLOUD_LOKI_URL"
+            printf '%s=%s\n' GRAFANA_CLOUD_LOKI_USER "$PROD_GRAFANA_CLOUD_LOKI_USER"
+            printf '%s=%s\n' GRAFANA_CLOUD_PROM_URL  "$PROD_GRAFANA_CLOUD_PROM_URL"
+            printf '%s=%s\n' GRAFANA_CLOUD_PROM_USER "$PROD_GRAFANA_CLOUD_PROM_USER"
+            printf '%s=%s\n' PODCAST_JOB_WEBHOOK_URL "$PROD_JOB_WEBHOOK_URL"
+          } > "$ENVTMP"
+          scp -i "$SSH_PROD_IDENTITY" -o IdentitiesOnly=yes \
+            -o StrictHostKeyChecking=accept-new -o BatchMode=yes \
+            "$ENVTMP" "${SSH_TARGET}:/srv/podcast-scraper/.env.deploy-staged"
+          ssh -i "$SSH_PROD_IDENTITY" -o IdentitiesOnly=yes \
+            -o StrictHostKeyChecking=accept-new -o BatchMode=yes "$SSH_TARGET" \
+            "set -euo pipefail; cd /srv/podcast-scraper; \
+             mv .env.deploy-staged .env; \
+             chmod 600 .env; \
+             chown deploy:deploy .env; \
+             test -f .bootstrap-needs-env && rm -f .bootstrap-needs-env || true"
+
       - name: Upload tarball and restore script to prod host
         env:
           SSH_TARGET: deploy@${{ steps.ts_host.outputs.resolved_fqdn }}
