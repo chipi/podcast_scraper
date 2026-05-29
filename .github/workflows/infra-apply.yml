@@ -339,9 +339,49 @@ jobs:
             mv infra/terraform/terraform.tfstate.enc.new infra/terraform/terraform.tfstate.enc
           fi
 
+      - name: Auto-commit terraform.tfstate.enc back to main (#843)
+        # Closes the state-divergence loop that caused the 2026-05-29
+        # cascade: re-encrypt writes a new tfstate.enc, but without this
+        # step the operator has to manually download the artifact and
+        # commit it. Forgetting that step → next workflow run starts from
+        # stale state in main → orphan resources → cascade.
+        #
+        # OPERATOR SETUP (one-time, before this step works):
+        #   1. Generate a fine-grained PAT with ``contents: write`` scope on
+        #      this repo (Settings → Developer settings → Personal access
+        #      tokens). Alternative: create a GitHub App (cleaner audit
+        #      trail; see #843 for both shapes).
+        #   2. Stage as repo secret ``INFRA_STATE_COMMIT_TOKEN``.
+        #   3. Repo Settings → Branches → main → "Allow specified actors
+        #      to bypass required pull requests" → add the PAT bearer.
+        #
+        # Skips gracefully (warning, not error) if the secret is absent —
+        # the artifact upload below is the fallback path.
+        if: always() && hashFiles('infra/terraform/terraform.tfstate.enc') != ''
+        env:
+          INFRA_STATE_COMMIT_TOKEN: ${{ secrets.INFRA_STATE_COMMIT_TOKEN }}
+          GITHUB_SHA_SHORT: ${{ github.sha }}
+        continue-on-error: true
+        run: |
+          set -euo pipefail
+          if [ -z "${INFRA_STATE_COMMIT_TOKEN:-}" ]; then
+            echo "::warning::INFRA_STATE_COMMIT_TOKEN secret not staged — skipping auto-commit. Encrypted state is in this run's artifact below (\`terraform-state-after-apply\`); download + commit manually per PROD_RUNBOOK 'State drift gotchas' if you want main back in sync."
+            exit 0
+          fi
+          if git diff --quiet HEAD infra/terraform/terraform.tfstate.enc 2>/dev/null; then
+            echo "state unchanged — nothing to commit"
+            exit 0
+          fi
+          git config user.name  "infra-apply-bot"
+          git config user.email "infra-apply-bot@noreply.github.com"
+          git add infra/terraform/terraform.tfstate.enc
+          git commit -m "infra(state): sync post-apply tfstate.enc (run ${{ github.run_id }} on ${GITHUB_SHA_SHORT:0:7})"
+          REMOTE="https://x-access-token:${INFRA_STATE_COMMIT_TOKEN}@github.com/${{ github.repository }}.git"
+          git push "$REMOTE" HEAD:main
+
       - name: Upload new encrypted state as artifact
-        # OPERATOR: download terraform.tfstate.enc from this run's artifacts
-        # and commit to main. Auto-commit-back is a future follow-up.
+        # Fallback path when auto-commit-back is skipped or fails. Always
+        # uploads so the operator can manually sync (download + commit).
         if: always()
         uses: actions/upload-artifact@v7
         with:
