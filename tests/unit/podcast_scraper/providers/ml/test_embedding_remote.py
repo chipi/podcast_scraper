@@ -61,3 +61,44 @@ def test_encode_via_endpoint_rejects_row_count_mismatch(mock_client_cls: MagicMo
 
     with pytest.raises(ValueError, match="mismatch"):
         encode_via_endpoint(["a", "b"], "http://dgx:8001/embed", model_id="m")
+
+
+@patch("httpx.Client")
+def test_encode_via_endpoint_rejects_invalid_embeddings_type(mock_client_cls: MagicMock) -> None:
+    mock_resp = MagicMock()
+    mock_resp.json.return_value = {"embeddings": "bad"}
+    mock_client = MagicMock()
+    mock_client.__enter__.return_value = mock_client
+    mock_client.post.return_value = mock_resp
+    mock_client_cls.return_value = mock_client
+
+    with pytest.raises(ValueError, match="missing embeddings"):
+        encode_via_endpoint("x", "http://dgx:8001/embed", model_id="m")
+
+
+@patch("httpx.Client")
+def test_encode_via_endpoint_rejects_invalid_row(mock_client_cls: MagicMock) -> None:
+    mock_resp = MagicMock()
+    mock_resp.json.return_value = {"embeddings": ["not-a-list"]}
+    mock_client = MagicMock()
+    mock_client.__enter__.return_value = mock_client
+    mock_client.post.return_value = mock_resp
+    mock_client_cls.return_value = mock_client
+
+    with pytest.raises(ValueError, match="invalid embedding row"):
+        encode_via_endpoint("x", "http://dgx:8001/embed", model_id="m")
+
+
+def test_encode_via_endpoint_requires_httpx(monkeypatch: pytest.MonkeyPatch) -> None:
+    import builtins
+
+    real_import = builtins.__import__
+
+    def fake_import(name, globals=None, locals=None, fromlist=(), level=0):
+        if name == "httpx":
+            raise ImportError("no httpx")
+        return real_import(name, globals, locals, fromlist, level)
+
+    monkeypatch.setattr(builtins, "__import__", fake_import)
+    with pytest.raises(RuntimeError, match="httpx required"):
+        encode_via_endpoint("x", "http://dgx:8001/embed", model_id="m")

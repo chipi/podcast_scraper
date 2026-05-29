@@ -65,6 +65,35 @@ def test_main_flags_unlisted_self_hosted_workflow(tmp_path: Path, monkeypatch) -
     assert mod.main() == 1
 
 
+def test_main_passes_when_workflow_is_allowlisted(tmp_path: Path, monkeypatch) -> None:
+    mod = _load_checker_module()
+    workflows = tmp_path / "workflows"
+    workflows.mkdir()
+    (workflows / "nightly.yml").write_text(
+        "name: nightly\non: push\njobs:\n  j:\n"
+        "    runs-on: [self-hosted, dgx-spark]\n    steps: []\n",
+        encoding="utf-8",
+    )
+    allowlist = tmp_path / "SELF_HOSTED_RUNNER_ALLOWLIST.md"
+    allowlist.write_text("nightly.yml\n", encoding="utf-8")
+
+    monkeypatch.setattr(mod, "REPO_ROOT", tmp_path)
+    monkeypatch.setattr(mod, "WORKFLOWS", workflows)
+    monkeypatch.setattr(mod, "ALLOWLIST", allowlist)
+
+    assert mod.main() == 0
+
+
+def test_workflow_without_self_hosted_returns_false(tmp_path: Path) -> None:
+    mod = _load_checker_module()
+    wf = tmp_path / "ubuntu.yml"
+    wf.write_text(
+        "name: ci\non: push\njobs:\n  lint:\n    runs-on: ubuntu-latest\n    steps: []\n",
+        encoding="utf-8",
+    )
+    assert mod.workflow_uses_self_hosted(wf) is False
+
+
 def test_allowlist_passes_for_repo_workflows() -> None:
     proc = subprocess.run(
         [sys.executable, str(SCRIPT)],

@@ -203,3 +203,35 @@ def test_transcribe_ollama_parses_response(mock_client_cls: MagicMock, tmp_path)
     text, segments, _dur = provider._transcribe_ollama(str(audio), "en")
     assert text == "hello"
     assert len(segments) == 1
+
+
+def test_whisper_provider_cleanup_calls_fallback() -> None:
+    provider = TailnetDgxWhisperTranscriptionProvider(_dgx_cfg())
+    fallback = MagicMock()
+    provider._fallback = fallback
+    provider.cleanup()
+    fallback.cleanup.assert_called_once()
+
+
+def test_transcribe_ollama_missing_file() -> None:
+    provider = TailnetDgxWhisperTranscriptionProvider(_dgx_cfg())
+    with pytest.raises(FileNotFoundError):
+        provider._transcribe_ollama("/no/such/audio.mp3", None)
+
+
+def test_transcribe_ollama_requires_httpx(tmp_path, monkeypatch: pytest.MonkeyPatch) -> None:
+    import builtins
+
+    audio = tmp_path / "clip.mp3"
+    audio.write_bytes(b"abc")
+    real_import = builtins.__import__
+
+    def fake_import(name, globals=None, locals=None, fromlist=(), level=0):
+        if name == "httpx":
+            raise ImportError("no httpx")
+        return real_import(name, globals, locals, fromlist, level)
+
+    monkeypatch.setattr(builtins, "__import__", fake_import)
+    provider = TailnetDgxWhisperTranscriptionProvider(_dgx_cfg())
+    with pytest.raises(RuntimeError, match="httpx required"):
+        provider._transcribe_ollama(str(audio), None)
