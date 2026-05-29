@@ -66,6 +66,22 @@ write_files:
     permissions: '0440'
     owner: root:root
 
+  # Orrery co-tenant tailscale-serve wrapper (#838).
+  # Publishes :8443 -> 127.0.0.1:8090 alongside podcast_scraper's :443.
+  # No systemd unit yet (chipi/orrery#261 phase 1) — invoked once from
+  # runcmd below at first boot, and re-armed by orrery's deploy workflow
+  # via the narrow sudoers allowlist immediately after.
+  - path: /usr/local/sbin/orrery-tailscale-serve.sh
+    content: |
+      ${orrery_tailscale_serve_body}
+    permissions: '0755'
+    owner: root:root
+
+  - path: /etc/sudoers.d/99-orrery-deploy-tailscale-serve
+    content: "deploy ALL=(root) NOPASSWD: /usr/bin/install -m 0755 -o root -g root /tmp/orrery-tailscale-serve.ci /usr/local/sbin/orrery-tailscale-serve.sh, /usr/local/sbin/orrery-tailscale-serve.sh\n"
+    permissions: '0440'
+    owner: root:root
+
   - path: /etc/systemd/system/podcast-scraper.service
     content: |
       [Unit]
@@ -188,6 +204,14 @@ runcmd:
   - install -d -o deploy -g deploy -m 0755 /srv/orrery
   - sudo -u deploy bash -c 'set -euo pipefail; t=/tmp/orrery-clone; rm -rf "$t"; git clone --branch main --depth 50 https://github.com/chipi/orrery.git "$t"; cp -a "$t"/. /srv/orrery/; rm -rf "$t"'
   - chown -R deploy:deploy /srv/orrery
+
+  # === Orrery tailscale-serve first-boot invocation (#838) ===
+  # podcast_scraper has a systemd unit with ``ExecStartPost`` that fires this
+  # for its serve script; orrery has no unit yet (chipi/orrery#261 phase 1),
+  # so invoke once here. Subsequent re-arms come from orrery's deploy workflow
+  # via the narrow sudoers allowlist added above. Tailscale is already up at
+  # this point (``tailscale up …`` above).
+  - /usr/local/sbin/orrery-tailscale-serve.sh || echo "orrery-tailscale-serve.sh: first-boot publish failed; will retry on next deploy" >&2
 
   # === Corpus mount: prefer attached Volume, fall back to boot-disk dir ===
   - VOLUME_PATH=$(ls -d /mnt/HC_Volume_* 2>/dev/null | head -1); if [ -n "$VOLUME_PATH" ]; then mkdir -p "$VOLUME_PATH/corpus"; chown -R deploy:deploy "$VOLUME_PATH/corpus"; ln -sfn "$VOLUME_PATH/corpus" /srv/podcast-scraper/corpus; else install -d -o deploy -g deploy /srv/podcast-scraper/corpus; fi

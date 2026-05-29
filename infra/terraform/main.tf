@@ -104,6 +104,7 @@ resource "hcloud_server" "prod" {
     # Shell script body is injected via ``file()`` so ``$`` / ``((`` are never passed through
     # ``templatefile`` twice (avoids broken ``n=$$((n+1))`` on the VPS).
     podcast_tailscale_serve_body = indent(6, chomp(file("${path.module}/../cloud-init/podcast-tailscale-serve.sh")))
+    orrery_tailscale_serve_body  = indent(6, chomp(file("${path.module}/../cloud-init/orrery-tailscale-serve.sh")))
   })
 
   labels = {
