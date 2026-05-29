@@ -34,6 +34,14 @@ on:
           - destroy-then-apply
           - wipe-then-apply
         default: apply
+      override_server_type:
+        description: 'Optional override: hcloud server_type (cx43 / cax31 / ccx23 / cx33 / ccx13 / cpx32). Empty = use tfvar default. Use when Hetzner reports resource_unavailable at placement.'
+        required: false
+        default: ''
+      override_location:
+        description: 'Optional override: hcloud location (fsn1 / nbg1 / hel1). Empty = use tfvar default. Use when current location has no capacity.'
+        required: false
+        default: ''
 
 permissions:
   contents: read
@@ -203,8 +211,20 @@ jobs:
           TF_VAR_ssh_public_key:    ${{ secrets.OPERATOR_SSH_PUBLIC_KEY }}
           TF_VAR_tailscale_tailnet: ${{ vars.TAILNET_NAME }}
           MODE:                     ${{ github.event.inputs.mode }}
+          OVERRIDE_SERVER_TYPE:     ${{ github.event.inputs.override_server_type }}
+          OVERRIDE_LOCATION:        ${{ github.event.inputs.override_location }}
         run: |
           set -euo pipefail
+          # Placement overrides — only export TF_VAR_* when set, so tfvar
+          # defaults + validation rules apply otherwise.
+          if [ -n "${OVERRIDE_SERVER_TYPE:-}" ]; then
+            export TF_VAR_server_type="$OVERRIDE_SERVER_TYPE"
+            echo "TF_VAR_server_type=$OVERRIDE_SERVER_TYPE"
+          fi
+          if [ -n "${OVERRIDE_LOCATION:-}" ]; then
+            export TF_VAR_location="$OVERRIDE_LOCATION"
+            echo "TF_VAR_location=$OVERRIDE_LOCATION"
+          fi
           tofu init -input=false
           if [ "$MODE" = "destroy-then-apply" ]; then
             echo "::group::tofu destroy"
