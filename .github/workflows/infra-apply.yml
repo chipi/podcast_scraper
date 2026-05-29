@@ -27,6 +27,10 @@ on:
           - apply
           - destroy-then-apply
         default: apply
+      orphan_server_id:
+        description: 'Optional: Hetzner server ID to force-delete via API before tofu runs. Use when state diverged (e.g. failed re-encrypt left a server tofu does not know about, blocking subnet destroy).'
+        required: false
+        default: ''
 
 permissions:
   contents: read
@@ -110,6 +114,36 @@ jobs:
           if [ -f infra/terraform/terraform.tfstate.enc ]; then
             sops -d infra/terraform/terraform.tfstate.enc > infra/terraform/terraform.tfstate
           fi
+
+      - name: Force-delete orphan Hetzner server (recovery from state divergence)
+        if: ${{ github.event.inputs.orphan_server_id != '' }}
+        env:
+          HCLOUD_TOKEN:     ${{ secrets.HCLOUD_TOKEN }}
+          ORPHAN_SERVER_ID: ${{ github.event.inputs.orphan_server_id }}
+        run: |
+          set -euo pipefail
+          echo "Force-deleting Hetzner server id=$ORPHAN_SERVER_ID via API"
+          STATUS=$(curl -s -o /tmp/del.body -w '%{http_code}' \
+            -X DELETE "https://api.hetzner.cloud/v1/servers/${ORPHAN_SERVER_ID}" \
+            -H "Authorization: Bearer ${HCLOUD_TOKEN}")
+          echo "API status: $STATUS"
+          cat /tmp/del.body
+          echo
+          case "$STATUS" in
+            200|201|202|204) echo "delete request accepted" ;;
+            404)             echo "server already gone (404) — OK, no-op" ;;
+            *)               echo "::error::unexpected status $STATUS deleting server $ORPHAN_SERVER_ID"; exit 1 ;;
+          esac
+          # Poll until Hetzner reports the server as deleted (or 60s timeout)
+          for i in $(seq 1 30); do
+            S=$(curl -s -o /dev/null -w '%{http_code}' \
+              "https://api.hetzner.cloud/v1/servers/${ORPHAN_SERVER_ID}" \
+              -H "Authorization: Bearer ${HCLOUD_TOKEN}")
+            if [ "$S" = "404" ]; then
+              echo "confirmed gone after ${i} poll(s)"; break
+            fi
+            sleep 2
+          done
 
       - name: tofu init + (destroy +) apply
         working-directory: infra/terraform
