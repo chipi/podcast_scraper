@@ -57,9 +57,9 @@ jobs:
           DRY_RUN:      ${{ github.event.inputs.dry_run }}
         run: |
           set -euo pipefail
-          ARGS="--min-hours $MIN_HOURS"
+          ARGS=( --min-hours "$MIN_HOURS" )
           if [ "$DRY_RUN" != "true" ]; then
-            ARGS="$ARGS --apply"
+            ARGS+=( --apply )
           fi
-          echo "Invoking cleanup with: $ARGS"
-          python3 scripts/ops/cleanup_tailscale_gha_deployers.py $ARGS
+          echo "Invoking cleanup with: ${ARGS[*]}"
+          python3 scripts/ops/cleanup_tailscale_gha_deployers.py "${ARGS[@]}"
