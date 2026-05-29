@@ -244,13 +244,14 @@ jobs:
             echo "::group::tofu destroy (clean-slate rebuild)"
             tofu destroy -auto-approve -input=false
             echo "::endgroup::"
-            # tailscale_acl has no real "delete" semantic on the Tailscale API
-            # — destroy removes it from tofu state but the ACL persists on the
-            # tailnet. A subsequent ``apply`` that tries to ``create`` it then
-            # fails with "412 invalid old hash" because the create has no
-            # etag. Re-importing post-destroy turns the next operation into
-            # an ``update`` (with the correct etag), which works.
-            echo "::group::tofu import tailscale_acl post-destroy"
+          fi
+          # Conditional import of ``tailscale_acl.main[0]``: the resource has
+          # no real "delete" on the Tailscale API; if it's missing from state
+          # (post-destroy, or after a manual state sync), the apply's create
+          # attempt fails with 412 "invalid old hash". Importing first turns
+          # the operation into an update-with-etag.
+          if ! tofu state list | grep -q '^tailscale_acl\.main\['; then
+            echo "::group::tofu import tailscale_acl (not in state)"
             tofu import 'tailscale_acl.main[0]' acl
             echo "::endgroup::"
           fi
