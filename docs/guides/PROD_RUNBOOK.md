@@ -544,6 +544,125 @@ hotfix path.
 
 ---
 
+## Disaster recovery (VPS lost or unrecoverable) {#disaster-recovery}
+
+Use this when the prod VPS is gone or stuck in a state that surgical fixes can't reach (cloud-init crashed before tailnet join, tofu state and Hetzner have drifted past reconciliation, server destroyed by an unintended apply cascade). 2026-05-29 incident playbook, distilled.
+
+### What survives a VPS rebuild
+
+| Artifact | Where it lives | Survives VPS destroy? |
+| --- | --- | --- |
+| IaaC code | this repo (`infra/`) | ✓ |
+| GH Secrets (TS_AUTHKEY, OPERATOR_SSH_PUBLIC_KEY, etc.) | repo settings | ✓ |
+| Encrypted tfstate (post-apply) | `infra/terraform/terraform.tfstate.enc` in main | ✓ if last apply's re-encrypt step succeeded AND was committed back; otherwise stale (see "State drift" below) |
+| Corpus snapshots | `chipi/podcast_scraper-backup` releases (`snapshot-prod-YYYYMMDD`) | ✓ — restore via `prod-restore-corpus.yml` |
+| Runtime `.env` (LLM keys, Sentry DSNs, Grafana creds) | on-disk `/srv/podcast-scraper/.env` only | ✗ **LOST** until #841 lands (GH Secrets-driven `.env` rendering); see "Recovering `.env` after destroy" below |
+| Tailscale device records (offline node entries) | tailnet | ✗ — stale `prod-podcast-1`/`-2`/… entries linger and block MagicDNS hostname re-issue; clean via `Tailscale cleanup (gha-deployer devices)` workflow or expand to also delete `tag:prod` |
+
+### Recovery sequence
+
+**Pre-check**: confirm IaaC + secrets are intact before destruction.
+
+```bash
+# 1. Encrypted state present in main?
+ls -la infra/terraform/terraform.tfstate.enc
+
+# 2. Required GH Secrets staged? (operator dashboards or `gh secret list`)
+gh secret list | grep -E "TS_AUTHKEY|PROD_SSH_PRIVATE_KEY|HCLOUD_TOKEN|OPERATOR_SSH_PUBLIC_KEY|TFSTATE_AGE_KEY"
+```
+
+**Wipe + rebuild** (single workflow run):
+
+```bash
+# Hetzner placement failure on cx43 in fsn1 is common during incidents.
+# Override to nbg1 (Nuremberg) if needed; cax31 / cpx32 are server-type fallbacks.
+gh workflow run "Infra apply (manual)" \
+  -f confirm=WIPE_THEN_APPLY \
+  -f mode=wipe-then-apply \
+  -f override_location=nbg1
+```
+
+Wait for completion. Workflow does: API-enumerate-and-DELETE every Hetzner resource in the project + delete every `tag:prod`/`tag:dr-drill`/`tag:gha-deployer` Tailscale device + wipe local state + apply from scratch. Cloud-init bootstraps the new VPS.
+
+**Capture state back to main** (CRITICAL — otherwise next run starts from stale state):
+
+```bash
+# Find the last infra-apply run id, download its terraform-state-after-apply artifact
+RUN_ID=$(gh run list --workflow="Infra apply (manual)" --limit 1 --json databaseId -q '.[0].databaseId')
+gh run download "$RUN_ID" -n terraform-state-after-apply -D /tmp/tfstate/
+cp /tmp/tfstate/terraform.tfstate.enc infra/terraform/terraform.tfstate.enc
+git add infra/terraform/terraform.tfstate.enc
+git commit -m "infra(state): sync tfstate.enc post-wipe-then-apply <RUN_ID>"
+git push
+```
+
+**Update `vars.PROD_TAILNET_FQDN` if hostname changed**: the new VPS may join the tailnet as `prod-podcast` (clean slot post-wipe) or `prod-podcast-2` (if an old device record lingered). Compare `gh variable list` against actual `tailscale status` and update if mismatched.
+
+**Wait for tailnet join** (cloud-init takes 5–10 min on a fresh image; needs apt + docker + tailscale + repo clones):
+
+```bash
+while ! tailscale status | grep -q "^[0-9.]\+\s\+prod-podcast\s"; do sleep 30; done
+ssh deploy@prod-podcast.<tailnet>.ts.net 'cloud-init status --wait && cloud-init status --long'
+# Expect: status: done, errors: []
+```
+
+**Recover `.env`** — see next subsection.
+
+**Restore corpus + deploy**:
+
+```bash
+gh workflow run "Prod restore corpus (backup → prod VPS)" \
+  -f confirm=PROD_RESTORE \
+  -f backup_tag=snapshot-prod-YYYYMMDD   # or leave empty for newest compatible
+
+gh workflow run "Deploy to prod VPS" \
+  -f confirm=PROD_DEPLOY \
+  -f override_image_sha=<7-char SHA of the release you want>
+```
+
+**Verify**: tailnet `:443` and `:8443` (orrery) reachable; `/api/health` returns 200; Sentry shows a test event; Grafana receives metrics.
+
+### Recovering `.env` after destroy (until #841 lands)
+
+Until the GH-Secrets-driven `.env` work lands, `.env` is reconstructed by hand from each provider's dashboard. Use the template in [Stage the host-side `.env`](#stage-the-host-side-env-one-time-post-apply) above. After it's staged, `sudo rm /srv/podcast-scraper/.bootstrap-needs-env && sudo systemctl restart podcast-scraper.service` (or the workflow's `docker compose up -d --force-recreate` will pick it up on next deploy).
+
+**Once #841 lands**: this step disappears. `deploy-prod.yml` renders `.env` from GH Secrets onto the host at deploy time.
+
+### State drift gotchas
+
+Things that bit on 2026-05-29 — read this before any `tofu apply` against prod.
+
+**1. The post-apply re-encrypt step uploads `terraform.tfstate.enc` as a workflow artifact but does NOT commit it back to main.** Auto-commit-back is tracked in `infra-apply.yml`'s comments as a deferred follow-up. Until it lands, **every workflow run starts from main's encrypted state, which is whatever was last manually committed**. If you ran an apply but forgot to commit the artifact back, the next apply starts from stale state and recreates everything as orphans.
+
+**2. `# forces replacement` in a tofu plan = destroy + recreate.** Read every plan output for these literal strings before approving:
+
+- `# forces replacement` — destructive
+- `must be replaced` — destructive
+- `will be destroyed` — destructive
+- `(sensitive value)` paired with any of the above — the diff is masked, you cannot see what changed; treat as hard stop and investigate the drift before applying
+
+**3. `hcloud_ssh_key.operator.public_key` drift is the canonical trap.** If `OPERATOR_SSH_PUBLIC_KEY` GH Secret was rotated since the original apply but no apply has run in between, the next apply detects drift (`(sensitive value) # forces replacement` on the ssh_key), which cascades through `ssh_keys = [...] # forces replacement` on `hcloud_server.prod` → server destroyed and recreated. Mitigations: run `tofu plan` on a schedule (not yet wired); or move `ssh_keys` into `ignore_changes` on the server resource alongside the existing `user_data` ignore (tracked in #839 acceptance criteria).
+
+**4. AGENTS.md rules 10 + 11** are the agent-side guardrails for the above. Recovery operators should re-read those before triggering `infra-apply.yml`.
+
+### `infra-apply.yml` mode reference
+
+| Mode | confirm string | When to use | What it does |
+| --- | --- | --- | --- |
+| `apply` | `APPLY` | Routine apply; state and reality are in sync | `tofu apply` from current state |
+| `destroy-then-apply` | `DESTROY_THEN_APPLY` | Want a full rebuild but trust the current state | `tofu destroy` + `tofu apply` (state-driven destroy) |
+| `wipe-then-apply` | `WIPE_THEN_APPLY` | State and reality have diverged; surgical fixes failed | API-enumerate-and-DELETE every Hetzner resource + delete prod-tagged Tailscale devices + wipe state file + apply from scratch |
+| `wipe-only` | `WIPE_ONLY` | Want the wipe phase alone (e.g. step-by-step recovery with a pause before apply) | Same wipe as above, but no `tofu apply` after |
+
+Inputs:
+
+- `override_server_type` — e.g. `cpx32` when the default `cx43` has no placement capacity.
+- `override_location` — e.g. `nbg1` (Nuremberg) or `hel1` (Helsinki) when the default `fsn1` (Falkenstein) is out of capacity.
+
+The orphan-ID inputs (`orphan_server_id`, `orphan_ssh_key_ids`, `orphan_network_ids`, `orphan_firewall_ids`) are present for surgical cleanup but **prefer `wipe-then-apply` once divergence is suspected** — the orphan path leads to death-by-a-thousand-cuts as new orphans surface mid-recovery.
+
+---
+
 ## Code/content compatibility {#codecontent-compatibility}
 
 Operator framework for **code** (GHCR image / git tag on the VPS) vs **content** (corpus on disk from a prior pipeline run). Sibling automation lives in [GitHub #796](https://github.com/chipi/podcast_scraper/issues/796) (`produced_by`, `/api/health` preflight, CI matrix). This section is the manual decision tree; [GitHub #797](https://github.com/chipi/podcast_scraper/issues/797) tracks the docs + smoke script.
