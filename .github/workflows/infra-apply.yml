@@ -27,12 +27,13 @@ on:
         required: true
         default: ''
       mode:
-        description: 'apply / destroy-then-apply / wipe-then-apply (full nuke + rebuild)'
+        description: 'apply / destroy-then-apply / wipe-then-apply / wipe-only (nuke project + state, no apply)'
         type: choice
         options:
           - apply
           - destroy-then-apply
           - wipe-then-apply
+          - wipe-only
         default: apply
       override_server_type:
         description: 'Optional override: hcloud server_type (cx43 / cax31 / ccx23 / cx33 / ccx13 / cpx32). Empty = use tfvar default. Use when Hetzner reports resource_unavailable at placement.'
@@ -74,6 +75,9 @@ jobs:
             wipe-then-apply)
               [ "$CONFIRM" = "WIPE_THEN_APPLY" ] || { echo "::error::mode=wipe-then-apply requires confirm=WIPE_THEN_APPLY. Got: '$CONFIRM'"; exit 1; }
               ;;
+            wipe-only)
+              [ "$CONFIRM" = "WIPE_ONLY" ] || { echo "::error::mode=wipe-only requires confirm=WIPE_ONLY. Got: '$CONFIRM'"; exit 1; }
+              ;;
             *)
               echo "::error::Unknown mode: '$MODE'"; exit 1 ;;
           esac
@@ -113,8 +117,8 @@ jobs:
           curl -fsSL https://github.com/FiloSottile/age/releases/download/v1.2.1/age-v1.2.1-linux-amd64.tar.gz \
             | sudo tar -xz -C /usr/local/bin --strip-components=1 age/age age/age-keygen
 
-      - name: Wipe Hetzner project + prod Tailscale devices + local state (wipe-then-apply only)
-        if: ${{ github.event.inputs.mode == 'wipe-then-apply' }}
+      - name: Wipe Hetzner project + prod Tailscale devices + local state (wipe-then-apply / wipe-only)
+        if: ${{ github.event.inputs.mode == 'wipe-then-apply' || github.event.inputs.mode == 'wipe-only' }}
         env:
           HCLOUD_TOKEN: ${{ secrets.HCLOUD_TOKEN }}
           TS_API_KEY:   ${{ secrets.TS_API_KEY }}
@@ -204,6 +208,7 @@ jobs:
           fi
 
       - name: tofu init + (destroy +) apply
+        if: ${{ github.event.inputs.mode != 'wipe-only' }}
         working-directory: infra/terraform
         env:
           TF_VAR_hcloud_token:      ${{ secrets.HCLOUD_TOKEN }}
