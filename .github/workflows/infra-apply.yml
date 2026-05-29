@@ -35,6 +35,10 @@ on:
           - wipe-then-apply
           - wipe-only
         default: apply
+      override_destructive:
+        description: 'Set to "I_UNDERSTAND_REPLACEMENT" to allow the apply to proceed when the plan contains "forces replacement" / "must be replaced" / "will be destroyed". Empty = block destructive plans.'
+        required: false
+        default: ''
       override_server_type:
         description: 'Optional override: hcloud server_type (cx43 / cax31 / ccx23 / cx33 / ccx13 / cpx32). Empty = use tfvar default. Use when Hetzner reports resource_unavailable at placement.'
         required: false
@@ -207,7 +211,7 @@ jobs:
             sops -d infra/terraform/terraform.tfstate.enc > infra/terraform/terraform.tfstate
           fi
 
-      - name: tofu init + (destroy +) apply
+      - name: tofu init + destroy (if mode requires) + import tailscale_acl
         if: ${{ github.event.inputs.mode != 'wipe-only' }}
         working-directory: infra/terraform
         env:
@@ -220,8 +224,6 @@ jobs:
           OVERRIDE_LOCATION:        ${{ github.event.inputs.override_location }}
         run: |
           set -euo pipefail
-          # Placement overrides — only export TF_VAR_* when set, so tfvar
-          # defaults + validation rules apply otherwise.
           if [ -n "${OVERRIDE_SERVER_TYPE:-}" ]; then
             export TF_VAR_server_type="$OVERRIDE_SERVER_TYPE"
             echo "TF_VAR_server_type=$OVERRIDE_SERVER_TYPE"
@@ -238,14 +240,94 @@ jobs:
           fi
           # Tailscale ACL has no real "delete" on the provider API. If it's
           # missing from state (post-destroy, post-wipe, or after a manual
-          # state sync), the apply's create attempt fails with 412 "invalid
-          # old hash". Import first so the operation becomes an update.
+          # state sync), the next plan would propose a fresh create that
+          # then 412s with "invalid old hash". Import first so the plan
+          # shows an update with the correct etag.
           if ! tofu state list 2>/dev/null | grep -q '^tailscale_acl\.main\['; then
             echo "::group::tofu import tailscale_acl (not in state)"
             tofu import 'tailscale_acl.main[0]' acl
             echo "::endgroup::"
           fi
-          tofu apply -auto-approve -input=false
+
+      - name: tofu plan
+        if: ${{ github.event.inputs.mode != 'wipe-only' }}
+        working-directory: infra/terraform
+        env:
+          TF_VAR_hcloud_token:      ${{ secrets.HCLOUD_TOKEN }}
+          TF_VAR_tailscale_api_key: ${{ secrets.TS_API_KEY }}
+          TF_VAR_ssh_public_key:    ${{ secrets.OPERATOR_SSH_PUBLIC_KEY }}
+          TF_VAR_tailscale_tailnet: ${{ vars.TAILNET_NAME }}
+          OVERRIDE_SERVER_TYPE:     ${{ github.event.inputs.override_server_type }}
+          OVERRIDE_LOCATION:        ${{ github.event.inputs.override_location }}
+        run: |
+          set -euo pipefail
+          [ -n "${OVERRIDE_SERVER_TYPE:-}" ] && export TF_VAR_server_type="$OVERRIDE_SERVER_TYPE"
+          [ -n "${OVERRIDE_LOCATION:-}" ]    && export TF_VAR_location="$OVERRIDE_LOCATION"
+          tofu plan -out=tfplan -input=false
+          tofu show -no-color tfplan > /tmp/plan.txt
+
+      - name: Surface plan summary to job summary
+        if: ${{ github.event.inputs.mode != 'wipe-only' }}
+        run: |
+          {
+            echo "## Terraform plan"
+            echo "<details><summary>Click to expand full plan</summary>"
+            echo
+            echo '```hcl'
+            cat /tmp/plan.txt
+            echo '```'
+            echo "</details>"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Destructive-change interlock
+        if: ${{ github.event.inputs.mode != 'wipe-only' }}
+        env:
+          OVERRIDE_DESTRUCTIVE: ${{ github.event.inputs.override_destructive }}
+        run: |
+          set -euo pipefail
+          # Search plan output for the literal terraform/tofu strings that
+          # indicate a destroy + recreate of stateful resources. Any hit
+          # blocks the apply unless the operator explicitly typed the
+          # override. ``(sensitive value)`` alone is not flagged (sensitive
+          # values appear in normal creates/updates too); the cascade trap
+          # is specifically ``(sensitive value) # forces replacement``,
+          # which the ``forces replacement`` match catches.
+          MATCHES=$(grep -nE 'forces replacement|must be replaced|will be destroyed' /tmp/plan.txt || true)
+          if [ -z "$MATCHES" ]; then
+            echo "no destructive change markers in plan — proceeding"
+            exit 0
+          fi
+          echo "::warning::Destructive changes detected in plan:"
+          echo "$MATCHES" | head -50
+          # Affected resources (lines like "  # hcloud_server.prod must be replaced")
+          AFFECTED=$(grep -nE '^\s*#\s+\S+\.\S+\s+(must be replaced|will be destroyed)' /tmp/plan.txt || true)
+          if [ -n "$AFFECTED" ]; then
+            echo
+            echo "::warning::Affected resources:"
+            echo "$AFFECTED"
+          fi
+          if [ "${OVERRIDE_DESTRUCTIVE:-}" = "I_UNDERSTAND_REPLACEMENT" ]; then
+            echo "::warning::override_destructive=I_UNDERSTAND_REPLACEMENT supplied — proceeding with destructive apply"
+            exit 0
+          fi
+          echo "::error::Plan contains destructive changes (see above). Re-trigger with override_destructive=I_UNDERSTAND_REPLACEMENT to proceed, or fix the drift / config that's causing the replacement."
+          exit 1
+
+      - name: tofu apply (uses saved tfplan)
+        if: ${{ github.event.inputs.mode != 'wipe-only' }}
+        working-directory: infra/terraform
+        env:
+          TF_VAR_hcloud_token:      ${{ secrets.HCLOUD_TOKEN }}
+          TF_VAR_tailscale_api_key: ${{ secrets.TS_API_KEY }}
+          TF_VAR_ssh_public_key:    ${{ secrets.OPERATOR_SSH_PUBLIC_KEY }}
+          TF_VAR_tailscale_tailnet: ${{ vars.TAILNET_NAME }}
+          OVERRIDE_SERVER_TYPE:     ${{ github.event.inputs.override_server_type }}
+          OVERRIDE_LOCATION:        ${{ github.event.inputs.override_location }}
+        run: |
+          set -euo pipefail
+          [ -n "${OVERRIDE_SERVER_TYPE:-}" ] && export TF_VAR_server_type="$OVERRIDE_SERVER_TYPE"
+          [ -n "${OVERRIDE_LOCATION:-}" ]    && export TF_VAR_location="$OVERRIDE_LOCATION"
+          tofu apply -auto-approve -input=false tfplan
 
       - name: Re-encrypt state (always — even if apply failed; preserves partial state)
         if: always()

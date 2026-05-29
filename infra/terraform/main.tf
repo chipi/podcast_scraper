@@ -116,8 +116,15 @@ resource "hcloud_server" "prod" {
   # Cloud-init only runs once. Re-applying with a rotated auth key would force
   # server replacement (loses corpus, tailnet identity); ignore the diff so
   # routine `tofu apply` for non-server resources stays cheap.
+  #
+  # ``ssh_keys`` added 2026-05-29 (#839) after a rotated ``OPERATOR_SSH_PUBLIC_KEY``
+  # GH Secret cascaded ``hcloud_ssh_key.operator`` replacement into ``ssh_keys =
+  # [...] # forces replacement`` on this resource, destroying prod. Tailscale's
+  # serve config + the deploy@ authorized_keys are managed independently of
+  # the Hetzner ssh_keys attribute, so ignoring drift here is safe and
+  # eliminates the cascade.
   lifecycle {
-    ignore_changes = [user_data]
+    ignore_changes = [user_data, ssh_keys]
   }
 }
 
