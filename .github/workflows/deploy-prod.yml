@@ -280,23 +280,39 @@ jobs:
           exit 1
 
       - name: Post-deploy smoke (six API surfaces)
+        # Two paths matter:
+        #   PODCAST_CORPUS_HOST_PATH    = on-host directory (e.g. /srv/podcast-scraper/corpus)
+        #   PODCAST_DEFAULT_CORPUS_PATH = bind-mount target inside the api container (e.g. /app/output)
+        # The probe over tailnet hits the api process inside the container,
+        # so the ``path=`` query param MUST be the in-container path. Sending
+        # the host path used to 422 with "path must be the configured corpus
+        # root or a subdirectory of it." Validate the host dir exists
+        # separately so we still catch the case where the host bind source
+        # is missing.
         if: steps.preflight.outputs.skip != 'true'
         env:
           PROBE_FQDN: ${{ steps.ts_host.outputs.resolved_fqdn }}
           SSH_TARGET: deploy@${{ steps.ts_host.outputs.resolved_fqdn }}
         run: |
           set -euo pipefail
-          CORPUS=$(ssh -i "$SSH_PROD_IDENTITY" -o IdentitiesOnly=yes \
+          HOST_CORPUS=$(ssh -i "$SSH_PROD_IDENTITY" -o IdentitiesOnly=yes \
             -o StrictHostKeyChecking=accept-new -o BatchMode=yes "$SSH_TARGET" \
             "grep '^PODCAST_CORPUS_HOST_PATH=' /srv/podcast-scraper/.env | cut -d= -f2-")
-          if [ -z "${CORPUS:-}" ]; then
+          CONTAINER_CORPUS=$(ssh -i "$SSH_PROD_IDENTITY" -o IdentitiesOnly=yes \
+            -o StrictHostKeyChecking=accept-new -o BatchMode=yes "$SSH_TARGET" \
+            "grep '^PODCAST_DEFAULT_CORPUS_PATH=' /srv/podcast-scraper/.env | cut -d= -f2-")
+          if [ -z "${HOST_CORPUS:-}" ]; then
             echo "::error::PODCAST_CORPUS_HOST_PATH missing from host .env"
+            exit 1
+          fi
+          if [ -z "${CONTAINER_CORPUS:-}" ]; then
+            echo "::error::PODCAST_DEFAULT_CORPUS_PATH missing from host .env (smoke probe needs the in-container path)"
             exit 1
           fi
           if ! ssh -i "$SSH_PROD_IDENTITY" -o IdentitiesOnly=yes \
             -o StrictHostKeyChecking=accept-new -o BatchMode=yes "$SSH_TARGET" \
-            "test -d '$CORPUS'"; then
-            echo "::error::PODCAST_CORPUS_HOST_PATH is not a directory on host: $CORPUS"
+            "test -d '$HOST_CORPUS'"; then
+            echo "::error::PODCAST_CORPUS_HOST_PATH is not a directory on host: $HOST_CORPUS"
             exit 1
           fi
-          bash scripts/ops/post_deploy_smoke.sh "$PROBE_FQDN" --corpus-path "$CORPUS"
+          bash scripts/ops/post_deploy_smoke.sh "$PROBE_FQDN" --corpus-path "$CONTAINER_CORPUS"
