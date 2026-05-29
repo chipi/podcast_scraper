@@ -135,3 +135,81 @@ jobs:
           shred -u infra/terraform/terraform.tfstate 2>/dev/null \
             || rm -f infra/terraform/terraform.tfstate
           rm -f infra/terraform/plan.bin infra/terraform/plan.txt infra/terraform/plan.trunc.txt
+
+  # Renders ``infra/cloud-init/prod.user-data`` with sample inputs, parses
+  # through ``yaml.safe_load`` (catches plain-scalar-as-mapping bugs that
+  # crash cloud-init's runcmd module — see #842 / 2026-05-29 incident),
+  # type-checks every runcmd entry as ``str|list`` (cloud-init ``shellify``
+  # contract), and runs cloud-init's own JSON-Schema validator.
+  #
+  # Decoupled from the tofu-plan job above: no secrets required, so it
+  # gives reviewer-visible coverage even when the live-plan job skips.
+  cloud-init-validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Install OpenTofu
+        uses: opentofu/setup-opentofu@v2
+        with:
+          tofu_version: 1.6.0
+
+      - name: Install cloud-init + pyyaml
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends cloud-init python3-yaml
+
+      - name: Render cloud-init template with sample inputs
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/cloud-init-render
+          cp -r infra /tmp/cloud-init-render/infra
+          cat > /tmp/cloud-init-render/main.tf <<'TF'
+          output "rendered" {
+            value = templatefile("infra/cloud-init/prod.user-data", {
+              tailnet_hostname             = "ci-test"
+              tailscale_auth_key           = "tskey-FAKE"
+              ssh_public_key               = "ssh-ed25519 AAAACI ci-test"
+              additional_authorized_keys   = ["ssh-ed25519 AAAAORRERY gha-orrery-deploy"]
+              tailscale_advertise_tags_cli = "tag:prod"
+              alloy_enabled                = false
+              grafana_cloud_metrics_remote_write_url = ""
+              grafana_cloud_metrics_username         = ""
+              grafana_cloud_metrics_password         = ""
+              podcast_tailscale_serve_body = indent(6, chomp(file("infra/cloud-init/podcast-tailscale-serve.sh")))
+              orrery_tailscale_serve_body  = indent(6, chomp(file("infra/cloud-init/orrery-tailscale-serve.sh")))
+            })
+          }
+          TF
+          cd /tmp/cloud-init-render
+          tofu init -backend=false -input=false >/dev/null
+          tofu apply -auto-approve -input=false >/dev/null
+          tofu output -raw rendered > /tmp/rendered-cloudinit.yaml
+
+      - name: yaml.safe_load + type-check runcmd entries (shellify contract)
+        run: |
+          python3 <<'PY'
+          import sys, yaml
+          with open('/tmp/rendered-cloudinit.yaml') as f:
+              doc = yaml.safe_load(f)
+          rc = doc.get('runcmd', [])
+          bad = [(i, type(x).__name__, str(x)[:120])
+                 for i, x in enumerate(rc)
+                 if not isinstance(x, (str, list))]
+          if bad:
+              print('ERROR: runcmd has non-string/list entries (cloud-init shellify will fail):')
+              for i, t, p in bad:
+                  print(f'  [{i}] ({t}): {p}')
+              sys.exit(1)
+          print(f'OK: {len(rc)} runcmd entries, all string/list (shellify-safe)')
+          PY
+
+      - name: cloud-init schema validation
+        # Catches the broader class of bugs beyond runcmd shellify:
+        # deprecated keys, structural errors, write_files content issues.
+        run: |
+          set -euo pipefail
+          cloud-init schema --config-file /tmp/rendered-cloudinit.yaml
+          echo "OK: cloud-init schema validation passed"

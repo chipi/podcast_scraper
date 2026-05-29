@@ -88,9 +88,10 @@ resource "hcloud_server" "prod" {
   }
 
   user_data = templatefile("${path.module}/../cloud-init/prod.user-data", {
-    tailscale_auth_key = tailscale_tailnet_key.prod.key
-    tailnet_hostname   = var.tailnet_hostname
-    ssh_public_key     = var.ssh_public_key
+    tailscale_auth_key         = tailscale_tailnet_key.prod.key
+    tailnet_hostname           = var.tailnet_hostname
+    ssh_public_key             = var.ssh_public_key
+    additional_authorized_keys = var.additional_authorized_keys
 
     tailscale_advertise_tags_cli = local.tailscale_advertise_tags_cli
 
@@ -103,6 +104,7 @@ resource "hcloud_server" "prod" {
     # Shell script body is injected via ``file()`` so ``$`` / ``((`` are never passed through
     # ``templatefile`` twice (avoids broken ``n=$$((n+1))`` on the VPS).
     podcast_tailscale_serve_body = indent(6, chomp(file("${path.module}/../cloud-init/podcast-tailscale-serve.sh")))
+    orrery_tailscale_serve_body  = indent(6, chomp(file("${path.module}/../cloud-init/orrery-tailscale-serve.sh")))
   })
 
   labels = {
@@ -114,8 +116,15 @@ resource "hcloud_server" "prod" {
   # Cloud-init only runs once. Re-applying with a rotated auth key would force
   # server replacement (loses corpus, tailnet identity); ignore the diff so
   # routine `tofu apply` for non-server resources stays cheap.
+  #
+  # ``ssh_keys`` added 2026-05-29 (#839) after a rotated ``OPERATOR_SSH_PUBLIC_KEY``
+  # GH Secret cascaded ``hcloud_ssh_key.operator`` replacement into ``ssh_keys =
+  # [...] # forces replacement`` on this resource, destroying prod. Tailscale's
+  # serve config + the deploy@ authorized_keys are managed independently of
+  # the Hetzner ssh_keys attribute, so ignoring drift here is safe and
+  # eliminates the cascade.
   lifecycle {
-    ignore_changes = [user_data]
+    ignore_changes = [user_data, ssh_keys]
   }
 }
 

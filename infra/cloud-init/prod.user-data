@@ -20,6 +20,9 @@ users:
     sudo: false
     ssh_authorized_keys:
       - "${ssh_public_key}"
+%{ for k in additional_authorized_keys ~}
+      - "${k}"
+%{ endfor ~}
 
 package_update: true
 package_upgrade: true
@@ -34,16 +37,12 @@ packages:
   - git
 
 write_files:
-  # Operator drops .env into /srv/podcast-scraper/.env after first boot, then
-  # `sudo rm` this sentinel to release the systemd unit. start.sh is gated
-  # on the file's absence (ExecStartPre).
-  - path: /srv/podcast-scraper/.bootstrap-needs-env
-    content: |
-      Operator: stage /srv/podcast-scraper/.env (mode 600, owner deploy:deploy)
-      then `sudo rm /srv/podcast-scraper/.bootstrap-needs-env` to start the stack.
-      See docs/guides/PROD_RUNBOOK.md for the .env shape.
-    permissions: '0644'
-    owner: root:root
+  # ``.bootstrap-needs-env`` sentinel removed per #844 once .env became
+  # workflow-staged (#841): deploy-prod.yml / prod-restore-corpus.yml
+  # render /srv/podcast-scraper/.env from GH Secrets at deploy time.
+  # The systemd unit's ExecStartPre now positively checks for .env's
+  # presence (refuses to start if .env is missing — same protection,
+  # self-explanatory error).
 
   # After the compose stack is up, expose the viewer (host VIEWER_PORT, default
   # 8080) as MagicDNS HTTPS :443 so tailnet peers (including tag:gha-deployer)
@@ -63,6 +62,22 @@ write_files:
     permissions: '0440'
     owner: root:root
 
+  # Orrery co-tenant tailscale-serve wrapper (#838).
+  # Publishes :8443 -> 127.0.0.1:8090 alongside podcast_scraper's :443.
+  # No systemd unit yet (chipi/orrery#261 phase 1) — invoked once from
+  # runcmd below at first boot, and re-armed by orrery's deploy workflow
+  # via the narrow sudoers allowlist immediately after.
+  - path: /usr/local/sbin/orrery-tailscale-serve.sh
+    content: |
+      ${orrery_tailscale_serve_body}
+    permissions: '0755'
+    owner: root:root
+
+  - path: /etc/sudoers.d/99-orrery-deploy-tailscale-serve
+    content: "deploy ALL=(root) NOPASSWD: /usr/bin/install -m 0755 -o root -g root /tmp/orrery-tailscale-serve.ci /usr/local/sbin/orrery-tailscale-serve.sh, /usr/local/sbin/orrery-tailscale-serve.sh\n"
+    permissions: '0440'
+    owner: root:root
+
   - path: /etc/systemd/system/podcast-scraper.service
     content: |
       [Unit]
@@ -75,7 +90,11 @@ write_files:
       RemainAfterExit=yes
       WorkingDirectory=/srv/podcast-scraper
       EnvironmentFile=/srv/podcast-scraper/.env
-      ExecStartPre=/usr/bin/test ! -e /srv/podcast-scraper/.bootstrap-needs-env
+      # Positive check (#844): refuse to start unless .env exists. Same
+      # protection as the prior .bootstrap-needs-env sentinel (no
+      # broken-running-prod with empty secrets) but self-explanatory:
+      # missing .env means "deploy hasn't staged it yet — run deploy-prod.yml".
+      ExecStartPre=/usr/bin/test -f /srv/podcast-scraper/.env
       ExecStart=/usr/bin/docker compose --env-file /srv/podcast-scraper/.env -f compose/docker-compose.stack.yml -f compose/docker-compose.prod.yml -f compose/docker-compose.vps-prod.yml up -d --remove-orphans
       ExecStartPost=-/usr/local/sbin/podcast-tailscale-serve.sh
       ExecStop=/usr/bin/docker compose --env-file /srv/podcast-scraper/.env -f compose/docker-compose.stack.yml -f compose/docker-compose.prod.yml -f compose/docker-compose.vps-prod.yml down
@@ -132,7 +151,15 @@ runcmd:
   # via runcmd — this runs unconditionally after the user is (or should have
   # been) created.
   - install -d -m 700 -o deploy -g deploy /home/deploy/.ssh || (useradd -m -s /bin/bash -G docker deploy && install -d -m 700 -o deploy -g deploy /home/deploy/.ssh)
-  - echo '${ssh_public_key}' > /home/deploy/.ssh/authorized_keys
+  # Multi-key write via heredoc — primary operator key plus each
+  # ``additional_authorized_keys`` entry on its own line. ``join`` renders
+  # at templatefile time; the ``\n    `` separator preserves the 4-space
+  # YAML literal-block indent for every subsequent key, otherwise the
+  # render breaks YAML parsing.
+  - |
+    cat > /home/deploy/.ssh/authorized_keys <<'AUTHKEYS_EOF'
+    ${join("\n    ", concat([ssh_public_key], additional_authorized_keys))}
+    AUTHKEYS_EOF
   - chown deploy:deploy /home/deploy/.ssh/authorized_keys
   - chmod 600 /home/deploy/.ssh/authorized_keys
   # Also ensure root's authorized_keys has it, so emergency access is possible
@@ -167,6 +194,27 @@ runcmd:
   - install -d -o deploy -g deploy -m 0755 /srv/podcast-scraper
   - sudo -u deploy bash -c 'set -euo pipefail; t=/tmp/podcast-scraper-clone; rm -rf "$t"; git clone --branch main --depth 50 https://github.com/chipi/podcast_scraper.git "$t"; cp -a "$t"/. /srv/podcast-scraper/; rm -rf "$t"'
   - chown -R deploy:deploy /srv/podcast-scraper
+
+  # === Repo checkout to /srv/orrery (mirror of /srv/podcast-scraper above) ===
+  # Co-tenant deploy on the same VPS (chipi/orrery#260 / #261). Phase 1 has no
+  # secret env or systemd unit gating, so the clone-to-tmp + cp -a dance from
+  # the podcast_scraper block isn't strictly needed — but mirror it anyway so
+  # the two app checkouts are structurally identical and survive any future
+  # write_files entry under /srv/orrery without surprises.
+  - install -d -o deploy -g deploy -m 0755 /srv/orrery
+  - sudo -u deploy bash -c 'set -euo pipefail; t=/tmp/orrery-clone; rm -rf "$t"; git clone --branch main --depth 50 https://github.com/chipi/orrery.git "$t"; cp -a "$t"/. /srv/orrery/; rm -rf "$t"'
+  - chown -R deploy:deploy /srv/orrery
+
+  # === Orrery tailscale-serve first-boot invocation (#838) ===
+  # podcast_scraper has a systemd unit with ``ExecStartPost`` that fires this
+  # for its serve script; orrery has no unit yet (chipi/orrery#261 phase 1),
+  # so invoke once here. Subsequent re-arms come from orrery's deploy workflow
+  # via the narrow sudoers allowlist added above. Tailscale is already up at
+  # this point (``tailscale up …`` above).
+  # YAML-level single-quote wrap: the unquoted ``: `` inside the echo string
+  # would otherwise trigger plain-scalar-as-mapping parsing, crashing
+  # cloud-init's runcmd module entirely (TypeError in ``shellify``).
+  - '/usr/local/sbin/orrery-tailscale-serve.sh || echo "orrery-tailscale-serve.sh first-boot publish failed; will retry on next deploy" >&2'
 
   # === Corpus mount: prefer attached Volume, fall back to boot-disk dir ===
   - VOLUME_PATH=$(ls -d /mnt/HC_Volume_* 2>/dev/null | head -1); if [ -n "$VOLUME_PATH" ]; then mkdir -p "$VOLUME_PATH/corpus"; chown -R deploy:deploy "$VOLUME_PATH/corpus"; ln -sfn "$VOLUME_PATH/corpus" /srv/podcast-scraper/corpus; else install -d -o deploy -g deploy /srv/podcast-scraper/corpus; fi

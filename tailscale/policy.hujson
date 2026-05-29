@@ -27,18 +27,23 @@
     // Originally restricted SSH to tag:gha-deployer only, but that blocked
     // operator-side bootstrap (no way to stage host secrets); pragmatic to
     // grant SSH to admin too. Defence-in-depth still applies via SSH key auth.
+    //
+    // :8443 = orrery co-tenant tailnet publish (chipi/podcast_scraper#838,
+    // chipi/orrery#260). orrery's web app at :8090 fronted via tailscale
+    // serve on :8443, leaving :443 for podcast_scraper.
     {
       "action": "accept",
       "src":    ["autogroup:admin"],
-      "dst":    ["tag:prod:22,80,443"]
+      "dst":    ["tag:prod:22,80,443,8443"]
     },
 
     // Deploy workflow (ephemeral GHA runner under tag:gha-deployer) SSHes into
-    // the VPS to run `docker compose pull && up`. SSH only; no other ports.
+    // the VPS to run `docker compose pull && up`. SSH + the orrery external
+    // healthcheck on :8443 — no other ports.
     {
       "action": "accept",
       "src":    ["tag:gha-deployer"],
-      "dst":    ["tag:prod:22"]
+      "dst":    ["tag:prod:22,8443"]
     },
 
     // DR drill VPS — operator + GHA reach SSH and viewer/api over HTTPS.

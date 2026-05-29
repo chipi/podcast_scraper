@@ -232,7 +232,12 @@ Phase 1; recent releases for reference (template:
 
 ### Phase 6 — Version bump and commit `[manual]`
 
-**Skip for:** Never skip.
+**Skip for:** Never skip. **This includes hotfixes (X.Y.Z+1).** Skipping
+on a hotfix leaves `pyproject.toml`'s version stale; `/api/health` then
+reports the prior version after deploy, which is misleading during
+incident response. The 2026-05-29 v2.6.1 hotfix shipped without a
+version bump and prod kept reporting `2.6.0` — see Phase 8 below for
+the catch-it-next-time verification.
 
 **Inputs:** Agreed version from Phase 1; all prior phases green.
 
@@ -282,6 +287,43 @@ Optional post-release dev version bump (Development Guide section 8).
 **Outputs:** Git tag; GitHub Release with notes.
 
 **Gate:** Tag visible on remote; GitHub Release page exists.
+
+---
+
+### Phase 8 — Post-deploy verification on prod `[manual]`
+
+**Skip for:** Never skip — cheap to run, catches "I forgot to bump the
+version" class of misses (see Phase 6 note about v2.6.1).
+
+**Inputs:** Successful `deploy-prod.yml` run for the release SHA.
+
+**Steps:**
+
+```bash
+# 1. /api/health reports the expected version
+curl -fsS https://prod-podcast.<tailnet>/api/health | jq -r '.code_version'
+# expect: X.Y.Z exactly. Mismatch → Phase 6 was skipped, you need to
+# re-bump pyproject.toml + __init__.py, re-build, re-deploy.
+
+# 2. Deploy workflow's post-deploy smoke step (six API surfaces) is green
+# (auto, in the workflow). If it failed on /api/corpus/episodes only,
+# verify the smoke step is sending the CONTAINER corpus path
+# (PODCAST_DEFAULT_CORPUS_PATH=/app/output) not the HOST path
+# (PODCAST_CORPUS_HOST_PATH=/srv/podcast-scraper/corpus). The API
+# validates path against its in-container root, which is the container
+# path. Fixed in deploy-prod.yml after the 2026-05-29 incident.
+
+# 3. Sanity-check the tailnet publishes
+curl -fsS -o /dev/null -w 'podcast :443 = %{http_code}\n' https://prod-podcast.<tailnet>/
+# expect: 200
+```
+
+**Outputs:** Confirmed prod is serving the intended release.
+
+**Gate:** All three checks return as expected. If `code_version`
+disagrees with the released tag, roll back via `deploy-prod.yml` with
+`override_image_sha=<previous-good>` and fix the version-bump
+oversight before re-attempting.
 
 ---
 

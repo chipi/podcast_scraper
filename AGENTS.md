@@ -98,6 +98,48 @@ operator repeatedly. Adherence beats every other rule.
     them. Infra-only PRs still need patch coverage on new lines when Codecov
     reports a failure.
 
+11. **Applying changes to live infra is a separate action class from committing
+    them. Never trigger an apply/deploy/destroy-class operation without explicit
+    per-instance approval — prior session "yes do it" does not extend.** "Yes
+    do it" / "implement #N" authorizes code-side work: edits, commits, pushes,
+    branch ops. It does NOT authorize:
+    - `gh workflow run` of any workflow whose name contains "apply", "deploy",
+      "destroy", "infra-apply", "deploy-prod", "drill-exercise", "failover".
+    - `tofu apply` / `terraform apply` / `terraform destroy` against any
+      remote state.
+    - Direct provider-API mutations (Tailscale ACL push, Hetzner server / volume
+      mutations, DNS record changes, GitHub branch-protection edits).
+    - Manual SQL DDL or migrations against prod databases.
+
+    These are gates the operator owns. The agent's job stops at "code is
+    committed; here's how to apply it." When a change needs to go live, say:
+    "needs `<workflow name>` / `tofu apply` to take effect; ready when you are."
+    Never invoke it yourself, even if the prior commit was authorized.
+
+    Failure mode of record (2026-05-29): an unauthorized `gh workflow run "Infra
+    apply"` cascaded `hcloud_ssh_key.operator` drift into `hcloud_server.prod`
+    replacement → prod VPS destroyed mid-session.
+
+12. **`# forces replacement` in any plan output is a hard stop. `(sensitive
+    value) # forces replacement` is doubly so.** Stateful resources (servers,
+    volumes, databases, ACLs that gate live traffic) being marked for
+    replacement means destroy + recreate, regardless of how innocuous the
+    triggering change appears. `(sensitive value)` masks the diff so the
+    agent cannot see what's actually changing or why.
+
+    Operating rules:
+    - Route infra / IaC / `tailscale/policy.hujson` changes through a **PR**,
+      not direct-to-main, so `infra-ci.yml` posts the plan as a PR comment for
+      human review. Direct-to-main bypasses the only pre-apply review surface.
+    - Reading a plan: before any apply, search the plan output for the literal
+      strings `forces replacement`, `must be replaced`, `will be destroyed`,
+      and `(sensitive value)`. Any hit → quote the affected resources verbatim
+      and ask, regardless of session momentum.
+    - "It was just an ACL/policy edit, the server shouldn't be touched" is
+      not a reason to skip the plan read. Cascades through resource
+      dependencies (`ssh_keys`, `network_id`, etc.) regularly turn small
+      changes into resource replacements.
+
 ---
 
 ## User intent beats procedural defaults

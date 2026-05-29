@@ -5,20 +5,47 @@ name: Infra apply (manual)
 # The PR's plan comment (from infra-ci.yml) is the preview; this is the
 # explicit "yes, do it" gate.
 #
-# Closes #719 (apply half).
+# Modes:
+#   apply              — normal apply against the current encrypted state.
+#   destroy-then-apply — tofu destroy + tofu apply. Uses current state.
+#   wipe-then-apply    — API-enumerate-and-DELETE every Hetzner resource in
+#                        the project + delete every prod-tagged Tailscale
+#                        device + wipe local state. Apply runs from empty.
+#                        Use for clean-slate recovery when state and reality
+#                        have diverged badly enough that surgical orphan
+#                        cleanup is impractical (incident 2026-05-29).
 #
-# State persistence model: this workflow uploads the post-apply
-# `terraform.tfstate.enc` as a workflow artifact (30-day retention). The
-# operator downloads it and commits to main manually. Auto-commit-back is
-# deferred to a follow-up (needs branch-protection bypass via PAT or
-# deploy key, which adds vendor surface).
+# State persistence: post-apply ``terraform.tfstate.enc`` is uploaded as a
+# workflow artifact. Operator downloads + commits to main manually.
+# Auto-commit-back is deferred (needs branch-protection bypass via PAT).
 
 on:
   workflow_dispatch:
     inputs:
       confirm:
-        description: 'Type "APPLY" to confirm you want to apply'
+        description: 'Type "APPLY" / "DESTROY_THEN_APPLY" / "WIPE_THEN_APPLY" matching mode below'
         required: true
+        default: ''
+      mode:
+        description: 'apply / destroy-then-apply / wipe-then-apply / wipe-only (nuke project + state, no apply)'
+        type: choice
+        options:
+          - apply
+          - destroy-then-apply
+          - wipe-then-apply
+          - wipe-only
+        default: apply
+      override_destructive:
+        description: 'Set to "I_UNDERSTAND_REPLACEMENT" to allow the apply to proceed when the plan contains "forces replacement" / "must be replaced" / "will be destroyed". Empty = block destructive plans.'
+        required: false
+        default: ''
+      override_server_type:
+        description: 'Optional override: hcloud server_type (cx43 / cax31 / ccx23 / cx33 / ccx13 / cpx32). Empty = use tfvar default. Use when Hetzner reports resource_unavailable at placement.'
+        required: false
+        default: ''
+      override_location:
+        description: 'Optional override: hcloud location (fsn1 / nbg1 / hel1). Empty = use tfvar default. Use when current location has no capacity.'
+        required: false
         default: ''
 
 permissions:
@@ -31,7 +58,7 @@ concurrency:
 jobs:
   apply:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 25
     # Use a `prod` Environment so the operator can configure required-reviewer
     # protection in repo Settings → Environments → prod. If the environment
     # doesn't exist, GitHub creates it on first run with no protection — the
@@ -40,10 +67,25 @@ jobs:
     steps:
       - name: Confirm input
         run: |
-          if [ "${{ github.event.inputs.confirm }}" != "APPLY" ]; then
-            echo "::error::Must type APPLY to confirm. Got: '${{ github.event.inputs.confirm }}'"
-            exit 1
-          fi
+          MODE='${{ github.event.inputs.mode }}'
+          CONFIRM='${{ github.event.inputs.confirm }}'
+          case "$MODE" in
+            apply)
+              [ "$CONFIRM" = "APPLY" ] || { echo "::error::mode=apply requires confirm=APPLY. Got: '$CONFIRM'"; exit 1; }
+              ;;
+            destroy-then-apply)
+              [ "$CONFIRM" = "DESTROY_THEN_APPLY" ] || { echo "::error::mode=destroy-then-apply requires confirm=DESTROY_THEN_APPLY. Got: '$CONFIRM'"; exit 1; }
+              ;;
+            wipe-then-apply)
+              [ "$CONFIRM" = "WIPE_THEN_APPLY" ] || { echo "::error::mode=wipe-then-apply requires confirm=WIPE_THEN_APPLY. Got: '$CONFIRM'"; exit 1; }
+              ;;
+            wipe-only)
+              [ "$CONFIRM" = "WIPE_ONLY" ] || { echo "::error::mode=wipe-only requires confirm=WIPE_ONLY. Got: '$CONFIRM'"; exit 1; }
+              ;;
+            *)
+              echo "::error::Unknown mode: '$MODE'"; exit 1 ;;
+          esac
+          echo "mode=$MODE confirmed"
 
       - uses: actions/checkout@v6
 
@@ -79,7 +121,89 @@ jobs:
           curl -fsSL https://github.com/FiloSottile/age/releases/download/v1.2.1/age-v1.2.1-linux-amd64.tar.gz \
             | sudo tar -xz -C /usr/local/bin --strip-components=1 age/age age/age-keygen
 
-      - name: Decrypt state (if any prior apply has happened)
+      - name: Wipe Hetzner project + prod Tailscale devices + local state (wipe-then-apply / wipe-only)
+        if: ${{ github.event.inputs.mode == 'wipe-then-apply' || github.event.inputs.mode == 'wipe-only' }}
+        env:
+          HCLOUD_TOKEN: ${{ secrets.HCLOUD_TOKEN }}
+          TS_API_KEY:   ${{ secrets.TS_API_KEY }}
+          TAILNET:      ${{ vars.TAILNET_NAME }}
+        run: |
+          set -euo pipefail
+          AUTH_H="Authorization: Bearer ${HCLOUD_TOKEN}"
+          AUTH_TS="Authorization: Bearer ${TS_API_KEY}"
+
+          delete_each() {
+            local kind="$1"; local plural="$2"
+            local ids
+            ids=$(curl -fsS -H "$AUTH_H" "https://api.hetzner.cloud/v1/${plural}?per_page=50" | jq -r ".${plural}[].id" || true)
+            if [ -z "$ids" ]; then
+              echo "  no ${plural} to delete"; return
+            fi
+            for id in $ids; do
+              echo "  delete ${kind} id=${id}"
+              S=$(curl -s -o /tmp/del.body -w '%{http_code}' \
+                -X DELETE "https://api.hetzner.cloud/v1/${plural}/${id}" \
+                -H "$AUTH_H")
+              case "$S" in
+                200|201|202|204|404) echo "    status=$S OK" ;;
+                *) echo "    status=$S body:"; cat /tmp/del.body; echo
+                   echo "::warning::failed to delete ${kind} ${id} (status $S) — continuing" ;;
+              esac
+            done
+          }
+
+          echo "::group::Hetzner servers (deleting cascades vol-attachments)"
+          delete_each server servers
+          # Wait briefly so subsequent volume / network deletes don't race
+          # against still-detaching attachments
+          sleep 5
+          echo "::endgroup::"
+
+          echo "::group::Hetzner volumes"
+          delete_each volume volumes
+          echo "::endgroup::"
+
+          echo "::group::Hetzner networks (cascades subnets)"
+          delete_each network networks
+          echo "::endgroup::"
+
+          echo "::group::Hetzner firewalls"
+          delete_each firewall firewalls
+          echo "::endgroup::"
+
+          echo "::group::Hetzner ssh_keys"
+          delete_each ssh_key ssh_keys
+          echo "::endgroup::"
+
+          echo "::group::Tailscale devices (tag:prod / tag:dr-drill / tag:gha-deployer)"
+          DEVICES=$(curl -fsS -H "$AUTH_TS" "https://api.tailscale.com/api/v2/tailnet/${TAILNET}/devices" \
+                    | jq -r '.devices[]
+                             | select((.tags // []) | any(. == "tag:prod" or . == "tag:dr-drill" or . == "tag:gha-deployer"))
+                             | (.nodeId // .id)' || true)
+          if [ -z "$DEVICES" ]; then
+            echo "  no tagged devices to delete"
+          else
+            for d in $DEVICES; do
+              echo "  delete tailscale device ${d}"
+              S=$(curl -s -o /tmp/tsdel.body -w '%{http_code}' \
+                -X DELETE "https://api.tailscale.com/api/v2/device/${d}" \
+                -H "$AUTH_TS")
+              case "$S" in
+                200|201|202|204|404) echo "    status=$S OK" ;;
+                *) echo "    status=$S body:"; cat /tmp/tsdel.body; echo
+                   echo "::warning::failed to delete tailscale device ${d} (status $S) — continuing" ;;
+              esac
+            done
+          fi
+          echo "::endgroup::"
+
+          echo "::group::Wipe local encrypted + plaintext state files"
+          rm -f infra/terraform/terraform.tfstate.enc infra/terraform/terraform.tfstate
+          echo "  state files removed; tofu will start from empty state"
+          echo "::endgroup::"
+
+      - name: Decrypt state (apply / destroy-then-apply)
+        if: ${{ github.event.inputs.mode != 'wipe-then-apply' }}
         env:
           SOPS_AGE_KEY: ${{ secrets.TFSTATE_AGE_KEY }}
         run: |
@@ -87,16 +211,123 @@ jobs:
             sops -d infra/terraform/terraform.tfstate.enc > infra/terraform/terraform.tfstate
           fi
 
-      - name: tofu init + apply
+      - name: tofu init + destroy (if mode requires) + import tailscale_acl
+        if: ${{ github.event.inputs.mode != 'wipe-only' }}
         working-directory: infra/terraform
         env:
           TF_VAR_hcloud_token:      ${{ secrets.HCLOUD_TOKEN }}
           TF_VAR_tailscale_api_key: ${{ secrets.TS_API_KEY }}
           TF_VAR_ssh_public_key:    ${{ secrets.OPERATOR_SSH_PUBLIC_KEY }}
           TF_VAR_tailscale_tailnet: ${{ vars.TAILNET_NAME }}
+          MODE:                     ${{ github.event.inputs.mode }}
+          OVERRIDE_SERVER_TYPE:     ${{ github.event.inputs.override_server_type }}
+          OVERRIDE_LOCATION:        ${{ github.event.inputs.override_location }}
         run: |
+          set -euo pipefail
+          if [ -n "${OVERRIDE_SERVER_TYPE:-}" ]; then
+            export TF_VAR_server_type="$OVERRIDE_SERVER_TYPE"
+            echo "TF_VAR_server_type=$OVERRIDE_SERVER_TYPE"
+          fi
+          if [ -n "${OVERRIDE_LOCATION:-}" ]; then
+            export TF_VAR_location="$OVERRIDE_LOCATION"
+            echo "TF_VAR_location=$OVERRIDE_LOCATION"
+          fi
           tofu init -input=false
-          tofu apply -auto-approve -input=false
+          if [ "$MODE" = "destroy-then-apply" ]; then
+            echo "::group::tofu destroy"
+            tofu destroy -auto-approve -input=false
+            echo "::endgroup::"
+          fi
+          # Tailscale ACL has no real "delete" on the provider API. If it's
+          # missing from state (post-destroy, post-wipe, or after a manual
+          # state sync), the next plan would propose a fresh create that
+          # then 412s with "invalid old hash". Import first so the plan
+          # shows an update with the correct etag.
+          if ! tofu state list 2>/dev/null | grep -q '^tailscale_acl\.main\['; then
+            echo "::group::tofu import tailscale_acl (not in state)"
+            tofu import 'tailscale_acl.main[0]' acl
+            echo "::endgroup::"
+          fi
+
+      - name: tofu plan
+        if: ${{ github.event.inputs.mode != 'wipe-only' }}
+        working-directory: infra/terraform
+        env:
+          TF_VAR_hcloud_token:      ${{ secrets.HCLOUD_TOKEN }}
+          TF_VAR_tailscale_api_key: ${{ secrets.TS_API_KEY }}
+          TF_VAR_ssh_public_key:    ${{ secrets.OPERATOR_SSH_PUBLIC_KEY }}
+          TF_VAR_tailscale_tailnet: ${{ vars.TAILNET_NAME }}
+          OVERRIDE_SERVER_TYPE:     ${{ github.event.inputs.override_server_type }}
+          OVERRIDE_LOCATION:        ${{ github.event.inputs.override_location }}
+        run: |
+          set -euo pipefail
+          [ -n "${OVERRIDE_SERVER_TYPE:-}" ] && export TF_VAR_server_type="$OVERRIDE_SERVER_TYPE"
+          [ -n "${OVERRIDE_LOCATION:-}" ]    && export TF_VAR_location="$OVERRIDE_LOCATION"
+          tofu plan -out=tfplan -input=false
+          tofu show -no-color tfplan > /tmp/plan.txt
+
+      - name: Surface plan summary to job summary
+        if: ${{ github.event.inputs.mode != 'wipe-only' }}
+        run: |
+          {
+            echo "## Terraform plan"
+            echo "<details><summary>Click to expand full plan</summary>"
+            echo
+            echo '```hcl'
+            cat /tmp/plan.txt
+            echo '```'
+            echo "</details>"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Destructive-change interlock
+        if: ${{ github.event.inputs.mode != 'wipe-only' }}
+        env:
+          OVERRIDE_DESTRUCTIVE: ${{ github.event.inputs.override_destructive }}
+        run: |
+          set -euo pipefail
+          # Search plan output for the literal terraform/tofu strings that
+          # indicate a destroy + recreate of stateful resources. Any hit
+          # blocks the apply unless the operator explicitly typed the
+          # override. ``(sensitive value)`` alone is not flagged (sensitive
+          # values appear in normal creates/updates too); the cascade trap
+          # is specifically ``(sensitive value) # forces replacement``,
+          # which the ``forces replacement`` match catches.
+          MATCHES=$(grep -nE 'forces replacement|must be replaced|will be destroyed' /tmp/plan.txt || true)
+          if [ -z "$MATCHES" ]; then
+            echo "no destructive change markers in plan — proceeding"
+            exit 0
+          fi
+          echo "::warning::Destructive changes detected in plan:"
+          echo "$MATCHES" | head -50
+          # Affected resources (lines like "  # hcloud_server.prod must be replaced")
+          AFFECTED=$(grep -nE '^\s*#\s+\S+\.\S+\s+(must be replaced|will be destroyed)' /tmp/plan.txt || true)
+          if [ -n "$AFFECTED" ]; then
+            echo
+            echo "::warning::Affected resources:"
+            echo "$AFFECTED"
+          fi
+          if [ "${OVERRIDE_DESTRUCTIVE:-}" = "I_UNDERSTAND_REPLACEMENT" ]; then
+            echo "::warning::override_destructive=I_UNDERSTAND_REPLACEMENT supplied — proceeding with destructive apply"
+            exit 0
+          fi
+          echo "::error::Plan contains destructive changes (see above). Re-trigger with override_destructive=I_UNDERSTAND_REPLACEMENT to proceed, or fix the drift / config that's causing the replacement."
+          exit 1
+
+      - name: tofu apply (uses saved tfplan)
+        if: ${{ github.event.inputs.mode != 'wipe-only' }}
+        working-directory: infra/terraform
+        env:
+          TF_VAR_hcloud_token:      ${{ secrets.HCLOUD_TOKEN }}
+          TF_VAR_tailscale_api_key: ${{ secrets.TS_API_KEY }}
+          TF_VAR_ssh_public_key:    ${{ secrets.OPERATOR_SSH_PUBLIC_KEY }}
+          TF_VAR_tailscale_tailnet: ${{ vars.TAILNET_NAME }}
+          OVERRIDE_SERVER_TYPE:     ${{ github.event.inputs.override_server_type }}
+          OVERRIDE_LOCATION:        ${{ github.event.inputs.override_location }}
+        run: |
+          set -euo pipefail
+          [ -n "${OVERRIDE_SERVER_TYPE:-}" ] && export TF_VAR_server_type="$OVERRIDE_SERVER_TYPE"
+          [ -n "${OVERRIDE_LOCATION:-}" ]    && export TF_VAR_location="$OVERRIDE_LOCATION"
+          tofu apply -auto-approve -input=false tfplan
 
       - name: Re-encrypt state (always — even if apply failed; preserves partial state)
         if: always()
@@ -104,14 +335,53 @@ jobs:
           SOPS_AGE_KEY: ${{ secrets.TFSTATE_AGE_KEY }}
         run: |
           if [ -f infra/terraform/terraform.tfstate ]; then
-            sops -e infra/terraform/terraform.tfstate > infra/terraform/terraform.tfstate.enc.new
+            sops --config infra/.sops.yaml -e infra/terraform/terraform.tfstate > infra/terraform/terraform.tfstate.enc.new
             mv infra/terraform/terraform.tfstate.enc.new infra/terraform/terraform.tfstate.enc
           fi
 
+      - name: Auto-commit terraform.tfstate.enc back to main (#843)
+        # Closes the state-divergence loop that caused the 2026-05-29
+        # cascade: re-encrypt writes a new tfstate.enc, but without this
+        # step the operator has to manually download the artifact and
+        # commit it. Forgetting that step → next workflow run starts from
+        # stale state in main → orphan resources → cascade.
+        #
+        # OPERATOR SETUP (one-time, before this step works):
+        #   1. Generate a fine-grained PAT with ``contents: write`` scope on
+        #      this repo (Settings → Developer settings → Personal access
+        #      tokens). Alternative: create a GitHub App (cleaner audit
+        #      trail; see #843 for both shapes).
+        #   2. Stage as repo secret ``INFRA_STATE_COMMIT_TOKEN``.
+        #   3. Repo Settings → Branches → main → "Allow specified actors
+        #      to bypass required pull requests" → add the PAT bearer.
+        #
+        # Skips gracefully (warning, not error) if the secret is absent —
+        # the artifact upload below is the fallback path.
+        if: always() && hashFiles('infra/terraform/terraform.tfstate.enc') != ''
+        env:
+          INFRA_STATE_COMMIT_TOKEN: ${{ secrets.INFRA_STATE_COMMIT_TOKEN }}
+          GITHUB_SHA_SHORT: ${{ github.sha }}
+        continue-on-error: true
+        run: |
+          set -euo pipefail
+          if [ -z "${INFRA_STATE_COMMIT_TOKEN:-}" ]; then
+            echo "::warning::INFRA_STATE_COMMIT_TOKEN secret not staged — skipping auto-commit. Encrypted state is in this run's artifact below (\`terraform-state-after-apply\`); download + commit manually per PROD_RUNBOOK 'State drift gotchas' if you want main back in sync."
+            exit 0
+          fi
+          if git diff --quiet HEAD infra/terraform/terraform.tfstate.enc 2>/dev/null; then
+            echo "state unchanged — nothing to commit"
+            exit 0
+          fi
+          git config user.name  "infra-apply-bot"
+          git config user.email "infra-apply-bot@noreply.github.com"
+          git add infra/terraform/terraform.tfstate.enc
+          git commit -m "infra(state): sync post-apply tfstate.enc (run ${{ github.run_id }} on ${GITHUB_SHA_SHORT:0:7})"
+          REMOTE="https://x-access-token:${INFRA_STATE_COMMIT_TOKEN}@github.com/${{ github.repository }}.git"
+          git push "$REMOTE" HEAD:main
+
       - name: Upload new encrypted state as artifact
-        # OPERATOR: download terraform.tfstate.enc from this run's artifacts
-        # and commit to main. Auto-commit-back is a future follow-up
-        # (needs PAT or deploy key with branch-protection bypass).
+        # Fallback path when auto-commit-back is skipped or fails. Always
+        # uploads so the operator can manually sync (download + commit).
         if: always()
         uses: actions/upload-artifact@v7
         with:

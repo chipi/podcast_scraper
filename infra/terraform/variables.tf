@@ -46,6 +46,22 @@ variable "ssh_public_key" {
   sensitive   = true
 }
 
+variable "additional_authorized_keys" {
+  type        = list(string)
+  description = <<-EOT
+    Extra SSH public keys to append to deploy@<host>:~/.ssh/authorized_keys
+    (alongside ssh_public_key). Each entry is a full one-line OpenSSH
+    pubkey ("ssh-ed25519 AAAA... comment"). Used to grant cross-repo
+    GitHub Actions deploy jobs SSH access without rotating the operator
+    key. Public keys, not sensitive — safe to commit.
+  EOT
+  default = [
+    # chipi/orrery deploy workflow (issue #834 / orrery #260).
+    # Private half lives in chipi/orrery → Settings → Secrets → PROD_SSH_PRIVATE_KEY.
+    "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIDJ/59d9WL+5JeUTX73P9l3jgGnjhE43Hz5keSfw/hf3 gha-orrery-deploy",
+  ]
+}
+
 variable "ssh_public_key_name" {
   type        = string
   description = "Name to register the SSH key under in Hetzner."
