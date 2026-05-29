@@ -211,7 +211,10 @@ runcmd:
   # so invoke once here. Subsequent re-arms come from orrery's deploy workflow
   # via the narrow sudoers allowlist added above. Tailscale is already up at
   # this point (``tailscale up …`` above).
-  - /usr/local/sbin/orrery-tailscale-serve.sh || echo "orrery-tailscale-serve.sh: first-boot publish failed; will retry on next deploy" >&2
+  # YAML-level single-quote wrap: the unquoted ``: `` inside the echo string
+  # would otherwise trigger plain-scalar-as-mapping parsing, crashing
+  # cloud-init's runcmd module entirely (TypeError in ``shellify``).
+  - '/usr/local/sbin/orrery-tailscale-serve.sh || echo "orrery-tailscale-serve.sh first-boot publish failed; will retry on next deploy" >&2'
 
   # === Corpus mount: prefer attached Volume, fall back to boot-disk dir ===
   - VOLUME_PATH=$(ls -d /mnt/HC_Volume_* 2>/dev/null | head -1); if [ -n "$VOLUME_PATH" ]; then mkdir -p "$VOLUME_PATH/corpus"; chown -R deploy:deploy "$VOLUME_PATH/corpus"; ln -sfn "$VOLUME_PATH/corpus" /srv/podcast-scraper/corpus; else install -d -o deploy -g deploy /srv/podcast-scraper/corpus; fi
