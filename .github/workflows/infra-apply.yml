@@ -5,44 +5,35 @@ name: Infra apply (manual)
 # The PR's plan comment (from infra-ci.yml) is the preview; this is the
 # explicit "yes, do it" gate.
 #
-# Closes #719 (apply half).
+# Modes:
+#   apply              — normal apply against the current encrypted state.
+#   destroy-then-apply — tofu destroy + tofu apply. Uses current state.
+#   wipe-then-apply    — API-enumerate-and-DELETE every Hetzner resource in
+#                        the project + delete every prod-tagged Tailscale
+#                        device + wipe local state. Apply runs from empty.
+#                        Use for clean-slate recovery when state and reality
+#                        have diverged badly enough that surgical orphan
+#                        cleanup is impractical (incident 2026-05-29).
 #
-# State persistence model: this workflow uploads the post-apply
-# `terraform.tfstate.enc` as a workflow artifact (30-day retention). The
-# operator downloads it and commits to main manually. Auto-commit-back is
-# deferred to a follow-up (needs branch-protection bypass via PAT or
-# deploy key, which adds vendor surface).
+# State persistence: post-apply ``terraform.tfstate.enc`` is uploaded as a
+# workflow artifact. Operator downloads + commits to main manually.
+# Auto-commit-back is deferred (needs branch-protection bypass via PAT).
 
 on:
   workflow_dispatch:
     inputs:
       confirm:
-        description: 'Type "APPLY" (apply mode) or "DESTROY_THEN_APPLY" (full rebuild) to confirm'
+        description: 'Type "APPLY" / "DESTROY_THEN_APPLY" / "WIPE_THEN_APPLY" matching mode below'
         required: true
         default: ''
       mode:
-        description: 'apply (default) or destroy-then-apply (full clean-slate recreate)'
+        description: 'apply / destroy-then-apply / wipe-then-apply (full nuke + rebuild)'
         type: choice
         options:
           - apply
           - destroy-then-apply
+          - wipe-then-apply
         default: apply
-      orphan_server_id:
-        description: 'Optional: Hetzner server ID to force-delete via API before tofu runs. Use when state diverged (e.g. failed re-encrypt left a server tofu does not know about, blocking subnet destroy).'
-        required: false
-        default: ''
-      orphan_ssh_key_ids:
-        description: 'Optional CSV: Hetzner ssh_key IDs to force-delete via API before tofu runs. Use when an orphan ssh_key with the same fingerprint as the current operator key blocks creation (Hetzner 409 uniqueness_error).'
-        required: false
-        default: ''
-      orphan_network_ids:
-        description: 'Optional CSV: Hetzner network IDs to force-delete via API before tofu runs. Deletes subnets as a cascade. Use to clear name-conflict orphans (409 uniqueness_error on hcloud_network).'
-        required: false
-        default: ''
-      orphan_firewall_ids:
-        description: 'Optional CSV: Hetzner firewall IDs to force-delete via API before tofu runs. Use to clear name-conflict orphans (409 uniqueness_error on hcloud_firewall).'
-        required: false
-        default: ''
 
 permissions:
   contents: read
@@ -54,7 +45,7 @@ concurrency:
 jobs:
   apply:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 25
     # Use a `prod` Environment so the operator can configure required-reviewer
     # protection in repo Settings → Environments → prod. If the environment
     # doesn't exist, GitHub creates it on first run with no protection — the
@@ -67,21 +58,16 @@ jobs:
           CONFIRM='${{ github.event.inputs.confirm }}'
           case "$MODE" in
             apply)
-              if [ "$CONFIRM" != "APPLY" ]; then
-                echo "::error::mode=apply requires confirm=APPLY. Got: '$CONFIRM'"
-                exit 1
-              fi
+              [ "$CONFIRM" = "APPLY" ] || { echo "::error::mode=apply requires confirm=APPLY. Got: '$CONFIRM'"; exit 1; }
               ;;
             destroy-then-apply)
-              if [ "$CONFIRM" != "DESTROY_THEN_APPLY" ]; then
-                echo "::error::mode=destroy-then-apply requires confirm=DESTROY_THEN_APPLY. Got: '$CONFIRM'"
-                exit 1
-              fi
+              [ "$CONFIRM" = "DESTROY_THEN_APPLY" ] || { echo "::error::mode=destroy-then-apply requires confirm=DESTROY_THEN_APPLY. Got: '$CONFIRM'"; exit 1; }
+              ;;
+            wipe-then-apply)
+              [ "$CONFIRM" = "WIPE_THEN_APPLY" ] || { echo "::error::mode=wipe-then-apply requires confirm=WIPE_THEN_APPLY. Got: '$CONFIRM'"; exit 1; }
               ;;
             *)
-              echo "::error::Unknown mode: '$MODE'"
-              exit 1
-              ;;
+              echo "::error::Unknown mode: '$MODE'"; exit 1 ;;
           esac
           echo "mode=$MODE confirmed"
 
@@ -119,115 +105,95 @@ jobs:
           curl -fsSL https://github.com/FiloSottile/age/releases/download/v1.2.1/age-v1.2.1-linux-amd64.tar.gz \
             | sudo tar -xz -C /usr/local/bin --strip-components=1 age/age age/age-keygen
 
-      - name: Decrypt state (if any prior apply has happened)
+      - name: Wipe Hetzner project + prod Tailscale devices + local state (wipe-then-apply only)
+        if: ${{ github.event.inputs.mode == 'wipe-then-apply' }}
+        env:
+          HCLOUD_TOKEN: ${{ secrets.HCLOUD_TOKEN }}
+          TS_API_KEY:   ${{ secrets.TS_API_KEY }}
+          TAILNET:      ${{ vars.TAILNET_NAME }}
+        run: |
+          set -euo pipefail
+          AUTH_H="Authorization: Bearer ${HCLOUD_TOKEN}"
+          AUTH_TS="Authorization: Bearer ${TS_API_KEY}"
+
+          delete_each() {
+            local kind="$1"; local plural="$2"
+            local ids
+            ids=$(curl -fsS -H "$AUTH_H" "https://api.hetzner.cloud/v1/${plural}?per_page=50" | jq -r ".${plural}[].id" || true)
+            if [ -z "$ids" ]; then
+              echo "  no ${plural} to delete"; return
+            fi
+            for id in $ids; do
+              echo "  delete ${kind} id=${id}"
+              S=$(curl -s -o /tmp/del.body -w '%{http_code}' \
+                -X DELETE "https://api.hetzner.cloud/v1/${plural}/${id}" \
+                -H "$AUTH_H")
+              case "$S" in
+                200|201|202|204|404) echo "    status=$S OK" ;;
+                *) echo "    status=$S body:"; cat /tmp/del.body; echo
+                   echo "::warning::failed to delete ${kind} ${id} (status $S) — continuing" ;;
+              esac
+            done
+          }
+
+          echo "::group::Hetzner servers (deleting cascades vol-attachments)"
+          delete_each server servers
+          # Wait briefly so subsequent volume / network deletes don't race
+          # against still-detaching attachments
+          sleep 5
+          echo "::endgroup::"
+
+          echo "::group::Hetzner volumes"
+          delete_each volume volumes
+          echo "::endgroup::"
+
+          echo "::group::Hetzner networks (cascades subnets)"
+          delete_each network networks
+          echo "::endgroup::"
+
+          echo "::group::Hetzner firewalls"
+          delete_each firewall firewalls
+          echo "::endgroup::"
+
+          echo "::group::Hetzner ssh_keys"
+          delete_each ssh_key ssh_keys
+          echo "::endgroup::"
+
+          echo "::group::Tailscale devices (tag:prod / tag:dr-drill / tag:gha-deployer)"
+          DEVICES=$(curl -fsS -H "$AUTH_TS" "https://api.tailscale.com/api/v2/tailnet/${TAILNET}/devices" \
+                    | jq -r '.devices[]
+                             | select((.tags // []) | any(. == "tag:prod" or . == "tag:dr-drill" or . == "tag:gha-deployer"))
+                             | (.nodeId // .id)' || true)
+          if [ -z "$DEVICES" ]; then
+            echo "  no tagged devices to delete"
+          else
+            for d in $DEVICES; do
+              echo "  delete tailscale device ${d}"
+              S=$(curl -s -o /tmp/tsdel.body -w '%{http_code}' \
+                -X DELETE "https://api.tailscale.com/api/v2/device/${d}" \
+                -H "$AUTH_TS")
+              case "$S" in
+                200|201|202|204|404) echo "    status=$S OK" ;;
+                *) echo "    status=$S body:"; cat /tmp/tsdel.body; echo
+                   echo "::warning::failed to delete tailscale device ${d} (status $S) — continuing" ;;
+              esac
+            done
+          fi
+          echo "::endgroup::"
+
+          echo "::group::Wipe local encrypted + plaintext state files"
+          rm -f infra/terraform/terraform.tfstate.enc infra/terraform/terraform.tfstate
+          echo "  state files removed; tofu will start from empty state"
+          echo "::endgroup::"
+
+      - name: Decrypt state (apply / destroy-then-apply)
+        if: ${{ github.event.inputs.mode != 'wipe-then-apply' }}
         env:
           SOPS_AGE_KEY: ${{ secrets.TFSTATE_AGE_KEY }}
         run: |
           if [ -f infra/terraform/terraform.tfstate.enc ]; then
             sops -d infra/terraform/terraform.tfstate.enc > infra/terraform/terraform.tfstate
           fi
-
-      - name: Force-delete orphan Hetzner ssh_keys (state-divergence recovery)
-        if: ${{ github.event.inputs.orphan_ssh_key_ids != '' }}
-        env:
-          HCLOUD_TOKEN: ${{ secrets.HCLOUD_TOKEN }}
-          IDS:          ${{ github.event.inputs.orphan_ssh_key_ids }}
-        run: |
-          set -euo pipefail
-          IFS=',' read -ra ID_ARR <<< "$IDS"
-          for raw in "${ID_ARR[@]}"; do
-            id=$(echo "$raw" | tr -d ' ')
-            [ -z "$id" ] && continue
-            echo "Deleting Hetzner ssh_key id=$id"
-            STATUS=$(curl -s -o /tmp/sk.body -w '%{http_code}' \
-              -X DELETE "https://api.hetzner.cloud/v1/ssh_keys/${id}" \
-              -H "Authorization: Bearer ${HCLOUD_TOKEN}")
-            echo "  API status: $STATUS"
-            cat /tmp/sk.body; echo
-            case "$STATUS" in
-              200|201|202|204) echo "  delete OK" ;;
-              404)             echo "  already gone (404) — OK" ;;
-              *)               echo "::error::unexpected status $STATUS deleting ssh_key $id"; exit 1 ;;
-            esac
-          done
-
-      - name: Force-delete orphan Hetzner networks (state-divergence recovery)
-        if: ${{ github.event.inputs.orphan_network_ids != '' }}
-        env:
-          HCLOUD_TOKEN: ${{ secrets.HCLOUD_TOKEN }}
-          IDS:          ${{ github.event.inputs.orphan_network_ids }}
-        run: |
-          set -euo pipefail
-          IFS=',' read -ra ID_ARR <<< "$IDS"
-          for raw in "${ID_ARR[@]}"; do
-            id=$(echo "$raw" | tr -d ' ')
-            [ -z "$id" ] && continue
-            echo "Deleting Hetzner network id=$id (subnets cascade)"
-            STATUS=$(curl -s -o /tmp/nw.body -w '%{http_code}' \
-              -X DELETE "https://api.hetzner.cloud/v1/networks/${id}" \
-              -H "Authorization: Bearer ${HCLOUD_TOKEN}")
-            echo "  API status: $STATUS"
-            cat /tmp/nw.body; echo
-            case "$STATUS" in
-              200|201|202|204) echo "  delete OK" ;;
-              404)             echo "  already gone (404) — OK" ;;
-              *)               echo "::error::unexpected status $STATUS deleting network $id"; exit 1 ;;
-            esac
-          done
-
-      - name: Force-delete orphan Hetzner firewalls (state-divergence recovery)
-        if: ${{ github.event.inputs.orphan_firewall_ids != '' }}
-        env:
-          HCLOUD_TOKEN: ${{ secrets.HCLOUD_TOKEN }}
-          IDS:          ${{ github.event.inputs.orphan_firewall_ids }}
-        run: |
-          set -euo pipefail
-          IFS=',' read -ra ID_ARR <<< "$IDS"
-          for raw in "${ID_ARR[@]}"; do
-            id=$(echo "$raw" | tr -d ' ')
-            [ -z "$id" ] && continue
-            echo "Deleting Hetzner firewall id=$id"
-            STATUS=$(curl -s -o /tmp/fw.body -w '%{http_code}' \
-              -X DELETE "https://api.hetzner.cloud/v1/firewalls/${id}" \
-              -H "Authorization: Bearer ${HCLOUD_TOKEN}")
-            echo "  API status: $STATUS"
-            cat /tmp/fw.body; echo
-            case "$STATUS" in
-              200|201|202|204) echo "  delete OK" ;;
-              404)             echo "  already gone (404) — OK" ;;
-              *)               echo "::error::unexpected status $STATUS deleting firewall $id"; exit 1 ;;
-            esac
-          done
-
-      - name: Force-delete orphan Hetzner server (recovery from state divergence)
-        if: ${{ github.event.inputs.orphan_server_id != '' }}
-        env:
-          HCLOUD_TOKEN:     ${{ secrets.HCLOUD_TOKEN }}
-          ORPHAN_SERVER_ID: ${{ github.event.inputs.orphan_server_id }}
-        run: |
-          set -euo pipefail
-          echo "Force-deleting Hetzner server id=$ORPHAN_SERVER_ID via API"
-          STATUS=$(curl -s -o /tmp/del.body -w '%{http_code}' \
-            -X DELETE "https://api.hetzner.cloud/v1/servers/${ORPHAN_SERVER_ID}" \
-            -H "Authorization: Bearer ${HCLOUD_TOKEN}")
-          echo "API status: $STATUS"
-          cat /tmp/del.body
-          echo
-          case "$STATUS" in
-            200|201|202|204) echo "delete request accepted" ;;
-            404)             echo "server already gone (404) — OK, no-op" ;;
-            *)               echo "::error::unexpected status $STATUS deleting server $ORPHAN_SERVER_ID"; exit 1 ;;
-          esac
-          # Poll until Hetzner reports the server as deleted (or 60s timeout)
-          for i in $(seq 1 30); do
-            S=$(curl -s -o /dev/null -w '%{http_code}' \
-              "https://api.hetzner.cloud/v1/servers/${ORPHAN_SERVER_ID}" \
-              -H "Authorization: Bearer ${HCLOUD_TOKEN}")
-            if [ "$S" = "404" ]; then
-              echo "confirmed gone after ${i} poll(s)"; break
-            fi
-            sleep 2
-          done
 
       - name: tofu init + (destroy +) apply
         working-directory: infra/terraform
@@ -241,16 +207,15 @@ jobs:
           set -euo pipefail
           tofu init -input=false
           if [ "$MODE" = "destroy-then-apply" ]; then
-            echo "::group::tofu destroy (clean-slate rebuild)"
+            echo "::group::tofu destroy"
             tofu destroy -auto-approve -input=false
             echo "::endgroup::"
           fi
-          # Conditional import of ``tailscale_acl.main[0]``: the resource has
-          # no real "delete" on the Tailscale API; if it's missing from state
-          # (post-destroy, or after a manual state sync), the apply's create
-          # attempt fails with 412 "invalid old hash". Importing first turns
-          # the operation into an update-with-etag.
-          if ! tofu state list | grep -q '^tailscale_acl\.main\['; then
+          # Tailscale ACL has no real "delete" on the provider API. If it's
+          # missing from state (post-destroy, post-wipe, or after a manual
+          # state sync), the apply's create attempt fails with 412 "invalid
+          # old hash". Import first so the operation becomes an update.
+          if ! tofu state list 2>/dev/null | grep -q '^tailscale_acl\.main\['; then
             echo "::group::tofu import tailscale_acl (not in state)"
             tofu import 'tailscale_acl.main[0]' acl
             echo "::endgroup::"
@@ -262,9 +227,6 @@ jobs:
         env:
           SOPS_AGE_KEY: ${{ secrets.TFSTATE_AGE_KEY }}
         run: |
-          # ``--config`` makes sops find creation_rules deterministically
-          # regardless of CWD. Walking-up from terraform/terraform.tfstate
-          # to find infra/.sops.yaml previously failed on the GH runner.
           if [ -f infra/terraform/terraform.tfstate ]; then
             sops --config infra/.sops.yaml -e infra/terraform/terraform.tfstate > infra/terraform/terraform.tfstate.enc.new
             mv infra/terraform/terraform.tfstate.enc.new infra/terraform/terraform.tfstate.enc
@@ -272,8 +234,7 @@ jobs:
 
       - name: Upload new encrypted state as artifact
         # OPERATOR: download terraform.tfstate.enc from this run's artifacts
-        # and commit to main. Auto-commit-back is a future follow-up
-        # (needs PAT or deploy key with branch-protection bypass).
+        # and commit to main. Auto-commit-back is a future follow-up.
         if: always()
         uses: actions/upload-artifact@v7
         with:
