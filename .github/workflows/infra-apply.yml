@@ -35,6 +35,14 @@ on:
         description: 'Optional CSV: Hetzner ssh_key IDs to force-delete via API before tofu runs. Use when an orphan ssh_key with the same fingerprint as the current operator key blocks creation (Hetzner 409 uniqueness_error).'
         required: false
         default: ''
+      orphan_network_ids:
+        description: 'Optional CSV: Hetzner network IDs to force-delete via API before tofu runs. Deletes subnets as a cascade. Use to clear name-conflict orphans (409 uniqueness_error on hcloud_network).'
+        required: false
+        default: ''
+      orphan_firewall_ids:
+        description: 'Optional CSV: Hetzner firewall IDs to force-delete via API before tofu runs. Use to clear name-conflict orphans (409 uniqueness_error on hcloud_firewall).'
+        required: false
+        default: ''
 
 permissions:
   contents: read
@@ -140,6 +148,54 @@ jobs:
               200|201|202|204) echo "  delete OK" ;;
               404)             echo "  already gone (404) — OK" ;;
               *)               echo "::error::unexpected status $STATUS deleting ssh_key $id"; exit 1 ;;
+            esac
+          done
+
+      - name: Force-delete orphan Hetzner networks (state-divergence recovery)
+        if: ${{ github.event.inputs.orphan_network_ids != '' }}
+        env:
+          HCLOUD_TOKEN: ${{ secrets.HCLOUD_TOKEN }}
+          IDS:          ${{ github.event.inputs.orphan_network_ids }}
+        run: |
+          set -euo pipefail
+          IFS=',' read -ra ID_ARR <<< "$IDS"
+          for raw in "${ID_ARR[@]}"; do
+            id=$(echo "$raw" | tr -d ' ')
+            [ -z "$id" ] && continue
+            echo "Deleting Hetzner network id=$id (subnets cascade)"
+            STATUS=$(curl -s -o /tmp/nw.body -w '%{http_code}' \
+              -X DELETE "https://api.hetzner.cloud/v1/networks/${id}" \
+              -H "Authorization: Bearer ${HCLOUD_TOKEN}")
+            echo "  API status: $STATUS"
+            cat /tmp/nw.body; echo
+            case "$STATUS" in
+              200|201|202|204) echo "  delete OK" ;;
+              404)             echo "  already gone (404) — OK" ;;
+              *)               echo "::error::unexpected status $STATUS deleting network $id"; exit 1 ;;
+            esac
+          done
+
+      - name: Force-delete orphan Hetzner firewalls (state-divergence recovery)
+        if: ${{ github.event.inputs.orphan_firewall_ids != '' }}
+        env:
+          HCLOUD_TOKEN: ${{ secrets.HCLOUD_TOKEN }}
+          IDS:          ${{ github.event.inputs.orphan_firewall_ids }}
+        run: |
+          set -euo pipefail
+          IFS=',' read -ra ID_ARR <<< "$IDS"
+          for raw in "${ID_ARR[@]}"; do
+            id=$(echo "$raw" | tr -d ' ')
+            [ -z "$id" ] && continue
+            echo "Deleting Hetzner firewall id=$id"
+            STATUS=$(curl -s -o /tmp/fw.body -w '%{http_code}' \
+              -X DELETE "https://api.hetzner.cloud/v1/firewalls/${id}" \
+              -H "Authorization: Bearer ${HCLOUD_TOKEN}")
+            echo "  API status: $STATUS"
+            cat /tmp/fw.body; echo
+            case "$STATUS" in
+              200|201|202|204) echo "  delete OK" ;;
+              404)             echo "  already gone (404) — OK" ;;
+              *)               echo "::error::unexpected status $STATUS deleting firewall $id"; exit 1 ;;
             esac
           done
 
