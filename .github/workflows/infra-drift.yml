@@ -1,0 +1,212 @@
+name: Infra drift detection
+
+# Scheduled ``tofu plan`` against the live providers + the committed
+# encrypted state. Closes #846 — the highest-leverage prevention layer
+# identified in the 2026-05-29 incident PIR.
+#
+# When the plan is non-empty (drift exists), the workflow opens a GH
+# issue with the plan output so the operator notices before something
+# forces an apply unexpectedly. When the plan is empty, the run
+# succeeds silently (job summary notes "no drift").
+#
+# Idempotent: if a drift issue is already open, the workflow updates
+# it instead of creating a duplicate. When drift resolves, the existing
+# issue is auto-closed with a "drift resolved" comment.
+
+on:
+  schedule:
+    # Mondays 06:00 UTC. Adjust cadence as desired — weekly is the
+    # rough sweet spot: catches drift within ~7 days of rotation,
+    # doesn't spam the issue tracker.
+    - cron: '0 6 * * 1'
+  workflow_dispatch:        # operator-triggerable for "check now"
+
+permissions:
+  contents: read
+  issues: write             # to open / update / close the drift issue
+
+concurrency:
+  group: infra-drift
+  cancel-in-progress: false
+
+jobs:
+  detect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Pre-flight — required secrets present?
+        id: preflight
+        env:
+          HCLOUD_TOKEN:            ${{ secrets.HCLOUD_TOKEN }}
+          TS_API_KEY:              ${{ secrets.TS_API_KEY }}
+          TFSTATE_AGE_KEY:         ${{ secrets.TFSTATE_AGE_KEY }}
+          OPERATOR_SSH_PUBLIC_KEY: ${{ secrets.OPERATOR_SSH_PUBLIC_KEY }}
+        run: |
+          set -euo pipefail
+          MISSING=""
+          [ -z "${HCLOUD_TOKEN:-}" ]            && MISSING="$MISSING HCLOUD_TOKEN"
+          [ -z "${TS_API_KEY:-}" ]              && MISSING="$MISSING TS_API_KEY"
+          [ -z "${TFSTATE_AGE_KEY:-}" ]         && MISSING="$MISSING TFSTATE_AGE_KEY"
+          [ -z "${OPERATOR_SSH_PUBLIC_KEY:-}" ] && MISSING="$MISSING OPERATOR_SSH_PUBLIC_KEY"
+          if [ -n "$MISSING" ]; then
+            echo "::warning::Missing prereqs:$MISSING — skipping drift check."
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Install OpenTofu
+        if: steps.preflight.outputs.skip != 'true'
+        uses: opentofu/setup-opentofu@v2
+        with:
+          tofu_version: 1.6.0
+
+      - name: Install sops + age
+        if: steps.preflight.outputs.skip != 'true'
+        run: |
+          set -euo pipefail
+          sudo curl -fsSL -o /usr/local/bin/sops \
+            https://github.com/getsops/sops/releases/download/v3.9.4/sops-v3.9.4.linux.amd64
+          sudo chmod +x /usr/local/bin/sops
+          curl -fsSL https://github.com/FiloSottile/age/releases/download/v1.2.1/age-v1.2.1-linux-amd64.tar.gz \
+            | sudo tar -xz -C /usr/local/bin --strip-components=1 age/age age/age-keygen
+
+      - name: Decrypt state
+        if: steps.preflight.outputs.skip != 'true'
+        env:
+          SOPS_AGE_KEY: ${{ secrets.TFSTATE_AGE_KEY }}
+        run: |
+          if [ -f infra/terraform/terraform.tfstate.enc ]; then
+            sops -d infra/terraform/terraform.tfstate.enc > infra/terraform/terraform.tfstate
+          fi
+
+      - name: tofu init + plan
+        if: steps.preflight.outputs.skip != 'true'
+        id: plan
+        working-directory: infra/terraform
+        env:
+          TF_VAR_hcloud_token:      ${{ secrets.HCLOUD_TOKEN }}
+          TF_VAR_tailscale_api_key: ${{ secrets.TS_API_KEY }}
+          TF_VAR_ssh_public_key:    ${{ secrets.OPERATOR_SSH_PUBLIC_KEY }}
+          TF_VAR_tailscale_tailnet: ${{ vars.TAILNET_NAME }}
+        run: |
+          set +e
+          tofu init -input=false
+          # -detailed-exitcode: 0 = no changes, 1 = error, 2 = changes detected
+          tofu plan -detailed-exitcode -no-color -input=false 2>&1 | tee plan.txt
+          PLAN_EXIT="${PIPESTATUS[0]}"
+          echo "plan_exit=$PLAN_EXIT" >> "$GITHUB_OUTPUT"
+          # Truncate for GH issue body (effective limit ~64kB; leave headroom).
+          head -c 50000 plan.txt > plan.trunc.txt
+          # Surface the plan in the job summary regardless of outcome.
+          {
+            echo "## Drift check — $(date -u +%Y-%m-%dT%H:%MZ)"
+            echo
+            case "$PLAN_EXIT" in
+              0) echo "**No drift detected.** State matches reality." ;;
+              2) echo "**Drift detected.** See plan output below + auto-opened issue." ;;
+              *) echo "**Plan failed** (exit ${PLAN_EXIT}). See workflow logs." ;;
+            esac
+            echo
+            echo "<details><summary>Click to expand plan output</summary>"
+            echo
+            echo '```hcl'
+            cat plan.trunc.txt
+            echo '```'
+            echo "</details>"
+          } >> "$GITHUB_STEP_SUMMARY"
+          # Exit 0 for any plan outcome so subsequent steps can react.
+          # Plan-exit=1 is the only "something is broken" case; we still
+          # want the issue-management step to run for case 2 (drift).
+          exit 0
+
+      - name: Open / update / close drift issue
+        if: steps.preflight.outputs.skip != 'true'
+        env:
+          GH_TOKEN:  ${{ secrets.GITHUB_TOKEN }}
+          PLAN_EXIT: ${{ steps.plan.outputs.plan_exit }}
+          REPO:      ${{ github.repository }}
+          RUN_URL:   ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        working-directory: infra/terraform
+        run: |
+          set -euo pipefail
+          # Find the open drift issue (if any). Title prefix is the convention.
+          OPEN_NUM=$(gh issue list --repo "$REPO" --state open \
+            --search 'in:title "infra drift detected:"' --json number --limit 1 \
+            | jq -r '.[0].number // empty')
+          BODY_FILE=$(mktemp)
+          case "$PLAN_EXIT" in
+            0)
+              if [ -n "$OPEN_NUM" ]; then
+                echo "drift resolved — closing #${OPEN_NUM}"
+                gh issue close "$OPEN_NUM" --repo "$REPO" \
+                  --comment "Drift resolved as of $(date -u +%Y-%m-%dT%H:%MZ). Closing automatically. Workflow run: $RUN_URL"
+              else
+                echo "no drift, no open issue — nothing to do"
+              fi
+              ;;
+            2)
+              {
+                echo "**Drift detected** by scheduled \`infra-drift.yml\` run."
+                echo
+                echo "Last detected: $(date -u +%Y-%m-%dT%H:%MZ)"
+                echo "Workflow run: $RUN_URL"
+                echo
+                echo "## What this means"
+                echo
+                echo "Live providers (Hetzner + Tailscale) and the encrypted terraform state in \`main\` disagree on at least one resource. Either:"
+                echo
+                echo "- A GH Secret bound into the state was rotated since the last \`tofu apply\` (the 2026-05-29 incident root cause)."
+                echo "- A resource was modified out-of-band (manual Hetzner console action, etc.)."
+                echo "- A config change in \`infra/\` hasn't been applied yet."
+                echo
+                echo "## Action"
+                echo
+                echo "Read the plan below carefully — **especially any \`forces replacement\`, \`must be replaced\`, \`will be destroyed\`, or \`(sensitive value)\` lines.** If the diff is destructive, do NOT run \`infra-apply\` until you understand why."
+                echo
+                echo "Safe next step: review + dispatch \`Infra apply (manual)\` workflow with \`mode=apply\`. If a destructive change is intentional, set \`override_destructive=I_UNDERSTAND_REPLACEMENT\`."
+                echo
+                echo "<details><summary>Plan output (click to expand)</summary>"
+                echo
+                echo '```hcl'
+                cat plan.trunc.txt
+                echo '```'
+                echo "</details>"
+                echo
+                echo "---"
+                echo
+                echo "_This issue is auto-managed by \`infra-drift.yml\`. It updates on subsequent runs while drift persists, and auto-closes when drift resolves. Manually closing it pauses notifications until next non-empty diff._"
+              } > "$BODY_FILE"
+              if [ -n "$OPEN_NUM" ]; then
+                echo "updating existing drift issue #${OPEN_NUM}"
+                gh issue edit "$OPEN_NUM" --repo "$REPO" \
+                  --title "infra drift detected: $(date -u +%Y-%m-%d)" \
+                  --body-file "$BODY_FILE"
+                gh issue comment "$OPEN_NUM" --repo "$REPO" \
+                  --body "Drift re-detected on scheduled run. Workflow run: $RUN_URL"
+              else
+                echo "opening new drift issue"
+                gh issue create --repo "$REPO" \
+                  --title "infra drift detected: $(date -u +%Y-%m-%d)" \
+                  --body-file "$BODY_FILE" \
+                  --label "infra,incident-prevention" 2>&1 | tee /tmp/issue-create.log || \
+                gh issue create --repo "$REPO" \
+                  --title "infra drift detected: $(date -u +%Y-%m-%d)" \
+                  --body-file "$BODY_FILE"
+              fi
+              ;;
+            *)
+              echo "::error::Plan failed (exit $PLAN_EXIT). Check workflow logs."
+              exit 1
+              ;;
+          esac
+          rm -f "$BODY_FILE"
+
+      - name: Cleanup plaintext state
+        if: always() && steps.preflight.outputs.skip != 'true'
+        run: |
+          shred -u infra/terraform/terraform.tfstate 2>/dev/null \
+            || rm -f infra/terraform/terraform.tfstate
+          rm -f infra/terraform/plan.txt infra/terraform/plan.trunc.txt
