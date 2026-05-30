@@ -1222,7 +1222,7 @@ def _resolve_episode_duration_seconds(job) -> Optional[int]:
     return None
 
 
-_API_CHUNKING_PROVIDERS = frozenset({"openai", "gemini", "mistral"})
+_API_CHUNKING_PROVIDERS = frozenset({"openai", "gemini", "mistral", "deepgram"})
 
 
 def _transcription_provider_supports_chunking(cfg: config.Config) -> bool:

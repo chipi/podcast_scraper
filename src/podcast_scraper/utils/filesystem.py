@@ -208,6 +208,7 @@ def _build_provider_model_suffix(cfg: config.Config) -> Optional[str]:
         "openai": ("oa", "openai_transcription_model", "whisper-1"),
         "gemini": ("gm", "gemini_transcription_model", "gemini-2.5-flash-lite"),
         "mistral": ("ms", "mistral_transcription_model", "voxtral-mini-latest"),
+        "deepgram": ("dg", "deepgram_model", "nova-3"),
     }
     if cfg.transcribe_missing:
         if cfg.transcription_provider == "whisper":

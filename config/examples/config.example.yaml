@@ -24,7 +24,7 @@ append: true
 
 # Provider configuration - mixed example (can use different providers for different capabilities)
 # Options: openai, gemini, mistral, deepseek, grok, ollama (API-based), whisper (local Whisper), spacy (local spaCy), transformers (local HuggingFace)
-transcription_provider: whisper  # Options: whisper, openai, gemini, mistral (Note: deepseek, grok, and ollama do NOT support transcription)
+transcription_provider: whisper  # Options: whisper, openai, gemini, mistral, deepgram (Note: deepseek, grok, and ollama do NOT support transcription)
 speaker_detector_provider: spacy  # Options: spacy, openai, gemini, mistral, deepseek, grok, ollama
 summary_provider: transformers  # Options: transformers, openai, gemini, mistral, deepseek, grok, ollama
 
@@ -177,6 +177,10 @@ metadata_format: json  # json or yaml (json recommended for database ingestion)
 # mistral_summary_model: mistral-large-latest  # Default: environment-based (mistral-small-latest for test, mistral-large-latest for prod)
 # mistral_temperature: 0.3  # Default: 0.3 (0.0-1.0, lower = more deterministic)
 # mistral_max_tokens: null  # Default: null (use model default)
+
+# Deepgram transcription (optional - requires pip install -e '.[llm]' for deepgram-sdk)
+# deepgram_api_key: your-key-here  # Not recommended - use .env file instead
+# deepgram_model: nova-3  # Default: nova-3
 
 # DeepSeek model configuration (optional - defaults are used if not specified)
 # Environment-based defaults:

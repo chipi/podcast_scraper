@@ -2023,7 +2023,10 @@ class TestAddArgumentGroups(unittest.TestCase):
             (a for a in parser._actions if a.dest == "transcription_provider"), None
         )
         self.assertIsNotNone(transcription_action)
-        self.assertEqual(transcription_action.choices, ["whisper", "openai", "gemini", "mistral"])
+        self.assertEqual(
+            transcription_action.choices,
+            ["whisper", "openai", "gemini", "mistral", "deepgram"],
+        )
         self.assertEqual(transcription_action.default, "whisper")
 
     def test_add_mistral_arguments(self):
