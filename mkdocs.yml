@@ -127,6 +127,9 @@ nav:
       - PRD-028 Position Tracker: prd/PRD-028-position-tracker.md
       - PRD-029 Person Profile: prd/PRD-029-person-profile.md
       - PRD-030 Viewer Operator Surface — Feeds, Config, Jobs: prd/PRD-030-viewer-feed-sources-and-pipeline-jobs.md
+      - PRD-031 Search: prd/PRD-031-search.md
+      - PRD-032 Hybrid Corpus Search: prd/PRD-032-hybrid-corpus-search.md
+      - PRD-033 Search-Powered Surface Enhancements: prd/PRD-033-search-powered-surfaces.md
       - PRD Template: prd/PRD_TEMPLATE.md
   - UX Specifications:
       - uxs/index.md
@@ -328,6 +331,11 @@ nav:
       - RFC-086 Viewer Three-Tier Test Pyramid + Production-Shaped Fixtures: rfc/RFC-086-viewer-test-pyramid-and-production-shaped-fixtures.md
       - RFC-087 VPS Public Edge and Multi-Compose Hosting: rfc/RFC-087-vps-public-edge-multi-compose.md
       - RFC-088 Enrichment Layer Architecture: rfc/RFC-088-enrichment-layer-architecture.md
+      - RFC-089 DGX Spark — Tailnet-Integrated AI Workhorse: rfc/RFC-089-dgx-spark-tailnet-integration.md
+      - RFC-090 Hybrid Retrieval Pipeline: rfc/RFC-090-hybrid-retrieval.md
+      - RFC-091 KG Proximity Signal: rfc/RFC-091-kg-proximity-signal.md
+      - RFC-092 ML Query Router: rfc/RFC-092-ml-query-router.md
+      - RFC-093 LITM-Aware MCP Context Packs: rfc/RFC-093-litm-context-packs.md
       - RFC Template: rfc/RFC_TEMPLATE.md
   - API:
       - API Overview: api/index.md
