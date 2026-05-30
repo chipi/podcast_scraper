@@ -70,6 +70,13 @@ resource "hcloud_volume" "corpus" {
   size     = var.volume_size_gb
   location = var.location
   format   = "ext4"
+
+  # Hetzner-API-level delete guard. Same shape as hcloud_server.prod's
+  # delete_protection — Hetzner refuses to delete the volume until this
+  # is flipped to false in a prior apply. Corpus is the most expensive
+  # thing to recreate (snapshots are weekly at best); worth the
+  # two-step ratchet to destroy.
+  delete_protection = true
 }
 
 # === The VPS itself ===
@@ -78,6 +85,16 @@ resource "hcloud_server" "prod" {
   image       = "ubuntu-24.04"
   server_type = var.server_type
   location    = var.location
+
+  # Hetzner-API-level guards (added 2026-05-30 post-incident). Any DELETE
+  # or REBUILD request — whether from ``tofu destroy``, an apply that
+  # plans a replacement, or a direct Hetzner API call — is rejected by
+  # Hetzner with "protected: deletion/rebuild protection enabled" before
+  # any destruction happens. To legitimately destroy the server (DR
+  # drill, planned migration), first apply a change setting these to
+  # false, then run the destroy / wipe-then-apply.
+  delete_protection  = true
+  rebuild_protection = true
 
   ssh_keys     = [hcloud_ssh_key.operator.id]
   firewall_ids = [hcloud_firewall.main.id]

@@ -32,7 +32,12 @@ variable "server_type" {
 variable "location" {
   type        = string
   description = "Hetzner location: fsn1 (Falkenstein) or nbg1 (Nuremberg) for EU per RFC-082."
-  default     = "fsn1"
+  # Default changed 2026-05-30 from fsn1 → nbg1: fsn1 ran out of CX43 capacity
+  # during the 2026-05-29 wipe-then-apply rebuild, so prod was placed in nbg1
+  # using ``override_location``. Pinning the default here so routine applies
+  # don't try to "fix" location → server replacement. Migrate back to fsn1
+  # later by overriding when capacity returns + planning the migration.
+  default     = "nbg1"
 
   validation {
     condition     = contains(["fsn1", "nbg1", "hel1"], var.location)
