@@ -77,19 +77,20 @@ access layer and enriching the edge set.
 > (`person:…` / `topic:…`) and are joined per episode by `bridge.json`. So the prerequisite is **not**
 > "add edges to the KG" — it is a **cross-layer graph** that unifies both via those shared IDs.
 
-1. **In-memory cross-layer corpus graph.** A graph object unifying GIL + KG nodes/edges (joined on
-   canonical IDs via the bridge) and exposing `neighbors()`, `get_node()`, and node `type`/`payload`.
-   Today only per-layer load/export/rollup helpers exist (`src/podcast_scraper/kg/`,
-   `src/podcast_scraper/gi/`); there is no traversal API and no unified graph. **Slice B of #849.**
-2. **Traversal edges — mostly already present across the two layers, not new KG edges:**
-   - `ABOUT` (insight → topic): **exists** in GIL (`src/podcast_scraper/gi/about_edges.py`).
-   - `SPEAKER_OF` (person → insight), `IN_EPISODE` (insight → episode): these reach insight nodes,
-     which **only exist in the GIL layer** — they come from GIL edges (`SPOKEN_BY`, `HAS_INSIGHT`,
-     `SUPPORTED_BY`) once the cross-layer graph exists, **not** from new KG edge types.
-   - `COVERS` (episode → topic), `MENTIONED_IN` (person → episode): semantically the existing KG
-     `MENTIONS` edge (relabel/direction only) — **Slice C of #849.**
-   - `FROM_SHOW` (episode → show): needs a **Show node type** the KG lacks today (only `feed_id`
-     property) — **Slice C of #849.**
+1. **In-memory cross-layer corpus graph.** — **SHIPPED (Slice B of #849):**
+   `src/podcast_scraper/search/corpus_graph.py`. `CorpusGraph` unifies GIL + KG nodes/edges
+   (id-keyed union on shared canonical IDs) and exposes `get_node()`, `neighbors()` (undirected),
+   `bfs()`, `degree()`, `nodes_by_type()`, plus a process-cached `get_corpus_graph()`.
+2. **Traversal edges — satisfied natively; no KG schema change (Slice C of #849, resolved):**
+   - `ABOUT` (insight ↔ topic): exists in GIL (`gi/about_edges.py`).
+   - `SPEAKER_OF` (person → insight): synthesized as an **opt-in 1-hop derived shortcut**
+     (`CorpusGraph.build(derive_speaker_links=True)`, composing `SPOKEN_BY` + `SUPPORTED_BY`); also
+     reachable in 2 hops without it.
+   - `IN_EPISODE` (insight ↔ episode): GIL `HAS_INSIGHT`.
+   - `COVERS` (topic ↔ episode), `MENTIONED_IN` (person ↔ episode): the existing KG `MENTIONS` edge
+     (undirected, so no relabel needed for traversal).
+   - `FROM_SHOW` (episode ↔ show): GIL `Podcast` nodes + `HAS_EPISODE` edges — already in the
+     unified graph; **no new Show node / KG edge type added.**
 3. **Entity resolver.** `EntityResolver.resolve(text) → canonical_id | None` —
    **SHIPPED (Slice A of #849):** `src/podcast_scraper/identity/resolver.py`, a corpus-wide registry
    over GIL + KG canonical entities with exact + fuzzy matching (reuses `bridge_builder`).

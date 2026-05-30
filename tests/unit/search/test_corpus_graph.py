@@ -179,3 +179,27 @@ def test_get_corpus_graph_caches(tmp_path):
 def test_build_from_real_fixture_corpus():
     g = CorpusGraph.build(Path("tests/fixtures/viewer-validation-corpus"))
     assert len(g) > 0
+
+
+# --- Slice C: derived person -> insight shortcut -------------------------------
+
+
+def test_derive_speaker_links_adds_one_hop_person_to_insight(tmp_path):
+    g = CorpusGraph.build(_write_corpus(tmp_path), derive_speaker_links=True)
+    assert "insight:i1" in g.neighbors("person:alice")
+    assert g.bfs("person:alice", max_hops=1).get("insight:i1") == 1
+
+
+def test_derive_off_by_default_keeps_insight_two_hops(tmp_path):
+    g = CorpusGraph.build(_write_corpus(tmp_path))
+    assert "insight:i1" not in g.neighbors("person:alice")
+    assert g.bfs("person:alice").get("insight:i1") == 2
+
+
+def test_get_corpus_graph_caches_per_derive_flag(tmp_path):
+    _write_corpus(tmp_path)
+    plain = get_corpus_graph(tmp_path)
+    derived = get_corpus_graph(tmp_path, derive_speaker_links=True)
+    assert plain is not derived
+    assert "insight:i1" not in plain.neighbors("person:alice")
+    assert "insight:i1" in derived.neighbors("person:alice")

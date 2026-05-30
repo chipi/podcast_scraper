@@ -116,9 +116,43 @@ class CorpusGraph:
                 continue
             self._add_edge(strip_layer_prefixes(str(frm)), strip_layer_prefixes(str(to)))
 
+    def _derive_speaker_links(self) -> None:
+        """Add direct ``person ↔ insight`` edges via a shared quote (#849 Slice C).
+
+        The KG/GIL artifacts have no `SPEAKER_OF` edge — a person reaches an
+        insight only in 2 hops (person—`SPOKEN_BY`—quote—`SUPPORTED_BY`—insight).
+        For the RFC-091 proximity signal the person→insight path is the most
+        valuable, so we synthesize a 1-hop shortcut. This is purely structural
+        (person→quote→insight via node types), so it needs no new artifact edge
+        types — which is why Slice C does **not** touch the KG schema.
+        """
+        for nid, node in list(self._nodes.items()):
+            if node.type != "person":
+                continue
+            # Snapshot neighbor sets — _add_edge mutates self._adj[nid] below.
+            for quote_id in list(self._adj.get(nid, set())):
+                q = self._nodes.get(quote_id)
+                if q is None or q.type != "quote":
+                    continue
+                for insight_id in list(self._adj.get(quote_id, set())):
+                    ins = self._nodes.get(insight_id)
+                    if ins is not None and ins.type == "insight":
+                        self._add_edge(nid, insight_id)
+
     @classmethod
-    def build(cls, corpus_dir: Path | str, *, validate: bool = False) -> "CorpusGraph":
-        """Build the unified graph from all GI + KG artifacts under *corpus_dir*."""
+    def build(
+        cls,
+        corpus_dir: Path | str,
+        *,
+        validate: bool = False,
+        derive_speaker_links: bool = False,
+    ) -> "CorpusGraph":
+        """Build the unified graph from all GI + KG artifacts under *corpus_dir*.
+
+        When ``derive_speaker_links`` is True, add 1-hop ``person ↔ insight``
+        shortcuts (see ``_derive_speaker_links``). Off by default so the graph is
+        a faithful union of the artifacts; RFC-091's proximity layer opts in.
+        """
         from ..gi.corpus import load_gi_artifacts
         from ..gi.explore import scan_artifact_paths as scan_gi_paths
         from ..kg.corpus import load_kg_artifacts, scan_kg_artifact_paths
@@ -130,6 +164,8 @@ class CorpusGraph:
             graph._ingest(data, "kg")
         for _path, data in load_gi_artifacts(scan_gi_paths(corpus_dir), validate=validate):
             graph._ingest(data, "gi")
+        if derive_speaker_links:
+            graph._derive_speaker_links()
         logger.debug(
             "Built corpus graph: %d nodes, %d adjacency entries",
             len(graph._nodes),
@@ -182,16 +218,20 @@ class CorpusGraph:
 
 # Process-level cache (mirrors providers/ml/embedding_loader.py): graphs are
 # expensive to build and reused across searches. Keyed by resolved corpus path.
-_corpus_graphs: Dict[str, CorpusGraph] = {}
+_corpus_graphs: Dict[tuple[str, bool], CorpusGraph] = {}
 _corpus_graphs_lock = threading.Lock()
 
 
-def get_corpus_graph(corpus_dir: Path | str, *, validate: bool = False) -> CorpusGraph:
+def get_corpus_graph(
+    corpus_dir: Path | str, *, validate: bool = False, derive_speaker_links: bool = False
+) -> CorpusGraph:
     """Return the cached cross-layer graph for *corpus_dir*, building it once."""
-    key = str(Path(corpus_dir).resolve())
+    key = (str(Path(corpus_dir).resolve()), derive_speaker_links)
     with _corpus_graphs_lock:
         if key not in _corpus_graphs:
-            _corpus_graphs[key] = CorpusGraph.build(corpus_dir, validate=validate)
+            _corpus_graphs[key] = CorpusGraph.build(
+                corpus_dir, validate=validate, derive_speaker_links=derive_speaker_links
+            )
         return _corpus_graphs[key]
 
 
