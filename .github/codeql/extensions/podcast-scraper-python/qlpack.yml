@@ -1,5 +1,8 @@
 name: chipi/podcast-scraper-python-extensions
 version: 0.0.1
+library: true
+extensionTargets:
+  codeql/python-queries: "*"
 libraryPathDependencies:
   - codeql/python-all
 dataExtensions:

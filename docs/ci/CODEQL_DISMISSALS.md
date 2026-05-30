@@ -31,7 +31,7 @@ positive.
 
 **Option A extension pack (#538):** `.github/codeql/extensions/podcast-scraper-python/`
 registers those helpers as `sanitizerModel` for `path-injection` via
-`codeql-config.yml`. CI copies that pack into `~/.codeql/packages/...` before
+`codeql-config.yml`. CI runs `codeql pack install` in that directory before
 `codeql database init` (the pack is not published to GHCR). After merge,
 re-run CodeQL on a PR that previously alerted; dismiss only if alerts persist.
 
