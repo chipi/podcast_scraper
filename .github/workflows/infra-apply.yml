@@ -88,6 +88,14 @@ jobs:
           echo "mode=$MODE confirmed"
 
       - uses: actions/checkout@v6
+        # Don't persist GITHUB_TOKEN as a git credential — the Auto-commit
+        # step below uses ``INFRA_STATE_COMMIT_TOKEN`` (a PAT in the prod
+        # environment) for its push, and a persisted GITHUB_TOKEN
+        # ``extraheader`` shadows the PAT auth in the URL, causing the push
+        # to be attributed to ``github-actions[bot]`` instead of the PAT
+        # bearer → 403 against branch-protection / ruleset rules.
+        with:
+          persist-credentials: false
 
       - name: Pre-flight — required secrets present?
         env:
