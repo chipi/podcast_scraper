@@ -2,5 +2,6 @@ name: chipi/podcast-scraper-codeql
 disable-default-queries: false
 queries:
   - uses: security-and-quality
-packs:
-  - chipi/podcast-scraper-python-extensions@0.0.1
+# Model pack (#538) is in .github/codeql/extensions/ but not wired here until
+# chipi/podcast-scraper-python-extensions is published to GHCR (init resolves
+# packs only from the registry in matrix workflows).

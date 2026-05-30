@@ -86,12 +86,16 @@ def _audio_sec_for_transcription_job(
     episode_duration_seconds = getattr(job, "episode_duration_seconds", None)
     if episode_duration_seconds is not None and isinstance(episode_duration_seconds, (int, float)):
         return float(episode_duration_seconds)
-    ep = getattr(job, "episode", None)
-    if ep is None or not getattr(ep, "item", None):
+    if not _job_has_episode_for_metrics(job):
+        return None
+    ep = job.episode
+    assert ep is not None
+    item = getattr(ep, "item", None)
+    if item is None:
         return None
     from ..rss.parser import extract_episode_metadata
 
-    _, _, _, duration, _, _ = extract_episode_metadata(ep.item, "")
+    _, _, _, duration, _, _ = extract_episode_metadata(item, "")
     if duration is not None and isinstance(duration, (int, float)):
         return float(duration)
     return None

@@ -72,27 +72,6 @@ jobs:
     - name: Checkout repository
       uses: actions/checkout@v6
 
-    # Extension pack (#538): model packs must be installed with the CLI (see qlpack.yml).
-    - name: Setup CodeQL CLI (Python extension pack)
-      if: matrix.language == 'python'
-      id: codeql-setup
-      uses: github/codeql-action/setup-codeql@v4
-      with:
-        languages: python
-
-    - name: Install local CodeQL extension pack into package cache
-      if: matrix.language == 'python'
-      shell: bash
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      run: |
-        set -euo pipefail
-        CODEQL="${{ steps.codeql-setup.outputs.codeql-path }}"
-        pack_dir="${GITHUB_WORKSPACE}/.github/codeql/extensions/podcast-scraper-python"
-        cd "${pack_dir}"
-        echo "${GITHUB_TOKEN}" | "${CODEQL}" pack install --github-auth-stdin
-        test -f "${HOME}/.codeql/packages/chipi/podcast-scraper-python-extensions/0.0.1/qlpack.yml"
-
     # Add any setup steps before running the `github/codeql-action/init` action.
     # This includes steps like installing compilers or runtimes (`actions/setup-node`
     # or others). This is typically only required for manual builds.
