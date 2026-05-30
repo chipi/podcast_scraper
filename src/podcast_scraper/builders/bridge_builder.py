@@ -265,3 +265,12 @@ def build_bridge(
     if fuzzy_merges:
         result["fuzzy_merges"] = fuzzy_merges
     return result
+
+
+# Public aliases — shared identity helpers reused by the corpus-wide entity
+# resolver (``identity/resolver.py``). These wrap the per-episode bridge logic so
+# the resolver can aggregate identities across the whole corpus without
+# duplicating the collection / fuzzy-reconciliation machinery.
+collect_identity = _collect_identity
+fuzzy_reconcile = _fuzzy_reconcile
+strip_layer_prefixes = _strip_layer_prefixes
