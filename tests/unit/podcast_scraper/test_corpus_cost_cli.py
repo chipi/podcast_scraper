@@ -140,6 +140,24 @@ class TestCorpusCostCli(unittest.TestCase):
             self.assertEqual(written["schema_version"], "1.1.0")
             self.assertAlmostEqual(written["cost_rollup"]["total_cost_usd"], 0.0123, places=4)
 
+    def test_update_manifest_backfills_produced_by_when_missing(self) -> None:
+        with TemporaryDirectory() as td:
+            corpus = Path(td)
+            feed = corpus / "feeds" / "example"
+            _write_metrics(feed / "run_001", llm_summarization_cost_usd=0.01)
+            manifest_path = corpus / "corpus_manifest.json"
+            manifest_path.write_text(
+                json.dumps({"schema_version": "1.0.0", "cost_rollup": {"total_cost_usd": 0.0}}),
+                encoding="utf-8",
+            )
+            args = argparse.Namespace(corpus_path=str(corpus), json=False, update_manifest=True)
+            with redirect_stdout(io.StringIO()):
+                rc = _run_corpus_cost_cli(args, logging.getLogger("test"))
+            self.assertEqual(rc, 0)
+            written = json.loads(manifest_path.read_text(encoding="utf-8"))
+            self.assertIn("code_version", written["produced_by"])
+            self.assertTrue(written.get("tool_version"))
+
     def test_update_manifest_missing_file_returns_2(self) -> None:
         with TemporaryDirectory() as td:
             corpus = Path(td)

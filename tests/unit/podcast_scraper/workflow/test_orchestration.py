@@ -1571,3 +1571,29 @@ class TestCleanupProvidersPreloadedErrors(unittest.TestCase):
             orchestration._cleanup_providers(None, None)
         mock_ml.cleanup.assert_called_once()
         mock_logger.warning.assert_called()
+
+
+@pytest.mark.unit
+class TestCostIncidentHelpers(unittest.TestCase):
+    """Soft-cap incident path helpers (#804)."""
+
+    def test_incident_log_path_explicit_cfg(self):
+        cfg = config.Config(
+            rss_url="https://example.com/feed.xml",
+            incident_log_path="/tmp/custom_incidents.jsonl",
+            openai_api_key="sk-test",
+        )
+        path = orchestration._incident_log_path_for_run(cfg, "/var/output/run")
+        self.assertEqual(path, "/tmp/custom_incidents.jsonl")
+
+    def test_incident_log_path_defaults_under_output_dir(self):
+        cfg = config.Config(rss_url="https://example.com/feed.xml", openai_api_key="sk-test")
+        path = orchestration._incident_log_path_for_run(cfg, "/var/output/run_001")
+        self.assertTrue(path.endswith("corpus_incidents.jsonl"))
+        self.assertIn("run_001", path)
+
+    def test_feed_url_for_cost_incident_delegates(self):
+        cfg = config.Config(rss_url="https://cfg.example/feed.xml", openai_api_key="sk-test")
+        feed = type("Feed", (), {"link": "https://feed.example/rss.xml"})()
+        url = orchestration._feed_url_for_cost_incident(feed, cfg)
+        self.assertEqual(url, "https://feed.example/rss.xml")

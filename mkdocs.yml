@@ -19,6 +19,7 @@ nav:
       - Stack contract (cross-surface audit): guides/STACK_CONTRACT.md
       - Corpus snapshot manifest and restore: guides/CORPUS_SNAPSHOT_MANIFEST_AND_RESTORE.md
       - Prod Operator Cheat Sheet: guides/PROD_OPERATOR_CHEAT_SHEET.md
+      - GHCR image retention (#802): operations/GHCR_RETENTION.md
       - Polyglot repository layout: guides/POLYGLOT_REPO_GUIDE.md
       - Server Guide: guides/SERVER_GUIDE.md
       - Pipeline and Workflow Guide: guides/PIPELINE_AND_WORKFLOW.md

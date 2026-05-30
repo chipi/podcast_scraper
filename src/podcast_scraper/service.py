@@ -274,7 +274,8 @@ def run(cfg: config.Config) -> ServiceResult:
                 log_file=resolved_log,
             )
 
-        multi_entries = list(cfg.rss_urls or [])
+        rss_urls_raw = getattr(cfg, "rss_urls", None)
+        multi_entries = list(rss_urls_raw) if rss_urls_raw else []
         if len(multi_entries) >= 2:
             return _run_multi_feed(cfg, multi_entries)
 
@@ -283,6 +284,29 @@ def run(cfg: config.Config) -> ServiceResult:
         # post-validator, so ``cfg.output_dir`` is already in its final form
         # here — no extra wrapping needed in this hot path.
         count, summary = workflow.run_pipeline(cfg)
+
+        rss_url_raw = getattr(cfg, "rss_url", None)
+        feed_url = rss_url_raw.strip() if isinstance(rss_url_raw, str) else ""
+        if feed_url:
+            from podcast_scraper.workflow.corpus_operations import (
+                corpus_parent_for_manifest_stamp_from_cfg,
+                MultiFeedFeedResult,
+                upsert_corpus_manifest_feed,
+                utc_iso_now,
+            )
+
+            stamp_parent = corpus_parent_for_manifest_stamp_from_cfg(cfg)
+            if stamp_parent:
+                upsert_corpus_manifest_feed(
+                    stamp_parent,
+                    MultiFeedFeedResult(
+                        feed_url,
+                        True,
+                        None,
+                        int(count),
+                        finished_at=utc_iso_now(),
+                    ),
+                )
 
         return ServiceResult(
             episodes_processed=count,

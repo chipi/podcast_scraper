@@ -53,15 +53,20 @@ ENV PRELOAD_ML_MODELS=${PRELOAD_ML_MODELS}
 # Build deps are needed for compiling some packages from source if wheels aren't available
 # Python 3.12 has good wheel support, so most packages won't need compilation
 RUN if [ -n "$INSTALL_EXTRAS" ] && { [ "$INSTALL_EXTRAS" = "ml" ] || [ "$INSTALL_EXTRAS" = "llm" ]; }; then \
-        apt-get update && \
-        apt-get upgrade -y --no-install-recommends && \
-        apt-get install -y --no-install-recommends \
-            gcc \
-            g++ \
-            make \
-            python3-dev \
-            libc6-dev && \
-        rm -rf /var/lib/apt/lists/*; \
+        set -ux; \
+        for attempt in 1 2 3 4 5; do \
+          if apt-get update \
+             && apt-get upgrade -y --no-install-recommends \
+             && apt-get install -y --no-install-recommends \
+                gcc g++ make python3-dev libc6-dev \
+             && rm -rf /var/lib/apt/lists/*; then \
+            exit 0; \
+          fi; \
+          echo "apt install failed (attempt ${attempt}/5), retry in 45s..."; \
+          sleep 45; \
+          rm -rf /var/lib/apt/lists/* || true; \
+        done; \
+        exit 1; \
     fi
 
 WORKDIR /tmp/build
@@ -183,6 +188,7 @@ LABEL org.opencontainers.image.title="Podcast Scraper" \
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
     PYTHONOPTIMIZE=1 \
+    PRICING_ASSUMPTIONS_FILE=/app/config/pricing_assumptions.yaml \
     XDG_CACHE_HOME=/opt/whisper-cache \
     WHISPER_CACHE_DIR=/opt/whisper-cache \
     HF_HUB_CACHE=/home/podcast/.cache/huggingface/hub \
@@ -202,13 +208,21 @@ ENV PYTHONUNBUFFERED=1 \
 #     LLM-only and stack-test cloud-thin runs failed with ``ffmpeg is
 #     not installed or not in PATH``.
 ARG INSTALL_EXTRAS
-RUN apt-get update && \
-    apt-get upgrade -y --no-install-recommends && \
-    apt-get install -y --no-install-recommends \
-        ffmpeg \
-        supervisor && \
-    apt-get clean && \
-    rm -rf /var/lib/apt/lists/*
+# Debian CDN can serve truncated .deb during mirror sync (CI Snyk/docker flakes).
+RUN set -ux; \
+    for attempt in 1 2 3 4 5; do \
+      if apt-get update \
+         && apt-get upgrade -y --no-install-recommends \
+         && apt-get install -y --no-install-recommends ffmpeg supervisor \
+         && apt-get clean \
+         && rm -rf /var/lib/apt/lists/*; then \
+        exit 0; \
+      fi; \
+      echo "apt install failed (attempt ${attempt}/5), retry in 45s..."; \
+      sleep 45; \
+      rm -rf /var/lib/apt/lists/* || true; \
+    done; \
+    exit 1
 
 # Create non-root user for security
 # UID 1000 is a common convention for application users
@@ -254,6 +268,7 @@ COPY --chown=podcast:podcast config/examples/config.example.* /opt/podcast_scrap
 # first. Without this the pipeline can't resolve ``profile:
 # airgapped_thin`` etc. on disk inside the container.
 COPY --chown=podcast:podcast config/profiles/ /app/config/profiles/
+COPY --chown=podcast:podcast config/pricing_assumptions.yaml /app/config/pricing_assumptions.yaml
 COPY --chown=podcast:podcast docker/pipeline/supervisord.conf /etc/supervisor/supervisord.conf
 COPY --chown=podcast:podcast docker/pipeline/entrypoint.sh /app/entrypoint.sh
 RUN chmod +x /app/entrypoint.sh

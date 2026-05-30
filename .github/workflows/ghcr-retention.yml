@@ -1,0 +1,60 @@
+# GHCR image retention (#802): keep last 20 + release tags + :main + recent deploy SHAs.
+# First runs should use workflow_dispatch with dry_run=true (default).
+
+name: GHCR retention
+
+on:
+  schedule:
+    - cron: "0 4 * * 0"
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Dry-run only (log keep/delete, do not DELETE)"
+        type: boolean
+        default: true
+      confirm_apply:
+        description: 'Type APPLY to delete complement (ignored when dry_run=true)'
+        required: false
+        default: ""
+
+permissions:
+  packages: write
+  actions: read
+  contents: read
+
+concurrency:
+  group: ghcr-retention
+  cancel-in-progress: false
+
+jobs:
+  prune:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Confirm destructive apply
+        if: inputs.dry_run == false
+        run: |
+          if [ "${{ inputs.confirm_apply }}" != "APPLY" ]; then
+            echo "::error::Set confirm_apply=APPLY when dry_run=false"
+            exit 1
+          fi
+
+      - name: Compute keep/delete and optionally prune
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          cmd=(python3 scripts/ops/ghcr_compute_retention.py --json)
+          DRY=true
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ "${{ inputs.dry_run }}" = "false" ]; then
+            DRY=false
+            cmd+=(--apply)
+          fi
+          "${cmd[@]}"
+          {
+            echo "### GHCR retention (#802)"
+            echo "- dry_run: \`$DRY\`"
+          } >> "$GITHUB_STEP_SUMMARY"

@@ -659,3 +659,19 @@ class TestFlattenSpeakerNameEntries(unittest.TestCase):
         """Set membership works with mixed nesting."""
         s = processing._speaker_names_to_str_set([["Host"], "Guest"])
         self.assertEqual(s, {"Host", "Guest"})
+
+
+@pytest.mark.unit
+def test_enforce_cost_soft_cap_after_episode_abort() -> None:
+    """Processing stage delegates to cost_monitoring soft cap (#804)."""
+    from podcast_scraper.workflow.cost_monitoring import CostCapExceeded
+
+    cfg = create_test_config(
+        openai_api_key="sk-test",
+        cost_soft_cap_usd_per_run=0.01,
+        cost_soft_cap_action="abort",
+    )
+    pm = workflow_metrics.Metrics()
+    pm.record_llm_transcription_call(1.0, cost_usd=0.05)
+    with pytest.raises(CostCapExceeded):
+        processing._enforce_cost_soft_cap_after_episode(cfg, pm)

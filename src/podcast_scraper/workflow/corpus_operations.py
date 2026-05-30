@@ -195,6 +195,97 @@ class MultiFeedFeedResult:
     failure_kind: Optional[MultiFeedFailureKind] = None
 
 
+def _feed_result_to_manifest_row(fr: MultiFeedFeedResult) -> Dict[str, Any]:
+    sub = filesystem.feed_workspace_dirname(fr.feed_url)
+    row: Dict[str, Any] = {
+        "feed_url": fr.feed_url,
+        "stable_feed_dir": sub,
+        "last_run_finished_at": fr.finished_at or _utc_iso(),
+        "ok": fr.ok,
+        "error": fr.error,
+        "episodes_processed": fr.episodes_processed,
+    }
+    if fr.failure_kind is not None:
+        row["failure_kind"] = fr.failure_kind
+    return row
+
+
+def _manifest_feed_rows_to_results(rows: List[Any]) -> List[MultiFeedFeedResult]:
+    """Rebuild :class:`MultiFeedFeedResult` list from an existing manifest ``feeds`` array."""
+    out: List[MultiFeedFeedResult] = []
+    for item in rows:
+        if not isinstance(item, dict):
+            continue
+        url = str(item.get("feed_url") or "").strip()
+        if not url:
+            continue
+        kind = item.get("failure_kind")
+        failure_kind: Optional[MultiFeedFailureKind] = None
+        if kind in ("soft", "hard"):
+            failure_kind = kind
+        out.append(
+            MultiFeedFeedResult(
+                url,
+                bool(item.get("ok", True)),
+                item.get("error"),
+                int(item.get("episodes_processed") or 0),
+                finished_at=item.get("last_run_finished_at"),
+                failure_kind=failure_kind,
+            )
+        )
+    return out
+
+
+def corpus_parent_for_manifest_stamp_from_cfg(cfg: "config.Config") -> Optional[str]:
+    """Resolve corpus parent for single-feed ``produced_by`` stamp (#807)."""
+    from podcast_scraper.utils import filesystem
+
+    if not getattr(cfg, "output_dir", None):
+        return None
+    if getattr(cfg, "single_feed_uses_corpus_layout", False):
+        out = Path(filesystem.validate_and_normalize_output_dir(str(cfg.output_dir)))
+        if out.parent.name == "feeds" and out.parent.parent.name:
+            return str(out.parent.parent)
+        return str(out)
+    out = Path(filesystem.validate_and_normalize_output_dir(str(cfg.output_dir)))
+    if (out / "feeds").is_dir():
+        return str(out)
+    return None
+
+
+def upsert_corpus_manifest_feed(
+    corpus_parent: str,
+    feed_result: MultiFeedFeedResult,
+) -> None:
+    """Patch or create ``corpus_manifest.json`` for one feed (#807).
+
+    Preserves other feed rows and re-aggregates ``cost_rollup`` from disk.
+    """
+    parent = Path(filesystem.validate_and_normalize_output_dir(corpus_parent))
+    path = parent / CORPUS_MANIFEST_FILE
+    feed_results: List[MultiFeedFeedResult] = []
+    if path.is_file():
+        try:
+            doc = json.loads(path.read_text(encoding="utf-8"))
+            if isinstance(doc, dict) and isinstance(doc.get("feeds"), list):
+                feed_results = _manifest_feed_rows_to_results(doc["feeds"])
+        except (OSError, ValueError) as exc:
+            logger.warning("upsert_corpus_manifest_feed: unreadable %s (%s)", path, exc)
+    sub = filesystem.feed_workspace_dirname(feed_result.feed_url)
+    replaced = False
+    for i, fr in enumerate(feed_results):
+        if (
+            fr.feed_url == feed_result.feed_url
+            or filesystem.feed_workspace_dirname(fr.feed_url) == sub
+        ):
+            feed_results[i] = feed_result
+            replaced = True
+            break
+    if not replaced:
+        feed_results.append(feed_result)
+    write_corpus_manifest(str(parent), feed_results)
+
+
 def write_corpus_manifest(
     corpus_parent: str,
     feed_results: List[MultiFeedFeedResult],
@@ -203,18 +294,7 @@ def write_corpus_manifest(
     parent = Path(filesystem.validate_and_normalize_output_dir(corpus_parent))
     feeds_out: List[Dict[str, Any]] = []
     for fr in feed_results:
-        sub = filesystem.feed_workspace_dirname(fr.feed_url)
-        row: Dict[str, Any] = {
-            "feed_url": fr.feed_url,
-            "stable_feed_dir": sub,
-            "last_run_finished_at": fr.finished_at or _utc_iso(),
-            "ok": fr.ok,
-            "error": fr.error,
-            "episodes_processed": fr.episodes_processed,
-        }
-        if fr.failure_kind is not None:
-            row["failure_kind"] = fr.failure_kind
-        feeds_out.append(row)
+        feeds_out.append(_feed_result_to_manifest_row(fr))
     from podcast_scraper.workflow.corpus_cost_aggregation import aggregate_corpus_costs
 
     cost_rollup = aggregate_corpus_costs(parent)
@@ -229,6 +309,7 @@ def write_corpus_manifest(
         "cost_rollup": cost_rollup,
     }
     path = parent / CORPUS_MANIFEST_FILE
+    parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(doc, indent=2, sort_keys=True) + "\n", encoding="utf-8")
     logger.info(
         "Wrote corpus manifest: %s (cost_rollup.total_cost_usd=%s over %d runs)",

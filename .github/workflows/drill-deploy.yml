@@ -212,6 +212,15 @@ jobs:
             'sudo -n /usr/local/sbin/podcast-tailscale-serve.sh' \
             || echo "::warning::podcast-tailscale-serve.sh exited non-zero; deploy.sh will retry after health"
 
+      - name: "DR drill — pre-deploy corpus path preflight (#808)"
+        if: steps.preflight.outputs.skip != 'true'
+        env:
+          SSH_TARGET: deploy@${{ steps.ts_host.outputs.resolved_fqdn }}
+          SSH_DRILL_IDENTITY: ${{ env.SSH_DRILL_IDENTITY }}
+        run: |
+          set -euo pipefail
+          bash scripts/ops/preflight_prod_corpus_path.sh "$SSH_TARGET"
+
       - name: "DR drill — deploy: git pull + compose + VPS-local /api/health"
         if: steps.preflight.outputs.skip != 'true'
         env:

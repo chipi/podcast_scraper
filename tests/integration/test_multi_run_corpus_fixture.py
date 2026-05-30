@@ -72,11 +72,10 @@ def test_fixture_shape_matches_documented_counts() -> None:
 
 @fixture_required
 def test_corpus_manifest_cost_rollup_is_zero_baseline() -> None:
-    """Baseline for #823 — fixture deliberately ships all-zero cost rollup.
+    """Fixture ships all-zero cost rollup (synthetic runs without priced LLM usage).
 
-    This test pins the BUG state. The fix in #823 should land a separate
-    test (or modify this one) that asserts the cost rollup is non-zero
-    after the fix.
+    #823 adds bundled pricing and runtime cost attribution; this corpus was built
+    without billable provider calls, so zeros remain the expected fixture baseline.
     """
     manifest = json.loads((FIXTURE_DIR / "corpus_manifest.json").read_text())
     assert manifest["cost_rollup"]["total_cost_usd"] == 0.0

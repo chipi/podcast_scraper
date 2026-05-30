@@ -2,7 +2,8 @@
 
 JSON files written at the **corpus parent** — the directory passed as `output_dir` when running
 **two or more feeds** in one batch (CLI repeated `--rss` / positional feeds, or config `feeds` /
-`rss_urls` with ≥2 URLs). Single-feed runs do not require these files.
+`rss_urls` with ≥2 URLs). Single-feed runs may also upsert `corpus_manifest.json` (including
+`produced_by`) when the output layout is a corpus parent ([#807](https://github.com/chipi/podcast_scraper/issues/807)).
 
 See also [RFC-063](../rfc/RFC-063-multi-feed-corpus-append-resume.md) §7 and
 [SEMANTIC_SEARCH_GUIDE.md](../guides/SEMANTIC_SEARCH_GUIDE.md) (unified index at

@@ -240,6 +240,25 @@ jobs:
              echo 'PODCAST_RELEASE=sha-${SHA_SHORT}' >> .env; \
              chmod 600 .env"
 
+      - name: Pre-deploy corpus path preflight (#808)
+        if: steps.preflight.outputs.skip != 'true'
+        env:
+          SSH_TARGET: deploy@${{ steps.ts_host.outputs.resolved_fqdn }}
+        run: |
+          set -euo pipefail
+          bash scripts/ops/preflight_prod_corpus_path.sh "$SSH_TARGET"
+          HOST_CORPUS=$(ssh -i "$SSH_PROD_IDENTITY" -o IdentitiesOnly=yes \
+            -o StrictHostKeyChecking=accept-new -o BatchMode=yes "$SSH_TARGET" \
+            "grep '^PODCAST_CORPUS_HOST_PATH=' /srv/podcast-scraper/.env | cut -d= -f2-")
+          CONTAINER_CORPUS=$(ssh -i "$SSH_PROD_IDENTITY" -o IdentitiesOnly=yes \
+            -o StrictHostKeyChecking=accept-new -o BatchMode=yes "$SSH_TARGET" \
+            "grep '^PODCAST_DEFAULT_CORPUS_PATH=' /srv/podcast-scraper/.env | cut -d= -f2-")
+          {
+            echo "### Corpus path preflight (#808)"
+            echo "- Host \`PODCAST_CORPUS_HOST_PATH\`: \`$HOST_CORPUS\`"
+            echo "- Container \`PODCAST_DEFAULT_CORPUS_PATH\` (smoke \`path=\`): \`$CONTAINER_CORPUS\`"
+          } >> "$GITHUB_STEP_SUMMARY"
+
       - name: Deploy (git reset + compose pull + compose up + VPS-local /api/health)
         # deploy.sh on the VPS exits 0 only on healthy stack — failures here
         # surface red within the SSH session. VPS-local probe is
@@ -315,4 +334,9 @@ jobs:
             echo "::error::PODCAST_CORPUS_HOST_PATH is not a directory on host: $HOST_CORPUS"
             exit 1
           fi
+          {
+            echo "### Post-deploy smoke corpus paths"
+            echo "- Host: \`$HOST_CORPUS\`"
+            echo "- Smoke probe \`path=\`: \`$CONTAINER_CORPUS\`"
+          } >> "$GITHUB_STEP_SUMMARY"
           bash scripts/ops/post_deploy_smoke.sh "$PROBE_FQDN" --corpus-path "$CONTAINER_CORPUS"

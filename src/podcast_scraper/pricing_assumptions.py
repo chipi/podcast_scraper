@@ -41,14 +41,41 @@ def clear_pricing_assumptions_cache() -> None:
     _cache_payload = None
 
 
+def bundled_assumptions_path() -> Optional[Path]:
+    """Packaged fallback shipped in the wheel (pipeline containers, #823)."""
+    try:
+        from importlib import resources
+
+        ref = resources.files("podcast_scraper").joinpath("data/pricing_assumptions.yaml")
+        with resources.as_file(ref) as extracted:
+            p = Path(extracted)
+            return p if p.is_file() else None
+    except (ImportError, FileNotFoundError, TypeError, OSError):
+        return None
+
+
+# Well-known paths when CWD is /app/output and repo config/ is not on disk.
+_CONTAINER_FALLBACK_PATHS: tuple[Path, ...] = (Path("/app/config/pricing_assumptions.yaml"),)
+
+_DEFAULT_CONFIGURED_PATH = "config/pricing_assumptions.yaml"
+
+
+def _pricing_path_fallbacks() -> Optional[Path]:
+    return _first_existing_pricing_path(_CONTAINER_FALLBACK_PATHS) or bundled_assumptions_path()
+
+
 def resolve_assumptions_path(configured: str, *, cwd: Optional[Path] = None) -> Optional[Path]:
     """Resolve ``configured`` to an existing file path, or None."""
     raw = (configured or "").strip()
     if not raw:
-        return None
+        return _pricing_path_fallbacks()
     path = Path(raw)
     if path.is_absolute():
-        return path if path.is_file() else None
+        if path.is_file():
+            return path
+        if raw == _DEFAULT_CONFIGURED_PATH:
+            return _pricing_path_fallbacks()
+        return None
     start = cwd or Path.cwd()
     candidate = start / path
     if candidate.is_file():
@@ -57,6 +84,15 @@ def resolve_assumptions_path(configured: str, *, cwd: Optional[Path] = None) -> 
         c = base / path
         if c.is_file():
             return c
+    if raw == _DEFAULT_CONFIGURED_PATH:
+        return _pricing_path_fallbacks()
+    return None
+
+
+def _first_existing_pricing_path(paths: tuple[Path, ...]) -> Optional[Path]:
+    for p in paths:
+        if p.is_file():
+            return p
     return None
 
 

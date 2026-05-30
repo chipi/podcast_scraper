@@ -58,6 +58,8 @@ class TestEnvironmentVariables(unittest.TestCase):
             "PODCAST_SCRAPER_RSS_CONDITIONAL_GET",
             "PODCAST_SCRAPER_RSS_CACHE_DIR",
             "PODCAST_SCRAPER_RSS_SKIP_CONDITIONAL",
+            "COST_SOFT_CAP_USD_PER_RUN",
+            "COST_SOFT_CAP_ACTION",
         ]
         for var in self.env_vars_to_clear:
             os.environ.pop(var, None)
@@ -306,3 +308,26 @@ class TestEnvironmentVariables(unittest.TestCase):
         os.environ["PODCAST_SCRAPER_CIRCUIT_BREAKER_SCOPE"] = "HOST"
         cfg = config.Config(rss_url="https://test.com")
         self.assertEqual(cfg.circuit_breaker_scope, "host")
+
+    def test_cost_soft_cap_env_usd_per_run(self):
+        """COST_SOFT_CAP_USD_PER_RUN maps into Config when unset in kwargs (#804)."""
+        os.environ["COST_SOFT_CAP_USD_PER_RUN"] = "12.5"
+        cfg = config.Config(rss_url="https://test.com", openai_api_key="sk-test")
+        self.assertEqual(cfg.cost_soft_cap_usd_per_run, 12.5)
+
+    def test_cost_soft_cap_env_action(self):
+        os.environ["COST_SOFT_CAP_ACTION"] = "warn"
+        cfg = config.Config(rss_url="https://test.com", openai_api_key="sk-test")
+        self.assertEqual(cfg.cost_soft_cap_action, "warn")
+
+    def test_cost_soft_cap_env_config_overrides(self):
+        os.environ["COST_SOFT_CAP_USD_PER_RUN"] = "99"
+        os.environ["COST_SOFT_CAP_ACTION"] = "observe"
+        cfg = config.Config(
+            rss_url="https://test.com",
+            openai_api_key="sk-test",
+            cost_soft_cap_usd_per_run=1.0,
+            cost_soft_cap_action="abort",
+        )
+        self.assertEqual(cfg.cost_soft_cap_usd_per_run, 1.0)
+        self.assertEqual(cfg.cost_soft_cap_action, "abort")

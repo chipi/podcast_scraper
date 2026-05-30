@@ -521,7 +521,17 @@ class MistralProvider:
                 audio_minutes=audio_minutes,
             )
             if call_metrics is not None:
-                call_metrics.set_cost(tr_cost)
+                from ...utils.provider_metrics import record_provider_call_cost
+
+                record_provider_call_cost(
+                    call_metrics,
+                    tr_cost,
+                    cfg=self.cfg,
+                    provider_type="mistral",
+                    capability="transcription",
+                    model=self.transcription_model,
+                    audio_minutes=audio_minutes,
+                )
 
         # Track LLM call metrics if available
         if pipeline_metrics is not None and audio_minutes > 0:
@@ -970,7 +980,18 @@ class MistralProvider:
                     prompt_tokens=input_tokens,
                     completion_tokens=output_tokens,
                 )
-                call_metrics.set_cost(cost)
+                from ...utils.provider_metrics import record_provider_call_cost
+
+                record_provider_call_cost(
+                    call_metrics,
+                    cost,
+                    cfg=self.cfg,
+                    provider_type="mistral",
+                    capability="summarization",
+                    model=self.summary_model,
+                    prompt_tokens=input_tokens,
+                    completion_tokens=output_tokens,
+                )
 
             # Track LLM call metrics if available (aggregate tracking)
             if (
@@ -1322,7 +1343,18 @@ class MistralProvider:
                 prompt_tokens=input_tokens,
                 completion_tokens=output_tokens,
             )
-            call_metrics.set_cost(cost)
+            from ...utils.provider_metrics import record_provider_call_cost
+
+            record_provider_call_cost(
+                call_metrics,
+                cost,
+                cfg=self.cfg,
+                provider_type="mistral",
+                capability="summarization",
+                model=self.summary_model,
+                prompt_tokens=input_tokens,
+                completion_tokens=output_tokens,
+            )
 
         if pipeline_metrics is not None and input_tokens is not None and output_tokens is not None:
             pipeline_metrics.record_llm_bundled_clean_summary_call(

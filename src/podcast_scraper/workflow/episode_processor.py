@@ -86,12 +86,16 @@ def _audio_sec_for_transcription_job(
     episode_duration_seconds = getattr(job, "episode_duration_seconds", None)
     if episode_duration_seconds is not None and isinstance(episode_duration_seconds, (int, float)):
         return float(episode_duration_seconds)
-    ep = getattr(job, "episode", None)
-    if ep is None or not getattr(ep, "item", None):
+    if not _job_has_episode_for_metrics(job):
+        return None
+    ep = job.episode
+    assert ep is not None
+    item = getattr(ep, "item", None)
+    if item is None:
         return None
     from ..rss.parser import extract_episode_metadata
 
-    _, _, _, duration, _, _ = extract_episode_metadata(ep.item, "")
+    _, _, _, duration, _, _ = extract_episode_metadata(item, "")
     if duration is not None and isinstance(duration, (int, float)):
         return float(duration)
     return None
@@ -1064,6 +1068,22 @@ def _record_transcription_metrics(
         return
 
     pipeline_metrics.record_transcribe_time(tc_elapsed, job.idx)
+    from podcast_scraper.utils.provider_metrics import (
+        apply_estimated_cost_if_missing,
+        transcription_model_for_cfg,
+    )
+
+    provider = getattr(cfg, "transcription_provider", None) or "whisper"
+    audio_sec = _audio_sec_for_transcription_job(job) if job else None
+    audio_min = (audio_sec / 60.0) if audio_sec is not None else None
+    apply_estimated_cost_if_missing(
+        call_metrics,
+        cfg=cfg,
+        provider_type=str(provider),
+        capability="transcription",
+        model=transcription_model_for_cfg(cfg),
+        audio_minutes=audio_min,
+    )
     # Update episode status: transcribed (Issue #391)
     if _job_has_episode_for_metrics(job):
         from podcast_scraper.workflow.helpers import get_episode_id_from_episode

@@ -82,6 +82,104 @@ class ProviderCallMetrics:
         self.estimated_cost = cost
 
 
+def apply_estimated_cost_if_missing(
+    call_metrics: ProviderCallMetrics,
+    *,
+    cfg: Any,
+    provider_type: str,
+    capability: str,
+    model: str,
+    prompt_tokens: Optional[int] = None,
+    completion_tokens: Optional[int] = None,
+    audio_minutes: Optional[float] = None,
+) -> None:
+    """Populate ``estimated_cost`` from pricing YAML when providers omit it (#823)."""
+    if call_metrics.estimated_cost is not None:
+        return
+    if not provider_type or not model:
+        return
+    try:
+        from podcast_scraper.workflow.helpers import calculate_provider_cost
+
+        cost = calculate_provider_cost(
+            cfg=cfg,
+            provider_type=provider_type,
+            capability=capability,
+            model=model,
+            prompt_tokens=prompt_tokens,
+            completion_tokens=completion_tokens,
+            audio_minutes=audio_minutes,
+        )
+        if cost is not None:
+            record_provider_call_cost(
+                call_metrics,
+                float(cost),
+                cfg=cfg,
+                provider_type=provider_type,
+                capability=capability,
+                model=model,
+                prompt_tokens=prompt_tokens,
+                completion_tokens=completion_tokens,
+                audio_minutes=audio_minutes,
+            )
+    except Exception:
+        pass
+
+
+def record_provider_call_cost(
+    call_metrics: ProviderCallMetrics,
+    cost: Optional[float],
+    *,
+    cfg: Any,
+    provider_type: str,
+    capability: str,
+    model: str,
+    prompt_tokens: Optional[int] = None,
+    completion_tokens: Optional[int] = None,
+    audio_minutes: Optional[float] = None,
+) -> None:
+    """Set per-call USD, backfill when null, and emit ``llm_cost_event`` (#823 / #804)."""
+    if cost is not None:
+        call_metrics.set_cost(cost)
+    else:
+        apply_estimated_cost_if_missing(
+            call_metrics,
+            cfg=cfg,
+            provider_type=provider_type,
+            capability=capability,
+            model=model,
+            prompt_tokens=prompt_tokens,
+            completion_tokens=completion_tokens,
+            audio_minutes=audio_minutes,
+        )
+    final = call_metrics.estimated_cost
+    if final is None or final <= 0:
+        return
+    try:
+        from podcast_scraper.workflow.cost_monitoring import emit_llm_cost_event
+
+        emit_llm_cost_event(
+            cfg,
+            provider=provider_type,
+            stage=capability,
+            model=model,
+            estimated_cost_usd=float(final),
+            prompt_tokens=prompt_tokens,
+            completion_tokens=completion_tokens,
+        )
+    except Exception as exc:
+        logger.debug("llm_cost_event emission skipped: %s", exc)
+
+
+def transcription_model_for_cfg(cfg: Any) -> str:
+    """Resolve transcription model name for pricing / cost backfill."""
+    provider = str(getattr(cfg, "transcription_provider", None) or "whisper")
+    if provider == "whisper":
+        return str(getattr(cfg, "whisper_model", None) or "base")
+    field = f"{provider}_transcription_model"
+    return str(getattr(cfg, field, None) or getattr(cfg, "openai_transcription_model", "") or "")
+
+
 def _safe_openai_retryable() -> tuple[type[Exception], ...]:
     """Return retryable OpenAI exception classes with fallback.
 
@@ -430,6 +528,7 @@ def apply_gil_evidence_llm_call_metrics(
     if prompt_tokens is not None and completion_tokens is not None:
         call_metrics.set_tokens(prompt_tokens, completion_tokens)
     # Compute and attach cost if the provider didn't already.
+    cost_event_emitted = False
     if (
         call_metrics.estimated_cost is None
         and cfg is not None
@@ -450,11 +549,43 @@ def apply_gil_evidence_llm_call_metrics(
                 completion_tokens=int(completion_tokens),
             )
             if cost is not None:
-                call_metrics.set_cost(cost)
+                record_provider_call_cost(
+                    call_metrics,
+                    cost,
+                    cfg=cfg,
+                    provider_type=provider_type,
+                    capability="summarization",
+                    model=model,
+                    prompt_tokens=int(prompt_tokens),
+                    completion_tokens=int(completion_tokens),
+                )
+                cost_event_emitted = True
         except Exception:
             # Pricing is best-effort at this layer — a missing rate row
             # shouldn't fail a GIL evidence call.
             pass
+    if (
+        not cost_event_emitted
+        and call_metrics.estimated_cost is not None
+        and call_metrics.estimated_cost > 0
+        and cfg is not None
+        and provider_type
+        and model
+    ):
+        try:
+            from podcast_scraper.workflow.cost_monitoring import emit_llm_cost_event
+
+            emit_llm_cost_event(
+                cfg,
+                provider=provider_type,
+                stage="summarization",
+                model=model,
+                estimated_cost_usd=float(call_metrics.estimated_cost),
+                prompt_tokens=prompt_tokens,
+                completion_tokens=completion_tokens,
+            )
+        except Exception as exc:
+            logger.debug("llm_cost_event emission skipped: %s", exc)
     call_metrics.finalize()
     if pipeline_metrics is None:
         return

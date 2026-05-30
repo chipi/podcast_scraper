@@ -60,6 +60,7 @@ def extract_episode_description(item):
 
 
 from ...speaker_detectors.factory import create_speaker_detector
+from ..cost_monitoring import CostCapExceeded
 from ..helpers import update_metric_safely
 from ..types import (
     FeedMetadata,
@@ -73,6 +74,16 @@ from ..types import (
 from . import metadata as metadata_stage
 
 logger = logging.getLogger(__name__)
+
+
+def _enforce_cost_soft_cap_after_episode(
+    cfg: config.Config, pipeline_metrics: Optional[metrics.Metrics]
+) -> None:
+    """Raise :class:`cost_monitoring.CostCapExceeded` when abort action is configured (#804)."""
+    from ..cost_monitoring import enforce_cost_soft_cap
+
+    enforce_cost_soft_cap(cfg, pipeline_metrics)
+
 
 _PROCESSING_JOBS_WARN_THRESHOLD = 1000
 _processing_jobs_warned = False
@@ -923,6 +934,8 @@ def _process_episodes_sequential(
                 pipeline_metrics,
                 detected_names,
             )
+        except CostCapExceeded:
+            raise
         except Exception as exc:  # pragma: no cover
             from ..helpers import update_metric_safely
 
@@ -1152,6 +1165,16 @@ def _drain_completed_processing_futures(
                 success = future.result()
                 if success:
                     ok_delta += 1
+                    try:
+                        _enforce_cost_soft_cap_after_episode(cfg, pipeline_metrics)
+                    except CostCapExceeded:
+                        raise
+                    except Exception as cap_exc:
+                        logger.error(
+                            "cost soft cap check failed: %s",
+                            format_exception_for_log(cap_exc),
+                        )
+                        raise
                 else:
                     failed_delta += 1
                     fail_fast = getattr(cfg, "fail_fast", False)

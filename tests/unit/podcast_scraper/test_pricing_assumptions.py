@@ -22,8 +22,10 @@ def _clear_cache() -> Generator[None, None, None]:
 
 
 def test_resolve_assumptions_path_absolute_and_relative(tmp_path: Path) -> None:
-    assert pa.resolve_assumptions_path("", cwd=tmp_path) is None
-    assert pa.resolve_assumptions_path("   ", cwd=tmp_path) is None
+    bundled = pa.resolve_assumptions_path("", cwd=tmp_path)
+    assert bundled is not None
+    assert bundled.name == "pricing_assumptions.yaml"
+    assert pa.resolve_assumptions_path("   ", cwd=tmp_path) is not None
     f = tmp_path / "p.yaml"
     f.write_text("x: 1\n", encoding="utf-8")
     assert pa.resolve_assumptions_path(str(f), cwd=tmp_path) == f.resolve()
@@ -151,3 +153,23 @@ def test_check_staleness_and_format_report(tmp_path: Path) -> None:
     rep = pa.format_status_report(str(f.name), cwd=tmp_path, today=dt.date(2026, 1, 15))
     assert "Resolved file" in rep
     assert "source_urls" in rep
+
+
+def test_resolve_default_config_path_uses_container_fallback(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    cfg_path = tmp_path / "config" / "pricing_assumptions.yaml"
+    cfg_path.parent.mkdir(parents=True)
+    cfg_path.write_text("providers: {}\n", encoding="utf-8")
+    monkeypatch.setattr(pa, "_CONTAINER_FALLBACK_PATHS", (cfg_path,))
+    resolved = pa.resolve_assumptions_path(
+        "config/pricing_assumptions.yaml", cwd=tmp_path / "empty"
+    )
+    assert resolved == cfg_path
+
+
+def test_first_existing_pricing_path_returns_first_file(tmp_path: Path) -> None:
+    found = tmp_path / "rates.yaml"
+    found.write_text("providers: {}\n", encoding="utf-8")
+    assert pa._first_existing_pricing_path((tmp_path / "missing", found)) == found
+    assert pa._first_existing_pricing_path((tmp_path / "missing",)) is None

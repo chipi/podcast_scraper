@@ -1,0 +1,59 @@
+{
+  "title": "Podcast Scraper — LLM cost (#804)",
+  "uid": "podcast-scraper-llm-cost",
+  "tags": ["podcast-scraper", "cost"],
+  "timezone": "browser",
+  "schemaVersion": 39,
+  "version": 1,
+  "description": "Import into Grafana Cloud podcast-scraper folder. Requires JSON log lines with event_type=llm_cost (#804).",
+  "panels": [
+    {
+      "id": 1,
+      "title": "Cumulative LLM spend (7d)",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 },
+      "targets": [
+        {
+          "expr": "sum(sum_over_time({env=\"prod\"} | json | event_type=\"llm_cost\" | unwrap estimated_cost_usd [7d]))",
+          "legendFormat": "USD"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "title": "Per-run cost (last 20)",
+      "type": "barchart",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
+      "targets": [
+        {
+          "expr": "sum by (run_id) (sum_over_time({env=\"prod\"} | json | event_type=\"llm_cost\" | unwrap estimated_cost_usd [30d]))",
+          "legendFormat": "{{run_id}}"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "title": "Per-stage cost mix",
+      "type": "piechart",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 8 },
+      "targets": [
+        {
+          "expr": "sum by (stage) (sum_over_time({env=\"prod\"} | json | event_type=\"llm_cost\" | unwrap estimated_cost_usd [30d]))",
+          "legendFormat": "{{stage}}"
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "title": "Per-feed lifetime spend",
+      "type": "table",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 8 },
+      "targets": [
+        {
+          "expr": "sum by (feed_id) (sum_over_time({env=\"prod\"} | json | event_type=\"llm_cost\" | unwrap estimated_cost_usd [30d]))",
+          "legendFormat": "{{feed_id}}"
+        }
+      ]
+    }
+  ]
+}
