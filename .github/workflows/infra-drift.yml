@@ -94,14 +94,29 @@ jobs:
         run: |
           set +e
           tofu init -input=false
-          # -detailed-exitcode: 0 = no changes, 1 = error, 2 = changes detected.
-          # Capture plan output to plan.txt directly (no pipe to tee so
-          # PIPESTATUS races don't muddy the exit code) — then cat it back
-          # for the runner logs separately.
-          tofu plan -detailed-exitcode -no-color -input=false > plan.txt 2>&1
-          PLAN_EXIT=$?
+          # NOTE on -detailed-exitcode: OpenTofu 1.6.0 has been observed
+          # returning 0 even when the plan shows real in-place changes
+          # (e.g. ``hcloud_ssh_key.operator`` name update + ``tailscale_acl``
+          # quirk). Don't trust the exit code; parse the plan text instead.
+          tofu plan -no-color -input=false > plan.txt 2>&1
+          TOFU_EXIT=$?
           cat plan.txt
           echo "----"
+          echo "TOFU_EXIT=${TOFU_EXIT}"
+          # Derive a reliable plan-result code from the plan text:
+          #   0 = no drift (Plan line shows all-zero counts, or "No changes")
+          #   2 = drift (Plan line shows any non-zero count)
+          #   1 = error (tofu exited non-zero AND we can't find a Plan line)
+          if grep -qE "^Plan: 0 to add, 0 to change, 0 to destroy\." plan.txt \
+             || grep -qE "^No changes\." plan.txt; then
+            PLAN_EXIT=0
+          elif grep -qE "^Plan: [0-9]+ to add, [0-9]+ to change, [0-9]+ to destroy\." plan.txt; then
+            PLAN_EXIT=2
+          elif [ "$TOFU_EXIT" -ne 0 ]; then
+            PLAN_EXIT=1
+          else
+            PLAN_EXIT=1
+          fi
           echo "PLAN_EXIT=${PLAN_EXIT}"
           echo "plan_exit=${PLAN_EXIT}" >> "$GITHUB_OUTPUT"
           # Truncate for GH issue body (effective limit ~64kB; leave headroom).
