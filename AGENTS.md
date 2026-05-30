@@ -140,6 +140,15 @@ operator repeatedly. Adherence beats every other rule.
       dependencies (`ssh_keys`, `network_id`, etc.) regularly turn small
       changes into resource replacements.
 
+13. **Do not add new libraries or dependencies of any kind without explicit
+    user approval.** That includes Python (`pyproject.toml`, `requirements.txt`,
+    new `[project.optional-dependencies]` extras), Node (`package.json` /
+    `package-lock.json`), Docker/base images, CI-only tools, CodeQL packs,
+    GitHub Actions you have not used in this repo before, and vendored/third-party
+    blobs. Bumping an **existing** pinned version to fix a CVE or CI break is
+    fine when the user asked for that fix; adding a **new** name is not. If the
+    task seems to need one, stop and ask — do not add it "to unblock" the PR.
+
 ---
 
 ## User intent beats procedural defaults
