@@ -94,10 +94,16 @@ jobs:
         run: |
           set +e
           tofu init -input=false
-          # -detailed-exitcode: 0 = no changes, 1 = error, 2 = changes detected
-          tofu plan -detailed-exitcode -no-color -input=false 2>&1 | tee plan.txt
-          PLAN_EXIT="${PIPESTATUS[0]}"
-          echo "plan_exit=$PLAN_EXIT" >> "$GITHUB_OUTPUT"
+          # -detailed-exitcode: 0 = no changes, 1 = error, 2 = changes detected.
+          # Capture plan output to plan.txt directly (no pipe to tee so
+          # PIPESTATUS races don't muddy the exit code) — then cat it back
+          # for the runner logs separately.
+          tofu plan -detailed-exitcode -no-color -input=false > plan.txt 2>&1
+          PLAN_EXIT=$?
+          cat plan.txt
+          echo "----"
+          echo "PLAN_EXIT=${PLAN_EXIT}"
+          echo "plan_exit=${PLAN_EXIT}" >> "$GITHUB_OUTPUT"
           # Truncate for GH issue body (effective limit ~64kB; leave headroom).
           head -c 50000 plan.txt > plan.trunc.txt
           # Surface the plan in the job summary regardless of outcome.
