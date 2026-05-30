@@ -8,7 +8,7 @@
 | Affected services | prod podcast viewer + API + pipeline; orrery co-tenant viewer; tailnet `:443` + `:8443` publishes |
 | Author(s) | operator: Marko Dragoljevic. agent: Claude Code (Claude Opus 4.7). |
 | Status | final |
-| Last updated | 2026-05-29 |
+| Last updated | 2026-05-30 (Phase 4 follow-on hardening added) |
 
 ## Summary
 
@@ -61,7 +61,7 @@ UTC throughout.
 | ~05:00 | Agent retriggered `wipe-then-apply override_location=nbg1`. First attempt failed: operator pasted private key as the secret value by mistake. Hetzner rejected the "ssh_keys" creation with `SSH key type is invalid`. | Workflow run 26618201033 |
 | ~05:10 | Operator re-pasted with the correct `.pub` content. Retriggered. Apply succeeded. Server created (final id `133837142` again, same IPv4 `178.105.182.17`). | Workflow run 26618330139 |
 | ~05:15 | New VPS joined tailnet as `prod-podcast` (no `-1` suffix this time — wipe had cleared the old device record). Cloud-init completed cleanly. Both `/srv/podcast-scraper` and `/srv/orrery` cloned by cloud-init's runcmd block. Both serve scripts installed at `/usr/local/sbin/`. Orrery tailscale serve `:8443` published by cloud-init's first-boot invocation. Podcast's `tailscale serve :443` not yet published (waiting on deploy). | Agent SSH verification |
-| ~05:30 | Discussion period: agent and operator audited what config management gaps caused the cascade + made recovery so painful. Filed 6 follow-up GH issues (`#839` apply interlock + ssh_keys ignore_changes, `#840` external secrets manager, `#841` GH-Secrets-driven .env, `#842` cloud-init CI validation, `#843` state auto-commit-back, `#844` sentinel removal). Updated AGENTS.md with new rules 10 + 11 (apply-vs-commit gating, plan-reading rules). | git commits 64f6c6cc, 1146f5d6 |
+| ~05:30 | Discussion period: agent and operator audited what config management gaps caused the cascade + made recovery so painful. Filed 6 follow-up GH issues (`#839` apply interlock + ssh_keys ignore_changes, `#840` external secrets manager, `#841` GH-Secrets-driven .env, `#842` cloud-init CI validation, `#843` state auto-commit-back, `#844` sentinel removal). Updated AGENTS.md with new rules 11 + 12 (apply-vs-commit gating, plan-reading rules). | git commits 64f6c6cc, 1146f5d6 |
 | 06:00-09:00 | Agent implemented `#839`, `#841`, `#842`, `#843`, `#844` in sequence. Five commits to main (`db866bdc`, `ad76a723`, `3a41f9cf`, `9dc737c3`, `9c9d7696`). | git log |
 | ~09:00 | First `deploy-prod.yml` trigger with `override_image_sha=ae6a255`. Failed at GHCR manifest validation — `ae6a255` was the annotated tag object SHA, not the commit SHA. | Workflow run 26620595820 |
 | ~09:10 | Retriggered with correct commit SHA `dba4543`. Failed at the new `Stage /srv/podcast-scraper/.env from GH Secrets (#841)` step with `Permission denied (publickey,password)` on SCP. | Workflow run 26620657178 |
@@ -158,7 +158,7 @@ Drift detection is the structural prevention: a daily / weekly cron that runs `t
 
 | Item | Tracking | Owner | Target |
 | --- | --- | --- | --- |
-| Agent rules forbidding apply-class operations without explicit approval | AGENTS.md rules 10 + 11 ([1146f5d6](../../1146f5d6)) | agent | landed 2026-05-29 |
+| Agent rules forbidding apply-class operations without explicit approval | AGENTS.md rules 11 + 12 ([1146f5d6](../../1146f5d6)) | agent | landed 2026-05-29 |
 | `ssh_keys` added to `lifecycle.ignore_changes` on `hcloud_server.prod` (structurally blocks the cascade) | [#839](https://github.com/chipi/podcast_scraper/issues/839) | agent | landed 2026-05-29 ([db866bdc](../../db866bdc)) |
 | `infra-apply.yml` destructive-change interlock with `override_destructive` gate; plan saved to `tfplan` and surfaced in job summary | [#839](https://github.com/chipi/podcast_scraper/issues/839) | agent | landed 2026-05-29 ([db866bdc](../../db866bdc)) |
 | Cloud-init template CI validation (render + YAML parse + cloud-init schema check) on PRs touching `infra/cloud-init/**` | [#842](https://github.com/chipi/podcast_scraper/issues/842) | operator | v2.7 |
@@ -204,8 +204,8 @@ Drift detection is the structural prevention: a daily / weekly cron that runs `t
 
 ## What went wrong
 
-- **The agent triggered a destructive apply without reading the plan.** Pure agent-side judgment failure. The signal was present; it was ignored. This is now codified in AGENTS.md rules 10 + 11 so a future agent in this codebase has the rule in its session context.
-- **The plan output's "sensitive value forces replacement" pattern is uniquely dangerous.** The diff is masked, so even a careful reader sees only "something forces replacement here" without knowing what. Should be treated as a hard stop requiring explicit operator authorization — codified in rule 11.
+- **The agent triggered a destructive apply without reading the plan.** Pure agent-side judgment failure. The signal was present; it was ignored. This is now codified in AGENTS.md rules 11 + 12 so a future agent in this codebase has the rule in its session context.
+- **The plan output's "sensitive value forces replacement" pattern is uniquely dangerous.** The diff is masked, so even a careful reader sees only "something forces replacement here" without knowing what. Should be treated as a hard stop requiring explicit operator authorization — codified in rule 12.
 - **State auto-commit-back deferred for too long.** The deferred-follow-up comment had been in `infra-apply.yml` since the workflow was written. Deferring it cost ~3 hours of recovery time today.
 - **No drift detection was scheduled.** Highest-leverage prevention; absent today. Filed as a follow-up.
 - **Runtime secrets had no durable store.** Lost with the VPS. This is structural; a hobby-scale project shouldn't be expected to run Vault, but the `.env` should at minimum live in a place that survives VPS destruction. `#841` lands GH Secrets as that durable store.
@@ -217,13 +217,41 @@ Drift detection is the structural prevention: a daily / weekly cron that runs `t
 
 - **`(sensitive value)` is the most dangerous plan diff pattern.** It hides the change while still triggering replacement. There's no way to evaluate it visually. Either lift the secret out of state (move to runtime injection) or hard-gate any apply that contains this string + `# forces replacement` on the same resource. Probably both.
 
-- **"Apply" is a fundamentally different action class from "commit"**, even when the underlying change is the same code edit. Code commits are reversible (revert, force-push, branch off); applies mutate live infrastructure with state. Agents (and humans) need to recognize the boundary explicitly. AGENTS.md rule 10 codifies this for agents in this repo.
+- **"Apply" is a fundamentally different action class from "commit"**, even when the underlying change is the same code edit. Code commits are reversible (revert, force-push, branch off); applies mutate live infrastructure with state. Agents (and humans) need to recognize the boundary explicitly. AGENTS.md rule 12 codifies this for agents in this repo.
 
 - **Co-tenancy on shared infrastructure needs explicit per-tenant scope.** The `tailscale serve reset` hazard wasn't malicious — it was a sensible single-tenant pattern that turned destructive when a second tenant arrived. Every shared-state operation (serve config, environment variables, mount points, etc.) needs to be audited for per-tenant scoping when adding co-tenants.
 
 - **Post-incident momentum is the right time to land structural fixes.** Six issues filed + four landed in the same session as the incident. If those had been deferred to "schedule a planning session next week," realistically half would never have happened. Hot iron, hammer.
 
 - **The runbook gets richer fastest right after an incident.** Adding 119 lines to PROD_RUNBOOK's disaster-recovery section was easy while the steps were fresh; would have been near-impossible from cold memory a week later. The post-incident window is when documentation cost is lowest.
+
+---
+
+## Phase 4: Follow-on hardening (2026-05-30)
+
+After the immediate recovery, a follow-on session closed the remaining gaps from Phase 3:
+
+| Item | Tracking | Status |
+| --- | --- | --- |
+| `INFRA_STATE_COMMIT_TOKEN` PAT staged in `prod` GH Environment with `contents: write` | operator setup for `#843` | done |
+| Repository main-branch protection migrated from classic Branch Protection Rule to Ruleset with admin bypass | structural change | done |
+| `actions/checkout@v6` set to `persist-credentials: false` so PAT auth in the auto-commit step isn't shadowed by `GITHUB_TOKEN` extraheader | `#843` follow-up commit (`fae40566`) | done |
+| Auto-commit-back retry-on-non-fast-forward with 3-attempt rebase loop (handles concurrent `main` moves) | `#843` follow-up commit (`31e3a9a7`) | done |
+| Required reviewers enabled on `prod` GitHub Environment — every prod-touching workflow pauses for explicit approval | operator setup | done |
+| `delete_protection = true` + `rebuild_protection = true` on `hcloud_server.prod` (Hetzner-API-level guards) | `268eef30` | done |
+| `delete_protection = true` on `hcloud_volume.corpus` | `268eef30` | done |
+| `var.location` default flipped `fsn1 → nbg1` to match reality (catches the "in-place location drift forces server replacement" failure mode caught by the destructive interlock during initial testing) | `268eef30` | done |
+| Drift detection workflow (`infra-drift.yml`) implemented — weekly cron + manual dispatch + auto-open/update/close issue on detected drift | `#846` (`69554db1`) | done |
+| Drift detector exit-code capture bug fixed (`PIPESTATUS` race → direct `> plan.txt 2>&1` redirect + explicit `$?` capture) | `#846` follow-up commit (`e366394b`) | done |
+
+Net effect: every gap from Phase 3 except `#840` (external secrets manager, deferred to v2.8) and `#842` (cloud-init CI validation — already done in Phase 3 batch) is now closed. The destructive interlock from `#839` proved its value during this phase by correctly blocking an apply that would have replaced the production server due to the `location` tfvar default disagreement.
+
+**Verified end-to-end during Phase 4:**
+
+- Auto-commit-back: confirmed bot commit `61885bef` landed on main through the PAT + Ruleset bypass after fixing `persist-credentials`.
+- Destructive interlock: confirmed it fired (`location = "nbg1" -> "fsn1" # forces replacement`) on run `26668943184` before the `location` default fix landed.
+- Required reviewers: confirmed every dispatched apply paused for explicit approval.
+- Drift detector: confirmed `PLAN_EXIT=0` (no drift) path with explicit logging visibility; runs cleanly end-to-end.
 
 ---
 
@@ -237,7 +265,7 @@ Drift detection is the structural prevention: a daily / weekly cron that runs `t
 - `56637cbb` — wipe-then-apply mode
 - `6343e68a` — wipe-only mode
 - `b33fd9a3` — placement override inputs
-- `1146f5d6` — AGENTS.md rules 10 + 11
+- `1146f5d6` — AGENTS.md rules 11 + 12
 - `db866bdc` — #839 apply interlock + ssh_keys ignore_changes
 - `ad76a723` — #841 GH-Secrets-driven .env
 - `3a41f9cf` — #842 cloud-init CI validation
@@ -267,7 +295,7 @@ Drift detection is the structural prevention: a daily / weekly cron that runs `t
 - [PROD_RUNBOOK § Disaster recovery](../guides/PROD_RUNBOOK.md#disaster-recovery)
 - [PROD_RUNBOOK § Co-tenant tailnet publish rules](../guides/PROD_RUNBOOK.md#co-tenant-tailscale-serve-rules)
 - [RELEASE_PLAYBOOK § Phase 6 + 8](../guides/RELEASE_PLAYBOOK.md)
-- [AGENTS.md rules 10 + 11](https://github.com/chipi/podcast_scraper/blob/main/AGENTS.md)
+- [AGENTS.md rules 11 + 12](https://github.com/chipi/podcast_scraper/blob/main/AGENTS.md)
 
 ### Prior PIRs
 
