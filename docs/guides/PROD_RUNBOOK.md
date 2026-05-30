@@ -1215,6 +1215,14 @@ ssh deploy@prod-podcast.<tailnet> \
 
 ## Observability setup walkthrough
 
+### LLM cost panels (#804)
+
+Pipeline runs with cloud profiles emit structured `llm_cost_event` JSON log lines (Loki via
+Grafana Agent when `jsonl_metrics_echo_stdout` or docker log shipping is enabled). Import
+`config/grafana/grafana-dashboard-llm-cost.json` into the Grafana Cloud **podcast-scraper**
+folder. Per-run soft caps and Sentry daily alerts are configured via profile fields
+`cost_soft_cap_usd_per_run`, `cost_soft_cap_action`, and `cost_daily_alert_usd`.
+
 ### Grafana Cloud (one-time, per-stack)
 
 1. Create a free Grafana Cloud account at <https://grafana.com/auth/sign-up>.

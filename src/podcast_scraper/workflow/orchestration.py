@@ -1653,6 +1653,9 @@ def _finalize_pipeline(
     if artifact_paths:
         logger.info("run artifacts written: %s", " | ".join(artifact_paths))
     _finalize_ml_cleanup(summary_provider, transcription_provider)
+    from .cost_monitoring import maybe_emit_daily_cost_sentry_alert
+
+    maybe_emit_daily_cost_sentry_alert(cfg, pipeline_metrics)
     return wf_helpers.generate_pipeline_summary(
         cfg, saved, transcription_resources, effective_output_dir, pipeline_metrics, episodes
     )

@@ -57,3 +57,7 @@ generate_metadata: true
 generate_summaries: true
 language: en
 log_level: INFO
+
+cost_soft_cap_usd_per_run: 1.0
+cost_soft_cap_action: abort
+cost_daily_alert_usd: 10.0

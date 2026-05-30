@@ -74,6 +74,19 @@ from . import metadata as metadata_stage
 
 logger = logging.getLogger(__name__)
 
+
+def _enforce_cost_soft_cap_after_episode(
+    cfg: config.Config, pipeline_metrics: Optional[metrics.Metrics]
+) -> None:
+    """Raise :class:`cost_monitoring.CostCapExceeded` when abort action is configured (#804)."""
+    from ..cost_monitoring import CostCapExceeded, enforce_cost_soft_cap
+
+    try:
+        enforce_cost_soft_cap(cfg, pipeline_metrics)
+    except CostCapExceeded:
+        raise
+
+
 _PROCESSING_JOBS_WARN_THRESHOLD = 1000
 _processing_jobs_warned = False
 
@@ -923,6 +936,7 @@ def _process_episodes_sequential(
                 pipeline_metrics,
                 detected_names,
             )
+            _enforce_cost_soft_cap_after_episode(cfg, pipeline_metrics)
         except Exception as exc:  # pragma: no cover
             from ..helpers import update_metric_safely
 
@@ -1152,6 +1166,16 @@ def _drain_completed_processing_futures(
                 success = future.result()
                 if success:
                     ok_delta += 1
+                    try:
+                        _enforce_cost_soft_cap_after_episode(cfg, pipeline_metrics)
+                    except Exception as cap_exc:
+                        from ..cost_monitoring import CostCapExceeded
+
+                        if isinstance(cap_exc, CostCapExceeded):
+                            stop_requested = True
+                            logger.error("%s", cap_exc)
+                        else:
+                            raise
                 else:
                     failed_delta += 1
                     fail_fast = getattr(cfg, "fail_fast", False)

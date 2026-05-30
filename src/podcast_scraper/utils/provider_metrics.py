@@ -112,6 +112,20 @@ def apply_estimated_cost_if_missing(
         )
         if cost is not None:
             call_metrics.set_cost(cost)
+            try:
+                from podcast_scraper.workflow.cost_monitoring import emit_llm_cost_event
+
+                emit_llm_cost_event(
+                    cfg,
+                    provider=provider_type,
+                    stage=capability,
+                    model=model,
+                    estimated_cost_usd=float(cost),
+                    prompt_tokens=prompt_tokens,
+                    completion_tokens=completion_tokens,
+                )
+            except Exception:
+                pass
     except Exception:
         pass
 

@@ -2292,6 +2292,28 @@ class Config(BaseModel):
             "ancestor directories (repo root). Set to empty string to disable cost tracking."
         ),
     )
+    cost_soft_cap_usd_per_run: Optional[float] = Field(
+        default=None,
+        alias="cost_soft_cap_usd_per_run",
+        description=(
+            "Per-pipeline-run soft spend cap in USD (#804). When set with "
+            "cost_soft_cap_action=abort, the orchestrator stops the run once "
+            "accumulated stage costs exceed this value."
+        ),
+    )
+    cost_soft_cap_action: Literal["abort", "warn", "observe"] = Field(
+        default="observe",
+        alias="cost_soft_cap_action",
+        description="Action when cost_soft_cap_usd_per_run is exceeded (#804).",
+    )
+    cost_daily_alert_usd: float = Field(
+        default=10.0,
+        alias="cost_daily_alert_usd",
+        description=(
+            "Emit a Sentry warning when a single run's estimated cost exceeds "
+            "this USD threshold (#804)."
+        ),
+    )
     summary_provider: Literal[
         "transformers",
         "hybrid_ml",
