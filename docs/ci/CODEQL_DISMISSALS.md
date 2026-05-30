@@ -29,6 +29,11 @@ model cross-function sanitisation for this pattern, so every new file that
 touches the filesystem with a request-derived path triggers the same false
 positive.
 
+**Option A extension pack (#538):** `.github/codeql/extensions/podcast-scraper-python/`
+registers those helpers as `sanitizerModel` for `path-injection` via
+`codeql-config.yml`. After merge, re-run CodeQL on a PR that previously
+alerted; dismiss only if alerts persist.
+
 **When alerts persist after ``safe_relpath_under_corpus_root``:** re-verify the
 path string with ``normpath_if_under_root(path, root_s)`` immediately before
 each ``open`` / ``os.path.isfile`` / ``FileResponse`` sink, or build the target

@@ -1,0 +1,6 @@
+name: chipi/podcast-scraper-codeql
+disable-default-queries: false
+queries:
+  - uses: security-and-quality
+packs:
+  - chipi/podcast-scraper-python-extensions

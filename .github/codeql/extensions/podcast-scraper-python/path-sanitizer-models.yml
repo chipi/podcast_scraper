@@ -1,0 +1,10 @@
+extensions:
+  - addsTo:
+      pack: codeql/python-all
+      extensible: sanitizerModel
+    data:
+      - ["podcast_scraper.server.pathutil", "resolve_corpus_path_param", "path-injection"]
+      - ["podcast_scraper.server.pathutil", "resolved_corpus_root_str", "path-injection"]
+      - ["podcast_scraper.server.pathutil", "read_manifest_produced_by_under_anchor", "path-injection"]
+      - ["podcast_scraper.utils.path_validation", "normpath_if_under_root", "path-injection"]
+      - ["podcast_scraper.utils.path_validation", "safe_relpath_under_corpus_root", "path-injection"]

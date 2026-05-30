@@ -1,0 +1,6 @@
+name: chipi/podcast-scraper-python-extensions
+version: 0.0.1
+libraryPathDependencies:
+  - codeql/python-all
+dataExtensions:
+  - path-sanitizer-models.yml

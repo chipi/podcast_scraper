@@ -14,7 +14,7 @@ and trigger for when to revisit.
 
 **Tracking:** [#538](https://github.com/chipi/podcast_scraper/issues/538)
 
-**Status:** Managed (dismissal process in place)
+**Status:** Option A extension pack landed (#538); verify alert count drops on next CodeQL run
 
 **Current state:**
 
