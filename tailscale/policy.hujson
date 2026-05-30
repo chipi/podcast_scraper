@@ -11,10 +11,12 @@
   //   tag:prod         → the prod VPS (advertised by cloud-init's `tailscale up`)
   //   tag:dr-drill     → Hetzner DR drill VPS (workspace drill; RFC-082 #752)
   //   tag:gha-deployer → ephemeral GHA runner during deploy-prod.yml / drill-e2e
+  //   tag:dgx-llm-host → operator DGX Spark (RFC-089); Ollama + embedding shim
   "tagOwners": {
     "tag:prod":         ["autogroup:admin"],
     "tag:dr-drill":     ["autogroup:admin"],
-    "tag:gha-deployer": ["autogroup:admin"]
+    "tag:gha-deployer": ["autogroup:admin"],
+    "tag:dgx-llm-host": ["autogroup:admin"]
   },
 
   // Implicit-deny for everything else; only listed traffic is permitted.
@@ -57,6 +59,24 @@
       "action": "accept",
       "src":    ["tag:gha-deployer"],
       "dst":    ["tag:dr-drill:22,80,443"]
+    },
+
+    // RFC-089 / ADR-096: DGX Ollama (11434) + embedding shim (8001).
+    // Cloud fallback is enforced in profile config, not the ACL.
+    {
+      "action": "accept",
+      "src":    ["autogroup:admin", "tag:gha-deployer"],
+      "dst":    ["tag:dgx-llm-host:11434", "tag:dgx-llm-host:8001"]
+    },
+    {
+      "action": "accept",
+      "src":    ["tag:dr-drill"],
+      "dst":    ["tag:dgx-llm-host:11434", "tag:dgx-llm-host:8001"]
+    },
+    {
+      "action": "accept",
+      "src":    ["tag:prod"],
+      "dst":    ["tag:dgx-llm-host:11434", "tag:dgx-llm-host:8001"]
     }
 
     // (Future, for #714 + #723) Home Assistant subscribes to /api/jobs.

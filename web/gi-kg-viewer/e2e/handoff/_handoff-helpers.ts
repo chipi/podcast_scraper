@@ -598,15 +598,15 @@ export async function assertHandoffApplied(
   // finish the chain in ~200 ms, hiding the bug.
   //
   // Fix: wait first for ``cy.animated() === false`` (no animation in
-  // flight), THEN apply the 2-read stability check. Bumped deadline to
-  // 5 s to cover the heavy-graph case; the explicit ``animated()`` gate
-  // short-circuits the wait for tier-1 tests so they still finish fast.
+  // flight), THEN apply the 2-read stability check **and** require the
+  // node to sit inside the centering box (stable at y=-462 still fails).
+  // Deadline 8 s covers production-shaped Tier-2 on CI Linux Firefox.
   // Skip entirely when the envelope's camera kind isn't centering
   // (``fit`` / ``preserve`` / ``none``) — caller passes
   // ``skipCameraCenter: true``.
   if (!opts.skipCameraCenter) {
     const settled = await page.evaluate(
-      async ({ maxMs, pollMs }) => {
+      async ({ maxMs, pollMs, centerTol }) => {
         const cy = (
           window as unknown as { __GIKG_CY_DEV__?: import('cytoscape').Core }
         ).__GIKG_CY_DEV__
@@ -618,9 +618,18 @@ export async function assertHandoffApplied(
         let lastY = Number.POSITIVE_INFINITY
         let stableReads = 0
         const deadline = Date.now() + maxMs
+        const withinCenterBox = (x: number, y: number, w: number, h: number) => {
+          const cx = w / 2
+          const cy0 = h / 2
+          const maxDx = w * centerTol
+          const maxDy = h * centerTol
+          return Math.abs(x - cx) <= maxDx && Math.abs(y - cy0) <= maxDy
+        }
         // eslint-disable-next-line no-constant-condition
         while (true) {
           const rp = node.renderedPosition()
+          const vw = cy.width()
+          const vh = cy.height()
           let animating = false
           try {
             animating = cy.animated()
@@ -638,12 +647,15 @@ export async function assertHandoffApplied(
             Math.abs(rp.y - lastY) < 1
           ) {
             stableReads++
-            if (stableReads >= 2) {
+            if (
+              stableReads >= 2 &&
+              withinCenterBox(rp.x, rp.y, vw, vh)
+            ) {
               return {
                 renderedX: rp.x,
                 renderedY: rp.y,
-                viewportW: cy.width(),
-                viewportH: cy.height(),
+                viewportW: vw,
+                viewportH: vh,
               }
             }
           } else {
@@ -655,14 +667,14 @@ export async function assertHandoffApplied(
             return {
               renderedX: rp.x,
               renderedY: rp.y,
-              viewportW: cy.width(),
-              viewportH: cy.height(),
+              viewportW: vw,
+              viewportH: vh,
             }
           }
           await new Promise((resolve) => setTimeout(resolve, pollMs))
         }
       },
-      { maxMs: 5000, pollMs: 100 },
+      { maxMs: 8000, pollMs: 100, centerTol: centerTolerance },
     )
     if (settled === null) {
       throw new Error(

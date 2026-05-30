@@ -1,0 +1,20 @@
+# Profile: local_dgx_full — pure DGX measurement profile (no cloud fallback in config)
+#
+# For autoresearch / comparison runs only. Do not use for prod or pre-prod pipelines.
+
+dgx_tailnet_host: dgx-llm-1.tail6d0ed4.ts.net
+ollama_api_base: http://dgx-llm-1.tail6d0ed4.ts.net:11434/v1
+
+transcription_provider: whisper
+whisper_model: small.en
+
+summary_provider: ollama
+ollama_summary_model: llama3.3:70b
+llm_pipeline_mode: bundled
+
+gi_insight_source: ollama
+kg_extraction_source: ollama
+
+generate_metadata: true
+generate_summaries: true
+language: en

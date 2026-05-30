@@ -548,6 +548,7 @@ check-test-policy:
 	# Enforce 3-tier ML/AI testing policy (no importorskip in unit, no ml_models in integration, etc.)
 	# Run this when: adding/moving tests, before commit, or debugging CI skip issues
 	$(PYTHON) scripts/tools/check_test_policy.py --fix-hint
+	$(PYTHON) scripts/tools/check_self_hosted_runner_allowlist.py
 
 # Optional ARGS: e.g. make check-pricing-assumptions ARGS="--strict"
 # Runs the staleness report AND the #651 profile-coverage guard
@@ -3271,6 +3272,15 @@ infra-apply:
 	@set -a && . ./$(INFRA_ENV_FILE) && set +a && cd infra && ./tofu init && ./tofu plan && ./tofu apply
 
 INFRA_DRILL_ENV_FILE := infra/.env.drill.local
+
+dgx-smoke:
+	@# RFC-089: probe DGX Ollama via tailnet (non-fatal when DGX offline).
+	@if [ -z "$${DGX_TAILNET_FQDN:-}" ]; then \
+		echo "WARN: DGX_TAILNET_FQDN unset; skipping dgx-smoke" >&2; exit 0; \
+	fi
+	@host=$$(bash scripts/ops/resolve_dgx_tailnet_host.sh) && \
+		curl -fsS --max-time 5 "http://$$host:11434/api/tags" >/dev/null && \
+		echo "DGX Ollama OK at http://$$host:11434"
 
 drill-env:
 	@echo "DR drill Hetzner token (same scope as GitHub secret HCLOUD_TOKEN_DRILL):"

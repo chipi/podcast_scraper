@@ -1131,10 +1131,45 @@ class Config(BaseModel):
         alias="speaker_detector_provider",
         description="Speaker detection provider type (default: 'spacy' for spaCy NER).",
     )
-    transcription_provider: Literal["whisper", "openai", "gemini", "mistral"] = Field(
+    transcription_provider: Literal[
+        "whisper", "openai", "gemini", "mistral", "tailnet_dgx_whisper"
+    ] = Field(
         default="whisper",
         alias="transcription_provider",
         description="Transcription provider type (default: 'whisper' for local Whisper)",
+    )
+    transcription_fallback_provider: Optional[Literal["whisper", "openai", "gemini", "mistral"]] = (
+        Field(
+            default=None,
+            alias="transcription_fallback_provider",
+            description=(
+                "Cloud/local fallback when transcription_provider is tailnet_dgx_whisper "
+                "(mandatory for DGX-primary prod profiles per ADR-096)."
+            ),
+        )
+    )
+    dgx_tailnet_host: Optional[str] = Field(
+        default=None,
+        alias="dgx_tailnet_host",
+        description="MagicDNS hostname for DGX Ollama (RFC-089), e.g. dgx-llm-1.tailnet.ts.net.",
+    )
+    dgx_ollama_port: int = Field(
+        default=11434,
+        ge=1,
+        le=65535,
+        alias="dgx_ollama_port",
+        description="Ollama port on DGX (default 11434).",
+    )
+    dgx_whisper_model: str = Field(
+        default="whisper-large-v3",
+        alias="dgx_whisper_model",
+        description="Ollama model id for DGX Whisper transcription.",
+    )
+    dgx_request_timeout_sec: float = Field(
+        default=300.0,
+        gt=0,
+        alias="dgx_request_timeout_sec",
+        description="HTTP timeout for DGX Ollama transcription calls.",
     )
     transcription_parallelism: int = Field(
         default=1,
@@ -2098,6 +2133,14 @@ class Config(BaseModel):
         default=config_constants.DEFAULT_EMBEDDING_MODEL,
         alias="vector_embedding_model",
         description="Sentence-transformers model id for semantic corpus embeddings (GitHub #484).",
+    )
+    vector_embedding_endpoint: Optional[str] = Field(
+        default=None,
+        alias="vector_embedding_endpoint",
+        description=(
+            "Optional HTTP POST /embed URL (DGX embedding shim, RFC-089). "
+            "When set, indexing uses remote embeddings instead of in-process sentence-transformers."
+        ),
     )
     vector_backend: Literal["faiss"] = Field(
         default="faiss",
@@ -3753,15 +3796,22 @@ class Config(BaseModel):
     @classmethod
     def _validate_transcription_provider(
         cls, value: Any
-    ) -> Literal["whisper", "openai", "gemini", "mistral", "anthropic"]:
+    ) -> Literal["whisper", "openai", "gemini", "mistral", "anthropic", "tailnet_dgx_whisper"]:
         """Validate transcription provider."""
         if value is None or value == "":
             return "whisper"
         value_str = str(value).strip().lower()
-        if value_str not in ("whisper", "openai", "gemini", "mistral", "anthropic"):
+        if value_str not in (
+            "whisper",
+            "openai",
+            "gemini",
+            "mistral",
+            "anthropic",
+            "tailnet_dgx_whisper",
+        ):
             raise ValueError(
                 "transcription_provider must be 'whisper', 'openai', 'gemini', "
-                "'mistral', or 'anthropic'"
+                "'mistral', 'anthropic', or 'tailnet_dgx_whisper'"
             )
         return value_str  # type: ignore[return-value]
 
@@ -4164,12 +4214,50 @@ class Config(BaseModel):
         object.__setattr__(self, "output_dir", wrapped)
         return self
 
+    @model_validator(mode="before")
+    @classmethod
+    def _flatten_dgx_stage_routing(cls, data: Any) -> Any:
+        """Allow ADR-096 nested transcription.primary / fallback in YAML profiles."""
+        if not isinstance(data, dict):
+            return data
+        trans = data.get("transcription")
+        if isinstance(trans, dict):
+            primary = trans.get("primary")
+            fallback = trans.get("fallback")
+            if isinstance(primary, str) and primary.strip():
+                data["transcription_provider"] = primary.strip()
+            if isinstance(fallback, str) and fallback.strip():
+                data["transcription_fallback_provider"] = fallback.strip()
+            data.pop("transcription", None)
+        return data
+
+    @model_validator(mode="after")
+    def _validate_tailnet_dgx_transcription_contract(self) -> "Config":
+        """ADR-096: DGX-primary transcription requires fallback and host."""
+        if self.transcription_provider != "tailnet_dgx_whisper":
+            return self
+        if not self.transcription_fallback_provider:
+            raise ValueError(
+                "transcription_fallback_provider is required when "
+                "transcription_provider is tailnet_dgx_whisper (ADR-096)."
+            )
+        if not self.dgx_tailnet_host or not str(self.dgx_tailnet_host).strip():
+            raise ValueError(
+                "dgx_tailnet_host is required when transcription_provider is tailnet_dgx_whisper."
+            )
+        return self
+
     @model_validator(mode="after")
     def _validate_openai_provider_requirements(self) -> "Config":
         """Validate that OpenAI API key is provided when OpenAI providers are selected."""
         openai_providers_used = []
         if self.transcription_provider == "openai":
             openai_providers_used.append("transcription")
+        if (
+            self.transcription_provider == "tailnet_dgx_whisper"
+            and self.transcription_fallback_provider == "openai"
+        ):
+            openai_providers_used.append("transcription_fallback")
         if self.speaker_detector_provider == "openai":
             openai_providers_used.append("speaker_detection")
         if self.summary_provider == "openai":
@@ -4194,6 +4282,11 @@ class Config(BaseModel):
         gemini_providers_used = []
         if self.transcription_provider == "gemini":
             gemini_providers_used.append("transcription")
+        if (
+            self.transcription_provider == "tailnet_dgx_whisper"
+            and self.transcription_fallback_provider == "gemini"
+        ):
+            gemini_providers_used.append("transcription_fallback")
         if self.speaker_detector_provider == "gemini":
             gemini_providers_used.append("speaker_detection")
         if self.summary_provider == "gemini":
@@ -4319,6 +4412,11 @@ class Config(BaseModel):
         mistral_providers_used = []
         if self.transcription_provider == "mistral":
             mistral_providers_used.append("transcription")
+        if (
+            self.transcription_provider == "tailnet_dgx_whisper"
+            and self.transcription_fallback_provider == "mistral"
+        ):
+            mistral_providers_used.append("transcription_fallback")
         if self.speaker_detector_provider == "mistral":
             mistral_providers_used.append("speaker_detection")
         if self.summary_provider == "mistral":

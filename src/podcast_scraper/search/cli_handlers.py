@@ -41,6 +41,7 @@ def _minimal_vector_config(
     *,
     vector_index_path: Optional[str] = None,
     vector_embedding_model: Optional[str] = None,
+    vector_embedding_endpoint: Optional[str] = None,
     vector_faiss_index_mode: Optional[str] = None,
     vector_index_types: Optional[List[str]] = None,
 ) -> config.Config:
@@ -54,6 +55,8 @@ def _minimal_vector_config(
         payload["vector_index_path"] = vector_index_path
     if vector_embedding_model is not None:
         payload["vector_embedding_model"] = vector_embedding_model
+    if vector_embedding_endpoint is not None:
+        payload["vector_embedding_endpoint"] = vector_embedding_endpoint
     if vector_faiss_index_mode is not None:
         payload["vector_faiss_index_mode"] = vector_faiss_index_mode
     if vector_index_types is not None:
@@ -514,6 +517,7 @@ def run_index_cli(args: Namespace, logger: logging.Logger) -> int:
         output_dir,
         vector_index_path=getattr(args, "vector_index_path", None),
         vector_embedding_model=getattr(args, "embedding_model", None),
+        vector_embedding_endpoint=getattr(args, "embedding_endpoint", None),
         vector_faiss_index_mode=getattr(args, "vector_faiss_index_mode", None),
         vector_index_types=_vit_list,
     )
@@ -682,6 +686,14 @@ def parse_index_argv(argv: Sequence[str]) -> Namespace:
         "--embedding-model",
         default=None,
         help="Sentence-transformers model id for embeddings",
+    )
+    parser.add_argument(
+        "--embedding-endpoint",
+        default=None,
+        help=(
+            "Remote POST /embed URL (DGX embedding shim, RFC-089). "
+            "Overrides in-process sentence-transformers for this index run."
+        ),
     )
     parser.add_argument(
         "--vector-faiss-index-mode",

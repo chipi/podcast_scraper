@@ -86,7 +86,19 @@ operator repeatedly. Adherence beats every other rule.
    subtarget (`make docs` is 10 s, `make ci-fast` is 10 min). Re-run
    `make ci-fast` ONCE at the very end as whole-gate confirmation.
 
-10. **Applying changes to live infra is a separate action class from committing
+10. **Red CI / Codecov / coverage gates are requirements, not advice.** Tests,
+    `coverage-unified`, and Codecov PR statuses (e.g. `codecov/patch`) exist to
+    tell you what is still wrong. A red required check means fix until green —
+    add or extend tests, fix the code, re-run the smallest proving target, then
+    the gate — not "advisory," not "waive in repo settings," not "another job
+    passed so ignore this one." `fail_ci_if_error: false` on the Codecov upload
+    step does **not** mean patch coverage is optional when the PR still shows
+    `codecov/patch` failed. Review findings that mention missing tests or
+    coverage are in scope for the same task unless the user explicitly defers
+    them. Infra-only PRs still need patch coverage on new lines when Codecov
+    reports a failure.
+
+11. **Applying changes to live infra is a separate action class from committing
     them. Never trigger an apply/deploy/destroy-class operation without explicit
     per-instance approval — prior session "yes do it" does not extend.** "Yes
     do it" / "implement #N" authorizes code-side work: edits, commits, pushes,
@@ -108,7 +120,7 @@ operator repeatedly. Adherence beats every other rule.
     apply"` cascaded `hcloud_ssh_key.operator` drift into `hcloud_server.prod`
     replacement → prod VPS destroyed mid-session.
 
-11. **`# forces replacement` in any plan output is a hard stop. `(sensitive
+12. **`# forces replacement` in any plan output is a hard stop. `(sensitive
     value) # forces replacement` is doubly so.** Stateful resources (servers,
     volumes, databases, ACLs that gate live traffic) being marked for
     replacement means destroy + recreate, regardless of how innocuous the
