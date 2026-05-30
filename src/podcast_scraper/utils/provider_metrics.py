@@ -82,6 +82,40 @@ class ProviderCallMetrics:
         self.estimated_cost = cost
 
 
+def apply_estimated_cost_if_missing(
+    call_metrics: ProviderCallMetrics,
+    *,
+    cfg: Any,
+    provider_type: str,
+    capability: str,
+    model: str,
+    prompt_tokens: Optional[int] = None,
+    completion_tokens: Optional[int] = None,
+    audio_minutes: Optional[float] = None,
+) -> None:
+    """Populate ``estimated_cost`` from pricing YAML when providers omit it (#823)."""
+    if call_metrics.estimated_cost is not None:
+        return
+    if not provider_type or not model:
+        return
+    try:
+        from podcast_scraper.workflow.helpers import calculate_provider_cost
+
+        cost = calculate_provider_cost(
+            cfg=cfg,
+            provider_type=provider_type,
+            capability=capability,
+            model=model,
+            prompt_tokens=prompt_tokens,
+            completion_tokens=completion_tokens,
+            audio_minutes=audio_minutes,
+        )
+        if cost is not None:
+            call_metrics.set_cost(cost)
+    except Exception:
+        pass
+
+
 def _safe_openai_retryable() -> tuple[type[Exception], ...]:
     """Return retryable OpenAI exception classes with fallback.
 

@@ -22,8 +22,10 @@ def _clear_cache() -> Generator[None, None, None]:
 
 
 def test_resolve_assumptions_path_absolute_and_relative(tmp_path: Path) -> None:
-    assert pa.resolve_assumptions_path("", cwd=tmp_path) is None
-    assert pa.resolve_assumptions_path("   ", cwd=tmp_path) is None
+    bundled = pa.resolve_assumptions_path("", cwd=tmp_path)
+    assert bundled is not None
+    assert bundled.name == "pricing_assumptions.yaml"
+    assert pa.resolve_assumptions_path("   ", cwd=tmp_path) is not None
     f = tmp_path / "p.yaml"
     f.write_text("x: 1\n", encoding="utf-8")
     assert pa.resolve_assumptions_path(str(f), cwd=tmp_path) == f.resolve()

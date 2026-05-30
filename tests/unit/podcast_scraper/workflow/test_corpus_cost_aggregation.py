@@ -95,6 +95,21 @@ class TestAggregateCorpusCosts:
         assert out["run_count"] == 1
         assert out["total_transcription_cost_usd"] == pytest.approx(0.10)
 
+    def test_nonzero_rollup_clears_uninstrumented_flag(self, tmp_path: Path) -> None:
+        """#823 — real stage costs must not set cost_appears_uninstrumented."""
+        _write_metrics(
+            tmp_path,
+            "feed_a",
+            "run_001",
+            {
+                "llm_transcription_cost_usd": 1.25,
+                "llm_summarization_cost_usd": 0.05,
+            },
+        )
+        out = aggregate_corpus_costs(tmp_path)
+        assert out["total_cost_usd"] == pytest.approx(1.30)
+        assert out["cost_appears_uninstrumented"] is False
+
     def test_counts_pre_fix_runs_missing_cost_fields(self, tmp_path: Path) -> None:
         # A metrics.json with tokens but no llm_*_cost_usd fields (pre-#650).
         _write_metrics(

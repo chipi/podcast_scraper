@@ -373,7 +373,7 @@ def calculate_provider_cost(
         if audio_cost is not None:
             cost += audio_cost
 
-    return cost if cost > 0 else None
+    return round(cost, 6)
 
 
 def _cleaning_model_for_summary_provider(cfg: config.Config) -> Tuple[str, str]:

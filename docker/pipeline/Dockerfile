@@ -183,6 +183,7 @@ LABEL org.opencontainers.image.title="Podcast Scraper" \
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
     PYTHONOPTIMIZE=1 \
+    PRICING_ASSUMPTIONS_FILE=/app/config/pricing_assumptions.yaml \
     XDG_CACHE_HOME=/opt/whisper-cache \
     WHISPER_CACHE_DIR=/opt/whisper-cache \
     HF_HUB_CACHE=/home/podcast/.cache/huggingface/hub \
@@ -254,6 +255,7 @@ COPY --chown=podcast:podcast config/examples/config.example.* /opt/podcast_scrap
 # first. Without this the pipeline can't resolve ``profile:
 # airgapped_thin`` etc. on disk inside the container.
 COPY --chown=podcast:podcast config/profiles/ /app/config/profiles/
+COPY --chown=podcast:podcast config/pricing_assumptions.yaml /app/config/pricing_assumptions.yaml
 COPY --chown=podcast:podcast docker/pipeline/supervisord.conf /etc/supervisor/supervisord.conf
 COPY --chown=podcast:podcast docker/pipeline/entrypoint.sh /app/entrypoint.sh
 RUN chmod +x /app/entrypoint.sh

@@ -350,6 +350,21 @@ follow-up PR that flips `deploy-prod.yml` to also auto-trigger on
 
 ## Daily operations
 
+### Cost visibility (#823 / #804)
+
+After each pipeline run, inspect `corpus_manifest.json` → `cost_rollup.total_cost_usd` and
+per-stage `by_stage` fields. When runs used billable providers but the rollup is **$0.00** while
+`cost_appears_uninstrumented` is **true**, cost data was not recorded (check
+`PRICING_ASSUMPTIONS_FILE` / `/app/config/pricing_assumptions.yaml` in pipeline containers).
+
+```bash
+python -m podcast_scraper.cli corpus-cost /srv/podcast-scraper/corpus --update-manifest
+```
+
+Re-aggregates from every `feeds/*/run_*/metrics.json` and refreshes `cost_rollup` (and
+`produced_by` when missing). Structured per-call cost lines are emitted as `llm_cost_event` JSON
+in pipeline logs when JSONL metrics echo is enabled (see Observability).
+
 ### Where to look first
 
 | Symptom | Where |
