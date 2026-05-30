@@ -1024,6 +1024,10 @@ smoke-prod:
 	if [ -n "$${SMOKE_CORPUS_PATH:-}" ]; then args="$$args --corpus-path $$SMOKE_CORPUS_PATH"; fi; \
 	bash scripts/ops/post_deploy_smoke.sh $$args
 
+# GHCR retention dry-run (#802). Requires gh CLI + package scopes.
+ghcr-prune-dry-run:
+	$(PYTHON) scripts/ops/ghcr_compute_retention.py
+
 # Vitest unit tests for TypeScript utility logic (no browser needed)
 test-ui:
 	@echo "Vitest unit tests (gi-kg-viewer)..."
