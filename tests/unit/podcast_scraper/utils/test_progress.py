@@ -8,7 +8,7 @@ progress indicators for long-running operations.
 import os
 import sys
 import unittest
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
 # Allow importing the package when tests run from within the package directory.
 PACKAGE_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -191,6 +191,24 @@ class TestProgressContext(unittest.TestCase):
         mock_reporter.update.assert_any_call(10)
         mock_reporter.update.assert_any_call(20)
         mock_reporter.update.assert_any_call(30)
+
+
+class TestWhisperTranscriptionProgress(unittest.TestCase):
+    """Whisper per-episode transcription must not open a nested progress bar."""
+
+    @patch("podcast_scraper.utils.progress.progress_context")
+    def test_transcribe_with_whisper_uses_batch_bar_only(self, mock_progress_context):
+        from podcast_scraper.providers.ml.ml_provider import MLProvider
+
+        provider = MLProvider.__new__(MLProvider)
+        provider.cfg = MagicMock(whisper_model="tiny")
+        provider._whisper_model = MagicMock()
+        provider._whisper_model.transcribe.return_value = {"text": "hello", "segments": []}
+
+        result, _elapsed = MLProvider._transcribe_with_whisper(provider, "/tmp/x.mp3", "en")
+
+        mock_progress_context.assert_not_called()
+        self.assertEqual(result["text"], "hello")
 
 
 class TestProgressBackwardsCompatibility(unittest.TestCase):
