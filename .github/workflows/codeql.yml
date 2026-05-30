@@ -72,8 +72,7 @@ jobs:
     - name: Checkout repository
       uses: actions/checkout@v6
 
-    # Extension pack (#538) is in-repo only. Manual copies under ~/.codeql/packages are
-    # ignored by database init; install via the CLI so the pack lands in the cache.
+    # Extension pack (#538): model packs must be installed with the CLI (see qlpack.yml).
     - name: Setup CodeQL CLI (Python extension pack)
       if: matrix.language == 'python'
       id: codeql-setup
@@ -90,12 +89,8 @@ jobs:
         set -euo pipefail
         CODEQL="${{ steps.codeql-setup.outputs.codeql-path }}"
         pack_dir="${GITHUB_WORKSPACE}/.github/codeql/extensions/podcast-scraper-python"
-        ext_parent="${GITHUB_WORKSPACE}/.github/codeql/extensions"
         cd "${pack_dir}"
         echo "${GITHUB_TOKEN}" | "${CODEQL}" pack install --github-auth-stdin
-        echo "${GITHUB_TOKEN}" | "${CODEQL}" pack download chipi/podcast-scraper-python-extensions@0.0.1 \
-          --additional-packs="${ext_parent}" \
-          --github-auth-stdin
         test -f "${HOME}/.codeql/packages/chipi/podcast-scraper-python-extensions/0.0.1/qlpack.yml"
 
     # Add any setup steps before running the `github/codeql-action/init` action.
