@@ -1,306 +1,59 @@
-"""Named Entity Recognition (NER) for automatic speaker name detection from episode metadata."""
+"""Backward-compatible re-export of speaker detection public API.
+
+NER/heuristic logic lives in speaker_detectors submodules.
+This module re-exports the public API for existing imports.
+"""
 
 from __future__ import annotations
 
 import logging
-import re
+from typing import Any, Optional
 
-# Bandit: subprocess is needed for spaCy model download
-import subprocess  # nosec B404
-import sys
-from typing import Any, Dict, List, Optional, Set, Tuple
-
-from ... import config, config_constants
-
-# Note: spacy is imported lazily in _load_spacy_model() to avoid requiring ML dependencies
-# at module import time. This allows unit tests to import this module without spacy installed.
-
+from ... import config
+from ...speaker_detectors.constants import (
+    DEFAULT_CONFIDENCE_SCORE,
+    DEFAULT_SAMPLE_SIZE,
+    DEFAULT_SPEAKER_NAMES,
+    PATTERN_BASED_CONFIDENCE_SCORE,
+)
+from ...speaker_detectors.detection import _build_speaker_names_list, detect_speaker_names
+from ...speaker_detectors.entities import (
+    _extract_entities_from_doc,
+    _extract_entities_from_segments,
+    _pattern_based_fallback,
+    _split_text_on_separators,
+    extract_person_entities as _extract_person_entities_impl,
+)
+from ...speaker_detectors.guests import (
+    _has_interview_indicator,
+    _has_mentioned_only_indicator,
+    _is_likely_actual_guest,
+)
+from ...speaker_detectors.hosts import detect_hosts_from_feed, detect_hosts_from_transcript_intro
+from ...speaker_detectors.ner import (
+    _ensure_spacy_sentence_boundaries,
+    _load_spacy_model as _load_spacy_model_impl,
+    _validate_model_name,
+)
+from ...speaker_detectors.normalization import (
+    _extract_confidence_score,
+    _sanitize_person_name,
+    _validate_person_entity,
+    filter_default_speaker_names,
+    is_default_speaker_name,
+)
+from ...speaker_detectors.patterns import analyze_episode_patterns
 
 logger = logging.getLogger(__name__)
 
 
-def _ensure_spacy_sentence_boundaries(nlp: Any) -> None:
-    """Ensure ``doc.sents`` works for downstream code (metadata auto-repair, reconciliation).
-
-    NER-only loads disable the dependency parser; without parser or ``sentencizer``,
-    iterating ``doc.sents`` raises spaCy E030 (sentence boundaries unset).
-    """
-    if "parser" in nlp.pipe_names or "senter" in nlp.pipe_names:
-        return
-    if "sentencizer" in nlp.pipe_names:
-        return
-    try:
-        nlp.add_pipe("sentencizer")
-    except (ValueError, TypeError) as exc:
-        logger.debug("Could not add sentencizer to spaCy pipeline: %s", exc)
-
-
-# Default speaker names when detection fails (Issue #428: use typed placeholder, not "Guest")
-# "Guest" must not appear in detected_guests/detected_hosts to avoid contaminating analytics.
-DEFAULT_SPEAKER_NAMES = ["Host", "unknown_guest_1"]
-
-# Valid spaCy model names contain only alphanumeric, underscore, hyphen, and dot
-_VALID_MODEL_NAME_PATTERN = re.compile(r"^[a-zA-Z0-9_.-]+$")
-
-# Model validation constants
-MAX_MODEL_NAME_LENGTH = 100
-
-# Name validation constants
-MIN_NAME_LENGTH = 2
-MIN_RAW_NAME_LENGTH = 2
-MIN_SEGMENT_LENGTH = 2
-
-# Confidence score constants
-DEFAULT_CONFIDENCE_SCORE = 1.0
-PATTERN_BASED_CONFIDENCE_SCORE = 0.7
-
-# Guest detection
-DESCRIPTION_SNIPPET_LENGTH = 500
-DEFAULT_SAMPLE_SIZE = 5
-MIN_SPEAKERS_REQUIRED = 2
-
-# Context-aware filtering patterns (Issue #325)
-# These patterns help distinguish actual guests from merely mentioned people
-INTERVIEW_INDICATOR_PATTERNS = [
-    r"interview(?:ed|ing|s)?\s+(?:with\s+)?",  # "interview with X", "interviewing X"
-    r"(?:we(?:'re|'ve)?|i(?:'m|'ve)?)\s+(?:been\s+)?joined\s+by\s+",  # "joined by X"
-    r"speaking\s+(?:with|to)\s+",  # "speaking with X"
-    r"talking\s+(?:with|to)\s+",  # "talking to X"
-    r"talks?\s+(?:with|to)\s+",  # "talks to X", "talk to X"
-    r"conversation\s+with\s+",  # "conversation with X"
-    r"guest(?:s)?(?:\s*:|\s+is|\s+are)?\s*",  # "guest: X", "guest is X"
-    r"featuring\s+",  # "featuring X"
-    r"(?:special\s+)?guest\s+",  # "special guest X"
-    r"welcomes?\s+",  # "welcomes X"
-    r"sits?\s+down\s+with\s+",  # "sits down with X"
-    r"chats?\s+with\s+",  # "chats with X"
-    r"joining\s+us\s+",  # "joining us X"
-]
-
-MENTIONED_ONLY_PATTERNS = [
-    r"about\s+",  # "about John Smith"
-    r"on\s+\w+(?:'s)?\s+",  # "on Smith's policies"
-    r"discuss(?:es|ing|ed)?\s+",  # "discusses John Smith"
-    r"analysis\s+of\s+",  # "analysis of Smith's..."
-    r"according\s+to\s+",  # "according to Smith"
-    r"(?:he|she|they)\s+says?\s+",  # "he says..."
-    r"'s\s+(?:\w+\s+)*(?:policy|plan|speech|decision|statement)",  # "Smith's policy"
-    r"(?:the\s+)?(?:president|ceo|senator|governor)\s+",  # "CEO Jane Doe" (title prefix)
-    r"covers?\s+",  # "covers the story"
-    r"examines?\s+",  # "examines the issue"
-    r"looks?\s+at\s+",  # "looks at the data"
-    r"(?:news|story|report)\s+(?:about|on)\s+",  # "news about the company"
-]
-
-
-def _has_interview_indicator(name: str, text: str) -> bool:
-    """Check if name appears in an interview context.
-
-    Args:
-        name: Person name to check
-        text: Text to search in (title or description)
-
-    Returns:
-        True if name appears after an interview indicator pattern
-    """
-    text_lower = text.lower()
-    name_lower = name.lower()
-
-    for pattern in INTERVIEW_INDICATOR_PATTERNS:
-        # Check if pattern appears before the name
-        full_pattern = pattern + r".*?" + re.escape(name_lower)
-        if re.search(full_pattern, text_lower, re.IGNORECASE):
-            return True
-    return False
-
-
-def _has_mentioned_only_indicator(name: str, text: str) -> bool:
-    """Check if name appears in a mentioned-only context (not an actual guest).
-
-    Args:
-        name: Person name to check
-        text: Text to search in (title or description)
-
-    Returns:
-        True if name appears after a mentioned-only indicator pattern
-    """
-    text_lower = text.lower()
-    name_lower = name.lower()
-
-    for pattern in MENTIONED_ONLY_PATTERNS:
-        # Check if pattern appears before the name
-        full_pattern = pattern + r".*?" + re.escape(name_lower)
-        if re.search(full_pattern, text_lower, re.IGNORECASE):
-            return True
-    return False
-
-
-def is_default_speaker_name(name: str) -> bool:
-    """Check if a speaker name is a default placeholder.
-
-    Args:
-        name: Speaker name to check
-
-    Returns:
-        True if name is in DEFAULT_SPEAKER_NAMES or legacy 'Guest', False otherwise.
-    """
-    return name in DEFAULT_SPEAKER_NAMES or name == config_constants.LEGACY_PLACEHOLDER_GUEST
-
-
-def filter_default_speaker_names(names: List[str]) -> List[str]:
-    """Filter out default speaker names from a list.
-
-    Args:
-        names: List of speaker names
-
-    Returns:
-        List with default speaker names removed
-    """
-    return [name for name in names if not is_default_speaker_name(name)]
-
-
-def _is_likely_actual_guest(name: str, title: str, description: str | None) -> bool:
-    """Determine if a detected person is likely an actual guest vs merely mentioned.
-
-    Uses context-aware filtering to reduce false positives from spaCy NER.
-
-    Args:
-        name: Person name detected by NER
-        title: Episode title
-        description: Episode description (may be None)
-
-    Returns:
-        True if the person is likely an actual guest, False if likely just mentioned
-    """
-    combined_text = title
-    if description:
-        combined_text += " " + description
-
-    # Check for interview indicators (strong signal for actual guest)
-    has_interview = _has_interview_indicator(name, combined_text)
-
-    # Check for mentioned-only indicators (strong signal for NOT a guest)
-    has_mentioned_only = _has_mentioned_only_indicator(name, combined_text)
-
-    # Decision logic (strict for tests):
-    # - If interview indicator found: likely actual guest
-    # - If mentioned-only indicator found: NOT a guest
-    # - Default: NOT a guest (strict - require guest-intent cue)
-    if has_interview:
-        logger.debug("Name '%s' has interview indicator - likely actual guest", name)
-        return True
-    if has_mentioned_only:
-        logger.debug("Name '%s' has mentioned-only indicator - NOT a guest", name)
-        return False
-
-    # Default: NOT a guest (strict - require guest-intent cue)
-    return False
-
-
-def _validate_model_name(model_name: str) -> bool:
-    """Validate spaCy model name to prevent command injection.
-
-    Args:
-        model_name: Model name to validate
-
-    Returns:
-        True if valid, False otherwise
-    """
-    if not model_name or len(model_name) > MAX_MODEL_NAME_LENGTH:
-        return False
-    return bool(_VALID_MODEL_NAME_PATTERN.match(model_name))
-
-
 def _load_spacy_model(model_name: str) -> Optional[Any]:
-    """Load spaCy model, automatically downloading if missing.
-
-    Similar to Whisper's automatic model download, this function will attempt
-    to download the model if it's not found locally.
-
-    Args:
-        model_name: Name of the spaCy model to load (e.g., 'en_core_web_sm')
-
-    Returns:
-        Loaded spaCy nlp object or None if download/load fails
-    """
-    # Lazy import: Only import spacy when this function is called
-    # This allows the module to be imported without ML dependencies installed
-    import spacy  # noqa: F401
-
-    # Validate model name to prevent command injection
-    if not _validate_model_name(model_name):
-        logger.error("Invalid spaCy model name: %s (contains invalid characters)", model_name)
-        return None
-
-    try:
-        # Load only NER component to reduce memory usage
-        # Disable parser, tagger, and lemmatizer since we only need NER
-        # This can reduce memory usage by 30-50% for most models
-        try:
-            nlp = spacy.load(model_name, disable=["parser", "tagger", "lemmatizer"])
-            logger.info("Loaded spaCy model (NER only): %s", model_name)
-        except (ValueError, KeyError):
-            # Some models may not support disabling components, fall back to full load
-            logger.debug(
-                "Model %s doesn't support component disabling, loading full pipeline", model_name
-            )
-            nlp = spacy.load(model_name)
-            logger.info("Loaded spaCy model (full pipeline): %s", model_name)
-        _ensure_spacy_sentence_boundaries(nlp)
-        return nlp
-    except OSError:
-        logger.debug("spaCy model '%s' not found locally, attempting to download...", model_name)
-        try:
-            # Use subprocess to call 'python -m spacy download' (most reliable method)
-            # This ensures we use the same Python interpreter and environment
-            # Model name is validated above to prevent command injection
-            subprocess.run(  # nosec B603
-                [sys.executable, "-m", "spacy", "download", model_name],
-                capture_output=True,
-                text=True,
-                check=True,
-            )
-            logger.debug("Successfully downloaded spaCy model: %s", model_name)
-            # Now try loading again with disabled components for memory efficiency
-            try:
-                nlp = spacy.load(model_name, disable=["parser", "tagger", "lemmatizer"])
-                logger.info("Loaded spaCy model (NER only) after download: %s", model_name)
-            except (ValueError, KeyError):
-                # Fall back to full pipeline if component disabling not supported
-                nlp = spacy.load(model_name)
-                logger.info("Loaded spaCy model (full pipeline) after download: %s", model_name)
-            _ensure_spacy_sentence_boundaries(nlp)
-            return nlp
-        except subprocess.CalledProcessError as exc:
-            logger.error(
-                "Failed to download spaCy model '%s': %s. Output: %s",
-                model_name,
-                exc,
-                exc.stderr or exc.stdout or "",
-            )
-            logger.info("You can manually install with: python -m spacy download %s", model_name)
-            return None
-        except OSError as exc:
-            logger.error(
-                "Failed to load spaCy model '%s' after download attempt: %s", model_name, exc
-            )
-            return None
+    """Load spaCy model (delegates to speaker_detectors.ner; patchable on this module)."""
+    return _load_spacy_model_impl(model_name)
 
 
 def get_ner_model(cfg: config.Config) -> Optional[Any]:
-    """Get the appropriate spaCy NER model based on configuration.
-
-    This function loads the spaCy model directly without caching.
-    Providers should load the model once during initialization and pass it
-    to detect_speaker_names() to avoid redundant loads.
-
-    Args:
-        cfg: Configuration object
-
-    Returns:
-        Loaded spaCy nlp object or None if model unavailable
-    """
-    # Skip model loading in dry-run mode
+    """Get the appropriate spaCy NER model based on configuration."""
     if cfg.dry_run:
         return None
 
@@ -309,16 +62,12 @@ def get_ner_model(cfg: config.Config) -> Optional[Any]:
 
     model_name = cfg.ner_model
     if not model_name:
-        # Derive default model from language
         if cfg.language == "en":
             model_name = config.DEFAULT_NER_MODEL
         else:
-            # For other languages, try to construct model name (e.g., "fr" -> "fr_core_news_sm")
-            # This is a simple heuristic; users can override with --ner-model
             logger.debug("No default NER model for language '%s', skipping detection", cfg.language)
             return None
 
-    # Load model directly (no caching)
     nlp = _load_spacy_model(model_name)
     if nlp is not None:
         logger.debug("Loaded spaCy model: %s", model_name)
@@ -326,606 +75,17 @@ def get_ner_model(cfg: config.Config) -> Optional[Any]:
     return nlp
 
 
-def _sanitize_person_name(name: str) -> Optional[str]:
-    """Sanitize a person name by removing non-letter characters and normalizing.
-
-    Removes:
-    - Parentheses and their contents: "John (Smith)" -> "John"
-    - Trailing punctuation: "John," -> "John"
-    - Leading/trailing whitespace
-
-    Keeps:
-    - Letters, spaces, hyphens (for names like "Mary-Jane")
-    - Apostrophes (for names like "O'Brien")
-
-    Args:
-        name: Raw person name from NER
-
-    Returns:
-        Sanitized name, or None if name becomes invalid after sanitization
-    """
-    if not name:
-        return None
-
-    # Remove parentheses and their contents: "John (Smith)" -> "John"
-    name = re.sub(r"\([^)]*\)", "", name)
-
-    # Remove trailing punctuation (commas, periods, semicolons, etc.)
-    name = re.sub(r"[,.;:!?]+$", "", name)
-
-    # Remove leading punctuation
-    name = re.sub(r"^[,.;:!?]+", "", name)
-
-    # Strip whitespace
-    name = name.strip()
-
-    # Remove any remaining non-letter characters except spaces, hyphens, and apostrophes
-    # This handles cases like "John, Smith" -> "John Smith"
-    name = re.sub(r"[^\w\s\-\']+", "", name)
-
-    # Normalize whitespace (multiple spaces -> single space)
-    name = re.sub(r"\s+", " ", name).strip()
-
-    # Validate: must have at least one letter and be at least MIN_NAME_LENGTH characters
-    if not name or len(name) < MIN_NAME_LENGTH:
-        return None
-
-    # Must contain at least one letter (not just numbers or punctuation)
-    if not re.search(r"[a-zA-Z]", name):
-        return None
-
-    return name
-
-
-def _validate_person_entity(raw_name: str) -> bool:
-    """Validate that a raw entity name is likely a person.
-
-    Args:
-        raw_name: Raw entity name from NER
-
-    Returns:
-        True if valid person entity, False otherwise
-    """
-    if not raw_name or len(raw_name) < MIN_RAW_NAME_LENGTH:
-        return False
-    # Filter out pure numbers and HTML-like patterns
-    if re.match(r"^\d+$", raw_name) or re.search(r"[<>]", raw_name):
-        return False
-    return True
-
-
-def _extract_confidence_score(ent: Any) -> float:
-    """Extract confidence score from spaCy entity.
-
-    Args:
-        ent: spaCy entity object
-
-    Returns:
-        Confidence score (defaults to DEFAULT_CONFIDENCE_SCORE if not available)
-    """
-    if hasattr(ent, "score") and ent.score is not None:
-        return float(ent.score)
-    elif hasattr(ent, "_") and hasattr(ent._, "score") and ent._.score is not None:
-        return float(ent._.score)
-    return DEFAULT_CONFIDENCE_SCORE
-
-
-def _extract_entities_from_doc(
-    doc: Any, seen_raw_names: Set[str], seen_sanitized_names: Set[str]
-) -> List[Tuple[str, float]]:
-    """Extract PERSON entities from a spaCy document.
-
-    Args:
-        doc: spaCy document object
-        seen_raw_names: Set of already seen raw names (for deduplication)
-        seen_sanitized_names: Set of already seen sanitized names (for deduplication)
-
-    Returns:
-        List of (sanitized_name, confidence_score) tuples
-    """
-    persons = []
-    for ent in doc.ents:
-        if ent.label_ != "PERSON":
-            continue
-
-        raw_name = ent.text.strip()
-
-        # Skip if already seen
-        if raw_name in seen_raw_names:
-            continue
-
-        # Validate entity
-        if not _validate_person_entity(raw_name):
-            continue
-
-        # Sanitize the name
-        sanitized_name = _sanitize_person_name(raw_name)
-        if not sanitized_name:
-            continue
-
-        # Deduplicate based on sanitized name (case-insensitive)
-        sanitized_lower = sanitized_name.lower()
-        if sanitized_lower in seen_sanitized_names:
-            continue
-
-        # Track both raw and sanitized names
-        seen_raw_names.add(raw_name)
-        seen_sanitized_names.add(sanitized_lower)
-
-        # Get confidence score
-        confidence = _extract_confidence_score(ent)
-        persons.append((sanitized_name, confidence))
-
-    return persons
-
-
-def _split_text_on_separators(text: str) -> Tuple[List[str], Optional[str]]:
-    """Split text on common separators used in episode titles.
-
-    Args:
-        text: Text to split
-
-    Returns:
-        Tuple of (segments_list, last_segment)
-    """
-    separators = ["|", "—", "–", " - "]
-    segments = [text]
-    last_segment = None
-
-    # Split on first separator found
-    for sep in separators:
-        if sep in text:
-            segments = [s.strip() for s in text.split(sep)]
-            last_segment = segments[-1] if segments else None
-            break
-
-    return segments, last_segment
-
-
-def _extract_entities_from_segments(
-    segments: List[str],
-    nlp: Any,
-    seen_raw_names: Set[str],
-    seen_sanitized_names: Set[str],
-) -> List[Tuple[str, float]]:
-    """Extract PERSON entities from text segments, prioritizing last segment.
-
-    Args:
-        segments: List of text segments
-        nlp: spaCy NLP model
-        seen_raw_names: Set of already seen raw names
-        seen_sanitized_names: Set of already seen sanitized names
-
-    Returns:
-        List of (sanitized_name, confidence_score) tuples
-    """
-    persons = []
-    # Process segments in reverse order to prioritize last segment
-    for segment in reversed(segments):
-        if not segment or len(segment) < MIN_SEGMENT_LENGTH:
-            continue
-
-        segment_doc = nlp(segment)
-        segment_persons = _extract_entities_from_doc(
-            segment_doc, seen_raw_names, seen_sanitized_names
-        )
-        persons.extend(segment_persons)
-
-        # If we found entities in a segment, stop checking other segments
-        # This ensures we get the guest name from the last segment
-        if persons:
-            break
-
-    return persons
-
-
-def _pattern_based_fallback(
-    last_segment: str, seen_sanitized_names: Set[str]
-) -> Optional[Tuple[str, float]]:
-    """Pattern-based fallback for name extraction when NER fails.
-
-    Args:
-        last_segment: Last segment of text (often contains guest name)
-        seen_sanitized_names: Set of already seen sanitized names
-
-    Returns:
-        Tuple of (sanitized_name, confidence_score) or None
-    """
-    if not last_segment:
-        return None
-
-    # Pattern: 2-3 words, each starting with capital letter
-    # Examples: "Dylan Field", "Mary Jane Watson", "John Smith"
-    name_pattern = r"^[A-Z][a-z]+(?:\s+[A-Z][a-z]+){1,2}$"
-    if not re.match(name_pattern, last_segment):
-        return None
-
-    # Check if it's not a common non-name phrase
-    common_phrases = {
-        "guest",
-        "host",
-        "episode",
-        "title",
-        "interview",
-        "conversation",
-    }
-    last_segment_lower = last_segment.lower()
-    if any(phrase in last_segment_lower for phrase in common_phrases):
-        return None
-
-    # Sanitize and add as candidate
-    sanitized_name = _sanitize_person_name(last_segment)
-    if not sanitized_name:
-        return None
-
-    sanitized_lower = sanitized_name.lower()
-    if sanitized_lower in seen_sanitized_names:
-        return None
-
-    # Lower confidence since it's pattern-based, not NER
-    logger.debug(
-        "Pattern-based fallback: extracted '%s' from last segment '%s'",
-        sanitized_name,
-        last_segment,
-    )
-    return (sanitized_name, PATTERN_BASED_CONFIDENCE_SCORE)
-
-
-def extract_person_entities(text: str, nlp: Any) -> List[Tuple[str, float]]:
-    """Extract PERSON entities from text using spaCy NER with confidence scores.
-
-    Sanitizes names to remove non-letter characters (parentheses, commas, etc.)
-    and deduplicates to return unique person candidates.
-
-    Uses a fallback strategy: if no entities found in full text, splits on
-    common separators (|, —, –) and tries NER on each segment, prioritizing
-    the last segment (often contains guest names).
-
-    Args:
-        text: Text to extract entities from (should already be cleaned of HTML)
-        nlp: spaCy NLP model
-
-    Returns:
-        List of (sanitized_name, confidence_score) tuples, deduplicated.
-        Confidence is 1.0 if not available.
-    """
-    if not text or not nlp:
-        return []
-
-    try:
-        seen_raw_names: Set[str] = set()  # Track raw names to avoid duplicates
-        seen_sanitized_names: Set[str] = set()  # Track sanitized names for deduplication
-
-        # First, try NER on the full text
-        doc = nlp(text)
-        persons = _extract_entities_from_doc(doc, seen_raw_names, seen_sanitized_names)
-
-        # Fallback: if no entities found, try splitting on common separators
-        if not persons:
-            segments, last_segment = _split_text_on_separators(text)
-            persons = _extract_entities_from_segments(
-                segments, nlp, seen_raw_names, seen_sanitized_names
-            )
-
-            # Pattern-based fallback: if still no entities
-            if not persons and last_segment:
-                pattern_result = _pattern_based_fallback(last_segment, seen_sanitized_names)
-                if pattern_result:
-                    sanitized_name, confidence = pattern_result
-                    seen_sanitized_names.add(sanitized_name.lower())
-                    persons.append((sanitized_name, confidence))
-
-        return persons
-    except Exception as exc:
-        logger.debug("Error extracting PERSON entities: %s", exc)
-        return []
-
-
-def detect_hosts_from_transcript_intro(
-    transcript_text: str,
-    nlp: Optional[Any] = None,
-    intro_duration_seconds: int = 120,
-    words_per_second: float = 2.5,
-) -> Set[str]:
-    """Detect host names from transcript intro patterns (first 60-120 seconds).
-
-    Scans the first portion of transcript for common intro patterns like:
-    - "I'm [Name]"
-    - "This is [Show Name]... I'm [Name]"
-    - "Welcome to [Show]... I'm [Name]"
-
-    Args:
-        transcript_text: Full transcript text
-        nlp: spaCy NLP model (optional, only needed if NER is used)
-        intro_duration_seconds: How many seconds of transcript to scan (default: 120)
-        words_per_second: Average words per second for estimating intro length (default: 2.5)
-
-    Returns:
-        Set of detected host names from intro patterns
-    """
-    if not transcript_text or not nlp:
-        return set()
-
-    # Estimate intro length: ~120 seconds * 2.5 words/sec = ~300 words
-    # Take first N words to scan for intro patterns
-    intro_word_count = int(intro_duration_seconds * words_per_second)
-    words = transcript_text.split()[:intro_word_count]
-    intro_text = " ".join(words)
-
-    # Common intro patterns
-    intro_patterns = [
-        r"I'?m\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)",  # "I'm John" or "I'm John Smith"
-        # "This is The Indicator... I'm John"
-        r"This is\s+[^.]+\s+I'?m\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)",
-        # "Welcome to Planet Money... I'm John"
-        r"Welcome to\s+[^.]+\s+I'?m\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)",
-    ]
-
-    detected_names = set()
-    for pattern in intro_patterns:
-        matches = re.finditer(pattern, intro_text, re.IGNORECASE)
-        for match in matches:
-            name = match.group(1).strip()
-            # Filter out common false positives
-            if name and len(name) > 2 and name.lower() not in ["the", "this", "that"]:
-                detected_names.add(name)
-
-    # Also use NER on intro text to find person names
-    if nlp:
-        intro_persons = extract_person_entities(intro_text, nlp)
-        for name, _ in intro_persons:
-            detected_names.add(name)
-
-    return detected_names
-
-
-def detect_hosts_from_feed(
-    feed_title: Optional[str],
-    feed_description: Optional[str],
-    feed_authors: Optional[List[str]] = None,
-    nlp: Optional[Any] = None,
-) -> Set[str]:
-    """Detect host names from feed-level metadata.
-
-    Hosts are recurring speakers and should only be extracted from feed-level
-    metadata, not from individual episodes.
-
-    Priority:
-    1. RSS author tags (<author>, <dc:creator>, <itunes:author>) - most reliable
-    2. NER extraction from feed title/description - fallback if no authors
-
-    Args:
-        feed_title: Feed title
-        feed_description: Feed description (optional)
-        feed_authors: List of author names from RSS feed (optional, preferred source)
-        nlp: spaCy NLP model (optional, only needed if no authors provided)
-
-    Returns:
-        Set of detected host names
-    """
-    hosts: Set[str] = set()
-
-    # Priority 1: Use RSS author tags if available (most reliable)
-    # RSS feeds typically have one channel-level author, plus optional iTunes author/owner
-    # However, these may be organization names (e.g., "NPR") rather than person names
-    # We'll collect them but treat them as "publisher" metadata, not necessarily hosts
-    if feed_authors:
-        for author in feed_authors:
-            if author and author.strip():
-                # Author tags may contain email format "Name <email>", extract just the name
-                author_clean = author.strip()
-                # Remove email part if present (format: "Name <email@example.com>")
-                if "<" in author_clean and ">" in author_clean:
-                    author_clean = author_clean.split("<")[0].strip()
-                if author_clean:
-                    # Check if this looks like an organization name (all caps, short, no spaces)
-                    # Common patterns: "NPR", "BBC", "CNN", etc.
-                    is_likely_org = (
-                        len(author_clean) <= 10
-                        and author_clean.isupper()
-                        and " " not in author_clean
-                    )
-                    if is_likely_org:
-                        logger.debug(
-                            "RSS author '%s' appears to be an organization name, "
-                            "treating as publisher metadata rather than host",
-                            author_clean,
-                        )
-                        # Don't add to hosts - these are publishers, not actual hosts
-                    else:
-                        hosts.add(author_clean)
-        if hosts:
-            logger.debug(
-                "Detected hosts from RSS author tags (author/itunes:author/itunes:owner): %s",
-                list(hosts),
-            )
-            return hosts
-        # All feed authors were organisations (e.g. NPR, BBC) - log at INFO (Issue #393)
-        if feed_authors:
-            logger.info(
-                "All RSS author(s) treated as organisation(s); host detection will use "
-                "NER from feed title/description, episode-level authors, or config known_hosts"
-            )
-
-    # Priority 2: Fall back to NER extraction from feed title/description
-    if nlp:
-        if feed_title:
-            title_persons = extract_person_entities(feed_title, nlp)
-            hosts.update(name for name, _ in title_persons)
-        if feed_description:
-            desc_persons = extract_person_entities(feed_description, nlp)
-            hosts.update(name for name, _ in desc_persons)
-        if hosts:
-            logger.debug("Detected hosts via NER from feed metadata: %s", list(hosts))
-
-    return hosts
-
-
-def analyze_episode_patterns(
-    episodes: List[Any],
-    nlp: Any,
-    cached_hosts: Set[str],
-    sample_size: int = DEFAULT_SAMPLE_SIZE,
-) -> Dict[str, Any]:
-    """No-op — heuristic pattern learner removed in #598 simplification.
-
-    Kept for backward compat with callers (ml_provider.analyze_patterns).
-    detect_speaker_names no longer uses heuristics.
-    """
-    _ = sample_size
-    return {}
-
-
-def detect_speaker_names(
-    episode_title: str,
-    episode_description: Optional[str],
-    nlp: Any,
-    cfg: Optional[config.Config] = None,
-    known_hosts: Optional[Set[str]] = None,
-    cached_hosts: Optional[Set[str]] = None,
-    heuristics: Optional[Dict[str, Any]] = None,
-    transcript_text: Optional[str] = None,
-) -> Tuple[List[str], Set[str], bool, bool]:
-    """Detect guest names from episode title and description using NER.
-
-    Host names should be detected separately via detect_hosts_from_feed()
-    and passed via cached_hosts or known_hosts.
-
-    Flow:
-      1. NER on title + first 500 chars of description → PERSON entities
-      2. Filter out known hosts
-      3. Keep only names with interview-intent context (Issue #325)
-      4. Deduplicate, build speaker list with hosts
-
-    Args:
-        episode_title: Episode title.
-        episode_description: Episode description (first 500 chars used).
-        nlp: Pre-loaded spaCy model.
-        cfg: Configuration (optional).
-        known_hosts: Manually specified host names (optional).
-        cached_hosts: Previously detected hosts to reuse (optional).
-        heuristics: Ignored (kept for backward compat, was pattern learner).
-        transcript_text: Full transcript for intro-fallback host detection.
-
-    Returns:
-        (speaker_names, detected_hosts, detection_succeeded, used_defaults)
-    """
-    if cfg and not cfg.auto_speakers:
-        return DEFAULT_SPEAKER_NAMES.copy(), set(), False, True
-
-    if not nlp:
-        return DEFAULT_SPEAKER_NAMES.copy(), set(), False, True
-
-    # Resolve hosts: known_hosts > cached_hosts > transcript intro fallback
-    hosts: Set[str] = set()
-    if known_hosts:
-        hosts.update(known_hosts)
-    elif cached_hosts:
-        hosts.update(cached_hosts)
-
-    if not hosts and transcript_text and nlp:
-        transcript_hosts = detect_hosts_from_transcript_intro(transcript_text, nlp)
-        if transcript_hosts:
-            hosts.update(transcript_hosts)
-            logger.info("  → Hosts from transcript intro: %s", sorted(transcript_hosts))
-
-    # NER on title + description snippet
-    title_persons = extract_person_entities(episode_title, nlp)
-
-    description_snippet = None
-    if episode_description:
-        description_snippet = episode_description[:DESCRIPTION_SNIPPET_LENGTH].strip() or None
-
-    desc_persons = extract_person_entities(description_snippet, nlp) if description_snippet else []
-
-    # Filter out hosts, deduplicate
-    hosts_lower = {h.lower().strip() for h in hosts}
-    seen: Set[str] = set()
-    guests: List[str] = []
-    for name, _score in title_persons + desc_persons:
-        key = name.lower().strip()
-        if key in hosts_lower or key in seen:
-            continue
-        if not _is_likely_actual_guest(name, episode_title, episode_description):
-            continue
-        seen.add(key)
-        guests.append(name)
-
-    if guests:
-        logger.info("  → Guest: %s", ", ".join(guests))
-
-    max_names = cfg.screenplay_num_speakers if cfg else 2
-    speaker_names, detection_succeeded, used_defaults = _build_speaker_names_list(
-        hosts, guests, max_names
-    )
-    return speaker_names, hosts, detection_succeeded, used_defaults
-
-
-def _build_speaker_names_list(
-    hosts: Set[str],
-    guests: List[str],
-    max_names: int,
-) -> Tuple[List[str], bool, bool]:
-    """Build final speaker names list from hosts and guests.
-
-    Args:
-        hosts: Set of host names
-        guests: List of guest names
-        max_names: Maximum number of names to return
-
-    Returns:
-        Tuple of (speaker_names_list, detection_succeeded, used_defaults)
-        - detection_succeeded: True if real names were detected, False if defaults were used
-        - used_defaults: True if defaults were added to reach min speakers (quality flag)
-    """
-    # Detection succeeded if we have real names (hosts or guests), not defaults
-    # Note: Having hosts but no guests is still a success (host-only episodes are valid)
-    detection_succeeded = bool(hosts or guests)
-    used_defaults = False  # Quality flag: track if defaults were used
-
-    if not guests and hosts:
-        # Hosts detected but no guests - use actual host names
-        # Convert set to sorted list for deterministic ordering
-        host_list = sorted(list(hosts))[:max_names]
-        speaker_names = host_list
-        logger.debug("  → Using detected host names: %s (no guests detected)", speaker_names)
-    elif not hosts and not guests:
-        # No hosts AND no guests detected - this is "unknown host" not a failure
-        # Allow "unknown host" without flagging as detection failure
-        # This is common when RSS metadata has organization names (publishers) not person names
-        logger.info("  → No hosts or guests detected (using defaults)")
-        speaker_names = DEFAULT_SPEAKER_NAMES.copy()
-        detection_succeeded = False  # Still mark as failed for backward compatibility
-        used_defaults = True  # Quality flag: defaults were used
-    else:
-        # Combine hosts and guests, prioritizing hosts
-        speaker_names = list(hosts)[:max_names] + guests[: max_names - len(hosts)]
-        if len(speaker_names) < MIN_SPEAKERS_REQUIRED:
-            # Ensure at least MIN_SPEAKERS_REQUIRED speakers for screenplay formatting
-            # Only add defaults if we have at least one real speaker (host or guest)
-            # This prevents adding defaults when we have hosts but no guests (host-only episodes)
-            if hosts or guests:
-                used_defaults = True  # Quality flag: defaults were used
-                logger.debug(
-                    (
-                        "  → Only %d speaker(s) detected, extending with defaults "
-                        "to ensure %d+ speakers"
-                    ),
-                    len(speaker_names),
-                    MIN_SPEAKERS_REQUIRED,
-                )
-                speaker_names.extend(DEFAULT_SPEAKER_NAMES[len(speaker_names) :])
-            else:
-                # No real speakers - use defaults (this case should be rare)
-                speaker_names = DEFAULT_SPEAKER_NAMES.copy()
-                used_defaults = True
-
-    return speaker_names[:max_names], detection_succeeded, used_defaults
+def extract_person_entities(text: str, nlp: Any) -> list[tuple[str, float]]:
+    """Extract PERSON entities (delegates to speaker_detectors.entities; patchable)."""
+    return _extract_person_entities_impl(text, nlp)
 
 
 __all__ = [
     "analyze_episode_patterns",
+    "DEFAULT_CONFIDENCE_SCORE",
+    "DEFAULT_SAMPLE_SIZE",
     "DEFAULT_SPEAKER_NAMES",
+    "PATTERN_BASED_CONFIDENCE_SCORE",
     "detect_hosts_from_feed",
     "detect_hosts_from_transcript_intro",
     "detect_speaker_names",
@@ -933,4 +93,19 @@ __all__ = [
     "filter_default_speaker_names",
     "get_ner_model",
     "is_default_speaker_name",
+    "logger",
+    "_build_speaker_names_list",
+    "_ensure_spacy_sentence_boundaries",
+    "_extract_confidence_score",
+    "_extract_entities_from_doc",
+    "_extract_entities_from_segments",
+    "_has_interview_indicator",
+    "_has_mentioned_only_indicator",
+    "_is_likely_actual_guest",
+    "_load_spacy_model",
+    "_pattern_based_fallback",
+    "_sanitize_person_name",
+    "_split_text_on_separators",
+    "_validate_model_name",
+    "_validate_person_entity",
 ]
