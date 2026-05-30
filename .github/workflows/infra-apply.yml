@@ -385,7 +385,26 @@ jobs:
           git add infra/terraform/terraform.tfstate.enc
           git commit -m "infra(state): sync post-apply tfstate.enc (run ${{ github.run_id }} on ${GITHUB_SHA_SHORT:0:7})"
           REMOTE="https://x-access-token:${INFRA_STATE_COMMIT_TOKEN}@github.com/${{ github.repository }}.git"
-          git push "$REMOTE" HEAD:main
+          # If main moved during the apply, rebase our state-only commit onto
+          # the latest before pushing. The bot's only change is to
+          # ``terraform.tfstate.enc`` (a binary sops blob); concurrent commits
+          # touching that same file would conflict, which is a real anomaly
+          # (two concurrent applies) and should fail loudly.
+          for attempt in 1 2 3; do
+            if git push "$REMOTE" HEAD:main 2>&1; then
+              echo "push succeeded on attempt ${attempt}"
+              exit 0
+            fi
+            echo "push rejected — pulling main with rebase (attempt ${attempt})"
+            git fetch "$REMOTE" main
+            if ! git rebase FETCH_HEAD; then
+              echo "::error::rebase conflict on terraform.tfstate.enc — another apply pushed state concurrently. Aborting."
+              git rebase --abort
+              exit 1
+            fi
+          done
+          echo "::error::push still failing after 3 rebase attempts"
+          exit 1
 
       - name: Upload new encrypted state as artifact
         # Fallback path when auto-commit-back is skipped or fails. Always
