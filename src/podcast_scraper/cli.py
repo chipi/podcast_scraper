@@ -244,6 +244,25 @@ def resolve_cli_feed_targets(args: argparse.Namespace) -> List[RssFeedEntry]:
     return [RssFeedEntry(url=u) for u in urls]
 
 
+def single_feed_corpus_parent_for_manifest_stamp(
+    cfg: config.Config, args: argparse.Namespace
+) -> Optional[str]:
+    """Corpus parent to stamp ``corpus_manifest.json`` after a single-feed run (#807)."""
+    if getattr(args, "feeds_spec", None) and (getattr(args, "output_dir", None) or "").strip():
+        return filesystem.validate_and_normalize_output_dir(str(args.output_dir))
+    if getattr(args, "single_feed_uses_corpus_layout", False) and cfg.output_dir:
+        out = Path(filesystem.validate_and_normalize_output_dir(str(cfg.output_dir)))
+        if out.parent.name == "feeds" and out.parent.parent.name:
+            return str(out.parent.parent)
+        return str(out)
+    if not cfg.output_dir:
+        return None
+    out = Path(filesystem.validate_and_normalize_output_dir(str(cfg.output_dir)))
+    if (out / "feeds").is_dir():
+        return str(out)
+    return None
+
+
 def single_feeds_spec_output_dir(args: argparse.Namespace, entry: RssFeedEntry) -> str:
     """Workspace path for one feed from ``--feeds-spec`` when ``--output-dir`` is the corpus.
 
@@ -4331,6 +4350,7 @@ def _run_corpus_cost_cli(args: argparse.Namespace, log: logging.Logger) -> int:
     """
     import json as _json
 
+    from podcast_scraper.corpus_version import build_produced_by
     from podcast_scraper.workflow.corpus_cost_aggregation import aggregate_corpus_costs
     from podcast_scraper.workflow.corpus_operations import (
         CORPUS_MANIFEST_FILE,
@@ -4384,6 +4404,12 @@ def _run_corpus_cost_cli(args: argparse.Namespace, log: logging.Logger) -> int:
             return 2
         doc["cost_rollup"] = rollup
         doc["schema_version"] = CORPUS_MANIFEST_SCHEMA_VERSION
+        pb = doc.get("produced_by")
+        if not isinstance(pb, dict) or not pb.get("code_version"):
+            from podcast_scraper.workflow.corpus_operations import utc_iso_now
+
+            doc["produced_by"] = build_produced_by(produced_at=utc_iso_now())
+        doc["tool_version"] = doc.get("tool_version") or __version__
         manifest_path.write_text(
             _json.dumps(doc, indent=2, sort_keys=True) + "\n", encoding="utf-8"
         )
@@ -4891,12 +4917,31 @@ def main(  # noqa: C901 - main function handles multiple command paths
     _log_configuration(cfg, log)
 
     try:
-        _, summary = run_pipeline_fn(cfg)
+        episode_count, summary = run_pipeline_fn(cfg)
     except Exception as exc:  # pragma: no cover - defensive
         log.error(f"Unexpected failure: {exc}")
         return 1
 
     log.info(summary)
+    feed_url = (cfg.rss_url or "").strip()
+    stamp_parent = single_feed_corpus_parent_for_manifest_stamp(cfg, args)
+    if stamp_parent and feed_url:
+        from podcast_scraper.workflow.corpus_operations import (
+            MultiFeedFeedResult,
+            upsert_corpus_manifest_feed,
+            utc_iso_now,
+        )
+
+        upsert_corpus_manifest_feed(
+            stamp_parent,
+            MultiFeedFeedResult(
+                feed_url,
+                True,
+                None,
+                int(episode_count),
+                finished_at=utc_iso_now(),
+            ),
+        )
     return 0
 
 
