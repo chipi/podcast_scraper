@@ -70,7 +70,7 @@ variable "additional_authorized_keys" {
 variable "ssh_public_key_name" {
   type        = string
   description = "Name to register the SSH key under in Hetzner."
-  default     = "operator-laptop"
+  default     = "operator-laptop-drift-test"
 }
 
 variable "volume_size_gb" {
