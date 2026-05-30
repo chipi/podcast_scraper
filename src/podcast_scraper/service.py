@@ -274,7 +274,8 @@ def run(cfg: config.Config) -> ServiceResult:
                 log_file=resolved_log,
             )
 
-        multi_entries = list(cfg.rss_urls or [])
+        rss_urls_raw = getattr(cfg, "rss_urls", None)
+        multi_entries = list(rss_urls_raw) if rss_urls_raw else []
         if len(multi_entries) >= 2:
             return _run_multi_feed(cfg, multi_entries)
 
@@ -284,7 +285,8 @@ def run(cfg: config.Config) -> ServiceResult:
         # here — no extra wrapping needed in this hot path.
         count, summary = workflow.run_pipeline(cfg)
 
-        feed_url = (cfg.rss_url or "").strip()
+        rss_url_raw = getattr(cfg, "rss_url", None)
+        feed_url = rss_url_raw.strip() if isinstance(rss_url_raw, str) else ""
         if feed_url:
             from podcast_scraper.workflow.corpus_operations import (
                 corpus_parent_for_manifest_stamp_from_cfg,

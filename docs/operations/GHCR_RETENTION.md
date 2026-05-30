@@ -1,6 +1,6 @@
 # GHCR image retention (#802)
 
-Weekly workflow [`.github/workflows/ghcr-retention.yml`](../../.github/workflows/ghcr-retention.yml)
+Weekly workflow [`ghcr-retention.yml`](https://github.com/chipi/podcast_scraper/blob/main/.github/workflows/ghcr-retention.yml)
 prunes old container package versions for:
 
 - `podcast-scraper-stack-api`
