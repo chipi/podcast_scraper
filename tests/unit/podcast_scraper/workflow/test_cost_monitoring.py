@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import logging
 from pathlib import Path
+from unittest.mock import patch
 
 import pytest
 
@@ -17,6 +18,7 @@ from podcast_scraper.workflow.cost_monitoring import (
     emit_llm_cost_event,
     enforce_cost_soft_cap,
     feed_url_for_cost_incident,
+    maybe_emit_run_cost_sentry_alert,
     run_cost_usd_from_pipeline_metrics,
 )
 from tests.conftest import create_test_config
@@ -120,3 +122,108 @@ def test_record_provider_call_cost_emits_event(caplog: pytest.LogCaptureFixture)
         )
     assert call.estimated_cost == 0.25
     assert any("llm_cost" in r.message for r in caplog.records)
+
+
+@pytest.mark.unit
+def test_feed_url_for_cost_incident_uses_link_fallback() -> None:
+    cfg = create_test_config(openai_api_key="sk-test")
+    feed = type("Feed", (), {"link": "https://legacy.example/rss"})()
+    assert feed_url_for_cost_incident(feed, cfg) == "https://legacy.example/rss"
+
+
+@pytest.mark.unit
+def test_run_cost_usd_none_metrics() -> None:
+    assert run_cost_usd_from_pipeline_metrics(None) == 0.0
+
+
+@pytest.mark.unit
+def test_emit_llm_cost_event_skips_non_positive() -> None:
+    cfg = create_test_config(openai_api_key="sk-test")
+    emit_llm_cost_event(cfg, provider="openai", stage="x", model="m", estimated_cost_usd=0.0)
+
+
+@pytest.mark.unit
+def test_emit_llm_cost_event_jsonl_stdout(capsys: pytest.CaptureFixture[str]) -> None:
+    cfg = create_test_config(openai_api_key="sk-test", jsonl_metrics_echo_stdout=True)
+    emit_llm_cost_event(
+        cfg,
+        provider="openai",
+        stage="transcription",
+        model="whisper-1",
+        estimated_cost_usd=0.01,
+    )
+    out = capsys.readouterr().out.strip()
+    assert '"event_type": "llm_cost"' in out
+
+
+@pytest.mark.unit
+def test_soft_cap_observe_does_not_raise() -> None:
+    cfg = create_test_config(
+        openai_api_key="sk-test",
+        cost_soft_cap_usd_per_run=0.01,
+        cost_soft_cap_action="observe",
+    )
+    m = metrics.Metrics()
+    m.record_llm_transcription_call(5.0, cost_usd=0.05)
+    enforce_cost_soft_cap(cfg, m)
+
+
+@pytest.mark.unit
+def test_check_cost_soft_cap_raises_without_incident_log() -> None:
+    cfg = create_test_config(
+        openai_api_key="sk-test",
+        cost_soft_cap_usd_per_run=0.01,
+        cost_soft_cap_action="abort",
+    )
+    m = metrics.Metrics()
+    m.record_llm_transcription_call(5.0, cost_usd=0.05)
+    with pytest.raises(CostCapExceeded):
+        check_cost_soft_cap_at_stage(cfg, m, stage="transcription")
+
+
+@pytest.mark.unit
+def test_maybe_emit_run_cost_sentry_alert_fires() -> None:
+    cfg = create_test_config(openai_api_key="sk-test", cost_daily_alert_usd=0.01)
+    m = metrics.Metrics()
+    m.record_llm_transcription_call(1.0, cost_usd=0.05)
+    with patch("sentry_sdk.capture_message") as mock_cap, patch("sentry_sdk.set_tag") as mock_tag:
+        maybe_emit_run_cost_sentry_alert(cfg, m)
+    mock_cap.assert_called_once()
+    mock_tag.assert_called_once_with("cost_anomaly", "run_threshold")
+
+
+@pytest.mark.unit
+def test_maybe_emit_run_cost_sentry_skips_below_threshold() -> None:
+    cfg = create_test_config(openai_api_key="sk-test", cost_daily_alert_usd=100.0)
+    m = metrics.Metrics()
+    m.record_llm_transcription_call(1.0, cost_usd=0.01)
+    maybe_emit_run_cost_sentry_alert(cfg, m)
+
+
+@pytest.mark.unit
+def test_enforce_cost_soft_cap_no_cap_configured() -> None:
+    cfg = create_test_config(openai_api_key="sk-test", cost_soft_cap_usd_per_run=None)
+    m = metrics.Metrics()
+    m.record_llm_transcription_call(5.0, cost_usd=0.05)
+    enforce_cost_soft_cap(cfg, m)
+
+
+@pytest.mark.unit
+def test_enforce_cost_soft_cap_below_threshold() -> None:
+    cfg = create_test_config(
+        openai_api_key="sk-test",
+        cost_soft_cap_usd_per_run=10.0,
+        cost_soft_cap_action="abort",
+    )
+    m = metrics.Metrics()
+    m.record_llm_transcription_call(1.0, cost_usd=0.01)
+    enforce_cost_soft_cap(cfg, m)
+
+
+@pytest.mark.unit
+def test_maybe_emit_run_cost_sentry_without_sdk() -> None:
+    cfg = create_test_config(openai_api_key="sk-test", cost_daily_alert_usd=0.01)
+    m = metrics.Metrics()
+    m.record_llm_transcription_call(1.0, cost_usd=0.05)
+    with patch.dict("sys.modules", {"sentry_sdk": None}):
+        maybe_emit_run_cost_sentry_alert(cfg, m)
