@@ -1235,6 +1235,7 @@ class TestTranscribeMediaToText(unittest.TestCase):
             if os.path.exists(temp_media):
                 os.unlink(temp_media)
 
+    @patch("podcast_scraper.workflow.episode_processor._transcribe_with_segments_maybe_chunked")
     @patch("podcast_scraper.workflow.episode_processor._preprocess_audio_if_needed")
     @patch("podcast_scraper.workflow.episode_processor._check_transcript_cache", return_value=None)
     @patch(
@@ -1245,7 +1246,7 @@ class TestTranscribeMediaToText(unittest.TestCase):
     @patch("os.path.exists")
     @patch("os.path.getsize")
     @patch("podcast_scraper.workflow.episode_processor._cleanup_temp_media")
-    def test_transcribe_media_to_text_preprocessed_oversize_skips_before_provider(
+    def test_transcribe_media_to_text_preprocessed_oversize_uses_chunking(
         self,
         mock_cleanup,
         mock_getsize,
@@ -1254,8 +1255,9 @@ class TestTranscribeMediaToText(unittest.TestCase):
         mock_reuse,
         mock_cache,
         mock_preprocess,
+        mock_chunked_transcribe,
     ):
-        """GitHub #557: post-preprocess stat over API cap skips before transcribe_with_segments."""
+        """GitHub #286: post-preprocess oversize routes through chunked transcription."""
         import tempfile
 
         from podcast_scraper.rss.downloader import OPENAI_MAX_FILE_SIZE_BYTES
@@ -1286,6 +1288,10 @@ class TestTranscribeMediaToText(unittest.TestCase):
                 )
                 mock_build_path.return_value = os.path.join(out_dir, "0001 - Episode_1.txt")
                 mock_preprocess.return_value = ghost_pre
+                mock_chunked_transcribe.return_value = (
+                    {"text": "chunked transcript", "segments": []},
+                    2.0,
+                )
 
                 def _exists(path: str) -> bool:
                     return path in (temp_media, ghost_pre)
@@ -1308,25 +1314,31 @@ class TestTranscribeMediaToText(unittest.TestCase):
                 eid, enum = get_episode_id_from_episode(job.episode, cfg.rss_url or "")
                 pipeline_metrics.get_or_create_episode_status(eid, enum or job.idx)
 
-                success, transcript_path, _bd = episode_processor.transcribe_media_to_text(
-                    job=job,
-                    cfg=cfg,
-                    whisper_model=None,
-                    run_suffix=None,
-                    effective_output_dir=out_dir,
-                    transcription_provider=mock_provider,
-                    pipeline_metrics=pipeline_metrics,
-                )
+                with (
+                    patch(
+                        "podcast_scraper.workflow.episode_processor._format_transcript_if_needed",
+                        return_value="chunked transcript",
+                    ),
+                    patch(
+                        "podcast_scraper.workflow.episode_processor._save_transcript_file",
+                        return_value="0001 - Episode_1.txt",
+                    ),
+                ):
+                    success, transcript_path, _bd = episode_processor.transcribe_media_to_text(
+                        job=job,
+                        cfg=cfg,
+                        whisper_model=None,
+                        run_suffix=None,
+                        effective_output_dir=out_dir,
+                        transcription_provider=mock_provider,
+                        pipeline_metrics=pipeline_metrics,
+                    )
 
-                self.assertFalse(success)
-                self.assertIsNone(transcript_path)
+                self.assertTrue(success)
+                self.assertEqual(transcript_path, "0001 - Episode_1.txt")
+                mock_chunked_transcribe.assert_called_once()
                 mock_provider.transcribe_with_segments.assert_not_called()
-                self.assertEqual(pipeline_metrics.episodes_skipped_total, 1)
-                lines = Path(incident_path).read_text(encoding="utf-8").strip().splitlines()
-                self.assertEqual(len(lines), 1)
-                row = json.loads(lines[0])
-                self.assertEqual(row["category"], "policy")
-                self.assertEqual(row["exception_type"], "PolicySkip")
+                self.assertEqual(pipeline_metrics.episodes_skipped_total, 0)
         finally:
             if os.path.exists(temp_media):
                 os.unlink(temp_media)
