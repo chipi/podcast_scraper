@@ -135,9 +135,13 @@ gh run list --workflow deploy-prod.yml --repo chipi/podcast_scraper --limit 5
 gh workflow run deploy-prod.yml --repo chipi/podcast_scraper \
   -f confirm=PROD_DEPLOY
 
-# Post-deploy smoke over tailnet (same probes as deploy-prod workflow step 3)
+# Post-deploy smoke over tailnet (same probes as deploy-prod workflow)
 export PROD_TAILNET_FQDN=prod-podcast.<tailnet>.ts.net
-make smoke-prod SMOKE_CORPUS_PATH=/srv/podcast-scraper/corpus
+# path= must be the in-container corpus root (PODCAST_DEFAULT_CORPUS_PATH), not the host bind path
+make smoke-prod SMOKE_CORPUS_PATH=/app/output
+
+# Pre-deploy corpus path check (SSH; same as deploy-prod preflight step)
+bash scripts/ops/preflight_prod_corpus_path.sh deploy@prod-podcast.<tailnet>.ts.net
 
 # Confirm backup freshness + weekly restore verify (#798)
 gh run list --workflow backup-corpus-prod.yml --repo chipi/podcast_scraper --limit 5

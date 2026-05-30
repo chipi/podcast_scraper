@@ -1017,7 +1017,7 @@ corpus-compat-check:
 	$(PYTHON) -c "from pathlib import Path; from podcast_scraper.corpus_version import read_produced_by, assess_corpus_version_compat, MIN_SUPPORTED_CORPUS_CODE_VERSION; from podcast_scraper import __version__; root = Path('$${CORPUS_DIR}').expanduser().resolve(); pb = read_produced_by(root); ver, warn = assess_corpus_version_compat(pb); print(f'server={__version__} min_supported={MIN_SUPPORTED_CORPUS_CODE_VERSION}'); print(f'corpus_code_version={ver!r}'); print(f'produced_by={pb!r}'); import sys; (print(f'WARNING: {warn}') or sys.exit(1)) if warn else print('COMPAT OK')"
 
 # Post-deploy prod smoke over Tailscale HTTPS (#797). Requires PROD_TAILNET_FQDN.
-# Optional: SMOKE_CORPUS_PATH (host path as seen by the API, e.g. /srv/podcast-scraper/corpus).
+# Optional: SMOKE_CORPUS_PATH (in-container corpus root for API path=, e.g. /app/output on prod).
 smoke-prod:
 	@test -n "$${PROD_TAILNET_FQDN:-}" || (echo "PROD_TAILNET_FQDN required (MagicDNS FQDN)"; exit 1); \
 	args="$$PROD_TAILNET_FQDN"; \

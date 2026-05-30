@@ -174,11 +174,15 @@ gh workflow run deploy-prod.yml --repo chipi/podcast_scraper \
 gh run watch --repo chipi/podcast_scraper
 
 export PROD_TAILNET_FQDN=prod-podcast.tail-xxxxx.ts.net
-export SMOKE_CORPUS_PATH=/srv/podcast-scraper/corpus
+# In-container corpus root (PODCAST_DEFAULT_CORPUS_PATH), not the host bind path
+export SMOKE_CORPUS_PATH=/app/output
 make smoke-prod
+
+# Optional: fail fast before dispatch (same check as deploy-prod preflight step)
+bash scripts/ops/preflight_prod_corpus_path.sh deploy@prod-podcast.tail-xxxxx.ts.net
 ```
 
-**Pass:** workflow green; smoke exits **0** with six probes including **`artifacts count≥1`** on populated prod.
+**Pass:** workflow green; preflight step confirms host `PODCAST_CORPUS_HOST_PATH` exists; smoke exits **0** with six probes including **`artifacts count≥1`** on populated prod.
 
 See [Prod Runbook — Code/content compatibility](PROD_RUNBOOK.md#codecontent-compatibility) for the decision tree before dispatch.
 
