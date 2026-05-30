@@ -524,38 +524,10 @@ def _validate_model_source_legacy(model_name: str) -> None:
 
 
 def remove_sponsor_blocks(text: str) -> str:
-    """Remove common sponsor block phrases from text.
+    """Remove sponsor blocks via canonical preprocessing implementation."""
+    from ...preprocessing.core import remove_sponsor_blocks as _remove
 
-    Duplicate of preprocessing.core.remove_sponsor_blocks — this copy is
-    called by cleaning_v4 profile in summarize_long_text. Hybrid ML with
-    pattern workflow cleaning uses cleaning_hybrid_after_pattern to avoid
-    duplicate sponsor passes (Issue #419). Future work will consolidate
-    into a single CommercialDetector where duplication remains.
-
-    Args:
-        text: Raw transcript or summary text.
-
-    Returns:
-        Text with sponsor blocks removed.
-    """
-    lower = text.lower()
-    cleaned = text
-    for phrase in [
-        "this episode is brought to you by",
-        "today's episode is sponsored by",
-        "today’s episode is sponsored by",
-        "our sponsors today are",
-    ]:
-        idx = lower.find(phrase)
-        if idx == -1:
-            continue
-        # Remove, say, up to the next blank line OR up to N chars
-        end = cleaned.find("\n\n", idx)
-        if end == -1 or end - idx > 2000:
-            end = min(idx + 2000, len(cleaned))
-        cleaned = cleaned[:idx] + cleaned[end:]
-        lower = cleaned.lower()
-    return cleaned
+    return _remove(text)
 
 
 def select_summary_model(cfg) -> str:

@@ -226,12 +226,8 @@ def clean_transcript(
 def remove_sponsor_blocks(text: str) -> str:
     """Remove sponsor/advertisement blocks from transcript.
 
-    Note: A duplicate exists in providers/ml/summarizer.py. Classic ML paths may still
-    run sponsor removal twice (pattern workflow clean + cleaning_v4 in summarize_long_text).
-    Hybrid ML with ``transcript_cleaning_strategy=pattern`` uses
-    ``cleaning_hybrid_after_pattern`` inside ``HybridMLProvider.summarize`` to avoid that
-    duplicate (Issue #419). Future work will consolidate detection into a single
-    CommercialDetector where still duplicated.
+    Delegates to :class:`~podcast_scraper.cleaning.commercial.CommercialDetector`
+    (confidence-scored patterns + positional heuristics).
 
     Args:
         text: Transcript text potentially containing sponsor blocks
@@ -239,24 +235,9 @@ def remove_sponsor_blocks(text: str) -> str:
     Returns:
         Text with sponsor blocks removed
     """
-    lower = text.lower()
-    cleaned = text
-    for phrase in [
-        "this episode is brought to you by",
-        "today's episode is sponsored by",
-        "today's episode is sponsored by",
-        "our sponsors today are",
-    ]:
-        idx = lower.find(phrase)
-        if idx == -1:
-            continue
-        # Remove, say, up to the next blank line OR up to N chars
-        end = cleaned.find("\n\n", idx)
-        if end == -1 or end - idx > 2000:
-            end = min(idx + 2000, len(cleaned))
-        cleaned = cleaned[:idx] + cleaned[end:]
-        lower = cleaned.lower()
-    return cleaned
+    from ..cleaning.commercial import CommercialDetector
+
+    return CommercialDetector().remove(text)
 
 
 def remove_outro_blocks(text: str) -> str:
