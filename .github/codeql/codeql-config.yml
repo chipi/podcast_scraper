@@ -3,4 +3,4 @@ disable-default-queries: false
 queries:
   - uses: security-and-quality
 packs:
-  - chipi/podcast-scraper-python-extensions@0.0.1:.github/codeql/extensions/podcast-scraper-python
+  - chipi/podcast-scraper-python-extensions@0.0.1

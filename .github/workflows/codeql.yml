@@ -72,6 +72,19 @@ jobs:
     - name: Checkout repository
       uses: actions/checkout@v6
 
+    # Extension pack (#538) lives in-repo; CodeQL still resolves pack names via GHCR
+    # unless the version is present in ~/.codeql/packages first.
+    - name: Stage local CodeQL extension pack (Python)
+      if: matrix.language == 'python'
+      shell: bash
+      run: |
+        set -euo pipefail
+        dest="${HOME}/.codeql/packages/chipi/podcast-scraper-python-extensions/0.0.1"
+        rm -rf "${dest}"
+        mkdir -p "${dest}"
+        cp -a .github/codeql/extensions/podcast-scraper-python/. "${dest}/"
+        test -f "${dest}/qlpack.yml"
+
     # Add any setup steps before running the `github/codeql-action/init` action.
     # This includes steps like installing compilers or runtimes (`actions/setup-node`
     # or others). This is typically only required for manual builds.

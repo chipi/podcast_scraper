@@ -31,8 +31,9 @@ positive.
 
 **Option A extension pack (#538):** `.github/codeql/extensions/podcast-scraper-python/`
 registers those helpers as `sanitizerModel` for `path-injection` via
-`codeql-config.yml`. After merge, re-run CodeQL on a PR that previously
-alerted; dismiss only if alerts persist.
+`codeql-config.yml`. CI copies that pack into `~/.codeql/packages/...` before
+`codeql database init` (the pack is not published to GHCR). After merge,
+re-run CodeQL on a PR that previously alerted; dismiss only if alerts persist.
 
 **When alerts persist after ``safe_relpath_under_corpus_root``:** re-verify the
 path string with ``normpath_if_under_root(path, root_s)`` immediately before
