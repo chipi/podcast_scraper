@@ -702,6 +702,22 @@ _THREAD_JOIN_TIMEOUT_PER_EPISODE = 120  # additional seconds per episode
 _INTERIM_CHECKPOINT_COOLDOWN_SECONDS = 30.0
 
 
+def _feed_url_for_cost_incident(feed: Any, cfg: config.Config) -> Optional[str]:
+    from .cost_monitoring import feed_url_for_cost_incident
+
+    return feed_url_for_cost_incident(feed, cfg)
+
+
+def _incident_log_path_for_run(cfg: config.Config, effective_output_dir: str) -> str:
+    """Resolve corpus incident log path for soft-cap policy rows (#804)."""
+    from pathlib import Path
+
+    explicit = (cfg.incident_log_path or "").strip()
+    if explicit:
+        return explicit
+    return str(Path(effective_output_dir) / "corpus_incidents.jsonl")
+
+
 def _thread_join_timeout(num_episodes: int) -> float:
     """Compute a generous join timeout that scales with episode count.
 
@@ -1653,9 +1669,9 @@ def _finalize_pipeline(
     if artifact_paths:
         logger.info("run artifacts written: %s", " | ".join(artifact_paths))
     _finalize_ml_cleanup(summary_provider, transcription_provider)
-    from .cost_monitoring import maybe_emit_daily_cost_sentry_alert
+    from .cost_monitoring import maybe_emit_run_cost_sentry_alert
 
-    maybe_emit_daily_cost_sentry_alert(cfg, pipeline_metrics)
+    maybe_emit_run_cost_sentry_alert(cfg, pipeline_metrics)
     return wf_helpers.generate_pipeline_summary(
         cfg, saved, transcription_resources, effective_output_dir, pipeline_metrics, episodes
     )
@@ -1941,6 +1957,15 @@ def _process_episodes_with_threading(
             pipeline_metrics.record_transcription_wait_time(transcription_sync_time)
         saved += transcription_saved[0]
         logger.debug("Concurrent transcription processing completed")
+        from .cost_monitoring import check_cost_soft_cap_at_stage
+
+        check_cost_soft_cap_at_stage(
+            cfg,
+            pipeline_metrics,
+            stage="transcription",
+            incident_log_path=_incident_log_path_for_run(cfg, effective_output_dir),
+            feed_url=_feed_url_for_cost_incident(feed, cfg),
+        )
     elif cfg.transcribe_missing:
         # Dry-run mode: process transcription jobs sequentially after downloads
         transcription_start = time.time()
@@ -1960,6 +1985,15 @@ def _process_episodes_with_threading(
         transcription_wait_time = time.time() - transcription_start
         if pipeline_metrics is not None:
             pipeline_metrics.record_transcription_wait_time(transcription_wait_time)
+        from .cost_monitoring import check_cost_soft_cap_at_stage
+
+        check_cost_soft_cap_at_stage(
+            cfg,
+            pipeline_metrics,
+            stage="transcription",
+            incident_log_path=_incident_log_path_for_run(cfg, effective_output_dir),
+            feed_url=_feed_url_for_cost_incident(feed, cfg),
+        )
 
     # Step 9.5: Wait for processing to complete (if started)
     if processing_thread is not None:
@@ -1985,6 +2019,15 @@ def _process_episodes_with_threading(
             # Track wall-clock time for processing thread sync (Issue #391)
             pipeline_metrics.record_io_waiting_wall_time(processing_sync_time)
         logger.debug("Concurrent processing completed")
+        from .cost_monitoring import check_cost_soft_cap_at_stage
+
+        check_cost_soft_cap_at_stage(
+            cfg,
+            pipeline_metrics,
+            stage="processing",
+            incident_log_path=_incident_log_path_for_run(cfg, effective_output_dir),
+            feed_url=_feed_url_for_cost_incident(feed, cfg),
+        )
 
     # Log io_and_waiting breakdown (Issue #387, #391)
     # Note: io_and_waiting_thread_sum_seconds is the sum of sub-buckets
@@ -2044,6 +2087,15 @@ def _process_episodes_with_threading(
             pipeline_metrics.record_summarization_wait_time(summarization_wait_time)
             # Track wall-clock time for summarization wait (Issue #391)
             pipeline_metrics.record_io_waiting_wall_time(summarization_wait_time)
+        from .cost_monitoring import check_cost_soft_cap_at_stage
+
+        check_cost_soft_cap_at_stage(
+            cfg,
+            pipeline_metrics,
+            stage="summarization",
+            incident_log_path=_incident_log_path_for_run(cfg, effective_output_dir),
+            feed_url=_feed_url_for_cost_incident(feed, cfg),
+        )
 
     return saved
 

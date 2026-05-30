@@ -236,6 +236,23 @@ def _manifest_feed_rows_to_results(rows: List[Any]) -> List[MultiFeedFeedResult]
     return out
 
 
+def corpus_parent_for_manifest_stamp_from_cfg(cfg: "config.Config") -> Optional[str]:
+    """Resolve corpus parent for single-feed ``produced_by`` stamp (#807)."""
+    from podcast_scraper.utils import filesystem
+
+    if not getattr(cfg, "output_dir", None):
+        return None
+    if getattr(cfg, "single_feed_uses_corpus_layout", False):
+        out = Path(filesystem.validate_and_normalize_output_dir(str(cfg.output_dir)))
+        if out.parent.name == "feeds" and out.parent.parent.name:
+            return str(out.parent.parent)
+        return str(out)
+    out = Path(filesystem.validate_and_normalize_output_dir(str(cfg.output_dir)))
+    if (out / "feeds").is_dir():
+        return str(out)
+    return None
+
+
 def upsert_corpus_manifest_feed(
     corpus_parent: str,
     feed_result: MultiFeedFeedResult,
@@ -292,6 +309,7 @@ def write_corpus_manifest(
         "cost_rollup": cost_rollup,
     }
     path = parent / CORPUS_MANIFEST_FILE
+    parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(doc, indent=2, sort_keys=True) + "\n", encoding="utf-8")
     logger.info(
         "Wrote corpus manifest: %s (cost_rollup.total_cost_usd=%s over %d runs)",

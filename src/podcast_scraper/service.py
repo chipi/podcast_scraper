@@ -284,6 +284,28 @@ def run(cfg: config.Config) -> ServiceResult:
         # here — no extra wrapping needed in this hot path.
         count, summary = workflow.run_pipeline(cfg)
 
+        feed_url = (cfg.rss_url or "").strip()
+        if feed_url:
+            from podcast_scraper.workflow.corpus_operations import (
+                corpus_parent_for_manifest_stamp_from_cfg,
+                MultiFeedFeedResult,
+                upsert_corpus_manifest_feed,
+                utc_iso_now,
+            )
+
+            stamp_parent = corpus_parent_for_manifest_stamp_from_cfg(cfg)
+            if stamp_parent:
+                upsert_corpus_manifest_feed(
+                    stamp_parent,
+                    MultiFeedFeedResult(
+                        feed_url,
+                        True,
+                        None,
+                        int(count),
+                        finished_at=utc_iso_now(),
+                    ),
+                )
+
         return ServiceResult(
             episodes_processed=count,
             summary=summary,

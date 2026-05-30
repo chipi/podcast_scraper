@@ -4,7 +4,7 @@
 # Usage:
 #   PROD_TAILNET_FQDN=prod.example.ts.net scripts/ops/post_deploy_smoke.sh
 #   scripts/ops/post_deploy_smoke.sh <tailnet-fqdn>
-#   scripts/ops/post_deploy_smoke.sh <tailnet-fqdn> --corpus-path /srv/podcast-scraper/corpus
+#   scripts/ops/post_deploy_smoke.sh <tailnet-fqdn> --corpus-path /app/output
 #   scripts/ops/post_deploy_smoke.sh --base-url http://127.0.0.1:8090 --corpus-path /app/output
 #
 # Hits six critical surfaces (see docs/architecture/CORPUS_ARTIFACTS_AND_SURFACES.md):

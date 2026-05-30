@@ -556,6 +556,7 @@ check-test-policy:
 check-pricing-assumptions:
 	export PYTHONPATH="${PYTHONPATH}:$(PWD)/src" && $(PYTHON) -m $(PACKAGE).cli pricing-assumptions $(ARGS)
 	$(PYTHON) scripts/validate/check_profile_pricing_coverage.py
+	$(PYTHON) scripts/validate/check_pricing_yaml_bundled_sync.py
 
 validate-gi-schema:
 	# Validate gi.json files against docs/architecture/gi/gi.schema.json (strict mode).

@@ -11,6 +11,16 @@ logger = logging.getLogger(__name__)
 CostSoftCapAction = Literal["abort", "warn", "observe"]
 
 
+def feed_url_for_cost_incident(feed: Any, cfg: Any) -> Optional[str]:
+    """RSS URL for corpus incident rows (``RssFeed`` uses ``base_url``, not ``link``)."""
+    if feed is not None:
+        url = getattr(feed, "base_url", None) or getattr(feed, "link", None)
+        if url:
+            return str(url)
+    rss = getattr(cfg, "rss_url", None)
+    return str(rss) if rss else None
+
+
 class CostCapExceeded(RuntimeError):
     """Pipeline run exceeded configured per-run soft cap."""
 
@@ -49,7 +59,7 @@ def emit_llm_cost_event(
     feed_id: Optional[str] = None,
     run_id: Optional[str] = None,
 ) -> None:
-    """Structured log line for Loki / Grafana (GitHub #804 D1)."""
+    """Emit one JSON log line per billable call (Loki ``| json`` / Grafana #804)."""
     if estimated_cost_usd <= 0:
         return
     event = {
@@ -65,7 +75,8 @@ def emit_llm_cost_event(
         "run_id": run_id,
     }
     line = json.dumps(event, ensure_ascii=False)
-    logger.info("llm_cost_event %s", line)
+    # Single JSON object per line so Loki/Grafana ``| json`` parses fields directly.
+    logger.info("%s", line)
     if getattr(cfg, "jsonl_metrics_echo_stdout", False):
         print(line, flush=True)
 
@@ -89,8 +100,38 @@ def enforce_cost_soft_cap(cfg: Any, pipeline_metrics: Any) -> None:
     raise CostCapExceeded(spent, float(cap))
 
 
-def maybe_emit_daily_cost_sentry_alert(cfg: Any, pipeline_metrics: Any) -> None:
-    """Sentry warning when run spend exceeds ``cost_daily_alert_usd`` (#804 D4)."""
+def check_cost_soft_cap_at_stage(
+    cfg: Any,
+    pipeline_metrics: Any,
+    *,
+    stage: str,
+    incident_log_path: Optional[str] = None,
+    feed_url: Optional[str] = None,
+) -> None:
+    """Run soft-cap check after a pipeline stage that records LLM costs (#804)."""
+    try:
+        enforce_cost_soft_cap(cfg, pipeline_metrics)
+    except CostCapExceeded as exc:
+        if incident_log_path:
+            from podcast_scraper.utils.corpus_incidents import append_corpus_incident
+
+            append_corpus_incident(
+                incident_log_path,
+                scope="batch",
+                category="policy",
+                message=str(exc),
+                exception_type="CostCapExceeded",
+                stage=stage,
+                feed_url=feed_url,
+            )
+        raise
+
+
+def maybe_emit_run_cost_sentry_alert(cfg: Any, pipeline_metrics: Any) -> None:
+    """Sentry warning when a single run exceeds ``cost_daily_alert_usd`` (#804).
+
+    Note: per-run threshold until daily aggregation exists in metrics store.
+    """
     threshold = float(getattr(cfg, "cost_daily_alert_usd", 10.0) or 10.0)
     spent = run_cost_usd_from_pipeline_metrics(pipeline_metrics)
     if spent < threshold:
@@ -100,7 +141,12 @@ def maybe_emit_daily_cost_sentry_alert(cfg: Any, pipeline_metrics: Any) -> None:
     except ImportError:
         return
     sentry_sdk.capture_message(
-        f"Pipeline run estimated cost ${spent:.2f} exceeds daily alert threshold ${threshold:.2f}",
+        f"Pipeline run estimated cost ${spent:.2f} exceeds run alert threshold "
+        f"${threshold:.2f}",
         level="warning",
     )
     sentry_sdk.set_tag("cost_anomaly", "run_threshold")
+
+
+# Back-compat alias (call sites from initial #804 land).
+maybe_emit_daily_cost_sentry_alert = maybe_emit_run_cost_sentry_alert

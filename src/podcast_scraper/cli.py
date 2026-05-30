@@ -250,17 +250,11 @@ def single_feed_corpus_parent_for_manifest_stamp(
     """Corpus parent to stamp ``corpus_manifest.json`` after a single-feed run (#807)."""
     if getattr(args, "feeds_spec", None) and (getattr(args, "output_dir", None) or "").strip():
         return filesystem.validate_and_normalize_output_dir(str(args.output_dir))
-    if getattr(args, "single_feed_uses_corpus_layout", False) and cfg.output_dir:
-        out = Path(filesystem.validate_and_normalize_output_dir(str(cfg.output_dir)))
-        if out.parent.name == "feeds" and out.parent.parent.name:
-            return str(out.parent.parent)
-        return str(out)
-    if not cfg.output_dir:
-        return None
-    out = Path(filesystem.validate_and_normalize_output_dir(str(cfg.output_dir)))
-    if (out / "feeds").is_dir():
-        return str(out)
-    return None
+    from podcast_scraper.workflow.corpus_operations import (
+        corpus_parent_for_manifest_stamp_from_cfg,
+    )
+
+    return corpus_parent_for_manifest_stamp_from_cfg(cfg)
 
 
 def single_feeds_spec_output_dir(args: argparse.Namespace, entry: RssFeedEntry) -> str:

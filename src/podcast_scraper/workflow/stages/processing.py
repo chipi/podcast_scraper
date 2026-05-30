@@ -60,6 +60,7 @@ def extract_episode_description(item):
 
 
 from ...speaker_detectors.factory import create_speaker_detector
+from ..cost_monitoring import CostCapExceeded
 from ..helpers import update_metric_safely
 from ..types import (
     FeedMetadata,
@@ -79,12 +80,9 @@ def _enforce_cost_soft_cap_after_episode(
     cfg: config.Config, pipeline_metrics: Optional[metrics.Metrics]
 ) -> None:
     """Raise :class:`cost_monitoring.CostCapExceeded` when abort action is configured (#804)."""
-    from ..cost_monitoring import CostCapExceeded, enforce_cost_soft_cap
+    from ..cost_monitoring import enforce_cost_soft_cap
 
-    try:
-        enforce_cost_soft_cap(cfg, pipeline_metrics)
-    except CostCapExceeded:
-        raise
+    enforce_cost_soft_cap(cfg, pipeline_metrics)
 
 
 _PROCESSING_JOBS_WARN_THRESHOLD = 1000
@@ -936,7 +934,8 @@ def _process_episodes_sequential(
                 pipeline_metrics,
                 detected_names,
             )
-            _enforce_cost_soft_cap_after_episode(cfg, pipeline_metrics)
+        except CostCapExceeded:
+            raise
         except Exception as exc:  # pragma: no cover
             from ..helpers import update_metric_safely
 
@@ -1168,14 +1167,14 @@ def _drain_completed_processing_futures(
                     ok_delta += 1
                     try:
                         _enforce_cost_soft_cap_after_episode(cfg, pipeline_metrics)
+                    except CostCapExceeded:
+                        raise
                     except Exception as cap_exc:
-                        from ..cost_monitoring import CostCapExceeded
-
-                        if isinstance(cap_exc, CostCapExceeded):
-                            stop_requested = True
-                            logger.error("%s", cap_exc)
-                        else:
-                            raise
+                        logger.error(
+                            "cost soft cap check failed: %s",
+                            format_exception_for_log(cap_exc),
+                        )
+                        raise
                 else:
                     failed_delta += 1
                     fail_fast = getattr(cfg, "fail_fast", False)

@@ -5,7 +5,7 @@
   "timezone": "browser",
   "schemaVersion": 39,
   "version": 1,
-  "description": "Import into Grafana Cloud podcast-scraper folder. Requires llm_cost_event JSON log lines (#804).",
+  "description": "Import into Grafana Cloud podcast-scraper folder. Requires JSON log lines with event_type=llm_cost (#804).",
   "panels": [
     {
       "id": 1,
@@ -14,7 +14,7 @@
       "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 },
       "targets": [
         {
-          "expr": "sum(sum_over_time({env=\"prod\"} |= \"llm_cost_event\" | json | unwrap estimated_cost_usd [7d]))",
+          "expr": "sum(sum_over_time({env=\"prod\"} | json | event_type=\"llm_cost\" | unwrap estimated_cost_usd [7d]))",
           "legendFormat": "USD"
         }
       ]
@@ -26,7 +26,7 @@
       "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
       "targets": [
         {
-          "expr": "sum by (run_id) (sum_over_time({env=\"prod\"} |= \"llm_cost_event\" | json | unwrap estimated_cost_usd [30d]))",
+          "expr": "sum by (run_id) (sum_over_time({env=\"prod\"} | json | event_type=\"llm_cost\" | unwrap estimated_cost_usd [30d]))",
           "legendFormat": "{{run_id}}"
         }
       ]
@@ -38,7 +38,7 @@
       "gridPos": { "h": 8, "w": 12, "x": 0, "y": 8 },
       "targets": [
         {
-          "expr": "sum by (stage) (sum_over_time({env=\"prod\"} |= \"llm_cost_event\" | json | unwrap estimated_cost_usd [30d]))",
+          "expr": "sum by (stage) (sum_over_time({env=\"prod\"} | json | event_type=\"llm_cost\" | unwrap estimated_cost_usd [30d]))",
           "legendFormat": "{{stage}}"
         }
       ]
@@ -50,7 +50,7 @@
       "gridPos": { "h": 8, "w": 12, "x": 12, "y": 8 },
       "targets": [
         {
-          "expr": "sum by (feed_id) (sum_over_time({env=\"prod\"} |= \"llm_cost_event\" | json | unwrap estimated_cost_usd [30d]))",
+          "expr": "sum by (feed_id) (sum_over_time({env=\"prod\"} | json | event_type=\"llm_cost\" | unwrap estimated_cost_usd [30d]))",
           "legendFormat": "{{feed_id}}"
         }
       ]

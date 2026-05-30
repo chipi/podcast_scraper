@@ -660,7 +660,18 @@ class DeepSeekProvider:
                     prompt_tokens=input_tokens,
                     completion_tokens=output_tokens,
                 )
-                call_metrics.set_cost(cost)
+                from ...utils.provider_metrics import record_provider_call_cost
+
+                record_provider_call_cost(
+                    call_metrics,
+                    cost,
+                    cfg=self.cfg,
+                    provider_type="deepseek",
+                    capability="summarization",
+                    model=self.summary_model,
+                    prompt_tokens=input_tokens,
+                    completion_tokens=output_tokens,
+                )
 
             # Track LLM call metrics if available (aggregate tracking)
             if (
@@ -1026,7 +1037,18 @@ class DeepSeekProvider:
                 prompt_tokens=input_tokens,
                 completion_tokens=output_tokens,
             )
-            call_metrics.set_cost(cost)
+            from ...utils.provider_metrics import record_provider_call_cost
+
+            record_provider_call_cost(
+                call_metrics,
+                cost,
+                cfg=self.cfg,
+                provider_type="deepseek",
+                capability="summarization",
+                model=self.summary_model,
+                prompt_tokens=input_tokens,
+                completion_tokens=output_tokens,
+            )
 
         if pipeline_metrics is not None and input_tokens is not None and output_tokens is not None:
             pipeline_metrics.record_llm_bundled_clean_summary_call(

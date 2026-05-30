@@ -352,7 +352,8 @@ def calculate_provider_cost(
         audio_minutes: Audio duration in minutes (for transcription)
 
     Returns:
-        Estimated cost in USD, or None if cost cannot be calculated
+        Estimated cost in USD (including ``0.0`` when pricing exists but usage is zero),
+        or ``None`` if pricing cannot be resolved for the provider/model
     """
     pricing = _get_provider_pricing(cfg, provider_type, capability, model)
     if not pricing:

@@ -545,18 +545,28 @@ class OpenAIProvider:
             if audio_minutes > 0:
                 # Compute cost first so the same value can flow into both
                 # call_metrics (per-episode) and pipeline_metrics (per-stage).
+                from ...utils.provider_metrics import record_provider_call_cost
                 from ...workflow.helpers import calculate_provider_cost
 
-                cost = calculate_provider_cost(
+                record_provider_call_cost(
+                    call_metrics,
+                    calculate_provider_cost(
+                        cfg=self.cfg,
+                        provider_type="openai",
+                        capability="transcription",
+                        model=self.transcription_model,
+                        audio_minutes=audio_minutes,
+                    ),
                     cfg=self.cfg,
                     provider_type="openai",
                     capability="transcription",
                     model=self.transcription_model,
                     audio_minutes=audio_minutes,
                 )
-                call_metrics.set_cost(cost)
                 if pipeline_metrics is not None:
-                    pipeline_metrics.record_llm_transcription_call(audio_minutes, cost_usd=cost)
+                    pipeline_metrics.record_llm_transcription_call(
+                        audio_minutes, cost_usd=call_metrics.estimated_cost
+                    )
 
             # OpenAI API returns a Transcription object with text and segments
             # when verbose_json is used. Convert to dict format matching Whisper output.
@@ -1182,7 +1192,18 @@ class OpenAIProvider:
                     prompt_tokens=input_tokens,
                     completion_tokens=output_tokens,
                 )
-                call_metrics.set_cost(cost)
+                from ...utils.provider_metrics import record_provider_call_cost
+
+                record_provider_call_cost(
+                    call_metrics,
+                    cost,
+                    cfg=self.cfg,
+                    provider_type="openai",
+                    capability="summarization",
+                    model=self.summary_model,
+                    prompt_tokens=input_tokens,
+                    completion_tokens=output_tokens,
+                )
 
             # Track LLM call metrics if available (aggregate tracking)
             if (
@@ -1575,7 +1596,18 @@ class OpenAIProvider:
                 prompt_tokens=input_tokens,
                 completion_tokens=output_tokens,
             )
-            call_metrics.set_cost(cost)
+            from ...utils.provider_metrics import record_provider_call_cost
+
+            record_provider_call_cost(
+                call_metrics,
+                cost,
+                cfg=self.cfg,
+                provider_type="openai",
+                capability="summarization",
+                model=self.summary_model,
+                prompt_tokens=input_tokens,
+                completion_tokens=output_tokens,
+            )
 
         if pipeline_metrics is not None and input_tokens is not None and output_tokens is not None:
             pipeline_metrics.record_llm_bundled_clean_summary_call(

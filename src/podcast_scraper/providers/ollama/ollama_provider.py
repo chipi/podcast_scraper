@@ -1151,7 +1151,18 @@ class OllamaProvider:
                     prompt_tokens=input_tokens,
                     completion_tokens=output_tokens,
                 )
-                call_metrics.set_cost(cost)
+                from ...utils.provider_metrics import record_provider_call_cost
+
+                record_provider_call_cost(
+                    call_metrics,
+                    cost,
+                    cfg=self.cfg,
+                    provider_type="ollama",
+                    capability="summarization",
+                    model=self.summary_model,
+                    prompt_tokens=input_tokens,
+                    completion_tokens=output_tokens,
+                )
 
             # Track LLM call metrics if available (aggregate tracking)
             if (
@@ -1328,7 +1339,18 @@ class OllamaProvider:
                 prompt_tokens=input_tokens,
                 completion_tokens=output_tokens,
             )
-            call_metrics.set_cost(cost)
+            from ...utils.provider_metrics import record_provider_call_cost
+
+            record_provider_call_cost(
+                call_metrics,
+                cost,
+                cfg=self.cfg,
+                provider_type="ollama",
+                capability="summarization",
+                model=self.summary_model,
+                prompt_tokens=input_tokens,
+                completion_tokens=output_tokens,
+            )
 
         prompt_metadata = {
             "system": get_prompt_metadata(
