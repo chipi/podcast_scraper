@@ -203,3 +203,40 @@ def test_get_corpus_graph_caches_per_derive_flag(tmp_path):
     assert plain is not derived
     assert "insight:i1" not in plain.neighbors("person:alice")
     assert "insight:i1" in derived.neighbors("person:alice")
+
+
+# --- #852: identity_map collapses cross-episode variant nodes -------------------
+
+
+def _write_variant_corpus(tmp_path):
+    # Two episodes, same show: org:cargill (ep1) and org:cargil (ep2, a spelling variant).
+    for ep, org in (("e1", "org:cargill"), ("e2", "org:cargil")):
+        (tmp_path / f"{ep}.kg.json").write_text(
+            json.dumps(
+                {
+                    "episode_id": ep,
+                    "nodes": [
+                        {"id": f"episode:{ep}", "type": "Episode", "properties": {}},
+                        {"id": org, "type": "Entity", "properties": {"name": org.split(":")[1]}},
+                    ],
+                    "edges": [{"type": "MENTIONS", "from": org, "to": f"episode:{ep}"}],
+                }
+            )
+        )
+    return tmp_path
+
+
+def test_identity_map_collapses_variant_nodes(tmp_path):
+    corpus = _write_variant_corpus(tmp_path)
+    g = CorpusGraph.build(corpus, identity_map={"org:cargil": "org:cargill"})
+    assert g.get_node("org:cargil") is None  # variant collapsed
+    assert g.get_node("org:cargill") is not None
+    # The remapped node reaches BOTH episodes (its own + the variant's).
+    nbrs = set(g.neighbors("org:cargill"))
+    assert {"episode:e1", "episode:e2"} <= nbrs
+
+
+def test_no_identity_map_keeps_variants_separate(tmp_path):
+    g = CorpusGraph.build(_write_variant_corpus(tmp_path))
+    assert g.get_node("org:cargil") is not None
+    assert g.get_node("org:cargill") is not None

@@ -72,11 +72,17 @@ class Node:
 class CorpusGraph:
     """Undirected, in-memory union of the GIL and KG artifact graphs."""
 
-    def __init__(self) -> None:
+    def __init__(self, identity_map: Optional[Dict[str, str]] = None) -> None:
         self._nodes: Dict[str, Node] = {}
         self._adj: Dict[str, Set[str]] = {}
+        # variant_id -> canonical_id (#852). Collapses cross-episode entity-spelling
+        # variants at read-time; empty = faithful artifact union.
+        self._id_map: Dict[str, str] = dict(identity_map or {})
 
     # --- construction ----------------------------------------------------------
+
+    def _canon(self, node_id: str) -> str:
+        return self._id_map.get(node_id, node_id)
 
     def _upsert_node(self, node_id: str, ntype: str, props: Dict[str, Any], source: str) -> None:
         node = self._nodes.get(node_id)
@@ -103,7 +109,7 @@ class CorpusGraph:
             raw_id = node.get("id")
             if raw_id is None:
                 continue
-            nid = strip_layer_prefixes(str(raw_id))
+            nid = self._canon(strip_layer_prefixes(str(raw_id)))
             props_any = node.get("properties")
             props = props_any if isinstance(props_any, dict) else {}
             self._upsert_node(nid, _normalize_type(nid, node.get("type")), props, source)
@@ -114,7 +120,10 @@ class CorpusGraph:
             to = edge.get("to")
             if frm is None or to is None:
                 continue
-            self._add_edge(strip_layer_prefixes(str(frm)), strip_layer_prefixes(str(to)))
+            self._add_edge(
+                self._canon(strip_layer_prefixes(str(frm))),
+                self._canon(strip_layer_prefixes(str(to))),
+            )
 
     def _derive_speaker_links(self) -> None:
         """Add direct ``person ↔ insight`` edges via a shared quote (#849 Slice C).
@@ -146,19 +155,24 @@ class CorpusGraph:
         *,
         validate: bool = False,
         derive_speaker_links: bool = False,
+        identity_map: Optional[Dict[str, str]] = None,
     ) -> "CorpusGraph":
         """Build the unified graph from all GI + KG artifacts under *corpus_dir*.
 
         When ``derive_speaker_links`` is True, add 1-hop ``person ↔ insight``
         shortcuts (see ``_derive_speaker_links``). Off by default so the graph is
         a faithful union of the artifacts; RFC-091's proximity layer opts in.
+
+        ``identity_map`` (#852) is an optional ``variant_id → canonical_id`` map
+        (e.g. from entity canonicalization) applied at ingest so cross-episode
+        spelling variants collapse to one node.
         """
         from ..gi.corpus import load_gi_artifacts
         from ..gi.explore import scan_artifact_paths as scan_gi_paths
         from ..kg.corpus import load_kg_artifacts, scan_kg_artifact_paths
 
         corpus_dir = Path(corpus_dir)
-        graph = cls()
+        graph = cls(identity_map=identity_map)
         # KG first, then GI: GI payloads win on overlap (see _upsert_node).
         for _path, data in load_kg_artifacts(scan_kg_artifact_paths(corpus_dir), validate=validate):
             graph._ingest(data, "kg")
