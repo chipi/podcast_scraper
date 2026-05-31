@@ -149,6 +149,19 @@ operator repeatedly. Adherence beats every other rule.
     fine when the user asked for that fix; adding a **new** name is not. If the
     task seems to need one, stop and ask — do not add it "to unblock" the PR.
 
+14. **Read the design intent before reasoning about a subsystem — not just the
+    code.** Before extending, judging, or building on an existing capability (a
+    layer, builder, pipeline, artifact), find and read its governing `RFC-*` /
+    `ADR-*` / `PRD-*` first — especially the **Non-Goals / "what it does NOT do"
+    / boundary** sections — before inferring behavior from the implementation.
+    Code shows what runs; the spec shows what it was *meant* to do and
+    deliberately does not. When the work spans layers, read each layer's spec
+    (and the cross-layer doc) so you know which layer owns the concern. Failure
+    mode of record (2026-05-30): assumed the cross-layer `bridge` deduplicated
+    entities because `bridge_builder` exposed a `fuzzy_reconcile`; RFC-072 states
+    plainly "the bridge is the seam, not a merge" — that wrong mental model
+    derailed a plan before the design doc was read.
+
 ---
 
 ## User intent beats procedural defaults
