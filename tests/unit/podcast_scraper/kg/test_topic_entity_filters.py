@@ -5,6 +5,7 @@ from __future__ import annotations
 import pytest
 
 from podcast_scraper.kg.filters import (
+    consolidate_entity_names,
     KNOWN_ORGS,
     normalize_topic_labels,
     repair_entity_kind,
@@ -134,3 +135,109 @@ class TestRepairEntityKind:
         assert len(KNOWN_ORGS) > 0
         for name in KNOWN_ORGS:
             assert name == name.lower().strip()
+
+
+def _person(name):
+    return {"name": name, "entity_kind": "person"}
+
+
+def _names(entities):
+    return sorted(str(e.get("name")) for e in entities)
+
+
+class TestConsolidateEntityNames:
+    """#851 — within-episode duplicate-spelling entity merge. Cases are the real
+    pairs found in `my-manual-run-10` (root-caused against transcripts)."""
+
+    # --- MERGE (persons): real variants from the corpus -------------------------
+
+    def test_merge_identical_surname_variant_first(self):
+        # "Burne Hobart" (transcript) + "Byrne Hobart" (LLM corrected) -> one node.
+        out, merged = consolidate_entity_names([_person("Burne Hobart"), _person("Byrne Hobart")])
+        assert len(out) == 1
+        assert merged == 1
+
+    @pytest.mark.parametrize(
+        "a,b",
+        [
+            ("David Shor", "David Shore"),
+            ("Ryan Petersen", "Ryan Peterson"),
+            ("Henry Blodget", "Henry Blodgett"),
+        ],
+    )
+    def test_merge_one_char_surname_variant(self, a, b):
+        out, merged = consolidate_entity_names([_person(a), _person(b)])
+        assert len(out) == 1 and merged == 1
+
+    def test_merge_first_name_prefix(self):
+        # "Greg Brew" / "Gregory Brew" -> one; canonical is the longer (fuller) name.
+        out, merged = consolidate_entity_names([_person("Greg Brew"), _person("Gregory Brew")])
+        assert len(out) == 1 and merged == 1
+        assert out[0]["name"] == "Gregory Brew"
+
+    def test_merge_identical_first_close_surname(self):
+        # "Noah Brier" / "Noah Bryer" — relaxed surname threshold when first name matches.
+        out, merged = consolidate_entity_names([_person("Noah Brier"), _person("Noah Bryer")])
+        assert len(out) == 1 and merged == 1
+
+    # --- DO NOT MERGE: the landmines -------------------------------------------
+
+    def test_does_not_merge_acronym_orgs_ups_usps(self):
+        # The confirmed false-merge landmine: UPS != USPS.
+        ents = [
+            {"name": "UPS", "entity_kind": "org"},
+            {"name": "USPS", "entity_kind": "org"},
+        ]
+        out, merged = consolidate_entity_names(ents)
+        assert len(out) == 2 and merged == 0
+        assert _names(out) == ["UPS", "USPS"]
+
+    def test_does_not_merge_distinct_people(self):
+        out, merged = consolidate_entity_names([_person("Sam Altman"), _person("Tim Cook")])
+        assert len(out) == 2 and merged == 0
+
+    def test_kind_aware_no_cross_kind_merge(self):
+        # Same string, different kind -> two entities (a person and an org).
+        ents = [
+            {"name": "Jordan", "entity_kind": "person"},
+            {"name": "Jordan", "entity_kind": "org"},
+        ]
+        out, merged = consolidate_entity_names(ents)
+        assert len(out) == 2 and merged == 0
+
+    # --- behavior / hygiene -----------------------------------------------------
+
+    def test_canonical_preserves_fields(self):
+        ents = [
+            {"name": "Byrne Hobart", "entity_kind": "person", "description": "investor"},
+            {"name": "Burne Hobart", "entity_kind": "person"},
+        ]
+        out, merged = consolidate_entity_names(ents)
+        assert len(out) == 1 and merged == 1
+        # Canonical name is the lexical tie-break "Burne Hobart", but the
+        # description from the merged-away "Byrne Hobart" is backfilled (no data loss).
+        assert out[0]["entity_kind"] == "person"
+        assert out[0]["description"] == "investor"
+
+    def test_noop_when_all_distinct(self):
+        ents = [
+            _person("Sam Altman"),
+            _person("Satya Nadella"),
+            {"name": "OpenAI", "entity_kind": "org"},
+        ]
+        out, merged = consolidate_entity_names(ents)
+        assert merged == 0
+        assert _names(out) == _names(ents)
+
+    def test_passthrough_non_dict_and_empty_names(self):
+        ents = [_person("Sam Altman"), "not-a-dict", {"name": "  ", "entity_kind": "person"}]
+        out, merged = consolidate_entity_names(ents)
+        # Non-dict and empty-name entries are preserved, never crash.
+        assert merged == 0
+        assert any(isinstance(e, dict) and e.get("name") == "Sam Altman" for e in out)
+
+    def test_three_way_cluster_counts_merges(self):
+        # Three spellings of one entity collapse to one; merged == 2.
+        ents = [_person("Greg Brew"), _person("Gregory Brew"), _person("Greg Brews")]
+        out, merged = consolidate_entity_names(ents)
+        assert len(out) == 1 and merged == 2
