@@ -86,6 +86,7 @@ class EntityRegistry:
         model_id: str = DEFAULT_EMBED_MODEL_ID,
         fuzzy_threshold: float = DEFAULT_FUZZY_THRESHOLD,
     ) -> "EntityRegistry":
+        """Build a registry from a merged ``identities`` map + episode frequencies."""
         records: Dict[str, Dict[str, Any]] = {}
         name_index: Dict[str, str] = {}
 
@@ -260,6 +261,7 @@ class EntityResolver:
         model_id: str = DEFAULT_EMBED_MODEL_ID,
         fuzzy_threshold: float = DEFAULT_FUZZY_THRESHOLD,
     ) -> "EntityResolver":
+        """Build a resolver from a corpus directory (convenience over ``build_entity_registry``)."""
         return cls(
             build_entity_registry(
                 corpus_dir,

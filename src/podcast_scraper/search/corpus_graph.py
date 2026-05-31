@@ -190,6 +190,7 @@ class CorpusGraph:
     # --- access ----------------------------------------------------------------
 
     def get_node(self, node_id: Optional[str]) -> Optional[Node]:
+        """Return the node for *node_id*, or ``None`` if absent/``None``."""
         if node_id is None:
             return None
         return self._nodes.get(node_id)
@@ -199,9 +200,11 @@ class CorpusGraph:
         return sorted(self._adj.get(node_id, set()))
 
     def degree(self, node_id: str) -> int:
+        """Number of (undirected) neighbors of *node_id*."""
         return len(self._adj.get(node_id, ()))
 
     def nodes_by_type(self, node_type: str) -> List[str]:
+        """Sorted ids of all nodes whose normalized type is *node_type*."""
         return sorted(nid for nid, n in self._nodes.items() if n.type == node_type)
 
     def bfs(self, start_id: str, max_hops: int = 3) -> Dict[str, int]:
