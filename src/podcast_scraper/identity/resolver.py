@@ -26,6 +26,7 @@ issue #849 for the prerequisite tracking.
 from __future__ import annotations
 
 import logging
+import threading
 from collections import Counter
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -306,3 +307,36 @@ class EntityResolver:
             return ResolveResult(fuzzy[0], fuzzy[1], "fuzzy")
 
         return None
+
+
+# Process-level registry cache (mirrors search/corpus_graph + embedding_loader):
+# building a registry scans the whole corpus and embeds every display name, so it
+# must not be rebuilt per query. Keyed by resolved corpus path + threshold + model.
+_entity_registries: Dict[Tuple[str, float, str], EntityRegistry] = {}
+_entity_registries_lock = threading.Lock()
+
+
+def get_entity_resolver(
+    corpus_dir: Path | str,
+    *,
+    embedder: Any = None,
+    model_id: str = DEFAULT_EMBED_MODEL_ID,
+    fuzzy_threshold: float = DEFAULT_FUZZY_THRESHOLD,
+) -> EntityResolver:
+    """Return an ``EntityResolver`` backed by a process-cached corpus registry."""
+    key = (str(Path(corpus_dir).resolve()), float(fuzzy_threshold), str(model_id))
+    with _entity_registries_lock:
+        if key not in _entity_registries:
+            _entity_registries[key] = build_entity_registry(
+                corpus_dir,
+                embedder=embedder,
+                model_id=model_id,
+                fuzzy_threshold=fuzzy_threshold,
+            )
+        return EntityResolver(_entity_registries[key])
+
+
+def clear_entity_resolver_cache() -> None:
+    """Clear the registry cache (tests / after corpus re-index)."""
+    with _entity_registries_lock:
+        _entity_registries.clear()

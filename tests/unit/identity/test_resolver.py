@@ -10,8 +10,10 @@ import pytest
 
 from podcast_scraper.identity.resolver import (
     build_entity_registry,
+    clear_entity_resolver_cache,
     EntityRegistry,
     EntityResolver,
+    get_entity_resolver,
     ResolveResult,
 )
 
@@ -173,3 +175,14 @@ def test_resolve_detail_returns_resolveresult_type():
     r = _resolver()
     assert isinstance(r.resolve_detail("person:samuel-altman"), ResolveResult)
     assert r.resolve_detail("definitely not present") is None
+
+
+def test_get_entity_resolver_caches_registry():
+    corpus = "tests/fixtures/gil_kg_ci_enforce"
+    clear_entity_resolver_cache()
+    r1 = get_entity_resolver(corpus, embedder=FakeEmbedder())
+    r2 = get_entity_resolver(corpus, embedder=FakeEmbedder())
+    assert r1.registry is r2.registry  # registry built once, reused
+    clear_entity_resolver_cache()
+    r3 = get_entity_resolver(corpus, embedder=FakeEmbedder())
+    assert r3.registry is not r1.registry
