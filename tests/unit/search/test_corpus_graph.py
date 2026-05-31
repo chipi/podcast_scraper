@@ -216,7 +216,11 @@ def _write_variant_corpus(tmp_path):
                 {
                     "episode_id": ep,
                     "nodes": [
-                        {"id": f"episode:{ep}", "type": "Episode", "properties": {}},
+                        {
+                            "id": f"episode:{ep}",
+                            "type": "Episode",
+                            "properties": {"podcast_id": "show:lots"},
+                        },
                         {"id": org, "type": "Entity", "properties": {"name": org.split(":")[1]}},
                     ],
                     "edges": [{"type": "MENTIONS", "from": org, "to": f"episode:{ep}"}],
@@ -240,3 +244,14 @@ def test_no_identity_map_keeps_variants_separate(tmp_path):
     g = CorpusGraph.build(_write_variant_corpus(tmp_path))
     assert g.get_node("org:cargil") is not None
     assert g.get_node("org:cargill") is not None
+
+
+def test_get_corpus_graph_canonicalizes_entities_by_default(tmp_path):
+    # Prod path: get_corpus_graph builds + applies the entity canonical map (#852).
+    corpus = _write_variant_corpus(tmp_path)
+    g = get_corpus_graph(corpus)  # canonicalize_entities=True by default
+    assert g.get_node("org:cargil") is None  # auto-merged into the canonical
+    assert g.get_node("org:cargill") is not None
+    clear_corpus_graph_cache()
+    g_off = get_corpus_graph(corpus, canonicalize_entities=False)
+    assert g_off.get_node("org:cargil") is not None  # faithful union when off

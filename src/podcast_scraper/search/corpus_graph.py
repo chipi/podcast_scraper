@@ -232,19 +232,38 @@ class CorpusGraph:
 
 # Process-level cache (mirrors providers/ml/embedding_loader.py): graphs are
 # expensive to build and reused across searches. Keyed by resolved corpus path.
-_corpus_graphs: Dict[tuple[str, bool], CorpusGraph] = {}
+_corpus_graphs: Dict[tuple[str, bool, bool], CorpusGraph] = {}
 _corpus_graphs_lock = threading.Lock()
 
 
 def get_corpus_graph(
-    corpus_dir: Path | str, *, validate: bool = False, derive_speaker_links: bool = False
+    corpus_dir: Path | str,
+    *,
+    validate: bool = False,
+    derive_speaker_links: bool = False,
+    canonicalize_entities: bool = True,
 ) -> CorpusGraph:
-    """Return the cached cross-layer graph for *corpus_dir*, building it once."""
-    key = (str(Path(corpus_dir).resolve()), derive_speaker_links)
+    """Return the cached cross-layer graph for *corpus_dir*, building it once.
+
+    ``canonicalize_entities`` (default True — the production path) builds the
+    cross-episode entity canonical map (#852) from the corpus and applies it so
+    spelling variants (`Tracy`/`Tracey Alloway`) collapse to one node. The map is
+    derived deterministically from ``corpus_dir``, so it stays out of the cache key.
+    Pass False for a faithful artifact union.
+    """
+    key = (str(Path(corpus_dir).resolve()), derive_speaker_links, canonicalize_entities)
     with _corpus_graphs_lock:
         if key not in _corpus_graphs:
+            identity_map: Optional[Dict[str, str]] = None
+            if canonicalize_entities:
+                from ..kg.entity_clusters import build_entity_id_map
+
+                identity_map = build_entity_id_map(corpus_dir)
             _corpus_graphs[key] = CorpusGraph.build(
-                corpus_dir, validate=validate, derive_speaker_links=derive_speaker_links
+                corpus_dir,
+                validate=validate,
+                derive_speaker_links=derive_speaker_links,
+                identity_map=identity_map,
             )
         return _corpus_graphs[key]
 
