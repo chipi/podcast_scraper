@@ -79,6 +79,12 @@ COPY config/profiles/ ./config/profiles/
 # the Python package), so it can't ride along in the wheel.
 COPY config/examples/ ./config/examples/
 
+# Ship the search backend/serving config so hybrid retrieval (RFC-090 Phase 2) is
+# togglable in the container via ``serving.hybrid_enabled`` — it lives outside the
+# wheel like the profiles above, and ``search.hybrid_search`` reads it at this
+# cwd-relative path (or via the PODCAST_SEARCH_CONFIG / PODCAST_HYBRID_SEARCH envs).
+COPY config/search.yaml ./config/search.yaml
+
 COPY docker/api/entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
 

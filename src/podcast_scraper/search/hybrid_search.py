@@ -18,8 +18,9 @@ by design. Full-coverage hybrid (kg/quote tiers in LanceDB) is a follow-up.
 from __future__ import annotations
 
 import logging
+import os
 from pathlib import Path
-from typing import cast, List, Optional, Sequence
+from typing import Any, cast, Dict, List, Optional, Sequence, TYPE_CHECKING
 
 import yaml
 
@@ -27,20 +28,62 @@ from ..providers.ml import embedding_loader
 from .backend import CompoundResult, ScoredResult, Tier
 from .protocol import SearchResult
 
+if TYPE_CHECKING:  # pragma: no cover - typing only
+    from .query_router import QueryRouter
+
 logger = logging.getLogger(__name__)
 
-_SEARCH_CONFIG = Path("config/search.yaml")
 _DEFAULT_MODEL = "sentence-transformers/all-MiniLM-L6-v2"
+_TRUTHY = {"1", "true", "yes", "on"}
+
+
+def _search_config_path() -> Optional[Path]:
+    """Locate ``search.yaml`` robustly (env override > CWD > repo-root anchor).
+
+    A bare ``Path("config/search.yaml")`` is CWD-relative and silently missing in a
+    deployed container (audit H1). Candidates cover dev (CWD / editable source tree)
+    and prod (the file shipped next to the working dir).
+    """
+    env = os.getenv("PODCAST_SEARCH_CONFIG")
+    candidates = [Path(env)] if env else []
+    candidates.append(Path("config/search.yaml"))
+    candidates.append(Path(__file__).resolve().parents[3] / "config" / "search.yaml")
+    return next((p for p in candidates if p.is_file()), None)
+
+
+def _load_search_config() -> Dict[str, Any]:
+    """Parse ``search.yaml`` if found, else ``{}`` (never raises)."""
+    path = _search_config_path()
+    if path is None:
+        return {}
+    try:
+        doc = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
+    except (OSError, yaml.YAMLError):
+        return {}
+    return doc if isinstance(doc, dict) else {}
 
 
 def hybrid_search_enabled() -> bool:
-    """True when ``serving.hybrid_enabled`` is set in ``config/search.yaml``."""
-    try:
-        doc = yaml.safe_load(_SEARCH_CONFIG.read_text(encoding="utf-8")) or {}
-    except (OSError, yaml.YAMLError):
-        return False
-    serving = doc.get("serving") if isinstance(doc, dict) else None
+    """True when hybrid is enabled via env (``PODCAST_HYBRID_SEARCH``) or config.
+
+    The env override exists so an operator can enable hybrid in a container where the
+    config file may not be on the CWD path (audit H1).
+    """
+    env = os.getenv("PODCAST_HYBRID_SEARCH")
+    if env is not None:
+        return env.strip().lower() in _TRUTHY
+    serving = _load_search_config().get("serving")
     return bool(isinstance(serving, dict) and serving.get("hybrid_enabled"))
+
+
+def _serving_router() -> "Optional[QueryRouter]":
+    """Build the configured query router (RFC-092 #860), or None to use rules default."""
+    cfg = _load_search_config().get("router")
+    if not isinstance(cfg, dict):
+        return None
+    from .query_router import get_query_router
+
+    return get_query_router(str(cfg.get("mode") or "rules"), model_path=cfg.get("model_path"))
 
 
 def lance_index_dir(output_dir: Path) -> Path:
@@ -148,7 +191,7 @@ def hybrid_candidates(
         return None
 
     try:
-        layer = RetrievalLayer(backend)
+        layer = RetrievalLayer(backend, router=_serving_router())
         fetch_k = max(top_k * fetch_multiplier, top_k)
         results = layer.retrieve(query, qemb, k=fetch_k, tier=_tier_for(doc_types))
     except Exception as exc:  # noqa: BLE001 - backend/index error → FAISS fallback

@@ -15,9 +15,10 @@ from podcast_scraper.search.protocol import SearchResult
 pytestmark = pytest.mark.unit
 
 
-def test_flag_reader_defaults_false_and_reads_yaml(tmp_path, monkeypatch):
+def test_flag_reader_reads_config_via_env_path(tmp_path, monkeypatch):
     cfg = tmp_path / "search.yaml"
-    monkeypatch.setattr(hybrid_search, "_SEARCH_CONFIG", cfg)
+    monkeypatch.setenv("PODCAST_SEARCH_CONFIG", str(cfg))
+    monkeypatch.delenv("PODCAST_HYBRID_SEARCH", raising=False)
     assert hybrid_search.hybrid_search_enabled() is False  # missing file → False
 
     cfg.write_text("serving:\n  hybrid_enabled: true\n", encoding="utf-8")
@@ -25,6 +26,27 @@ def test_flag_reader_defaults_false_and_reads_yaml(tmp_path, monkeypatch):
 
     cfg.write_text("serving:\n  hybrid_enabled: false\n", encoding="utf-8")
     assert hybrid_search.hybrid_search_enabled() is False
+
+
+def test_env_var_overrides_config(monkeypatch):
+    # The container escape hatch (audit H1): env wins, no config file needed.
+    monkeypatch.setenv("PODCAST_HYBRID_SEARCH", "true")
+    assert hybrid_search.hybrid_search_enabled() is True
+    monkeypatch.setenv("PODCAST_HYBRID_SEARCH", "off")
+    assert hybrid_search.hybrid_search_enabled() is False
+
+
+def test_serving_router_built_from_config(tmp_path, monkeypatch):
+    from podcast_scraper.search.query_router import MLQueryRouter, RulesQueryRouter
+
+    cfg = tmp_path / "search.yaml"
+    monkeypatch.setenv("PODCAST_SEARCH_CONFIG", str(cfg))
+    cfg.write_text("router:\n  mode: ml\n  model_path: ./nope.joblib\n", encoding="utf-8")
+    assert isinstance(hybrid_search._serving_router(), MLQueryRouter)
+    cfg.write_text("router:\n  mode: rules\n", encoding="utf-8")
+    assert isinstance(hybrid_search._serving_router(), RulesQueryRouter)
+    cfg.write_text("backend: lancedb\n", encoding="utf-8")  # no router block
+    assert hybrid_search._serving_router() is None
 
 
 def test_dispatch_uses_hybrid_when_enabled(tmp_path, monkeypatch):
