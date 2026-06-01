@@ -10,23 +10,26 @@ into the ``insight`` (Tier 2) and ``segment`` (Tier 1) tables.
 Relationship to the migration (#858): the migration is the fast path for a corpus
 that already has FAISS (it reuses those embeddings verbatim); this indexer is the
 native path for corpora that don't. Both produce the same two-tier layout the live
-hybrid search (RFC-090 Phase 2) reads. Insight↔segment linking
-(``linked_insight_ids`` for compound results) is not populated here yet — like the
-migration — so compounds degrade to separate insight+segment rows; wiring the
-SUPPORTED_BY edges through is a follow-up.
+hybrid search (RFC-090 Phase 2) reads. Unlike the migration, this path **populates
+insight↔segment links** (``linked_insight_ids`` / ``source_segment_id``) from the
+gi.json ``SUPPORTED_BY`` edges + quote timestamps, so the compound-result path
+(``dedup``) actually fires on a natively-built index. The migration leaves them
+empty (FAISS gives it no edges), so compounds need a native (re)index.
 """
 
 from __future__ import annotations
 
+import json
 from dataclasses import dataclass
 from pathlib import Path
-from typing import cast, List, Optional
+from typing import cast, Dict, List, Optional, Tuple
 
 from ..providers.ml import embedding_loader
 from .backend import InsightDocument, SegmentDocument
 from .backends.lancedb_backend import LanceDBBackend
 from .corpus_scope import discover_metadata_files, episode_root_from_metadata_path
-from .indexer import _collect_docs_for_episode, _load_metadata_file
+from .indexer import _collect_docs_for_episode, _gi_path, _load_metadata_file
+from .segments import link_insights_to_segments
 
 DEFAULT_MODEL = "sentence-transformers/all-MiniLM-L6-v2"
 DEFAULT_TARGET_TOKENS = 256
@@ -40,11 +43,46 @@ class TwoTierIndexStats:
     episodes: int = 0
     segments: int = 0
     insights: int = 0
+    linked: int = 0
 
 
 def _embed(text: str, model_id: str, *, allow_download: bool) -> List[float]:
     vec = embedding_loader.encode(text, model_id, return_numpy=False, allow_download=allow_download)
     return [float(x) for x in cast(List[float], vec)]
+
+
+def _insight_grounding_quotes(gi_path: Path) -> Dict[str, Tuple[float, Optional[float]]]:
+    """Map each insight node id → its first grounding quote's (start_s, end_s).
+
+    Reads the episode's ``*.gi.json`` (Insight ``SUPPORTED_BY`` Quote; quotes carry
+    ``timestamp_*_ms``). This is what lets ``link_insights_to_segments`` connect an
+    insight to the transcript segment it was spoken in — the input the compound-result
+    path (``dedup``) needs but the FAISS-derived migration can't supply.
+    """
+    if not gi_path.is_file():
+        return {}
+    try:
+        art = json.loads(gi_path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return {}
+    quote_ts: Dict[str, Tuple[float, Optional[float]]] = {}
+    for node in art.get("nodes") or []:
+        if node.get("type") == "Quote":
+            props = node.get("properties") or {}
+            start = props.get("timestamp_start_ms")
+            if start is not None:
+                end = props.get("timestamp_end_ms")
+                quote_ts[node.get("id")] = (
+                    float(start) / 1000.0,
+                    float(end) / 1000.0 if end is not None else None,
+                )
+    out: Dict[str, Tuple[float, Optional[float]]] = {}
+    for edge in art.get("edges") or []:
+        if edge.get("type") == "SUPPORTED_BY":
+            insight_id, quote_id = edge.get("from"), edge.get("to")
+            if insight_id not in out and quote_id in quote_ts:
+                out[insight_id] = quote_ts[quote_id]
+    return out
 
 
 def build_two_tier_index(
@@ -95,11 +133,16 @@ def build_two_tier_index(
             overlap_tokens=overlap_tokens,
             metadata_relative_path=meta_rel,
         )
+        # Collect this episode's docs first, then link insights to the segment that
+        # contains their grounding quote, then upsert — so linked_insight_ids /
+        # source_segment_id are populated (the compound-result path needs them).
+        seg_docs: List[SegmentDocument] = []
+        ins_docs: List[InsightDocument] = []
+        node_id_by_insight: Dict[str, Optional[str]] = {}
         for doc_id, text, meta in rows:
             doc_type = meta.get("doc_type")
             if doc_type == "insight":
-                emb = _embed(text, model_id, allow_download=allow_download)
-                _ensure_backend(len(emb)).upsert_insight(
+                ins_docs.append(
                     InsightDocument(
                         id=doc_id,
                         text=text,
@@ -108,13 +151,12 @@ def build_two_tier_index(
                         entity_type="insight",
                         confidence=0.0,
                         derived=bool(meta.get("grounded")),
-                        embedding=emb,
+                        embedding=_embed(text, model_id, allow_download=allow_download),
                     )
                 )
-                stats.insights += 1
+                node_id_by_insight[doc_id] = meta.get("source_id")
             elif doc_type == "transcript":
-                emb = _embed(text, model_id, allow_download=allow_download)
-                _ensure_backend(len(emb)).upsert_segment(
+                seg_docs.append(
                     SegmentDocument(
                         id=doc_id,
                         text=text,
@@ -122,10 +164,28 @@ def build_two_tier_index(
                         episode_id=meta.get("episode_id") or "",
                         start_time=float(meta.get("timestamp_start_ms") or 0.0) / 1000.0,
                         end_time=float(meta.get("timestamp_end_ms") or 0.0) / 1000.0,
-                        embedding=emb,
+                        embedding=_embed(text, model_id, allow_download=allow_download),
                     )
                 )
-                stats.segments += 1
+
+        grounding = _insight_grounding_quotes(_gi_path(episode_root, meta_path, doc))
+        insight_quotes = [
+            (ins.id, *grounding[node_id])
+            for ins in ins_docs
+            if (node_id := node_id_by_insight.get(ins.id)) in grounding
+        ]
+        mapping = link_insights_to_segments(seg_docs, insight_quotes)
+        for ins in ins_docs:
+            if ins.id in mapping:
+                ins.source_segment_id = mapping[ins.id]
+        stats.linked += len(mapping)
+
+        for seg in seg_docs:
+            _ensure_backend(len(seg.embedding)).upsert_segment(seg)
+            stats.segments += 1
+        for ins in ins_docs:
+            _ensure_backend(len(ins.embedding)).upsert_insight(ins)
+            stats.insights += 1
 
     if backend is not None:
         backend.write_index_meta(model_id)  # query path must embed in the same space
