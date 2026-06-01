@@ -12,6 +12,7 @@ from __future__ import annotations
 import dataclasses
 from typing import Any, Dict, List, Optional, TYPE_CHECKING
 
+from ...utils.path_validation import normpath_if_under_root
 from ..backend import InsightDocument, ScoredResult, SearchQuery, SegmentDocument, Tier
 
 if TYPE_CHECKING:  # pragma: no cover - typing only
@@ -80,21 +81,19 @@ class LanceDBBackend:
 
     # --- index metadata sidecar ------------------------------------------------
 
-    # The sidecar file name is a constant under the connected db dir. Each FS sink
-    # below repeats an inline normpath + startswith barrier in its OWN function: that
-    # is the form CodeQL recognizes as a py/path-injection sanitizer for a
-    # request-derived corpus root (docs/ci/CODEQL_DISMISSALS.md Type 1) — it does not
-    # model the cross-function sanitisation done upstream at the route boundary.
+    # The sidecar is a constant file under the connected db dir. Each FS sink resolves
+    # it via ``normpath_if_under_root`` — the repo's CodeQL-recognized py/path-injection
+    # sanitizer (docs/ci/CODEQL_DISMISSALS.md Type 1) — since CodeQL does not model the
+    # cross-function sanitisation done upstream at the route boundary.
 
     def write_index_meta(self, embedding_model: str) -> None:
         """Record the embedding model + dim alongside the index (queries must match)."""
         import json
         import os
 
-        base = os.path.normpath(self.path)
-        meta_path = os.path.normpath(os.path.join(base, self.INDEX_META_FILE))
-        if meta_path != base and not meta_path.startswith(base + os.sep):
-            return  # path escapes the index dir — refuse
+        meta_path = normpath_if_under_root(os.path.join(self.path, self.INDEX_META_FILE), self.path)
+        if meta_path is None:
+            return
         meta = {"embedding_model": embedding_model, "embed_dim": self.embed_dim}
         with open(meta_path, "w", encoding="utf-8") as fh:
             json.dump(meta, fh)
@@ -104,11 +103,8 @@ class LanceDBBackend:
         import json
         import os
 
-        base = os.path.normpath(self.path)
-        meta_path = os.path.normpath(os.path.join(base, self.INDEX_META_FILE))
-        if meta_path != base and not meta_path.startswith(base + os.sep):
-            return None
-        if not os.path.isfile(meta_path):
+        meta_path = normpath_if_under_root(os.path.join(self.path, self.INDEX_META_FILE), self.path)
+        if meta_path is None or not os.path.isfile(meta_path):
             return None
         try:
             with open(meta_path, encoding="utf-8") as fh:

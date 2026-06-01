@@ -25,6 +25,7 @@ from typing import Any, cast, Dict, List, Optional, Sequence, TYPE_CHECKING
 import yaml
 
 from ..providers.ml import embedding_loader
+from ..utils.path_validation import normpath_if_under_root
 from .backend import CompoundResult, ScoredResult, Tier
 from .protocol import SearchResult
 
@@ -149,15 +150,13 @@ def hybrid_candidates(
     missing LanceDB index or a query-embedding failure. An empty list means the index
     was searched and genuinely had no hits.
     """
-    index_dir = lance_index_dir(output_dir)
-    # Inline py/path-injection barrier (CodeQL Type 1, docs/ci/CODEQL_DISMISSALS.md):
-    # the index dir is constant segments under the route-sanitized corpus dir; confirm
-    # it doesn't escape before any filesystem access.
-    _root = os.path.normpath(str(output_dir))
-    if not os.path.normpath(str(index_dir)).startswith(_root):
+    # py/path-injection sanitizer (CodeQL Type 1, docs/ci/CODEQL_DISMISSALS.md): the
+    # index dir is constant segments under the route-sanitized corpus dir; resolve it
+    # through the recognized helper before any filesystem access.
+    safe_index_dir = normpath_if_under_root(str(lance_index_dir(output_dir)), str(output_dir))
+    if safe_index_dir is None or not os.path.isdir(safe_index_dir):
         return None
-    if not index_dir.exists():
-        return None
+    index_dir = Path(safe_index_dir)
 
     try:
         from .backends.lancedb_backend import LanceDBBackend
