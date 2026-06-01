@@ -5,6 +5,15 @@
 
 backend: lancedb
 
+# Live serving path (RFC-090 Phase 2). When hybrid_enabled is true AND a LanceDB
+# index exists for the corpus, GET /api/search routes through the two-tier hybrid
+# RetrievalLayer (BM25 + dense + KG-proximity → RRF); otherwise it uses FAISS. Kept
+# false by default: the two-tier index covers only the insight + segment(transcript)
+# tiers, so enabling it narrows coverage (no kg_entity/kg_topic/quote/summary) until
+# those tiers are added. Flip to true to A/B hybrid on a migrated/indexed corpus.
+serving:
+  hybrid_enabled: false
+
 lancedb:
   path: ./data/lance_index
 
