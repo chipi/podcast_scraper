@@ -61,10 +61,14 @@ def test_status_then_run_then_verify(tmp_path):
     # status before: pending → exit 2.
     assert _run(corpus, "status") == 2
 
-    # run --yes applies it.
+    # run --yes applies the chain: 0001 migrates from FAISS, 0002 sees the index and
+    # no-ops.
     assert _run(corpus, "run", "--yes") == 0
     store = FilesystemStateStore(corpus)
-    assert store.applied_migration_ids() == {"0001_faiss_to_lance"}
+    assert store.applied_migration_ids() == {
+        "0001_faiss_to_lance",
+        "0002_two_tier_native_reindex",
+    }
     assert store.current_version() == "2.7.0"
     assert (corpus / "search" / "lance_index").exists()
 
@@ -74,9 +78,9 @@ def test_status_then_run_then_verify(tmp_path):
     # verify passes.
     assert _run(corpus, "verify") == 0
 
-    # idempotent: a second run is a no-op (still exit 0, still one ledger entry).
+    # idempotent: a second run is a no-op (still exit 0, ledger unchanged).
     assert _run(corpus, "run", "--yes") == 0
-    assert len(store.applied_records()) == 1
+    assert len(store.applied_records()) == 2
 
 
 def test_run_dry_run_writes_nothing(tmp_path):

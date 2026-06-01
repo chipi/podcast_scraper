@@ -11,10 +11,15 @@ from typing import List
 
 from .migration import Migration
 from .migrations.m0001_faiss_to_lance import FaissToLanceMigration
+from .migrations.m0002_two_tier_native_reindex import TwoTierNativeReindexMigration
 
-# Source of truth, declared in intended apply order.
+# Source of truth, declared in intended apply order. 0001 migrates from FAISS when
+# present; 0002 builds natively only when 0001 left no index — together they
+# guarantee a two-tier index via the cheapest path. The entity canonical map (#852)
+# is intentionally NOT a migration: it is computed live at graph-build, not persisted.
 _MIGRATIONS: List[Migration] = [
     FaissToLanceMigration(),
+    TwoTierNativeReindexMigration(),
 ]
 
 

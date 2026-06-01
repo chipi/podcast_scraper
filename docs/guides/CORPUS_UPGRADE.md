@@ -66,5 +66,15 @@ files-on-disk to a database:
 2. Register it in `upgrade/registry.py`.
 3. Add unit coverage in `tests/unit/upgrade/`.
 
-Known 2.6 → 2.7 migrations still to inventory/register: vector index rebuilds and the
-cross-episode entity canonical-map rebuild (#852).
+## Registered migrations
+
+- `0001_faiss_to_lance` — migrate an existing FAISS index into the two-tier LanceDB
+  layout (reuses embeddings). No-op when the corpus has no FAISS index.
+- `0002_two_tier_native_reindex` — build the two-tier index **natively** from corpus
+  artifacts, but only when `0001` left none (no FAISS to migrate). No-op when an index
+  already exists. Together, 0001 + 0002 guarantee a two-tier index via the cheapest
+  available path without double-building.
+
+**Not a migration:** the cross-episode entity canonical map (#852) is computed *live*
+at graph-build (`search/corpus_graph.py` → `build_entity_id_map`), not persisted —
+there is no artifact to rebuild, so it needs no migration.
