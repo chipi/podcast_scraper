@@ -1343,3 +1343,49 @@ def run_topic_insights_cli(args: Namespace, logger: logging.Logger) -> int:
             print()
 
     return EXIT_SUCCESS
+
+
+def parse_index_two_tier_argv(argv: Sequence[str]) -> Namespace:
+    """Parse ``index-two-tier`` args (RFC-090 from-corpus two-tier indexer, follow-up B)."""
+    parser = argparse.ArgumentParser(prog="podcast_scraper index-two-tier")
+    parser.add_argument("--output-dir", required=True, help="Corpus root (parent of feeds/).")
+    parser.add_argument(
+        "--lance-path",
+        default=None,
+        help="LanceDB index dir (default: <output-dir>/search/lance_index).",
+    )
+    parser.add_argument("--embedding-model", default=None, help="Override embedding model id.")
+    parser.add_argument("--limit-episodes", type=int, default=None, help="Cap episodes (smoke).")
+    parser.add_argument(
+        "--allow-download", action="store_true", help="Allow embedding-model download."
+    )
+    args = parser.parse_args(list(argv))
+    args.command = "index-two-tier"
+    return args
+
+
+def run_index_two_tier_cli(args: Namespace, logger: logging.Logger) -> int:
+    """Build the two-tier LanceDB index from corpus artifacts (RFC-090 Phase 2 / B)."""
+    output_dir = getattr(args, "output_dir", None)
+    if not output_dir:
+        logger.error("index-two-tier: --output-dir is required")
+        return EXIT_INVALID_ARGS
+
+    from podcast_scraper.search.two_tier_indexer import build_two_tier_index, DEFAULT_MODEL
+
+    lance_path = getattr(args, "lance_path", None) or str(
+        Path(output_dir) / "search" / "lance_index"
+    )
+    model_id = getattr(args, "embedding_model", None) or DEFAULT_MODEL
+    stats = build_two_tier_index(
+        output_dir,
+        lance_path,
+        model_id=model_id,
+        limit_episodes=getattr(args, "limit_episodes", None),
+        allow_download=bool(getattr(args, "allow_download", False)),
+    )
+    print(
+        f"Two-tier index built at {lance_path}: "
+        f"episodes={stats.episodes} segments={stats.segments} insights={stats.insights}"
+    )
+    return EXIT_SUCCESS
