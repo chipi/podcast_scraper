@@ -87,7 +87,9 @@ class MLQueryRouter:
 
         from ..providers.ml.embedding_loader import encode
 
-        arr = np.asarray(encode(text, "minilm-l6", allow_download=True), dtype=float).ravel()
+        # Inference-time embedding on the serving path: do not download (the model is
+        # preloaded in prod), matching hybrid_search's query-embed policy.
+        arr = np.asarray(encode(text, "minilm-l6", allow_download=False), dtype=float).ravel()
         return [float(x) for x in arr.tolist()]
 
     def classify(self, text: str) -> str:

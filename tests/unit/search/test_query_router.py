@@ -87,3 +87,40 @@ def test_retrieval_layer_default_router_is_rules():
     layer = RetrievalLayer(_FakeBackend())
     out = layer.retrieve("Sam Altman", [0.1])
     assert {r.doc_id for r in out} == {"seg1", "ins0"}
+
+
+def test_loads_persisted_model_and_embeds(tmp_path, monkeypatch):
+    # Real joblib round-trip + real _embed (encode monkeypatched) → covers load + embed.
+    import joblib
+    from sklearn.dummy import DummyClassifier
+
+    clf = DummyClassifier(strategy="constant", constant="cross_show_synthesis")
+    clf.fit([[0.0, 0.0, 0.0]], ["cross_show_synthesis"])
+    model_path = tmp_path / "router.joblib"
+    joblib.dump(clf, model_path)
+
+    monkeypatch.setattr(
+        "podcast_scraper.providers.ml.embedding_loader.encode",
+        lambda *a, **k: [0.0, 0.0, 0.0],
+    )
+    router = MLQueryRouter(model_path)
+    assert router.classify("compare A and B") == "cross_show_synthesis"
+
+
+def test_corrupt_model_file_falls_back_to_rules(tmp_path):
+    bad = tmp_path / "bad.joblib"
+    bad.write_text("not a joblib file", encoding="utf-8")
+    router = MLQueryRouter(bad)
+    assert router.classify("Sam Altman") == "entity_lookup"  # load failed → rules
+
+
+def test_predict_exception_falls_back_to_rules():
+    class _Raises:
+        def predict(self, X):
+            raise RuntimeError("inference boom")
+
+    router = MLQueryRouter()
+    router._model = _Raises()
+    router._loaded = True
+    router._embed = lambda text: [0.0]  # type: ignore[method-assign]
+    assert router.classify("Sam Altman") == "entity_lookup"  # predict raised → rules

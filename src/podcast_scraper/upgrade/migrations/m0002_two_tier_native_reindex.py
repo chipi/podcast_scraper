@@ -83,7 +83,9 @@ class TwoTierNativeReindexMigration(Migration):
         except Exception as exc:  # noqa: BLE001 - surface as verify failure
             return False, f"LanceDB health check failed: {exc}"
         total = int(health.get("segments", 0)) + int(health.get("insights", 0))
+        if total <= 0:
+            return False, "LanceDB index present but empty"
         return (
-            (total >= 0),
+            True,
             f"LanceDB present: segments={health.get('segments')} insights={health.get('insights')}",
         )
