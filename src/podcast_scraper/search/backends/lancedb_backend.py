@@ -13,7 +13,11 @@ import dataclasses
 from pathlib import Path
 from typing import Any, Dict, List, Optional, TYPE_CHECKING
 
-from ...utils.path_validation import safe_resolve_directory
+from ...utils.path_validation import (
+    normpath_if_under_root,
+    safe_relpath_under_corpus_root,
+    safe_resolve_directory,
+)
 from ..backend import InsightDocument, ScoredResult, SearchQuery, SegmentDocument, Tier
 
 if TYPE_CHECKING:  # pragma: no cover - typing only
@@ -82,22 +86,29 @@ class LanceDBBackend:
 
     # --- index metadata sidecar ------------------------------------------------
 
-    # The sidecar is a CONSTANT file under the connected db dir. Each FS sink resolves
-    # the dir with ``safe_resolve_directory`` (realpath — a CodeQL-recognized
-    # py/path-injection sanitizer) inline, then joins the constant name: the pattern the
-    # registry prescribes (docs/ci/CODEQL_DISMISSALS.md Type 1), since CodeQL cannot
-    # model the route's cross-function corpus-path sanitisation.
+    # Each FS sink below resolves the sidecar inline via the recognized sanitizer chain
+    # (mirrors the proven jobs_log_path idiom): safe_resolve_directory →
+    # safe_relpath_under_corpus_root → normpath_if_under_root, then an inline
+    # ``# codeql[...]`` pragma at the sink (docs/ci/CODEQL_DISMISSALS.md Type 1; the
+    # corpus path is sanitized cross-function at the route, which CodeQL cannot model).
 
     def write_index_meta(self, embedding_model: str) -> None:
         """Record the embedding model + dim alongside the index (queries must match)."""
         import json
         import os
 
-        safe_dir = safe_resolve_directory(Path(self.path))
-        if safe_dir is None:
+        root_res = safe_resolve_directory(Path(self.path))
+        if root_res is None:
             return
-        meta_path = os.path.join(str(safe_dir), self.INDEX_META_FILE)
+        root_s = os.path.normpath(str(root_res))
+        verified = safe_relpath_under_corpus_root(root_res, self.INDEX_META_FILE)
+        if not verified:
+            return
+        meta_path = normpath_if_under_root(os.path.normpath(verified), root_s)
+        if not meta_path:
+            return
         meta = {"embedding_model": embedding_model, "embed_dim": self.embed_dim}
+        # codeql[py/path-injection] -- meta_path via normpath_if_under_root (Type 1).
         with open(meta_path, "w", encoding="utf-8") as fh:
             json.dump(meta, fh)
 
@@ -106,13 +117,21 @@ class LanceDBBackend:
         import json
         import os
 
-        safe_dir = safe_resolve_directory(Path(self.path))
-        if safe_dir is None:
+        root_res = safe_resolve_directory(Path(self.path))
+        if root_res is None:
             return None
-        meta_path = os.path.join(str(safe_dir), self.INDEX_META_FILE)
+        root_s = os.path.normpath(str(root_res))
+        verified = safe_relpath_under_corpus_root(root_res, self.INDEX_META_FILE)
+        if not verified:
+            return None
+        meta_path = normpath_if_under_root(os.path.normpath(verified), root_s)
+        if not meta_path:
+            return None
+        # codeql[py/path-injection] -- meta_path via normpath_if_under_root (Type 1).
         if not os.path.isfile(meta_path):
             return None
         try:
+            # codeql[py/path-injection] -- meta_path via normpath_if_under_root (Type 1).
             with open(meta_path, encoding="utf-8") as fh:
                 data = json.load(fh)
             return data if isinstance(data, dict) else None

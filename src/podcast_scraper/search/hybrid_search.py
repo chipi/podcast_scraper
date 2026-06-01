@@ -25,7 +25,11 @@ from typing import Any, cast, Dict, List, Optional, Sequence, TYPE_CHECKING
 import yaml
 
 from ..providers.ml import embedding_loader
-from ..utils.path_validation import safe_resolve_directory
+from ..utils.path_validation import (
+    normpath_if_under_root,
+    safe_relpath_under_corpus_root,
+    safe_resolve_directory,
+)
 from .backend import CompoundResult, ScoredResult, Tier
 from .protocol import SearchResult
 
@@ -150,13 +154,21 @@ def hybrid_candidates(
     missing LanceDB index or a query-embedding failure. An empty list means the index
     was searched and genuinely had no hits.
     """
-    # py/path-injection sanitizer (CodeQL Type 1, docs/ci/CODEQL_DISMISSALS.md): resolve
-    # the corpus dir via safe_resolve_directory (realpath — CodeQL-recognized) inline,
-    # then join the CONSTANT index subpath, before any filesystem access.
-    safe_corpus = safe_resolve_directory(Path(output_dir))
-    if safe_corpus is None:
+    # py/path-injection sanitizer chain (CodeQL Type 1, docs/ci/CODEQL_DISMISSALS.md;
+    # mirrors jobs_log_path): resolve the corpus dir, confine the CONSTANT index subpath
+    # under it, then pragma the sink. The corpus path is sanitized cross-function at the
+    # route, which CodeQL cannot model.
+    root_res = safe_resolve_directory(Path(output_dir))
+    if root_res is None:
         return None
-    index_dir_str = os.path.join(str(safe_corpus), "search", "lance_index")
+    root_s = os.path.normpath(str(root_res))
+    verified = safe_relpath_under_corpus_root(root_res, "search/lance_index")
+    if not verified:
+        return None
+    index_dir_str = normpath_if_under_root(os.path.normpath(verified), root_s)
+    if not index_dir_str:
+        return None
+    # codeql[py/path-injection] -- index_dir_str via normpath_if_under_root (Type 1).
     if not os.path.isdir(index_dir_str):
         return None
     index_dir = Path(index_dir_str)
