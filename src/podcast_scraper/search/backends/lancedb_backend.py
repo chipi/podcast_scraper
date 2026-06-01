@@ -10,9 +10,10 @@ instantiating the backend requires the dependency.
 from __future__ import annotations
 
 import dataclasses
+from pathlib import Path
 from typing import Any, Dict, List, Optional, TYPE_CHECKING
 
-from ...utils.path_validation import normpath_if_under_root
+from ...utils.path_validation import safe_resolve_directory
 from ..backend import InsightDocument, ScoredResult, SearchQuery, SegmentDocument, Tier
 
 if TYPE_CHECKING:  # pragma: no cover - typing only
@@ -81,19 +82,21 @@ class LanceDBBackend:
 
     # --- index metadata sidecar ------------------------------------------------
 
-    # The sidecar is a constant file under the connected db dir. Each FS sink resolves
-    # it via ``normpath_if_under_root`` — the repo's CodeQL-recognized py/path-injection
-    # sanitizer (docs/ci/CODEQL_DISMISSALS.md Type 1) — since CodeQL does not model the
-    # cross-function sanitisation done upstream at the route boundary.
+    # The sidecar is a CONSTANT file under the connected db dir. Each FS sink resolves
+    # the dir with ``safe_resolve_directory`` (realpath — a CodeQL-recognized
+    # py/path-injection sanitizer) inline, then joins the constant name: the pattern the
+    # registry prescribes (docs/ci/CODEQL_DISMISSALS.md Type 1), since CodeQL cannot
+    # model the route's cross-function corpus-path sanitisation.
 
     def write_index_meta(self, embedding_model: str) -> None:
         """Record the embedding model + dim alongside the index (queries must match)."""
         import json
         import os
 
-        meta_path = normpath_if_under_root(os.path.join(self.path, self.INDEX_META_FILE), self.path)
-        if meta_path is None:
+        safe_dir = safe_resolve_directory(Path(self.path))
+        if safe_dir is None:
             return
+        meta_path = os.path.join(str(safe_dir), self.INDEX_META_FILE)
         meta = {"embedding_model": embedding_model, "embed_dim": self.embed_dim}
         with open(meta_path, "w", encoding="utf-8") as fh:
             json.dump(meta, fh)
@@ -103,8 +106,11 @@ class LanceDBBackend:
         import json
         import os
 
-        meta_path = normpath_if_under_root(os.path.join(self.path, self.INDEX_META_FILE), self.path)
-        if meta_path is None or not os.path.isfile(meta_path):
+        safe_dir = safe_resolve_directory(Path(self.path))
+        if safe_dir is None:
+            return None
+        meta_path = os.path.join(str(safe_dir), self.INDEX_META_FILE)
+        if not os.path.isfile(meta_path):
             return None
         try:
             with open(meta_path, encoding="utf-8") as fh:
