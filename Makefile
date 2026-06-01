@@ -578,7 +578,7 @@ validate-kg-schema:
 	fi
 
 # GI/KG viewer v2 (#489): FastAPI + Vite. ``make init`` includes FastAPI via ``[dev]``; cd $(WEB_VIEWER_DIR) && npm install
-.PHONY: serve serve-api serve-ui serve-e2e-mock stack-build stack-build-llm stack-compose-validate stack-up stack-down stack-logs verify-stack-profiles stack-test-build stack-test-build-cloud stack-test-up stack-test-down stack-test-seed stack-test-playwright stack-test-export stack-test-ml stack-test-cloud-thin stack-test-ml-ci deploy-codespace restore-corpus restore-corpus-prod reprocess-corpus-from-transcripts corpus-compat-check smoke-prod corpus-snapshot-manifest-validate corpus-snapshot-select-tag corpus-snapshot-select-tag-prod corpus-snapshot-selftest corpus-snapshot-integration
+.PHONY: serve serve-api serve-ui serve-e2e-mock stack-build stack-build-llm stack-compose-validate stack-up stack-down stack-logs verify-stack-profiles stack-test-build stack-test-build-cloud stack-test-up stack-test-down stack-test-seed stack-test-playwright stack-test-export stack-test-ml stack-test-cloud-thin stack-test-ml-ci deploy-codespace restore-corpus restore-corpus-prod reprocess-corpus-from-transcripts corpus-compat-check upgrade-status upgrade-check upgrade-dry-run upgrade-corpus upgrade-verify smoke-prod corpus-snapshot-manifest-validate corpus-snapshot-select-tag corpus-snapshot-select-tag-prod corpus-snapshot-selftest corpus-snapshot-integration
 SERVE_OUTPUT_DIR ?= ./output
 # Optional corpus-editing + jobs routes (health shows green when on). Override with SERVE_ARGS= to disable.
 SERVE_ARGS ?= --enable-feeds-api --enable-operator-config-api --enable-jobs-api
@@ -1016,6 +1016,33 @@ reprocess-corpus-from-transcripts:
 corpus-compat-check:
 	@test -n "$${CORPUS_DIR:-}" || (echo "CORPUS_DIR required (corpus parent path)"; exit 1); \
 	$(PYTHON) -c "from pathlib import Path; from podcast_scraper.corpus_version import read_produced_by, assess_corpus_version_compat, MIN_SUPPORTED_CORPUS_CODE_VERSION; from podcast_scraper import __version__; root = Path('$${CORPUS_DIR}').expanduser().resolve(); pb = read_produced_by(root); ver, warn = assess_corpus_version_compat(pb); print(f'server={__version__} min_supported={MIN_SUPPORTED_CORPUS_CODE_VERSION}'); print(f'corpus_code_version={ver!r}'); print(f'produced_by={pb!r}'); import sys; (print(f'WARNING: {warn}') or sys.exit(1)) if warn else print('COMPAT OK')"
+
+# Corpus upgrade-path framework (#862). Managed, idempotent migrations for moving a
+# deployed corpus across releases (2.6 → 2.7 FAISS→LanceDB is step 0001). CORPUS_DIR
+# selects the corpus parent. `upgrade-check` exits 2 when migrations are pending —
+# wire it into boot/CI to detect a corpus that needs upgrading.
+upgrade-status:
+	@test -n "$${CORPUS_DIR:-}" || (echo "CORPUS_DIR required (corpus parent path)"; exit 1); \
+	$(PYTHON) -m podcast_scraper.cli upgrade status --corpus-dir "$${CORPUS_DIR}"
+
+upgrade-check:
+	@test -n "$${CORPUS_DIR:-}" || (echo "CORPUS_DIR required (corpus parent path)"; exit 1); \
+	$(PYTHON) -m podcast_scraper.cli upgrade status --corpus-dir "$${CORPUS_DIR}" --json
+
+# Preview the plan without writing anything.
+upgrade-dry-run:
+	@test -n "$${CORPUS_DIR:-}" || (echo "CORPUS_DIR required (corpus parent path)"; exit 1); \
+	$(PYTHON) -m podcast_scraper.cli upgrade run --corpus-dir "$${CORPUS_DIR}" --dry-run
+
+# Apply pending migrations. Non-interactive (--yes) for automated upgrades; drop
+# `--yes` and run the CLI directly for an interactive confirmation prompt.
+upgrade-corpus:
+	@test -n "$${CORPUS_DIR:-}" || (echo "CORPUS_DIR required (corpus parent path)"; exit 1); \
+	$(PYTHON) -m podcast_scraper.cli upgrade run --corpus-dir "$${CORPUS_DIR}" --yes
+
+upgrade-verify:
+	@test -n "$${CORPUS_DIR:-}" || (echo "CORPUS_DIR required (corpus parent path)"; exit 1); \
+	$(PYTHON) -m podcast_scraper.cli upgrade verify --corpus-dir "$${CORPUS_DIR}"
 
 # Post-deploy prod smoke over Tailscale HTTPS (#797). Requires PROD_TAILNET_FQDN.
 # Optional: SMOKE_CORPUS_PATH (in-container corpus root for API path=, e.g. /app/output on prod).

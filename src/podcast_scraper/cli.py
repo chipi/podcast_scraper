@@ -3502,6 +3502,12 @@ def parse_args(argv: Optional[Sequence[str]] = None) -> argparse.Namespace:
         serve_argv = list(argv[1:]) if len(argv) > 1 else []
         return parse_serve_argv(serve_argv)
 
+    if argv and len(argv) > 0 and argv[0] == "upgrade":
+        from .upgrade.cli_handlers import parse_upgrade_argv
+
+        upgrade_argv = list(argv[1:]) if len(argv) > 1 else []
+        return parse_upgrade_argv(upgrade_argv)
+
     # Check if first argument is "cache" subcommand
     if argv and len(argv) > 0 and argv[0] == "cache":
         # Handle cache subcommand
@@ -4546,6 +4552,11 @@ def main(  # noqa: C901 - main function handles multiple command paths
         from .server.cli_handlers import run_serve
 
         return run_serve(args, log)
+
+    if hasattr(args, "command") and args.command == "upgrade":
+        from .upgrade.cli_handlers import run_upgrade_cli
+
+        return run_upgrade_cli(args, log)
 
     # Handle cache subcommand
     if hasattr(args, "command") and args.command == "cache":
