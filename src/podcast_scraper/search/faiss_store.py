@@ -1,4 +1,14 @@
-"""FAISS-backed local vector store for semantic corpus search (Phase 1 / #484)."""
+"""FAISS-backed local vector store for semantic corpus search (Phase 1 / #484).
+
+DEPRECATION (RFC-090 / #858): superseded by the two-tier LanceDB backend
+(``search/backends/lancedb_backend.py``), which adds native BM25 + per-tier
+hybrid fusion. Removal is **gated**, not scheduled: the Stage-4 eval
+(``scripts/eval_two_tier_retrieval.py``) confirmed hybrid >= FAISS but on a
+known-item proxy that *saturates* (recall 1.0 both sides), so it cannot justify
+deleting FAISS on its own. A discriminating, human-judged query set must show a
+real hybrid win first. Until then both backends coexist; do not delete this
+module. Upgrade orchestration for the eventual cutover is tracked in #862.
+"""
 
 from __future__ import annotations
 

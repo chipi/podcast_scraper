@@ -301,10 +301,31 @@ def link_insights_to_segments(chunks, insights, tolerance_seconds=2.0):
 
 ### 9. Migration & Configuration
 
-A migration script (`scripts/migrate_to_lancedb_two_tier.py`) chunks each episode, links insights,
-and writes the `segments` and `insights` LanceDB tables with FTS + vector indices. Backend selected
-via `config/search.yaml` (`backend: lancedb`), with commented cloud-backend stanzas for the future
-abstraction.
+`search/migration.py::migrate_faiss_to_lance` re-projects the existing FAISS store into the
+`segments` (Tier 1, from `transcript` chunks) and `insights` (Tier 2) LanceDB tables with FTS +
+vector indices. It **reuses the FAISS embeddings verbatim** rather than re-embedding — deliberately,
+so the Stage-4 eval holds the dense signal constant and isolates the BM25 + RRF contribution. The
+migration is idempotent (merge-insert on `id`). Backend selected via `config/search.yaml`
+(`backend: lancedb`); the router mode (`rules` | `ml`) is configured in the same file.
+
+This migration is the first step of the 2.6 → 2.7 corpus upgrade; the managed upgrade-path runner
+(ordering, version stamp, dry-run, rollback) that registers it is **#862**. A from-corpus indexer
+(chunk via #857 + embed via `indexer` + link insights) is future work.
+
+#### Stage-4 eval result (#858)
+
+`scripts/eval_two_tier_retrieval.py` on the real corpus (149 known-item queries, k=10):
+
+| system | recall@10 | MRR@10 | nDCG@10 |
+| ------ | --------- | ------ | ------- |
+| FAISS  | 1.000     | 0.993  | 0.995   |
+| hybrid | 1.000     | 0.997  | 0.998   |
+
+**Verdict:** hybrid does not regress and marginally improves ranking (MRR +0.003). The known-item
+proxy **saturates** (recall 1.0 on both), so it confirms parity but cannot justify FAISS removal on
+its own. **Decision: deprecate FAISS by notice, do not remove** (Phase 3 below is re-gated). Actual
+removal waits on a discriminating, human-judged query set — which is also the labeled-query source
+RFC-092 (#860) needs, so the two unblock together.
 
 ## Key Decisions
 
@@ -371,8 +392,10 @@ index (not per-PR).
   script, unit tests.
 - **Phase 2 — Query router + tier weights**: rules-based `classify_query()`, per-type weights,
   wire into `RetrievalLayer`, integration tests.
-- **Phase 3 — Eval + FAISS deprecation**: baseline vs hybrid eval; deprecate FAISS on confirmed
-  improvement.
+- **Phase 3 — Eval + FAISS deprecation**: baseline vs hybrid eval (done — see §9 Stage-4 result).
+  FAISS is **deprecated by notice** (`faiss_store.py` docstring); **removal is re-gated** on a
+  discriminating human-judged eval, because the known-item proxy saturated. Cutover orchestration:
+  #862.
 
 **Monitoring:** `make search-health` (segment/insight counts); eval metrics tracked over time;
 log unlinked insights post-migration to inspect linking miss rate.
@@ -414,7 +437,8 @@ Other relationships:
 1. **Phase 1**: Add `lancedb`; build two-tier index via the migration script alongside the existing
    FAISS index (no removal yet).
 2. **Phase 2**: Route viewer/MCP search through `RetrievalLayer`; keep FAISS as fallback.
-3. **Phase 3**: Deprecate FAISS once eval confirms improvement; remove `faiss-cpu` in a later PR.
+3. **Phase 3**: FAISS deprecated by notice (eval confirmed parity, not a clear win — §9). `faiss-cpu`
+   removal deferred to a later PR, gated on a human-judged eval and the #862 upgrade runner.
 
 ## Open Questions
 
