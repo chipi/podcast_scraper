@@ -114,8 +114,32 @@ class MLQueryRouter(QueryRouter):
 # config/search.yaml
 router:
   mode: rules                                   # "rules" | "ml"
-  ml_model_path: ./models/query_router.onnx     # only used if mode: ml
+  model_path: ./data/query_router.joblib        # only used if mode: ml
 ```
+
+### 4. Implementation status (#860)
+
+Built in `search/query_router.py` (`QueryRouter` protocol, `RulesQueryRouter`, `MLQueryRouter`),
+wired into `RetrievalLayer` via an optional `router=` arg, switched in `config/search.yaml`.
+`scripts/train_query_router.py` bootstraps the labeled set and trains the model. Two deliberate
+deviations from this RFC's sketch:
+
+- **sklearn/joblib, not ONNX.** A `LogisticRegression` over MiniLM embeddings, persisted with
+  joblib. `onnxruntime`/`skl2onnx` are not in the stack and adding them needs approval; sklearn +
+  joblib already are, and still satisfy the local-first / no-cloud constraint. ONNX export can be
+  revisited if a redeploy-as-file-swap workflow demands it.
+- **Template-defined labels, not rules-silver labels.** Goal §4's "silver labels from the rules
+  router" is **circular** — it can only teach the model to copy the rules. Instead each query is
+  generated from an intent *template* (the label is ground truth by construction) with slots filled
+  from **real corpus entities/topics** (FAISS `kg_entity`/`kg_topic` surface text), so the lexical
+  distribution is realistic while the labels are genuine.
+
+**Bootstrap result** (750 queries, 1083 people × 1106 topics, 80/20 split): holdout accuracy 1.000;
+on the same held-out queries the rules router scores 0.867 ground-truth — so **ML adds +13.3 points**,
+recovering intents the bigram-name / keyword rules miss. The 1.0 is inflated by template
+separability, so this is a *bootstrap*, not the final story: **default stays `mode: rules`** until
+the model is validated on real (messy, human-judged) queries — the same query set that re-gates FAISS
+removal in RFC-090 #858. The two unblock together.
 
 ## Key Decisions
 

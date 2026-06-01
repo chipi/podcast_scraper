@@ -8,6 +8,14 @@ backend: lancedb
 lancedb:
   path: ./data/lance_index
 
+# Query router (RFC-092 / #860): how a query's intent is classified, which drives
+# the per-intent signal/tier weights. `rules` is deterministic and dependency-free;
+# `ml` loads a trained classifier (scripts/train_query_router.py) and degrades to
+# rules if the model is absent. Stay on `rules` until the model is trained.
+router:
+  mode: rules  # rules | ml
+  model_path: ./data/query_router.joblib
+
 # Future backends (no implementation yet):
 # turbopuffer:
 #   api_key: ${TPUF_API_KEY}

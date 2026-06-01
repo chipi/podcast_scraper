@@ -17,6 +17,7 @@ from .router import classify_query, signal_weights_for, tier_weights_for
 if TYPE_CHECKING:  # pragma: no cover - typing only
     from ..identity.resolver import EntityResolver
     from .kg_proximity import KGProximitySearch
+    from .query_router import QueryRouter
 
 
 class RetrievalLayer:
@@ -28,10 +29,16 @@ class RetrievalLayer:
         *,
         kg_proximity: "Optional[KGProximitySearch]" = None,
         entity_resolver: "Optional[EntityResolver]" = None,
+        router: "Optional[QueryRouter]" = None,
     ):
         self.backend = backend
         self.kg_proximity = kg_proximity
         self.entity_resolver = entity_resolver
+        self.router = router
+
+    def _classify(self, text: str) -> str:
+        """Intent for *text* via the injected router, else the rules default."""
+        return self.router.classify(text) if self.router is not None else classify_query(text)
 
     @staticmethod
     def classify(text: str) -> str:
@@ -56,7 +63,7 @@ class RetrievalLayer:
         ``vector``). Returns a score-ordered list of ``ScoredResult`` /
         ``CompoundResult``.
         """
-        intent = intent or classify_query(text)
+        intent = intent or self._classify(text)
         query = SearchQuery(text=text, embedding=embedding, filters=filters or {}, k=k, tier=tier)
 
         ranked_lists = []
