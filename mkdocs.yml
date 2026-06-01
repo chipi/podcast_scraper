@@ -16,6 +16,7 @@ nav:
       - Prod Runbook (always-on VPS): guides/PROD_RUNBOOK.md
       - DGX Spark runbook (RFC-089): guides/DGX_RUNBOOK.md
       - Prod compat validation (#796/#797): guides/PROD_COMPAT_VALIDATION.md
+      - Corpus upgrade framework (#862): guides/CORPUS_UPGRADE.md
       - Stack contract (cross-surface audit): guides/STACK_CONTRACT.md
       - Corpus snapshot manifest and restore: guides/CORPUS_SNAPSHOT_MANIFEST_AND_RESTORE.md
       - Prod Operator Cheat Sheet: guides/PROD_OPERATOR_CHEAT_SHEET.md

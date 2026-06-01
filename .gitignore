@@ -178,6 +178,12 @@ data/eval/runs/
 # Generated eval configs (scripts/eval/pipeline_validate.py auto-writes here)
 data/eval/configs/_pipeline_validate/
 
+# Generated search artifacts — regenerable, never commit the binaries.
+# Two-tier LanceDB index (search/migration.py, #858) + trained query-router model
+# (scripts/train_query_router.py, #860).
+data/lance_index/
+data/query_router.joblib
+
 # Environment variables
 .env
 .env.local
