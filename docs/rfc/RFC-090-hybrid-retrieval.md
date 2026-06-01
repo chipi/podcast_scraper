@@ -233,6 +233,11 @@ class RetrievalLayer:
     def __init__(self, backend: SearchBackend):
         self.backend = backend
 
+    # SHIPPED signature (search/retrieval.py): keyword-only, intent-driven.
+    #   retrieve(self, text, embedding, *, filters=None, k=20,
+    #            intent=None, signals="hybrid", tier="all")
+    # Weights are derived internally from `intent` (signal_weights_for/tier_weights_for),
+    # not passed in. The illustrative sketch below predates that.
     def retrieve(self, text, embedding, filters=None, k=20,
                  query_type="hybrid", tier="all",
                  signal_weights=None, tier_weights=None):
@@ -402,7 +407,7 @@ index (not per-PR).
   discriminating human-judged eval, because the known-item proxy saturated. Cutover orchestration:
   #862.
 
-**Monitoring:** `make search-health` (segment/insight counts); eval metrics tracked over time;
+**Monitoring:** `LanceDBBackend.health()` (segment/insight counts; no make target yet); eval metrics tracked over time;
 log unlinked insights post-migration to inspect linking miss rate.
 
 **Success Criteria:** nDCG@10 improvement over FAISS; named-entity recall ≥ 90% @10; >20% of top-10

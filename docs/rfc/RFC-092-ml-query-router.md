@@ -28,6 +28,10 @@ selects signal and tier weights for retrieval. The model is a small fine-tuned s
 classification head exported to ONNX for local inference. Activation is config-driven; the rules
 router stays the default until the model is trained on ≥500 labeled queries.
 
+> **As built (§4):** superseded — shipped as a scikit-learn `LogisticRegression` over MiniLM
+> embeddings persisted with joblib, **not** ONNX (no `onnxruntime`/`skl2onnx` dependency). The ONNX
+> references throughout this RFC are the original design; §4 records the deviation and rationale.
+
 **Architecture Alignment:** Implements the existing `QueryRouter` interface
 (`src/podcast_scraper/search/router.py`) so `RulesQueryRouter` and `MLQueryRouter` are
 interchangeable behind a config flag. No retrieval-layer change. ONNX local inference keeps the

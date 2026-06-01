@@ -1,9 +1,11 @@
 # Two-tier hybrid search backend configuration (RFC-090 §3.10).
-# Selects the SearchBackend implementation for hybrid retrieval. LanceDB embedded
-# is the initial backend; cloud backends are supported by the abstraction but not
-# yet implemented (swapping backends costs zero changes outside this file).
+# NOTE: `backend` and `lancedb.path` below are RESERVED — the live serving path
+# (`search.hybrid_search`) currently instantiates LanceDB unconditionally at a
+# per-corpus path (`<corpus>/search/lance_index`), so it does not yet read these two
+# keys. `serving.hybrid_enabled` and the `router` block ARE read. Keep this in mind
+# until a backend factory honors `backend`.
 
-backend: lancedb
+backend: lancedb  # reserved: only LanceDB is implemented; not yet read by code
 
 # Live serving path (RFC-090 Phase 2). When hybrid_enabled is true AND a LanceDB
 # index exists for the corpus, GET /api/search routes through the two-tier hybrid
@@ -15,7 +17,7 @@ serving:
   hybrid_enabled: false
 
 lancedb:
-  path: ./data/lance_index
+  path: ./data/lance_index  # reserved: live path is <corpus>/search/lance_index (not read)
 
 # Query router (RFC-092 / #860): how a query's intent is classified, which drives
 # the per-intent signal/tier weights. `rules` is deterministic and dependency-free;

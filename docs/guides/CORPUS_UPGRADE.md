@@ -18,10 +18,10 @@ make upgrade-verify   CORPUS_DIR=$CORPUS_DIR  # verify applied migrations
 Or drive the CLI directly (interactive confirmation, JSON, version ceiling):
 
 ```bash
-podcast upgrade status  --corpus-dir $CORPUS_DIR [--json]
-podcast upgrade list    --corpus-dir $CORPUS_DIR
-podcast upgrade run     --corpus-dir $CORPUS_DIR [--dry-run] [--yes] [--to 2.7.0]
-podcast upgrade verify  --corpus-dir $CORPUS_DIR
+python -m podcast_scraper.cli upgrade status  --corpus-dir $CORPUS_DIR [--json]
+python -m podcast_scraper.cli upgrade list    --corpus-dir $CORPUS_DIR
+python -m podcast_scraper.cli upgrade run     --corpus-dir $CORPUS_DIR [--dry-run] [--yes] [--to 2.7.0]
+python -m podcast_scraper.cli upgrade verify  --corpus-dir $CORPUS_DIR
 ```
 
 ## Manual vs automated
@@ -32,8 +32,8 @@ podcast upgrade verify  --corpus-dir $CORPUS_DIR
   (distinct from error=1), so a boot script or CI job can gate on it:
 
   ```bash
-  podcast upgrade status --corpus-dir "$CORPUS_DIR" --json || \
-    podcast upgrade run --corpus-dir "$CORPUS_DIR" --yes
+  python -m podcast_scraper.cli upgrade status --corpus-dir "$CORPUS_DIR" --json || \
+    python -m podcast_scraper.cli upgrade run --corpus-dir "$CORPUS_DIR" --yes
   ```
 
 ## How it works
