@@ -114,6 +114,8 @@ search = [
   "sentencepiece>=0.1.99,<1.0.0",
   "sentence-transformers>=5.4.1,<6.0.0",
   "faiss-cpu>=1.13.2,<2.0.0",
+  # RFC-090 two-tier hybrid backend: embedded vector + native FTS (BM25) in one store.
+  "lancedb>=0.33.0,<1.0.0",
   "protobuf>=3.20.0,!=6.33.4,<8.0.0",  # Exclude 6.33.4 due to CVE-2026-0994 (fixed in 6.33.5+)
 ]
 # Live pipeline monitor profiling: py-spy + memray (RFC-065; core `--monitor` uses stdlib + psutil + rich)

@@ -1,0 +1,15 @@
+# Two-tier hybrid search backend configuration (RFC-090 §3.10).
+# Selects the SearchBackend implementation for hybrid retrieval. LanceDB embedded
+# is the initial backend; cloud backends are supported by the abstraction but not
+# yet implemented (swapping backends costs zero changes outside this file).
+
+backend: lancedb
+
+lancedb:
+  path: ./data/lance_index
+
+# Future backends (no implementation yet):
+# turbopuffer:
+#   api_key: ${TPUF_API_KEY}
+#   namespace_segments: podcast_scraper_segments
+#   namespace_insights: podcast_scraper_insights
