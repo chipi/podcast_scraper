@@ -238,6 +238,9 @@ number, file, line, date, and a short comment.
 | 1 | #330 | server/pathutil.py | 115 | 2026-05-24 | Type 1: post-refactor ``corpus_s`` inline ``normpath`` + ``startswith`` (PR #815) |
 | 1 | #331 | server/pathutil.py | 123 | 2026-05-24 | Type 1: ``manifest_s`` inline sanitizer before ``os.path.isfile`` (PR #815) |
 | 1 | #332 | server/pathutil.py | 126 | 2026-05-24 | Type 1: ``manifest_s`` inline sanitizer before ``read_text`` (PR #815) |
+| 1 | #342 | search/backends/lancedb_backend.py | 131 | 2026-06-01 | Type 1: ``meta_path`` via ``normpath_if_under_root`` after ``safe_resolve_directory`` + ``safe_relpath_under_corpus_root`` (constant ``index_meta.json``) before ``open`` in ``read_index_meta``; corpus root confined at the route by ``resolve_corpus_path_param`` (raises on escape). Same shape as ``jobs_log_path:74``. Dismissed ``gh api`` (PR #865) |
+| 1 | #338 | search/backends/lancedb_backend.py | 135 | 2026-06-01 | Type 1: same sanitizer chain, ``os.path.isfile(meta_path)`` sink in ``read_index_meta`` (PR #865) |
+| 1 | #341 | search/hybrid_search.py | 172 | 2026-06-01 | Type 1: ``index_dir_str`` via ``normpath_if_under_root`` after ``safe_resolve_directory`` + ``safe_relpath_under_corpus_root`` (constant ``search/lance_index``) before ``os.path.isdir`` in ``hybrid_candidates``; corpus root confined at the route by ``resolve_corpus_path_param``. Dismissed ``gh api`` (PR #865) |
 
 ## Still open (not yet dismissed)
 
