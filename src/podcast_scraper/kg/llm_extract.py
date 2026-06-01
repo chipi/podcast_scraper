@@ -34,6 +34,10 @@ def build_kg_transcript_system_prompt(max_topics: int, max_entities: int) -> str
         'or relevance here"}]}\n'
         "Omit description keys when not useful. "
         'entity_kind must be "person" or "organization" only. '
+        "Use one canonical spelling per entity: if a name is spelled inconsistently "
+        "in the transcript, pick the single most likely correct spelling and emit it "
+        "once — do not also emit the variant as a separate entity. Keep genuinely "
+        "different entities (e.g. UPS vs USPS) separate. "
         "Each topic label should be a compact heading: prefer about 2–8 words, "
         "noun-phrase style (hard cap 200 characters). Avoid long sentences, "
         'comma stacks, leading clauses ("How …", "Why …"), or pasting raw '
@@ -58,6 +62,9 @@ def build_kg_from_bullets_system_prompt(max_topics: int, max_entities: int) -> s
         '"description":"optional context"}]}\n'
         "Omit description when not useful. "
         'entity_kind must be "person" or "organization" only. '
+        "Use one canonical spelling per entity — never list the same person or "
+        "organization twice under variant spellings; keep genuinely different "
+        "entities separate. "
         "Topic labels must be short thematic headings: about 2–8 words, "
         "noun-phrase style — never a full bullet sentence pasted as one label. "
         "Prefer one stable phrase per theme so the same subject reads similarly "
@@ -111,7 +118,7 @@ def build_kg_user_prompt(
     title: str,
     max_topics: int,
     max_entities: int,
-    prompt_version: str = "v3",  # v3: stricter noun-phrase enforcement (#590)
+    prompt_version: str = "v4",  # v4: entity canonicalization (#851); v3 noun-phrase (#590)
 ) -> str:
     """Render shared Jinja prompt for KG extraction."""
     from ..prompts.store import render_prompt

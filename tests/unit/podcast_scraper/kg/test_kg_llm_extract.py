@@ -89,3 +89,25 @@ class TestKgLlmExtract(unittest.TestCase):
         s = build_kg_from_bullets_system_prompt(5, 10)
         self.assertIn("2–8 words", s)
         self.assertIn("noun-phrase", s)
+
+    def test_system_prompts_request_one_canonical_spelling_per_entity(self) -> None:
+        """#851 — both extraction system prompts must ask for canonical entity
+        spelling (one node per real entity), the primary same-episode dedup lever."""
+        for s in (
+            build_kg_transcript_system_prompt(5, 10),
+            build_kg_from_bullets_system_prompt(5, 10),
+        ):
+            self.assertIn("canonical spelling", s)
+
+    def test_transcript_system_prompt_keeps_distinct_entities_separate(self) -> None:
+        # The prompt must also guard against over-merging (UPS vs USPS).
+        s = build_kg_transcript_system_prompt(5, 10)
+        self.assertIn("UPS vs USPS", s)
+
+    def test_kg_user_prompt_defaults_to_v4_with_canonicalization(self) -> None:
+        """#851 — default KG extraction template is v4 and carries the rule."""
+        from podcast_scraper.kg.llm_extract import build_kg_user_prompt
+
+        rendered = build_kg_user_prompt("some transcript", "Title", 5, 10)
+        self.assertIn("One canonical spelling per entity", rendered)
+        self.assertIn("USPS", rendered)  # do-not-over-merge guard present

@@ -63,7 +63,7 @@ def _apply_kg_filters(
     untouched. Wires into pipeline_metrics counters when available. Kept out
     of ``build_artifact`` to keep its cyclomatic complexity within budget.
     """
-    from .filters import normalize_topic_labels, repair_entity_kind
+    from .filters import consolidate_entity_names, normalize_topic_labels, repair_entity_kind
 
     raw_topic_dicts = [t for t in (llm_partial.get("topics") or []) if isinstance(t, dict)]
     raw_topic_labels = [str(t.get("label") or "").strip() for t in raw_topic_dicts]
@@ -104,6 +104,19 @@ def _apply_kg_filters(
             pipeline_metrics, "record_entity_kinds_repaired"
         ):
             pipeline_metrics.record_entity_kinds_repaired(ents_repaired)
+
+    # #851 — consolidate within-episode duplicate-spelling entities (runs after
+    # kind repair so the merge is kind-aware). Conservative + type-aware; the
+    # extraction prompt owns the correct surviving spelling.
+    ent_dicts = [e for e in (llm_partial.get("entities") or []) if isinstance(e, dict)]
+    consolidated, ents_merged = consolidate_entity_names(ent_dicts)
+    if ents_merged:
+        llm_partial = dict(llm_partial)
+        llm_partial["entities"] = consolidated
+        if pipeline_metrics is not None and hasattr(
+            pipeline_metrics, "record_entities_consolidated"
+        ):
+            pipeline_metrics.record_entities_consolidated(ents_merged)
 
     return llm_partial
 
