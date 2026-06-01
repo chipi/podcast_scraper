@@ -66,3 +66,10 @@ def test_unjudged_records_are_skipped():
     scores = score_from_judgments([rec], k=10)
     assert scores["_judged_count"]["n"] == 0.0  # no positive grade → no signal
     assert scores["hybrid"]["ndcg"] == 0.0
+
+
+def test_recall_at_no_relevant_returns_zero():
+    from podcast_scraper.search.judged_eval import _recall_at
+
+    # Defensive guard: a ranking judged with no positive grades scores 0 recall.
+    assert _recall_at(["a", "b"], {"a": 0, "b": 0}, 10) == 0.0

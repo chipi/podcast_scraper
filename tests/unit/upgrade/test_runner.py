@@ -123,3 +123,13 @@ def test_verify_only_applied(tmp_path):
     runner.run(_ctx(tmp_path), to_version="2.7.0", now="t")  # only m1 applied
     verify = runner.verify(_ctx(tmp_path))
     assert verify == [("0001_a", True, "verified")]  # m2 not applied → not verified
+
+
+def test_invalid_to_version_is_gated_out(tmp_path):
+    # A migration with a non-PEP440 to_version maps to Version("0") and is gated below
+    # any real --to ceiling (covers _as_version fallback).
+    store = _FakeStore("2.6.0")
+    runner = UpgradeRunner(store, [_FakeMigration("0001_a", "not-a-version")])
+    runner.run(_ctx(tmp_path), to_version="2.7.0", now="t")
+    assert store.applied_migration_ids() == {"0001_a"}  # Version("0") <= 2.7.0 → applied
+    assert runner._as_version("nonsense") == runner._as_version("0")

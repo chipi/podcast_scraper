@@ -52,3 +52,10 @@ def test_dry_run_does_not_build(tmp_path, monkeypatch):
     monkeypatch.setattr(two_tier_indexer, "build_two_tier_index", _boom)
     result = TwoTierNativeReindexMigration().apply(_ctx(tmp_path, dry_run=True))
     assert result.applied is False and result.dry_run is True
+
+
+def test_plan_strings(tmp_path):
+    m = TwoTierNativeReindexMigration()
+    assert "natively" in m.plan(_ctx(tmp_path)).lower()  # no index → native build planned
+    (tmp_path / "search" / "lance_index").mkdir(parents=True)
+    assert "no-op" in m.plan(_ctx(tmp_path)).lower()  # index present → no-op
