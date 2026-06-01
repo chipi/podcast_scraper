@@ -55,7 +55,12 @@ async def search_corpus(
         ),
     ),
 ) -> CorpusSearchApiResponse:
-    """Semantic search via FAISS + sentence embeddings."""
+    """Semantic corpus search.
+
+    Routes through the two-tier hybrid ``RetrievalLayer`` when ``serving.hybrid_enabled``
+    is set and a LanceDB index exists (RFC-090 Phase 2); otherwise FAISS. The response
+    shape is identical for both backends.
+    """
     fallback = getattr(request.app.state, "output_dir", None)
     root = _resolve_corpus_root(path, fallback)
     if root is None:
