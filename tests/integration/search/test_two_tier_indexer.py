@@ -56,8 +56,14 @@ def test_builds_both_tiers_and_is_queryable(tmp_path, monkeypatch):
     assert stats.episodes == 1
     assert stats.insights == 1 and stats.segments == 1  # quote ignored
 
-    health = LanceDBBackend(str(lance)).health()
+    backend = LanceDBBackend(str(lance))
+    health = backend.health()
     assert health["insights"] == 1 and health["segments"] == 1
+
+    # Index meta records the model + the model's real dim (derived, not assumed 384).
+    meta = backend.read_index_meta()
+    assert meta is not None and meta["embedding_model"]
+    assert meta["embed_dim"] == 384  # MiniLM
 
     rows_out = hs.hybrid_candidates(corpus, "central bank policy shift", top_k=5)
     assert rows_out is not None and len(rows_out) >= 1

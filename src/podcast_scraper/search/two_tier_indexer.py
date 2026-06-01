@@ -24,7 +24,7 @@ from typing import cast, List, Optional
 
 from ..providers.ml import embedding_loader
 from .backend import InsightDocument, SegmentDocument
-from .backends.lancedb_backend import DEFAULT_EMBED_DIM, LanceDBBackend
+from .backends.lancedb_backend import LanceDBBackend
 from .corpus_scope import discover_metadata_files, episode_root_from_metadata_path
 from .indexer import _collect_docs_for_episode, _load_metadata_file
 
@@ -54,7 +54,7 @@ def build_two_tier_index(
     model_id: str = DEFAULT_MODEL,
     target_tokens: int = DEFAULT_TARGET_TOKENS,
     overlap_tokens: int = DEFAULT_OVERLAP_TOKENS,
-    embed_dim: int = DEFAULT_EMBED_DIM,
+    embed_dim: Optional[int] = None,
     limit_episodes: Optional[int] = None,
     allow_download: bool = False,
 ) -> TwoTierIndexStats:
@@ -62,11 +62,21 @@ def build_two_tier_index(
 
     Walks episode metadata, extracts insight + transcript-chunk rows, embeds each with
     *model_id*, and upserts into the segment/insight tables (idempotent merge on id).
-    ``limit_episodes`` caps the walk for smoke runs. Returns per-tier counts.
+    ``embed_dim`` is derived from *model_id* when None (so a non-MiniLM model can't
+    silently mismatch the schema). ``limit_episodes`` caps the walk. Returns counts.
     """
     out = Path(corpus_dir)
-    backend = LanceDBBackend(str(lance_path), embed_dim=embed_dim)
     stats = TwoTierIndexStats()
+    backend: Optional[LanceDBBackend] = None
+
+    def _ensure_backend(vec_len: int) -> LanceDBBackend:
+        # Lazy: size the schema from the model's real dim (or an explicit override) on
+        # the first embedded doc, so a non-MiniLM model can't silently mismatch — and an
+        # empty corpus creates no index at all.
+        nonlocal backend
+        if backend is None:
+            backend = LanceDBBackend(str(lance_path), embed_dim=embed_dim or vec_len)
+        return backend
 
     for meta_path in discover_metadata_files(out):
         if limit_episodes is not None and stats.episodes >= limit_episodes:
@@ -88,7 +98,8 @@ def build_two_tier_index(
         for doc_id, text, meta in rows:
             doc_type = meta.get("doc_type")
             if doc_type == "insight":
-                backend.upsert_insight(
+                emb = _embed(text, model_id, allow_download=allow_download)
+                _ensure_backend(len(emb)).upsert_insight(
                     InsightDocument(
                         id=doc_id,
                         text=text,
@@ -97,12 +108,13 @@ def build_two_tier_index(
                         entity_type="insight",
                         confidence=0.0,
                         derived=bool(meta.get("grounded")),
-                        embedding=_embed(text, model_id, allow_download=allow_download),
+                        embedding=emb,
                     )
                 )
                 stats.insights += 1
             elif doc_type == "transcript":
-                backend.upsert_segment(
+                emb = _embed(text, model_id, allow_download=allow_download)
+                _ensure_backend(len(emb)).upsert_segment(
                     SegmentDocument(
                         id=doc_id,
                         text=text,
@@ -110,11 +122,12 @@ def build_two_tier_index(
                         episode_id=meta.get("episode_id") or "",
                         start_time=float(meta.get("timestamp_start_ms") or 0.0) / 1000.0,
                         end_time=float(meta.get("timestamp_end_ms") or 0.0) / 1000.0,
-                        embedding=_embed(text, model_id, allow_download=allow_download),
+                        embedding=emb,
                     )
                 )
                 stats.segments += 1
 
-    if stats.segments or stats.insights:
+    if backend is not None:
+        backend.write_index_meta(model_id)  # query path must embed in the same space
         backend.create_indices()
     return stats

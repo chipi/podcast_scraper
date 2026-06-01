@@ -67,6 +67,10 @@ def test_migration_maps_tiers_and_skips_others(tmp_path):
     health = backend.health()
     assert health["insights"] == 1 and health["segments"] == 1
 
+    # Migration records the FAISS index's model so the query path matches it.
+    meta = backend.read_index_meta()
+    assert meta is not None and meta["embedding_model"]
+
 
 def test_migration_preserves_searchable_payload(tmp_path):
     faiss_dir = _build_faiss(tmp_path)

@@ -111,5 +111,8 @@ def migrate_faiss_to_lance(
         else:
             stats.skipped += 1
 
-    backend.create_indices()
+    # Record the model so the query path embeds in the same space (else silent mismatch).
+    backend.write_index_meta(store.embedding_model)
+    if stats.segments or stats.insights:
+        backend.create_indices()
     return stats

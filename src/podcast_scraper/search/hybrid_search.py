@@ -110,10 +110,23 @@ def hybrid_candidates(
     if not index_dir.exists():
         return None
 
+    try:
+        from .backends.lancedb_backend import LanceDBBackend
+        from .retrieval import RetrievalLayer
+
+        backend = LanceDBBackend(str(index_dir))
+    except Exception as exc:  # noqa: BLE001 - cannot open index → FAISS fallback
+        logger.warning("hybrid_search open failed (%s); falling back to FAISS", exc)
+        return None
+
+    # Embed the query in the SAME space the index was built in: explicit override >
+    # the model recorded at build time > MiniLM default. Mismatched models silently
+    # return wrong results, so the index's own model is the source of truth.
+    meta = backend.read_index_meta() or {}
     model_id = (
         embedding_model.strip()
         if isinstance(embedding_model, str) and embedding_model.strip()
-        else _DEFAULT_MODEL
+        else str(meta.get("embedding_model") or _DEFAULT_MODEL)
     )
     try:
         qvec = embedding_loader.encode(query, model_id, return_numpy=False, allow_download=False)
@@ -124,11 +137,18 @@ def hybrid_candidates(
         return None
     qemb = cast(List[float], qvec)
 
-    try:
-        from .backends.lancedb_backend import LanceDBBackend
-        from .retrieval import RetrievalLayer
+    expected_dim = meta.get("embed_dim")
+    if isinstance(expected_dim, int) and len(qemb) != expected_dim:
+        logger.warning(
+            "hybrid_search dim mismatch (query %d != index %d for model %s); FAISS fallback",
+            len(qemb),
+            expected_dim,
+            model_id,
+        )
+        return None
 
-        layer = RetrievalLayer(LanceDBBackend(str(index_dir)))
+    try:
+        layer = RetrievalLayer(backend)
         fetch_k = max(top_k * fetch_multiplier, top_k)
         results = layer.retrieve(query, qemb, k=fetch_k, tier=_tier_for(doc_types))
     except Exception as exc:  # noqa: BLE001 - backend/index error → FAISS fallback

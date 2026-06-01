@@ -10,7 +10,7 @@ instantiating the backend requires the dependency.
 from __future__ import annotations
 
 import dataclasses
-from typing import Any, Dict, List, TYPE_CHECKING
+from typing import Any, Dict, List, Optional, TYPE_CHECKING
 
 from ..backend import InsightDocument, ScoredResult, SearchQuery, SegmentDocument, Tier
 
@@ -68,12 +68,42 @@ class LanceDBBackend:
 
     TABLES = {"segment": _SEGMENT_TABLE, "insight": _INSIGHT_TABLE}
 
+    INDEX_META_FILE = "index_meta.json"
+
     def __init__(self, path: str, *, embed_dim: int = DEFAULT_EMBED_DIM) -> None:
         import lancedb
 
+        self.path = path
         self.db = lancedb.connect(path)
         self.embed_dim = embed_dim
         self._tables: Dict[str, Any] = {}  # tier -> open table (list_tables() is cached)
+
+    # --- index metadata sidecar ------------------------------------------------
+
+    def write_index_meta(self, embedding_model: str) -> None:
+        """Record the embedding model + dim alongside the index (queries must match)."""
+        import json
+        import os
+
+        os.makedirs(self.path, exist_ok=True)
+        meta = {"embedding_model": embedding_model, "embed_dim": self.embed_dim}
+        with open(os.path.join(self.path, self.INDEX_META_FILE), "w", encoding="utf-8") as fh:
+            json.dump(meta, fh)
+
+    def read_index_meta(self) -> Optional[Dict[str, Any]]:
+        """Return ``{embedding_model, embed_dim}`` written at build time, or ``None``."""
+        import json
+        import os
+
+        meta_path = os.path.join(self.path, self.INDEX_META_FILE)
+        if not os.path.isfile(meta_path):
+            return None
+        try:
+            with open(meta_path, encoding="utf-8") as fh:
+                data = json.load(fh)
+            return data if isinstance(data, dict) else None
+        except (OSError, ValueError):
+            return None
 
     # --- table lifecycle -------------------------------------------------------
 
@@ -129,7 +159,9 @@ class LanceDBBackend:
         where = self._to_sql(query.filters)
         hits: List[tuple[float, Dict[str, Any], str]] = []
         for tier in self._tables_for_tier(query.tier):
-            table = self._ensure_table(tier)
+            table = self._open_if_exists(tier)  # read must not create empty tables on disk
+            if table is None:
+                continue
             search_target = query.text if query_type == "fts" else query.embedding
             req = table.search(search_target, query_type=query_type)
             if where:
@@ -182,10 +214,12 @@ class LanceDBBackend:
         self._upsert("insight", dataclasses.asdict(doc))
 
     def delete(self, doc_id: str, tier: Tier) -> None:
-        """Delete a document by id from the given tier's table."""
-        table = self._open_if_exists(tier if tier != "all" else "segment")
-        if table is not None:
-            table.delete(f"id = '{doc_id}'")
+        """Delete a document by id; ``tier="all"`` removes from both tables."""
+        tiers = ("segment", "insight") if tier == "all" else (tier,)
+        for t in tiers:
+            table = self._open_if_exists(t)
+            if table is not None:
+                table.delete(f"id = '{doc_id}'")
 
     def health(self) -> Dict:
         """Return backend status + per-table row counts."""
