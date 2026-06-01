@@ -14,7 +14,7 @@ from podcast_scraper.search.backend import (
     SegmentDocument,
 )
 
-pytestmark = pytest.mark.unit
+pytestmark = pytest.mark.integration
 
 lancedb = pytest.importorskip("lancedb")
 

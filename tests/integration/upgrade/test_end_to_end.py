@@ -10,7 +10,7 @@ import logging
 
 import pytest
 
-pytestmark = pytest.mark.unit
+pytestmark = pytest.mark.integration
 
 pytest.importorskip("lancedb")
 pytest.importorskip("faiss")

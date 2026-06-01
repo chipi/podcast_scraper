@@ -10,7 +10,7 @@ import pytest
 
 from podcast_scraper.search.backend import SearchQuery
 
-pytestmark = pytest.mark.unit
+pytestmark = pytest.mark.integration
 
 pytest.importorskip("lancedb")
 pytest.importorskip("faiss")
