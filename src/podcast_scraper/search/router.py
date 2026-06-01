@@ -40,13 +40,13 @@ def classify_query(text: str) -> str:
     return "semantic"
 
 
-# Signal weights per query type (BM25 vs dense vector).
+# Signal weights per query type (BM25 vs dense vector vs KG proximity, RFC-091).
 SIGNAL_WEIGHTS: Dict[str, Dict[str, float]] = {
-    "entity_lookup": {"bm25": 1.4, "vector": 0.6},
-    "raw_evidence": {"bm25": 1.5, "vector": 0.5},
-    "temporal_tracking": {"bm25": 0.8, "vector": 1.2},
-    "cross_show_synthesis": {"bm25": 0.7, "vector": 1.3},
-    "semantic": {"bm25": 1.0, "vector": 1.0},
+    "entity_lookup": {"bm25": 1.4, "vector": 0.6, "kg": 1.2},
+    "raw_evidence": {"bm25": 1.5, "vector": 0.5, "kg": 0.5},
+    "temporal_tracking": {"bm25": 0.8, "vector": 1.2, "kg": 1.0},
+    "cross_show_synthesis": {"bm25": 0.7, "vector": 1.3, "kg": 1.1},
+    "semantic": {"bm25": 1.0, "vector": 1.0, "kg": 1.0},
 }
 
 # Tier weights per query type (override the RRF defaults).

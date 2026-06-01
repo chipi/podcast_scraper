@@ -7,19 +7,31 @@ slot below without touching this layer's contract (RFC-090 KD-1).
 
 from __future__ import annotations
 
-from typing import List, Optional
+from typing import List, Optional, TYPE_CHECKING
 
 from .backend import SearchBackend, SearchQuery, Tier
 from .dedup import deduplicate, Result
 from .fusion import rrf_fuse
 from .router import classify_query, signal_weights_for, tier_weights_for
 
+if TYPE_CHECKING:  # pragma: no cover - typing only
+    from ..identity.resolver import EntityResolver
+    from .kg_proximity import KGProximitySearch
+
 
 class RetrievalLayer:
     """Runs the configured signals over a ``SearchBackend`` and fuses them."""
 
-    def __init__(self, backend: SearchBackend):
+    def __init__(
+        self,
+        backend: SearchBackend,
+        *,
+        kg_proximity: "Optional[KGProximitySearch]" = None,
+        entity_resolver: "Optional[EntityResolver]" = None,
+    ):
         self.backend = backend
+        self.kg_proximity = kg_proximity
+        self.entity_resolver = entity_resolver
 
     @staticmethod
     def classify(text: str) -> str:
@@ -53,8 +65,15 @@ class RetrievalLayer:
         if signals in ("hybrid", "vector"):
             ranked_lists.append(self.backend.search_vector(query))
 
-        # KG-proximity slot — RFC-091 / #859 resolves an entity from the query and
-        # appends a third ranked list here. No fusion/backend change needed.
+        # KG-proximity signal (RFC-091): resolve an entity from the query, traverse
+        # the cross-layer graph, append a third ranked list. Graceful skip when the
+        # KG components are absent or no entity resolves.
+        if self.kg_proximity is not None and self.entity_resolver is not None:
+            entity_id = self.entity_resolver.resolve(text)
+            if entity_id:
+                kg_results = self.kg_proximity.search(entity_id, k=k, filters=filters or {})
+                if kg_results:
+                    ranked_lists.append(kg_results)
 
         if len(ranked_lists) == 1:
             return deduplicate(ranked_lists[0])
