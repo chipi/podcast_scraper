@@ -327,6 +327,11 @@ its own. **Decision: deprecate FAISS by notice, do not remove** (Phase 3 below i
 removal waits on a discriminating, human-judged query set — which is also the labeled-query source
 RFC-092 (#860) needs, so the two unblock together.
 
+The discriminating eval is built: `scripts/eval_hybrid_judged.py` (RFC-057) runs a query set
+through both backends, emits a graded-judgment template, and scores mean nDCG@k / recall@k per
+backend once a human fills relevance. Its verdict requires a clear margin over ≥30 judged queries —
+that result is what flips FAISS removal (#858) and ML-router promotion (#860) from gated to ready.
+
 ## Key Decisions
 
 1. **Separate ranked lists, client-side RRF.**
