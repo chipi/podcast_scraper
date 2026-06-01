@@ -150,6 +150,12 @@ def hybrid_candidates(
     was searched and genuinely had no hits.
     """
     index_dir = lance_index_dir(output_dir)
+    # Inline py/path-injection barrier (CodeQL Type 1, docs/ci/CODEQL_DISMISSALS.md):
+    # the index dir is constant segments under the route-sanitized corpus dir; confirm
+    # it doesn't escape before any filesystem access.
+    _root = os.path.normpath(str(output_dir))
+    if not os.path.normpath(str(index_dir)).startswith(_root):
+        return None
     if not index_dir.exists():
         return None
 
