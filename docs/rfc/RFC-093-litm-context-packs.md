@@ -166,6 +166,10 @@ def build_briefing_pack(query, query_type, results, canonical_entity, max_tokens
 )
 def corpus_briefing_pack(query: str, max_tokens: int = 2000) -> CorpusBriefingPack:
     query_type = router.classify(query)
+    # NOTE: the shipped RetrievalLayer.retrieve is keyword-only and intent-driven —
+    #   retrieve(query, embed(query), intent=query_type)
+    # It derives weights from `intent` internally; query_type=/signal_weights= below
+    # are the original sketch and do not match the real signature.
     results = retrieval_layer.retrieve(
         text=query, embedding=embed(query), query_type=query_type,
         signal_weights=SIGNAL_WEIGHTS[query_type],

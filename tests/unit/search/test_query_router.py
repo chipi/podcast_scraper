@@ -87,3 +87,22 @@ def test_retrieval_layer_default_router_is_rules():
     layer = RetrievalLayer(_FakeBackend())
     out = layer.retrieve("Sam Altman", [0.1])
     assert {r.doc_id for r in out} == {"seg1", "ins0"}
+
+
+def test_corrupt_model_file_falls_back_to_rules(tmp_path):
+    bad = tmp_path / "bad.joblib"
+    bad.write_text("not a joblib file", encoding="utf-8")
+    router = MLQueryRouter(bad)
+    assert router.classify("Sam Altman") == "entity_lookup"  # load failed → rules
+
+
+def test_predict_exception_falls_back_to_rules():
+    class _Raises:
+        def predict(self, X):
+            raise RuntimeError("inference boom")
+
+    router = MLQueryRouter()
+    router._model = _Raises()
+    router._loaded = True
+    router._embed = lambda text: [0.0]  # type: ignore[method-assign]
+    assert router.classify("Sam Altman") == "entity_lookup"  # predict raised → rules

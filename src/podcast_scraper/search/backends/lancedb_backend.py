@@ -10,8 +10,14 @@ instantiating the backend requires the dependency.
 from __future__ import annotations
 
 import dataclasses
-from typing import Any, Dict, List, TYPE_CHECKING
+from pathlib import Path
+from typing import Any, Dict, List, Optional, TYPE_CHECKING
 
+from ...utils.path_validation import (
+    normpath_if_under_root,
+    safe_relpath_under_corpus_root,
+    safe_resolve_directory,
+)
 from ..backend import InsightDocument, ScoredResult, SearchQuery, SegmentDocument, Tier
 
 if TYPE_CHECKING:  # pragma: no cover - typing only
@@ -68,12 +74,69 @@ class LanceDBBackend:
 
     TABLES = {"segment": _SEGMENT_TABLE, "insight": _INSIGHT_TABLE}
 
+    INDEX_META_FILE = "index_meta.json"
+
     def __init__(self, path: str, *, embed_dim: int = DEFAULT_EMBED_DIM) -> None:
         import lancedb
 
+        self.path = path
         self.db = lancedb.connect(path)
         self.embed_dim = embed_dim
         self._tables: Dict[str, Any] = {}  # tier -> open table (list_tables() is cached)
+
+    # --- index metadata sidecar ------------------------------------------------
+
+    # Each FS sink below resolves the sidecar inline via the recognized sanitizer chain
+    # (mirrors the proven jobs_log_path idiom): safe_resolve_directory →
+    # safe_relpath_under_corpus_root → normpath_if_under_root, then an inline
+    # ``# codeql[...]`` pragma at the sink (docs/ci/CODEQL_DISMISSALS.md Type 1; the
+    # corpus path is sanitized cross-function at the route, which CodeQL cannot model).
+
+    def write_index_meta(self, embedding_model: str) -> None:
+        """Record the embedding model + dim alongside the index (queries must match)."""
+        import json
+        import os
+
+        root_res = safe_resolve_directory(Path(self.path))
+        if root_res is None:
+            return
+        root_s = os.path.normpath(str(root_res))
+        verified = safe_relpath_under_corpus_root(root_res, self.INDEX_META_FILE)
+        if not verified:
+            return
+        meta_path = normpath_if_under_root(os.path.normpath(verified), root_s)
+        if not meta_path:
+            return
+        meta = {"embedding_model": embedding_model, "embed_dim": self.embed_dim}
+        # codeql[py/path-injection] -- meta_path via normpath_if_under_root (Type 1).
+        with open(meta_path, "w", encoding="utf-8") as fh:
+            json.dump(meta, fh)
+
+    def read_index_meta(self) -> Optional[Dict[str, Any]]:
+        """Return ``{embedding_model, embed_dim}`` written at build time, or ``None``."""
+        import json
+        import os
+
+        root_res = safe_resolve_directory(Path(self.path))
+        if root_res is None:
+            return None
+        root_s = os.path.normpath(str(root_res))
+        verified = safe_relpath_under_corpus_root(root_res, self.INDEX_META_FILE)
+        if not verified:
+            return None
+        meta_path = normpath_if_under_root(os.path.normpath(verified), root_s)
+        if not meta_path:
+            return None
+        # codeql[py/path-injection] -- meta_path via normpath_if_under_root (Type 1).
+        if not os.path.isfile(meta_path):
+            return None
+        try:
+            # codeql[py/path-injection] -- meta_path via normpath_if_under_root (Type 1).
+            with open(meta_path, encoding="utf-8") as fh:
+                data = json.load(fh)
+            return data if isinstance(data, dict) else None
+        except (OSError, ValueError):
+            return None
 
     # --- table lifecycle -------------------------------------------------------
 
@@ -129,7 +192,9 @@ class LanceDBBackend:
         where = self._to_sql(query.filters)
         hits: List[tuple[float, Dict[str, Any], str]] = []
         for tier in self._tables_for_tier(query.tier):
-            table = self._ensure_table(tier)
+            table = self._open_if_exists(tier)  # read must not create empty tables on disk
+            if table is None:
+                continue
             search_target = query.text if query_type == "fts" else query.embedding
             req = table.search(search_target, query_type=query_type)
             if where:
@@ -182,10 +247,12 @@ class LanceDBBackend:
         self._upsert("insight", dataclasses.asdict(doc))
 
     def delete(self, doc_id: str, tier: Tier) -> None:
-        """Delete a document by id from the given tier's table."""
-        table = self._open_if_exists(tier if tier != "all" else "segment")
-        if table is not None:
-            table.delete(f"id = '{doc_id}'")
+        """Delete a document by id; ``tier="all"`` removes from both tables."""
+        tiers = ("segment", "insight") if tier == "all" else (tier,)
+        for t in tiers:
+            table = self._open_if_exists(t)
+            if table is not None:
+                table.delete(f"id = '{doc_id}'")
 
     def health(self) -> Dict:
         """Return backend status + per-table row counts."""

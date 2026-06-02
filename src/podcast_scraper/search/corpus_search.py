@@ -21,6 +21,7 @@ from podcast_scraper.search.cli_handlers import (
     merged_episode_gi_paths,
 )
 from podcast_scraper.search.faiss_store import FaissVectorStore, VECTORS_FILE
+from podcast_scraper.search.hybrid_search import hybrid_candidates, hybrid_search_enabled
 from podcast_scraper.search.protocol import SearchResult
 from podcast_scraper.search.topic_clusters import load_topic_cluster_enrichment_map
 from podcast_scraper.search.transcript_chunk_lift import (
@@ -203,6 +204,39 @@ def run_corpus_search(
     if not q:
         return CorpusSearchOutcome(error="empty_query")
 
+    top_k = max(1, min(int(top_k), 100))
+    types_norm: Optional[List[str]] = None
+    if doc_types:
+        types_norm = [x.strip().lower() for x in doc_types if isinstance(x, str) and x.strip()]
+        if not types_norm:
+            types_norm = None
+
+    # Hybrid path (RFC-090 Phase 2): opt-in via serving.hybrid_enabled. Returns None to
+    # fall back to FAISS (flag off, no LanceDB index, or embed failure), so this can
+    # never regress the FAISS path — only override it when explicitly enabled + ready.
+    if hybrid_search_enabled():
+        candidates = hybrid_candidates(
+            output_dir,
+            q,
+            top_k=top_k,
+            doc_types=doc_types,
+            embedding_model=embedding_model,
+        )
+        if candidates is not None:
+            logger.info("corpus_search: hybrid path (%d candidates)", len(candidates))
+            return _filter_and_enrich(
+                candidates,
+                output_dir,
+                types_norm=types_norm,
+                feed=feed,
+                since=since,
+                speaker=speaker,
+                grounded_only=grounded_only,
+                top_k=top_k,
+                dedupe_kg_surfaces=dedupe_kg_surfaces,
+                collect_cap=len(candidates),
+            )
+
     index_dir = _resolve_index_dir(output_dir, index_path)
     if not (index_dir / VECTORS_FILE).is_file():
         return CorpusSearchOutcome(error="no_index", detail=str(index_dir))
@@ -244,17 +278,10 @@ def run_corpus_search(
         return CorpusSearchOutcome(error="embed_failed", detail=str(exc))
     embed_sec = time.perf_counter() - t_embed0
 
-    types_norm: Optional[List[str]] = None
-    if doc_types:
-        types_norm = [x.strip().lower() for x in doc_types if isinstance(x, str) and x.strip()]
-        if not types_norm:
-            types_norm = None
-
     faiss_filters: Optional[Dict[str, Any]] = None
     if types_norm and len(types_norm) == 1:
         faiss_filters = {"doc_type": types_norm[0]}
 
-    top_k = max(1, min(int(top_k), 100))
     fetch_k = min(max(top_k * 25, top_k), max(store.ntotal, 1))
 
     t_search0 = time.perf_counter()
@@ -273,11 +300,42 @@ def run_corpus_search(
         fetch_k,
     )
 
+    return _filter_and_enrich(
+        hits,
+        output_dir,
+        types_norm=types_norm,
+        feed=feed,
+        since=since,
+        speaker=speaker,
+        grounded_only=grounded_only,
+        top_k=top_k,
+        dedupe_kg_surfaces=dedupe_kg_surfaces,
+        collect_cap=fetch_k if dedupe_kg_surfaces else top_k,
+    )
+
+
+def _filter_and_enrich(
+    hits: Sequence[SearchResult],
+    output_dir: Path,
+    *,
+    types_norm: Optional[List[str]],
+    feed: Optional[str],
+    since: Optional[str],
+    speaker: Optional[str],
+    grounded_only: bool,
+    top_k: int,
+    dedupe_kg_surfaces: bool,
+    collect_cap: int,
+) -> CorpusSearchOutcome:
+    """Apply metadata filters + enrich/lift/dedupe a candidate list (backend-agnostic).
+
+    Shared by the FAISS and hybrid (#RFC-090 Phase 2) retrieval paths so both return
+    the identical enriched response shape.
+    """
     since_dt = _parse_since(since) if isinstance(since, str) and since.strip() else None
     gi_cache = merged_episode_gi_paths(output_dir)
     rel_by_scope = _metadata_relpath_by_scope_from_corpus(output_dir)
     filtered: List[SearchResult] = []
-    collect_cap = fetch_k if dedupe_kg_surfaces else top_k
     for h in hits:
         dt = h.metadata.get("doc_type")
         if types_norm and len(types_norm) > 1:

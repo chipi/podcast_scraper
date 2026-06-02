@@ -109,11 +109,13 @@ access layer and enriching the edge set.
 ```python
 # src/podcast_scraper/search/kg_proximity.py
 #
-# PREREQUISITE: requires an in-memory KG access layer exposing neighbors()/get_node().
-# No such class exists today (KG is artifact-based). See Constraints.
+# PREREQUISITE (now shipped, #849): the in-memory ``CorpusGraph`` provides
+# bfs()/get_node()/neighbors(). As built, traversal delegates to ``CorpusGraph.bfs``
+# rather than the hand-rolled queue below, and the param is named ``graph`` (keyword-
+# only). This sketch is illustrative; see ``search/kg_proximity.py`` for the real code.
 
 class KGProximitySearch:
-    def __init__(self, kg, max_hops: int = 3):
+    def __init__(self, graph, *, max_hops: int = 3):
         self.kg = kg
         self.max_hops = max_hops
 
@@ -250,7 +252,8 @@ from a small committed corpus slice with the new typed edges.
 - **Phase 1 — KG proximity**: `KGProximitySearch`, wire into `RetrievalLayer`, signal weight for
   `kg` in `SIGNAL_WEIGHTS`, tests.
 
-**Monitoring:** `make search-kg-index` builds/refreshes adjacency; track p99 traversal latency and
+**Monitoring:** adjacency is built live from the corpus graph (no pre-build target; see the
+"live BFS, no pre-computation" decision below); track p99 traversal latency and
 KG-signal contribution to nDCG.
 
 **Success Criteria:** KG signal improves nDCG@10 on entity/relational queries over hybrid-only,

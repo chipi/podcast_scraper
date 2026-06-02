@@ -18,10 +18,10 @@ make upgrade-verify   CORPUS_DIR=$CORPUS_DIR  # verify applied migrations
 Or drive the CLI directly (interactive confirmation, JSON, version ceiling):
 
 ```bash
-podcast upgrade status  --corpus-dir $CORPUS_DIR [--json]
-podcast upgrade list    --corpus-dir $CORPUS_DIR
-podcast upgrade run     --corpus-dir $CORPUS_DIR [--dry-run] [--yes] [--to 2.7.0]
-podcast upgrade verify  --corpus-dir $CORPUS_DIR
+python -m podcast_scraper.cli upgrade status  --corpus-dir $CORPUS_DIR [--json]
+python -m podcast_scraper.cli upgrade list    --corpus-dir $CORPUS_DIR
+python -m podcast_scraper.cli upgrade run     --corpus-dir $CORPUS_DIR [--dry-run] [--yes] [--to 2.7.0]
+python -m podcast_scraper.cli upgrade verify  --corpus-dir $CORPUS_DIR
 ```
 
 ## Manual vs automated
@@ -32,8 +32,8 @@ podcast upgrade verify  --corpus-dir $CORPUS_DIR
   (distinct from error=1), so a boot script or CI job can gate on it:
 
   ```bash
-  podcast upgrade status --corpus-dir "$CORPUS_DIR" --json || \
-    podcast upgrade run --corpus-dir "$CORPUS_DIR" --yes
+  python -m podcast_scraper.cli upgrade status --corpus-dir "$CORPUS_DIR" --json || \
+    python -m podcast_scraper.cli upgrade run --corpus-dir "$CORPUS_DIR" --yes
   ```
 
 ## How it works
@@ -66,5 +66,15 @@ files-on-disk to a database:
 2. Register it in `upgrade/registry.py`.
 3. Add unit coverage in `tests/unit/upgrade/`.
 
-Known 2.6 → 2.7 migrations still to inventory/register: vector index rebuilds and the
-cross-episode entity canonical-map rebuild (#852).
+## Registered migrations
+
+- `0001_faiss_to_lance` — migrate an existing FAISS index into the two-tier LanceDB
+  layout (reuses embeddings). No-op when the corpus has no FAISS index.
+- `0002_two_tier_native_reindex` — build the two-tier index **natively** from corpus
+  artifacts, but only when `0001` left none (no FAISS to migrate). No-op when an index
+  already exists. Together, 0001 + 0002 guarantee a two-tier index via the cheapest
+  available path without double-building.
+
+**Not a migration:** the cross-episode entity canonical map (#852) is computed *live*
+at graph-build (`search/corpus_graph.py` → `build_entity_id_map`), not persisted —
+there is no artifact to rebuild, so it needs no migration.
