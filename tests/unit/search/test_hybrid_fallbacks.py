@@ -89,3 +89,10 @@ def test_tier_for_mixed_doc_types_is_all():
     assert hs._tier_for(None) == "all"
     assert hs._tier_for(["insight"]) == "insight"
     assert hs._tier_for(["transcript"]) == "segment"
+
+
+def test_unsafe_output_dir_falls_back(tmp_path, monkeypatch):
+    _patch_backend(monkeypatch)
+    # A path containing '..' is rejected by safe_resolve_directory → None (FAISS fallback).
+    unsafe = str(tmp_path / "a" / ".." / "b")
+    assert hs.hybrid_candidates(unsafe, "q", top_k=5) is None

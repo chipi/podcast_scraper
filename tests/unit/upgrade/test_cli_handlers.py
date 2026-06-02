@@ -66,3 +66,40 @@ def test_run_up_to_date_is_noop(tmp_path, monkeypatch, capsys):
     args = parse_upgrade_argv(["run", "--corpus-dir", str(tmp_path), "--yes"])
     assert run_upgrade_cli(args, log) == 0
     assert "Up to date" in capsys.readouterr().out
+
+
+def test_run_yes_json_on_empty_corpus(tmp_path, capsys):
+    # No FAISS, no metadata → 0001 no-ops, 0002 native build finds nothing; --json prints.
+    import json as _json
+
+    rc = _run(tmp_path, "run", "--yes", "--json")
+    assert rc == 0
+    payload = _json.loads(capsys.readouterr().out)
+    assert {r["id"] for r in payload} == {"0001_faiss_to_lance", "0002_two_tier_native_reindex"}
+
+
+def test_unknown_subcommand_errors(tmp_path):
+    from argparse import Namespace
+
+    from podcast_scraper.upgrade.cli_handlers import run_upgrade_cli
+
+    args = Namespace(
+        command="upgrade", upgrade_subcommand="bogus", corpus_dir=str(tmp_path), json=False
+    )
+    assert run_upgrade_cli(args, log) == 1
+
+
+def test_confirm_prompt_tty(monkeypatch):
+    from podcast_scraper.upgrade import cli_handlers as ch
+
+    status = type("St", (), {"pending": [type("M", (), {"id": "0001_x"})()]})()
+    monkeypatch.setattr("sys.stdin.isatty", lambda: True)
+    monkeypatch.setattr("builtins.input", lambda *_a: "y")
+    assert ch._confirm(status, log) is True
+    monkeypatch.setattr("builtins.input", lambda *_a: "n")
+    assert ch._confirm(status, log) is False
+
+
+def test_verify_text_mode_no_applied(tmp_path, capsys):
+    assert _run(tmp_path, "verify") == 0  # text mode (no --json)
+    assert "No applied migrations" in capsys.readouterr().out
