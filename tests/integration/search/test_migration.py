@@ -55,17 +55,18 @@ def _build_faiss(tmp_path):
     return tmp_path / "faiss"
 
 
-def test_migration_maps_tiers_and_skips_others(tmp_path):
+def test_migration_maps_tiers_including_aux(tmp_path):
     faiss_dir = _build_faiss(tmp_path)
     stats = migrate_faiss_to_lance(faiss_dir, tmp_path / "lance")
     assert stats.insights == 1
     assert stats.segments == 1
-    assert stats.skipped == 1  # kg_entity skipped
+    assert stats.aux == 1  # kg_entity → aux tier (full coverage), not skipped
+    assert stats.skipped == 0
     assert stats.embed_dim == 4
 
     backend = LanceDBBackend(str(tmp_path / "lance"), embed_dim=4)
     health = backend.health()
-    assert health["insights"] == 1 and health["segments"] == 1
+    assert health["insights"] == 1 and health["segments"] == 1 and health["aux"] == 1
 
     # Migration records the FAISS index's model so the query path matches it.
     meta = backend.read_index_meta()

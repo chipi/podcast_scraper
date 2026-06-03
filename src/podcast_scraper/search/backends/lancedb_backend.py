@@ -18,7 +18,14 @@ from ...utils.path_validation import (
     safe_relpath_under_corpus_root,
     safe_resolve_directory,
 )
-from ..backend import InsightDocument, ScoredResult, SearchQuery, SegmentDocument, Tier
+from ..backend import (
+    AuxDocument,
+    InsightDocument,
+    ScoredResult,
+    SearchQuery,
+    SegmentDocument,
+    Tier,
+)
 
 if TYPE_CHECKING:  # pragma: no cover - typing only
     import pyarrow as pa
@@ -28,6 +35,7 @@ DEFAULT_EMBED_DIM = 384
 
 _SEGMENT_TABLE = "segments"
 _INSIGHT_TABLE = "insights"
+_AUX_TABLE = "aux"
 
 
 def _segment_schema(dim: int) -> "pa.Schema":
@@ -69,10 +77,26 @@ def _insight_schema(dim: int) -> "pa.Schema":
     )
 
 
-class LanceDBBackend:
-    """Embedded LanceDB backend (segments + insights), BM25 + vector per tier."""
+def _aux_schema(dim: int) -> "pa.Schema":
+    import pyarrow as pa
 
-    TABLES = {"segment": _SEGMENT_TABLE, "insight": _INSIGHT_TABLE}
+    return pa.schema(
+        [
+            ("id", pa.string()),
+            ("text", pa.string()),
+            ("embedding", pa.list_(pa.float32(), dim)),
+            ("show_id", pa.string()),
+            ("episode_id", pa.string()),
+            ("doc_type", pa.string()),  # kg_entity | kg_topic | quote | summary
+            ("source_tier", pa.string()),
+        ]
+    )
+
+
+class LanceDBBackend:
+    """Embedded LanceDB backend (segments + insights + aux), BM25 + vector per tier."""
+
+    TABLES = {"segment": _SEGMENT_TABLE, "insight": _INSIGHT_TABLE, "aux": _AUX_TABLE}
 
     INDEX_META_FILE = "index_meta.json"
 
@@ -151,23 +175,23 @@ class LanceDBBackend:
         self._tables[tier] = table
         return table
 
+    _SCHEMAS = {"segment": _segment_schema, "insight": _insight_schema, "aux": _aux_schema}
+
     def _ensure_table(self, tier: str):
         table = self._open_if_exists(tier)
         if table is not None:
             return table
-        schema = (
-            _segment_schema(self.embed_dim)
-            if tier == "segment"
-            else _insight_schema(self.embed_dim)
-        )
+        schema = self._SCHEMAS[tier](self.embed_dim)
         table = self.db.create_table(self.TABLES[tier], schema=schema)
         self._tables[tier] = table
         return table
 
     def create_indices(self) -> None:
-        """Create FTS (required for BM25) + vector indices on both tables."""
-        for tier in ("segment", "insight"):
-            table = self._ensure_table(tier)
+        """Create FTS (required for BM25) + vector indices on all tables that exist."""
+        for tier in ("segment", "insight", "aux"):
+            table = self._open_if_exists(tier)
+            if table is None:
+                continue  # tier never populated (e.g. a corpus with no kg/quote rows)
             table.create_fts_index("text", replace=True)
             try:
                 table.create_index(vector_column_name="embedding", replace=True)
@@ -176,7 +200,7 @@ class LanceDBBackend:
 
     def _tables_for_tier(self, tier: Tier) -> List[str]:
         if tier == "all":
-            return ["segment", "insight"]
+            return ["segment", "insight", "aux"]
         return [tier]
 
     # --- retrieval -------------------------------------------------------------
@@ -246,9 +270,13 @@ class LanceDBBackend:
         """Insert or update a Tier-2 insight document."""
         self._upsert("insight", dataclasses.asdict(doc))
 
+    def upsert_aux(self, doc: AuxDocument) -> None:
+        """Insert or update an aux document (kg_entity / kg_topic / quote / summary)."""
+        self._upsert("aux", dataclasses.asdict(doc))
+
     def delete(self, doc_id: str, tier: Tier) -> None:
-        """Delete a document by id; ``tier="all"`` removes from both tables."""
-        tiers = ("segment", "insight") if tier == "all" else (tier,)
+        """Delete a document by id; ``tier="all"`` removes from every table."""
+        tiers = ("segment", "insight", "aux") if tier == "all" else (tier,)
         for t in tiers:
             table = self._open_if_exists(t)
             if table is not None:
@@ -259,10 +287,12 @@ class LanceDBBackend:
         try:
             seg = self._open_if_exists("segment")
             ins = self._open_if_exists("insight")
+            aux = self._open_if_exists("aux")
             return {
                 "status": "ok",
                 "segments": seg.count_rows() if seg is not None else 0,
                 "insights": ins.count_rows() if ins is not None else 0,
+                "aux": aux.count_rows() if aux is not None else 0,
             }
         except Exception as exc:  # noqa: BLE001
             return {"status": "error", "error": str(exc)}

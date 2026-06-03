@@ -14,7 +14,10 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Dict, List, Literal, Optional, Protocol, runtime_checkable
 
-Tier = Literal["segment", "insight", "all"]
+# segment = Tier 1 (transcript), insight = Tier 2 (GIL), aux = the other corpus
+# surfaces FAISS also indexes (kg_entity / kg_topic / quote / summary) so hybrid
+# doesn't lose coverage vs FAISS (RFC-090 full-coverage follow-up). "all" spans them.
+Tier = Literal["segment", "insight", "aux", "all"]
 
 
 @dataclass
@@ -48,6 +51,20 @@ class InsightDocument:
     speaker_id: Optional[str] = None
     source_segment_id: Optional[str] = None  # back-ref to grounding-quote segment
     source_tier: str = "insight"
+
+
+@dataclass
+class AuxDocument:
+    """A non-tiered corpus surface FAISS also indexes (kg_entity / kg_topic / quote /
+    summary) — kept so hybrid retrieval covers the same doc types as FAISS."""
+
+    id: str
+    text: str
+    show_id: str
+    episode_id: str
+    doc_type: str  # kg_entity | kg_topic | quote | summary
+    embedding: List[float] = field(default_factory=list)
+    source_tier: str = "aux"
 
 
 @dataclass
@@ -110,6 +127,10 @@ class SearchBackend(Protocol):
 
     def upsert_insight(self, doc: InsightDocument) -> None:
         """Insert or update a Tier-2 insight document."""
+        ...
+
+    def upsert_aux(self, doc: "AuxDocument") -> None:
+        """Insert or update an aux document (kg_entity / kg_topic / quote / summary)."""
         ...
 
     def delete(self, doc_id: str, tier: Tier) -> None:

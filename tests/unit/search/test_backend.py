@@ -59,6 +59,7 @@ class _FakeBackend:
     def __init__(self) -> None:
         self.segments: Dict[str, SegmentDocument] = {}
         self.insights: Dict[str, InsightDocument] = {}
+        self.aux: Dict[str, object] = {}
 
     def search_bm25(self, query: SearchQuery) -> List[ScoredResult]:
         return []
@@ -71,6 +72,9 @@ class _FakeBackend:
 
     def upsert_insight(self, doc: InsightDocument) -> None:
         self.insights[doc.id] = doc
+
+    def upsert_aux(self, doc) -> None:
+        self.aux[doc.id] = doc
 
     def delete(self, doc_id: str, tier) -> None:
         self.segments.pop(doc_id, None)

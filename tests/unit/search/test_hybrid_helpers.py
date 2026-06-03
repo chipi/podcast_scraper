@@ -58,3 +58,22 @@ def test_flatten_handles_all_result_types():
     assert hs._flatten(comp) == [ins, seg]  # compound → both
     assert hs._flatten(ins) == [ins]  # scored → itself
     assert hs._flatten("not a result") == []  # unknown → empty
+
+
+def test_tier_for_aux_doc_types():
+    assert hs._tier_for(["kg_topic"]) == "aux"
+    assert hs._tier_for(["kg_entity", "quote"]) == "aux"
+    assert hs._tier_for(["insight", "kg_topic"]) == "all"  # mixed → all
+
+
+def test_to_search_result_aux_uses_payload_doc_type():
+    aux = ScoredResult(
+        "kg_topic:1",
+        0.5,
+        1,
+        {"text": "x", "episode_id": "e1", "show_id": "A", "doc_type": "kg_topic"},
+        "bm25",
+        "aux",
+    )
+    out = hs._to_search_result(aux)
+    assert out.metadata["doc_type"] == "kg_topic"  # aux carries its real doc_type
