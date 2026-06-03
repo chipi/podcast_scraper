@@ -15,9 +15,19 @@ Two modes:
             backend + the verdict.
               python scripts/eval_hybrid_judged.py score --judged template.jsonl
 
-Between the two, a human opens the template and fills `relevance` (0=irrelevant,
-1=related, 2=on-point) for the candidates that matter. The same queries carry an
-`intent` label (seeds #860 training data).
+  auto      Synthesize queries (or read --queries), run both backends, grade with an
+            LLM-as-judge, score, and write a graded JSONL for a human spot-check.
+              python scripts/eval_hybrid_judged.py auto \
+                  --corpus-dir CORPUS --synthesize 40 --model gpt-4o-mini
+
+Between template/score, a human fills `relevance` (0=irrelevant, 1=related,
+2=on-point); `auto` does it with an LLM and you validate a sample. The same queries
+carry an `intent` label (seeds #860 training data).
+
+Caveat: synthesized queries derive from the corpus's own kg surfaces, so they retain
+home-field bias toward FAISS even with question templates. A trustworthy FAISS-removal
+/ ML-promotion verdict needs REAL user queries (`--queries`) + a human spot-check of
+the LLM grades. Treat synthesized verdicts as directional only.
 """
 
 from __future__ import annotations
@@ -25,6 +35,7 @@ from __future__ import annotations
 import argparse
 import dataclasses
 import json
+import os
 import sys
 from pathlib import Path
 from typing import List, Sequence, Tuple
@@ -127,8 +138,124 @@ def _cmd_score(args: argparse.Namespace) -> int:
     return 0
 
 
+def _load_dotenv(path: str = ".env") -> None:
+    p = Path(path)
+    if not p.is_file():
+        return
+    for line in p.read_text(encoding="utf-8").splitlines():
+        line = line.strip()
+        if line and not line.startswith("#") and "=" in line:
+            key, _, val = line.partition("=")
+            os.environ.setdefault(key.strip(), val.strip().strip('"').strip("'"))
+
+
+_TOPIC_TEMPLATES = [
+    "how does {x} affect markets",
+    "what are the risks of {x}",
+    "explain the debate around {x}",
+    "why does {x} matter for investors",
+]
+_ENTITY_TEMPLATES = [
+    "what is {x}'s view",
+    "what did experts say about {x}",
+    "how is {x} positioned",
+]
+
+
+def _synthesize_queries(corpus_dir: Path, n: int) -> List[str]:
+    """Bootstrap queries from corpus kg_entity/kg_topic surfaces (no live traffic).
+
+    Uses natural-question TEMPLATES rather than the bare surface label — a bare label
+    is a known-item gift to FAISS (it exact-matches its own kg node). This reduces, but
+    does not remove, the home-field bias: a truly fair eval uses REAL user queries via
+    ``--queries``. Treat synthesized verdicts as directional only.
+    """
+    store = FaissVectorStore.load(corpus_dir / "search")
+    people, topics = [], []
+    for meta in store.metadata_by_doc_id.values():
+        txt = (meta.get("text") or "").strip()
+        if not txt or len(txt) > 50:
+            continue
+        if meta.get("doc_type") == "kg_entity":
+            people.append(txt)
+        elif meta.get("doc_type") == "kg_topic":
+            topics.append(txt)
+    people = list(dict.fromkeys(people))
+    topics = list(dict.fromkeys(topics))
+    out: List[str] = []
+    for i in range(n):
+        if topics and (i % 2 == 0 or not people):
+            tmpl = _TOPIC_TEMPLATES[i % len(_TOPIC_TEMPLATES)]
+            out.append(tmpl.format(x=topics[i % len(topics)]))
+        elif people:
+            tmpl = _ENTITY_TEMPLATES[i % len(_ENTITY_TEMPLATES)]
+            out.append(tmpl.format(x=people[i % len(people)]))
+    return out[:n]
+
+
+def _openai_complete(model: str):
+    from openai import OpenAI
+
+    client = OpenAI()
+
+    def complete(prompt: str) -> str:
+        resp = client.chat.completions.create(
+            model=model,
+            messages=[{"role": "user", "content": prompt}],
+            temperature=0,
+        )
+        return resp.choices[0].message.content or ""
+
+    return complete
+
+
+def _cmd_auto(args: argparse.Namespace) -> int:
+    from podcast_scraper.search.llm_judge import grade_records
+
+    corpus = Path(args.corpus_dir)
+    if not lance_index_dir(corpus).exists():
+        print(f"No LanceDB index at {lance_index_dir(corpus)} — run `make index-two-tier` first.")
+        return 1
+    _load_dotenv()
+    if args.queries:
+        queries = [ln.strip() for ln in Path(args.queries).read_text().splitlines() if ln.strip()]
+    else:
+        queries = _synthesize_queries(corpus, args.synthesize)
+    print(f"Queries: {len(queries)} ({'file' if args.queries else 'synthesized'})")
+
+    records = build_judgment_template(
+        queries,
+        faiss_ranks=_faiss_ranks(corpus, args.k),
+        hybrid_ranks=_hybrid_ranks(corpus, args.k),
+        intent_of=classify_query,
+        k=args.k,
+    )
+    print(f"Grading {len(records)} records with {args.model} (LLM-as-judge) ...")
+    grade_records(records, _openai_complete(args.model))
+
+    with Path(args.out).open("w", encoding="utf-8") as fh:
+        for rec in records:
+            fh.write(json.dumps(dataclasses.asdict(rec)) + "\n")
+
+    scores = score_from_judgments(records, k=args.k)
+    n = int(scores["_judged_count"]["n"])
+    print(f"\nGraded → {args.out}  (spot-check a sample to validate the judge)")
+    print(f"Judged with signal: {n}/{len(records)}")
+    print(f"\n  backend   nDCG@{args.k}   recall@{args.k}")
+    for b in ("faiss", "hybrid"):
+        print(f"  {b:7s}  {scores[b]['ndcg']:8.3f}  {scores[b]['recall']:8.3f}")
+    dn = scores["hybrid"]["ndcg"] - scores["faiss"]["ndcg"]
+    verdict = (
+        "PASS — hybrid >= FAISS (unblocks #858 + #860)"
+        if dn > 0.02 and n >= 30
+        else f"INCONCLUSIVE — Δ nDCG={dn:+.3f}, n={n} (want clear margin over >=30)"
+    )
+    print(f"\n  Δ nDCG = {dn:+.3f}\n  VERDICT: {verdict}")
+    return 0
+
+
 def main() -> int:
-    """Dispatch the template / score subcommand."""
+    """Dispatch the template / score / auto subcommand."""
     ap = argparse.ArgumentParser(description=__doc__)
     sub = ap.add_subparsers(dest="cmd", required=True)
     t = sub.add_parser("template", help="build a judgment template")
@@ -139,8 +266,19 @@ def main() -> int:
     s = sub.add_parser("score", help="score graded judgments")
     s.add_argument("--judged", required=True)
     s.add_argument("--k", type=int, default=10)
+    a = sub.add_parser("auto", help="synthesize queries, run both backends, LLM-grade, score")
+    a.add_argument("--corpus-dir", required=True)
+    a.add_argument("--queries", default=None, help="query file (else synthesize from corpus)")
+    a.add_argument("--synthesize", type=int, default=40, help="N queries when --queries absent")
+    a.add_argument("--model", default="gpt-4o-mini")
+    a.add_argument("--out", default="judged_auto.jsonl")
+    a.add_argument("--k", type=int, default=10)
     args = ap.parse_args()
-    return _cmd_template(args) if args.cmd == "template" else _cmd_score(args)
+    if args.cmd == "template":
+        return _cmd_template(args)
+    if args.cmd == "score":
+        return _cmd_score(args)
+    return _cmd_auto(args)
 
 
 if __name__ == "__main__":
