@@ -64,3 +64,8 @@ def test_grade_record_survives_model_error():
 def test_grade_records_batch():
     recs = grade_records([_rec(), _rec()], lambda p: '{"a": 1, "b": 1}')
     assert all(r.relevance == {"a": 1, "b": 1} for r in recs)
+
+
+def test_parse_grades_skips_non_int_grade_for_valid_id():
+    # A valid candidate id with a non-integer grade is skipped (not crashed).
+    assert parse_grades('{"a": "high", "b": 1}', ["a", "b"]) == {"b": 1}
