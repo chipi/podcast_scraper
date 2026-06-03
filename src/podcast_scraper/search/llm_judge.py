@@ -43,7 +43,7 @@ def build_grading_prompt(record: JudgmentRecord) -> str:
 def parse_grades(response: str, candidate_ids: Sequence[str]) -> Dict[str, int]:
     """Extract a ``{doc_id: grade}`` map from the model's response (robust to prose).
 
-    Only ids in *candidate_ids* are kept; grades are clamped to 0/1/2; unparseable →
+    Only ids in *candidate_ids* are kept; grades are clamped to 0/1/2; unparsable →
     empty (the record is then skipped as having no signal).
     """
     match = re.search(r"\{.*\}", response, re.DOTALL)
