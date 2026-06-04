@@ -578,7 +578,7 @@ validate-kg-schema:
 	fi
 
 # GI/KG viewer v2 (#489): FastAPI + Vite. ``make init`` includes FastAPI via ``[dev]``; cd $(WEB_VIEWER_DIR) && npm install
-.PHONY: serve serve-api serve-ui serve-e2e-mock stack-build stack-build-llm stack-compose-validate stack-up stack-down stack-logs verify-stack-profiles stack-test-build stack-test-build-cloud stack-test-up stack-test-down stack-test-seed stack-test-playwright stack-test-export stack-test-ml stack-test-cloud-thin stack-test-ml-ci deploy-codespace restore-corpus restore-corpus-prod reprocess-corpus-from-transcripts corpus-compat-check index-two-tier upgrade-status upgrade-check upgrade-dry-run upgrade-corpus upgrade-verify smoke-prod corpus-snapshot-manifest-validate corpus-snapshot-select-tag corpus-snapshot-select-tag-prod corpus-snapshot-selftest corpus-snapshot-integration
+.PHONY: serve serve-api serve-ui serve-e2e-mock stack-build stack-build-llm stack-compose-validate stack-up stack-down stack-logs verify-stack-profiles stack-test-build stack-test-build-cloud stack-test-up stack-test-down stack-test-seed stack-test-playwright stack-test-export stack-test-ml stack-test-cloud-thin stack-test-ml-ci deploy-codespace restore-corpus restore-corpus-prod reprocess-corpus-from-transcripts corpus-compat-check index-two-tier enrich-relational-edges upgrade-status upgrade-check upgrade-dry-run upgrade-corpus upgrade-verify smoke-prod corpus-snapshot-manifest-validate corpus-snapshot-select-tag corpus-snapshot-select-tag-prod corpus-snapshot-selftest corpus-snapshot-integration
 SERVE_OUTPUT_DIR ?= ./output
 # Optional corpus-editing + jobs routes (health shows green when on). Override with SERVE_ARGS= to disable.
 SERVE_ARGS ?= --enable-feeds-api --enable-operator-config-api --enable-jobs-api
@@ -1022,6 +1022,13 @@ corpus-compat-check:
 index-two-tier:
 	@test -n "$${CORPUS_DIR:-}" || (echo "CORPUS_DIR required (corpus parent path)"; exit 1); \
 	$(PYTHON) -m podcast_scraper.cli index-two-tier --output-dir "$${CORPUS_DIR}"
+
+# Derive relational edges into each gi.json (#874): Podcast->HAS_EPISODE->Episode,
+# Insight->MENTIONS->Entity, and Quote->SPOKEN_BY->Person (diarized episodes only).
+# Idempotent cross-layer pass; re-run after new diarization (#876) to fill SPOKEN_BY.
+enrich-relational-edges:
+	@test -n "$${CORPUS_DIR:-}" || (echo "CORPUS_DIR required (corpus parent path)"; exit 1); \
+	$(PYTHON) -m podcast_scraper.cli enrich-edges --output-dir "$${CORPUS_DIR}"
 
 # Corpus upgrade-path framework (#862). Managed, idempotent migrations for moving a
 # deployed corpus across releases (2.6 → 2.7 FAISS→LanceDB is step 0001). CORPUS_DIR
