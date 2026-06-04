@@ -9,6 +9,7 @@ lets the retrieval layer merge a raw segment and its synthesized insight into a
 
 from __future__ import annotations
 
+import re
 from typing import Dict, List, Optional, Sequence, Tuple
 
 from .backend import SegmentDocument
@@ -76,6 +77,41 @@ def link_insights_to_segments(
         for seg in segments:
             end_ok = quote_end is None or quote_end <= seg.end_time + tolerance_seconds
             if seg.start_time - tolerance_seconds <= quote_start and end_ok:
+                seg.linked_insight_ids.append(insight_id)
+                mapping[insight_id] = seg.id
+                break
+    return mapping
+
+
+def _normalize_for_match(text: str) -> str:
+    """Lowercase + collapse whitespace so verbatim quotes match across formatting."""
+    return re.sub(r"\s+", " ", (text or "").lower()).strip()
+
+
+def link_insights_to_segments_by_text(
+    segments: Sequence[SegmentDocument],
+    insight_quote_texts: Sequence[Tuple[str, str]],
+    *,
+    shingle_words: int = 8,
+) -> Dict[str, str]:
+    """Link insights to the segment containing their grounding quote TEXT.
+
+    The timestamp-based :func:`link_insights_to_segments` fails when segments carry
+    no per-chunk timestamps (``summary.timestamps`` unpopulated → segment spans at
+    ``0.0``). But GIL grounding quotes are *verbatim* transcript spans, so the
+    segment whose text contains the quote's leading ``shingle_words``-word shingle
+    is its source segment — no timestamps required. Mutates
+    ``segment.linked_insight_ids`` in place and returns ``{insight_id: segment_id}``
+    (first containing segment per insight).
+    """
+    norm_segs = [(seg, _normalize_for_match(seg.text)) for seg in segments]
+    mapping: Dict[str, str] = {}
+    for insight_id, quote_text in insight_quote_texts:
+        frag = " ".join(_normalize_for_match(quote_text).split()[:shingle_words])
+        if not frag:
+            continue
+        for seg, seg_norm in norm_segs:
+            if frag in seg_norm:
                 seg.linked_insight_ids.append(insight_id)
                 mapping[insight_id] = seg.id
                 break
