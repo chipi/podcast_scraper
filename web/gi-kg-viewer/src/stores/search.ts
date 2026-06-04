@@ -7,6 +7,7 @@ import {
   type SearchHit,
 } from '../api/searchApi'
 import { useGraphNavigationStore } from './graphNavigation'
+import { useActiveSearchContextStore } from './activeSearchContext'
 import { normalizeFeedIdForViewer } from '../utils/feedId'
 import { StaleGeneration } from '../utils/staleGeneration'
 
@@ -123,6 +124,8 @@ export const useSearchStore = defineStore('search', () => {
       }
       results.value = body.results
       liftStats.value = body.lift_stats ?? null
+      // RFC-094 OQ-2: publish the active context so Library/Graph can rank + snippet.
+      useActiveSearchContextStore().setContext(q, body.results)
       enrichmentCallFailed.value = Boolean(
         body.enrichment_error && String(body.enrichment_error).trim(),
       )
@@ -156,6 +159,7 @@ export const useSearchStore = defineStore('search', () => {
     apiError.value = null
     error.value = null
     enrichmentCallFailed.value = false
+    useActiveSearchContextStore().clear()
     useGraphNavigationStore().clearLibraryEpisodeHighlights()
   }
 
