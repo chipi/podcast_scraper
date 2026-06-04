@@ -21,6 +21,24 @@
 > surface** does not exist as its own doc and is marked **[TBD — not yet specified]**. This PRD is
 > a cross-surface companion to PRD-031/032: it specifies how the retrieval backend propagates
 > across viewer surfaces, not a standalone feature.
+>
+> **Status update (2026-06-03) — foundation realignment.** Findings from the retrieval
+> investigation change several assumptions in this PRD:
+>
+> - **KG-proximity is rejected as a retrieval signal** (RFC-091 Decision Record): it was
+>   refuted on every corpus/axis. Surfaces specified as "KG-proximity-weighted" (**FR4.2**
+>   Topic Entity View, **FR4.3** related insights, **FR5.1/5.2** graph node/edge signals)
+>   must take **ranking from hybrid BM25+dense** and **relational content from
+>   meaning-bearing edges** — not proximity. The "BM25 + vector + KG proximity" row in
+>   _What the backend unlocks_ should read **BM25 + vector** (relational structure via edges).
+> - **The entity resolver now exists** (#849) — supersedes every "entity resolver does not
+>   exist yet" caveat (FR3.4, Dependencies). Interactive speaker/show names → canonical IDs
+>   are **unblocked**.
+> - **Person→Insight is built** (#874, `SPOKEN_BY` → derived) — **FR4.1 Person Landing** is
+>   foundationally enabled (coverage gated on diarization, #876).
+> - **New foundation edges available** (#874 family): `Insight ─MENTIONS→ Entity` and
+>   `Podcast ─HAS_EPISODE→ Episode` ground **FR4 entity views** and **FR3.4 show navigation**.
+> - **Contradiction edges remain unbuilt** (OQ-4) — the only true placeholder cluster left.
 
 ---
 
