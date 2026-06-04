@@ -29,7 +29,7 @@ from .backend import AuxDocument, InsightDocument, SegmentDocument
 from .backends.lancedb_backend import LanceDBBackend
 from .corpus_scope import discover_metadata_files, episode_root_from_metadata_path
 from .indexer import _collect_docs_for_episode, _gi_path, _load_metadata_file
-from .segments import link_insights_to_segments
+from .segments import link_insights_to_segments, link_insights_to_segments_by_text
 
 DEFAULT_MODEL = "sentence-transformers/all-MiniLM-L6-v2"
 DEFAULT_TARGET_TOKENS = 256
@@ -86,6 +86,34 @@ def _insight_grounding_quotes(gi_path: Path) -> Dict[str, Tuple[float, Optional[
             insight_id, quote_id = edge.get("from"), edge.get("to")
             if insight_id not in out and quote_id in quote_ts:
                 out[insight_id] = quote_ts[quote_id]
+    return out
+
+
+def _insight_grounding_quote_texts(gi_path: Path) -> Dict[str, str]:
+    """Map each insight node id → its first grounding quote's verbatim text.
+
+    The text-based counterpart to :func:`_insight_grounding_quotes`. Used to link
+    insights to the transcript segment that contains the quote when segments carry
+    no usable timestamps (``summary.timestamps`` unpopulated → segment spans at 0.0).
+    """
+    if not gi_path.is_file():
+        return {}
+    try:
+        art = json.loads(gi_path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return {}
+    quote_text: Dict[str, str] = {}
+    for node in art.get("nodes") or []:
+        if node.get("type") == "Quote":
+            txt = (node.get("properties") or {}).get("text")
+            if isinstance(txt, str) and txt.strip():
+                quote_text[node.get("id")] = txt.strip()
+    out: Dict[str, str] = {}
+    for edge in art.get("edges") or []:
+        if edge.get("type") == "SUPPORTED_BY":
+            insight_id, quote_id = edge.get("from"), edge.get("to")
+            if insight_id not in out and quote_id in quote_text:
+                out[insight_id] = quote_text[quote_id]
     return out
 
 
@@ -184,13 +212,24 @@ def build_two_tier_index(
                     )
                 )
 
-        grounding = _insight_grounding_quotes(_gi_path(episode_root, meta_path, doc))
-        insight_quotes = [
+        gi_path = _gi_path(episode_root, meta_path, doc)
+        # Text-containment linking (verbatim grounding quotes) is the primary path —
+        # it needs no segment timestamps, which the corpus often lacks. Fall back to
+        # timestamp overlap for any insight whose quote text isn't found verbatim.
+        grounding_text = _insight_grounding_quote_texts(gi_path)
+        text_quotes = [
+            (ins.id, grounding_text[node_id])
+            for ins in ins_docs
+            if (node_id := node_id_by_insight.get(ins.id)) in grounding_text
+        ]
+        mapping = link_insights_to_segments_by_text(seg_docs, text_quotes)
+        grounding = _insight_grounding_quotes(gi_path)
+        time_quotes = [
             (ins.id, *grounding[node_id])
             for ins in ins_docs
-            if (node_id := node_id_by_insight.get(ins.id)) in grounding
+            if ins.id not in mapping and (node_id := node_id_by_insight.get(ins.id)) in grounding
         ]
-        mapping = link_insights_to_segments(seg_docs, insight_quotes)
+        mapping.update(link_insights_to_segments(seg_docs, time_quotes))
         for ins in ins_docs:
             if ins.id in mapping:
                 ins.source_segment_id = mapping[ins.id]

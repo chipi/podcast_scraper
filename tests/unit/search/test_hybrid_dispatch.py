@@ -19,13 +19,23 @@ def test_flag_reader_reads_config_via_env_path(tmp_path, monkeypatch):
     cfg = tmp_path / "search.yaml"
     monkeypatch.setenv("PODCAST_SEARCH_CONFIG", str(cfg))
     monkeypatch.delenv("PODCAST_HYBRID_SEARCH", raising=False)
-    assert hybrid_search.hybrid_search_enabled() is False  # missing file → False
 
     cfg.write_text("serving:\n  hybrid_enabled: true\n", encoding="utf-8")
     assert hybrid_search.hybrid_search_enabled() is True
 
     cfg.write_text("serving:\n  hybrid_enabled: false\n", encoding="utf-8")
     assert hybrid_search.hybrid_search_enabled() is False
+
+
+def test_shipped_config_defaults_hybrid_on(monkeypatch):
+    """The shipped config/search.yaml turns hybrid on by default (#874).
+
+    Found via the robust repo-root anchor regardless of CWD, so a missing
+    PODCAST_SEARCH_CONFIG falls back to the shipped default (now on).
+    """
+    monkeypatch.delenv("PODCAST_HYBRID_SEARCH", raising=False)
+    monkeypatch.delenv("PODCAST_SEARCH_CONFIG", raising=False)
+    assert hybrid_search.hybrid_search_enabled() is True
 
 
 def test_env_var_overrides_config(monkeypatch):
