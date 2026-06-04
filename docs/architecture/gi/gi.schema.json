@@ -214,7 +214,7 @@
       "additionalProperties": false,
       "required": ["type", "from", "to"],
       "properties": {
-        "type": { "type": "string", "enum": ["HAS_EPISODE", "SPOKE_IN", "HAS_INSIGHT", "SUPPORTED_BY", "SPOKEN_BY", "ABOUT", "RELATED_TO"], "description": "Edge type" },
+        "type": { "type": "string", "enum": ["HAS_EPISODE", "SPOKE_IN", "HAS_INSIGHT", "SUPPORTED_BY", "SPOKEN_BY", "ABOUT", "MENTIONS", "RELATED_TO"], "description": "Edge type" },
         "from": { "type": "string", "minLength": 1, "description": "Source node ID" },
         "to": { "type": "string", "minLength": 1, "description": "Target node ID" },
         "properties": { "type": "object", "additionalProperties": true, "description": "Optional edge properties" }

@@ -88,6 +88,7 @@ The grounding contract is what makes GIL trustworthy:
 | **SUPPORTED_BY** | Insight -> Quote   | Quote provides evidence for insight  |
 | **SPOKEN_BY**    | Quote -> Person    | Quote attributed to that person      |
 | ABOUT            | Insight -> Topic   | Insight is about topic               |
+| MENTIONS         | Insight -> Entity  | Insight concerns a person/org (#874) |
 | RELATED_TO       | Topic <-> Topic    | Semantic relationship (optional)     |
 
 ---
