@@ -50,12 +50,15 @@ SIGNAL_WEIGHTS: Dict[str, Dict[str, float]] = {
 }
 
 # Tier weights per query type (override the RRF defaults).
+# ``aux`` = kg_entity/kg_topic/quote/summary (RFC-090 full-coverage tier). It ranks
+# highest for entity_lookup (kg surfaces are the answer) and lowest for raw_evidence
+# (segments/quotes are). Unlisted tiers default to 1.0 in rrf_fuse.
 TIER_WEIGHTS_BY_QUERY: Dict[str, Dict[str, float]] = {
-    "entity_lookup": {"insight": 1.3, "segment": 0.9},
-    "raw_evidence": {"insight": 0.9, "segment": 1.3},
-    "temporal_tracking": {"insight": 1.2, "segment": 1.0},
-    "cross_show_synthesis": {"insight": 1.2, "segment": 1.0},
-    "semantic": {"insight": 1.2, "segment": 1.0},
+    "entity_lookup": {"insight": 1.3, "segment": 0.9, "aux": 1.3},
+    "raw_evidence": {"insight": 0.9, "segment": 1.3, "aux": 0.8},
+    "temporal_tracking": {"insight": 1.2, "segment": 1.0, "aux": 1.0},
+    "cross_show_synthesis": {"insight": 1.2, "segment": 1.0, "aux": 1.1},
+    "semantic": {"insight": 1.2, "segment": 1.0, "aux": 1.0},
 }
 
 

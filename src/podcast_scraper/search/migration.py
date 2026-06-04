@@ -30,9 +30,12 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Dict, Optional
 
-from .backend import InsightDocument, SegmentDocument
+from .backend import AuxDocument, InsightDocument, SegmentDocument
 from .backends.lancedb_backend import LanceDBBackend
 from .faiss_store import FaissVectorStore
+
+# Non-tiered FAISS surfaces carried into the aux tier for full hybrid coverage.
+_AUX_DOC_TYPES = frozenset({"kg_entity", "kg_topic", "quote", "summary"})
 
 
 @dataclass
@@ -41,8 +44,20 @@ class MigrationStats:
 
     segments: int = 0
     insights: int = 0
+    aux: int = 0
     skipped: int = 0
     embed_dim: int = 0
+
+
+def _aux_from_faiss(doc_id: str, meta: Dict, embedding: list) -> AuxDocument:
+    return AuxDocument(
+        id=doc_id,
+        text=meta.get("text") or "",
+        show_id=meta.get("feed_id") or "",
+        episode_id=meta.get("episode_id") or "",
+        doc_type=str(meta.get("doc_type") or ""),
+        embedding=embedding,
+    )
 
 
 def _segment_from_faiss(doc_id: str, meta: Dict, embedding: list) -> SegmentDocument:
@@ -108,11 +123,16 @@ def migrate_faiss_to_lance(
                 continue
             backend.upsert_insight(_insight_from_faiss(doc_id, meta, emb))
             stats.insights += 1
+        elif doc_type in _AUX_DOC_TYPES:
+            if limit_per_tier is not None and stats.aux >= limit_per_tier:
+                continue
+            backend.upsert_aux(_aux_from_faiss(doc_id, meta, emb))
+            stats.aux += 1
         else:
             stats.skipped += 1
 
     # Record the model so the query path embeds in the same space (else silent mismatch).
     backend.write_index_meta(store.embedding_model)
-    if stats.segments or stats.insights:
+    if stats.segments or stats.insights or stats.aux:
         backend.create_indices()
     return stats

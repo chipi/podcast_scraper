@@ -1385,7 +1385,7 @@ def run_index_two_tier_cli(args: Namespace, logger: logging.Logger) -> int:
         allow_download=bool(getattr(args, "allow_download", False)),
     )
     print(
-        f"Two-tier index built at {lance_path}: "
-        f"episodes={stats.episodes} segments={stats.segments} insights={stats.insights}"
+        f"Two-tier index built at {lance_path}: episodes={stats.episodes} "
+        f"segments={stats.segments} insights={stats.insights} aux={stats.aux}"
     )
     return EXIT_SUCCESS

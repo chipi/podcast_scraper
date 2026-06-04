@@ -25,7 +25,7 @@ from pathlib import Path
 from typing import cast, Dict, List, Optional, Tuple
 
 from ..providers.ml import embedding_loader
-from .backend import InsightDocument, SegmentDocument
+from .backend import AuxDocument, InsightDocument, SegmentDocument
 from .backends.lancedb_backend import LanceDBBackend
 from .corpus_scope import discover_metadata_files, episode_root_from_metadata_path
 from .indexer import _collect_docs_for_episode, _gi_path, _load_metadata_file
@@ -35,6 +35,9 @@ DEFAULT_MODEL = "sentence-transformers/all-MiniLM-L6-v2"
 DEFAULT_TARGET_TOKENS = 256
 DEFAULT_OVERLAP_TOKENS = 32
 
+# Non-tiered FAISS surfaces indexed into the aux tier for full coverage.
+_AUX_DOC_TYPES = frozenset({"kg_entity", "kg_topic", "quote", "summary"})
+
 
 @dataclass
 class TwoTierIndexStats:
@@ -43,6 +46,7 @@ class TwoTierIndexStats:
     episodes: int = 0
     segments: int = 0
     insights: int = 0
+    aux: int = 0
     linked: int = 0
 
 
@@ -138,6 +142,7 @@ def build_two_tier_index(
         # source_segment_id are populated (the compound-result path needs them).
         seg_docs: List[SegmentDocument] = []
         ins_docs: List[InsightDocument] = []
+        aux_docs: List[AuxDocument] = []
         node_id_by_insight: Dict[str, Optional[str]] = {}
         for doc_id, text, meta in rows:
             doc_type = meta.get("doc_type")
@@ -167,6 +172,17 @@ def build_two_tier_index(
                         embedding=_embed(text, model_id, allow_download=allow_download),
                     )
                 )
+            elif doc_type in _AUX_DOC_TYPES:
+                aux_docs.append(
+                    AuxDocument(
+                        id=doc_id,
+                        text=text,
+                        show_id=meta.get("feed_id") or "",
+                        episode_id=meta.get("episode_id") or "",
+                        doc_type=doc_type,
+                        embedding=_embed(text, model_id, allow_download=allow_download),
+                    )
+                )
 
         grounding = _insight_grounding_quotes(_gi_path(episode_root, meta_path, doc))
         insight_quotes = [
@@ -186,6 +202,9 @@ def build_two_tier_index(
         for ins in ins_docs:
             _ensure_backend(len(ins.embedding)).upsert_insight(ins)
             stats.insights += 1
+        for aux in aux_docs:
+            _ensure_backend(len(aux.embedding)).upsert_aux(aux)
+            stats.aux += 1
 
     if backend is not None:
         backend.write_index_meta(model_id)  # query path must embed in the same space

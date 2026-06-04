@@ -96,8 +96,11 @@ def lance_index_dir(output_dir: Path) -> Path:
     return Path(output_dir) / "search" / "lance_index"
 
 
+_AUX_DOC_TYPES = frozenset({"kg_entity", "kg_topic", "quote", "summary"})
+
+
 def _tier_for(doc_types: Optional[Sequence[str]]) -> Tier:
-    """Map requested doc types to a two-tier scope (insight | segment | all)."""
+    """Map requested doc types to a tier scope (insight | segment | aux | all)."""
     if not doc_types:
         return "all"
     wanted = {t.strip().lower() for t in doc_types if isinstance(t, str) and t.strip()}
@@ -105,18 +108,24 @@ def _tier_for(doc_types: Optional[Sequence[str]]) -> Tier:
         return "insight"
     if wanted <= {"transcript", "segment"}:
         return "segment"
+    if wanted <= _AUX_DOC_TYPES:
+        return "aux"
     return "all"
 
 
-def _doc_type_for_tier(source_tier: str) -> str:
-    # Segments are transcript chunks in the FAISS vocabulary the enrich/lift expects.
-    return "insight" if source_tier == "insight" else "transcript"
+def _doc_type_for_result(result: ScoredResult, payload: Dict) -> str:
+    # Segment = transcript in the FAISS vocab; aux rows carry their own doc_type.
+    if result.source_tier == "insight":
+        return "insight"
+    if result.source_tier == "aux":
+        return str(payload.get("doc_type") or "aux")
+    return "transcript"
 
 
 def _to_search_result(result: ScoredResult) -> SearchResult:
     payload = dict(result.payload or {})
     metadata = {
-        "doc_type": _doc_type_for_tier(result.source_tier),
+        "doc_type": _doc_type_for_result(result, payload),
         "text": payload.get("text", ""),
         "episode_id": payload.get("episode_id", ""),
         "feed_id": payload.get("show_id", ""),

@@ -14,7 +14,8 @@ from typing import Dict, List, Optional, Sequence
 from .backend import ScoredResult
 
 # Default tier weights: insights are grounded signal, slight boost is appropriate.
-TIER_WEIGHTS: Dict[str, float] = {"insight": 1.2, "segment": 1.0}
+# ``aux`` (kg/quote/summary) defaults to 1.0; unlisted tiers also fall back to 1.0.
+TIER_WEIGHTS: Dict[str, float] = {"insight": 1.2, "segment": 1.0, "aux": 1.0}
 
 
 def rrf_fuse(
