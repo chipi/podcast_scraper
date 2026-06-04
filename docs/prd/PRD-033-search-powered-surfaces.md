@@ -3,6 +3,7 @@
 - **Status**: Draft
 - **Author**: Marko
 - **Created**: 2026-05-24
+- **Revised**: 2026-06-04 — re-grounded on the shipped backend; generic capability→surface framing
 - **Target**: v2.7 (foundation), podcast product (full)
 - **Related PRDs**:
   - `docs/prd/PRD-031-search.md` — Search product
@@ -18,161 +19,142 @@
 > **Stabilization note (2026-05-30):** Rebased to this repo. Original draft referenced
 > "RFC-077 (graph visualization extensions)" and "RFC-080 (corpus impact surface)" — both wrong
 > here. Corrected: graph viz extensions → **RFC-080**. A dedicated **corpus-impact / coverage
-> surface** does not exist as its own doc and is marked **[TBD — not yet specified]**. This PRD is
-> a cross-surface companion to PRD-031/032: it specifies how the retrieval backend propagates
-> across viewer surfaces, not a standalone feature.
+> surface** does not exist as its own doc and is marked **[TBD — not yet specified]**.
 >
-> **Status update (2026-06-03) — foundation realignment.** Findings from the retrieval
-> investigation change several assumptions in this PRD:
->
-> - **KG-proximity is rejected as a retrieval signal** (RFC-091 Decision Record): it was
->   refuted on every corpus/axis. Surfaces specified as "KG-proximity-weighted" (**FR4.2**
->   Topic Entity View, **FR4.3** related insights, **FR5.1/5.2** graph node/edge signals)
->   must take **ranking from hybrid BM25+dense** and **relational content from
->   meaning-bearing edges** — not proximity. The "BM25 + vector + KG proximity" row in
->   _What the backend unlocks_ should read **BM25 + vector** (relational structure via edges).
-> - **The entity resolver now exists** (#849) — supersedes every "entity resolver does not
->   exist yet" caveat (FR3.4, Dependencies). Interactive speaker/show names → canonical IDs
->   are **unblocked**.
-> - **Person→Insight is built** (#874, `SPOKEN_BY` → derived) — **FR4.1 Person Landing** is
->   foundationally enabled (coverage gated on diarization, #876).
-> - **New foundation edges available** (#874 family): `Insight ─MENTIONS→ Entity` and
->   `Podcast ─HAS_EPISODE→ Episode` ground **FR4 entity views** and **FR3.4 show navigation**.
-> - **Contradiction edges remain unbuilt** (OQ-4) — the only true placeholder cluster left.
+> **Revision note (2026-06-04) — re-grounded on the shipped foundation.** The retrieval backend
+> and the relational edge layer have **shipped** (PRD-032 / RFC-090; the linker + `Person→Insight`,
+> `Insight→Entity`, `Podcast→Episode` edges in #874). This PRD is now framed **generically**: given
+> the capabilities we have actually built, how does each viewer surface consume them to deliver
+> value. It is **not** gated on any one future capability. Capabilities that some surfaces could
+> additionally use but that are **not yet built** — contradiction edges, MCP briefing packs, a
+> coverage surface — are **orthogonal**: surfaces deliver the value they can today and add those
+> affordances later. They are fenced off in [§Orthogonal capabilities](#orthogonal-capabilities-not-this-prds-spine)
+> and never block this work. (Note: KG-proximity was evaluated and **rejected as a retrieval
+> signal** — RFC-091 Decision Record; ranking is hybrid BM25+dense, relational structure comes from
+> the edges.)
 
 ---
 
 ## Summary
 
-PRD-032 delivers a two-tier hybrid retrieval backend with BM25, vector, and KG-proximity signals.
-This PRD covers how that capability propagates across the viewer's surfaces — Search/Explore,
-Library, Digest, Detail panels, Graph, and Dashboard — and what becomes possible on each that
-wasn't before. It is not a cosmetic refresh: the retrieval upgrade changes what information can be
-surfaced, how confidently, and in response to what triggers.
+The retrieval foundation has shipped. This PRD is the **consumer-side spec**: it inventories every
+viewer surface and, for each, defines **which shipped capability it consumes and the value it
+delivers**. The objective is simple — **bring everything we've built to the UI** — not to wait on
+any single future capability. Each surface ships the value its consumed capabilities already
+support; orthogonal additions land independently.
 
-## Background & Context
+## What the foundation provides (shipped — the consumable inventory)
 
-- **What problem this solves.** Each viewer surface today is limited by single-signal,
-  insight-only retrieval. Library filtering is presence/absence; Digest bands are static; node
-  clicks dead-end; Dashboard cards aren't drillable to evidence.
-- **Why now.** Once PRD-032's backend lands, every surface can be re-grounded in actual,
-  attributable corpus evidence. The cross-surface flow gaps in #674 become fixable.
-- **How it relates to existing features.** This PRD is the consumer-side companion to PRD-031
-  (Search product) and PRD-032 (backend). It depends on the right-rail panels (#672), the filter
-  chip bars (#658/#669/#670/#671), and the canonical identity layer (RFC-072).
-
-### What the backend unlocks per surface
-
-| Old capability | New capability |
+| Capability (shipped) | What a surface does with it |
 | --- | --- |
-| Vector similarity only | BM25 + vector + KG proximity, mixed-tier results |
-| Insight nodes only | Transcript segments + insights, raw evidence accessible |
-| No query intent | Query-type routing — entity, synthesis, temporal, evidence |
-| Static ranked lists | Compound results (segment + insight linked) |
-| No coverage signal | Corpus coverage counts (richer impact surface **[TBD]**) |
-| Raw MCP dumps | LITM-aware briefing packs (requires MCP layer **[TBD]**) |
+| **Hybrid retrieval** (BM25 + dense + RRF) | Rank by relevance, not presence/absence; exact names + phrases *and* semantics |
+| **Two-tier + compound results** | Show a synthesized insight together with its grounding transcript segment |
+| **Query-intent routing** | Adapt the retrieval strategy to the query (entity / evidence / synthesis / semantic) |
+| **Canonical entity resolver** (RFC-072 / #849) | Turn a name in text into a navigable canonical entity id |
+| **`Person→Insight`** (who said what, #874) | Assemble a person's positions — "what does X think about Y" |
+| **`Insight→Entity`** (insight about whom, #874) | Ground an insight in the people/orgs it concerns |
+| **`Podcast→HAS_EPISODE→Episode`** (#874) | Resolve a show name to show-scoped navigation |
+| **Cross-show shared topics** | Group a topic's coverage across multiple shows |
+
+Every surface below consumes a subset of this inventory. Nothing here is "coming soon."
 
 ## Goals
 
-- Propagate hybrid retrieval consistently across all viewer surfaces, not just Search.
-- Turn dead-end node clicks into evidence-grounded panels (#672).
-- Make filtering rank by relevance (retrieval-backed), not just presence/absence.
-- Establish cross-show synthesis as a first-class, differentiated capability (Digest).
+- Propagate hybrid retrieval and the relational layer **consistently across all viewer surfaces**,
+  not just Search.
+- Turn dead-end node clicks into **evidence-grounded panels** (#672).
+- Make filtering **rank by relevance** (retrieval-backed), not presence/absence.
+- Make names and shows **navigable** (resolver + `Person→Insight` + `HAS_EPISODE`).
+- Establish **cross-show synthesis** as a first-class capability (Digest), using hybrid retrieval +
+  shared topics.
 
 ## Non-Goals
 
-- Building the retrieval backend (PRD-032 / RFC-090 own that).
+- Building the retrieval backend or the edge layer (PRD-032 / RFC-090 / #874 own those).
 - Net-new surfaces — this enhances existing surfaces only.
-- Surfaces whose content depends on capabilities not yet built (contradiction edges, MCP packs,
-  corpus-impact surface) ship as graceful placeholders, not blockers.
+- Any **orthogonal** capability (contradiction edges, MCP packs, coverage surface). Surfaces that
+  could use them add the affordance when they exist; this PRD never blocks on them.
 
 ## Personas
 
 - **Beta researcher**: Navigates across surfaces (Search → Detail → Graph) and expects continuity
-  and real content at each stop.
-- **Operator (you)**: Uses Dashboard/Library coverage signals to guide corpus expansion.
-
-## User Stories
-
-- _As a beta researcher, I can filter Library by a topic and get episodes ranked by relevance, so
-  that a 700+ episode corpus doesn't return an undifferentiated list._
-- _As a beta researcher, I can click a speaker name in Digest and open their Person Landing, so
-  that names are navigation anchors, not plain text._
-- _As a beta researcher, I can see a cross-show synthesis band in Digest, so that I get a
-  horizontal slice across shows on a topic._
-- _As a beta researcher, I can click a Graph node and open an evidence-grounded panel, so that the
-  graph is a navigation surface, not just a visualization._
-- _As an operator, I can see a coverage-gaps card on the Dashboard, so that I know which topics are
-  thinly covered._
+  and real, attributable content at each stop.
+- **Operator**: Uses coverage signals (where available) to guide corpus expansion.
 
 ## Functional Requirements
 
-### FR1: Search and Explore
+Each requirement names the **shipped capability** it consumes. Orthogonal additions are marked
+`[orthogonal]` and are not prerequisites.
 
-_Primary surface for PRD-031/032; specified here for cross-surface consistency._
+### FR1: Search and Explore (#671)
 
-- **FR1.1**: Two-tier results in the list with a `source_tier` indicator; compound results appear
-  as a single card with both layers accessible.
-- **FR1.2**: Named-entity search returns exact-match results (purely retrieval quality, no UI
-  change).
-- **FR1.3**: Raw-evidence toggle ("Insights" / "Transcript" / "Both") constraining to
-  segment-tier results (uses the `raw_evidence` query type).
-- **FR1.4**: Query-type indicator near the search bar (transparency / debuggability).
-- **FR1.5 (Explore)**: Corpus-coverage card above results when a topic/person is selected — N
-  shows, M episodes, date range, contradiction count. Placeholder in v2.7; full when the
-  corpus-impact surface exists **[TBD]**. Affected: #671.
+- **FR1.1** Two-tier results with a `source_tier` indicator; **compound results** render as one
+  card exposing both the insight and its grounding segment. *(two-tier + compounds)*
+- **FR1.2** Named-entity search returns exact-match results — retrieval quality, no UI change.
+  *(hybrid)*
+- **FR1.3** Raw-evidence toggle ("Insights" / "Transcript" / "Both") constraining to segment-tier.
+  *(two-tier + intent routing)*
+- **FR1.4** Query-type indicator near the search bar (transparency). *(intent routing)*
+- **FR1.5** Speaker/entity names in results resolve to canonical ids and link to their Detail panel.
+  *(resolver + `Person→Insight` / `Insight→Entity`)*
 
 ### FR2: Library (#669)
 
-- **FR2.1**: "Why this episode" relevance snippet on rows when a search/filter context is active —
-  top-scoring segment or insight for the current context. Triggered only with active context;
-  rows stay clean by default.
-- **FR2.2**: Topic/person filter chips rank episodes by hybrid relevance, not presence/absence.
-- **FR2.3**: Coverage-gap indicator on show groups for a filtered view (requires corpus-impact
-  surface **[TBD]**; placeholder in v2.7).
+- **FR2.1** "Why this episode" relevance snippet on rows when a search/filter context is active —
+  the top-scoring segment or insight for the context; rows stay clean by default. *(hybrid)*
+- **FR2.2** Topic/person filter chips rank episodes by **hybrid relevance**, not presence/absence.
+  *(hybrid)*
+- **FR2.3** Show name → show-scoped Library view. *(`HAS_EPISODE`)*
 
 ### FR3: Digest (#670)
 
-- **FR3.1**: Topic bands ranked by retrieval signal (insight density, contradiction presence,
-  cross-show coverage), not just recency/frequency.
-- **FR3.2**: Cross-show synthesis band — for a topic, the top insight from each show that covers
-  it. A genuine product differentiator (the corpus moat).
-- **FR3.3**: Contradiction indicator in bands when typed contradiction KG edges exist (**not yet
-  built**; placeholder until then).
-- **FR3.4**: Speaker names become interactive — resolve to canonical person IDs (RFC-072) and open
-  Person Landing (#672). _Depends on the entity resolver, which **does not exist yet**._
+- **FR3.1** Topic bands ranked by retrieval signal (insight density, cross-show coverage), not just
+  recency/frequency. *(hybrid + shared topics)*
+- **FR3.2** **Cross-show synthesis band** — for a topic, the top insight from each show that covers
+  it. The corpus differentiator. *(hybrid + shared topics)*
+- **FR3.3** Speaker/show names are interactive — resolve to canonical ids → open Detail.
+  *(resolver + `Person→Insight` + `HAS_EPISODE`)*
 
 ### FR4: Detail Panels (#672)
 
-- **FR4.1 Person Landing**: Dynamically assembled via an `entity_lookup`, BM25-heavy query scoped
-  to `speaker_id = canonical_id` — top insight, top segment, shows ranked by contribution, topics
-  by insight density, position evolution (if PRD-028 data exists). Returns compound results.
-- **FR4.2 Topic Entity View**: `cross_show_synthesis`, KG-proximity-weighted, unscoped — cross-show
-  coverage summary, dominant positions, contradictions (when edges exist), key voices, raw
-  evidence.
-- **FR4.3 Episode Detail**: Navigable transcript with highlighted matched segments; "related
-  insights" via a KG-proximity query scoped to the episode's topics.
+- **FR4.1 Person Landing** — assembled from `Person→Insight` (the person's positions), grounded
+  segments (compounds), shows they appear on, and topics they discuss; an entity-scoped hybrid query
+  fills supporting evidence. *(`Person→Insight` + compounds + resolver)*
+- **FR4.2 Topic Entity View** — cross-show coverage of the topic: dominant insights ranked by
+  hybrid, the entities involved (`Insight→Entity`), and key voices (`Person→Insight`), with raw
+  evidence. *(hybrid + shared topics + `Insight→Entity` + `Person→Insight`)*
+- **FR4.3 Episode Detail** — navigable transcript with highlighted matched segments; "related
+  insights" via a topic-scoped hybrid query. *(hybrid + two-tier)*
 
 ### FR5: Graph (#658)
 
-- **FR5.1**: Node size reflects a retrieval signal (insight density / cross-show breadth /
-  search-context relevance), not just degree.
-- **FR5.2**: Edge weight reflects retrieval confidence (insight count × confidence). Feeds the
-  graph-viz edge-weight target in RFC-080.
-- **FR5.3**: Contradiction edges shown as a distinct edge type when present (**not yet built**).
-- **FR5.4**: Node click opens the populated Detail panel (FR4), not a dead-end generic panel.
+- **FR5.1** Node size reflects a retrieval signal (insight density / cross-show breadth /
+  search-context relevance), not just degree. *(hybrid)*
+- **FR5.2** Edge weight reflects retrieval confidence (insight count × confidence). Feeds RFC-080.
+  *(two-tier + edges)*
+- **FR5.3** Node click opens the **populated** Detail panel (FR4), not a dead-end. *(all of FR4)*
 
 ### FR6: Dashboard
 
-- **FR6.1**: Briefing cards grounded in retrieval (top insight + top segment per topic) via a
-  briefing-pack call. _Requires MCP layer **[TBD]**; until then, cards use existing enrichment._
-- **FR6.2**: "View evidence" affordance opening the briefing-pack view (RFC-093).
-- **FR6.3**: Activity chart driven by retrieval-volume signal (query volume by topic over time).
+- **FR6.1** Briefing cards grounded in retrieval (top insight + top segment per topic). Until the
+  MCP layer exists `[orthogonal]`, cards use a direct hybrid query rather than a briefing pack.
+  *(hybrid + compounds)*
+- **FR6.2** Activity chart driven by retrieval-volume signal (query volume by topic over time).
   Tufte-compliant: single y-axis, no dual-axis, no decorative lines.
-- **FR6.4**: Coverage-gaps card (corpus quality for the operator). Requires corpus-impact surface
-  **[TBD]**.
-- Design constraints unchanged: 5-second-answer cards; enrichment feeds retrieval, retrieval feeds
-  cards; Tufte chart discipline.
+
+## Orthogonal capabilities (not this PRD's spine)
+
+These are independent capabilities that some surfaces could *additionally* use. They are **not
+built**, **not prerequisites**, and **do not block** anything above. Each surface ships its
+shipped-capability value now and adds these affordances if/when they land.
+
+| Orthogonal capability | Surfaces that would add an affordance | Status |
+| --- | --- | --- |
+| **Contradiction edges** | Digest contradiction indicator; Graph contradiction edge type; Topic Entity View "where they disagree" | not built; separate capability/RFC |
+| **MCP / LITM briefing packs** (RFC-093) | Dashboard briefing cards + "view evidence" | not built; `[TBD]` |
+| **Corpus-impact / coverage surface** | Explore coverage card; Library coverage-gap indicator; Dashboard coverage-gaps card | not built; `[TBD]` |
+
+When one lands, the relevant surface gains the affordance — additive, never blocking.
 
 ## Success Metrics
 
@@ -180,41 +162,17 @@ _Primary surface for PRD-031/032; specified here for cross-surface consistency._
 - Library filter → episode click-through increases with relevance snippets active.
 - Digest cross-show synthesis band engagement: any non-zero rate (validates the differentiator).
 - Node-click → populated-panel rate: ~100% of clicks reach real content (no dead-ends).
-
-## Dependencies
-
-- **PRD-032 / RFC-090** hybrid retrieval backend — **Hard** — Draft.
-- **RFC-091** KG proximity (Topic Entity View, related insights) — **Hard for those** — Draft;
-  depends on graph-access prerequisites.
-- **#672** right-rail panels — **Hard** — CLOSED.
-- **RFC-072** canonical identity / entity resolver — **Hard for interactive names** — **Partial**
-  (no resolver yet).
-- **RFC-080** graph-visualization extensions — **Soft** — for edge-weight/node-size signals.
-- **MCP layer** (Dashboard briefing packs) — **[TBD — not yet specified]**.
-- **Corpus-impact / coverage surface** (coverage cards/gaps) — **[TBD — not yet specified]**.
-- **Typed contradiction KG edges** — **not yet built** (placeholders degrade gracefully).
-
-## Constraints & Assumptions
-
-**Constraints:**
-
-- Surfaces depending on unbuilt capabilities ship placeholders, never blockers.
-- Dashboard cards remain 5-second answers; retrieval happens async/in background.
-
-**Assumptions:**
-
-- Right-rail panels (#672) and filter chip bars (#658/#669/#670/#671) are built or buildable.
-- Canonical IDs become available via the entity resolver prerequisite (#849).
+- Name/show → Detail navigation works for resolved entities (no plain-text dead-ends).
 
 ## Design Considerations
 
 ### OQ-1: PanelRetrievalStore
 
-A `PanelRetrievalStore` (Pinia) caches retrieval results per entity ID with a short TTL; panel
-opens trigger a retrieval call, subsequent opens within TTL are instant. Resolves the #672
-`subjectStore` open question. Decide before podcast-product panel work.
+A `PanelRetrievalStore` (Pinia) caches retrieval results per entity id with a short TTL; panel opens
+trigger a retrieval call, subsequent opens within TTL are instant. Resolves the #672 `subjectStore`
+open question. Decide before podcast-product panel work.
 
-### OQ-2: Search context propagation
+### OQ-2: Search-context propagation
 
 A shared `activeSearchContext` store so Graph reflects an active search (retrieval-score-weighted
 nodes). Useful but adds cross-surface state complexity — defer to podcast product, design
@@ -222,49 +180,37 @@ separately.
 
 ### OQ-3: Dashboard async card content
 
-Briefing-pack-backed cards add load latency — render skeleton-first, populate async. Confirm the
+Retrieval-backed cards add load latency — render skeleton-first, populate async. Confirm the
 dashboard architecture supports async card content before implementing.
-
-### OQ-4: Contradiction-edge dependency
-
-Multiple surfaces show placeholders for contradiction content; all depend on
-contradiction-as-KG-edge, which has no RFC yet. Schedule that prerequisite before podcast product
-to avoid shipping a cluster of "coming soon" placeholders.
 
 ## Cross-Surface Flows (Issue #674 Revisited)
 
-Issue #674 identified five cross-surface flow gaps. Hybrid search addresses four:
+Issue #674 identified five cross-surface flow gaps. The shipped foundation addresses four:
 
-| Gap | How hybrid search fixes it |
+| Gap | How the shipped foundation fixes it |
 | --- | --- |
-| Feed names in Digest non-interactive | Show names resolve via canonical identity → show-scoped Library view |
-| Library rows require too many clicks to reach graph | Relevance snippets give enough context to decide before clicking; compound results reduce pogo-sticking |
-| Digest topic bands switch tabs instead of opening Topic Entity View | Topic Entity View now has real content; band click opens right rail |
-| Speaker names in Search plain text | Entity resolver maps names → canonical IDs → Person Landing |
-| _(fifth gap: not directly addressed here)_ | — |
+| Feed names in Digest non-interactive | Show names resolve via canonical identity + `HAS_EPISODE` → show-scoped Library view |
+| Library rows require too many clicks to reach graph | Relevance snippets give context before clicking; compound results reduce pogo-sticking |
+| Digest topic bands switch tabs instead of opening Topic Entity View | Topic Entity View has real content (hybrid + shared topics) → band click opens right rail |
+| Speaker names in Search plain text | Entity resolver + `Person→Insight` map names → canonical ids → Person Landing |
+| *(fifth gap: not directly addressed here)* | — |
 
 ## Milestone Assignment
 
-| Surface | Change | Milestone |
-| --- | --- | --- |
-| Search/Explore | Two-tier results, raw-evidence toggle, query-type indicator | v2.7 |
-| Search/Explore | Corpus coverage card in Explore | podcast product |
-| Library | Hybrid retrieval ranking on filter chips | v2.7 |
-| Library | Relevance snippets on rows (active context) | v2.7 |
-| Library | Coverage gap indicator | podcast product |
-| Digest | Topic bands ranked by retrieval signal | v2.7 |
-| Digest | Cross-show synthesis band | podcast product |
-| Digest | Contradiction indicator | podcast product (when edges exist) |
-| Digest | Speaker names interactive | v2.7 (needs entity resolver) |
-| Detail — Person Landing | Retrieval-grounded content | podcast product |
-| Detail — Topic Entity View | Retrieval-grounded content | podcast product |
-| Detail — Episode Detail | Related insights, segment highlights | podcast product |
-| Graph | Node size / search-context prominence | podcast product |
-| Graph | Contradiction edges visible | podcast product (when edges exist) |
-| Graph | Node click → populated panel | podcast product |
-| Dashboard | Briefing cards + "view evidence" | podcast product (needs MCP) |
-| Dashboard | Coverage gaps card | podcast product |
-| Dashboard | Retrieval-volume activity chart | podcast product |
+| Surface | Change | Consumes | Readiness |
+| --- | --- | --- | --- |
+| Search/Explore | Two-tier results, raw-evidence toggle, query-type indicator | two-tier, intent routing | ready |
+| Search/Explore | Interactive entity names → Detail | resolver, edges | ready |
+| Library | Hybrid ranking on filter chips; relevance snippets | hybrid | ready |
+| Library | Show name → show-scoped view | `HAS_EPISODE` | ready |
+| Digest | Topic bands by retrieval signal; cross-show synthesis band | hybrid, shared topics | ready |
+| Digest | Interactive speaker/show names | resolver, edges | ready |
+| Detail — Person Landing | Retrieval-grounded positions | `Person→Insight`, compounds | ready |
+| Detail — Topic Entity View | Cross-show coverage + entities + voices | hybrid, edges | ready |
+| Detail — Episode Detail | Related insights, segment highlights | hybrid, two-tier | ready |
+| Graph | Node size / edge weight; node click → populated panel | hybrid, edges, FR4 | ready |
+| Dashboard | Briefing cards (direct hybrid); retrieval-volume chart | hybrid, compounds | ready |
+| *Orthogonal affordances* | contradiction / coverage / MCP cards | (orthogonal) | when built |
 
 ## Related Work
 
@@ -277,8 +223,3 @@ Issue #674 identified five cross-surface flow gaps. Hybrid search addresses four
 ## Release Checklist
 
 - [ ] PRD reviewed and approved
-- [ ] PRD-032 / RFC-090 backend available
-- [ ] v2.7 surface slices (Search two-tier, Library ranking + snippets, Digest band ranking) shipped
-- [ ] Entity resolver prerequisite filed and tracked (interactive names)
-- [ ] Placeholder behavior verified for unbuilt-capability surfaces (no broken UI)
-- [ ] Corpus-impact surface and MCP layer prerequisites scheduled before podcast-product slices
