@@ -112,6 +112,21 @@ async def episodes(
     return RelationalListResponse(subject=podcast, results=results)
 
 
+@router.get("/relational/related-insights", response_model=RelationalListResponse)
+async def related_insights(
+    request: Request,
+    insight: str = Query(min_length=1, description="Canonical insight id (the seed)."),
+    path: str | None = Query(default=None, description="Corpus output dir; omit for default."),
+    k: int = Query(default=20, ge=1, le=200),
+) -> RelationalListResponse:
+    """Sibling insights sharing a topic or mentioned entity (Detail / Graph, FR4.3 / FR5)."""
+    graph = _graph_or_none(request, path)
+    if graph is None:
+        return RelationalListResponse(subject=insight, error="no_corpus_path")
+    results = [_node(n) for n in rq.related_insights(graph, insight, k=k)]
+    return RelationalListResponse(subject=insight, results=results)
+
+
 @router.get("/relational/who-said", response_model=RelationalGroupedResponse)
 async def who_said(
     request: Request,

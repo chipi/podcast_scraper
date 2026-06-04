@@ -10,6 +10,8 @@ the surface questions PRD-033 needs:
 - `episodes_of(show)` — a show's episodes (show navigation, FR3.3 / FR2.3).
 - `cross_show_synthesis(topic)` — the top insight per distinct show covering a topic
   (the corpus differentiator, FR3.2 / FR4.2).
+- `related_insights(insight)` — sibling insights sharing a topic or mentioned entity
+  (Detail panel "related", Graph neighbourhood; FR4.3 / FR5).
 
 These rely on **edge types** (via ``CorpusGraph.typed_neighbors``): a person↔insight
 pair can be ``STATES`` (the person stated it) or ``MENTIONS`` (the insight mentions the
@@ -139,6 +141,31 @@ def who_said(graph: GraphLike, topic_id: str, *, k: int = 20) -> Dict[str, List[
             bucket = out.setdefault(person.id, [])
             if len(bucket) < k:
                 bucket.append(_project(insight))
+    return out
+
+
+def related_insights(graph: GraphLike, insight_id: str, *, k: int = 20) -> List[RelatedNode]:
+    """Sibling insights sharing a topic (`ABOUT`) or mentioned entity (`MENTIONS`).
+
+    The structural "related" set for the Detail panel / Graph neighbourhood: walk
+    insight→topic→insight and insight→entity→insight (2 hops), excluding the seed.
+    Deterministic graph order, de-duplicated; a hybrid-scored re-rank (RFC-090) by
+    relevance to the seed is layered at the call site when an index is available.
+    """
+    seed = graph.get_node(insight_id)
+    if seed is None:
+        return []
+    out: List[RelatedNode] = []
+    seen = {insight_id}
+    for edge_type, hub_types in ((_ABOUT, ("topic",)), (_MENTIONS, _ENTITY)):
+        for hub in _via(graph, insight_id, edge_type, hub_types):
+            for sibling in _via(graph, hub.id, edge_type, _INSIGHT):
+                if sibling.id in seen:
+                    continue
+                seen.add(sibling.id)
+                out.append(_project(sibling))
+                if len(out) >= k:
+                    return out
     return out
 
 

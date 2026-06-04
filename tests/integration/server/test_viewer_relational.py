@@ -101,6 +101,11 @@ def test_episodes_walks_has_episode(client: TestClient) -> None:
     assert [r["id"] for r in body["results"]] == ["episode:e1"]
 
 
+def test_related_insights_via_shared_topic(client: TestClient) -> None:
+    body = client.get("/api/relational/related-insights", params={"insight": "insight:1"}).json()
+    assert [r["id"] for r in body["results"]] == ["insight:2"]
+
+
 def test_who_said_groups_by_person(client: TestClient) -> None:
     body = client.get("/api/relational/who-said", params={"topic": "topic:ai"}).json()
     assert set(body["groups"]) == {"person:alice", "person:bob"}
