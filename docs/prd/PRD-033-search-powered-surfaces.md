@@ -12,6 +12,7 @@
   - `docs/prd/PRD-029-person-profile.md` — Person Landing content
   - `docs/prd/PRD-028-position-tracker.md` — position evolution data
 - **Related RFCs**:
+  - `docs/rfc/RFC-094-search-powered-surfaces-query-layer.md` — the shared relational-query layer + FE retrieval state this PRD's surfaces consume
   - `docs/rfc/RFC-090-hybrid-retrieval.md`, `docs/rfc/RFC-091-kg-proximity-signal.md`
   - `docs/rfc/RFC-080-graph-visualization-extensions.md` — graph viz extensions
 - **Related issues**: #658 (Graph filter UX), #669 (Library), #670 (Digest), #671 (Search/Explore), #672 (right rail), #673 (nav), #674 (cross-surface flows) — all CLOSED
