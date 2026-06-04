@@ -3459,6 +3459,12 @@ def parse_args(argv: Optional[Sequence[str]] = None) -> argparse.Namespace:
         tt_argv = list(argv[1:]) if len(argv) > 1 else []
         return parse_index_two_tier_argv(tt_argv)
 
+    if argv and len(argv) > 0 and argv[0] == "enrich-edges":
+        from .search.cli_handlers import parse_enrich_edges_argv
+
+        ee_argv = list(argv[1:]) if len(argv) > 1 else []
+        return parse_enrich_edges_argv(ee_argv)
+
     if argv and len(argv) > 0 and argv[0] == "topic-clusters":
         from .search.cli_handlers import parse_topic_clusters_argv
 
@@ -4540,6 +4546,11 @@ def main(  # noqa: C901 - main function handles multiple command paths
         from .search.cli_handlers import run_index_two_tier_cli
 
         return run_index_two_tier_cli(args, log)
+
+    if hasattr(args, "command") and args.command == "enrich-edges":
+        from .search.cli_handlers import run_enrich_edges_cli
+
+        return run_enrich_edges_cli(args, log)
 
     if hasattr(args, "command") and args.command == "topic-clusters":
         from .search.cli_handlers import run_topic_clusters_cli

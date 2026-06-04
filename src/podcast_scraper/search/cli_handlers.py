@@ -1389,3 +1389,88 @@ def run_index_two_tier_cli(args: Namespace, logger: logging.Logger) -> int:
         f"segments={stats.segments} insights={stats.insights} aux={stats.aux}"
     )
     return EXIT_SUCCESS
+
+
+def parse_enrich_edges_argv(argv: Sequence[str]) -> Namespace:
+    """Parse ``enrich-edges`` args (#874: derive relational edges into each gi.json)."""
+    parser = argparse.ArgumentParser(prog="podcast_scraper enrich-edges")
+    parser.add_argument("--output-dir", required=True, help="Corpus root (parent of feeds/).")
+    parser.add_argument(
+        "--no-speaker",
+        action="store_true",
+        help="Skip SPOKEN_BY (diarization-dependent); emit only show + entity edges.",
+    )
+    args = parser.parse_args(list(argv))
+    args.command = "enrich-edges"
+    return args
+
+
+def run_enrich_edges_cli(args: Namespace, logger: logging.Logger) -> int:
+    """Derive relational edges into each gi.json (#874): Podcast→HAS_EPISODE→Episode,
+    Insight→MENTIONS→Entity, and (unless --no-speaker) Quote→SPOKEN_BY→Person.
+
+    A cross-layer, idempotent corpus pass — re-runnable any time; reprocess after the
+    new diarization (#876) lands to fill SPOKEN_BY corpus-wide.
+    """
+    output_dir = getattr(args, "output_dir", None)
+    if not output_dir:
+        logger.error("enrich-edges: --output-dir is required")
+        return EXIT_INVALID_ARGS
+
+    from podcast_scraper.gi.io import write_artifact
+    from podcast_scraper.gi.relational_edges import (
+        add_episode_show_edges,
+        add_insight_entity_edges,
+        kg_entity_names,
+    )
+    from podcast_scraper.gi.speakers import add_spoken_by_edges
+    from podcast_scraper.search.corpus_scope import episode_root_from_metadata_path
+    from podcast_scraper.search.indexer import _gi_path, _load_metadata_file, _transcript_path
+
+    corpus = Path(output_dir)
+    include_speaker = not bool(getattr(args, "no_speaker", False))
+    totals = {"episodes": 0, "has_episode": 0, "mentions": 0, "spoken_by": 0}
+    for meta_path in discover_metadata_files(corpus):
+        doc = _load_metadata_file(meta_path)
+        if not doc:
+            continue
+        episode_root = episode_root_from_metadata_path(meta_path)
+        gi_path = _gi_path(episode_root, meta_path, doc)
+        if not (gi_path and gi_path.is_file()):
+            continue
+        try:
+            artifact = json.loads(gi_path.read_text(encoding="utf-8"))
+        except (OSError, ValueError) as exc:
+            logger.warning("enrich-edges: skip %s (%s)", gi_path, format_exception_for_log(exc))
+            continue
+        show_title = (doc.get("feed") or {}).get("title") or ""
+        totals["has_episode"] += add_episode_show_edges(artifact, show_title)
+        kg_path = Path(str(gi_path).replace(".gi.json", ".kg.json"))
+        if kg_path.is_file():
+            try:
+                kg_artifact = json.loads(kg_path.read_text(encoding="utf-8"))
+                totals["mentions"] += add_insight_entity_edges(
+                    artifact, kg_entity_names(kg_artifact)
+                )
+            except (OSError, ValueError):
+                pass
+        if include_speaker:
+            transcript_path = _transcript_path(episode_root, doc)
+            if transcript_path and transcript_path.is_file():
+                content = doc.get("content") or {}
+                totals["spoken_by"] += add_spoken_by_edges(
+                    artifact,
+                    transcript_path.read_text(encoding="utf-8", errors="replace"),
+                    hosts=content.get("detected_hosts") or [],
+                    guests=content.get("detected_guests") or [],
+                )
+        write_artifact(gi_path, artifact, validate=True)
+        totals["episodes"] += 1
+
+    msg = (
+        f"enrich-edges: episodes={totals['episodes']} HAS_EPISODE={totals['has_episode']} "
+        f"MENTIONS={totals['mentions']} SPOKEN_BY={totals['spoken_by']}"
+    )
+    logger.info(msg)
+    print(msg)
+    return EXIT_SUCCESS
