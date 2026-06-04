@@ -2,6 +2,15 @@
 
 *Grounding document for PRD-032, PRD-033, RFC-078, RFC-079*
 
+> **Reconciliation note (2026-06-04).** This is the original framing document; some of its
+> mechanism assumptions were since tested and revised — the strategic thesis stands. Specifically:
+> **KG-proximity as a retrieval signal was evaluated and rejected** (RFC-091 Decision Record) — it is
+> dormant, not used in ranking. The KG's value is **meaning-bearing relational edges** (Person→Insight,
+> Insight→Entity, Podcast→Episode; #874), not proximity. Where this doc says "BM25 + vector + KG
+> proximity" or calls proximity "table stakes," read **BM25 + vector via RRF** for retrieval and
+> **typed relational edges** for the graph's contribution. RFC-078/079 split into RFC-090/091/092/093;
+> RFC-094 adds the surfaces query layer.
+
 ---
 
 ## Where this started

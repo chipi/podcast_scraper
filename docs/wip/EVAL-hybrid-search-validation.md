@@ -3,6 +3,17 @@
 *Diagnostic and measurement framework for PRD-032 / RFC-078 / RFC-079*
 *Written after initial implementation showed marginal gains over FAISS baseline*
 
+> **Outcome note (2026-06-04).** These hypotheses were investigated; this records what the data said,
+> so the spec reads as history + open work, not pending questions:
+>
+> - **H2 (linking)** — confirmed: linking was 0% (a real bug, `summary.timestamps` unpopulated); fixed
+>   via text-containment linking (now 87–93%); compound results fire.
+> - **H6 (KG proximity)** — **rejected** (RFC-091 Decision Record): proximity hurt or was neutral on
+>   every corpus/axis; co-occurrence is redundant with dense embeddings. Value moved to relational
+>   edges (#874). Treat the KG-proximity rows here as historical hypotheses, not active signals.
+> - **H1/H7** — partly confirmed (per-intent stratification; only semantic/entity intents classified).
+> - **H3 (k-grid), H4 (MRR/reranking), H5 (chunking)** — still open / not yet run (hybrid tuning upside).
+
 ---
 
 ## Context

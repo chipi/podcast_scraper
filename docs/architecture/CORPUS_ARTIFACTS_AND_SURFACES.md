@@ -25,7 +25,8 @@ Survey baseline: `src/podcast_scraper/server/routes/` and pipeline writers under
 | GIL artifacts | `feeds/<stable>/run_*/metadata/*.gi.json` | GI pipeline | graph, library, detail, artifacts API | yes (`2.0`) | 2.4+ |
 | KG artifacts | `feeds/<stable>/run_*/metadata/*.kg.json` | KG pipeline | graph, library, detail, artifacts API | yes (`1.2`) | 2.4+ |
 | Bridge artifacts | `feeds/<stable>/run_*/metadata/*.bridge.json` | CIL bridge step | library filters, node-episodes, graph | implicit (bridge builder) | 2.5+ |
-| FAISS index | `search/vectors.faiss` | embed / index build | `GET /api/search`, explore | n/a (binary) | 2.5+ |
+| LanceDB two-tier index | `search/lance_index/` (segment + insight + aux tables) | two-tier index build / migration | `GET /api/search` (hybrid, default) | n/a (embedded DB) | 2.7+ |
+| FAISS index | `search/vectors.faiss` | embed / index build | `GET /api/search` (fallback), explore | n/a (binary) | 2.5+ |
 | Index metadata | `search/metadata.json`, `search/id_map.json` | embed / index build | search, index stats | n/a | 2.5+ |
 | Topic clusters | `search/topic_clusters.json` | post-index cluster build | `GET /api/corpus/topic-clusters`, digest topics, library filter | yes (`2`) | 2.5.5+ |
 | Catalog JSON (optional) | `corpus/*.json` (e.g. precomputed catalog exports) | tooling / fixtures | some dashboard paths when present | varies | n/a |
@@ -51,7 +52,7 @@ Survey baseline: `src/podcast_scraper/server/routes/` and pipeline writers under
 | `GET /api/corpus/documents/manifest` | `corpus_manifest.json` | 404 | yes |
 | `GET /api/corpus/documents/run-summary` | `corpus_run_summary.json` | 404 | yes |
 | `GET /api/corpus/runs/summary` | run summary + incidents | partial empty | no |
-| `GET /api/search` | `search/vectors.faiss` + sidecars | 200 with `error` field | no (structured error) |
+| `GET /api/search` | `search/lance_index/` (hybrid, default) or `search/vectors.faiss` + sidecars (fallback) | 200 with `error` field | no (structured error) |
 | `GET /api/explore` | FAISS + artifacts | empty graph payload | soft |
 | `GET /api/index/stats` | `search/` index files | `available: false` | no |
 | `POST /api/index/rebuild` | corpus artifacts | async job errors | yes (job failure) |
