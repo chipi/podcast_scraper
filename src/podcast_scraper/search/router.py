@@ -62,6 +62,30 @@ TIER_WEIGHTS_BY_QUERY: Dict[str, Dict[str, float]] = {
 }
 
 
+# doc_type → retrieval tier. The canonical mapping behind the per-query tier weights
+# above: insights are the synthesized tier, transcript chunks the segment tier, and
+# kg_entity/kg_topic/quote/summary the full-coverage ``aux`` tier (RFC-090). Used to
+# label API hits with a stable ``source_tier`` (PRD-033 FR1.1) consistently across the
+# FAISS and hybrid paths.
+DOC_TYPE_TO_TIER: Dict[str, str] = {
+    "insight": "insight",
+    "transcript": "segment",
+    "quote": "aux",
+    "kg_entity": "aux",
+    "kg_topic": "aux",
+    "summary": "aux",
+}
+
+
+def tier_for_doc_type(doc_type: str) -> str:
+    """Retrieval tier for *doc_type* (``insight`` / ``segment`` / ``aux``).
+
+    Unknown doc_types fall back to ``aux`` — they are, by definition, not the
+    insight or segment primary tiers.
+    """
+    return DOC_TYPE_TO_TIER.get(doc_type, "aux")
+
+
 def signal_weights_for(query_type: str) -> Dict[str, float]:
     """Signal weights for *query_type* (falls back to ``semantic``)."""
     return SIGNAL_WEIGHTS.get(query_type, SIGNAL_WEIGHTS["semantic"])

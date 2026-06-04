@@ -72,6 +72,9 @@ def test_search_returns_results_when_mocked(
     assert len(body["results"]) == 1
     assert body["results"][0]["doc_id"] == "insight:ep1:n1"
     assert body["results"][0]["score"] == pytest.approx(0.91)
+    # PRD-033 FR1.1/FR1.4: tier derived from doc_type, intent on the response.
+    assert body["results"][0]["source_tier"] == "insight"
+    assert body["query_type"] == "semantic"
     assert body.get("lift_stats") == {
         "transcript_hits_returned": 0,
         "lift_applied": 0,
@@ -169,6 +172,40 @@ def test_search_maps_outcome_error(tmp_path: Path, monkeypatch: pytest.MonkeyPat
     assert body["detail"] == "/tmp/x"
     assert body["results"] == []
     assert body.get("lift_stats") is None
+
+
+def test_search_tier_and_intent_for_entity_transcript_query(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    def fake_run(*_a: Any, **_k: Any) -> CorpusSearchOutcome:
+        return CorpusSearchOutcome(
+            results=[
+                {
+                    "doc_id": "transcript:ep1:c3",
+                    "score": 0.8,
+                    "metadata": {"doc_type": "transcript", "episode_id": "ep1"},
+                    "text": "raw chunk",
+                },
+                {
+                    "doc_id": "kg_entity:person:jane",
+                    "score": 0.7,
+                    "metadata": {"doc_type": "kg_entity", "source_id": "person:jane"},
+                    "text": "Jane Doe",
+                },
+            ]
+        )
+
+    monkeypatch.setattr(
+        "podcast_scraper.server.routes.search.run_corpus_search",
+        fake_run,
+    )
+    app = create_app(tmp_path, static_dir=False)
+    client = TestClient(app)
+    # "Jane Doe" trips the name regex → entity_lookup intent.
+    body = client.get("/api/search", params={"q": "Jane Doe", "path": str(tmp_path)}).json()
+    assert body["query_type"] == "entity_lookup"
+    tiers = {h["doc_id"]: h["source_tier"] for h in body["results"]}
+    assert tiers == {"transcript:ep1:c3": "segment", "kg_entity:person:jane": "aux"}
 
 
 def test_search_lift_stats_reflects_transcript_and_lift(

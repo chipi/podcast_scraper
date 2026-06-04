@@ -340,6 +340,14 @@ class SearchHitModel(BaseModel):
     score: float
     metadata: dict[str, Any] = Field(default_factory=dict)
     text: str = ""
+    source_tier: str = Field(
+        default="aux",
+        description=(
+            "Retrieval tier for this hit (PRD-033 FR1.1): 'insight' (synthesized), "
+            "'segment' (raw transcript), or 'aux' (kg_entity/kg_topic/quote/summary). "
+            "Derived from metadata.doc_type; stable across FAISS and hybrid paths."
+        ),
+    )
     supporting_quotes: list[dict[str, Any]] | None = Field(
         default=None,
         description=(
@@ -381,6 +389,14 @@ class CorpusSearchApiResponse(BaseModel):
     results: list[SearchHitModel] = Field(default_factory=list)
     error: str | None = None
     detail: str | None = None
+    query_type: str | None = Field(
+        default=None,
+        description=(
+            "Detected query intent (PRD-033 FR1.4): entity_lookup / raw_evidence / "
+            "temporal_tracking / cross_show_synthesis / semantic. From the rules router "
+            "(RFC-090 §3.6); null on error responses."
+        ),
+    )
     lift_stats: CorpusSearchLiftStatsModel | None = Field(
         default=None,
         description="Transcript lift coverage for this response page (#528).",

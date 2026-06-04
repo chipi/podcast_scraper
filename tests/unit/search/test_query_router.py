@@ -11,8 +11,36 @@ from podcast_scraper.search.query_router import (
     RulesQueryRouter,
 )
 from podcast_scraper.search.retrieval import RetrievalLayer
+from podcast_scraper.search.router import DOC_TYPE_TO_TIER, tier_for_doc_type
 
 pytestmark = pytest.mark.unit
+
+
+def test_tier_for_doc_type_maps_primary_tiers():
+    assert tier_for_doc_type("insight") == "insight"
+    assert tier_for_doc_type("transcript") == "segment"
+
+
+@pytest.mark.parametrize("doc_type", ["quote", "kg_entity", "kg_topic", "summary"])
+def test_tier_for_doc_type_aux(doc_type):
+    assert tier_for_doc_type(doc_type) == "aux"
+
+
+def test_tier_for_doc_type_unknown_defaults_aux():
+    assert tier_for_doc_type("") == "aux"
+    assert tier_for_doc_type("nonsense") == "aux"
+
+
+def test_doc_type_to_tier_covers_known_doc_types():
+    # Every doc_type the indexer emits has a tier (guards against silent drift).
+    assert set(DOC_TYPE_TO_TIER) == {
+        "insight",
+        "transcript",
+        "quote",
+        "kg_entity",
+        "kg_topic",
+        "summary",
+    }
 
 
 def test_rules_router_matches_classify_query():
