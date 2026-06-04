@@ -168,8 +168,11 @@ Avoid **schema-per-tenant** early unless compliance requires it.
   **cursors**.
 
 3. **Projection / indexer** — Files or object storage → Postgres (RFC-051); optional search
-   later. **Semantic search** (RFC-061) adds FAISS vector indexing and embedding-based retrieval
-   as a parallel path alongside SQL projection.
+   later. **Semantic search** (RFC-061) adds vector indexing and embedding-based retrieval as a
+   parallel path alongside SQL projection. **Hybrid retrieval** (RFC-090, v2.7+) is now the default:
+   a two-tier index (transcript segments + GIL insights) with BM25 + dense vector fused via RRF over
+   LanceDB, plus compound results; FAISS is retained as a switchable fallback. (KG-proximity was
+   evaluated as a third signal and rejected — RFC-091; relational structure comes from typed edges.)
 
 **Pipeline core:** `run_pipeline`-class logic = **one unit of work** (config in, artifacts
 out). Platform adds **queue, dedup, paths, post-run projection**.
