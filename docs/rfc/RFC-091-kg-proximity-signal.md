@@ -1,6 +1,6 @@
 # RFC-091: KG Proximity Signal
 
-- **Status**: Draft
+- **Status**: Rejected as a retrieval signal (2026-06-03) — see Decision Record below; superseded for KG value by meaning-bearing relational edges (#874).
 - **Authors**: Marko
 - **Stakeholders**: Core team
 - **Related PRDs**:
@@ -21,6 +21,44 @@
 > prerequisite-heavy of the three** — see Constraints. Its core dependencies (an in-memory KG access
 > layer, typed traversal edges, and a freeform-text → canonical-ID entity resolver) are the genuine
 > survivors of issue #466 and **do not exist in the codebase yet**.
+
+---
+
+## Decision Record (2026-06-03): KG proximity rejected as a retrieval signal
+
+**Decision.** Do **not** wire KG proximity into `RetrievalLayer` as an RRF signal. It
+stays **dormant**. The live hybrid path (`hybrid_search.hybrid_candidates`) runs
+BM25 + dense only.
+
+**Evidence (Phase-1 A/B, the gate this RFC defined).** Measured on two corpora, three
+integrations, both relevant axes — KG proximity hurts or is neutral everywhere:
+
+| corpus | axis | KG firing | Δ |
+| --- | --- | --- | --- |
+| local (2-show) | entity nDCG@10 | yes | −0.018 (union) … −0.170 (rerank) |
+| prod v2 (10-show) | cross-show diversity (distinct shows in top-10) | 12/12 resolved | −0.42 (KG reduces diversity) |
+
+The cross-show case is decisive: it is the axis the signal was _for_, on a corpus
+built to favor it, with KG resolving on every query — and BM25+dense already meets the
+≥3-distinct-shows target on its own (4.83 baseline), while KG drags it down.
+
+**Root cause.** The KG's only edges are `MENTIONS` (co-occurrence: entity/topic →
+episode). Co-occurrence is exactly what dense embeddings already capture, so the signal
+is redundant; and entity→episode→insight makes every reachable insight equidistant
+(hop-2, flat 1/(hop+1) score) with hub entities returning hundreds of equally-scored
+nodes, so it injects an undifferentiated, often-tangential blob that displaces sharp
+BM25/dense ranking. A graph adds retrieval value only when it encodes relationships
+**not inferable from text proximity** — which the co-occurrence graph does not.
+
+**What survives.** The KG's value is **relational queries**, not proximity ranking —
+"who holds what position," "trace a narrative," "where do speakers disagree." Those
+need **meaning-bearing typed edges** (the genuine unbuilt prerequisite #849 descoped).
+The first one, `Person→Insight` via `SPOKEN_BY`, is built and proven in **#874**
+(answers `positions_of(person)` the hub-and-spoke model cannot). `MENTIONS`
+co-occurrence edges are retained for display/graph, **not** retrieval.
+
+The Phase-1/2/3 rollout and Open Questions below are retained for historical context;
+they are not a path to activation under this decision.
 
 ---
 
