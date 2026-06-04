@@ -34,6 +34,7 @@ from podcast_scraper.server.routes import (
     index_stats,
     jobs,
     operator_config,
+    relational,
     scheduled_jobs as scheduled_jobs_route,
     search,
 )
@@ -176,6 +177,7 @@ def create_app(
     app.include_router(index_stats.router, prefix="/api")
     app.include_router(index_rebuild.router, prefix="/api")
     app.include_router(search.router, prefix="/api")
+    app.include_router(relational.router, prefix="/api")
     app.include_router(explore.router, prefix="/api")
     app.include_router(corpus_library.router, prefix="/api")
     app.include_router(corpus_binary.router, prefix="/api")
