@@ -30,7 +30,7 @@ import threading
 from collections import deque
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Set
+from typing import Any, Dict, List, Optional, Set, Tuple
 
 from ..builders.bridge_builder import strip_layer_prefixes
 
@@ -75,6 +75,11 @@ class CorpusGraph:
     def __init__(self, identity_map: Optional[Dict[str, str]] = None) -> None:
         self._nodes: Dict[str, Node] = {}
         self._adj: Dict[str, Set[str]] = {}
+        # Typed adjacency (RFC-094 / #882): node -> [(neighbor, edge_type)], undirected.
+        # Lets the relational-query layer distinguish meaning-bearing edges on the same
+        # node pair (e.g. Person→Insight "STATES" vs Insight→MENTIONS→Entity). The
+        # untyped `_adj` still backs `neighbors`/`bfs` (proximity is type-agnostic).
+        self._typed_adj: Dict[str, List[Tuple[str, str]]] = {}
         # variant_id -> canonical_id (#852). Collapses cross-episode entity-spelling
         # variants at read-time; empty = faithful artifact union.
         self._id_map: Dict[str, str] = dict(identity_map or {})
@@ -98,9 +103,11 @@ class CorpusGraph:
         if not node.type and ntype:
             node.type = ntype
 
-    def _add_edge(self, frm: str, to: str) -> None:
+    def _add_edge(self, frm: str, to: str, edge_type: str = "") -> None:
         self._adj.setdefault(frm, set()).add(to)
         self._adj.setdefault(to, set()).add(frm)  # undirected
+        self._typed_adj.setdefault(frm, []).append((to, edge_type))
+        self._typed_adj.setdefault(to, []).append((frm, edge_type))
 
     def _ingest(self, artifact: Dict[str, Any], source: str) -> None:
         for node in artifact.get("nodes") or []:
@@ -123,6 +130,7 @@ class CorpusGraph:
             self._add_edge(
                 self._canon(strip_layer_prefixes(str(frm))),
                 self._canon(strip_layer_prefixes(str(to))),
+                str(edge.get("type") or ""),
             )
 
     def _derive_speaker_links(self) -> None:
@@ -146,7 +154,7 @@ class CorpusGraph:
                 for insight_id in list(self._adj.get(quote_id, set())):
                     ins = self._nodes.get(insight_id)
                     if ins is not None and ins.type == "insight":
-                        self._add_edge(nid, insight_id)
+                        self._add_edge(nid, insight_id, "STATES")
 
     @classmethod
     def build(
@@ -198,6 +206,18 @@ class CorpusGraph:
     def neighbors(self, node_id: str) -> List[str]:
         """Undirected neighbors of *node_id* (sorted for determinism)."""
         return sorted(self._adj.get(node_id, set()))
+
+    def typed_neighbors(self, node_id: str, edge_type: str) -> List[str]:
+        """Neighbors reached from *node_id* by an edge of *edge_type* (RFC-094 / #882).
+
+        Sorted, de-duplicated. Edge type plus the neighbor's node type disambiguate the
+        meaning-bearing edges — e.g. ``typed_neighbors(person, "STATES")`` yields the
+        insights a person stated, while ``typed_neighbors(entity, "MENTIONS")`` yields
+        insights that mention the entity, even though both are person/org↔insight pairs.
+        """
+        return sorted(
+            {nbr for nbr, etype in self._typed_adj.get(node_id, ()) if etype == edge_type}
+        )
 
     def degree(self, node_id: str) -> int:
         """Number of (undirected) neighbors of *node_id*."""
