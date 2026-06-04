@@ -11,6 +11,15 @@
   - [RFC-062: GI/KG viewer v2](../rfc/RFC-062-gi-kg-viewer-v2.md)
   - [RFC-072: Canonical identity + cross-layer bridge](../rfc/RFC-072-canonical-identity-layer-cross-layer-bridge.md) (chunk-to-Insight **lift** on transcript hits)
   - [RFC-075: Corpus Topic Clustering](../rfc/RFC-075-corpus-topic-clustering.md) (optional **Show on graph** / cluster follow-ups)
+  - [RFC-090: Hybrid Retrieval](../rfc/RFC-090-hybrid-retrieval.md) — **hybrid is now the default** backend; FAISS retained as fallback
+  - [RFC-094: Surfaces Query Layer](../rfc/RFC-094-search-powered-surfaces-query-layer.md) — relational queries the surfaces consume
+
+> **Alignment (2026-06-04).** The backend shipped: **hybrid retrieval** (BM25 + dense via RRF
+> over LanceDB, with **compound results**) is the default — FAISS is the fallback. The surface
+> plan is re-grounded in [PRD-033](../prd/PRD-033-search-powered-surfaces.md) (FR1) over the
+> [RFC-094](../rfc/RFC-094-search-powered-surfaces-query-layer.md) query layer; this surface is
+> tracked in [#884](https://github.com/chipi/podcast_scraper/issues/884).
+
 - **Implementation paths**:
   - `web/gi-kg-viewer/src/components/shell/LeftPanel.vue` (hosts the search column)
   - `web/gi-kg-viewer/src/components/search/SearchPanel.vue`
@@ -39,7 +48,7 @@ at **`w-72`** when expanded. Search **results stay visible** when a hit opens in
 
 For shell layout, the three navigation axes, subject rail persistence and clearing, status bar, and first-run empty corpus behavior, see **[VIEWER_IA.md](VIEWER_IA.md)**. This document specifies the **Search and Explore** panel content only (query form, advanced filters, result cards, insights modal).
 
-The semantic search panel provides FAISS-based corpus search in the **left** shell column
+The search panel provides corpus search (hybrid by default, FAISS fallback) in the **left** shell column
 (**Semantic search** card: form + scrollable results; **Explore corpus →** sits in **`LeftPanel`**
 below that card). This UXS defines the visual contract for the search form,
 advanced filters, result cards, and the search result insights modal. All tokens reference

@@ -1443,6 +1443,8 @@ You can target **one** feed with `rss` (string) or **multiple** feeds with **`fe
 
 **Unified discovery and batch metadata (GitHub #505 / #506):** With **`vector_search: true`** and FAISS, per-feed runs skip automatic indexing and a **single** vector index is built under **`<output_dir>/search`** after the batch. Semantic **`index`**, **`search`**, **`gi explore --topic`**, and the viewer should use the **same corpus parent** path. The batch also writes **`corpus_manifest.json`**, **`corpus_run_summary.json`**, and a structured log line; inspect with **`corpus-status`**. Advanced: **`skip_auto_vector_index`** (default `false`) suppresses finalize-time indexing when you need to call **`index_corpus`** yourself.
 
+**Hybrid retrieval config (RFC-090).** The hybrid search backend is configured **separately** in **`config/search.yaml`** (not the pipeline `Config` above): **`serving.hybrid_enabled`** (default **`true`**) and **`router.mode`** (`rules` | `ml`). When `hybrid_enabled` is true **and** a two-tier LanceDB index exists at **`<corpus>/search/lance_index`**, `GET /api/search` and `podcast search` route through hybrid (BM25 + dense + RRF, compounds); otherwise they fall back to FAISS. Per-container override: **`PODCAST_HYBRID_SEARCH=1|0`**. Build the index with **`make index-two-tier`**; derive relational edges with **`make enrich-relational-edges`**. See [Semantic Search Guide — Hybrid retrieval](../guides/SEMANTIC_SEARCH_GUIDE.md#hybrid-retrieval-rfc-090).
+
 **Interim search maintenance checkpoints:** During long runs, orchestration can trigger best-effort interim
 indexing/topic clustering before finalize. Optional fields:
 

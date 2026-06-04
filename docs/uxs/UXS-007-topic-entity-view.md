@@ -13,6 +13,7 @@
   - [RFC-072: Canonical Identity Layer](../rfc/RFC-072-canonical-identity-layer-cross-layer-bridge.md) --
     bridge artifact powering cross-episode topic queries
   - [RFC-062: GI/KG viewer v2](../rfc/RFC-062-gi-kg-viewer-v2.md)
+  - [RFC-094: Surfaces Query Layer](../rfc/RFC-094-search-powered-surfaces-query-layer.md) -- the relational-query layer (`cross_show_synthesis` / `who_said` / `insights_about` over the #874 edges) powering this view; surface plan in [PRD-033](../prd/PRD-033-search-powered-surfaces.md) FR4.2, tracked in [#886](https://github.com/chipi/podcast_scraper/issues/886)
 - **Related UX specs**:
   - [UXS-003: Corpus Library](UXS-003-corpus-library.md) -- Episode subject rail shared with
     Topic Entity View
