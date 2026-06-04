@@ -32,9 +32,10 @@ Podcast Scraper's search today is single-signal FAISS vector retrieval over GIL 
 (`src/podcast_scraper/search/`, shipped via #484). This misses raw transcript evidence, fails on
 named-entity queries, ignores KG relational structure, and gives agents unstructured result dumps.
 This PRD covers the evolution to **hybrid corpus search**: a two-tier index (transcript segments +
-GIL insights) with three retrieval signals (BM25 + dense vector + KG proximity), intent-aware
+GIL insights) with two retrieval signals fused via RRF (BM25 + dense vector), intent-aware
 query routing, mixed-tier result ranking, and LITM-aware agent context packs. It is implemented by
-RFC-090 (core) and the additive RFC-091/092/093.
+RFC-090 (core); RFC-091's KG-proximity signal was **evaluated and rejected** (Decision Record) —
+relational structure comes from typed edges instead (#874) — with RFC-092/093 additive.
 
 ## Background & Context
 
@@ -54,8 +55,9 @@ RFC-090 (core) and the additive RFC-091/092/093.
   results are mixed by score, not grouped by tier.
 - **Named-entity recall.** Searches for person names, show names, and specific terminology return
   directly relevant results, not just semantic neighbours.
-- **Graph-aware ranking.** KG proximity is a third retrieval signal (RFC-091). Topically connected,
-  centrally-positioned content ranks higher for relevant queries.
+- **Graph-aware structure.** KG-proximity was evaluated as a third retrieval signal and **rejected**
+  (RFC-091 Decision Record); relational structure comes from typed edges (`Person→Insight`,
+  `Insight→Entity`, #874) that surfaces traverse, not from proximity ranking.
 - **Intent-aware routing.** Query intent is classified and retrieval strategy adjusted: person
   lookup, synthesis, raw evidence, and temporal queries each get the right signal/tier mix.
 - **Clean backend abstraction.** A `SearchBackend` protocol makes the backend swappable; LanceDB

@@ -1,11 +1,39 @@
-# Semantic corpus search (RFC-061)
+# Corpus search (RFC-061 FAISS → RFC-090 Hybrid)
 
 Meaning-based retrieval over **Grounded Insights** (insights and quotes), **summary
 bullets**, **transcript chunks**, and **Knowledge Graph** **Topic** / **Entity** nodes
-(when `kg.json` is present) in a pipeline output directory. The **shipped** implementation
-uses a local **FAISS** index (`faiss-cpu`) and the same embedding stack as GIL evidence
-(`embedding_loader`, sentence-transformers). **Qdrant**, remote services, and other
-platform-scale options are **not implemented** — see **Draft** [RFC-070](../rfc/RFC-070-semantic-corpus-search-platform-future.md).
+(when `kg.json` is present) in a pipeline output directory.
+
+**Hybrid retrieval (RFC-090) is the default (v2.7+):** a two-tier index — transcript
+segments + GIL insights — with **BM25 + dense vector fused via RRF** over an embedded
+**LanceDB** backend, plus **compound results** (a segment and its linked insight merged).
+The legacy **FAISS** index (`faiss-cpu`) is retained as a switchable fallback; both use the
+same embedding stack (`embedding_loader`, sentence-transformers). See [Hybrid retrieval](#hybrid-retrieval-rfc-090)
+below. **Qdrant** and other remote/platform-scale backends remain future — **Draft**
+[RFC-070](../rfc/RFC-070-semantic-corpus-search-platform-future.md).
+
+## Hybrid retrieval (RFC-090) {#hybrid-retrieval-rfc-090}
+
+The default serving path. When `serving.hybrid_enabled: true` (the shipped default in
+`config/search.yaml`) **and** a two-tier LanceDB index exists at
+`<output_dir>/search/lance_index`, `GET /api/search` and `podcast search` route through the
+two-tier **`RetrievalLayer`** (BM25 + dense vector → RRF, with compound dedup). Otherwise they
+**fall back to FAISS** — so enabling hybrid can never regress.
+
+- **Tiers:** Tier 1 = transcript **segments**, Tier 2 = GIL **insights**, plus a full-coverage
+  **aux** tier (`kg_entity` / `kg_topic` / `quote` / `summary`). Compound results merge a
+  segment and its linked insight when both match.
+- **Build the index:**
+  - Native (no FAISS needed; populates insight↔segment links + compounds):
+    `make index-two-tier CORPUS_DIR=<corpus>`.
+  - From an existing FAISS corpus: migrate it (RFC-090 Stage 4) — see [Corpus Upgrade](CORPUS_UPGRADE.md).
+  - Derive the relational edges into the corpus (`Person→Insight`, `MENTIONS`, `HAS_EPISODE`; #874):
+    `make enrich-relational-edges CORPUS_DIR=<corpus>`.
+- **Config (`config/search.yaml`):** `serving.hybrid_enabled` (default `true`); `router.mode`
+  (`rules` | `ml`). Per-container override: `PODCAST_HYBRID_SEARCH=1|0`.
+- **Not a retrieval signal:** KG-proximity was evaluated and **rejected** (RFC-091 Decision
+  Record); the KG's value is the relational edges above, consumed by viewer surfaces (PRD-033 /
+  RFC-094), not by ranking.
 
 ## When to use it
 

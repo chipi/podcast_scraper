@@ -28,7 +28,7 @@ Search in the viewer today is a single-signal FAISS vector lookup over Grounded 
 (GIL) insight nodes (see `docs/prd/PRD-021-semantic-corpus-search.md`, shipped). It answers
 "what is similar to this query" — but not "who said what, across which shows, and how does it
 relate to everything else in the corpus." **Search** is the first version of search that
-earns the name: multi-signal (BM25 + vector + KG proximity), intent-aware, corpus-oriented,
+earns the name: multi-signal (BM25 + dense vector via RRF), intent-aware, corpus-oriented,
 provenance-grounded, and structured for how humans actually ask questions about media. It is the
 product layer over the retrieval backend specified in RFC-090 and PRD-032.
 

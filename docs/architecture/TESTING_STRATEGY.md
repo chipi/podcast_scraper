@@ -1059,12 +1059,27 @@ The CI/CD pipeline (GitHub Actions) implements a multi-layered validation strate
 - [x] Three-tier extraction (ML-only, Hybrid, Cloud) — implemented (transformers, hybrid_ml, LLM providers)
 - [ ] GIL extraction latency per tier — benchmarking planned
 
-### `search/` (Semantic Corpus Search — RFC-061)
+### `search/` (Corpus Search — RFC-061 FAISS + RFC-090 Hybrid)
 
 - [x] `search/chunker.py` — transcript chunking
   (unit: `test_chunker.py`)
 - [x] `search/faiss_store.py` — FAISS vector store
   operations (unit: `test_faiss_store.py`)
+- [x] `search/two_tier_indexer.py` — native two-tier
+  (segment + insight + aux) LanceDB build + insight↔segment
+  linking (integration: `test_migration.py`; e2e:
+  `test_upgrade_cli_e2e.py`)
+- [x] `search/backends/lancedb_backend.py` — LanceDB
+  BM25 + vector backend (integration: `test_migration.py`)
+- [x] `search/retrieval.py` — `RetrievalLayer` (signals →
+  RRF → compound dedup) (unit: `test_backend.py`)
+- [x] `search/hybrid_search.py` — live hybrid bridge +
+  FAISS fallback (unit: `test_hybrid_dispatch.py`,
+  `test_hybrid_helpers.py`)
+- [x] `search/relational_edges.py`, `gi/speakers.py` —
+  derived relational edges (#874) (unit:
+  `test_relational_edges.py`, `test_speakers.py`,
+  `test_enrich_edges_cli.py`)
 - [x] `search/indexer.py` — corpus-wide index build,
   nested feeds, hybrid indexing, composite fingerprint
   keys (unit: `test_indexer.py`)

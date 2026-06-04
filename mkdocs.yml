@@ -337,6 +337,7 @@ nav:
       - RFC-091 KG Proximity Signal: rfc/RFC-091-kg-proximity-signal.md
       - RFC-092 ML Query Router: rfc/RFC-092-ml-query-router.md
       - RFC-093 LITM-Aware MCP Context Packs: rfc/RFC-093-litm-context-packs.md
+      - RFC-094 Search-Powered Surfaces Query Layer: rfc/RFC-094-search-powered-surfaces-query-layer.md
       - RFC Template: rfc/RFC_TEMPLATE.md
   - API:
       - API Overview: api/index.md

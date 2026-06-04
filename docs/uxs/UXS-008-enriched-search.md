@@ -13,7 +13,9 @@
   - [RFC-072: Canonical Identity Layer](../rfc/RFC-072-canonical-identity-layer-cross-layer-bridge.md) --
     bridge artifact enabling chunk-to-Insight lift
   - [RFC-061: Semantic Corpus Search](../rfc/RFC-061-semantic-corpus-search.md) --
-    FAISS search API this feature extends
+    FAISS search API (now the fallback)
+  - [RFC-090: Hybrid Retrieval](../rfc/RFC-090-hybrid-retrieval.md) --
+    the default search backend this feature extends (BM25 + dense via RRF, compounds)
   - [RFC-062: GI/KG viewer v2](../rfc/RFC-062-gi-kg-viewer-v2.md)
 - **Related UX specs**:
   - [UXS-005: Semantic Search](UXS-005-semantic-search.md) -- baseline search panel
@@ -38,7 +40,7 @@
 For shell layout, the three navigation axes, subject rail persistence and clearing, status bar, and first-run empty corpus behavior, see **[VIEWER_IA.md](VIEWER_IA.md)**. This document specifies the **Enriched Answer** panel and related search UI only (extends UXS-005).
 
 Enriched Search extends the existing semantic search panel (UXS-005) with a
-query-time LLM enrichment layer that lifts raw FAISS transcript chunks into
+query-time LLM enrichment layer that lifts raw transcript-segment hits into
 structured, grounded, attributed answers. This UXS defines the visual contract for
 the Enriched Answer panel, provider attribution, source citations, degraded states,
 and the "Enhanced" availability indicator. All tokens reference

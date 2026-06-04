@@ -41,6 +41,13 @@ Fields and enums are normative in **`kg.schema.json`**.
 | `MENTIONS` | Topic or Entity **→** Episode (appears-in-episode). Optional `properties` object (often empty `{}`). |
 | `RELATED_TO` | **Reserved** — not emitted by the v1 builder; allowed in schema for forward compatibility. |
 
+> **RFC-091 decision (2026-06-03).** KG **proximity** (traversing these co-occurrence edges as a
+> retrieval ranking signal) was evaluated and **rejected** — co-occurrence is redundant with dense
+> embeddings, so it added no value. `MENTIONS` is retained for **display/graph**, not retrieval. The
+> KG's retrieval value comes from **meaning-bearing relational edges** in the cross-layer graph:
+> `Person→Insight` (`SPOKEN_BY`), `Insight→MENTIONS→Entity`, `Podcast→HAS_EPISODE→Episode` (GIL
+> ontology, #874). See the RFC-091 Decision Record.
+
 ## Provenance
 
 - **`schema_version`:** `1.0` (legacy), **`1.1`** (optional Topic/Entity `description` per #487), or **`1.2`** (RFC-072: `kind`, `person:` / `org:` ids).

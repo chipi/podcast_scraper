@@ -635,24 +635,34 @@ API route table and
 for the SPA internals (component tree, Pinia stores,
 API client layer, async correctness).
 
-### Phase 5a: Semantic Corpus Search (RFC-061)
+### Phase 5a: Corpus Search — FAISS, then Hybrid (RFC-061 → RFC-090) {:#phase-5a-corpus-search}
 
-**Status**: **Implemented** (Phase 1 — FAISS)
+**Status**: **Implemented.** FAISS semantic search (RFC-061) shipped first; **hybrid retrieval
+(RFC-090) is now the default** (v2.7+).
 
-FAISS-based vector search over transcript chunks.
-Sentence-transformers embeddings, corpus-wide
-indexing, CLI (`podcast search`) and HTTP
-(`/api/search`) interfaces. Multi-feed corpora use
-a single unified index under `<corpus>/search/`.
-Phase 2 (Qdrant migration) is planned.
+**Hybrid retrieval (RFC-090, default-on).** A **two-tier** index — transcript **segments** (Tier 1)
+and GIL **insights** (Tier 2) — with **BM25 + dense vector fused via RRF** over an embedded **LanceDB**
+backend, **compound results** (a segment and its linked insight merged), and rules-based **intent
+routing**. The live `/api/search` path uses hybrid when a two-tier index exists and **falls back to
+FAISS** otherwise (so it can never regress). KG-proximity was evaluated as a third signal and
+**rejected** (RFC-091); relational structure comes from typed edges in the cross-layer graph
+(`Person→Insight`, `Insight→Entity`, `Podcast→Episode`, #874) consumed by surfaces — not by ranking.
+
+**FAISS semantic search (RFC-061, retained as fallback).** Sentence-transformers embeddings,
+corpus-wide indexing, CLI (`podcast search`) and HTTP (`/api/search`). Multi-feed corpora use a
+single unified index under `<corpus>/search/`.
 
 **Modules (implemented):**
 
-- `search/indexer.py` — Corpus-wide index build
-- `search/faiss_store.py` — FAISS vector store
+- `search/two_tier_indexer.py` — native two-tier (segment + insight + aux) LanceDB index build
+- `search/backends/lancedb_backend.py` — LanceDB BM25 + vector backend
+- `search/retrieval.py` — `RetrievalLayer` (signals → RRF → compound dedup)
+- `search/hybrid_search.py` — live hybrid bridge (with FAISS fallback)
+- `search/relational_edges.py`, `gi/speakers.py` — derived relational edges (#874)
+- `search/indexer.py` — FAISS corpus index build
+- `search/faiss_store.py` — FAISS vector store (fallback)
 - `search/chunker.py` — Transcript chunking
-- `search/protocol.py` — `VectorStore` / `SearchResult`
-  protocols
+- `search/protocol.py` — `VectorStore` / `SearchResult` protocols
 - `search/corpus_search.py` — Shared search logic
 - `search/corpus_similar.py` — Episode similarity
 - `search/corpus_scope.py` — Multi-feed identity
@@ -699,7 +709,7 @@ Phase 3: RFC-049 (GIL Core)             Implemented
     3c:  KG Extraction (RFC-055)        Implemented
 Phase 4: RFC-053 (Adaptive Routing)     planned
 Phase 5: RFC-062 (Server & Viewer)      Implemented
-    5a:  RFC-061 (Semantic Search)      Implemented (FAISS Phase 1)
+    5a:  Corpus Search (RFC-061→090)    Implemented (FAISS → Hybrid default)
     5b:  RFC-067 (Corpus Library)       Implemented (Phases 1–3)
     5c:  RFC-068 (Corpus Digest)        Implemented
     5d:  RFC-069 (Graph Exploration)    in progress

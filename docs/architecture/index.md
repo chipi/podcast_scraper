@@ -17,7 +17,7 @@ vision for where the system is heading.
 
 **HTTP / viewer:** Not a separate architecture doc — the FastAPI surface, `/api/*` (including Corpus Library, Corpus Digest, semantic search, and index management endpoints), and OpenAPI **`/docs`** are specified in the [Server Guide](../guides/SERVER_GUIDE.md) (see also [Architecture — Ways to run](ARCHITECTURE.md#ways-to-run-and-deploy)).
 
-**Semantic search:** FAISS-based vector search over transcript chunks is documented in [Architecture — Phase 5a](ARCHITECTURE.md#phase-5a-semantic-corpus-search-rfc-061) and the [Server Guide](../guides/SERVER_GUIDE.md).
+**Corpus search:** **Hybrid retrieval** (BM25 + dense vector via RRF over a two-tier LanceDB index, with compound results — RFC-090) is the **default**; FAISS vector search (RFC-061) is retained as a switchable fallback. KG-proximity was evaluated and rejected as a signal (RFC-091); relational structure comes from typed edges (#874). See [Architecture — Phase 5a](ARCHITECTURE.md#phase-5a-corpus-search) and the [Server Guide](../guides/SERVER_GUIDE.md).
 
 ## Target state
 
