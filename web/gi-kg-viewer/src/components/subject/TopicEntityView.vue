@@ -7,10 +7,17 @@
  * Mounts inside ``SubjectRail`` for ``subject.kind === 'topic'``. Entity
  * subjects still flow through ``focusGraphNode`` → existing ``NodeDetail``.
  */
-import { computed } from 'vue'
+import { computed, ref, watch } from 'vue'
 import type { RawGraphNode } from '../../types/artifact'
 import { useArtifactsStore } from '../../stores/artifacts'
+import { useShellStore } from '../../stores/shell'
 import { useSubjectStore } from '../../stores/subject'
+import {
+  fetchCrossShow,
+  fetchWhoSaid,
+  type RelatedNode,
+} from '../../api/relationalApi'
+import { StaleGeneration } from '../../utils/staleGeneration'
 import {
   findRawNodeInArtifact,
   findRawNodeInArtifactByIdOrPrefixed,
@@ -32,9 +39,80 @@ const emit = defineEmits<{
 }>()
 
 const artifacts = useArtifactsStore()
+const shell = useShellStore()
 const subject = useSubjectStore()
 
 const subjectId = computed(() => subject.topicId?.trim() || '')
+
+/**
+ * PRD-033 FR4.2 — cross-show coverage + key voices for this topic, from the
+ * relational-query layer (RFC-094). Fetched async on subject change, skeleton-first
+ * (RFC-094 OQ-3); a StaleGeneration gate drops responses for a superseded subject.
+ */
+interface CrossShowRow {
+  showId: string
+  insight: RelatedNode
+}
+interface VoiceRow {
+  personId: string
+  insights: RelatedNode[]
+}
+const crossShowLoading = ref(false)
+const crossShowError = ref<string | null>(null)
+const crossShowRows = ref<CrossShowRow[]>([])
+const voicesLoading = ref(false)
+const voicesError = ref<string | null>(null)
+const voiceRows = ref<VoiceRow[]>([])
+const relationalGate = new StaleGeneration()
+
+function shortId(id: string): string {
+  return id.replace(/^(podcast|person|topic|org):/, '').replace(/[-_]/g, ' ').trim() || id
+}
+
+function resetRelational(): void {
+  crossShowRows.value = []
+  crossShowError.value = null
+  voiceRows.value = []
+  voicesError.value = null
+}
+
+async function loadRelational(topicId: string): Promise<void> {
+  const root = shell.corpusPath?.trim()
+  if (!topicId || !root || !shell.healthStatus) {
+    resetRelational()
+    return
+  }
+  const seq = relationalGate.bump()
+  crossShowLoading.value = true
+  voicesLoading.value = true
+  resetRelational()
+  try {
+    const [cross, who] = await Promise.all([
+      fetchCrossShow(root, topicId).catch((e) => ({ error: String(e?.message ?? e), groups: {} })),
+      fetchWhoSaid(root, topicId).catch((e) => ({ error: String(e?.message ?? e), groups: {} })),
+    ])
+    if (relationalGate.isStale(seq)) return
+    crossShowError.value = cross.error ?? null
+    crossShowRows.value = Object.entries(cross.groups ?? {})
+      .map(([showId, insights]) => ({ showId, insight: insights[0] }))
+      .filter((r): r is CrossShowRow => r.insight != null)
+    voicesError.value = who.error ?? null
+    voiceRows.value = Object.entries(who.groups ?? {})
+      .map(([personId, insights]) => ({ personId, insights }))
+      .filter((r) => r.insights.length > 0)
+  } finally {
+    if (relationalGate.isCurrent(seq)) {
+      crossShowLoading.value = false
+      voicesLoading.value = false
+    }
+  }
+}
+
+watch(subjectId, (id) => void loadRelational(id), { immediate: true })
+
+function onClickVoice(personId: string): void {
+  if (personId) subject.focusPerson(personId)
+}
 
 const subjectNode = computed<RawGraphNode | null>(() => {
   const art = artifacts.displayArtifact
@@ -261,6 +339,104 @@ function onPrefillSearch(): void {
       >
         No insights or quotes link to this subject in the loaded graph.
       </p>
+
+      <!-- PRD-033 FR4.2 — cross-show coverage (the corpus differentiator). -->
+      <section
+        v-if="crossShowLoading || crossShowError || crossShowRows.length"
+        class="w-full min-w-0"
+        aria-label="Across shows"
+        data-testid="tev-cross-show"
+      >
+        <h3 class="mb-1 text-[10px] font-semibold uppercase tracking-wider text-muted">
+          Across shows
+        </h3>
+        <p
+          v-if="crossShowLoading"
+          data-testid="tev-cross-show-loading"
+          class="text-[10px] text-muted"
+        >
+          Loading…
+        </p>
+        <p
+          v-else-if="crossShowError"
+          class="text-[10px] text-warning"
+        >
+          {{ crossShowError }}
+        </p>
+        <ul
+          v-else
+          class="space-y-1.5"
+          data-testid="tev-cross-show-list"
+        >
+          <li
+            v-for="row in crossShowRows"
+            :key="row.showId"
+            data-testid="tev-cross-show-row"
+            class="rounded border-l-2 border-primary/40 pl-2 text-[11px] leading-snug"
+          >
+            <p class="font-semibold text-surface-foreground">{{ shortId(row.showId) }}</p>
+            <p
+              class="text-muted line-clamp-2"
+              :title="row.insight.text"
+            >
+              {{ row.insight.text }}
+            </p>
+          </li>
+        </ul>
+      </section>
+
+      <!-- PRD-033 FR4.2 — key voices (Person→Insight for this topic). -->
+      <section
+        v-if="voicesLoading || voicesError || voiceRows.length"
+        class="w-full min-w-0"
+        aria-label="Key voices"
+        data-testid="tev-voices"
+      >
+        <h3 class="mb-1 text-[10px] font-semibold uppercase tracking-wider text-muted">
+          Key voices
+        </h3>
+        <p
+          v-if="voicesLoading"
+          class="text-[10px] text-muted"
+        >
+          Loading…
+        </p>
+        <p
+          v-else-if="voicesError"
+          class="text-[10px] text-warning"
+        >
+          {{ voicesError }}
+        </p>
+        <ul
+          v-else
+          class="space-y-1.5"
+          data-testid="tev-voices-list"
+        >
+          <li
+            v-for="row in voiceRows"
+            :key="row.personId"
+            data-testid="tev-voice-row"
+            class="rounded border border-border bg-elevated/40 px-2 py-1.5 text-[11px] leading-snug"
+          >
+            <button
+              type="button"
+              data-testid="tev-voice-link"
+              class="rounded font-semibold text-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+              :title="`Open Person panel for ${shortId(row.personId)}`"
+              @click="onClickVoice(row.personId)"
+            >{{ shortId(row.personId) }}</button>
+            <span class="ml-1 text-[10px] text-muted">({{ row.insights.length }})</span>
+            <p
+              v-if="row.insights[0]?.text"
+              class="mt-0.5 text-muted line-clamp-2"
+              :title="row.insights[0]?.text"
+            >
+              {{ row.insights[0]?.text }}
+            </p>
+          </li>
+        </ul>
+      </section>
+
       <div class="flex shrink-0 flex-wrap gap-2 pt-2">
         <button
           type="button"

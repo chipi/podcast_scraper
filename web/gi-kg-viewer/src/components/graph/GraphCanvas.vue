@@ -28,6 +28,7 @@ import { useGraphLensesStore } from '../../stores/graphLenses'
 import { useGraphHandoffStore } from '../../stores/graphHandoff'
 import { useGraphNavigationStore } from '../../stores/graphNavigation'
 import { useSearchStore } from '../../stores/search'
+import { useActiveSearchContextStore } from '../../stores/activeSearchContext'
 import { useShellStore } from '../../stores/shell'
 import { useThemeStore } from '../../stores/theme'
 import type { RawGraphNode } from '../../types/artifact'
@@ -93,6 +94,7 @@ const graphExpansion = useGraphExpansionStore()
 const { expandedBySeed } = storeToRefs(graphExpansion)
 const shell = useShellStore()
 const searchStore = useSearchStore()
+const activeSearchContext = useActiveSearchContextStore()
 const themeStore = useThemeStore()
 
 const graphEpisodeOpenGate = new StaleGeneration()
@@ -679,12 +681,38 @@ function applySearchHighlights(core: Core): void {
     }
   }
   searchHighlightCount.value = matched.size
+  applyContextEmphasis(core)
+}
+
+/**
+ * PRD-033 FR5.1 — emphasize (size + ring) nodes whose episode is relevant to the
+ * active search context (RFC-094 OQ-2). Episode nodes match by their stripped id;
+ * Insight/Quote nodes by their ``episodeId`` data. No-op when no context is active.
+ */
+function applyContextEmphasis(core: Core): void {
+  core.nodes().removeClass('context-relevant')
+  if (!activeSearchContext.active) return
+  core.batch(() => {
+    core.nodes().forEach((n) => {
+      const dataEp = n.data('episodeId')
+      let epId = typeof dataEp === 'string' ? dataEp.trim() : ''
+      if (!epId) {
+        const id = n.id()
+        if (id.startsWith('episode:')) epId = id.slice('episode:'.length)
+      }
+      if (epId && activeSearchContext.relevanceFor(epId)) {
+        n.addClass('context-relevant')
+      }
+    })
+  })
 }
 
 function buildCyStyle() {
   return [
     ...(buildGiKgCyStylesheet({
       includeSearchHit: true,
+      // PRD-033 FR5.1 — emphasize nodes relevant to the active search context.
+      includeContextEmphasis: true,
       prefersReducedMotion: graphPrefersReducedMotion.value,
       // RFC-080 V5 — opt-in via lens flag (defaults off; user toggle
       // persists across reloads via useGraphLensesStore).
@@ -3407,6 +3435,18 @@ watch(
     })
   },
   { flush: 'post', deep: true },
+)
+
+// PRD-033 FR5.1 — re-emphasize when the active search context changes (incl. clear).
+watch(
+  () => activeSearchContext.byEpisode,
+  () => {
+    safeGraphWatch('contextEmphasis', () => {
+      const c = cy
+      if (c) applyContextEmphasis(c)
+    })
+  },
+  { flush: 'post' },
 )
 
 watch(

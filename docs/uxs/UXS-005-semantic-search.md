@@ -26,7 +26,9 @@
   - `web/gi-kg-viewer/src/components/search/ResultCard.vue`
   - `web/gi-kg-viewer/src/components/search/SearchResultsVizDialog.vue`
   - `web/gi-kg-viewer/src/components/search/SemanticSearchTip.vue`
-  - `web/gi-kg-viewer/src/stores/search.ts`
+  - `web/gi-kg-viewer/src/stores/search.ts` (exposes `queryType` for FR1.4)
+  - `src/podcast_scraper/server/routes/search.py` (#884) — surfaces `source_tier`
+    per hit + response `query_type` (additive; FAISS + hybrid consistent)
 - **Shell IA:** [VIEWER_IA.md](VIEWER_IA.md) — left panel Search + Explore, navigation axes, subject rail, status bar
 
 ---
@@ -160,6 +162,38 @@ Each hit can expose:
 
 ---
 
+## Two-tier results, evidence toggle, and intent (PRD-033 FR1)
+
+The platform now indexes and ranks two primary tiers (synthesized insights + raw
+transcript segments) plus an auxiliary tier (kg_entity / kg_topic / quote / summary).
+The search surface makes that legible without re-querying:
+
+- **Tier badge (FR1.1).** Every hit card carries a small tier badge
+  (`search-result-tier`): **Insight** (`primary`), **Transcript** (`success`), or
+  **Reference** (`muted`), from the server-derived `source_tier`. Named-entity queries
+  surface exact matches through retrieval quality (FR1.2) — no separate UI.
+- **Compound result (FR1.1).** A transcript (`segment`) hit that lifts a linked GI
+  insight is a *compound* — the card shows both the segment text and the linked
+  insight (the existing **Lifted GI insight** block) and is marked with a **`+ insight`**
+  badge (`search-result-compound`).
+- **Evidence toggle (FR1.3).** A small **Insights / Transcript / Both** segmented
+  control (`search-evidence-toggle`) in the results header constrains the rendered
+  cards to a tier (Both = no constraint). Client-side over the returned page; the
+  active button uses `aria-pressed`.
+- **Query-type indicator (FR1.4).** When the response carries a detected intent, an
+  **Intent: `<label>`** chip (`search-query-type`) sits in the results header
+  (Entity lookup / Raw evidence / Temporal tracking / Cross-show synthesis / Semantic).
+  Transparency only — the platform adapts its retrieval strategy per the rules router
+  (RFC-090 §3.6); it does not change what the user must do.
+- **Entity links to Detail (FR1.5).** Canonical speaker / topic / entity names resolve
+  to their Detail rail: lifted speaker → Person Landing
+  (`search-result-lifted-speaker-link`), lifted topic → Topic Entity View
+  (`search-result-lifted-topic-link`), and a `kg_entity` / `kg_topic` hit links its
+  `source_id` via **Open Person/Topic panel →** (`search-result-entity-link`).
+  Supporting-quote speakers keep their existing Person link.
+
+---
+
 ## E2E contract
 
 [E2E surface map](https://github.com/chipi/podcast_scraper/blob/main/web/gi-kg-viewer/e2e/E2E_SURFACE_MAP.md) --
@@ -180,6 +214,7 @@ search panel surfaces and selectors.
 | 2026-04-13 | Extracted from UXS-001 into standalone UXS-005                                         |
 | 2026-04-13 | Document lift_stats summary line + Lifted GI insight region                            |
 | 2026-04-15 | Supporting quotes: muted hint when speaker missing (#541)                              |
+| 2026-06-05 | PRD-033 FR1: tier/compound badges, evidence toggle, intent chip, entity links (#884)   |
 | 2026-04-15 | Lifted GI: muted hint + testid when speaker display missing (#541)                     |
 | 2026-04-15 | Lifted hint only when **`lifted.quote`** has finite **`timestamp_*_ms`** (matches E2E) |
 | 2026-04-15 | #541: **No speaker detected** (graph + Search + Explore; semantics unchanged)          |

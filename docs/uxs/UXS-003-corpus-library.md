@@ -13,6 +13,8 @@
   - `web/gi-kg-viewer/src/components/library/LibraryView.vue`
   - `web/gi-kg-viewer/src/components/episode/EpisodeDetailPanel.vue`
   - `web/gi-kg-viewer/src/stores/subject.ts`
+  - `web/gi-kg-viewer/src/stores/activeSearchContext.ts` (#883) — shared active
+    search/filter context (RFC-094 OQ-2) powering FR2.1/FR2.2
 - **Shell IA:** [VIEWER_IA.md](VIEWER_IA.md) — canonical shell layout, navigation axes, subject rail, status bar, first-run behavior
 
 ---
@@ -105,8 +107,41 @@ rules for the Library tab and the shared Episode subject rail. All tokens refere
 
 ---
 
+## Search-context behaviours (PRD-033 FR2)
+
+The Library reads the shared **active search context** (the last semantic search,
+RFC-094 OQ-2 `activeSearchContext` store). The list is **unchanged when no context is
+active**; the behaviours below appear only once a search has run and a row's
+`episode_id` matched a hit.
+
+- **FR2.1 — "why this episode" snippet.** A matched row gains one extra line
+  (`library-row-why`): a `border-l` `primary`-accented quote leading with bold
+  **Why this episode:**, then the top-scoring segment/insight text for the context
+  (`line-clamp-2`, full text in native `title`). Rows stay dense by default — the
+  snippet is **only** present under an active context, never for the plain catalog
+  view. This is distinct from the recap summary line (which is corpus metadata, not
+  retrieval).
+- **FR2.2 — hybrid relevance ranking.** Under an active context the list is re-ordered
+  so matched episodes float to the top by **hybrid score** (descending), with
+  non-matches following in their original fetch order (stable sort). Without a context
+  the order is the server's `GET /api/corpus/episodes` order. Ranking is a client-side
+  projection of the current page against the active hits; it does not re-page the API.
+- **FR2.3 — show-scoped view.** The feed/show name on each row is a **button**
+  (`library-row-scope-show`); activating it scopes the Library to that show by setting
+  the feed filter (the same mechanism as the Feed chip; `HAS_EPISODE`). `aria-label`
+  is **"Show only episodes from `<feed>`"**; the hover `title` keeps the catalog
+  feed-name. No-op for ungrouped episodes (empty feed id). Keyboard-activatable with a
+  visible focus ring; click does not also select the row (event stops at the button).
+
+---
+
 ## Graph integration (Episode subject rail)
 
+- **PRD-033 FR4.3 (#886):** the Episode rail Details panel, below **Similar episodes**,
+  shows a **Related insights** region (`episode-related-insights`) from the RFC-094
+  relational layer (`GET /api/relational/episode-insights` — the topic/entity siblings
+  of the episode's own insights). Async, skeleton-first, StaleGeneration-gated, hidden
+  when empty. (FR4.3's transcript-highlighting half is a separate deferred feature.)
 - Double-tapping an Episode node opens the Episode subject rail when a corpus metadata path
   resolves (node properties, loaded artifact path, or catalog episode_id lookup).
 - With the Episode subject rail already open from Library or Digest, switching the main tab
@@ -194,6 +229,8 @@ the E2E Testing Guide.
 | 2026-04-16 | Episode subject rail: **C** copy title chip                             |
 | 2026-04-19 | UXS-007/003: no topic chips on rows                                     |
 | 2026-04-19 | Shell IA: subject rail wording; remove obsolete back-navigation bullets |
+| 2026-05-31 | PRD-033 FR2: why-snippet, hybrid ranking, show-scoped view (#883)       |
+| 2026-06-05 | PRD-033 FR4.3: episode Related insights region (#886)                   |
 
 ---
 

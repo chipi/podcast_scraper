@@ -205,6 +205,38 @@ def test_get_corpus_graph_caches_per_derive_flag(tmp_path):
     assert "insight:i1" in derived.neighbors("person:alice")
 
 
+# --- #882: typed adjacency (relational-query substrate) -------------------------
+
+
+def test_typed_neighbors_filters_by_edge_type(tmp_path):
+    g = CorpusGraph.build(_write_corpus(tmp_path))
+    # insight:i1 has an ABOUT edge to topic:ai and a SUPPORTED_BY edge to quote:q1.
+    assert g.typed_neighbors("insight:i1", "ABOUT") == ["topic:ai"]
+    assert g.typed_neighbors("insight:i1", "SUPPORTED_BY") == ["quote:q1"]
+    # HAS_INSIGHT is the episode edge — not present from the insight via ABOUT.
+    assert "episode:e1" in g.typed_neighbors("insight:i1", "HAS_INSIGHT")
+
+
+def test_typed_neighbors_is_undirected(tmp_path):
+    g = CorpusGraph.build(_write_corpus(tmp_path))
+    # HAS_EPISODE declared podcast→episode; reachable from either endpoint.
+    assert g.typed_neighbors("podcast:show1", "HAS_EPISODE") == ["episode:e1"]
+    assert g.typed_neighbors("episode:e1", "HAS_EPISODE") == ["podcast:show1"]
+
+
+def test_derive_speaker_links_emits_states_edge(tmp_path):
+    g = CorpusGraph.build(_write_corpus(tmp_path), derive_speaker_links=True)
+    # The synthesized person→insight shortcut carries the STATES type, so the
+    # relational layer can distinguish "stated" from "mentioned".
+    assert g.typed_neighbors("person:alice", "STATES") == ["insight:i1"]
+
+
+def test_typed_neighbors_unknown_returns_empty(tmp_path):
+    g = CorpusGraph.build(_write_corpus(tmp_path))
+    assert g.typed_neighbors("person:nobody", "STATES") == []
+    assert g.typed_neighbors("insight:i1", "NO_SUCH_TYPE") == []
+
+
 # --- #852: identity_map collapses cross-episode variant nodes -------------------
 
 

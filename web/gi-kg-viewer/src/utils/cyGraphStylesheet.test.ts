@@ -81,6 +81,22 @@ describe('buildGiKgCyStylesheet', () => {
     expect(hitRule.style['border-color']).toBe('#fab005')
   })
 
+  it('context-relevant emphasis rule is present only when enabled (FR5.1)', () => {
+    const off = buildGiKgCyStylesheet({ compact: false }).find(
+      (r) => (r as { selector?: string }).selector === 'node.context-relevant',
+    )
+    expect(off).toBeUndefined()
+
+    const on = buildGiKgCyStylesheet({ includeContextEmphasis: true, compact: false }).find(
+      (r) => (r as { selector?: string }).selector === 'node.context-relevant',
+    ) as { style: Record<string, unknown> }
+    expect(on).toBeTruthy()
+    // Size bump + ring so relevant nodes pop over the per-type fixed sizes.
+    expect(Number(on.style.width)).toBeGreaterThan(48)
+    expect(Number(on.style.height)).toBeGreaterThan(48)
+    expect(Number(on.style['border-width'])).toBeGreaterThan(0)
+  })
+
   it('above placement: top center with negative margin-y', () => {
     const st = nodeRuleStyle(buildGiKgCyStylesheet({ nodeLabelPlacement: 'above', compact: false }))
     expect(st['text-valign']).toBe('top')

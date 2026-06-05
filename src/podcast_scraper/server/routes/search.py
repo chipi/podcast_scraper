@@ -7,6 +7,7 @@ from pathlib import Path
 from fastapi import APIRouter, Query, Request
 
 from podcast_scraper.search.corpus_search import run_corpus_search
+from podcast_scraper.search.router import classify_query, tier_for_doc_type
 from podcast_scraper.server.pathutil import resolve_corpus_path_param
 from podcast_scraper.server.schemas import (
     CorpusSearchApiResponse,
@@ -104,6 +105,7 @@ async def search_corpus(
             score=float(r.get("score", 0.0)),
             metadata=dict(r.get("metadata") or {}),
             text=str(r.get("text") or ""),
+            source_tier=tier_for_doc_type(str((r.get("metadata") or {}).get("doc_type") or "")),
             supporting_quotes=r.get("supporting_quotes"),
             lifted=r.get("lifted") if isinstance(r.get("lifted"), dict) else None,
         )
@@ -121,4 +123,6 @@ async def search_corpus(
             )
         except (TypeError, ValueError):
             lift_stats = None
-    return CorpusSearchApiResponse(query=q, results=hits, lift_stats=lift_stats)
+    return CorpusSearchApiResponse(
+        query=q, results=hits, query_type=classify_query(q), lift_stats=lift_stats
+    )

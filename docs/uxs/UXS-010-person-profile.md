@@ -172,6 +172,12 @@ both the Person Profile and the Position Tracker ([UXS-009](UXS-009-position-tra
 - When the entry point is topic-specific (e.g. a "Track positions" link from
   PRD-026 with a preselected topic), the "Positions" tab is preselected with that
   topic active in the Position Tracker's topic selector.
+- **PRD-033 FR4.1 (#886):** the Positions tab leads with a **Stated positions**
+  section (`person-landing-stated`) from the RFC-094 relational layer
+  (`positions_of` — the synthesized `Person→STATES→Insight` claims), above the
+  in-graph **Attributed quotes** (`SPOKEN_BY`). It fetches async on subject change,
+  renders skeleton-first, is StaleGeneration-gated, and is hidden when empty. This is
+  the synthesized-position view that complements the verbatim-quote list.
 
 ### Tab bar
 
@@ -292,3 +298,4 @@ before or with implementation. Key surfaces:
 | 2026-04-13 | Initial draft (PRD-029 companion)                              |
 | 2026-04-14 | Rewritten as Person Profile (commercial content extracted)     |
 | 2026-04-19 | Shell gap: full-width browse not in main tabs yet              |
+| 2026-06-05 | PRD-033 FR4.1: Stated positions section (#886)                 |

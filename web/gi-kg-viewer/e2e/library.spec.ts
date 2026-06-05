@@ -359,6 +359,91 @@ test.describe('Corpus Library tab', () => {
     expect(req.url()).toContain('topic_cluster_only=true')
   })
 
+  test('row show name scopes Library to that feed (feed_id in episodes request)', async ({
+    page,
+  }) => {
+    await page.goto('/')
+    await page.getByRole('heading', { name: SHELL_HEADING_RE }).waitFor()
+    await statusBarCorpusPathInput(page).fill('/mock/corpus')
+    await mainViewsNav(page).getByRole('button', { name: 'Library' }).click()
+    await expect(page.getByTestId('library-root')).toBeVisible()
+    const scopedReq = page.waitForRequest(
+      (r) => r.url().includes('/api/corpus/episodes') && r.url().includes('feed_id=f1'),
+    )
+    await page.getByTestId('library-row-scope-show').first().click()
+    const req = await scopedReq
+    expect(req.url()).toContain('feed_id=f1')
+  })
+
+  test('active search context renders "why this episode" snippet on Library rows', async ({
+    page,
+  }) => {
+    await page.route('**/api/search?**', async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          query: 'climate',
+          results: [
+            {
+              doc_id: 'insight:e1:1',
+              score: 0.93,
+              text: 'Climate policy is the through-line of this episode.',
+              metadata: { doc_type: 'insight', episode_id: 'e1' },
+            },
+          ],
+        }),
+      })
+    })
+
+    await page.goto('/')
+    await page.getByRole('heading', { name: SHELL_HEADING_RE }).waitFor()
+    await statusBarCorpusPathInput(page).fill('/mock/corpus')
+    await mainViewsNav(page).getByRole('button', { name: 'Library' }).click()
+    await expect(page.getByTestId('library-root')).toBeVisible()
+    // No snippet before a search context is active.
+    await expect(page.getByTestId('library-row-why')).toHaveCount(0)
+
+    await page.locator('#search-q').fill('climate')
+    await page
+      .locator('section')
+      .filter({ has: page.getByRole('heading', { name: 'Semantic search' }) })
+      .getByRole('button', { name: 'Search', exact: true })
+      .click()
+
+    const why = page.getByTestId('library-row-why').first()
+    await expect(why).toBeVisible()
+    await expect(why).toContainText('Climate policy is the through-line')
+  })
+
+  test('FR4.3: Episode rail shows related insights from the relational layer', async ({
+    page,
+  }) => {
+    await page.route('**/api/relational/episode-insights**', async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          subject: 'e1',
+          results: [
+            { id: 'insight:r1', type: 'insight', text: 'A related insight from another episode.', show_id: '', episode_id: 'e9' },
+          ],
+          error: null,
+        }),
+      })
+    })
+    await page.goto('/')
+    await page.getByRole('heading', { name: SHELL_HEADING_RE }).waitFor()
+    await statusBarCorpusPathInput(page).fill('/mock/corpus')
+    await mainViewsNav(page).getByRole('button', { name: 'Library' }).click()
+    await expect(page.getByTestId('library-root')).toBeVisible()
+    await page.getByRole('button', { name: 'Mock Episode Title, Mock Show' }).click()
+    const related = page.getByTestId('episode-related-insights')
+    await expect(related).toBeVisible()
+    await expect(related.getByTestId('episode-related-insights-row')).toHaveCount(1)
+    await expect(related).toContainText('A related insight from another episode.')
+  })
+
   test('similar panel shows no-index message when API returns no_index', async ({ page }) => {
     await page.route('**/api/index/stats**', async (route) => {
       await route.fulfill({

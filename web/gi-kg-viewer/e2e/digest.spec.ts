@@ -571,4 +571,60 @@ test.describe('Corpus Digest tab', () => {
       digestRoot.getByRole('img', { name: /Published (less than 1 hour|\d+ hour)/ }),
     ).toBeVisible()
   })
+
+  // --- PRD-033 FR3 (#885) ---
+
+  test('FR3.3: mapped topic band label opens the Topic Detail rail', async ({ page }) => {
+    await page.goto('/')
+    await page.getByRole('heading', { name: SHELL_HEADING_RE }).waitFor()
+    await statusBarCorpusPathInput(page).fill('/mock/corpus')
+    await expect(page.getByTestId('digest-root')).toBeVisible()
+    const link = page.getByTestId('digest-band-topic-link')
+    await expect(link).toBeVisible()
+    await expect(link).toHaveText('Mock Topic Band')
+    await link.click()
+    await expect(page.getByTestId('topic-entity-view')).toBeVisible()
+  })
+
+  test('FR3.3: topic-band hit feed name scopes Library', async ({ page }) => {
+    await page.goto('/')
+    await page.getByRole('heading', { name: SHELL_HEADING_RE }).waitFor()
+    await statusBarCorpusPathInput(page).fill('/mock/corpus')
+    await expect(page.getByTestId('digest-root')).toBeVisible()
+    const feedLink = page.getByTestId('digest-topic-hit-feed-link').first()
+    await expect(feedLink).toBeVisible()
+    await feedLink.click()
+    await expect(page.getByTestId('library-root')).toBeVisible()
+  })
+
+  test('FR3.2: cross-show band lists the top insight per show', async ({ page }) => {
+    await page.route('**/api/relational/cross-show**', async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          subject: 'topic:mock-topic-band',
+          groups: {
+            'podcast:show-one': [
+              { id: 'insight:1', type: 'insight', text: 'Show one position.', show_id: 'podcast:show-one', episode_id: 'e1' },
+            ],
+            'podcast:show-two': [
+              { id: 'insight:2', type: 'insight', text: 'Show two position.', show_id: 'podcast:show-two', episode_id: 'e2' },
+            ],
+          },
+          error: null,
+        }),
+      })
+    })
+    await page.goto('/')
+    await page.getByRole('heading', { name: SHELL_HEADING_RE }).waitFor()
+    await statusBarCorpusPathInput(page).fill('/mock/corpus')
+    await expect(page.getByTestId('digest-root')).toBeVisible()
+    await page.getByTestId('digest-cross-show-toggle').first().click()
+    const band = page.getByTestId('digest-cross-show-band').first()
+    await expect(band).toBeVisible()
+    await expect(band.getByTestId('digest-cross-show-row')).toHaveCount(2)
+    await expect(band).toContainText('Show one position.')
+    await expect(band).toContainText('Show two position.')
+  })
 })

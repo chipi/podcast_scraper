@@ -33,6 +33,7 @@ import {
   SEARCH_RESULT_EPISODE_ID_BUTTON_CLASS,
 } from '../../utils/searchResultActionStyles'
 import { StaleGeneration } from '../../utils/staleGeneration'
+import { fetchEpisodeRelatedInsights, type RelatedNode } from '../../api/relationalApi'
 import {
   applyGraphFocusPlan,
   graphFocusPlanFromCilPill,
@@ -95,6 +96,44 @@ const similarRanOk = ref(false)
 
 const detailLoadGate = new StaleGeneration()
 const episodeOpenGraphGate = new StaleGeneration()
+
+// PRD-033 FR4.3 — insights related to this episode, from the relational layer.
+const relatedInsights = ref<RelatedNode[]>([])
+const relatedLoading = ref(false)
+const relatedError = ref<string | null>(null)
+const relatedGate = new StaleGeneration()
+
+async function loadRelatedInsights(episodeId: string): Promise<void> {
+  const id = episodeId.trim()
+  const root = shell.corpusPath.trim()
+  if (!id || !root || !shell.healthStatus) {
+    relatedInsights.value = []
+    relatedError.value = null
+    return
+  }
+  const seq = relatedGate.bump()
+  relatedLoading.value = true
+  relatedInsights.value = []
+  relatedError.value = null
+  try {
+    const body = await fetchEpisodeRelatedInsights(root, id, 10)
+    if (relatedGate.isStale(seq)) return
+    relatedError.value = body.error ?? null
+    relatedInsights.value = body.results ?? []
+  } catch (e) {
+    if (relatedGate.isStale(seq)) return
+    relatedError.value = e instanceof Error ? e.message : String(e)
+    relatedInsights.value = []
+  } finally {
+    if (relatedGate.isCurrent(seq)) relatedLoading.value = false
+  }
+}
+
+watch(
+  () => detail.value?.episode_id ?? '',
+  (id) => void loadRelatedInsights(id),
+  { immediate: true },
+)
 
 const feedDisplayTitleById = computed(() => {
   const m: Record<string, string> = {}
@@ -925,6 +964,46 @@ watch(
           </li>
         </ul>
       </div>
+
+      <!-- PRD-033 FR4.3 — insights related to this episode (relational layer). -->
+      <div
+        v-if="relatedLoading || relatedError || relatedInsights.length"
+        class="mt-2 border-t border-border pt-2"
+        role="region"
+        aria-label="Related insights"
+        data-testid="episode-related-insights"
+      >
+        <strong class="text-xs font-medium text-surface-foreground/90">Related insights</strong>
+        <p
+          v-if="relatedLoading"
+          data-testid="episode-related-insights-loading"
+          class="mt-1 text-xs text-muted"
+        >
+          Loading…
+        </p>
+        <p
+          v-else-if="relatedError"
+          class="mt-1 text-xs text-warning"
+        >
+          {{ relatedError }}
+        </p>
+        <ul
+          v-else
+          class="mt-1 space-y-1 text-xs"
+          data-testid="episode-related-insights-list"
+        >
+          <li
+            v-for="row in relatedInsights"
+            :key="row.id"
+            data-testid="episode-related-insights-row"
+            class="rounded border-l-2 border-primary/40 pl-2 text-[11px] leading-snug text-muted"
+            :title="row.text"
+          >
+            <span class="line-clamp-2">{{ row.text || row.id }}</span>
+          </li>
+        </ul>
+      </div>
+
       <p v-if="graphActionError" class="mt-1 text-xs text-danger">
         {{ graphActionError }}
       </p>

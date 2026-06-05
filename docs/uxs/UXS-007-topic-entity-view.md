@@ -164,6 +164,21 @@ vertically with `border` dividers between them:
 - Maximum 8 related topics shown.
 - Hidden entirely when `topic_cooccurrence` enricher has not run.
 
+### Relational sections (PRD-033 FR4.2)
+
+Shipped in #886 over the RFC-094 relational layer (`web/gi-kg-viewer/src/api/relationalApi.ts`).
+Both fetch async on subject change, render skeleton-first (`Loading…`), and are
+StaleGeneration-gated against rapid subject switches; each is hidden when its query
+returns nothing.
+
+- **Across shows** (`tev-cross-show`) — `cross_show_synthesis(topic)`: the top insight
+  from each distinct show covering this topic (the corpus differentiator), one row per
+  show (`tev-cross-show-row`) with the resolved show label + insight text.
+- **Key voices** (`tev-voices`) — `who_said(topic)`: the people who stated insights on
+  this topic, each a button (`tev-voice-link`) opening their **Person Landing** rail
+  (`focusPerson`), with their insight count. *Entities involved (`Insight→Entity`) is a
+  later addition — no topic→entities traversal ships yet.*
+
 ---
 
 ## Action buttons
@@ -226,3 +241,4 @@ before or with implementation. Key surfaces:
 | ---------- | -------------------------------------------------------------- |
 | 2026-04-13 | Initial draft (PRD-026 companion)                              |
 | 2026-04-19 | Entry points: Library rows per UXS-003; InsightCard anchor     |
+| 2026-06-05 | PRD-033 FR4.2: cross-show + key-voices sections (#886)         |

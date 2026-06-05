@@ -9,6 +9,7 @@ import {
   type CorpusDigestTopicHit,
 } from '../../api/digestApi'
 import { fetchCorpusFeeds, type CorpusFeedItem } from '../../api/corpusLibraryApi'
+import { fetchCrossShow, type RelatedNode } from '../../api/relationalApi'
 import CilTopicPillsRow from '../shared/CilTopicPillsRow.vue'
 import HelpTip from '../shared/HelpTip.vue'
 import PodcastCover from '../shared/PodcastCover.vue'
@@ -93,8 +94,32 @@ onActivated(() => {
   }
 })
 
-const visibleTopicBands = computed((): CorpusDigestTopicBand[] => {
+/**
+ * PRD-033 FR3.1 — a retrieval signal for a band: anchored on its best hit score,
+ * lifted by insight density (number of hits) and cross-show coverage (distinct
+ * feeds). Editorial bands keep config order on ties (stable sort).
+ */
+function bandSignal(band: CorpusDigestTopicBand): number {
+  const hits = band.hits ?? []
+  if (!hits.length) return 0
+  const top = Math.max(...hits.map((h) => h.score ?? 0))
+  const distinctShows = new Set(
+    hits.map((h) => h.feed_id).filter((f): f is string => Boolean(f)),
+  ).size
+  return top * (1 + 0.25 * Math.log2(1 + hits.length) + 0.5 * Math.log2(1 + distinctShows))
+}
+
+/** Bands ordered by retrieval signal (FR3.1), config order as the stable tiebreak. */
+const rankedTopics = computed((): CorpusDigestTopicBand[] => {
   const all = digest.value?.topics ?? []
+  return all
+    .map((b, i) => ({ b, i, s: bandSignal(b) }))
+    .sort((x, y) => (y.s === x.s ? x.i - y.i : y.s - x.s))
+    .map((r) => r.b)
+})
+
+const visibleTopicBands = computed((): CorpusDigestTopicBand[] => {
+  const all = rankedTopics.value
   if (topicBandsExpanded.value || all.length <= DIGEST_TOPIC_BANDS_INITIAL) {
     return all
   }
@@ -108,6 +133,74 @@ const digestTopicBandsShowMoreCount = computed((): number => {
   }
   return n - DIGEST_TOPIC_BANDS_INITIAL
 })
+
+/**
+ * PRD-033 FR3.3 — a band that maps to a KG topic node (``graph_topic_id``) opens the
+ * Topic Entity View Detail rail. Editorial-only bands (no mapping) stay static text —
+ * the same rationale that keeps them out of the graph FSM.
+ */
+function bandTopicId(band: CorpusDigestTopicBand): string {
+  const id = band.graph_topic_id?.trim()
+  return id ?? ''
+}
+
+function onClickBandLabel(band: CorpusDigestTopicBand): void {
+  const id = bandTopicId(band)
+  if (id) subject.focusTopic(id)
+}
+
+/** PRD-033 FR3.2 — cross-show synthesis state per mapped band (lazy, on expand). */
+interface CrossShowState {
+  loading: boolean
+  error: string | null
+  shows: { showId: string; insight: RelatedNode }[] | null
+}
+const crossShowOpen = ref<Record<string, boolean>>({})
+const crossShowState = ref<Record<string, CrossShowState>>({})
+
+function crossShowLabel(showId: string): string {
+  const direct = feedDisplayTitleById.value[normalizeFeedIdForViewer(showId)]
+  if (direct) return direct
+  // Fall back to a humanized canonical id ("podcast:my-show" → "my show").
+  return showId.replace(/^podcast:/, '').replace(/[-_]/g, ' ').trim() || showId
+}
+
+async function loadCrossShow(band: CorpusDigestTopicBand): Promise<void> {
+  const topicId = bandTopicId(band)
+  const root = shell.corpusPath?.trim()
+  if (!topicId || !root) return
+  crossShowState.value = {
+    ...crossShowState.value,
+    [band.topic_id]: { loading: true, error: null, shows: null },
+  }
+  try {
+    const body = await fetchCrossShow(root, topicId)
+    const shows = Object.entries(body.groups ?? {})
+      .map(([showId, insights]) => ({ showId, insight: insights[0] }))
+      .filter((s): s is { showId: string; insight: RelatedNode } => s.insight != null)
+    crossShowState.value = {
+      ...crossShowState.value,
+      [band.topic_id]: { loading: false, error: body.error ?? null, shows },
+    }
+  } catch (e) {
+    crossShowState.value = {
+      ...crossShowState.value,
+      [band.topic_id]: {
+        loading: false,
+        error: e instanceof Error ? e.message : String(e),
+        shows: null,
+      },
+    }
+  }
+}
+
+function toggleCrossShow(band: CorpusDigestTopicBand): void {
+  const open = !crossShowOpen.value[band.topic_id]
+  crossShowOpen.value = { ...crossShowOpen.value, [band.topic_id]: open }
+  if (open && crossShowState.value[band.topic_id] == null) {
+    void loadCrossShow(band)
+  }
+}
 
 function topicBandIndex(band: CorpusDigestTopicBand): number {
   return digest.value?.topics.findIndex((b) => b.topic_id === band.topic_id) ?? -1
@@ -786,9 +879,19 @@ onBeforeUnmount(() => {
                 class="min-w-0 flex-1 px-0.5 py-0.5 text-left"
                 :aria-label="`Topic band ${band.label}`"
               >
-                <span :class="bandTitleClass(band)">{{
-                  band.label
-                }}</span>
+                <button
+                  v-if="bandTopicId(band)"
+                  type="button"
+                  data-testid="digest-band-topic-link"
+                  class="rounded text-left hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                  :class="bandTitleClass(band)"
+                  :title="`Open Topic panel for ${band.label}`"
+                  @click="onClickBandLabel(band)"
+                >{{ band.label }}</button>
+                <span
+                  v-else
+                  :class="bandTitleClass(band)"
+                >{{ band.label }}</span>
               </span>
               <button
                 type="button"
@@ -871,10 +974,78 @@ onBeforeUnmount(() => {
                     >
                       {{ digestRowSummaryPreview(h) }}
                     </p>
+                    <button
+                      v-if="episodeFeedInlineVisible(h)"
+                      type="button"
+                      data-testid="digest-topic-hit-feed-link"
+                      class="mt-0.5 block max-w-full truncate rounded text-left text-[10px] font-semibold text-surface-foreground hover:text-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                      :title="episodeRowFeedHoverTitle(h) || undefined"
+                      :aria-label="`Show only episodes from ${episodeFeedLabel(h)}`"
+                      @click.stop="onClickDigestFeedName(h)"
+                      @keydown.enter.stop
+                      @keydown.space.stop
+                    >{{ episodeFeedLabel(h) }}</button>
                   </div>
                 </div>
               </li>
             </ul>
+            <div
+              v-if="bandTopicId(band)"
+              class="mt-1 border-t border-border pt-1"
+              @click.stop
+            >
+              <button
+                type="button"
+                data-testid="digest-cross-show-toggle"
+                class="text-[10px] font-medium text-primary hover:underline"
+                :aria-expanded="Boolean(crossShowOpen[band.topic_id])"
+                @click="toggleCrossShow(band)"
+              >
+                {{ crossShowOpen[band.topic_id] ? 'Hide cross-show' : 'Across shows' }}
+              </button>
+              <div
+                v-if="crossShowOpen[band.topic_id]"
+                data-testid="digest-cross-show-band"
+                class="mt-1 space-y-1"
+              >
+                <p
+                  v-if="crossShowState[band.topic_id]?.loading"
+                  class="text-[10px] text-muted"
+                >
+                  Loading…
+                </p>
+                <p
+                  v-else-if="crossShowState[band.topic_id]?.error"
+                  class="text-[10px] text-warning"
+                >
+                  {{ crossShowState[band.topic_id]?.error }}
+                </p>
+                <template v-else>
+                  <p
+                    v-if="!(crossShowState[band.topic_id]?.shows || []).length"
+                    class="text-[10px] text-muted"
+                  >
+                    No cross-show coverage yet for this topic.
+                  </p>
+                  <div
+                    v-for="row in crossShowState[band.topic_id]?.shows || []"
+                    :key="row.showId"
+                    data-testid="digest-cross-show-row"
+                    class="border-l-2 border-primary/40 pl-1.5"
+                  >
+                    <p class="text-[10px] font-semibold text-surface-foreground">
+                      {{ crossShowLabel(row.showId) }}
+                    </p>
+                    <p
+                      class="text-[10px] leading-snug text-muted line-clamp-2"
+                      :title="row.insight.text"
+                    >
+                      {{ row.insight.text }}
+                    </p>
+                  </div>
+                </template>
+              </div>
+            </div>
           </section>
         </div>
         <button

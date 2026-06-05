@@ -21,6 +21,7 @@ import { useDashboardNavStore } from '../../stores/dashboardNav'
 import { useGraphExplorerStore } from '../../stores/graphExplorer'
 import { useGraphHandoffStore } from '../../stores/graphHandoff'
 import { useSubjectStore } from '../../stores/subject'
+import { useActiveSearchContextStore } from '../../stores/activeSearchContext'
 import { useShellStore } from '../../stores/shell'
 import {
   digestRowFeedLabelWithCatalog,
@@ -56,6 +57,7 @@ const dashboardNav = useDashboardNavStore()
 const artifacts = useArtifactsStore()
 const graphExplorer = useGraphExplorerStore()
 const graphHandoff = useGraphHandoffStore()
+const activeCtx = useActiveSearchContextStore()
 const loadCorpusGraphBaseline = inject(corpusGraphBaselineLoaderKey, null)
 
 async function ensureDefaultCorpusGraphIfNeeded(): Promise<void> {
@@ -130,6 +132,31 @@ const nextCursor = ref<string | null>(null)
  * servers. Used by the "X of Y" count display (#819).
  */
 const episodesTotal = ref(0)
+
+/**
+ * PRD-033 FR2.1/FR2.2 — the rendered list. When a search/filter context is active
+ * (RFC-094 OQ-2), episodes that match the context float to the top by **hybrid
+ * relevance** (stable: matches by score desc, then non-matches in fetch order).
+ * Without an active context this is the fetched list unchanged.
+ */
+const displayedEpisodes = computed<CorpusEpisodeListItem[]>(() => {
+  if (!activeCtx.active) return episodes.value
+  return episodes.value
+    .map((e, idx) => ({ e, idx, score: activeCtx.relevanceFor(e.episode_id)?.score ?? null }))
+    .sort((a, b) => {
+      if (a.score === b.score) return a.idx - b.idx
+      if (a.score === null) return 1
+      if (b.score === null) return -1
+      return b.score - a.score
+    })
+    .map((r) => r.e)
+})
+
+/** "Why this episode" snippet for a row under the active context, or '' if none. */
+function episodeWhySnippet(e: CorpusEpisodeListItem): string {
+  return activeCtx.relevanceFor(e.episode_id)?.snippet ?? ''
+}
+
 const titleQ = ref('')
 /** Substring filter on summary title or bullets (typed or cleared manually). */
 const topicQ = ref('')
@@ -151,6 +178,17 @@ function episodeRowFeedLabel(row: {
 }
 
 type EpisodeRowForFeedHover = CorpusEpisodeListItem
+
+/**
+ * PRD-033 FR2.3 — scope the Library to a single show (`HAS_EPISODE`). Sets the feed
+ * filter to the row's feed; the ``feedFilterId`` watcher clears the subject and reloads.
+ * No-op for ungrouped episodes (empty feed id) or when already scoped to that show.
+ */
+function scopeToShow(row: CorpusEpisodeListItem): void {
+  const fid = normalizeFeedIdForViewer(row.feed_id)
+  if (!fid || feedFilterId.value === fid) return
+  feedFilterId.value = fid
+}
 
 function episodeListFeedHoverTitle(row: EpisodeRowForFeedHover): string {
   return feedNameHoverWithCatalogLookup(row, feeds.value, normalizeFeedIdForViewer)
@@ -369,7 +407,7 @@ async function loadEpisodes(append: boolean): Promise<void> {
         subject.kind == null
       ) {
         void nextTick(() => {
-          selectEpisode(episodes.value[0]!)
+          selectEpisode(displayedEpisodes.value[0]!)
         })
       }
     }
@@ -485,10 +523,10 @@ const LIBRARY_EPISODE_ROW_SELECTOR = '[data-library-episode-row]'
 
 function onLibraryEpisodeRowKeydown(e: KeyboardEvent, index: number): void {
   handleVerticalListArrowKeydown(e, index, {
-    itemCount: episodes.value.length,
+    itemCount: displayedEpisodes.value.length,
     scrollRoot: episodesListScrollRootRef.value,
     rowSelector: LIBRARY_EPISODE_ROW_SELECTOR,
-    activateIndex: (i) => selectEpisode(episodes.value[i]!),
+    activateIndex: (i) => selectEpisode(displayedEpisodes.value[i]!),
   })
 }
 
@@ -745,7 +783,7 @@ onBeforeUnmount(() => {
               No episodes match.
             </ul>
             <ul v-else class="space-y-0.5 text-sm">
-              <li v-for="(e, ei) in episodes" :key="episodeKey(e)">
+              <li v-for="(e, ei) in displayedEpisodes" :key="episodeKey(e)">
                 <div
                   role="button"
                   tabindex="0"
@@ -788,11 +826,17 @@ onBeforeUnmount(() => {
                     <div
                       class="flex min-w-0 max-w-[min(100%,14rem)] shrink-0 items-baseline justify-end gap-2 text-[10px] text-muted"
                     >
-                      <span
+                      <button
                         v-if="episodeFeedInlineVisibleList(e)"
-                        class="min-w-0 flex-1 truncate text-left font-semibold leading-tight text-surface-foreground"
+                        type="button"
+                        data-testid="library-row-scope-show"
+                        class="min-w-0 flex-1 truncate rounded text-left font-semibold leading-tight text-surface-foreground outline-none hover:text-primary hover:underline focus-visible:ring-2 focus-visible:ring-primary"
                         :title="episodeListFeedHoverTitle(e) || undefined"
-                      >{{ episodeRowFeedLabel(e) }}</span>
+                        :aria-label="`Show only episodes from ${episodeRowFeedLabel(e)}`"
+                        @click.stop="scopeToShow(e)"
+                        @keydown.enter.stop
+                        @keydown.space.stop
+                      >{{ episodeRowFeedLabel(e) }}</button>
                       <span
                         v-if="
                           e.publish_date ||
@@ -834,6 +878,15 @@ onBeforeUnmount(() => {
                       </span>
                     </div>
                   </div>
+                  <p
+                    v-if="episodeWhySnippet(e)"
+                    data-testid="library-row-why"
+                    class="mt-1 break-words border-l-2 border-primary/40 pl-2 text-[11px] leading-snug text-surface-foreground/80 line-clamp-2"
+                    :title="episodeWhySnippet(e)"
+                  >
+                    <span class="font-medium text-primary">Why this episode:</span>
+                    {{ episodeWhySnippet(e) }}
+                  </p>
                   <p
                     v-if="episodeListSummaryLine(e)"
                     class="mt-1 break-words text-[11px] leading-snug text-muted"
