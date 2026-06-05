@@ -137,6 +137,11 @@ active**; the behaviours below appear only once a search has run and a row's
 
 ## Graph integration (Episode subject rail)
 
+- **PRD-033 FR4.3 (#886):** the Episode rail Details panel, below **Similar episodes**,
+  shows a **Related insights** region (`episode-related-insights`) from the RFC-094
+  relational layer (`GET /api/relational/episode-insights` — the topic/entity siblings
+  of the episode's own insights). Async, skeleton-first, StaleGeneration-gated, hidden
+  when empty. (FR4.3's transcript-highlighting half is a separate deferred feature.)
 - Double-tapping an Episode node opens the Episode subject rail when a corpus metadata path
   resolves (node properties, loaded artifact path, or catalog episode_id lookup).
 - With the Episode subject rail already open from Library or Digest, switching the main tab
@@ -225,6 +230,7 @@ the E2E Testing Guide.
 | 2026-04-19 | UXS-007/003: no topic chips on rows                                     |
 | 2026-04-19 | Shell IA: subject rail wording; remove obsolete back-navigation bullets |
 | 2026-05-31 | PRD-033 FR2: why-snippet, hybrid ranking, show-scoped view (#883)       |
+| 2026-06-05 | PRD-033 FR4.3: episode Related insights region (#886)                   |
 
 ---
 
