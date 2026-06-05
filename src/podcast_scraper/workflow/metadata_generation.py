@@ -1782,6 +1782,8 @@ def _build_transcription_provider_info(cfg: config.Config) -> Optional[Dict[str,
         transcription_model = getattr(cfg, "mistral_transcription_model", None)
         if transcription_model:
             provider_info["mistral_model"] = transcription_model
+    elif cfg.transcription_provider == "deepgram":
+        provider_info["deepgram_model"] = getattr(cfg, "deepgram_model", "nova-3")
 
     return provider_info
 

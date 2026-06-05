@@ -576,7 +576,7 @@ def _check_episode_size_skip(
     if (
         cfg.dry_run
         or not cfg.transcribe_missing
-        or cfg.transcription_provider not in ("openai", "gemini")
+        or cfg.transcription_provider not in ("openai", "gemini", "mistral", "deepgram")
         or not episode.media_url
     ):
         return False, False
@@ -593,16 +593,22 @@ def _check_episode_size_skip(
     if file_size_bytes <= OPENAI_MAX_FILE_SIZE_BYTES:
         return False, False
     file_size_mb = file_size_bytes / BYTES_PER_MB
-    provider_name = "OpenAI" if cfg.transcription_provider == "openai" else "Gemini"
+    provider_labels = {
+        "openai": "OpenAI",
+        "gemini": "Gemini",
+        "mistral": "Mistral",
+        "deepgram": "Deepgram",
+    }
+    provider_name = provider_labels.get(cfg.transcription_provider, cfg.transcription_provider)
     if not episode.transcript_urls:
         logger.info(
-            "[%d] Skipping episode: Audio file size (%.1f MB) exceeds %s API limit (25 MB) "
-            "and no transcript URLs available.",
+            "[%d] Audio file size (%.1f MB) exceeds %s API limit (25 MB) "
+            "and no transcript URLs available; will attempt chunking after preprocess.",
             episode.idx,
             file_size_mb,
             provider_name,
         )
-        return True, True
+        return True, False
     logger.info(
         "[%d] Skipping speaker detection: Audio file size (%.1f MB) exceeds %s API limit "
         "(25 MB), but transcript URLs available.",

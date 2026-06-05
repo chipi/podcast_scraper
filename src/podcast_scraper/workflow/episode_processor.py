@@ -683,7 +683,7 @@ def _preprocessing_reencode_mp3_until_target(
     working_path = preprocessed_path
     final_kbps = int(audio_preprocessor.mp3_bitrate_kbps)
     total_preprocess_elapsed = float(preprocess_elapsed)
-    if transcription_provider not in ("openai", "gemini"):
+    if transcription_provider not in ("openai", "gemini", "mistral", "deepgram"):
         return working_path, final_kbps, total_preprocess_elapsed
 
     while True:
@@ -779,7 +779,7 @@ def _preprocess_audio_if_needed(
     cache_dir = cfg.preprocessing_cache_dir or preprocessing_cache.PREPROCESSING_CACHE_DIR
     transcription_provider = str(cfg.transcription_provider or "").lower()
     first_pass_kbps = resolve_preprocessing_mp3_bitrate_kbps(cfg)
-    if transcription_provider in ("openai", "gemini"):
+    if transcription_provider in ("openai", "gemini", "mistral", "deepgram"):
         cache_probe_bitrates = mp3_bitrates_to_probe_for_cache(first_pass_kbps)
     else:
         cache_probe_bitrates = [first_pass_kbps]
@@ -1222,6 +1222,62 @@ def _resolve_episode_duration_seconds(job) -> Optional[int]:
     return None
 
 
+_API_CHUNKING_PROVIDERS = frozenset({"openai", "gemini", "mistral", "deepgram"})
+
+
+def _transcription_provider_supports_chunking(cfg: config.Config) -> bool:
+    return cfg.transcription_provider in _API_CHUNKING_PROVIDERS
+
+
+def _transcribe_with_segments_maybe_chunked(
+    media_for_transcription: str,
+    *,
+    cfg: config.Config,
+    job: TranscriptionJob,  # type: ignore[valid-type]
+    transcription_provider: Any,
+    pipeline_metrics: Any,
+    episode_duration_seconds: Optional[float],
+    call_metrics: Any,
+) -> Tuple[Dict[str, Any], float]:
+    """Transcribe media, splitting into chunks when post-preprocess size exceeds API cap."""
+    from ..preprocessing.audio.chunker import AudioChunker, transcribe_file_in_chunks
+    from ..utils.audio_payload_limits import transcription_max_chunk_duration_seconds
+    from ..utils.timeout import timeout_context, TimeoutError
+
+    def _transcribe_one(path: str) -> Tuple[Dict[str, Any], float]:
+        with timeout_context(cfg.transcription_timeout, f"transcription for episode {job.idx}"):
+            result, elapsed = transcription_provider.transcribe_with_segments(
+                path,
+                language=cfg.language,
+                pipeline_metrics=pipeline_metrics,
+                episode_duration_seconds=episode_duration_seconds,
+                call_metrics=call_metrics,
+            )
+            return (result, elapsed)
+
+    chunker = AudioChunker(
+        max_bytes=_PREPROCESSING_API_REENCODE_TARGET_BYTES,
+        max_duration_seconds=transcription_max_chunk_duration_seconds(cfg),
+    )
+    if _transcription_provider_supports_chunking(cfg) and chunker.needs_chunking(
+        media_for_transcription
+    ):
+        logger.info(
+            "[%s] Preprocessed audio exceeds API limit; transcribing in chunks",
+            job.idx,
+        )
+        return transcribe_file_in_chunks(
+            media_for_transcription,
+            chunker=chunker,
+            transcribe_fn=_transcribe_one,
+        )
+
+    try:
+        return _transcribe_one(media_for_transcription)
+    except TimeoutError:
+        raise
+
+
 def transcribe_media_to_text(
     job: TranscriptionJob,  # type: ignore[valid-type]
     cfg: config.Config,
@@ -1309,54 +1365,24 @@ def transcribe_media_to_text(
     # All providers receive optimized audio (Whisper, OpenAI, future providers)
     media_for_transcription = _preprocess_audio_if_needed(job, cfg, temp_media, pipeline_metrics)
 
-    if (
-        cfg.transcription_provider in ("openai", "gemini")
-        and media_for_transcription
-        and os.path.exists(media_for_transcription)
-    ):
-        try:
-            preprocessed_bytes = os.path.getsize(media_for_transcription)
-        except OSError:
-            preprocessed_bytes = None
-        # OPENAI_MAX_FILE_SIZE_BYTES names the historical constant; both OpenAI and Gemini
-        # transcription paths use this same post-preprocess ceiling (GitHub #557 / #561).
-        if preprocessed_bytes is not None and preprocessed_bytes > OPENAI_MAX_FILE_SIZE_BYTES:
-            msg = (
-                f"Preprocessed audio ({preprocessed_bytes} B) exceeds API limit "
-                f"({OPENAI_MAX_FILE_SIZE_BYTES} B); skipping transcription (GitHub #557)"
-            )
-            logger.warning("[%s] %s", job.idx, msg)
-            _append_transcription_incident(
-                cfg, job, category="policy", message=msg, exception_type="PolicySkip"
-            )
-            _mark_episode_skipped_policy(job, cfg, pipeline_metrics, msg)
-            _cleanup_temp_media(temp_media, cfg)
-            return False, None, bytes_downloaded
-
     try:
-        # Stage 2: Use provider's transcribe_with_segments method for full result with segments
-        # This supports both plain text and screenplay formatting
-        # Pass pipeline_metrics and episode duration for LLM call tracking (if OpenAI provider)
-        # Note: Provider receives preprocessed audio (if preprocessing was successful)
-        # Provider is agnostic to whether audio was preprocessed
+        # Stage 2: Use provider's transcribe_with_segments (chunked when over API cap)
         episode_duration_seconds = _resolve_episode_duration_seconds(job)
-        # Apply timeout enforcement for transcription (Issue #379)
-        # Create call metrics for tracking per-episode provider metrics
         from ..utils.provider_metrics import ProviderCallMetrics
-        from ..utils.timeout import timeout_context, TimeoutError
+        from ..utils.timeout import TimeoutError
 
         call_metrics = ProviderCallMetrics()
 
         try:
-            with timeout_context(cfg.transcription_timeout, f"transcription for episode {job.idx}"):
-                # All providers must support call_metrics (no backward compatibility)
-                result, tc_elapsed = transcription_provider.transcribe_with_segments(
-                    media_for_transcription,
-                    language=cfg.language,
-                    pipeline_metrics=pipeline_metrics,
-                    episode_duration_seconds=episode_duration_seconds,
-                    call_metrics=call_metrics,
-                )
+            result, tc_elapsed = _transcribe_with_segments_maybe_chunked(
+                media_for_transcription,
+                cfg=cfg,
+                job=job,
+                transcription_provider=transcription_provider,
+                pipeline_metrics=pipeline_metrics,
+                episode_duration_seconds=episode_duration_seconds,
+                call_metrics=call_metrics,
+            )
         except TimeoutError as e:
             logger.error(
                 f"[{job.idx}] Transcription timeout after {cfg.transcription_timeout}s: {e}"

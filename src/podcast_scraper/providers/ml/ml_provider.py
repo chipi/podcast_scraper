@@ -15,10 +15,8 @@ from __future__ import annotations
 
 import importlib
 import logging
-import os
 import sys
 import time
-from contextlib import contextmanager
 from types import ModuleType
 from typing import Any, Dict, List, Optional, Set, Tuple, TYPE_CHECKING, Union
 
@@ -38,7 +36,6 @@ from ...exceptions import (
     ProviderNotInitializedError,
     ProviderRuntimeError,
 )
-from ...utils import progress
 from ...utils.log_redaction import format_exception_for_log, redact_for_log
 from ..capabilities import ProviderCapabilities
 from . import speaker_detection, summarizer
@@ -82,87 +79,6 @@ def _import_third_party_whisper() -> ModuleType:
                 "Make sure 'openai-whisper' is installed: pip install openai-whisper"
             )
         ) from exc
-
-
-@contextmanager
-def _intercept_whisper_progress(progress_reporter: progress.ProgressReporter):
-    """Intercept Whisper's tqdm progress calls and forward to our progress reporter.
-
-    Whisper uses tqdm internally for progress reporting. This context manager
-    temporarily overrides tqdm to capture Whisper's progress updates and forward
-    them to our own progress reporter, preventing multiple progress bar lines.
-
-    Args:
-        progress_reporter: Our progress reporter to forward updates to
-    """
-    try:
-        import tqdm
-    except ImportError:
-        # tqdm not available, can't intercept
-        yield
-        return
-
-    original_tqdm = tqdm.tqdm
-
-    class InterceptedTqdm(original_tqdm):  # type: ignore[misc,valid-type]
-        """Custom tqdm that suppresses output and forwards progress to our reporter."""
-
-        def __init__(self, *args: Any, **kwargs: Any) -> None:
-            # Suppress tqdm's own display
-            # Store file handle to ensure it's closed properly
-            self._devnull_file = open(os.devnull, "w")
-            kwargs["file"] = self._devnull_file
-            kwargs["disable"] = True  # Disable tqdm's display completely
-            # Store total for percentage calculation
-            self._whisper_total: Optional[int] = kwargs.get("total")
-            self._whisper_n = 0
-            super().__init__(*args, **kwargs)
-
-        def update(self, n: int = 1) -> Optional[bool]:
-            """Update progress and forward to our reporter."""
-            result: Optional[bool] = super().update(n)
-            self._whisper_n = getattr(self, "n", self._whisper_n + n)
-
-            # Forward update to our progress reporter
-            if progress_reporter:
-                # Forward the increment to our progress reporter
-                progress_reporter.update(n)
-
-            return result
-
-        def close(self) -> None:
-            """Clean up and ensure final update."""
-            if progress_reporter and self._whisper_total:
-                # Ensure we're at 100% if we have a total
-                remaining = self._whisper_total - self._whisper_n
-                if remaining > 0:
-                    progress_reporter.update(remaining)
-            super().close()
-            # Explicitly close the devnull file handle to prevent descriptor leaks
-            if hasattr(self, "_devnull_file") and self._devnull_file:
-                try:
-                    self._devnull_file.close()
-                except Exception:  # nosec B110
-                    # Ignore errors during cleanup
-                    pass
-
-        def __del__(self) -> None:
-            """Safety net: ensure file handle is closed even if close() wasn't called."""
-            if hasattr(self, "_devnull_file") and self._devnull_file:
-                try:
-                    self._devnull_file.close()
-                except Exception:  # nosec B110
-                    # Ignore errors during cleanup
-                    pass
-
-    # Temporarily replace tqdm.tqdm with our interceptor
-    tqdm.tqdm = InterceptedTqdm
-
-    try:
-        yield
-    finally:
-        # Restore original tqdm
-        tqdm.tqdm = original_tqdm
 
 
 class MLProvider:
@@ -938,55 +854,40 @@ class MLProvider:
         total_start = time.time()
 
         step_start = time.time()
-        with progress.progress_context(None, "Transcribing") as reporter:
-            progress_setup_time = time.time() - step_start
-            logger.debug("  [TIMING] Progress context setup: %.3fs", progress_setup_time)
+        suppress_fp16_warning = getattr(self._whisper_model, "_is_cpu_device", False)
+        logger.debug(
+            "Invoking Whisper transcription: media=%s suppress_fp16_warning=%s dtype=%s",
+            audio_path,
+            suppress_fp16_warning,
+            getattr(self._whisper_model, "dtype", None),
+        )
+        logger.debug("Transcribing with language=%s", language)
+        prep_time = time.time() - step_start
+        logger.debug("  [TIMING] Preparation (device check, logging): %.3fs", prep_time)
 
-            step_start = time.time()
-            suppress_fp16_warning = getattr(self._whisper_model, "_is_cpu_device", False)
-            logger.debug(
-                "Invoking Whisper transcription: media=%s suppress_fp16_warning=%s dtype=%s",
-                audio_path,
-                suppress_fp16_warning,
-                getattr(self._whisper_model, "dtype", None),
+        if self._whisper_model is None:
+            raise ProviderNotInitializedError(
+                provider="MLProvider/Whisper",
+                capability="transcription",
             )
-            logger.debug("Transcribing with language=%s", language)
-            prep_time = time.time() - step_start
-            logger.debug("  [TIMING] Preparation (device check, logging): %.3fs", prep_time)
 
-            # Intercept Whisper's tqdm progress calls and forward to our progress reporter
-            # This prevents multiple progress bar lines while showing real progress
-            if self._whisper_model is None:
-                raise ProviderNotInitializedError(
-                    provider="MLProvider/Whisper",
-                    capability="transcription",
-                )
-
-            step_start = time.time()
-            with _intercept_whisper_progress(reporter):
-                intercept_setup_time = time.time() - step_start
-                logger.debug("  [TIMING] Progress interceptor setup: %.3fs", intercept_setup_time)
-
-                step_start = time.time()
-                logger.debug("  [TIMING] Starting Whisper model.transcribe() call...")
-                result = self._whisper_model.transcribe(
-                    audio_path, task="transcribe", language=language, verbose=False
-                )
-                whisper_transcribe_time = time.time() - step_start
-                logger.debug(
-                    "  [TIMING] Whisper model.transcribe() completed: %.3fs",
-                    whisper_transcribe_time,
-                )
+        step_start = time.time()
+        logger.debug("  [TIMING] Starting Whisper model.transcribe() call...")
+        result = self._whisper_model.transcribe(
+            audio_path, task="transcribe", language=language, verbose=False
+        )
+        whisper_transcribe_time = time.time() - step_start
+        logger.debug(
+            "  [TIMING] Whisper model.transcribe() completed: %.3fs",
+            whisper_transcribe_time,
+        )
 
         elapsed = time.time() - total_start
         logger.info(
             "[TIMING BREAKDOWN] Transcription total: %.3fs "
-            "(progress_setup: %.3fs, prep: %.3fs, intercept_setup: %.3fs, "
-            "whisper_transcribe: %.3fs)",
+            "(prep: %.3fs, whisper_transcribe: %.3fs)",
             elapsed,
-            progress_setup_time,
             prep_time,
-            intercept_setup_time,
             whisper_transcribe_time,
         )
         segments = result.get("segments")

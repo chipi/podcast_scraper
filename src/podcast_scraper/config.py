@@ -1132,21 +1132,21 @@ class Config(BaseModel):
         description="Speaker detection provider type (default: 'spacy' for spaCy NER).",
     )
     transcription_provider: Literal[
-        "whisper", "openai", "gemini", "mistral", "tailnet_dgx_whisper"
+        "whisper", "openai", "gemini", "mistral", "deepgram", "tailnet_dgx_whisper"
     ] = Field(
         default="whisper",
         alias="transcription_provider",
         description="Transcription provider type (default: 'whisper' for local Whisper)",
     )
-    transcription_fallback_provider: Optional[Literal["whisper", "openai", "gemini", "mistral"]] = (
-        Field(
-            default=None,
-            alias="transcription_fallback_provider",
-            description=(
-                "Cloud/local fallback when transcription_provider is tailnet_dgx_whisper "
-                "(mandatory for DGX-primary prod profiles per ADR-096)."
-            ),
-        )
+    transcription_fallback_provider: Optional[
+        Literal["whisper", "openai", "gemini", "mistral", "deepgram"]
+    ] = Field(
+        default=None,
+        alias="transcription_fallback_provider",
+        description=(
+            "Cloud/local fallback when transcription_provider is tailnet_dgx_whisper "
+            "(mandatory for DGX-primary prod profiles per ADR-096)."
+        ),
     )
     dgx_tailnet_host: Optional[str] = Field(
         default=None,
@@ -1769,6 +1769,16 @@ class Config(BaseModel):
         default=None,
         alias="mistral_api_key",
         description="Mistral API key (prefer MISTRAL_API_KEY env var or .env file)",
+    )
+    deepgram_api_key: Optional[str] = Field(
+        default=None,
+        alias="deepgram_api_key",
+        description="Deepgram API key (prefer DEEPGRAM_API_KEY env var or .env file)",
+    )
+    deepgram_model: str = Field(
+        default="nova-3",
+        alias="deepgram_model",
+        description="Deepgram model for transcription (default: nova-3)",
     )
     mistral_api_base: Optional[str] = Field(
         default=None,
@@ -3341,6 +3351,7 @@ class Config(BaseModel):
         cls._load_string_env_var(data, "anthropic_api_key", "ANTHROPIC_API_KEY")
         cls._load_string_env_var(data, "anthropic_api_base", "ANTHROPIC_API_BASE")
         cls._load_string_env_var(data, "mistral_api_key", "MISTRAL_API_KEY")
+        cls._load_string_env_var(data, "deepgram_api_key", "DEEPGRAM_API_KEY")
         cls._load_string_env_var(data, "mistral_api_base", "MISTRAL_API_BASE")
         cls._load_string_env_var(data, "deepseek_api_key", "DEEPSEEK_API_KEY")
         cls._load_string_env_var(data, "deepseek_api_base", "DEEPSEEK_API_BASE")
@@ -3827,9 +3838,15 @@ class Config(BaseModel):
 
     @field_validator("transcription_provider", mode="before")
     @classmethod
-    def _validate_transcription_provider(
-        cls, value: Any
-    ) -> Literal["whisper", "openai", "gemini", "mistral", "anthropic", "tailnet_dgx_whisper"]:
+    def _validate_transcription_provider(cls, value: Any) -> Literal[
+        "whisper",
+        "openai",
+        "gemini",
+        "mistral",
+        "deepgram",
+        "anthropic",
+        "tailnet_dgx_whisper",
+    ]:
         """Validate transcription provider."""
         if value is None or value == "":
             return "whisper"
@@ -3839,12 +3856,13 @@ class Config(BaseModel):
             "openai",
             "gemini",
             "mistral",
+            "deepgram",
             "anthropic",
             "tailnet_dgx_whisper",
         ):
             raise ValueError(
                 "transcription_provider must be 'whisper', 'openai', 'gemini', "
-                "'mistral', 'anthropic', or 'tailnet_dgx_whisper'"
+                "'mistral', 'deepgram', 'anthropic', or 'tailnet_dgx_whisper'"
             )
         return value_str  # type: ignore[return-value]
 
@@ -4466,6 +4484,25 @@ class Config(BaseModel):
                 "Set MISTRAL_API_KEY environment variable or mistral_api_key in config."
             )
 
+        return self
+
+    @model_validator(mode="after")
+    def _validate_deepgram_provider_requirements(self) -> "Config":
+        """Validate Deepgram API key when Deepgram transcription is selected."""
+        if self.transcription_provider == "deepgram" and not self.deepgram_api_key:
+            raise ValueError(
+                "Deepgram API key required for transcription_provider='deepgram'. "
+                "Set DEEPGRAM_API_KEY environment variable or deepgram_api_key in config."
+            )
+        if (
+            self.transcription_provider == "tailnet_dgx_whisper"
+            and self.transcription_fallback_provider == "deepgram"
+            and not self.deepgram_api_key
+        ):
+            raise ValueError(
+                "Deepgram API key required for transcription_fallback_provider='deepgram'. "
+                "Set DEEPGRAM_API_KEY environment variable or deepgram_api_key in config."
+            )
         return self
 
     @field_validator("summary_model", mode="before")

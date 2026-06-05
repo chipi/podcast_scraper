@@ -1263,5 +1263,36 @@ class TestScreenplayApiTranscriptionCoerce562(unittest.TestCase):
         self.assertIn("PODCAST_SCRAPER_SCREENPLAY_STRICT", str(ctx.exception))
 
 
+@pytest.mark.unit
+class TestDeepgramProviderRequirements(unittest.TestCase):
+    """Deepgram transcription config validation."""
+
+    def test_deepgram_requires_api_key(self) -> None:
+        with self.assertRaises(ValidationError) as ctx:
+            Config(
+                rss="https://example.com/feed.xml",
+                transcription_provider="deepgram",
+            )
+        self.assertIn("Deepgram API key required", str(ctx.exception))
+
+    @patch.dict(os.environ, {"DEEPGRAM_API_KEY": "dg-env-key"}, clear=False)
+    def test_deepgram_accepts_env_api_key(self) -> None:
+        cfg = Config(
+            rss="https://example.com/feed.xml",
+            transcription_provider="deepgram",
+        )
+        self.assertEqual(cfg.deepgram_api_key, "dg-env-key")
+
+    def test_deepgram_fallback_requires_api_key(self) -> None:
+        with self.assertRaises(ValidationError) as ctx:
+            Config(
+                rss="https://example.com/feed.xml",
+                transcription_provider="tailnet_dgx_whisper",
+                transcription_fallback_provider="deepgram",
+                dgx_tailnet_host="dgx.example",
+            )
+        self.assertIn("transcription_fallback_provider='deepgram'", str(ctx.exception))
+
+
 if __name__ == "__main__":
     unittest.main()

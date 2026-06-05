@@ -37,7 +37,7 @@ def gi_segment_timing_expected_for_transcription_provider(provider_name: str) ->
         True for whisper and openai; False otherwise (including unknown strings).
     """
     n = (provider_name or "").strip().lower()
-    return n in ("whisper", "openai")
+    return n in ("whisper", "openai", "deepgram")
 
 
 @dataclass(frozen=True)
@@ -198,7 +198,11 @@ def _infer_capabilities(provider: Any) -> ProviderCapabilities:
     # Semantic cleaning is only supported by LLM providers (not MLProvider)
     supports_semantic_cleaning = has_clean_transcript and provider_type != "MLProvider"
 
-    supports_gi_segment_timing = provider_type in ("OpenAIProvider", "MLProvider")
+    supports_gi_segment_timing = provider_type in (
+        "OpenAIProvider",
+        "MLProvider",
+        "DeepgramTranscriptionProvider",
+    )
 
     return ProviderCapabilities(
         supports_transcription=has_transcribe,

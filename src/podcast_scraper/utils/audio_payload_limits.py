@@ -2,7 +2,21 @@
 
 from __future__ import annotations
 
-from typing import Union
+from typing import Any, Optional, Union
+
+# OpenAI gpt-4o-transcribe family hard duration cap (seconds).
+OPENAI_GPT4O_TRANSCRIBE_MAX_DURATION_SECONDS = 1400.0
+
+
+def transcription_max_chunk_duration_seconds(cfg: Any) -> Optional[float]:
+    """Return max single-request audio duration when provider enforces a cap."""
+    provider = str(getattr(cfg, "transcription_provider", None) or "").lower()
+    if provider != "openai":
+        return None
+    model = str(getattr(cfg, "openai_transcription_model", None) or "whisper-1")
+    if model in ("gpt-4o-transcribe", "gpt-4o-mini-transcribe"):
+        return OPENAI_GPT4O_TRANSCRIBE_MAX_DURATION_SECONDS
+    return None
 
 
 def is_provider_audio_payload_limit_error(exc_or_message: Union[BaseException, str]) -> bool:

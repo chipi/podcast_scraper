@@ -25,7 +25,7 @@ else:
 from podcast_scraper.utils.protocol_verification import verify_protocol_compliance
 
 
-def create_transcription_provider(
+def create_transcription_provider(  # noqa: C901
     cfg_or_provider_type: Union[config.Config, str],
     params: Optional[Union[TranscriptionParams, Dict[str, Any]]] = None,
 ) -> TranscriptionProvider:
@@ -37,7 +37,7 @@ def create_transcription_provider(
 
     Args:
         cfg_or_provider_type: Either a Config object or provider type string
-            ("whisper", "openai", "gemini", or "mistral")
+            ("whisper", "openai", "gemini", "mistral", "deepgram", etc.)
         params: Optional parameters dict or TranscriptionParams object (experiment mode only)
 
     Returns:
@@ -86,12 +86,13 @@ def create_transcription_provider(
             "openai",
             "gemini",
             "mistral",
+            "deepgram",
             "tailnet_dgx_whisper",
         ):
             raise ValueError(f"Invalid provider type: {provider_type_str}")
 
         provider_type_value = cast(
-            Literal["whisper", "openai", "gemini", "mistral", "tailnet_dgx_whisper"],
+            Literal["whisper", "openai", "gemini", "mistral", "deepgram", "tailnet_dgx_whisper"],
             provider_type_str,
         )
         experiment_mode = True
@@ -219,6 +220,25 @@ def create_transcription_provider(
         # Runtime protocol verification (dev-mode only)
         verify_protocol_compliance(provider, TranscriptionProvider, "TranscriptionProvider")
         return provider
+    elif provider_type == "deepgram":
+        from ..providers.deepgram.deepgram_provider import DeepgramTranscriptionProvider
+
+        if experiment_mode:
+            from ..config import Config
+
+            assert isinstance(params, TranscriptionParams)
+            cfg = Config(
+                rss="",
+                transcription_provider="deepgram",
+                deepgram_model=params.model_name if params.model_name else "nova-3",
+                deepgram_api_key=os.getenv("DEEPGRAM_API_KEY"),
+            )
+            provider = DeepgramTranscriptionProvider(cfg)
+        else:
+            provider = DeepgramTranscriptionProvider(cfg)
+
+        verify_protocol_compliance(provider, TranscriptionProvider, "TranscriptionProvider")
+        return provider
     elif provider_type == "anthropic":
         from ..providers.anthropic.anthropic_provider import AnthropicProvider
 
@@ -259,6 +279,6 @@ def create_transcription_provider(
     else:
         raise ValueError(
             f"Unsupported transcription provider: {provider_type}. "
-            "Supported providers: 'whisper', 'openai', 'gemini', 'mistral', "
+            "Supported providers: 'whisper', 'openai', 'gemini', 'mistral', 'deepgram', "
             "'anthropic', 'tailnet_dgx_whisper'"
         )

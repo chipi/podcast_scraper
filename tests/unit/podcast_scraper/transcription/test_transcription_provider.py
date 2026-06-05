@@ -153,8 +153,7 @@ class TestMLProviderTranscription(unittest.TestCase):
             self.assertFalse(provider._whisper_initialized)
 
     @patch("podcast_scraper.providers.ml.ml_provider._import_third_party_whisper")
-    @patch("podcast_scraper.providers.ml.ml_provider.progress.progress_context")
-    def test_provider_transcribe(self, mock_progress, mock_import_whisper):
+    def test_provider_transcribe(self, mock_import_whisper):
         """Test that transcribe() calls internal transcription method via factory."""
         cfg = config.Config(
             rss_url=self.cfg.rss_url,
@@ -170,7 +169,6 @@ class TestMLProviderTranscription(unittest.TestCase):
         mock_whisper_lib = Mock()
         mock_whisper_lib.load_model.return_value = mock_model
         mock_import_whisper.return_value = mock_whisper_lib
-        mock_progress.return_value.__enter__.return_value = None
 
         provider = create_transcription_provider(cfg)
         provider.initialize()
@@ -198,8 +196,7 @@ class TestMLProviderTranscription(unittest.TestCase):
         self.assertEqual(context.exception.provider, "MLProvider/Whisper")
 
     @patch("podcast_scraper.providers.ml.ml_provider._import_third_party_whisper")
-    @patch("podcast_scraper.providers.ml.ml_provider.progress.progress_context")
-    def test_provider_transcribe_empty_text(self, mock_progress, mock_import_whisper):
+    def test_provider_transcribe_empty_text(self, mock_import_whisper):
         """Test that transcribe() raises ValueError if transcription returns empty text."""
         cfg = config.Config(
             rss_url=self.cfg.rss_url,
@@ -215,7 +212,6 @@ class TestMLProviderTranscription(unittest.TestCase):
         mock_whisper_lib = Mock()
         mock_whisper_lib.load_model.return_value = mock_model
         mock_import_whisper.return_value = mock_whisper_lib
-        mock_progress.return_value.__enter__.return_value = None
 
         provider = create_transcription_provider(cfg)
         provider.initialize()

@@ -2023,7 +2023,10 @@ class TestAddArgumentGroups(unittest.TestCase):
             (a for a in parser._actions if a.dest == "transcription_provider"), None
         )
         self.assertIsNotNone(transcription_action)
-        self.assertEqual(transcription_action.choices, ["whisper", "openai", "gemini", "mistral"])
+        self.assertEqual(
+            transcription_action.choices,
+            ["whisper", "openai", "gemini", "mistral", "deepgram"],
+        )
         self.assertEqual(transcription_action.default, "whisper")
 
     def test_add_mistral_arguments(self):
@@ -2042,6 +2045,15 @@ class TestAddArgumentGroups(unittest.TestCase):
         self.assertIn("mistral_max_tokens", action_dests)
         self.assertIn("mistral_cleaning_model", action_dests)
         self.assertIn("mistral_cleaning_temperature", action_dests)
+
+    def test_add_deepgram_arguments(self):
+        """Test that _add_deepgram_arguments adds expected arguments."""
+        parser = argparse.ArgumentParser()
+        cli._add_deepgram_arguments(parser)
+
+        action_dests = [a.dest for a in parser._actions]
+        self.assertIn("deepgram_api_key", action_dests)
+        self.assertIn("deepgram_model", action_dests)
 
     def test_add_deepseek_arguments(self):
         """Test that _add_deepseek_arguments adds expected arguments."""

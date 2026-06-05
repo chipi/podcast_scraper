@@ -176,8 +176,17 @@ def transcription_model_for_cfg(cfg: Any) -> str:
     provider = str(getattr(cfg, "transcription_provider", None) or "whisper")
     if provider == "whisper":
         return str(getattr(cfg, "whisper_model", None) or "base")
-    field = f"{provider}_transcription_model"
-    return str(getattr(cfg, field, None) or getattr(cfg, "openai_transcription_model", "") or "")
+    model_field_by_provider = {
+        "openai": "openai_transcription_model",
+        "gemini": "gemini_transcription_model",
+        "mistral": "mistral_transcription_model",
+        "deepgram": "deepgram_model",
+    }
+    field = model_field_by_provider.get(provider, f"{provider}_transcription_model")
+    model = getattr(cfg, field, None)
+    if model:
+        return str(model)
+    return ""
 
 
 def _safe_openai_retryable() -> tuple[type[Exception], ...]:

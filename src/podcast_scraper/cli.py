@@ -1123,7 +1123,7 @@ def _add_transcription_arguments(parser: argparse.ArgumentParser) -> None:
     )
     parser.add_argument(
         "--transcription-provider",
-        choices=["whisper", "openai", "gemini", "mistral"],
+        choices=["whisper", "openai", "gemini", "mistral", "deepgram"],
         default="whisper",
         help=(
             "Transcription provider to use (default: whisper). "
@@ -1695,6 +1695,22 @@ def _add_mistral_arguments(parser: argparse.ArgumentParser) -> None:
         type=float,
         default=None,
         help="Temperature for Mistral cleaning (0.0-1.0, default: 0.2, lower = more deterministic)",
+    )
+
+
+def _add_deepgram_arguments(parser: argparse.ArgumentParser) -> None:
+    """Add Deepgram API-related arguments to parser."""
+    parser.add_argument(
+        "--deepgram-api-key",
+        type=str,
+        default=None,
+        help="Deepgram API key (or set DEEPGRAM_API_KEY env var)",
+    )
+    parser.add_argument(
+        "--deepgram-model",
+        type=str,
+        default=None,
+        help="Deepgram transcription model (default: nova-3)",
     )
 
 
@@ -3562,6 +3578,7 @@ def parse_args(argv: Optional[Sequence[str]] = None) -> argparse.Namespace:
     _add_gemini_arguments(parser)
     _add_anthropic_arguments(parser)
     _add_mistral_arguments(parser)
+    _add_deepgram_arguments(parser)
     _add_deepseek_arguments(parser)
     _add_grok_arguments(parser)
     _add_ollama_arguments(parser)
@@ -3850,6 +3867,10 @@ def _build_config(args: argparse.Namespace) -> config.Config:  # noqa: C901
     # The field validator will load it from MISTRAL_API_KEY env var if available
     # But allow CLI override if provided
     payload["mistral_api_key"] = getattr(args, "mistral_api_key", None)
+    # Add Deepgram API configuration
+    if hasattr(args, "deepgram_model") and args.deepgram_model is not None:
+        payload["deepgram_model"] = args.deepgram_model
+    payload["deepgram_api_key"] = getattr(args, "deepgram_api_key", None)
     # Add DeepSeek API configuration
     payload["deepseek_api_base"] = getattr(args, "deepseek_api_base", None)
     if hasattr(args, "deepseek_speaker_model") and args.deepseek_speaker_model is not None:
