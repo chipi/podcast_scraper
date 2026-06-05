@@ -45,7 +45,7 @@ def append_query_event(
 
 
 def _event_date(line: str) -> Optional[str]:
-    """The UTC ``YYYY-MM-DD`` of a log line, or None if unparseable."""
+    """The UTC ``YYYY-MM-DD`` of a log line, or None if unparsable."""
     try:
         obj = json.loads(line)
     except (ValueError, TypeError):
