@@ -12,10 +12,22 @@ from podcast_scraper.mcp.server import build_server
 pytestmark = pytest.mark.unit
 
 
-def test_build_server_registers_slice1_tools(tmp_path) -> None:
+def test_build_server_registers_tools(tmp_path) -> None:
     server = build_server(tmp_path)
     names = {tool.name for tool in server._tool_manager.list_tools()}
-    assert names == {"resolve_entity", "search_corpus"}
+    assert names == {
+        # slice 1
+        "resolve_entity",
+        "search_corpus",
+        # slice 2 — relational (RFC-094 traversals)
+        "person_positions",
+        "who_said_about_topic",
+        "cross_show_synthesis",
+        "insights_about_entity",
+        "topic_entities",
+        "related_insights",
+        "show_episodes",
+    }
 
 
 def test_registered_tools_have_descriptions(tmp_path) -> None:

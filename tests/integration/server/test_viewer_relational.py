@@ -111,7 +111,9 @@ def test_positions_hybrid_reranks_by_relevance(
             ]
         )
 
-    monkeypatch.setattr("podcast_scraper.server.routes.relational.run_corpus_search", fake_search)
+    monkeypatch.setattr(
+        "podcast_scraper.search.relational_capability.run_corpus_search", fake_search
+    )
     client = TestClient(create_app(tmp_path, static_dir=False))
     body = client.get(
         "/api/relational/positions", params={"person": "person:p", "path": str(tmp_path)}
@@ -138,7 +140,7 @@ def test_positions_keeps_structural_order_when_search_fails(
     def boom(*_a: object, **_k: object) -> object:
         raise RuntimeError("no index")
 
-    monkeypatch.setattr("podcast_scraper.server.routes.relational.run_corpus_search", boom)
+    monkeypatch.setattr("podcast_scraper.search.relational_capability.run_corpus_search", boom)
     client = TestClient(create_app(tmp_path, static_dir=False))
     body = client.get(
         "/api/relational/positions", params={"person": "person:p", "path": str(tmp_path)}

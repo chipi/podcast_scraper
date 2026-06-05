@@ -152,10 +152,12 @@ pip install -e '.[dev,search]'        # dev includes the MCP SDK; search = ML re
 podcast mcp --corpus /path/to/corpus  # stdio server; point your agent client at this
 ```
 
-**Slice 1 tools (RFC-095):** `resolve_entity` (name → canonical `person:`/`org:`/`topic:`
-id — call first) and `search_corpus` (hybrid two-tier search with tiers + intent +
-grounded evidence). Relational, catalog, and CIL tools land in slices 2–3 (epic #891).
-Design and the full tool catalogue: [RFC-095](../rfc/RFC-095-generic-mcp-server.md).
+**Tools (RFC-095):** `resolve_entity` (name → canonical id — call first) and
+`search_corpus` (hybrid two-tier; tiers + intent + grounded evidence) from slice 1; plus
+the relational traversals (slice 2): `person_positions`, `who_said_about_topic`,
+`cross_show_synthesis`, `insights_about_entity`, `topic_entities`, `related_insights`,
+`show_episodes`. Catalog + CIL tools land in slice 3 (epic #891). Full catalogue:
+[RFC-095](../rfc/RFC-095-generic-mcp-server.md).
 
 ## Route conventions
 

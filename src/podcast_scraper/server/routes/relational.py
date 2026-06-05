@@ -18,7 +18,7 @@ from fastapi import APIRouter, Query, Request
 
 from podcast_scraper.search import relational_queries as rq
 from podcast_scraper.search.corpus_graph import get_corpus_graph
-from podcast_scraper.search.corpus_search import run_corpus_search
+from podcast_scraper.search.relational_capability import rerank_relational_insights
 from podcast_scraper.server.pathutil import resolve_corpus_path_param
 from podcast_scraper.server.schemas import (
     RelatedNodeModel,
@@ -47,30 +47,6 @@ def _graph_or_none(request: Request, path: str | None):
     return get_corpus_graph(root, derive_speaker_links=True)
 
 
-def _hybrid_scores(root: Path, label: str) -> dict[str, float]:
-    """Hybrid insight scores keyed by GIL node id (``metadata.source_id``), best-effort.
-
-    Runs one insight-scoped search for *label* and maps each hit's source node id to its
-    score. Any failure (no index, error) yields an empty map → the caller keeps structural
-    order. Never raises.
-    """
-    if not label.strip():
-        return {}
-    try:
-        outcome = run_corpus_search(root, label, doc_types=["insight"], top_k=50)
-    except Exception:  # noqa: BLE001 - re-rank is best-effort; degrade to structural order
-        return {}
-    if outcome.error:
-        return {}
-    scores: dict[str, float] = {}
-    for row in outcome.results:
-        meta = row.get("metadata") or {}
-        source_id = str(meta.get("source_id") or "")
-        if source_id:
-            scores[source_id] = float(row.get("score") or 0.0)
-    return scores
-
-
 def _maybe_rerank(
     request: Request,
     path: str | None,
@@ -78,19 +54,11 @@ def _maybe_rerank(
     subject_id: str,
     nodes: list[rq.RelatedNode],
 ) -> list[rq.RelatedNode]:
-    """Best-effort hybrid re-rank of insight *nodes* by relevance to the subject label.
-
-    PRD-033: structure via graph traversal, ranking via hybrid. Layered here so the
-    structural query stays pure. No-op (structural order) when there is nothing to
-    re-rank, no corpus root, or the index yields no matching scores.
-    """
-    if len(nodes) <= 1:
-        return nodes
+    """Best-effort hybrid re-rank (shared capability), no-op when no corpus root resolves."""
     root = _root_or_none(request, path)
     if root is None:
         return nodes
-    scores = _hybrid_scores(root, rq.node_label(graph, subject_id))
-    return rq.rerank_by_relevance(nodes, scores)
+    return rerank_relational_insights(root, graph, subject_id, nodes)
 
 
 def _node(n: rq.RelatedNode) -> RelatedNodeModel:
