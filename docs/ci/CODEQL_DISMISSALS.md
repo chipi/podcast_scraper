@@ -241,6 +241,11 @@ number, file, line, date, and a short comment.
 | 1 | #342 | search/backends/lancedb_backend.py | 131 | 2026-06-01 | Type 1: ``meta_path`` via ``normpath_if_under_root`` after ``safe_resolve_directory`` + ``safe_relpath_under_corpus_root`` (constant ``index_meta.json``) before ``open`` in ``read_index_meta``; corpus root confined at the route by ``resolve_corpus_path_param`` (raises on escape). Same shape as ``jobs_log_path:74``. Dismissed ``gh api`` (PR #865) |
 | 1 | #338 | search/backends/lancedb_backend.py | 135 | 2026-06-01 | Type 1: same sanitizer chain, ``os.path.isfile(meta_path)`` sink in ``read_index_meta`` (PR #865) |
 | 1 | #341 | search/hybrid_search.py | 172 | 2026-06-01 | Type 1: ``index_dir_str`` via ``normpath_if_under_root`` after ``safe_resolve_directory`` + ``safe_relpath_under_corpus_root`` (constant ``search/lance_index``) before ``os.path.isdir`` in ``hybrid_candidates``; corpus root confined at the route by ``resolve_corpus_path_param``. Dismissed ``gh api`` (PR #865) |
+| 1 | #343 | kg/corpus.py | 40 | 2026-06-05 | Type 1: new ``/api/relational/*`` routes confine the corpus ``path`` via ``resolve_corpus_path_param`` (raises on anchor escape) before ``get_corpus_graph`` → ``CorpusGraph.build`` → ``scan_kg_artifact_paths``; reads only files under ``<corpus>``. Same class as #865. Dismissed ``gh api`` (PR #890) |
+| 1 | #344 | kg/corpus.py | 44 | 2026-06-05 | Type 1: same sanitizer chain, ``load_kg_artifacts`` read under ``<corpus>`` (PR #890) |
+| 1 | #345 | kg/corpus.py | 45 | 2026-06-05 | Type 1: same sanitizer chain, ``load_kg_artifacts`` read under ``<corpus>`` (PR #890) |
+| 1 | #346 | kg/corpus.py | 46 | 2026-06-05 | Type 1: same sanitizer chain, ``load_kg_artifacts`` read under ``<corpus>`` (PR #890) |
+| 1 | #347 | search/corpus_graph.py | 277 | 2026-06-05 | Type 1: ``get_corpus_graph`` cache/build on the route-confined corpus root (``resolve_corpus_path_param`` raises on escape); reads only ``<corpus>`` artifacts. Same class as #865. Dismissed ``gh api`` (PR #890) |
 
 ## Still open (not yet dismissed)
 
