@@ -14,7 +14,7 @@ def parse_mcp_argv(argv: Sequence[str]) -> Namespace:
         prog="podcast mcp",
         description=(
             "Run the generic MCP server (PRD-034 / RFC-095) over a corpus, stdio transport. "
-            "Requires the [mcp] extra (plus [search] + [dev] for the retrieval tools)."
+            "Install with .[dev,search] (the MCP SDK ships in [dev])."
         ),
     )
     parser.add_argument(

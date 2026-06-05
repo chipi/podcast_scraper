@@ -148,7 +148,7 @@ Desktop/Code, Cursor). It is **stdio** transport and **library-wrapped** — no 
 required; the corpus directory is the read context.
 
 ```bash
-pip install -e '.[mcp,search,dev]'   # MCP SDK + retrieval + viewer capability fns
+pip install -e '.[dev,search]'        # dev includes the MCP SDK; search = ML retrieval deps
 podcast mcp --corpus /path/to/corpus  # stdio server; point your agent client at this
 ```
 

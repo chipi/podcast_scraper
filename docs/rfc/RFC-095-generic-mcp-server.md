@@ -21,7 +21,7 @@ Expose the platform's existing **read** capabilities — hybrid search (RFC-090)
 layer (RFC-094), CIL queries, and the catalog — as a **generic MCP server**: a set of composable,
 typed, provenance-bearing tools that any MCP-aware agent can call. The server **wraps the Python
 library directly** (no running HTTP server required); a corpus directory is its read context. It is
-**additive and opt-in** (a `[mcp]` extra + a `podcast mcp` entry point), changes no retrieval,
+**additive** (the MCP SDK rides in the `[dev]` extra + a `podcast mcp` entry point), changes no retrieval,
 indexing, edge, or HTTP code, and provides the substrate on which RFC-093's briefing-pack and future
 synthesized tools register.
 
@@ -85,8 +85,9 @@ This is a pure refactor (no behavior change, covered by existing route tests) an
 
 ### 4. Packaging & entry point
 
-- New optional dependency group **`[mcp]`** (the MCP Python SDK, e.g. `mcp` / `fastmcp`); the core
-  package and existing extras are unchanged.
+- The MCP Python SDK (`mcp`, which bundles FastMCP) ships in the **`[dev]`** extra — the MCP
+  server is a core dev/server capability, not a separate extra. The retrieval tools also need
+  **`[search]`** (ML deps) at runtime, same as the viewer.
 - New module `src/podcast_scraper/mcp/` — `server.py` (construct + run), `tools/` (one module per
   tool group), `context.py` (corpus-dir resolution + caches).
 - CLI entry **`podcast mcp --corpus <dir>`** (stdio). Documented in the
