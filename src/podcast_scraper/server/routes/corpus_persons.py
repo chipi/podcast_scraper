@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import os
 from collections import Counter, defaultdict
+from pathlib import Path
 from typing import Any, DefaultDict
 
 from fastapi import APIRouter, Query, Request
@@ -91,18 +92,14 @@ def _load_gi_dict(path_str: str) -> dict[str, Any] | None:
     return raw_any if isinstance(raw_any, dict) else None
 
 
-@router.get("/corpus/persons/top", response_model=CorpusTopPersonsResponse)
-async def corpus_persons_top(
-    request: Request,
-    path: str | None = Query(default=None, description="Corpus root."),
-    limit: int = Query(default=5, ge=1, le=50, description="Max persons to return."),
-) -> CorpusTopPersonsResponse:
-    """Scan catalog GI files; rank Person nodes by grounded (quote-backed) insight counts."""
-    anchor = getattr(request.app.state, "output_dir", None)
-    root = _resolve_corpus_root(path, anchor)
-    root_safe = resolved_corpus_root_str(root, anchor)
-    root_prefix = os.path.normpath(str(root_safe)) + os.sep
+def top_persons(root: Path, limit: int) -> dict[str, Any]:
+    """Rank Person nodes by grounded (quote-backed) insight counts (catalog GI scan).
 
+    Capability core shared by ``GET /api/corpus/persons/top`` and the MCP ``top_people``
+    tool. Returns ``{"persons": [{person_id, display_name, episode_count, insight_count,
+    top_topics}], "total_persons": int}``, sorted by insight count desc (id tiebreak).
+    """
+    root_prefix = os.path.normpath(str(root)) + os.sep
     rows = build_catalog_rows(root)
     all_person_ids: set[str] = set()
     episode_by_person: DefaultDict[str, set[str]] = defaultdict(set)
@@ -152,26 +149,36 @@ async def corpus_persons_top(
             for tid, c in _topics_for_insights(gi, supported).items():
                 topic_hits[pid][tid] += c
 
-    ranked: list[tuple[str, int]] = []
-    for pid, keys in insight_keys_by_person.items():
-        ranked.append((pid, len(keys)))
-    ranked.sort(key=lambda x: (-x[1], x[0]))
+    ranked = sorted(
+        ((pid, len(keys)) for pid, keys in insight_keys_by_person.items()),
+        key=lambda x: (-x[1], x[0]),
+    )
+    persons_out = [
+        {
+            "person_id": pid,
+            "display_name": display_name_by_person.get(pid, pid),
+            "episode_count": len(episode_by_person[pid]),
+            "insight_count": icount,
+            "top_topics": [t for t, _ in topic_hits[pid].most_common(3)],
+        }
+        for pid, icount in ranked[:limit]
+    ]
+    return {"persons": persons_out, "total_persons": len(all_person_ids)}
 
-    persons_out: list[TopPersonItem] = []
-    for pid, icount in ranked[:limit]:
-        top_t = [t for t, _ in topic_hits[pid].most_common(3)]
-        persons_out.append(
-            TopPersonItem(
-                person_id=pid,
-                display_name=display_name_by_person.get(pid, pid),
-                episode_count=len(episode_by_person[pid]),
-                insight_count=icount,
-                top_topics=top_t,
-            )
-        )
 
+@router.get("/corpus/persons/top", response_model=CorpusTopPersonsResponse)
+async def corpus_persons_top(
+    request: Request,
+    path: str | None = Query(default=None, description="Corpus root."),
+    limit: int = Query(default=5, ge=1, le=50, description="Max persons to return."),
+) -> CorpusTopPersonsResponse:
+    """Scan catalog GI files; rank Person nodes by grounded (quote-backed) insight counts."""
+    anchor = getattr(request.app.state, "output_dir", None)
+    root = _resolve_corpus_root(path, anchor)
+    root_safe = resolved_corpus_root_str(root, anchor)
+    data = top_persons(root, limit)
     return CorpusTopPersonsResponse(
         path=str(root_safe),
-        persons=persons_out,
-        total_persons=len(all_person_ids),
+        persons=[TopPersonItem(**p) for p in data["persons"]],
+        total_persons=data["total_persons"],
     )

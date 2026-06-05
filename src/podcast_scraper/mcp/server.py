@@ -11,7 +11,7 @@ from pathlib import Path
 from typing import Any, Optional
 
 from .context import CorpusContext
-from .tools import cil as _cil, relational as _relational
+from .tools import catalog as _catalog, cil as _cil, relational as _relational
 from .tools.resolve import resolve_entity as _resolve_entity
 from .tools.search import search_corpus as _search_corpus
 
@@ -138,6 +138,34 @@ def build_server(corpus_dir: Path | str) -> Any:
     def position_arc(person_id: str, topic_id: str) -> dict:
         """How a person's position on a topic evolves over time (``person:`` + ``topic:`` ids)."""
         return _cil.position_arc(ctx, person_id, topic_id)
+
+    # --- catalog / navigation tools (RFC-095 slice 3) ---
+
+    @server.tool()
+    def list_feeds() -> dict:
+        """List the shows (feeds) in the corpus, with display titles and episode counts."""
+        return _catalog.list_feeds(ctx)
+
+    @server.tool()
+    def list_episodes(
+        feed: Optional[str] = None, since: Optional[str] = None, limit: int = 50
+    ) -> dict:
+        """List episodes newest-first, optionally filtered by ``feed`` substring and ``since`` date.
+
+        ``since`` is a ``YYYY-MM-DD`` lower bound. Returns compact rows; use ``episode_detail``
+        (with a row's ``metadata_path``) for one episode's full summary.
+        """
+        return _catalog.list_episodes(ctx, feed=feed, since=since, limit=limit)
+
+    @server.tool()
+    def episode_detail(metadata_path: str) -> dict:
+        """Full detail for one episode by its ``metadata_path`` (from a list or search result)."""
+        return _catalog.episode_detail(ctx, metadata_path)
+
+    @server.tool()
+    def top_people(limit: int = 10) -> dict:
+        """The corpus's top voices — people ranked by grounded (quote-backed) insight count."""
+        return _catalog.top_people(ctx, limit=limit)
 
     return server
 

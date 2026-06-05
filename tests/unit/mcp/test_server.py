@@ -31,6 +31,11 @@ def test_build_server_registers_tools(tmp_path) -> None:
         "person_profile",
         "topic_timeline",
         "position_arc",
+        # slice 3 — catalog / navigation
+        "list_feeds",
+        "list_episodes",
+        "episode_detail",
+        "top_people",
     }
 
 
