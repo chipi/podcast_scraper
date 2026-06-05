@@ -270,6 +270,14 @@ export function buildGiKgCyStylesheet(options?: {
    * a secondary cue.
    */
   enableNodeSizeByDegree?: boolean
+  /**
+   * PRD-033 FR5.1 — main graph only. When true, nodes carrying the
+   * ``context-relevant`` class (their episode is relevant to the active search
+   * context) get an emphasis ring + size bump, so the canvas reflects retrieval
+   * relevance, not only degree. Toggled at runtime via the ``context-relevant``
+   * class (see ``GraphCanvas.applyContextEmphasis``).
+   */
+  includeContextEmphasis?: boolean
 }): Record<string, unknown>[] {
   const compact = Boolean(options?.compact)
   const nw = scaledNodeSize('Episode', compact)
@@ -656,6 +664,22 @@ export function buildGiKgCyStylesheet(options?: {
         'border-color': '#fab005',
         'border-opacity': 0.9,
         'z-index': 10,
+      },
+    })
+  }
+
+  if (options?.includeContextEmphasis) {
+    // PRD-033 FR5.1 — class selector (specificity > the node[type=…] size rules)
+    // so relevant nodes are visibly larger + ringed while a search context is active.
+    style.push({
+      selector: 'node.context-relevant',
+      style: {
+        width: 50,
+        height: 50,
+        'border-width': 3,
+        'border-color': psPrimary,
+        'border-opacity': 1,
+        'z-index': 11,
       },
     })
   }

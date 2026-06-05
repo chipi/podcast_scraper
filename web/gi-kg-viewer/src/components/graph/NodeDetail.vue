@@ -6,6 +6,7 @@ import { useGraphFilterStore } from '../../stores/graphFilters'
 import { useGraphHandoffStore } from '../../stores/graphHandoff'
 import { useGraphNavigationStore } from '../../stores/graphNavigation'
 import { useShellStore } from '../../stores/shell'
+import { useSubjectStore } from '../../stores/subject'
 import { graphNodeTypeChrome } from '../../utils/colors'
 import { formatCalendarDateForDisplay, truncate } from '../../utils/formatting'
 import {
@@ -92,6 +93,24 @@ const graphNav = useGraphNavigationStore()
 const artifacts = useArtifactsStore()
 const graphFilters = useGraphFilterStore()
 const graphHandoff = useGraphHandoffStore()
+const subject = useSubjectStore()
+
+/**
+ * PRD-033 FR5.3 — from a graph topic/person/entity node, open the populated FR4
+ * Detail panel (Topic Entity View / Person Landing) instead of dead-ending in the
+ * graph-node detail. The cy node id is the canonical prefixed id those panels resolve.
+ */
+function openFullProfile(): void {
+  const id = props.nodeId?.trim()
+  if (!id) return
+  if (isTopicNode.value) {
+    subject.focusTopic(id)
+    return
+  }
+  const t = nodeType.value.trim().toLowerCase()
+  if (t === 'person' || t === 'speaker') subject.focusPerson(id)
+  else subject.focusEntity(id)
+}
 
 /** Merged GI/KG before per-type visibility filters (quotes/speakers/episodes off by default on canvas). */
 const fullMergedArtifactForMetadata = computed(
@@ -1577,6 +1596,15 @@ const graphConnectionsCenterInView = computed((): boolean => {
           <span class="font-medium text-surface-foreground/80">Aliases:</span>
           {{ personEntityAliasesLine }}
         </p>
+        <button
+          v-if="isPersonEntityRailNode"
+          type="button"
+          class="mb-2 w-full rounded border border-primary/40 px-2 py-1.5 text-center text-xs font-medium text-primary hover:bg-primary/10"
+          data-testid="node-detail-open-person-profile"
+          @click="openFullProfile"
+        >
+          {{ ['person', 'speaker'].includes(nodeType.trim().toLowerCase()) ? 'Open full Person profile →' : 'Open full Entity profile →' }}
+        </button>
         <div
           v-if="personEntityGatewayQuery"
           class="mb-3 flex items-center gap-2"
@@ -1836,6 +1864,15 @@ const graphConnectionsCenterInView = computed((): boolean => {
         </HelpTip>
       </p>
 
+      <button
+        v-if="isTopicNode"
+        type="button"
+        class="mb-2 w-full rounded border border-primary/40 px-2 py-1.5 text-center text-xs font-medium text-primary hover:bg-primary/10"
+        data-testid="node-detail-open-topic-profile"
+        @click="openFullProfile"
+      >
+        Open full Topic profile →
+      </button>
       <div
         v-if="isTopicNode && topicGatewayQuery"
         class="mb-3 flex items-center gap-2"
