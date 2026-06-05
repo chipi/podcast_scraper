@@ -456,7 +456,8 @@ The following diagram shows which functions call which in the pipeline entry poi
 - **Optional summarization dependency** (PRD-005/RFC-012): Summarization requires `torch` and `transformers` dependencies and is imported lazily. When dependencies are unavailable, summarization is gracefully skipped. Models are automatically selected based on available hardware (MPS for Apple Silicon, CUDA for NVIDIA GPUs, CPU fallback). See [ML Provider Reference](../guides/ML_PROVIDER_REFERENCE.md) for details.
 - **Language-aware processing** (RFC-010): A single `language` configuration drives both Whisper model selection (preferring English-only `.en` variants) and NER model selection (e.g., `en_core_web_sm`), ensuring consistent language handling across the pipeline.
 - **Automatic speaker detection** (RFC-010): Named Entity Recognition extracts speaker names from episode metadata transparently. Manual speaker names (`--speaker-names`) are ONLY used as fallback when automatic detection fails, not as override. spaCy is a required dependency for speaker detection.
-- **Host/guest distinction**: Host detection prioritizes RSS author tags (channel-level only) as the most reliable source, falling back to NER extraction from feed metadata when author tags are unavailable. Guests are always detected from episode-specific metadata using NER, ensuring accurate speaker labeling in Whisper screenplay output.
+- **Host/guest distinction**: Host detection prioritizes RSS author tags (channel-level only) as the most reliable source, falling back to NER extraction from feed metadata when author tags are unavailable. Guests are always detected from episode-specific metadata using NER, ensuring accurate speaker labeling in Whisper screenplay output. NER logic lives in **`speaker_detectors/`** (modularized per RFC-059 / Wave 1).
+- **Audio pipeline (Wave 1+2)**: Local Whisper and DGX tailnet Whisper support **screenplay formatting** with **neural diarization** (pyannote, default on) or gap-based fallback. Cloud providers use **`AudioChunker`** for oversized uploads (#286). **CommercialDetector** removes sponsor blocks before summarization (#486 Phase 1; diarization-aware signals in Phase 2). **Deepgram** is a first-class transcription provider (#597). See [Audio Pipeline Guide](../guides/AUDIO_PIPELINE_GUIDE.md).
 - **Provider-based architecture** (RFC-013): All capabilities (transcription, speaker detection, summarization) use a protocol-based provider system. Providers are created via factory functions based on configuration, allowing pluggable implementations (e.g., Whisper vs OpenAI for transcription, NER vs OpenAI for speaker detection, local transformers vs OpenAI for summarization). Providers implement consistent interfaces (`initialize()`, protocol methods, `cleanup()`) ensuring type safety and easy testing. See [Provider Implementation Guide](../guides/PROVIDER_IMPLEMENTATION_GUIDE.md) for complete implementation details.
 - **Local-first summarization** (PRD-005/RFC-012): Summarization defaults to local transformer models for privacy and cost-effectiveness. API-based providers (OpenAI) are supported via the provider system. Long transcripts are handled via chunking strategies, and memory optimization is applied for GPU backends (CUDA/MPS). Models are automatically cached and reused across runs, with cache management utilities available via CLI and programmatic APIs. Model loading prefers safetensors format for security and performance (Issue #379). Pinned model revisions ensure reproducibility (Issue #379).
 - **Reproducibility** (Issue #379): Deterministic runs via seed control (`torch`, `numpy`, `transformers`). Run manifests capture complete system state. Per-episode stage timings enable performance analysis. Run summaries combine manifest and metrics for complete run records.
@@ -542,6 +543,32 @@ Phi-3). Adds GIL extraction prompts
 - New prompt directories under `prompts/ollama/`
 - No structural changes; extends existing
   `PromptStore`
+
+### Phase 2c: Audio pipeline (Wave 1 + Wave 2)
+
+**Status**: **Partial** (Wave 1 merged; Wave 2 diarization + commercial Phase 2 in flight)
+
+**Wave 1 (PR #850):**
+
+- `speaker_detectors/` — modular NER/heuristic speaker detection (#269)
+- `preprocessing/audio/chunker.py` — API upload chunking (#286)
+- `cleaning/commercial/` — `CommercialDetector` Phase 1 (#486)
+- `providers/deepgram/` — Nova-3 transcription provider (#597)
+- Whisper progress UX — single batch bar (#19)
+
+**Wave 2:**
+
+- `providers/ml/diarization/` — pyannote additive pass; `diarize=true` default for local Whisper (#482)
+- `cleaning/commercial/diarization_signals.py` — Phase 2 commercial signals (#488)
+- DGX `tailnet_dgx_whisper` included in diarize/screenplay coercion
+
+**Impact on existing architecture:**
+
+- `workflow/episode_processor.py` — diarization hook after transcription; chunking for API providers
+- `preprocessing/core.py` — delegates sponsor removal to `CommercialDetector`
+- Config — `diarize`, `hf_token`, `deepgram_*` fields; profiles updated
+
+See [Audio Pipeline Guide](../guides/AUDIO_PIPELINE_GUIDE.md), [RFC-058](../rfc/RFC-058-audio-speaker-diarization.md), [RFC-060](../rfc/RFC-060-diarization-aware-commercial-cleaning.md).
 
 ### Phase 3: Grounded Insight Layer (RFC-049)
 

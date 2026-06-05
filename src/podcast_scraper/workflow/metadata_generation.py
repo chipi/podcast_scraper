@@ -2180,6 +2180,16 @@ def _generate_episode_summary(  # noqa: C901
         logger.debug("[%s] Transcript too short for summarization, skipping", episode_idx)
         return None, call_metrics
 
+    from ..cleaning.commercial.context import diarization_cleaning_context
+
+    diarization_segments, host_speaker_id = diarization_cleaning_context(full_transcript_path)
+    pattern_clean_kwargs: Dict[str, Any] = {}
+    if diarization_segments is not None:
+        pattern_clean_kwargs = {
+            "diarization_segments": diarization_segments,
+            "host_speaker_id": host_speaker_id,
+        }
+
     # Use provider if available (preferred path)
     if summary_provider is not None:
         try:
@@ -2229,7 +2239,10 @@ def _generate_episode_summary(  # noqa: C901
                     from ..providers.common.megabundle_parser import MegaBundleResult
 
                     cleaning_started = time.perf_counter()
-                    pattern_cleaned = PatternBasedCleaner().clean(transcript_text)
+                    pattern_cleaned = PatternBasedCleaner().clean(
+                        transcript_text,
+                        **pattern_clean_kwargs,
+                    )
                     if pipeline_metrics is not None:
                         pipeline_metrics.record_cleaning_time(
                             time.perf_counter() - cleaning_started, episode_idx
@@ -2332,7 +2345,10 @@ def _generate_episode_summary(  # noqa: C901
                     from ..cleaning import PatternBasedCleaner
 
                     cleaning_started = time.perf_counter()
-                    pattern_cleaned = PatternBasedCleaner().clean(transcript_text)
+                    pattern_cleaned = PatternBasedCleaner().clean(
+                        transcript_text,
+                        **pattern_clean_kwargs,
+                    )
                     if pipeline_metrics is not None:
                         pipeline_metrics.record_cleaning_time(
                             time.perf_counter() - cleaning_started, episode_idx
@@ -2410,7 +2426,10 @@ def _generate_episode_summary(  # noqa: C901
                             pipeline_metrics=pipeline_metrics,
                         )
                     else:
-                        cleaned_text = cleaning_processor.clean(transcript_text)
+                        cleaned_text = cleaning_processor.clean(
+                            transcript_text,
+                            **pattern_clean_kwargs,
+                        )
                 finally:
                     if pipeline_metrics is not None:
                         pipeline_metrics.record_cleaning_time(

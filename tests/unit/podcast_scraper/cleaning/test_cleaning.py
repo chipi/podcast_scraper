@@ -32,7 +32,11 @@ class TestPatternBasedCleaner(unittest.TestCase):
 
         result = cleaner.clean("raw text")
         self.assertEqual(result, "cleaned text")
-        mock_clean.assert_called_once_with("raw text")
+        mock_clean.assert_called_once_with(
+            "raw text",
+            diarization_segments=None,
+            host_speaker_id=None,
+        )
 
     @patch("podcast_scraper.preprocessing.remove_sponsor_blocks")
     def test_remove_sponsors(self, mock_remove):
@@ -199,7 +203,11 @@ class TestHybridCleaner(unittest.TestCase):
 
         result = cleaner.clean("raw text", provider=None)
         self.assertEqual(result, "pattern cleaned text")
-        mock_clean.assert_called_once_with("raw text")
+        mock_clean.assert_called_once_with(
+            "raw text",
+            diarization_segments=None,
+            host_speaker_id=None,
+        )
 
     @patch("podcast_scraper.preprocessing.clean_for_summarization")
     def test_clean_pattern_only_when_not_needed(self, mock_clean):
@@ -215,7 +223,11 @@ class TestHybridCleaner(unittest.TestCase):
         result = cleaner.clean(original, provider=mock_provider)
         # Should only use pattern cleaning (reduction >= 5%)
         self.assertEqual(result, "x" * 900)
-        mock_clean.assert_called_once_with(original)
+        mock_clean.assert_called_once_with(
+            original,
+            diarization_segments=None,
+            host_speaker_id=None,
+        )
         # Should not call LLM
         mock_provider.clean_transcript.assert_not_called()
 
@@ -236,7 +248,11 @@ class TestHybridCleaner(unittest.TestCase):
         original = "Main content. " * 10
         result = cleaner.clean(original, provider=mock_provider)
         self.assertEqual(result, "llm cleaned text")
-        mock_clean.assert_called_once_with(original)
+        mock_clean.assert_called_once_with(
+            original,
+            diarization_segments=None,
+            host_speaker_id=None,
+        )
         # Should call LLM after pattern cleaning (sponsor keywords detected)
         mock_provider.clean_transcript.assert_called_once()
 
@@ -280,7 +296,7 @@ class TestHybridCleaner(unittest.TestCase):
     @patch("podcast_scraper.preprocessing.clean_for_summarization")
     def test_clean_falls_back_when_llm_output_too_short(self, mock_clean):
         """Hybrid path must not pass a bogus short LLM 'cleaned' transcript downstream."""
-        mock_clean.side_effect = lambda x: x
+        mock_clean.side_effect = lambda x, **kwargs: x
         cleaner = HybridCleaner()
         mock_provider = Mock()
         mock_provider.clean_transcript.return_value = "Short unrelated model output."
@@ -368,7 +384,11 @@ class TestPatternBasedCleanerEdgeCases(unittest.TestCase):
         """clean('') delegates to preprocessing with empty string."""
         mock_clean.return_value = ""
         result = PatternBasedCleaner().clean("")
-        mock_clean.assert_called_once_with("")
+        mock_clean.assert_called_once_with(
+            "",
+            diarization_segments=None,
+            host_speaker_id=None,
+        )
         self.assertEqual(result, "")
 
     @patch("podcast_scraper.preprocessing.clean_for_summarization")
@@ -376,7 +396,11 @@ class TestPatternBasedCleanerEdgeCases(unittest.TestCase):
         """clean('   ') delegates to preprocessing with whitespace."""
         mock_clean.return_value = ""
         result = PatternBasedCleaner().clean("   ")
-        mock_clean.assert_called_once_with("   ")
+        mock_clean.assert_called_once_with(
+            "   ",
+            diarization_segments=None,
+            host_speaker_id=None,
+        )
         self.assertEqual(result, "")
 
     @patch("podcast_scraper.preprocessing.remove_sponsor_blocks")
@@ -503,7 +527,11 @@ class TestHybridCleanerBoundaries(unittest.TestCase):
 
         result = cleaner.clean("", provider=mock_provider)
         self.assertEqual(result, "")
-        mock_clean.assert_called_once_with("")
+        mock_clean.assert_called_once_with(
+            "",
+            diarization_segments=None,
+            host_speaker_id=None,
+        )
 
     def test_needs_llm_cleaning_empty_original_skips_reduction_heuristic(self):
         """Empty original skips the reduction-ratio heuristic (original is falsy)."""

@@ -1294,5 +1294,44 @@ class TestDeepgramProviderRequirements(unittest.TestCase):
         self.assertIn("transcription_fallback_provider='deepgram'", str(ctx.exception))
 
 
+@pytest.mark.unit
+class TestDiarizationRequirements(unittest.TestCase):
+    """Diarization config defaults and coercion."""
+
+    def test_diarize_defaults_on(self) -> None:
+        cfg = Config(rss="https://example.com/feed.xml")
+        self.assertTrue(cfg.diarize)
+
+    def test_diarize_coerced_off_for_api_transcription(self) -> None:
+        config.reset_diarize_coerce_log_for_tests()
+        cfg = Config(
+            rss="https://example.com/feed.xml",
+            transcription_provider="deepgram",
+            deepgram_api_key="dg-test",
+        )
+        self.assertFalse(cfg.diarize)
+
+    def test_diarize_enables_screenplay_for_whisper(self) -> None:
+        cfg = Config(
+            rss="https://example.com/feed.xml",
+            transcription_provider="whisper",
+            diarize=True,
+            screenplay=False,
+        )
+        self.assertTrue(cfg.screenplay)
+        self.assertTrue(cfg.diarize)
+
+    def test_diarize_kept_for_tailnet_dgx_whisper(self) -> None:
+        cfg = Config(
+            rss="https://example.com/feed.xml",
+            transcription_provider="tailnet_dgx_whisper",
+            transcription_fallback_provider="openai",
+            dgx_tailnet_host="dgx.example",
+            openai_api_key="sk-test",
+        )
+        self.assertTrue(cfg.diarize)
+        self.assertTrue(cfg.screenplay)
+
+
 if __name__ == "__main__":
     unittest.main()

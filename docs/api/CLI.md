@@ -95,7 +95,7 @@ Config file equivalent: YAML **`feeds:`** or **`rss_urls:`** list (entries may b
 
 ### Provider Selection (v2.4.0+)
 
-- `--transcription-provider PROVIDER` - Provider for transcription (`whisper`, `openai`, `gemini`, `mistral`)
+- `--transcription-provider PROVIDER` - Provider for transcription (`whisper`, `openai`, `gemini`, `mistral`, `deepgram`, or `tailnet_dgx_whisper` via config YAML)
 - `--speaker-detector-provider PROVIDER` - Provider for speaker detection (`spacy`, `openai`, `gemini`, `anthropic`, `mistral`, `deepseek`, `grok`, `ollama`)
 - `--summary-provider PROVIDER` - Provider for summarization (`transformers`, `hybrid_ml`, `openai`, `gemini`, `anthropic`, `mistral`, `deepseek`, `grok`, `ollama`)
 
@@ -107,7 +107,16 @@ Config file equivalent: YAML **`feeds:`** or **`rss_urls:`** list (entries may b
 - `--whisper-device DEVICE` - Device for Whisper (cuda/mps/cpu/auto, default: auto-detect)
 - `--mps-exclusive` - Serialize GPU work on MPS to prevent memory contention (default: enabled)
 - `--no-mps-exclusive` - Allow concurrent GPU operations on MPS (for systems with sufficient GPU memory)
-- `--screenplay` - Request screenplay-style transcript layout (only honored for **`--transcription-provider whisper`**; for OpenAI / Gemini / Mistral audio transcription truthy values are coerced off at validation with one INFO per gate cycle — GitHub **#562**). Set **`PODCAST_SCRAPER_SCREENPLAY_STRICT=1`** to **error** instead of coerce when screenplay is requested with a non-Whisper transcription provider.
+- `--screenplay` - Request screenplay-style transcript layout (only honored for **`--transcription-provider whisper`** or config **`tailnet_dgx_whisper`**; for OpenAI / Gemini / Mistral / Deepgram audio transcription truthy values are coerced off at validation with one INFO per gate cycle — GitHub **#562**). Set **`PODCAST_SCRAPER_SCREENPLAY_STRICT=1`** to **error** instead of coerce when screenplay is requested with a non-local-Whisper transcription provider.
+- `--diarize` / `--no-diarize` - Enable or disable neural speaker diarization after local Whisper (default: on; no effect for API transcription providers). See [Audio Pipeline Guide](../guides/AUDIO_PIPELINE_GUIDE.md).
+- `--hf-token TOKEN` - HuggingFace token for pyannote models (or `HF_TOKEN` env var)
+- `--diarization-num-speakers N` - Known speaker count (default: auto-detect)
+- `--diarization-min-speakers N` - Minimum speakers for auto-detect (default: 2)
+- `--diarization-max-speakers N` - Maximum speakers for auto-detect (default: 20)
+- `--diarization-device DEVICE` - Diarization device: auto, cpu, cuda, mps
+- `--diarization-model MODEL` - HuggingFace pyannote pipeline id
+- `--deepgram-api-key KEY` - Deepgram API key (or `DEEPGRAM_API_KEY` env var)
+- `--deepgram-model MODEL` - Deepgram model (default: `nova-3`)
 - `--num-speakers N` - Number of speakers (default: 2)
 - `--speaker-names NAMES` - Comma-separated speaker names
 

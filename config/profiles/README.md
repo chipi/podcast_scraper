@@ -12,9 +12,26 @@ operational fields. Supply those via CLI flags.
 | ------- | ------- | -------------- |
 | [`cloud_balanced.yaml`](cloud_balanced.yaml) | Production default, best compound score | Gemini summary, spaCy trf NER, Whisper API |
 | [`cloud_quality.yaml`](cloud_quality.yaml) | Maximum cloud quality, ~2x cost | DeepSeek summary, spaCy trf NER, Whisper API |
+| [`cloud_thin.yaml`](cloud_thin.yaml) | Minimal cloud stack for Compose | Gemini + OpenAI Whisper API |
 | [`local.yaml`](local.yaml) | Fully local / privacy-first, $0 | Whisper small.en + spaCy trf + qwen3.5:9b bundled |
+| [`local_dgx_balanced.yaml`](local_dgx_balanced.yaml) | Local DGX workstation | Whisper + spaCy trf + Ollama bundled |
+| [`local_dgx_full.yaml`](local_dgx_full.yaml) | Local DGX full ML stack | Whisper + spaCy trf + hybrid ML |
+| [`cloud_with_dgx_whisper_primary.yaml`](cloud_with_dgx_whisper_primary.yaml) | Prod: DGX Whisper primary, cloud fallback | `tailnet_dgx_whisper` + Gemini summary ([ADR-096](../../docs/adr/ADR-096-dgx-spark-prod-primary-with-fallback.md)) |
 | [`airgapped.yaml`](airgapped.yaml) | No network, no Ollama | Whisper medium.en + spaCy trf + SummLlama3.2-3B |
+| [`airgapped_thin.yaml`](airgapped_thin.yaml) | Minimal airgapped | Whisper tiny.en + spaCy sm |
 | [`dev.yaml`](dev.yaml) | Fastest/cheapest, CI-friendly, no GI/KG | Whisper tiny.en + spaCy sm + bart-led |
+
+### Screenplay and diarization (Audio Wave 2)
+
+Profiles that use **local Whisper** (`transcription_provider: whisper` or
+`tailnet_dgx_whisper`) set **`screenplay: true`** and **`diarize: true`** by default
+([RFC-058](../../docs/rfc/RFC-058-audio-speaker-diarization.md)). Cloud API transcription
+profiles omit these keys — config validation coerces both off for OpenAI / Gemini / Mistral /
+Deepgram.
+
+Neural diarization requires **`HF_TOKEN`** (or `hf_token` in config) and `pip install -e ".[ml]"`.
+Disable with `diarize: false` or CLI **`--no-diarize`**. See
+[Audio Pipeline Guide](../../docs/guides/AUDIO_PIPELINE_GUIDE.md).
 
 **Usage:**
 
@@ -53,6 +70,8 @@ per-provider timing and cost profiles under a fixed E2E fixture. Each freeze
 profile is **maximally oriented toward its provider** (filename = provider)
 and is merged with [`freeze/_defaults.yaml`](freeze/_defaults.yaml) at
 run time to supply operational fields.
+
+Local-whisper freeze profiles also set **`screenplay: true`** and **`diarize: true`**.
 
 See [`freeze/README.md`](freeze/README.md) for the workflow and matrix.
 

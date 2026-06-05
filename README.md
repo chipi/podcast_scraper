@@ -24,7 +24,9 @@ and hands-on work with edge and cloud AI/ML technologies.
 - **Transcript Downloads** — Automatic detection and download from RSS feeds
 - **Episode selection** — Order (`newest` / `oldest`), optional publish-date window (`--since` / `--until`), offset, and `max_episodes` for large back-catalogs ([CONFIGURATION.md](docs/api/CONFIGURATION.md#episode-selection-github-521), GitHub #521)
 - **Multi-feed corpus** — One config or CLI invocation for multiple shows: `feeds` / `rss_urls` in YAML, **`--feeds-spec`** for structured `feeds.spec.yaml` / JSON, or repeatable `--rss` / legacy `--rss-file`; isolated output under `<output_dir>/feeds/<stable_id>/` per feed. With `vector_search` + FAISS, a **single parent index** is built under `<output_dir>/search` after all feeds finish; **`corpus_manifest.json`**, **`corpus_run_summary.json`**, and structured log lines record batch status ([RFC-063](docs/rfc/RFC-063-multi-feed-corpus-append-resume.md), [CONFIGURATION.md](docs/api/CONFIGURATION.md#rss-and-multi-feed-corpus-github-440)). Inspect offline: `python -m podcast_scraper.cli corpus-status --output-dir <corpus_parent>`.
-- **Transcription** — Generate transcripts with Whisper, OpenAI API, or Google Gemini API
+- **Transcription** — Local Whisper, DGX tailnet Whisper, OpenAI, Gemini, Mistral, or **Deepgram Nova-3**; automatic **API audio chunking** for oversized files ([Audio Pipeline Guide](docs/guides/AUDIO_PIPELINE_GUIDE.md))
+- **Speaker screenplay** — Gap-based or **neural diarization** (pyannote; default on for local Whisper, `--no-diarize` to disable); maps to NER-detected host/guest names
+- **Commercial cleaning** — Confidence-scored sponsor/ad detection (patterns + position; optional diarization signals when speaker timeline exists)
 - **Audio Preprocessing** — Optimize audio files before transcription (reduce size, remove silence, normalize loudness)
 - **Speaker Detection** — Identify speakers using spaCy NER, OpenAI, Google Gemini, Grok (real-time info), or other providers
 - **Summarization** — Episode summaries via local transformers (BART/LED), hybrid MAP-REDUCE (`hybrid_ml`), or any of 7 LLM providers
@@ -338,6 +340,8 @@ cp config/examples/.env.example .env
 
 - `OPENAI_API_KEY` - **Required** if using OpenAI providers (transcription, speaker detection, or summarization)
 - `GEMINI_API_KEY` - **Required** if using Gemini providers (transcription, speaker detection, or summarization)
+- `DEEPGRAM_API_KEY` - **Required** if using Deepgram transcription (`--transcription-provider deepgram`)
+- `HF_TOKEN` - **Required** for neural speaker diarization (pyannote gated models) when `diarize` is on (default for local Whisper)
 - `LOG_LEVEL` - Controls logging verbosity (DEBUG, INFO, WARNING, ERROR, CRITICAL)
 - `OUTPUT_DIR` - Custom output directory (default: `./output/`)
 - `CACHE_DIR` - ML model cache location (only needed for local ML providers)
@@ -539,6 +543,7 @@ For more help, see [Troubleshooting Guide](docs/guides/TROUBLESHOOTING.md).
 | -------- | ----------- |
 | [Roadmap](docs/ROADMAP.md) | Project roadmap with prioritized PRDs and RFCs |
 | [Architecture](docs/architecture/ARCHITECTURE.md) | System design and module responsibilities |
+| [Audio Pipeline Guide](docs/guides/AUDIO_PIPELINE_GUIDE.md) | Transcription, diarization, chunking, commercial cleaning (Wave 1+2) |
 | [Testing Strategy](docs/architecture/TESTING_STRATEGY.md) | Testing approach and test pyramid |
 | [CLI Reference](docs/api/CLI.md) | All command-line options |
 | [Configuration](docs/api/CONFIGURATION.md) | Config files and environment variables |

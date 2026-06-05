@@ -11,6 +11,9 @@
 transcription_provider: whisper
 whisper_model: small.en
 
+screenplay: true
+diarize: true
+
 # Speaker detection — DeepSeek (exercise full provider surface)
 speaker_detector_provider: deepseek
 deepseek_speaker_model: deepseek-chat

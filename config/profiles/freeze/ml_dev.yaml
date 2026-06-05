@@ -11,6 +11,9 @@
 transcription_provider: whisper
 whisper_model: base.en
 
+screenplay: true
+diarize: true
+
 # Speaker detection — spaCy sm (dev speed, 0.966 F1)
 speaker_detector_provider: spacy
 ner_model: en_core_web_sm

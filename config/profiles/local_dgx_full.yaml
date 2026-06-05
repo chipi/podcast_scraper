@@ -8,6 +8,10 @@ ollama_api_base: http://dgx-llm-1.tail6d0ed4.ts.net:11434/v1
 transcription_provider: whisper
 whisper_model: small.en
 
+# Screenplay + neural diarization (RFC-058)
+screenplay: true
+diarize: true
+
 summary_provider: ollama
 ollama_summary_model: llama3.3:70b
 llm_pipeline_mode: bundled

@@ -401,7 +401,29 @@ Anthropic providers support configurable model selection for dev/test vs product
 
 **Note on Transcription**: Anthropic does NOT support native audio transcription. If you set `transcription_provider=anthropic`, you will get a clear error message suggesting alternatives (`whisper` or `openai`).
 
-**Screenplay vs transcription provider (GitHub #562):** **`screenplay: true`** (or **`--screenplay`**) only changes transcript layout when **`transcription_provider` is `whisper`**. For **`openai`**, **`gemini`**, or **`mistral`** audio transcription, screenplay-style formatting is **not** implemented in this codebase: a **`mode='before'`** validator coerces truthy values (including **`1`**, **`"yes"`**, **`"on"`**, and boolean **`true`**) to **`screenplay: false`** and emits **one** INFO line while a process-wide gate is set; **`workflow.orchestration.run_pipeline`** clears that gate (and related screenplay warning gates) in **`finally`** so a later **`Config(...)`** or another pipeline run can log again. **`PODCAST_SCRAPER_SCREENPLAY_STRICT=1`** (or **`true`** / **`yes`**) makes the invalid combination a **validation error** instead of coercion. In **our** OpenAI integration, **`whisper-1`** still writes **plain dialogue text** in the main transcript file even when segment metadata exists for sidecars.
+**Screenplay vs transcription provider (GitHub #562):** **`screenplay: true`** (or **`--screenplay`**) only changes transcript layout when **`transcription_provider`** is **`whisper`** or **`tailnet_dgx_whisper`** (local Whisper paths). For **`openai`**, **`gemini`**, **`mistral`**, or **`deepgram`** audio transcription, screenplay-style formatting is **not** implemented in this codebase: a **`mode='before'`** validator coerces truthy values (including **`1`**, **`"yes"`**, **`"on"`**, and boolean **`true`**) to **`screenplay: false`** and emits **one** INFO line while a process-wide gate is set; **`workflow.orchestration.run_pipeline`** clears that gate (and related screenplay warning gates) in **`finally`** so a later **`Config(...)`** or another pipeline run can log again. **`PODCAST_SCRAPER_SCREENPLAY_STRICT=1`** (or **`true`** / **`yes`**) makes the invalid combination a **validation error** instead of coercion. In **our** OpenAI integration, **`whisper-1`** still writes **plain dialogue text** in the main transcript file even when segment metadata exists separately.
+
+**Neural diarization (RFC-058 / Audio Wave 2):** See [Speaker diarization](#speaker-diarization-rfc-058) below. **`diarize`** defaults to **`true`** for local Whisper; API providers coerce **`diarize: false`**. When diarization succeeds, screenplay uses voice-based speaker IDs instead of gap-based rotation.
+
+**Deepgram transcription (Wave 1 / #597):** Set **`transcription_provider: deepgram`**, **`deepgram_api_key`** (or **`DEEPGRAM_API_KEY`**), optional **`deepgram_model`** (default **`nova-3`**). Requires **`pip install -e ".[llm]"`**. Deepgram returns utterance-level speaker labels in the API response — separate from local pyannote diarization. See [Audio Pipeline Guide](../guides/AUDIO_PIPELINE_GUIDE.md).
+
+### Speaker diarization (RFC-058)
+
+Neural speaker diarization runs as an **additive second pass** after local Whisper transcription
+(`whisper` or `tailnet_dgx_whisper`). Requires **`pip install -e ".[ml]"`** and a HuggingFace token.
+
+| Field | CLI flag | Default | Description |
+| ----- | -------- | ------- | ----------- |
+| `diarize` | `--diarize` / `--no-diarize` | `true` | Enable pyannote diarization (coerced off for API providers) |
+| `hf_token` | `--hf-token` | from `HF_TOKEN` env | HuggingFace token for gated pyannote models |
+| `diarization_num_speakers` | `--diarization-num-speakers` | auto | Known speaker count (omit for auto-detect) |
+| `diarization_min_speakers` | `--diarization-min-speakers` | `2` | Minimum speakers when auto-detecting |
+| `diarization_max_speakers` | `--diarization-max-speakers` | `20` | Maximum speakers when auto-detecting |
+| `diarization_device` | `--diarization-device` | `auto` | `cpu`, `cuda`, or `mps` |
+| `diarization_model` | `--diarization-model` | `pyannote/speaker-diarization-3.1` | HuggingFace pipeline id |
+
+When diarization fails, the pipeline falls back to gap-based screenplay (`screenplay_gap_s`). Full
+narrative: [Audio Pipeline Guide](../guides/AUDIO_PIPELINE_GUIDE.md).
 
 **GI quote audio timing (issue #543):** For **grounded insights** with non-zero quote **`timestamp_*_ms`**, prefer **`transcription_provider: whisper`** or **`openai`** (segment-capable paths). **`gemini`** and **`mistral`** return transcript text in our integration but **do not** currently populate timed **segments** for GI audio seek. Episode metadata records an expectation flag under **`processing.config_snapshot.ml_providers.transcription.gi_segment_timing_expected`**. Full matrix: [Development Guide — Transcript hash cache](../guides/DEVELOPMENT_GUIDE.md#transcript-hash-cache-json).
 
@@ -857,7 +879,7 @@ Audio preprocessing optimizes audio files before transcription, reducing file si
 | `preprocessing_silence_threshold` | `--preprocessing-silence-threshold` | `-50dB` | Silence detection threshold for VAD |
 | `preprocessing_silence_duration` | `--preprocessing-silence-duration` | `2.0` | Minimum silence duration to remove in seconds |
 | `preprocessing_target_loudness` | `--preprocessing-target-loudness` | `-16` | Target loudness in LUFS for normalization |
-| `preprocessing_mp3_bitrate_kbps` | `--preprocessing-mp3-bitrate-kbps` | `null` (auto) | MP3 encode bitrate in kbps (`24`–`128`). **Auto** (unset): `64` for local transcription (for example `whisper`), `48` for `openai` / `gemini` (GitHub #561). Other cloud STT providers (for example `mistral`) use the same **auto** rule as Whisper unless you set this field explicitly (they are not in the `openai` / `gemini` re-encode ladder). **Explicit `24`** is the minimum rung: there are **no further** phase-2 re-encode steps below it; if the file is still too large, upload **chunking** remains separate (GitHub #286). When the first pass is still over the API budget, `openai` / `gemini` runs extra FFmpeg re-encodes at lower standard rungs until under a target size or that floor. |
+| `preprocessing_mp3_bitrate_kbps` | `--preprocessing-mp3-bitrate-kbps` | `null` (auto) | MP3 encode bitrate in kbps (`24`–`128`). **Auto** (unset): `64` for local transcription (for example `whisper`), `48` for `openai` / `gemini` (GitHub #561). Other cloud STT providers (for example `mistral`, `deepgram`) use the same **auto** rule as Whisper unless you set this field explicitly. **Explicit `24`** is the minimum rung: there are **no further** phase-2 re-encode steps below it; if the file is still too large after re-encode, **`AudioChunker`** splits the file for API transcription (GitHub #286 — see [Audio Pipeline Guide](../guides/AUDIO_PIPELINE_GUIDE.md)). When the first pass is still over the API budget, `openai` / `gemini` runs extra FFmpeg re-encodes at lower standard rungs until under a target size or that floor. |
 
 **Preprocessing Pipeline**:
 

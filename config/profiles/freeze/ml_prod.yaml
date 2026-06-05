@@ -11,6 +11,9 @@
 transcription_provider: whisper
 whisper_model: small.en
 
+screenplay: true
+diarize: true
+
 # Speaker detection — spaCy trf (1.000 F1 on smoke)
 speaker_detector_provider: spacy
 ner_model: en_core_web_trf

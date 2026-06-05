@@ -395,8 +395,17 @@ def _format_transcript_if_needed(
         # Use detected speaker names (manual names are already used as fallback in workflow)
         speaker_names = detected_speaker_names or []
         try:
-            # Use provider's format_screenplay_from_segments if available (Whisper provider)
-            if transcription_provider and hasattr(
+            segments = result["segments"]
+            has_diarized_labels = any(
+                isinstance(seg, dict) and seg.get("speaker_label") for seg in segments
+            )
+            if cfg.diarize and has_diarized_labels:
+                from ..providers.ml.diarization.formatting import (
+                    format_diarized_screenplay_from_segments,
+                )
+
+                formatted = format_diarized_screenplay_from_segments(segments)
+            elif transcription_provider and hasattr(
                 transcription_provider, "format_screenplay_from_segments"
             ):
                 formatted = transcription_provider.format_screenplay_from_segments(
@@ -406,6 +415,8 @@ def _format_transcript_if_needed(
                     cfg.screenplay_gap_s,
                 )
             else:
+                formatted = None
+            if formatted is None and not cfg.diarize:
                 # Fallback: log at most once per process (GitHub #562; config also coerces).
                 with _screenplay_unsupported_warn_lock:
                     if not _screenplay_unsupported_warn_state["emitted"]:
@@ -414,8 +425,7 @@ def _format_transcript_if_needed(
                             "Screenplay formatting requested but provider doesn't support it. "
                             "Using plain transcript (GitHub #562; see CONFIGURATION.md)."
                         )
-                formatted = None
-            if formatted and formatted.strip():
+            elif formatted and formatted.strip():
                 text = formatted
         except (ValueError, KeyError, TypeError) as exc:
             with _screenplay_format_fail_warn_lock:
@@ -1388,6 +1398,24 @@ def transcribe_media_to_text(
                 f"[{job.idx}] Transcription timeout after {cfg.transcription_timeout}s: {e}"
             )
             raise
+        if cfg.diarize:
+            from ..exceptions import ProviderDependencyError
+            from ..providers.ml.diarization.pipeline import apply_diarization_to_result
+
+            try:
+                result = apply_diarization_to_result(
+                    result,
+                    media_for_transcription,
+                    cfg,
+                    job.detected_speaker_names,
+                    cache_dir=os.path.join(effective_output_dir, ".cache", "diarization"),
+                )
+            except (ProviderDependencyError, ValueError) as exc:
+                logger.warning(
+                    "[%s] Diarization failed; falling back to gap-based screenplay: %s",
+                    job.idx,
+                    format_exception_for_log(exc),
+                )
         text = _format_transcript_if_needed(
             result, cfg, job.detected_speaker_names, transcription_provider
         )

@@ -21,8 +21,8 @@ Use `pip install -e ".[<extra>]"` from the repo root. Combine extras with commas
 
 | Extra | Purpose |
 | --- | --- |
-| **`dev`** | Tests, lint, typecheck, security, **FastAPI + uvicorn** (GI/KG viewer API, RFC-062), scheduler/metrics deps, and **text** eval helpers (ROUGE, BLEU, WER: rouge-score, jiwer, nltk). **Embedding cosine** in `evaluation/scorer.py` needs **`[ml]`** (sentence-transformers). |
-| **`ml`** | Local ML stack: Whisper, spaCy (+models), torch, transformers, sentence-transformers, FAISS, **llama-cpp-python** (GGUF hybrid REDUCE, RFC-042), etc. |
+| **`ml`** | Local ML stack: Whisper, spaCy (+models), torch, **pyannote.audio + torchaudio** (speaker diarization, RFC-058), transformers, sentence-transformers, FAISS, **llama-cpp-python** (GGUF hybrid REDUCE, RFC-042), etc. |
+| **`dev`** | Tests, lint, typecheck, security, **FastAPI + uvicorn** (GI/KG viewer API, RFC-062), scheduler/metrics deps, text eval helpers (ROUGE, BLEU, WER), and **pyannote.audio + torchaudio** pins aligned with `[ml]` for CI/dev venv parity. Embedding cosine in `evaluation/scorer.py` needs **`[ml]`** (sentence-transformers). |
 | **`compare`** | Streamlit run comparison UI (RFC-047; `make run-compare`). |
 | **`llm`** | API client SDKs bundled for CI/dev: Gemini (`google-genai`), Anthropic, Mistral, **httpx** (Ollama health checks). The **OpenAI** SDK ships with **core** dependencies. |
 
@@ -127,6 +127,27 @@ Use `pip install -e ".[<extra>]"` from the repo root. Combine extras with commas
   Vosk (less accurate), Mozilla DeepSpeech (deprecated)
 
 - **Lazy loading**: Imported conditionally in `providers/ml/whisper_utils.py` to avoid hard dependency
+
+### `pyannote.audio` (>=3.1) and `torchaudio`
+
+- **Purpose**: Neural speaker diarization after local Whisper transcription (RFC-058 / PRD-020).
+  Replaces gap-based speaker rotation with voice-embedding attribution when `diarize=true`.
+
+- **Why chosen**: Production-grade diarization with HuggingFace model distribution; additive
+  second pass after Whisper preserves existing transcription code paths.
+
+- **Key features utilized**: `pyannote/speaker-diarization-3.1` pipeline, waveform loading via
+  `torchaudio` (avoids slow file-path loading in pyannote), segment-level alignment to Whisper
+  segments.
+
+- **Install**: Bundled in **`[ml]`** (pipeline/Docker) and pinned in **`[dev]`** (CI/dev venv
+  parity). Lazy-imported in `providers/ml/diarization/` — no import-time dependency when
+  `diarize=false`.
+
+- **Runtime requirements**: HuggingFace token (`HF_TOKEN` / `hf_token`) and accepted model terms.
+
+- **Alternatives considered**: WhisperX full replacement (higher blast radius), cloud diarization
+  APIs (cost/offline), gap-based rotation (default fallback when diarization unavailable)
 
 ### `spacy` (>=3.7.0) and English pipeline models (`en-core-web-sm`, `en-core-web-trf`)
 

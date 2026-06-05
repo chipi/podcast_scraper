@@ -1,6 +1,6 @@
 # RFC-058: Audio-Based Speaker Diarization
 
-- **Status**: Draft
+- **Status**: Partial
 - **Authors**: Architecture Review
 - **Stakeholders**: Core Pipeline, ML Providers, Transcription Consumers
 - **Related PRDs**:
@@ -21,7 +21,7 @@
 
 ## Abstract
 
-This RFC defines the technical design for adding neural speaker diarization to the local Whisper transcription pipeline via pyannote.audio. Diarization replaces the gap-based round-robin speaker rotation in `format_screenplay_from_segments()` with voice-embedding-driven speaker attribution, producing accurate "who said what" transcripts. The feature is opt-in (`--diarize`), preserves the existing pipeline as default, and reuses the NER name-mapping system from RFC-010 to assign real names to diarized speaker IDs.
+This RFC defines the technical design for adding neural speaker diarization to the local Whisper transcription pipeline via pyannote.audio. Diarization replaces the gap-based round-robin speaker rotation in `format_screenplay_from_segments()` with voice-embedding-driven speaker attribution, producing accurate "who said what" transcripts. **`diarize` defaults to on** for local Whisper paths (`whisper`, `tailnet_dgx_whisper`); API transcription providers coerce it off. Gap-based screenplay remains the runtime fallback when diarization is unavailable. The NER name-mapping system from RFC-010 assigns real names to diarized speaker IDs.
 
 **Architecture Alignment:** Diarization is introduced as an optional post-transcription stage in `episode_processor.py`, sitting between Whisper transcription and screenplay formatting. This follows the pipeline-stage pattern established by RFC-040 (audio preprocessing) and aligns with Issue #414's vision of separating audio processing into distinct stages.
 
@@ -56,7 +56,7 @@ These errors propagate into downstream features (GIL quote extraction, KG speake
 1. **Accurate diarization**: Replace gap-based rotation with neural speaker embeddings (target: < 15% DER)
 2. **Transparent integration**: Diarization as an optional pipeline stage, not a replacement for Whisper
 3. **Name preservation**: Map diarized speaker IDs to NER-detected names (RFC-010 pipeline intact)
-4. **Backward compatibility**: `diarize=false` (default) preserves exact current behavior
+4. **Backward compatibility**: `diarize=true` default for local Whisper; API providers coerce off; gap-based fallback on diarization failure
 5. **Cacheable**: Diarization results cached by audio content hash to avoid re-processing
 
 ## Constraints & Assumptions
@@ -66,7 +66,7 @@ These errors propagate into downstream features (GIL quote extraction, KG speake
 - pyannote.audio models are gated on HuggingFace — requires user to accept model terms and provide access token
 - GPU strongly recommended (CPU: ~8.5 min for 60 min audio; GPU with proper waveform loading: ~1.5 min)
 - Only applies to local Whisper path — cloud providers (OpenAI, Gemini, Mistral APIs) transcribe without local audio access
-- Must not break any existing tests when `diarize=false`
+- Must not break API transcription paths when diarization is coerced off; gap fallback must remain available
 - pyannote adds significant dependency weight: `speechbrain`, `torchaudio`, HF model downloads
 
 **Assumptions:**
@@ -315,11 +315,11 @@ New config fields in `Config` (Pydantic model):
 
 ```python
 # Diarization settings
-diarize: bool = False
+diarize: bool = True  # coerced False for API transcription providers
 hf_token: Optional[str] = None  # also: HF_TOKEN env var, ~/.huggingface/token
-num_speakers: Optional[int] = None  # None = auto-detect
-min_speakers: int = 2
-max_speakers: int = 20
+diarization_num_speakers: Optional[int] = None  # None = auto-detect
+diarization_min_speakers: int = 2
+diarization_max_speakers: int = 20
 diarization_device: str = "auto"  # "cpu", "cuda", "mps"
 diarization_model: str = "pyannote/speaker-diarization-3.1"
 ```
@@ -350,18 +350,22 @@ Add `pyannote.audio` as a new optional extra in `pyproject.toml`:
 
 ```toml
 [project.optional-dependencies]
-diarize = [
+ml = [
+    # ... existing ml deps ...
     "pyannote.audio>=3.1",
     "torchaudio",
 ]
+dev = [
+    # ... existing dev deps; pyannote pins aligned with [ml] for CI parity ...
+]
 ```
 
-This keeps diarization dependencies separate from the existing `ml` extra. Users install with:
+Install with:
 
 ```bash
-pip install -e ".[diarize]"
-# or combined:
-pip install -e ".[ml,diarize]"
+pip install -e ".[ml]"
+# dev/CI venv:
+pip install -e ".[dev,ml]"
 ```
 
 Lazy import pattern (same as Whisper):
@@ -374,7 +378,7 @@ def _import_pyannote():
     except ImportError:
         raise ProviderDependencyError(
             "pyannote.audio is required for speaker diarization. "
-            "Install with: pip install -e '.[diarize]'"
+            "Install with: pip install -e '.[ml]'"
         )
 ```
 
@@ -392,9 +396,9 @@ def _import_pyannote():
    - **Decision**: Load audio with `torchaudio.load()` before passing to pyannote
    - **Rationale**: pyannote's file-path loading has a known 4x performance penalty (issue #1702). Waveform loading achieves 12s vs 50s for 3-min clips
 
-4. **Separate `[diarize]` extra (not merged into `[ml]`)**
-   - **Decision**: New optional dependency group
-   - **Rationale**: pyannote adds `speechbrain`, `asteroid`, and HF model downloads — significantly heavier than spaCy. Users who want Whisper without diarization shouldn't pay this cost
+4. **Dependencies in `[ml]` and `[dev]` (not a separate extra)**
+   - **Decision**: Bundle `pyannote.audio` and `torchaudio` in **`[ml]`**; pin in **`[dev]`** for CI parity
+   - **Rationale**: Operator choice at implementation — avoids a fourth optional extra; lazy imports keep non-diarization paths light at runtime. See ADR-058 amendment (2026-05-30).
 
 5. **HuggingFace token from multiple sources**
    - **Decision**: Accept via `--hf-token`, `HF_TOKEN` env var, or `~/.huggingface/token`
@@ -432,7 +436,7 @@ def _import_pyannote():
 
 - `tests/unit/podcast_scraper/providers/ml/diarization/` — alignment, mapping, caching
 - `tests/integration/providers/ml/test_diarization.py` — pyannote on fixture audio
-- Marker: `@pytest.mark.diarization` (requires `[diarize]` extra + HuggingFace token)
+- Marker: `@pytest.mark.diarization` (requires `[ml]` / pyannote + HuggingFace token for integration runs)
 - Marker: `@pytest.mark.slow` (diarization is inherently slow)
 
 **Test Fixtures:**
@@ -467,7 +471,7 @@ def _import_pyannote():
 1. DER < 15% on benchmark episodes
 2. Screenplay attribution >= 85% correct on manual spot-check
 3. Processing overhead < 2x vs Whisper-only (with GPU)
-4. Zero test regressions with `diarize=false`
+4. API transcription paths coerce `diarize=false`; gap fallback when diarization unavailable
 
 ## Relationship to Other RFCs
 
@@ -499,14 +503,14 @@ Together, these RFCs deliver:
 
 ## Migration Path
 
-1. **Phase 1**: Ship with `diarize=false` default — zero user impact
-2. **Phase 2**: Users opt in with `--diarize` — requires `[diarize]` install + HuggingFace token
-3. **Phase 3**: Once validated, consider making diarization the default for `--screenplay` when `[diarize]` is installed
+1. **Phase 1 (shipped)**: `diarize=true` default for local Whisper; API providers coerce off
+2. **Phase 2**: `--no-diarize` for operators who want gap-based screenplay only
+3. **Phase 3**: Diarization result caching (RFC Phase 4) and fixture-backed integration proof (#111)
 4. **Future**: Evaluate WhisperX for bundled pipeline if speed/word-level timestamps become priorities
 
 ## Open Questions
 
-1. Should `[diarize]` be merged into `[ml]` extra or remain separate?
+1. ~~Should `[diarize]` be merged into `[ml]` extra or remain separate?~~ **Resolved:** bundled in `[ml]` / `[dev]` (ADR-058 amendment 2026-05-30).
 2. Should the alignment use an interval tree library (e.g., `intervaltree`) or a simple sorted-list scan?
 3. How to handle the HuggingFace model acceptance UX — CLI wizard on first run?
 4. Should diarization confidence scores be exposed in output metadata?

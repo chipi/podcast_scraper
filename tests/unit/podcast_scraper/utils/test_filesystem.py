@@ -262,6 +262,7 @@ class TestSetupOutputDirectory(unittest.TestCase):
             transcribe_missing=False,
             whisper_model=config.TEST_DEFAULT_WHISPER_MODEL,  # Test default: tiny.en
             screenplay=False,
+            diarize=False,
             screenplay_gap_s=2.0,
             screenplay_num_speakers=2,
             screenplay_speaker_names=[],
@@ -298,6 +299,7 @@ class TestSetupOutputDirectory(unittest.TestCase):
             transcribe_missing=True,
             whisper_model=config.TEST_DEFAULT_WHISPER_MODEL,
             screenplay=False,
+            diarize=False,
             screenplay_gap_s=2.0,
             screenplay_num_speakers=2,
             screenplay_speaker_names=[],
@@ -328,6 +330,7 @@ class TestSetupOutputDirectory(unittest.TestCase):
             transcribe_missing=False,
             whisper_model=config.TEST_DEFAULT_WHISPER_MODEL,
             screenplay=False,
+            diarize=False,
             screenplay_gap_s=2.0,
             screenplay_num_speakers=2,
             screenplay_speaker_names=[],
@@ -362,6 +365,7 @@ class TestSetupOutputDirectory(unittest.TestCase):
             transcribe_missing=False,
             whisper_model=config.TEST_DEFAULT_WHISPER_MODEL,
             screenplay=False,
+            diarize=False,
             screenplay_gap_s=2.0,
             screenplay_num_speakers=2,
             screenplay_speaker_names=[],
@@ -414,6 +418,7 @@ class TestSetupOutputDirectory(unittest.TestCase):
             transcribe_missing=False,
             whisper_model=config.TEST_DEFAULT_WHISPER_MODEL,
             screenplay=False,
+            diarize=False,
             screenplay_gap_s=2.0,
             screenplay_num_speakers=2,
             screenplay_speaker_names=[],
@@ -459,6 +464,7 @@ class TestSetupOutputDirectory(unittest.TestCase):
             transcribe_missing=True,
             whisper_model=config.TEST_DEFAULT_WHISPER_MODEL,  # Test default: tiny.en
             screenplay=False,
+            diarize=False,
             screenplay_gap_s=2.0,
             screenplay_num_speakers=2,
             screenplay_speaker_names=[],
@@ -577,6 +583,7 @@ class TestSetupOutputDirectory(unittest.TestCase):
             transcribe_missing=False,
             auto_speakers=False,
             generate_summaries=False,
+            diarize=False,
         )
         output_dir, run_suffix, full_config_string = filesystem.setup_output_directory(cfg)
         # No ML features, but still get timestamp-based suffix

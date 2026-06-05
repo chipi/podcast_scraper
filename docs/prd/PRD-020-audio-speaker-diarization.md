@@ -1,6 +1,6 @@
 # PRD-020: Audio-Based Speaker Diarization & Commercial Content Cleaning
 
-- **Status**: Draft
+- **Status**: Partial
 - **Related RFCs**:
   - [RFC-058](../rfc/RFC-058-audio-speaker-diarization.md) — audio-based speaker diarization (**open**)
   - [RFC-059](../rfc/RFC-059-speaker-detection-refactor-test-audio.md) — speaker detection refactor & test audio (**open**)
@@ -36,7 +36,7 @@ PRD-008 explicitly listed audio-based diarization as a non-goal. With the matura
 - Automatically detect the number of speakers from audio (eliminate manual `screenplay_num_speakers`)
 - Produce screenplay transcripts with accurate, voice-consistent speaker labels
 - Maintain the existing NER name-mapping pipeline (detect names from metadata, then map to diarized speaker IDs)
-- Offer diarization as an optional, opt-in feature behind a CLI flag (`--diarize`)
+- Offer diarization as a configurable feature (`diarize` in YAML / `--diarize` / `--no-diarize` on CLI); **default on** for local Whisper, coerced off for API transcription providers
 - Keep the current gap-based fallback as default for users without GPU or HuggingFace token
 - Enable diarization-enhanced commercial detection (RFC-060 Phase 2) — providing the "who + when" context that makes host-read sponsor identification reliable
 
@@ -69,7 +69,7 @@ PRD-008 explicitly listed audio-based diarization as a non-goal. With the matura
 
 - _As a Developer, I can access diarized segments with speaker IDs and timestamps so that I can build speaker-aware downstream features (knowledge graphs, quote extraction)._
 
-- _As any operator, I can run without `--diarize` and get the same gap-based behavior as before so that nothing breaks if I lack a GPU or HuggingFace token._
+- _As any operator, I can run with `--no-diarize` and get gap-based screenplay behavior when I lack a GPU or HuggingFace token._
 
 ## Functional Requirements
 
@@ -88,7 +88,7 @@ PRD-008 explicitly listed audio-based diarization as a non-goal. With the matura
 
 ### FR3: Integration with Existing Pipeline
 
-- **FR3.1**: Diarization must be optional — disabled by default, enabled via `--diarize` CLI flag or `diarize: true` in YAML config
+- **FR3.1**: Diarization is **enabled by default** (`diarize: true`) for local Whisper transcription (`whisper`, `tailnet_dgx_whisper`). Disable via `--no-diarize` or `diarize: false`. API/cloud transcription providers coerce `diarize=false`.
 - **FR3.2**: When disabled, current gap-based `format_screenplay_from_segments()` behavior is preserved exactly
 - **FR3.3**: Diarized output uses the same screenplay text format (`SPEAKER: text\n`) for backward compatibility
 - **FR3.4**: Diarization result is cached alongside transcript cache (keyed by audio content hash + diarization config)
@@ -99,7 +99,7 @@ PRD-008 explicitly listed audio-based diarization as a non-goal. With the matura
 
   | Option | Default | Description |
   | --- | --- | --- |
-  | `diarize` | `false` | Enable audio-based speaker diarization |
+  | `diarize` | `true` | Enable audio-based speaker diarization (local Whisper only; coerced off for API providers) |
   | `hf_token` | `None` | HuggingFace access token for pyannote models |
   | `num_speakers` | `None` (auto) | Override auto-detected speaker count |
   | `min_speakers` | `2` | Minimum speakers for diarization |
@@ -119,7 +119,7 @@ PRD-008 explicitly listed audio-based diarization as a non-goal. With the matura
 - Diarization Error Rate (DER) < 15% on a benchmark set of 10+ podcast episodes with known speaker turns
 - Screenplay attribution accuracy: >= 85% of lines attributed to the correct speaker (manual spot-check on 5 episodes)
 - Processing overhead: < 2x total wall-clock time compared to Whisper-only (with GPU)
-- Zero regression: all existing tests pass with `diarize=false` (default)
+- Zero regression: API transcription paths coerce `diarize=false`; gap fallback when diarization unavailable
 - Zero impact on cloud provider paths (OpenAI, Gemini, Mistral transcription)
 
 ## Dependencies
@@ -201,7 +201,7 @@ Sarah Chen: Well, it started about five years ago when I was working at a startu
 
 ## Open Questions
 
-- Should diarization be part of the `ml` optional extra or a separate `diarize` extra in `pyproject.toml`?
+- Should diarization be part of the `ml` optional extra or a separate extra? **Resolved:** `[ml]` + `[dev]` pins (no separate `[diarize]` extra).
 - How to handle the HuggingFace token UX — should we guide users through model acceptance on first run?
 - Should we expose diarization confidence scores in the output (e.g., per-segment confidence)?
 - Priority: segment-level only, or invest in word-level from the start?
@@ -220,13 +220,13 @@ Sarah Chen: Well, it started about five years ago when I was working at a startu
 
 - [ ] PRD reviewed and approved
 - [ ] RFC-NNN created with technical design (diarization provider, alignment algorithm, config schema)
-- [ ] pyannote.audio added to optional `[diarize]` extra in `pyproject.toml`
-- [ ] `DiarizationProvider` implemented with segment-level speaker assignment
-- [ ] Alignment logic: Whisper segments mapped to pyannote speaker IDs
-- [ ] NER name mapping: diarized speaker IDs -> detected host/guest names
-- [ ] CLI flags: `--diarize`, `--hf-token`, `--num-speakers`
+- [x] pyannote.audio added to `[ml]` and pinned in `[dev]` in `pyproject.toml`
+- [x] `DiarizationProvider` implemented with segment-level speaker assignment
+- [x] Alignment logic: Whisper segments mapped to pyannote speaker IDs
+- [x] NER name mapping: diarized speaker IDs -> detected host/guest names
+- [x] CLI flags: `--diarize`, `--no-diarize`, `--hf-token`, `--diarization-*`
 - [ ] Cache integration: diarization results cached by audio hash
-- [ ] Tests: unit tests for alignment, integration tests with sample audio
+- [x] Tests: unit tests for alignment, mapping, factory
 - [ ] Documentation: README section, config examples, HuggingFace setup guide
 - [ ] Benchmark: DER measured on 10+ episodes, results documented
-- [ ] Backward compatibility verified: all existing tests pass with `diarize=false`
+- [x] Backward compatibility: API transcription coerces `diarize=false`; gap fallback on diarization failure

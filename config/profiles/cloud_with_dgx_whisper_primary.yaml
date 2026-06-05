@@ -13,6 +13,9 @@ transcription_fallback_provider: openai
 
 openai_transcription_model: whisper-1
 
+screenplay: true
+diarize: true
+
 audio_preprocessing_profile: speech_optimal_v1
 
 speaker_detector_provider: gemini

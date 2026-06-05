@@ -2004,7 +2004,7 @@ class TestFormatTranscriptIfNeeded(unittest.TestCase):
 
     def test_format_transcript_if_needed_screenplay_no_provider(self):
         """Test formatting with screenplay but no provider support."""
-        cfg = create_test_config(screenplay=True)
+        cfg = create_test_config(screenplay=True, diarize=False)
         result = {"text": "Hello world", "segments": []}
 
         with patch("podcast_scraper.workflow.episode_processor.logger") as mock_logger:

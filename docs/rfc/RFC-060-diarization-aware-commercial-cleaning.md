@@ -1,6 +1,6 @@
 # RFC-060: Diarization-Aware Commercial Detection & Cleaning
 
-- **Status**: Draft
+- **Status**: Partial (Phase 1 landed in Wave 1 / #486; Phase 2 diarization signals in Wave 2 / #488)
 - **Authors**: Architecture Review
 - **Stakeholders**: Core Pipeline, Summarization, GIL/KG Consumers
 - **Related PRDs**:
@@ -38,9 +38,13 @@ This RFC proposes a multi-signal commercial detection system that combines text 
 
 Commercial content leaking into summaries and downstream features (GIL quotes, KG topics) fundamentally breaks the pipeline's core value proposition. Users want the *substance* of a podcast conversation, not ads.
 
-### Why Current Detection Fails
+### Why Current Detection Fails (historical — pre Wave 1)
 
-The current `remove_sponsor_blocks()` in `preprocessing/core.py` uses **four hardcoded English phrases**:
+**Implementation (Wave 1):** `CommercialDetector` in `cleaning/commercial/` replaced the legacy
+four-phrase `remove_sponsor_blocks()` in `preprocessing/core.py` (duplicate in `summarizer.py`
+removed). Phase 2 adds optional diarization signals when speaker timeline metadata is available.
+
+The pre-Wave-1 `remove_sponsor_blocks()` in `preprocessing/core.py` used **four hardcoded English phrases**:
 
 ```python
 for phrase in [

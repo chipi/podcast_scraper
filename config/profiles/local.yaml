@@ -25,6 +25,10 @@
 transcription_provider: whisper
 whisper_model: small.en
 
+# Screenplay + neural diarization (RFC-058) — local Whisper path only
+screenplay: true
+diarize: true
+
 # Audio preprocessing — named preset (#634 Scope 1).
 audio_preprocessing_profile: speech_optimal_v1
 
