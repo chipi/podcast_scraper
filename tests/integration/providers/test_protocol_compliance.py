@@ -179,3 +179,27 @@ class TestProtocolTypeHints(unittest.TestCase):
         """Test that SummarizationProvider protocol has type hints."""
         hints = get_type_hints(SummarizationProvider.summarize)
         self.assertIn("return", hints)
+
+
+@pytest.mark.integration
+@pytest.mark.slow
+class TestDeepgramTranscriptionProviderProtocol(unittest.TestCase):
+    """Test Deepgram TranscriptionProvider factory wiring."""
+
+    def setUp(self):
+        """Set up test fixtures."""
+        self.cfg = config.Config(
+            rss_url="https://example.com/feed.xml",
+            transcription_provider="deepgram",
+            deepgram_api_key="dg-test",
+        )
+        self.provider = create_transcription_provider(self.cfg)
+
+    def test_factory_creates_deepgram_provider(self):
+        """Factory returns DeepgramTranscriptionProvider for deepgram config."""
+        self.assertEqual(self.provider.__class__.__name__, "DeepgramTranscriptionProvider")
+
+    def test_provider_implements_transcribe_with_segments(self):
+        """Deepgram provider exposes segment transcription API."""
+        self.assertTrue(hasattr(self.provider, "transcribe_with_segments"))
+        self.assertTrue(callable(getattr(self.provider, "transcribe_with_segments")))

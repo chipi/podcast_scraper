@@ -1108,7 +1108,7 @@ class TestTranscribeMediaToText(unittest.TestCase):
     def test_transcribe_media_to_text_oversized_file_skipped(
         self, mock_cleanup, mock_getsize, mock_exists, mock_build_path
     ):
-        """Test that oversized audio files are skipped gracefully with warning."""
+        """Provider rejects raw oversize file when preprocessing/chunking do not apply."""
         import tempfile
 
         job = Mock()

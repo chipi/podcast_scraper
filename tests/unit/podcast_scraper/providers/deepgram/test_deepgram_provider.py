@@ -36,6 +36,39 @@ class TestParseDeepgramTranscript:
         assert len(parsed["segments"]) == 1
         assert parsed["segments"][0]["speaker"] == 0
 
+    def test_words_fallback_when_no_utterances(self) -> None:
+        payload = {
+            "results": {
+                "channels": [
+                    {
+                        "alternatives": [
+                            {
+                                "transcript": "hello there",
+                                "words": [
+                                    {
+                                        "word": "hello",
+                                        "start": 0.0,
+                                        "end": 0.4,
+                                        "speaker": 0,
+                                    },
+                                    {
+                                        "word": "there",
+                                        "start": 0.5,
+                                        "end": 0.9,
+                                        "speaker": 0,
+                                    },
+                                ],
+                            }
+                        ]
+                    }
+                ],
+                "utterances": [],
+            }
+        }
+        parsed = parse_deepgram_transcript(payload)
+        assert parsed["text"] == "hello there"
+        assert len(parsed["segments"]) == 1
+
 
 class TestDeepgramTranscriptionProvider:
     def test_initialize_requires_api_key(self) -> None:
@@ -48,10 +81,10 @@ class TestDeepgramTranscriptionProvider:
         with pytest.raises(ValueError, match="Deepgram API key"):
             provider.initialize()
 
-    @patch("deepgram.DeepgramClient")
-    def test_transcribe_with_segments_maps_response(self, mock_client_cls) -> None:
+    @patch("podcast_scraper.providers.deepgram.deepgram_provider._create_deepgram_client")
+    def test_transcribe_with_segments_maps_response(self, mock_create_client) -> None:
         mock_client = MagicMock()
-        mock_client_cls.return_value = mock_client
+        mock_create_client.return_value = mock_client
         mock_client.listen.v1.media.transcribe_file.return_value = {
             "results": {
                 "channels": [{"alternatives": [{"transcript": "episode text"}]}],
@@ -92,6 +125,21 @@ class TestDeepgramTranscriptionProvider:
         call_kwargs = mock_client.listen.v1.media.transcribe_file.call_args.kwargs
         assert call_kwargs["model"] == "nova-3"
         assert call_kwargs["diarize"] is True
+        mock_create_client.assert_called_once_with("dg-test-key")
+
+    @patch(
+        "podcast_scraper.providers.deepgram.deepgram_provider._create_deepgram_client",
+        side_effect=RuntimeError("deepgram-sdk is required"),
+    )
+    def test_initialize_requires_deepgram_sdk(self, _mock_create) -> None:
+        cfg = config.Config(
+            rss="https://example.com/feed.xml",
+            transcription_provider="deepgram",
+            deepgram_api_key="dg-test-key",
+        )
+        provider = DeepgramTranscriptionProvider(cfg)
+        with pytest.raises(RuntimeError, match="deepgram-sdk is required"):
+            provider.initialize()
 
 
 class TestDeepgramConfigValidation:

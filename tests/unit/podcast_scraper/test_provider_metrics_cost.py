@@ -47,6 +47,37 @@ def test_transcription_model_for_cfg_whisper_and_openai() -> None:
 
 
 @pytest.mark.unit
+def test_transcription_model_for_cfg_deepgram() -> None:
+    deepgram_cfg = create_test_config(
+        transcription_provider="deepgram",
+        deepgram_api_key="dg-test",
+        deepgram_model="nova-3",
+    )
+    assert transcription_model_for_cfg(deepgram_cfg) == "nova-3"
+
+
+@pytest.mark.unit
+def test_apply_estimated_cost_if_missing_deepgram() -> None:
+    cfg = create_test_config(
+        transcription_provider="deepgram",
+        deepgram_api_key="dg-test",
+        deepgram_model="nova-3",
+        pricing_assumptions_file="config/pricing_assumptions.yaml",
+    )
+    call = ProviderCallMetrics()
+    apply_estimated_cost_if_missing(
+        call,
+        cfg=cfg,
+        provider_type="deepgram",
+        capability="transcription",
+        model="nova-3",
+        audio_minutes=10.0,
+    )
+    assert call.estimated_cost is not None
+    assert call.estimated_cost == pytest.approx(0.043)
+
+
+@pytest.mark.unit
 def test_apply_estimated_cost_if_missing_no_op_when_cost_set() -> None:
     cfg = create_test_config(openai_api_key="sk-test")
     call = ProviderCallMetrics()

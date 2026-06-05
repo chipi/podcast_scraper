@@ -683,7 +683,7 @@ def _preprocessing_reencode_mp3_until_target(
     working_path = preprocessed_path
     final_kbps = int(audio_preprocessor.mp3_bitrate_kbps)
     total_preprocess_elapsed = float(preprocess_elapsed)
-    if transcription_provider not in ("openai", "gemini"):
+    if transcription_provider not in ("openai", "gemini", "mistral", "deepgram"):
         return working_path, final_kbps, total_preprocess_elapsed
 
     while True:
@@ -779,7 +779,7 @@ def _preprocess_audio_if_needed(
     cache_dir = cfg.preprocessing_cache_dir or preprocessing_cache.PREPROCESSING_CACHE_DIR
     transcription_provider = str(cfg.transcription_provider or "").lower()
     first_pass_kbps = resolve_preprocessing_mp3_bitrate_kbps(cfg)
-    if transcription_provider in ("openai", "gemini"):
+    if transcription_provider in ("openai", "gemini", "mistral", "deepgram"):
         cache_probe_bitrates = mp3_bitrates_to_probe_for_cache(first_pass_kbps)
     else:
         cache_probe_bitrates = [first_pass_kbps]
@@ -1241,6 +1241,7 @@ def _transcribe_with_segments_maybe_chunked(
 ) -> Tuple[Dict[str, Any], float]:
     """Transcribe media, splitting into chunks when post-preprocess size exceeds API cap."""
     from ..preprocessing.audio.chunker import AudioChunker, transcribe_file_in_chunks
+    from ..utils.audio_payload_limits import transcription_max_chunk_duration_seconds
     from ..utils.timeout import timeout_context, TimeoutError
 
     def _transcribe_one(path: str) -> Tuple[Dict[str, Any], float]:
@@ -1254,7 +1255,10 @@ def _transcribe_with_segments_maybe_chunked(
             )
             return (result, elapsed)
 
-    chunker = AudioChunker(max_bytes=_PREPROCESSING_API_REENCODE_TARGET_BYTES)
+    chunker = AudioChunker(
+        max_bytes=_PREPROCESSING_API_REENCODE_TARGET_BYTES,
+        max_duration_seconds=transcription_max_chunk_duration_seconds(cfg),
+    )
     if _transcription_provider_supports_chunking(cfg) and chunker.needs_chunking(
         media_for_transcription
     ):

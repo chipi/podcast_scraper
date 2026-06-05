@@ -39,6 +39,7 @@ metadata:
     gemini: https://ai.google.dev/pricing
     anthropic: https://www.anthropic.com/pricing
     mistral: https://docs.mistral.ai/pricing/
+    deepgram: https://deepgram.com/pricing
     deepseek: https://platform.deepseek.com/pricing
     grok: https://docs.x.ai
 
@@ -146,6 +147,13 @@ providers:
       default:
         input_cost_per_1m_tokens: 0.20
         output_cost_per_1m_tokens: 0.60
+
+  deepgram:
+    transcription:
+      nova-3:
+        cost_per_minute: 0.0043
+      default:
+        cost_per_minute: 0.0043
 
   deepseek:
     # Source: https://api-docs.deepseek.com/quick_start/pricing (verified

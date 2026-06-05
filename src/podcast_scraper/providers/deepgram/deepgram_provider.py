@@ -95,6 +95,18 @@ def parse_deepgram_transcript(response: Any) -> Dict[str, Any]:
     return {"text": transcript, "segments": segments}
 
 
+def _create_deepgram_client(api_key: str) -> Any:
+    """Construct Deepgram SDK client (isolated for unit-test patching)."""
+    try:
+        from deepgram import DeepgramClient
+    except ImportError as exc:
+        raise RuntimeError(
+            "deepgram-sdk is required for transcription_provider='deepgram'. "
+            "Install with: pip install -e '.[llm]'"
+        ) from exc
+    return DeepgramClient(api_key=api_key)
+
+
 class DeepgramTranscriptionProvider:
     """Transcription-only provider using Deepgram Nova models."""
 
@@ -114,14 +126,7 @@ class DeepgramTranscriptionProvider:
                 "Deepgram API key required for transcription_provider='deepgram'. "
                 "Set DEEPGRAM_API_KEY or deepgram_api_key in config."
             )
-        try:
-            from deepgram import DeepgramClient
-        except ImportError as exc:
-            raise RuntimeError(
-                "deepgram-sdk is required for transcription_provider='deepgram'. "
-                "Install with: pip install -e '.[llm]'"
-            ) from exc
-        self._client = DeepgramClient(api_key=self.cfg.deepgram_api_key)
+        self._client = _create_deepgram_client(self.cfg.deepgram_api_key)
         self._initialized = True
 
     def cleanup(self) -> None:

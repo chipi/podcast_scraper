@@ -81,16 +81,23 @@ class AudioChunker:
         *,
         max_bytes: int = DEFAULT_MAX_BYTES,
         overlap_seconds: float = DEFAULT_OVERLAP_SECONDS,
+        max_duration_seconds: Optional[float] = None,
     ) -> None:
         self.max_bytes = max_bytes
         self.overlap_seconds = overlap_seconds
+        self.max_duration_seconds = max_duration_seconds
 
     def needs_chunking(self, audio_path: str) -> bool:
-        """Return True when file exceeds configured byte limit."""
+        """Return True when file exceeds byte or duration limits."""
         try:
-            return os.path.getsize(audio_path) > self.max_bytes
+            if os.path.getsize(audio_path) > self.max_bytes:
+                return True
         except OSError:
             return False
+        if self.max_duration_seconds is None:
+            return False
+        duration = _probe_duration_seconds(audio_path)
+        return duration is not None and duration > self.max_duration_seconds
 
     def split(self, audio_path: str, work_dir: Optional[str] = None) -> List[AudioChunk]:
         """Split audio into chunks using ffmpeg stream copy."""
@@ -103,6 +110,8 @@ class AudioChunker:
             raise RuntimeError(f"Could not determine duration for chunking: {audio_path}")
 
         chunk_duration = duration * (self.max_bytes / file_size) * 0.95
+        if self.max_duration_seconds is not None:
+            chunk_duration = min(chunk_duration, self.max_duration_seconds * 0.95)
         chunk_duration = max(chunk_duration, self.overlap_seconds + 1.0)
         step = max(chunk_duration - self.overlap_seconds, 1.0)
         num_chunks = max(1, math.ceil((duration - self.overlap_seconds) / step))

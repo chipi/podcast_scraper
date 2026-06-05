@@ -37,7 +37,7 @@ def create_transcription_provider(  # noqa: C901
 
     Args:
         cfg_or_provider_type: Either a Config object or provider type string
-            ("whisper", "openai", "gemini", or "mistral")
+            ("whisper", "openai", "gemini", "mistral", "deepgram", etc.)
         params: Optional parameters dict or TranscriptionParams object (experiment mode only)
 
     Returns:

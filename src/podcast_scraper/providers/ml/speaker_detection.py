@@ -34,6 +34,7 @@ from ...speaker_detectors.ner import (
     _ensure_spacy_sentence_boundaries,
     _load_spacy_model as _load_spacy_model_impl,
     _validate_model_name,
+    get_ner_model as _get_ner_model_impl,
 )
 from ...speaker_detectors.normalization import (
     _extract_confidence_score,
@@ -54,25 +55,7 @@ def _load_spacy_model(model_name: str) -> Optional[Any]:
 
 def get_ner_model(cfg: config.Config) -> Optional[Any]:
     """Get the appropriate spaCy NER model based on configuration."""
-    if cfg.dry_run:
-        return None
-
-    if not cfg.auto_speakers:
-        return None
-
-    model_name = cfg.ner_model
-    if not model_name:
-        if cfg.language == "en":
-            model_name = config.DEFAULT_NER_MODEL
-        else:
-            logger.debug("No default NER model for language '%s', skipping detection", cfg.language)
-            return None
-
-    nlp = _load_spacy_model(model_name)
-    if nlp is not None:
-        logger.debug("Loaded spaCy model: %s", model_name)
-
-    return nlp
+    return _get_ner_model_impl(cfg)
 
 
 def extract_person_entities(text: str, nlp: Any) -> list[tuple[str, float]]:

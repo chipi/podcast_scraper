@@ -202,6 +202,15 @@ class TestRemoveSponsorBlocks(unittest.TestCase):
         self.assertNotIn("This episode is brought to you by", result)
         self.assertIn("Content before", result)
 
+    def test_podcast_intro_not_removed(self):
+        """Phase 1: normal podcast intros must not be treated as post-ad breaks."""
+        text = (
+            "Maya: Welcome back to Singletrack Sessions. Today we discuss trails.\n"
+            "Liam: Thanks, Maya."
+        )
+        result = preprocessing.remove_sponsor_blocks(text)
+        self.assertEqual(result, text)
+
 
 class TestRemoveOutroBlocks(unittest.TestCase):
     """Test remove_outro_blocks() function."""

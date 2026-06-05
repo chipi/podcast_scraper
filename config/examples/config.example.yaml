@@ -23,7 +23,7 @@ append: true
 # episode_until: "2024-12-31"
 
 # Provider configuration - mixed example (can use different providers for different capabilities)
-# Options: openai, gemini, mistral, deepseek, grok, ollama (API-based), whisper (local Whisper), spacy (local spaCy), transformers (local HuggingFace)
+# Options: openai, gemini, mistral, deepgram, deepseek, grok, ollama (API-based), whisper (local Whisper), spacy (local spaCy), transformers (local HuggingFace)
 transcription_provider: whisper  # Options: whisper, openai, gemini, mistral, deepgram (Note: deepseek, grok, and ollama do NOT support transcription)
 speaker_detector_provider: spacy  # Options: spacy, openai, gemini, mistral, deepseek, grok, ollama
 summary_provider: transformers  # Options: transformers, openai, gemini, mistral, deepseek, grok, ollama
