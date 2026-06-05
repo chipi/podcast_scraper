@@ -7,6 +7,7 @@ from pathlib import Path
 from fastapi import APIRouter, Query, Request
 
 from podcast_scraper.search.corpus_search import run_corpus_search
+from podcast_scraper.search.query_log import append_query_event
 from podcast_scraper.search.router import classify_query, tier_for_doc_type
 from podcast_scraper.server.pathutil import resolve_corpus_path_param
 from podcast_scraper.server.schemas import (
@@ -123,6 +124,9 @@ async def search_corpus(
             )
         except (TypeError, ValueError):
             lift_stats = None
+    query_type = classify_query(q)
+    # FR6.2 — record search activity (timestamp + intent only). Best-effort.
+    append_query_event(root, query_type)
     return CorpusSearchApiResponse(
-        query=q, results=hits, query_type=classify_query(q), lift_stats=lift_stats
+        query=q, results=hits, query_type=query_type, lift_stats=lift_stats
     )

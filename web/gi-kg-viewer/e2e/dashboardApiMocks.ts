@@ -76,6 +76,15 @@ export async function setupCorpusDashboardDataRoutes(page: Page): Promise<void> 
       }),
     })
   })
+  // FR6.2 search-activity: default to empty so the chart stays hidden unless a spec
+  // overrides this with data (last route wins).
+  await page.route('**/api/corpus/query-activity**', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ total: 0, buckets: [] }),
+    })
+  })
   /**
    * Register **after** per-spec handlers when using ``setupDashboardApiMocks`` (last route wins).
    * Include **both** the CI graph fixture cluster and the Dashboard Intelligence landscape cluster so

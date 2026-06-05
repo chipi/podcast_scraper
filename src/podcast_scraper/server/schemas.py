@@ -433,6 +433,21 @@ class RelationalGroupedResponse(BaseModel):
     error: str | None = None
 
 
+class QueryActivityBucket(BaseModel):
+    """One day's search count (PRD-033 FR6.2)."""
+
+    date: str = Field(description="UTC calendar day, YYYY-MM-DD.")
+    count: int = Field(ge=0)
+
+
+class QueryActivityResponse(BaseModel):
+    """Response for GET /api/corpus/query-activity — daily search volume."""
+
+    total: int = Field(default=0, ge=0)
+    buckets: list[QueryActivityBucket] = Field(default_factory=list)
+    error: str | None = None
+
+
 class ExploreApiResponse(BaseModel):
     """Response for GET /api/explore (filters) or natural-language ``gi query`` (UC4)."""
 
