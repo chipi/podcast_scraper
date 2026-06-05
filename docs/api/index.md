@@ -2,7 +2,7 @@
 
 ## Purpose
 
-`podcast_scraper` exposes **two API surfaces**, documented here:
+`podcast_scraper` exposes **three API surfaces**, documented here:
 
 1. **Programmatic (library) API** — the public Python package: `run_pipeline`, `Config`,
    the data models, the CLI, and the non-interactive service interface. Importable from
@@ -10,6 +10,11 @@
 2. **HTTP / Viewer API** — the optional **FastAPI** server (`podcast serve`, all routes
    under `/api/*`) that backs the Vue 3 GI/KG viewer. **Not** part of the importable
    package surface; ships with the `[dev]` extra.
+3. **MCP / Agent tools** — the optional generic **MCP server** (`podcast mcp`) exposing
+   the platform's read capabilities (search, the relational-query layer, CIL, catalog) as
+   composable, read-only tools for agentic clients. Library-wrapped, stdio transport.
+   Spec: [PRD-034](../prd/PRD-034-generic-mcp-server.md) / [RFC-095](../rfc/RFC-095-generic-mcp-server.md);
+   usage: [Server Guide — MCP server](../guides/SERVER_GUIDE.md#mcp-server-agent-tools).
 
 ## Programmatic (library) API
 
