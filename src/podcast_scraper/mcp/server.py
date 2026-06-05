@@ -1,8 +1,8 @@
-"""FastMCP server construction (RFC-095 slice 1).
+"""FastMCP server construction (RFC-095).
 
 Registers the plain ``tools/`` functions as MCP tools and runs over stdio. The MCP SDK is
 imported inside :func:`build_server` so the rest of the package (and its tests) import
-without the ``[mcp]`` extra installed.
+without it installed (the SDK rides in the ``[dev]`` extra).
 """
 
 from __future__ import annotations
@@ -17,7 +17,7 @@ from .tools.search import search_corpus as _search_corpus
 
 
 def build_server(corpus_dir: Path | str) -> Any:
-    """Build a FastMCP server bound to *corpus_dir* with the slice-1 tools registered."""
+    """Build a FastMCP server bound to *corpus_dir* with the read tools registered."""
     from mcp.server.fastmcp import FastMCP
 
     ctx = CorpusContext.from_path(corpus_dir)
