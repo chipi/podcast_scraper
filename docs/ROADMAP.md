@@ -53,9 +53,9 @@ Planned but no implementation exists yet (or design-only).
 
 | Pri | Item | Type | Status | Dependencies | Impact |
 | --- | --- | --- | --- | --- | --- |
-| **13** | [RFC-058](rfc/RFC-058-audio-speaker-diarization.md) / [PRD-020](prd/PRD-020-audio-speaker-diarization.md) | RFC | **Not Started** | No diarization code, no pyannote, no `[diarize]` extra | Medium |
-| **14** | [RFC-059](rfc/RFC-059-speaker-detection-refactor-test-audio.md) | RFC | **Partial** | Package stub at `speaker_detectors/` (Stage 0 docstring / full modularization TBD) | Medium |
-| **15** | [RFC-060](rfc/RFC-060-diarization-aware-commercial-cleaning.md) | RFC | **Not Started** | No `CommercialDetector`, no `cleaning/commercial/`. Phase 2 depends on RFC-058 | Low-Medium |
+| **13** | [RFC-058](rfc/RFC-058-audio-speaker-diarization.md) / [PRD-020](prd/PRD-020-audio-speaker-diarization.md) | RFC | **Partial** | Core diarization module + `[ml]`/`[dev]` deps; caching + fixture proof open | Medium |
+| **14** | [RFC-059](rfc/RFC-059-speaker-detection-refactor-test-audio.md) | RFC | **Partial** | `speaker_detectors/` modularization landed (#269); fixture voices (#111) and commercial segments (#109) open | Medium |
+| **15** | [RFC-060](rfc/RFC-060-diarization-aware-commercial-cleaning.md) | RFC | **Partial** | `CommercialDetector` Phase 1 landed (#486); Phase 2 diarization signals (#488) in flight | Low-Medium |
 
 ## ADRs with remaining implementation work
 
@@ -66,8 +66,8 @@ Architectural decisions that are **Proposed**, **Accepted** with **Code = No**, 
 | [ADR-054](adr/ADR-054-relational-postgres-projection-for-gil-and-kg.md) | Relational Postgres Projection | No | RFC-051 (Not Started) |
 | [ADR-055](adr/ADR-055-adaptive-summarization-routing.md) | Adaptive Summarization Routing | Proposed | RFC-053 (Not Started) |
 | [ADR-056](adr/ADR-056-composable-e2e-mock-response-strategy.md) | Composable E2E Mock Response Strategy | Proposed | RFC-054 (Partial) |
-| [ADR-058](adr/ADR-058-additive-pyannote-diarization-with-separate-extra.md) | Additive pyannote Diarization | No | RFC-058 (Not Started) |
-| [ADR-059](adr/ADR-059-confidence-scored-multi-signal-commercial-detection.md) | Confidence-Scored Commercial Detection | No | RFC-060 (Not Started) |
+| [ADR-058](adr/ADR-058-additive-pyannote-diarization-with-separate-extra.md) | Additive pyannote Diarization | Partial | RFC-058 core landed; result caching open |
+| [ADR-059](adr/ADR-059-confidence-scored-multi-signal-commercial-detection.md) | Confidence-Scored Commercial Detection | Partial | Phase 1 landed (#486); Phase 2 diarization signals (#488) in flight |
 | [ADR-031](adr/ADR-031-mandatory-pre-release-validation.md) | Mandatory Pre-Release Validation | Partial | RFC-038 checklist alignment |
 | [ADR-047](adr/ADR-047-proactive-metric-regression-alerting.md) | Proactive Metric Regression Alerting | Partial | RFC-043 PR comments |
 

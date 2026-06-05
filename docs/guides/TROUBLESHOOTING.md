@@ -16,7 +16,9 @@ Common issues and solutions for podcast_scraper development and usage.
 | Memory errors in tests | ML models loading repeatedly | Use `@pytest.mark.serial` |
 | Import errors after pull | Dependencies changed | `pip install -e ".[dev,ml]"` |
 | Tests hang with `-s` flag | tqdm + parallel execution deadlock | Use `-v` instead, or `-n 0` |
-| OpenAI episodes skipped | Audio file size > 25MB | Use local Whisper or compress audio |
+| OpenAI episodes skipped | Audio file size > 25MB (legacy) | API providers now use **AudioChunker** (#286); or use local Whisper |
+| Diarization skipped / gap-only screenplay | Missing `HF_TOKEN` or pyannote not installed | Set `HF_TOKEN`; accept model terms; `pip install -e ".[ml]"`; or `--no-diarize` |
+| Deepgram config validation error | Missing API key | Set `DEEPGRAM_API_KEY` or `--deepgram-api-key` |
 | Pipeline hangs on transcription | No timeout configured | Set `transcription_timeout` in config |
 | Pipeline hangs on summarization | No timeout configured | Set `summarization_timeout` in config |
 | Need structured logs | Default logging format | Use `--json-logs` flag |

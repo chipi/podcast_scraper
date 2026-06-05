@@ -5,6 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import List, Optional, Tuple
 
+from .diarization_signals import diarization_sponsor_signals
 from .patterns import (
     BLOCK_END_PATTERNS,
     BLOCK_START_PATTERNS,
@@ -32,14 +33,18 @@ class CommercialCandidate:
 
 
 class CommercialDetector:
-    """Multi-signal commercial detection (Phase 1: patterns + position)."""
+    """Multi-signal commercial detection (patterns, position, optional diarization)."""
 
     def __init__(
         self,
         *,
         confidence_threshold: float = DEFAULT_CONFIDENCE_THRESHOLD,
+        diarization_segments: Optional[List[dict]] = None,
+        host_speaker_id: Optional[str] = None,
     ) -> None:
         self.confidence_threshold = confidence_threshold
+        self.diarization_segments = diarization_segments
+        self.host_speaker_id = host_speaker_id
 
     def detect(self, text: str) -> List[CommercialCandidate]:
         """Return sponsor candidates above threshold after boundary expansion."""
@@ -56,6 +61,17 @@ class CommercialDetector:
                 base_conf += position_score(match.start(), text_len)
                 if _text_mentions_brand(text, match.start(), match.end()):
                     base_conf += 0.1
+                if self.diarization_segments and self.host_speaker_id:
+                    signals = diarization_sponsor_signals(
+                        match.start(),
+                        match.end(),
+                        text,
+                        self.diarization_segments,
+                        self.host_speaker_id,
+                    )
+                    if signals.disqualify:
+                        continue
+                    base_conf += signals.confidence_delta
                 if base_conf < self.confidence_threshold:
                     continue
                 start, end = _detect_sponsor_boundaries(

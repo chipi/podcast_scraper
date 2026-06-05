@@ -119,10 +119,28 @@ class Config(BaseModel)
 
 #### Screenplay Formatting
 
-- `screenplay` (`bool`, default: `False`, alias: `"screenplay"`): Format transcripts as screenplay with speaker labels.
-- `screenplay_gap_s` (`float`, default: `1.25`, alias: `"screenplay_gap"`): Minimum gap in seconds between speaker segments.
-- `screenplay_num_speakers` (`int`, default: `2`, alias: `"num_speakers"`): Number of speakers for Whisper diarization (minimum: 1).
-- `screenplay_speaker_names` (`List[str]`, default: `[]`, alias: `"speaker_names"`): Manual speaker names (overrides auto-detection). Format: `["Host", "Guest"]`.
+Local Whisper paths only (`whisper`, `tailnet_dgx_whisper`). API providers coerce `screenplay: false`.
+See [Audio Pipeline Guide](../guides/AUDIO_PIPELINE_GUIDE.md).
+
+- `screenplay` (`bool`, default: `False` in field schema; often `true` in local profiles; auto-enabled when `diarize=true`, alias: `"screenplay"`): Format transcripts as screenplay with speaker labels.
+- `screenplay_gap_s` (`float`, default: `1.25`, alias: `"screenplay_gap"`): Minimum gap in seconds between speaker segments (gap-based fallback rotation).
+- `screenplay_num_speakers` (`int`, default: `2`, alias: `"num_speakers"`): Speaker count hint for gap-based rotation (minimum: 1).
+- `screenplay_speaker_names` (`List[str]`, default: `[]`, alias: `"speaker_names"`): Manual speaker names (fallback when auto-detection fails). Format: `["Host", "Guest"]`.
+
+#### Neural speaker diarization (RFC-058)
+
+- `diarize` (`bool`, default: `True`, alias: `"diarize"`): pyannote second pass after local Whisper; coerced off for API providers.
+- `hf_token` (`Optional[str]`, default: from `HF_TOKEN`, alias: `"hf_token"`): HuggingFace token for gated models.
+- `diarization_num_speakers` (`Optional[int]`, default: `None`): Known speaker count (auto-detect when unset).
+- `diarization_min_speakers` (`int`, default: `2`): Auto-detect minimum.
+- `diarization_max_speakers` (`int`, default: `20`): Auto-detect maximum.
+- `diarization_device` (`str`, default: `"auto"`): `cpu`, `cuda`, or `mps`.
+- `diarization_model` (`str`, default: `"pyannote/speaker-diarization-3.1"`): HuggingFace pipeline id.
+
+#### Deepgram transcription
+
+- `deepgram_api_key` (`Optional[str]`, alias: `"deepgram_api_key"`): API key (`DEEPGRAM_API_KEY` env).
+- `deepgram_model` (`str`, default: `"nova-3"`, alias: `"deepgram_model"`): Deepgram model id.
 
 #### Speaker Detection
 

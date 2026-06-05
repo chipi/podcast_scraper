@@ -608,8 +608,9 @@ this guide are obsolete.
 - `whisper_model: base.en` — 40s/ep, ~13% WER. Faster but noticeably worse
   quality; reserved for `dev` profile.
 - Providers with native transcription: **OpenAI** (`whisper-1`), **Gemini**
-  (`gemini-2.5-flash-lite`), **Mistral** (`voxtral-mini-latest`). For these,
-  per-provider capture profiles use the provider's own transcription path.
+  (`gemini-2.5-flash-lite`), **Mistral** (`voxtral-mini-latest`), **Deepgram**
+  (`nova-3`, utterance diarization in API response). For these, per-provider
+  capture profiles use the provider's own transcription path.
 - Anthropic, DeepSeek, Grok, Ollama have no transcription — fall back to
   local Whisper (`small.en`).
 
@@ -622,8 +623,9 @@ from `curated_5feeds_benchmark_v2`. Local Whisper small.en baseline WER ~11%.
 | ---------------- | :-------: | :-----------: | :--: | ----- |
 | `openai/whisper-1` | 8.2% | $0.20 | 68s | No caps; hard-coded anti-loop filters make it the most stable cloud option |
 | `mistral/voxtral-mini-latest` | 8.6% (clean) | **$0.034** | **21s** | 6× cheaper than whisper-1 but **1/5 eps hallucinated** (109K-char loop); no native anti-loop filters. Requires `temperature=0.0` (applied) + output-length sanity check (applied) + pre-chunk to <25 min. New model `voxtral-mini-transcribe-2` (Feb 2026) ships with diarization/timestamps and is expected to replace voxtral-mini-latest for batch transcription — upgrade tracked separately. |
-| `openai/gpt-4o-transcribe` | — | — | — | **Hard 1400s (23 min) duration cap.** All 5 eps failed. Needs chunking (see #286). |
-| `openai/gpt-4o-mini-transcribe` | — | — | — | **Token budget cap** (narrower than the 1400s cap). All 5 eps failed. Needs chunking. |
+| `openai/gpt-4o-transcribe` | — | — | — | **Hard 1400s (23 min) duration cap.** All 5 eps failed without chunking. `AudioChunker` (Wave 1, #286) splits oversized files before upload. |
+| `openai/gpt-4o-mini-transcribe` | — | — | — | **Token budget cap** (narrower than the 1400s cap). All 5 eps failed without chunking; use `AudioChunker` for long episodes. |
+| `deepgram/nova-3` | — | — | — | Native utterance diarization + timestamps in API response (#597). Requires `DEEPGRAM_API_KEY` and `[llm]` extra. No local pyannote pass needed when diarization labels are present. |
 | `gemini/gemini-2.5-flash-lite` | 72–931% | $0.01 | 16–121s | **Not suitable for verbatim transcription.** LLM-based audio without anti-loop filters. At default `max_output_tokens=8192` silently truncates → summary-style (72% WER). At raised cap, runs the hallucination loop (931% WER). Use `gemini-2.5-pro` or `-flash` with thinking for better results if Gemini is required; otherwise prefer Whisper/Voxtral. |
 
 ### Cost lever hierarchy for Whisper API path
@@ -642,7 +644,7 @@ from `curated_5feeds_benchmark_v2`. Local Whisper small.en baseline WER ~11%.
    saving on top of whatever provider they pick.
 3. **Cheaper model** — `voxtral-mini-latest` is 6× cheaper at similar clean-run
    quality (pending hallucination mitigations). `gpt-4o-mini-transcribe` is 50%
-   cheaper than `whisper-1` but blocked on chunking.
+   cheaper than `whisper-1` but needs `AudioChunker` for typical podcast length.
 
 ### Cross-provider caps and constraints
 
@@ -650,7 +652,8 @@ from `curated_5feeds_benchmark_v2`. Local Whisper small.en baseline WER ~11%.
 | ----- | :-------: | :------: | :----------: | ----- |
 | `openai/whisper-1` | 25 MB | — | — | Most permissive OpenAI option |
 | `openai/gpt-4o-transcribe` | — | 1400s | — | Hard duration cap |
-| `openai/gpt-4o-mini-transcribe` | — | — | yes (tighter than 1400s) | Needs chunking for any real podcast ep |
+| `openai/gpt-4o-mini-transcribe` | — | — | yes (tighter than 1400s) | Use `AudioChunker` for typical podcast episodes |
+| `deepgram/nova-3` | — | — | — | Built-in utterance diarization; SDK in `[llm]` extra |
 | `mistral/voxtral-mini-latest` | n/a | **30 min** (documented ceiling) | — | Exceeding 30 min triggers hallucination loops |
 | `gemini/gemini-2.5-flash-lite` | inline ~20 MB (Files API ≥ 20 MB) | — | 8192 output default, 65536 cap | Silent summary-truncation at default cap |
 

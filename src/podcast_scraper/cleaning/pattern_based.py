@@ -5,6 +5,7 @@ that is used by all providers unless they provide a custom cleaner.
 """
 
 import logging
+from typing import Optional
 
 logger = logging.getLogger(__name__)
 
@@ -21,7 +22,13 @@ class PatternBasedCleaner:
         """Initialize pattern-based cleaner."""
         pass
 
-    def clean(self, text: str) -> str:
+    def clean(
+        self,
+        text: str,
+        *,
+        diarization_segments: Optional[list] = None,
+        host_speaker_id: Optional[str] = None,
+    ) -> str:
         """Clean transcript using pattern-based rules.
 
         Wraps :func:`preprocessing.clean_for_summarization` for the baseline
@@ -32,8 +39,13 @@ class PatternBasedCleaner:
         ``Visit ramp.com``, ``Learn more at rogo.ai``) that the four
         built-in trigger phrases in ``remove_sponsor_blocks`` miss.
 
+        Optional diarization segments enable commercial Phase 2 confidence
+        signals when speaker ids are present on ``.segments.json`` rows.
+
         Args:
             text: Raw transcript text
+            diarization_segments: Optional timed segments with ``speaker`` ids
+            host_speaker_id: Host pyannote speaker id for diarization signals
 
         Returns:
             Cleaned transcript text
@@ -42,7 +54,11 @@ class PatternBasedCleaner:
         from .. import preprocessing
         from ..gi.ad_regions import excise_ad_regions
 
-        cleaned: str = preprocessing.clean_for_summarization(text)  # type: ignore[attr-defined]
+        cleaned: str = preprocessing.clean_for_summarization(  # type: ignore[attr-defined]
+            text,
+            diarization_segments=diarization_segments,
+            host_speaker_id=host_speaker_id,
+        )
         cleaned, _, meta = excise_ad_regions(cleaned)
         if meta.chars_removed:
             logger.debug(

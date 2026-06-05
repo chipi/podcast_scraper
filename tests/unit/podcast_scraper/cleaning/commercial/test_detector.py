@@ -45,3 +45,16 @@ class TestCommercialDetector:
         )
         cleaned = CommercialDetector().remove(text)
         assert cleaned == text
+
+    def test_diarization_guest_speaker_skips_candidate(self) -> None:
+        text = "Intro\nSponsored by Acme\nOutro"
+        segments = [
+            {"start": 0.0, "end": 5.0, "text": "Intro", "speaker": "SPEAKER_00"},
+            {"start": 5.0, "end": 35.0, "text": "Sponsored by Acme", "speaker": "SPEAKER_01"},
+        ]
+        cleaned = CommercialDetector(
+            confidence_threshold=0.5,
+            diarization_segments=segments,
+            host_speaker_id="SPEAKER_00",
+        ).remove(text)
+        assert "Sponsored by Acme" in cleaned

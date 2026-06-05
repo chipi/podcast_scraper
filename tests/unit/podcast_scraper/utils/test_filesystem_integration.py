@@ -118,6 +118,7 @@ class TestFilesystemOperations(unittest.TestCase):
             transcribe_missing=False,  # Explicitly disable to test basic case
             auto_speakers=False,  # Disable to avoid run suffix
             generate_summaries=False,  # Disable to avoid run suffix
+            diarize=False,
         )
         effective_dir, run_suffix, full_config_string = filesystem.setup_output_directory(cfg)
         # Even without ML features, a timestamp-based run suffix is created
@@ -138,6 +139,7 @@ class TestFilesystemOperations(unittest.TestCase):
             transcribe_missing=False,  # Explicitly disable to test run_id only
             auto_speakers=False,  # Disable to avoid adding spacy to run suffix
             generate_summaries=False,  # Disable to avoid adding transformers to run suffix
+            diarize=False,
         )
         effective_dir, run_suffix, full_config_string = filesystem.setup_output_directory(cfg)
 

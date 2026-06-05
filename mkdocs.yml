@@ -24,6 +24,7 @@ nav:
       - Polyglot repository layout: guides/POLYGLOT_REPO_GUIDE.md
       - Server Guide: guides/SERVER_GUIDE.md
       - Pipeline and Workflow Guide: guides/PIPELINE_AND_WORKFLOW.md
+      - Audio Pipeline Guide (transcription, diarization, chunking): guides/AUDIO_PIPELINE_GUIDE.md
       - RSS and feed ingestion: guides/RSS_GUIDE.md
       - Git Worktree Guide: guides/GIT_WORKTREE_GUIDE.md
       - Testing Guide: guides/TESTING_GUIDE.md
@@ -204,7 +205,7 @@ nav:
       - ADR-055 Adaptive Summarization Routing: adr/ADR-055-adaptive-summarization-routing.md
       - ADR-056 Composable E2E Mock Response Strategy: adr/ADR-056-composable-e2e-mock-response-strategy.md
       - ADR-057 AutoResearch Thin Harness with Credential Isolation: adr/ADR-057-autoresearch-thin-harness-with-credential-isolation.md
-      - ADR-058 Additive pyannote Diarization with Separate `[diarize]` Extra: adr/ADR-058-additive-pyannote-diarization-with-separate-extra.md
+      - ADR-058 Additive pyannote Diarization: adr/ADR-058-additive-pyannote-diarization-with-separate-extra.md
       - ADR-059 Confidence-Scored Multi-Signal Commercial Detection: adr/ADR-059-confidence-scored-multi-signal-commercial-detection.md
       - ADR-060 VectorStore Protocol with Backend Abstraction: adr/ADR-060-vectorstore-protocol-with-backend-abstraction.md
       - ADR-061 FAISS Phase 1 with Post-Filter Metadata Strategy: adr/ADR-061-faiss-phase-1-with-post-filter-metadata.md

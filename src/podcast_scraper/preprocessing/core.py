@@ -8,6 +8,7 @@ Functions moved from summarizer.py in Stage 1 of incremental modularization.
 """
 
 import re
+from typing import List, Optional
 
 # Outro removal patterns
 OUTRO_BLOCK_PATTERNS = [
@@ -223,7 +224,12 @@ def clean_transcript(
     return cleaned
 
 
-def remove_sponsor_blocks(text: str) -> str:
+def remove_sponsor_blocks(
+    text: str,
+    *,
+    diarization_segments: Optional[List[dict]] = None,
+    host_speaker_id: Optional[str] = None,
+) -> str:
     """Remove sponsor/advertisement blocks from transcript.
 
     Delegates to :class:`~podcast_scraper.cleaning.commercial.CommercialDetector`
@@ -231,13 +237,18 @@ def remove_sponsor_blocks(text: str) -> str:
 
     Args:
         text: Transcript text potentially containing sponsor blocks
+        diarization_segments: Optional timed segments with speaker ids
+        host_speaker_id: Optional host speaker id for diarization-enhanced detection
 
     Returns:
         Text with sponsor blocks removed
     """
     from ..cleaning.commercial import CommercialDetector
 
-    return CommercialDetector().remove(text)
+    return CommercialDetector(
+        diarization_segments=diarization_segments,
+        host_speaker_id=host_speaker_id,
+    ).remove(text)
 
 
 def remove_outro_blocks(text: str) -> str:
@@ -507,7 +518,12 @@ def strip_credits(text: str) -> str:
     return "\n".join(kept)
 
 
-def clean_for_summarization(text: str) -> str:
+def clean_for_summarization(
+    text: str,
+    *,
+    diarization_segments: Optional[List[dict]] = None,
+    host_speaker_id: Optional[str] = None,
+) -> str:
     """High-level cleaner for BOTH:
       - offline .cleaned.txt generation
       - runtime summarization (if you want consistency)
@@ -544,7 +560,11 @@ def clean_for_summarization(text: str) -> str:
         collapse_blank_lines=True,
         remove_fillers=False,  # or True if you're sure it's all English
     )
-    text = remove_sponsor_blocks(text)
+    text = remove_sponsor_blocks(
+        text,
+        diarization_segments=diarization_segments,
+        host_speaker_id=host_speaker_id,
+    )
     text = remove_outro_blocks(text)
     text = remove_summarization_artifacts(text)
 
