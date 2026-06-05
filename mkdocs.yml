@@ -132,6 +132,7 @@ nav:
       - PRD-031 Search: prd/PRD-031-search.md
       - PRD-032 Hybrid Corpus Search: prd/PRD-032-hybrid-corpus-search.md
       - PRD-033 Search-Powered Surface Enhancements: prd/PRD-033-search-powered-surfaces.md
+      - PRD-034 Generic MCP Server: prd/PRD-034-generic-mcp-server.md
       - PRD Template: prd/PRD_TEMPLATE.md
   - UX Specifications:
       - uxs/index.md
@@ -339,10 +340,12 @@ nav:
       - RFC-092 ML Query Router: rfc/RFC-092-ml-query-router.md
       - RFC-093 LITM-Aware MCP Context Packs: rfc/RFC-093-litm-context-packs.md
       - RFC-094 Search-Powered Surfaces Query Layer: rfc/RFC-094-search-powered-surfaces-query-layer.md
+      - RFC-095 Generic MCP Server: rfc/RFC-095-generic-mcp-server.md
       - RFC Template: rfc/RFC_TEMPLATE.md
   - API:
       - API Overview: api/index.md
-      - Server & HTTP API (viewer): guides/SERVER_GUIDE.md
+      - HTTP API Reference (viewer): api/HTTP_API.md
+      - Server Guide (viewer): guides/SERVER_GUIDE.md
       - API Reference: api/REFERENCE.md
       - Core API: api/CORE.md
       - Configuration: api/CONFIGURATION.md

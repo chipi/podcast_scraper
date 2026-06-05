@@ -33,6 +33,7 @@ Features with meaningful **UI** may also link **[UX specifications](../uxs/index
 | [PRD-031](PRD-031-search.md) | Search product | [RFC-090](../rfc/RFC-090-hybrid-retrieval.md) | **Draft:** product surface for corpus search over the hybrid backend. |
 | [PRD-032](PRD-032-hybrid-corpus-search.md) | Hybrid Corpus Search (backend) | [RFC-090](../rfc/RFC-090-hybrid-retrieval.md), [091](../rfc/RFC-091-kg-proximity-signal.md), [092](../rfc/RFC-092-ml-query-router.md) | **Partial (shipped):** two-tier + BM25+dense+RRF + compounds, hybrid default-on (RFC-090). KG-proximity rejected (RFC-091); ML router gated (RFC-092). |
 | [PRD-033](PRD-033-search-powered-surfaces.md) | Search-Powered Surface Enhancements | [RFC-094](../rfc/RFC-094-search-powered-surfaces-query-layer.md), [090](../rfc/RFC-090-hybrid-retrieval.md) | **Draft:** how each viewer surface consumes the shipped foundation (re-grounded 2026-06-04). Shared query layer = RFC-094; per-surface issues [#882](https://github.com/chipi/podcast_scraper/issues/882)–888. |
+| [PRD-034](PRD-034-generic-mcp-server.md) | Generic MCP Server — capabilities as agent tools | [RFC-095](../rfc/RFC-095-generic-mcp-server.md) | **Draft:** expose the platform's read capabilities (search, RFC-094 relational, CIL, catalog) as composable MCP tools for agentic clients. Generic substrate; RFC-093 briefing pack plugs in. Decoupled from #861. |
 
 ## Implemented PRDs
 

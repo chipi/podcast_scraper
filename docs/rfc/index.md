@@ -34,6 +34,7 @@ RFCs translate PRD requirements into concrete technical solutions and serve as l
 | [RFC-092](RFC-092-ml-query-router.md) | ML Query Router | [PRD-032](../prd/PRD-032-hybrid-corpus-search.md) | **Draft:** rules router shipped; ML classifier gated on eval data ([#860](https://github.com/chipi/podcast_scraper/issues/860)). |
 | [RFC-093](RFC-093-litm-context-packs.md) | LITM-Aware MCP Context Packs | [PRD-033](../prd/PRD-033-search-powered-surfaces.md) | **Draft:** agent-facing briefing packs over an MCP layer; orthogonal to the surface work ([#861](https://github.com/chipi/podcast_scraper/issues/861)). |
 | [RFC-094](RFC-094-search-powered-surfaces-query-layer.md) | Search-Powered Surfaces Query Layer | [PRD-033](../prd/PRD-033-search-powered-surfaces.md) | **Draft:** the shared relational-query layer (positions_of/who_said/cross_show_synthesis over the #874 edges) + front-end retrieval state (OQ-1/2/3) the viewer surfaces consume. |
+| [RFC-095](RFC-095-generic-mcp-server.md) | Generic MCP Server | [PRD-034](../prd/PRD-034-generic-mcp-server.md) | **Draft:** the MCP layer (stdio, library-wrap) exposing search + RFC-094 relational + CIL + catalog as read-only agent tools. The "MCP layer [that] does not exist yet" RFC-093 is gated on; RFC-093 registers as one tool. |
 
 ## Completed RFCs
 

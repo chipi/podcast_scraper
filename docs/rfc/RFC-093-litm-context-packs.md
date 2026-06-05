@@ -7,11 +7,12 @@
   - `docs/prd/PRD-032-hybrid-corpus-search.md` — hybrid corpus search
   - `docs/prd/PRD-031-search.md` — Search product (agent endpoint, V3)
 - **Related RFCs**:
+  - `docs/rfc/RFC-095-generic-mcp-server.md` — **the generic MCP server this tool registers on** (the "MCP layer" referenced throughout below); RFC-093 is one synthesized consumer of that substrate
   - `docs/rfc/RFC-090-hybrid-retrieval.md` — produces the results this packages
   - `docs/rfc/RFC-091-kg-proximity-signal.md` — contradiction/relational inputs
   - `docs/rfc/RFC-088-enrichment-layer-architecture.md` — contradiction signals
 - **Related Documents**:
-  - _(MCP tool layer — does not exist yet; see Constraints)_
+  - `docs/rfc/RFC-095-generic-mcp-server.md` — the MCP tool layer (was "does not exist yet"; now specified)
 
 > **Stabilization note (2026-05-30):** Split out of an earlier combined draft (RFC-079). This is the
 > LITM-context-pack / MCP-tool concern only. **Blocking prerequisite:** there is no MCP tool layer
