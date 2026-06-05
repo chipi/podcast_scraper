@@ -287,6 +287,19 @@ test.describe('Topic / Entity rail panel (TEV)', () => {
         }),
       })
     })
+    await page.route('**/api/relational/topic-entities**', async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          subject: GRAPH_TOPIC_ID,
+          results: [
+            { id: 'org:acme', type: 'org', text: 'Acme Corp', show_id: '', episode_id: '' },
+          ],
+          error: null,
+        }),
+      })
+    })
 
     await page.goto('/')
     await page.getByRole('heading', { name: SHELL_HEADING_RE }).waitFor()
@@ -310,6 +323,12 @@ test.describe('Topic / Entity rail panel (TEV)', () => {
 
     const voices = view.getByTestId('tev-voices')
     await expect(voices.getByTestId('tev-voice-row')).toHaveCount(1)
+
+    // FR4.2 entities-involved (3b): chip lists the mentioned entity.
+    const entities = view.getByTestId('tev-entities')
+    await expect(entities.getByTestId('tev-entity-chip')).toHaveCount(1)
+    await expect(entities).toContainText('Acme Corp')
+
     // Clicking a voice opens the Person Landing rail.
     await voices.getByTestId('tev-voice-link').first().click()
     await expect(page.getByTestId('person-landing-view')).toBeVisible()

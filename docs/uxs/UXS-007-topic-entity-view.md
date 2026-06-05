@@ -176,8 +176,10 @@ returns nothing.
   show (`tev-cross-show-row`) with the resolved show label + insight text.
 - **Key voices** (`tev-voices`) — `who_said(topic)`: the people who stated insights on
   this topic, each a button (`tev-voice-link`) opening their **Person Landing** rail
-  (`focusPerson`), with their insight count. *Entities involved (`Insight→Entity`) is a
-  later addition — no topic→entities traversal ships yet.*
+  (`focusPerson`), with their insight count.
+- **Entities involved** (`tev-entities`) — `entities_in_topic(topic)`: the people/orgs
+  the topic's insights mention (`Insight→MENTIONS→Entity`), ranked by mention frequency,
+  rendered as `tev-entity-chip` chips that open each entity's Person/Topic rail.
 
 ---
 

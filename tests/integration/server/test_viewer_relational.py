@@ -106,6 +106,13 @@ def test_related_insights_via_shared_topic(client: TestClient) -> None:
     assert [r["id"] for r in body["results"]] == ["insight:2"]
 
 
+def test_topic_entities_returns_mentioned_entities(client: TestClient) -> None:
+    body = client.get("/api/relational/topic-entities", params={"topic": "topic:ai"}).json()
+    assert body["subject"] == "topic:ai"
+    # topic:ai's insight:1 mentions org:acme.
+    assert [r["id"] for r in body["results"]] == ["org:acme"]
+
+
 def test_episode_insights_excludes_own(client: TestClient) -> None:
     body = client.get("/api/relational/episode-insights", params={"episode": "e1"}).json()
     assert body["subject"] == "e1"

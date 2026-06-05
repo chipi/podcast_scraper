@@ -14,6 +14,7 @@ import { useShellStore } from '../../stores/shell'
 import { useSubjectStore } from '../../stores/subject'
 import {
   fetchCrossShow,
+  fetchTopicEntities,
   fetchWhoSaid,
   type RelatedNode,
 } from '../../api/relationalApi'
@@ -63,6 +64,8 @@ const crossShowRows = ref<CrossShowRow[]>([])
 const voicesLoading = ref(false)
 const voicesError = ref<string | null>(null)
 const voiceRows = ref<VoiceRow[]>([])
+const entitiesLoading = ref(false)
+const entityRows = ref<RelatedNode[]>([])
 const relationalGate = new StaleGeneration()
 
 function shortId(id: string): string {
@@ -74,6 +77,7 @@ function resetRelational(): void {
   crossShowError.value = null
   voiceRows.value = []
   voicesError.value = null
+  entityRows.value = []
 }
 
 async function loadRelational(topicId: string): Promise<void> {
@@ -85,11 +89,13 @@ async function loadRelational(topicId: string): Promise<void> {
   const seq = relationalGate.bump()
   crossShowLoading.value = true
   voicesLoading.value = true
+  entitiesLoading.value = true
   resetRelational()
   try {
-    const [cross, who] = await Promise.all([
+    const [cross, who, ents] = await Promise.all([
       fetchCrossShow(root, topicId).catch((e) => ({ error: String(e?.message ?? e), groups: {} })),
       fetchWhoSaid(root, topicId).catch((e) => ({ error: String(e?.message ?? e), groups: {} })),
+      fetchTopicEntities(root, topicId).catch(() => ({ results: [] as RelatedNode[] })),
     ])
     if (relationalGate.isStale(seq)) return
     crossShowError.value = cross.error ?? null
@@ -100,10 +106,12 @@ async function loadRelational(topicId: string): Promise<void> {
     voiceRows.value = Object.entries(who.groups ?? {})
       .map(([personId, insights]) => ({ personId, insights }))
       .filter((r) => r.insights.length > 0)
+    entityRows.value = ents.results ?? []
   } finally {
     if (relationalGate.isCurrent(seq)) {
       crossShowLoading.value = false
       voicesLoading.value = false
+      entitiesLoading.value = false
     }
   }
 }
@@ -112,6 +120,12 @@ watch(subjectId, (id) => void loadRelational(id), { immediate: true })
 
 function onClickVoice(personId: string): void {
   if (personId) subject.focusPerson(personId)
+}
+
+function onClickEntity(entity: RelatedNode): void {
+  if (!entity.id) return
+  if (entity.type === 'person') subject.focusPerson(entity.id)
+  else subject.focusEntity(entity.id)
 }
 
 const subjectNode = computed<RawGraphNode | null>(() => {
@@ -435,6 +449,39 @@ function onPrefillSearch(): void {
             </p>
           </li>
         </ul>
+      </section>
+
+      <!-- PRD-033 FR4.2 — entities involved (Insight→MENTIONS→Entity), most-mentioned first. -->
+      <section
+        v-if="entitiesLoading || entityRows.length"
+        class="w-full min-w-0"
+        aria-label="Entities involved"
+        data-testid="tev-entities"
+      >
+        <h3 class="mb-1 text-[10px] font-semibold uppercase tracking-wider text-muted">
+          Entities involved
+        </h3>
+        <p
+          v-if="entitiesLoading"
+          class="text-[10px] text-muted"
+        >
+          Loading…
+        </p>
+        <div
+          v-else
+          class="flex flex-wrap gap-1"
+          data-testid="tev-entities-list"
+        >
+          <button
+            v-for="ent in entityRows"
+            :key="ent.id"
+            type="button"
+            data-testid="tev-entity-chip"
+            class="rounded border border-border bg-elevated/40 px-1.5 py-0.5 text-[10px] text-surface-foreground hover:border-primary hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+            :title="`Open panel for ${ent.text || shortId(ent.id)}`"
+            @click="onClickEntity(ent)"
+          >{{ ent.text || shortId(ent.id) }}</button>
+        </div>
       </section>
 
       <div class="flex shrink-0 flex-wrap gap-2 pt-2">

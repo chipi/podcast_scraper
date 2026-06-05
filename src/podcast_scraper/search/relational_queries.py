@@ -117,6 +117,23 @@ def entities_in(graph: GraphLike, insight_id: str) -> List[RelatedNode]:
     return [_project(n) for n in _via(graph, insight_id, _MENTIONS, _ENTITY)]
 
 
+def entities_in_topic(graph: GraphLike, topic_id: str, *, k: int = 20) -> List[RelatedNode]:
+    """The entities *involved* in a topic — people/orgs its insights mention (FR4.2).
+
+    Walk topic→`ABOUT`→insights→`MENTIONS`→entities and rank each entity by how many of
+    the topic's insights mention it (most-mentioned first; id as a stable tiebreak).
+    Deterministic, de-duplicated, capped at *k*.
+    """
+    counts: Dict[str, int] = {}
+    nodes: Dict[str, Node] = {}
+    for insight in _via(graph, topic_id, _ABOUT, _INSIGHT):
+        for entity in _via(graph, insight.id, _MENTIONS, _ENTITY):
+            counts[entity.id] = counts.get(entity.id, 0) + 1
+            nodes[entity.id] = entity
+    ranked = sorted(counts, key=lambda eid: (-counts[eid], eid))[:k]
+    return [_project(nodes[eid]) for eid in ranked]
+
+
 def episodes_of(graph: GraphLike, podcast_id: str, *, k: Optional[int] = None) -> List[RelatedNode]:
     """A show's episodes — `HAS_EPISODE` (Podcast→Episode)."""
     return [_project(n) for n in _via(graph, podcast_id, _HAS_EPISODE, _EPISODE, limit=k)]

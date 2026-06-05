@@ -83,6 +83,21 @@ async def insights_about(
     return RelationalListResponse(subject=entity, results=results)
 
 
+@router.get("/relational/topic-entities", response_model=RelationalListResponse)
+async def topic_entities(
+    request: Request,
+    topic: str = Query(min_length=1, description="Canonical topic id, e.g. topic:inflation."),
+    path: str | None = Query(default=None, description="Corpus output dir; omit for default."),
+    k: int = Query(default=20, ge=1, le=200),
+) -> RelationalListResponse:
+    """Entities involved in a topic, ranked by mention frequency (Topic Entity View, FR4.2)."""
+    graph = _graph_or_none(request, path)
+    if graph is None:
+        return RelationalListResponse(subject=topic, error="no_corpus_path")
+    results = [_node(n) for n in rq.entities_in_topic(graph, topic, k=k)]
+    return RelationalListResponse(subject=topic, results=results)
+
+
 @router.get("/relational/entities-in", response_model=RelationalListResponse)
 async def entities_in(
     request: Request,
