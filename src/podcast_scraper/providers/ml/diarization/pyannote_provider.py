@@ -25,7 +25,11 @@ def _create_pyannote_pipeline(hf_token: str, model_name: str) -> Any:
     try:
         return Pipeline.from_pretrained(model_name, token=hf_token)
     except TypeError:
-        return Pipeline.from_pretrained(model_name, use_auth_token=hf_token)
+        # Older huggingface_hub/pyannote used use_auth_token=; types only expose token=.
+        return Pipeline.from_pretrained(  # type: ignore[call-arg]
+            model_name,
+            use_auth_token=hf_token,
+        )
 
 
 def _resolve_device(device: str) -> str:
