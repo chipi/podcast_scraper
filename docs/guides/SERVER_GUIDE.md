@@ -140,6 +140,23 @@ All endpoints live under the `/api` prefix. The full **endpoint catalogue**, req
 
 This guide covers **running and extending** the server (below); the HTTP API Reference is the source of truth for *what each endpoint does*.
 
+## MCP server (agent tools)
+
+Separate from the HTTP API, the **generic MCP server** (PRD-034 / RFC-095) exposes the
+platform's read capabilities as composable, read-only tools for agentic clients (Claude
+Desktop/Code, Cursor). It is **stdio** transport and **library-wrapped** — no HTTP server
+required; the corpus directory is the read context.
+
+```bash
+pip install -e '.[mcp,search,dev]'   # MCP SDK + retrieval + viewer capability fns
+podcast mcp --corpus /path/to/corpus  # stdio server; point your agent client at this
+```
+
+**Slice 1 tools (RFC-095):** `resolve_entity` (name → canonical `person:`/`org:`/`topic:`
+id — call first) and `search_corpus` (hybrid two-tier search with tiers + intent +
+grounded evidence). Relational, catalog, and CIL tools land in slices 2–3 (epic #891).
+Design and the full tool catalogue: [RFC-095](../rfc/RFC-095-generic-mcp-server.md).
+
 ## Route conventions
 
 1. **One file per domain** — `routes/<domain>.py`

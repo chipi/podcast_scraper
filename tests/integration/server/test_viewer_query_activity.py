@@ -55,7 +55,7 @@ def test_search_appends_to_query_log(tmp_path: Path, monkeypatch: pytest.MonkeyP
         return CorpusSearchOutcome(results=[])
 
     monkeypatch.setattr(
-        "podcast_scraper.server.routes.search.run_corpus_search",
+        "podcast_scraper.search.capability.run_corpus_search",
         fake_run,
     )
     client = TestClient(create_app(tmp_path, static_dir=False))

@@ -3582,6 +3582,12 @@ def parse_args(argv: Optional[Sequence[str]] = None) -> argparse.Namespace:
         serve_argv = list(argv[1:]) if len(argv) > 1 else []
         return parse_serve_argv(serve_argv)
 
+    if argv and len(argv) > 0 and argv[0] == "mcp":
+        from .mcp.cli_handlers import parse_mcp_argv
+
+        mcp_argv = list(argv[1:]) if len(argv) > 1 else []
+        return parse_mcp_argv(mcp_argv)
+
     if argv and len(argv) > 0 and argv[0] == "upgrade":
         from .upgrade.cli_handlers import parse_upgrade_argv
 
@@ -4661,6 +4667,11 @@ def main(  # noqa: C901 - main function handles multiple command paths
         from .server.cli_handlers import run_serve
 
         return run_serve(args, log)
+
+    if hasattr(args, "command") and args.command == "mcp":
+        from .mcp.cli_handlers import run_mcp
+
+        return run_mcp(args, log)
 
     if hasattr(args, "command") and args.command == "upgrade":
         from .upgrade.cli_handlers import run_upgrade_cli

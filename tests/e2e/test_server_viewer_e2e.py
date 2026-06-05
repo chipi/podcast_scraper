@@ -293,7 +293,7 @@ class TestServerViewerSearchPatched:
             )
 
         monkeypatch.setattr(
-            "podcast_scraper.server.routes.search.run_corpus_search",
+            "podcast_scraper.search.capability.run_corpus_search",
             fake_run,
         )
         app = create_app(corpus, static_dir=False)
