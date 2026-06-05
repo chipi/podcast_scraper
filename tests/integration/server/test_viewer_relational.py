@@ -84,6 +84,69 @@ def test_positions_returns_only_stated(client: TestClient) -> None:
     assert [r["id"] for r in body["results"]] == ["insight:1"]
 
 
+def test_positions_hybrid_reranks_by_relevance(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # person:p stated insight:a + insight:b (structural order = sorted = a, b).
+    graph = _FakeGraph(
+        {
+            "person:p": ("person", {"name": "Jane Doe"}),
+            "insight:a": ("insight", {"text": "A"}),
+            "insight:b": ("insight", {"text": "B"}),
+        },
+        [("person:p", "insight:a", "STATES"), ("person:p", "insight:b", "STATES")],
+    )
+    monkeypatch.setattr(
+        "podcast_scraper.server.routes.relational.get_corpus_graph",
+        lambda *a, **k: graph,
+    )
+    # Hybrid scores insight:b above insight:a → re-rank flips structural order.
+    from podcast_scraper.search.corpus_search import CorpusSearchOutcome
+
+    def fake_search(*_a: object, **_k: object) -> CorpusSearchOutcome:
+        return CorpusSearchOutcome(
+            results=[
+                {"doc_id": "x", "score": 0.9, "metadata": {"source_id": "insight:b"}},
+                {"doc_id": "y", "score": 0.4, "metadata": {"source_id": "insight:a"}},
+            ]
+        )
+
+    monkeypatch.setattr("podcast_scraper.server.routes.relational.run_corpus_search", fake_search)
+    client = TestClient(create_app(tmp_path, static_dir=False))
+    body = client.get(
+        "/api/relational/positions", params={"person": "person:p", "path": str(tmp_path)}
+    ).json()
+    assert [r["id"] for r in body["results"]] == ["insight:b", "insight:a"]
+
+
+def test_positions_keeps_structural_order_when_search_fails(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    graph = _FakeGraph(
+        {
+            "person:p": ("person", {"name": "Jane"}),
+            "insight:a": ("insight", {}),
+            "insight:b": ("insight", {}),
+        },
+        [("person:p", "insight:a", "STATES"), ("person:p", "insight:b", "STATES")],
+    )
+    monkeypatch.setattr(
+        "podcast_scraper.server.routes.relational.get_corpus_graph",
+        lambda *a, **k: graph,
+    )
+
+    def boom(*_a: object, **_k: object) -> object:
+        raise RuntimeError("no index")
+
+    monkeypatch.setattr("podcast_scraper.server.routes.relational.run_corpus_search", boom)
+    client = TestClient(create_app(tmp_path, static_dir=False))
+    body = client.get(
+        "/api/relational/positions", params={"person": "person:p", "path": str(tmp_path)}
+    ).json()
+    # Best-effort: search failure degrades to structural (sorted) order, not an error.
+    assert [r["id"] for r in body["results"]] == ["insight:a", "insight:b"]
+
+
 def test_entities_in_returns_mentioned_not_speaker(client: TestClient) -> None:
     body = client.get("/api/relational/entities-in", params={"insight": "insight:1"}).json()
     ids = [r["id"] for r in body["results"]]

@@ -18,6 +18,7 @@ from fastapi import APIRouter, Query, Request
 
 from podcast_scraper.search import relational_queries as rq
 from podcast_scraper.search.corpus_graph import get_corpus_graph
+from podcast_scraper.search.corpus_search import run_corpus_search
 from podcast_scraper.server.pathutil import resolve_corpus_path_param
 from podcast_scraper.server.schemas import (
     RelatedNodeModel,
@@ -34,13 +35,62 @@ def _resolve_corpus_root(path: str | None, fallback: Path | None) -> Path | None
     return fallback
 
 
+def _root_or_none(request: Request, path: str | None) -> Path | None:
+    return _resolve_corpus_root(path, getattr(request.app.state, "output_dir", None))
+
+
 def _graph_or_none(request: Request, path: str | None):
     """Resolve the corpus root and return its cached graph, or ``None`` if unconfigured."""
-    fallback = getattr(request.app.state, "output_dir", None)
-    root = _resolve_corpus_root(path, fallback)
+    root = _root_or_none(request, path)
     if root is None:
         return None
     return get_corpus_graph(root, derive_speaker_links=True)
+
+
+def _hybrid_scores(root: Path, label: str) -> dict[str, float]:
+    """Hybrid insight scores keyed by GIL node id (``metadata.source_id``), best-effort.
+
+    Runs one insight-scoped search for *label* and maps each hit's source node id to its
+    score. Any failure (no index, error) yields an empty map → the caller keeps structural
+    order. Never raises.
+    """
+    if not label.strip():
+        return {}
+    try:
+        outcome = run_corpus_search(root, label, doc_types=["insight"], top_k=50)
+    except Exception:  # noqa: BLE001 - re-rank is best-effort; degrade to structural order
+        return {}
+    if outcome.error:
+        return {}
+    scores: dict[str, float] = {}
+    for row in outcome.results:
+        meta = row.get("metadata") or {}
+        source_id = str(meta.get("source_id") or "")
+        if source_id:
+            scores[source_id] = float(row.get("score") or 0.0)
+    return scores
+
+
+def _maybe_rerank(
+    request: Request,
+    path: str | None,
+    graph,
+    subject_id: str,
+    nodes: list[rq.RelatedNode],
+) -> list[rq.RelatedNode]:
+    """Best-effort hybrid re-rank of insight *nodes* by relevance to the subject label.
+
+    PRD-033: structure via graph traversal, ranking via hybrid. Layered here so the
+    structural query stays pure. No-op (structural order) when there is nothing to
+    re-rank, no corpus root, or the index yields no matching scores.
+    """
+    if len(nodes) <= 1:
+        return nodes
+    root = _root_or_none(request, path)
+    if root is None:
+        return nodes
+    scores = _hybrid_scores(root, rq.node_label(graph, subject_id))
+    return rq.rerank_by_relevance(nodes, scores)
 
 
 def _node(n: rq.RelatedNode) -> RelatedNodeModel:
@@ -64,8 +114,8 @@ async def positions(
     graph = _graph_or_none(request, path)
     if graph is None:
         return RelationalListResponse(subject=person, error="no_corpus_path")
-    results = [_node(n) for n in rq.positions_of(graph, person, k=k)]
-    return RelationalListResponse(subject=person, results=results)
+    nodes = _maybe_rerank(request, path, graph, person, rq.positions_of(graph, person, k=k))
+    return RelationalListResponse(subject=person, results=[_node(n) for n in nodes])
 
 
 @router.get("/relational/insights-about", response_model=RelationalListResponse)
@@ -79,8 +129,8 @@ async def insights_about(
     graph = _graph_or_none(request, path)
     if graph is None:
         return RelationalListResponse(subject=entity, error="no_corpus_path")
-    results = [_node(n) for n in rq.insights_about(graph, entity, k=k)]
-    return RelationalListResponse(subject=entity, results=results)
+    nodes = _maybe_rerank(request, path, graph, entity, rq.insights_about(graph, entity, k=k))
+    return RelationalListResponse(subject=entity, results=[_node(n) for n in nodes])
 
 
 @router.get("/relational/topic-entities", response_model=RelationalListResponse)
@@ -138,8 +188,8 @@ async def related_insights(
     graph = _graph_or_none(request, path)
     if graph is None:
         return RelationalListResponse(subject=insight, error="no_corpus_path")
-    results = [_node(n) for n in rq.related_insights(graph, insight, k=k)]
-    return RelationalListResponse(subject=insight, results=results)
+    nodes = _maybe_rerank(request, path, graph, insight, rq.related_insights(graph, insight, k=k))
+    return RelationalListResponse(subject=insight, results=[_node(n) for n in nodes])
 
 
 @router.get("/relational/episode-insights", response_model=RelationalListResponse)

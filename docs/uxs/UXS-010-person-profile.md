@@ -177,7 +177,11 @@ both the Person Profile and the Position Tracker ([UXS-009](UXS-009-position-tra
   (`positions_of` — the synthesized `Person→STATES→Insight` claims), above the
   in-graph **Attributed quotes** (`SPOKEN_BY`). It fetches async on subject change,
   renders skeleton-first, is StaleGeneration-gated, and is hidden when empty. This is
-  the synthesized-position view that complements the verbatim-quote list.
+  the synthesized-position view that complements the verbatim-quote list. The list is
+  **hybrid-ranked** server-side: the route layers an entity-scoped hybrid query
+  (relevance to the person) over the structural graph order — best-effort, so it
+  degrades to structural order when no index is available (PRD-033 FR4.1: structure via
+  graph, ranking via hybrid).
 
 ### Tab bar
 
