@@ -12,6 +12,9 @@
 transcription_provider: whisper
 whisper_model: small.en
 
+screenplay: true
+diarize: true
+
 # Speaker detection — Grok
 speaker_detector_provider: grok
 grok_speaker_model: grok-3-mini

@@ -20,3 +20,24 @@ python -m podcast_scraper.cli \
   RSS URLs in one invocation.
 
 CLI details: [CLI.md — Quick Start](../api/CLI.md#quick-start), [CLI.md — RSS and multi-feed](../api/CLI.md#rss-and-multi-feed). Config semantics: [CONFIGURATION.md — Multi-feed compose](../api/CONFIGURATION.md#multi-feed-compose).
+
+## Optional: neural diarization and Deepgram
+
+**Neural speaker diarization** (local Whisper only, default on in local profiles):
+
+```bash
+pip install -e ".[ml]"   # includes pyannote.audio + torchaudio
+export HF_TOKEN=hf_...   # accept pyannote model terms on HuggingFace first
+# disable if needed:
+python -m podcast_scraper.cli --profile local --no-diarize ...
+```
+
+**Deepgram transcription:**
+
+```bash
+pip install -e ".[llm]"   # includes deepgram-sdk
+export DEEPGRAM_API_KEY=...
+python -m podcast_scraper.cli --transcription-provider deepgram ...
+```
+
+Full narrative: [Audio Pipeline Guide](AUDIO_PIPELINE_GUIDE.md).

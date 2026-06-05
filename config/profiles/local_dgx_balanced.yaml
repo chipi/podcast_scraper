@@ -8,6 +8,11 @@ ollama_api_base: http://dgx-llm-1.tail6d0ed4.ts.net:11434/v1
 
 transcription_provider: whisper
 whisper_model: small.en
+
+# Screenplay + neural diarization (RFC-058)
+screenplay: true
+diarize: true
+
 audio_preprocessing_profile: speech_optimal_v1
 
 speaker_detector_provider: spacy

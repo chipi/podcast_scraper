@@ -1040,7 +1040,8 @@ class TestBuildConfig(unittest.TestCase):
         self.assertIsNotNone(cfg.output_dir)  # Derived from RSS URL
         self.assertIsNone(cfg.max_episodes)
         self.assertFalse(cfg.transcribe_missing)
-        self.assertFalse(cfg.screenplay)
+        self.assertTrue(cfg.diarize)
+        self.assertTrue(cfg.screenplay)
         # GIL tuning keys omitted from Namespace → Config field defaults
         self.assertAlmostEqual(cfg.gi_qa_score_min, 0.3)
         self.assertAlmostEqual(cfg.gi_nli_entailment_min, 0.5)
@@ -2054,6 +2055,17 @@ class TestAddArgumentGroups(unittest.TestCase):
         action_dests = [a.dest for a in parser._actions]
         self.assertIn("deepgram_api_key", action_dests)
         self.assertIn("deepgram_model", action_dests)
+
+    def test_add_diarization_arguments(self):
+        """Test that _add_diarization_arguments adds expected arguments."""
+        parser = argparse.ArgumentParser()
+        cli._add_diarization_arguments(parser)
+
+        action_dests = [a.dest for a in parser._actions]
+        self.assertIn("diarize", action_dests)
+        self.assertIn("hf_token", action_dests)
+        self.assertIn("diarization_num_speakers", action_dests)
+        self.assertIn("diarization_device", action_dests)
 
     def test_add_deepseek_arguments(self):
         """Test that _add_deepseek_arguments adds expected arguments."""

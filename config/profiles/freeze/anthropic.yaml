@@ -11,6 +11,9 @@
 transcription_provider: whisper
 whisper_model: small.en
 
+screenplay: true
+diarize: true
+
 # Speaker detection — Anthropic claude-haiku-4-5
 speaker_detector_provider: anthropic
 anthropic_speaker_model: claude-haiku-4-5

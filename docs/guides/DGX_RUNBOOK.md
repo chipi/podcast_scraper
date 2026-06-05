@@ -74,7 +74,7 @@ Register labels `self-hosted`, `dgx-spark`. Set GitHub repo variables `DGX_TAILN
 
 ## P4 — Prod Whisper primary (ADR-096)
 
-Profile: `config/profiles/cloud_with_dgx_whisper_primary.yaml`.
+Profile: `config/profiles/cloud_with_dgx_whisper_primary.yaml` (`screenplay: true`, `diarize: true` — same rules as local Whisper; requires `HF_TOKEN` on the pipeline host for pyannote). See [Audio Pipeline Guide](AUDIO_PIPELINE_GUIDE.md).
 
 Pre-prod validation: log results in [DGX_PROD_VALIDATION_LOG](../operations/DGX_PROD_VALIDATION_LOG.md) (4 weeks, fallback rate under 1%).
 

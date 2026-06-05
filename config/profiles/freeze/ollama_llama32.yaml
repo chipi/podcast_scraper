@@ -12,6 +12,9 @@
 transcription_provider: whisper
 whisper_model: small.en
 
+screenplay: true
+diarize: true
+
 # Speaker detection — Ollama llama3.2:3b
 speaker_detector_provider: ollama
 ollama_speaker_model: llama3.2:3b

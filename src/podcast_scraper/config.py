@@ -24,6 +24,14 @@ logger = logging.getLogger(__name__)
 # GitHub #562: one INFO per process when coercing screenplay off for API transcription.
 _screenplay_tx_api_coerce_lock = threading.Lock()
 _screenplay_tx_api_coerce_state: dict[str, bool] = {"logged": False}
+_diarize_coerce_lock = threading.Lock()
+_diarize_coerce_state: dict[str, bool] = {"logged": False}
+
+
+def reset_diarize_coerce_log_for_tests() -> None:
+    """Reset diarization coerce log gate (unit tests only)."""
+    with _diarize_coerce_lock:
+        _diarize_coerce_state["logged"] = False
 
 
 def reset_screenplay_transcription_api_coerce_log_for_tests() -> None:
@@ -35,6 +43,7 @@ def reset_screenplay_transcription_api_coerce_log_for_tests() -> None:
 def reset_screenplay_issue_562_gates() -> None:
     """Reset all GitHub #562 gates (unit tests and between ``run_pipeline`` invocations)."""
     reset_screenplay_transcription_api_coerce_log_for_tests()
+    reset_diarize_coerce_log_for_tests()
     from .workflow import episode_processor as _ep562
 
     _ep562.reset_screenplay_unsupported_provider_warning_for_tests()
@@ -61,6 +70,9 @@ def _raw_screenplay_requested(value: Any) -> bool:
             return True
         return False
     return False
+
+
+_DIARIZATION_ELIGIBLE_TRANSCRIPTION_PROVIDERS = frozenset({"whisper", "tailnet_dgx_whisper"})
 
 
 def _screenplay_strict_env_enabled() -> bool:
@@ -1000,15 +1012,54 @@ class Config(BaseModel):
         default=False,
         alias="screenplay",
         description=(
-            "Format transcripts as screenplay with speaker labels. Only "
-            "`transcription_provider='whisper'` applies screenplay; OpenAI / Gemini / "
-            "Mistral audio paths emit plain text, so `screenplay: true` is coerced to "
-            "`false` at validation with a single INFO (GitHub #562)."
+            "Format transcripts as screenplay with speaker labels. Only local Whisper "
+            "transcription (`whisper`, `tailnet_dgx_whisper`) applies screenplay; OpenAI / "
+            "Gemini / Mistral audio paths emit plain text, so `screenplay: true` is coerced "
+            "to `false` at validation with a single INFO (GitHub #562)."
         ),
     )
     screenplay_gap_s: float = Field(default=DEFAULT_SCREENPLAY_GAP_SECONDS, alias="screenplay_gap")
     screenplay_num_speakers: int = Field(default=DEFAULT_NUM_SPEAKERS, alias="num_speakers")
     screenplay_speaker_names: List[str] = Field(default_factory=list, alias="speaker_names")
+    diarize: bool = Field(
+        default=True,
+        alias="diarize",
+        description=(
+            "Enable neural speaker diarization after local Whisper transcription "
+            "(requires transcription_provider='whisper' or 'tailnet_dgx_whisper' "
+            "and screenplay formatting)."
+        ),
+    )
+    hf_token: Optional[str] = Field(
+        default=None,
+        alias="hf_token",
+        description="HuggingFace token for pyannote models (prefer HF_TOKEN env var)",
+    )
+    diarization_num_speakers: Optional[int] = Field(
+        default=None,
+        alias="diarization_num_speakers",
+        description="Known speaker count for diarization (None = auto-detect)",
+    )
+    diarization_min_speakers: int = Field(
+        default=2,
+        alias="diarization_min_speakers",
+        description="Minimum speakers when auto-detecting diarization count",
+    )
+    diarization_max_speakers: int = Field(
+        default=20,
+        alias="diarization_max_speakers",
+        description="Maximum speakers when auto-detecting diarization count",
+    )
+    diarization_device: str = Field(
+        default="auto",
+        alias="diarization_device",
+        description="Device for diarization: auto, cpu, cuda, or mps",
+    )
+    diarization_model: str = Field(
+        default="pyannote/speaker-diarization-3.1",
+        alias="diarization_model",
+        description="HuggingFace pyannote diarization pipeline model id",
+    )
     run_id: Optional[str] = Field(default=None, alias="run_id")
     seed: Optional[int] = Field(
         default=None,
@@ -2986,14 +3037,15 @@ class Config(BaseModel):
         tp = merged.get("transcription_provider", "whisper")
         if not _raw_screenplay_requested(merged.get("screenplay")):
             return merged
-        if tp == "whisper":
+        if tp in _DIARIZATION_ELIGIBLE_TRANSCRIPTION_PROVIDERS:
             return merged
         if _screenplay_strict_env_enabled():
             raise ValueError(
-                "screenplay is only supported with transcription_provider='whisper' "
+                "screenplay is only supported with local Whisper transcription "
+                "(transcription_provider='whisper' or 'tailnet_dgx_whisper') "
                 f"(got transcription_provider={tp!r}). Remove screenplay or switch to "
-                "whisper. To allow automatic coercion to screenplay=false, unset "
-                "PODCAST_SCRAPER_SCREENPLAY_STRICT (GitHub #562)."
+                "a local Whisper provider. To allow automatic coercion to "
+                "screenplay=false, unset PODCAST_SCRAPER_SCREENPLAY_STRICT (GitHub #562)."
             )
         merged["screenplay"] = False
         with _screenplay_tx_api_coerce_lock:
@@ -3002,11 +3054,41 @@ class Config(BaseModel):
                 _screenplay_tx_api_coerce_state["logged"] = True
         if should_log:
             logger.info(
-                "screenplay applies only to transcription_provider='whisper'; "
+                "screenplay applies only to local Whisper transcription "
+                "(transcription_provider='whisper' or 'tailnet_dgx_whisper'); "
                 "with transcription_provider=%r screenplay has no effect — "
                 "coercing screenplay=false (GitHub #562).",
                 tp,
             )
+        return merged
+
+    @model_validator(mode="before")
+    @classmethod
+    def _coerce_diarize_for_transcription_provider_before(cls, data: Any) -> Any:
+        """Diarization applies only to local Whisper paths; coerce API/cloud providers."""
+        if not isinstance(data, dict):
+            return data
+        merged = dict(data)
+        if not _raw_screenplay_requested(merged.get("diarize", True)):
+            return merged
+        tp = merged.get("transcription_provider", "whisper")
+        if tp not in _DIARIZATION_ELIGIBLE_TRANSCRIPTION_PROVIDERS:
+            merged["diarize"] = False
+            with _diarize_coerce_lock:
+                should_log = not _diarize_coerce_state["logged"]
+                if should_log:
+                    _diarize_coerce_state["logged"] = True
+            if should_log:
+                logger.info(
+                    "diarize applies only to local Whisper transcription "
+                    "(transcription_provider='whisper' or 'tailnet_dgx_whisper'); "
+                    "with transcription_provider=%r diarization has no effect — "
+                    "coercing diarize=false.",
+                    tp,
+                )
+            return merged
+        if not _raw_screenplay_requested(merged.get("screenplay")):
+            merged["screenplay"] = True
         return merged
 
     @model_validator(mode="before")
@@ -3352,6 +3434,7 @@ class Config(BaseModel):
         cls._load_string_env_var(data, "anthropic_api_base", "ANTHROPIC_API_BASE")
         cls._load_string_env_var(data, "mistral_api_key", "MISTRAL_API_KEY")
         cls._load_string_env_var(data, "deepgram_api_key", "DEEPGRAM_API_KEY")
+        cls._load_string_env_var(data, "hf_token", "HF_TOKEN")
         cls._load_string_env_var(data, "mistral_api_base", "MISTRAL_API_BASE")
         cls._load_string_env_var(data, "deepseek_api_key", "DEEPSEEK_API_KEY")
         cls._load_string_env_var(data, "deepseek_api_base", "DEEPSEEK_API_BASE")

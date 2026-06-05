@@ -1714,6 +1714,58 @@ def _add_deepgram_arguments(parser: argparse.ArgumentParser) -> None:
     )
 
 
+def _add_diarization_arguments(parser: argparse.ArgumentParser) -> None:
+    """Add pyannote diarization arguments to parser."""
+    parser.add_argument(
+        "--diarize",
+        action="store_true",
+        default=None,
+        help="Enable neural speaker diarization after local Whisper transcription",
+    )
+    parser.add_argument(
+        "--no-diarize",
+        action="store_false",
+        dest="diarize",
+        help="Disable neural speaker diarization",
+    )
+    parser.add_argument(
+        "--hf-token",
+        type=str,
+        default=None,
+        help="HuggingFace token for pyannote models (or set HF_TOKEN env var)",
+    )
+    parser.add_argument(
+        "--diarization-num-speakers",
+        type=int,
+        default=None,
+        help="Known speaker count for diarization (default: auto-detect)",
+    )
+    parser.add_argument(
+        "--diarization-min-speakers",
+        type=int,
+        default=None,
+        help="Minimum speakers for diarization auto-detect (default: 2)",
+    )
+    parser.add_argument(
+        "--diarization-max-speakers",
+        type=int,
+        default=None,
+        help="Maximum speakers for diarization auto-detect (default: 20)",
+    )
+    parser.add_argument(
+        "--diarization-device",
+        type=str,
+        default=None,
+        help="Device for diarization: auto, cpu, cuda, or mps",
+    )
+    parser.add_argument(
+        "--diarization-model",
+        type=str,
+        default=None,
+        help="HuggingFace pyannote diarization pipeline model id",
+    )
+
+
 def _add_deepseek_arguments(parser: argparse.ArgumentParser) -> None:
     """Add DeepSeek API-related arguments to parser.
 
@@ -3579,6 +3631,7 @@ def parse_args(argv: Optional[Sequence[str]] = None) -> argparse.Namespace:
     _add_anthropic_arguments(parser)
     _add_mistral_arguments(parser)
     _add_deepgram_arguments(parser)
+    _add_diarization_arguments(parser)
     _add_deepseek_arguments(parser)
     _add_grok_arguments(parser)
     _add_ollama_arguments(parser)
@@ -3871,6 +3924,19 @@ def _build_config(args: argparse.Namespace) -> config.Config:  # noqa: C901
     if hasattr(args, "deepgram_model") and args.deepgram_model is not None:
         payload["deepgram_model"] = args.deepgram_model
     payload["deepgram_api_key"] = getattr(args, "deepgram_api_key", None)
+    if hasattr(args, "diarize") and args.diarize is not None:
+        payload["diarize"] = args.diarize
+    payload["hf_token"] = getattr(args, "hf_token", None)
+    if hasattr(args, "diarization_num_speakers") and args.diarization_num_speakers is not None:
+        payload["diarization_num_speakers"] = args.diarization_num_speakers
+    if hasattr(args, "diarization_min_speakers") and args.diarization_min_speakers is not None:
+        payload["diarization_min_speakers"] = args.diarization_min_speakers
+    if hasattr(args, "diarization_max_speakers") and args.diarization_max_speakers is not None:
+        payload["diarization_max_speakers"] = args.diarization_max_speakers
+    if hasattr(args, "diarization_device") and args.diarization_device is not None:
+        payload["diarization_device"] = args.diarization_device
+    if hasattr(args, "diarization_model") and args.diarization_model is not None:
+        payload["diarization_model"] = args.diarization_model
     # Add DeepSeek API configuration
     payload["deepseek_api_base"] = getattr(args, "deepseek_api_base", None)
     if hasattr(args, "deepseek_speaker_model") and args.deepseek_speaker_model is not None:

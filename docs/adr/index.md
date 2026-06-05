@@ -76,8 +76,8 @@ still rolling out; **No** = not started (including accepted ADRs waiting on impl
 | [ADR-055](ADR-055-adaptive-summarization-routing.md) | Adaptive Summarization Routing | Proposed | [RFC-053](../rfc/RFC-053-adaptive-summarization-routing.md) | Rule-based routing with episode profiling for summarization strategies | No |
 | [ADR-056](ADR-056-composable-e2e-mock-response-strategy.md) | Composable E2E Mock Response Strategy | Proposed | [RFC-054](../rfc/RFC-054-e2e-mock-response-strategy.md) | Separation of functional responses from non-functional behavior in tests | No |
 | [ADR-057](ADR-057-autoresearch-thin-harness-with-credential-isolation.md) | AutoResearch Thin Harness with Credential Isolation | Accepted | [RFC-057](../rfc/RFC-057-autoresearch-optimization-loop.md) | Thin control layer reusing existing eval; immutable score.py; AUTORESEARCH\_\* credential vars | Yes |
-| [ADR-058](ADR-058-additive-pyannote-diarization-with-separate-extra.md) | Additive pyannote Diarization with Separate `[diarize]` Extra | Accepted | [RFC-058](../rfc/RFC-058-audio-speaker-diarization.md) | pyannote as additive second pass; segment-level; separate \[diarize\] dependency group | No |
-| [ADR-059](ADR-059-confidence-scored-multi-signal-commercial-detection.md) | Confidence-Scored Multi-Signal Commercial Detection | Accepted | [RFC-060](../rfc/RFC-060-diarization-aware-commercial-cleaning.md) | Confidence-scored candidates replace binary detection; pattern primary, diarization adjusts | No |
+| [ADR-058](ADR-058-additive-pyannote-diarization-with-separate-extra.md) | Additive pyannote Diarization | Accepted | [RFC-058](../rfc/RFC-058-audio-speaker-diarization.md) | pyannote additive second pass; `[ml]`/`[dev]` deps; default on for local Whisper | Partial |
+| [ADR-059](ADR-059-confidence-scored-multi-signal-commercial-detection.md) | Confidence-Scored Multi-Signal Commercial Detection | Accepted | [RFC-060](../rfc/RFC-060-diarization-aware-commercial-cleaning.md) | Confidence-scored candidates; Phase 1 landed, Phase 2 diarization signals in flight | Partial |
 | [ADR-060](ADR-060-vectorstore-protocol-with-backend-abstraction.md) | VectorStore Protocol with Backend Abstraction | Accepted | [RFC-061](../rfc/RFC-061-semantic-corpus-search.md) | PEP 544 protocol decoupling FAISS (Phase 1) from Qdrant (Phase 2) | Yes |
 | [ADR-061](ADR-061-faiss-phase-1-with-post-filter-metadata.md) | FAISS Phase 1 with Post-Filter Metadata Strategy | Accepted | [RFC-061](../rfc/RFC-061-semantic-corpus-search.md) | Over-fetch + post-filter for CLI-scale; auto index type selection | Yes |
 | [ADR-062](ADR-062-sentence-boundary-transcript-chunking.md) | Sentence-Boundary Transcript Chunking | Accepted | [RFC-061](../rfc/RFC-061-semantic-corpus-search.md) | Regex sentence split, configurable target/overlap tokens, timestamp interpolation | Yes |
@@ -134,7 +134,7 @@ Use an ADR when one or more of these hold; otherwise an **RFC + normative doc** 
 | **Closure / program outcome** | A **large RFC program** ends; you need an immutable summary. | [ADR-073](ADR-073-rfc057-autoresearch-closure.md) closes [RFC-057](../rfc/RFC-057-autoresearch-optimization-loop.md) |
 | **Empirical production defaults** | Benchmarks change **default models/tiers** you must freeze for onboarding. | [ADR-067](ADR-067-pegasus-led-retirement-podcast-content.md)–[ADR-072](ADR-072-llama32-3b-as-tier3-local-llm.md) |
 | **Stack & ownership boundary** | **Who owns HTTP**, which **frontend stack**, which **UI E2E runner**. | [ADR-064](ADR-064-canonical-server-layer-with-feature-flagged-routes.md)–[ADR-066](ADR-066-playwright-for-ui-e2e-testing.md) |
-| **Heavy optional dependencies** | An extra **bloats install** or splits CUDA/CPU paths; defaults must not pay the cost. | [ADR-058](ADR-058-additive-pyannote-diarization-with-separate-extra.md) (**accepted; `[diarize]` not landed**) |
+| **Heavy optional dependencies** | An extra **bloats install** or splits CUDA/CPU paths; defaults must not pay the cost. | [ADR-058](ADR-058-additive-pyannote-diarization-with-separate-extra.md) (amended: bundled in `[ml]`/`[dev]`) |
 | **Cross-cutting protocol / contract** | Multiple subsystems share the **same interface**. | [ADR-060](ADR-060-vectorstore-protocol-with-backend-abstraction.md), [ADR-053](ADR-053-grounding-contract-for-evidence-backed-insights.md), [ADR-051](ADR-051-per-episode-json-artifacts-with-logical-union.md) |
 | **Process / CI philosophy** | A **policy** decision that outlives one RFC. | [ADR-021](ADR-021-acceptance-test-tier-as-final-ci-gate.md) |
 
@@ -154,23 +154,23 @@ Use an ADR when one or more of these hold; otherwise an **RFC + normative doc** 
 | [ADR-055](ADR-055-adaptive-summarization-routing.md) | [RFC-053](../rfc/RFC-053-adaptive-summarization-routing.md) | No episode profiling / routing in pipeline yet |
 | [ADR-056](ADR-056-composable-e2e-mock-response-strategy.md) | [RFC-054](../rfc/RFC-054-e2e-mock-response-strategy.md) | Composable ResponseProfile / Router not implemented |
 
+**Accepted, partial**
+
+| ADR | Primary RFC / gap | Note |
+| --- | --- | --- |
+| [ADR-058](ADR-058-additive-pyannote-diarization-with-separate-extra.md) | [RFC-058](../rfc/RFC-058-audio-speaker-diarization.md) | Core module landed; diarization result caching (RFC Phase 4) still open |
+| [ADR-059](ADR-059-confidence-scored-multi-signal-commercial-detection.md) | [RFC-060](../rfc/RFC-060-diarization-aware-commercial-cleaning.md) | Phase 1 landed (#486); Phase 2 diarization signals (#488) in flight |
+| [ADR-031](ADR-031-mandatory-pre-release-validation.md) | [RFC-038](../rfc/RFC-038-continuous-review-tooling.md) | `make pre-release` / checklist not fully aligned |
+| [ADR-047](ADR-047-proactive-metric-regression-alerting.md) | — | Alerts exist; **automated PR comments** not complete |
+
 **Accepted, code not landed (expected)**
 
 | ADR | Primary RFC | Note |
 | --- | --- | --- |
 | [ADR-054](ADR-054-relational-postgres-projection-for-gil-and-kg.md) | [RFC-051](../rfc/RFC-051-database-projection-gil-kg.md) | Postgres projection future |
-| [ADR-058](ADR-058-additive-pyannote-diarization-with-separate-extra.md) | [RFC-058](../rfc/RFC-058-audio-speaker-diarization.md) | No `[diarize]` extra in `pyproject.toml` yet |
-| [ADR-059](ADR-059-confidence-scored-multi-signal-commercial-detection.md) | [RFC-060](../rfc/RFC-060-diarization-aware-commercial-cleaning.md) | Commercial detector as designed not landed |
 | [ADR-089](ADR-089-prod-failover-orchestrator-separate-from-drill.md) | [RFC-083](../rfc/RFC-083-prod-failover-orchestration-and-cutover.md) | Prod-failover workflows not landed |
 | [ADR-090](ADR-090-prod-failover-dns-first-cutover.md) | [RFC-083](../rfc/RFC-083-prod-failover-orchestration-and-cutover.md) | Runbook or DNS automation follow-up |
 | [ADR-091](ADR-091-prod-failover-gha-triggers-and-gates.md) | [RFC-083](../rfc/RFC-083-prod-failover-orchestration-and-cutover.md) | `repository_dispatch` + cutover gates not landed |
-
-**Accepted, partial**
-
-| ADR | Gap |
-| --- | --- |
-| [ADR-031](ADR-031-mandatory-pre-release-validation.md) | `make pre-release` / checklist not fully aligned with [RFC-038](../rfc/RFC-038-continuous-review-tooling.md) |
-| [ADR-047](ADR-047-proactive-metric-regression-alerting.md) | Alerts exist; **automated PR comments** not complete |
 
 ### Stale-audit corrections (reference)
 
