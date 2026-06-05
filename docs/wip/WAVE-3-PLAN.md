@@ -155,8 +155,11 @@ verify quotes against heard audio.
    - Platform/ToS and auth complexity — likely phase 2 of 547.
 3. **No audio** — hide player; keep timing labels (current behaviour).
 
-Recommendation: **Phase 547a = local corpus file + player**; 547b = remote
-enclosure proxy if needed.
+Recommendation: **Phase 547a = local corpus file + player**; RSS enclosure proxy is
+**out of scope for Wave 3** (follow-up issue if needed).
+
+**Accepted (operator):** persist MP3 under corpus **`media/`** (Option A); viewer
+serves audio **locally only** via new allowlisted API route — no RSS proxy in v1.
 
 ### Proposed phases (Track B)
 
@@ -200,42 +203,43 @@ enclosure proxy if needed.
 
 ---
 
-## Suggested PR order
+## Delivery shape
 
-| Order | PR | Closes | Rationale |
-| ----- | -- | ------ | --------- |
-| 1 | RFC-090 (Draft) + WIP plan updates | — | Align before code |
-| 2 | Track A phase 3A | partial #414 | Backend boundary; no viewer deps |
-| 3 | Track B 547a (API + persist media relpath) | partial #547 | Unblocks player |
-| 4 | Track B 547b (viewer player) | #547 | UX + E2E |
-| 5 | Track A 3B–3C | #414 | Enrich-only CLI + docs |
+**Accepted:** one PR on `feat/audio-wave-3` closing **#414** and **#547** (RFC +
+pipeline split + `media/` persistence + local media API + viewer player + docs).
 
-Tracks A and B can swap 3/4 if operator priority is viewer demo first.
+Suggested **commit order inside the branch** (single squash or stacked commits):
+
+1. RFC-090 (Draft) + plan updates  
+2. Track A — stage boundary (`full` / `audio_only` / `enrich_only`; default `full`)  
+3. Track B — persist `media/<episode>.mp3` + `/api/corpus/media` (allowlisted)  
+4. Track B — `TranscriptViewerDialog` player + seek; E2E + UXS/E2E_SURFACE_MAP  
+5. Cache fingerprint includes transcription provider/model (cache already default-on)  
+6. Docs + `AUDIO_PIPELINE_GUIDE` Wave 3 row  
 
 ---
 
-## Validation gates (each PR)
+## Validation gates (before merge)
 
-- Python: `make ci-fast` (or `make lint` + targeted tests for viewer-only PRs use
-  `make ci-ui-fast`)
-- Viewer UX: MCP browser loop + Playwright for 547b
+- Python: `make ci-fast`
+- Viewer: `make ci-ui-fast` + MCP browser loop for player/seek
 - Docs: `make docs` when mkdocs nav / cross-refs change
 
 ---
 
-## Open questions (operator)
+## Decisions (accepted)
 
-1. **Default `transcript_cache_enabled`** — promote to `true` when stage split lands?
-2. **Where to store episode MP3 in corpus layout** — new `media/` subtree vs
-   existing download temp + manifest pointer?
-3. **547 scope** — local serve only for v1, or must support RSS URL proxy?
-4. **Wave 3 PR count** — one mega PR vs 2–4 reviewable PRs (recommended: split)?
+| # | Question | Decision |
+| - | -------- | -------- |
+| 1 | `transcript_cache_enabled` default | **No change** — already `true` on `main`. At stage split, **extend cache key** with transcription provider + model so cached STT does not silently freeze old output. |
+| 2 | Episode MP3 layout | **Option A** — persist under corpus **`media/`** (or `audio/`) at download/transcribe time; metadata records `audio_relpath`. |
+| 3 | #547 audio source | **Local serve only** for v1 — player uses corpus media API; hide player when no local file. No RSS enclosure proxy in Wave 3. |
+| 4 | PR count | **One PR** for all Wave 3 work. |
 
 ---
 
 ## Next actions on this branch
 
-1. Review this plan; answer open questions above.
-2. Create **RFC-090** (pipeline separation) from template — Draft header, link #414.
-3. Optional **UXS** slice for audio player chrome if 547b UI is non-trivial.
-4. Implement **3A** after RFC skim approval.
+1. Create **RFC-090** (pipeline separation + corpus `media/` + local viewer audio) — Draft.
+2. Implement stage split (#414) + `media/` persistence + media API + viewer player (#547).
+3. Single PR when `make ci-fast` + `make ci-ui-fast` green.
