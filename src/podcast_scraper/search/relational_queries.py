@@ -49,9 +49,13 @@ _PODCAST = ("podcast",)
 class GraphLike(Protocol):
     """The subset of ``CorpusGraph`` the queries use (keeps them unit-testable)."""
 
-    def get_node(self, node_id: Optional[str]) -> Optional[Node]: ...
+    def get_node(self, node_id: Optional[str]) -> Optional[Node]:
+        """Return the node for *node_id*, or ``None`` if absent."""
+        ...
 
-    def typed_neighbors(self, node_id: str, edge_type: str) -> List[str]: ...
+    def typed_neighbors(self, node_id: str, edge_type: str) -> List[str]:
+        """Return the neighbors of *node_id* reached by an edge of *edge_type*."""
+        ...
 
 
 @dataclass
