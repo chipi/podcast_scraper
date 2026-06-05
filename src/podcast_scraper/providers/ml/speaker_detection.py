@@ -55,7 +55,7 @@ def _load_spacy_model(model_name: str) -> Optional[Any]:
 
 def get_ner_model(cfg: config.Config) -> Optional[Any]:
     """Get the appropriate spaCy NER model based on configuration."""
-    return _get_ner_model_impl(cfg)
+    return _get_ner_model_impl(cfg, loader=_load_spacy_model)
 
 
 def extract_person_entities(text: str, nlp: Any) -> list[tuple[str, float]]:

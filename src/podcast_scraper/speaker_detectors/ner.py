@@ -5,7 +5,7 @@ from __future__ import annotations
 import logging
 import subprocess  # nosec B404
 import sys
-from typing import Any, Optional
+from typing import Any, Callable, Optional
 
 from .. import config
 from .constants import _VALID_MODEL_NAME_PATTERN, MAX_MODEL_NAME_LENGTH
@@ -86,7 +86,11 @@ def _load_spacy_model(model_name: str) -> Optional[Any]:
             return None
 
 
-def get_ner_model(cfg: config.Config) -> Optional[Any]:
+def get_ner_model(
+    cfg: config.Config,
+    *,
+    loader: Optional[Callable[[str], Optional[Any]]] = None,
+) -> Optional[Any]:
     """Get the appropriate spaCy NER model based on configuration."""
     if cfg.dry_run:
         return None
@@ -102,7 +106,8 @@ def get_ner_model(cfg: config.Config) -> Optional[Any]:
             logger.debug("No default NER model for language '%s', skipping detection", cfg.language)
             return None
 
-    nlp = _load_spacy_model(model_name)
+    load_fn = loader if loader is not None else _load_spacy_model
+    nlp = load_fn(model_name)
     if nlp is not None:
         logger.debug("Loaded spaCy model: %s", model_name)
 
