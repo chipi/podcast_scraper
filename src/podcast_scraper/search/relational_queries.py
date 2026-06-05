@@ -169,6 +169,34 @@ def related_insights(graph: GraphLike, insight_id: str, *, k: int = 20) -> List[
     return out
 
 
+def episode_related_insights(
+    graph: GraphLike, episode_id: str, *, k: int = 20
+) -> List[RelatedNode]:
+    """Insights related to an episode — siblings of the episode's own insights (FR4.3).
+
+    Walk episode→`HAS_INSIGHT`→insights (this episode's), then each insight's topic /
+    entity siblings (via `related_insights`), excluding insights that belong to this
+    episode. Deterministic graph order, de-duplicated, capped at *k*. ``episode_id`` may
+    be the bare id or the canonical ``episode:`` node id.
+    """
+    node = graph.get_node(episode_id) or graph.get_node(f"episode:{episode_id}")
+    if node is None:
+        return []
+    own = _via(graph, node.id, _HAS_INSIGHT, _INSIGHT)
+    own_ids = {ins.id for ins in own}
+    out: List[RelatedNode] = []
+    seen = set(own_ids)
+    for insight in own:
+        for sibling in related_insights(graph, insight.id, k=k):
+            if sibling.id in seen:
+                continue
+            seen.add(sibling.id)
+            out.append(sibling)
+            if len(out) >= k:
+                return out
+    return out
+
+
 def cross_show_synthesis(
     graph: GraphLike, topic_id: str, *, per_show: int = 1
 ) -> Dict[str, List[RelatedNode]]:

@@ -115,6 +115,17 @@ export async function fetchShowEpisodes(
   return getList(`/api/relational/episodes?${q.toString()}`)
 }
 
+/** FR4.3 — insights related to an episode's own insights. */
+export async function fetchEpisodeRelatedInsights(
+  corpusPath: string,
+  episode: string,
+  k?: number,
+): Promise<RelationalListResponse> {
+  const q = new URLSearchParams({ path: corpusPath.trim(), episode: episode.trim() })
+  withK(q, k)
+  return getList(`/api/relational/episode-insights?${q.toString()}`)
+}
+
 /** Sibling insights sharing a topic or mentioned entity. */
 export async function fetchRelatedInsights(
   corpusPath: string,

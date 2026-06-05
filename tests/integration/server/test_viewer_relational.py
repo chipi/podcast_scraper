@@ -106,6 +106,12 @@ def test_related_insights_via_shared_topic(client: TestClient) -> None:
     assert [r["id"] for r in body["results"]] == ["insight:2"]
 
 
+def test_episode_insights_excludes_own(client: TestClient) -> None:
+    body = client.get("/api/relational/episode-insights", params={"episode": "e1"}).json()
+    assert body["subject"] == "e1"
+    assert [r["id"] for r in body["results"]] == ["insight:2"]
+
+
 def test_who_said_groups_by_person(client: TestClient) -> None:
     body = client.get("/api/relational/who-said", params={"topic": "topic:ai"}).json()
     assert set(body["groups"]) == {"person:alice", "person:bob"}

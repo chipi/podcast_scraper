@@ -17,6 +17,7 @@ from podcast_scraper.search.corpus_graph import Node
 from podcast_scraper.search.relational_queries import (
     cross_show_synthesis,
     entities_in,
+    episode_related_insights,
     episodes_of,
     insights_about,
     positions_of,
@@ -152,12 +153,25 @@ def test_related_insights_dedupes_across_shared_topic_and_entity() -> None:
     assert [r.id for r in related_insights(g, "insight:a")] == ["insight:b"]
 
 
+def test_episode_related_insights_excludes_own_insights(graph: FakeGraph) -> None:
+    # episode:e1 owns insight:1 (via HAS_INSIGHT). insight:1 shares topic:ai with
+    # insight:2 → insight:2 is related; insight:1 (own) is excluded.
+    result = episode_related_insights(graph, "episode:e1")
+    assert [r.id for r in result] == ["insight:2"]
+    assert "insight:1" not in [r.id for r in result]
+
+
+def test_episode_related_insights_accepts_bare_id(graph: FakeGraph) -> None:
+    assert [r.id for r in episode_related_insights(graph, "e1")] == ["insight:2"]
+
+
 def test_queries_are_total_on_missing_ids(graph: FakeGraph) -> None:
     assert positions_of(graph, "person:nobody") == []
     assert insights_about(graph, "org:nobody") == []
     assert entities_in(graph, "insight:nope") == []
     assert episodes_of(graph, "podcast:nope") == []
     assert related_insights(graph, "insight:nope") == []
+    assert episode_related_insights(graph, "episode:nope") == []
     assert who_said(graph, "topic:nope") == {}
     assert cross_show_synthesis(graph, "topic:nope") == {}
 

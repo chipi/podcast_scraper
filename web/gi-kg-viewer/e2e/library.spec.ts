@@ -416,6 +416,34 @@ test.describe('Corpus Library tab', () => {
     await expect(why).toContainText('Climate policy is the through-line')
   })
 
+  test('FR4.3: Episode rail shows related insights from the relational layer', async ({
+    page,
+  }) => {
+    await page.route('**/api/relational/episode-insights**', async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          subject: 'e1',
+          results: [
+            { id: 'insight:r1', type: 'insight', text: 'A related insight from another episode.', show_id: '', episode_id: 'e9' },
+          ],
+          error: null,
+        }),
+      })
+    })
+    await page.goto('/')
+    await page.getByRole('heading', { name: SHELL_HEADING_RE }).waitFor()
+    await statusBarCorpusPathInput(page).fill('/mock/corpus')
+    await mainViewsNav(page).getByRole('button', { name: 'Library' }).click()
+    await expect(page.getByTestId('library-root')).toBeVisible()
+    await page.getByRole('button', { name: 'Mock Episode Title, Mock Show' }).click()
+    const related = page.getByTestId('episode-related-insights')
+    await expect(related).toBeVisible()
+    await expect(related.getByTestId('episode-related-insights-row')).toHaveCount(1)
+    await expect(related).toContainText('A related insight from another episode.')
+  })
+
   test('similar panel shows no-index message when API returns no_index', async ({ page }) => {
     await page.route('**/api/index/stats**', async (route) => {
       await route.fulfill({

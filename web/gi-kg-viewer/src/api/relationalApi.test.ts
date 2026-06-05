@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
   fetchCrossShow,
+  fetchEpisodeRelatedInsights,
   fetchPositions,
   fetchShowEpisodes,
   fetchWhoSaid,
@@ -62,6 +63,12 @@ describe('relationalApi', () => {
     mockFetchJson(true, { subject: 'podcast:s1', results: [] })
     await fetchShowEpisodes('/c', 'podcast:s1')
     expectFetchUrl('/api/relational/episodes?path=%2Fc&podcast=podcast%3As1')
+  })
+
+  it('fetchEpisodeRelatedInsights GETs episode-insights with k', async () => {
+    mockFetchJson(true, { subject: 'e1', results: [] })
+    await fetchEpisodeRelatedInsights('/c', 'e1', 10)
+    expectFetchUrl('/api/relational/episode-insights?path=%2Fc&episode=e1&k=10')
   })
 
   it('raises a friendly error on 404', async () => {
