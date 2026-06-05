@@ -43,6 +43,34 @@ function openSearchResultsViz(): void {
   vizDialogRef.value?.open()
 }
 
+/** PRD-033 FR1.3 — raw-evidence toggle: constrain the rendered tier. */
+type EvidenceFilter = 'both' | 'insight' | 'segment'
+const evidenceFilter = ref<EvidenceFilter>('both')
+const EVIDENCE_OPTIONS: { value: EvidenceFilter; label: string }[] = [
+  { value: 'insight', label: 'Insights' },
+  { value: 'segment', label: 'Transcript' },
+  { value: 'both', label: 'Both' },
+]
+
+const visibleResults = computed((): SearchHit[] => {
+  if (evidenceFilter.value === 'both') return search.results
+  return search.results.filter(
+    (h) => (h.source_tier ?? 'aux') === evidenceFilter.value,
+  )
+})
+
+/** PRD-033 FR1.4 — humanized detected query intent for the indicator chip. */
+const QUERY_TYPE_LABELS: Record<string, string> = {
+  entity_lookup: 'Entity lookup',
+  raw_evidence: 'Raw evidence',
+  temporal_tracking: 'Temporal tracking',
+  cross_show_synthesis: 'Cross-show synthesis',
+  semantic: 'Semantic',
+}
+const queryTypeLabel = computed((): string | null =>
+  search.queryType ? (QUERY_TYPE_LABELS[search.queryType] ?? search.queryType) : null,
+)
+
 function onAdvancedDialogClick(e: MouseEvent): void {
   const el = advancedDialogRef.value
   if (el && e.target === el) {
@@ -446,9 +474,40 @@ const advancedFeedCombinedTitle = computed(() =>
       >
         <div class="flex flex-wrap items-center gap-x-3 gap-y-1">
           <p class="text-xs font-medium text-muted">
-            {{ search.results.length }}
-            {{ search.results.length === 1 ? 'result' : 'results' }}
+            {{ visibleResults.length }}
+            {{ visibleResults.length === 1 ? 'result' : 'results' }}
           </p>
+          <span
+            v-if="queryTypeLabel"
+            class="rounded bg-overlay px-1.5 py-px text-[10px] font-medium text-muted"
+            data-testid="search-query-type"
+            title="Detected query intent — the platform adapts its retrieval strategy to the question (RFC-090 routing)."
+          >
+            Intent: {{ queryTypeLabel }}
+          </span>
+          <div
+            class="flex items-center overflow-hidden rounded border border-border text-[10px]"
+            role="group"
+            aria-label="Evidence tier filter"
+            data-testid="search-evidence-toggle"
+          >
+            <button
+              v-for="opt in EVIDENCE_OPTIONS"
+              :key="opt.value"
+              type="button"
+              class="px-1.5 py-0.5 leading-none"
+              :class="
+                evidenceFilter === opt.value
+                  ? 'bg-primary text-primary-foreground'
+                  : 'text-muted hover:bg-overlay'
+              "
+              :aria-pressed="evidenceFilter === opt.value"
+              :data-testid="`search-evidence-${opt.value}`"
+              @click="evidenceFilter = opt.value"
+            >
+              {{ opt.label }}
+            </button>
+          </div>
           <p
             v-if="search.liftStats && search.liftStats.transcript_hits_returned > 0"
             class="text-[10px] text-muted"
@@ -468,7 +527,7 @@ const advancedFeedCombinedTitle = computed(() =>
           </button>
         </div>
         <ResultCard
-          v-for="(h, i) in search.results"
+          v-for="(h, i) in visibleResults"
           :key="`${h.doc_id}-${i}`"
           :hit="h"
           :library-opens-enabled="libraryOpensEnabled"

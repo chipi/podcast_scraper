@@ -18,6 +18,8 @@ export const useSearchStore = defineStore('search', () => {
   const apiError = ref<string | null>(null)
   const results = ref<SearchHit[]>([])
   const liftStats = ref<CorpusSearchLiftStats | null>(null)
+  /** Detected query intent for the last run (PRD-033 FR1.4); null until a run. */
+  const queryType = ref<string | null>(null)
   /** UXS-008: last search reported enrichment failure (server `enrichment_error`). */
   const enrichmentCallFailed = ref(false)
 
@@ -98,6 +100,7 @@ export const useSearchStore = defineStore('search', () => {
     loading.value = true
     results.value = []
     liftStats.value = null
+    queryType.value = null
     enrichmentCallFailed.value = false
     try {
       const body = await searchCorpus(q, {
@@ -124,6 +127,7 @@ export const useSearchStore = defineStore('search', () => {
       }
       results.value = body.results
       liftStats.value = body.lift_stats ?? null
+      queryType.value = body.query_type ?? null
       // RFC-094 OQ-2: publish the active context so Library/Graph can rank + snippet.
       useActiveSearchContextStore().setContext(q, body.results)
       enrichmentCallFailed.value = Boolean(
@@ -158,6 +162,7 @@ export const useSearchStore = defineStore('search', () => {
     results.value = []
     apiError.value = null
     error.value = null
+    queryType.value = null
     enrichmentCallFailed.value = false
     useActiveSearchContextStore().clear()
     useGraphNavigationStore().clearLibraryEpisodeHighlights()
@@ -170,6 +175,7 @@ export const useSearchStore = defineStore('search', () => {
     apiError,
     results,
     liftStats,
+    queryType,
     enrichmentCallFailed,
     filters,
     feedFilterDisplayLabel,

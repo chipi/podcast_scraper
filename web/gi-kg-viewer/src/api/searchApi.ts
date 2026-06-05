@@ -12,6 +12,12 @@ export interface SearchHit {
   score: number
   metadata: Record<string, unknown>
   text: string
+  /**
+   * Retrieval tier (PRD-033 FR1.1): 'insight' (synthesized), 'segment' (raw
+   * transcript), or 'aux' (kg_entity/kg_topic/quote/summary). Server-derived from
+   * metadata.doc_type; defaults to 'aux' against pre-#884 servers.
+   */
+  source_tier?: string
   supporting_quotes?: Record<string, unknown>[] | null
   /** Chunk-to-Insight lift when the server enriches transcript rows. */
   lifted?: Record<string, unknown> | null
@@ -28,6 +34,12 @@ export interface SearchResponse {
   results: SearchHit[]
   error?: string | null
   detail?: string | null
+  /**
+   * Detected query intent (PRD-033 FR1.4): entity_lookup / raw_evidence /
+   * temporal_tracking / cross_show_synthesis / semantic. Null on error or pre-#884
+   * servers.
+   */
+  query_type?: string | null
   lift_stats?: CorpusSearchLiftStats | null
   /** Optional server hint when enrichment was requested but failed (non-fatal). */
   enrichment_error?: string | null

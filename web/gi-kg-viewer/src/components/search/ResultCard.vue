@@ -59,6 +59,70 @@ function focusPersonFromSpeakerId(rawId: unknown): void {
 
 const docType = computed(() => String(props.hit.metadata?.doc_type ?? '?'))
 
+/** PRD-033 FR1.1 — retrieval tier badge (insight / segment / aux). */
+const sourceTier = computed(() => String(props.hit.source_tier ?? 'aux'))
+const TIER_LABELS: Record<string, string> = {
+  insight: 'Insight',
+  segment: 'Transcript',
+  aux: 'Reference',
+}
+const tierLabel = computed(() => TIER_LABELS[sourceTier.value] ?? 'Reference')
+const tierClass = computed(() => {
+  switch (sourceTier.value) {
+    case 'insight':
+      return 'bg-primary/15 text-primary'
+    case 'segment':
+      return 'bg-success/15 text-success'
+    default:
+      return 'bg-overlay text-muted'
+  }
+})
+
+/**
+ * PRD-033 FR1.5 — when a transcript hit lifts a linked insight, the lifted insight
+ * also exposes the canonical id of *both* the segment hit and the insight: the card
+ * already shows both, making it a compound (insight + grounding segment) result.
+ */
+const isCompound = computed(
+  () =>
+    sourceTier.value === 'segment' &&
+    props.hit.lifted != null &&
+    typeof props.hit.lifted === 'object',
+)
+
+function liftedEntityId(block: unknown): string {
+  if (block == null || typeof block !== 'object') return ''
+  const id = (block as Record<string, unknown>).id
+  return typeof id === 'string' ? id.trim() : ''
+}
+
+/** FR1.5 — lifted topic name → Topic Entity View in the rail. */
+function focusTopicFromLifted(block: unknown): void {
+  const id = liftedEntityId(block)
+  if (!id) return
+  subject.focusTopic(id)
+  void ensureDefaultCorpusGraphIfNeeded()
+}
+
+/** FR1.5 — a kg_entity / kg_topic hit links its canonical id to its Detail panel. */
+const detailEntity = computed((): { id: string; kind: 'person' | 'topic' } | null => {
+  const dt = docType.value
+  const sourceId = props.hit.metadata?.source_id
+  const id = typeof sourceId === 'string' ? sourceId.trim() : ''
+  if (!id) return null
+  if (dt === 'kg_topic' || id.startsWith('topic:')) return { id, kind: 'topic' }
+  if (dt === 'kg_entity') return { id, kind: 'person' }
+  return null
+})
+
+function focusDetailEntity(): void {
+  const e = detailEntity.value
+  if (!e) return
+  if (e.kind === 'topic') subject.focusTopic(e.id)
+  else subject.focusPerson(e.id)
+  void ensureDefaultCorpusGraphIfNeeded()
+}
+
 /** One line when server joined ``topic_clusters.json`` for this ``kg_topic`` row. */
 const topicClusterSummary = computed((): string | null => {
   const tc = props.hit.metadata?.topic_cluster
@@ -227,6 +291,18 @@ function onEpisodeIdChipClick(ev: MouseEvent): void {
     <div class="mb-1 flex min-w-0 flex-wrap items-center gap-2">
       <span class="font-mono text-[10px] text-primary">{{ docType }}</span>
       <span
+        class="rounded px-1 py-px text-[9px] font-medium uppercase leading-none tracking-wide"
+        :class="tierClass"
+        data-testid="search-result-tier"
+        :title="`Retrieval tier: ${tierLabel}`"
+      >{{ tierLabel }}</span>
+      <span
+        v-if="isCompound"
+        class="rounded bg-primary/15 px-1 py-px text-[9px] font-medium leading-none text-primary"
+        data-testid="search-result-compound"
+        title="Compound result: a transcript segment merged with its linked GI insight."
+      >+ insight</span>
+      <span
         class="cursor-help rounded bg-overlay px-1 py-px font-mono text-[9px] leading-none text-muted"
         :title="SEARCH_HIT_SCORE_TOOLTIP"
         :aria-label="`Similarity ${hit.score.toFixed(4)}. ${SEARCH_HIT_SCORE_TOOLTIP}`"
@@ -286,6 +362,21 @@ function onEpisodeIdChipClick(ev: MouseEvent): void {
     <p class="leading-snug text-surface-foreground">
       {{ truncate(hit.text || '(no text)', 320) }}
     </p>
+    <p
+      v-if="detailEntity"
+      class="mt-1"
+      @click.stop
+    >
+      <button
+        type="button"
+        class="rounded text-[10px] font-medium text-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+        data-testid="search-result-entity-link"
+        :title="`Open ${detailEntity.kind === 'topic' ? 'Topic' : 'Person'} panel`"
+        @click="focusDetailEntity"
+      >
+        Open {{ detailEntity.kind === 'topic' ? 'Topic' : 'Person' }} panel →
+      </button>
+    </p>
 
     <div
       v-if="lifted"
@@ -319,11 +410,29 @@ function onEpisodeIdChipClick(ev: MouseEvent): void {
           class="text-[10px] text-muted"
         >
           <span v-if="lifted.speaker">
-            Speaker: {{ liftedEntityLabel(lifted.speaker, '—') }}
+            Speaker:
+            <button
+              v-if="liftedEntityId(lifted.speaker)"
+              type="button"
+              class="rounded text-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+              data-testid="search-result-lifted-speaker-link"
+              :title="`Open Person panel for ${liftedEntityLabel(lifted.speaker, '—')}`"
+              @click.stop="focusPersonFromSpeakerId(liftedEntityId(lifted.speaker))"
+            >{{ liftedEntityLabel(lifted.speaker, '—') }}</button>
+            <template v-else>{{ liftedEntityLabel(lifted.speaker, '—') }}</template>
           </span>
           <span v-if="lifted.speaker && lifted.topic"> · </span>
           <span v-if="lifted.topic">
-            Topic: {{ liftedEntityLabel(lifted.topic, '—') }}
+            Topic:
+            <button
+              v-if="liftedEntityId(lifted.topic)"
+              type="button"
+              class="rounded text-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+              data-testid="search-result-lifted-topic-link"
+              :title="`Open Topic panel for ${liftedEntityLabel(lifted.topic, '—')}`"
+              @click.stop="focusTopicFromLifted(lifted.topic)"
+            >{{ liftedEntityLabel(lifted.topic, '—') }}</button>
+            <template v-else>{{ liftedEntityLabel(lifted.topic, '—') }}</template>
           </span>
         </p>
         <p
