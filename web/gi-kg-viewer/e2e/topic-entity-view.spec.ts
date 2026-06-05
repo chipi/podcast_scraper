@@ -250,4 +250,68 @@ test.describe('Topic / Entity rail panel (TEV)', () => {
     // TEV does not launch the legacy topic timeline popup.
     await expect(page.getByTestId('topic-timeline-dialog')).toHaveCount(0)
   })
+
+  test('FR4.2: TEV shows cross-show coverage and key voices (relational layer)', async ({
+    page,
+  }) => {
+    await page.route('**/api/relational/cross-show**', async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          subject: GRAPH_TOPIC_ID,
+          groups: {
+            'podcast:show-one': [
+              { id: 'insight:1', type: 'insight', text: 'Show one take on the topic.', show_id: 'podcast:show-one', episode_id: 'e1' },
+            ],
+            'podcast:show-two': [
+              { id: 'insight:2', type: 'insight', text: 'Show two take on the topic.', show_id: 'podcast:show-two', episode_id: 'e2' },
+            ],
+          },
+          error: null,
+        }),
+      })
+    })
+    await page.route('**/api/relational/who-said**', async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          subject: GRAPH_TOPIC_ID,
+          groups: {
+            'person:jane-doe': [
+              { id: 'insight:1', type: 'insight', text: 'Jane on the topic.', show_id: 'podcast:show-one', episode_id: 'e1' },
+            ],
+          },
+          error: null,
+        }),
+      })
+    })
+
+    await page.goto('/')
+    await page.getByRole('heading', { name: SHELL_HEADING_RE }).waitFor()
+    await statusBarCorpusPathInput(page).fill('/mock/corpus')
+    await expect(page.getByTestId('digest-root')).toBeVisible()
+    await mainViewsNav(page).getByRole('button', { name: 'Graph' }).click()
+    await page.getByRole('button', { name: 'Fit' }).waitFor({ state: 'visible', timeout: 30_000 })
+    await page.evaluate((id) => {
+      const subj = (window as unknown as { __GIKG_SUBJECT__?: { focusTopic: (i: string) => void } })
+        .__GIKG_SUBJECT__
+      if (!subj?.focusTopic) throw new Error('__GIKG_SUBJECT__.focusTopic not exposed')
+      subj.focusTopic(id)
+    }, GRAPH_TOPIC_ID)
+
+    const view = page.getByTestId('topic-entity-view')
+    await expect(view).toBeVisible({ timeout: 10_000 })
+
+    const cross = view.getByTestId('tev-cross-show')
+    await expect(cross.getByTestId('tev-cross-show-row')).toHaveCount(2)
+    await expect(cross).toContainText('Show one take on the topic.')
+
+    const voices = view.getByTestId('tev-voices')
+    await expect(voices.getByTestId('tev-voice-row')).toHaveCount(1)
+    // Clicking a voice opens the Person Landing rail.
+    await voices.getByTestId('tev-voice-link').first().click()
+    await expect(page.getByTestId('person-landing-view')).toBeVisible()
+  })
 })

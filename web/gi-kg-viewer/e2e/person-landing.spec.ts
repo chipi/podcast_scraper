@@ -178,4 +178,41 @@ test.describe('Person Landing rail panel', () => {
     await page.getByTestId('person-landing-tab-positions').click()
     await expect(page.getByTestId('person-landing-panel-positions')).toBeVisible()
   })
+
+  test('FR4.1: Positions tab lists stated positions from the relational layer', async ({
+    page,
+  }) => {
+    await page.route('**/api/relational/positions**', async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          subject: SPEAKER_ID,
+          results: [
+            { id: 'insight:1', type: 'insight', text: 'A stated position on policy.', show_id: '', episode_id: 'e1' },
+            { id: 'insight:2', type: 'insight', text: 'Another stated position.', show_id: '', episode_id: 'e1' },
+          ],
+          error: null,
+        }),
+      })
+    })
+
+    await page.goto('/')
+    await page.getByRole('heading', { name: SHELL_HEADING_RE }).waitFor()
+    await statusBarCorpusPathInput(page).fill('/mock/corpus')
+    await mainViewsNav(page).getByRole('button', { name: 'Graph' }).click()
+    await page.getByRole('button', { name: 'Fit' }).waitFor({ state: 'visible', timeout: 30_000 })
+    await page.getByTestId('left-panel-enter-explore').click()
+    await page.getByRole('heading', { name: /Explore & query/i }).waitFor({ state: 'visible' })
+    await page.getByTestId('explore-filtered-submit').click()
+    await page.getByText(SPEAKER_NAME, { exact: false }).first().waitFor({ timeout: 10_000 })
+    await page.getByTestId('explore-top-speaker-link').first().click()
+    await expect(page.getByTestId('person-landing-view')).toBeVisible({ timeout: 10_000 })
+
+    await page.getByTestId('person-landing-tab-positions').click()
+    const stated = page.getByTestId('person-landing-stated')
+    await expect(stated).toBeVisible()
+    await expect(stated.getByTestId('person-landing-stated-row')).toHaveCount(2)
+    await expect(stated).toContainText('A stated position on policy.')
+  })
 })

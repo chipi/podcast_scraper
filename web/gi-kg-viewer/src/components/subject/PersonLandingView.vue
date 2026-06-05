@@ -8,7 +8,10 @@
 import { computed, ref, watch } from 'vue'
 import type { RawGraphNode } from '../../types/artifact'
 import { useArtifactsStore } from '../../stores/artifacts'
+import { useShellStore } from '../../stores/shell'
 import { useSubjectStore } from '../../stores/subject'
+import { fetchPositions, type RelatedNode } from '../../api/relationalApi'
+import { StaleGeneration } from '../../utils/staleGeneration'
 import {
   countPersonEntityIncidentEdges,
   findRawNodeInArtifact,
@@ -31,6 +34,7 @@ const emit = defineEmits<{
 }>()
 
 const artifacts = useArtifactsStore()
+const shell = useShellStore()
 const subject = useSubjectStore()
 
 type PersonTab = 'profile' | 'positions'
@@ -58,6 +62,49 @@ const personGraphNodeId = computed<string | null>(() => {
   if (!n || n.id == null) return personId.value || null
   return String(n.id)
 })
+
+/**
+ * PRD-033 FR4.1 — the insights this person *stated* (Person→STATES→Insight), from
+ * the relational-query layer (RFC-094). Distinct from the in-graph `SPOKEN_BY` quotes
+ * below; this is the synthesized-position view. Fetched async on subject change,
+ * skeleton-first; a StaleGeneration gate drops superseded responses.
+ */
+const statedLoading = ref(false)
+const statedError = ref<string | null>(null)
+const statedRows = ref<RelatedNode[]>([])
+const statedGate = new StaleGeneration()
+
+async function loadStatedPositions(rawId: string): Promise<void> {
+  const id = rawId.trim()
+  const root = shell.corpusPath?.trim()
+  if (!id || !root || !shell.healthStatus) {
+    statedRows.value = []
+    statedError.value = null
+    return
+  }
+  const seq = statedGate.bump()
+  statedLoading.value = true
+  statedRows.value = []
+  statedError.value = null
+  try {
+    const body = await fetchPositions(root, id)
+    if (statedGate.isStale(seq)) return
+    statedError.value = body.error ?? null
+    statedRows.value = body.results ?? []
+  } catch (e) {
+    if (statedGate.isStale(seq)) return
+    statedError.value = e instanceof Error ? e.message : String(e)
+    statedRows.value = []
+  } finally {
+    if (statedGate.isCurrent(seq)) statedLoading.value = false
+  }
+}
+
+watch(
+  personGraphNodeId,
+  (id) => void loadStatedPositions(id ?? ''),
+  { immediate: true },
+)
 
 const personName = computed(() => {
   const n = personNode.value
@@ -295,6 +342,52 @@ function onPrefillSearch(): void {
       data-testid="person-landing-panel-positions"
       class="min-h-0 flex-1 space-y-2 overflow-y-auto px-1 py-2"
     >
+      <!-- PRD-033 FR4.1 — synthesized positions this person stated (relational layer). -->
+      <section
+        v-if="statedLoading || statedError || statedRows.length"
+        aria-label="Stated positions"
+        data-testid="person-landing-stated"
+      >
+        <h3 class="mb-1 text-[10px] font-semibold uppercase tracking-wider text-muted">
+          Stated positions
+        </h3>
+        <p
+          v-if="statedLoading"
+          data-testid="person-landing-stated-loading"
+          class="text-[11px] text-muted"
+        >
+          Loading…
+        </p>
+        <p
+          v-else-if="statedError"
+          class="text-[11px] text-warning"
+        >
+          {{ statedError }}
+        </p>
+        <ul
+          v-else
+          class="space-y-1.5"
+          data-testid="person-landing-stated-list"
+        >
+          <li
+            v-for="row in statedRows"
+            :key="row.id"
+            data-testid="person-landing-stated-row"
+            class="rounded border border-border bg-elevated/40 px-2 py-1.5 text-[11px] leading-snug"
+          >
+            <blockquote class="border-l-2 border-primary/40 pl-2 text-surface-foreground">
+              {{ row.text || row.id }}
+            </blockquote>
+          </li>
+        </ul>
+      </section>
+
+      <h3
+        v-if="statedRows.length || statedLoading"
+        class="mt-2 text-[10px] font-semibold uppercase tracking-wider text-muted"
+      >
+        Attributed quotes
+      </h3>
       <p
         v-if="positionRows.length === 0"
         class="text-[11px] text-muted"
