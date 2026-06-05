@@ -34,6 +34,20 @@ export function corpusTextFileViewUrl(corpusRoot: string, relpath: string): stri
   return `/api/corpus/text-file?path=${path}&relpath=${rel}`
 }
 
+/** Derive ``media/<stem>.mp3`` from a ``transcripts/…/*.txt`` corpus relpath. */
+export function audioRelpathFromTranscriptRelpath(transcriptRelpath: string): string {
+  const norm = transcriptRelpath.trim().replace(/\\/g, '/').replace(/^\/+/, '')
+  const base = norm.replace(/^transcripts\//, '').replace(/\.txt$/i, '')
+  return `media/${base}.mp3`
+}
+
+/** Build `/api/corpus/media` URL for local episode playback (Wave 3). */
+export function corpusMediaFileViewUrl(corpusRoot: string, relpath: string): string {
+  const path = encodeURIComponent(corpusRoot.trim())
+  const rel = encodeURIComponent(relpath.trim())
+  return `/api/corpus/media?path=${path}&relpath=${rel}`
+}
+
 /**
  * Pipeline GI files often live under ``.../run_hash/metadata/*.gi.json`` while
  * ``transcript_ref`` is relative to ``run_hash`` (e.g. ``transcripts/ep.txt``), not the

@@ -68,7 +68,12 @@ class TestTranscriptCacheIntegration(unittest.TestCase):
         )
 
         # Retrieve with same provider/model
-        cached = transcript_cache.get_cached_transcript(audio_hash, cache_dir=self.cache_dir)
+        cached = transcript_cache.get_cached_transcript(
+            audio_hash,
+            cache_dir=self.cache_dir,
+            provider_name="whisper",
+            model="large-v3",
+        )
         self.assertEqual(cached, transcript_text)
 
     def test_cache_segments_round_trip_for_gi_sidecar(self):
@@ -93,7 +98,12 @@ class TestTranscriptCacheIntegration(unittest.TestCase):
             segments=segs,
         )
 
-        entry = transcript_cache.get_cached_transcript_entry(audio_hash, cache_dir=self.cache_dir)
+        entry = transcript_cache.get_cached_transcript_entry(
+            audio_hash,
+            cache_dir=self.cache_dir,
+            provider_name="whisper",
+            model="base",
+        )
         self.assertIsNotNone(entry)
         assert entry is not None
         t, loaded = entry

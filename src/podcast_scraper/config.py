@@ -26,12 +26,20 @@ _screenplay_tx_api_coerce_lock = threading.Lock()
 _screenplay_tx_api_coerce_state: dict[str, bool] = {"logged": False}
 _diarize_coerce_lock = threading.Lock()
 _diarize_coerce_state: dict[str, bool] = {"logged": False}
+_pipeline_stage_coerce_lock = threading.Lock()
+_pipeline_stage_coerce_state: dict[str, bool] = {"logged": False}
 
 
 def reset_diarize_coerce_log_for_tests() -> None:
     """Reset diarization coerce log gate (unit tests only)."""
     with _diarize_coerce_lock:
         _diarize_coerce_state["logged"] = False
+
+
+def reset_pipeline_stage_coerce_log_for_tests() -> None:
+    """Reset pipeline_stage coerce log gate (unit tests only)."""
+    with _pipeline_stage_coerce_lock:
+        _pipeline_stage_coerce_state["logged"] = False
 
 
 def reset_screenplay_transcription_api_coerce_log_for_tests() -> None:
@@ -2735,6 +2743,22 @@ class Config(BaseModel):
             "Transcripts are cached by audio hash to enable fast re-runs."
         ),
     )
+    pipeline_stage: Literal["full", "audio_only", "enrich_only"] = Field(
+        default="full",
+        alias="pipeline_stage",
+        description=(
+            "Pipeline stage mode: full (default), audio_only (transcribe + media only), "
+            "or enrich_only (skip transcription; reuse on-disk transcripts)."
+        ),
+    )
+    persist_episode_media: bool = Field(
+        default=True,
+        alias="persist_episode_media",
+        description=(
+            "When True, copy downloaded episode audio into corpus ``media/`` for local "
+            "viewer playback (Wave 3)."
+        ),
+    )
 
     # Graceful Degradation Policy
     degradation_policy: Optional[Dict[str, Any]] = Field(
@@ -3089,6 +3113,36 @@ class Config(BaseModel):
             return merged
         if not _raw_screenplay_requested(merged.get("screenplay")):
             merged["screenplay"] = True
+        return merged
+
+    @model_validator(mode="before")
+    @classmethod
+    def _coerce_pipeline_stage_before(cls, data: Any) -> Any:
+        """Apply audio_only / enrich_only stage coercion (Issue #414 / Wave 3)."""
+        if not isinstance(data, dict):
+            return data
+        merged = dict(data)
+        stage = merged.get("pipeline_stage", "full")
+        if stage not in ("full", "audio_only", "enrich_only"):
+            return merged
+        if stage == "audio_only":
+            for key in ("generate_metadata", "generate_summaries", "generate_gi", "generate_kg"):
+                if merged.get(key):
+                    merged[key] = False
+            with _pipeline_stage_coerce_lock:
+                if not _pipeline_stage_coerce_state["logged"]:
+                    _pipeline_stage_coerce_state["logged"] = True
+                    logger.info(
+                        "pipeline_stage=audio_only: coercing generate_metadata, "
+                        "generate_summaries, generate_gi, and generate_kg to false."
+                    )
+        elif stage == "enrich_only":
+            if merged.get("transcribe_missing"):
+                merged["transcribe_missing"] = False
+            with _pipeline_stage_coerce_lock:
+                if not _pipeline_stage_coerce_state["logged"]:
+                    _pipeline_stage_coerce_state["logged"] = True
+                    logger.info("pipeline_stage=enrich_only: coercing transcribe_missing to false.")
         return merged
 
     @model_validator(mode="before")

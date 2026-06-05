@@ -19,6 +19,23 @@ logger = logging.getLogger(__name__)
 TRANSCRIPT_CACHE_DIR = ".cache/transcripts"
 
 
+def transcript_cache_stem(
+    audio_hash: str,
+    provider_name: Optional[str] = None,
+    model: Optional[str] = None,
+) -> str:
+    """Cache filename stem: audio hash plus optional provider/model fingerprint."""
+    if not provider_name and not model:
+        return audio_hash
+    fp_source = f"{provider_name or ''}|{model or ''}"
+    fp = hashlib.sha256(fp_source.encode("utf-8")).hexdigest()[:8]
+    return f"{audio_hash}_{fp}"
+
+
+def _cache_path_for_stem(stem: str, cache_dir: str) -> str:
+    return os.path.join(cache_dir, f"{stem}.json")
+
+
 def get_audio_hash(audio_path: str) -> str:
     """Generate hash of audio file (first 1MB for speed).
 
@@ -76,19 +93,27 @@ def _parse_segments_from_cache(
 def get_cached_transcript_entry(
     audio_hash: str,
     cache_dir: str = TRANSCRIPT_CACHE_DIR,
+    *,
+    provider_name: Optional[str] = None,
+    model: Optional[str] = None,
 ) -> Optional[Tuple[str, Optional[List[Dict[str, Any]]]]]:
     """Load transcript and optional segments from cache.
 
     Args:
         audio_hash: Hash of audio file (from get_audio_hash())
         cache_dir: Cache directory path
+        provider_name: Transcription provider id for fingerprinted lookup
+        model: Transcription model id for fingerprinted lookup
 
     Returns:
         ``(transcript, segments)`` on hit (segments may be None), else None.
     """
-    cache_path = os.path.join(cache_dir, f"{audio_hash}.json")
+    stem = transcript_cache_stem(audio_hash, provider_name, model)
+    cache_path = _cache_path_for_stem(stem, cache_dir)
+    if not os.path.exists(cache_path) and stem != audio_hash:
+        cache_path = _cache_path_for_stem(audio_hash, cache_dir)
     if not os.path.exists(cache_path):
-        logger.debug("Transcript cache miss: %s", audio_hash)
+        logger.debug("Transcript cache miss: %s", stem)
         return None
 
     try:
@@ -112,6 +137,9 @@ def get_cached_transcript_entry(
 def get_cached_transcript(
     audio_hash: str,
     cache_dir: str = TRANSCRIPT_CACHE_DIR,
+    *,
+    provider_name: Optional[str] = None,
+    model: Optional[str] = None,
 ) -> Optional[str]:
     """Check if transcript exists in cache.
 
@@ -122,7 +150,12 @@ def get_cached_transcript(
     Returns:
         Transcript text if cache hit, None otherwise
     """
-    entry = get_cached_transcript_entry(audio_hash, cache_dir)
+    entry = get_cached_transcript_entry(
+        audio_hash,
+        cache_dir,
+        provider_name=provider_name,
+        model=model,
+    )
     if entry is None:
         return None
     return entry[0]
@@ -151,7 +184,8 @@ def save_transcript_to_cache(
         Path to cached transcript file
     """
     os.makedirs(cache_dir, exist_ok=True)
-    cache_path = os.path.join(cache_dir, f"{audio_hash}.json")
+    stem = transcript_cache_stem(audio_hash, provider_name, model)
+    cache_path = _cache_path_for_stem(stem, cache_dir)
 
     cache_data: Dict[str, Any] = {
         "transcript": transcript,

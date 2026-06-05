@@ -75,6 +75,21 @@ test.describe('Transcript viewer dialog (mocked API)', () => {
       await route.fulfill({ status: 404, body: 'not found' })
     })
 
+    await page.route('**/api/corpus/media**', async (route) => {
+      const url = new URL(route.request().url())
+      const relpath = decodeURIComponent(url.searchParams.get('relpath') || '')
+      if (relpath === 'media/transcript.mp3') {
+        await route.fulfill({
+          status: 200,
+          contentType: 'audio/mpeg',
+          headers: { 'Accept-Ranges': 'bytes' },
+          body: Buffer.from([0xff, 0xfb, 0x90, 0x00]),
+        })
+        return
+      }
+      await route.fulfill({ status: 404, body: 'not found' })
+    })
+
     await page.route('**/api/search?**', async (route) => {
       await route.fulfill({
         status: 200,
@@ -131,6 +146,8 @@ test.describe('Transcript viewer dialog (mocked API)', () => {
     const dlg = page.getByTestId('transcript-viewer-dialog')
     await expect(dlg).toBeVisible()
     await expect(dlg.getByRole('heading', { name: 'Transcript' })).toBeVisible()
+
+    await expect(dlg.getByTestId('transcript-viewer-audio')).toBeVisible()
 
     await expect(dlg.getByTestId('transcript-viewer-char-range')).toContainText('Characters 0')
 
