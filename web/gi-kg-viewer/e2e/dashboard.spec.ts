@@ -110,4 +110,67 @@ test.describe('Dashboard tab', () => {
     await expect(page.getByTestId('graph-node-detail-rail')).toBeVisible({ timeout: 15_000 })
     await expect(page.getByTestId('graph-node-detail-rail')).toContainText(/TopicCluster/i)
   })
+
+  test('FR6.1: Intelligence shows retrieval-grounded topic briefing cards', async ({ page }) => {
+    await mockDashboardApis(page)
+    // Override the digest mock with retrieval-scored topic bands.
+    await page.route('**/api/corpus/digest**', async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          path: '/mock/corpus',
+          window: '7d',
+          window_start_utc: '1970-01-01T00:00:00Z',
+          window_end_utc: '2024-06-08T00:00:00Z',
+          compact: false,
+          rows: [],
+          topics: [
+            {
+              topic_id: 't1',
+              label: 'Climate Policy',
+              query: 'climate policy',
+              graph_topic_id: 'topic:climate',
+              hits: [
+                { metadata_relative_path: 'm/e1.json', episode_title: 'Ep A', feed_id: 'f1', score: 0.92, summary_preview: 'A grounded segment about climate policy.', publish_date: '2024-06-05', episode_id: 'e1' },
+              ],
+            },
+          ],
+          topics_unavailable_reason: null,
+        }),
+      })
+    })
+    await page.route('**/api/relational/cross-show**', async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          subject: 'topic:climate',
+          groups: {
+            'podcast:show-a': [
+              { id: 'insight:1', type: 'insight', text: 'Show A take on climate.', show_id: 'podcast:show-a', episode_id: 'e1' },
+            ],
+          },
+          error: null,
+        }),
+      })
+    })
+
+    await page.goto('/')
+    await page.getByRole('heading', { name: SHELL_HEADING_RE }).waitFor()
+    await statusBarCorpusPathInput(page).fill('/mock/corpus')
+    await mainViewsNav(page).getByRole('button', { name: 'Dashboard' }).click()
+    await page.getByRole('tablist', { name: 'Dashboard tabs' }).getByRole('tab', { name: 'Intelligence' }).click()
+
+    const cards = page.getByTestId('topic-briefing-cards')
+    await expect(cards).toBeVisible({ timeout: 15_000 })
+    const card = cards.getByTestId('topic-briefing-card').first()
+    await expect(card).toContainText('Climate Policy')
+    await expect(card).toContainText('0.92')
+    await expect(card.getByTestId('topic-briefing-card-cross-show')).toContainText('Show A take on climate.')
+
+    // Card link opens the Topic Entity View rail.
+    await card.getByTestId('topic-briefing-card-link').click()
+    await expect(page.getByTestId('topic-entity-view')).toBeVisible()
+  })
 })
