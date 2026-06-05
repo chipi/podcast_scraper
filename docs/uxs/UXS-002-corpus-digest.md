@@ -13,6 +13,8 @@
 - **Implementation paths**:
   - `web/gi-kg-viewer/src/components/digest/DigestView.vue`
   - `web/gi-kg-viewer/src/utils/digestRowDisplay.ts`
+  - `web/gi-kg-viewer/src/api/relationalApi.ts` (#885) — `/api/relational/*` client
+    (cross-show synthesis powers FR3.2)
 - **Shell IA:** [VIEWER_IA.md](VIEWER_IA.md) — canonical shell layout, navigation axes, subject rail, status bar, first-run behavior
 
 ---
@@ -124,6 +126,33 @@ All tokens reference [UXS-001](UXS-001-gi-kg-viewer.md).
 
 ---
 
+## Search-powered Digest (PRD-033 FR3)
+
+Shipped in #885 over the relational-query layer (RFC-094). Where this conflicts with
+the older topic-band label behaviour above, this section governs.
+
+- **FR3.1 — bands ranked by retrieval signal.** Topic bands are ordered by a band
+  signal (its best hit score lifted by insight density and distinct-show coverage),
+  not config/editorial order; ties keep config order. The default **first three** bands
+  are therefore the strongest, and **`digest-topic-bands-show-more`** reveals the rest.
+- **FR3.2 — cross-show synthesis band.** Each band that maps to a KG topic
+  (`graph_topic_id`) carries an **Across shows** disclosure
+  (**`digest-cross-show-toggle`**, `aria-expanded`). On first open it lazy-loads
+  `GET /api/relational/cross-show?topic=<graph_topic_id>` and renders one row per
+  distinct show (**`digest-cross-show-row`** inside **`digest-cross-show-band`**):
+  resolved show label + the top insight for that show — the corpus differentiator. A
+  muted empty state shows when no cross-show coverage exists.
+- **FR3.3 — interactive names → Detail.** A mapped band label is a button
+  (**`digest-band-topic-link`**) that opens the **Topic Entity View** rail
+  (`focusTopic(graph_topic_id)`); editorial-only bands (no KG mapping) stay static
+  text. Each topic-band **hit row** now also exposes its feed/show name as a button
+  (**`digest-topic-hit-feed-link`**) that scopes the **Library** to that feed
+  (`HAS_EPISODE`), mirroring the Recent **`digest-feed-name-link`**. *Speaker* names
+  are not yet interactive in the Digest — speaker ids are not in the digest payload;
+  deferred to a digest-enrichment follow-up.
+
+---
+
 ## Actions and tokens
 
 - **Recent episode rows:** Episode subject rail handoff (row click); Digest tab stays
@@ -204,6 +233,7 @@ before or with implementation. Dedicated Playwright coverage lives in
 
 | Date       | Change                                                           |
 | ---------- | ---------------------------------------------------------------- |
+| 2026-06-05 | PRD-033 FR3: ranking, cross-show band, name links (#885)         |
 | 2026-04-21 | Topic band grid min track 12rem (fits 3 cols; dual sidebars).    |
 | 2026-04-21 | Topic bands auto-fit; stacked toolbar; Open in graph (UXS-004).  |
 | 2026-04-10 | Initial content (in UXS-001)                                     |
