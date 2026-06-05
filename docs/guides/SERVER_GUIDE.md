@@ -156,8 +156,11 @@ podcast mcp --corpus /path/to/corpus  # stdio server; point your agent client at
 `search_corpus` (hybrid two-tier; tiers + intent + grounded evidence) from slice 1; plus
 the relational traversals (slice 2): `person_positions`, `who_said_about_topic`,
 `cross_show_synthesis`, `insights_about_entity`, `topic_entities`, `related_insights`,
-`show_episodes`. Catalog + CIL tools land in slice 3 (epic #891). Full catalogue:
-[RFC-095](../rfc/RFC-095-generic-mcp-server.md).
+`show_episodes`; and the CIL intelligence tools (slice 3): `person_profile`,
+`topic_timeline`, `position_arc`. **12 tools.** Catalog/navigation tools
+(`list_episodes`, `episode_detail`, `corpus_digest`, `top_people`, `list_feeds`) are a
+follow-up — their route-handler logic needs lifting into capability functions first.
+Full catalogue: [RFC-095](../rfc/RFC-095-generic-mcp-server.md).
 
 ## Route conventions
 

@@ -27,6 +27,10 @@ def test_build_server_registers_tools(tmp_path) -> None:
         "topic_entities",
         "related_insights",
         "show_episodes",
+        # slice 3 — CIL intelligence
+        "person_profile",
+        "topic_timeline",
+        "position_arc",
     }
 
 

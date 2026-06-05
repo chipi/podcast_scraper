@@ -11,7 +11,7 @@ from pathlib import Path
 from typing import Any, Optional
 
 from .context import CorpusContext
-from .tools import relational as _relational
+from .tools import cil as _cil, relational as _relational
 from .tools.resolve import resolve_entity as _resolve_entity
 from .tools.search import search_corpus as _search_corpus
 
@@ -121,6 +121,23 @@ def build_server(corpus_dir: Path | str) -> Any:
     def show_episodes(podcast_id: str, k: int = 20) -> dict:
         """A show's episodes (``podcast:`` id; the HAS_EPISODE relationship)."""
         return _relational.show_episodes(ctx, podcast_id, k=k)
+
+    # --- CIL intelligence tools (RFC-095 slice 3): canonical ids (resolve first) ---
+
+    @server.tool()
+    def person_profile(person_id: str) -> dict:
+        """A person's CIL profile — their grounded insights across episodes (``person:`` id)."""
+        return _cil.person_profile(ctx, person_id)
+
+    @server.tool()
+    def topic_timeline(topic_id: str) -> dict:
+        """A topic's timeline — insights about it across episodes, over time (``topic:`` id)."""
+        return _cil.topic_timeline(ctx, topic_id)
+
+    @server.tool()
+    def position_arc(person_id: str, topic_id: str) -> dict:
+        """How a person's position on a topic evolves over time (``person:`` + ``topic:`` ids)."""
+        return _cil.position_arc(ctx, person_id, topic_id)
 
     return server
 
