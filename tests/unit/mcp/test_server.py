@@ -1,10 +1,8 @@
-"""MCP protocol smoke test (RFC-095 slice 1) — requires the [mcp] extra."""
+"""MCP registration smoke test (RFC-095). The MCP SDK ships in ``[dev]`` (always present)."""
 
 from __future__ import annotations
 
 import pytest
-
-pytest.importorskip("mcp")
 
 from podcast_scraper.mcp.cli_handlers import parse_mcp_argv
 from podcast_scraper.mcp.server import build_server

@@ -13,8 +13,6 @@ import json
 
 import pytest
 
-pytest.importorskip("mcp")
-
 from podcast_scraper.mcp.server import build_server
 
 pytestmark = pytest.mark.unit
