@@ -142,6 +142,21 @@ class TestDeepgramTranscriptionProvider:
             provider.initialize()
 
 
+class TestDeepgramRobustness:
+    def test_unparseable_response_returns_empty(self) -> None:
+        """An unrecognized response shape degrades to empty, not a crash (D4)."""
+        parsed = parse_deepgram_transcript(object())
+        assert parsed == {"text": "", "segments": []}
+
+    def test_deepgram_retryable_exceptions_non_empty(self) -> None:
+        """The retryable set is wired so the API call gets backoff like siblings (D2)."""
+        from podcast_scraper.utils.provider_metrics import _safe_deepgram_retryable
+
+        retryable = _safe_deepgram_retryable()
+        assert isinstance(retryable, tuple) and retryable
+        assert all(isinstance(e, type) and issubclass(e, Exception) for e in retryable)
+
+
 class TestDeepgramScreenplay:
     def _provider(self) -> DeepgramTranscriptionProvider:
         cfg = config.Config(

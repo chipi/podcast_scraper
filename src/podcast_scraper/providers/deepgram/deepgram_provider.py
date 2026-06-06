@@ -9,6 +9,7 @@ from typing import Any, cast, Dict, List, Tuple
 
 from ... import config
 from ...utils.log_redaction import format_exception_for_log
+from ...utils.provider_metrics import _safe_deepgram_retryable, retry_with_metrics
 from ..capabilities import ProviderCapabilities
 
 logger = logging.getLogger(__name__)
@@ -60,6 +61,10 @@ def _words_to_segments(words: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
 def parse_deepgram_transcript(response: Any) -> Dict[str, Any]:
     """Convert Deepgram Listen response to pipeline segment dict."""
     data = _response_to_dict(response)
+    if not data and response is not None:
+        # An unrecognized response shape yields an empty result silently otherwise —
+        # surface it so "couldn't parse" isn't mistaken for "empty audio".
+        logger.warning("Deepgram response could not be parsed (type=%s)", type(response).__name__)
     results = data.get("results") or {}
     channels = results.get("channels") or []
     transcript = ""
@@ -224,7 +229,14 @@ class DeepgramTranscriptionProvider:
                 }
                 if effective_language:
                     kwargs["language"] = effective_language
-                response = self._client.listen.v1.media.transcribe_file(**kwargs)
+                # Retry transient API/network failures with backoff, like every
+                # sibling provider (Deepgram rate limits are real).
+                response = retry_with_metrics(
+                    lambda: self._client.listen.v1.media.transcribe_file(**kwargs),
+                    retryable_exceptions=_safe_deepgram_retryable(),
+                    metrics=call_metrics,
+                    error_context="deepgram",
+                )
         except Exception as exc:
             logger.error("Deepgram transcription failed: %s", format_exception_for_log(exc))
             raise
