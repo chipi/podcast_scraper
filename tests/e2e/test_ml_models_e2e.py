@@ -125,13 +125,6 @@ class TestTransformersSummarization:
             # Cleanup
             provider.cleanup()
 
-    @pytest.mark.skip(
-        reason=(
-            "v2 fixture flip: summarizer-on-v2 follow-up. See "
-            "tests/e2e/test_basic_e2e.py::test_cli_basic_transcript_download_path2 "
-            "for full context."
-        )
-    )
     def test_transformers_provider_in_full_workflow(self, e2e_server):
         """Test Transformers summarization provider in full workflow.
 
@@ -296,13 +289,6 @@ class TestSpacySpeakerDetection:
 class TestAllMLModelsTogether:
     """E2E tests with all real ML models working together."""
 
-    @pytest.mark.skip(
-        reason=(
-            "v2 fixture flip: summarizer-on-v2 follow-up. See "
-            "tests/e2e/test_basic_e2e.py::test_cli_basic_transcript_download_path2 "
-            "for full context."
-        )
-    )
     def test_all_models_in_full_workflow(self, e2e_server):
         """Test complete workflow with all real ML models.
 

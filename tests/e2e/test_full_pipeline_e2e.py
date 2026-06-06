@@ -401,15 +401,6 @@ class TestFullPipelineE2E:
     @pytest.mark.ml_models
     @pytest.mark.critical_path
     @unittest.skipIf(not ML_AVAILABLE, "ML dependencies not available")
-    @pytest.mark.skip(
-        reason=(
-            "v2 fixture flip: local transformer summarizer returns empty result on "
-            "Whisper output of v2 audio. v1 audio works fine; downstream issue "
-            "tracked as summarizer-on-v2 follow-up. See "
-            "tests/e2e/test_basic_e2e.py::test_cli_basic_transcript_download_path2 "
-            "for full context."
-        )
-    )
     def test_pipeline_with_all_features(self):
         """Test full pipeline with all features enabled.
 
