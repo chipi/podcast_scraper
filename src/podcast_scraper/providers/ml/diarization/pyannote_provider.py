@@ -112,8 +112,11 @@ class PyAnnoteDiarizationProvider:
             params["max_speakers"] = max_speakers
 
         diarization = self._pipeline({"waveform": waveform, "sample_rate": sample_rate}, **params)
+        # pyannote 4.x returns a DiarizeOutput wrapper; its ``speaker_diarization``
+        # is the Annotation. pyannote 3.x returned the Annotation directly.
+        annotation = getattr(diarization, "speaker_diarization", diarization)
         segments: list[DiarizationSegment] = []
-        for turn, _, speaker in diarization.itertracks(yield_label=True):
+        for turn, _, speaker in annotation.itertracks(yield_label=True):
             segments.append(
                 DiarizationSegment(
                     start=float(turn.start), end=float(turn.end), speaker=str(speaker)
