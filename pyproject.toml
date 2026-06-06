@@ -305,6 +305,7 @@ markers = [
     "e2e: end-to-end workflow tests (slowest, test full workflows)",
     "network: hits the network (off by default, use -m network to enable)",
     "ml_models: requires ML dependencies and real model loading (requires openai-whisper, spacy, transformers)",
+    "diarization: real pyannote speaker-diarization tests (requires pyannote.audio + a gated HF token; RFC-058)",
     "critical_path: marks tests as part of the critical path (RSS → Parse → Download/Transcribe → NER → Summarization → Metadata → Files). These tests run in fast suite regardless of ml_models marker if models are cached.",
     "llm: tests that use LLM APIs (may incur costs or rate limits, includes openai and future providers)",
     "openai: tests that use OpenAI API specifically (subset of llm marker)",
