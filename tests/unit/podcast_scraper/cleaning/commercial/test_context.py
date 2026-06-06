@@ -25,6 +25,21 @@ def test_infer_host_speaker_id_prefers_intro_speaker() -> None:
     assert infer_host_speaker_id(segments) == "SPEAKER_00"
 
 
+def test_infer_host_weighted_by_duration_not_turn_count() -> None:
+    """A guest who interjects in many short intro turns must not beat the host who
+    speaks longer (B4: duration-weighted, not turn-count)."""
+    segments = [
+        # Guest: 3 short turns (turn-count = 3, but only 3s total).
+        {"start": 0.0, "end": 1.0, "speaker": "GUEST"},
+        {"start": 1.0, "end": 2.0, "speaker": "GUEST"},
+        {"start": 2.0, "end": 3.0, "speaker": "GUEST"},
+        # Host: 1 long intro turn (turn-count = 1, but 12s).
+        {"start": 3.0, "end": 15.0, "speaker": "HOST"},
+        {"start": 20.0, "end": 100.0, "speaker": "HOST"},
+    ]
+    assert infer_host_speaker_id(segments) == "HOST"
+
+
 def test_load_transcript_segments_and_context(tmp_path: Path) -> None:
     transcript = tmp_path / "episode.txt"
     transcript.write_text("hello", encoding="utf-8")
