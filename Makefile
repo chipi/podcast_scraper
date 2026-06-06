@@ -3135,6 +3135,20 @@ report-multi-run:
 	eval $$cmd
 	@echo "✓ Report generated. See OUTPUT path above."
 
+embedding-provider-eval:
+	@# Compare embedding providers on the operator's corpus (ADR-098 / #897).
+	@# Uses gi.json SUPPORTED_BY edges as ground truth — no human annotation needed.
+	@# Usage: make embedding-provider-eval CORPUS=./output [MAX_PAIRS=500] [OLLAMA_URL=http://...]
+	@if [ -z "$(CORPUS)" ]; then \
+		echo "ERROR: CORPUS is required (path to corpus root, parent of feeds/)." >&2; \
+		echo "  Example: make embedding-provider-eval CORPUS=./output" >&2; \
+		exit 1; \
+	fi
+	@$(PYTHON) scripts/eval_embedding_providers.py \
+		--corpus "$(CORPUS)" \
+		$(if $(MAX_PAIRS),--max-pairs $(MAX_PAIRS)) \
+		$(if $(OLLAMA_URL),--ollama-base-url $(OLLAMA_URL))
+
 benchmark:
 	@# Run benchmark across multiple datasets
 	@# Usage: make benchmark CONFIG=config.yaml BASELINE=baseline_id [SMOKE=1|ALL=1|DATASETS=ds1,ds2] [REFERENCE=ref1,ref2] [OUTPUT_DIR=...]
