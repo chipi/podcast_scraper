@@ -61,6 +61,18 @@ def apply_diarization_to_result(
                 diarization,
             )
 
+    if not diarization.segments:
+        # No speaker turns (silent/music-only audio, or a pyannote no-op). Returning
+        # the result unchanged leaves segments without speaker_label, so the caller's
+        # has_diarized_labels gate degrades to gap-based formatting instead of
+        # attributing the whole episode to a phantom SPEAKER_00.
+        logger.warning(
+            "Diarization produced no speaker turns for %s; "
+            "skipping speaker labels (gap-based formatting will be used).",
+            os.path.basename(audio_path),
+        )
+        return result
+
     speaker_map = map_speakers_to_names(diarization, detected_speaker_names or [])
     aligned = align_segments_to_speakers(segments, diarization)
 

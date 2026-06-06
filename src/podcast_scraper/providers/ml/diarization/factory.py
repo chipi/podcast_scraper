@@ -14,17 +14,24 @@ logger = logging.getLogger(__name__)
 
 
 def resolve_hf_token(cfg: config.Config) -> Optional[str]:
-    """Resolve HuggingFace token from config, env, or default token file."""
+    """Resolve HuggingFace token from config, env, or the HF CLI token files."""
     if cfg.hf_token:
         return cfg.hf_token.strip()
-    env_token = os.getenv("HF_TOKEN")
-    if env_token:
-        return env_token.strip()
-    token_path = Path.home() / ".huggingface" / "token"
-    if token_path.is_file():
-        token = token_path.read_text(encoding="utf-8").strip()
-        if token:
-            return token
+    for env_var in ("HF_TOKEN", "HUGGINGFACE_TOKEN", "HUGGING_FACE_HUB_TOKEN"):
+        env_token = os.getenv(env_var)
+        if env_token:
+            return env_token.strip()
+    # Legacy path first, then the modern ``huggingface-cli login`` location
+    # (~/.cache/huggingface/token) — the old code only checked the legacy path
+    # and missed tokens stored by a current HF CLI.
+    for token_path in (
+        Path.home() / ".huggingface" / "token",
+        Path.home() / ".cache" / "huggingface" / "token",
+    ):
+        if token_path.is_file():
+            token = token_path.read_text(encoding="utf-8").strip()
+            if token:
+                return token
     return None
 
 

@@ -1007,6 +1007,11 @@ def _get_provider_model_name(transcription_provider: Any, cfg: config.Config) ->
     # so we need to get model name from config or provider attributes
     if hasattr(transcription_provider, "model"):
         model = getattr(transcription_provider, "model", None)
+        # A plain string model (e.g. Deepgram "nova-3") is already the name — use it
+        # directly. Without this it fell through to None and every model of that
+        # provider collapsed to one cache key (H3).
+        if isinstance(model, str) and model.strip():
+            return model.strip()
         # If model is not a string (e.g., Whisper model object), get name from config
         if model is not None and not isinstance(model, str):
             # Get model name from config based on provider type
@@ -1281,7 +1286,10 @@ def _transcribe_with_segments_maybe_chunked(
 ) -> Tuple[Dict[str, Any], float]:
     """Transcribe media, splitting into chunks when post-preprocess size exceeds API cap."""
     from ..preprocessing.audio.chunker import AudioChunker, transcribe_file_in_chunks
-    from ..utils.audio_payload_limits import transcription_max_chunk_duration_seconds
+    from ..utils.audio_payload_limits import (
+        transcription_max_bytes,
+        transcription_max_chunk_duration_seconds,
+    )
     from ..utils.timeout import timeout_context, TimeoutError
 
     def _transcribe_one(path: str) -> Tuple[Dict[str, Any], float]:
@@ -1296,7 +1304,9 @@ def _transcribe_with_segments_maybe_chunked(
             return (result, elapsed)
 
     chunker = AudioChunker(
-        max_bytes=_PREPROCESSING_API_REENCODE_TARGET_BYTES,
+        # Per-provider byte cap minus 1 MiB headroom (multipart/form overhead),
+        # rather than the OpenAI-specific constant for every provider (F1).
+        max_bytes=transcription_max_bytes(cfg) - (1024 * 1024),
         max_duration_seconds=transcription_max_chunk_duration_seconds(cfg),
     )
     if _transcription_provider_supports_chunking(cfg) and chunker.needs_chunking(

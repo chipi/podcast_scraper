@@ -11,6 +11,7 @@ import pytest
 from podcast_scraper import config
 from podcast_scraper.providers.ml.diarization.base import DiarizationResult, DiarizationSegment
 from podcast_scraper.providers.ml.diarization.cache import (
+    diarization_audio_hash,
     diarization_cache_path,
     load_cached_diarization,
     save_diarization_cache,
@@ -18,6 +19,30 @@ from podcast_scraper.providers.ml.diarization.cache import (
 from podcast_scraper.providers.ml.diarization.pipeline import apply_diarization_to_result
 
 pytestmark = pytest.mark.unit
+
+
+def test_diarization_audio_hash_distinguishes_shared_prefix(tmp_path: Path) -> None:
+    """Two files sharing an identical first 1MB but differing later must not collide.
+
+    Regression for the cross-episode cache collision: a 1MB-only hash returned the
+    same key for episodes sharing an intro bumper, serving one episode's full-file
+    diarization for another. The full-file hash must distinguish them.
+    """
+    shared_intro = b"\xab" * (1024 * 1024)  # identical first 1MB (a shared bumper)
+    ep_a = tmp_path / "ep_a.wav"
+    ep_b = tmp_path / "ep_b.wav"
+    ep_a.write_bytes(shared_intro + b"unique-body-A")
+    ep_b.write_bytes(shared_intro + b"unique-body-B-which-is-different")
+
+    assert diarization_audio_hash(str(ep_a)) != diarization_audio_hash(str(ep_b))
+    # Same bytes -> stable, repeatable key.
+    assert diarization_audio_hash(str(ep_a)) == diarization_audio_hash(str(ep_a))
+
+
+def test_diarization_audio_hash_missing_file_falls_back(tmp_path: Path) -> None:
+    """A missing/unreadable file degrades to a deterministic path-based key, no raise."""
+    missing = str(tmp_path / "nope.wav")
+    assert diarization_audio_hash(missing) == diarization_audio_hash(missing)
 
 
 def test_diarization_cache_round_trip(tmp_path: Path) -> None:
@@ -35,7 +60,7 @@ def test_diarization_cache_round_trip(tmp_path: Path) -> None:
 
 
 @patch("podcast_scraper.providers.ml.diarization.pipeline.create_diarization_provider")
-@patch("podcast_scraper.providers.ml.diarization.cache.get_audio_hash")
+@patch("podcast_scraper.providers.ml.diarization.cache.diarization_audio_hash")
 def test_apply_diarization_uses_cache_on_hit(
     mock_audio_hash: MagicMock,
     mock_create_provider: MagicMock,
@@ -77,7 +102,7 @@ def test_apply_diarization_uses_cache_on_hit(
 
 
 @patch("podcast_scraper.providers.ml.diarization.pipeline.create_diarization_provider")
-@patch("podcast_scraper.providers.ml.diarization.cache.get_audio_hash")
+@patch("podcast_scraper.providers.ml.diarization.cache.diarization_audio_hash")
 def test_apply_diarization_writes_cache_on_miss(
     mock_audio_hash: MagicMock,
     mock_create_provider: MagicMock,

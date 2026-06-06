@@ -102,7 +102,9 @@ class MLProvider:
         self.cfg = cfg
 
         # Set up transcript cleaning processor (default pattern-based)
-        self.cleaning_processor = PatternBasedCleaner()
+        self.cleaning_processor = PatternBasedCleaner(
+            confidence_threshold=getattr(cfg, "commercial_confidence_threshold", None)
+        )
 
         # Whisper transcription state
         self._whisper_model: Optional[Any] = None

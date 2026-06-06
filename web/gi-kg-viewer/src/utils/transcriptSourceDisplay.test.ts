@@ -26,9 +26,11 @@ describe('corpusTextFileViewUrl', () => {
 })
 
 describe('audioRelpathFromTranscriptRelpath', () => {
-  it('maps transcripts/ to media/ and .txt to .mp3', () => {
-    expect(audioRelpathFromTranscriptRelpath('feeds/show/ep/transcript.txt')).toBe(
-      'media/feeds/show/ep/transcript.mp3',
+  it('flattens nested transcript paths to media/<stem>.mp3 (matches backend)', () => {
+    // Backend persists media/<stem><ext> (subdirs dropped); preserving subdirs here
+    // produced a path the backend never writes (404). Flatten to the stem.
+    expect(audioRelpathFromTranscriptRelpath('feeds/show/ep/episode_01.txt')).toBe(
+      'media/episode_01.mp3',
     )
   })
 

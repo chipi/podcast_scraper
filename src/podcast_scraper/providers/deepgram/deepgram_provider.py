@@ -9,6 +9,7 @@ from typing import Any, cast, Dict, List, Tuple
 
 from ... import config
 from ...utils.log_redaction import format_exception_for_log
+from ...utils.provider_metrics import _safe_deepgram_retryable, retry_with_metrics
 from ..capabilities import ProviderCapabilities
 
 logger = logging.getLogger(__name__)
@@ -60,6 +61,10 @@ def _words_to_segments(words: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
 def parse_deepgram_transcript(response: Any) -> Dict[str, Any]:
     """Convert Deepgram Listen response to pipeline segment dict."""
     data = _response_to_dict(response)
+    if not data and response is not None:
+        # An unrecognized response shape yields an empty result silently otherwise —
+        # surface it so "couldn't parse" isn't mistaken for "empty audio".
+        logger.warning("Deepgram response could not be parsed (type=%s)", type(response).__name__)
     results = data.get("results") or {}
     channels = results.get("channels") or []
     transcript = ""
@@ -148,6 +153,47 @@ class DeepgramTranscriptionProvider:
             supports_gi_segment_timing=True,
         )
 
+    def format_screenplay_from_segments(
+        self,
+        segments: List[Dict[str, Any]],
+        num_speakers: int | None = None,
+        speaker_names: List[str] | None = None,
+        gap_s: float | None = None,
+    ) -> str | None:
+        """Render Deepgram's native speaker-labelled segments as a screenplay.
+
+        Deepgram diarizes server-side and tags each segment with an integer
+        ``speaker``. Map those to detected names (first-appearance order; falls
+        back to ``Speaker N``) and reuse the shared screenplay formatter. Returns
+        ``None`` when there is nothing diarized to format so the caller falls back
+        to the plain transcript.
+        """
+        from ..ml.diarization.formatting import format_diarized_screenplay_from_segments
+
+        names = list(speaker_names or [])
+        speaker_to_name: Dict[Any, str] = {}
+        labelled: List[Dict[str, Any]] = []
+        for seg in segments:
+            if not isinstance(seg, dict) or not (seg.get("text") or "").strip():
+                continue
+            speaker = seg.get("speaker")
+            if speaker is None:
+                label = "Speaker"
+            else:
+                if speaker not in speaker_to_name:
+                    idx = len(speaker_to_name)
+                    speaker_to_name[speaker] = (
+                        names[idx] if idx < len(names) else f"Speaker {idx + 1}"
+                    )
+                label = speaker_to_name[speaker]
+            enriched = dict(seg)
+            enriched["speaker_label"] = label
+            labelled.append(enriched)
+
+        if not labelled:
+            return None
+        return format_diarized_screenplay_from_segments(labelled) or None
+
     def transcribe(self, audio_path: str, language: str | None = None) -> str:
         """Return transcript text from ``transcribe_with_segments``."""
         result, _elapsed = self.transcribe_with_segments(audio_path, language=language)
@@ -183,7 +229,14 @@ class DeepgramTranscriptionProvider:
                 }
                 if effective_language:
                     kwargs["language"] = effective_language
-                response = self._client.listen.v1.media.transcribe_file(**kwargs)
+                # Retry transient API/network failures with backoff, like every
+                # sibling provider (Deepgram rate limits are real).
+                response = retry_with_metrics(
+                    lambda: self._client.listen.v1.media.transcribe_file(**kwargs),
+                    retryable_exceptions=_safe_deepgram_retryable(),
+                    metrics=call_metrics,
+                    error_context="deepgram",
+                )
         except Exception as exc:
             logger.error("Deepgram transcription failed: %s", format_exception_for_log(exc))
             raise

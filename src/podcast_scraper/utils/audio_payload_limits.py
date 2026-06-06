@@ -7,6 +7,27 @@ from typing import Any, Optional, Union
 # OpenAI gpt-4o-transcribe family hard duration cap (seconds).
 OPENAI_GPT4O_TRANSCRIBE_MAX_DURATION_SECONDS = 1400.0
 
+# Conservative single-request audio byte cap (OpenAI's 25 MiB). Used as the default
+# for every API transcription provider when sizing audio chunks.
+_DEFAULT_MAX_AUDIO_BYTES = 25 * 1024 * 1024
+
+# Per-provider overrides go here as each API's real limit is confirmed. Keep the
+# conservative default rather than an unverified higher value — an over-small cap
+# just chunks more (works); an over-large cap risks an oversize upload that fails.
+_PROVIDER_MAX_AUDIO_BYTES: dict[str, int] = {
+    "openai": _DEFAULT_MAX_AUDIO_BYTES,
+}
+
+
+def transcription_max_bytes(cfg: Any) -> int:
+    """Max single-request audio bytes for the configured transcription provider.
+
+    Replaces the previous hard-coded OpenAI assumption with a per-provider lookup;
+    unconfirmed providers fall back to the conservative OpenAI cap.
+    """
+    provider = str(getattr(cfg, "transcription_provider", None) or "").lower()
+    return _PROVIDER_MAX_AUDIO_BYTES.get(provider, _DEFAULT_MAX_AUDIO_BYTES)
+
 
 def transcription_max_chunk_duration_seconds(cfg: Any) -> Optional[float]:
     """Return max single-request audio duration when provider enforces a cap."""

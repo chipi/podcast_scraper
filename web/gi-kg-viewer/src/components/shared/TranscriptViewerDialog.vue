@@ -90,6 +90,20 @@ function close(): void {
   dialogRef.value?.close()
 }
 
+function handleDialogClose(): void {
+  // Stop playback and release the media resource when the dialog closes; otherwise
+  // audio keeps playing in the background and the <audio> element lingers.
+  const el = audioEl.value
+  if (el) {
+    try {
+      el.pause()
+    } catch {
+      // ignore — element may already be detached
+    }
+  }
+  audioUrl.value = null
+}
+
 async function scrollFirstHighlightIntoView(): Promise<void> {
   await nextTick()
   requestAnimationFrame(() => {
@@ -166,6 +180,23 @@ function seekToMs(ms: number): void {
   el.currentTime = ms / 1000
 }
 
+async function probeAndSetAudio(url: string, seq: number): Promise<void> {
+  // Most pre-Wave-3 episodes have no persisted media. Probe existence first so we
+  // only render the <audio> player when there is something to play, instead of a
+  // broken control on every legacy episode.
+  try {
+    const res = await fetchWithTimeout(url, { method: 'HEAD', credentials: 'same-origin' })
+    if (transcriptOpenGate.isStale(seq)) {
+      return
+    }
+    if (res.ok) {
+      audioUrl.value = url
+    }
+  } catch {
+    // Network/timeout — leave the player hidden.
+  }
+}
+
 async function open(payload: TranscriptViewerOpenPayload): Promise<void> {
   resetState()
   const seq = transcriptOpenGate.bump()
@@ -179,7 +210,7 @@ async function open(payload: TranscriptViewerOpenPayload): Promise<void> {
   const seekNum = seekRaw == null ? NaN : Number(seekRaw)
   pendingSeekMs.value = Number.isFinite(seekNum) && seekNum >= 0 ? seekNum : null
   const mediaRel = audioRelpathFromTranscriptRelpath(payload.transcriptRelpath)
-  audioUrl.value = corpusMediaFileViewUrl(payload.corpusRoot, mediaRel)
+  void probeAndSetAudio(corpusMediaFileViewUrl(payload.corpusRoot, mediaRel), seq)
   loading.value = true
   errorText.value = null
   dialogRef.value?.showModal()
@@ -283,6 +314,7 @@ defineExpose({ open, close, seekToMs })
     class="w-[min(100%,42rem)] max-h-[min(92vh,48rem)] overflow-hidden rounded-lg border border-border bg-surface text-surface-foreground shadow-xl [&::backdrop]:bg-black/40"
     aria-labelledby="transcript-viewer-title"
     @click="onBackdropClick"
+    @close="handleDialogClose"
   >
     <div class="flex max-h-[min(92vh,48rem)] flex-col">
       <div class="flex shrink-0 items-start justify-between gap-3 border-b border-border px-4 py-3">
@@ -334,6 +366,7 @@ defineExpose({ open, close, seekToMs })
             class="mt-2 w-full"
             controls
             preload="metadata"
+            aria-label="Episode audio"
             :src="audioUrl"
             @loadedmetadata="applyPendingSeek"
           />

@@ -82,6 +82,11 @@ def _raw_screenplay_requested(value: Any) -> bool:
 
 _DIARIZATION_ELIGIBLE_TRANSCRIPTION_PROVIDERS = frozenset({"whisper", "tailnet_dgx_whisper"})
 
+# Providers that produce their own speaker-labelled segments via the transcription
+# API (no local pyannote pass) and can therefore self-format a screenplay. Screenplay
+# stays enabled for these even though diarize (the pyannote pass) is coerced off.
+_NATIVE_SCREENPLAY_TRANSCRIPTION_PROVIDERS = frozenset({"deepgram"})
+
 
 def _screenplay_strict_env_enabled() -> bool:
     """When set, invalid screenplay + API transcription is an error instead of coercion."""
@@ -2774,6 +2779,16 @@ class Config(BaseModel):
             "viewer playback (Wave 3)."
         ),
     )
+    commercial_confidence_threshold: float = Field(
+        default=0.65,
+        ge=0.0,
+        le=1.0,
+        alias="commercial_confidence_threshold",
+        description=(
+            "Minimum confidence (0-1) for the commercial detector to remove a sponsor "
+            "block. Lower = more aggressive removal; higher = more conservative."
+        ),
+    )
 
     # Graceful Degradation Policy
     degradation_policy: Optional[Dict[str, Any]] = Field(
@@ -3078,6 +3093,11 @@ class Config(BaseModel):
             return merged
         if tp in _DIARIZATION_ELIGIBLE_TRANSCRIPTION_PROVIDERS:
             return merged
+        if tp in _NATIVE_SCREENPLAY_TRANSCRIPTION_PROVIDERS:
+            # Provider self-formats a screenplay from its native (API) diarization;
+            # screenplay is meaningful here, so leave it on (diarize is still coerced
+            # off below — there is no local pyannote pass for these providers).
+            return merged
         if _screenplay_strict_env_enabled():
             raise ValueError(
                 "screenplay is only supported with local Whisper transcription "
@@ -3140,24 +3160,36 @@ class Config(BaseModel):
         stage = merged.get("pipeline_stage", "full")
         if stage not in ("full", "audio_only", "enrich_only"):
             return merged
+        message: Optional[str] = None
         if stage == "audio_only":
             for key in ("generate_metadata", "generate_summaries", "generate_gi", "generate_kg"):
                 if merged.get(key):
                     merged[key] = False
-            with _pipeline_stage_coerce_lock:
-                if not _pipeline_stage_coerce_state["logged"]:
-                    _pipeline_stage_coerce_state["logged"] = True
-                    logger.info(
-                        "pipeline_stage=audio_only: coercing generate_metadata, "
-                        "generate_summaries, generate_gi, and generate_kg to false."
-                    )
+            message = (
+                "pipeline_stage=audio_only: coercing generate_metadata, "
+                "generate_summaries, generate_gi, and generate_kg to false."
+            )
         elif stage == "enrich_only":
-            if merged.get("transcribe_missing"):
-                merged["transcribe_missing"] = False
+            # Enrich from on-disk transcripts: no new transcription, and reuse must
+            # be enabled or there is nothing to enrich (transcript reuse is gated on
+            # skip_existing). Set both unconditionally — relying on `.get()` truthiness
+            # missed the common case where transcribe_missing keeps its default (True),
+            # which left the mode a silent no-op.
+            merged["transcribe_missing"] = False
+            merged["skip_existing"] = True
+            message = (
+                "pipeline_stage=enrich_only: coercing transcribe_missing=false "
+                "and skip_existing=true (reuse on-disk transcripts for enrichment)."
+            )
+        if message is not None:
+            # Compute the once-per-process gate inside the lock, but log outside it
+            # (matches the diarize/screenplay gates — don't hold the lock across I/O).
             with _pipeline_stage_coerce_lock:
-                if not _pipeline_stage_coerce_state["logged"]:
+                should_log = not _pipeline_stage_coerce_state["logged"]
+                if should_log:
                     _pipeline_stage_coerce_state["logged"] = True
-                    logger.info("pipeline_stage=enrich_only: coercing transcribe_missing to false.")
+            if should_log:
+                logger.info(message)
         return merged
 
     @model_validator(mode="before")

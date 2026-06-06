@@ -9,13 +9,40 @@ import os
 from typing import Optional
 
 from .... import config
-from ....cache.transcript_cache import get_audio_hash
 from ....utils.log_redaction import format_exception_for_log
 from .base import DiarizationResult, DiarizationSegment
 
 logger = logging.getLogger(__name__)
 
 DIARIZATION_CACHE_SUBDIR = ".cache/diarization"
+
+_HASH_CHUNK_BYTES = 1024 * 1024
+
+
+def diarization_audio_hash(audio_path: str) -> str:
+    """Content hash of the **whole** audio file for diarization cache keys.
+
+    The transcript cache hashes only the first 1MB for speed, which is unsafe
+    here: diarization analyses the entire file, so two distinct episodes that
+    share an identical intro (a common podcast bumper, or identical leading
+    silence after ``loudnorm``) would collide on a 1MB hash and serve each
+    other's full-file diarization. We stream the entire file plus its byte
+    length into the digest; the cost is negligible next to the pyannote pass.
+    """
+    hasher = hashlib.sha256()
+    try:
+        hasher.update(str(os.path.getsize(audio_path)).encode("utf-8"))
+        with open(audio_path, "rb") as handle:
+            for chunk in iter(lambda: handle.read(_HASH_CHUNK_BYTES), b""):
+                hasher.update(chunk)
+    except OSError as exc:
+        logger.warning(
+            "Failed to hash audio file for diarization cache: %s",
+            format_exception_for_log(exc),
+        )
+        # Path fallback keeps behaviour deterministic without crashing the run.
+        hasher.update(audio_path.encode("utf-8"))
+    return hasher.hexdigest()[:16]
 
 
 def diarization_config_fingerprint(cfg: config.Config) -> str:
@@ -42,7 +69,7 @@ def diarization_cache_path(
     cache_dir: str,
 ) -> str:
     """Path to cached JSON for this audio + diarization config."""
-    audio_hash = get_audio_hash(audio_path)
+    audio_hash = diarization_audio_hash(audio_path)
     config_fp = diarization_config_fingerprint(cfg)
     return os.path.join(cache_dir, f"{audio_hash}_{config_fp}.json")
 

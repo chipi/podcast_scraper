@@ -120,11 +120,11 @@ class TestAnthropicE2EServerIntegration:
             known_hosts={"Alice"},
         )
 
-        # Verify speakers are returned
-        assert isinstance(speakers, list)
-        assert len(speakers) > 0
-        assert isinstance(detected_hosts, set)
-        assert isinstance(success, bool)
+        # Verify the mocked response's actual values flow through the parse path
+        # (not just isinstance/non-empty — that passed even on a garbage parse).
+        assert success is True
+        assert "Alice" in speakers and "Bob" in speakers
+        assert "Alice" in detected_hosts
 
         # Clean up detector
         detector.cleanup()

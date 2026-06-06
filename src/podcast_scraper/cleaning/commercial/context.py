@@ -40,28 +40,48 @@ def segments_have_speaker_ids(segments: Optional[List[dict]]) -> bool:
     return any(isinstance(seg.get("speaker"), str) and seg.get("speaker") for seg in segments)
 
 
-def infer_host_speaker_id(segments: List[dict]) -> Optional[str]:
-    """Heuristic host speaker id from diarized segments (intro-weighted mode)."""
-    speakers_in_intro: dict[str, int] = {}
-    end_time = max(float(seg.get("end") or seg.get("start") or 0.0) for seg in segments) or 1.0
-    intro_end = end_time * 0.15
+def _speaking_time_by_speaker(
+    segments: List[dict], window_end: Optional[float]
+) -> dict[str, float]:
+    """Total speaking duration per speaker, optionally limited to segments starting
+    before ``window_end``."""
+    totals: dict[str, float] = {}
     for segment in segments:
         speaker = segment.get("speaker")
         if not isinstance(speaker, str) or not speaker:
             continue
         start = float(segment.get("start") or 0.0)
-        if start <= intro_end:
-            speakers_in_intro[speaker] = speakers_in_intro.get(speaker, 0) + 1
-    if speakers_in_intro:
-        return max(speakers_in_intro, key=lambda speaker: speakers_in_intro[speaker])
-    overall: dict[str, int] = {}
-    for segment in segments:
-        speaker = segment.get("speaker")
-        if isinstance(speaker, str) and speaker:
-            overall[speaker] = overall.get(speaker, 0) + 1
-    if not overall:
+        if window_end is not None and start > window_end:
+            continue
+        duration = max(0.0, float(segment.get("end") or start) - start)
+        totals[speaker] = totals.get(speaker, 0.0) + duration
+    return totals
+
+
+def infer_host_speaker_id(segments: List[dict]) -> Optional[str]:
+    """Heuristic host speaker id from diarized segments, weighted by intro speaking time.
+
+    The host usually dominates the intro, so sum each speaker's *duration* (not turn
+    count, which over-weights a guest who interjects in many short segments) over the
+    first 15%% of the episode; fall back to overall speaking time. Returns None when
+    there are no labelled speakers. The result is a best-effort guess (a cold open
+    spoken by a guest can still misfire) and is logged for debugging.
+    """
+    end_time = max(float(seg.get("end") or seg.get("start") or 0.0) for seg in segments) or 1.0
+    intro_end = end_time * 0.15
+
+    intro_totals = _speaking_time_by_speaker(segments, intro_end)
+    chosen = intro_totals or _speaking_time_by_speaker(segments, None)
+    if not chosen:
         return None
-    return max(overall, key=lambda speaker: overall[speaker])
+    host = max(chosen, key=lambda speaker: chosen[speaker])
+    logger.debug(
+        "Inferred commercial host speaker '%s' (intro-weighted=%s) from %d segments",
+        host,
+        bool(intro_totals),
+        len(segments),
+    )
+    return host
 
 
 def diarization_cleaning_context(

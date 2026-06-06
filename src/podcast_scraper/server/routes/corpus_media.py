@@ -27,6 +27,34 @@ def _suffix_allowed(name: str) -> bool:
     return any(lower.endswith(s) for s in _ALLOWED_SUFFIXES)
 
 
+def _within_root_realpath(path: str, root_s: str) -> bool:
+    """True if ``path`` resolves (following symlinks) to inside ``root_s``.
+
+    Closes the in-corpus symlink-follow gap: the string normpath guards above
+    don't catch a symlink *inside* ``media/`` that points outside the corpus.
+    """
+    real = os.path.realpath(path)
+    root_real = os.path.realpath(root_s)
+    return real == root_real or real.startswith(root_real + os.sep)
+
+
+def _resolve_existing_media(verified: str, root_s: str) -> str | None:
+    """Return an existing media file for ``verified``, trying sibling extensions.
+
+    The viewer derives ``media/<stem>.mp3`` as a hint but the persisted file keeps
+    its source extension (often ``.m4a``). Try the same confined stem with every
+    allowed extension; each candidate is re-verified under the corpus root (string
+    *and* realpath) so the fallback cannot escape the ``media/`` subtree.
+    """
+    stem, _ext = os.path.splitext(verified)
+    candidates = [verified, *[stem + ext for ext in _ALLOWED_SUFFIXES]]
+    for candidate in candidates:
+        confined = normpath_if_under_root(candidate, root_s)
+        if confined and os.path.isfile(confined) and _within_root_realpath(confined, root_s):
+            return confined
+    return None
+
+
 def _safe_media_target_str(base: Path, relpath: str) -> str:
     norm = relpath.strip().replace("\\", "/").lstrip("/")
     prefix = f"{CORPUS_MEDIA_DIR}/"
@@ -75,14 +103,15 @@ async def corpus_media(
     if not verified:
         raise HTTPException(status_code=400, detail="Invalid path.")
 
-    # codeql[py/path-injection] -- verified from normpath_if_under_root(target, root_s).
-    if not os.path.isfile(verified):
+    # codeql[py/path-injection] -- resolved from normpath_if_under_root(... , root_s).
+    resolved = _resolve_existing_media(verified, root_s)
+    if not resolved:
         raise HTTPException(status_code=404, detail="File not found.")
 
-    media_type, _ = mimetypes.guess_type(os.path.basename(verified))
-    # codeql[py/path-injection] -- verified from normpath_if_under_root(target, root_s).
+    media_type, _ = mimetypes.guess_type(os.path.basename(resolved))
+    # codeql[py/path-injection] -- resolved from normpath_if_under_root(... , root_s).
+    # Starlette's FileResponse sets Accept-Ranges: bytes and serves 206 ranges itself.
     return FileResponse(
-        path=verified,
+        path=resolved,
         media_type=media_type or "application/octet-stream",
-        headers={"Accept-Ranges": "bytes"},
     )

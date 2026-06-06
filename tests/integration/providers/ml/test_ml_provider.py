@@ -311,8 +311,7 @@ class TestMLProviderTranscription(unittest.TestCase):
         )
 
     @patch("podcast_scraper.providers.ml.ml_provider._import_third_party_whisper")
-    @patch("podcast_scraper.providers.ml.ml_provider.progress.progress_context")
-    def test_transcribe_success(self, mock_progress, mock_import_whisper):
+    def test_transcribe_success(self, mock_import_whisper):
         """Test successful transcription."""
         mock_model = Mock()
         mock_model.device.type = "cpu"
@@ -320,7 +319,6 @@ class TestMLProviderTranscription(unittest.TestCase):
         mock_whisper_lib = Mock()
         mock_whisper_lib.load_model.return_value = mock_model
         mock_import_whisper.return_value = mock_whisper_lib
-        mock_progress.return_value.__enter__.return_value = None
 
         provider = MLProvider(self.cfg)
         provider.initialize()
@@ -331,8 +329,7 @@ class TestMLProviderTranscription(unittest.TestCase):
         mock_model.transcribe.assert_called_once()
 
     @patch("podcast_scraper.providers.ml.ml_provider._import_third_party_whisper")
-    @patch("podcast_scraper.providers.ml.ml_provider.progress.progress_context")
-    def test_transcribe_with_language(self, mock_progress, mock_import_whisper):
+    def test_transcribe_with_language(self, mock_import_whisper):
         """Test transcription with explicit language."""
         mock_model = Mock()
         mock_model.device.type = "cpu"
@@ -340,7 +337,6 @@ class TestMLProviderTranscription(unittest.TestCase):
         mock_whisper_lib = Mock()
         mock_whisper_lib.load_model.return_value = mock_model
         mock_import_whisper.return_value = mock_whisper_lib
-        mock_progress.return_value.__enter__.return_value = None
 
         provider = MLProvider(self.cfg)
         provider.initialize()
@@ -363,8 +359,7 @@ class TestMLProviderTranscription(unittest.TestCase):
         self.assertIn("not initialized", str(context.exception))
 
     @patch("podcast_scraper.providers.ml.ml_provider._import_third_party_whisper")
-    @patch("podcast_scraper.providers.ml.ml_provider.progress.progress_context")
-    def test_transcribe_empty_text_raises_error(self, mock_progress, mock_import_whisper):
+    def test_transcribe_empty_text_raises_error(self, mock_import_whisper):
         """Test transcribe raises ProviderRuntimeError if transcription returns empty text."""
         mock_model = Mock()
         mock_model.device.type = "cpu"
@@ -372,7 +367,6 @@ class TestMLProviderTranscription(unittest.TestCase):
         mock_whisper_lib = Mock()
         mock_whisper_lib.load_model.return_value = mock_model
         mock_import_whisper.return_value = mock_whisper_lib
-        mock_progress.return_value.__enter__.return_value = None
 
         provider = MLProvider(self.cfg)
         provider.initialize()
@@ -383,8 +377,7 @@ class TestMLProviderTranscription(unittest.TestCase):
         self.assertIn("empty text", str(context.exception))
 
     @patch("podcast_scraper.providers.ml.ml_provider._import_third_party_whisper")
-    @patch("podcast_scraper.providers.ml.ml_provider.progress.progress_context")
-    def test_transcribe_with_segments_success(self, mock_progress, mock_import_whisper):
+    def test_transcribe_with_segments_success(self, mock_import_whisper):
         """Test transcribe_with_segments returns full result."""
         mock_model = Mock()
         mock_model.device.type = "cpu"
@@ -399,7 +392,6 @@ class TestMLProviderTranscription(unittest.TestCase):
         mock_whisper_lib = Mock()
         mock_whisper_lib.load_model.return_value = mock_model
         mock_import_whisper.return_value = mock_whisper_lib
-        mock_progress.return_value.__enter__.return_value = None
 
         provider = MLProvider(self.cfg)
         provider.initialize()

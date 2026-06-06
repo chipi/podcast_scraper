@@ -94,6 +94,10 @@ jobs:
         cache: "pip"
         cache-dependency-path: pyproject.toml
 
+    - name: Install ffmpeg (pyannote 4.x / torchcodec needs FFmpeg shared libs to import)
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y --no-install-recommends ffmpeg
     - name: Install full dependencies (including ML)
       run: |
         python -m pip install --upgrade pip
@@ -291,6 +295,10 @@ jobs:
           docs/requirements.txt
           pyproject.toml
 
+    - name: Install ffmpeg (mkdocstrings imports [ml] modules; pyannote 4.x/torchcodec needs FFmpeg)
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y --no-install-recommends ffmpeg
     - name: Install doc dependencies (includes ML for mkdocstrings)
       run: |
         python -m pip install --upgrade pip

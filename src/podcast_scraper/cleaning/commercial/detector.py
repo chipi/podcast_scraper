@@ -2,8 +2,12 @@
 
 from __future__ import annotations
 
+import logging
+import re
 from dataclasses import dataclass
 from typing import List, Optional, Tuple
+
+logger = logging.getLogger(__name__)
 
 from .diarization_signals import diarization_sponsor_signals
 from .patterns import (
@@ -20,6 +24,13 @@ _BACKSCAN_CHARS = 500
 _FORWARD_SCAN_CHARS = 2000
 _MAX_LOW_CONFIDENCE_BLOCK_RATIO = 0.4
 _HIGH_CONFIDENCE_FOR_LARGE_BLOCK = 0.85
+
+# Inline CTAs (a bare ".com" or "sign up today") are common in ordinary speech.
+# Below this pattern confidence we refuse to remove on the CTA alone — it must be
+# corroborated by another sponsor signal nearby, or we risk deleting real content.
+_INLINE_STANDALONE_CONFIDENCE = 0.7
+_INLINE_CORROBORATION_WINDOW = 600
+_PROMO_CODE_RE = re.compile(r"(?:use (?:code|promo|coupon)|promo code|discount code)", re.I)
 
 
 @dataclass(frozen=True)
@@ -57,6 +68,16 @@ class CommercialDetector:
 
         for sponsor_pattern in SPONSOR_PATTERNS:
             for match in sponsor_pattern.pattern.finditer(text):
+                # A low-confidence inline CTA must be corroborated by another
+                # sponsor signal, else "check out github.com" in normal speech
+                # would clear the threshold via the position boost and delete a
+                # paragraph of real content.
+                if (
+                    sponsor_pattern.boundary_hint == "inline"
+                    and sponsor_pattern.confidence < _INLINE_STANDALONE_CONFIDENCE
+                    and not _inline_cta_corroborated(text, match.start(), match.end())
+                ):
+                    continue
                 base_conf = sponsor_pattern.confidence
                 base_conf += position_score(match.start(), text_len)
                 if _text_mentions_brand(text, match.start(), match.end()):
@@ -96,10 +117,25 @@ class CommercialDetector:
         return _merge_overlapping_candidates(candidates)
 
     def remove(self, text: str) -> str:
-        """Remove detected commercial regions from text."""
+        """Remove detected commercial regions from text.
+
+        Logs an audit trail of what was excised (span, confidence, char count) so a
+        too-aggressive removal is recoverable from logs rather than silent.
+        """
+        candidates = self.detect(text)
         cleaned = text
-        for candidate in reversed(self.detect(text)):
+        for candidate in reversed(candidates):
             cleaned = cleaned[: candidate.start] + cleaned[candidate.end :]
+        if candidates:
+            removed_chars = sum(c.end - c.start for c in candidates)
+            logger.info(
+                "Commercial cleaning removed %d block(s), %d chars (%.1f%% of %d); " "spans=%s",
+                len(candidates),
+                removed_chars,
+                100.0 * removed_chars / max(len(text), 1),
+                len(text),
+                [(c.start, c.end, round(c.confidence, 2)) for c in candidates],
+            )
         return cleaned
 
 
@@ -116,6 +152,23 @@ def _span_too_large_for_confidence(start: int, end: int, text_len: int, confiden
 def _text_mentions_brand(text: str, start: int, end: int) -> bool:
     window = text[max(0, start - 200) : min(len(text), end + 400)].lower()
     return any(brand in window for brand in BRAND_NAMES)
+
+
+def _inline_cta_corroborated(text: str, match_start: int, match_end: int) -> bool:
+    """True if a low-confidence inline CTA has independent sponsor evidence nearby.
+
+    Corroboration = a known brand name, an explicit promo/coupon code, or a
+    sponsor-intro phrase shortly before the CTA. Without any of these, a bare
+    URL/sign-up phrase is treated as ordinary conversation and left in place.
+    """
+    if _text_mentions_brand(text, match_start, match_end):
+        return True
+    window_start = max(0, match_start - _INLINE_CORROBORATION_WINDOW)
+    window_end = min(len(text), match_end + _INLINE_CORROBORATION_WINDOW)
+    if _PROMO_CODE_RE.search(text[window_start:window_end]):
+        return True
+    preceding = text[window_start:match_start]
+    return any(pattern.pattern.search(preceding) for pattern in BLOCK_START_PATTERNS)
 
 
 def _paragraph_start(text: str, index: int) -> int:

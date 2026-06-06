@@ -638,6 +638,55 @@ def preload_transformers_models(model_names: Optional[List[str]] = None) -> None
             sys.exit(1)
 
 
+def preload_diarization_models() -> None:
+    """Preload the pyannote speaker-diarization pipeline into the HF cache.
+
+    Loading ``Pipeline.from_pretrained`` downloads and caches every sub-model
+    (segmentation-3.0, speaker-diarization-community-1, embeddings) so later runs
+    load offline (``HF_HUB_OFFLINE=1``). These are **gated** models: without an HF
+    token (with accepted terms) this is skipped — diarization is optional, so a
+    missing token must not fail the build.
+
+    Controlled by ``DIARIZATION_MODEL`` (default ``pyannote/speaker-diarization-3.1``)
+    and skipped entirely with ``SKIP_DIARIZATION=1``.
+    """
+    from podcast_scraper import config as _config
+
+    try:
+        from pyannote.audio import Pipeline
+    except Exception as exc:  # pragma: no cover - depends on [ml] extra
+        print(f"  pyannote.audio unavailable ({exc}); skipping diarization preload")
+        return
+
+    from podcast_scraper.providers.ml.diarization.factory import resolve_hf_token
+
+    # Cache into the SAME HF hub dir transformers use (project-local
+    # .cache/huggingface/hub) so the cached pipeline is found offline by the test
+    # suite and the pipeline image — not the user's ~/.cache/huggingface default.
+    cache_dir_str = str(get_transformers_cache_dir())
+    if os.environ.get("HF_HUB_CACHE") != cache_dir_str:
+        os.environ["HF_HUB_CACHE"] = cache_dir_str
+
+    model = os.environ.get("DIARIZATION_MODEL", "pyannote/speaker-diarization-3.1").strip()
+    cfg = _config.Config(rss="https://example.com/feed.xml", transcription_provider="whisper")
+    token = resolve_hf_token(cfg)
+    if not token:
+        print(
+            "  No HF token (HF_TOKEN / ~/.cache/huggingface/token) and gated model; "
+            "skipping diarization preload. Accept terms + set a token to cache it."
+        )
+        return
+
+    print(f"  Loading {model} (downloads + caches all gated sub-models)...")
+    try:
+        Pipeline.from_pretrained(model, token=token)
+        print(f"  diarization model cached: {model}")
+    except Exception as exc:  # pragma: no cover - network/gating dependent
+        # Gated-access (403) or network: warn but don't fail the whole preload —
+        # diarization is optional and the rest of the cache is still valid.
+        print(f"  WARNING: could not preload {model}: {type(exc).__name__}: {str(exc)[:160]}")
+
+
 def main() -> None:
     """Main entry point for model preloading."""
     import argparse
@@ -724,6 +773,10 @@ def main() -> None:
         else:
             print("Skipping GIL evidence models (SKIP_GIL=1)")
             print("")
+        if os.environ.get("SKIP_DIARIZATION", "").strip().lower() not in ("1", "true", "yes"):
+            print("Preloading pyannote diarization pipeline (gated; needs HF token)...")
+            preload_diarization_models()
+            print("")
     else:
         if args.airgapped_thin:
             print("Preloading airgapped_thin bundle (matches config/profiles/airgapped_thin.yaml)")
@@ -780,6 +833,16 @@ def main() -> None:
         if not skip_gil:
             print("Preloading GIL evidence models (embedding + QA + NLI)...")
             preload_evidence_models()
+            print("")
+
+        skip_diarization = os.environ.get("SKIP_DIARIZATION", "").strip().lower() in (
+            "1",
+            "true",
+            "yes",
+        )
+        if not skip_diarization:
+            print("Preloading pyannote diarization pipeline (gated; needs HF token)...")
+            preload_diarization_models()
             print("")
 
     if hasattr(signal, "SIGALRM"):

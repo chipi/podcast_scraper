@@ -2333,6 +2333,16 @@ class TestGetProviderModelName(unittest.TestCase):
 
         self.assertEqual(result, "base")
 
+    def test_get_provider_model_name_string_model_used_directly(self):
+        """A plain string .model (e.g. Deepgram 'nova-3') is the name, not None (H3)."""
+        cfg = create_test_config()
+        mock_provider = Mock()
+        mock_provider.model = "nova-3"
+
+        result = episode_processor._get_provider_model_name(mock_provider, cfg)
+
+        self.assertEqual(result, "nova-3")
+
     def test_get_provider_model_name_from_openai_model(self):
         """Test extracting model name from cfg.openai_transcription_model."""
         cfg = create_test_config(

@@ -20,6 +20,15 @@ logger = logging.getLogger(__name__)
 DEFAULT_OVERLAP_SECONDS = 5.0
 DEFAULT_MAX_BYTES = OPENAI_MAX_FILE_SIZE_BYTES - (1024 * 1024)
 
+# A new chunk's segment whose start falls more than this before the last-emitted
+# end is treated as a seam duplicate (the overlap region transcribed by both
+# chunks) and dropped. The tolerance absorbs boundary timestamp jitter.
+_SEGMENT_SEAM_TOLERANCE_SECONDS = 0.5
+
+# Sanity ceiling on chunk count — a pathological bitrate estimate could otherwise
+# request thousands of 1-second chunks and as many API calls.
+_MAX_CHUNKS = 500
+
 
 @dataclass(frozen=True)
 class AudioChunk:
@@ -100,7 +109,7 @@ class AudioChunker:
         return duration is not None and duration > self.max_duration_seconds
 
     def split(self, audio_path: str, work_dir: Optional[str] = None) -> List[AudioChunk]:
-        """Split audio into chunks using ffmpeg stream copy."""
+        """Split audio into overlapping chunks, re-encoded for clean frame seams."""
         if not shutil.which("ffmpeg"):
             raise RuntimeError("ffmpeg not available for audio chunking")
 
@@ -109,12 +118,23 @@ class AudioChunker:
         if duration is None or duration <= 0:
             raise RuntimeError(f"Could not determine duration for chunking: {audio_path}")
 
+        # Re-encode chunks at the source's average bitrate. Matching the source
+        # rate keeps the proportional size estimate below valid while producing
+        # clean, independently-decodable MP3 frames (stream-copy would cut
+        # mid-frame, garbling the start of every chunk and corrupting the seam).
+        target_bitrate = max(32_000, int(file_size * 8 / duration))
+
         chunk_duration = duration * (self.max_bytes / file_size) * 0.95
         if self.max_duration_seconds is not None:
             chunk_duration = min(chunk_duration, self.max_duration_seconds * 0.95)
         chunk_duration = max(chunk_duration, self.overlap_seconds + 1.0)
         step = max(chunk_duration - self.overlap_seconds, 1.0)
         num_chunks = max(1, math.ceil((duration - self.overlap_seconds) / step))
+        if num_chunks > _MAX_CHUNKS:
+            raise RuntimeError(
+                f"Refusing to split {audio_path} into {num_chunks} chunks "
+                f"(> {_MAX_CHUNKS}); bitrate estimate likely wrong."
+            )
 
         out_dir = work_dir or tempfile.mkdtemp(prefix="audio_chunks_")
         os.makedirs(out_dir, exist_ok=True)
@@ -126,22 +146,44 @@ class AudioChunker:
                 break
             end = min(duration, start + chunk_duration)
             out_path = os.path.join(out_dir, f"chunk_{index:03d}.mp3")
+            # -ss/-t before -i: fast input seek, segment length (not -to, whose
+            # meaning is ambiguous with input-side -ss). Re-encode (-c:a
+            # libmp3lame) for clean frame boundaries at the source bitrate.
             cmd = [
                 "ffmpeg",
                 "-y",
                 "-ss",
                 str(start),
-                "-to",
-                str(end),
+                "-t",
+                str(end - start),
                 "-i",
                 audio_path,
-                "-c",
-                "copy",
+                "-c:a",
+                "libmp3lame",
+                "-b:a",
+                str(target_bitrate),
                 out_path,
             ]
-            _run_text_subprocess(cmd, timeout=120.0, check=True)
-            if os.path.exists(out_path) and os.path.getsize(out_path) > 0:
-                chunks.append(AudioChunk(path=out_path, start_seconds=start, index=index))
+            _run_text_subprocess(cmd, timeout=300.0, check=True)
+            out_size = os.path.getsize(out_path) if os.path.exists(out_path) else 0
+            if out_size <= 0:
+                # Don't silently lose a window — a 0-byte output drops that span
+                # from the transcript entirely.
+                logger.warning(
+                    "Audio chunk %d (start=%.1fs) produced no output; window dropped", index, start
+                )
+                continue
+            if out_size > self.max_bytes:
+                # The CBR estimate has a 0.95 margin but can still overshoot (VBR,
+                # container overhead). Surface it rather than hit the provider's
+                # payload limit silently.
+                logger.warning(
+                    "Audio chunk %d is %d bytes (> max_bytes=%d); may exceed the API limit",
+                    index,
+                    out_size,
+                    self.max_bytes,
+                )
+            chunks.append(AudioChunk(path=out_path, start_seconds=start, index=index))
 
         if not chunks:
             raise RuntimeError(f"ffmpeg produced no audio chunks for {audio_path}")
@@ -159,6 +201,7 @@ class AudioChunker:
         merged_segments: List[Dict[str, Any]] = []
         merged_text_parts: List[str] = []
         total_elapsed = 0.0
+        last_end: Optional[float] = None
 
         for (result, elapsed), chunk in zip(chunk_results, chunks):
             total_elapsed += elapsed
@@ -182,6 +225,12 @@ class AudioChunker:
                 seg_text = str(seg.get("text") or "").strip()
                 if not seg_text:
                     continue
+                # Drop seam duplicates: the overlap window is transcribed by both
+                # adjacent chunks, so a segment starting inside the already-emitted
+                # range is the same speech captured twice. Without this, downstream
+                # consumers (search index, GI timing, diarization) double-count.
+                if last_end is not None and start < last_end - _SEGMENT_SEAM_TOLERANCE_SECONDS:
+                    continue
                 merged: Dict[str, Any] = {
                     "start": start,
                     "end": end,
@@ -190,6 +239,7 @@ class AudioChunker:
                 if "speaker" in seg:
                     merged["speaker"] = seg["speaker"]
                 merged_segments.append(merged)
+                last_end = end if last_end is None else max(last_end, end)
 
         merged_segments.sort(key=lambda s: (float(s["start"]), float(s["end"])))
         full_text = " ".join(merged_text_parts).strip()

@@ -292,6 +292,22 @@ def _safe_mistral_retryable() -> tuple[type[Exception], ...]:
     return (Exception,)
 
 
+def _safe_deepgram_retryable() -> tuple[type[Exception], ...]:
+    """Return retryable Deepgram exception classes with fallback.
+
+    Same rationale as :func:`_safe_openai_retryable` but for the ``deepgram-sdk``.
+    """
+    for mod_name in ("deepgram.errors", "deepgram"):
+        try:
+            mod = importlib.import_module(mod_name)
+            err = getattr(mod, "DeepgramApiError", None) or getattr(mod, "DeepgramError", None)
+            if isinstance(err, type) and issubclass(err, Exception):
+                return (err, ConnectionError, TimeoutError)
+        except (ImportError, AttributeError, TypeError):
+            continue
+    return (Exception,)
+
+
 def retry_with_metrics(
     func: Callable[[], T],
     max_retries: int = 3,
