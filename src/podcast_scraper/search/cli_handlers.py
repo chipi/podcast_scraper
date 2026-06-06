@@ -42,6 +42,7 @@ def _minimal_vector_config(
     vector_index_path: Optional[str] = None,
     vector_embedding_model: Optional[str] = None,
     vector_embedding_endpoint: Optional[str] = None,
+    vector_embedding_provider: Optional[str] = None,
     vector_faiss_index_mode: Optional[str] = None,
     vector_index_types: Optional[List[str]] = None,
 ) -> config.Config:
@@ -57,6 +58,8 @@ def _minimal_vector_config(
         payload["vector_embedding_model"] = vector_embedding_model
     if vector_embedding_endpoint is not None:
         payload["vector_embedding_endpoint"] = vector_embedding_endpoint
+    if vector_embedding_provider is not None:
+        payload["vector_embedding_provider"] = vector_embedding_provider
     if vector_faiss_index_mode is not None:
         payload["vector_faiss_index_mode"] = vector_faiss_index_mode
     if vector_index_types is not None:
@@ -518,6 +521,7 @@ def run_index_cli(args: Namespace, logger: logging.Logger) -> int:
         vector_index_path=getattr(args, "vector_index_path", None),
         vector_embedding_model=getattr(args, "embedding_model", None),
         vector_embedding_endpoint=getattr(args, "embedding_endpoint", None),
+        vector_embedding_provider=getattr(args, "embedding_provider", None),
         vector_faiss_index_mode=getattr(args, "vector_faiss_index_mode", None),
         vector_index_types=_vit_list,
     )
@@ -539,6 +543,7 @@ def run_index_cli(args: Namespace, logger: logging.Logger) -> int:
             "doc_type_counts": st.doc_type_counts,
             "feeds_indexed": st.feeds_indexed,
             "embedding_model": st.embedding_model,
+            "embedding_provider": st.embedding_provider,
             "embedding_dim": st.embedding_dim,
             "last_updated": st.last_updated,
             "index_size_bytes": st.index_size_bytes,
@@ -685,14 +690,30 @@ def parse_index_argv(argv: Sequence[str]) -> Namespace:
     parser.add_argument(
         "--embedding-model",
         default=None,
-        help="Sentence-transformers model id for embeddings",
+        help=(
+            "Embedding model id. Sentence-transformers HF id (e.g. "
+            "sentence-transformers/all-MiniLM-L6-v2) when --embedding-provider is "
+            "sentence_transformers; Ollama tag (e.g. nomic-embed-text) when ollama."
+        ),
+    )
+    parser.add_argument(
+        "--embedding-provider",
+        default=None,
+        choices=["sentence_transformers", "ollama"],
+        help=(
+            "Override vector_embedding_provider for this run. Default: read from "
+            "profile / Config. ADR-098 supersedes the RFC-089 §D4 shim path; "
+            "use 'ollama' for DGX-served embeddings."
+        ),
     )
     parser.add_argument(
         "--embedding-endpoint",
         default=None,
         help=(
-            "Remote POST /embed URL (DGX embedding shim, RFC-089). "
-            "Overrides in-process sentence-transformers for this index run."
+            "Base URL for remote embedding provider. With --embedding-provider=ollama, "
+            "this is the Ollama base URL (e.g. http://dgx:11434) and /api/embed is "
+            "appended internally. With sentence_transformers, an endpoint is treated "
+            "as the legacy shim /embed URL (RFC-089 §D4, deprecated; superseded by ADR-098)."
         ),
     )
     parser.add_argument(
