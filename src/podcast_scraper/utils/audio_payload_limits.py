@@ -11,11 +11,21 @@ OPENAI_GPT4O_TRANSCRIBE_MAX_DURATION_SECONDS = 1400.0
 # for every API transcription provider when sizing audio chunks.
 _DEFAULT_MAX_AUDIO_BYTES = 25 * 1024 * 1024
 
+# Deepgram pre-recorded API accepts up to 2 GB per request and handles long audio
+# natively in a single call. Sending whole episodes (instead of 25 MiB chunks) is
+# what makes server-side diarization coherent: Deepgram numbers speakers PER
+# request, so chunking fragments speaker ids across chunk boundaries (chunk-2's
+# "speaker 0" need not be chunk-1's). One request → one consistent speaker space
+# (D3). The few episodes still over 2 GB fall back to chunked transcription with a
+# warning that diarization speaker ids are chunk-local.
+_DEEPGRAM_MAX_AUDIO_BYTES = 2 * 1024 * 1024 * 1024
+
 # Per-provider overrides go here as each API's real limit is confirmed. Keep the
 # conservative default rather than an unverified higher value — an over-small cap
 # just chunks more (works); an over-large cap risks an oversize upload that fails.
 _PROVIDER_MAX_AUDIO_BYTES: dict[str, int] = {
     "openai": _DEFAULT_MAX_AUDIO_BYTES,
+    "deepgram": _DEEPGRAM_MAX_AUDIO_BYTES,
 }
 
 

@@ -247,10 +247,68 @@ class DeepgramTranscriptionProvider:
         if call_metrics is not None:
             call_metrics.set_provider_name("deepgram")
 
-        _ = pipeline_metrics, episode_duration_seconds
+        self._record_transcription_cost(
+            audio_path, episode_duration_seconds, pipeline_metrics, call_metrics
+        )
+
         logger.info(
             "Deepgram transcription completed in %.2fs (%d segments)",
             elapsed,
             len(result.get("segments") or []),
         )
         return result, elapsed
+
+    def _record_transcription_cost(
+        self,
+        audio_path: str,
+        episode_duration_seconds: int | None,
+        pipeline_metrics: Any | None,
+        call_metrics: Any | None,
+    ) -> None:
+        """Record per-minute transcription cost (D5).
+
+        Deepgram bills per audio-minute. Prefer the precise feed duration
+        (``episode_duration_seconds``); fall back to a bitrate-aware file-size
+        estimate so cost isn't silently 0 when the caller doesn't pass it —
+        mirrors the gemini/mistral providers. The orchestration layer's
+        ``apply_estimated_cost_if_missing`` is a backstop; recording here keeps
+        Deepgram symmetric and precise when the feed duration is known.
+        """
+        audio_minutes = 0.0
+        if episode_duration_seconds is not None:
+            audio_minutes = float(episode_duration_seconds) / 60.0
+        else:
+            try:
+                file_size_mb = os.path.getsize(audio_path) / (1024 * 1024)
+                bitrate_kbps_cfg = getattr(self.cfg, "preprocessing_mp3_bitrate_kbps", None)
+                bitrate_kbps = float(bitrate_kbps_cfg) if bitrate_kbps_cfg else 128.0
+                audio_minutes = file_size_mb * (128.0 / bitrate_kbps)
+            except OSError:
+                pass
+
+        if audio_minutes <= 0:
+            return
+
+        from ...utils.provider_metrics import record_provider_call_cost
+        from ...workflow.helpers import calculate_provider_cost
+
+        cost = calculate_provider_cost(
+            cfg=self.cfg,
+            provider_type="deepgram",
+            capability="transcription",
+            model=self.model,
+            audio_minutes=audio_minutes,
+        )
+        if call_metrics is not None:
+            record_provider_call_cost(
+                call_metrics,
+                cost,
+                cfg=self.cfg,
+                provider_type="deepgram",
+                capability="transcription",
+                model=self.model,
+                audio_minutes=audio_minutes,
+            )
+        if pipeline_metrics is not None:
+            estimated = getattr(call_metrics, "estimated_cost", cost) if call_metrics else cost
+            pipeline_metrics.record_llm_transcription_call(audio_minutes, cost_usd=estimated)
