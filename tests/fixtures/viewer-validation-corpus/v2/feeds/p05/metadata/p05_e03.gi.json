@@ -1,0 +1,142 @@
+{
+  "edges": [
+    {
+      "from": "episode:7f877683-ea36-55d1-94f7-a5cc051ff3d0",
+      "to": "topic:business-markets",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:7f877683-ea36-55d1-94f7-a5cc051ff3d0",
+      "to": "topic:management-for",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:7f877683-ea36-55d1-94f7-a5cc051ff3d0",
+      "to": "topic:welcome-back-to",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:7f877683-ea36-55d1-94f7-a5cc051ff3d0",
+      "to": "insight:53ed93848d61d13d",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "episode:7f877683-ea36-55d1-94f7-a5cc051ff3d0",
+      "to": "insight:2513004eb3c47731",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "episode:7f877683-ea36-55d1-94f7-a5cc051ff3d0",
+      "to": "insight:d307301b7c175651",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "episode:7f877683-ea36-55d1-94f7-a5cc051ff3d0",
+      "to": "quote:da1f24667124c82b",
+      "type": "HAS_QUOTE"
+    },
+    {
+      "from": "episode:7f877683-ea36-55d1-94f7-a5cc051ff3d0",
+      "to": "quote:e5796771925e2b6e",
+      "type": "HAS_QUOTE"
+    },
+    {
+      "from": "episode:7f877683-ea36-55d1-94f7-a5cc051ff3d0",
+      "to": "quote:ee9f60cc56218a72",
+      "type": "HAS_QUOTE"
+    }
+  ],
+  "episode_id": "7f877683-ea36-55d1-94f7-a5cc051ff3d0",
+  "model_version": "synthetic-validation-corpus-v1",
+  "nodes": [
+    {
+      "id": "episode:7f877683-ea36-55d1-94f7-a5cc051ff3d0",
+      "properties": {
+        "duration_ms": 1800000,
+        "episode_id": "7f877683-ea36-55d1-94f7-a5cc051ff3d0",
+        "metadata_relative_path": "feeds/p05/metadata/p05_e03.metadata.json",
+        "podcast_id": "sha256:f4abc2ce662eb5875453632ed70c87b2fbc7394bbeef83c9d1d0918febd5bebe",
+        "publish_date": "2026-06-04T12:00:00",
+        "title": "Long Horizon Notes \u2014 Episode 3"
+      },
+      "type": "Episode"
+    },
+    {
+      "id": "topic:business-markets",
+      "properties": {
+        "label": "Business & markets",
+        "score": 0.8
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:management-for",
+      "properties": {
+        "label": "management for",
+        "score": 0.8
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:welcome-back-to",
+      "properties": {
+        "label": "welcome back to",
+        "score": 0.8
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "insight:53ed93848d61d13d",
+      "properties": {
+        "confidence": 0.7,
+        "grounded": true,
+        "text": "# Long Horizon Notes \u2014 Episode\n## Risk Management for People Who Hate Spreadsheets\nHost: Nora\nGuest: Kasper\nNora: Welcome back to Long Horizon Notes."
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "insight:2513004eb3c47731",
+      "properties": {
+        "confidence": 0.7,
+        "grounded": true,
+        "text": "Today we're talking about risk management, and I'm joined by Kasper, personal-finance writer focused on risk."
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "insight:d307301b7c175651",
+      "properties": {
+        "confidence": 0.7,
+        "grounded": true,
+        "text": "Kasper, thanks for being here."
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "quote:da1f24667124c82b",
+      "properties": {
+        "speaker": "Speaker 1",
+        "text": "Before we dive in, a quick word from our sponsor Morningstar."
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:e5796771925e2b6e",
+      "properties": {
+        "speaker": "Speaker 1",
+        "text": "Morningstar gives you independent fund ratings and the analytical depth most platforms gloss over."
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:ee9f60cc56218a72",
+      "properties": {
+        "speaker": "Speaker 1",
+        "text": "Use code POD for an extended trial."
+      },
+      "type": "Quote"
+    }
+  ],
+  "prompt_version": "n/a",
+  "schema_version": "2"
+}

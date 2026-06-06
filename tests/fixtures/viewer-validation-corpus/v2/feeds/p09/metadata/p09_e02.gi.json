@@ -1,0 +1,142 @@
+{
+  "edges": [
+    {
+      "from": "episode:d24c1620-8d16-54dd-b681-2f2e06c0b579",
+      "to": "topic:technology",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:d24c1620-8d16-54dd-b681-2f2e06c0b579",
+      "to": "topic:health",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:d24c1620-8d16-54dd-b681-2f2e06c0b579",
+      "to": "topic:technology",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:d24c1620-8d16-54dd-b681-2f2e06c0b579",
+      "to": "insight:f878a437eb2b9167",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "episode:d24c1620-8d16-54dd-b681-2f2e06c0b579",
+      "to": "insight:84304fb24a96f6ae",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "episode:d24c1620-8d16-54dd-b681-2f2e06c0b579",
+      "to": "insight:ee56dba0cc316a6d",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "episode:d24c1620-8d16-54dd-b681-2f2e06c0b579",
+      "to": "quote:c277ce16d6012df4",
+      "type": "HAS_QUOTE"
+    },
+    {
+      "from": "episode:d24c1620-8d16-54dd-b681-2f2e06c0b579",
+      "to": "quote:e0e21829d9d08a8f",
+      "type": "HAS_QUOTE"
+    },
+    {
+      "from": "episode:d24c1620-8d16-54dd-b681-2f2e06c0b579",
+      "to": "quote:82288b1f7f7a7ad7",
+      "type": "HAS_QUOTE"
+    }
+  ],
+  "episode_id": "d24c1620-8d16-54dd-b681-2f2e06c0b579",
+  "model_version": "synthetic-validation-corpus-v1",
+  "nodes": [
+    {
+      "id": "episode:d24c1620-8d16-54dd-b681-2f2e06c0b579",
+      "properties": {
+        "duration_ms": 1800000,
+        "episode_id": "d24c1620-8d16-54dd-b681-2f2e06c0b579",
+        "metadata_relative_path": "feeds/p09/metadata/p09_e02.metadata.json",
+        "podcast_id": "sha256:255b515964dcdf7f0f2123a46053fbf8c961882868ea3c88bb8ba794824c52e8",
+        "publish_date": "2026-06-02T12:00:00",
+        "title": "The Long View: Biohacking \u2014 Episode 2"
+      },
+      "type": "Episode"
+    },
+    {
+      "id": "topic:technology",
+      "properties": {
+        "label": "technology",
+        "score": 0.8
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:health",
+      "properties": {
+        "label": "health",
+        "score": 0.8
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:technology",
+      "properties": {
+        "label": "Technology",
+        "score": 0.8
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "insight:f878a437eb2b9167",
+      "properties": {
+        "confidence": 0.7,
+        "grounded": true,
+        "text": "# The Long View \u2014 Episode\n## Continuous Glucose Monitors and What They Tell You\nHost: Alex Morgan\nGuest: Dr."
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "insight:84304fb24a96f6ae",
+      "properties": {
+        "confidence": 0.7,
+        "grounded": true,
+        "text": "Elena Fischer\nAlex Morgan: Welcome to The Long View."
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "insight:ee56dba0cc316a6d",
+      "properties": {
+        "confidence": 0.7,
+        "grounded": true,
+        "text": "Today we're exploring continuous glucose monitors and what they tell you in depth with Dr."
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "quote:c277ce16d6012df4",
+      "properties": {
+        "speaker": "Speaker 1",
+        "text": "Elena Fischer, researcher in metabolic and longevity science."
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:e0e21829d9d08a8f",
+      "properties": {
+        "speaker": "Speaker 1",
+        "text": "Elena Fischer: Thanks, Alex Morgan."
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:82288b1f7f7a7ad7",
+      "properties": {
+        "speaker": "Speaker 1",
+        "text": "This is a topic I've spent decades on."
+      },
+      "type": "Quote"
+    }
+  ],
+  "prompt_version": "n/a",
+  "schema_version": "2"
+}

@@ -1,0 +1,142 @@
+{
+  "edges": [
+    {
+      "from": "episode:799ba6c0-3117-50e1-8c97-c2d8b695cce4",
+      "to": "topic:outdoor-activities",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:799ba6c0-3117-50e1-8c97-c2d8b695cce4",
+      "to": "topic:gear",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:799ba6c0-3117-50e1-8c97-c2d8b695cce4",
+      "to": "topic:technology",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:799ba6c0-3117-50e1-8c97-c2d8b695cce4",
+      "to": "insight:da2f8ac7df94d0a9",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "episode:799ba6c0-3117-50e1-8c97-c2d8b695cce4",
+      "to": "insight:a615fa69d639e612",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "episode:799ba6c0-3117-50e1-8c97-c2d8b695cce4",
+      "to": "insight:26a3c94c02bbc759",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "episode:799ba6c0-3117-50e1-8c97-c2d8b695cce4",
+      "to": "quote:65292f989284c828",
+      "type": "HAS_QUOTE"
+    },
+    {
+      "from": "episode:799ba6c0-3117-50e1-8c97-c2d8b695cce4",
+      "to": "quote:e3dcb73f7f4fbea2",
+      "type": "HAS_QUOTE"
+    },
+    {
+      "from": "episode:799ba6c0-3117-50e1-8c97-c2d8b695cce4",
+      "to": "quote:19ec713ba3206fab",
+      "type": "HAS_QUOTE"
+    }
+  ],
+  "episode_id": "799ba6c0-3117-50e1-8c97-c2d8b695cce4",
+  "model_version": "synthetic-validation-corpus-v1",
+  "nodes": [
+    {
+      "id": "episode:799ba6c0-3117-50e1-8c97-c2d8b695cce4",
+      "properties": {
+        "duration_ms": 1800000,
+        "episode_id": "799ba6c0-3117-50e1-8c97-c2d8b695cce4",
+        "metadata_relative_path": "feeds/p01/metadata/p01_e02.metadata.json",
+        "podcast_id": "sha256:90167c0635d0f3d31fe8ebc87b372f75cd15166e02da8abb2df7dfeca65aa588",
+        "publish_date": "2026-06-04T12:00:00",
+        "title": "Singletrack Sessions \u2014 Episode 2"
+      },
+      "type": "Episode"
+    },
+    {
+      "id": "topic:outdoor-activities",
+      "properties": {
+        "label": "outdoor activities",
+        "score": 0.8
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:gear",
+      "properties": {
+        "label": "gear",
+        "score": 0.8
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:technology",
+      "properties": {
+        "label": "Technology",
+        "score": 0.8
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "insight:da2f8ac7df94d0a9",
+      "properties": {
+        "confidence": 0.7,
+        "grounded": true,
+        "text": "# Singletrack Sessions \u2014 Episode\n## Enduro Skills Without the Hype\nHost: Maya\nGuest: Sophie\nMaya: Welcome back to Singletrack Sessions."
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "insight:a615fa69d639e612",
+      "properties": {
+        "confidence": 0.7,
+        "grounded": true,
+        "text": "Today we're talking about enduro racing, and I'm joined by Sophie, enduro racer and coach."
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "insight:26a3c94c02bbc759",
+      "properties": {
+        "confidence": 0.7,
+        "grounded": true,
+        "text": "Sophie, thanks for being here."
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "quote:65292f989284c828",
+      "properties": {
+        "speaker": "Speaker 1",
+        "text": "This episode is brought to you by Linear."
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:e3dcb73f7f4fbea2",
+      "properties": {
+        "speaker": "Speaker 1",
+        "text": "Linear is the issue tracker built for speed \u2014 keyboard-first, fast search, and a clean roadmap view your team actually uses."
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:19ec713ba3206fab",
+      "properties": {
+        "speaker": "Speaker 1",
+        "text": "Get started at linear.com/podcast."
+      },
+      "type": "Quote"
+    }
+  ],
+  "prompt_version": "n/a",
+  "schema_version": "2"
+}

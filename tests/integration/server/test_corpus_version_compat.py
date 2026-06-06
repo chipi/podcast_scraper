@@ -16,7 +16,9 @@ from podcast_scraper.server.app import create_app
 
 pytestmark = [pytest.mark.integration, pytest.mark.critical_path]
 
-FIXTURE_CORPUS = Path(__file__).resolve().parents[2] / "fixtures" / "viewer-validation-corpus"
+from tests._fixtures import fixtures_dir
+
+FIXTURE_CORPUS = fixtures_dir("viewer-validation-corpus")
 
 
 @pytest.fixture

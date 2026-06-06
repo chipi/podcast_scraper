@@ -1,0 +1,142 @@
+{
+  "edges": [
+    {
+      "from": "episode:9a2d05c1-8854-5ae6-8ad0-14fcf37d1de9",
+      "to": "topic:outdoor-activities",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:9a2d05c1-8854-5ae6-8ad0-14fcf37d1de9",
+      "to": "topic:gear",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:9a2d05c1-8854-5ae6-8ad0-14fcf37d1de9",
+      "to": "topic:business-markets",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:9a2d05c1-8854-5ae6-8ad0-14fcf37d1de9",
+      "to": "insight:18077314d5cf9c74",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "episode:9a2d05c1-8854-5ae6-8ad0-14fcf37d1de9",
+      "to": "insight:9f48edef35be0632",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "episode:9a2d05c1-8854-5ae6-8ad0-14fcf37d1de9",
+      "to": "insight:19d6a4805fccd253",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "episode:9a2d05c1-8854-5ae6-8ad0-14fcf37d1de9",
+      "to": "quote:5f5dfb4a23673f6b",
+      "type": "HAS_QUOTE"
+    },
+    {
+      "from": "episode:9a2d05c1-8854-5ae6-8ad0-14fcf37d1de9",
+      "to": "quote:6fea6cf0b5c1057d",
+      "type": "HAS_QUOTE"
+    },
+    {
+      "from": "episode:9a2d05c1-8854-5ae6-8ad0-14fcf37d1de9",
+      "to": "quote:1582b3ef5f0e54ba",
+      "type": "HAS_QUOTE"
+    }
+  ],
+  "episode_id": "9a2d05c1-8854-5ae6-8ad0-14fcf37d1de9",
+  "model_version": "synthetic-validation-corpus-v1",
+  "nodes": [
+    {
+      "id": "episode:9a2d05c1-8854-5ae6-8ad0-14fcf37d1de9",
+      "properties": {
+        "duration_ms": 1800000,
+        "episode_id": "9a2d05c1-8854-5ae6-8ad0-14fcf37d1de9",
+        "metadata_relative_path": "feeds/p03/metadata/p03_e03.metadata.json",
+        "podcast_id": "sha256:16de36c98e7e4b95d699380d14d84d2f13717c2c151f935076564a9a5f5e979b",
+        "publish_date": "2026-06-06T12:00:00",
+        "title": "Below the Surface \u2014 Episode 3"
+      },
+      "type": "Episode"
+    },
+    {
+      "id": "topic:outdoor-activities",
+      "properties": {
+        "label": "outdoor activities",
+        "score": 0.8
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:gear",
+      "properties": {
+        "label": "gear",
+        "score": 0.8
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:business-markets",
+      "properties": {
+        "label": "Business & markets",
+        "score": 0.8
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "insight:18077314d5cf9c74",
+      "properties": {
+        "confidence": 0.7,
+        "grounded": true,
+        "text": "# Below the Surface \u2014 Episode\n## Calm Under Pressure\nHost: Rina\nGuest: Owen\nRina: Welcome back to Below the Surface."
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "insight:9f48edef35be0632",
+      "properties": {
+        "confidence": 0.7,
+        "grounded": true,
+        "text": "Today we're talking about calm under pressure, and I'm joined by Owen, rebreather instructor and cave diver."
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "insight:19d6a4805fccd253",
+      "properties": {
+        "confidence": 0.7,
+        "grounded": true,
+        "text": "Today's episode is sponsored by Suunto."
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "quote:5f5dfb4a23673f6b",
+      "properties": {
+        "speaker": "Speaker 1",
+        "text": "Suunto builds dive computers and outdoor watches that you trust because they don't quit when conditions change."
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:6fea6cf0b5c1057d",
+      "properties": {
+        "speaker": "Speaker 1",
+        "text": "Before we get into it \u2014 Hanna mentioned anchor strikes hurting reefs \u2014 the same operational discipline applies underwater: plan, brief, execute, debrief."
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:1582b3ef5f0e54ba",
+      "properties": {
+        "speaker": "Speaker 1",
+        "text": "And it ties into what we're covering today."
+      },
+      "type": "Quote"
+    }
+  ],
+  "prompt_version": "n/a",
+  "schema_version": "2"
+}

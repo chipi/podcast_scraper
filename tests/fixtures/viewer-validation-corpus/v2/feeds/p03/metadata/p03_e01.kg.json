@@ -1,0 +1,83 @@
+{
+  "edges": [
+    {
+      "from": "episode:a283fe88-fdec-51b4-8014-431b4a7ce670",
+      "to": "entity:outdoor-activities",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:a283fe88-fdec-51b4-8014-431b4a7ce670",
+      "to": "entity:gear",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:a283fe88-fdec-51b4-8014-431b4a7ce670",
+      "to": "topic:outdoor-activities",
+      "type": "RELATES_TO"
+    },
+    {
+      "from": "episode:a283fe88-fdec-51b4-8014-431b4a7ce670",
+      "to": "topic:gear",
+      "type": "RELATES_TO"
+    },
+    {
+      "from": "episode:a283fe88-fdec-51b4-8014-431b4a7ce670",
+      "to": "topic:science-research",
+      "type": "RELATES_TO"
+    }
+  ],
+  "episode_id": "a283fe88-fdec-51b4-8014-431b4a7ce670",
+  "extraction": {
+    "model": "n/a",
+    "provider": "synthetic"
+  },
+  "nodes": [
+    {
+      "id": "episode:a283fe88-fdec-51b4-8014-431b4a7ce670",
+      "properties": {
+        "episode_id": "a283fe88-fdec-51b4-8014-431b4a7ce670",
+        "metadata_relative_path": "feeds/p03/metadata/p03_e01.metadata.json",
+        "title": "Below the Surface \u2014 Episode 1"
+      },
+      "type": "Episode"
+    },
+    {
+      "id": "entity:outdoor-activities",
+      "properties": {
+        "category": "Concept",
+        "label": "Outdoor Activities"
+      },
+      "type": "Entity"
+    },
+    {
+      "id": "entity:gear",
+      "properties": {
+        "category": "Concept",
+        "label": "Gear"
+      },
+      "type": "Entity"
+    },
+    {
+      "id": "topic:outdoor-activities",
+      "properties": {
+        "label": "outdoor activities"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:gear",
+      "properties": {
+        "label": "gear"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:science-research",
+      "properties": {
+        "label": "Science & research"
+      },
+      "type": "Topic"
+    }
+  ],
+  "schema_version": "2"
+}

@@ -1,0 +1,18 @@
+{
+  "episode_id": "a283fe88-fdec-51b4-8014-431b4a7ce670",
+  "identities": [
+    {
+      "display_name": "outdoor activities",
+      "id": "topic:outdoor-activities"
+    },
+    {
+      "display_name": "gear",
+      "id": "topic:gear"
+    },
+    {
+      "display_name": "Science & research",
+      "id": "topic:science-research"
+    }
+  ],
+  "schema_version": "1"
+}

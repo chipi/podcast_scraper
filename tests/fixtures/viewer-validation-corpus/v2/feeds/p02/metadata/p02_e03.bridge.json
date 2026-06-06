@@ -1,0 +1,18 @@
+{
+  "episode_id": "d2fb36a0-6f97-55ee-a67a-e97dba3b7f27",
+  "identities": [
+    {
+      "display_name": "technology",
+      "id": "topic:technology"
+    },
+    {
+      "display_name": "Business & markets",
+      "id": "topic:business-markets"
+    },
+    {
+      "display_name": "security as",
+      "id": "topic:security-as"
+    }
+  ],
+  "schema_version": "1"
+}

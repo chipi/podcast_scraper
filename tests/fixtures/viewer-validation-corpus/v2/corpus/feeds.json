@@ -1,0 +1,86 @@
+{
+  "feeds": [
+    {
+      "description": "Mountain biking talk: trails, technique, gear, and the people who build the ride.",
+      "display_title": "Singletrack Sessions",
+      "episode_count": 3,
+      "feed_id": "sha256:90167c0635d0f3d31fe8ebc87b372f75cd15166e02da8abb2df7dfeca65aa588",
+      "image_local_relpath": null,
+      "image_url": null,
+      "rss_url": "http://localhost/"
+    },
+    {
+      "description": "Software engineering conversations: reliability, architecture, delivery, and the tradeoffs nobody puts in the blog post.",
+      "display_title": "Practical Systems",
+      "episode_count": 3,
+      "feed_id": "sha256:05eff208d6fd774940bed9fd154c6a46b9325e32cf95e1769f8eb679505ef414",
+      "image_local_relpath": null,
+      "image_url": null,
+      "rss_url": "http://localhost/"
+    },
+    {
+      "description": "Scuba diving stories and skills: safety, marine life, travel, and calm thinking underwater.",
+      "display_title": "Below the Surface",
+      "episode_count": 3,
+      "feed_id": "sha256:16de36c98e7e4b95d699380d14d84d2f13717c2c151f935076564a9a5f5e979b",
+      "image_local_relpath": null,
+      "image_url": null,
+      "rss_url": "http://localhost/"
+    },
+    {
+      "description": "Photography conversations: craft, storytelling, workflow, and making images under real constraints.",
+      "display_title": "Frame & Light",
+      "episode_count": 3,
+      "feed_id": "sha256:acf6d1026eaa400425afb658fa014e874a2eb50129923b7a92fe82290004a6e7",
+      "image_local_relpath": null,
+      "image_url": null,
+      "rss_url": "http://localhost/"
+    },
+    {
+      "description": "Investing conversations for normal humans: frameworks, risk, and the habits that matter more than predictions.",
+      "display_title": "Long Horizon Notes",
+      "episode_count": 3,
+      "feed_id": "sha256:f4abc2ce662eb5875453632ed70c87b2fbc7394bbeef83c9d1d0918febd5bebe",
+      "image_local_relpath": null,
+      "image_url": null,
+      "rss_url": "http://localhost/"
+    },
+    {
+      "description": "Testing edge cases: special characters, unicode, long titles, missing fields.",
+      "display_title": "Edge Cases Podcast",
+      "episode_count": 3,
+      "feed_id": "sha256:d517d39c803a89d395740e81b17ace57ebb95aa5ec504129b1c306c7e592f10c",
+      "image_local_relpath": null,
+      "image_url": null,
+      "rss_url": "http://localhost/"
+    },
+    {
+      "description": "Long-form conversations about sustainability, systems thinking, and the ideas shaping our shared future.",
+      "display_title": "The Long View",
+      "episode_count": 1,
+      "feed_id": "sha256:9e4a8b34d0b761bb138fb239ee0ace25609c27381d49bf78622ee8a40c7ce4ab",
+      "image_local_relpath": null,
+      "image_url": null,
+      "rss_url": "http://localhost/"
+    },
+    {
+      "description": "Extended conversations on energy, technology, and long-term transitions shaping the near future.",
+      "display_title": "The Long View",
+      "episode_count": 1,
+      "feed_id": "sha256:5ffc16f86af9856b053a670e3a580eb8f0e2888d6c6ccf09d988a2619350ed2a",
+      "image_local_relpath": null,
+      "image_url": null,
+      "rss_url": "http://localhost/"
+    },
+    {
+      "description": "Solo, long-form reflections on biohacking: the state of the field in 2025, what actually works, and the ethics and limits of human optimization.",
+      "display_title": "The Long View: Biohacking",
+      "episode_count": 3,
+      "feed_id": "sha256:255b515964dcdf7f0f2123a46053fbf8c961882868ea3c88bb8ba794824c52e8",
+      "image_local_relpath": null,
+      "image_url": null,
+      "rss_url": "http://localhost/"
+    }
+  ],
+  "path": "/Users/markodragoljevic/Projects/podcast_scraper-FUTURE/tests/fixtures/viewer-validation-corpus/v2"
+}

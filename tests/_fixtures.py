@@ -17,7 +17,7 @@ from pathlib import Path
 _TESTS_DIR = Path(__file__).resolve().parent
 FIXTURES_ROOT = _TESTS_DIR / "fixtures"
 
-VERSIONED_SUBDIRS: frozenset[str] = frozenset({"transcripts", "audio"})
+VERSIONED_SUBDIRS: frozenset[str] = frozenset({"transcripts", "audio", "viewer-validation-corpus"})
 
 
 def _read_default_version() -> str:

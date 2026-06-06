@@ -1,0 +1,142 @@
+{
+  "edges": [
+    {
+      "from": "episode:254fe2be-b570-592e-84cd-c22cb9e271e9",
+      "to": "topic:outdoor-activities",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:254fe2be-b570-592e-84cd-c22cb9e271e9",
+      "to": "topic:gear",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:254fe2be-b570-592e-84cd-c22cb9e271e9",
+      "to": "topic:technology",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:254fe2be-b570-592e-84cd-c22cb9e271e9",
+      "to": "insight:3c07a9ec6895756b",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "episode:254fe2be-b570-592e-84cd-c22cb9e271e9",
+      "to": "insight:d11ccb1d5c3b1cd9",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "episode:254fe2be-b570-592e-84cd-c22cb9e271e9",
+      "to": "insight:ed0d55c214b60624",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "episode:254fe2be-b570-592e-84cd-c22cb9e271e9",
+      "to": "quote:52e198e8632938c0",
+      "type": "HAS_QUOTE"
+    },
+    {
+      "from": "episode:254fe2be-b570-592e-84cd-c22cb9e271e9",
+      "to": "quote:8c824df01c9236b3",
+      "type": "HAS_QUOTE"
+    },
+    {
+      "from": "episode:254fe2be-b570-592e-84cd-c22cb9e271e9",
+      "to": "quote:0ea4edb420239893",
+      "type": "HAS_QUOTE"
+    }
+  ],
+  "episode_id": "254fe2be-b570-592e-84cd-c22cb9e271e9",
+  "model_version": "synthetic-validation-corpus-v1",
+  "nodes": [
+    {
+      "id": "episode:254fe2be-b570-592e-84cd-c22cb9e271e9",
+      "properties": {
+        "duration_ms": 1800000,
+        "episode_id": "254fe2be-b570-592e-84cd-c22cb9e271e9",
+        "metadata_relative_path": "feeds/p03/metadata/p03_e02.metadata.json",
+        "podcast_id": "sha256:16de36c98e7e4b95d699380d14d84d2f13717c2c151f935076564a9a5f5e979b",
+        "publish_date": "2026-06-02T12:00:00",
+        "title": "Below the Surface \u2014 Episode 2"
+      },
+      "type": "Episode"
+    },
+    {
+      "id": "topic:outdoor-activities",
+      "properties": {
+        "label": "outdoor activities",
+        "score": 0.8
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:gear",
+      "properties": {
+        "label": "gear",
+        "score": 0.8
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:technology",
+      "properties": {
+        "label": "Technology",
+        "score": 0.8
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "insight:3c07a9ec6895756b",
+      "properties": {
+        "confidence": 0.7,
+        "grounded": true,
+        "text": "# Below the Surface \u2014 Episode\n## Marine Biology for Divers\nHost: Rina\nGuest: Hanna\nRina: Welcome back to Below the Surface."
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "insight:d11ccb1d5c3b1cd9",
+      "properties": {
+        "confidence": 0.7,
+        "grounded": true,
+        "text": "Today we're talking about marine biology, and I'm joined by Hanna, marine biologist focused on reef systems."
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "insight:ed0d55c214b60624",
+      "properties": {
+        "confidence": 0.7,
+        "grounded": true,
+        "text": "Today's episode is sponsored by PADI."
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "quote:52e198e8632938c0",
+      "properties": {
+        "speaker": "Speaker 1",
+        "text": "PADI is the global standard for dive education \u2014 find a certified instructor in your area."
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:8c824df01c9236b3",
+      "properties": {
+        "speaker": "Speaker 1",
+        "text": "Before we get into it \u2014 Marco was on last week talking about wreck planning."
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:0ea4edb420239893",
+      "properties": {
+        "speaker": "Speaker 1",
+        "text": "The same discipline applies to reef diving \u2014 plan the dive, dive the plan."
+      },
+      "type": "Quote"
+    }
+  ],
+  "prompt_version": "n/a",
+  "schema_version": "2"
+}

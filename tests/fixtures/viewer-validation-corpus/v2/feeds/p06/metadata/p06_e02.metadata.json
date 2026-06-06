@@ -1,0 +1,73 @@
+{
+  "cil_digest_topics": [
+    {
+      "in_topic_cluster": false,
+      "label": "Technology",
+      "topic_cluster_compound_id": null,
+      "topic_id": "topic:technology"
+    },
+    {
+      "in_topic_cluster": false,
+      "label": "this is an edge",
+      "topic_cluster_compound_id": null,
+      "topic_id": "topic:this-is-an-edge"
+    }
+  ],
+  "episode": {
+    "episode_id": "e3d8c7e5-2b7b-572b-a226-ddec128285ca",
+    "published_date": "2026-06-05",
+    "title": "Edge Cases Podcast \u2014 Episode 2"
+  },
+  "episode_id": "e3d8c7e5-2b7b-572b-a226-ddec128285ca",
+  "episode_title": "Edge Cases Podcast \u2014 Episode 2",
+  "feed": {
+    "description": "Testing edge cases: special characters, unicode, long titles, missing fields.",
+    "feed_id": "sha256:d517d39c803a89d395740e81b17ace57ebb95aa5ec504129b1c306c7e592f10c",
+    "title": "Edge Cases Podcast",
+    "url": "http://localhost/"
+  },
+  "feed_display_title": "Edge Cases Podcast",
+  "feed_id": "sha256:d517d39c803a89d395740e81b17ace57ebb95aa5ec504129b1c306c7e592f10c",
+  "gi_relative_path": "feeds/p06/metadata/p06_e02.gi.json",
+  "grounded_insights": {
+    "artifact_path": "feeds/p06/metadata/p06_e02.gi.json",
+    "schema_version": "1.0"
+  },
+  "has_gi": true,
+  "has_kg": true,
+  "kg_relative_path": "feeds/p06/metadata/p06_e02.kg.json",
+  "knowledge_graph": {
+    "artifact_path": "feeds/p06/metadata/p06_e02.kg.json",
+    "schema_version": "1.1"
+  },
+  "publish_date": "2026-06-05",
+  "schema_version": "1",
+  "summary": {
+    "bullets": [
+      "# Edge Cases \u2014 Episode e02\n## No-Speaker Lines\nHost: Maya\nMaya: This is an edge-case fixture used for parser and processor robustness tests.",
+      "Welcome to a transcript with mixed speaker-attribution.",
+      "Some lines have speakers."
+    ],
+    "preview": "# Edge Cases \u2014 Episode e02\n## No-Speaker Lines\nHost: Maya\nMaya: This is an edge-case fixture used for parser and processor robustness tests.",
+    "text": "# Edge Cases \u2014 Episode e02\n## No-Speaker Lines\nHost: Maya\nMaya: This is an edge-case fixture used for parser and processor robustness tests.\nWelcome to a transcript with mixed speaker-attribution.\nSome lines have speakers.",
+    "title": "Edge Cases Podcast \u2014 Episode 2 \u2014 synthetic"
+  },
+  "summary_bullet_graph_topic_ids": [
+    "topic:technology",
+    "topic:this-is-an-edge",
+    "topic:welcome-to-a-transcript"
+  ],
+  "summary_bullets": [
+    "# Edge Cases \u2014 Episode e02\n## No-Speaker Lines\nHost: Maya\nMaya: This is an edge-case fixture used for parser and processor robustness tests.",
+    "Welcome to a transcript with mixed speaker-attribution.",
+    "Some lines have speakers."
+  ],
+  "summary_preview": "# Edge Cases \u2014 Episode e02\n## No-Speaker Lines\nHost: Maya\nMaya: This is an edge-case fixture used for parser and processor robustness tests.",
+  "summary_text": "# Edge Cases \u2014 Episode e02\n## No-Speaker Lines\nHost: Maya\nMaya: This is an edge-case fixture used for parser and processor robustness tests.\nWelcome to a transcript with mixed speaker-attribution.\nSome lines have speakers.",
+  "summary_title": "Edge Cases Podcast \u2014 Episode 2 \u2014 synthetic",
+  "topics": [
+    "Technology",
+    "this is an edge",
+    "welcome to a transcript"
+  ]
+}

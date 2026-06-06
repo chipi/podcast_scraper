@@ -1,0 +1,142 @@
+{
+  "edges": [
+    {
+      "from": "episode:a283fe88-fdec-51b4-8014-431b4a7ce670",
+      "to": "topic:outdoor-activities",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:a283fe88-fdec-51b4-8014-431b4a7ce670",
+      "to": "topic:gear",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:a283fe88-fdec-51b4-8014-431b4a7ce670",
+      "to": "topic:science-research",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:a283fe88-fdec-51b4-8014-431b4a7ce670",
+      "to": "insight:23f9c526b4cdfacc",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "episode:a283fe88-fdec-51b4-8014-431b4a7ce670",
+      "to": "insight:92cf0200624fa288",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "episode:a283fe88-fdec-51b4-8014-431b4a7ce670",
+      "to": "insight:235ac690e3034ff4",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "episode:a283fe88-fdec-51b4-8014-431b4a7ce670",
+      "to": "quote:19d6a4805fccd253",
+      "type": "HAS_QUOTE"
+    },
+    {
+      "from": "episode:a283fe88-fdec-51b4-8014-431b4a7ce670",
+      "to": "quote:5f5dfb4a23673f6b",
+      "type": "HAS_QUOTE"
+    },
+    {
+      "from": "episode:a283fe88-fdec-51b4-8014-431b4a7ce670",
+      "to": "quote:7e2a9ec343f13aa2",
+      "type": "HAS_QUOTE"
+    }
+  ],
+  "episode_id": "a283fe88-fdec-51b4-8014-431b4a7ce670",
+  "model_version": "synthetic-validation-corpus-v1",
+  "nodes": [
+    {
+      "id": "episode:a283fe88-fdec-51b4-8014-431b4a7ce670",
+      "properties": {
+        "duration_ms": 1800000,
+        "episode_id": "a283fe88-fdec-51b4-8014-431b4a7ce670",
+        "metadata_relative_path": "feeds/p03/metadata/p03_e01.metadata.json",
+        "podcast_id": "sha256:16de36c98e7e4b95d699380d14d84d2f13717c2c151f935076564a9a5f5e979b",
+        "publish_date": "2026-06-04T12:00:00",
+        "title": "Below the Surface \u2014 Episode 1"
+      },
+      "type": "Episode"
+    },
+    {
+      "id": "topic:outdoor-activities",
+      "properties": {
+        "label": "outdoor activities",
+        "score": 0.8
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:gear",
+      "properties": {
+        "label": "gear",
+        "score": 0.8
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:science-research",
+      "properties": {
+        "label": "Science & research",
+        "score": 0.8
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "insight:23f9c526b4cdfacc",
+      "properties": {
+        "confidence": 0.7,
+        "grounded": true,
+        "text": "# Below the Surface \u2014 Episode\n## Wreck Diving Fundamentals\nHost: Rina\nGuest: Marco\nRina: Welcome back to Below the Surface."
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "insight:92cf0200624fa288",
+      "properties": {
+        "confidence": 0.7,
+        "grounded": true,
+        "text": "Today we're talking about wreck diving, and I'm joined by Marco, technical diver and underwater archaeologist."
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "insight:235ac690e3034ff4",
+      "properties": {
+        "confidence": 0.7,
+        "grounded": true,
+        "text": "Excited for this one \u2014 wreck-diving fundamentals is something I've been thinking about a lot."
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "quote:19d6a4805fccd253",
+      "properties": {
+        "speaker": "Speaker 1",
+        "text": "Today's episode is sponsored by Suunto."
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:5f5dfb4a23673f6b",
+      "properties": {
+        "speaker": "Speaker 1",
+        "text": "Suunto builds dive computers and outdoor watches that you trust because they don't quit when conditions change."
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:7e2a9ec343f13aa2",
+      "properties": {
+        "speaker": "Speaker 1",
+        "text": "What does that look like day-to-day?"
+      },
+      "type": "Quote"
+    }
+  ],
+  "prompt_version": "n/a",
+  "schema_version": "2"
+}

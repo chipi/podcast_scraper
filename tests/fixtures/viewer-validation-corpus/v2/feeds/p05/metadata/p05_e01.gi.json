@@ -1,0 +1,142 @@
+{
+  "edges": [
+    {
+      "from": "episode:ac5784fa-1c94-5cd8-99c6-c4f0be157a64",
+      "to": "topic:science-research",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ac5784fa-1c94-5cd8-99c6-c4f0be157a64",
+      "to": "topic:without-the",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ac5784fa-1c94-5cd8-99c6-c4f0be157a64",
+      "to": "topic:welcome-back-to",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ac5784fa-1c94-5cd8-99c6-c4f0be157a64",
+      "to": "insight:83e86afd480f434f",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "episode:ac5784fa-1c94-5cd8-99c6-c4f0be157a64",
+      "to": "insight:8db68805aad64080",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "episode:ac5784fa-1c94-5cd8-99c6-c4f0be157a64",
+      "to": "insight:4ba774bae707cf97",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "episode:ac5784fa-1c94-5cd8-99c6-c4f0be157a64",
+      "to": "quote:ba0248f7d7723706",
+      "type": "HAS_QUOTE"
+    },
+    {
+      "from": "episode:ac5784fa-1c94-5cd8-99c6-c4f0be157a64",
+      "to": "quote:4c9abb0bbe9113bc",
+      "type": "HAS_QUOTE"
+    },
+    {
+      "from": "episode:ac5784fa-1c94-5cd8-99c6-c4f0be157a64",
+      "to": "quote:2554331b77145529",
+      "type": "HAS_QUOTE"
+    }
+  ],
+  "episode_id": "ac5784fa-1c94-5cd8-99c6-c4f0be157a64",
+  "model_version": "synthetic-validation-corpus-v1",
+  "nodes": [
+    {
+      "id": "episode:ac5784fa-1c94-5cd8-99c6-c4f0be157a64",
+      "properties": {
+        "duration_ms": 1800000,
+        "episode_id": "ac5784fa-1c94-5cd8-99c6-c4f0be157a64",
+        "metadata_relative_path": "feeds/p05/metadata/p05_e01.metadata.json",
+        "podcast_id": "sha256:f4abc2ce662eb5875453632ed70c87b2fbc7394bbeef83c9d1d0918febd5bebe",
+        "publish_date": "2026-06-02T12:00:00",
+        "title": "Long Horizon Notes \u2014 Episode 1"
+      },
+      "type": "Episode"
+    },
+    {
+      "id": "topic:science-research",
+      "properties": {
+        "label": "Science & research",
+        "score": 0.8
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:without-the",
+      "properties": {
+        "label": "without the",
+        "score": 0.8
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:welcome-back-to",
+      "properties": {
+        "label": "welcome back to",
+        "score": 0.8
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "insight:83e86afd480f434f",
+      "properties": {
+        "confidence": 0.7,
+        "grounded": true,
+        "text": "# Long Horizon Notes \u2014 Episode\n## Index Investing Without the Myths\nHost: Nora\nGuest: Daniel\nNora: Welcome back to Long Horizon Notes."
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "insight:8db68805aad64080",
+      "properties": {
+        "confidence": 0.7,
+        "grounded": true,
+        "text": "Today we're talking about index investing, and I'm joined by Daniel, former bond trader turned index advocate."
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "insight:4ba774bae707cf97",
+      "properties": {
+        "confidence": 0.7,
+        "grounded": true,
+        "text": "Daniel, thanks for being here."
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "quote:ba0248f7d7723706",
+      "properties": {
+        "speaker": "Speaker 1",
+        "text": "Excited for this one \u2014 index investing is something I've been thinking about a lot."
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:4c9abb0bbe9113bc",
+      "properties": {
+        "speaker": "Speaker 1",
+        "text": "Today's episode is sponsored by Vanguard."
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:2554331b77145529",
+      "properties": {
+        "speaker": "Speaker 1",
+        "text": "Vanguard pioneered low-cost index funds and still keeps expense ratios where they belong."
+      },
+      "type": "Quote"
+    }
+  ],
+  "prompt_version": "n/a",
+  "schema_version": "2"
+}

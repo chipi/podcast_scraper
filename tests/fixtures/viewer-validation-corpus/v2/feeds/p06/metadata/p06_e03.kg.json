@@ -1,0 +1,83 @@
+{
+  "edges": [
+    {
+      "from": "episode:01835c28-431e-5b5a-adbb-5ec01411a299",
+      "to": "entity:business-markets",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:01835c28-431e-5b5a-adbb-5ec01411a299",
+      "to": "entity:this-is-an-edge",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:01835c28-431e-5b5a-adbb-5ec01411a299",
+      "to": "topic:business-markets",
+      "type": "RELATES_TO"
+    },
+    {
+      "from": "episode:01835c28-431e-5b5a-adbb-5ec01411a299",
+      "to": "topic:this-is-an-edge",
+      "type": "RELATES_TO"
+    },
+    {
+      "from": "episode:01835c28-431e-5b5a-adbb-5ec01411a299",
+      "to": "topic:first-line",
+      "type": "RELATES_TO"
+    }
+  ],
+  "episode_id": "01835c28-431e-5b5a-adbb-5ec01411a299",
+  "extraction": {
+    "model": "n/a",
+    "provider": "synthetic"
+  },
+  "nodes": [
+    {
+      "id": "episode:01835c28-431e-5b5a-adbb-5ec01411a299",
+      "properties": {
+        "episode_id": "01835c28-431e-5b5a-adbb-5ec01411a299",
+        "metadata_relative_path": "feeds/p06/metadata/p06_e03.metadata.json",
+        "title": "Edge Cases Podcast \u2014 Episode 3"
+      },
+      "type": "Episode"
+    },
+    {
+      "id": "entity:business-markets",
+      "properties": {
+        "category": "Concept",
+        "label": "Business & Markets"
+      },
+      "type": "Entity"
+    },
+    {
+      "id": "entity:this-is-an-edge",
+      "properties": {
+        "category": "Concept",
+        "label": "This Is An Edge"
+      },
+      "type": "Entity"
+    },
+    {
+      "id": "topic:business-markets",
+      "properties": {
+        "label": "Business & markets"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:this-is-an-edge",
+      "properties": {
+        "label": "this is an edge"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:first-line",
+      "properties": {
+        "label": "first line"
+      },
+      "type": "Topic"
+    }
+  ],
+  "schema_version": "2"
+}

@@ -1,0 +1,73 @@
+{
+  "cil_digest_topics": [
+    {
+      "in_topic_cluster": true,
+      "label": "technology",
+      "topic_cluster_compound_id": "tc:technology-cluster",
+      "topic_id": "topic:technology"
+    },
+    {
+      "in_topic_cluster": true,
+      "label": "health",
+      "topic_cluster_compound_id": "tc:health-cluster",
+      "topic_id": "topic:health"
+    }
+  ],
+  "episode": {
+    "episode_id": "22aa61d4-d535-5e72-ae9b-d44d9a3054d1",
+    "published_date": "2026-06-04",
+    "title": "The Long View: Biohacking \u2014 Episode 1"
+  },
+  "episode_id": "22aa61d4-d535-5e72-ae9b-d44d9a3054d1",
+  "episode_title": "The Long View: Biohacking \u2014 Episode 1",
+  "feed": {
+    "description": "Solo, long-form reflections on biohacking: the state of the field in 2025, what actually works, and the ethics and limits of human optimization.",
+    "feed_id": "sha256:255b515964dcdf7f0f2123a46053fbf8c961882868ea3c88bb8ba794824c52e8",
+    "title": "The Long View: Biohacking",
+    "url": "http://localhost/"
+  },
+  "feed_display_title": "The Long View: Biohacking",
+  "feed_id": "sha256:255b515964dcdf7f0f2123a46053fbf8c961882868ea3c88bb8ba794824c52e8",
+  "gi_relative_path": "feeds/p09/metadata/p09_e01.gi.json",
+  "grounded_insights": {
+    "artifact_path": "feeds/p09/metadata/p09_e01.gi.json",
+    "schema_version": "1.0"
+  },
+  "has_gi": true,
+  "has_kg": true,
+  "kg_relative_path": "feeds/p09/metadata/p09_e01.kg.json",
+  "knowledge_graph": {
+    "artifact_path": "feeds/p09/metadata/p09_e01.kg.json",
+    "schema_version": "1.1"
+  },
+  "publish_date": "2026-06-04",
+  "schema_version": "1",
+  "summary": {
+    "bullets": [
+      "# The Long View \u2014 Episode\n## The Biohacking Premise\nHost: Alex Morgan\nGuest: Dr.",
+      "Elena Fischer\nAlex Morgan: Welcome to The Long View.",
+      "Today we're exploring the biohacking premise in depth with Dr."
+    ],
+    "preview": "# The Long View \u2014 Episode\n## The Biohacking Premise\nHost: Alex Morgan\nGuest: Dr.",
+    "text": "# The Long View \u2014 Episode\n## The Biohacking Premise\nHost: Alex Morgan\nGuest: Dr.\nElena Fischer\nAlex Morgan: Welcome to The Long View.\nToday we're exploring the biohacking premise in depth with Dr.",
+    "title": "The Long View: Biohacking \u2014 Episode 1 \u2014 synthetic"
+  },
+  "summary_bullet_graph_topic_ids": [
+    "topic:technology",
+    "topic:health",
+    "topic:science-research"
+  ],
+  "summary_bullets": [
+    "# The Long View \u2014 Episode\n## The Biohacking Premise\nHost: Alex Morgan\nGuest: Dr.",
+    "Elena Fischer\nAlex Morgan: Welcome to The Long View.",
+    "Today we're exploring the biohacking premise in depth with Dr."
+  ],
+  "summary_preview": "# The Long View \u2014 Episode\n## The Biohacking Premise\nHost: Alex Morgan\nGuest: Dr.",
+  "summary_text": "# The Long View \u2014 Episode\n## The Biohacking Premise\nHost: Alex Morgan\nGuest: Dr.\nElena Fischer\nAlex Morgan: Welcome to The Long View.\nToday we're exploring the biohacking premise in depth with Dr.",
+  "summary_title": "The Long View: Biohacking \u2014 Episode 1 \u2014 synthetic",
+  "topics": [
+    "technology",
+    "health",
+    "Science & research"
+  ]
+}

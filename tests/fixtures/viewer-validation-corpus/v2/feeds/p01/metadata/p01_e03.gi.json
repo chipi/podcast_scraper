@@ -1,0 +1,142 @@
+{
+  "edges": [
+    {
+      "from": "episode:f6f1df34-2251-5301-b1c7-68ee8468bf65",
+      "to": "topic:outdoor-activities",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:f6f1df34-2251-5301-b1c7-68ee8468bf65",
+      "to": "topic:gear",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:f6f1df34-2251-5301-b1c7-68ee8468bf65",
+      "to": "topic:business-markets",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:f6f1df34-2251-5301-b1c7-68ee8468bf65",
+      "to": "insight:713c89323723fe81",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "episode:f6f1df34-2251-5301-b1c7-68ee8468bf65",
+      "to": "insight:7231288f6f3d8a4d",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "episode:f6f1df34-2251-5301-b1c7-68ee8468bf65",
+      "to": "insight:45771c206a35fab5",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "episode:f6f1df34-2251-5301-b1c7-68ee8468bf65",
+      "to": "quote:361df54e8c2523e6",
+      "type": "HAS_QUOTE"
+    },
+    {
+      "from": "episode:f6f1df34-2251-5301-b1c7-68ee8468bf65",
+      "to": "quote:ee9f60cc56218a72",
+      "type": "HAS_QUOTE"
+    },
+    {
+      "from": "episode:f6f1df34-2251-5301-b1c7-68ee8468bf65",
+      "to": "quote:bc42f74b6fa2669e",
+      "type": "HAS_QUOTE"
+    }
+  ],
+  "episode_id": "f6f1df34-2251-5301-b1c7-68ee8468bf65",
+  "model_version": "synthetic-validation-corpus-v1",
+  "nodes": [
+    {
+      "id": "episode:f6f1df34-2251-5301-b1c7-68ee8468bf65",
+      "properties": {
+        "duration_ms": 1800000,
+        "episode_id": "f6f1df34-2251-5301-b1c7-68ee8468bf65",
+        "metadata_relative_path": "feeds/p01/metadata/p01_e03.metadata.json",
+        "podcast_id": "sha256:90167c0635d0f3d31fe8ebc87b372f75cd15166e02da8abb2df7dfeca65aa588",
+        "publish_date": "2026-06-02T12:00:00",
+        "title": "Singletrack Sessions \u2014 Episode 3"
+      },
+      "type": "Episode"
+    },
+    {
+      "id": "topic:outdoor-activities",
+      "properties": {
+        "label": "outdoor activities",
+        "score": 0.8
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:gear",
+      "properties": {
+        "label": "gear",
+        "score": 0.8
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:business-markets",
+      "properties": {
+        "label": "Business & markets",
+        "score": 0.8
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "insight:713c89323723fe81",
+      "properties": {
+        "confidence": 0.7,
+        "grounded": true,
+        "text": "# Singletrack Sessions \u2014 Episode\n## The Mechanics of a Quiet, Fast Bike\nHost: Maya\nGuest: Noah\nMaya: Welcome back to Singletrack Sessions."
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "insight:7231288f6f3d8a4d",
+      "properties": {
+        "confidence": 0.7,
+        "grounded": true,
+        "text": "Today we're talking about drivetrain mechanics, and I'm joined by Noah, mechanic at Spoke & Wrench."
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "insight:45771c206a35fab5",
+      "properties": {
+        "confidence": 0.7,
+        "grounded": true,
+        "text": "Before we dive in, a quick word from our sponsor Notion."
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "quote:361df54e8c2523e6",
+      "properties": {
+        "speaker": "Speaker 1",
+        "text": "Notion replaces the dozen tools your team is half-using with a single workspace for docs, projects, and wikis."
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:ee9f60cc56218a72",
+      "properties": {
+        "speaker": "Speaker 1",
+        "text": "Use code POD for an extended trial."
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:bc42f74b6fa2669e",
+      "properties": {
+        "speaker": "Speaker 1",
+        "text": "Before we get into it \u2014 Sophie was on last episode talking about tire pressure mattering more than suspension tweaks."
+      },
+      "type": "Quote"
+    }
+  ],
+  "prompt_version": "n/a",
+  "schema_version": "2"
+}

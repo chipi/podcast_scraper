@@ -1,0 +1,142 @@
+{
+  "edges": [
+    {
+      "from": "episode:5b39965f-22a2-54c9-9c42-e7a19d8da2da",
+      "to": "topic:outdoor-activities",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:5b39965f-22a2-54c9-9c42-e7a19d8da2da",
+      "to": "topic:gear",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:5b39965f-22a2-54c9-9c42-e7a19d8da2da",
+      "to": "topic:science-research",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:5b39965f-22a2-54c9-9c42-e7a19d8da2da",
+      "to": "insight:a9007839a644d4d8",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "episode:5b39965f-22a2-54c9-9c42-e7a19d8da2da",
+      "to": "insight:4fcccbf9181c2a25",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "episode:5b39965f-22a2-54c9-9c42-e7a19d8da2da",
+      "to": "insight:f247d55c98c9b199",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "episode:5b39965f-22a2-54c9-9c42-e7a19d8da2da",
+      "to": "quote:3ee7b0d9152b2df2",
+      "type": "HAS_QUOTE"
+    },
+    {
+      "from": "episode:5b39965f-22a2-54c9-9c42-e7a19d8da2da",
+      "to": "quote:f9ccca4b3ab307ca",
+      "type": "HAS_QUOTE"
+    },
+    {
+      "from": "episode:5b39965f-22a2-54c9-9c42-e7a19d8da2da",
+      "to": "quote:ee9f60cc56218a72",
+      "type": "HAS_QUOTE"
+    }
+  ],
+  "episode_id": "5b39965f-22a2-54c9-9c42-e7a19d8da2da",
+  "model_version": "synthetic-validation-corpus-v1",
+  "nodes": [
+    {
+      "id": "episode:5b39965f-22a2-54c9-9c42-e7a19d8da2da",
+      "properties": {
+        "duration_ms": 1800000,
+        "episode_id": "5b39965f-22a2-54c9-9c42-e7a19d8da2da",
+        "metadata_relative_path": "feeds/p01/metadata/p01_e01.metadata.json",
+        "podcast_id": "sha256:90167c0635d0f3d31fe8ebc87b372f75cd15166e02da8abb2df7dfeca65aa588",
+        "publish_date": "2026-06-06T12:00:00",
+        "title": "Singletrack Sessions \u2014 Episode 1"
+      },
+      "type": "Episode"
+    },
+    {
+      "id": "topic:outdoor-activities",
+      "properties": {
+        "label": "outdoor activities",
+        "score": 0.8
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:gear",
+      "properties": {
+        "label": "gear",
+        "score": 0.8
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:science-research",
+      "properties": {
+        "label": "Science & research",
+        "score": 0.8
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "insight:a9007839a644d4d8",
+      "properties": {
+        "confidence": 0.7,
+        "grounded": true,
+        "text": "# Singletrack Sessions \u2014 Episode\n## Building Trails That Last\nHost: Maya\nGuest: Liam\nMaya: Welcome back to Singletrack Sessions."
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "insight:4fcccbf9181c2a25",
+      "properties": {
+        "confidence": 0.7,
+        "grounded": true,
+        "text": "Today we're talking about trail building, and I'm joined by Liam, trail builder for the Cascadia Alliance."
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "insight:f247d55c98c9b199",
+      "properties": {
+        "confidence": 0.7,
+        "grounded": true,
+        "text": "Excited for this one \u2014 trail building is something I've been thinking about a lot."
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "quote:3ee7b0d9152b2df2",
+      "properties": {
+        "speaker": "Speaker 1",
+        "text": "Before we dive in, a quick word from our sponsor Strava."
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:f9ccca4b3ab307ca",
+      "properties": {
+        "speaker": "Speaker 1",
+        "text": "Strava is the home for athletes \u2014 track every ride, run, and swim, and compare segments with friends."
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:ee9f60cc56218a72",
+      "properties": {
+        "speaker": "Speaker 1",
+        "text": "Use code POD for an extended trial."
+      },
+      "type": "Quote"
+    }
+  ],
+  "prompt_version": "n/a",
+  "schema_version": "2"
+}
