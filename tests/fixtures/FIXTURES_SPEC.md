@@ -8,6 +8,28 @@ this file should be used as the input specification.
 
 ---
 
+## Versioning
+
+Fixtures are versioned under `tests/fixtures/{transcripts,audio}/<version>/`.
+The current default is read from `tests/fixtures/FIXTURES_VERSION` (a single
+line containing e.g. `v1`). Test code resolves paths through
+`tests/_fixtures.py::fixtures_dir(subdir)`; the e2e HTTP server reads the
+same file at module load. URLs (`/audio/<file>`, `/transcripts/<file>`) are
+unversioned — only the filesystem layout carries the version segment.
+
+- **v1** (current default) — original synthetic transcripts and audio
+  (Samantha host / Daniel guest voices; no commercial segments). **Frozen**
+  for historical eval reports and back-references; do not edit.
+- **v2** (in progress) — rewritten transcripts targeting #900 (KG/GIL/CIL
+  signal: recurring guests, cross-episode topics, position arcs) with
+  commercial segments per #109 and per-speaker voices per #111. Pipeline
+  reruns produce v2 goldens; an eval report compares v2 vs v1 deltas.
+
+Tests that must pin to a specific version pass `version=` explicitly to
+`fixtures_dir()`; everything else picks up the current default.
+
+---
+
 ## Podcasts
 
 There are **9 synthetic podcasts** with varying episode counts.
