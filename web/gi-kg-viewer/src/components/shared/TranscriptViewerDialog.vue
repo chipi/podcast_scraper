@@ -56,7 +56,6 @@ const audioTimingLabel = ref<string | null>(null)
 const charPositionLabel = ref<string | null>(null)
 const subtitle = ref<string | null>(null)
 const audioUrl = ref<string | null>(null)
-const audioUnavailable = ref(false)
 const pendingSeekMs = ref<number | null>(null)
 const audioEl = ref<HTMLAudioElement | null>(null)
 const openMaxBytes = ref(DEFAULT_TRANSCRIPT_VIEWER_MAX_BYTES)
@@ -76,7 +75,6 @@ function resetState(): void {
   charPositionLabel.value = null
   subtitle.value = null
   audioUrl.value = null
-  audioUnavailable.value = false
   pendingSeekMs.value = null
   openMaxBytes.value = DEFAULT_TRANSCRIPT_VIEWER_MAX_BYTES
 }
@@ -182,6 +180,23 @@ function seekToMs(ms: number): void {
   el.currentTime = ms / 1000
 }
 
+async function probeAndSetAudio(url: string, seq: number): Promise<void> {
+  // Most pre-Wave-3 episodes have no persisted media. Probe existence first so we
+  // only render the <audio> player when there is something to play, instead of a
+  // broken control on every legacy episode.
+  try {
+    const res = await fetchWithTimeout(url, { method: 'HEAD', credentials: 'same-origin' })
+    if (transcriptOpenGate.isStale(seq)) {
+      return
+    }
+    if (res.ok) {
+      audioUrl.value = url
+    }
+  } catch {
+    // Network/timeout — leave the player hidden.
+  }
+}
+
 async function open(payload: TranscriptViewerOpenPayload): Promise<void> {
   resetState()
   const seq = transcriptOpenGate.bump()
@@ -195,7 +210,7 @@ async function open(payload: TranscriptViewerOpenPayload): Promise<void> {
   const seekNum = seekRaw == null ? NaN : Number(seekRaw)
   pendingSeekMs.value = Number.isFinite(seekNum) && seekNum >= 0 ? seekNum : null
   const mediaRel = audioRelpathFromTranscriptRelpath(payload.transcriptRelpath)
-  audioUrl.value = corpusMediaFileViewUrl(payload.corpusRoot, mediaRel)
+  void probeAndSetAudio(corpusMediaFileViewUrl(payload.corpusRoot, mediaRel), seq)
   loading.value = true
   errorText.value = null
   dialogRef.value?.showModal()
@@ -345,7 +360,7 @@ defineExpose({ open, close, seekToMs })
             Highlight position is approximate if the server serves a different transcript variant than GI indexed (e.g. cleaned vs raw).
           </p>
           <audio
-            v-if="audioUrl && !audioUnavailable"
+            v-if="audioUrl"
             ref="audioEl"
             data-testid="transcript-viewer-audio"
             class="mt-2 w-full"
@@ -354,15 +369,7 @@ defineExpose({ open, close, seekToMs })
             aria-label="Episode audio"
             :src="audioUrl"
             @loadedmetadata="applyPendingSeek"
-            @error="audioUnavailable = true"
           />
-          <p
-            v-else-if="audioUrl && audioUnavailable"
-            class="mt-2 text-[11px] text-muted"
-            data-testid="transcript-viewer-audio-unavailable"
-          >
-            Audio not available for this episode.
-          </p>
         </div>
         <button
           type="button"
