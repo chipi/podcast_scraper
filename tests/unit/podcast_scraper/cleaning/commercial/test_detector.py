@@ -46,6 +46,25 @@ class TestCommercialDetector:
         cleaned = CommercialDetector().remove(text)
         assert cleaned == text
 
+    def test_uncorroborated_inline_cta_not_detected(self) -> None:
+        """A bare URL in ordinary speech (no brand/promo/intro nearby) is left alone (B2)."""
+        text = "Host: you should really check out github.com, it's great for hosting code."
+        detector = CommercialDetector(confidence_threshold=0.55)
+        assert detector.detect(text) == []
+
+    def test_corroborated_inline_cta_is_detected(self) -> None:
+        """A known brand near the inline CTA corroborates it -> detected (B2)."""
+        body = "We were deep in distributed consensus and how partitions get handled. " * 3
+        text = (
+            f"Host: {body}\n\n"
+            "Quick break: check out figma.com for your design work.\n\n"
+            f"Host: {body}"
+        )
+        detector = CommercialDetector(confidence_threshold=0.55)
+        candidates = detector.detect(text)
+        assert candidates
+        assert any("figma.com" in text[c.start : c.end] for c in candidates)
+
     def test_diarization_guest_speaker_skips_candidate(self) -> None:
         text = "Intro\nSponsored by Acme\nOutro"
         segments = [
