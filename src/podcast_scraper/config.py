@@ -82,6 +82,11 @@ def _raw_screenplay_requested(value: Any) -> bool:
 
 _DIARIZATION_ELIGIBLE_TRANSCRIPTION_PROVIDERS = frozenset({"whisper", "tailnet_dgx_whisper"})
 
+# Providers that produce their own speaker-labelled segments via the transcription
+# API (no local pyannote pass) and can therefore self-format a screenplay. Screenplay
+# stays enabled for these even though diarize (the pyannote pass) is coerced off.
+_NATIVE_SCREENPLAY_TRANSCRIPTION_PROVIDERS = frozenset({"deepgram"})
+
 
 def _screenplay_strict_env_enabled() -> bool:
     """When set, invalid screenplay + API transcription is an error instead of coercion."""
@@ -3077,6 +3082,11 @@ class Config(BaseModel):
         if not _raw_screenplay_requested(merged.get("screenplay")):
             return merged
         if tp in _DIARIZATION_ELIGIBLE_TRANSCRIPTION_PROVIDERS:
+            return merged
+        if tp in _NATIVE_SCREENPLAY_TRANSCRIPTION_PROVIDERS:
+            # Provider self-formats a screenplay from its native (API) diarization;
+            # screenplay is meaningful here, so leave it on (diarize is still coerced
+            # off below — there is no local pyannote pass for these providers).
             return merged
         if _screenplay_strict_env_enabled():
             raise ValueError(

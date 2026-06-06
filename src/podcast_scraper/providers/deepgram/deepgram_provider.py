@@ -148,6 +148,47 @@ class DeepgramTranscriptionProvider:
             supports_gi_segment_timing=True,
         )
 
+    def format_screenplay_from_segments(
+        self,
+        segments: List[Dict[str, Any]],
+        num_speakers: int | None = None,
+        speaker_names: List[str] | None = None,
+        gap_s: float | None = None,
+    ) -> str | None:
+        """Render Deepgram's native speaker-labelled segments as a screenplay.
+
+        Deepgram diarizes server-side and tags each segment with an integer
+        ``speaker``. Map those to detected names (first-appearance order; falls
+        back to ``Speaker N``) and reuse the shared screenplay formatter. Returns
+        ``None`` when there is nothing diarized to format so the caller falls back
+        to the plain transcript.
+        """
+        from ..ml.diarization.formatting import format_diarized_screenplay_from_segments
+
+        names = list(speaker_names or [])
+        speaker_to_name: Dict[Any, str] = {}
+        labelled: List[Dict[str, Any]] = []
+        for seg in segments:
+            if not isinstance(seg, dict) or not (seg.get("text") or "").strip():
+                continue
+            speaker = seg.get("speaker")
+            if speaker is None:
+                label = "Speaker"
+            else:
+                if speaker not in speaker_to_name:
+                    idx = len(speaker_to_name)
+                    speaker_to_name[speaker] = (
+                        names[idx] if idx < len(names) else f"Speaker {idx + 1}"
+                    )
+                label = speaker_to_name[speaker]
+            enriched = dict(seg)
+            enriched["speaker_label"] = label
+            labelled.append(enriched)
+
+        if not labelled:
+            return None
+        return format_diarized_screenplay_from_segments(labelled) or None
+
     def transcribe(self, audio_path: str, language: str | None = None) -> str:
         """Return transcript text from ``transcribe_with_segments``."""
         result, _elapsed = self.transcribe_with_segments(audio_path, language=language)

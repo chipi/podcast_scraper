@@ -142,6 +142,54 @@ class TestDeepgramTranscriptionProvider:
             provider.initialize()
 
 
+class TestDeepgramScreenplay:
+    def _provider(self) -> DeepgramTranscriptionProvider:
+        cfg = config.Config(
+            rss="https://example.com/feed.xml",
+            transcription_provider="deepgram",
+            deepgram_api_key="dg-test-key",
+        )
+        return DeepgramTranscriptionProvider(cfg)
+
+    def test_format_screenplay_maps_native_speakers_to_names(self) -> None:
+        """Deepgram's integer speakers become a named screenplay (D1)."""
+        segments = [
+            {"start": 0.0, "end": 2.0, "text": "hello", "speaker": 0},
+            {"start": 2.0, "end": 4.0, "text": "hi there", "speaker": 1},
+            {"start": 4.0, "end": 6.0, "text": "back to me", "speaker": 0},
+        ]
+        out = self._provider().format_screenplay_from_segments(segments, None, ["Alice", "Bob"])
+        assert out is not None
+        assert "Alice: hello" in out
+        assert "Bob: hi there" in out
+        assert "Alice: back to me" in out
+
+    def test_format_screenplay_falls_back_to_speaker_n(self) -> None:
+        segments = [{"start": 0.0, "end": 1.0, "text": "solo", "speaker": 0}]
+        out = self._provider().format_screenplay_from_segments(segments, None, None)
+        assert out is not None
+        assert "Speaker 1: solo" in out
+
+    def test_format_screenplay_none_when_no_segments(self) -> None:
+        assert self._provider().format_screenplay_from_segments([], None, ["Alice"]) is None
+
+
+class TestDeepgramConfigCoercion:
+    def test_deepgram_keeps_screenplay_but_drops_pyannote_diarize(self) -> None:
+        """Native-diarization provider keeps screenplay; the pyannote pass is coerced off (D1)."""
+        config.reset_diarize_coerce_log_for_tests()
+        config.reset_screenplay_transcription_api_coerce_log_for_tests()
+        cfg = config.Config(
+            rss="https://example.com/feed.xml",
+            transcription_provider="deepgram",
+            deepgram_api_key="dg-test-key",
+            screenplay=True,
+            diarize=True,
+        )
+        assert cfg.screenplay is True
+        assert cfg.diarize is False
+
+
 class TestDeepgramConfigValidation:
     def test_missing_key_rejected(self) -> None:
         with pytest.raises(ValidationError, match="Deepgram API key"):
