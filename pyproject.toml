@@ -50,7 +50,8 @@ dependencies = [
 # Heavy ML dependencies - only install when needed
 ml = [
   "openai-whisper>=20231117",
-  "spacy>=3.7.0,<4.0.0",
+  # spaCy 3.8 / thinc 8.3 for numpy 2.x compatibility (required by pyannote.audio 4.x).
+  "spacy>=3.8.0,<4.0.0",
   # spaCy's CLI imports ``click`` via typer (``spacy/cli/_util.py``).
   # typer-0.26.0+ dropped click from its hard deps in favour of having
   # consumers depend on it directly. The cloud-thin / API images still
@@ -62,11 +63,11 @@ ml = [
   "click>=8.0.0,<9.0.0",
   # spaCy language models are distributed via GitHub releases (not PyPI) due to size constraints.
   # This is the official and standard method recommended by spaCy.
-  # Version compatibility: spaCy 3.7.x requires en_core_web_sm 3.7.x and en_core_web_trf 3.7.x
+  # Version compatibility: spaCy 3.8.x requires en_core_web_sm 3.8.x and en_core_web_trf 3.8.x
   # See: https://spacy.io/usage/models for model version compatibility
   # Keep scripts/spacy_model_wheels_requirements.txt in sync (make download-spacy-wheels).
-  "en-core-web-sm @ https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-3.7.1/en_core_web_sm-3.7.1-py3-none-any.whl",
-  "en-core-web-trf @ https://github.com/explosion/spacy-models/releases/download/en_core_web_trf-3.7.3/en_core_web_trf-3.7.3-py3-none-any.whl",
+  "en-core-web-sm @ https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-3.8.0/en_core_web_sm-3.8.0-py3-none-any.whl",
+  "en-core-web-trf @ https://github.com/explosion/spacy-models/releases/download/en_core_web_trf-3.8.0/en_core_web_trf-3.8.0-py3-none-any.whl",
   "torch>=2.11.0,<3.0.0",
   # spaCy 3.7.x pins thinc<8.3; thinc 8.2.x wheels were compiled against numpy 1.x and crash
   # with ``numpy.dtype size changed`` on numpy 2.x (ABI mismatch surfaces in MCP + GI tests).
@@ -86,8 +87,10 @@ ml = [
   "protobuf>=3.20.0,!=6.33.4,<8.0.0",  # Exclude 6.33.4 due to CVE-2026-0994 (fixed in 6.33.5+)
   # GGUF in-process inference for hybrid_ml Tier 2 REDUCE (RFC-042, Issue #352); Ollama needs no extra
   "llama-cpp-python>=0.3.23,<0.4.0",
-  # Neural speaker diarization (RFC-058): pyannote after local Whisper transcribe
-  "pyannote.audio>=3.1",
+  # Neural speaker diarization (RFC-058): pyannote after local Whisper transcribe.
+  # 4.x switched audio I/O to torchcodec (no torchaudio.AudioMetaData) so it works
+  # with torch>=2.11/torchaudio>=2.9; 3.x is import-broken against that torchaudio.
+  "pyannote.audio>=4.0,<5.0",
   "torchaudio",
 ]
 # Streamlit run comparison UI (RFC-047, Issue #373)
