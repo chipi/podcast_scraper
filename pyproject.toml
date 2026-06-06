@@ -314,6 +314,7 @@ markers = [
     "openai: tests that use OpenAI API specifically (subset of llm marker)",
     "gemini: tests that use Gemini API specifically (subset of llm marker)",
     "mistral: tests that use Mistral API specifically (subset of llm marker)",
+    "deepgram: tests that use the Deepgram API specifically (subset of llm marker)",
     "anthropic: tests that use Anthropic API specifically (subset of llm marker)",
     "deepseek: tests that use DeepSeek API specifically (subset of llm marker)",
     "ollama: tests that use Ollama API specifically (subset of llm marker, local/offline)",

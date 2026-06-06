@@ -1844,6 +1844,16 @@ class Config(BaseModel):
         alias="deepgram_model",
         description="Deepgram model for transcription (default: nova-3)",
     )
+    deepgram_api_base: Optional[str] = Field(
+        default=None,
+        alias="deepgram_api_base",
+        description=(
+            "Override the Deepgram API base URL (e.g. a self-hosted / on-prem "
+            "deployment or a test mock server). When unset, the SDK's hosted "
+            "production endpoint is used. The SDK appends '/v1/listen', so set "
+            "the host root without that suffix."
+        ),
+    )
     mistral_api_base: Optional[str] = Field(
         default=None,
         alias="mistral_api_base",

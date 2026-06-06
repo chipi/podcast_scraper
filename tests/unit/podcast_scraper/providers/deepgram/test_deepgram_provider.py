@@ -164,7 +164,20 @@ class TestDeepgramTranscriptionProvider:
         call_kwargs = mock_client.listen.v1.media.transcribe_file.call_args.kwargs
         assert call_kwargs["model"] == "nova-3"
         assert call_kwargs["diarize"] is True
-        mock_create_client.assert_called_once_with("dg-test-key")
+        mock_create_client.assert_called_once_with("dg-test-key", base_url=None)
+
+    @patch("podcast_scraper.providers.deepgram.deepgram_provider._create_deepgram_client")
+    def test_initialize_passes_api_base_override(self, mock_create_client) -> None:
+        """deepgram_api_base (self-hosted / mock server) is forwarded to the client."""
+        mock_create_client.return_value = MagicMock()
+        cfg = config.Config(
+            rss="https://example.com/feed.xml",
+            transcription_provider="deepgram",
+            deepgram_api_key="dg-test-key",
+            deepgram_api_base="http://127.0.0.1:18765",
+        )
+        DeepgramTranscriptionProvider(cfg).initialize()
+        mock_create_client.assert_called_once_with("dg-test-key", base_url="http://127.0.0.1:18765")
 
     @patch(
         "podcast_scraper.providers.deepgram.deepgram_provider._create_deepgram_client",

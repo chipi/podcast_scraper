@@ -100,8 +100,15 @@ def parse_deepgram_transcript(response: Any) -> Dict[str, Any]:
     return {"text": transcript, "segments": segments}
 
 
-def _create_deepgram_client(api_key: str) -> Any:
-    """Construct Deepgram SDK client (isolated for unit-test patching)."""
+def _create_deepgram_client(api_key: str, base_url: str | None = None) -> Any:
+    """Construct Deepgram SDK client (isolated for unit-test patching).
+
+    When ``base_url`` is set, point the SDK at it (self-hosted / on-prem
+    Deepgram, or a test mock server) by overriding the client environment. The
+    SDK posts ``{production}/v1/listen``, so every environment URL is set to the
+    given root. If the installed SDK lacks the environment override, fall back
+    to the default hosted client and warn — the override is opt-in.
+    """
     try:
         from deepgram import DeepgramClient
     except ImportError as exc:
@@ -109,6 +116,21 @@ def _create_deepgram_client(api_key: str) -> Any:
             "deepgram-sdk is required for transcription_provider='deepgram'. "
             "Install with: pip install -e '.[llm]'"
         ) from exc
+    if base_url:
+        try:
+            from deepgram.environment import DeepgramClientEnvironment
+
+            env = DeepgramClientEnvironment(
+                base=base_url, production=base_url, agent=base_url, agent_rest=base_url
+            )
+            return DeepgramClient(api_key=api_key, environment=env)
+        except Exception as exc:  # noqa: BLE001 - override is best-effort
+            logger.warning(
+                "Could not apply deepgram_api_base=%s (SDK lacks environment override: %s); "
+                "using the hosted endpoint.",
+                base_url,
+                format_exception_for_log(exc),
+            )
     return DeepgramClient(api_key=api_key)
 
 
@@ -131,7 +153,10 @@ class DeepgramTranscriptionProvider:
                 "Deepgram API key required for transcription_provider='deepgram'. "
                 "Set DEEPGRAM_API_KEY or deepgram_api_key in config."
             )
-        self._client = _create_deepgram_client(self.cfg.deepgram_api_key)
+        self._client = _create_deepgram_client(
+            self.cfg.deepgram_api_key,
+            base_url=getattr(self.cfg, "deepgram_api_base", None),
+        )
         self._initialized = True
 
     def cleanup(self) -> None:
