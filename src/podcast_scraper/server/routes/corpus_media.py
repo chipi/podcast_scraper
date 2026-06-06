@@ -11,7 +11,11 @@ from fastapi.responses import FileResponse
 
 from podcast_scraper.server.pathutil import resolve_corpus_path_param
 from podcast_scraper.utils.corpus_media import CORPUS_MEDIA_DIR
-from podcast_scraper.utils.path_validation import safe_relpath_under_corpus_root
+from podcast_scraper.utils.path_validation import (
+    normpath_if_under_root,
+    safe_relpath_under_corpus_root,
+    safe_resolve_directory,
+)
 
 router = APIRouter(tags=["corpus"])
 
@@ -63,14 +67,22 @@ async def corpus_media(
 
     target = _safe_media_target_str(root, relpath)
 
-    # codeql[py/path-injection] -- target from safe_relpath_under_corpus_root.
-    if not os.path.isfile(target):
+    root_sd = safe_resolve_directory(root)
+    if root_sd is None:
+        raise HTTPException(status_code=400, detail="Invalid corpus path.")
+    root_s = os.path.normpath(str(root_sd))
+    verified = normpath_if_under_root(target, root_s)
+    if not verified:
+        raise HTTPException(status_code=400, detail="Invalid path.")
+
+    # codeql[py/path-injection] -- verified from normpath_if_under_root(target, root_s).
+    if not os.path.isfile(verified):
         raise HTTPException(status_code=404, detail="File not found.")
 
-    media_type, _ = mimetypes.guess_type(os.path.basename(target))
-    # codeql[py/path-injection] -- target sanitized above.
+    media_type, _ = mimetypes.guess_type(os.path.basename(verified))
+    # codeql[py/path-injection] -- verified from normpath_if_under_root(target, root_s).
     return FileResponse(
-        path=target,
+        path=verified,
         media_type=media_type or "application/octet-stream",
         headers={"Accept-Ranges": "bytes"},
     )
