@@ -136,8 +136,10 @@ class TestE2EServerInfrastructure:
         fast_rss = fixtures_dir / "rss" / "p01_fast.xml"
         assert fast_rss.exists(), f"Fast RSS feed should exist: {fast_rss}"
 
+        from tests._fixtures import DEFAULT_FIXTURE_VERSION as FIXTURE_VERSION
+
         # Check fast audio file
-        fast_audio = fixtures_dir / "audio" / "p01_e01_fast.mp3"
+        fast_audio = fixtures_dir / "audio" / FIXTURE_VERSION / "p01_e01_fast.mp3"
         assert fast_audio.exists(), f"Fast audio file should exist: {fast_audio}"
 
         # Check file size (should be ~700KB)
@@ -147,7 +149,7 @@ class TestE2EServerInfrastructure:
             assert 600000 <= size <= 800000, f"Fast audio should be ~700KB, got {size} bytes"
 
         # Check fast transcript file
-        fast_transcript = fixtures_dir / "transcripts" / "p01_e01_fast.txt"
+        fast_transcript = fixtures_dir / "transcripts" / FIXTURE_VERSION / "p01_e01_fast.txt"
         assert fast_transcript.exists(), f"Fast transcript file should exist: {fast_transcript}"
 
         # Check transcript length (should be short, ~1 minute of content)

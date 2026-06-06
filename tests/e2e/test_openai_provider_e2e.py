@@ -481,8 +481,10 @@ def _save_openai_responses(  # noqa: C901
             )
 
             # Check for fixture transcript files
-            # Look in tests/fixtures/transcripts/ directory
-            fixtures_transcripts_dir = Path("tests/fixtures/transcripts")
+            # Look in tests/fixtures/transcripts/<version>/ directory
+            from tests._fixtures import fixtures_dir
+
+            fixtures_transcripts_dir = fixtures_dir("transcripts")
             if fixtures_transcripts_dir.exists():
                 # Try exact match first
                 ref_transcript_file = fixtures_transcripts_dir / f"{base_name}.txt"

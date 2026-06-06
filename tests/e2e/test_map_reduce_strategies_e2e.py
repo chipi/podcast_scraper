@@ -26,6 +26,7 @@ if PACKAGE_ROOT not in sys.path:
 
 from podcast_scraper import Config, config
 from podcast_scraper.summarization.factory import create_summarization_provider
+from tests._fixtures import DEFAULT_FIXTURE_VERSION as FIXTURE_VERSION
 
 integration_dir = Path(__file__).parent.parent / "integration"
 if str(integration_dir) not in sys.path:
@@ -79,7 +80,7 @@ class TestMapReduceStrategies:
         # Use p01_e01.txt which is ~11KB (~2,785 tokens) - triggers MAP-REDUCE
         # We'll use smaller max_new_tokens to keep combined summaries small
         fixture_root = Path(__file__).parent.parent / "fixtures"
-        transcript_file = fixture_root / "transcripts" / "p01_e01.txt"
+        transcript_file = fixture_root / "transcripts" / FIXTURE_VERSION / "p01_e01.txt"
 
         if not transcript_file.exists():
             pytest.skip(f"Transcript file not found: {transcript_file}")
@@ -211,7 +212,7 @@ class TestMapReduceStrategies:
         # Use a longer transcript that will produce combined summaries in hierarchical range
         # p01_e02.txt is ~11KB, similar to p01_e01.txt
         fixture_root = Path(__file__).parent.parent / "fixtures"
-        transcript_file = fixture_root / "transcripts" / "p01_e02.txt"
+        transcript_file = fixture_root / "transcripts" / FIXTURE_VERSION / "p01_e02.txt"
 
         if not transcript_file.exists():
             pytest.skip(f"Transcript file not found: {transcript_file}")
@@ -313,7 +314,7 @@ class TestMapReduceStrategies:
         # Use a very long transcript that will produce combined summaries > threshold
         # Try p01_e03.txt which is ~30KB
         fixture_root = Path(__file__).parent.parent / "fixtures"
-        transcript_file = fixture_root / "transcripts" / "p01_e03.txt"
+        transcript_file = fixture_root / "transcripts" / FIXTURE_VERSION / "p01_e03.txt"
 
         if not transcript_file.exists():
             pytest.skip(f"Transcript file not found: {transcript_file}")

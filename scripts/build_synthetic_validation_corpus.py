@@ -297,7 +297,12 @@ def build_kg(
 def main() -> int:
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument("--rss-dir", type=Path, default=Path("tests/fixtures/rss"))
-    p.add_argument("--transcripts-dir", type=Path, default=Path("tests/fixtures/transcripts"))
+    p.add_argument(
+        "--transcripts-dir",
+        type=Path,
+        default=Path("tests/fixtures/transcripts")
+        / Path("tests/fixtures/FIXTURES_VERSION").read_text(encoding="utf-8").strip(),
+    )
     p.add_argument(
         "--output",
         type=Path,
