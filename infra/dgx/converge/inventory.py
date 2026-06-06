@@ -36,5 +36,15 @@ _data: dict[str, object] = {
 }
 if _key:
     _data["ssh_key"] = _key
+else:
+    # No explicit key: tell paramiko to skip raw key-file scanning so it
+    # doesn't trip on an encrypted ~/.ssh/id_ed25519 before reaching the
+    # agent. Tailscale SSH server (running inside tailscaled on DGX) accepts
+    # any key offer from a tailnet-authorized identity — the agent / no-key
+    # combination is enough.
+    _data["ssh_paramiko_connect_kwargs"] = {
+        "allow_agent": True,
+        "look_for_keys": False,
+    }
 
 dgx = [(_ssh_host, _data)]
