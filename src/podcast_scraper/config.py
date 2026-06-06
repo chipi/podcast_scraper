@@ -3162,12 +3162,20 @@ class Config(BaseModel):
                         "generate_summaries, generate_gi, and generate_kg to false."
                     )
         elif stage == "enrich_only":
-            if merged.get("transcribe_missing"):
-                merged["transcribe_missing"] = False
+            # Enrich from on-disk transcripts: no new transcription, and reuse must
+            # be enabled or there is nothing to enrich (transcript reuse is gated on
+            # skip_existing). Set both unconditionally — relying on `.get()` truthiness
+            # missed the common case where transcribe_missing keeps its default (True),
+            # which left the mode a silent no-op.
+            merged["transcribe_missing"] = False
+            merged["skip_existing"] = True
             with _pipeline_stage_coerce_lock:
                 if not _pipeline_stage_coerce_state["logged"]:
                     _pipeline_stage_coerce_state["logged"] = True
-                    logger.info("pipeline_stage=enrich_only: coercing transcribe_missing to false.")
+                    logger.info(
+                        "pipeline_stage=enrich_only: coercing transcribe_missing=false "
+                        "and skip_existing=true (reuse on-disk transcripts for enrichment)."
+                    )
         return merged
 
     @model_validator(mode="before")

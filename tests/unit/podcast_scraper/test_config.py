@@ -1347,6 +1347,17 @@ class TestPipelineStage(unittest.TestCase):
         self.assertFalse(cfg.transcribe_missing)
         self.assertTrue(cfg.generate_metadata)
 
+    def test_enrich_only_enables_transcript_reuse(self) -> None:
+        """enrich_only must enable skip_existing or there is nothing to enrich (H1)."""
+        config.reset_pipeline_stage_coerce_log_for_tests()
+        cfg = Config(
+            rss="https://example.com/feed.xml",
+            pipeline_stage="enrich_only",
+            generate_metadata=True,
+        )
+        self.assertFalse(cfg.transcribe_missing)
+        self.assertTrue(cfg.skip_existing)
+
     def test_audio_only_disables_enrichment(self) -> None:
         config.reset_pipeline_stage_coerce_log_for_tests()
         cfg = Config(
