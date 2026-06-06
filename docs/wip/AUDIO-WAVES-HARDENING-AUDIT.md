@@ -10,11 +10,23 @@ Wave 1 (#850), Wave 2 (#895), and Wave 3 (#898). It is the source list for a sin
 
 ## Progress (branch `feat/audio-waves-hardening`, not yet pushed)
 
-**P1 DONE** (each fix + tests committed, targeted suites green): A1, A2, A3, C1, C2, B1, B2,
-D1, H1, G1, I1, I2, I3, G3.
-**P1 remaining:** G2 (direct-download media persist), plus test deepening B8 / E1 / A7.
-**Not started:** P2 batch, P3 batch.
-**Not yet run:** full `make ci-fast` / `ci-ui-fast` / viewer build (end gate, before push).
+**DONE** (each fix + tests committed, targeted suites green):
+
+- P1: A1, A2, A3, C1, C2, B1, B2, D1, H1, G1, I1, I2, I3, G3.
+- P2/P3: A4, A5, B6, B7, B8, C3, C4, D2, D4, H3, E1 (normalization module).
+- G2 reclassified NOT-A-BUG (verified — feed-transcript episodes download no audio).
+
+**DEFERRED to a follow-up** (lower-value robustness/cleanups, or blocked):
+
+- Blocked by live callers/tests (not dead): E4 (`speaker_detectors/patterns.py` still called by
+  `ml_provider.py:1061`), B9 (`summarizer.remove_sponsor_blocks` has tests), G7 (header asserted).
+- Moderate effort, sensitive code: H2 (transcript-cache legacy-fallback tightening), B3 (config-
+  driven commercial threshold), B4 (host-speaker inference hardening), B5 (removal audit sidecar),
+  F1 (per-provider byte/duration limits), G4 (cross-feed stem collision), G5 (symlink realpath),
+  D3 (cross-chunk speaker reconciliation).
+- Minor: A6, D5, D6, E2, E3, E5, G6, H4, H5, I5, and remaining E1 modules.
+
+**Validation:** full `make ci-fast` + `ci-ui-fast` run as the end gate before push (in progress).
 
 ## How to read this
 
