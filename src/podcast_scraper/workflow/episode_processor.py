@@ -1007,6 +1007,11 @@ def _get_provider_model_name(transcription_provider: Any, cfg: config.Config) ->
     # so we need to get model name from config or provider attributes
     if hasattr(transcription_provider, "model"):
         model = getattr(transcription_provider, "model", None)
+        # A plain string model (e.g. Deepgram "nova-3") is already the name — use it
+        # directly. Without this it fell through to None and every model of that
+        # provider collapsed to one cache key (H3).
+        if isinstance(model, str) and model.strip():
+            return model.strip()
         # If model is not a string (e.g., Whisper model object), get name from config
         if model is not None and not isinstance(model, str):
             # Get model name from config based on provider type
