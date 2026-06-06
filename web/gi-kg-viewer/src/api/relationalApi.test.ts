@@ -4,6 +4,7 @@ import {
   fetchEpisodeRelatedInsights,
   fetchPositions,
   fetchShowEpisodes,
+  fetchTopicEntities,
   fetchWhoSaid,
 } from './relationalApi'
 
@@ -69,6 +70,12 @@ describe('relationalApi', () => {
     mockFetchJson(true, { subject: 'e1', results: [] })
     await fetchEpisodeRelatedInsights('/c', 'e1', 10)
     expectFetchUrl('/api/relational/episode-insights?path=%2Fc&episode=e1&k=10')
+  })
+
+  it('fetchTopicEntities GETs topic-entities', async () => {
+    mockFetchJson(true, { subject: 'topic:ai', results: [] })
+    await fetchTopicEntities('/c', 'topic:ai')
+    expectFetchUrl('/api/relational/topic-entities?path=%2Fc&topic=topic%3Aai')
   })
 
   it('raises a friendly error on 404', async () => {

@@ -130,6 +130,10 @@ monitor = [
 # Development tools plus GI/KG viewer HTTP stack (FastAPI, RFC-062) — same pins as docker/api/Dockerfile
 dev = [
   "fastapi>=0.115.0,<1.0.0",
+  # Generic MCP server (PRD-034 / RFC-095) — a core dev/server capability, not a separate
+  # extra. The official MCP Python SDK bundles FastMCP; the retrieval tools also need
+  # [search] (ML deps) at runtime, same as the viewer.
+  "mcp>=1.2.0,<2.0.0",
   # Starlette TestClient (tests/conftest.py preload) requires httpx; not always
   # pulled as a transitive install in minimal CI venvs.
   "httpx>=0.28.1,<1.0.0",

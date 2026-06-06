@@ -17,6 +17,7 @@ import FeedCoverageTable from './FeedCoverageTable.vue'
 import IndexStatusCard from './IndexStatusCard.vue'
 import IntelligenceSnapshot from './IntelligenceSnapshot.vue'
 import TopicBriefingCards from './TopicBriefingCards.vue'
+import QueryActivityChart from './QueryActivityChart.vue'
 import TopicClustersStatusBlock from './TopicClustersStatusBlock.vue'
 import PipelineAdExcisionMetrics from './PipelineAdExcisionMetrics.vue'
 import PipelineCleanupMetrics from './PipelineCleanupMetrics.vue'
@@ -382,6 +383,7 @@ function openLibraryFailures(): void {
         @open-digest="emit('open-digest')"
       />
       <TopicBriefingCards :digest="digestIntel" />
+      <QueryActivityChart />
       <TopicClustersStatusBlock />
       <TopicLandscape @go-graph="(id, fb) => emit('go-graph', id, fb)" />
       <PipelineCleanupMetrics :run="latestRun" />

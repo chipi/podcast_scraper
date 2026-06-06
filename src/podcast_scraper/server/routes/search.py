@@ -6,8 +6,8 @@ from pathlib import Path
 
 from fastapi import APIRouter, Query, Request
 
-from podcast_scraper.search.corpus_search import run_corpus_search
-from podcast_scraper.search.router import classify_query, tier_for_doc_type
+from podcast_scraper.search.capability import structured_corpus_search
+from podcast_scraper.search.query_log import append_query_event
 from podcast_scraper.server.pathutil import resolve_corpus_path_param
 from podcast_scraper.server.schemas import (
     CorpusSearchApiResponse,
@@ -77,7 +77,7 @@ async def search_corpus(
                     flat.append(p)
         doc_types = flat or None
 
-    outcome = run_corpus_search(
+    outcome = structured_corpus_search(
         root,
         q,
         doc_types=doc_types,
@@ -86,32 +86,31 @@ async def search_corpus(
         speaker=speaker,
         grounded_only=grounded_only,
         top_k=top_k,
-        index_path=None,
         embedding_model=embedding_model,
         dedupe_kg_surfaces=dedupe_kg_surfaces,
     )
 
-    if outcome.error:
+    if outcome["error"]:
         return CorpusSearchApiResponse(
             query=q,
             results=[],
-            error=outcome.error,
-            detail=outcome.detail,
+            error=outcome["error"],
+            detail=outcome["detail"],
         )
 
     hits = [
         SearchHitModel(
-            doc_id=str(r.get("doc_id", "")),
-            score=float(r.get("score", 0.0)),
-            metadata=dict(r.get("metadata") or {}),
-            text=str(r.get("text") or ""),
-            source_tier=tier_for_doc_type(str((r.get("metadata") or {}).get("doc_type") or "")),
-            supporting_quotes=r.get("supporting_quotes"),
-            lifted=r.get("lifted") if isinstance(r.get("lifted"), dict) else None,
+            doc_id=str(r["doc_id"]),
+            score=float(r["score"]),
+            metadata=dict(r["metadata"] or {}),
+            text=str(r["text"]),
+            source_tier=str(r["source_tier"]),
+            supporting_quotes=r["supporting_quotes"],
+            lifted=r["lifted"],
         )
-        for r in outcome.results
+        for r in outcome["results"]
     ]
-    stats_raw = outcome.lift_stats
+    stats_raw = outcome["lift_stats"]
     lift_stats: CorpusSearchLiftStatsModel | None = None
     if isinstance(stats_raw, dict):
         try:
@@ -123,6 +122,9 @@ async def search_corpus(
             )
         except (TypeError, ValueError):
             lift_stats = None
+    query_type = str(outcome["query_type"])
+    # FR6.2 — record search activity (timestamp + intent only). Best-effort.
+    append_query_event(root, query_type)
     return CorpusSearchApiResponse(
-        query=q, results=hits, query_type=classify_query(q), lift_stats=lift_stats
+        query=q, results=hits, query_type=query_type, lift_stats=lift_stats
     )

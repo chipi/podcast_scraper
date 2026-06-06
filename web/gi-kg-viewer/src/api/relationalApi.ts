@@ -93,6 +93,17 @@ export async function fetchPositions(
   return getList(`/api/relational/positions?${q.toString()}`)
 }
 
+/** FR4.2 — entities involved in a topic, ranked by mention frequency. */
+export async function fetchTopicEntities(
+  corpusPath: string,
+  topic: string,
+  k?: number,
+): Promise<RelationalListResponse> {
+  const q = new URLSearchParams({ path: corpusPath.trim(), topic: topic.trim() })
+  withK(q, k)
+  return getList(`/api/relational/topic-entities?${q.toString()}`)
+}
+
 /** Insights that mention an entity. */
 export async function fetchInsightsAbout(
   corpusPath: string,

@@ -56,7 +56,7 @@ def test_search_returns_results_when_mocked(
         )
 
     monkeypatch.setattr(
-        "podcast_scraper.server.routes.search.run_corpus_search",
+        "podcast_scraper.search.capability.run_corpus_search",
         fake_run,
     )
 
@@ -95,7 +95,7 @@ def test_search_type_query_params(tmp_path: Path, monkeypatch: pytest.MonkeyPatc
         return CorpusSearchOutcome(results=[])
 
     monkeypatch.setattr(
-        "podcast_scraper.server.routes.search.run_corpus_search",
+        "podcast_scraper.search.capability.run_corpus_search",
         fake_run,
     )
 
@@ -130,7 +130,7 @@ def test_search_dedupe_kg_surfaces_query_param(
         return CorpusSearchOutcome(results=[])
 
     monkeypatch.setattr(
-        "podcast_scraper.server.routes.search.run_corpus_search",
+        "podcast_scraper.search.capability.run_corpus_search",
         fake_run,
     )
 
@@ -156,7 +156,7 @@ def test_search_maps_outcome_error(tmp_path: Path, monkeypatch: pytest.MonkeyPat
         return CorpusSearchOutcome(error="no_index", detail="/tmp/x")
 
     monkeypatch.setattr(
-        "podcast_scraper.server.routes.search.run_corpus_search",
+        "podcast_scraper.search.capability.run_corpus_search",
         fake_run,
     )
 
@@ -196,7 +196,7 @@ def test_search_tier_and_intent_for_entity_transcript_query(
         )
 
     monkeypatch.setattr(
-        "podcast_scraper.server.routes.search.run_corpus_search",
+        "podcast_scraper.search.capability.run_corpus_search",
         fake_run,
     )
     app = create_app(tmp_path, static_dir=False)
@@ -236,7 +236,7 @@ def test_search_lift_stats_reflects_transcript_and_lift(
         )
 
     monkeypatch.setattr(
-        "podcast_scraper.server.routes.search.run_corpus_search",
+        "podcast_scraper.search.capability.run_corpus_search",
         fake_run,
     )
     app = create_app(tmp_path, static_dir=False)
@@ -267,7 +267,7 @@ def test_search_lift_stats_invalid_dropped(tmp_path: Path, monkeypatch: pytest.M
         )
 
     monkeypatch.setattr(
-        "podcast_scraper.server.routes.search.run_corpus_search",
+        "podcast_scraper.search.capability.run_corpus_search",
         fake_run,
     )
     app = create_app(tmp_path, static_dir=False)

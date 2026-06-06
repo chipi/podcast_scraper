@@ -81,6 +81,35 @@ def _project(node: Node) -> RelatedNode:
     )
 
 
+def node_label(graph: GraphLike, node_id: str) -> str:
+    """Display text for a subject node (name/label/text), or '' if absent.
+
+    Used to build an entity/topic-scoped hybrid query for re-ranking (PRD-033 FR4.x:
+    structure via graph, ranking via hybrid).
+    """
+    node = graph.get_node(node_id)
+    return _project(node).text if node is not None else ""
+
+
+def rerank_by_relevance(
+    results: List[RelatedNode], score_by_id: Dict[str, float]
+) -> List[RelatedNode]:
+    """Stable re-rank of insight results by an external relevance score (RFC-090 hybrid).
+
+    Results carrying a score sort by score **descending**; the rest keep their original
+    relative order, **after** the scored ones. Empty map → unchanged. This layers hybrid
+    relevance on top of the deterministic structural graph order without dropping any
+    result (a node missing from the index simply stays in place rather than vanishing).
+    """
+    if not score_by_id:
+        return list(results)
+    indexed = list(enumerate(results))
+    scored = [(i, r) for i, r in indexed if r.id in score_by_id]
+    unscored = [r for _, r in indexed if r.id not in score_by_id]
+    scored.sort(key=lambda pair: (-score_by_id[pair[1].id], pair[0]))
+    return [r for _, r in scored] + unscored
+
+
 def _via(
     graph: GraphLike,
     node_id: Optional[str],
@@ -115,6 +144,23 @@ def insights_about(graph: GraphLike, entity_id: str, *, k: int = 20) -> List[Rel
 def entities_in(graph: GraphLike, insight_id: str) -> List[RelatedNode]:
     """People/orgs an insight mentions — `MENTIONS` (not the speaker, which is `STATES`)."""
     return [_project(n) for n in _via(graph, insight_id, _MENTIONS, _ENTITY)]
+
+
+def entities_in_topic(graph: GraphLike, topic_id: str, *, k: int = 20) -> List[RelatedNode]:
+    """The entities *involved* in a topic — people/orgs its insights mention (FR4.2).
+
+    Walk topic→`ABOUT`→insights→`MENTIONS`→entities and rank each entity by how many of
+    the topic's insights mention it (most-mentioned first; id as a stable tiebreak).
+    Deterministic, de-duplicated, capped at *k*.
+    """
+    counts: Dict[str, int] = {}
+    nodes: Dict[str, Node] = {}
+    for insight in _via(graph, topic_id, _ABOUT, _INSIGHT):
+        for entity in _via(graph, insight.id, _MENTIONS, _ENTITY):
+            counts[entity.id] = counts.get(entity.id, 0) + 1
+            nodes[entity.id] = entity
+    ranked = sorted(counts, key=lambda eid: (-counts[eid], eid))[:k]
+    return [_project(nodes[eid]) for eid in ranked]
 
 
 def episodes_of(graph: GraphLike, podcast_id: str, *, k: Optional[int] = None) -> List[RelatedNode]:

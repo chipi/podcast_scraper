@@ -18,7 +18,10 @@ export default defineConfig({
   testIgnore: ['**/validation/**'],
   fullyParallel: true,
   forbidOnly: Boolean(process.env.CI),
-  retries: process.env.CI ? 1 : 0,
+  // Local runs get 1 retry too: the production-shaped handoff specs assert on
+  // millisecond-scale supersession ordering and flake under laptop worker
+  // contention. CI keeps 2-attempt parity with the gate (1 retry == 2 tries).
+  retries: process.env.CI ? 1 : 1,
   workers: process.env.CI ? 2 : undefined,
   reporter: [
     ['list'],

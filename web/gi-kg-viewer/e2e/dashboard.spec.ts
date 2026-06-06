@@ -173,4 +173,34 @@ test.describe('Dashboard tab', () => {
     await card.getByTestId('topic-briefing-card-link').click()
     await expect(page.getByTestId('topic-entity-view')).toBeVisible()
   })
+
+  test('FR6.2: Intelligence shows the search-activity chart when there is data', async ({
+    page,
+  }) => {
+    await mockDashboardApis(page)
+    await page.route('**/api/corpus/query-activity**', async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          total: 5,
+          buckets: [
+            { date: '2026-06-03', count: 2 },
+            { date: '2026-06-04', count: 0 },
+            { date: '2026-06-05', count: 3 },
+          ],
+        }),
+      })
+    })
+    await page.goto('/')
+    await page.getByRole('heading', { name: SHELL_HEADING_RE }).waitFor()
+    await statusBarCorpusPathInput(page).fill('/mock/corpus')
+    await mainViewsNav(page).getByRole('button', { name: 'Dashboard' }).click()
+    await page.getByRole('tablist', { name: 'Dashboard tabs' }).getByRole('tab', { name: 'Intelligence' }).click()
+
+    const chart = page.getByTestId('query-activity-chart')
+    await expect(chart).toBeVisible({ timeout: 15_000 })
+    await expect(chart).toContainText('Search activity')
+    await expect(chart).toContainText('5 searches')
+  })
 })

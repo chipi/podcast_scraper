@@ -17,15 +17,52 @@ from podcast_scraper.search.corpus_graph import Node
 from podcast_scraper.search.relational_queries import (
     cross_show_synthesis,
     entities_in,
+    entities_in_topic,
     episode_related_insights,
     episodes_of,
     insights_about,
+    node_label,
     positions_of,
     related_insights,
+    RelatedNode,
+    rerank_by_relevance,
     who_said,
 )
 
 pytestmark = pytest.mark.unit
+
+
+def _rn(node_id: str) -> RelatedNode:
+    return RelatedNode(id=node_id, type="insight", text=node_id)
+
+
+def test_rerank_by_relevance_scored_first_then_original_order() -> None:
+    items = [_rn("i1"), _rn("i2"), _rn("i3"), _rn("i4")]
+    # i3 and i1 are scored (i3 higher); i2, i4 unscored keep their original order after.
+    out = rerank_by_relevance(items, {"i1": 0.5, "i3": 0.9})
+    assert [r.id for r in out] == ["i3", "i1", "i2", "i4"]
+
+
+def test_rerank_empty_map_is_unchanged() -> None:
+    items = [_rn("i1"), _rn("i2")]
+    assert [r.id for r in rerank_by_relevance(items, {})] == ["i1", "i2"]
+
+
+def test_rerank_is_stable_for_equal_scores() -> None:
+    items = [_rn("a"), _rn("b"), _rn("c")]
+    out = rerank_by_relevance(items, {"a": 1.0, "b": 1.0, "c": 1.0})
+    assert [r.id for r in out] == ["a", "b", "c"]
+
+
+def test_node_label_returns_display_text() -> None:
+    nodes: Dict[str, Tuple[str, Dict[str, object]]] = {
+        "person:p": ("person", {"name": "Jane Doe"}),
+        "topic:t": ("topic", {"label": "Inflation"}),
+    }
+    g = FakeGraph(nodes, [])
+    assert node_label(g, "person:p") == "Jane Doe"
+    assert node_label(g, "topic:t") == "Inflation"
+    assert node_label(g, "missing") == ""
 
 
 class FakeGraph:
@@ -151,6 +188,31 @@ def test_related_insights_dedupes_across_shared_topic_and_entity() -> None:
     ]
     g = FakeGraph(nodes, edges)
     assert [r.id for r in related_insights(g, "insight:a")] == ["insight:b"]
+
+
+def test_entities_in_topic_ranks_by_mention_frequency() -> None:
+    # topic:t insights: i1 mentions org:acme + person:p; i2 mentions org:acme.
+    # org:acme is mentioned by 2 insights, person:p by 1 → org:acme ranks first.
+    nodes: Dict[str, Tuple[str, Dict[str, object]]] = {
+        "topic:t": ("topic", {}),
+        "insight:1": ("insight", {}),
+        "insight:2": ("insight", {}),
+        "org:acme": ("org", {"name": "Acme"}),
+        "person:p": ("person", {"name": "P"}),
+    }
+    edges = [
+        ("topic:t", "insight:1", "ABOUT"),
+        ("topic:t", "insight:2", "ABOUT"),
+        ("insight:1", "org:acme", "MENTIONS"),
+        ("insight:1", "person:p", "MENTIONS"),
+        ("insight:2", "org:acme", "MENTIONS"),
+    ]
+    g = FakeGraph(nodes, edges)
+    assert [r.id for r in entities_in_topic(g, "topic:t")] == ["org:acme", "person:p"]
+
+
+def test_entities_in_topic_empty_on_missing(graph: FakeGraph) -> None:
+    assert entities_in_topic(graph, "topic:nope") == []
 
 
 def test_episode_related_insights_excludes_own_insights(graph: FakeGraph) -> None:

@@ -40,7 +40,7 @@ shared Tufte-style defaults from `chartRegister.ts`.
 1. **Briefing card** (`data-testid="briefing-card"`) — last run / health / short actions; always above tabs.
 2. **Tablist** `aria-label="Dashboard tabs"` — **Coverage** | **Intelligence** | **Pipeline**.
 3. **Coverage** — coverage by month, feed coverage table, artifact activity (from listed artifacts), **Index status** (`data-testid="index-status-card"`) with **Update index** and **Full rebuild** (`index-status-update`, `index-status-full-rebuild`).
-4. **Intelligence** — digest snapshot, **Topic briefings** (`topic-briefing-cards`, PRD-033 FR6.1 #888 — retrieval-grounded `topic-briefing-card` per top topic, see §5), **Topic clusters** status (`topic-clusters-status-block`), topic landscape, top voices (when API available). Topic momentum / emerging connections **omitted** until RFC-073 data ships (no placeholder UI). **FR6.2** (query-volume activity chart) is **deferred** — no query-volume telemetry is queryable through the viewer API; a coverage-by-topic substitute would mislabel corpus volume as query volume, so no chart ships.
+4. **Intelligence** — digest snapshot, **Topic briefings** (`topic-briefing-cards`, PRD-033 FR6.1 #888 — retrieval-grounded `topic-briefing-card` per top topic, see §5), **Topic clusters** status (`topic-clusters-status-block`), topic landscape, top voices (when API available). Topic momentum / emerging connections **omitted** until RFC-073 data ships (no placeholder UI). **Search activity** (`query-activity-chart`, PRD-033 FR6.2 — daily search-volume bar chart, see §5). Topic momentum stays omitted.
 5. **Pipeline** — run history strip, duration trend, stage timings, numeric outcomes, episodes per run; optional per-feed run heatmap only when server exposes stable per-feed fields.
 
 The legacy **CorpusDataWorkspace** / **Pipeline | Content intelligence** split on Dashboard is removed; those components are not part of this surface.
@@ -72,7 +72,7 @@ The legacy **CorpusDataWorkspace** / **Pipeline | Content intelligence** split o
 | 2026-04-20 | §6.0 jobs: operator `--config` + optional `profile:` merge (#593)                |
 | 2026-04-20 | §6.0 jobs (cont.): feeds via `--feeds-spec` when `feeds.spec.yaml` exists        |
 | 2026-04-21 | §6.0: Operator YAML = **Config**; shallow PUT validation (feed + secret keys)    |
-| 2026-06-05 | PRD-033 FR6.1: retrieval-grounded topic briefing cards (#888); FR6.2 deferred    |
+| 2026-06-05 | PRD-033 FR6.1 briefing cards + FR6.2 search-activity chart (#888 + follow-up)    |
 
 ---
 
@@ -544,10 +544,20 @@ semantic search per topic, so each card surfaces:
 **Source:** the already-fetched `GET /api/corpus/digest` bands + `GET /api/relational/cross-show`.
 `data-testid="topic-briefing-cards"` (container), `topic-briefing-card` (each).
 
-**FR6.2 — deferred.** The PRD's retrieval-volume activity chart (query volume by topic
-over time) has no backing data: search telemetry is client-side PostHog only and is not
-queryable back through the viewer API. Presenting a corpus-coverage-by-topic series as
-"query volume" would be misleading, so no chart ships until a query-log source exists.
+#### 5.1b Search activity (PRD-033 FR6.2)
+
+**Available once at least one search has been logged.**
+
+A Tufte-simple single-series bar chart of **daily search volume** over the last 30 days
+(`query-activity-chart`). The data is the append-only search-activity log
+(`<corpus>/search/query_log.jsonl`) that `/api/search` writes — **timestamp + detected
+intent only, never the raw query text** (privacy-light), read via
+`GET /api/corpus/query-activity`.
+
+**Honest scope:** the PRD's literal "query volume *by topic* over time" is not
+achievable — queries are not topic-tagged, and a corpus-coverage-by-topic series would
+mislabel corpus volume as query volume. This ships the supported subset: *search volume
+over time*. The chart is hidden until the log has entries (`total > 0`).
 
 #### 5.2 Topic landscape
 

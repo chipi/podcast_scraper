@@ -246,6 +246,10 @@ number, file, line, date, and a short comment.
 | 1 | #345 | kg/corpus.py | 45 | 2026-06-05 | Type 1: same sanitizer chain, ``load_kg_artifacts`` read under ``<corpus>`` (PR #890) |
 | 1 | #346 | kg/corpus.py | 46 | 2026-06-05 | Type 1: same sanitizer chain, ``load_kg_artifacts`` read under ``<corpus>`` (PR #890) |
 | 1 | #347 | search/corpus_graph.py | 277 | 2026-06-05 | Type 1: ``get_corpus_graph`` cache/build on the route-confined corpus root (``resolve_corpus_path_param`` raises on escape); reads only ``<corpus>`` artifacts. Same class as #865. Dismissed ``gh api`` (PR #890) |
+| 1 | #348 | search/query_log.py | 40 | 2026-06-05 | Type 1: ``search``/``query-activity`` routes confine the corpus root via ``resolve_corpus_path_param`` before ``append_query_event`` → ``mkdir`` under ``<corpus>/search/``. Same class as #343. Dismissed ``gh api`` (PR #896) |
+| 1 | #349 | search/query_log.py | 41 | 2026-06-05 | Type 1: same sanitizer chain, ``append_query_event`` opens ``<corpus>/search/query_log.jsonl`` for append (PR #896) |
+| 1 | #350 | search/query_log.py | 81 | 2026-06-05 | Type 1: same sanitizer chain, ``read_query_activity`` ``path.exists()`` on route-confined corpus root (PR #896) |
+| 1 | #351 | search/query_log.py | 83 | 2026-06-05 | Type 1: same sanitizer chain, ``read_query_activity`` reads ``<corpus>/search/query_log.jsonl`` (PR #896) |
 
 ## Still open (not yet dismissed)
 

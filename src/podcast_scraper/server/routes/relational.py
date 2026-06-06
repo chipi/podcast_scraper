@@ -18,6 +18,7 @@ from fastapi import APIRouter, Query, Request
 
 from podcast_scraper.search import relational_queries as rq
 from podcast_scraper.search.corpus_graph import get_corpus_graph
+from podcast_scraper.search.relational_capability import rerank_relational_insights
 from podcast_scraper.server.pathutil import resolve_corpus_path_param
 from podcast_scraper.server.schemas import (
     RelatedNodeModel,
@@ -34,13 +35,30 @@ def _resolve_corpus_root(path: str | None, fallback: Path | None) -> Path | None
     return fallback
 
 
+def _root_or_none(request: Request, path: str | None) -> Path | None:
+    return _resolve_corpus_root(path, getattr(request.app.state, "output_dir", None))
+
+
 def _graph_or_none(request: Request, path: str | None):
     """Resolve the corpus root and return its cached graph, or ``None`` if unconfigured."""
-    fallback = getattr(request.app.state, "output_dir", None)
-    root = _resolve_corpus_root(path, fallback)
+    root = _root_or_none(request, path)
     if root is None:
         return None
     return get_corpus_graph(root, derive_speaker_links=True)
+
+
+def _maybe_rerank(
+    request: Request,
+    path: str | None,
+    graph,
+    subject_id: str,
+    nodes: list[rq.RelatedNode],
+) -> list[rq.RelatedNode]:
+    """Best-effort hybrid re-rank (shared capability), no-op when no corpus root resolves."""
+    root = _root_or_none(request, path)
+    if root is None:
+        return nodes
+    return rerank_relational_insights(root, graph, subject_id, nodes)
 
 
 def _node(n: rq.RelatedNode) -> RelatedNodeModel:
@@ -64,8 +82,8 @@ async def positions(
     graph = _graph_or_none(request, path)
     if graph is None:
         return RelationalListResponse(subject=person, error="no_corpus_path")
-    results = [_node(n) for n in rq.positions_of(graph, person, k=k)]
-    return RelationalListResponse(subject=person, results=results)
+    nodes = _maybe_rerank(request, path, graph, person, rq.positions_of(graph, person, k=k))
+    return RelationalListResponse(subject=person, results=[_node(n) for n in nodes])
 
 
 @router.get("/relational/insights-about", response_model=RelationalListResponse)
@@ -79,8 +97,23 @@ async def insights_about(
     graph = _graph_or_none(request, path)
     if graph is None:
         return RelationalListResponse(subject=entity, error="no_corpus_path")
-    results = [_node(n) for n in rq.insights_about(graph, entity, k=k)]
-    return RelationalListResponse(subject=entity, results=results)
+    nodes = _maybe_rerank(request, path, graph, entity, rq.insights_about(graph, entity, k=k))
+    return RelationalListResponse(subject=entity, results=[_node(n) for n in nodes])
+
+
+@router.get("/relational/topic-entities", response_model=RelationalListResponse)
+async def topic_entities(
+    request: Request,
+    topic: str = Query(min_length=1, description="Canonical topic id, e.g. topic:inflation."),
+    path: str | None = Query(default=None, description="Corpus output dir; omit for default."),
+    k: int = Query(default=20, ge=1, le=200),
+) -> RelationalListResponse:
+    """Entities involved in a topic, ranked by mention frequency (Topic Entity View, FR4.2)."""
+    graph = _graph_or_none(request, path)
+    if graph is None:
+        return RelationalListResponse(subject=topic, error="no_corpus_path")
+    results = [_node(n) for n in rq.entities_in_topic(graph, topic, k=k)]
+    return RelationalListResponse(subject=topic, results=results)
 
 
 @router.get("/relational/entities-in", response_model=RelationalListResponse)
@@ -123,8 +156,8 @@ async def related_insights(
     graph = _graph_or_none(request, path)
     if graph is None:
         return RelationalListResponse(subject=insight, error="no_corpus_path")
-    results = [_node(n) for n in rq.related_insights(graph, insight, k=k)]
-    return RelationalListResponse(subject=insight, results=results)
+    nodes = _maybe_rerank(request, path, graph, insight, rq.related_insights(graph, insight, k=k))
+    return RelationalListResponse(subject=insight, results=[_node(n) for n in nodes])
 
 
 @router.get("/relational/episode-insights", response_model=RelationalListResponse)
