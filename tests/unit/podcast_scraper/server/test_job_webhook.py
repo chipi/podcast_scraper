@@ -77,8 +77,20 @@ class TestWebhookHelpers(unittest.TestCase):
 
 
 def _run(coro):
-    """Drive an async coroutine to completion in a unittest.TestCase."""
-    return asyncio.get_event_loop().run_until_complete(coro)
+    """Drive an async coroutine to completion in a unittest.TestCase.
+
+    Uses an explicit new loop rather than ``asyncio.get_event_loop()`` —
+    the latter raises ``RuntimeError: There is no current event loop in
+    thread 'MainThread'`` under pytest-xdist worker ordering when no other
+    test has touched asyncio first (Python 3.10+ deprecation path, fully
+    enforced in 3.12+). The explicit-loop pattern is portable across
+    Python versions and xdist scheduling.
+    """
+    loop = asyncio.new_event_loop()
+    try:
+        return loop.run_until_complete(coro)
+    finally:
+        loop.close()
 
 
 @pytest.mark.unit
