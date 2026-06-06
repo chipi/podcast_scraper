@@ -1342,8 +1342,7 @@ test-diarization: cleanup-processes
 	# accepted the model terms); the tests skip when the model isn't in the cache.
 	# Selected by NO other target, so without this it never runs in CI/nightly.
 	@echo "🎙️  Running pyannote diarization tests at $$(date '+%H:%M:%S')..."
-	$(PYTHON) -m pytest tests/integration/providers/ml/test_diarization.py \
-		-m diarization -v --tb=short --allow-hosts=127.0.0.1,localhost
+	$(PYTHON) -m pytest tests/ -m diarization -v --tb=short --allow-hosts=127.0.0.1,localhost
 
 test-nightly:
 	# Nightly-only tests: comprehensive tests with production ML models (p01-p05 full suite)
