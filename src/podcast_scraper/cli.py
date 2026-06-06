@@ -1766,6 +1766,27 @@ def _add_diarization_arguments(parser: argparse.ArgumentParser) -> None:
     )
 
 
+def _add_pipeline_stage_arguments(parser: argparse.ArgumentParser) -> None:
+    """Add Wave 3 pipeline stage arguments."""
+    parser.add_argument(
+        "--pipeline-stage",
+        type=str,
+        choices=("full", "audio_only", "enrich_only"),
+        default=None,
+        help=(
+            "Pipeline stage: full (default), audio_only (transcribe + media only), "
+            "or enrich_only (skip transcription)"
+        ),
+    )
+    parser.add_argument(
+        "--no-persist-episode-media",
+        action="store_false",
+        dest="persist_episode_media",
+        help="Do not copy episode audio into corpus media/ for viewer playback",
+    )
+    parser.set_defaults(persist_episode_media=None)
+
+
 def _add_deepseek_arguments(parser: argparse.ArgumentParser) -> None:
     """Add DeepSeek API-related arguments to parser.
 
@@ -3638,6 +3659,7 @@ def parse_args(argv: Optional[Sequence[str]] = None) -> argparse.Namespace:
     _add_mistral_arguments(parser)
     _add_deepgram_arguments(parser)
     _add_diarization_arguments(parser)
+    _add_pipeline_stage_arguments(parser)
     _add_deepseek_arguments(parser)
     _add_grok_arguments(parser)
     _add_ollama_arguments(parser)
@@ -3943,6 +3965,10 @@ def _build_config(args: argparse.Namespace) -> config.Config:  # noqa: C901
         payload["diarization_device"] = args.diarization_device
     if hasattr(args, "diarization_model") and args.diarization_model is not None:
         payload["diarization_model"] = args.diarization_model
+    if hasattr(args, "pipeline_stage") and args.pipeline_stage is not None:
+        payload["pipeline_stage"] = args.pipeline_stage
+    if hasattr(args, "persist_episode_media") and args.persist_episode_media is not None:
+        payload["persist_episode_media"] = args.persist_episode_media
     # Add DeepSeek API configuration
     payload["deepseek_api_base"] = getattr(args, "deepseek_api_base", None)
     if hasattr(args, "deepseek_speaker_model") and args.deepseek_speaker_model is not None:

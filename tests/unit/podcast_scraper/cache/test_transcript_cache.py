@@ -153,6 +153,33 @@ class TestTranscriptCache(unittest.TestCase):
         # Model should be converted to string representation
         self.assertEqual(cache_data["model"], "<MockModel object>")
 
+    def test_transcript_cache_provider_fingerprint(self) -> None:
+        """Different provider/model uses separate cache file; legacy fallback works."""
+        audio_hash = "fp_hash"
+        transcript_cache.save_transcript_to_cache(
+            audio_hash,
+            "whisper text",
+            provider_name="whisper",
+            model="base.en",
+            cache_dir=self.cache_dir,
+        )
+        miss = transcript_cache.get_cached_transcript_entry(
+            audio_hash,
+            cache_dir=self.cache_dir,
+            provider_name="openai",
+            model="whisper-1",
+        )
+        self.assertIsNone(miss)
+        hit = transcript_cache.get_cached_transcript_entry(
+            audio_hash,
+            cache_dir=self.cache_dir,
+            provider_name="whisper",
+            model="base.en",
+        )
+        self.assertIsNotNone(hit)
+        assert hit is not None
+        self.assertEqual(hit[0], "whisper text")
+
     def test_get_cached_transcript_entry_without_segments(self):
         """Entry API returns transcript and None segments when key absent."""
         import json

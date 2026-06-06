@@ -367,6 +367,10 @@ class ContentMetadata(BaseModel):
     media_type: Optional[str] = None
     transcript_file_path: Optional[str] = None
     transcript_source: Optional[Literal["direct_download", "whisper_transcription"]] = None
+    audio_relpath: Optional[str] = Field(
+        default=None,
+        description="Corpus-relative path to persisted episode audio under media/ (Wave 3)",
+    )
     whisper_model: Optional[str] = None
     speakers: List[SpeakerInfo] = Field(
         default_factory=list
@@ -1734,6 +1738,12 @@ def _build_content_metadata(
     # Convert map to list
     normalized_entities = list(transcript_entity_map.values())
 
+    audio_relpath: Optional[str] = None
+    if output_dir and transcript_file_path:
+        from ..utils.corpus_media import resolve_audio_relpath_for_metadata
+
+        audio_relpath = resolve_audio_relpath_for_metadata(output_dir, transcript_file_path)
+
     return ContentMetadata(
         transcript_urls=transcript_infos,
         media_url=episode.media_url,
@@ -1741,6 +1751,7 @@ def _build_content_metadata(
         media_type=episode.media_type,
         transcript_file_path=transcript_file_path,
         transcript_source=transcript_source,
+        audio_relpath=audio_relpath,
         whisper_model=whisper_model,
         speakers=speakers,
         normalized_entities=normalized_entities,

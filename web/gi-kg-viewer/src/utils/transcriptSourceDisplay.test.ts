@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest'
 import type { ParsedArtifact } from '../types/artifact'
 import {
   corpusTextFileViewUrl,
+  corpusMediaFileViewUrl,
+  audioRelpathFromTranscriptRelpath,
   formatAudioTimingRange,
   formatTranscriptCharRange,
   GI_QUOTE_SPEAKER_UNAVAILABLE_HINT,
@@ -20,6 +22,27 @@ describe('corpusTextFileViewUrl', () => {
     expect(u).toContain('path=%2Fmy%20root')
     expect(new URL(u, 'http://x.test').searchParams.get('path')).toBe('/my root')
     expect(new URL(u, 'http://x.test').searchParams.get('relpath')).toBe('feeds/x/transcript.txt')
+  })
+})
+
+describe('audioRelpathFromTranscriptRelpath', () => {
+  it('maps transcripts/ to media/ and .txt to .mp3', () => {
+    expect(audioRelpathFromTranscriptRelpath('feeds/show/ep/transcript.txt')).toBe(
+      'media/feeds/show/ep/transcript.mp3',
+    )
+  })
+
+  it('maps bare transcript.txt under media/', () => {
+    expect(audioRelpathFromTranscriptRelpath('transcript.txt')).toBe('media/transcript.mp3')
+  })
+})
+
+describe('corpusMediaFileViewUrl', () => {
+  it('builds encoded query string for media relpath', () => {
+    const u = corpusMediaFileViewUrl('/my root', 'media/feeds/x/transcript.mp3')
+    expect(u.startsWith('/api/corpus/media?')).toBe(true)
+    expect(u).toContain('relpath=media%2Ffeeds%2Fx%2Ftranscript.mp3')
+    expect(u).toContain('path=%2Fmy%20root')
   })
 })
 

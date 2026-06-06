@@ -569,6 +569,22 @@ def _check_and_reuse_existing_transcript(
     return None
 
 
+def _maybe_persist_episode_media(
+    cfg: config.Config,
+    temp_media: str,
+    effective_output_dir: str,
+    transcript_relpath: Optional[str],
+) -> None:
+    """Copy temp media into corpus ``media/`` when enabled."""
+    if not getattr(cfg, "persist_episode_media", True):
+        return
+    if not transcript_relpath or not temp_media or not os.path.exists(temp_media):
+        return
+    from ..utils.corpus_media import persist_episode_media
+
+    persist_episode_media(temp_media, effective_output_dir, transcript_relpath)
+
+
 def _check_transcript_cache(
     job: TranscriptionJob,  # type: ignore[valid-type]
     cfg: config.Config,
@@ -576,6 +592,7 @@ def _check_transcript_cache(
     run_suffix: Optional[str],
     effective_output_dir: str,
     pipeline_metrics=None,
+    transcription_provider=None,
 ) -> Optional[tuple[bool, Optional[str], int]]:
     """Check transcript cache and return cached transcript if found.
 
@@ -597,7 +614,19 @@ def _check_transcript_cache(
 
     cache_dir = cfg.transcript_cache_dir or transcript_cache.TRANSCRIPT_CACHE_DIR
     audio_hash = transcript_cache.get_audio_hash(temp_media)
-    cached_entry = transcript_cache.get_cached_transcript_entry(audio_hash, cache_dir)
+    provider_name = None
+    if transcription_provider:
+        provider_name = (
+            getattr(transcription_provider, "name", None)
+            or type(transcription_provider).__name__.replace("Provider", "").lower()
+        )
+    model = _get_provider_model_name(transcription_provider, cfg)
+    cached_entry = transcript_cache.get_cached_transcript_entry(
+        audio_hash,
+        cache_dir,
+        provider_name=provider_name,
+        model=model,
+    )
     if cached_entry:
         cached_transcript, cached_segments = cached_entry
         # Save cached transcript to output file
@@ -610,6 +639,7 @@ def _check_transcript_cache(
         )
         if isinstance(cached_segments, list) and len(cached_segments) > 0:
             _save_transcript_segments_file(cached_segments, rel_path, effective_output_dir)
+        _maybe_persist_episode_media(cfg, temp_media, effective_output_dir, rel_path)
         logger.info(
             "[%s] Transcript cache hit: global cache entry audio_hash=%s "
             "(no API transcribe; same file bytes can repeat across feeds in multi-feed) -> %s",
@@ -1332,7 +1362,13 @@ def transcribe_media_to_text(
 
     # Transcript cache before requiring a provider (cache hit skips API and keeps download at 0).
     cache_result = _check_transcript_cache(
-        job, cfg, temp_media, run_suffix, effective_output_dir, pipeline_metrics
+        job,
+        cfg,
+        temp_media,
+        run_suffix,
+        effective_output_dir,
+        pipeline_metrics,
+        transcription_provider=transcription_provider,
     )
     if cache_result:
         return cache_result
@@ -1426,6 +1462,8 @@ def transcribe_media_to_text(
         segments = result.get("segments") if isinstance(result, dict) else None
         if isinstance(segments, list) and len(segments) > 0:
             _save_transcript_segments_file(segments, rel_path, effective_output_dir)
+
+        _maybe_persist_episode_media(cfg, temp_media, effective_output_dir, rel_path)
 
         # Save transcript to cache for future use (enables fast multi-provider experimentation)
         _save_transcript_to_cache_if_needed(

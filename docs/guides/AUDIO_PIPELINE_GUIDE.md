@@ -15,6 +15,7 @@ field see [CONFIGURATION.md](../api/CONFIGURATION.md). For CLI flags see [CLI.md
 | ---- | ------ | ------------ |
 | **Wave 1** (#850) | #269, #286, #486, #19, #597 | `speaker_detectors/` refactor; `AudioChunker` for oversized API files; `CommercialDetector` Phase 1; single Whisper progress bar; Deepgram Nova-3 provider |
 | **Wave 2** | #482, #488 | pyannote neural diarization (default on for local Whisper); commercial Phase 2 diarization signals; DGX `tailnet_dgx_whisper` diarize support |
+| **Wave 3** | #414, #547 | `pipeline_stage` (`full` / `audio_only` / `enrich_only`); transcript cache fingerprint by STT provider/model; persist episode MP3 under corpus **`media/`**; `GET /api/corpus/media`; viewer transcript dialog `<audio>` with seek to `timestamp_start_ms` (local serve only) |
 
 Design specs: [RFC-058](../rfc/RFC-058-audio-speaker-diarization.md) (diarization),
 [RFC-060](../rfc/RFC-060-diarization-aware-commercial-cleaning.md) (commercial cleaning),

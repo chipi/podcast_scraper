@@ -1333,5 +1333,37 @@ class TestDiarizationRequirements(unittest.TestCase):
         self.assertTrue(cfg.screenplay)
 
 
+class TestPipelineStage(unittest.TestCase):
+    """Wave 3 pipeline_stage coercion."""
+
+    def test_enrich_only_disables_transcribe(self) -> None:
+        config.reset_pipeline_stage_coerce_log_for_tests()
+        cfg = Config(
+            rss="https://example.com/feed.xml",
+            pipeline_stage="enrich_only",
+            transcribe_missing=True,
+            generate_metadata=True,
+        )
+        self.assertFalse(cfg.transcribe_missing)
+        self.assertTrue(cfg.generate_metadata)
+
+    def test_audio_only_disables_enrichment(self) -> None:
+        config.reset_pipeline_stage_coerce_log_for_tests()
+        cfg = Config(
+            rss="https://example.com/feed.xml",
+            pipeline_stage="audio_only",
+            transcribe_missing=True,
+            generate_metadata=True,
+            generate_summaries=True,
+            generate_gi=True,
+            generate_kg=True,
+        )
+        self.assertTrue(cfg.transcribe_missing)
+        self.assertFalse(cfg.generate_metadata)
+        self.assertFalse(cfg.generate_summaries)
+        self.assertFalse(cfg.generate_gi)
+        self.assertFalse(cfg.generate_kg)
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -250,6 +250,10 @@ number, file, line, date, and a short comment.
 | 1 | #349 | search/query_log.py | 41 | 2026-06-05 | Type 1: same sanitizer chain, ``append_query_event`` opens ``<corpus>/search/query_log.jsonl`` for append (PR #896) |
 | 1 | #350 | search/query_log.py | 81 | 2026-06-05 | Type 1: same sanitizer chain, ``read_query_activity`` ``path.exists()`` on route-confined corpus root (PR #896) |
 | 1 | #351 | search/query_log.py | 83 | 2026-06-05 | Type 1: same sanitizer chain, ``read_query_activity`` reads ``<corpus>/search/query_log.jsonl`` (PR #896) |
+| 1 | #352 | server/routes/corpus_media.py | 67 | 2026-06-06 | Type 1: ``target`` from ``safe_relpath_under_corpus_root`` after ``media/`` prefix guard + ``resolve_corpus_path_param``; CodeQL cross-function taint gap before inline ``normpath_if_under_root``. Dismissed ``gh api`` (PR #898) |
+| 1 | #353 | server/routes/corpus_media.py | 73 | 2026-06-06 | Type 1: ``root_s`` from ``safe_resolve_directory(root)`` after ``resolve_corpus_path_param`` anchor guard. Dismissed ``gh api`` (PR #898) |
+| 1 | #354 | server/routes/corpus_media.py | 79 | 2026-06-06 | Type 1: ``verified`` from ``normpath_if_under_root(target, root_s)`` immediately before ``os.path.isfile``. Same shape as corpus_text_file #224. Dismissed ``gh api`` (PR #898) |
+| 1 | #355 | server/routes/corpus_media.py | 85 | 2026-06-06 | Type 1: ``verified`` from ``normpath_if_under_root(target, root_s)`` immediately before ``FileResponse``. Same shape as corpus_text_file #228. Dismissed ``gh api`` (PR #898) |
 
 ## Still open (not yet dismissed)
 

@@ -1132,6 +1132,7 @@ function openTranscriptViewer(): void {
     audioTimingLabel: sec.timeLine,
     charPositionLabel: sec.charLine,
     subtitle: sec.ref || null,
+    audioSeekStartMs: p?.timestamp_start_ms,
   })
 }
 

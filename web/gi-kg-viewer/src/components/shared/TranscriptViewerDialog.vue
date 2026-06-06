@@ -1,7 +1,11 @@
 <script setup lang="ts">
 import { nextTick, ref } from 'vue'
 import { fetchWithTimeout } from '../../api/httpClient'
-import { corpusTextFileViewUrl } from '../../utils/transcriptSourceDisplay'
+import {
+  audioRelpathFromTranscriptRelpath,
+  corpusMediaFileViewUrl,
+  corpusTextFileViewUrl,
+} from '../../utils/transcriptSourceDisplay'
 import {
   buildTranscriptHighlightSegments,
   DEFAULT_TRANSCRIPT_VIEWER_MAX_BYTES,
@@ -34,6 +38,8 @@ export type TranscriptViewerOpenPayload = {
   charPositionLabel?: string | null
   /** Dialog subtitle (e.g. episode or file name). */
   subtitle?: string | null
+  /** Optional GI quote start time (ms) to seek local audio on open. */
+  audioSeekStartMs?: unknown
   maxBytes?: number
 }
 
@@ -49,6 +55,9 @@ const segments = ref<TranscriptSegment[] | null>(null)
 const audioTimingLabel = ref<string | null>(null)
 const charPositionLabel = ref<string | null>(null)
 const subtitle = ref<string | null>(null)
+const audioUrl = ref<string | null>(null)
+const pendingSeekMs = ref<number | null>(null)
+const audioEl = ref<HTMLAudioElement | null>(null)
 const openMaxBytes = ref(DEFAULT_TRANSCRIPT_VIEWER_MAX_BYTES)
 
 const transcriptOpenGate = new StaleGeneration()
@@ -65,6 +74,8 @@ function resetState(): void {
   audioTimingLabel.value = null
   charPositionLabel.value = null
   subtitle.value = null
+  audioUrl.value = null
+  pendingSeekMs.value = null
   openMaxBytes.value = DEFAULT_TRANSCRIPT_VIEWER_MAX_BYTES
 }
 
@@ -133,6 +144,28 @@ async function fetchSegmentsJson(
   }
 }
 
+function applyPendingSeek(): void {
+  const el = audioEl.value
+  const ms = pendingSeekMs.value
+  if (!el || ms == null || !Number.isFinite(ms) || ms < 0) {
+    return
+  }
+  el.currentTime = ms / 1000
+  pendingSeekMs.value = null
+}
+
+function seekToMs(ms: number): void {
+  if (!Number.isFinite(ms) || ms < 0) {
+    return
+  }
+  const el = audioEl.value
+  if (!el) {
+    pendingSeekMs.value = ms
+    return
+  }
+  el.currentTime = ms / 1000
+}
+
 async function open(payload: TranscriptViewerOpenPayload): Promise<void> {
   resetState()
   const seq = transcriptOpenGate.bump()
@@ -142,6 +175,11 @@ async function open(payload: TranscriptViewerOpenPayload): Promise<void> {
   audioTimingLabel.value = payload.audioTimingLabel ?? null
   charPositionLabel.value = payload.charPositionLabel ?? null
   subtitle.value = payload.subtitle ?? null
+  const seekRaw = payload.audioSeekStartMs
+  const seekNum = seekRaw == null ? NaN : Number(seekRaw)
+  pendingSeekMs.value = Number.isFinite(seekNum) && seekNum >= 0 ? seekNum : null
+  const mediaRel = audioRelpathFromTranscriptRelpath(payload.transcriptRelpath)
+  audioUrl.value = corpusMediaFileViewUrl(payload.corpusRoot, mediaRel)
   loading.value = true
   errorText.value = null
   dialogRef.value?.showModal()
@@ -235,7 +273,7 @@ async function open(payload: TranscriptViewerOpenPayload): Promise<void> {
   }
 }
 
-defineExpose({ open, close })
+defineExpose({ open, close, seekToMs })
 </script>
 
 <template>
@@ -289,6 +327,16 @@ defineExpose({ open, close })
           <p class="mt-1 text-[10px] leading-snug text-muted">
             Highlight position is approximate if the server serves a different transcript variant than GI indexed (e.g. cleaned vs raw).
           </p>
+          <audio
+            v-if="audioUrl"
+            ref="audioEl"
+            data-testid="transcript-viewer-audio"
+            class="mt-2 w-full"
+            controls
+            preload="metadata"
+            :src="audioUrl"
+            @loadedmetadata="applyPendingSeek"
+          />
         </div>
         <button
           type="button"

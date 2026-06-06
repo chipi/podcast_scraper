@@ -23,6 +23,7 @@ from podcast_scraper.server.routes import (
     corpus_coverage,
     corpus_digest,
     corpus_library,
+    corpus_media,
     corpus_metrics,
     corpus_persons,
     corpus_text_file,
@@ -183,6 +184,7 @@ def create_app(
     app.include_router(explore.router, prefix="/api")
     app.include_router(corpus_library.router, prefix="/api")
     app.include_router(corpus_binary.router, prefix="/api")
+    app.include_router(corpus_media.router, prefix="/api")
     app.include_router(corpus_text_file.router, prefix="/api")
     app.include_router(corpus_metrics.router, prefix="/api")
     app.include_router(corpus_coverage.router, prefix="/api")
