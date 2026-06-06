@@ -3138,7 +3138,9 @@ report-multi-run:
 embedding-provider-eval:
 	@# Compare embedding providers on the operator's corpus (ADR-098 / #897).
 	@# Uses gi.json SUPPORTED_BY edges as ground truth — no human annotation needed.
-	@# Usage: make embedding-provider-eval CORPUS=./output [MAX_PAIRS=500] [OLLAMA_URL=http://...]
+	@# Usage: make embedding-provider-eval CORPUS=./output [MODE=quote|transcript] [MAX_PAIRS=500] [OLLAMA_URL=http://...]
+	@# MODE=quote (default): insight → supporting Quote node (short text, paraphrase quality).
+	@# MODE=transcript: insight → episode's full transcript (long text, where MiniLM's 256-token cap truncates).
 	@if [ -z "$(CORPUS)" ]; then \
 		echo "ERROR: CORPUS is required (path to corpus root, parent of feeds/)." >&2; \
 		echo "  Example: make embedding-provider-eval CORPUS=./output" >&2; \
@@ -3146,6 +3148,7 @@ embedding-provider-eval:
 	fi
 	@$(PYTHON) scripts/eval_embedding_providers.py \
 		--corpus "$(CORPUS)" \
+		$(if $(MODE),--mode $(MODE)) \
 		$(if $(MAX_PAIRS),--max-pairs $(MAX_PAIRS)) \
 		$(if $(OLLAMA_URL),--ollama-base-url $(OLLAMA_URL))
 

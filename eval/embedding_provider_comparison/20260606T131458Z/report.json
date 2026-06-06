@@ -1,0 +1,62 @@
+{
+  "experiment": "embedding_provider_comparison",
+  "ground_truth": {
+    "n_pairs": 197,
+    "n_unique_insights": 100,
+    "n_unique_quotes": 197,
+    "source": "gi.json SUPPORTED_BY edges"
+  },
+  "k_values": [
+    1,
+    5,
+    10,
+    20
+  ],
+  "providers": [
+    {
+      "dim": 384,
+      "embed_latency_ms_p50": 5.643042008159682,
+      "embed_latency_ms_p95": 20.165417023235932,
+      "label": "MiniLM (current default)",
+      "model_id": "sentence-transformers/all-MiniLM-L6-v2",
+      "mrr": 0.4825434862255488,
+      "n_queries": 197,
+      "ndcg_at": {
+        "1": 0.3604060913705584,
+        "5": 0.5067876699309757,
+        "10": 0.5326320153650768,
+        "20": 0.5555815019748515
+      },
+      "provider": "sentence_transformers",
+      "recall_at": {
+        "1": 0.3604060913705584,
+        "5": 0.6446700507614214,
+        "10": 0.7258883248730964,
+        "20": 0.817258883248731
+      }
+    },
+    {
+      "dim": 768,
+      "embed_latency_ms_p50": 18.87533298577182,
+      "embed_latency_ms_p95": 24.04799999203533,
+      "label": "nomic-embed-text (Ollama)",
+      "model_id": "nomic-embed-text",
+      "mrr": 0.4939023471398762,
+      "n_queries": 197,
+      "ndcg_at": {
+        "1": 0.36548223350253806,
+        "5": 0.5201453920249681,
+        "10": 0.5481861151774728,
+        "20": 0.5699869671855912
+      },
+      "provider": "ollama",
+      "recall_at": {
+        "1": 0.36548223350253806,
+        "5": 0.6649746192893401,
+        "10": 0.751269035532995,
+        "20": 0.8375634517766497
+      }
+    }
+  ],
+  "schema_version": 1
+}

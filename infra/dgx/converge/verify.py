@@ -18,8 +18,6 @@ BASELINE_MODELS = [
     "qwen2.5:72b-instruct",
     "gemma2:27b-instruct",
     "whisper-large-v3",
-    # ADR-098: embedding via Ollama replaces the deleted shim.
-    "nomic-embed-text",
 ]
 
 EXPECTED_TAG = "tag:dgx-llm-host"

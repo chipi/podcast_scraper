@@ -24,6 +24,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from podcast_scraper.evaluation.embedding_provider_eval import (
+    extract_pairs_from_corpus,
+    extract_transcript_pairs_from_corpus,
     ProviderConfig,
     run_comparison,
 )
@@ -37,6 +39,19 @@ def main(argv: list[str] | None = None) -> int:
         ),
     )
     parser.add_argument("--corpus", required=True, help="Corpus root (parent of feeds/).")
+    parser.add_argument(
+        "--mode",
+        choices=["quote", "transcript", "transcript-chunked"],
+        default="quote",
+        help=(
+            "Ground-truth mode. 'quote' (default): insight → supporting Quote, "
+            "short text, paraphrase quality. 'transcript': whole-transcript-as-one-vector "
+            "(favours nomic — MiniLM never gets to do this in production). "
+            "'transcript-chunked' (production-realistic): chunk each transcript with "
+            "the same 300-token / 50-overlap windows the indexer uses, embed each "
+            "chunk, take max chunk score per transcript. Apples-to-apples."
+        ),
+    )
     parser.add_argument(
         "--output-root",
         default="eval/embedding_provider_comparison",
@@ -89,12 +104,20 @@ def main(argv: list[str] | None = None) -> int:
             endpoint=args.ollama_base_url,
         ),
     ]
+    pairs_fn = (
+        extract_transcript_pairs_from_corpus
+        if args.mode.startswith("transcript")
+        else extract_pairs_from_corpus
+    )
+    chunked = args.mode == "transcript-chunked"
     run_dir = run_comparison(
         corpus_root,
-        output_root,
+        output_root / args.mode,
         matrix,
         timestamp=timestamp,
         max_pairs=args.max_pairs,
+        pairs_fn=pairs_fn,
+        chunked=chunked,
     )
     print(f"Report written to: {run_dir}")
     print(f"  - {run_dir / 'report.md'}")

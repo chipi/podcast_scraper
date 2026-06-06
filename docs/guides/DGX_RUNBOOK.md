@@ -46,29 +46,17 @@ Stop local Ollama if it conflicts with port 11434 on the laptop.
 
 Run autoresearch smoke config `autoresearch_prompt_ollama_llama33_70b_dgx_smoke_bullets_v1`.
 
-### Embeddings via Ollama (ADR-098 / #897)
+### Embeddings (ADR-098)
 
-DGX profiles now serve embeddings via Ollama on `:11434` instead of the old
-shim on `:8001` (deleted). The `local_dgx_balanced.yaml` profile already wires
-`vector_embedding_provider: ollama` + `model: nomic-embed-text`. On first run
-under that profile, the FAISS index is rebuilt automatically because the
-provider stamp on existing indexes won't match — see
-`REASON_EMBEDDING_PROVIDER_MISMATCH` in `server/index_staleness.py`.
+DGX runs **only Ollama** for the pipeline. Embeddings stay in-process via
+sentence-transformers on the host running the pipeline (laptop / pre-prod
+VPS / prod VPS / CI runner). This is the empirical answer — see ADR-098 for
+the A/B that produced it, and `eval/embedding_provider_comparison/` for the
+numbers.
 
-One-time pull (overnight is fine, ~280 MB):
-
-```bash
-ssh <dgx-host> 'ollama pull nomic-embed-text'
-```
-
-Then build / rebuild the corpus index:
-
-```bash
-python -m podcast_scraper.cli index --output-dir ./output --rebuild
-```
-
-`--rebuild` is optional; the staleness check triggers a rebuild on the next
-index run regardless. Use it when you want determinism.
+The architecture supports DGX-served embeddings via
+`vector_embedding_provider: ollama` if you want to re-evaluate later, but no
+shipped profile enables it. The shim that used to live on `:8001` is gone.
 
 ## P2 — Pipeline profiles
 

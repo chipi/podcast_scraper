@@ -42,11 +42,19 @@ Update the row + date below; commit.
 | `gemma2:27b`          | Comparison runs               | _pending_       | _pending_  |
 | `gpt-oss:120b`        | Operator-pulled (not RFC-089) | _pending_       | _pending_  |
 
-### Embeddings (ADR-098)
+### Embeddings — not used on DGX by default (ADR-098)
 
-| Tag                 | Purpose                      | Dim   | Context  | Digest    | Pulled    |
-| ------------------- | ---------------------------- | ----- | -------- | --------- | --------- |
-| `nomic-embed-text`  | Corpus vector index + search | 768   | 8192     | _pending_ | _pending_ |
+DGX does not serve embeddings in shipped profiles. The pipeline uses
+`sentence-transformers/all-MiniLM-L6-v2` in-process on the host. The
+A/B in `eval/embedding_provider_comparison/transcript-chunked/` showed
+MiniLM beats nomic under production-realistic chunking on this corpus.
+
+| Tag                | Purpose                        | Dim | Context | Digest     | Pulled     |
+| ------------------ | ------------------------------ | --- | ------- | ---------- | ---------- |
+| `nomic-embed-text` | Optional — for A/B eval reruns | 768 | 8192    | _optional_ | _optional_ |
+
+Pull only if you want to re-run the embedding-provider A/B against a
+newer model release. Not required for the pipeline.
 
 ### Speech (Whisper)
 

@@ -35,12 +35,12 @@ kg_max_entities: 15
 
 vector_search: true
 vector_backend: faiss
-# ADR-098 / #897: DGX profiles serve embeddings via Ollama (one service on DGX
-# instead of two). nomic-embed-text: 8192-token context, ~62.4 MTEB avg.
-# DGX_TAILNET_FQDN is substituted by the operator (see DGX_RUNBOOK §P1).
-vector_embedding_provider: ollama
-vector_embedding_model: nomic-embed-text
-vector_embedding_endpoint: http://${DGX_TAILNET_FQDN}:11434
+# Embeddings stay in-process via sentence_transformers (the default). Per ADR-098,
+# the empirical A/B on the operator's corpus showed MiniLM beats nomic-embed-text
+# on transcript-chunked retrieval (the production-realistic path). DGX runs only
+# Ollama for the LLM stages; embeddings keep their fast in-process path (~7ms p50
+# vs ~33ms over HTTP to Ollama) and no DGX availability dependency.
+# See eval/embedding_provider_comparison/transcript-chunked/ for the numbers.
 
 degradation_policy:
   fallback_provider_on_failure: gemini

@@ -27,9 +27,12 @@ import math
 import time
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
-from typing import cast, Dict, List, Optional, Sequence, Tuple
+from typing import Callable, cast, Dict, List, Optional, Sequence, Tuple
+
+PairsFn = Callable[[Path], List["GroundTruthPair"]]
 
 from podcast_scraper.providers.ml import embedding_loader
+from podcast_scraper.search.chunker import chunk_transcript
 from podcast_scraper.search.corpus_scope import discover_metadata_files
 
 logger = logging.getLogger(__name__)
@@ -114,6 +117,75 @@ def _load_pairs(gi_path: Path) -> List[GroundTruthPair]:
     return _pairs_from_gi(doc)
 
 
+def extract_transcript_pairs_from_corpus(corpus_root: Path) -> List[GroundTruthPair]:
+    """Yield (insight, full-episode-transcript) pairs.
+
+    Tests the long-context hypothesis directly: a 2k–3k token transcript is
+    orders of magnitude larger than MiniLM's 256-token window. The
+    ``quote_id`` / ``quote_text`` fields are reused for the transcript role
+    (avoids dataclass churn — same harness mechanics either way).
+
+    The transcript path comes from ``metadata.json.content.transcript_file_path``;
+    if absent, that episode is skipped.
+    """
+    pairs: List[GroundTruthPair] = []
+    for meta_path in corpus_root.rglob("*.metadata.json"):
+        gi_path = meta_path.parent / meta_path.name.replace(".metadata.json", ".gi.json")
+        if not gi_path.is_file():
+            continue
+        try:
+            meta_doc = json.loads(meta_path.read_text(encoding="utf-8"))
+            gi_doc = json.loads(gi_path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError) as exc:
+            logger.warning("skip unreadable artifact next to %s: %s", meta_path, exc)
+            continue
+        rel_tx_path = (meta_doc.get("content") or {}).get("transcript_file_path")
+        if not rel_tx_path:
+            continue
+        tx_path = _resolve_transcript_path(meta_path, rel_tx_path)
+        if tx_path is None or not tx_path.is_file():
+            logger.warning("transcript missing for %s: %s", meta_path.name, rel_tx_path)
+            continue
+        try:
+            transcript_text = tx_path.read_text(encoding="utf-8").strip()
+        except OSError as exc:
+            logger.warning("transcript unreadable %s: %s", tx_path, exc)
+            continue
+        if not transcript_text:
+            continue
+        episode_id = str(gi_doc.get("episode_id") or tx_path.stem)
+        transcript_id = f"transcript:{episode_id}"
+        for node in gi_doc.get("nodes", []):
+            if not isinstance(node, dict) or node.get("type") != "Insight":
+                continue
+            insight_text = ((node.get("properties") or {}).get("text") or "").strip()
+            if not insight_text:
+                continue
+            pairs.append(
+                GroundTruthPair(
+                    episode_id=episode_id,
+                    insight_id=str(node.get("id", "")),
+                    insight_text=insight_text,
+                    quote_id=transcript_id,
+                    quote_text=transcript_text,
+                )
+            )
+    return pairs
+
+
+def _resolve_transcript_path(meta_path: Path, rel: str) -> Optional[Path]:
+    """Find transcripts/<name>.txt relative to the corpus root or its parents."""
+    # Try parent of metadata/ (run dir) first, then walk up.
+    p = Path(rel)
+    if p.is_absolute() and p.exists():
+        return p
+    for candidate_root in (meta_path.parent.parent, meta_path.parent.parent.parent):
+        candidate = candidate_root / rel
+        if candidate.exists():
+            return candidate
+    return None
+
+
 def _pairs_from_gi(doc: Dict) -> List[GroundTruthPair]:
     nodes_by_id = {n["id"]: n for n in doc.get("nodes", []) if isinstance(n, dict) and "id" in n}
     episode_id = str(doc.get("episode_id", ""))
@@ -146,11 +218,20 @@ def _pairs_from_gi(doc: Dict) -> List[GroundTruthPair]:
 # ----- Embedding + scoring -----------------------------------------------------
 
 
+# nomic-embed-text strictly enforces 8192 tokens. Real podcast transcripts with
+# "Speaker 1: ..." formatting tokenize at ~1.5 chars/token (dense vs synthetic test
+# text), so 8000 chars ≈ 5333 tokens is a safe ceiling. Both providers see only
+# the truncated head — fair comparison, both biased toward the start of the
+# document. MiniLM's silent ~256-token (≈1024 char) cut applies on top.
+_EMBED_INPUT_MAX_CHARS = 8_000
+
+
 def _embed_one(text: str, cfg: ProviderConfig) -> Tuple[List[float], float]:
-    """Embed one text; return (vector, elapsed_ms)."""
+    """Embed one text; return (vector, elapsed_ms). Truncates to a context-safe length."""
+    safe_text = text[:_EMBED_INPUT_MAX_CHARS]
     t0 = time.perf_counter()
     vec = embedding_loader.encode(
-        text,
+        safe_text,
         cfg.model_id,
         return_numpy=False,
         allow_download=False,
@@ -251,6 +332,91 @@ def score_provider(pairs: Sequence[GroundTruthPair], cfg: ProviderConfig) -> Pro
     )
 
 
+def score_provider_chunked(
+    pairs: Sequence[GroundTruthPair],
+    cfg: ProviderConfig,
+    *,
+    target_tokens: int = 300,
+    overlap_tokens: int = 50,
+) -> ProviderMetrics:
+    """Production-realistic transcript retrieval: chunk first, then embed.
+
+    Mirrors what the live indexer does (``vector_chunk_size_tokens=300``,
+    ``vector_chunk_overlap_tokens=50``). Each transcript becomes N chunks;
+    each chunk gets its own vector. For each insight query, we rank ALL
+    chunks across ALL transcripts and take the max chunk score per
+    transcript as the transcript's score. This is exactly how production
+    search retrieves at the transcript level via the per-chunk index.
+
+    Fair to both providers — same chunking strategy; the model competes
+    only on within-chunk embedding quality, not on whole-doc handling.
+    """
+    chunk_transcript_ids: List[str] = []
+    chunk_vecs: List[List[float]] = []
+    embed_latencies_ms: List[float] = []
+
+    # 1. Per unique transcript: chunk, embed each chunk.
+    seen_transcripts: set[str] = set()
+    for p in pairs:
+        if p.quote_id in seen_transcripts:
+            continue
+        seen_transcripts.add(p.quote_id)
+        chunks = chunk_transcript(
+            p.quote_text, target_tokens=target_tokens, overlap_tokens=overlap_tokens
+        )
+        for ch in chunks:
+            try:
+                vec, dt = _embed_one(ch.text, cfg)
+            except RuntimeError as exc:
+                logger.warning("skip chunk in %s: %s", p.quote_id, exc)
+                continue
+            chunk_vecs.append(vec)
+            chunk_transcript_ids.append(p.quote_id)
+            embed_latencies_ms.append(dt)
+
+    dim = len(chunk_vecs[0]) if chunk_vecs else 0
+    recall_sum: Dict[int, float] = {k: 0.0 for k in K_VALUES}
+    ndcg_sum: Dict[int, float] = {k: 0.0 for k in K_VALUES}
+    mrr_sum = 0.0
+    n_queries = 0
+
+    # 2. Per insight: embed query, score all chunks, max-pool by transcript.
+    for p in pairs:
+        try:
+            q_vec, dt = _embed_one(p.insight_text, cfg)
+        except RuntimeError as exc:
+            logger.warning("skip query %s: %s", p.insight_id, exc)
+            continue
+        embed_latencies_ms.append(dt)
+        per_transcript_max: Dict[str, float] = {}
+        for i, ch_vec in enumerate(chunk_vecs):
+            tid = chunk_transcript_ids[i]
+            score = _cosine(q_vec, ch_vec)
+            if score > per_transcript_max.get(tid, -1e9):
+                per_transcript_max[tid] = score
+        ranked = sorted(per_transcript_max.items(), key=lambda kv: kv[1], reverse=True)
+        ranked_ids = [tid for tid, _ in ranked]
+        for k in K_VALUES:
+            recall_sum[k] += _recall_at(ranked_ids, p.quote_id, k)
+            ndcg_sum[k] += _ndcg_at(ranked_ids, p.quote_id, k)
+        mrr_sum += _reciprocal_rank(ranked_ids, p.quote_id)
+        n_queries += 1
+
+    n = max(n_queries, 1)
+    return ProviderMetrics(
+        label=cfg.label,
+        provider=cfg.provider,
+        model_id=cfg.model_id,
+        n_queries=n_queries,
+        recall_at={k: recall_sum[k] / n for k in K_VALUES},
+        ndcg_at={k: ndcg_sum[k] / n for k in K_VALUES},
+        mrr=mrr_sum / n,
+        embed_latency_ms_p50=_percentile(embed_latencies_ms, 0.50),
+        embed_latency_ms_p95=_percentile(embed_latencies_ms, 0.95),
+        dim=dim,
+    )
+
+
 # ----- Report writers ----------------------------------------------------------
 
 
@@ -324,7 +490,6 @@ def write_report_md(
     lines.append("- **Recall@10**: how often it's in the user's top-10 (the practical UX bar).")
     lines.append("- **MRR**: average rank-quality across all queries.")
     lines.append("- A 5+ point Recall@10 delta is materially felt in retrieval UX.")
-    lines.append("")
     dest.write_text("\n".join(lines) + "\n", encoding="utf-8")
 
 
@@ -338,9 +503,12 @@ def run_comparison(
     *,
     timestamp: str,
     max_pairs: Optional[int] = None,
+    pairs_fn: Optional["PairsFn"] = None,
+    chunked: bool = False,
 ) -> Path:
     """Run the A/B sweep + write reports. Returns the run dir path."""
-    pairs = extract_pairs_from_corpus(corpus_root)
+    extractor = pairs_fn or extract_pairs_from_corpus
+    pairs = extractor(corpus_root)
     if not pairs:
         raise RuntimeError(
             f"No SUPPORTED_BY pairs found under {corpus_root}. Run the pipeline first "
@@ -350,10 +518,11 @@ def run_comparison(
         pairs = pairs[:max_pairs]
     logger.info("Found %d insight→quote pairs across corpus", len(pairs))
 
+    scorer = score_provider_chunked if chunked else score_provider
     metrics: List[ProviderMetrics] = []
     for cfg in matrix:
         logger.info("Scoring provider: %s (%s / %s)", cfg.label, cfg.provider, cfg.model_id)
-        metrics.append(score_provider(pairs, cfg))
+        metrics.append(scorer(pairs, cfg))
 
     run_dir = output_root / timestamp
     run_dir.mkdir(parents=True, exist_ok=True)
