@@ -49,14 +49,15 @@ spaCy3.8 — integration+e2e don't run in ci-fast).
   eval (not a unit assertion) over a real fixture corpus to quantify this.
 
 ## Real breakage found (not just hollow)
-- `tests/integration/providers/ml/test_ml_provider.py` — 4 transcription tests
-  (`:315,:335,:367,:387`) `@patch(...ml_provider.progress.progress_context)`, but
-  `progress` was removed from the module (RFC-081). They **error at patch time** →
-  the MLProvider transcribe path is currently UNVALIDATED. ci-fast doesn't catch it
-  (integration excluded).
+
+- ✅ `tests/integration/providers/ml/test_ml_provider.py` — RESOLVED in #901. The 4
+  transcription tests' stale `@patch(...ml_provider.progress.progress_context)` (the
+  `progress` module was removed in RFC-081, so they errored at patch time) were removed;
+  the MLProvider transcribe path is validated again.
 - `pyannote_provider.py:81` defaults to `pyannote/speaker-diarization-3.1` while
-  pyannote 4.0.4 is installed. (Proven to work — direct run gives 2 speakers — but the
-  default-model choice on 4.x should be deliberate.)
+  pyannote 4.x is installed. **Deliberate** (TEST-SUITE-REVIEW intent below): 3.1 is the
+  proven pipeline and loads correctly under pyannote 4.x — confirmed by a real run giving
+  2 distinct speakers, and exercised end-to-end by `test_diarization_e2e.py`. Not a bug.
 
 ## Marker / gating issues
 - `diarization` marker selected by **zero** Makefile targets (dead gate).

@@ -175,8 +175,10 @@ dev = [
   "pydeps>=3.0.2,<4.0.0",  # Module dependency visualization (RFC-038, #170)
   "pyan3==2.4.0",  # Call graph generation (Issue #425); 1.2.0 has CallGraphVisitor root bug
   "code2flow>=2.5.0,<3.0.0",  # Flowcharts from code (Issue #425)
-  # Diarization stack pins (RFC-058) — lazy-imported; keeps CI/dev venv aligned with [ml]
-  "pyannote.audio>=3.1",
+  # Diarization stack pins (RFC-058) — lazy-imported; keeps CI/dev venv aligned with [ml].
+  # Must mirror the [ml] pin: pyannote 3.x is import-broken under torchaudio>=2.9
+  # (AudioMetaData removed), which is exactly why [ml] moved to 4.x (#901).
+  "pyannote.audio>=4.0,<5.0",
   "torchaudio",
 ]
 # Documentation - see docs/requirements.txt
