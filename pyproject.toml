@@ -86,7 +86,7 @@ ml = [
   "accelerate>=1.13.0,<2.0.0",
   "protobuf>=3.20.0,!=6.33.4,<8.0.0",  # Exclude 6.33.4 due to CVE-2026-0994 (fixed in 6.33.5+)
   # GGUF in-process inference for hybrid_ml Tier 2 REDUCE (RFC-042, Issue #352); Ollama needs no extra
-  "llama-cpp-python>=0.3.23,<0.4.0",
+  "llama-cpp-python>=0.3.26,<0.4.0",
   # Neural speaker diarization (RFC-058): pyannote after local Whisper transcribe.
   # 4.x switched audio I/O to torchcodec (no torchaudio.AudioMetaData) so it works
   # with torch>=2.11/torchaudio>=2.9; 3.x is import-broken against that torchaudio.
