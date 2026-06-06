@@ -285,10 +285,10 @@ python scripts/build_synthetic_validation_corpus.py \
 
 ## Companion artifacts
 
-- v1 baseline: [`tests/fixtures/baselines/v1-metrics.json`](../../../tests/fixtures/baselines/v1-metrics.json)
-- v2 baseline: [`tests/fixtures/baselines/v2-metrics.json`](../../../tests/fixtures/baselines/v2-metrics.json)
-- Generator: [`scripts/eval/data/generate_v2_transcripts.py`](../../../scripts/eval/data/generate_v2_transcripts.py)
-- Voice map: [`tests/fixtures/scripts/transcripts_to_mp3.py`](../../../tests/fixtures/scripts/transcripts_to_mp3.py)
+- v1 baseline: `tests/fixtures/baselines/v1-metrics.json`
+- v2 baseline: `tests/fixtures/baselines/v2-metrics.json`
+- Generator: `scripts/eval/data/generate_v2_transcripts.py`
+- Voice map: `tests/fixtures/scripts/transcripts_to_mp3.py`
 - Specs:
   [RFC-059](../../rfc/RFC-059-speaker-detection-refactor-test-audio.md),
   [RFC-072](../../rfc/RFC-072-canonical-identity-layer-cross-layer-bridge.md),
