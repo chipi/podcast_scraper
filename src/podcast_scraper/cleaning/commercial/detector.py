@@ -2,9 +2,12 @@
 
 from __future__ import annotations
 
+import logging
 import re
 from dataclasses import dataclass
 from typing import List, Optional, Tuple
+
+logger = logging.getLogger(__name__)
 
 from .diarization_signals import diarization_sponsor_signals
 from .patterns import (
@@ -114,10 +117,25 @@ class CommercialDetector:
         return _merge_overlapping_candidates(candidates)
 
     def remove(self, text: str) -> str:
-        """Remove detected commercial regions from text."""
+        """Remove detected commercial regions from text.
+
+        Logs an audit trail of what was excised (span, confidence, char count) so a
+        too-aggressive removal is recoverable from logs rather than silent.
+        """
+        candidates = self.detect(text)
         cleaned = text
-        for candidate in reversed(self.detect(text)):
+        for candidate in reversed(candidates):
             cleaned = cleaned[: candidate.start] + cleaned[candidate.end :]
+        if candidates:
+            removed_chars = sum(c.end - c.start for c in candidates)
+            logger.info(
+                "Commercial cleaning removed %d block(s), %d chars (%.1f%% of %d); " "spans=%s",
+                len(candidates),
+                removed_chars,
+                100.0 * removed_chars / max(len(text), 1),
+                len(text),
+                [(c.start, c.end, round(c.confidence, 2)) for c in candidates],
+            )
         return cleaned
 
 
