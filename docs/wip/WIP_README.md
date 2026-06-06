@@ -16,6 +16,7 @@ WIP file is removed.
 
 | File | Description | Status |
 | ---- | ----------- | ------ |
+| `AUDIO-WAVES-HARDENING-AUDIT.md` | Review findings + change list for audio Waves 1–3 (#850/#895/#898) | Backlog |
 | `EXPLORE_EXPANSION_IDEAS.md` | Explore-tab feature brainstorming | Idea |
 | `HOME_AI_HARDWARE_PLAN.md` | Local hardware / on-prem AI plan | Idea |
 | `LORA_HYBRID_PIPELINE_PLAN.md` | LoRA + hybrid pipeline exploration | Idea |
