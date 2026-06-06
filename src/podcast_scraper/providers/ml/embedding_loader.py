@@ -160,27 +160,54 @@ def encode(
     batch_size: int = 64,
     allow_download: bool = False,
     remote_endpoint: Optional[str] = None,
+    provider: Optional[str] = None,
 ) -> Union[List[float], List[List[float]], Any]:
     """Encode text(s) to embedding vectors.
 
     Args:
         texts: Single string or list of strings.
-        model_id: Model alias or full HF ID.
+        model_id: Model alias / HF ID (sentence_transformers) or Ollama tag (ollama).
         device: Device or None for auto.
         cache_dir: Optional cache directory.
         normalize: If True, L2-normalize embeddings (default for cosine similarity).
         return_numpy: If True, return numpy ndarray(s) from the model (no list conversion).
         batch_size: Batch size forwarded to ``model.encode`` (corpus-scale indexing).
         allow_download: Passed through to model load (default False: local_files_only).
+        remote_endpoint: When provider is 'ollama', the Ollama base URL (e.g.
+            http://dgx:11434). When provider is 'sentence_transformers' (or None) and
+            an endpoint is set, treated as the legacy DGX shim /embed URL (RFC-089 §D4,
+            superseded by ADR-098 / #897 — emits a deprecation warning).
+        provider: 'sentence_transformers' (default) or 'ollama'. ADR-098.
 
     Returns:
         Single list of floats, list of lists, or ndarray(s) depending on input count
         and ``return_numpy``.
-
-    When ``remote_endpoint`` is set, vectors are fetched from the DGX HTTP shim
-    (RFC-089) instead of loading sentence-transformers locally.
     """
+    resolved_provider = (provider or "sentence_transformers").strip().lower()
+
+    if resolved_provider == "ollama":
+        if not (isinstance(remote_endpoint, str) and remote_endpoint.strip()):
+            raise ValueError(
+                "vector_embedding_provider='ollama' requires vector_embedding_endpoint "
+                "(the Ollama base URL, e.g. http://dgx:11434)."
+            )
+        from .embedding_ollama import encode_via_ollama
+
+        rows = encode_via_ollama(
+            texts,
+            remote_endpoint.strip(),
+            model_id=model_id,
+            normalize=normalize,
+        )
+        return _shape_rows(rows, texts, return_numpy)
+
     if isinstance(remote_endpoint, str) and remote_endpoint.strip():
+        # Legacy DGX shim path (RFC-089 §D4). Superseded by ADR-098 / #897.
+        logger.warning(
+            "vector_embedding_endpoint set without provider='ollama' — using legacy DGX "
+            "shim path (RFC-089 §D4, superseded by ADR-098). Switch profile to "
+            "vector_embedding_provider: ollama for the new path."
+        )
         from .embedding_remote import encode_via_endpoint
 
         rows = encode_via_endpoint(
@@ -189,12 +216,7 @@ def encode(
             model_id=model_id,
             normalize=normalize,
         )
-        if isinstance(texts, str):
-            single = rows[0]
-            return single if not return_numpy else __import__("numpy").array(single)
-        if return_numpy:
-            return __import__("numpy").array(rows)
-        return rows
+        return _shape_rows(rows, texts, return_numpy)
 
     model = get_embedding_model(
         model_id, device=device, cache_dir=cache_dir, allow_download=allow_download
@@ -224,6 +246,20 @@ def encode(
         row = vectors[0] if hasattr(vectors, "__getitem__") else vectors
         return cast(Union[List[float], List[List[float]]], to_list(row))
     return [to_list(v) for v in vectors]
+
+
+def _shape_rows(
+    rows: List[List[float]],
+    texts: Union[str, List[str]],
+    return_numpy: bool,
+) -> Union[List[float], List[List[float]], Any]:
+    """Shape HTTP-provider rows to match the legacy local-encoder return shape."""
+    if isinstance(texts, str):
+        single = rows[0]
+        return single if not return_numpy else __import__("numpy").array(single)
+    if return_numpy:
+        return __import__("numpy").array(rows)
+    return rows
 
 
 def cosine_similarity(a: List[float], b: List[float]) -> float:

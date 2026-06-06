@@ -41,18 +41,34 @@ From prod or drill VPS (after ACL apply): same curls using the resolved host.
 Copy `config/examples/dgx-dev.env.example` and export:
 
 - `OLLAMA_API_BASE=http://<dgx-host>:11434/v1`
-- `VECTOR_EMBEDDING_ENDPOINT=http://<dgx-host>:8001/embed` (optional, for indexing)
 
 Stop local Ollama if it conflicts with port 11434 on the laptop.
 
 Run autoresearch smoke config `autoresearch_prompt_ollama_llama33_70b_dgx_smoke_bullets_v1`.
 
-Index via DGX embeddings:
+### Embeddings via Ollama (ADR-098 / #897)
+
+DGX profiles now serve embeddings via Ollama on `:11434` instead of the old
+shim on `:8001` (deleted). The `local_dgx_balanced.yaml` profile already wires
+`vector_embedding_provider: ollama` + `model: nomic-embed-text`. On first run
+under that profile, the FAISS index is rebuilt automatically because the
+provider stamp on existing indexes won't match — see
+`REASON_EMBEDDING_PROVIDER_MISMATCH` in `server/index_staleness.py`.
+
+One-time pull (overnight is fine, ~280 MB):
 
 ```bash
-python -m podcast_scraper.cli index --output-dir ./output \
-  --embedding-endpoint "http://<dgx-host>:8001/embed"
+ssh <dgx-host> 'ollama pull nomic-embed-text'
 ```
+
+Then build / rebuild the corpus index:
+
+```bash
+python -m podcast_scraper.cli index --output-dir ./output --rebuild
+```
+
+`--rebuild` is optional; the staleness check triggers a rebuild on the next
+index run regardless. Use it when you want determinism.
 
 ## P2 — Pipeline profiles
 

@@ -116,13 +116,14 @@ still rolling out; **No** = not started (including accepted ADRs waiting on impl
 | [ADR-095](ADR-095-viewer-test-pyramid.md) | Viewer Test Pyramid — Three Tiers (Mocks, Production-Shaped, Real Corpus) | Accepted | [RFC-086](../rfc/RFC-086-viewer-test-pyramid-and-production-shaped-fixtures.md) | Tier-1 mocked, Tier-2 production-shaped fixtures, Tier-3 real-corpus matrix; `make ci-ui-validation`; real-bug-first matrix-row rule | Yes |
 | [ADR-096](ADR-096-dgx-spark-prod-primary-with-fallback.md) | DGX Spark in prod — primary-with-fallback contract | Accepted | [RFC-089](../rfc/RFC-089-dgx-spark-tailnet-integration.md) | Prod may use DGX when each stage names a cloud fallback; v1 stage is Whisper | Partial |
 | [ADR-097](ADR-097-self-hosted-gha-runner-policy.md) | GitHub Actions self-hosted runner policy on public repos | Accepted | [RFC-089](../rfc/RFC-089-dgx-spark-tailnet-integration.md) | Ephemeral runner + fork approval + workflow allowlist before `dgx-spark` | Partial |
+| [ADR-098](ADR-098-embedding-provider-profile-axis.md) | Embedding provider as a profile axis, supersede RFC-089 §D4 | Accepted | [RFC-089](../rfc/RFC-089-dgx-spark-tailnet-integration.md) (§D4 superseded) | `vector_embedding_provider` literal (sentence_transformers \| ollama); DGX profiles use Ollama + `nomic-embed-text`; shim deleted | Partial |
 
 ## Gap analysis {:#gaps}
 
-**Counts (reconcile when adding ADRs):** **97** files under `docs/adr/ADR-*.md` (ADR-001–ADR-097;
+**Counts (reconcile when adding ADRs):** **98** files under `docs/adr/ADR-*.md` (ADR-001–ADR-098;
 numbering has historical gaps). From the index table: **2** **Proposed** (**ADR-055**, **ADR-056**),
-**7** **Accepted** with **Code = No** (**ADR-054**, **ADR-058**, **ADR-059**, **ADR-089**, **ADR-090**, **ADR-091**), **4** **Accepted** with
-**Code = Partial** (**ADR-031**, **ADR-047**, **ADR-096**, **ADR-097**). **Accepted** means ratified, not necessarily shipped.
+**7** **Accepted** with **Code = No** (**ADR-054**, **ADR-058**, **ADR-059**, **ADR-089**, **ADR-090**, **ADR-091**), **5** **Accepted** with
+**Code = Partial** (**ADR-031**, **ADR-047**, **ADR-096**, **ADR-097**, **ADR-098**). **Accepted** means ratified, not necessarily shipped.
 
 ### When to extract a new ADR
 

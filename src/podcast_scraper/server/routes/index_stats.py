@@ -148,6 +148,7 @@ async def index_stats(
         index_last_updated=raw.last_updated,
         index_embedding_model=raw.embedding_model,
         embedding_model_query=embedding_model,
+        index_embedding_provider=raw.embedding_provider,
     )
     return IndexStatsEnvelope(
         available=True,

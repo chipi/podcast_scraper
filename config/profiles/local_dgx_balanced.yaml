@@ -35,6 +35,12 @@ kg_max_entities: 15
 
 vector_search: true
 vector_backend: faiss
+# ADR-098 / #897: DGX profiles serve embeddings via Ollama (one service on DGX
+# instead of two). nomic-embed-text: 8192-token context, ~62.4 MTEB avg.
+# DGX_TAILNET_FQDN is substituted by the operator (see DGX_RUNBOOK §P1).
+vector_embedding_provider: ollama
+vector_embedding_model: nomic-embed-text
+vector_embedding_endpoint: http://${DGX_TAILNET_FQDN}:11434
 
 degradation_policy:
   fallback_provider_on_failure: gemini

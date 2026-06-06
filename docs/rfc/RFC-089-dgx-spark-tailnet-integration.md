@@ -128,7 +128,7 @@ Ollama is the choice for v1. Rationale:
 
 vLLM is a tier-2 addition if throughput becomes a bottleneck (it almost certainly will for big eval sweeps). vLLM offers tensor parallelism and ~5–10× higher tokens/sec for large models. Decision deferred — first ship Ollama; measure; add vLLM behind a different port + provider variant if measurements justify it.
 
-Embedding endpoint: small FastAPI shim wrapping the same `sentence-transformers/all-MiniLM-L6-v2` model that's used today (so corpora produced via DGX-hosted embedding are bit-identical to laptop-hosted, modulo CPU vs GPU determinism). Endpoint at `:8001`, HTTP POST `/embed` accepting batches.
+Embedding endpoint: ~~small FastAPI shim wrapping the same `sentence-transformers/all-MiniLM-L6-v2` model that's used today (so corpora produced via DGX-hosted embedding are bit-identical to laptop-hosted, modulo CPU vs GPU determinism). Endpoint at `:8001`, HTTP POST `/embed` accepting batches.~~ **Superseded by [ADR-098](../adr/ADR-098-embedding-provider-profile-axis.md) / #897.** Embeddings now flow through the same Ollama on `:11434` using `nomic-embed-text`. One service on DGX, not two; better retrieval quality (5–8 MTEB points); 8192-token context vs MiniLM's 256.
 
 ### Provider abstraction — `tailnet_dgx`
 

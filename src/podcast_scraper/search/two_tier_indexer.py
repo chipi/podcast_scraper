@@ -24,6 +24,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import cast, Dict, List, Optional, Tuple
 
+from .. import config as _config
 from ..providers.ml import embedding_loader
 from .backend import AuxDocument, InsightDocument, SegmentDocument
 from .backends.lancedb_backend import LanceDBBackend
@@ -51,7 +52,15 @@ class TwoTierIndexStats:
 
 
 def _embed(text: str, model_id: str, *, allow_download: bool) -> List[float]:
-    vec = embedding_loader.encode(text, model_id, return_numpy=False, allow_download=allow_download)
+    cfg = _config.Config()
+    vec = embedding_loader.encode(
+        text,
+        model_id,
+        return_numpy=False,
+        allow_download=allow_download,
+        remote_endpoint=cfg.vector_embedding_endpoint,
+        provider=cfg.vector_embedding_provider,
+    )
     return [float(x) for x in cast(List[float], vec)]
 
 
