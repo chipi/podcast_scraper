@@ -28,6 +28,28 @@ class TestTranscriptCache(unittest.TestCase):
         if os.path.exists(self.temp_dir):
             shutil.rmtree(self.temp_dir, ignore_errors=True)
 
+    def test_legacy_bare_hash_entry_not_served_cross_provider(self):
+        """A pre-Wave-3 bare-hash entry must not satisfy a fingerprinted request (H2)."""
+        os.makedirs(self.cache_dir, exist_ok=True)
+        # Simulate a legacy entry: bare audio-hash filename, no provider/model fields.
+        legacy_path = os.path.join(self.cache_dir, "abc123.json")
+        with open(legacy_path, "w", encoding="utf-8") as f:
+            f.write('{"transcript": "legacy whisper text"}')
+
+        # No provider/model -> legacy entry is served (back-compat).
+        assert (
+            transcript_cache.get_cached_transcript("abc123", self.cache_dir)
+            == "legacy whisper text"
+        )
+        # With provider/model -> the legacy entry must NOT be served (would defeat
+        # provider isolation); it's a miss and regenerates.
+        assert (
+            transcript_cache.get_cached_transcript(
+                "abc123", self.cache_dir, provider_name="openai", model="whisper-1"
+            )
+            is None
+        )
+
     def test_get_audio_hash(self):
         """Test audio hash generation."""
         # Create a test audio file

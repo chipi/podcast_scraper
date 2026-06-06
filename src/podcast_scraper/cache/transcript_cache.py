@@ -36,6 +36,24 @@ def _cache_path_for_stem(stem: str, cache_dir: str) -> str:
     return os.path.join(cache_dir, f"{stem}.json")
 
 
+def _legacy_entry_matches(
+    cache_data: Dict[str, Any],
+    provider_name: Optional[str],
+    model: Optional[str],
+) -> bool:
+    """True if a bare-hash (legacy) cache entry is safe to serve for this request.
+
+    Only when the requested provider/model match the entry's recorded values. A
+    pre-Wave-3 entry has no ``provider``/``model`` fields, so it does not match a
+    fingerprinted request and is treated as a miss (regenerated once on upgrade).
+    """
+    if provider_name and cache_data.get("provider") != provider_name:
+        return False
+    if model and cache_data.get("model") != model:
+        return False
+    return True
+
+
 def get_audio_hash(audio_path: str) -> str:
     """Generate hash of audio file (first 1MB for speed).
 
@@ -110,8 +128,10 @@ def get_cached_transcript_entry(
     """
     stem = transcript_cache_stem(audio_hash, provider_name, model)
     cache_path = _cache_path_for_stem(stem, cache_dir)
+    used_legacy_fallback = False
     if not os.path.exists(cache_path) and stem != audio_hash:
         cache_path = _cache_path_for_stem(audio_hash, cache_dir)
+        used_legacy_fallback = True
     if not os.path.exists(cache_path):
         logger.debug("Transcript cache miss: %s", stem)
         return None
@@ -119,6 +139,12 @@ def get_cached_transcript_entry(
     try:
         with open(cache_path, "r", encoding="utf-8") as f:
             cache_data: Dict[str, Any] = json.load(f)
+        if used_legacy_fallback and not _legacy_entry_matches(cache_data, provider_name, model):
+            # A bare-hash entry predates provider/model keying. Serving it for a
+            # different provider/model would defeat the isolation the fingerprint
+            # adds, so only trust it when its recorded metadata matches the request.
+            logger.debug("Legacy cache entry provider/model mismatch; miss: %s", cache_path)
+            return None
         transcript: Any = cache_data.get("transcript")
         if not transcript or not isinstance(transcript, str):
             logger.warning("Cached transcript file missing 'transcript' field: %s", cache_path)
