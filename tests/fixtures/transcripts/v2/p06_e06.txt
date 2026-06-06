@@ -1,0 +1,12 @@
+# Edge Cases — Episode e06
+## Mixed Languages
+Host: Maya
+
+[00:00]
+Maya: This is an edge-case fixture used for parser and processor robustness tests.
+
+Maya: Welcome.
+Liam: Hola, ¿cómo estás?
+Maya: A bit of code-switching to test transcription robustness.
+
+Maya: End of edge-case episode e06.

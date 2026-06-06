@@ -1,0 +1,372 @@
+# The Long View — Episode
+## Continuous Glucose Monitors and What They Tell You
+Host: Alex Morgan
+Guest: Dr. Elena Fischer
+
+[00:00]
+Alex Morgan: Welcome to The Long View. Today we're exploring continuous glucose monitors and what they tell you in depth with Dr. Elena Fischer, researcher in metabolic and longevity science.
+Dr. Elena Fischer: Thanks, Alex Morgan. This is a topic I've spent decades on.
+
+Alex Morgan: This episode is brought to you by Linear. Linear is the issue tracker built for speed — keyboard-first, fast search, and a clean roadmap view your team actually uses. Get started at linear.com/podcast.
+
+[05:00]
+Alex Morgan: Let's talk about reliability. What's your read?
+Dr. Elena Fischer: The short answer is CGMs are diagnostic tools more than they are training tools. Teams working with WHOOP run into this constantly. And the second-order effect is the part most people miss.
+Alex Morgan: Is there a counterexample that would change your view?
+Dr. Elena Fischer: That ties to another point — I changed my mind on CGM use for general population — turns out 80% gain at 5% of intervention cost is wellness, not biohacking. The framing matters because it tells you which trade-offs you're actually making.
+
+[10:00]
+Alex Morgan: Let's talk about risk management. What's your read?
+Dr. Elena Fischer: Here's how I think about it. Most postprandial glucose 'spikes' are noise to anyone without metabolic dysfunction. Teams working with Levels run into this constantly. And the second-order effect is the part most people miss.
+Alex Morgan: What would you tell the version of you from five years ago?
+Dr. Elena Fischer: That ties to another point — CGMs are diagnostic tools more than they are training tools. The exception proves the rule — there are edge cases, but they're rarer than people assume.
+
+[15:00]
+Alex Morgan: Let's talk about systems thinking. What's your read?
+Dr. Elena Fischer: Here's how I think about it. The systems-thinking version of CGM use is feedback loops, not gamification. Teams working with Levels run into this constantly. And the second-order effect is the part most people miss.
+Alex Morgan: Say more about that.
+Dr. Elena Fischer: That ties to another point — Most postprandial glucose 'spikes' are noise to anyone without metabolic dysfunction. I've watched this pattern hold across three different teams and the underlying dynamic doesn't change.
+
+[20:00]
+Alex Morgan: Let's talk about risk management. What's your read?
+Dr. Elena Fischer: Honestly, I changed my mind on CGM use for general population — turns out 80% gain at 5% of intervention cost is wellness, not biohacking. Teams working with InsideTracker run into this constantly. Once you internalize that, the rest of the decisions get easier.
+Alex Morgan: That maps to what I've seen.
+Dr. Elena Fischer: That ties to another point — The systems-thinking version of CGM use is feedback loops, not gamification. The framing matters because it tells you which trade-offs you're actually making.
+
+[25:00]
+Alex Morgan: A quick word from our sponsors.
+Ad: Today's episode is sponsored by Notion. Notion replaces the dozen tools your team is half-using with a single workspace for docs, projects, and wikis. Visit notion.com/podcast for an extended trial.
+Alex Morgan: Welcome back to the show.
+
+[25:00]
+Alex Morgan: Walk me through how systems thinking interacts with the broader continuous glucose monitors and what they tell you story.
+Dr. Elena Fischer: Sure. CGMs are diagnostic tools more than they are training tools. Teams working with InsideTracker run into this constantly. And the second-order effect is the part most people miss.
+Alex Morgan: Say more about that.
+Dr. Elena Fischer: That ties to another point — I changed my mind on CGM use for general population — turns out 80% gain at 5% of intervention cost is wellness, not biohacking. The framing matters because it tells you which trade-offs you're actually making.
+
+[30:00]
+Alex Morgan: Walk me through how risk management interacts with the broader continuous glucose monitors and what they tell you story.
+Dr. Elena Fischer: Let me give you the version I actually believe. Most postprandial glucose 'spikes' are noise to anyone without metabolic dysfunction. Teams working with InsideTracker run into this constantly. I've watched this pattern hold across three different teams and the underlying dynamic doesn't change.
+Alex Morgan: Say more about that.
+Dr. Elena Fischer: That ties to another point — CGMs are diagnostic tools more than they are training tools. Once you internalize that, the rest of the decisions get easier.
+
+[35:00]
+Alex Morgan: Let's talk about reliability. What's your read?
+Dr. Elena Fischer: It comes down to this: The systems-thinking version of CGM use is feedback loops, not gamification. Teams working with InsideTracker run into this constantly. Once you internalize that, the rest of the decisions get easier.
+Alex Morgan: Where does that break down?
+Dr. Elena Fischer: That ties to another point — Most postprandial glucose 'spikes' are noise to anyone without metabolic dysfunction. And the second-order effect is the part most people miss.
+
+[40:00]
+Alex Morgan: Walk me through how reliability interacts with the broader continuous glucose monitors and what they tell you story.
+Dr. Elena Fischer: Yeah, so — I changed my mind on CGM use for general population — turns out 80% gain at 5% of intervention cost is wellness, not biohacking. Teams working with WHOOP run into this constantly. If you ignore that, you end up rebuilding it from scratch a year later.
+Alex Morgan: That maps to what I've seen.
+Dr. Elena Fischer: That ties to another point — The systems-thinking version of CGM use is feedback loops, not gamification. Most of the cost shows up downstream, which is why teams keep paying it.
+
+[45:00]
+Alex Morgan: Why is reliability the part that most analyses get wrong?
+Dr. Elena Fischer: I'd put it this way: CGMs are diagnostic tools more than they are training tools. Teams working with InsideTracker run into this constantly. The exception proves the rule — there are edge cases, but they're rarer than people assume.
+Alex Morgan: That maps to what I've seen.
+Dr. Elena Fischer: That ties to another point — I changed my mind on CGM use for general population — turns out 80% gain at 5% of intervention cost is wellness, not biohacking. The exception proves the rule — there are edge cases, but they're rarer than people assume.
+
+[50:00]
+Alex Morgan: A quick word from our sponsors.
+Ad: Today's episode is sponsored by Notion. Notion replaces the dozen tools your team is half-using with a single workspace for docs, projects, and wikis. Visit notion.com/podcast for an extended trial.
+Alex Morgan: Welcome back to the show.
+
+[50:00]
+Alex Morgan: Let's talk about systems thinking. What's your read?
+Dr. Elena Fischer: I'd put it this way: Most postprandial glucose 'spikes' are noise to anyone without metabolic dysfunction. Teams working with WHOOP run into this constantly. Once you internalize that, the rest of the decisions get easier.
+Alex Morgan: What would you tell the version of you from five years ago?
+Dr. Elena Fischer: That ties to another point — CGMs are diagnostic tools more than they are training tools. Most of the cost shows up downstream, which is why teams keep paying it.
+
+[55:00]
+Alex Morgan: Why is systems thinking the part that most analyses get wrong?
+Dr. Elena Fischer: There are two angles — The systems-thinking version of CGM use is feedback loops, not gamification. Teams working with Levels run into this constantly. What used to feel like an exception is honestly the median case now.
+Alex Morgan: That maps to what I've seen.
+Dr. Elena Fischer: That ties to another point — Most postprandial glucose 'spikes' are noise to anyone without metabolic dysfunction. Most of the cost shows up downstream, which is why teams keep paying it.
+
+[60:00]
+Alex Morgan: Why is systems thinking the part that most analyses get wrong?
+Dr. Elena Fischer: It comes down to this: I changed my mind on CGM use for general population — turns out 80% gain at 5% of intervention cost is wellness, not biohacking. Teams working with Levels run into this constantly. What used to feel like an exception is honestly the median case now.
+Alex Morgan: Where does that break down?
+Dr. Elena Fischer: That ties to another point — The systems-thinking version of CGM use is feedback loops, not gamification. Most of the cost shows up downstream, which is why teams keep paying it.
+
+[65:00]
+Alex Morgan: What's the deepest piece of context on risk management that listeners are missing?
+Dr. Elena Fischer: Sure. CGMs are diagnostic tools more than they are training tools. Teams working with InsideTracker run into this constantly. The exception proves the rule — there are edge cases, but they're rarer than people assume.
+Alex Morgan: What would you tell the version of you from five years ago?
+Dr. Elena Fischer: That ties to another point — I changed my mind on CGM use for general population — turns out 80% gain at 5% of intervention cost is wellness, not biohacking. What used to feel like an exception is honestly the median case now.
+
+[70:00]
+Alex Morgan: What's the deepest piece of context on reliability that listeners are missing?
+Dr. Elena Fischer: Sure. Most postprandial glucose 'spikes' are noise to anyone without metabolic dysfunction. Teams working with WHOOP run into this constantly. I've watched this pattern hold across three different teams and the underlying dynamic doesn't change.
+Alex Morgan: What would you tell the version of you from five years ago?
+Dr. Elena Fischer: That ties to another point — CGMs are diagnostic tools more than they are training tools. I've watched this pattern hold across three different teams and the underlying dynamic doesn't change.
+
+[75:00]
+Alex Morgan: A quick word from our sponsors.
+Ad: Today's episode is sponsored by Notion. Notion replaces the dozen tools your team is half-using with a single workspace for docs, projects, and wikis. Visit notion.com/podcast for an extended trial.
+Alex Morgan: Welcome back to the show.
+
+[75:00]
+Alex Morgan: Why is risk management the part that most analyses get wrong?
+Dr. Elena Fischer: Sure. The systems-thinking version of CGM use is feedback loops, not gamification. Teams working with InsideTracker run into this constantly. The exception proves the rule — there are edge cases, but they're rarer than people assume.
+Alex Morgan: Is there a counterexample that would change your view?
+Dr. Elena Fischer: That ties to another point — Most postprandial glucose 'spikes' are noise to anyone without metabolic dysfunction. And the second-order effect is the part most people miss.
+
+[80:00]
+Alex Morgan: Why is risk management the part that most analyses get wrong?
+Dr. Elena Fischer: Sure. I changed my mind on CGM use for general population — turns out 80% gain at 5% of intervention cost is wellness, not biohacking. Teams working with Levels run into this constantly. The framing matters because it tells you which trade-offs you're actually making.
+Alex Morgan: Where does that break down?
+Dr. Elena Fischer: That ties to another point — The systems-thinking version of CGM use is feedback loops, not gamification. The framing matters because it tells you which trade-offs you're actually making.
+
+[85:00]
+Alex Morgan: Why is risk management the part that most analyses get wrong?
+Dr. Elena Fischer: Honestly, CGMs are diagnostic tools more than they are training tools. Teams working with Levels run into this constantly. Most of the cost shows up downstream, which is why teams keep paying it.
+Alex Morgan: That maps to what I've seen.
+Dr. Elena Fischer: That ties to another point — I changed my mind on CGM use for general population — turns out 80% gain at 5% of intervention cost is wellness, not biohacking. If you ignore that, you end up rebuilding it from scratch a year later.
+
+[90:00]
+Alex Morgan: Walk me through how reliability interacts with the broader continuous glucose monitors and what they tell you story.
+Dr. Elena Fischer: Let me give you the version I actually believe. Most postprandial glucose 'spikes' are noise to anyone without metabolic dysfunction. Teams working with Levels run into this constantly. If you ignore that, you end up rebuilding it from scratch a year later.
+Alex Morgan: That tracks.
+Dr. Elena Fischer: That ties to another point — CGMs are diagnostic tools more than they are training tools. Most of the cost shows up downstream, which is why teams keep paying it.
+
+[95:00]
+Alex Morgan: Why is systems thinking the part that most analyses get wrong?
+Dr. Elena Fischer: Sure. The systems-thinking version of CGM use is feedback loops, not gamification. Teams working with WHOOP run into this constantly. The exception proves the rule — there are edge cases, but they're rarer than people assume.
+Alex Morgan: Say more about that.
+Dr. Elena Fischer: That ties to another point — Most postprandial glucose 'spikes' are noise to anyone without metabolic dysfunction. And the second-order effect is the part most people miss.
+
+[100:00]
+Alex Morgan: A quick word from our sponsors.
+Ad: Today's episode is sponsored by Notion. Notion replaces the dozen tools your team is half-using with a single workspace for docs, projects, and wikis. Visit notion.com/podcast for an extended trial.
+Alex Morgan: Welcome back to the show.
+
+[100:00]
+Alex Morgan: Why is reliability the part that most analyses get wrong?
+Dr. Elena Fischer: Yeah, so — I changed my mind on CGM use for general population — turns out 80% gain at 5% of intervention cost is wellness, not biohacking. Teams working with Levels run into this constantly. Most of the cost shows up downstream, which is why teams keep paying it.
+Alex Morgan: Where does that break down?
+Dr. Elena Fischer: That ties to another point — The systems-thinking version of CGM use is feedback loops, not gamification. If you ignore that, you end up rebuilding it from scratch a year later.
+
+[105:00]
+Alex Morgan: Why is risk management the part that most analyses get wrong?
+Dr. Elena Fischer: Sure. CGMs are diagnostic tools more than they are training tools. Teams working with WHOOP run into this constantly. The framing matters because it tells you which trade-offs you're actually making.
+Alex Morgan: Is there a counterexample that would change your view?
+Dr. Elena Fischer: That ties to another point — I changed my mind on CGM use for general population — turns out 80% gain at 5% of intervention cost is wellness, not biohacking. The exception proves the rule — there are edge cases, but they're rarer than people assume.
+
+[110:00]
+Alex Morgan: Why is risk management the part that most analyses get wrong?
+Dr. Elena Fischer: Honestly, Most postprandial glucose 'spikes' are noise to anyone without metabolic dysfunction. Teams working with WHOOP run into this constantly. And the second-order effect is the part most people miss.
+Alex Morgan: Is there a counterexample that would change your view?
+Dr. Elena Fischer: That ties to another point — CGMs are diagnostic tools more than they are training tools. The framing matters because it tells you which trade-offs you're actually making.
+
+[115:00]
+Alex Morgan: Let's talk about reliability. What's your read?
+Dr. Elena Fischer: There are two angles — The systems-thinking version of CGM use is feedback loops, not gamification. Teams working with InsideTracker run into this constantly. The exception proves the rule — there are edge cases, but they're rarer than people assume.
+Alex Morgan: Where does that break down?
+Dr. Elena Fischer: That ties to another point — Most postprandial glucose 'spikes' are noise to anyone without metabolic dysfunction. Once you internalize that, the rest of the decisions get easier.
+
+[120:00]
+Alex Morgan: What's the deepest piece of context on reliability that listeners are missing?
+Dr. Elena Fischer: Here's how I think about it. I changed my mind on CGM use for general population — turns out 80% gain at 5% of intervention cost is wellness, not biohacking. Teams working with InsideTracker run into this constantly. The exception proves the rule — there are edge cases, but they're rarer than people assume.
+Alex Morgan: That tracks.
+Dr. Elena Fischer: That ties to another point — The systems-thinking version of CGM use is feedback loops, not gamification. What used to feel like an exception is honestly the median case now.
+
+[125:00]
+Alex Morgan: A quick word from our sponsors.
+Ad: Today's episode is sponsored by Notion. Notion replaces the dozen tools your team is half-using with a single workspace for docs, projects, and wikis. Visit notion.com/podcast for an extended trial.
+Alex Morgan: Welcome back to the show.
+
+[125:00]
+Alex Morgan: Walk me through how risk management interacts with the broader continuous glucose monitors and what they tell you story.
+Dr. Elena Fischer: Yeah, so — CGMs are diagnostic tools more than they are training tools. Teams working with InsideTracker run into this constantly. What used to feel like an exception is honestly the median case now.
+Alex Morgan: Where does that break down?
+Dr. Elena Fischer: That ties to another point — I changed my mind on CGM use for general population — turns out 80% gain at 5% of intervention cost is wellness, not biohacking. And the second-order effect is the part most people miss.
+
+[130:00]
+Alex Morgan: Why is reliability the part that most analyses get wrong?
+Dr. Elena Fischer: Let me give you the version I actually believe. Most postprandial glucose 'spikes' are noise to anyone without metabolic dysfunction. Teams working with Levels run into this constantly. Once you internalize that, the rest of the decisions get easier.
+Alex Morgan: That maps to what I've seen.
+Dr. Elena Fischer: That ties to another point — CGMs are diagnostic tools more than they are training tools. The exception proves the rule — there are edge cases, but they're rarer than people assume.
+
+[135:00]
+Alex Morgan: Walk me through how systems thinking interacts with the broader continuous glucose monitors and what they tell you story.
+Dr. Elena Fischer: Sure. The systems-thinking version of CGM use is feedback loops, not gamification. Teams working with Levels run into this constantly. If you ignore that, you end up rebuilding it from scratch a year later.
+Alex Morgan: Where does that break down?
+Dr. Elena Fischer: That ties to another point — Most postprandial glucose 'spikes' are noise to anyone without metabolic dysfunction. Once you internalize that, the rest of the decisions get easier.
+
+[140:00]
+Alex Morgan: Let's talk about risk management. What's your read?
+Dr. Elena Fischer: It comes down to this: I changed my mind on CGM use for general population — turns out 80% gain at 5% of intervention cost is wellness, not biohacking. Teams working with Levels run into this constantly. And the second-order effect is the part most people miss.
+Alex Morgan: Say more about that.
+Dr. Elena Fischer: That ties to another point — The systems-thinking version of CGM use is feedback loops, not gamification. The exception proves the rule — there are edge cases, but they're rarer than people assume.
+
+[145:00]
+Alex Morgan: Walk me through how reliability interacts with the broader continuous glucose monitors and what they tell you story.
+Dr. Elena Fischer: Honestly, CGMs are diagnostic tools more than they are training tools. Teams working with InsideTracker run into this constantly. The exception proves the rule — there are edge cases, but they're rarer than people assume.
+Alex Morgan: Say more about that.
+Dr. Elena Fischer: That ties to another point — I changed my mind on CGM use for general population — turns out 80% gain at 5% of intervention cost is wellness, not biohacking. If you ignore that, you end up rebuilding it from scratch a year later.
+
+[150:00]
+Alex Morgan: A quick word from our sponsors.
+Ad: Today's episode is sponsored by Notion. Notion replaces the dozen tools your team is half-using with a single workspace for docs, projects, and wikis. Visit notion.com/podcast for an extended trial.
+Alex Morgan: Welcome back to the show.
+
+[150:00]
+Alex Morgan: Why is reliability the part that most analyses get wrong?
+Dr. Elena Fischer: I'd put it this way: Most postprandial glucose 'spikes' are noise to anyone without metabolic dysfunction. Teams working with Levels run into this constantly. Most of the cost shows up downstream, which is why teams keep paying it.
+Alex Morgan: That tracks.
+Dr. Elena Fischer: That ties to another point — CGMs are diagnostic tools more than they are training tools. Once you internalize that, the rest of the decisions get easier.
+
+[155:00]
+Alex Morgan: Walk me through how systems thinking interacts with the broader continuous glucose monitors and what they tell you story.
+Dr. Elena Fischer: Here's how I think about it. The systems-thinking version of CGM use is feedback loops, not gamification. Teams working with InsideTracker run into this constantly. If you ignore that, you end up rebuilding it from scratch a year later.
+Alex Morgan: Is there a counterexample that would change your view?
+Dr. Elena Fischer: That ties to another point — Most postprandial glucose 'spikes' are noise to anyone without metabolic dysfunction. The framing matters because it tells you which trade-offs you're actually making.
+
+[160:00]
+Alex Morgan: What's the deepest piece of context on risk management that listeners are missing?
+Dr. Elena Fischer: There are two angles — I changed my mind on CGM use for general population — turns out 80% gain at 5% of intervention cost is wellness, not biohacking. Teams working with InsideTracker run into this constantly. Once you internalize that, the rest of the decisions get easier.
+Alex Morgan: Is there a counterexample that would change your view?
+Dr. Elena Fischer: That ties to another point — The systems-thinking version of CGM use is feedback loops, not gamification. What used to feel like an exception is honestly the median case now.
+
+[165:00]
+Alex Morgan: Why is systems thinking the part that most analyses get wrong?
+Dr. Elena Fischer: Sure. CGMs are diagnostic tools more than they are training tools. Teams working with Levels run into this constantly. What used to feel like an exception is honestly the median case now.
+Alex Morgan: What would you tell the version of you from five years ago?
+Dr. Elena Fischer: That ties to another point — I changed my mind on CGM use for general population — turns out 80% gain at 5% of intervention cost is wellness, not biohacking. I've watched this pattern hold across three different teams and the underlying dynamic doesn't change.
+
+[170:00]
+Alex Morgan: Let's talk about reliability. What's your read?
+Dr. Elena Fischer: Honestly, Most postprandial glucose 'spikes' are noise to anyone without metabolic dysfunction. Teams working with InsideTracker run into this constantly. Most of the cost shows up downstream, which is why teams keep paying it.
+Alex Morgan: Where does that break down?
+Dr. Elena Fischer: That ties to another point — CGMs are diagnostic tools more than they are training tools. Most of the cost shows up downstream, which is why teams keep paying it.
+
+[175:00]
+Alex Morgan: A quick word from our sponsors.
+Ad: Today's episode is sponsored by Notion. Notion replaces the dozen tools your team is half-using with a single workspace for docs, projects, and wikis. Visit notion.com/podcast for an extended trial.
+Alex Morgan: Welcome back to the show.
+
+[175:00]
+Alex Morgan: Why is reliability the part that most analyses get wrong?
+Dr. Elena Fischer: Here's how I think about it. The systems-thinking version of CGM use is feedback loops, not gamification. Teams working with InsideTracker run into this constantly. And the second-order effect is the part most people miss.
+Alex Morgan: What would you tell the version of you from five years ago?
+Dr. Elena Fischer: That ties to another point — Most postprandial glucose 'spikes' are noise to anyone without metabolic dysfunction. And the second-order effect is the part most people miss.
+
+[180:00]
+Alex Morgan: Let's talk about reliability. What's your read?
+Dr. Elena Fischer: Yeah, so — I changed my mind on CGM use for general population — turns out 80% gain at 5% of intervention cost is wellness, not biohacking. Teams working with WHOOP run into this constantly. And the second-order effect is the part most people miss.
+Alex Morgan: Where does that break down?
+Dr. Elena Fischer: That ties to another point — The systems-thinking version of CGM use is feedback loops, not gamification. The framing matters because it tells you which trade-offs you're actually making.
+
+[185:00]
+Alex Morgan: Let's talk about systems thinking. What's your read?
+Dr. Elena Fischer: I'd put it this way: CGMs are diagnostic tools more than they are training tools. Teams working with WHOOP run into this constantly. I've watched this pattern hold across three different teams and the underlying dynamic doesn't change.
+Alex Morgan: Is there a counterexample that would change your view?
+Dr. Elena Fischer: That ties to another point — I changed my mind on CGM use for general population — turns out 80% gain at 5% of intervention cost is wellness, not biohacking. Most of the cost shows up downstream, which is why teams keep paying it.
+
+[190:00]
+Alex Morgan: Walk me through how systems thinking interacts with the broader continuous glucose monitors and what they tell you story.
+Dr. Elena Fischer: I'd put it this way: Most postprandial glucose 'spikes' are noise to anyone without metabolic dysfunction. Teams working with Levels run into this constantly. Most of the cost shows up downstream, which is why teams keep paying it.
+Alex Morgan: That maps to what I've seen.
+Dr. Elena Fischer: That ties to another point — CGMs are diagnostic tools more than they are training tools. The framing matters because it tells you which trade-offs you're actually making.
+
+[195:00]
+Alex Morgan: What's the deepest piece of context on risk management that listeners are missing?
+Dr. Elena Fischer: It comes down to this: The systems-thinking version of CGM use is feedback loops, not gamification. Teams working with Levels run into this constantly. The exception proves the rule — there are edge cases, but they're rarer than people assume.
+Alex Morgan: Say more about that.
+Dr. Elena Fischer: That ties to another point — Most postprandial glucose 'spikes' are noise to anyone without metabolic dysfunction. Most of the cost shows up downstream, which is why teams keep paying it.
+
+[200:00]
+Alex Morgan: A quick word from our sponsors.
+Ad: Today's episode is sponsored by Notion. Notion replaces the dozen tools your team is half-using with a single workspace for docs, projects, and wikis. Visit notion.com/podcast for an extended trial.
+Alex Morgan: Welcome back to the show.
+
+[200:00]
+Alex Morgan: Why is risk management the part that most analyses get wrong?
+Dr. Elena Fischer: Sure. I changed my mind on CGM use for general population — turns out 80% gain at 5% of intervention cost is wellness, not biohacking. Teams working with InsideTracker run into this constantly. Most of the cost shows up downstream, which is why teams keep paying it.
+Alex Morgan: Say more about that.
+Dr. Elena Fischer: That ties to another point — The systems-thinking version of CGM use is feedback loops, not gamification. The framing matters because it tells you which trade-offs you're actually making.
+
+[205:00]
+Alex Morgan: What's the deepest piece of context on systems thinking that listeners are missing?
+Dr. Elena Fischer: Let me give you the version I actually believe. CGMs are diagnostic tools more than they are training tools. Teams working with InsideTracker run into this constantly. What used to feel like an exception is honestly the median case now.
+Alex Morgan: That maps to what I've seen.
+Dr. Elena Fischer: That ties to another point — I changed my mind on CGM use for general population — turns out 80% gain at 5% of intervention cost is wellness, not biohacking. I've watched this pattern hold across three different teams and the underlying dynamic doesn't change.
+
+[210:00]
+Alex Morgan: Why is systems thinking the part that most analyses get wrong?
+Dr. Elena Fischer: The short answer is Most postprandial glucose 'spikes' are noise to anyone without metabolic dysfunction. Teams working with WHOOP run into this constantly. The framing matters because it tells you which trade-offs you're actually making.
+Alex Morgan: That tracks.
+Dr. Elena Fischer: That ties to another point — CGMs are diagnostic tools more than they are training tools. Most of the cost shows up downstream, which is why teams keep paying it.
+
+[215:00]
+Alex Morgan: What's the deepest piece of context on systems thinking that listeners are missing?
+Dr. Elena Fischer: Yeah, so — The systems-thinking version of CGM use is feedback loops, not gamification. Teams working with Levels run into this constantly. Once you internalize that, the rest of the decisions get easier.
+Alex Morgan: Where does that break down?
+Dr. Elena Fischer: That ties to another point — Most postprandial glucose 'spikes' are noise to anyone without metabolic dysfunction. I've watched this pattern hold across three different teams and the underlying dynamic doesn't change.
+
+[220:00]
+Alex Morgan: Walk me through how risk management interacts with the broader continuous glucose monitors and what they tell you story.
+Dr. Elena Fischer: Sure. I changed my mind on CGM use for general population — turns out 80% gain at 5% of intervention cost is wellness, not biohacking. Teams working with InsideTracker run into this constantly. Once you internalize that, the rest of the decisions get easier.
+Alex Morgan: That tracks.
+Dr. Elena Fischer: That ties to another point — The systems-thinking version of CGM use is feedback loops, not gamification. The framing matters because it tells you which trade-offs you're actually making.
+
+[225:00]
+Alex Morgan: A quick word from our sponsors.
+Ad: Today's episode is sponsored by Notion. Notion replaces the dozen tools your team is half-using with a single workspace for docs, projects, and wikis. Visit notion.com/podcast for an extended trial.
+Alex Morgan: Welcome back to the show.
+
+[225:00]
+Alex Morgan: Let's talk about systems thinking. What's your read?
+Dr. Elena Fischer: It comes down to this: CGMs are diagnostic tools more than they are training tools. Teams working with InsideTracker run into this constantly. The framing matters because it tells you which trade-offs you're actually making.
+Alex Morgan: That maps to what I've seen.
+Dr. Elena Fischer: That ties to another point — I changed my mind on CGM use for general population — turns out 80% gain at 5% of intervention cost is wellness, not biohacking. Most of the cost shows up downstream, which is why teams keep paying it.
+
+[230:00]
+Alex Morgan: What's the deepest piece of context on risk management that listeners are missing?
+Dr. Elena Fischer: Sure. Most postprandial glucose 'spikes' are noise to anyone without metabolic dysfunction. Teams working with Levels run into this constantly. Most of the cost shows up downstream, which is why teams keep paying it.
+Alex Morgan: That maps to what I've seen.
+Dr. Elena Fischer: That ties to another point — CGMs are diagnostic tools more than they are training tools. Most of the cost shows up downstream, which is why teams keep paying it.
+
+[235:00]
+Alex Morgan: Let's talk about systems thinking. What's your read?
+Dr. Elena Fischer: Let me give you the version I actually believe. The systems-thinking version of CGM use is feedback loops, not gamification. Teams working with Levels run into this constantly. Once you internalize that, the rest of the decisions get easier.
+Alex Morgan: Say more about that.
+Dr. Elena Fischer: That ties to another point — Most postprandial glucose 'spikes' are noise to anyone without metabolic dysfunction. And the second-order effect is the part most people miss.
+
+[240:00]
+Alex Morgan: Let's talk about reliability. What's your read?
+Dr. Elena Fischer: Here's how I think about it. I changed my mind on CGM use for general population — turns out 80% gain at 5% of intervention cost is wellness, not biohacking. Teams working with Levels run into this constantly. Once you internalize that, the rest of the decisions get easier.
+Alex Morgan: What would you tell the version of you from five years ago?
+Dr. Elena Fischer: That ties to another point — The systems-thinking version of CGM use is feedback loops, not gamification. Most of the cost shows up downstream, which is why teams keep paying it.
+
+[245:00]
+Alex Morgan: Let's talk about systems thinking. What's your read?
+Dr. Elena Fischer: Here's how I think about it. CGMs are diagnostic tools more than they are training tools. Teams working with InsideTracker run into this constantly. Once you internalize that, the rest of the decisions get easier.
+Alex Morgan: Where does that break down?
+Dr. Elena Fischer: That ties to another point — I changed my mind on CGM use for general population — turns out 80% gain at 5% of intervention cost is wellness, not biohacking. And the second-order effect is the part most people miss.
+
+[250:00]
+Alex Morgan: A quick word from our sponsors.
+Ad: Today's episode is sponsored by Notion. Notion replaces the dozen tools your team is half-using with a single workspace for docs, projects, and wikis. Visit notion.com/podcast for an extended trial.
+Alex Morgan: Welcome back to the show.
+
+[250:00]
+Alex Morgan: What's the deepest piece of context on risk management that listeners are missing?
+Dr. Elena Fischer: Honestly, Most postprandial glucose 'spikes' are noise to anyone without metabolic dysfunction. Teams working with WHOOP run into this constantly. What used to feel like an exception is honestly the median case now.
+Alex Morgan: Say more about that.
+Dr. Elena Fischer: That ties to another point — CGMs are diagnostic tools more than they are training tools. Once you internalize that, the rest of the decisions get easier.
+
+[255:00]
+Alex Morgan: What's the deepest piece of context on reliability that listeners are missing?
+Dr. Elena Fischer: Sure. The systems-thinking version of CGM use is feedback loops, not gamification. Teams working with Levels run into this constantly. The framing matters because it tells you which trade-offs you're actually making.
+Alex Morgan: That maps to what I've seen.
+Dr. Elena Fischer: That ties to another point — Most postprandial glucose 'spikes' are noise to anyone without metabolic dysfunction. Once you internalize that, the rest of the decisions get easier.
+
+Alex Morgan: Before we wrap, thanks again to our partners at Stripe. Stripe makes payments simple, whether you're running a marketplace or a subscription business.
+
+Alex Morgan: Dr. Elena Fischer, thanks for the depth here.
+Dr. Elena Fischer: Thank you, Alex Morgan.
+Alex Morgan: That's The Long View — see you next time.
