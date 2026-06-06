@@ -528,7 +528,6 @@ class TestAllProvidersRealModels(unittest.TestCase):
         - If initialization fails, it's a real error (missing cache files), not network
         """
         import os
-        from pathlib import Path
 
         from podcast_scraper.providers.ml import summarizer
         from podcast_scraper.rss import parser as rss_parser
@@ -564,8 +563,9 @@ class TestAllProvidersRealModels(unittest.TestCase):
                 )
 
         # Get transcript from fixtures (tests/fixtures/, not repo-root fixtures/)
-        fixture_root = Path(__file__).parent.parent / "fixtures"
-        transcript_file = fixture_root / "transcripts" / "p01_e01_fast.txt"
+        from tests._fixtures import fixtures_dir as _fd
+
+        transcript_file = _fd("transcripts") / "p01_e01_fast.txt"
 
         if not transcript_file.exists():
             self.skipTest(f"Transcript file not found: {transcript_file}")
@@ -795,15 +795,15 @@ class TestCriticalPathWithOpenAIProviders(unittest.TestCase):
     ):
         """Test critical path with OpenAI providers (mocked API calls)."""
         import os
-        from pathlib import Path
 
         from podcast_scraper import models
         from podcast_scraper.rss import parser as rss_parser
         from podcast_scraper.workflow import metadata_generation as metadata
 
         # Get transcript from fixtures (tests/fixtures/, not repo-root fixtures/)
-        fixture_root = Path(__file__).parent.parent / "fixtures"
-        transcript_file = fixture_root / "transcripts" / "p01_e01_fast.txt"
+        from tests._fixtures import fixtures_dir as _fd
+
+        transcript_file = _fd("transcripts") / "p01_e01_fast.txt"
 
         if not transcript_file.exists():
             self.skipTest(f"Transcript file not found: {transcript_file}")
