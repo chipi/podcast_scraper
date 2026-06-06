@@ -1,0 +1,1140 @@
+{
+  "aggregate": {
+    "cross_podcast_proper_noun_count": 24,
+    "cross_podcast_proper_noun_samples": {
+      "Alex": [
+        "p01",
+        "p07",
+        "p08"
+      ],
+      "Can": [
+        "p01",
+        "p02",
+        "p03",
+        "p04",
+        "p05",
+        "p06"
+      ],
+      "Exactly": [
+        "p07",
+        "p08"
+      ],
+      "For": [
+        "p01",
+        "p03",
+        "p06"
+      ],
+      "Give": [
+        "p07",
+        "p08"
+      ],
+      "Good": [
+        "p03",
+        "p05"
+      ],
+      "Great": [
+        "p01",
+        "p02",
+        "p03",
+        "p04",
+        "p05",
+        "p06"
+      ],
+      "Liam": [
+        "p01",
+        "p06"
+      ],
+      "Long": [
+        "p05",
+        "p07",
+        "p08"
+      ],
+      "Love": [
+        "p01",
+        "p02",
+        "p03",
+        "p04",
+        "p05",
+        "p06"
+      ],
+      "Maya": [
+        "p01",
+        "p06"
+      ],
+      "Morgan": [
+        "p07",
+        "p08"
+      ],
+      "Once": [
+        "p07",
+        "p08"
+      ],
+      "See": [
+        "p01",
+        "p02",
+        "p03",
+        "p04",
+        "p05",
+        "p06"
+      ],
+      "Sessions": [
+        "p01",
+        "p06"
+      ],
+      "Short": [
+        "p01",
+        "p02",
+        "p03",
+        "p04",
+        "p05"
+      ],
+      "Singletrack": [
+        "p01",
+        "p06"
+      ],
+      "Start": [
+        "p01",
+        "p02",
+        "p03",
+        "p04",
+        "p05",
+        "p06"
+      ],
+      "Tire": [
+        "p01",
+        "p06"
+      ],
+      "View": [
+        "p07",
+        "p08"
+      ]
+    },
+    "episode_count": 32,
+    "pipeline_metrics_status": "deferred to Phase 7 (post-pipeline rerun on v2)",
+    "podcast_count": 9,
+    "recurrence_per_podcast": {
+      "p01": {
+        "episodes": [
+          "p01_e01",
+          "p01_e01_fast",
+          "p01_e02",
+          "p01_e03",
+          "p01_multi_e01",
+          "p01_multi_e02",
+          "p01_multi_e03",
+          "p01_multi_e04",
+          "p01_multi_e05"
+        ],
+        "recurring_speaker_count": 4,
+        "recurring_speakers": {
+          "Liam": [
+            "p01_e01",
+            "p01_e01_fast",
+            "p01_multi_e01"
+          ],
+          "Maya": [
+            "p01_e01",
+            "p01_e01_fast",
+            "p01_e02",
+            "p01_e03",
+            "p01_multi_e01",
+            "p01_multi_e02",
+            "p01_multi_e03",
+            "p01_multi_e04",
+            "p01_multi_e05"
+          ],
+          "Noah": [
+            "p01_e03",
+            "p01_multi_e03"
+          ],
+          "Sophie": [
+            "p01_e02",
+            "p01_multi_e02"
+          ]
+        }
+      },
+      "p02": {
+        "episodes": [
+          "p02_e01",
+          "p02_e02",
+          "p02_e03"
+        ],
+        "recurring_speaker_count": 1,
+        "recurring_speakers": {
+          "Ethan": [
+            "p02_e01",
+            "p02_e02",
+            "p02_e03"
+          ]
+        }
+      },
+      "p03": {
+        "episodes": [
+          "p03_e01",
+          "p03_e02",
+          "p03_e03"
+        ],
+        "recurring_speaker_count": 1,
+        "recurring_speakers": {
+          "Rina": [
+            "p03_e01",
+            "p03_e02",
+            "p03_e03"
+          ]
+        }
+      },
+      "p04": {
+        "episodes": [
+          "p04_e01",
+          "p04_e02",
+          "p04_e03"
+        ],
+        "recurring_speaker_count": 1,
+        "recurring_speakers": {
+          "Leo": [
+            "p04_e01",
+            "p04_e02",
+            "p04_e03"
+          ]
+        }
+      },
+      "p05": {
+        "episodes": [
+          "p05_e01",
+          "p05_e02",
+          "p05_e03"
+        ],
+        "recurring_speaker_count": 1,
+        "recurring_speakers": {
+          "Nora": [
+            "p05_e01",
+            "p05_e02",
+            "p05_e03"
+          ]
+        }
+      },
+      "p06": {
+        "episodes": [
+          "p06_e01",
+          "p06_e02",
+          "p06_e03",
+          "p06_e04",
+          "p06_e05",
+          "p06_e06"
+        ],
+        "recurring_speaker_count": 2,
+        "recurring_speakers": {
+          "Liam": [
+            "p06_e01",
+            "p06_e02",
+            "p06_e03",
+            "p06_e04",
+            "p06_e05",
+            "p06_e06"
+          ],
+          "Maya": [
+            "p06_e01",
+            "p06_e02",
+            "p06_e03",
+            "p06_e04",
+            "p06_e05",
+            "p06_e06"
+          ]
+        }
+      },
+      "p07": {
+        "episodes": [
+          "p07_e01"
+        ],
+        "recurring_speaker_count": 0,
+        "recurring_speakers": {}
+      },
+      "p08": {
+        "episodes": [
+          "p08_e01"
+        ],
+        "recurring_speaker_count": 0,
+        "recurring_speakers": {}
+      },
+      "p09": {
+        "episodes": [
+          "p09_e01",
+          "p09_e02",
+          "p09_e03"
+        ],
+        "recurring_speaker_count": 1,
+        "recurring_speakers": {
+          "Alex Morgan": [
+            "p09_e01",
+            "p09_e02",
+            "p09_e03"
+          ]
+        }
+      }
+    },
+    "sponsor_pattern_hits_per_episode_mean": 0.0,
+    "sponsor_pattern_hits_total": 0,
+    "type_token_ratio": {
+      "mean": 0.2107,
+      "median": 0.1214
+    },
+    "words_per_episode": {
+      "max": 17589,
+      "mean": 2857.2,
+      "median": 1754,
+      "min": 53
+    }
+  },
+  "episodes": [
+    {
+      "body_words": 1754,
+      "path": "tests/fixtures/transcripts/v1/p01_e01.txt",
+      "proper_nouns": {
+        "Can": 2,
+        "For": 5,
+        "Great": 1,
+        "Liam": 4,
+        "Love": 1,
+        "Maya": 3,
+        "See": 1,
+        "Sessions": 2,
+        "Singletrack": 2,
+        "Start": 1,
+        "Tire": 9
+      },
+      "speakers": {
+        "Liam": 23,
+        "Maya": 24
+      },
+      "sponsor_pattern_hits": 0,
+      "sponsor_pattern_hits_by_pattern": {},
+      "type_token_ratio": 0.1214,
+      "unique_proper_nouns": 11,
+      "unique_speakers": 2
+    },
+    {
+      "body_words": 236,
+      "path": "tests/fixtures/transcripts/v1/p01_e01_fast.txt",
+      "proper_nouns": {
+        "Liam": 3,
+        "Maya": 2,
+        "See": 1,
+        "Sessions": 2,
+        "Singletrack": 2,
+        "Tire": 1
+      },
+      "speakers": {
+        "Liam": 3,
+        "Maya": 4
+      },
+      "sponsor_pattern_hits": 0,
+      "sponsor_pattern_hits_by_pattern": {},
+      "type_token_ratio": 0.5212,
+      "unique_proper_nouns": 6,
+      "unique_speakers": 2
+    },
+    {
+      "body_words": 1757,
+      "path": "tests/fixtures/transcripts/v1/p01_e02.txt",
+      "proper_nouns": {
+        "Can": 4,
+        "For": 7,
+        "Great": 1,
+        "Love": 1,
+        "Maya": 3,
+        "See": 1,
+        "Sessions": 2,
+        "Singletrack": 2,
+        "Sophie": 4,
+        "Start": 1,
+        "Tire": 7
+      },
+      "speakers": {
+        "Maya": 25,
+        "Sophie": 24
+      },
+      "sponsor_pattern_hits": 0,
+      "sponsor_pattern_hits_by_pattern": {},
+      "type_token_ratio": 0.1218,
+      "unique_proper_nouns": 11,
+      "unique_speakers": 2
+    },
+    {
+      "body_words": 4910,
+      "path": "tests/fixtures/transcripts/v1/p01_e03.txt",
+      "proper_nouns": {
+        "Can": 9,
+        "For": 33,
+        "Great": 1,
+        "Love": 1,
+        "Maya": 3,
+        "Noah": 4,
+        "See": 1,
+        "Sessions": 2,
+        "Short": 1,
+        "Singletrack": 2,
+        "Start": 1,
+        "Tire": 19
+      },
+      "speakers": {
+        "Maya": 69,
+        "Noah": 68
+      },
+      "sponsor_pattern_hits": 0,
+      "sponsor_pattern_hits_by_pattern": {},
+      "type_token_ratio": 0.0448,
+      "unique_proper_nouns": 12,
+      "unique_speakers": 2
+    },
+    {
+      "body_words": 54,
+      "path": "tests/fixtures/transcripts/v1/p01_multi_e01.txt",
+      "proper_nouns": {
+        "Liam": 3,
+        "Maya": 2,
+        "See": 1,
+        "Sessions": 2,
+        "Singletrack": 2
+      },
+      "speakers": {
+        "Liam": 1,
+        "Maya": 2
+      },
+      "sponsor_pattern_hits": 0,
+      "sponsor_pattern_hits_by_pattern": {},
+      "type_token_ratio": 0.7778,
+      "unique_proper_nouns": 5,
+      "unique_speakers": 2
+    },
+    {
+      "body_words": 55,
+      "path": "tests/fixtures/transcripts/v1/p01_multi_e02.txt",
+      "proper_nouns": {
+        "Maya": 2,
+        "See": 1,
+        "Sessions": 2,
+        "Singletrack": 2,
+        "Sophie": 3
+      },
+      "speakers": {
+        "Maya": 2,
+        "Sophie": 1
+      },
+      "sponsor_pattern_hits": 0,
+      "sponsor_pattern_hits_by_pattern": {},
+      "type_token_ratio": 0.7818,
+      "unique_proper_nouns": 5,
+      "unique_speakers": 2
+    },
+    {
+      "body_words": 83,
+      "path": "tests/fixtures/transcripts/v1/p01_multi_e03.txt",
+      "proper_nouns": {
+        "Maya": 2,
+        "Noah": 3,
+        "See": 1,
+        "Sessions": 2,
+        "Singletrack": 2
+      },
+      "speakers": {
+        "Maya": 3,
+        "Noah": 1
+      },
+      "sponsor_pattern_hits": 0,
+      "sponsor_pattern_hits_by_pattern": {},
+      "type_token_ratio": 0.7349,
+      "unique_proper_nouns": 5,
+      "unique_speakers": 2
+    },
+    {
+      "body_words": 53,
+      "path": "tests/fixtures/transcripts/v1/p01_multi_e04.txt",
+      "proper_nouns": {
+        "Alex": 3,
+        "Maya": 2,
+        "See": 1,
+        "Sessions": 2,
+        "Singletrack": 2
+      },
+      "speakers": {
+        "Alex": 1,
+        "Maya": 2
+      },
+      "sponsor_pattern_hits": 0,
+      "sponsor_pattern_hits_by_pattern": {},
+      "type_token_ratio": 0.7736,
+      "unique_proper_nouns": 5,
+      "unique_speakers": 2
+    },
+    {
+      "body_words": 53,
+      "path": "tests/fixtures/transcripts/v1/p01_multi_e05.txt",
+      "proper_nouns": {
+        "Maya": 2,
+        "Sam": 3,
+        "See": 1,
+        "Sessions": 2,
+        "Singletrack": 2
+      },
+      "speakers": {
+        "Maya": 2,
+        "Sam": 1
+      },
+      "sponsor_pattern_hits": 0,
+      "sponsor_pattern_hits_by_pattern": {},
+      "type_token_ratio": 0.7736,
+      "unique_proper_nouns": 5,
+      "unique_speakers": 2
+    },
+    {
+      "body_words": 1725,
+      "path": "tests/fixtures/transcripts/v1/p02_e01.txt",
+      "proper_nouns": {
+        "Alerting": 10,
+        "Architecture": 7,
+        "Can": 1,
+        "Error": 11,
+        "Ethan": 3,
+        "Great": 1,
+        "Healthy": 7,
+        "Love": 1,
+        "Practical": 2,
+        "Priya": 4,
+        "Secrets": 12,
+        "Security": 6,
+        "See": 1,
+        "Start": 1,
+        "Systems": 2,
+        "Threat": 8,
+        "Writing": 6
+      },
+      "speakers": {
+        "Ethan": 26,
+        "Priya": 25
+      },
+      "sponsor_pattern_hits": 0,
+      "sponsor_pattern_hits_by_pattern": {},
+      "type_token_ratio": 0.1223,
+      "unique_proper_nouns": 17,
+      "unique_speakers": 2
+    },
+    {
+      "body_words": 1687,
+      "path": "tests/fixtures/transcripts/v1/p02_e02.txt",
+      "proper_nouns": {
+        "Alerting": 9,
+        "Architecture": 9,
+        "Can": 5,
+        "Error": 15,
+        "Ethan": 3,
+        "Great": 1,
+        "Healthy": 9,
+        "Jonas": 4,
+        "Love": 1,
+        "Practical": 2,
+        "Secrets": 8,
+        "Security": 6,
+        "See": 1,
+        "Start": 1,
+        "Systems": 2,
+        "Threat": 11,
+        "Writing": 2
+      },
+      "speakers": {
+        "Ethan": 26,
+        "Jonas": 25
+      },
+      "sponsor_pattern_hits": 0,
+      "sponsor_pattern_hits_by_pattern": {},
+      "type_token_ratio": 0.1221,
+      "unique_proper_nouns": 17,
+      "unique_speakers": 2
+    },
+    {
+      "body_words": 4900,
+      "path": "tests/fixtures/transcripts/v1/p02_e03.txt",
+      "proper_nouns": {
+        "Alerting": 34,
+        "Architecture": 18,
+        "Camila": 4,
+        "Can": 5,
+        "Error": 33,
+        "Ethan": 3,
+        "Great": 1,
+        "Healthy": 28,
+        "Love": 1,
+        "Practical": 2,
+        "Secrets": 18,
+        "Security": 16,
+        "See": 1,
+        "Short": 1,
+        "Start": 1,
+        "Systems": 2,
+        "Threat": 33,
+        "Writing": 19
+      },
+      "speakers": {
+        "Camila": 67,
+        "Ethan": 68
+      },
+      "sponsor_pattern_hits": 0,
+      "sponsor_pattern_hits_by_pattern": {},
+      "type_token_ratio": 0.0443,
+      "unique_proper_nouns": 18,
+      "unique_speakers": 2
+    },
+    {
+      "body_words": 1711,
+      "path": "tests/fixtures/transcripts/v1/p03_e01.txt",
+      "proper_nouns": {
+        "Below": 2,
+        "Can": 6,
+        "Dive": 4,
+        "For": 13,
+        "Good": 8,
+        "Great": 1,
+        "Love": 1,
+        "Marco": 4,
+        "Neutral": 7,
+        "Rina": 3,
+        "See": 1,
+        "Start": 1,
+        "Surface": 2
+      },
+      "speakers": {
+        "Marco": 24,
+        "Rina": 25
+      },
+      "sponsor_pattern_hits": 0,
+      "sponsor_pattern_hits_by_pattern": {},
+      "type_token_ratio": 0.1251,
+      "unique_proper_nouns": 13,
+      "unique_speakers": 2
+    },
+    {
+      "body_words": 1790,
+      "path": "tests/fixtures/transcripts/v1/p03_e02.txt",
+      "proper_nouns": {
+        "Below": 2,
+        "Dive": 6,
+        "For": 13,
+        "Good": 11,
+        "Great": 1,
+        "Hanna": 4,
+        "Love": 1,
+        "Neutral": 8,
+        "Rina": 3,
+        "See": 1,
+        "Start": 1,
+        "Surface": 2
+      },
+      "speakers": {
+        "Hanna": 26,
+        "Rina": 27
+      },
+      "sponsor_pattern_hits": 0,
+      "sponsor_pattern_hits_by_pattern": {},
+      "type_token_ratio": 0.1168,
+      "unique_proper_nouns": 12,
+      "unique_speakers": 2
+    },
+    {
+      "body_words": 4953,
+      "path": "tests/fixtures/transcripts/v1/p03_e03.txt",
+      "proper_nouns": {
+        "Below": 2,
+        "Can": 7,
+        "Dive": 24,
+        "For": 32,
+        "Good": 19,
+        "Great": 1,
+        "Love": 1,
+        "Neutral": 22,
+        "Owen": 4,
+        "Rina": 3,
+        "See": 1,
+        "Short": 1,
+        "Start": 1,
+        "Surface": 2
+      },
+      "speakers": {
+        "Owen": 67,
+        "Rina": 68
+      },
+      "sponsor_pattern_hits": 0,
+      "sponsor_pattern_hits_by_pattern": {},
+      "type_token_ratio": 0.0438,
+      "unique_proper_nouns": 14,
+      "unique_speakers": 2
+    },
+    {
+      "body_words": 1691,
+      "path": "tests/fixtures/transcripts/v1/p04_e01.txt",
+      "proper_nouns": {
+        "Ava": 4,
+        "Can": 1,
+        "Documentary": 11,
+        "Frame": 2,
+        "Great": 10,
+        "Labeling": 15,
+        "Leo": 3,
+        "Light": 2,
+        "Lighting": 8,
+        "Love": 1,
+        "See": 1,
+        "Start": 1,
+        "Underwater": 5
+      },
+      "speakers": {
+        "Ava": 24,
+        "Leo": 25
+      },
+      "sponsor_pattern_hits": 0,
+      "sponsor_pattern_hits_by_pattern": {},
+      "type_token_ratio": 0.1236,
+      "unique_proper_nouns": 13,
+      "unique_speakers": 2
+    },
+    {
+      "body_words": 1721,
+      "path": "tests/fixtures/transcripts/v1/p04_e02.txt",
+      "proper_nouns": {
+        "Can": 1,
+        "Documentary": 4,
+        "Frame": 2,
+        "Great": 11,
+        "Labeling": 6,
+        "Leo": 3,
+        "Light": 2,
+        "Lighting": 8,
+        "Love": 1,
+        "See": 1,
+        "Start": 1,
+        "Tariq": 4,
+        "Underwater": 8
+      },
+      "speakers": {
+        "Leo": 26,
+        "Tariq": 25
+      },
+      "sponsor_pattern_hits": 0,
+      "sponsor_pattern_hits_by_pattern": {},
+      "type_token_ratio": 0.122,
+      "unique_proper_nouns": 13,
+      "unique_speakers": 2
+    },
+    {
+      "body_words": 4973,
+      "path": "tests/fixtures/transcripts/v1/p04_e03.txt",
+      "proper_nouns": {
+        "Can": 12,
+        "Documentary": 24,
+        "Elise": 4,
+        "Frame": 2,
+        "Great": 20,
+        "Labeling": 29,
+        "Leo": 3,
+        "Light": 2,
+        "Lighting": 18,
+        "Love": 1,
+        "See": 1,
+        "Short": 1,
+        "Start": 1,
+        "Underwater": 17
+      },
+      "speakers": {
+        "Elise": 69,
+        "Leo": 70
+      },
+      "sponsor_pattern_hits": 0,
+      "sponsor_pattern_hits_by_pattern": {},
+      "type_token_ratio": 0.0442,
+      "unique_proper_nouns": 14,
+      "unique_speakers": 2
+    },
+    {
+      "body_words": 1676,
+      "path": "tests/fixtures/transcripts/v1/p05_e01.txt",
+      "proper_nouns": {
+        "Can": 2,
+        "Daniel": 4,
+        "Diversification": 6,
+        "Drawdowns": 11,
+        "Fees": 14,
+        "Good": 2,
+        "Great": 1,
+        "Horizon": 2,
+        "Index": 7,
+        "Long": 2,
+        "Love": 1,
+        "Nora": 3,
+        "Notes": 2,
+        "Position": 14,
+        "Real": 6,
+        "Risk": 7,
+        "See": 1,
+        "Start": 1
+      },
+      "speakers": {
+        "Daniel": 27,
+        "Nora": 28
+      },
+      "sponsor_pattern_hits": 0,
+      "sponsor_pattern_hits_by_pattern": {},
+      "type_token_ratio": 0.1241,
+      "unique_proper_nouns": 18,
+      "unique_speakers": 2
+    },
+    {
+      "body_words": 1741,
+      "path": "tests/fixtures/transcripts/v1/p05_e02.txt",
+      "proper_nouns": {
+        "Can": 1,
+        "Diversification": 8,
+        "Drawdowns": 10,
+        "Fees": 12,
+        "Good": 4,
+        "Great": 1,
+        "Horizon": 2,
+        "Index": 11,
+        "Isabel": 4,
+        "Long": 2,
+        "Love": 1,
+        "Nora": 3,
+        "Notes": 2,
+        "Position": 13,
+        "Real": 9,
+        "Risk": 5,
+        "See": 1,
+        "Start": 1
+      },
+      "speakers": {
+        "Isabel": 28,
+        "Nora": 29
+      },
+      "sponsor_pattern_hits": 0,
+      "sponsor_pattern_hits_by_pattern": {},
+      "type_token_ratio": 0.1155,
+      "unique_proper_nouns": 18,
+      "unique_speakers": 2
+    },
+    {
+      "body_words": 4934,
+      "path": "tests/fixtures/transcripts/v1/p05_e03.txt",
+      "proper_nouns": {
+        "Can": 7,
+        "Diversification": 36,
+        "Drawdowns": 32,
+        "Fees": 30,
+        "Good": 19,
+        "Great": 1,
+        "Horizon": 2,
+        "Index": 23,
+        "Kasper": 4,
+        "Long": 2,
+        "Love": 1,
+        "Nora": 3,
+        "Notes": 2,
+        "Position": 34,
+        "Real": 22,
+        "Risk": 26,
+        "See": 1,
+        "Short": 1,
+        "Start": 1
+      },
+      "speakers": {
+        "Kasper": 74,
+        "Nora": 75
+      },
+      "sponsor_pattern_hits": 0,
+      "sponsor_pattern_hits_by_pattern": {},
+      "type_token_ratio": 0.044,
+      "unique_proper_nouns": 19,
+      "unique_speakers": 2
+    },
+    {
+      "body_words": 1754,
+      "path": "tests/fixtures/transcripts/v1/p06_e01.txt",
+      "proper_nouns": {
+        "Can": 2,
+        "For": 5,
+        "Great": 1,
+        "Liam": 4,
+        "Love": 1,
+        "Maya": 3,
+        "See": 1,
+        "Sessions": 2,
+        "Singletrack": 2,
+        "Start": 1,
+        "Tire": 9
+      },
+      "speakers": {
+        "Liam": 23,
+        "Maya": 24
+      },
+      "sponsor_pattern_hits": 0,
+      "sponsor_pattern_hits_by_pattern": {},
+      "type_token_ratio": 0.1214,
+      "unique_proper_nouns": 11,
+      "unique_speakers": 2
+    },
+    {
+      "body_words": 1754,
+      "path": "tests/fixtures/transcripts/v1/p06_e02.txt",
+      "proper_nouns": {
+        "Can": 2,
+        "For": 5,
+        "Great": 1,
+        "Liam": 4,
+        "Love": 1,
+        "Maya": 3,
+        "See": 1,
+        "Sessions": 2,
+        "Singletrack": 2,
+        "Start": 1,
+        "Tire": 9
+      },
+      "speakers": {
+        "Liam": 23,
+        "Maya": 24
+      },
+      "sponsor_pattern_hits": 0,
+      "sponsor_pattern_hits_by_pattern": {},
+      "type_token_ratio": 0.1214,
+      "unique_proper_nouns": 11,
+      "unique_speakers": 2
+    },
+    {
+      "body_words": 1754,
+      "path": "tests/fixtures/transcripts/v1/p06_e03.txt",
+      "proper_nouns": {
+        "Can": 2,
+        "For": 5,
+        "Great": 1,
+        "Liam": 4,
+        "Love": 1,
+        "Maya": 3,
+        "See": 1,
+        "Sessions": 2,
+        "Singletrack": 2,
+        "Start": 1,
+        "Tire": 9
+      },
+      "speakers": {
+        "Liam": 23,
+        "Maya": 24
+      },
+      "sponsor_pattern_hits": 0,
+      "sponsor_pattern_hits_by_pattern": {},
+      "type_token_ratio": 0.1214,
+      "unique_proper_nouns": 11,
+      "unique_speakers": 2
+    },
+    {
+      "body_words": 1754,
+      "path": "tests/fixtures/transcripts/v1/p06_e04.txt",
+      "proper_nouns": {
+        "Can": 2,
+        "For": 5,
+        "Great": 1,
+        "Liam": 4,
+        "Love": 1,
+        "Maya": 3,
+        "See": 1,
+        "Sessions": 2,
+        "Singletrack": 2,
+        "Start": 1,
+        "Tire": 9
+      },
+      "speakers": {
+        "Liam": 23,
+        "Maya": 24
+      },
+      "sponsor_pattern_hits": 0,
+      "sponsor_pattern_hits_by_pattern": {},
+      "type_token_ratio": 0.1214,
+      "unique_proper_nouns": 11,
+      "unique_speakers": 2
+    },
+    {
+      "body_words": 1754,
+      "path": "tests/fixtures/transcripts/v1/p06_e05.txt",
+      "proper_nouns": {
+        "Can": 2,
+        "For": 5,
+        "Great": 1,
+        "Liam": 4,
+        "Love": 1,
+        "Maya": 3,
+        "See": 1,
+        "Sessions": 2,
+        "Singletrack": 2,
+        "Start": 1,
+        "Tire": 9
+      },
+      "speakers": {
+        "Liam": 23,
+        "Maya": 24
+      },
+      "sponsor_pattern_hits": 0,
+      "sponsor_pattern_hits_by_pattern": {},
+      "type_token_ratio": 0.1214,
+      "unique_proper_nouns": 11,
+      "unique_speakers": 2
+    },
+    {
+      "body_words": 1754,
+      "path": "tests/fixtures/transcripts/v1/p06_e06.txt",
+      "proper_nouns": {
+        "Can": 2,
+        "For": 5,
+        "Great": 1,
+        "Liam": 4,
+        "Love": 1,
+        "Maya": 3,
+        "See": 1,
+        "Sessions": 2,
+        "Singletrack": 2,
+        "Start": 1,
+        "Tire": 9
+      },
+      "speakers": {
+        "Liam": 23,
+        "Maya": 24
+      },
+      "sponsor_pattern_hits": 0,
+      "sponsor_pattern_hits_by_pattern": {},
+      "type_token_ratio": 0.1214,
+      "unique_proper_nouns": 11,
+      "unique_speakers": 2
+    },
+    {
+      "body_words": 13209,
+      "path": "tests/fixtures/transcripts/v1/p07_e01.txt",
+      "proper_nouns": {
+        "About": 1,
+        "Alex": 1,
+        "Another": 46,
+        "Define": 55,
+        "Elena": 305,
+        "Everyone": 1,
+        "Exactly": 14,
+        "Fischer": 305,
+        "Give": 16,
+        "Identify": 55,
+        "Long": 1,
+        "Means": 1,
+        "Morgan": 1,
+        "Once": 14,
+        "Really": 1,
+        "Sustainability": 1,
+        "Talking": 1,
+        "There": 25,
+        "View": 1
+      },
+      "speakers": {
+        "Alex Morgan": 629
+      },
+      "sponsor_pattern_hits": 0,
+      "sponsor_pattern_hits_by_pattern": {},
+      "type_token_ratio": 0.0194,
+      "unique_proper_nouns": 19,
+      "unique_speakers": 1
+    },
+    {
+      "body_words": 17589,
+      "path": "tests/fixtures/transcripts/v1/p08_e01.txt",
+      "proper_nouns": {
+        "Alex": 1,
+        "Another": 77,
+        "Define": 67,
+        "Energy": 1,
+        "Exactly": 28,
+        "Future": 1,
+        "Give": 14,
+        "Identify": 67,
+        "Long": 1,
+        "Mendes": 405,
+        "Morgan": 1,
+        "Near": 1,
+        "Once": 28,
+        "People": 1,
+        "Rafael": 405,
+        "Role": 1,
+        "Solar": 1,
+        "There": 48,
+        "View": 1
+      },
+      "speakers": {
+        "Alex Morgan": 829
+      },
+      "sponsor_pattern_hits": 0,
+      "sponsor_pattern_hits_by_pattern": {},
+      "type_token_ratio": 0.0148,
+      "unique_proper_nouns": 19,
+      "unique_speakers": 1
+    },
+    {
+      "body_words": 2560,
+      "path": "tests/fixtures/transcripts/v1/p09_e01.txt",
+      "proper_nouns": {
+        "Biohacking": 1,
+        "Finally": 2,
+        "Framework": 1,
+        "Fringe": 1,
+        "From": 1
+      },
+      "speakers": {
+        "Alex Morgan": 202
+      },
+      "sponsor_pattern_hits": 0,
+      "sponsor_pattern_hits_by_pattern": {},
+      "type_token_ratio": 0.0594,
+      "unique_proper_nouns": 5,
+      "unique_speakers": 1
+    },
+    {
+      "body_words": 2541,
+      "path": "tests/fixtures/transcripts/v1/p09_e02.txt",
+      "proper_nouns": {
+        "Actually": 1,
+        "Finally": 4,
+        "Measurement": 1,
+        "Metabolism": 1,
+        "Sleep": 1,
+        "Works": 1
+      },
+      "speakers": {
+        "Alex Morgan": 198
+      },
+      "sponsor_pattern_hits": 0,
+      "sponsor_pattern_hits_by_pattern": {},
+      "type_token_ratio": 0.0602,
+      "unique_proper_nouns": 6,
+      "unique_speakers": 1
+    },
+    {
+      "body_words": 2552,
+      "path": "tests/fixtures/transcripts/v1/p09_e03.txt",
+      "proper_nouns": {
+        "Decade": 1,
+        "Ethics": 1,
+        "Finally": 7,
+        "Human": 1,
+        "Limits": 1,
+        "Next": 1,
+        "Optimization": 1
+      },
+      "speakers": {
+        "Alex Morgan": 201
+      },
+      "sponsor_pattern_hits": 0,
+      "sponsor_pattern_hits_by_pattern": {},
+      "type_token_ratio": 0.0603,
+      "unique_proper_nouns": 7,
+      "unique_speakers": 1
+    }
+  ],
+  "fixture_version": "v1",
+  "transcripts_dir": "tests/fixtures/transcripts/v1"
+}
