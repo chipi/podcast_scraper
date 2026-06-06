@@ -64,8 +64,28 @@ def test_pyannote_separates_two_voices() -> None:
         transcription_provider="whisper",
         diarize=True,
     )
-    provider = create_diarization_provider(cfg)
-    result = provider.diarize(str(_FIXTURE), min_speakers=1, max_speakers=5)
+    # The suite runs with HF_HUB_OFFLINE=1 + sockets blocked, so the gated model must
+    # already be in the active HF cache (run ``make preload-ml-models`` with a token).
+    # Skip — don't fail — when it isn't, distinguishing "not provisioned" from a real
+    # diarization regression.
+    try:
+        provider = create_diarization_provider(cfg)
+        result = provider.diarize(str(_FIXTURE), min_speakers=1, max_speakers=5)
+    except Exception as exc:  # noqa: BLE001 - provisioning vs regression
+        haystack = f"{exc} {type(exc).__name__}".lower()
+        provisioning = (
+            "offlinemode",
+            "offline mode",
+            "gatedrepo",
+            "localentrynotfound",
+            "local cache",
+            "cannot reach",
+            "socketblocked",
+            "connection",
+        )
+        if any(k in haystack for k in provisioning):
+            pytest.skip(f"pyannote model not in offline cache (preload it): {type(exc).__name__}")
+        raise
 
     assert result.segments, "pyannote returned no speaker turns"
     # Two distinct TTS voices (Maya/Samantha + Liam/Daniel) -> at least two speakers.
