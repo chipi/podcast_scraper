@@ -59,33 +59,62 @@ class TestGILArtifactIntegration:
             assert "timestamp_start_ms" in qn["properties"]
             assert "timestamp_end_ms" in qn["properties"]
 
-    def test_build_artifact_with_speakers_adds_speaker_nodes(self):
-        """Speaker labels on transcript segments produce Speaker nodes and SPOKEN_BY edges."""
+    def test_speaker_attribution_survives_artifact_file_roundtrip(self, tmp_path):
+        """Diarized speaker attribution survives a write -> read -> validate roundtrip.
+
+        Drives the *real* multi-insight grounding path (``_artifact_from_multi_insight``)
+        rather than the stub path: a grounded quote whose char range lands in a speaker's
+        segment must produce a ``Person`` node + ``SPOKEN_BY`` edge, named by the human
+        ``speaker_label`` (not the raw ``SPEAKER_00`` id), and that attribution must
+        round-trip through disk intact. The old test ran build_artifact's stub path,
+        which by design never attributes (its single quote spans both speakers), so its
+        ``if speaker_nodes:`` block silently never executed — a hollow assertion.
+        """
+        from podcast_scraper.gi.grounding import GroundedQuote
+        from podcast_scraper.gi.pipeline import _artifact_from_multi_insight
+
         transcript = "Alice says hello. Bob says goodbye."
         segments = [
-            {"start": 0.0, "end": 3.0, "text": "Alice says hello. ", "speaker": "Alice"},
-            {"start": 3.0, "end": 6.0, "text": "Bob says goodbye.", "speaker": "Bob"},
+            {"text": "Alice says hello. ", "speaker": "SPEAKER_00", "speaker_label": "Alice"},
+            {"text": "Bob says goodbye.", "speaker": "SPEAKER_01", "speaker_label": "Bob"},
         ]
-        payload = build_artifact(
+        gq = GroundedQuote(
+            char_start=18,
+            char_end=34,
+            text="Bob says goodbye.",
+            qa_score=0.9,
+            nli_score=0.85,
+        )
+        payload = _artifact_from_multi_insight(
             "episode:spk-test",
-            transcript,
+            [("Insight", "unknown")],
+            [[gq]],
             model_version="test-model",
             prompt_version="v1",
+            podcast_id="podcast:p",
             episode_title="Speaker Episode",
-            publish_date="2025-03-01T00:00:00Z",
+            date_str="2025-03-01T00:00:00Z",
+            transcript_ref="t.txt",
+            transcript_text=transcript,
             transcript_segments=segments,
         )
-        node_types = {n["type"] for n in payload["nodes"]}
-        assert "Episode" in node_types
-        speaker_nodes = [n for n in payload["nodes"] if n["type"] == "Speaker"]
-        speaker_names = {n["properties"]["name"] for n in speaker_nodes}
-        # Speaker nodes are only produced when the multi-insight grounding path
-        # maps quote char ranges to segment speakers. Short transcripts may go
-        # through the stub path which skips speaker attachment.
-        if speaker_nodes:
-            assert speaker_names <= {"Alice", "Bob"}
-            spoken_by_edges = [e for e in payload["edges"] if e["type"] == "SPOKEN_BY"]
-            assert len(spoken_by_edges) >= 1
+        # Person node + SPOKEN_BY exist pre-write, named by the human label not the id.
+        person_nodes = [n for n in payload["nodes"] if n["type"] == "Person"]
+        assert {n["properties"]["name"] for n in person_nodes} == {"Bob"}
+
+        path = tmp_path / "spk.gi.json"
+        write_artifact(path, payload, validate=True)
+        read_back = read_artifact(path)
+        validate_artifact(read_back, strict=True)
+
+        rt_persons = [n for n in read_back["nodes"] if n["type"] == "Person"]
+        assert {n["properties"]["name"] for n in rt_persons} == {"Bob"}
+        quote = next(n for n in read_back["nodes"] if n["type"] == "Quote")
+        assert quote["properties"]["speaker_id"] == "person:bob"
+        spoken_by = [e for e in read_back["edges"] if e["type"] == "SPOKEN_BY"]
+        assert len(spoken_by) == 1
+        assert spoken_by[0]["from"] == quote["id"]
+        assert spoken_by[0]["to"] == rt_persons[0]["id"]
 
     def test_build_artifact_strict_validation(self):
         """Well-formed artifact passes validate_artifact(strict=True)."""

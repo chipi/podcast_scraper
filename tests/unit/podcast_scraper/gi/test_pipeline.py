@@ -471,6 +471,24 @@ class TestGILPipeline:
         segments = [{"start": 0.0, "end": 1.0, "text": "x", "speaker_id": "SPK0"}]
         assert _speaker_id_for_char_range(transcript, 0, 1, segments) == "SPK0"
 
+    def test_speaker_id_for_char_range_prefers_human_label_over_raw_id(self):
+        """Diarized segments carry both the human name and the raw pyannote id; GI
+        must attribute the quote to the name (``Maya``), not the anonymous
+        ``SPEAKER_00``, so Person nodes are readable downstream."""
+        transcript = "AA BB "
+        segments = [
+            {"text": "AA ", "speaker": "SPEAKER_00", "speaker_label": "Maya"},
+            {"text": "BB ", "speaker": "SPEAKER_01", "speaker_label": "Liam"},
+        ]
+        assert _speaker_id_for_char_range(transcript, 0, 2, segments) == "Maya"
+        assert _speaker_id_for_char_range(transcript, 3, 5, segments) == "Liam"
+
+    def test_speaker_id_for_char_range_falls_back_when_label_blank(self):
+        """An empty ``speaker_label`` falls back to the raw ``speaker`` id."""
+        transcript = "x"
+        segments = [{"text": "x", "speaker_label": "  ", "speaker": "SPEAKER_00"}]
+        assert _speaker_id_for_char_range(transcript, 0, 1, segments) == "SPEAKER_00"
+
     def test_artifact_from_multi_insight_sets_speaker_id_from_segments(self):
         """Quote speaker_id is filled when segments carry speaker labels."""
         transcript = "First segment. Second segment."
@@ -507,6 +525,42 @@ class TestGILPipeline:
         spk_nodes = [n for n in out["nodes"] if n["type"] == "Person"]
         assert len(spk_nodes) == 1
         assert spk_nodes[0]["properties"]["name"] == "Guest"
+        validate_artifact(out, strict=True)
+
+    def test_artifact_from_multi_insight_uses_human_speaker_label_not_raw_id(self):
+        """Diarized segments carry both the raw pyannote id and the mapped name; the
+        Person node + speaker_id must use the name (``Maya``), not ``SPEAKER_00`` —
+        otherwise the GI graph attributes quotes to anonymous diarizer ids."""
+        transcript = "First segment. Second segment."
+        segments = [
+            {"text": "First segment. ", "speaker": "SPEAKER_00", "speaker_label": "Maya"},
+            {"text": "Second segment.", "speaker": "SPEAKER_01", "speaker_label": "Liam"},
+        ]
+        gq = GroundedQuote(
+            char_start=15,
+            char_end=32,
+            text="Second segment.",
+            qa_score=0.9,
+            nli_score=0.85,
+        )
+        out = _artifact_from_multi_insight(
+            "ep:1",
+            [("Insight", "unknown")],
+            [[gq]],
+            model_version="m",
+            prompt_version="v1",
+            podcast_id="p",
+            episode_title="T",
+            date_str="2025-01-01T00:00:00Z",
+            transcript_ref="t.txt",
+            transcript_text=transcript,
+            transcript_segments=segments,
+        )
+        quote_nodes = [n for n in out["nodes"] if n["type"] == "Quote"]
+        assert quote_nodes[0]["properties"]["speaker_id"] == "person:liam"
+        spk_nodes = [n for n in out["nodes"] if n["type"] == "Person"]
+        assert len(spk_nodes) == 1
+        assert spk_nodes[0]["properties"]["name"] == "Liam"
         validate_artifact(out, strict=True)
 
     def test_char_range_to_ms_maps_span_to_timestamps(self):
