@@ -86,7 +86,7 @@ SPONSOR_PATTERNS: List[SponsorPattern] = [
     SponsorPattern(
         re.compile(
             r"(?:welcome back to (?:the|our) (?:show|episode|podcast)"
-            r"|we'?re back(?: to the show)?|okay,? so)",
+            r"|we'?re back(?: to the show)?)",
             re.I,
         ),
         "outro",
@@ -120,5 +120,7 @@ BRAND_NAMES: Set[str] = {
     "airtable",
     "wix",
     "justworks",
-    "lenny",
+    # NOTE: do not add host/person names here (e.g. "lenny" — the flagship example
+    # podcast's host) — a name that appears every episode would give a spurious
+    # brand boost to ordinary speech. Keep this list to actual sponsor brands.
 }
