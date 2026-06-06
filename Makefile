@@ -365,7 +365,7 @@ type:
 security: security-bandit security-audit
 
 security-bandit:
-	$(PYTHON) -m bandit -r . --exclude ./.venv,./.venv-dev --skip B113,B108,B110,B310 --severity-level medium
+	$(PYTHON) -m bandit -r . --exclude ./.venv,./.venv-dev,./infra/dgx/converge/.venv --skip B113,B108,B110,B310 --severity-level medium
 
 security-audit:
 	$(PYTHON) -m pip install --upgrade setuptools

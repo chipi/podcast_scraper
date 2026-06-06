@@ -425,6 +425,7 @@ def write_report_json(
     pairs: Sequence[GroundTruthPair],
     dest: Path,
 ) -> None:
+    """Write the machine-readable A/B report (schema-versioned) to *dest*."""
     payload = {
         "schema_version": 1,
         "experiment": "embedding_provider_comparison",
@@ -443,6 +444,7 @@ def write_report_json(
 def write_report_md(
     metrics: Sequence[ProviderMetrics], pairs: Sequence[GroundTruthPair], dest: Path
 ) -> None:
+    """Write the human-readable Markdown A/B report to *dest*."""
     lines: List[str] = []
     lines.append("# Embedding-provider comparison")
     lines.append("")

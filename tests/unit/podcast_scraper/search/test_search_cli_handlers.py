@@ -221,6 +221,7 @@ def test_run_index_cli_stats_reads_index(mock_load, tmp_path) -> None:
         doc_type_counts={"insight": 5},
         feeds_indexed=["f1"],
         embedding_model="m",
+        embedding_provider="sentence_transformers",
         embedding_dim=4,
         last_updated="t",
         index_size_bytes=100,
