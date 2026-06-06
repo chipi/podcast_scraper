@@ -8,6 +8,14 @@ This file consolidates a detailed multi-agent review of the audio pipeline shipp
 Wave 1 (#850), Wave 2 (#895), and Wave 3 (#898). It is the source list for a single combined
 "audio hardening" PR. Each item carries a priority (P1/P2/P3) and rough effort (S/M/L).
 
+## Progress (branch `feat/audio-waves-hardening`, not yet pushed)
+
+**P1 DONE** (each fix + tests committed, targeted suites green): A1, A2, A3, C1, C2, B1, B2,
+D1, H1, G1, I1, I2, I3, G3.
+**P1 remaining:** G2 (direct-download media persist), plus test deepening B8 / E1 / A7.
+**Not started:** P2 batch, P3 batch.
+**Not yet run:** full `make ci-fast` / `ci-ui-fast` / viewer build (end gate, before push).
+
 ## How to read this
 
 - **P1** — data integrity, broken/no-op features, or security-sink test gaps. Fix first.
