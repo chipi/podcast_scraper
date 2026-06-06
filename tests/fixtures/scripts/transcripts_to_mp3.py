@@ -110,8 +110,9 @@ def get_voice_for_speaker(name: str) -> str:
     parts = name.split()
     if parts and parts[0] in SPEAKER_VOICE_MAP:
         return SPEAKER_VOICE_MAP[parts[0]]
-    # Stable hash (Python's built-in hash() varies across runs)
-    digest = hashlib.md5(name.lower().encode("utf-8")).hexdigest()
+    # Stable hash (Python's built-in hash() varies across runs). Not a security
+    # boundary — just a deterministic bucket selector for voice assignment.
+    digest = hashlib.md5(name.lower().encode("utf-8"), usedforsecurity=False).hexdigest()
     return FALLBACK_VOICES[int(digest, 16) % len(FALLBACK_VOICES)]
 
 
