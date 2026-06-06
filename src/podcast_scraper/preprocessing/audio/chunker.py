@@ -25,6 +25,10 @@ DEFAULT_MAX_BYTES = OPENAI_MAX_FILE_SIZE_BYTES - (1024 * 1024)
 # chunks) and dropped. The tolerance absorbs boundary timestamp jitter.
 _SEGMENT_SEAM_TOLERANCE_SECONDS = 0.5
 
+# Sanity ceiling on chunk count — a pathological bitrate estimate could otherwise
+# request thousands of 1-second chunks and as many API calls.
+_MAX_CHUNKS = 500
+
 
 @dataclass(frozen=True)
 class AudioChunk:
@@ -126,6 +130,11 @@ class AudioChunker:
         chunk_duration = max(chunk_duration, self.overlap_seconds + 1.0)
         step = max(chunk_duration - self.overlap_seconds, 1.0)
         num_chunks = max(1, math.ceil((duration - self.overlap_seconds) / step))
+        if num_chunks > _MAX_CHUNKS:
+            raise RuntimeError(
+                f"Refusing to split {audio_path} into {num_chunks} chunks "
+                f"(> {_MAX_CHUNKS}); bitrate estimate likely wrong."
+            )
 
         out_dir = work_dir or tempfile.mkdtemp(prefix="audio_chunks_")
         os.makedirs(out_dir, exist_ok=True)
@@ -156,8 +165,25 @@ class AudioChunker:
                 out_path,
             ]
             _run_text_subprocess(cmd, timeout=300.0, check=True)
-            if os.path.exists(out_path) and os.path.getsize(out_path) > 0:
-                chunks.append(AudioChunk(path=out_path, start_seconds=start, index=index))
+            out_size = os.path.getsize(out_path) if os.path.exists(out_path) else 0
+            if out_size <= 0:
+                # Don't silently lose a window — a 0-byte output drops that span
+                # from the transcript entirely.
+                logger.warning(
+                    "Audio chunk %d (start=%.1fs) produced no output; window dropped", index, start
+                )
+                continue
+            if out_size > self.max_bytes:
+                # The CBR estimate has a 0.95 margin but can still overshoot (VBR,
+                # container overhead). Surface it rather than hit the provider's
+                # payload limit silently.
+                logger.warning(
+                    "Audio chunk %d is %d bytes (> max_bytes=%d); may exceed the API limit",
+                    index,
+                    out_size,
+                    self.max_bytes,
+                )
+            chunks.append(AudioChunk(path=out_path, start_seconds=start, index=index))
 
         if not chunks:
             raise RuntimeError(f"ffmpeg produced no audio chunks for {audio_path}")
