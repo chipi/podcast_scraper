@@ -28,6 +28,30 @@ Wave 1 (#850), Wave 2 (#895), and Wave 3 (#898). It is the source list for a sin
 
 **Validation:** full `make ci-fast` + `ci-ui-fast` run as the end gate before push (in progress).
 
+## 🚨 BLOCKER — diarization does not load (dependency conflict, found via real eval)
+
+The whole pyannote path is **non-functional in a fresh `[ml]` install**, undetected
+because every unit test mocks pyannote. Found by actually trying to run it:
+
+- `[ml]` pins `torch>=2.11` → pip pulls torch 2.12 / torchaudio 2.11. **pyannote.audio
+  3.4** (what `>=3.1` resolves to) references `torchaudio.AudioMetaData`, **removed in
+  torchaudio ≥2.9** → `AttributeError` on `import pyannote.audio`. Diarization can't load
+  regardless of HF token.
+- **Likely production too:** `docker/pipeline/Dockerfile` installs latest CPU `torch` +
+  `[ml]` → same combo. Must be verified in that build.
+- **pyannote.audio 4.0.4** fixes the torch issue (uses `torchcodec`, needs only
+  `torch>=2.8`) **but** cascades `numpy→2.x`, which breaks spaCy's `thinc` (needs
+  `numpy<2`) and `mistralai` (opentelemetry pin). So the real fix is a **coordinated**
+  upgrade: pyannote 4.x **+** spaCy/thinc bumped to numpy-2-compatible **+** opentelemetry
+  alignment — validated in the controlled Docker/nightly build, not piecemeal on a laptop.
+- **HF model access:** the operator's token is valid but the account is **not authorized**
+  for `pyannote/speaker-diarization-3.1` (got `GatedRepoError 403`). Must accept the user
+  conditions on the model page (and `pyannote/segmentation-3.0`).
+
+**Status:** dependency-pin resolution is a dedicated follow-up (own PR), validated in the
+controlled env. This PR adds the real-pyannote integration test (skip-gated) + the
+token-path fix so the validation is runnable once the pins are fixed and access is granted.
+
 ## How to read this
 
 - **P1** — data integrity, broken/no-op features, or security-sink test gaps. Fix first.

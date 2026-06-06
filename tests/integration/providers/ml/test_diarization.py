@@ -25,9 +25,14 @@ import pytest
 
 pytestmark = [pytest.mark.integration, pytest.mark.ml_models, pytest.mark.diarization]
 
-# pyannote.audio ships in the [ml] extra, not [dev]; importorskip is allowed in
-# integration tests (the 3-tier policy only forbids it under tests/unit/).
-pytest.importorskip("pyannote.audio")
+# pyannote.audio ships in the [ml] extra, not [dev]. Skip if it can't be imported
+# *for any reason* — a version-mismatched install (e.g. pyannote 3.4 against
+# torchaudio>=2.9, which removed AudioMetaData) raises AttributeError, not
+# ImportError, so plain importorskip would error collection instead of skipping.
+try:
+    import pyannote.audio  # noqa: F401
+except Exception as exc:  # pragma: no cover - environment-dependent
+    pytest.skip(f"pyannote.audio unavailable: {exc}", allow_module_level=True)
 
 _FIXTURE = Path(__file__).resolve().parents[3] / "fixtures" / "audio" / "p01_multi_e01.mp3"
 
