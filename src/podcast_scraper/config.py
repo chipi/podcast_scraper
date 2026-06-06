@@ -2779,6 +2779,16 @@ class Config(BaseModel):
             "viewer playback (Wave 3)."
         ),
     )
+    commercial_confidence_threshold: float = Field(
+        default=0.65,
+        ge=0.0,
+        le=1.0,
+        alias="commercial_confidence_threshold",
+        description=(
+            "Minimum confidence (0-1) for the commercial detector to remove a sponsor "
+            "block. Lower = more aggressive removal; higher = more conservative."
+        ),
+    )
 
     # Graceful Degradation Policy
     degradation_policy: Optional[Dict[str, Any]] = Field(

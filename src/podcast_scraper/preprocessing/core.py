@@ -229,6 +229,7 @@ def remove_sponsor_blocks(
     *,
     diarization_segments: Optional[List[dict]] = None,
     host_speaker_id: Optional[str] = None,
+    confidence_threshold: Optional[float] = None,
 ) -> str:
     """Remove sponsor/advertisement blocks from transcript.
 
@@ -244,8 +245,14 @@ def remove_sponsor_blocks(
         Text with sponsor blocks removed
     """
     from ..cleaning.commercial import CommercialDetector
+    from ..cleaning.commercial.patterns import DEFAULT_CONFIDENCE_THRESHOLD
 
     return CommercialDetector(
+        confidence_threshold=(
+            confidence_threshold
+            if confidence_threshold is not None
+            else DEFAULT_CONFIDENCE_THRESHOLD
+        ),
         diarization_segments=diarization_segments,
         host_speaker_id=host_speaker_id,
     ).remove(text)
@@ -523,6 +530,7 @@ def clean_for_summarization(
     *,
     diarization_segments: Optional[List[dict]] = None,
     host_speaker_id: Optional[str] = None,
+    confidence_threshold: Optional[float] = None,
 ) -> str:
     """High-level cleaner for BOTH:
       - offline .cleaned.txt generation
@@ -564,6 +572,7 @@ def clean_for_summarization(
         text,
         diarization_segments=diarization_segments,
         host_speaker_id=host_speaker_id,
+        confidence_threshold=confidence_threshold,
     )
     text = remove_outro_blocks(text)
     text = remove_summarization_artifacts(text)

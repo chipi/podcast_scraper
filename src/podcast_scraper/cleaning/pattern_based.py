@@ -18,9 +18,13 @@ class PatternBasedCleaner:
     timestamps, normalize speakers, remove sponsor blocks, etc.
     """
 
-    def __init__(self):
-        """Initialize pattern-based cleaner."""
-        pass
+    def __init__(self, *, confidence_threshold: Optional[float] = None):
+        """Initialize pattern-based cleaner.
+
+        ``confidence_threshold`` (when set) tunes the commercial detector's removal
+        bar; ``None`` uses the detector's default.
+        """
+        self._confidence_threshold = confidence_threshold
 
     def clean(
         self,
@@ -58,6 +62,7 @@ class PatternBasedCleaner:
             text,
             diarization_segments=diarization_segments,
             host_speaker_id=host_speaker_id,
+            confidence_threshold=self._confidence_threshold,
         )
         cleaned, _, meta = excise_ad_regions(cleaned)
         if meta.chars_removed:

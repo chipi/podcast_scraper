@@ -46,6 +46,18 @@ class TestCommercialDetector:
         cleaned = CommercialDetector().remove(text)
         assert cleaned == text
 
+    def test_confidence_threshold_is_tunable(self) -> None:
+        """A higher threshold keeps a borderline block that the default would remove (B3)."""
+        text = (
+            "Host: welcome.\n\n"
+            "A quick word from our sponsor today.\n\n"
+            "Host: back to the main topic now."
+        )
+        # Default (0.65) removes the intro-sponsor block...
+        assert "sponsor" not in CommercialDetector(confidence_threshold=0.65).remove(text).lower()
+        # ...but a strict threshold keeps it.
+        assert "sponsor" in CommercialDetector(confidence_threshold=0.99).remove(text).lower()
+
     def test_uncorroborated_inline_cta_not_detected(self) -> None:
         """A bare URL in ordinary speech (no brand/promo/intro nearby) is left alone (B2)."""
         text = "Host: you should really check out github.com, it's great for hosting code."
