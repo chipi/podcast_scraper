@@ -20,7 +20,9 @@ def test_diarize_maps_pyannote_output(mock_create, mock_load_waveform) -> None:
 
     turn_a = MagicMock(start=0.0, end=1.5)
     turn_b = MagicMock(start=1.5, end=3.0)
-    mock_pipeline.return_value.itertracks.return_value = [
+    # pyannote 4.x returns a DiarizeOutput whose .speaker_diarization is the
+    # Annotation; the provider reads itertracks off that.
+    mock_pipeline.return_value.speaker_diarization.itertracks.return_value = [
         (turn_a, None, "SPEAKER_00"),
         (turn_b, None, "SPEAKER_01"),
     ]
