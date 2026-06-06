@@ -119,7 +119,7 @@ Wave 1 (#850), Wave 2 (#895), and Wave 3 (#898). It is the source list for a sin
   `deepgram_provider.py:186`.
 - **D3 · P2 · M** — Cross-chunk speaker-ID reconciliation (chunk-local 0/1 not reconciled; latent
   until D1 lands).
-- **D4 · P2 · S** — Harden response parsing: warn on unparseable `{}`; test malformed/empty
+- **D4 · P2 · S** — Harden response parsing: warn on unparsable `{}`; test malformed/empty
   payloads. `deepgram_provider.py:17`.
 - **D5 · P3 · S** — Use `episode_duration_seconds` for precise cost (currently discarded). `:197`.
 - **D6 · P3 · S–M** — Tests: error path, empty/malformed response, multi-speaker
