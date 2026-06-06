@@ -1,20 +1,28 @@
 """Integration: bundled dispatch logic for eval summarization (Issue #477).
 
-Tests the dispatch pattern used by run_experiment._eval_summarize
-without importing the full run_experiment module (which pulls in
-heavy ML dependencies).
+Tests the *real* ``run_experiment._eval_summarize`` (imported as a namespace
+package from the repo root), not a copy. The previous version pasted a
+replica of the dispatch logic into the test, so a divergence in the real
+function (a renamed kwarg, a flipped mode check) left these green — a hollow
+test. The real import costs ~2.5s but actually guards the shipped code.
 """
 
 from __future__ import annotations
 
+import importlib
 import json
 import unittest
-from typing import Any, Dict
 from unittest.mock import Mock
 
 import pytest
 
 pytestmark = pytest.mark.integration
+
+# Import the REAL function at runtime via importlib (not a static ``from scripts...``):
+# ``scripts/`` is excluded from mypy (sys.path tricks), but a static import is still
+# *followed* by mypy and would surface scripts/ type-debt as errors here. A dynamic
+# import keeps mypy out of scripts/ while the test exercises the shipped function.
+_eval_summarize = importlib.import_module("scripts.eval.experiment.run_experiment")._eval_summarize
 
 VALID_BUNDLED_JSON = json.dumps(
     {
@@ -23,41 +31,6 @@ VALID_BUNDLED_JSON = json.dumps(
         "bullets": ["Point one.", "Point two."],
     }
 )
-
-
-def _eval_summarize(
-    provider: Any,
-    cfg_obj: Any,
-    text: str,
-    summary_params: Dict[str, Any],
-    pipeline_metrics: Any,
-) -> Any:
-    """Replicate the dispatch logic from run_experiment._eval_summarize."""
-    mode = getattr(cfg_obj, "llm_pipeline_mode", "staged")
-    if mode == "bundled":
-        bundled = getattr(provider, "summarize_bundled", None)
-        if not callable(bundled):
-            raise ValueError(
-                "Experiment llm_pipeline_mode=bundled requires a "
-                "provider with summarize_bundled "
-                f"(got {type(provider).__name__})."
-            )
-        return bundled(
-            text,
-            episode_title=None,
-            episode_description=None,
-            params=summary_params,
-            pipeline_metrics=pipeline_metrics,
-            call_metrics=None,
-        )
-    return provider.summarize(
-        text,
-        episode_title=None,
-        episode_description=None,
-        params=summary_params,
-        pipeline_metrics=pipeline_metrics,
-        call_metrics=None,
-    )
 
 
 class TestEvalSummarizeBundledDispatch(unittest.TestCase):

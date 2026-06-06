@@ -160,15 +160,22 @@ def _build_simple_cfg(quote_mode: str = "staged") -> Any:
 
 @pytest.mark.integration
 class TestBundledDispatchInPipeline(unittest.TestCase):
-    """Smoke-test the dispatch path in ``gi/pipeline._run_provider_evidence_path``.
+    """Drive the *real* dispatch path in ``gi/pipeline.py`` — not a replica.
 
-    These tests exercise the dispatch logic directly via mock providers without
-    going through the full ``build_artifact`` orchestration — that's covered by
-    higher-level pipeline tests already.
+    Both tests call the shipped ``_maybe_prefetch_bundled_candidates`` (Layer A
+    bundled extract) + ``_ground_insights_dispatch`` (Layer B grounding) with mock
+    providers, so a change to the real bundled-vs-staged routing or its metrics
+    counters is actually caught. The previous version pasted a "replica of the
+    dispatch loop as it exists in pipeline.py" into the test body and exercised
+    *that* — green even if pipeline.py diverged.
     """
 
     def test_bundled_called_once_with_all_insights(self) -> None:
-        """When mode=bundled and provider has bundled fn, call once for all insights."""
+        """mode=bundled + provider has bundled fn → one bundled call grounds all insights."""
+        from podcast_scraper.gi.pipeline import (
+            _ground_insights_dispatch,
+            _maybe_prefetch_bundled_candidates,
+        )
         from podcast_scraper.workflow.metrics import Metrics
 
         transcript = "Alpha beta gamma. Delta epsilon zeta. Eta theta iota."
@@ -184,41 +191,49 @@ class TestBundledDispatchInPipeline(unittest.TestCase):
         prov = MagicMock()
         prov.extract_quotes_bundled = bundled_fn
         prov.score_entailment = MagicMock(return_value=0.9)
-        # Staged fn intentionally raises if called — proves we used bundled.
+        # Staged fn intentionally raises if called — proves we used the bundled prefetch.
         prov.extract_quotes = MagicMock(
             side_effect=AssertionError("staged extract_quotes should not be called")
         )
 
+        cfg = _build_simple_cfg("bundled")
         m = Metrics()
 
-        # Replicate the dispatch loop as it exists in ``pipeline.py``.
-        prefetched = bundled_fn(
+        prefetched = _maybe_prefetch_bundled_candidates(
+            cfg=cfg,
+            quote_extraction_provider=prov,
             transcript=transcript,
             insight_texts=insights,
             pipeline_metrics=m,
         )
-        m.gi_evidence_extract_quotes_bundled_calls += 1
+        grounded = _ground_insights_dispatch(
+            cfg=cfg,
+            insight_specs=[(t, None) for t in insights],
+            transcript=transcript,
+            quote_extraction_provider=prov,
+            entailment_provider=prov,
+            qa_score_min=cfg.gi_qa_score_min,
+            nli_entailment_min=cfg.gi_nli_entailment_min,
+            extract_retries=0,
+            pipeline_metrics=m,
+            prefetched_by_idx=prefetched,
+        )
 
-        for idx, it_text in enumerate(insights):
-            cands = prefetched.get(idx) or []
-            grounded = find_grounded_quotes_via_providers(
-                transcript=transcript,
-                insight_text=it_text,
-                quote_extraction_provider=prov,
-                entailment_provider=prov,
-                prefetched_candidates=cands if cands else None,
-            )
-            self.assertEqual(len(grounded), 1)
-
+        self.assertEqual([len(g) for g in grounded], [1, 1, 1])
         bundled_fn.assert_called_once()
         self.assertEqual(m.gi_evidence_extract_quotes_bundled_calls, 1)
         self.assertEqual(m.gi_evidence_extract_quotes_bundled_fallbacks, 0)
 
     def test_partial_bundled_results_falls_back_per_insight(self) -> None:
-        """When bundled returns empty list for one insight, that one falls back to staged."""
+        """When bundled returns an empty list for one insight, that one falls back to staged."""
+        from podcast_scraper.gi.pipeline import (
+            _ground_insights_dispatch,
+            _maybe_prefetch_bundled_candidates,
+        )
+
         transcript = "Alpha beta gamma. Delta epsilon zeta."
         insights = ["First.", "Second."]
-        # Insight 1 missing in bundled response.
+        # Insight 1 missing in bundled response → must fall back to staged extract.
         bundled_response = {0: [_candidate("Alpha beta gamma.", 0, 17)], 1: []}
         bundled_fn = MagicMock(return_value=bundled_response)
 
@@ -230,32 +245,33 @@ class TestBundledDispatchInPipeline(unittest.TestCase):
         prov.extract_quotes = staged_fn
         prov.score_entailment = MagicMock(return_value=0.9)
 
-        # Manual replay of dispatch logic.
-        prefetched = bundled_fn(
+        cfg = _build_simple_cfg("bundled")
+
+        prefetched = _maybe_prefetch_bundled_candidates(
+            cfg=cfg,
+            quote_extraction_provider=prov,
             transcript=transcript,
             insight_texts=insights,
             pipeline_metrics=None,
         )
+        grounded = _ground_insights_dispatch(
+            cfg=cfg,
+            insight_specs=[(t, None) for t in insights],
+            transcript=transcript,
+            quote_extraction_provider=prov,
+            entailment_provider=prov,
+            qa_score_min=cfg.gi_qa_score_min,
+            nli_entailment_min=cfg.gi_nli_entailment_min,
+            extract_retries=0,
+            pipeline_metrics=None,
+            prefetched_by_idx=prefetched,
+        )
 
-        # Insight 0: bundled returned candidates → use them, no staged call.
-        cands_0 = prefetched.get(0) or []
-        find_grounded_quotes_via_providers(
-            transcript=transcript,
-            insight_text=insights[0],
-            quote_extraction_provider=prov,
-            entailment_provider=prov,
-            prefetched_candidates=cands_0 if cands_0 else None,
-        )
-        # Insight 1: bundled returned [] → staged called instead.
-        cands_1 = prefetched.get(1) or []
-        find_grounded_quotes_via_providers(
-            transcript=transcript,
-            insight_text=insights[1],
-            quote_extraction_provider=prov,
-            entailment_provider=prov,
-            prefetched_candidates=cands_1 if cands_1 else None,
-        )
+        # Insight 0 used the bundled candidate; insight 1 fell back to the staged
+        # extract (called exactly once for the missing insight). Both ground.
+        bundled_fn.assert_called_once()
         staged_fn.assert_called_once()
+        self.assertEqual([len(g) for g in grounded], [1, 1])
 
 
 @pytest.mark.integration
