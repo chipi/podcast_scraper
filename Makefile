@@ -3337,12 +3337,14 @@ INFRA_DRILL_ENV_FILE := infra/.env.drill.local
 
 dgx-smoke:
 	@# RFC-089: probe DGX Ollama via tailnet (non-fatal when DGX offline).
-	@if [ -z "$${DGX_TAILNET_FQDN:-}" ]; then \
-		echo "WARN: DGX_TAILNET_FQDN unset; skipping dgx-smoke" >&2; exit 0; \
-	fi
-	@host=$$(bash scripts/ops/resolve_dgx_tailnet_host.sh) && \
-		curl -fsS --max-time 5 "http://$$host:11434/api/tags" >/dev/null && \
-		echo "DGX Ollama OK at http://$$host:11434"
+	@# Auto-sources infra/.env.dgx.local (added with #897 / ADR-098) if present.
+	@if [ -f infra/.env.dgx.local ]; then set -a && . ./infra/.env.dgx.local && set +a; fi; \
+		if [ -z "$${DGX_TAILNET_FQDN:-}" ]; then \
+			echo "WARN: DGX_TAILNET_FQDN unset; skipping dgx-smoke" >&2; exit 0; \
+		fi; \
+		host=$$(bash scripts/ops/resolve_dgx_tailnet_host.sh) && \
+			curl -fsS --max-time 5 "http://$$host:11434/api/tags" >/dev/null && \
+			echo "DGX Ollama OK at http://$$host:11434"
 
 # --- DGX config management (pyinfra) — see infra/dgx/converge/README.md -----
 DGX_CONVERGE_DIR := infra/dgx/converge

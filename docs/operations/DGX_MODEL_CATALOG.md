@@ -49,9 +49,14 @@ DGX does not serve embeddings in shipped profiles. The pipeline uses
 A/B in `eval/embedding_provider_comparison/transcript-chunked/` showed
 MiniLM beats nomic under production-realistic chunking on this corpus.
 
-| Tag                | Purpose                        | Dim | Context | Digest     | Pulled     |
-| ------------------ | ------------------------------ | --- | ------- | ---------- | ---------- |
-| `nomic-embed-text` | Optional — for A/B eval reruns | 768 | 8192    | _optional_ | _optional_ |
+| Tag                | Purpose                        | Dim | Context | Digest (weights layer)         | Pulled     |
+| ------------------ | ------------------------------ | --- | ------- | ------------------------------ | ---------- |
+| `nomic-embed-text` | Optional — for A/B eval reruns | 768 | 8192    | `sha256:970aa74c0a90` (274 MB) | 2026-06-06 |
+
+Full weights digest: `sha256:970aa74c0a90ef7482477cf803618e776e173c007bf957f635f1015bfcfef0e6`
+Captured from laptop Ollama 0.19.0; verify after `ollama pull` on DGX with
+`cat ~/.ollama/models/manifests/registry.ollama.ai/library/nomic-embed-text/latest`
+and check the layer of type `application/vnd.ollama.image.model`.
 
 Pull only if you want to re-run the embedding-provider A/B against a
 newer model release. Not required for the pipeline.
