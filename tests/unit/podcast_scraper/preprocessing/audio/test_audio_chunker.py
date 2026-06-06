@@ -103,7 +103,7 @@ class TestSplitAudio:
     @patch("podcast_scraper.preprocessing.audio.chunker._run_text_subprocess")
     @patch("podcast_scraper.preprocessing.audio.chunker._probe_duration_seconds")
     @patch("podcast_scraper.preprocessing.audio.chunker.shutil.which")
-    def test_split_invokes_ffmpeg_stream_copy(
+    def test_split_reencodes_for_clean_frame_boundaries(
         self, mock_which, mock_probe, mock_run, tmp_path
     ) -> None:
         mock_which.return_value = "/usr/bin/ffmpeg"
@@ -121,5 +121,45 @@ class TestSplitAudio:
         chunker = AudioChunker(max_bytes=1024 * 1024, max_duration_seconds=1400.0)
         chunks = chunker.split(str(audio), work_dir=str(tmp_path / "chunks"))
         assert len(chunks) >= 2
-        assert "-c" in mock_run.call_args[0][0]
-        assert "copy" in mock_run.call_args[0][0]
+        argv = mock_run.call_args[0][0]
+        # Re-encode (clean frames), not stream-copy (mid-frame cut garbles seams).
+        assert "libmp3lame" in argv
+        assert "-b:a" in argv
+        assert "copy" not in argv
+
+
+class TestSeamSegmentDedup:
+    def test_overlap_segments_deduped(self) -> None:
+        """A segment re-transcribed in the next chunk's overlap window is dropped (C1)."""
+        chunker = AudioChunker(max_bytes=1024, overlap_seconds=5.0)
+        chunks = [
+            AudioChunk(path="a.mp3", start_seconds=0.0, index=0),
+            AudioChunk(path="b.mp3", start_seconds=95.0, index=1),
+        ]
+        results = [
+            (
+                {
+                    "text": "a seam",
+                    "segments": [
+                        {"start": 0.0, "end": 2.0, "text": "a"},
+                        {"start": 94.0, "end": 96.0, "text": "seam"},
+                    ],
+                },
+                1.0,
+            ),
+            (
+                {
+                    "text": "seam b",
+                    "segments": [
+                        # abs 95-96: duplicate of chunk-0's seam segment -> dropped
+                        {"start": 0.0, "end": 1.0, "text": "seam"},
+                        # abs 100-103: genuinely new content -> kept
+                        {"start": 5.0, "end": 8.0, "text": "b"},
+                    ],
+                },
+                1.5,
+            ),
+        ]
+        merged, _ = chunker.merge_transcript_results(results, chunks)
+        starts = [round(s["start"], 1) for s in merged["segments"]]
+        assert starts == [0.0, 94.0, 100.0]  # the 95.0 seam duplicate is gone
