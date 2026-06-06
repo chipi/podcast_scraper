@@ -84,12 +84,14 @@ def test_default_path_transcribe_diarize_screenplay() -> None:
     segments = enriched.get("segments") or []
     assert segments, "no transcript segments produced"
 
-    # The default path must produce diarized labels (not a phantom single speaker).
+    # Ground truth (FIXTURES_SPEC): host **Maya** + guest **Liam**. The detected
+    # names must map onto the two diarized speakers — assert the *actual values*,
+    # not just "some 2-speaker split".
     labels = {s.get("speaker_label") for s in segments if s.get("speaker_label")}
-    assert len(labels) >= 2, f"expected >= 2 diarized speakers, got {sorted(labels)}"
+    assert {"Maya", "Liam"}.issubset(labels), f"expected Maya+Liam diarized, got {sorted(labels)}"
 
     screenplay = format_diarized_screenplay_from_segments(segments)
     assert screenplay.strip(), "empty screenplay"
-    # Each diarized speaker should surface as a "Label:" line in the screenplay.
-    distinct_prefixes = {line.split(":", 1)[0] for line in screenplay.splitlines() if ":" in line}
-    assert len(distinct_prefixes) >= 2, f"screenplay has < 2 speakers: {distinct_prefixes}"
+    # Both speakers must surface as named "Name:" lines in the screenplay.
+    assert "Maya:" in screenplay, f"host Maya not labelled in screenplay:\n{screenplay[:300]}"
+    assert "Liam:" in screenplay, f"guest Liam not labelled in screenplay:\n{screenplay[:300]}"
