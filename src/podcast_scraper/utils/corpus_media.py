@@ -14,14 +14,20 @@ logger = logging.getLogger(__name__)
 
 CORPUS_MEDIA_DIR = "media"
 
+# Audio container extensions we may persist (source ext is preserved on copy).
+# Ordered so the common podcast formats resolve first.
+AUDIO_MEDIA_EXTENSIONS = (".mp3", ".m4a", ".aac", ".opus", ".ogg", ".wav", ".flac", ".mp4", ".webm")
+
 
 def audio_relpath_for_transcript(transcript_relpath: str, media_ext: str = ".mp3") -> str:
-    """Derive ``media/<stem><ext>`` from a ``transcripts/…/*.txt`` relpath."""
+    """Derive ``media/<stem><ext>`` from a ``transcripts/…/*.txt`` relpath.
+
+    Media is flattened into a single ``media/`` directory keyed by the transcript
+    stem (the persist step does the same), so subdirectories are intentionally
+    dropped here.
+    """
     norm = transcript_relpath.strip().replace("\\", "/").lstrip("/")
-    path = Path(norm)
-    stem = path.stem
-    if path.parent.name:
-        return f"{CORPUS_MEDIA_DIR}/{stem}{media_ext}"
+    stem = Path(norm).stem
     return f"{CORPUS_MEDIA_DIR}/{stem}{media_ext}"
 
 
@@ -62,7 +68,12 @@ def resolve_audio_relpath_for_metadata(
             return candidate
     if not transcript_file_path:
         return None
-    inferred = audio_relpath_for_transcript(transcript_file_path)
-    if os.path.isfile(os.path.join(effective_output_dir, inferred)):
-        return inferred
+    # The persisted file keeps the *source* extension (often .m4a), so probe every
+    # known audio extension for the transcript stem rather than assuming .mp3.
+    norm = transcript_file_path.strip().replace("\\", "/").lstrip("/")
+    stem = Path(norm).stem
+    for ext in AUDIO_MEDIA_EXTENSIONS:
+        relpath = f"{CORPUS_MEDIA_DIR}/{stem}{ext}"
+        if os.path.isfile(os.path.join(effective_output_dir, relpath)):
+            return relpath
     return None
