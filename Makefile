@@ -365,7 +365,7 @@ type:
 security: security-bandit security-audit
 
 security-bandit:
-	$(PYTHON) -m bandit -r . --exclude ./.venv,./.venv-dev --skip B113,B108,B110,B310 --severity-level medium
+	$(PYTHON) -m bandit -r . --exclude ./.venv,./.venv-dev,./infra/dgx/converge/.venv --skip B113,B108,B110,B310 --severity-level medium
 
 security-audit:
 	$(PYTHON) -m pip install --upgrade setuptools
@@ -3135,6 +3135,23 @@ report-multi-run:
 	eval $$cmd
 	@echo "✓ Report generated. See OUTPUT path above."
 
+embedding-provider-eval:
+	@# Compare embedding providers on the operator's corpus (ADR-098 / #897).
+	@# Uses gi.json SUPPORTED_BY edges as ground truth — no human annotation needed.
+	@# Usage: make embedding-provider-eval CORPUS=./output [MODE=quote|transcript] [MAX_PAIRS=500] [OLLAMA_URL=http://...]
+	@# MODE=quote (default): insight → supporting Quote node (short text, paraphrase quality).
+	@# MODE=transcript: insight → episode's full transcript (long text, where MiniLM's 256-token cap truncates).
+	@if [ -z "$(CORPUS)" ]; then \
+		echo "ERROR: CORPUS is required (path to corpus root, parent of feeds/)." >&2; \
+		echo "  Example: make embedding-provider-eval CORPUS=./output" >&2; \
+		exit 1; \
+	fi
+	@$(PYTHON) scripts/eval_embedding_providers.py \
+		--corpus "$(CORPUS)" \
+		$(if $(MODE),--mode $(MODE)) \
+		$(if $(MAX_PAIRS),--max-pairs $(MAX_PAIRS)) \
+		$(if $(OLLAMA_URL),--ollama-base-url $(OLLAMA_URL))
+
 benchmark:
 	@# Run benchmark across multiple datasets
 	@# Usage: make benchmark CONFIG=config.yaml BASELINE=baseline_id [SMOKE=1|ALL=1|DATASETS=ds1,ds2] [REFERENCE=ref1,ref2] [OUTPUT_DIR=...]
@@ -3320,12 +3337,65 @@ INFRA_DRILL_ENV_FILE := infra/.env.drill.local
 
 dgx-smoke:
 	@# RFC-089: probe DGX Ollama via tailnet (non-fatal when DGX offline).
-	@if [ -z "$${DGX_TAILNET_FQDN:-}" ]; then \
-		echo "WARN: DGX_TAILNET_FQDN unset; skipping dgx-smoke" >&2; exit 0; \
+	@# Auto-sources infra/.env.dgx.local (added with #897 / ADR-098) if present.
+	@if [ -f infra/.env.dgx.local ]; then set -a && . ./infra/.env.dgx.local && set +a; fi; \
+		if [ -z "$${DGX_TAILNET_FQDN:-}" ]; then \
+			echo "WARN: DGX_TAILNET_FQDN unset; skipping dgx-smoke" >&2; exit 0; \
+		fi; \
+		host=$$(bash scripts/ops/resolve_dgx_tailnet_host.sh) && \
+			curl -fsS --max-time 5 "http://$$host:11434/api/tags" >/dev/null && \
+			echo "DGX Ollama OK at http://$$host:11434"
+
+# --- DGX config management (pyinfra) — see infra/dgx/converge/README.md -----
+DGX_CONVERGE_DIR := infra/dgx/converge
+DGX_CONVERGE_VENV := $(DGX_CONVERGE_DIR)/.venv
+DGX_PYINFRA := $(DGX_CONVERGE_VENV)/bin/pyinfra
+INFRA_DGX_ENV_FILE := infra/.env.dgx.local
+
+# Source infra/.env.dgx.local if present, otherwise require DGX_TAILNET_FQDN in
+# the calling shell. Bail with a friendly message + cp hint if neither is set.
+define _dgx_env
+	if [ -f $(INFRA_DGX_ENV_FILE) ]; then \
+		set -a && . ./$(INFRA_DGX_ENV_FILE) && set +a; \
+	fi; \
+	if [ -z "$${DGX_TAILNET_FQDN:-}" ]; then \
+		echo "ERROR: DGX_TAILNET_FQDN unset and $(INFRA_DGX_ENV_FILE) missing." >&2; \
+		echo "  → cp infra/.env.dgx.local.example $(INFRA_DGX_ENV_FILE) and edit." >&2; \
+		exit 1; \
 	fi
-	@host=$$(bash scripts/ops/resolve_dgx_tailnet_host.sh) && \
-		curl -fsS --max-time 5 "http://$$host:11434/api/tags" >/dev/null && \
-		echo "DGX Ollama OK at http://$$host:11434"
+endef
+
+$(DGX_PYINFRA): $(DGX_CONVERGE_DIR)/requirements.txt
+	@python3 -m venv $(DGX_CONVERGE_VENV)
+	@$(DGX_CONVERGE_VENV)/bin/pip install --quiet --upgrade pip
+	@$(DGX_CONVERGE_VENV)/bin/pip install --quiet -r $(DGX_CONVERGE_DIR)/requirements.txt
+	@touch $(DGX_PYINFRA)
+
+dgx-ssh-test:
+	@# Confirm SSH from laptop to DGX works. Auto-sources $(INFRA_DGX_ENV_FILE).
+	@# Two branches so we can quote the key path (it may contain spaces, e.g. NVIDIA Sync's nvsync.key).
+	@$(_dgx_env); \
+		host=$${DGX_SSH_HOST:-$$DGX_TAILNET_FQDN}; \
+		user=$${DGX_SSH_USER:-root}; port=$${DGX_SSH_PORT:-22}; key=$${DGX_SSH_KEY:-}; \
+		if [ -n "$$key" ] && [ -f "$$key" ]; then \
+			echo "→ ssh -i \"$$key\" -p $$port $$user@$$host 'echo ok && uname -a'"; \
+			ssh -i "$$key" -p "$$port" -o StrictHostKeyChecking=accept-new -o ConnectTimeout=10 "$$user@$$host" 'echo ok && uname -a'; \
+		else \
+			if [ -n "$$key" ]; then echo "WARN: DGX_SSH_KEY set but $$key missing — falling back to ssh-agent / ~/.ssh/config." >&2; fi; \
+			echo "→ ssh -p $$port $$user@$$host 'echo ok && uname -a'"; \
+			ssh -p "$$port" -o StrictHostKeyChecking=accept-new -o ConnectTimeout=10 "$$user@$$host" 'echo ok && uname -a'; \
+		fi
+
+# pyinfra: --sudo escalates non-root SSH users for privileged ops (systemd, /etc, /opt).
+# If user is already root, --sudo is a no-op.
+# NB: dgx-verify runs verify.py (assertions only, real execution — NOT --dry, which
+# wouldn't actually probe DGX). Post-ADR-098 there is no convergent half — the
+# embedding shim was dropped in favour of Ollama-served nomic-embed-text (#897).
+# Re-introduce a deploy.py + dgx-converge target if/when future convergent work appears.
+dgx-verify: $(DGX_PYINFRA)
+	@# Read-only assertions, real execution. Fails on drift. Auto-sources $(INFRA_DGX_ENV_FILE).
+	@$(_dgx_env); \
+		cd $(DGX_CONVERGE_DIR) && .venv/bin/pyinfra --sudo -y inventory.py verify.py
 
 drill-env:
 	@echo "DR drill Hetzner token (same scope as GitHub secret HCLOUD_TOKEN_DRILL):"

@@ -2207,8 +2207,23 @@ class Config(BaseModel):
         default=None,
         alias="vector_embedding_endpoint",
         description=(
-            "Optional HTTP POST /embed URL (DGX embedding shim, RFC-089). "
-            "When set, indexing uses remote embeddings instead of in-process sentence-transformers."
+            "Base URL for the remote embedding provider. Meaning depends on "
+            "vector_embedding_provider: when 'ollama', this is the Ollama base "
+            "URL (e.g. http://dgx:11434) and the client appends /api/embed; when "
+            "'sentence_transformers' and an endpoint is also set, it's treated "
+            "as a legacy shim /embed URL (RFC-089 §D4, superseded by ADR-098)."
+        ),
+    )
+    vector_embedding_provider: Literal["sentence_transformers", "ollama"] = Field(
+        default="sentence_transformers",
+        alias="vector_embedding_provider",
+        description=(
+            "Which embedding backend serves vectors for the corpus index. "
+            "'sentence_transformers' loads the model in-process (default, used by "
+            "local/cloud profiles). 'ollama' POSTs to vector_embedding_endpoint's "
+            "Ollama API (DGX profiles; ADR-098 supersedes RFC-089 §D4). When 'ollama' "
+            "is selected, vector_embedding_model is an Ollama tag (e.g. nomic-embed-text), "
+            "NOT a HuggingFace id."
         ),
     )
     vector_backend: Literal["faiss"] = Field(

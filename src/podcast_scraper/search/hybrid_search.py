@@ -24,6 +24,7 @@ from typing import Any, cast, Dict, List, Optional, Sequence, TYPE_CHECKING
 
 import yaml
 
+from .. import config as _config
 from ..providers.ml import embedding_loader
 from ..utils.path_validation import (
     normpath_if_under_root,
@@ -201,7 +202,15 @@ def hybrid_candidates(
         else str(meta.get("embedding_model") or _DEFAULT_MODEL)
     )
     try:
-        qvec = embedding_loader.encode(query, model_id, return_numpy=False, allow_download=False)
+        _cfg = _config.Config()
+        qvec = embedding_loader.encode(
+            query,
+            model_id,
+            return_numpy=False,
+            allow_download=False,
+            remote_endpoint=_cfg.vector_embedding_endpoint,
+            provider=_cfg.vector_embedding_provider,
+        )
     except Exception as exc:  # noqa: BLE001 - any embed failure → FAISS fallback
         logger.warning("hybrid_search embed failed (%s); falling back to FAISS", exc)
         return None

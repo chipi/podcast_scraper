@@ -27,6 +27,8 @@ class IndexStats:
     embedding_dim: int
     last_updated: str
     index_size_bytes: int
+    # ADR-098 / #897. Default for back-compat: legacy indexes were always sentence_transformers.
+    embedding_provider: str = "sentence_transformers"
 
 
 @runtime_checkable

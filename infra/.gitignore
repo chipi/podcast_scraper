@@ -9,4 +9,5 @@ terraform/terraform.drill.tfvars
 
 # Local operator overrides (host .env staging, scratch notes)
 .env.local
+.env.dgx.local
 .scratch/

@@ -485,11 +485,14 @@ def _open_or_rebuild_vector_store(
     resolved_model: str,
     rebuild: bool,
     cfg_embedding_model: str,
+    provider: str = "sentence_transformers",
 ) -> FaissVectorStore:
     """Load on-disk FAISS store or create fresh; may clear ``fingerprints`` on rebuild."""
     vec_file = index_dir / VECTORS_FILE
     if not vec_file.is_file() or rebuild:
-        return FaissVectorStore(dim, embedding_model=resolved_model, index_dir=index_dir)
+        return FaissVectorStore(
+            dim, embedding_model=resolved_model, embedding_provider=provider, index_dir=index_dir
+        )
 
     try:
         store = FaissVectorStore.load(index_dir)
@@ -498,14 +501,35 @@ def _open_or_rebuild_vector_store(
         shutil.rmtree(index_dir)
         index_dir.mkdir(parents=True, exist_ok=True)
         fingerprints.clear()
-        return FaissVectorStore(dim, embedding_model=resolved_model, index_dir=index_dir)
+        return FaissVectorStore(
+            dim, embedding_model=resolved_model, embedding_provider=provider, index_dir=index_dir
+        )
 
     if store.embedding_dim != dim:
         logger.warning("Rebuilding vector index: embedding dimension mismatch")
         shutil.rmtree(index_dir)
         index_dir.mkdir(parents=True, exist_ok=True)
         fingerprints.clear()
-        return FaissVectorStore(dim, embedding_model=resolved_model, index_dir=index_dir)
+        return FaissVectorStore(
+            dim, embedding_model=resolved_model, embedding_provider=provider, index_dir=index_dir
+        )
+
+    # Provider mismatch is harder than model mismatch: same model id served by two
+    # different providers (e.g. nomic-embed-text via Ollama vs sentence_transformers)
+    # produces different vectors. Force rebuild instead of warn-only (#897).
+    idx_provider = store.embedding_provider
+    if idx_provider != provider:
+        logger.warning(
+            "Rebuilding vector index: embedding provider %s differs from config %s (#897)",
+            idx_provider,
+            provider,
+        )
+        shutil.rmtree(index_dir)
+        index_dir.mkdir(parents=True, exist_ok=True)
+        fingerprints.clear()
+        return FaissVectorStore(
+            dim, embedding_model=resolved_model, embedding_provider=provider, index_dir=index_dir
+        )
 
     idx_model = store.stats().embedding_model
     if ModelRegistry.resolve_evidence_model_id(idx_model) != resolved_model:
@@ -599,6 +623,7 @@ def index_corpus(
         resolved_model=resolved_model,
         rebuild=rebuild,
         cfg_embedding_model=cfg.vector_embedding_model,
+        provider=cfg.vector_embedding_provider,
     )
 
     allowed_types: Optional[Set[str]] = (
@@ -681,6 +706,7 @@ def index_corpus(
                     batch_size=64,
                     allow_download=False,
                     remote_endpoint=cfg.vector_embedding_endpoint,
+                    provider=cfg.vector_embedding_provider,
                 )
             except Exception as exc:
                 stats.errors.append(f"encode {episode_id}: {exc}")

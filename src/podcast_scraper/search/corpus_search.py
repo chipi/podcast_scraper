@@ -9,6 +9,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, cast, Dict, List, Optional, Sequence, Set
 
+from podcast_scraper import config as _config
 from podcast_scraper.providers.ml import embedding_loader
 from podcast_scraper.providers.ml.model_registry import ModelRegistry
 from podcast_scraper.search.cil_lift_overrides import load_cil_lift_overrides
@@ -261,6 +262,10 @@ def run_corpus_search(
     else:
         model_id = idx_model
 
+    # Provider/endpoint come from the active profile (Config) so query-time embedding
+    # matches what built the index. Without this, DGX-built indexes (Ollama provider)
+    # would be queried with local sentence-transformers → silent vector mismatch (#897).
+    _cfg = _config.Config()
     t_embed0 = time.perf_counter()
     try:
         qvec = embedding_loader.encode(
@@ -268,6 +273,8 @@ def run_corpus_search(
             model_id,
             return_numpy=False,
             allow_download=False,
+            remote_endpoint=_cfg.vector_embedding_endpoint,
+            provider=_cfg.vector_embedding_provider,
         )
         if isinstance(qvec, list) and qvec and isinstance(qvec[0], float):
             qemb = cast(List[float], qvec)

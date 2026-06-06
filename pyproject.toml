@@ -68,6 +68,10 @@ ml = [
   "en-core-web-sm @ https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-3.7.1/en_core_web_sm-3.7.1-py3-none-any.whl",
   "en-core-web-trf @ https://github.com/explosion/spacy-models/releases/download/en_core_web_trf-3.7.3/en_core_web_trf-3.7.3-py3-none-any.whl",
   "torch>=2.11.0,<3.0.0",
+  # spaCy 3.7.x pins thinc<8.3; thinc 8.2.x wheels were compiled against numpy 1.x and crash
+  # with ``numpy.dtype size changed`` on numpy 2.x (ABI mismatch surfaces in MCP + GI tests).
+  # Keep numpy<2 until we move to spaCy 3.8+ which allows thinc 8.3+ with numpy 2 support.
+  "numpy>=1.24,<2",
   # sentence-transformers 5.x allows transformers 4.41–5.x; keep <5 until we vendor
   # extractive QA: transformers 5 removed the ``question-answering`` pipeline task (CI preload).
   # CVE-2026-1839 (Trainer rng_state / torch.load): fixed in 5.0.0rc3+ only; pip-audit ignore in Makefile until 5.x stable.

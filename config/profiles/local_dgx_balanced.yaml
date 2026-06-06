@@ -35,6 +35,12 @@ kg_max_entities: 15
 
 vector_search: true
 vector_backend: faiss
+# Embeddings stay in-process via sentence_transformers (the default). Per ADR-098,
+# the empirical A/B on the operator's corpus showed MiniLM beats nomic-embed-text
+# on transcript-chunked retrieval (the production-realistic path). DGX runs only
+# Ollama for the LLM stages; embeddings keep their fast in-process path (~7ms p50
+# vs ~33ms over HTTP to Ollama) and no DGX availability dependency.
+# See eval/embedding_provider_comparison/transcript-chunked/ for the numbers.
 
 degradation_policy:
   fallback_provider_on_failure: gemini

@@ -25,6 +25,7 @@ _STALE_AFTER_INDEX_SEC = 1.0
 REASON_ARTIFACTS_NEWER = "artifacts_newer_than_index"
 REASON_NO_INDEX_BUT_METADATA = "no_index_but_metadata"
 REASON_EMBEDDING_MODEL_MISMATCH = "embedding_model_mismatch"
+REASON_EMBEDDING_PROVIDER_MISMATCH = "embedding_provider_mismatch"
 REASON_CORPUS_SEARCH_PARENT_HINT = "corpus_search_parent_hint"
 REASON_MULTI_FEED_BATCH_INCOMPLETE = "multi_feed_batch_incomplete"
 
@@ -83,6 +84,8 @@ def compute_index_staleness(
     index_last_updated: Optional[str],
     index_embedding_model: Optional[str],
     embedding_model_query: Optional[str],
+    index_embedding_provider: Optional[str] = None,
+    embedding_provider_query: Optional[str] = None,
 ) -> IndexStalenessFields:
     """Derive staleness flags for a resolved corpus root."""
     hints = corpus_search_parent_hint(corpus_root)
@@ -123,10 +126,11 @@ def compute_index_staleness(
         reasons.append(REASON_ARTIFACTS_NEWER)
         recommend = True
 
+    cfg = config.Config()
     expected = (
         embedding_model_query.strip()
         if embedding_model_query and embedding_model_query.strip()
-        else config.Config().vector_embedding_model
+        else cfg.vector_embedding_model
     )
     idx_model = (index_embedding_model or "").strip()
     if idx_model and expected:
@@ -139,6 +143,18 @@ def compute_index_staleness(
         if models_differ:
             reasons.append(REASON_EMBEDDING_MODEL_MISMATCH)
             recommend = True
+
+    expected_provider = (
+        embedding_provider_query.strip()
+        if embedding_provider_query and embedding_provider_query.strip()
+        else cfg.vector_embedding_provider
+    )
+    idx_provider = (index_embedding_provider or "sentence_transformers").strip()
+    # Compare only when caller / config explicitly named a provider; an absent
+    # query falls back to config so this still fires when profile diverges from index.
+    if expected_provider and idx_provider and idx_provider != expected_provider:
+        reasons.append(REASON_EMBEDDING_PROVIDER_MISMATCH)
+        recommend = True
 
     return IndexStalenessFields(
         reindex_recommended=recommend,

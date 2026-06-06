@@ -144,6 +144,7 @@ class FaissVectorStore:
         embedding_dim: int,
         *,
         embedding_model: str = DEFAULT_EMBEDDING_MODEL,
+        embedding_provider: str = "sentence_transformers",
         index_dir: Optional[Path] = None,
     ) -> None:
         if embedding_dim < 1:
@@ -152,6 +153,7 @@ class FaissVectorStore:
 
         self._embedding_dim = embedding_dim
         self._embedding_model = embedding_model
+        self._embedding_provider = embedding_provider
         self._index_dir = Path(index_dir) if index_dir is not None else None
         self._doc_to_faiss_id: Dict[str, int] = {}
         self._faiss_to_doc: Dict[int, str] = {}
@@ -179,7 +181,9 @@ class FaissVectorStore:
         meta_blob = json.loads(meta_path.read_text(encoding="utf-8"))
         dim = int(meta_blob["embedding_dim"])
         model = str(meta_blob.get("embedding_model", DEFAULT_EMBEDDING_MODEL))
-        inst = cls(dim, embedding_model=model, index_dir=path)
+        # Legacy indexes (#897 pre) never recorded a provider; default to sentence_transformers.
+        provider = str(meta_blob.get("embedding_provider", "sentence_transformers"))
+        inst = cls(dim, embedding_model=model, embedding_provider=provider, index_dir=path)
         inst._created_at = meta_blob.get("created_at")
         inst._last_updated = str(meta_blob.get("last_updated", ""))
         kind = str(meta_blob.get("index_kind", INDEX_VARIANT_FLAT))
@@ -246,6 +250,11 @@ class FaissVectorStore:
     def embedding_model(self) -> str:
         """Sentence-transformers model id recorded in ``index_meta.json``."""
         return self._embedding_model
+
+    @property
+    def embedding_provider(self) -> str:
+        """Embedding provider recorded in ``index_meta.json`` (ADR-098 / #897)."""
+        return self._embedding_provider
 
     @property
     def index_dir(self) -> Optional[Path]:
@@ -501,6 +510,7 @@ class FaissVectorStore:
             "format_version": FORMAT_VERSION,
             "embedding_dim": self._embedding_dim,
             "embedding_model": self._embedding_model,
+            "embedding_provider": self._embedding_provider,
             "index_kind": self._index_variant,
             "created_at": self._created_at,
             "last_updated": self._last_updated,
@@ -539,4 +549,5 @@ class FaissVectorStore:
             embedding_dim=self._embedding_dim,
             last_updated=last,
             index_size_bytes=size_b,
+            embedding_provider=self._embedding_provider,
         )

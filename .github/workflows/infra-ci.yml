@@ -16,8 +16,13 @@ name: Infra CI
 
 on:
   pull_request:
+    # Scope intentionally narrow: only Terraform sources + the ACL file the
+    # tailscale provider consumes. ``infra/**`` was too broad — infra/ now
+    # contains pyinfra (dgx/converge/), cloud-init/, deploy/, env templates,
+    # etc. that have no relation to ``tofu plan`` (#897).
     paths:
-      - 'infra/**'
+      - 'infra/terraform/**'
+      - 'infra/.sops.yaml'
       - 'tailscale/policy.hujson'
 
 permissions:

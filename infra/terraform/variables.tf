@@ -37,7 +37,7 @@ variable "location" {
   # using ``override_location``. Pinning the default here so routine applies
   # don't try to "fix" location → server replacement. Migrate back to fsn1
   # later by overriding when capacity returns + planning the migration.
-  default     = "nbg1"
+  default = "nbg1"
 
   validation {
     condition     = contains(["fsn1", "nbg1", "hel1"], var.location)
