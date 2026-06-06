@@ -141,9 +141,13 @@ D1, H1, G1, I1, I2, I3, G3.
   assume `media/<...>.mp3`. Non-mp3 episodes (common `.m4a`) and any nested transcript path 404.
   Fix: store the real persisted relpath in metadata `audio_relpath` and have consumers use it
   instead of re-deriving/guessing. `corpus_media.py:18-37,65`, `transcriptSourceDisplay.ts:38-42`.
-- **G2 · P1 · S–M** — Direct-download episodes never persist media (both persist call sites are
-  inside the transcription branch). Feed-supplied-transcript episodes get no playable audio.
-  `episode_processor.py:1704+`.
+- **G2 · NOT A BUG (verified)** — Direct-download (feed-transcript) episodes never download audio
+  at all: `process_transcript_download` fetches only the transcript URL and returns before any
+  media download (`episode_processor.py:1807-1821`); the audio-download path is the mutually
+  exclusive `transcribe_missing` branch, which already persists media. So there is nothing to
+  persist for these episodes. Giving them playable audio would require *adding* an audio download
+  purely for playback — a feature/bandwidth tradeoff, not a hardening fix. Left as a possible
+  future feature, intentionally not implemented here.
 - **G3 · P1 · S** — Add path-traversal tests for the media route (`..`, absolute relpath, missing
   `media/` prefix, disallowed suffix, symlink-escape). Security-sink route has zero
   negative-confinement coverage. (Route itself verified SAFE; CodeQL FPs #352–355 already

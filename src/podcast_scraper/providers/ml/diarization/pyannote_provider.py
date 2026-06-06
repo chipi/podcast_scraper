@@ -24,8 +24,12 @@ def _create_pyannote_pipeline(hf_token: str, model_name: str) -> Any:
         ) from exc
     try:
         return Pipeline.from_pretrained(model_name, token=hf_token)
-    except TypeError:
+    except TypeError as exc:
         # Older huggingface_hub/pyannote used use_auth_token=; types only expose token=.
+        # Only retry when the failure is actually about the token kwarg — otherwise a
+        # TypeError raised inside model loading would be masked by a second attempt.
+        if "token" not in str(exc):
+            raise
         return Pipeline.from_pretrained(  # type: ignore[call-arg]
             model_name,
             use_auth_token=hf_token,
@@ -96,8 +100,14 @@ class PyAnnoteDiarizationProvider:
         waveform, sample_rate = _load_waveform(audio_path)
         params: dict[str, int] = {}
         if num_speakers is not None:
+            if num_speakers < 1:
+                raise ValueError(f"diarization_num_speakers must be >= 1, got {num_speakers}")
             params["num_speakers"] = num_speakers
         else:
+            if min_speakers < 1 or min_speakers > max_speakers:
+                raise ValueError(
+                    "invalid diarization speaker bounds: " f"min={min_speakers}, max={max_speakers}"
+                )
             params["min_speakers"] = min_speakers
             params["max_speakers"] = max_speakers
 
