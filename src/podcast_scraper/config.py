@@ -3160,17 +3160,15 @@ class Config(BaseModel):
         stage = merged.get("pipeline_stage", "full")
         if stage not in ("full", "audio_only", "enrich_only"):
             return merged
+        message: Optional[str] = None
         if stage == "audio_only":
             for key in ("generate_metadata", "generate_summaries", "generate_gi", "generate_kg"):
                 if merged.get(key):
                     merged[key] = False
-            with _pipeline_stage_coerce_lock:
-                if not _pipeline_stage_coerce_state["logged"]:
-                    _pipeline_stage_coerce_state["logged"] = True
-                    logger.info(
-                        "pipeline_stage=audio_only: coercing generate_metadata, "
-                        "generate_summaries, generate_gi, and generate_kg to false."
-                    )
+            message = (
+                "pipeline_stage=audio_only: coercing generate_metadata, "
+                "generate_summaries, generate_gi, and generate_kg to false."
+            )
         elif stage == "enrich_only":
             # Enrich from on-disk transcripts: no new transcription, and reuse must
             # be enabled or there is nothing to enrich (transcript reuse is gated on
@@ -3179,13 +3177,19 @@ class Config(BaseModel):
             # which left the mode a silent no-op.
             merged["transcribe_missing"] = False
             merged["skip_existing"] = True
+            message = (
+                "pipeline_stage=enrich_only: coercing transcribe_missing=false "
+                "and skip_existing=true (reuse on-disk transcripts for enrichment)."
+            )
+        if message is not None:
+            # Compute the once-per-process gate inside the lock, but log outside it
+            # (matches the diarize/screenplay gates — don't hold the lock across I/O).
             with _pipeline_stage_coerce_lock:
-                if not _pipeline_stage_coerce_state["logged"]:
+                should_log = not _pipeline_stage_coerce_state["logged"]
+                if should_log:
                     _pipeline_stage_coerce_state["logged"] = True
-                    logger.info(
-                        "pipeline_stage=enrich_only: coercing transcribe_missing=false "
-                        "and skip_existing=true (reuse on-disk transcripts for enrichment)."
-                    )
+            if should_log:
+                logger.info(message)
         return merged
 
     @model_validator(mode="before")
