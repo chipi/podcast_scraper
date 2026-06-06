@@ -20,15 +20,10 @@ class TestFFmpegAudioPreprocessor(unittest.TestCase):
 
     def setUp(self):
         """Set up test fixtures."""
-        # Use a small fixture audio file for testing
-        # Calculate path relative to project root
-        # test_file is at:
-        # tests/unit/podcast_scraper/preprocessing/audio/test_audio_preprocessing.py
-        # Go up 6 levels to reach project root
+        from tests._fixtures import fixtures_dir
+
         test_file = Path(__file__).resolve()
-        # Navigate: audio -> preprocessing -> podcast_scraper -> unit -> tests -> project_root
-        project_root = test_file.parent.parent.parent.parent.parent.parent
-        self.fixture_audio = project_root / "tests" / "fixtures" / "audio" / "p01_e01_fast.mp3"
+        self.fixture_audio = fixtures_dir("audio") / "p01_e01_fast.mp3"
         # Fallback: try relative path if absolute doesn't work
         if not self.fixture_audio.exists():
             # Try going up from tests/unit to tests/

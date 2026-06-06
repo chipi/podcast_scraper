@@ -10,20 +10,24 @@ this file should be used as the input specification.
 
 ## Versioning
 
-Fixtures are versioned under `tests/fixtures/{transcripts,audio}/<version>/`.
+Fixtures are versioned under
+`tests/fixtures/{transcripts,audio,viewer-validation-corpus}/<version>/`.
 The current default is read from `tests/fixtures/FIXTURES_VERSION` (a single
-line containing e.g. `v1`). Test code resolves paths through
+line containing `v2`). Test code resolves paths through
 `tests/_fixtures.py::fixtures_dir(subdir)`; the e2e HTTP server reads the
 same file at module load. URLs (`/audio/<file>`, `/transcripts/<file>`) are
 unversioned — only the filesystem layout carries the version segment.
 
-- **v1** (current default) — original synthetic transcripts and audio
-  (Samantha host / Daniel guest voices; no commercial segments). **Frozen**
-  for historical eval reports and back-references; do not edit.
-- **v2** (in progress) — rewritten transcripts targeting #900 (KG/GIL/CIL
-  signal: recurring guests, cross-episode topics, position arcs) with
-  commercial segments per #109 and per-speaker voices per #111. Pipeline
-  reruns produce v2 goldens; an eval report compares v2 vs v1 deltas.
+- **v1** (frozen 2026-06-06) — original synthetic transcripts and audio
+  (Samantha host / Daniel guest voices; no commercial segments). Kept for
+  historical eval reports and back-references; do not edit. Reach for v1
+  explicitly via `fixtures_dir(subdir, version="v1")`.
+- **v2** (**current default**) — rewritten transcripts per #900 (KG/GIL/CIL
+  signal: recurring guests, cross-episode topics, position arcs), commercial
+  segments per #109, per-speaker TTS voices per #111. Generated from
+  `scripts/eval/data/generate_v2_transcripts.py`. See
+  `docs/guides/eval-reports/EVAL_FIXTURES_V2_2026_06_06.md` for v1→v2
+  metric deltas.
 
 Tests that must pin to a specific version pass `version=` explicitly to
 `fixtures_dir()`; everything else picks up the current default.
