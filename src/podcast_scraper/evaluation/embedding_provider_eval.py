@@ -79,19 +79,39 @@ class ProviderMetrics:
 
 
 def extract_pairs_from_corpus(corpus_root: Path) -> List[GroundTruthPair]:
-    """Walk ``corpus_root`` and yield every ``Insight -SUPPORTED_BY-> Quote`` pair."""
+    """Walk ``corpus_root`` and yield every ``Insight -SUPPORTED_BY-> Quote`` pair.
+
+    Standard pipeline output: each episode has a ``*.metadata.json`` next to
+    its ``*.gi.json``. Flat fixture layouts (no metadata sidecar) are also
+    supported via a fallback rglob.
+    """
     pairs: List[GroundTruthPair] = []
+    seen_gi: set[Path] = set()
+
+    # Standard layout: anchor on .metadata.json and find sibling .gi.json.
     for meta_path in discover_metadata_files(corpus_root):
-        gi_path = meta_path.with_suffix(".gi.json")
+        gi_path = meta_path.parent / meta_path.name.replace(".metadata.json", ".gi.json")
         if not gi_path.is_file():
             continue
-        try:
-            doc = json.loads(gi_path.read_text(encoding="utf-8"))
-        except (OSError, json.JSONDecodeError) as exc:
-            logger.warning("skip unreadable gi.json %s: %s", gi_path, exc)
+        seen_gi.add(gi_path.resolve())
+        pairs.extend(_load_pairs(gi_path))
+
+    # Fallback for flat fixture layouts (production-shaped, e2e bundles, etc.).
+    for gi_path in corpus_root.rglob("*.gi.json"):
+        if gi_path.resolve() in seen_gi:
             continue
-        pairs.extend(_pairs_from_gi(doc))
+        pairs.extend(_load_pairs(gi_path))
+
     return pairs
+
+
+def _load_pairs(gi_path: Path) -> List[GroundTruthPair]:
+    try:
+        doc = json.loads(gi_path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        logger.warning("skip unreadable gi.json %s: %s", gi_path, exc)
+        return []
+    return _pairs_from_gi(doc)
 
 
 def _pairs_from_gi(doc: Dict) -> List[GroundTruthPair]:
