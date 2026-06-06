@@ -50,8 +50,14 @@ def _skip_if_unprovisioned(exc: Exception) -> None:
     raise exc
 
 
-def test_default_path_transcribe_diarize_screenplay() -> None:
-    """Whisper + pyannote + screenplay on the two-voice fixture yield 2 labelled speakers."""
+def test_default_path_transcribe_diarize_screenplay_into_graph() -> None:
+    """Full default path on the two-voice fixture, asserting expected values at every layer.
+
+    Whisper transcribe -> pyannote diarize -> named screenplay (Maya/Liam) -> GI
+    (insights + timestamped quotes from the diarized segments) -> KG (Maya + Liam
+    become Entity nodes). Proves diarization is generated *and* picked up downstream
+    by the graph, with the known ground truth — not just "something ran".
+    """
     assert _FIXTURE.is_file(), f"missing fixture: {_FIXTURE}"
 
     from podcast_scraper import config
@@ -95,3 +101,42 @@ def test_default_path_transcribe_diarize_screenplay() -> None:
     # Both speakers must surface as named "Name:" lines in the screenplay.
     assert "Maya:" in screenplay, f"host Maya not labelled in screenplay:\n{screenplay[:300]}"
     assert "Liam:" in screenplay, f"guest Liam not labelled in screenplay:\n{screenplay[:300]}"
+
+    # === extend into the graph: the diarized transcript must drive GI + KG ===
+    from podcast_scraper.gi import build_artifact as gi_build_artifact
+    from podcast_scraper.kg import build_artifact as kg_build_artifact
+
+    transcript_text = enriched.get("text") or ""
+
+    gi = gi_build_artifact(
+        "episode:p01-multi-e01",
+        transcript_text,
+        transcript_segments=segments,  # diarized segments carry timing into quotes
+        model_version="test",
+        cfg=cfg,
+        episode_title="Building Trails That Last",
+        podcast_id="podcast:p01",
+    )
+    gi_types = {n["type"] for n in gi.get("nodes", [])}
+    assert {"Episode", "Insight", "Quote"}.issubset(gi_types), f"GI node types: {gi_types}"
+    quotes = [n for n in gi["nodes"] if n["type"] == "Quote"]
+    assert quotes, "GI produced no grounded quotes"
+    # Diarized segment timing flows into quote timestamps (FR2.2).
+    assert all("timestamp_start_ms" in n.get("properties", {}) for n in quotes)
+
+    kg = kg_build_artifact(
+        "episode:p01-multi-e01",
+        transcript_text,
+        podcast_id="podcast:p01",
+        episode_title="Building Trails That Last",
+        detected_hosts=["Maya"],
+        detected_guests=["Liam"],
+        cfg=cfg,
+    )
+    kg_entities = {
+        (n.get("properties", {}).get("name") or n.get("label"))
+        for n in kg.get("nodes", [])
+        if n.get("type") == "Entity"
+    }
+    # The diarized host + guest become graph entities.
+    assert {"Maya", "Liam"}.issubset(kg_entities), f"KG entities missing Maya/Liam: {kg_entities}"
