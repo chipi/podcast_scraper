@@ -56,6 +56,7 @@ const audioTimingLabel = ref<string | null>(null)
 const charPositionLabel = ref<string | null>(null)
 const subtitle = ref<string | null>(null)
 const audioUrl = ref<string | null>(null)
+const audioUnavailable = ref(false)
 const pendingSeekMs = ref<number | null>(null)
 const audioEl = ref<HTMLAudioElement | null>(null)
 const openMaxBytes = ref(DEFAULT_TRANSCRIPT_VIEWER_MAX_BYTES)
@@ -75,6 +76,7 @@ function resetState(): void {
   charPositionLabel.value = null
   subtitle.value = null
   audioUrl.value = null
+  audioUnavailable.value = false
   pendingSeekMs.value = null
   openMaxBytes.value = DEFAULT_TRANSCRIPT_VIEWER_MAX_BYTES
 }
@@ -88,6 +90,20 @@ function onBackdropClick(e: MouseEvent): void {
 
 function close(): void {
   dialogRef.value?.close()
+}
+
+function handleDialogClose(): void {
+  // Stop playback and release the media resource when the dialog closes; otherwise
+  // audio keeps playing in the background and the <audio> element lingers.
+  const el = audioEl.value
+  if (el) {
+    try {
+      el.pause()
+    } catch {
+      // ignore — element may already be detached
+    }
+  }
+  audioUrl.value = null
 }
 
 async function scrollFirstHighlightIntoView(): Promise<void> {
@@ -283,6 +299,7 @@ defineExpose({ open, close, seekToMs })
     class="w-[min(100%,42rem)] max-h-[min(92vh,48rem)] overflow-hidden rounded-lg border border-border bg-surface text-surface-foreground shadow-xl [&::backdrop]:bg-black/40"
     aria-labelledby="transcript-viewer-title"
     @click="onBackdropClick"
+    @close="handleDialogClose"
   >
     <div class="flex max-h-[min(92vh,48rem)] flex-col">
       <div class="flex shrink-0 items-start justify-between gap-3 border-b border-border px-4 py-3">
@@ -328,15 +345,24 @@ defineExpose({ open, close, seekToMs })
             Highlight position is approximate if the server serves a different transcript variant than GI indexed (e.g. cleaned vs raw).
           </p>
           <audio
-            v-if="audioUrl"
+            v-if="audioUrl && !audioUnavailable"
             ref="audioEl"
             data-testid="transcript-viewer-audio"
             class="mt-2 w-full"
             controls
             preload="metadata"
+            aria-label="Episode audio"
             :src="audioUrl"
             @loadedmetadata="applyPendingSeek"
+            @error="audioUnavailable = true"
           />
+          <p
+            v-else-if="audioUrl && audioUnavailable"
+            class="mt-2 text-[11px] text-muted"
+            data-testid="transcript-viewer-audio-unavailable"
+          >
+            Audio not available for this episode.
+          </p>
         </div>
         <button
           type="button"

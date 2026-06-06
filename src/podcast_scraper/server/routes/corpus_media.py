@@ -27,6 +27,24 @@ def _suffix_allowed(name: str) -> bool:
     return any(lower.endswith(s) for s in _ALLOWED_SUFFIXES)
 
 
+def _resolve_existing_media(verified: str, root_s: str) -> str | None:
+    """Return an existing media file for ``verified``, trying sibling extensions.
+
+    The viewer derives ``media/<stem>.mp3`` as a hint but the persisted file keeps
+    its source extension (often ``.m4a``). Try the same confined stem with every
+    allowed extension; each candidate is re-verified under the corpus root so the
+    fallback cannot escape the ``media/`` subtree.
+    """
+    if os.path.isfile(verified):
+        return verified
+    stem, _ext = os.path.splitext(verified)
+    for ext in _ALLOWED_SUFFIXES:
+        candidate = normpath_if_under_root(stem + ext, root_s)
+        if candidate and os.path.isfile(candidate):
+            return candidate
+    return None
+
+
 def _safe_media_target_str(base: Path, relpath: str) -> str:
     norm = relpath.strip().replace("\\", "/").lstrip("/")
     prefix = f"{CORPUS_MEDIA_DIR}/"
@@ -75,14 +93,15 @@ async def corpus_media(
     if not verified:
         raise HTTPException(status_code=400, detail="Invalid path.")
 
-    # codeql[py/path-injection] -- verified from normpath_if_under_root(target, root_s).
-    if not os.path.isfile(verified):
+    # codeql[py/path-injection] -- resolved from normpath_if_under_root(... , root_s).
+    resolved = _resolve_existing_media(verified, root_s)
+    if not resolved:
         raise HTTPException(status_code=404, detail="File not found.")
 
-    media_type, _ = mimetypes.guess_type(os.path.basename(verified))
-    # codeql[py/path-injection] -- verified from normpath_if_under_root(target, root_s).
+    media_type, _ = mimetypes.guess_type(os.path.basename(resolved))
+    # codeql[py/path-injection] -- resolved from normpath_if_under_root(... , root_s).
     return FileResponse(
-        path=verified,
+        path=resolved,
         media_type=media_type or "application/octet-stream",
         headers={"Accept-Ranges": "bytes"},
     )
