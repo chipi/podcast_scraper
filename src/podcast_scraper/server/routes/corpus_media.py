@@ -27,21 +27,31 @@ def _suffix_allowed(name: str) -> bool:
     return any(lower.endswith(s) for s in _ALLOWED_SUFFIXES)
 
 
+def _within_root_realpath(path: str, root_s: str) -> bool:
+    """True if ``path`` resolves (following symlinks) to inside ``root_s``.
+
+    Closes the in-corpus symlink-follow gap: the string normpath guards above
+    don't catch a symlink *inside* ``media/`` that points outside the corpus.
+    """
+    real = os.path.realpath(path)
+    root_real = os.path.realpath(root_s)
+    return real == root_real or real.startswith(root_real + os.sep)
+
+
 def _resolve_existing_media(verified: str, root_s: str) -> str | None:
     """Return an existing media file for ``verified``, trying sibling extensions.
 
     The viewer derives ``media/<stem>.mp3`` as a hint but the persisted file keeps
     its source extension (often ``.m4a``). Try the same confined stem with every
-    allowed extension; each candidate is re-verified under the corpus root so the
-    fallback cannot escape the ``media/`` subtree.
+    allowed extension; each candidate is re-verified under the corpus root (string
+    *and* realpath) so the fallback cannot escape the ``media/`` subtree.
     """
-    if os.path.isfile(verified):
-        return verified
     stem, _ext = os.path.splitext(verified)
-    for ext in _ALLOWED_SUFFIXES:
-        candidate = normpath_if_under_root(stem + ext, root_s)
-        if candidate and os.path.isfile(candidate):
-            return candidate
+    candidates = [verified, *[stem + ext for ext in _ALLOWED_SUFFIXES]]
+    for candidate in candidates:
+        confined = normpath_if_under_root(candidate, root_s)
+        if confined and os.path.isfile(confined) and _within_root_realpath(confined, root_s):
+            return confined
     return None
 
 
@@ -100,8 +110,8 @@ async def corpus_media(
 
     media_type, _ = mimetypes.guess_type(os.path.basename(resolved))
     # codeql[py/path-injection] -- resolved from normpath_if_under_root(... , root_s).
+    # Starlette's FileResponse sets Accept-Ranges: bytes and serves 206 ranges itself.
     return FileResponse(
         path=resolved,
         media_type=media_type or "application/octet-stream",
-        headers={"Accept-Ranges": "bytes"},
     )
