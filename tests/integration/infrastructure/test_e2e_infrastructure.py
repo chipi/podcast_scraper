@@ -74,12 +74,14 @@ class TestE2EServerInfrastructure:
             "audio" in content_type.lower() or "mpeg" in content_type.lower()
         ), f"Should be audio file, got Content-Type: {content_type}"
 
-        # Verify file size (should be ~700KB for 1-minute audio)
-        # Note: Actual file size may vary based on encoding settings
+        # Fast audio should be small (~30-60s) — bound loosely to allow
+        # different generators / voice maps (v1: ~700KB, v2: ~350KB).
         content_length = response.headers.get("Content-Length")
         if content_length:
             size = int(content_length)
-            assert 600000 <= size <= 800000, f"Fast audio should be ~700KB, got {size} bytes"
+            assert (
+                200_000 <= size <= 1_000_000
+            ), f"Fast audio should be 200KB-1MB (short variant), got {size} bytes"
 
     def test_fast_transcript_file_exists(self, e2e_server):
         """Test that fast transcript file (p01_e01_fast.txt) exists and is served."""
@@ -142,11 +144,13 @@ class TestE2EServerInfrastructure:
         fast_audio = fixtures_dir / "audio" / FIXTURE_VERSION / "p01_e01_fast.mp3"
         assert fast_audio.exists(), f"Fast audio file should exist: {fast_audio}"
 
-        # Check file size (should be ~700KB)
-        # Note: Actual file size may vary based on encoding settings
+        # Fast audio should be small (~30-60s) — bound loosely to allow
+        # different generators / voice maps (v1: ~700KB, v2: ~350KB).
         if fast_audio.exists():
             size = fast_audio.stat().st_size
-            assert 600000 <= size <= 800000, f"Fast audio should be ~700KB, got {size} bytes"
+            assert (
+                200_000 <= size <= 1_000_000
+            ), f"Fast audio should be 200KB-1MB (short variant), got {size} bytes"
 
         # Check fast transcript file
         fast_transcript = fixtures_dir / "transcripts" / FIXTURE_VERSION / "p01_e01_fast.txt"
