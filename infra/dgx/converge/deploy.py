@@ -62,7 +62,10 @@ apt.packages(
 )
 
 # 2. Service user (no login shell, no home dir).
-server.user(
+# bandit B604 false positive: ``shell="/usr/sbin/nologin"`` here is the user's
+# LOGIN SHELL (forced to nologin so the account can't be used interactively),
+# not a subprocess ``shell=True`` invocation.
+server.user(  # nosec B604
     name="user: create faster-whisper system account",
     user=SERVICE_USER,
     system=True,
