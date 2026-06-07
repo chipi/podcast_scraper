@@ -8,6 +8,7 @@ on:
       - 'pyproject.toml'
       - 'docker/pipeline/Dockerfile'
       - '.dockerignore'
+      - '.github/workflows/snyk.yml'
   pull_request:
     branches: [ "main", "release/2.4", "release/2.5", "release/2.6" ]
     paths:
@@ -15,6 +16,7 @@ on:
       - 'pyproject.toml'
       - 'docker/pipeline/Dockerfile'
       - '.dockerignore'
+      - '.github/workflows/snyk.yml'
   schedule:
     # Run weekly on Mondays at 00:00 UTC
     - cron: '0 0 * * 1'
