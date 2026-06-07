@@ -87,7 +87,7 @@ kg_max_entities: 15
 
 # Vector search + clustering
 vector_search: true
-vector_backend: faiss
+vector_embedding_provider: sentence_transformers
 
 # #697: per-provider wait-and-resume circuit breaker for Gemini 503 bursts.
 # Same rationale as cloud_thin — but with #698 bundling above the GIL stack

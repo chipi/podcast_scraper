@@ -40,7 +40,7 @@ kg_max_entities: 15
 
 # Vector search + clustering
 vector_search: true
-vector_backend: faiss
+vector_embedding_provider: sentence_transformers
 
 # General
 generate_metadata: true
