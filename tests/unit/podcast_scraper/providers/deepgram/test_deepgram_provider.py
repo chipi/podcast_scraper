@@ -9,11 +9,27 @@ from pydantic import ValidationError
 
 from podcast_scraper import config
 from podcast_scraper.providers.deepgram.deepgram_provider import (
+    _words_to_segments,
     DeepgramTranscriptionProvider,
     parse_deepgram_transcript,
 )
 
 pytestmark = pytest.mark.unit
+
+
+def _provider_with_mock_client(mock_client, **cfg_overrides):
+    """Build an initialized provider whose SDK client is the given mock."""
+    cfg = config.Config(
+        rss="https://example.com/feed.xml",
+        transcription_provider="deepgram",
+        deepgram_api_key="dg-test-key",
+        deepgram_model="nova-3",
+        **cfg_overrides,
+    )
+    provider = DeepgramTranscriptionProvider(cfg)
+    provider._client = mock_client
+    provider._initialized = True
+    return provider
 
 
 class TestParseDeepgramTranscript:
@@ -35,6 +51,29 @@ class TestParseDeepgramTranscript:
         assert parsed["text"] == "hello world"
         assert len(parsed["segments"]) == 1
         assert parsed["segments"][0]["speaker"] == 0
+
+    def test_empty_dict_response_yields_empty_result(self) -> None:
+        """A well-formed-but-empty payload degrades to empty, not a crash (D6)."""
+        assert parse_deepgram_transcript({}) == {"text": "", "segments": []}
+
+    def test_malformed_missing_results_yields_empty(self) -> None:
+        """Missing ``results``/``channels`` keys → empty result (D6)."""
+        assert parse_deepgram_transcript({"metadata": {"x": 1}}) == {"text": "", "segments": []}
+
+    def test_transcript_synthesized_from_segments_when_top_level_blank(self) -> None:
+        """When the alternative transcript is blank, text is rebuilt from segments (D6)."""
+        payload = {
+            "results": {
+                "channels": [{"alternatives": [{"transcript": ""}]}],
+                "utterances": [
+                    {"start": 0.0, "end": 1.0, "transcript": "one", "speaker": 0},
+                    {"start": 1.0, "end": 2.0, "transcript": "two", "speaker": 1},
+                ],
+            }
+        }
+        parsed = parse_deepgram_transcript(payload)
+        assert parsed["text"] == "one two"
+        assert [s["speaker"] for s in parsed["segments"]] == [0, 1]
 
     def test_words_fallback_when_no_utterances(self) -> None:
         payload = {
@@ -125,7 +164,20 @@ class TestDeepgramTranscriptionProvider:
         call_kwargs = mock_client.listen.v1.media.transcribe_file.call_args.kwargs
         assert call_kwargs["model"] == "nova-3"
         assert call_kwargs["diarize"] is True
-        mock_create_client.assert_called_once_with("dg-test-key")
+        mock_create_client.assert_called_once_with("dg-test-key", base_url=None)
+
+    @patch("podcast_scraper.providers.deepgram.deepgram_provider._create_deepgram_client")
+    def test_initialize_passes_api_base_override(self, mock_create_client) -> None:
+        """deepgram_api_base (self-hosted / mock server) is forwarded to the client."""
+        mock_create_client.return_value = MagicMock()
+        cfg = config.Config(
+            rss="https://example.com/feed.xml",
+            transcription_provider="deepgram",
+            deepgram_api_key="dg-test-key",
+            deepgram_api_base="http://127.0.0.1:18765",
+        )
+        DeepgramTranscriptionProvider(cfg).initialize()
+        mock_create_client.assert_called_once_with("dg-test-key", base_url="http://127.0.0.1:18765")
 
     @patch(
         "podcast_scraper.providers.deepgram.deepgram_provider._create_deepgram_client",
@@ -220,3 +272,239 @@ class TestDeepgramConfigValidation:
             deepgram_api_key="dg-test",
         )
         assert cfg.deepgram_model == "nova-3"
+
+
+class TestWordsToSegments:
+    """Multi-speaker grouping in the words->segments fallback (D6)."""
+
+    def test_groups_consecutive_words_by_speaker(self) -> None:
+        words = [
+            {"word": "hello", "punctuated_word": "Hello,", "start": 0.0, "end": 0.4, "speaker": 0},
+            {"word": "there", "punctuated_word": "there.", "start": 0.4, "end": 0.8, "speaker": 0},
+            {"word": "hi", "punctuated_word": "Hi!", "start": 1.0, "end": 1.3, "speaker": 1},
+            {"word": "yes", "punctuated_word": "Yes,", "start": 2.0, "end": 2.3, "speaker": 0},
+        ]
+        segs = _words_to_segments(words)
+        # Speaker runs 0,1,0 -> three segments preserving order + boundaries.
+        assert [s["speaker"] for s in segs] == [0, 1, 0]
+        assert segs[0]["text"] == "Hello, there."
+        assert segs[0]["start"] == 0.0 and segs[0]["end"] == 0.8
+        assert segs[1]["text"] == "Hi!"
+        assert segs[2]["text"] == "Yes,"
+
+    def test_empty_words_yields_no_segments(self) -> None:
+        assert _words_to_segments([]) == []
+
+
+class TestDeepgramCapabilities:
+    def test_capabilities_are_transcription_only_with_gi_timing(self) -> None:
+        cfg = config.Config(
+            rss="https://example.com/feed.xml",
+            transcription_provider="deepgram",
+            deepgram_api_key="dg-test",
+        )
+        caps = DeepgramTranscriptionProvider(cfg).get_capabilities()
+        assert caps.supports_transcription is True
+        assert caps.supports_audio_input is True
+        assert caps.supports_gi_segment_timing is True
+        assert caps.supports_summarization is False
+        assert caps.provider_name == "deepgram"
+
+
+class TestDeepgramTranscribeGuards:
+    def test_transcribe_before_initialize_raises(self) -> None:
+        cfg = config.Config(
+            rss="https://example.com/feed.xml",
+            transcription_provider="deepgram",
+            deepgram_api_key="dg-test",
+        )
+        provider = DeepgramTranscriptionProvider(cfg)
+        with pytest.raises(RuntimeError, match="not initialized"):
+            provider.transcribe_with_segments("/tmp/whatever.mp3")
+
+    def test_transcribe_missing_file_raises_filenotfound(self) -> None:
+        provider = _provider_with_mock_client(MagicMock())
+        with pytest.raises(FileNotFoundError, match="Audio file not found"):
+            provider.transcribe_with_segments("/no/such/file.mp3")
+
+    def test_api_error_propagates(self) -> None:
+        """A non-retryable SDK error surfaces (logged + re-raised), not swallowed (D6)."""
+        mock_client = MagicMock()
+        mock_client.listen.v1.media.transcribe_file.side_effect = ValueError("boom")
+        provider = _provider_with_mock_client(mock_client)
+        with (
+            patch("builtins.open", create=True) as mock_open,
+            patch(
+                "podcast_scraper.providers.deepgram.deepgram_provider.os.path.exists",
+                return_value=True,
+            ),
+        ):
+            mock_open.return_value.__enter__.return_value.read.return_value = b"audio"
+            with pytest.raises(ValueError, match="boom"):
+                provider.transcribe_with_segments("/tmp/ep.mp3")
+
+
+class TestDeepgramCost:
+    """D5: per-minute transcription cost is recorded from the feed duration."""
+
+    def _run(self, episode_duration_seconds):
+        mock_client = MagicMock()
+        mock_client.listen.v1.media.transcribe_file.return_value = {
+            "results": {"channels": [{"alternatives": [{"transcript": "hi"}]}], "utterances": []}
+        }
+        provider = _provider_with_mock_client(mock_client)
+        call_metrics = MagicMock()
+        call_metrics.estimated_cost = None
+        pipeline_metrics = MagicMock()
+        with (
+            patch("builtins.open", create=True) as mock_open,
+            patch(
+                "podcast_scraper.providers.deepgram.deepgram_provider.os.path.exists",
+                return_value=True,
+            ),
+        ):
+            mock_open.return_value.__enter__.return_value.read.return_value = b"audio"
+            provider.transcribe_with_segments(
+                "/tmp/ep.mp3",
+                pipeline_metrics=pipeline_metrics,
+                episode_duration_seconds=episode_duration_seconds,
+                call_metrics=call_metrics,
+            )
+        return call_metrics, pipeline_metrics
+
+    def test_cost_recorded_from_episode_duration(self) -> None:
+        """10 min at nova-3 ($0.0043/min) -> the cost helper is invoked with 10.0 minutes."""
+        call_metrics, pipeline_metrics = self._run(episode_duration_seconds=600)
+        # pipeline_metrics records the audio-minute transcription call (10.0 min).
+        pipeline_metrics.record_llm_transcription_call.assert_called_once()
+        args, kwargs = pipeline_metrics.record_llm_transcription_call.call_args
+        assert args[0] == pytest.approx(10.0)
+
+    def test_no_cost_call_when_duration_unknown_and_no_file(self) -> None:
+        """With no duration and an unstattable path, audio_minutes stays 0 -> no cost call."""
+        mock_client = MagicMock()
+        mock_client.listen.v1.media.transcribe_file.return_value = {
+            "results": {"channels": [{"alternatives": [{"transcript": "hi"}]}], "utterances": []}
+        }
+        provider = _provider_with_mock_client(mock_client)
+        pipeline_metrics = MagicMock()
+        with (
+            patch("builtins.open", create=True) as mock_open,
+            patch(
+                "podcast_scraper.providers.deepgram.deepgram_provider.os.path.exists",
+                return_value=True,
+            ),
+            patch(
+                "podcast_scraper.providers.deepgram.deepgram_provider.os.path.getsize",
+                side_effect=OSError("gone"),
+            ),
+        ):
+            mock_open.return_value.__enter__.return_value.read.return_value = b"audio"
+            provider.transcribe_with_segments(
+                "/tmp/ep.mp3", pipeline_metrics=pipeline_metrics, episode_duration_seconds=None
+            )
+        pipeline_metrics.record_llm_transcription_call.assert_not_called()
+
+
+class TestDeepgramPayloadCap:
+    def test_deepgram_uses_large_single_request_cap(self) -> None:
+        """D3: Deepgram's byte cap is its real 2 GB ceiling, not the 25 MiB default —
+        so whole episodes go in one request and diarization speakers stay consistent."""
+        from podcast_scraper.utils.audio_payload_limits import transcription_max_bytes
+
+        cfg = config.Config(
+            rss="https://example.com/feed.xml",
+            transcription_provider="deepgram",
+            deepgram_api_key="dg-test",
+        )
+        assert transcription_max_bytes(cfg) == 2 * 1024 * 1024 * 1024
+
+
+class TestDeepgramLifecycle:
+    """Initialize/cleanup parity with sibling providers (idempotency, re-init)."""
+
+    @patch("podcast_scraper.providers.deepgram.deepgram_provider._create_deepgram_client")
+    def test_initialize_is_idempotent(self, mock_create_client) -> None:
+        mock_create_client.return_value = MagicMock()
+        cfg = config.Config(
+            rss="https://example.com/feed.xml",
+            transcription_provider="deepgram",
+            deepgram_api_key="dg-test",
+        )
+        provider = DeepgramTranscriptionProvider(cfg)
+        provider.initialize()
+        provider.initialize()  # second call is a no-op
+        mock_create_client.assert_called_once()
+
+    @patch("podcast_scraper.providers.deepgram.deepgram_provider._create_deepgram_client")
+    def test_cleanup_resets_state_and_allows_reinit(self, mock_create_client) -> None:
+        mock_create_client.return_value = MagicMock()
+        cfg = config.Config(
+            rss="https://example.com/feed.xml",
+            transcription_provider="deepgram",
+            deepgram_api_key="dg-test",
+        )
+        provider = DeepgramTranscriptionProvider(cfg)
+        provider.initialize()
+        provider.cleanup()
+        assert provider._client is None and provider._initialized is False
+        provider.initialize()  # re-init after cleanup builds a fresh client
+        assert provider._initialized is True
+        assert mock_create_client.call_count == 2
+
+
+class TestDeepgramCallMetricsLifecycle:
+    """Parity with gemini/mistral: the provider finalizes call_metrics so retries /
+    rate-limit sleep surface to the orchestration's per-episode metrics."""
+
+    def test_transcribe_finalizes_call_metrics(self) -> None:
+        mock_client = MagicMock()
+        mock_client.listen.v1.media.transcribe_file.return_value = {
+            "results": {"channels": [{"alternatives": [{"transcript": "hi"}]}], "utterances": []}
+        }
+        provider = _provider_with_mock_client(mock_client)
+        call_metrics = MagicMock()
+        call_metrics.estimated_cost = None
+        with (
+            patch("builtins.open", create=True) as mock_open,
+            patch(
+                "podcast_scraper.providers.deepgram.deepgram_provider.os.path.exists",
+                return_value=True,
+            ),
+        ):
+            mock_open.return_value.__enter__.return_value.read.return_value = b"audio"
+            provider.transcribe_with_segments("/tmp/ep.mp3", call_metrics=call_metrics)
+        call_metrics.set_provider_name.assert_called_with("deepgram")
+        call_metrics.finalize.assert_called_once()
+
+    def test_transcribe_creates_call_metrics_when_none(self) -> None:
+        """A None call_metrics is instantiated internally (so retry tracking has a home)."""
+        mock_client = MagicMock()
+        mock_client.listen.v1.media.transcribe_file.return_value = {
+            "results": {"channels": [{"alternatives": [{"transcript": "hi"}]}], "utterances": []}
+        }
+        provider = _provider_with_mock_client(mock_client)
+        with (
+            patch("builtins.open", create=True) as mock_open,
+            patch(
+                "podcast_scraper.providers.deepgram.deepgram_provider.os.path.exists",
+                return_value=True,
+            ),
+        ):
+            mock_open.return_value.__enter__.return_value.read.return_value = b"audio"
+            # No call_metrics passed — must not raise (instantiated internally).
+            result, _ = provider.transcribe_with_segments("/tmp/ep.mp3")
+        assert result["text"] == "hi"
+
+
+class TestDeepgramApiBaseConfig:
+    def test_api_base_loaded_from_env(self, monkeypatch) -> None:
+        """DEEPGRAM_API_BASE env var populates cfg.deepgram_api_base, matching the
+        sibling *_api_base env loaders."""
+        monkeypatch.setenv("DEEPGRAM_API_BASE", "http://dg.internal:8080")
+        monkeypatch.setenv("DEEPGRAM_API_KEY", "dg-env-key")
+        cfg = config.Config(
+            rss="https://example.com/feed.xml",
+            transcription_provider="deepgram",
+        )
+        assert cfg.deepgram_api_base == "http://dg.internal:8080"

@@ -405,7 +405,7 @@ Anthropic providers support configurable model selection for dev/test vs product
 
 **Neural diarization (RFC-058 / Audio Wave 2):** See [Speaker diarization](#speaker-diarization-rfc-058) below. **`diarize`** defaults to **`true`** for local Whisper; API providers coerce **`diarize: false`**. When diarization succeeds, screenplay uses voice-based speaker IDs instead of gap-based rotation.
 
-**Deepgram transcription (Wave 1 / #597):** Set **`transcription_provider: deepgram`**, **`deepgram_api_key`** (or **`DEEPGRAM_API_KEY`**), optional **`deepgram_model`** (default **`nova-3`**). Requires **`pip install -e ".[llm]"`**. Deepgram returns utterance-level speaker labels in the API response — separate from local pyannote diarization. See [Audio Pipeline Guide](../guides/AUDIO_PIPELINE_GUIDE.md).
+**Deepgram transcription (Wave 1 / #597):** Set **`transcription_provider: deepgram`**, **`deepgram_api_key`** (or **`DEEPGRAM_API_KEY`**), optional **`deepgram_model`** (default **`nova-3`**) and optional **`deepgram_api_base`** (or **`DEEPGRAM_API_BASE`**, **`--deepgram-api-base`**) to point at a self-hosted/on-prem deployment or a test mock server (default uses the hosted endpoint). Requires **`pip install -e ".[llm]"`**. Deepgram returns utterance-level speaker labels in the API response — separate from local pyannote diarization. See [Audio Pipeline Guide](../guides/AUDIO_PIPELINE_GUIDE.md).
 
 ### Speaker diarization (RFC-058)
 

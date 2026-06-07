@@ -21,25 +21,43 @@ spaCy3.8 — integration+e2e don't run in ci-fast).
   could introduce, invisible.
 
 ## Concrete hollow offenders (green, prove nothing)
-- `tests/e2e/test_new_features_e2e.py` — all 5 tests are `cfg.field == X` config echoes
-  wearing `@pytest.mark.e2e`. Bounded-queue/cache/metrics/degradation behaviour never run.
-- `tests/integration/gi/test_evidence_stack_integration.py` — patches embedding+QA+NLI;
-  green even if all three break under numpy2.
-- `tests/integration/infrastructure/test_anthropic_mock.py:38-114` — class named
-  `…E2EServerIntegration`, sets the e2e-server base_url, then `@patch(Anthropic)` so it
-  never hits the server. No `client.base_url` assertion (unlike the OpenAI-compat mocks).
-- `tests/integration/eval/test_eval_summarize_bundled.py` + `gi/test_bundled_extract_dispatch.py::TestBundledDispatchInPipeline`
-  — test a **copy** of the dispatch logic pasted into the test, not the real `pipeline.py`.
+
+- ✅ `tests/e2e/test_new_features_e2e.py` — RESOLVED in #901 (deleted; all 5 were
+  `cfg.field == X` config echoes wearing `@pytest.mark.e2e`).
+- ✅ `tests/integration/gi/test_evidence_stack_integration.py` — RESOLVED. Split into
+  `TestEvidenceStackRealModels` (@ml_models, loads the real embedding/QA/NLI and asserts
+  real outputs; skips-when-uncached) + `TestFindGroundedQuotesWiring` (injected-score
+  threshold/error tests, where mocking is correct). Un-mocking proved the stack is healthy
+  under transformers 4.57 / numpy2 — but see "grounding quality" below.
+- `tests/integration/infrastructure/test_anthropic_mock.py:38-114` — STILL OPEN. class
+  named `…E2EServerIntegration`, sets the e2e-server base_url, then `@patch(Anthropic)` so
+  it never hits the server. No `client.base_url` assertion (unlike the OpenAI-compat mocks).
+- ✅ `tests/integration/eval/test_eval_summarize_bundled.py` +
+  `gi/test_bundled_extract_dispatch.py::TestBundledDispatchInPipeline` — RESOLVED. Now drive
+  the real `run_experiment._eval_summarize` (via importlib, mypy-safe) and the real
+  `_maybe_prefetch_bundled_candidates` + `_ground_insights_dispatch`, not pasted copies.
+
+## Grounding quality (uncovered while un-mocking the evidence stack)
+
+- The real roberta-squad2 + nli-deberta-v3-base pair returns **semantically off-topic
+  spans** on toy inputs: for the insight "The capital of France is Paris." against
+  "The capital of France is Paris. It has many museums and parks." the top grounded quote
+  is "museums and parks" (qa≈0.12). NLI in isolation is healthy (entail 0.96 vs
+  contradict 0.0); the QA candidate extraction is the weak link. The end-to-end test
+  asserts integration *invariants* (verbatim span, scores in range, thresholds honored),
+  NOT quote correctness — quality is an eval concern. **Follow-up:** a grounding-quality
+  eval (not a unit assertion) over a real fixture corpus to quantify this.
 
 ## Real breakage found (not just hollow)
-- `tests/integration/providers/ml/test_ml_provider.py` — 4 transcription tests
-  (`:315,:335,:367,:387`) `@patch(...ml_provider.progress.progress_context)`, but
-  `progress` was removed from the module (RFC-081). They **error at patch time** →
-  the MLProvider transcribe path is currently UNVALIDATED. ci-fast doesn't catch it
-  (integration excluded).
+
+- ✅ `tests/integration/providers/ml/test_ml_provider.py` — RESOLVED in #901. The 4
+  transcription tests' stale `@patch(...ml_provider.progress.progress_context)` (the
+  `progress` module was removed in RFC-081, so they errored at patch time) were removed;
+  the MLProvider transcribe path is validated again.
 - `pyannote_provider.py:81` defaults to `pyannote/speaker-diarization-3.1` while
-  pyannote 4.0.4 is installed. (Proven to work — direct run gives 2 speakers — but the
-  default-model choice on 4.x should be deliberate.)
+  pyannote 4.x is installed. **Deliberate** (TEST-SUITE-REVIEW intent below): 3.1 is the
+  proven pipeline and loads correctly under pyannote 4.x — confirmed by a real run giving
+  2 distinct speakers, and exercised end-to-end by `test_diarization_e2e.py`. Not a bug.
 
 ## Marker / gating issues
 - `diarization` marker selected by **zero** Makefile targets (dead gate).

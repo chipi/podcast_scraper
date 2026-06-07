@@ -36,6 +36,7 @@ def _fake_keys(monkeypatch: pytest.MonkeyPatch) -> None:
         "DEEPSEEK_API_KEY",
         "MISTRAL_API_KEY",
         "GROK_API_KEY",
+        "DEEPGRAM_API_KEY",
     ):
         monkeypatch.setenv(name, "test-" + name.lower().replace("_", "-") + "-dummy-key")
 
@@ -79,6 +80,11 @@ CLOUD_BALANCED_EXPECTED = {
 }
 
 CLOUD_QUALITY_OVERRIDES = {
+    # Deepgram nova-3 + native-diarization screenplay is the quality-tier
+    # transcription default (replaced openai/whisper-1).
+    "transcription_provider": "deepgram",
+    "deepgram_model": "nova-3",
+    "screenplay": True,
     "summary_provider": "anthropic",
     "anthropic_summary_model": "claude-haiku-4-5",
     "llm_pipeline_mode": "mega_bundled",

@@ -141,6 +141,7 @@ See [Audio Pipeline Guide](../guides/AUDIO_PIPELINE_GUIDE.md).
 
 - `deepgram_api_key` (`Optional[str]`, alias: `"deepgram_api_key"`): API key (`DEEPGRAM_API_KEY` env).
 - `deepgram_model` (`str`, default: `"nova-3"`, alias: `"deepgram_model"`): Deepgram model id.
+- `deepgram_api_base` (`Optional[str]`, alias: `"deepgram_api_base"`): Override the Deepgram API base URL for a self-hosted/on-prem deployment or E2E testing (`DEEPGRAM_API_BASE` env). Default `None` uses Deepgram's hosted endpoint.
 
 #### Speaker Detection
 

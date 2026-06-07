@@ -332,6 +332,17 @@ class E2EServerURLs:
         """
         return self.base_url
 
+    def deepgram_api_base(self) -> str:
+        """Get Deepgram API base URL (points to E2E server).
+
+        Deepgram's pre-recorded transcription SDK posts ``{base}/v1/listen``, so
+        the base URL must NOT include ``/v1`` (the SDK appends it).
+
+        Returns:
+            Deepgram API base URL (e.g., "http://127.0.0.1:18765")
+        """
+        return self.base_url
+
 
 class E2EHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
     """HTTP request handler for E2E server.
@@ -718,6 +729,12 @@ class E2EHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
             self._handle_gemini_generate_content()
             return
 
+        # Route: Deepgram pre-recorded transcription
+        # Deepgram SDK posts {base}/v1/listen -> Mock a diarized two-speaker response
+        if path == "/v1/listen":
+            self._handle_deepgram_listen()
+            return
+
         # Ollama native: POST /api/generate (warmup / wait_until_ready in OllamaProvider)
         if path == "/api/generate":
             self._handle_ollama_generate()
@@ -893,6 +910,77 @@ class E2EHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
             self.send_error(400, "Invalid JSON in request body")
         except Exception as e:
             self.send_error(500, f"Error handling chat completions: {e}")
+
+    def _handle_deepgram_listen(self):
+        """Handle Deepgram pre-recorded transcription (POST /v1/listen).
+
+        The deepgram-sdk posts raw audio bytes and deserializes the JSON into a
+        typed ``ListenV1Response``. Return a canned two-speaker diarized response
+        so the real SDK request-build + response-deserialize path runs end-to-end
+        against this server (the mock-server round-trip).
+        """
+        try:
+            content_length = int(self.headers.get("Content-Length", 0))
+            if content_length > 0:
+                self.rfile.read(content_length)  # drain the posted audio bytes
+
+            response_data = {
+                "metadata": {
+                    "model_info": {"name": "nova-3"},
+                    "duration": 7.5,
+                    "channels": 1,
+                },
+                "results": {
+                    "channels": [
+                        {
+                            "alternatives": [
+                                {
+                                    "transcript": ("Welcome to the show. Thanks for having me."),
+                                    "words": [
+                                        {
+                                            "word": "welcome",
+                                            "punctuated_word": "Welcome",
+                                            "start": 0.0,
+                                            "end": 0.4,
+                                            "speaker": 0,
+                                        },
+                                        {
+                                            "word": "thanks",
+                                            "punctuated_word": "Thanks",
+                                            "start": 2.0,
+                                            "end": 2.4,
+                                            "speaker": 1,
+                                        },
+                                    ],
+                                }
+                            ]
+                        }
+                    ],
+                    "utterances": [
+                        {
+                            "start": 0.0,
+                            "end": 1.8,
+                            "transcript": "Welcome to the show.",
+                            "speaker": 0,
+                        },
+                        {
+                            "start": 2.0,
+                            "end": 3.6,
+                            "transcript": "Thanks for having me.",
+                            "speaker": 1,
+                        },
+                    ],
+                },
+            }
+            response_json = json.dumps(response_data)
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Content-Length", str(len(response_json)))
+            self.end_headers()
+            self.wfile.write(response_json.encode("utf-8"))
+        except Exception as e:  # noqa: BLE001 - mock server best-effort
+            logger.error("Error handling Deepgram listen: %s", e, exc_info=True)
+            self.send_error(500, f"Error handling Deepgram listen: {e}")
 
     def _handle_audio_transcriptions(self):
         """Handle OpenAI audio transcriptions API requests."""

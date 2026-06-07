@@ -1,8 +1,12 @@
-"""Integration tests for GIL evidence stack (Issue #435).
+"""Integration tests for the GIL evidence stack wiring (Issue #435).
 
-Verifies that embedding, extractive QA, NLI, and find_grounded_quotes
-integrate correctly using mocked model backends.  No real ML models
-are loaded — all model calls are patched.
+Threshold + error-handling wiring of ``find_grounded_quotes``, exercised with
+**injected** QA/NLI scores. Mocking the backends here is correct: the unit under
+test is the filtering/dispatch logic, not the models.
+
+The real embedding / QA / NLI models (the numpy2-ABI-break canary) are exercised
+in ``tests/e2e/test_evidence_stack_e2e.py`` — real models belong in e2e per the
+3-tier ML/AI testing policy (docs/architecture/TESTING_STRATEGY.md).
 """
 
 from __future__ import annotations
@@ -17,60 +21,8 @@ from podcast_scraper.providers.ml.extractive_qa import QASpan
 
 
 @pytest.mark.integration
-class TestEvidenceStackIntegration(unittest.TestCase):
-    """Evidence stack integration with mocked model backends."""
-
-    @patch("podcast_scraper.providers.ml.embedding_loader.encode")
-    def test_embedding_encode_returns_vectors(self, mock_encode):
-        """encode() returns list of float vectors for a list of texts."""
-        mock_encode.return_value = [[0.1, 0.2, 0.3], [0.4, 0.5, 0.6]]
-
-        from podcast_scraper.providers.ml import embedding_loader
-
-        vecs = embedding_loader.encode(
-            ["First sentence.", "Second sentence."],
-            model_id="test-model",
-            device="cpu",
-        )
-        self.assertEqual(len(vecs), 2)
-        self.assertEqual(len(vecs[0]), len(vecs[1]))
-        mock_encode.assert_called_once()
-
-    @patch("podcast_scraper.providers.ml.extractive_qa.answer")
-    def test_extractive_qa_returns_span(self, mock_answer):
-        """answer() returns a QASpan with answer, offsets, and score."""
-        mock_answer.return_value = QASpan(answer="Paris", start=30, end=35, score=0.95)
-
-        from podcast_scraper.providers.ml import extractive_qa
-
-        context = "The capital of France is Paris. It has many museums."
-        span = extractive_qa.answer(
-            context=context,
-            question="What is the capital of France?",
-            model_id="test-qa-model",
-            device="cpu",
-        )
-        self.assertEqual(span.answer, "Paris")
-        self.assertGreaterEqual(span.start, 0)
-        self.assertLessEqual(span.end, len(context))
-        self.assertGreater(span.score, 0.0)
-
-    @patch("podcast_scraper.providers.ml.nli_loader.entailment_score")
-    def test_nli_returns_entailment_score(self, mock_nli):
-        """entailment_score() returns a float between 0 and 1."""
-        mock_nli.return_value = 0.92
-
-        from podcast_scraper.providers.ml import nli_loader
-
-        score = nli_loader.entailment_score(
-            premise="The cat sat on the mat.",
-            hypothesis="A cat was on a mat.",
-            model_id="test-nli-model",
-            device="cpu",
-        )
-        self.assertIsInstance(score, float)
-        self.assertGreaterEqual(score, 0.0)
-        self.assertLessEqual(score, 1.0)
+class TestFindGroundedQuotesWiring(unittest.TestCase):
+    """Threshold + error-handling wiring of find_grounded_quotes, with injected scores."""
 
     @patch("podcast_scraper.providers.ml.nli_loader.entailment_score")
     @patch("podcast_scraper.providers.ml.extractive_qa.answer_candidates")
@@ -80,12 +32,7 @@ class TestEvidenceStackIntegration(unittest.TestCase):
         insight = "France has a capital city."
 
         mock_qa_candidates.return_value = [
-            QASpan(
-                answer="capital of France is Paris",
-                start=4,
-                end=29,
-                score=0.88,
-            )
+            QASpan(answer="capital of France is Paris", start=4, end=29, score=0.88)
         ]
         mock_nli.return_value = 0.85
 

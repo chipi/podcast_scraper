@@ -678,8 +678,15 @@ def _char_range_to_ms(
 
 
 def _segment_speaker_label(seg: Dict[str, Any]) -> Optional[str]:
-    """Return normalized speaker label from a segment dict if present."""
-    raw = seg.get("speaker")
+    """Return normalized speaker label from a segment dict if present.
+
+    Prefer the human-readable ``speaker_label`` (e.g. ``Maya``, set by the
+    diarization name-mapping) over the raw pyannote ``speaker`` id
+    (``SPEAKER_00``) so GI Person nodes carry real names, not anonymous ids.
+    """
+    raw = seg.get("speaker_label")
+    if raw is None or not str(raw).strip():
+        raw = seg.get("speaker")
     if raw is None:
         raw = seg.get("speaker_id")
     if raw is None:

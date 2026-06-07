@@ -23,11 +23,15 @@
 #   python -m podcast_scraper.cli --config config/profiles/cloud_quality.yaml \
 #     --rss <feed_url> --output-dir <output>
 
-# Transcription — whisper-1 for reliability (Exp 3 of #577): no duration/token
-# caps, no hallucination risk seen. Costs more than voxtral-mini but that's
-# aligned with this profile's "quality > cost" intent.
-transcription_provider: openai
-openai_transcription_model: whisper-1
+# Transcription — Deepgram nova-3 for the quality tier: native, server-side
+# speaker diarization that the local-Whisper path can't produce without a second
+# pyannote pass. `screenplay: true` renders Deepgram's utterance-level speaker
+# labels as a named screenplay (for deepgram, the pyannote `diarize` pass is
+# coerced off while screenplay is kept — see #597 / audit D1). Requires
+# DEEPGRAM_API_KEY (or deepgram_api_key). Aligned with "quality > cost".
+transcription_provider: deepgram
+deepgram_model: nova-3
+screenplay: true
 
 # Audio preprocessing — named preset (#634 Scope 1).
 audio_preprocessing_profile: speech_optimal_v1
@@ -87,7 +91,7 @@ kg_max_entities: 15
 
 # Vector search + clustering
 vector_search: true
-vector_backend: faiss
+vector_embedding_provider: sentence_transformers
 
 # General
 generate_metadata: true

@@ -133,22 +133,28 @@ token-path fix so the validation is runnable once the pins are fixed and access 
 
 ## GROUP D — Deepgram provider (`providers/deepgram/*`)
 
-- **D1 · P1 · M** — Native diarization discarded: config coercion forces diarize/screenplay off
-  for deepgram (`config.py:83` eligibility set; coercion `config.py:3064`) AND the
-  `has_diarized_labels` gate checks `speaker_label` but the provider emits `speaker`
-  (`episode_processor.py:400` vs `deepgram_provider.py:44,83`). Pick a coherent story: wire an
-  API-diarization screenplay path OR stop requesting diarize and fix the docs.
-- **D2 · P2 · S** — Add retry/backoff/timeout to the API call (every sibling has it; deepgram has
-  none). Add `_safe_deepgram_retryable()` + `retry_with_metrics`, record retries.
-  `deepgram_provider.py:186`.
-- **D3 · P2 · M** — Cross-chunk speaker-ID reconciliation (chunk-local 0/1 not reconciled; latent
-  until D1 lands).
-- **D4 · P2 · S** — Harden response parsing: warn on unparsable `{}`; test malformed/empty
-  payloads. `deepgram_provider.py:17`.
-- **D5 · P3 · S** — Use `episode_duration_seconds` for precise cost (currently discarded). `:197`.
-- **D6 · P3 · S–M** — Tests: error path, empty/malformed response, multi-speaker
-  `_words_to_segments`, not-initialized/`FileNotFound` guards, experiment-mode factory,
-  capabilities.
+Status: D1/D2/D4 landed in #901; **D3/D5/D6 + new work (integration tier + mock-server
+round-trip) landed on `feat/ai-ml-improvements`**.
+
+- ✅ **D1 · P1 · M** — RESOLVED (#901). Native diarization screenplay path wired
+  (`format_screenplay_from_segments`); the pyannote pass is coerced off for deepgram while
+  screenplay is kept.
+- ✅ **D2 · P2 · S** — RESOLVED (#901). `_safe_deepgram_retryable()` + `retry_with_metrics`
+  added; retries recorded.
+- ✅ **D3 · P2 · M** — RESOLVED (this branch). Root cause was the 25 MiB OpenAI-default
+  chunk cap fragmenting Deepgram's per-request speaker numbering. Set Deepgram's real 2 GB
+  single-request cap so whole episodes go in one call → one consistent speaker space
+  (`audio_payload_limits.py`); the rare >2 GB file warns that ids are chunk-local
+  (`episode_processor.py`).
+- ✅ **D4 · P2 · S** — RESOLVED (#901). Parse warns on unrecognized payloads; tests cover
+  malformed/empty.
+- ✅ **D5 · P3 · S** — RESOLVED (this branch). `_record_transcription_cost` records
+  per-minute cost from `episode_duration_seconds` (bitrate-aware file-size fallback),
+  mirroring gemini/mistral.
+- ✅ **D6 · P3 · S–M** — RESOLVED (this branch). Tests added for error path, empty/malformed
+  response, multi-speaker `_words_to_segments`, not-initialized/`FileNotFound` guards,
+  capabilities, cost, and the 2 GB cap; plus an integration tier (real-shape response) and a
+  mock-server round-trip against the real SDK.
 
 ## GROUP E — speaker_detectors refactor (`speaker_detectors/*`) — refactor verified clean
 
@@ -167,6 +173,8 @@ token-path fix so the validation is runnable once the pins are fixed and access 
 - **F1 · P2 · M** — Encode real per-provider byte/duration limits for gemini/mistral/deepgram (they
   reuse OpenAI 25 MB, no duration cap → oversize/over-duration chunks can still fail or skip).
   `audio_payload_limits.py:11-19`, `episode_processor.py:1265`.
+  *Partial (this branch):* **deepgram** now uses its real 2 GB single-request cap (the D3 fix);
+  gemini/mistral still inherit the conservative 25 MiB default pending confirmed real limits.
 
 ---
 

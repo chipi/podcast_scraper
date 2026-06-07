@@ -1316,6 +1316,15 @@ def _transcribe_with_segments_maybe_chunked(
             "[%s] Preprocessed audio exceeds API limit; transcribing in chunks",
             job.idx,
         )
+        # D3: Deepgram numbers speakers per request, so chunking fragments speaker
+        # ids across chunk seams. The 2 GB cap means this only fires for extreme
+        # files; warn so a garbled multi-speaker screenplay isn't a silent mystery.
+        if str(getattr(cfg, "transcription_provider", "") or "").lower() == "deepgram":
+            logger.warning(
+                "[%s] Deepgram audio over the 2 GB single-request cap is being chunked; "
+                "diarization speaker ids are chunk-local and not reconciled across chunks.",
+                job.idx,
+            )
         return transcribe_file_in_chunks(
             media_for_transcription,
             chunker=chunker,

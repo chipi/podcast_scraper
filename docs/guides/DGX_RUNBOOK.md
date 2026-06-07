@@ -51,7 +51,7 @@ Run autoresearch smoke config `autoresearch_prompt_ollama_llama33_70b_dgx_smoke_
 DGX runs **only Ollama** for the pipeline. Embeddings stay in-process via
 sentence-transformers on the host running the pipeline (laptop / pre-prod
 VPS / prod VPS / CI runner). This is the empirical answer — see ADR-098 for
-the A/B that produced it, and `eval/embedding_provider_comparison/` for the
+the A/B that produced it, and `data/eval/embedding_provider_comparison/` for the
 numbers.
 
 The architecture supports DGX-served embeddings via

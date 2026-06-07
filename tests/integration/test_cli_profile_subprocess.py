@@ -39,6 +39,7 @@ def _fake_keys_env() -> dict:
         "DEEPSEEK_API_KEY",
         "MISTRAL_API_KEY",
         "GROK_API_KEY",
+        "DEEPGRAM_API_KEY",
     ):
         env.setdefault(name, "test-" + name.lower().replace("_", "-") + "-dummy-key")
     return env

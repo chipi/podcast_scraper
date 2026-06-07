@@ -140,3 +140,24 @@ def test_default_path_transcribe_diarize_screenplay_into_graph() -> None:
     }
     # The diarized host + guest become graph entities.
     assert {"Maya", "Liam"}.issubset(kg_entities), f"KG entities missing Maya/Liam: {kg_entities}"
+
+    # === bridge (GI<->KG) + CIL: diarized speakers must reach the corpus graph layer ===
+    import json as _json
+
+    from podcast_scraper.builders.bridge_builder import build_bridge
+    from podcast_scraper.server import cil_queries
+
+    bridge = build_bridge("episode:p01-multi-e01", gi, kg)
+    bridge_blob = _json.dumps(bridge).lower()
+    assert "maya" in bridge_blob and "liam" in bridge_blob, "diarized speakers absent from bridge"
+
+    with tempfile.TemporaryDirectory() as corpus:
+        meta = Path(corpus) / "metadata"
+        meta.mkdir()
+        (meta / "ep.gi.json").write_text(_json.dumps(gi), encoding="utf-8")
+        (meta / "ep.kg.json").write_text(_json.dumps(kg), encoding="utf-8")
+        (meta / "ep.bridge.json").write_text(_json.dumps(bridge), encoding="utf-8")
+        # The CIL person-profile query resolves the diarized host against the built
+        # corpus graph (topics/quotes need linked insights — see GI-attribution note).
+        profile = cil_queries.person_profile(corpus, corpus, "person:maya")
+        assert profile["person_id"] == "person:maya"

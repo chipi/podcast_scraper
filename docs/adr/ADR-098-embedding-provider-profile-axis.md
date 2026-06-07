@@ -37,7 +37,7 @@ The operator ran the A/B harness at `src/podcast_scraper/evaluation/embedding_pr
 
 The transcript-whole mode favoured nomic by design: MiniLM is asked to embed 8,000 chars in a single 256-token-truncated vector, which is **not what it ever does in production**. The live indexer pre-chunks transcripts at `vector_chunk_size_tokens=300` and embeds each chunk separately. Under the production-realistic mode (transcript-chunked, max chunk score per transcript), **MiniLM is consistently better** than nomic by 2–5 points on Recall@{1,5,10,20}, MRR, and nDCG@10. Plus MiniLM runs in-process at ~7 ms p50; nomic over HTTP at ~33 ms p50 (4.5× slower).
 
-Reports committed under `eval/embedding_provider_comparison/` for verification.
+Reports committed under `data/eval/embedding_provider_comparison/` for verification.
 
 The three modes together show a useful methodological lesson worth preserving with the code: a fair retrieval A/B must hold chunking constant. We almost shipped the wrong default; the chunked-both eval caught it.
 
@@ -77,6 +77,6 @@ The three modes together show a useful methodological lesson worth preserving wi
 - `src/podcast_scraper/providers/ml/embedding_loader.py` — router by `provider`
 - `src/podcast_scraper/server/index_staleness.py` — `REASON_EMBEDDING_PROVIDER_MISMATCH`
 - `src/podcast_scraper/evaluation/embedding_provider_eval.py` — A/B harness
-- `eval/embedding_provider_comparison/` — committed report data
+- `data/eval/embedding_provider_comparison/` — committed report data
 - Ollama `/api/embed` docs: <https://github.com/ollama/ollama/blob/main/docs/api.md#generate-embeddings>
 - `nomic-embed-text` model card: <https://huggingface.co/nomic-ai/nomic-embed-text-v1.5>

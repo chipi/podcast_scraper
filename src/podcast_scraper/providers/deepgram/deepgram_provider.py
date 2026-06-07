@@ -100,8 +100,15 @@ def parse_deepgram_transcript(response: Any) -> Dict[str, Any]:
     return {"text": transcript, "segments": segments}
 
 
-def _create_deepgram_client(api_key: str) -> Any:
-    """Construct Deepgram SDK client (isolated for unit-test patching)."""
+def _create_deepgram_client(api_key: str, base_url: str | None = None) -> Any:
+    """Construct Deepgram SDK client (isolated for unit-test patching).
+
+    When ``base_url`` is set, point the SDK at it (self-hosted / on-prem
+    Deepgram, or a test mock server) by overriding the client environment. The
+    SDK posts ``{production}/v1/listen``, so every environment URL is set to the
+    given root. If the installed SDK lacks the environment override, fall back
+    to the default hosted client and warn — the override is opt-in.
+    """
     try:
         from deepgram import DeepgramClient
     except ImportError as exc:
@@ -109,6 +116,21 @@ def _create_deepgram_client(api_key: str) -> Any:
             "deepgram-sdk is required for transcription_provider='deepgram'. "
             "Install with: pip install -e '.[llm]'"
         ) from exc
+    if base_url:
+        try:
+            from deepgram.environment import DeepgramClientEnvironment
+
+            env = DeepgramClientEnvironment(
+                base=base_url, production=base_url, agent=base_url, agent_rest=base_url
+            )
+            return DeepgramClient(api_key=api_key, environment=env)
+        except Exception as exc:  # noqa: BLE001 - override is best-effort
+            logger.warning(
+                "Could not apply deepgram_api_base=%s (SDK lacks environment override: %s); "
+                "using the hosted endpoint.",
+                base_url,
+                format_exception_for_log(exc),
+            )
     return DeepgramClient(api_key=api_key)
 
 
@@ -131,7 +153,10 @@ class DeepgramTranscriptionProvider:
                 "Deepgram API key required for transcription_provider='deepgram'. "
                 "Set DEEPGRAM_API_KEY or deepgram_api_key in config."
             )
-        self._client = _create_deepgram_client(self.cfg.deepgram_api_key)
+        self._client = _create_deepgram_client(
+            self.cfg.deepgram_api_key,
+            base_url=getattr(self.cfg, "deepgram_api_base", None),
+        )
         self._initialized = True
 
     def cleanup(self) -> None:
@@ -215,6 +240,16 @@ class DeepgramTranscriptionProvider:
         if not os.path.exists(audio_path):
             raise FileNotFoundError(f"Audio file not found: {audio_path}")
 
+        # Own the call_metrics lifecycle like every sibling provider: instantiate
+        # when the caller passes None so retry_with_metrics has somewhere to record
+        # retries/backoff, and finalize() below so `retries`/`rate_limit_sleep_sec`
+        # surface to the orchestration's per-episode metrics.
+        if call_metrics is None:
+            from ...utils.provider_metrics import ProviderCallMetrics
+
+            call_metrics = ProviderCallMetrics()
+        call_metrics.set_provider_name("deepgram")
+
         effective_language = language if language is not None else (self.cfg.language or None)
         started = time.time()
         try:
@@ -238,19 +273,78 @@ class DeepgramTranscriptionProvider:
                     error_context="deepgram",
                 )
         except Exception as exc:
+            call_metrics.finalize()
             logger.error("Deepgram transcription failed: %s", format_exception_for_log(exc))
             raise
 
         elapsed = time.time() - started
         result = parse_deepgram_transcript(response)
 
-        if call_metrics is not None:
-            call_metrics.set_provider_name("deepgram")
+        self._record_transcription_cost(
+            audio_path, episode_duration_seconds, pipeline_metrics, call_metrics
+        )
+        # Surface retries / rate-limit sleep recorded by retry_with_metrics
+        # (mirrors gemini/mistral — the orchestration reads these post-call).
+        call_metrics.finalize()
 
-        _ = pipeline_metrics, episode_duration_seconds
         logger.info(
             "Deepgram transcription completed in %.2fs (%d segments)",
             elapsed,
             len(result.get("segments") or []),
         )
         return result, elapsed
+
+    def _record_transcription_cost(
+        self,
+        audio_path: str,
+        episode_duration_seconds: int | None,
+        pipeline_metrics: Any | None,
+        call_metrics: Any | None,
+    ) -> None:
+        """Record per-minute transcription cost (D5).
+
+        Deepgram bills per audio-minute. Prefer the precise feed duration
+        (``episode_duration_seconds``); fall back to a bitrate-aware file-size
+        estimate so cost isn't silently 0 when the caller doesn't pass it —
+        mirrors the gemini/mistral providers. The orchestration layer's
+        ``apply_estimated_cost_if_missing`` is a backstop; recording here keeps
+        Deepgram symmetric and precise when the feed duration is known.
+        """
+        audio_minutes = 0.0
+        if episode_duration_seconds is not None:
+            audio_minutes = float(episode_duration_seconds) / 60.0
+        else:
+            try:
+                file_size_mb = os.path.getsize(audio_path) / (1024 * 1024)
+                bitrate_kbps_cfg = getattr(self.cfg, "preprocessing_mp3_bitrate_kbps", None)
+                bitrate_kbps = float(bitrate_kbps_cfg) if bitrate_kbps_cfg else 128.0
+                audio_minutes = file_size_mb * (128.0 / bitrate_kbps)
+            except OSError:
+                pass
+
+        if audio_minutes <= 0:
+            return
+
+        from ...utils.provider_metrics import record_provider_call_cost
+        from ...workflow.helpers import calculate_provider_cost
+
+        cost = calculate_provider_cost(
+            cfg=self.cfg,
+            provider_type="deepgram",
+            capability="transcription",
+            model=self.model,
+            audio_minutes=audio_minutes,
+        )
+        if call_metrics is not None:
+            record_provider_call_cost(
+                call_metrics,
+                cost,
+                cfg=self.cfg,
+                provider_type="deepgram",
+                capability="transcription",
+                model=self.model,
+                audio_minutes=audio_minutes,
+            )
+        if pipeline_metrics is not None:
+            estimated = getattr(call_metrics, "estimated_cost", cost) if call_metrics else cost
+            pipeline_metrics.record_llm_transcription_call(audio_minutes, cost_usd=estimated)

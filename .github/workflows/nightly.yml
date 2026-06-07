@@ -295,15 +295,14 @@ jobs:
           docs/requirements.txt
           pyproject.toml
 
-    - name: Install ffmpeg (mkdocstrings imports [ml] modules; pyannote 4.x/torchcodec needs FFmpeg)
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y --no-install-recommends ffmpeg
-    - name: Install doc dependencies (includes ML for mkdocstrings)
+    - name: Install doc dependencies
       run: |
         python -m pip install --upgrade pip
         pip install -r docs/requirements.txt
-        pip install -e ".[ml]"
+        # No [ml] / ffmpeg: mkdocstrings (griffe) parses source statically and
+        # never imports the package, so the heavy ML stack and FFmpeg shared
+        # libs aren't needed to build the API docs.
+        pip install -e .
 
     - name: Build docs
       run: make docs
