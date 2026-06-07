@@ -1,0 +1,50 @@
+{
+  "dataset_id": "curated_5feeds_smoke_v2",
+  "version": "1.0",
+  "description": "Smoke dataset over v2 sources: first episode per feed (5 episodes). Lightweight pass for silver re-selection on v2 content (sponsor blocks, recurring guests).",
+  "created_at": "2026-06-07T00:00:00.000000Z",
+  "content_regime": "explainer",
+  "num_episodes": 5,
+  "episodes": [
+    {
+      "episode_id": "p01_e01",
+      "title": "Episode 1: Building Trails That Last (with Liam Verbeek)",
+      "transcript_path": "data/eval/sources/curated_5feeds_raw_v2/feed-p01/p01_e01.txt",
+      "transcript_hash": "3cac4555bc5cc1b818c3acd7a50357faed7f6f6bdb3e0e2986dacdf23483193e",
+      "preprocessing_profile": "cleaning_v3",
+      "duration_minutes": 10.5
+    },
+    {
+      "episode_id": "p02_e01",
+      "title": "Episode 1: On-Call That Doesn\u2019t Break People (with Priya Nair)",
+      "transcript_path": "data/eval/sources/curated_5feeds_raw_v2/feed-p02/p02_e01.txt",
+      "transcript_hash": "bf1c8a53473361ffa98453116b6feb7d9d81181cf7d62974564f4ee27b2b4209",
+      "preprocessing_profile": "cleaning_v3",
+      "duration_minutes": 11.0
+    },
+    {
+      "episode_id": "p03_e01",
+      "title": "Episode 1: Wreck Diving Fundamentals (with Marco Silva)",
+      "transcript_path": "data/eval/sources/curated_5feeds_raw_v2/feed-p03/p03_e01.txt",
+      "transcript_hash": "8b9782265656ec4b67b3784f374abd6ed5b89b50c6c5ce1b8d043364237981b3",
+      "preprocessing_profile": "cleaning_v3",
+      "duration_minutes": 10.25
+    },
+    {
+      "episode_id": "p04_e01",
+      "title": "Episode 1: Underwater Images That Feel Alive (with Ava Lemoine)",
+      "transcript_path": "data/eval/sources/curated_5feeds_raw_v2/feed-p04/p04_e01.txt",
+      "transcript_hash": "5e3998010cf4b8ac1370fa6aa193171496381edee2571d4c90e8a1d6b798fdb1",
+      "preprocessing_profile": "cleaning_v3",
+      "duration_minutes": 11.33
+    },
+    {
+      "episode_id": "p05_e01",
+      "title": "Episode 1: Index Investing Without the Myths (with Daniel Cho)",
+      "transcript_path": "data/eval/sources/curated_5feeds_raw_v2/feed-p05/p05_e01.txt",
+      "transcript_hash": "cbdb6aa47bff3f1fbd90909ff839edcb21bcd501eb97e134bc0ecbcb7dd0bacf",
+      "preprocessing_profile": "cleaning_v3",
+      "duration_minutes": 10.75
+    }
+  ]
+}
