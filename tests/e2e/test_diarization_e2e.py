@@ -21,6 +21,8 @@ from pathlib import Path
 
 import pytest
 
+from tests._fixtures import fixtures_dir
+
 pytestmark = [pytest.mark.e2e, pytest.mark.ml_models, pytest.mark.diarization, pytest.mark.serial]
 
 try:
@@ -28,7 +30,8 @@ try:
 except Exception as exc:  # pragma: no cover - environment-dependent
     pytest.skip(f"pyannote.audio unavailable: {exc}", allow_module_level=True)
 
-_FIXTURE = Path(__file__).resolve().parents[1] / "fixtures" / "audio" / "p01_multi_e01.mp3"
+# Version-aware (tests/_fixtures.py): audio moved to tests/fixtures/audio/<version>/ in #902.
+_FIXTURE = fixtures_dir("audio") / "p01_multi_e01.mp3"
 
 _PROVISIONING_MARKERS = (
     "offlinemode",

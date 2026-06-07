@@ -761,17 +761,29 @@ def main() -> None:
 
         preload_transformers_models(transformers_models)
         print("")
+        # MiniLM embedding is corpus-wide core — vector search default (#897/#899),
+        # GI about-edges, the corpus graph, and the search aux/two-tier integration
+        # tests all need it offline. Always preload it, independent of SKIP_GIL.
+        from podcast_scraper import config_constants as _cc
+
+        print("Preloading embedding model (MiniLM, corpus-wide)...")
+        preload_evidence_models(embedding_models=[_cc.DEFAULT_EMBEDDING_MODEL])
+        print("")
+        # The heavier QA + NLI grounding models stay gated behind SKIP_GIL.
         skip_gil_prod = os.environ.get("SKIP_GIL", "").strip().lower() in (
             "1",
             "true",
             "yes",
         )
         if not skip_gil_prod:
-            print("Preloading GIL evidence models (embedding + QA + NLI)...")
-            preload_evidence_models()
+            print("Preloading GIL evidence QA + NLI models...")
+            preload_evidence_models(
+                qa_models=[_cc.DEFAULT_EXTRACTIVE_QA_MODEL],
+                nli_models=[_cc.DEFAULT_NLI_MODEL],
+            )
             print("")
         else:
-            print("Skipping GIL evidence models (SKIP_GIL=1)")
+            print("Skipping GIL evidence QA + NLI models (SKIP_GIL=1)")
             print("")
         if os.environ.get("SKIP_DIARIZATION", "").strip().lower() not in ("1", "true", "yes"):
             print("Preloading pyannote diarization pipeline (gated; needs HF token)...")
