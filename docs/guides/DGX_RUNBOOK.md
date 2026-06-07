@@ -63,6 +63,46 @@ shipped profile enables it. The shim that used to live on `:8001` is gone.
 - `config/profiles/local_dgx_balanced.yaml` — DGX Ollama + degradation fallback to Gemini.
 - `config/profiles/local_dgx_full.yaml` — measurement only (no cloud fallback in profile).
 
+### P2 — Operator E2E smoke (#811 AC#6)
+
+Single-episode end-to-end run through `local_dgx_balanced` against the fast fixture (60s of audio), validated 2026-06-07:
+
+| Stage | Wall | Provider | Tokens | Cost |
+| --- | --- | --- | --- | --- |
+| Whisper transcription | 4.2 s | laptop CPU (mps), `small.en` | — | $0 |
+| Summarization | 2.7 s | DGX `qwen3.5:9b` | 665 in / 18 out | $0 |
+| GI (insights + evidence) | 10.5 s | DGX `qwen3.5:9b` (7 calls) | 967 in / 80 out | $0 |
+| KG | 6.3 s | from summary path | — | $0 |
+| FAISS index + topic clusters | 0.2 s | in-process MiniLM (ADR-098) | — | $0 |
+| **Total** | **30 s** | | | **$0** |
+
+Quality gates:
+
+- 3 insights generated, 4 quotes; **grounding rate 100%**, **quote verbatim validity 100%**.
+- KG: 2 topics, 6 entities (incl. `Liam Verbeek`, `Maya Koster`, `Cascadia Alliance`, `Strava`) — all extracted from the qwen3.5:9b summary path.
+- Vector index, topic clusters, bridge.json all written.
+
+Reproducing the smoke (laptop):
+
+```bash
+# Terminal 1 — fixture HTTP server (fast variant)
+.venv/bin/python scripts/tools/run_e2e_mock_server.py --port 18766 --fast-fixtures
+
+# Terminal 2 — pipeline (one episode, profile-driven, DGX Ollama)
+export PYTHONPATH="$(pwd)/src:$(pwd):${PYTHONPATH}"
+.venv/bin/python -m podcast_scraper.cli \
+  http://127.0.0.1:18766/feeds/podcast1/feed.xml \
+  --profile local_dgx_balanced \
+  --output-dir /tmp/dgx_e2e_smoke/out \
+  --max-episodes 1
+```
+
+Caveats / notes for re-runs:
+
+- The 2026-06-07 smoke ran with `screenplay: false, diarize: false` overrides because the laptop venv's `torchaudio` was mid-migration from the parallel wave-2 audio work. Once that lands and `import pyannote.audio` succeeds, re-run with the unmodified profile to also cover diarization.
+- Default `--rss` flag is for *additional* feeds; for a single feed pass the URL positionally.
+- DGX Ollama must already be reachable on the tailnet (`curl http://${DGX_TAILNET_FQDN}:11434/api/tags`); the profile does not bring the daemon up.
+
 ## P3 — GitHub Actions self-hosted runner (ADR-097)
 
 All three layers required before registering the runner:
