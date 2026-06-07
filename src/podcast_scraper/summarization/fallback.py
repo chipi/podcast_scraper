@@ -1,28 +1,38 @@
-"""Provider-swap fallback for the summarization stage.
+"""Provider-swap fallback for LLM provider calls (RFC-089 #5).
 
-RFC-089 Decision #5: when an operator runs a DGX-hosted (or otherwise local)
-LLM and the local backend is unreachable, the pipeline must fall back to a
-cloud provider rather than degrade silently. This module implements that
-contract for the summarization stage.
+When an operator runs a DGX-hosted (or otherwise local) LLM and the local
+backend becomes unreachable, the pipeline must fall back to a cloud provider
+rather than degrade silently. This module implements that contract for every
+LLM-touching provider method on a single wrapped instance.
 
-Scope (this module): summarization protocol methods only — ``summarize``,
-``summarize_bundled``, ``summarize_mega_bundled``, ``summarize_extraction_bundled``.
-The wrapper is transparent to callers: it exposes the same protocol surface as
-the underlying primary provider, including pass-through of any extra attributes
-(e.g. ``cleaning_processor``).
+Wrapped methods:
 
-Out of scope (deferred follow-up):
-
-- GI evidence quote/entailment providers — they have their own provider
-  config (``quote_extraction_provider``, ``entailment_provider``) and aren't
-  routed through the summarization provider instance.
-- KG extraction when ``kg_extraction_provider`` differs from
-  ``summary_provider`` — that path constructs its own provider instance in
-  ``metadata_generation.py`` and bypasses this wrapper. When KG reuses the
-  summarization provider (the common case), it inherits this fallback for free.
+- Summarization: ``summarize``, ``summarize_bundled``,
+  ``summarize_mega_bundled``, ``summarize_extraction_bundled``.
+- GI evidence: ``extract_quotes``, ``extract_quotes_bundled``,
+  ``score_entailment``, ``score_entailment_bundled``. The same wrapped
+  instance backs all three roles (summary / quote / entailment) when their
+  provider config is the same; without this coverage, ``__getattr__`` would
+  forward the GI methods to the broken primary and silently lose the
+  evidence stack (insights with ``gi_require_grounding: true`` would all
+  drop out).
 
 Wrapping is opt-in via ``degradation_policy.fallback_provider_on_failure`` in
 the profile/config. If unset, no wrapping happens and behavior is unchanged.
+
+Call-site coverage. The wrapper kicks in at every place a provider instance is
+constructed for a fallback-eligible role:
+
+- ``workflow/orchestration.py::_create_summarization_provider`` — primary
+  summary provider; reused for KG when ``kg_extraction_provider`` matches
+  ``summary_provider`` (the default case).
+- ``gi/deps.py::create_gil_evidence_providers`` — quote / entailment providers
+  built fresh when their config differs from ``summary_provider``.
+- ``workflow/metadata_generation.py`` — KG provider built fresh when
+  ``kg_extraction_provider`` differs from ``summary_provider``.
+
+The wrapper is transparent to callers: pass-through of non-protocol attributes
+(e.g. ``cleaning_processor``) goes to the primary via ``__getattr__``.
 """
 
 from __future__ import annotations
@@ -36,11 +46,17 @@ from .base import SummarizationProvider
 logger = logging.getLogger(__name__)
 
 
-_SUMMARIZE_METHODS = (
+_WRAPPED_METHODS = (
+    # Summarization
     "summarize",
     "summarize_bundled",
     "summarize_mega_bundled",
     "summarize_extraction_bundled",
+    # GI evidence (quotes + entailment, staged + bundled)
+    "extract_quotes",
+    "extract_quotes_bundled",
+    "score_entailment",
+    "score_entailment_bundled",
 )
 
 
@@ -99,7 +115,7 @@ class FallbackAwareSummarizationProvider:
             warmup_fn(timeout_s=timeout_s)
 
     def __getattr__(self, name: str) -> Any:
-        if name in _SUMMARIZE_METHODS:
+        if name in _WRAPPED_METHODS:
             primary_fn = getattr(self._primary, name, None)
             if primary_fn is None:
                 raise AttributeError(name)

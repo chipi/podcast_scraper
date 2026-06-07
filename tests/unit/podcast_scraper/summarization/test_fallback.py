@@ -44,6 +44,8 @@ class _FakeProvider:
         self.warmup_count = 0
         self.summarize_calls: list[tuple[tuple[Any, ...], Dict[str, Any]]] = []
         self.summarize_bundled_calls: list[tuple[tuple[Any, ...], Dict[str, Any]]] = []
+        self.extract_quotes_calls: list[tuple[tuple[Any, ...], Dict[str, Any]]] = []
+        self.score_entailment_calls: list[tuple[tuple[Any, ...], Dict[str, Any]]] = []
         self.cleaning_processor = f"cleaning-{name}"
 
     def initialize(self) -> None:
@@ -66,6 +68,18 @@ class _FakeProvider:
         if self.raises:
             raise self.raises
         return self.result
+
+    def extract_quotes(self, *args: Any, **kwargs: Any) -> list[Dict[str, Any]]:
+        self.extract_quotes_calls.append((args, kwargs))
+        if self.raises:
+            raise self.raises
+        return [{"text": f"quote-from-{self.name}", "start": 0, "end": 10}]
+
+    def score_entailment(self, *args: Any, **kwargs: Any) -> Dict[str, Any]:
+        self.score_entailment_calls.append((args, kwargs))
+        if self.raises:
+            raise self.raises
+        return {"score": 0.95, "provider": self.name}
 
 
 @pytest.fixture
@@ -212,6 +226,69 @@ class TestPrimaryRaisesFallbackSucceeds:
         assert result == {"summary": "from-fallback"}
         assert fallback_ok.summarize_bundled_calls
         assert metrics.calls == ["gemini"]
+
+
+class TestGiEvidenceMethodsFallBack:
+    """RFC-089 #5 extension: extract_quotes / score_entailment must fall back too.
+
+    Without this coverage, GI evidence would silently lose its grounding
+    when DGX is down — the same wrapped instance serves the summary / quote /
+    entailment roles, and a bare ``__getattr__`` would forward these methods
+    to the broken primary.
+    """
+
+    def test_extract_quotes_falls_back(
+        self,
+        fake_cfg: MagicMock,
+        primary_broken: _FakeProvider,
+        fallback_ok: _FakeProvider,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        _patch_factory(monkeypatch, fallback_ok)
+        wrapped = FallbackAwareSummarizationProvider(primary_broken, "gemini", fake_cfg)
+        metrics = _FakeMetrics()
+        result = wrapped.extract_quotes("transcript", "insight", pipeline_metrics=metrics)
+        assert result == [{"text": "quote-from-fallback", "start": 0, "end": 10}]
+        assert primary_broken.extract_quotes_calls  # tried
+        assert fallback_ok.extract_quotes_calls  # fell back
+        assert metrics.calls == ["gemini"]
+
+    def test_score_entailment_falls_back(
+        self,
+        fake_cfg: MagicMock,
+        primary_broken: _FakeProvider,
+        fallback_ok: _FakeProvider,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        _patch_factory(monkeypatch, fallback_ok)
+        wrapped = FallbackAwareSummarizationProvider(primary_broken, "gemini", fake_cfg)
+        metrics = _FakeMetrics()
+        result = wrapped.score_entailment("premise", "hypothesis", pipeline_metrics=metrics)
+        assert result == {"score": 0.95, "provider": "fallback"}
+        assert primary_broken.score_entailment_calls
+        assert fallback_ok.score_entailment_calls
+        assert metrics.calls == ["gemini"]
+
+    def test_mixed_methods_share_one_metric_record(
+        self,
+        fake_cfg: MagicMock,
+        primary_broken: _FakeProvider,
+        fallback_ok: _FakeProvider,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """summarize + extract_quotes + score_entailment in one run still
+        records the fallback metric only once."""
+        _patch_factory(monkeypatch, fallback_ok)
+        wrapped = FallbackAwareSummarizationProvider(primary_broken, "gemini", fake_cfg)
+        metrics = _FakeMetrics()
+        wrapped.summarize("text", pipeline_metrics=metrics)
+        wrapped.extract_quotes("t", "i", pipeline_metrics=metrics)
+        wrapped.score_entailment("p", "h", pipeline_metrics=metrics)
+        assert metrics.calls == ["gemini"]  # one record across three methods
+        # But each method did actually run through the fallback:
+        assert fallback_ok.summarize_calls
+        assert fallback_ok.extract_quotes_calls
+        assert fallback_ok.score_entailment_calls
 
 
 class TestBothFail:

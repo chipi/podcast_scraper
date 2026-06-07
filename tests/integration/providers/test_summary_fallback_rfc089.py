@@ -198,3 +198,108 @@ class TestRfc089SummaryFallbackWiring:
             result = orchestration._create_summarization_provider(cfg)
         assert result is primary
         assert not isinstance(result, FallbackAwareSummarizationProvider)
+
+
+@pytest.mark.integration
+class TestRfc089GiEvidenceFallbackWiring:
+    """RFC-089 #5 also applies to GI evidence quote / entailment providers.
+
+    Three cases:
+
+    1. Same backend as summary → shared wrapped instance (the common
+       local_dgx_balanced setup). Verified by checking gi.deps returns the
+       wrapped object that orchestration already produced.
+    2. Different backend for quote / entailment → freshly built by gi.deps;
+       must get wrapped there too.
+    3. local_dgx_full → no fallback configured; providers must NOT be wrapped.
+    """
+
+    def _make_cfg_balanced(self) -> config.Config:
+        return config.Config(
+            rss="https://example.com/feed.xml",
+            summary_provider="ollama",
+            quote_extraction_provider="ollama",
+            entailment_provider="ollama",
+            generate_summaries=True,
+            generate_metadata=True,
+            generate_gi=True,
+            gi_insight_source="provider",
+            degradation_policy={"fallback_provider_on_failure": "gemini"},
+        )
+
+    def _make_cfg_mixed_backend(self) -> config.Config:
+        """summary on ollama, quote on deepseek, entailment on gemini —
+        forces the separate-build branches in create_gil_evidence_providers."""
+        import os
+
+        os.environ.setdefault("GEMINI_API_KEY", "x")
+        os.environ.setdefault("DEEPSEEK_API_KEY", "x")
+        return config.Config(
+            rss="https://example.com/feed.xml",
+            summary_provider="ollama",
+            quote_extraction_provider="deepseek",
+            entailment_provider="gemini",
+            generate_summaries=True,
+            generate_metadata=True,
+            generate_gi=True,
+            gi_insight_source="provider",
+            degradation_policy={"fallback_provider_on_failure": "gemini"},
+        )
+
+    def test_same_backend_reuses_wrapped_summary_provider(self) -> None:
+        from podcast_scraper.gi.deps import create_gil_evidence_providers
+
+        cfg = self._make_cfg_balanced()
+        # Build a wrapped summary instance the way orchestration would.
+        wrapped_summary = FallbackAwareSummarizationProvider(_PrimaryThatFails(), "gemini", cfg)
+        quote, entail = create_gil_evidence_providers(cfg, summary_provider=wrapped_summary)
+        # Both should be the same wrapped object.
+        assert quote is wrapped_summary
+        assert entail is wrapped_summary
+        assert isinstance(quote, FallbackAwareSummarizationProvider)
+
+    def test_separate_backend_quote_provider_is_wrapped(self) -> None:
+        from podcast_scraper.gi.deps import create_gil_evidence_providers
+
+        cfg = self._make_cfg_mixed_backend()
+        # Stub the underlying factory so we don't build a real cloud provider.
+        # Each fresh-built quote/entail provider should come out wrapped.
+        stub_primary = _PrimaryThatFails()
+        with patch(
+            "podcast_scraper.summarization.factory.create_summarization_provider",
+            return_value=stub_primary,
+        ):
+            quote, entail = create_gil_evidence_providers(cfg, summary_provider=Mock())
+        assert isinstance(quote, FallbackAwareSummarizationProvider)
+        assert isinstance(entail, FallbackAwareSummarizationProvider)
+
+    def test_local_dgx_full_does_not_wrap_gi_providers(self) -> None:
+        """local_dgx_full has no degradation_policy.fallback_provider_on_failure
+        → no wrapping anywhere, including GI evidence factory."""
+        import os
+
+        os.environ.setdefault("GEMINI_API_KEY", "x")
+        os.environ.setdefault("DEEPSEEK_API_KEY", "x")
+        from podcast_scraper.gi.deps import create_gil_evidence_providers
+
+        cfg = config.Config(
+            rss="https://example.com/feed.xml",
+            summary_provider="ollama",
+            quote_extraction_provider="deepseek",
+            entailment_provider="gemini",
+            generate_summaries=True,
+            generate_metadata=True,
+            generate_gi=True,
+            gi_insight_source="provider",
+            degradation_policy=None,
+        )
+        stub_primary = _PrimaryThatFails()
+        with patch(
+            "podcast_scraper.summarization.factory.create_summarization_provider",
+            return_value=stub_primary,
+        ):
+            quote, entail = create_gil_evidence_providers(cfg, summary_provider=Mock())
+        assert not isinstance(quote, FallbackAwareSummarizationProvider)
+        assert not isinstance(entail, FallbackAwareSummarizationProvider)
+        assert quote is stub_primary
+        assert entail is stub_primary
