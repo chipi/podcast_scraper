@@ -61,7 +61,7 @@ what was actually pulled.
 
 DGX does not serve embeddings in shipped profiles. The pipeline uses
 `sentence-transformers/all-MiniLM-L6-v2` in-process on the host. The
-A/B in `eval/embedding_provider_comparison/transcript-chunked/` showed
+A/B in `data/eval/embedding_provider_comparison/transcript-chunked/` showed
 MiniLM beats nomic under production-realistic chunking on this corpus.
 
 | Tag                | Purpose                        | Dim | Context | Digest (weights layer)         | Pulled     |

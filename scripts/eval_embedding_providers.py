@@ -4,7 +4,7 @@
 Usage:
     python scripts/eval_embedding_providers.py \\
         --corpus ./output \\
-        --output-root eval/embedding_provider_comparison \\
+        --output-root data/eval/embedding_provider_comparison \\
         [--max-pairs 500] \\
         [--ollama-base-url http://127.0.0.1:11434] \\
         [--ollama-model nomic-embed-text] \\
@@ -54,7 +54,7 @@ def main(argv: list[str] | None = None) -> int:
     )
     parser.add_argument(
         "--output-root",
-        default="eval/embedding_provider_comparison",
+        default="data/eval/embedding_provider_comparison",
         help="Where to write the timestamped run dir.",
     )
     parser.add_argument(

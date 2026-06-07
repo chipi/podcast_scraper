@@ -13,7 +13,7 @@ Why this is honest as ground truth:
   the kind of evidence they want surfaced. Domain-realistic.
 - Scales for free as the corpus grows.
 
-Outputs ``eval/embedding_provider_comparison/<timestamp>/report.{json,md}``
+Outputs ``data/eval/embedding_provider_comparison/<timestamp>/report.{json,md}``
 matching the autoresearch report shape (drops into the existing ledger).
 
 Run: ``make embedding-provider-eval CORPUS=./output``
