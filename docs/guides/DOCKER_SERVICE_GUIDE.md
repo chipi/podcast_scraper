@@ -60,6 +60,7 @@ default location. See [CONFIGURATION.md — Twelve-factor app alignment (config)
 | :------- | :------ | :---------- |
 | `PODCAST_SCRAPER_CONFIG` | `/app/config.yaml` | Path to configuration file |
 | `PODCAST_SCRAPER_WORK_DIR` | `/app` | Working directory for service |
+| `HF_TOKEN` | _(none)_ | Hugging Face token for **gated neural diarization** models (`pyannote/speaker-diarization-3.1` + `segmentation-3.0`). The ML image does **not** bundle these (licence forbids redistribution) — supply your own at runtime + accept the model terms on Hugging Face. Without it, diarization falls back to gap-based screenplay. Pair with a persistent `~/.cache/huggingface` mount (see Model cache below). |
 
 ### Setting Environment Variables
 

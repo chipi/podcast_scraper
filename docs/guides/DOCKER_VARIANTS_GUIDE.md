@@ -111,6 +111,17 @@ Whisper (`tiny.en` + `base.en`), production and test Transformers models, hybrid
 evidence models. There are no separate `WHISPER_MODELS` / `SKIP_TRANSFORMERS` Docker build args; use
 `PRELOAD_ML_MODELS=false` for a smaller image that downloads models at runtime.
 
+> **Neural diarization models are NOT baked into the image.** The gated pyannote
+> models (`pyannote/speaker-diarization-3.1` + `pyannote/segmentation-3.0`) are
+> deliberately excluded from the build — their licence restricts redistribution,
+> so a published image must not ship them. The preload step skips them gracefully
+> when no token is present (the build still succeeds). To use neural diarization
+> from a container you must **supply your own Hugging Face token at runtime**:
+> accept the model terms on Hugging Face, then pass `-e HF_TOKEN=hf_...` (and a
+> persistent `~/.cache/huggingface` volume so the one-time download survives
+> restarts). Without a token the pipeline falls back to gap-based screenplay
+> formatting, or you can run with `--no-diarize`.
+
 ## Tagging Strategy
 
 ### Recommended Tags
