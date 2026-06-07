@@ -755,12 +755,15 @@ jobs:
         sudo apt-get update
         sudo apt-get install -y --no-install-recommends ffmpeg
     - name: Ensure MiniLM embedding cached (offline search tests)
-      # The MiniLM sentence-transformers cache is preloaded but does not survive the
-      # ml-models artifact round-trip reliably (unlike the transformers cache), so the
-      # offline search integration tests (--disable-socket) can't find it. Preload it
-      # here (network available pre-test); idempotent — skips if already present.
+      # The offline search integration tests (--disable-socket) load MiniLM from cache;
+      # the ml-models artifact doesn't deliver a usable copy (see NOTE), so refetch here.
       run: |
-        python -c "from podcast_scraper.providers.ml.model_loader import preload_evidence_models, is_evidence_model_cached; from podcast_scraper import config_constants as cc; is_evidence_model_cached(cc.DEFAULT_EMBEDDING_MODEL) or preload_evidence_models(embedding_models=[cc.DEFAULT_EMBEDDING_MODEL])"
+        # NOTE: the ml-models artifact delivers a BROKEN MiniLM dir — upload-artifact
+        # drops the sentence-transformers snapshot symlinks, so the dir exists (blobs
+        # only) and the "already cached" check (is_evidence_model_cached = dir.exists())
+        # is fooled into skipping. Remove it and force a complete re-download so the
+        # offline (--disable-socket) search tests can actually load it.
+        python -c "import shutil; from podcast_scraper.cache.directories import get_transformers_cache_dir; from podcast_scraper.providers.ml.model_loader import preload_evidence_models; from podcast_scraper import config_constants as cc; shutil.rmtree(get_transformers_cache_dir() / ('models--' + cc.DEFAULT_EMBEDDING_MODEL.replace('/', '--')), ignore_errors=True); preload_evidence_models(embedding_models=[cc.DEFAULT_EMBEDDING_MODEL])"
     - name: Run all integration tests with coverage (full suite, with network guard)
       run: |
         PYTHONPATH="${PYTHONPATH}:$(pwd)"
@@ -963,10 +966,15 @@ jobs:
         sudo apt-get update
         sudo apt-get install -y --no-install-recommends ffmpeg
     - name: Ensure MiniLM embedding cached (offline search tests)
-      # MiniLM's sentence-transformers cache doesn't survive the ml-models artifact
-      # round-trip reliably; preload it here (idempotent) so offline search tests pass.
+      # The offline search integration tests load MiniLM from cache; the ml-models
+      # artifact doesn't deliver a usable copy (see NOTE), so refetch it here.
       run: |
-        python -c "from podcast_scraper.providers.ml.model_loader import preload_evidence_models, is_evidence_model_cached; from podcast_scraper import config_constants as cc; is_evidence_model_cached(cc.DEFAULT_EMBEDDING_MODEL) or preload_evidence_models(embedding_models=[cc.DEFAULT_EMBEDDING_MODEL])"
+        # NOTE: the ml-models artifact delivers a BROKEN MiniLM dir — upload-artifact
+        # drops the sentence-transformers snapshot symlinks, so the dir exists (blobs
+        # only) and the "already cached" check (is_evidence_model_cached = dir.exists())
+        # is fooled into skipping. Remove it and force a complete re-download so the
+        # offline (--disable-socket) search tests can actually load it.
+        python -c "import shutil; from podcast_scraper.cache.directories import get_transformers_cache_dir; from podcast_scraper.providers.ml.model_loader import preload_evidence_models; from podcast_scraper import config_constants as cc; shutil.rmtree(get_transformers_cache_dir() / ('models--' + cc.DEFAULT_EMBEDDING_MODEL.replace('/', '--')), ignore_errors=True); preload_evidence_models(embedding_models=[cc.DEFAULT_EMBEDDING_MODEL])"
     - name: Run fast integration tests with coverage (critical path only, with network guard)
       run: |
         PYTHONPATH="${PYTHONPATH}:$(pwd)"
