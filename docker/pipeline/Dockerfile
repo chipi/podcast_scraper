@@ -52,13 +52,20 @@ ENV PRELOAD_ML_MODELS=${PRELOAD_ML_MODELS}
 # Install build dependencies (only if ML extras are requested)
 # Build deps are needed for compiling some packages from source if wheels aren't available
 # Python 3.12 has good wheel support, so most packages won't need compilation
+#
+# ffmpeg is required HERE (builder stage), not just at runtime: when
+# PRELOAD_ML_MODELS=true the preload imports pyannote.audio, whose torchcodec
+# backend dlopen()s the FFmpeg shared libraries (libav*) at import time. Without
+# them the preload aborts with "Could not load libtorchcodec_core*.so". This is
+# the builder's own (discarded) copy — the runtime stage installs ffmpeg
+# separately, so the final image is unaffected.
 RUN if [ -n "$INSTALL_EXTRAS" ] && { [ "$INSTALL_EXTRAS" = "ml" ] || [ "$INSTALL_EXTRAS" = "llm" ]; }; then \
         set -ux; \
         for attempt in 1 2 3 4 5; do \
           if apt-get update \
              && apt-get upgrade -y --no-install-recommends \
              && apt-get install -y --no-install-recommends \
-                gcc g++ make python3-dev libc6-dev \
+                gcc g++ make python3-dev libc6-dev ffmpeg \
              && rm -rf /var/lib/apt/lists/*; then \
             exit 0; \
           fi; \
