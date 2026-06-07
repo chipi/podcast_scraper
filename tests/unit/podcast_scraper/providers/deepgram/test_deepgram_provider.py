@@ -418,3 +418,93 @@ class TestDeepgramPayloadCap:
             deepgram_api_key="dg-test",
         )
         assert transcription_max_bytes(cfg) == 2 * 1024 * 1024 * 1024
+
+
+class TestDeepgramLifecycle:
+    """Initialize/cleanup parity with sibling providers (idempotency, re-init)."""
+
+    @patch("podcast_scraper.providers.deepgram.deepgram_provider._create_deepgram_client")
+    def test_initialize_is_idempotent(self, mock_create_client) -> None:
+        mock_create_client.return_value = MagicMock()
+        cfg = config.Config(
+            rss="https://example.com/feed.xml",
+            transcription_provider="deepgram",
+            deepgram_api_key="dg-test",
+        )
+        provider = DeepgramTranscriptionProvider(cfg)
+        provider.initialize()
+        provider.initialize()  # second call is a no-op
+        mock_create_client.assert_called_once()
+
+    @patch("podcast_scraper.providers.deepgram.deepgram_provider._create_deepgram_client")
+    def test_cleanup_resets_state_and_allows_reinit(self, mock_create_client) -> None:
+        mock_create_client.return_value = MagicMock()
+        cfg = config.Config(
+            rss="https://example.com/feed.xml",
+            transcription_provider="deepgram",
+            deepgram_api_key="dg-test",
+        )
+        provider = DeepgramTranscriptionProvider(cfg)
+        provider.initialize()
+        provider.cleanup()
+        assert provider._client is None and provider._initialized is False
+        provider.initialize()  # re-init after cleanup builds a fresh client
+        assert provider._initialized is True
+        assert mock_create_client.call_count == 2
+
+
+class TestDeepgramCallMetricsLifecycle:
+    """Parity with gemini/mistral: the provider finalizes call_metrics so retries /
+    rate-limit sleep surface to the orchestration's per-episode metrics."""
+
+    def test_transcribe_finalizes_call_metrics(self) -> None:
+        mock_client = MagicMock()
+        mock_client.listen.v1.media.transcribe_file.return_value = {
+            "results": {"channels": [{"alternatives": [{"transcript": "hi"}]}], "utterances": []}
+        }
+        provider = _provider_with_mock_client(mock_client)
+        call_metrics = MagicMock()
+        call_metrics.estimated_cost = None
+        with (
+            patch("builtins.open", create=True) as mock_open,
+            patch(
+                "podcast_scraper.providers.deepgram.deepgram_provider.os.path.exists",
+                return_value=True,
+            ),
+        ):
+            mock_open.return_value.__enter__.return_value.read.return_value = b"audio"
+            provider.transcribe_with_segments("/tmp/ep.mp3", call_metrics=call_metrics)
+        call_metrics.set_provider_name.assert_called_with("deepgram")
+        call_metrics.finalize.assert_called_once()
+
+    def test_transcribe_creates_call_metrics_when_none(self) -> None:
+        """A None call_metrics is instantiated internally (so retry tracking has a home)."""
+        mock_client = MagicMock()
+        mock_client.listen.v1.media.transcribe_file.return_value = {
+            "results": {"channels": [{"alternatives": [{"transcript": "hi"}]}], "utterances": []}
+        }
+        provider = _provider_with_mock_client(mock_client)
+        with (
+            patch("builtins.open", create=True) as mock_open,
+            patch(
+                "podcast_scraper.providers.deepgram.deepgram_provider.os.path.exists",
+                return_value=True,
+            ),
+        ):
+            mock_open.return_value.__enter__.return_value.read.return_value = b"audio"
+            # No call_metrics passed — must not raise (instantiated internally).
+            result, _ = provider.transcribe_with_segments("/tmp/ep.mp3")
+        assert result["text"] == "hi"
+
+
+class TestDeepgramApiBaseConfig:
+    def test_api_base_loaded_from_env(self, monkeypatch) -> None:
+        """DEEPGRAM_API_BASE env var populates cfg.deepgram_api_base, matching the
+        sibling *_api_base env loaders."""
+        monkeypatch.setenv("DEEPGRAM_API_BASE", "http://dg.internal:8080")
+        monkeypatch.setenv("DEEPGRAM_API_KEY", "dg-env-key")
+        cfg = config.Config(
+            rss="https://example.com/feed.xml",
+            transcription_provider="deepgram",
+        )
+        assert cfg.deepgram_api_base == "http://dg.internal:8080"

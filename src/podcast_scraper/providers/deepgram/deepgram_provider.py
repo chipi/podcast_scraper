@@ -240,6 +240,16 @@ class DeepgramTranscriptionProvider:
         if not os.path.exists(audio_path):
             raise FileNotFoundError(f"Audio file not found: {audio_path}")
 
+        # Own the call_metrics lifecycle like every sibling provider: instantiate
+        # when the caller passes None so retry_with_metrics has somewhere to record
+        # retries/backoff, and finalize() below so `retries`/`rate_limit_sleep_sec`
+        # surface to the orchestration's per-episode metrics.
+        if call_metrics is None:
+            from ...utils.provider_metrics import ProviderCallMetrics
+
+            call_metrics = ProviderCallMetrics()
+        call_metrics.set_provider_name("deepgram")
+
         effective_language = language if language is not None else (self.cfg.language or None)
         started = time.time()
         try:
@@ -263,18 +273,19 @@ class DeepgramTranscriptionProvider:
                     error_context="deepgram",
                 )
         except Exception as exc:
+            call_metrics.finalize()
             logger.error("Deepgram transcription failed: %s", format_exception_for_log(exc))
             raise
 
         elapsed = time.time() - started
         result = parse_deepgram_transcript(response)
 
-        if call_metrics is not None:
-            call_metrics.set_provider_name("deepgram")
-
         self._record_transcription_cost(
             audio_path, episode_duration_seconds, pipeline_metrics, call_metrics
         )
+        # Surface retries / rate-limit sleep recorded by retry_with_metrics
+        # (mirrors gemini/mistral — the orchestration reads these post-call).
+        call_metrics.finalize()
 
         logger.info(
             "Deepgram transcription completed in %.2fs (%d segments)",

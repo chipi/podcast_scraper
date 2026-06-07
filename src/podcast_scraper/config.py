@@ -3545,6 +3545,7 @@ class Config(BaseModel):
         cls._load_string_env_var(data, "anthropic_api_base", "ANTHROPIC_API_BASE")
         cls._load_string_env_var(data, "mistral_api_key", "MISTRAL_API_KEY")
         cls._load_string_env_var(data, "deepgram_api_key", "DEEPGRAM_API_KEY")
+        cls._load_string_env_var(data, "deepgram_api_base", "DEEPGRAM_API_BASE")
         cls._load_string_env_var(data, "hf_token", "HF_TOKEN")
         cls._load_string_env_var(data, "mistral_api_base", "MISTRAL_API_BASE")
         cls._load_string_env_var(data, "deepseek_api_key", "DEEPSEEK_API_KEY")

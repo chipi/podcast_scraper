@@ -1712,6 +1712,15 @@ def _add_deepgram_arguments(parser: argparse.ArgumentParser) -> None:
         default=None,
         help="Deepgram transcription model (default: nova-3)",
     )
+    parser.add_argument(
+        "--deepgram-api-base",
+        type=str,
+        default=None,
+        help=(
+            "Deepgram API base URL (self-hosted/on-prem or E2E testing, "
+            "or set DEEPGRAM_API_BASE env var)"
+        ),
+    )
 
 
 def _add_diarization_arguments(parser: argparse.ArgumentParser) -> None:
@@ -3952,6 +3961,7 @@ def _build_config(args: argparse.Namespace) -> config.Config:  # noqa: C901
     if hasattr(args, "deepgram_model") and args.deepgram_model is not None:
         payload["deepgram_model"] = args.deepgram_model
     payload["deepgram_api_key"] = getattr(args, "deepgram_api_key", None)
+    payload["deepgram_api_base"] = getattr(args, "deepgram_api_base", None)
     if hasattr(args, "diarize") and args.diarize is not None:
         payload["diarize"] = args.diarize
     payload["hf_token"] = getattr(args, "hf_token", None)

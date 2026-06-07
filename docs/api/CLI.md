@@ -117,6 +117,7 @@ Config file equivalent: YAML **`feeds:`** or **`rss_urls:`** list (entries may b
 - `--diarization-model MODEL` - HuggingFace pyannote pipeline id
 - `--deepgram-api-key KEY` - Deepgram API key (or `DEEPGRAM_API_KEY` env var)
 - `--deepgram-model MODEL` - Deepgram model (default: `nova-3`)
+- `--deepgram-api-base URL` - Override Deepgram API base URL for self-hosted/on-prem or E2E testing (or `DEEPGRAM_API_BASE` env var)
 - `--num-speakers N` - Number of speakers (default: 2)
 - `--speaker-names NAMES` - Comma-separated speaker names
 
