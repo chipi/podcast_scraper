@@ -763,7 +763,15 @@ jobs:
         # only) and the "already cached" check (is_evidence_model_cached = dir.exists())
         # is fooled into skipping. Remove it and force a complete re-download so the
         # offline (--disable-socket) search tests can actually load it.
-        python -c "import shutil; from podcast_scraper.cache.directories import get_transformers_cache_dir; from podcast_scraper.providers.ml.model_loader import preload_evidence_models; from podcast_scraper import config_constants as cc; shutil.rmtree(get_transformers_cache_dir() / ('models--' + cc.DEFAULT_EMBEDDING_MODEL.replace('/', '--')), ignore_errors=True); preload_evidence_models(embedding_models=[cc.DEFAULT_EMBEDDING_MODEL])"
+        # Download MiniLM DIRECTLY via SentenceTransformer (raises on failure) and VERIFY the
+        # offline load (exactly what the tests do). preload_evidence_models swallowed download
+        # errors, so a transient HF blip left the cache empty yet the step "green" → tests then
+        # failed with LocalEntryNotFoundError. Retry transient hiccups; fail loud if it can't.
+        for i in 1 2 3; do
+          python -c "import shutil; from podcast_scraper.cache.directories import get_transformers_cache_dir as g; from podcast_scraper import config_constants as cc; from sentence_transformers import SentenceTransformer as ST; m=cc.DEFAULT_EMBEDDING_MODEL; c=str(g()); shutil.rmtree(g()/('models--'+m.replace('/','--')), ignore_errors=True); ST(m, cache_folder=c); ST(m, cache_folder=c, local_files_only=True); print('OK: MiniLM cached + verified offline-loadable at', c)" && exit 0
+          echo "MiniLM ensure attempt $i failed; retrying..."; sleep $((i * 5))
+        done
+        echo "ERROR: could not cache + verify MiniLM after 3 attempts"; exit 1
     - name: Run all integration tests with coverage (full suite, with network guard)
       run: |
         PYTHONPATH="${PYTHONPATH}:$(pwd)"
@@ -974,7 +982,15 @@ jobs:
         # only) and the "already cached" check (is_evidence_model_cached = dir.exists())
         # is fooled into skipping. Remove it and force a complete re-download so the
         # offline (--disable-socket) search tests can actually load it.
-        python -c "import shutil; from podcast_scraper.cache.directories import get_transformers_cache_dir; from podcast_scraper.providers.ml.model_loader import preload_evidence_models; from podcast_scraper import config_constants as cc; shutil.rmtree(get_transformers_cache_dir() / ('models--' + cc.DEFAULT_EMBEDDING_MODEL.replace('/', '--')), ignore_errors=True); preload_evidence_models(embedding_models=[cc.DEFAULT_EMBEDDING_MODEL])"
+        # Download MiniLM DIRECTLY via SentenceTransformer (raises on failure) and VERIFY the
+        # offline load (exactly what the tests do). preload_evidence_models swallowed download
+        # errors, so a transient HF blip left the cache empty yet the step "green" → tests then
+        # failed with LocalEntryNotFoundError. Retry transient hiccups; fail loud if it can't.
+        for i in 1 2 3; do
+          python -c "import shutil; from podcast_scraper.cache.directories import get_transformers_cache_dir as g; from podcast_scraper import config_constants as cc; from sentence_transformers import SentenceTransformer as ST; m=cc.DEFAULT_EMBEDDING_MODEL; c=str(g()); shutil.rmtree(g()/('models--'+m.replace('/','--')), ignore_errors=True); ST(m, cache_folder=c); ST(m, cache_folder=c, local_files_only=True); print('OK: MiniLM cached + verified offline-loadable at', c)" && exit 0
+          echo "MiniLM ensure attempt $i failed; retrying..."; sleep $((i * 5))
+        done
+        echo "ERROR: could not cache + verify MiniLM after 3 attempts"; exit 1
     - name: Run fast integration tests with coverage (critical path only, with network guard)
       run: |
         PYTHONPATH="${PYTHONPATH}:$(pwd)"
