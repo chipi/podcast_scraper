@@ -93,14 +93,18 @@ COPY src/ ./src/
 RUN --mount=type=cache,target=/root/.cache/pip \
     export PIP_CACHE_DIR=/root/.cache/pip && \
     if [ -n "$INSTALL_EXTRAS" ] && [ "$INSTALL_EXTRAS" = "ml" ]; then \
-        # Install torch CPU-only first (optimization: smaller than CUDA version, ~150MB vs 4GB+)
-        # This will be replaced by the version from pyproject.toml if needed, but CPU version is preferred
-        pip install torch --index-url https://download.pytorch.org/whl/cpu && \
+        # Install the CPU torch stack first (optimization: smaller than CUDA version, ~150MB vs 4GB+).
+        # torchaudio + torchcodec must be CPU too: pyannote 4.x decodes audio via torchcodec, whose
+        # libtorchcodec_core*.so link CUDA in the default (PyPI) wheels and fail to load on this
+        # CPU image with "libnvrtc.so.13: cannot open shared object file".
+        pip install torch torchaudio torchcodec --index-url https://download.pytorch.org/whl/cpu && \
         # Install core + ML dependencies
         pip install .[ml] && \
         pip uninstall -y podcast-scraper && \
-        # Ensure torch CPU-only version is used (reinstall CPU version to override any CUDA version)
-        pip install --force-reinstall --no-deps torch --index-url https://download.pytorch.org/whl/cpu; \
+        # `.[ml]` pulls CUDA-linked torch/torchaudio/torchcodec from PyPI; force the whole stack back
+        # to the CPU builds so torchcodec loads against the system FFmpeg (not CUDA/libnvrtc). Installing
+        # all three together keeps them a matched, ABI-compatible set.
+        pip install --force-reinstall --no-deps torch torchaudio torchcodec --index-url https://download.pytorch.org/whl/cpu; \
     elif [ "$INSTALL_EXTRAS" = "llm" ]; then \
         # cloud-API pipeline image. Includes [search] (faiss + sentence-transformers + torch CPU)
         # so cloud_balanced can build its FAISS vector index without [ml]'s spaCy/Whisper/Pegasus.
