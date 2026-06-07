@@ -35,12 +35,27 @@ Update the row + date below; commit.
 
 ### LLM (chat / completion)
 
-| Tag                   | Purpose                       | Digest          | Pulled     |
-| --------------------- | ----------------------------- | --------------- | ---------- |
-| `llama3.3:70b`        | General autoresearch / GI/KG  | _pending_       | _pending_  |
-| `qwen2.5:72b`         | Comparison runs               | _pending_       | _pending_  |
-| `gemma2:27b`          | Comparison runs               | _pending_       | _pending_  |
-| `gpt-oss:120b`        | Operator-pulled (not RFC-089) | _pending_       | _pending_  |
+Digest = the weights-layer SHA from each manifest (`application/vnd.ollama.image.model`).
+Refresh with `sudo jq -r '.layers[] | select(.mediaType == "application/vnd.ollama.image.model") | .digest' /usr/share/ollama/.ollama/models/manifests/registry.ollama.ai/library/<tag>`.
+
+| Tag                    | Purpose                       | Size    | Digest (short)         | Pulled     |
+| ---------------------- | ----------------------------- | ------- | ---------------------- | ---------- |
+| `llama3.3:70b`         | General autoresearch / GI/KG  | 42.5 GB | `sha256:4824460d29f2`  | 2026-06-06 |
+| `qwen2.5:72b-instruct` | Comparison runs               | 47.4 GB | `sha256:6e7fdda508e9`  | 2026-06-06 |
+| `gemma2:27b`           | Comparison runs               | 15.6 GB | `sha256:d7e4b00a7d7a`  | 2026-06-06 |
+| `gpt-oss:120b`         | Operator-pulled (not RFC-089) | 65.4 GB | `sha256:6be6d66a3f54`  | 2026-06-05 |
+
+Full digests:
+
+- `llama3.3:70b` → `sha256:4824460d29f2058aaf6e1118a63a7a197a09bed509f0e7d4e2efb1ee273b447d`
+- `qwen2.5:72b-instruct` → `sha256:6e7fdda508e91cb0f63de5c15ff79ac63a1584ccafd751c07ca12b7f442101b8`
+- `gemma2:27b` → `sha256:d7e4b00a7d7a8d03d4eed9b0f3f61a427e9f0fc5dea6aeb414e41dee23dc8ecc`
+- `gpt-oss:120b` → `sha256:6be6d66a3f546d8c19b130dc41dc24b2fc159f84ffbc76a0ee0676205083cf5a`
+
+RFC-089 originally listed `gemma2:27b-instruct` and `qwen2.5:72b-instruct`. The
+`-instruct` suffix on `gemma2` is not a real Ollama tag — `gemma2:27b` IS the
+instruct-tuned default; on `qwen2.5` the suffix is correct. Catalog reflects
+what was actually pulled.
 
 ### Embeddings — not used on DGX by default (ADR-098)
 
@@ -63,9 +78,10 @@ newer model release. Not required for the pipeline.
 
 ### Speech (Whisper)
 
-Whisper Large v3 deployment shape is TBD — see RFC-089 §D3 item 4. Either
-Ollama vision/audio extension or a separate FastAPI shim; document the
-choice in this file once the operator commits.
+**Deferred to [#814](https://github.com/chipi/podcast_scraper/issues/814)** —
+Whisper Large v3 is not in the Ollama library; the mechanism choice (Ollama
+vision/audio extension vs separate FastAPI shim vs alternative) is the
+prod-Whisper-via-DGX phase's decision. Pinning waits until that decision lands.
 
 ## Drift policy
 

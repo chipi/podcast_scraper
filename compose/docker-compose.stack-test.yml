@@ -108,11 +108,11 @@ services:
       - ../docker/mock-feeds/nginx.conf:/etc/nginx/conf.d/default.conf:ro
       - ../tests/fixtures/rss/p01_fast_with_transcript.xml:/usr/share/nginx/html/p01_fast_with_transcript.xml:ro
       - ../tests/fixtures/rss/p01_episode_selection.xml:/usr/share/nginx/html/p01_episode_selection.xml:ro
-      - ../tests/fixtures/audio:/usr/share/nginx/html/audio:ro
+      - ../tests/fixtures/audio/${FIXTURES_VERSION:-v1}:/usr/share/nginx/html/audio:ro
       # Transcripts referenced by the RSS fixtures (``<podcast:transcript>``
       # / itunes-style links). The full UI flow drives a transcript-
       # download fast path so Whisper isn't needed for these episodes.
-      - ../tests/fixtures/transcripts:/usr/share/nginx/html/transcripts:ro
+      - ../tests/fixtures/transcripts/${FIXTURES_VERSION:-v1}:/usr/share/nginx/html/transcripts:ro
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- http://127.0.0.1/healthz || exit 1"]
       interval: 5s

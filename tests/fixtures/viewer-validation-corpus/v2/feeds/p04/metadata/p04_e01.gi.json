@@ -1,0 +1,142 @@
+{
+  "edges": [
+    {
+      "from": "episode:09ead36d-954f-5cbb-ae3f-6f0d5985233d",
+      "to": "topic:technology",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:09ead36d-954f-5cbb-ae3f-6f0d5985233d",
+      "to": "topic:gear",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:09ead36d-954f-5cbb-ae3f-6f0d5985233d",
+      "to": "topic:science-research",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:09ead36d-954f-5cbb-ae3f-6f0d5985233d",
+      "to": "insight:0afee1649ef910d9",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "episode:09ead36d-954f-5cbb-ae3f-6f0d5985233d",
+      "to": "insight:a929e389641180b2",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "episode:09ead36d-954f-5cbb-ae3f-6f0d5985233d",
+      "to": "insight:e4d827ca6454fa6f",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "episode:09ead36d-954f-5cbb-ae3f-6f0d5985233d",
+      "to": "quote:1f363af5c9b5d0ec",
+      "type": "HAS_QUOTE"
+    },
+    {
+      "from": "episode:09ead36d-954f-5cbb-ae3f-6f0d5985233d",
+      "to": "quote:49cb8bfdfb28dccf",
+      "type": "HAS_QUOTE"
+    },
+    {
+      "from": "episode:09ead36d-954f-5cbb-ae3f-6f0d5985233d",
+      "to": "quote:a38b377e905cdd7a",
+      "type": "HAS_QUOTE"
+    }
+  ],
+  "episode_id": "09ead36d-954f-5cbb-ae3f-6f0d5985233d",
+  "model_version": "synthetic-validation-corpus-v1",
+  "nodes": [
+    {
+      "id": "episode:09ead36d-954f-5cbb-ae3f-6f0d5985233d",
+      "properties": {
+        "duration_ms": 1800000,
+        "episode_id": "09ead36d-954f-5cbb-ae3f-6f0d5985233d",
+        "metadata_relative_path": "feeds/p04/metadata/p04_e01.metadata.json",
+        "podcast_id": "sha256:acf6d1026eaa400425afb658fa014e874a2eb50129923b7a92fe82290004a6e7",
+        "publish_date": "2026-06-03T12:00:00",
+        "title": "Frame & Light \u2014 Episode 1"
+      },
+      "type": "Episode"
+    },
+    {
+      "id": "topic:technology",
+      "properties": {
+        "label": "technology",
+        "score": 0.8
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:gear",
+      "properties": {
+        "label": "gear",
+        "score": 0.8
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:science-research",
+      "properties": {
+        "label": "Science & research",
+        "score": 0.8
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "insight:0afee1649ef910d9",
+      "properties": {
+        "confidence": 0.7,
+        "grounded": true,
+        "text": "# Frame & Light \u2014 Episode\n## Underwater Images That Feel Alive\nHost: Leo\nGuest: Ava\nLeo: Welcome back to Frame & Light."
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "insight:a929e389641180b2",
+      "properties": {
+        "confidence": 0.7,
+        "grounded": true,
+        "text": "Today we're talking about underwater photography, and I'm joined by Ava, underwater photographer."
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "insight:e4d827ca6454fa6f",
+      "properties": {
+        "confidence": 0.7,
+        "grounded": true,
+        "text": "Excited for this one \u2014 underwater imaging is something I've been thinking about a lot."
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "quote:1f363af5c9b5d0ec",
+      "properties": {
+        "speaker": "Speaker 1",
+        "text": "This episode is brought to you by Adobe."
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:49cb8bfdfb28dccf",
+      "properties": {
+        "speaker": "Speaker 1",
+        "text": "Adobe Creative Cloud puts Lightroom, Photoshop, and Premiere on every device you edit on."
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:a38b377e905cdd7a",
+      "properties": {
+        "speaker": "Speaker 1",
+        "text": "Get started at adobe.com/podcast."
+      },
+      "type": "Quote"
+    }
+  ],
+  "prompt_version": "n/a",
+  "schema_version": "2"
+}

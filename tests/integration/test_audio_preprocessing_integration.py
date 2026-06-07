@@ -46,8 +46,10 @@ spec.loader.exec_module(parent_conftest)
 
 create_test_config = parent_conftest.create_test_config
 
-# Get fixture audio files
-FIXTURE_AUDIO_DIR = tests_dir / "fixtures" / "audio"
+# Get fixture audio files (version-aware via tests/_fixtures.py)
+from tests._fixtures import fixtures_dir as _fixtures_dir
+
+FIXTURE_AUDIO_DIR = _fixtures_dir("audio")
 FFMPEG_AVAILABLE = _check_ffmpeg_available()
 
 

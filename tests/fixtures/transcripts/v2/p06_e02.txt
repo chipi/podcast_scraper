@@ -1,0 +1,13 @@
+# Edge Cases — Episode e02
+## No-Speaker Lines
+Host: Maya
+
+[00:00]
+Maya: This is an edge-case fixture used for parser and processor robustness tests.
+
+Welcome to a transcript with mixed speaker-attribution.
+Maya: Some lines have speakers.
+Other lines do not.
+Liam: But the parser should still classify them.
+
+Maya: End of edge-case episode e02.

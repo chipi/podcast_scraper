@@ -32,6 +32,7 @@ if PACKAGE_ROOT not in sys.path:
 from podcast_scraper import config, models
 from podcast_scraper.rss import downloader, parser as rss_parser
 from podcast_scraper.workflow import metadata_generation as metadata
+from tests._fixtures import fixtures_dir as _fd  # noqa: E402
 
 # Import from parent conftest
 tests_dir = Path(__file__).parent.parent
@@ -122,9 +123,7 @@ class TestRSSToMetadataWorkflowML(_ComponentWorkflowBase):
   </channel>
 </rss>""".strip()
 
-        fixture_audio_path = (
-            Path(__file__).parent.parent / "fixtures" / "audio" / "p01_e01_fast.mp3"
-        )
+        fixture_audio_path = _fd("audio") / "p01_e01_fast.mp3"
         with open(fixture_audio_path, "rb") as f:
             audio_bytes = f.read()
 
@@ -248,9 +247,7 @@ class TestRSSToMetadataWorkflowML(_ComponentWorkflowBase):
             media_type="audio/mpeg",
         )
 
-        fixture_audio_path = (
-            Path(__file__).parent.parent / "fixtures" / "audio" / "p01_e01_fast.mp3"
-        )
+        fixture_audio_path = _fd("audio") / "p01_e01_fast.mp3"
         with open(fixture_audio_path, "rb") as f:
             audio_bytes = f.read()
 
@@ -356,9 +353,7 @@ class TestRSSToMetadataWorkflowML(_ComponentWorkflowBase):
   </channel>
 </rss>""".strip()
 
-        fixture_audio_path = (
-            Path(__file__).parent.parent / "fixtures" / "audio" / "p01_e01_fast.mp3"
-        )
+        fixture_audio_path = _fd("audio") / "p01_e01_fast.mp3"
         with open(fixture_audio_path, "rb") as f:
             audio_bytes = f.read()
 
@@ -529,9 +524,7 @@ class TestRSSToMetadataWorkflowML(_ComponentWorkflowBase):
   </channel>
 </rss>""".strip()
 
-        fixture_audio_path = (
-            Path(__file__).parent.parent / "fixtures" / "audio" / "p01_e01_fast.mp3"
-        )
+        fixture_audio_path = _fd("audio") / "p01_e01_fast.mp3"
         with open(fixture_audio_path, "rb") as f:
             audio_bytes = f.read()
 

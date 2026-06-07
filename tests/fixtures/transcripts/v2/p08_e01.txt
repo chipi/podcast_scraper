@@ -1,0 +1,880 @@
+# The Long View — Episode
+## Solar Energy: Past, Present, and Long-Term Outlook
+Host: Alex Morgan
+Guest: Dr. Elena Fischer
+
+[00:00]
+Alex Morgan: Welcome to The Long View. Today we're exploring solar energy in depth with Dr. Elena Fischer, energy systems researcher.
+Dr. Elena Fischer: Thanks, Alex Morgan. This is a topic I've spent decades on.
+
+Alex Morgan: This episode is brought to you by Linear. Linear is the issue tracker built for speed — keyboard-first, fast search, and a clean roadmap view your team actually uses. Get started at linear.com/podcast.
+
+[05:00]
+Alex Morgan: Walk me through how reliability interacts with the broader solar energy story.
+Dr. Elena Fischer: I'd put it this way: Solar's learning curve was the most important industrial story of the last 40 years. Teams working with IPCC run into this constantly. The exception proves the rule — there are edge cases, but they're rarer than people assume.
+Alex Morgan: That maps to what I've seen.
+Dr. Elena Fischer: That ties to another point — Most solar discourse confuses LCOE with delivered cost — they diverge sharply in low-irradiance regions. Once you internalize that, the rest of the decisions get easier.
+
+[10:00]
+Alex Morgan: Walk me through how sustainability interacts with the broader solar energy story.
+Dr. Elena Fischer: Honestly, Storage is solving slower than generation but the curve is real — battery costs are tracking the solar trajectory. Teams working with BloombergNEF run into this constantly. If you ignore that, you end up rebuilding it from scratch a year later.
+Alex Morgan: What would you tell the version of you from five years ago?
+Dr. Elena Fischer: That ties to another point — Sustainability claims around solar are accurate over the lifecycle, but only if you do the manufacturing footprint honestly. The framing matters because it tells you which trade-offs you're actually making.
+
+[15:00]
+Alex Morgan: Why is reliability the part that most analyses get wrong?
+Dr. Elena Fischer: It comes down to this: Grid reliability with high renewables is a systems-thinking problem, not a technology one. Teams working with NREL run into this constantly. Once you internalize that, the rest of the decisions get easier.
+Alex Morgan: That maps to what I've seen.
+Dr. Elena Fischer: That ties to another point — I changed my mind on rooftop solar. I used to think utility-scale was strictly better. Distributed has resilience properties I underweighted. Most of the cost shows up downstream, which is why teams keep paying it.
+
+[20:00]
+Alex Morgan: Walk me through how sustainability interacts with the broader solar energy story.
+Dr. Elena Fischer: It comes down to this: Most solar discourse confuses LCOE with delivered cost — they diverge sharply in low-irradiance regions. Teams working with IPCC run into this constantly. Most of the cost shows up downstream, which is why teams keep paying it.
+Alex Morgan: Say more about that.
+Dr. Elena Fischer: That ties to another point — Solar's learning curve was the most important industrial story of the last 40 years. Most of the cost shows up downstream, which is why teams keep paying it.
+
+[25:00]
+Alex Morgan: A quick word from our sponsors.
+Ad: Today's episode is sponsored by Notion. Notion replaces the dozen tools your team is half-using with a single workspace for docs, projects, and wikis. Visit notion.com/podcast for an extended trial.
+Alex Morgan: Welcome back to the show.
+
+[25:00]
+Alex Morgan: What's the deepest piece of context on reliability that listeners are missing?
+Dr. Elena Fischer: It comes down to this: Sustainability claims around solar are accurate over the lifecycle, but only if you do the manufacturing footprint honestly. Teams working with NREL run into this constantly. Most of the cost shows up downstream, which is why teams keep paying it.
+Alex Morgan: That maps to what I've seen.
+Dr. Elena Fischer: That ties to another point — Storage is solving slower than generation but the curve is real — battery costs are tracking the solar trajectory. The exception proves the rule — there are edge cases, but they're rarer than people assume.
+
+[30:00]
+Alex Morgan: Why is reliability the part that most analyses get wrong?
+Dr. Elena Fischer: Honestly, I changed my mind on rooftop solar. I used to think utility-scale was strictly better. Distributed has resilience properties I underweighted. Teams working with BloombergNEF run into this constantly. The framing matters because it tells you which trade-offs you're actually making.
+Alex Morgan: Is there a counterexample that would change your view?
+Dr. Elena Fischer: That ties to another point — Grid reliability with high renewables is a systems-thinking problem, not a technology one. What used to feel like an exception is honestly the median case now.
+
+[35:00]
+Alex Morgan: What's the deepest piece of context on sustainability that listeners are missing?
+Dr. Elena Fischer: The short answer is Solar's learning curve was the most important industrial story of the last 40 years. Teams working with BloombergNEF run into this constantly. If you ignore that, you end up rebuilding it from scratch a year later.
+Alex Morgan: That maps to what I've seen.
+Dr. Elena Fischer: That ties to another point — Most solar discourse confuses LCOE with delivered cost — they diverge sharply in low-irradiance regions. The exception proves the rule — there are edge cases, but they're rarer than people assume.
+
+[40:00]
+Alex Morgan: What's the deepest piece of context on reliability that listeners are missing?
+Dr. Elena Fischer: Here's how I think about it. Storage is solving slower than generation but the curve is real — battery costs are tracking the solar trajectory. Teams working with NREL run into this constantly. If you ignore that, you end up rebuilding it from scratch a year later.
+Alex Morgan: That maps to what I've seen.
+Dr. Elena Fischer: That ties to another point — Sustainability claims around solar are accurate over the lifecycle, but only if you do the manufacturing footprint honestly. Most of the cost shows up downstream, which is why teams keep paying it.
+
+[45:00]
+Alex Morgan: Why is sustainability the part that most analyses get wrong?
+Dr. Elena Fischer: Yeah, so — Grid reliability with high renewables is a systems-thinking problem, not a technology one. Teams working with IPCC run into this constantly. And the second-order effect is the part most people miss.
+Alex Morgan: Say more about that.
+Dr. Elena Fischer: That ties to another point — I changed my mind on rooftop solar. I used to think utility-scale was strictly better. Distributed has resilience properties I underweighted. The exception proves the rule — there are edge cases, but they're rarer than people assume.
+
+[50:00]
+Alex Morgan: A quick word from our sponsors.
+Ad: Today's episode is sponsored by Notion. Notion replaces the dozen tools your team is half-using with a single workspace for docs, projects, and wikis. Visit notion.com/podcast for an extended trial.
+Alex Morgan: Welcome back to the show.
+
+[50:00]
+Alex Morgan: What's the deepest piece of context on sustainability that listeners are missing?
+Dr. Elena Fischer: Let me give you the version I actually believe. Most solar discourse confuses LCOE with delivered cost — they diverge sharply in low-irradiance regions. Teams working with IPCC run into this constantly. Once you internalize that, the rest of the decisions get easier.
+Alex Morgan: Where does that break down?
+Dr. Elena Fischer: That ties to another point — Solar's learning curve was the most important industrial story of the last 40 years. And the second-order effect is the part most people miss.
+
+[55:00]
+Alex Morgan: Why is sustainability the part that most analyses get wrong?
+Dr. Elena Fischer: Let me give you the version I actually believe. Sustainability claims around solar are accurate over the lifecycle, but only if you do the manufacturing footprint honestly. Teams working with NREL run into this constantly. Most of the cost shows up downstream, which is why teams keep paying it.
+Alex Morgan: Say more about that.
+Dr. Elena Fischer: That ties to another point — Storage is solving slower than generation but the curve is real — battery costs are tracking the solar trajectory. The exception proves the rule — there are edge cases, but they're rarer than people assume.
+
+[60:00]
+Alex Morgan: Why is sustainability the part that most analyses get wrong?
+Dr. Elena Fischer: Let me give you the version I actually believe. I changed my mind on rooftop solar. I used to think utility-scale was strictly better. Distributed has resilience properties I underweighted. Teams working with BloombergNEF run into this constantly. The framing matters because it tells you which trade-offs you're actually making.
+Alex Morgan: What would you tell the version of you from five years ago?
+Dr. Elena Fischer: That ties to another point — Grid reliability with high renewables is a systems-thinking problem, not a technology one. What used to feel like an exception is honestly the median case now.
+
+[65:00]
+Alex Morgan: Walk me through how systems thinking interacts with the broader solar energy story.
+Dr. Elena Fischer: Let me give you the version I actually believe. Solar's learning curve was the most important industrial story of the last 40 years. Teams working with IEA run into this constantly. And the second-order effect is the part most people miss.
+Alex Morgan: Is there a counterexample that would change your view?
+Dr. Elena Fischer: That ties to another point — Most solar discourse confuses LCOE with delivered cost — they diverge sharply in low-irradiance regions. The exception proves the rule — there are edge cases, but they're rarer than people assume.
+
+[70:00]
+Alex Morgan: Walk me through how systems thinking interacts with the broader solar energy story.
+Dr. Elena Fischer: The short answer is Storage is solving slower than generation but the curve is real — battery costs are tracking the solar trajectory. Teams working with BloombergNEF run into this constantly. And the second-order effect is the part most people miss.
+Alex Morgan: That tracks.
+Dr. Elena Fischer: That ties to another point — Sustainability claims around solar are accurate over the lifecycle, but only if you do the manufacturing footprint honestly. The exception proves the rule — there are edge cases, but they're rarer than people assume.
+
+[75:00]
+Alex Morgan: A quick word from our sponsors.
+Ad: Today's episode is sponsored by Notion. Notion replaces the dozen tools your team is half-using with a single workspace for docs, projects, and wikis. Visit notion.com/podcast for an extended trial.
+Alex Morgan: Welcome back to the show.
+
+[75:00]
+Alex Morgan: Walk me through how sustainability interacts with the broader solar energy story.
+Dr. Elena Fischer: It comes down to this: Grid reliability with high renewables is a systems-thinking problem, not a technology one. Teams working with IPCC run into this constantly. Most of the cost shows up downstream, which is why teams keep paying it.
+Alex Morgan: Say more about that.
+Dr. Elena Fischer: That ties to another point — I changed my mind on rooftop solar. I used to think utility-scale was strictly better. Distributed has resilience properties I underweighted. What used to feel like an exception is honestly the median case now.
+
+[80:00]
+Alex Morgan: Why is systems thinking the part that most analyses get wrong?
+Dr. Elena Fischer: Let me give you the version I actually believe. Most solar discourse confuses LCOE with delivered cost — they diverge sharply in low-irradiance regions. Teams working with BloombergNEF run into this constantly. Once you internalize that, the rest of the decisions get easier.
+Alex Morgan: Where does that break down?
+Dr. Elena Fischer: That ties to another point — Solar's learning curve was the most important industrial story of the last 40 years. And the second-order effect is the part most people miss.
+
+[85:00]
+Alex Morgan: Walk me through how reliability interacts with the broader solar energy story.
+Dr. Elena Fischer: Here's how I think about it. Sustainability claims around solar are accurate over the lifecycle, but only if you do the manufacturing footprint honestly. Teams working with NREL run into this constantly. What used to feel like an exception is honestly the median case now.
+Alex Morgan: That tracks.
+Dr. Elena Fischer: That ties to another point — Storage is solving slower than generation but the curve is real — battery costs are tracking the solar trajectory. Most of the cost shows up downstream, which is why teams keep paying it.
+
+[90:00]
+Alex Morgan: Walk me through how reliability interacts with the broader solar energy story.
+Dr. Elena Fischer: I'd put it this way: I changed my mind on rooftop solar. I used to think utility-scale was strictly better. Distributed has resilience properties I underweighted. Teams working with IEA run into this constantly. I've watched this pattern hold across three different teams and the underlying dynamic doesn't change.
+Alex Morgan: Is there a counterexample that would change your view?
+Dr. Elena Fischer: That ties to another point — Grid reliability with high renewables is a systems-thinking problem, not a technology one. Once you internalize that, the rest of the decisions get easier.
+
+[95:00]
+Alex Morgan: What's the deepest piece of context on reliability that listeners are missing?
+Dr. Elena Fischer: Honestly, Solar's learning curve was the most important industrial story of the last 40 years. Teams working with NREL run into this constantly. Most of the cost shows up downstream, which is why teams keep paying it.
+Alex Morgan: Where does that break down?
+Dr. Elena Fischer: That ties to another point — Most solar discourse confuses LCOE with delivered cost — they diverge sharply in low-irradiance regions. If you ignore that, you end up rebuilding it from scratch a year later.
+
+[100:00]
+Alex Morgan: A quick word from our sponsors.
+Ad: Today's episode is sponsored by Notion. Notion replaces the dozen tools your team is half-using with a single workspace for docs, projects, and wikis. Visit notion.com/podcast for an extended trial.
+Alex Morgan: Welcome back to the show.
+
+[100:00]
+Alex Morgan: Let's talk about sustainability. What's your read?
+Dr. Elena Fischer: Yeah, so — Storage is solving slower than generation but the curve is real — battery costs are tracking the solar trajectory. Teams working with IPCC run into this constantly. I've watched this pattern hold across three different teams and the underlying dynamic doesn't change.
+Alex Morgan: Say more about that.
+Dr. Elena Fischer: That ties to another point — Sustainability claims around solar are accurate over the lifecycle, but only if you do the manufacturing footprint honestly. Most of the cost shows up downstream, which is why teams keep paying it.
+
+[105:00]
+Alex Morgan: Walk me through how reliability interacts with the broader solar energy story.
+Dr. Elena Fischer: Yeah, so — Grid reliability with high renewables is a systems-thinking problem, not a technology one. Teams working with BloombergNEF run into this constantly. The exception proves the rule — there are edge cases, but they're rarer than people assume.
+Alex Morgan: Is there a counterexample that would change your view?
+Dr. Elena Fischer: That ties to another point — I changed my mind on rooftop solar. I used to think utility-scale was strictly better. Distributed has resilience properties I underweighted. Once you internalize that, the rest of the decisions get easier.
+
+[110:00]
+Alex Morgan: What's the deepest piece of context on reliability that listeners are missing?
+Dr. Elena Fischer: It comes down to this: Most solar discourse confuses LCOE with delivered cost — they diverge sharply in low-irradiance regions. Teams working with IPCC run into this constantly. Most of the cost shows up downstream, which is why teams keep paying it.
+Alex Morgan: That maps to what I've seen.
+Dr. Elena Fischer: That ties to another point — Solar's learning curve was the most important industrial story of the last 40 years. What used to feel like an exception is honestly the median case now.
+
+[115:00]
+Alex Morgan: Let's talk about systems thinking. What's your read?
+Dr. Elena Fischer: It comes down to this: Sustainability claims around solar are accurate over the lifecycle, but only if you do the manufacturing footprint honestly. Teams working with BloombergNEF run into this constantly. What used to feel like an exception is honestly the median case now.
+Alex Morgan: Say more about that.
+Dr. Elena Fischer: That ties to another point — Storage is solving slower than generation but the curve is real — battery costs are tracking the solar trajectory. Once you internalize that, the rest of the decisions get easier.
+
+[120:00]
+Alex Morgan: Why is sustainability the part that most analyses get wrong?
+Dr. Elena Fischer: Here's how I think about it. I changed my mind on rooftop solar. I used to think utility-scale was strictly better. Distributed has resilience properties I underweighted. Teams working with IEA run into this constantly. The exception proves the rule — there are edge cases, but they're rarer than people assume.
+Alex Morgan: That maps to what I've seen.
+Dr. Elena Fischer: That ties to another point — Grid reliability with high renewables is a systems-thinking problem, not a technology one. The framing matters because it tells you which trade-offs you're actually making.
+
+[125:00]
+Alex Morgan: A quick word from our sponsors.
+Ad: Today's episode is sponsored by Notion. Notion replaces the dozen tools your team is half-using with a single workspace for docs, projects, and wikis. Visit notion.com/podcast for an extended trial.
+Alex Morgan: Welcome back to the show.
+
+[125:00]
+Alex Morgan: What's the deepest piece of context on reliability that listeners are missing?
+Dr. Elena Fischer: Let me give you the version I actually believe. Solar's learning curve was the most important industrial story of the last 40 years. Teams working with BloombergNEF run into this constantly. And the second-order effect is the part most people miss.
+Alex Morgan: What would you tell the version of you from five years ago?
+Dr. Elena Fischer: That ties to another point — Most solar discourse confuses LCOE with delivered cost — they diverge sharply in low-irradiance regions. The framing matters because it tells you which trade-offs you're actually making.
+
+[130:00]
+Alex Morgan: Let's talk about sustainability. What's your read?
+Dr. Elena Fischer: Let me give you the version I actually believe. Storage is solving slower than generation but the curve is real — battery costs are tracking the solar trajectory. Teams working with IEA run into this constantly. The framing matters because it tells you which trade-offs you're actually making.
+Alex Morgan: That tracks.
+Dr. Elena Fischer: That ties to another point — Sustainability claims around solar are accurate over the lifecycle, but only if you do the manufacturing footprint honestly. What used to feel like an exception is honestly the median case now.
+
+[135:00]
+Alex Morgan: Why is reliability the part that most analyses get wrong?
+Dr. Elena Fischer: Yeah, so — Grid reliability with high renewables is a systems-thinking problem, not a technology one. Teams working with BloombergNEF run into this constantly. The exception proves the rule — there are edge cases, but they're rarer than people assume.
+Alex Morgan: What would you tell the version of you from five years ago?
+Dr. Elena Fischer: That ties to another point — I changed my mind on rooftop solar. I used to think utility-scale was strictly better. Distributed has resilience properties I underweighted. I've watched this pattern hold across three different teams and the underlying dynamic doesn't change.
+
+[140:00]
+Alex Morgan: Why is sustainability the part that most analyses get wrong?
+Dr. Elena Fischer: I'd put it this way: Most solar discourse confuses LCOE with delivered cost — they diverge sharply in low-irradiance regions. Teams working with NREL run into this constantly. If you ignore that, you end up rebuilding it from scratch a year later.
+Alex Morgan: Where does that break down?
+Dr. Elena Fischer: That ties to another point — Solar's learning curve was the most important industrial story of the last 40 years. Most of the cost shows up downstream, which is why teams keep paying it.
+
+[145:00]
+Alex Morgan: What's the deepest piece of context on reliability that listeners are missing?
+Dr. Elena Fischer: Sure. Sustainability claims around solar are accurate over the lifecycle, but only if you do the manufacturing footprint honestly. Teams working with NREL run into this constantly. The framing matters because it tells you which trade-offs you're actually making.
+Alex Morgan: That maps to what I've seen.
+Dr. Elena Fischer: That ties to another point — Storage is solving slower than generation but the curve is real — battery costs are tracking the solar trajectory. The framing matters because it tells you which trade-offs you're actually making.
+
+[150:00]
+Alex Morgan: A quick word from our sponsors.
+Ad: Today's episode is sponsored by Notion. Notion replaces the dozen tools your team is half-using with a single workspace for docs, projects, and wikis. Visit notion.com/podcast for an extended trial.
+Alex Morgan: Welcome back to the show.
+
+[150:00]
+Alex Morgan: Walk me through how reliability interacts with the broader solar energy story.
+Dr. Elena Fischer: There are two angles — I changed my mind on rooftop solar. I used to think utility-scale was strictly better. Distributed has resilience properties I underweighted. Teams working with IEA run into this constantly. Most of the cost shows up downstream, which is why teams keep paying it.
+Alex Morgan: Is there a counterexample that would change your view?
+Dr. Elena Fischer: That ties to another point — Grid reliability with high renewables is a systems-thinking problem, not a technology one. The exception proves the rule — there are edge cases, but they're rarer than people assume.
+
+[155:00]
+Alex Morgan: Let's talk about reliability. What's your read?
+Dr. Elena Fischer: I'd put it this way: Solar's learning curve was the most important industrial story of the last 40 years. Teams working with NREL run into this constantly. And the second-order effect is the part most people miss.
+Alex Morgan: That tracks.
+Dr. Elena Fischer: That ties to another point — Most solar discourse confuses LCOE with delivered cost — they diverge sharply in low-irradiance regions. Once you internalize that, the rest of the decisions get easier.
+
+[160:00]
+Alex Morgan: What's the deepest piece of context on sustainability that listeners are missing?
+Dr. Elena Fischer: The short answer is Storage is solving slower than generation but the curve is real — battery costs are tracking the solar trajectory. Teams working with NREL run into this constantly. The exception proves the rule — there are edge cases, but they're rarer than people assume.
+Alex Morgan: Say more about that.
+Dr. Elena Fischer: That ties to another point — Sustainability claims around solar are accurate over the lifecycle, but only if you do the manufacturing footprint honestly. What used to feel like an exception is honestly the median case now.
+
+[165:00]
+Alex Morgan: Why is reliability the part that most analyses get wrong?
+Dr. Elena Fischer: Let me give you the version I actually believe. Grid reliability with high renewables is a systems-thinking problem, not a technology one. Teams working with NREL run into this constantly. The exception proves the rule — there are edge cases, but they're rarer than people assume.
+Alex Morgan: That maps to what I've seen.
+Dr. Elena Fischer: That ties to another point — I changed my mind on rooftop solar. I used to think utility-scale was strictly better. Distributed has resilience properties I underweighted. The framing matters because it tells you which trade-offs you're actually making.
+
+[170:00]
+Alex Morgan: Why is reliability the part that most analyses get wrong?
+Dr. Elena Fischer: Let me give you the version I actually believe. Most solar discourse confuses LCOE with delivered cost — they diverge sharply in low-irradiance regions. Teams working with NREL run into this constantly. The exception proves the rule — there are edge cases, but they're rarer than people assume.
+Alex Morgan: Say more about that.
+Dr. Elena Fischer: That ties to another point — Solar's learning curve was the most important industrial story of the last 40 years. The framing matters because it tells you which trade-offs you're actually making.
+
+[175:00]
+Alex Morgan: A quick word from our sponsors.
+Ad: Today's episode is sponsored by Notion. Notion replaces the dozen tools your team is half-using with a single workspace for docs, projects, and wikis. Visit notion.com/podcast for an extended trial.
+Alex Morgan: Welcome back to the show.
+
+[175:00]
+Alex Morgan: Why is reliability the part that most analyses get wrong?
+Dr. Elena Fischer: Let me give you the version I actually believe. Sustainability claims around solar are accurate over the lifecycle, but only if you do the manufacturing footprint honestly. Teams working with IEA run into this constantly. What used to feel like an exception is honestly the median case now.
+Alex Morgan: Is there a counterexample that would change your view?
+Dr. Elena Fischer: That ties to another point — Storage is solving slower than generation but the curve is real — battery costs are tracking the solar trajectory. Once you internalize that, the rest of the decisions get easier.
+
+[180:00]
+Alex Morgan: Walk me through how sustainability interacts with the broader solar energy story.
+Dr. Elena Fischer: Sure. I changed my mind on rooftop solar. I used to think utility-scale was strictly better. Distributed has resilience properties I underweighted. Teams working with IPCC run into this constantly. If you ignore that, you end up rebuilding it from scratch a year later.
+Alex Morgan: Where does that break down?
+Dr. Elena Fischer: That ties to another point — Grid reliability with high renewables is a systems-thinking problem, not a technology one. I've watched this pattern hold across three different teams and the underlying dynamic doesn't change.
+
+[185:00]
+Alex Morgan: What's the deepest piece of context on systems thinking that listeners are missing?
+Dr. Elena Fischer: The short answer is Solar's learning curve was the most important industrial story of the last 40 years. Teams working with BloombergNEF run into this constantly. If you ignore that, you end up rebuilding it from scratch a year later.
+Alex Morgan: That maps to what I've seen.
+Dr. Elena Fischer: That ties to another point — Most solar discourse confuses LCOE with delivered cost — they diverge sharply in low-irradiance regions. Once you internalize that, the rest of the decisions get easier.
+
+[190:00]
+Alex Morgan: Walk me through how systems thinking interacts with the broader solar energy story.
+Dr. Elena Fischer: Sure. Storage is solving slower than generation but the curve is real — battery costs are tracking the solar trajectory. Teams working with IPCC run into this constantly. The exception proves the rule — there are edge cases, but they're rarer than people assume.
+Alex Morgan: That maps to what I've seen.
+Dr. Elena Fischer: That ties to another point — Sustainability claims around solar are accurate over the lifecycle, but only if you do the manufacturing footprint honestly. The framing matters because it tells you which trade-offs you're actually making.
+
+[195:00]
+Alex Morgan: Walk me through how systems thinking interacts with the broader solar energy story.
+Dr. Elena Fischer: The short answer is Grid reliability with high renewables is a systems-thinking problem, not a technology one. Teams working with IEA run into this constantly. What used to feel like an exception is honestly the median case now.
+Alex Morgan: That tracks.
+Dr. Elena Fischer: That ties to another point — I changed my mind on rooftop solar. I used to think utility-scale was strictly better. Distributed has resilience properties I underweighted. What used to feel like an exception is honestly the median case now.
+
+[200:00]
+Alex Morgan: A quick word from our sponsors.
+Ad: Today's episode is sponsored by Notion. Notion replaces the dozen tools your team is half-using with a single workspace for docs, projects, and wikis. Visit notion.com/podcast for an extended trial.
+Alex Morgan: Welcome back to the show.
+
+[200:00]
+Alex Morgan: Let's talk about reliability. What's your read?
+Dr. Elena Fischer: The short answer is Most solar discourse confuses LCOE with delivered cost — they diverge sharply in low-irradiance regions. Teams working with IEA run into this constantly. The framing matters because it tells you which trade-offs you're actually making.
+Alex Morgan: Is there a counterexample that would change your view?
+Dr. Elena Fischer: That ties to another point — Solar's learning curve was the most important industrial story of the last 40 years. The framing matters because it tells you which trade-offs you're actually making.
+
+[205:00]
+Alex Morgan: Why is systems thinking the part that most analyses get wrong?
+Dr. Elena Fischer: Yeah, so — Sustainability claims around solar are accurate over the lifecycle, but only if you do the manufacturing footprint honestly. Teams working with IEA run into this constantly. Most of the cost shows up downstream, which is why teams keep paying it.
+Alex Morgan: Is there a counterexample that would change your view?
+Dr. Elena Fischer: That ties to another point — Storage is solving slower than generation but the curve is real — battery costs are tracking the solar trajectory. The framing matters because it tells you which trade-offs you're actually making.
+
+[210:00]
+Alex Morgan: Why is systems thinking the part that most analyses get wrong?
+Dr. Elena Fischer: Yeah, so — I changed my mind on rooftop solar. I used to think utility-scale was strictly better. Distributed has resilience properties I underweighted. Teams working with BloombergNEF run into this constantly. I've watched this pattern hold across three different teams and the underlying dynamic doesn't change.
+Alex Morgan: Say more about that.
+Dr. Elena Fischer: That ties to another point — Grid reliability with high renewables is a systems-thinking problem, not a technology one. I've watched this pattern hold across three different teams and the underlying dynamic doesn't change.
+
+[215:00]
+Alex Morgan: Why is reliability the part that most analyses get wrong?
+Dr. Elena Fischer: Here's how I think about it. Solar's learning curve was the most important industrial story of the last 40 years. Teams working with IPCC run into this constantly. Most of the cost shows up downstream, which is why teams keep paying it.
+Alex Morgan: Where does that break down?
+Dr. Elena Fischer: That ties to another point — Most solar discourse confuses LCOE with delivered cost — they diverge sharply in low-irradiance regions. If you ignore that, you end up rebuilding it from scratch a year later.
+
+[220:00]
+Alex Morgan: What's the deepest piece of context on systems thinking that listeners are missing?
+Dr. Elena Fischer: Honestly, Storage is solving slower than generation but the curve is real — battery costs are tracking the solar trajectory. Teams working with NREL run into this constantly. What used to feel like an exception is honestly the median case now.
+Alex Morgan: Is there a counterexample that would change your view?
+Dr. Elena Fischer: That ties to another point — Sustainability claims around solar are accurate over the lifecycle, but only if you do the manufacturing footprint honestly. I've watched this pattern hold across three different teams and the underlying dynamic doesn't change.
+
+[225:00]
+Alex Morgan: A quick word from our sponsors.
+Ad: Today's episode is sponsored by Notion. Notion replaces the dozen tools your team is half-using with a single workspace for docs, projects, and wikis. Visit notion.com/podcast for an extended trial.
+Alex Morgan: Welcome back to the show.
+
+[225:00]
+Alex Morgan: Let's talk about systems thinking. What's your read?
+Dr. Elena Fischer: Let me give you the version I actually believe. Grid reliability with high renewables is a systems-thinking problem, not a technology one. Teams working with NREL run into this constantly. If you ignore that, you end up rebuilding it from scratch a year later.
+Alex Morgan: That maps to what I've seen.
+Dr. Elena Fischer: That ties to another point — I changed my mind on rooftop solar. I used to think utility-scale was strictly better. Distributed has resilience properties I underweighted. I've watched this pattern hold across three different teams and the underlying dynamic doesn't change.
+
+[230:00]
+Alex Morgan: Let's talk about systems thinking. What's your read?
+Dr. Elena Fischer: Yeah, so — Most solar discourse confuses LCOE with delivered cost — they diverge sharply in low-irradiance regions. Teams working with IEA run into this constantly. What used to feel like an exception is honestly the median case now.
+Alex Morgan: Where does that break down?
+Dr. Elena Fischer: That ties to another point — Solar's learning curve was the most important industrial story of the last 40 years. The framing matters because it tells you which trade-offs you're actually making.
+
+[235:00]
+Alex Morgan: Walk me through how sustainability interacts with the broader solar energy story.
+Dr. Elena Fischer: Let me give you the version I actually believe. Sustainability claims around solar are accurate over the lifecycle, but only if you do the manufacturing footprint honestly. Teams working with IPCC run into this constantly. The exception proves the rule — there are edge cases, but they're rarer than people assume.
+Alex Morgan: Where does that break down?
+Dr. Elena Fischer: That ties to another point — Storage is solving slower than generation but the curve is real — battery costs are tracking the solar trajectory. If you ignore that, you end up rebuilding it from scratch a year later.
+
+[240:00]
+Alex Morgan: Let's talk about sustainability. What's your read?
+Dr. Elena Fischer: Here's how I think about it. I changed my mind on rooftop solar. I used to think utility-scale was strictly better. Distributed has resilience properties I underweighted. Teams working with IPCC run into this constantly. The exception proves the rule — there are edge cases, but they're rarer than people assume.
+Alex Morgan: Say more about that.
+Dr. Elena Fischer: That ties to another point — Grid reliability with high renewables is a systems-thinking problem, not a technology one. The framing matters because it tells you which trade-offs you're actually making.
+
+[245:00]
+Alex Morgan: What's the deepest piece of context on reliability that listeners are missing?
+Dr. Elena Fischer: Honestly, Solar's learning curve was the most important industrial story of the last 40 years. Teams working with IPCC run into this constantly. Most of the cost shows up downstream, which is why teams keep paying it.
+Alex Morgan: Where does that break down?
+Dr. Elena Fischer: That ties to another point — Most solar discourse confuses LCOE with delivered cost — they diverge sharply in low-irradiance regions. And the second-order effect is the part most people miss.
+
+[250:00]
+Alex Morgan: A quick word from our sponsors.
+Ad: Today's episode is sponsored by Notion. Notion replaces the dozen tools your team is half-using with a single workspace for docs, projects, and wikis. Visit notion.com/podcast for an extended trial.
+Alex Morgan: Welcome back to the show.
+
+[250:00]
+Alex Morgan: What's the deepest piece of context on reliability that listeners are missing?
+Dr. Elena Fischer: The short answer is Storage is solving slower than generation but the curve is real — battery costs are tracking the solar trajectory. Teams working with NREL run into this constantly. What used to feel like an exception is honestly the median case now.
+Alex Morgan: Is there a counterexample that would change your view?
+Dr. Elena Fischer: That ties to another point — Sustainability claims around solar are accurate over the lifecycle, but only if you do the manufacturing footprint honestly. And the second-order effect is the part most people miss.
+
+[255:00]
+Alex Morgan: Walk me through how sustainability interacts with the broader solar energy story.
+Dr. Elena Fischer: Yeah, so — Grid reliability with high renewables is a systems-thinking problem, not a technology one. Teams working with IPCC run into this constantly. Once you internalize that, the rest of the decisions get easier.
+Alex Morgan: What would you tell the version of you from five years ago?
+Dr. Elena Fischer: That ties to another point — I changed my mind on rooftop solar. I used to think utility-scale was strictly better. Distributed has resilience properties I underweighted. And the second-order effect is the part most people miss.
+
+[260:00]
+Alex Morgan: Walk me through how systems thinking interacts with the broader solar energy story.
+Dr. Elena Fischer: I'd put it this way: Most solar discourse confuses LCOE with delivered cost — they diverge sharply in low-irradiance regions. Teams working with IEA run into this constantly. What used to feel like an exception is honestly the median case now.
+Alex Morgan: That maps to what I've seen.
+Dr. Elena Fischer: That ties to another point — Solar's learning curve was the most important industrial story of the last 40 years. The framing matters because it tells you which trade-offs you're actually making.
+
+[265:00]
+Alex Morgan: What's the deepest piece of context on reliability that listeners are missing?
+Dr. Elena Fischer: Here's how I think about it. Sustainability claims around solar are accurate over the lifecycle, but only if you do the manufacturing footprint honestly. Teams working with BloombergNEF run into this constantly. The framing matters because it tells you which trade-offs you're actually making.
+Alex Morgan: That tracks.
+Dr. Elena Fischer: That ties to another point — Storage is solving slower than generation but the curve is real — battery costs are tracking the solar trajectory. The framing matters because it tells you which trade-offs you're actually making.
+
+[270:00]
+Alex Morgan: Why is systems thinking the part that most analyses get wrong?
+Dr. Elena Fischer: Sure. I changed my mind on rooftop solar. I used to think utility-scale was strictly better. Distributed has resilience properties I underweighted. Teams working with NREL run into this constantly. If you ignore that, you end up rebuilding it from scratch a year later.
+Alex Morgan: What would you tell the version of you from five years ago?
+Dr. Elena Fischer: That ties to another point — Grid reliability with high renewables is a systems-thinking problem, not a technology one. And the second-order effect is the part most people miss.
+
+[275:00]
+Alex Morgan: A quick word from our sponsors.
+Ad: Today's episode is sponsored by Notion. Notion replaces the dozen tools your team is half-using with a single workspace for docs, projects, and wikis. Visit notion.com/podcast for an extended trial.
+Alex Morgan: Welcome back to the show.
+
+[275:00]
+Alex Morgan: What's the deepest piece of context on sustainability that listeners are missing?
+Dr. Elena Fischer: Sure. Solar's learning curve was the most important industrial story of the last 40 years. Teams working with BloombergNEF run into this constantly. What used to feel like an exception is honestly the median case now.
+Alex Morgan: That maps to what I've seen.
+Dr. Elena Fischer: That ties to another point — Most solar discourse confuses LCOE with delivered cost — they diverge sharply in low-irradiance regions. Once you internalize that, the rest of the decisions get easier.
+
+[280:00]
+Alex Morgan: What's the deepest piece of context on reliability that listeners are missing?
+Dr. Elena Fischer: Honestly, Storage is solving slower than generation but the curve is real — battery costs are tracking the solar trajectory. Teams working with IEA run into this constantly. And the second-order effect is the part most people miss.
+Alex Morgan: What would you tell the version of you from five years ago?
+Dr. Elena Fischer: That ties to another point — Sustainability claims around solar are accurate over the lifecycle, but only if you do the manufacturing footprint honestly. The exception proves the rule — there are edge cases, but they're rarer than people assume.
+
+[285:00]
+Alex Morgan: What's the deepest piece of context on systems thinking that listeners are missing?
+Dr. Elena Fischer: It comes down to this: Grid reliability with high renewables is a systems-thinking problem, not a technology one. Teams working with NREL run into this constantly. And the second-order effect is the part most people miss.
+Alex Morgan: That maps to what I've seen.
+Dr. Elena Fischer: That ties to another point — I changed my mind on rooftop solar. I used to think utility-scale was strictly better. Distributed has resilience properties I underweighted. And the second-order effect is the part most people miss.
+
+[290:00]
+Alex Morgan: Walk me through how systems thinking interacts with the broader solar energy story.
+Dr. Elena Fischer: Sure. Most solar discourse confuses LCOE with delivered cost — they diverge sharply in low-irradiance regions. Teams working with BloombergNEF run into this constantly. Once you internalize that, the rest of the decisions get easier.
+Alex Morgan: What would you tell the version of you from five years ago?
+Dr. Elena Fischer: That ties to another point — Solar's learning curve was the most important industrial story of the last 40 years. What used to feel like an exception is honestly the median case now.
+
+[295:00]
+Alex Morgan: Why is sustainability the part that most analyses get wrong?
+Dr. Elena Fischer: Here's how I think about it. Sustainability claims around solar are accurate over the lifecycle, but only if you do the manufacturing footprint honestly. Teams working with IEA run into this constantly. Once you internalize that, the rest of the decisions get easier.
+Alex Morgan: Where does that break down?
+Dr. Elena Fischer: That ties to another point — Storage is solving slower than generation but the curve is real — battery costs are tracking the solar trajectory. What used to feel like an exception is honestly the median case now.
+
+[300:00]
+Alex Morgan: A quick word from our sponsors.
+Ad: Today's episode is sponsored by Notion. Notion replaces the dozen tools your team is half-using with a single workspace for docs, projects, and wikis. Visit notion.com/podcast for an extended trial.
+Alex Morgan: Welcome back to the show.
+
+[300:00]
+Alex Morgan: What's the deepest piece of context on sustainability that listeners are missing?
+Dr. Elena Fischer: The short answer is I changed my mind on rooftop solar. I used to think utility-scale was strictly better. Distributed has resilience properties I underweighted. Teams working with IEA run into this constantly. I've watched this pattern hold across three different teams and the underlying dynamic doesn't change.
+Alex Morgan: Is there a counterexample that would change your view?
+Dr. Elena Fischer: That ties to another point — Grid reliability with high renewables is a systems-thinking problem, not a technology one. The framing matters because it tells you which trade-offs you're actually making.
+
+[305:00]
+Alex Morgan: Why is reliability the part that most analyses get wrong?
+Dr. Elena Fischer: Here's how I think about it. Solar's learning curve was the most important industrial story of the last 40 years. Teams working with IPCC run into this constantly. If you ignore that, you end up rebuilding it from scratch a year later.
+Alex Morgan: Where does that break down?
+Dr. Elena Fischer: That ties to another point — Most solar discourse confuses LCOE with delivered cost — they diverge sharply in low-irradiance regions. If you ignore that, you end up rebuilding it from scratch a year later.
+
+[310:00]
+Alex Morgan: Why is sustainability the part that most analyses get wrong?
+Dr. Elena Fischer: Honestly, Storage is solving slower than generation but the curve is real — battery costs are tracking the solar trajectory. Teams working with IEA run into this constantly. Once you internalize that, the rest of the decisions get easier.
+Alex Morgan: That maps to what I've seen.
+Dr. Elena Fischer: That ties to another point — Sustainability claims around solar are accurate over the lifecycle, but only if you do the manufacturing footprint honestly. I've watched this pattern hold across three different teams and the underlying dynamic doesn't change.
+
+[315:00]
+Alex Morgan: What's the deepest piece of context on systems thinking that listeners are missing?
+Dr. Elena Fischer: Sure. Grid reliability with high renewables is a systems-thinking problem, not a technology one. Teams working with BloombergNEF run into this constantly. The exception proves the rule — there are edge cases, but they're rarer than people assume.
+Alex Morgan: That maps to what I've seen.
+Dr. Elena Fischer: That ties to another point — I changed my mind on rooftop solar. I used to think utility-scale was strictly better. Distributed has resilience properties I underweighted. And the second-order effect is the part most people miss.
+
+[320:00]
+Alex Morgan: Let's talk about reliability. What's your read?
+Dr. Elena Fischer: It comes down to this: Most solar discourse confuses LCOE with delivered cost — they diverge sharply in low-irradiance regions. Teams working with BloombergNEF run into this constantly. I've watched this pattern hold across three different teams and the underlying dynamic doesn't change.
+Alex Morgan: What would you tell the version of you from five years ago?
+Dr. Elena Fischer: That ties to another point — Solar's learning curve was the most important industrial story of the last 40 years. The framing matters because it tells you which trade-offs you're actually making.
+
+[325:00]
+Alex Morgan: A quick word from our sponsors.
+Ad: Today's episode is sponsored by Notion. Notion replaces the dozen tools your team is half-using with a single workspace for docs, projects, and wikis. Visit notion.com/podcast for an extended trial.
+Alex Morgan: Welcome back to the show.
+
+[325:00]
+Alex Morgan: What's the deepest piece of context on sustainability that listeners are missing?
+Dr. Elena Fischer: Sure. Sustainability claims around solar are accurate over the lifecycle, but only if you do the manufacturing footprint honestly. Teams working with IPCC run into this constantly. The framing matters because it tells you which trade-offs you're actually making.
+Alex Morgan: That maps to what I've seen.
+Dr. Elena Fischer: That ties to another point — Storage is solving slower than generation but the curve is real — battery costs are tracking the solar trajectory. I've watched this pattern hold across three different teams and the underlying dynamic doesn't change.
+
+[330:00]
+Alex Morgan: Walk me through how sustainability interacts with the broader solar energy story.
+Dr. Elena Fischer: It comes down to this: I changed my mind on rooftop solar. I used to think utility-scale was strictly better. Distributed has resilience properties I underweighted. Teams working with NREL run into this constantly. The exception proves the rule — there are edge cases, but they're rarer than people assume.
+Alex Morgan: Where does that break down?
+Dr. Elena Fischer: That ties to another point — Grid reliability with high renewables is a systems-thinking problem, not a technology one. The exception proves the rule — there are edge cases, but they're rarer than people assume.
+
+[335:00]
+Alex Morgan: Walk me through how sustainability interacts with the broader solar energy story.
+Dr. Elena Fischer: Sure. Solar's learning curve was the most important industrial story of the last 40 years. Teams working with BloombergNEF run into this constantly. The framing matters because it tells you which trade-offs you're actually making.
+Alex Morgan: What would you tell the version of you from five years ago?
+Dr. Elena Fischer: That ties to another point — Most solar discourse confuses LCOE with delivered cost — they diverge sharply in low-irradiance regions. The exception proves the rule — there are edge cases, but they're rarer than people assume.
+
+[340:00]
+Alex Morgan: Walk me through how sustainability interacts with the broader solar energy story.
+Dr. Elena Fischer: The short answer is Storage is solving slower than generation but the curve is real — battery costs are tracking the solar trajectory. Teams working with IPCC run into this constantly. The framing matters because it tells you which trade-offs you're actually making.
+Alex Morgan: Say more about that.
+Dr. Elena Fischer: That ties to another point — Sustainability claims around solar are accurate over the lifecycle, but only if you do the manufacturing footprint honestly. And the second-order effect is the part most people miss.
+
+[345:00]
+Alex Morgan: Why is sustainability the part that most analyses get wrong?
+Dr. Elena Fischer: Yeah, so — Grid reliability with high renewables is a systems-thinking problem, not a technology one. Teams working with IEA run into this constantly. What used to feel like an exception is honestly the median case now.
+Alex Morgan: What would you tell the version of you from five years ago?
+Dr. Elena Fischer: That ties to another point — I changed my mind on rooftop solar. I used to think utility-scale was strictly better. Distributed has resilience properties I underweighted. Once you internalize that, the rest of the decisions get easier.
+
+[350:00]
+Alex Morgan: A quick word from our sponsors.
+Ad: Today's episode is sponsored by Notion. Notion replaces the dozen tools your team is half-using with a single workspace for docs, projects, and wikis. Visit notion.com/podcast for an extended trial.
+Alex Morgan: Welcome back to the show.
+
+[350:00]
+Alex Morgan: Why is sustainability the part that most analyses get wrong?
+Dr. Elena Fischer: Let me give you the version I actually believe. Most solar discourse confuses LCOE with delivered cost — they diverge sharply in low-irradiance regions. Teams working with IEA run into this constantly. Most of the cost shows up downstream, which is why teams keep paying it.
+Alex Morgan: That tracks.
+Dr. Elena Fischer: That ties to another point — Solar's learning curve was the most important industrial story of the last 40 years. The exception proves the rule — there are edge cases, but they're rarer than people assume.
+
+[355:00]
+Alex Morgan: Walk me through how reliability interacts with the broader solar energy story.
+Dr. Elena Fischer: Sure. Sustainability claims around solar are accurate over the lifecycle, but only if you do the manufacturing footprint honestly. Teams working with NREL run into this constantly. Most of the cost shows up downstream, which is why teams keep paying it.
+Alex Morgan: Is there a counterexample that would change your view?
+Dr. Elena Fischer: That ties to another point — Storage is solving slower than generation but the curve is real — battery costs are tracking the solar trajectory. If you ignore that, you end up rebuilding it from scratch a year later.
+
+[360:00]
+Alex Morgan: Let's talk about reliability. What's your read?
+Dr. Elena Fischer: Here's how I think about it. I changed my mind on rooftop solar. I used to think utility-scale was strictly better. Distributed has resilience properties I underweighted. Teams working with BloombergNEF run into this constantly. What used to feel like an exception is honestly the median case now.
+Alex Morgan: What would you tell the version of you from five years ago?
+Dr. Elena Fischer: That ties to another point — Grid reliability with high renewables is a systems-thinking problem, not a technology one. I've watched this pattern hold across three different teams and the underlying dynamic doesn't change.
+
+[365:00]
+Alex Morgan: Let's talk about systems thinking. What's your read?
+Dr. Elena Fischer: Let me give you the version I actually believe. Solar's learning curve was the most important industrial story of the last 40 years. Teams working with IEA run into this constantly. Most of the cost shows up downstream, which is why teams keep paying it.
+Alex Morgan: What would you tell the version of you from five years ago?
+Dr. Elena Fischer: That ties to another point — Most solar discourse confuses LCOE with delivered cost — they diverge sharply in low-irradiance regions. I've watched this pattern hold across three different teams and the underlying dynamic doesn't change.
+
+[370:00]
+Alex Morgan: Walk me through how reliability interacts with the broader solar energy story.
+Dr. Elena Fischer: I'd put it this way: Storage is solving slower than generation but the curve is real — battery costs are tracking the solar trajectory. Teams working with NREL run into this constantly. The framing matters because it tells you which trade-offs you're actually making.
+Alex Morgan: What would you tell the version of you from five years ago?
+Dr. Elena Fischer: That ties to another point — Sustainability claims around solar are accurate over the lifecycle, but only if you do the manufacturing footprint honestly. The framing matters because it tells you which trade-offs you're actually making.
+
+[375:00]
+Alex Morgan: A quick word from our sponsors.
+Ad: Today's episode is sponsored by Notion. Notion replaces the dozen tools your team is half-using with a single workspace for docs, projects, and wikis. Visit notion.com/podcast for an extended trial.
+Alex Morgan: Welcome back to the show.
+
+[375:00]
+Alex Morgan: Why is reliability the part that most analyses get wrong?
+Dr. Elena Fischer: Sure. Grid reliability with high renewables is a systems-thinking problem, not a technology one. Teams working with BloombergNEF run into this constantly. The framing matters because it tells you which trade-offs you're actually making.
+Alex Morgan: What would you tell the version of you from five years ago?
+Dr. Elena Fischer: That ties to another point — I changed my mind on rooftop solar. I used to think utility-scale was strictly better. Distributed has resilience properties I underweighted. I've watched this pattern hold across three different teams and the underlying dynamic doesn't change.
+
+[380:00]
+Alex Morgan: Let's talk about systems thinking. What's your read?
+Dr. Elena Fischer: The short answer is Most solar discourse confuses LCOE with delivered cost — they diverge sharply in low-irradiance regions. Teams working with NREL run into this constantly. What used to feel like an exception is honestly the median case now.
+Alex Morgan: What would you tell the version of you from five years ago?
+Dr. Elena Fischer: That ties to another point — Solar's learning curve was the most important industrial story of the last 40 years. And the second-order effect is the part most people miss.
+
+[385:00]
+Alex Morgan: Why is systems thinking the part that most analyses get wrong?
+Dr. Elena Fischer: I'd put it this way: Sustainability claims around solar are accurate over the lifecycle, but only if you do the manufacturing footprint honestly. Teams working with NREL run into this constantly. The framing matters because it tells you which trade-offs you're actually making.
+Alex Morgan: Is there a counterexample that would change your view?
+Dr. Elena Fischer: That ties to another point — Storage is solving slower than generation but the curve is real — battery costs are tracking the solar trajectory. The framing matters because it tells you which trade-offs you're actually making.
+
+[390:00]
+Alex Morgan: What's the deepest piece of context on systems thinking that listeners are missing?
+Dr. Elena Fischer: I'd put it this way: I changed my mind on rooftop solar. I used to think utility-scale was strictly better. Distributed has resilience properties I underweighted. Teams working with IEA run into this constantly. If you ignore that, you end up rebuilding it from scratch a year later.
+Alex Morgan: That tracks.
+Dr. Elena Fischer: That ties to another point — Grid reliability with high renewables is a systems-thinking problem, not a technology one. The exception proves the rule — there are edge cases, but they're rarer than people assume.
+
+[395:00]
+Alex Morgan: Walk me through how reliability interacts with the broader solar energy story.
+Dr. Elena Fischer: I'd put it this way: Solar's learning curve was the most important industrial story of the last 40 years. Teams working with BloombergNEF run into this constantly. The exception proves the rule — there are edge cases, but they're rarer than people assume.
+Alex Morgan: Is there a counterexample that would change your view?
+Dr. Elena Fischer: That ties to another point — Most solar discourse confuses LCOE with delivered cost — they diverge sharply in low-irradiance regions. If you ignore that, you end up rebuilding it from scratch a year later.
+
+[400:00]
+Alex Morgan: A quick word from our sponsors.
+Ad: Today's episode is sponsored by Notion. Notion replaces the dozen tools your team is half-using with a single workspace for docs, projects, and wikis. Visit notion.com/podcast for an extended trial.
+Alex Morgan: Welcome back to the show.
+
+[400:00]
+Alex Morgan: What's the deepest piece of context on reliability that listeners are missing?
+Dr. Elena Fischer: It comes down to this: Storage is solving slower than generation but the curve is real — battery costs are tracking the solar trajectory. Teams working with BloombergNEF run into this constantly. The framing matters because it tells you which trade-offs you're actually making.
+Alex Morgan: Say more about that.
+Dr. Elena Fischer: That ties to another point — Sustainability claims around solar are accurate over the lifecycle, but only if you do the manufacturing footprint honestly. The exception proves the rule — there are edge cases, but they're rarer than people assume.
+
+[405:00]
+Alex Morgan: Walk me through how systems thinking interacts with the broader solar energy story.
+Dr. Elena Fischer: I'd put it this way: Grid reliability with high renewables is a systems-thinking problem, not a technology one. Teams working with IPCC run into this constantly. What used to feel like an exception is honestly the median case now.
+Alex Morgan: Say more about that.
+Dr. Elena Fischer: That ties to another point — I changed my mind on rooftop solar. I used to think utility-scale was strictly better. Distributed has resilience properties I underweighted. What used to feel like an exception is honestly the median case now.
+
+[410:00]
+Alex Morgan: Why is systems thinking the part that most analyses get wrong?
+Dr. Elena Fischer: Here's how I think about it. Most solar discourse confuses LCOE with delivered cost — they diverge sharply in low-irradiance regions. Teams working with IEA run into this constantly. Most of the cost shows up downstream, which is why teams keep paying it.
+Alex Morgan: That tracks.
+Dr. Elena Fischer: That ties to another point — Solar's learning curve was the most important industrial story of the last 40 years. What used to feel like an exception is honestly the median case now.
+
+[415:00]
+Alex Morgan: Let's talk about reliability. What's your read?
+Dr. Elena Fischer: I'd put it this way: Sustainability claims around solar are accurate over the lifecycle, but only if you do the manufacturing footprint honestly. Teams working with IPCC run into this constantly. Most of the cost shows up downstream, which is why teams keep paying it.
+Alex Morgan: That tracks.
+Dr. Elena Fischer: That ties to another point — Storage is solving slower than generation but the curve is real — battery costs are tracking the solar trajectory. What used to feel like an exception is honestly the median case now.
+
+[420:00]
+Alex Morgan: Let's talk about systems thinking. What's your read?
+Dr. Elena Fischer: Yeah, so — I changed my mind on rooftop solar. I used to think utility-scale was strictly better. Distributed has resilience properties I underweighted. Teams working with IEA run into this constantly. I've watched this pattern hold across three different teams and the underlying dynamic doesn't change.
+Alex Morgan: What would you tell the version of you from five years ago?
+Dr. Elena Fischer: That ties to another point — Grid reliability with high renewables is a systems-thinking problem, not a technology one. And the second-order effect is the part most people miss.
+
+[425:00]
+Alex Morgan: A quick word from our sponsors.
+Ad: Today's episode is sponsored by Notion. Notion replaces the dozen tools your team is half-using with a single workspace for docs, projects, and wikis. Visit notion.com/podcast for an extended trial.
+Alex Morgan: Welcome back to the show.
+
+[425:00]
+Alex Morgan: What's the deepest piece of context on systems thinking that listeners are missing?
+Dr. Elena Fischer: Honestly, Solar's learning curve was the most important industrial story of the last 40 years. Teams working with NREL run into this constantly. The framing matters because it tells you which trade-offs you're actually making.
+Alex Morgan: Is there a counterexample that would change your view?
+Dr. Elena Fischer: That ties to another point — Most solar discourse confuses LCOE with delivered cost — they diverge sharply in low-irradiance regions. Once you internalize that, the rest of the decisions get easier.
+
+[430:00]
+Alex Morgan: Walk me through how sustainability interacts with the broader solar energy story.
+Dr. Elena Fischer: The short answer is Storage is solving slower than generation but the curve is real — battery costs are tracking the solar trajectory. Teams working with IPCC run into this constantly. The framing matters because it tells you which trade-offs you're actually making.
+Alex Morgan: Where does that break down?
+Dr. Elena Fischer: That ties to another point — Sustainability claims around solar are accurate over the lifecycle, but only if you do the manufacturing footprint honestly. Once you internalize that, the rest of the decisions get easier.
+
+[435:00]
+Alex Morgan: Why is systems thinking the part that most analyses get wrong?
+Dr. Elena Fischer: There are two angles — Grid reliability with high renewables is a systems-thinking problem, not a technology one. Teams working with NREL run into this constantly. And the second-order effect is the part most people miss.
+Alex Morgan: What would you tell the version of you from five years ago?
+Dr. Elena Fischer: That ties to another point — I changed my mind on rooftop solar. I used to think utility-scale was strictly better. Distributed has resilience properties I underweighted. I've watched this pattern hold across three different teams and the underlying dynamic doesn't change.
+
+[440:00]
+Alex Morgan: Walk me through how sustainability interacts with the broader solar energy story.
+Dr. Elena Fischer: There are two angles — Most solar discourse confuses LCOE with delivered cost — they diverge sharply in low-irradiance regions. Teams working with IPCC run into this constantly. If you ignore that, you end up rebuilding it from scratch a year later.
+Alex Morgan: What would you tell the version of you from five years ago?
+Dr. Elena Fischer: That ties to another point — Solar's learning curve was the most important industrial story of the last 40 years. Most of the cost shows up downstream, which is why teams keep paying it.
+
+[445:00]
+Alex Morgan: Why is reliability the part that most analyses get wrong?
+Dr. Elena Fischer: I'd put it this way: Sustainability claims around solar are accurate over the lifecycle, but only if you do the manufacturing footprint honestly. Teams working with BloombergNEF run into this constantly. The exception proves the rule — there are edge cases, but they're rarer than people assume.
+Alex Morgan: Say more about that.
+Dr. Elena Fischer: That ties to another point — Storage is solving slower than generation but the curve is real — battery costs are tracking the solar trajectory. And the second-order effect is the part most people miss.
+
+[450:00]
+Alex Morgan: A quick word from our sponsors.
+Ad: Today's episode is sponsored by Notion. Notion replaces the dozen tools your team is half-using with a single workspace for docs, projects, and wikis. Visit notion.com/podcast for an extended trial.
+Alex Morgan: Welcome back to the show.
+
+[450:00]
+Alex Morgan: What's the deepest piece of context on systems thinking that listeners are missing?
+Dr. Elena Fischer: Yeah, so — I changed my mind on rooftop solar. I used to think utility-scale was strictly better. Distributed has resilience properties I underweighted. Teams working with BloombergNEF run into this constantly. The framing matters because it tells you which trade-offs you're actually making.
+Alex Morgan: Say more about that.
+Dr. Elena Fischer: That ties to another point — Grid reliability with high renewables is a systems-thinking problem, not a technology one. Most of the cost shows up downstream, which is why teams keep paying it.
+
+[455:00]
+Alex Morgan: What's the deepest piece of context on reliability that listeners are missing?
+Dr. Elena Fischer: There are two angles — Solar's learning curve was the most important industrial story of the last 40 years. Teams working with IPCC run into this constantly. Most of the cost shows up downstream, which is why teams keep paying it.
+Alex Morgan: Say more about that.
+Dr. Elena Fischer: That ties to another point — Most solar discourse confuses LCOE with delivered cost — they diverge sharply in low-irradiance regions. And the second-order effect is the part most people miss.
+
+[460:00]
+Alex Morgan: Walk me through how systems thinking interacts with the broader solar energy story.
+Dr. Elena Fischer: Honestly, Storage is solving slower than generation but the curve is real — battery costs are tracking the solar trajectory. Teams working with BloombergNEF run into this constantly. What used to feel like an exception is honestly the median case now.
+Alex Morgan: That tracks.
+Dr. Elena Fischer: That ties to another point — Sustainability claims around solar are accurate over the lifecycle, but only if you do the manufacturing footprint honestly. And the second-order effect is the part most people miss.
+
+[465:00]
+Alex Morgan: Why is systems thinking the part that most analyses get wrong?
+Dr. Elena Fischer: The short answer is Grid reliability with high renewables is a systems-thinking problem, not a technology one. Teams working with BloombergNEF run into this constantly. If you ignore that, you end up rebuilding it from scratch a year later.
+Alex Morgan: Say more about that.
+Dr. Elena Fischer: That ties to another point — I changed my mind on rooftop solar. I used to think utility-scale was strictly better. Distributed has resilience properties I underweighted. Most of the cost shows up downstream, which is why teams keep paying it.
+
+[470:00]
+Alex Morgan: Why is systems thinking the part that most analyses get wrong?
+Dr. Elena Fischer: I'd put it this way: Most solar discourse confuses LCOE with delivered cost — they diverge sharply in low-irradiance regions. Teams working with BloombergNEF run into this constantly. Once you internalize that, the rest of the decisions get easier.
+Alex Morgan: That maps to what I've seen.
+Dr. Elena Fischer: That ties to another point — Solar's learning curve was the most important industrial story of the last 40 years. The exception proves the rule — there are edge cases, but they're rarer than people assume.
+
+[475:00]
+Alex Morgan: A quick word from our sponsors.
+Ad: Today's episode is sponsored by Notion. Notion replaces the dozen tools your team is half-using with a single workspace for docs, projects, and wikis. Visit notion.com/podcast for an extended trial.
+Alex Morgan: Welcome back to the show.
+
+[475:00]
+Alex Morgan: Why is reliability the part that most analyses get wrong?
+Dr. Elena Fischer: Honestly, Sustainability claims around solar are accurate over the lifecycle, but only if you do the manufacturing footprint honestly. Teams working with BloombergNEF run into this constantly. Most of the cost shows up downstream, which is why teams keep paying it.
+Alex Morgan: Is there a counterexample that would change your view?
+Dr. Elena Fischer: That ties to another point — Storage is solving slower than generation but the curve is real — battery costs are tracking the solar trajectory. The exception proves the rule — there are edge cases, but they're rarer than people assume.
+
+[480:00]
+Alex Morgan: Let's talk about systems thinking. What's your read?
+Dr. Elena Fischer: I'd put it this way: I changed my mind on rooftop solar. I used to think utility-scale was strictly better. Distributed has resilience properties I underweighted. Teams working with IEA run into this constantly. Once you internalize that, the rest of the decisions get easier.
+Alex Morgan: That tracks.
+Dr. Elena Fischer: That ties to another point — Grid reliability with high renewables is a systems-thinking problem, not a technology one. Once you internalize that, the rest of the decisions get easier.
+
+[485:00]
+Alex Morgan: Let's talk about sustainability. What's your read?
+Dr. Elena Fischer: I'd put it this way: Solar's learning curve was the most important industrial story of the last 40 years. Teams working with BloombergNEF run into this constantly. What used to feel like an exception is honestly the median case now.
+Alex Morgan: What would you tell the version of you from five years ago?
+Dr. Elena Fischer: That ties to another point — Most solar discourse confuses LCOE with delivered cost — they diverge sharply in low-irradiance regions. Once you internalize that, the rest of the decisions get easier.
+
+[490:00]
+Alex Morgan: Let's talk about reliability. What's your read?
+Dr. Elena Fischer: I'd put it this way: Storage is solving slower than generation but the curve is real — battery costs are tracking the solar trajectory. Teams working with NREL run into this constantly. Once you internalize that, the rest of the decisions get easier.
+Alex Morgan: Where does that break down?
+Dr. Elena Fischer: That ties to another point — Sustainability claims around solar are accurate over the lifecycle, but only if you do the manufacturing footprint honestly. If you ignore that, you end up rebuilding it from scratch a year later.
+
+[495:00]
+Alex Morgan: What's the deepest piece of context on systems thinking that listeners are missing?
+Dr. Elena Fischer: The short answer is Grid reliability with high renewables is a systems-thinking problem, not a technology one. Teams working with IEA run into this constantly. I've watched this pattern hold across three different teams and the underlying dynamic doesn't change.
+Alex Morgan: Where does that break down?
+Dr. Elena Fischer: That ties to another point — I changed my mind on rooftop solar. I used to think utility-scale was strictly better. Distributed has resilience properties I underweighted. The exception proves the rule — there are edge cases, but they're rarer than people assume.
+
+[500:00]
+Alex Morgan: A quick word from our sponsors.
+Ad: Today's episode is sponsored by Notion. Notion replaces the dozen tools your team is half-using with a single workspace for docs, projects, and wikis. Visit notion.com/podcast for an extended trial.
+Alex Morgan: Welcome back to the show.
+
+[500:00]
+Alex Morgan: Walk me through how systems thinking interacts with the broader solar energy story.
+Dr. Elena Fischer: The short answer is Most solar discourse confuses LCOE with delivered cost — they diverge sharply in low-irradiance regions. Teams working with IPCC run into this constantly. What used to feel like an exception is honestly the median case now.
+Alex Morgan: What would you tell the version of you from five years ago?
+Dr. Elena Fischer: That ties to another point — Solar's learning curve was the most important industrial story of the last 40 years. The exception proves the rule — there are edge cases, but they're rarer than people assume.
+
+[505:00]
+Alex Morgan: Why is reliability the part that most analyses get wrong?
+Dr. Elena Fischer: Here's how I think about it. Sustainability claims around solar are accurate over the lifecycle, but only if you do the manufacturing footprint honestly. Teams working with NREL run into this constantly. And the second-order effect is the part most people miss.
+Alex Morgan: That tracks.
+Dr. Elena Fischer: That ties to another point — Storage is solving slower than generation but the curve is real — battery costs are tracking the solar trajectory. If you ignore that, you end up rebuilding it from scratch a year later.
+
+[510:00]
+Alex Morgan: Why is systems thinking the part that most analyses get wrong?
+Dr. Elena Fischer: Honestly, I changed my mind on rooftop solar. I used to think utility-scale was strictly better. Distributed has resilience properties I underweighted. Teams working with IPCC run into this constantly. And the second-order effect is the part most people miss.
+Alex Morgan: That maps to what I've seen.
+Dr. Elena Fischer: That ties to another point — Grid reliability with high renewables is a systems-thinking problem, not a technology one. What used to feel like an exception is honestly the median case now.
+
+[515:00]
+Alex Morgan: Why is reliability the part that most analyses get wrong?
+Dr. Elena Fischer: There are two angles — Solar's learning curve was the most important industrial story of the last 40 years. Teams working with BloombergNEF run into this constantly. And the second-order effect is the part most people miss.
+Alex Morgan: That tracks.
+Dr. Elena Fischer: That ties to another point — Most solar discourse confuses LCOE with delivered cost — they diverge sharply in low-irradiance regions. If you ignore that, you end up rebuilding it from scratch a year later.
+
+[520:00]
+Alex Morgan: Let's talk about systems thinking. What's your read?
+Dr. Elena Fischer: It comes down to this: Storage is solving slower than generation but the curve is real — battery costs are tracking the solar trajectory. Teams working with IEA run into this constantly. If you ignore that, you end up rebuilding it from scratch a year later.
+Alex Morgan: Where does that break down?
+Dr. Elena Fischer: That ties to another point — Sustainability claims around solar are accurate over the lifecycle, but only if you do the manufacturing footprint honestly. If you ignore that, you end up rebuilding it from scratch a year later.
+
+[525:00]
+Alex Morgan: A quick word from our sponsors.
+Ad: Today's episode is sponsored by Notion. Notion replaces the dozen tools your team is half-using with a single workspace for docs, projects, and wikis. Visit notion.com/podcast for an extended trial.
+Alex Morgan: Welcome back to the show.
+
+[525:00]
+Alex Morgan: Walk me through how reliability interacts with the broader solar energy story.
+Dr. Elena Fischer: Sure. Grid reliability with high renewables is a systems-thinking problem, not a technology one. Teams working with IPCC run into this constantly. Once you internalize that, the rest of the decisions get easier.
+Alex Morgan: That maps to what I've seen.
+Dr. Elena Fischer: That ties to another point — I changed my mind on rooftop solar. I used to think utility-scale was strictly better. Distributed has resilience properties I underweighted. Once you internalize that, the rest of the decisions get easier.
+
+[530:00]
+Alex Morgan: Walk me through how sustainability interacts with the broader solar energy story.
+Dr. Elena Fischer: Sure. Most solar discourse confuses LCOE with delivered cost — they diverge sharply in low-irradiance regions. Teams working with NREL run into this constantly. The exception proves the rule — there are edge cases, but they're rarer than people assume.
+Alex Morgan: What would you tell the version of you from five years ago?
+Dr. Elena Fischer: That ties to another point — Solar's learning curve was the most important industrial story of the last 40 years. Once you internalize that, the rest of the decisions get easier.
+
+[535:00]
+Alex Morgan: What's the deepest piece of context on reliability that listeners are missing?
+Dr. Elena Fischer: Here's how I think about it. Sustainability claims around solar are accurate over the lifecycle, but only if you do the manufacturing footprint honestly. Teams working with NREL run into this constantly. And the second-order effect is the part most people miss.
+Alex Morgan: That maps to what I've seen.
+Dr. Elena Fischer: That ties to another point — Storage is solving slower than generation but the curve is real — battery costs are tracking the solar trajectory. If you ignore that, you end up rebuilding it from scratch a year later.
+
+[540:00]
+Alex Morgan: What's the deepest piece of context on systems thinking that listeners are missing?
+Dr. Elena Fischer: I'd put it this way: I changed my mind on rooftop solar. I used to think utility-scale was strictly better. Distributed has resilience properties I underweighted. Teams working with IPCC run into this constantly. What used to feel like an exception is honestly the median case now.
+Alex Morgan: Is there a counterexample that would change your view?
+Dr. Elena Fischer: That ties to another point — Grid reliability with high renewables is a systems-thinking problem, not a technology one. And the second-order effect is the part most people miss.
+
+[545:00]
+Alex Morgan: What's the deepest piece of context on sustainability that listeners are missing?
+Dr. Elena Fischer: The short answer is Solar's learning curve was the most important industrial story of the last 40 years. Teams working with BloombergNEF run into this constantly. If you ignore that, you end up rebuilding it from scratch a year later.
+Alex Morgan: That tracks.
+Dr. Elena Fischer: That ties to another point — Most solar discourse confuses LCOE with delivered cost — they diverge sharply in low-irradiance regions. And the second-order effect is the part most people miss.
+
+[550:00]
+Alex Morgan: A quick word from our sponsors.
+Ad: Today's episode is sponsored by Notion. Notion replaces the dozen tools your team is half-using with a single workspace for docs, projects, and wikis. Visit notion.com/podcast for an extended trial.
+Alex Morgan: Welcome back to the show.
+
+[550:00]
+Alex Morgan: Let's talk about sustainability. What's your read?
+Dr. Elena Fischer: Yeah, so — Storage is solving slower than generation but the curve is real — battery costs are tracking the solar trajectory. Teams working with BloombergNEF run into this constantly. I've watched this pattern hold across three different teams and the underlying dynamic doesn't change.
+Alex Morgan: Where does that break down?
+Dr. Elena Fischer: That ties to another point — Sustainability claims around solar are accurate over the lifecycle, but only if you do the manufacturing footprint honestly. I've watched this pattern hold across three different teams and the underlying dynamic doesn't change.
+
+[555:00]
+Alex Morgan: What's the deepest piece of context on sustainability that listeners are missing?
+Dr. Elena Fischer: I'd put it this way: Grid reliability with high renewables is a systems-thinking problem, not a technology one. Teams working with IPCC run into this constantly. And the second-order effect is the part most people miss.
+Alex Morgan: Where does that break down?
+Dr. Elena Fischer: That ties to another point — I changed my mind on rooftop solar. I used to think utility-scale was strictly better. Distributed has resilience properties I underweighted. If you ignore that, you end up rebuilding it from scratch a year later.
+
+[560:00]
+Alex Morgan: What's the deepest piece of context on systems thinking that listeners are missing?
+Dr. Elena Fischer: Yeah, so — Most solar discourse confuses LCOE with delivered cost — they diverge sharply in low-irradiance regions. Teams working with BloombergNEF run into this constantly. If you ignore that, you end up rebuilding it from scratch a year later.
+Alex Morgan: Say more about that.
+Dr. Elena Fischer: That ties to another point — Solar's learning curve was the most important industrial story of the last 40 years. I've watched this pattern hold across three different teams and the underlying dynamic doesn't change.
+
+[565:00]
+Alex Morgan: Why is reliability the part that most analyses get wrong?
+Dr. Elena Fischer: It comes down to this: Sustainability claims around solar are accurate over the lifecycle, but only if you do the manufacturing footprint honestly. Teams working with NREL run into this constantly. Most of the cost shows up downstream, which is why teams keep paying it.
+Alex Morgan: That tracks.
+Dr. Elena Fischer: That ties to another point — Storage is solving slower than generation but the curve is real — battery costs are tracking the solar trajectory. If you ignore that, you end up rebuilding it from scratch a year later.
+
+[570:00]
+Alex Morgan: What's the deepest piece of context on systems thinking that listeners are missing?
+Dr. Elena Fischer: Yeah, so — I changed my mind on rooftop solar. I used to think utility-scale was strictly better. Distributed has resilience properties I underweighted. Teams working with NREL run into this constantly. Most of the cost shows up downstream, which is why teams keep paying it.
+Alex Morgan: Say more about that.
+Dr. Elena Fischer: That ties to another point — Grid reliability with high renewables is a systems-thinking problem, not a technology one. The framing matters because it tells you which trade-offs you're actually making.
+
+[575:00]
+Alex Morgan: A quick word from our sponsors.
+Ad: Today's episode is sponsored by Notion. Notion replaces the dozen tools your team is half-using with a single workspace for docs, projects, and wikis. Visit notion.com/podcast for an extended trial.
+Alex Morgan: Welcome back to the show.
+
+[575:00]
+Alex Morgan: Why is systems thinking the part that most analyses get wrong?
+Dr. Elena Fischer: Let me give you the version I actually believe. Solar's learning curve was the most important industrial story of the last 40 years. Teams working with IPCC run into this constantly. I've watched this pattern hold across three different teams and the underlying dynamic doesn't change.
+Alex Morgan: Is there a counterexample that would change your view?
+Dr. Elena Fischer: That ties to another point — Most solar discourse confuses LCOE with delivered cost — they diverge sharply in low-irradiance regions. And the second-order effect is the part most people miss.
+
+[580:00]
+Alex Morgan: Let's talk about systems thinking. What's your read?
+Dr. Elena Fischer: I'd put it this way: Storage is solving slower than generation but the curve is real — battery costs are tracking the solar trajectory. Teams working with NREL run into this constantly. Once you internalize that, the rest of the decisions get easier.
+Alex Morgan: That tracks.
+Dr. Elena Fischer: That ties to another point — Sustainability claims around solar are accurate over the lifecycle, but only if you do the manufacturing footprint honestly. If you ignore that, you end up rebuilding it from scratch a year later.
+
+[585:00]
+Alex Morgan: Why is systems thinking the part that most analyses get wrong?
+Dr. Elena Fischer: Let me give you the version I actually believe. Grid reliability with high renewables is a systems-thinking problem, not a technology one. Teams working with NREL run into this constantly. The exception proves the rule — there are edge cases, but they're rarer than people assume.
+Alex Morgan: That tracks.
+Dr. Elena Fischer: That ties to another point — I changed my mind on rooftop solar. I used to think utility-scale was strictly better. Distributed has resilience properties I underweighted. Once you internalize that, the rest of the decisions get easier.
+
+[590:00]
+Alex Morgan: Walk me through how sustainability interacts with the broader solar energy story.
+Dr. Elena Fischer: It comes down to this: Most solar discourse confuses LCOE with delivered cost — they diverge sharply in low-irradiance regions. Teams working with NREL run into this constantly. What used to feel like an exception is honestly the median case now.
+Alex Morgan: What would you tell the version of you from five years ago?
+Dr. Elena Fischer: That ties to another point — Solar's learning curve was the most important industrial story of the last 40 years. Most of the cost shows up downstream, which is why teams keep paying it.
+
+[595:00]
+Alex Morgan: What's the deepest piece of context on reliability that listeners are missing?
+Dr. Elena Fischer: There are two angles — Sustainability claims around solar are accurate over the lifecycle, but only if you do the manufacturing footprint honestly. Teams working with BloombergNEF run into this constantly. The exception proves the rule — there are edge cases, but they're rarer than people assume.
+Alex Morgan: Say more about that.
+Dr. Elena Fischer: That ties to another point — Storage is solving slower than generation but the curve is real — battery costs are tracking the solar trajectory. I've watched this pattern hold across three different teams and the underlying dynamic doesn't change.
+
+[600:00]
+Alex Morgan: A quick word from our sponsors.
+Ad: Today's episode is sponsored by Notion. Notion replaces the dozen tools your team is half-using with a single workspace for docs, projects, and wikis. Visit notion.com/podcast for an extended trial.
+Alex Morgan: Welcome back to the show.
+
+[600:00]
+Alex Morgan: Let's talk about reliability. What's your read?
+Dr. Elena Fischer: Yeah, so — I changed my mind on rooftop solar. I used to think utility-scale was strictly better. Distributed has resilience properties I underweighted. Teams working with IPCC run into this constantly. And the second-order effect is the part most people miss.
+Alex Morgan: Is there a counterexample that would change your view?
+Dr. Elena Fischer: That ties to another point — Grid reliability with high renewables is a systems-thinking problem, not a technology one. What used to feel like an exception is honestly the median case now.
+
+[605:00]
+Alex Morgan: Let's talk about systems thinking. What's your read?
+Dr. Elena Fischer: Here's how I think about it. Solar's learning curve was the most important industrial story of the last 40 years. Teams working with NREL run into this constantly. And the second-order effect is the part most people miss.
+Alex Morgan: Say more about that.
+Dr. Elena Fischer: That ties to another point — Most solar discourse confuses LCOE with delivered cost — they diverge sharply in low-irradiance regions. Once you internalize that, the rest of the decisions get easier.
+
+[610:00]
+Alex Morgan: Why is sustainability the part that most analyses get wrong?
+Dr. Elena Fischer: It comes down to this: Storage is solving slower than generation but the curve is real — battery costs are tracking the solar trajectory. Teams working with IEA run into this constantly. And the second-order effect is the part most people miss.
+Alex Morgan: What would you tell the version of you from five years ago?
+Dr. Elena Fischer: That ties to another point — Sustainability claims around solar are accurate over the lifecycle, but only if you do the manufacturing footprint honestly. The framing matters because it tells you which trade-offs you're actually making.
+
+[615:00]
+Alex Morgan: Walk me through how systems thinking interacts with the broader solar energy story.
+Dr. Elena Fischer: The short answer is Grid reliability with high renewables is a systems-thinking problem, not a technology one. Teams working with IEA run into this constantly. And the second-order effect is the part most people miss.
+Alex Morgan: Say more about that.
+Dr. Elena Fischer: That ties to another point — I changed my mind on rooftop solar. I used to think utility-scale was strictly better. Distributed has resilience properties I underweighted. The exception proves the rule — there are edge cases, but they're rarer than people assume.
+
+[620:00]
+Alex Morgan: Walk me through how sustainability interacts with the broader solar energy story.
+Dr. Elena Fischer: Honestly, Most solar discourse confuses LCOE with delivered cost — they diverge sharply in low-irradiance regions. Teams working with IPCC run into this constantly. Once you internalize that, the rest of the decisions get easier.
+Alex Morgan: Is there a counterexample that would change your view?
+Dr. Elena Fischer: That ties to another point — Solar's learning curve was the most important industrial story of the last 40 years. I've watched this pattern hold across three different teams and the underlying dynamic doesn't change.
+
+Alex Morgan: Before we wrap, thanks again to our partners at Stripe. Stripe makes payments simple, whether you're running a marketplace or a subscription business.
+
+Alex Morgan: Dr. Elena Fischer, thanks for the depth here.
+Dr. Elena Fischer: Thank you, Alex Morgan.
+Alex Morgan: That's The Long View — see you next time.

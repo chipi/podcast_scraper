@@ -1,0 +1,1632 @@
+{
+  "aggregate": {
+    "cross_podcast_proper_noun_count": 38,
+    "cross_podcast_proper_noun_samples": {
+      "Check": [
+        "p01",
+        "p02",
+        "p03",
+        "p04",
+        "p05"
+      ],
+      "Excited": [
+        "p01",
+        "p02",
+        "p03",
+        "p04",
+        "p05"
+      ],
+      "Get": [
+        "p01",
+        "p02",
+        "p04",
+        "p07",
+        "p08",
+        "p09"
+      ],
+      "Great": [
+        "p01",
+        "p02",
+        "p03",
+        "p04",
+        "p05"
+      ],
+      "Here": [
+        "p01",
+        "p02",
+        "p03",
+        "p04",
+        "p05",
+        "p07",
+        "p08",
+        "p09"
+      ],
+      "Honestly": [
+        "p01",
+        "p02",
+        "p03",
+        "p04",
+        "p05",
+        "p07",
+        "p08",
+        "p09"
+      ],
+      "Linear": [
+        "p01",
+        "p02",
+        "p07",
+        "p08",
+        "p09"
+      ],
+      "Maya": [
+        "p01",
+        "p06"
+      ],
+      "Once": [
+        "p01",
+        "p02",
+        "p03",
+        "p04",
+        "p05",
+        "p07",
+        "p08",
+        "p09"
+      ],
+      "Outside": [
+        "p01",
+        "p02",
+        "p03",
+        "p04",
+        "p05"
+      ],
+      "Pick": [
+        "p01",
+        "p02",
+        "p03",
+        "p04",
+        "p05"
+      ],
+      "Say": [
+        "p01",
+        "p02",
+        "p03",
+        "p04",
+        "p05",
+        "p07",
+        "p08",
+        "p09"
+      ],
+      "See": [
+        "p01",
+        "p02",
+        "p03",
+        "p04",
+        "p05"
+      ],
+      "Stripe": [
+        "p01",
+        "p04",
+        "p05",
+        "p07",
+        "p08",
+        "p09"
+      ],
+      "Take": [
+        "p01",
+        "p02",
+        "p03",
+        "p04",
+        "p05"
+      ],
+      "There": [
+        "p01",
+        "p02",
+        "p03",
+        "p04",
+        "p05",
+        "p07",
+        "p08",
+        "p09"
+      ],
+      "Use": [
+        "p01",
+        "p02",
+        "p03",
+        "p04",
+        "p05"
+      ],
+      "Walk": [
+        "p01",
+        "p02",
+        "p03",
+        "p04",
+        "p05",
+        "p07",
+        "p08",
+        "p09"
+      ],
+      "Worth": [
+        "p01",
+        "p02",
+        "p05"
+      ],
+      "Yeah": [
+        "p01",
+        "p02",
+        "p03",
+        "p04",
+        "p05",
+        "p07",
+        "p08",
+        "p09"
+      ]
+    },
+    "episode_count": 32,
+    "pipeline_metrics_status": "deferred to Phase 7 (post-pipeline rerun on v2)",
+    "podcast_count": 9,
+    "recurrence_per_podcast": {
+      "p01": {
+        "episodes": [
+          "p01_e01",
+          "p01_e01_fast",
+          "p01_e02",
+          "p01_e03",
+          "p01_multi_e01",
+          "p01_multi_e02",
+          "p01_multi_e03",
+          "p01_multi_e04",
+          "p01_multi_e05"
+        ],
+        "recurring_speaker_count": 5,
+        "recurring_speakers": {
+          "Ad": [
+            "p01_e01",
+            "p01_e01_fast",
+            "p01_e02",
+            "p01_e03"
+          ],
+          "Liam": [
+            "p01_e01",
+            "p01_e01_fast",
+            "p01_multi_e01",
+            "p01_multi_e04"
+          ],
+          "Maya": [
+            "p01_e01",
+            "p01_e01_fast",
+            "p01_e02",
+            "p01_e03",
+            "p01_multi_e01",
+            "p01_multi_e02",
+            "p01_multi_e03",
+            "p01_multi_e04",
+            "p01_multi_e05"
+          ],
+          "Noah": [
+            "p01_e03",
+            "p01_multi_e03",
+            "p01_multi_e05"
+          ],
+          "Sophie": [
+            "p01_e02",
+            "p01_multi_e02"
+          ]
+        }
+      },
+      "p02": {
+        "episodes": [
+          "p02_e01",
+          "p02_e02",
+          "p02_e03"
+        ],
+        "recurring_speaker_count": 3,
+        "recurring_speakers": {
+          "Ad": [
+            "p02_e01",
+            "p02_e02",
+            "p02_e03"
+          ],
+          "Ethan": [
+            "p02_e01",
+            "p02_e02",
+            "p02_e03"
+          ],
+          "Priya": [
+            "p02_e01",
+            "p02_e03"
+          ]
+        }
+      },
+      "p03": {
+        "episodes": [
+          "p03_e01",
+          "p03_e02",
+          "p03_e03"
+        ],
+        "recurring_speaker_count": 2,
+        "recurring_speakers": {
+          "Ad": [
+            "p03_e01",
+            "p03_e02",
+            "p03_e03"
+          ],
+          "Rina": [
+            "p03_e01",
+            "p03_e02",
+            "p03_e03"
+          ]
+        }
+      },
+      "p04": {
+        "episodes": [
+          "p04_e01",
+          "p04_e02",
+          "p04_e03"
+        ],
+        "recurring_speaker_count": 2,
+        "recurring_speakers": {
+          "Ad": [
+            "p04_e01",
+            "p04_e02",
+            "p04_e03"
+          ],
+          "Leo": [
+            "p04_e01",
+            "p04_e02",
+            "p04_e03"
+          ]
+        }
+      },
+      "p05": {
+        "episodes": [
+          "p05_e01",
+          "p05_e02",
+          "p05_e03"
+        ],
+        "recurring_speaker_count": 2,
+        "recurring_speakers": {
+          "Ad": [
+            "p05_e01",
+            "p05_e02",
+            "p05_e03"
+          ],
+          "Nora": [
+            "p05_e01",
+            "p05_e02",
+            "p05_e03"
+          ]
+        }
+      },
+      "p06": {
+        "episodes": [
+          "p06_e01",
+          "p06_e02",
+          "p06_e03",
+          "p06_e04",
+          "p06_e05",
+          "p06_e06"
+        ],
+        "recurring_speaker_count": 2,
+        "recurring_speakers": {
+          "Liam": [
+            "p06_e02",
+            "p06_e06"
+          ],
+          "Maya": [
+            "p06_e01",
+            "p06_e02",
+            "p06_e03",
+            "p06_e04",
+            "p06_e05",
+            "p06_e06"
+          ]
+        }
+      },
+      "p07": {
+        "episodes": [
+          "p07_e01"
+        ],
+        "recurring_speaker_count": 0,
+        "recurring_speakers": {}
+      },
+      "p08": {
+        "episodes": [
+          "p08_e01"
+        ],
+        "recurring_speaker_count": 0,
+        "recurring_speakers": {}
+      },
+      "p09": {
+        "episodes": [
+          "p09_e01",
+          "p09_e02",
+          "p09_e03"
+        ],
+        "recurring_speaker_count": 2,
+        "recurring_speakers": {
+          "Ad": [
+            "p09_e01",
+            "p09_e02",
+            "p09_e03"
+          ],
+          "Alex Morgan": [
+            "p09_e01",
+            "p09_e02",
+            "p09_e03"
+          ]
+        }
+      }
+    },
+    "sponsor_pattern_hits_per_episode_mean": 15.88,
+    "sponsor_pattern_hits_total": 508,
+    "type_token_ratio": {
+      "mean": 0.4088,
+      "median": 0.2469
+    },
+    "words_per_episode": {
+      "max": 13789,
+      "mean": 2006.4,
+      "median": 1380,
+      "min": 24
+    }
+  },
+  "episodes": [
+    {
+      "body_words": 1417,
+      "path": "tests/fixtures/transcripts/v2/p01_e01.txt",
+      "proper_nouns": {
+        "Alliance": 5,
+        "Bench": 3,
+        "Cascadia": 5,
+        "Check": 1,
+        "Done": 3,
+        "Drainage": 3,
+        "Excited": 1,
+        "Here": 1,
+        "Honestly": 4,
+        "Land": 3,
+        "Liam": 4,
+        "Linear": 2,
+        "Maya": 3,
+        "Once": 1,
+        "Otherwise": 3,
+        "Outside": 3,
+        "Pick": 1,
+        "Say": 1,
+        "See": 1,
+        "Sessions": 2,
+        "Shimano": 5,
+        "Singletrack": 2,
+        "Soil": 3,
+        "Spoke": 4,
+        "Strava": 2,
+        "Stripe": 2,
+        "There": 2,
+        "Use": 2,
+        "Walk": 4,
+        "Wrench": 4,
+        "Yeah": 3
+      },
+      "speakers": {
+        "Ad": 1,
+        "Liam": 28,
+        "Maya": 33
+      },
+      "sponsor_pattern_hits": 8,
+      "sponsor_pattern_hits_by_pattern": {
+        "(?:a )?(?:quick )?(?:word|message|shout.?out) from (?:our|today'?s) sponsor": 2,
+        "(?:now )?(?:back to|let'?s get back to|returning to) (?:the|our)": 1,
+        "(?:visit|go to|head to|check out) \\S+\\.com(?:/\\S+)?": 1,
+        "(?:welcome back to (?:the|our) (?:show|episode|podcast)|we'?re back(?: to the show)?|okay,? so)": 1,
+        "before we (?:continue|get back|go on|dive in)": 1,
+        "use (?:code|promo|coupon) [A-Z0-9]+": 2
+      },
+      "type_token_ratio": 0.247,
+      "unique_proper_nouns": 31,
+      "unique_speakers": 3
+    },
+    {
+      "body_words": 1070,
+      "path": "tests/fixtures/transcripts/v2/p01_e01_fast.txt",
+      "proper_nouns": {
+        "Alliance": 2,
+        "Bench": 2,
+        "Cascadia": 2,
+        "Done": 2,
+        "Drainage": 3,
+        "Excited": 1,
+        "Here": 1,
+        "Honestly": 4,
+        "Land": 2,
+        "Liam": 3,
+        "Maya": 2,
+        "Once": 1,
+        "Otherwise": 2,
+        "Outside": 1,
+        "Say": 1,
+        "See": 1,
+        "Sessions": 2,
+        "Shimano": 4,
+        "Singletrack": 2,
+        "Soil": 2,
+        "Spoke": 4,
+        "Strava": 2,
+        "Stripe": 2,
+        "There": 1,
+        "Use": 2,
+        "Walk": 4,
+        "Wrench": 4,
+        "Yeah": 2
+      },
+      "speakers": {
+        "Ad": 1,
+        "Liam": 20,
+        "Maya": 24
+      },
+      "sponsor_pattern_hits": 7,
+      "sponsor_pattern_hits_by_pattern": {
+        "(?:a )?(?:quick )?(?:word|message|shout.?out) from (?:our|today'?s) sponsor": 2,
+        "(?:now )?(?:back to|let'?s get back to|returning to) (?:the|our)": 1,
+        "(?:welcome back to (?:the|our) (?:show|episode|podcast)|we'?re back(?: to the show)?|okay,? so)": 1,
+        "before we (?:continue|get back|go on|dive in)": 1,
+        "use (?:code|promo|coupon) [A-Z0-9]+": 2
+      },
+      "type_token_ratio": 0.2981,
+      "unique_proper_nouns": 28,
+      "unique_speakers": 3
+    },
+    {
+      "body_words": 1423,
+      "path": "tests/fixtures/transcripts/v2/p01_e02.txt",
+      "proper_nouns": {
+        "Alliance": 7,
+        "Cascadia": 7,
+        "Check": 1,
+        "Erosion": 3,
+        "Get": 1,
+        "Great": 1,
+        "Here": 2,
+        "Honestly": 3,
+        "Liam": 1,
+        "Linear": 2,
+        "Maya": 3,
+        "Notion": 2,
+        "Once": 3,
+        "Outside": 1,
+        "Pick": 1,
+        "Risk": 3,
+        "Say": 2,
+        "See": 1,
+        "Sessions": 2,
+        "Shimano": 3,
+        "Singletrack": 2,
+        "Sophie": 4,
+        "Speed": 3,
+        "Spoke": 3,
+        "Take": 3,
+        "There": 4,
+        "Tire": 3,
+        "Vanta": 2,
+        "Visit": 1,
+        "Walk": 3,
+        "Worth": 1,
+        "Wrench": 3,
+        "Yeah": 1
+      },
+      "speakers": {
+        "Ad": 1,
+        "Maya": 35,
+        "Sophie": 30
+      },
+      "sponsor_pattern_hits": 8,
+      "sponsor_pattern_hits_by_pattern": {
+        "(?:a )?(?:quick )?(?:word|message|shout.?out) from (?:our|today'?s) sponsor": 1,
+        "(?:free trial|sign up|get started) (?:at|today)": 1,
+        "(?:now )?(?:back to|let'?s get back to|returning to) (?:the|our)": 1,
+        "(?:visit|go to|head to|check out) \\S+\\.com(?:/\\S+)?": 2,
+        "(?:welcome back to (?:the|our) (?:show|episode|podcast)|we'?re back(?: to the show)?|okay,? so)": 1,
+        "this episode is (?:brought to you|sponsored|powered) by": 1,
+        "today'?s (?:episode|show|podcast) is (?:brought|sponsored|supported)": 1
+      },
+      "type_token_ratio": 0.2495,
+      "unique_proper_nouns": 33,
+      "unique_speakers": 3
+    },
+    {
+      "body_words": 1432,
+      "path": "tests/fixtures/transcripts/v2/p01_e03.txt",
+      "proper_nouns": {
+        "Alliance": 3,
+        "Cascadia": 3,
+        "Chain": 3,
+        "Great": 1,
+        "Here": 5,
+        "Honestly": 2,
+        "Maya": 3,
+        "Noah": 4,
+        "Notion": 2,
+        "Once": 3,
+        "Outside": 2,
+        "Pick": 1,
+        "Push": 1,
+        "Say": 1,
+        "See": 1,
+        "Sessions": 2,
+        "Shimano": 8,
+        "Shopify": 2,
+        "Singletrack": 2,
+        "Sophie": 1,
+        "Spoke": 4,
+        "Stripe": 2,
+        "Suspension": 3,
+        "There": 2,
+        "Use": 1,
+        "Visit": 1,
+        "Walk": 2,
+        "Wrench": 4,
+        "Yeah": 3
+      },
+      "speakers": {
+        "Ad": 1,
+        "Maya": 34,
+        "Noah": 29
+      },
+      "sponsor_pattern_hits": 9,
+      "sponsor_pattern_hits_by_pattern": {
+        "(?:a )?(?:quick )?(?:word|message|shout.?out) from (?:our|today'?s) sponsor": 2,
+        "(?:now )?(?:back to|let'?s get back to|returning to) (?:the|our)": 1,
+        "(?:visit|go to|head to|check out) \\S+\\.com(?:/\\S+)?": 1,
+        "(?:welcome back to (?:the|our) (?:show|episode|podcast)|we'?re back(?: to the show)?|okay,? so)": 1,
+        "before we (?:continue|get back|go on|dive in)": 1,
+        "thanks (?:again )?to (?:our )?(?:friends|partners|sponsor)": 1,
+        "today'?s (?:episode|show|podcast) is (?:brought|sponsored|supported)": 1,
+        "use (?:code|promo|coupon) [A-Z0-9]+": 1
+      },
+      "type_token_ratio": 0.2486,
+      "unique_proper_nouns": 29,
+      "unique_speakers": 3
+    },
+    {
+      "body_words": 29,
+      "path": "tests/fixtures/transcripts/v2/p01_multi_e01.txt",
+      "proper_nouns": {
+        "Maya": 1,
+        "See": 1,
+        "Sessions": 2,
+        "Singletrack": 2
+      },
+      "speakers": {
+        "Liam": 1,
+        "Maya": 2
+      },
+      "sponsor_pattern_hits": 0,
+      "sponsor_pattern_hits_by_pattern": {},
+      "type_token_ratio": 0.8966,
+      "unique_proper_nouns": 4,
+      "unique_speakers": 2
+    },
+    {
+      "body_words": 27,
+      "path": "tests/fixtures/transcripts/v2/p01_multi_e02.txt",
+      "proper_nouns": {
+        "See": 1,
+        "Sessions": 2,
+        "Singletrack": 2
+      },
+      "speakers": {
+        "Maya": 2,
+        "Sophie": 1
+      },
+      "sponsor_pattern_hits": 0,
+      "sponsor_pattern_hits_by_pattern": {},
+      "type_token_ratio": 0.8519,
+      "unique_proper_nouns": 3,
+      "unique_speakers": 2
+    },
+    {
+      "body_words": 26,
+      "path": "tests/fixtures/transcripts/v2/p01_multi_e03.txt",
+      "proper_nouns": {
+        "Glad": 1,
+        "See": 1,
+        "Sessions": 2,
+        "Singletrack": 2
+      },
+      "speakers": {
+        "Maya": 2,
+        "Noah": 1
+      },
+      "sponsor_pattern_hits": 0,
+      "sponsor_pattern_hits_by_pattern": {},
+      "type_token_ratio": 0.8846,
+      "unique_proper_nouns": 4,
+      "unique_speakers": 2
+    },
+    {
+      "body_words": 26,
+      "path": "tests/fixtures/transcripts/v2/p01_multi_e04.txt",
+      "proper_nouns": {
+        "Always": 1,
+        "Land": 1,
+        "See": 1,
+        "Sessions": 2,
+        "Singletrack": 2
+      },
+      "speakers": {
+        "Liam": 1,
+        "Maya": 2
+      },
+      "sponsor_pattern_hits": 0,
+      "sponsor_pattern_hits_by_pattern": {},
+      "type_token_ratio": 0.8846,
+      "unique_proper_nouns": 5,
+      "unique_speakers": 2
+    },
+    {
+      "body_words": 24,
+      "path": "tests/fixtures/transcripts/v2/p01_multi_e05.txt",
+      "proper_nouns": {
+        "Looking": 1,
+        "See": 1,
+        "Sessions": 2,
+        "Singletrack": 2,
+        "Suspension": 1
+      },
+      "speakers": {
+        "Maya": 2,
+        "Noah": 1
+      },
+      "sponsor_pattern_hits": 0,
+      "sponsor_pattern_hits_by_pattern": {},
+      "type_token_ratio": 0.8333,
+      "unique_proper_nouns": 5,
+      "unique_speakers": 2
+    },
+    {
+      "body_words": 1461,
+      "path": "tests/fixtures/transcripts/v2/p02_e01.txt",
+      "proper_nouns": {
+        "Alerting": 3,
+        "Check": 1,
+        "Datadog": 3,
+        "Error": 3,
+        "Ethan": 3,
+        "Excited": 1,
+        "Get": 1,
+        "Healthy": 3,
+        "Honestly": 2,
+        "Linear": 5,
+        "Notion": 3,
+        "Once": 2,
+        "Outside": 1,
+        "Pick": 1,
+        "Practical": 2,
+        "Priya": 4,
+        "Push": 2,
+        "See": 1,
+        "Sentry": 5,
+        "Systems": 2,
+        "There": 2,
+        "Use": 1,
+        "Walk": 3,
+        "Yeah": 2
+      },
+      "speakers": {
+        "Ad": 1,
+        "Ethan": 33,
+        "Priya": 28
+      },
+      "sponsor_pattern_hits": 7,
+      "sponsor_pattern_hits_by_pattern": {
+        "(?:a )?(?:quick )?(?:word|message|shout.?out) from (?:our|today'?s) sponsor": 1,
+        "(?:free trial|sign up|get started) (?:at|today)": 1,
+        "(?:now )?(?:back to|let'?s get back to|returning to) (?:the|our)": 1,
+        "(?:visit|go to|head to|check out) \\S+\\.com(?:/\\S+)?": 1,
+        "(?:welcome back to (?:the|our) (?:show|episode|podcast)|we'?re back(?: to the show)?|okay,? so)": 1,
+        "this episode is (?:brought to you|sponsored|powered) by": 1,
+        "use (?:code|promo|coupon) [A-Z0-9]+": 1
+      },
+      "type_token_ratio": 0.2334,
+      "unique_proper_nouns": 24,
+      "unique_speakers": 3
+    },
+    {
+      "body_words": 1385,
+      "path": "tests/fixtures/transcripts/v2/p02_e02.txt",
+      "proper_nouns": {
+        "Architecture": 3,
+        "Datadog": 7,
+        "Ethan": 3,
+        "Great": 1,
+        "Here": 1,
+        "Honestly": 2,
+        "Jonas": 4,
+        "Linear": 4,
+        "Notion": 10,
+        "Once": 6,
+        "Outside": 1,
+        "Pick": 1,
+        "Postmortems": 3,
+        "Practical": 2,
+        "Priya": 1,
+        "Push": 3,
+        "Risk": 3,
+        "Say": 1,
+        "See": 1,
+        "Sentry": 2,
+        "Systems": 2,
+        "Take": 1,
+        "There": 2,
+        "Use": 2,
+        "Walk": 4,
+        "Writing": 3,
+        "Yeah": 5
+      },
+      "speakers": {
+        "Ad": 1,
+        "Ethan": 34,
+        "Jonas": 29
+      },
+      "sponsor_pattern_hits": 8,
+      "sponsor_pattern_hits_by_pattern": {
+        "(?:a )?(?:quick )?(?:word|message|shout.?out) from (?:our|today'?s) sponsor": 2,
+        "(?:now )?(?:back to|let'?s get back to|returning to) (?:the|our)": 1,
+        "(?:welcome back to (?:the|our) (?:show|episode|podcast)|we'?re back(?: to the show)?|okay,? so)": 1,
+        "before we (?:continue|get back|go on|dive in)": 1,
+        "thanks (?:again )?to (?:our )?(?:friends|partners|sponsor)": 1,
+        "use (?:code|promo|coupon) [A-Z0-9]+": 2
+      },
+      "type_token_ratio": 0.2556,
+      "unique_proper_nouns": 27,
+      "unique_speakers": 3
+    },
+    {
+      "body_words": 1522,
+      "path": "tests/fixtures/transcripts/v2/p02_e03.txt",
+      "proper_nouns": {
+        "Authn": 3,
+        "Check": 1,
+        "Datadog": 6,
+        "Ethan": 3,
+        "Great": 1,
+        "Here": 3,
+        "Honestly": 3,
+        "Linear": 6,
+        "Notion": 3,
+        "Once": 1,
+        "Outside": 1,
+        "Pick": 1,
+        "Practical": 2,
+        "Priya": 4,
+        "Push": 1,
+        "Secrets": 3,
+        "Security": 3,
+        "See": 1,
+        "Sentry": 4,
+        "Systems": 2,
+        "There": 1,
+        "Threat": 3,
+        "Use": 1,
+        "Vanta": 5,
+        "Visit": 1,
+        "Worth": 1,
+        "Yeah": 4
+      },
+      "speakers": {
+        "Ad": 1,
+        "Ethan": 35,
+        "Priya": 30
+      },
+      "sponsor_pattern_hits": 9,
+      "sponsor_pattern_hits_by_pattern": {
+        "(?:a )?(?:quick )?(?:word|message|shout.?out) from (?:our|today'?s) sponsor": 2,
+        "(?:now )?(?:back to|let'?s get back to|returning to) (?:the|our)": 1,
+        "(?:visit|go to|head to|check out) \\S+\\.com(?:/\\S+)?": 2,
+        "(?:welcome back to (?:the|our) (?:show|episode|podcast)|we'?re back(?: to the show)?|okay,? so)": 1,
+        "before we (?:continue|get back|go on|dive in)": 1,
+        "today'?s (?:episode|show|podcast) is (?:brought|sponsored|supported)": 1,
+        "use (?:code|promo|coupon) [A-Z0-9]+": 1
+      },
+      "type_token_ratio": 0.2418,
+      "unique_proper_nouns": 27,
+      "unique_speakers": 3
+    },
+    {
+      "body_words": 1339,
+      "path": "tests/fixtures/transcripts/v2/p03_e01.txt",
+      "proper_nouns": {
+        "Below": 2,
+        "Erosion": 3,
+        "Excited": 1,
+        "Here": 2,
+        "Honestly": 3,
+        "Marco": 4,
+        "Once": 2,
+        "Outside": 2,
+        "Pick": 1,
+        "Push": 1,
+        "Rina": 3,
+        "Say": 1,
+        "See": 1,
+        "Silt": 3,
+        "Surface": 2,
+        "Suunto": 10,
+        "Take": 3,
+        "There": 3,
+        "Try": 1,
+        "Visit": 1,
+        "Walk": 2,
+        "Wreck": 3,
+        "Yeah": 2
+      },
+      "speakers": {
+        "Ad": 1,
+        "Marco": 28,
+        "Rina": 33
+      },
+      "sponsor_pattern_hits": 7,
+      "sponsor_pattern_hits_by_pattern": {
+        "(?:a )?(?:quick )?(?:word|message|shout.?out) from (?:our|today'?s) sponsor": 1,
+        "(?:now )?(?:back to|let'?s get back to|returning to) (?:the|our)": 1,
+        "(?:visit|go to|head to|check out) \\S+\\.com(?:/\\S+)?": 1,
+        "(?:welcome back to (?:the|our) (?:show|episode|podcast)|we'?re back(?: to the show)?|okay,? so)": 1,
+        "thanks (?:again )?to (?:our )?(?:friends|partners|sponsor)": 1,
+        "today'?s (?:episode|show|podcast) is (?:brought|sponsored|supported)": 2
+      },
+      "type_token_ratio": 0.2457,
+      "unique_proper_nouns": 23,
+      "unique_speakers": 3
+    },
+    {
+      "body_words": 1458,
+      "path": "tests/fixtures/transcripts/v2/p03_e02.txt",
+      "proper_nouns": {
+        "Below": 2,
+        "Check": 1,
+        "Coral": 3,
+        "Erosion": 3,
+        "Great": 1,
+        "Hanna": 4,
+        "Here": 2,
+        "Honestly": 2,
+        "Marco": 1,
+        "Once": 2,
+        "Outside": 1,
+        "Pick": 1,
+        "Project": 3,
+        "Push": 2,
+        "Rina": 3,
+        "Say": 1,
+        "See": 1,
+        "Surface": 2,
+        "Suunto": 9,
+        "There": 2,
+        "Try": 1,
+        "Visit": 1,
+        "Walk": 3,
+        "Yeah": 2
+      },
+      "speakers": {
+        "Ad": 1,
+        "Hanna": 29,
+        "Rina": 34
+      },
+      "sponsor_pattern_hits": 7,
+      "sponsor_pattern_hits_by_pattern": {
+        "(?:a )?(?:quick )?(?:word|message|shout.?out) from (?:our|today'?s) sponsor": 1,
+        "(?:now )?(?:back to|let'?s get back to|returning to) (?:the|our)": 1,
+        "(?:visit|go to|head to|check out) \\S+\\.com(?:/\\S+)?": 2,
+        "(?:welcome back to (?:the|our) (?:show|episode|podcast)|we'?re back(?: to the show)?|okay,? so)": 1,
+        "today'?s (?:episode|show|podcast) is (?:brought|sponsored|supported)": 2
+      },
+      "type_token_ratio": 0.2449,
+      "unique_proper_nouns": 24,
+      "unique_speakers": 3
+    },
+    {
+      "body_words": 1439,
+      "path": "tests/fixtures/transcripts/v2/p03_e03.txt",
+      "proper_nouns": {
+        "Below": 2,
+        "Cave": 3,
+        "Great": 1,
+        "Hanna": 1,
+        "Here": 3,
+        "Honestly": 2,
+        "Once": 2,
+        "Outside": 2,
+        "Owen": 4,
+        "Panic": 3,
+        "Pick": 1,
+        "Push": 3,
+        "Rebreathers": 3,
+        "Rina": 3,
+        "Risk": 3,
+        "Say": 3,
+        "See": 1,
+        "Surface": 2,
+        "Suunto": 13,
+        "There": 2,
+        "Train": 3,
+        "Try": 1,
+        "Use": 1,
+        "Walk": 1,
+        "Yeah": 1
+      },
+      "speakers": {
+        "Ad": 1,
+        "Owen": 29,
+        "Rina": 34
+      },
+      "sponsor_pattern_hits": 6,
+      "sponsor_pattern_hits_by_pattern": {
+        "(?:a )?(?:quick )?(?:word|message|shout.?out) from (?:our|today'?s) sponsor": 1,
+        "(?:now )?(?:back to|let'?s get back to|returning to) (?:the|our)": 1,
+        "(?:welcome back to (?:the|our) (?:show|episode|podcast)|we'?re back(?: to the show)?|okay,? so)": 1,
+        "thanks (?:again )?to (?:our )?(?:friends|partners|sponsor)": 1,
+        "today'?s (?:episode|show|podcast) is (?:brought|sponsored|supported)": 1,
+        "use (?:code|promo|coupon) [A-Z0-9]+": 1
+      },
+      "type_token_ratio": 0.2467,
+      "unique_proper_nouns": 25,
+      "unique_speakers": 3
+    },
+    {
+      "body_words": 1374,
+      "path": "tests/fixtures/transcripts/v2/p04_e01.txt",
+      "proper_nouns": {
+        "Adobe": 7,
+        "Ava": 4,
+        "Capture": 8,
+        "Cloud": 1,
+        "Creative": 1,
+        "Design": 8,
+        "Excited": 1,
+        "Frame": 2,
+        "Get": 1,
+        "Here": 3,
+        "Honestly": 2,
+        "Leo": 3,
+        "Light": 2,
+        "Lightroom": 4,
+        "Once": 2,
+        "Outside": 2,
+        "Peak": 8,
+        "Photoshop": 1,
+        "Pick": 1,
+        "Premiere": 1,
+        "Profoto": 3,
+        "Push": 2,
+        "Read": 3,
+        "Say": 1,
+        "See": 1,
+        "Squarespace": 2,
+        "Strobe": 3,
+        "Take": 3,
+        "There": 2,
+        "Use": 1,
+        "Walk": 1,
+        "Yeah": 3
+      },
+      "speakers": {
+        "Ad": 1,
+        "Ava": 28,
+        "Leo": 33
+      },
+      "sponsor_pattern_hits": 7,
+      "sponsor_pattern_hits_by_pattern": {
+        "(?:a )?(?:quick )?(?:word|message|shout.?out) from (?:our|today'?s) sponsor": 1,
+        "(?:free trial|sign up|get started) (?:at|today)": 1,
+        "(?:now )?(?:back to|let'?s get back to|returning to) (?:the|our)": 1,
+        "(?:welcome back to (?:the|our) (?:show|episode|podcast)|we'?re back(?: to the show)?|okay,? so)": 1,
+        "thanks (?:again )?to (?:our )?(?:friends|partners|sponsor)": 1,
+        "this episode is (?:brought to you|sponsored|powered) by": 1,
+        "use (?:code|promo|coupon) [A-Z0-9]+": 1
+      },
+      "type_token_ratio": 0.2402,
+      "unique_proper_nouns": 32,
+      "unique_speakers": 3
+    },
+    {
+      "body_words": 1430,
+      "path": "tests/fixtures/transcripts/v2/p04_e02.txt",
+      "proper_nouns": {
+        "Adobe": 8,
+        "Ava": 1,
+        "Capture": 9,
+        "Cloud": 1,
+        "Creative": 1,
+        "Design": 10,
+        "Documentary": 3,
+        "Editing": 3,
+        "Frame": 2,
+        "Get": 1,
+        "Great": 1,
+        "Here": 1,
+        "Honestly": 3,
+        "Leo": 3,
+        "Light": 2,
+        "Lightroom": 1,
+        "Once": 2,
+        "Peak": 10,
+        "People": 3,
+        "Photoshop": 1,
+        "Pick": 1,
+        "Premiere": 1,
+        "Profoto": 5,
+        "Push": 2,
+        "Say": 1,
+        "See": 1,
+        "Squarespace": 2,
+        "Take": 1,
+        "Tariq": 4,
+        "There": 2,
+        "Use": 1,
+        "Walk": 1,
+        "Yeah": 2
+      },
+      "speakers": {
+        "Ad": 1,
+        "Leo": 34,
+        "Tariq": 29
+      },
+      "sponsor_pattern_hits": 7,
+      "sponsor_pattern_hits_by_pattern": {
+        "(?:a )?(?:quick )?(?:word|message|shout.?out) from (?:our|today'?s) sponsor": 1,
+        "(?:free trial|sign up|get started) (?:at|today)": 1,
+        "(?:now )?(?:back to|let'?s get back to|returning to) (?:the|our)": 1,
+        "(?:welcome back to (?:the|our) (?:show|episode|podcast)|we'?re back(?: to the show)?|okay,? so)": 1,
+        "thanks (?:again )?to (?:our )?(?:friends|partners|sponsor)": 1,
+        "this episode is (?:brought to you|sponsored|powered) by": 1,
+        "use (?:code|promo|coupon) [A-Z0-9]+": 1
+      },
+      "type_token_ratio": 0.2315,
+      "unique_proper_nouns": 33,
+      "unique_speakers": 3
+    },
+    {
+      "body_words": 1376,
+      "path": "tests/fixtures/transcripts/v2/p04_e03.txt",
+      "proper_nouns": {
+        "Adobe": 8,
+        "Capture": 5,
+        "Check": 1,
+        "Cloud": 1,
+        "Color": 3,
+        "Creative": 1,
+        "Design": 5,
+        "Elise": 4,
+        "Frame": 5,
+        "Great": 1,
+        "Here": 2,
+        "Honestly": 4,
+        "Leo": 3,
+        "Light": 2,
+        "Lightroom": 1,
+        "Once": 2,
+        "Outside": 1,
+        "Peak": 5,
+        "Photoshop": 1,
+        "Pick": 1,
+        "Premiere": 7,
+        "Profoto": 8,
+        "Push": 2,
+        "Say": 1,
+        "See": 1,
+        "Stripe": 2,
+        "Strobes": 3,
+        "There": 3,
+        "Use": 2,
+        "Walk": 4
+      },
+      "speakers": {
+        "Ad": 1,
+        "Elise": 28,
+        "Leo": 33
+      },
+      "sponsor_pattern_hits": 8,
+      "sponsor_pattern_hits_by_pattern": {
+        "(?:a )?(?:quick )?(?:word|message|shout.?out) from (?:our|today'?s) sponsor": 2,
+        "(?:now )?(?:back to|let'?s get back to|returning to) (?:the|our)": 1,
+        "(?:visit|go to|head to|check out) \\S+\\.com(?:/\\S+)?": 1,
+        "(?:welcome back to (?:the|our) (?:show|episode|podcast)|we'?re back(?: to the show)?|okay,? so)": 1,
+        "before we (?:continue|get back|go on|dive in)": 1,
+        "use (?:code|promo|coupon) [A-Z0-9]+": 2
+      },
+      "type_token_ratio": 0.2398,
+      "unique_proper_nouns": 30,
+      "unique_speakers": 3
+    },
+    {
+      "body_words": 1366,
+      "path": "tests/fixtures/transcripts/v2/p05_e01.txt",
+      "proper_nouns": {
+        "Daniel": 4,
+        "Excited": 1,
+        "Here": 2,
+        "Honestly": 1,
+        "Horizon": 2,
+        "Index": 3,
+        "Long": 2,
+        "Morningstar": 3,
+        "Nora": 3,
+        "Notes": 2,
+        "Once": 5,
+        "Outside": 1,
+        "Pick": 1,
+        "Push": 1,
+        "Reliability": 3,
+        "Risk": 3,
+        "See": 1,
+        "Stripe": 2,
+        "Systems": 3,
+        "There": 1,
+        "Try": 1,
+        "Vanguard": 12,
+        "Visit": 1,
+        "Walk": 3,
+        "Wealthfront": 7,
+        "Yeah": 2
+      },
+      "speakers": {
+        "Ad": 1,
+        "Daniel": 28,
+        "Nora": 33
+      },
+      "sponsor_pattern_hits": 7,
+      "sponsor_pattern_hits_by_pattern": {
+        "(?:a )?(?:quick )?(?:word|message|shout.?out) from (?:our|today'?s) sponsor": 1,
+        "(?:now )?(?:back to|let'?s get back to|returning to) (?:the|our)": 1,
+        "(?:visit|go to|head to|check out) \\S+\\.com(?:/\\S+)?": 1,
+        "(?:welcome back to (?:the|our) (?:show|episode|podcast)|we'?re back(?: to the show)?|okay,? so)": 1,
+        "thanks (?:again )?to (?:our )?(?:friends|partners|sponsor)": 1,
+        "today'?s (?:episode|show|podcast) is (?:brought|sponsored|supported)": 2
+      },
+      "type_token_ratio": 0.2408,
+      "unique_proper_nouns": 26,
+      "unique_speakers": 3
+    },
+    {
+      "body_words": 1414,
+      "path": "tests/fixtures/transcripts/v2/p05_e02.txt",
+      "proper_nouns": {
+        "Cap": 3,
+        "Check": 1,
+        "Daniel": 1,
+        "Great": 1,
+        "Here": 3,
+        "Honestly": 1,
+        "Horizon": 2,
+        "Isabel": 4,
+        "Long": 2,
+        "Morningstar": 4,
+        "Nora": 3,
+        "Notes": 2,
+        "Once": 3,
+        "Outside": 2,
+        "Pick": 1,
+        "Push": 2,
+        "Real": 3,
+        "Reliability": 3,
+        "Risk": 3,
+        "Say": 2,
+        "See": 1,
+        "Take": 1,
+        "Use": 1,
+        "Vanguard": 4,
+        "Visit": 1,
+        "Walk": 1,
+        "Wealthfront": 9,
+        "Yeah": 3
+      },
+      "speakers": {
+        "Ad": 1,
+        "Isabel": 29,
+        "Nora": 34
+      },
+      "sponsor_pattern_hits": 9,
+      "sponsor_pattern_hits_by_pattern": {
+        "(?:a )?(?:quick )?(?:word|message|shout.?out) from (?:our|today'?s) sponsor": 2,
+        "(?:now )?(?:back to|let'?s get back to|returning to) (?:the|our)": 1,
+        "(?:visit|go to|head to|check out) \\S+\\.com(?:/\\S+)?": 2,
+        "(?:welcome back to (?:the|our) (?:show|episode|podcast)|we'?re back(?: to the show)?|okay,? so)": 1,
+        "before we (?:continue|get back|go on|dive in)": 1,
+        "today'?s (?:episode|show|podcast) is (?:brought|sponsored|supported)": 1,
+        "use (?:code|promo|coupon) [A-Z0-9]+": 1
+      },
+      "type_token_ratio": 0.2482,
+      "unique_proper_nouns": 28,
+      "unique_speakers": 3
+    },
+    {
+      "body_words": 1462,
+      "path": "tests/fixtures/transcripts/v2/p05_e03.txt",
+      "proper_nouns": {
+        "Great": 1,
+        "Here": 3,
+        "Honestly": 1,
+        "Horizon": 2,
+        "Kasper": 4,
+        "Long": 2,
+        "Morningstar": 9,
+        "Nora": 3,
+        "Notes": 2,
+        "Once": 4,
+        "Outside": 3,
+        "Pick": 1,
+        "Push": 3,
+        "Reliability": 3,
+        "Risk": 6,
+        "Say": 1,
+        "See": 1,
+        "There": 1,
+        "Use": 1,
+        "Vanguard": 9,
+        "Visit": 1,
+        "Wealthfront": 5,
+        "Worth": 1,
+        "Yeah": 3
+      },
+      "speakers": {
+        "Ad": 1,
+        "Kasper": 29,
+        "Nora": 34
+      },
+      "sponsor_pattern_hits": 9,
+      "sponsor_pattern_hits_by_pattern": {
+        "(?:a )?(?:quick )?(?:word|message|shout.?out) from (?:our|today'?s) sponsor": 2,
+        "(?:now )?(?:back to|let'?s get back to|returning to) (?:the|our)": 1,
+        "(?:visit|go to|head to|check out) \\S+\\.com(?:/\\S+)?": 1,
+        "(?:welcome back to (?:the|our) (?:show|episode|podcast)|we'?re back(?: to the show)?|okay,? so)": 1,
+        "before we (?:continue|get back|go on|dive in)": 1,
+        "thanks (?:again )?to (?:our )?(?:friends|partners|sponsor)": 1,
+        "today'?s (?:episode|show|podcast) is (?:brought|sponsored|supported)": 1,
+        "use (?:code|promo|coupon) [A-Z0-9]+": 1
+      },
+      "type_token_ratio": 0.2373,
+      "unique_proper_nouns": 24,
+      "unique_speakers": 3
+    },
+    {
+      "body_words": 27,
+      "path": "tests/fixtures/transcripts/v2/p06_e01.txt",
+      "proper_nouns": {
+        "End": 1,
+        "Maya": 1
+      },
+      "speakers": {
+        "Maya": 3
+      },
+      "sponsor_pattern_hits": 0,
+      "sponsor_pattern_hits_by_pattern": {},
+      "type_token_ratio": 0.8519,
+      "unique_proper_nouns": 2,
+      "unique_speakers": 1
+    },
+    {
+      "body_words": 40,
+      "path": "tests/fixtures/transcripts/v2/p06_e02.txt",
+      "proper_nouns": {
+        "End": 1,
+        "Maya": 1,
+        "Other": 1
+      },
+      "speakers": {
+        "Liam": 1,
+        "Maya": 3
+      },
+      "sponsor_pattern_hits": 0,
+      "sponsor_pattern_hits_by_pattern": {},
+      "type_token_ratio": 0.925,
+      "unique_proper_nouns": 3,
+      "unique_speakers": 2
+    },
+    {
+      "body_words": 30,
+      "path": "tests/fixtures/transcripts/v2/p06_e03.txt",
+      "proper_nouns": {
+        "End": 1,
+        "Maya": 1,
+        "Third": 1
+      },
+      "speakers": {
+        "Maya": 5
+      },
+      "sponsor_pattern_hits": 0,
+      "sponsor_pattern_hits_by_pattern": {},
+      "type_token_ratio": 0.9,
+      "unique_proper_nouns": 3,
+      "unique_speakers": 1
+    },
+    {
+      "body_words": 518,
+      "path": "tests/fixtures/transcripts/v2/p06_e04.txt",
+      "proper_nouns": {
+        "End": 1,
+        "Maya": 1
+      },
+      "speakers": {
+        "Maya": 3
+      },
+      "sponsor_pattern_hits": 0,
+      "sponsor_pattern_hits_by_pattern": {},
+      "type_token_ratio": 0.0463,
+      "unique_proper_nouns": 2,
+      "unique_speakers": 1
+    },
+    {
+      "body_words": 29,
+      "path": "tests/fixtures/transcripts/v2/p06_e05.txt",
+      "proper_nouns": {
+        "End": 1,
+        "Maya": 1,
+        "Short": 1,
+        "Theme": 1
+      },
+      "speakers": {
+        "Maya": 4
+      },
+      "sponsor_pattern_hits": 0,
+      "sponsor_pattern_hits_by_pattern": {},
+      "type_token_ratio": 0.931,
+      "unique_proper_nouns": 4,
+      "unique_speakers": 1
+    },
+    {
+      "body_words": 30,
+      "path": "tests/fixtures/transcripts/v2/p06_e06.txt",
+      "proper_nouns": {
+        "End": 1,
+        "Hola": 1,
+        "Maya": 1
+      },
+      "speakers": {
+        "Liam": 1,
+        "Maya": 4
+      },
+      "sponsor_pattern_hits": 0,
+      "sponsor_pattern_hits_by_pattern": {},
+      "type_token_ratio": 0.9,
+      "unique_proper_nouns": 3,
+      "unique_speakers": 2
+    },
+    {
+      "body_words": 11046,
+      "path": "tests/fixtures/transcripts/v2/p07_e01.txt",
+      "proper_nouns": {
+        "Alex": 3,
+        "Carbon": 47,
+        "Drawdown": 28,
+        "Elena": 213,
+        "Fischer": 213,
+        "Get": 1,
+        "Here": 12,
+        "Honestly": 11,
+        "Linear": 40,
+        "Long": 2,
+        "Morgan": 3,
+        "Notion": 2,
+        "Once": 25,
+        "Project": 28,
+        "Reliability": 26,
+        "Risk": 26,
+        "Say": 19,
+        "Stripe": 2,
+        "Sustainability": 26,
+        "Teams": 104,
+        "There": 12,
+        "Trust": 21,
+        "View": 2,
+        "Visit": 20,
+        "Walk": 24,
+        "Yeah": 7
+      },
+      "speakers": {
+        "Ad": 20,
+        "Alex Morgan": 253
+      },
+      "sponsor_pattern_hits": 103,
+      "sponsor_pattern_hits_by_pattern": {
+        "(?:a )?(?:quick )?(?:word|message|shout.?out) from (?:our|today'?s) sponsor": 20,
+        "(?:free trial|sign up|get started) (?:at|today)": 1,
+        "(?:now )?(?:back to|let'?s get back to|returning to) (?:the|our)": 20,
+        "(?:visit|go to|head to|check out) \\S+\\.com(?:/\\S+)?": 20,
+        "(?:welcome back to (?:the|our) (?:show|episode|podcast)|we'?re back(?: to the show)?|okay,? so)": 20,
+        "thanks (?:again )?to (?:our )?(?:friends|partners|sponsor)": 1,
+        "this episode is (?:brought to you|sponsored|powered) by": 1,
+        "today'?s (?:episode|show|podcast) is (?:brought|sponsored|supported)": 20
+      },
+      "type_token_ratio": 0.034,
+      "unique_proper_nouns": 26,
+      "unique_speakers": 2
+    },
+    {
+      "body_words": 13789,
+      "path": "tests/fixtures/transcripts/v2/p08_e01.txt",
+      "proper_nouns": {
+        "Alex": 3,
+        "Distributed": 41,
+        "Elena": 253,
+        "Fischer": 253,
+        "Get": 1,
+        "Grid": 41,
+        "Here": 13,
+        "Honestly": 12,
+        "Linear": 2,
+        "Long": 2,
+        "Morgan": 3,
+        "Notion": 48,
+        "Once": 30,
+        "Say": 22,
+        "Solar": 42,
+        "Storage": 41,
+        "Stripe": 2,
+        "Sustainability": 41,
+        "Teams": 124,
+        "There": 6,
+        "View": 2,
+        "Visit": 24,
+        "Walk": 33,
+        "Yeah": 15
+      },
+      "speakers": {
+        "Ad": 24,
+        "Alex Morgan": 301
+      },
+      "sponsor_pattern_hits": 123,
+      "sponsor_pattern_hits_by_pattern": {
+        "(?:a )?(?:quick )?(?:word|message|shout.?out) from (?:our|today'?s) sponsor": 24,
+        "(?:free trial|sign up|get started) (?:at|today)": 1,
+        "(?:now )?(?:back to|let'?s get back to|returning to) (?:the|our)": 24,
+        "(?:visit|go to|head to|check out) \\S+\\.com(?:/\\S+)?": 24,
+        "(?:welcome back to (?:the|our) (?:show|episode|podcast)|we'?re back(?: to the show)?|okay,? so)": 24,
+        "thanks (?:again )?to (?:our )?(?:friends|partners|sponsor)": 1,
+        "this episode is (?:brought to you|sponsored|powered) by": 1,
+        "today'?s (?:episode|show|podcast) is (?:brought|sponsored|supported)": 24
+      },
+      "type_token_ratio": 0.0284,
+      "unique_proper_nouns": 24,
+      "unique_speakers": 2
+    },
+    {
+      "body_words": 5364,
+      "path": "tests/fixtures/transcripts/v2/p09_e01.txt",
+      "proper_nouns": {
+        "Alex": 3,
+        "Biohacking": 27,
+        "Elena": 111,
+        "Fischer": 111,
+        "Get": 1,
+        "Here": 7,
+        "Honestly": 6,
+        "Levels": 22,
+        "Linear": 2,
+        "Long": 2,
+        "Morgan": 3,
+        "Notion": 20,
+        "Once": 16,
+        "Risk": 27,
+        "Say": 10,
+        "Sleep": 26,
+        "Stripe": 2,
+        "Teams": 53,
+        "There": 3,
+        "View": 2,
+        "Visit": 10,
+        "Walk": 10,
+        "Yeah": 5
+      },
+      "speakers": {
+        "Ad": 10,
+        "Alex Morgan": 131
+      },
+      "sponsor_pattern_hits": 53,
+      "sponsor_pattern_hits_by_pattern": {
+        "(?:a )?(?:quick )?(?:word|message|shout.?out) from (?:our|today'?s) sponsor": 10,
+        "(?:free trial|sign up|get started) (?:at|today)": 1,
+        "(?:now )?(?:back to|let'?s get back to|returning to) (?:the|our)": 10,
+        "(?:visit|go to|head to|check out) \\S+\\.com(?:/\\S+)?": 10,
+        "(?:welcome back to (?:the|our) (?:show|episode|podcast)|we'?re back(?: to the show)?|okay,? so)": 10,
+        "thanks (?:again )?to (?:our )?(?:friends|partners|sponsor)": 1,
+        "this episode is (?:brought to you|sponsored|powered) by": 1,
+        "today'?s (?:episode|show|podcast) is (?:brought|sponsored|supported)": 10
+      },
+      "type_token_ratio": 0.0546,
+      "unique_proper_nouns": 23,
+      "unique_speakers": 2
+    },
+    {
+      "body_words": 5443,
+      "path": "tests/fixtures/transcripts/v2/p09_e02.txt",
+      "proper_nouns": {
+        "Alex": 3,
+        "Elena": 107,
+        "Fischer": 107,
+        "Get": 1,
+        "Here": 7,
+        "Honestly": 6,
+        "Levels": 20,
+        "Linear": 2,
+        "Long": 2,
+        "Morgan": 3,
+        "Notion": 20,
+        "Once": 16,
+        "Say": 10,
+        "Stripe": 2,
+        "Teams": 51,
+        "There": 3,
+        "View": 2,
+        "Visit": 10,
+        "Walk": 10,
+        "Yeah": 5
+      },
+      "speakers": {
+        "Ad": 10,
+        "Alex Morgan": 127
+      },
+      "sponsor_pattern_hits": 53,
+      "sponsor_pattern_hits_by_pattern": {
+        "(?:a )?(?:quick )?(?:word|message|shout.?out) from (?:our|today'?s) sponsor": 10,
+        "(?:free trial|sign up|get started) (?:at|today)": 1,
+        "(?:now )?(?:back to|let'?s get back to|returning to) (?:the|our)": 10,
+        "(?:visit|go to|head to|check out) \\S+\\.com(?:/\\S+)?": 10,
+        "(?:welcome back to (?:the|our) (?:show|episode|podcast)|we'?re back(?: to the show)?|okay,? so)": 10,
+        "thanks (?:again )?to (?:our )?(?:friends|partners|sponsor)": 1,
+        "this episode is (?:brought to you|sponsored|powered) by": 1,
+        "today'?s (?:episode|show|podcast) is (?:brought|sponsored|supported)": 10
+      },
+      "type_token_ratio": 0.0547,
+      "unique_proper_nouns": 20,
+      "unique_speakers": 2
+    },
+    {
+      "body_words": 5390,
+      "path": "tests/fixtures/transcripts/v2/p09_e03.txt",
+      "proper_nouns": {
+        "Alex": 3,
+        "Elena": 105,
+        "Fischer": 105,
+        "Get": 1,
+        "Here": 7,
+        "Honestly": 6,
+        "Levels": 19,
+        "Linear": 2,
+        "Long": 2,
+        "Morgan": 3,
+        "Notion": 20,
+        "Once": 15,
+        "Reliability": 25,
+        "Risk": 24,
+        "Say": 10,
+        "Self": 26,
+        "Stripe": 2,
+        "Teams": 50,
+        "There": 3,
+        "View": 2,
+        "Visit": 10,
+        "Walk": 10,
+        "Yeah": 5
+      },
+      "speakers": {
+        "Ad": 10,
+        "Alex Morgan": 125
+      },
+      "sponsor_pattern_hits": 53,
+      "sponsor_pattern_hits_by_pattern": {
+        "(?:a )?(?:quick )?(?:word|message|shout.?out) from (?:our|today'?s) sponsor": 10,
+        "(?:free trial|sign up|get started) (?:at|today)": 1,
+        "(?:now )?(?:back to|let'?s get back to|returning to) (?:the|our)": 10,
+        "(?:visit|go to|head to|check out) \\S+\\.com(?:/\\S+)?": 10,
+        "(?:welcome back to (?:the|our) (?:show|episode|podcast)|we'?re back(?: to the show)?|okay,? so)": 10,
+        "thanks (?:again )?to (?:our )?(?:friends|partners|sponsor)": 1,
+        "this episode is (?:brought to you|sponsored|powered) by": 1,
+        "today'?s (?:episode|show|podcast) is (?:brought|sponsored|supported)": 10
+      },
+      "type_token_ratio": 0.0564,
+      "unique_proper_nouns": 23,
+      "unique_speakers": 2
+    }
+  ],
+  "fixture_version": "v2",
+  "transcripts_dir": "tests/fixtures/transcripts/v2"
+}

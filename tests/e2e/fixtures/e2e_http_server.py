@@ -40,6 +40,15 @@ from podcast_scraper import config
 logger = logging.getLogger(__name__)
 
 
+def _read_fixture_version() -> str:
+    version_file = Path(__file__).resolve().parents[2] / "fixtures" / "FIXTURES_VERSION"
+    return version_file.read_text(encoding="utf-8").strip()
+
+
+_FIXTURE_VERSION = _read_fixture_version()
+_VERSIONED_SUBDIRS: frozenset[str] = frozenset({"audio", "transcripts"})
+
+
 def _anthropic_system_text(system: Any) -> str:
     """Normalize Anthropic `system` (str or list of content blocks) to plain text."""
     if system is None:
@@ -1485,10 +1494,11 @@ class E2EHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
         if validated_subdir not in ("audio", "transcripts"):
             return None
 
-        # Build base directory using validated subdir
-        # validated_subdir is safe: validated to be one of ("audio", "transcripts")
-        # All validation checks passed above, safe to use in path construction
-        base_dir = fixture_root / validated_subdir
+        # Build base directory using validated subdir + fixture version segment.
+        # validated_subdir is safe: validated to be one of ("audio", "transcripts").
+        # _FIXTURE_VERSION is read from tests/fixtures/FIXTURES_VERSION at module load
+        # (server-side constant, not user input). All validation checks passed above.
+        base_dir = fixture_root / validated_subdir / _FIXTURE_VERSION
 
         # Verify base_dir is within fixture_root (defense in depth)
         # This ensures that even if validated_subdir somehow contained path traversal,

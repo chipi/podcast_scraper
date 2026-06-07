@@ -1,0 +1,142 @@
+{
+  "edges": [
+    {
+      "from": "episode:9833b47e-0cc8-50b9-a6da-65dc0f6d053f",
+      "to": "topic:technology",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:9833b47e-0cc8-50b9-a6da-65dc0f6d053f",
+      "to": "topic:gear",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:9833b47e-0cc8-50b9-a6da-65dc0f6d053f",
+      "to": "topic:technology",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:9833b47e-0cc8-50b9-a6da-65dc0f6d053f",
+      "to": "insight:41017ff3f83946ea",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "episode:9833b47e-0cc8-50b9-a6da-65dc0f6d053f",
+      "to": "insight:8bdb3ace00a545ac",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "episode:9833b47e-0cc8-50b9-a6da-65dc0f6d053f",
+      "to": "insight:1f363af5c9b5d0ec",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "episode:9833b47e-0cc8-50b9-a6da-65dc0f6d053f",
+      "to": "quote:49cb8bfdfb28dccf",
+      "type": "HAS_QUOTE"
+    },
+    {
+      "from": "episode:9833b47e-0cc8-50b9-a6da-65dc0f6d053f",
+      "to": "quote:a38b377e905cdd7a",
+      "type": "HAS_QUOTE"
+    },
+    {
+      "from": "episode:9833b47e-0cc8-50b9-a6da-65dc0f6d053f",
+      "to": "quote:2390b939a3e15652",
+      "type": "HAS_QUOTE"
+    }
+  ],
+  "episode_id": "9833b47e-0cc8-50b9-a6da-65dc0f6d053f",
+  "model_version": "synthetic-validation-corpus-v1",
+  "nodes": [
+    {
+      "id": "episode:9833b47e-0cc8-50b9-a6da-65dc0f6d053f",
+      "properties": {
+        "duration_ms": 1800000,
+        "episode_id": "9833b47e-0cc8-50b9-a6da-65dc0f6d053f",
+        "metadata_relative_path": "feeds/p04/metadata/p04_e02.metadata.json",
+        "podcast_id": "sha256:acf6d1026eaa400425afb658fa014e874a2eb50129923b7a92fe82290004a6e7",
+        "publish_date": "2026-06-01T12:00:00",
+        "title": "Frame & Light \u2014 Episode 2"
+      },
+      "type": "Episode"
+    },
+    {
+      "id": "topic:technology",
+      "properties": {
+        "label": "technology",
+        "score": 0.8
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:gear",
+      "properties": {
+        "label": "gear",
+        "score": 0.8
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:technology",
+      "properties": {
+        "label": "Technology",
+        "score": 0.8
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "insight:41017ff3f83946ea",
+      "properties": {
+        "confidence": 0.7,
+        "grounded": true,
+        "text": "# Frame & Light \u2014 Episode\n## Documentary Workflow in the Field\nHost: Leo\nGuest: Tariq\nLeo: Welcome back to Frame & Light."
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "insight:8bdb3ace00a545ac",
+      "properties": {
+        "confidence": 0.7,
+        "grounded": true,
+        "text": "Today we're talking about documentary photography, and I'm joined by Tariq, documentary photographer."
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "insight:1f363af5c9b5d0ec",
+      "properties": {
+        "confidence": 0.7,
+        "grounded": true,
+        "text": "This episode is brought to you by Adobe."
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "quote:49cb8bfdfb28dccf",
+      "properties": {
+        "speaker": "Speaker 1",
+        "text": "Adobe Creative Cloud puts Lightroom, Photoshop, and Premiere on every device you edit on."
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:a38b377e905cdd7a",
+      "properties": {
+        "speaker": "Speaker 1",
+        "text": "Get started at adobe.com/podcast."
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:2390b939a3e15652",
+      "properties": {
+        "speaker": "Speaker 1",
+        "text": "Before we get into it \u2014 Ava was on last week talking about strobe positioning underwater."
+      },
+      "type": "Quote"
+    }
+  ],
+  "prompt_version": "n/a",
+  "schema_version": "2"
+}

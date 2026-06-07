@@ -94,10 +94,23 @@
   "autoApprovers": {
     "routes":   {},
     "exitNode": []
-  }
+  },
 
-  // Tailscale SSH intentionally NOT enabled (no "ssh" block).
-  // We use plain key-based SSH so the ACL controls reach but not auth.
-  // Re-evaluate if Tailscale-SSH's audit-log + cert-rotation value outweighs
-  // the second-credential complexity.
+  // Tailscale SSH — narrowly enabled for the DGX host only (RFC-089 / #897
+  // post-merge). Operator (autogroup:admin) reaches dgx-llm-host as either
+  // markodragoljevic (the actual login user) or root (emergencies). Tailnet
+  // identity authenticates; no SSH keys to manage on the operator side.
+  //
+  // Prod / drill VPSes intentionally NOT covered — they keep classic key-
+  // based SSH so prod's auth model is identical between operator and CI
+  // (deploy-prod.yml uses an SSH key in GHA). Don't widen this block to
+  // tag:prod / tag:dr-drill without revisiting that design.
+  "ssh": [
+    {
+      "action": "accept",
+      "src":    ["autogroup:admin"],
+      "dst":    ["tag:dgx-llm-host"],
+      "users":  ["markodragoljevic", "root"]
+    }
+  ]
 }

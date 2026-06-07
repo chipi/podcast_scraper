@@ -1,0 +1,142 @@
+{
+  "edges": [
+    {
+      "from": "episode:22aa61d4-d535-5e72-ae9b-d44d9a3054d1",
+      "to": "topic:technology",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:22aa61d4-d535-5e72-ae9b-d44d9a3054d1",
+      "to": "topic:health",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:22aa61d4-d535-5e72-ae9b-d44d9a3054d1",
+      "to": "topic:science-research",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:22aa61d4-d535-5e72-ae9b-d44d9a3054d1",
+      "to": "insight:07fa6d7dbde95d9a",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "episode:22aa61d4-d535-5e72-ae9b-d44d9a3054d1",
+      "to": "insight:84304fb24a96f6ae",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "episode:22aa61d4-d535-5e72-ae9b-d44d9a3054d1",
+      "to": "insight:22e96dbc24c92db7",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "episode:22aa61d4-d535-5e72-ae9b-d44d9a3054d1",
+      "to": "quote:c277ce16d6012df4",
+      "type": "HAS_QUOTE"
+    },
+    {
+      "from": "episode:22aa61d4-d535-5e72-ae9b-d44d9a3054d1",
+      "to": "quote:e0e21829d9d08a8f",
+      "type": "HAS_QUOTE"
+    },
+    {
+      "from": "episode:22aa61d4-d535-5e72-ae9b-d44d9a3054d1",
+      "to": "quote:82288b1f7f7a7ad7",
+      "type": "HAS_QUOTE"
+    }
+  ],
+  "episode_id": "22aa61d4-d535-5e72-ae9b-d44d9a3054d1",
+  "model_version": "synthetic-validation-corpus-v1",
+  "nodes": [
+    {
+      "id": "episode:22aa61d4-d535-5e72-ae9b-d44d9a3054d1",
+      "properties": {
+        "duration_ms": 1800000,
+        "episode_id": "22aa61d4-d535-5e72-ae9b-d44d9a3054d1",
+        "metadata_relative_path": "feeds/p09/metadata/p09_e01.metadata.json",
+        "podcast_id": "sha256:255b515964dcdf7f0f2123a46053fbf8c961882868ea3c88bb8ba794824c52e8",
+        "publish_date": "2026-06-04T12:00:00",
+        "title": "The Long View: Biohacking \u2014 Episode 1"
+      },
+      "type": "Episode"
+    },
+    {
+      "id": "topic:technology",
+      "properties": {
+        "label": "technology",
+        "score": 0.8
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:health",
+      "properties": {
+        "label": "health",
+        "score": 0.8
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:science-research",
+      "properties": {
+        "label": "Science & research",
+        "score": 0.8
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "insight:07fa6d7dbde95d9a",
+      "properties": {
+        "confidence": 0.7,
+        "grounded": true,
+        "text": "# The Long View \u2014 Episode\n## The Biohacking Premise\nHost: Alex Morgan\nGuest: Dr."
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "insight:84304fb24a96f6ae",
+      "properties": {
+        "confidence": 0.7,
+        "grounded": true,
+        "text": "Elena Fischer\nAlex Morgan: Welcome to The Long View."
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "insight:22e96dbc24c92db7",
+      "properties": {
+        "confidence": 0.7,
+        "grounded": true,
+        "text": "Today we're exploring the biohacking premise in depth with Dr."
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "quote:c277ce16d6012df4",
+      "properties": {
+        "speaker": "Speaker 1",
+        "text": "Elena Fischer, researcher in metabolic and longevity science."
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:e0e21829d9d08a8f",
+      "properties": {
+        "speaker": "Speaker 1",
+        "text": "Elena Fischer: Thanks, Alex Morgan."
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:82288b1f7f7a7ad7",
+      "properties": {
+        "speaker": "Speaker 1",
+        "text": "This is a topic I've spent decades on."
+      },
+      "type": "Quote"
+    }
+  ],
+  "prompt_version": "n/a",
+  "schema_version": "2"
+}

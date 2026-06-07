@@ -1,0 +1,142 @@
+{
+  "edges": [
+    {
+      "from": "episode:096240a2-e115-5a3c-98b4-2d852b096eda",
+      "to": "topic:technology",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:096240a2-e115-5a3c-98b4-2d852b096eda",
+      "to": "topic:technology",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:096240a2-e115-5a3c-98b4-2d852b096eda",
+      "to": "topic:welcome-back-to",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:096240a2-e115-5a3c-98b4-2d852b096eda",
+      "to": "insight:b82d203ed2596a6e",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "episode:096240a2-e115-5a3c-98b4-2d852b096eda",
+      "to": "insight:4ad6a42d3812af5b",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "episode:096240a2-e115-5a3c-98b4-2d852b096eda",
+      "to": "insight:45771c206a35fab5",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "episode:096240a2-e115-5a3c-98b4-2d852b096eda",
+      "to": "quote:361df54e8c2523e6",
+      "type": "HAS_QUOTE"
+    },
+    {
+      "from": "episode:096240a2-e115-5a3c-98b4-2d852b096eda",
+      "to": "quote:ee9f60cc56218a72",
+      "type": "HAS_QUOTE"
+    },
+    {
+      "from": "episode:096240a2-e115-5a3c-98b4-2d852b096eda",
+      "to": "quote:b36679554816c381",
+      "type": "HAS_QUOTE"
+    }
+  ],
+  "episode_id": "096240a2-e115-5a3c-98b4-2d852b096eda",
+  "model_version": "synthetic-validation-corpus-v1",
+  "nodes": [
+    {
+      "id": "episode:096240a2-e115-5a3c-98b4-2d852b096eda",
+      "properties": {
+        "duration_ms": 1800000,
+        "episode_id": "096240a2-e115-5a3c-98b4-2d852b096eda",
+        "metadata_relative_path": "feeds/p02/metadata/p02_e02.metadata.json",
+        "podcast_id": "sha256:05eff208d6fd774940bed9fd154c6a46b9325e32cf95e1769f8eb679505ef414",
+        "publish_date": "2026-06-03T12:00:00",
+        "title": "Practical Systems \u2014 Episode 2"
+      },
+      "type": "Episode"
+    },
+    {
+      "id": "topic:technology",
+      "properties": {
+        "label": "technology",
+        "score": 0.8
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:technology",
+      "properties": {
+        "label": "Technology",
+        "score": 0.8
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:welcome-back-to",
+      "properties": {
+        "label": "welcome back to",
+        "score": 0.8
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "insight:b82d203ed2596a6e",
+      "properties": {
+        "confidence": 0.7,
+        "grounded": true,
+        "text": "# Practical Systems \u2014 Episode\n## Staff-Engineer Communication Patterns\nHost: Ethan\nGuest: Jonas\nEthan: Welcome back to Practical Systems."
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "insight:4ad6a42d3812af5b",
+      "properties": {
+        "confidence": 0.7,
+        "grounded": true,
+        "text": "Today we're talking about engineering communication, and I'm joined by Jonas, staff engineer focused on platform teams."
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "insight:45771c206a35fab5",
+      "properties": {
+        "confidence": 0.7,
+        "grounded": true,
+        "text": "Before we dive in, a quick word from our sponsor Notion."
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "quote:361df54e8c2523e6",
+      "properties": {
+        "speaker": "Speaker 1",
+        "text": "Notion replaces the dozen tools your team is half-using with a single workspace for docs, projects, and wikis."
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:ee9f60cc56218a72",
+      "properties": {
+        "speaker": "Speaker 1",
+        "text": "Use code POD for an extended trial."
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:b36679554816c381",
+      "properties": {
+        "speaker": "Speaker 1",
+        "text": "Before we get into it \u2014 Priya was on episode 1 making the case that good on-call rotations are designed so waking up is rare."
+      },
+      "type": "Quote"
+    }
+  ],
+  "prompt_version": "n/a",
+  "schema_version": "2"
+}

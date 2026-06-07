@@ -177,7 +177,9 @@ def test_get_corpus_graph_caches(tmp_path):
 
 
 def test_build_from_real_fixture_corpus():
-    g = CorpusGraph.build(Path("tests/fixtures/viewer-validation-corpus"))
+    from tests._fixtures import fixtures_dir
+
+    g = CorpusGraph.build(fixtures_dir("viewer-validation-corpus"))
     assert len(g) > 0
 
 

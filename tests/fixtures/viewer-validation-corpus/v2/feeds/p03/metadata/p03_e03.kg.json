@@ -1,0 +1,83 @@
+{
+  "edges": [
+    {
+      "from": "episode:9a2d05c1-8854-5ae6-8ad0-14fcf37d1de9",
+      "to": "entity:outdoor-activities",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:9a2d05c1-8854-5ae6-8ad0-14fcf37d1de9",
+      "to": "entity:gear",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:9a2d05c1-8854-5ae6-8ad0-14fcf37d1de9",
+      "to": "topic:outdoor-activities",
+      "type": "RELATES_TO"
+    },
+    {
+      "from": "episode:9a2d05c1-8854-5ae6-8ad0-14fcf37d1de9",
+      "to": "topic:gear",
+      "type": "RELATES_TO"
+    },
+    {
+      "from": "episode:9a2d05c1-8854-5ae6-8ad0-14fcf37d1de9",
+      "to": "topic:business-markets",
+      "type": "RELATES_TO"
+    }
+  ],
+  "episode_id": "9a2d05c1-8854-5ae6-8ad0-14fcf37d1de9",
+  "extraction": {
+    "model": "n/a",
+    "provider": "synthetic"
+  },
+  "nodes": [
+    {
+      "id": "episode:9a2d05c1-8854-5ae6-8ad0-14fcf37d1de9",
+      "properties": {
+        "episode_id": "9a2d05c1-8854-5ae6-8ad0-14fcf37d1de9",
+        "metadata_relative_path": "feeds/p03/metadata/p03_e03.metadata.json",
+        "title": "Below the Surface \u2014 Episode 3"
+      },
+      "type": "Episode"
+    },
+    {
+      "id": "entity:outdoor-activities",
+      "properties": {
+        "category": "Concept",
+        "label": "Outdoor Activities"
+      },
+      "type": "Entity"
+    },
+    {
+      "id": "entity:gear",
+      "properties": {
+        "category": "Concept",
+        "label": "Gear"
+      },
+      "type": "Entity"
+    },
+    {
+      "id": "topic:outdoor-activities",
+      "properties": {
+        "label": "outdoor activities"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:gear",
+      "properties": {
+        "label": "gear"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:business-markets",
+      "properties": {
+        "label": "Business & markets"
+      },
+      "type": "Topic"
+    }
+  ],
+  "schema_version": "2"
+}

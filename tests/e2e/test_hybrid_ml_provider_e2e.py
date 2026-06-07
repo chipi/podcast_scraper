@@ -23,6 +23,7 @@ from ml_model_cache_helpers import require_transformers_model_cached  # noqa: E4
 
 from podcast_scraper import Config
 from podcast_scraper.summarization.factory import create_summarization_provider
+from tests._fixtures import fixtures_dir as _fd  # noqa: E402
 
 TRANSFORMERS_AVAILABLE = False
 try:
@@ -47,8 +48,7 @@ class TestHybridMLProviderE2E:
         require_transformers_model_cached("longt5-base")
         require_transformers_model_cached("google/flan-t5-base")
 
-        fixture_root = Path(__file__).parent.parent / "fixtures"
-        transcript_file = fixture_root / "transcripts" / "p01_e01_fast.txt"
+        transcript_file = _fd("transcripts") / "p01_e01_fast.txt"
         if not transcript_file.exists():
             pytest.skip(f"Transcript fixture not found: {transcript_file}")
 
@@ -86,8 +86,7 @@ class TestHybridMLProviderE2E:
         require_transformers_model_cached("longt5-base")
         require_transformers_model_cached("google/flan-t5-base")
 
-        fixture_root = Path(__file__).parent.parent / "fixtures"
-        transcript_file = fixture_root / "transcripts" / "p01_e01_fast.txt"
+        transcript_file = _fd("transcripts") / "p01_e01_fast.txt"
         if not transcript_file.exists():
             pytest.skip(f"Transcript fixture not found: {transcript_file}")
 
@@ -116,8 +115,7 @@ class TestHybridMLProviderE2E:
         require_transformers_model_cached("longt5-base")
         require_transformers_model_cached("google/flan-t5-base")
 
-        fixture_root = Path(__file__).parent.parent / "fixtures"
-        transcript_file = fixture_root / "transcripts" / "p01_e01_fast.txt"
+        transcript_file = _fd("transcripts") / "p01_e01_fast.txt"
         if not transcript_file.exists():
             pytest.skip(f"Transcript fixture not found: {transcript_file}")
 
@@ -157,8 +155,7 @@ class TestHybridMLProviderE2E:
             _hybrid_ml_layered_summarize_params,
         )
 
-        fixture_root = Path(__file__).parent.parent / "fixtures"
-        transcript_file = fixture_root / "transcripts" / "p01_e01_fast.txt"
+        transcript_file = _fd("transcripts") / "p01_e01_fast.txt"
         if not transcript_file.exists():
             pytest.skip(f"Transcript fixture not found: {transcript_file}")
 

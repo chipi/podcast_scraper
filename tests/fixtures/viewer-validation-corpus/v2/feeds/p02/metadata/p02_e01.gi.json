@@ -1,0 +1,142 @@
+{
+  "edges": [
+    {
+      "from": "episode:3d0ec494-98ba-5f71-b2bd-c8559c779786",
+      "to": "topic:technology",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:3d0ec494-98ba-5f71-b2bd-c8559c779786",
+      "to": "topic:science-research",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:3d0ec494-98ba-5f71-b2bd-c8559c779786",
+      "to": "topic:welcome-back-to",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:3d0ec494-98ba-5f71-b2bd-c8559c779786",
+      "to": "insight:1a23c544cc37729d",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "episode:3d0ec494-98ba-5f71-b2bd-c8559c779786",
+      "to": "insight:6cf1561aa218ac65",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "episode:3d0ec494-98ba-5f71-b2bd-c8559c779786",
+      "to": "insight:2104f2725b7b11dc",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "episode:3d0ec494-98ba-5f71-b2bd-c8559c779786",
+      "to": "quote:65292f989284c828",
+      "type": "HAS_QUOTE"
+    },
+    {
+      "from": "episode:3d0ec494-98ba-5f71-b2bd-c8559c779786",
+      "to": "quote:e3dcb73f7f4fbea2",
+      "type": "HAS_QUOTE"
+    },
+    {
+      "from": "episode:3d0ec494-98ba-5f71-b2bd-c8559c779786",
+      "to": "quote:19ec713ba3206fab",
+      "type": "HAS_QUOTE"
+    }
+  ],
+  "episode_id": "3d0ec494-98ba-5f71-b2bd-c8559c779786",
+  "model_version": "synthetic-validation-corpus-v1",
+  "nodes": [
+    {
+      "id": "episode:3d0ec494-98ba-5f71-b2bd-c8559c779786",
+      "properties": {
+        "duration_ms": 1800000,
+        "episode_id": "3d0ec494-98ba-5f71-b2bd-c8559c779786",
+        "metadata_relative_path": "feeds/p02/metadata/p02_e01.metadata.json",
+        "podcast_id": "sha256:05eff208d6fd774940bed9fd154c6a46b9325e32cf95e1769f8eb679505ef414",
+        "publish_date": "2026-06-05T12:00:00",
+        "title": "Practical Systems \u2014 Episode 1"
+      },
+      "type": "Episode"
+    },
+    {
+      "id": "topic:technology",
+      "properties": {
+        "label": "technology",
+        "score": 0.8
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:science-research",
+      "properties": {
+        "label": "Science & research",
+        "score": 0.8
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:welcome-back-to",
+      "properties": {
+        "label": "welcome back to",
+        "score": 0.8
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "insight:1a23c544cc37729d",
+      "properties": {
+        "confidence": 0.7,
+        "grounded": true,
+        "text": "# Practical Systems \u2014 Episode\n## On-Call That Doesn't Break People\nHost: Ethan\nGuest: Priya\nEthan: Welcome back to Practical Systems."
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "insight:6cf1561aa218ac65",
+      "properties": {
+        "confidence": 0.7,
+        "grounded": true,
+        "text": "Today we're talking about on call rotation, and I'm joined by Priya, principal SRE at a payments platform."
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "insight:2104f2725b7b11dc",
+      "properties": {
+        "confidence": 0.7,
+        "grounded": true,
+        "text": "Excited for this one \u2014 incident response and on-call design is something I've been thinking about a lot."
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "quote:65292f989284c828",
+      "properties": {
+        "speaker": "Speaker 1",
+        "text": "This episode is brought to you by Linear."
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:e3dcb73f7f4fbea2",
+      "properties": {
+        "speaker": "Speaker 1",
+        "text": "Linear is the issue tracker built for speed \u2014 keyboard-first, fast search, and a clean roadmap view your team actually uses."
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:19ec713ba3206fab",
+      "properties": {
+        "speaker": "Speaker 1",
+        "text": "Get started at linear.com/podcast."
+      },
+      "type": "Quote"
+    }
+  ],
+  "prompt_version": "n/a",
+  "schema_version": "2"
+}

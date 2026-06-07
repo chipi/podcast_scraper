@@ -24,6 +24,10 @@ _BACKSCAN_CHARS = 500
 _FORWARD_SCAN_CHARS = 2000
 _MAX_LOW_CONFIDENCE_BLOCK_RATIO = 0.4
 _HIGH_CONFIDENCE_FOR_LARGE_BLOCK = 0.85
+# When the transcript has no paragraph breaks (e.g. single-line Whisper output)
+# cap the sponsor-block removal at this many chars so one sponsor mention does
+# not wipe the entire transcript.
+_SPONSOR_BLOCK_MAX_CHARS = 800
 
 # Inline CTAs (a bare ".com" or "sign up today") are common in ordinary speech.
 # Below this pattern confidence we refuse to remove on the CTA alone — it must be
@@ -178,9 +182,16 @@ def _paragraph_start(text: str, index: int) -> int:
 
 def _paragraph_end(text: str, index: int) -> int:
     next_break = text.find("\n\n", index)
-    if next_break == -1:
-        return len(text)
-    return next_break
+    if next_break != -1:
+        return next_break
+    # No paragraph break — common when transcript comes from Whisper as one
+    # continuous line. Removing to end-of-text would wipe everything when a
+    # single sponsor mention appears. Fall back to sentence boundary: find
+    # the next sentence terminator within a reasonable window.
+    sentence_end = re.search(r"[.!?](?:\s|$)", text[index : index + _SPONSOR_BLOCK_MAX_CHARS])
+    if sentence_end:
+        return index + sentence_end.end()
+    return min(index + _SPONSOR_BLOCK_MAX_CHARS, len(text))
 
 
 def _scan_for_pattern(

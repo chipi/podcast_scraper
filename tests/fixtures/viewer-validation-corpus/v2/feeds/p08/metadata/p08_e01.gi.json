@@ -1,0 +1,142 @@
+{
+  "edges": [
+    {
+      "from": "episode:15a1cbea-1449-50ac-bb1c-11784d7421c3",
+      "to": "topic:environment",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:15a1cbea-1449-50ac-bb1c-11784d7421c3",
+      "to": "topic:technology",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:15a1cbea-1449-50ac-bb1c-11784d7421c3",
+      "to": "topic:science-research",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:15a1cbea-1449-50ac-bb1c-11784d7421c3",
+      "to": "insight:c5c237f6140e175f",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "episode:15a1cbea-1449-50ac-bb1c-11784d7421c3",
+      "to": "insight:84304fb24a96f6ae",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "episode:15a1cbea-1449-50ac-bb1c-11784d7421c3",
+      "to": "insight:1f9fd5c61ecf8f3d",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "episode:15a1cbea-1449-50ac-bb1c-11784d7421c3",
+      "to": "quote:9646c8c97ebd402f",
+      "type": "HAS_QUOTE"
+    },
+    {
+      "from": "episode:15a1cbea-1449-50ac-bb1c-11784d7421c3",
+      "to": "quote:e0e21829d9d08a8f",
+      "type": "HAS_QUOTE"
+    },
+    {
+      "from": "episode:15a1cbea-1449-50ac-bb1c-11784d7421c3",
+      "to": "quote:82288b1f7f7a7ad7",
+      "type": "HAS_QUOTE"
+    }
+  ],
+  "episode_id": "15a1cbea-1449-50ac-bb1c-11784d7421c3",
+  "model_version": "synthetic-validation-corpus-v1",
+  "nodes": [
+    {
+      "id": "episode:15a1cbea-1449-50ac-bb1c-11784d7421c3",
+      "properties": {
+        "duration_ms": 1800000,
+        "episode_id": "15a1cbea-1449-50ac-bb1c-11784d7421c3",
+        "metadata_relative_path": "feeds/p08/metadata/p08_e01.metadata.json",
+        "podcast_id": "sha256:5ffc16f86af9856b053a670e3a580eb8f0e2888d6c6ccf09d988a2619350ed2a",
+        "publish_date": "2026-06-05T12:00:00",
+        "title": "The Long View \u2014 Episode 1"
+      },
+      "type": "Episode"
+    },
+    {
+      "id": "topic:environment",
+      "properties": {
+        "label": "environment",
+        "score": 0.8
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:technology",
+      "properties": {
+        "label": "technology",
+        "score": 0.8
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:science-research",
+      "properties": {
+        "label": "Science & research",
+        "score": 0.8
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "insight:c5c237f6140e175f",
+      "properties": {
+        "confidence": 0.7,
+        "grounded": true,
+        "text": "# The Long View \u2014 Episode\n## Solar Energy: Past, Present, and Long-Term Outlook\nHost: Alex Morgan\nGuest: Dr."
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "insight:84304fb24a96f6ae",
+      "properties": {
+        "confidence": 0.7,
+        "grounded": true,
+        "text": "Elena Fischer\nAlex Morgan: Welcome to The Long View."
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "insight:1f9fd5c61ecf8f3d",
+      "properties": {
+        "confidence": 0.7,
+        "grounded": true,
+        "text": "Today we're exploring solar energy in depth with Dr."
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "quote:9646c8c97ebd402f",
+      "properties": {
+        "speaker": "Speaker 1",
+        "text": "Elena Fischer, energy systems researcher."
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:e0e21829d9d08a8f",
+      "properties": {
+        "speaker": "Speaker 1",
+        "text": "Elena Fischer: Thanks, Alex Morgan."
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:82288b1f7f7a7ad7",
+      "properties": {
+        "speaker": "Speaker 1",
+        "text": "This is a topic I've spent decades on."
+      },
+      "type": "Quote"
+    }
+  ],
+  "prompt_version": "n/a",
+  "schema_version": "2"
+}

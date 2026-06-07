@@ -1,0 +1,103 @@
+{
+  "edges": [
+    {
+      "from": "episode:01835c28-431e-5b5a-adbb-5ec01411a299",
+      "to": "topic:business-markets",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:01835c28-431e-5b5a-adbb-5ec01411a299",
+      "to": "topic:this-is-an-edge",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:01835c28-431e-5b5a-adbb-5ec01411a299",
+      "to": "topic:first-line",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:01835c28-431e-5b5a-adbb-5ec01411a299",
+      "to": "insight:c4e87c5ebfe01da0",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "episode:01835c28-431e-5b5a-adbb-5ec01411a299",
+      "to": "insight:ad70fda15471fa29",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "episode:01835c28-431e-5b5a-adbb-5ec01411a299",
+      "to": "insight:9788ab13f1d78023",
+      "type": "HAS_INSIGHT"
+    }
+  ],
+  "episode_id": "01835c28-431e-5b5a-adbb-5ec01411a299",
+  "model_version": "synthetic-validation-corpus-v1",
+  "nodes": [
+    {
+      "id": "episode:01835c28-431e-5b5a-adbb-5ec01411a299",
+      "properties": {
+        "duration_ms": 1800000,
+        "episode_id": "01835c28-431e-5b5a-adbb-5ec01411a299",
+        "metadata_relative_path": "feeds/p06/metadata/p06_e03.metadata.json",
+        "podcast_id": "sha256:d517d39c803a89d395740e81b17ace57ebb95aa5ec504129b1c306c7e592f10c",
+        "publish_date": "2026-06-03T12:00:00",
+        "title": "Edge Cases Podcast \u2014 Episode 3"
+      },
+      "type": "Episode"
+    },
+    {
+      "id": "topic:business-markets",
+      "properties": {
+        "label": "Business & markets",
+        "score": 0.8
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:this-is-an-edge",
+      "properties": {
+        "label": "this is an edge",
+        "score": 0.8
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:first-line",
+      "properties": {
+        "label": "first line",
+        "score": 0.8
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "insight:c4e87c5ebfe01da0",
+      "properties": {
+        "confidence": 0.7,
+        "grounded": true,
+        "text": "# Edge Cases \u2014 Episode e03\n## Repeated Speaker Labels\nHost: Maya\nMaya: This is an edge-case fixture used for parser and processor robustness tests."
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "insight:ad70fda15471fa29",
+      "properties": {
+        "confidence": 0.7,
+        "grounded": true,
+        "text": "Third line in a row to test merging."
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "insight:9788ab13f1d78023",
+      "properties": {
+        "confidence": 0.7,
+        "grounded": true,
+        "text": "End of edge-case episode e03."
+      },
+      "type": "Insight"
+    }
+  ],
+  "prompt_version": "n/a",
+  "schema_version": "2"
+}

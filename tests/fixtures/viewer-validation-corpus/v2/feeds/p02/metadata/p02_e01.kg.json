@@ -1,0 +1,83 @@
+{
+  "edges": [
+    {
+      "from": "episode:3d0ec494-98ba-5f71-b2bd-c8559c779786",
+      "to": "entity:technology",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:3d0ec494-98ba-5f71-b2bd-c8559c779786",
+      "to": "entity:science-research",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:3d0ec494-98ba-5f71-b2bd-c8559c779786",
+      "to": "topic:technology",
+      "type": "RELATES_TO"
+    },
+    {
+      "from": "episode:3d0ec494-98ba-5f71-b2bd-c8559c779786",
+      "to": "topic:science-research",
+      "type": "RELATES_TO"
+    },
+    {
+      "from": "episode:3d0ec494-98ba-5f71-b2bd-c8559c779786",
+      "to": "topic:welcome-back-to",
+      "type": "RELATES_TO"
+    }
+  ],
+  "episode_id": "3d0ec494-98ba-5f71-b2bd-c8559c779786",
+  "extraction": {
+    "model": "n/a",
+    "provider": "synthetic"
+  },
+  "nodes": [
+    {
+      "id": "episode:3d0ec494-98ba-5f71-b2bd-c8559c779786",
+      "properties": {
+        "episode_id": "3d0ec494-98ba-5f71-b2bd-c8559c779786",
+        "metadata_relative_path": "feeds/p02/metadata/p02_e01.metadata.json",
+        "title": "Practical Systems \u2014 Episode 1"
+      },
+      "type": "Episode"
+    },
+    {
+      "id": "entity:technology",
+      "properties": {
+        "category": "Concept",
+        "label": "Technology"
+      },
+      "type": "Entity"
+    },
+    {
+      "id": "entity:science-research",
+      "properties": {
+        "category": "Concept",
+        "label": "Science & Research"
+      },
+      "type": "Entity"
+    },
+    {
+      "id": "topic:technology",
+      "properties": {
+        "label": "technology"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:science-research",
+      "properties": {
+        "label": "Science & research"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:welcome-back-to",
+      "properties": {
+        "label": "welcome back to"
+      },
+      "type": "Topic"
+    }
+  ],
+  "schema_version": "2"
+}

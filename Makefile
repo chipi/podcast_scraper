@@ -8,6 +8,10 @@ CODESPELL ?= .venv/bin/codespell
 endif
 PACKAGE = podcast_scraper
 
+# Fixture version: resolved from tests/fixtures/FIXTURES_VERSION (single source of truth).
+# Versioned fixture subdirs: tests/fixtures/{transcripts,audio}/$(FIXTURES_VERSION)/...
+FIXTURES_VERSION ?= $(shell cat tests/fixtures/FIXTURES_VERSION 2>/dev/null | tr -d '[:space:]')
+
 # Classic dot progress for fast layers (pyproject addopts no longer includes -q).
 # PYTHONUNBUFFERED on fast pytest lines reduces line buffering in IDE/agent terminals.
 PYTEST_PROGRESS_OPTS := -o console_output_style=classic
@@ -601,7 +605,7 @@ serve-e2e-mock:
 
 # GitHub #659: Docker Compose stack (Nginx + FastAPI + shared volume; pipeline behind profile).
 STACK_COMPOSE ?= docker compose -f compose/docker-compose.stack.yml
-STACK_TEST_COMPOSE ?= docker compose -f compose/docker-compose.stack.yml -f compose/docker-compose.stack-test.yml
+STACK_TEST_COMPOSE ?= FIXTURES_VERSION=$(FIXTURES_VERSION) docker compose -f compose/docker-compose.stack.yml -f compose/docker-compose.stack-test.yml
 REMOVE_VOLUMES ?=
 # Stack-test: host directory for ``make stack-test-export`` (debug aid —
 # copies the ``corpus_data`` volume contents to disk so artifacts can be
@@ -3301,7 +3305,7 @@ transcription-sweep:
 	@#   make transcription-sweep MODELS=base.en,medium.en  # specific models
 	@#   make transcription-sweep EPISODES=p01_e03          # single episode
 	$(PYTHON) scripts/eval/experiment/transcription_sweep.py \
-		--audio-dir tests/fixtures/audio \
+		--audio-dir tests/fixtures/audio/$(FIXTURES_VERSION) \
 		--reference-dir data/eval/materialized/curated_5feeds_benchmark_v2 \
 		--episodes "$${EPISODES:-p01_e03,p02_e03,p03_e03,p04_e03,p05_e03}" \
 		--models "$${MODELS:-tiny.en,base.en,small.en,medium.en}"

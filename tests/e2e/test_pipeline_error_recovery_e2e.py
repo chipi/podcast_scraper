@@ -162,7 +162,9 @@ class ErrorRecoveryHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
         # Audio file endpoint - serve real audio file from fixtures
         elif path == "/episode1.mp3":
             # Use real audio fixture file (fast audio for quick testing)
-            fixture_path = Path(__file__).parent.parent / "fixtures" / "audio" / "p01_e01_fast.mp3"
+            from tests._fixtures import fixtures_dir as _fd
+
+            fixture_path = _fd("audio") / "p01_e01_fast.mp3"
             if fixture_path.exists():
                 with open(fixture_path, "rb") as f:
                     audio_data = f.read()

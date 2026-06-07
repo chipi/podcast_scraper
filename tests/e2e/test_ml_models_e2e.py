@@ -86,8 +86,9 @@ class TestTransformersSummarization:
         require_transformers_model_cached(config.TEST_DEFAULT_SUMMARY_MODEL, None)
 
         # Get transcript text from fixtures - use fast file for direct provider tests
-        fixture_root = Path(__file__).parent.parent / "fixtures"
-        transcript_file = fixture_root / "transcripts" / "p01_e01_fast.txt"
+        from tests._fixtures import fixtures_dir as _fd
+
+        transcript_file = _fd("transcripts") / "p01_e01_fast.txt"
 
         if not transcript_file.exists():
             pytest.skip(f"Transcript file not found: {transcript_file}")
@@ -375,8 +376,9 @@ class TestAllMLModelsTogether:
         require_transformers_model_cached(config.TEST_DEFAULT_SUMMARY_MODEL, None)
 
         # Get transcript text from fixtures - use fast file for direct provider tests
-        fixture_root = Path(__file__).parent.parent / "fixtures"
-        transcript_file = fixture_root / "transcripts" / "p01_e01_fast.txt"
+        from tests._fixtures import fixtures_dir as _fd
+
+        transcript_file = _fd("transcripts") / "p01_e01_fast.txt"
 
         if not transcript_file.exists():
             pytest.skip(f"Transcript file not found: {transcript_file}")

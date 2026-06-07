@@ -24,6 +24,7 @@ PACKAGE_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(_
 if PACKAGE_ROOT not in sys.path:
     sys.path.insert(0, PACKAGE_ROOT)
 
+from tests._fixtures import DEFAULT_FIXTURE_VERSION as FIXTURE_VERSION
 from tests.e2e.fixtures.e2e_http_server import E2EHTTPRequestHandler
 
 
@@ -49,8 +50,10 @@ class TestFixtureMapping:
 
         # Check directories exist
         assert (fixture_root / "rss").exists(), "rss/ directory should exist"
-        assert (fixture_root / "audio").exists(), "audio/ directory should exist"
-        assert (fixture_root / "transcripts").exists(), "transcripts/ directory should exist"
+        assert (fixture_root / "audio" / FIXTURE_VERSION).exists(), "audio/ directory should exist"
+        assert (
+            fixture_root / "transcripts" / FIXTURE_VERSION
+        ).exists(), "transcripts/ directory should exist"
 
     def test_rss_files_exist(self):
         """Test that all RSS files exist."""
@@ -124,8 +127,10 @@ class TestFixtureMapping:
                     # Skip fast fixtures - they may not have all corresponding files
                     if "fast" in episode_id:
                         continue
-                    audio_file = fixture_root / "audio" / f"{episode_id}.mp3"
-                    transcript_file = fixture_root / "transcripts" / f"{episode_id}.txt"
+                    audio_file = fixture_root / "audio" / FIXTURE_VERSION / f"{episode_id}.mp3"
+                    transcript_file = (
+                        fixture_root / "transcripts" / FIXTURE_VERSION / f"{episode_id}.txt"
+                    )
                     assert (
                         audio_file.exists()
                     ), f"Audio file {episode_id}.mp3 should exist for GUID {guid}"
@@ -176,7 +181,7 @@ class TestFixtureMapping:
                     )
                     # Extract filename from URL (may be relative or absolute)
                     audio_filename = enclosure_url.split("/")[-1]
-                    audio_file = fixture_root / "audio" / audio_filename
+                    audio_file = fixture_root / "audio" / FIXTURE_VERSION / audio_filename
                     assert (
                         audio_file.exists()
                     ), f"Audio file {guid}.mp3 should exist for enclosure URL {enclosure_url}"
@@ -226,7 +231,9 @@ class TestFixtureMapping:
 
                         # Verify transcript file exists (extract filename from URL)
                         transcript_filename = transcript_url.split("/")[-1]
-                        transcript_file = fixture_root / "transcripts" / transcript_filename
+                        transcript_file = (
+                            fixture_root / "transcripts" / FIXTURE_VERSION / transcript_filename
+                        )
                         assert transcript_file.exists(), (
                             f"Transcript file {transcript_filename} should exist "
                             f"for transcript URL {transcript_url}"
@@ -254,7 +261,7 @@ class TestFixtureMapping:
             # Skip fast fixtures - they may not have all corresponding files
             if "fast" in guid:
                 continue
-            audio_file = fixture_root / "audio" / f"{guid}.mp3"
+            audio_file = fixture_root / "audio" / FIXTURE_VERSION / f"{guid}.mp3"
             assert audio_file.exists(), f"Audio file {guid}.mp3 should exist"
             # Transcript file is optional (some episodes may not have transcripts)
             # Only check if it's referenced in RSS

@@ -1,0 +1,73 @@
+{
+  "cil_digest_topics": [
+    {
+      "in_topic_cluster": true,
+      "label": "technology",
+      "topic_cluster_compound_id": "tc:technology-cluster",
+      "topic_id": "topic:technology"
+    },
+    {
+      "in_topic_cluster": true,
+      "label": "gear",
+      "topic_cluster_compound_id": "tc:gear-cluster",
+      "topic_id": "topic:gear"
+    }
+  ],
+  "episode": {
+    "episode_id": "09ead36d-954f-5cbb-ae3f-6f0d5985233d",
+    "published_date": "2026-06-03",
+    "title": "Frame & Light \u2014 Episode 1"
+  },
+  "episode_id": "09ead36d-954f-5cbb-ae3f-6f0d5985233d",
+  "episode_title": "Frame & Light \u2014 Episode 1",
+  "feed": {
+    "description": "Photography conversations: craft, storytelling, workflow, and making images under real constraints.",
+    "feed_id": "sha256:acf6d1026eaa400425afb658fa014e874a2eb50129923b7a92fe82290004a6e7",
+    "title": "Frame & Light",
+    "url": "http://localhost/"
+  },
+  "feed_display_title": "Frame & Light",
+  "feed_id": "sha256:acf6d1026eaa400425afb658fa014e874a2eb50129923b7a92fe82290004a6e7",
+  "gi_relative_path": "feeds/p04/metadata/p04_e01.gi.json",
+  "grounded_insights": {
+    "artifact_path": "feeds/p04/metadata/p04_e01.gi.json",
+    "schema_version": "1.0"
+  },
+  "has_gi": true,
+  "has_kg": true,
+  "kg_relative_path": "feeds/p04/metadata/p04_e01.kg.json",
+  "knowledge_graph": {
+    "artifact_path": "feeds/p04/metadata/p04_e01.kg.json",
+    "schema_version": "1.1"
+  },
+  "publish_date": "2026-06-03",
+  "schema_version": "1",
+  "summary": {
+    "bullets": [
+      "# Frame & Light \u2014 Episode\n## Underwater Images That Feel Alive\nHost: Leo\nGuest: Ava\nLeo: Welcome back to Frame & Light.",
+      "Today we're talking about underwater photography, and I'm joined by Ava, underwater photographer.",
+      "Excited for this one \u2014 underwater imaging is something I've been thinking about a lot."
+    ],
+    "preview": "# Frame & Light \u2014 Episode\n## Underwater Images That Feel Alive\nHost: Leo\nGuest: Ava\nLeo: Welcome back to Frame & Light.",
+    "text": "# Frame & Light \u2014 Episode\n## Underwater Images That Feel Alive\nHost: Leo\nGuest: Ava\nLeo: Welcome back to Frame & Light.\nToday we're talking about underwater photography, and I'm joined by Ava, underwater photographer.\nExcited for this one \u2014 underwater imaging is something I've been thinking about a lot.",
+    "title": "Frame & Light \u2014 Episode 1 \u2014 synthetic"
+  },
+  "summary_bullet_graph_topic_ids": [
+    "topic:technology",
+    "topic:gear",
+    "topic:science-research"
+  ],
+  "summary_bullets": [
+    "# Frame & Light \u2014 Episode\n## Underwater Images That Feel Alive\nHost: Leo\nGuest: Ava\nLeo: Welcome back to Frame & Light.",
+    "Today we're talking about underwater photography, and I'm joined by Ava, underwater photographer.",
+    "Excited for this one \u2014 underwater imaging is something I've been thinking about a lot."
+  ],
+  "summary_preview": "# Frame & Light \u2014 Episode\n## Underwater Images That Feel Alive\nHost: Leo\nGuest: Ava\nLeo: Welcome back to Frame & Light.",
+  "summary_text": "# Frame & Light \u2014 Episode\n## Underwater Images That Feel Alive\nHost: Leo\nGuest: Ava\nLeo: Welcome back to Frame & Light.\nToday we're talking about underwater photography, and I'm joined by Ava, underwater photographer.\nExcited for this one \u2014 underwater imaging is something I've been thinking about a lot.",
+  "summary_title": "Frame & Light \u2014 Episode 1 \u2014 synthetic",
+  "topics": [
+    "technology",
+    "gear",
+    "Science & research"
+  ]
+}
