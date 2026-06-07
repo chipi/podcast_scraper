@@ -15,7 +15,7 @@
   ],
   "episode": {
     "episode_id": "e1743bda-76ff-5586-9e39-3fa45e41ef9a",
-    "published_date": "2026-06-05",
+    "published_date": "2026-06-06",
     "title": "Frame & Light \u2014 Episode 3"
   },
   "episode_id": "e1743bda-76ff-5586-9e39-3fa45e41ef9a",
@@ -40,16 +40,16 @@
     "artifact_path": "feeds/p04/metadata/p04_e03.kg.json",
     "schema_version": "1.1"
   },
-  "publish_date": "2026-06-05",
+  "publish_date": "2026-06-06",
   "schema_version": "1",
   "summary": {
     "bullets": [
       "# Frame & Light \u2014 Episode\n## Lighting Decisions That Save a Shoot\nHost: Leo\nGuest: Elise\nLeo: Welcome back to Frame & Light.",
       "Today we're talking about lighting design, and I'm joined by Elise, commercial lighting director.",
-      "Before we dive in, a quick word from our sponsor Adobe."
+      "Today's episode is sponsored by Adobe."
     ],
     "preview": "# Frame & Light \u2014 Episode\n## Lighting Decisions That Save a Shoot\nHost: Leo\nGuest: Elise\nLeo: Welcome back to Frame & Light.",
-    "text": "# Frame & Light \u2014 Episode\n## Lighting Decisions That Save a Shoot\nHost: Leo\nGuest: Elise\nLeo: Welcome back to Frame & Light.\nToday we're talking about lighting design, and I'm joined by Elise, commercial lighting director.\nBefore we dive in, a quick word from our sponsor Adobe.",
+    "text": "# Frame & Light \u2014 Episode\n## Lighting Decisions That Save a Shoot\nHost: Leo\nGuest: Elise\nLeo: Welcome back to Frame & Light.\nToday we're talking about lighting design, and I'm joined by Elise, commercial lighting director.\nToday's episode is sponsored by Adobe.",
     "title": "Frame & Light \u2014 Episode 3 \u2014 synthetic"
   },
   "summary_bullet_graph_topic_ids": [
@@ -60,10 +60,10 @@
   "summary_bullets": [
     "# Frame & Light \u2014 Episode\n## Lighting Decisions That Save a Shoot\nHost: Leo\nGuest: Elise\nLeo: Welcome back to Frame & Light.",
     "Today we're talking about lighting design, and I'm joined by Elise, commercial lighting director.",
-    "Before we dive in, a quick word from our sponsor Adobe."
+    "Today's episode is sponsored by Adobe."
   ],
   "summary_preview": "# Frame & Light \u2014 Episode\n## Lighting Decisions That Save a Shoot\nHost: Leo\nGuest: Elise\nLeo: Welcome back to Frame & Light.",
-  "summary_text": "# Frame & Light \u2014 Episode\n## Lighting Decisions That Save a Shoot\nHost: Leo\nGuest: Elise\nLeo: Welcome back to Frame & Light.\nToday we're talking about lighting design, and I'm joined by Elise, commercial lighting director.\nBefore we dive in, a quick word from our sponsor Adobe.",
+  "summary_text": "# Frame & Light \u2014 Episode\n## Lighting Decisions That Save a Shoot\nHost: Leo\nGuest: Elise\nLeo: Welcome back to Frame & Light.\nToday we're talking about lighting design, and I'm joined by Elise, commercial lighting director.\nToday's episode is sponsored by Adobe.",
   "summary_title": "Frame & Light \u2014 Episode 3 \u2014 synthetic",
   "topics": [
     "technology",

@@ -32,7 +32,7 @@
     },
     {
       "from": "episode:a283fe88-fdec-51b4-8014-431b4a7ce670",
-      "to": "quote:19d6a4805fccd253",
+      "to": "quote:14f67bf96e86193e",
       "type": "HAS_QUOTE"
     },
     {
@@ -42,7 +42,7 @@
     },
     {
       "from": "episode:a283fe88-fdec-51b4-8014-431b4a7ce670",
-      "to": "quote:7e2a9ec343f13aa2",
+      "to": "quote:ee9f60cc56218a72",
       "type": "HAS_QUOTE"
     }
   ],
@@ -56,7 +56,7 @@
         "episode_id": "a283fe88-fdec-51b4-8014-431b4a7ce670",
         "metadata_relative_path": "feeds/p03/metadata/p03_e01.metadata.json",
         "podcast_id": "sha256:16de36c98e7e4b95d699380d14d84d2f13717c2c151f935076564a9a5f5e979b",
-        "publish_date": "2026-06-04T12:00:00",
+        "publish_date": "2026-06-05T12:00:00",
         "title": "Below the Surface \u2014 Episode 1"
       },
       "type": "Episode"
@@ -113,10 +113,10 @@
       "type": "Insight"
     },
     {
-      "id": "quote:19d6a4805fccd253",
+      "id": "quote:14f67bf96e86193e",
       "properties": {
         "speaker": "Speaker 1",
-        "text": "Today's episode is sponsored by Suunto."
+        "text": "Before we dive in, a quick word from our sponsor Suunto."
       },
       "type": "Quote"
     },
@@ -129,10 +129,10 @@
       "type": "Quote"
     },
     {
-      "id": "quote:7e2a9ec343f13aa2",
+      "id": "quote:ee9f60cc56218a72",
       "properties": {
         "speaker": "Speaker 1",
-        "text": "What does that look like day-to-day?"
+        "text": "Use code POD for an extended trial."
       },
       "type": "Quote"
     }

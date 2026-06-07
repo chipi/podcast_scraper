@@ -27,7 +27,7 @@
     },
     {
       "from": "episode:9a2d05c1-8854-5ae6-8ad0-14fcf37d1de9",
-      "to": "insight:19d6a4805fccd253",
+      "to": "insight:691dbe6035aa8769",
       "type": "HAS_INSIGHT"
     },
     {
@@ -37,12 +37,12 @@
     },
     {
       "from": "episode:9a2d05c1-8854-5ae6-8ad0-14fcf37d1de9",
-      "to": "quote:6fea6cf0b5c1057d",
+      "to": "quote:29cb69bedfb38a79",
       "type": "HAS_QUOTE"
     },
     {
       "from": "episode:9a2d05c1-8854-5ae6-8ad0-14fcf37d1de9",
-      "to": "quote:1582b3ef5f0e54ba",
+      "to": "quote:6fea6cf0b5c1057d",
       "type": "HAS_QUOTE"
     }
   ],
@@ -56,7 +56,7 @@
         "episode_id": "9a2d05c1-8854-5ae6-8ad0-14fcf37d1de9",
         "metadata_relative_path": "feeds/p03/metadata/p03_e03.metadata.json",
         "podcast_id": "sha256:16de36c98e7e4b95d699380d14d84d2f13717c2c151f935076564a9a5f5e979b",
-        "publish_date": "2026-06-06T12:00:00",
+        "publish_date": "2026-06-07T12:00:00",
         "title": "Below the Surface \u2014 Episode 3"
       },
       "type": "Episode"
@@ -104,11 +104,11 @@
       "type": "Insight"
     },
     {
-      "id": "insight:19d6a4805fccd253",
+      "id": "insight:691dbe6035aa8769",
       "properties": {
         "confidence": 0.7,
         "grounded": true,
-        "text": "Today's episode is sponsored by Suunto."
+        "text": "This episode is brought to you by Suunto."
       },
       "type": "Insight"
     },
@@ -121,18 +121,18 @@
       "type": "Quote"
     },
     {
-      "id": "quote:6fea6cf0b5c1057d",
+      "id": "quote:29cb69bedfb38a79",
       "properties": {
         "speaker": "Speaker 1",
-        "text": "Before we get into it \u2014 Hanna mentioned anchor strikes hurting reefs \u2014 the same operational discipline applies underwater: plan, brief, execute, debrief."
+        "text": "Get started at suunto.com/podcast."
       },
       "type": "Quote"
     },
     {
-      "id": "quote:1582b3ef5f0e54ba",
+      "id": "quote:6fea6cf0b5c1057d",
       "properties": {
         "speaker": "Speaker 1",
-        "text": "And it ties into what we're covering today."
+        "text": "Before we get into it \u2014 Hanna mentioned anchor strikes hurting reefs \u2014 the same operational discipline applies underwater: plan, brief, execute, debrief."
       },
       "type": "Quote"
     }

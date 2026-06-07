@@ -15,7 +15,7 @@
   ],
   "episode": {
     "episode_id": "f6f1df34-2251-5301-b1c7-68ee8468bf65",
-    "published_date": "2026-06-02",
+    "published_date": "2026-06-03",
     "title": "Singletrack Sessions \u2014 Episode 3"
   },
   "episode_id": "f6f1df34-2251-5301-b1c7-68ee8468bf65",
@@ -40,16 +40,16 @@
     "artifact_path": "feeds/p01/metadata/p01_e03.kg.json",
     "schema_version": "1.1"
   },
-  "publish_date": "2026-06-02",
+  "publish_date": "2026-06-03",
   "schema_version": "1",
   "summary": {
     "bullets": [
       "# Singletrack Sessions \u2014 Episode\n## The Mechanics of a Quiet, Fast Bike\nHost: Maya\nGuest: Noah\nMaya: Welcome back to Singletrack Sessions.",
       "Today we're talking about drivetrain mechanics, and I'm joined by Noah, mechanic at Spoke & Wrench.",
-      "Before we dive in, a quick word from our sponsor Notion."
+      "This episode is brought to you by Notion."
     ],
     "preview": "# Singletrack Sessions \u2014 Episode\n## The Mechanics of a Quiet, Fast Bike\nHost: Maya\nGuest: Noah\nMaya: Welcome back to Singletrack Sessions.",
-    "text": "# Singletrack Sessions \u2014 Episode\n## The Mechanics of a Quiet, Fast Bike\nHost: Maya\nGuest: Noah\nMaya: Welcome back to Singletrack Sessions.\nToday we're talking about drivetrain mechanics, and I'm joined by Noah, mechanic at Spoke & Wrench.\nBefore we dive in, a quick word from our sponsor Notion.",
+    "text": "# Singletrack Sessions \u2014 Episode\n## The Mechanics of a Quiet, Fast Bike\nHost: Maya\nGuest: Noah\nMaya: Welcome back to Singletrack Sessions.\nToday we're talking about drivetrain mechanics, and I'm joined by Noah, mechanic at Spoke & Wrench.\nThis episode is brought to you by Notion.",
     "title": "Singletrack Sessions \u2014 Episode 3 \u2014 synthetic"
   },
   "summary_bullet_graph_topic_ids": [
@@ -60,10 +60,10 @@
   "summary_bullets": [
     "# Singletrack Sessions \u2014 Episode\n## The Mechanics of a Quiet, Fast Bike\nHost: Maya\nGuest: Noah\nMaya: Welcome back to Singletrack Sessions.",
     "Today we're talking about drivetrain mechanics, and I'm joined by Noah, mechanic at Spoke & Wrench.",
-    "Before we dive in, a quick word from our sponsor Notion."
+    "This episode is brought to you by Notion."
   ],
   "summary_preview": "# Singletrack Sessions \u2014 Episode\n## The Mechanics of a Quiet, Fast Bike\nHost: Maya\nGuest: Noah\nMaya: Welcome back to Singletrack Sessions.",
-  "summary_text": "# Singletrack Sessions \u2014 Episode\n## The Mechanics of a Quiet, Fast Bike\nHost: Maya\nGuest: Noah\nMaya: Welcome back to Singletrack Sessions.\nToday we're talking about drivetrain mechanics, and I'm joined by Noah, mechanic at Spoke & Wrench.\nBefore we dive in, a quick word from our sponsor Notion.",
+  "summary_text": "# Singletrack Sessions \u2014 Episode\n## The Mechanics of a Quiet, Fast Bike\nHost: Maya\nGuest: Noah\nMaya: Welcome back to Singletrack Sessions.\nToday we're talking about drivetrain mechanics, and I'm joined by Noah, mechanic at Spoke & Wrench.\nThis episode is brought to you by Notion.",
   "summary_title": "Singletrack Sessions \u2014 Episode 3 \u2014 synthetic",
   "topics": [
     "outdoor activities",
