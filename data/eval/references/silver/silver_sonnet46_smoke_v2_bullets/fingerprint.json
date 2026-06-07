@@ -2,11 +2,11 @@
   "fingerprint_version": "1.0",
   "task": "summarization",
   "run_context": {
-    "run_id": "2026-06-07T11:12:22.625858Z",
+    "run_id": "2026-06-07T11:48:44.709097Z",
     "baseline_id": "silver_candidate_anthropic_claudesonnet46_smoke_v2_bullets",
     "dataset_id": "curated_5feeds_smoke_v2",
     "git": {
-      "commit": "27ac00b7a1fac2c9bfabd6df1d65ca6d2c1c2dd8",
+      "commit": "9354710a1e77cc3a6ffb724e49e27b25dd5a21ac",
       "branch": "feat/903-v2-eval-track",
       "dirty": true
     }

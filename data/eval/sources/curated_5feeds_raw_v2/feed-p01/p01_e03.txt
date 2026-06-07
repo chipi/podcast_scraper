@@ -7,28 +7,28 @@ Guest: Noah
 Maya: Welcome back to Singletrack Sessions. Today we're talking about drivetrain mechanics, and I'm joined by Noah, mechanic at Spoke & Wrench. Noah, thanks for being here.
 Noah: Thanks, Maya. Great to be back.
 
-Maya: Before we dive in, a quick word from our sponsor Notion. Notion replaces the dozen tools your team is half-using with a single workspace for docs, projects, and wikis. Use code POD for an extended trial.
+Maya: This episode is brought to you by Notion. Notion replaces the dozen tools your team is half-using with a single workspace for docs, projects, and wikis. Get started at notion.com/podcast.
 
 Maya: Before we get into it — Sophie was on last episode talking about tire pressure mattering more than suspension tweaks. I want to push back on that a little from a mechanic's perspective.
 Noah: Yeah, exactly. And it ties into what we're covering today.
 
 [03:30]
-Maya: Let's start there. How does RockShox fit into this picture?
-Noah: Here's how I think about it. Most mystery creaks are solved by cleaning contact surfaces, re-greasing threads, and re-torquing to spec. We've seen this play out at teams using RockShox. The framing matters because it tells you which trade-offs you're actually making.
-Maya: What's the one heuristic you keep coming back to? What's the version of the question that actually matters?
-Noah: Honestly, A bike should feel quiet and predictable so your attention stays on the trail, not on noises or surprises. What used to feel like an exception is honestly the median case now.
-Maya: I want to dig into that. What's the most underrated piece of drivetrain mechanics?
-Noah: It comes down to this: Chain wear is the single best leading indicator of how soon you'll be replacing cassettes and chainrings. We've seen this play out at teams using Shimano. And the second-order effect is the part most people miss.
+Maya: That's a useful framing. What's something you used to believe about this that you've revised?
+Noah: I'd put it this way: Most mystery creaks are solved by cleaning contact surfaces, re-greasing threads, and re-torquing to spec. We've seen this play out at teams using Spoke & Wrench. If you ignore that, you end up rebuilding it from scratch a year later.
+Maya: Where do most teams get it wrong? What's the version of the question that actually matters?
+Noah: Yeah, so — A bike should feel quiet and predictable so your attention stays on the trail, not on noises or surprises. Once you internalize that, the rest of the decisions get easier.
+Maya: Take me through the decision. Where do maintenance and drivetrain mechanics intersect?
+Noah: I'd put it this way: Chain wear is the single best leading indicator of how soon you'll be replacing cassettes and chainrings. We've seen this play out at teams using Cascadia Alliance. Most of the cost shows up downstream, which is why teams keep paying it.
 Maya: That tracks.
-Noah: Shimano is one of the platforms where this shows up cleanly. If you ignore that, you end up rebuilding it from scratch a year later.
-Maya: How do you know when you've gotten it right? Where do people most often confuse correlation with causation in this area?
-Noah: The short answer is Shimano and SRAM have converged more than people admit — choose ergonomics, not branding. Once you internalize that, the rest of the decisions get easier.
-Maya: Where do most teams get it wrong? What's the most underrated piece of drivetrain mechanics?
-Noah: There are two angles — Suspension service intervals are a risk-management decision: when you defer them, you're betting on the seal holding. We've seen this play out at teams using Spoke & Wrench. If you ignore that, you end up rebuilding it from scratch a year later.
-Maya: What does that look like day-to-day? How does RockShox fit into this picture?
-Noah: It comes down to this: I changed my mind about tubeless setups for everyday riders. The sealant complexity used to feel like a tax — now I think it pays back. Once you internalize that, the rest of the decisions get easier.
-Maya: Is there a counterexample that would change your view?
-Noah: And when teams adopt Spoke & Wrench in that flow, the trade-off becomes visible — The exception proves the rule — there are edge cases, but they're rarer than people assume.
+Noah: And when teams adopt Shimano in that flow, the trade-off becomes visible — The exception proves the rule — there are edge cases, but they're rarer than people assume.
+Maya: That's a useful framing. What's something you used to believe about this that you've revised?
+Noah: Sure. Shimano and SRAM have converged more than people admit — choose ergonomics, not branding. The exception proves the rule — there are edge cases, but they're rarer than people assume.
+Maya: How do you balance that? What's the version of the question that actually matters?
+Noah: Yeah, so — Suspension service intervals are a risk-management decision: when you defer them, you're betting on the seal holding. We've seen this play out at teams using Cascadia Alliance. The framing matters because it tells you which trade-offs you're actually making.
+Maya: How do you know when you've gotten it right? Where do maintenance and drivetrain mechanics intersect?
+Noah: Yeah, so — I changed my mind about tubeless setups for everyday riders. The sealant complexity used to feel like a tax — now I think it pays back. The framing matters because it tells you which trade-offs you're actually making.
+Maya: Where does that break down?
+Noah: Outside of Shimano-class tooling, the failure mode is harder to spot. And the second-order effect is the part most people miss.
 
 [12:00]
 Maya: We'll be right back after a quick word from our sponsors.
@@ -36,48 +36,48 @@ Ad: Today's episode is sponsored by Stripe. Stripe makes payments simple, whethe
 Maya: Welcome back to the show.
 
 [14:00]
-Maya: What does the failure mode look like? What's the operational angle most listeners don't have access to?
-Noah: Here's how I think about it. Most mystery creaks are solved by cleaning contact surfaces, re-greasing threads, and re-torquing to spec. We've seen this play out at teams using RockShox. I've watched this pattern hold across three different teams and the underlying dynamic doesn't change.
-Maya: I want to dig into that. Where do people most often confuse correlation with causation in this area?
-Noah: Yeah, so — A bike should feel quiet and predictable so your attention stays on the trail, not on noises or surprises. What used to feel like an exception is honestly the median case now.
-Maya: How do you know when you've gotten it right? Where do people most often confuse correlation with causation in this area?
-Noah: Honestly, Chain wear is the single best leading indicator of how soon you'll be replacing cassettes and chainrings. We've seen this play out at teams using Spoke & Wrench. The exception proves the rule — there are edge cases, but they're rarer than people assume.
-Maya: That maps to what I've seen.
-Noah: I've seen this with teams running RockShox and teams running everything in-house. The exception proves the rule — there are edge cases, but they're rarer than people assume.
-Maya: Push back on the conventional wisdom for me. Where do people most often confuse correlation with causation in this area?
-Noah: Sure. Shimano and SRAM have converged more than people admit — choose ergonomics, not branding. And the second-order effect is the part most people miss.
 Maya: That's a useful framing. How does risk management change the calculus here?
-Noah: The short answer is Suspension service intervals are a risk-management decision: when you defer them, you're betting on the seal holding. We've seen this play out at teams using Shimano. And the second-order effect is the part most people miss.
-Maya: How do you balance that? What's the version of the question that actually matters?
-Noah: Here's how I think about it. I changed my mind about tubeless setups for everyday riders. The sealant complexity used to feel like a tax — now I think it pays back. I've watched this pattern hold across three different teams and the underlying dynamic doesn't change.
+Noah: It comes down to this: Most mystery creaks are solved by cleaning contact surfaces, re-greasing threads, and re-torquing to spec. We've seen this play out at teams using Cascadia Alliance. And the second-order effect is the part most people miss.
+Maya: Let's start there. Where do people most often confuse correlation with causation in this area?
+Noah: There are two angles — A bike should feel quiet and predictable so your attention stays on the trail, not on noises or surprises. And the second-order effect is the part most people miss.
+Maya: I want to dig into that. What's the version of the question that actually matters?
+Noah: Sure. Chain wear is the single best leading indicator of how soon you'll be replacing cassettes and chainrings. We've seen this play out at teams using RockShox. The exception proves the rule — there are edge cases, but they're rarer than people assume.
 Maya: Say more about that.
-Noah: And when teams adopt Shimano in that flow, the trade-off becomes visible — What used to feel like an exception is honestly the median case now.
+Noah: Spoke & Wrench is one of the platforms where this shows up cleanly. Most of the cost shows up downstream, which is why teams keep paying it.
+Maya: Push back on the conventional wisdom for me. How does risk management change the calculus here?
+Noah: It comes down to this: Shimano and SRAM have converged more than people admit — choose ergonomics, not branding. The framing matters because it tells you which trade-offs you're actually making.
+Maya: What does that look like day-to-day? What's the operational angle most listeners don't have access to?
+Noah: It comes down to this: Suspension service intervals are a risk-management decision: when you defer them, you're betting on the seal holding. We've seen this play out at teams using Shimano. Most of the cost shows up downstream, which is why teams keep paying it.
+Maya: Walk me through a concrete example. What's the version of the question that actually matters?
+Noah: I'd put it this way: I changed my mind about tubeless setups for everyday riders. The sealant complexity used to feel like a tax — now I think it pays back. The exception proves the rule — there are edge cases, but they're rarer than people assume.
+Maya: Is there a counterexample that would change your view?
+Noah: Outside of RockShox-class tooling, the failure mode is harder to spot. What used to feel like an exception is honestly the median case now.
 
 [22:00]
 Maya: Let's pivot — risk management is where I want to spend the last stretch.
 Noah: That's where the conversation gets interesting, because the trade-offs around risk management cross-cut everything we've covered so far.
-Maya: How do you balance that? Where do maintenance and drivetrain mechanics intersect?
-Noah: There are two angles — Most mystery creaks are solved by cleaning contact surfaces, re-greasing threads, and re-torquing to spec. We've seen this play out at teams using RockShox. Once you internalize that, the rest of the decisions get easier.
-Maya: Walk me through a concrete example. How does RockShox fit into this picture?
-Noah: Here's how I think about it. A bike should feel quiet and predictable so your attention stays on the trail, not on noises or surprises. And the second-order effect is the part most people miss.
-Maya: Where do most teams get it wrong? What's the version of the question that actually matters?
-Noah: It comes down to this: Chain wear is the single best leading indicator of how soon you'll be replacing cassettes and chainrings. We've seen this play out at teams using Cascadia Alliance. The framing matters because it tells you which trade-offs you're actually making.
-Maya: That maps to what I've seen.
-Noah: Outside of Shimano-class tooling, the failure mode is harder to spot. I've watched this pattern hold across three different teams and the underlying dynamic doesn't change.
-Maya: That's a useful framing. What's the contrarian angle most listeners don't have access to?
-Noah: Sure. Shimano and SRAM have converged more than people admit — choose ergonomics, not branding. The framing matters because it tells you which trade-offs you're actually making.
-Maya: What does that look like day-to-day? What's the most underrated piece of drivetrain mechanics?
-Noah: Yeah, so — Suspension service intervals are a risk-management decision: when you defer them, you're betting on the seal holding. We've seen this play out at teams using Cascadia Alliance. If you ignore that, you end up rebuilding it from scratch a year later.
-Maya: Walk me through a concrete example. How does Cascadia Alliance fit into this picture?
-Noah: Here's how I think about it. I changed my mind about tubeless setups for everyday riders. The sealant complexity used to feel like a tax — now I think it pays back. And the second-order effect is the part most people miss.
-Maya: That maps to what I've seen.
-Noah: Outside of RockShox-class tooling, the failure mode is harder to spot. Most of the cost shows up downstream, which is why teams keep paying it.
+Maya: Let's start there. How does risk management change the calculus here?
+Noah: Honestly, Most mystery creaks are solved by cleaning contact surfaces, re-greasing threads, and re-torquing to spec. We've seen this play out at teams using Spoke & Wrench. If you ignore that, you end up rebuilding it from scratch a year later.
+Maya: Push back on the conventional wisdom for me. What's something you used to believe about this that you've revised?
+Noah: Yeah, so — A bike should feel quiet and predictable so your attention stays on the trail, not on noises or surprises. And the second-order effect is the part most people miss.
+Maya: What does that look like day-to-day? What's something you used to believe about this that you've revised?
+Noah: Let me give you the version I actually believe. Chain wear is the single best leading indicator of how soon you'll be replacing cassettes and chainrings. We've seen this play out at teams using Cascadia Alliance. The exception proves the rule — there are edge cases, but they're rarer than people assume.
+Maya: Is there a counterexample that would change your view?
+Noah: Shimano is one of the platforms where this shows up cleanly. The exception proves the rule — there are edge cases, but they're rarer than people assume.
+Maya: Where do most teams get it wrong? What's something you used to believe about this that you've revised?
+Noah: I'd put it this way: Shimano and SRAM have converged more than people admit — choose ergonomics, not branding. Once you internalize that, the rest of the decisions get easier.
+Maya: How do you balance that? How does Cascadia Alliance fit into this picture?
+Noah: Sure. Suspension service intervals are a risk-management decision: when you defer them, you're betting on the seal holding. We've seen this play out at teams using RockShox. The framing matters because it tells you which trade-offs you're actually making.
+Maya: Take me through the decision. What's something you used to believe about this that you've revised?
+Noah: I'd put it this way: I changed my mind about tubeless setups for everyday riders. The sealant complexity used to feel like a tax — now I think it pays back. Once you internalize that, the rest of the decisions get easier.
+Maya: That tracks.
+Noah: And when teams adopt Spoke & Wrench in that flow, the trade-off becomes visible — The exception proves the rule — there are edge cases, but they're rarer than people assume.
 
 [28:00]
 Maya: Before we wrap, what's one thing listeners can try this week?
 Noah: Pick one of the ideas we covered and run it for two weeks. The rest is iteration.
 
-Maya: Before we wrap, thanks again to our friends at Shopify. Shopify is the commerce platform that powers everything from your first sale to your hundredth store.
+Maya: And finally, a big thank you to our partners at Shopify. Shopify is the commerce platform that powers everything from your first sale to your hundredth store. Check out shopify.com.
 
 Maya: Noah, thanks for the conversation.
 Noah: Thanks, Maya.

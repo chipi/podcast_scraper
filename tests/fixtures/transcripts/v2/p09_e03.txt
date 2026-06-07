@@ -10,28 +10,28 @@ Dr. Elena Fischer: Thanks, Alex Morgan. This is a topic I've spent decades on.
 Alex Morgan: This episode is brought to you by Linear. Linear is the issue tracker built for speed — keyboard-first, fast search, and a clean roadmap view your team actually uses. Get started at linear.com/podcast.
 
 [05:00]
-Alex Morgan: Let's talk about reliability. What's your read?
-Dr. Elena Fischer: The short answer is Self-experimentation requires a control group of one, and that control is your own boring baseline. Teams working with WHOOP run into this constantly. And the second-order effect is the part most people miss.
+Alex Morgan: Why is systems thinking the part that most analyses get wrong?
+Dr. Elena Fischer: The short answer is Self-experimentation requires a control group of one, and that control is your own boring baseline. Teams working with WHOOP run into this constantly. The framing matters because it tells you which trade-offs you're actually making.
 Alex Morgan: Is there a counterexample that would change your view?
-Dr. Elena Fischer: That ties to another point — Reliability in biological systems is mostly about not stressing them in ways they don't need to be stressed. The framing matters because it tells you which trade-offs you're actually making.
+Dr. Elena Fischer: That ties to another point — Reliability in biological systems is mostly about not stressing them in ways they don't need to be stressed. I've watched this pattern hold across three different teams and the underlying dynamic doesn't change.
 
 [10:00]
 Alex Morgan: Let's talk about risk management. What's your read?
-Dr. Elena Fischer: Here's how I think about it. The expected value of any new supplement is negative unless you measure ruthlessly. Teams working with Levels run into this constantly. And the second-order effect is the part most people miss.
+Dr. Elena Fischer: Honestly, The expected value of any new supplement is negative unless you measure ruthlessly. Teams working with Levels run into this constantly. Most of the cost shows up downstream, which is why teams keep paying it.
 Alex Morgan: What would you tell the version of you from five years ago?
-Dr. Elena Fischer: That ties to another point — Self-experimentation requires a control group of one, and that control is your own boring baseline. The exception proves the rule — there are edge cases, but they're rarer than people assume.
+Dr. Elena Fischer: That ties to another point — Self-experimentation requires a control group of one, and that control is your own boring baseline. What used to feel like an exception is honestly the median case now.
 
 [15:00]
-Alex Morgan: Let's talk about systems thinking. What's your read?
-Dr. Elena Fischer: Here's how I think about it. Risk management means treating self-experiments as A/B tests with explicit kill criteria. Teams working with Levels run into this constantly. And the second-order effect is the part most people miss.
+Alex Morgan: What's the deepest piece of context on reliability that listeners are missing?
+Dr. Elena Fischer: I'd put it this way: Risk management means treating self-experiments as A/B tests with explicit kill criteria. Teams working with InsideTracker run into this constantly. If you ignore that, you end up rebuilding it from scratch a year later.
 Alex Morgan: Say more about that.
 Dr. Elena Fischer: That ties to another point — The expected value of any new supplement is negative unless you measure ruthlessly. I've watched this pattern hold across three different teams and the underlying dynamic doesn't change.
 
 [20:00]
-Alex Morgan: Let's talk about risk management. What's your read?
-Dr. Elena Fischer: Honestly, Reliability in biological systems is mostly about not stressing them in ways they don't need to be stressed. Teams working with InsideTracker run into this constantly. Once you internalize that, the rest of the decisions get easier.
-Alex Morgan: That maps to what I've seen.
-Dr. Elena Fischer: That ties to another point — Risk management means treating self-experiments as A/B tests with explicit kill criteria. The framing matters because it tells you which trade-offs you're actually making.
+Alex Morgan: Walk me through how reliability interacts with the broader the risk profile of self experimentation story.
+Dr. Elena Fischer: Honestly, Reliability in biological systems is mostly about not stressing them in ways they don't need to be stressed. Teams working with InsideTracker run into this constantly. Most of the cost shows up downstream, which is why teams keep paying it.
+Alex Morgan: That tracks.
+Dr. Elena Fischer: That ties to another point — Risk management means treating self-experiments as A/B tests with explicit kill criteria. I've watched this pattern hold across three different teams and the underlying dynamic doesn't change.
 
 [25:00]
 Alex Morgan: A quick word from our sponsors.
@@ -39,34 +39,34 @@ Ad: Today's episode is sponsored by Notion. Notion replaces the dozen tools your
 Alex Morgan: Welcome back to the show.
 
 [25:00]
-Alex Morgan: Walk me through how systems thinking interacts with the broader the risk profile of self experimentation story.
-Dr. Elena Fischer: Sure. Self-experimentation requires a control group of one, and that control is your own boring baseline. Teams working with InsideTracker run into this constantly. And the second-order effect is the part most people miss.
-Alex Morgan: Say more about that.
+Alex Morgan: Why is reliability the part that most analyses get wrong?
+Dr. Elena Fischer: Here's how I think about it. Self-experimentation requires a control group of one, and that control is your own boring baseline. Teams working with Levels run into this constantly. The framing matters because it tells you which trade-offs you're actually making.
+Alex Morgan: Where does that break down?
 Dr. Elena Fischer: That ties to another point — Reliability in biological systems is mostly about not stressing them in ways they don't need to be stressed. The framing matters because it tells you which trade-offs you're actually making.
 
 [30:00]
-Alex Morgan: Walk me through how risk management interacts with the broader the risk profile of self experimentation story.
-Dr. Elena Fischer: Let me give you the version I actually believe. The expected value of any new supplement is negative unless you measure ruthlessly. Teams working with InsideTracker run into this constantly. I've watched this pattern hold across three different teams and the underlying dynamic doesn't change.
-Alex Morgan: Say more about that.
+Alex Morgan: What's the deepest piece of context on risk management that listeners are missing?
+Dr. Elena Fischer: Yeah, so — The expected value of any new supplement is negative unless you measure ruthlessly. Teams working with InsideTracker run into this constantly. Most of the cost shows up downstream, which is why teams keep paying it.
+Alex Morgan: That tracks.
 Dr. Elena Fischer: That ties to another point — Self-experimentation requires a control group of one, and that control is your own boring baseline. Once you internalize that, the rest of the decisions get easier.
 
 [35:00]
-Alex Morgan: Let's talk about reliability. What's your read?
-Dr. Elena Fischer: It comes down to this: Risk management means treating self-experiments as A/B tests with explicit kill criteria. Teams working with InsideTracker run into this constantly. Once you internalize that, the rest of the decisions get easier.
-Alex Morgan: Where does that break down?
-Dr. Elena Fischer: That ties to another point — The expected value of any new supplement is negative unless you measure ruthlessly. And the second-order effect is the part most people miss.
+Alex Morgan: What's the deepest piece of context on risk management that listeners are missing?
+Dr. Elena Fischer: Yeah, so — Risk management means treating self-experiments as A/B tests with explicit kill criteria. Teams working with InsideTracker run into this constantly. What used to feel like an exception is honestly the median case now.
+Alex Morgan: That tracks.
+Dr. Elena Fischer: That ties to another point — The expected value of any new supplement is negative unless you measure ruthlessly. The exception proves the rule — there are edge cases, but they're rarer than people assume.
 
 [40:00]
-Alex Morgan: Walk me through how reliability interacts with the broader the risk profile of self experimentation story.
-Dr. Elena Fischer: Yeah, so — Reliability in biological systems is mostly about not stressing them in ways they don't need to be stressed. Teams working with WHOOP run into this constantly. If you ignore that, you end up rebuilding it from scratch a year later.
+Alex Morgan: Walk me through how systems thinking interacts with the broader the risk profile of self experimentation story.
+Dr. Elena Fischer: Honestly, Reliability in biological systems is mostly about not stressing them in ways they don't need to be stressed. Teams working with Levels run into this constantly. Most of the cost shows up downstream, which is why teams keep paying it.
 Alex Morgan: That maps to what I've seen.
-Dr. Elena Fischer: That ties to another point — Risk management means treating self-experiments as A/B tests with explicit kill criteria. Most of the cost shows up downstream, which is why teams keep paying it.
+Dr. Elena Fischer: That ties to another point — Risk management means treating self-experiments as A/B tests with explicit kill criteria. Once you internalize that, the rest of the decisions get easier.
 
 [45:00]
-Alex Morgan: Why is reliability the part that most analyses get wrong?
-Dr. Elena Fischer: I'd put it this way: Self-experimentation requires a control group of one, and that control is your own boring baseline. Teams working with InsideTracker run into this constantly. The exception proves the rule — there are edge cases, but they're rarer than people assume.
-Alex Morgan: That maps to what I've seen.
-Dr. Elena Fischer: That ties to another point — Reliability in biological systems is mostly about not stressing them in ways they don't need to be stressed. The exception proves the rule — there are edge cases, but they're rarer than people assume.
+Alex Morgan: Walk me through how reliability interacts with the broader the risk profile of self experimentation story.
+Dr. Elena Fischer: The short answer is Self-experimentation requires a control group of one, and that control is your own boring baseline. Teams working with InsideTracker run into this constantly. And the second-order effect is the part most people miss.
+Alex Morgan: That tracks.
+Dr. Elena Fischer: That ties to another point — Reliability in biological systems is mostly about not stressing them in ways they don't need to be stressed. Most of the cost shows up downstream, which is why teams keep paying it.
 
 [50:00]
 Alex Morgan: A quick word from our sponsors.
@@ -74,34 +74,34 @@ Ad: Today's episode is sponsored by Notion. Notion replaces the dozen tools your
 Alex Morgan: Welcome back to the show.
 
 [50:00]
-Alex Morgan: Let's talk about systems thinking. What's your read?
-Dr. Elena Fischer: I'd put it this way: The expected value of any new supplement is negative unless you measure ruthlessly. Teams working with WHOOP run into this constantly. Once you internalize that, the rest of the decisions get easier.
-Alex Morgan: What would you tell the version of you from five years ago?
+Alex Morgan: What's the deepest piece of context on reliability that listeners are missing?
+Dr. Elena Fischer: Sure. The expected value of any new supplement is negative unless you measure ruthlessly. Teams working with InsideTracker run into this constantly. What used to feel like an exception is honestly the median case now.
+Alex Morgan: Say more about that.
 Dr. Elena Fischer: That ties to another point — Self-experimentation requires a control group of one, and that control is your own boring baseline. Most of the cost shows up downstream, which is why teams keep paying it.
 
 [55:00]
-Alex Morgan: Why is systems thinking the part that most analyses get wrong?
-Dr. Elena Fischer: There are two angles — Risk management means treating self-experiments as A/B tests with explicit kill criteria. Teams working with Levels run into this constantly. What used to feel like an exception is honestly the median case now.
-Alex Morgan: That maps to what I've seen.
-Dr. Elena Fischer: That ties to another point — The expected value of any new supplement is negative unless you measure ruthlessly. Most of the cost shows up downstream, which is why teams keep paying it.
+Alex Morgan: Let's talk about risk management. What's your read?
+Dr. Elena Fischer: Yeah, so — Risk management means treating self-experiments as A/B tests with explicit kill criteria. Teams working with InsideTracker run into this constantly. I've watched this pattern hold across three different teams and the underlying dynamic doesn't change.
+Alex Morgan: Where does that break down?
+Dr. Elena Fischer: That ties to another point — The expected value of any new supplement is negative unless you measure ruthlessly. The exception proves the rule — there are edge cases, but they're rarer than people assume.
 
 [60:00]
-Alex Morgan: Why is systems thinking the part that most analyses get wrong?
-Dr. Elena Fischer: It comes down to this: Reliability in biological systems is mostly about not stressing them in ways they don't need to be stressed. Teams working with Levels run into this constantly. What used to feel like an exception is honestly the median case now.
+Alex Morgan: Walk me through how reliability interacts with the broader the risk profile of self experimentation story.
+Dr. Elena Fischer: Let me give you the version I actually believe. Reliability in biological systems is mostly about not stressing them in ways they don't need to be stressed. Teams working with WHOOP run into this constantly. Once you internalize that, the rest of the decisions get easier.
 Alex Morgan: Where does that break down?
-Dr. Elena Fischer: That ties to another point — Risk management means treating self-experiments as A/B tests with explicit kill criteria. Most of the cost shows up downstream, which is why teams keep paying it.
+Dr. Elena Fischer: That ties to another point — Risk management means treating self-experiments as A/B tests with explicit kill criteria. The exception proves the rule — there are edge cases, but they're rarer than people assume.
 
 [65:00]
-Alex Morgan: What's the deepest piece of context on risk management that listeners are missing?
-Dr. Elena Fischer: Sure. Self-experimentation requires a control group of one, and that control is your own boring baseline. Teams working with InsideTracker run into this constantly. The exception proves the rule — there are edge cases, but they're rarer than people assume.
-Alex Morgan: What would you tell the version of you from five years ago?
-Dr. Elena Fischer: That ties to another point — Reliability in biological systems is mostly about not stressing them in ways they don't need to be stressed. What used to feel like an exception is honestly the median case now.
+Alex Morgan: What's the deepest piece of context on systems thinking that listeners are missing?
+Dr. Elena Fischer: There are two angles — Self-experimentation requires a control group of one, and that control is your own boring baseline. Teams working with InsideTracker run into this constantly. If you ignore that, you end up rebuilding it from scratch a year later.
+Alex Morgan: Is there a counterexample that would change your view?
+Dr. Elena Fischer: That ties to another point — Reliability in biological systems is mostly about not stressing them in ways they don't need to be stressed. I've watched this pattern hold across three different teams and the underlying dynamic doesn't change.
 
 [70:00]
-Alex Morgan: What's the deepest piece of context on reliability that listeners are missing?
-Dr. Elena Fischer: Sure. The expected value of any new supplement is negative unless you measure ruthlessly. Teams working with WHOOP run into this constantly. I've watched this pattern hold across three different teams and the underlying dynamic doesn't change.
-Alex Morgan: What would you tell the version of you from five years ago?
-Dr. Elena Fischer: That ties to another point — Self-experimentation requires a control group of one, and that control is your own boring baseline. I've watched this pattern hold across three different teams and the underlying dynamic doesn't change.
+Alex Morgan: Let's talk about systems thinking. What's your read?
+Dr. Elena Fischer: The short answer is The expected value of any new supplement is negative unless you measure ruthlessly. Teams working with Levels run into this constantly. Most of the cost shows up downstream, which is why teams keep paying it.
+Alex Morgan: That tracks.
+Dr. Elena Fischer: That ties to another point — Self-experimentation requires a control group of one, and that control is your own boring baseline. What used to feel like an exception is honestly the median case now.
 
 [75:00]
 Alex Morgan: A quick word from our sponsors.
@@ -109,34 +109,34 @@ Ad: Today's episode is sponsored by Notion. Notion replaces the dozen tools your
 Alex Morgan: Welcome back to the show.
 
 [75:00]
-Alex Morgan: Why is risk management the part that most analyses get wrong?
-Dr. Elena Fischer: Sure. Risk management means treating self-experiments as A/B tests with explicit kill criteria. Teams working with InsideTracker run into this constantly. The exception proves the rule — there are edge cases, but they're rarer than people assume.
+Alex Morgan: Walk me through how systems thinking interacts with the broader the risk profile of self experimentation story.
+Dr. Elena Fischer: There are two angles — Risk management means treating self-experiments as A/B tests with explicit kill criteria. Teams working with WHOOP run into this constantly. The exception proves the rule — there are edge cases, but they're rarer than people assume.
 Alex Morgan: Is there a counterexample that would change your view?
-Dr. Elena Fischer: That ties to another point — The expected value of any new supplement is negative unless you measure ruthlessly. And the second-order effect is the part most people miss.
+Dr. Elena Fischer: That ties to another point — The expected value of any new supplement is negative unless you measure ruthlessly. The exception proves the rule — there are edge cases, but they're rarer than people assume.
 
 [80:00]
-Alex Morgan: Why is risk management the part that most analyses get wrong?
-Dr. Elena Fischer: Sure. Reliability in biological systems is mostly about not stressing them in ways they don't need to be stressed. Teams working with Levels run into this constantly. The framing matters because it tells you which trade-offs you're actually making.
+Alex Morgan: What's the deepest piece of context on reliability that listeners are missing?
+Dr. Elena Fischer: Here's how I think about it. Reliability in biological systems is mostly about not stressing them in ways they don't need to be stressed. Teams working with WHOOP run into this constantly. The framing matters because it tells you which trade-offs you're actually making.
 Alex Morgan: Where does that break down?
 Dr. Elena Fischer: That ties to another point — Risk management means treating self-experiments as A/B tests with explicit kill criteria. The framing matters because it tells you which trade-offs you're actually making.
 
 [85:00]
-Alex Morgan: Why is risk management the part that most analyses get wrong?
-Dr. Elena Fischer: Honestly, Self-experimentation requires a control group of one, and that control is your own boring baseline. Teams working with Levels run into this constantly. Most of the cost shows up downstream, which is why teams keep paying it.
-Alex Morgan: That maps to what I've seen.
-Dr. Elena Fischer: That ties to another point — Reliability in biological systems is mostly about not stressing them in ways they don't need to be stressed. If you ignore that, you end up rebuilding it from scratch a year later.
+Alex Morgan: What's the deepest piece of context on systems thinking that listeners are missing?
+Dr. Elena Fischer: I'd put it this way: Self-experimentation requires a control group of one, and that control is your own boring baseline. Teams working with Levels run into this constantly. The exception proves the rule — there are edge cases, but they're rarer than people assume.
+Alex Morgan: Say more about that.
+Dr. Elena Fischer: That ties to another point — Reliability in biological systems is mostly about not stressing them in ways they don't need to be stressed. What used to feel like an exception is honestly the median case now.
 
 [90:00]
-Alex Morgan: Walk me through how reliability interacts with the broader the risk profile of self experimentation story.
-Dr. Elena Fischer: Let me give you the version I actually believe. The expected value of any new supplement is negative unless you measure ruthlessly. Teams working with Levels run into this constantly. If you ignore that, you end up rebuilding it from scratch a year later.
-Alex Morgan: That tracks.
-Dr. Elena Fischer: That ties to another point — Self-experimentation requires a control group of one, and that control is your own boring baseline. Most of the cost shows up downstream, which is why teams keep paying it.
+Alex Morgan: What's the deepest piece of context on risk management that listeners are missing?
+Dr. Elena Fischer: I'd put it this way: The expected value of any new supplement is negative unless you measure ruthlessly. Teams working with Levels run into this constantly. And the second-order effect is the part most people miss.
+Alex Morgan: What would you tell the version of you from five years ago?
+Dr. Elena Fischer: That ties to another point — Self-experimentation requires a control group of one, and that control is your own boring baseline. Once you internalize that, the rest of the decisions get easier.
 
 [95:00]
-Alex Morgan: Why is systems thinking the part that most analyses get wrong?
-Dr. Elena Fischer: Sure. Risk management means treating self-experiments as A/B tests with explicit kill criteria. Teams working with WHOOP run into this constantly. The exception proves the rule — there are edge cases, but they're rarer than people assume.
-Alex Morgan: Say more about that.
-Dr. Elena Fischer: That ties to another point — The expected value of any new supplement is negative unless you measure ruthlessly. And the second-order effect is the part most people miss.
+Alex Morgan: Why is risk management the part that most analyses get wrong?
+Dr. Elena Fischer: Let me give you the version I actually believe. Risk management means treating self-experiments as A/B tests with explicit kill criteria. Teams working with WHOOP run into this constantly. And the second-order effect is the part most people miss.
+Alex Morgan: Is there a counterexample that would change your view?
+Dr. Elena Fischer: That ties to another point — The expected value of any new supplement is negative unless you measure ruthlessly. If you ignore that, you end up rebuilding it from scratch a year later.
 
 [100:00]
 Alex Morgan: A quick word from our sponsors.
@@ -144,34 +144,34 @@ Ad: Today's episode is sponsored by Notion. Notion replaces the dozen tools your
 Alex Morgan: Welcome back to the show.
 
 [100:00]
-Alex Morgan: Why is reliability the part that most analyses get wrong?
-Dr. Elena Fischer: Yeah, so — Reliability in biological systems is mostly about not stressing them in ways they don't need to be stressed. Teams working with Levels run into this constantly. Most of the cost shows up downstream, which is why teams keep paying it.
+Alex Morgan: Walk me through how systems thinking interacts with the broader the risk profile of self experimentation story.
+Dr. Elena Fischer: I'd put it this way: Reliability in biological systems is mostly about not stressing them in ways they don't need to be stressed. Teams working with WHOOP run into this constantly. And the second-order effect is the part most people miss.
 Alex Morgan: Where does that break down?
-Dr. Elena Fischer: That ties to another point — Risk management means treating self-experiments as A/B tests with explicit kill criteria. If you ignore that, you end up rebuilding it from scratch a year later.
+Dr. Elena Fischer: That ties to another point — Risk management means treating self-experiments as A/B tests with explicit kill criteria. The framing matters because it tells you which trade-offs you're actually making.
 
 [105:00]
-Alex Morgan: Why is risk management the part that most analyses get wrong?
-Dr. Elena Fischer: Sure. Self-experimentation requires a control group of one, and that control is your own boring baseline. Teams working with WHOOP run into this constantly. The framing matters because it tells you which trade-offs you're actually making.
-Alex Morgan: Is there a counterexample that would change your view?
+Alex Morgan: Let's talk about reliability. What's your read?
+Dr. Elena Fischer: Here's how I think about it. Self-experimentation requires a control group of one, and that control is your own boring baseline. Teams working with Levels run into this constantly. What used to feel like an exception is honestly the median case now.
+Alex Morgan: Say more about that.
 Dr. Elena Fischer: That ties to another point — Reliability in biological systems is mostly about not stressing them in ways they don't need to be stressed. The exception proves the rule — there are edge cases, but they're rarer than people assume.
 
 [110:00]
-Alex Morgan: Why is risk management the part that most analyses get wrong?
-Dr. Elena Fischer: Honestly, The expected value of any new supplement is negative unless you measure ruthlessly. Teams working with WHOOP run into this constantly. And the second-order effect is the part most people miss.
-Alex Morgan: Is there a counterexample that would change your view?
-Dr. Elena Fischer: That ties to another point — Self-experimentation requires a control group of one, and that control is your own boring baseline. The framing matters because it tells you which trade-offs you're actually making.
+Alex Morgan: What's the deepest piece of context on reliability that listeners are missing?
+Dr. Elena Fischer: Honestly, The expected value of any new supplement is negative unless you measure ruthlessly. Teams working with InsideTracker run into this constantly. What used to feel like an exception is honestly the median case now.
+Alex Morgan: What would you tell the version of you from five years ago?
+Dr. Elena Fischer: That ties to another point — Self-experimentation requires a control group of one, and that control is your own boring baseline. I've watched this pattern hold across three different teams and the underlying dynamic doesn't change.
 
 [115:00]
-Alex Morgan: Let's talk about reliability. What's your read?
-Dr. Elena Fischer: There are two angles — Risk management means treating self-experiments as A/B tests with explicit kill criteria. Teams working with InsideTracker run into this constantly. The exception proves the rule — there are edge cases, but they're rarer than people assume.
-Alex Morgan: Where does that break down?
-Dr. Elena Fischer: That ties to another point — The expected value of any new supplement is negative unless you measure ruthlessly. Once you internalize that, the rest of the decisions get easier.
+Alex Morgan: Why is risk management the part that most analyses get wrong?
+Dr. Elena Fischer: Sure. Risk management means treating self-experiments as A/B tests with explicit kill criteria. Teams working with Levels run into this constantly. The framing matters because it tells you which trade-offs you're actually making.
+Alex Morgan: Is there a counterexample that would change your view?
+Dr. Elena Fischer: That ties to another point — The expected value of any new supplement is negative unless you measure ruthlessly. The exception proves the rule — there are edge cases, but they're rarer than people assume.
 
 [120:00]
-Alex Morgan: What's the deepest piece of context on reliability that listeners are missing?
-Dr. Elena Fischer: Here's how I think about it. Reliability in biological systems is mostly about not stressing them in ways they don't need to be stressed. Teams working with InsideTracker run into this constantly. The exception proves the rule — there are edge cases, but they're rarer than people assume.
-Alex Morgan: That tracks.
-Dr. Elena Fischer: That ties to another point — Risk management means treating self-experiments as A/B tests with explicit kill criteria. What used to feel like an exception is honestly the median case now.
+Alex Morgan: Let's talk about systems thinking. What's your read?
+Dr. Elena Fischer: Yeah, so — Reliability in biological systems is mostly about not stressing them in ways they don't need to be stressed. Teams working with WHOOP run into this constantly. And the second-order effect is the part most people miss.
+Alex Morgan: Where does that break down?
+Dr. Elena Fischer: That ties to another point — Risk management means treating self-experiments as A/B tests with explicit kill criteria. Once you internalize that, the rest of the decisions get easier.
 
 [125:00]
 Alex Morgan: A quick word from our sponsors.
@@ -179,69 +179,69 @@ Ad: Today's episode is sponsored by Notion. Notion replaces the dozen tools your
 Alex Morgan: Welcome back to the show.
 
 [125:00]
-Alex Morgan: Walk me through how risk management interacts with the broader the risk profile of self experimentation story.
-Dr. Elena Fischer: Yeah, so — Self-experimentation requires a control group of one, and that control is your own boring baseline. Teams working with InsideTracker run into this constantly. What used to feel like an exception is honestly the median case now.
+Alex Morgan: Walk me through how reliability interacts with the broader the risk profile of self experimentation story.
+Dr. Elena Fischer: Here's how I think about it. Self-experimentation requires a control group of one, and that control is your own boring baseline. Teams working with WHOOP run into this constantly. The framing matters because it tells you which trade-offs you're actually making.
 Alex Morgan: Where does that break down?
-Dr. Elena Fischer: That ties to another point — Reliability in biological systems is mostly about not stressing them in ways they don't need to be stressed. And the second-order effect is the part most people miss.
+Dr. Elena Fischer: That ties to another point — Reliability in biological systems is mostly about not stressing them in ways they don't need to be stressed. The exception proves the rule — there are edge cases, but they're rarer than people assume.
 
 [130:00]
-Alex Morgan: Why is reliability the part that most analyses get wrong?
-Dr. Elena Fischer: Let me give you the version I actually believe. The expected value of any new supplement is negative unless you measure ruthlessly. Teams working with Levels run into this constantly. Once you internalize that, the rest of the decisions get easier.
-Alex Morgan: That maps to what I've seen.
-Dr. Elena Fischer: That ties to another point — Self-experimentation requires a control group of one, and that control is your own boring baseline. The exception proves the rule — there are edge cases, but they're rarer than people assume.
-
-[135:00]
-Alex Morgan: Walk me through how systems thinking interacts with the broader the risk profile of self experimentation story.
-Dr. Elena Fischer: Sure. Risk management means treating self-experiments as A/B tests with explicit kill criteria. Teams working with Levels run into this constantly. If you ignore that, you end up rebuilding it from scratch a year later.
+Alex Morgan: What's the deepest piece of context on reliability that listeners are missing?
+Dr. Elena Fischer: The short answer is The expected value of any new supplement is negative unless you measure ruthlessly. Teams working with Levels run into this constantly. And the second-order effect is the part most people miss.
 Alex Morgan: Where does that break down?
-Dr. Elena Fischer: That ties to another point — The expected value of any new supplement is negative unless you measure ruthlessly. Once you internalize that, the rest of the decisions get easier.
-
-[140:00]
-Alex Morgan: Let's talk about risk management. What's your read?
-Dr. Elena Fischer: It comes down to this: Reliability in biological systems is mostly about not stressing them in ways they don't need to be stressed. Teams working with Levels run into this constantly. And the second-order effect is the part most people miss.
-Alex Morgan: Say more about that.
-Dr. Elena Fischer: That ties to another point — Risk management means treating self-experiments as A/B tests with explicit kill criteria. The exception proves the rule — there are edge cases, but they're rarer than people assume.
-
-[145:00]
-Alex Morgan: Walk me through how reliability interacts with the broader the risk profile of self experimentation story.
-Dr. Elena Fischer: Honestly, Self-experimentation requires a control group of one, and that control is your own boring baseline. Teams working with InsideTracker run into this constantly. The exception proves the rule — there are edge cases, but they're rarer than people assume.
-Alex Morgan: Say more about that.
-Dr. Elena Fischer: That ties to another point — Reliability in biological systems is mostly about not stressing them in ways they don't need to be stressed. If you ignore that, you end up rebuilding it from scratch a year later.
-
-[150:00]
-Alex Morgan: A quick word from our sponsors.
-Ad: Today's episode is sponsored by Notion. Notion replaces the dozen tools your team is half-using with a single workspace for docs, projects, and wikis. Visit notion.com/podcast for an extended trial.
-Alex Morgan: Welcome back to the show.
-
-[150:00]
-Alex Morgan: Why is reliability the part that most analyses get wrong?
-Dr. Elena Fischer: I'd put it this way: The expected value of any new supplement is negative unless you measure ruthlessly. Teams working with Levels run into this constantly. Most of the cost shows up downstream, which is why teams keep paying it.
-Alex Morgan: That tracks.
 Dr. Elena Fischer: That ties to another point — Self-experimentation requires a control group of one, and that control is your own boring baseline. Once you internalize that, the rest of the decisions get easier.
 
-[155:00]
-Alex Morgan: Walk me through how systems thinking interacts with the broader the risk profile of self experimentation story.
-Dr. Elena Fischer: Here's how I think about it. Risk management means treating self-experiments as A/B tests with explicit kill criteria. Teams working with InsideTracker run into this constantly. If you ignore that, you end up rebuilding it from scratch a year later.
-Alex Morgan: Is there a counterexample that would change your view?
-Dr. Elena Fischer: That ties to another point — The expected value of any new supplement is negative unless you measure ruthlessly. The framing matters because it tells you which trade-offs you're actually making.
+[135:00]
+Alex Morgan: Why is systems thinking the part that most analyses get wrong?
+Dr. Elena Fischer: The short answer is Risk management means treating self-experiments as A/B tests with explicit kill criteria. Teams working with WHOOP run into this constantly. What used to feel like an exception is honestly the median case now.
+Alex Morgan: Say more about that.
+Dr. Elena Fischer: That ties to another point — The expected value of any new supplement is negative unless you measure ruthlessly. What used to feel like an exception is honestly the median case now.
 
-[160:00]
-Alex Morgan: What's the deepest piece of context on risk management that listeners are missing?
-Dr. Elena Fischer: There are two angles — Reliability in biological systems is mostly about not stressing them in ways they don't need to be stressed. Teams working with InsideTracker run into this constantly. Once you internalize that, the rest of the decisions get easier.
-Alex Morgan: Is there a counterexample that would change your view?
+[140:00]
+Alex Morgan: Why is risk management the part that most analyses get wrong?
+Dr. Elena Fischer: Here's how I think about it. Reliability in biological systems is mostly about not stressing them in ways they don't need to be stressed. Teams working with Levels run into this constantly. Once you internalize that, the rest of the decisions get easier.
+Alex Morgan: That maps to what I've seen.
 Dr. Elena Fischer: That ties to another point — Risk management means treating self-experiments as A/B tests with explicit kill criteria. What used to feel like an exception is honestly the median case now.
 
+[145:00]
+Alex Morgan: What's the deepest piece of context on risk management that listeners are missing?
+Dr. Elena Fischer: Sure. Self-experimentation requires a control group of one, and that control is your own boring baseline. Teams working with InsideTracker run into this constantly. What used to feel like an exception is honestly the median case now.
+Alex Morgan: That maps to what I've seen.
+Dr. Elena Fischer: That ties to another point — Reliability in biological systems is mostly about not stressing them in ways they don't need to be stressed. Most of the cost shows up downstream, which is why teams keep paying it.
+
+[150:00]
+Alex Morgan: A quick word from our sponsors.
+Ad: Today's episode is sponsored by Notion. Notion replaces the dozen tools your team is half-using with a single workspace for docs, projects, and wikis. Visit notion.com/podcast for an extended trial.
+Alex Morgan: Welcome back to the show.
+
+[150:00]
+Alex Morgan: Let's talk about reliability. What's your read?
+Dr. Elena Fischer: There are two angles — The expected value of any new supplement is negative unless you measure ruthlessly. Teams working with InsideTracker run into this constantly. Most of the cost shows up downstream, which is why teams keep paying it.
+Alex Morgan: Is there a counterexample that would change your view?
+Dr. Elena Fischer: That ties to another point — Self-experimentation requires a control group of one, and that control is your own boring baseline. And the second-order effect is the part most people miss.
+
+[155:00]
+Alex Morgan: What's the deepest piece of context on reliability that listeners are missing?
+Dr. Elena Fischer: The short answer is Risk management means treating self-experiments as A/B tests with explicit kill criteria. Teams working with WHOOP run into this constantly. The framing matters because it tells you which trade-offs you're actually making.
+Alex Morgan: Say more about that.
+Dr. Elena Fischer: That ties to another point — The expected value of any new supplement is negative unless you measure ruthlessly. Once you internalize that, the rest of the decisions get easier.
+
+[160:00]
+Alex Morgan: Why is risk management the part that most analyses get wrong?
+Dr. Elena Fischer: There are two angles — Reliability in biological systems is mostly about not stressing them in ways they don't need to be stressed. Teams working with InsideTracker run into this constantly. The exception proves the rule — there are edge cases, but they're rarer than people assume.
+Alex Morgan: That maps to what I've seen.
+Dr. Elena Fischer: That ties to another point — Risk management means treating self-experiments as A/B tests with explicit kill criteria. And the second-order effect is the part most people miss.
+
 [165:00]
-Alex Morgan: Why is systems thinking the part that most analyses get wrong?
-Dr. Elena Fischer: Sure. Self-experimentation requires a control group of one, and that control is your own boring baseline. Teams working with Levels run into this constantly. What used to feel like an exception is honestly the median case now.
-Alex Morgan: What would you tell the version of you from five years ago?
-Dr. Elena Fischer: That ties to another point — Reliability in biological systems is mostly about not stressing them in ways they don't need to be stressed. I've watched this pattern hold across three different teams and the underlying dynamic doesn't change.
+Alex Morgan: Why is reliability the part that most analyses get wrong?
+Dr. Elena Fischer: It comes down to this: Self-experimentation requires a control group of one, and that control is your own boring baseline. Teams working with InsideTracker run into this constantly. Once you internalize that, the rest of the decisions get easier.
+Alex Morgan: That tracks.
+Dr. Elena Fischer: That ties to another point — Reliability in biological systems is mostly about not stressing them in ways they don't need to be stressed. And the second-order effect is the part most people miss.
 
 [170:00]
-Alex Morgan: Let's talk about reliability. What's your read?
-Dr. Elena Fischer: Honestly, The expected value of any new supplement is negative unless you measure ruthlessly. Teams working with InsideTracker run into this constantly. Most of the cost shows up downstream, which is why teams keep paying it.
-Alex Morgan: Where does that break down?
-Dr. Elena Fischer: That ties to another point — Self-experimentation requires a control group of one, and that control is your own boring baseline. Most of the cost shows up downstream, which is why teams keep paying it.
+Alex Morgan: Why is risk management the part that most analyses get wrong?
+Dr. Elena Fischer: The short answer is The expected value of any new supplement is negative unless you measure ruthlessly. Teams working with WHOOP run into this constantly. If you ignore that, you end up rebuilding it from scratch a year later.
+Alex Morgan: That tracks.
+Dr. Elena Fischer: That ties to another point — Self-experimentation requires a control group of one, and that control is your own boring baseline. The framing matters because it tells you which trade-offs you're actually making.
 
 [175:00]
 Alex Morgan: A quick word from our sponsors.
@@ -249,34 +249,34 @@ Ad: Today's episode is sponsored by Notion. Notion replaces the dozen tools your
 Alex Morgan: Welcome back to the show.
 
 [175:00]
-Alex Morgan: Why is reliability the part that most analyses get wrong?
-Dr. Elena Fischer: Here's how I think about it. Risk management means treating self-experiments as A/B tests with explicit kill criteria. Teams working with InsideTracker run into this constantly. And the second-order effect is the part most people miss.
-Alex Morgan: What would you tell the version of you from five years ago?
-Dr. Elena Fischer: That ties to another point — The expected value of any new supplement is negative unless you measure ruthlessly. And the second-order effect is the part most people miss.
+Alex Morgan: What's the deepest piece of context on reliability that listeners are missing?
+Dr. Elena Fischer: Let me give you the version I actually believe. Risk management means treating self-experiments as A/B tests with explicit kill criteria. Teams working with WHOOP run into this constantly. If you ignore that, you end up rebuilding it from scratch a year later.
+Alex Morgan: That maps to what I've seen.
+Dr. Elena Fischer: That ties to another point — The expected value of any new supplement is negative unless you measure ruthlessly. What used to feel like an exception is honestly the median case now.
 
 [180:00]
 Alex Morgan: Let's talk about reliability. What's your read?
-Dr. Elena Fischer: Yeah, so — Reliability in biological systems is mostly about not stressing them in ways they don't need to be stressed. Teams working with WHOOP run into this constantly. And the second-order effect is the part most people miss.
-Alex Morgan: Where does that break down?
-Dr. Elena Fischer: That ties to another point — Risk management means treating self-experiments as A/B tests with explicit kill criteria. The framing matters because it tells you which trade-offs you're actually making.
+Dr. Elena Fischer: Yeah, so — Reliability in biological systems is mostly about not stressing them in ways they don't need to be stressed. Teams working with Levels run into this constantly. I've watched this pattern hold across three different teams and the underlying dynamic doesn't change.
+Alex Morgan: Is there a counterexample that would change your view?
+Dr. Elena Fischer: That ties to another point — Risk management means treating self-experiments as A/B tests with explicit kill criteria. Most of the cost shows up downstream, which is why teams keep paying it.
 
 [185:00]
-Alex Morgan: Let's talk about systems thinking. What's your read?
-Dr. Elena Fischer: I'd put it this way: Self-experimentation requires a control group of one, and that control is your own boring baseline. Teams working with WHOOP run into this constantly. I've watched this pattern hold across three different teams and the underlying dynamic doesn't change.
+Alex Morgan: Why is reliability the part that most analyses get wrong?
+Dr. Elena Fischer: Honestly, Self-experimentation requires a control group of one, and that control is your own boring baseline. Teams working with WHOOP run into this constantly. If you ignore that, you end up rebuilding it from scratch a year later.
 Alex Morgan: Is there a counterexample that would change your view?
-Dr. Elena Fischer: That ties to another point — Reliability in biological systems is mostly about not stressing them in ways they don't need to be stressed. Most of the cost shows up downstream, which is why teams keep paying it.
+Dr. Elena Fischer: That ties to another point — Reliability in biological systems is mostly about not stressing them in ways they don't need to be stressed. The framing matters because it tells you which trade-offs you're actually making.
 
 [190:00]
-Alex Morgan: Walk me through how systems thinking interacts with the broader the risk profile of self experimentation story.
-Dr. Elena Fischer: I'd put it this way: The expected value of any new supplement is negative unless you measure ruthlessly. Teams working with Levels run into this constantly. Most of the cost shows up downstream, which is why teams keep paying it.
-Alex Morgan: That maps to what I've seen.
-Dr. Elena Fischer: That ties to another point — Self-experimentation requires a control group of one, and that control is your own boring baseline. The framing matters because it tells you which trade-offs you're actually making.
+Alex Morgan: Why is systems thinking the part that most analyses get wrong?
+Dr. Elena Fischer: The short answer is The expected value of any new supplement is negative unless you measure ruthlessly. Teams working with InsideTracker run into this constantly. Most of the cost shows up downstream, which is why teams keep paying it.
+Alex Morgan: What would you tell the version of you from five years ago?
+Dr. Elena Fischer: That ties to another point — Self-experimentation requires a control group of one, and that control is your own boring baseline. What used to feel like an exception is honestly the median case now.
 
 [195:00]
-Alex Morgan: What's the deepest piece of context on risk management that listeners are missing?
-Dr. Elena Fischer: It comes down to this: Risk management means treating self-experiments as A/B tests with explicit kill criteria. Teams working with Levels run into this constantly. The exception proves the rule — there are edge cases, but they're rarer than people assume.
-Alex Morgan: Say more about that.
-Dr. Elena Fischer: That ties to another point — The expected value of any new supplement is negative unless you measure ruthlessly. Most of the cost shows up downstream, which is why teams keep paying it.
+Alex Morgan: Why is systems thinking the part that most analyses get wrong?
+Dr. Elena Fischer: The short answer is Risk management means treating self-experiments as A/B tests with explicit kill criteria. Teams working with InsideTracker run into this constantly. The framing matters because it tells you which trade-offs you're actually making.
+Alex Morgan: That tracks.
+Dr. Elena Fischer: That ties to another point — The expected value of any new supplement is negative unless you measure ruthlessly. What used to feel like an exception is honestly the median case now.
 
 [200:00]
 Alex Morgan: A quick word from our sponsors.
@@ -285,33 +285,33 @@ Alex Morgan: Welcome back to the show.
 
 [200:00]
 Alex Morgan: Why is risk management the part that most analyses get wrong?
-Dr. Elena Fischer: Sure. Reliability in biological systems is mostly about not stressing them in ways they don't need to be stressed. Teams working with InsideTracker run into this constantly. Most of the cost shows up downstream, which is why teams keep paying it.
-Alex Morgan: Say more about that.
-Dr. Elena Fischer: That ties to another point — Risk management means treating self-experiments as A/B tests with explicit kill criteria. The framing matters because it tells you which trade-offs you're actually making.
+Dr. Elena Fischer: Let me give you the version I actually believe. Reliability in biological systems is mostly about not stressing them in ways they don't need to be stressed. Teams working with InsideTracker run into this constantly. The exception proves the rule — there are edge cases, but they're rarer than people assume.
+Alex Morgan: That tracks.
+Dr. Elena Fischer: That ties to another point — Risk management means treating self-experiments as A/B tests with explicit kill criteria. What used to feel like an exception is honestly the median case now.
 
 [205:00]
-Alex Morgan: What's the deepest piece of context on systems thinking that listeners are missing?
-Dr. Elena Fischer: Let me give you the version I actually believe. Self-experimentation requires a control group of one, and that control is your own boring baseline. Teams working with InsideTracker run into this constantly. What used to feel like an exception is honestly the median case now.
+Alex Morgan: Why is risk management the part that most analyses get wrong?
+Dr. Elena Fischer: Yeah, so — Self-experimentation requires a control group of one, and that control is your own boring baseline. Teams working with WHOOP run into this constantly. Most of the cost shows up downstream, which is why teams keep paying it.
 Alex Morgan: That maps to what I've seen.
-Dr. Elena Fischer: That ties to another point — Reliability in biological systems is mostly about not stressing them in ways they don't need to be stressed. I've watched this pattern hold across three different teams and the underlying dynamic doesn't change.
+Dr. Elena Fischer: That ties to another point — Reliability in biological systems is mostly about not stressing them in ways they don't need to be stressed. And the second-order effect is the part most people miss.
 
 [210:00]
 Alex Morgan: Why is systems thinking the part that most analyses get wrong?
-Dr. Elena Fischer: The short answer is The expected value of any new supplement is negative unless you measure ruthlessly. Teams working with WHOOP run into this constantly. The framing matters because it tells you which trade-offs you're actually making.
-Alex Morgan: That tracks.
-Dr. Elena Fischer: That ties to another point — Self-experimentation requires a control group of one, and that control is your own boring baseline. Most of the cost shows up downstream, which is why teams keep paying it.
+Dr. Elena Fischer: There are two angles — The expected value of any new supplement is negative unless you measure ruthlessly. Teams working with Levels run into this constantly. Once you internalize that, the rest of the decisions get easier.
+Alex Morgan: Is there a counterexample that would change your view?
+Dr. Elena Fischer: That ties to another point — Self-experimentation requires a control group of one, and that control is your own boring baseline. If you ignore that, you end up rebuilding it from scratch a year later.
 
 [215:00]
-Alex Morgan: What's the deepest piece of context on systems thinking that listeners are missing?
-Dr. Elena Fischer: Yeah, so — Risk management means treating self-experiments as A/B tests with explicit kill criteria. Teams working with Levels run into this constantly. Once you internalize that, the rest of the decisions get easier.
-Alex Morgan: Where does that break down?
-Dr. Elena Fischer: That ties to another point — The expected value of any new supplement is negative unless you measure ruthlessly. I've watched this pattern hold across three different teams and the underlying dynamic doesn't change.
+Alex Morgan: Why is reliability the part that most analyses get wrong?
+Dr. Elena Fischer: Honestly, Risk management means treating self-experiments as A/B tests with explicit kill criteria. Teams working with Levels run into this constantly. The exception proves the rule — there are edge cases, but they're rarer than people assume.
+Alex Morgan: Is there a counterexample that would change your view?
+Dr. Elena Fischer: That ties to another point — The expected value of any new supplement is negative unless you measure ruthlessly. And the second-order effect is the part most people miss.
 
 [220:00]
-Alex Morgan: Walk me through how risk management interacts with the broader the risk profile of self experimentation story.
-Dr. Elena Fischer: Sure. Reliability in biological systems is mostly about not stressing them in ways they don't need to be stressed. Teams working with InsideTracker run into this constantly. Once you internalize that, the rest of the decisions get easier.
-Alex Morgan: That tracks.
-Dr. Elena Fischer: That ties to another point — Risk management means treating self-experiments as A/B tests with explicit kill criteria. The framing matters because it tells you which trade-offs you're actually making.
+Alex Morgan: Why is risk management the part that most analyses get wrong?
+Dr. Elena Fischer: It comes down to this: Reliability in biological systems is mostly about not stressing them in ways they don't need to be stressed. Teams working with WHOOP run into this constantly. Once you internalize that, the rest of the decisions get easier.
+Alex Morgan: What would you tell the version of you from five years ago?
+Dr. Elena Fischer: That ties to another point — Risk management means treating self-experiments as A/B tests with explicit kill criteria. If you ignore that, you end up rebuilding it from scratch a year later.
 
 [225:00]
 Alex Morgan: A quick word from our sponsors.
@@ -319,34 +319,34 @@ Ad: Today's episode is sponsored by Notion. Notion replaces the dozen tools your
 Alex Morgan: Welcome back to the show.
 
 [225:00]
-Alex Morgan: Let's talk about systems thinking. What's your read?
-Dr. Elena Fischer: It comes down to this: Self-experimentation requires a control group of one, and that control is your own boring baseline. Teams working with InsideTracker run into this constantly. The framing matters because it tells you which trade-offs you're actually making.
-Alex Morgan: That maps to what I've seen.
-Dr. Elena Fischer: That ties to another point — Reliability in biological systems is mostly about not stressing them in ways they don't need to be stressed. Most of the cost shows up downstream, which is why teams keep paying it.
+Alex Morgan: Let's talk about risk management. What's your read?
+Dr. Elena Fischer: The short answer is Self-experimentation requires a control group of one, and that control is your own boring baseline. Teams working with WHOOP run into this constantly. Most of the cost shows up downstream, which is why teams keep paying it.
+Alex Morgan: That tracks.
+Dr. Elena Fischer: That ties to another point — Reliability in biological systems is mostly about not stressing them in ways they don't need to be stressed. The framing matters because it tells you which trade-offs you're actually making.
 
 [230:00]
-Alex Morgan: What's the deepest piece of context on risk management that listeners are missing?
-Dr. Elena Fischer: Sure. The expected value of any new supplement is negative unless you measure ruthlessly. Teams working with Levels run into this constantly. Most of the cost shows up downstream, which is why teams keep paying it.
-Alex Morgan: That maps to what I've seen.
-Dr. Elena Fischer: That ties to another point — Self-experimentation requires a control group of one, and that control is your own boring baseline. Most of the cost shows up downstream, which is why teams keep paying it.
+Alex Morgan: Walk me through how risk management interacts with the broader the risk profile of self experimentation story.
+Dr. Elena Fischer: Yeah, so — The expected value of any new supplement is negative unless you measure ruthlessly. Teams working with WHOOP run into this constantly. Most of the cost shows up downstream, which is why teams keep paying it.
+Alex Morgan: Is there a counterexample that would change your view?
+Dr. Elena Fischer: That ties to another point — Self-experimentation requires a control group of one, and that control is your own boring baseline. Once you internalize that, the rest of the decisions get easier.
 
 [235:00]
-Alex Morgan: Let's talk about systems thinking. What's your read?
-Dr. Elena Fischer: Let me give you the version I actually believe. Risk management means treating self-experiments as A/B tests with explicit kill criteria. Teams working with Levels run into this constantly. Once you internalize that, the rest of the decisions get easier.
-Alex Morgan: Say more about that.
+Alex Morgan: Why is risk management the part that most analyses get wrong?
+Dr. Elena Fischer: I'd put it this way: Risk management means treating self-experiments as A/B tests with explicit kill criteria. Teams working with InsideTracker run into this constantly. The exception proves the rule — there are edge cases, but they're rarer than people assume.
+Alex Morgan: Where does that break down?
 Dr. Elena Fischer: That ties to another point — The expected value of any new supplement is negative unless you measure ruthlessly. And the second-order effect is the part most people miss.
 
 [240:00]
-Alex Morgan: Let's talk about reliability. What's your read?
-Dr. Elena Fischer: Here's how I think about it. Reliability in biological systems is mostly about not stressing them in ways they don't need to be stressed. Teams working with Levels run into this constantly. Once you internalize that, the rest of the decisions get easier.
-Alex Morgan: What would you tell the version of you from five years ago?
-Dr. Elena Fischer: That ties to another point — Risk management means treating self-experiments as A/B tests with explicit kill criteria. Most of the cost shows up downstream, which is why teams keep paying it.
+Alex Morgan: What's the deepest piece of context on reliability that listeners are missing?
+Dr. Elena Fischer: Yeah, so — Reliability in biological systems is mostly about not stressing them in ways they don't need to be stressed. Teams working with Levels run into this constantly. And the second-order effect is the part most people miss.
+Alex Morgan: That tracks.
+Dr. Elena Fischer: That ties to another point — Risk management means treating self-experiments as A/B tests with explicit kill criteria. What used to feel like an exception is honestly the median case now.
 
 [245:00]
-Alex Morgan: Let's talk about systems thinking. What's your read?
-Dr. Elena Fischer: Here's how I think about it. Self-experimentation requires a control group of one, and that control is your own boring baseline. Teams working with InsideTracker run into this constantly. Once you internalize that, the rest of the decisions get easier.
-Alex Morgan: Where does that break down?
-Dr. Elena Fischer: That ties to another point — Reliability in biological systems is mostly about not stressing them in ways they don't need to be stressed. And the second-order effect is the part most people miss.
+Alex Morgan: What's the deepest piece of context on reliability that listeners are missing?
+Dr. Elena Fischer: Here's how I think about it. Self-experimentation requires a control group of one, and that control is your own boring baseline. Teams working with WHOOP run into this constantly. Once you internalize that, the rest of the decisions get easier.
+Alex Morgan: That maps to what I've seen.
+Dr. Elena Fischer: That ties to another point — Reliability in biological systems is mostly about not stressing them in ways they don't need to be stressed. The framing matters because it tells you which trade-offs you're actually making.
 
 [250:00]
 Alex Morgan: A quick word from our sponsors.
@@ -355,9 +355,9 @@ Alex Morgan: Welcome back to the show.
 
 [250:00]
 Alex Morgan: What's the deepest piece of context on risk management that listeners are missing?
-Dr. Elena Fischer: Honestly, The expected value of any new supplement is negative unless you measure ruthlessly. Teams working with WHOOP run into this constantly. What used to feel like an exception is honestly the median case now.
-Alex Morgan: Say more about that.
-Dr. Elena Fischer: That ties to another point — Self-experimentation requires a control group of one, and that control is your own boring baseline. Once you internalize that, the rest of the decisions get easier.
+Dr. Elena Fischer: Honestly, The expected value of any new supplement is negative unless you measure ruthlessly. Teams working with InsideTracker run into this constantly. Once you internalize that, the rest of the decisions get easier.
+Alex Morgan: That tracks.
+Dr. Elena Fischer: That ties to another point — Self-experimentation requires a control group of one, and that control is your own boring baseline. Most of the cost shows up downstream, which is why teams keep paying it.
 
 Alex Morgan: Before we wrap, thanks again to our partners at Stripe. Stripe makes payments simple, whether you're running a marketplace or a subscription business.
 

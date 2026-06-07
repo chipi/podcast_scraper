@@ -16,13 +16,13 @@
 
 ### Length Metrics
 
-- **Average Tokens:** 663.8000
-- **Min Tokens:** 589.0000
-- **Max Tokens:** 862.0000
+- **Average Tokens:** 629.2000
+- **Min Tokens:** 559.0000
+- **Max Tokens:** 713.0000
 
 ### Performance Metrics
 
-- **Average Latency:** 12801ms
-- **Median Latency:** 12122ms
-- **P95 Latency:** 14834ms
-- **Avg Latency (excl. first episode):** 12982ms
+- **Average Latency:** 12406ms
+- **Median Latency:** 12141ms
+- **P95 Latency:** 13723ms
+- **Avg Latency (excl. first episode):** 12472ms

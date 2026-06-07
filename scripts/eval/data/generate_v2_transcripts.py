@@ -19,12 +19,26 @@ Output: tests/fixtures/transcripts/v2/*.txt
 
 from __future__ import annotations
 
+import hashlib
 import random
 import re
 import textwrap
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Iterable
+
+
+def _stable_seed(s: str) -> int:
+    """Deterministic 32-bit seed from a string.
+
+    Python's built-in ``hash()`` varies with ``PYTHONHASHSEED`` and was the
+    source of v2 fixture non-determinism — running the generator twice
+    produced different transcripts. MD5 of the UTF-8 bytes is stable across
+    runs and platforms.
+    """
+    digest = hashlib.md5(s.encode("utf-8")).digest()
+    return int.from_bytes(digest[:4], "big")
+
 
 PROJECT_ROOT = Path(__file__).resolve().parents[3]
 OUT_DIR = PROJECT_ROOT / "tests" / "fixtures" / "transcripts" / "v2"
@@ -225,8 +239,7 @@ def host_followup_line(host: str, rng: random.Random) -> str:
 
 
 def render_episode(podcast: Podcast, ep: Episode) -> str:
-    seed = abs(hash(f"{podcast.pod_id}:{ep.ep_id}")) % (2**32)
-    rng = random.Random(seed)
+    rng = random.Random(_stable_seed(f"{podcast.pod_id}:{ep.ep_id}"))
     host = podcast.host
     guest = podcast.guests[ep.primary_guest]
     guest_name = guest.name
@@ -260,11 +273,17 @@ def render_episode(podcast: Podcast, ep: Episode) -> str:
     lines.extend(opening_ad_block(host, opening_brand, rng))
     lines.append("")
 
-    # Callback to prior episode (CIL recurrence signal)
+    # Callbacks to prior episodes (CIL recurrence signal). Render every callback
+    # in the list — using rng.choice would drop the others and make per-episode
+    # entity coverage depend on which one the seed happens to pick. Concrete
+    # case the v2 spec needs: p05_e02 declares both a Daniel and a Marco Bianchi
+    # callback; both must reach the transcript for the two-Marcos CIL test.
     if ep.callbacks:
-        callback = rng.choice(ep.callbacks)
-        lines.append(f"{host}: Before we get into it — {callback}")
-        lines.append(f"{guest_name}: Yeah, exactly. And it ties into what we're covering today.")
+        for callback in ep.callbacks:
+            lines.append(f"{host}: Before we get into it — {callback}")
+            lines.append(
+                f"{guest_name}: Yeah, exactly. And it ties into what we're covering today."
+            )
 
     # Position arc (one speaker's view evolves)
     if ep.position_arc:
@@ -741,7 +760,8 @@ def build_spec() -> list[Podcast]:
                     "Most failed deals I've seen failed at underwriting, not at operations. The math told the story upfront.",
                 ],
                 callbacks=[
-                    "Daniel was on episode 1 making the case for behavioral discipline in index investing. The same discipline keeps you from buying the wrong building."
+                    "Daniel was on episode 1 making the case for behavioral discipline in index investing. The same discipline keeps you from buying the wrong building.",
+                    "Marco Bianchi was on the show a few weeks back walking through tax-loss harvesting research — the same habit of running the numbers before deciding applies to real estate underwriting, just on a longer clock.",
                 ],
             ),
             Episode(
@@ -806,7 +826,7 @@ def render_long_episode(
     target_words: int = 12000,
 ) -> str:
     """Render a long-context episode (p07/p08/p09) by repeating thematic blocks."""
-    rng = random.Random(abs(hash(f"{podcast_id}:long")) % (2**32))
+    rng = random.Random(_stable_seed(f"{podcast_id}:long"))
     lines: list[str] = []
     lines.append(f"# The Long View — Episode")
     lines.append(f"## {title}")

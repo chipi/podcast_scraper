@@ -14,15 +14,15 @@
       "speaker_name_leak_rate": 0.0
     },
     "length": {
-      "avg_tokens": 663.8,
-      "min_tokens": 589,
-      "max_tokens": 862
+      "avg_tokens": 629.2,
+      "min_tokens": 559,
+      "max_tokens": 713
     },
     "performance": {
-      "avg_latency_ms": 12800.589179992676,
-      "median_latency_ms": 12122.161149978638,
-      "p95_latency_ms": 14833.752155303955,
-      "avg_latency_ms_excluding_first": 12982.48678445816
+      "avg_latency_ms": 12406.178665161133,
+      "median_latency_ms": 12141.24083518982,
+      "p95_latency_ms": 13722.628116607666,
+      "avg_latency_ms_excluding_first": 12472.413122653961
     }
   },
   "vs_reference": null,

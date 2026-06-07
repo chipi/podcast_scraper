@@ -10,7 +10,7 @@
       "episode_id": "p01_e01",
       "title": "Episode 1: Building Trails That Last (with Liam Verbeek)",
       "transcript_path": "data/eval/sources/curated_5feeds_raw_v2/feed-p01/p01_e01.txt",
-      "transcript_hash": "3cac4555bc5cc1b818c3acd7a50357faed7f6f6bdb3e0e2986dacdf23483193e",
+      "transcript_hash": "45320d6bbcf2c82a9c4438a1ae765ea7999116ecc9717f66b94d38ba4f9f9a27",
       "preprocessing_profile": "cleaning_v3",
       "duration_minutes": 10.5
     },
@@ -18,7 +18,7 @@
       "episode_id": "p01_e02",
       "title": "Episode 2: Enduro Skills Without the Hype (with Sophie van Dalen)",
       "transcript_path": "data/eval/sources/curated_5feeds_raw_v2/feed-p01/p01_e02.txt",
-      "transcript_hash": "551e739efd9450c1fe22fb1b6f743a23e96bcb32ea53f6a0c121efff07964b5e",
+      "transcript_hash": "f5e1b0ae3beee1eb2eb61311d239d3b7d8281964cdf64af4b32e6c9d0d6dfadf",
       "preprocessing_profile": "cleaning_v3",
       "duration_minutes": 9.25
     },
@@ -26,7 +26,7 @@
       "episode_id": "p01_e03",
       "title": "Episode 3: The Mechanics of a Quiet, Fast Bike (with Noah Prins)",
       "transcript_path": "data/eval/sources/curated_5feeds_raw_v2/feed-p01/p01_e03.txt",
-      "transcript_hash": "52e752b36bc6c84741a5b12ef681e1132732b122f082fe7bfbe1d976a5ca3826",
+      "transcript_hash": "ab3cef587d295b3a80edfa960f836732a5fa5714fa1b7e4418b74972c3ecf5bc",
       "preprocessing_profile": "cleaning_v3",
       "duration_minutes": 31.75
     },
@@ -34,7 +34,7 @@
       "episode_id": "p02_e01",
       "title": "Episode 1: On-Call That Doesn\u2019t Break People (with Priya Nair)",
       "transcript_path": "data/eval/sources/curated_5feeds_raw_v2/feed-p02/p02_e01.txt",
-      "transcript_hash": "bf1c8a53473361ffa98453116b6feb7d9d81181cf7d62974564f4ee27b2b4209",
+      "transcript_hash": "11f3f3cb4ae68baf50e43e238e8bcbc844690ae739fb19a93c5d77a7071348ca",
       "preprocessing_profile": "cleaning_v3",
       "duration_minutes": 11.0
     },
@@ -42,7 +42,7 @@
       "episode_id": "p02_e02",
       "title": "Episode 2: Staff Engineer Communication Patterns (with Jonas Meijer)",
       "transcript_path": "data/eval/sources/curated_5feeds_raw_v2/feed-p02/p02_e02.txt",
-      "transcript_hash": "4c408e3617897775c9597f9b65802443a2d502e12982bff90704c6cee2472392",
+      "transcript_hash": "568bb45a7f1a24f913b3c14242cd5028da4e19eb0a4b4f9723f2aab75a24f180",
       "preprocessing_profile": "cleaning_v3",
       "duration_minutes": 9.75
     },
@@ -50,7 +50,7 @@
       "episode_id": "p02_e03",
       "title": "Episode 3: Security as Design, Not a Checklist (with Camila Ruiz)",
       "transcript_path": "data/eval/sources/curated_5feeds_raw_v2/feed-p02/p02_e03.txt",
-      "transcript_hash": "2bd58cdb8818089bb4323208aace3cdd38e3c5fb8da34e62e6062653a4000e85",
+      "transcript_hash": "ae9c29f08525680bd8d9875a82bafd570628d83e2b3da1c3a2501fae0312b85e",
       "preprocessing_profile": "cleaning_v3",
       "duration_minutes": 33.0
     },
@@ -58,7 +58,7 @@
       "episode_id": "p03_e01",
       "title": "Episode 1: Wreck Diving Fundamentals (with Marco Silva)",
       "transcript_path": "data/eval/sources/curated_5feeds_raw_v2/feed-p03/p03_e01.txt",
-      "transcript_hash": "8b9782265656ec4b67b3784f374abd6ed5b89b50c6c5ce1b8d043364237981b3",
+      "transcript_hash": "20c46783bb0bf45afc50dece1273049ac9ddca361a46c30b24986e07b873b659",
       "preprocessing_profile": "cleaning_v3",
       "duration_minutes": 10.25
     },
@@ -66,7 +66,7 @@
       "episode_id": "p03_e02",
       "title": "Episode 2: Marine Biology for Divers (with Hanna de Wit)",
       "transcript_path": "data/eval/sources/curated_5feeds_raw_v2/feed-p03/p03_e02.txt",
-      "transcript_hash": "cb9b7471cf76405174b081e63377192b052137641986c91228316badfefff0d8",
+      "transcript_hash": "7a841a903286e1aee864ed64414a4525c2dc4942c96ed5fd4d9fd2330480e54e",
       "preprocessing_profile": "cleaning_v3",
       "duration_minutes": 9.5
     },
@@ -74,7 +74,7 @@
       "episode_id": "p03_e03",
       "title": "Episode 3: Calm Under Pressure (with Owen Chen)",
       "transcript_path": "data/eval/sources/curated_5feeds_raw_v2/feed-p03/p03_e03.txt",
-      "transcript_hash": "4079b1188ace6141c6b1393d8431819ed466653102b1b210bb8a5619854cb84f",
+      "transcript_hash": "cacdbc70605180b17a10530014e60474c93c76f5e9d08f9129d59047d0698577",
       "preprocessing_profile": "cleaning_v3",
       "duration_minutes": 32.5
     },
@@ -82,7 +82,7 @@
       "episode_id": "p04_e01",
       "title": "Episode 1: Underwater Images That Feel Alive (with Ava Lemoine)",
       "transcript_path": "data/eval/sources/curated_5feeds_raw_v2/feed-p04/p04_e01.txt",
-      "transcript_hash": "5e3998010cf4b8ac1370fa6aa193171496381edee2571d4c90e8a1d6b798fdb1",
+      "transcript_hash": "2bb9777163c3b8ed648ff5bf30c0cfd22d30db0b4577c21aa89324bcf11659c2",
       "preprocessing_profile": "cleaning_v3",
       "duration_minutes": 11.33
     },
@@ -90,7 +90,7 @@
       "episode_id": "p04_e02",
       "title": "Episode 2: Documentary Workflow in the Field (with Tariq Hassan)",
       "transcript_path": "data/eval/sources/curated_5feeds_raw_v2/feed-p04/p04_e02.txt",
-      "transcript_hash": "8053cc9ab92ad1fbe8d404dc03da2d9a4b1af56d6c3ba5ec6fe9984151b0b7e4",
+      "transcript_hash": "86d0ed643d016efd78efd47359f2b44570db22e2144625fff6ba0f77bf79672b",
       "preprocessing_profile": "cleaning_v3",
       "duration_minutes": 9.67
     },
@@ -98,7 +98,7 @@
       "episode_id": "p04_e03",
       "title": "Episode 3: Lighting Decisions That Save a Shoot (with Elise Brouwer)",
       "transcript_path": "data/eval/sources/curated_5feeds_raw_v2/feed-p04/p04_e03.txt",
-      "transcript_hash": "1eb837382077c3f1e3eee10be2126ad58c7a5daf995e120333f4c4cd7abb8986",
+      "transcript_hash": "60c7392e75b8807d9b405e42f644fb852dd62871dc349b68fd385c0936935a36",
       "preprocessing_profile": "cleaning_v3",
       "duration_minutes": 33.25
     },
@@ -106,7 +106,7 @@
       "episode_id": "p05_e01",
       "title": "Episode 1: Index Investing Without the Myths (with Daniel Cho)",
       "transcript_path": "data/eval/sources/curated_5feeds_raw_v2/feed-p05/p05_e01.txt",
-      "transcript_hash": "cbdb6aa47bff3f1fbd90909ff839edcb21bcd501eb97e134bc0ecbcb7dd0bacf",
+      "transcript_hash": "04e7ec052d9d9b44057153bce4d6f19ccfbc9a9b2e1750b9cf2db898c0bc347d",
       "preprocessing_profile": "cleaning_v3",
       "duration_minutes": 10.75
     },
@@ -114,7 +114,7 @@
       "episode_id": "p05_e02",
       "title": "Episode 2: Real Estate: Numbers Before Narratives (with Isabel Martins)",
       "transcript_path": "data/eval/sources/curated_5feeds_raw_v2/feed-p05/p05_e02.txt",
-      "transcript_hash": "42cc419ddd6b705bf8b494a47ccfaddaee5e0f579acac67b73aff45eaafaf543",
+      "transcript_hash": "64c9a27c310ca11553b56b08937770f7b58ce5a9cd0b2097a8b1642db75da63a",
       "preprocessing_profile": "cleaning_v3",
       "duration_minutes": 9.83
     },
@@ -122,7 +122,7 @@
       "episode_id": "p05_e03",
       "title": "Episode 3: Risk Management for People Who Hate Spreadsheets (with Kasper Jansen)",
       "transcript_path": "data/eval/sources/curated_5feeds_raw_v2/feed-p05/p05_e03.txt",
-      "transcript_hash": "5fa558be1ae502389194db61426fbbc4c69b51414796ac765732ddbcde752316",
+      "transcript_hash": "6a68c9d490c36a839686dc8512ac8132989f9f74f380f3e3fb64fe32823d88b7",
       "preprocessing_profile": "cleaning_v3",
       "duration_minutes": 32.17
     }

@@ -46,26 +46,33 @@ All v2 datasets materialized into `data/eval/materialized/`.
 
 ## Headline numbers
 
+Headline numbers below reflect the regenerated v2 corpus (after the v2 generator
+non-determinism fix landed in this PR — see "Generator determinism + two-Marcos
+test" section). Numbers from the first run pre-fix are preserved in the file
+history.
+
 | Layer | Metric | v1 | v2 | AC | Pass |
 | --- | --- | ---: | ---: | --- | :---: |
-| KG | avg nodes/ep | n/a (stub) | 17.1 | — | — |
-| KG | avg edges/ep | n/a (stub) | 16.1 | — | — |
-| GIL | avg insights/ep | n/a (stub) | 9.87 | — | — |
-| GIL | avg quotes/ep | n/a (stub) | 14.2 | — | — |
-| GIL | grounding_rate | n/a (stub) | **97.3%** | ≥95% | ✓ |
+| KG | avg nodes/ep | n/a (stub) | 16–17 | — | — |
+| KG | avg edges/ep | n/a (stub) | 15–17 | — | — |
+| GIL | avg insights/ep | n/a (stub) | ~10 | — | — |
+| GIL | avg quotes/ep | n/a (stub) | ~14 | — | — |
+| GIL | grounding_rate | n/a (stub) | ≥95% | ≥95% | ✓ |
 | Cleaning | raw episode hit-rate | 0% | **100%** | >80% | ✓ |
 | Cleaning | cleaned episode hit-rate | n/a | **0%** | <5% | ✓ |
 | Cleaning | sponsor pattern hits retained | n/a | **0%** | — | — |
-| CIL | person:* bridges spanning >1 ep | n/a | 10 | >0 | ✓ |
-| CIL | topic:* bridges spanning ≥2 feeds | n/a | 4 | >0 | ✓ |
+| CIL | person:* bridges spanning >1 ep | n/a | **11** | >0 | ✓ |
+| CIL | topic:* bridges spanning ≥2 feeds | n/a | 3 | >0 | ✓ |
 | CIL | org:* bridges spanning >1 ep | n/a | 26 | — | — |
-| Topic clusters | tc:* parent clusters | n/a | 4 | >0 | ✓ |
-| Topic clusters | tc:* parents spanning ≥2 feeds | n/a | 3 | >0 | ✓ |
-| Silver | winner provider (all 4 cells) | Sonnet 4.6 | **Sonnet 4.6** | unchanged | ✓ |
+| CIL | two-Marcos test | n/a | **PASS** (`person:marco` p03 + `person:marco-bianchi` p05_e02 distinct) | distinct | ✓ |
+| Topic clusters | tc:* parent clusters | n/a | **6** | >0 | ✓ |
+| Topic clusters | tc:* parents spanning ≥2 feeds | n/a | **4** | >0 | ✓ |
 | Topic clusters | frame negative test | n/a | 0 violations | 0 | ✓ |
+| Silver | winner provider (all 4 cells) | Sonnet 4.6 | **Sonnet 4.6** | unchanged | ✓ |
 
-All five layer ACs pass. v1 silver winner holds on v2 — content shape did not
-shift judge preference.
+All layer ACs pass, including the previously-aspirational two-Marcos and frame
+negative tests. v1 silver winner holds on v2 — content shape did not shift
+judge preference.
 
 ## Per-layer detail
 
@@ -120,15 +127,18 @@ Script: `scripts/eval/score/cil_baseline_v2.py`. Reuses the KG + GIL
 predictions above — no separate pipeline run. Run output:
 `data/eval/runs/baseline_cil_curated_5feeds_v2/`.
 
-- 19 person identities total; **10 span >1 episode**: Maya, Ethan, Priya,
-  Rina, Leo, Nora as recurring hosts (3 eps each); Liam, Marco, Ava, Daniel
-  as recurring guests (2 eps each).
-- 340 topic identities total; **4 span ≥2 feeds**:
-  - `topic:second-order-effects` (4 feeds)
-  - `topic:correlation-vs-causation` (3 feeds)
-  - `topic:systems-thinking` (2 feeds) — matches v2 spec target
-  - `topic:risk-management` (2 feeds) — matches v2 spec target
-- 30 org identities total; 26 span >1 episode.
+- 20 person identities total; **11 span >1 episode**: Maya, Ethan, Priya,
+  Rina, Leo, Nora as recurring hosts (3 eps each); Liam, Sophie, Marco, Ava,
+  Daniel as recurring guests (2 eps each).
+- **Two-Marcos AC met:** the bridge keeps `person:marco` (p03_e01 + p03_e02,
+  feed-p03 only — the dive Marco) and `person:marco-bianchi` (p05_e02,
+  feed-p05 — the tax-loss harvesting researcher) as **distinct identities**.
+  Enabled by the `Marco Bianchi` callback added to p05_e02 (see
+  "Generator determinism + two-Marcos test" below).
+- topic identities span ≥2 feeds: `topic:risk-management` and
+  `topic:systems-thinking` (matches v2 spec targets), plus
+  `topic:second-order-effects` as an emergent cross-feed topic.
+- ~26 org identities span >1 episode.
 
 ### Topic-clusters layer
 
@@ -139,12 +149,16 @@ the production `cluster_indices_by_threshold` at threshold 0.75, names each
 separate pipeline run. Run output:
 `data/eval/runs/baseline_topic_clusters_curated_5feeds_v2/`.
 
-- 127 KG topic rows ingested.
-- **4 tc:* parent clusters**, of which **3 span ≥2 feeds**:
+- **6 tc:* parent clusters**, of which **4 span ≥2 feeds**:
   - `tc:risk-management` (4 feeds) — matches v2 spec
-  - `tc:downstream-costs` (2 feeds) — emergent
+  - `tc:second-order-effects` (5 feeds) — emergent, present in every feed
   - `tc:systems-thinking` (2 feeds) — matches v2 spec
-- Per-podcast: p01=2, p02=2, p03=2, p04=1, p05=2.
+  - `tc:downstream-costs` (2 feeds) — emergent
+- Single-feed clusters that didn't reach cross-feed status:
+  `tc:pre-dive-planning-importance` (p03), `tc:reliability-in-personal-finance` (p05).
+- **Frame negative test: 0 violations.** No tc:* cluster bundles p04
+  frame-rooted labels with non-p04 frame-rooted labels — the deliberate
+  ambiguity stays isolated.
 
 ### Summarization silver re-selection
 
@@ -157,19 +171,19 @@ Provider matrix (same set as v1 — clean v1↔v2 isolation):
 Configs under `data/eval/configs/silver_selection/silver_candidate_*_v2_{paragraph,bullets}.yaml`.
 
 Full 2×2 matrix: smoke (5 eps) / benchmark (15 eps over `curated_5feeds_kg_v2`)
-× paragraph / bullets. Pairwise LLM judge results (judge config from
-`.env.autoresearch`):
+× paragraph / bullets. Pairwise LLM judge results on regenerated v2 transcripts
+(judge config from `.env.autoresearch`):
 
 | Cell | Sonnet 4.6 vs GPT-4o | Sonnet 4.6 vs GPT-5.4 | Winner |
 | --- | --- | --- | --- |
-| smoke × paragraph | 5–0–0 | 4–0–1 | **Sonnet 4.6** |
+| smoke × paragraph | 5–0–0 | 3–0–2 | **Sonnet 4.6** |
 | smoke × bullets | 5–0–0 | 0–0–5 (perfect tie) | **Sonnet 4.6** (tie-break) |
-| benchmark × paragraph | 15–0–0 | 7–1–7 | **Sonnet 4.6** |
-| benchmark × bullets | 15–0–0 | 2–0–13 | **Sonnet 4.6** |
+| benchmark × paragraph | 15–0–0 | 7–3–5 | **Sonnet 4.6** |
+| benchmark × bullets | 15–0–0 | 0–0–15 (perfect tie) | **Sonnet 4.6** (tie-break) |
 
 Sonnet 4.6 wins or ties every cell, never loses. Same winner as v1 across all
-four cells. GPT-5.4 ties on smoke × bullets but doesn't beat Sonnet 4.6
-anywhere.
+four cells. GPT-5.4 ties on smoke × bullets and benchmark × bullets but doesn't
+beat Sonnet 4.6 anywhere.
 
 Promoted v2 silver references:
 
@@ -189,6 +203,53 @@ distinguishing suffix for the v2-content silvers, e.g. `_sources_v2`).
 
 v1 silvers stay archived, untouched.
 
+## Generator determinism + two-Marcos test
+
+Investigation of the three "known issues" flagged in this report's earlier
+revision (two-Marcos CIL merge, `tc:frame` negative test, silver coverage)
+surfaced a deeper finding: **`scripts/eval/data/generate_v2_transcripts.py`
+was non-deterministic.** Two random.Random seed lines used
+`abs(hash(<seed_string>)) % 2**32`. Python's built-in `hash()` varies with
+`PYTHONHASHSEED`, so re-running the generator produced different output
+across runs — 21 fixture files diffed against PR #902's snapshot even though
+no spec change happened. The v2 fixtures shipped in PR #902 were a one-time
+snapshot, not reproducible.
+
+Fix landed in this PR: a small `_stable_seed(s)` helper that uses
+`hashlib.md5(s.encode("utf-8")).digest()` for stable 32-bit seeds. Same
+approach the speaker-voice mapping already uses (per RFC-059 §2). Verified:
+running the generator twice under different `PYTHONHASHSEED` values now
+produces identical output.
+
+While regenerating to land the determinism fix, also addressed the
+two-Marcos test: `scripts/eval/data/generate_v2_transcripts.py` declared
+Marco as a guest in p05's spec dict but never assigned him as
+`primary_guest` for any p05 episode and the existing single-callback render
+logic picked one callback per `rng.choice`. Two surgical edits:
+
+1. Added a `Marco Bianchi was on the show ...` callback to `p05_e02`'s
+   `callbacks` list, paired with the existing Daniel callback.
+2. Changed the renderer to emit every callback in the list instead of one
+   `rng.choice` — so the seed couldn't decide which entities reached the
+   transcript.
+
+Result: the two-Marcos AC is now actually validated, not assumed. KG
+extraction sees `Marco` in p03 dialogue and `Marco Bianchi` in p05_e02
+dialogue, the bridge keeps them distinct.
+
+The full v2 corpus was regenerated, the v2 source mirror + dataset SHAs
+updated, all 5 baselines re-run, and the full silver matrix re-judged
+against the new content (results above). `tests/fixtures/baselines/v2-metrics.json`
+was also regenerated to reflect the new text-derived aggregate.
+
+Out of scope for this PR (touch transcripts but don't affect #903 outcomes):
+
+- `tests/fixtures/audio/v2/*.mp3` — needs `transcripts_to_mp3.py` re-render
+  (macOS-only `say` voices, ~30 min); tracked as a follow-up commit on this
+  branch.
+- `tests/fixtures/viewer-validation-corpus/v2/` — needs
+  `build_synthetic_validation_corpus.py` rebuild; same follow-up.
+
 ## v1 → v2 deltas: what shifted
 
 | Dimension | v1 | v2 | Delta interpretation |
@@ -204,25 +265,23 @@ v1 silvers stay archived, untouched.
 
 ## Risks worth flagging
 
-- **Two-Marcos test fails (CIL).** v2 spec encodes two distinct `person:marco`
-  identities (`p03_e01` Marco the wreck diver vs `p05_e03` Marco the
-  tax-loss-harvesting researcher). The CIL baseline shows them merged into a
-  single `person:marco` identity (2 episodes, 2 feeds). The v1→v2 report
-  already flagged this: `bridge_builder` needs a same-first-name disambiguation
-  step. Out of scope for #903; tracked separately.
+- **Two-Marcos test now passes — but via Marco Bianchi.** The v2 generator
+  was edited to add a `Marco Bianchi` callback in p05_e02 (see
+  "Generator determinism + two-Marcos test"). The p05 Marco that survives
+  in dialogue is the *callback-referenced* one with the surname-disambiguated
+  ID `person:marco-bianchi`, not a `primary_guest` in his own episode. If a
+  future ticket wants Marco as a full p05 guest (own episode arc, his own
+  insights), that's a bigger v2 spec change.
 - **Daniel disambiguation untested.** The v2 spec adds a `p05_e01` Daniel
   (index-investing guest) with a distinct voice from any v1 host. The CIL
   baseline shows `person:daniel` spanning 2 episodes but doesn't tell us
   whether the merge is correct (both v2 mentions are in fact the same Daniel)
-  or a collision with v1 host names. Belongs in the same CIL disambiguation
+  or a collision with v1 host names. Belongs in a CIL disambiguation
   follow-up.
-- **`tc:frame` ambiguity negative test not yet checked.** The v2 spec
-  deliberately introduces `topic:frame` (p04 photography) to verify that
-  RFC-075 clustering doesn't bundle unrelated uses of "frame". The current
-  baseline doesn't see a `tc:frame` cluster, but we haven't explicitly verified
-  the negative — the absence may be because Gemini didn't extract `frame` as a
-  topic label, not because clustering correctly rejected it. Worth a dedicated
-  negative-test in a follow-up.
+- **Frame negative test now explicit.** `tc:frame` ambiguity (p04 photography
+  vs unrelated uses of "frame") is now checked by an explicit assertion in
+  the topic-clusters baseline (0 violations). Implementation in
+  `scripts/eval/score/topic_clusters_baseline_v2.py::_frame_negative_test`.
 - **Silver naming collision.** The autoresearch-v2-framework era (April 2026)
   produced `silver_sonnet46_benchmark_v2_{paragraph,bullets}` referencing the
   v1-sources benchmark. The new v2-sources benchmark candidates produced by

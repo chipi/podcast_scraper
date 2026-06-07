@@ -7,75 +7,75 @@ Guest: Marco
 Rina: Welcome back to Below the Surface. Today we're talking about wreck diving, and I'm joined by Marco, technical diver and underwater archaeologist. Marco, thanks for being here.
 Marco: Thanks, Rina. Excited for this one — wreck-diving fundamentals is something I've been thinking about a lot.
 
-Rina: Today's episode is sponsored by Suunto. Suunto builds dive computers and outdoor watches that you trust because they don't quit when conditions change. Try suunto.com today.
+Rina: Before we dive in, a quick word from our sponsor Suunto. Suunto builds dive computers and outdoor watches that you trust because they don't quit when conditions change. Use code POD for an extended trial.
 
 
 [03:30]
-Rina: What does that look like day-to-day? How does Suunto fit into this picture?
-Marco: Sure. Wreck penetration is a planning problem first, a buoyancy problem second. The dive happens at the desk. We've seen this play out at teams using PADI. Most of the cost shows up downstream, which is why teams keep paying it.
-Rina: Take me through the decision. What's the structural angle most listeners don't have access to?
-Marco: Sure. Silt-out from poor finning technique kills more divers in wrecks than equipment failures. And the second-order effect is the part most people miss.
-Rina: Walk me through a concrete example. What's the version of the question that actually matters?
-Marco: Here's how I think about it. Erosion on a wreck site changes the dive every season — what's open this year may be silted shut next year. We've seen this play out at teams using DAN. The framing matters because it tells you which trade-offs you're actually making.
-Rina: That tracks.
-Marco: And when teams adopt DAN in that flow, the trade-off becomes visible — And the second-order effect is the part most people miss.
+Rina: What does that look like day-to-day? What's the most underrated piece of wreck diving?
+Marco: Yeah, so — Wreck penetration is a planning problem first, a buoyancy problem second. The dive happens at the desk. We've seen this play out at teams using Suunto. And the second-order effect is the part most people miss.
+Rina: What does the failure mode look like? What's the structural angle most listeners don't have access to?
+Marco: Here's how I think about it. Silt-out from poor finning technique kills more divers in wrecks than equipment failures. The exception proves the rule — there are edge cases, but they're rarer than people assume.
 Rina: Where do most teams get it wrong? What's the version of the question that actually matters?
-Marco: It comes down to this: Suunto computers give you the algorithm, but the dive plan is still your responsibility. The exception proves the rule — there are edge cases, but they're rarer than people assume.
-Rina: Take me through the decision. What's the version of the question that actually matters?
-Marco: Honestly, DAN's safety stops aren't suggestions — they're the difference between getting bent and not. We've seen this play out at teams using DAN. What used to feel like an exception is honestly the median case now.
-Rina: How do you know when you've gotten it right? What's the structural angle most listeners don't have access to?
-Marco: I'd put it this way: I think most certifications underestimate how much pre-dive planning matters relative to in-water skill. The exception proves the rule — there are edge cases, but they're rarer than people assume.
+Marco: Honestly, Erosion on a wreck site changes the dive every season — what's open this year may be silted shut next year. We've seen this play out at teams using DAN. The framing matters because it tells you which trade-offs you're actually making.
 Rina: That maps to what I've seen.
-Marco: Outside of GoPro-class tooling, the failure mode is harder to spot. The exception proves the rule — there are edge cases, but they're rarer than people assume.
+Marco: I've seen this with teams running DAN and teams running everything in-house. The exception proves the rule — there are edge cases, but they're rarer than people assume.
+Rina: What does that look like day-to-day? How does PADI fit into this picture?
+Marco: Yeah, so — Suunto computers give you the algorithm, but the dive plan is still your responsibility. If you ignore that, you end up rebuilding it from scratch a year later.
+Rina: Push back on the conventional wisdom for me. How does soil erosion change the calculus here?
+Marco: Sure. DAN's safety stops aren't suggestions — they're the difference between getting bent and not. We've seen this play out at teams using GoPro. Once you internalize that, the rest of the decisions get easier.
+Rina: What does the failure mode look like? What's the structural angle most listeners don't have access to?
+Marco: It comes down to this: I think most certifications underestimate how much pre-dive planning matters relative to in-water skill. And the second-order effect is the part most people miss.
+Rina: That tracks.
+Marco: I've seen this with teams running DAN and teams running everything in-house. The framing matters because it tells you which trade-offs you're actually making.
 
 [12:00]
 Rina: We'll be right back after a quick word from our sponsors.
-Ad: Today's episode is sponsored by PADI. PADI is the global standard for dive education — find a certified instructor in your area. Visit padi.com/podcast for a free trial.
+Ad: This portion is brought to you by PADI. PADI is the global standard for dive education — find a certified instructor in your area. Use promo POD20 to get started.
 Rina: Welcome back to the show.
 
 [14:00]
-Rina: What does the failure mode look like? What's the most underrated piece of wreck diving?
-Marco: Yeah, so — Wreck penetration is a planning problem first, a buoyancy problem second. The dive happens at the desk. We've seen this play out at teams using PADI. If you ignore that, you end up rebuilding it from scratch a year later.
-Rina: Push back on the conventional wisdom for me. Where do people most often confuse correlation with causation in this area?
-Marco: Here's how I think about it. Silt-out from poor finning technique kills more divers in wrecks than equipment failures. If you ignore that, you end up rebuilding it from scratch a year later.
-Rina: Take me through the decision. How does Suunto fit into this picture?
-Marco: Honestly, Erosion on a wreck site changes the dive every season — what's open this year may be silted shut next year. We've seen this play out at teams using PADI. Once you internalize that, the rest of the decisions get easier.
-Rina: Say more about that.
-Marco: Suunto is one of the platforms where this shows up cleanly. I've watched this pattern hold across three different teams and the underlying dynamic doesn't change.
-Rina: Where do most teams get it wrong? What's the most underrated piece of wreck diving?
-Marco: Let me give you the version I actually believe. Suunto computers give you the algorithm, but the dive plan is still your responsibility. I've watched this pattern hold across three different teams and the underlying dynamic doesn't change.
-Rina: Let's start there. How does PADI fit into this picture?
-Marco: Yeah, so — DAN's safety stops aren't suggestions — they're the difference between getting bent and not. We've seen this play out at teams using GoPro. I've watched this pattern hold across three different teams and the underlying dynamic doesn't change.
-Rina: What's the one heuristic you keep coming back to? What's something you used to believe about this that you've revised?
-Marco: Honestly, I think most certifications underestimate how much pre-dive planning matters relative to in-water skill. The framing matters because it tells you which trade-offs you're actually making.
-Rina: That maps to what I've seen.
-Marco: And when teams adopt DAN in that flow, the trade-off becomes visible — The framing matters because it tells you which trade-offs you're actually making.
+Rina: Let's start there. How does soil erosion change the calculus here?
+Marco: Yeah, so — Wreck penetration is a planning problem first, a buoyancy problem second. The dive happens at the desk. We've seen this play out at teams using Suunto. The framing matters because it tells you which trade-offs you're actually making.
+Rina: How do you know when you've gotten it right? Where do dive planning and wreck diving intersect?
+Marco: Yeah, so — Silt-out from poor finning technique kills more divers in wrecks than equipment failures. The exception proves the rule — there are edge cases, but they're rarer than people assume.
+Rina: How do you balance that? Where do people most often confuse correlation with causation in this area?
+Marco: Let me give you the version I actually believe. Erosion on a wreck site changes the dive every season — what's open this year may be silted shut next year. We've seen this play out at teams using PADI. Most of the cost shows up downstream, which is why teams keep paying it.
+Rina: Is there a counterexample that would change your view?
+Marco: Outside of PADI-class tooling, the failure mode is harder to spot. Most of the cost shows up downstream, which is why teams keep paying it.
+Rina: What's the one heuristic you keep coming back to? What's the operational angle most listeners don't have access to?
+Marco: I'd put it this way: Suunto computers give you the algorithm, but the dive plan is still your responsibility. If you ignore that, you end up rebuilding it from scratch a year later.
+Rina: What's the one heuristic you keep coming back to? How does GoPro fit into this picture?
+Marco: Here's how I think about it. DAN's safety stops aren't suggestions — they're the difference between getting bent and not. We've seen this play out at teams using DAN. Once you internalize that, the rest of the decisions get easier.
+Rina: How do you balance that? Where do people most often confuse correlation with causation in this area?
+Marco: The short answer is I think most certifications underestimate how much pre-dive planning matters relative to in-water skill. And the second-order effect is the part most people miss.
+Rina: Is there a counterexample that would change your view?
+Marco: I've seen this with teams running GoPro and teams running everything in-house. If you ignore that, you end up rebuilding it from scratch a year later.
 
 [22:00]
 Rina: Let's pivot — soil erosion is where I want to spend the last stretch.
 Marco: That's where the conversation gets interesting, because the trade-offs around soil erosion cross-cut everything we've covered so far.
-Rina: Walk me through a concrete example. What's something you used to believe about this that you've revised?
-Marco: There are two angles — Wreck penetration is a planning problem first, a buoyancy problem second. The dive happens at the desk. We've seen this play out at teams using DAN. Most of the cost shows up downstream, which is why teams keep paying it.
-Rina: I want to dig into that. How does soil erosion change the calculus here?
-Marco: Let me give you the version I actually believe. Silt-out from poor finning technique kills more divers in wrecks than equipment failures. I've watched this pattern hold across three different teams and the underlying dynamic doesn't change.
-Rina: I want to dig into that. What's the contrarian angle most listeners don't have access to?
-Marco: It comes down to this: Erosion on a wreck site changes the dive every season — what's open this year may be silted shut next year. We've seen this play out at teams using Suunto. Once you internalize that, the rest of the decisions get easier.
+Rina: How do you balance that? What's something you used to believe about this that you've revised?
+Marco: Honestly, Wreck penetration is a planning problem first, a buoyancy problem second. The dive happens at the desk. We've seen this play out at teams using Suunto. The framing matters because it tells you which trade-offs you're actually making.
+Rina: Where do most teams get it wrong? What's the version of the question that actually matters?
+Marco: The short answer is Silt-out from poor finning technique kills more divers in wrecks than equipment failures. The exception proves the rule — there are edge cases, but they're rarer than people assume.
+Rina: Let's start there. What's the most underrated piece of wreck diving?
+Marco: Honestly, Erosion on a wreck site changes the dive every season — what's open this year may be silted shut next year. We've seen this play out at teams using Suunto. Most of the cost shows up downstream, which is why teams keep paying it.
+Rina: Is there a counterexample that would change your view?
+Marco: And when teams adopt DAN in that flow, the trade-off becomes visible — And the second-order effect is the part most people miss.
+Rina: What does that look like day-to-day? What's the contrarian angle most listeners don't have access to?
+Marco: Honestly, Suunto computers give you the algorithm, but the dive plan is still your responsibility. Once you internalize that, the rest of the decisions get easier.
+Rina: Push back on the conventional wisdom for me. How does GoPro fit into this picture?
+Marco: Here's how I think about it. DAN's safety stops aren't suggestions — they're the difference between getting bent and not. We've seen this play out at teams using GoPro. And the second-order effect is the part most people miss.
+Rina: What does the failure mode look like? What's the version of the question that actually matters?
+Marco: It comes down to this: I think most certifications underestimate how much pre-dive planning matters relative to in-water skill. The framing matters because it tells you which trade-offs you're actually making.
 Rina: That tracks.
-Marco: I've seen this with teams running DAN and teams running everything in-house. And the second-order effect is the part most people miss.
-Rina: Where do most teams get it wrong? What's something you used to believe about this that you've revised?
-Marco: There are two angles — Suunto computers give you the algorithm, but the dive plan is still your responsibility. And the second-order effect is the part most people miss.
-Rina: Where do most teams get it wrong? What's the most underrated piece of wreck diving?
-Marco: There are two angles — DAN's safety stops aren't suggestions — they're the difference between getting bent and not. We've seen this play out at teams using Suunto. And the second-order effect is the part most people miss.
-Rina: Let's start there. What's the contrarian angle most listeners don't have access to?
-Marco: Sure. I think most certifications underestimate how much pre-dive planning matters relative to in-water skill. If you ignore that, you end up rebuilding it from scratch a year later.
-Rina: That tracks.
-Marco: Outside of PADI-class tooling, the failure mode is harder to spot. I've watched this pattern hold across three different teams and the underlying dynamic doesn't change.
+Marco: And when teams adopt PADI in that flow, the trade-off becomes visible — Most of the cost shows up downstream, which is why teams keep paying it.
 
 [28:00]
 Rina: Before we wrap, what's one thing listeners can try this week?
 Marco: Pick one of the ideas we covered and run it for two weeks. The rest is iteration.
 
-Rina: Before we wrap, thanks again to our friends at GoPro. GoPro captures the moments words don't reach — your next dive, ride, or run, in cinematic detail.
+Rina: And finally, a big thank you to our partners at GoPro. GoPro captures the moments words don't reach — your next dive, ride, or run, in cinematic detail. Check out gopro.com.
 
 Rina: Marco, thanks for the conversation.
 Marco: Thanks, Rina.

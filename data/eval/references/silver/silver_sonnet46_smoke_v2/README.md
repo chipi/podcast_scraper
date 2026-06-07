@@ -1,14 +1,14 @@
 # Reference: silver_sonnet46_smoke_v2
 
 **Promoted from:** `silver_candidate_anthropic_claudesonnet46_smoke_v2_paragraph`
-**Promoted at:** 2026-06-07T11:00:17.050586Z
+**Promoted at:** 2026-06-07T12:01:50.802329Z
 **Role:** Reference (used as truth for evaluation)
 **Dataset:** curated_5feeds_smoke_v2
 **Reference Quality:** silver
 
 ## Purpose
 
-v2 silver re-selection (#903) - Sonnet 4.6 sweeps GPT-4o 5-0 and GPT-5.4 4-0-1 on v2 paragraph smoke
+v2 silver re-selection (#903) on regenerated v2 - Sonnet 4.6 wins
 
 ## Usage
 

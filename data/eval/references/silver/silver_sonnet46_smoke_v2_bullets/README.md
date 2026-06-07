@@ -1,14 +1,14 @@
 # Reference: silver_sonnet46_smoke_v2_bullets
 
 **Promoted from:** `silver_candidate_anthropic_claudesonnet46_smoke_v2_bullets`
-**Promoted at:** 2026-06-07T11:31:02.818107Z
+**Promoted at:** 2026-06-07T12:01:50.841223Z
 **Role:** Reference (used as truth for evaluation)
 **Dataset:** curated_5feeds_smoke_v2
 **Reference Quality:** silver
 
 ## Purpose
 
-v2 silver re-selection (#903) - Sonnet 4.6 wins/ties on v2 smoke_bullets
+v2 silver re-selection (#903) on regenerated v2 - Sonnet 4.6 wins
 
 ## Usage
 
