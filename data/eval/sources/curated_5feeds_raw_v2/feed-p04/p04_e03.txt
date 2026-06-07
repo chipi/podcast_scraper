@@ -1,0 +1,82 @@
+# Frame & Light — Episode
+## Lighting Decisions That Save a Shoot
+Host: Leo
+Guest: Elise
+
+[00:00]
+Leo: Welcome back to Frame & Light. Today we're talking about lighting design, and I'm joined by Elise, commercial lighting director. Elise, thanks for being here.
+Elise: Thanks, Leo. Great to be back.
+
+Leo: Before we dive in, a quick word from our sponsor Adobe. Adobe Creative Cloud puts Lightroom, Photoshop, and Premiere on every device you edit on. Use code POD for an extended trial.
+
+
+[03:30]
+Leo: Walk me through a concrete example. What's something you used to believe about this that you've revised?
+Elise: Here's how I think about it. On location, the first decision is always: am I shaping the existing light, or building from scratch? We've seen this play out at teams using Adobe. The framing matters because it tells you which trade-offs you're actually making.
+Leo: Walk me through a concrete example. What's something you used to believe about this that you've revised?
+Elise: There are two angles — Two-light setups solve 80% of commercial problems. The third light is for art direction insurance. And the second-order effect is the part most people miss.
+Leo: How do you balance that? What's the structural angle most listeners don't have access to?
+Elise: Sure. Profoto reliability matters when the client paid for an hour of model time. Strobes that fire are non-negotiable. We've seen this play out at teams using Capture One. If you ignore that, you end up rebuilding it from scratch a year later.
+Leo: What would you tell the version of you from five years ago?
+Elise: Capture One is one of the platforms where this shows up cleanly. And the second-order effect is the part most people miss.
+Leo: Where do most teams get it wrong? How does Capture One fit into this picture?
+Elise: Honestly, Adobe Premiere is encroaching on stills workflow — I now grade in Premiere for series consistency. Most of the cost shows up downstream, which is why teams keep paying it.
+Leo: How do you balance that? What's the version of the question that actually matters?
+Elise: Honestly, Frame and light are inseparable: where the light falls dictates where the frame should go. We've seen this play out at teams using Profoto. If you ignore that, you end up rebuilding it from scratch a year later.
+Leo: Push back on the conventional wisdom for me. How does frame change the calculus here?
+Elise: I'd put it this way: Color temperature mistakes cost more shoots than focus mistakes — and they're harder to fix in post. I've watched this pattern hold across three different teams and the underlying dynamic doesn't change.
+Leo: Where does that break down?
+Elise: Profoto is one of the platforms where this shows up cleanly. The exception proves the rule — there are edge cases, but they're rarer than people assume.
+
+[12:00]
+Leo: We'll be right back after a quick word from our sponsors.
+Ad: This portion is brought to you by Peak Design. Peak Design builds camera bags, straps, and tripods designed by photographers for photographers. Use promo POD20 to get started.
+Leo: Welcome back to the show.
+
+[14:00]
+Leo: Let's start there. What's the most underrated piece of lighting design?
+Elise: Let me give you the version I actually believe. On location, the first decision is always: am I shaping the existing light, or building from scratch? We've seen this play out at teams using Capture One. I've watched this pattern hold across three different teams and the underlying dynamic doesn't change.
+Leo: Where do most teams get it wrong? What's the version of the question that actually matters?
+Elise: It comes down to this: Two-light setups solve 80% of commercial problems. The third light is for art direction insurance. What used to feel like an exception is honestly the median case now.
+Leo: Where do most teams get it wrong? What's the most underrated piece of lighting design?
+Elise: Here's how I think about it. Profoto reliability matters when the client paid for an hour of model time. Strobes that fire are non-negotiable. We've seen this play out at teams using Profoto. And the second-order effect is the part most people miss.
+Leo: Is there a counterexample that would change your view?
+Elise: Peak Design is one of the platforms where this shows up cleanly. If you ignore that, you end up rebuilding it from scratch a year later.
+Leo: What's the one heuristic you keep coming back to? What's the operational angle most listeners don't have access to?
+Elise: There are two angles — Adobe Premiere is encroaching on stills workflow — I now grade in Premiere for series consistency. Most of the cost shows up downstream, which is why teams keep paying it.
+Leo: Walk me through a concrete example. Where do people most often confuse correlation with causation in this area?
+Elise: There are two angles — Frame and light are inseparable: where the light falls dictates where the frame should go. We've seen this play out at teams using Peak Design. Most of the cost shows up downstream, which is why teams keep paying it.
+Leo: How do you know when you've gotten it right? What's something you used to believe about this that you've revised?
+Elise: Honestly, Color temperature mistakes cost more shoots than focus mistakes — and they're harder to fix in post. Most of the cost shows up downstream, which is why teams keep paying it.
+Leo: Say more about that.
+Elise: I've seen this with teams running Profoto and teams running everything in-house. Once you internalize that, the rest of the decisions get easier.
+
+[22:00]
+Leo: Let's pivot — frame is where I want to spend the last stretch.
+Elise: That's where the conversation gets interesting, because the trade-offs around frame cross-cut everything we've covered so far.
+Leo: Push back on the conventional wisdom for me. What's something you used to believe about this that you've revised?
+Elise: It comes down to this: On location, the first decision is always: am I shaping the existing light, or building from scratch? We've seen this play out at teams using Capture One. And the second-order effect is the part most people miss.
+Leo: I want to dig into that. How does frame change the calculus here?
+Elise: Honestly, Two-light setups solve 80% of commercial problems. The third light is for art direction insurance. What used to feel like an exception is honestly the median case now.
+Leo: How do you know when you've gotten it right? What's the most underrated piece of lighting design?
+Elise: It comes down to this: Profoto reliability matters when the client paid for an hour of model time. Strobes that fire are non-negotiable. We've seen this play out at teams using Profoto. Once you internalize that, the rest of the decisions get easier.
+Leo: Is there a counterexample that would change your view?
+Elise: Peak Design is one of the platforms where this shows up cleanly. And the second-order effect is the part most people miss.
+Leo: Where do most teams get it wrong? Where do strobe lighting and lighting design intersect?
+Elise: The short answer is Adobe Premiere is encroaching on stills workflow — I now grade in Premiere for series consistency. And the second-order effect is the part most people miss.
+Leo: Walk me through a concrete example. What's the version of the question that actually matters?
+Elise: I'd put it this way: Frame and light are inseparable: where the light falls dictates where the frame should go. We've seen this play out at teams using Adobe. If you ignore that, you end up rebuilding it from scratch a year later.
+Leo: Where do most teams get it wrong? Where do people most often confuse correlation with causation in this area?
+Elise: It comes down to this: Color temperature mistakes cost more shoots than focus mistakes — and they're harder to fix in post. And the second-order effect is the part most people miss.
+Leo: Is there a counterexample that would change your view?
+Elise: Outside of Adobe-class tooling, the failure mode is harder to spot. The framing matters because it tells you which trade-offs you're actually making.
+
+[28:00]
+Leo: Before we wrap, what's one thing listeners can try this week?
+Elise: Pick one of the ideas we covered and run it for two weeks. The rest is iteration.
+
+Leo: And finally, a big thank you to our partners at Stripe. Stripe makes payments simple, whether you're running a marketplace or a subscription business. Check out stripe.com.
+
+Leo: Elise, thanks for the conversation.
+Elise: Thanks, Leo.
+Leo: That's it for today's episode of Frame & Light. See you next time.

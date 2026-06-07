@@ -1,0 +1,82 @@
+# Long Horizon Notes — Episode
+## Index Investing Without the Myths
+Host: Nora
+Guest: Daniel
+
+[00:00]
+Nora: Welcome back to Long Horizon Notes. Today we're talking about index investing, and I'm joined by Daniel, former bond trader turned index advocate. Daniel, thanks for being here.
+Daniel: Thanks, Nora. Excited for this one — index investing is something I've been thinking about a lot.
+
+Nora: Today's episode is sponsored by Vanguard. Vanguard pioneered low-cost index funds and still keeps expense ratios where they belong. Try vanguard.com today.
+
+
+[03:30]
+Nora: How do you know when you've gotten it right? Where do reliability and index investing intersect?
+Daniel: Let me give you the version I actually believe. Index funds are not a strategy — they're the absence of one. That's their advantage. We've seen this play out at teams using iShares. And the second-order effect is the part most people miss.
+Nora: That's a useful framing. How does Vanguard fit into this picture?
+Daniel: Let me give you the version I actually believe. Vanguard's structure pioneered low costs, but iShares is now competitive on most major index exposures. The exception proves the rule — there are edge cases, but they're rarer than people assume.
+Nora: How do you know when you've gotten it right? What's the version of the question that actually matters?
+Daniel: It comes down to this: Reliability in investing means having a plan you can hold through a 30% drawdown, not maximizing returns. We've seen this play out at teams using Vanguard. Once you internalize that, the rest of the decisions get easier.
+Nora: That tracks.
+Daniel: I've seen this with teams running Wealthfront and teams running everything in-house. What used to feel like an exception is honestly the median case now.
+Nora: Walk me through a concrete example. What's something you used to believe about this that you've revised?
+Daniel: It comes down to this: Risk management for individual investors is mostly behavioral, not analytical. And the second-order effect is the part most people miss.
+Nora: I want to dig into that. What's something you used to believe about this that you've revised?
+Daniel: I'd put it this way: Systems thinking applies: the index is a system that accepts every company's failure as expected. We've seen this play out at teams using Vanguard. What used to feel like an exception is honestly the median case now.
+Nora: How do you balance that? Where do reliability and index investing intersect?
+Daniel: It comes down to this: I changed my mind on small-value tilts. I used to think they were free lunch — now I think they're a behavioral commitment most people can't keep. Most of the cost shows up downstream, which is why teams keep paying it.
+Nora: That tracks.
+Daniel: I've seen this with teams running Vanguard and teams running everything in-house. If you ignore that, you end up rebuilding it from scratch a year later.
+
+[12:00]
+Nora: We'll be right back after a quick word from our sponsors.
+Ad: Today's episode is sponsored by Wealthfront. Wealthfront automates the boring parts of investing — tax-loss harvesting, rebalancing, and high-yield cash. Visit wealthfront.com/podcast for a free trial.
+Nora: Welcome back to the show.
+
+[14:00]
+Nora: What does the failure mode look like? Where do reliability and index investing intersect?
+Daniel: Yeah, so — Index funds are not a strategy — they're the absence of one. That's their advantage. We've seen this play out at teams using iShares. Once you internalize that, the rest of the decisions get easier.
+Nora: Walk me through a concrete example. How does Morningstar fit into this picture?
+Daniel: It comes down to this: Vanguard's structure pioneered low costs, but iShares is now competitive on most major index exposures. Once you internalize that, the rest of the decisions get easier.
+Nora: Walk me through a concrete example. How does Wealthfront fit into this picture?
+Daniel: Yeah, so — Reliability in investing means having a plan you can hold through a 30% drawdown, not maximizing returns. We've seen this play out at teams using Vanguard. The exception proves the rule — there are edge cases, but they're rarer than people assume.
+Nora: Is there a counterexample that would change your view?
+Daniel: Wealthfront is one of the platforms where this shows up cleanly. And the second-order effect is the part most people miss.
+Nora: How do you know when you've gotten it right? What's the version of the question that actually matters?
+Daniel: It comes down to this: Risk management for individual investors is mostly behavioral, not analytical. And the second-order effect is the part most people miss.
+Nora: What does that look like day-to-day? What's the operational angle most listeners don't have access to?
+Daniel: I'd put it this way: Systems thinking applies: the index is a system that accepts every company's failure as expected. We've seen this play out at teams using Wealthfront. Once you internalize that, the rest of the decisions get easier.
+Nora: How do you balance that? How does iShares fit into this picture?
+Daniel: It comes down to this: I changed my mind on small-value tilts. I used to think they were free lunch — now I think they're a behavioral commitment most people can't keep. Once you internalize that, the rest of the decisions get easier.
+Nora: Where does that break down?
+Daniel: Outside of Wealthfront-class tooling, the failure mode is harder to spot. The framing matters because it tells you which trade-offs you're actually making.
+
+[22:00]
+Nora: Let's pivot — systems thinking is where I want to spend the last stretch.
+Daniel: That's where the conversation gets interesting, because the trade-offs around systems thinking cross-cut everything we've covered so far.
+Nora: How do you balance that? Where do people most often confuse correlation with causation in this area?
+Daniel: There are two angles — Index funds are not a strategy — they're the absence of one. That's their advantage. We've seen this play out at teams using Vanguard. The exception proves the rule — there are edge cases, but they're rarer than people assume.
+Nora: What does that look like day-to-day? What's the most underrated piece of index investing?
+Daniel: I'd put it this way: Vanguard's structure pioneered low costs, but iShares is now competitive on most major index exposures. The exception proves the rule — there are edge cases, but they're rarer than people assume.
+Nora: I want to dig into that. What's the contrarian angle most listeners don't have access to?
+Daniel: Here's how I think about it. Reliability in investing means having a plan you can hold through a 30% drawdown, not maximizing returns. We've seen this play out at teams using Morningstar. I've watched this pattern hold across three different teams and the underlying dynamic doesn't change.
+Nora: Is there a counterexample that would change your view?
+Daniel: And when teams adopt Vanguard in that flow, the trade-off becomes visible — If you ignore that, you end up rebuilding it from scratch a year later.
+Nora: Push back on the conventional wisdom for me. What's something you used to believe about this that you've revised?
+Daniel: Sure. Risk management for individual investors is mostly behavioral, not analytical. What used to feel like an exception is honestly the median case now.
+Nora: I want to dig into that. Where do people most often confuse correlation with causation in this area?
+Daniel: Honestly, Systems thinking applies: the index is a system that accepts every company's failure as expected. We've seen this play out at teams using Morningstar. And the second-order effect is the part most people miss.
+Nora: I want to dig into that. How does systems thinking change the calculus here?
+Daniel: Here's how I think about it. I changed my mind on small-value tilts. I used to think they were free lunch — now I think they're a behavioral commitment most people can't keep. The framing matters because it tells you which trade-offs you're actually making.
+Nora: What would you tell the version of you from five years ago?
+Daniel: I've seen this with teams running iShares and teams running everything in-house. The framing matters because it tells you which trade-offs you're actually making.
+
+[28:00]
+Nora: Before we wrap, what's one thing listeners can try this week?
+Daniel: Pick one of the ideas we covered and run it for two weeks. The rest is iteration.
+
+Nora: Before we wrap, thanks again to our friends at Stripe. Stripe makes payments simple, whether you're running a marketplace or a subscription business.
+
+Nora: Daniel, thanks for the conversation.
+Daniel: Thanks, Nora.
+Nora: That's it for today's episode of Long Horizon Notes. See you next time.

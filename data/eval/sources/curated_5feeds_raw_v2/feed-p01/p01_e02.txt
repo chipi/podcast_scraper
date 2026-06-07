@@ -1,0 +1,86 @@
+# Singletrack Sessions — Episode
+## Enduro Skills Without the Hype
+Host: Maya
+Guest: Sophie
+
+[00:00]
+Maya: Welcome back to Singletrack Sessions. Today we're talking about enduro racing, and I'm joined by Sophie, enduro racer and coach. Sophie, thanks for being here.
+Sophie: Thanks, Maya. Great to be back.
+
+Maya: This episode is brought to you by Linear. Linear is the issue tracker built for speed — keyboard-first, fast search, and a clean roadmap view your team actually uses. Get started at linear.com/podcast.
+
+Maya: Before we get into it — Liam was on the show talking about how drainage is the single highest-leverage design choice. That ties directly into how a track holds up across race day.
+Sophie: Yeah, exactly. And it ties into what we're covering today.
+Sophie: I used to think you could brake your way out of any line mistake. After 2024 nationals I revised that — the right line in practice is everything.
+Maya: That's a real shift. Worth pulling on.
+
+[03:30]
+Maya: How do you balance that? What's something you used to believe about this that you've revised?
+Sophie: I'd put it this way: Speed comes from braking earlier and smoother, not from taking bigger risks. We've seen this play out at teams using Cascadia Alliance. The exception proves the rule — there are edge cases, but they're rarer than people assume.
+Maya: Let's start there. What's the most underrated piece of enduro racing?
+Sophie: Here's how I think about it. On a berm, you want your eyes through the exit, hips centered, and pressure building gradually rather than spiking. If you ignore that, you end up rebuilding it from scratch a year later.
+Maya: What does the failure mode look like? Where do soil erosion and enduro racing intersect?
+Sophie: Let me give you the version I actually believe. The fastest riders I race against are the ones who modify least under pressure. We've seen this play out at teams using RockShox. Once you internalize that, the rest of the decisions get easier.
+Maya: That tracks.
+Sophie: Outside of Spoke & Wrench-class tooling, the failure mode is harder to spot. If you ignore that, you end up rebuilding it from scratch a year later.
+Maya: What's the one heuristic you keep coming back to? Where do people most often confuse correlation with causation in this area?
+Sophie: Honestly, Tire pressure and casing choice often matter more than a minor suspension tweak. If you ignore that, you end up rebuilding it from scratch a year later.
+Maya: Take me through the decision. Where do soil erosion and enduro racing intersect?
+Sophie: I'd put it this way: Risk management in racing isn't avoiding crashes — it's choosing which crashes are survivable. We've seen this play out at teams using Cascadia Alliance. Once you internalize that, the rest of the decisions get easier.
+Maya: Walk me through a concrete example. What's something you used to believe about this that you've revised?
+Sophie: There are two angles — Erosion patterns on race-tracks change everything about line choice from practice to race day. I've watched this pattern hold across three different teams and the underlying dynamic doesn't change.
+Maya: Say more about that.
+Sophie: And when teams adopt Spoke & Wrench in that flow, the trade-off becomes visible — The framing matters because it tells you which trade-offs you're actually making.
+
+[12:00]
+Maya: We'll be right back after a quick word from our sponsors.
+Ad: Today's episode is sponsored by Notion. Notion replaces the dozen tools your team is half-using with a single workspace for docs, projects, and wikis. Visit notion.com/podcast for a free trial.
+Maya: Welcome back to the show.
+
+[14:00]
+Maya: What does the failure mode look like? What's the operational angle most listeners don't have access to?
+Sophie: It comes down to this: Speed comes from braking earlier and smoother, not from taking bigger risks. We've seen this play out at teams using Cascadia Alliance. What used to feel like an exception is honestly the median case now.
+Maya: Walk me through a concrete example. How does Cascadia Alliance fit into this picture?
+Sophie: There are two angles — On a berm, you want your eyes through the exit, hips centered, and pressure building gradually rather than spiking. Most of the cost shows up downstream, which is why teams keep paying it.
+Maya: Take me through the decision. How does Spoke & Wrench fit into this picture?
+Sophie: Here's how I think about it. The fastest riders I race against are the ones who modify least under pressure. We've seen this play out at teams using RockShox. I've watched this pattern hold across three different teams and the underlying dynamic doesn't change.
+Maya: Say more about that.
+Sophie: Shimano is one of the platforms where this shows up cleanly. What used to feel like an exception is honestly the median case now.
+Maya: I want to dig into that. Where do people most often confuse correlation with causation in this area?
+Sophie: There are two angles — Tire pressure and casing choice often matter more than a minor suspension tweak. Most of the cost shows up downstream, which is why teams keep paying it.
+Maya: That's a useful framing. How does risk management change the calculus here?
+Sophie: Sure. Risk management in racing isn't avoiding crashes — it's choosing which crashes are survivable. We've seen this play out at teams using RockShox. The framing matters because it tells you which trade-offs you're actually making.
+Maya: What does the failure mode look like? What's the operational angle most listeners don't have access to?
+Sophie: Honestly, Erosion patterns on race-tracks change everything about line choice from practice to race day. What used to feel like an exception is honestly the median case now.
+Maya: Where does that break down?
+Sophie: Cascadia Alliance is one of the platforms where this shows up cleanly. The exception proves the rule — there are edge cases, but they're rarer than people assume.
+
+[22:00]
+Maya: Let's pivot — risk management is where I want to spend the last stretch.
+Sophie: That's where the conversation gets interesting, because the trade-offs around risk management cross-cut everything we've covered so far.
+Maya: I want to dig into that. Where do people most often confuse correlation with causation in this area?
+Sophie: Honestly, Speed comes from braking earlier and smoother, not from taking bigger risks. We've seen this play out at teams using Cascadia Alliance. And the second-order effect is the part most people miss.
+Maya: I want to dig into that. Where do soil erosion and enduro racing intersect?
+Sophie: Let me give you the version I actually believe. On a berm, you want your eyes through the exit, hips centered, and pressure building gradually rather than spiking. Most of the cost shows up downstream, which is why teams keep paying it.
+Maya: Take me through the decision. What's the most underrated piece of enduro racing?
+Sophie: It comes down to this: The fastest riders I race against are the ones who modify least under pressure. We've seen this play out at teams using RockShox. Most of the cost shows up downstream, which is why teams keep paying it.
+Maya: That maps to what I've seen.
+Sophie: And when teams adopt Shimano in that flow, the trade-off becomes visible — If you ignore that, you end up rebuilding it from scratch a year later.
+Maya: Walk me through a concrete example. Where do people most often confuse correlation with causation in this area?
+Sophie: Sure. Tire pressure and casing choice often matter more than a minor suspension tweak. Once you internalize that, the rest of the decisions get easier.
+Maya: What's the one heuristic you keep coming back to? How does Cascadia Alliance fit into this picture?
+Sophie: There are two angles — Risk management in racing isn't avoiding crashes — it's choosing which crashes are survivable. We've seen this play out at teams using RockShox. What used to feel like an exception is honestly the median case now.
+Maya: Let's start there. Where do people most often confuse correlation with causation in this area?
+Sophie: It comes down to this: Erosion patterns on race-tracks change everything about line choice from practice to race day. And the second-order effect is the part most people miss.
+Maya: That maps to what I've seen.
+Sophie: I've seen this with teams running Shimano and teams running everything in-house. Most of the cost shows up downstream, which is why teams keep paying it.
+
+[28:00]
+Maya: Before we wrap, what's one thing listeners can try this week?
+Sophie: Pick one of the ideas we covered and run it for two weeks. The rest is iteration.
+
+Maya: And finally, a big thank you to our partners at Vanta. Vanta automates SOC 2 and ISO compliance so you can focus on building, not on collecting screenshots. Check out vanta.com.
+
+Maya: Sophie, thanks for the conversation.
+Sophie: Thanks, Maya.
+Maya: That's it for today's episode of Singletrack Sessions. See you next time.

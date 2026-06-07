@@ -1,0 +1,111 @@
+{
+  "source_id": "curated_5feeds_raw_v2",
+  "created_at": "2026-06-07T07:51:30.105650Z",
+  "episodes": [
+    {
+      "source_episode_id": "p01_e01",
+      "feed": "feed-p01",
+      "transcript_path": "feed-p01/p01_e01.txt",
+      "transcript_sha256": "3cac4555bc5cc1b818c3acd7a50357faed7f6f6bdb3e0e2986dacdf23483193e",
+      "meta_path": "feed-p01/p01_e01.metadata.json"
+    },
+    {
+      "source_episode_id": "p01_e02",
+      "feed": "feed-p01",
+      "transcript_path": "feed-p01/p01_e02.txt",
+      "transcript_sha256": "551e739efd9450c1fe22fb1b6f743a23e96bcb32ea53f6a0c121efff07964b5e",
+      "meta_path": "feed-p01/p01_e02.metadata.json"
+    },
+    {
+      "source_episode_id": "p01_e03",
+      "feed": "feed-p01",
+      "transcript_path": "feed-p01/p01_e03.txt",
+      "transcript_sha256": "52e752b36bc6c84741a5b12ef681e1132732b122f082fe7bfbe1d976a5ca3826",
+      "meta_path": "feed-p01/p01_e03.metadata.json"
+    },
+    {
+      "source_episode_id": "p02_e01",
+      "feed": "feed-p02",
+      "transcript_path": "feed-p02/p02_e01.txt",
+      "transcript_sha256": "bf1c8a53473361ffa98453116b6feb7d9d81181cf7d62974564f4ee27b2b4209",
+      "meta_path": "feed-p02/p02_e01.metadata.json"
+    },
+    {
+      "source_episode_id": "p02_e02",
+      "feed": "feed-p02",
+      "transcript_path": "feed-p02/p02_e02.txt",
+      "transcript_sha256": "4c408e3617897775c9597f9b65802443a2d502e12982bff90704c6cee2472392",
+      "meta_path": "feed-p02/p02_e02.metadata.json"
+    },
+    {
+      "source_episode_id": "p02_e03",
+      "feed": "feed-p02",
+      "transcript_path": "feed-p02/p02_e03.txt",
+      "transcript_sha256": "2bd58cdb8818089bb4323208aace3cdd38e3c5fb8da34e62e6062653a4000e85",
+      "meta_path": "feed-p02/p02_e03.metadata.json"
+    },
+    {
+      "source_episode_id": "p03_e01",
+      "feed": "feed-p03",
+      "transcript_path": "feed-p03/p03_e01.txt",
+      "transcript_sha256": "8b9782265656ec4b67b3784f374abd6ed5b89b50c6c5ce1b8d043364237981b3",
+      "meta_path": "feed-p03/p03_e01.metadata.json"
+    },
+    {
+      "source_episode_id": "p03_e02",
+      "feed": "feed-p03",
+      "transcript_path": "feed-p03/p03_e02.txt",
+      "transcript_sha256": "cb9b7471cf76405174b081e63377192b052137641986c91228316badfefff0d8",
+      "meta_path": "feed-p03/p03_e02.metadata.json"
+    },
+    {
+      "source_episode_id": "p03_e03",
+      "feed": "feed-p03",
+      "transcript_path": "feed-p03/p03_e03.txt",
+      "transcript_sha256": "4079b1188ace6141c6b1393d8431819ed466653102b1b210bb8a5619854cb84f",
+      "meta_path": "feed-p03/p03_e03.metadata.json"
+    },
+    {
+      "source_episode_id": "p04_e01",
+      "feed": "feed-p04",
+      "transcript_path": "feed-p04/p04_e01.txt",
+      "transcript_sha256": "5e3998010cf4b8ac1370fa6aa193171496381edee2571d4c90e8a1d6b798fdb1",
+      "meta_path": "feed-p04/p04_e01.metadata.json"
+    },
+    {
+      "source_episode_id": "p04_e02",
+      "feed": "feed-p04",
+      "transcript_path": "feed-p04/p04_e02.txt",
+      "transcript_sha256": "8053cc9ab92ad1fbe8d404dc03da2d9a4b1af56d6c3ba5ec6fe9984151b0b7e4",
+      "meta_path": "feed-p04/p04_e02.metadata.json"
+    },
+    {
+      "source_episode_id": "p04_e03",
+      "feed": "feed-p04",
+      "transcript_path": "feed-p04/p04_e03.txt",
+      "transcript_sha256": "1eb837382077c3f1e3eee10be2126ad58c7a5daf995e120333f4c4cd7abb8986",
+      "meta_path": "feed-p04/p04_e03.metadata.json"
+    },
+    {
+      "source_episode_id": "p05_e01",
+      "feed": "feed-p05",
+      "transcript_path": "feed-p05/p05_e01.txt",
+      "transcript_sha256": "cbdb6aa47bff3f1fbd90909ff839edcb21bcd501eb97e134bc0ecbcb7dd0bacf",
+      "meta_path": "feed-p05/p05_e01.metadata.json"
+    },
+    {
+      "source_episode_id": "p05_e02",
+      "feed": "feed-p05",
+      "transcript_path": "feed-p05/p05_e02.txt",
+      "transcript_sha256": "42cc419ddd6b705bf8b494a47ccfaddaee5e0f579acac67b73aff45eaafaf543",
+      "meta_path": "feed-p05/p05_e02.metadata.json"
+    },
+    {
+      "source_episode_id": "p05_e03",
+      "feed": "feed-p05",
+      "transcript_path": "feed-p05/p05_e03.txt",
+      "transcript_sha256": "5fa558be1ae502389194db61426fbbc4c69b51414796ac765732ddbcde752316",
+      "meta_path": "feed-p05/p05_e03.metadata.json"
+    }
+  ]
+}
