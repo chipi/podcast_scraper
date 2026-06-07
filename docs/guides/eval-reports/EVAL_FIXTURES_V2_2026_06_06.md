@@ -180,10 +180,12 @@ CIL `/api/persons/{id}/positions` acceptance target.
 ### 5. Edge-case name mismatches
 
 - **Two Marcos** — `p03_e01` "Marco" is a wreck diver with Italian-
-  accented voice (mapped to `Luca`). `p05_e03` "Marco" is a tax-loss
-  harvesting researcher — different domain, different episode, same
-  first name. CIL bridge must keep these as distinct `person:` ids,
-  not merge them into one.
+  accented voice (mapped to `Luca`). A second Marco in the investing
+  domain (tax-loss harvesting researcher) was added in #903 as a
+  surname-disambiguated `Marco Bianchi` callback in `p05_e02` — see
+  `EVAL_FIXTURES_V2_PIPELINE_2026_06_07.md` for the bridge-builder
+  validation. CIL bridge keeps them as distinct `person:` ids
+  (`person:marco` vs `person:marco-bianchi`).
 - **Daniel disambiguation** — `p05_e01` "Daniel" is the index-investing
   guest; "Daniel" also appears as the v1 *host* voice for `Leo` (now
   superseded by the v2 voice map). The v2 SPEAKER_VOICE_MAP gives

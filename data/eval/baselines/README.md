@@ -69,6 +69,23 @@ Baseline IDs should be descriptive and versioned:
 - `baseline_llm_deepseek_smoke_paragraph_v1` - DeepSeek deepseek-chat
 - `baseline_llm_grok_smoke_paragraph_v1` - Grok grok-3-mini
 
+**v2 pipeline-derived baselines (#903 eval-track):**
+
+- `baseline_cleaning_curated_5feeds_v2` — sponsor-pattern hit rate raw vs
+  cleaned (schema `metrics_cleaning_baseline_v1`). Produced by
+  `scripts/eval/score/cleaning_baseline_v2.py`.
+- `baseline_cil_curated_5feeds_v2` — cross-episode person/topic/org bridges
+  (schema `metrics_cil_baseline_v1`). Produced by
+  `scripts/eval/score/cil_baseline_v2.py`.
+- `baseline_topic_clusters_curated_5feeds_v2` — `tc:*` parents + frame
+  negative test (schema `metrics_topic_clusters_baseline_v1`). Produced by
+  `scripts/eval/score/topic_clusters_baseline_v2.py`.
+
+The three v2 baseline outputs above live under `data/eval/runs/` (gitignored)
+because they're re-derivable from committed v2 sources + KG/GIL predictions.
+The eval report at `docs/guides/eval-reports/EVAL_FIXTURES_V2_PIPELINE_2026_06_07.md`
+captures the headline numbers and AC verdicts.
+
 ## Contents
 
 Each baseline contains:

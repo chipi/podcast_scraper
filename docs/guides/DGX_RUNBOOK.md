@@ -121,7 +121,7 @@ This is **model-specific**, not a code regression:
 - The autoresearch v2 evaluation that crowned `qwen3.5:9b bundled` as a champion scored against RougeL vs silver-Sonnet, not JSON-parse pass/fail — degraded but parseable output still scored.
 - Staged mode (two separate Ollama calls — clean, then summarize) sidesteps the issue. Trade: ~1.5× wall-clock. Acceptable since DGX RTT is ~30 ms and free.
 
-If you want to revisit `bundled` later: bump the model to `qwen3.5:27b` (the size where bundled becomes reliable per the model comparison) and re-test before flipping the profile back.
+If you want to revisit `bundled` later: bump the model to `qwen3.5:27b` (the size where bundled becomes reliable per the model comparison) and re-test before flipping the profile back. Tracking the real fix in #912 (lenient repair pass + autoresearch JSON-parse gate); the profile change here is a workaround, not a fix.
 
 ## Pre-prod laptop validation (Stage A → B → C ladder)
 

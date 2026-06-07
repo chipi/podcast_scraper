@@ -8,7 +8,29 @@
 
 ## Purpose
 
-v2 silver re-selection (#903) on regenerated v2 - Sonnet 4.6 wins
+v2 silver re-selection (#903) — smoke × bullets cell of the v1↔v2 winner
+re-check. Sonnet 4.6 wins or ties both head-to-heads on the regenerated v2
+smoke content:
+
+- vs OpenAI GPT-4o: **5–0–0** (sweep)
+- vs OpenAI GPT-5.4: **0–0–5** (perfect tie; Sonnet wins by tie-break)
+
+Same provider as the v1 silver (`silver_sonnet46_smoke_bullets_v1`) — v2's
+content shape (sponsor blocks, recurring guests, position arcs) did not shift
+judge preference. See
+`docs/guides/eval-reports/EVAL_FIXTURES_V2_PIPELINE_2026_06_07.md` for the
+full 2×2 matrix (smoke/benchmark × paragraph/bullets) and the silver naming
+convention (`_kg_v2` suffix for v2-content benchmark cells to avoid collision
+with the autoresearch-v2-framework silvers).
+
+## Reproduction
+
+```bash
+PYTHONPATH=. make experiment-run \
+  CONFIG=data/eval/configs/silver_selection/silver_candidate_anthropic_claudesonnet46_smoke_v2_bullets.yaml
+# Pairwise judge: scripts/eval/score/pairwise_judge.py
+# (judge keys from .env.autoresearch)
+```
 
 ## Usage
 

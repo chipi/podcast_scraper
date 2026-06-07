@@ -35,6 +35,11 @@ def _stable_seed(s: str) -> int:
     source of v2 fixture non-determinism — running the generator twice
     produced different transcripts. MD5 of the UTF-8 bytes is stable across
     runs and platforms.
+
+    The 32-bit truncation is deliberate: ``random.Random.seed`` ignores
+    higher bits anyway, and the birthday-collision probability across the
+    ~30 distinct episode seeds we use is ~30² / 2³³ ≈ 1e-7 (effectively zero).
+    Don't widen to 64 bits without a reason.
     """
     digest = hashlib.md5(s.encode("utf-8")).digest()
     return int.from_bytes(digest[:4], "big")

@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
 import sys
 from collections import defaultdict
 from datetime import datetime, timezone
@@ -140,7 +141,10 @@ def build_clusters(rows: list[dict[str, Any]], threshold: float, model: str) -> 
     return {"clusters": out, "row_count": len(rows)}
 
 
-FRAME_ROOT = "frame"
+# Word-boundary match so "framework"/"framing"/"reframe"/"timeframe" don't trip
+# the test. The deliberate ambiguity the v2 spec targets is the bare token
+# "frame" (photographic framing in p04 vs other senses elsewhere).
+FRAME_TOKEN_RE = re.compile(r"\bframe\b", re.I)
 FRAME_AMBIGUITY_FEED = "feed-p04"
 
 
@@ -149,22 +153,28 @@ def _frame_negative_test(clusters: list[dict[str, Any]]) -> dict[str, Any]:
     verify clustering doesn't bundle unrelated uses of 'frame' across feeds.
 
     A cluster fails the negative test if it contains at least one p04 label
-    with `frame` in it AND at least one label from a non-p04 feed where
-    `frame` is also present. Such a cluster would indicate the embedder
-    merged p04's photographic 'frame' with a non-photo 'frame' from a
-    different domain.
+    with the bare token ``frame`` in it AND at least one label from a
+    non-p04 feed where ``frame`` is also present. Such a cluster would
+    indicate the embedder merged p04's photographic 'frame' with a non-photo
+    'frame' from a different domain.
+
+    Note (#903 audit): the current v2 spec uses ``topic:frame`` only in p04,
+    so on the live corpus this check passes vacuously (no cross-feed
+    ``frame`` source exists to potentially merge). The check stays as a
+    defensive guard for two reasons: (1) future spec additions may add a
+    non-p04 ``frame`` topic and we want a regression net ready; (2) the
+    helper has unit-test coverage that synthesizes a violating cluster to
+    prove the detection logic actually fires when given conflicting input.
     """
     violations: list[dict[str, Any]] = []
     for c in clusters:
         labels = c.get("labels") or []
-        if not any(FRAME_ROOT in lbl.lower() for lbl in labels):
+        if not any(FRAME_TOKEN_RE.search(lbl) for lbl in labels):
             continue
         if c["feed_count"] < 2:
             continue
         if FRAME_AMBIGUITY_FEED not in c["feeds"]:
             continue
-        # Cluster has frame-rooted labels, spans >=2 feeds, and includes p04 →
-        # bundling photographic frame with something from another domain.
         violations.append(
             {
                 "tc_id": c["tc_id"],
@@ -172,12 +182,24 @@ def _frame_negative_test(clusters: list[dict[str, Any]]) -> dict[str, Any]:
                 "labels": labels,
             }
         )
+    # Did the corpus actually offer a non-p04 frame-rooted label that COULD
+    # have merged into a p04 cluster? Cluster-level granularity is the best
+    # we have — if any cluster carries a frame label and at least one non-p04
+    # feed, the negative test had real input to grade.
+    has_cross_feed_frame_source = any(
+        any(FRAME_TOKEN_RE.search(lbl) for lbl in (c.get("labels") or []))
+        and any(f != FRAME_AMBIGUITY_FEED for f in c.get("feeds") or [])
+        for c in clusters
+    )
     return {
         "violations": violations,
         "pass": len(violations) == 0,
+        "exercised": has_cross_feed_frame_source,
         "note": (
             "Pass means no tc:* cluster bundles p04 frame-rooted labels with "
-            "non-p04 frame-rooted labels (deliberate ambiguity left isolated)."
+            "non-p04 frame-rooted labels (deliberate ambiguity left isolated). "
+            "When `exercised=False` the check passes vacuously — no non-p04 "
+            "`frame` label exists in the corpus to potentially merge."
         ),
     }
 

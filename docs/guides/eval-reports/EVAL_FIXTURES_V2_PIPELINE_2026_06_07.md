@@ -185,21 +185,21 @@ Sonnet 4.6 wins or ties every cell, never loses. Same winner as v1 across all
 four cells. GPT-5.4 ties on smoke × bullets and benchmark × bullets but doesn't
 beat Sonnet 4.6 anywhere.
 
-Promoted v2 silver references:
+Promoted v2 silver references (all four cells):
 
 - `silver_sonnet46_smoke_v2` (smoke × paragraph)
 - `silver_sonnet46_smoke_v2_bullets` (smoke × bullets)
+- `silver_sonnet46_kg_v2_paragraph` (benchmark × paragraph, suffixed `_kg_v2` to
+  avoid collision — see below)
+- `silver_sonnet46_kg_v2_bullets` (benchmark × bullets, same suffix)
 
-Benchmark × paragraph and benchmark × bullets v2-sources candidates **were not
-promoted** due to a pre-existing name collision: the autoresearch-v2-framework
-silvers `silver_sonnet46_benchmark_v2_{paragraph,bullets}` were promoted on
-2026-04-14 against the v1-sources benchmark dataset (`curated_5feeds_benchmark_v2`
-points to v1 source paths). The v2-sources benchmark candidate runs are
-preserved at `data/eval/runs/silver_candidate_anthropic_claudesonnet46_benchmark_v2_{paragraph,bullets}/`
-along with the loser runs and pairwise JSONs at
-`data/eval/runs/silver_pairwise_*.json`. Naming-collision resolution is tracked
-as a follow-up (either rename the legacy autoresearch silvers or use a
-distinguishing suffix for the v2-content silvers, e.g. `_sources_v2`).
+The benchmark v2-sources silvers are suffixed `_kg_v2` to disambiguate from the
+pre-existing autoresearch-v2-framework silvers
+`silver_sonnet46_benchmark_v2_{paragraph,bullets}` (promoted 2026-04-14 against
+the v1-sources benchmark dataset — `curated_5feeds_benchmark_v2` references v1
+source paths). The `_kg_v2` suffix mirrors the dataset name
+(`curated_5feeds_kg_v2`) so provenance is immediately legible. The legacy
+silvers stay untouched so existing autoresearch consumers keep working.
 
 v1 silvers stay archived, untouched.
 
@@ -242,13 +242,18 @@ updated, all 5 baselines re-run, and the full silver matrix re-judged
 against the new content (results above). `tests/fixtures/baselines/v2-metrics.json`
 was also regenerated to reflect the new text-derived aggregate.
 
-Out of scope for this PR (touch transcripts but don't affect #903 outcomes):
+### Follow-ups completed (transcripts cascade)
 
-- `tests/fixtures/audio/v2/*.mp3` — needs `transcripts_to_mp3.py` re-render
-  (macOS-only `say` voices, ~30 min); tracked as a follow-up commit on this
-  branch.
-- `tests/fixtures/viewer-validation-corpus/v2/` — needs
-  `build_synthetic_validation_corpus.py` rebuild; same follow-up.
+- **F1 — `tests/fixtures/audio/v2/*.mp3`** re-rendered via
+  `tests/fixtures/scripts/transcripts_to_mp3.py` against the regenerated
+  transcripts; 32 MP3s refreshed using the RFC-059 §2 per-speaker `say` voice
+  map.
+- **F2 — `tests/fixtures/viewer-validation-corpus/v2/`** rebuilt via
+  `scripts/build_synthetic_validation_corpus.py` (9 feeds × 23 episodes,
+  ~343 KB total).
+- **F3 — benchmark silver naming collision** resolved by suffixing the new
+  v2-content references `_kg_v2` (matches dataset name, leaves legacy
+  autoresearch-framework silvers untouched).
 
 ## v1 → v2 deltas: what shifted
 
@@ -278,33 +283,50 @@ Out of scope for this PR (touch transcripts but don't affect #903 outcomes):
   whether the merge is correct (both v2 mentions are in fact the same Daniel)
   or a collision with v1 host names. Belongs in a CIL disambiguation
   follow-up.
-- **Frame negative test now explicit.** `tc:frame` ambiguity (p04 photography
-  vs unrelated uses of "frame") is now checked by an explicit assertion in
-  the topic-clusters baseline (0 violations). Implementation in
-  `scripts/eval/score/topic_clusters_baseline_v2.py::_frame_negative_test`.
-- **Silver naming collision.** The autoresearch-v2-framework era (April 2026)
-  produced `silver_sonnet46_benchmark_v2_{paragraph,bullets}` referencing the
-  v1-sources benchmark. The new v2-sources benchmark candidates produced by
-  this PR can't promote to those names without breaking the existing
-  autoresearch consumers. The full v2-sources matrix was run and judged (see
-  the table above); benchmark promotions are deferred pending a naming
-  decision (rename legacy or suffix new).
+- **Frame negative test currently passes vacuously.** `tc:frame` ambiguity
+  (p04 photography vs unrelated uses of "frame") is checked by
+  `scripts/eval/score/topic_clusters_baseline_v2.py::_frame_negative_test`,
+  which now emits `exercised: true|false` so consumers can tell whether the
+  check actually fired or just passed by absence. The v2 spec uses
+  `topic:frame` only in p04, so on the current corpus `exercised: false` —
+  no non-p04 `frame` label exists to potentially merge. The check stays as a
+  defensive guard against future spec additions; unit-test coverage at
+  `tests/unit/scripts/eval/score/test_topic_clusters_baseline_v2.py`
+  synthesizes a violating cluster to prove the detection logic still fires
+  on conflicting input.
 
 ## Acceptance checklist (per #903)
 
 - [x] `data/eval/sources/curated_5feeds_raw_v2/` exists with SHA256-verified
       copy of v2 fixtures.
 - [x] `data/eval/datasets/curated_5feeds_{kg,cil,cleaning}_v2.json`
-      published.
-- [x] `data/eval/materialized/curated_5feeds_{kg,cil,cleaning}_v2/`
+      published (plus `curated_5feeds_smoke_v2.json` for silver iteration).
+- [x] `data/eval/materialized/curated_5feeds_{kg,cil,cleaning,smoke}_v2/`
       materialized.
-- [x] One baseline per new layer (KG, GIL, CIL, cleaning, topic clusters).
-- [x] v2 silver selection run; v2 silver published
-      (`silver_sonnet46_smoke_v2` — v1 winner confirmed on v2 content with
-      explicit re-run evidence).
+- [x] One baseline per new layer (KG, GIL, CIL, cleaning, topic clusters)
+      with AC checks emitted in each `metrics.json`.
+- [x] v2 silver selection run on the full 2×2 matrix (smoke/benchmark ×
+      paragraph/bullets); all four cells published:
+      `silver_sonnet46_{smoke_v2,smoke_v2_bullets,kg_v2_paragraph,kg_v2_bullets}`.
+      v1 winner (Sonnet 4.6) confirmed on v2 content with explicit re-run
+      evidence — wins or ties every cell, never loses.
 - [x] Pipeline-derived eval report (this file).
 - [x] v1 silvers untouched; v1 baselines untouched; no autoresearch regression
       on v1 tasks (v1 source SHA256 verified unchanged).
+- [x] Two-Marcos test validated, not assumed (`person:marco` p03 +
+      `person:marco-bianchi` p05_e02 distinct in CIL).
+- [x] Frame negative test explicit (`exercised: false` documents the vacuous
+      pass; unit tests prove the detection fires on synthetic violations).
+- [x] Generator deterministic across `PYTHONHASHSEED` (md5 seed +
+      regression unit test).
+- [x] F1 audio re-render — 32 v2 MP3s refreshed via `transcripts_to_mp3.py`.
+- [x] F2 viewer-validation-corpus/v2 rebuilt via
+      `build_synthetic_validation_corpus.py`.
+- [x] F3 benchmark silver naming collision resolved (`_kg_v2` suffix).
+- [x] JSON schemas for the three new baseline metrics shapes published under
+      `data/eval/schemas/`.
+- [x] Unit-test coverage for the three baseline scripts, the `_stable_seed`
+      determinism, and the render-all-callbacks invariant.
 
 ## Repro
 

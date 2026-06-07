@@ -1,0 +1,88 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "metrics_cleaning_baseline_v1.json",
+  "title": "Commercial-Cleaning Baseline Metrics (v1)",
+  "description": "Sponsor-pattern hit rate raw vs cleaned over a source dataset. Produced by scripts/eval/score/cleaning_baseline_v2.py.",
+  "type": "object",
+  "additionalProperties": true,
+  "required": ["schema", "task", "baseline_id", "source_id", "episode_count", "aggregate", "episodes"],
+  "properties": {
+    "schema": { "type": "string", "const": "metrics_cleaning_baseline_v1" },
+    "task": { "type": "string", "const": "commercial_cleaning" },
+    "baseline_id": { "type": "string", "minLength": 1 },
+    "source_id": { "type": "string", "minLength": 1 },
+    "created_at": { "type": "string", "format": "date-time" },
+    "episode_count": { "type": "integer", "minimum": 0 },
+    "aggregate": {
+      "type": "object",
+      "required": [
+        "episode_count",
+        "raw_episode_hit_rate",
+        "cleaned_episode_hit_rate",
+        "raw_pattern_hits_total",
+        "cleaned_pattern_hits_total",
+        "ac_targets",
+        "ac_pass"
+      ],
+      "properties": {
+        "episode_count": { "type": "integer", "minimum": 0 },
+        "raw_episode_hit_rate": { "type": "number", "minimum": 0, "maximum": 100 },
+        "cleaned_episode_hit_rate": { "type": "number", "minimum": 0, "maximum": 100 },
+        "raw_pattern_hits_total": { "type": "integer", "minimum": 0 },
+        "cleaned_pattern_hits_total": { "type": "integer", "minimum": 0 },
+        "pattern_hits_retained_pct": { "type": "number", "minimum": 0, "maximum": 100 },
+        "blocks_detected_total": { "type": "integer", "minimum": 0 },
+        "chars_removed_total": { "type": "integer", "minimum": 0 },
+        "chars_removed_pct_mean": { "type": "number", "minimum": 0, "maximum": 100 },
+        "ac_targets": {
+          "type": "object",
+          "required": ["raw_episode_hit_rate_target_gt", "cleaned_episode_hit_rate_target_lt"],
+          "properties": {
+            "raw_episode_hit_rate_target_gt": { "type": "number" },
+            "cleaned_episode_hit_rate_target_lt": { "type": "number" }
+          }
+        },
+        "ac_pass": {
+          "type": "object",
+          "required": ["raw_episode_hit_rate", "cleaned_episode_hit_rate"],
+          "properties": {
+            "raw_episode_hit_rate": { "type": "boolean" },
+            "cleaned_episode_hit_rate": { "type": "boolean" }
+          }
+        }
+      }
+    },
+    "episodes": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "episode_id",
+          "transcript_path",
+          "raw_chars",
+          "cleaned_chars",
+          "blocks_detected",
+          "sponsor_pattern_hits_raw",
+          "sponsor_pattern_hits_cleaned",
+          "has_sponsor_raw",
+          "has_sponsor_cleaned"
+        ],
+        "properties": {
+          "episode_id": { "type": "string", "minLength": 1 },
+          "transcript_path": { "type": "string", "minLength": 1 },
+          "raw_chars": { "type": "integer", "minimum": 0 },
+          "cleaned_chars": { "type": "integer", "minimum": 0 },
+          "chars_removed": { "type": "integer", "minimum": 0 },
+          "chars_removed_pct": { "type": "number", "minimum": 0, "maximum": 100 },
+          "blocks_detected": { "type": "integer", "minimum": 0 },
+          "sponsor_pattern_hits_raw": { "type": "integer", "minimum": 0 },
+          "sponsor_pattern_hits_cleaned": { "type": "integer", "minimum": 0 },
+          "sponsor_pattern_hits_per_pattern_raw": { "type": "object", "additionalProperties": { "type": "integer" } },
+          "sponsor_pattern_hits_per_pattern_cleaned": { "type": "object", "additionalProperties": { "type": "integer" } },
+          "has_sponsor_raw": { "type": "boolean" },
+          "has_sponsor_cleaned": { "type": "boolean" }
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,61 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "metrics_cil_baseline_v1.json",
+  "title": "CIL Cross-Episode Bridge Baseline Metrics (v1)",
+  "description": "Cross-episode identity aggregation over per-episode build_bridge outputs. Produced by scripts/eval/score/cil_baseline_v2.py.",
+  "type": "object",
+  "additionalProperties": true,
+  "required": ["schema", "task", "baseline_id", "gi_run_id", "kg_run_id", "dataset_id", "summary", "ac_targets", "ac_pass"],
+  "properties": {
+    "schema": { "type": "string", "const": "metrics_cil_baseline_v1" },
+    "task": { "type": "string", "const": "cil_cross_episode_bridge" },
+    "baseline_id": { "type": "string", "minLength": 1 },
+    "gi_run_id": { "type": "string", "minLength": 1 },
+    "kg_run_id": { "type": "string", "minLength": 1 },
+    "dataset_id": { "type": "string", "minLength": 1 },
+    "created_at": { "type": "string", "format": "date-time" },
+    "summary": {
+      "type": "object",
+      "required": [
+        "person_count_total",
+        "person_bridges_multi_ep",
+        "topic_count_total",
+        "topic_bridges_cross_feed",
+        "org_count_total",
+        "org_bridges_multi_ep",
+        "episode_count",
+        "feed_count"
+      ],
+      "properties": {
+        "person_count_total": { "type": "integer", "minimum": 0 },
+        "person_bridges_multi_ep": { "type": "integer", "minimum": 0 },
+        "topic_count_total": { "type": "integer", "minimum": 0 },
+        "topic_bridges_cross_feed": { "type": "integer", "minimum": 0 },
+        "org_count_total": { "type": "integer", "minimum": 0 },
+        "org_bridges_multi_ep": { "type": "integer", "minimum": 0 },
+        "episode_count": { "type": "integer", "minimum": 0 },
+        "feed_count": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "ac_targets": {
+      "type": "object",
+      "properties": {
+        "person_bridges_multi_ep_target_gt": { "type": "number" },
+        "topic_bridges_cross_feed_target_gt": { "type": "number" }
+      }
+    },
+    "ac_pass": {
+      "type": "object",
+      "properties": {
+        "person_bridges_multi_ep": { "type": "boolean" },
+        "topic_bridges_cross_feed": { "type": "boolean" }
+      }
+    },
+    "person_bridges_multi_ep": { "type": "array", "items": { "type": "object" } },
+    "topic_bridges_cross_feed": { "type": "array", "items": { "type": "object" } },
+    "org_bridges_multi_ep": { "type": "array", "items": { "type": "object" } },
+    "persons": { "type": "array", "items": { "type": "object" } },
+    "topics": { "type": "array", "items": { "type": "object" } },
+    "orgs": { "type": "array", "items": { "type": "object" } }
+  }
+}

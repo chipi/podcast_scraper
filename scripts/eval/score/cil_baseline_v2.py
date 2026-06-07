@@ -38,23 +38,58 @@ from podcast_scraper.builders.bridge_builder import build_bridge
 
 def _load_predictions(path: Path, output_key: str) -> dict[str, dict]:
     out: dict[str, dict] = {}
-    for line in path.read_text().splitlines():
+    for line_no, line in enumerate(path.read_text().splitlines(), start=1):
         if not line.strip():
             continue
-        d = json.loads(line)
-        out[d["episode_id"]] = d["output"][output_key]
+        try:
+            d = json.loads(line)
+            ep_id = d["episode_id"]
+            out[ep_id] = d["output"][output_key]
+        except (json.JSONDecodeError, KeyError, TypeError) as exc:
+            raise ValueError(
+                f"{path.name}:line {line_no}: malformed prediction "
+                f"(missing episode_id or output.{output_key}): {exc}"
+            ) from exc
     return out
 
 
 def _episode_to_feed(dataset_path: Path) -> dict[str, str]:
+    """Map episode_id -> feed slug parsed from the transcript_path.
+
+    The v2 sources layout puts each episode under ``feed-<podcast_id>/``, so the
+    parse looks for that prefix in the path. If a future dataset restructure
+    drops the convention we fail loud rather than silently flatten cross-feed
+    counts: a single "unknown" feed would suppress every topic-cross-feed bridge
+    and the AC test would pass for the wrong reason.
+    """
     data = json.loads(dataset_path.read_text())
     feed_map: dict[str, str] = {}
+    unresolved: list[str] = []
     for ep in data["episodes"]:
         eid = ep["episode_id"]
         path = ep.get("transcript_path", "")
         parts = Path(path).parts
-        feed = next((p for p in parts if p.startswith("feed-")), "unknown")
+        feed = next((p for p in parts if p.startswith("feed-")), None)
+        if feed is None:
+            unresolved.append(f"{eid} (transcript_path={path!r})")
+            feed = "unknown"
         feed_map[eid] = feed
+    if unresolved:
+        total = len(feed_map)
+        share = 100.0 * len(unresolved) / total if total else 0
+        print(
+            f"WARNING [{dataset_path.name}]: {len(unresolved)}/{total} ({share:.0f}%) "
+            f"episodes have no `feed-*` prefix in transcript_path; treating as "
+            f'feed="unknown" — cross-feed metrics will be flattened. '
+            f"Examples: {unresolved[:3]}",
+            file=sys.stderr,
+        )
+        if share > 25.0:
+            raise ValueError(
+                f"{dataset_path.name}: {share:.0f}% of episodes are missing a "
+                f"`feed-*` directory prefix in transcript_path. Cross-feed metrics "
+                f"would be meaningless. Restore the convention or update the script."
+            )
     return feed_map
 
 
