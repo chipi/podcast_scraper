@@ -16,16 +16,12 @@ summary_provider: ollama
 ollama_summary_model: llama3.3:70b
 llm_pipeline_mode: bundled
 
-<<<<<<< HEAD
 # GI/KG insights come from the configured LLM provider (ollama, via
 # summary_provider above). The *source* is `provider`; "ollama" is not a valid
 # source value — it names the backend, which summary_provider already selects.
-gi_insight_source: provider
-=======
 generate_gi: true
 gi_insight_source: provider
 generate_kg: true
->>>>>>> cd55e199 (feat(dgx): #812 P2 — fallback wiring, profile validator, comparison guide)
 kg_extraction_source: provider
 
 generate_metadata: true
