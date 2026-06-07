@@ -1,15 +1,19 @@
-"""Speaker attribution for GIL quotes — diarized transcript → Person / SPOKEN_BY (#874).
+"""Speaker attribution for GIL quotes — diarized transcript → Person / SPOKEN_BY (#874/#875).
 
-Diarized transcripts carry inline ``Speaker N:`` turn markers. This maps a quote's
-character offset to its speaker *cluster*, then maps clusters to named people via a
-host/guest role heuristic (Role→name, #874).
+Two transcript shapes are handled, in priority order:
 
-**Scope and honesty:** *guest* attribution — the dominant non-opening cluster mapped
-to the detected guest — is the reliable, high-value signal (the expert whose
-cross-show positions we want to track). Hosts degrade to ``None`` when the detected
-host is a publisher label (e.g. "Bloomberg") rather than a person, and multi-host /
-panel episodes are under-attributed. Full speaker-ID across clusters is #875 (lands
-with the new diarization); until then, conservative ``None`` beats a wrong guess.
+1. **Named markers (#875)** — the new diarization writes a *named* screenplay
+   (``Maya: …`` / ``Liam: …`` / ``Priya: …``); each line-start marker that matches a
+   detected person is attributed **directly** to ``person:{slug}``. This is robust
+   regardless of speaker count, so panels / multi-guest episodes work — no role
+   heuristic needed.
+2. **Generic ``Speaker N:`` markers (#874)** — anonymous publisher diarization (e.g.
+   pre-diarized ``direct_download`` transcripts). Mapped to people via the host/guest
+   **role heuristic** (opening cluster → host, dominant other → guest). This degrades
+   on panels and is used only when no named markers are present.
+
+**Honesty:** publisher labels (e.g. "Bloomberg") are never attributed as a person; a
+quote with no confident speaker stays ``None`` (under-attributed beats wrong).
 """
 
 from __future__ import annotations
@@ -21,6 +25,9 @@ from typing import Dict, List, Optional, Sequence, Tuple
 from ..identity.slugify import person_id
 
 _SPEAKER_RE = re.compile(r"Speaker\s*(\d+)\s*:")
+# Line-start ``<Label>: `` turn markers (named screenplay). Constrained to line start
+# + whitespace after the colon so it captures diarized turns, not mid-prose "Word:".
+_NAMED_TURN_RE = re.compile(r"(?m)^[ \t]*([^\n:]{1,60}?)[ \t]*:[ \t]")
 
 # Tokens that mark a "host" string as a publisher/network, not a person name.
 _NON_PERSON_TOKENS = frozenset(
@@ -55,10 +62,45 @@ def speaker_for_char(char_start: int, turns: Sequence[Tuple[int, str]]) -> Optio
     return spk
 
 
+def _is_publisher_label(name: Optional[str]) -> bool:
+    """True when *name* contains a publisher/network token (not a person)."""
+    return any(t.lower().strip(".,") in _NON_PERSON_TOKENS for t in (name or "").split())
+
+
 def _looks_like_person(name: Optional[str]) -> bool:
     """Heuristic: a real person name has ≥2 tokens and no publisher/network token."""
     toks = (name or "").split()
-    return len(toks) >= 2 and not any(t.lower().strip(".,") in _NON_PERSON_TOKENS for t in toks)
+    return len(toks) >= 2 and not _is_publisher_label(name)
+
+
+def _detected_person_lookup(hosts: Sequence[str], guests: Sequence[str]) -> Dict[str, str]:
+    """``{lowercased name: canonical name}`` for detected people (publishers excluded).
+
+    Used to validate named screenplay markers: a marker is only attributed when its
+    label matches a detected host/guest and is not a publisher label. Single-token
+    first names (e.g. "Maya") are valid here — unlike the role-heuristic host check,
+    which requires ≥2 tokens.
+    """
+    out: Dict[str, str] = {}
+    for name in list(hosts) + list(guests):
+        s = (name or "").strip()
+        if s and not _is_publisher_label(s):
+            out.setdefault(s.lower(), s)
+    return out
+
+
+def build_named_turns(transcript: str, known_names: Dict[str, str]) -> List[Tuple[int, str]]:
+    """``[(char_offset, canonical_name)]`` for line-start ``<Name>:`` markers (#875).
+
+    Only markers whose label matches a *detected* person (``known_names``) are kept, so
+    prose like ``Note:`` / ``Q:`` is ignored and only real diarized speakers attribute.
+    """
+    turns: List[Tuple[int, str]] = []
+    for m in _NAMED_TURN_RE.finditer(transcript):
+        canonical = known_names.get(m.group(1).strip().lower())
+        if canonical:
+            turns.append((m.start(1), canonical))
+    return turns
 
 
 def map_clusters_to_people(
@@ -104,12 +146,27 @@ def attribute_quote_speakers(
     *quote_char_starts* maps ``quote_id -> char_start``. Returns ``{quote_id:
     person_id}`` for confidently-attributed quotes only (unattributable quotes are
     omitted, leaving ``speaker_id`` ``None`` as today).
+
+    #875: when the transcript carries *named* diarized markers (``Maya:`` …) matching
+    detected people, attribute directly to each named speaker — N-speaker capable, so
+    panels work. Otherwise fall back to the generic ``Speaker N`` role heuristic.
     """
+    out: Dict[str, str] = {}
+
+    named_turns = build_named_turns(transcript, _detected_person_lookup(hosts, guests))
+    if named_turns:
+        for quote_id, char_start in quote_char_starts.items():
+            if char_start is None:
+                continue
+            name = speaker_for_char(int(char_start), named_turns)
+            if name:
+                out[quote_id] = person_id(name)
+        return out
+
     turns = build_speaker_turns(transcript)
     if not turns:
         return {}
     cluster_to_name = map_clusters_to_people(turns, hosts=hosts, guests=guests)
-    out: Dict[str, str] = {}
     for quote_id, char_start in quote_char_starts.items():
         if char_start is None:
             continue
