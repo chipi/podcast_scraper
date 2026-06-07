@@ -187,6 +187,45 @@ def test_person_profile_and_person_topics(tmp_path: Path) -> None:
     assert topics == ["topic:ai"]
 
 
+def test_person_profile_aggregates_recurring_guest_across_episodes(tmp_path: Path) -> None:
+    """#909: a recurring guest (person:liam) appearing in multiple episodes resolves to ONE
+    canonical person whose quotes + topics aggregate from ALL their episodes — the
+    cross-episode identity payoff unlocked once #875/#876 give corpus-wide SPOKEN_BY."""
+    meta = tmp_path / "metadata"
+    _write_bundle(
+        meta,
+        "ep1",
+        episode_id="episode:ep1",
+        publish_date="2024-01-10",
+        person="person:liam",
+        topic="topic:spacex",
+        insight_id="i1",
+        quote_id="q1",
+        insight_text="SpaceX will IPO.",
+    )
+    _write_bundle(
+        meta,
+        "ep2",
+        episode_id="episode:ep2",
+        publish_date="2024-03-22",
+        person="person:liam",
+        topic="topic:ai",
+        insight_id="i2",
+        quote_id="q2",
+        insight_text="AI regulation lags.",
+    )
+    root = str(tmp_path)
+    brief = cil_queries.person_profile(root, root, "person:liam")
+    assert brief["person_id"] == "person:liam"
+    # Quotes aggregate across BOTH episodes (not just one), under the single person.
+    assert len(brief["quotes"]) == 2
+    assert set(brief["topics"]) == {"topic:spacex", "topic:ai"}
+    assert set(cil_queries.person_topic_ids(root, root, "person:liam")) == {
+        "topic:spacex",
+        "topic:ai",
+    }
+
+
 def test_topic_timeline_accepts_viewer_g_prefixed_topic_id(tmp_path: Path) -> None:
     """Merged GI+KG graph uses ``g:`` prefix on GI ids; CIL reads raw JSON."""
     meta = tmp_path / "metadata"
