@@ -120,9 +120,7 @@ def _create_deepgram_client(api_key: str, base_url: str | None = None) -> Any:
         try:
             from deepgram.environment import DeepgramClientEnvironment
 
-            env = DeepgramClientEnvironment(
-                base=base_url, production=base_url, agent=base_url, agent_rest=base_url
-            )
+            env = DeepgramClientEnvironment(base=base_url, production=base_url, agent=base_url)
             return DeepgramClient(api_key=api_key, environment=env)
         except Exception as exc:  # noqa: BLE001 - override is best-effort
             logger.warning(

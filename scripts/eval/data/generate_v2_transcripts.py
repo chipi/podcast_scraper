@@ -943,11 +943,22 @@ def main() -> int:
     p01_e01_text = p01_e01_path.read_text(encoding="utf-8")
     p01_e01_lines = p01_e01_text.splitlines()
 
-    # Fast variant: first ~60 lines of body + outro
-    fast_body = p01_e01_lines[:60]
+    # Fast variant: short prefix of body + outro. Tests assert the rendered
+    # transcript stays under ~5KB chars and the resulting MP3 under 1MB
+    # (`tests/integration/infrastructure/test_e2e_infrastructure.py`). Cap by
+    # character count rather than line count — v2 dialogue lines are
+    # substantially longer than v1, so a fixed line cap blew past the budget.
+    _FAST_CHAR_BUDGET = 1500
+    fast_body: list[str] = []
+    char_used = 0
+    for line in p01_e01_lines[2:]:  # skip the v2 "# / ##" header pair
+        if char_used + len(line) + 1 > _FAST_CHAR_BUDGET:
+            break
+        fast_body.append(line)
+        char_used += len(line) + 1
     fast_lines = (
         ["# Singletrack Sessions — Episode", "## Building Trails That Last (Fast Test)"]
-        + fast_body[2:]
+        + fast_body
         + [
             "",
             "[01:00]",
