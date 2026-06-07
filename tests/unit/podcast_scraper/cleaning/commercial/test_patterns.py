@@ -40,3 +40,17 @@ def test_over_broad_okay_so_no_longer_matches() -> None:
 def test_host_name_not_in_brand_names() -> None:
     """Host/person names must not be sponsor brands (B7 — 'lenny' collision)."""
     assert "lenny" not in BRAND_NAMES
+
+
+@pytest.mark.parametrize(
+    "phrase",
+    [
+        "thanks to our friends at Acme",
+        "thanks again to our partners at Acme",
+        "thank you to our partners at Acme",
+        "a big thank you to our partners at Sentry",
+    ],
+)
+def test_outro_thank_you_variants_match(phrase: str) -> None:
+    """v2 fixtures use 'thank you to our partners …' — pattern must match it (#903)."""
+    assert any(sp.pattern.search(phrase) for sp in BLOCK_END_PATTERNS)

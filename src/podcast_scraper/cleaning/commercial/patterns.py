@@ -94,7 +94,10 @@ SPONSOR_PATTERNS: List[SponsorPattern] = [
         "block_end",
     ),
     SponsorPattern(
-        re.compile(r"thanks (?:again )?to (?:our )?(?:friends|partners|sponsor)", re.I),
+        re.compile(
+            r"(?:thanks(?: again)?|thank you) to (?:our )?(?:friends|partners|sponsor)",
+            re.I,
+        ),
         "outro",
         0.85,
         "block_end",
