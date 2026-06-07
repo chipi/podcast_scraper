@@ -30,6 +30,37 @@ After items 1–4 land:
 
 This keeps the agent's testing unbiased by the operator's prior observations.
 
+### Round-1 outcome (2026-06-07) — methodology correction
+
+Round-1 was run against the GI **stub** path (`model_version="test"`) — which we
+do NOT use for validation. Its findings (F1 "empty person profile", F2
+"mentioned vs speaking divergence") were **stub artifacts, discarded**. The real
+finding: **no current validation data carries the speaker layer.**
+
+- `viewer-validation-corpus/v2` = synthetic **artifacts only** (no transcripts);
+  its generator emits `Topic/Insight/Quote/Episode` + `MENTIONS/HAS_INSIGHT/HAS_QUOTE`
+  — **zero `SPOKEN_BY` / `Person`**. So it cannot validate #875/#876/#909 or the
+  viewer Person surfaces.
+- The v2 **audio/transcript** family (`tests/fixtures/{audio,transcripts}/v2`, 32 eps)
+  DOES carry named speakers (#111) + commercials (#109, 21/32) — but emitting
+  `SPOKEN_BY` through it is the ML/diarization pipeline (heavy, gated).
+
+### Next step after rebase — `viewer-validation-corpus/v3`
+
+Build a **v3** synthetic generator that adds the speaker layer (deterministic, no
+ML), so the person/speaker graph is validatable in ci-fast:
+
+- `Person` nodes + `SPOKEN_BY` edges from named speaker turns.
+- A **recurring guest** across ≥2 episodes (one `person:{slug}`) → #909.
+- A **panel** episode (≥3 named speakers) → #875.
+- A **mentioned-only** person (KG entity, no `SPOKEN_BY`) → models the F2
+  distinction deliberately so we can decide on it with real-shaped data.
+- Keep v2 content (commercials etc.). Bump to v3 (don't mutate v2 — keeps the
+  N-1 corpus-compat tests stable).
+
+Then: re-run graph/CIL/viewer validation against v3 → finally the
+v2-audio→diarization e2e as the realistic proof (option B).
+
 ## Decided AGAINST (from the early identity-vision audit)
 
 The five `docs/wip/rfc_*` / `product_ux_identity_vision` drafts (~1.5-month-old
