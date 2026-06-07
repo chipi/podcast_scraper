@@ -538,6 +538,10 @@ jobs:
       # Ensure consistent cache paths for Hugging Face libraries
       HF_HOME: /home/runner/.cache/huggingface
       HF_HUB_CACHE: /home/runner/.cache/huggingface/hub
+      # Gated pyannote diarization models (speaker-diarization-3.1 + segmentation-3.0)
+      # only download when a token from a terms-accepted account is present. Without
+      # it the preload skips diarization gracefully (build still green). Optional secret.
+      HF_TOKEN: ${{ secrets.HF_TOKEN }}
     steps:
     - uses: actions/checkout@v6
     # Restore is ~9GB compressed; without cleanup, cache-hit runs can run out of disk mid-tar
@@ -559,9 +563,13 @@ jobs:
           ~/.cache/whisper
           ~/.cache/huggingface
         # NOTE: spaCy removed - installed as pip package via .[ml]
-        # Cache key invalidates when model definitions change; restore-keys let PRs/branches reuse latest cache
-        key: ml-models-${{ runner.os }}-${{ hashFiles('scripts/cache/preload_ml_models.py', 'src/podcast_scraper/config.py') }}
+        # Cache key invalidates when model definitions change; restore-keys let PRs/branches reuse latest cache.
+        # `diar1` salt: forces a one-time re-cache now that HF_TOKEN is provisioned so the gated pyannote
+        # diarization models get added (the prior cache was built tokenless and lacks them). The broad
+        # restore-key warm-starts from that cache so only the missing diarization models download.
+        key: ml-models-${{ runner.os }}-diar1-${{ hashFiles('scripts/cache/preload_ml_models.py', 'src/podcast_scraper/config.py') }}
         restore-keys: |
+          ml-models-${{ runner.os }}-diar1-
           ml-models-${{ runner.os }}-
     - name: Set up Python 3.11 (only if cache miss - needed for model download)
       if: (needs.detect-changes.outputs.docs-only != 'true' || needs.detect-changes.outputs.code == 'true') && steps.cache-models.outputs.cache-hit != 'true'
