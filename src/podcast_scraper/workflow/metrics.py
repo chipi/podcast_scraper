@@ -220,6 +220,10 @@ class Metrics:
     llm_bundled_clean_summary_output_tokens: int = 0
     llm_bundled_clean_summary_cost_usd: float = 0.0  # Accumulated bundle-mode cost
     llm_bundled_fallback_to_staged_count: int = 0
+    # RFC-089 #5: summarization provider-swap fallback (e.g. DGX Ollama → Gemini).
+    # Per-run signal: True/non-empty if the run had to fall back at least once.
+    llm_summary_fallback_active_count: int = 0
+    llm_summary_fallback_provider: Optional[str] = None
     # #652 Part C — deterministic post-extraction filter counters.
     ads_filtered_count: int = 0
     dialogue_insights_dropped_count: int = 0
@@ -644,6 +648,17 @@ class Metrics:
     def record_llm_bundled_fallback_to_staged(self) -> None:
         """Increment count when bundled clean+summary fails and staged path is used."""
         self.llm_bundled_fallback_to_staged_count += 1
+
+    def record_llm_summary_fallback_active(self, fallback_provider: str) -> None:
+        """Record that the summarization stage fell back from its primary provider.
+
+        RFC-089 #5: signals that `degradation_policy.fallback_provider_on_failure`
+        fired at least once during this run (e.g. DGX Ollama unreachable → Gemini).
+        Operators monitor this to detect tailnet/host outages.
+        """
+        self.llm_summary_fallback_active_count += 1
+        if not self.llm_summary_fallback_provider:
+            self.llm_summary_fallback_provider = str(fallback_provider)
 
     # #652 Part C — post-extraction filter recorders.
     def record_ads_filtered(self, count: int) -> None:
@@ -1317,6 +1332,8 @@ class Metrics:
             "llm_bundled_clean_summary_avg_output_tokens_per_call": bd_out_avg,
             "llm_bundled_clean_summary_cost_usd": round(self.llm_bundled_clean_summary_cost_usd, 6),
             "llm_bundled_fallback_to_staged_count": self.llm_bundled_fallback_to_staged_count,
+            "llm_summary_fallback_active_count": self.llm_summary_fallback_active_count,
+            "llm_summary_fallback_provider": self.llm_summary_fallback_provider,
             # #652 Part C — post-extraction filter counters.
             "ads_filtered_count": self.ads_filtered_count,
             "dialogue_insights_dropped_count": self.dialogue_insights_dropped_count,

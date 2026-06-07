@@ -224,6 +224,10 @@ def _create_summarization_provider(
                     format_exception_for_log(exc),
                 )
                 # Don't fail - models will load on first use, just slower
+        # RFC-089 #5: wrap with cloud-fallback if degradation_policy declares one.
+        from ..summarization.fallback import wrap_with_fallback_if_configured
+
+        provider = wrap_with_fallback_if_configured(provider, cfg)
         return provider
     except ImportError as e:
         # Fail fast when generate_summaries=True - dependencies must be available

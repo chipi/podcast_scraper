@@ -190,6 +190,8 @@ class TestAllShippedProfilesRoundTripThroughCLI:
             "cloud_thin",
             "cloud_quality",
             "local",
+            "local_dgx_balanced",
+            "local_dgx_full",
             "airgapped",
             "airgapped_thin",
             "dev",
