@@ -140,6 +140,48 @@ def build_clusters(rows: list[dict[str, Any]], threshold: float, model: str) -> 
     return {"clusters": out, "row_count": len(rows)}
 
 
+FRAME_ROOT = "frame"
+FRAME_AMBIGUITY_FEED = "feed-p04"
+
+
+def _frame_negative_test(clusters: list[dict[str, Any]]) -> dict[str, Any]:
+    """v2 spec (#900) deliberately introduces `topic:frame` ambiguity in p04 to
+    verify clustering doesn't bundle unrelated uses of 'frame' across feeds.
+
+    A cluster fails the negative test if it contains at least one p04 label
+    with `frame` in it AND at least one label from a non-p04 feed where
+    `frame` is also present. Such a cluster would indicate the embedder
+    merged p04's photographic 'frame' with a non-photo 'frame' from a
+    different domain.
+    """
+    violations: list[dict[str, Any]] = []
+    for c in clusters:
+        labels = c.get("labels") or []
+        if not any(FRAME_ROOT in lbl.lower() for lbl in labels):
+            continue
+        if c["feed_count"] < 2:
+            continue
+        if FRAME_AMBIGUITY_FEED not in c["feeds"]:
+            continue
+        # Cluster has frame-rooted labels, spans >=2 feeds, and includes p04 →
+        # bundling photographic frame with something from another domain.
+        violations.append(
+            {
+                "tc_id": c["tc_id"],
+                "feeds": c["feeds"],
+                "labels": labels,
+            }
+        )
+    return {
+        "violations": violations,
+        "pass": len(violations) == 0,
+        "note": (
+            "Pass means no tc:* cluster bundles p04 frame-rooted labels with "
+            "non-p04 frame-rooted labels (deliberate ambiguity left isolated)."
+        ),
+    }
+
+
 def aggregate(clusters_payload: dict[str, Any]) -> dict[str, Any]:
     clusters = clusters_payload["clusters"]
     cross_feed = [c for c in clusters if c["feed_count"] >= 2]
@@ -150,18 +192,23 @@ def aggregate(clusters_payload: dict[str, Any]) -> dict[str, Any]:
         for podcast in c["podcasts"]:
             parents_per_podcast[podcast] += 1
 
+    frame_test = _frame_negative_test(clusters)
+
     return {
         "tc_parent_count": len(clusters),
         "tc_cross_feed_count": len(cross_feed),
         "tc_parents_per_podcast": dict(sorted(parents_per_podcast.items())),
         "topic_row_count": clusters_payload["row_count"],
+        "frame_negative_test": frame_test,
         "ac_targets": {
             "tc_parent_count_gt": 0,
             "tc_cross_feed_count_gt": 0,
+            "frame_negative_test_pass": True,
         },
         "ac_pass": {
             "tc_parent_count": len(clusters) > 0,
             "tc_cross_feed_count": len(cross_feed) > 0,
+            "frame_negative_test": frame_test["pass"],
         },
     }
 
@@ -210,6 +257,8 @@ def main() -> int:
 
     cf_v = "PASS" if agg["ac_pass"]["tc_cross_feed_count"] else "FAIL"
     p_v = "PASS" if agg["ac_pass"]["tc_parent_count"] else "FAIL"
+    fr_v = "PASS" if agg["ac_pass"]["frame_negative_test"] else "FAIL"
+    frame_violations = agg["frame_negative_test"]["violations"]
     report = [
         f"# Topic-clusters Baseline — {args.baseline_id}",
         "",
@@ -225,6 +274,7 @@ def main() -> int:
         "| --- | ---: | --- |",
         f"| tc:* parent clusters | {agg['tc_parent_count']} | >0 ({p_v}) |",
         f"| tc:* parents spanning >=2 feeds | {agg['tc_cross_feed_count']} | >0 ({cf_v}) |",
+        f"| frame negative test | {len(frame_violations)} violations | 0 ({fr_v}) |",
         "",
         "### tc:* parents per podcast",
         "",

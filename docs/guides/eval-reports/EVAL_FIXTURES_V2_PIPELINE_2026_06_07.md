@@ -61,7 +61,8 @@ All v2 datasets materialized into `data/eval/materialized/`.
 | CIL | org:* bridges spanning >1 ep | n/a | 26 | — | — |
 | Topic clusters | tc:* parent clusters | n/a | 4 | >0 | ✓ |
 | Topic clusters | tc:* parents spanning ≥2 feeds | n/a | 3 | >0 | ✓ |
-| Silver | winner provider | Sonnet 4.6 | **Sonnet 4.6** | unchanged | ✓ |
+| Silver | winner provider (all 4 cells) | Sonnet 4.6 | **Sonnet 4.6** | unchanged | ✓ |
+| Topic clusters | frame negative test | n/a | 0 violations | 0 | ✓ |
 
 All five layer ACs pass. v1 silver winner holds on v2 — content shape did not
 shift judge preference.
@@ -153,24 +154,40 @@ Provider matrix (same set as v1 — clean v1↔v2 isolation):
 - OpenAI GPT-4o
 - OpenAI GPT-5.4
 
-Configs under `data/eval/configs/silver_selection/silver_candidate_*_smoke_v2_paragraph.yaml`.
+Configs under `data/eval/configs/silver_selection/silver_candidate_*_v2_{paragraph,bullets}.yaml`.
 
-Scope of this re-check: v2 smoke (5 eps) × paragraph. Bullets and benchmark
-cells deferred — the smoke × paragraph signal is unambiguous (see below) and
-the v1 multi-cell matrix consistently agreed with the smoke-paragraph winner.
+Full 2×2 matrix: smoke (5 eps) / benchmark (15 eps over `curated_5feeds_kg_v2`)
+× paragraph / bullets. Pairwise LLM judge results (judge config from
+`.env.autoresearch`):
 
-Pairwise LLM judge results (judge config from `.env.autoresearch`):
+| Cell | Sonnet 4.6 vs GPT-4o | Sonnet 4.6 vs GPT-5.4 | Winner |
+| --- | --- | --- | --- |
+| smoke × paragraph | 5–0–0 | 4–0–1 | **Sonnet 4.6** |
+| smoke × bullets | 5–0–0 | 0–0–5 (perfect tie) | **Sonnet 4.6** (tie-break) |
+| benchmark × paragraph | 15–0–0 | 7–1–7 | **Sonnet 4.6** |
+| benchmark × bullets | 15–0–0 | 2–0–13 | **Sonnet 4.6** |
 
-| Matchup | Wins A | Wins B | Ties |
-| --- | ---: | ---: | ---: |
-| Sonnet 4.6 vs GPT-4o | **5** | 0 | 0 |
-| Sonnet 4.6 vs GPT-5.4 | **4** | 0 | 1 |
+Sonnet 4.6 wins or ties every cell, never loses. Same winner as v1 across all
+four cells. GPT-5.4 ties on smoke × bullets but doesn't beat Sonnet 4.6
+anywhere.
 
-Sonnet 4.6 sweeps both matchups on v2. Same winner as v1.
+Promoted v2 silver references:
 
-Per AC: published `silver_sonnet46_smoke_v2` at
-`data/eval/references/silver/silver_sonnet46_smoke_v2/`. v1 silvers stay
-archived, untouched.
+- `silver_sonnet46_smoke_v2` (smoke × paragraph)
+- `silver_sonnet46_smoke_v2_bullets` (smoke × bullets)
+
+Benchmark × paragraph and benchmark × bullets v2-sources candidates **were not
+promoted** due to a pre-existing name collision: the autoresearch-v2-framework
+silvers `silver_sonnet46_benchmark_v2_{paragraph,bullets}` were promoted on
+2026-04-14 against the v1-sources benchmark dataset (`curated_5feeds_benchmark_v2`
+points to v1 source paths). The v2-sources benchmark candidate runs are
+preserved at `data/eval/runs/silver_candidate_anthropic_claudesonnet46_benchmark_v2_{paragraph,bullets}/`
+along with the loser runs and pairwise JSONs at
+`data/eval/runs/silver_pairwise_*.json`. Naming-collision resolution is tracked
+as a follow-up (either rename the legacy autoresearch silvers or use a
+distinguishing suffix for the v2-content silvers, e.g. `_sources_v2`).
+
+v1 silvers stay archived, untouched.
 
 ## v1 → v2 deltas: what shifted
 
@@ -206,12 +223,13 @@ archived, untouched.
   the negative — the absence may be because Gemini didn't extract `frame` as a
   topic label, not because clustering correctly rejected it. Worth a dedicated
   negative-test in a follow-up.
-- **Silver re-selection coverage limited to smoke × paragraph.** Sonnet 4.6
-  sweeping 5-0 / 4-0-1 is decisive enough that running bullets + benchmark
-  cells is unlikely to change the conclusion, but it isn't impossible. The
-  bullets-track in particular had a separate prompt-tuning ceiling in v1
-  (silver_sonnet46_smoke_bullets_v1). If a future ticket needs strong evidence
-  on bullets, the v2 bullets silver candidate runs can be added cheaply.
+- **Silver naming collision.** The autoresearch-v2-framework era (April 2026)
+  produced `silver_sonnet46_benchmark_v2_{paragraph,bullets}` referencing the
+  v1-sources benchmark. The new v2-sources benchmark candidates produced by
+  this PR can't promote to those names without breaking the existing
+  autoresearch consumers. The full v2-sources matrix was run and judged (see
+  the table above); benchmark promotions are deferred pending a naming
+  decision (rename legacy or suffix new).
 
 ## Acceptance checklist (per #903)
 
