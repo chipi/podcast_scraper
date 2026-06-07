@@ -780,7 +780,7 @@ jobs:
             && exit 0
           echo "MiniLM ensure attempt $i failed; retrying..."; sleep $((i * 5))
         done
-        echo "=== MiniLM cache tree after failures (diagnostic) ==="; ls -laR "$DIR" 2>&1 | head -80
+        echo "=== MiniLM cache tree after failures (diagnostic) ==="; find "$DIR" -ls 2>&1 | head -80
         echo "ERROR: MiniLM not loadable via the test path after 3 attempts"; exit 1
     - name: Run all integration tests with coverage (full suite, with network guard)
       run: |
@@ -1009,7 +1009,7 @@ jobs:
             && exit 0
           echo "MiniLM ensure attempt $i failed; retrying..."; sleep $((i * 5))
         done
-        echo "=== MiniLM cache tree after failures (diagnostic) ==="; ls -laR "$DIR" 2>&1 | head -80
+        echo "=== MiniLM cache tree after failures (diagnostic) ==="; find "$DIR" -ls 2>&1 | head -80
         echo "ERROR: MiniLM not loadable via the test path after 3 attempts"; exit 1
     - name: Run fast integration tests with coverage (critical path only, with network guard)
       run: |
