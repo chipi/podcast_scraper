@@ -97,6 +97,25 @@ Must carry:
 Bump to **v3** (keep v2 for N-1 compat). Regenerate via the extended
 `scripts/build_synthetic_validation_corpus.py`; keep it deterministic + idempotent.
 
+### Graph viewer — diarization support (review 2026-06-07)
+
+The viewer graph **works** with diarization data: Person nodes render (styled
+`Entity_person`), SPOKEN_BY edges render, persons unify into **one cross-episode
+node** (viewer `mergeGiKg` DEDUP + backend `corpus_graph` `_upsert_node`), and
+node/edge filter chips auto-generate (Person + SPOKEN_BY visible by default). Gaps
+are **polish, not blockers** — fix during/after v3 validation:
+
+1. **No dedicated `SPOKEN_BY` (and `HAS_QUOTE`) edge style** — falls through to the
+   generic muted-gray edge; the `(unknown)` fallback doesn't catch it.
+   `cyGraphStylesheet.ts` `edgeStrokes` (~483-557) — add a `SPOKEN_BY` selector.
+2. **No 1-hop Person→Insight graph edge** — backend `corpus_graph` derives a
+   `STATES` shortcut but the Cytoscape graph only has the 2-hop
+   Person←SPOKEN_BY←Quote→SUPPORTED_BY→Insight path (Episode→Person aggregate is
+   off by default). Decide whether to surface a derived person→insight edge.
+3. **Person filter chip count/swatch bug** — chip keys raw `"Person"` but the
+   histogram/colors key the visual group `"Entity_person"` → shows `(0)` + gray
+   swatch (toggle still works). `GraphTypesChip.vue` vs `GraphCanvas.vue`/`colors.ts`.
+
 ## Decided AGAINST (from the early identity-vision audit)
 
 The five `docs/wip/rfc_*` / `product_ux_identity_vision` drafts (~1.5-month-old
