@@ -904,12 +904,20 @@ pipeline run through DGX:
 podcast-scraper <rss> --profile local_dgx_balanced ...
 ```
 
-`local_dgx_balanced` ships with cloud fallback to Gemini per
-[ADR-096](../adr/ADR-096-dgx-spark-prod-primary-with-fallback.md) (so a mid-run
-DGX outage degrades to Gemini for the summarization stage, not to no output —
-see `degradation_policy.fallback_provider_on_failure`).
-`local_dgx_full` runs the same backend with **no fallback** — intentional for
-measurement runs where mixed-provider output would corrupt the comparison.
+Neither `local_dgx_balanced` nor `local_dgx_full` enables LLM cloud fallback —
+operator decision: laptop-driven runs against DGX should fail visibly (summary
+missing for the affected episode) when DGX is down, so you can fix the host
+side rather than silently spend cloud money. The
+`FallbackAwareSummarizationProvider` wrapper (RFC-089 #5 / commit `cd55e199`)
+is available for any profile that wants to opt in via
+`degradation_policy.fallback_provider_on_failure`, but the local-DGX profiles
+intentionally don't.
+
+Cloud fallback IS used in prod via
+[ADR-096](../adr/ADR-096-dgx-spark-prod-primary-with-fallback.md), but at the
+Whisper layer — the prod profile (`cloud_with_dgx_whisper_primary`) sets
+`transcription_fallback_provider: openai`. The LLM is already cloud Gemini
+there, so an LLM-level fallback isn't needed.
 
 For raw Ollama swaps (autoresearch experiments where you point an existing
 config at DGX), set `OLLAMA_API_BASE`:

@@ -42,8 +42,21 @@ vector_embedding_provider: sentence_transformers
 # vs ~33ms over HTTP to Ollama) and no DGX availability dependency.
 # See eval/embedding_provider_comparison/transcript-chunked/ for the numbers.
 
+# No LLM-level cloud fallback (operator decision, 2026-06-07): this profile is
+# for laptop-driven runs against the operator's tailnet DGX. If DGX Ollama goes
+# down mid-run, the pipeline degrades visibly (summary missing for the affected
+# episode) rather than silently routing to a paid cloud provider. The operator
+# fixes the DGX side and re-runs.
+#
+# Cloud fallback IS enabled in prod (cloud_with_dgx_whisper_primary) where
+# uptime trumps cost visibility, but at the Whisper layer
+# (transcription_fallback_provider: openai), not the LLM layer — prod's LLM
+# primary is already cloud Gemini.
+#
+# The FallbackAwareSummarizationProvider wrapper (RFC-089 #5) stays available;
+# any profile that opts in via degradation_policy.fallback_provider_on_failure
+# gets it. local_dgx_balanced just doesn't opt in.
 degradation_policy:
-  fallback_provider_on_failure: gemini
   continue_on_stage_failure: true
 
 generate_metadata: true

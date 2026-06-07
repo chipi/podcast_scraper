@@ -60,8 +60,10 @@ shipped profile enables it. The shim that used to live on `:8001` is gone.
 
 ## P2 — Pipeline profiles
 
-- `config/profiles/local_dgx_balanced.yaml` — DGX Ollama + degradation fallback to Gemini.
+- `config/profiles/local_dgx_balanced.yaml` — laptop → DGX Ollama; **no LLM cloud fallback** (operator decision 2026-06-07 — DGX outages should be visible, not silently routed to paid cloud).
 - `config/profiles/local_dgx_full.yaml` — measurement only (no cloud fallback in profile).
+- `config/profiles/preprod_local_whisper.yaml` — Stage A dress rehearsal for the prod profile, with laptop-local Whisper instead of DGX Whisper (no DGX dependency for this validation pass).
+- `config/profiles/cloud_with_dgx_whisper_primary.yaml` — prod target; Whisper-on-DGX with cloud fallback at the transcription layer (`transcription_fallback_provider: openai`), LLM is already cloud Gemini.
 
 ### P2 — Operator E2E smoke (#811 AC#6)
 
@@ -99,9 +101,62 @@ export PYTHONPATH="$(pwd)/src:$(pwd):${PYTHONPATH}"
 
 Caveats / notes for re-runs:
 
-- The 2026-06-07 smoke ran with `screenplay: false, diarize: false` overrides because the laptop venv's `torchaudio` was mid-migration from the parallel wave-2 audio work. Once that lands and `import pyannote.audio` succeeds, re-run with the unmodified profile to also cover diarization.
 - Default `--rss` flag is for *additional* feeds; for a single feed pass the URL positionally.
 - DGX Ollama must already be reachable on the tailnet (`curl http://${DGX_TAILNET_FQDN}:11434/api/tags`); the profile does not bring the daemon up.
+- Re-verified 2026-06-07 with diarize ON after the wave-2 audio migration (pyannote 4 / numpy 2 / torch 2.12 venv refresh); `SPEAKER_00` / `SPEAKER_01` correctly labeled in segments.
+
+### P2 — `local_dgx_balanced` fallback semantics (operator decision 2026-06-07)
+
+`local_dgx_balanced` does NOT enable LLM cloud fallback. Rationale: the profile is for laptop-driven runs against DGX. If DGX Ollama goes down mid-run, the affected episode degrades visibly (summary missing) rather than silently routing to a paid cloud provider. The operator fixes the DGX side and re-runs.
+
+The `FallbackAwareSummarizationProvider` wrapper at `src/podcast_scraper/summarization/fallback.py` (RFC-089 #5) stays available — any profile that opts in via `degradation_policy.fallback_provider_on_failure` gets it. Local dev profiles intentionally don't opt in. Cloud fallback IS enabled in prod, but at the Whisper layer; see P4.
+
+## Pre-prod laptop validation (Stage A → B → C ladder)
+
+Three gates before flipping prod to `cloud_with_dgx_whisper_primary`. Each stage runs **from your laptop** — no separate pre-prod VPS needed.
+
+### Stage A — laptop with local Whisper (no DGX Whisper service required)
+
+Profile: `config/profiles/preprod_local_whisper.yaml`. Mirrors the prod profile exactly except `transcription_provider: whisper` (laptop-local openai-whisper on Apple MPS / CUDA) instead of `tailnet_dgx_whisper`. Validates: prompts, pipeline glue, diarization, screenplay, Gemini summary/GI/KG/vector path. Does NOT validate the DGX HTTP transcribe call (that's Stage B).
+
+```bash
+# Quick iteration with small.en (~10× real-time)
+make preprod-local RSS=https://feeds.example.com/your-show.rss EPISODES=1
+
+# Final dress rehearsal with large-v3 (matches what prod DGX will run)
+make preprod-local RSS=https://... EPISODES=3 WHISPER_MODEL=large-v3
+```
+
+What to look for in the run output:
+
+- `segments.json` files have `speaker` labels (`SPEAKER_00`, `SPEAKER_01`, ...) — confirms diarize ran
+- `gi_grounding_rate_pct` near 100 in `metrics.json`
+- `gi_quote_validity_rate_pct` at 100 (verbatim quotes from transcript)
+- `kg_topic_nodes_total` and `kg_entity_nodes_total` non-zero
+- `search/vectors.faiss` written
+- No `llm_summary_fallback_active_count` (this profile uses Gemini directly; nothing to fall back FROM)
+
+If anything looks wrong, fix it on the prompt / pipeline side before any DGX Whisper work — no point installing a service on DGX while pipeline shape is broken.
+
+### Stage B — laptop → DGX Whisper service (blocked on #814)
+
+Once #814 lands faster-whisper-server on DGX, the same prod profile becomes runnable end-to-end from your laptop:
+
+```bash
+podcast-scraper <rss> --profile cloud_with_dgx_whisper_primary --output-dir ~/preprod-stage-b
+```
+
+Three chaos gates here:
+
+1. **Happy path** — DGX up, profile runs through, output structure matches Stage A's by diff.
+2. **DGX denied mid-run** — block the DGX Whisper port via local proxy returning 503; verify the pipeline falls back to OpenAI cloud Whisper (`transcription_fallback_provider: openai`), emits a `dgx_fallback_active` Sentry breadcrumb, episode still completes.
+3. **DGX + cloud both denied** — both proxied to 503; verify clean abort with operator-visible error, no half-baked output.
+
+Soak: `make preprod-soak` (added with #814) runs nightly happy-path against the last 24h of operator corpus, appends a row to [DGX_PROD_VALIDATION_LOG](../operations/DGX_PROD_VALIDATION_LOG.md), refuses to allow promotion until the rolling 4-week fallback rate is under 1% per ADR-096.
+
+### Stage C — prod flip
+
+Operator profile YAML on prod VPS → `cloud_with_dgx_whisper_primary`. Restart API container. Watch Sentry `dgx.fallback` breadcrumbs for 48 h. Rollback = revert profile + restart (≤ 5 min).
 
 ## P3 — GitHub Actions self-hosted runner (ADR-097)
 

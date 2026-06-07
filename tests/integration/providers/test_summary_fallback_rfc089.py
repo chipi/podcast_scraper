@@ -136,15 +136,23 @@ class TestRfc089SummaryFallbackWiring:
         with pytest.raises(ConnectionError, match="DGX Ollama unreachable"):
             wrapper.summarize(text="t" * 100, pipeline_metrics=Metrics())
 
-    def test_local_dgx_balanced_profile_emits_wrapped_provider(self) -> None:
-        """The shipped local_dgx_balanced profile YAML must yield a wrapped provider.
+    def test_local_dgx_balanced_profile_emits_primary_no_wrap(self) -> None:
+        """local_dgx_balanced is a laptop-driven dev profile — no cloud fallback.
 
-        Regression guard: if someone removes the fallback line from the profile
-        or renames the field, this fails loudly.
+        Operator decision (2026-06-07): for laptop-to-DGX runs, a DGX outage
+        should be visible (summary missing) rather than silently routing to a
+        paid cloud provider. Cloud fallback is reserved for the prod profile
+        (cloud_with_dgx_whisper_primary), where it's enabled at the Whisper
+        layer (transcription_fallback_provider) — the LLM is already cloud
+        Gemini there.
+
+        Regression guard: if someone re-adds
+        degradation_policy.fallback_provider_on_failure to local_dgx_balanced,
+        this fails loudly so the operator gets pinged before quietly routing
+        DGX outages to cloud.
         """
         import os
 
-        # Provide stub keys so config validation passes.
         os.environ.setdefault("GEMINI_API_KEY", "x")
         os.environ.setdefault("OPENAI_API_KEY", "x")
         from podcast_scraper.cli import _build_config, parse_args
@@ -165,7 +173,8 @@ class TestRfc089SummaryFallbackWiring:
             return_value=Mock(return_value=primary),
         ):
             result = orchestration._create_summarization_provider(cfg)
-        assert isinstance(result, FallbackAwareSummarizationProvider)
+        assert result is primary
+        assert not isinstance(result, FallbackAwareSummarizationProvider)
 
     def test_local_dgx_full_profile_emits_primary_no_wrap(self) -> None:
         """local_dgx_full is the 'pure measurement' profile — no cloud fallback.

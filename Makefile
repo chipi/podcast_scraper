@@ -3360,6 +3360,50 @@ dgx-smoke:
 			curl -fsS --max-time 5 "http://$$host:11434/api/tags" >/dev/null && \
 			echo "DGX Ollama OK at http://$$host:11434"
 
+# Stage A pre-prod dress rehearsal (#814): run the prod profile shape against
+# real audio from your laptop, with laptop-local Whisper. Validates the full
+# pipeline (Gemini LLM, screenplay, diarize, GI, KG, vectors) without needing
+# the DGX Whisper service deployed yet.
+#
+# Variables:
+#   RSS           required — RSS feed URL to scrape
+#   EPISODES      default 1 — number of episodes to process
+#   WHISPER_MODEL default small.en — bump to large-v3 for final dress rehearsal
+#                  (parity with prod's whisper-large-v3; ~3 GB one-time download)
+#   OUTPUT_DIR    default ~/preprod-local-out — where to write artifacts
+#
+# Example:
+#   make preprod-local RSS=https://feeds.example.com/show.rss EPISODES=3
+#   make preprod-local RSS=https://... WHISPER_MODEL=large-v3   # final dress rehearsal
+#
+# See DGX_RUNBOOK §"Pre-prod laptop validation (Stage A/B/C)".
+EPISODES ?= 1
+WHISPER_MODEL ?= small.en
+OUTPUT_DIR ?= $(HOME)/preprod-local-out
+preprod-local:
+	@if [ -z "$(RSS)" ]; then \
+		echo "ERROR: RSS=<feed-url> required" >&2; \
+		echo "  Example: make preprod-local RSS=https://feeds.example.com/show.rss" >&2; \
+		exit 1; \
+	fi
+	@mkdir -p "$(OUTPUT_DIR)"
+	@export PYTHONPATH="$(PWD)/src:$(PWD):$${PYTHONPATH}"; \
+		$(PYTHON) -m podcast_scraper.cli \
+			"$(RSS)" \
+			--profile preprod_local_whisper \
+			--whisper-model $(WHISPER_MODEL) \
+			--output-dir "$(OUTPUT_DIR)" \
+			--max-episodes $(EPISODES) \
+			--log-level INFO
+	@echo ""
+	@echo "Stage A run complete. Inspect output at $(OUTPUT_DIR)"
+	@echo "  - transcripts/*.txt        — Whisper output"
+	@echo "  - transcripts/*.segments.json — should have speaker labels (SPEAKER_00, _01, ...)"
+	@echo "  - metadata/*.gi.json       — GI insights with grounding"
+	@echo "  - metadata/*.kg.json       — KG topics + entities"
+	@echo "  - search/vectors.faiss     — vector index"
+	@echo "  - metrics.json             — run timing + cost"
+
 # --- DGX config management (pyinfra) — see infra/dgx/converge/README.md -----
 DGX_CONVERGE_DIR := infra/dgx/converge
 DGX_CONVERGE_VENV := $(DGX_CONVERGE_DIR)/.venv

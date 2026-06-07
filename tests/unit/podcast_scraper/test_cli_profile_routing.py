@@ -192,6 +192,7 @@ class TestAllShippedProfilesRoundTripThroughCLI:
             "local",
             "local_dgx_balanced",
             "local_dgx_full",
+            "preprod_local_whisper",
             "airgapped",
             "airgapped_thin",
             "dev",
