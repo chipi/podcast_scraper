@@ -1123,11 +1123,32 @@ def _add_transcription_arguments(parser: argparse.ArgumentParser) -> None:
     )
     parser.add_argument(
         "--transcription-provider",
-        choices=["whisper", "openai", "gemini", "mistral", "deepgram"],
+        choices=["whisper", "openai", "gemini", "mistral", "deepgram", "tailnet_dgx_whisper"],
         default="whisper",
         help=(
             "Transcription provider to use (default: whisper). "
-            "Note: deepseek, grok, and ollama do NOT support transcription."
+            "Note: deepseek, grok, and ollama do NOT support transcription. "
+            "tailnet_dgx_whisper requires dgx_tailnet_host + the faster-whisper-server "
+            "install (#814)."
+        ),
+    )
+    parser.add_argument(
+        "--dgx-tailnet-host",
+        default=None,
+        dest="dgx_tailnet_host",
+        help=(
+            "MagicDNS hostname (or IP) for DGX (RFC-089 / #814). Overrides any value "
+            "set by the profile. Used by tailnet_dgx_whisper + Stage B chaos tests."
+        ),
+    )
+    parser.add_argument(
+        "--dgx-whisper-port",
+        type=int,
+        default=None,
+        dest="dgx_whisper_port",
+        help=(
+            "Port for the faster-whisper-server on DGX (default 8000, #814). Overrides "
+            "the profile. Useful for chaos tests that route to a local 503 server."
         ),
     )
     parser.add_argument("--whisper-model", default="base.en", help="Whisper model to use")
@@ -2145,6 +2166,7 @@ def _load_and_merge_config(
         | _config_yaml_allowed_top_level_keys()
         | config.DEPRECATED_CONFIG_TOP_LEVEL_KEYS
         | config.OPERATOR_ONLY_TOP_LEVEL_KEYS  # e.g. pipeline_install_extras
+        | config.NESTED_PROFILE_TOP_LEVEL_KEYS  # e.g. transcription.{primary,fallback}
         | {"profile"}  # Consumed by Config._resolve_profile before field validation
     )
     unknown_keys = [key for key in config_data.keys() if key not in valid_keys]
@@ -3748,6 +3770,19 @@ def _build_config(args: argparse.Namespace) -> config.Config:  # noqa: C901
         "transcribe_missing": args.transcribe_missing,
         "transcription_provider": args.transcription_provider,
         "whisper_model": args.whisper_model,
+        # #814: optional DGX target overrides for chaos tests + ad-hoc routing.
+        # None means "use whatever the profile/config set"; the build helper
+        # below excludes None entries so we don't overwrite legit profile values.
+        **(
+            {"dgx_tailnet_host": args.dgx_tailnet_host}
+            if getattr(args, "dgx_tailnet_host", None) is not None
+            else {}
+        ),
+        **(
+            {"dgx_whisper_port": args.dgx_whisper_port}
+            if getattr(args, "dgx_whisper_port", None) is not None
+            else {}
+        ),
         "whisper_device": args.whisper_device,
         "screenplay": args.screenplay,
         "screenplay_gap_s": args.screenplay_gap,

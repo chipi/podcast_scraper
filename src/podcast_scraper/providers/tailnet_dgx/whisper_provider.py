@@ -1,4 +1,19 @@
-"""DGX-hosted Whisper via Ollama with mandatory cloud fallback (ADR-096)."""
+"""DGX-hosted Whisper via faster-whisper-server with mandatory cloud fallback.
+
+Architecture (RFC-089 / ADR-096 / #814):
+
+- Whisper service on DGX: faster-whisper-server (#814), OpenAI-compatible,
+  listening on ``:8000``. Installed by ``infra/dgx/converge/deploy.py`` via
+  pyinfra. Speaks ``POST /v1/audio/transcriptions`` with multipart audio.
+- Fallback: ``transcription_fallback_provider`` (default ``openai``) when
+  DGX is unhealthy or the request fails. Mandatory per ADR-096 — no
+  hard-required-DGX paths.
+
+Pre-#814 history: this provider targeted ``POST /api/transcribe`` on Ollama's
+port ``:11434``. Ollama doesn't actually serve Whisper — that endpoint never
+existed in production. The fallback covered for it. Post-#814 the service
+exists and the endpoint + port reflect that.
+"""
 
 from __future__ import annotations
 
@@ -11,7 +26,7 @@ from ... import config
 from ...transcription.base import TranscriptionProvider
 from ...transcription.factory import create_transcription_provider
 from ...utils.log_redaction import format_exception_for_log
-from .health import check_ollama_health, dgx_ollama_base_url
+from .health import check_faster_whisper_health, dgx_whisper_base_url
 from .telemetry import emit_dgx_fallback_breadcrumb
 
 logger = logging.getLogger(__name__)
@@ -20,14 +35,16 @@ _RETRY_BACKOFF_SEC = 5.0
 
 
 class TailnetDgxWhisperTranscriptionProvider:
-    """Transcribe on DGX Ollama; fall back to configured cloud provider on failure."""
+    """Transcribe on DGX faster-whisper-server; fall back to cloud on failure."""
 
     def __init__(self, cfg: config.Config) -> None:
         """Store config and DGX connection parameters."""
         self.cfg = cfg
         self._host = (cfg.dgx_tailnet_host or "").strip()
-        self._port = int(cfg.dgx_ollama_port or 11434)
-        self._model = (cfg.dgx_whisper_model or "whisper-large-v3").strip()
+        # #814: separate from dgx_ollama_port (11434) because faster-whisper-server
+        # is a different service on a different port.
+        self._port = int(getattr(cfg, "dgx_whisper_port", None) or 8000)
+        self._model = (cfg.dgx_whisper_model or "Systran/faster-whisper-large-v3").strip()
         self._timeout_sec = float(cfg.dgx_request_timeout_sec or 300.0)
         self._fallback_name = (cfg.transcription_fallback_provider or "openai").strip()
         self._fallback: Optional[TranscriptionProvider] = None
@@ -80,14 +97,17 @@ class TailnetDgxWhisperTranscriptionProvider:
     ) -> tuple[str, list[dict[str, object]], float]:
         assert self._fallback is not None
         last_err: Optional[Exception] = None
+        # Health-check substring matches the model's slug portion (after the
+        # ``Systran/`` namespace) so we don't fail on small repo-id variations.
+        health_substring = self._model.rsplit("/", 1)[-1]
         for attempt in range(2):
             try:
-                if check_ollama_health(
+                if check_faster_whisper_health(
                     self._host,
                     port=self._port,
-                    require_model_substring=self._model.split(":")[0],
+                    require_model_substring=health_substring,
                 ):
-                    return self._transcribe_ollama(audio_path, language)
+                    return self._transcribe_dgx(audio_path, language)
             except Exception as exc:
                 last_err = exc
                 logger.warning(
@@ -123,11 +143,18 @@ class TailnetDgxWhisperTranscriptionProvider:
         if self._fallback is not None:
             self._fallback.cleanup()
 
-    def _transcribe_ollama(
+    def _transcribe_dgx(
         self,
         audio_path: str,
         language: str | None,
     ) -> tuple[str, list[dict[str, object]], float]:
+        """Call faster-whisper-server's OpenAI-compatible transcribe endpoint.
+
+        The server speaks ``POST /v1/audio/transcriptions`` with multipart form
+        data. Setting ``response_format=verbose_json`` gets us segments in
+        addition to the flat text (we need segments for downstream stages —
+        speaker assignment, screenplay, etc.).
+        """
         try:
             import httpx
         except ImportError as exc:
@@ -137,12 +164,15 @@ class TailnetDgxWhisperTranscriptionProvider:
         if not path.is_file():
             raise FileNotFoundError(audio_path)
 
-        base = dgx_ollama_base_url(self._host, self._port)
-        url = f"{base}/api/transcribe"
+        base = dgx_whisper_base_url(self._host, self._port)
+        url = f"{base}/v1/audio/transcriptions"
         started = time.perf_counter()
         with path.open("rb") as audio_file:
             files = {"file": (path.name, audio_file, "application/octet-stream")}
-            data: dict[str, Any] = {"model": self._model}
+            data: dict[str, Any] = {
+                "model": self._model,
+                "response_format": "verbose_json",
+            }
             if language:
                 data["language"] = language
             with httpx.Client(timeout=self._timeout_sec) as client:
@@ -151,7 +181,7 @@ class TailnetDgxWhisperTranscriptionProvider:
         payload = resp.json()
         text = str(payload.get("text") or "").strip()
         if not text:
-            raise ValueError("empty transcription from DGX Ollama")
+            raise ValueError("empty transcription from DGX faster-whisper-server")
         duration = float(time.perf_counter() - started)
         segments: list[dict[str, object]] = []
         if isinstance(payload.get("segments"), list):

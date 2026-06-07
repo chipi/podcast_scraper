@@ -111,6 +111,18 @@ Caveats / notes for re-runs:
 
 The `FallbackAwareSummarizationProvider` wrapper at `src/podcast_scraper/summarization/fallback.py` (RFC-089 #5) stays available — any profile that opts in via `degradation_policy.fallback_provider_on_failure` gets it. Local dev profiles intentionally don't opt in. Cloud fallback IS enabled in prod, but at the Whisper layer; see P4.
 
+### P2 — `qwen3.5:9b` pipeline mode (investigation 2026-06-07)
+
+`local_dgx_balanced` uses `llm_pipeline_mode: staged`, not `bundled`. The investigation: under bundled mode (one fused clean+summarize call), `qwen3.5:9b` emits inconsistently malformed JSON — literal newlines inside string values, mid-bullet truncation, missing fields. Failure rate ~50-67% on small N. Even when it succeeds, output is degraded (1-3 bullets vs target 6-8).
+
+This is **model-specific**, not a code regression:
+
+- Same prompts, same bundled mode, called directly: `qwen3.5:27b`, `qwen2.5:32b`, `llama3.1:8b` all return valid JSON. `qwen3.5:9b` is on the edge of what a 9B can reliably structure in a single fused pass.
+- The autoresearch v2 evaluation that crowned `qwen3.5:9b bundled` as a champion scored against RougeL vs silver-Sonnet, not JSON-parse pass/fail — degraded but parseable output still scored.
+- Staged mode (two separate Ollama calls — clean, then summarize) sidesteps the issue. Trade: ~1.5× wall-clock. Acceptable since DGX RTT is ~30 ms and free.
+
+If you want to revisit `bundled` later: bump the model to `qwen3.5:27b` (the size where bundled becomes reliable per the model comparison) and re-test before flipping the profile back.
+
 ## Pre-prod laptop validation (Stage A → B → C ladder)
 
 Three gates before flipping prod to `cloud_with_dgx_whisper_primary`. Each stage runs **from your laptop** — no separate pre-prod VPS needed.

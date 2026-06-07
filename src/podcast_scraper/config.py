@@ -624,6 +624,13 @@ OPERATOR_ONLY_TOP_LEVEL_KEYS: frozenset[str] = frozenset(
     {"pipeline_install_extras", "scheduled_jobs"}
 )
 
+# Nested grouping keys that profile YAML may use as syntactic sugar for a set
+# of flat Config fields. The flattening happens inside model_validator(mode=
+# "before"). The unknown-keys gate runs BEFORE that validator, so it has to
+# accept these names too. Add a new key here whenever a new nested-form
+# rewrite lands (see ``_flatten_dgx_stage_routing`` for ``transcription``).
+NESTED_PROFILE_TOP_LEVEL_KEYS: frozenset[str] = frozenset({"transcription"})
+
 
 class Config(BaseModel):
     """Configuration model for podcast scraping pipeline.
@@ -1224,10 +1231,27 @@ class Config(BaseModel):
         alias="dgx_ollama_port",
         description="Ollama port on DGX (default 11434).",
     )
+    dgx_whisper_port: int = Field(
+        default=8000,
+        ge=1,
+        le=65535,
+        alias="dgx_whisper_port",
+        description=(
+            "faster-whisper-server port on DGX (default 8000, #814). Separate from "
+            "dgx_ollama_port because Whisper is served by a different service "
+            "(faster-whisper-server, OpenAI-compatible). See "
+            "infra/dgx/converge/deploy.py."
+        ),
+    )
     dgx_whisper_model: str = Field(
-        default="whisper-large-v3",
+        default="Systran/faster-whisper-large-v3",
         alias="dgx_whisper_model",
-        description="Ollama model id for DGX Whisper transcription.",
+        description=(
+            "Hugging Face repo ID for the Whisper model that faster-whisper-server "
+            "loads on DGX. Pre-#814 default was the Ollama-style 'whisper-large-v3' "
+            "tag, but Ollama doesn't serve Whisper; the prod path is now "
+            "faster-whisper-server which takes HF repo IDs."
+        ),
     )
     dgx_request_timeout_sec: float = Field(
         default=300.0,
@@ -2929,6 +2953,11 @@ class Config(BaseModel):
         # validators in reverse definition order, making cross-validator ordering
         # fragile when one depends on the output of another.
         merged = cls._merge_audio_preprocessing_preset(merged)
+        # Same reasoning: nested ``transcription: {primary, fallback}`` (ADR-096)
+        # in the profile YAML needs flattening to flat fields, but the
+        # ``_flatten_dgx_stage_routing`` validator can't reliably observe the
+        # merged dict in reverse-order. Call the plain helper here.
+        merged = cls._apply_dgx_stage_routing_flatten(merged)
         return merged
 
     @classmethod
@@ -4460,10 +4489,13 @@ class Config(BaseModel):
         object.__setattr__(self, "output_dir", wrapped)
         return self
 
-    @model_validator(mode="before")
     @classmethod
-    def _flatten_dgx_stage_routing(cls, data: Any) -> Any:
-        """Allow ADR-096 nested transcription.primary / fallback in YAML profiles."""
+    def _apply_dgx_stage_routing_flatten(cls, data: Any) -> Any:
+        """Plain helper: nested ``transcription: {primary, fallback}`` → flat fields.
+
+        Callable directly from other validators without the @model_validator
+        decorator wrapping. Same logic as ``_flatten_dgx_stage_routing`` below.
+        """
         if not isinstance(data, dict):
             return data
         trans = data.get("transcription")
@@ -4476,6 +4508,12 @@ class Config(BaseModel):
                 data["transcription_fallback_provider"] = fallback.strip()
             data.pop("transcription", None)
         return data
+
+    @model_validator(mode="before")
+    @classmethod
+    def _flatten_dgx_stage_routing(cls, data: Any) -> Any:
+        """Allow ADR-096 nested transcription.primary / fallback in YAML profiles."""
+        return cls._apply_dgx_stage_routing_flatten(data)
 
     @model_validator(mode="after")
     def _validate_tailnet_dgx_transcription_contract(self) -> "Config":
