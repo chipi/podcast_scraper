@@ -61,12 +61,48 @@ ML), so the person/speaker graph is validatable in ci-fast:
 Then: re-run graph/CIL/viewer validation against v3 → finally the
 v2-audio→diarization e2e as the realistic proof (option B).
 
+### v3 spec — production-faithful coverage (all shipped features)
+
+Goal: v3 mirrors a real corpus as closely as a deterministic, no-ML synthetic can,
+so every viewer surface + graph/CIL query has representative data. **Fidelity rule:**
+derive the per-episode artifact shapes from what the **real pipeline emits** (run a
+few v2-audio episodes through the full pipeline with all features on, snapshot the
+node/edge shapes, reproduce them deterministically in the generator) — don't guess.
+
+Must carry:
+
+- **Speaker layer (#875/#876/#909):** `Person` nodes + `SPOKEN_BY` (Quote→Person) +
+  derived `Person→Insight`; named host+guest per episode; a **recurring guest** across
+  ≥2 episodes (one `person:{slug}`); a **panel** episode (≥3 named speakers); a
+  **mentioned-only** person (KG entity, no `SPOKEN_BY`) for the F2 case.
+- **GI:** Episode/Insight/Quote/Topic/Person nodes; `HAS_INSIGHT`/`HAS_QUOTE`/
+  `SUPPORTED_BY`/`ABOUT` edges; quotes with **timestamps** (diarized segment timing) +
+  `speaker_id`.
+- **Commercials (#109 + commercial phases):** episodes with in-segment sponsor reads +
+  the ad-region/cleaning metadata the pipeline produces.
+- **KG + CIL (#851/#852/#854):** Entity (person/org/topic) with canonical ids; **aliases**
+  (a person/org by variant names → one canonical id); cross-episode canonical recurrence.
+- **Bridge (GI↔KG):** `bridge.json` identities joining the layers per episode.
+- **Relational/search (PRD-033 / RFC-094):** `HAS_EPISODE` (Podcast→Episode), `MENTIONS`
+  (Insight→Entity); cross-cutting umbrella topics (already in v2) → topic clusters;
+  corpus-graph union reachability Person→Insight.
+- **Index-buildable (#897/#899):** `make build-validation-index` works (FAISS +
+  `topic_clusters.json`); `vector_embedding_provider` default.
+- **Viewer API surfaces (`corpus/*.json`):** `feeds`/`episodes`/`persons-top`/`digest`/
+  `coverage`/`stats` regenerated — `persons-top` now reflects **speaking** persons, not
+  only mentioned.
+- **Content patterns (#900):** recurring guests, cross-episode topics, **position arcs**
+  (a person's stance evolving across episodes), edge cases.
+
+Bump to **v3** (keep v2 for N-1 compat). Regenerate via the extended
+`scripts/build_synthetic_validation_corpus.py`; keep it deterministic + idempotent.
+
 ## Decided AGAINST (from the early identity-vision audit)
 
 The five `docs/wip/rfc_*` / `product_ux_identity_vision` drafts (~1.5-month-old
 "super-early thinking") were audited against the shipped system: ~70–80% already
 delivered (CIL resolver, `person_profile`, all viewer surfaces via PRD-033
-#882–#890, diarization). The surviving high-value thread is **#909**. Explicitly
+issues #882–#890, diarization). The surviving high-value thread is **#909**. Explicitly
 **not** pursued (over-engineered for a host+guest corpus):
 
 - Speaker-clusters-as-signal → late-naming / resolve-in-CIL re-architecture.
