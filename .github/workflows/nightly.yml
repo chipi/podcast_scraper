@@ -84,11 +84,11 @@ jobs:
         path: |
           ~/.cache/whisper
           ~/.cache/huggingface
-        # Fully content-based cache key. `diar1` salt forces a one-time re-cache now that HF_TOKEN
-        # is provisioned, so the gated pyannote diarization models get added to the cache.
-        key: ml-models-nightly-${{ runner.os }}-diar1-${{ hashFiles('scripts/cache/preload_ml_models.py', 'src/podcast_scraper/config.py') }}
+        # Fully content-based cache key. `diar2` salt forces a clean re-preload (`diar1` was saved
+        # incomplete by a cancelled run); the gated pyannote + MiniLM models get added to the cache.
+        key: ml-models-nightly-${{ runner.os }}-diar2-${{ hashFiles('scripts/cache/preload_ml_models.py', 'src/podcast_scraper/config.py') }}
         restore-keys: |
-          ml-models-nightly-${{ runner.os }}-diar1-
+          ml-models-nightly-${{ runner.os }}-diar2-
           ml-models-nightly-${{ runner.os }}-
 
     - name: Set up Python 3.11
@@ -552,6 +552,11 @@ jobs:
       ML_MODELS_VALIDATED: "true"
       # E2E test mode - matches regular CI (python-app.yml)
       E2E_TEST_MODE: "multi_episode"
+      # Diarization e2e: pyannote provider needs a token to construct; gated models
+      # are preloaded in preload-ml-models-nightly. OFFLINE=1 → load from cache only,
+      # no 3rd-party traffic at test time (airgapped contract).
+      HF_TOKEN: ${{ secrets.HF_TOKEN }}
+      HF_HUB_OFFLINE: "1"
     steps:
     - uses: actions/checkout@v6
 

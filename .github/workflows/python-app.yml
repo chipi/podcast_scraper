@@ -564,12 +564,12 @@ jobs:
           ~/.cache/huggingface
         # NOTE: spaCy removed - installed as pip package via .[ml]
         # Cache key invalidates when model definitions change; restore-keys let PRs/branches reuse latest cache.
-        # `diar1` salt: forces a one-time re-cache now that HF_TOKEN is provisioned so the gated pyannote
-        # diarization models get added (the prior cache was built tokenless and lacks them). The broad
-        # restore-key warm-starts from that cache so only the missing diarization models download.
-        key: ml-models-${{ runner.os }}-diar1-${{ hashFiles('scripts/cache/preload_ml_models.py', 'src/podcast_scraper/config.py') }}
+        # `diar2` salt: forces a clean re-preload. `diar1` was saved incomplete by a cancelled run
+        # (missing MiniLM + gated pyannote models), so cache-hits served a broken cache. The broad
+        # restore-key warm-starts from the prior cache so only the missing models re-download.
+        key: ml-models-${{ runner.os }}-diar2-${{ hashFiles('scripts/cache/preload_ml_models.py', 'src/podcast_scraper/config.py') }}
         restore-keys: |
-          ml-models-${{ runner.os }}-diar1-
+          ml-models-${{ runner.os }}-diar2-
           ml-models-${{ runner.os }}-
     - name: Set up Python 3.11 (only if cache miss - needed for model download)
       if: (needs.detect-changes.outputs.docs-only != 'true' || needs.detect-changes.outputs.code == 'true') && steps.cache-models.outputs.cache-hit != 'true'
@@ -1185,6 +1185,14 @@ jobs:
       # Ensure consistent cache paths for Hugging Face libraries
       HF_HOME: /home/runner/.cache/huggingface
       HF_HUB_CACHE: /home/runner/.cache/huggingface/hub
+      # The diarization e2e (ml_models) constructs the pyannote provider, which
+      # requires a token even when loading gated models from the offline cache.
+      # When unset (forks), the test skips via its provisioning markers.
+      HF_TOKEN: ${{ secrets.HF_TOKEN }}
+      # Airgapped contract: gated models are downloaded once in preload-ml-models;
+      # this job loads them from cache only. OFFLINE=1 means the HF libs never
+      # attempt (socket-blocked) network calls — zero 3rd-party traffic at test time.
+      HF_HUB_OFFLINE: "1"
     if: |
       github.event_name == 'push' &&
       (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/release/2.4' || github.ref == 'refs/heads/release/2.5' || github.ref == 'refs/heads/release/2.6') &&

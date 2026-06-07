@@ -43,6 +43,12 @@ _PROVISIONING_MARKERS = (
     "socketblocked",
     "connection",
     "no such file",
+    # No HF token wired into the job env (e.g. forks / token-less CI): the pyannote
+    # provider raises "HuggingFace token required for diarize=true" at construction.
+    # That's a provisioning gap, not a regression — skip rather than fail.
+    "huggingface token required",
+    "token required",
+    "hf token",
 )
 
 

@@ -826,6 +826,7 @@ def modify_config_for_fixtures(
         os.environ["DEEPSEEK_API_BASE"] = e2e_server.urls.deepseek_api_base()
         os.environ["OLLAMA_API_BASE"] = e2e_server.urls.ollama_api_base()
         os.environ["ANTHROPIC_API_BASE"] = e2e_server.urls.anthropic_api_base()
+        os.environ["DEEPGRAM_API_BASE"] = e2e_server.urls.deepgram_api_base()
 
         # Set dummy API keys (required for config validation, but won't be used with mocks)
         if "OPENAI_API_KEY" not in os.environ:
@@ -838,6 +839,11 @@ def modify_config_for_fixtures(
             os.environ["GROK_API_KEY"] = "test-dummy-key-for-bulk-tests"
         if "DEEPSEEK_API_KEY" not in os.environ:
             os.environ["DEEPSEEK_API_KEY"] = "test-dummy-key-for-bulk-tests"
+        if "DEEPGRAM_API_KEY" not in os.environ:
+            # cloud_quality profile uses transcription_provider=deepgram, whose config
+            # validator hard-requires a key at load time; the e2e mock server handles
+            # the actual /v1/listen call via DEEPGRAM_API_BASE above.
+            os.environ["DEEPGRAM_API_KEY"] = "test-dummy-key-for-bulk-tests"
         if "ANTHROPIC_API_KEY" not in os.environ:
             # Prefix must satisfy AnthropicProvider key-format check (sk-ant-…).
             os.environ["ANTHROPIC_API_KEY"] = "sk-ant-api03-acceptance-ci-dummy-key"
