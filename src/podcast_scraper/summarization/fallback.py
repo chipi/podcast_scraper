@@ -100,9 +100,11 @@ class FallbackAwareSummarizationProvider:
         self._fallback_recorded = False
 
     def initialize(self) -> None:
+        """Initialize the primary provider. Fallback is built lazily on first failure."""
         self._primary.initialize()
 
     def cleanup(self) -> None:
+        """Release primary, then fallback (if it was built). Runs both even if primary raises."""
         try:
             self._primary.cleanup()
         finally:
@@ -110,6 +112,7 @@ class FallbackAwareSummarizationProvider:
                 self._fallback.cleanup()
 
     def warmup(self, timeout_s: int = 600) -> None:
+        """Warm up the primary if it supports it. Fallback is cloud, no warmup needed."""
         warmup_fn = getattr(self._primary, "warmup", None)
         if callable(warmup_fn):
             warmup_fn(timeout_s=timeout_s)
