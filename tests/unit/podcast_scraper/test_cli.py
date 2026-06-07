@@ -2055,6 +2055,26 @@ class TestAddArgumentGroups(unittest.TestCase):
         action_dests = [a.dest for a in parser._actions]
         self.assertIn("deepgram_api_key", action_dests)
         self.assertIn("deepgram_model", action_dests)
+        self.assertIn("deepgram_api_base", action_dests)
+
+    def test_deepgram_api_base_flag_reaches_config(self):
+        """--deepgram-api-base parses and flows through to cfg.deepgram_api_base."""
+        args = cli.parse_args(
+            [
+                "--transcription-provider",
+                "deepgram",
+                "--deepgram-api-key",
+                "dg-test",
+                "--deepgram-api-base",
+                "http://127.0.0.1:18765",
+                "https://example.com/feed.xml",
+                "--output-dir",
+                "/tmp/_t",
+            ]
+        )
+        self.assertEqual(args.deepgram_api_base, "http://127.0.0.1:18765")
+        cfg = cli._build_config(args)
+        self.assertEqual(cfg.deepgram_api_base, "http://127.0.0.1:18765")
 
     def test_add_diarization_arguments(self):
         """Test that _add_diarization_arguments adds expected arguments."""
