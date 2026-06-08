@@ -78,13 +78,15 @@ permissions:
   pages: write
   id-token: write
 
-# Cancel an in-progress run for the same (workflow, ref) when a newer push
-# arrives. Different branches + PRs stay independent. CI-only — release /
-# deploy / backup workflows must keep ``cancel-in-progress: false`` (which
-# they already have explicitly).
+# Cancel superseded runs on PRs (only the latest commit matters → fast feedback).
+# On main/release pushes do NOT cancel: every commit gets a full CI result, and —
+# critically — an in-flight ``preload-ml-models`` job is never killed mid-download,
+# which would let ``actions/cache`` save a partial (poisoned) model cache that
+# later runs cache-hit. Release / deploy / backup workflows keep
+# ``cancel-in-progress: false`` explicitly.
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   # Detect what changed so heavy CI segments can skip when irrelevant.
@@ -754,34 +756,6 @@ jobs:
       run: |
         sudo apt-get update
         sudo apt-get install -y --no-install-recommends ffmpeg
-    - name: Ensure MiniLM embedding cached (offline search tests)
-      # The offline search integration tests (--disable-socket) load MiniLM from cache;
-      # the ml-models artifact doesn't deliver a usable copy (see NOTE), so refetch here.
-      run: |
-        # NOTE: the ml-models artifact delivers a BROKEN MiniLM dir — upload-artifact
-        # drops the sentence-transformers snapshot symlinks, so the dir exists (blobs
-        # only) and the "already cached" check (is_evidence_model_cached = dir.exists())
-        # is fooled into skipping. Remove it and force a complete re-download so the
-        # offline (--disable-socket) search tests can actually load it.
-        # Download MiniLM DIRECTLY via SentenceTransformer (raises on failure) and VERIFY the
-        # offline load (exactly what the tests do). preload_evidence_models swallowed download
-        # errors, so a transient HF blip left the cache empty yet the step "green" → tests then
-        # failed with LocalEntryNotFoundError. Retry transient hiccups; fail loud if it can't.
-        # The ml-models artifact can leave read-only / broken-symlink MiniLM remnants that
-        # shutil.rmtree(ignore_errors=True) silently skips, so the re-download merges with a
-        # corrupt tree and the offline search tests fail (LocalEntryNotFoundError). Force-clean
-        # with `rm -rf`, re-download, and VERIFY via the EXACT loader the tests use
-        # (load_embedding_model, offline) so this step's success guarantees theirs.
-        DIR=$(python -c "from podcast_scraper.cache.directories import get_transformers_cache_dir as g; from podcast_scraper import config_constants as cc; print(g()/('models--'+cc.DEFAULT_EMBEDDING_MODEL.replace('/','--')))")
-        for i in 1 2 3; do
-          rm -rf "$DIR"
-          python -c "from podcast_scraper.providers.ml.model_loader import preload_evidence_models; from podcast_scraper import config_constants as cc; preload_evidence_models(embedding_models=[cc.DEFAULT_EMBEDDING_MODEL])" \
-            && HF_HUB_OFFLINE=1 python -c "from podcast_scraper.providers.ml.embedding_loader import load_embedding_model; from podcast_scraper import config_constants as cc; load_embedding_model(cc.DEFAULT_EMBEDDING_MODEL); print('OK: MiniLM loads offline via load_embedding_model')" \
-            && exit 0
-          echo "MiniLM ensure attempt $i failed; retrying..."; sleep $((i * 5))
-        done
-        echo "=== MiniLM cache tree after failures (diagnostic) ==="; find "$DIR" -ls 2>&1 | head -80
-        echo "ERROR: MiniLM not loadable via the test path after 3 attempts"; exit 1
     - name: Run all integration tests with coverage (full suite, with network guard)
       run: |
         PYTHONPATH="${PYTHONPATH}:$(pwd)"
@@ -983,34 +957,6 @@ jobs:
       run: |
         sudo apt-get update
         sudo apt-get install -y --no-install-recommends ffmpeg
-    - name: Ensure MiniLM embedding cached (offline search tests)
-      # The offline search integration tests load MiniLM from cache; the ml-models
-      # artifact doesn't deliver a usable copy (see NOTE), so refetch it here.
-      run: |
-        # NOTE: the ml-models artifact delivers a BROKEN MiniLM dir — upload-artifact
-        # drops the sentence-transformers snapshot symlinks, so the dir exists (blobs
-        # only) and the "already cached" check (is_evidence_model_cached = dir.exists())
-        # is fooled into skipping. Remove it and force a complete re-download so the
-        # offline (--disable-socket) search tests can actually load it.
-        # Download MiniLM DIRECTLY via SentenceTransformer (raises on failure) and VERIFY the
-        # offline load (exactly what the tests do). preload_evidence_models swallowed download
-        # errors, so a transient HF blip left the cache empty yet the step "green" → tests then
-        # failed with LocalEntryNotFoundError. Retry transient hiccups; fail loud if it can't.
-        # The ml-models artifact can leave read-only / broken-symlink MiniLM remnants that
-        # shutil.rmtree(ignore_errors=True) silently skips, so the re-download merges with a
-        # corrupt tree and the offline search tests fail (LocalEntryNotFoundError). Force-clean
-        # with `rm -rf`, re-download, and VERIFY via the EXACT loader the tests use
-        # (load_embedding_model, offline) so this step's success guarantees theirs.
-        DIR=$(python -c "from podcast_scraper.cache.directories import get_transformers_cache_dir as g; from podcast_scraper import config_constants as cc; print(g()/('models--'+cc.DEFAULT_EMBEDDING_MODEL.replace('/','--')))")
-        for i in 1 2 3; do
-          rm -rf "$DIR"
-          python -c "from podcast_scraper.providers.ml.model_loader import preload_evidence_models; from podcast_scraper import config_constants as cc; preload_evidence_models(embedding_models=[cc.DEFAULT_EMBEDDING_MODEL])" \
-            && HF_HUB_OFFLINE=1 python -c "from podcast_scraper.providers.ml.embedding_loader import load_embedding_model; from podcast_scraper import config_constants as cc; load_embedding_model(cc.DEFAULT_EMBEDDING_MODEL); print('OK: MiniLM loads offline via load_embedding_model')" \
-            && exit 0
-          echo "MiniLM ensure attempt $i failed; retrying..."; sleep $((i * 5))
-        done
-        echo "=== MiniLM cache tree after failures (diagnostic) ==="; find "$DIR" -ls 2>&1 | head -80
-        echo "ERROR: MiniLM not loadable via the test path after 3 attempts"; exit 1
     - name: Run fast integration tests with coverage (critical path only, with network guard)
       run: |
         PYTHONPATH="${PYTHONPATH}:$(pwd)"

@@ -144,3 +144,69 @@ def test_run_without_kg_or_transcript(tmp_path):
     assert rc == 0
     edge_types = {e["type"] for e in json.loads((tmp_path / "ep1.gi.json").read_text())["edges"]}
     assert "HAS_EPISODE" in edge_types and "MENTIONS" not in edge_types
+
+
+# === #876: corpus-wide SPOKEN_BY for re-diarized whisper episodes (named transcript) ===
+
+_DIARIZED_TRANSCRIPT = "Maya: Welcome to the show.\nLiam: SpaceX will list soon.\n"
+
+
+def _build_diarized_corpus(tmp_path):
+    """One-episode corpus whose transcript is the NEW diarization's *named* screenplay
+    (``Maya:`` / ``Liam:``) — the shape a re-diarized whisper episode (#876) has — with a
+    Quote in the guest's turn."""
+    (tmp_path / "metadata").mkdir()
+    quote_char = _DIARIZED_TRANSCRIPT.index("SpaceX will list soon")
+    (tmp_path / "metadata" / "ep1.metadata.json").write_text(
+        json.dumps(
+            {
+                "feed": {"title": "Test Show"},
+                "episode": {"episode_id": "ep1"},
+                "content": {
+                    "transcript_file_path": "transcript.txt",
+                    "detected_hosts": ["Maya"],
+                    "detected_guests": ["Liam"],
+                },
+                "grounded_insights": {"artifact_path": "ep1.gi.json"},
+            }
+        ),
+        encoding="utf-8",
+    )
+    (tmp_path / "ep1.gi.json").write_text(
+        json.dumps(
+            {
+                "schema_version": "2.0",
+                "model_version": "t",
+                "prompt_version": "t",
+                "episode_id": "ep1",
+                "nodes": [
+                    {"id": "episode:ep1", "type": "Episode", "properties": {}},
+                    {"id": "insight:1", "type": "Insight", "properties": {"text": "SpaceX IPO."}},
+                    {
+                        "id": "quote:1",
+                        "type": "Quote",
+                        "properties": {
+                            "char_start": quote_char,
+                            "text": "SpaceX will list soon.",
+                        },
+                    },
+                ],
+                "edges": [{"type": "SUPPORTED_BY", "from": "insight:1", "to": "quote:1"}],
+            }
+        ),
+        encoding="utf-8",
+    )
+    (tmp_path / "transcript.txt").write_text(_DIARIZED_TRANSCRIPT, encoding="utf-8")
+
+
+def test_run_emits_spoken_by_for_named_diarized_transcript(tmp_path):
+    """#876: enrich-edges emits SPOKEN_BY for the new diarization's NAMED transcript
+    (re-diarized whisper episodes), attributing the guest's quote to person:liam via the
+    #875 named path — this is the corpus-wide coverage the reprocess unlocks."""
+    _build_diarized_corpus(tmp_path)
+    rc = run_enrich_edges_cli(parse_enrich_edges_argv(["--output-dir", str(tmp_path)]), _LOG)
+    assert rc == 0
+    art = json.loads((tmp_path / "ep1.gi.json").read_text())
+    spoken = {(e["from"], e["to"]) for e in art["edges"] if e["type"] == "SPOKEN_BY"}
+    assert ("quote:1", "person:liam") in spoken
+    assert any(n["id"] == "person:liam" and n["type"] == "Person" for n in art["nodes"])

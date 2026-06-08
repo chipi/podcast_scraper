@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import sys
+import types
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -9,6 +11,7 @@ from pydantic import ValidationError
 
 from podcast_scraper import config
 from podcast_scraper.providers.deepgram.deepgram_provider import (
+    _create_deepgram_client,
     _words_to_segments,
     DeepgramTranscriptionProvider,
     parse_deepgram_transcript,
@@ -508,3 +511,54 @@ class TestDeepgramApiBaseConfig:
             transcription_provider="deepgram",
         )
         assert cfg.deepgram_api_base == "http://dg.internal:8080"
+
+
+class TestDeepgramTranscribeWrapper:
+    def test_transcribe_returns_text_from_segments_path(self) -> None:
+        """transcribe() is a thin wrapper over transcribe_with_segments returning text."""
+        mock_client = MagicMock()
+        mock_client.listen.v1.media.transcribe_file.return_value = {
+            "results": {
+                "channels": [{"alternatives": [{"transcript": "wrapper text"}]}],
+                "utterances": [],
+            }
+        }
+        provider = _provider_with_mock_client(mock_client)
+        with (
+            patch("builtins.open", create=True) as mock_open,
+            patch(
+                "podcast_scraper.providers.deepgram.deepgram_provider.os.path.exists",
+                return_value=True,
+            ),
+        ):
+            mock_open.return_value.__enter__.return_value.read.return_value = b"audio"
+            text = provider.transcribe("/tmp/ep.mp3", language="en")
+        assert text == "wrapper text"
+
+
+class TestCreateDeepgramClient:
+    def test_base_url_override_failure_falls_back_to_hosted(self) -> None:
+        """When the SDK lacks the environment override, _create_deepgram_client logs a
+        warning and falls back to the default hosted client (best-effort, lines 127-133).
+
+        deepgram-sdk may not be installed in the unit env, so inject fake modules: the
+        environment constructor raises, and we assert the fallback DeepgramClient is
+        built with just the api_key."""
+        fake_deepgram = types.ModuleType("deepgram")
+        fake_client = MagicMock(return_value="HOSTED_CLIENT")
+        fake_deepgram.DeepgramClient = fake_client  # type: ignore[attr-defined]
+        fake_env_mod = types.ModuleType("deepgram.environment")
+
+        class _RaisingEnv:
+            def __init__(self, **_kwargs):
+                raise RuntimeError("this SDK has no environment override")
+
+        fake_env_mod.DeepgramClientEnvironment = _RaisingEnv  # type: ignore[attr-defined]
+
+        with patch.dict(
+            sys.modules, {"deepgram": fake_deepgram, "deepgram.environment": fake_env_mod}
+        ):
+            client = _create_deepgram_client("dg-key", base_url="http://self-hosted:8080")
+
+        assert client == "HOSTED_CLIENT"
+        fake_deepgram.DeepgramClient.assert_called_once_with(api_key="dg-key")

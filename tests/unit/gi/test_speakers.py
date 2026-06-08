@@ -7,6 +7,7 @@ import pytest
 from podcast_scraper.gi.speakers import (
     add_spoken_by_edges,
     attribute_quote_speakers,
+    build_named_turns,
     build_speaker_turns,
     map_clusters_to_people,
     speaker_for_char,
@@ -83,3 +84,96 @@ def test_add_spoken_by_edges_emits_person_and_edge_idempotently():
     assert (
         add_spoken_by_edges(artifact, _TRANSCRIPT, hosts=["Bloomberg"], guests=["John Guest"]) == 0
     )
+
+
+# === #875: named diarized markers (panels / multi-guest) ===
+
+# A 3-speaker panel — the named screenplay the new diarization writes. The 2-speaker
+# role heuristic cannot tell Liam and Priya apart; named markers attribute each directly.
+_PANEL_TRANSCRIPT = (
+    "Maya: Welcome to the roundtable on AI policy.\n"
+    "Liam: Thanks Maya. Regulation is moving fast in the EU.\n"
+    "Priya: I'd push back, enforcement lags the rules badly.\n"
+    "Liam: Fair, but the AI Act sets a real baseline.\n"
+    "Maya: Let's dig into enforcement then.\n"
+)
+_PANEL_HOSTS = ["Maya"]
+_PANEL_GUESTS = ["Liam", "Priya"]
+
+
+def test_build_named_turns_matches_only_detected_people():
+    known = {"maya": "Maya", "liam": "Liam", "priya": "Priya"}
+    turns = build_named_turns(_PANEL_TRANSCRIPT, known)
+    assert [name for _, name in turns] == ["Maya", "Liam", "Priya", "Liam", "Maya"]
+    # prose colons (none here) and unknown labels are ignored
+    assert build_named_turns("Note: a stray line.\nQ: another.\n", known) == []
+
+
+def test_named_markers_attribute_each_panelist_directly():
+    maya_c = _PANEL_TRANSCRIPT.index("Welcome to the roundtable")
+    liam_c = _PANEL_TRANSCRIPT.index("Regulation is moving")
+    priya_c = _PANEL_TRANSCRIPT.index("enforcement lags")
+    attribution = attribute_quote_speakers(
+        _PANEL_TRANSCRIPT,
+        {"q:maya": maya_c, "q:liam": liam_c, "q:priya": priya_c},
+        hosts=_PANEL_HOSTS,
+        guests=_PANEL_GUESTS,
+    )
+    assert attribution == {
+        "q:maya": "person:maya",
+        "q:liam": "person:liam",
+        "q:priya": "person:priya",
+    }
+
+
+def test_named_path_handles_single_token_first_names():
+    # "Maya" (1 token) attributes via the named path — the role-heuristic host check
+    # (>=2 tokens) would reject it.
+    c = _PANEL_TRANSCRIPT.index("Let's dig into enforcement")
+    out = attribute_quote_speakers(
+        _PANEL_TRANSCRIPT, {"q": c}, hosts=["Maya"], guests=["Liam", "Priya"]
+    )
+    assert out == {"q": "person:maya"}
+
+
+def test_named_publisher_label_not_attributed():
+    transcript = "Bloomberg: Markets are volatile today.\nJohn Guest: Indeed, rates matter.\n"
+    bbg_c = transcript.index("Markets are volatile")
+    guest_c = transcript.index("Indeed, rates")
+    out = attribute_quote_speakers(
+        transcript,
+        {"q:bbg": bbg_c, "q:guest": guest_c},
+        hosts=["Bloomberg"],
+        guests=["John Guest"],
+    )
+    # Publisher "Bloomberg" is excluded; the person guest still attributes.
+    assert out == {"q:guest": "person:john-guest"}
+
+
+def test_add_spoken_by_edges_panel_emits_all_panelists():
+    artifact = {
+        "nodes": [
+            {
+                "id": "quote:m",
+                "type": "Quote",
+                "properties": {"char_start": _PANEL_TRANSCRIPT.index("Welcome to the roundtable")},
+            },
+            {
+                "id": "quote:l",
+                "type": "Quote",
+                "properties": {"char_start": _PANEL_TRANSCRIPT.index("Regulation is moving")},
+            },
+            {
+                "id": "quote:p",
+                "type": "Quote",
+                "properties": {"char_start": _PANEL_TRANSCRIPT.index("enforcement lags")},
+            },
+        ],
+        "edges": [],
+    }
+    added = add_spoken_by_edges(
+        artifact, _PANEL_TRANSCRIPT, hosts=_PANEL_HOSTS, guests=_PANEL_GUESTS
+    )
+    assert added == 3
+    persons = {n["id"] for n in artifact["nodes"] if n["type"] == "Person"}
+    assert persons == {"person:maya", "person:liam", "person:priya"}

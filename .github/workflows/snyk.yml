@@ -25,6 +25,7 @@ on:
 permissions:
   contents: read
   security-events: write
+  packages: read  # pull the GHCR registry build cache that docker-build-full maintains (#915)
 
 # Cancel in-progress scan when a newer push to the same ref arrives.
 # Snyk runs are 3-18 min; old run's findings are superseded the moment a
@@ -124,7 +125,15 @@ jobs:
           driver-opts: |
             image=moby/buildkit:latest
 
-      # PRs: same as docker-build-fast — cache-from only (no cache-to; avoids GHA 502 on export).
+      - name: Log in to GHCR (registry build cache, read-only)
+        uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # Snyk reuses the GHCR build cache that docker-build-full maintains — cache-from
+      # only (no cache-to), so it no longer exports a duplicate of the ~5 GB model layer (#915).
       - name: Build Docker image (PR — LLM-only, fast)
         if: github.event_name == 'pull_request'
         uses: docker/build-push-action@v7
@@ -136,9 +145,10 @@ jobs:
           push: false
           load: true
           tags: podcast-scraper:snyk-scan
-          cache-from: type=gha,scope=llm-only
+          cache-from: type=registry,ref=ghcr.io/${{ github.repository_owner }}/podcast-scraper-buildcache:llm-only
 
-      # Push / workflow_dispatch: same ML matrix args + GHA cache as docker-build-full `ml`.
+      # Push / workflow_dispatch: same ML args as docker-build-full `ml`, reusing its GHCR
+      # build cache READ-ONLY (no cache-to) — the duplicate ~5 GB model-layer export is gone.
       - name: Build Docker image (main — ML + preload)
         if: github.event_name != 'pull_request'
         uses: docker/build-push-action@v7
@@ -151,8 +161,7 @@ jobs:
           push: false
           load: true
           tags: podcast-scraper:snyk-scan
-          cache-from: type=gha,scope=ml
-          cache-to: type=gha,mode=min,scope=ml
+          cache-from: type=registry,ref=ghcr.io/${{ github.repository_owner }}/podcast-scraper-buildcache:ml
 
       - name: Verify Docker image exists
         run: |

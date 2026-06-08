@@ -16,6 +16,8 @@ WIP file is removed.
 
 | File | Description | Status |
 | ---- | ----------- | ------ |
+| `BATCH-PLAN-diarization-followups.md` | Plan for the `feat/diarization-followups` PR (#875/#876/#909 + coverage debt + graph-validation phase) | Active |
+| `COVERAGE-DEBT-deepgram-diarization-pr908.md` | Coverage gaps from PR #908 to clear in the next batch | Backlog |
 | `AUDIO-WAVES-HARDENING-AUDIT.md` | Review findings + change list for audio Waves 1–3 (#850/#895/#898) | Backlog |
 | `EXPLORE_EXPANSION_IDEAS.md` | Explore-tab feature brainstorming | Idea |
 | `HOME_AI_HARDWARE_PLAN.md` | Local hardware / on-prem AI plan | Idea |

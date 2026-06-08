@@ -2516,5 +2516,46 @@ class TestRecordTranscriptionMetrics(unittest.TestCase):
         )
 
 
+class TestDeepgramChunkLocalWarning(unittest.TestCase):
+    """D3: chunking a Deepgram episode warns that speaker ids are chunk-local."""
+
+    def test_deepgram_chunking_warns_chunk_local_speakers(self):
+        from podcast_scraper import config
+        from podcast_scraper.workflow import episode_processor as ep
+
+        cfg = config.Config(
+            rss="https://example.com/feed.xml",
+            transcription_provider="deepgram",
+            deepgram_api_key="dg-test",
+        )
+        job = MagicMock()
+        job.idx = 0
+
+        with (
+            patch(
+                "podcast_scraper.preprocessing.audio.chunker.AudioChunker.needs_chunking",
+                return_value=True,
+            ),
+            patch(
+                "podcast_scraper.preprocessing.audio.chunker.transcribe_file_in_chunks",
+                return_value=({"text": "x", "segments": []}, 0.0),
+            ),
+            self.assertLogs("podcast_scraper.workflow.episode_processor", level="WARNING") as cm,
+        ):
+            ep._transcribe_with_segments_maybe_chunked(
+                "/tmp/audio.mp3",
+                cfg=cfg,
+                job=job,
+                transcription_provider=MagicMock(),
+                pipeline_metrics=None,
+                episode_duration_seconds=None,
+                call_metrics=MagicMock(),
+            )
+        self.assertTrue(
+            any("chunk-local" in line for line in cm.output),
+            f"expected a chunk-local speaker warning, got: {cm.output}",
+        )
+
+
 if __name__ == "__main__":
     unittest.main()

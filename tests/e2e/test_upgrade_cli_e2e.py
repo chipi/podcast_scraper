@@ -52,7 +52,6 @@ def _build_faiss_corpus(root: Path) -> None:
                 text,
                 "sentence-transformers/all-MiniLM-L6-v2",
                 return_numpy=False,
-                allow_download=True,
             )
         )
 
