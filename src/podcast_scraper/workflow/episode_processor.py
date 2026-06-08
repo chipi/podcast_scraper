@@ -280,7 +280,21 @@ def download_media_for_transcription(
         episode.idx, episode.title_safe, run_suffix, effective_output_dir
     )
     if cfg.skip_existing and os.path.exists(final_out_path):
-        if _should_retranscribe_for_gi_segments(cfg, final_out_path):
+        if _force_reprocess_for_source(episode, effective_output_dir, run_suffix, cfg):
+            # #925: a scoped reprocess (--reprocess-source) forces matching episodes
+            # (e.g. whisper_transcription) back through download+transcribe so diarization
+            # re-runs and the GI/KG/CIL cascade with it. This is the Whisper path (episodes
+            # with no transcript URL); the override in _check_existing_transcript covers the
+            # direct-download path. Falling through schedules a real download, so the
+            # job.temp_media reuse skip below is bypassed too.
+            logger.info(
+                "[%s] [#925] forcing re-transcription + diarization (reprocess-source=%s): %s",
+                episode.idx,
+                cfg.reprocess_source,
+                final_out_path,
+            )
+            # Fall through: schedule download/transcribe.
+        elif _should_retranscribe_for_gi_segments(cfg, final_out_path):
             logger.info(
                 "[%s] Transcript exists without .segments.json; will re-transcribe to populate "
                 "sidecar for GI quote timestamps and segment-backed speaker_id when segments "

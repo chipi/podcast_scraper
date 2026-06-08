@@ -9,6 +9,8 @@ non-matching episodes are unaffected, and with the flag off behaviour is unchang
 from __future__ import annotations
 
 import json
+import os
+import xml.etree.ElementTree as ET
 from types import SimpleNamespace
 
 import pytest
@@ -16,8 +18,12 @@ import pytest
 from podcast_scraper.utils import filesystem
 from podcast_scraper.workflow import episode_processor as ep
 from podcast_scraper.workflow import metadata_generation
+from tests.conftest import create_test_config, create_test_episode
 
 pytestmark = pytest.mark.unit
+
+_MEDIA_URL = "https://example.com/audio.mp3"
+_MEDIA_TYPE = "audio/mpeg"
 
 
 def _cfg(**kw):
@@ -112,3 +118,76 @@ def test_check_existing_forces_reprocess_when_source_matches(tmp_path, monkeypat
     # transcript present but forced -> do NOT skip (False) so it re-transcribes/diarizes
     cfg = _cfg(reprocess_source="whisper_transcription")
     assert ep._check_existing_transcript(episode, str(tmp_path), None, cfg) is False
+
+
+# --- download_media_for_transcription override (the real Whisper path, #925) ----
+# A whisper_transcription episode has no transcript URL, so it routes through
+# download_media_for_transcription (NOT _check_existing_transcript). These drive
+# that function directly -- the path the original #925 override missed.
+
+
+def _whisper_episode_with_existing_transcript(tmp_path, *, transcript_source, reprocess_source):
+    temp_dir = os.path.join(str(tmp_path), ".tmp_media")
+    os.makedirs(temp_dir, exist_ok=True)
+    ep_title = "Episode 1"
+    ep_title_safe = filesystem.sanitize_filename(ep_title)
+    os.makedirs(os.path.join(str(tmp_path), filesystem.TRANSCRIPTS_SUBDIR), exist_ok=True)
+    final_path = filesystem.build_whisper_output_path(1, ep_title_safe, None, str(tmp_path))
+    with open(final_path, "wb") as fh:
+        fh.write(b"existing transcript")  # so skip_existing would normally skip
+
+    cfg = create_test_config(
+        output_dir=str(tmp_path),
+        skip_existing=True,
+        transcribe_missing=True,
+        dry_run=True,  # short-circuit the real download; returns a job if not skipped
+        reprocess_source=reprocess_source,
+    )
+    item = ET.Element("item")
+    ET.SubElement(item, "enclosure", attrib={"url": _MEDIA_URL, "type": _MEDIA_TYPE})
+    episode = create_test_episode(
+        idx=1,
+        title=ep_title,
+        title_safe=ep_title_safe,
+        item=item,
+        transcript_urls=[],  # no transcript URL -> Whisper path
+        media_url=_MEDIA_URL,
+        media_type=_MEDIA_TYPE,
+    )
+    # Existing metadata carrying the source the filter keys off.
+    meta_path = metadata_generation._determine_metadata_path(episode, str(tmp_path), None, cfg)
+    os.makedirs(os.path.dirname(meta_path), exist_ok=True)
+    with open(meta_path, "w", encoding="utf-8") as fh:
+        json.dump({"content": {"transcript_source": transcript_source}}, fh)
+    return cfg, episode, temp_dir
+
+
+def test_whisper_episode_skipped_without_reprocess_source(tmp_path):
+    cfg, episode, temp_dir = _whisper_episode_with_existing_transcript(
+        tmp_path, transcript_source="whisper_transcription", reprocess_source=None
+    )
+    job = ep.download_media_for_transcription(episode, cfg, temp_dir, str(tmp_path), None)
+    assert job is None, "no --reprocess-source: existing transcript should be skipped"
+
+
+def test_whisper_episode_forced_when_source_matches(tmp_path):
+    # THE regression guard: a matching whisper episode must NOT be skipped, so
+    # download/transcribe (and thus re-diarization) is scheduled.
+    cfg, episode, temp_dir = _whisper_episode_with_existing_transcript(
+        tmp_path,
+        transcript_source="whisper_transcription",
+        reprocess_source="whisper_transcription",
+    )
+    job = ep.download_media_for_transcription(episode, cfg, temp_dir, str(tmp_path), None)
+    assert job is not None, "matching --reprocess-source must force re-transcription (not skip)"
+
+
+def test_direct_download_episode_not_forced_by_whisper_filter(tmp_path):
+    # A direct_download episode is left untouched when re-diarizing the whisper set.
+    cfg, episode, temp_dir = _whisper_episode_with_existing_transcript(
+        tmp_path,
+        transcript_source="direct_download",
+        reprocess_source="whisper_transcription",
+    )
+    job = ep.download_media_for_transcription(episode, cfg, temp_dir, str(tmp_path), None)
+    assert job is None, "source mismatch must not force reprocess"
