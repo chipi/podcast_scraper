@@ -10,7 +10,7 @@
     "kg_relative_path": "feeds/p01/metadata/p01_e01.kg.json",
     "metadata_relative_path": "feeds/p01/metadata/p01_e01.metadata.json",
     "path": "/Users/markodragoljevic/Projects/podcast_scraper-FUTURE/tests/fixtures/viewer-validation-corpus/v2",
-    "publish_date": "2026-06-06",
+    "publish_date": "2026-06-07",
     "summary_bullets": [
       "# Singletrack Sessions \u2014 Episode\n## Building Trails That Last\nHost: Maya\nGuest: Liam\nMaya: Welcome back to Singletrack Sessions.",
       "Today we're talking about trail building, and I'm joined by Liam, trail builder for the Cascadia Alliance.",
@@ -30,7 +30,7 @@
     "kg_relative_path": "feeds/p01/metadata/p01_e02.kg.json",
     "metadata_relative_path": "feeds/p01/metadata/p01_e02.metadata.json",
     "path": "/Users/markodragoljevic/Projects/podcast_scraper-FUTURE/tests/fixtures/viewer-validation-corpus/v2",
-    "publish_date": "2026-06-04",
+    "publish_date": "2026-06-05",
     "summary_bullets": [
       "# Singletrack Sessions \u2014 Episode\n## Enduro Skills Without the Hype\nHost: Maya\nGuest: Sophie\nMaya: Welcome back to Singletrack Sessions.",
       "Today we're talking about enduro racing, and I'm joined by Sophie, enduro racer and coach.",
@@ -50,13 +50,13 @@
     "kg_relative_path": "feeds/p01/metadata/p01_e03.kg.json",
     "metadata_relative_path": "feeds/p01/metadata/p01_e03.metadata.json",
     "path": "/Users/markodragoljevic/Projects/podcast_scraper-FUTURE/tests/fixtures/viewer-validation-corpus/v2",
-    "publish_date": "2026-06-02",
+    "publish_date": "2026-06-03",
     "summary_bullets": [
       "# Singletrack Sessions \u2014 Episode\n## The Mechanics of a Quiet, Fast Bike\nHost: Maya\nGuest: Noah\nMaya: Welcome back to Singletrack Sessions.",
       "Today we're talking about drivetrain mechanics, and I'm joined by Noah, mechanic at Spoke & Wrench.",
-      "Before we dive in, a quick word from our sponsor Notion."
+      "This episode is brought to you by Notion."
     ],
-    "summary_text": "# Singletrack Sessions \u2014 Episode\n## The Mechanics of a Quiet, Fast Bike\nHost: Maya\nGuest: Noah\nMaya: Welcome back to Singletrack Sessions.\nToday we're talking about drivetrain mechanics, and I'm joined by Noah, mechanic at Spoke & Wrench.\nBefore we dive in, a quick word from our sponsor Notion.",
+    "summary_text": "# Singletrack Sessions \u2014 Episode\n## The Mechanics of a Quiet, Fast Bike\nHost: Maya\nGuest: Noah\nMaya: Welcome back to Singletrack Sessions.\nToday we're talking about drivetrain mechanics, and I'm joined by Noah, mechanic at Spoke & Wrench.\nThis episode is brought to you by Notion.",
     "summary_title": "Singletrack Sessions \u2014 Episode 3 \u2014 synthetic"
   },
   "feeds/p02/metadata/p02_e01.metadata.json": {
@@ -70,7 +70,7 @@
     "kg_relative_path": "feeds/p02/metadata/p02_e01.kg.json",
     "metadata_relative_path": "feeds/p02/metadata/p02_e01.metadata.json",
     "path": "/Users/markodragoljevic/Projects/podcast_scraper-FUTURE/tests/fixtures/viewer-validation-corpus/v2",
-    "publish_date": "2026-06-05",
+    "publish_date": "2026-06-06",
     "summary_bullets": [
       "# Practical Systems \u2014 Episode\n## On-Call That Doesn't Break People\nHost: Ethan\nGuest: Priya\nEthan: Welcome back to Practical Systems.",
       "Today we're talking about on call rotation, and I'm joined by Priya, principal SRE at a payments platform.",
@@ -90,13 +90,13 @@
     "kg_relative_path": "feeds/p02/metadata/p02_e02.kg.json",
     "metadata_relative_path": "feeds/p02/metadata/p02_e02.metadata.json",
     "path": "/Users/markodragoljevic/Projects/podcast_scraper-FUTURE/tests/fixtures/viewer-validation-corpus/v2",
-    "publish_date": "2026-06-03",
+    "publish_date": "2026-06-04",
     "summary_bullets": [
       "# Practical Systems \u2014 Episode\n## Staff-Engineer Communication Patterns\nHost: Ethan\nGuest: Jonas\nEthan: Welcome back to Practical Systems.",
       "Today we're talking about engineering communication, and I'm joined by Jonas, staff engineer focused on platform teams.",
-      "Before we dive in, a quick word from our sponsor Notion."
+      "Today's episode is sponsored by Notion."
     ],
-    "summary_text": "# Practical Systems \u2014 Episode\n## Staff-Engineer Communication Patterns\nHost: Ethan\nGuest: Jonas\nEthan: Welcome back to Practical Systems.\nToday we're talking about engineering communication, and I'm joined by Jonas, staff engineer focused on platform teams.\nBefore we dive in, a quick word from our sponsor Notion.",
+    "summary_text": "# Practical Systems \u2014 Episode\n## Staff-Engineer Communication Patterns\nHost: Ethan\nGuest: Jonas\nEthan: Welcome back to Practical Systems.\nToday we're talking about engineering communication, and I'm joined by Jonas, staff engineer focused on platform teams.\nToday's episode is sponsored by Notion.",
     "summary_title": "Practical Systems \u2014 Episode 2 \u2014 synthetic"
   },
   "feeds/p02/metadata/p02_e03.metadata.json": {
@@ -110,13 +110,13 @@
     "kg_relative_path": "feeds/p02/metadata/p02_e03.kg.json",
     "metadata_relative_path": "feeds/p02/metadata/p02_e03.metadata.json",
     "path": "/Users/markodragoljevic/Projects/podcast_scraper-FUTURE/tests/fixtures/viewer-validation-corpus/v2",
-    "publish_date": "2026-06-01",
+    "publish_date": "2026-06-02",
     "summary_bullets": [
       "# Practical Systems \u2014 Episode\n## Security as Design, Not a Checklist\nHost: Ethan\nGuest: Priya\nEthan: Welcome back to Practical Systems.",
       "Today we're talking about security design, and I'm joined by Priya, principal SRE at a payments platform.",
-      "Before we dive in, a quick word from our sponsor Vanta."
+      "Today's episode is sponsored by Vanta."
     ],
-    "summary_text": "# Practical Systems \u2014 Episode\n## Security as Design, Not a Checklist\nHost: Ethan\nGuest: Priya\nEthan: Welcome back to Practical Systems.\nToday we're talking about security design, and I'm joined by Priya, principal SRE at a payments platform.\nBefore we dive in, a quick word from our sponsor Vanta.",
+    "summary_text": "# Practical Systems \u2014 Episode\n## Security as Design, Not a Checklist\nHost: Ethan\nGuest: Priya\nEthan: Welcome back to Practical Systems.\nToday we're talking about security design, and I'm joined by Priya, principal SRE at a payments platform.\nToday's episode is sponsored by Vanta.",
     "summary_title": "Practical Systems \u2014 Episode 3 \u2014 synthetic"
   },
   "feeds/p03/metadata/p03_e01.metadata.json": {
@@ -130,7 +130,7 @@
     "kg_relative_path": "feeds/p03/metadata/p03_e01.kg.json",
     "metadata_relative_path": "feeds/p03/metadata/p03_e01.metadata.json",
     "path": "/Users/markodragoljevic/Projects/podcast_scraper-FUTURE/tests/fixtures/viewer-validation-corpus/v2",
-    "publish_date": "2026-06-04",
+    "publish_date": "2026-06-05",
     "summary_bullets": [
       "# Below the Surface \u2014 Episode\n## Wreck Diving Fundamentals\nHost: Rina\nGuest: Marco\nRina: Welcome back to Below the Surface.",
       "Today we're talking about wreck diving, and I'm joined by Marco, technical diver and underwater archaeologist.",
@@ -150,13 +150,13 @@
     "kg_relative_path": "feeds/p03/metadata/p03_e02.kg.json",
     "metadata_relative_path": "feeds/p03/metadata/p03_e02.metadata.json",
     "path": "/Users/markodragoljevic/Projects/podcast_scraper-FUTURE/tests/fixtures/viewer-validation-corpus/v2",
-    "publish_date": "2026-06-02",
+    "publish_date": "2026-06-03",
     "summary_bullets": [
       "# Below the Surface \u2014 Episode\n## Marine Biology for Divers\nHost: Rina\nGuest: Hanna\nRina: Welcome back to Below the Surface.",
       "Today we're talking about marine biology, and I'm joined by Hanna, marine biologist focused on reef systems.",
-      "Today's episode is sponsored by PADI."
+      "This episode is brought to you by PADI."
     ],
-    "summary_text": "# Below the Surface \u2014 Episode\n## Marine Biology for Divers\nHost: Rina\nGuest: Hanna\nRina: Welcome back to Below the Surface.\nToday we're talking about marine biology, and I'm joined by Hanna, marine biologist focused on reef systems.\nToday's episode is sponsored by PADI.",
+    "summary_text": "# Below the Surface \u2014 Episode\n## Marine Biology for Divers\nHost: Rina\nGuest: Hanna\nRina: Welcome back to Below the Surface.\nToday we're talking about marine biology, and I'm joined by Hanna, marine biologist focused on reef systems.\nThis episode is brought to you by PADI.",
     "summary_title": "Below the Surface \u2014 Episode 2 \u2014 synthetic"
   },
   "feeds/p03/metadata/p03_e03.metadata.json": {
@@ -170,13 +170,13 @@
     "kg_relative_path": "feeds/p03/metadata/p03_e03.kg.json",
     "metadata_relative_path": "feeds/p03/metadata/p03_e03.metadata.json",
     "path": "/Users/markodragoljevic/Projects/podcast_scraper-FUTURE/tests/fixtures/viewer-validation-corpus/v2",
-    "publish_date": "2026-06-06",
+    "publish_date": "2026-06-07",
     "summary_bullets": [
       "# Below the Surface \u2014 Episode\n## Calm Under Pressure\nHost: Rina\nGuest: Owen\nRina: Welcome back to Below the Surface.",
       "Today we're talking about calm under pressure, and I'm joined by Owen, rebreather instructor and cave diver.",
-      "Today's episode is sponsored by Suunto."
+      "This episode is brought to you by Suunto."
     ],
-    "summary_text": "# Below the Surface \u2014 Episode\n## Calm Under Pressure\nHost: Rina\nGuest: Owen\nRina: Welcome back to Below the Surface.\nToday we're talking about calm under pressure, and I'm joined by Owen, rebreather instructor and cave diver.\nToday's episode is sponsored by Suunto.",
+    "summary_text": "# Below the Surface \u2014 Episode\n## Calm Under Pressure\nHost: Rina\nGuest: Owen\nRina: Welcome back to Below the Surface.\nToday we're talking about calm under pressure, and I'm joined by Owen, rebreather instructor and cave diver.\nThis episode is brought to you by Suunto.",
     "summary_title": "Below the Surface \u2014 Episode 3 \u2014 synthetic"
   },
   "feeds/p04/metadata/p04_e01.metadata.json": {
@@ -190,7 +190,7 @@
     "kg_relative_path": "feeds/p04/metadata/p04_e01.kg.json",
     "metadata_relative_path": "feeds/p04/metadata/p04_e01.metadata.json",
     "path": "/Users/markodragoljevic/Projects/podcast_scraper-FUTURE/tests/fixtures/viewer-validation-corpus/v2",
-    "publish_date": "2026-06-03",
+    "publish_date": "2026-06-04",
     "summary_bullets": [
       "# Frame & Light \u2014 Episode\n## Underwater Images That Feel Alive\nHost: Leo\nGuest: Ava\nLeo: Welcome back to Frame & Light.",
       "Today we're talking about underwater photography, and I'm joined by Ava, underwater photographer.",
@@ -210,13 +210,13 @@
     "kg_relative_path": "feeds/p04/metadata/p04_e02.kg.json",
     "metadata_relative_path": "feeds/p04/metadata/p04_e02.metadata.json",
     "path": "/Users/markodragoljevic/Projects/podcast_scraper-FUTURE/tests/fixtures/viewer-validation-corpus/v2",
-    "publish_date": "2026-06-01",
+    "publish_date": "2026-06-02",
     "summary_bullets": [
       "# Frame & Light \u2014 Episode\n## Documentary Workflow in the Field\nHost: Leo\nGuest: Tariq\nLeo: Welcome back to Frame & Light.",
       "Today we're talking about documentary photography, and I'm joined by Tariq, documentary photographer.",
-      "This episode is brought to you by Adobe."
+      "Today's episode is sponsored by Adobe."
     ],
-    "summary_text": "# Frame & Light \u2014 Episode\n## Documentary Workflow in the Field\nHost: Leo\nGuest: Tariq\nLeo: Welcome back to Frame & Light.\nToday we're talking about documentary photography, and I'm joined by Tariq, documentary photographer.\nThis episode is brought to you by Adobe.",
+    "summary_text": "# Frame & Light \u2014 Episode\n## Documentary Workflow in the Field\nHost: Leo\nGuest: Tariq\nLeo: Welcome back to Frame & Light.\nToday we're talking about documentary photography, and I'm joined by Tariq, documentary photographer.\nToday's episode is sponsored by Adobe.",
     "summary_title": "Frame & Light \u2014 Episode 2 \u2014 synthetic"
   },
   "feeds/p04/metadata/p04_e03.metadata.json": {
@@ -230,13 +230,13 @@
     "kg_relative_path": "feeds/p04/metadata/p04_e03.kg.json",
     "metadata_relative_path": "feeds/p04/metadata/p04_e03.metadata.json",
     "path": "/Users/markodragoljevic/Projects/podcast_scraper-FUTURE/tests/fixtures/viewer-validation-corpus/v2",
-    "publish_date": "2026-06-05",
+    "publish_date": "2026-06-06",
     "summary_bullets": [
       "# Frame & Light \u2014 Episode\n## Lighting Decisions That Save a Shoot\nHost: Leo\nGuest: Elise\nLeo: Welcome back to Frame & Light.",
       "Today we're talking about lighting design, and I'm joined by Elise, commercial lighting director.",
-      "Before we dive in, a quick word from our sponsor Adobe."
+      "Today's episode is sponsored by Adobe."
     ],
-    "summary_text": "# Frame & Light \u2014 Episode\n## Lighting Decisions That Save a Shoot\nHost: Leo\nGuest: Elise\nLeo: Welcome back to Frame & Light.\nToday we're talking about lighting design, and I'm joined by Elise, commercial lighting director.\nBefore we dive in, a quick word from our sponsor Adobe.",
+    "summary_text": "# Frame & Light \u2014 Episode\n## Lighting Decisions That Save a Shoot\nHost: Leo\nGuest: Elise\nLeo: Welcome back to Frame & Light.\nToday we're talking about lighting design, and I'm joined by Elise, commercial lighting director.\nToday's episode is sponsored by Adobe.",
     "summary_title": "Frame & Light \u2014 Episode 3 \u2014 synthetic"
   },
   "feeds/p05/metadata/p05_e01.metadata.json": {
@@ -250,7 +250,7 @@
     "kg_relative_path": "feeds/p05/metadata/p05_e01.kg.json",
     "metadata_relative_path": "feeds/p05/metadata/p05_e01.metadata.json",
     "path": "/Users/markodragoljevic/Projects/podcast_scraper-FUTURE/tests/fixtures/viewer-validation-corpus/v2",
-    "publish_date": "2026-06-02",
+    "publish_date": "2026-06-03",
     "summary_bullets": [
       "# Long Horizon Notes \u2014 Episode\n## Index Investing Without the Myths\nHost: Nora\nGuest: Daniel\nNora: Welcome back to Long Horizon Notes.",
       "Today we're talking about index investing, and I'm joined by Daniel, former bond trader turned index advocate.",
@@ -270,7 +270,7 @@
     "kg_relative_path": "feeds/p05/metadata/p05_e02.kg.json",
     "metadata_relative_path": "feeds/p05/metadata/p05_e02.metadata.json",
     "path": "/Users/markodragoljevic/Projects/podcast_scraper-FUTURE/tests/fixtures/viewer-validation-corpus/v2",
-    "publish_date": "2026-06-06",
+    "publish_date": "2026-06-07",
     "summary_bullets": [
       "# Long Horizon Notes \u2014 Episode\n## Real Estate: Numbers Before Narratives\nHost: Nora\nGuest: Isabel\nNora: Welcome back to Long Horizon Notes.",
       "Today we're talking about real estate underwriting, and I'm joined by Isabel, real estate underwriter.",
@@ -290,7 +290,7 @@
     "kg_relative_path": "feeds/p05/metadata/p05_e03.kg.json",
     "metadata_relative_path": "feeds/p05/metadata/p05_e03.metadata.json",
     "path": "/Users/markodragoljevic/Projects/podcast_scraper-FUTURE/tests/fixtures/viewer-validation-corpus/v2",
-    "publish_date": "2026-06-04",
+    "publish_date": "2026-06-05",
     "summary_bullets": [
       "# Long Horizon Notes \u2014 Episode\n## Risk Management for People Who Hate Spreadsheets\nHost: Nora\nGuest: Kasper\nNora: Welcome back to Long Horizon Notes.",
       "Today we're talking about risk management, and I'm joined by Kasper, personal-finance writer focused on risk.",
@@ -310,7 +310,7 @@
     "kg_relative_path": "feeds/p06/metadata/p06_e01.kg.json",
     "metadata_relative_path": "feeds/p06/metadata/p06_e01.metadata.json",
     "path": "/Users/markodragoljevic/Projects/podcast_scraper-FUTURE/tests/fixtures/viewer-validation-corpus/v2",
-    "publish_date": "2026-06-01",
+    "publish_date": "2026-06-02",
     "summary_bullets": [
       "# Edge Cases \u2014 Episode e01\n## Empty-ish Episode\nHost: Maya\nMaya: This is an edge-case fixture used for parser and processor robustness tests.",
       "This episode is intentionally short to test minimal-content handling.",
@@ -330,7 +330,7 @@
     "kg_relative_path": "feeds/p06/metadata/p06_e02.kg.json",
     "metadata_relative_path": "feeds/p06/metadata/p06_e02.metadata.json",
     "path": "/Users/markodragoljevic/Projects/podcast_scraper-FUTURE/tests/fixtures/viewer-validation-corpus/v2",
-    "publish_date": "2026-06-05",
+    "publish_date": "2026-06-06",
     "summary_bullets": [
       "# Edge Cases \u2014 Episode e02\n## No-Speaker Lines\nHost: Maya\nMaya: This is an edge-case fixture used for parser and processor robustness tests.",
       "Welcome to a transcript with mixed speaker-attribution.",
@@ -350,7 +350,7 @@
     "kg_relative_path": "feeds/p06/metadata/p06_e03.kg.json",
     "metadata_relative_path": "feeds/p06/metadata/p06_e03.metadata.json",
     "path": "/Users/markodragoljevic/Projects/podcast_scraper-FUTURE/tests/fixtures/viewer-validation-corpus/v2",
-    "publish_date": "2026-06-03",
+    "publish_date": "2026-06-04",
     "summary_bullets": [
       "# Edge Cases \u2014 Episode e03\n## Repeated Speaker Labels\nHost: Maya\nMaya: This is an edge-case fixture used for parser and processor robustness tests.",
       "Third line in a row to test merging.",
@@ -370,7 +370,7 @@
     "kg_relative_path": "feeds/p07/metadata/p07_e01.kg.json",
     "metadata_relative_path": "feeds/p07/metadata/p07_e01.metadata.json",
     "path": "/Users/markodragoljevic/Projects/podcast_scraper-FUTURE/tests/fixtures/viewer-validation-corpus/v2",
-    "publish_date": "2026-06-06",
+    "publish_date": "2026-06-07",
     "summary_bullets": [
       "# The Long View \u2014 Episode\n## What Sustainability Really Means (And Why Everyone Is Talking About It)\nHost: Alex Morgan\nGuest: Dr.",
       "Elena Fischer\nAlex Morgan: Welcome to The Long View.",
@@ -390,7 +390,7 @@
     "kg_relative_path": "feeds/p08/metadata/p08_e01.kg.json",
     "metadata_relative_path": "feeds/p08/metadata/p08_e01.metadata.json",
     "path": "/Users/markodragoljevic/Projects/podcast_scraper-FUTURE/tests/fixtures/viewer-validation-corpus/v2",
-    "publish_date": "2026-06-05",
+    "publish_date": "2026-06-06",
     "summary_bullets": [
       "# The Long View \u2014 Episode\n## Solar Energy: Past, Present, and Long-Term Outlook\nHost: Alex Morgan\nGuest: Dr.",
       "Elena Fischer\nAlex Morgan: Welcome to The Long View.",
@@ -410,7 +410,7 @@
     "kg_relative_path": "feeds/p09/metadata/p09_e01.kg.json",
     "metadata_relative_path": "feeds/p09/metadata/p09_e01.metadata.json",
     "path": "/Users/markodragoljevic/Projects/podcast_scraper-FUTURE/tests/fixtures/viewer-validation-corpus/v2",
-    "publish_date": "2026-06-04",
+    "publish_date": "2026-06-05",
     "summary_bullets": [
       "# The Long View \u2014 Episode\n## The Biohacking Premise\nHost: Alex Morgan\nGuest: Dr.",
       "Elena Fischer\nAlex Morgan: Welcome to The Long View.",
@@ -430,7 +430,7 @@
     "kg_relative_path": "feeds/p09/metadata/p09_e02.kg.json",
     "metadata_relative_path": "feeds/p09/metadata/p09_e02.metadata.json",
     "path": "/Users/markodragoljevic/Projects/podcast_scraper-FUTURE/tests/fixtures/viewer-validation-corpus/v2",
-    "publish_date": "2026-06-02",
+    "publish_date": "2026-06-03",
     "summary_bullets": [
       "# The Long View \u2014 Episode\n## Continuous Glucose Monitors and What They Tell You\nHost: Alex Morgan\nGuest: Dr.",
       "Elena Fischer\nAlex Morgan: Welcome to The Long View.",
@@ -450,7 +450,7 @@
     "kg_relative_path": "feeds/p09/metadata/p09_e03.kg.json",
     "metadata_relative_path": "feeds/p09/metadata/p09_e03.metadata.json",
     "path": "/Users/markodragoljevic/Projects/podcast_scraper-FUTURE/tests/fixtures/viewer-validation-corpus/v2",
-    "publish_date": "2026-06-06",
+    "publish_date": "2026-06-07",
     "summary_bullets": [
       "# The Long View \u2014 Episode\n## The Risk Profile of Self-Experimentation\nHost: Alex Morgan\nGuest: Dr.",
       "Elena Fischer\nAlex Morgan: Welcome to The Long View.",

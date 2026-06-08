@@ -61,22 +61,26 @@
       "dst":    ["tag:dr-drill:22,80,443"]
     },
 
-    // RFC-089 / ADR-096: DGX Ollama (11434) + embedding shim (8001).
+    // RFC-089 / ADR-096 / #814:
+    //   :11434 = DGX Ollama (LLM stages).
+    //   :8000  = faster-whisper-server (transcription stage; #814).
+    //   :8001  = legacy embedding shim slot (ADR-098 removed the shim; port
+    //            kept reserved so we don't accidentally collide if it comes back).
     // Cloud fallback is enforced in profile config, not the ACL.
     {
       "action": "accept",
       "src":    ["autogroup:admin", "tag:gha-deployer"],
-      "dst":    ["tag:dgx-llm-host:11434", "tag:dgx-llm-host:8001"]
+      "dst":    ["tag:dgx-llm-host:11434", "tag:dgx-llm-host:8000", "tag:dgx-llm-host:8001"]
     },
     {
       "action": "accept",
       "src":    ["tag:dr-drill"],
-      "dst":    ["tag:dgx-llm-host:11434", "tag:dgx-llm-host:8001"]
+      "dst":    ["tag:dgx-llm-host:11434", "tag:dgx-llm-host:8000", "tag:dgx-llm-host:8001"]
     },
     {
       "action": "accept",
       "src":    ["tag:prod"],
-      "dst":    ["tag:dgx-llm-host:11434", "tag:dgx-llm-host:8001"]
+      "dst":    ["tag:dgx-llm-host:11434", "tag:dgx-llm-host:8000", "tag:dgx-llm-host:8001"]
     }
 
     // (Future, for #714 + #723) Home Assistant subscribes to /api/jobs.

@@ -15,7 +15,7 @@
   ],
   "episode": {
     "episode_id": "ac5784fa-1c94-5cd8-99c6-c4f0be157a64",
-    "published_date": "2026-06-02",
+    "published_date": "2026-06-03",
     "title": "Long Horizon Notes \u2014 Episode 1"
   },
   "episode_id": "ac5784fa-1c94-5cd8-99c6-c4f0be157a64",
@@ -40,7 +40,7 @@
     "artifact_path": "feeds/p05/metadata/p05_e01.kg.json",
     "schema_version": "1.1"
   },
-  "publish_date": "2026-06-02",
+  "publish_date": "2026-06-03",
   "schema_version": "1",
   "summary": {
     "bullets": [

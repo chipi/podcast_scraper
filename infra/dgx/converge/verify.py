@@ -1,11 +1,11 @@
-"""DGX Spark read-only verify (RFC-089 / ADR-098).
+"""DGX Spark read-only verify (RFC-089 / ADR-098 / #814).
 
 Runs assertions against the live DGX. Exits non-zero on any drift; never
 modifies remote state. Use ``make dgx-verify``.
 
 Scope is intentionally check-only — Tailscale + Ollama + NVIDIA driver bring-up
-stays operator-manual per #810. Post-ADR-098 there is no convergent work
-(the FastAPI embedding shim was removed), so no `deploy.py`.
+stays operator-manual per #810. The faster-whisper-server service (#814) IS
+convergent — installed via ``deploy.py`` — but verify still only asserts.
 """
 
 from __future__ import annotations
@@ -73,5 +73,24 @@ server.shell(
             f'echo "$tags" | grep -q \'"{m}"\' || echo "::warning::missing Ollama model: {m}"'
             for m in BASELINE_MODELS
         ),
+    ],
+)
+
+# 5. faster-whisper-server (#814) — installed by deploy.py.
+server.shell(
+    name="assert: faster-whisper systemd unit active + enabled",
+    commands=[
+        "systemctl is-active --quiet faster-whisper",
+        "systemctl is-enabled --quiet faster-whisper",
+    ],
+)
+
+# 6. faster-whisper API responsive on the loopback port. The provider client
+# from the laptop reaches this via the tailnet ACL on tag:dgx-llm-host:8000;
+# but verify runs locally on the DGX, so it hits 127.0.0.1.
+server.shell(
+    name="assert: faster-whisper API responsive on :8000",
+    commands=[
+        "curl -fsS --max-time 10 http://127.0.0.1:8000/v1/models >/dev/null",
     ],
 )

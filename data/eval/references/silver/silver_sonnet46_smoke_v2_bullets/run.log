@@ -1,0 +1,52 @@
+2026-06-07 13:48:44,499 INFO __main__: ================================================================================
+2026-06-07 13:48:44,499 INFO __main__: Starting experiment run: silver_candidate_anthropic_claudesonnet46_smoke_v2_bullets
+2026-06-07 13:48:44,499 INFO __main__: Results directory: data/eval/runs/silver_candidate_anthropic_claudesonnet46_smoke_v2_bullets
+2026-06-07 13:48:44,499 INFO __main__: Execution log: data/eval/runs/silver_candidate_anthropic_claudesonnet46_smoke_v2_bullets/run.log
+2026-06-07 13:48:44,499 INFO __main__: Dataset: curated_5feeds_smoke_v2
+2026-06-07 13:48:44,499 INFO __main__: ================================================================================
+2026-06-07 13:48:44,499 INFO __main__: Creating summarization provider...
+2026-06-07 13:48:44,710 INFO __main__: Found 5 episode(s) to process
+2026-06-07 13:48:44,710 INFO __main__: Phase 1: Running inference...
+2026-06-07 13:48:44,711 INFO __main__: Processing episode: p01_e01
+2026-06-07 13:48:44,719 INFO podcast_scraper.cleaning.commercial.detector: Commercial cleaning removed 3 block(s), 663 chars (7.5% of 8844); spans=[(278, 475, 1.0), (3012, 3273, 0.95), (8506, 8711, 0.75)]
+2026-06-07 13:48:44,721 INFO __main__: [PREPROCESSING] Profile: cleaning_v4, lines: 82 → 62 (20 removed), chars: 9,163 → 8,175 (988 removed, 10.8%)
+2026-06-07 13:48:51,265 INFO httpx: HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-06-07 13:48:51,290 INFO podcast_scraper.workflow.cost_monitoring: {"event_type": "llm_cost", "provider": "anthropic", "stage": "summarization", "model": "claude-sonnet-4-6", "prompt_tokens": 2664, "completion_tokens": 265, "estimated_cost_usd": 0.011967, "corpus_path": null, "feed_id": null, "run_id": null}
+2026-06-07 13:48:51,290 INFO __main__: Episode p01_e01 completed in 6.6s, summary length=1292 chars
+2026-06-07 13:48:51,291 INFO __main__: Processing episode: p02_e01
+2026-06-07 13:48:51,298 INFO podcast_scraper.cleaning.commercial.detector: Commercial cleaning removed 3 block(s), 662 chars (7.7% of 8569); spans=[(299, 503, 1.0), (2910, 3203, 1.0), (8272, 8437, 1.0)]
+2026-06-07 13:48:51,300 INFO __main__: [PREPROCESSING] Profile: cleaning_v4, lines: 82 → 62 (20 removed), chars: 8,956 → 7,901 (1,055 removed, 11.8%)
+2026-06-07 13:48:59,147 INFO httpx: HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-06-07 13:48:59,148 INFO podcast_scraper.workflow.cost_monitoring: {"event_type": "llm_cost", "provider": "anthropic", "stage": "summarization", "model": "claude-sonnet-4-6", "prompt_tokens": 2613, "completion_tokens": 282, "estimated_cost_usd": 0.012069, "corpus_path": null, "feed_id": null, "run_id": null}
+2026-06-07 13:48:59,149 INFO __main__: Episode p02_e01 completed in 7.8s, summary length=1356 chars
+2026-06-07 13:48:59,149 INFO __main__: Processing episode: p03_e01
+2026-06-07 13:48:59,157 INFO podcast_scraper.cleaning.commercial.detector: Commercial cleaning removed 3 block(s), 638 chars (7.8% of 8184); spans=[(291, 498, 1.0), (2717, 2972, 0.85), (7877, 8053, 1.0)]
+2026-06-07 13:48:59,159 INFO __main__: [PREPROCESSING] Profile: cleaning_v4, lines: 82 → 62 (20 removed), chars: 8,529 → 7,540 (989 removed, 11.6%)
+2026-06-07 13:49:06,010 INFO httpx: HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-06-07 13:49:06,011 INFO podcast_scraper.workflow.cost_monitoring: {"event_type": "llm_cost", "provider": "anthropic", "stage": "summarization", "model": "claude-sonnet-4-6", "prompt_tokens": 2567, "completion_tokens": 274, "estimated_cost_usd": 0.011811, "corpus_path": null, "feed_id": null, "run_id": null}
+2026-06-07 13:49:06,011 INFO __main__: Episode p03_e01 completed in 6.9s, summary length=1307 chars
+2026-06-07 13:49:06,012 INFO __main__: Processing episode: p04_e01
+2026-06-07 13:49:06,017 INFO podcast_scraper.cleaning.commercial.detector: Commercial cleaning removed 3 block(s), 579 chars (6.9% of 8408); spans=[(264, 416, 1.0), (2722, 2990, 0.85), (8125, 8284, 1.0)]
+2026-06-07 13:49:06,020 INFO __main__: [PREPROCESSING] Profile: cleaning_v4, lines: 82 → 62 (20 removed), chars: 8,665 → 7,823 (842 removed, 9.7%)
+2026-06-07 13:49:14,170 INFO httpx: HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-06-07 13:49:14,173 INFO podcast_scraper.workflow.cost_monitoring: {"event_type": "llm_cost", "provider": "anthropic", "stage": "summarization", "model": "claude-sonnet-4-6", "prompt_tokens": 2502, "completion_tokens": 282, "estimated_cost_usd": 0.011736, "corpus_path": null, "feed_id": null, "run_id": null}
+2026-06-07 13:49:14,173 INFO __main__: Episode p04_e01 completed in 8.2s, summary length=1447 chars
+2026-06-07 13:49:14,174 INFO __main__: Processing episode: p05_e01
+2026-06-07 13:49:14,182 INFO podcast_scraper.cleaning.commercial.detector: Commercial cleaning removed 3 block(s), 656 chars (7.8% of 8386); spans=[(283, 470, 1.0), (2894, 3188, 1.0), (8078, 8253, 0.75)]
+2026-06-07 13:49:14,185 INFO __main__: [PREPROCESSING] Profile: cleaning_v4, lines: 82 → 62 (20 removed), chars: 8,769 → 7,724 (1,045 removed, 11.9%)
+2026-06-07 13:49:20,348 INFO httpx: HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-06-07 13:49:20,350 INFO podcast_scraper.workflow.cost_monitoring: {"event_type": "llm_cost", "provider": "anthropic", "stage": "summarization", "model": "claude-sonnet-4-6", "prompt_tokens": 2552, "completion_tokens": 262, "estimated_cost_usd": 0.011586, "corpus_path": null, "feed_id": null, "run_id": null}
+2026-06-07 13:49:20,351 INFO __main__: Episode p05_e01 completed in 6.2s, summary length=1265 chars
+2026-06-07 13:49:20,351 INFO __main__: Phase 1 completed in 35.6s
+2026-06-07 13:49:20,351 INFO __main__: Total input: 39,163 chars, output: 6,667 chars
+2026-06-07 13:49:20,351 INFO __main__: Average compression: 5.9x
+2026-06-07 13:49:20,352 INFO __main__: Predictions: data/eval/runs/silver_candidate_anthropic_claudesonnet46_smoke_v2_bullets/predictions.jsonl
+2026-06-07 13:49:20,353 INFO __main__: Metadata: data/eval/runs/silver_candidate_anthropic_claudesonnet46_smoke_v2_bullets/baseline.json
+2026-06-07 13:49:20,353 INFO __main__: Fingerprint: data/eval/runs/silver_candidate_anthropic_claudesonnet46_smoke_v2_bullets/fingerprint.json
+2026-06-07 13:49:20,354 INFO __main__: Created README.md: data/eval/runs/silver_candidate_anthropic_claudesonnet46_smoke_v2_bullets/README.md
+2026-06-07 13:49:20,356 INFO __main__: Computing metrics...
+2026-06-07 13:49:20,358 INFO __main__: Metrics: data/eval/runs/silver_candidate_anthropic_claudesonnet46_smoke_v2_bullets/metrics.json
+2026-06-07 13:49:20,360 INFO __main__: ✓ Summarization metrics schema validation passed
+2026-06-07 13:49:20,360 INFO podcast_scraper.evaluation.reporter: Report saved to: data/eval/runs/silver_candidate_anthropic_claudesonnet46_smoke_v2_bullets/metrics_report.md
+2026-06-07 13:49:20,360 INFO __main__: Episodes=5, avg_time=7.1s, avg_compression=5.9x
+2026-06-07 13:49:20,360 INFO __main__: ✓ Execution log saved: data/eval/runs/silver_candidate_anthropic_claudesonnet46_smoke_v2_bullets/run.log

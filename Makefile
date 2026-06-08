@@ -3360,6 +3360,114 @@ dgx-smoke:
 			curl -fsS --max-time 5 "http://$$host:11434/api/tags" >/dev/null && \
 			echo "DGX Ollama OK at http://$$host:11434"
 
+# Stage A pre-prod dress rehearsal (#814): run the prod profile shape against
+# real audio from your laptop, with laptop-local Whisper. Validates the full
+# pipeline (Gemini LLM, screenplay, diarize, GI, KG, vectors) without needing
+# the DGX Whisper service deployed yet.
+#
+# Variables:
+#   RSS           required — RSS feed URL to scrape
+#   EPISODES      default 1 — number of episodes to process
+#   WHISPER_MODEL default small.en — bump to large-v3 for final dress rehearsal
+#                  (parity with prod's whisper-large-v3; ~3 GB one-time download)
+#   OUTPUT_DIR    default ~/preprod-local-out — where to write artifacts
+#
+# Example:
+#   make preprod-local RSS=https://feeds.example.com/show.rss EPISODES=3
+#   make preprod-local RSS=https://... WHISPER_MODEL=large-v3   # final dress rehearsal
+#
+# See DGX_RUNBOOK §"Pre-prod laptop validation (Stage A/B/C)".
+EPISODES ?= 1
+WHISPER_MODEL ?= small.en
+OUTPUT_DIR ?= $(HOME)/preprod-local-out
+CHAOS_PORT ?= 18443
+preprod-local:
+	@if [ -z "$(RSS)" ]; then \
+		echo "ERROR: RSS=<feed-url> required" >&2; \
+		echo "  Example: make preprod-local RSS=https://feeds.example.com/show.rss" >&2; \
+		exit 1; \
+	fi
+	@mkdir -p "$(OUTPUT_DIR)"
+	@export PYTHONPATH="$(PWD)/src:$(PWD):$${PYTHONPATH}"; \
+		$(PYTHON) -m podcast_scraper.cli \
+			"$(RSS)" \
+			--profile preprod_local_whisper \
+			--whisper-model $(WHISPER_MODEL) \
+			--output-dir "$(OUTPUT_DIR)" \
+			--max-episodes $(EPISODES) \
+			--log-level INFO
+	@echo ""
+	@echo "Stage A run complete. Inspect output at $(OUTPUT_DIR)"
+	@echo "  - transcripts/*.txt        — Whisper output"
+	@echo "  - transcripts/*.segments.json — should have speaker labels (SPEAKER_00, _01, ...)"
+	@echo "  - metadata/*.gi.json       — GI insights with grounding"
+	@echo "  - metadata/*.kg.json       — KG topics + entities"
+	@echo "  - search/vectors.faiss     — vector index"
+	@echo "  - metrics.json             — run timing + cost"
+
+# Stage B chaos: DGX denied mid-run, cloud fallback must fire (#814).
+# Starts chaos_proxy on $(CHAOS_PORT) (returns 503 to all requests), then
+# runs the prod profile with --dgx-tailnet-host 127.0.0.1 and
+# --dgx-whisper-port $(CHAOS_PORT) so the DGX-side health check + transcribe
+# call land on the 503 server. Acceptance: transcription falls back to OpenAI
+# cloud Whisper, episode completes, run includes dgx_fallback_active.
+preprod-chaos-dgx-down:
+	@if [ -z "$(RSS)" ]; then \
+		echo "ERROR: RSS=<feed-url> required" >&2; \
+		echo "  Example: make preprod-chaos-dgx-down RSS=https://feeds.example.com/show.rss" >&2; \
+		exit 1; \
+	fi
+	@echo "→ Starting chaos_proxy (503-everything) on :$(CHAOS_PORT)"
+	@$(PYTHON) scripts/tools/chaos_proxy.py --port $(CHAOS_PORT) --log-level INFO & \
+		PROXY_PID=$$!; \
+		trap "kill $$PROXY_PID 2>/dev/null || true" EXIT INT TERM; \
+		sleep 1; \
+		mkdir -p "$(OUTPUT_DIR)-chaos-dgx-down"; \
+		export PYTHONPATH="$(PWD)/src:$(PWD):$${PYTHONPATH}"; \
+		echo "→ Running prod profile with DGX routed to chaos proxy (cloud Whisper must take over)"; \
+		$(PYTHON) -m podcast_scraper.cli \
+			"$(RSS)" \
+			--profile cloud_with_dgx_whisper_primary \
+			--dgx-tailnet-host 127.0.0.1 \
+			--dgx-whisper-port $(CHAOS_PORT) \
+			--output-dir "$(OUTPUT_DIR)-chaos-dgx-down" \
+			--max-episodes $(EPISODES) \
+			--log-level INFO
+
+# Stage B chaos: DGX + cloud both denied; pipeline should abort cleanly with
+# operator-visible error (#814). No half-baked output. ``OPENAI_BASE_URL``
+# routes the cloud Whisper client at the chaos proxy too; both health checks
+# fail; the transcription provider has nowhere to go.
+preprod-chaos-both-down:
+	@if [ -z "$(RSS)" ]; then \
+		echo "ERROR: RSS=<feed-url> required" >&2; exit 1; \
+	fi
+	@echo "→ Starting chaos_proxy on :$(CHAOS_PORT) (denies DGX + cloud)"
+	@$(PYTHON) scripts/tools/chaos_proxy.py --port $(CHAOS_PORT) --log-level INFO & \
+		PROXY_PID=$$!; \
+		trap "kill $$PROXY_PID 2>/dev/null || true" EXIT INT TERM; \
+		sleep 1; \
+		mkdir -p "$(OUTPUT_DIR)-chaos-both-down"; \
+		export PYTHONPATH="$(PWD)/src:$(PWD):$${PYTHONPATH}"; \
+		export OPENAI_BASE_URL="http://127.0.0.1:$(CHAOS_PORT)/v1"; \
+		echo "→ Running prod profile; expecting non-zero exit (operator-visible failure)"; \
+		set +e; \
+		$(PYTHON) -m podcast_scraper.cli \
+			"$(RSS)" \
+			--profile cloud_with_dgx_whisper_primary \
+			--dgx-tailnet-host 127.0.0.1 \
+			--dgx-whisper-port $(CHAOS_PORT) \
+			--output-dir "$(OUTPUT_DIR)-chaos-both-down" \
+			--max-episodes $(EPISODES) \
+			--log-level INFO; \
+		RC=$$?; \
+		if [ $$RC -eq 0 ]; then \
+			echo "FAIL: pipeline exited 0 — expected failure when both DGX and cloud denied"; \
+			exit 2; \
+		else \
+			echo "OK: pipeline exited $$RC (expected non-zero — both backends denied)"; \
+		fi
+
 # --- DGX config management (pyinfra) — see infra/dgx/converge/README.md -----
 DGX_CONVERGE_DIR := infra/dgx/converge
 DGX_CONVERGE_VENV := $(DGX_CONVERGE_DIR)/.venv
@@ -3403,13 +3511,22 @@ dgx-ssh-test:
 # pyinfra: --sudo escalates non-root SSH users for privileged ops (systemd, /etc, /opt).
 # If user is already root, --sudo is a no-op.
 # NB: dgx-verify runs verify.py (assertions only, real execution — NOT --dry, which
-# wouldn't actually probe DGX). Post-ADR-098 there is no convergent half — the
-# embedding shim was dropped in favour of Ollama-served nomic-embed-text (#897).
-# Re-introduce a deploy.py + dgx-converge target if/when future convergent work appears.
+# wouldn't actually probe DGX). dgx-deploy (#814) runs deploy.py to install
+# faster-whisper-server convergently; both targets share the same inventory.
 dgx-verify: $(DGX_PYINFRA)
 	@# Read-only assertions, real execution. Fails on drift. Auto-sources $(INFRA_DGX_ENV_FILE).
 	@$(_dgx_env); \
 		cd $(DGX_CONVERGE_DIR) && .venv/bin/pyinfra --sudo -y inventory.py verify.py
+
+# Convergent install on DGX (#814): faster-whisper-server systemd service,
+# venv, env file, ACL-friendly bind. Idempotent — re-run is a no-op when
+# nothing drifted. See infra/dgx/converge/deploy.py for the operations list
+# and infra/dgx/converge/README.md for one-time SSH setup.
+dgx-deploy: $(DGX_PYINFRA)
+	@# Sudo required: writes /etc/systemd, /etc/faster-whisper, /opt/faster-whisper.
+	@# Auto-sources $(INFRA_DGX_ENV_FILE). Run ``make dgx-verify`` afterwards.
+	@$(_dgx_env); \
+		cd $(DGX_CONVERGE_DIR) && .venv/bin/pyinfra --sudo -y inventory.py deploy.py
 
 drill-env:
 	@echo "DR drill Hetzner token (same scope as GitHub secret HCLOUD_TOKEN_DRILL):"

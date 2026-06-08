@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0"
+     xmlns:itunes="http://www.itunes.com/dtds/podcast-1.0.dtd">
+  <channel>
+    <title>Practical Systems</title>
+    <link>http://localhost/</link>
+    <description>Software engineering conversations: reliability, architecture, delivery, and the tradeoffs nobody puts in the blog post.</description>
+    <language>en-us</language>
+
+    <itunes:author>Ethan Park</itunes:author>
+    <itunes:explicit>no</itunes:explicit>
+    <itunes:image href="/images/p02_cover.jpg"/>
+
+    <item>
+      <title>Episode 1: On-Call That Doesn’t Break People (with Priya Nair)</title>
+      <guid isPermaLink="false">p02_e01</guid>
+      <pubDate>Tue, 02 Sep 2025 07:00:00 +0000</pubDate>
+      <description>SRE Priya Nair explains alert hygiene, error budgets, and how to make incidents boring.</description>
+      <enclosure url="/audio/p02_e01.mp3" length="3900000" type="audio/mpeg"/>
+      <itunes:episode>1</itunes:episode>
+      <itunes:duration>00:11:00</itunes:duration>
+      <itunes:episodeType>full</itunes:episodeType>
+    </item>
+
+    <item>
+      <title>Episode 2: Staff Engineer Communication Patterns (with Jonas Meijer)</title>
+      <guid isPermaLink="false">p02_e02</guid>
+      <pubDate>Tue, 09 Sep 2025 07:00:00 +0000</pubDate>
+      <description>How to write RFCs, run reviews, and align teams without turning everything into meetings.</description>
+      <enclosure url="/audio/p02_e02.mp3" length="3600000" type="audio/mpeg"/>
+      <itunes:episode>2</itunes:episode>
+      <itunes:duration>00:09:45</itunes:duration>
+      <itunes:episodeType>full</itunes:episodeType>
+    </item>
+
+    <item>
+      <title>Episode 3: Security as Design, Not a Checklist (with Camila Ruiz)</title>
+      <guid isPermaLink="false">p02_e03</guid>
+      <pubDate>Tue, 16 Sep 2025 07:00:00 +0000</pubDate>
+      <description>Threat modeling, secure defaults, secrets handling, supply chain risks, and what “shift left” should actually mean.</description>
+      <enclosure url="/audio/p02_e03.mp3" length="12000000" type="audio/mpeg"/>
+      <itunes:episode>3</itunes:episode>
+      <itunes:duration>00:33:00</itunes:duration>
+      <itunes:episodeType>full</itunes:episodeType>
+    </item>
+  </channel>
+</rss>

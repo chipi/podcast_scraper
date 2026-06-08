@@ -15,7 +15,7 @@
   ],
   "episode": {
     "episode_id": "096240a2-e115-5a3c-98b4-2d852b096eda",
-    "published_date": "2026-06-03",
+    "published_date": "2026-06-04",
     "title": "Practical Systems \u2014 Episode 2"
   },
   "episode_id": "096240a2-e115-5a3c-98b4-2d852b096eda",
@@ -40,16 +40,16 @@
     "artifact_path": "feeds/p02/metadata/p02_e02.kg.json",
     "schema_version": "1.1"
   },
-  "publish_date": "2026-06-03",
+  "publish_date": "2026-06-04",
   "schema_version": "1",
   "summary": {
     "bullets": [
       "# Practical Systems \u2014 Episode\n## Staff-Engineer Communication Patterns\nHost: Ethan\nGuest: Jonas\nEthan: Welcome back to Practical Systems.",
       "Today we're talking about engineering communication, and I'm joined by Jonas, staff engineer focused on platform teams.",
-      "Before we dive in, a quick word from our sponsor Notion."
+      "Today's episode is sponsored by Notion."
     ],
     "preview": "# Practical Systems \u2014 Episode\n## Staff-Engineer Communication Patterns\nHost: Ethan\nGuest: Jonas\nEthan: Welcome back to Practical Systems.",
-    "text": "# Practical Systems \u2014 Episode\n## Staff-Engineer Communication Patterns\nHost: Ethan\nGuest: Jonas\nEthan: Welcome back to Practical Systems.\nToday we're talking about engineering communication, and I'm joined by Jonas, staff engineer focused on platform teams.\nBefore we dive in, a quick word from our sponsor Notion.",
+    "text": "# Practical Systems \u2014 Episode\n## Staff-Engineer Communication Patterns\nHost: Ethan\nGuest: Jonas\nEthan: Welcome back to Practical Systems.\nToday we're talking about engineering communication, and I'm joined by Jonas, staff engineer focused on platform teams.\nToday's episode is sponsored by Notion.",
     "title": "Practical Systems \u2014 Episode 2 \u2014 synthetic"
   },
   "summary_bullet_graph_topic_ids": [
@@ -60,10 +60,10 @@
   "summary_bullets": [
     "# Practical Systems \u2014 Episode\n## Staff-Engineer Communication Patterns\nHost: Ethan\nGuest: Jonas\nEthan: Welcome back to Practical Systems.",
     "Today we're talking about engineering communication, and I'm joined by Jonas, staff engineer focused on platform teams.",
-    "Before we dive in, a quick word from our sponsor Notion."
+    "Today's episode is sponsored by Notion."
   ],
   "summary_preview": "# Practical Systems \u2014 Episode\n## Staff-Engineer Communication Patterns\nHost: Ethan\nGuest: Jonas\nEthan: Welcome back to Practical Systems.",
-  "summary_text": "# Practical Systems \u2014 Episode\n## Staff-Engineer Communication Patterns\nHost: Ethan\nGuest: Jonas\nEthan: Welcome back to Practical Systems.\nToday we're talking about engineering communication, and I'm joined by Jonas, staff engineer focused on platform teams.\nBefore we dive in, a quick word from our sponsor Notion.",
+  "summary_text": "# Practical Systems \u2014 Episode\n## Staff-Engineer Communication Patterns\nHost: Ethan\nGuest: Jonas\nEthan: Welcome back to Practical Systems.\nToday we're talking about engineering communication, and I'm joined by Jonas, staff engineer focused on platform teams.\nToday's episode is sponsored by Notion.",
   "summary_title": "Practical Systems \u2014 Episode 2 \u2014 synthetic",
   "topics": [
     "technology",

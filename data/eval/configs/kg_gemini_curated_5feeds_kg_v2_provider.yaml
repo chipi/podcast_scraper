@@ -1,0 +1,26 @@
+# KG eval on v2 sources: Gemini provider mode (direct topic/entity extraction from transcript).
+# Targets entity yield per episode + cross-episode recurrence + edge density
+# against the v2 KG-focused dataset (5 feeds x 3 episodes = 15 eps).
+# Mirrors kg_gemini_benchmark_v2_provider.yaml settings (autoresearch v2 defaults).
+id: kg_gemini_curated_5feeds_kg_v2_provider
+task: knowledge_graph
+
+backend:
+  type: gemini
+  model: gemini-2.5-flash-lite
+
+prompts:
+  user: gemini/summarization/long_v1
+
+data:
+  dataset_id: curated_5feeds_kg_v2
+
+preprocessing_profile: cleaning_v4
+
+params:
+  max_length: 800
+  min_length: 200
+  temperature: 0.0
+  kg_extraction_source: provider
+  kg_max_topics: 10
+  kg_max_entities: 15

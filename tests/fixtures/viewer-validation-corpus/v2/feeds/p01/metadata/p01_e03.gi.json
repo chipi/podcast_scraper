@@ -27,7 +27,7 @@
     },
     {
       "from": "episode:f6f1df34-2251-5301-b1c7-68ee8468bf65",
-      "to": "insight:45771c206a35fab5",
+      "to": "insight:7b9ac0f02e6557b7",
       "type": "HAS_INSIGHT"
     },
     {
@@ -37,7 +37,7 @@
     },
     {
       "from": "episode:f6f1df34-2251-5301-b1c7-68ee8468bf65",
-      "to": "quote:ee9f60cc56218a72",
+      "to": "quote:6377cd9cc9f83f89",
       "type": "HAS_QUOTE"
     },
     {
@@ -56,7 +56,7 @@
         "episode_id": "f6f1df34-2251-5301-b1c7-68ee8468bf65",
         "metadata_relative_path": "feeds/p01/metadata/p01_e03.metadata.json",
         "podcast_id": "sha256:90167c0635d0f3d31fe8ebc87b372f75cd15166e02da8abb2df7dfeca65aa588",
-        "publish_date": "2026-06-02T12:00:00",
+        "publish_date": "2026-06-03T12:00:00",
         "title": "Singletrack Sessions \u2014 Episode 3"
       },
       "type": "Episode"
@@ -104,11 +104,11 @@
       "type": "Insight"
     },
     {
-      "id": "insight:45771c206a35fab5",
+      "id": "insight:7b9ac0f02e6557b7",
       "properties": {
         "confidence": 0.7,
         "grounded": true,
-        "text": "Before we dive in, a quick word from our sponsor Notion."
+        "text": "This episode is brought to you by Notion."
       },
       "type": "Insight"
     },
@@ -121,10 +121,10 @@
       "type": "Quote"
     },
     {
-      "id": "quote:ee9f60cc56218a72",
+      "id": "quote:6377cd9cc9f83f89",
       "properties": {
         "speaker": "Speaker 1",
-        "text": "Use code POD for an extended trial."
+        "text": "Get started at notion.com/podcast."
       },
       "type": "Quote"
     },

@@ -56,6 +56,23 @@ When creating a new version of a dataset:
 2. Update the `dataset_id` to match the new version
 3. Document changes in the description
 
+### Layer-focused naming (#903 convention)
+
+A version suffix marks the source content; a layer suffix marks the eval angle:
+
+| Suffix | Meaning | Example |
+| --- | --- | --- |
+| `_kg_v2` | Selection optimized for KG entity / cross-episode recurrence signal | `curated_5feeds_kg_v2` |
+| `_cil_v2` | Selection optimized for CIL person/topic/org bridging signal | `curated_5feeds_cil_v2` |
+| `_cleaning_v2` | Selection optimized for sponsor-block cleaning evaluation | `curated_5feeds_cleaning_v2` |
+| `_smoke_v2` | First episode per feed; fast iteration | `curated_5feeds_smoke_v2` |
+| `_benchmark_v2` | Held-out scale for autoresearch v2 framework (currently points at v1 sources — see PR #903 note) | `curated_5feeds_benchmark_v2` |
+| `_raw_v2` | All episodes from the v2 source set (currently exposed only at the `sources/curated_5feeds_raw_v2/` directory; no dataset JSON yet) | n/a |
+
+Pick the layer suffix that matches the metric you want to baseline against;
+all four `_v2` files reference the same 15-episode set, so the difference is
+intent + description, not contents.
+
 ## Usage
 
 Datasets are used by:

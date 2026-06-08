@@ -27,7 +27,7 @@
     },
     {
       "from": "episode:d2fb36a0-6f97-55ee-a67a-e97dba3b7f27",
-      "to": "insight:77564d343de6aa92",
+      "to": "insight:42c4a9f138eb1851",
       "type": "HAS_INSIGHT"
     },
     {
@@ -37,12 +37,12 @@
     },
     {
       "from": "episode:d2fb36a0-6f97-55ee-a67a-e97dba3b7f27",
-      "to": "quote:ee9f60cc56218a72",
+      "to": "quote:0e5c05fc4e97fe51",
       "type": "HAS_QUOTE"
     },
     {
       "from": "episode:d2fb36a0-6f97-55ee-a67a-e97dba3b7f27",
-      "to": "quote:0e5c05fc4e97fe51",
+      "to": "quote:72f322ac1975989f",
       "type": "HAS_QUOTE"
     }
   ],
@@ -56,7 +56,7 @@
         "episode_id": "d2fb36a0-6f97-55ee-a67a-e97dba3b7f27",
         "metadata_relative_path": "feeds/p02/metadata/p02_e03.metadata.json",
         "podcast_id": "sha256:05eff208d6fd774940bed9fd154c6a46b9325e32cf95e1769f8eb679505ef414",
-        "publish_date": "2026-06-01T12:00:00",
+        "publish_date": "2026-06-02T12:00:00",
         "title": "Practical Systems \u2014 Episode 3"
       },
       "type": "Episode"
@@ -104,11 +104,11 @@
       "type": "Insight"
     },
     {
-      "id": "insight:77564d343de6aa92",
+      "id": "insight:42c4a9f138eb1851",
       "properties": {
         "confidence": 0.7,
         "grounded": true,
-        "text": "Before we dive in, a quick word from our sponsor Vanta."
+        "text": "Today's episode is sponsored by Vanta."
       },
       "type": "Insight"
     },
@@ -121,18 +121,18 @@
       "type": "Quote"
     },
     {
-      "id": "quote:ee9f60cc56218a72",
-      "properties": {
-        "speaker": "Speaker 1",
-        "text": "Use code POD for an extended trial."
-      },
-      "type": "Quote"
-    },
-    {
       "id": "quote:0e5c05fc4e97fe51",
       "properties": {
         "speaker": "Speaker 1",
         "text": "Before we get into it \u2014 I was last on the show talking about on-call rotations."
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:72f322ac1975989f",
+      "properties": {
+        "speaker": "Speaker 1",
+        "text": "The pattern shows up again here \u2014 embed ownership where the work happens."
       },
       "type": "Quote"
     }

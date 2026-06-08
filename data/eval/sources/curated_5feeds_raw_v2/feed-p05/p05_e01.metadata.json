@@ -1,0 +1,28 @@
+{
+  "metadata_version": "1.0",
+  "source_episode_id": "p05_e01",
+  "feed_name": "Long Horizon Notes",
+  "feed_url": "http://localhost/",
+  "episode_title": "Episode 1: Index Investing Without the Myths (with Daniel Cho)",
+  "published_at": "2025-09-05",
+  "duration_seconds": 645,
+  "language": "en",
+  "scraped_at": "2026-01-13T12:07:56.659640Z",
+  "speakers": [
+    {
+      "id": "host",
+      "name": "Nora",
+      "role": "host"
+    },
+    {
+      "id": "guest",
+      "name": "Daniel",
+      "role": "guest"
+    }
+  ],
+  "expectations": {
+    "allow_speaker_names": false,
+    "allow_speaker_labels": false,
+    "allow_sponsor_content": false
+  }
+}

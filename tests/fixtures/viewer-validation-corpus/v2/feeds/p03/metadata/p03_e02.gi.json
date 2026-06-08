@@ -27,7 +27,7 @@
     },
     {
       "from": "episode:254fe2be-b570-592e-84cd-c22cb9e271e9",
-      "to": "insight:ed0d55c214b60624",
+      "to": "insight:e7b90825a574637b",
       "type": "HAS_INSIGHT"
     },
     {
@@ -37,12 +37,12 @@
     },
     {
       "from": "episode:254fe2be-b570-592e-84cd-c22cb9e271e9",
-      "to": "quote:8c824df01c9236b3",
+      "to": "quote:d6971b5964955704",
       "type": "HAS_QUOTE"
     },
     {
       "from": "episode:254fe2be-b570-592e-84cd-c22cb9e271e9",
-      "to": "quote:0ea4edb420239893",
+      "to": "quote:8c824df01c9236b3",
       "type": "HAS_QUOTE"
     }
   ],
@@ -56,7 +56,7 @@
         "episode_id": "254fe2be-b570-592e-84cd-c22cb9e271e9",
         "metadata_relative_path": "feeds/p03/metadata/p03_e02.metadata.json",
         "podcast_id": "sha256:16de36c98e7e4b95d699380d14d84d2f13717c2c151f935076564a9a5f5e979b",
-        "publish_date": "2026-06-02T12:00:00",
+        "publish_date": "2026-06-03T12:00:00",
         "title": "Below the Surface \u2014 Episode 2"
       },
       "type": "Episode"
@@ -104,11 +104,11 @@
       "type": "Insight"
     },
     {
-      "id": "insight:ed0d55c214b60624",
+      "id": "insight:e7b90825a574637b",
       "properties": {
         "confidence": 0.7,
         "grounded": true,
-        "text": "Today's episode is sponsored by PADI."
+        "text": "This episode is brought to you by PADI."
       },
       "type": "Insight"
     },
@@ -121,18 +121,18 @@
       "type": "Quote"
     },
     {
-      "id": "quote:8c824df01c9236b3",
+      "id": "quote:d6971b5964955704",
       "properties": {
         "speaker": "Speaker 1",
-        "text": "Before we get into it \u2014 Marco was on last week talking about wreck planning."
+        "text": "Get started at padi.com/podcast."
       },
       "type": "Quote"
     },
     {
-      "id": "quote:0ea4edb420239893",
+      "id": "quote:8c824df01c9236b3",
       "properties": {
         "speaker": "Speaker 1",
-        "text": "The same discipline applies to reef diving \u2014 plan the dive, dive the plan."
+        "text": "Before we get into it \u2014 Marco was on last week talking about wreck planning."
       },
       "type": "Quote"
     }

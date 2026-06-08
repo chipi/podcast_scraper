@@ -27,7 +27,7 @@
     },
     {
       "from": "episode:9833b47e-0cc8-50b9-a6da-65dc0f6d053f",
-      "to": "insight:1f363af5c9b5d0ec",
+      "to": "insight:5dc2253d421449be",
       "type": "HAS_INSIGHT"
     },
     {
@@ -37,12 +37,12 @@
     },
     {
       "from": "episode:9833b47e-0cc8-50b9-a6da-65dc0f6d053f",
-      "to": "quote:a38b377e905cdd7a",
+      "to": "quote:2390b939a3e15652",
       "type": "HAS_QUOTE"
     },
     {
       "from": "episode:9833b47e-0cc8-50b9-a6da-65dc0f6d053f",
-      "to": "quote:2390b939a3e15652",
+      "to": "quote:3184eb1f240e3d95",
       "type": "HAS_QUOTE"
     }
   ],
@@ -56,7 +56,7 @@
         "episode_id": "9833b47e-0cc8-50b9-a6da-65dc0f6d053f",
         "metadata_relative_path": "feeds/p04/metadata/p04_e02.metadata.json",
         "podcast_id": "sha256:acf6d1026eaa400425afb658fa014e874a2eb50129923b7a92fe82290004a6e7",
-        "publish_date": "2026-06-01T12:00:00",
+        "publish_date": "2026-06-02T12:00:00",
         "title": "Frame & Light \u2014 Episode 2"
       },
       "type": "Episode"
@@ -104,11 +104,11 @@
       "type": "Insight"
     },
     {
-      "id": "insight:1f363af5c9b5d0ec",
+      "id": "insight:5dc2253d421449be",
       "properties": {
         "confidence": 0.7,
         "grounded": true,
-        "text": "This episode is brought to you by Adobe."
+        "text": "Today's episode is sponsored by Adobe."
       },
       "type": "Insight"
     },
@@ -121,18 +121,18 @@
       "type": "Quote"
     },
     {
-      "id": "quote:a38b377e905cdd7a",
-      "properties": {
-        "speaker": "Speaker 1",
-        "text": "Get started at adobe.com/podcast."
-      },
-      "type": "Quote"
-    },
-    {
       "id": "quote:2390b939a3e15652",
       "properties": {
         "speaker": "Speaker 1",
         "text": "Before we get into it \u2014 Ava was on last week talking about strobe positioning underwater."
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:3184eb1f240e3d95",
+      "properties": {
+        "speaker": "Speaker 1",
+        "text": "The same principles \u2014 read the light, then place it \u2014 show up in field documentary work."
       },
       "type": "Quote"
     }

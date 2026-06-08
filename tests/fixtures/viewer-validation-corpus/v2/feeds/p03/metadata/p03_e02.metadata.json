@@ -15,7 +15,7 @@
   ],
   "episode": {
     "episode_id": "254fe2be-b570-592e-84cd-c22cb9e271e9",
-    "published_date": "2026-06-02",
+    "published_date": "2026-06-03",
     "title": "Below the Surface \u2014 Episode 2"
   },
   "episode_id": "254fe2be-b570-592e-84cd-c22cb9e271e9",
@@ -40,16 +40,16 @@
     "artifact_path": "feeds/p03/metadata/p03_e02.kg.json",
     "schema_version": "1.1"
   },
-  "publish_date": "2026-06-02",
+  "publish_date": "2026-06-03",
   "schema_version": "1",
   "summary": {
     "bullets": [
       "# Below the Surface \u2014 Episode\n## Marine Biology for Divers\nHost: Rina\nGuest: Hanna\nRina: Welcome back to Below the Surface.",
       "Today we're talking about marine biology, and I'm joined by Hanna, marine biologist focused on reef systems.",
-      "Today's episode is sponsored by PADI."
+      "This episode is brought to you by PADI."
     ],
     "preview": "# Below the Surface \u2014 Episode\n## Marine Biology for Divers\nHost: Rina\nGuest: Hanna\nRina: Welcome back to Below the Surface.",
-    "text": "# Below the Surface \u2014 Episode\n## Marine Biology for Divers\nHost: Rina\nGuest: Hanna\nRina: Welcome back to Below the Surface.\nToday we're talking about marine biology, and I'm joined by Hanna, marine biologist focused on reef systems.\nToday's episode is sponsored by PADI.",
+    "text": "# Below the Surface \u2014 Episode\n## Marine Biology for Divers\nHost: Rina\nGuest: Hanna\nRina: Welcome back to Below the Surface.\nToday we're talking about marine biology, and I'm joined by Hanna, marine biologist focused on reef systems.\nThis episode is brought to you by PADI.",
     "title": "Below the Surface \u2014 Episode 2 \u2014 synthetic"
   },
   "summary_bullet_graph_topic_ids": [
@@ -60,10 +60,10 @@
   "summary_bullets": [
     "# Below the Surface \u2014 Episode\n## Marine Biology for Divers\nHost: Rina\nGuest: Hanna\nRina: Welcome back to Below the Surface.",
     "Today we're talking about marine biology, and I'm joined by Hanna, marine biologist focused on reef systems.",
-    "Today's episode is sponsored by PADI."
+    "This episode is brought to you by PADI."
   ],
   "summary_preview": "# Below the Surface \u2014 Episode\n## Marine Biology for Divers\nHost: Rina\nGuest: Hanna\nRina: Welcome back to Below the Surface.",
-  "summary_text": "# Below the Surface \u2014 Episode\n## Marine Biology for Divers\nHost: Rina\nGuest: Hanna\nRina: Welcome back to Below the Surface.\nToday we're talking about marine biology, and I'm joined by Hanna, marine biologist focused on reef systems.\nToday's episode is sponsored by PADI.",
+  "summary_text": "# Below the Surface \u2014 Episode\n## Marine Biology for Divers\nHost: Rina\nGuest: Hanna\nRina: Welcome back to Below the Surface.\nToday we're talking about marine biology, and I'm joined by Hanna, marine biologist focused on reef systems.\nThis episode is brought to you by PADI.",
   "summary_title": "Below the Surface \u2014 Episode 2 \u2014 synthetic",
   "topics": [
     "outdoor activities",

@@ -1,0 +1,31 @@
+{
+  "dataset_id": "curated_5feeds_kg_v2",
+  "run_id": "silver_candidate_anthropic_claudesonnet46_benchmark_v2_paragraph",
+  "episode_count": 15,
+  "intrinsic": {
+    "gates": {
+      "boilerplate_leak_rate": 0.0,
+      "speaker_label_leak_rate": 0.0,
+      "truncation_rate": 0.0,
+      "failed_episodes": [],
+      "episode_gate_failures": {}
+    },
+    "warnings": {
+      "speaker_name_leak_rate": 0.0
+    },
+    "length": {
+      "avg_tokens": 736.0,
+      "min_tokens": 577,
+      "max_tokens": 950
+    },
+    "performance": {
+      "avg_latency_ms": 15752.040640513102,
+      "median_latency_ms": 14035.35795211792,
+      "p95_latency_ms": 37288.16294670105,
+      "avg_latency_ms_excluding_first": 15938.480683735439
+    }
+  },
+  "vs_reference": null,
+  "schema": "metrics_summarization_v2",
+  "task": "summarization"
+}

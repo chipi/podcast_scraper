@@ -1,0 +1,16 @@
+# v2 silver candidate (#903) — anthropic claude-sonnet-4-6 on curated_5feeds_smoke_v2 bullets.
+id: silver_candidate_anthropic_claudesonnet46_smoke_v2_bullets
+task: summarization
+backend:
+  type: anthropic
+  model: claude-sonnet-4-6
+prompts:
+  system: shared/summarization/system_bullets_v1
+  user: shared/summarization/bullets_json_v1
+data:
+  dataset_id: curated_5feeds_smoke_v2
+params:
+  max_length: 800
+  min_length: 200
+  temperature: 0.0
+preprocessing_profile: cleaning_v4

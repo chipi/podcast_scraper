@@ -77,7 +77,8 @@ def test_nested_transcription_yaml_flattens() -> None:
 
 @patch("podcast_scraper.providers.tailnet_dgx.whisper_provider.emit_dgx_fallback_breadcrumb")
 @patch(
-    "podcast_scraper.providers.tailnet_dgx.whisper_provider.check_ollama_health", return_value=False
+    "podcast_scraper.providers.tailnet_dgx.whisper_provider.check_faster_whisper_health",
+    return_value=False,
 )
 @patch("podcast_scraper.providers.tailnet_dgx.whisper_provider.time.sleep")
 def test_falls_back_when_dgx_unhealthy(
@@ -108,11 +109,11 @@ def test_falls_back_when_dgx_unhealthy(
 
 @patch("podcast_scraper.providers.tailnet_dgx.whisper_provider.emit_dgx_fallback_breadcrumb")
 @patch(
-    "podcast_scraper.providers.tailnet_dgx.whisper_provider.check_ollama_health",
+    "podcast_scraper.providers.tailnet_dgx.whisper_provider.check_faster_whisper_health",
     side_effect=[False, True],
 )
 @patch("podcast_scraper.providers.tailnet_dgx.whisper_provider.time.sleep")
-@patch.object(TailnetDgxWhisperTranscriptionProvider, "_transcribe_ollama")
+@patch.object(TailnetDgxWhisperTranscriptionProvider, "_transcribe_dgx")
 def test_retries_once_before_success(
     mock_ollama: MagicMock,
     mock_sleep: MagicMock,
@@ -135,10 +136,10 @@ def test_retries_once_before_success(
 
 
 @patch(
-    "podcast_scraper.providers.tailnet_dgx.whisper_provider.check_ollama_health",
+    "podcast_scraper.providers.tailnet_dgx.whisper_provider.check_faster_whisper_health",
     return_value=True,
 )
-@patch.object(TailnetDgxWhisperTranscriptionProvider, "_transcribe_ollama")
+@patch.object(TailnetDgxWhisperTranscriptionProvider, "_transcribe_dgx")
 def test_healthy_dgx_path(
     mock_ollama: MagicMock,
     _health: MagicMock,
@@ -158,9 +159,10 @@ def test_healthy_dgx_path(
 
 @patch("podcast_scraper.providers.tailnet_dgx.whisper_provider.emit_dgx_fallback_breadcrumb")
 @patch(
-    "podcast_scraper.providers.tailnet_dgx.whisper_provider.check_ollama_health", return_value=True
+    "podcast_scraper.providers.tailnet_dgx.whisper_provider.check_faster_whisper_health",
+    return_value=True,
 )
-@patch.object(TailnetDgxWhisperTranscriptionProvider, "_transcribe_ollama")
+@patch.object(TailnetDgxWhisperTranscriptionProvider, "_transcribe_dgx")
 def test_falls_back_when_ollama_returns_empty(
     mock_ollama: MagicMock,
     _health: MagicMock,
@@ -169,7 +171,7 @@ def test_falls_back_when_ollama_returns_empty(
 ) -> None:
     audio = tmp_path / "ep.mp3"
     audio.write_bytes(b"\x00\x01")
-    mock_ollama.side_effect = ValueError("empty transcription from DGX Ollama")
+    mock_ollama.side_effect = ValueError("empty transcription from DGX faster-whisper-server")
 
     provider = TailnetDgxWhisperTranscriptionProvider(_dgx_cfg())
     fallback = MagicMock()
@@ -185,7 +187,7 @@ def test_falls_back_when_ollama_returns_empty(
 
 
 @patch("httpx.Client")
-def test_transcribe_ollama_parses_response(mock_client_cls: MagicMock, tmp_path) -> None:
+def test_transcribe_dgx_parses_response(mock_client_cls: MagicMock, tmp_path) -> None:
     audio = tmp_path / "clip.mp3"
     audio.write_bytes(b"abc")
 
@@ -200,7 +202,7 @@ def test_transcribe_ollama_parses_response(mock_client_cls: MagicMock, tmp_path)
     mock_client_cls.return_value = mock_client
 
     provider = TailnetDgxWhisperTranscriptionProvider(_dgx_cfg())
-    text, segments, _dur = provider._transcribe_ollama(str(audio), "en")
+    text, segments, _dur = provider._transcribe_dgx(str(audio), "en")
     assert text == "hello"
     assert len(segments) == 1
 
@@ -213,13 +215,13 @@ def test_whisper_provider_cleanup_calls_fallback() -> None:
     fallback.cleanup.assert_called_once()
 
 
-def test_transcribe_ollama_missing_file() -> None:
+def test_transcribe_dgx_missing_file() -> None:
     provider = TailnetDgxWhisperTranscriptionProvider(_dgx_cfg())
     with pytest.raises(FileNotFoundError):
-        provider._transcribe_ollama("/no/such/audio.mp3", None)
+        provider._transcribe_dgx("/no/such/audio.mp3", None)
 
 
-def test_transcribe_ollama_requires_httpx(tmp_path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_transcribe_dgx_requires_httpx(tmp_path, monkeypatch: pytest.MonkeyPatch) -> None:
     import builtins
 
     audio = tmp_path / "clip.mp3"
@@ -234,4 +236,4 @@ def test_transcribe_ollama_requires_httpx(tmp_path, monkeypatch: pytest.MonkeyPa
     monkeypatch.setattr(builtins, "__import__", fake_import)
     provider = TailnetDgxWhisperTranscriptionProvider(_dgx_cfg())
     with pytest.raises(RuntimeError, match="httpx required"):
-        provider._transcribe_ollama(str(audio), None)
+        provider._transcribe_dgx(str(audio), None)

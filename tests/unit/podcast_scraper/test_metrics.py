@@ -531,6 +531,9 @@ class TestFinish(unittest.TestCase):
             "llm_bundled_clean_summary_avg_output_tokens_per_call",
             "llm_bundled_clean_summary_cost_usd",
             "llm_bundled_fallback_to_staged_count",
+            # RFC-089 #5 — provider-swap fallback (#812)
+            "llm_summary_fallback_active_count",
+            "llm_summary_fallback_provider",
             # #652 Part C
             "ads_filtered_count",
             "dialogue_insights_dropped_count",

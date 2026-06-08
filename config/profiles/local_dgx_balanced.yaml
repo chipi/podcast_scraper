@@ -21,7 +21,15 @@ auto_speakers: true
 
 summary_provider: ollama
 ollama_summary_model: qwen3.5:9b
-llm_pipeline_mode: bundled
+# Use staged (clean + summary as TWO Ollama calls) instead of bundled.
+# Investigation 2026-06-07: qwen3.5:9b in bundled mode produces inconsistently
+# malformed JSON output (~50-67% failure rate on small N) — model is at the
+# edge of what it can reliably structure in one fused clean+summarize pass.
+# Even when bundled works, output is degraded (1-3 bullets vs target 6-8).
+# Larger models (qwen3.5:27b, qwen2.5:32b) handle bundled cleanly; 9B doesn't.
+# Staged trades ~1.5x wall-clock for reliable output. Acceptable on a local
+# DGX where Ollama calls are ~30ms RTT and free.
+llm_pipeline_mode: staged
 
 generate_gi: true
 gi_insight_source: provider
@@ -42,8 +50,21 @@ vector_embedding_provider: sentence_transformers
 # vs ~33ms over HTTP to Ollama) and no DGX availability dependency.
 # See eval/embedding_provider_comparison/transcript-chunked/ for the numbers.
 
+# No LLM-level cloud fallback (operator decision, 2026-06-07): this profile is
+# for laptop-driven runs against the operator's tailnet DGX. If DGX Ollama goes
+# down mid-run, the pipeline degrades visibly (summary missing for the affected
+# episode) rather than silently routing to a paid cloud provider. The operator
+# fixes the DGX side and re-runs.
+#
+# Cloud fallback IS enabled in prod (cloud_with_dgx_whisper_primary) where
+# uptime trumps cost visibility, but at the Whisper layer
+# (transcription_fallback_provider: openai), not the LLM layer — prod's LLM
+# primary is already cloud Gemini.
+#
+# The FallbackAwareSummarizationProvider wrapper (RFC-089 #5) stays available;
+# any profile that opts in via degradation_policy.fallback_provider_on_failure
+# gets it. local_dgx_balanced just doesn't opt in.
 degradation_policy:
-  fallback_provider_on_failure: gemini
   continue_on_stage_failure: true
 
 generate_metadata: true

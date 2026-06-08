@@ -75,6 +75,7 @@ def create_gil_evidence_providers(
         ``(quote_extraction_provider, entailment_provider)``.
     """
     from podcast_scraper.summarization.factory import create_summarization_provider
+    from podcast_scraper.summarization.fallback import wrap_with_fallback_if_configured
 
     quote_key = _provider_field_str(cfg, "quote_extraction_provider", "transformers")
     entail_key = _provider_field_str(cfg, "entailment_provider", "transformers")
@@ -83,26 +84,35 @@ def create_gil_evidence_providers(
     needs_summary_instance = quote_key == summary_key or entail_key == summary_key
     effective_summary = summary_provider
     if needs_summary_instance and effective_summary is None:
+        # Lazy-built summary instance: orchestration normally hands one in (already
+        # wrapped); when it doesn't, wrap here so the GI evidence path still gets
+        # the RFC-089 #5 fallback contract.
         effective_summary = create_summarization_provider(cfg)
         if hasattr(effective_summary, "initialize"):
             effective_summary.initialize()
+        effective_summary = wrap_with_fallback_if_configured(effective_summary, cfg)
 
     if quote_key == summary_key:
         quote_extraction_provider = effective_summary
     else:
+        # Separate quote backend (e.g. summary=ollama, quote=deepseek) — needs its
+        # own fallback wrap because the summary wrapper above doesn't cover it.
         quote_extraction_provider = create_summarization_provider(
             cfg, provider_type_override=quote_key
         )
         if hasattr(quote_extraction_provider, "initialize"):
             quote_extraction_provider.initialize()
+        quote_extraction_provider = wrap_with_fallback_if_configured(quote_extraction_provider, cfg)
 
     if entail_key == summary_key:
         entailment_provider = effective_summary
     elif entail_key == quote_key:
         entailment_provider = quote_extraction_provider
     else:
+        # Separate entailment backend — same wrap rationale as the quote branch.
         entailment_provider = create_summarization_provider(cfg, provider_type_override=entail_key)
         if hasattr(entailment_provider, "initialize"):
             entailment_provider.initialize()
+        entailment_provider = wrap_with_fallback_if_configured(entailment_provider, cfg)
 
     return quote_extraction_provider, entailment_provider
