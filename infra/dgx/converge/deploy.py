@@ -97,7 +97,13 @@ services:
       # Compose-specific (NOT in ~/.env): Speaches-only knobs.
       - WHISPER__MODEL={MODEL}
       - WHISPER__DEVICE=cuda
-      - WHISPER__COMPUTE_TYPE=float16
+      # ``default`` lets ctranslate2 auto-pick the best compute type for the
+      # hardware. ``float16`` errors on GB10: "target device or backend do
+      # not support efficient float16 computation". GB10 prefers bfloat16
+      # natively; ``default`` resolves to that or an int8 quantized variant
+      # depending on the CTranslate2 build. Pin explicitly only if benchmarks
+      # show a reason.
+      - WHISPER__COMPUTE_TYPE=default
       - LOG_LEVEL=INFO
       - ENABLE_UI=false
       - UVICORN_HOST=0.0.0.0
