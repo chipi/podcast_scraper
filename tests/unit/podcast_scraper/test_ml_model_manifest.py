@@ -123,3 +123,24 @@ def test_preloaded_pinned_summaries_are_in_the_manifest():
     for model_id in ("google/flan-t5-base", "google/long-t5-tglobal-base"):
         assert cc.get_pinned_revision_for_model(model_id) is not None
         assert model_id in manifest_ids, f"pinned {model_id} not in manifest"
+
+
+def test_airgapped_thin_summary_is_the_trimmed_manifest_subset():
+    # preload_ml_models.py --airgapped-thin reads model_ids_for_tier("airgapped_thin",
+    # "summary"); it must be the trimmed bart/led pair and a subset of the test tier.
+    air = mm.model_ids_for_tier("airgapped_thin", "summary")
+    assert set(air) == {"facebook/bart-base", "allenai/led-base-16384"}
+    assert set(air) <= set(mm.model_ids_for_tier("test", "summary"))
+
+
+def test_preload_evidence_defaults_are_manifest_ids():
+    # Reverse drift guard: every DEFAULT_*_MODEL the preload script downloads for the
+    # evidence stack must be in the manifest, so a preloaded model can't silently
+    # fall out of the single source of truth.
+    manifest_ids = {m.model_id for m in mm.REQUIRED_ML_MODELS}
+    for model_id in (
+        cc.DEFAULT_EMBEDDING_MODEL,
+        cc.DEFAULT_EXTRACTIVE_QA_MODEL,
+        cc.DEFAULT_NLI_MODEL,
+    ):
+        assert model_id in manifest_ids, f"preloaded evidence model {model_id} not in manifest"

@@ -36,12 +36,16 @@ MODEL_KINDS = frozenset({"whisper", "spacy", "summary", "embedding", "qa", "nli"
 REGISTRY_BACKED_KINDS = frozenset({"summary", "embedding", "qa", "nli"})
 
 # Tier semantics:
-#   test        -- preloaded by default ``make preload-ml-models`` (dev/test)
-#   ci_artifact -- baked into the ml-models CI artifact AND loaded offline by the
-#                  test jobs; CI cache-validation checks exactly this set
-#   production  -- preloaded by ``--production`` (nightly / full bake)
-#   gated       -- requires HF_TOKEN at download time (pyannote diarization)
-MODEL_TIERS = frozenset({"test", "ci_artifact", "production", "gated"})
+#   test           -- preloaded by default ``make preload-ml-models`` (dev/test)
+#   ci_artifact    -- baked into the ml-models CI artifact AND loaded offline by the
+#                     test jobs; CI cache-validation checks exactly this set
+#   production     -- preloaded by ``--production`` (nightly / full bake)
+#   airgapped_thin -- the trimmed summarizer subset preloaded by ``--airgapped-thin``
+#                     (matches config/profiles/airgapped_thin.yaml). Whisper/spaCy/
+#                     evidence for that bundle come from the shared test-tier defaults,
+#                     so only the summary subset is tagged here.
+#   gated          -- requires HF_TOKEN at download time (pyannote diarization)
+MODEL_TIERS = frozenset({"test", "ci_artifact", "production", "airgapped_thin", "gated"})
 
 
 class MLModelSpec(NamedTuple):
@@ -55,6 +59,7 @@ class MLModelSpec(NamedTuple):
 
 
 _T = frozenset({"test", "ci_artifact", "production"})  # core: everywhere
+_T_AIR = _T | {"airgapped_thin"}  # core + the trimmed airgapped-thin summarizers
 _CI = frozenset({"ci_artifact", "production"})  # artifact + nightly
 _PROD = frozenset({"production"})  # nightly / full bake only
 
@@ -69,8 +74,8 @@ REQUIRED_ML_MODELS: tuple[MLModelSpec, ...] = (
     # --production both bake all four); the larger *-large variants are registry/
     # ALLOWED-known and revision-pinned but are NOT preloaded by default, so they
     # are intentionally absent from this preload manifest.
-    MLModelSpec("facebook/bart-base", "summary", _T),
-    MLModelSpec("allenai/led-base-16384", "summary", _T),
+    MLModelSpec("facebook/bart-base", "summary", _T_AIR),  # airgapped-thin bart-small
+    MLModelSpec("allenai/led-base-16384", "summary", _T_AIR),  # airgapped-thin long-fast
     MLModelSpec("google/long-t5-tglobal-base", "summary", _T),
     MLModelSpec("google/flan-t5-base", "summary", _T),
     # Evidence stack -- ids from config_constants DEFAULT_* (also registry keys).

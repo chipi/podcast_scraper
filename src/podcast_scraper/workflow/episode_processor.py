@@ -1596,13 +1596,20 @@ def _episode_existing_transcript_source(
     cfg: config.Config,
 ) -> Optional[str]:
     """Return the episode's existing ``content.transcript_source`` from its on-disk
-    metadata, or None if absent/unreadable (#925)."""
+    metadata, or None if absent/unreadable (#925). Handles both JSON and YAML
+    metadata (``_determine_metadata_path`` returns ``.metadata.yaml`` when
+    ``metadata_format == 'yaml'``)."""
     from .metadata_generation import _determine_metadata_path  # local: avoid import cycle
 
     try:
         metadata_path = _determine_metadata_path(episode, effective_output_dir, run_suffix, cfg)
         with open(metadata_path, "r", encoding="utf-8") as fh:
-            data = json.load(fh)
+            if metadata_path.endswith((".yaml", ".yml")):
+                import yaml
+
+                data = yaml.safe_load(fh)
+            else:
+                data = json.load(fh)
     except (OSError, ValueError, KeyError, AttributeError):
         return None
     content = data.get("content") if isinstance(data, dict) else None

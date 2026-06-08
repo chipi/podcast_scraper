@@ -798,15 +798,9 @@ def main() -> None:
                 # ONLY bart-small + long-fast (= facebook/bart-base + allenai/led-base-16384).
                 # Without an explicit list the function defaults to ALSO downloading
                 # google/long-t5-tglobal-base + google/flan-t5-base (~3 GB), which
-                # contradicts the "Skipped vs --production: long-t5, flan-t5" message
-                # printed above and bloats the stack-test image with models the
-                # airgapped_thin profile never loads. Pass the explicit list.
-                preload_transformers_models(
-                    [
-                        config.TEST_DEFAULT_SUMMARY_MODEL,  # facebook/bart-base
-                        config.TEST_DEFAULT_SUMMARY_REDUCE_MODEL,  # allenai/led-base-16384
-                    ]
-                )
+                # bloats the stack-test image with models the airgapped_thin profile
+                # never loads. Source the trimmed list from the manifest (#917).
+                preload_transformers_models(_mm.model_ids_for_tier("airgapped_thin", "summary"))
             else:
                 preload_transformers_models()
             print("")

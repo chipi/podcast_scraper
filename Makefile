@@ -1044,9 +1044,9 @@ enrich-relational-edges:
 # relational edges so corpus-wide SPOKEN_BY is filled.
 #   make redo-diarization CORPUS_DIR=<corpus> PROFILE=config/profiles/local.yaml
 redo-diarization:
-	@test -n "$${CORPUS_DIR:-}" || (echo "CORPUS_DIR required (corpus parent path)"; exit 1); \
-	test -n "$${PROFILE:-}" || (echo "PROFILE required (a diarization-enabled profile, e.g. config/profiles/local.yaml)"; exit 1); \
-	test -f "$${CORPUS_DIR}/feeds.spec.yaml" || (echo "Missing $${CORPUS_DIR}/feeds.spec.yaml"; exit 1); \
+	@test -n "$${CORPUS_DIR:-}" || { echo "CORPUS_DIR required (corpus parent path)"; exit 1; }; \
+	test -n "$${PROFILE:-}" || { echo "PROFILE required (a diarization-enabled profile, e.g. config/profiles/local.yaml)"; exit 1; }; \
+	test -f "$${CORPUS_DIR}/feeds.spec.yaml" || { echo "Missing $${CORPUS_DIR}/feeds.spec.yaml"; exit 1; }; \
 	echo "Re-diarizing whisper_transcription episodes in $${CORPUS_DIR} under $${PROFILE}..."; \
 	$(HF_NET_ENV) $(PYTHON) -m podcast_scraper.cli \
 	  --config "$${PROFILE}" \

@@ -49,6 +49,17 @@ def test_existing_source_reads_content_field(tmp_path, monkeypatch):
     )
 
 
+def test_existing_source_reads_yaml_metadata(tmp_path, monkeypatch):
+    # #925 MED2: YAML corpora must not silently no-op (json.load would raise).
+    meta = tmp_path / "ep.metadata.yaml"
+    meta.write_text("content:\n  transcript_source: whisper_transcription\n")
+    monkeypatch.setattr(metadata_generation, "_determine_metadata_path", lambda *a, **k: str(meta))
+    assert (
+        ep._episode_existing_transcript_source(_episode(), str(tmp_path), None, _cfg())
+        == "whisper_transcription"
+    )
+
+
 def test_existing_source_none_when_metadata_missing(tmp_path, monkeypatch):
     monkeypatch.setattr(
         metadata_generation, "_determine_metadata_path", lambda *a, **k: str(tmp_path / "nope.json")
