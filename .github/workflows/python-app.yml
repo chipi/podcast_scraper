@@ -1809,7 +1809,7 @@ jobs:
         if-no-files-found: ignore
     - name: Upload coverage to Codecov
       if: always()
-      uses: codecov/codecov-action@v6
+      uses: codecov/codecov-action@v7
       with:
         files: reports/coverage-unified.xml
         flags: unittests
