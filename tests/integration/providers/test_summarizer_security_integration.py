@@ -259,39 +259,40 @@ class TestPruneCacheSecurity(unittest.TestCase):
     """Test prune_cache() security checks."""
 
     def setUp(self):
-        """Set up test fixtures."""
+        """Set up test fixtures.
+
+        ``prune_cache`` only operates on paths under ``$HOME`` / ``~/.cache``,
+        so these tests need real subdirectories of those roots. They MUST be
+        unique, test-owned temp dirs -- never fixed real paths. A prior version
+        used ``~/.cache/huggingface/hub`` directly and rmtree'd it in teardown,
+        which wiped the shared HuggingFace model cache and broke the offline
+        search tests in CI (where ``HF_HUB_CACHE`` == ``~/.cache/huggingface/hub``).
+        """
         self.home = Path.home()
-        # Use a subdirectory of home for testing (required for security checks)
+        # Subdirectory of home (allowed root #1).
         self.temp_dir = tempfile.mkdtemp(dir=str(self.home))
+        # Subdirectory of ~/.cache (allowed root #2) -- isolated, NOT the real hub.
+        cache_root = self.home / ".cache"
+        cache_root.mkdir(exist_ok=True)
+        self.cache_temp_dir = tempfile.mkdtemp(dir=str(cache_root))
 
     def tearDown(self):
         """Clean up test fixtures."""
         shutil.rmtree(self.temp_dir, ignore_errors=True)
+        shutil.rmtree(self.cache_temp_dir, ignore_errors=True)
 
     def test_allows_subdirectory_of_home(self):
         """Test that subdirectories of home are allowed."""
-        cache_path = self.home / "test_cache"
-        cache_path.mkdir(exist_ok=True)
-        try:
-            # Should not raise ValueError
-            result = summarizer.prune_cache(cache_dir=str(cache_path), dry_run=True)
-            self.assertIsInstance(result, int)
-        finally:
-            if cache_path.exists():
-                shutil.rmtree(cache_path, ignore_errors=True)
+        # self.temp_dir is a unique subdirectory of $HOME.
+        result = summarizer.prune_cache(cache_dir=self.temp_dir, dry_run=True)
+        self.assertIsInstance(result, int)
 
     def test_allows_subdirectory_of_cache(self):
         """Test that subdirectories of ~/.cache are allowed."""
-        cache_root = self.home / ".cache"
-        cache_path = cache_root / "huggingface" / "hub"
-        cache_path.mkdir(parents=True, exist_ok=True)
-        try:
-            # Should not raise ValueError
-            result = summarizer.prune_cache(cache_dir=str(cache_path), dry_run=True)
-            self.assertIsInstance(result, int)
-        finally:
-            if cache_path.exists():
-                shutil.rmtree(cache_path, ignore_errors=True)
+        # self.cache_temp_dir is a unique subdirectory of ~/.cache -- NOT the
+        # real huggingface/hub, so this never touches the shared model cache.
+        result = summarizer.prune_cache(cache_dir=self.cache_temp_dir, dry_run=True)
+        self.assertIsInstance(result, int)
 
     def test_prevents_deletion_of_home(self):
         """Test that home directory itself cannot be deleted."""
@@ -350,50 +351,38 @@ class TestPruneCacheSecurity(unittest.TestCase):
 
     def test_dry_run_does_not_delete(self):
         """Test that dry_run=True does not actually delete files."""
-        # Use a subdirectory of home (required for security checks)
-        cache_path = self.home / "test_cache_security"
+        # Isolated subdirectory of $HOME (cleaned by tearDown).
+        cache_path = Path(self.temp_dir) / "dry_run"
         cache_path.mkdir(parents=True, exist_ok=True)
         test_file = cache_path / "test_file.txt"
         test_file.write_text("test content")
-        try:
-            # Dry run should not delete
-            result = summarizer.prune_cache(cache_dir=str(cache_path), dry_run=True)
-            self.assertGreater(result, 0)
-            self.assertTrue(test_file.exists(), "File should still exist after dry run")
-        finally:
-            if cache_path.exists():
-                shutil.rmtree(cache_path, ignore_errors=True)
+        # Dry run should not delete
+        result = summarizer.prune_cache(cache_dir=str(cache_path), dry_run=True)
+        self.assertGreater(result, 0)
+        self.assertTrue(test_file.exists(), "File should still exist after dry run")
 
     def test_non_dry_run_deletes_files(self):
         """Test that dry_run=False actually deletes files."""
-        # Use a subdirectory of home (required for security checks)
-        cache_path = self.home / "test_cache_security_delete"
+        # Isolated subdirectory of $HOME (cleaned by tearDown).
+        cache_path = Path(self.temp_dir) / "non_dry_run"
         cache_path.mkdir(parents=True, exist_ok=True)
         test_file = cache_path / "test_file.txt"
         test_file.write_text("test content")
-        try:
-            # Non-dry run should delete
-            result = summarizer.prune_cache(cache_dir=str(cache_path), dry_run=False)
-            self.assertGreater(result, 0)
-            self.assertFalse(test_file.exists(), "File should be deleted")
-        finally:
-            if cache_path.exists():
-                shutil.rmtree(cache_path, ignore_errors=True)
+        # Non-dry run should delete
+        result = summarizer.prune_cache(cache_dir=str(cache_path), dry_run=False)
+        self.assertGreater(result, 0)
+        self.assertFalse(test_file.exists(), "File should be deleted")
 
     def test_returns_deleted_count(self):
         """Test that function returns correct count of deleted files."""
-        # Use a subdirectory of home (required for security checks)
-        cache_path = self.home / "test_cache_security_count"
+        # Isolated subdirectory of $HOME (cleaned by tearDown).
+        cache_path = Path(self.temp_dir) / "count"
         cache_path.mkdir(parents=True, exist_ok=True)
         # Create multiple files
         for i in range(5):
             (cache_path / f"test_file_{i}.txt").write_text(f"content {i}")
-        try:
-            result = summarizer.prune_cache(cache_dir=str(cache_path), dry_run=True)
-            self.assertEqual(result, 5)
-        finally:
-            if cache_path.exists():
-                shutil.rmtree(cache_path, ignore_errors=True)
+        result = summarizer.prune_cache(cache_dir=str(cache_path), dry_run=True)
+        self.assertEqual(result, 5)
 
 
 @pytest.mark.integration

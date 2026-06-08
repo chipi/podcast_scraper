@@ -15,8 +15,6 @@ from __future__ import annotations
 import importlib.util
 from pathlib import Path
 
-import pytest
-
 _REPO_ROOT = Path(__file__).parent.parent.parent
 _FIXTURE_DIR = _REPO_ROOT / "tests" / "fixtures" / "multi-run-corpus"
 _GENERATOR_PATH = _REPO_ROOT / "scripts" / "tools" / "build_multi_run_fixture.py"
@@ -44,29 +42,3 @@ def _ensure_multi_run_corpus_fixture() -> None:
 
 # Module-level: runs at conftest import (before collection).
 _ensure_multi_run_corpus_fixture()
-
-
-@pytest.fixture(scope="session", autouse=True)
-def _prewarm_minilm_embedding():
-    """Pre-load MiniLM into the per-process embedding cache at session start.
-
-    The offline search tests (test_aux_tier / test_two_tier_indexer / test_hybrid_search)
-    embed via ``embedding_loader.encode`` -> ``get_embedding_model`` (process-cached, keyed
-    by model/device/cache_dir/allow_download). Loading it once here -- at session start, when
-    the on-disk HF cache is clean (right after the CI ensure step, before any test mutates HF
-    state) -- means those tests hit the in-memory instance and never re-read the disk cache.
-    This sidesteps a CI-only failure where a fresh offline load raised LocalEntryNotFoundError
-    despite the model being on disk and loadable seconds earlier (in the separate ensure-step
-    process). Best-effort: skip silently if MiniLM isn't cached (e.g. a subset run without it);
-    the individual tests still gate on their own provisioning.
-    """
-    try:
-        from podcast_scraper import config_constants as _cc
-        from podcast_scraper.providers.ml.embedding_loader import get_embedding_model
-
-        # Same args the search path uses (encode -> get_embedding_model defaults), so the
-        # cache key matches and encode() gets a hit instead of a fresh disk load.
-        get_embedding_model(_cc.DEFAULT_EMBEDDING_MODEL)
-    except Exception:
-        pass
-    yield
