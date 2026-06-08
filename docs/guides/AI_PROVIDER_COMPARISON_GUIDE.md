@@ -810,14 +810,135 @@ orderings. See [eval methodology](eval-reports/index.md) for detail.
 
 ## DGX-hosted local models (RFC-089)
 
-When the operator DGX Spark is on the tailnet, 70B-class Ollama models become
-practical for autoresearch and `local_dgx_*` profiles. Fill this section from
-`data/eval/runs/` after running configs such as
-`autoresearch_prompt_ollama_llama33_70b_dgx_smoke_bullets_v1` with
-`OLLAMA_API_BASE` pointed at DGX.
+The operator NVIDIA DGX Spark (GB10) joined the tailnet as of #810 (RFC-089 P0)
+and now hosts the same 12 Ollama models that ran on laptop in [Smoke v1 (April
+2026)](eval-reports/EVAL_SMOKE_V1_2026_04.md). The [June 2026 DGX vs Laptop
+smoke](eval-reports/EVAL_SMOKE_V1_DGX_VS_LAPTOP_2026_06.md) is the source
+report; numbers below are headline distillations.
 
-Procedure: [DGX_RUNBOOK](DGX_RUNBOOK.md). Cost comparison uses #804 rollups plus
-electricity notes in the runbook.
+### Latency vs laptop (same model, different compute)
+
+| Tier | Models | DGX vs laptop wall-clock |
+| --- | --- | --- |
+| Tiny (3–9B) | `llama3.2:3b`, `phi3:mini`, `mistral:7b`, `qwen2.5:7b`, `gemma2:9b`, `llama3.1:8b` | Neutral to slower. 3B regressed +80% on DGX (HTTP roundtrip dominates); 7–9B saw 5–37% speedups. |
+| Mid (12–24B) | `mistral-small3.2` (~24B) | 37% faster on DGX |
+| Large (27–35B) | `qwen3.5:27b`, `qwen2.5:32b`, `qwen3.5:35b` | **DGX 33–48% faster.** `qwen3.5:27b` saw a 1.9× speedup. |
+
+**Operational meaning.** Autoresearch matrix cells that were skipped on laptop
+(thermals, battery, 80s-per-episode-at-27B queueing) become viable. A 100-cell
+sweep at 27B drops from ~140 min on laptop to ~73 min on DGX, with no
+throttling. Tiny models stay on the laptop side of the env-var switch — DGX
+adds HTTP overhead without compute-bound payoff there.
+
+### Quality (vs Sonnet 4.6 silver, same prompts as April)
+
+`rougeL_f1` delta-of-delta against silver stays within **±0.04** on 10 of 12
+models — i.e. moving the same Ollama model from laptop to DGX produces
+functionally equivalent outputs at this sample size. The DGX-vs-laptop smoke
+also verified `boilerplate_leak_rate`, `speaker_label_leak_rate`, and
+`truncation_rate` all hold at 0 on both sides.
+
+### Cost — DGX vs cloud per 100 episodes
+
+Until [#804 LLM cost monitoring](https://github.com/chipi/podcast_scraper/issues/804)
+ships, the cost-per-episode for DGX uses an inline estimate:
+
+| Input | Value |
+| --- | --- |
+| GB10 thermal envelope under inference load | ~280 W (median; idle ~80 W) |
+| Wall power including chassis/networking | ~310 W |
+| Cost per kWh (operator region; verify locally) | $0.18 |
+| Avg pipeline wall-clock @ 27B per episode on DGX | ~44 s |
+| Episodes per hour at ~70% duty cycle | ~55 |
+
+→ DGX: **(310 W × 1 h ÷ 55 ep) × $0.18/kWh ≈ $0.0010/episode** for the
+summarization+GI+KG stages combined. Round up to **~$0.001–0.003/100 episodes**
+to cover idle background draw and amortize occasional cold-load swap penalties.
+
+That's effectively free at any pipeline scale the operator currently runs.
+Cloud equivalents from [Detailed Cost Analysis](#detailed-cost-analysis) above
+(per 100 episodes, summarization-only):
+
+| Provider | Cost / 100 ep | DGX advantage |
+| --- | --- | --- |
+| Anthropic Claude Sonnet 4.6 | ~$3.20 | ~3000× cheaper |
+| GPT-4o | ~$1.80 | ~1800× cheaper |
+| Gemini 2.5 Flash-lite | ~$0.02 | ~20× cheaper |
+| DeepSeek V3 | ~$0.04 | ~40× cheaper |
+
+(Capex isn't included; the operator's DGX is a research asset whose lifetime
+episode budget is large enough that amortized capex/episode is sub-cent in any
+plausible scenario. If you're doing a fleet decision, build that model out.)
+
+### When local (DGX) wins
+
+- **Cost-bounded autoresearch sweeps.** You're running >1000 cells and want
+  to stay at $0 marginal.
+- **Offline / privacy-bound development.** Pre-prod LLM validation that can't
+  hit a third-party API for compliance reasons.
+- **27B-and-up at sustained throughput.** 1.5–1.9× wall-clock speedup over
+  laptop on the model sizes that were the autoresearch bottleneck.
+- **Bulk re-processing of an existing corpus.** Re-extracting GI/KG over
+  hundreds of past episodes when the prompts change.
+
+### When cloud wins
+
+- **Interactive user-facing latency requirements.** Cloud APIs have lower p50
+  for the first-token-out, important when a human is waiting for a single
+  episode result. DGX wins on throughput, not single-shot latency.
+- **Quality-critical prod runs with budget.** Cloud silver remains Sonnet 4.6;
+  the autoresearch champion for cloud non-bundled is `gemini-2.5-flash-lite`.
+  Production episode summarization isn't where you save 1¢ to lose the silver
+  comparison floor.
+- **Intermittent operator availability.** DGX is a single physical host on the
+  operator's tailnet. Prod uses [ADR-096](../adr/ADR-096-dgx-spark-prod-primary-with-fallback.md)
+  fallback to cloud automatically; non-prod profiles can lose access if the box
+  goes down at the wrong moment.
+
+### How to use it
+
+The DGX endpoint is opt-in via profile, not the global default. To route a
+pipeline run through DGX:
+
+```bash
+podcast-scraper <rss> --profile local_dgx_balanced ...
+```
+
+Neither `local_dgx_balanced` nor `local_dgx_full` enables LLM cloud fallback —
+operator decision: laptop-driven runs against DGX should fail visibly (summary
+missing for the affected episode) when DGX is down, so you can fix the host
+side rather than silently spend cloud money. The
+`FallbackAwareSummarizationProvider` wrapper (RFC-089 #5 / commit `cd55e199`)
+is available for any profile that wants to opt in via
+`degradation_policy.fallback_provider_on_failure`, but the local-DGX profiles
+intentionally don't.
+
+Cloud fallback IS used in prod via
+[ADR-096](../adr/ADR-096-dgx-spark-prod-primary-with-fallback.md), but at the
+Whisper layer — the prod profile (`cloud_with_dgx_whisper_primary`) sets
+`transcription_fallback_provider: openai`. The LLM is already cloud Gemini
+there, so an LLM-level fallback isn't needed.
+
+For raw Ollama swaps (autoresearch experiments where you point an existing
+config at DGX), set `OLLAMA_API_BASE`:
+
+```bash
+export OLLAMA_API_BASE=http://dgx-llm-1.tail6d0ed4.ts.net:11434/v1
+make benchmark CONFIG=... BASELINE=... OUTPUT_DIR=... SMOKE=1
+```
+
+See [DGX_RUNBOOK](DGX_RUNBOOK.md) for the full bring-up + tailnet setup.
+
+### Two known anomalies in the source data
+
+The June DGX-vs-Laptop sweep flagged `qwen3.5:9b` (+775%) and `mistral-nemo:12b`
+(+1537%) — wall-clock collapsed on DGX during the sequential sweep, with
+tok/sec dropping to 1.5–2.8 (vs the normal 22–24). Quality scores were normal;
+this is an Ollama swap/load artifact between sequential `make benchmark`
+calls, not a steady-state characterization. Re-running those two cells in
+isolation would tighten the picture; they're flagged in the report and not
+quoted in the tables above. Don't make promotion decisions on those two rows
+without a follow-up sweep.
 
 ---
 

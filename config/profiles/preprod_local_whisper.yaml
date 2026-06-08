@@ -1,0 +1,62 @@
+# Profile: preprod_local_whisper — Stage A dress rehearsal for the prod profile.
+#
+# Mirrors cloud_with_dgx_whisper_primary.yaml exactly, EXCEPT:
+#   - transcription runs on laptop-local Whisper (openai-whisper + Apple MPS / CUDA)
+#   - DGX-specific fields removed (no tailnet_dgx_whisper, no dgx_tailnet_host)
+#
+# Purpose: validate the full prod pipeline shape (cloud Gemini LLM, screenplay,
+# diarize, GI evidence, KG, vectors, bridge) from your laptop BEFORE the DGX
+# Whisper service is built. See DGX_RUNBOOK §"Pre-prod laptop validation".
+#
+# Once this passes against the operator's last-7-days corpus, the DGX Whisper
+# service work (#814 Stage B) becomes worthwhile. Until then, this profile is
+# the unblocker.
+#
+# Run:
+#   make preprod-local RSS=<feed-url>
+# or directly:
+#   podcast-scraper <feed-url> --profile preprod_local_whisper --output-dir /tmp/preprod
+
+transcription_provider: whisper
+# small.en is the iteration default (~10x real-time on M-series MPS).
+# For the FINAL dress rehearsal before prod flip, override to large-v3 to match
+# what the DGX Whisper service will run (~0.6x real-time on M-series; one-time
+# ~3GB download). Both pass through the same pipeline glue.
+whisper_model: small.en
+
+# Screenplay + neural diarization (RFC-058) — non-negotiable per operator;
+# prod profile has these on, so Stage A must too.
+screenplay: true
+diarize: true
+
+audio_preprocessing_profile: speech_optimal_v1
+
+speaker_detector_provider: gemini
+auto_speakers: true
+
+summary_provider: gemini
+gemini_summary_model: gemini-2.5-flash-lite
+preprocessing_enabled: true
+llm_pipeline_mode: mega_bundled
+cloud_llm_structured_min_output_tokens: 4096
+
+generate_gi: true
+gi_insight_source: provider
+gi_max_insights: 12
+gi_require_grounding: true
+gil_evidence_quote_mode: bundled
+gil_evidence_nli_mode: bundled
+
+generate_kg: true
+kg_extraction_source: provider
+kg_max_topics: 10
+kg_max_entities: 15
+
+vector_search: true
+vector_backend: faiss
+llm_circuit_breaker_enabled: true
+
+generate_metadata: true
+generate_summaries: true
+language: en
+log_level: INFO

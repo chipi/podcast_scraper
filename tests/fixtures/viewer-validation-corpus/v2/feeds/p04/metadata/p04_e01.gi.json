@@ -32,7 +32,7 @@
     },
     {
       "from": "episode:09ead36d-954f-5cbb-ae3f-6f0d5985233d",
-      "to": "quote:1f363af5c9b5d0ec",
+      "to": "quote:5dc2253d421449be",
       "type": "HAS_QUOTE"
     },
     {
@@ -42,7 +42,7 @@
     },
     {
       "from": "episode:09ead36d-954f-5cbb-ae3f-6f0d5985233d",
-      "to": "quote:a38b377e905cdd7a",
+      "to": "quote:bd65660330ee9e2a",
       "type": "HAS_QUOTE"
     }
   ],
@@ -56,7 +56,7 @@
         "episode_id": "09ead36d-954f-5cbb-ae3f-6f0d5985233d",
         "metadata_relative_path": "feeds/p04/metadata/p04_e01.metadata.json",
         "podcast_id": "sha256:acf6d1026eaa400425afb658fa014e874a2eb50129923b7a92fe82290004a6e7",
-        "publish_date": "2026-06-03T12:00:00",
+        "publish_date": "2026-06-04T12:00:00",
         "title": "Frame & Light \u2014 Episode 1"
       },
       "type": "Episode"
@@ -113,10 +113,10 @@
       "type": "Insight"
     },
     {
-      "id": "quote:1f363af5c9b5d0ec",
+      "id": "quote:5dc2253d421449be",
       "properties": {
         "speaker": "Speaker 1",
-        "text": "This episode is brought to you by Adobe."
+        "text": "Today's episode is sponsored by Adobe."
       },
       "type": "Quote"
     },
@@ -129,10 +129,10 @@
       "type": "Quote"
     },
     {
-      "id": "quote:a38b377e905cdd7a",
+      "id": "quote:bd65660330ee9e2a",
       "properties": {
         "speaker": "Speaker 1",
-        "text": "Get started at adobe.com/podcast."
+        "text": "What's the version of the question that actually matters?"
       },
       "type": "Quote"
     }

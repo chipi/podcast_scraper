@@ -27,7 +27,7 @@
     },
     {
       "from": "episode:e1743bda-76ff-5586-9e39-3fa45e41ef9a",
-      "to": "insight:b0be11eff06fc810",
+      "to": "insight:5dc2253d421449be",
       "type": "HAS_INSIGHT"
     },
     {
@@ -37,12 +37,12 @@
     },
     {
       "from": "episode:e1743bda-76ff-5586-9e39-3fa45e41ef9a",
-      "to": "quote:ee9f60cc56218a72",
+      "to": "quote:66715f5cc5d73584",
       "type": "HAS_QUOTE"
     },
     {
       "from": "episode:e1743bda-76ff-5586-9e39-3fa45e41ef9a",
-      "to": "quote:2e681d63f615dc26",
+      "to": "quote:5b367ea1aad0246f",
       "type": "HAS_QUOTE"
     }
   ],
@@ -56,7 +56,7 @@
         "episode_id": "e1743bda-76ff-5586-9e39-3fa45e41ef9a",
         "metadata_relative_path": "feeds/p04/metadata/p04_e03.metadata.json",
         "podcast_id": "sha256:acf6d1026eaa400425afb658fa014e874a2eb50129923b7a92fe82290004a6e7",
-        "publish_date": "2026-06-05T12:00:00",
+        "publish_date": "2026-06-06T12:00:00",
         "title": "Frame & Light \u2014 Episode 3"
       },
       "type": "Episode"
@@ -104,11 +104,11 @@
       "type": "Insight"
     },
     {
-      "id": "insight:b0be11eff06fc810",
+      "id": "insight:5dc2253d421449be",
       "properties": {
         "confidence": 0.7,
         "grounded": true,
-        "text": "Before we dive in, a quick word from our sponsor Adobe."
+        "text": "Today's episode is sponsored by Adobe."
       },
       "type": "Insight"
     },
@@ -121,18 +121,18 @@
       "type": "Quote"
     },
     {
-      "id": "quote:ee9f60cc56218a72",
+      "id": "quote:66715f5cc5d73584",
       "properties": {
         "speaker": "Speaker 1",
-        "text": "Use code POD for an extended trial."
+        "text": "How do you know when you've gotten it right?"
       },
       "type": "Quote"
     },
     {
-      "id": "quote:2e681d63f615dc26",
+      "id": "quote:5b367ea1aad0246f",
       "properties": {
         "speaker": "Speaker 1",
-        "text": "Walk me through a concrete example."
+        "text": "What's the structural angle most listeners don't have access to?"
       },
       "type": "Quote"
     }

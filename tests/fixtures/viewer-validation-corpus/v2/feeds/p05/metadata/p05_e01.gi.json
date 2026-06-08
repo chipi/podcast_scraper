@@ -37,7 +37,7 @@
     },
     {
       "from": "episode:ac5784fa-1c94-5cd8-99c6-c4f0be157a64",
-      "to": "quote:4c9abb0bbe9113bc",
+      "to": "quote:239feecd8319059a",
       "type": "HAS_QUOTE"
     },
     {
@@ -56,7 +56,7 @@
         "episode_id": "ac5784fa-1c94-5cd8-99c6-c4f0be157a64",
         "metadata_relative_path": "feeds/p05/metadata/p05_e01.metadata.json",
         "podcast_id": "sha256:f4abc2ce662eb5875453632ed70c87b2fbc7394bbeef83c9d1d0918febd5bebe",
-        "publish_date": "2026-06-02T12:00:00",
+        "publish_date": "2026-06-03T12:00:00",
         "title": "Long Horizon Notes \u2014 Episode 1"
       },
       "type": "Episode"
@@ -121,10 +121,10 @@
       "type": "Quote"
     },
     {
-      "id": "quote:4c9abb0bbe9113bc",
+      "id": "quote:239feecd8319059a",
       "properties": {
         "speaker": "Speaker 1",
-        "text": "Today's episode is sponsored by Vanguard."
+        "text": "Before we dive in, a quick word from our sponsor Vanguard."
       },
       "type": "Quote"
     },

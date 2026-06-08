@@ -15,7 +15,7 @@
   ],
   "episode": {
     "episode_id": "d2fb36a0-6f97-55ee-a67a-e97dba3b7f27",
-    "published_date": "2026-06-01",
+    "published_date": "2026-06-02",
     "title": "Practical Systems \u2014 Episode 3"
   },
   "episode_id": "d2fb36a0-6f97-55ee-a67a-e97dba3b7f27",
@@ -40,16 +40,16 @@
     "artifact_path": "feeds/p02/metadata/p02_e03.kg.json",
     "schema_version": "1.1"
   },
-  "publish_date": "2026-06-01",
+  "publish_date": "2026-06-02",
   "schema_version": "1",
   "summary": {
     "bullets": [
       "# Practical Systems \u2014 Episode\n## Security as Design, Not a Checklist\nHost: Ethan\nGuest: Priya\nEthan: Welcome back to Practical Systems.",
       "Today we're talking about security design, and I'm joined by Priya, principal SRE at a payments platform.",
-      "Before we dive in, a quick word from our sponsor Vanta."
+      "Today's episode is sponsored by Vanta."
     ],
     "preview": "# Practical Systems \u2014 Episode\n## Security as Design, Not a Checklist\nHost: Ethan\nGuest: Priya\nEthan: Welcome back to Practical Systems.",
-    "text": "# Practical Systems \u2014 Episode\n## Security as Design, Not a Checklist\nHost: Ethan\nGuest: Priya\nEthan: Welcome back to Practical Systems.\nToday we're talking about security design, and I'm joined by Priya, principal SRE at a payments platform.\nBefore we dive in, a quick word from our sponsor Vanta.",
+    "text": "# Practical Systems \u2014 Episode\n## Security as Design, Not a Checklist\nHost: Ethan\nGuest: Priya\nEthan: Welcome back to Practical Systems.\nToday we're talking about security design, and I'm joined by Priya, principal SRE at a payments platform.\nToday's episode is sponsored by Vanta.",
     "title": "Practical Systems \u2014 Episode 3 \u2014 synthetic"
   },
   "summary_bullet_graph_topic_ids": [
@@ -60,10 +60,10 @@
   "summary_bullets": [
     "# Practical Systems \u2014 Episode\n## Security as Design, Not a Checklist\nHost: Ethan\nGuest: Priya\nEthan: Welcome back to Practical Systems.",
     "Today we're talking about security design, and I'm joined by Priya, principal SRE at a payments platform.",
-    "Before we dive in, a quick word from our sponsor Vanta."
+    "Today's episode is sponsored by Vanta."
   ],
   "summary_preview": "# Practical Systems \u2014 Episode\n## Security as Design, Not a Checklist\nHost: Ethan\nGuest: Priya\nEthan: Welcome back to Practical Systems.",
-  "summary_text": "# Practical Systems \u2014 Episode\n## Security as Design, Not a Checklist\nHost: Ethan\nGuest: Priya\nEthan: Welcome back to Practical Systems.\nToday we're talking about security design, and I'm joined by Priya, principal SRE at a payments platform.\nBefore we dive in, a quick word from our sponsor Vanta.",
+  "summary_text": "# Practical Systems \u2014 Episode\n## Security as Design, Not a Checklist\nHost: Ethan\nGuest: Priya\nEthan: Welcome back to Practical Systems.\nToday we're talking about security design, and I'm joined by Priya, principal SRE at a payments platform.\nToday's episode is sponsored by Vanta.",
   "summary_title": "Practical Systems \u2014 Episode 3 \u2014 synthetic",
   "topics": [
     "technology",

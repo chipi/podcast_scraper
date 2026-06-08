@@ -2,6 +2,18 @@
   "cluster_count": 5,
   "clusters": [
     {
+      "canonical_label": "Health",
+      "canonical_topic_id": "topic:health",
+      "cil_alias_target_topic_id": "topic:health",
+      "graph_compound_parent_id": "tc:health-cluster",
+      "member_count": 1,
+      "members": [
+        {
+          "topic_id": "topic:health"
+        }
+      ]
+    },
+    {
       "canonical_label": "Outdoor Activities",
       "canonical_topic_id": "topic:outdoor-activities",
       "cil_alias_target_topic_id": "topic:outdoor-activities",
@@ -10,18 +22,6 @@
       "members": [
         {
           "topic_id": "topic:outdoor-activities"
-        }
-      ]
-    },
-    {
-      "canonical_label": "Technology",
-      "canonical_topic_id": "topic:technology",
-      "cil_alias_target_topic_id": "topic:technology",
-      "graph_compound_parent_id": "tc:technology-cluster",
-      "member_count": 1,
-      "members": [
-        {
-          "topic_id": "topic:technology"
         }
       ]
     },
@@ -38,14 +38,14 @@
       ]
     },
     {
-      "canonical_label": "Health",
-      "canonical_topic_id": "topic:health",
-      "cil_alias_target_topic_id": "topic:health",
-      "graph_compound_parent_id": "tc:health-cluster",
+      "canonical_label": "Technology",
+      "canonical_topic_id": "topic:technology",
+      "cil_alias_target_topic_id": "topic:technology",
+      "graph_compound_parent_id": "tc:technology-cluster",
       "member_count": 1,
       "members": [
         {
-          "topic_id": "topic:health"
+          "topic_id": "topic:technology"
         }
       ]
     },

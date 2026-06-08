@@ -1,0 +1,16 @@
+# v2 silver candidate (#903) — openai gpt-5.4 on curated_5feeds_kg_v2 paragraph.
+id: silver_candidate_openai_gpt54_benchmark_v2_paragraph
+task: summarization
+backend:
+  type: openai
+  model: gpt-5.4
+prompts:
+  user: openai/summarization/long_v1
+  system: openai/summarization/system_v1
+data:
+  dataset_id: curated_5feeds_kg_v2
+params:
+  max_length: 800
+  min_length: 200
+  temperature: 0.0
+preprocessing_profile: cleaning_v4

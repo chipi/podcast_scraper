@@ -223,6 +223,27 @@ grep the literal strings in `src/`, confirm every value has a dispatch arm
 that does something different. **Half-wired features are worse than no
 feature** — see #643 Phase 3C near-miss for the canonical example.
 
+### Eval-track fixtures + silvers (`data/eval/`)
+
+- **v2 generator is deterministic** since #903: same spec → identical
+  transcripts across runs / `PYTHONHASHSEED` values. Don't reach for env
+  pinning to "stabilize" output, and don't reintroduce `hash(...)` for
+  seeding — use `_stable_seed(s)` (md5-based) the way
+  `scripts/eval/data/generate_v2_transcripts.py` does. Regression test in
+  `tests/unit/scripts/eval/data/test_generate_v2_transcripts.py`.
+- **Silver naming convention** (v1↔v2):
+  - `silver_<provider>_<cell>_v1` — autoresearch v1 winners over v1 sources.
+  - `silver_<provider>_smoke_v2` / `_smoke_v2_bullets` — v2 source content,
+    smoke scale (5 eps).
+  - `silver_<provider>_kg_v2_paragraph` / `_kg_v2_bullets` — v2 source
+    content, benchmark scale (15 eps from `curated_5feeds_kg_v2`).
+  - `silver_<provider>_benchmark_v2_*` — **autoresearch-v2-framework era**,
+    references v1 sources via `curated_5feeds_benchmark_v2`. The framework
+    "_v2" is unrelated to v2 source content.
+- v1 silvers / baselines are frozen; never overwrite. Layer-suffix dataset
+  naming (`_kg`, `_cil`, `_cleaning`) documented in
+  `data/eval/datasets/README.md`.
+
 ### GI/KG viewer UX (`web/gi-kg-viewer/`)
 
 When changing viewer UX (visible copy, labels, routes, panels, layout, theme

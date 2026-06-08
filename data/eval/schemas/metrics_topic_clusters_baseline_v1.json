@@ -1,0 +1,71 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "metrics_topic_clusters_baseline_v1.json",
+  "title": "Topic Clusters Baseline Metrics (v1)",
+  "description": "KG-topic clustering + frame negative test over a KG run. Produced by scripts/eval/score/topic_clusters_baseline_v2.py.",
+  "type": "object",
+  "additionalProperties": true,
+  "required": ["schema", "task", "baseline_id", "kg_run_id", "dataset_id", "threshold", "embedding_model", "aggregate", "clusters"],
+  "properties": {
+    "schema": { "type": "string", "const": "metrics_topic_clusters_baseline_v1" },
+    "task": { "type": "string", "const": "topic_clustering" },
+    "baseline_id": { "type": "string", "minLength": 1 },
+    "kg_run_id": { "type": "string", "minLength": 1 },
+    "dataset_id": { "type": "string", "minLength": 1 },
+    "threshold": { "type": "number", "minimum": 0, "maximum": 1 },
+    "embedding_model": { "type": "string", "minLength": 1 },
+    "created_at": { "type": "string", "format": "date-time" },
+    "aggregate": {
+      "type": "object",
+      "required": [
+        "tc_parent_count",
+        "tc_cross_feed_count",
+        "tc_parents_per_podcast",
+        "topic_row_count",
+        "frame_negative_test",
+        "ac_targets",
+        "ac_pass"
+      ],
+      "properties": {
+        "tc_parent_count": { "type": "integer", "minimum": 0 },
+        "tc_cross_feed_count": { "type": "integer", "minimum": 0 },
+        "tc_parents_per_podcast": {
+          "type": "object",
+          "additionalProperties": { "type": "integer", "minimum": 0 }
+        },
+        "topic_row_count": { "type": "integer", "minimum": 0 },
+        "frame_negative_test": {
+          "type": "object",
+          "required": ["violations", "pass", "note"],
+          "properties": {
+            "violations": { "type": "array", "items": { "type": "object" } },
+            "pass": { "type": "boolean" },
+            "exercised": { "type": "boolean" },
+            "note": { "type": "string" }
+          }
+        },
+        "ac_targets": { "type": "object" },
+        "ac_pass": { "type": "object" }
+      }
+    },
+    "clusters": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["tc_id", "label", "feeds", "feed_count", "podcasts", "topic_ids", "labels"],
+        "properties": {
+          "tc_id": { "type": "string", "pattern": "^tc:" },
+          "label": { "type": "string" },
+          "member_count": { "type": "integer", "minimum": 0 },
+          "unique_topic_count": { "type": "integer", "minimum": 0 },
+          "feeds": { "type": "array", "items": { "type": "string" } },
+          "feed_count": { "type": "integer", "minimum": 0 },
+          "podcasts": { "type": "array", "items": { "type": "string" } },
+          "podcast_count": { "type": "integer", "minimum": 0 },
+          "topic_ids": { "type": "array", "items": { "type": "string" } },
+          "labels": { "type": "array", "items": { "type": "string" } }
+        }
+      }
+    }
+  }
+}

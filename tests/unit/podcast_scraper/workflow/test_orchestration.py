@@ -526,6 +526,44 @@ class TestCreateSummarizationProvider(unittest.TestCase):
 
         self.assertIn("dependencies not available", str(context.exception))
 
+    @patch("podcast_scraper.workflow.orchestration._get_factory_function")
+    def test_no_fallback_wrap_when_policy_absent(self, mock_get_factory):
+        """RFC-089 #5: no wrapping if degradation_policy.fallback_provider_on_failure is unset."""
+        mock_provider = Mock()
+        mock_provider.initialize = Mock()
+        mock_get_factory.return_value = Mock(return_value=mock_provider)
+
+        result = orchestration._create_summarization_provider(self.cfg)
+        # Returned object IS the primary, not a wrapper.
+        from podcast_scraper.summarization.fallback import (
+            FallbackAwareSummarizationProvider,
+        )
+
+        self.assertIs(result, mock_provider)
+        self.assertNotIsInstance(result, FallbackAwareSummarizationProvider)
+
+    @patch("podcast_scraper.workflow.orchestration._get_factory_function")
+    def test_fallback_wraps_when_policy_set(self, mock_get_factory):
+        """RFC-089 #5: wrap with FallbackAwareSummarizationProvider when configured."""
+        cfg = config.Config(
+            rss_url="https://example.com/feed.xml",
+            generate_summaries=True,
+            generate_metadata=True,
+            dry_run=False,
+            summary_provider="ollama",
+            degradation_policy={"fallback_provider_on_failure": "gemini"},
+        )
+        mock_provider = Mock()
+        mock_provider.initialize = Mock()
+        mock_get_factory.return_value = Mock(return_value=mock_provider)
+
+        result = orchestration._create_summarization_provider(cfg)
+        from podcast_scraper.summarization.fallback import (
+            FallbackAwareSummarizationProvider,
+        )
+
+        self.assertIsInstance(result, FallbackAwareSummarizationProvider)
+
 
 @pytest.mark.unit
 class TestCreateAllProviders(unittest.TestCase):
