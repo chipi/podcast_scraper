@@ -521,10 +521,13 @@ jobs:
       run: |
         cd web/gi-kg-viewer
         npm ci
-    - name: Run Vitest unit tests
+    - name: Run Vitest unit tests with coverage gate (#914)
       run: |
         cd web/gi-kg-viewer
-        npm run test:unit
+        # test:coverage runs vitest with --coverage; the thresholds in
+        # vite.config.ts fail the job if UI coverage regresses (parallel to the
+        # Python coverage gate; not merged into coverage-unified).
+        npm run test:coverage
 
   # Preload ML models - runs when Python code/tests/configs change so models
   # are cached for integration and e2e tests. Path-A gate: skipped on

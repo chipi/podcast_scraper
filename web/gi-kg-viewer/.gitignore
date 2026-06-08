@@ -4,3 +4,6 @@
 validation-results/
 test-results/
 playwright-report/
+
+# Vitest coverage output (#914)
+coverage/

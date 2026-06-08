@@ -1098,8 +1098,8 @@ ghcr-prune-dry-run:
 
 # Vitest unit tests for TypeScript utility logic (no browser needed)
 test-ui:
-	@echo "Vitest unit tests (gi-kg-viewer)..."
-	@cd $(WEB_VIEWER_DIR) && npm install && npm run test:unit
+	@echo "Vitest unit tests + coverage gate (gi-kg-viewer, #914)..."
+	@cd $(WEB_VIEWER_DIR) && npm install && npm run test:coverage
 
 # Playwright browser E2E (install browsers once: cd $(WEB_VIEWER_DIR) && npx playwright install firefox)
 test-ui-e2e:
