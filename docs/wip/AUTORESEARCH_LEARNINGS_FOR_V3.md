@@ -221,6 +221,55 @@ sample larger by including the "sponsor-shaped real content" + "multiple
 silvers per episode" patterns above — they're what the broader judge pass
 would need.
 
-### #906 — Tier 3 NER + Whisper + prompt tuning (queued)
+### #906 — Tier 3 NER + Whisper + prompt tuning (2026-06-08)
+
+**NER coverage gap (Sub-task A finding):**
+
+`en_core_web_sm` misses 17% of expected hosts/guests on v2 (96.7% recall with
+`_trf`, 83.3% with `_sm`). The misses concentrate on (a) less-prominent
+secondary persons and (b) callback references where the same person is named
+via different surface forms across episodes. v3 fixtures should add:
+
+1. Episodes with higher named-person density (host + 2 guests + 2 callback
+   references), so NER recall can be measured at density that matches real
+   podcast content. Current v2 max is ~4 named persons/ep which
+   underrepresents the realistic case.
+2. Explicit ground-truth "must-detect" list per episode (extending the
+   `EPISODE_VOICES` style mapping in `scripts/eval/score/ner_model_sweep_v1.py`
+   to include callback names too), so NER recall is testable without inferring
+   from spec dataclass fields.
+
+**Whisper accent stress (Sub-task B finding):**
+
+`tiny.en` spikes to 23.14% WER on the p04_e01 episode (Daniel en-GB + Kathy
+fr-CA voices) — other 4 v2 episodes stay at 4-6% WER. The accent combination
+matters more than individual accents: one non-en-US voice is tolerable;
+two co-existing non-en-US voices triggers degradation. v3 audio fixtures
+should add:
+
+1. **3-accent mix episodes** (e.g. host UK-en + guest 1 fr-CA + guest 2 es-MX)
+   so future ASR-tier autoresearch tickets have explicit test beds for
+   accent-stress evaluation.
+2. **One synthetic Whisper-garble episode** — a transcript pre-mangled to
+   resemble Whisper output on accented voices (Bessent → Bessett, etc.) —
+   so entity-canon + CIL bridge work can be tested without needing actual
+   ASR runs.
+
+**Prompt v2-aware variant (Sub-task C finding):**
+
+A hand-designed v2-aware paragraph prompt (adds explicit "position changes" +
+"recurring guests" callouts) **sweeps 5-0** over the current production
+`long_v1.j2` on v2 smoke. The win comes from explicitly surfacing structural
+patterns (position arcs, callback recurrence) that v1 leaves implicit. The
+v2-aware variant shipped at
+`src/podcast_scraper/prompts/anthropic/summarization/long_v2.j2`. v3 fixtures
+should:
+
+1. Ensure each podcast has at least one episode with a `position_arc` (v2
+   has 3 such episodes out of 15 — biased toward p01_e02, p02_e03, p05_e03).
+2. Encode multi-episode recurring-guest patterns more aggressively (currently
+   only the synthetic Marco-Bianchi callback in p05_e02 from the #904 work
+   exercises this); v3 should have 2-3 cross-episode-recurring guests per
+   podcast.
 
 ### #816 — Reliability axis (queued)
