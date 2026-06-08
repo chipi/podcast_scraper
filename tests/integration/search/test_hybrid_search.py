@@ -21,7 +21,7 @@ _MODEL = "sentence-transformers/all-MiniLM-L6-v2"
 
 
 def _emb(text):
-    return list(embedding_loader.encode(text, _MODEL, return_numpy=False, allow_download=True))
+    return list(embedding_loader.encode(text, _MODEL, return_numpy=False))
 
 
 @pytest.fixture

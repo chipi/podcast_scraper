@@ -51,7 +51,7 @@ def test_builds_both_tiers_and_is_queryable(tmp_path, monkeypatch):
     corpus = tmp_path / "corpus"
     (corpus / "metadata").mkdir(parents=True)
     lance = corpus / "search" / "lance_index"
-    stats = tti.build_two_tier_index(corpus, lance, allow_download=True)
+    stats = tti.build_two_tier_index(corpus, lance)
 
     assert stats.episodes == 1
     assert stats.insights == 1 and stats.segments == 1  # quote ignored
@@ -125,7 +125,7 @@ def test_linking_populates_compounds(tmp_path, monkeypatch):
     monkeypatch.setattr(tti, "_gi_path", lambda root, mp, doc: gi)
 
     lance = corpus / "search" / "lance_index"
-    stats = tti.build_two_tier_index(corpus, lance, allow_download=True)
+    stats = tti.build_two_tier_index(corpus, lance)
     assert stats.linked == 1  # the insight linked to the segment
 
     backend = LanceDBBackend(str(lance))
