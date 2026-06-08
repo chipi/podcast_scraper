@@ -123,10 +123,11 @@ def verify_backup(backup_path: Path) -> bool:
                 print("Warning: Backup file appears to be empty", file=sys.stderr)
                 return False
 
-            # Check for .cache structure
-            has_cache = any(m.name.startswith(".cache/") for m in members)
-            if not has_cache:
-                print("Warning: Backup doesn't appear to contain .cache directory", file=sys.stderr)
+            # Check the backup has a directory structure (any cache dir name, not
+            # only ".cache" -- backup_cache.py supports --cache-dir).
+            has_structure = any("/" in m.name for m in members)
+            if not has_structure:
+                print("Warning: Backup has no cache directory structure", file=sys.stderr)
                 return False
 
         return True
@@ -189,13 +190,20 @@ def restore_backup(
             # Get all members
             members = tar.getmembers()
 
-            # Extract to parent of target (so .cache ends up in the right place)
-            # The backup contains .cache/... so we extract to the project root
+            # Extract to the parent of target so the archive's top-level dir lands
+            # as target_cache_dir. backup_cache.py stores arcnames as
+            # "<source cache dir basename>/..." (relative_to(cache_dir.parent)), so
+            # hardcoding ".cache/" here silently skipped EVERY file for any other
+            # cache dir name -> "Files extracted: 0" but reported success. Detect the
+            # archive's actual single top-level prefix instead.
             extract_root = target_cache_dir.parent
+            archive_roots = {m.name.split("/", 1)[0] for m in members if "/" in m.name}
+            expected_prefix = f"{next(iter(archive_roots))}/" if len(archive_roots) == 1 else None
 
             for member in members:
-                # Only extract .cache/ paths (skip other files)
-                if not member.name.startswith(".cache/"):
+                # Skip anything outside the single archive root (defends against stray
+                # members / traversal); if the root is ambiguous, extract everything.
+                if expected_prefix is not None and not member.name.startswith(expected_prefix):
                     if verbose:
                         print(f"  Skipping: {member.name}")
                     continue
