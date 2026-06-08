@@ -60,44 +60,6 @@ def _prewarm_minilm_embedding():
     process). Best-effort: skip silently if MiniLM isn't cached (e.g. a subset run without it);
     the individual tests still gate on their own provisioning.
     """
-    import os
-    import sys
-    import traceback
-
-    # --- TEMP DIAGNOSTIC (remove once the CI MiniLM load is understood) -------
-    # Dump the pytest-process reality straight to fd 2 (bypasses pytest capture)
-    # so we can finally compare it against the ensure-step process that loads
-    # MiniLM fine seconds earlier on the same machine.
-    lines = ["", "==== MiniLM pytest-process probe ===="]
-    for k in (
-        "HF_HUB_CACHE",
-        "HF_HOME",
-        "HF_HUB_OFFLINE",
-        "TRANSFORMERS_OFFLINE",
-        "SENTENCE_TRANSFORMERS_HOME",
-        "XDG_CACHE_HOME",
-        "HOME",
-    ):
-        lines.append(f"  env {k}={os.environ.get(k)!r}")
-    try:
-        from podcast_scraper.cache.directories import get_transformers_cache_dir
-
-        cdir = get_transformers_cache_dir()
-        lines.append(f"  get_transformers_cache_dir()={cdir!r}")
-        mini = Path(cdir) / "models--sentence-transformers--all-MiniLM-L6-v2"
-        lines.append(f"  MiniLM dir exists={mini.is_dir()} path={mini}")
-        if mini.is_dir():
-            for p in sorted(mini.rglob("*")):
-                try:
-                    tgt = f" -> {os.readlink(p)}" if p.is_symlink() else ""
-                    sz = "" if p.is_symlink() else f" ({p.stat().st_size}B)"
-                except OSError as exc:  # broken symlink / perms
-                    tgt, sz = f" <stat-error {exc}>", ""
-                lines.append(f"    {p.relative_to(mini)}{sz}{tgt}")
-    except Exception:  # pragma: no cover - diagnostic only
-        lines.append("  cache-dir probe FAILED:")
-        lines.append(traceback.format_exc())
-
     try:
         from podcast_scraper import config_constants as _cc
         from podcast_scraper.providers.ml.embedding_loader import get_embedding_model
@@ -105,12 +67,6 @@ def _prewarm_minilm_embedding():
         # Same args the search path uses (encode -> get_embedding_model defaults), so the
         # cache key matches and encode() gets a hit instead of a fresh disk load.
         get_embedding_model(_cc.DEFAULT_EMBEDDING_MODEL)
-        lines.append("  LOAD: OK (MiniLM loaded in pytest process)")
-    except Exception:  # pragma: no cover - diagnostic only
-        lines.append("  LOAD: FAILED")
-        lines.append(traceback.format_exc())
-    lines.append("==== end MiniLM probe ====")
-    os.write(2, ("\n".join(lines) + "\n").encode())
-    sys.stderr.flush()
-    # --- end TEMP DIAGNOSTIC --------------------------------------------------
+    except Exception:
+        pass
     yield
