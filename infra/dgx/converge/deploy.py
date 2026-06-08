@@ -54,25 +54,19 @@ COMPOSE_FILE = f"{INSTALL_ROOT}/docker-compose.yml"
 IMAGE = "ghcr.io/speaches-ai/speaches:latest-cuda"
 PORT = 8000
 MODEL = "Systran/faster-whisper-large-v3"
-HF_CACHE_HOST = "/opt/faster-whisper/hf-cache"
 
-# 1. Install root + HF cache dir (model weights persist between container restarts).
+# HF config lives in the operator's ``~/.env`` on DGX (single source of truth
+# for HF_TOKEN / HF_HOME / HF_HUB_CACHE / HF_DATASETS_CACHE). Compose injects it
+# via ``env_file:``. The model cache itself is shared with vLLM (also bind-mounts
+# /opt/llm-models/huggingface) so weights aren't duplicated.
+OPERATOR_ENV_FILE = "/home/markodragoljevic/.env"
+HF_CACHE_HOST = "/opt/llm-models/huggingface"
+
+# 1. Install root only — no separate HF cache directory needed; the operator's
+# centralized cache at /opt/llm-models/huggingface is the bind-mount target.
 files.directory(
     name="dir: /opt/faster-whisper (install root)",
     path=INSTALL_ROOT,
-    mode="755",
-    present=True,
-    _sudo=True,
-)
-
-files.directory(
-    name="dir: /opt/faster-whisper/hf-cache (model weights persist here)",
-    path=HF_CACHE_HOST,
-    # 1000:1000 matches the ``ubuntu`` user inside the Speaches container.
-    # Without this, the container can't write to the bind-mounted cache dir
-    # and ``/v1/models`` 500s on first scan.
-    user="1000",
-    group="1000",
     mode="755",
     present=True,
     _sudo=True,
@@ -95,8 +89,12 @@ services:
     restart: unless-stopped
     network_mode: host
     runtime: nvidia
+    # HF_TOKEN / HF_HOME / HF_HUB_CACHE / HF_DATASETS_CACHE all come from the
+    # operator's centralized ~/.env on DGX. Update there to update everywhere.
+    env_file:
+      - {OPERATOR_ENV_FILE}
     environment:
-      # Speaches env vars (see https://github.com/speaches-ai/speaches).
+      # Compose-specific (NOT in ~/.env): Speaches-only knobs.
       - WHISPER__MODEL={MODEL}
       - WHISPER__DEVICE=cuda
       - WHISPER__COMPUTE_TYPE=float16
@@ -104,11 +102,11 @@ services:
       - ENABLE_UI=false
       - UVICORN_HOST=0.0.0.0
       - UVICORN_PORT={PORT}
-      # Speaches runs as the ``ubuntu`` user (UID 1000) inside the container,
-      # so HF cache lives under /home/ubuntu/.cache. The host bind-mount is
-      # chown'd to 1000:1000 above so the container can write the model.
     volumes:
-      - {HF_CACHE_HOST}:/home/ubuntu/.cache/huggingface
+      # Mount HF cache at the SAME path inside the container as outside, so
+      # HF_HOME=/opt/llm-models/huggingface (from ~/.env) resolves correctly
+      # from inside. Shared with vLLM's compose so weights aren't duplicated.
+      - {HF_CACHE_HOST}:{HF_CACHE_HOST}
     deploy:
       resources:
         reservations:
