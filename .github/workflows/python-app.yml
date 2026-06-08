@@ -596,56 +596,10 @@ jobs:
     - name: Verify models were downloaded (only if cache miss)
       if: (needs.detect-changes.outputs.docs-only != 'true' || needs.detect-changes.outputs.code == 'true') && steps.cache-models.outputs.cache-hit != 'true'
       run: |
-        echo "🔍 Verifying models were downloaded..."
-        MISSING=""
-        # Check Whisper models (preload-production downloads both tiny.en and base.en)
-        for model in "tiny.en" "base.en"; do
-          if [ ! -f "$HOME/.cache/whisper/${model}.pt" ]; then
-            MISSING="$MISSING whisper:$model"
-          fi
-        done
-        # Check Hugging Face models (preload-production downloads all: bart-base, led-base-16384, bart-large-cnn, led-large-16384)
-        HF_CACHE="$HOME/.cache/huggingface/hub"
-        echo "🔍 Debug: Checking HuggingFace cache structure..."
-        echo "  HF_CACHE: $HF_CACHE"
-        echo "  HF_CACHE exists: $([ -d "$HF_CACHE" ] && echo 'yes' || echo 'no')"
-        if [ -d "$HF_CACHE" ]; then
-          echo "  Contents of HF_CACHE:"
-          find "$HF_CACHE" -maxdepth 1 -printf '%M %u %s %TF %TR %f\n' | head -20
-        fi
-        for model in "facebook/bart-base" "allenai/led-base-16384" "google/long-t5-tglobal-base" "google/flan-t5-base"; do
-          MODEL_DIR="models--${model//\//--}"
-          MODEL_PATH="$HF_CACHE/$MODEL_DIR"
-          echo "  Checking $model:"
-          echo "    MODEL_PATH: $MODEL_PATH"
-          echo "    MODEL_PATH exists: $([ -d "$MODEL_PATH" ] && echo 'yes' || echo 'no')"
-          if [ -d "$MODEL_PATH" ]; then
-            echo "    Contents of MODEL_PATH:"
-            find "$MODEL_PATH" -maxdepth 1 -printf '%M %u %s %TF %TR %f\n' | head -10
-            if [ -d "$MODEL_PATH/snapshots" ]; then
-              echo "    snapshots/ exists, contents:"
-              find "$MODEL_PATH/snapshots" -maxdepth 1 -printf '%M %u %s %TF %TR %f\n' | head -5
-            else
-              echo "    snapshots/ does NOT exist"
-            fi
-            if [ -d "$MODEL_PATH/blobs" ]; then
-              echo "    blobs/ exists, file count: $(find "$MODEL_PATH/blobs" -type f 2>/dev/null | wc -l)"
-            fi
-            TOTAL_FILES=$(find "$MODEL_PATH" -type f 2>/dev/null | wc -l)
-            echo "    Total files in MODEL_PATH: $TOTAL_FILES"
-          fi
-          # Model is valid if it has files (in snapshots, blobs, or anywhere in the directory)
-          if [ ! -d "$MODEL_PATH" ] || [ "$(find "$MODEL_PATH" -type f 2>/dev/null | head -1)" = "" ]; then
-            MISSING="$MISSING hf:$model"
-          fi
-        done
-        if [ -n "$MISSING" ]; then
-          echo "❌ ERROR: Models not downloaded: $MISSING"
-          exit 1
-        fi
-        echo "✅ All required models downloaded successfully"
-        echo "📦 Cache will be saved at end of job for test jobs to use"
-        echo "🔍 Debug: Cache sizes before save:"
+        # Single manifest (#917): verify_required_models.py reads
+        # model_manifest.ci_artifact_model_ids() -- no duplicated bash arrays.
+        python scripts/cache/verify_required_models.py
+        echo "Cache will be saved at end of job for test jobs to use"
         du -sh "$HOME/.cache/whisper" 2>/dev/null || echo "  Whisper cache not found"
         du -sh "$HOME/.cache/huggingface" 2>/dev/null || echo "  HuggingFace cache not found"
     - name: Upload ML models artifact (for dependent test jobs in same run)
@@ -696,50 +650,11 @@ jobs:
     - name: Validate ML model cache
       id: validate-cache
       run: |
-        echo "🔍 Validating ML model cache..."
-        MISSING_MODELS=""
-        MODELS_COMPLETE=true
-
-        # Check Whisper models
-        echo "📦 Whisper models:"
-        for model in "tiny.en" "base.en"; do
-          WHISPER_PATH="$HOME/.cache/whisper/${model}.pt"
-          if [ -f "$WHISPER_PATH" ] && [ -s "$WHISPER_PATH" ]; then
-            SIZE=$(du -h "$WHISPER_PATH" | cut -f1)
-            echo "  ✅ $model ($SIZE)"
-          else
-            echo "  ❌ $model - MISSING or empty"
-            MISSING_MODELS="$MISSING_MODELS whisper:$model"
-            MODELS_COMPLETE=false
-          fi
-        done
-
-        # Check Hugging Face models
-        echo ""
-        echo "📦 Hugging Face models:"
-        HF_CACHE="$HOME/.cache/huggingface/hub"
-        for model in "facebook/bart-base" "allenai/led-base-16384" "google/long-t5-tglobal-base" "google/flan-t5-base"; do
-          MODEL_DIR="models--${model//\//--}"
-          MODEL_PATH="$HF_CACHE/$MODEL_DIR"
-          # Check if model has files anywhere (blobs, snapshots, or root)
-          # HuggingFace cache structure: files in blobs/, symlinks in snapshots/
-          TOTAL_FILES=$(find "$MODEL_PATH" -type f 2>/dev/null | wc -l)
-          if [ -d "$MODEL_PATH" ] && [ "$TOTAL_FILES" -gt 0 ]; then
-            SIZE=$(du -sh "$MODEL_PATH" | cut -f1)
-            echo "  ✅ $model ($SIZE, $TOTAL_FILES files)"
-          else
-            echo "  ❌ $model - MISSING or incomplete (0 files found)"
-            MISSING_MODELS="$MISSING_MODELS hf:$model"
-            MODELS_COMPLETE=false
-          fi
-        done
-
-        echo ""
-        if [ "$MODELS_COMPLETE" = true ]; then
-          echo "✅ All required ML models are cached!"
+        # Single manifest (#917): verify_required_models.py reads
+        # model_manifest.ci_artifact_model_ids() -- no duplicated bash arrays.
+        if python scripts/cache/verify_required_models.py; then
           echo "models_complete=true" >> "$GITHUB_OUTPUT"
         else
-          echo "⚠️  Some models are missing: $MISSING_MODELS"
           echo "models_complete=false" >> "$GITHUB_OUTPUT"
           exit 1
         fi
@@ -863,84 +778,11 @@ jobs:
     - name: Validate ML model cache
       id: validate-cache
       run: |
-        echo "🔍 Validating ML model cache..."
-        MISSING_MODELS=""
-        MODELS_COMPLETE=true
-
-        # Check Whisper models
-        echo "📦 Whisper models:"
-        for model in "tiny.en"; do
-          WHISPER_PATH="$HOME/.cache/whisper/${model}.pt"
-          if [ -f "$WHISPER_PATH" ] && [ -s "$WHISPER_PATH" ]; then
-            SIZE=$(du -h "$WHISPER_PATH" | cut -f1)
-            echo "  ✅ $model ($SIZE)"
-          else
-            echo "  ❌ $model - MISSING or empty"
-            MISSING_MODELS="$MISSING_MODELS whisper:$model"
-            MODELS_COMPLETE=false
-          fi
-        done
-
-        # Check Hugging Face models
-        echo ""
-        echo "📦 Hugging Face models:"
-        HF_CACHE="$HOME/.cache/huggingface/hub"
-        echo "🔍 Debug: Checking HuggingFace cache after restore..."
-        echo "  HF_CACHE: $HF_CACHE"
-        echo "  HF_CACHE exists: $([ -d "$HF_CACHE" ] && echo 'yes' || echo 'no')"
-        if [ -d "$HF_CACHE" ]; then
-          echo "  Contents of HF_CACHE:"
-          find "$HF_CACHE" -maxdepth 1 -printf '%M %u %s %TF %TR %f\n' | head -20
-          echo "  Total size: $(du -sh "$HF_CACHE" 2>/dev/null | cut -f1)"
-        fi
-        for model in "facebook/bart-base" "allenai/led-base-16384" "google/long-t5-tglobal-base" "google/flan-t5-base"; do
-          MODEL_DIR="models--${model//\//--}"
-          MODEL_PATH="$HF_CACHE/$MODEL_DIR"
-          echo "  Checking $model:"
-          echo "    MODEL_PATH: $MODEL_PATH"
-          echo "    MODEL_PATH exists: $([ -d "$MODEL_PATH" ] && echo 'yes' || echo 'no')"
-          if [ -d "$MODEL_PATH" ]; then
-            echo "    Contents of MODEL_PATH:"
-            find "$MODEL_PATH" -maxdepth 1 -printf '%M %u %s %TF %TR %f\n' | head -10
-          if [ -d "$MODEL_PATH/snapshots" ]; then
-            echo "    snapshots/ exists, contents:"
-            find "$MODEL_PATH/snapshots" -maxdepth 1 -printf '%M %u %s %TF %TR %f\n' | head -5
-            FILE_COUNT_SNAPSHOTS=$(find "$MODEL_PATH/snapshots" -type f -o -type l 2>/dev/null | wc -l)
-            echo "    File/symlink count in snapshots/: $FILE_COUNT_SNAPSHOTS"
-          else
-            echo "    snapshots/ does NOT exist"
-          fi
-          if [ -d "$MODEL_PATH/blobs" ]; then
-            echo "    blobs/ exists, contents:"
-            find "$MODEL_PATH/blobs" -maxdepth 1 -printf '%M %u %s %TF %TR %f\n' | head -5
-            FILE_COUNT_BLOBS=$(find "$MODEL_PATH/blobs" -type f 2>/dev/null | wc -l)
-            echo "    File count in blobs/: $FILE_COUNT_BLOBS"
-          else
-            echo "    blobs/ does NOT exist"
-          fi
-          # Check if model is complete: either files in snapshots (following symlinks) or files in blobs
-          TOTAL_FILES=$(find "$MODEL_PATH" -type f 2>/dev/null | wc -l)
-          echo "    Total files in MODEL_PATH: $TOTAL_FILES"
-        fi
-        # Model is valid if it has files anywhere (blobs, snapshots, or root)
-        # HuggingFace cache structure: files in blobs/, symlinks in snapshots/
-        TOTAL_FILES=$(find "$MODEL_PATH" -type f 2>/dev/null | wc -l)
-        if [ -d "$MODEL_PATH" ] && [ "$TOTAL_FILES" -gt 0 ]; then
-          SIZE=$(du -sh "$MODEL_PATH" | cut -f1)
-          echo "  ✅ $model ($SIZE, $TOTAL_FILES files)"
-        else
-          echo "  ❌ $model - MISSING or incomplete (0 files found)"
-          MISSING_MODELS="$MISSING_MODELS hf:$model"
-          MODELS_COMPLETE=false
-        fi
-        done
-
-        echo ""
-        if [ "$MODELS_COMPLETE" = true ]; then
-          echo "✅ All required ML models are cached!"
+        # Single manifest (#917): verify_required_models.py reads
+        # model_manifest.ci_artifact_model_ids() -- no duplicated bash arrays.
+        if python scripts/cache/verify_required_models.py; then
           echo "models_complete=true" >> "$GITHUB_OUTPUT"
         else
-          echo "⚠️  Some models are missing: $MISSING_MODELS"
           echo "models_complete=false" >> "$GITHUB_OUTPUT"
           exit 1
         fi
@@ -1056,50 +898,11 @@ jobs:
     - name: Validate ML model cache
       id: validate-cache
       run: |
-        echo "🔍 Validating ML model cache..."
-        MISSING_MODELS=""
-        MODELS_COMPLETE=true
-
-        # Check Whisper models
-        echo "📦 Whisper models:"
-        for model in "tiny.en" "base.en"; do
-          WHISPER_PATH="$HOME/.cache/whisper/${model}.pt"
-          if [ -f "$WHISPER_PATH" ] && [ -s "$WHISPER_PATH" ]; then
-            SIZE=$(du -h "$WHISPER_PATH" | cut -f1)
-            echo "  ✅ $model ($SIZE)"
-          else
-            echo "  ❌ $model - MISSING or empty"
-            MISSING_MODELS="$MISSING_MODELS whisper:$model"
-            MODELS_COMPLETE=false
-          fi
-        done
-
-        # Check Hugging Face models
-        echo ""
-        echo "📦 Hugging Face models:"
-        HF_CACHE="$HOME/.cache/huggingface/hub"
-        for model in "facebook/bart-base" "allenai/led-base-16384" "google/long-t5-tglobal-base" "google/flan-t5-base"; do
-          MODEL_DIR="models--${model//\//--}"
-          MODEL_PATH="$HF_CACHE/$MODEL_DIR"
-          # Check if model has files anywhere (blobs, snapshots, or root)
-          # HuggingFace cache structure: files in blobs/, symlinks in snapshots/
-          TOTAL_FILES=$(find "$MODEL_PATH" -type f 2>/dev/null | wc -l)
-          if [ -d "$MODEL_PATH" ] && [ "$TOTAL_FILES" -gt 0 ]; then
-            SIZE=$(du -sh "$MODEL_PATH" | cut -f1)
-            echo "  ✅ $model ($SIZE, $TOTAL_FILES files)"
-          else
-            echo "  ❌ $model - MISSING or incomplete (0 files found)"
-            MISSING_MODELS="$MISSING_MODELS hf:$model"
-            MODELS_COMPLETE=false
-          fi
-        done
-
-        echo ""
-        if [ "$MODELS_COMPLETE" = true ]; then
-          echo "✅ All required ML models are cached!"
+        # Single manifest (#917): verify_required_models.py reads
+        # model_manifest.ci_artifact_model_ids() -- no duplicated bash arrays.
+        if python scripts/cache/verify_required_models.py; then
           echo "models_complete=true" >> "$GITHUB_OUTPUT"
         else
-          echo "⚠️  Some models are missing: $MISSING_MODELS"
           echo "models_complete=false" >> "$GITHUB_OUTPUT"
           exit 1
         fi
@@ -1222,48 +1025,11 @@ jobs:
     - name: Validate ML model cache
       id: validate-cache
       run: |
-        echo "🔍 Validating ML model cache..."
-        MISSING_MODELS=""
-        MODELS_COMPLETE=true
-
-        # Check Whisper models
-        echo "📦 Whisper models:"
-        for model in "tiny.en" "base.en"; do
-          WHISPER_PATH="$HOME/.cache/whisper/${model}.pt"
-          if [ -f "$WHISPER_PATH" ] && [ -s "$WHISPER_PATH" ]; then
-            SIZE=$(du -h "$WHISPER_PATH" | cut -f1)
-            echo "  ✅ $model ($SIZE)"
-          else
-            echo "  ❌ $model - MISSING or empty"
-            MISSING_MODELS="$MISSING_MODELS whisper:$model"
-            MODELS_COMPLETE=false
-          fi
-        done
-
-        # Check Hugging Face models
-        echo ""
-        echo "📦 Hugging Face models:"
-        HF_CACHE="$HOME/.cache/huggingface/hub"
-        for model in "facebook/bart-base" "allenai/led-base-16384" "google/long-t5-tglobal-base" "google/flan-t5-base"; do
-          MODEL_DIR="models--${model//\//--}"
-          MODEL_PATH="$HF_CACHE/$MODEL_DIR"
-          TOTAL_FILES=$(find "$MODEL_PATH" -type f 2>/dev/null | wc -l)
-          if [ -d "$MODEL_PATH" ] && [ "$TOTAL_FILES" -gt 0 ]; then
-            SIZE=$(du -sh "$MODEL_PATH" | cut -f1)
-            echo "  ✅ $model ($SIZE, $TOTAL_FILES files)"
-          else
-            echo "  ❌ $model - MISSING or incomplete (0 files found)"
-            MISSING_MODELS="$MISSING_MODELS hf:$model"
-            MODELS_COMPLETE=false
-          fi
-        done
-
-        echo ""
-        if [ "$MODELS_COMPLETE" = true ]; then
-          echo "✅ All required ML models are cached!"
+        # Single manifest (#917): verify_required_models.py reads
+        # model_manifest.ci_artifact_model_ids() -- no duplicated bash arrays.
+        if python scripts/cache/verify_required_models.py; then
           echo "models_complete=true" >> "$GITHUB_OUTPUT"
         else
-          echo "⚠️  Some models are missing: $MISSING_MODELS"
           echo "models_complete=false" >> "$GITHUB_OUTPUT"
           exit 1
         fi
@@ -1385,16 +1151,7 @@ jobs:
         name: ml-models
         path: /home/runner/.cache
     - name: Validate ML model cache (same checks as E2E)
-      run: |
-        for model in tiny.en base.en; do
-          test -s "$HOME/.cache/whisper/${model}.pt" || { echo "missing whisper $model"; exit 1; }
-        done
-        HF_CACHE="$HOME/.cache/huggingface/hub"
-        for model in facebook/bart-base allenai/led-base-16384 google/long-t5-tglobal-base google/flan-t5-base; do
-          MODEL_DIR="models--${model//\//--}"
-          test -d "$HF_CACHE/$MODEL_DIR" || { echo "missing hf $model"; exit 1; }
-          test "$(find "$HF_CACHE/$MODEL_DIR" -type f 2>/dev/null | head -1)" || { echo "empty hf $model"; exit 1; }
-        done
+      run: python scripts/cache/verify_required_models.py
     - name: Install dependencies (ML + LLM for full pipeline acceptance)
       run: |
         python -m pip install --upgrade pip
