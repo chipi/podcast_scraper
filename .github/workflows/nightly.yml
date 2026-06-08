@@ -112,7 +112,7 @@ jobs:
       run: |
         # Single manifest (#917): verify_required_models.py reads
         # model_manifest.ci_artifact_model_ids() -- no duplicated bash arrays.
-        if python scripts/cache/verify_required_models.py; then
+        if python scripts/cache/verify_required_models.py --tier production; then
           echo "models_complete=true" >> "$GITHUB_OUTPUT"
         else
           echo "models_complete=false" >> "$GITHUB_OUTPUT"
@@ -123,7 +123,7 @@ jobs:
       run: make preload-ml-models-production
 
     - name: Final cache validation
-      run: python scripts/cache/verify_required_models.py
+      run: python scripts/cache/verify_required_models.py --tier production
     - name: Upload ML models artifact (for dependent test jobs in same run)
       uses: actions/upload-artifact@v7
       with:
@@ -369,7 +369,7 @@ jobs:
     - name: Run Vitest unit tests
       run: |
         cd web/gi-kg-viewer
-        npm run test:unit
+        npm run test:coverage
 
   # ===========================================================================
   # Integration tests - isolated job

@@ -677,7 +677,11 @@ def main() -> None:
     mode.add_argument(
         "--production",
         action="store_true",
-        help="Preload production models (Whisper base.en, BART-large-cnn, LED-large-16384)",
+        help=(
+            "Preload the production-tier models from the manifest "
+            "(Whisper tiny.en+base.en, bart-base/led-base-16384/long-t5-tglobal-base/"
+            "flan-t5-base, MiniLM, QA+NLI, pyannote diarization)"
+        ),
     )
     mode.add_argument(
         "--airgapped-thin",

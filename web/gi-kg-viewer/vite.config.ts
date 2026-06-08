@@ -27,7 +27,7 @@ export default defineConfig({
     },
     // UI test-coverage track (#914): a parallel gate to the Python coverage gate.
     // Thresholds are a ratchetable floor set a few points below the current
-    // baseline (stmts 77 / br 68 / fn 77 / ln 79). Raise them as coverage grows.
+    // baseline (stmts 77 / br 68 / fn 76 / ln 79). Raise them as coverage grows.
     // Default include = files exercised by tests (no `all`), matching that baseline.
     coverage: {
       provider: 'v8',

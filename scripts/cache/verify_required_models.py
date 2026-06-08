@@ -39,7 +39,20 @@ def _hf_cached(model_id: str) -> bool:
     return any(p.is_file() for p in model_dir.rglob("*"))
 
 
-def main() -> int:
+def main(argv: list[str] | None = None) -> int:
+    import argparse
+
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument(
+        "--tier",
+        default="ci_artifact",
+        help=(
+            "Manifest tier to verify (default ci_artifact, for the consumer test jobs). "
+            "Nightly passes 'production' to also verify the pyannote diarization cache."
+        ),
+    )
+    args = parser.parse_args(argv)
+
     _ensure_src_on_path()
     from podcast_scraper.providers.ml import model_manifest as mm
 
@@ -50,6 +63,7 @@ def main() -> int:
         "embedding": _hf_cached,
         "qa": _hf_cached,
         "nli": _hf_cached,
+        "diarization": _hf_cached,  # pyannote pipeline repo (HF cache)
     }
     # spaCy (en_core_web_sm) is delivered by `pip install .[ml]`, NOT the ml-models
     # artifact, and this verifier runs at the pre-install Validate step -- so it is
@@ -57,8 +71,8 @@ def main() -> int:
     pip_delivered_kinds = {"spacy"}
 
     missing: list[str] = []
-    print("Verifying CI artifact models (from model_manifest):")
-    for spec in mm.models_for_tier("ci_artifact"):
+    print(f"Verifying '{args.tier}' models (from model_manifest):")
+    for spec in mm.models_for_tier(args.tier):
         if spec.kind in pip_delivered_kinds:
             print(f"  [skip] {spec.kind:9} {spec.model_id} (pip-delivered, not in artifact)")
             continue
@@ -77,7 +91,7 @@ def main() -> int:
     if missing:
         print(f"\nERROR: required models not cached: {', '.join(missing)}")
         return 1
-    print("\nAll required ml-models-artifact models are cached.")
+    print(f"\nAll required '{args.tier}' models are cached.")
     return 0
 
 
