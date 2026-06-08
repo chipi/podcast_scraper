@@ -78,13 +78,15 @@ permissions:
   pages: write
   id-token: write
 
-# Cancel an in-progress run for the same (workflow, ref) when a newer push
-# arrives. Different branches + PRs stay independent. CI-only — release /
-# deploy / backup workflows must keep ``cancel-in-progress: false`` (which
-# they already have explicitly).
+# Cancel superseded runs on PRs (only the latest commit matters → fast feedback).
+# On main/release pushes do NOT cancel: every commit gets a full CI result, and —
+# critically — an in-flight ``preload-ml-models`` job is never killed mid-download,
+# which would let ``actions/cache`` save a partial (poisoned) model cache that
+# later runs cache-hit. Release / deploy / backup workflows keep
+# ``cancel-in-progress: false`` explicitly.
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   # Detect what changed so heavy CI segments can skip when irrelevant.

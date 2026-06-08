@@ -25,6 +25,7 @@ on:
 
 permissions:
   contents: read
+  packages: write  # push/pull the GHCR registry build cache (ghcr.io/<owner>/podcast-scraper-buildcache)
 
 # Newer push to same (workflow, ref) cancels the in-progress run — Docker
 # build is expensive (ML variant ~17 min) and the old run's image is
@@ -69,6 +70,13 @@ jobs:
         driver-opts: |
           image=moby/buildkit:latest
 
+    - name: Log in to GHCR (registry build cache)
+      uses: docker/login-action@v4
+      with:
+        registry: ghcr.io
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+
     - name: Build Docker image (LLM-only variant, fast)
       uses: docker/build-push-action@v7
       with:
@@ -79,9 +87,10 @@ jobs:
         push: false
         load: true
         tags: podcast-scraper:test-llm
-        cache-from: type=gha,scope=llm-only
-        # No cache-to on PRs: BuildKit → GHA cache export often hits transient 502s
-        # ("Unicorn") on large mode=max uploads; main docker-build-full still writes GHA cache.
+        # Build cache lives in GHCR (registry), not GHA — keeps the ~9 GB ml-models GHA
+        # cache from being evicted under the 10 GB cap (#915). cache-from only here;
+        # docker-build-full maintains the cache.
+        cache-from: type=registry,ref=ghcr.io/${{ github.repository_owner }}/podcast-scraper-buildcache:llm-only
 
     - name: Test Docker image (help command)
       run: |
@@ -143,6 +152,13 @@ jobs:
         driver-opts: |
           image=moby/buildkit:latest
 
+    - name: Log in to GHCR (registry build cache)
+      uses: docker/login-action@v4
+      with:
+        registry: ghcr.io
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+
     - name: Build Docker image (${{ matrix.name }})
       uses: docker/build-push-action@v7
       with:
@@ -153,9 +169,11 @@ jobs:
         push: false
         load: true
         tags: ${{ matrix.tag }}
-        cache-from: type=gha,scope=${{ matrix.name }}
-        # mode=min: export fewer blobs than mode=max — less load on GHA cache API (fewer 502s).
-        cache-to: type=gha,mode=min,scope=${{ matrix.name }}
+        # Build cache lives in GHCR (registry), not GHA, so the ~9 GB ml-models GHA cache
+        # isn't evicted under the 10 GB cap (#915). This job maintains the cache (snyk-docker
+        # reuses it read-only). mode=min keeps the export small.
+        cache-from: type=registry,ref=ghcr.io/${{ github.repository_owner }}/podcast-scraper-buildcache:${{ matrix.name }}
+        cache-to: type=registry,mode=min,ref=ghcr.io/${{ github.repository_owner }}/podcast-scraper-buildcache:${{ matrix.name }}
 
     - name: Test Docker image (${{ matrix.name }} - help command)
       run: |
