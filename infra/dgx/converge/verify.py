@@ -95,3 +95,24 @@ server.shell(
         "curl -fsS --max-time 10 http://127.0.0.1:8000/v1/models >/dev/null",
     ],
 )
+
+# 7. pyannote diarize service (#926) — installed by deploy.py alongside
+# Speaches. Same Docker pattern + loopback check.
+server.shell(
+    name="assert: pyannote container is up",
+    commands=[
+        "docker ps --filter name=^pyannote$ --filter status=running --format '{{.Names}}' "
+        "| grep -q '^pyannote$'",
+    ],
+)
+
+server.shell(
+    name="assert: pyannote API responsive on :8001",
+    commands=[
+        # /health returns 200 only after the pyannote model has finished
+        # loading at startup. First boot can take ~30-60s for the model to
+        # warm; subsequent restarts are quick.
+        "curl -fsS --max-time 30 http://127.0.0.1:8001/health >/dev/null",
+        "curl -fsS --max-time 10 http://127.0.0.1:8001/v1/models >/dev/null",
+    ],
+)

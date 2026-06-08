@@ -1253,6 +1253,39 @@ class Config(BaseModel):
             "faster-whisper-server which takes HF repo IDs."
         ),
     )
+    diarization_provider: Literal["local", "tailnet_dgx"] = Field(
+        default="local",
+        alias="diarization_provider",
+        description=(
+            "Diarization backend (#926). ``local`` runs pyannote.audio in-process on "
+            "the pipeline host (laptop / prod VPS). ``tailnet_dgx`` POSTs audio to the "
+            "DGX-hosted pyannote service on dgx_diarize_port and gets speaker turns "
+            "back over the tailnet. Falls back to local pyannote when DGX is "
+            "unreachable so the pipeline never hard-fails on diarize. Default "
+            "``local`` keeps behavior backwards-compatible."
+        ),
+    )
+    dgx_diarize_port: int = Field(
+        default=8001,
+        ge=1,
+        le=65535,
+        alias="dgx_diarize_port",
+        description=(
+            "Port for the DGX-hosted pyannote diarization service (default 8001, "
+            "#926). The legacy embedding-shim slot reclaimed for diarize. See "
+            "infra/dgx/converge/deploy.py."
+        ),
+    )
+    dgx_diarize_model: str = Field(
+        default="pyannote/speaker-diarization-3.1",
+        alias="dgx_diarize_model",
+        description=(
+            "Hugging Face repo ID for the pyannote model that the DGX diarize "
+            "service loads. The HF model is gated; HF_TOKEN must be in the "
+            "operator's ~/.env on DGX, which the deploy env_file injects into the "
+            "container."
+        ),
+    )
     dgx_request_timeout_sec: float = Field(
         default=300.0,
         gt=0,

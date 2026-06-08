@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import Optional
 
 from .... import config
+from .base import DiarizationProvider
 from .pyannote_provider import PyAnnoteDiarizationProvider
 
 logger = logging.getLogger(__name__)
@@ -35,8 +36,13 @@ def resolve_hf_token(cfg: config.Config) -> Optional[str]:
     return None
 
 
-def create_diarization_provider(cfg: config.Config) -> PyAnnoteDiarizationProvider:
-    """Create pyannote diarization provider from config."""
+def create_local_pyannote_provider(cfg: config.Config) -> PyAnnoteDiarizationProvider:
+    """Create the in-process pyannote.audio diarization provider from config.
+
+    Exposed as its own function (not just inlined in ``create_diarization_provider``)
+    so the DGX client can build it as a lazy fallback (#926) without going
+    through the dispatch logic that picked the DGX backend in the first place.
+    """
     hf_token = resolve_hf_token(cfg)
     if not hf_token:
         raise ValueError(
@@ -48,3 +54,26 @@ def create_diarization_provider(cfg: config.Config) -> PyAnnoteDiarizationProvid
         device=cfg.diarization_device,
         model_name=cfg.diarization_model,
     )
+
+
+def create_diarization_provider(cfg: config.Config) -> DiarizationProvider:
+    """Dispatch to the configured diarization backend.
+
+    ``cfg.diarization_provider``:
+
+    - ``local`` (default) — in-process pyannote.audio on the pipeline host.
+    - ``tailnet_dgx`` — POST audio to the DGX-hosted pyannote service over
+      the tailnet (#926). Falls back to local pyannote on DGX failure.
+    """
+    backend = getattr(cfg, "diarization_provider", "local")
+    if backend == "tailnet_dgx":
+        # Import lazily so the local path doesn't need the tailnet_dgx package
+        # to even exist on systems that won't use DGX.
+        from ...tailnet_dgx.diarization_provider import (
+            TailnetDgxDiarizationProvider,
+        )
+
+        provider = TailnetDgxDiarizationProvider(cfg)
+        provider.initialize()
+        return provider
+    return create_local_pyannote_provider(cfg)

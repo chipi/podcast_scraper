@@ -144,3 +144,114 @@ server.shell(
     commands=[f"cd {INSTALL_ROOT} && docker compose up -d"],
     _sudo=True,
 )
+
+
+# ---------------------------------------------------------------------------
+# #926 — pyannote diarization service. Same shape as Speaches install above:
+# Docker-managed, restart: unless-stopped, env_file shared with the operator's
+# centralized ~/.env (HF_TOKEN comes from there). Listens on :8001 — the
+# legacy embedding-shim slot, already in the tailnet ACL.
+# ---------------------------------------------------------------------------
+
+PYANNOTE_INSTALL_ROOT = "/opt/pyannote-server"
+PYANNOTE_COMPOSE_FILE = f"{PYANNOTE_INSTALL_ROOT}/docker-compose.yml"
+PYANNOTE_BUILD_CTX = f"{PYANNOTE_INSTALL_ROOT}/build"
+PYANNOTE_IMAGE = "podcast-pyannote:0.1.0"
+PYANNOTE_PORT = 8001
+PYANNOTE_MODEL = "pyannote/speaker-diarization-3.1"
+# We BUILD the image on DGX (no public registry yet) — sources for the
+# Dockerfile + app live in the repo at infra/dgx/pyannote-server/. The
+# deploy reads those files and ships their contents up.
+from pathlib import Path as _Path
+
+_PYANNOTE_SRC = _Path(__file__).resolve().parents[1] / "pyannote-server"
+
+# Install root for the service compose + build context.
+files.directory(
+    name="dir: /opt/pyannote-server (install root)",
+    path=PYANNOTE_INSTALL_ROOT,
+    mode="755",
+    present=True,
+    _sudo=True,
+)
+
+files.directory(
+    name="dir: /opt/pyannote-server/build (Docker build context)",
+    path=PYANNOTE_BUILD_CTX,
+    mode="755",
+    present=True,
+    _sudo=True,
+)
+
+# Push Dockerfile + app.py to the build context on DGX.
+files.put(
+    name="ship: pyannote-server/Dockerfile",
+    src=str(_PYANNOTE_SRC / "Dockerfile"),
+    dest=f"{PYANNOTE_BUILD_CTX}/Dockerfile",
+    mode="644",
+    create_remote_dir=False,
+    _sudo=True,
+)
+
+files.put(
+    name="ship: pyannote-server/app.py",
+    src=str(_PYANNOTE_SRC / "app.py"),
+    dest=f"{PYANNOTE_BUILD_CTX}/app.py",
+    mode="644",
+    create_remote_dir=False,
+    _sudo=True,
+)
+
+# docker-compose.yml. Same env_file pattern as Speaches → HF_TOKEN flows
+# from the operator's centralized ~/.env. HF cache shared with Speaches +
+# vLLM at /opt/llm-models/huggingface so we don't re-download the model.
+PYANNOTE_COMPOSE_CONTENT = f"""# Auto-generated. Edit infra/dgx/converge/deploy.py instead.
+# Re-run ``make dgx-deploy`` from the laptop to redeploy.
+
+services:
+  pyannote:
+    build: {PYANNOTE_BUILD_CTX}
+    image: {PYANNOTE_IMAGE}
+    container_name: pyannote
+    restart: unless-stopped
+    network_mode: host
+    runtime: nvidia
+    env_file:
+      - {OPERATOR_ENV_FILE}
+    environment:
+      - PYANNOTE_MODEL={PYANNOTE_MODEL}
+      - PYANNOTE_DEVICE=cuda
+      - LOG_LEVEL=INFO
+      - UVICORN_HOST=0.0.0.0
+      - UVICORN_PORT={PYANNOTE_PORT}
+    volumes:
+      - {HF_CACHE_HOST}:{HF_CACHE_HOST}
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+"""
+
+server.shell(
+    name="compose: write /opt/pyannote-server/docker-compose.yml",
+    commands=[
+        f"cat > {PYANNOTE_COMPOSE_FILE} <<'EOF'\n{PYANNOTE_COMPOSE_CONTENT}EOF",
+        f"chmod 644 {PYANNOTE_COMPOSE_FILE}",
+    ],
+    _sudo=True,
+)
+
+server.shell(
+    name="build: pyannote image (one-time + on Dockerfile/app changes)",
+    commands=[f"cd {PYANNOTE_INSTALL_ROOT} && docker compose build"],
+    _sudo=True,
+)
+
+server.shell(
+    name="compose: up -d (start / restart pyannote service)",
+    commands=[f"cd {PYANNOTE_INSTALL_ROOT} && docker compose up -d"],
+    _sudo=True,
+)
