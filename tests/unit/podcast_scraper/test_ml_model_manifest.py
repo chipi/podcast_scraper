@@ -144,3 +144,21 @@ def test_preload_evidence_defaults_are_manifest_ids():
         cc.DEFAULT_NLI_MODEL,
     ):
         assert model_id in manifest_ids, f"preloaded evidence model {model_id} not in manifest"
+
+
+def test_production_evidence_tier_matches_preload_constants():
+    # Tighter contract than membership above. preload_ml_models.py --production fetches
+    # the evidence stack via cc.DEFAULT_*_MODEL, while verify_required_models.py checks
+    # the cache against model_ids_for_tier("production", <kind>). If a production-tier
+    # evidence id is swapped in the manifest WITHOUT updating the constant (or vice
+    # versa), preload downloads one model and the verifier checks a different one ->
+    # CI cache validation fails for everyone. Pin the two together per kind.
+    for kind, constant in (
+        ("embedding", cc.DEFAULT_EMBEDDING_MODEL),
+        ("qa", cc.DEFAULT_EXTRACTIVE_QA_MODEL),
+        ("nli", cc.DEFAULT_NLI_MODEL),
+    ):
+        assert mm.model_ids_for_tier("production", kind) == [constant], (
+            f"production-tier {kind} manifest id diverged from the preload constant "
+            f"({constant!r}); preload and the cache verifier would disagree"
+        )
