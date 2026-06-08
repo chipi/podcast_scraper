@@ -272,4 +272,24 @@ should:
    exercises this); v3 should have 2-3 cross-episode-recurring guests per
    podcast.
 
-### #816 — Reliability axis (queued)
+### #816 — Reliability axis (2026-06-08)
+
+**Eval set:** single representative v2 transcript (`p01_e01`, ~6K chars), 4-candidate panel (`gemini-2.5-flash-lite`, `gemini-2.5-flash`, `gpt-4o-mini`, `claude-haiku-4-5`). Harness: `scripts/eval/score/summary_model_reliability_v1.py`.
+
+**Real-prod failure mode (from 2026-05-24 manual run):** sustained ~15-20% Gemini 503 retry rate over ~3h of batched calls. Not visible at standard autoresearch eval scale (small batches, hand-paced).
+
+**Methodology contributions:**
+
+- Reliability is now a hard floor in summary-model ranking (`success_rate_pct >= 95` at the eval-scale operating point).
+- "Effective $/successful-call" replaces nameplate $/call (same number when clean, meaningfully different when the model is taking 503s).
+- p50 + p95 under sustained burst replace single-call latency.
+
+**v3 fixtures contribution — what's missing today:**
+
+- **Reliability-burst mode** for v3 fixtures. v2 has no sustained-load test bed. v3 should include a "burst" knob in the fixture-generation tooling so reliability evaluation can run against the same input shape every cycle without requiring a separate corpus.
+- **Per-stage `ProviderCallMetrics` export wired into pipeline shutdown.** Today the retry counter is in-process only; future prod runs should auto-emit a `reliability_evidence_*.json` next to `metrics.json` so the autoresearch loop can ingest real-prod evidence without operator manual capture.
+- **Time-of-day signal** — the 2026-05-24 prod observation is undifferentiated across the 3h window. v3 fixtures should drive a "stress at known load profile" pattern (ramp up over N minutes, hold, ramp down) so reliability measurement can show the 503-emergence curve, not just a steady-state number.
+
+**Tuned thresholds shipped:** no — the methodology is shipped; the model selection is unchanged. Composite ranking with the reliability axis still favors `gemini-2.5-flash-lite` by a wide margin (3-10× cost dominance, 3× latency dominance).
+
+**Cross-reference:** Reliability burst against the existing per-provider summarize endpoint is reusable for cross-stage evaluation when future tickets bring GI / KG / speaker models into autoresearch scope.
