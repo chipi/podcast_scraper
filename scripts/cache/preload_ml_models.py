@@ -116,6 +116,7 @@ from podcast_scraper.cache import (
     get_whisper_cache_dir,
 )
 from podcast_scraper.config_constants import get_pinned_revision_for_model
+from podcast_scraper.providers.ml import model_manifest as _mm
 from podcast_scraper.providers.ml.model_loader import preload_evidence_models
 from podcast_scraper.providers.ml.summarizer import DEFAULT_SUMMARY_MODELS
 
@@ -139,10 +140,9 @@ def preload_whisper_models(model_names: Optional[List[str]] = None) -> None:
         if env_models:
             model_names = [m.strip() for m in env_models.split(",") if m.strip()]
         else:
-            # Default: tiny.en for local dev/tests (smallest, fastest)
-            # Matches config.TEST_DEFAULT_WHISPER_MODEL
-            # Docker and production use base.en (better quality, matches app default)
-            model_names = [config.TEST_DEFAULT_WHISPER_MODEL]
+            # Default: the manifest's test-tier whisper models (#917) -- tiny.en.
+            # Docker/production add base.en via the production tier.
+            model_names = _mm.model_ids_for_tier("test", "whisper")
 
     if not model_names:
         print("Skipping Whisper model preloading (no models specified)")
@@ -227,9 +227,8 @@ def preload_spacy_models(model_names: Optional[List[str]] = None) -> None:
         if env_models:
             model_names = [m.strip() for m in env_models.split(",") if m.strip()]
         else:
-            # Default: en_core_web_sm (installed as dependency)
-            # Matches config.DEFAULT_NER_MODEL (same for tests and production)
-            model_names = ["en_core_web_sm"]
+            # Default: the manifest's test-tier spaCy models (#917) -- en_core_web_sm.
+            model_names = _mm.model_ids_for_tier("test", "spacy")
 
     if not model_names:
         print("Skipping spaCy model preloading (no models specified)")
@@ -332,30 +331,12 @@ def preload_transformers_models(model_names: Optional[List[str]] = None) -> None
         if env_models:
             model_names = [m.strip() for m in env_models.split(",") if m.strip()]
         else:
-            # Default: preload test defaults + hybrid ML models (for local dev/testing and eval)
-            # These match the constants in src/podcast_scraper/config.py:
-            # - TEST_DEFAULT_SUMMARY_MODEL = "facebook/bart-base"
-            #   (small, ~500MB, fast, used in tests)
-            # - TEST_DEFAULT_SUMMARY_REDUCE_MODEL = "allenai/led-base-16384"
-            #   (long-context, ~1GB, used in both)
-            # - google/long-t5-tglobal-base: hybrid_ml MAP model (longt5-base alias)
-            # - google/flan-t5-base: hybrid_ml tier-1 REDUCE model
-            #
-            # For production Pegasus model or other large models, use --production flag.
-            model_names = [
-                # Test default (small, ~500MB)
-                # Matches config.TEST_DEFAULT_SUMMARY_MODEL
-                config.TEST_DEFAULT_SUMMARY_MODEL,
-                # REDUCE default (long-context, ~1GB)
-                # Matches config.TEST_DEFAULT_SUMMARY_REDUCE_MODEL
-                # Used in both tests and production for long-context summarization
-                config.TEST_DEFAULT_SUMMARY_REDUCE_MODEL,
-                # Hybrid ML MAP model (longt5-base alias) — used by all hybrid_ml configs
-                # Also required by tests/e2e/test_hybrid_ml_provider_e2e.py
-                "google/long-t5-tglobal-base",
-                # Hybrid ML tier-1 REDUCE model (Flan-T5, instruction-tuned)
-                "google/flan-t5-base",
-            ]
+            # Default: the manifest's test-tier summarizers (#917) -- one source of
+            # truth instead of a second hand-maintained list. Resolves to:
+            #   facebook/bart-base, allenai/led-base-16384,
+            #   google/long-t5-tglobal-base, google/flan-t5-base
+            # (the bart/led test defaults + the hybrid_ml MAP/REDUCE models).
+            model_names = _mm.model_ids_for_tier("test", "summary")
 
     if not model_names:
         print("Skipping Transformers model preloading (no models specified)")
@@ -731,27 +712,15 @@ def main() -> None:
         print("Common: en_core_web_sm (spaCy)")
         print("")
 
-        # Include BOTH test AND production models
-        # Nightly workflow runs both regular tests (need test models) and
-        # nightly-only tests (need production models)
-        whisper_models = [
-            "tiny.en",  # Test model (for regular tests in nightly)
-            "base.en",  # Production model (for nightly-only tests)
-        ]
-        transformers_models = [
-            # Test models
-            config.TEST_DEFAULT_SUMMARY_MODEL,  # facebook/bart-base
-            config.TEST_DEFAULT_SUMMARY_REDUCE_MODEL,  # allenai/led-base-16384
-            # Production models (from config_constants.py — resolved dynamically)
-            # PROD_DEFAULT_SUMMARY_MODEL: facebook/bart-base (MAP)
-            # PROD_DEFAULT_SUMMARY_REDUCE_MODEL: llama3.2:3b via Ollama (REDUCE, not preloaded here)
-            config.PROD_DEFAULT_SUMMARY_MODEL,
-            config.PROD_DEFAULT_SUMMARY_REDUCE_MODEL,
-            # Hybrid ML Tier 1 E2E (tests/e2e/test_hybrid_ml_provider_e2e.py): MAP + REDUCE
-            "google/long-t5-tglobal-base",
-            "google/flan-t5-base",
-        ]
-        spacy_models = ["en_core_web_sm"]  # Same for both
+        # #917: derive the preload set from the single manifest (production tier)
+        # instead of a second hand-maintained list. The production tier includes
+        # the ci_artifact set, so nightly's regular-test models come along too:
+        #   whisper  -> tiny.en, base.en
+        #   summary  -> bart-base, led-base-16384, long-t5-tglobal-base, flan-t5-base
+        #   spaCy    -> en_core_web_sm
+        whisper_models = _mm.model_ids_for_tier("production", "whisper")
+        transformers_models = _mm.model_ids_for_tier("production", "summary")
+        spacy_models = _mm.model_ids_for_tier("production", "spacy")
 
         preload_whisper_models(whisper_models)
         print("")

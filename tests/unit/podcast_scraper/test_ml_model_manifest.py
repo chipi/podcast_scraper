@@ -103,13 +103,23 @@ def test_evidence_aliases_resolve_to_manifest_ids():
         assert spec is not None and spec.kind == kind, f"alias {alias} -> {resolved}"
 
 
-def test_pinned_summary_models_are_in_the_manifest():
-    manifest_ids = {m.model_id for m in mm.REQUIRED_ML_MODELS}
+def test_pinned_models_are_registry_known():
+    # The pin map covers both preloaded (base) and non-preloaded (large) summary
+    # variants for reproducibility; all must be ModelRegistry entries even though
+    # only the base ones are preloaded (in the manifest).
     for model_id in (
         "google/flan-t5-base",
         "google/flan-t5-large",
         "google/long-t5-tglobal-base",
         "google/long-t5-tglobal-large",
     ):
+        assert cc.get_pinned_revision_for_model(model_id) is not None
+        assert model_id in ModelRegistry._registry, f"pinned {model_id} not in registry"
+
+
+def test_preloaded_pinned_summaries_are_in_the_manifest():
+    # The pinned summarizers we actually preload must be in the manifest.
+    manifest_ids = {m.model_id for m in mm.REQUIRED_ML_MODELS}
+    for model_id in ("google/flan-t5-base", "google/long-t5-tglobal-base"):
         assert cc.get_pinned_revision_for_model(model_id) is not None
         assert model_id in manifest_ids, f"pinned {model_id} not in manifest"

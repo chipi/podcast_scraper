@@ -64,15 +64,15 @@ REQUIRED_ML_MODELS: tuple[MLModelSpec, ...] = (
     MLModelSpec(cc.PROD_DEFAULT_WHISPER_MODEL, "whisper", _CI),  # base.en
     # spaCy (NER / speaker detection)
     MLModelSpec(cc.TEST_DEFAULT_NER_MODEL, "spacy", _T),  # en_core_web_sm
-    # Summarization -- ids are central ModelRegistry keys (params live there)
+    # Summarization -- ids are central ModelRegistry keys (params live there).
+    # These four are the actual preloaded summarizers (the default dev preload and
+    # --production both bake all four); the larger *-large variants are registry/
+    # ALLOWED-known and revision-pinned but are NOT preloaded by default, so they
+    # are intentionally absent from this preload manifest.
     MLModelSpec("facebook/bart-base", "summary", _T),
     MLModelSpec("allenai/led-base-16384", "summary", _T),
-    MLModelSpec("google/long-t5-tglobal-base", "summary", _CI),
-    MLModelSpec("google/flan-t5-base", "summary", _CI),
-    MLModelSpec("facebook/bart-large-cnn", "summary", _PROD),
-    MLModelSpec("allenai/led-large-16384", "summary", _PROD),
-    MLModelSpec("google/long-t5-tglobal-large", "summary", _PROD),
-    MLModelSpec("google/flan-t5-large", "summary", _PROD),
+    MLModelSpec("google/long-t5-tglobal-base", "summary", _T),
+    MLModelSpec("google/flan-t5-base", "summary", _T),
     # Evidence stack -- ids from config_constants DEFAULT_* (also registry keys).
     # MiniLM is corpus-wide core -> ci_artifact (the model missing from the #897 CI).
     MLModelSpec(cc.DEFAULT_EMBEDDING_MODEL, "embedding", _T),
