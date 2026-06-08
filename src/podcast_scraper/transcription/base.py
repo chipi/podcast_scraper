@@ -5,7 +5,7 @@ This module defines the protocol that all transcription providers must implement
 
 from __future__ import annotations
 
-from typing import Protocol, runtime_checkable
+from typing import Any, Protocol, runtime_checkable
 
 
 @runtime_checkable
@@ -49,6 +49,9 @@ class TranscriptionProvider(Protocol):
         self,
         audio_path: str,
         language: str | None = None,
+        pipeline_metrics: Any | None = None,
+        episode_duration_seconds: int | None = None,
+        call_metrics: Any | None = None,
     ) -> tuple[dict[str, object], float]:
         """Transcribe audio file and return full result with segments.
 
@@ -59,6 +62,14 @@ class TranscriptionProvider(Protocol):
         Args:
             audio_path: Path to audio file
             language: Optional language code (e.g., "en", "fr")
+            pipeline_metrics: Optional run-level metrics aggregator.
+                Cloud providers record per-call cost + retry counts here.
+                Local providers (Whisper) accept-but-ignore — kept on the
+                protocol so callers can pass it uniformly.
+            episode_duration_seconds: Optional episode length, used by cloud
+                providers for cost extrapolation when chunked.
+            call_metrics: Optional ``ProviderCallMetrics`` instance for the
+                current call (token counts, latency, etc.).
 
         Returns:
             Tuple of (result_dict, elapsed_time):
