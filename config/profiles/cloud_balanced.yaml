@@ -44,6 +44,14 @@ speaker_detector_provider: gemini
 auto_speakers: true
 
 # Summarization
+# Re-validated 2026-06-08 (#816) with reliability axis added to autoresearch
+# methodology. Composite ranking (reliability floor → cost → latency) over
+# {gemini-2.5-flash-lite, gemini-2.5-flash, gpt-4o-mini, claude-haiku-4-5}
+# at concurrency=5/30 calls: flash-lite wins by 4-10× on $/successful-call
+# and 3× on p50. See docs/guides/eval-reports/EVAL_SUMMARY_MODEL_RELIABILITY_2026_06_08.md.
+# 2026-05-24 prod operating point: ~15-20% Gemini 503 burst absorbed by
+# #697 circuit breaker. Do not swap without re-running the harness at the
+# target operating point.
 summary_provider: gemini
 gemini_summary_model: gemini-2.5-flash-lite
 preprocessing_enabled: true

@@ -8,6 +8,13 @@
 > Track B (ML parameter tuning) remains under this RFC and is closed per
 > [ADR-073](../adr/ADR-073-rfc057-autoresearch-closure.md).
 
+> **2026-06-08 amendment — reliability axis (#816).** Summary-model autoresearch
+> now treats reliability under sustained load as a **hard floor**, not a
+> tiebreaker. The composite ranking, harness, and evidence convention are
+> described in [§ Reliability axis](#reliability-axis-2026-06-08-amendment-816)
+> below. The v2 framework (RFC-073) inherits this axis for any future
+> summary-model selection cycle.
+
 - **Status**: Completed (v1); Track A superseded by RFC-073
 - **Authors**: Podcast Scraper Team
 - **Stakeholders**: Core team
@@ -313,6 +320,75 @@ Use this as the **minimal** first PR scope; extend only after one green agent sm
 - [ ] `make lint` / tests green for new modules.
 - [ ] Optional: `docs/guides/AUTORESEARCH_GUIDE.md` stub pointing at this RFC (full guide can follow Rollout step 7).
 
+## Reliability axis (2026-06-08 amendment — #816)
+
+Closed via [#816](https://github.com/chipi/podcast_scraper/issues/816). The
+2026-05-24 manual production pipeline run surfaced a methodology gap: the
+RFC-057/RFC-073 summary-model harness measures **quality + cost + per-call
+latency**, but does NOT measure **reliability under sustained load** (the
+503 rate that emerges only at the prod operating point) or **effective
+throughput** (calls/min that actually succeed, factoring in the model's
+implicit retry budget).
+
+### What changed
+
+Summary-model selection now includes:
+
+1. **`success_rate_pct`** — hard floor (default ≥95) at the eval-scale
+   operating point. A model that fails this floor is disqualified, not
+   discounted.
+2. **`cost_usd_per_successful_call`** — replaces nameplate $/call. Same
+   number when the model is clean; meaningfully different when it isn't.
+3. **`latency_p50_s` / `latency_p95_s` under sustained burst** — replaces
+   single-call latency. Tail latency under load is the operationally
+   relevant number, not the steady-state single-call number.
+4. **`effective_qps`** — successes per wall-clock second.
+
+Composite ranking is **reliability-floor-first → cost → latency**, with
+the composite-score formula deliberately simple. Operators can re-weight at
+evaluation time; the methodology only commits to "reliability is in the
+matrix."
+
+### Harness
+
+`scripts/eval/score/summary_model_reliability_v1.py` — parameterized
+sustained-load burst. Inputs: transcript prefix, model list, `--calls N
+--concurrency C`. The burst can be dialed up to match the production
+operating point (multi-stage fan-out × N-hour sustained window) when the
+cost budget allows.
+
+The harness measures **provider-side** behavior (SDK call →
+success/failure/latency) before the application-level circuit breaker
+(#697). This is intentional — the autoresearch signal needs to describe
+what each provider does on its own, before the pipeline's mitigation layer.
+
+### Evidence convention
+
+Reliability evidence lands at
+`autoresearch/data/reliability_evidence/<date>_<env>_<model>.json` with the
+`reliability_evidence_v1` schema. Each evidence file flags what it does
+and does NOT support (per-stage attribution, time-of-day correlation,
+cross-model comparison) so future readers don't over-generalize from a
+single capture.
+
+### What this amendment does NOT change
+
+- The v2 dev/held-out split (RFC-073) still applies to **quality** ranking.
+- The bullets/paragraph rubric is unchanged.
+- The silver-judge convention is unchanged.
+- Reliability is an additional axis, not a replacement for quality
+  evaluation.
+
+### v3 fixtures contribution
+
+The methodology amendment also identifies a fixture-corpus gap:
+sustained-load testing is invisible at the small-batch eval scale that v2
+fixtures support. v3 (#921) should include a "reliability burst" mode in
+the fixture-generation tooling so future cycles can stress-test the
+operating-point reliability axis against the same input shape every
+cycle. See [`docs/wip/AUTORESEARCH_LEARNINGS_FOR_V3.md`](../wip/AUTORESEARCH_LEARNINGS_FOR_V3.md)
+§#816.
+
 ## References
 
 - [karpathy/autoresearch](https://github.com/karpathy/autoresearch) — Original pattern
@@ -322,3 +398,4 @@ Use this as the **minimal** first PR scope; extend only after one green agent sm
 - [RFC-053: Adaptive Summarization Routing](RFC-053-adaptive-summarization-routing.md)
 - [RFC-049: GIL Core](RFC-049-grounded-insight-layer-core.md)
 - `data/eval/` — Gold eval dataset
+- `autoresearch/data/reliability_evidence/` — Reliability evidence per measurement run (added 2026-06-08, #816)

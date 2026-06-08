@@ -366,6 +366,47 @@ Re-aggregates from every `feeds/*/run_*/metrics.json` and refreshes `cost_rollup
 `event_type: llm_cost` in pipeline logs (and stdout when JSONL metrics echo is enabled; see
 Observability).
 
+### Provider model selection (cloud_balanced / cloud_thin summary)
+
+**Current incumbent:** `gemini-2.5-flash-lite` (set in `config/profiles/cloud_balanced.yaml` and
+`config/profiles/cloud_thin.yaml`).
+
+**Validated by:** [EVAL_SUMMARY_MODEL_RELIABILITY_2026_06_08.md](eval-reports/EVAL_SUMMARY_MODEL_RELIABILITY_2026_06_08.md) (#816, 2026-06-08).
+The autoresearch summary-model matrix now includes **reliability under sustained load** as a hard
+floor (default ≥95% success rate at the eval-scale operating point), not just quality + cost +
+single-call latency.
+
+Composite ranking (reliability floor → cost → latency) at concurrency=5, 30 calls:
+
+| Model | succ% | p50 (s) | $/succ | Outcome |
+| --- | ---: | ---: | ---: | --- |
+| **gemini-2.5-flash-lite** | **100.0** | **2.45** | **$0.0004** | **incumbent — 4-10× cheaper, 3× faster than alternatives** |
+| gpt-4o-mini | 100.0 | 8.37 | $0.0007 | runner-up on cost |
+| gemini-2.5-flash | 100.0 | 9.94 | $0.0018 | |
+| claude-haiku-4-5 | 100.0 | 7.19 | $0.0041 | most expensive |
+
+**Known operating-point behavior:** 2026-05-24 prod run showed sustained ~15-20% Gemini 503 retry
+rate over ~3h of batched multi-stage calls. Run completed cleanly via the **#697 circuit breaker**
+(load-bearing); wall-clock overhead estimated at ~30-50% vs throttle-free baseline.
+
+**Mitigations (active):**
+
+- **#697 circuit breaker** absorbs 503 bursts (do not disable in cloud_balanced / cloud_thin).
+- **Retry budget** at default; per-call retries × concurrency × stage count govern blast radius.
+
+**When to re-evaluate the model choice:**
+
+- A candidate appears with both `cost_usd_per_successful_call ≤ $0.0005` AND `p50 ≤ 3.0s`.
+- Sustained measured failure rate at the prod operating point crosses ~75% (would lift
+  Gemini Lite's effective $/successful-call past the panel cheapest — far beyond anything
+  currently observed).
+- A new reliability evidence capture (per `autoresearch/data/reliability_evidence/`) shows a
+  sustained shift beyond the current 15-20% band.
+
+**Re-evaluation tooling:** `scripts/eval/score/summary_model_reliability_v1.py`. Re-run the
+panel with `--calls N --concurrency C` scaled to the production operating point and write to
+`data/eval/runs/`. See the eval report § Reproduction for the exact invocation.
+
 ### Where to look first
 
 | Symptom | Where |
@@ -373,6 +414,7 @@ Observability).
 | Viewer slow / unreachable | `gh run list --workflow deploy-prod.yml --limit 3` then Sentry → environment=prod |
 | Pipeline run failing | Sentry → environment=prod, component=pipeline; viewer Library → Job logs |
 | Deploy went red | GHA UI → Deploy to prod VPS → most recent run; api logs are dumped on health-check failure |
+| Gemini 503s in pipeline logs | Expected up to ~15-20% at the prod operating point; absorbed by #697 circuit breaker. Escalate only if the run fails to complete or the rate sustains above the band (see § Provider model selection) |
 | "Did the alert fire because of X?" | Grafana Cloud → podcast-scraper folder → filter `env=prod` |
 
 ### Manual deploy

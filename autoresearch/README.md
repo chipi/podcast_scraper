@@ -7,6 +7,12 @@ Thin automation layer on top of `scripts/eval/run_experiment.py` and
 **Original framework: v1** — see [RFC-057](../docs/rfc/RFC-057-autoresearch-optimization-loop.md)
 (closed via [ADR-073](../docs/adr/ADR-073-rfc057-autoresearch-closure.md); Track B still v1).
 
+**Active programme:** [#907 — Autoresearch programme epic](https://github.com/chipi/podcast_scraper/issues/907).
+v2-driven tuning programme covering entity canonicalization, cleaning, CIL,
+topic clusters, NER, Whisper, prompts, and **reliability under sustained
+load**. All 7 children closed as of 2026-06-08 — see
+[Eval reports](#eval-reports-907-programme) below.
+
 ## v2 headline: dev + held-out, not smoke + benchmark
 
 | Tier | Dataset | Size | Role | Touch during iteration? |
@@ -191,3 +197,45 @@ TSV columns: `experiment_id  score  delta  status  notes  judge_a_model  judge_b
 3. **Grow held-out dataset** from 5 episodes if champion discrimination becomes the limiting factor.
 
 For any of the above, start by reading [RFC-073](../docs/rfc/RFC-073-autoresearch-v2-framework.md) §Replication for other providers.
+
+---
+
+## Eval reports (#907 programme)
+
+The #907 autoresearch programme contributed 6 new eval reports (plus 7 new
+scoring scripts) covering quality, cost, latency, and — newly — **reliability
+under sustained load**. All reports live under `docs/guides/eval-reports/`.
+
+| Child | Report | Outcome |
+| ----- | ------ | ------- |
+| [#853](https://github.com/chipi/podcast_scraper/issues/853) | [EVAL_ENTITY_CANON_2026_06_08.md](../docs/guides/eval-reports/EVAL_ENTITY_CANON_2026_06_08.md) | Token/overall ratio thresholds tuned (0.78→0.65, 0.85→0.70); nickname + title-prefix awareness shipped |
+| [#594](https://github.com/chipi/podcast_scraper/issues/594) | [EVAL_CLEANING_AUTORESEARCH_2026_06_08.md](../docs/guides/eval-reports/EVAL_CLEANING_AUTORESEARCH_2026_06_08.md) | Anthropic + Gemini cleaning temp 0.2 → 0.4 shipped; documented gpt-4o cleaning regression vs gpt-4o-mini |
+| [#904](https://github.com/chipi/podcast_scraper/issues/904) | [EVAL_FIXTURES_V2_TIER1_TUNING_2026_06_08.md](../docs/guides/eval-reports/EVAL_FIXTURES_V2_TIER1_TUNING_2026_06_08.md) | CIL predicate redesign +18pp recall; sponsor + topic-cluster threshold sweeps |
+| [#905](https://github.com/chipi/podcast_scraper/issues/905) | [EVAL_FIXTURES_V2_TIER2_TUNING_2026_06_08.md](../docs/guides/eval-reports/EVAL_FIXTURES_V2_TIER2_TUNING_2026_06_08.md) | Cleaning profile sweep + MAP-REDUCE chunking behavior; current `cleaning_v4` default validated as judge-suboptimal vs `cleaning_v3` (not shipped due to hardcoded fallbacks — follow-up) |
+| [#906](https://github.com/chipi/podcast_scraper/issues/906) | [EVAL_FIXTURES_V2_TIER3_TUNING_2026_06_08.md](../docs/guides/eval-reports/EVAL_FIXTURES_V2_TIER3_TUNING_2026_06_08.md) | NER (`en_core_web_trf` +13pp recall vs `_sm`, not shipped pending install verification); Whisper accent WER (`base.en` prod default validated, 2.8× more accurate than `tiny.en`); **`long_v2.j2` Anthropic prompt shipped (5-0 sweep)** |
+| [#816](https://github.com/chipi/podcast_scraper/issues/816) | [EVAL_SUMMARY_MODEL_RELIABILITY_2026_06_08.md](../docs/guides/eval-reports/EVAL_SUMMARY_MODEL_RELIABILITY_2026_06_08.md) | Reliability axis added (success-rate floor, effective $/successful-call, p50/p95 under load). 4-candidate panel re-ranked; **`gemini-2.5-flash-lite` kept** by 4-10× cost dominance |
+
+### Reliability axis (#816) — methodology change
+
+Summary-model autoresearch now measures reliability as a hard floor, not
+a tiebreaker. New metrics:
+
+- **`success_rate_pct`** at the eval-scale operating point — hard floor (default ≥95)
+- **`cost_usd_per_successful_call`** — replaces nameplate $/call (same when clean, meaningfully different under load)
+- **`latency_p50_s` / `latency_p95_s` under sustained burst** — replaces single-call latency
+
+Harness: `scripts/eval/score/summary_model_reliability_v1.py`
+Evidence dir: `autoresearch/data/reliability_evidence/`
+
+The harness measures provider-side behavior (SDK call → success/failure)
+before the application-level circuit breaker (#697). Composite ranking is
+reliability-floor-first, then cost, then latency; operators can re-weight
+at evaluation time.
+
+### Rolling notes → v3 fixtures (#921)
+
+Each #907 child appends failure-mode learnings to
+[`docs/wip/AUTORESEARCH_LEARNINGS_FOR_V3.md`](../docs/wip/AUTORESEARCH_LEARNINGS_FOR_V3.md).
+The v3 fixtures rebuild (#921) pulls from there so v3 simulates real-prod
+defects directly in the fixture corpus instead of relying on prod
+encounters.
