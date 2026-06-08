@@ -8,7 +8,10 @@ transcription:
   fallback: openai
 
 dgx_tailnet_host: dgx-llm-1.tail6d0ed4.ts.net
-dgx_whisper_model: whisper-large-v3
+# Hugging Face repo ID (Speaches takes HF format). Pre-#814 this was the
+# Ollama-style "whisper-large-v3" tag, which Speaches doesn't recognize →
+# every transcribe call would 404 and force the cloud Whisper fallback.
+dgx_whisper_model: Systran/faster-whisper-large-v3
 transcription_fallback_provider: openai
 
 openai_transcription_model: whisper-1
