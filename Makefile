@@ -582,7 +582,7 @@ validate-kg-schema:
 	fi
 
 # GI/KG viewer v2 (#489): FastAPI + Vite. ``make init`` includes FastAPI via ``[dev]``; cd $(WEB_VIEWER_DIR) && npm install
-.PHONY: serve serve-api serve-ui serve-e2e-mock stack-build stack-build-llm stack-compose-validate stack-up stack-down stack-logs verify-stack-profiles stack-test-build stack-test-build-cloud stack-test-up stack-test-down stack-test-seed stack-test-playwright stack-test-export stack-test-ml stack-test-cloud-thin stack-test-ml-ci deploy-codespace restore-corpus restore-corpus-prod reprocess-corpus-from-transcripts corpus-compat-check index-two-tier enrich-relational-edges upgrade-status upgrade-check upgrade-dry-run upgrade-corpus upgrade-verify smoke-prod corpus-snapshot-manifest-validate corpus-snapshot-select-tag corpus-snapshot-select-tag-prod corpus-snapshot-selftest corpus-snapshot-integration
+.PHONY: serve serve-api serve-ui serve-e2e-mock stack-build stack-build-llm stack-compose-validate stack-up stack-down stack-logs verify-stack-profiles stack-test-build stack-test-build-cloud stack-test-up stack-test-down stack-test-seed stack-test-playwright stack-test-export stack-test-ml stack-test-cloud-thin stack-test-ml-ci deploy-codespace restore-corpus restore-corpus-prod reprocess-corpus-from-transcripts corpus-compat-check index-two-tier enrich-relational-edges redo-diarization upgrade-status upgrade-check upgrade-dry-run upgrade-corpus upgrade-verify smoke-prod corpus-snapshot-manifest-validate corpus-snapshot-select-tag corpus-snapshot-select-tag-prod corpus-snapshot-selftest corpus-snapshot-integration
 SERVE_OUTPUT_DIR ?= ./output
 # Optional corpus-editing + jobs routes (health shows green when on). Override with SERVE_ARGS= to disable.
 SERVE_ARGS ?= --enable-feeds-api --enable-operator-config-api --enable-jobs-api
@@ -1032,6 +1032,29 @@ index-two-tier:
 # Idempotent cross-layer pass; re-run after new diarization (#876) to fill SPOKEN_BY.
 enrich-relational-edges:
 	@test -n "$${CORPUS_DIR:-}" || (echo "CORPUS_DIR required (corpus parent path)"; exit 1); \
+	$(PYTHON) -m podcast_scraper.cli enrich-edges --output-dir "$${CORPUS_DIR}"
+
+# Re-diarize the whisper_transcription episodes (#876/#925) and cascade downstream.
+# Diarization rewrites the transcript (offsets shift), so re-running those episodes
+# re-does transcription+diarization+GI/KG/CIL; --reprocess-source scopes it to the
+# whisper set so the already-diarized direct_download episodes are untouched.
+# Diarization is driven entirely by PROFILE (must enable `diarize:`, e.g.
+# config/profiles/local.yaml) -- never hardcoded here. HF_NET_ENV allows the gated
+# pyannote weights to download on first run (needs HF_TOKEN). After the run, re-derive
+# relational edges so corpus-wide SPOKEN_BY is filled.
+#   make redo-diarization CORPUS_DIR=<corpus> PROFILE=config/profiles/local.yaml
+redo-diarization:
+	@test -n "$${CORPUS_DIR:-}" || (echo "CORPUS_DIR required (corpus parent path)"; exit 1); \
+	test -n "$${PROFILE:-}" || (echo "PROFILE required (a diarization-enabled profile, e.g. config/profiles/local.yaml)"; exit 1); \
+	test -f "$${CORPUS_DIR}/feeds.spec.yaml" || (echo "Missing $${CORPUS_DIR}/feeds.spec.yaml"; exit 1); \
+	echo "Re-diarizing whisper_transcription episodes in $${CORPUS_DIR} under $${PROFILE}..."; \
+	$(HF_NET_ENV) $(PYTHON) -m podcast_scraper.cli \
+	  --config "$${PROFILE}" \
+	  --feeds-spec "$${CORPUS_DIR}/feeds.spec.yaml" \
+	  --output-dir "$${CORPUS_DIR}" \
+	  --skip-existing \
+	  --reprocess-source whisper_transcription; \
+	echo "Re-deriving relational edges (corpus-wide SPOKEN_BY)..."; \
 	$(PYTHON) -m podcast_scraper.cli enrich-edges --output-dir "$${CORPUS_DIR}"
 
 # Corpus upgrade-path framework (#862). Managed, idempotent migrations for moving a

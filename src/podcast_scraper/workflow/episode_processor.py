@@ -1575,6 +1575,44 @@ def _determine_output_path(
     return os.path.join(transcripts_dir, out_name)
 
 
+def _episode_existing_transcript_source(
+    episode: Episode,  # type: ignore[valid-type]
+    effective_output_dir: str,
+    run_suffix: Optional[str],
+    cfg: config.Config,
+) -> Optional[str]:
+    """Return the episode's existing ``content.transcript_source`` from its on-disk
+    metadata, or None if absent/unreadable (#925)."""
+    from .metadata_generation import _determine_metadata_path  # local: avoid import cycle
+
+    try:
+        metadata_path = _determine_metadata_path(episode, effective_output_dir, run_suffix, cfg)
+        with open(metadata_path, "r", encoding="utf-8") as fh:
+            data = json.load(fh)
+    except (OSError, ValueError, KeyError, AttributeError):
+        return None
+    content = data.get("content") if isinstance(data, dict) else None
+    src = content.get("transcript_source") if isinstance(content, dict) else None
+    return src if isinstance(src, str) else None
+
+
+def _force_reprocess_for_source(
+    episode: Episode,  # type: ignore[valid-type]
+    effective_output_dir: str,
+    run_suffix: Optional[str],
+    cfg: config.Config,
+) -> bool:
+    """#925: True when ``--reprocess-source`` is set and this episode's existing
+    ``transcript_source`` matches it -- force re-transcription (which re-runs
+    diarization under the profile and cascades GI/KG/CIL), overriding
+    ``--skip-existing`` for this episode only."""
+    target = getattr(cfg, "reprocess_source", None)
+    if not target:
+        return False
+    existing = _episode_existing_transcript_source(episode, effective_output_dir, run_suffix, cfg)
+    return bool(existing == target)
+
+
 def _check_existing_transcript(
     episode: Episode,  # type: ignore[valid-type]
     effective_output_dir: str,
@@ -1595,6 +1633,16 @@ def _check_existing_transcript(
         True if transcript exists and should be skipped, False otherwise
     """
     if not cfg.skip_existing:
+        return False
+    # #925: a scoped reprocess (--reprocess-source) forces matching episodes
+    # through transcription again so diarization re-runs (and the downstream
+    # GI/KG/CIL cascade with it), instead of being skipped by --skip-existing.
+    if _force_reprocess_for_source(episode, effective_output_dir, run_suffix, cfg):
+        logger.info(
+            "    [#925] forcing re-transcription (reprocess-source=%s): %s",
+            cfg.reprocess_source,
+            episode.title_safe,
+        )
         return False
 
     run_tag = f"_{run_suffix}" if run_suffix else ""
