@@ -71,3 +71,19 @@ def test_mismatched_embedding_model_warns_but_proceeds(tmp_path, monkeypatch, ca
     assert any(
         "differs from index model" in r.getMessage() for r in caplog.records
     ), "expected an embedding-model divergence warning"
+
+
+def test_unknown_embedding_model_does_not_crash(tmp_path, monkeypatch, caplog):
+    # embedding_model arrives unvalidated from the CLI. An unknown alias (no "/" and
+    # not registered) makes resolve_evidence_model_id raise -- which used to escape
+    # run_corpus_search as an uncaught traceback. It must degrade to a divergence
+    # warning + a clean outcome instead. Here encode is stubbed so we isolate the
+    # resolve guard; in production the bogus model would fail encode -> embed_failed.
+    _build_index(tmp_path)
+    _capture_encode(monkeypatch)
+
+    with caplog.at_level(logging.WARNING, logger=corpus_search.logger.name):
+        outcome = corpus_search.run_corpus_search(tmp_path, "alpha", embedding_model="minilm-typo")
+
+    assert outcome.error is None  # no exception escaped
+    assert any("differs from index model" in r.getMessage() for r in caplog.records)

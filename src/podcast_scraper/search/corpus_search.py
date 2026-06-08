@@ -250,9 +250,17 @@ def run_corpus_search(
 
     idx_model = store.stats().embedding_model
     if isinstance(embedding_model, str) and embedding_model.strip():
-        if ModelRegistry.resolve_evidence_model_id(
-            embedding_model.strip()
-        ) != ModelRegistry.resolve_evidence_model_id(idx_model):
+        # An unknown alias (no "/" and not a registered alias) makes
+        # resolve_evidence_model_id raise. embedding_model arrives unvalidated from
+        # the CLI, so resolve defensively: an unresolvable override is a divergence,
+        # not a crash -- warn and proceed (encode then fails cleanly -> embed_failed).
+        try:
+            same_space = ModelRegistry.resolve_evidence_model_id(
+                embedding_model.strip()
+            ) == ModelRegistry.resolve_evidence_model_id(idx_model)
+        except ValueError:
+            same_space = False
+        if not same_space:
             logger.warning(
                 "search: embedding_model %s differs from index model %s",
                 embedding_model,
