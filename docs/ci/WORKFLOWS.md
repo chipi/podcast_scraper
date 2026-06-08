@@ -302,7 +302,21 @@ if: github.event_name == 'push' && github.ref == 'refs/heads/main'
 **Variants:**
 
 - `make preload-ml-models` - Test models (Whisper tiny, small BART, en_core_web_sm)
-- `make preload-ml-models-production` - Production models (Whisper base, BART-large-cnn, LED-large-16384)
+- `make preload-ml-models-production` - Production models (Whisper tiny.en+base.en, bart-base/led-base-16384/long-t5-tglobal-base/flan-t5-base, MiniLM, QA/NLI, pyannote (manifest production tier))
+
+**Single source of truth (#917):** the set of models above is declared once in
+`src/podcast_scraper/providers/ml/model_manifest.py` (`REQUIRED_ML_MODELS`, tagged
+by tier — `test` / `ci_artifact` / `production` / `airgapped_thin` / `gated`).
+`preload_ml_models.py` reads it (no per-path hardcoded lists), and the CI
+"Validate ML model cache" steps run `scripts/cache/verify_required_models.py`
+(`--tier ci_artifact` by default; nightly uses `--tier production` to also verify
+the pyannote cache) instead of duplicated bash arrays. A drift-guard unit test
+keeps the manifest consistent with the registry / `DEFAULT_*` constants.
+
+**Related (#925):** `make redo-diarization CORPUS_DIR=… PROFILE=…` re-runs only the
+`whisper_transcription` episodes through diarization (via `--reprocess-source`)
+under the supplied profile, then re-derives corpus-wide `SPOKEN_BY` — see
+`docs/wip/SPOKEN_BY-REPROCESS-876.md`.
 
 **Key Features:**
 
@@ -1669,7 +1683,7 @@ The nightly workflow implements **RFC-025 Layer 3** (Comprehensive Analysis). Un
 
 **Purpose:** Run all tests with comprehensive metrics collection using production ML models
 
-**Duration:** ~4-5 hours (includes all tests with production models: Whisper base, BART-large-cnn, LED-large-16384)
+**Duration:** ~4-5 hours (includes all tests with production models: Whisper tiny.en+base.en, bart-base/led-base-16384/long-t5-tglobal-base/flan-t5-base, MiniLM, QA/NLI, pyannote (manifest production tier))
 
 **Important:** OpenAI/LLM provider tests are **excluded** from nightly runs to avoid API costs (see issue #183). The nightly build uses only local ML models (Whisper, spaCy, Transformers). This excludes ~50 tests marked with `@pytest.mark.llm`.
 
@@ -1685,7 +1699,7 @@ The nightly workflow implements **RFC-025 Layer 3** (Comprehensive Analysis). Un
    - Marker: `-m "not nightly and not llm"`
 8. Run **nightly-only tests** via `make test-nightly`:
    - Marker: `-m "nightly and not llm"`
-   - Uses production models: Whisper base, BART-large-cnn, LED-large-16384
+   - Uses production models: Whisper tiny.en+base.en, bart-base/led-base-16384/long-t5-tglobal-base/flan-t5-base, MiniLM, QA/NLI, pyannote (manifest production tier)
    - Processes all 15 episodes across 5 podcasts (p01-p05)
    - Validates full pipeline with production-quality models
 9. Run all tests with comprehensive metrics:
@@ -1762,7 +1776,7 @@ preload (3:30) → e2e (11:30) → viewer-e2e (~3–20) → nightly-only (64:00)
 
 **Key Observations:**
 
-- `nightly-only-tests` dominates at 64 minutes (production models: `bart-large-cnn`, `led-large-16384`)
+- `nightly-only-tests` dominates at 64 minutes (production models: the manifest production tier (`bart-base`/`led-base-16384`/`long-t5-tglobal-base`/`flan-t5-base` + QA/NLI + pyannote))
 - Parallel jobs (`lint`, `docs`, `unit`) complete while `preload` runs
 - With cold cache (first run), `preload` can take 15-20 minutes for model downloads (~10GB)
 - Integration and E2E tests benefit from pre-cached models

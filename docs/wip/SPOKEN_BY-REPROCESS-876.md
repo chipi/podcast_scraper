@@ -17,17 +17,29 @@ diarization on.
 
 ## Procedure
 
-1. **Identify the targets** — the `whisper_transcription` episodes (the
-   `direct_download` ones are already diarized; skip them).
-2. **Re-run the pipeline with diarization** on those episodes:
-   `diarize=true`, `screenplay=true` (local Whisper path). This re-transcribes and
-   diarizes, writing the *named* screenplay transcript + diarized segments. The
-   build path emits `SPOKEN_BY` during GI build; the screenplay transcript also
-   enables the enrich-edges pass below.
+Steps 1–3 are now one command (#925):
+
+```bash
+make redo-diarization CORPUS_DIR=<corpus> PROFILE=config/profiles/local_dgx_full.yaml
+```
+
+`make redo-diarization` (`Makefile`) runs the pipeline with `--skip-existing
+--reprocess-source whisper_transcription`, which force-reprocesses **only** the
+`whisper_transcription` episodes (the `direct_download` ones are left untouched),
+re-transcribing + re-diarizing them under the supplied **PROFILE** (diarization is
+driven entirely by the profile's `diarize: true` — `local.yaml` / `local_dgx_full.yaml`),
+then runs `enrich-edges` to re-derive corpus-wide `SPOKEN_BY`. Run it **on a
+diarization-capable host** (e.g. the DGX) so pyannote rides the GPU.
+
+Expanded, the same steps are:
+
+1. **Identify the targets** — the `whisper_transcription` episodes (`--reprocess-source`
+   selects them by `content.transcript_source`; `direct_download` skipped).
+2. **Re-run the pipeline with diarization** on those episodes (`diarize: true` from
+   the profile). This re-transcribes + diarizes, writing the *named* screenplay
+   transcript + diarized segments; the build emits `SPOKEN_BY` during GI build.
 3. **Re-derive relational edges** corpus-wide (idempotent):
-   `make enrich-edges CORPUS_DIR=<corpus>` (or
-   `python -m podcast_scraper.cli enrich-edges --output-dir <corpus>`). With #875,
-   this emits `SPOKEN_BY` for the newly-named transcripts.
+   `make enrich-edges CORPUS_DIR=<corpus>` (also run automatically by `redo-diarization`).
 4. **Validate coverage** with the CIL queries:
    - `positions_of(person)` / `who_said(topic)` return results across episodes, not
      just the pre-diarized 10.

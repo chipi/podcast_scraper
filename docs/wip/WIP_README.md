@@ -17,6 +17,8 @@ WIP file is removed.
 | File | Description | Status |
 | ---- | ----------- | ------ |
 | `BATCH-PLAN-diarization-followups.md` | Plan for the `feat/diarization-followups` PR (#875/#876/#909 + coverage debt + graph-validation phase) | Active |
+| `SPOKEN_BY-REPROCESS-876.md` | Runbook for the corpus-wide `SPOKEN_BY` re-diarize reprocess (#876); see `make redo-diarization` (#925) | Active |
+| `MULTI-USER-AND-GRAPH-FSM-ANALYSIS.md` | Multi-user/FSM analysis + graph-viewer diarization-support gaps | Backlog |
 | `COVERAGE-DEBT-deepgram-diarization-pr908.md` | Coverage gaps from PR #908 to clear in the next batch | Backlog |
 | `AUDIO-WAVES-HARDENING-AUDIT.md` | Review findings + change list for audio Waves 1–3 (#850/#895/#898) | Backlog |
 | `AUTORESEARCH_LEARNINGS_FOR_V3.md` | Rolling failure-mode catalogue from #907 children — spec input for v3 (#921) | Reference |
