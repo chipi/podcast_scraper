@@ -18,11 +18,22 @@ quote with no confident speaker stays ``None`` (under-attributed beats wrong).
 
 from __future__ import annotations
 
+import logging
 import re
 from collections import Counter, OrderedDict
 from typing import Dict, List, Optional, Sequence, Tuple
 
 from ..identity.slugify import person_id
+
+logger = logging.getLogger(__name__)
+
+# Alignment guard (#876/#925): a Quote's char_start must index into the transcript
+# being attributed. Diarization rewrites the transcript (inline speaker markers
+# shift offsets), so a char_start computed against a different transcript would
+# silently attribute to the wrong speaker. When the quote carries its text we probe
+# the transcript at char_start; a gross mismatch (beyond this slack) is skipped.
+_OFFSET_PROBE_LEN = 24
+_OFFSET_PROBE_SLACK = 64
 
 _SPEAKER_RE = re.compile(r"Speaker\s*(\d+)\s*:")
 # Line-start ``<Label>: `` turn markers (named screenplay). Constrained to line start
@@ -194,11 +205,34 @@ def add_spoken_by_edges(
     """
     nodes = artifact.setdefault("nodes", [])
     edges = artifact.setdefault("edges", [])
-    quote_char_starts = {
-        n["id"]: (n.get("properties") or {}).get("char_start")
-        for n in nodes
-        if n.get("type") == "Quote" and isinstance(n.get("id"), str)
-    }
+    quote_char_starts: Dict[str, Optional[int]] = {}
+    misaligned = 0
+    for n in nodes:
+        if n.get("type") != "Quote" or not isinstance(n.get("id"), str):
+            continue
+        props = n.get("properties") or {}
+        cs = props.get("char_start")
+        text = props.get("text")
+        # Skip attribution for quotes whose char_start clearly does not index into
+        # THIS transcript (offset-space mismatch -> would attribute to the wrong
+        # speaker). Only checkable when the quote carries its text; lenient slack so
+        # aligned quotes (and small marker shifts) are never falsely dropped.
+        if isinstance(cs, int) and isinstance(text, str) and text.strip():
+            probe = text.strip()[:_OFFSET_PROBE_LEN]
+            window = transcript[max(0, cs) : cs + len(probe) + _OFFSET_PROBE_SLACK]
+            if probe and probe not in window:
+                misaligned += 1
+                continue
+        quote_char_starts[n["id"]] = cs
+    if misaligned:
+        logger.warning(
+            "add_spoken_by_edges: %d quote(s) have char_start not aligned with the "
+            "transcript; skipping their speaker attribution. Likely a transcript/offset "
+            "mismatch -- e.g. enrich-edges run on a re-diarized transcript without "
+            "rebuilding GI (diarization shifts char offsets). Re-run GI so quote offsets "
+            "match the diarized transcript.",
+            misaligned,
+        )
     attribution = attribute_quote_speakers(
         transcript, quote_char_starts, hosts=hosts, guests=guests
     )

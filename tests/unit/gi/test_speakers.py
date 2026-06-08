@@ -177,3 +177,47 @@ def test_add_spoken_by_edges_panel_emits_all_panelists():
     assert added == 3
     persons = {n["id"] for n in artifact["nodes"] if n["type"] == "Person"}
     assert persons == {"person:maya", "person:liam", "person:priya"}
+
+
+def test_add_spoken_by_skips_misaligned_char_start(caplog):
+    """#876/#925: a Quote whose char_start is in a different (pre-diarization)
+    coordinate space than the transcript must NOT be attributed (would target the
+    wrong speaker); it's skipped with a warning. Aligned quotes are unaffected."""
+    import logging
+
+    from podcast_scraper.identity.slugify import person_id
+
+    transcript = (
+        "Maya: " + "Welcome to the show. " * 10 + "\n"
+        "Priya Sharma: Reliability is the real challenge here."
+    )
+    quote_text = "Reliability is the real challenge here."
+    aligned = transcript.index(quote_text)
+
+    art_ok = {
+        "nodes": [
+            {
+                "id": "quote:1",
+                "type": "Quote",
+                "properties": {"char_start": aligned, "text": quote_text},
+            }
+        ],
+        "edges": [],
+    }
+    assert add_spoken_by_edges(art_ok, transcript, hosts=["Maya"], guests=["Priya Sharma"]) == 1
+    assert any(
+        e.get("type") == "SPOKEN_BY" and e.get("to") == person_id("Priya Sharma")
+        for e in art_ok["edges"]
+    )
+
+    art_bad = {
+        "nodes": [
+            {"id": "quote:1", "type": "Quote", "properties": {"char_start": 3, "text": quote_text}}
+        ],
+        "edges": [],
+    }
+    with caplog.at_level(logging.WARNING):
+        added = add_spoken_by_edges(art_bad, transcript, hosts=["Maya"], guests=["Priya Sharma"])
+    assert added == 0
+    assert not [e for e in art_bad["edges"] if e.get("type") == "SPOKEN_BY"]
+    assert "not aligned" in caplog.text
