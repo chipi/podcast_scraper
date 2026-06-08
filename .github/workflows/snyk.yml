@@ -8,6 +8,7 @@ on:
       - 'pyproject.toml'
       - 'docker/pipeline/Dockerfile'
       - '.dockerignore'
+      - '.github/workflows/snyk.yml'
   pull_request:
     branches: [ "main", "release/2.4", "release/2.5", "release/2.6" ]
     paths:
@@ -15,6 +16,7 @@ on:
       - 'pyproject.toml'
       - 'docker/pipeline/Dockerfile'
       - '.dockerignore'
+      - '.github/workflows/snyk.yml'
   schedule:
     # Run weekly on Mondays at 00:00 UTC
     - cron: '0 0 * * 1'
@@ -105,7 +107,11 @@ jobs:
           echo "before:"
           df -h /
           sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /home/linuxbrew/.linuxbrew \
-            /opt/hostedtoolcache /usr/share/swift /usr/local/share/boost || true
+            /opt/hostedtoolcache /usr/share/swift /usr/local/share/boost \
+            /usr/local/lib/node_modules /usr/local/.ghcup /usr/lib/google-cloud-sdk \
+            /usr/local/share/powershell /usr/local/share/chromium /opt/microsoft /opt/az || true
+          sudo swapoff -a || true
+          sudo rm -f /swapfile /mnt/swapfile || true
           sudo apt-get clean || true
           sudo rm -rf /var/lib/apt/lists/* || true
           docker image prune -af || true

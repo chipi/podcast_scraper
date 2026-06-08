@@ -319,6 +319,9 @@ class TestAudioPreprocessingWorkflowIntegration(unittest.TestCase):
 
         # Create a mock transcription provider
         mock_provider = Mock()
+        # Return None so _format_transcript_if_needed falls back to the plain transcript
+        # text; an auto-Mock here would make the written transcript a Mock -> len() error.
+        mock_provider.format_screenplay_from_segments = Mock(return_value=None)
         mock_provider.transcribe_with_segments = Mock(
             return_value=({"text": "Test transcript", "segments": []}, 1.5)
         )
@@ -395,6 +398,9 @@ class TestAudioPreprocessingWorkflowIntegration(unittest.TestCase):
 
         # Create a mock transcription provider
         mock_provider = Mock()
+        # Return None so _format_transcript_if_needed falls back to the plain transcript
+        # text; an auto-Mock here would make the written transcript a Mock -> len() error.
+        mock_provider.format_screenplay_from_segments = Mock(return_value=None)
         mock_provider.transcribe_with_segments = Mock(
             return_value=({"text": "Test transcript", "segments": []}, 1.5)
         )

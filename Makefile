@@ -1931,9 +1931,11 @@ build:
 ci: cleanup-processes
 	@cached=$$(HF_HUB_OFFLINE=1 TRANSFORMERS_OFFLINE=1 $(PYTHON) -c "import sys; sys.path.insert(0, 'src'); \
 	from tests.integration.ml_model_cache_helpers import _is_whisper_model_cached, _is_transformers_model_cached; \
-	from podcast_scraper import config; \
+	from podcast_scraper.providers.ml.model_loader import is_evidence_model_cached; \
+	from podcast_scraper import config, config_constants as _cc; \
 	whisper_ok = _is_whisper_model_cached(config.TEST_DEFAULT_WHISPER_MODEL); \
 	transformers_ok = _is_transformers_model_cached(config.TEST_DEFAULT_SUMMARY_MODEL, None); \
+	embedding_ok = is_evidence_model_cached(_cc.DEFAULT_EMBEDDING_MODEL); \
 	spacy_ok = False; \
 	try: \
 		import spacy; \
@@ -1941,7 +1943,7 @@ ci: cleanup-processes
 			[m.replace('-', '_') for m in spacy.util.get_installed_models()]; \
 	except Exception: \
 		pass; \
-	all_cached = whisper_ok and transformers_ok and spacy_ok; \
+	all_cached = whisper_ok and transformers_ok and spacy_ok and embedding_ok; \
 	print('1' if not all_cached else '0', end='')" 2>/dev/null || printf '1'); \
 	if [ "$$cached" = "1" ]; then \
 		echo "ML models not fully cached — running preload..."; \

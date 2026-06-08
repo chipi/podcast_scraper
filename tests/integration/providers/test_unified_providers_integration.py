@@ -285,21 +285,15 @@ class TestProviderErrorHandlingIntegration(unittest.TestCase):
         provider = create_transcription_provider(cfg)
 
         # Initialize provider
-        with (
-            patch(
-                "podcast_scraper.providers.ml.ml_provider._import_third_party_whisper"
-            ) as mock_import,
-            patch(
-                "podcast_scraper.providers.ml.ml_provider.progress.progress_context"
-            ) as mock_progress,
-        ):
+        with patch(
+            "podcast_scraper.providers.ml.ml_provider._import_third_party_whisper"
+        ) as mock_import:
 
             mock_model = Mock()
             mock_model.device.type = "cpu"
             mock_whisper_lib = Mock()
             mock_whisper_lib.load_model.return_value = mock_model
             mock_import.return_value = mock_whisper_lib
-            mock_progress.return_value.__enter__.return_value = None
 
             provider.initialize()
 

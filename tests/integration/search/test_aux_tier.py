@@ -17,7 +17,7 @@ _MODEL = "sentence-transformers/all-MiniLM-L6-v2"
 
 
 def _emb(t):
-    return list(embedding_loader.encode(t, _MODEL, return_numpy=False, allow_download=True))
+    return list(embedding_loader.encode(t, _MODEL, return_numpy=False))
 
 
 def test_backend_upsert_search_delete_aux(tmp_path):
@@ -71,6 +71,6 @@ def test_indexer_routes_aux_doc_types(tmp_path, monkeypatch):
     monkeypatch.setattr(tti, "episode_root_from_metadata_path", lambda p: corpus)
     monkeypatch.setattr(tti, "_collect_docs_for_episode", lambda *a, **k: rows)
 
-    stats = tti.build_two_tier_index(corpus, corpus / "search" / "lance_index", allow_download=True)
+    stats = tti.build_two_tier_index(corpus, corpus / "search" / "lance_index")
     assert stats.aux == 4 and stats.segments == 0 and stats.insights == 0
     assert LanceDBBackend(str(corpus / "search" / "lance_index")).health()["aux"] == 4

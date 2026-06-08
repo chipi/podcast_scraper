@@ -76,6 +76,26 @@ TEST_CONTENT_TYPE_VTT = "text/vtt"
 TEST_CONTENT_TYPE_SRT = "text/srt"
 
 
+@pytest.fixture(autouse=True)
+def _restore_hf_hub_cache_env():
+    """Snapshot + restore ``HF_HUB_CACHE`` around every test.
+
+    ``preload_evidence_models()`` intentionally sets ``os.environ["HF_HUB_CACHE"]`` to the
+    active cache dir for the download helpers. When a test points that at a ``tmp_path``
+    (e.g. test_model_loader*::test_downloads_uncached_models), the mutation LEAKS into the
+    shared (xdist) worker process — ``get_transformers_cache_dir()`` then returns the dead
+    tmp dir for every later test, so offline model loads (the search/two-tier suite) fail
+    with ``LocalEntryNotFoundError``. Restoring per test isolates that side effect without
+    changing the production behavior.
+    """
+    _prev = os.environ.get("HF_HUB_CACHE")
+    yield
+    if _prev is None:
+        os.environ.pop("HF_HUB_CACHE", None)
+    elif os.environ.get("HF_HUB_CACHE") != _prev:
+        os.environ["HF_HUB_CACHE"] = _prev
+
+
 # Test helper functions
 def create_test_args(**overrides):
     """Create test argparse.Namespace with defaults.

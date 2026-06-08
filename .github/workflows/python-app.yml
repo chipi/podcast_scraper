@@ -538,6 +538,10 @@ jobs:
       # Ensure consistent cache paths for Hugging Face libraries
       HF_HOME: /home/runner/.cache/huggingface
       HF_HUB_CACHE: /home/runner/.cache/huggingface/hub
+      # Gated pyannote diarization models (speaker-diarization-3.1 + segmentation-3.0)
+      # only download when a token from a terms-accepted account is present. Without
+      # it the preload skips diarization gracefully (build still green). Optional secret.
+      HF_TOKEN: ${{ secrets.HF_TOKEN }}
     steps:
     - uses: actions/checkout@v6
     # Restore is ~9GB compressed; without cleanup, cache-hit runs can run out of disk mid-tar
@@ -559,9 +563,13 @@ jobs:
           ~/.cache/whisper
           ~/.cache/huggingface
         # NOTE: spaCy removed - installed as pip package via .[ml]
-        # Cache key invalidates when model definitions change; restore-keys let PRs/branches reuse latest cache
-        key: ml-models-${{ runner.os }}-${{ hashFiles('scripts/cache/preload_ml_models.py', 'src/podcast_scraper/config.py') }}
+        # Cache key invalidates when model definitions change; restore-keys let PRs/branches reuse latest cache.
+        # `diar2` salt: forces a clean re-preload. `diar1` was saved incomplete by a cancelled run
+        # (missing MiniLM + gated pyannote models), so cache-hits served a broken cache. The broad
+        # restore-key warm-starts from the prior cache so only the missing models re-download.
+        key: ml-models-${{ runner.os }}-diar2-${{ hashFiles('scripts/cache/preload_ml_models.py', 'src/podcast_scraper/config.py') }}
         restore-keys: |
+          ml-models-${{ runner.os }}-diar2-
           ml-models-${{ runner.os }}-
     - name: Set up Python 3.11 (only if cache miss - needed for model download)
       if: (needs.detect-changes.outputs.docs-only != 'true' || needs.detect-changes.outputs.code == 'true') && steps.cache-models.outputs.cache-hit != 'true'
@@ -746,6 +754,34 @@ jobs:
       run: |
         sudo apt-get update
         sudo apt-get install -y --no-install-recommends ffmpeg
+    - name: Ensure MiniLM embedding cached (offline search tests)
+      # The offline search integration tests (--disable-socket) load MiniLM from cache;
+      # the ml-models artifact doesn't deliver a usable copy (see NOTE), so refetch here.
+      run: |
+        # NOTE: the ml-models artifact delivers a BROKEN MiniLM dir — upload-artifact
+        # drops the sentence-transformers snapshot symlinks, so the dir exists (blobs
+        # only) and the "already cached" check (is_evidence_model_cached = dir.exists())
+        # is fooled into skipping. Remove it and force a complete re-download so the
+        # offline (--disable-socket) search tests can actually load it.
+        # Download MiniLM DIRECTLY via SentenceTransformer (raises on failure) and VERIFY the
+        # offline load (exactly what the tests do). preload_evidence_models swallowed download
+        # errors, so a transient HF blip left the cache empty yet the step "green" → tests then
+        # failed with LocalEntryNotFoundError. Retry transient hiccups; fail loud if it can't.
+        # The ml-models artifact can leave read-only / broken-symlink MiniLM remnants that
+        # shutil.rmtree(ignore_errors=True) silently skips, so the re-download merges with a
+        # corrupt tree and the offline search tests fail (LocalEntryNotFoundError). Force-clean
+        # with `rm -rf`, re-download, and VERIFY via the EXACT loader the tests use
+        # (load_embedding_model, offline) so this step's success guarantees theirs.
+        DIR=$(python -c "from podcast_scraper.cache.directories import get_transformers_cache_dir as g; from podcast_scraper import config_constants as cc; print(g()/('models--'+cc.DEFAULT_EMBEDDING_MODEL.replace('/','--')))")
+        for i in 1 2 3; do
+          rm -rf "$DIR"
+          python -c "from podcast_scraper.providers.ml.model_loader import preload_evidence_models; from podcast_scraper import config_constants as cc; preload_evidence_models(embedding_models=[cc.DEFAULT_EMBEDDING_MODEL])" \
+            && HF_HUB_OFFLINE=1 python -c "from podcast_scraper.providers.ml.embedding_loader import load_embedding_model; from podcast_scraper import config_constants as cc; load_embedding_model(cc.DEFAULT_EMBEDDING_MODEL); print('OK: MiniLM loads offline via load_embedding_model')" \
+            && exit 0
+          echo "MiniLM ensure attempt $i failed; retrying..."; sleep $((i * 5))
+        done
+        echo "=== MiniLM cache tree after failures (diagnostic) ==="; find "$DIR" -ls 2>&1 | head -80
+        echo "ERROR: MiniLM not loadable via the test path after 3 attempts"; exit 1
     - name: Run all integration tests with coverage (full suite, with network guard)
       run: |
         PYTHONPATH="${PYTHONPATH}:$(pwd)"
@@ -947,6 +983,34 @@ jobs:
       run: |
         sudo apt-get update
         sudo apt-get install -y --no-install-recommends ffmpeg
+    - name: Ensure MiniLM embedding cached (offline search tests)
+      # The offline search integration tests load MiniLM from cache; the ml-models
+      # artifact doesn't deliver a usable copy (see NOTE), so refetch it here.
+      run: |
+        # NOTE: the ml-models artifact delivers a BROKEN MiniLM dir — upload-artifact
+        # drops the sentence-transformers snapshot symlinks, so the dir exists (blobs
+        # only) and the "already cached" check (is_evidence_model_cached = dir.exists())
+        # is fooled into skipping. Remove it and force a complete re-download so the
+        # offline (--disable-socket) search tests can actually load it.
+        # Download MiniLM DIRECTLY via SentenceTransformer (raises on failure) and VERIFY the
+        # offline load (exactly what the tests do). preload_evidence_models swallowed download
+        # errors, so a transient HF blip left the cache empty yet the step "green" → tests then
+        # failed with LocalEntryNotFoundError. Retry transient hiccups; fail loud if it can't.
+        # The ml-models artifact can leave read-only / broken-symlink MiniLM remnants that
+        # shutil.rmtree(ignore_errors=True) silently skips, so the re-download merges with a
+        # corrupt tree and the offline search tests fail (LocalEntryNotFoundError). Force-clean
+        # with `rm -rf`, re-download, and VERIFY via the EXACT loader the tests use
+        # (load_embedding_model, offline) so this step's success guarantees theirs.
+        DIR=$(python -c "from podcast_scraper.cache.directories import get_transformers_cache_dir as g; from podcast_scraper import config_constants as cc; print(g()/('models--'+cc.DEFAULT_EMBEDDING_MODEL.replace('/','--')))")
+        for i in 1 2 3; do
+          rm -rf "$DIR"
+          python -c "from podcast_scraper.providers.ml.model_loader import preload_evidence_models; from podcast_scraper import config_constants as cc; preload_evidence_models(embedding_models=[cc.DEFAULT_EMBEDDING_MODEL])" \
+            && HF_HUB_OFFLINE=1 python -c "from podcast_scraper.providers.ml.embedding_loader import load_embedding_model; from podcast_scraper import config_constants as cc; load_embedding_model(cc.DEFAULT_EMBEDDING_MODEL); print('OK: MiniLM loads offline via load_embedding_model')" \
+            && exit 0
+          echo "MiniLM ensure attempt $i failed; retrying..."; sleep $((i * 5))
+        done
+        echo "=== MiniLM cache tree after failures (diagnostic) ==="; find "$DIR" -ls 2>&1 | head -80
+        echo "ERROR: MiniLM not loadable via the test path after 3 attempts"; exit 1
     - name: Run fast integration tests with coverage (critical path only, with network guard)
       run: |
         PYTHONPATH="${PYTHONPATH}:$(pwd)"
@@ -1177,6 +1241,14 @@ jobs:
       # Ensure consistent cache paths for Hugging Face libraries
       HF_HOME: /home/runner/.cache/huggingface
       HF_HUB_CACHE: /home/runner/.cache/huggingface/hub
+      # The diarization e2e (ml_models) constructs the pyannote provider, which
+      # requires a token even when loading gated models from the offline cache.
+      # When unset (forks), the test skips via its provisioning markers.
+      HF_TOKEN: ${{ secrets.HF_TOKEN }}
+      # Airgapped contract: gated models are downloaded once in preload-ml-models;
+      # this job loads them from cache only. OFFLINE=1 means the HF libs never
+      # attempt (socket-blocked) network calls — zero 3rd-party traffic at test time.
+      HF_HUB_OFFLINE: "1"
     if: |
       github.event_name == 'push' &&
       (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/release/2.4' || github.ref == 'refs/heads/release/2.5' || github.ref == 'refs/heads/release/2.6') &&
