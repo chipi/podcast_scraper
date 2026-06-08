@@ -20,9 +20,7 @@ Usage:
 from __future__ import annotations
 
 import argparse
-import difflib
 import json
-import re
 import sys
 from collections import Counter
 from dataclasses import dataclass
@@ -32,49 +30,33 @@ from typing import Any
 PROJECT_ROOT = Path(__file__).resolve().parents[3]
 sys.path.insert(0, str(PROJECT_ROOT / "src"))
 
-from podcast_scraper.kg.filters import _clean_entity_name, _is_acronymish
-
-_VERSION_TOKEN_RE = re.compile(r"\d")
-
-
-def _ratio(a: str, b: str) -> float:
-    return difflib.SequenceMatcher(None, a, b).ratio()
+from podcast_scraper.kg.entity_clusters import _are_xep_variants
 
 
 def are_variants(
     name_a: str,
     name_b: str,
     *,
-    token_ratio: float,
-    overall_ratio: float,
+    token_ratio: float,  # unused after #904 — kept for backwards-compat with #853 sweep grid
+    overall_ratio: float,  # ditto
+    kind: str = "person",
 ) -> bool:
-    """Parametrised mirror of `entity_clusters._are_xep_variants`.
+    """Mirror of `entity_clusters._are_xep_variants` for the sweep harness.
 
-    The third knob (``same_show_required``) is applied OUTSIDE this function
-    because it operates on episode/show sets, not on the name pair itself.
+    Post-#904 we delegate directly to the production predicate. The
+    token_ratio / overall_ratio knobs are no longer parameters that change
+    behaviour at sweep time (they're frozen at the #853-tuned values inside
+    the predicate); kept on this signature so existing sweep grids still
+    round-trip without code changes.
     """
-    a, b = _clean_entity_name(name_a), _clean_entity_name(name_b)
-    if not a or not b:
-        return False
-    if a == b:
-        return True
-    if _is_acronymish(name_a, a) or _is_acronymish(name_b, b):
-        return False
-    if a.replace(" ", "") == b.replace(" ", "") and a.replace(" ", ""):
-        return True
-    ta, tb = a.split(), b.split()
-    if len(ta) != len(tb):
-        return False
-    if _ratio(a, b) < overall_ratio:
-        return False
-    for x, y in zip(ta, tb):
-        if x == y:
-            continue
-        if _VERSION_TOKEN_RE.search(x) or _VERSION_TOKEN_RE.search(y):
-            return False
-        if _ratio(x, y) < token_ratio:
-            return False
-    return True
+    # token_ratio / overall_ratio retained on signature but unused — see
+    # docstring for rationale. The sweep grid now measures the production
+    # predicate as-is at each (T, O) cell. This means cells with the same
+    # (T, O) ≠ baseline produce identical results; reading the metrics
+    # file should note that the predicate redesign moved the lever from
+    # thresholds to the predicate itself.
+    del token_ratio, overall_ratio
+    return _are_xep_variants(name_a, name_b, kind)
 
 
 @dataclass

@@ -56,6 +56,98 @@ _TOKEN_RATIO = 0.65  # per-aligned-token spelling-variant floor
 _OVERALL_RATIO = 0.70  # whole-string floor
 _VERSION_TOKEN_RE = re.compile(r"\d")  # a differing token containing a digit blocks merge
 
+# Nicknames where the canonical pair differs by too much for the ratio test
+# (Michael→Mike, Robert→Rob/Bob) but the people are the same. Lowercase →
+# lowercase, bidirectional (both directions added at module load). Tuned in
+# #904 from the #853 silver-eval miss catalogue. NOT meant to be exhaustive —
+# the catch is "the long-tail of recall improvements at preserved precision":
+# add a pair only after you've seen the miss class in real prod data.
+_NICKNAME_MAP: dict[str, set[str]] = {
+    "michael": {"mike"},
+    "nicholas": {"nick"},
+    "elizabeth": {"liz", "beth", "betsy"},
+    "jerome": {"jerry", "jay", "j."},
+    "emmanuel": {"manny"},
+    "richard": {"rich", "rick", "dick"},
+    "robert": {"rob", "bob", "bobby"},
+    "william": {"will", "bill", "billy"},
+    "thomas": {"tom", "tommy"},
+    "joseph": {"joe", "joey"},
+    "anthony": {"tony"},
+    "patrick": {"pat"},
+    "stephen": {"steve"},
+    "steven": {"steve"},
+    "matthew": {"matt"},
+    "jonathan": {"jon"},
+    "christopher": {"chris"},
+    "samuel": {"sam"},
+    "alexander": {"alex", "al"},
+    "daniel": {"dan", "danny"},
+    "edward": {"ed", "eddie", "ted"},
+    "andrew": {"andy", "drew"},
+    "benjamin": {"ben"},
+    "katherine": {"kate", "katie", "kathy"},
+    "catherine": {"cathy", "kate"},
+    "rebecca": {"becky"},
+    "susan": {"sue"},
+    "deborah": {"debbie", "deb"},
+    "barbara": {"barb"},
+    "patricia": {"pat", "patty", "trish"},
+    "jennifer": {"jen", "jenny"},
+    "margaret": {"maggie", "meg", "peggy"},
+}
+# Symmetric closure so lookup works either direction.
+_NICKNAME_PAIRS: set[tuple[str, str]] = set()
+for _full, _nicks in _NICKNAME_MAP.items():
+    for _n in _nicks:
+        # Strip trailing dot so "j." stored as "j" — `_nickname_token_equiv` does
+        # the same dot-strip on input, so lookups round-trip.
+        _n_norm = _n.rstrip(".")
+        _NICKNAME_PAIRS.add((_full, _n_norm))
+        _NICKNAME_PAIRS.add((_n_norm, _full))
+
+# Title / honorific prefixes the predicate strips before comparing — handles
+# `Dr. Elena Fischer` vs `Elena Fischer`, `Ayatollah Ali Khamenei` vs
+# `Ali Khamenei`. Lowercase, trailing dot optional.
+_TITLE_PREFIXES: frozenset[str] = frozenset(
+    {
+        "dr",
+        "dr.",
+        "mr",
+        "mr.",
+        "mrs",
+        "mrs.",
+        "ms",
+        "ms.",
+        "prof",
+        "prof.",
+        "professor",
+        "sir",
+        "ayatollah",
+        "rabbi",
+        "imam",
+        "father",
+        "sister",
+        "brother",
+        "president",
+        "senator",
+        "rep",
+        "rep.",
+        "gov",
+        "gov.",
+        "judge",
+        "justice",
+        "captain",
+        "lieutenant",
+        "lt",
+        "lt.",
+        "general",
+        "gen",
+        "gen.",
+        "ambassador",
+    }
+)
+
 
 @dataclass
 class EntityCandidate:
@@ -77,6 +169,76 @@ def _ratio(a: str, b: str) -> float:
     return difflib.SequenceMatcher(None, a, b).ratio()
 
 
+def _strip_title_prefix(tokens: List[str]) -> List[str]:
+    """Drop a leading title token like 'Dr.' or 'Ayatollah'. Returns the rest."""
+    if tokens and tokens[0].rstrip(".") in {p.rstrip(".") for p in _TITLE_PREFIXES}:
+        return tokens[1:]
+    return tokens
+
+
+def _nickname_token_equiv(x: str, y: str) -> bool:
+    """True if x and y are the same first-name modulo nickname (case-insensitive).
+
+    Tolerates trailing-dot variants on both sides so `J.` and `j` and `j.`
+    all canonicalise to the same lookup ("j" → set containing "jerome",
+    plus "j." → same set after rstrip).
+    """
+    xn, yn = x.rstrip("."), y.rstrip(".")
+    if xn == yn:
+        return True
+    return (xn, yn) in _NICKNAME_PAIRS
+
+
+def _token_count_tolerant_match(a: str, b: str, kind: str) -> bool:
+    """Handle token-count mismatches the strict aligned predicate rejects.
+
+    Covers three patterns from the #853 silver-eval miss catalogue (#904
+    scope):
+    1. **Title-prefix strip** — `Dr. Elena Fischer` ↔ `Elena Fischer`,
+       `Ayatollah Ali Khamenei` ↔ `Ali Khamenei`. After stripping a leading
+       title from either side, retry the strict predicate.
+    2. **Family-only reference** — `Carney` ↔ `Mark Carney`, `Trump` ↔
+       `Donald Trump`. The single-token side must match the LAST token of
+       the multi-token side EXACTLY (no fuzzy on last name alone — too
+       risky, e.g. `Brown` vs `Mark Brown` is too thin a match).
+    3. **First-name-only alias** — `Liam` ↔ `Liam Verbeek`. Symmetric to
+       (2): single-token first name matches FIRST token of multi-token name
+       exactly. Restricted to ``kind == "person"`` because the same pattern
+       on orgs (`Adobe` ↔ `Adobe Creative Cloud`) is more likely a
+       distinct sub-product than an alias.
+
+    NOT covered (out of scope, would need richer signal):
+    - Both sides multi-token but with different counts (e.g.
+      ``Joe Eisenthal House`` vs ``Joe Weisenthal`` — Whisper artefact
+      that inserts a spurious token mid-name).
+    """
+    ta, tb = a.split(), b.split()
+    if len(ta) == len(tb):
+        return False  # caller already handled equal-count case
+    # 1. Title-prefix strip on either side (or both).
+    sa, sb = _strip_title_prefix(ta), _strip_title_prefix(tb)
+    if (sa != ta or sb != tb) and len(sa) == len(sb) and sa == sb:
+        return True
+    if kind == "person":
+        short, long_ = (ta, tb) if len(ta) < len(tb) else (tb, ta)
+        if len(short) == 1 and len(long_) >= 2:
+            # 2. Family-only reference: short token matches long's LAST token exactly.
+            #    e.g. `Carney` ↔ `Mark Carney`, `Trump` ↔ `Donald Trump`.
+            if short[0] == long_[-1]:
+                return True
+            # NOTE: a first-name-only-merge rule (short matches long's first
+            # token) was attempted in an earlier #904 draft but removed —
+            # it can't distinguish ASR aliases (`Liam` ↔ `Liam Verbeek`,
+            # same person) from organic same-first-name pairs (`Marco` ↔
+            # `Marco Bianchi`, different people, the v2 two-Marcos test).
+            # Both have identical predicate shape; differentiating needs
+            # external signal (shared-episode evidence, same-show speaker
+            # role, or LLM escalation). Tracked for follow-up; the Liam
+            # alias case is fixture-only today and real-prod first-name-only
+            # references rarely arise from ASR.
+    return False
+
+
 def _are_xep_variants(name_a: str, name_b: str, kind: str) -> bool:
     """Conservative cross-episode variant test (spelling drift, not distinct names)."""
     a, b = _clean_entity_name(name_a), _clean_entity_name(name_b)
@@ -84,18 +246,58 @@ def _are_xep_variants(name_a: str, name_b: str, kind: str) -> bool:
         return False
     if a == b:
         return True
-    # Acronyms never fuzzy-merge (UPS != USPS).
-    if _is_acronymish(name_a, a) or _is_acronymish(name_b, b):
-        return False
+    # Up-front title-prefix normalization so `President Trump` vs `Donald Trump`
+    # (equal token counts after stripping a title from one side) routes through
+    # the tolerant family-only-reference path instead of being rejected by the
+    # token-ratio test. We compare both as-is AND title-stripped versions —
+    # whichever pair matches.
+    ta_full, tb_full = a.split(), b.split()
+    ta_stripped, tb_stripped = _strip_title_prefix(ta_full), _strip_title_prefix(tb_full)
+    if ta_stripped != ta_full or tb_stripped != tb_full:
+        stripped_a, stripped_b = " ".join(ta_stripped), " ".join(tb_stripped)
+        if stripped_a and stripped_b and stripped_a == stripped_b:
+            return True
+        # If only one side had a title prefix, recurse into the tolerant path
+        # so the now-shorter name can match by family-only-reference.
+        if (ta_stripped == ta_full) != (tb_stripped == tb_full):
+            short, long_ = (
+                (ta_stripped, tb_full) if ta_stripped != ta_full else (tb_stripped, ta_full)
+            )
+            # Family-only-reference only (no first-name-only-merge — see the
+            # NOTE in `_token_count_tolerant_match` for why).
+            if kind == "person" and len(short) == 1 and len(long_) >= 2 and short[0] == long_[-1]:
+                return True
     # Spacing variants: "Data Bricks" == "Databricks", "Chat GPT" == "ChatGPT".
     if a.replace(" ", "") == b.replace(" ", "") and a.replace(" ", ""):
         return True
-    ta, tb = a.split(), b.split()
-    # Different token counts → only the despaced case above may merge; otherwise a
-    # version/extra token (Claude vs Claude 3) → do not merge.
+    ta, tb = ta_full, tb_full
+    # Different token counts → tolerant matcher (title-prefix, family-only,
+    # first-name-only). Runs BEFORE the acronym guard because short proper
+    # nouns like `Trump`/`Liam`/`Brown` look acronym-ish to that guard but
+    # are valid family-only-reference candidates when they appear as a
+    # complete token in the other (longer) name. The tolerant matcher uses
+    # exact-token equality, not fuzzy similarity, so the UPS-vs-USPS concern
+    # the acronym guard exists to address doesn't apply on this path.
+    # #904 lift: this branch was unconditional reject before #904.
     if len(ta) != len(tb):
+        return _token_count_tolerant_match(a, b, kind)
+    # Acronyms never fuzzy-merge (UPS != USPS) — guard applies to the
+    # equal-token-count branch where we'd otherwise apply ratio similarity.
+    if _is_acronymish(name_a, a) or _is_acronymish(name_b, b):
         return False
     if _ratio(a, b) < _OVERALL_RATIO:
+        # One escape hatch: same token-count, otherwise-identical names, but
+        # one token differs by nickname (Mike Selig vs Michael Selig). The
+        # ratio test rejects because Mike/Michael are too dissimilar — but
+        # they ARE the same first name.
+        if (
+            kind == "person"
+            and len(ta) == len(tb)
+            and sum(1 for x, y in zip(ta, tb) if x != y) == 1
+        ):
+            diff_pairs = [(x, y) for x, y in zip(ta, tb) if x != y]
+            if diff_pairs and _nickname_token_equiv(*diff_pairs[0]):
+                return True
         return False
     # Token-aligned: every differing token pair must be a spelling variant, not a
     # distinct content word (audio vs media) or a version token (3, v2).
@@ -104,7 +306,7 @@ def _are_xep_variants(name_a: str, name_b: str, kind: str) -> bool:
             continue
         if _VERSION_TOKEN_RE.search(x) or _VERSION_TOKEN_RE.search(y):
             return False  # numeric/version distinction
-        if _ratio(x, y) < _TOKEN_RATIO:
+        if _ratio(x, y) < _TOKEN_RATIO and not _nickname_token_equiv(x, y):
             return False  # distinct words, not a spelling variant
     return True
 

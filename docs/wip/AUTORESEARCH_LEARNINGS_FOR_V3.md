@@ -123,7 +123,57 @@ optionally an LLM-tier escalation for severe garbles. Tracked in #904.
 
 **Latency note (operational, not fixture):** Gemini Flash Lite is ~7× faster than gpt-4o-mini for the same prompt (4.5s vs 31s). On a corpus run of N episodes the cleaning stage wall-clock difference is meaningful — flag for #905 profile-selection scoring.
 
-### #904 — Tier 1 sponsor cleaning + CIL bridges + topic clusters (queued)
+### #904 — Tier 1 sponsor cleaning + CIL bridges + topic clusters (2026-06-08)
+
+**CIL predicate-redesign findings:**
+
+The first-name-only-alias case (`Liam` ↔ `Liam Verbeek`) was deliberately NOT
+merged because it has identical predicate shape to the two-Marcos
+distinct-people case. v3 should bake an unambiguous shared-episode or
+shared-show signal so a future predicate redesign can safely first-name-merge
+when external evidence supports it — e.g. both names appear in the same
+episode's speaker list, OR both appear in the same show's recurring-guest
+list under different surface forms.
+
+Three FN classes still uncaught after #904's predicate redesign — v3 fixtures
+should encode each so future predicate work has a test bed:
+
+1. **Severe surname garbles (similarity < 0.65)** — `Joll Wisenthal`/`Joe
+   Wisenthal`, `Skanda Amarnath`/`Skanda Eminas`, `Heidi Crebo-Rediker`/`Heidi
+   Krebohticker`. Tests an LLM-tier escalation path.
+2. **Whisper-inserted spurious mid-name token** — `Joe Eisenthal House`/`Joe
+   Weisenthal`. Tests fuzzy-substring matching beyond title-prefix strip.
+3. **First-name-only alias with shared-episode evidence** — same first name
+   appears in same episode as the full-name version, e.g. `Liam` (in
+   dialogue) + `Liam Verbeek` (in metadata header) of the same episode.
+
+**Sponsor-coverage gap on real prod (Sub-task B finding):**
+
+The detector's template-pattern approach catches ~2–6% of sponsor content on
+real podcasts because most sponsor copy is host-read native ads with
+non-templated phrasing. v3 should add:
+
+1. Host-read native-ad blocks (no "brought to you by" / "today's episode is
+   sponsored by" marker) where the host casually pivots into sponsor content
+   mid-conversation.
+2. Native-CTA markers without the canonical "visit X.com" preamble — phrases
+   like "we have a special deal for our listeners", "head over to our
+   sponsor's website", "use the link in show notes".
+
+These let SPONSOR_PATTERNS-set expansion be evaluated meaningfully on
+fixtures, not just on a sample of real prod where there's no ground truth.
+
+**Frame-negative live exercise (Sub-task C finding):**
+
+The `_frame_negative_test` infrastructure works (unit tests confirm it fires
+on synthetic violating clusters), but the live v2 corpus can't exercise it
+because `topic:frame` only exists in p04. v3 should add ≥2 non-p04
+frame-rooted topics in genuinely different semantic domains (e.g. legal
+"frame for decision-making", financial "frame the market reaction") so the
+cluster predicate's discrimination can be tested live, not just by synthetic
+injection. Per-domain "frame" labels also stress-test the embedding's
+domain-disambiguation: do the photography and legal "frame" embeddings
+diverge enough to stay in separate clusters?
 
 ### #905 — Tier 2 chunking + profile selection (queued)
 
