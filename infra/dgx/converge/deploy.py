@@ -68,6 +68,11 @@ files.directory(
 files.directory(
     name="dir: /opt/faster-whisper/hf-cache (model weights persist here)",
     path=HF_CACHE_HOST,
+    # 1000:1000 matches the ``ubuntu`` user inside the Speaches container.
+    # Without this, the container can't write to the bind-mounted cache dir
+    # and ``/v1/models`` 500s on first scan.
+    user="1000",
+    group="1000",
     mode="755",
     present=True,
     _sudo=True,
@@ -99,10 +104,11 @@ services:
       - ENABLE_UI=false
       - UVICORN_HOST=0.0.0.0
       - UVICORN_PORT={PORT}
-      # HF cache mount → model weights persist across container recreations.
-      - HF_HOME=/root/.cache/huggingface
+      # Speaches runs as the ``ubuntu`` user (UID 1000) inside the container,
+      # so HF cache lives under /home/ubuntu/.cache. The host bind-mount is
+      # chown'd to 1000:1000 above so the container can write the model.
     volumes:
-      - {HF_CACHE_HOST}:/root/.cache/huggingface
+      - {HF_CACHE_HOST}:/home/ubuntu/.cache/huggingface
     deploy:
       resources:
         reservations:
