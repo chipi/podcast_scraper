@@ -1452,9 +1452,9 @@ class Config(BaseModel):
         ),
     )
     gemini_cleaning_temperature: float = Field(
-        default=0.2,
+        default=0.4,
         alias="gemini_cleaning_temperature",
-        description="Temperature for Gemini cleaning (0.0-2.0, default: 0.2, lower than summarization)",  # noqa: E501
+        description="Temperature for Gemini cleaning. Tuned in #594 (sim-to-silver 0.615 at t=0.4 vs 0.602 at t=0.2; prod-validated 1W/2T/0L vs t=0.2).",  # noqa: E501
     )
     gemini_max_tokens: Optional[int] = Field(
         default=None,
@@ -1553,9 +1553,9 @@ class Config(BaseModel):
         description="Anthropic model for transcript cleaning (default: claude-haiku-4-5, cheaper than summary model)",  # noqa: E501
     )
     anthropic_cleaning_temperature: float = Field(
-        default=0.2,
+        default=0.4,
         alias="anthropic_cleaning_temperature",
-        description="Temperature for Anthropic cleaning (0.0-1.0, default: 0.2, lower than summarization)",  # noqa: E501
+        description="Temperature for Anthropic cleaning. Tuned in #594 (sim-to-silver 0.663 at t=0.4 vs 0.660 at t=0.2; prod-validated 2W/0T/0L vs t=0.2).",  # noqa: E501
     )
     anthropic_max_tokens: Optional[int] = Field(
         default=None,

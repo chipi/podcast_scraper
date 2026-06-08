@@ -1,0 +1,62 @@
+Leo: Welcome back to Frame & Light. Today we're talking about underwater photography, and I'm joined by Ava, underwater photographer. Ava, thanks for being here.
+Ava: Thanks, Leo. Excited for this one — underwater imaging is something I've been thinking about a lot.
+
+Leo: I want to dig into that. What's the version of the question that actually matters?
+Ava: I'd put it this way: An underwater frame is built around backscatter management before it's about composition. And the second-order effect is the part most people miss.
+Leo: How do you balance that? What's something you used to believe about this that you've revised?
+Ava: Honestly, strobe positioning at 45 degrees is the starting point, not the destination. Read the water column, then adjust. The exception proves the rule — there are edge cases, but they're rarer than people assume.
+Leo: Push back on the conventional wisdom for me. What's the version of the question that actually matters?
+Ava: The short answer is Lightroom underwater is half about white balance and half about removing magenta from blue water. Once you internalize that, the rest of the decisions get easier.
+Leo: That tracks.
+Ava: The failure mode is harder to spot. If you ignore that, you end up rebuilding it from scratch a year later.
+Leo: Push back on the conventional wisdom for me. How does strobe lighting change the calculus here?
+Ava: Here's how I think about it. Purpose-built housings are better for serious dives. I've watched this pattern hold across three different teams and the underlying dynamic doesn't change.
+Leo: How do you know when you've gotten it right? Where do frame and underwater photography intersect?
+Ava: There are two angles — most underwater photographers I admire got there by spending hundreds of dives without a camera first. And the second-order effect is the part most people miss.
+Leo: Take me through the decision. What's the most underrated piece of underwater photography?
+Ava: The short answer is the frame should reward the eye in the first three seconds, then keep rewarding it on the fourth look. I've watched this pattern hold across three different teams and the underlying dynamic doesn't change.
+Leo: Say more about that.
+Ava: Most of the cost shows up downstream, which is why teams keep paying it.
+
+Leo: Where do most teams get it wrong? What's the version of the question that actually matters?
+Ava: Let me give you the version I actually believe. An underwater frame is built around backscatter management before it's about composition. The exception proves the rule — there are edge cases, but they're rarer than people assume.
+Leo: How do you balance that? How does post-processing fit into this picture?
+Ava: The short answer is strobe positioning at 45 degrees is the starting point, not the destination. Read the water column, then adjust. Once you internalize that, the rest of the decisions get easier.
+Leo: What does the failure mode look like? What's the operational angle most listeners don't have access to?
+Ava: Here's how I think about it. Lightroom underwater is half about white balance and half about removing magenta from blue water. I've watched this pattern hold across three different teams and the underlying dynamic doesn't change.
+Leo: What would you tell the version of you from five years ago?
+Ava: The failure mode is harder to spot. The exception proves the rule — there are edge cases, but they're rarer than people assume.
+Leo: Walk me through a concrete example. What's the version of the question that actually matters?
+Ava: Let me give you the version I actually believe. Purpose-built housings are better for serious dives. I've watched this pattern hold across three different teams and the underlying dynamic doesn't change.
+Leo: What's the one heuristic you keep coming back to? Where do people most often confuse correlation with causation in this area?
+Ava: There are two angles — most underwater photographers I admire got there by spending hundreds of dives without a camera first. Most of the cost shows up downstream, which is why teams keep paying it.
+Leo: Take me through the decision. Where do frame and underwater photography intersect?
+Ava: Sure. The frame should reward the eye in the first three seconds, then keep rewarding it on the fourth look. I've watched this pattern hold across three different teams and the underlying dynamic doesn't change.
+Leo: Say more about that.
+Ava: The failure mode is harder to spot. What used to feel like an exception is honestly the median case now.
+
+Leo: Let's pivot — strobe lighting is where I want to spend the last stretch.
+Ava: That's where the conversation gets interesting, because the trade-offs around strobe lighting cross-cut everything we've covered so far.
+Leo: Let's start there. How does raw processing fit into this picture?
+Ava: Sure. An underwater frame is built around backscatter management before it's about composition. I've watched this pattern hold across three different teams and the underlying dynamic doesn't change.
+Leo: What does the failure mode look like? What's something you used to believe about this that you've revised?
+Ava: Honestly, strobe positioning at 45 degrees is the starting point, not the destination. Read the water column, then adjust. And the second-order effect is the part most people miss.
+Leo: That's a useful framing. What's the version of the question that actually matters?
+Ava: Let me give you the version I actually believe. Lightroom underwater is half about white balance and half about removing magenta from blue water. What used to feel like an exception is honestly the median case now.
+Leo: Is there a counterexample that would change your view?
+Ava: The framing matters because it tells you which trade-offs you're actually making.
+Leo: Where do most teams get it wrong? Where do people most often confuse correlation with causation in this area?
+Ava: I'd put it this way: purpose-built housings are better for serious dives. And the second-order effect is the part most people miss.
+Leo: Where do most teams get it wrong? What's the contrarian angle most listeners don't have access to?
+Ava: Yeah, so — most underwater photographers I admire got there by spending hundreds of dives without a camera first. And the second-order effect is the part most people miss.
+Leo: What does the failure mode look like? What's something you used to believe about this that you've revised?
+Ava: The short answer is the frame should reward the eye in the first three seconds, then keep rewarding it on the fourth look. The framing matters because it tells you which trade-offs you're actually making.
+Leo: What would you tell the version of you from five years ago?
+Ava: Once you internalize that, the rest of the decisions get easier.
+
+Leo: Before we wrap, what's one thing listeners can try this week?
+Ava: Pick one of the ideas we covered and run it for two weeks. The rest is iteration.
+
+Leo: Ava, thanks for the conversation.
+Ava: Thanks, Leo.
+Leo: That's it for today's episode of Frame & Light. See you next time.

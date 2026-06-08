@@ -99,9 +99,29 @@ threshold can fix:
 These need a nickname dictionary + a token-count-tolerant predicate +
 optionally an LLM-tier escalation for severe garbles. Tracked in #904.
 
-### #594 — Cleaning autoresearch (queued)
+### #594 — Cleaning autoresearch (2026-06-08)
 
-(Notes go here when the sweep runs.)
+**Sweep summary:** 5 v2 smoke episodes × 7 (provider, model) cells × 3 temperatures = 105 cleaning calls. Sonnet 4.6 silver baseline. Pairwise tournament + 3-episode prod validation. ~$3–4 total spend.
+
+**Defaults bumped:**
+
+- `anthropic_cleaning_temperature`: 0.2 → 0.4 (prod-validated 2W/0T/0L)
+- `gemini_cleaning_temperature`: 0.2 → 0.4 (prod-validated 1W/2T/0L)
+
+**Defaults NOT bumped (and why):**
+
+- `openai_cleaning_temperature`: 0.2 kept. v2 sweep favored 0.4 by only +0.6%, prod validation showed over-cleaning risk (one episode dropped from 11962c to 4733c). Defer until #905's profile-selection harness gives stronger signal.
+- `deepseek_cleaning_temperature`: 0.2 already optimal per the sweep; no change.
+- Cleaning model choices for all 4 cloud providers: already correct pre-#594. The "16× cost reduction" case the ticket cited (replacing gpt-4o with gpt-4o-mini) had already shipped.
+
+**Real cleaning failure modes for v3 to bake in:**
+
+1. **Native-ad / non-templated sponsor blocks** — Gemini Flash Lite leaves ~0.8 pattern hits per episode on average. The misses are closing-CTA fragments without canonical "brought to you by" markers. v3 should add episodes where sponsor content uses non-template phrasing so cleaning eval doesn't just score template-pattern recall.
+2. **Sponsor-shaped real content** — at higher temps OpenAI sometimes treats enthusiastic host recommendations as sponsor content and over-cleans them. v3 episodes that include "honest enthusiasm" host monologues let the cleaning-profile selection (#905) score "preserves real content" precisely.
+3. **Larger-model regression** — `gpt-4o` cleaning was worse than `gpt-4o-mini` cleaning (similarity-to-silver 0.45 vs 0.62). Not a fixture artifact, but worth documenting as evidence that "bigger model = better cleaning" is an unsafe assumption — feeds into the #905 cleaning-profile sweep design.
+4. **`gemini-2.5-flash` mid-tier instability** — sim drops 0.564 → 0.466 → 0.426 as temp climbs 0.0 → 0.2 → 0.4 on the same task. Worth documenting in the registry: this is a model that does NOT tolerate even modest temperature for structured-text tasks.
+
+**Latency note (operational, not fixture):** Gemini Flash Lite is ~7× faster than gpt-4o-mini for the same prompt (4.5s vs 31s). On a corpus run of N episodes the cleaning stage wall-clock difference is meaningful — flag for #905 profile-selection scoring.
 
 ### #904 — Tier 1 sponsor cleaning + CIL bridges + topic clusters (queued)
 
