@@ -175,7 +175,51 @@ injection. Per-domain "frame" labels also stress-test the embedding's
 domain-disambiguation: do the photography and legal "frame" embeddings
 diverge enough to stay in separate clusters?
 
-### #905 — Tier 2 chunking + profile selection (queued)
+### #905 — Tier 2 chunking + profile selection (2026-06-08)
+
+**v4 over-cleaning evidence (Sub-task A finding):**
+
+Pairwise judge on v2 smoke prefers `cleaning_v3` over `cleaning_v4` by 10W-0L-5T,
+even though v4 has higher cheap-metric scores (most chars removed, highest
+sim-to-silver). The judge consistently flags v4 as removing 3% of real content
+along with sponsor blocks. v3 fixtures should add:
+
+1. **"Sponsor-shaped real content"** — host enthusiastic recommendations, native
+   product mentions in conversation, off-topic personal asides — content that
+   *looks* like sponsor copy but isn't. Lets future profile sweeps measure
+   "preserves real content" precisely instead of inferring it from char-removal
+   bounds.
+2. **Multiple silvers per episode** — `silver_aggressive` (Sonnet's most-pruning
+   pass) and `silver_conservative` (Sonnet's preserve-everything pass) so cleaning
+   profiles can be scored against an explicit point in the recall/precision
+   space, not against a single silver whose bias dictates the answer.
+
+**Chunking-quality test bed (Sub-task B finding):**
+
+The v2 long-context fixtures (p07_e01 11.5k words, p08_e01 14.5k, p09_e0X
+~5.7k) have synthetic text that produces sensible chunk distributions across
+the recommended (chunk_words, overlap) range but doesn't stress the hard
+cases. v3 long-context fixtures should add:
+
+1. **Sentence-mid-chunk-boundary content** — a key claim split across two
+   chunks at the default 900-word boundary; tests whether overlap captures it.
+2. **Topic-shift inside the overlap zone** — speaker pivots mid-overlap from
+   topic A to topic B; tests whether MAP-stage summary correctly attributes
+   each side.
+3. **Long episodes that span the hierarchical-vs-extractive switch point** —
+   so future ticket can validate the strategy threshold lands in the
+   intended regime per episode length, not just by accident.
+
+**Production-default migration deferred:**
+
+The judge result is strong but small-sample (30 verdicts on 5 episodes). Before
+flipping `DEFAULT_PROFILE` from v4 to v3 we need either (a) broader judge sample
+or (b) decision that the metric-vs-judge tradeoff is settled. Until then, the
+4 hardcoded v4 fallbacks (`ml_provider.py`, `hybrid_ml_provider.py`,
+`summarizer.py`, `model_registry.py`) stay on v4. v3 fixtures should make this
+sample larger by including the "sponsor-shaped real content" + "multiple
+silvers per episode" patterns above — they're what the broader judge pass
+would need.
 
 ### #906 — Tier 3 NER + Whisper + prompt tuning (queued)
 
