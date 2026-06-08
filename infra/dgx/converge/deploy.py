@@ -142,11 +142,12 @@ server.shell(
         f"WHISPER_MODEL={MODEL}\n"
         f"WHISPER_DEVICE={DEVICE}\n"
         f"WHISPER_COMPUTE_TYPE={COMPUTE_TYPE}\n"
-        f"HOST=127.0.0.1\n"
+        f"HOST=0.0.0.0\n"
         f"PORT={PORT}\n"
-        f"# Bind only to loopback; tailnet exposure is via Ollama-style ACL\n"
-        f"# (tailscale/policy.hujson :8000 on tag:dgx-llm-host). Don't bind 0.0.0.0;\n"
-        f"# rely on the ACL boundary.\n"
+        f"# Bind all interfaces, same as Ollama (OLLAMA_HOST=0.0.0.0 on :11434).\n"
+        f"# The tailnet ACL on tag:dgx-llm-host:8000 is the security boundary —\n"
+        f"# binding 127.0.0.1 would make the service unreachable from the laptop /\n"
+        f"# prod / chaos tests over tailnet, defeating the prod plan.\n"
         f"EOF",
         f"chmod 644 {ENV_FILE}",
     ],
