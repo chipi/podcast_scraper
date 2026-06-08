@@ -110,106 +110,20 @@ jobs:
     - name: Validate ML model cache
       id: validate-cache
       run: |
-        echo "🔍 Validating ML model cache..."
-        MISSING_MODELS=""
-        MODELS_COMPLETE=true
-
-        # Check Whisper models
-        echo "📦 Whisper models:"
-        for model in "tiny.en" "base.en"; do
-          WHISPER_PATH="$HOME/.cache/whisper/${model}.pt"
-          if [ -f "$WHISPER_PATH" ] && [ -s "$WHISPER_PATH" ]; then
-            SIZE=$(du -h "$WHISPER_PATH" | cut -f1)
-            echo "  ✅ $model ($SIZE)"
-          else
-            echo "  ❌ $model - MISSING or empty"
-            MISSING_MODELS="$MISSING_MODELS whisper:$model"
-            MODELS_COMPLETE=false
-          fi
-        done
-
-        # Check Hugging Face models
-        echo ""
-        echo "📦 Hugging Face models:"
-        HF_CACHE="$HOME/.cache/huggingface/hub"
-        # Test models: facebook/bart-base, allenai/led-base-16384
-        # Production models: facebook/bart-base (MAP), llama3.2:3b via Ollama (REDUCE)
-        # Note: allenai/led-base-16384 retained as pure-ML fallback reduce model
-        for model in "facebook/bart-base" "allenai/led-base-16384" "google/long-t5-tglobal-base" "google/flan-t5-base"; do
-          MODEL_DIR="models--${model//\//--}"
-          MODEL_PATH="$HF_CACHE/$MODEL_DIR"
-          if [ -d "$MODEL_PATH/snapshots" ] && [ "$(find "$MODEL_PATH/snapshots" -type f 2>/dev/null | head -1)" ]; then
-            SIZE=$(du -sh "$MODEL_PATH" | cut -f1)
-            echo "  ✅ $model ($SIZE)"
-          else
-            echo "  ❌ $model - MISSING or incomplete"
-            MISSING_MODELS="$MISSING_MODELS hf:$model"
-            MODELS_COMPLETE=false
-          fi
-        done
-
-        # Gated diarization models: only required when HF_TOKEN is provisioned (a
-        # terms-accepted token can fetch them). Forces the preload to run on the
-        # first cached-but-tokenless → tokenful transition so they get added.
-        if [ -n "$HF_TOKEN" ]; then
-          echo ""
-          echo "📦 Diarization models (gated, HF_TOKEN present):"
-          DIAR_PATH="$HF_CACHE/models--pyannote--speaker-diarization-3.1"
-          if [ -d "$DIAR_PATH/snapshots" ] && [ "$(find "$DIAR_PATH/snapshots" -type f 2>/dev/null | head -1)" ]; then
-            echo "  ✅ pyannote/speaker-diarization-3.1"
-          else
-            echo "  ❌ pyannote/speaker-diarization-3.1 - MISSING"
-            MISSING_MODELS="$MISSING_MODELS hf:pyannote/speaker-diarization-3.1"
-            MODELS_COMPLETE=false
-          fi
-        fi
-
-        echo ""
-        if [ "$MODELS_COMPLETE" = true ]; then
-          echo "✅ All required ML models are cached!"
+        # Single manifest (#917): verify_required_models.py reads
+        # model_manifest.ci_artifact_model_ids() -- no duplicated bash arrays.
+        if python scripts/cache/verify_required_models.py; then
           echo "models_complete=true" >> "$GITHUB_OUTPUT"
         else
-          echo "⚠️  Some models are missing. Will run preload..."
           echo "models_complete=false" >> "$GITHUB_OUTPUT"
+          exit 1
         fi
-
     - name: Preload production ML models (if incomplete)
       if: steps.validate-cache.outputs.models_complete != 'true'
       run: make preload-ml-models-production
 
     - name: Final cache validation
-      run: |
-        echo "🔍 Final validation..."
-        CACHE_VALID=true
-
-        for model in "tiny.en" "base.en"; do
-          if [ ! -f "$HOME/.cache/whisper/${model}.pt" ]; then
-            echo "❌ Whisper $model still missing!"
-            CACHE_VALID=false
-          fi
-        done
-
-        HF_CACHE="$HOME/.cache/huggingface/hub"
-        # Test models: facebook/bart-base, allenai/led-base-16384
-        # Production models: facebook/bart-base (MAP), llama3.2:3b via Ollama (REDUCE)
-        # Note: allenai/led-base-16384 retained as pure-ML fallback reduce model
-        for model in "facebook/bart-base" "allenai/led-base-16384" "google/long-t5-tglobal-base" "google/flan-t5-base"; do
-          MODEL_DIR="models--${model//\//--}"
-          if [ ! -d "$HF_CACHE/$MODEL_DIR/snapshots" ]; then
-            echo "❌ HF $model still missing!"
-            CACHE_VALID=false
-          fi
-        done
-
-        if [ "$CACHE_VALID" = true ]; then
-          echo "✅ All models validated successfully!"
-          TOTAL_SIZE=$(du -sh "$HOME/.cache" 2>/dev/null | cut -f1 || echo "unknown")
-          echo "📊 Total cache size: $TOTAL_SIZE"
-        else
-          echo "❌ FATAL: Models still missing after preload!"
-          exit 1
-        fi
-
+      run: python scripts/cache/verify_required_models.py
     - name: Upload ML models artifact (for dependent test jobs in same run)
       uses: actions/upload-artifact@v7
       with:
