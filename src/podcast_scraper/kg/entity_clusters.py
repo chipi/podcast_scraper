@@ -40,9 +40,20 @@ logger = logging.getLogger(__name__)
 
 ENTITY_CLUSTERS_SCHEMA_VERSION = "1.0"
 
-# Conservative thresholds (tunable → autoresearch).
-_TOKEN_RATIO = 0.78  # per-aligned-token spelling-variant floor
-_OVERALL_RATIO = 0.85  # whole-string floor
+# Thresholds tuned in #853 (data/eval/runs/baseline_entity_canon_v1).
+# Silver eval: 190 candidate pairs from a real prod corpus
+# (`.test_outputs/manual/my-manual-run-10`), Sonnet 4.6 silver labels
+# (49 SAME / 134 DIFFERENT / 7 BORDERLINE).
+#
+# Baseline (token=0.78, overall=0.85): P=1.00, R=0.31, F1=0.47
+# Tuned    (token=0.65, overall=0.70): P=1.00, R=0.49, F1=0.66
+# +60% recall at preserved 100% precision. Caught: Bessent/Bessett,
+# Tracy Alloway/Allaway, Joe Weisenthal/Wassenthal, Tim Geithner/Geidner,
+# Henry Blodget/Blodgett, etc. The recall ceiling is structural (token-
+# count mismatches like "Dr. Elena Fischer" vs "Elena Fischer") — predicate
+# redesign tracked in #904, not threshold tuning.
+_TOKEN_RATIO = 0.65  # per-aligned-token spelling-variant floor
+_OVERALL_RATIO = 0.70  # whole-string floor
 _VERSION_TOKEN_RE = re.compile(r"\d")  # a differing token containing a digit blocks merge
 
 
