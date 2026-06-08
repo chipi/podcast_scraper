@@ -75,6 +75,25 @@ def test_nested_transcription_yaml_flattens() -> None:
     assert cfg.transcription_fallback_provider == "openai"
 
 
+def test_initialize_constructs_real_cloud_fallback() -> None:
+    # The other tests mock provider._fallback and force _initialized; this is the only
+    # test that drives the REAL initialize() round-trip: model_dump() -> swap
+    # transcription_provider to the fallback name -> model_validate() -> the real
+    # create_transcription_provider() factory. It guards two regressions the mocked
+    # tests can't see: (1) the re-validated fallback config failing to construct
+    # (validation drift), and (2) the fallback resolving back to tailnet_dgx_whisper
+    # and recursing. OpenAIProvider.initialize() is a no-op (no network), so this is
+    # offline.
+    from podcast_scraper.providers.openai.openai_provider import OpenAIProvider
+
+    provider = TailnetDgxWhisperTranscriptionProvider(_dgx_cfg())
+    provider.initialize()
+
+    assert provider._initialized is True
+    assert isinstance(provider._fallback, OpenAIProvider)
+    assert provider._fallback.cfg.transcription_provider == "openai"
+
+
 @patch("podcast_scraper.providers.tailnet_dgx.whisper_provider.emit_dgx_fallback_breadcrumb")
 @patch(
     "podcast_scraper.providers.tailnet_dgx.whisper_provider.check_faster_whisper_health",
