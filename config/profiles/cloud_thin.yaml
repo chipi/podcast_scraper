@@ -14,6 +14,11 @@ audio_preprocessing_profile: speech_optimal_v1
 speaker_detector_provider: gemini
 auto_speakers: true
 
+# Summary model re-validated 2026-06-08 (#816) with reliability axis added
+# to autoresearch — wins composite ranking by 4-10× on $/successful-call and
+# 3× on p50 vs alternatives. Prod operating point (2026-05-24) shows
+# ~15-20% Gemini 503 burst absorbed by #697 circuit breaker. Re-validate via
+# scripts/eval/score/summary_model_reliability_v1.py before swapping.
 summary_provider: gemini
 gemini_summary_model: gemini-2.5-flash-lite
 gemini_speaker_model: gemini-2.5-flash-lite

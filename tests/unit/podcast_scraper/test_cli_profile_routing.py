@@ -123,6 +123,22 @@ class TestProfileFlagRouting:
             actual = getattr(cfg, key, None)
             assert actual == expected, f"{key}: expected={expected!r} actual={actual!r}"
 
+    def test_dgx_profiles_wire_tailnet_pyannote(self, _fake_keys: None) -> None:
+        """#926: every DGX-named profile must route diarization through the DGX
+        pyannote service. preprod_local_whisper is the intentional exception
+        (laptop-local by design)."""
+        dgx_profiles = ("cloud_with_dgx_primary", "local_dgx_balanced", "local_dgx_full")
+        for name in dgx_profiles:
+            cfg = _build_via_profile(name)
+            assert getattr(cfg, "diarization_provider", None) == "tailnet_dgx", (
+                f"{name}: expected diarization_provider='tailnet_dgx', "
+                f"got {getattr(cfg, 'diarization_provider', None)!r}"
+            )
+            assert getattr(cfg, "dgx_diarize_port", None) == 8001, (
+                f"{name}: expected dgx_diarize_port=8001, "
+                f"got {getattr(cfg, 'dgx_diarize_port', None)!r}"
+            )
+
     def test_explicit_cli_flag_overrides_profile(self, _fake_keys: None) -> None:
         """User's explicit --summary-provider beats profile setting."""
         args = parse_args(

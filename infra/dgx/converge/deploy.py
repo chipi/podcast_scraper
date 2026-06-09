@@ -1,207 +1,273 @@
-"""DGX Spark convergent install: faster-whisper-server (#814).
+"""DGX Spark convergent install: Speaches Whisper server via Docker (#814).
 
 Installs the Whisper transcription service that prod
-(``cloud_with_dgx_whisper_primary.yaml``) targets via the tailnet. Ollama
-already runs on :11434; this adds a second HTTP service on :8000 serving
-OpenAI-compatible ``/v1/audio/transcriptions``.
+(``cloud_with_dgx_primary.yaml``) targets via the tailnet. Speaches
+is the renamed upstream of ``faster-whisper-server`` — same OpenAI-compatible
+API surface, distributed as a CUDA Docker image (the pip package was abandoned
+at v0.0.2).
 
 What this lays down on DGX:
 
-- Apt deps: ``ffmpeg`` for audio decoding.
-- A dedicated system user ``faster-whisper`` with no shell, no home (per
-  systemd hardening conventions).
-- A venv at ``/opt/faster-whisper/venv`` with ``faster-whisper-server``
-  installed via pip.
-- ``/etc/faster-whisper/env`` — environment file with model + device knobs
-  (defaults are CUDA + Systran/faster-whisper-large-v3, matching what prod
-  expects per the profile).
-- ``/etc/systemd/system/faster-whisper.service`` — unit definition.
-- The service is enabled + started; restart policy keeps it alive across
-  reboots without manual intervention. Crash-restart hardening (OOM
-  detection, restart-rate-limit) is **out of scope** — see #910.
+- A ``docker-compose.yml`` at ``/opt/faster-whisper/docker-compose.yml`` that
+  pulls ``ghcr.io/speaches-ai/speaches:latest-cuda`` and exposes :8000.
+- The container is configured with ``restart: unless-stopped`` so it survives
+  reboots without a systemd wrapper. Docker daemon already starts at boot.
+- A model preload is NOT done in this recipe — Speaches downloads on first
+  request (~3 GB for ``Systran/faster-whisper-large-v3``). First transcribe is
+  slow; subsequent are fast.
 
-Idempotent: re-running ``make dgx-deploy`` does not perturb a working install.
+What this deliberately does NOT do:
 
-Verify with ``make dgx-verify`` (extended in this commit to check the
-service + its health endpoint).
+- Install Docker. The DGX has it from #810 bring-up (operator runs vLLM
+  experiments via Docker).
+- Wire systemd. Compose's ``restart: unless-stopped`` is enough; one fewer
+  moving part. Crash-restart hardening (OOM detection, restart-rate-limit)
+  stays out of scope — see #910.
 
-Operator manual steps remain (per #810):
+Idempotent: re-running ``make dgx-deploy`` re-renders the compose YAML +
+``docker compose up -d``. Container is recreated only when image / config
+changes; otherwise no-op.
+
+Operator manual steps still pending (per #810):
+
 - NVIDIA driver + CUDA runtime install.
-- Pre-pull the Whisper model into the HF cache to avoid first-request
-  latency spike (or accept the ~3 GB / first request).
+- HuggingFace cache pre-warm if you want to avoid the ~3 GB first-request
+  download latency.
+
+Verify with ``make dgx-verify``.
 """
 
 from __future__ import annotations
 
-from pyinfra.operations import apt, files, server, systemd
+from pyinfra.operations import files, server
 
-# Knobs that downstream code (the provider client) expects:
+# Knobs the downstream code (the provider client) expects:
 #
 # - PORT 8000 — added to the dgx-llm-host ACL alongside :11434 in
 #   tailscale/policy.hujson. Don't change without updating the ACL.
-# - MODEL ID — Hugging Face repo ID format. ``Systran/faster-whisper-large-v3``
-#   is the upstream-recommended quantization-free large-v3 weights;
-#   faster-whisper-server fetches it lazily on first request.
-SERVICE_USER = "faster-whisper"
+# - MODEL ID — Hugging Face repo ID. ``Systran/faster-whisper-large-v3`` is
+#   the upstream-recommended unquantized large-v3 weights; Speaches fetches
+#   on first request.
+SERVICE_NAME = "faster-whisper"
 INSTALL_ROOT = "/opt/faster-whisper"
-VENV_DIR = f"{INSTALL_ROOT}/venv"
-ENV_DIR = "/etc/faster-whisper"
-ENV_FILE = f"{ENV_DIR}/env"
-SYSTEMD_UNIT = "/etc/systemd/system/faster-whisper.service"
+COMPOSE_FILE = f"{INSTALL_ROOT}/docker-compose.yml"
+IMAGE = "ghcr.io/speaches-ai/speaches:latest-cuda"
 PORT = 8000
 MODEL = "Systran/faster-whisper-large-v3"
-DEVICE = "cuda"  # GB10 → CUDA. Set to "cpu" on a non-GPU host for testing.
-COMPUTE_TYPE = "float16"  # float16 on CUDA; switch to int8 on CPU.
 
-# 1. System packages.
-apt.packages(
-    name="apt: install ffmpeg + python3 venv",
-    packages=["ffmpeg", "python3-venv", "python3-pip"],
-    update=True,
-    cache_time=3600,
-)
+# HF config lives in the operator's ``~/.env`` on DGX (single source of truth
+# for HF_TOKEN / HF_HOME / HF_HUB_CACHE / HF_DATASETS_CACHE). Compose injects it
+# via ``env_file:``. The model cache itself is shared with vLLM (also bind-mounts
+# /opt/llm-models/huggingface) so weights aren't duplicated.
+OPERATOR_ENV_FILE = "/home/markodragoljevic/.env"
+HF_CACHE_HOST = "/opt/llm-models/huggingface"
 
-# 2. Service user (no login shell, no home dir).
-# bandit B604 false positive: ``shell="/usr/sbin/nologin"`` here is the user's
-# LOGIN SHELL (forced to nologin so the account can't be used interactively),
-# not a subprocess ``shell=True`` invocation.
-server.user(  # nosec B604
-    name="user: create faster-whisper system account",
-    user=SERVICE_USER,
-    system=True,
-    shell="/usr/sbin/nologin",
-    create_home=False,
-    home=INSTALL_ROOT,
-)
-
-# 3. Install root + ownership.
+# 1. Install root only — no separate HF cache directory needed; the operator's
+# centralized cache at /opt/llm-models/huggingface is the bind-mount target.
 files.directory(
     name="dir: /opt/faster-whisper (install root)",
     path=INSTALL_ROOT,
-    user=SERVICE_USER,
-    group=SERVICE_USER,
     mode="755",
     present=True,
-)
-
-# 4. Create the venv (idempotent — pyinfra's pip op handles re-creation safely).
-server.shell(
-    name="venv: bootstrap /opt/faster-whisper/venv",
-    commands=[
-        f"test -x {VENV_DIR}/bin/python || python3 -m venv {VENV_DIR}",
-        f"{VENV_DIR}/bin/pip install --upgrade pip wheel setuptools",
-    ],
     _sudo=True,
 )
 
-# 5. Install faster-whisper-server into the venv.
-# Pinned range: minor-version stability. Bump deliberately, not transitively.
-server.shell(
-    name="pip: install faster-whisper-server",
-    commands=[
-        f"{VENV_DIR}/bin/pip install 'faster-whisper-server>=0.2,<0.3'",
-    ],
-    _sudo=True,
-)
+# 2. docker-compose.yml.
+#
+# `network_mode: host` so the container binds :8000 directly on the host
+# (matching Ollama's :11434 pattern, which is how the tailnet ACL boundary
+# becomes the real network gate). Without this we'd need explicit -p 8000:8000
+# and the tailscale ACL would still only see the host-side socket — host mode
+# is cleaner.
+COMPOSE_CONTENT = f"""# Auto-generated by infra/dgx/converge/deploy.py. Edit there, not here.
+# Re-run ``make dgx-deploy`` from the laptop to redeploy.
 
-# 6. Ensure the venv is owned by the service user.
-files.directory(
-    name="chown: venv to faster-whisper",
-    path=VENV_DIR,
-    user=SERVICE_USER,
-    group=SERVICE_USER,
-    recursive=True,
-    present=True,
-)
-
-# 7. Env file (model + device + port). Watched by systemd — restart pulls changes.
-files.directory(
-    name="dir: /etc/faster-whisper",
-    path=ENV_DIR,
-    mode="755",
-    present=True,
-)
-
-files.put(
-    name="env: /etc/faster-whisper/env",
-    src=None,  # inline below
-    dest=ENV_FILE,
-    create_remote_dir=False,
-    mode="644",
-    # pyinfra's ``put`` with content via the ``src`` API requires a file;
-    # easier to drop the literal lines via ``server.shell`` with heredoc.
-)
-
-# 7b. Actually drop the env file content. Idempotent — pyinfra diffs.
-server.shell(
-    name="env-content: write /etc/faster-whisper/env",
-    commands=[
-        f"cat > {ENV_FILE} <<'EOF'\n"
-        f"# faster-whisper-server runtime knobs. See deploy.py for context.\n"
-        f"# Restart unit after edits: systemctl restart faster-whisper\n"
-        f"WHISPER_MODEL={MODEL}\n"
-        f"WHISPER_DEVICE={DEVICE}\n"
-        f"WHISPER_COMPUTE_TYPE={COMPUTE_TYPE}\n"
-        f"HOST=0.0.0.0\n"
-        f"PORT={PORT}\n"
-        f"# Bind all interfaces, same as Ollama (OLLAMA_HOST=0.0.0.0 on :11434).\n"
-        f"# The tailnet ACL on tag:dgx-llm-host:8000 is the security boundary —\n"
-        f"# binding 127.0.0.1 would make the service unreachable from the laptop /\n"
-        f"# prod / chaos tests over tailnet, defeating the prod plan.\n"
-        f"EOF",
-        f"chmod 644 {ENV_FILE}",
-    ],
-    _sudo=True,
-)
-
-# 8. systemd unit.
-SYSTEMD_UNIT_CONTENT = f"""[Unit]
-Description=faster-whisper-server (DGX Whisper for #814)
-Documentation=https://github.com/fedirz/faster-whisper-server
-After=network-online.target
-Wants=network-online.target
-
-[Service]
-Type=simple
-User={SERVICE_USER}
-Group={SERVICE_USER}
-EnvironmentFile={ENV_FILE}
-WorkingDirectory={INSTALL_ROOT}
-ExecStart={VENV_DIR}/bin/faster-whisper-server
-Restart=on-failure
-RestartSec=10s
-# Hardening (#910 will tighten further):
-NoNewPrivileges=true
-PrivateTmp=true
-ProtectSystem=strict
-ProtectHome=true
-ReadWritePaths={INSTALL_ROOT}
-
-[Install]
-WantedBy=multi-user.target
+services:
+  {SERVICE_NAME}:
+    image: {IMAGE}
+    container_name: {SERVICE_NAME}
+    restart: unless-stopped
+    network_mode: host
+    runtime: nvidia
+    # HF_TOKEN / HF_HOME / HF_HUB_CACHE / HF_DATASETS_CACHE all come from the
+    # operator's centralized ~/.env on DGX. Update there to update everywhere.
+    env_file:
+      - {OPERATOR_ENV_FILE}
+    environment:
+      # Compose-specific (NOT in ~/.env): Speaches-only knobs.
+      - WHISPER__MODEL={MODEL}
+      - WHISPER__DEVICE=cuda
+      # ``default`` lets ctranslate2 auto-pick the best compute type for the
+      # hardware. ``float16`` errors on GB10: "target device or backend do
+      # not support efficient float16 computation". GB10 prefers bfloat16
+      # natively; ``default`` resolves to that or an int8 quantized variant
+      # depending on the CTranslate2 build. Pin explicitly only if benchmarks
+      # show a reason.
+      - WHISPER__COMPUTE_TYPE=default
+      - LOG_LEVEL=INFO
+      - ENABLE_UI=false
+      - UVICORN_HOST=0.0.0.0
+      - UVICORN_PORT={PORT}
+    volumes:
+      # Mount HF cache at the SAME path inside the container as outside, so
+      # HF_HOME=/opt/llm-models/huggingface (from ~/.env) resolves correctly
+      # from inside. Shared with vLLM's compose so weights aren't duplicated.
+      - {HF_CACHE_HOST}:{HF_CACHE_HOST}
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
 """
 
 server.shell(
-    name="unit: drop /etc/systemd/system/faster-whisper.service",
+    name="compose: write /opt/faster-whisper/docker-compose.yml",
     commands=[
-        f"cat > {SYSTEMD_UNIT} <<'EOF'\n{SYSTEMD_UNIT_CONTENT}EOF",
-        f"chmod 644 {SYSTEMD_UNIT}",
+        f"cat > {COMPOSE_FILE} <<'EOF'\n{COMPOSE_CONTENT}EOF",
+        f"chmod 644 {COMPOSE_FILE}",
     ],
     _sudo=True,
 )
 
-# 9. Tell systemd we changed unit files.
-systemd.daemon_reload(
-    name="systemd: daemon-reload after unit write",
+# 3. Pull image + start. Idempotent: docker compose only recreates the
+# container if the YAML config-hash or image digest changed.
+#
+# The pull is wrapped in `|| true` so a GHCR slowdown/outage doesn't bail
+# the whole deploy. We observed this on 2026-06-08: ghcr.io took >30s to
+# respond, pyinfra dropped to "Error: executed 0 commands" + "No hosts
+# remaining", and the pyannote install steps further down never ran. With
+# the pull tolerated, `docker compose up -d` below uses the locally-cached
+# image — fine for the common case where Speaches is already running on
+# DGX and we're only redeploying pyannote. The trade-off: a deploy could
+# silently miss a NEW upstream image. We accept that since (a) the timing
+# message still surfaces success vs warn-only-fall-through, (b) the next
+# successful deploy still picks up changes, and (c) image bumps are rare
+# enough that catching them via an explicit `dgx-refresh` target later is
+# a better tool for the job than gating every deploy on GHCR reachability.
+server.shell(
+    name="compose: pull image (tolerated; falls back to cached on GHCR blip)",
+    commands=[
+        f"cd {INSTALL_ROOT} && docker compose pull "
+        f"|| echo '::warning::GHCR pull failed; will use cached image if present'"
+    ],
     _sudo=True,
 )
 
-# 10. Enable + start. ``running=True`` is idempotent — pyinfra checks status.
-systemd.service(
-    name="systemd: enable + start faster-whisper",
-    service="faster-whisper",
-    running=True,
-    enabled=True,
-    daemon_reload=False,  # already done above
+server.shell(
+    name="compose: up -d (start / restart on config change)",
+    commands=[f"cd {INSTALL_ROOT} && docker compose up -d"],
+    _sudo=True,
+)
+
+
+# ---------------------------------------------------------------------------
+# #926 — pyannote diarization service. Same shape as Speaches install above:
+# Docker-managed, restart: unless-stopped, env_file shared with the operator's
+# centralized ~/.env (HF_TOKEN comes from there). Listens on :8001 — the
+# legacy embedding-shim slot, already in the tailnet ACL.
+# ---------------------------------------------------------------------------
+
+PYANNOTE_INSTALL_ROOT = "/opt/pyannote-server"
+PYANNOTE_COMPOSE_FILE = f"{PYANNOTE_INSTALL_ROOT}/docker-compose.yml"
+PYANNOTE_BUILD_CTX = f"{PYANNOTE_INSTALL_ROOT}/build"
+PYANNOTE_IMAGE = "podcast-pyannote:0.1.0"
+PYANNOTE_PORT = 8001
+PYANNOTE_MODEL = "pyannote/speaker-diarization-3.1"
+# We BUILD the image on DGX (no public registry yet) — sources for the
+# Dockerfile + app live in the repo at infra/dgx/pyannote-server/. The
+# deploy reads those files and ships their contents up.
+from pathlib import Path as _Path
+
+_PYANNOTE_SRC = _Path(__file__).resolve().parents[1] / "pyannote-server"
+
+# Install root for the service compose + build context.
+files.directory(
+    name="dir: /opt/pyannote-server (install root)",
+    path=PYANNOTE_INSTALL_ROOT,
+    mode="755",
+    present=True,
+    _sudo=True,
+)
+
+files.directory(
+    name="dir: /opt/pyannote-server/build (Docker build context)",
+    path=PYANNOTE_BUILD_CTX,
+    mode="755",
+    present=True,
+    _sudo=True,
+)
+
+# Push Dockerfile + app.py to the build context on DGX.
+files.put(
+    name="ship: pyannote-server/Dockerfile",
+    src=str(_PYANNOTE_SRC / "Dockerfile"),
+    dest=f"{PYANNOTE_BUILD_CTX}/Dockerfile",
+    mode="644",
+    create_remote_dir=False,
+    _sudo=True,
+)
+
+files.put(
+    name="ship: pyannote-server/app.py",
+    src=str(_PYANNOTE_SRC / "app.py"),
+    dest=f"{PYANNOTE_BUILD_CTX}/app.py",
+    mode="644",
+    create_remote_dir=False,
+    _sudo=True,
+)
+
+# docker-compose.yml. Same env_file pattern as Speaches → HF_TOKEN flows
+# from the operator's centralized ~/.env. HF cache shared with Speaches +
+# vLLM at /opt/llm-models/huggingface so we don't re-download the model.
+PYANNOTE_COMPOSE_CONTENT = f"""# Auto-generated. Edit infra/dgx/converge/deploy.py instead.
+# Re-run ``make dgx-deploy`` from the laptop to redeploy.
+
+services:
+  pyannote:
+    build: {PYANNOTE_BUILD_CTX}
+    image: {PYANNOTE_IMAGE}
+    container_name: pyannote
+    restart: unless-stopped
+    network_mode: host
+    runtime: nvidia
+    env_file:
+      - {OPERATOR_ENV_FILE}
+    environment:
+      - PYANNOTE_MODEL={PYANNOTE_MODEL}
+      - PYANNOTE_DEVICE=cuda
+      - LOG_LEVEL=INFO
+      - UVICORN_HOST=0.0.0.0
+      - UVICORN_PORT={PYANNOTE_PORT}
+    volumes:
+      - {HF_CACHE_HOST}:{HF_CACHE_HOST}
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+"""
+
+server.shell(
+    name="compose: write /opt/pyannote-server/docker-compose.yml",
+    commands=[
+        f"cat > {PYANNOTE_COMPOSE_FILE} <<'EOF'\n{PYANNOTE_COMPOSE_CONTENT}EOF",
+        f"chmod 644 {PYANNOTE_COMPOSE_FILE}",
+    ],
+    _sudo=True,
+)
+
+server.shell(
+    name="build: pyannote image (one-time + on Dockerfile/app changes)",
+    commands=[f"cd {PYANNOTE_INSTALL_ROOT} && docker compose build"],
+    _sudo=True,
+)
+
+server.shell(
+    name="compose: up -d (start / restart pyannote service)",
+    commands=[f"cd {PYANNOTE_INSTALL_ROOT} && docker compose up -d"],
     _sudo=True,
 )

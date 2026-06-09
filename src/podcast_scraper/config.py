@@ -1253,6 +1253,39 @@ class Config(BaseModel):
             "faster-whisper-server which takes HF repo IDs."
         ),
     )
+    diarization_provider: Literal["local", "tailnet_dgx"] = Field(
+        default="local",
+        alias="diarization_provider",
+        description=(
+            "Diarization backend (#926). ``local`` runs pyannote.audio in-process on "
+            "the pipeline host (laptop / prod VPS). ``tailnet_dgx`` POSTs audio to the "
+            "DGX-hosted pyannote service on dgx_diarize_port and gets speaker turns "
+            "back over the tailnet. Falls back to local pyannote when DGX is "
+            "unreachable so the pipeline never hard-fails on diarize. Default "
+            "``local`` keeps behavior backwards-compatible."
+        ),
+    )
+    dgx_diarize_port: int = Field(
+        default=8001,
+        ge=1,
+        le=65535,
+        alias="dgx_diarize_port",
+        description=(
+            "Port for the DGX-hosted pyannote diarization service (default 8001, "
+            "#926). The legacy embedding-shim slot reclaimed for diarize. See "
+            "infra/dgx/converge/deploy.py."
+        ),
+    )
+    dgx_diarize_model: str = Field(
+        default="pyannote/speaker-diarization-3.1",
+        alias="dgx_diarize_model",
+        description=(
+            "Hugging Face repo ID for the pyannote model that the DGX diarize "
+            "service loads. The HF model is gated; HF_TOKEN must be in the "
+            "operator's ~/.env on DGX, which the deploy env_file injects into the "
+            "container."
+        ),
+    )
     dgx_request_timeout_sec: float = Field(
         default=300.0,
         gt=0,
@@ -1452,9 +1485,9 @@ class Config(BaseModel):
         ),
     )
     gemini_cleaning_temperature: float = Field(
-        default=0.2,
+        default=0.4,
         alias="gemini_cleaning_temperature",
-        description="Temperature for Gemini cleaning (0.0-2.0, default: 0.2, lower than summarization)",  # noqa: E501
+        description="Temperature for Gemini cleaning. Tuned in #594 (sim-to-silver 0.615 at t=0.4 vs 0.602 at t=0.2; prod-validated 1W/2T/0L vs t=0.2).",  # noqa: E501
     )
     gemini_max_tokens: Optional[int] = Field(
         default=None,
@@ -1553,9 +1586,9 @@ class Config(BaseModel):
         description="Anthropic model for transcript cleaning (default: claude-haiku-4-5, cheaper than summary model)",  # noqa: E501
     )
     anthropic_cleaning_temperature: float = Field(
-        default=0.2,
+        default=0.4,
         alias="anthropic_cleaning_temperature",
-        description="Temperature for Anthropic cleaning (0.0-1.0, default: 0.2, lower than summarization)",  # noqa: E501
+        description="Temperature for Anthropic cleaning. Tuned in #594 (sim-to-silver 0.663 at t=0.4 vs 0.660 at t=0.2; prod-validated 2W/0T/0L vs t=0.2).",  # noqa: E501
     )
     anthropic_max_tokens: Optional[int] = Field(
         default=None,

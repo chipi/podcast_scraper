@@ -1,6 +1,6 @@
 # DGX prod validation log (ADR-096)
 
-Record pre-prod runs of `cloud_with_dgx_whisper_primary` before flipping prod default.
+Record pre-prod runs of `cloud_with_dgx_primary` before flipping prod default.
 
 | Week ending | Environment | Fallback rate | Notes |
 | --- | --- | --- | --- |

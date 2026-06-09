@@ -59,7 +59,7 @@ The three modes together show a useful methodological lesson worth preserving wi
 
 ### Out of scope
 
-- Switching prod (`cloud_with_dgx_whisper_primary`) to DGX embeddings. Same conclusion as for local DGX — empirically not justified, and ADR-096's fallback contract was built around Whisper, not embeddings.
+- Switching prod (`cloud_with_dgx_primary`) to DGX embeddings. Same conclusion as for local DGX — empirically not justified, and ADR-096's fallback contract was built around Whisper, not embeddings.
 - Other Ollama embedding models (`mxbai-embed-large` etc.). The harness can score them when needed; revisit when there's a reason to think the answer would flip.
 - Replacing the GI subsystem's embedding model.
 

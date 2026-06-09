@@ -16,6 +16,8 @@ from podcast_scraper.providers.tailnet_dgx.health import (
     _extract_model_names,
     check_faster_whisper_health,
     check_ollama_health,
+    check_pyannote_diarize_health,
+    dgx_diarize_base_url,
     dgx_ollama_base_url,
     dgx_whisper_base_url,
 )
@@ -197,3 +199,81 @@ def test_check_faster_whisper_health_network_error(mock_client_cls: MagicMock) -
     mock_client_cls.return_value = mock_client
 
     assert check_faster_whisper_health("dgx-host") is False
+
+
+# --- DGX pyannote diarize service (#926) ---------------------------------
+
+
+def test_dgx_diarize_base_url_default_port() -> None:
+    assert dgx_diarize_base_url("dgx-llm-1.tail-test.ts.net") == (
+        "http://dgx-llm-1.tail-test.ts.net:8001"
+    )
+
+
+def test_dgx_diarize_base_url_preserves_scheme() -> None:
+    assert dgx_diarize_base_url("https://dgx.example.com:9000", 8001) == (
+        "https://dgx.example.com:9000"
+    )
+
+
+@patch("httpx.Client")
+def test_check_pyannote_diarize_health_ok_no_model_filter(
+    mock_client_cls: MagicMock,
+) -> None:
+    mock_resp = MagicMock()
+    mock_resp.status_code = 200
+    mock_client = MagicMock()
+    mock_client.__enter__.return_value = mock_client
+    mock_client.get.return_value = mock_resp
+    mock_client_cls.return_value = mock_client
+
+    assert check_pyannote_diarize_health("dgx-host") is True
+    mock_client.get.assert_called_once_with("http://dgx-host:8001/v1/models")
+
+
+@patch("httpx.Client")
+def test_check_pyannote_diarize_health_required_model_present(
+    mock_client_cls: MagicMock,
+) -> None:
+    mock_resp = MagicMock()
+    mock_resp.status_code = 200
+    mock_resp.json.return_value = {
+        "object": "list",
+        "data": [{"id": "pyannote/speaker-diarization-3.1"}],
+    }
+    mock_client = MagicMock()
+    mock_client.__enter__.return_value = mock_client
+    mock_client.get.return_value = mock_resp
+    mock_client_cls.return_value = mock_client
+
+    assert (
+        check_pyannote_diarize_health("dgx-host", require_model_substring="speaker-diarization-3.1")
+        is True
+    )
+
+
+@patch("httpx.Client")
+def test_check_pyannote_diarize_health_required_model_absent(
+    mock_client_cls: MagicMock,
+) -> None:
+    mock_resp = MagicMock()
+    mock_resp.status_code = 200
+    mock_resp.json.return_value = {"data": [{"id": "pyannote/speaker-diarization-3.0"}]}
+    mock_client = MagicMock()
+    mock_client.__enter__.return_value = mock_client
+    mock_client.get.return_value = mock_resp
+    mock_client_cls.return_value = mock_client
+
+    assert check_pyannote_diarize_health("dgx-host", require_model_substring="3.1") is False
+
+
+@patch("httpx.Client")
+def test_check_pyannote_diarize_health_non_200(mock_client_cls: MagicMock) -> None:
+    mock_resp = MagicMock()
+    mock_resp.status_code = 503
+    mock_client = MagicMock()
+    mock_client.__enter__.return_value = mock_client
+    mock_client.get.return_value = mock_resp
+    mock_client_cls.return_value = mock_client
+
+    assert check_pyannote_diarize_health("dgx-host") is False

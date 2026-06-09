@@ -142,7 +142,7 @@ class TestRfc089SummaryFallbackWiring:
         Operator decision (2026-06-07): for laptop-to-DGX runs, a DGX outage
         should be visible (summary missing) rather than silently routing to a
         paid cloud provider. Cloud fallback is reserved for the prod profile
-        (cloud_with_dgx_whisper_primary), where it's enabled at the Whisper
+        (cloud_with_dgx_primary), where it's enabled at the Whisper
         layer (transcription_fallback_provider) — the LLM is already cloud
         Gemini there.
 

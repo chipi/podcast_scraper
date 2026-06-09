@@ -3427,7 +3427,7 @@ preprod-chaos-dgx-down:
 		echo "→ Running prod profile with DGX routed to chaos proxy (cloud Whisper must take over)"; \
 		$(PYTHON) -m podcast_scraper.cli \
 			"$(RSS)" \
-			--profile cloud_with_dgx_whisper_primary \
+			--profile cloud_with_dgx_primary \
 			--dgx-tailnet-host 127.0.0.1 \
 			--dgx-whisper-port $(CHAOS_PORT) \
 			--output-dir "$(OUTPUT_DIR)-chaos-dgx-down" \
@@ -3454,7 +3454,7 @@ preprod-chaos-both-down:
 		set +e; \
 		$(PYTHON) -m podcast_scraper.cli \
 			"$(RSS)" \
-			--profile cloud_with_dgx_whisper_primary \
+			--profile cloud_with_dgx_primary \
 			--dgx-tailnet-host 127.0.0.1 \
 			--dgx-whisper-port $(CHAOS_PORT) \
 			--output-dir "$(OUTPUT_DIR)-chaos-both-down" \

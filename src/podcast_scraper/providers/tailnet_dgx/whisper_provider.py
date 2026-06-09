@@ -77,10 +77,26 @@ class TailnetDgxWhisperTranscriptionProvider:
         self,
         audio_path: str,
         language: str | None = None,
+        # The workflow passes these for metrics + chunked-call accounting on
+        # cloud providers. Speaches doesn't use them directly (we have our own
+        # breadcrumb emission via emit_dgx_fallback_breadcrumb), but accepting
+        # them keeps the signature compatible with the rest of the provider
+        # protocol so the workflow can pass them uniformly. When fallback
+        # fires, we forward them to the cloud provider so its metrics +
+        # cost tracking still work end-to-end.
+        pipeline_metrics: Any | None = None,
+        episode_duration_seconds: int | None = None,
+        call_metrics: Any | None = None,
     ) -> tuple[dict[str, object], float]:
         """Return transcript dict with segments and elapsed seconds."""
         self._ensure_init()
-        text, segments, duration = self._transcribe_with_fallback(audio_path, language)
+        text, segments, duration = self._transcribe_with_fallback(
+            audio_path,
+            language,
+            pipeline_metrics=pipeline_metrics,
+            episode_duration_seconds=episode_duration_seconds,
+            call_metrics=call_metrics,
+        )
         return (
             {
                 "text": text,
@@ -94,6 +110,11 @@ class TailnetDgxWhisperTranscriptionProvider:
         self,
         audio_path: str,
         language: str | None,
+        # Forwarded to the fallback provider when DGX is unhealthy and we
+        # route to cloud Whisper. DGX-side call doesn't use them.
+        pipeline_metrics: Any | None = None,
+        episode_duration_seconds: int | None = None,
+        call_metrics: Any | None = None,
     ) -> tuple[str, list[dict[str, object]], float]:
         assert self._fallback is not None
         last_err: Optional[Exception] = None
@@ -129,7 +150,15 @@ class TailnetDgxWhisperTranscriptionProvider:
             self._fallback_name,
             reason,
         )
-        result = self._fallback.transcribe_with_segments(audio_path, language)
+        # Forward metrics kwargs so the cloud fallback's cost + provider metrics
+        # tracking still works when DGX is denied / unhealthy.
+        result = self._fallback.transcribe_with_segments(
+            audio_path,
+            language,
+            pipeline_metrics=pipeline_metrics,
+            episode_duration_seconds=episode_duration_seconds,
+            call_metrics=call_metrics,
+        )
         raw_segments = result[0].get("segments") or []
         segments = cast(List[dict[str, object]], raw_segments)
         return (

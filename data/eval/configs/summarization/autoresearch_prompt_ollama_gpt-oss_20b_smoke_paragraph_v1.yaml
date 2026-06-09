@@ -1,0 +1,29 @@
+# Autoresearch Track A — paragraph summaries, Ollama gpt-oss:20b.
+#
+# Added for smoke v2 refresh on DGX (#924). Uses the same prompt templates as
+# qwen3.5:9b for the first sweep — future tuning per model under
+# src/podcast_scraper/prompts/ollama/gpt-oss_20b/summarization/.
+#
+# Pair with silver: silver_sonnet46_smoke_v1
+# Requires: ollama pull gpt-oss:20b (already pulled on DGX as of 2026-06-08)
+
+id: "autoresearch_prompt_ollama_gpt-oss_20b_smoke_paragraph_v1"
+task: "summarization"
+
+backend:
+  type: "ollama"
+  model: "gpt-oss:20b"
+
+prompts:
+  system: "ollama/gpt-oss_20b/summarization/system_v1"
+  user: "ollama/gpt-oss_20b/summarization/long_v1"
+
+data:
+  dataset_id: "curated_5feeds_smoke_v1"
+
+params:
+  max_length: 800
+  min_length: 200
+  temperature: 0.0
+
+preprocessing_profile: "cleaning_v4"

@@ -1,0 +1,56 @@
+{
+  "schema": "reliability_evidence_v1",
+  "evidence_id": "prod_2026-05-24_gemini_2_5_flash_lite",
+  "source": "manual production pipeline run, 10-feed batch (my-manual-run-10 + follow-up backfill)",
+  "captured_at": "2026-05-24",
+  "captured_by": "operator (manual observation from in-flight + completed run logs)",
+  "model": "gemini-2.5-flash-lite",
+  "profile": "cloud_balanced",
+  "workload_shape": {
+    "feed_count": 10,
+    "episodes_estimate": 30,
+    "stages_calling_provider": ["summary", "gi", "kg", "speaker"],
+    "wall_clock_duration_hours": 3,
+    "provider_concurrency": "sequential per-stage, multi-feed parallel via outer driver"
+  },
+  "headline_observations": {
+    "gemini_503_retry_rate_pct": {
+      "low": 15,
+      "high": 20,
+      "basis": "operator observation across ~3h of batched calls; not extracted from per-call telemetry export"
+    },
+    "wall_clock_overhead_pct": {
+      "low": 30,
+      "high": 50,
+      "basis": "run completed cleanly via #697 circuit breaker; overhead vs throttle-free baseline estimated"
+    },
+    "completion": "all episodes succeeded; circuit breaker absorbed bursts"
+  },
+  "per_call_telemetry": {
+    "available": false,
+    "reason": "operator did not export provider_metrics shard for this run; ProviderCallMetrics.record_retry() data is in-process only and was not persisted to a dedicated reliability file"
+  },
+  "what_this_evidence_supports": [
+    "Reliability is not a tail risk — at sustained-load operating points, gemini-2.5-flash-lite shows a measurable 503 floor (~15-20%) that small-batch eval does not surface.",
+    "The #697 circuit breaker is load-bearing: without it, retries would cascade.",
+    "Effective throughput at the operating point is materially below nameplate single-call throughput."
+  ],
+  "what_this_evidence_does_not_support": [
+    "Per-stage 503 attribution (summary vs gi vs kg vs speaker) — not measured.",
+    "Time-of-day correlation — not measured.",
+    "Cross-model comparison — only one model in flight."
+  ],
+  "follow_up_measurements": {
+    "harness": "scripts/eval/score/summary_model_reliability_v1.py",
+    "purpose": "structured sustained-load measurement, multi-candidate, repeatable",
+    "outputs": [
+      "data/eval/runs/baseline_summary_model_reliability_v1/",
+      "docs/guides/eval-reports/EVAL_SUMMARY_MODEL_RELIABILITY_2026_06_08.md"
+    ]
+  },
+  "related_artifacts": {
+    "circuit_breaker_issue": "#697",
+    "profile_file": "config/profiles/cloud_balanced.yaml",
+    "ticket": "#816"
+  }
+}

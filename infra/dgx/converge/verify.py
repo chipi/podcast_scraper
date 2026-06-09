@@ -76,21 +76,43 @@ server.shell(
     ],
 )
 
-# 5. faster-whisper-server (#814) — installed by deploy.py.
+# 5. faster-whisper-server / Speaches (#814) — installed by deploy.py as a
+# docker-compose stack (no systemd wrapper; restart: unless-stopped in compose).
 server.shell(
-    name="assert: faster-whisper systemd unit active + enabled",
+    name="assert: faster-whisper container is up",
     commands=[
-        "systemctl is-active --quiet faster-whisper",
-        "systemctl is-enabled --quiet faster-whisper",
+        "docker ps --filter name=^faster-whisper$ --filter status=running --format '{{.Names}}' "
+        "| grep -q '^faster-whisper$'",
     ],
 )
 
-# 6. faster-whisper API responsive on the loopback port. The provider client
-# from the laptop reaches this via the tailnet ACL on tag:dgx-llm-host:8000;
-# but verify runs locally on the DGX, so it hits 127.0.0.1.
+# 6. Speaches API responsive on the loopback port. Provider client from laptop
+# reaches this via the tailnet ACL on tag:dgx-llm-host:8000; verify runs
+# locally on the DGX, so it hits 127.0.0.1.
 server.shell(
     name="assert: faster-whisper API responsive on :8000",
     commands=[
         "curl -fsS --max-time 10 http://127.0.0.1:8000/v1/models >/dev/null",
+    ],
+)
+
+# 7. pyannote diarize service (#926) — installed by deploy.py alongside
+# Speaches. Same Docker pattern + loopback check.
+server.shell(
+    name="assert: pyannote container is up",
+    commands=[
+        "docker ps --filter name=^pyannote$ --filter status=running --format '{{.Names}}' "
+        "| grep -q '^pyannote$'",
+    ],
+)
+
+server.shell(
+    name="assert: pyannote API responsive on :8001",
+    commands=[
+        # /health returns 200 only after the pyannote model has finished
+        # loading at startup. First boot can take ~30-60s for the model to
+        # warm; subsequent restarts are quick.
+        "curl -fsS --max-time 30 http://127.0.0.1:8001/health >/dev/null",
+        "curl -fsS --max-time 10 http://127.0.0.1:8001/v1/models >/dev/null",
     ],
 )

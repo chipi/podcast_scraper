@@ -38,6 +38,14 @@ def dgx_whisper_base_url(host: str, port: int = 8000) -> str:
     return f"http://{h}:{port}"
 
 
+def dgx_diarize_base_url(host: str, port: int = 8001) -> str:
+    """Build ``http://host:port`` base URL for the pyannote diarize service (#926)."""
+    h = (host or "").strip().rstrip("/")
+    if h.startswith("http://") or h.startswith("https://"):
+        return h
+    return f"http://{h}:{port}"
+
+
 def check_ollama_health(
     host: str,
     *,
@@ -132,4 +140,53 @@ def check_faster_whisper_health(
         return False
     except Exception as exc:
         logger.debug("DGX faster-whisper health check failed: %s", exc)
+        return False
+
+
+def check_pyannote_diarize_health(
+    host: str,
+    *,
+    port: int = 8001,
+    path: str = FASTER_WHISPER_HEALTH_PATH,
+    timeout_sec: float = DEFAULT_TIMEOUT_SEC,
+    require_model_substring: Optional[str] = None,
+) -> bool:
+    """Return True when the DGX pyannote service responds 200 on ``/v1/models``.
+
+    Same OpenAI-style envelope as faster-whisper-server — the diarize service
+    publishes its loaded pipeline as ``{"object": "list", "data": [{"id":
+    "pyannote/speaker-diarization-3.1", ...}]}`` so a single check shape works
+    for both services.
+
+    ``require_model_substring`` matches against the pipeline id (e.g.
+    ``speaker-diarization-3.1``).
+    """
+    try:
+        import httpx
+    except ImportError:
+        logger.warning("httpx not installed; DGX diarize health check skipped")
+        return False
+
+    base = dgx_diarize_base_url(host, port)
+    url = f"{base}{path if path.startswith('/') else '/' + path}"
+    try:
+        with httpx.Client(timeout=timeout_sec) as client:
+            resp = client.get(url)
+        if resp.status_code != 200:
+            return False
+        if not require_model_substring:
+            return True
+        data = resp.json()
+        models = data.get("data") if isinstance(data, dict) else None
+        if not isinstance(models, list):
+            return False
+        needle = require_model_substring.lower()
+        for item in models:
+            if isinstance(item, dict):
+                mid = item.get("id", "")
+                if isinstance(mid, str) and needle in mid.lower():
+                    return True
+        return False
+    except Exception as exc:
+        logger.debug("DGX diarize health check failed: %s", exc)
         return False

@@ -8,9 +8,17 @@ ollama_api_base: http://dgx-llm-1.tail6d0ed4.ts.net:11434/v1
 transcription_provider: whisper
 whisper_model: small.en
 
-# Screenplay + neural diarization (RFC-058)
+# Screenplay + neural diarization (RFC-058 + #926)
 screenplay: true
 diarize: true
+
+# Diarization on DGX via pyannote-server (#926). This is the pure-DGX
+# measurement profile, so routing diarization off-laptop keeps the
+# autoresearch comparison fair (LLM + diarize both on GB10 vs cloud).
+# Falls back to in-process pyannote if the DGX service is unavailable.
+diarization_provider: tailnet_dgx
+dgx_diarize_port: 8001
+dgx_diarize_model: pyannote/speaker-diarization-3.1
 
 summary_provider: ollama
 ollama_summary_model: llama3.3:70b

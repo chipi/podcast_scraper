@@ -70,17 +70,22 @@ def _ollama_openai_chat_extra_kwargs(model: str, num_ctx: Optional[int] = None) 
        different maximums (e.g. gemma2 = 8k, qwen3.5 = 256k); pick a value large
        enough for your expected prompt length but within the model's range.
 
-    2. **Qwen 3.5 chain-of-thought** — Qwen 3.5 uses the ``reasoning`` field unless
-       disabled. Without ``reasoning_effort: none``, ``message.content`` can stay
-       empty while the model consumes ``max_tokens`` on thinking (finish_reason
-       ``length``). See: https://docs.ollama.com/capabilities/thinking
+    2. **Qwen 3.x chain-of-thought** — Qwen 3.x reasoning models (3.5, 3.6, and
+       newer variants in the qwen3 family) emit a separate ``reasoning`` /
+       ``thinking`` channel by default. Without ``reasoning_effort: none``,
+       ``message.content`` can stay empty while the model consumes
+       ``max_tokens`` on thinking tokens (finish_reason ``length``).
+       Observed on 2026-06-08 sweep: qwen3.6:latest produced 0-token content
+       for every episode until we added it here. See:
+       https://docs.ollama.com/capabilities/thinking
     """
     m = (model or "").lower()
     extra_body: Dict[str, Any] = {}
     if num_ctx is not None:
         # Ollama's OpenAI-compat endpoint accepts native Ollama options via extra_body.
         extra_body["options"] = {"num_ctx": int(num_ctx)}
-    if "qwen3.5" in m:
+    # Match any qwen3.x reasoning model — qwen3.5, qwen3.6, qwen3-coder, etc.
+    if any(tag in m for tag in ("qwen3.5", "qwen3.6", "qwen3-", "qwen3:")):
         extra_body["reasoning_effort"] = "none"
     return {"extra_body": extra_body} if extra_body else {}
 

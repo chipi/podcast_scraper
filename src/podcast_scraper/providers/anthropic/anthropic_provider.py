@@ -151,9 +151,11 @@ class AnthropicProvider:
         else:  # hybrid (default)
             self.cleaning_processor = HybridCleaner()  # type: ignore[assignment]
 
-        # Cleaning model settings (cheaper model for cost efficiency)
+        # Cleaning model settings (cheaper model for cost efficiency).
+        # Temperature tuned in #594 (data/eval/runs/baseline_cleaning_autoresearch_v1):
+        # 0.4 won on v2 smoke sweep AND on 2/3 real-prod episodes from manual-run-10.
         self.cleaning_model = getattr(cfg, "anthropic_cleaning_model", "claude-haiku-4-5")
-        self.cleaning_temperature = getattr(cfg, "anthropic_cleaning_temperature", 0.2)
+        self.cleaning_temperature = getattr(cfg, "anthropic_cleaning_temperature", 0.4)
 
         # Suppress verbose Anthropic SDK debug logs (if needed)
         # Similar to OpenAI and Gemini provider pattern

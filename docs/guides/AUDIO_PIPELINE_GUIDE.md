@@ -138,7 +138,7 @@ diarization.
 
 ## DGX prod profile
 
-[`cloud_with_dgx_whisper_primary.yaml`](https://github.com/chipi/podcast_scraper/blob/main/config/profiles/cloud_with_dgx_whisper_primary.yaml)
+[`cloud_with_dgx_primary.yaml`](https://github.com/chipi/podcast_scraper/blob/main/config/profiles/cloud_with_dgx_primary.yaml)
 sets `transcription.primary: tailnet_dgx_whisper` with OpenAI fallback, plus `screenplay: true` and
 `diarize: true`. Diarization runs on the machine that holds the audio file after transcription
 (local pipeline host), not on the remote DGX Whisper HTTP service unless you colocate processing.

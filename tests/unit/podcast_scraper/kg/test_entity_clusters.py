@@ -60,6 +60,75 @@ def test_xep_variants_reject_landmines(a, b, kind):
     assert _are_xep_variants(a, b, kind) is False
 
 
+# --- #904 predicate redesign: nickname + token-count tolerance ------------------
+
+
+@pytest.mark.parametrize(
+    "a,b",
+    [
+        # Nickname class (same surname, nickname/full-name first)
+        ("Mike Selig", "Michael Selig"),
+        ("Nicholas Snyder", "Nick Snyder"),
+        ("Elizabeth Reid", "Liz Reid"),
+        ("Emmanuel Roman", "Manny Roman"),
+        ("Rich Clarida", "Richard Clarida"),
+        ("Rob Goldstein", "Robert Goldstein"),
+        # Initial-vs-full first name (J. → Jerome)
+        ("J. Powell", "Jerome Powell"),
+        # Title prefix on one side only (Dr / Ayatollah / President)
+        ("Dr. Elena Fischer", "Elena Fischer"),
+        ("Ayatollah Ali Khamenei", "Ali Khamenei"),
+        ("President Trump", "Donald Trump"),
+        # Family-only reference (last-token match)
+        ("Mark Carney", "Carney"),
+        ("Donald Trump", "Trump"),
+    ],
+)
+def test_xep_variants_904_nickname_and_token_count_merge(a, b):
+    """#904 — predicate redesign covers nickname class + token-count mismatches."""
+    assert _are_xep_variants(a, b, "person") is True
+
+
+@pytest.mark.parametrize(
+    "a,b,kind",
+    [
+        # Two distinct people sharing first name — predicate must NOT merge.
+        # `Marco` (alone) vs `Marco Bianchi` is the v2 two-Marcos test:
+        # bare `Marco` (p03 wreck diver) vs the surname-disambiguated
+        # `Marco Bianchi` (p05 tax-loss researcher). The predicate
+        # deliberately does NOT first-name-merge because it can't tell ASR
+        # aliases (`Liam` ↔ `Liam Verbeek`, same person) from organic
+        # same-first-name pairs. Differentiating needs external signal.
+        ("Marco", "Marco Bianchi", "person"),
+        ("Jacob Goldstein", "Rob Goldstein", "person"),
+        # Family-only reference must NOT cross-merge people sharing a last name
+        ("Mark Carney", "John Carney", "person"),
+        # Org-side token-count tolerance is intentionally disabled — guards
+        # against `Adobe` ↔ `Adobe Creative Cloud` (sub-product, not alias).
+        ("Adobe", "Adobe Creative Cloud", "org"),
+    ],
+)
+def test_xep_variants_904_predicate_does_not_overmerge(a, b, kind):
+    assert _are_xep_variants(a, b, kind) is False
+
+
+@pytest.mark.parametrize(
+    "a,b",
+    [
+        # First-name-only alias — currently does NOT merge by design (see the
+        # NOTE in `_token_count_tolerant_match`). When a future LLM-tier
+        # escalation or same-show evidence-based merge ships, this test
+        # should flip to expecting True.
+        ("Liam Verbeek", "Liam"),
+    ],
+)
+def test_xep_variants_904_first_name_only_alias_deferred(a, b):
+    """First-name-only-alias merge deferred — same predicate shape as the
+    two-Marcos distinct-people case; can't disambiguate without external
+    signal. Tracked for follow-up (#906 / #921)."""
+    assert _are_xep_variants(a, b, "person") is False
+
+
 # --- canonical map: frequency + same-show ---------------------------------------
 
 

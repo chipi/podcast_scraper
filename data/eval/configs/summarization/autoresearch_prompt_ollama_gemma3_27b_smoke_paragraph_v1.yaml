@@ -1,0 +1,28 @@
+# Autoresearch Track A — paragraph summaries, Ollama gemma3:27b.
+#
+# Added for smoke v2.1 refresh on DGX (#45). Uses qwen3.5:9b templates verbatim
+# for the first pass; per-model tuning is a downstream concern (#906 descendant).
+#
+# Pair with silver: silver_sonnet46_smoke_v1
+# Requires: ollama pull gemma3:27b (DGX as of 2026-06-09)
+
+id: "autoresearch_prompt_ollama_gemma3_27b_smoke_paragraph_v1"
+task: "summarization"
+
+backend:
+  type: "ollama"
+  model: "gemma3:27b"
+
+prompts:
+  system: "ollama/gemma3_27b/summarization/system_v1"
+  user: "ollama/gemma3_27b/summarization/long_v1"
+
+data:
+  dataset_id: "curated_5feeds_smoke_v1"
+
+params:
+  max_length: 800
+  min_length: 200
+  temperature: 0.0
+
+preprocessing_profile: "cleaning_v4"

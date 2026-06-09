@@ -6,6 +6,14 @@
 **Silver:** Sonnet 4.6 (`silver_sonnet46_benchmark_v2_{bullets,paragraph}`)
 **Judges:** gpt-4o-mini + claude-haiku-4-5-20251001
 
+> **2026-06-08 update:** the autoresearch methodology this matrix uses for
+> **quality** has been **extended** with a reliability axis for summary-model
+> selection (#816). The reliability data and the resulting model-selection
+> decision for `cloud_balanced` + `cloud_thin` live in
+> [`docs/guides/eval-reports/EVAL_SUMMARY_MODEL_RELIABILITY_2026_06_08.md`](../docs/guides/eval-reports/EVAL_SUMMARY_MODEL_RELIABILITY_2026_06_08.md).
+> The quality numbers below are unchanged and remain the authoritative
+> head-to-head for prose quality.
+
 Three-provider head-to-head. Numbers below are held-out final scores (higher better):
 
 ## Headline Matrix

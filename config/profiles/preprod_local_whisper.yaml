@@ -1,6 +1,6 @@
 # Profile: preprod_local_whisper — Stage A dress rehearsal for the prod profile.
 #
-# Mirrors cloud_with_dgx_whisper_primary.yaml exactly, EXCEPT:
+# Mirrors cloud_with_dgx_primary.yaml exactly, EXCEPT:
 #   - transcription runs on laptop-local Whisper (openai-whisper + Apple MPS / CUDA)
 #   - DGX-specific fields removed (no tailnet_dgx_whisper, no dgx_tailnet_host)
 #

@@ -191,9 +191,11 @@ class GeminiProvider:
             self.cleaning_processor = HybridCleaner()  # type: ignore[assignment]
 
         # Cleaning model settings (cheaper model for cost efficiency)
-        # Note: gemini-1.5-flash not available in new API; default flash-tier model in config
+        # Note: gemini-1.5-flash not available in new API; default flash-tier model in config.
+        # Temperature tuned in #594 (data/eval/runs/baseline_cleaning_autoresearch_v1):
+        # 0.4 won on v2 smoke sweep AND on 1/3 real-prod eps (tied on 2/3, lost none).
         self.cleaning_model = getattr(cfg, "gemini_cleaning_model", "gemini-2.5-flash-lite")
-        self.cleaning_temperature = getattr(cfg, "gemini_cleaning_temperature", 0.2)
+        self.cleaning_temperature = getattr(cfg, "gemini_cleaning_temperature", 0.4)
 
         # Suppress verbose Gemini SDK debug logs when DEBUG is enabled
         # globally (same pattern as the OpenAI provider).

@@ -1,0 +1,69 @@
+# Profile: cloud_with_dgx_primary — prod Whisper + pyannote on DGX, cloud fallback (ADR-096, #814, #926)
+#
+# Renamed from cloud_with_dgx_whisper_primary on 2026-06-09 when pyannote
+# diarization on DGX (#926) joined Whisper on DGX (#814) as the second
+# prod-critical service on the GB10 box. "Whisper-primary" was no longer
+# accurate; this profile now covers TWO DGX services.
+#
+# Summarization / GI / KG remain on cloud_balanced defaults (Gemini).
+# Requires prod VPS tailnet reachability to tag:dgx-llm-host (ports 8000 for
+# Speaches, 8001 for pyannote, 11434 for Ollama not used by this profile).
+# Cloud fallbacks: OPENAI_API_KEY (Whisper), GEMINI_API_KEY (summary).
+# Diarization falls back to in-process pyannote (no cheap cloud alternative
+# to bill against — TailnetDgxDiarizationProvider handles this transparently).
+
+transcription:
+  primary: tailnet_dgx_whisper
+  fallback: openai
+
+dgx_tailnet_host: dgx-llm-1.tail6d0ed4.ts.net
+# Hugging Face repo ID (Speaches takes HF format). Pre-#814 this was the
+# Ollama-style "whisper-large-v3" tag, which Speaches doesn't recognize →
+# every transcribe call would 404 and force the cloud Whisper fallback.
+dgx_whisper_model: Systran/faster-whisper-large-v3
+transcription_fallback_provider: openai
+
+openai_transcription_model: whisper-1
+
+screenplay: true
+diarize: true
+
+# Diarization on DGX via pyannote-server (#926). Falls back to in-process
+# pyannote on health-check failure or per-request error (the
+# TailnetDgxDiarizationProvider handles fallback; no separate
+# `diarization_fallback_provider` config needed).
+diarization_provider: tailnet_dgx
+dgx_diarize_port: 8001
+dgx_diarize_model: pyannote/speaker-diarization-3.1
+
+audio_preprocessing_profile: speech_optimal_v1
+
+speaker_detector_provider: gemini
+auto_speakers: true
+
+summary_provider: gemini
+gemini_summary_model: gemini-2.5-flash-lite
+preprocessing_enabled: true
+llm_pipeline_mode: mega_bundled
+cloud_llm_structured_min_output_tokens: 4096
+
+generate_gi: true
+gi_insight_source: provider
+gi_max_insights: 12
+gi_require_grounding: true
+gil_evidence_quote_mode: bundled
+gil_evidence_nli_mode: bundled
+
+generate_kg: true
+kg_extraction_source: provider
+kg_max_topics: 10
+kg_max_entities: 15
+
+vector_search: true
+vector_embedding_provider: sentence_transformers
+llm_circuit_breaker_enabled: true
+
+generate_metadata: true
+generate_summaries: true
+language: en
+log_level: INFO

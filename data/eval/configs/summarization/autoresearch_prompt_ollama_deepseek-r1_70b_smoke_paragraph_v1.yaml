@@ -1,0 +1,29 @@
+# Autoresearch Track A — paragraph summaries, Ollama deepseek-r1:70b.
+#
+# Added for smoke v2 refresh on DGX (#924). Uses the same prompt templates as
+# qwen3.5:9b for the first sweep — future tuning per model under
+# src/podcast_scraper/prompts/ollama/deepseek-r1_70b/summarization/.
+#
+# Pair with silver: silver_sonnet46_smoke_v1
+# Requires: ollama pull deepseek-r1:70b (already pulled on DGX as of 2026-06-08)
+
+id: "autoresearch_prompt_ollama_deepseek-r1_70b_smoke_paragraph_v1"
+task: "summarization"
+
+backend:
+  type: "ollama"
+  model: "deepseek-r1:70b"
+
+prompts:
+  system: "ollama/deepseek-r1_70b/summarization/system_v1"
+  user: "ollama/deepseek-r1_70b/summarization/long_v1"
+
+data:
+  dataset_id: "curated_5feeds_smoke_v1"
+
+params:
+  max_length: 800
+  min_length: 200
+  temperature: 0.0
+
+preprocessing_profile: "cleaning_v4"

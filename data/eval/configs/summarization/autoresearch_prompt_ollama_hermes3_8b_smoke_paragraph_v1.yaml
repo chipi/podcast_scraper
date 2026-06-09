@@ -1,0 +1,28 @@
+# Autoresearch Track A — paragraph summaries, Ollama hermes3:8b (Nous Llama-3 fine-tune).
+#
+# Added for smoke v2.1 refresh on DGX (#45). Uses qwen3.5:9b templates verbatim
+# for the first pass; per-model tuning is a downstream concern (#906 descendant).
+#
+# Pair with silver: silver_sonnet46_smoke_v1
+# Requires: ollama pull hermes3:8b (DGX as of 2026-06-09)
+
+id: "autoresearch_prompt_ollama_hermes3_8b_smoke_paragraph_v1"
+task: "summarization"
+
+backend:
+  type: "ollama"
+  model: "hermes3:8b"
+
+prompts:
+  system: "ollama/hermes3_8b/summarization/system_v1"
+  user: "ollama/hermes3_8b/summarization/long_v1"
+
+data:
+  dataset_id: "curated_5feeds_smoke_v1"
+
+params:
+  max_length: 800
+  min_length: 200
+  temperature: 0.0
+
+preprocessing_profile: "cleaning_v4"
