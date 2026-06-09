@@ -30,8 +30,13 @@ try:
 except Exception as exc:  # pragma: no cover - environment-dependent
     pytest.skip(f"pyannote.audio unavailable: {exc}", allow_module_level=True)
 
-# Version-aware (tests/_fixtures.py): audio moved to tests/fixtures/audio/<version>/ in #902.
-_FIXTURE = fixtures_dir("audio") / "p01_multi_e01.mp3"
+# Pin to v1 audio explicitly: the v2 fixture regenerated in #902 produces audio
+# where pyannote 3.x can't distinguish the two TTS voices (Maya + Liam), so the
+# downstream "Maya+Liam diarized" assertion fails. v1 audio (171KB, richer voice
+# differentiation) passes diarization cleanly. Re-evaluate after v2 fixtures are
+# regenerated with diarization-aware voice synthesis (descendant of #921). Until
+# then, this test stays on v1 — every other versioned test picks up the default.
+_FIXTURE = fixtures_dir("audio", version="v1") / "p01_multi_e01.mp3"
 
 _PROVISIONING_MARKERS = (
     "offlinemode",
