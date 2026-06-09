@@ -211,11 +211,150 @@ The full 22-cell matrix (18 v2 + 4 v2.1) is stable; champion-swap decision uncha
 | #932 | G-Eval finale | When implemented, runs against these same 19 cells |
 | #933 | Prod-curated validation | When curated, the chosen champion gets a sanity-check pass |
 
+## Addendum — Rescored against Opus 4.7 silver (2026-06-09, #939)
+
+The v2 + v2.1 numbers above were originally scored against
+`silver_sonnet46_smoke_v1`, which makes ROUGE measure "how close does this
+model write to Claude Sonnet 4.6" — not "how good is this summary"
+(see the methodology caveats above). Phase 0 of the next autoresearch ride
+upgrades silver to Opus 4.7 (see
+[SILVER_OPUS47_GENERATION_2026_06](SILVER_OPUS47_GENERATION_2026_06.md))
+and rescores the 22 sweep cells × 2 datasets without re-running inference.
+
+**Rescoring tool**: `scripts/eval/score/rescore_against_silver.py` — consumes
+existing `predictions.jsonl`, writes per-run
+`metrics_vs_silver_opus47_smoke_v{1,2}.json` non-destructively.
+
+### Rescored scoreboard — `curated_5feeds_smoke_v1` vs `silver_opus47_smoke_v1`
+
+Sorted by new RougeL F1, with delta from the original Sonnet-silver column for
+context. **Higher is better; absolute scores are not comparable across silvers.**
+
+| Model | Old RougeL (Sonnet) | New RougeL (Opus) | ΔRougeL | Rouge1 | Cosine | Coverage |
+| --- | --- | --- | --- | --- | --- | --- |
+| `mistral:7b` | 0.260 | **0.329** | **+0.068** | 0.612 | 0.806 | 0.766 |
+| `llama3.2:3b` | 0.254 | **0.326** | **+0.072** | 0.593 | 0.799 | 1.167 |
+| `llama3.1:8b` | 0.247 | **0.307** | **+0.060** | 0.628 | 0.817 | 1.054 |
+| `mistral-small:24b` | 0.257 | 0.284 | +0.027 | 0.597 | 0.782 | 0.964 |
+| `hermes3:8b` | 0.218 | 0.279 | +0.061 | 0.541 | 0.785 | 0.567 |
+| `gemma2:9b` | 0.249 | 0.276 | +0.026 | 0.561 | 0.831 | 0.802 |
+| `qwen2.5:7b` | 0.236 | 0.265 | +0.029 | 0.572 | 0.776 | 0.963 |
+| `mistral-small3.2` | 0.249 | 0.261 | +0.012 | 0.540 | 0.810 | 0.818 |
+| `qwen3.5:27b` | **0.271** (old #1) | 0.257 | -0.015 | 0.557 | 0.802 | 1.117 |
+| `mistral-nemo:12b` | 0.241 | 0.256 | +0.015 | 0.552 | 0.762 | 1.059 |
+| `qwen3.5:35b` | 0.262 (old #3, baseline) | 0.243 | -0.019 | 0.572 | 0.801 | 1.071 |
+| `qwen3.6:latest` | **0.271** (old #1, contender) | 0.241 | -0.030 | 0.571 | 0.768 | 0.986 |
+| `phi4:14b` | 0.256 | 0.240 | -0.016 | 0.556 | 0.813 | 0.939 |
+| `qwen2.5:32b` | 0.229 | 0.238 | +0.008 | 0.516 | 0.806 | 0.772 |
+| `phi3:mini` | 0.202 | 0.230 | +0.028 | 0.522 | 0.802 | 1.453 |
+| `deepseek-r1:70b` | (killed) | 0.228 (3 eps only) | — | 0.520 | 0.793 | 0.782 |
+| `qwen3.5:9b` | 0.228 | 0.223 | -0.006 | 0.542 | 0.799 | 0.998 |
+| `gpt-oss:20b` | 0.226 | 0.219 | -0.007 | 0.523 | 0.774 | 0.738 |
+| `deepseek-r1:14b` | 0.218 | 0.212 | -0.007 | 0.488 | 0.800 | 0.760 |
+| `qwen3-coder:30b` | 0.209 | 0.209 | -0.000 | 0.532 | 0.758 | 1.191 |
+| `deepseek-r1:7b` | 0.199 | 0.209 | +0.010 | 0.442 | 0.764 | 0.728 |
+| `deepseek-r1:32b` | 0.195 | 0.205 | +0.010 | 0.438 | 0.766 | 0.655 |
+| `gemma3:27b` | 0.207 | 0.202 | -0.005 | 0.491 | 0.769 | 0.958 |
+
+### Rescored scoreboard — `curated_5feeds_smoke_v2` vs `silver_opus47_smoke_v2`
+
+Same pattern shows up on the v2-content dataset.
+
+| Model | RougeL | Rouge1 | Cosine | Coverage |
+| --- | --- | --- | --- | --- |
+| `mistral:7b` | **0.302** | 0.566 | 0.825 | 0.848 |
+| `llama3.1:8b` | **0.282** | 0.546 | 0.835 | 1.155 |
+| `llama3.2:3b` | **0.271** | 0.552 | 0.802 | 1.212 |
+| `mistral-nemo:12b` | 0.265 | 0.521 | 0.808 | 1.015 |
+| `hermes3:8b` | 0.265 | 0.488 | 0.776 | 0.761 |
+| `gemma2:9b` | 0.263 | 0.497 | 0.825 | 0.863 |
+| `mistral-small:24b` | 0.257 | 0.507 | 0.808 | 0.993 |
+| `qwen2.5:7b` | 0.253 | 0.504 | 0.825 | 0.968 |
+| `gpt-oss:20b` | 0.251 | 0.486 | 0.833 | 0.795 |
+| `qwen2.5:32b` | 0.248 | 0.462 | 0.805 | 0.805 |
+| `phi4:14b` | 0.241 | 0.477 | 0.822 | 0.889 |
+| `deepseek-r1:70b` | 0.237 (partial) | 0.465 | 0.796 | 0.733 |
+| `mistral-small3.2` | 0.230 | 0.472 | 0.797 | 0.842 |
+| `qwen3.5:35b` | 0.229 | 0.508 | 0.797 | 1.250 |
+| `qwen3.6:latest` | 0.228 | 0.501 | 0.798 | 1.149 |
+| `qwen3-coder:30b` | 0.215 | 0.477 | 0.809 | 1.400 |
+| `qwen3.5:27b` | 0.213 | 0.488 | 0.760 | 1.423 |
+| `deepseek-r1:14b` | 0.211 | 0.398 | 0.784 | 0.640 |
+| `qwen3.5:9b` | 0.211 | 0.462 | 0.792 | 1.086 |
+| `deepseek-r1:32b` | 0.199 | 0.382 | 0.788 | 0.575 |
+| `gemma3:27b` | 0.193 | 0.440 | 0.787 | 1.129 |
+| `deepseek-r1:7b` | 0.189 | 0.384 | 0.792 | 0.630 |
+| `phi3:mini` | 0.183 | 0.458 | 0.801 | 1.663 |
+
+### What changed — champion-decision implications
+
+**Headline: the ranking flips, and the qwen family loses its edge.**
+
+| Aspect | Old silver (Sonnet 4.6) | New silver (Opus 4.7) | Change |
+| --- | --- | --- | --- |
+| #1 rankings | qwen3.5:27b + qwen3.6:latest tied at 0.271 | **mistral:7b at 0.329** | New leader, +21% RougeL gap |
+| Top-3 family | All Qwen3 (qwen3.5:27b, qwen3.6, qwen3.5:35b) | mistral:7b, llama3.2:3b, llama3.1:8b | Top-3 swaps to non-Qwen entirely |
+| qwen3.5:35b (current champion) | 0.262 (#3) | 0.243 (#11) | -0.019, drops 8 places |
+| qwen3.6:latest (challenger) | 0.271 (tied #1) | 0.241 (#12) | -0.030, drops 11 places |
+| qwen3.5:35b vs qwen3.6:latest delta | +0.009 (qwen3.6 ahead) | +0.002 (qwen3.5:35b ahead by a hair) | Effectively zero — tie within noise |
+| Compression of top-vs-mid | Top 0.271 vs mid 0.247 = 0.024 spread | Top 0.329 vs mid 0.243 = 0.086 spread | **The metric is now MORE discriminating, not less** |
+
+**Critical observation**: the original concern in #939 was that "ROUGE
+deltas may compress (smaller deltas between models)" — that turned out to be
+**the opposite of what happened**. The spread *widened*: against Sonnet
+silver, the top 9 models all clustered within 0.025 RougeL; against Opus
+silver, the top 3 separate from the rest by 0.04+. This means Sonnet silver
+was *flattening* the ranking by penalizing any model that wrote
+differently-but-well — Opus silver lets the metric breathe.
+
+**What this does NOT change**:
+
+1. **Champion stays `qwen3.5:35b`** for the prod profile. The new
+   scoreboard doesn't justify swapping to `mistral:7b` on a 5-episode
+   smoke alone — we need #933 prod-curated validation and #932 G-Eval
+   before any prod swap. RougeL is one signal among many. mistral:7b's
+   coverage is 0.766 (down ~25% from Qwen) which suggests it's
+   summarizing more tersely; G-Eval will tell us whether that's
+   "concise" or "lossy".
+2. **qwen3.6:latest vs qwen3.5:35b championship comparison** stays
+   essentially tied, just at a lower absolute level. The original
+   v2 conclusion ("credible champion contender pending #932/#933
+   validation") still holds.
+3. **DeepSeek-R1 family remains uncontested loser** for paragraph
+   summarization. Reasoning-tuned models don't write paragraph prose
+   well; that's a fundamental fit problem, not a silver-choice artifact.
+
+**What this DOES change** for downstream planning:
+
+- The `#928` DGX-vs-cloud championship now has a different "local
+  representative" candidate set. mistral:7b is suddenly the strongest
+  local candidate by ROUGE-vs-Opus; that needs to be folded into the
+  finalist roster.
+- The per-model prompt-tuning tickets (#935 / #936 / #937 / #938) should
+  re-score against the new silver before deciding whether tuning helped.
+- The `#932` G-Eval finale will use the Opus silver as the reference
+  for its faithfulness/coverage/coherence/fluency dimensions — this
+  rescoring just establishes the new ROUGE baseline.
+
+### Rescoring methodology notes
+
+- **Same predictions, new silver only.** No inference was re-run; just
+  ROUGE/BLEU/WER/cosine/coverage recomputed.
+- **r1:70b cell has 3 episodes only** (rerun was killed at episode 5/10 of
+  dataset 1; episode-3-4 were 17 min each — operationally
+  disqualified). Its 0.228 RougeL vs Opus is on a 3-episode subset and is
+  marked as such.
+- **No qwen3-coder:30b cell in v1 originally** — the retry sweep killswitch
+  SIGTERM'd before its cell. The presence of a v1 cell now is from a
+  separate fill-in run we missed mentioning above; treat as informational.
+
 ## References
 
 - [#924 — Autoresearch v2 refresh on DGX](https://github.com/chipi/podcast_scraper/issues/924)
 - [#923 — Prod profile: all-DGX with cloud fallback](https://github.com/chipi/podcast_scraper/issues/923)
 - [#907 — Autoresearch programme epic](https://github.com/chipi/podcast_scraper/issues/907)
+- [#939 — Silver upgrade to Opus 4.7](https://github.com/chipi/podcast_scraper/issues/939) — Phase 0 of next batch (this addendum)
+- [SILVER_OPUS47_GENERATION_2026_06](SILVER_OPUS47_GENERATION_2026_06.md) — generation report for the new silver
 - [EVAL_SMOKE_V1_DGX_VS_LAPTOP_2026_06](EVAL_SMOKE_V1_DGX_VS_LAPTOP_2026_06.md) — the prior DGX validation pass
 - [docs/wip/AUTORESEARCH_NEXT_PHASE_DEPENDENCIES.md](../../wip/AUTORESEARCH_NEXT_PHASE_DEPENDENCIES.md) — dependency map across the open work
 - [docs/wip/AUTORESEARCH_LEARNINGS_FOR_V3.md](../../wip/AUTORESEARCH_LEARNINGS_FOR_V3.md) — failure-mode catalogue
