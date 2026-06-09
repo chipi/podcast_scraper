@@ -26,7 +26,7 @@ _DIARIZE_PROFILES = [
     "local_dgx_balanced",
     "local_dgx_full",
     "preprod_local_whisper",
-    "cloud_with_dgx_whisper_primary",
+    "cloud_with_dgx_primary",
 ]
 
 
