@@ -20,6 +20,7 @@ WIP file is removed.
 | `COVERAGE-DEBT-deepgram-diarization-pr908.md` | Coverage gaps from PR #908 to clear in the next batch | Backlog |
 | `AUDIO-WAVES-HARDENING-AUDIT.md` | Review findings + change list for audio Waves 1–3 (#850/#895/#898) | Backlog |
 | `AUTORESEARCH_LEARNINGS_FOR_V3.md` | Rolling failure-mode catalogue from #907 children — spec input for v3 (#921) | Reference |
+| `AUTORESEARCH_NEXT_PHASE_AGENT_PLAN.md` | 3-phase 2-agent parallelization plan for post-v2.1 autoresearch work | Reference |
 | `AUTORESEARCH_NEXT_PHASE_DEPENDENCIES.md` | Dependency map across #907 next-phase open issues (#921/#924/#927/#928-31/#932/#933/#923) | Reference |
 | `EXPLORE_EXPANSION_IDEAS.md` | Explore-tab feature brainstorming | Idea |
 | `HOME_AI_HARDWARE_PLAN.md` | Local hardware / on-prem AI plan | Idea |

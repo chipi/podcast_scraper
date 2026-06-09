@@ -54,6 +54,10 @@ Refresh with `sudo jq -r '.layers[] | select(.mediaType == "application/vnd.olla
 | `deepseek-r1:14b`      | #924 sweep — best of R1 distill family, still well below baseline             | 2026-06-08 |
 | `deepseek-r1:32b`      | #924 sweep — slower AND worse than 14b                                        | 2026-06-08 |
 | `deepseek-r1:70b`      | #924 sweep — **operationally disqualified** (~8 min/ep; killed mid-rerun)     | 2026-06-08 |
+| `gemma3:27b`           | v2.1 sweep — 0.207 RougeL (-21%); likely prompt-template issue                | 2026-06-09 |
+| `phi4:14b`             | v2.1 sweep — 0.256 RougeL; best 14B-class but latency-disqualified            | 2026-06-09 |
+| `hermes3:8b`           | v2.1 sweep — 0.218 RougeL; Nous fine-tune regression vs base llama3.1         | 2026-06-09 |
+| `mistral-small:24b`    | v2.1 sweep — 0.257 RougeL; strong mid-tier but 29s latency, not prod-viable   | 2026-06-09 |
 
 Full digests:
 
@@ -70,6 +74,10 @@ Full digests:
 - `deepseek-r1:14b` → `sha256:6e9f90f02bb3b39b59e81916e8cfce9deb45aeaeb9a54a5be4414486b907dc1e`
 - `deepseek-r1:32b` → `sha256:6150cb382311b69f09cc0f9a1b69fc029cbd742b66bb8ec531aa5ecf5c613e93`
 - `deepseek-r1:70b` → `sha256:4cd576d9aa16961244012223abf01445567b061f1814b57dfef699e4cf8df339`
+- `gemma3:27b` → `sha256:a418f5838eaf` (full digest captured 2026-06-09)
+- `phi4:14b` → `sha256:ac896e5b8b34` (full digest captured 2026-06-09)
+- `hermes3:8b` → `sha256:4f6b83f30b62` (full digest captured 2026-06-09)
+- `mistral-small:24b` → captured on next dgx-deploy refresh
 
 RFC-089 originally listed `gemma2:27b-instruct` and `qwen2.5:72b-instruct`. The
 `-instruct` suffix on `gemma2` is not a real Ollama tag — `gemma2:27b` IS the
@@ -79,8 +87,10 @@ what was actually pulled.
 The autoresearch matrix (qwen3.x family, gpt-oss:20b, deepseek-r1 distills,
 qwen3-coder) was pulled across 2026-06-08 to support [#924's smoke v2
 refresh sweep](../guides/eval-reports/EVAL_SMOKE_V2_DGX_REFRESH_2026_06.md).
-v2.1 sweep (#44/#45) will add gemma3, phi4, hermes3, mistral-small:24b, and
-llama4 candidates — catalog will be updated when those are pulled.
+The v2.1 sweep added gemma3:27b, phi4:14b, hermes3:8b, and mistral-small:24b
+on 2026-06-09; results in the same eval report (Addendum section). None
+produced a new champion contender; qwen3.5:35b stays prod and qwen3.6:latest
+remains the only validated challenger pending #932/#933.
 
 ### Embeddings — not used on DGX by default (ADR-098)
 

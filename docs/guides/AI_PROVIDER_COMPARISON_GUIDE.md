@@ -437,7 +437,21 @@ Refresh sweep on the DGX Spark (GB10) added DeepSeek-R1 distill family, gpt-oss:
 - DeepSeek-R1 distill family is **not** a paragraph-summary contender — reasoning-tuned, not prose-tuned. Rules out the entire family for our use case.
 - **qwen3.6:latest is the standout result** — same latency as qwen3.5:35b, +3.4% RougeL, +1.7% cosine, -7.9% coverage. Real signal but at 5-episode noise floor; gated on #933 prod-curated + #932 G-Eval finale before champion swap.
 - Two bugs surfaced + fixed in the sweep: qwen3.x reasoning mode needs `reasoning_effort: none` (extended past qwen3.5); large reasoning models (r1:70b, qwen3.6:latest) need `EXPERIMENT_OLLAMA_READ_TIMEOUT` bumped above default 120s.
-- v2.1 sweep (queued, #44/#45) will add gemma3, phi4, hermes3, mistral-small:24b, llama4 candidates.
+
+### Local Ollama — v2.1 addendum (2026-06-09)
+
+Follow-on sweep with 4 newer model entries: gemma3, phi4, hermes3, mistral-small:24b. **No new champion contender** — qwen3.6:latest remains the only validated challenger to qwen3.5:35b.
+
+| Model | RougeL | Cosine | Latency | Verdict |
+| --- | --- | --- | --- | --- |
+| `mistral-small:24b` | 0.257 | 0.768 | 29s | strong mid-tier; latency disqualifies for prod |
+| `phi4:14b` | 0.256 | 0.782 | 17.9s | best 14B-class result; not prod-viable on latency |
+| `hermes3:8b` | 0.218 | 0.777 | 6.3s | regression vs base llama3.1:8b (0.247) |
+| `gemma3:27b` | 0.207 | 0.739 | 36s | underperformed; likely prompt-template mismatch (used qwen3.5_9b clone) |
+
+Notable: `phi4:14b` is the parameter-efficiency winner of v2.1 — 14B reaching 0.256 RougeL beats qwen3.5:9b's 0.228 at similar param count. If a future laptop-Ollama path needs a small/fast option, phi4 deserves a closer look (with a Phi-native prompt, not the qwen3.5_9b clone).
+
+Full report including v2.1: [EVAL_SMOKE_V2_DGX_REFRESH_2026_06](eval-reports/EVAL_SMOKE_V2_DGX_REFRESH_2026_06.md) (Addendum section).
 
 ### Local Ollama — bullets (vs Sonnet 4.6 bullets silver, April 2026)
 

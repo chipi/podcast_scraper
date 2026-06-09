@@ -157,7 +157,40 @@ After the reasoning-effort fix landed and the rerun completed, qwen3.6:latest pr
 - **No G-Eval (LLM judge) scoring** — RougeL/BLEU/cosine measure lexical/embedding proximity to silver, not summary quality. The [#932 finale tier](https://github.com/chipi/podcast_scraper/issues/932) will add 4-dimension G-Eval (faithfulness / coverage / coherence / fluency) on top.
 - **No prod-curated validation** — all signal here is from v2 synthetic smoke. The [#933 prod-curated tier](https://github.com/chipi/podcast_scraper/issues/933) will add real-podcast sanity checks before any prod model swap.
 - **No qwen3-coder:30b** — coder-specialized model, wrong domain for paragraph summarization. The retry-sweep killswitch SIGTERM'd before its cell to save DGX time.
-- **No v2.1 candidates** — gemma3, phi4, hermes3, etc. are queued for a separate v2.1 sweep (#44/#45) to land after this report ships.
+
+## Addendum — v2.1 sweep (2026-06-09)
+
+After v2 landed, a small deep-research pass surfaced 4 newer Ollama models worth testing: `gemma3:27b` (Google Gemma 3), `phi4:14b` (Microsoft), `hermes3:8b` (Nous Research Llama 3.1 fine-tune), and `mistral-small:24b`. The v2.1 sweep ran them against the same baseline + silver as v2. Total wall-clock 16m 22s for 4 cells × 2 datasets.
+
+**v2.1 scoreboard (curated_5feeds_smoke_v1):**
+
+| Model | Size | RougeL | Rouge1 | Cosine | Coverage | Avg tokens | Latency excl 1st (ms) | Verdict |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| `mistral-small:24b` | 24B | **0.257** | 0.591 | 0.768 | 0.875 | 557 | 29,005 | Strong mid-tier; latency-disqualified for prod |
+| `phi4:14b` | 14B | **0.256** | 0.567 | 0.782 | 0.852 | 543 | 17,877 | Best 14B-class result; latency too high for prod |
+| `hermes3:8b` | 8B | 0.218 | 0.495 | 0.777 | 0.514 | 328 | 6,315 | Worse than base llama3.1:8b (0.247) — fine-tune doesn't help summarization |
+| `gemma3:27b` | 27B | 0.207 | 0.530 | 0.739 | 0.869 | 554 | 36,447 | Surprising regression vs qwen3.5:27b (0.271 at same size class) — likely prompt-template mismatch (used qwen3.5_9b clone) |
+
+**v2.1 verdict: no new champion contender.** The two strongest entries (`mistral-small:24b` and `phi4:14b`) cluster at -2% RougeL vs the v2 baseline AND have prod-disqualifying latency (3-4× qwen3.5:35b's 6.7s). qwen3.6:latest from v2 remains the only credible champion challenger.
+
+**Notable v2.1 findings:**
+
+- **phi4:14b is parameter-efficient** — 14B params reaching 0.256 RougeL vs qwen3.5:9b's 0.228 at similar param count. If we ever bring back the laptop-Ollama path, phi4 might be the better fast/small choice than qwen3.5:9b.
+- **Hermes 3 fine-tune is a regression** for paragraph summarization vs base Llama 3.1:8B. The Nous fine-tune optimizes for chat/instruction-following, not abstractive prose. Same pattern as DeepSeek-R1: domain-specialized fine-tunes lose ground on this task.
+- **gemma3:27b underperformed expectations** — 0.207 RougeL is 24% below qwen3.5:27b at the same param count. Possible causes: (a) qwen3.5_9b prompt template is wrong for Gemma's chat format, (b) Gemma 3 is multimodal-tuned and text-only paragraph summarization isn't its sweet spot, (c) tokenizer differences inflate latency. Worth a follow-up with a Gemma-native prompt before writing off entirely.
+- **No v2.1 entry beats qwen3.5:35b** (0.262) on RougeL on prod-viable hardware. Champion decision unchanged from v2: qwen3.5:35b stays prod, qwen3.6:latest stays the validated-challenger via #932/#933.
+
+**Combined v2 + v2.1 top-5 RougeL:**
+
+| Rank | Model | RougeL | Latency | Verdict |
+| --- | --- | --- | --- | --- |
+| 1 (tie) | `qwen3.5:27b` | 0.271 | 38s | championship candidate, latency-disqualified for prod |
+| 1 (tie) | `qwen3.6:latest` | 0.271 | 6.7s | **champion contender** — needs #932/#933 validation |
+| 3 | `qwen3.5:35b` | 0.262 | 6.7s | current prod champion |
+| 4 | `mistral:7b` | 0.260 | 9.2s | v2 entry — surprisingly strong for 7B |
+| 5 (tie) | `mistral-small:24b` | 0.257 | 29s | v2.1 entry; latency-disqualified |
+
+The full 22-cell matrix (18 v2 + 4 v2.1) is stable; champion-swap decision unchanged.
 
 ## Methodology caveats
 
@@ -174,7 +207,7 @@ After the reasoning-effort fix landed and the rerun completed, qwen3.6:latest pr
 | #924 | Driver of this sweep | Closed by this report |
 | #923 | Prod profile model pick | Champion stays `qwen3.5:35b`; comment posted |
 | #928 | DGX-vs-cloud summary championship | qwen3.5:27b nominated as the local representative (best RougeL, latency acceptable for championship eval) |
-| #44 / #45 | v2.1 sweep prep + run | Unblocked — DGX free, candidate list informed by what's missing here |
+| #44 / #45 | v2.1 sweep prep + run | **Done** — see v2.1 addendum above; no new champion contender |
 | #932 | G-Eval finale | When implemented, runs against these same 19 cells |
 | #933 | Prod-curated validation | When curated, the chosen champion gets a sanity-check pass |
 
