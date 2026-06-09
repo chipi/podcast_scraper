@@ -1,17 +1,26 @@
+{# Llama-3-native user prompt for llama3.1:8b. Ollama wraps this content in
+   <|start_header_id|>user<|end_header_id|>\n\n...<|eot_id|>\n<|start_header_id|>assistant<|end_header_id|>
+   per the model's chat template.
+
+   Llama 3.1 follows a "task → payload → restated constraints" pattern well; we
+   keep the binding constraints adjacent to the assistant turn because the
+   recency-window effect compounds with the system-level rules. #}
 Summarize the following podcast episode transcript.
 
-{% if title %}
-Episode Title: {{ title }}
-{% endif %}
+{% if title -%}
+Episode title: {{ title }}
 
+{% endif -%}
 Transcript:
 {{ transcript }}
 
-Guidelines:
-- Write a detailed summary with {{ paragraphs_min }}-{{ paragraphs_max }} paragraphs
-- Focus on key decisions, arguments, and lessons learned
-- Ignore sponsorships, ads, and housekeeping
-- Do not use quotes or speaker names
-- Do not invent information not implied by the transcript
-- Use abstractive summarization - synthesize and rephrase, don't just extract sentences
-- Ensure the summary is coherent and flows naturally
+Write a single coherent summary of {{ paragraphs_min }}–{{ paragraphs_max }} paragraphs covering the episode's substantive content. Synthesize across the conversation; do not just walk through it in order.
+
+Reminders before you write:
+- Abstractive and synthesized — no verbatim sentence copying.
+- Focus on decisions, arguments, lessons, and insights.
+- Exclude ads, sponsorships, listener mail, and housekeeping.
+- No speaker names. No direct quotations.
+- Do not invent facts beyond what the transcript supports.
+- Plain text only — no markdown, no headings, no bullet lists, no code blocks, no JSON.
+- Begin directly with the summary. No preamble or framing sentence.
