@@ -36,7 +36,7 @@ references/
 - **Not human-verified**
 - **Purpose:** Measure distance-to-target metrics (ROUGE, similarity, coverage ratio)
 - **Usage:** Not used for CI blocking
-- **Active reference:** `silver_sonnet46_smoke_v1` (Claude Sonnet 4.6, April 2026)
+- **Active reference (paragraph smoke):** `silver_opus47_smoke_v1` (Claude Opus 4.7, June 2026 via #939). `silver_sonnet46_smoke_v1` remains as the historical Sonnet 4.6 baseline.
 - **Selection process:** Generate candidate runs for competing models, then run pairwise LLM
   judge (`make silver-pairwise`) — both OpenAI and Anthropic judges vote per episode; the
   candidate with the most episode wins becomes the new silver. See `scripts/eval/pairwise_judge.py`.

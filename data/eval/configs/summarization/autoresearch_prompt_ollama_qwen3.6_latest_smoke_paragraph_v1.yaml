@@ -4,7 +4,7 @@
 # qwen3.5:9b for the first sweep — future tuning per model under
 # src/podcast_scraper/prompts/ollama/qwen3.6_latest/summarization/.
 #
-# Pair with silver: silver_sonnet46_smoke_v1
+# Pair with silver: silver_opus47_smoke_v1
 # Requires: ollama pull qwen3.6:latest (already pulled on DGX as of 2026-06-08)
 
 id: "autoresearch_prompt_ollama_qwen3.6_latest_smoke_paragraph_v1"

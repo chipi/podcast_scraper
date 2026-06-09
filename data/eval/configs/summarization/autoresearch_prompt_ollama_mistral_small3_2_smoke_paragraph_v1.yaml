@@ -1,6 +1,6 @@
 # Autoresearch Track A — paragraph summaries, Ollama mistral-small3.2:latest.
 #
-# Pair with silver: ``silver_sonnet46_smoke_v1``
+# Pair with silver: ``silver_opus47_smoke_v1``
 # Template under tuning: src/podcast_scraper/prompts/ollama/mistral-small3.2/summarization/long_v1.j2
 # Requires: ollama pull mistral-small3.2:latest
 
