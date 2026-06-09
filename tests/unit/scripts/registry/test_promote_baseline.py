@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import importlib.util
 import shutil
 import sys
 import tempfile
@@ -52,6 +53,45 @@ class TestPromoteBaseline:
             assert "map_model='bart-small'" in updated
             assert "reduce_model='long-fast'" in updated
             assert "promoted_from='baseline_ml_dev_authority_smoke_v1'" in updated
+
+    def test_promoted_registry_is_importable_and_loads_mode(self):
+        # promote_baseline rewrites real Python source (inserts a ModeConfiguration
+        # literal). The existing test only asserts substrings are present -- a codegen
+        # bug (bad quoting/repr of a promoted value from config.yaml / metrics.json)
+        # would still contain those substrings yet break `import model_registry` for
+        # everyone. The registry imports only stdlib, so import the generated file
+        # standalone and assert the new mode actually constructs and loads.
+        baseline_dir = (
+            _PROJECT_ROOT / "data" / "eval" / "baselines" / "baseline_ml_dev_authority_smoke_v1"
+        )
+        from podcast_scraper.providers.ml import model_registry as mr
+
+        src_registry_path = Path(mr.__file__).resolve()
+        with tempfile.TemporaryDirectory() as td:
+            tmp_registry_path = Path(td) / "model_registry.py"
+            shutil.copy2(src_registry_path, tmp_registry_path)
+
+            promote_baseline(
+                baseline_dir=baseline_dir,
+                mode_id="ml_importable_check",
+                registry_path=tmp_registry_path,
+                baseline_id="baseline_ml_dev_authority_smoke_v1",
+            )
+
+            # Import the regenerated source standalone (proves it parses AND executes).
+            spec = importlib.util.spec_from_file_location(
+                "promoted_model_registry", tmp_registry_path
+            )
+            assert spec and spec.loader
+            module = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(module)
+
+            registry = module.ModelRegistry._mode_registry
+            assert "ml_importable_check" in registry, "promoted mode missing after import"
+            loaded = registry["ml_importable_check"]
+            assert loaded.map_model == "bart-small"
+            assert loaded.reduce_model == "long-fast"
+            assert loaded.promoted_from == "baseline_ml_dev_authority_smoke_v1"
 
     def test_rejects_duplicate_mode_id(self):
         baseline_dir = (

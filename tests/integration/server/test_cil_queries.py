@@ -674,3 +674,53 @@ def test_skips_when_kg_missing(tmp_path: Path) -> None:
     (meta / "solo.gi.json").write_text(json.dumps(gi), encoding="utf-8")
     root = str(tmp_path)
     assert cil_queries.person_profile(root, root, "person:x")["topics"] == {}
+
+
+def test_cil_queries_apply_cross_episode_canonical_map(tmp_path: Path, monkeypatch) -> None:
+    # #852 regression guard: ep1 uses spelling variants (person:tracy / topic:cargil),
+    # ep2 uses the canonical ids. The bridge queries must unify them the same way
+    # get_corpus_graph does -- previously they matched the raw id and under-counted.
+    meta = tmp_path / "metadata"
+    _write_bundle(
+        meta,
+        "a",
+        episode_id="episode:a",
+        publish_date="2024-01-10",
+        person="person:tracy",
+        topic="topic:cargil",
+        insight_id="i1",
+        quote_id="q1",
+        insight_text="variant episode",
+    )
+    _write_bundle(
+        meta,
+        "b",
+        episode_id="episode:b",
+        publish_date="2024-02-10",
+        person="person:tracey-alloway",
+        topic="topic:cargill",
+        insight_id="i2",
+        quote_id="q2",
+        insight_text="canonical episode",
+    )
+
+    id_map = {"person:tracy": "person:tracey-alloway", "topic:cargil": "topic:cargill"}
+    monkeypatch.setattr(cil_queries, "_cil_entity_id_map", lambda root: id_map)
+
+    root = str(tmp_path)
+
+    rows, _trunc, _total = cil_queries.episodes_for_bridge_node_id(root, root, "topic:cargill")
+    assert len(rows) == 2, "node-episodes listing must include the variant episode"
+
+    tl = cil_queries.topic_timeline(root, root, "topic:cargill")
+    assert {r["episode_id"] for r in tl} == {"episode:a", "episode:b"}
+
+    brief = cil_queries.person_profile(root, root, "person:tracey-alloway")
+    assert {q["episode_id"] for q in brief["quotes"]} == {"episode:a", "episode:b"}
+
+    # Querying the VARIANT id resolves to the same canonical and unifies too.
+    brief_variant = cil_queries.person_profile(root, root, "person:tracy")
+    assert {q["episode_id"] for q in brief_variant["quotes"]} == {"episode:a", "episode:b"}
+
+    persons = cil_queries.topic_person_ids(root, root, "topic:cargill")
+    assert set(persons) == {"person:tracy", "person:tracey-alloway"}

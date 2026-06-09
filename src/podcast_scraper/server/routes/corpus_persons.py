@@ -139,7 +139,7 @@ def top_persons(root: Path, limit: int) -> dict[str, Any]:
                 display_name_by_person[pid] = _person_display_name(gi, pid)
 
         for pid in persons_here:
-            spoken = _quote_ids_spoken_by_person(gi, pid)
+            spoken = _quote_ids_spoken_by_person(gi, {pid})
             supported = _insight_ids_supported_by_quotes(gi, spoken)
             if not supported:
                 continue

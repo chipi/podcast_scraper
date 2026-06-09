@@ -1114,6 +1114,18 @@ class Config(BaseModel):
         description="Stop after N episode failures (Issue #379). None = no limit.",
     )
     skip_existing: bool = Field(default=False, alias="skip_existing")
+    reprocess_source: Optional[str] = Field(
+        default=None,
+        alias="reprocess_source",
+        description=(
+            "Scoped reprocess (#925): force-reprocess only episodes whose existing "
+            "metadata ``content.transcript_source`` equals this value "
+            "(``whisper_transcription`` or ``direct_download``), overriding "
+            "``skip_existing`` for them. Used to re-diarize the Whisper-sourced "
+            "episodes (#876) under a diarization-enabled profile while leaving the "
+            "already-diarized ``direct_download`` episodes untouched. None = off."
+        ),
+    )
     backfill_transcript_segments: bool = Field(
         default=False,
         alias="backfill_transcript_segments",

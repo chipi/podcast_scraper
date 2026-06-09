@@ -280,7 +280,21 @@ def download_media_for_transcription(
         episode.idx, episode.title_safe, run_suffix, effective_output_dir
     )
     if cfg.skip_existing and os.path.exists(final_out_path):
-        if _should_retranscribe_for_gi_segments(cfg, final_out_path):
+        if _force_reprocess_for_source(episode, effective_output_dir, run_suffix, cfg):
+            # #925: a scoped reprocess (--reprocess-source) forces matching episodes
+            # (e.g. whisper_transcription) back through download+transcribe so diarization
+            # re-runs and the GI/KG/CIL cascade with it. This is the Whisper path (episodes
+            # with no transcript URL); the override in _check_existing_transcript covers the
+            # direct-download path. Falling through schedules a real download, so the
+            # job.temp_media reuse skip below is bypassed too.
+            logger.info(
+                "[%s] [#925] forcing re-transcription + diarization (reprocess-source=%s): %s",
+                episode.idx,
+                cfg.reprocess_source,
+                final_out_path,
+            )
+            # Fall through: schedule download/transcribe.
+        elif _should_retranscribe_for_gi_segments(cfg, final_out_path):
             logger.info(
                 "[%s] Transcript exists without .segments.json; will re-transcribe to populate "
                 "sidecar for GI quote timestamps and segment-backed speaker_id when segments "
@@ -1575,6 +1589,51 @@ def _determine_output_path(
     return os.path.join(transcripts_dir, out_name)
 
 
+def _episode_existing_transcript_source(
+    episode: Episode,  # type: ignore[valid-type]
+    effective_output_dir: str,
+    run_suffix: Optional[str],
+    cfg: config.Config,
+) -> Optional[str]:
+    """Return the episode's existing ``content.transcript_source`` from its on-disk
+    metadata, or None if absent/unreadable (#925). Handles both JSON and YAML
+    metadata (``_determine_metadata_path`` returns ``.metadata.yaml`` when
+    ``metadata_format == 'yaml'``)."""
+    from .metadata_generation import _determine_metadata_path  # local: avoid import cycle
+
+    try:
+        metadata_path = _determine_metadata_path(episode, effective_output_dir, run_suffix, cfg)
+        with open(metadata_path, "r", encoding="utf-8") as fh:
+            if metadata_path.endswith((".yaml", ".yml")):
+                import yaml
+
+                data = yaml.safe_load(fh)
+            else:
+                data = json.load(fh)
+    except (OSError, ValueError, KeyError, AttributeError):
+        return None
+    content = data.get("content") if isinstance(data, dict) else None
+    src = content.get("transcript_source") if isinstance(content, dict) else None
+    return src if isinstance(src, str) else None
+
+
+def _force_reprocess_for_source(
+    episode: Episode,  # type: ignore[valid-type]
+    effective_output_dir: str,
+    run_suffix: Optional[str],
+    cfg: config.Config,
+) -> bool:
+    """#925: True when ``--reprocess-source`` is set and this episode's existing
+    ``transcript_source`` matches it -- force re-transcription (which re-runs
+    diarization under the profile and cascades GI/KG/CIL), overriding
+    ``--skip-existing`` for this episode only."""
+    target = getattr(cfg, "reprocess_source", None)
+    if not target:
+        return False
+    existing = _episode_existing_transcript_source(episode, effective_output_dir, run_suffix, cfg)
+    return bool(existing == target)
+
+
 def _check_existing_transcript(
     episode: Episode,  # type: ignore[valid-type]
     effective_output_dir: str,
@@ -1595,6 +1654,16 @@ def _check_existing_transcript(
         True if transcript exists and should be skipped, False otherwise
     """
     if not cfg.skip_existing:
+        return False
+    # #925: a scoped reprocess (--reprocess-source) forces matching episodes
+    # through transcription again so diarization re-runs (and the downstream
+    # GI/KG/CIL cascade with it), instead of being skipped by --skip-existing.
+    if _force_reprocess_for_source(episode, effective_output_dir, run_suffix, cfg):
+        logger.info(
+            "    [#925] forcing re-transcription (reprocess-source=%s): %s",
+            cfg.reprocess_source,
+            episode.title_safe,
+        )
         return False
 
     run_tag = f"_{run_suffix}" if run_suffix else ""

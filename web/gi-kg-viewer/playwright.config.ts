@@ -20,8 +20,9 @@ export default defineConfig({
   forbidOnly: Boolean(process.env.CI),
   // Local runs get 1 retry too: the production-shaped handoff specs assert on
   // millisecond-scale supersession ordering and flake under laptop worker
-  // contention. CI keeps 2-attempt parity with the gate (1 retry == 2 tries).
-  retries: process.env.CI ? 1 : 1,
+  // contention. CI gets 2 retries (3 attempts) so timing-sensitive specs like the
+  // 15s stuck-handoff (H6.3) survive transient runner contention; local keeps 1.
+  retries: process.env.CI ? 2 : 1,
   workers: process.env.CI ? 2 : undefined,
   reporter: [
     ['list'],

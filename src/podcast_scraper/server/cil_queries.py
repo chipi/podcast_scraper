@@ -16,6 +16,7 @@ from __future__ import annotations
 import json
 import logging
 import os
+import threading
 from pathlib import Path
 from typing import Any, Iterator, Sequence
 
@@ -57,6 +58,51 @@ def _strip_layer_prefixes_for_cil(raw: str) -> str:
         elif s.startswith("kg:"):
             s = s[3:]
     return s
+
+
+# --- Cross-episode entity canonicalization (#852) for the CIL bridge queries ----
+# The relational/graph path (get_corpus_graph) collapses cross-episode spelling
+# variants (e.g. topic:cargil / topic:cargill, person:tracy / person:tracey-alloway)
+# via build_entity_id_map. The bridge queries below previously matched the RAW id,
+# so e.g. /node-episodes for the canonical id under-counted (missed the variant
+# episodes). These helpers apply the SAME map so both paths agree. Cached per
+# corpus root (the corpus is static during serving), mirroring get_corpus_graph.
+_cil_id_maps: dict[str, dict[str, str]] = {}
+_cil_id_maps_lock = threading.Lock()
+
+
+def _cil_entity_id_map(root_path: str) -> dict[str, str]:
+    """Cached ``variant_id -> canonical_id`` map (#852) for the corpus, or ``{}``."""
+    # Normalise the tainted root_path with os.path.normpath (the path-injection-safe
+    # shape this module uses everywhere; see module docstring) rather than
+    # Path(...).resolve(), which CodeQL's py/path-injection query does not recognise.
+    key = os.path.normpath(root_path)
+    with _cil_id_maps_lock:
+        cached = _cil_id_maps.get(key)
+        if cached is None:
+            try:
+                from ..kg.entity_clusters import build_entity_id_map
+
+                cached = build_entity_id_map(key)
+            except Exception as exc:  # pragma: no cover - defensive; fall back to no-op
+                logger.debug("cil_queries: entity id map unavailable for %s: %s", key, exc)
+                cached = {}
+            _cil_id_maps[key] = cached
+        return cached
+
+
+def _canonical_equivalents(root_path: str, canon: str) -> set[str]:
+    """All bridge ids equivalent to ``canon`` under the #852 map: ``canon`` itself,
+    its canonical, and every variant that canonicalizes to the same id. Match a
+    bridge by intersecting this set with its identity ids; for the per-episode
+    downstream id, use ``equivalents & <that episode's bridge ids>``."""
+    id_map = _cil_entity_id_map(root_path)
+    if not id_map:
+        return {canon}
+    target = id_map.get(canon, canon)
+    equiv = {canon, target}
+    equiv.update(variant for variant, canonical in id_map.items() if canonical == target)
+    return equiv
 
 
 def _read_json(path_str: str) -> dict[str, Any] | None:
@@ -211,13 +257,16 @@ def episodes_for_bridge_node_id(
     canon = canonical_cil_entity_id(raw_node_id)
     if not canon:
         return [], False, None
+    # #852: match the canonical entity AND its cross-episode spelling variants, so
+    # the listing agrees with the relational graph (was: raw-id only -> under-count).
+    equiv = _canonical_equivalents(root_path, canon)
 
     root_prefix = os.path.normpath(root_path) + os.sep
     matches: list[dict[str, Any]] = []
     seen_gi: set[str] = set()
 
     for safe_bridge, bridge in iter_cil_bridge_bundles(root_path, anchor_path):
-        if canon not in _bridge_all_ids(bridge):
+        if not (equiv & _bridge_all_ids(bridge)):
             continue
         parent = os.path.dirname(safe_bridge)
         name = os.path.basename(safe_bridge)
@@ -339,14 +388,16 @@ def _position_hint(node: dict[str, Any]) -> float:
     return 0.0
 
 
-def _quote_ids_spoken_by_person(gi: dict[str, Any], person: str) -> set[str]:
+def _quote_ids_spoken_by_person(gi: dict[str, Any], person_ids: set[str]) -> set[str]:
+    # person_ids is the #852 equivalence set for the queried person (canonical +
+    # cross-episode variants); match a quote spoken by ANY of them.
     out: set[str] = set()
     for e in gi.get("edges") or []:
         if not isinstance(e, dict):
             continue
         if normalize_gil_edge_type(e.get("type")) != "SPOKEN_BY":
             continue
-        if str(e.get("to")) != person:
+        if str(e.get("to")) not in person_ids:
             continue
         qid = e.get("from")
         if qid is not None:
@@ -462,14 +513,16 @@ def position_arc(
     """Pattern A — chronological insights for person + topic."""
     person = canonical_cil_entity_id(target_person)
     topic = canonical_cil_entity_id(target_topic)
+    person_equiv = _canonical_equivalents(root_path, person)  # #852 cross-episode
+    topic_equiv = _canonical_equivalents(root_path, topic)
     root_prefix = os.path.normpath(root_path) + os.sep
     results: list[dict[str, Any]] = []
     for safe_bridge, bridge, gi, kg in iter_cil_episode_bundles(root_path, anchor_path):
         gi_ids = _bridge_gi_ids(bridge)
-        if person not in gi_ids or topic not in gi_ids:
+        if not (person_equiv & gi_ids) or not (topic_equiv & gi_ids):
             continue
 
-        spoken_quotes = _quote_ids_spoken_by_person(gi, person)
+        spoken_quotes = _quote_ids_spoken_by_person(gi, person_equiv)
 
         about_topic: set[str] = set()
         for e in gi.get("edges") or []:
@@ -477,7 +530,7 @@ def position_arc(
                 continue
             if normalize_gil_edge_type(e.get("type")) != "ABOUT":
                 continue
-            if _strip_layer_prefixes_for_cil(str(e.get("to"))) != topic:
+            if _strip_layer_prefixes_for_cil(str(e.get("to"))) not in topic_equiv:
                 continue
             iid = e.get("from")
             if iid is not None:
@@ -525,11 +578,11 @@ def position_arc(
 def _person_profile_append_for_episode(
     bridge: dict[str, Any],
     gi: dict[str, Any],
-    person: str,
+    person_ids: set[str],
     by_topic: dict[str, list[dict[str, Any]]],
     all_quotes: list[dict[str, Any]],
 ) -> None:
-    spoken_quotes = _quote_ids_spoken_by_person(gi, person)
+    spoken_quotes = _quote_ids_spoken_by_person(gi, person_ids)
     supported_insights = _insight_ids_supported_by_quotes(gi, spoken_quotes)
     episode_id = _episode_id_from_bridge(bridge)
     if not episode_id:
@@ -568,14 +621,15 @@ def _person_profile_append_for_episode(
 def person_profile(root_path: str, anchor_path: str, target_person: str) -> dict[str, Any]:
     """Pattern B — insights by topic + quotes for a person (Person Profile)."""
     person = canonical_cil_entity_id(target_person)
+    equiv = _canonical_equivalents(root_path, person)  # #852 cross-episode variants
     by_topic: dict[str, list[dict[str, Any]]] = {}
     all_quotes: list[dict[str, Any]] = []
 
     for _safe_bridge, bridge, gi, _kg in iter_cil_episode_bundles(root_path, anchor_path):
         gi_ids = _bridge_gi_ids(bridge)
-        if person not in gi_ids:
+        if not (equiv & gi_ids):
             continue
-        _person_profile_append_for_episode(bridge, gi, person, by_topic, all_quotes)
+        _person_profile_append_for_episode(bridge, gi, equiv, by_topic, all_quotes)
 
     return {
         "person_id": person,
@@ -592,17 +646,18 @@ def topic_timeline(
 ) -> list[dict[str, Any]]:
     """Pattern C — insights about a topic across episodes."""
     topic = canonical_cil_entity_id(target_topic)
+    equiv = _canonical_equivalents(root_path, topic)  # #852 cross-episode variants
     root_prefix = os.path.normpath(root_path) + os.sep
     results: list[dict[str, Any]] = []
     for safe_bridge, bridge, gi, kg in iter_cil_episode_bundles(root_path, anchor_path):
-        if topic not in _bridge_all_ids(bridge):
+        if not (equiv & _bridge_all_ids(bridge)):
             continue
 
         # Expand to include GI-sourced topic ids from this episode's bridge.
         # KG-only topics (e.g. ``topic:economic-struggles``) have no GI ABOUT
         # edges; the GI counterparts (sentence-style slugs) do.  The bridge
         # establishes they belong to the same episode scope.
-        match_ids = {topic} | _bridge_gi_topic_ids(bridge)
+        match_ids = equiv | _bridge_gi_topic_ids(bridge)
 
         about_insights: set[str] = set()
         for e in gi.get("edges") or []:
@@ -672,6 +727,8 @@ def topic_timeline_merged(
         topics_set.add(canonical_cil_entity_id(str(t)))
     if not topics_set:
         return []
+    # #852: include cross-episode spelling variants of every requested topic.
+    topics_set = {eq for t in topics_set for eq in _canonical_equivalents(root_path, t)}
 
     root_prefix = os.path.normpath(root_path) + os.sep
     results: list[dict[str, Any]] = []
@@ -754,9 +811,10 @@ def person_topic_ids(root_path: str, anchor_path: str, target_person: str) -> li
 def topic_person_ids(root_path: str, anchor_path: str, target_topic: str) -> list[str]:
     """Distinct person ids that speak (via quotes) to insights about ``target_topic``."""
     topic = canonical_cil_entity_id(target_topic)
+    equiv = _canonical_equivalents(root_path, topic)  # #852 cross-episode variants
     persons: set[str] = set()
     for _safe_bridge, bridge, gi, _kg in iter_cil_episode_bundles(root_path, anchor_path):
-        if topic not in _bridge_all_ids(bridge):
+        if not (equiv & _bridge_all_ids(bridge)):
             continue
 
         about_insights: set[str] = set()
@@ -765,7 +823,7 @@ def topic_person_ids(root_path: str, anchor_path: str, target_topic: str) -> lis
                 continue
             if normalize_gil_edge_type(e.get("type")) != "ABOUT":
                 continue
-            if _strip_layer_prefixes_for_cil(str(e.get("to"))) != topic:
+            if _strip_layer_prefixes_for_cil(str(e.get("to"))) not in equiv:
                 continue
             iid = e.get("from")
             if iid is not None:

@@ -114,7 +114,7 @@ make test-ui          # Vitest unit tests (fast, no browser)
 make test-ui-e2e      # Playwright browser E2E (needs Firefox)
 ```
 
-**`make test-ui`** runs `npm run test:unit` (Vitest) in `web/gi-kg-viewer`. Tests cover pure
+**`make test-ui`** runs `npm run test:coverage` (Vitest with a coverage gate, #914) in `web/gi-kg-viewer`. Tests cover pure
 TypeScript logic: artifact parsing, GI+KG merge, bridge-aware dedupe where implemented, metrics,
 formatting, colors, visual groups,
 and search-focus mapping. No browser or DOM required — runs in ~150 ms.
@@ -137,7 +137,7 @@ For interactive debugging: `cd web/gi-kg-viewer && npx playwright test --ui` (se
 
 GitHub Actions jobs:
 
-- **`viewer-unit`** — runs `npm run test:unit` (Vitest, fast).
+- **`viewer-unit`** — runs `npm run test:coverage` (Vitest + coverage gate, #914; thresholds in `vite.config.ts`).
 - **`viewer-e2e`** — runs `npm run test:e2e` (Playwright + Firefox) after the pytest E2E job
   that applies to the event (**`test-e2e-fast`** on PRs, **`test-e2e`** on push to
   `main` / `release/*`). **`coverage-unified`** waits on **`viewer-e2e`** so the merge report

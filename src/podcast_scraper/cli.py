@@ -671,6 +671,18 @@ def _add_common_arguments(parser: argparse.ArgumentParser) -> None:
         "--skip-existing", action="store_true", help="Skip episodes whose output already exists"
     )
     parser.add_argument(
+        "--reprocess-source",
+        choices=["whisper_transcription", "direct_download"],
+        default=None,
+        help=(
+            "Scoped reprocess (#925): force-reprocess ONLY episodes whose existing "
+            "metadata transcript_source matches this value, overriding --skip-existing "
+            "for them. Use to re-diarize the Whisper-sourced episodes under a "
+            "diarization-enabled profile (#876) while leaving direct_download ones "
+            "untouched."
+        ),
+    )
+    parser.add_argument(
         "--backfill-transcript-segments",
         action="store_true",
         dest="backfill_transcript_segments",
@@ -3798,6 +3810,7 @@ def _build_config(args: argparse.Namespace) -> config.Config:  # noqa: C901
         "max_failures": getattr(args, "max_failures", None),
         "multi_feed_strict": getattr(args, "multi_feed_strict", False),
         "skip_existing": args.skip_existing,
+        "reprocess_source": getattr(args, "reprocess_source", None),
         "backfill_transcript_segments": getattr(args, "backfill_transcript_segments", False),
         "append": getattr(args, "append", False),
         "reuse_media": args.reuse_media,

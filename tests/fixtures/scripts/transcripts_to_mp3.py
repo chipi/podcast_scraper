@@ -56,20 +56,21 @@ SPEAKER_VOICE_MAP: dict[str, str] = {
     "Nora": "Moira",  # en_IE female
     "Alex": "Evan",  # en_US male (p07-p09 host: "Alex Morgan" -> first word)
     # Guests (varied accents for speaker distinction)
-    "Liam": "Fred",  # en_US male
+    "Liam": "Daniel",  # en_GB male (cross-accent from host Samantha so pyannote
+    #                    reliably separates them on the short p01_multi_e01 clip)
     "Sophie": "Flo",  # en_GB female
     "Noah": "Tom",  # en_US male
     "Priya": "Isha",  # en_IN female
     "Jonas": "Eddy",  # en_US male
     "Camila": "Paulina",  # es_MX female
-    "Marco": "Luca",  # it_IT male
+    "Marco": "Lee",  # en_AU male (it_IT "Luca" not installed; Lee keeps it male + distinct)
     "Hanna": "Anna",  # de_DE female
     "Owen": "Reed",  # en_US male
     "Ava": "Kathy",  # en_US female
     "Tariq": "Rishi",  # en_IN male
-    "Elise": "Amelie",  # fr_CA female
+    "Elise": "Amélie",  # fr_CA female (exact installed name carries the accent)
     "Daniel": "Oliver",  # en_GB male
-    "Isabel": "Monica",  # es_ES female
+    "Isabel": "Mónica",  # es_ES female (exact installed name carries the accent)
     "Kasper": "Ralph",  # en_US male
     # Synthetic / non-human speakers (RFC-059 §3 / issue #109).
     # Pre-recorded mid-roll ads use the ``Ad:`` speaker label; Zarvox is
