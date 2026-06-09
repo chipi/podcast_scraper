@@ -16,8 +16,7 @@ from types import SimpleNamespace
 import pytest
 
 from podcast_scraper.utils import filesystem
-from podcast_scraper.workflow import episode_processor as ep
-from podcast_scraper.workflow import metadata_generation
+from podcast_scraper.workflow import episode_processor as ep, metadata_generation
 from tests.conftest import create_test_config, create_test_episode
 
 pytestmark = pytest.mark.unit
