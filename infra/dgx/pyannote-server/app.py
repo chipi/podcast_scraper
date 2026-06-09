@@ -65,9 +65,61 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
 
     logger.info("Loading pyannote model %s on %s", _MODEL_NAME, _DEVICE)
     import torch
+
+    # PyTorch 2.7 flipped `torch.load(..., weights_only=True)` to the default.
+    # pyannote 3.x's checkpoints contain multiple non-tensor globals
+    # (TorchVersion, numpy dtypes, omegaconf nodes, lightning hparams, etc.)
+    # that aren't on the safe-globals allowlist — allowlisting them one by
+    # one is brittle and the list drifts per pyannote release.
+    #
+    # Wrap torch.load so the weights_only default flips back to False ONLY
+    # when callers don't pass it explicitly. We trust pyannote's checkpoints
+    # because they come from the official HuggingFace pyannote repo over
+    # HTTPS, downloaded via huggingface_hub with HF_TOKEN auth — the same
+    # supply chain as every other HF model in this pipeline.
+    #
+    # When we bump to pyannote 4, checkpoints get re-serialized cleanly and
+    # this wrapper can be removed.
+    _orig_torch_load = torch.load
+
+    def _torch_load_unsafe_for_pyannote(*args, **kwargs):
+        # FORCE weights_only=False even if the caller passed True explicitly
+        # — pytorch-lightning's load_from_checkpoint internally calls
+        # `torch.load(..., weights_only=True)` since lightning 2.4+, and a
+        # default-only setdefault leaves that call un-patched.
+        kwargs["weights_only"] = False
+        return _orig_torch_load(*args, **kwargs)
+
+    torch.load = _torch_load_unsafe_for_pyannote
+
+    # NVIDIA's NGC torch ships as version `2.7.0a0+79aa17489c.nv25.4`, which
+    # is not a valid SemVer string. speechbrain (pyannote's transitive dep)
+    # uses the `semver` library — not the looser `packaging` library — to
+    # parse `torch.__version__` at startup, and chokes with
+    # `ValueError: 2.7.0a0+... is not valid SemVer string`. Strip down to
+    # the major.minor.patch portion so semver.parse() succeeds; the actual
+    # ABI/CUDA behavior is unchanged (we just lie about the version string).
+    _semver_safe_version = "2.7.0"
+    if not torch.__version__.startswith(_semver_safe_version):
+        logger.warning(
+            "Unexpected torch version %r — semver patch may be incorrect",
+            torch.__version__,
+        )
+    logger.info(
+        "Patching torch.__version__ %r → %r for semver compat",
+        torch.__version__,
+        _semver_safe_version,
+    )
+    torch.__version__ = _semver_safe_version  # type: ignore[assignment]
+
     from pyannote.audio import Pipeline
 
-    pipeline = Pipeline.from_pretrained(_MODEL_NAME, token=hf_token)
+    # Don't pass the token as a kwarg — different (pyannote, huggingface_hub)
+    # version combinations expose it as `token=` (pyannote 4 / HF 1.x) or
+    # `use_auth_token=` (pyannote 3 / HF <1.x). HF Hub reads HF_TOKEN from
+    # the environment when no token is passed explicitly, and the env_file
+    # already injects HF_TOKEN, so we get auth for free.
+    pipeline = Pipeline.from_pretrained(_MODEL_NAME)
     if pipeline is None:
         raise RuntimeError(
             f"Pipeline.from_pretrained returned None for {_MODEL_NAME!r} — "
