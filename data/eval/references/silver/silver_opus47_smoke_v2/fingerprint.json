@@ -1,0 +1,67 @@
+{
+  "fingerprint_version": "1.0",
+  "task": "summarization",
+  "run_context": {
+    "run_id": "2026-06-09T13:19:49.906777+00:00",
+    "baseline_id": "silver_candidate_anthropic_opus47_smoke_v2_paragraph",
+    "dataset_id": "curated_5feeds_smoke_v2",
+    "git": {
+      "commit": "392f836b5b6e5c00ac0a74e15f00cd21827d6686",
+      "branch": "feat/907-autoresearch-batch-2",
+      "dirty": true
+    }
+  },
+  "provider": {
+    "provider_type": "anthropic",
+    "provider_library": "anthropic",
+    "provider_library_version": "0.102.0"
+  },
+  "pipeline": {
+    "type": "single_stage",
+    "stages": {
+      "main": {
+        "stage_id": "main",
+        "model": {
+          "provider_type": "anthropic",
+          "framework": null,
+          "model_name": "claude-opus-4-7",
+          "model_revision": null,
+          "tokenizer_name": null,
+          "tokenizer_revision": null,
+          "endpoint": null
+        },
+        "generation_params": {
+          "temperature": "omitted (thinking model)",
+          "max_tokens": 800
+        }
+      }
+    }
+  },
+  "preprocessing": {
+    "profile_id": "cleaning_v4",
+    "profile_version": "4.0",
+    "steps": null,
+    "note": "Silver generation reads materialized cleaned dataset directly; no pipeline preprocessing applied at generation time."
+  },
+  "tokenization": {},
+  "chunking": null,
+  "environment": {
+    "python_version": "3.11.8",
+    "os": "macOS-15.7.3-arm64-arm-64bit"
+  },
+  "runtime": {},
+  "prompts": {
+    "user": {
+      "name": "anthropic/summarization/long_v2",
+      "file": "src/podcast_scraper/prompts/anthropic/summarization/long_v2.j2",
+      "sha256": "acfa8d02b38512a97eea02a00c07b46f02c52fbb689187f5ed8d636b4e77984b",
+      "params": {}
+    },
+    "system": {
+      "name": "anthropic/summarization/system_v1",
+      "file": "src/podcast_scraper/prompts/anthropic/summarization/system_v1.j2",
+      "sha256": "d7aabe400110cb1961ba9dea7e380559713aaf3628347deea7758aba5bc0f7ac",
+      "params": {}
+    }
+  }
+}

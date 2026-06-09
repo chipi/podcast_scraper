@@ -1,0 +1,35 @@
+{
+  "run_id": "silver_candidate_anthropic_opus47_smoke_v2_paragraph",
+  "dataset_id": "curated_5feeds_smoke_v2",
+  "created_at": "2026-06-09T13:19:49.906777+00:00",
+  "created_by": "markodragoljevic",
+  "fingerprint_ref": "fingerprint.json",
+  "task": "summarization",
+  "backend": {
+    "type": "anthropic",
+    "model": "claude-opus-4-7"
+  },
+  "params": {
+    "model": "claude-opus-4-7",
+    "max_length": 800,
+    "temperature": "omitted (thinking model)",
+    "user_prompt": "anthropic/summarization/long_v2",
+    "system_prompt": "anthropic/summarization/system_v1"
+  },
+  "stats": {
+    "num_episodes": 5,
+    "total_time_seconds": 61.008437,
+    "avg_time_seconds": 12.2016874,
+    "total_chars_in": 44087,
+    "total_chars_out": 10987,
+    "avg_compression": 4.01265131519068,
+    "total_input_tokens": 17178,
+    "total_output_tokens": 3327,
+    "total_cost_usd": 0.16906500000000002
+  },
+  "promoted_from": "silver_candidate_anthropic_opus47_smoke_v2_paragraph",
+  "promoted_at": "2026-06-09T13:21:14.420813Z",
+  "promoted_as": "reference",
+  "promoted_id": "silver_opus47_smoke_v2",
+  "reference_quality": "silver"
+}
