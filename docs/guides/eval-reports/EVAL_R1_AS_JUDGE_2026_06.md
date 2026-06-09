@@ -94,7 +94,7 @@ Estimated wall clock: ~6 minutes (R1:32b takes 30-60s/call on DGX).
 comfortable margin and is now eligible as a $0 third judge in finale
 sweeps.
 
-```
+```text
 overall_agreement_rate: 0.8824  (n=17 valid pairs of 24 sampled)
 per_dimension:
   faithfulness: 0.833  (5/6)

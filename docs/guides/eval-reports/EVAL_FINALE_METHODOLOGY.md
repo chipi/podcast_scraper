@@ -2,7 +2,9 @@
 
 **Branch:** `feat/907-autoresearch-batch-2`
 **Status:** harness landed; first end-to-end finale run gated on operator approval to spend.
+
 **Companion docs:**
+
 - `docs/guides/eval-reports/EVAL_SMOKE_V2_DGX_REFRESH_2026_06.md` — qualifier
   sweep results that motivated the finale
 - `docs/guides/eval-reports/EVAL_R1_AS_JUDGE_2026_06.md` — #940 Track 1
@@ -41,7 +43,7 @@ G-Eval crowns them.
 
 ## Stratification
 
-```
+```text
 strata:
   - name: cloud         match: anthropic_/openai_/gemini_/grok_/mistral_/deepseek_/...
   - name: dgx_le_40b    match: ollama_qwen35_35b/27b, mistral-small_24b, gemma3_27b, phi4, ...
@@ -147,7 +149,7 @@ weaker on long-context reasoning per the smoke v2 results.
 
 ## Promotion → finale data flow
 
-```
+```text
 qualifier run dirs (existing)            ─┐
   predictions.jsonl                       │
   metrics_vs_silver_opus47_smoke_v1.json  │
