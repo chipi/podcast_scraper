@@ -33,9 +33,20 @@ class Gemini25ProJudge:
         model: str = DEFAULT_MODEL,
         client: object | None = None,
     ) -> None:
+        # Operator's autoresearch-vs-prod account separation — NEVER fall through
+        # to the plain prod key (reserved for prod inference). Order:
+        #   1. AUTORESEARCH_JUDGE_GEMINI_API_KEY (preferred — dedicated judge slot
+        #      if the operator adds one)
+        #   2. AUTORESEARCH_EXPERIMENT_GEMINI_API_KEY (autoresearch namespace
+        #      fallback; the only Gemini key currently in the operator's .env
+        #      under that prefix)
         self._model = model
         self._client = client
-        self._api_key = api_key or os.environ.get("GEMINI_API_KEY", "").strip()
+        self._api_key = (
+            api_key
+            or os.environ.get("AUTORESEARCH_JUDGE_GEMINI_API_KEY", "").strip()
+            or os.environ.get("AUTORESEARCH_EXPERIMENT_GEMINI_API_KEY", "").strip()
+        )
 
     @property
     def model(self) -> str:
@@ -46,7 +57,10 @@ class Gemini25ProJudge:
             return self._client
         if not self._api_key:
             raise JudgeUnavailableError(
-                "Gemini25ProJudge: GEMINI_API_KEY missing — set it or inject a client."
+                "Gemini25ProJudge: neither AUTORESEARCH_JUDGE_GEMINI_API_KEY "
+                "nor AUTORESEARCH_EXPERIMENT_GEMINI_API_KEY is set. The plain "
+                "GEMINI_API_KEY is intentionally ignored (prod/personal). "
+                "Set one of the autoresearch-namespaced keys or inject a client."
             )
         try:
             from google import genai  # type: ignore

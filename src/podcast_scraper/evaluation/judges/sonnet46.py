@@ -40,13 +40,24 @@ class Sonnet46Judge:
         """Instantiate the judge.
 
         Args:
-            api_key: Anthropic API key. Falls back to ``ANTHROPIC_API_KEY`` env.
+            api_key: Anthropic API key. If not given, reads from env in this
+                order (operator's autoresearch-vs-prod account separation —
+                NEVER falls through to the plain prod key):
+                  1. ``AUTORESEARCH_JUDGE_ANTHROPIC_API_KEY`` (preferred — dedicated judge slot)
+                  2. ``AUTORESEARCH_EXPERIMENT_ANTHROPIC_API_KEY`` (autoresearch namespace fallback)
+                Errors if neither is set. The plain ``ANTHROPIC_API_KEY`` is
+                deliberately NOT consulted — it's reserved for prod / personal
+                inference and must not be charged for autoresearch judging.
             model: Sonnet model id to address (default ``claude-sonnet-4-6``).
             client: Optional pre-constructed ``anthropic.Anthropic`` (tests).
         """
         self._model = model
         self._client = client
-        self._api_key = api_key or os.environ.get("ANTHROPIC_API_KEY", "").strip()
+        self._api_key = (
+            api_key
+            or os.environ.get("AUTORESEARCH_JUDGE_ANTHROPIC_API_KEY", "").strip()
+            or os.environ.get("AUTORESEARCH_EXPERIMENT_ANTHROPIC_API_KEY", "").strip()
+        )
 
     @property
     def model(self) -> str:
@@ -57,7 +68,10 @@ class Sonnet46Judge:
             return self._client
         if not self._api_key:
             raise JudgeUnavailableError(
-                "Sonnet46Judge: ANTHROPIC_API_KEY missing — set it or inject a client."
+                "Sonnet46Judge: neither AUTORESEARCH_JUDGE_ANTHROPIC_API_KEY nor "
+                "AUTORESEARCH_EXPERIMENT_ANTHROPIC_API_KEY is set. The plain "
+                "ANTHROPIC_API_KEY is intentionally ignored (prod/personal). "
+                "Set one of the autoresearch-namespaced keys or inject a client."
             )
         try:
             import anthropic  # local import to avoid hard dep at module load
