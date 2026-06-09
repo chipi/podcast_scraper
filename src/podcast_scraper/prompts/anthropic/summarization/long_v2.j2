@@ -1,4 +1,13 @@
 Summarize the following podcast episode transcript.
+
+{% if title %}
+Episode Title: {{ title }}
+{% endif %}
+
+Transcript:
+{{ transcript }}
+
+Guidelines:
 - Write a detailed summary with {{ paragraphs_min | default(4) }}-{{ paragraphs_max | default(6) }} paragraphs
 - Begin the first paragraph with a single sentence naming the episode's domain and its central arg or premise
 - Cover ALL major discussion segments in the order they appear in the transcript
