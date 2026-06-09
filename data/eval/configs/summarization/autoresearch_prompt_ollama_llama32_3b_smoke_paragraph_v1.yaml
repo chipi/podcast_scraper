@@ -12,8 +12,8 @@ backend:
   model: "llama3.2:3b"
 
 prompts:
-  system: "ollama/summarization/system_v1"
-  user: "ollama/summarization/long_v1"
+  system: "ollama/llama3.2_3b/summarization/system_v1"
+  user: "ollama/llama3.2_3b/summarization/long_v1"
 
 data:
   dataset_id: "curated_5feeds_smoke_v1"
