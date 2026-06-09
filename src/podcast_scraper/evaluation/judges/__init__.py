@@ -9,10 +9,12 @@ where ``JudgeResult`` carries the raw assistant text, an estimated token cost
 cost.  G-Eval parsing happens at the caller (``g_eval.py``), so judges are
 deliberately thin — they own *only* the transport and pricing-instrumentation.
 
-The three concrete implementations cover the finale plan:
+The concrete implementations cover the finale plan:
 
 - :mod:`sonnet46`     — Anthropic Claude Sonnet 4.6 (primary judge)
-- :mod:`gemini25pro`  — Google Gemini 2.5 Pro       (cross-check on top-2)
+- :mod:`openai_chat`  — OpenAI GPT-5.4 (cross-check on top-2; RFC-057 default pair)
+- :mod:`gemini25pro`  — Google Gemini 2.5 Pro (legacy #932 cross-check; superseded
+                        by ``openai_chat`` after the 2026-06-09 empty-response issue)
 - :mod:`deepseek_r1`  — DeepSeek-R1 32B via DGX Ollama (cheap tertiary, #940)
 """
 
@@ -21,6 +23,7 @@ from __future__ import annotations
 from podcast_scraper.evaluation.judges.base import JudgeResult, JudgeUnavailableError
 from podcast_scraper.evaluation.judges.deepseek_r1 import DeepSeekR1Judge
 from podcast_scraper.evaluation.judges.gemini25pro import Gemini25ProJudge
+from podcast_scraper.evaluation.judges.openai_chat import OpenAIChatJudge
 from podcast_scraper.evaluation.judges.sonnet46 import Sonnet46Judge
 
 __all__ = [
@@ -28,5 +31,6 @@ __all__ = [
     "Gemini25ProJudge",
     "JudgeResult",
     "JudgeUnavailableError",
+    "OpenAIChatJudge",
     "Sonnet46Judge",
 ]

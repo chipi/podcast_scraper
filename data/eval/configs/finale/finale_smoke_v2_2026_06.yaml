@@ -72,13 +72,21 @@ promotion:
     - autoresearch_prompt_ollama_qwen3.6_latest_ # v2 challenger ("close" #1)
 
 # Judges
+#
+# RFC-057 mandates the OpenAI + Anthropic flagship pair for autoresearch
+# judging. The original #932 config used Gemini 2.5 Pro for cross-check;
+# the 2026-06-09 finale run surfaced that Gemini 2.5 Pro returns empty
+# text when its dynamic-thinking budget consumes the full
+# max_output_tokens (20/20 cross-check calls produced text=''). We
+# reverted to the RFC-057 dual-judge pair (Sonnet 4.6 + GPT-5.4).
+# Gemini25ProJudge stays in the codebase for ad-hoc tertiary use.
 judges:
   primary:
     kind: sonnet46
     model: claude-sonnet-4-6
   cross_check:
-    kind: gemini25pro
-    model: gemini-2.5-pro
+    kind: openai_chat
+    model: gpt-5.4
     # Cross-check only the top-N from primary (per stratum) to bound cost.
     top_n_per_stratum: 2
 

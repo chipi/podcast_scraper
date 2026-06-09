@@ -1,18 +1,18 @@
 # Profile: local — fully local, no API calls, $0 cost
 #
 # Privacy-first / offline deployment. Uses Ollama + local Whisper.
-# Requires: Ollama running with qwen3.5:9b pulled.
+# Requires: Ollama running with hermes3:8b pulled.
 #
 # Research references:
-#   Summary:   qwen3.5:9b bundled 0.529 bullets / 0.509 paragraph (v2 eval)
-#              Refreshed 2026-04-23 post-#652/#653 (bundled, no judge re-run):
-#              bullets ROUGE-L 0.358 / cosine 0.834
-#              paragraph ROUGE-L 0.331 / cosine 0.854
-#              eval: data/eval/runs/autoresearch_prompt_ollama_qwen35_9b_bundled_benchmark_*_v2/
-#              #657 Part A: compound "final" score requires judge-model re-run
-#              (separate scope). ROUGE-L-only numbers above; cosine similarity
-#              stayed high (0.83-0.85 band) which is the stronger indicator
-#              for local paraphrase-heavy output.
+#   Summary:   hermes3:8b — laptop-tier finale champion (≤14B stratum), 2026-06-09.
+#              G-Eval per-episode means: faith 5.00 / cov 4.60 / coh 3.00 /
+#              flu 4.40 (Sonnet-4.6 primary); cross-checked by GPT-5.4 at
+#              4.70 mean — both judges ranked hermes3:8b #1 in the laptop
+#              stratum, no contested-pair flags.
+#              eval: docs/guides/eval-reports/EVAL_FINALE_SMOKE_V2_2026_06.md
+#              Tuned prompts: src/podcast_scraper/prompts/ollama/hermes3_8b/
+#              Replaced qwen3.5:9b (eliminated at qualifier stage, rank 9/10
+#              in the same stratum).
 #   GI/KG:     Same methodology via Ollama as provider
 #   NER:       spaCy trf = 1.000 F1
 #
@@ -32,16 +32,17 @@ diarize: true
 # Audio preprocessing — named preset (#634 Scope 1).
 audio_preprocessing_profile: speech_optimal_v1
 
-# Speaker detection — spaCy trf beats qwen3.5:9b on NER (F1 1.000 vs 0.750
-# on smoke) and avoids a 9B-model inference call per episode. Local compute
-# stays on transcription + summarization where it's actually worth it.
+# Speaker detection — spaCy trf beats any sub-14B Ollama model on NER
+# (F1 1.000 vs 0.750 on smoke) and avoids a separate model inference call
+# per episode. Local compute stays on transcription + summarization where
+# it's actually worth it.
 speaker_detector_provider: spacy
 ner_model: en_core_web_trf
 auto_speakers: true
 
-# Summarization — local champion
+# Summarization — laptop-tier finale champion (#932, 2026-06-09)
 summary_provider: ollama
-ollama_summary_model: qwen3.5:9b
+ollama_summary_model: hermes3:8b
 llm_pipeline_mode: bundled
 
 # Grounded Insights
@@ -53,10 +54,12 @@ gi_require_grounding: true
 # #698 GIL evidence bundling — Layer A + Layer B both bundled. On local
 # Ollama the staged path issues 76 calls × ~25s overhead = 30+min per episode,
 # which is operationally infeasible. Bundling cuts to ~6 calls (~10min/ep on
-# qwen3.5:9b). Coverage vs Sonnet-4.6 silver: 72% / 72% grounded. The bundled
-# Ollama path requires num_ctx=32k (default 2048 truncates the bundled prompt);
-# this is wired into OllamaProvider's bundled methods, no extra config needed.
-# ADR-078; results in autoresearch/gil_evidence_bundling/results.tsv.
+# an 8B-class model). The bundled Ollama path requires num_ctx=32k (default
+# 2048 truncates the bundled prompt); this is wired into OllamaProvider's
+# bundled methods, no extra config needed. ADR-078; results in
+# autoresearch/gil_evidence_bundling/results.tsv. (Coverage vs Sonnet-4.6
+# silver was 72% / 72% on the prior qwen3.5:9b run; hermes3:8b GIL coverage
+# is tracked as a follow-up — finale only judged the summarization stage.)
 gil_evidence_quote_mode: bundled
 gil_evidence_nli_mode: bundled
 

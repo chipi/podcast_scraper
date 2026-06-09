@@ -33,8 +33,8 @@ if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
 from podcast_scraper.evaluation.finale_runner import (  # noqa: E402
-    FinalistAggregate,
     aggregate_finalist,
+    FinalistAggregate,
     judge_finalist,
     load_run_candidate,
     promote_finalists,
@@ -43,6 +43,7 @@ from podcast_scraper.evaluation.finale_runner import (  # noqa: E402
 from podcast_scraper.evaluation.judges import (  # noqa: E402
     DeepSeekR1Judge,
     Gemini25ProJudge,
+    OpenAIChatJudge,
     Sonnet46Judge,
 )
 
@@ -60,9 +61,13 @@ def _build_judge(spec: Dict[str, Any]) -> Any:
         return Sonnet46Judge(model=model) if model else Sonnet46Judge()
     if kind == "gemini25pro":
         return Gemini25ProJudge(model=model) if model else Gemini25ProJudge()
+    if kind in ("openai_chat", "gpt", "gpt54", "gpt4o"):
+        return OpenAIChatJudge(model=model) if model else OpenAIChatJudge()
     if kind == "deepseek_r1":
         return DeepSeekR1Judge(model=model) if model else DeepSeekR1Judge()
-    raise ValueError(f"Unknown judge kind {kind!r}; supported: sonnet46, gemini25pro, deepseek_r1")
+    raise ValueError(
+        f"Unknown judge kind {kind!r}; supported: sonnet46, openai_chat, gemini25pro, deepseek_r1"
+    )
 
 
 def _load_config(path: Path) -> Dict[str, Any]:
