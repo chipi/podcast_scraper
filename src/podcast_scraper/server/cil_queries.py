@@ -73,16 +73,19 @@ _cil_id_maps_lock = threading.Lock()
 
 def _cil_entity_id_map(root_path: str) -> dict[str, str]:
     """Cached ``variant_id -> canonical_id`` map (#852) for the corpus, or ``{}``."""
-    key = str(Path(root_path).resolve())
+    # Normalise the tainted root_path with os.path.normpath (the path-injection-safe
+    # shape this module uses everywhere; see module docstring) rather than
+    # Path(...).resolve(), which CodeQL's py/path-injection query does not recognise.
+    key = os.path.normpath(root_path)
     with _cil_id_maps_lock:
         cached = _cil_id_maps.get(key)
         if cached is None:
             try:
                 from ..kg.entity_clusters import build_entity_id_map
 
-                cached = build_entity_id_map(root_path)
+                cached = build_entity_id_map(key)
             except Exception as exc:  # pragma: no cover - defensive; fall back to no-op
-                logger.debug("cil_queries: entity id map unavailable for %s: %s", root_path, exc)
+                logger.debug("cil_queries: entity id map unavailable for %s: %s", key, exc)
                 cached = {}
             _cil_id_maps[key] = cached
         return cached
