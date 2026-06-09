@@ -1,17 +1,28 @@
-Summarize the following podcast episode transcript.
+{# Mistral-native user prompt for mistral:7b (Mistral-7B-Instruct-v0.3).
+   Ollama wraps this content into [INST] ... [/INST] automatically, with the
+   system message inlined ahead of it on the first turn. Style follows the
+   model card ( https://huggingface.co/mistralai/Mistral-7B-Instruct-v0.3 ):
+   crisp task framing first, then payload, then a short bullet list of
+   binding constraints next to the assistant turn (recency-window pattern).
+   The 7B model adheres better to terse, single-line constraints than to
+   long prose preambles, so each bullet is one declarative clause. #}
+Task: write an abstractive summary of the following podcast episode transcript.
 
-{% if title %}
-Episode Title: {{ title }}
-{% endif %}
+{% if title -%}
+Episode title: {{ title }}
 
+{% endif -%}
 Transcript:
 {{ transcript }}
 
-Guidelines:
-- Write a detailed summary with {{ paragraphs_min }}-{{ paragraphs_max }} paragraphs
-- Focus on key decisions, arguments, and lessons learned
-- Ignore sponsorships, ads, and housekeeping
-- Do not use quotes or speaker names
-- Do not invent information not implied by the transcript
-- Use abstractive summarization - synthesize and rephrase efficiently
-- Ensure the summary is coherent and flows naturally
+Write a single coherent summary covering the episode's substantive content. Target length: {{ paragraphs_min }}–{{ paragraphs_max }} paragraphs.
+
+Constraints (must hold):
+- Paraphrase in your own words; do not copy sentences verbatim.
+- Focus on decisions, arguments, lessons, and insights that drove the episode forward.
+- Exclude advertisements, sponsorships, listener mail, and housekeeping segments.
+- Do not include speaker names. Do not include direct quotations.
+- Do not introduce facts or claims that are not supported by the transcript.
+- Plain text only — no markdown, no headings, no bullet lists, no code blocks, no JSON.
+- Begin with the first sentence of the summary; no preamble such as "Here is the summary" or "Summary:".
+- Separate paragraphs with a single blank line.

@@ -12,8 +12,8 @@ backend:
   model: "mistral:7b"
 
 prompts:
-  system: "ollama/summarization/system_v1"
-  user: "ollama/summarization/long_v1"
+  system: "ollama/mistral_7b/summarization/system_v1"
+  user: "ollama/mistral_7b/summarization/long_v1"
 
 data:
   dataset_id: "curated_5feeds_smoke_v1"
