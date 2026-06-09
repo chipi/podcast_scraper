@@ -531,3 +531,94 @@ inherent model behavior, not prompt format.
 **Runs** (under `data/eval/runs/`, gitignored):
 
 - `llm_ollama_phi4_14b_dgx_smoke_v2_tuned_2026_06/` (Microsoft-native)
+
+### Tuned prompt addendum — #945 older top-3 (mistral:7b + llama3.2:3b + llama3.1:8b, 2026-06-09)
+
+**Verdict: all 3 regress. The Opus-silver "unexpected top-3" was a verbose-qwen-clone-prompt artifact.**
+
+[#945](https://github.com/chipi/podcast_scraper/issues/945) closed the
+"tuned vs untuned" fairness gap for the 3 older models that emerged as
+top-3 under Opus silver despite never having had model-specific prompts.
+
+| Model | qwen-clone baseline (v1/v2) | tuned native (v1/v2) | Δ RougeL | Coverage shift (v1) |
+| --- | --- | --- | --- | --- |
+| `mistral:7b` | 0.329 / 0.302 | **0.282** / 0.298 | **−0.047** / −0.004 | 0.766 → 0.697 |
+| `llama3.2:3b` | 0.326 / 0.271 | 0.310 / 0.231 | −0.016 / −0.040 | 1.167 → 1.001 |
+| `llama3.1:8b` | 0.307 / 0.282 | **0.244** / 0.234 | **−0.063** / −0.048 | 1.054 → 0.971 |
+
+**Tuned prompts** at:
+
+- `src/podcast_scraper/prompts/ollama/mistral_7b/summarization/` — Mistral [INST]-style
+- `src/podcast_scraper/prompts/ollama/llama3.2_3b/summarization/` — Llama-3 header_id style (NEW dir)
+- `src/podcast_scraper/prompts/ollama/llama3.1_8b/summarization/` — Llama-3 header_id style
+
+YAML configs updated to point at per-model prompt paths (previously
+inherited the shared `ollama/summarization/` default — that's why the
+v2 sweep showed these models doing so well; they were running on the
+verbose qwen-clone prompt).
+
+**The post-#939 ranking, recomputed with all prompt-tuning Phase 0.5 + #945 results:**
+
+| Rank | Model | Source | RougeL v1 vs Opus |
+| --- | --- | --- | --- |
+| 1 | `mistral:7b` (qwen-clone) | v2 sweep, untouched | 0.329 |
+| 2 | `llama3.2:3b` (qwen-clone) | v2 sweep, untouched | 0.326 |
+| 3 | `hermes3:8b` (Nous-native, **tuned**) | #937 | 0.309 |
+| 4 | `llama3.1:8b` (qwen-clone) | v2 sweep, untouched | 0.307 |
+| 5 | `mistral:7b` (Mistral-native) | #945 | 0.282 |
+| 6 | `mistral-small:24b` (qwen-clone, untouched) | v2.1 | 0.284 |
+| 7 | `hermes3:8b` (qwen-clone, original) | v2.1 | 0.279 |
+| 8 | `qwen3.5:35b` (qwen-clone, prod champion) | v2 | 0.243 |
+
+(Selected entries; full matrix unchanged elsewhere.)
+
+**Cross-cutting finding across all 7 tuning experiments (Phase 0.5 + #945)**:
+
+| Result | Models | Count |
+| --- | --- | --- |
+| Tuning HELPED | hermes3:8b (+0.030) | 1 / 7 |
+| Tuning NEUTRAL | phi4:14b (±0.008) | 1 / 7 |
+| Tuning REGRESSED | gemma3:27b (-0.014), mistral-small:24b (-0.027), mistral:7b (-0.047), llama3.2:3b (-0.016), llama3.1:8b (-0.063) | **5 / 7** |
+
+The qwen3.5:9b clone template is uniquely well-suited to score high on
+ROUGE-against-Opus across model families. It produces longer,
+more verbose summaries that match Opus's lexical patterns regardless of
+the underlying model's training distribution. **Native prompts make
+models write in their own trained style, which lexically diverges from
+Opus's prose patterns and hurts ROUGE — even when the model writes
+faithful, well-structured summaries.**
+
+**Implication for #928 championship**:
+
+The "top-3" leaders under Opus silver (mistral:7b, llama3.2:3b,
+llama3.1:8b) are **not the strongest models**, they're the strongest
+*combinations of model + verbose Qwen-clone prompt*. The actual
+championship roster should:
+
+1. **Promote hermes3:8b** — the only model where native prompts genuinely
+   helped on Opus ROUGE. Real championship contender.
+2. **Keep qwen3.5:35b, qwen3.6:latest as primary contenders** — their
+   high-volume Qwen-style output is what models prompt-tuning attempts
+   to reach.
+3. **Treat the v2-sweep top-3 (mistral:7b / llama3.2 / llama3.1) as
+   reference points, not champions** — their ROUGE-on-Opus lead came
+   from the verbose clone prompt, not from inherent model superiority.
+4. **Defer all final champion-pick decisions to #932 G-Eval finale**.
+   ROUGE-on-Opus rewards prompt-induced verbosity more than model
+   quality; only the G-Eval dimensions (faithfulness / coverage /
+   coherence / fluency) will reveal which models actually produce the
+   best summaries.
+
+**Methodology lesson confirmed**: even with the Opus silver upgrade
+(which raised the ceiling vs Sonnet), ROUGE remains fundamentally a
+lexical similarity metric. The remaining bias is to *prompt-induced
+verbose output style*, not to silver-author identity. Closing that bias
+requires non-lexical scoring (G-Eval, #932) or richer references with
+varied prose styles.
+
+**Runs** (under `data/eval/runs/`, gitignored — predictions and Opus
+metrics persisted for future re-analysis):
+
+- `llm_ollama_mistral_7b_dgx_smoke_v2_tuned_2026_06/`
+- `llm_ollama_llama32_3b_dgx_smoke_v2_tuned_2026_06/`
+- `llm_ollama_llama31_8b_dgx_smoke_v2_tuned_2026_06/`
