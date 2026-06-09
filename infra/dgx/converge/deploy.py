@@ -133,9 +133,25 @@ server.shell(
 
 # 3. Pull image + start. Idempotent: docker compose only recreates the
 # container if the YAML config-hash or image digest changed.
+#
+# The pull is wrapped in `|| true` so a GHCR slowdown/outage doesn't bail
+# the whole deploy. We observed this on 2026-06-08: ghcr.io took >30s to
+# respond, pyinfra dropped to "Error: executed 0 commands" + "No hosts
+# remaining", and the pyannote install steps further down never ran. With
+# the pull tolerated, `docker compose up -d` below uses the locally-cached
+# image — fine for the common case where Speaches is already running on
+# DGX and we're only redeploying pyannote. The trade-off: a deploy could
+# silently miss a NEW upstream image. We accept that since (a) the timing
+# message still surfaces success vs warn-only-fall-through, (b) the next
+# successful deploy still picks up changes, and (c) image bumps are rare
+# enough that catching them via an explicit `dgx-refresh` target later is
+# a better tool for the job than gating every deploy on GHCR reachability.
 server.shell(
-    name="compose: pull image (separate step so the timing surfaces)",
-    commands=[f"cd {INSTALL_ROOT} && docker compose pull"],
+    name="compose: pull image (tolerated; falls back to cached on GHCR blip)",
+    commands=[
+        f"cd {INSTALL_ROOT} && docker compose pull "
+        f"|| echo '::warning::GHCR pull failed; will use cached image if present'"
+    ],
     _sudo=True,
 )
 
