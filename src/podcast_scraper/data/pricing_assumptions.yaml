@@ -97,6 +97,12 @@ providers:
         # Opus 4.5 and above are priced lower than Opus 4 / Opus 4.1.
         input_cost_per_1m_tokens: 5.00
         output_cost_per_1m_tokens: 25.00
+      claude-opus-4-7:
+        # Source: https://claude.com/pricing (verified 2026-06-09 via #939).
+        # Opus 4.7 — thinking-model variant; deprecates non-1.0 temperature.
+        # Same headline rates as Opus 4.5/4.6 tier.
+        input_cost_per_1m_tokens: 5.00
+        output_cost_per_1m_tokens: 25.00
       claude-sonnet-4:
         input_cost_per_1m_tokens: 3.00
         output_cost_per_1m_tokens: 15.00
