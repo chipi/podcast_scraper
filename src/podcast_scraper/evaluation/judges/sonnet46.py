@@ -98,6 +98,15 @@ class Sonnet46Judge:
                 max_tokens=max_tokens,
                 temperature=0.0,
                 messages=[{"role": "user", "content": prompt}],
+                # 120s per-request hard cap. Without this the Anthropic SDK
+                # defaults to 600s + 2 retries = up to 30 min on a single hung
+                # connection — we observed this hanging the finale at the
+                # 2nd-finalist mark on 2026-06-09, idle for 17min with one
+                # ESTABLISHED-but-dead TCP socket and zero CPU. 120s is well
+                # above the ~3s typical Sonnet judge call latency; we'd rather
+                # surface a timeout error and retry one finalist than block the
+                # whole sweep for hours.
+                timeout=120.0,
             )
         except Exception as exc:  # noqa: BLE001
             raise JudgeUnavailableError(f"Sonnet46Judge: Anthropic API call failed: {exc}") from exc

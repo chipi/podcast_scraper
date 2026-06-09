@@ -82,12 +82,17 @@ class Gemini25ProJudge:
         start = time.monotonic()
         try:
             # genai 1.x API
+            # 120s per-request hard cap via http_options.timeout (ms). Without
+            # this, hanging connections can block the sweep indefinitely (we
+            # saw this with the Anthropic SDK on 2026-06-09). Matches the
+            # Sonnet judge's 120s cap.
             response = client.models.generate_content(  # type: ignore[attr-defined]
                 model=self._model,
                 contents=prompt,
                 config={
                     "temperature": 0.0,
                     "max_output_tokens": max_tokens,
+                    "http_options": {"timeout": 120_000},
                 },
             )
         except Exception as exc:  # noqa: BLE001
