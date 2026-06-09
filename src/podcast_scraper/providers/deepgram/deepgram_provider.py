@@ -120,7 +120,15 @@ def _create_deepgram_client(api_key: str, base_url: str | None = None) -> Any:
         try:
             from deepgram.environment import DeepgramClientEnvironment
 
-            env = DeepgramClientEnvironment(base=base_url, production=base_url, agent=base_url)
+            # deepgram-sdk 7.x made ``agent_rest`` a required field; point it at the
+            # override root too. Older SDKs without it raise TypeError -> caught below
+            # (graceful fallback to the hosted client), so this stays back-compatible.
+            env = DeepgramClientEnvironment(
+                base=base_url,
+                production=base_url,
+                agent=base_url,
+                agent_rest=base_url,
+            )
             return DeepgramClient(api_key=api_key, environment=env)
         except Exception as exc:  # noqa: BLE001 - override is best-effort
             logger.warning(
