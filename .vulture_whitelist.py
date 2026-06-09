@@ -17,4 +17,7 @@ _.fixture  # unused function  # noqa: B018
 # TYPE_CHECKING-only imports (used in string annotations in main code)
 rich = None  # cli.py
 Pipeline = None  # summarizer.py
-assert rich is None and Pipeline is None  # use so vulture does not report in this file
+KGProximitySearch = None  # search/retrieval.py (added 2026-06-09 — was failing CI)
+assert (
+    rich is None and Pipeline is None and KGProximitySearch is None
+)  # use so vulture does not report in this file
