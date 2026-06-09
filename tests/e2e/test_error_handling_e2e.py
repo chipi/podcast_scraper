@@ -27,6 +27,20 @@ if PACKAGE_ROOT not in sys.path:
 
 from podcast_scraper import Config, config, run_pipeline, service
 
+# 5xx responses are retried with PRODUCTION backoff: http_retry_total=8 x
+# http_backoff_factor=1.0 sleeps ~0.5+1+2+...+64 ≈ 127s for a single download, plus
+# app-level episode retries (episode_retry_delay_sec=10.0) -- a multi-minute "hang"
+# in tests. These tests assert *graceful 5xx handling*, not backoff timing, so disable
+# the sleeps (backoff_factor=0.0) while still exercising retry -> exhaust -> handle.
+_NO_BACKOFF_RETRY = dict(
+    http_retry_total=2,
+    http_backoff_factor=0.0,
+    rss_retry_total=2,
+    rss_backoff_factor=0.0,
+    episode_retry_max=0,
+    episode_retry_delay_sec=0.0,
+)
+
 
 @pytest.mark.e2e
 @pytest.mark.slow
@@ -64,10 +78,11 @@ class TestHTTPErrorHandling:
                 output_dir=tmpdir,
                 max_episodes=1,
                 whisper_model=config.TEST_DEFAULT_WHISPER_MODEL,
+                **_NO_BACKOFF_RETRY,
             )
 
             # Run pipeline - should raise ValueError after retries fail
-            # (HTTP retries will attempt 5 times, then fail)
+            # (RSS retries exhaust quickly with backoff disabled, then fail)
             with pytest.raises(ValueError, match="Failed to fetch RSS feed"):
                 run_pipeline(cfg)
 
@@ -108,6 +123,7 @@ class TestHTTPErrorHandling:
                 output_dir=tmpdir,
                 max_episodes=1,
                 whisper_model=config.TEST_DEFAULT_WHISPER_MODEL,
+                **_NO_BACKOFF_RETRY,
             )
 
             # Run pipeline - should handle 500 gracefully (with retries)
@@ -331,6 +347,7 @@ class TestPartialFailureHandling:
                 output_dir=tmpdir,
                 max_episodes=3,  # Process multiple episodes
                 whisper_model=config.TEST_DEFAULT_WHISPER_MODEL,
+                **_NO_BACKOFF_RETRY,
             )
 
             # Run pipeline - should handle mixed scenarios
