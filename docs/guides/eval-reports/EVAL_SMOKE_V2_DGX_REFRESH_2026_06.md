@@ -492,3 +492,42 @@ ROUGE-on-cloned-prompt-still-wins observation.
 **Runs** (under `data/eval/runs/`, gitignored):
 
 - `llm_ollama_mistral-small_24b_dgx_smoke_v2_tuned_2026_06/` (Mistral-native [INST])
+
+### Tuned prompt addendum — phi4:14b (#936, 2026-06-09)
+
+**Verdict: neutral — Microsoft-native template doesn't materially move ROUGE; phi4's ceiling on this corpus is in the 0.23–0.25 band regardless of prompt.**
+
+| Dataset | Baseline (Qwen clone) | Tuned (Microsoft `<\|im_start\|>`) | Δ RougeL |
+| --- | --- | --- | --- |
+| `curated_5feeds_smoke_v1` | RougeL 0.240, Cosine 0.813, Cov 0.939 | RougeL **0.247**, Cosine 0.783, Cov 0.772 | +0.007 |
+| `curated_5feeds_smoke_v2` | RougeL 0.241, Cosine 0.822, Cov 0.889 | RougeL 0.233, Cosine 0.808, Cov 0.826 | −0.008 |
+
+**Tuned prompts** at `src/podcast_scraper/prompts/ollama/phi4_14b/summarization/`:
+
+- `system_v1.j2` — short, role-anchor system message matching Phi-4's
+  textbook-style instruction-following per the
+  [microsoft/phi-4 model card](https://huggingface.co/microsoft/phi-4)
+- `long_v1.j2` — user prompt structured for Phi-4's
+  `<|im_start|>{role}<|im_end|>` token convention (Ollama applies wrapping
+  automatically)
+
+**Why neutral**: phi4's outputs on both prompts produce summaries in the
+same length band (~1500-1900 chars). Cosine moved slightly lower with the
+tuned prompt (0.813 → 0.783) but stays in the same general band. The
+"parameter-efficiency winner" claim from the v2.1 Sonnet-silver scoring
+was a style-similarity artifact — Phi-4 happened to write in a Sonnet-like
+prose style, which Opus silver doesn't reward as strongly. With either
+prompt, phi4's Opus-silver ceiling looks ~0.24-0.25 on this corpus.
+
+**Implication for #928**: phi4:14b is a fair 14B-class entry but not a
+championship contender. The Microsoft-native prompt does not unlock a
+meaningfully different result. Keep in matrix as a parameter-efficiency
+reference; don't expect prompt-tuning alone to lift it into the top tier.
+
+The methodology gap that #936 was filed to close (qwen-clone-vs-native
+fairness) is now closed for phi4. The remaining variance comes from
+inherent model behavior, not prompt format.
+
+**Runs** (under `data/eval/runs/`, gitignored):
+
+- `llm_ollama_phi4_14b_dgx_smoke_v2_tuned_2026_06/` (Microsoft-native)
