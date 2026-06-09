@@ -448,3 +448,47 @@ paragraph summarization of our 5-feed smoke corpus.
 
 - `llm_ollama_gemma3_27b_dgx_smoke_v2_tuned_h1_2026_06/` (H1, Q4)
 - `llm_ollama_gemma3_27b_dgx_smoke_v2_tuned_h2_q8_2026_06/` (H2, Q8)
+
+### Tuned prompt addendum — mistral-small:24b (#938, 2026-06-09)
+
+**Verdict: counter-intuitive negative result — Mistral-native [INST] hurts ROUGE on this corpus.**
+
+| Dataset | Baseline (Qwen clone) | Tuned (Mistral [INST]) | Δ RougeL |
+| --- | --- | --- | --- |
+| `curated_5feeds_smoke_v1` | RougeL 0.284, Cosine 0.782, Cov 0.964 | **RougeL 0.257**, Cosine 0.799, Cov 0.781 | **−0.027** |
+| `curated_5feeds_smoke_v2` | RougeL 0.257, Cosine 0.793, Cov 0.952 | RougeL 0.259, Cosine 0.815, Cov 0.764 | +0.002 |
+
+**Tuned prompts** at `src/podcast_scraper/prompts/ollama/mistral-small_24b/summarization/`:
+
+- `system_v1.j2` — concise, declarative role statement per the
+  [Mistral-Small-24B model card](https://huggingface.co/mistralai/Mistral-Small-24B-Instruct-2501)
+  recommendations ("state constraints, don't describe them")
+- `long_v1.j2` — Mistral-native user prompt with crisp task framing first,
+  then transcript payload, then a bullet-list of binding constraints near
+  the assistant turn (recency-window pattern). Ollama auto-wraps in
+  `[INST]...[/INST]`.
+
+**Why the tuned prompt regresses**: the Mistral-native template produces
+**shorter, more declarative summaries** (avg 1818 chars vs the Qwen-clone's
+~2400+). Coverage drops from 0.964 to 0.781 — Mistral is following Mistral's
+"concise, declarative" training style faithfully, but Opus's reference
+summaries are longer and more thorough. Cosine similarity actually improves
+slightly (0.799 vs 0.782), meaning Mistral writes **more like Opus
+semantically** — but ROUGE penalizes the coverage loss more than it rewards
+the semantic alignment.
+
+**Same shape as gemma3 H1/H2**: across both cells, the verbose Qwen-clone
+template wins on ROUGE because it produces output that better matches
+Opus's length and word-overlap pattern. Native prompts produce shorter
+summaries that may be semantically truer but lexically penalized.
+
+**Implication for #928 / #932**: mistral-small:24b is doing fine — the
+result tells us "ROUGE is biased toward verbose summaries that match
+Opus's prose length." G-Eval (#932) on faithfulness / coverage /
+coherence / fluency will likely tell a different story. Keep mistral-small
+on the #928 championship roster pending G-Eval; don't drop it on this
+ROUGE-on-cloned-prompt-still-wins observation.
+
+**Runs** (under `data/eval/runs/`, gitignored):
+
+- `llm_ollama_mistral-small_24b_dgx_smoke_v2_tuned_2026_06/` (Mistral-native [INST])
