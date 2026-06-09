@@ -60,6 +60,16 @@ promotion:
   per_stratum_top_k: 3
   floor_fraction: 0.8   # rougeL >= 0.8 x stratum-leader rougeL
   overall_cap: 12        # global ceiling across strata
+  # Carte blanche — force-include candidates whose run_id contains any of
+  # these substrings, regardless of ROUGE floor / top_k / overall_cap.
+  # Operator add 2026-06-09: the whole reason for G-Eval is to bypass ROUGE
+  # bias — excluding qwen3.5:35b (current prod champion) on its ROUGE-on-
+  # Opus result would be exactly the bias we're trying to escape. The
+  # G-Eval verdict on the current prod model deserves to be in the report
+  # even if its ROUGE fell below the floor.
+  carte_blanche:
+    - autoresearch_prompt_ollama_qwen35_35b_     # current prod champion (#923)
+    - autoresearch_prompt_ollama_qwen3.6_latest_ # v2 challenger ("close" #1)
 
 # Judges
 judges:

@@ -156,12 +156,17 @@ def main() -> int:
     per_stratum_top_k = int(promo_cfg.get("per_stratum_top_k", 3))
     floor_fraction = float(promo_cfg.get("floor_fraction", 0.8))
     overall_cap = args.max_finalists or int(promo_cfg.get("overall_cap", 12))
+    carte_blanche = promo_cfg.get("carte_blanche", []) or []
+    if not isinstance(carte_blanche, list):
+        logger.warning("promotion.carte_blanche should be a list of substrings; ignoring")
+        carte_blanche = []
 
     finalists, promotion = promote_finalists(
         candidates,
         per_stratum_top_k=per_stratum_top_k,
         floor_fraction=floor_fraction,
         overall_cap=overall_cap,
+        carte_blanche=carte_blanche,
     )
     logger.info("Promoted %d finalists across %d strata", len(finalists), len(promotion))
     for p in promotion:

@@ -151,6 +151,7 @@ def promote_finalists(
     per_stratum_top_k: int = 3,
     floor_fraction: float = 0.8,
     overall_cap: int = 12,
+    carte_blanche: Iterable[str] = (),
 ) -> tuple[List[RunCandidate], List[StratumPromotion]]:
     """Apply the #932 promotion rule.
 
@@ -161,7 +162,15 @@ def promote_finalists(
 
     Then trim the union to ``overall_cap`` candidates by global ``rouge_l_f1``
     descending. Returns ``(finalists, per_stratum_promotion)``.
+
+    ``carte_blanche``: list of substrings; any candidate whose ``run_id``
+    contains one of these is force-promoted regardless of floor / top_k /
+    overall_cap. Use for "include the current prod champion even if its
+    ROUGE on the new silver fell below the floor" — since the whole reason
+    for G-Eval is to bypass ROUGE bias, excluding a model on that biased
+    metric is exactly the bias the finale is supposed to escape.
     """
+    carte_blanche_terms = tuple(s for s in carte_blanche if s)
     by_stratum: Dict[str, List[RunCandidate]] = {}
     for c in candidates:
         by_stratum.setdefault(c.stratum, []).append(c)
@@ -204,6 +213,35 @@ def promote_finalists(
         promoted_ids = {r.run_id for r in promoted}
         for s in summary:
             s.promoted = [r for r in s.promoted if r in promoted_ids]
+
+    # Carte blanche — force-include candidates whose run_id matches any of the
+    # configured substrings, even if they were dropped by floor / top_k / cap.
+    # Bypasses overall_cap deliberately: the operator's intent is "I want to
+    # see this model's G-Eval score regardless of ROUGE."
+    if carte_blanche_terms:
+        promoted_ids = {r.run_id for r in promoted}
+        # Walk all candidates again (need full pool, not just the per-stratum
+        # winners) — by_stratum has it.
+        all_candidates = [c for cs in by_stratum.values() for c in cs]
+        for cand in all_candidates:
+            if cand.run_id in promoted_ids:
+                continue
+            if any(term in cand.run_id for term in carte_blanche_terms):
+                promoted.append(cand)
+                promoted_ids.add(cand.run_id)
+                # Record on its stratum_promo for traceability.
+                for s in summary:
+                    if s.name == cand.stratum:
+                        s.promoted.append(cand.run_id)
+                        break
+                # Remove the corresponding rejected entry if any (so the report
+                # doesn't show both 'rejected: below_floor' and 'promoted'
+                # at once).
+                for s in summary:
+                    if s.name == cand.stratum:
+                        s.rejected = [r for r in s.rejected if r.get("run_id") != cand.run_id]
+                        break
+
     return promoted, summary
 
 
