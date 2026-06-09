@@ -73,18 +73,26 @@ watch(
   },
 )
 
+// Selecting a preset commits the value AND dismisses the popover. Without the
+// close(), the open panel keeps overlaying the content below the chip and
+// intercepts the next click (e.g. a digest recent row) — useFilterChipPopover
+// only auto-closes on outside-pointerdown/Escape, which a hit-tested click never
+// reaches, so the UI deadlocks (stack-jobs-flow "wait, evaluate" hung 15m on it).
 function setAll(): void {
   emit('update:modelValue', '')
+  close()
 }
 
 function setPreset(days: 7 | 30 | 90): void {
   emit('update:modelValue', localYmdDaysAgo(days))
+  close()
 }
 
 function commitCustom(): void {
   const v = customInput.value.trim()
   if (!/^\d{4}-\d{2}-\d{2}$/.test(v) && v !== '') return
   emit('update:modelValue', v)
+  close()
 }
 
 function presetButtonClass(active: boolean): string {
