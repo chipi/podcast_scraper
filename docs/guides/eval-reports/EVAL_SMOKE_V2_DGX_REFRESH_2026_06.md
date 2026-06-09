@@ -398,3 +398,53 @@ the #928 championship finalist roster.
 **Coverage caveat**: v1 coverage at 0.631 still lags the qwen baseline's
 ~0.94, so this is a quality-of-summary lift, not a length-discipline
 lift. G-Eval (#932) is the right next gate.
+
+### Tuned prompt addendum — gemma3:27b (#935, 2026-06-09)
+
+**Hypothesis ladder result: H3 accepted — task-fit issue, not prompt or quantization.**
+
+The v2.1 sweep used qwen3.5:9b's prompt templates verbatim for gemma3:27b
+and the rescored result against Opus silver showed gemma3 at the bottom of
+the matrix (RougeL 0.202 on smoke_v1). #935 ran a three-hypothesis ladder:
+
+| Hypothesis | Variant | RougeL vs Opus (v1) | Δ vs baseline (0.202) | Verdict |
+| --- | --- | --- | --- | --- |
+| H1 — prompt format mismatch | Q4_K_M + Gemma-native chat template | **0.188** | **−0.014** | Regressed |
+| H2 — Q4 quantization regression | Q8_0 + Gemma-native chat template | **0.191** | **−0.011** | Marginal vs H1, still regressed |
+| H3 — genuine task-fit | (accept) | — | — | **Accepted** |
+
+**Tuned prompts** at `src/podcast_scraper/prompts/ollama/gemma3_27b/summarization/`:
+
+- `system_v1.j2` — minimal role anchor; Gemma 3's IT chat template has no
+  distinct system role per Google's
+  [model card](https://huggingface.co/google/gemma-3-27b-it#chat-template),
+  so we keep the system message short and place all binding instructions
+  in the user turn.
+- `long_v1.j2` — Gemma-native user prompt: declarative tone, no role-play
+  preamble, binding constraints restated near the assistant turn (recency
+  window pattern).
+
+**Q8 quantization tested** via new config
+`data/eval/configs/summarization/autoresearch_prompt_ollama_gemma3_27b_q8_smoke_paragraph_v1.yaml`
+targeting `gemma3:27b-it-q8_0`. Q8 lifts RougeL by +0.003 over Q4 (0.188 →
+0.191) — a real but small effect. **Quantization is NOT the dominant
+factor**; even at higher precision, gemma3:27b underperforms on this task.
+
+**Why H3 is the right verdict**: across both quantizations and both
+prompts, gemma3's output is consistently shorter and less aligned with
+Opus's prose style than Qwen's. Cosine stays at ~0.78 (vs qwen3.5:35b's
+~0.79), coverage stays at ~0.74-0.78 (vs qwen3.5:35b's ~1.07). Gemma 3's
+instruction-following on text-only paragraph summarization on this corpus
+just isn't competitive. The model is multimodal-tuned (vision-language
+strong); the v2.1 result wasn't a methodology artifact, it was a model
+fit issue.
+
+**Drop from #928 championship roster.** Other Gemma versions or task
+shapes (e.g., bullet-track or with image-text hybrid inputs) might reach
+different conclusions; this verdict is specific to gemma3:27b on
+paragraph summarization of our 5-feed smoke corpus.
+
+**Runs** (under `data/eval/runs/`, gitignored — predictions + Opus metrics persisted):
+
+- `llm_ollama_gemma3_27b_dgx_smoke_v2_tuned_h1_2026_06/` (H1, Q4)
+- `llm_ollama_gemma3_27b_dgx_smoke_v2_tuned_h2_q8_2026_06/` (H2, Q8)
