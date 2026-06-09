@@ -54,6 +54,23 @@ Two cross-cutting tier additions (**#932**, **#933**) sit *above* the existing q
 | [#931](https://github.com/chipi/podcast_scraper/issues/931) | Hybrid routing decision → profile + runbook | phase 2 — championships | open |
 | [#923](https://github.com/chipi/podcast_scraper/issues/923) | Prod profile: all-DGX with cloud fallback | phase 3 — prod target | open |
 
+**Phase 0.5 prompt-tuning** (filed during the v2 sweep PR + after Phase 0):
+
+| # | Title | Status |
+|---|---|---|
+| [#935](https://github.com/chipi/podcast_scraper/issues/935) | Prompt-tune gemma3:27b | open |
+| [#936](https://github.com/chipi/podcast_scraper/issues/936) | Prompt-tune phi4:14b | open |
+| [#937](https://github.com/chipi/podcast_scraper/issues/937) | Prompt-tune hermes3:8b | open |
+| [#938](https://github.com/chipi/podcast_scraper/issues/938) | Prompt-tune mistral-small:24b | open |
+| [#945](https://github.com/chipi/podcast_scraper/issues/945) | Prompt-tune older top-3 (mistral:7b, llama3.2:3b, llama3.1:8b) — optional sidecar | open |
+
+Also surfaced from PR #941 / Phase 0 work:
+
+| # | Title | Status |
+|---|---|---|
+| [#942](https://github.com/chipi/podcast_scraper/issues/942) | Wire DGX services into Sentry | open |
+| [#943](https://github.com/chipi/podcast_scraper/issues/943) | Wire DGX into Prometheus + Grafana | open |
+
 **Out of scope** (still parked, deferred): #629 / #630 / #631 (LoRA path), #912 (qwen3.5:9b bundled JSON workaround — already mitigated), #594 / #853 / #904 / #905 / #906 (closed; their learnings are in `AUTORESEARCH_LEARNINGS_FOR_V3.md`).
 
 ---
