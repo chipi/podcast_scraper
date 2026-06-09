@@ -1,7 +1,7 @@
 """DGX Spark convergent install: Speaches Whisper server via Docker (#814).
 
 Installs the Whisper transcription service that prod
-(``cloud_with_dgx_whisper_primary.yaml``) targets via the tailnet. Speaches
+(``cloud_with_dgx_primary.yaml``) targets via the tailnet. Speaches
 is the renamed upstream of ``faster-whisper-server`` — same OpenAI-compatible
 API surface, distributed as a CUDA Docker image (the pip package was abandoned
 at v0.0.2).

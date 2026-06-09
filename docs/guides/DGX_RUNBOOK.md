@@ -63,7 +63,7 @@ shipped profile enables it. The shim that used to live on `:8001` is gone.
 - `config/profiles/local_dgx_balanced.yaml` — laptop → DGX Ollama; **no LLM cloud fallback** (operator decision 2026-06-07 — DGX outages should be visible, not silently routed to paid cloud).
 - `config/profiles/local_dgx_full.yaml` — measurement only (no cloud fallback in profile).
 - `config/profiles/preprod_local_whisper.yaml` — Stage A dress rehearsal for the prod profile, with laptop-local Whisper instead of DGX Whisper (no DGX dependency for this validation pass).
-- `config/profiles/cloud_with_dgx_whisper_primary.yaml` — prod target; Whisper-on-DGX with cloud fallback at the transcription layer (`transcription_fallback_provider: openai`), LLM is already cloud Gemini.
+- `config/profiles/cloud_with_dgx_primary.yaml` — prod target; Whisper-on-DGX with cloud fallback at the transcription layer (`transcription_fallback_provider: openai`), LLM is already cloud Gemini.
 
 ### P2 — Operator E2E smoke (#811 AC#6)
 
@@ -125,7 +125,7 @@ If you want to revisit `bundled` later: bump the model to `qwen3.5:27b` (the siz
 
 ## Pre-prod laptop validation (Stage A → B → C ladder)
 
-Three gates before flipping prod to `cloud_with_dgx_whisper_primary`. Each stage runs **from your laptop** — no separate pre-prod VPS needed.
+Three gates before flipping prod to `cloud_with_dgx_primary`. Each stage runs **from your laptop** — no separate pre-prod VPS needed.
 
 ### Stage A — laptop with local Whisper (no DGX Whisper service required)
 
@@ -155,7 +155,7 @@ If anything looks wrong, fix it on the prompt / pipeline side before any DGX Whi
 Once #814 lands faster-whisper-server on DGX, the same prod profile becomes runnable end-to-end from your laptop:
 
 ```bash
-podcast-scraper <rss> --profile cloud_with_dgx_whisper_primary --output-dir ~/preprod-stage-b
+podcast-scraper <rss> --profile cloud_with_dgx_primary --output-dir ~/preprod-stage-b
 ```
 
 Three chaos gates here:
@@ -168,7 +168,7 @@ Soak: `make preprod-soak` (added with #814) runs nightly happy-path against the 
 
 ### Stage C — prod flip
 
-Operator profile YAML on prod VPS → `cloud_with_dgx_whisper_primary`. Restart API container. Watch Sentry `dgx.fallback` breadcrumbs for 48 h. Rollback = revert profile + restart (≤ 5 min).
+Operator profile YAML on prod VPS → `cloud_with_dgx_primary`. Restart API container. Watch Sentry `dgx.fallback` breadcrumbs for 48 h. Rollback = revert profile + restart (≤ 5 min).
 
 ## P3 — GitHub Actions self-hosted runner (ADR-097)
 
@@ -185,11 +185,11 @@ Register labels `self-hosted`, `dgx-spark`. Set GitHub repo variables `DGX_TAILN
 
 ## P4 — Prod Whisper primary (ADR-096)
 
-Profile: `config/profiles/cloud_with_dgx_whisper_primary.yaml` (`screenplay: true`, `diarize: true` — same rules as local Whisper; requires `HF_TOKEN` on the pipeline host for pyannote). See [Audio Pipeline Guide](AUDIO_PIPELINE_GUIDE.md).
+Profile: `config/profiles/cloud_with_dgx_primary.yaml` (`screenplay: true`, `diarize: true` — same rules as local Whisper; requires `HF_TOKEN` on the pipeline host for pyannote). See [Audio Pipeline Guide](AUDIO_PIPELINE_GUIDE.md).
 
 Pre-prod validation: log results in [DGX_PROD_VALIDATION_LOG](../operations/DGX_PROD_VALIDATION_LOG.md) (4 weeks, fallback rate under 1%).
 
-Prod rollout: flip operator profile to `cloud_with_dgx_whisper_primary`; watch Sentry for `dgx_fallback_active` breadcrumbs. Grafana fallback panel ships with #803.
+Prod rollout: flip operator profile to `cloud_with_dgx_primary`; watch Sentry for `dgx_fallback_active` breadcrumbs. Grafana fallback panel ships with #803.
 
 Fast disable without code: revert profile in `viewer_operator.yaml` and restart API, or remove prod to DGX ACL rule.
 

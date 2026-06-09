@@ -102,7 +102,7 @@ The reverse — adding NEW DGX-served stages to prod (e.g., summarization, GI, K
 
 1. **Provider abstraction must be the only enforcement point.** Pipeline code calling `provider.transcribe(audio)` should not need to know about DGX vs cloud. The provider class (`tailnet_dgx_whisper` etc.) handles health check + retry + fallback internally.
 2. **Profile YAML schema validates `fallback` presence.** A profile config validator (likely a Pydantic model) refuses to load a profile that names DGX as a primary without `fallback` set.
-3. **CI test exists for the contract.** A unit test deliberately knocks out the DGX endpoint for a `cloud_with_dgx_whisper_primary` profile (or whatever the prod profile is named) and verifies the pipeline still completes via cloud fallback.
+3. **CI test exists for the contract.** A unit test deliberately knocks out the DGX endpoint for a `cloud_with_dgx_primary` profile (or whatever the prod profile is named) and verifies the pipeline still completes via cloud fallback.
 
 ## References
 

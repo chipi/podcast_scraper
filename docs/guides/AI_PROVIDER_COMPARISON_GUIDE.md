@@ -952,7 +952,7 @@ intentionally don't.
 
 Cloud fallback IS used in prod via
 [ADR-096](../adr/ADR-096-dgx-spark-prod-primary-with-fallback.md), but at the
-Whisper layer — the prod profile (`cloud_with_dgx_whisper_primary`) sets
+Whisper layer — the prod profile (`cloud_with_dgx_primary`) sets
 `transcription_fallback_provider: openai`. The LLM is already cloud Gemini
 there, so an LLM-level fallback isn't needed.
 
