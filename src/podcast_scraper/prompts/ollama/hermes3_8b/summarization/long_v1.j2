@@ -1,24 +1,23 @@
+{# Nous-native user prompt for Hermes 3. Wrapped automatically by Ollama into
+   <|im_start|>user ... <|im_end|>. Style follows Nous's chat-template
+   convention: state the task crisply, deliver the payload, restate the
+   binding constraints once at the end so they sit nearest the assistant turn. #}
 Summarize the following podcast episode transcript.
 
-{% if title %}
-Episode Title: {{ title }}
-{% endif %}
+{% if title -%}
+Episode title: {{ title }}
 
+{% endif -%}
 Transcript:
 {{ transcript }}
 
-Guidelines:
-- Write a detailed summary with {{ paragraphs_min }}-{{ paragraphs_max }} paragraphs
-- Focus on key decisions, arguments, and lessons learned
-- Ignore sponsorships, ads, and housekeeping
-- Do not use quotes or speaker names
-- Do not invent information not implied by the transcript
-- Use abstractive summarization - synthesize and rephrase, don't just extract sentences
-- Ensure the summary is coherent and flows naturally
+Write a single coherent summary covering the episode's substantive content. Aim for {{ paragraphs_min }}–{{ paragraphs_max }} paragraphs.
 
-CRITICAL OUTPUT REQUIREMENTS:
-- Return ONLY plain text summary, no markdown, no code blocks, no JSON
-- Start directly with the summary content
-- Use clear paragraph breaks
-- Write in third person, past tense where appropriate
-- Ensure all information is accurate and grounded in the transcript
+Constraints (must hold):
+- Abstractive and synthesized; no verbatim sentence copying.
+- Focus on decisions, arguments, lessons, and insights that drove the conversation forward.
+- Ignore ads, sponsorships, listener mail, and housekeeping segments.
+- No speaker names. No direct quotations.
+- Do not invent facts beyond what the transcript supports.
+- Plain text only — no markdown, no headings, no bullet lists, no code blocks, no JSON.
+- Begin directly with the summary content; no preamble or framing sentence.

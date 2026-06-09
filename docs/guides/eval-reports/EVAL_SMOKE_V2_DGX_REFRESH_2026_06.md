@@ -358,3 +358,43 @@ differently-but-well — Opus silver lets the metric breathe.
 - [EVAL_SMOKE_V1_DGX_VS_LAPTOP_2026_06](EVAL_SMOKE_V1_DGX_VS_LAPTOP_2026_06.md) — the prior DGX validation pass
 - [docs/wip/AUTORESEARCH_NEXT_PHASE_DEPENDENCIES.md](../../wip/AUTORESEARCH_NEXT_PHASE_DEPENDENCIES.md) — dependency map across the open work
 - [docs/wip/AUTORESEARCH_LEARNINGS_FOR_V3.md](../../wip/AUTORESEARCH_LEARNINGS_FOR_V3.md) — failure-mode catalogue
+
+### Tuned prompt addendum — hermes3:8b (#937, 2026-06-09)
+
+**Verdict: Nous-native ChatML helps.** Hermes 3 is a Nous Research
+fine-tune of Llama 3.1 8B, post-trained against a ChatML-style chat
+template with a persona-forward system message (per the
+[Hermes-3-Llama-3.1-8B model card](https://huggingface.co/NousResearch/Hermes-3-Llama-3.1-8B)).
+The smoke-v2 baseline run used the generic qwen3.5:9b prompts verbatim;
+this tuning pass replaces them with a Nous-shaped pair that mirrors the
+"You are Hermes 3..." opener the model was explicitly trained on, then
+states the task constraints. Ollama applies the `<|im_start|>/<|im_end|>`
+ChatML wrapping automatically — the `.j2` files supply only the message
+*content*.
+
+**Prompts** (in this commit):
+
+- `src/podcast_scraper/prompts/ollama/hermes3_8b/summarization/system_v1.j2`
+- `src/podcast_scraper/prompts/ollama/hermes3_8b/summarization/long_v1.j2`
+
+**Tuned run dir**: `data/eval/runs/llm_ollama_hermes3_8b_dgx_smoke_v2_tuned_2026_06/`
+
+**Numbers — `vs silver_opus47`:**
+
+| Dataset | Baseline (generic prompt) | Tuned (Nous-native) | Δ RougeL |
+| --- | --- | --- | --- |
+| `curated_5feeds_smoke_v1` | RougeL 0.279, Cosine 0.785, Cov 0.567 | **RougeL 0.309**, Cosine 0.769, Cov 0.631 | **+0.030** |
+| `curated_5feeds_smoke_v2` | RougeL 0.265, Cosine 0.776, Cov 0.761 | **RougeL 0.306**, Cosine 0.787, Cov 0.786 | **+0.041** |
+
+**Reading the result**: the Nous-native template lifts Hermes 3 from
+rank 5 (v1) / rank 5 (v2) on the rescored scoreboard into the top tier with
+mistral:7b (0.329 v1 / 0.302 v2) and llama3.1:8b (0.307 v1 / 0.282 v2).
+This is one of the three valid outcomes the ticket
+[#937](https://github.com/chipi/podcast_scraper/issues/937)
+called out — the Nous fine-tune *does* help summarization when the
+prompt matches its training distribution. The cell deserves a slot in
+the #928 championship finalist roster.
+
+**Coverage caveat**: v1 coverage at 0.631 still lags the qwen baseline's
+~0.94, so this is a quality-of-summary lift, not a length-discipline
+lift. G-Eval (#932) is the right next gate.
