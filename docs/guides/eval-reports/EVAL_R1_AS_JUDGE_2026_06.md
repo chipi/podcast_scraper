@@ -88,23 +88,58 @@ python scripts/eval/explore_r1_as_judge.py \
 Estimated cost: ~24 × $0.02 = **~$0.48 of Sonnet credits** (R1 is free).
 Estimated wall clock: ~6 minutes (R1:32b takes 30-60s/call on DGX).
 
-## Results
+## Results — 2026-06-09 run
 
-_To be populated after the operator approves the spend + DGX Ollama is up._
+**Verdict: INTEGRATE.** R1:32b cleared the ≥75% agreement threshold by a
+comfortable margin and is now eligible as a $0 third judge in finale
+sweeps.
 
 ```
-overall_agreement_rate: (TBD)
+overall_agreement_rate: 0.8824  (n=17 valid pairs of 24 sampled)
 per_dimension:
-  faithfulness: (TBD)
-  coverage:     (TBD)
-  coherence:    (TBD)
-  fluency:      (TBD)
-recommendation: (TBD)
+  faithfulness: 0.833  (5/6)
+  coverage:     1.000  (4/4)
+  coherence:    0.750  (3/4)   <- right at threshold; tighter CI on more pairs
+  fluency:      1.000  (3/3)
+per_stratum:
+  dgx_le_40b:   1.000  (7/7)
+  mbp_le_14b:   0.800  (8/10)
+recommendation: integrate
+threshold:      0.75
+tolerance:      1     (exact-or-adjacent on the 1-5 scale)
 ```
 
-When this runs, append the raw `agreement_report.json` block and a one-line
-verdict here, then update `docs/wip/AUTORESEARCH_NEXT_PHASE_AGENT_PLAN.md`
-Phase 1 status.
+**Cost actual**: ~$0.30 of `AUTORESEARCH_JUDGE_ANTHROPIC_API_KEY` credits
+(under the $0.48 estimate — Sonnet was less verbose than projected).
+
+**Caveat — empty-response parse failures on fluency**: 7 of 24 attempted
+pairs returned `parse: Empty judge response`, all concentrated on the
+`fluency` dimension specifically (`p04_e01` triggered most). R1's
+fluency response shape diverges from coverage/coherence/faithfulness
+just often enough that the JSON-extractor whiffs. The 17 surviving pairs
+are still well above the threshold, but the parser deserves a small
+hardening pass before the full finale runs against more pairs at higher
+volume (otherwise the cost guard might exclude legitimate R1 votes).
+
+**Decision applied**:
+
+- R1:32b becomes the third judge slot in the finale tier. Future runs
+  can use the configuration `judges.tertiary: { kind: deepseek_r1,
+  model: deepseek-r1:32b }` for a $0 cross-check that catches
+  Sonnet/Gemini disagreement.
+- Parser hardening tracked as a follow-up — surface fluency-style
+  responses (single-sentence `"5 - the prose flows naturally..."`)
+  alongside the existing JSON-shaped path.
+- Coherence agreement at exactly 0.75 (3/4) is a low-sample data point;
+  if we use R1 for coherence specifically, a larger sample (n≥20 on that
+  dimension alone) would confirm the score isn't lucky.
+
+**Artifacts** (gitignored, persisted on disk):
+
+- `data/eval/runs/finale/r1_as_judge_2026_06/agreement_report.json`
+- `data/eval/runs/finale/r1_as_judge_2026_06/pair_scores.jsonl` (one row per
+  (run, episode, dim, judge) with raw score + cost — useful for
+  per-pair diagnosis of which R1 calls hit parse failures)
 
 ## Why we shipped the harness without running it
 
