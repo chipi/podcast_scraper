@@ -1,0 +1,47 @@
+{
+  "callbacks": [],
+  "episode_id": "p09_e01",
+  "extra_alias_callbacks": [],
+  "failure_modes": [
+    "recurring_guest",
+    "position_arc_multi",
+    "multi_accent"
+  ],
+  "guest_accent": "de-DE",
+  "host_accent": "en-US",
+  "host_canonical_name": "Sam",
+  "podcast_id": "p09",
+  "position_arc": "In our 2024 conversation I was more optimistic about top-down interventions. I've revised that \u2014 the work happens at the seams.",
+  "primary_guest_canonical_id": "p09:Elena",
+  "primary_guest_canonical_name": "Dr. Elena Fischer",
+  "primary_guest_surface_in_transcript": "Dr. Elena Fischer",
+  "primary_topic": "topic:systems-thinking",
+  "secondary_topics": [
+    "topic:sustainability",
+    "topic:reliability"
+  ],
+  "sponsor_blocks": [
+    {
+      "brand": "Notion",
+      "kind": "template_opening",
+      "line_index": 11
+    },
+    {
+      "brand": "Linear",
+      "kind": "template_midroll",
+      "line_index": 23
+    },
+    {
+      "brand": "Stripe",
+      "kind": "template_closing",
+      "line_index": 44
+    }
+  ],
+  "surface_forms": [
+    {
+      "canonical_id": "p09:Elena",
+      "kind": "canonical",
+      "surface": "Dr. Elena Fischer"
+    }
+  ]
+}

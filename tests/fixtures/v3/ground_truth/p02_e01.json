@@ -1,0 +1,48 @@
+{
+  "callbacks": [],
+  "episode_id": "p02_e01",
+  "extra_alias_callbacks": [],
+  "failure_modes": [
+    "asr_garble",
+    "recurring_guest",
+    "position_arc_multi"
+  ],
+  "guest_accent": "en-IN",
+  "host_accent": "en-US",
+  "host_canonical_name": "Ethan",
+  "podcast_id": "p02",
+  "position_arc": "I'm a believer in centralizing the security function. One team, one source of truth, one neck to wring.",
+  "primary_guest_canonical_id": "p02:Priya",
+  "primary_guest_canonical_name": "Priya Nair",
+  "primary_guest_surface_in_transcript": "Priya Nair",
+  "primary_topic": "topic:on-call-rotation",
+  "secondary_topics": [
+    "topic:reliability",
+    "topic:incident-response",
+    "topic:systems-thinking"
+  ],
+  "sponsor_blocks": [
+    {
+      "brand": "Linear",
+      "kind": "template_opening",
+      "line_index": 11
+    },
+    {
+      "brand": "PagerDuty",
+      "kind": "template_midroll",
+      "line_index": 29
+    },
+    {
+      "brand": "Sentry",
+      "kind": "template_closing",
+      "line_index": 62
+    }
+  ],
+  "surface_forms": [
+    {
+      "canonical_id": "p02:Priya",
+      "kind": "canonical",
+      "surface": "Priya Nair"
+    }
+  ]
+}

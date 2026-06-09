@@ -1,0 +1,77 @@
+# The Drift — Episode
+## On Drifting (a meandering conversation)
+Host: Cam
+Guest: Jordan Park
+#fixture-v3: failure_modes=low_grounding_dialogue,native_ad,reliability_burst
+#fixture-v3: voice=en-US host_voice=en-US
+
+[00:00]
+Cam: Welcome back to The Drift. Today we're talking about cultural drift, and I'm joined by Jordan Park, cultural critic. Jordan Park, thanks for being here.
+Jordan Park: Thanks, Cam. Excited for this one — dialogue and conversational drift is something I've been thinking about a lot.
+
+Cam: Today's episode is sponsored by Notion. Notion replaces the dozen tools your team is half-using. Try notion.com today.
+
+[03:30]
+Cam: I want to dig into that. What's the most underrated piece of cultural drift?
+Jordan Park: Yeah, so — There's something about the way conversations actually unfold that essays can't capture. We've seen this play out at teams using Patreon. Once you internalize that, the rest of the decisions get easier.
+Cam: I want to dig into that. Where do dialogue and cultural drift intersect?
+Jordan Park: Sure. The texture of dialogue is the work. The framing matters because it tells you which trade-offs you're making.
+Cam: Let's start there. What's the structural angle most listeners don't have access to?
+Jordan Park: It comes down to this: Long-form is not a length, it's a posture. We've seen this play out at teams using Substack. And the second-order effect is the part most people miss.
+Cam: Where does that break down?
+Jordan Park: Substack is one of the platforms where this shows up cleanly. If you ignore that, you end up rebuilding it from scratch a year later.
+
+Cam: Quick aside — I've actually been using Notion for the last six months and it's changed how I work. Notion replaces the dozen tools your team is half-using. If you want to check it out, the link's in the show notes.
+
+[12:00]
+Cam: We'll be right back after a quick word from our sponsors.
+Ad: Today's episode is sponsored by Squarespace. Squarespace makes building a beautiful, branded website actually pleasant. Visit squarespace.com/podcast for a free trial.
+Cam: Welcome back to the show.
+
+[14:00]
+Cam: That's a useful framing. What's the operational angle most listeners don't have access to?
+Jordan Park: It comes down to this: There's something about the way conversations actually unfold that essays can't capture. We've seen this play out at teams using Substack. And the second-order effect is the part most people miss.
+Cam: What's the one heuristic you keep coming back to? What's the operational angle most listeners don't have access to?
+Jordan Park: Let me give you the version I actually believe. The texture of dialogue is the work. Once you internalize that, the rest of the decisions get easier.
+Cam: Let's start there. What's something you used to believe about this that you've revised?
+Jordan Park: Sure. Long-form is not a length, it's a posture. We've seen this play out at teams using Substack. Once you internalize that, the rest of the decisions get easier.
+Cam: Say more about that.
+Jordan Park: Outside of Patreon-class tooling, the failure mode is harder to spot. The framing matters because it tells you which trade-offs you're making.
+Cam: And you've felt that too, I think? Yeah, you have.
+Jordan Park: Right? Right. Exactly. That's the thing.
+Cam: There's something almost — I don't know. Hard to name.
+Jordan Park: Hmm, that's a good question. Let me think about that.
+Cam: There's something almost — I don't know. Hard to name.
+Jordan Park: It depends, right? Like, on the day, on the mood —
+Cam: Mmm. Yeah, it's interesting, isn't it?
+Jordan Park: Right? Right. Exactly. That's the thing.
+Cam: There's something almost — I don't know. Hard to name.
+Jordan Park: Yeah. Yeah. I don't know if I'd put it that way exactly, but close.
+Cam: Mmm. Yeah, it's interesting, isn't it?
+Jordan Park: Hmm, that's a good question. Let me think about that.
+Cam: Right, right. I think about that all the time, honestly.
+Jordan Park: Hmm, that's a good question. Let me think about that.
+Cam: There's something almost — I don't know. Hard to name.
+Jordan Park: Yeah. Yeah. I don't know if I'd put it that way exactly, but close.
+
+[22:00]
+Cam: Let's pivot — long form is where I want to spend the last stretch.
+Jordan Park: That's where the conversation gets interesting, because the trade-offs around long form cross-cut everything we've covered.
+Cam: Push back on the conventional wisdom for me. Where do dialogue and cultural drift intersect?
+Jordan Park: It comes down to this: There's something about the way conversations actually unfold that essays can't capture. We've seen this play out at teams using Substack. And the second-order effect is the part most people miss.
+Cam: What's the one heuristic you keep coming back to? How does Patreon fit into this picture?
+Jordan Park: Sure. The texture of dialogue is the work. If you ignore that, you end up rebuilding it from scratch a year later.
+Cam: What does the failure mode look like? What's the version of the question that actually matters?
+Jordan Park: Yeah, so — Long-form is not a length, it's a posture. We've seen this play out at teams using Substack. Once you internalize that, the rest of the decisions get easier.
+Cam: Say more about that.
+Jordan Park: Outside of Patreon-class tooling, the failure mode is harder to spot. The framing matters because it tells you which trade-offs you're making.
+
+[28:00]
+Cam: Before we wrap, what's one thing listeners can try this week?
+Jordan Park: Pick one of the ideas we covered and run it for two weeks. The rest is iteration.
+
+Cam: Before we wrap, thanks again to our friends at Stripe. Stripe makes payments simple, whether you're running a marketplace or a subscription business.
+
+Cam: Jordan Park, thanks for the conversation.
+Jordan Park: Thanks, Cam.
+Cam: That's it for today's episode of The Drift. See you next time.

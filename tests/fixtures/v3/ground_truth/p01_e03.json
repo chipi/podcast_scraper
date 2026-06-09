@@ -1,0 +1,74 @@
+{
+  "callbacks": [
+    "Sophie Lorent was on last episode talking about tire pressure mattering more than suspension tweaks."
+  ],
+  "episode_id": "p01_e03",
+  "extra_alias_callbacks": [
+    {
+      "canonical_id": "p01:Sophie",
+      "surface": "Sophie Lorent"
+    },
+    {
+      "canonical_id": "p01:Liam",
+      "surface": "Liam Vandermeer"
+    }
+  ],
+  "failure_modes": [
+    "asr_garble",
+    "alias_invention",
+    "native_ad"
+  ],
+  "guest_accent": "en-US",
+  "host_accent": "en-US",
+  "host_canonical_name": "Maya",
+  "podcast_id": "p01",
+  "position_arc": null,
+  "primary_guest_canonical_id": "p01:Noah",
+  "primary_guest_canonical_name": "Noah Brier",
+  "primary_guest_surface_in_transcript": "Noah Bryer",
+  "primary_topic": "topic:drivetrain-mechanics",
+  "secondary_topics": [
+    "topic:maintenance",
+    "topic:risk-management"
+  ],
+  "sponsor_blocks": [
+    {
+      "brand": "Notion",
+      "kind": "template_opening",
+      "line_index": 11
+    },
+    {
+      "brand": "Linear",
+      "kind": "native_ad",
+      "line_index": 30,
+      "note": "Host-read native ad \u2014 no canonical 'brought to you by' marker."
+    },
+    {
+      "brand": "Stripe",
+      "kind": "template_midroll",
+      "line_index": 34
+    },
+    {
+      "brand": "Linear",
+      "kind": "template_closing",
+      "line_index": 67
+    }
+  ],
+  "surface_forms": [
+    {
+      "canonical_id": "p01:Noah",
+      "kind": "garble",
+      "surface": "Noah Bryer"
+    },
+    {
+      "canonical_id": "p01:Sophie",
+      "kind": "first_name_only",
+      "surface": "Sophie Lorent"
+    },
+    {
+      "canonical_id": "p01:Liam",
+      "kind": "first_name_only",
+      "surface": "Liam Vandermeer"
+    }
+  ]
+}

@@ -1,0 +1,65 @@
+# The Long View — Sustainability — Episode
+## What Sustainability Really Means
+Host: Alex Morgan
+Guest: Dr. Elena Fischer
+#fixture-v3: failure_modes=multi_accent,recurring_guest,long_context_chunk_boundary,high_person_density
+#fixture-v3: voice=de-DE host_voice=en-AU
+
+[00:00]
+Alex Morgan: Welcome back to The Long View — Sustainability. Today we're talking about sustainability, and I'm joined by Dr. Elena Fischer, sustainability researcher and systems thinker. Dr. Elena Fischer, thanks for being here.
+Dr. Elena Fischer: Thanks, Alex Morgan. Excited for this one — sustainability and systems thinking is something I've been thinking about a lot.
+
+Alex Morgan: Today's episode is sponsored by Notion. Notion replaces the dozen tools your team is half-using. Try notion.com today.
+
+[03:30]
+Alex Morgan: That's a useful framing. Where do systems thinking and sustainability intersect?
+Dr. Elena Fischer: Let me give you the version I actually believe. Sustainability is a systems-thinking problem before it's an environmental problem. We've seen this play out at teams using Carbon Trust. And the second-order effect is the part most people miss.
+Alex Morgan: That's a useful framing. What's the version of the question that actually matters?
+Dr. Elena Fischer: Here's how I think about it. The most expensive thing about climate is the optionality you lose by delaying. And the second-order effect is the part most people miss.
+Alex Morgan: Walk me through a concrete example. How does IPCC fit into this picture?
+Dr. Elena Fischer: Yeah, so — Risk management at planetary scale looks like reliability engineering at company scale. We've seen this play out at teams using IPCC. I've watched this pattern hold across three different teams.
+Alex Morgan: Say more about that.
+Dr. Elena Fischer: And when teams adopt Carbon Trust in that flow, the trade-off becomes visible — And the second-order effect is the part most people miss.
+Alex Morgan: Take me through the decision. Where do systems thinking and sustainability intersect?
+Dr. Elena Fischer: Here's how I think about it. Carbon accounting needs the rigor double-entry bookkeeping brought to finance. And the second-order effect is the part most people miss.
+
+[12:00]
+Alex Morgan: We'll be right back after a quick word from our sponsors.
+Ad: Today's episode is sponsored by Linear. Linear is the issue tracker built for speed — keyboard-first. Visit linear.com/podcast for a free trial.
+Alex Morgan: Welcome back to the show.
+
+[14:00]
+Alex Morgan: I want to dig into that. How does Carbon Trust fit into this picture?
+Dr. Elena Fischer: Yeah, so — Sustainability is a systems-thinking problem before it's an environmental problem. We've seen this play out at teams using IEA. Once you internalize that, the rest of the decisions get easier.
+Alex Morgan: Take me through the decision. What's the most underrated piece of sustainability?
+Dr. Elena Fischer: Yeah, so — The most expensive thing about climate is the optionality you lose by delaying. The framing matters because it tells you which trade-offs you're making.
+Alex Morgan: Walk me through a concrete example. How does Project Drawdown fit into this picture?
+Dr. Elena Fischer: Honestly, Risk management at planetary scale looks like reliability engineering at company scale. We've seen this play out at teams using Carbon Trust. I've watched this pattern hold across three different teams.
+Alex Morgan: Say more about that.
+Dr. Elena Fischer: And when teams adopt Carbon Trust in that flow, the trade-off becomes visible — The framing matters because it tells you which trade-offs you're making.
+Alex Morgan: Push back on the conventional wisdom for me. What's something you used to believe about this that you've revised?
+Dr. Elena Fischer: Here's how I think about it. Carbon accounting needs the rigor double-entry bookkeeping brought to finance. And the second-order effect is the part most people miss.
+
+[22:00]
+Alex Morgan: Let's pivot — reliability is where I want to spend the last stretch.
+Dr. Elena Fischer: That's where the conversation gets interesting, because the trade-offs around reliability cross-cut everything we've covered.
+Alex Morgan: That's a useful framing. What's something you used to believe about this that you've revised?
+Dr. Elena Fischer: Here's how I think about it. Sustainability is a systems-thinking problem before it's an environmental problem. We've seen this play out at teams using Carbon Trust. If you ignore that, you end up rebuilding it from scratch a year later.
+Alex Morgan: Walk me through a concrete example. What's something you used to believe about this that you've revised?
+Dr. Elena Fischer: Here's how I think about it. The most expensive thing about climate is the optionality you lose by delaying. And the second-order effect is the part most people miss.
+Alex Morgan: Push back on the conventional wisdom for me. Where do systems thinking and sustainability intersect?
+Dr. Elena Fischer: Yeah, so — Risk management at planetary scale looks like reliability engineering at company scale. We've seen this play out at teams using Carbon Trust. The framing matters because it tells you which trade-offs you're making.
+Alex Morgan: Where does that break down?
+Dr. Elena Fischer: Project Drawdown is one of the platforms where this shows up cleanly. And the second-order effect is the part most people miss.
+Alex Morgan: Walk me through a concrete example. Where do systems thinking and sustainability intersect?
+Dr. Elena Fischer: Yeah, so — Carbon accounting needs the rigor double-entry bookkeeping brought to finance. I've watched this pattern hold across three different teams.
+
+[28:00]
+Alex Morgan: Before we wrap, what's one thing listeners can try this week?
+Dr. Elena Fischer: Pick one of the ideas we covered and run it for two weeks. The rest is iteration.
+
+Alex Morgan: And finally, a big thank you to our partners at Stripe. Stripe makes payments simple, whether you're running a marketplace or a subscription business. Check out stripe.com.
+
+Alex Morgan: Dr. Elena Fischer, thanks for the conversation.
+Dr. Elena Fischer: Thanks, Alex Morgan.
+Alex Morgan: That's it for today's episode of The Long View — Sustainability. See you next time.
