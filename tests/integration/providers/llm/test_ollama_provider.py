@@ -53,7 +53,7 @@ pytestmark = pytest.mark.critical_path
 
 @pytest.mark.integration
 class TestOllamaOpenAiChatExtraKwargs(unittest.TestCase):
-    """Qwen 3.5 needs reasoning_effort none so message.content is populated."""
+    """Qwen 3.x reasoning models need reasoning_effort none so content is populated."""
 
     def test_qwen35_tags_get_reasoning_effort_none(self) -> None:
         self.assertEqual(
@@ -62,6 +62,26 @@ class TestOllamaOpenAiChatExtraKwargs(unittest.TestCase):
         )
         self.assertEqual(
             _ollama_openai_chat_extra_kwargs("Qwen3.5:27b"),
+            {"extra_body": {"reasoning_effort": "none"}},
+        )
+
+    def test_qwen36_tags_get_reasoning_effort_none(self) -> None:
+        # Regression for 2026-06-08 smoke v2 sweep: qwen3.6:latest produced
+        # 0-token content because reasoning was active and consumed all
+        # num_predict on thinking tokens.
+        self.assertEqual(
+            _ollama_openai_chat_extra_kwargs("qwen3.6:latest"),
+            {"extra_body": {"reasoning_effort": "none"}},
+        )
+        self.assertEqual(
+            _ollama_openai_chat_extra_kwargs("Qwen3.6:latest"),
+            {"extra_body": {"reasoning_effort": "none"}},
+        )
+
+    def test_qwen3_coder_tags_get_reasoning_effort_none(self) -> None:
+        # qwen3-coder uses the same reasoning channel; cover the qwen3-* form.
+        self.assertEqual(
+            _ollama_openai_chat_extra_kwargs("qwen3-coder:30b"),
             {"extra_body": {"reasoning_effort": "none"}},
         )
 
