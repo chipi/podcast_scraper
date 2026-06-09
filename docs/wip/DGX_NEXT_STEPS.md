@@ -148,13 +148,25 @@ Each step is independent and reversible. Steps 1-5 have ZERO impact on prod (sha
 
 ---
 
+## Observability gap (2026-06-09)
+
+Currently we have **zero metrics, zero error tracking** for DGX itself. Only visibility is SSH + `docker logs` + `nvidia-smi`. This needs to land soon — when vLLM-prod ships and we hit cross-service issues, debugging without metrics will be painful.
+
+Two issues filed:
+
+- **[#942 — Sentry on DGX services](https://github.com/chipi/podcast_scraper/issues/942)** (~½ day). Add `sentry_sdk.init(...)` to pyannote-server and future vLLM-prod containers. Separate Sentry project from the pipeline so DGX errors don't pollute pipeline error rates. Would have caught the 7 compat bugs we hit during the pyannote deploy.
+- **[#943 — Prometheus + Grafana](https://github.com/chipi/podcast_scraper/issues/943)** (~1-2 days). Deploy `dcgm-exporter` + `node-exporter` + `cadvisor` on DGX, scrape over tailnet from existing Prometheus, add `grafana-dashboard-dgx.json` with per-service GPU memory split + request rates + tailnet RTT.
+
+These slot after PR #941 lands but before the vLLM-prod work (step 3 of the recommended sequencing) — debugging vLLM resource issues without metrics is masochistic.
+
 ## Open questions (capture as they come up)
 
 - **Q1**: At what point does NER offload become worth it? Concrete trigger: ?
 - **Q2**: Do we want a `vllm_fallback_provider: ollama` chain (so vLLM-down doesn't drop to cloud)? Probably yes — keeps cost at $0 even during vLLM container restart.
-- **Q3**: How do we monitor vLLM + Ollama memory pressure live so we don't OOM during autoresearch overlapping prod? Likely answer: Grafana panel with nvidia-smi exporter + dcgm-exporter on DGX.
+- **Q3**: ~~How do we monitor vLLM + Ollama memory pressure live so we don't OOM during autoresearch overlapping prod?~~ → answered: #943 ships the GPU/container exporter + Grafana panel.
 - **Q4**: vLLM container restart strategy — does the prod pipeline retry on 502s during a hot-swap? Currently TailnetDgxWhisperProvider has retry+fallback; need same shape for the LLM provider.
 - **Q5**: Should we evaluate AWQ/GPTQ quantization for vLLM to make llama3.3:70b viable? Would put us back into Ollama-Q4 quality territory but with vLLM's batching.
+- **Q6**: Where does Prometheus actually run today? `compose/grafana-agent.yaml` is in the repo — verify it scrapes from a centralized location accessible over tailnet. Needed before #943 can scrape DGX.
 
 ---
 
@@ -176,3 +188,4 @@ This doc differs by being the **strategic** view — when to run what where, and
 ## Changelog
 
 - **2026-06-09** — Initial draft after a conversation surfaced (a) corrected 128GB memory assumption, (b) operator's plan to run parallel pipelines (Scenario B → C), and (c) the NER + embeddings offload question.
+- **2026-06-09** — Added "Observability gap" section. Filed #942 (Sentry) + #943 (Prometheus/Grafana). Operator-prompted: "what about adding DGX to Sentry and Grafana?" — both should land before vLLM-prod ships to make resource debugging tractable.
