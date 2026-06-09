@@ -17,14 +17,14 @@ from pathlib import Path
 import pytest
 
 from podcast_scraper.evaluation.finale_runner import (
-    FinalistAggregate,
-    RunCandidate,
-    StratumPromotion,
     _pairwise_agreement_rate,
     aggregate_finalist,
+    FinalistAggregate,
     load_run_candidate,
     promote_finalists,
     render_report_markdown,
+    RunCandidate,
+    StratumPromotion,
 )
 from podcast_scraper.evaluation.g_eval import DimensionScore, SummaryScore
 

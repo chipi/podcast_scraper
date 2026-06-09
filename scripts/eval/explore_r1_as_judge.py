@@ -51,8 +51,8 @@ from podcast_scraper.evaluation.finale_runner import (  # noqa: E402
     promote_finalists,
 )
 from podcast_scraper.evaluation.g_eval import (  # noqa: E402
-    DIMENSIONS,
     build_dimension_prompt,
+    DIMENSIONS,
     parse_dimension_response,
 )
 from podcast_scraper.evaluation.judges import (  # noqa: E402

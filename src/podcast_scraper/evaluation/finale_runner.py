@@ -28,8 +28,8 @@ from typing import Any, Dict, Iterable, List, Optional
 
 from podcast_scraper.evaluation.g_eval import (
     DIMENSIONS,
-    SummaryScore,
     score_summary,
+    SummaryScore,
 )
 from podcast_scraper.evaluation.judges.base import JudgeUnavailableError
 

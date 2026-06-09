@@ -18,10 +18,10 @@ from typing import Any
 import pytest
 
 from podcast_scraper.evaluation.g_eval import (
-    DIMENSIONS,
-    DimensionScore,
     agreement_rate,
     build_dimension_prompt,
+    DIMENSIONS,
+    DimensionScore,
     parse_dimension_response,
     score_summary,
 )
