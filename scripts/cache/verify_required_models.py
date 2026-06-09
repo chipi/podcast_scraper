@@ -13,15 +13,49 @@ Exits non-zero and prints the missing models if any required model is absent.
 
 from __future__ import annotations
 
+import importlib
+import importlib.util
 import sys
+import types
 from pathlib import Path
+
+_SRC = Path(__file__).resolve().parents[2] / "src"
 
 
 def _ensure_src_on_path() -> None:
-    root = Path(__file__).resolve().parents[2]
-    src = root / "src"
-    if src.is_dir() and str(src) not in sys.path:
-        sys.path.insert(0, str(src))
+    if _SRC.is_dir() and str(_SRC) not in sys.path:
+        sys.path.insert(0, str(_SRC))
+
+
+def _load_light(module_name: str, rel_path: str):
+    """Import a *lightweight* ``podcast_scraper`` submodule without the heavy deps.
+
+    This verifier runs at the CI "validate cache" step BEFORE dependencies are
+    installed (to fail fast before the expensive ``[ml]`` install), so importing
+    the package normally explodes: ``podcast_scraper/__init__`` pulls ``config``
+    (-> ``yaml``) and ``providers/ml/__init__`` pulls ``MLProvider`` (-> ``torch``).
+    The data this script needs (the model manifest, the HF cache dir) lives in
+    leaf modules that only use the stdlib. Try a normal import first (works once
+    deps are installed -- the preload job, local use); on failure, register
+    namespace stubs for the parent packages so the leaf module loads by file
+    without executing any ``__init__``.
+    """
+    try:
+        return importlib.import_module(module_name)
+    except Exception:
+        parts = module_name.split(".")
+        for i in range(1, len(parts)):
+            pkg = ".".join(parts[:i])
+            if pkg not in sys.modules:
+                stub = types.ModuleType(pkg)
+                stub.__path__ = [str(_SRC / Path(*parts[:i]))]  # type: ignore[attr-defined]
+                sys.modules[pkg] = stub
+        spec = importlib.util.spec_from_file_location(module_name, str(_SRC / rel_path))
+        assert spec and spec.loader
+        mod = importlib.util.module_from_spec(spec)
+        sys.modules[module_name] = mod
+        spec.loader.exec_module(mod)
+        return mod
 
 
 def _whisper_cached(name: str) -> bool:
@@ -30,9 +64,10 @@ def _whisper_cached(name: str) -> bool:
 
 def _hf_cached(model_id: str) -> bool:
     """True if the HF hub cache has a non-empty dir for ``model_id``."""
-    from podcast_scraper.cache.directories import get_transformers_cache_dir
-
-    cache_dir = get_transformers_cache_dir()
+    directories = _load_light(
+        "podcast_scraper.cache.directories", "podcast_scraper/cache/directories.py"
+    )
+    cache_dir = directories.get_transformers_cache_dir()
     model_dir = cache_dir / f"models--{model_id.replace('/', '--')}"
     if not model_dir.is_dir():
         return False
@@ -54,7 +89,10 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
 
     _ensure_src_on_path()
-    from podcast_scraper.providers.ml import model_manifest as mm
+    mm = _load_light(
+        "podcast_scraper.providers.ml.model_manifest",
+        "podcast_scraper/providers/ml/model_manifest.py",
+    )
 
     # Kinds delivered via the ml-models artifact (HF hub cache / whisper cache).
     artifact_checks = {
