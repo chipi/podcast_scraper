@@ -98,6 +98,7 @@ class DeepSeekR1Judge:
         return self._client
 
     def score(self, prompt: str, *, max_tokens: int = 1024) -> JudgeResult:
+        """Send ``prompt`` to DGX Ollama; return the R1 reply with ``<think>`` stripped."""
         client = self._ensure_client()
         start = time.monotonic()
         try:

@@ -78,6 +78,7 @@ class Gemini25ProJudge:
         ) * PRICE_PER_MTOK_OUTPUT_USD
 
     def score(self, prompt: str, *, max_tokens: int = 1024) -> JudgeResult:
+        """Send ``prompt`` as a single ``generate_content`` call; return the reply."""
         client = self._ensure_client()
         start = time.monotonic()
         try:

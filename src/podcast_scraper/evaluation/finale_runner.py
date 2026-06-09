@@ -127,7 +127,7 @@ def load_run_candidate(
     try:
         blob = json.loads(metrics_path.read_text(encoding="utf-8"))
     except json.JSONDecodeError as exc:
-        logger.warning("Skip %s: metrics JSON unparseable: %s", run_dir.name, exc)
+        logger.warning("Skip %s: metrics JSON unparsable: %s", run_dir.name, exc)
         return None
     vs = blob.get("vs_reference") or {}
     rouge_l = vs.get("rougeL_f1")
@@ -287,7 +287,7 @@ def load_transcript(*, dataset_id: str, episode_id: str, eval_root: Path) -> Opt
 
     Materialized transcripts live under
     ``<eval_root>/materialized/<dataset_id>/<episode_id>.txt``. The qualifier
-    tier already uses these — we re-use them so the finale judge sees the
+    tier already uses these — we reuse them so the finale judge sees the
     same evidence the qualifier did.
     """
     candidate = eval_root / "materialized" / dataset_id / f"{episode_id}.txt"

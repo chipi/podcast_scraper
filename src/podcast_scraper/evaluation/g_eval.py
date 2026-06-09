@@ -287,6 +287,7 @@ class SummaryScore:
         return sum(vals) / len(vals)
 
     def as_dict(self) -> Dict[str, Any]:
+        """Return a JSONL-ready dict for one (run, episode, judge) row."""
         return {
             "run_id": self.run_id,
             "episode_id": self.episode_id,
