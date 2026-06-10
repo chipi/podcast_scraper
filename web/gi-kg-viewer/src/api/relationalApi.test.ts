@@ -2,7 +2,9 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
   fetchCrossShow,
   fetchEpisodeRelatedInsights,
+  fetchInsightsAbout,
   fetchPositions,
+  fetchRelatedInsights,
   fetchShowEpisodes,
   fetchTopicEntities,
   fetchWhoSaid,
@@ -76,6 +78,55 @@ describe('relationalApi', () => {
     mockFetchJson(true, { subject: 'topic:ai', results: [] })
     await fetchTopicEntities('/c', 'topic:ai')
     expectFetchUrl('/api/relational/topic-entities?path=%2Fc&topic=topic%3Aai')
+  })
+
+  it('fetchInsightsAbout GETs insights-about with trimmed entity', async () => {
+    const payload = { subject: 'entity:e1', results: [], error: null }
+    mockFetchJson(true, payload)
+    await expect(fetchInsightsAbout('  /c  ', '  entity:e1  ')).resolves.toEqual(payload)
+    expectFetchUrl('/api/relational/insights-about?path=%2Fc&entity=entity%3Ae1')
+  })
+
+  it('fetchInsightsAbout sets k when provided', async () => {
+    mockFetchJson(true, { subject: 'entity:e1', results: [] })
+    await fetchInsightsAbout('/c', 'entity:e1', 7)
+    expectFetchUrl('/api/relational/insights-about?path=%2Fc&entity=entity%3Ae1&k=7')
+  })
+
+  it('fetchRelatedInsights GETs related-insights with trimmed insight', async () => {
+    const payload = { subject: 'insight:i1', results: [], error: null }
+    mockFetchJson(true, payload)
+    await expect(fetchRelatedInsights('/c', '  insight:i1  ')).resolves.toEqual(payload)
+    expectFetchUrl('/api/relational/related-insights?path=%2Fc&insight=insight%3Ai1')
+  })
+
+  it('fetchRelatedInsights sets k when provided', async () => {
+    mockFetchJson(true, { subject: 'insight:i1', results: [] })
+    await fetchRelatedInsights('/c', 'insight:i1', 4)
+    expectFetchUrl('/api/relational/related-insights?path=%2Fc&insight=insight%3Ai1&k=4')
+  })
+
+  it('clamps k to >=1 and floors fractional values', async () => {
+    mockFetchJson(true, { subject: 'topic:ai', results: [] })
+    await fetchTopicEntities('/c', 'topic:ai', 2.9)
+    expectFetchUrl('/api/relational/topic-entities?path=%2Fc&topic=topic%3Aai&k=2')
+  })
+
+  it('clamps non-positive k up to 1', async () => {
+    mockFetchJson(true, { subject: 'topic:ai', results: [] })
+    await fetchTopicEntities('/c', 'topic:ai', 0)
+    expectFetchUrl('/api/relational/topic-entities?path=%2Fc&topic=topic%3Aai&k=1')
+  })
+
+  it('clamps per_show up to 1 when below 1', async () => {
+    mockFetchJson(true, { subject: 'topic:ai', groups: {} })
+    await fetchCrossShow('/c', 'topic:ai', 0)
+    expectFetchUrl('/api/relational/cross-show?path=%2Fc&topic=topic%3Aai&per_show=1')
+  })
+
+  it('falls back to HTTP status when body text empty on non-404 errors', async () => {
+    mockFetchJson(false, {}, '', 503)
+    await expect(fetchPositions('/c', 'person:x')).rejects.toThrow('HTTP 503')
   })
 
   it('raises a friendly error on 404', async () => {
