@@ -33,6 +33,7 @@
     "@types/node": "^24.12.0",
     "@vitejs/plugin-vue": "^6.0.5",
     "@vitest/coverage-v8": "^4.1.2",
+    "@vue/test-utils": "^2.4.11",
     "@vue/tsconfig": "^0.9.0",
     "autoprefixer": "^10.4.27",
     "happy-dom": "^20.8.9",
