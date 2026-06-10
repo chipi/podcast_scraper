@@ -683,6 +683,18 @@ def _add_common_arguments(parser: argparse.ArgumentParser) -> None:
         ),
     )
     parser.add_argument(
+        "--reprocess-existing-only",
+        action="store_true",
+        dest="reprocess_existing_only",
+        help=(
+            "#876 migration mode: process ONLY episodes already on disk (matched by "
+            "GUID under output_dir/run_*/metadata/). New feed items are dropped and "
+            "max-episodes/offset/date caps are ignored, so the episode set never grows. "
+            "Pair with --reprocess-source whisper_transcription to re-diarize an existing "
+            "corpus while ingestion is paused."
+        ),
+    )
+    parser.add_argument(
         "--backfill-transcript-segments",
         action="store_true",
         dest="backfill_transcript_segments",
@@ -1813,11 +1825,12 @@ def _add_pipeline_stage_arguments(parser: argparse.ArgumentParser) -> None:
     parser.add_argument(
         "--pipeline-stage",
         type=str,
-        choices=("full", "audio_only", "enrich_only"),
+        choices=("full", "audio_only", "enrich_only", "download_only"),
         default=None,
         help=(
             "Pipeline stage: full (default), audio_only (transcribe + media only), "
-            "or enrich_only (skip transcription)"
+            "enrich_only (skip transcription), or download_only (#947: download + cache "
+            "raw audio only, no transcription)"
         ),
     )
     parser.add_argument(
@@ -1827,6 +1840,27 @@ def _add_pipeline_stage_arguments(parser: argparse.ArgumentParser) -> None:
         help="Do not copy episode audio into corpus media/ for viewer playback",
     )
     parser.set_defaults(persist_episode_media=None)
+    # #947 raw-audio cache for reprocessing (re-diarization without re-fetching the feed).
+    parser.add_argument(
+        "--no-audio-cache",
+        action="store_false",
+        dest="audio_cache_enabled",
+        default=True,
+        help="Disable the #947 raw-audio cache (do not store/reuse downloaded audio)",
+    )
+    parser.add_argument(
+        "--audio-cache-dir",
+        type=str,
+        default=None,
+        help="Directory for the #947 raw-audio cache (default: .cache/audio, external to corpus)",
+    )
+    parser.add_argument(
+        "--audio-cache-in-corpus",
+        action="store_true",
+        dest="audio_cache_in_corpus",
+        help="Store the audio cache inside the corpus (.podcast_scraper/audio-cache) for a "
+        "self-contained snapshot (larger backups)",
+    )
 
 
 def _add_deepseek_arguments(parser: argparse.ArgumentParser) -> None:
@@ -3811,9 +3845,14 @@ def _build_config(args: argparse.Namespace) -> config.Config:  # noqa: C901
         "multi_feed_strict": getattr(args, "multi_feed_strict", False),
         "skip_existing": args.skip_existing,
         "reprocess_source": getattr(args, "reprocess_source", None),
+        "reprocess_existing_only": getattr(args, "reprocess_existing_only", False),
         "backfill_transcript_segments": getattr(args, "backfill_transcript_segments", False),
         "append": getattr(args, "append", False),
         "reuse_media": args.reuse_media,
+        # #947 raw-audio cache (have argparse flags → survive the per-feed copy.copy(args)).
+        "audio_cache_enabled": getattr(args, "audio_cache_enabled", True),
+        "audio_cache_dir": getattr(args, "audio_cache_dir", None),
+        "audio_cache_in_corpus": getattr(args, "audio_cache_in_corpus", False),
         "clean_output": args.clean_output,
         "dry_run": args.dry_run,
         "monitor": getattr(args, "monitor", False),
@@ -4168,6 +4207,17 @@ def _build_config(args: argparse.Namespace) -> config.Config:  # noqa: C901
         "deepseek_timeout",
         "audio_preprocessing_profile",
         "ml_preprocessing_profile",
+        # ADR-096 / #814 / #926 DGX routing fields have no argparse flag; carry
+        # them from --config YAML so the per-feed Config rebuild keeps DGX
+        # primary + fallback + pyannote routing. Without these, the ADR-096
+        # contract validator rejects every feed (missing
+        # transcription_fallback_provider) and, even if it didn't, diarization
+        # would silently degrade from tailnet_dgx to in-process pyannote.
+        "transcription_fallback_provider",
+        "diarization_provider",
+        "dgx_diarize_port",
+        "dgx_diarize_model",
+        "dgx_whisper_model",
     ):
         _v = getattr(args, _field, None)
         if _v is not None:

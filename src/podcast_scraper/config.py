@@ -1126,6 +1126,21 @@ class Config(BaseModel):
             "already-diarized ``direct_download`` episodes untouched. None = off."
         ),
     )
+    reprocess_existing_only: bool = Field(
+        default=False,
+        alias="reprocess_existing_only",
+        description=(
+            "#876 strict migration mode: restrict the episode set to GUIDs already "
+            "present on disk under ``output_dir/run_*/metadata/``. New feed items are "
+            "dropped and ``max_episodes`` / ``episode_offset`` / ``episode_since`` / "
+            "``episode_until`` caps are ignored so every matched existing episode is "
+            "processed. Audio is still re-fetched from the live feed enclosure, so "
+            "episodes that have rolled off the feed cannot be re-diarized (logged). "
+            "Intended with ``reprocess_source=whisper_transcription`` for a one-shot "
+            "re-diarization of an existing corpus while ingestion is paused — the "
+            "episode set never grows. False = off."
+        ),
+    )
     backfill_transcript_segments: bool = Field(
         default=False,
         alias="backfill_transcript_segments",
@@ -1299,10 +1314,37 @@ class Config(BaseModel):
         ),
     )
     dgx_request_timeout_sec: float = Field(
-        default=300.0,
+        default=600.0,
         gt=0,
         alias="dgx_request_timeout_sec",
-        description="HTTP timeout for DGX Ollama transcription calls.",
+        description=(
+            "Base/floor HTTP timeout (seconds) for a DGX transcription call. The "
+            "effective timeout scales with audio length (see "
+            "``dgx_timeout_per_audio_minute_sec``) so long episodes don't false-fail "
+            "when the shared GPU is briefly contended (#876 resilience)."
+        ),
+    )
+    dgx_timeout_per_audio_minute_sec: float = Field(
+        default=20.0,
+        ge=0,
+        alias="dgx_timeout_per_audio_minute_sec",
+        description=(
+            "Seconds of DGX request timeout budget added per minute of audio, on top of "
+            "``dgx_request_timeout_sec``. Generous headroom lets a transcription wait out "
+            "GPU contention instead of timing out and falling back to the cloud provider. "
+            "0 disables scaling (flat base timeout)."
+        ),
+    )
+    dgx_max_attempts: int = Field(
+        default=3,
+        ge=1,
+        alias="dgx_max_attempts",
+        description=(
+            "Max DGX transcription attempts before falling back to the cloud provider. "
+            "Connection-level blips are retried with exponential backoff; a genuine "
+            "timeout (slow/contended GPU past the scaled budget) falls back without "
+            "piling a duplicate request onto the busy server."
+        ),
     )
     transcription_parallelism: int = Field(
         default=1,
@@ -2842,12 +2884,41 @@ class Config(BaseModel):
             "Transcripts are cached by audio hash to enable fast re-runs."
         ),
     )
-    pipeline_stage: Literal["full", "audio_only", "enrich_only"] = Field(
+    pipeline_stage: Literal["full", "audio_only", "enrich_only", "download_only"] = Field(
         default="full",
         alias="pipeline_stage",
         description=(
             "Pipeline stage mode: full (default), audio_only (transcribe + media only), "
-            "or enrich_only (skip transcription; reuse on-disk transcripts)."
+            "enrich_only (skip transcription; reuse on-disk transcripts), or download_only "
+            "(#947: download + cache raw audio for the selected episodes, then stop before "
+            "transcription/diarization — phase 1 of a staged re-diarization)."
+        ),
+    )
+    audio_cache_enabled: bool = Field(
+        default=True,
+        alias="audio_cache_enabled",
+        description=(
+            "#947: cache raw downloaded audio keyed by episode GUID so reprocessing "
+            "(re-diarization) reuses it instead of re-fetching from the live feed. "
+            "Default True."
+        ),
+    )
+    audio_cache_dir: Optional[str] = Field(
+        default=None,
+        alias="audio_cache_dir",
+        description=(
+            "Custom directory for the #947 raw-audio cache "
+            f"(default: {config_constants.DEFAULT_AUDIO_CACHE_DIR}, external to the corpus "
+            "so backups stay lean). Ignored when audio_cache_in_corpus is set."
+        ),
+    )
+    audio_cache_in_corpus: bool = Field(
+        default=False,
+        alias="audio_cache_in_corpus",
+        description=(
+            "#947: place the raw-audio cache inside the corpus "
+            "(``.podcast_scraper/audio-cache/``) for a self-contained, snapshot-portable "
+            "corpus. Default False keeps it external so backup tarballs stay small."
         ),
     )
     persist_episode_media: bool = Field(
@@ -3242,17 +3313,28 @@ class Config(BaseModel):
             return data
         merged = dict(data)
         stage = merged.get("pipeline_stage", "full")
-        if stage not in ("full", "audio_only", "enrich_only"):
+        if stage not in ("full", "audio_only", "enrich_only", "download_only"):
             return merged
         message: Optional[str] = None
-        if stage == "audio_only":
+        if stage in ("audio_only", "download_only"):
             for key in ("generate_metadata", "generate_summaries", "generate_gi", "generate_kg"):
                 if merged.get(key):
                     merged[key] = False
-            message = (
-                "pipeline_stage=audio_only: coercing generate_metadata, "
-                "generate_summaries, generate_gi, and generate_kg to false."
-            )
+            if stage == "download_only":
+                # #947 phase 1: keep transcribe_missing so the media download path runs
+                # (audio is cached in _download_or_reuse_media), but the actual transcribe
+                # call is short-circuited downstream in transcribe_media_to_text.
+                merged["transcribe_missing"] = True
+                message = (
+                    "pipeline_stage=download_only: coercing generate_metadata, "
+                    "generate_summaries, generate_gi, and generate_kg to false; "
+                    "downloading + caching audio only (no transcription)."
+                )
+            else:
+                message = (
+                    "pipeline_stage=audio_only: coercing generate_metadata, "
+                    "generate_summaries, generate_gi, and generate_kg to false."
+                )
         elif stage == "enrich_only":
             # Enrich from on-disk transcripts: no new transcription, and reuse must
             # be enabled or there is nothing to enrich (transcript reuse is gated on
@@ -4577,6 +4659,23 @@ class Config(BaseModel):
         return self
 
     @model_validator(mode="after")
+    def _warn_reprocess_existing_only_without_source(self) -> "Config":
+        """#876: existing-only migration mode without a reprocess source is unusual.
+
+        ``reprocess_existing_only`` restricts the selection to on-disk episodes, but
+        with ``skip_existing`` and no ``reprocess_source`` every matched episode would
+        simply be skipped (a no-op). Warn rather than error — the combination is legal
+        and may be intentional (e.g. a dry-run preview of the matched set).
+        """
+        if self.reprocess_existing_only and not self.reprocess_source:
+            logger.warning(
+                "reprocess_existing_only is set without reprocess_source; matched "
+                "on-disk episodes will be skipped under skip_existing (no-op). Pair it "
+                "with reprocess_source=whisper_transcription to actually re-diarize (#876)."
+            )
+        return self
+
+    @model_validator(mode="after")
     def _validate_openai_provider_requirements(self) -> "Config":
         """Validate that OpenAI API key is provided when OpenAI providers are selected."""
         openai_providers_used = []
@@ -4975,6 +5074,11 @@ class Config(BaseModel):
     @classmethod
     def _validate_preprocessing_cache_dir_traversal(cls, v: Optional[str]) -> Optional[str]:
         return cls._validate_path_no_traversal(v, "preprocessing_cache_dir")
+
+    @field_validator("audio_cache_dir", mode="after")
+    @classmethod
+    def _validate_audio_cache_dir_traversal(cls, v: Optional[str]) -> Optional[str]:
+        return cls._validate_path_no_traversal(v, "audio_cache_dir")
 
     @field_validator("preprocessing_mp3_bitrate_kbps", mode="before")
     @classmethod

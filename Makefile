@@ -1067,6 +1067,54 @@ redo-diarization:
 	echo "Re-deriving relational edges (corpus-wide SPOKEN_BY)..."; \
 	$(PYTHON) -m podcast_scraper.cli enrich-edges --output-dir "$${CORPUS_DIR}"
 
+# Phase 1 of staged re-diarization (#947): download + cache RAW audio for the existing
+# corpus episodes only, WITHOUT transcribing/diarizing. --reprocess-existing-only scopes
+# to on-disk GUIDs; --reprocess-source forces the existing whisper episodes back through
+# download; --pipeline-stage download_only stops before transcription. The audio lands in
+# the durable cache (default .cache/audio, external to the corpus) so phase 2
+# (migrate-diarization) reprocesses off the cache with no feed re-fetch. Set
+# AUDIO_CACHE_IN_CORPUS=1 to store the cache inside the corpus for a portable snapshot.
+#   make download-audio CORPUS_DIR=<corpus> PROFILE=config/profiles/cloud_with_dgx_primary.yaml
+download-audio:
+	@test -n "$${CORPUS_DIR:-}" || { echo "CORPUS_DIR required (corpus parent path)"; exit 1; }; \
+	test -n "$${PROFILE:-}" || { echo "PROFILE required (e.g. config/profiles/cloud_with_dgx_primary.yaml)"; exit 1; }; \
+	test -f "$${CORPUS_DIR}/feeds.spec.yaml" || { echo "Missing $${CORPUS_DIR}/feeds.spec.yaml"; exit 1; }; \
+	echo "Downloading + caching audio (existing-only, no transcription) for $${CORPUS_DIR}..."; \
+	$(HF_NET_ENV) $(PYTHON) -m podcast_scraper.cli \
+	  --config "$${PROFILE}" \
+	  --feeds-spec "$${CORPUS_DIR}/feeds.spec.yaml" \
+	  --output-dir "$${CORPUS_DIR}" \
+	  --skip-existing \
+	  --reprocess-source whisper_transcription \
+	  --reprocess-existing-only \
+	  --pipeline-stage download_only \
+	  $${AUDIO_CACHE_IN_CORPUS:+--audio-cache-in-corpus}
+
+# Strict existing-only re-diarization MIGRATION (#876/#946). Like redo-diarization but
+# adds --reprocess-existing-only: the episode set is restricted to GUIDs already on disk
+# under each feed's run_*/metadata/. New feed items are dropped and max/offset/date caps
+# are ignored, so the corpus NEVER grows -- a migration of existing data while ingestion
+# is paused, not an ingest. Audio comes from the #947 raw-audio cache when present (run
+# ``make download-audio`` first to prime it -> cache HIT, no feed fetch, and rolled-off
+# episodes stay re-diarizable); otherwise it is re-fetched from the live feed enclosure
+# and cached for next time. Aborts loudly if no on-disk GUIDs are found (mis-pointed
+# CORPUS_DIR). Set AUDIO_CACHE_IN_CORPUS=1 to keep the cache inside the corpus.
+#   make migrate-diarization CORPUS_DIR=<corpus> PROFILE=config/profiles/cloud_with_dgx_primary.yaml
+migrate-diarization:
+	@test -n "$${CORPUS_DIR:-}" || { echo "CORPUS_DIR required (corpus parent path)"; exit 1; }; \
+	test -n "$${PROFILE:-}" || { echo "PROFILE required (a diarization-enabled profile, e.g. config/profiles/cloud_with_dgx_primary.yaml)"; exit 1; }; \
+	test -f "$${CORPUS_DIR}/feeds.spec.yaml" || { echo "Missing $${CORPUS_DIR}/feeds.spec.yaml"; exit 1; }; \
+	echo "Migrating (existing-only) whisper_transcription episodes in $${CORPUS_DIR} under $${PROFILE}..."; \
+	$(HF_NET_ENV) $(PYTHON) -m podcast_scraper.cli \
+	  --config "$${PROFILE}" \
+	  --feeds-spec "$${CORPUS_DIR}/feeds.spec.yaml" \
+	  --output-dir "$${CORPUS_DIR}" \
+	  --skip-existing \
+	  --reprocess-source whisper_transcription \
+	  --reprocess-existing-only; \
+	echo "Re-deriving relational edges (corpus-wide SPOKEN_BY)..."; \
+	$(PYTHON) -m podcast_scraper.cli enrich-edges --output-dir "$${CORPUS_DIR}"
+
 # Corpus upgrade-path framework (#862). Managed, idempotent migrations for moving a
 # deployed corpus across releases (2.6 → 2.7 FAISS→LanceDB is step 0001). CORPUS_DIR
 # selects the corpus parent. `upgrade-check` exits 2 when migrations are pending —

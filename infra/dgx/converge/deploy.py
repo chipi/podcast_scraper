@@ -97,12 +97,18 @@ services:
       # Compose-specific (NOT in ~/.env): Speaches-only knobs.
       - WHISPER__MODEL={MODEL}
       - WHISPER__DEVICE=cuda
-      # ``default`` lets ctranslate2 auto-pick the best compute type for the
-      # hardware. ``float16`` errors on GB10: "target device or backend do
-      # not support efficient float16 computation". GB10 prefers bfloat16
-      # natively; ``default`` resolves to that or an int8 quantized variant
-      # depending on the CTranslate2 build. Pin explicitly only if benchmarks
-      # show a reason.
+      # default (-> float32) is the only compute type that runs efficiently on
+      # this GB10 build. See #948 for the full investigation. Findings (2026-06-09):
+      #   - ``float16`` / ``bfloat16`` HARD-ERROR ("target device or backend do not
+      #     support efficient <type> computation") — the shipped CTranslate2 build
+      #     has no Blackwell (sm_100/sm_120) fp16/bf16 kernels.
+      #   - ``int8`` loads but CRAWLS on real episodes (19-min episode ran 5+ min vs
+      #     fp32's ~68s/34min) — likely no int8 GPU kernel either, silent slow path.
+      #   - ``default`` infers fp16 from the model, can't run it, and converts to
+      #     ``float32`` (logged) — this is the path that actually works at speed.
+      # NOTE: ``nvidia-smi`` util% is UNRELIABLE on GB10 (unified memory, reports 0%
+      # mid-transcription) — judge compute by wall-time, not nvidia-smi. Revisit if a
+      # Blackwell-kernel CTranslate2 build lands (then bf16 would be preferable). #948.
       - WHISPER__COMPUTE_TYPE=default
       - LOG_LEVEL=INFO
       - ENABLE_UI=false

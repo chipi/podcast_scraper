@@ -193,13 +193,40 @@ def _download_or_reuse_media(
     cfg: config.Config,
     temp_media: str,
     pipeline_metrics: Any,
+    effective_output_dir: Optional[str] = None,
 ) -> tuple[bool, int, float]:
-    """Download media or reuse existing file. Returns (success, total_bytes, dl_elapsed)."""
+    """Download media or reuse existing file. Returns (success, total_bytes, dl_elapsed).
+
+    #947: before re-fetching from the feed, try the durable raw-audio cache (keyed by
+    episode GUID). On a cache hit the audio is copied into ``temp_media`` and no network
+    request is made — this is what lets a reprocess (re-diarization) run without the live
+    feed. After a fresh download the audio is stored into the cache for next time.
+    """
     if episode.media_url is None:
         logger.warning("    media_url is missing; cannot download")
         return False, 0, 0.0
     if pipeline_metrics is not None:
         pipeline_metrics.record_download_media_attempt()
+
+    # #947 audio cache lookup (GUID-keyed) — highest priority source.
+    from ..rss import extract_item_guid
+    from ..utils import audio_cache
+
+    guid = extract_item_guid(episode.item) if getattr(episode, "item", None) is not None else None
+    cache_root = audio_cache.resolve_cache_root(cfg, effective_output_dir)
+    if cache_root is not None and guid:
+        cached = audio_cache.lookup_by_guid(cache_root, guid)
+        if cached and audio_cache.copy_into(cached, temp_media):
+            try:
+                size = os.path.getsize(temp_media)
+            except OSError:
+                size = 0
+            if size > 0:
+                logger.info(
+                    "    [#947] audio cache HIT (guid=%s) -> %s (no feed fetch)", guid, cached
+                )
+                return True, size, 0.0
+
     if cfg.reuse_media and os.path.exists(temp_media):
         try:
             file_size = os.path.getsize(temp_media)
@@ -228,6 +255,11 @@ def _download_or_reuse_media(
             logger.info("    downloaded %.2f MB in %.1fs", mb, dl_elapsed)
         except (ValueError, ZeroDivisionError, TypeError):
             pass
+    # #947: persist the freshly-downloaded raw audio for future reprocessing (best-effort).
+    if cache_root is not None and guid:
+        stored = audio_cache.store(cache_root, guid, temp_media)
+        if stored:
+            logger.info("    [#947] audio cache STORE (guid=%s) -> %s", guid, stored)
     return True, total_bytes, dl_elapsed
 
 
@@ -368,7 +400,7 @@ def download_media_for_transcription(
     temp_media = os.path.join(temp_dir, f"{ep_num_str}_{short_title}_{title_hash}{ext}")
 
     ok, _total_bytes, dl_elapsed = _download_or_reuse_media(
-        episode, cfg, temp_media, pipeline_metrics
+        episode, cfg, temp_media, pipeline_metrics, effective_output_dir
     )
     if not ok:
         return None
@@ -1385,6 +1417,24 @@ def transcribe_media_to_text(
         return True, rel_path, 0
 
     temp_media = job.temp_media
+
+    # #947 phase 1: download_only. The media has already been downloaded + cached by
+    # download_media_for_transcription (via _download_or_reuse_media). Stop here — do NOT
+    # transcribe/diarize. This is the "get the audio down first, reprocess later" stage.
+    if cfg.pipeline_stage == "download_only":
+        bytes_dl = 0
+        if temp_media and os.path.exists(temp_media):
+            try:
+                bytes_dl = os.path.getsize(temp_media)
+            except OSError:
+                bytes_dl = 0
+        logger.info(
+            "[%s] [#947] download-only: audio downloaded + cached, skipping transcription (%s)",
+            job.idx,
+            job.ep_title_safe,
+        )
+        _cleanup_temp_media(temp_media, cfg)
+        return True, None, bytes_dl
 
     # Check if existing transcript can be reused
     reuse_result = _check_and_reuse_existing_transcript(

@@ -492,6 +492,25 @@ def _extract_image_url(item: ET.Element, base_url: str) -> Optional[str]:
     return None
 
 
+def extract_item_guid(item: ET.Element) -> Optional[str]:
+    """Extract the ``<guid>`` of an RSS item, or None.
+
+    Single source of truth for GUID extraction so feed-side selection (#876
+    existing-only filter) matches the GUID format that was persisted to episode
+    metadata at ingest time, byte-for-byte after strip.
+    """
+    guid_elem = item.find("guid")
+    if guid_elem is None:
+        return None
+    guid = guid_elem.text.strip() if guid_elem.text else None
+    # Some feeds use guid as attribute
+    if not guid:
+        guid = guid_elem.attrib.get("isPermaLink")
+        if guid == "false" and guid_elem.text:
+            guid = guid_elem.text.strip()
+    return guid
+
+
 def extract_episode_metadata(
     item: ET.Element, base_url: str
 ) -> tuple[
@@ -523,15 +542,7 @@ def extract_episode_metadata(
     if desc_elem is not None and desc_elem.text:
         description = _strip_html(desc_elem.text.strip())
 
-    guid = None
-    guid_elem = item.find("guid")
-    if guid_elem is not None:
-        guid = guid_elem.text.strip() if guid_elem.text else None
-        # Some feeds use guid as attribute
-        if not guid:
-            guid = guid_elem.attrib.get("isPermaLink")
-            if guid == "false" and guid_elem.text:
-                guid = guid_elem.text.strip()
+    guid = extract_item_guid(item)
 
     link = None
     link_elem = item.find("link")
