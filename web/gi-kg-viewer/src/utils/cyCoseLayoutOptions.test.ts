@@ -1,11 +1,12 @@
 import { describe, expect, it } from 'vitest'
-import type { EdgeSingular } from 'cytoscape'
+import type { EdgeSingular, NodeSingular } from 'cytoscape'
 import {
   giKgCoseEdgeElasticity,
   giKgCoseIdealEdgeLength,
   giKgCoseLayoutOptionsCompact,
   giKgCoseLayoutOptionsMain,
   giKgCoseLayoutOptionsMainFallback,
+  giKgCoseNodeRepulsion,
   giKgCoseNodeRepulsionFromData,
   giKgCoseNumIterCapped,
   isIntraTopicClusterEdgeParents,
@@ -14,6 +15,12 @@ import {
   RECENTER_SAFETY_TAIL_TIMINGS_MS,
   redrawDebounceMs,
 } from './cyCoseLayoutOptions'
+
+function mockNode(type: string | undefined, parent: string | null | undefined): NodeSingular {
+  return {
+    data: (k: string) => (k === 'type' ? type : k === 'parent' ? parent : undefined),
+  } as unknown as NodeSingular
+}
 
 describe('isTopicClusterParentId', () => {
   it('is true for tc: ids', () => {
@@ -40,6 +47,37 @@ describe('isIntraTopicClusterEdgeParents', () => {
   })
 })
 
+describe('isTopicClusterParentId — null', () => {
+  it('is false for null', () => {
+    expect(isTopicClusterParentId(null)).toBe(false)
+  })
+
+  it('is false for a tc: substring that is not a prefix', () => {
+    expect(isTopicClusterParentId('x:tc:foo')).toBe(false)
+  })
+})
+
+describe('isIntraTopicClusterEdgeParents — extra branches', () => {
+  it('is false when one parent is null', () => {
+    expect(isIntraTopicClusterEdgeParents('tc:a', null)).toBe(false)
+    expect(isIntraTopicClusterEdgeParents(null, 'tc:a')).toBe(false)
+  })
+
+  it('is false when both null/undefined/empty', () => {
+    expect(isIntraTopicClusterEdgeParents(null, null)).toBe(false)
+    expect(isIntraTopicClusterEdgeParents(undefined, undefined)).toBe(false)
+    expect(isIntraTopicClusterEdgeParents('', '')).toBe(false)
+  })
+
+  it('trims whitespace before comparing', () => {
+    expect(isIntraTopicClusterEdgeParents('  tc:a  ', 'tc:a')).toBe(true)
+  })
+
+  it('is false when matching parents are not tc:', () => {
+    expect(isIntraTopicClusterEdgeParents('g:x', 'g:x')).toBe(false)
+  })
+})
+
 describe('giKgCoseNodeRepulsionFromData', () => {
   it('uses higher repulsion for TopicCluster compounds', () => {
     const main = giKgCoseNodeRepulsionFromData('TopicCluster', undefined, 'main')
@@ -52,6 +90,49 @@ describe('giKgCoseNodeRepulsionFromData', () => {
     const base = giKgCoseNodeRepulsionFromData('Topic', undefined, 'main')
     expect(member).toBeLessThan(base)
   })
+
+  it('returns the exact MAIN constants per node class', () => {
+    expect(giKgCoseNodeRepulsionFromData('TopicCluster', undefined, 'main')).toBe(1_450_000)
+    expect(giKgCoseNodeRepulsionFromData('Topic', 'tc:cl', 'main')).toBe(180_000)
+    expect(giKgCoseNodeRepulsionFromData('Topic', undefined, 'main')).toBe(880_000)
+  })
+
+  it('returns the exact COMPACT constants per node class', () => {
+    expect(giKgCoseNodeRepulsionFromData('TopicCluster', undefined, 'compact')).toBe(198_000)
+    expect(giKgCoseNodeRepulsionFromData('Topic', 'tc:cl', 'compact')).toBe(24_000)
+    expect(giKgCoseNodeRepulsionFromData('Topic', undefined, 'compact')).toBe(120_000)
+  })
+
+  it('treats undefined type as the base (non-cluster) class', () => {
+    expect(giKgCoseNodeRepulsionFromData(undefined, undefined, 'main')).toBe(880_000)
+    expect(giKgCoseNodeRepulsionFromData(undefined, undefined, 'compact')).toBe(120_000)
+  })
+
+  it('TopicCluster type wins over a tc: parent (compound takes precedence)', () => {
+    expect(giKgCoseNodeRepulsionFromData('TopicCluster', 'tc:cl', 'main')).toBe(1_450_000)
+  })
+
+  it('ignores a whitespace-only parent (falls to base)', () => {
+    expect(giKgCoseNodeRepulsionFromData('Topic', '   ', 'main')).toBe(880_000)
+  })
+
+  it('ignores a non-tc: parent (falls to base)', () => {
+    expect(giKgCoseNodeRepulsionFromData('Topic', 'g:cluster', 'main')).toBe(880_000)
+  })
+})
+
+describe('giKgCoseNodeRepulsion (NodeSingular wrapper)', () => {
+  it('reads type + parent off node.data and trims the parent', () => {
+    expect(giKgCoseNodeRepulsion(mockNode('TopicCluster', null), 'main')).toBe(1_450_000)
+    expect(giKgCoseNodeRepulsion(mockNode('Topic', '  tc:cl  '), 'main')).toBe(180_000)
+    expect(giKgCoseNodeRepulsion(mockNode('Topic', null), 'main')).toBe(880_000)
+    expect(giKgCoseNodeRepulsion(mockNode('Topic', null), 'compact')).toBe(120_000)
+  })
+
+  it('treats a whitespace-only / non-string parent as no parent', () => {
+    expect(giKgCoseNodeRepulsion(mockNode('Topic', '   '), 'main')).toBe(880_000)
+    expect(giKgCoseNodeRepulsion(mockNode('Topic', undefined), 'main')).toBe(880_000)
+  })
 })
 
 describe('giKgCoseLayoutOptionsMain', () => {
@@ -63,6 +144,31 @@ describe('giKgCoseLayoutOptionsMain', () => {
     expect(typeof o.nodeRepulsion).toBe('function')
     expect(typeof o.idealEdgeLength).toBe('function')
     expect(typeof o.edgeElasticity).toBe('function')
+  })
+
+  it('exposes the static MAIN tuning constants', () => {
+    const o = giKgCoseLayoutOptionsMain()
+    expect(o.padding).toBe(36)
+    expect(o.fit).toBe(false)
+    expect(o.gravity).toBe(0.18)
+    expect(o.nodeDimensionsIncludeLabels).toBe(true)
+  })
+
+  it('wires the per-node repulsion callback to the main profile', () => {
+    const o = giKgCoseLayoutOptionsMain()
+    const nodeRepulsion = o.nodeRepulsion as (n: NodeSingular) => number
+    expect(nodeRepulsion(mockNode('TopicCluster', null))).toBe(1_450_000)
+    expect(nodeRepulsion(mockNode('Topic', 'tc:cl'))).toBe(180_000)
+    expect(nodeRepulsion(mockNode('Topic', null))).toBe(880_000)
+  })
+
+  it('wires the per-edge callbacks to the main profile', () => {
+    const o = giKgCoseLayoutOptionsMain()
+    const idealEdgeLength = o.idealEdgeLength as (e: EdgeSingular) => number
+    const edgeElasticity = o.edgeElasticity as (e: EdgeSingular) => number
+    expect(idealEdgeLength(mockEdge('tc:x', 'tc:x', 'ABOUT'))).toBe(36)
+    expect(idealEdgeLength(mockEdge(null, null, 'MENTIONS'))).toBe(150)
+    expect(edgeElasticity(mockEdge(null, null, 'ABOUT'))).toBe(200)
   })
 })
 
@@ -84,21 +190,102 @@ describe('giKgCoseIdealEdgeLength', () => {
     expect(giKgCoseIdealEdgeLength(edge, 'main')).toBe(36)
   })
 
-  it('uses semantic ABOUT length outside tc: clusters', () => {
-    const edge = mockEdge(null, null, 'ABOUT')
-    expect(giKgCoseIdealEdgeLength(edge, 'main')).toBe(80)
+  it('uses the compact intra-topic-cluster length for the compact profile', () => {
+    const edge = mockEdge('tc:x', 'tc:x', 'ABOUT')
+    expect(giKgCoseIdealEdgeLength(edge, 'compact')).toBe(20)
+  })
+
+  it('maps every semantic edge type to its main ideal length', () => {
+    expect(giKgCoseIdealEdgeLength(mockEdge(null, null, 'HAS_INSIGHT'), 'main')).toBe(60)
+    expect(giKgCoseIdealEdgeLength(mockEdge(null, null, 'ABOUT'), 'main')).toBe(80)
+    expect(giKgCoseIdealEdgeLength(mockEdge(null, null, 'SUPPORTED_BY'), 'main')).toBe(40)
+    expect(giKgCoseIdealEdgeLength(mockEdge(null, null, 'RELATED_TO'), 'main')).toBe(120)
+    expect(giKgCoseIdealEdgeLength(mockEdge(null, null, 'SPOKE_IN'), 'main')).toBe(100)
+    expect(giKgCoseIdealEdgeLength(mockEdge(null, null, 'MENTIONS'), 'main')).toBe(150)
+  })
+
+  it('uses the base length for unknown / empty edge types (main)', () => {
+    expect(giKgCoseIdealEdgeLength(mockEdge(null, null, 'UNKNOWN'), 'main')).toBe(96)
+    expect(giKgCoseIdealEdgeLength(mockEdge(null, null, ''), 'main')).toBe(96)
+  })
+
+  it('scales semantic lengths for the compact profile (52/96 factor, rounded)', () => {
+    expect(giKgCoseIdealEdgeLength(mockEdge(null, null, 'HAS_INSIGHT'), 'compact')).toBe(33)
+    expect(giKgCoseIdealEdgeLength(mockEdge(null, null, 'ABOUT'), 'compact')).toBe(43)
+    expect(giKgCoseIdealEdgeLength(mockEdge(null, null, 'RELATED_TO'), 'compact')).toBe(65)
+    expect(giKgCoseIdealEdgeLength(mockEdge(null, null, 'SPOKE_IN'), 'compact')).toBe(54)
+    expect(giKgCoseIdealEdgeLength(mockEdge(null, null, 'MENTIONS'), 'compact')).toBe(81)
+  })
+
+  it('clamps the smallest compact semantic length to the 24px floor', () => {
+    // SUPPORTED_BY main 40 → 40×52/96 ≈ 21.67 → would round to 22 → floored to 24.
+    expect(giKgCoseIdealEdgeLength(mockEdge(null, null, 'SUPPORTED_BY'), 'compact')).toBe(24)
+  })
+
+  it('uses the compact base length for unknown edge types (compact)', () => {
+    expect(giKgCoseIdealEdgeLength(mockEdge(null, null, 'UNKNOWN'), 'compact')).toBe(52)
+  })
+
+  it('falls back to the base length when edgeType data is missing', () => {
+    const edge = {
+      data: () => undefined,
+      source: () => ({ data: () => null }),
+      target: () => ({ data: () => null }),
+    } as unknown as EdgeSingular
+    expect(giKgCoseIdealEdgeLength(edge, 'main')).toBe(96)
   })
 })
 
 describe('giKgCoseEdgeElasticity', () => {
-  it('uses default elasticity inside tc: clusters', () => {
+  it('uses default elasticity inside tc: clusters (main)', () => {
     const edge = mockEdge('tc:x', 'tc:x', 'ABOUT')
     expect(giKgCoseEdgeElasticity(edge, 'main')).toBe(100)
   })
 
-  it('uses semantic elasticity for ABOUT outside tc:', () => {
-    const edge = mockEdge(null, null, 'ABOUT')
-    expect(giKgCoseEdgeElasticity(edge, 'main')).toBe(200)
+  it('uses the compact default elasticity inside tc: clusters (compact)', () => {
+    const edge = mockEdge('tc:x', 'tc:x', 'ABOUT')
+    expect(giKgCoseEdgeElasticity(edge, 'compact')).toBe(80)
+  })
+
+  it('maps every semantic edge type to its main elasticity', () => {
+    expect(giKgCoseEdgeElasticity(mockEdge(null, null, 'HAS_INSIGHT'), 'main')).toBe(180)
+    expect(giKgCoseEdgeElasticity(mockEdge(null, null, 'ABOUT'), 'main')).toBe(200)
+    expect(giKgCoseEdgeElasticity(mockEdge(null, null, 'SUPPORTED_BY'), 'main')).toBe(150)
+    expect(giKgCoseEdgeElasticity(mockEdge(null, null, 'RELATED_TO'), 'main')).toBe(100)
+    expect(giKgCoseEdgeElasticity(mockEdge(null, null, 'SPOKE_IN'), 'main')).toBe(120)
+    expect(giKgCoseEdgeElasticity(mockEdge(null, null, 'MENTIONS'), 'main')).toBe(60)
+  })
+
+  it('uses the base elasticity for unknown / empty edge types (main)', () => {
+    expect(giKgCoseEdgeElasticity(mockEdge(null, null, 'UNKNOWN'), 'main')).toBe(100)
+    expect(giKgCoseEdgeElasticity(mockEdge(null, null, ''), 'main')).toBe(100)
+  })
+
+  it('scales semantic elasticity for the compact profile (×0.8, rounded, ≥40 floor)', () => {
+    expect(giKgCoseEdgeElasticity(mockEdge(null, null, 'HAS_INSIGHT'), 'compact')).toBe(144)
+    expect(giKgCoseEdgeElasticity(mockEdge(null, null, 'ABOUT'), 'compact')).toBe(160)
+    expect(giKgCoseEdgeElasticity(mockEdge(null, null, 'SUPPORTED_BY'), 'compact')).toBe(120)
+    expect(giKgCoseEdgeElasticity(mockEdge(null, null, 'RELATED_TO'), 'compact')).toBe(80)
+    expect(giKgCoseEdgeElasticity(mockEdge(null, null, 'SPOKE_IN'), 'compact')).toBe(96)
+  })
+
+  it('clamps the smallest compact elasticity to the 40 floor', () => {
+    // MENTIONS main 60 → 60×0.8 = 48 (above floor); confirm exact rounding too.
+    expect(giKgCoseEdgeElasticity(mockEdge(null, null, 'MENTIONS'), 'compact')).toBe(48)
+  })
+
+  it('uses the compact base elasticity for unknown edge types (compact)', () => {
+    expect(giKgCoseEdgeElasticity(mockEdge(null, null, 'UNKNOWN'), 'compact')).toBe(80)
+  })
+
+  it('falls back to the base elasticity when edgeType data is missing (nullish coalesce)', () => {
+    const edge = {
+      data: () => undefined,
+      source: () => ({ data: () => null }),
+      target: () => ({ data: () => null }),
+    } as unknown as EdgeSingular
+    expect(giKgCoseEdgeElasticity(edge, 'main')).toBe(100)
+    expect(giKgCoseEdgeElasticity(edge, 'compact')).toBe(80)
   })
 })
 
@@ -115,12 +302,43 @@ describe('giKgCoseLayoutOptionsMainFallback', () => {
   })
 })
 
+describe('giKgCoseLayoutOptionsMainFallback — static constants', () => {
+  it('exposes the same static MAIN tuning constants', () => {
+    const o = giKgCoseLayoutOptionsMainFallback()
+    expect(o.padding).toBe(36)
+    expect(o.fit).toBe(false)
+    expect(o.gravity).toBe(0.18)
+    expect(o.nodeDimensionsIncludeLabels).toBe(true)
+    expect((o.edgeElasticity as () => number)()).toBe(100)
+  })
+})
+
 describe('giKgCoseLayoutOptionsCompact', () => {
   it('matches minimap gravity and disables animation', () => {
     const o = giKgCoseLayoutOptionsCompact()
     expect(o.gravity).toBe(0.32)
     expect(o.animate).toBe(false)
     expect(o.nestingFactor).toBe(1.52)
+  })
+
+  it('exposes the static COMPACT tuning constants', () => {
+    const o = giKgCoseLayoutOptionsCompact()
+    expect(o.name).toBe('cose')
+    expect(o.padding).toBe(14)
+    expect(o.fit).toBe(false)
+    expect(o.nodeDimensionsIncludeLabels).toBe(true)
+  })
+
+  it('wires the per-node + per-edge callbacks to the compact profile', () => {
+    const o = giKgCoseLayoutOptionsCompact()
+    const nodeRepulsion = o.nodeRepulsion as (n: NodeSingular) => number
+    const idealEdgeLength = o.idealEdgeLength as (e: EdgeSingular) => number
+    const edgeElasticity = o.edgeElasticity as (e: EdgeSingular) => number
+    expect(nodeRepulsion(mockNode('TopicCluster', null))).toBe(198_000)
+    expect(nodeRepulsion(mockNode('Topic', 'tc:cl'))).toBe(24_000)
+    expect(idealEdgeLength(mockEdge('tc:x', 'tc:x', 'ABOUT'))).toBe(20)
+    expect(idealEdgeLength(mockEdge(null, null, 'ABOUT'))).toBe(43)
+    expect(edgeElasticity(mockEdge(null, null, 'ABOUT'))).toBe(160)
   })
 })
 
