@@ -27,7 +27,9 @@ from ... import config
 from ...transcription.base import TranscriptionProvider
 from ...transcription.factory import create_transcription_provider
 from ...utils.log_redaction import format_exception_for_log
+from . import resilience
 from .health import check_faster_whisper_health, dgx_whisper_base_url
+from .resilience import CircuitBreaker, TimeoutLike
 from .telemetry import emit_dgx_fallback_breadcrumb
 
 logger = logging.getLogger(__name__)
@@ -38,18 +40,16 @@ _RETRY_BACKOFF_SEC = 5.0
 # transcriptions serially. Sending concurrent requests just queues them server-side
 # and makes every client wait (and risk a false timeout). Serialize DGX calls within
 # this process so we never self-contend; a busy GPU from *other* workloads is ridden
-# out by the duration-scaled timeout, not by piling on more requests (#876).
+# out by the duration-scaled timeout + watchdog, not by piling on more requests (#876).
 _dgx_single_flight = threading.Lock()
 
-# Timeout-class errors are treated differently from connection blips: a timeout means
-# the server is slow/contended and (likely) still working the request, so retrying
-# would double the load. Resolved lazily so a missing httpx doesn't break import.
-try:  # pragma: no cover - import guard
-    import httpx as _httpx
-
-    _TimeoutLike: tuple[type[Exception], ...] = (_httpx.TimeoutException, TimeoutError)
-except ImportError:  # pragma: no cover
-    _TimeoutLike = (TimeoutError,)
+# Process-wide breaker for the DGX Whisper endpoint (:8002). One hard timeout trips
+# it immediately; otherwise two failures inside the window open it for a 5-minute
+# cooldown before a half-open probe, so a wedged batch isn't paced by per-episode
+# timeouts but still self-heals when DGX recovers (#954).
+_whisper_breaker = CircuitBreaker(
+    failure_threshold=2, window_sec=300.0, cooldown_sec=300.0, name="dgx-whisper"
+)
 
 
 class TailnetDgxWhisperTranscriptionProvider:
@@ -154,48 +154,68 @@ class TailnetDgxWhisperTranscriptionProvider:
     ) -> tuple[str, list[dict[str, object]], float]:
         assert self._fallback is not None
         last_err: Optional[Exception] = None
+        timed_out = False
         # Health-check substring matches the model's slug portion (after the
         # ``Systran/`` namespace) so we don't fail on small repo-id variations.
         health_substring = self._model.rsplit("/", 1)[-1]
         timeout_sec = self._effective_timeout_sec(episode_duration_seconds)
-        # Serialize DGX calls (single GPU, serial server) so we never self-contend.
-        with _dgx_single_flight:
-            for attempt in range(self._max_attempts):
-                try:
-                    if not check_faster_whisper_health(
-                        self._host,
-                        port=self._port,
-                        require_model_substring=health_substring,
-                    ):
-                        last_err = None  # health says unavailable; retry then fall back
-                    else:
-                        return self._transcribe_dgx(audio_path, language, timeout_sec)
-                except _TimeoutLike as exc:
-                    # The GPU is busy/contended and the (generous, duration-scaled)
-                    # budget elapsed. Retrying would pile a duplicate request onto the
-                    # already-overloaded server, so stop and fall back instead.
-                    last_err = exc
-                    logger.warning(
-                        "DGX Whisper attempt %s timed out after %.0fs (GPU contended?); "
-                        "falling back rather than re-queuing: %s",
-                        attempt + 1,
-                        timeout_sec,
-                        format_exception_for_log(exc),
-                    )
-                    break
-                except Exception as exc:
-                    # Connection blip / transient server error — safe to retry with
-                    # exponential backoff (no duplicate work is in flight).
-                    last_err = exc
-                    logger.warning(
-                        "DGX Whisper attempt %s failed: %s",
-                        attempt + 1,
-                        format_exception_for_log(exc),
-                    )
-                if attempt < self._max_attempts - 1:
-                    time.sleep(_RETRY_BACKOFF_SEC * (2**attempt))
+        # Circuit breaker: if DGX Whisper is in its cooldown, skip it entirely and
+        # go straight to the cloud fallback — a wedged batch isn't paced by timeouts.
+        if not _whisper_breaker.allow():
+            reason = "dgx_whisper_circuit_open"
+        else:
+            # Serialize DGX calls (single GPU, serial server) so we never self-contend.
+            with _dgx_single_flight:
+                for attempt in range(self._max_attempts):
+                    try:
+                        if not check_faster_whisper_health(
+                            self._host,
+                            port=self._port,
+                            require_model_substring=health_substring,
+                        ):
+                            last_err = None  # health says unavailable; retry then fall back
+                        else:
+                            # Hard wall-clock watchdog: guarantees fail-over even when
+                            # httpx's own timeout doesn't fire (a co-tenant GPU stall can
+                            # make the multipart upload trickle indefinitely, #954).
+                            result_dgx = resilience.run_with_watchdog(
+                                lambda: self._transcribe_dgx(audio_path, language, timeout_sec),
+                                timeout_sec + resilience.WATCHDOG_GRACE_SEC,
+                                label="dgx-whisper",
+                            )
+                            _whisper_breaker.record_success()
+                            return result_dgx
+                    except TimeoutLike as exc:
+                        # The GPU is busy/contended and the (generous, duration-scaled)
+                        # budget elapsed. Retrying would pile a duplicate request onto the
+                        # already-overloaded server, so stop and fall back instead.
+                        last_err = exc
+                        timed_out = True
+                        logger.warning(
+                            "DGX Whisper attempt %s timed out after %.0fs (GPU contended?); "
+                            "falling back rather than re-queuing: %s",
+                            attempt + 1,
+                            timeout_sec,
+                            format_exception_for_log(exc),
+                        )
+                        break
+                    except Exception as exc:
+                        # Connection blip / transient server error — safe to retry with
+                        # exponential backoff (no duplicate work is in flight).
+                        last_err = exc
+                        logger.warning(
+                            "DGX Whisper attempt %s failed: %s",
+                            attempt + 1,
+                            format_exception_for_log(exc),
+                        )
+                    if attempt < self._max_attempts - 1:
+                        time.sleep(_RETRY_BACKOFF_SEC * (2**attempt))
 
-        reason = format_exception_for_log(last_err) if last_err else "health_check_failed"
+            # A hard timeout trips the breaker immediately (one expensive wedge is
+            # enough); other failures accrue toward the rolling-window threshold.
+            _whisper_breaker.record_failure(hard=timed_out)
+            reason = format_exception_for_log(last_err) if last_err else "health_check_failed"
+
         emit_dgx_fallback_breadcrumb(
             stage="transcription",
             model=self._model,

@@ -7,9 +7,18 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from podcast_scraper import Config
+from podcast_scraper.providers.tailnet_dgx import whisper_provider as wp
 from podcast_scraper.providers.tailnet_dgx.whisper_provider import (
     TailnetDgxWhisperTranscriptionProvider,
 )
+
+
+@pytest.fixture(autouse=True)
+def _reset_whisper_breaker():
+    """The DGX Whisper circuit breaker is process-wide; isolate every test."""
+    wp._whisper_breaker.reset()
+    yield
+    wp._whisper_breaker.reset()
 
 
 def _dgx_cfg() -> Config:
@@ -184,9 +193,11 @@ def test_healthy_dgx_path(
     "podcast_scraper.providers.tailnet_dgx.whisper_provider.check_faster_whisper_health",
     return_value=True,
 )
+@patch("podcast_scraper.providers.tailnet_dgx.whisper_provider.time.sleep")
 @patch.object(TailnetDgxWhisperTranscriptionProvider, "_transcribe_dgx")
 def test_falls_back_when_ollama_returns_empty(
     mock_ollama: MagicMock,
+    _mock_sleep: MagicMock,
     _health: MagicMock,
     _breadcrumb: MagicMock,
     tmp_path,
@@ -346,3 +357,74 @@ def test_connection_error_retries_with_backoff_then_falls_back(
     # exponential backoff between attempts (max_attempts-1 sleeps)
     assert mock_sleep.call_count == provider._max_attempts - 1
     _breadcrumb.assert_called_once()
+
+
+@patch("podcast_scraper.providers.tailnet_dgx.whisper_provider.emit_dgx_fallback_breadcrumb")
+@patch.object(TailnetDgxWhisperTranscriptionProvider, "_transcribe_dgx")
+@patch("podcast_scraper.providers.tailnet_dgx.whisper_provider.check_faster_whisper_health")
+def test_open_breaker_skips_dgx_entirely(
+    mock_health: MagicMock,
+    mock_dgx: MagicMock,
+    _breadcrumb: MagicMock,
+    tmp_path,
+) -> None:
+    """While the breaker is open, transcription must not probe health or hit DGX —
+    it goes straight to the cloud fallback (#954)."""
+    audio = tmp_path / "ep.mp3"
+    audio.write_bytes(b"\x00\x01")
+    wp._whisper_breaker.record_failure(hard=True)  # force open
+
+    provider = TailnetDgxWhisperTranscriptionProvider(_dgx_cfg())
+    fallback = MagicMock()
+    fallback.transcribe_with_segments.return_value = (
+        {"text": "cloud", "segments": [], "language": "en"},
+        1.0,
+    )
+    provider._fallback = fallback
+    provider._initialized = True
+
+    assert provider.transcribe(str(audio)) == "cloud"
+    mock_health.assert_not_called()
+    mock_dgx.assert_not_called()
+    assert _breadcrumb.call_args.kwargs["failure_reason"] == "dgx_whisper_circuit_open"
+
+
+@patch("podcast_scraper.providers.tailnet_dgx.whisper_provider.emit_dgx_fallback_breadcrumb")
+@patch(
+    "podcast_scraper.providers.tailnet_dgx.whisper_provider.check_faster_whisper_health",
+    return_value=True,
+)
+def test_watchdog_hard_deadline_forces_fallback(
+    _health: MagicMock,
+    _breadcrumb: MagicMock,
+    tmp_path,
+) -> None:
+    """A request that hangs past the hard deadline (httpx's own timeout never fires
+    under a co-tenant GPU stall) is abandoned by the watchdog and fails over (#954)."""
+    import time as _time
+
+    audio = tmp_path / "ep.mp3"
+    audio.write_bytes(b"\x00\x01")
+
+    provider = TailnetDgxWhisperTranscriptionProvider(_dgx_cfg())
+    fallback = MagicMock()
+    fallback.transcribe_with_segments.return_value = (
+        {"text": "cloud", "segments": [], "language": "en"},
+        1.0,
+    )
+    provider._fallback = fallback
+    provider._initialized = True
+
+    def _hang(*_a, **_k):
+        _time.sleep(1.0)  # daemon worker abandoned; doesn't block the test
+        return ("never", [], 1.0)
+
+    started = _time.monotonic()
+    with (
+        patch.object(provider, "_transcribe_dgx", side_effect=_hang),
+        patch.object(provider, "_effective_timeout_sec", return_value=0.05),
+        patch.object(wp.resilience, "WATCHDOG_GRACE_SEC", 0.1),
+    ):
+        assert provider.transcribe(str(audio)) == "cloud"
+    assert _time.monotonic() - started < 0.8  # bailed at ~0.15s, not the 1s hang
+    assert wp._whisper_breaker.state == "open"  # watchdog timeout trips the breaker

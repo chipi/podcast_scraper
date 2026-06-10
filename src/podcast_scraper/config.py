@@ -1346,6 +1346,28 @@ class Config(BaseModel):
             "piling a duplicate request onto the busy server."
         ),
     )
+    dgx_diarize_request_timeout_sec: float = Field(
+        default=180.0,
+        gt=0,
+        alias="dgx_diarize_request_timeout_sec",
+        description=(
+            "Base/floor HTTP timeout (seconds) for a DGX diarization call (#954). "
+            "Separate from ``dgx_request_timeout_sec`` because pyannote diarizes far "
+            "faster than Whisper transcribes, so the budget is much tighter — keeping a "
+            "circuit-breaker half-open probe cheap. The effective timeout scales with "
+            "audio length via ``dgx_diarize_timeout_per_audio_minute_sec``."
+        ),
+    )
+    dgx_diarize_timeout_per_audio_minute_sec: float = Field(
+        default=6.0,
+        ge=0,
+        alias="dgx_diarize_timeout_per_audio_minute_sec",
+        description=(
+            "Seconds of DGX diarize timeout budget added per minute of audio, on top of "
+            "``dgx_diarize_request_timeout_sec``. Lets diarization wait out brief GPU "
+            "contention before failing over to in-process pyannote. 0 disables scaling."
+        ),
+    )
     transcription_parallelism: int = Field(
         default=1,
         alias="transcription_parallelism",
