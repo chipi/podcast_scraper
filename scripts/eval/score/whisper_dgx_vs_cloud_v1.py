@@ -174,19 +174,32 @@ def _audio_duration_seconds(path: Path) -> float:
 
 
 def _transcribe_local(audio_path: Path, model_name: str, model_cache: dict[str, Any]) -> str:
-    """Local CPU via openai-whisper Python lib."""
+    """Local in-process openai-whisper.
+
+    Device auto-picks: CUDA > MPS > CPU. Override with the
+    ``LOCAL_WHISPER_DEVICE`` env var (``cuda`` / ``mps`` / ``cpu``) for
+    the #929 honest comparison — without that, this picks the fastest
+    available, which is MPS on Apple Silicon (GPU acceleration via Metal,
+    NOT a fair pure-CPU baseline).
+    """
     import whisper
 
     cache_dir = PROJECT_ROOT / ".cache" / "whisper"
-    if model_name not in model_cache:
-        print(f"  loading whisper {model_name}...", file=sys.stderr)
+    device = os.environ.get("LOCAL_WHISPER_DEVICE", "").strip() or None
+    cache_key = f"{model_name}|{device or 'auto'}"
+    if cache_key not in model_cache:
+        print(f"  loading whisper {model_name} (device={device or 'auto'})...", file=sys.stderr)
         t0 = time.time()
-        model_cache[model_name] = whisper.load_model(model_name, download_root=str(cache_dir))
+        kwargs: dict[str, Any] = {"download_root": str(cache_dir)}
+        if device:
+            kwargs["device"] = device
+        model_cache[cache_key] = whisper.load_model(model_name, **kwargs)
         print(f"    loaded in {time.time()-t0:.1f}s", file=sys.stderr)
-    model = model_cache[model_name]
-    # fp16=False because CPU. The whisper python lib defaults to fp16 which
-    # warns + falls back on CPU; explicit is faster.
-    result = model.transcribe(str(audio_path), verbose=False, fp16=False)
+    model = model_cache[cache_key]
+    # fp16=True on GPU (MPS/CUDA), False on CPU. openai-whisper warns +
+    # falls back when fp16 is wrong; we set explicitly to avoid the warn.
+    use_fp16 = device != "cpu"
+    result = model.transcribe(str(audio_path), verbose=False, fp16=use_fp16)
     return result["text"]
 
 
