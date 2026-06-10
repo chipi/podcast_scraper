@@ -271,3 +271,126 @@ server.shell(
     commands=[f"cd {PYANNOTE_INSTALL_ROOT} && docker compose up -d"],
     _sudo=True,
 )
+
+
+# ---------------------------------------------------------------------------
+# #953 — openai-whisper transcription service. Runs alongside the speaches
+# faster-whisper container on a different port (8002). Reason: speaches'
+# bundled ctranslate2 is a community reimplementation of Whisper inference
+# (#948 surfaced this). Until #952 validates that faster-whisper's WER
+# matches openai-whisper on real podcasts, we want a first-party path
+# available. Both services run side-by-side; the consumer picks via URL.
+# Same Docker-based shape as Speaches + pyannote.
+# ---------------------------------------------------------------------------
+
+WHISPER_INSTALL_ROOT = "/opt/whisper-server"
+WHISPER_COMPOSE_FILE = f"{WHISPER_INSTALL_ROOT}/docker-compose.yml"
+WHISPER_BUILD_CTX = f"{WHISPER_INSTALL_ROOT}/build"
+WHISPER_IMAGE = "podcast-whisper:0.1.0"
+WHISPER_PORT = 8002
+WHISPER_MODEL = "large-v3"
+# Persistent cache for openai-whisper model weights (~3GB for large-v3).
+# Separate from the HF cache because openai-whisper uses its own cache layout
+# (URL-hashed filenames, not HF's snapshots/blobs structure).
+WHISPER_CACHE_HOST = "/opt/llm-models/whisper-cache"
+
+_WHISPER_SRC = _Path(__file__).resolve().parents[1] / "whisper-server"
+
+files.directory(
+    name="dir: /opt/whisper-server (install root)",
+    path=WHISPER_INSTALL_ROOT,
+    mode="755",
+    present=True,
+    _sudo=True,
+)
+
+files.directory(
+    name="dir: /opt/whisper-server/build (Docker build context)",
+    path=WHISPER_BUILD_CTX,
+    mode="755",
+    present=True,
+    _sudo=True,
+)
+
+files.directory(
+    name="dir: /opt/llm-models/whisper-cache (model weights persistence)",
+    path=WHISPER_CACHE_HOST,
+    mode="755",
+    present=True,
+    _sudo=True,
+)
+
+files.put(
+    name="ship: whisper-server/Dockerfile",
+    src=str(_WHISPER_SRC / "Dockerfile"),
+    dest=f"{WHISPER_BUILD_CTX}/Dockerfile",
+    mode="644",
+    create_remote_dir=False,
+    _sudo=True,
+)
+
+files.put(
+    name="ship: whisper-server/app.py",
+    src=str(_WHISPER_SRC / "app.py"),
+    dest=f"{WHISPER_BUILD_CTX}/app.py",
+    mode="644",
+    create_remote_dir=False,
+    _sudo=True,
+)
+
+# docker-compose.yml. Same env_file + GPU passthrough as the other two
+# services. Whisper cache is OUTSIDE the operator's HF cache because
+# openai-whisper writes its own URL-hashed layout, not HF's snapshots.
+WHISPER_COMPOSE_CONTENT = f"""# Auto-generated. Edit infra/dgx/converge/deploy.py instead.
+# Re-run ``make dgx-deploy`` from the laptop to redeploy.
+
+services:
+  whisper-openai:
+    build: {WHISPER_BUILD_CTX}
+    image: {WHISPER_IMAGE}
+    container_name: whisper-openai
+    restart: unless-stopped
+    network_mode: host
+    runtime: nvidia
+    env_file:
+      - {OPERATOR_ENV_FILE}
+    environment:
+      - WHISPER_MODEL={WHISPER_MODEL}
+      - WHISPER_DEVICE=cuda
+      - WHISPER_CACHE_DIR=/root/.cache/whisper
+      - LOG_LEVEL=INFO
+      - UVICORN_HOST=0.0.0.0
+      - UVICORN_PORT={WHISPER_PORT}
+    volumes:
+      # Persistent model cache so the ~3GB large-v3 download survives
+      # container restarts. openai-whisper writes to /root/.cache/whisper.
+      - {WHISPER_CACHE_HOST}:/root/.cache/whisper
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+"""
+
+server.shell(
+    name="compose: write /opt/whisper-server/docker-compose.yml",
+    commands=[
+        f"cat > {WHISPER_COMPOSE_FILE} <<'EOF'\n{WHISPER_COMPOSE_CONTENT}EOF",
+        f"chmod 644 {WHISPER_COMPOSE_FILE}",
+    ],
+    _sudo=True,
+)
+
+server.shell(
+    name="build: whisper-openai image (one-time + on Dockerfile/app changes)",
+    commands=[f"cd {WHISPER_INSTALL_ROOT} && docker compose build"],
+    _sudo=True,
+)
+
+server.shell(
+    name="compose: up -d (start / restart whisper-openai service)",
+    commands=[f"cd {WHISPER_INSTALL_ROOT} && docker compose up -d"],
+    _sudo=True,
+)

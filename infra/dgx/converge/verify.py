@@ -116,3 +116,25 @@ server.shell(
         "curl -fsS --max-time 10 http://127.0.0.1:8001/v1/models >/dev/null",
     ],
 )
+
+# 8. openai-whisper service (#953) — parallel to speaches on :8002.
+# First-party OpenAI Whisper inference code. Runs alongside the
+# faster-whisper container until #952 picks the winner.
+server.shell(
+    name="assert: whisper-openai container is up",
+    commands=[
+        "docker ps --filter name=^whisper-openai$ --filter status=running --format '{{.Names}}' "
+        "| grep -q '^whisper-openai$'",
+    ],
+)
+
+server.shell(
+    name="assert: whisper-openai API responsive on :8002",
+    commands=[
+        # First boot can take 2-5 minutes — the ~3GB large-v3 model downloads
+        # on first startup. Subsequent restarts are quick (cache persists at
+        # /opt/llm-models/whisper-cache).
+        "curl -fsS --max-time 300 http://127.0.0.1:8002/health >/dev/null",
+        "curl -fsS --max-time 10 http://127.0.0.1:8002/v1/models >/dev/null",
+    ],
+)

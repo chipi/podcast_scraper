@@ -123,7 +123,10 @@ def _create_deepgram_client(api_key: str, base_url: str | None = None) -> Any:
             # deepgram-sdk 7.x made ``agent_rest`` a required field; point it at the
             # override root too. Older SDKs without it raise TypeError -> caught below
             # (graceful fallback to the hosted client), so this stays back-compatible.
-            env = DeepgramClientEnvironment(
+            # The ``type: ignore[call-arg]`` covers the installed SDK version not
+            # having ``agent_rest`` in its constructor signature — the try/except
+            # makes this runtime-safe in either direction.
+            env = DeepgramClientEnvironment(  # type: ignore[call-arg]
                 base=base_url,
                 production=base_url,
                 agent=base_url,
