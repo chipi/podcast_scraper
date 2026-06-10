@@ -850,7 +850,7 @@ onBeforeUnmount(() => {
 
       <div
         v-if="digest.topics.length"
-        class="min-w-0 overflow-x-hidden"
+        class="min-w-0 max-h-[40vh] overflow-x-hidden overflow-y-auto"
         role="region"
         aria-label="Topic bands"
       >
