@@ -31,6 +31,17 @@ server.shell(
     ],
 )
 
+# 1a. CDI spec present + enumerates the GB10 (per #948). Without this,
+# nvidia-container-toolkit 1.19.1's mode=auto silently falls back to a
+# degraded legacy injection that breaks ctranslate2's CUDA enumeration.
+server.shell(
+    name="assert: /etc/cdi/nvidia.yaml present + nvidia-ctk lists GPU devices",
+    commands=[
+        "test -f /etc/cdi/nvidia.yaml",
+        "nvidia-ctk cdi list 2>&1 | grep -q 'nvidia.com/gpu=all'",
+    ],
+)
+
 # 2. Tailscale identity matches expected FQDN + has required tag.
 # Use jq instead of inline python -c — quoting nests cleaner and jq is already
 # a hard dep of scripts/ops/resolve_dgx_tailnet_host.sh, so we know it's installed.
@@ -93,6 +104,22 @@ server.shell(
     name="assert: faster-whisper API responsive on :8000",
     commands=[
         "curl -fsS --max-time 10 http://127.0.0.1:8000/v1/models >/dev/null",
+    ],
+)
+
+# 6a. Per #948 — the actual GPU readiness signal. Without this check the
+# container can be "up" and the API responsive while quietly transcribing
+# on CPU at ~3% of GPU speed. nvidia-smi util% is unreliable on GB10
+# (unified memory; reports 0% mid-transcription), so we use ctranslate2's
+# own enumeration. ``cuda_device_count > 0`` means the custom build's
+# CUDA path is reachable; anything else means we're back to the pre-fix
+# CPU silent-fallback state and need to rebuild the image.
+server.shell(
+    name="assert: ctranslate2 inside faster-whisper sees GB10 on cuda",
+    commands=[
+        "docker exec faster-whisper /home/ubuntu/speaches/.venv/bin/python -c "
+        '"import ctranslate2 as c; n=c.get_cuda_device_count(); '
+        "print('cuda_device_count=', n); assert n >= 1, 'no CUDA device — see #948'\"",
     ],
 )
 
