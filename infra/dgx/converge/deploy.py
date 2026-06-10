@@ -414,17 +414,20 @@ VLLM_PORT = 8003
 # but it's what's in cache and exercises the vLLM serving path. Swap
 # this constant + adjust gpu-memory-utilization / max-model-len to test
 # different models — see infra/dgx/vllm-autoresearch/README.md.
-VLLM_MODEL = "Qwen/Qwen3-Coder-Next-FP8"
-# 0.75 (not the operator's reference 0.92) so vLLM coexists with the
-# other DGX services: whisper-openai (~3 GB) + pyannote (~3-4 GB) +
-# faster-whisper (~3-4 GB) + Ollama-loaded model (~10 GB depending
-# on what's resident) → ~15-20 GB already in use of the GB10's
-# ~122 GB. At 0.92 vLLM raises "Free memory on device < desired
-# utilization" at startup. 0.75 = ~91 GB which fits 30B-FP8 + KV cache.
-# If running vLLM in isolation (other services stopped for an
-# autoresearch sweep), bump back to 0.92 for the extra KV headroom.
-VLLM_GPU_MEM_UTIL = "0.75"
-VLLM_MAX_MODEL_LEN = "131072"
+VLLM_MODEL = "deepseek-ai/DeepSeek-R1-Distill-Qwen-32B"
+# 0.60 (not 0.92) so vLLM coexists with the other DGX services:
+# whisper-openai (~3 GB) + pyannote (~3-4 GB) + faster-whisper (~3-4 GB)
+# + Ollama-loaded model (~10 GB depending on what's resident) →
+# ~15-20 GB already in use of the GB10's ~122 GB. 0.60 = ~73 GB,
+# which fits a 32B bf16 model + KV cache while leaving headroom for
+# the other services. Bump back toward 0.92 only if you stop the
+# other services to give vLLM the whole box.
+VLLM_GPU_MEM_UTIL = "0.60"
+# 32k context — enough for podcast transcripts (~10k chars typical,
+# ~13k tokens at the model's tokenizer rate). The R1-Distill base
+# supports 131072 but holding KV cache for that at full size eats
+# memory we'd rather give to throughput.
+VLLM_MAX_MODEL_LEN = "32768"
 
 files.directory(
     name="dir: /opt/vllm-autoresearch (install root)",
