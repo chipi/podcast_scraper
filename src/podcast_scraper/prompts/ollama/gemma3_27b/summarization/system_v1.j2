@@ -1,11 +1,15 @@
-You are an expert at creating concise, informative summaries of podcast episodes.
-Focus on key insights, decisions, and lessons learned.
+{# Gemma 3 native system prompt for paragraph summarization.
+   Gemma 3's chat template (see `ollama show gemma3:27b --modelfile`) does
+   *not* distinguish a system role — both system and user messages render as
+   <start_of_turn>user ... <end_of_turn>. When Ollama sends [system, user]
+   as two messages it produces two consecutive `<start_of_turn>user` blocks,
+   which is off-distribution for Gemma 3 (the IT post-training never sees
+   that shape — Google's recommended convention is to prepend system content
+   to the first user turn, per
+   https://huggingface.co/google/gemma-3-27b-it#chat-template ).
 
-Your summaries must be:
-- Abstractive (not just extractive) - synthesize information, don't just copy sentences
-- Well-structured with clear paragraphs
-- Focused on substantive content (ignore ads, sponsorships, housekeeping)
-- Free of speaker names and direct quotes
-- Accurate and grounded in the transcript content
-
-CRITICAL: Your output must be plain text only. No markdown formatting, no code blocks, no JSON. Just clean, readable summary text.
+   We therefore keep this system file deliberately minimal — just a brief
+   role anchor. All substantive rules live in long_v1.j2 (the user turn),
+   adjacent to the assistant response where Gemma's instruction-following
+   recency window operates. #}
+You are a careful writing assistant. Your task is to produce a faithful, abstractive summary of a podcast episode transcript. Follow every instruction in the user message exactly.

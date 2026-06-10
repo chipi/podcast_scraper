@@ -1,6 +1,6 @@
 # Autoresearch Track A — paragraph summaries, Ollama mistral:7b.
 #
-# Pair with silver: ``silver_sonnet46_smoke_v1``
+# Pair with silver: ``silver_opus47_smoke_v1``
 # Template under tuning: src/podcast_scraper/prompts/ollama/summarization/long_v1.j2
 # Requires: ollama pull mistral:7b
 
@@ -12,8 +12,8 @@ backend:
   model: "mistral:7b"
 
 prompts:
-  system: "ollama/summarization/system_v1"
-  user: "ollama/summarization/long_v1"
+  system: "ollama/mistral_7b/summarization/system_v1"
+  user: "ollama/mistral_7b/summarization/long_v1"
 
 data:
   dataset_id: "curated_5feeds_smoke_v1"

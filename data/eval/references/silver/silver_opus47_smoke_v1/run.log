@@ -1,0 +1,18 @@
+2026-06-09 15:18:13,990 INFO __main__: Starting silver generation: run_id=silver_candidate_anthropic_opus47_smoke_v1 model=claude-opus-4-7 dataset=curated_5feeds_smoke_v1
+2026-06-09 15:18:14,371 INFO __main__: Loaded 5 episode(s)
+2026-06-09 15:18:14,372 INFO __main__: Summarizing p01_e01 (11049 chars)
+2026-06-09 15:18:26,532 INFO httpx: HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-06-09 15:18:26,543 WARNING __main__: No pricing for claude-opus-4-7; falling back to claude-opus-4-5
+2026-06-09 15:18:26,543 INFO __main__: Summarizing p02_e01 (11537 chars)
+2026-06-09 15:18:45,749 INFO httpx: HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-06-09 15:18:45,749 WARNING __main__: No pricing for claude-opus-4-7; falling back to claude-opus-4-5
+2026-06-09 15:18:45,750 INFO __main__: Summarizing p03_e01 (10679 chars)
+2026-06-09 15:18:58,081 INFO httpx: HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-06-09 15:18:58,081 WARNING __main__: No pricing for claude-opus-4-7; falling back to claude-opus-4-5
+2026-06-09 15:18:58,082 INFO __main__: Summarizing p04_e01 (10723 chars)
+2026-06-09 15:19:10,557 INFO httpx: HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-06-09 15:19:10,558 WARNING __main__: No pricing for claude-opus-4-7; falling back to claude-opus-4-5
+2026-06-09 15:19:10,558 INFO __main__: Summarizing p05_e01 (11190 chars)
+2026-06-09 15:19:22,396 INFO httpx: HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-06-09 15:19:22,396 WARNING __main__: No pricing for claude-opus-4-7; falling back to claude-opus-4-5
+2026-06-09 15:19:22,398 INFO __main__: Done. 5 episodes, total_in=20858, total_out=3470, cost_usd=0.1910, wall=68.0s

@@ -1,0 +1,67 @@
+{
+  "callbacks": [
+    "Daniel Choh was on episode 1 making the case for behavioral discipline."
+  ],
+  "episode_id": "p05_e02",
+  "extra_alias_callbacks": [
+    {
+      "canonical_id": "p05:Daniel",
+      "surface": "Daniel Choh"
+    },
+    {
+      "canonical_id": "p05:Richard",
+      "surface": "Rich Clarida"
+    }
+  ],
+  "failure_modes": [
+    "nickname_variant",
+    "asr_garble"
+  ],
+  "guest_accent": "en-US",
+  "host_accent": "en-US",
+  "host_canonical_name": "Nora",
+  "podcast_id": "p05",
+  "position_arc": "Earlier in my career I argued forward guidance was sufficient. Over time I revised that \u2014 without a credible balance-sheet signal, forward guidance alone is just words.",
+  "primary_guest_canonical_id": "p05:Richard",
+  "primary_guest_canonical_name": "Richard Clarida",
+  "primary_guest_surface_in_transcript": "Rich Clarida",
+  "primary_topic": "topic:monetary-policy",
+  "secondary_topics": [
+    "topic:risk-management",
+    "topic:reliability"
+  ],
+  "sponsor_blocks": [
+    {
+      "brand": "Bloomberg",
+      "kind": "template_opening",
+      "line_index": 11
+    },
+    {
+      "brand": "Vanguard",
+      "kind": "template_midroll",
+      "line_index": 34
+    },
+    {
+      "brand": "Morningstar",
+      "kind": "template_closing",
+      "line_index": 67
+    }
+  ],
+  "surface_forms": [
+    {
+      "canonical_id": "p05:Richard",
+      "kind": "nickname",
+      "surface": "Rich Clarida"
+    },
+    {
+      "canonical_id": "p05:Daniel",
+      "kind": "first_name_only",
+      "surface": "Daniel Choh"
+    },
+    {
+      "canonical_id": "p05:Richard",
+      "kind": "first_name_only",
+      "surface": "Rich Clarida"
+    }
+  ]
+}

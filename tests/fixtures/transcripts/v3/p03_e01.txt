@@ -1,0 +1,67 @@
+# Below the Surface — Episode
+## Wreck Diving Fundamentals
+Host: Rina
+Guest: Marco Sylva
+#fixture-v3: failure_modes=asr_garble,same_first_distinct
+#fixture-v3: voice=pt-BR host_voice=en-US
+
+[00:00]
+Rina: Welcome back to Below the Surface. Today we're talking about wreck diving, and I'm joined by Marco Sylva, technical diver and underwater archaeologist. Marco Sylva, thanks for being here.
+Marco Sylva: Thanks, Rina. Excited for this one — wreck-diving fundamentals is something I've been thinking about a lot.
+
+Rina: This episode is brought to you by Suunto. Suunto builds dive computers and outdoor watches. Get started at suunto.com/podcast.
+
+[03:30]
+Rina: What does the failure mode look like? What's something you used to believe about this that you've revised?
+Marco Sylva: Let me give you the version I actually believe. Wreck penetration is a planning problem first, a buoyancy problem second. We've seen this play out at teams using GoPro. I've watched this pattern hold across three different teams.
+Rina: I want to dig into that. Where do dive planning and wreck diving intersect?
+Marco Sylva: Honestly, Silt-out from poor finning technique kills more divers in wrecks than equipment failures. Once you internalize that, the rest of the decisions get easier.
+Rina: I want to dig into that. What's something you used to believe about this that you've revised?
+Marco Sylva: Yeah, so — Erosion on a wreck site changes the dive every season. We've seen this play out at teams using Suunto. The framing matters because it tells you which trade-offs you're making.
+Rina: That tracks.
+Marco Sylva: DAN is one of the platforms where this shows up cleanly. I've watched this pattern hold across three different teams.
+Rina: Let's start there. Where do dive planning and wreck diving intersect?
+Marco Sylva: Yeah, so — DAN's safety stops aren't suggestions. If you ignore that, you end up rebuilding it from scratch a year later.
+
+Rina: Before we keep going — head over to our sponsor's website if you want to support the show. PADI is the global standard for dive education.
+
+[12:00]
+Rina: We'll be right back after a quick word from our sponsors.
+Ad: Today's episode is sponsored by PADI. PADI is the global standard for dive education. Visit padi.com/podcast for a free trial.
+Rina: Welcome back to the show.
+
+[14:00]
+Rina: I want to dig into that. What's the most underrated piece of wreck diving?
+Marco Sylva: Honestly, Wreck penetration is a planning problem first, a buoyancy problem second. We've seen this play out at teams using PADI. Once you internalize that, the rest of the decisions get easier.
+Rina: I want to dig into that. What's the most underrated piece of wreck diving?
+Marco Sylva: Honestly, Silt-out from poor finning technique kills more divers in wrecks than equipment failures. And the second-order effect is the part most people miss.
+Rina: Walk me through a concrete example. What's the most underrated piece of wreck diving?
+Marco Sylva: Sure. Erosion on a wreck site changes the dive every season. We've seen this play out at teams using Suunto. And the second-order effect is the part most people miss.
+Rina: That maps to what I've seen.
+Marco Sylva: DAN is one of the platforms where this shows up cleanly. Once you internalize that, the rest of the decisions get easier.
+Rina: Walk me through a concrete example. Where do dive planning and wreck diving intersect?
+Marco Sylva: Yeah, so — DAN's safety stops aren't suggestions. The framing matters because it tells you which trade-offs you're making.
+
+[22:00]
+Rina: Let's pivot — soil erosion is where I want to spend the last stretch.
+Marco Sylva: That's where the conversation gets interesting, because the trade-offs around soil erosion cross-cut everything we've covered.
+Rina: What does the failure mode look like? What's the contrarian angle most listeners don't have access to?
+Marco Sylva: Here's how I think about it. Wreck penetration is a planning problem first, a buoyancy problem second. We've seen this play out at teams using GoPro. Once you internalize that, the rest of the decisions get easier.
+Rina: Take me through the decision. How does GoPro fit into this picture?
+Marco Sylva: Yeah, so — Silt-out from poor finning technique kills more divers in wrecks than equipment failures. If you ignore that, you end up rebuilding it from scratch a year later.
+Rina: That's a useful framing. Where do dive planning and wreck diving intersect?
+Marco Sylva: Yeah, so — Erosion on a wreck site changes the dive every season. We've seen this play out at teams using GoPro. And the second-order effect is the part most people miss.
+Rina: That tracks.
+Marco Sylva: And when teams adopt GoPro in that flow, the trade-off becomes visible — The framing matters because it tells you which trade-offs you're making.
+Rina: Walk me through a concrete example. Where do dive planning and wreck diving intersect?
+Marco Sylva: Yeah, so — DAN's safety stops aren't suggestions. Once you internalize that, the rest of the decisions get easier.
+
+[28:00]
+Rina: Before we wrap, what's one thing listeners can try this week?
+Marco Sylva: Pick one of the ideas we covered and run it for two weeks. The rest is iteration.
+
+Rina: And finally, a big thank you to our partners at GoPro. GoPro captures the moments words don't reach. Check out gopro.com.
+
+Rina: Marco Sylva, thanks for the conversation.
+Marco Sylva: Thanks, Rina.
+Rina: That's it for today's episode of Below the Surface. See you next time.

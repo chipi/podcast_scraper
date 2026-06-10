@@ -1,24 +1,25 @@
-Summarize the following podcast episode transcript.
+{# Microsoft-native user prompt for Phi-4. Wrapped automatically by Ollama
+   into <|im_start|>user<|im_sep|> ... <|im_end|>. Phi-4 was tuned on
+   textbook-style instructions; keep the task framing concrete, deliver the
+   payload, restate the binding constraints next to the assistant turn so they
+   sit in the recency window the post-training process emphasized. #}
+Task: write an abstractive summary of the following podcast episode transcript.
 
-{% if title %}
-Episode Title: {{ title }}
-{% endif %}
+{% if title -%}
+Episode title: {{ title }}
 
+{% endif -%}
 Transcript:
 {{ transcript }}
 
-Guidelines:
-- Write a detailed summary with {{ paragraphs_min }}-{{ paragraphs_max }} paragraphs
-- Focus on key decisions, arguments, and lessons learned
-- Ignore sponsorships, ads, and housekeeping
-- Do not use quotes or speaker names
-- Do not invent information not implied by the transcript
-- Use abstractive summarization - synthesize and rephrase, don't just extract sentences
-- Ensure the summary is coherent and flows naturally
+Write a single coherent summary covering the episode's substantive content. Target length: {{ paragraphs_min }}–{{ paragraphs_max }} paragraphs.
 
-CRITICAL OUTPUT REQUIREMENTS:
-- Return ONLY plain text summary, no markdown, no code blocks, no JSON
-- Start directly with the summary content
-- Use clear paragraph breaks
-- Write in third person, past tense where appropriate
-- Ensure all information is accurate and grounded in the transcript
+Constraints (must hold):
+- Abstractive and synthesized — paraphrase ideas in your own words; do not copy sentences verbatim.
+- Focus on decisions, arguments, lessons, and insights that drove the episode forward.
+- Exclude advertisements, sponsorships, listener mail, and housekeeping segments.
+- Do not include speaker names. Do not include direct quotations.
+- Do not introduce facts or claims that are not supported by the transcript.
+- Output plain text only — no markdown, no headings, no bullet lists, no code blocks, no JSON.
+- Begin the response with the first sentence of the summary; no preamble or framing.
+- Separate paragraphs with a single blank line.

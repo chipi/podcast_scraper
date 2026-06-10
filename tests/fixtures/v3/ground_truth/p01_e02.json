@@ -1,0 +1,63 @@
+{
+  "callbacks": [
+    "Liam Verbeck was on the show talking about how drainage is the single highest-leverage design choice."
+  ],
+  "episode_id": "p01_e02",
+  "extra_alias_callbacks": [
+    {
+      "canonical_id": "p01:Liam",
+      "surface": "Liam Verbeck"
+    }
+  ],
+  "failure_modes": [
+    "asr_garble"
+  ],
+  "guest_accent": "en-US",
+  "host_accent": "en-US",
+  "host_canonical_name": "Maya",
+  "podcast_id": "p01",
+  "position_arc": null,
+  "primary_guest_canonical_id": "p01:Sophie",
+  "primary_guest_canonical_name": "Sophie Laurent",
+  "primary_guest_surface_in_transcript": "Sophie Lorenz",
+  "primary_topic": "topic:enduro-racing",
+  "secondary_topics": [
+    "topic:soil-erosion",
+    "topic:risk-management"
+  ],
+  "sponsor_blocks": [
+    {
+      "brand": "Linear",
+      "kind": "template_opening",
+      "line_index": 11
+    },
+    {
+      "brand": "Strava",
+      "kind": "native_ad",
+      "line_index": 29,
+      "note": "Host-read native ad \u2014 no canonical 'brought to you by' marker."
+    },
+    {
+      "brand": "Notion",
+      "kind": "template_midroll",
+      "line_index": 33
+    },
+    {
+      "brand": "Vanta",
+      "kind": "template_closing",
+      "line_index": 66
+    }
+  ],
+  "surface_forms": [
+    {
+      "canonical_id": "p01:Sophie",
+      "kind": "garble",
+      "surface": "Sophie Lorenz"
+    },
+    {
+      "canonical_id": "p01:Liam",
+      "kind": "first_name_only",
+      "surface": "Liam Verbeck"
+    }
+  ]
+}

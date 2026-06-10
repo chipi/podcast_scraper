@@ -1,24 +1,41 @@
-Summarize the following podcast episode transcript.
+{# Gemma 3 native user prompt for paragraph summarization.
+   Wrapped automatically by Ollama into <start_of_turn>user ... <end_of_turn>
+   <start_of_turn>model. Per Gemma 3's chat template (see
+   `ollama show gemma3:27b --modelfile`) the model has no distinct system
+   role — Google's convention is to put all substantive instructions in the
+   user turn. We therefore put the full set of rules here, ahead of the
+   transcript payload, then restate the binding constraints once more at the
+   end so they sit nearest the assistant turn (recency-window pattern).
 
-{% if title %}
-Episode Title: {{ title }}
-{% endif %}
+   Style follows the Gemma 3 IT post-training convention from the model card
+   ( https://huggingface.co/google/gemma-3-27b-it ): plain instructions,
+   declarative tone, no role-play preamble. #}
+Task: write an abstractive summary of the following podcast episode transcript.
 
+Summary requirements:
+- Synthesize the substantive ideas in your own words. Do not copy sentences verbatim from the transcript.
+- Focus on the episode's key decisions, arguments, lessons learned, and substantive insights.
+- Exclude advertisements, sponsorship reads, listener-mail housekeeping, and meta show-talk.
+- Do not include speaker names. Do not include direct quotations.
+- Stay strictly grounded in the transcript. Do not add facts the transcript does not support.
+
+Output format:
+- Return plain text only — no markdown, no headings, no bullet lists, no code blocks, no JSON.
+- Begin the response with the first sentence of the summary. Do not include a preamble such as "Here is the summary" or "Summary:".
+- Separate paragraphs with a single blank line.
+- Write in clear, declarative third-person prose.
+
+{% if title -%}
+Episode title: {{ title }}
+
+{% endif -%}
 Transcript:
 {{ transcript }}
 
-Guidelines:
-- Write a detailed summary with {{ paragraphs_min }}-{{ paragraphs_max }} paragraphs
-- Focus on key decisions, arguments, and lessons learned
-- Ignore sponsorships, ads, and housekeeping
-- Do not use quotes or speaker names
-- Do not invent information not implied by the transcript
-- Use abstractive summarization - synthesize and rephrase, don't just extract sentences
-- Ensure the summary is coherent and flows naturally
+Now write the summary. Target length: {{ paragraphs_min }}–{{ paragraphs_max }} paragraphs.
 
-CRITICAL OUTPUT REQUIREMENTS:
-- Return ONLY plain text summary, no markdown, no code blocks, no JSON
-- Start directly with the summary content
-- Use clear paragraph breaks
-- Write in third person, past tense where appropriate
-- Ensure all information is accurate and grounded in the transcript
+Reminder of the binding constraints:
+- Abstractive, synthesized prose; no verbatim sentence copying.
+- No speaker names, no direct quotations.
+- Plain text only; no markdown, no headings, no bullet lists, no preamble.
+- Begin immediately with the first sentence of the summary.

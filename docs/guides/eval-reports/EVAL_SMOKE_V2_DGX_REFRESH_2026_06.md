@@ -211,11 +211,414 @@ The full 22-cell matrix (18 v2 + 4 v2.1) is stable; champion-swap decision uncha
 | #932 | G-Eval finale | When implemented, runs against these same 19 cells |
 | #933 | Prod-curated validation | When curated, the chosen champion gets a sanity-check pass |
 
+## Addendum — Rescored against Opus 4.7 silver (2026-06-09, #939)
+
+The v2 + v2.1 numbers above were originally scored against
+`silver_sonnet46_smoke_v1`, which makes ROUGE measure "how close does this
+model write to Claude Sonnet 4.6" — not "how good is this summary"
+(see the methodology caveats above). Phase 0 of the next autoresearch ride
+upgrades silver to Opus 4.7 (see
+[SILVER_OPUS47_GENERATION_2026_06](SILVER_OPUS47_GENERATION_2026_06.md))
+and rescores the 22 sweep cells × 2 datasets without re-running inference.
+
+**Rescoring tool**: `scripts/eval/score/rescore_against_silver.py` — consumes
+existing `predictions.jsonl`, writes per-run
+`metrics_vs_silver_opus47_smoke_v{1,2}.json` non-destructively.
+
+### Rescored scoreboard — `curated_5feeds_smoke_v1` vs `silver_opus47_smoke_v1`
+
+Sorted by new RougeL F1, with delta from the original Sonnet-silver column for
+context. **Higher is better; absolute scores are not comparable across silvers.**
+
+| Model | Old RougeL (Sonnet) | New RougeL (Opus) | ΔRougeL | Rouge1 | Cosine | Coverage |
+| --- | --- | --- | --- | --- | --- | --- |
+| `mistral:7b` | 0.260 | **0.329** | **+0.068** | 0.612 | 0.806 | 0.766 |
+| `llama3.2:3b` | 0.254 | **0.326** | **+0.072** | 0.593 | 0.799 | 1.167 |
+| `llama3.1:8b` | 0.247 | **0.307** | **+0.060** | 0.628 | 0.817 | 1.054 |
+| `mistral-small:24b` | 0.257 | 0.284 | +0.027 | 0.597 | 0.782 | 0.964 |
+| `hermes3:8b` | 0.218 | 0.279 | +0.061 | 0.541 | 0.785 | 0.567 |
+| `gemma2:9b` | 0.249 | 0.276 | +0.026 | 0.561 | 0.831 | 0.802 |
+| `qwen2.5:7b` | 0.236 | 0.265 | +0.029 | 0.572 | 0.776 | 0.963 |
+| `mistral-small3.2` | 0.249 | 0.261 | +0.012 | 0.540 | 0.810 | 0.818 |
+| `qwen3.5:27b` | **0.271** (old #1) | 0.257 | -0.015 | 0.557 | 0.802 | 1.117 |
+| `mistral-nemo:12b` | 0.241 | 0.256 | +0.015 | 0.552 | 0.762 | 1.059 |
+| `qwen3.5:35b` | 0.262 (old #3, baseline) | 0.243 | -0.019 | 0.572 | 0.801 | 1.071 |
+| `qwen3.6:latest` | **0.271** (old #1, contender) | 0.241 | -0.030 | 0.571 | 0.768 | 0.986 |
+| `phi4:14b` | 0.256 | 0.240 | -0.016 | 0.556 | 0.813 | 0.939 |
+| `qwen2.5:32b` | 0.229 | 0.238 | +0.008 | 0.516 | 0.806 | 0.772 |
+| `phi3:mini` | 0.202 | 0.230 | +0.028 | 0.522 | 0.802 | 1.453 |
+| `deepseek-r1:70b` | (killed) | 0.228 (3 eps only) | — | 0.520 | 0.793 | 0.782 |
+| `qwen3.5:9b` | 0.228 | 0.223 | -0.006 | 0.542 | 0.799 | 0.998 |
+| `gpt-oss:20b` | 0.226 | 0.219 | -0.007 | 0.523 | 0.774 | 0.738 |
+| `deepseek-r1:14b` | 0.218 | 0.212 | -0.007 | 0.488 | 0.800 | 0.760 |
+| `qwen3-coder:30b` | 0.209 | 0.209 | -0.000 | 0.532 | 0.758 | 1.191 |
+| `deepseek-r1:7b` | 0.199 | 0.209 | +0.010 | 0.442 | 0.764 | 0.728 |
+| `deepseek-r1:32b` | 0.195 | 0.205 | +0.010 | 0.438 | 0.766 | 0.655 |
+| `gemma3:27b` | 0.207 | 0.202 | -0.005 | 0.491 | 0.769 | 0.958 |
+
+### Rescored scoreboard — `curated_5feeds_smoke_v2` vs `silver_opus47_smoke_v2`
+
+Same pattern shows up on the v2-content dataset.
+
+| Model | RougeL | Rouge1 | Cosine | Coverage |
+| --- | --- | --- | --- | --- |
+| `mistral:7b` | **0.302** | 0.566 | 0.825 | 0.848 |
+| `llama3.1:8b` | **0.282** | 0.546 | 0.835 | 1.155 |
+| `llama3.2:3b` | **0.271** | 0.552 | 0.802 | 1.212 |
+| `mistral-nemo:12b` | 0.265 | 0.521 | 0.808 | 1.015 |
+| `hermes3:8b` | 0.265 | 0.488 | 0.776 | 0.761 |
+| `gemma2:9b` | 0.263 | 0.497 | 0.825 | 0.863 |
+| `mistral-small:24b` | 0.257 | 0.507 | 0.808 | 0.993 |
+| `qwen2.5:7b` | 0.253 | 0.504 | 0.825 | 0.968 |
+| `gpt-oss:20b` | 0.251 | 0.486 | 0.833 | 0.795 |
+| `qwen2.5:32b` | 0.248 | 0.462 | 0.805 | 0.805 |
+| `phi4:14b` | 0.241 | 0.477 | 0.822 | 0.889 |
+| `deepseek-r1:70b` | 0.237 (partial) | 0.465 | 0.796 | 0.733 |
+| `mistral-small3.2` | 0.230 | 0.472 | 0.797 | 0.842 |
+| `qwen3.5:35b` | 0.229 | 0.508 | 0.797 | 1.250 |
+| `qwen3.6:latest` | 0.228 | 0.501 | 0.798 | 1.149 |
+| `qwen3-coder:30b` | 0.215 | 0.477 | 0.809 | 1.400 |
+| `qwen3.5:27b` | 0.213 | 0.488 | 0.760 | 1.423 |
+| `deepseek-r1:14b` | 0.211 | 0.398 | 0.784 | 0.640 |
+| `qwen3.5:9b` | 0.211 | 0.462 | 0.792 | 1.086 |
+| `deepseek-r1:32b` | 0.199 | 0.382 | 0.788 | 0.575 |
+| `gemma3:27b` | 0.193 | 0.440 | 0.787 | 1.129 |
+| `deepseek-r1:7b` | 0.189 | 0.384 | 0.792 | 0.630 |
+| `phi3:mini` | 0.183 | 0.458 | 0.801 | 1.663 |
+
+### What changed — champion-decision implications
+
+**Headline: the ranking flips, and the qwen family loses its edge.**
+
+| Aspect | Old silver (Sonnet 4.6) | New silver (Opus 4.7) | Change |
+| --- | --- | --- | --- |
+| #1 rankings | qwen3.5:27b + qwen3.6:latest tied at 0.271 | **mistral:7b at 0.329** | New leader, +21% RougeL gap |
+| Top-3 family | All Qwen3 (qwen3.5:27b, qwen3.6, qwen3.5:35b) | mistral:7b, llama3.2:3b, llama3.1:8b | Top-3 swaps to non-Qwen entirely |
+| qwen3.5:35b (current champion) | 0.262 (#3) | 0.243 (#11) | -0.019, drops 8 places |
+| qwen3.6:latest (challenger) | 0.271 (tied #1) | 0.241 (#12) | -0.030, drops 11 places |
+| qwen3.5:35b vs qwen3.6:latest delta | +0.009 (qwen3.6 ahead) | +0.002 (qwen3.5:35b ahead by a hair) | Effectively zero — tie within noise |
+| Compression of top-vs-mid | Top 0.271 vs mid 0.247 = 0.024 spread | Top 0.329 vs mid 0.243 = 0.086 spread | **The metric is now MORE discriminating, not less** |
+
+**Critical observation**: the original concern in #939 was that "ROUGE
+deltas may compress (smaller deltas between models)" — that turned out to be
+**the opposite of what happened**. The spread *widened*: against Sonnet
+silver, the top 9 models all clustered within 0.025 RougeL; against Opus
+silver, the top 3 separate from the rest by 0.04+. This means Sonnet silver
+was *flattening* the ranking by penalizing any model that wrote
+differently-but-well — Opus silver lets the metric breathe.
+
+**What this does NOT change**:
+
+1. **Champion stays `qwen3.5:35b`** for the prod profile. The new
+   scoreboard doesn't justify swapping to `mistral:7b` on a 5-episode
+   smoke alone — we need #933 prod-curated validation and #932 G-Eval
+   before any prod swap. RougeL is one signal among many. mistral:7b's
+   coverage is 0.766 (down ~25% from Qwen) which suggests it's
+   summarizing more tersely; G-Eval will tell us whether that's
+   "concise" or "lossy".
+2. **qwen3.6:latest vs qwen3.5:35b championship comparison** stays
+   essentially tied, just at a lower absolute level. The original
+   v2 conclusion ("credible champion contender pending #932/#933
+   validation") still holds.
+3. **DeepSeek-R1 family remains uncontested loser** for paragraph
+   summarization. Reasoning-tuned models don't write paragraph prose
+   well; that's a fundamental fit problem, not a silver-choice artifact.
+
+**What this DOES change** for downstream planning:
+
+- The `#928` DGX-vs-cloud championship now has a different "local
+  representative" candidate set. mistral:7b is suddenly the strongest
+  local candidate by ROUGE-vs-Opus; that needs to be folded into the
+  finalist roster.
+- The per-model prompt-tuning tickets (#935 / #936 / #937 / #938) should
+  re-score against the new silver before deciding whether tuning helped.
+- The `#932` G-Eval finale will use the Opus silver as the reference
+  for its faithfulness/coverage/coherence/fluency dimensions — this
+  rescoring just establishes the new ROUGE baseline.
+
+### Rescoring methodology notes
+
+- **Same predictions, new silver only.** No inference was re-run; just
+  ROUGE/BLEU/WER/cosine/coverage recomputed.
+- **r1:70b cell has 3 episodes only** (rerun was killed at episode 5/10 of
+  dataset 1; episode-3-4 were 17 min each — operationally
+  disqualified). Its 0.228 RougeL vs Opus is on a 3-episode subset and is
+  marked as such.
+- **No qwen3-coder:30b cell in v1 originally** — the retry sweep killswitch
+  SIGTERM'd before its cell. The presence of a v1 cell now is from a
+  separate fill-in run we missed mentioning above; treat as informational.
+
 ## References
 
 - [#924 — Autoresearch v2 refresh on DGX](https://github.com/chipi/podcast_scraper/issues/924)
 - [#923 — Prod profile: all-DGX with cloud fallback](https://github.com/chipi/podcast_scraper/issues/923)
 - [#907 — Autoresearch programme epic](https://github.com/chipi/podcast_scraper/issues/907)
+- [#939 — Silver upgrade to Opus 4.7](https://github.com/chipi/podcast_scraper/issues/939) — Phase 0 of next batch (this addendum)
+- [SILVER_OPUS47_GENERATION_2026_06](SILVER_OPUS47_GENERATION_2026_06.md) — generation report for the new silver
 - [EVAL_SMOKE_V1_DGX_VS_LAPTOP_2026_06](EVAL_SMOKE_V1_DGX_VS_LAPTOP_2026_06.md) — the prior DGX validation pass
 - [docs/wip/AUTORESEARCH_NEXT_PHASE_DEPENDENCIES.md](../../wip/AUTORESEARCH_NEXT_PHASE_DEPENDENCIES.md) — dependency map across the open work
 - [docs/wip/AUTORESEARCH_LEARNINGS_FOR_V3.md](../../wip/AUTORESEARCH_LEARNINGS_FOR_V3.md) — failure-mode catalogue
+
+### Tuned prompt addendum — hermes3:8b (#937, 2026-06-09)
+
+**Verdict: Nous-native ChatML helps.** Hermes 3 is a Nous Research
+fine-tune of Llama 3.1 8B, post-trained against a ChatML-style chat
+template with a persona-forward system message (per the
+[Hermes-3-Llama-3.1-8B model card](https://huggingface.co/NousResearch/Hermes-3-Llama-3.1-8B)).
+The smoke-v2 baseline run used the generic qwen3.5:9b prompts verbatim;
+this tuning pass replaces them with a Nous-shaped pair that mirrors the
+"You are Hermes 3..." opener the model was explicitly trained on, then
+states the task constraints. Ollama applies the `<|im_start|>/<|im_end|>`
+ChatML wrapping automatically — the `.j2` files supply only the message
+*content*.
+
+**Prompts** (in this commit):
+
+- `src/podcast_scraper/prompts/ollama/hermes3_8b/summarization/system_v1.j2`
+- `src/podcast_scraper/prompts/ollama/hermes3_8b/summarization/long_v1.j2`
+
+**Tuned run dir**: `data/eval/runs/llm_ollama_hermes3_8b_dgx_smoke_v2_tuned_2026_06/`
+
+**Numbers — `vs silver_opus47`:**
+
+| Dataset | Baseline (generic prompt) | Tuned (Nous-native) | Δ RougeL |
+| --- | --- | --- | --- |
+| `curated_5feeds_smoke_v1` | RougeL 0.279, Cosine 0.785, Cov 0.567 | **RougeL 0.309**, Cosine 0.769, Cov 0.631 | **+0.030** |
+| `curated_5feeds_smoke_v2` | RougeL 0.265, Cosine 0.776, Cov 0.761 | **RougeL 0.306**, Cosine 0.787, Cov 0.786 | **+0.041** |
+
+**Reading the result**: the Nous-native template lifts Hermes 3 from
+rank 5 (v1) / rank 5 (v2) on the rescored scoreboard into the top tier with
+mistral:7b (0.329 v1 / 0.302 v2) and llama3.1:8b (0.307 v1 / 0.282 v2).
+This is one of the three valid outcomes the ticket
+[#937](https://github.com/chipi/podcast_scraper/issues/937)
+called out — the Nous fine-tune *does* help summarization when the
+prompt matches its training distribution. The cell deserves a slot in
+the #928 championship finalist roster.
+
+**Coverage caveat**: v1 coverage at 0.631 still lags the qwen baseline's
+~0.94, so this is a quality-of-summary lift, not a length-discipline
+lift. G-Eval (#932) is the right next gate.
+
+### Tuned prompt addendum — gemma3:27b (#935, 2026-06-09)
+
+**Hypothesis ladder result: H3 accepted — task-fit issue, not prompt or quantization.**
+
+The v2.1 sweep used qwen3.5:9b's prompt templates verbatim for gemma3:27b
+and the rescored result against Opus silver showed gemma3 at the bottom of
+the matrix (RougeL 0.202 on smoke_v1). #935 ran a three-hypothesis ladder:
+
+| Hypothesis | Variant | RougeL vs Opus (v1) | Δ vs baseline (0.202) | Verdict |
+| --- | --- | --- | --- | --- |
+| H1 — prompt format mismatch | Q4_K_M + Gemma-native chat template | **0.188** | **−0.014** | Regressed |
+| H2 — Q4 quantization regression | Q8_0 + Gemma-native chat template | **0.191** | **−0.011** | Marginal vs H1, still regressed |
+| H3 — genuine task-fit | (accept) | — | — | **Accepted** |
+
+**Tuned prompts** at `src/podcast_scraper/prompts/ollama/gemma3_27b/summarization/`:
+
+- `system_v1.j2` — minimal role anchor; Gemma 3's IT chat template has no
+  distinct system role per Google's
+  [model card](https://huggingface.co/google/gemma-3-27b-it#chat-template),
+  so we keep the system message short and place all binding instructions
+  in the user turn.
+- `long_v1.j2` — Gemma-native user prompt: declarative tone, no role-play
+  preamble, binding constraints restated near the assistant turn (recency
+  window pattern).
+
+**Q8 quantization tested** via new config
+`data/eval/configs/summarization/autoresearch_prompt_ollama_gemma3_27b_q8_smoke_paragraph_v1.yaml`
+targeting `gemma3:27b-it-q8_0`. Q8 lifts RougeL by +0.003 over Q4 (0.188 →
+0.191) — a real but small effect. **Quantization is NOT the dominant
+factor**; even at higher precision, gemma3:27b underperforms on this task.
+
+**Why H3 is the right verdict**: across both quantizations and both
+prompts, gemma3's output is consistently shorter and less aligned with
+Opus's prose style than Qwen's. Cosine stays at ~0.78 (vs qwen3.5:35b's
+~0.79), coverage stays at ~0.74-0.78 (vs qwen3.5:35b's ~1.07). Gemma 3's
+instruction-following on text-only paragraph summarization on this corpus
+just isn't competitive. The model is multimodal-tuned (vision-language
+strong); the v2.1 result wasn't a methodology artifact, it was a model
+fit issue.
+
+**Drop from #928 championship roster.** Other Gemma versions or task
+shapes (e.g., bullet-track or with image-text hybrid inputs) might reach
+different conclusions; this verdict is specific to gemma3:27b on
+paragraph summarization of our 5-feed smoke corpus.
+
+**Runs** (under `data/eval/runs/`, gitignored — predictions + Opus metrics persisted):
+
+- `llm_ollama_gemma3_27b_dgx_smoke_v2_tuned_h1_2026_06/` (H1, Q4)
+- `llm_ollama_gemma3_27b_dgx_smoke_v2_tuned_h2_q8_2026_06/` (H2, Q8)
+
+### Tuned prompt addendum — mistral-small:24b (#938, 2026-06-09)
+
+**Verdict: counter-intuitive negative result — Mistral-native [INST] hurts ROUGE on this corpus.**
+
+| Dataset | Baseline (Qwen clone) | Tuned (Mistral [INST]) | Δ RougeL |
+| --- | --- | --- | --- |
+| `curated_5feeds_smoke_v1` | RougeL 0.284, Cosine 0.782, Cov 0.964 | **RougeL 0.257**, Cosine 0.799, Cov 0.781 | **−0.027** |
+| `curated_5feeds_smoke_v2` | RougeL 0.257, Cosine 0.793, Cov 0.952 | RougeL 0.259, Cosine 0.815, Cov 0.764 | +0.002 |
+
+**Tuned prompts** at `src/podcast_scraper/prompts/ollama/mistral-small_24b/summarization/`:
+
+- `system_v1.j2` — concise, declarative role statement per the
+  [Mistral-Small-24B model card](https://huggingface.co/mistralai/Mistral-Small-24B-Instruct-2501)
+  recommendations ("state constraints, don't describe them")
+- `long_v1.j2` — Mistral-native user prompt with crisp task framing first,
+  then transcript payload, then a bullet-list of binding constraints near
+  the assistant turn (recency-window pattern). Ollama auto-wraps in
+  `[INST]...[/INST]`.
+
+**Why the tuned prompt regresses**: the Mistral-native template produces
+**shorter, more declarative summaries** (avg 1818 chars vs the Qwen-clone's
+~2400+). Coverage drops from 0.964 to 0.781 — Mistral is following Mistral's
+"concise, declarative" training style faithfully, but Opus's reference
+summaries are longer and more thorough. Cosine similarity actually improves
+slightly (0.799 vs 0.782), meaning Mistral writes **more like Opus
+semantically** — but ROUGE penalizes the coverage loss more than it rewards
+the semantic alignment.
+
+**Same shape as gemma3 H1/H2**: across both cells, the verbose Qwen-clone
+template wins on ROUGE because it produces output that better matches
+Opus's length and word-overlap pattern. Native prompts produce shorter
+summaries that may be semantically truer but lexically penalized.
+
+**Implication for #928 / #932**: mistral-small:24b is doing fine — the
+result tells us "ROUGE is biased toward verbose summaries that match
+Opus's prose length." G-Eval (#932) on faithfulness / coverage /
+coherence / fluency will likely tell a different story. Keep mistral-small
+on the #928 championship roster pending G-Eval; don't drop it on this
+ROUGE-on-cloned-prompt-still-wins observation.
+
+**Runs** (under `data/eval/runs/`, gitignored):
+
+- `llm_ollama_mistral-small_24b_dgx_smoke_v2_tuned_2026_06/` (Mistral-native [INST])
+
+### Tuned prompt addendum — phi4:14b (#936, 2026-06-09)
+
+**Verdict: neutral — Microsoft-native template doesn't materially move ROUGE; phi4's ceiling on this corpus is in the 0.23–0.25 band regardless of prompt.**
+
+| Dataset | Baseline (Qwen clone) | Tuned (Microsoft `<\|im_start\|>`) | Δ RougeL |
+| --- | --- | --- | --- |
+| `curated_5feeds_smoke_v1` | RougeL 0.240, Cosine 0.813, Cov 0.939 | RougeL **0.247**, Cosine 0.783, Cov 0.772 | +0.007 |
+| `curated_5feeds_smoke_v2` | RougeL 0.241, Cosine 0.822, Cov 0.889 | RougeL 0.233, Cosine 0.808, Cov 0.826 | −0.008 |
+
+**Tuned prompts** at `src/podcast_scraper/prompts/ollama/phi4_14b/summarization/`:
+
+- `system_v1.j2` — short, role-anchor system message matching Phi-4's
+  textbook-style instruction-following per the
+  [microsoft/phi-4 model card](https://huggingface.co/microsoft/phi-4)
+- `long_v1.j2` — user prompt structured for Phi-4's
+  `<|im_start|>{role}<|im_end|>` token convention (Ollama applies wrapping
+  automatically)
+
+**Why neutral**: phi4's outputs on both prompts produce summaries in the
+same length band (~1500-1900 chars). Cosine moved slightly lower with the
+tuned prompt (0.813 → 0.783) but stays in the same general band. The
+"parameter-efficiency winner" claim from the v2.1 Sonnet-silver scoring
+was a style-similarity artifact — Phi-4 happened to write in a Sonnet-like
+prose style, which Opus silver doesn't reward as strongly. With either
+prompt, phi4's Opus-silver ceiling looks ~0.24-0.25 on this corpus.
+
+**Implication for #928**: phi4:14b is a fair 14B-class entry but not a
+championship contender. The Microsoft-native prompt does not unlock a
+meaningfully different result. Keep in matrix as a parameter-efficiency
+reference; don't expect prompt-tuning alone to lift it into the top tier.
+
+The methodology gap that #936 was filed to close (qwen-clone-vs-native
+fairness) is now closed for phi4. The remaining variance comes from
+inherent model behavior, not prompt format.
+
+**Runs** (under `data/eval/runs/`, gitignored):
+
+- `llm_ollama_phi4_14b_dgx_smoke_v2_tuned_2026_06/` (Microsoft-native)
+
+### Tuned prompt addendum — #945 older top-3 (mistral:7b + llama3.2:3b + llama3.1:8b, 2026-06-09)
+
+**Verdict: all 3 regress. The Opus-silver "unexpected top-3" was a verbose-qwen-clone-prompt artifact.**
+
+[#945](https://github.com/chipi/podcast_scraper/issues/945) closed the
+"tuned vs untuned" fairness gap for the 3 older models that emerged as
+top-3 under Opus silver despite never having had model-specific prompts.
+
+| Model | qwen-clone baseline (v1/v2) | tuned native (v1/v2) | Δ RougeL | Coverage shift (v1) |
+| --- | --- | --- | --- | --- |
+| `mistral:7b` | 0.329 / 0.302 | **0.282** / 0.298 | **−0.047** / −0.004 | 0.766 → 0.697 |
+| `llama3.2:3b` | 0.326 / 0.271 | 0.310 / 0.231 | −0.016 / −0.040 | 1.167 → 1.001 |
+| `llama3.1:8b` | 0.307 / 0.282 | **0.244** / 0.234 | **−0.063** / −0.048 | 1.054 → 0.971 |
+
+**Tuned prompts** at:
+
+- `src/podcast_scraper/prompts/ollama/mistral_7b/summarization/` — Mistral [INST]-style
+- `src/podcast_scraper/prompts/ollama/llama3.2_3b/summarization/` — Llama-3 header_id style (NEW dir)
+- `src/podcast_scraper/prompts/ollama/llama3.1_8b/summarization/` — Llama-3 header_id style
+
+YAML configs updated to point at per-model prompt paths (previously
+inherited the shared `ollama/summarization/` default — that's why the
+v2 sweep showed these models doing so well; they were running on the
+verbose qwen-clone prompt).
+
+**The post-#939 ranking, recomputed with all prompt-tuning Phase 0.5 + #945 results:**
+
+| Rank | Model | Source | RougeL v1 vs Opus |
+| --- | --- | --- | --- |
+| 1 | `mistral:7b` (qwen-clone) | v2 sweep, untouched | 0.329 |
+| 2 | `llama3.2:3b` (qwen-clone) | v2 sweep, untouched | 0.326 |
+| 3 | `hermes3:8b` (Nous-native, **tuned**) | #937 | 0.309 |
+| 4 | `llama3.1:8b` (qwen-clone) | v2 sweep, untouched | 0.307 |
+| 5 | `mistral:7b` (Mistral-native) | #945 | 0.282 |
+| 6 | `mistral-small:24b` (qwen-clone, untouched) | v2.1 | 0.284 |
+| 7 | `hermes3:8b` (qwen-clone, original) | v2.1 | 0.279 |
+| 8 | `qwen3.5:35b` (qwen-clone, prod champion) | v2 | 0.243 |
+
+(Selected entries; full matrix unchanged elsewhere.)
+
+**Cross-cutting finding across all 7 tuning experiments (Phase 0.5 + #945)**:
+
+| Result | Models | Count |
+| --- | --- | --- |
+| Tuning HELPED | hermes3:8b (+0.030) | 1 / 7 |
+| Tuning NEUTRAL | phi4:14b (±0.008) | 1 / 7 |
+| Tuning REGRESSED | gemma3:27b (-0.014), mistral-small:24b (-0.027), mistral:7b (-0.047), llama3.2:3b (-0.016), llama3.1:8b (-0.063) | **5 / 7** |
+
+The qwen3.5:9b clone template is uniquely well-suited to score high on
+ROUGE-against-Opus across model families. It produces longer,
+more verbose summaries that match Opus's lexical patterns regardless of
+the underlying model's training distribution. **Native prompts make
+models write in their own trained style, which lexically diverges from
+Opus's prose patterns and hurts ROUGE — even when the model writes
+faithful, well-structured summaries.**
+
+**Implication for #928 championship**:
+
+The "top-3" leaders under Opus silver (mistral:7b, llama3.2:3b,
+llama3.1:8b) are **not the strongest models**, they're the strongest
+*combinations of model + verbose Qwen-clone prompt*. The actual
+championship roster should:
+
+1. **Promote hermes3:8b** — the only model where native prompts genuinely
+   helped on Opus ROUGE. Real championship contender.
+2. **Keep qwen3.5:35b, qwen3.6:latest as primary contenders** — their
+   high-volume Qwen-style output is what models prompt-tuning attempts
+   to reach.
+3. **Treat the v2-sweep top-3 (mistral:7b / llama3.2 / llama3.1) as
+   reference points, not champions** — their ROUGE-on-Opus lead came
+   from the verbose clone prompt, not from inherent model superiority.
+4. **Defer all final champion-pick decisions to #932 G-Eval finale**.
+   ROUGE-on-Opus rewards prompt-induced verbosity more than model
+   quality; only the G-Eval dimensions (faithfulness / coverage /
+   coherence / fluency) will reveal which models actually produce the
+   best summaries.
+
+**Methodology lesson confirmed**: even with the Opus silver upgrade
+(which raised the ceiling vs Sonnet), ROUGE remains fundamentally a
+lexical similarity metric. The remaining bias is to *prompt-induced
+verbose output style*, not to silver-author identity. Closing that bias
+requires non-lexical scoring (G-Eval, #932) or richer references with
+varied prose styles.
+
+**Runs** (under `data/eval/runs/`, gitignored — predictions and Opus
+metrics persisted for future re-analysis):
+
+- `llm_ollama_mistral_7b_dgx_smoke_v2_tuned_2026_06/`
+- `llm_ollama_llama32_3b_dgx_smoke_v2_tuned_2026_06/`
+- `llm_ollama_llama31_8b_dgx_smoke_v2_tuned_2026_06/`

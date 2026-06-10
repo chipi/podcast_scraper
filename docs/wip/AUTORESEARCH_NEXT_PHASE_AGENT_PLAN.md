@@ -10,13 +10,14 @@ Designed for 2 agents working in parallel on the same branch (per operator's sta
 ## TL;DR sequence
 
 ```text
-Phase 0 — GATING (solo, ~1 day):
-  One agent → #939 (upgrade silver to Opus 4.7)
-  → 1 PR merged
+Phase 0 — GATING (solo, ~1 day) — DONE 2026-06-09:
+  One agent → #939 (upgrade silver to Opus 4.7)  ✓ landed locally on feat/907-autoresearch-batch-2
+  → 1 PR merged (pending push)
 
-Phase 0.5 — Prompt-tuning re-runs (parallel, ~2 days):
-  Agent 1 → #935 (gemma3 prompts) + #936 (phi4 prompts)
-  Agent 2 → #937 (hermes3 prompts) + #938 (mistral-small prompts)
+Phase 0.5 — Prompt-tuning re-runs (parallel, ~2 days) — RECALIBRATED 2026-06-09:
+  Agent 1 (HIGH-impact tickets) → #935 (gemma3, deep investigation) + #938 (mistral-small)
+  Agent 2 (MEDIUM tickets) → #937 (hermes3) + #936 (phi4)
+  Optional sidecar (either agent w/ capacity) → #945 (older top-3 prompt fairness)
   → 1-2 PRs merged
 
 Phase 1 — Methodology + foundation (parallel, ~1-2 weeks):
@@ -36,7 +37,7 @@ Phase 3 — Synthesis (solo, ~1 week):
   → 1 PR merged
 ```
 
-**Total**: 8 PRs across 4-6 weeks, 2 agents most of the time. (Was 6 PRs; +2 for new prompt-tuning + silver upgrade work surfaced by v2.1.)
+**Total**: 8-9 PRs across 4-6 weeks, 2 agents most of the time. (Was 6 PRs; +2 for new prompt-tuning + silver upgrade work surfaced by v2.1; +1 optional for #945 if both Phase 0.5 agents finish early.)
 
 ---
 
@@ -87,20 +88,39 @@ These insertions push the timeline from ~3-5 weeks to ~4-6 weeks but produce a s
 
 ---
 
-## Phase 0.5 — Per-model prompt tuning (parallel)
+## Phase 0.5 — Per-model prompt tuning (parallel) — RECALIBRATED 2026-06-09 after Opus silver
 
 **Two agents, ~2 days total.** Touches `src/podcast_scraper/prompts/ollama/<slug>/summarization/` — model-specific dirs, zero contention.
 
-### Agent 1 — gemma3 + phi4
+**Recalibration after #939 landed**: under the new Opus silver the rankings flipped dramatically. The 4 v2.1 candidates' new positions:
 
-**Goal**: hand-craft Gemma-native and Phi-native paragraph summarization templates; re-run sweep cells; update report.
+| Model | Sonnet RougeL | Opus RougeL | Δ | Rank | Priority |
+|---|---|---|---|---|---|
+| `mistral-small:24b` | 0.257 | **0.284** | +0.027 | #4 global | HIGH (close to top-3) |
+| `hermes3:8b` | 0.218 | **0.279** | **+0.061** | #5 | MEDIUM (already OK; methodology lift only) |
+| `phi4:14b` | 0.256 | 0.240 | -0.016 | #13 | LOW (ceiling looks limited) |
+| `gemma3:27b` | 0.207 | 0.202 | -0.005 | **#23 (LAST)** | HIGH (biggest delta; deep investigation needed) |
+
+Agent assignments rebalanced accordingly — Agent 1 takes the two HIGH-impact tickets (gemma3 + mistral-small) where the upside is biggest; Agent 2 takes the two MEDIUM/LOW (hermes3 + phi4).
+
+### Agent 1 — gemma3 + mistral-small (HIGH-impact tickets)
+
+**Goal**: hand-craft Gemma-native and Mistral-native paragraph summarization templates; re-run sweep cells; update report.
+
+**Special focus on #935 (gemma3:27b)**: at 0.202 under Opus silver it's dead-last in the matrix. Three hypotheses to test in order:
+
+1. **H1 — prompt format mismatch**: Gemma 3 uses `<start_of_turn>user/<end_of_turn>` markers; we cloned Qwen's. Native template may recover meaningfully.
+2. **H2 — Q4_K_M quantization regression**: try fp16 (full precision Ollama or vLLM) to see if quant is hurting Gemma disproportionately.
+3. **H3 — genuine task-fit issue**: Gemma 3 is multimodal-tuned (vision-language); paragraph summarization may not be its sweet spot. If H1+H2 don't recover, accept this verdict.
+
+Brief should explicitly test H1 first (~half-day), H2 if H1 falls short (~half-day), accept H3 if neither recovers.
 
 **MAY edit**:
 
 - `src/podcast_scraper/prompts/ollama/gemma3_27b/summarization/{system_v1.j2, long_v1.j2}` (REPLACE clones)
-- `src/podcast_scraper/prompts/ollama/phi4_14b/summarization/{system_v1.j2, long_v1.j2}` (REPLACE clones)
+- `src/podcast_scraper/prompts/ollama/mistral-small_24b/summarization/{system_v1.j2, long_v1.j2}` (REPLACE clones)
 - `data/eval/runs/llm_ollama_gemma3_27b_dgx_smoke_v2_1_tuned_*/` (NEW)
-- `data/eval/runs/llm_ollama_phi4_14b_dgx_smoke_v2_1_tuned_*/` (NEW)
+- `data/eval/runs/llm_ollama_mistral-small_24b_dgx_smoke_v2_1_tuned_*/` (NEW)
 - Eval report addendum (own section per model)
 
 **MUST NOT edit**:
@@ -108,18 +128,22 @@ These insertions push the timeline from ~3-5 weeks to ~4-6 weeks but produce a s
 - Other models' prompt dirs (Agent 2)
 - DGX_MODEL_CATALOG / AI_PROVIDER_COMPARISON_GUIDE (synthesis phase)
 
-**Deliverable**: 1 PR with both models retuned. Closes #935 + #936.
+**Deliverable**: 1 PR with both models retuned. Closes #935 + #938.
 
-### Agent 2 — hermes3 + mistral-small
+### Agent 2 — hermes3 + phi4 (MEDIUM/LOW tickets)
 
-**Goal**: same shape as Agent 1, but for Hermes 3 (Nous Llama-3 fine-tune) and Mistral Small.
+**Goal**: same shape as Agent 1, but with reframed hypotheses post-Opus.
+
+**#937 (hermes3:8b)**: the v2.1 framing of "Nous fine-tune REGRESSED vs base llama3.1:8b" was a Sonnet-silver artifact. Under Opus it sits at 0.279 — close to llama3.1:8b's 0.307. The real question this ticket tests: **does Nous's chat fine-tune help or hurt paragraph summarization specifically?** Methodology lift, not recovery.
+
+**#936 (phi4:14b)**: the "parameter-efficiency winner" claim evaporated under Opus. At 0.240 the ceiling looks limited. Brief should be **shorter/exploratory** — try Phi-native prompt, accept the cell may stay below top-10. Not a championship contender; the value is closing the methodology gap, not finding a winner.
 
 **MAY edit**:
 
 - `src/podcast_scraper/prompts/ollama/hermes3_8b/summarization/{system_v1.j2, long_v1.j2}` (REPLACE clones)
-- `src/podcast_scraper/prompts/ollama/mistral-small_24b/summarization/{system_v1.j2, long_v1.j2}` (REPLACE clones)
+- `src/podcast_scraper/prompts/ollama/phi4_14b/summarization/{system_v1.j2, long_v1.j2}` (REPLACE clones)
 - `data/eval/runs/llm_ollama_hermes3_8b_dgx_smoke_v2_1_tuned_*/` (NEW)
-- `data/eval/runs/llm_ollama_mistral-small_24b_dgx_smoke_v2_1_tuned_*/` (NEW)
+- `data/eval/runs/llm_ollama_phi4_14b_dgx_smoke_v2_1_tuned_*/` (NEW)
 - Eval report addendum (own section per model)
 
 **MUST NOT edit**:
@@ -127,11 +151,17 @@ These insertions push the timeline from ~3-5 weeks to ~4-6 weeks but produce a s
 - Other models' prompt dirs (Agent 1)
 - DGX_MODEL_CATALOG / AI_PROVIDER_COMPARISON_GUIDE (synthesis phase)
 
-**Deliverable**: 1 PR with both models retuned. Closes #937 + #938.
+**Deliverable**: 1 PR with both models retuned. Closes #937 + #936.
 
-### Why this phase exists
+### Optional sidecar — #945 (older top-3 prompt fairness)
 
-The v2.1 sweep result was biased — every new candidate ran against qwen3.5:9b's prompt format. Gemma 3's 0.207 RougeL surprise was almost certainly prompt-mismatch, not model failure. If even one of these models becomes a credible champion contender after tuning, the prod-LLM decision in #923 changes materially.
+If either Phase 0.5 agent finishes their two tickets early (Agent 2 is more likely given lower scope), they pick up [#945](https://github.com/chipi/podcast_scraper/issues/945): hand-tune Mistral-, Llama-3.2-, Llama-3.1-native prompts for the older top-3 models (mistral:7b, llama3.2:3b, llama3.1:8b — the unexpected leaders under Opus silver). Without this, the championship comparison is "tuned v2.1 candidates vs untuned older models" — unfair to the new candidates. Treat as **optional** because #932 G-Eval finale will surface "this model needs a better prompt" as a finding anyway; this ticket just closes the fairness gap earlier.
+
+### Why this phase exists (updated post-Opus)
+
+The v2.1 sweep result was biased two ways: (a) silver-mimicry, fixed by #939, (b) prompt-template-mismatch, fixed by #935-938 (and optionally #945). Together they remove the two largest sources of methodology bias from the autoresearch matrix BEFORE the #928/929/930 championships run. Without these, the championship verdicts inherit both biases.
+
+The Opus silver rescore showed how much bias was hiding in the data: qwen3.5:35b dropped from #3 to #11; mistral:7b leapt from #4 to #1. We don't yet know how much each PHASE 0.5 model can lift with native prompts — could be marginal, could be 0.05+ RougeL.
 
 ---
 
@@ -344,8 +374,8 @@ Agents in Phase 2 record championship verdicts in their own report files (`EVAL_
 - [Next-phase dependency map](AUTORESEARCH_NEXT_PHASE_DEPENDENCIES.md) — issue-level dependency graph
 - [Autoresearch learnings for v3](AUTORESEARCH_LEARNINGS_FOR_V3.md) — failure-mode catalogue (becomes #921 spec)
 - Open issues by phase:
-  - **Phase 0**: [#939](https://github.com/chipi/podcast_scraper/issues/939) Opus silver
-  - **Phase 0.5**: [#935](https://github.com/chipi/podcast_scraper/issues/935), [#936](https://github.com/chipi/podcast_scraper/issues/936), [#937](https://github.com/chipi/podcast_scraper/issues/937), [#938](https://github.com/chipi/podcast_scraper/issues/938) per-model prompt tuning
+  - **Phase 0** (DONE 2026-06-09): [#939](https://github.com/chipi/podcast_scraper/issues/939) Opus silver
+  - **Phase 0.5**: [#935](https://github.com/chipi/podcast_scraper/issues/935), [#936](https://github.com/chipi/podcast_scraper/issues/936), [#937](https://github.com/chipi/podcast_scraper/issues/937), [#938](https://github.com/chipi/podcast_scraper/issues/938) per-model prompt tuning + [#945](https://github.com/chipi/podcast_scraper/issues/945) optional older-top-3 prompt fairness
   - **Phase 1**: [#932](https://github.com/chipi/podcast_scraper/issues/932) finale, [#921](https://github.com/chipi/podcast_scraper/issues/921) v3 fixtures, [#940 Track 1](https://github.com/chipi/podcast_scraper/issues/940) R1-as-judge, [#933](https://github.com/chipi/podcast_scraper/issues/933) prod-curated
   - **Phase 2**: [#928](https://github.com/chipi/podcast_scraper/issues/928), [#929](https://github.com/chipi/podcast_scraper/issues/929), [#930](https://github.com/chipi/podcast_scraper/issues/930), [#940 Tracks 2-3](https://github.com/chipi/podcast_scraper/issues/940)
   - **Phase 3**: [#931](https://github.com/chipi/podcast_scraper/issues/931), [#923](https://github.com/chipi/podcast_scraper/issues/923)

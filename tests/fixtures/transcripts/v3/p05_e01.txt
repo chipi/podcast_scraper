@@ -1,0 +1,71 @@
+# Long Horizon Notes — Episode
+## Index Investing Without the Myths
+Host: Nora
+Guest: Daniel Cho
+#fixture-v3: failure_modes=same_first_distinct,frame_topic_cross_domain
+#fixture-v3: voice=en-US host_voice=en-US
+
+[00:00]
+Nora: Welcome back to Long Horizon Notes. Today we're talking about index investing, and I'm joined by Daniel Cho, former bond trader turned index advocate. Daniel Cho, thanks for being here.
+Daniel Cho: Thanks, Nora. Excited for this one — index investing is something I've been thinking about a lot.
+
+Nora: This episode is brought to you by Vanguard. Vanguard pioneered low-cost index funds. Get started at vanguard.com/podcast.
+
+[03:30]
+Nora: What does the failure mode look like? How does Vanguard fit into this picture?
+Daniel Cho: Let me give you the version I actually believe. Index funds are not a strategy — they're the absence of one. We've seen this play out at teams using Vanguard. And the second-order effect is the part most people miss.
+Nora: What's the one heuristic you keep coming back to? What's something you used to believe about this that you've revised?
+Daniel Cho: Honestly, Vanguard's structure pioneered low costs. I've watched this pattern hold across three different teams.
+Nora: Let's start there. Where do reliability and index investing intersect?
+Daniel Cho: Sure. Frame the market reaction first, then look at fundamentals — most decisions get this backwards. We've seen this play out at teams using Vanguard. Once you internalize that, the rest of the decisions get easier.
+Nora: Say more about that.
+Daniel Cho: And when teams adopt Wealthfront in that flow, the trade-off becomes visible — I've watched this pattern hold across three different teams.
+Nora: Push back on the conventional wisdom for me. What's the most underrated piece of index investing?
+Daniel Cho: Honestly, Risk management for individual investors is mostly behavioral. Once you internalize that, the rest of the decisions get easier.
+Nora: What's the one heuristic you keep coming back to? What's the version of the question that actually matters?
+Daniel Cho: It comes down to this: I changed my mind on small-value tilts. We've seen this play out at teams using Morningstar. And the second-order effect is the part most people miss.
+
+[12:00]
+Nora: We'll be right back after a quick word from our sponsors.
+Ad: Today's episode is sponsored by Wealthfront. Wealthfront automates the boring parts of investing. Visit wealthfront.com/podcast for a free trial.
+Nora: Welcome back to the show.
+
+[14:00]
+Nora: What's the one heuristic you keep coming back to? What's the most underrated piece of index investing?
+Daniel Cho: Yeah, so — Index funds are not a strategy — they're the absence of one. We've seen this play out at teams using Vanguard. And the second-order effect is the part most people miss.
+Nora: That's a useful framing. What's the most underrated piece of index investing?
+Daniel Cho: Sure. Vanguard's structure pioneered low costs. And the second-order effect is the part most people miss.
+Nora: I want to dig into that. What's the version of the question that actually matters?
+Daniel Cho: Let me give you the version I actually believe. Frame the market reaction first, then look at fundamentals — most decisions get this backwards. We've seen this play out at teams using Bloomberg. Once you internalize that, the rest of the decisions get easier.
+Nora: That tracks.
+Daniel Cho: And when teams adopt Bloomberg in that flow, the trade-off becomes visible — If you ignore that, you end up rebuilding it from scratch a year later.
+Nora: That's a useful framing. What's the operational angle most listeners don't have access to?
+Daniel Cho: Sure. Risk management for individual investors is mostly behavioral. I've watched this pattern hold across three different teams.
+Nora: Take me through the decision. What's the version of the question that actually matters?
+Daniel Cho: It comes down to this: I changed my mind on small-value tilts. We've seen this play out at teams using Wealthfront. And the second-order effect is the part most people miss.
+
+[22:00]
+Nora: Let's pivot — frame is where I want to spend the last stretch.
+Daniel Cho: That's where the conversation gets interesting, because the trade-offs around frame cross-cut everything we've covered.
+Nora: I want to dig into that. Where do reliability and index investing intersect?
+Daniel Cho: Yeah, so — Index funds are not a strategy — they're the absence of one. We've seen this play out at teams using Wealthfront. And the second-order effect is the part most people miss.
+Nora: Let's start there. What's the most underrated piece of index investing?
+Daniel Cho: Let me give you the version I actually believe. Vanguard's structure pioneered low costs. If you ignore that, you end up rebuilding it from scratch a year later.
+Nora: I want to dig into that. What's something you used to believe about this that you've revised?
+Daniel Cho: Sure. Frame the market reaction first, then look at fundamentals — most decisions get this backwards. We've seen this play out at teams using Morningstar. Once you internalize that, the rest of the decisions get easier.
+Nora: That tracks.
+Daniel Cho: Morningstar is one of the platforms where this shows up cleanly. If you ignore that, you end up rebuilding it from scratch a year later.
+Nora: Push back on the conventional wisdom for me. What's the most underrated piece of index investing?
+Daniel Cho: It comes down to this: Risk management for individual investors is mostly behavioral. And the second-order effect is the part most people miss.
+Nora: What does the failure mode look like? Where do reliability and index investing intersect?
+Daniel Cho: Yeah, so — I changed my mind on small-value tilts. We've seen this play out at teams using Vanguard. And the second-order effect is the part most people miss.
+
+[28:00]
+Nora: Before we wrap, what's one thing listeners can try this week?
+Daniel Cho: Pick one of the ideas we covered and run it for two weeks. The rest is iteration.
+
+Nora: And finally, a big thank you to our partners at Stripe. Stripe makes payments simple, whether you're running a marketplace or a subscription business. Check out stripe.com.
+
+Nora: Daniel Cho, thanks for the conversation.
+Daniel Cho: Thanks, Nora.
+Nora: That's it for today's episode of Long Horizon Notes. See you next time.

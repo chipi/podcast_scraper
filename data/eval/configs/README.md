@@ -111,7 +111,7 @@ Optional: pass a **silver reference** id (comma-separated) so `metrics.json` get
 
 ```bash
 make experiment-run CONFIG=data/eval/configs/summarization/autoresearch_prompt_ollama_qwen25_7b_smoke_paragraph_v1.yaml \
-  REFERENCE=silver_sonnet46_smoke_v1
+  REFERENCE=silver_opus47_smoke_v1
 ```
 
 **Preprocessing:** Autoresearch and smoke configs use `preprocessing_profile: "cleaning_v4"` so
@@ -199,8 +199,15 @@ make silver-pairwise CANDIDATE_A=silver_candidate_anthropic_sonnet46_smoke_v1 CA
 make run-promote RUN_ID=silver_candidate_anthropic_sonnet46_smoke_v1 AS=reference PROMOTED_ID=silver_sonnet46_smoke_v1 REFERENCE_QUALITY=silver REASON=”...”
 ```
 
-**Active silver reference:** `silver_sonnet46_smoke_v1` (Claude Sonnet 4.6, selected April 2026:
-3-1-1 vs GPT-5.4, 5-0 vs Gemini 2.0 Flash). See `scripts/eval/pairwise_judge.py` for judge code.
+**Active silver reference:** `silver_opus47_smoke_v1` (Claude Opus 4.7, generated June 2026 per
+[#939](https://github.com/chipi/podcast_scraper/issues/939) — upgraded from Sonnet 4.6 to raise
+the quality ceiling for paragraph summarization). Previous: `silver_sonnet46_smoke_v1`
+(Claude Sonnet 4.6, selected April 2026: 3-1-1 vs GPT-5.4, 5-0 vs Gemini 2.0 Flash). Old silver
+kept under `data/eval/references/silver/silver_sonnet46_smoke_v1/` for historical comparison.
+See `scripts/eval/pairwise_judge.py` for judge code and
+`scripts/eval/data/generate_silver_summarization.py` for the Opus generation path
+(Opus 4.7 thinking models deprecate `temperature`, so the standard `make experiment-run`
+flow doesn't work for that model).
 
 **Notes on model compatibility:**
 
@@ -209,7 +216,7 @@ make run-promote RUN_ID=silver_candidate_anthropic_sonnet46_smoke_v1 AS=referenc
 - `gemini-2.5-pro` and `gemini-3.1-pro-preview` are thinking models that exhaust `max_output_tokens`
   on internal reasoning; use `gemini-2.0-flash` (GA, non-thinking) for Gemini candidates.
 
-**Use** the active reference in scoring: `REFERENCE=silver_sonnet46_smoke_v1`
+**Use** the active reference in scoring: `REFERENCE=silver_opus47_smoke_v1`
 
 ### spaCy Backend (NER)
 
@@ -239,11 +246,11 @@ bullets           autoresearch_prompt_<p>_smoke_        autoresearch_prompt_<p>_
 Where `<p>` is the provider key: `anthropic`, `openai`, `gemini`, `deepseek`, `grok`,
 `mistral`, `ollama_llama32_3b`, `ollama_qwen35_9b`, etc.
 
-**Silver reference pairing (always use sonnet46):**
+**Silver reference pairing:**
 
 | Config type | Reference |
 | :--- | :--- |
-| `*_smoke_paragraph_v1` | `silver_sonnet46_smoke_v1` |
+| `*_smoke_paragraph_v1` | `silver_opus47_smoke_v1` (post-#939; old `silver_sonnet46_smoke_v1` retained for historical comparison) |
 | `*_smoke_bullets_v1` | `silver_sonnet46_smoke_bullets_v1` |
 | `*_benchmark_paragraph_v1` | `silver_sonnet46_benchmark_v1` |
 | `*_benchmark_bullets_v1` | `silver_sonnet46_benchmark_bullets_v1` |
@@ -282,7 +289,7 @@ specific large model.
 ```bash
 # Smoke paragraph — all providers
 for cfg in data/eval/configs/summarization/autoresearch_prompt_*_smoke_paragraph_v1.yaml; do
-  make experiment-run CONFIG=$cfg REFERENCE=silver_sonnet46_smoke_v1 FORCE=1
+  make experiment-run CONFIG=$cfg REFERENCE=silver_opus47_smoke_v1 FORCE=1
 done
 
 # Benchmark paragraph — all providers (cloud + Ollama-small)

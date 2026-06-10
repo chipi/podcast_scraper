@@ -1,0 +1,68 @@
+{
+  "callbacks": [
+    "Dr. Elena Fisher was on last week talking about systems thinking."
+  ],
+  "episode_id": "p07_e02",
+  "extra_alias_callbacks": [
+    {
+      "canonical_id": "p07:Elena",
+      "surface": "Dr. Elena Fisher"
+    },
+    {
+      "canonical_id": "p07:Elena",
+      "surface": "Dr. Eliana Fishler"
+    }
+  ],
+  "failure_modes": [
+    "asr_garble_severe",
+    "recurring_guest",
+    "multi_accent"
+  ],
+  "guest_accent": "en-IN",
+  "host_accent": "en-AU",
+  "host_canonical_name": "Alex Morgan",
+  "podcast_id": "p07",
+  "position_arc": null,
+  "primary_guest_canonical_id": "p07:Skanda",
+  "primary_guest_canonical_name": "Skanda Amarnath",
+  "primary_guest_surface_in_transcript": "Skanda Eminas",
+  "primary_topic": "topic:macroeconomics",
+  "secondary_topics": [
+    "topic:systems-thinking",
+    "topic:risk-management"
+  ],
+  "sponsor_blocks": [
+    {
+      "brand": "Bloomberg",
+      "kind": "template_opening",
+      "line_index": 11
+    },
+    {
+      "brand": "Linear",
+      "kind": "template_midroll",
+      "line_index": 30
+    },
+    {
+      "brand": "Stripe",
+      "kind": "template_closing",
+      "line_index": 59
+    }
+  ],
+  "surface_forms": [
+    {
+      "canonical_id": "p07:Skanda",
+      "kind": "severe",
+      "surface": "Skanda Eminas"
+    },
+    {
+      "canonical_id": "p07:Elena",
+      "kind": "first_name_only",
+      "surface": "Dr. Elena Fisher"
+    },
+    {
+      "canonical_id": "p07:Elena",
+      "kind": "first_name_only",
+      "surface": "Dr. Eliana Fishler"
+    }
+  ]
+}

@@ -1,0 +1,69 @@
+{
+  "callbacks": [
+    "Rich Clarida was on last week \u2014 the same point about credibility applies here."
+  ],
+  "episode_id": "p05_e03",
+  "extra_alias_callbacks": [
+    {
+      "canonical_id": "p05:Richard",
+      "surface": "Rich Clarida"
+    },
+    {
+      "canonical_id": "p05:Marco",
+      "surface": "Marco Biancchi"
+    }
+  ],
+  "failure_modes": [
+    "asr_garble",
+    "nickname_variant",
+    "same_first_distinct"
+  ],
+  "guest_accent": "en-US",
+  "host_accent": "en-US",
+  "host_canonical_name": "Nora",
+  "podcast_id": "p05",
+  "position_arc": "I used to think currency intervention was always counter-productive. After 2023 I changed my mind \u2014 selective intervention in thin overnight markets can be a legitimate tool.",
+  "primary_guest_canonical_id": "p05:Scott",
+  "primary_guest_canonical_name": "Scott Bessent",
+  "primary_guest_surface_in_transcript": "Scott Bessett",
+  "primary_topic": "topic:macro-policy",
+  "secondary_topics": [
+    "topic:risk-management",
+    "topic:reliability",
+    "topic:systems-thinking"
+  ],
+  "sponsor_blocks": [
+    {
+      "brand": "Bloomberg",
+      "kind": "template_opening",
+      "line_index": 11
+    },
+    {
+      "brand": "Wealthfront",
+      "kind": "template_midroll",
+      "line_index": 34
+    },
+    {
+      "brand": "Vanguard",
+      "kind": "template_closing",
+      "line_index": 67
+    }
+  ],
+  "surface_forms": [
+    {
+      "canonical_id": "p05:Scott",
+      "kind": "garble",
+      "surface": "Scott Bessett"
+    },
+    {
+      "canonical_id": "p05:Richard",
+      "kind": "first_name_only",
+      "surface": "Rich Clarida"
+    },
+    {
+      "canonical_id": "p05:Marco",
+      "kind": "first_name_only",
+      "surface": "Marco Biancchi"
+    }
+  ]
+}

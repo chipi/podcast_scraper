@@ -1,0 +1,48 @@
+{
+  "callbacks": [
+    "Renee was on last week walking through public-radio voice conventions."
+  ],
+  "episode_id": "p08_e02",
+  "extra_alias_callbacks": [],
+  "failure_modes": [
+    "zero_host_ner",
+    "recurring_guest"
+  ],
+  "guest_accent": "en-US",
+  "host_accent": "en-US",
+  "host_canonical_name": "A. correspondent",
+  "podcast_id": "p08",
+  "position_arc": null,
+  "primary_guest_canonical_id": "p08:Renee",
+  "primary_guest_canonical_name": "Renee Montagne-Park",
+  "primary_guest_surface_in_transcript": "Renee Montague-Park",
+  "primary_topic": "topic:public-radio",
+  "secondary_topics": [
+    "topic:journalism",
+    "topic:reliability"
+  ],
+  "sponsor_blocks": [
+    {
+      "brand": "Squarespace",
+      "kind": "template_opening",
+      "line_index": 11
+    },
+    {
+      "brand": "Stripe",
+      "kind": "template_midroll",
+      "line_index": 24
+    },
+    {
+      "brand": "Notion",
+      "kind": "template_closing",
+      "line_index": 45
+    }
+  ],
+  "surface_forms": [
+    {
+      "canonical_id": "p08:Renee",
+      "kind": "garble",
+      "surface": "Renee Montague-Park"
+    }
+  ]
+}

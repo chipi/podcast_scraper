@@ -1,0 +1,19 @@
+{# Llama-3-native user prompt for llama3.2:3b. Wrapped automatically by
+   Ollama into <|start_header_id|>user<|end_header_id|>\n\n...<|eot_id|>.
+
+   Per Meta's Llama 3 prompting guidance, the user turn states the task and
+   delivers the payload; rich structural rules already live in the system
+   turn (system_v1.j2) so we do not restate them here. We do echo the
+   binding length + format constraints once at the end of the user turn so
+   they sit nearest the assistant's reply — small Llama-3 models follow
+   tail-of-prompt constraints more reliably than mid-prompt ones. #}
+Summarize the following podcast episode transcript.
+
+{% if title -%}
+Episode title: {{ title }}
+
+{% endif -%}
+Transcript:
+{{ transcript }}
+
+Write {{ paragraphs_min }}–{{ paragraphs_max }} paragraphs of coherent prose covering the substantive content of the conversation. Plain text only — no markdown, no headings, no bullets, no JSON. Begin directly with the summary; no preamble.

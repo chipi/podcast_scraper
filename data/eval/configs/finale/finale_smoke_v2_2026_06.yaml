@@ -1,0 +1,98 @@
+# Finale-tier config — autoresearch championship sweep (#932).
+#
+# Reads existing qualifier run dirs (each with predictions.jsonl + a
+# metrics_vs_silver_opus47_smoke_v1.json file) and runs the G-Eval finale
+# against the top-3-per-stratum finalists.
+#
+# Strata are ordered: the first match wins. Cloud and DGX rules MUST come
+# before the generic "ollama" catch-all so a cloud-API run does not slip
+# into the mbp_le_14b stratum because of a stray substring overlap.
+
+tag: finale_smoke_v2_2026_06
+
+runs_glob:
+  - data/eval/runs/autoresearch_prompt_*_curated_5feeds_smoke_v1
+  - data/eval/runs/autoresearch_prompt_*_curated_5feeds_smoke_v2
+
+metrics_filename: metrics_vs_silver_opus47_smoke_v1.json
+
+# Stratification (ordered; first match wins)
+strata:
+  - name: cloud
+    match:
+      - autoresearch_prompt_anthropic_
+      - autoresearch_prompt_openai_
+      - autoresearch_prompt_gemini_
+      - autoresearch_prompt_grok_
+      - autoresearch_prompt_mistral_
+      - autoresearch_prompt_deepseek_
+      - autoresearch_prompt_gpt4o_mini_
+      - autoresearch_prompt_gemini25_flash_lite_
+      - autoresearch_prompt_mistral_medium_
+  - name: dgx_le_40b
+    match:
+      - autoresearch_prompt_ollama_qwen35_35b_
+      - autoresearch_prompt_ollama_qwen35_27b_
+      - autoresearch_prompt_ollama_qwen25_32b_
+      - autoresearch_prompt_ollama_mistral-small_24b_
+      - autoresearch_prompt_ollama_mistral_small3_2_
+      - autoresearch_prompt_ollama_gemma3_27b_
+      - autoresearch_prompt_ollama_phi4_14b_
+      - autoresearch_prompt_ollama_deepseek-r1_32b_
+      - autoresearch_prompt_ollama_qwen3-coder_30b_
+      - autoresearch_prompt_ollama_gpt-oss_20b_
+      - autoresearch_prompt_ollama_deepseek-r1_14b_
+  - name: mbp_le_14b
+    match:
+      - autoresearch_prompt_ollama_mistral_nemo_12b_
+      - autoresearch_prompt_ollama_qwen35_9b_
+      - autoresearch_prompt_ollama_qwen25_7b_
+      - autoresearch_prompt_ollama_mistral_7b_
+      - autoresearch_prompt_ollama_llama31_8b_
+      - autoresearch_prompt_ollama_llama32_3b_
+      - autoresearch_prompt_ollama_gemma2_9b_
+      - autoresearch_prompt_ollama_hermes3_8b_
+      - autoresearch_prompt_ollama_phi3_mini_
+      - autoresearch_prompt_ollama_deepseek-r1_7b_
+
+# Promotion rule (per #932)
+promotion:
+  per_stratum_top_k: 3
+  floor_fraction: 0.8   # rougeL >= 0.8 x stratum-leader rougeL
+  overall_cap: 12        # global ceiling across strata
+  # Carte blanche — force-include candidates whose run_id contains any of
+  # these substrings, regardless of ROUGE floor / top_k / overall_cap.
+  # Operator add 2026-06-09: the whole reason for G-Eval is to bypass ROUGE
+  # bias — excluding qwen3.5:35b (current prod champion) on its ROUGE-on-
+  # Opus result would be exactly the bias we're trying to escape. The
+  # G-Eval verdict on the current prod model deserves to be in the report
+  # even if its ROUGE fell below the floor.
+  carte_blanche:
+    - autoresearch_prompt_ollama_qwen35_35b_     # current prod champion (#923)
+    - autoresearch_prompt_ollama_qwen3.6_latest_ # v2 challenger ("close" #1)
+
+# Judges
+#
+# RFC-057 mandates the OpenAI + Anthropic flagship pair for autoresearch
+# judging. The original #932 config used Gemini 2.5 Pro for cross-check;
+# the 2026-06-09 finale run surfaced that Gemini 2.5 Pro returns empty
+# text when its dynamic-thinking budget consumes the full
+# max_output_tokens (20/20 cross-check calls produced text=''). We
+# reverted to the RFC-057 dual-judge pair (Sonnet 4.6 + GPT-5.4).
+# Gemini25ProJudge stays in the codebase for ad-hoc tertiary use.
+judges:
+  primary:
+    kind: sonnet46
+    model: claude-sonnet-4-6
+  cross_check:
+    kind: openai_chat
+    model: gpt-5.4
+    # Cross-check only the top-N from primary (per stratum) to bound cost.
+    top_n_per_stratum: 2
+
+# Sample / cost guard
+max_episodes_per_finalist: 5   # smoke run; raise to 30 for full per #932
+cost_cap_usd: 50.0
+
+# Output
+output_root: data/eval/runs/finale

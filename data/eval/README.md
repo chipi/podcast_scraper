@@ -30,14 +30,21 @@ GIL and KG are **separate** experiment configs and runs (not combined in one run
 (paragraph) and `configs/summarization_bullets/` (bullets). Every provider has a **2×2 matrix**
 of configs: smoke/benchmark × paragraph/bullets. The active silver references are:
 
-- `silver_sonnet46_smoke_v1` — prose paragraph, 5 eps (smoke)
+- `silver_opus47_smoke_v1` — prose paragraph, 5 eps (smoke) — **active**, upgraded from Sonnet 4.6 per #939
+- `silver_opus47_smoke_v2` — prose paragraph, 5 eps (smoke v2 dataset) — **active**
+- `silver_sonnet46_smoke_v1` / `silver_sonnet46_smoke_v2` — historical paragraph smoke (kept for comparison)
 - `silver_sonnet46_benchmark_v1` — prose paragraph, 10 eps (benchmark)
 - `silver_sonnet46_smoke_bullets_v1` — JSON bullets, 5 eps (smoke)
 - `silver_sonnet46_benchmark_bullets_v1` — JSON bullets, 10 eps (benchmark)
 
-All selected via pairwise LLM judge (Claude Sonnet 4.6 won vs GPT-4o and GPT-5.4).
-**Always use `silver_sonnet46_*` for new experiments.** `silver_gpt4o_*` references are
-archived — retained for historical traceability only.
+Paragraph smoke silvers were upgraded from Sonnet 4.6 to Opus 4.7 in June 2026 per
+[#939](https://github.com/chipi/podcast_scraper/issues/939) — see
+`docs/guides/eval-reports/SILVER_OPUS47_GENERATION_2026_06.md`. The original Sonnet 4.6
+silvers were selected via pairwise LLM judge (won vs GPT-4o and GPT-5.4). Use
+`silver_opus47_*` for new paragraph smoke experiments; bullets + benchmark tracks
+still pair with the Sonnet 4.6 silvers until those quality ceilings become the
+limiting factor. `silver_gpt4o_*` references are archived — retained for historical
+traceability only.
 
 See `configs/README.md` for the full eval run matrix, trigger rules, and silver selection
 workflow. See `references/silver/README.md` for when to create new silver references.

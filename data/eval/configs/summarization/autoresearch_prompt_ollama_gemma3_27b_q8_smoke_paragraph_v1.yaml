@@ -1,0 +1,30 @@
+# Autoresearch Track A — paragraph summaries, Ollama gemma3:27b Q8 quant.
+#
+# H2 investigation for #935: same Gemma-native H1 prompts as
+# autoresearch_prompt_ollama_gemma3_27b_smoke_paragraph_v1.yaml, but uses
+# the Q8 quant tag (gemma3:27b-it-q8_0) instead of the default Q4_K_M tag,
+# to isolate whether quantization is contributing to the low RougeL.
+#
+# Pair with silver: silver_opus47_smoke_v1
+# Requires: ollama pull gemma3:27b-it-q8_0 (DGX as of 2026-06-09)
+
+id: "autoresearch_prompt_ollama_gemma3_27b_q8_smoke_paragraph_v1"
+task: "summarization"
+
+backend:
+  type: "ollama"
+  model: "gemma3:27b-it-q8_0"
+
+prompts:
+  system: "ollama/gemma3_27b/summarization/system_v1"
+  user: "ollama/gemma3_27b/summarization/long_v1"
+
+data:
+  dataset_id: "curated_5feeds_smoke_v1"
+
+params:
+  max_length: 800
+  min_length: 200
+  temperature: 0.0
+
+preprocessing_profile: "cleaning_v4"

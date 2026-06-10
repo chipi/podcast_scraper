@@ -1,21 +1,28 @@
 # Silver references (eval)
 
 Silver references are **promoted experiment runs**: high-quality outputs from a flagship
-model (currently Claude Sonnet 4.6) used as the measuring stick for all other providers.
+model (currently Claude Opus 4.7 on the smoke paragraph track) used as the measuring
+stick for all other providers.
 
 ## Active silver references
 
 | Reference ID | Model | Dataset | Episodes | Format | Status |
 | :--- | :--- | :--- | :---: | :--- | :--- |
-| `silver_sonnet46_smoke_v1` | Claude Sonnet 4.6 | smoke | 5 | prose paragraphs | **Active — paragraph smoke** |
+| `silver_opus47_smoke_v1` | Claude Opus 4.7 | smoke v1 | 5 | prose paragraphs | **Active — paragraph smoke v1** (post-#939) |
+| `silver_opus47_smoke_v2` | Claude Opus 4.7 | smoke v2 | 5 | prose paragraphs | **Active — paragraph smoke v2** (post-#939) |
+| `silver_sonnet46_smoke_v1` | Claude Sonnet 4.6 | smoke v1 | 5 | prose paragraphs | Historical — kept for comparison after Opus upgrade |
+| `silver_sonnet46_smoke_v2` | Claude Sonnet 4.6 | smoke v2 | 5 | prose paragraphs | Historical — kept for comparison after Opus upgrade |
 | `silver_sonnet46_smoke_bullets_v1` | Claude Sonnet 4.6 | smoke | 5 | JSON bullets | **Active — bullets smoke** |
 | `silver_sonnet46_benchmark_v1` | Claude Sonnet 4.6 | benchmark | 10 | prose paragraphs | **Active — paragraph benchmark** |
 | `silver_sonnet46_benchmark_bullets_v1` | Claude Sonnet 4.6 | benchmark | 10 | JSON bullets | **Active — bullets benchmark** |
 
 Archived GPT-4o references have been moved to `_archive/` (see `_archive/README.md`).
 
-**Rule:** Always use `silver_sonnet46_*` for new experiments and comparisons. The `silver_gpt4o_*`
-references are retained for historical traceability only — do not use them for new runs.
+**Rule:** Use `silver_opus47_smoke_*` for new paragraph smoke comparisons (post-#939).
+Bullet and benchmark tracks still pair with the Sonnet 4.6 silvers — they will be
+upgraded to Opus 4.7 in follow-up tickets if/when the quality ceiling becomes the
+limiting factor for those tracks. The `silver_gpt4o_*` references are retained for
+historical traceability only — do not use them for new runs.
 
 ## The two dimensions
 
@@ -64,10 +71,10 @@ After a full re-run, generate an updated eval report:
 
 ```bash
 # Run all providers (see data/eval/configs/README.md § Eval run matrix)
-make experiment-run CONFIG=... REFERENCE=silver_sonnet46_smoke_v1
+make experiment-run CONFIG=... REFERENCE=silver_opus47_smoke_v1
 
 # Generate comparison report across all runs
-make runs-compare RUN_IDS=<comma-separated> REFERENCE_ID=silver_sonnet46_smoke_v1
+make runs-compare RUN_IDS=<comma-separated> REFERENCE_ID=silver_opus47_smoke_v1
 ```
 
 ## Promoting a run to silver

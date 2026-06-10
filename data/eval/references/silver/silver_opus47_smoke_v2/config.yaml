@@ -1,0 +1,26 @@
+# Silver Reference Candidate — Anthropic Claude Opus 4.7 on smoke v2 dataset (#939).
+#
+# Companion to silver_candidate_anthropic_opus47_smoke_v1.yaml — same model,
+# same prompt, run on the curated_5feeds_smoke_v2 dataset so v2-content
+# rescoring has an Opus-4.7 reference as well. See #939 for rationale.
+
+id: "silver_candidate_anthropic_opus47_smoke_v2_paragraph"
+task: "summarization"
+
+backend:
+  type: "anthropic"
+  model: "claude-opus-4-7"
+
+prompts:
+  system: "anthropic/summarization/system_v1"
+  user: "anthropic/summarization/long_v2"
+
+data:
+  dataset_id: "curated_5feeds_smoke_v2"
+
+params:
+  max_length: 800
+  min_length: 200
+  temperature: 0.0
+
+preprocessing_profile: "cleaning_v4"

@@ -5,7 +5,7 @@
 # Round 2: max_tokens=1000 (+6.96%)
 # Map params: max_new_tokens=200, num_beams=6 confirmed optimal (all candidates rejected)
 #
-# Final metrics vs silver_sonnet46_smoke_v1 on curated_5feeds_smoke_v1:
+# Final metrics vs silver_opus47_smoke_v1 on curated_5feeds_smoke_v1:
 #   ROUGE-L: ~22-24% (±2-3pp sampling variance at temp=0.5)
 #   Embedding cosine: ~76-78%
 #   Latency: ~15-17s/episode

@@ -1,0 +1,69 @@
+# Below the Surface — Episode
+## Marine Biology for Divers
+Host: Rina
+Guest: Hanna Crebo Rediker
+#fixture-v3: failure_modes=asr_garble
+#fixture-v3: voice=en-GB host_voice=en-US
+
+[00:00]
+Rina: Welcome back to Below the Surface. Today we're talking about marine biology, and I'm joined by Hanna Crebo Rediker, marine biologist focused on reef systems. Hanna Crebo Rediker, thanks for being here.
+Hanna Crebo Rediker: Thanks, Rina. Great to be back.
+
+Rina: Today's episode is sponsored by PADI. PADI is the global standard for dive education. Try padi.com today.
+
+Rina: Before we get into it — Marco Sylva was on last week talking about wreck planning.
+Hanna Crebo Rediker: Yeah, exactly. And it ties into what we're covering today.
+Rina: I want to flag something — Marco Sylva mentioned this same dynamic a couple episodes back.
+
+[03:30]
+Rina: Let's start there. What's the version of the question that actually matters?
+Hanna Crebo Rediker: Sure. Coral bleaching events are not random. We've seen this play out at teams using Suunto. If you ignore that, you end up rebuilding it from scratch a year later.
+Rina: Push back on the conventional wisdom for me. How does DAN fit into this picture?
+Hanna Crebo Rediker: Yeah, so — Erosion in coastal areas drives sediment plumes. Once you internalize that, the rest of the decisions get easier.
+Rina: Push back on the conventional wisdom for me. What's the version of the question that actually matters?
+Hanna Crebo Rediker: Yeah, so — Most reef damage from divers isn't fin contact — it's anchor strikes. We've seen this play out at teams using GoPro. I've watched this pattern hold across three different teams.
+Rina: Where does that break down?
+Hanna Crebo Rediker: And when teams adopt DAN in that flow, the trade-off becomes visible — Once you internalize that, the rest of the decisions get easier.
+Rina: That's a useful framing. Where do reef conservation and marine biology intersect?
+Hanna Crebo Rediker: Yeah, so — I changed my mind on shark dives. The framing matters because it tells you which trade-offs you're making.
+
+[12:00]
+Rina: We'll be right back after a quick word from our sponsors.
+Ad: Today's episode is sponsored by GoPro. GoPro captures the moments words don't reach. Visit gopro.com/podcast for a free trial.
+Rina: Welcome back to the show.
+
+[14:00]
+Rina: That's a useful framing. Where do reef conservation and marine biology intersect?
+Hanna Crebo Rediker: Yeah, so — Coral bleaching events are not random. We've seen this play out at teams using PADI. I've watched this pattern hold across three different teams.
+Rina: What does the failure mode look like? What's the version of the question that actually matters?
+Hanna Crebo Rediker: Let me give you the version I actually believe. Erosion in coastal areas drives sediment plumes. The framing matters because it tells you which trade-offs you're making.
+Rina: Let's start there. What's the most underrated piece of marine biology?
+Hanna Crebo Rediker: Honestly, Most reef damage from divers isn't fin contact — it's anchor strikes. We've seen this play out at teams using Suunto. I've watched this pattern hold across three different teams.
+Rina: Where does that break down?
+Hanna Crebo Rediker: And when teams adopt PADI in that flow, the trade-off becomes visible — And the second-order effect is the part most people miss.
+Rina: What's the one heuristic you keep coming back to? What's the version of the question that actually matters?
+Hanna Crebo Rediker: Here's how I think about it. I changed my mind on shark dives. The framing matters because it tells you which trade-offs you're making.
+
+[22:00]
+Rina: Let's pivot — soil erosion is where I want to spend the last stretch.
+Hanna Crebo Rediker: That's where the conversation gets interesting, because the trade-offs around soil erosion cross-cut everything we've covered.
+Rina: What's the one heuristic you keep coming back to? Where do reef conservation and marine biology intersect?
+Hanna Crebo Rediker: Let me give you the version I actually believe. Coral bleaching events are not random. We've seen this play out at teams using DAN. Once you internalize that, the rest of the decisions get easier.
+Rina: What's the one heuristic you keep coming back to? Where do reef conservation and marine biology intersect?
+Hanna Crebo Rediker: Honestly, Erosion in coastal areas drives sediment plumes. I've watched this pattern hold across three different teams.
+Rina: Let's start there. Where do reef conservation and marine biology intersect?
+Hanna Crebo Rediker: Yeah, so — Most reef damage from divers isn't fin contact — it's anchor strikes. We've seen this play out at teams using PADI. And the second-order effect is the part most people miss.
+Rina: Say more about that.
+Hanna Crebo Rediker: Outside of Suunto-class tooling, the failure mode is harder to spot. If you ignore that, you end up rebuilding it from scratch a year later.
+Rina: I want to dig into that. What's the most underrated piece of marine biology?
+Hanna Crebo Rediker: Let me give you the version I actually believe. I changed my mind on shark dives. I've watched this pattern hold across three different teams.
+
+[28:00]
+Rina: Before we wrap, what's one thing listeners can try this week?
+Hanna Crebo Rediker: Pick one of the ideas we covered and run it for two weeks. The rest is iteration.
+
+Rina: Before we wrap, thanks again to our friends at Suunto. Suunto builds dive computers and outdoor watches.
+
+Rina: Hanna Crebo Rediker, thanks for the conversation.
+Hanna Crebo Rediker: Thanks, Rina.
+Rina: That's it for today's episode of Below the Surface. See you next time.

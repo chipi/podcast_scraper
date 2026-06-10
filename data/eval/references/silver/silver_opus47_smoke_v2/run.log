@@ -1,0 +1,13 @@
+2026-06-09 15:19:49,567 INFO __main__: Starting silver generation: run_id=silver_candidate_anthropic_opus47_smoke_v2_paragraph model=claude-opus-4-7 dataset=curated_5feeds_smoke_v2
+2026-06-09 15:19:49,906 INFO __main__: Loaded 5 episode(s)
+2026-06-09 15:19:49,907 INFO __main__: Summarizing p01_e01 (9164 chars)
+2026-06-09 15:20:02,286 INFO httpx: HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-06-09 15:20:02,297 INFO __main__: Summarizing p02_e01 (8957 chars)
+2026-06-09 15:20:14,505 INFO httpx: HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-06-09 15:20:14,505 INFO __main__: Summarizing p03_e01 (8530 chars)
+2026-06-09 15:20:25,837 INFO httpx: HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-06-09 15:20:25,838 INFO __main__: Summarizing p04_e01 (8666 chars)
+2026-06-09 15:20:38,124 INFO httpx: HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-06-09 15:20:38,124 INFO __main__: Summarizing p05_e01 (8770 chars)
+2026-06-09 15:20:50,910 INFO httpx: HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-06-09 15:20:50,916 INFO __main__: Done. 5 episodes, total_in=17178, total_out=3327, cost_usd=0.1691, wall=61.0s

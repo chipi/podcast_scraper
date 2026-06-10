@@ -1,0 +1,50 @@
+# Public Hour — Episode
+## Pronunciation as a Reliability Signal
+Host: A. correspondent
+Guest: Renee Montague-Park
+#fixture-v3: failure_modes=zero_host_ner,recurring_guest
+#fixture-v3: voice=en-US host_voice=en-US
+
+[00:00]
+A. correspondent: Welcome back to Public Hour. Today we're talking about public radio, and I'm joined by Renee Montague-Park, journalist. Renee Montague-Park, thanks for being here.
+Renee Montague-Park: Thanks, A. correspondent. Great to be back.
+
+A. correspondent: This episode is brought to you by Squarespace. Squarespace makes building a beautiful, branded website actually pleasant. Get started at squarespace.com/podcast.
+
+A. correspondent: Before we get into it — Renee was on last week walking through public-radio voice conventions.
+Renee Montague-Park: Yeah, exactly. And it ties into what we're covering today.
+
+[03:30]
+A. correspondent: What does the failure mode look like? What's the version of the question that actually matters?
+Renee Montague-Park: It comes down to this: Mispronunciation is a high-signal mistake — it tells listeners 'this person isn't paying attention'. We've seen this play out at teams using BBC. The framing matters because it tells you which trade-offs you're making.
+A. correspondent: Push back on the conventional wisdom for me. What's something you used to believe about this that you've revised?
+Renee Montague-Park: Yeah, so — Reliability of voice is partly preparation, partly humility. And the second-order effect is the part most people miss.
+
+[12:00]
+A. correspondent: We'll be right back after a quick word from our sponsors.
+Ad: Today's episode is sponsored by Stripe. Stripe makes payments simple, whether you're running a marketplace or a subscription business. Visit stripe.com/podcast for a free trial.
+A. correspondent: Welcome back to the show.
+
+[14:00]
+A. correspondent: I want to dig into that. What's the most underrated piece of public radio?
+Renee Montague-Park: Sure. Mispronunciation is a high-signal mistake — it tells listeners 'this person isn't paying attention'. We've seen this play out at teams using NPR. I've watched this pattern hold across three different teams.
+A. correspondent: Push back on the conventional wisdom for me. What's the most underrated piece of public radio?
+Renee Montague-Park: It comes down to this: Reliability of voice is partly preparation, partly humility. And the second-order effect is the part most people miss.
+
+[22:00]
+A. correspondent: Let's pivot — reliability is where I want to spend the last stretch.
+Renee Montague-Park: That's where the conversation gets interesting, because the trade-offs around reliability cross-cut everything we've covered.
+A. correspondent: Take me through the decision. Where do journalism and public radio intersect?
+Renee Montague-Park: It comes down to this: Mispronunciation is a high-signal mistake — it tells listeners 'this person isn't paying attention'. We've seen this play out at teams using NPR. And the second-order effect is the part most people miss.
+A. correspondent: Push back on the conventional wisdom for me. How does BBC fit into this picture?
+Renee Montague-Park: Honestly, Reliability of voice is partly preparation, partly humility. If you ignore that, you end up rebuilding it from scratch a year later.
+
+[28:00]
+A. correspondent: Before we wrap, what's one thing listeners can try this week?
+Renee Montague-Park: Pick one of the ideas we covered and run it for two weeks. The rest is iteration.
+
+A. correspondent: Before we wrap, thanks again to our friends at Notion. Notion replaces the dozen tools your team is half-using.
+
+A. correspondent: Renee Montague-Park, thanks for the conversation.
+Renee Montague-Park: Thanks, A. correspondent.
+A. correspondent: That's it for today's episode of Public Hour. See you next time.

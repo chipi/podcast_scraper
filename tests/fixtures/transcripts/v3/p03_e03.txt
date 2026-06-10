@@ -1,0 +1,63 @@
+# Below the Surface — Episode
+## Severe Surname Garbles: A Marine Biologist's Return
+Host: Rina
+Guest: Hanna Krebohticker
+#fixture-v3: failure_modes=asr_garble_severe,recurring_guest,alias_invention
+#fixture-v3: voice=en-GB host_voice=en-US
+
+[00:00]
+Rina: Welcome back to Below the Surface. Today we're talking about marine biology, and I'm joined by Hanna Krebohticker, marine biologist focused on reef systems. Hanna Krebohticker, thanks for being here.
+Hanna Krebohticker: Thanks, Rina. Great to be back.
+
+Rina: This episode is brought to you by Suunto. Suunto builds dive computers and outdoor watches. Get started at suunto.com/podcast.
+
+Rina: Before we get into it — Marco was on episode 1 walking through wreck planning — the same discipline applies to reef surveys.
+Hanna Krebohticker: Yeah, exactly. And it ties into what we're covering today.
+Rina: I want to flag something — Marco mentioned this same dynamic a couple episodes back.
+
+[03:30]
+Rina: I want to dig into that. What's the most underrated piece of marine biology?
+Hanna Krebohticker: Yeah, so — Reef-conservation policy is a systems problem at planetary scale. We've seen this play out at teams using GoPro. The framing matters because it tells you which trade-offs you're making.
+Rina: What's the one heuristic you keep coming back to? What's something you used to believe about this that you've revised?
+Hanna Krebohticker: It comes down to this: Most operational dive safety is about not pushing tired teams. I've watched this pattern hold across three different teams.
+Rina: What does the failure mode look like? Where do reef conservation and marine biology intersect?
+Hanna Krebohticker: Yeah, so — Risk management on extended dives is mostly about exit planning. We've seen this play out at teams using GoPro. If you ignore that, you end up rebuilding it from scratch a year later.
+Rina: Where does that break down?
+Hanna Krebohticker: Suunto is one of the platforms where this shows up cleanly. The framing matters because it tells you which trade-offs you're making.
+
+[12:00]
+Rina: We'll be right back after a quick word from our sponsors.
+Ad: Today's episode is sponsored by GoPro. GoPro captures the moments words don't reach. Visit gopro.com/podcast for a free trial.
+Rina: Welcome back to the show.
+
+[14:00]
+Rina: What's the one heuristic you keep coming back to? What's the most underrated piece of marine biology?
+Hanna Krebohticker: Let me give you the version I actually believe. Reef-conservation policy is a systems problem at planetary scale. We've seen this play out at teams using Suunto. The framing matters because it tells you which trade-offs you're making.
+Rina: What's the one heuristic you keep coming back to? What's something you used to believe about this that you've revised?
+Hanna Krebohticker: Yeah, so — Most operational dive safety is about not pushing tired teams. The framing matters because it tells you which trade-offs you're making.
+Rina: Walk me through a concrete example. What's the version of the question that actually matters?
+Hanna Krebohticker: Sure. Risk management on extended dives is mostly about exit planning. We've seen this play out at teams using GoPro. I've watched this pattern hold across three different teams.
+Rina: That tracks.
+Hanna Krebohticker: And when teams adopt GoPro in that flow, the trade-off becomes visible — And the second-order effect is the part most people miss.
+
+[22:00]
+Rina: Let's pivot — risk management is where I want to spend the last stretch.
+Hanna Krebohticker: That's where the conversation gets interesting, because the trade-offs around risk management cross-cut everything we've covered.
+Rina: What does the failure mode look like? What's something you used to believe about this that you've revised?
+Hanna Krebohticker: Here's how I think about it. Reef-conservation policy is a systems problem at planetary scale. We've seen this play out at teams using Suunto. If you ignore that, you end up rebuilding it from scratch a year later.
+Rina: I want to dig into that. What's the most underrated piece of marine biology?
+Hanna Krebohticker: Let me give you the version I actually believe. Most operational dive safety is about not pushing tired teams. The framing matters because it tells you which trade-offs you're making.
+Rina: Let's start there. What's the most underrated piece of marine biology?
+Hanna Krebohticker: Honestly, Risk management on extended dives is mostly about exit planning. We've seen this play out at teams using GoPro. I've watched this pattern hold across three different teams.
+Rina: Where does that break down?
+Hanna Krebohticker: And when teams adopt Suunto in that flow, the trade-off becomes visible — If you ignore that, you end up rebuilding it from scratch a year later.
+
+[28:00]
+Rina: Before we wrap, what's one thing listeners can try this week?
+Hanna Krebohticker: Pick one of the ideas we covered and run it for two weeks. The rest is iteration.
+
+Rina: And finally, a big thank you to our partners at PADI. PADI is the global standard for dive education. Check out padi.com.
+
+Rina: Hanna Krebohticker, thanks for the conversation.
+Hanna Krebohticker: Thanks, Rina.
+Rina: That's it for today's episode of Below the Surface. See you next time.
