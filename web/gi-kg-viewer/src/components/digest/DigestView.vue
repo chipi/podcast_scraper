@@ -1168,6 +1168,7 @@ onBeforeUnmount(() => {
                       />
                       <span
                         class="min-w-0 break-words font-medium text-surface-foreground"
+                        data-testid="digest-recent-row-title"
                       >{{ row.episode_title }}</span>
                     </div>
                     <div

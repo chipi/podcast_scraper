@@ -368,7 +368,14 @@ async function validateCorpusDataLoadedAfterJob(
     `post-job: digest API recent rows=${digestApiRows} (diversified sample; may be < ${STACK_TEST_EXPECTED_EPISODE_TOTAL})`,
   )
   await expect(digestRows).toHaveCount(digestApiRows)
-  await digestRows.first().click()
+  // Click the row *title*, not the row centre. The row carries interactive
+  // children with their own ``@click.stop`` — notably the #890 CIL topic
+  // pills (``digest-recent-cil-pills``), which focus a graph node rather
+  // than open the episode. In the short stack-test rows those pills land at
+  // the row's vertical centre, so ``digestRows.first().click()`` would hit a
+  // pill (subject → graph-node) instead of ``openRowInLibrary`` (episode).
+  // The title is the stable "open this episode" target.
+  await digestRows.first().getByTestId('digest-recent-row-title').click()
   await expect(page.getByTestId('episode-detail-rail')).toBeVisible({ timeout: 60_000 })
   // Details/Neighbourhood tabs only mount on Graph tab (``SubjectRail``);
   // body is always shown for episodes.
