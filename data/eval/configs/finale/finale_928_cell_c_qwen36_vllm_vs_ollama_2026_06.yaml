@@ -1,0 +1,45 @@
+# #928 Cell C — proper-isolation serving-stack comparison.
+#
+# Same model family (Qwen3.6-35B-A3B / qwen3.5:35b ≈ Qwen3.6-35B-A3B at Q4_K_M),
+# different server: Ollama (Q4 GGUF, llama.cpp runtime) vs vLLM (bf16,
+# transformers runtime on nvcr.io/nvidia/vllm:26.05-py3).
+#
+# Isolates the SERVING STACK variable that the parent #928 eval
+# (R1-Distill vLLM vs Qwen3.6 Ollama) conflated with both model and
+# quantization. This config does NOT re-include R1-Distill — the
+# parent eval's verdict for R1 stands.
+
+tag: finale_928_cell_c_qwen36_vllm_vs_ollama_2026_06
+
+runs_glob:
+  - data/eval/runs/autoresearch_prompt_ollama_qwen35_35b_smoke_paragraph_v1_curated_5feeds_smoke_v1
+  - data/eval/runs/autoresearch_prompt_vllm_qwen36_35b_a3b_curated_5feeds_smoke_v1
+
+metrics_filename: metrics_vs_silver_opus47_smoke_v1.json
+
+strata:
+  - name: dgx_qwen36_family
+    match:
+      - autoresearch_prompt_ollama_qwen35_35b_
+      - autoresearch_prompt_vllm_qwen36_35b_a3b_
+
+promotion:
+  per_stratum_top_k: 2
+  floor_fraction: 0.3
+  overall_cap: 2
+  carte_blanche:
+    - autoresearch_prompt_ollama_qwen35_35b_
+    - autoresearch_prompt_vllm_qwen36_35b_a3b_
+
+judges:
+  primary:
+    kind: sonnet46
+    model: claude-sonnet-4-6
+  cross_check:
+    kind: openai_chat
+    model: gpt-5.4
+    top_n_per_stratum: 2
+
+max_episodes_per_finalist: 5
+cost_cap_usd: 5.0
+output_root: data/eval/runs/finale

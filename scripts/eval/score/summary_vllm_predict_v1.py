@@ -75,6 +75,14 @@ def main() -> int:
     p.add_argument("--max-tokens", type=int, default=800)
     p.add_argument("--min-tokens", type=int, default=200)
     p.add_argument("--temperature", type=float, default=0.0)
+    p.add_argument(
+        "--disable-thinking",
+        action="store_true",
+        help=(
+            "Pass chat_template_kwargs={'enable_thinking': False} to vLLM. Required for "
+            "Qwen3.5/3.6 family to produce a clean summary instead of leaking reasoning prose."
+        ),
+    )
     args = p.parse_args()
 
     args.output_dir.mkdir(parents=True, exist_ok=True)
@@ -117,6 +125,9 @@ def main() -> int:
 
         log(f"  [{i}/{n_total}] {ep} — transcript {len(transcript)}c → calling vLLM…")
         t0 = time.time()
+        extra_body: dict[str, Any] = {}
+        if args.disable_thinking:
+            extra_body["chat_template_kwargs"] = {"enable_thinking": False}
         try:
             resp = client.chat.completions.create(
                 model=args.model,
@@ -127,6 +138,7 @@ def main() -> int:
                 max_tokens=args.max_tokens,
                 temperature=args.temperature,
                 timeout=600.0,
+                extra_body=extra_body or None,
             )
             summary = (resp.choices[0].message.content or "").strip()
             usage = resp.usage
@@ -185,6 +197,7 @@ def main() -> int:
         "params": {
             "max_tokens": args.max_tokens,
             "temperature": args.temperature,
+            "disable_thinking": args.disable_thinking,
         },
     }
     (args.output_dir / "fingerprint.json").write_text(

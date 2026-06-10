@@ -210,22 +210,110 @@ Download is ~20-40 min on the operator's DGX network. Filing as a
 separate follow-up so the production decision in this report can ship
 while the research-grade comparison runs on a longer cadence.
 
+### Cell C (this PR) — DONE; verdict: serving stack is not the variable
+
+**Setup**:
+
+- Downloaded `Qwen/Qwen3.6-35B-A3B` (67 GB) to the DGX shared LLM
+  cache.
+- Initial vLLM image `nvcr.io/nvidia/vllm:25.11-py3` (the operator's
+  documented working baseline) rejected the `qwen3_5_moe`
+  architecture — its bundled transformers 4.57.1 predates the
+  Qwen3.5/3.6 family.
+- Research established that the `qwen3_5_moe` model module only
+  landed in transformers 5.x (added 2026-02-09); NVIDIA didn't
+  backport it into 4.57.x. Among NVIDIA's vLLM tags, only `26.05-py3`
+  / `26.05.post1-py3` ship transformers 5.x. `26.05.post1-py3` is
+  on the operator's known-broken list. `26.05-py3` (non-`.post1`)
+  had not been tested before — the operator authorized trying it.
+- `26.05-py3` booted cleanly on GB10 with Qwen3.6-35B-A3B + the
+  `--max-num-seqs 128` flag (the Mamba-cache-blocks limit specific
+  to this MoE).
+- Confirmed the model needs `chat_template_kwargs={"enable_thinking":
+  False}` to emit clean summaries — same reasoning-leak pattern as
+  R1-Distill, but Qwen3 has a built-in toggle that fully disables it.
+
+**Configuration that worked** (deviates from the deploy.py
+defaults — kept on the DGX, not committed to deploy.py):
+
+| Knob | Value |
+| --- | --- |
+| vLLM image | `nvcr.io/nvidia/vllm:26.05-py3` (NOT post1) |
+| Model | `Qwen/Qwen3.6-35B-A3B` (bf16, ~67 GB on disk) |
+| `--gpu-memory-utilization` | 0.60 |
+| `--max-num-seqs` | 128 (Mamba-cache-block fix) |
+| `--max-model-len` | 32768 |
+| chat-template kwarg | `enable_thinking=False` |
+
+**Verdict** (5 episodes, `silver_opus47_smoke_v1` reference,
+Sonnet 4.6 + GPT-5.4 cross-check):
+
+| Run | Faith | Cov | Coh | Flu | Mean (Sonnet) | Mean (GPT-5.4) |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| Ollama qwen3.5:35b (Q4_K_M) | 5.00 | 5.00 | 5.00 | 5.00 | **5.00** | 4.95 |
+| vLLM Qwen3.6-35B-A3B (bf16) | 5.00 | 5.00 | 4.60 | 5.00 | **4.90** | 4.90 |
+
+Both judges, 100% agreement, no contested episodes. Δ = 0.05–0.10
+mean score across judges. Pre-finale ROUGE-L: Ollama 0.243 vs
+vLLM 0.261 — vLLM Qwen3.6 actually leads on text overlap; finale
+judges marginally prefer Ollama on coherence.
+
+**What Cell C resolves about the parent #928 verdict**:
+
+The parent eval (Ollama qwen3.5:35b at 5.00 vs vLLM R1-Distill-32B
+at 3.25) conflated three variables: serving stack, model family,
+and quantization. Cell C isolates serving stack by holding the
+model family fixed (Qwen3.6, in both candidates) and changing
+**only** the server (Ollama Q4 vs vLLM bf16). With the model held
+fixed, the serving stack contributes ~0.05–0.10 of mean score —
+essentially noise. **The parent eval's 1.75-point gap was the
+model choice (Qwen3.6 vs R1-Distill), not the serving stack.**
+
+**Production implication**: Ollama qwen3.5:35b stays the
+`cloud_with_dgx_*` summary default — Cell C does **not** flip
+that decision. The reason is now sharper: vLLM-served Qwen3.6
+would be equally good, but Ollama is operationally simpler and
+the quality is indistinguishable. There's no quality case for
+running vLLM yourself for summary unless you need an OpenAI-
+compatible HTTP API for a specific consumer.
+
+**What Cell C does NOT resolve**:
+
+- Cell D (R1-Distill on Ollama Q4 GGUF) — would isolate "is R1's
+  weakness the model, or the precision?" Still future work.
+- Cell E (Ollama-Qwen3.6 at bf16) — would isolate precision. Same
+  reasoning prose risk to control for. Still future work.
+- The R1-Distill prompt-engineering gap (reasoning prose
+  leakage) — confirmed Qwen3 has the same default behavior, but
+  Qwen3 has a clean toggle (`enable_thinking=False`) while
+  R1-Distill needs prompt-side filtering. Filed as a follow-up.
+
+vLLM service state after this run: **kept on the Cell C config**
+(`26.05-py3` + Qwen3.6-35B-A3B) until the operator says to revert
+to the deploy.py default (`25.11-py3` + R1-Distill). The
+`docker-compose.yml.r1-distill.bak` is preserved on the DGX for
+a one-line revert.
+
 ### Honest framing for downstream readers
 
-The #928 verdict is still actionable: **keep Ollama qwen3.5:35b as
-the DGX local summary default**. But the verdict is "this combination
-keeps winning," not "Ollama or qwen3.6 specifically win." A future
-re-eval at cell C above could very well show vLLM-served Qwen3.6
-matching or beating Ollama-served Qwen3.6 — at which point the
-production decision would shift to "either stack is fine, pick by
-operational fit." That's a future ticket, not this one.
+After Cell C: **the #928 verdict (keep Ollama qwen3.5:35b as the
+DGX local summary default) is confirmed, and the reason behind it
+is sharpened.** With the model held fixed (Qwen3.6 in both
+candidates), Ollama and vLLM tie within scoring noise (0.05–0.10
+mean). The 1.75-point gap from the parent eval was the model
+choice (Qwen3.6 vs R1-Distill), not the serving stack. Either
+stack would work for production; Ollama is operationally simpler
+and quality-equivalent, so it stays the default.
 
 ## Artifacts
 
-- `scripts/eval/score/summary_vllm_predict_v1.py` — vLLM prediction harness
-- `data/eval/runs/autoresearch_prompt_vllm_r1distill_32b_smoke_paragraph_v1_curated_5feeds_smoke_v1/` — R1-Distill predictions
-- `data/eval/configs/finale/finale_928_summary_dgx_local_2026_06.yaml` — finale config
-- `data/eval/runs/finale/finale_928_summary_dgx_local_2026_06/finale_report.{json,md}` — verdict + per-episode G-Eval scores
+- `scripts/eval/score/summary_vllm_predict_v1.py` — vLLM prediction harness (now with `--disable-thinking` flag for Qwen3 family)
+- `data/eval/runs/autoresearch_prompt_vllm_r1distill_32b_smoke_paragraph_v1_curated_5feeds_smoke_v1/` — R1-Distill predictions (parent eval)
+- `data/eval/runs/autoresearch_prompt_vllm_qwen36_35b_a3b_curated_5feeds_smoke_v1/` — Qwen3.6-35B-A3B predictions (Cell C)
+- `data/eval/configs/finale/finale_928_summary_dgx_local_2026_06.yaml` — parent finale config
+- `data/eval/configs/finale/finale_928_cell_c_qwen36_vllm_vs_ollama_2026_06.yaml` — Cell C finale config
+- `data/eval/runs/finale/finale_928_summary_dgx_local_2026_06/finale_report.{json,md}` — parent verdict
+- `data/eval/runs/finale/finale_928_cell_c_qwen36_vllm_vs_ollama_2026_06/finale_report.{json,md}` — Cell C verdict
 - `infra/dgx/vllm-autoresearch/` — vLLM service the eval ran against
 
 ## References

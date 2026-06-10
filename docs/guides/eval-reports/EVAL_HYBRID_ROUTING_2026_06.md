@@ -57,15 +57,17 @@ Full report: `docs/guides/eval-reports/EVAL_DIARIZATION_DGX_VS_CLOUD_2026_06.md`
   engineering gap, not a model defect. Fixable in a follow-up; not
   load-bearing for this PR.
 
-**Methodology limitation made explicit**: the eval compared
-combinations, not isolated variables. The cell-C cleanup
-(`Qwen/Qwen3.6-35B-A3B` served by vLLM at bf16, head-to-head against
-both Ollama-Qwen3.6 and vLLM-R1) is filed as the proper-isolation
-follow-up. Download is in flight on the DGX at this writing.
+**Cell C (proper isolation, done in this PR)**: vLLM-served
+Qwen3.6-35B-A3B (bf16) on `nvcr.io/nvidia/vllm:26.05-py3` tied
+with Ollama-served qwen3.5:35b (Q4_K_M) within scoring noise —
+Sonnet 4.6 mean 4.90 vs 5.00, GPT-5.4 cross-check 4.90 vs 4.95.
+**The 1.75-point gap in the parent eval was the model choice
+(Qwen3.6 vs R1-Distill), not the serving stack.**
 
 **Net effect on routing**: keep Ollama qwen3.5:35b as the
-`cloud_with_dgx_*` summary default. The follow-up could shift this
-in either direction.
+`cloud_with_dgx_*` summary default. The reason is now operational
+(Ollama is simpler to manage), not quality (both stacks are
+indistinguishable when serving the same model family).
 
 Full report: `docs/guides/eval-reports/EVAL_SUMMARY_DGX_LOCAL_2026_06.md`
 
@@ -160,7 +162,7 @@ choice for users without local GPU.
 | `#953` | openai-whisper DGX service (delivered this PR) | — |
 | `#954` (filed today) | Diarization client resilience analog to `#946` | Same operational gap surfaced during this batch |
 | `#934` | Distinct voices in v2 fixtures | Required to verdict pyannote speaker-count accuracy |
-| #928 isolation follow-up | Cell C re-eval: Qwen3.6-35B-A3B on vLLM at bf16, vs same on Ollama at Q4 | Proper variable isolation for the serving-stack question. Download in flight. |
+| #928 Cell D / E | Quant isolation (R1-Distill on Ollama Q4 GGUF, and Ollama-Qwen3.6 at bf16) | Cell C resolved the serving-stack question; remaining isolated variable is precision |
 | Gemini speaker provider deploy | Wire `cloud_*`'s declared `speaker_detector_provider: gemini` so #930 can run the 3rd candidate | Unblocks full 3-candidate diarization championship |
 | R1 reasoning-suppressed prompt | Modify the summary prompt to strip `<think>` and require summary-only output | Determines whether R1-Distill is competitive when not reasoning-as-output |
 
