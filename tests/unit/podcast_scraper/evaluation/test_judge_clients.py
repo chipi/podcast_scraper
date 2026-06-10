@@ -20,6 +20,7 @@ from podcast_scraper.evaluation.judges import (
     DeepSeekR1Judge,
     Gemini25ProJudge,
     JudgeUnavailableError,
+    OpenAIChatJudge,
     Sonnet46Judge,
 )
 from podcast_scraper.evaluation.judges.deepseek_r1 import strip_reasoning_tags
@@ -198,4 +199,57 @@ def test_deepseek_r1_api_failure_wrapped() -> None:
     client.chat.completions.create.side_effect = RuntimeError("connection refused")
     judge = DeepSeekR1Judge(client=client, api_base="http://fake:11434/v1")
     with pytest.raises(JudgeUnavailableError, match="Ollama API call failed"):
+        judge.score("prompt")
+
+
+# ---------------------------------------------------------------------------
+# OpenAI GPT-5.4 chat-completions judge
+
+
+def test_openai_chat_score_uses_max_completion_tokens_and_temperature_zero() -> None:
+    """GPT-5.4 judge sends ``max_completion_tokens`` (not ``max_tokens``) + temp 0."""
+    client = MagicMock()
+    client.chat.completions.create.return_value = _mock_openai_chat_response(
+        '{"score": 5, "explanation": "great"}',
+        prompt_tokens=400,
+        completion_tokens=60,
+    )
+
+    judge = OpenAIChatJudge(client=client, api_key="sk-test")
+    result = judge.score("prompt text", max_tokens=512)
+
+    args = client.chat.completions.create.call_args.kwargs
+    assert args["model"] == "gpt-5.4"
+    assert args["temperature"] == 0.0
+    # GPT-5.x rejects ``max_tokens`` — judge must send ``max_completion_tokens``.
+    assert args["max_completion_tokens"] == 512
+    assert "max_tokens" not in args
+    assert args["messages"] == [{"role": "user", "content": "prompt text"}]
+
+    assert result.text == '{"score": 5, "explanation": "great"}'
+    assert result.prompt_tokens == 400
+    assert result.completion_tokens == 60
+    # Cost = 400/1M * $3 + 60/1M * $15
+    assert result.cost_usd == pytest.approx(
+        400 / 1_000_000 * 3.0 + 60 / 1_000_000 * 15.0,
+        rel=1e-6,
+    )
+    assert result.model == "gpt-5.4"
+
+
+def test_openai_chat_missing_api_key_raises(monkeypatch) -> None:
+    """No autoresearch-namespaced key → JudgeUnavailableError (plain key never consulted)."""
+    monkeypatch.delenv("AUTORESEARCH_JUDGE_OPENAI_API_KEY", raising=False)
+    monkeypatch.delenv("AUTORESEARCH_EXPERIMENT_OPENAI_API_KEY", raising=False)
+    judge = OpenAIChatJudge(api_key="")
+    with pytest.raises(JudgeUnavailableError, match="AUTORESEARCH_JUDGE_OPENAI_API_KEY"):
+        judge.score("prompt")
+
+
+def test_openai_chat_api_failure_wrapped_as_judge_unavailable() -> None:
+    """Transport-level exception is wrapped so the finale runner can continue."""
+    client = MagicMock()
+    client.chat.completions.create.side_effect = RuntimeError("rate limited")
+    judge = OpenAIChatJudge(client=client, api_key="sk-test")
+    with pytest.raises(JudgeUnavailableError, match="OpenAI API call failed"):
         judge.score("prompt")
