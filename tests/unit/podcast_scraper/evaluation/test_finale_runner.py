@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+from typing import Any
 
 import pytest
 
@@ -20,11 +21,13 @@ from podcast_scraper.evaluation.finale_runner import (
     _pairwise_agreement_rate,
     aggregate_finalist,
     FinalistAggregate,
+    judge_finalist,
     load_run_candidate,
     promote_finalists,
     render_report_markdown,
     RunCandidate,
     StratumPromotion,
+    write_finale_artifacts,
 )
 from podcast_scraper.evaluation.g_eval import DimensionScore, SummaryScore
 
@@ -355,3 +358,231 @@ def test_render_report_markdown_shows_top_3_per_stratum_and_cost() -> None:
     assert "`cloud_A`" in md
     assert "`dgx_X`" in md
     assert "Promotion details" in md
+
+
+# ---------------------------------------------------------------------------
+# carte_blanche force-promotion
+
+
+def test_promote_finalists_carte_blanche_force_includes_below_floor() -> None:
+    """A run dropped on the rougeL floor is rescued when its run_id matches a carte_blanche term."""
+    cands = [
+        _candidate("autoresearch_prompt_ollama_qwen35_27b_smoke_v1", 0.9, stratum="dgx"),
+        _candidate("autoresearch_prompt_ollama_qwen3_35b_smoke_v1", 0.8, stratum="dgx"),
+        _candidate("autoresearch_prompt_ollama_other_27b_smoke_v1", 0.78, stratum="dgx"),
+        # Champion — falls below floor 0.72, would normally be excluded:
+        _candidate("autoresearch_prompt_ollama_qwen35_35b_smoke_v1", 0.4, stratum="dgx"),
+    ]
+    promoted, summary = promote_finalists(
+        cands,
+        per_stratum_top_k=3,
+        floor_fraction=0.8,
+        overall_cap=10,
+        carte_blanche=["autoresearch_prompt_ollama_qwen35_35b_"],
+    )
+    promoted_ids = {p.run_id for p in promoted}
+    # The carte_blanche entry sneaks in alongside the regular top-3:
+    assert "autoresearch_prompt_ollama_qwen35_35b_smoke_v1" in promoted_ids
+    assert len(promoted_ids) == 4
+    # And it's marked promoted on its stratum summary (not left on rejected):
+    assert "autoresearch_prompt_ollama_qwen35_35b_smoke_v1" in summary[0].promoted
+    rejected_ids = {r["run_id"] for r in summary[0].rejected}
+    assert "autoresearch_prompt_ollama_qwen35_35b_smoke_v1" not in rejected_ids
+
+
+def test_promote_finalists_carte_blanche_no_double_promote_when_already_top_k() -> None:
+    """If a carte_blanche entry is already in the regular top-k, it is not added twice."""
+    cands = [
+        _candidate("autoresearch_prompt_ollama_qwen35_35b_smoke_v1", 0.95, stratum="dgx"),
+        _candidate("other_a", 0.85, stratum="dgx"),
+        _candidate("other_b", 0.80, stratum="dgx"),
+    ]
+    promoted, _ = promote_finalists(
+        cands,
+        per_stratum_top_k=3,
+        floor_fraction=0.5,
+        overall_cap=10,
+        carte_blanche=["autoresearch_prompt_ollama_qwen35_35b_"],
+    )
+    run_ids = [p.run_id for p in promoted]
+    # Exactly one occurrence, not two:
+    assert run_ids.count("autoresearch_prompt_ollama_qwen35_35b_smoke_v1") == 1
+
+
+# ---------------------------------------------------------------------------
+# judge_finalist — mocked judge, real per-episode loop
+
+
+def _fake_judge_returning(score_by_dim: dict[str, int], *, cost_per_call: float = 0.01) -> Any:
+    """A judge stand-in whose `.score(prompt)` returns a JSON-like reply.
+
+    The real ``score_summary`` calls the judge once per dimension. We build the
+    reply so the parser sees ``{"score": N, "explanation": "..."}`` per dim.
+    """
+    from podcast_scraper.evaluation.judges.base import JudgeResult
+
+    # Track which dim is being asked by parsing the prompt.
+    def _score(prompt: str, *, max_tokens: int = 1024) -> JudgeResult:
+        # Cheap dim detection — the G-Eval prompt mentions the dimension name.
+        dim = "faithfulness"
+        for d in ("faithfulness", "coverage", "coherence", "fluency"):
+            if d in prompt.lower():
+                dim = d
+                break
+        score = score_by_dim.get(dim, 3)
+        return JudgeResult(
+            text=f'{{"dimension": "{dim}", "score": {score}, "explanation": "stub"}}',
+            model="fake-judge",
+            prompt_tokens=100,
+            completion_tokens=20,
+            cost_usd=cost_per_call,
+            latency_seconds=0.01,
+        )
+
+    fake = type("FakeJudge", (), {"model": "fake-judge", "score": staticmethod(_score)})
+    return fake()
+
+
+def test_judge_finalist_scores_all_episodes_and_aggregates_cost(tmp_path: Path) -> None:
+    """judge_finalist iterates predictions, calls the judge, and sums per-episode cost."""
+    # Build a fake finalist with 2 episodes + materialized transcripts.
+    run_dir = tmp_path / "run-1"
+    run_dir.mkdir()
+    (run_dir / "predictions.jsonl").write_text(
+        '{"episode_id":"p01_e01","dataset_id":"dsx","output":{"summary_final":"summary one"}}\n'
+        '{"episode_id":"p02_e01","dataset_id":"dsx","output":{"summary_final":"summary two"}}\n',
+        encoding="utf-8",
+    )
+    eval_root = tmp_path / "eval"
+    materialized = eval_root / "materialized" / "dsx"
+    materialized.mkdir(parents=True)
+    (materialized / "p01_e01.txt").write_text("transcript one", encoding="utf-8")
+    (materialized / "p02_e01.txt").write_text("transcript two", encoding="utf-8")
+
+    finalist = RunCandidate(
+        run_id="run-1",
+        run_dir=run_dir,
+        stratum="cloud",
+        rouge_l_f1=0.5,
+        embedding_cosine=0.7,
+        coverage_ratio=0.9,
+        metrics_vs_silver_path=run_dir / "metrics.json",
+    )
+    judge = _fake_judge_returning({"faithfulness": 5, "coverage": 4, "coherence": 4, "fluency": 4})
+
+    scores, total_cost, errors = judge_finalist(
+        finalist=finalist,
+        judge=judge,
+        eval_root=eval_root,
+    )
+
+    assert len(scores) == 2  # one per episode
+    assert errors == 0
+    # 4 dims × 2 episodes × $0.01 per dim call ≈ $0.08
+    assert total_cost == pytest.approx(0.08, rel=1e-3)
+
+
+def test_judge_finalist_skips_when_transcript_missing(tmp_path: Path) -> None:
+    """An episode whose materialized transcript is missing is logged + skipped, not raised."""
+    run_dir = tmp_path / "run-1"
+    run_dir.mkdir()
+    (run_dir / "predictions.jsonl").write_text(
+        '{"episode_id":"p01_e01","dataset_id":"dsx","output":{"summary_final":"s"}}\n',
+        encoding="utf-8",
+    )
+    eval_root = tmp_path / "eval"
+    # No materialized transcripts → judge_finalist should skip the episode.
+    finalist = RunCandidate(
+        run_id="run-1",
+        run_dir=run_dir,
+        stratum="cloud",
+        rouge_l_f1=0.5,
+        embedding_cosine=0.7,
+        coverage_ratio=0.9,
+        metrics_vs_silver_path=run_dir / "metrics.json",
+    )
+    scores, cost, errors = judge_finalist(
+        finalist=finalist,
+        judge=_fake_judge_returning({"faithfulness": 5}),
+        eval_root=eval_root,
+    )
+    assert scores == []
+    assert cost == 0.0
+    assert errors == 0
+
+
+# ---------------------------------------------------------------------------
+# write_finale_artifacts — file-shape verification
+
+
+def test_write_finale_artifacts_emits_four_files_with_expected_shape(
+    tmp_path: Path,
+) -> None:
+    """Persists promotion.json, finalists.jsonl, finale_report.{json,md}."""
+    output_dir = tmp_path / "out"
+    promotion = [
+        StratumPromotion(
+            name="cloud",
+            leader_rouge_l=0.85,
+            floor=0.68,
+            promoted=["cloud_A"],
+            rejected=[],
+        ),
+    ]
+    aggregates = [
+        FinalistAggregate(
+            run_id="cloud_A",
+            stratum="cloud",
+            primary_judge="claude-sonnet-4-6",
+            cross_judge=None,
+            n_episodes=3,
+            primary_mean_per_dim={"faithfulness": 4.8},
+            primary_overall_mean=4.5,
+            total_cost_usd=0.42,
+        ),
+    ]
+    per_episode = [
+        {
+            "finalist_run_id": "cloud_A",
+            "stratum": "cloud",
+            "judge_role": "primary",
+            "run_id": "cloud_A",
+            "episode_id": "p01_e01",
+            "judge_model": "claude-sonnet-4-6",
+        }
+    ]
+    paths = write_finale_artifacts(
+        output_dir=output_dir,
+        tag="finale_smoke",
+        promotion=promotion,
+        aggregates=aggregates,
+        per_episode_records=per_episode,
+        total_cost_usd=0.42,
+        cost_cap_usd=50.0,
+    )
+
+    assert set(paths.keys()) >= {"promotion", "finalists", "report_json", "report_md"}
+    for p in paths.values():
+        assert p.exists() and p.stat().st_size > 0
+
+    # promotion.json shape
+    promo = json.loads((output_dir / "promotion.json").read_text(encoding="utf-8"))
+    assert promo["tag"] == "finale_smoke"
+    assert promo["strata"][0]["name"] == "cloud"
+    assert promo["strata"][0]["promoted"] == ["cloud_A"]
+
+    # finalists.jsonl is one record per line
+    rows = (output_dir / "finalists.jsonl").read_text(encoding="utf-8").strip().splitlines()
+    assert len(rows) == 1
+    assert json.loads(rows[0])["finalist_run_id"] == "cloud_A"
+
+    # finale_report.json aggregates land at the top level
+    report = json.loads((output_dir / "finale_report.json").read_text(encoding="utf-8"))
+    assert report["tag"] == "finale_smoke"
+    assert report["total_cost_usd"] == pytest.approx(0.42)
+    assert report["aggregates"][0]["run_id"] == "cloud_A"
+
+    # finale_report.md is human-readable
+    md = (output_dir / "finale_report.md").read_text(encoding="utf-8")
+    assert "Finale sweep — `finale_smoke`" in md
+    assert "`cloud_A`" in md
