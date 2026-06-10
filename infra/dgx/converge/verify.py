@@ -138,3 +138,24 @@ server.shell(
         "curl -fsS --max-time 10 http://127.0.0.1:8002/v1/models >/dev/null",
     ],
 )
+
+# 9. vllm-autoresearch service (#928) — NVIDIA-prebuilt vLLM serving an
+# open-weight LLM on :8003 for autoresearch summary/GI/KG scoring.
+server.shell(
+    name="assert: vllm-autoresearch container is up",
+    commands=[
+        "docker ps --filter name=^vllm-autoresearch$ --filter status=running --format '{{.Names}}' "
+        "| grep -q '^vllm-autoresearch$'",
+    ],
+)
+
+server.shell(
+    name="assert: vllm-autoresearch API responsive on :8003",
+    commands=[
+        # vLLM model load on cold cache + large model can take 5-15 min,
+        # which is why the compose's healthcheck has a 600s start_period.
+        # We give verify the same patience — a fresh DGX boot can hit it.
+        "curl -fsS --max-time 900 http://127.0.0.1:8003/health >/dev/null",
+        "curl -fsS --max-time 10 http://127.0.0.1:8003/v1/models >/dev/null",
+    ],
+)

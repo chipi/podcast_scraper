@@ -394,3 +394,126 @@ server.shell(
     commands=[f"cd {WHISPER_INSTALL_ROOT} && docker compose up -d"],
     _sudo=True,
 )
+
+
+# ---------------------------------------------------------------------------
+# #928 — vllm-autoresearch. NVIDIA-prebuilt vLLM container serving an
+# open-weight LLM for autoresearch evaluations (summary / GI / KG).
+# Listens on :8003 so it coexists with the other DGX services (8000=
+# speaches, 8001=pyannote, 8002=openai-whisper). No Dockerfile — vLLM
+# ships its own OpenAI-compatible server in the NVIDIA image.
+# ---------------------------------------------------------------------------
+
+VLLM_INSTALL_ROOT = "/opt/vllm-autoresearch"
+VLLM_COMPOSE_FILE = f"{VLLM_INSTALL_ROOT}/docker-compose.yml"
+VLLM_IMAGE = "nvcr.io/nvidia/vllm:25.11-py3"
+VLLM_PORT = 8003
+
+# Default to the model already cached on the operator's DGX (no fresh
+# download). Coder-tuned and not the ideal long-term summary candidate,
+# but it's what's in cache and exercises the vLLM serving path. Swap
+# this constant + adjust gpu-memory-utilization / max-model-len to test
+# different models — see infra/dgx/vllm-autoresearch/README.md.
+VLLM_MODEL = "Qwen/Qwen3-Coder-Next-FP8"
+# 0.75 (not the operator's reference 0.92) so vLLM coexists with the
+# other DGX services: whisper-openai (~3 GB) + pyannote (~3-4 GB) +
+# faster-whisper (~3-4 GB) + Ollama-loaded model (~10 GB depending
+# on what's resident) → ~15-20 GB already in use of the GB10's
+# ~122 GB. At 0.92 vLLM raises "Free memory on device < desired
+# utilization" at startup. 0.75 = ~91 GB which fits 30B-FP8 + KV cache.
+# If running vLLM in isolation (other services stopped for an
+# autoresearch sweep), bump back to 0.92 for the extra KV headroom.
+VLLM_GPU_MEM_UTIL = "0.75"
+VLLM_MAX_MODEL_LEN = "131072"
+
+files.directory(
+    name="dir: /opt/vllm-autoresearch (install root)",
+    path=VLLM_INSTALL_ROOT,
+    mode="755",
+    present=True,
+    _sudo=True,
+)
+
+# docker-compose.yml. Mirrors the operator's working
+# ``~/docker-compose/vllm-Qwen3-Coder-Next/docker-compose.yml`` byte-for-byte
+# except for the port (8003 not 8000) and container name (so it coexists
+# with the operator's personal coding container if/when that runs).
+VLLM_COMPOSE_CONTENT = f"""# Auto-generated. Edit infra/dgx/converge/deploy.py instead.
+# Re-run ``make dgx-deploy`` from the laptop to redeploy.
+
+services:
+  vllm-autoresearch:
+    image: {VLLM_IMAGE}
+    container_name: vllm-autoresearch
+    runtime: nvidia
+    ulimits:
+      memlock: -1
+      stack: 67108864
+    ipc: host
+    network_mode: host
+    env_file:
+      - {OPERATOR_ENV_FILE}
+    volumes:
+      - {HF_CACHE_HOST}:/root/.cache/huggingface
+    environment:
+      - HF_HOME=/root/.cache/huggingface
+      - HF_HUB_CACHE=/root/.cache/huggingface
+      # GB10 hotfix: torch.compile has been the Blackwell sore spot on
+      # the version we run. Disabling loses ~10-20% steady-state throughput
+      # but is the reliable boot path per the operator's working composes.
+      - VLLM_DISABLE_TORCH_COMPILE=1
+      - NVIDIA_VISIBLE_DEVICES=all
+    command:
+      - vllm
+      - serve
+      - {VLLM_MODEL}
+      - --host
+      - 0.0.0.0
+      - --port
+      - "{VLLM_PORT}"
+      - --dtype
+      - bfloat16
+      - --max-model-len
+      - "{VLLM_MAX_MODEL_LEN}"
+      - --gpu-memory-utilization
+      - "{VLLM_GPU_MEM_UTIL}"
+      - --enable-auto-tool-choice
+      - --tool-call-parser
+      - qwen3_coder
+    healthcheck:
+      test: ["CMD", "python3", "-c",
+             "import urllib.request; urllib.request.urlopen('http://localhost:{VLLM_PORT}/health')"]
+      interval: 30s
+      timeout: 10s
+      retries: 30
+      start_period: 600s
+    restart: unless-stopped
+"""
+
+server.shell(
+    name="compose: write /opt/vllm-autoresearch/docker-compose.yml",
+    commands=[
+        f"cat > {VLLM_COMPOSE_FILE} <<'EOF'\n{VLLM_COMPOSE_CONTENT}EOF",
+        f"chmod 644 {VLLM_COMPOSE_FILE}",
+    ],
+    _sudo=True,
+)
+
+# No build step — we use the NVIDIA-prebuilt image directly.
+# We DO pull because the image is fairly recent (25.11) and the operator
+# may not have it cached on initial deploy. Wrap in `|| true` so a
+# pull blip doesn't bail the deploy when a cached image exists.
+server.shell(
+    name="compose: pull vllm image (tolerated on cache hit)",
+    commands=[
+        f"cd {VLLM_INSTALL_ROOT} && docker compose pull "
+        f"|| echo '::warning::nvcr.io pull failed; falling back to cached image'"
+    ],
+    _sudo=True,
+)
+
+server.shell(
+    name="compose: up -d (start / restart vllm-autoresearch service)",
+    commands=[f"cd {VLLM_INSTALL_ROOT} && docker compose up -d"],
+    _sudo=True,
+)
