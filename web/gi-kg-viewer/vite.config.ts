@@ -27,16 +27,18 @@ export default defineConfig({
     },
     // UI test-coverage track (#914): a parallel gate to the Python coverage gate.
     // Thresholds are a ratchetable floor set a few points below the current
-    // baseline (stmts 77 / br 68 / fn 76 / ln 79). Raise them as coverage grows.
+    // baseline. Ratcheted after the graph-UI + app-wide test push (API/stores/
+    // utils to ~100%, graph stores/utils + component mount tests): baseline is now
+    // stmts 84.9 / br 74.3 / fn 89.0 / ln 86.5. Raise them as coverage grows.
     // Default include = files exercised by tests (no `all`), matching that baseline.
     coverage: {
       provider: 'v8',
       reporter: ['text-summary', 'lcov', 'json-summary'],
       thresholds: {
-        statements: 75,
-        branches: 65,
-        functions: 73,
-        lines: 76,
+        statements: 82,
+        branches: 71,
+        functions: 86,
+        lines: 84,
       },
     },
   },
