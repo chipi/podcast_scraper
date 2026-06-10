@@ -32,6 +32,7 @@ import time
 from email import message_from_bytes
 from pathlib import Path
 from typing import Any, Dict, Optional
+from urllib.parse import urlparse
 
 import pytest
 
@@ -318,6 +319,17 @@ class E2EServerURLs:
             Ollama API base URL (e.g., "http://127.0.0.1:18765/v1")
         """
         return f"{self.base_url}/v1"
+
+    def dgx_host_port(self) -> tuple[str, int]:
+        """``(host, port)`` for the DGX tailnet clients (#954).
+
+        The TailnetDgx{Whisper,Diarization} providers build ``http://{host}:{port}``
+        themselves and append ``/v1/audio/transcriptions`` / ``/v1/diarize`` /
+        ``/v1/models``, so callers point ``dgx_tailnet_host`` + the port fields at
+        the e2e server rather than at a real GB10 box.
+        """
+        parsed = urlparse(self.base_url)
+        return parsed.hostname or "127.0.0.1", int(parsed.port or 80)
 
     def anthropic_api_base(self) -> str:
         """Get Anthropic API base URL (points to E2E server).
@@ -683,6 +695,12 @@ class E2EHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
             self._handle_ollama_tags(head_only=head_only)
             return
 
+        # DGX faster-whisper (:8002) + pyannote (:8001) health probe (#954).
+        # Both clients GET /v1/models; pyannote also answers /health.
+        if path in ("/v1/models", "/health"):
+            self._handle_dgx_probe(path, head_only=head_only)
+            return
+
         # 404 for all other paths
         self.send_error(404, "File not found")
 
@@ -714,6 +732,12 @@ class E2EHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
         # /v1/audio/transcriptions -> Mock audio transcriptions
         if path == "/v1/audio/transcriptions":
             self._handle_audio_transcriptions()
+            return
+
+        # Route: DGX pyannote diarization (#954)
+        # /v1/diarize -> mock two-speaker diarization result
+        if path == "/v1/diarize":
+            self._handle_dgx_diarize()
             return
 
         # Route: Anthropic API endpoints
@@ -999,40 +1023,41 @@ class E2EHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
 
             body = self.rfile.read(content_length)
 
-            # Parse multipart form data using email module
+            # Parse multipart form data using email module: pull the uploaded
+            # filename and the requested ``response_format`` so we can answer with
+            # the type the client actually asked for.
             filename = "unknown_audio.mp3"
+            response_format = "text"  # default to legacy text/plain unless asked otherwise
             try:
-                # Create a message from the multipart data
                 msg = message_from_bytes(f"Content-Type: {content_type}\r\n\r\n".encode() + body)
-                # Extract filename from Content-Disposition header
                 for part in msg.walk():
-                    if part.get_content_disposition() == "form-data":
-                        content_disposition = part.get("Content-Disposition", "")
-                        if "filename=" in content_disposition:
-                            # Extract filename from Content-Disposition header
-                            # Format: filename="audio.mp3" or filename=audio.mp3
-                            parts = content_disposition.split("filename=")
-                            if len(parts) > 1:
-                                filename_part = parts[1].strip().strip('"').strip("'")
-                                if filename_part:
-                                    # Validate filename to prevent injection in response
-                                    # Reject filenames containing path separators or ".."
-                                    if (
-                                        "/" not in filename_part
-                                        and "\\" not in filename_part
-                                        and ".." not in filename_part
-                                    ):
-                                        # Sanitize filename for safe use in response string
-                                        # Remove any potentially dangerous characters
-                                        sanitized = "".join(
-                                            c for c in filename_part if c.isalnum() or c in "._-"
-                                        )
-                                        if sanitized:
-                                            filename = sanitized
-                                    break
+                    if part.get_content_disposition() != "form-data":
+                        continue
+                    content_disposition = part.get("Content-Disposition", "")
+                    field_name = ""
+                    if 'name="' in content_disposition:
+                        field_name = content_disposition.split('name="', 1)[1].split('"', 1)[0]
+
+                    if "filename=" in content_disposition:
+                        # Format: filename="audio.mp3" or filename=audio.mp3
+                        parts = content_disposition.split("filename=")
+                        if len(parts) > 1:
+                            filename_part = parts[1].strip().strip('"').strip("'")
+                            # Reject path separators / ".." then sanitize for safe echo.
+                            if filename_part and not any(
+                                bad in filename_part for bad in ("/", "\\", "..")
+                            ):
+                                sanitized = "".join(
+                                    c for c in filename_part if c.isalnum() or c in "._-"
+                                )
+                                if sanitized:
+                                    filename = sanitized
+                    elif field_name == "response_format":
+                        raw = part.get_payload(decode=True)
+                        if raw:
+                            response_format = raw.decode("utf-8", "ignore").strip()
             except Exception:
-                # If parsing fails, use default filename
-                # This is acceptable for E2E tests
+                # Parsing is best-effort for E2E; fall back to defaults.
                 pass
 
             # Generate a realistic transcription response
@@ -1041,6 +1066,30 @@ class E2EHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
                 f"This is a test transcription of {filename}. "
                 "The audio contains spoken content that has been transcribed."
             )
+
+            # Answer in the requested type. ``json``/``verbose_json`` (what the
+            # OpenAI SDK and the DGX faster-whisper client both send) get a proper
+            # JSON body with text + segments; ``text``/unspecified gets text/plain.
+            if response_format in ("json", "verbose_json"):
+                payload: Dict[str, Any] = {"text": transcript}
+                if response_format == "verbose_json":
+                    payload.update(
+                        {
+                            "task": "transcribe",
+                            "language": "en",
+                            "duration": 7.5,
+                            "segments": [
+                                {"id": 0, "start": 0.0, "end": 7.5, "text": transcript},
+                            ],
+                        }
+                    )
+                response_json = json.dumps(payload)
+                self.send_response(200)
+                self.send_header("Content-Type", "application/json")
+                self.send_header("Content-Length", str(len(response_json)))
+                self.end_headers()
+                self.wfile.write(response_json.encode("utf-8"))
+                return
 
             # Send response (text format)
             self.send_response(200)
@@ -1051,6 +1100,54 @@ class E2EHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
 
         except Exception as e:
             self.send_error(500, f"Error handling audio transcriptions: {e}")
+
+    def _handle_dgx_probe(self, path: str, head_only: bool = False):
+        """DGX health/model probe: GET /v1/models (faster-whisper + pyannote) and
+        GET /health (pyannote). OpenAI-style envelope so ``check_*_health`` passes."""
+        if path == "/health":
+            body: Dict[str, Any] = {
+                "status": "ok",
+                "model": "pyannote/speaker-diarization-3.1",
+            }
+        else:  # /v1/models
+            body = {
+                "object": "list",
+                "data": [
+                    {"id": "large-v3", "object": "model", "owned_by": "openai"},
+                    {"id": "pyannote/speaker-diarization-3.1", "object": "model"},
+                ],
+            }
+        response_json = json.dumps(body)
+        self.send_response(200)
+        self.send_header("Content-Type", "application/json")
+        self.send_header("Content-Length", str(len(response_json)))
+        self.end_headers()
+        if not head_only:
+            self.wfile.write(response_json.encode("utf-8"))
+
+    def _handle_dgx_diarize(self):
+        """Mock the DGX pyannote ``POST /v1/diarize`` (#954): canned two-speaker
+        result so the real TailnetDgxDiarizationProvider HTTP round-trip runs."""
+        try:
+            content_length = int(self.headers.get("Content-Length", 0))
+            if content_length:
+                self.rfile.read(content_length)  # drain the uploaded audio
+            body = {
+                "model_name": "pyannote/speaker-diarization-3.1",
+                "num_speakers": 2,
+                "segments": [
+                    {"start": 0.0, "end": 4.5, "speaker": "SPEAKER_00"},
+                    {"start": 4.5, "end": 9.0, "speaker": "SPEAKER_01"},
+                ],
+            }
+            response_json = json.dumps(body)
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Content-Length", str(len(response_json)))
+            self.end_headers()
+            self.wfile.write(response_json.encode("utf-8"))
+        except Exception as e:  # noqa: BLE001 - mock server best-effort
+            self.send_error(500, f"Error handling DGX diarize: {e}")
 
     def _handle_ollama_version(self, head_only: bool = False):
         """Handle Ollama version API requests (health check).
