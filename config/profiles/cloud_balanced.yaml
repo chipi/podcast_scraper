@@ -30,6 +30,10 @@
 # mitigations. gpt-4o-[mini-]transcribe blocked on chunking (#286).
 transcription_provider: openai
 openai_transcription_model: whisper-1
+# #913: OpenAI Whisper (verbose_json) is eligible for the local pyannote diarization
+# pass + named screenplay, but opt-in (off by default for cloud transcription). To
+# produce a diarized/named screenplay here, set `diarize: true` — needs an HF token
+# for pyannote and adds a local pyannote pass + the screenplay-reformat cascade (#925).
 
 # Audio preprocessing — named preset in config/profiles/audio/ (#634 Scope 1).
 # One edit to speech_optimal_v1.yaml updates every profile that references it.

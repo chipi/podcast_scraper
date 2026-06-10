@@ -80,7 +80,23 @@ def _raw_screenplay_requested(value: Any) -> bool:
     return False
 
 
-_DIARIZATION_ELIGIBLE_TRANSCRIPTION_PROVIDERS = frozenset({"whisper", "tailnet_dgx_whisper"})
+# Transcription providers eligible for the local pyannote diarization second pass.
+# Criterion: the provider downloads the audio locally (so pyannote can re-read it,
+# see ``apply_diarization_to_result(result, media_for_transcription, ...)``) AND
+# returns timestamped Whisper-format segments for alignment. ``whisper`` /
+# ``tailnet_dgx_whisper`` and (#913) ``openai`` (``verbose_json``) all qualify;
+# Gemini / Mistral emit plain text (no segments) so they stay ineligible, and
+# ``deepgram`` self-diarizes (see ``_NATIVE_SCREENPLAY_TRANSCRIPTION_PROVIDERS``).
+_DIARIZATION_ELIGIBLE_TRANSCRIPTION_PROVIDERS = frozenset(
+    {"whisper", "tailnet_dgx_whisper", "openai"}
+)
+
+# Of the eligible providers, these default ``diarize`` ON (the local Whisper paths
+# where the pyannote pass is the natural default). ``openai`` is eligible but
+# *opt-in* (#913): it's a cloud transcription provider, so layering a local pyannote
+# pass + HF-token dependency on top is an explicit choice, not a silent default —
+# otherwise every existing ``openai`` run/test would start attempting diarization.
+_DIARIZATION_DEFAULT_ON_TRANSCRIPTION_PROVIDERS = frozenset({"whisper", "tailnet_dgx_whisper"})
 
 # Providers that produce their own speaker-labelled segments via the transcription
 # API (no local pyannote pass) and can therefore self-format a screenplay. Screenplay
@@ -3290,10 +3306,10 @@ class Config(BaseModel):
                 _screenplay_tx_api_coerce_state["logged"] = True
         if should_log:
             logger.info(
-                "screenplay applies only to local Whisper transcription "
-                "(transcription_provider='whisper' or 'tailnet_dgx_whisper'); "
-                "with transcription_provider=%r screenplay has no effect — "
-                "coercing screenplay=false (GitHub #562).",
+                "screenplay applies only to transcription providers eligible for the "
+                "diarization pass (%s); with transcription_provider=%r screenplay has "
+                "no effect — coercing screenplay=false (GitHub #562).",
+                ", ".join(sorted(_DIARIZATION_ELIGIBLE_TRANSCRIPTION_PROVIDERS)),
                 tp,
             )
         return merged
@@ -3316,12 +3332,18 @@ class Config(BaseModel):
                     _diarize_coerce_state["logged"] = True
             if should_log:
                 logger.info(
-                    "diarize applies only to local Whisper transcription "
-                    "(transcription_provider='whisper' or 'tailnet_dgx_whisper'); "
-                    "with transcription_provider=%r diarization has no effect — "
-                    "coercing diarize=false.",
+                    "diarize (local pyannote pass) applies only to providers that keep "
+                    "the audio locally and emit timestamped segments (%s); "
+                    "transcription_provider=%r does not — coercing diarize=false.",
+                    ", ".join(sorted(_DIARIZATION_ELIGIBLE_TRANSCRIPTION_PROVIDERS)),
                     tp,
                 )
+            return merged
+        # #913: eligible-but-opt-in providers (openai) default diarize OFF unless it
+        # was explicitly requested — so existing openai runs/tests are unchanged and
+        # the pyannote pass + HF-token dependency is only added on an explicit opt-in.
+        if tp not in _DIARIZATION_DEFAULT_ON_TRANSCRIPTION_PROVIDERS and "diarize" not in merged:
+            merged["diarize"] = False
             return merged
         if not _raw_screenplay_requested(merged.get("screenplay")):
             merged["screenplay"] = True

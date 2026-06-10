@@ -1213,11 +1213,13 @@ class TestScreenplayApiTranscriptionCoerce562(unittest.TestCase):
     def tearDown(self) -> None:
         config.reset_screenplay_issue_562_gates()
 
-    def test_openai_transcription_coerces_screenplay_false(self) -> None:
+    def test_gemini_transcription_coerces_screenplay_false(self) -> None:
+        # #913: openai is now diarization-eligible and keeps screenplay; gemini
+        # still emits plain text (no segments) so screenplay is coerced off.
         cfg = Config(
             rss="https://example.com/feed.xml",
-            transcription_provider="openai",
-            openai_api_key="sk-test",
+            transcription_provider="gemini",
+            gemini_api_key="g-test",
             screenplay=True,
         )
         self.assertFalse(cfg.screenplay)
@@ -1247,12 +1249,12 @@ class TestScreenplayApiTranscriptionCoerce562(unittest.TestCase):
         matched = [x for x in cm.output if "562" in x and "screenplay" in x.lower()]
         self.assertEqual(len(matched), 1, msg=str(cm.output))
 
-    def test_screenplay_integer_one_coerced_for_openai(self) -> None:
+    def test_screenplay_integer_one_coerced_for_gemini(self) -> None:
         cfg = Config.model_validate(
             {
                 "rss": "https://example.com/feed.xml",
-                "transcription_provider": "openai",
-                "openai_api_key": "sk-test",
+                "transcription_provider": "gemini",
+                "gemini_api_key": "g-test",
                 "screenplay": 1,
             }
         )
@@ -1260,11 +1262,12 @@ class TestScreenplayApiTranscriptionCoerce562(unittest.TestCase):
 
     @patch.dict(os.environ, {"PODCAST_SCRAPER_SCREENPLAY_STRICT": "1"}, clear=False)
     def test_screenplay_strict_env_rejects_api_transcription(self) -> None:
+        # gemini stays ineligible (plain text); openai is now eligible (#913).
         with self.assertRaises(ValidationError) as ctx:
             Config(
                 rss="https://example.com/feed.xml",
-                transcription_provider="openai",
-                openai_api_key="sk-test",
+                transcription_provider="gemini",
+                gemini_api_key="g-test",
                 screenplay=True,
             )
         self.assertIn("PODCAST_SCRAPER_SCREENPLAY_STRICT", str(ctx.exception))
