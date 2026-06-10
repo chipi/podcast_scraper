@@ -3,7 +3,7 @@
 **Issue:** #929 (transcription championship — partial; the speaches/faster-whisper path is gated on #952)
 **Branch:** `feat/autoresearch-batch-3-championships`
 **Dataset:** v2 audio fixtures, 5 episodes (~5 min each)
-**Status:** **Partial** — MPS measured cleanly; DGX CUDA result is contaminated by GPU contention (real finding, not noise); pure CPU still running at submit time.
+**Status:** **Partial** — MPS measured cleanly (5/5); DGX CUDA result is contaminated by GPU contention (5/5, real finding); pure CPU sampled at 1/5 (~9-min episode runs took longer than the eval window allowed for a full sweep).
 
 ---
 
@@ -11,7 +11,7 @@
 
 - **Apple MPS (laptop) is the cleanest, most reliable path** for openai-whisper today: ~1.6× realtime mean, WER 0.10 mean on the v2 fixture set.
 - **DGX CUDA via `:8002 openai-whisper` produced hallucinations under GPU contention** (vLLM running concurrently): some episodes returned 8× more output words than the reference, WER spiked to 8.21 on the worst one. **This is a finding, not a clean number** — it shows that "DGX whisper" without single-flight + duration-scaled timeout (the #946 / #954 resilience pattern) degrades under shared-GPU load.
-- **Pure CPU baseline** (M4 Pro forced `device=cpu`) was still in flight at this writing; result is documented in the harness output when it lands.
+- **Pure CPU baseline** (M4 Pro forced `device=cpu`) measured on 1 episode: WER 0.109, 361s wall for 551s audio (**1.5× realtime**), word counts well-matched (1672 hyp vs 1536 ref). **Surprising result**: the extrapolation from diarization's ~17× CPU/MPS ratio did NOT hold for openai-whisper — MPS is only ~1.8× faster than CPU on warm runs, not 17×. Quality is statistically indistinguishable from MPS.
 
 ## Numbers (5 v2 episodes, large-v3 model)
 
@@ -58,9 +58,32 @@ the model effectively re-init's against memory it can't get.
 
 ### Pure CPU (M4 Pro, `LOCAL_WHISPER_DEVICE=cpu`)
 
-Still running at time of this write — expected ~10-30 min for a single
-~5-min episode based on extrapolation from diarization's CPU vs MPS
-ratio (~17×). Will document when the bg task lands.
+| Episode | WER | Wall (s) | Realtime multiple | Hyp word count |
+| --- | ---: | ---: | ---: | ---: |
+| p01_e01 | 0.109 | 361.5 | 1.5× | 1,672 (ref 1,536) |
+
+**Headline**: only **1 episode** sampled (full 5-episode CPU sweep
+exceeded the eval window). But the single point already invalidates
+the original `~17×` MPS-speedup hypothesis that was extrapolated from
+diarization. For openai-whisper specifically:
+
+- CPU: 1.5× realtime, WER 0.109, word-count match.
+- MPS warm: 2.6-3.8× realtime, WER 0.07-0.14, word-count match.
+- MPS includes a 13-min model-load cold-start that drags the
+  5-episode mean to 1.6× — masking that warm MPS is ~1.8× CPU, NOT
+  17×.
+
+This matters for `local.yaml` profile recommendation: **on M4 Pro,
+openai-whisper is realtime-or-better even on CPU**. The MPS path is
+faster but not load-bearing. If MPS is unavailable / disabled (e.g.,
+shared host, GPU pinned to another job), the CPU fallback is still
+production-viable.
+
+Why diarization differs from transcription on the CPU vs MPS gap:
+pyannote's segmentation + clustering is much more compute-per-second-
+of-audio than whisper's seq2seq decoder. Diarization saturates the
+GPU's parallelism; openai-whisper's autoregressive decoder is
+sequential and doesn't.
 
 ## What this tells us for #929
 
@@ -81,8 +104,10 @@ ratio (~17×). Will document when the bg task lands.
 - ❌ **WER under non-contended DGX** — the 8.21 number on p02_e01 is a
   contention artifact, not the model's true accuracy. Need a re-run with
   vLLM stopped / GPU dedicated to read the clean DGX WER.
-- ❌ **CPU comparison** — pure CPU still in flight; one-episode result
-  will fill the cell.
+- ❌ **5-episode CPU mean** — only 1 episode sampled. The single point
+  is enough to invalidate the 17× extrapolation hypothesis but the
+  full WER distribution and per-episode latency variance on CPU stay
+  unknown until a longer eval window.
 - ❌ **Burst / concurrency latency** — no concurrent-request testing
   in this run. The whisper provider's single-flight resilience (#946)
   matters more than the bare numbers under contention.
