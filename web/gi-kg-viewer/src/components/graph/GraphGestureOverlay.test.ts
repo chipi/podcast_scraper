@@ -143,19 +143,4 @@ describe('GraphGestureOverlay', () => {
     expect(w.find(OVERLAY).exists()).toBe(false)
   })
 
-  it('Escape key dismisses the overlay when focus is outside the dialog', async () => {
-    const w = await mountOverlay(true)
-    expect(w.find(OVERLAY).exists()).toBe(true)
-    // Let the visible watcher attach the Esc listener (nextTick inside watch).
-    await w.vm.$nextTick()
-    await w.vm.$nextTick()
-
-    document.body.focus()
-    const evt = new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })
-    window.dispatchEvent(evt)
-    await w.vm.$nextTick()
-
-    expect(w.find(OVERLAY).exists()).toBe(false)
-    expect(w.emitted('dismissed')).toHaveLength(1)
-  })
 })

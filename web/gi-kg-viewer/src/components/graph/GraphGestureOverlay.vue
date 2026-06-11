@@ -114,7 +114,6 @@ defineExpose({ reopen })
   <Transition name="ps-gesture-fade">
     <div
       v-if="visible"
-      ref="overlayRootRef"
       class="absolute inset-0 z-[9] flex items-center justify-center p-3"
       style="background: color-mix(in srgb, var(--ps-canvas) 65%, transparent)"
       data-testid="graph-gesture-overlay"
