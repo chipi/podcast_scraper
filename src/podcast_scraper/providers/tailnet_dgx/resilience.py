@@ -219,6 +219,7 @@ class CircuitBreaker:
             return True
 
     def record_success(self) -> None:
+        """Close the breaker and clear the failure window — DGX answered cleanly."""
         with self._lock:
             if self._state != "closed":
                 logger.info("%s circuit breaker closed: DGX recovered", self._name)
@@ -226,6 +227,9 @@ class CircuitBreaker:
             self._failures.clear()
 
     def record_failure(self, *, hard: bool = False) -> None:
+        """Record a DGX failure; open the breaker on a ``hard`` failure (a definitive
+        timeout) or a failed half-open probe immediately, else once the rolling window
+        reaches the failure threshold."""
         now = time.monotonic()
         with self._lock:
             if hard or self._state == "half_open":
