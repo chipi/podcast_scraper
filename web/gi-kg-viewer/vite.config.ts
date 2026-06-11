@@ -27,18 +27,22 @@ export default defineConfig({
     },
     // UI test-coverage track (#914): a parallel gate to the Python coverage gate.
     // Thresholds are a ratchetable floor set a few points below the current
-    // baseline. Ratcheted after the graph-UI + app-wide test push (API/stores/
-    // utils to ~100%, graph stores/utils + component mount tests): baseline is now
-    // stmts 84.9 / br 74.3 / fn 89.0 / ln 86.5. Raise them as coverage grows.
-    // Default include = files exercised by tests (no `all`), matching that baseline.
+    // baseline. Set after the graph-UI + app-wide test push (API/stores/utils to
+    // ~100%, plus @vue/test-utils mount tests across graph + non-graph components).
+    // NOTE on the moving denominator: v8 coverage scopes to files *imported by a
+    // test* (no `all`). Mounting container components (shell, panels) pulls their
+    // whole transitive .vue import tree into the denominator, so adding component
+    // tests *broadens* scope and lowers the headline % even as absolute coverage
+    // grows — the figure is now honest about the full component tree. Baseline at
+    // this scope: stmts 81.1 / br 69.4 / fn 80.5 / ln 82.8. Raise as coverage grows.
     coverage: {
       provider: 'v8',
       reporter: ['text-summary', 'lcov', 'json-summary'],
       thresholds: {
-        statements: 82,
-        branches: 71,
-        functions: 86,
-        lines: 84,
+        statements: 78,
+        branches: 66,
+        functions: 77,
+        lines: 80,
       },
     },
   },
