@@ -79,7 +79,9 @@ describe('selectRelPathsForGraphLoad', () => {
   })
 
   it('uses default cap constant', () => {
-    expect(GRAPH_DEFAULT_EPISODE_CAP).toBe(15)
+    // Interim ceiling pending the large-graph layout work (#967); see the constant's
+    // doc comment for the stress-test rationale (cose is ~O(n²)).
+    expect(GRAPH_DEFAULT_EPISODE_CAP).toBe(25)
   })
 })
 
