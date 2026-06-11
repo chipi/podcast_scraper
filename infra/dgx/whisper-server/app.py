@@ -135,7 +135,23 @@ async def transcribe(
         description="One of: json, text. ``verbose_json`` returns segments + words.",
     ),
     language: Optional[str] = Form(None, description="ISO language code; auto-detect if omitted."),
-    temperature: float = Form(0.0, ge=0.0, le=1.0),
+    temperature: Optional[float] = Form(
+        None,
+        ge=0.0,
+        le=1.0,
+        description=(
+            "Single-value sampling temperature. **OMIT for podcast-length audio.** "
+            "Setting a scalar (incl. 0.0) DISABLES openai-whisper's built-in "
+            "temperature fallback schedule (0.0 → 1.0). The fallback is what "
+            "detects autoregressive runaway via compression_ratio + logprob "
+            "thresholds and re-runs the failing segment at a higher temperature. "
+            "Without the schedule, long audio reliably hits decoder loops "
+            "(verified empirically: a 5-min v2 episode produces 5× extra hyp "
+            "words with temperature=0.0 vs the default schedule). Pass a "
+            "scalar only when the caller specifically wants deterministic decode "
+            "and accepts the runaway risk."
+        ),
+    ),
 ) -> Any:
     """Transcribe the uploaded audio file using openai-whisper."""
     if _MODEL is None:
@@ -151,14 +167,18 @@ async def transcribe(
         tmp_path = tmp.name
         tmp.write(await file.read())
 
+    # fp16=True is required for CUDA path; fp16=False on CPU. We're
+    # GPU-only here so True is correct. If the operator runs this
+    # on CPU for testing, openai-whisper will warn and fall back.
+    use_fp16 = _DEVICE == "cuda"
     try:
-        transcribe_kwargs: dict[str, Any] = {
-            "temperature": temperature,
-            # fp16=True is required for CUDA path; fp16=False on CPU. We're
-            # GPU-only here so True is correct. If the operator runs this
-            # on CPU for testing, openai-whisper will warn and fall back.
-            "fp16": _DEVICE == "cuda",
-        }
+        transcribe_kwargs: dict[str, Any] = {"fp16": use_fp16}
+        # Only set temperature when the caller explicitly asked for one;
+        # otherwise let openai-whisper apply its default fallback schedule
+        # (0.0, 0.2, 0.4, 0.6, 0.8, 1.0) which is what saves long-audio
+        # transcription from autoregressive runaway. See Form() docstring.
+        if temperature is not None:
+            transcribe_kwargs["temperature"] = temperature
         if language is not None:
             transcribe_kwargs["language"] = language
 

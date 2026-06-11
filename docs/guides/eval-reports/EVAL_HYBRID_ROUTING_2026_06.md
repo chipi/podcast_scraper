@@ -16,13 +16,19 @@ tradeoffs land."
 | Profile shape | Whisper | Diarize | Summary | Net change from before this PR |
 | --- | --- | --- | --- | --- |
 | `local.yaml` (laptop, no DGX) | openai-whisper / MPS | pyannote / MPS | hermes3:8b (Ollama on CPU) | None — confirmed |
-| `cloud_with_dgx_*` (DGX-equipped) | openai-whisper / `:8002` (with operational caveat) | pyannote / `:8001` | Ollama qwen3.5:35b on `:11434` | None — confirmed |
+| `cloud_with_dgx_*` (DGX-equipped) | **openai-whisper / `:8002` — promoted after temperature-bug fix this PR** | pyannote / `:8001` | Ollama qwen3.5:35b on `:11434` | Transcription default flips to DGX `:8002` (was: MPS/cloud per pre-Cell-C draft) |
 | `cloud_*` (no DGX, cloud-OK) | cloud Whisper API | Gemini speech (current — unmeasured this batch) | gemini-2.5-flash-lite | None — not re-litigated |
 
-The "no change" net is honest: the **evidence base under each
-profile improved**, but no profile-default shifts. That's the right
-outcome for a research batch — measure what's there, document the
-operating points, change defaults only when evidence demands it.
+After late-batch findings landed, two defaults DO flip:
+
+- **`cloud_with_dgx_*` transcription** → `whisper-openai` on
+  `dgx:8002` (after the temperature-schedule fix this PR).
+- **vLLM autoresearch service default** → `26.05-py3 +
+  Qwen3.6-35B-A3B` (after Cell C confirmed parity with Ollama
+  on the same model family).
+
+The `local.yaml` and `cloud_*` shapes stay as-is — evidence base
+under each profile improved, no default change needed.
 
 ## What each underlying eval concluded
 
@@ -71,35 +77,49 @@ indistinguishable when serving the same model family).
 
 Full report: `docs/guides/eval-reports/EVAL_SUMMARY_DGX_LOCAL_2026_06.md`
 
-### Transcription (#929 partial)
+### Transcription (#929 — done; 4-way, post-fix)
 
-**3-way: openai-whisper on Apple MPS vs DGX-CUDA `:8002` vs pure CPU.**
+**4-way: openai-whisper on Apple MPS vs DGX `:8002` (fixed) vs pure
+CPU vs DGX faster-whisper on `:8000` (speaches image).**
 
-- MPS clean: 1.6× realtime mean (with 13-min cold start dragging
-  the mean; warm runs are 2.6-3.8× realtime), WER 0.10 mean on v2
-  fixtures.
-- DGX CUDA under concurrent vLLM load: WER spiked to 8.21 on one
-  episode (13,136 hyp words for a 1,519-word reference — model
-  started hallucinating after the first segment, consistent with
-  CPU-fallback under GPU pressure / the same auto-unload-then-reload
-  regression as `#948`'s speaches).
-- Pure CPU (1 episode): 1.5× realtime, WER 0.109 — basically tied
-  with MPS on warm runs. **MPS only ~1.8× faster than CPU on warm,
-  not the 17× extrapolated from diarization.** Means CPU fallback
-  for laptop `local.yaml` is production-viable when MPS is busy.
+- **MPS** (laptop): WER 0.096 mean, 1.6× realtime (warm 2.6-3.8×).
+  Clean local default.
+- **Pure CPU** (M4 Pro, 5 episodes): WER 0.137 mean, 2.34× realtime.
+  Quality 30% behind MPS, still production-viable. **MPS is only
+  ~1.4× faster than CPU on this workload, not 17×** — the
+  diarization extrapolation didn't hold for openai-whisper.
+- **DGX openai-whisper on `:8002`, AFTER the bug fix this PR**:
+  WER 0.102 mean (within 6% of MPS, inside scoring noise), **4.56×
+  realtime** (~3× faster than MPS, ~2× faster than CPU). **New
+  production winner for DGX-equipped profiles.**
+- **DGX faster-whisper (speaches image, `:8000`)**: still broken —
+  empty output on 4/5 episodes, hallucinations on the 5th. Separate
+  bug from the openai-whisper one (lives in speaches container
+  config). Filed as follow-up; NOT a production candidate.
 
-**Speaches/faster-whisper engine comparison stays out of scope**
-per `#952` — that gate is what unlocks the proper 4-way (MPS vs
-CUDA vs CPU vs ctranslate2-CUDA) eval.
+**The temperature-schedule bug**: pre-fix, DGX openai-whisper was
+producing WER 3.20 mean (hallucinations with 2-9× extra words). The
+synthesis-pre-Cell-C version of this report recommended NOT routing
+to DGX whisper because of those numbers. **Root cause was a
+config bug** in `infra/dgx/whisper-server/app.py` (forced
+`temperature=0.0` scalar disabled openai-whisper's built-in
+fallback schedule, which is what saves long audio from
+autoregressive runaway). Fixed in this PR. Re-run confirmed clean.
+
+**DGX-over-Tailscale hang pattern**: The post-fix sweep hit
+intermittent HTTP-response hangs (server returns 200 OK, body
+stuck mid-transit over Tailscale). Worked around per-episode for
+this eval. Filed as **#956** — applies to every DGX consumer
+(whisper, pyannote, vLLM, future agents), not just whisper.
 
 **Net effect on routing**:
 
-- Laptop runs → MPS openai-whisper. Stable, fast, simple.
-- DGX runs → openai-whisper on `:8002` **with the operational caveat**
-  that GPU contention with concurrent vLLM produces hallucinations.
-  Either dedicate DGX to whisper during transcription windows, or
-  add single-flight + duration-scaled timeout (`#946` pattern) to
-  the client. Filed as a follow-up.
+- Laptop runs (`local.yaml`) → MPS openai-whisper. **No change.**
+- DGX-equipped runs (`cloud_with_dgx_*`) → **route transcription to
+  `whisper-openai` on `:8002` (the fixed container)**. Quality
+  matches MPS within noise, ~3× faster realtime. This **flips** the
+  earlier (pre-Cell-C) recommendation that suggested keeping
+  transcription off the DGX.
 - Cloud Whisper API stays the `cloud_*` default; not retested this
   batch.
 
@@ -122,18 +142,33 @@ this batch: openai-whisper is also 1.5× realtime on **pure CPU**
 on M4 Pro, so MPS isn't load-bearing — the fallback path stays
 production-viable.
 
-### `cloud_with_dgx_*` (DGX-equipped, cost-conscious) — **no change but caveat documented**
+### `cloud_with_dgx_*` (DGX-equipped, cost-conscious) — **transcription flips to DGX after the temperature-bug fix**
 
-- Transcription: openai-whisper at `dgx:8002` (or speaches at
-  `dgx:8000` when `#952` validates it)
+- Transcription: **openai-whisper at `dgx:8002`** (the fixed
+  container, this PR). WER 0.102 mean (within noise of MPS 0.096),
+  4.56× realtime mean — the fastest GPU-accelerated path
+  available. `speaches/faster-whisper` at `dgx:8000` is **NOT**
+  the path; that container has a separate unresolved bug (#952
+  remains gated on the speaches root-cause).
 - Diarization: pyannote at `dgx:8001` (`#926`)
 - Summary: Ollama qwen3.5:35b at `dgx:11434`
 
-Validated for non-contended GPU use. **Operational caveat for prod**:
-running heavy concurrent vLLM autoresearch workloads on the same
-GB10 degrades the whisper container quality (per #929 partial). Either
-schedule transcription windows when vLLM is idle, or apply the
-single-flight + duration-scaled-timeout pattern from `#946`.
+**Operational caveats**:
+
+- The earlier "GPU contention with vLLM degrades whisper" claim
+  was wrong. The DGX whisper container produced byte-identical
+  bad output regardless of vLLM running — it was a config bug in
+  our `app.py` (forced `temperature=0.0` disabled openai-whisper's
+  fallback schedule). Fix is in this PR. After the fix, no
+  contention sensitivity observed.
+- **DGX-over-Tailscale HTTP hangs (`#956`)**: long-blocking calls
+  from the laptop to the DGX occasionally lose the response
+  mid-transit (server returns 200 OK, body stuck). Reproducible.
+  Affects every DGX client, not just whisper. Production
+  consumers should design around this — either async job
+  pattern, or the shared timeout/retry/keepalive layer landed
+  in `#956`. For the eval, the workaround was per-call timeout
+  combined with per-episode invocation.
 
 ### `cloud_*` (no DGX, cloud-OK) — **NOT retested this batch**
 
@@ -147,19 +182,41 @@ Out of scope for this PR. The cloud paths were validated previously
 and this batch didn't relitigate them. They stay the documented
 choice for users without local GPU.
 
-## What this PR DOES NOT change
+## What this PR DOES change (after the late-batch findings)
 
-- No prod profile defaults flip.
-- `cloud_*` profiles aren't relitigated.
-- The faster-whisper-vs-openai-whisper engine question stays at `#952`.
+- **`cloud_with_dgx_*` transcription default**: flips to
+  `whisper-openai` on `dgx:8002` (the fixed container). Earlier
+  drafts of this report had kept transcription off the DGX
+  because of the temperature-bug results.
+- **vLLM autoresearch default**: flips from
+  `25.11-py3 + DeepSeek-R1-Distill-32B` to
+  `26.05-py3 + Qwen3.6-35B-A3B + --max-num-seqs 128`. The Cell C
+  comparison (this PR) showed Qwen3.6-served-by-vLLM ties Ollama-
+  qwen3.5:35b within scoring noise. R1-Distill kept as a
+  one-line revert (`docker-compose.yml.r1-distill.bak` preserved
+  on the DGX).
+
+## What this PR does NOT change
+
+- `local.yaml` profile defaults — confirmed unchanged.
+- `cloud_*` profiles — not relitigated; cloud Whisper API + Gemini
+  flash-lite + `speaker_detector_provider: gemini` stay the
+  documented choice.
+- Ollama qwen3.5:35b remains the summary default for
+  `cloud_with_dgx_*` (Cell C confirmed: Ollama and vLLM tie when
+  serving the same model family; Ollama is operationally simpler).
+- The faster-whisper container (`dgx:8000`, speaches image) stays
+  out of the production routing — separate bug, separate fix.
+  `#952` remains the engine-comparison gate, blocked on that fix.
 
 ## Follow-ups (filed)
 
 | # | What | Why |
 | --- | --- | --- |
-| `#946` (in flight) | Whisper client resilience: duration-scaled timeout + single-flight | Required for DGX whisper to be production-grade under shared-GPU load |
-| `#952` | Validate faster-whisper WER vs openai-whisper on real podcasts | Unblocks the 4-way transcription comparison |
-| `#953` | openai-whisper DGX service (delivered this PR) | — |
+| `#946` (in flight) | Whisper client resilience: duration-scaled timeout + single-flight | Should now consume `#956`'s shared resilience layer instead of bespoke patterns |
+| `#952` | Validate faster-whisper WER vs openai-whisper on real podcasts | Blocked on speaches `compute_type=default` root-cause (the empty-output bug surfaced this batch) |
+| `#953` | openai-whisper DGX service (deployed earlier, **temperature-schedule bug fixed this PR**) | The deploy was correct; the API contract had a bad default. App.py fix in this PR. |
+| `#956` (filed this batch) | DGX-over-Tailscale client resilience (shared timeout/retry/keepalive layer for every DGX consumer) | Long-blocking HTTP over Tailscale loses responses mid-transit; hit during the post-fix #929 sweep |
 | `#954` (filed today) | Diarization client resilience analog to `#946` | Same operational gap surfaced during this batch |
 | `#934` | Distinct voices in v2 fixtures | Required to verdict pyannote speaker-count accuracy |
 | #928 Cell D / E | Quant isolation (R1-Distill on Ollama Q4 GGUF, and Ollama-Qwen3.6 at bf16) | Cell C resolved the serving-stack question; remaining isolated variable is precision |

@@ -159,3 +159,22 @@ server.shell(
         "curl -fsS --max-time 10 http://127.0.0.1:8003/v1/models >/dev/null",
     ],
 )
+
+server.shell(
+    name="assert: vllm-autoresearch serves the model its compose declares",
+    commands=[
+        # Extract the served model id from the live /v1/models endpoint
+        # and the model id declared in the compose, then assert they
+        # match. Catches drift if vLLM started against a different model
+        # than the compose was written for (e.g., an interrupted swap).
+        "served=$(curl -fsS --max-time 10 http://127.0.0.1:8003/v1/models "
+        '| python3 -c \'import json,sys; print(json.load(sys.stdin)["data"][0]["id"])\') && '
+        # Compose declares the model on the line right after ``- serve``;
+        # the value is the next ``- <model>`` entry. awk picks the line
+        # that comes one after ``- serve`` and strips list/quote chrome.
+        "declared=$(awk '/^      - serve$/{getline; gsub(/^[[:space:]-]+/,\"\"); print; exit}' "
+        "/opt/vllm-autoresearch/docker-compose.yml) && "
+        'test "$served" = "$declared" '
+        '|| { echo "drift: vLLM serves $served but compose declares $declared"; exit 1; }',
+    ],
+)

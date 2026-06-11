@@ -406,28 +406,49 @@ server.shell(
 
 VLLM_INSTALL_ROOT = "/opt/vllm-autoresearch"
 VLLM_COMPOSE_FILE = f"{VLLM_INSTALL_ROOT}/docker-compose.yml"
-VLLM_IMAGE = "nvcr.io/nvidia/vllm:25.11-py3"
+# NVIDIA tag history on this GB10 (per the #928 Cell C investigation):
+# - 25.11-py3: vLLM 0.11 / transformers 4.57.1 — works; was the prior
+#   default. Does NOT support qwen3_5_moe architecture (the Qwen3.5/3.6
+#   model family). Use if you need to revert to R1-Distill or older
+#   Qwen3 models.
+# - 26.01-py3 through 26.04-py3: NVIDIA shipped them with transformers
+#   4.57.x patches; still no qwen3_5_moe support. Don't bother.
+# - 26.05-py3: vLLM 0.20.1 / transformers 5.6.0. Supports qwen3_5_moe
+#   AND boots on GB10. Current default per Cell C.
+# - 26.05.post1-py3: post-release hotfix that broke on this operator's
+#   GB10 (verified by operator). Do NOT use even though it would also
+#   support qwen3_5_moe.
+VLLM_IMAGE = "nvcr.io/nvidia/vllm:26.05-py3"
 VLLM_PORT = 8003
 
-# Default to the model already cached on the operator's DGX (no fresh
-# download). Coder-tuned and not the ideal long-term summary candidate,
-# but it's what's in cache and exercises the vLLM serving path. Swap
-# this constant + adjust gpu-memory-utilization / max-model-len to test
-# different models — see infra/dgx/vllm-autoresearch/README.md.
-VLLM_MODEL = "deepseek-ai/DeepSeek-R1-Distill-Qwen-32B"
+# Default to Qwen3.6-35B-A3B (same model family as the Ollama
+# qwen3.5:35b champion from #928). Cell C verified vLLM-served Qwen3.6
+# at bf16 ties Ollama-served qwen3.5:35b at Q4_K_M within scoring
+# noise (Sonnet 4.6: 4.90 vs 5.00). The R1-Distill alternative is in
+# /opt/llm-models/huggingface/ if you need to revert — set this back
+# to ``deepseek-ai/DeepSeek-R1-Distill-Qwen-32B`` and switch
+# VLLM_IMAGE to 25.11-py3. See infra/dgx/vllm-autoresearch/README.md.
+VLLM_MODEL = "Qwen/Qwen3.6-35B-A3B"
 # 0.60 (not 0.92) so vLLM coexists with the other DGX services:
 # whisper-openai (~3 GB) + pyannote (~3-4 GB) + faster-whisper (~3-4 GB)
 # + Ollama-loaded model (~10 GB depending on what's resident) →
 # ~15-20 GB already in use of the GB10's ~122 GB. 0.60 = ~73 GB,
-# which fits a 32B bf16 model + KV cache while leaving headroom for
+# which fits a 35B bf16 model + KV cache while leaving headroom for
 # the other services. Bump back toward 0.92 only if you stop the
 # other services to give vLLM the whole box.
 VLLM_GPU_MEM_UTIL = "0.60"
 # 32k context — enough for podcast transcripts (~10k chars typical,
-# ~13k tokens at the model's tokenizer rate). The R1-Distill base
-# supports 131072 but holding KV cache for that at full size eats
-# memory we'd rather give to throughput.
+# ~13k tokens at the model's tokenizer rate). Qwen3.6-35B-A3B
+# supports 32768 natively at this max-num-seqs; bigger contexts need
+# either lowering max-num-seqs further or raising GPU_MEM_UTIL.
 VLLM_MAX_MODEL_LEN = "32768"
+# Qwen3.6-35B-A3B uses Mamba layers; vLLM 0.20 enforces
+# max_num_seqs ≤ Mamba cache blocks. Default 256 fails CUDA-graph
+# capture (only 190 cache blocks available at gpu_mem_util=0.60).
+# 128 is well below the limit with headroom. Tune up only if you
+# raise gpu_mem_util or change the model family. Not used by the
+# 25.11-py3 / R1-Distill alternative — safe to leave in place.
+VLLM_MAX_NUM_SEQS = "128"
 
 files.directory(
     name="dir: /opt/vllm-autoresearch (install root)",
@@ -480,9 +501,8 @@ services:
       - "{VLLM_MAX_MODEL_LEN}"
       - --gpu-memory-utilization
       - "{VLLM_GPU_MEM_UTIL}"
-      - --enable-auto-tool-choice
-      - --tool-call-parser
-      - qwen3_coder
+      - --max-num-seqs
+      - "{VLLM_MAX_NUM_SEQS}"
     healthcheck:
       test: ["CMD", "python3", "-c",
              "import urllib.request; urllib.request.urlopen('http://localhost:{VLLM_PORT}/health')"]
