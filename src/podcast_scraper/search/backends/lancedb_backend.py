@@ -323,15 +323,25 @@ def stored_schema_version(lance_path: Path | str) -> Optional[int]:
     import json
     import os
 
+    # py/path-injection sanitiser chain (same as read_index_meta): resolve the corpus
+    # dir, confine the CONSTANT "index_meta.json" subpath under it, then normalise. The
+    # filename literal mirrors LanceDBBackend.INDEX_META_FILE (kept literal so this stays
+    # correct when callers monkeypatch the backend class in tests).
     root_res = safe_resolve_directory(Path(lance_path))
     if root_res is None:
         return None
-    # Literal (mirrors LanceDBBackend.INDEX_META_FILE) so this stays correct even when
-    # callers monkeypatch the backend class in tests.
-    meta_path = os.path.join(os.path.normpath(str(root_res)), "index_meta.json")
+    root_s = os.path.normpath(str(root_res))
+    verified = safe_relpath_under_corpus_root(root_res, "index_meta.json")
+    if not verified:
+        return None
+    meta_path = normpath_if_under_root(os.path.normpath(verified), root_s)
+    if not meta_path:
+        return None
+    # codeql[py/path-injection] -- meta_path via normpath_if_under_root (Type 1).
     if not os.path.isfile(meta_path):
         return None
     try:
+        # codeql[py/path-injection] -- meta_path via normpath_if_under_root (Type 1).
         with open(meta_path, encoding="utf-8") as fh:
             data = json.load(fh)
     except (OSError, ValueError):
