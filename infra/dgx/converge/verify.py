@@ -116,3 +116,65 @@ server.shell(
         "curl -fsS --max-time 10 http://127.0.0.1:8001/v1/models >/dev/null",
     ],
 )
+
+# 8. openai-whisper service (#953) — parallel to speaches on :8002.
+# First-party OpenAI Whisper inference code. Runs alongside the
+# faster-whisper container until #952 picks the winner.
+server.shell(
+    name="assert: whisper-openai container is up",
+    commands=[
+        "docker ps --filter name=^whisper-openai$ --filter status=running --format '{{.Names}}' "
+        "| grep -q '^whisper-openai$'",
+    ],
+)
+
+server.shell(
+    name="assert: whisper-openai API responsive on :8002",
+    commands=[
+        # First boot can take 2-5 minutes — the ~3GB large-v3 model downloads
+        # on first startup. Subsequent restarts are quick (cache persists at
+        # /opt/llm-models/whisper-cache).
+        "curl -fsS --max-time 300 http://127.0.0.1:8002/health >/dev/null",
+        "curl -fsS --max-time 10 http://127.0.0.1:8002/v1/models >/dev/null",
+    ],
+)
+
+# 9. vllm-autoresearch service (#928) — NVIDIA-prebuilt vLLM serving an
+# open-weight LLM on :8003 for autoresearch summary/GI/KG scoring.
+server.shell(
+    name="assert: vllm-autoresearch container is up",
+    commands=[
+        "docker ps --filter name=^vllm-autoresearch$ --filter status=running --format '{{.Names}}' "
+        "| grep -q '^vllm-autoresearch$'",
+    ],
+)
+
+server.shell(
+    name="assert: vllm-autoresearch API responsive on :8003",
+    commands=[
+        # vLLM model load on cold cache + large model can take 5-15 min,
+        # which is why the compose's healthcheck has a 600s start_period.
+        # We give verify the same patience — a fresh DGX boot can hit it.
+        "curl -fsS --max-time 900 http://127.0.0.1:8003/health >/dev/null",
+        "curl -fsS --max-time 10 http://127.0.0.1:8003/v1/models >/dev/null",
+    ],
+)
+
+server.shell(
+    name="assert: vllm-autoresearch serves the model its compose declares",
+    commands=[
+        # Extract the served model id from the live /v1/models endpoint
+        # and the model id declared in the compose, then assert they
+        # match. Catches drift if vLLM started against a different model
+        # than the compose was written for (e.g., an interrupted swap).
+        "served=$(curl -fsS --max-time 10 http://127.0.0.1:8003/v1/models "
+        '| python3 -c \'import json,sys; print(json.load(sys.stdin)["data"][0]["id"])\') && '
+        # Compose declares the model on the line right after ``- serve``;
+        # the value is the next ``- <model>`` entry. awk picks the line
+        # that comes one after ``- serve`` and strips list/quote chrome.
+        "declared=$(awk '/^      - serve$/{getline; gsub(/^[[:space:]-]+/,\"\"); print; exit}' "
+        "/opt/vllm-autoresearch/docker-compose.yml) && "
+        'test "$served" = "$declared" '
+        '|| { echo "drift: vLLM serves $served but compose declares $declared"; exit 1; }',
+    ],
+)

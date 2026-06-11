@@ -1,0 +1,40 @@
+# #928 — DGX summary championship: Ollama qwen3.5:35b vs vLLM DeepSeek-R1-Distill-32B.
+#
+# Both candidates are LOCAL (DGX-served, $0 marginal cost). This is the
+# pure "local frontier" comparison per the user's framing: how far can
+# DGX go for summary, independent of cloud Gemini.
+
+tag: finale_928_summary_dgx_local_2026_06
+
+runs_glob:
+  - data/eval/runs/autoresearch_prompt_ollama_qwen35_35b_smoke_paragraph_v1_curated_5feeds_smoke_v1
+  - data/eval/runs/autoresearch_prompt_vllm_r1distill_32b_smoke_paragraph_v1_curated_5feeds_smoke_v1
+
+metrics_filename: metrics_vs_silver_opus47_smoke_v1.json
+
+strata:
+  - name: dgx_le_40b
+    match:
+      - autoresearch_prompt_ollama_qwen35_35b_
+      - autoresearch_prompt_vllm_r1distill_
+
+promotion:
+  per_stratum_top_k: 2
+  floor_fraction: 0.3              # generous — R1's ROUGE is low, want it in panel anyway
+  overall_cap: 2
+  carte_blanche:
+    - autoresearch_prompt_ollama_qwen35_35b_
+    - autoresearch_prompt_vllm_r1distill_
+
+judges:
+  primary:
+    kind: sonnet46
+    model: claude-sonnet-4-6
+  cross_check:
+    kind: openai_chat
+    model: gpt-5.4
+    top_n_per_stratum: 2
+
+max_episodes_per_finalist: 5
+cost_cap_usd: 5.0
+output_root: data/eval/runs/finale

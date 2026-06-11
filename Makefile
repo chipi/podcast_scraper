@@ -471,6 +471,15 @@ quality: complexity deadcode docstrings spelling
 	# TODO(transformers PYSECs): drop ignores after bumping transformers to a
 	#   patched 5.x release (paired with the CVE-2026-1839 ignore above).
 	#
+	# Ignore CVE-2025-3000 (torch.jit.script memory corruption).
+	#   Local-access attack on the JIT script path. We don't call
+	#   ``torch.jit.script`` directly anywhere in the codebase; torch is loaded
+	#   transitively via transformers / sentence-transformers / pyannote at
+	#   higher levels. Same exploitation class as the PYSEC-2025-189..197 block
+	#   above (no fix version published; 2.12.0 is latest).
+	# TODO(CVE-2025-3000): drop ignore when torch upstream ships a fixed
+	#   version and we bump the pin.
+	#
 	# Note: If protobuf is updated to >=6.33.5 or >=7.0.0, this ignore can be removed
 	# Note: en-core-web-sm is installed from GitHub (not PyPI), so it cannot be audited by pip-audit
 	#       If it appears in audit output, it can be safely ignored as it's not from PyPI
@@ -504,7 +513,8 @@ quality: complexity deadcode docstrings spelling
 		--ignore-vuln PYSEC-2025-217 \
 		--ignore-vuln PYSEC-2025-218 \
 		--ignore-vuln PYSEC-2026-161 \
-		--ignore-vuln MAL-2026-4750
+		--ignore-vuln MAL-2026-4750 \
+		--ignore-vuln CVE-2025-3000
 	# PYSEC-2026-161 (starlette<1.0.1, Host-header URL-path poisoning, GHSA-86qp-5c8j-p5mr):
 	# Not exploitable in this codebase — grep -rn 'request.url.path' src/ is empty;
 	# FastAPI routing uses the real request path, not the reconstructed URL. Traefik

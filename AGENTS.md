@@ -280,6 +280,25 @@ Tests alone are not a substitute. See `docs/guides/AGENT_BROWSER_LOOP_GUIDE.md`.
 - Default: stage specific files for the current task (`git add <file>`).
   Avoid blind `git add -A` unless the user explicitly says so.
 
+### Always rebase before pushing a feature branch
+
+- BEFORE the first push of a feature branch: `git fetch origin main && git rebase origin/main`.
+- BEFORE each subsequent push: same — rebase against the latest main so the PR
+  diff is always against current main, not a stale base.
+- Exception: hotfix-direct-to-main (already covered above) does not need rebase
+  — it goes straight onto main.
+- Why: linear history when the PR lands; PR diff shows only the branch's
+  changes (no "behind by N"); latent main-vs-branch conflicts surface earlier
+  than at merge time.
+- Force-push is REQUIRED after a rebase. Use `git push --force-with-lease`
+  (not `--force`) on feature branches so a teammate's concurrent push isn't
+  silently overwritten.
+- Force-push to `main` / `master` remains forbidden (covered by the hotfix
+  section above).
+- If a rebase produces conflicts, STOP and show the user the conflict files
+  alongside `git status` output before resolving. Don't attempt resolution
+  unilaterally on files outside the branch's own scope.
+
 ### Active-merge safety (when `.git/MERGE_HEAD` exists)
 
 - NEVER `git stash` during a merge — destroys conflict resolutions.

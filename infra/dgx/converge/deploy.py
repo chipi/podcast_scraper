@@ -271,3 +271,272 @@ server.shell(
     commands=[f"cd {PYANNOTE_INSTALL_ROOT} && docker compose up -d"],
     _sudo=True,
 )
+
+
+# ---------------------------------------------------------------------------
+# #953 — openai-whisper transcription service. Runs alongside the speaches
+# faster-whisper container on a different port (8002). Reason: speaches'
+# bundled ctranslate2 is a community reimplementation of Whisper inference
+# (#948 surfaced this). Until #952 validates that faster-whisper's WER
+# matches openai-whisper on real podcasts, we want a first-party path
+# available. Both services run side-by-side; the consumer picks via URL.
+# Same Docker-based shape as Speaches + pyannote.
+# ---------------------------------------------------------------------------
+
+WHISPER_INSTALL_ROOT = "/opt/whisper-server"
+WHISPER_COMPOSE_FILE = f"{WHISPER_INSTALL_ROOT}/docker-compose.yml"
+WHISPER_BUILD_CTX = f"{WHISPER_INSTALL_ROOT}/build"
+WHISPER_IMAGE = "podcast-whisper:0.1.0"
+WHISPER_PORT = 8002
+WHISPER_MODEL = "large-v3"
+# Persistent cache for openai-whisper model weights (~3GB for large-v3).
+# Separate from the HF cache because openai-whisper uses its own cache layout
+# (URL-hashed filenames, not HF's snapshots/blobs structure).
+WHISPER_CACHE_HOST = "/opt/llm-models/whisper-cache"
+
+_WHISPER_SRC = _Path(__file__).resolve().parents[1] / "whisper-server"
+
+files.directory(
+    name="dir: /opt/whisper-server (install root)",
+    path=WHISPER_INSTALL_ROOT,
+    mode="755",
+    present=True,
+    _sudo=True,
+)
+
+files.directory(
+    name="dir: /opt/whisper-server/build (Docker build context)",
+    path=WHISPER_BUILD_CTX,
+    mode="755",
+    present=True,
+    _sudo=True,
+)
+
+files.directory(
+    name="dir: /opt/llm-models/whisper-cache (model weights persistence)",
+    path=WHISPER_CACHE_HOST,
+    mode="755",
+    present=True,
+    _sudo=True,
+)
+
+files.put(
+    name="ship: whisper-server/Dockerfile",
+    src=str(_WHISPER_SRC / "Dockerfile"),
+    dest=f"{WHISPER_BUILD_CTX}/Dockerfile",
+    mode="644",
+    create_remote_dir=False,
+    _sudo=True,
+)
+
+files.put(
+    name="ship: whisper-server/app.py",
+    src=str(_WHISPER_SRC / "app.py"),
+    dest=f"{WHISPER_BUILD_CTX}/app.py",
+    mode="644",
+    create_remote_dir=False,
+    _sudo=True,
+)
+
+# docker-compose.yml. Same env_file + GPU passthrough as the other two
+# services. Whisper cache is OUTSIDE the operator's HF cache because
+# openai-whisper writes its own URL-hashed layout, not HF's snapshots.
+WHISPER_COMPOSE_CONTENT = f"""# Auto-generated. Edit infra/dgx/converge/deploy.py instead.
+# Re-run ``make dgx-deploy`` from the laptop to redeploy.
+
+services:
+  whisper-openai:
+    build: {WHISPER_BUILD_CTX}
+    image: {WHISPER_IMAGE}
+    container_name: whisper-openai
+    restart: unless-stopped
+    network_mode: host
+    runtime: nvidia
+    env_file:
+      - {OPERATOR_ENV_FILE}
+    environment:
+      - WHISPER_MODEL={WHISPER_MODEL}
+      - WHISPER_DEVICE=cuda
+      - WHISPER_CACHE_DIR=/root/.cache/whisper
+      - LOG_LEVEL=INFO
+      - UVICORN_HOST=0.0.0.0
+      - UVICORN_PORT={WHISPER_PORT}
+    volumes:
+      # Persistent model cache so the ~3GB large-v3 download survives
+      # container restarts. openai-whisper writes to /root/.cache/whisper.
+      - {WHISPER_CACHE_HOST}:/root/.cache/whisper
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+"""
+
+server.shell(
+    name="compose: write /opt/whisper-server/docker-compose.yml",
+    commands=[
+        f"cat > {WHISPER_COMPOSE_FILE} <<'EOF'\n{WHISPER_COMPOSE_CONTENT}EOF",
+        f"chmod 644 {WHISPER_COMPOSE_FILE}",
+    ],
+    _sudo=True,
+)
+
+server.shell(
+    name="build: whisper-openai image (one-time + on Dockerfile/app changes)",
+    commands=[f"cd {WHISPER_INSTALL_ROOT} && docker compose build"],
+    _sudo=True,
+)
+
+server.shell(
+    name="compose: up -d (start / restart whisper-openai service)",
+    commands=[f"cd {WHISPER_INSTALL_ROOT} && docker compose up -d"],
+    _sudo=True,
+)
+
+
+# ---------------------------------------------------------------------------
+# #928 — vllm-autoresearch. NVIDIA-prebuilt vLLM container serving an
+# open-weight LLM for autoresearch evaluations (summary / GI / KG).
+# Listens on :8003 so it coexists with the other DGX services (8000=
+# speaches, 8001=pyannote, 8002=openai-whisper). No Dockerfile — vLLM
+# ships its own OpenAI-compatible server in the NVIDIA image.
+# ---------------------------------------------------------------------------
+
+VLLM_INSTALL_ROOT = "/opt/vllm-autoresearch"
+VLLM_COMPOSE_FILE = f"{VLLM_INSTALL_ROOT}/docker-compose.yml"
+# NVIDIA tag history on this GB10 (per the #928 Cell C investigation):
+# - 25.11-py3: vLLM 0.11 / transformers 4.57.1 — works; was the prior
+#   default. Does NOT support qwen3_5_moe architecture (the Qwen3.5/3.6
+#   model family). Use if you need to revert to R1-Distill or older
+#   Qwen3 models.
+# - 26.01-py3 through 26.04-py3: NVIDIA shipped them with transformers
+#   4.57.x patches; still no qwen3_5_moe support. Don't bother.
+# - 26.05-py3: vLLM 0.20.1 / transformers 5.6.0. Supports qwen3_5_moe
+#   AND boots on GB10. Current default per Cell C.
+# - 26.05.post1-py3: post-release hotfix that broke on this operator's
+#   GB10 (verified by operator). Do NOT use even though it would also
+#   support qwen3_5_moe.
+VLLM_IMAGE = "nvcr.io/nvidia/vllm:26.05-py3"
+VLLM_PORT = 8003
+
+# Default to Qwen3.6-35B-A3B (same model family as the Ollama
+# qwen3.5:35b champion from #928). Cell C verified vLLM-served Qwen3.6
+# at bf16 ties Ollama-served qwen3.5:35b at Q4_K_M within scoring
+# noise (Sonnet 4.6: 4.90 vs 5.00). The R1-Distill alternative is in
+# /opt/llm-models/huggingface/ if you need to revert — set this back
+# to ``deepseek-ai/DeepSeek-R1-Distill-Qwen-32B`` and switch
+# VLLM_IMAGE to 25.11-py3. See infra/dgx/vllm-autoresearch/README.md.
+VLLM_MODEL = "Qwen/Qwen3.6-35B-A3B"
+# 0.60 (not 0.92) so vLLM coexists with the other DGX services:
+# whisper-openai (~3 GB) + pyannote (~3-4 GB) + faster-whisper (~3-4 GB)
+# + Ollama-loaded model (~10 GB depending on what's resident) →
+# ~15-20 GB already in use of the GB10's ~122 GB. 0.60 = ~73 GB,
+# which fits a 35B bf16 model + KV cache while leaving headroom for
+# the other services. Bump back toward 0.92 only if you stop the
+# other services to give vLLM the whole box.
+VLLM_GPU_MEM_UTIL = "0.60"
+# 32k context — enough for podcast transcripts (~10k chars typical,
+# ~13k tokens at the model's tokenizer rate). Qwen3.6-35B-A3B
+# supports 32768 natively at this max-num-seqs; bigger contexts need
+# either lowering max-num-seqs further or raising GPU_MEM_UTIL.
+VLLM_MAX_MODEL_LEN = "32768"
+# Qwen3.6-35B-A3B uses Mamba layers; vLLM 0.20 enforces
+# max_num_seqs ≤ Mamba cache blocks. Default 256 fails CUDA-graph
+# capture (only 190 cache blocks available at gpu_mem_util=0.60).
+# 128 is well below the limit with headroom. Tune up only if you
+# raise gpu_mem_util or change the model family. Not used by the
+# 25.11-py3 / R1-Distill alternative — safe to leave in place.
+VLLM_MAX_NUM_SEQS = "128"
+
+files.directory(
+    name="dir: /opt/vllm-autoresearch (install root)",
+    path=VLLM_INSTALL_ROOT,
+    mode="755",
+    present=True,
+    _sudo=True,
+)
+
+# docker-compose.yml. Mirrors the operator's working
+# ``~/docker-compose/vllm-Qwen3-Coder-Next/docker-compose.yml`` byte-for-byte
+# except for the port (8003 not 8000) and container name (so it coexists
+# with the operator's personal coding container if/when that runs).
+VLLM_COMPOSE_CONTENT = f"""# Auto-generated. Edit infra/dgx/converge/deploy.py instead.
+# Re-run ``make dgx-deploy`` from the laptop to redeploy.
+
+services:
+  vllm-autoresearch:
+    image: {VLLM_IMAGE}
+    container_name: vllm-autoresearch
+    runtime: nvidia
+    ulimits:
+      memlock: -1
+      stack: 67108864
+    ipc: host
+    network_mode: host
+    env_file:
+      - {OPERATOR_ENV_FILE}
+    volumes:
+      - {HF_CACHE_HOST}:/root/.cache/huggingface
+    environment:
+      - HF_HOME=/root/.cache/huggingface
+      - HF_HUB_CACHE=/root/.cache/huggingface
+      # GB10 hotfix: torch.compile has been the Blackwell sore spot on
+      # the version we run. Disabling loses ~10-20% steady-state throughput
+      # but is the reliable boot path per the operator's working composes.
+      - VLLM_DISABLE_TORCH_COMPILE=1
+      - NVIDIA_VISIBLE_DEVICES=all
+    command:
+      - vllm
+      - serve
+      - {VLLM_MODEL}
+      - --host
+      - 0.0.0.0
+      - --port
+      - "{VLLM_PORT}"
+      - --dtype
+      - bfloat16
+      - --max-model-len
+      - "{VLLM_MAX_MODEL_LEN}"
+      - --gpu-memory-utilization
+      - "{VLLM_GPU_MEM_UTIL}"
+      - --max-num-seqs
+      - "{VLLM_MAX_NUM_SEQS}"
+    healthcheck:
+      test: ["CMD", "python3", "-c",
+             "import urllib.request; urllib.request.urlopen('http://localhost:{VLLM_PORT}/health')"]
+      interval: 30s
+      timeout: 10s
+      retries: 30
+      start_period: 600s
+    restart: unless-stopped
+"""
+
+server.shell(
+    name="compose: write /opt/vllm-autoresearch/docker-compose.yml",
+    commands=[
+        f"cat > {VLLM_COMPOSE_FILE} <<'EOF'\n{VLLM_COMPOSE_CONTENT}EOF",
+        f"chmod 644 {VLLM_COMPOSE_FILE}",
+    ],
+    _sudo=True,
+)
+
+# No build step — we use the NVIDIA-prebuilt image directly.
+# We DO pull because the image is fairly recent (25.11) and the operator
+# may not have it cached on initial deploy. Wrap in `|| true` so a
+# pull blip doesn't bail the deploy when a cached image exists.
+server.shell(
+    name="compose: pull vllm image (tolerated on cache hit)",
+    commands=[
+        f"cd {VLLM_INSTALL_ROOT} && docker compose pull "
+        f"|| echo '::warning::nvcr.io pull failed; falling back to cached image'"
+    ],
+    _sudo=True,
+)
+
+server.shell(
+    name="compose: up -d (start / restart vllm-autoresearch service)",
+    commands=[f"cd {VLLM_INSTALL_ROOT} && docker compose up -d"],
+    _sudo=True,
+)
