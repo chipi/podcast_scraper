@@ -336,6 +336,7 @@ MARKDOWNLINT_CLI_ARGS = "**/*.md" \
 	--ignore "data/eval/runs/**" \
 	--ignore "$(WEB_VIEWER_DIR)/playwright-report/**" \
 	--ignore "$(WEB_VIEWER_DIR)/test-results/**" \
+	--ignore "$(WEB_VIEWER_DIR)/validation-results/**" \
 	--ignore "tests/stack-test/playwright-report/**" \
 	--ignore "tests/stack-test/test-results/**" \
 	--config .markdownlint.json
