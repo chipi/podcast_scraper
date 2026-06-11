@@ -47,6 +47,7 @@ import {
   computeNodeIdSetDifference,
   decideReconcileAction,
 } from '../../utils/graphHandoffInvariant'
+import { resolveHandoffCandidateNode } from '../../utils/graphHandoffRestore'
 import * as giKgCoseLayout from '../../utils/cyCoseLayoutOptions'
 import { syncGraphLabelTierClasses } from '../../utils/cyGraphLabelTier'
 import { buildGiKgCyStylesheet, cytoscapeSideLabelMarginXCallback } from '../../utils/cyGraphStylesheet'
@@ -437,6 +438,14 @@ type ViewportPreserveSnap = {
 
 /** Library/Digest handoff: run ``animateCameraToFocusedNode`` after paint hold so Cytoscape has real layout size. */
 let pendingFocusCameraAfterLayoutHold: { cyId: string; extras: string[] } | null = null
+
+/**
+ * #967 — when a full-replacement redraw early-restores the FSM-applied selection at
+ * cy-creation (closing the no-selection window), the layout positions aren't final yet,
+ * so the camera centre is deferred to ``finishLayoutPass``. This carries the cy id whose
+ * camera still needs centring; cleared once honoured (or on a redraw that supersedes it).
+ */
+let pendingEarlyHandoffCameraCyId = ''
 
 let pendingViewportPreserve: ViewportPreserveSnap | null = null
 /** Full-graph viewport before entering 1-hop (shift+dbl-click); applied when returning to full graph. */
@@ -1524,43 +1533,40 @@ function finishLayoutPass(core: Core): void {
     graphHandoff.pending === null &&
     lrRecoverable
   ) {
-    const lastAppliedCyId = lr?.appliedCyId?.trim() || ''
-    if (lastAppliedCyId) {
-      // Same logical node may now be addressable under a different
-      // ``g:`` / ``k:`` prefix if KG joined GI-only data between layout
-      // passes (or vice-versa). Try the exact id first, then the
-      // alternative-prefix variant; finally try prefixing if the id is
-      // bare.
-      const candidateIds: string[] = [lastAppliedCyId]
-      if (lastAppliedCyId.startsWith('g:')) {
-        candidateIds.push('k:' + lastAppliedCyId.slice(2))
-      } else if (lastAppliedCyId.startsWith('k:')) {
-        candidateIds.push('g:' + lastAppliedCyId.slice(2))
-      } else {
-        candidateIds.push('g:' + lastAppliedCyId, 'k:' + lastAppliedCyId)
+    const restored = resolveHandoffCandidateNode(core, lr?.appliedCyId?.trim() || '')
+    if (restored) {
+      core.nodes().unselect()
+      restored.select()
+      selectedNodeId.value = restored.id()
+      try {
+        applyGraphSelectionDimFromNode(core, restored)
+      } catch {
+        /* dimming is cosmetic; never let a styling error abort restore */
       }
-      let restored: NodeSingular | null = null
-      for (const candId of candidateIds) {
-        const n = core.$id(candId)
-        if (n.length > 0) {
-          restored = n.first() as NodeSingular
-          break
-        }
-      }
-      if (restored) {
-        core.nodes().unselect()
-        restored.select()
-        selectedNodeId.value = restored.id()
+      // Centre the camera on the restored node with the regular
+      // animation path so zoom + pan look intentional (not a fit-all
+      // jump). Preserves zoom semantics via the function's
+      // ``GRAPH_FOCUS_FRAME_MIN_ZOOM`` floor.
+      animateCameraToFocusedNode(core, restored.id())
+    }
+    pendingEarlyHandoffCameraCyId = ''
+  } else if (pendingEarlyHandoffCameraCyId) {
+    // #967 — the full-replacement early-restore already re-selected the FSM node at
+    // cy-creation (so the gate above sees ``cyHasSelection`` and skips), but the camera
+    // still sits at the post-``fit()`` zoom-collapse. Centre it now that layout positions
+    // are final. Always drop the marker; only centre when nothing else owns the camera
+    // this pass (a pending / episode-rep focus wins when present).
+    const camId = pendingEarlyHandoffCameraCyId
+    pendingEarlyHandoffCameraCyId = ''
+    if (!appliedPending && graphHandoff.pending === null) {
+      const camNode = resolveHandoffCandidateNode(core, camId)
+      if (camNode) {
         try {
-          applyGraphSelectionDimFromNode(core, restored)
+          applyGraphSelectionDimFromNode(core, camNode)
         } catch {
           /* dimming is cosmetic; never let a styling error abort restore */
         }
-        // Centre the camera on the restored node with the regular
-        // animation path so zoom + pan look intentional (not a fit-all
-        // jump). Preserves zoom semantics via the function's
-        // ``GRAPH_FOCUS_FRAME_MIN_ZOOM`` floor.
-        animateCameraToFocusedNode(core, restored.id())
+        animateCameraToFocusedNode(core, camNode.id())
       }
     }
   }
@@ -3098,10 +3104,31 @@ function redraw(): void {
     // path clears it), so during a KG-second-wave merge it still carries
     // the user's intent from the prior FSM apply.
     const earlySid = selectedNodeId.value
+    pendingEarlyHandoffCameraCyId = ''
     if (earlySid) {
       const earlyNode = core.$id(earlySid)
       if (earlyNode.length > 0) {
         earlyNode.select()
+      }
+    } else {
+      // #967 — the full-replacement path cleared ``selectedNodeId`` above, so the
+      // ``selectedNodeId``-driven restore can't fire. If the FSM's last apply is
+      // recoverable (and no fresh handoff is pending), re-select that node NOW to close
+      // the no-selection window that the ego→full reload otherwise leaves open until
+      // ``finishLayoutPass``. Positions aren't final yet, so defer the camera centre to
+      // layoutstop via ``pendingEarlyHandoffCameraCyId`` (selecting pre-layout is safe;
+      // animating the camera to a not-yet-laid-out node is not).
+      const lr0 = graphHandoff.lastResult
+      const lr0Recoverable =
+        lr0?.status === 'applied' ||
+        (lr0?.status === 'failed' && (lr0.reason?.startsWith('stuck-timeout') ?? false))
+      if (lr0Recoverable && graphHandoff.pending === null) {
+        const earlyHandoff = resolveHandoffCandidateNode(core, lr0?.appliedCyId?.trim() || '')
+        if (earlyHandoff) {
+          earlyHandoff.select()
+          selectedNodeId.value = earlyHandoff.id()
+          pendingEarlyHandoffCameraCyId = earlyHandoff.id()
+        }
       }
     }
 
