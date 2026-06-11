@@ -78,6 +78,16 @@ make serve-for-validation
 make ci-ui-validation CORPUS="$(pwd)/tests/fixtures/viewer-validation-corpus"
 ```
 
+> **⚠ Known gap (tracked):** the *committed* synthetic corpus contains only the
+> pre-built top-level API JSONs (`episodes.json`, `digest.json`, …) — it is
+> **missing the raw `feeds/<prefix>/metadata/*.gi.json` artifacts** that the
+> live `serve-api` computes episodes from. So this synthetic-corpus walk
+> currently returns an empty Library and **fails ~30 handoff specs**. The
+> build script (`scripts/build_synthetic_validation_corpus.py`) *does* emit the
+> raw artifacts now; the corpus just needs regenerating + committing. Until
+> then, run the real-corpus walk against a **BYOC/prod corpus** (below), which
+> has the raw `feeds/*/…/*.gi.json` layout and works end-to-end.
+
 **Against a real / prod corpus** (BYOC):
 
 ```bash
