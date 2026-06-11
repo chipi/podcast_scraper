@@ -27,7 +27,7 @@ from typing import cast, Dict, List, Optional, Tuple
 from .. import config as _config
 from ..providers.ml import embedding_loader
 from .backend import AuxDocument, InsightDocument, SegmentDocument
-from .backends.lancedb_backend import LanceDBBackend
+from .backends.lancedb_backend import lance_index_is_stale, LanceDBBackend
 from .corpus_scope import discover_metadata_files, episode_root_from_metadata_path
 from .indexer import _collect_docs_for_episode, _gi_path, _load_metadata_file
 from .segments import link_insights_to_segments, link_insights_to_segments_by_text
@@ -145,6 +145,13 @@ def build_two_tier_index(
     silently mismatch the schema). ``limit_episodes`` caps the walk. Returns counts.
     """
     out = Path(corpus_dir)
+    # A pre-schema-bump index has incompatible tables — wipe it so we rebuild fresh.
+    # Upserting new-schema rows (e.g. with publish_date) into old tables would error or
+    # silently drop the new columns, so a stale index must be removed, not merged into.
+    if lance_index_is_stale(Path(lance_path)):
+        import shutil
+
+        shutil.rmtree(Path(lance_path), ignore_errors=True)
     stats = TwoTierIndexStats()
     backend: Optional[LanceDBBackend] = None
 
@@ -193,6 +200,7 @@ def build_two_tier_index(
                         entity_type="insight",
                         confidence=0.0,
                         derived=bool(meta.get("grounded")),
+                        publish_date=meta.get("publish_date"),
                         embedding=_embed(text, model_id, allow_download=allow_download),
                     )
                 )
@@ -206,6 +214,7 @@ def build_two_tier_index(
                         episode_id=meta.get("episode_id") or "",
                         start_time=float(meta.get("timestamp_start_ms") or 0.0) / 1000.0,
                         end_time=float(meta.get("timestamp_end_ms") or 0.0) / 1000.0,
+                        publish_date=meta.get("publish_date"),
                         embedding=_embed(text, model_id, allow_download=allow_download),
                     )
                 )
@@ -217,6 +226,7 @@ def build_two_tier_index(
                         show_id=meta.get("feed_id") or "",
                         episode_id=meta.get("episode_id") or "",
                         doc_type=doc_type,
+                        publish_date=meta.get("publish_date"),
                         embedding=_embed(text, model_id, allow_download=allow_download),
                     )
                 )

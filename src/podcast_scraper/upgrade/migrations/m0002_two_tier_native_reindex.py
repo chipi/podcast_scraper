@@ -34,20 +34,29 @@ class TwoTierNativeReindexMigration(Migration):
 
     def plan(self, ctx: MigrationContext) -> str:
         """Describe whether a native build is needed for this corpus."""
-        if self._lance_path(ctx).exists():
+        from ...search.backends.lancedb_backend import lance_index_is_stale
+
+        lance_path = self._lance_path(ctx)
+        if lance_path.exists():
+            if lance_index_is_stale(lance_path):
+                return "LanceDB index present but schema-stale — rebuild natively."
             return "LanceDB index already present — no-op."
         return (
             f"Build two-tier LanceDB index natively from {ctx.corpus_root} (no FAISS to migrate)."
         )
 
     def apply(self, ctx: MigrationContext) -> MigrationResult:
-        """Build the native index only if one does not already exist."""
+        """Build the native index when none exists, or rebuild a schema-stale one."""
+        from ...search.backends.lancedb_backend import lance_index_is_stale
+
         lance_path = self._lance_path(ctx)
-        if lance_path.exists():
+        if lance_path.exists() and not lance_index_is_stale(lance_path):
             ctx.log(f"LanceDB index already present at {lance_path}; skipping native build")
             return MigrationResult(
                 self.id, applied=True, dry_run=ctx.dry_run, message="index already present — no-op"
             )
+        if lance_path.exists():
+            ctx.log(f"LanceDB index at {lance_path} has a stale schema; rebuilding natively")
         if ctx.dry_run:
             ctx.log(self.plan(ctx))
             return MigrationResult(self.id, applied=False, dry_run=True, message=self.plan(ctx))

@@ -34,6 +34,7 @@ class SegmentDocument:
     speaker_id: Optional[str] = None  # if diarized
     linked_insight_ids: List[str] = field(default_factory=list)  # GIL insights by timestamp overlap
     source_tier: str = "segment"
+    publish_date: Optional[str] = None  # episode publish date (parity with FAISS; date filters)
 
 
 @dataclass
@@ -51,6 +52,7 @@ class InsightDocument:
     speaker_id: Optional[str] = None
     source_segment_id: Optional[str] = None  # back-ref to grounding-quote segment
     source_tier: str = "insight"
+    publish_date: Optional[str] = None  # episode publish date (parity with FAISS; date filters)
 
 
 @dataclass
@@ -65,6 +67,7 @@ class AuxDocument:
     doc_type: str  # kg_entity | kg_topic | quote | summary
     embedding: List[float] = field(default_factory=list)
     source_tier: str = "aux"
+    publish_date: Optional[str] = None  # episode publish date (parity with FAISS; date filters)
 
 
 @dataclass
