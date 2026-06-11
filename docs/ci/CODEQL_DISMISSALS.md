@@ -259,6 +259,7 @@ number, file, line, date, and a short comment.
 | 1 | #360 | search/backends/lancedb_backend.py | 332 | 2026-06-11 | Type 1: ``meta_path`` via ``normpath_if_under_root`` after ``safe_resolve_directory`` + ``safe_relpath_under_corpus_root`` (constant ``index_meta.json``) before ``os.path.isfile`` in ``stored_schema_version`` — identical shape to ``read_index_meta`` #338/#342, corpus root route-confined by ``resolve_corpus_path_param``. Dismissed ``gh api`` (PR #969) |
 | 1 | #361 | search/backends/lancedb_backend.py | 335 | 2026-06-11 | Type 1: same sanitizer chain, ``open(meta_path)`` sink in ``stored_schema_version`` (PR #969) |
 | 1 | #362 | search/backends/lancedb_backend.py | 359 | 2026-06-11 | Type 1: same sanitizer chain, schema-version helper filesystem sink on the route-confined corpus root (PR #969) |
+| 1 | #363 | search/backends/lancedb_backend.py | 341 | 2026-06-11 | Type 1: same sanitizer chain, ``stored_schema_version`` sink re-numbered after the fix line-shift; ``meta_path`` via ``normpath_if_under_root``. Same shape as #338/#342 (PR #969) |
 
 ## Still open (not yet dismissed)
 
