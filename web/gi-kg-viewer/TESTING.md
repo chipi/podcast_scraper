@@ -54,7 +54,7 @@ Ratchet the thresholds a few points below the new baseline when coverage climbs.
 
 | Corpus | What | Where |
 | --- | --- | --- |
-| **Synthetic validation corpus** | in-repo, deterministic, **pre-built API-response JSONs** (`digest.json`, `episodes.json`, `artifacts.json`, `topic-clusters.json`, …). 9 podcasts / 23 episodes / GI+KG nodes / 5 cross-cutting umbrella topics / recent publish dates so the default 7-day lens catches everything. ~300 KB. | `tests/fixtures/viewer-validation-corpus/v{1,2}/corpus` (`FIXTURES_VERSION` selects the version; see `tests/fixtures/VIEWER_VALIDATION_CORPUS.md`) |
+| **Synthetic validation corpus** | in-repo, deterministic. Two layers: **raw artifacts** `feeds/<feed>/metadata/*.{metadata,gi,kg,bridge}.json` (what the live `serve-api` computes episodes from — point `CORPUS=` at the **version dir**) **plus** pre-built top-level `corpus/*.json` (`digest.json`, `episodes.json`, …, for the mocked tier-3 / static serving). 9 podcasts / 23 episodes / GI+KG nodes / 5 cross-cutting umbrella topics. ~340 KB. | corpus root = `tests/fixtures/viewer-validation-corpus/v2` (`FIXTURES_VERSION` selects the version; raw artifacts under `v2/feeds/`, pre-built JSONs under `v2/corpus/`; see `tests/fixtures/VIEWER_VALIDATION_CORPUS.md`) |
 | **BYOC (real / prod)** | a raw pipeline-output corpus (`metadata/*.gi.json` + `*.kg.json`). Never named in committed code (copyright/privacy) — always supplied via `CORPUS=`. | e.g. a prod backup under `.test_outputs/manual/…/corpus` |
 
 Regenerate the synthetic corpus (deterministic, idempotent):
@@ -74,19 +74,17 @@ reachable):
 # terminal 1 — serve with the repo root as the API corpus root
 make serve-for-validation
 
-# terminal 2 — drive the validation walk
-make ci-ui-validation CORPUS="$(pwd)/tests/fixtures/viewer-validation-corpus"
+# terminal 2 — drive the validation walk (CORPUS must include the version subdir!)
+make ci-ui-validation CORPUS="$(pwd)/tests/fixtures/viewer-validation-corpus/$(cat tests/fixtures/FIXTURES_VERSION)"
 ```
 
-> **⚠ Known gap (tracked):** the *committed* synthetic corpus contains only the
-> pre-built top-level API JSONs (`episodes.json`, `digest.json`, …) — it is
-> **missing the raw `feeds/<prefix>/metadata/*.gi.json` artifacts** that the
-> live `serve-api` computes episodes from. So this synthetic-corpus walk
-> currently returns an empty Library and **fails ~30 handoff specs**. The
-> build script (`scripts/build_synthetic_validation_corpus.py`) *does* emit the
-> raw artifacts now; the corpus just needs regenerating + committing. Until
-> then, run the real-corpus walk against a **BYOC/prod corpus** (below), which
-> has the raw `feeds/*/…/*.gi.json` layout and works end-to-end.
+> **⚠ Pass the *version* dir, not the parent.** The raw
+> `feeds/<feed>/metadata/*.{metadata,gi,kg}.json` artifacts that `serve-api`
+> computes episodes from live under the **`v2/`** subdir (`FIXTURES_VERSION`),
+> not the version-less `viewer-validation-corpus/` parent. Point the walk at
+> the parent and `discover_metadata_files()` returns 0 → empty Library → every
+> handoff spec fails on the first row-click. `make ci-ui-validation` (no
+> `CORPUS=`) prints the correct path; it's derived from `FIXTURES_VERSION`.
 
 **Against a real / prod corpus** (BYOC):
 

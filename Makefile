@@ -2129,6 +2129,13 @@ ci-ui-full:
 	echo ""; echo "=== ci-ui-full [$$(date '+%Y-%m-%d %H:%M:%S')] stack-test-ml-ci ==="; $(MAKE) stack-test-ml-ci; \
 	echo ""; echo "=== ci-ui-full DONE $$(date '+%Y-%m-%d %H:%M:%S') ==="; echo ""
 
+# Synthetic validation corpus root — MUST include the FIXTURES_VERSION subdir
+# (e.g. ``.../viewer-validation-corpus/v2``). The raw ``feeds/<feed>/metadata/``
+# artifacts that serve-api computes episodes from live under the version dir, NOT
+# the version-less parent — pointing the walk at the parent discovers 0 episodes
+# (empty Library → every handoff spec fails on the first row-click).
+VIEWER_VALIDATION_CORPUS := $(PWD)/tests/fixtures/viewer-validation-corpus/$(shell cat tests/fixtures/FIXTURES_VERSION 2>/dev/null || echo v2)
+
 ci-ui-validation:
 	# Tier-3 real-backend validation walk (RFC-086 / ADR-095). Drives the
 	# viewer against a running ``make serve`` stack + an on-disk corpus.
@@ -2147,7 +2154,7 @@ ci-ui-validation:
 		echo "  1) Start server pointed at the repo root:"; \
 		echo "       make serve-for-validation"; \
 		echo "  2) Run validation against the synthetic corpus:"; \
-		echo "       make ci-ui-validation CORPUS=$(PWD)/tests/fixtures/viewer-validation-corpus"; \
+		echo "       make ci-ui-validation CORPUS=$(VIEWER_VALIDATION_CORPUS)"; \
 		exit 2; \
 	fi
 	@echo "=== ci-ui-validation against $(CORPUS) ==="
@@ -2163,8 +2170,8 @@ serve-for-validation:
 	# target points at the repo root so ``tests/fixtures/viewer-validation-corpus``
 	# is reachable. Use a separate terminal: ``make serve-for-validation``.
 	@echo "Starting API + UI with SERVE_OUTPUT_DIR=$(PWD) (repo root)."
-	@echo "Synthetic validation corpus is at:"
-	@echo "  $(PWD)/tests/fixtures/viewer-validation-corpus"
+	@echo "Synthetic validation corpus root (pass this as CORPUS=):"
+	@echo "  $(VIEWER_VALIDATION_CORPUS)"
 	@SERVE_OUTPUT_DIR=$(PWD) $(MAKE) -j2 serve-api serve-ui
 
 build-validation-index:
@@ -2173,12 +2180,12 @@ build-validation-index:
 	# (dashboard topic-cluster chip) can be exercised. Run this BEFORE
 	# ``make serve-for-validation`` if you want V2/V4 to work — V1/V5
 	# do not require it.
-	@CORPUS=$(if $(CORPUS),$(CORPUS),$(PWD)/tests/fixtures/viewer-validation-corpus); \
+	@CORPUS=$(if $(CORPUS),$(CORPUS),$(VIEWER_VALIDATION_CORPUS)); \
 	echo "=== Building FAISS index at $$CORPUS/search ==="; \
 	$(PYTHON) -m podcast_scraper.cli index \
 		--output-dir $$CORPUS \
 		--rebuild --vector-faiss-index-mode flat
-	@CORPUS=$(if $(CORPUS),$(CORPUS),$(PWD)/tests/fixtures/viewer-validation-corpus); \
+	@CORPUS=$(if $(CORPUS),$(CORPUS),$(VIEWER_VALIDATION_CORPUS)); \
 	echo "=== Building topic_clusters.json at $$CORPUS/search ==="; \
 	$(PYTHON) -m podcast_scraper.cli topic-clusters \
 		--output-dir $$CORPUS \
@@ -2186,7 +2193,7 @@ build-validation-index:
 	@echo ""
 	@echo "Done. Now run:"
 	@echo "  make serve-for-validation       (terminal 1)"
-	@echo "  make ci-ui-validation CORPUS=\$$PWD/tests/fixtures/viewer-validation-corpus  (terminal 2)"
+	@echo "  make ci-ui-validation CORPUS=$(VIEWER_VALIDATION_CORPUS)  (terminal 2)"
 
 ci-clean: clean-all format-check lint lint-markdown type security complexity deadcode docstrings spelling check-test-policy preload-ml-models test test-ui test-ui-e2e build-viewer coverage-enforce docs build
 
