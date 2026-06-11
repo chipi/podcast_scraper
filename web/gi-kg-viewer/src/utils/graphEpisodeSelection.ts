@@ -12,11 +12,13 @@ import type { ParsedArtifact } from '../types/artifact'
  * the cap existed to bound layout time (15 cose-safe → 25 interim). #967 swapped to `fcose`
  * (spectral seed): the same ~2.9k nodes lay out in <1s, so layout is no longer the limit.
  *
- * The remaining cost at scale is canvas *interaction* (pan/zoom hit-testing, label render),
- * already softened by degree-visibility + label-tier culling. 50 ep (≈ 1.4–1.9k nodes for
- * prod-density corpora) is comfortably interactive and is the validated-safe ceiling here.
- * Pushing toward the full corpus (100+ ep / >2.5k nodes) is layout-safe under fcose but wants
- * an interaction-cost UX pass (devtools trace on the full corpus) before raising further — #967.
+ * The remaining cost at scale is canvas *interaction* (pan/zoom repaint + hit-testing), already
+ * softened by degree-visibility + label-tier culling. A live devtools trace (docs/wip/
+ * 967-interaction-cost-trace.md) measured pan/zoom FPS vs node count on a 14-core / DPR-1 laptop:
+ * ~1.5k nodes ≈ 37 fps (good), ~2.1k ≈ 25 fps (sluggish), ~2.9k ≈ 20 fps (laggy) — degrading
+ * ~linearly, and worse on retina / low-end devices. 50 ep (≈ 1.4k nodes at prod density) is the
+ * empirically smooth ceiling. Do NOT raise the default toward the full corpus (100+ ep) without
+ * interaction mitigations first (LOD-during-gesture, edge culling, or an opt-in "load all") — #967.
  */
 export const GRAPH_DEFAULT_EPISODE_CAP = 50
 

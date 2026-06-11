@@ -16,6 +16,7 @@ WIP file is removed.
 
 | File | Description | Status |
 | ---- | ----------- | ------ |
+| `967-interaction-cost-trace.md` | #967 live devtools trace: fcose removed the layout wall; pan/zoom FPS vs node count → cap=50 is the smooth ceiling. Plus a side finding (FAISS-fallback segfault on a legacy-schema corpus) | Active |
 | `BATCH-PLAN-diarization-followups.md` | Plan for the `feat/diarization-followups` PR (#875/#876/#909 + coverage debt + graph-validation phase) | Active |
 | `SPOKEN_BY-REPROCESS-876.md` | Runbook for the corpus-wide `SPOKEN_BY` re-diarize reprocess (#876); see `make redo-diarization` (#925) | Active |
 | `RUNBOOK-876-corpus-rediarization.md` | #876 DGX re-diarization operational runbook (health gate → pilot → backup → full run → rollback); gated on #944 | Ready |
