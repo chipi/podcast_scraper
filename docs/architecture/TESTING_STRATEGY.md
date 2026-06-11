@@ -285,6 +285,24 @@ directory).
 | **In `make test`?** | No | Yes |
 | **CI** | Job **`viewer-e2e`** (`.github/workflows/python-app.yml`); required for docs publish path on main | `test-e2e`, `test-e2e-fast`, etc. |
 
+The viewer's **own** (TypeScript) test stack has more layers than this single
+browser tier; the operator run-map — every tier, command, and corpus — lives in
+**[`web/gi-kg-viewer/TESTING.md`](https://github.com/chipi/podcast_scraper/blob/main/web/gi-kg-viewer/TESTING.md)**.
+In short:
+
+- **Vitest unit + component** (`src/**/*.test.ts`; `@vue/test-utils` for `.vue`
+  mounts) under a v8 **coverage gate** (#914 — thresholds in `vite.config.ts`,
+  enforced by the CI `viewer-unit` job), a UI-coverage track parallel to the
+  Python coverage gate.
+- **Tier-3 real-corpus validation walk** (`make ci-ui-validation CORPUS=…` via
+  `playwright.validation.config.ts`) — drives a live `make serve` stack against a
+  real corpus or the in-repo **synthetic validation corpus**
+  (`tests/fixtures/viewer-validation-corpus/`; see
+  [VIEWER_VALIDATION_CORPUS.md](https://github.com/chipi/podcast_scraper/blob/main/tests/fixtures/VIEWER_VALIDATION_CORPUS.md)
+  and [`e2e/validation/README.md`](https://github.com/chipi/podcast_scraper/blob/main/web/gi-kg-viewer/e2e/validation/README.md)).
+  Per RFC-086, a bug it surfaces must land a **Tier-2 matrix row** under
+  `e2e/handoff-production/` before the fix PR merges.
+
 **Python API for the viewer** (`GET /api/search`, `/api/explore`, `/api/corpus/*`,
 `POST /api/index/rebuild`, etc.) is validated at two pytest layers:
 

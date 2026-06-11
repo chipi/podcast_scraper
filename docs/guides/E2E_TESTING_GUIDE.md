@@ -30,6 +30,12 @@ file remains **pytest** E2E.
 | **vs FastAPI unit tests** | `tests/unit/podcast_scraper/server/test_viewer_*.py` cover **`/api/*`** JSON contracts; use Playwright when behavior depends on the **SPA** |
 | **vs Vitest** | `web/gi-kg-viewer/src/utils/*.test.ts` cover **pure TS logic** (parsing, merge, metrics); `make test-ui` (~150 ms, no browser). Use Playwright for **rendered UI behavior** |
 
+**Full viewer test tier map** (Vitest unit + `@vue/test-utils` component, the
+**#914 coverage gate**, the mocked Playwright e2e above, and the **Tier-3
+real-corpus validation walk** `make ci-ui-validation` against a live `make serve`
+stack): see **[`web/gi-kg-viewer/TESTING.md`](https://github.com/chipi/podcast_scraper/blob/main/web/gi-kg-viewer/TESTING.md)**
+and the local **[`e2e/validation/README.md`](https://github.com/chipi/podcast_scraper/blob/main/web/gi-kg-viewer/e2e/validation/README.md)**.
+
 ### Debugging UI issues and interpreting failures
 
 The surface map is the shared **contract for accessible names, regions, and user entry paths**. When
