@@ -5,8 +5,15 @@ import type { TopicClustersDocument } from '../api/corpusTopicClustersApi'
 import { formatLocalYmd } from './localCalendarDate'
 import type { ParsedArtifact } from '../types/artifact'
 
-/** Tunable: max episodes merged on corpus graph auto-load (ceiling on episodes, not nodes). */
-export const GRAPH_DEFAULT_EPISODE_CAP = 15
+/**
+ * Tunable: max episodes merged on corpus graph auto-load (ceiling on episodes, not nodes).
+ *
+ * Interim ceiling: the default `cose` layout is ~O(n²) and the no-selection window during the
+ * ego→full reload scales with layout time, so this cap bounds usable graph size. Stress test:
+ * ~15 ep ≈ 600 nodes ≈ 6s layout (fine); 100 ep ≈ 2861 nodes ≈ 134s (frozen). Raising this
+ * meaningfully is gated on the large-graph layout + selection-persistence work — see GH issue.
+ */
+export const GRAPH_DEFAULT_EPISODE_CAP = 25
 
 /** Tunable: recency component for the oldest episode in a dated lens window (linear floor). */
 export const GRAPH_SCORE_RECENCY_MIN = 0.2
