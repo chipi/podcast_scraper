@@ -166,7 +166,10 @@ def dgx_http_client(timeout: Any, *, headers: "Optional[dict[str, str]]" = None)
     multi-minute GPU run, so any read deadline shorter than processing would false-abort a
     healthy call — the duration-scaled watchdog is the correct backstop.
     """
-    import httpx
+    try:
+        import httpx
+    except ImportError as exc:  # friendly, actionable error for the DGX providers
+        raise RuntimeError("httpx required for tailnet_dgx provider HTTP calls") from exc
 
     merged: dict[str, str] = {"Connection": "close"}
     if headers:
