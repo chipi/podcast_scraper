@@ -337,6 +337,38 @@ through both backends, emits a graded-judgment template, and scores mean nDCG@k 
 backend once a human fills relevance. Its verdict requires a clear margin over ≥30 judged queries —
 that result is what flips FAISS removal (#858) and ML-router promotion (#860) from gated to ready.
 
+### 10. Metadata parity & schema self-heal (follow-up B hardening)
+
+Because hybrid runs through the _identical_ `_filter_and_enrich` pipeline as FAISS and falls back
+to FAISS on any miss, a lance hit that is missing a metadata field FAISS carries breaks the
+**hybrid path only** — and silently, because the corpus still "searches". Two such gaps shipped and
+were fixed:
+
+- **`publish_date`** — `_hit_passes_cli_filters` drops any hit lacking it when a `since` bound is
+  set. The digest topic-band search always passes one (`window=all` → `since=1970-01-01`), so a
+  corpus served via lance returned **0 topic-bands** where FAISS returned them.
+- **`source_id`** — the viewer's "Show on graph" affordance (`graphNodeIdFromSearchHit`) reads
+  `metadata.source_id` (the canonical graph node id) for focusable tiers; without it no graph
+  handoff renders.
+
+**Parity contract:** any field a consumer reads off a search hit MUST be carried by both backends.
+For lance that means: a field on the `SegmentDocument`/`InsightDocument`/`AuxDocument` dataclass
+(`search/backend.py`), a column in the table schema (`backends/lancedb_backend.py`), population in
+**both** index paths (`two_tier_indexer.py` native + `migration.py` from-FAISS), and surfacing it
+from the row payload in `hybrid_search._to_search_result`.
+
+**Schema versioning self-heal:** adding a column makes pre-existing indexes incompatible, so
+`LANCE_SCHEMA_VERSION` is stamped into `search/lance_index/index_meta.json` and bumped on every
+schema change. `lance_index_is_stale()` flags an index whose stored version < the code's; on that
+signal the **read path** (`hybrid_candidates`) skips the index → FAISS fallback (never serves an
+incompatible schema), and **(re)index moments** rebuild rather than upsert: `build_two_tier_index`
+and `migrate_faiss_to_lance` wipe-if-stale, and upgrade migration `0002` rebuilds instead of
+no-op. A missing/unreadable meta is treated as not-stale (a real build always writes meta).
+
+**Provenance guard:** the Tier-3 walk's `V6` spec asserts the live `/api/search` is the hybrid
+backend (RRF score `< 0.1` vs FAISS cosine ≈ 1.0; `source_tier` / `lift_stats` / `query_type`
+present), so a silent regression to FAISS fails CI.
+
 ## Key Decisions
 
 1. **Separate ranked lists, client-side RRF.**

@@ -35,6 +35,40 @@ two-tier **`RetrievalLayer`** (BM25 + dense vector → RRF, with compound dedup)
   Record); the KG's value is the relational edges above, consumed by viewer surfaces (PRD-033 /
   RFC-094), not by ranking.
 
+### Telling which backend served a query (hybrid vs FAISS fallback)
+
+Because hybrid silently falls back to FAISS, "search works" does **not** mean hybrid is live —
+a stale/broken `lance_index`, `hybrid_enabled: false`, or an embed failure all degrade to FAISS
+invisibly. Two signals on `GET /api/search` distinguish them:
+
+- **Score shape (definitive):** the hybrid path returns **RRF** scores `1/(60+rank)` — the top
+  hit is ≈ `0.016`–`0.03`, always **< 0.1**. FAISS returns a cosine similarity, top hit ≈ `1.0`.
+- **Response fields:** hybrid sets `source_tier` (`insight` / `segment` / `aux`) on every hit
+  plus top-level `lift_stats` and `query_type`; the FAISS fallback leaves these unset/empty.
+
+The Tier-3 walk's **V6** spec (`e2e/validation/real-corpus.spec.ts`) asserts exactly this, so a
+regression to FAISS fails CI loudly. (Note: prod corpora carrying a legacy `lance_native/` dir
+rather than `lance_index/` run on the FAISS fallback — reindex with `make index-two-tier` to
+move them onto hybrid.)
+
+### Metadata parity + schema versioning (lance ⇄ FAISS)
+
+A hybrid hit must carry the **same consumer-facing metadata fields** a FAISS row carries, or
+shared consumers break silently on the hybrid path only. Established contract:
+
+- `publish_date` — the shared `since`/date filter drops any hit lacking it (this zeroed out the
+  digest topic-bands, which always pass a `since` bound, under lance).
+- `source_id` — the viewer's "Show on graph" affordance resolves the graph node from it; missing
+  it = no handoff.
+
+**Rule:** any new field a consumer reads off a search hit must be added to **both** backends
+(`search/backend.py` docs + lance schema in `backends/lancedb_backend.py`, populated in
+`two_tier_indexer.py` *and* `migration.py`), and you must **bump `LANCE_SCHEMA_VERSION`**. The
+version is stamped into `search/lance_index/index_meta.json`; `lance_index_is_stale()` then makes
+old indexes self-heal — the read path skips a stale index (→ FAISS) and reindex moments
+(`build_two_tier_index`, `migrate_faiss_to_lance`, upgrade migration 0002) rebuild rather than
+upsert into incompatible tables.
+
 ## When to use it
 
 - Cross-episode questions: “What do my podcasts say about X?” without exact keywords.
