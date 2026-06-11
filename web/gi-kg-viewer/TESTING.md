@@ -71,6 +71,10 @@ The walk has **no built-in web server** — it drives an already-running stack.
 reachable):
 
 ```bash
+# terminal 0 — ONE-TIME per checkout / after a fixtures bump: build the search
+# artifacts the index-dependent specs need (see "Search artifacts" below).
+make build-validation-index
+
 # terminal 1 — serve with the repo root as the API corpus root
 make serve-for-validation
 
@@ -85,6 +89,24 @@ make ci-ui-validation CORPUS="$(pwd)/tests/fixtures/viewer-validation-corpus/$(c
 > the parent and `discover_metadata_files()` returns 0 → empty Library → every
 > handoff spec fails on the first row-click. `make ci-ui-validation` (no
 > `CORPUS=`) prints the correct path; it's derived from `FIXTURES_VERSION`.
+
+### Search artifacts — what `make build-validation-index` builds & why
+
+The `search/` artifacts are **gitignored** (binary, embedding-model-hash-keyed,
+regenerable) so they are NOT committed — you must build them once per checkout
+(and after any fixtures/embedding-model bump). `make build-validation-index`
+builds all three, in order:
+
+| # | Artifact | Built by (`cli …`) | Unlocks |
+| --- | --- | --- | --- |
+| 1 | `search/vectors.faiss` (+ `id_map.json`, `index_meta.json`) | `index --rebuild --vector-faiss-index-mode flat` | **V3** semantic search → Show on graph. Absent → `/api/index/stats` reports `available:false` → **V3 is skipped** (`test.skip`). |
+| 2 | `search/lance_index/` (LanceDB two-tier: `insights.lance`, `aux.lance`, `segments.lance`) | `index-two-tier` | The **current search layer on top of FAISS** — native BM25 + hybrid RRF. `serve-api` uses it when present (`hybrid_enabled` default on) and **falls back to FAISS if absent**, so V3 passes either way; building it exercises the real hybrid path and matches prod's two-tier layout. |
+| 3 | `search/topic_clusters.json` | `topic-clusters --threshold 0.35` | **V2** (digest topic-band) and **V4** (dashboard topic-cluster chip). Absent → Intelligence tab shows "Topic clusters not yet built" → no chips → V4 fails. |
+
+Without this step the walk still runs, but **V3 is SKIPPED** (the "1 skipped" you
+see) and **V2/V4 fail** (no topic-cluster chips). V1/V5 (Library/Digest handoffs)
+need none of it — they pass on the path fix alone. A real/prod (BYOC) corpus
+usually already ships a `search/` dir, so this step is synthetic-corpus-only.
 
 **Against a real / prod corpus** (BYOC):
 

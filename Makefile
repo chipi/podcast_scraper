@@ -2175,23 +2175,39 @@ serve-for-validation:
 	@SERVE_OUTPUT_DIR=$(PWD) $(MAKE) -j2 serve-api serve-ui
 
 build-validation-index:
-	# Build the FAISS index + topic_clusters.json against the in-repo
-	# synthetic validation corpus so V2 (digest topic-band) and V4
-	# (dashboard topic-cluster chip) can be exercised. Run this BEFORE
-	# ``make serve-for-validation`` if you want V2/V4 to work — V1/V5
-	# do not require it.
+	# Build ALL search artifacts the Tier-3 walk needs, against the in-repo
+	# synthetic validation corpus. Run this BEFORE ``make serve-for-validation``.
+	# Unlocks the index-dependent specs (V1/V5 — Library/Digest handoffs — do NOT
+	# need any of this; they pass on the path fix alone):
+	#   1. FAISS flat index (vectors.faiss + sidecars) — required for V3
+	#      (semantic search → Show on graph). Without it V3 is SKIPPED
+	#      (test.skip on ``!indexJson.available``).
+	#   2. LanceDB two-tier index (search/lance_index/) — the current search
+	#      layer on top of FAISS (native BM25 + hybrid RRF). serve-api uses it
+	#      when present (hybrid_enabled default on) and falls back to FAISS if
+	#      absent, so V3 passes either way — but building it makes the synthetic
+	#      corpus match prod's two-tier layout and exercises the real hybrid path.
+	#   3. topic_clusters.json — required for V2 (digest topic-band) and V4
+	#      (dashboard topic-cluster chip). Without it the Intelligence tab shows
+	#      "Topic clusters not yet built" → no chips → V4 fails.
+	# All three live under <corpus>/search/ and are gitignored (binary,
+	# embedding-model-hash-keyed, regenerable) — never committed.
 	@CORPUS=$(if $(CORPUS),$(CORPUS),$(VIEWER_VALIDATION_CORPUS)); \
-	echo "=== Building FAISS index at $$CORPUS/search ==="; \
+	echo "=== 1/3 Building FAISS flat index at $$CORPUS/search ==="; \
 	$(PYTHON) -m podcast_scraper.cli index \
 		--output-dir $$CORPUS \
 		--rebuild --vector-faiss-index-mode flat
 	@CORPUS=$(if $(CORPUS),$(CORPUS),$(VIEWER_VALIDATION_CORPUS)); \
-	echo "=== Building topic_clusters.json at $$CORPUS/search ==="; \
+	echo "=== 2/3 Building LanceDB two-tier index at $$CORPUS/search/lance_index ==="; \
+	$(PYTHON) -m podcast_scraper.cli index-two-tier \
+		--output-dir $$CORPUS
+	@CORPUS=$(if $(CORPUS),$(CORPUS),$(VIEWER_VALIDATION_CORPUS)); \
+	echo "=== 3/3 Building topic_clusters.json at $$CORPUS/search ==="; \
 	$(PYTHON) -m podcast_scraper.cli topic-clusters \
 		--output-dir $$CORPUS \
 		--threshold 0.35
 	@echo ""
-	@echo "Done. Now run:"
+	@echo "Done — FAISS + LanceDB two-tier + topic_clusters built. Now run:"
 	@echo "  make serve-for-validation       (terminal 1)"
 	@echo "  make ci-ui-validation CORPUS=$(VIEWER_VALIDATION_CORPUS)  (terminal 2)"
 
