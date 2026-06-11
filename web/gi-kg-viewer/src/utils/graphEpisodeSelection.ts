@@ -8,12 +8,17 @@ import type { ParsedArtifact } from '../types/artifact'
 /**
  * Tunable: max episodes merged on corpus graph auto-load (ceiling on episodes, not nodes).
  *
- * Interim ceiling: the default `cose` layout is ~O(n²) and the no-selection window during the
- * ego→full reload scales with layout time, so this cap bounds usable graph size. Stress test:
- * ~15 ep ≈ 600 nodes ≈ 6s layout (fine); 100 ep ≈ 2861 nodes ≈ 134s (frozen). Raising this
- * meaningfully is gated on the large-graph layout + selection-persistence work — see GH issue.
+ * History: the old `cose` layout was ~O(n²) — 100 ep ≈ 2861 nodes ≈ 134s frozen canvas — so
+ * the cap existed to bound layout time (15 cose-safe → 25 interim). #967 swapped to `fcose`
+ * (spectral seed): the same ~2.9k nodes lay out in <1s, so layout is no longer the limit.
+ *
+ * The remaining cost at scale is canvas *interaction* (pan/zoom hit-testing, label render),
+ * already softened by degree-visibility + label-tier culling. 50 ep (≈ 1.4–1.9k nodes for
+ * prod-density corpora) is comfortably interactive and is the validated-safe ceiling here.
+ * Pushing toward the full corpus (100+ ep / >2.5k nodes) is layout-safe under fcose but wants
+ * an interaction-cost UX pass (devtools trace on the full corpus) before raising further — #967.
  */
-export const GRAPH_DEFAULT_EPISODE_CAP = 25
+export const GRAPH_DEFAULT_EPISODE_CAP = 50
 
 /** Tunable: recency component for the oldest episode in a dated lens window (linear floor). */
 export const GRAPH_SCORE_RECENCY_MIN = 0.2
