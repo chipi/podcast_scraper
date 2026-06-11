@@ -201,6 +201,7 @@ def build_two_tier_index(
                         confidence=0.0,
                         derived=bool(meta.get("grounded")),
                         publish_date=meta.get("publish_date"),
+                        source_id=meta.get("source_id"),
                         embedding=_embed(text, model_id, allow_download=allow_download),
                     )
                 )
@@ -227,6 +228,7 @@ def build_two_tier_index(
                         episode_id=meta.get("episode_id") or "",
                         doc_type=doc_type,
                         publish_date=meta.get("publish_date"),
+                        source_id=meta.get("source_id"),
                         embedding=_embed(text, model_id, allow_download=allow_download),
                     )
                 )

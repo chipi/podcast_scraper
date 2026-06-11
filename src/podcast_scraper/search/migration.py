@@ -57,6 +57,7 @@ def _aux_from_faiss(doc_id: str, meta: Dict, embedding: list) -> AuxDocument:
         episode_id=meta.get("episode_id") or "",
         doc_type=str(meta.get("doc_type") or ""),
         publish_date=meta.get("publish_date"),
+        source_id=meta.get("source_id"),
         embedding=embedding,
     )
 
@@ -87,6 +88,7 @@ def _insight_from_faiss(doc_id: str, meta: Dict, embedding: list) -> InsightDocu
         # derived flag so the two-tier payload keeps the provenance bit.
         derived=bool(meta.get("grounded")),
         publish_date=meta.get("publish_date"),
+        source_id=meta.get("source_id"),
         embedding=embedding,
     )
 

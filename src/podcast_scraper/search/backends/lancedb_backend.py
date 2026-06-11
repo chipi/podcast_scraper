@@ -36,7 +36,8 @@ DEFAULT_EMBED_DIM = 384
 # Bump whenever the stored table schema changes so existing indexes self-heal:
 # read paths fall back to FAISS on a stale index and (re)index moments rebuild it.
 #   1 — initial two-tier schema (#855)
-#   2 — added ``publish_date`` to all tiers (date/``since`` filter parity with FAISS)
+#   2 — FAISS-parity fields: ``publish_date`` (date/``since`` filter) on all tiers +
+#       ``source_id`` (canonical graph node id → "Show on graph") on insight/aux
 LANCE_SCHEMA_VERSION = 2
 
 _SEGMENT_TABLE = "segments"
@@ -81,6 +82,7 @@ def _insight_schema(dim: int) -> "pa.Schema":
             ("source_segment_id", pa.string()),
             ("source_tier", pa.string()),
             ("publish_date", pa.string()),
+            ("source_id", pa.string()),
         ]
     )
 
@@ -98,6 +100,7 @@ def _aux_schema(dim: int) -> "pa.Schema":
             ("doc_type", pa.string()),  # kg_entity | kg_topic | quote | summary
             ("source_tier", pa.string()),
             ("publish_date", pa.string()),
+            ("source_id", pa.string()),
         ]
     )
 

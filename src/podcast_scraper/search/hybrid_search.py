@@ -142,6 +142,11 @@ def _to_search_result(result: ScoredResult) -> SearchResult:
     # hybrid path. Without it, every hybrid hit is dropped whenever ``since`` is set.
     if payload.get("publish_date"):
         metadata["publish_date"] = payload["publish_date"]
+    # Canonical graph node id (parity with FAISS) so a result's "Show on graph"
+    # affordance resolves — the viewer reads metadata.source_id for focusable tiers
+    # (insight / quote / kg_topic / kg_entity). Absent it, no graph handoff renders.
+    if payload.get("source_id"):
+        metadata["source_id"] = payload["source_id"]
     return SearchResult(doc_id=str(result.doc_id), score=float(result.score), metadata=metadata)
 
 

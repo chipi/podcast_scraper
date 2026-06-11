@@ -53,6 +53,7 @@ class InsightDocument:
     source_segment_id: Optional[str] = None  # back-ref to grounding-quote segment
     source_tier: str = "insight"
     publish_date: Optional[str] = None  # episode publish date (parity with FAISS; date filters)
+    source_id: Optional[str] = None  # canonical graph node id (parity with FAISS; graph handoff)
 
 
 @dataclass
@@ -68,6 +69,7 @@ class AuxDocument:
     embedding: List[float] = field(default_factory=list)
     source_tier: str = "aux"
     publish_date: Optional[str] = None  # episode publish date (parity with FAISS; date filters)
+    source_id: Optional[str] = None  # canonical graph node id (parity with FAISS; graph handoff)
 
 
 @dataclass

@@ -136,12 +136,14 @@ def test_linking_populates_compounds(tmp_path, monkeypatch):
     assert compounds, "linked insight+segment must dedup into a CompoundResult"
 
 
-def test_publish_date_carried_for_since_filter_parity(tmp_path, monkeypatch):
-    """Regression: hybrid hits must carry ``publish_date`` (parity with FAISS).
+def test_faiss_metadata_parity_publish_date_and_source_id(tmp_path, monkeypatch):
+    """Regression: hybrid hits must carry FAISS-parity metadata fields.
 
-    Without it the shared ``since`` date filter drops every hybrid hit — the bug that
-    silently zeroed out the digest topic-bands (which always pass a ``since`` bound)
-    when a corpus was served via LanceDB instead of FAISS.
+    - ``publish_date``: the shared ``since`` filter drops any hit lacking it, which
+      silently zeroed out the digest topic-bands (always pass a ``since`` bound) when
+      a corpus was served via LanceDB instead of FAISS.
+    - ``source_id``: the viewer's "Show on graph" affordance reads it (focusable
+      tiers) to resolve the graph node; without it the handoff never renders.
     """
     rows = [
         (
@@ -153,6 +155,7 @@ def test_publish_date_carried_for_since_filter_parity(tmp_path, monkeypatch):
                 "feed_id": "show1",
                 "grounded": True,
                 "publish_date": "2026-06-07",
+                "source_id": "insight:n1",
             },
         ),
         (
@@ -163,6 +166,7 @@ def test_publish_date_carried_for_since_filter_parity(tmp_path, monkeypatch):
                 "episode_id": "ep1",
                 "feed_id": "show1",
                 "publish_date": "2026-06-07",
+                "source_id": "topic:monetary-policy",
             },
         ),
     ]
@@ -176,6 +180,9 @@ def test_publish_date_carried_for_since_filter_parity(tmp_path, monkeypatch):
     assert rows_out is not None and rows_out
     # Every hit (insight + aux tier) carries the episode publish date.
     assert all(r.metadata.get("publish_date") == "2026-06-07" for r in rows_out)
+    # The focusable kg_topic hit carries its canonical graph node id.
+    topic_hit = next(r for r in rows_out if r.metadata.get("doc_type") == "kg_topic")
+    assert topic_hit.metadata.get("source_id") == "topic:monetary-policy"
 
 
 def test_stale_schema_is_detected_and_read_falls_back(tmp_path, monkeypatch):
