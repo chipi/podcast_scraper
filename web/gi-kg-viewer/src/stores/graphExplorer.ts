@@ -3,7 +3,10 @@ import { ref } from 'vue'
 import { localYmdDaysAgo } from '../utils/localCalendarDate'
 import { useCorpusLensStore } from './corpusLens'
 
-export type GraphLayoutName = 'cose' | 'breadthfirst' | 'circle' | 'grid' | 'timeline'
+// #967 — fcose replaces cose as the force-directed layout (cose froze the canvas at
+// scale; fcose seeds spectrally → seconds at thousands of nodes). The other layouts
+// are all O(n), so the whole menu stays usable at any graph size.
+export type GraphLayoutName = 'fcose' | 'breadthfirst' | 'circle' | 'grid' | 'timeline'
 
 /**
  * Default lower bound (YYYY-MM-DD) for the Graph time lens on first
@@ -31,7 +34,7 @@ function seedDefaultSinceYmd(): string {
  * axis (quantile-mapped); see `cyTimelineLayout.ts`.
  */
 export const GRAPH_LAYOUT_CYCLE_ORDER: readonly GraphLayoutName[] = [
-  'cose',
+  'fcose',
   'breadthfirst',
   'circle',
   'grid',
@@ -39,7 +42,7 @@ export const GRAPH_LAYOUT_CYCLE_ORDER: readonly GraphLayoutName[] = [
 ] as const
 
 export const useGraphExplorerStore = defineStore('graphExplorer', () => {
-  const preferredLayout = ref<GraphLayoutName>('cose')
+  const preferredLayout = ref<GraphLayoutName>('fcose')
   const minimapOpen = ref(false)
   /** Degree histogram bucket id or null = no filter. */
   const activeDegreeBucket = ref<string | null>(null)

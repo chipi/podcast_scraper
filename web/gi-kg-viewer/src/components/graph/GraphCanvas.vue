@@ -1007,7 +1007,7 @@ function applyTopicDegreeHeat(core: Core): void {
 }
 
 function layoutOptionsFor(name: string, opts?: { numIter?: number }): Record<string, unknown> {
-  if (name === 'cose') {
+  if (name === 'fcose') {
     // Namespace import + fallback: avoids rare `ReferenceError` from named-import/HMR chunks.
     try {
       const fn = giKgCoseLayout.giKgCoseLayoutOptionsMain
@@ -3068,7 +3068,7 @@ function redraw(): void {
     // 100-600 ms off cose convergence without affecting final layout
     // quality (cose has already settled by the cap).
     const isExternalNavRedraw =
-      layoutName === 'cose' &&
+      layoutName === 'fcose' &&
       (artifacts.currentLoadSource === 'subject-external' ||
         artifacts.currentLoadSource === 'digest-external')
     const numIterCap = isExternalNavRedraw

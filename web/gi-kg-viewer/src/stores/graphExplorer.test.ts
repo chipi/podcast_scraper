@@ -18,7 +18,7 @@ describe('useGraphExplorerStore', () => {
   describe('initial state', () => {
     it('exposes the documented defaults', () => {
       const s = useGraphExplorerStore()
-      expect(s.preferredLayout).toBe('cose')
+      expect(s.preferredLayout).toBe('fcose')
       expect(s.minimapOpen).toBe(false)
       expect(s.activeDegreeBucket).toBe(null)
       expect(s.sinceYmd).toBe('')
@@ -234,14 +234,14 @@ describe('useGraphExplorerStore', () => {
       for (let i = 0; i < GRAPH_LAYOUT_CYCLE_ORDER.length; i++) {
         seen.push(s.cyclePreferredLayout())
       }
-      // Starting at 'cose' (index 0), cycling N times visits each subsequent
-      // entry and wraps back to 'cose'.
+      // Starting at 'fcose' (index 0), cycling N times visits each subsequent
+      // entry and wraps back to 'fcose'.
       const expected = [
         ...GRAPH_LAYOUT_CYCLE_ORDER.slice(1),
         GRAPH_LAYOUT_CYCLE_ORDER[0],
       ]
       expect(seen).toEqual(expected)
-      expect(s.preferredLayout).toBe('cose')
+      expect(s.preferredLayout).toBe('fcose')
     })
 
     it('returns the next layout and mutates preferredLayout', () => {
@@ -271,7 +271,7 @@ describe('useGraphExplorerStore', () => {
   describe('GRAPH_LAYOUT_CYCLE_ORDER', () => {
     it('contains the RFC-080 layout set in order', () => {
       expect(GRAPH_LAYOUT_CYCLE_ORDER).toEqual([
-        'cose',
+        'fcose',
         'breadthfirst',
         'circle',
         'grid',

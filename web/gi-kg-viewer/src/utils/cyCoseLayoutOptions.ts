@@ -7,7 +7,14 @@
  * repulsion for members (allow packing), and raise `nestingFactor` so cross-graph edges
  * prefer longer spans (keeps externals from sitting “inside” the cluster region).
  */
-import type { EdgeSingular, NodeSingular } from 'cytoscape'
+import cytoscape, { type EdgeSingular, type NodeSingular } from 'cytoscape'
+import fcose from 'cytoscape-fcose'
+
+// #967 — register fcose (spectral pre-placement → seconds at thousands of nodes,
+// vs cose's ~O(n²) that froze the canvas for 2+ min at ~2.9k nodes). Registered in
+// this layout-options module (imported by GraphCanvas + the minimap before any
+// layout runs); the ES-module cache guarantees ``cytoscape.use`` fires exactly once.
+cytoscape.use(fcose)
 
 const MAIN = {
   padding: 36,
@@ -229,7 +236,14 @@ export function giKgCoseNumIterCapped(nodeCount: number): number {
 
 export function giKgCoseLayoutOptionsMain(numIterOverride?: number): Record<string, unknown> {
   return {
-    name: 'cose',
+    name: 'fcose',
+    // fcose speed levers: spectral seeding ('default' quality) + no per-iteration
+    // animation + component packing. The tc:-compound tuning (repulsion / edge
+    // length / nesting) below is fcose-compatible (same fn-valued options as cose).
+    quality: 'default',
+    randomize: true,
+    animate: false,
+    packComponents: true,
     padding: MAIN.padding,
     fit: MAIN.fit,
     nodeRepulsion: (node: NodeSingular) => giKgCoseNodeRepulsion(node, 'main'),
@@ -250,7 +264,11 @@ export function giKgCoseLayoutOptionsMainFallback(
   numIterOverride?: number,
 ): Record<string, unknown> {
   return {
-    name: 'cose',
+    name: 'fcose',
+    quality: 'default',
+    randomize: true,
+    animate: false,
+    packComponents: true,
     padding: MAIN.padding,
     fit: MAIN.fit,
     nodeRepulsion: () => MAIN.nodeRepulsionBase,
@@ -265,7 +283,10 @@ export function giKgCoseLayoutOptionsMainFallback(
 
 export function giKgCoseLayoutOptionsCompact(): Record<string, unknown> {
   return {
-    name: 'cose',
+    name: 'fcose',
+    quality: 'default',
+    randomize: true,
+    packComponents: true,
     padding: COMPACT.padding,
     fit: COMPACT.fit,
     animate: false,

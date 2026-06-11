@@ -107,7 +107,7 @@ onUnmounted(() => {
 
 const layoutCycleTitle = computed(() => {
   const long: Record<GraphLayoutName, string> = {
-    cose: 'COSE force-directed',
+    fcose: 'fCoSE force-directed',
     breadthfirst: 'Breadthfirst',
     circle: 'Circle',
     grid: 'Grid',
