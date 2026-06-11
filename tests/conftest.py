@@ -96,6 +96,24 @@ def _restore_hf_hub_cache_env():
         os.environ["HF_HUB_CACHE"] = _prev
 
 
+@pytest.fixture(autouse=True)
+def _isolate_audio_cache(tmp_path, monkeypatch):
+    """Isolate the #947 GUID-keyed audio cache per test.
+
+    ``audio_cache.resolve_cache_root`` defaults (cache enabled, not in-corpus) to a
+    repo-relative global dir (``.cache/audio`` via ``DEFAULT_AUDIO_CACHE_DIR``). Without
+    isolation, tests both **pollute** that shared cache and **read each other's**
+    downloads — and a stale GUID-keyed hit silently masks failure-injection tests (the
+    chaos 404-download test fetched a previously-cached episode instead of failing).
+    Redirect the default to a per-test ``tmp_path`` (basename kept ``audio`` so the
+    ``test_default_dir`` contract still holds); tests that pass an explicit
+    ``audio_cache_dir`` are unaffected.
+    """
+    from podcast_scraper import config_constants
+
+    monkeypatch.setattr(config_constants, "DEFAULT_AUDIO_CACHE_DIR", str(tmp_path / "audio"))
+
+
 # Test helper functions
 def create_test_args(**overrides):
     """Create test argparse.Namespace with defaults.
