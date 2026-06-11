@@ -482,4 +482,53 @@ test.describe('Real-corpus validation', () => {
     expect(['applied', 'failed']).toContain(fsm2!.lastResult?.status)
     expect(errs.errors).toEqual([])
   })
+
+  test('V6 — search is served by LanceDB hybrid, not the FAISS fallback', async ({ page }) => {
+    // Tier-3 proof that the live search path is the LanceDB two-tier hybrid
+    // (BM25 + dense, fused via RRF) rather than the legacy single-signal FAISS
+    // fallback. The two are distinguishable by response shape, so a stale/broken
+    // ``lance_index`` that silently degrades to FAISS fails THIS test loudly
+    // instead of passing — the provenance guard for "less FAISS, more LanceDB".
+    const stats = await page.request
+      .get(`http://localhost:8000/api/index/stats?path=${encodeURIComponent(CORPUS_PATH)}`)
+      .then((r) => r.json())
+      .catch(() => null)
+    test.skip(
+      !stats?.available,
+      'corpus has no vector index — build via `make build-validation-index`',
+    )
+
+    const resp = await page.request.get(
+      `http://localhost:8000/api/search?path=${encodeURIComponent(CORPUS_PATH)}&q=technology&top_k=10`,
+    )
+    expect(resp.ok()).toBe(true)
+    const body = await resp.json()
+    const results: Array<{ score: number; source_tier?: string }> = body.results ?? []
+    expect(results.length).toBeGreaterThan(0)
+
+    // (1) RRF score signature — the definitive discriminator. FAISS returns a
+    // cosine similarity (top hit ≈ 1.0); LanceDB returns fused RRF scores
+    // 1/(60+rank), always well below 0.1. A FAISS fallback would blow this.
+    const maxScore = Math.max(...results.map((r) => r.score))
+    expect(maxScore).toBeLessThan(0.1)
+
+    // (2) Two-tier provenance: every hit carries its retrieval tier.
+    for (const r of results) {
+      expect(['insight', 'segment', 'aux']).toContain(r.source_tier)
+    }
+
+    // (3) Hybrid-only top-level response fields (the FAISS path leaves them unset).
+    expect(body).toHaveProperty('lift_stats')
+    expect(body).toHaveProperty('query_type')
+
+    // eslint-disable-next-line no-console
+    console.log(
+      '[validation V6]',
+      JSON.stringify(
+        { maxScore, n: results.length, query_type: body.query_type, lift_stats: body.lift_stats },
+        null,
+        2,
+      ),
+    )
+  })
 })
