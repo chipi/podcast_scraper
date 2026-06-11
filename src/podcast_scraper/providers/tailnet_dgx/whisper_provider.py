@@ -29,7 +29,7 @@ from ...transcription.factory import create_transcription_provider
 from ...utils.log_redaction import format_exception_for_log
 from . import resilience
 from .health import check_faster_whisper_health, dgx_whisper_base_url
-from .resilience import CircuitBreaker, TimeoutLike
+from .resilience import CircuitBreaker, dgx_http_client, TimeoutLike
 from .telemetry import emit_dgx_fallback_breadcrumb
 
 logger = logging.getLogger(__name__)
@@ -261,11 +261,6 @@ class TailnetDgxWhisperTranscriptionProvider:
         addition to the flat text (we need segments for downstream stages —
         speaker assignment, screenplay, etc.).
         """
-        try:
-            import httpx
-        except ImportError as exc:
-            raise RuntimeError("httpx required for tailnet_dgx_whisper") from exc
-
         path = Path(audio_path)
         if not path.is_file():
             raise FileNotFoundError(audio_path)
@@ -281,7 +276,7 @@ class TailnetDgxWhisperTranscriptionProvider:
             }
             if language:
                 data["language"] = language
-            with httpx.Client(timeout=(timeout_sec or self._timeout_sec)) as client:
+            with dgx_http_client(timeout_sec or self._timeout_sec) as client:
                 resp = client.post(url, data=data, files=files)
         resp.raise_for_status()
         payload = resp.json()

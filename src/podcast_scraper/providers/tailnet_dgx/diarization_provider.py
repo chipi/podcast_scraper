@@ -49,7 +49,7 @@ from ...providers.ml.diarization.base import (
 from ...utils.log_redaction import format_exception_for_log
 from . import resilience
 from .health import check_pyannote_diarize_health, dgx_diarize_base_url
-from .resilience import CircuitBreaker, TimeoutLike
+from .resilience import CircuitBreaker, dgx_http_client, TimeoutLike
 from .telemetry import emit_dgx_fallback_breadcrumb
 
 logger = logging.getLogger(__name__)
@@ -284,7 +284,7 @@ class TailnetDgxDiarizationProvider:
             }
             if num_speakers is not None:
                 data["num_speakers"] = str(num_speakers)
-            with httpx.Client(timeout=timeout) as client:
+            with dgx_http_client(timeout) as client:
                 resp = client.post(url, data=data, files=files)
         resp.raise_for_status()
         payload = resp.json()

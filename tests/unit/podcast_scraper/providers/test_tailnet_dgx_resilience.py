@@ -181,3 +181,48 @@ class TestCircuitBreaker:
 
 def test_timeout_like_includes_builtin_timeouterror():
     assert TimeoutError in resilience.TimeoutLike
+
+
+# --------------------------------------------------------------------------- #
+# dgx_http_client / keepalive_socket_options — #956 transport hardening        #
+# --------------------------------------------------------------------------- #
+class TestDgxHttpClient:
+    def test_keepalive_options_enable_so_keepalive(self):
+        import socket
+
+        opts = resilience.keepalive_socket_options()
+        # SO_KEEPALIVE on is the one option present on every platform.
+        assert (socket.SOL_SOCKET, socket.SO_KEEPALIVE, 1) in opts
+
+    def test_keepalive_options_set_an_idle_probe_time(self):
+        import socket
+
+        opts = resilience.keepalive_socket_options(idle_sec=30)
+        # Either the Linux (TCP_KEEPIDLE) or macOS (TCP_KEEPALIVE) idle constant,
+        # whichever this platform exposes, must carry the idle seconds.
+        idle_names = [n for n in ("TCP_KEEPIDLE", "TCP_KEEPALIVE") if hasattr(socket, n)]
+        assert idle_names, "platform exposes no TCP idle-keepalive constant"
+        idle_consts = {getattr(socket, n) for n in idle_names}
+        assert any(o in idle_consts and v == 30 for (_lvl, o, v) in opts)
+
+    def test_keepalive_options_are_all_int_triples(self):
+        opts = resilience.keepalive_socket_options()
+        assert opts and all(
+            isinstance(t, tuple) and len(t) == 3 and all(isinstance(x, int) for x in t)
+            for t in opts
+        )
+
+    def test_client_sets_connection_close_and_is_closeable(self):
+        client = resilience.dgx_http_client(30.0)
+        try:
+            assert client.headers.get("connection") == "close"
+        finally:
+            client.close()
+
+    def test_client_merges_extra_headers(self):
+        client = resilience.dgx_http_client(30.0, headers={"X-Test": "1"})
+        try:
+            assert client.headers.get("connection") == "close"
+            assert client.headers.get("x-test") == "1"
+        finally:
+            client.close()

@@ -114,6 +114,67 @@ def run_with_watchdog(fn: Callable[[], T], deadline_sec: float, *, label: str) -
     return cast(T, box["res"])
 
 
+# TCP keepalive schedule: probe an idle socket after ~30s, then every 15s up to 4
+# times, so a connection whose underlying path died mid-request (e.g. a Tailscale
+# path switch) is declared dead in ~90s instead of the OS default (2h on macOS).
+_KEEPALIVE_IDLE_SEC = 30
+_KEEPALIVE_INTERVAL_SEC = 15
+_KEEPALIVE_PROBES = 4
+
+
+def keepalive_socket_options(
+    *,
+    idle_sec: int = _KEEPALIVE_IDLE_SEC,
+    interval_sec: int = _KEEPALIVE_INTERVAL_SEC,
+    probes: int = _KEEPALIVE_PROBES,
+) -> "list[tuple[int, int, int]]":
+    """TCP keepalive ``setsockopt`` tuples, built defensively for the host platform.
+
+    A long-blocking DGX POST holds an idle socket open for the whole multi-minute GPU
+    run; if the path dies underneath it the socket stays ESTABLISHED for the OS default
+    and the request hangs. Enabling ``SO_KEEPALIVE`` with a short probe schedule lets the
+    kernel detect the dead path in ~90s and surface a connection error to fail over on.
+    Each option is guarded with ``hasattr`` so a platform-absent constant is skipped, not
+    raised (Linux exposes ``TCP_KEEPIDLE``; macOS exposes ``TCP_KEEPALIVE``).
+    """
+    import socket
+
+    opts: "list[tuple[int, int, int]]" = [(socket.SOL_SOCKET, socket.SO_KEEPALIVE, 1)]
+    for name in ("TCP_KEEPIDLE", "TCP_KEEPALIVE"):  # Linux, then macOS
+        if hasattr(socket, name):
+            opts.append((socket.IPPROTO_TCP, getattr(socket, name), idle_sec))
+            break
+    if hasattr(socket, "TCP_KEEPINTVL"):
+        opts.append((socket.IPPROTO_TCP, socket.TCP_KEEPINTVL, interval_sec))
+    if hasattr(socket, "TCP_KEEPCNT"):
+        opts.append((socket.IPPROTO_TCP, socket.TCP_KEEPCNT, probes))
+    return opts
+
+
+def dgx_http_client(timeout: Any, *, headers: "Optional[dict[str, str]]" = None) -> Any:
+    """An ``httpx.Client`` hardened for long-blocking calls to a contended DGX service.
+
+    On top of the per-request fresh client + :func:`run_with_watchdog` deadline, this adds
+    the two transport-level defences that actually fit a long-blocking upload (#956):
+
+    - **TCP keepalive** (:func:`keepalive_socket_options`) so a socket whose path died
+      mid-request is reaped in ~90s instead of hanging on the OS default.
+    - **``Connection: close``** so the server tears the socket down after the response and
+      no half-dead connection lingers.
+
+    A per-read timeout is deliberately NOT set: these POSTs stream zero bytes during the
+    multi-minute GPU run, so any read deadline shorter than processing would false-abort a
+    healthy call — the duration-scaled watchdog is the correct backstop.
+    """
+    import httpx
+
+    merged: dict[str, str] = {"Connection": "close"}
+    if headers:
+        merged.update(headers)
+    transport = httpx.HTTPTransport(socket_options=keepalive_socket_options())
+    return httpx.Client(timeout=timeout, transport=transport, headers=merged)
+
+
 class CircuitBreaker:
     """closed → rolling-window failures → open(cooldown) → half-open probe → closed.
 
