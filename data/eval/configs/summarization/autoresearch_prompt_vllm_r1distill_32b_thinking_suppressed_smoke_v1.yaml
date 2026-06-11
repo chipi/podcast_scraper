@@ -1,0 +1,41 @@
+# Autoresearch v2 paragraph — vLLM-served DeepSeek-R1-Distill-Qwen-32B
+# with the #961 anti-reasoning prompt + tagged-summary contract.
+#
+# R1-Distill emits a "thinking" preamble by default — that's what
+# tanked its score in #928 (coherence 2.2, fluency 2.4 vs Sonnet 4.6
+# mean 3.25 / Ollama-qwen3.5:35b 5.00). This config pairs the new
+# anti-reasoning prompts (system + user) at
+# ``src/podcast_scraper/prompts/vllm/r1_distill_32b/summarization/``
+# with the ``strip_r1_reasoning`` post-processor at
+# ``src/podcast_scraper/evaluation/r1_postprocess.py``.
+#
+# Post-processing wiring is intentionally NOT auto-applied here — the
+# autoresearch runner does not yet expose a generic `postprocess:`
+# field. For the #961 re-eval, apply the strip manually:
+#
+#   from podcast_scraper.evaluation.r1_postprocess import strip_r1_reasoning
+#   for row in predictions:
+#       row['output']['summary_final'] = strip_r1_reasoning(row['output']['summary_final'])
+#
+# Then score the cleaned predictions with the same finale harness used
+# in #928. See ``docs/guides/eval-reports/EVAL_SUMMARY_DGX_LOCAL_2026_06.md``.
+id: "autoresearch_prompt_vllm_r1distill_32b_thinking_suppressed_paragraph_v1"
+task: "summarization"
+backend:
+  type: "openai"
+  model: "deepseek-ai/DeepSeek-R1-Distill-Qwen-32B"
+  base_url: "http://dgx-llm-1.tail6d0ed4.ts.net:8003/v1"
+  api_key_env: "VLLM_NO_AUTH_NEEDED"
+  # R1-Distill has no chat-template toggle to disable thinking the
+  # way Qwen3.x does. Anti-reasoning is enforced via the prompt
+  # contract + post-processing, not via extra_body.
+prompts:
+  system: "vllm/r1_distill_32b/summarization/system_no_thinking_v1"
+  user: "vllm/r1_distill_32b/summarization/long_no_thinking_v1"
+data:
+  dataset_id: "curated_5feeds_smoke_v1"
+params:
+  max_length: 800
+  min_length: 200
+  temperature: 0.0
+preprocessing_profile: "cleaning_v4"

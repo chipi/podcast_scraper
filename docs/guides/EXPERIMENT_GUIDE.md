@@ -627,6 +627,32 @@ golden_required: true
 golden_ref: "data/eval"  # Path to golden references
 ```
 
+### OpenAI-compatible endpoints (vLLM, Azure, OpenRouter)
+
+The `openai` backend speaks the OpenAI HTTP protocol, so any
+OpenAI-compatible server can be targeted by setting `base_url` (and the
+matching `api_key_env` for auth). For vLLM serving Qwen3.5/3.6 family
+models you also need `extra_body.chat_template_kwargs.enable_thinking:
+false` to prevent the model from leaking reasoning prose into the
+summary:
+
+```yaml
+backend:
+  type: "openai"
+  model: "Qwen/Qwen3.6-35B-A3B"
+  base_url: "http://dgx-llm-1.tail6d0ed4.ts.net:8003/v1"
+  api_key_env: "VLLM_NO_AUTH_NEEDED"   # vLLM ignores key; any non-empty works
+  extra_body:
+    chat_template_kwargs:
+      enable_thinking: false
+```
+
+The full working example is at
+`data/eval/configs/summarization/autoresearch_prompt_vllm_qwen36_35b_smoke_paragraph_v1.yaml`.
+This replaces the standalone
+`scripts/eval/score/summary_vllm_predict_v1.py` workaround that was
+used in the #928 batch (now deprecated).
+
 ### Grounded insights (GIL) and knowledge graph (KG) experiments
 
 For **transcript-only** evaluation on a materialized dataset (no RSS run), use **separate**

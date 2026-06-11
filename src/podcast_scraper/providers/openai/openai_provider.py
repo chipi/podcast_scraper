@@ -210,6 +210,26 @@ class OpenAIProvider:
 
         self.client = OpenAI(**client_kwargs)
 
+        # vLLM / OpenAI-compatible: inject a fixed extra_body into every
+        # chat.completions.create call (#960). Required for Qwen3.5/3.6 family
+        # served by vLLM, which needs ``chat_template_kwargs={enable_thinking:
+        # False}`` to produce a clean summary instead of leaking reasoning prose.
+        # Wrapping the client method here avoids fanning the kwarg through 17
+        # call sites scattered across the provider.
+        _fixed_extra_body = getattr(cfg, "openai_extra_body", None)
+        if _fixed_extra_body:
+            _orig_chat_create = self.client.chat.completions.create
+            _frozen_extra = dict(_fixed_extra_body)
+
+            def _chat_create_with_extra_body(**kwargs: Any) -> Any:
+                merged = dict(kwargs.get("extra_body") or {})
+                merged.update(_frozen_extra)
+                kwargs["extra_body"] = merged
+                return _orig_chat_create(**kwargs)
+
+            _patched = _chat_create_with_extra_body
+            self.client.chat.completions.create = _patched  # type: ignore[method-assign]
+
         # Log non-sensitive provider metadata (for debugging)
         # Extract region from base_url if possible
         region = extract_region_from_endpoint(cfg.openai_api_base)

@@ -719,6 +719,18 @@ def run_experiment(  # noqa: C901
                 if (cfg.prompts and cfg.prompts.system)
                 else "openai/summarization/system_v1"
             )
+            # vLLM / OpenAI-compatible support (#960): if backend declares a
+            # base_url, extra_body, or alternate api_key_env, plumb them
+            # through. api_key_env defaults to OPENAI_API_KEY; for vLLM the
+            # value can be any non-empty string (vLLM ignores key validation).
+            backend_api_key_env = getattr(cfg.backend, "api_key_env", None) or "OPENAI_API_KEY"
+            backend_base_url = getattr(cfg.backend, "base_url", None)
+            backend_extra_body = getattr(cfg.backend, "extra_body", None)
+            optional_openai_kwargs: dict[str, Any] = {}
+            if backend_base_url is not None:
+                optional_openai_kwargs["openai_api_base"] = backend_base_url
+            if backend_extra_body is not None:
+                optional_openai_kwargs["openai_extra_body"] = backend_extra_body
             cfg_obj = config.Config(
                 rss_url="",
                 summary_provider="openai",
@@ -729,10 +741,11 @@ def run_experiment(  # noqa: C901
                 openai_temperature=params_dict_raw.get("temperature", 0.0),
                 openai_summary_seed=params_dict_raw.get("seed"),
                 openai_max_tokens=params_dict_raw.get("max_length", 800),
-                openai_api_key=os.getenv("OPENAI_API_KEY"),
+                openai_api_key=os.getenv(backend_api_key_env),
                 openai_summary_user_prompt=user_prompt,
                 openai_summary_system_prompt=system_prompt,
                 transcribe_missing=False,
+                **optional_openai_kwargs,
                 **_eval_podcast_scraper_config_overrides(cfg),
             )
             if cfg.task in ("grounded_insights", "knowledge_graph"):

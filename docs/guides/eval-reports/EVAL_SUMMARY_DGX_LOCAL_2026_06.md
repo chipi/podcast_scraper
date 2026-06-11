@@ -125,6 +125,18 @@ default is validated as the right local summary champion.
    `<think>` tag suppression + "respond only with the summary" guard,
    re-run, see if R1-Distill becomes competitive. Useful data point;
    not load-bearing for prod.
+
+   **Status (post-#961 prompt-engineering side):** the anti-reasoning
+   prompts now live at
+   `src/podcast_scraper/prompts/vllm/r1_distill_32b/summarization/`
+   (`system_no_thinking_v1.j2` + `long_no_thinking_v1.j2`) and a
+   belt-and-braces `strip_r1_reasoning` post-processor lives at
+   `src/podcast_scraper/evaluation/r1_postprocess.py`. The matching
+   experiment YAML is at
+   `data/eval/configs/summarization/autoresearch_prompt_vllm_r1distill_32b_thinking_suppressed_smoke_v1.yaml`.
+   The DGX eval re-run itself is deferred — needs a vLLM session
+   serving R1-Distill (vLLM default per the batch-3 flip is Qwen3.6;
+   re-flipping just for the R1 eval is the gating cost).
 2. **Larger vLLM model panel** — `Qwen/Qwen2.5-32B-Instruct` and
    `Qwen/Qwen3-30B-A3B-Instruct` would be the true Ollama-equivalent
    generalists on vLLM. Needs ~60 GB download each.

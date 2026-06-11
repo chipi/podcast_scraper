@@ -1,24 +1,27 @@
 """Generate summary predictions via the vLLM autoresearch endpoint (#928).
 
+DEPRECATED in #960. Use the native ``openai`` backend with ``base_url``
++ ``extra_body`` + ``api_key_env`` set in the experiment YAML — see
+``data/eval/configs/summarization/autoresearch_prompt_vllm_qwen36_35b_smoke_paragraph_v1.yaml``
+for the canonical example. The native path goes through
+``scripts/eval/experiment/run_experiment.py`` and emits the same
+predictions.jsonl shape with no side-channel script.
+
+This script is retained for historical reproducibility of #928 batch-3
+results only; new code should not call it.
+
 Produces a predictions.jsonl in the same shape the autoresearch pipeline
 produces for Ollama / OpenAI / Gemini runs, so the finale framework
 (``scripts/eval/finale_sweep.py``) can score it side-by-side with the
 existing Ollama qwen3.5:35b results from #949.
 
-Why a standalone script rather than the experiment-run path:
+Why this script was originally needed:
 
-The autoresearch experiment-run path (``autoresearch_track_a.py``) has
+The autoresearch experiment-run path (``autoresearch_track_a.py``) had
 explicit backend types: ``openai``, ``gemini``, ``ollama``, etc. — no
-``vllm`` type yet. vLLM exposes an OpenAI-compatible API, so a clean
-fix is to either (a) add a ``vllm`` backend type or (b) extend
-``openai`` to accept a per-experiment ``base_url`` override.
-
-Both are real refactors. For #928's first-cut DGX vs DGX comparison
-(Ollama qwen3.5:35b vs vLLM Qwen3-Coder-Next-FP8 on the same 5 smoke
-episodes with the same prompts) we don't need that refactor — we just
-need vLLM predictions in the standard predictions.jsonl shape. This
-script does exactly that. The proper backend integration is a
-follow-up.
+``vllm`` type. vLLM exposes an OpenAI-compatible API, so the clean fix
+was either (a) add a ``vllm`` backend type or (b) extend ``openai``
+to accept a per-experiment ``base_url`` override. #960 picked (b).
 
 Output:
     ``data/eval/runs/<run_id>/predictions.jsonl``

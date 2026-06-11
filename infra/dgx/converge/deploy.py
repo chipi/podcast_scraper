@@ -1,24 +1,16 @@
-"""DGX Spark convergent install: Speaches Whisper server via Docker (#814, #948).
+"""DGX Spark convergent install: Speaches Whisper server via Docker (#814).
 
 Installs the Whisper transcription service that prod
 (``cloud_with_dgx_primary.yaml``) targets via the tailnet. Speaches
 is the renamed upstream of ``faster-whisper-server`` — same OpenAI-compatible
-API surface, distributed as a CUDA Docker image.
+API surface, distributed as a CUDA Docker image (the pip package was abandoned
+at v0.0.2).
 
 What this lays down on DGX:
 
-- A custom-built image ``speaches:latest-cuda-gb10`` (per #948 — see
-  ``../speaches-gb10/README.md``). The upstream ``:latest-cuda`` tag
-  ships a CPU-only ctranslate2 4.5.0; we layer a CUDA 12.8 + sm_120-PTX
-  ctranslate2 4.8.0 on top so GB10 (compute_cap=12.1 / sm_121) actually
-  uses the GPU. Build context lives at ``/opt/faster-whisper/build/``.
-- ``/etc/cdi/nvidia.yaml`` — the nvidia-container-toolkit 1.19.1
-  Container Device Interface spec. Without this, mode=auto silently
-  falls back to a degraded legacy injection that breaks ctranslate2's
-  device enumeration (proximate cause of the 2026-06-09 incident).
-- A ``docker-compose.yml`` at ``/opt/faster-whisper/docker-compose.yml``
-  that references the custom image and exposes :8000.
-- The container runs with ``restart: unless-stopped`` so it survives
+- A ``docker-compose.yml`` at ``/opt/faster-whisper/docker-compose.yml`` that
+  pulls ``ghcr.io/speaches-ai/speaches:latest-cuda`` and exposes :8000.
+- The container is configured with ``restart: unless-stopped`` so it survives
   reboots without a systemd wrapper. Docker daemon already starts at boot.
 - A model preload is NOT done in this recipe — Speaches downloads on first
   request (~3 GB for ``Systran/faster-whisper-large-v3``). First transcribe is
@@ -32,10 +24,9 @@ What this deliberately does NOT do:
   moving part. Crash-restart hardening (OOM detection, restart-rate-limit)
   stays out of scope — see #910.
 
-Idempotent: re-running ``make dgx-deploy`` re-ships the Dockerfile, runs
-``docker build`` (layer cache no-ops the heavy CUDA compile when nothing
-changed), regenerates the CDI spec, and runs ``docker compose up -d``.
-Container is recreated only when image / config changes; otherwise no-op.
+Idempotent: re-running ``make dgx-deploy`` re-renders the compose YAML +
+``docker compose up -d``. Container is recreated only when image / config
+changes; otherwise no-op.
 
 Operator manual steps still pending (per #810):
 
@@ -48,8 +39,6 @@ Verify with ``make dgx-verify``.
 
 from __future__ import annotations
 
-from pathlib import Path as _Path
-
 from pyinfra.operations import files, server
 
 # Knobs the downstream code (the provider client) expects:
@@ -59,21 +48,23 @@ from pyinfra.operations import files, server
 # - MODEL ID — Hugging Face repo ID. ``Systran/faster-whisper-large-v3`` is
 #   the upstream-recommended unquantized large-v3 weights; Speaches fetches
 #   on first request.
-# - IMAGE — locally-built tag from infra/dgx/speaches-gb10/Dockerfile.
-#   We do NOT use the upstream ``ghcr.io/speaches-ai/speaches:latest-cuda``
-#   directly because its ctranslate2 is CPU-only (the ``-cuda`` tag is
-#   misleading). The custom build layers a CUDA 12.8 + sm_120-PTX
-#   ctranslate2 4.8.0 wheel on top. Full story: ../speaches-gb10/README.md
-#   and incident #948.
 SERVICE_NAME = "faster-whisper"
 INSTALL_ROOT = "/opt/faster-whisper"
-BUILD_CTX = f"{INSTALL_ROOT}/build"
 COMPOSE_FILE = f"{INSTALL_ROOT}/docker-compose.yml"
-IMAGE = "speaches:latest-cuda-gb10"
+BUILD_CTX = f"{INSTALL_ROOT}/build"
+# Derived image built locally on the DGX from
+# ``infra/dgx/faster-whisper-server/Dockerfile`` (FROM
+# ``ghcr.io/speaches-ai/speaches:latest-cuda``, plus the #968 Thread B
+# temperature-fallback patch baked in at build time). Upstream tag kept
+# below for reference only.
+IMAGE = "podcast-speaches:0.1.0"
+BASE_IMAGE = "ghcr.io/speaches-ai/speaches:latest-cuda"
 PORT = 8000
 MODEL = "Systran/faster-whisper-large-v3"
 
-_SPEACHES_SRC = _Path(__file__).resolve().parents[1] / "speaches-gb10"
+from pathlib import Path as _FasterWhisperPath  # noqa: E402
+
+_FASTER_WHISPER_SRC = _FasterWhisperPath(__file__).resolve().parents[1] / "faster-whisper-server"
 
 # HF config lives in the operator's ``~/.env`` on DGX (single source of truth
 # for HF_TOKEN / HF_HOME / HF_HUB_CACHE / HF_DATASETS_CACHE). Compose injects it
@@ -82,7 +73,8 @@ _SPEACHES_SRC = _Path(__file__).resolve().parents[1] / "speaches-gb10"
 OPERATOR_ENV_FILE = "/home/markodragoljevic/.env"
 HF_CACHE_HOST = "/opt/llm-models/huggingface"
 
-# 1. Install root + build context (the Dockerfile lives in build/).
+# 1. Install root only — no separate HF cache directory needed; the operator's
+# centralized cache at /opt/llm-models/huggingface is the bind-mount target.
 files.directory(
     name="dir: /opt/faster-whisper (install root)",
     path=INSTALL_ROOT,
@@ -91,6 +83,9 @@ files.directory(
     _sudo=True,
 )
 
+# 1b. Build context for the derived image (mirrors whisper-server / pyannote
+# pattern). Holds the Dockerfile that applies the #968 Thread B patch on top
+# of the upstream speaches:latest-cuda base.
 files.directory(
     name="dir: /opt/faster-whisper/build (Docker build context)",
     path=BUILD_CTX,
@@ -99,46 +94,12 @@ files.directory(
     _sudo=True,
 )
 
-# Ship the Dockerfile from infra/dgx/speaches-gb10/ to the DGX. The source
-# lives in the repo; deploy ships it up. Docker layer cache no-ops the
-# CUDA compile when the Dockerfile is byte-identical to a previous build.
 files.put(
-    name="ship: speaches-gb10/Dockerfile",
-    src=str(_SPEACHES_SRC / "Dockerfile"),
+    name="ship: faster-whisper-server/Dockerfile (#968 Thread B patch)",
+    src=str(_FASTER_WHISPER_SRC / "Dockerfile"),
     dest=f"{BUILD_CTX}/Dockerfile",
     mode="644",
     create_remote_dir=False,
-    _sudo=True,
-)
-
-# 1a. Build the custom image (idempotent — Docker's layer cache makes this
-# a no-op when nothing changed; ~3-4 min when the ctranslate2 source build
-# actually runs).
-#
-# We BUILD locally rather than push to a registry because (a) we don't
-# operate a private registry, (b) the build context is small enough
-# (a single Dockerfile, ~3 KB), and (c) it keeps the image construction
-# auditable on the host where it runs.
-server.shell(
-    name="build: speaches:latest-cuda-gb10 (idempotent via layer cache)",
-    commands=[f"cd {BUILD_CTX} && docker build -t {IMAGE} ."],
-    _sudo=True,
-)
-
-# 1b. CDI spec generation. nvidia-container-toolkit 1.19.1 (installed
-# 2026-06-05) defaults to mode=auto which prefers CDI device injection.
-# Without a CDI spec at /etc/cdi/nvidia.yaml, mode=auto silently falls
-# back to a degraded legacy injection that breaks ctranslate2's CUDA
-# enumeration (this was the proximate trigger of incident #948).
-#
-# Idempotent: nvidia-ctk regenerates from the current driver state every
-# run. Cheap (<1 s). Safe to re-run.
-server.shell(
-    name="cdi: generate /etc/cdi/nvidia.yaml from current nvidia driver state",
-    commands=[
-        "mkdir -p /etc/cdi",
-        "nvidia-ctk cdi generate --output=/etc/cdi/nvidia.yaml --mode=auto",
-    ],
     _sudo=True,
 )
 
@@ -154,6 +115,7 @@ COMPOSE_CONTENT = f"""# Auto-generated by infra/dgx/converge/deploy.py. Edit the
 
 services:
   {SERVICE_NAME}:
+    build: {BUILD_CTX}
     image: {IMAGE}
     container_name: {SERVICE_NAME}
     restart: unless-stopped
@@ -167,14 +129,25 @@ services:
       # Compose-specific (NOT in ~/.env): Speaches-only knobs.
       - WHISPER__MODEL={MODEL}
       - WHISPER__DEVICE=cuda
-      # ``default`` lets ctranslate2 auto-pick the best compute type for
-      # the hardware. With the custom GB10 build (#948), float16 + bfloat16
-      # both work natively (previously hard-errored). The pre-#948 advice to
-      # avoid float16 no longer applies — but ``default`` still picks the
-      # best path automatically. Pin explicitly only if a benchmark shows
-      # a reason (and bench against a full episode on an idle box, not a
-      # 30-sec clip — short clips are overhead-dominated).
-      - WHISPER__COMPUTE_TYPE=default
+      # Pinned to int8 per #957. The story:
+      #   - ``default`` produced empty output on 4/5 v2 fixture episodes
+      #     — ctranslate2's auto-pick on this speaches:latest-cuda image
+      #     resolved to a broken variant that destroyed the model's output
+      #     distribution on GB10.
+      #   - ``float16``, ``bfloat16``, and ``int8_bfloat16`` all error
+      #     with "target device or backend do not support efficient
+      #     <type> computation". CTranslate2's Blackwell support for those
+      #     compute types is missing in the bundled image. (openai-whisper
+      #     happily uses bf16 on the same card via torch — different stack.)
+      #   - ``float32`` works but is too slow (0.8× realtime) and quality
+      #     is degraded (WER 0.345 — worse than the empty case for any
+      #     downstream use).
+      #   - ``int8`` (pure int8 weights + int8 compute) is the working
+      #     path: WER 0.0534 on v2 p01_e01 (better than openai-whisper's
+      #     0.0775 baseline) at 1.6× realtime. Still slower than
+      #     openai-whisper's ~4.6×, but quality-competitive and unblocks
+      #     #952.
+      - WHISPER__COMPUTE_TYPE=int8
       - LOG_LEVEL=INFO
       - ENABLE_UI=false
       - UVICORN_HOST=0.0.0.0
@@ -202,13 +175,42 @@ server.shell(
     _sudo=True,
 )
 
-# 3. Start the container. Idempotent: docker compose only recreates the
-# container if the YAML config-hash or image ID changed.
+# 3. Pull image + start. Idempotent: docker compose only recreates the
+# container if the YAML config-hash or image digest changed.
 #
-# We no longer ``docker compose pull`` here — the image is built locally
-# (step 1a) and not present on any registry. The build step above is the
-# equivalent of pulling: it's where we get the image's bytes, and Docker's
-# layer cache makes re-runs a near-no-op.
+# The pull is wrapped in `|| true` so a GHCR slowdown/outage doesn't bail
+# the whole deploy. We observed this on 2026-06-08: ghcr.io took >30s to
+# respond, pyinfra dropped to "Error: executed 0 commands" + "No hosts
+# remaining", and the pyannote install steps further down never ran. With
+# the pull tolerated, `docker compose up -d` below uses the locally-cached
+# image — fine for the common case where Speaches is already running on
+# DGX and we're only redeploying pyannote. The trade-off: a deploy could
+# silently miss a NEW upstream image. We accept that since (a) the timing
+# message still surfaces success vs warn-only-fall-through, (b) the next
+# successful deploy still picks up changes, and (c) image bumps are rare
+# enough that catching them via an explicit `dgx-refresh` target later is
+# a better tool for the job than gating every deploy on GHCR reachability.
+server.shell(
+    name="compose: pull base image (tolerated; falls back to cached on GHCR blip)",
+    commands=[
+        f"docker pull {BASE_IMAGE} "
+        f"|| echo '::warning::GHCR pull of {BASE_IMAGE} failed; will use cached base if present'"
+    ],
+    _sudo=True,
+)
+
+# Build the derived image on every deploy. Re-applying the #968 Thread B
+# sed patch is cheap (no model download — just a layer over the base) and
+# this guarantees the latest pull is patched. The grep-guard in the
+# Dockerfile fails the deploy loudly if speaches' upstream shape ever
+# changes the temperature pattern; better to know at deploy time than at
+# first-bad-output time.
+server.shell(
+    name=f"compose: build derived image ({IMAGE}, #968 Thread B patch baked in)",
+    commands=[f"cd {INSTALL_ROOT} && docker compose build"],
+    _sudo=True,
+)
+
 server.shell(
     name="compose: up -d (start / restart on config change)",
     commands=[f"cd {INSTALL_ROOT} && docker compose up -d"],

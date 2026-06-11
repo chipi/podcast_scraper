@@ -1434,7 +1434,15 @@ class Config(BaseModel):
         alias="openai_api_base",
         description="OpenAI API base URL (e.g., 'https://api.openai.com/v1' or custom endpoint). "
         "Can be set via OPENAI_API_BASE environment variable. "
-        "Used for E2E testing with mock servers.",
+        "Used for E2E testing with mock servers and for routing autoresearch "
+        "summarize calls at OpenAI-compatible endpoints like local vLLM (#960).",
+    )
+    openai_extra_body: Optional[Dict[str, Any]] = Field(
+        default=None,
+        alias="openai_extra_body",
+        description="Extra fields merged into every chat.completions request body. "
+        "Required for vLLM serving Qwen3.5/3.6 family: "
+        "``{chat_template_kwargs: {enable_thinking: false}}`` (#960).",
     )
     openai_transcription_model: str = Field(
         default_factory=_get_default_openai_transcription_model,

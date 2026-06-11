@@ -79,11 +79,41 @@ class SpacyBackendConfig(BaseModel):
 
 
 class OpenAIBackendConfig(BaseModel):
-    """Config for OpenAI models (summarization, NER, etc.)."""
+    """Config for OpenAI (and OpenAI-compatible) models.
+
+    When ``base_url`` is set, the OpenAI client is pointed at an
+    OpenAI-compatible endpoint instead of the OpenAI cloud. This makes
+    vLLM (and Azure, OpenRouter, Together, ...) first-class targets for
+    autoresearch sweeps — see #960.
+    """
 
     type: Literal["openai"] = "openai"
     model: str = Field(
         description="OpenAI model name, e.g. 'gpt-4o-mini'.",
+    )
+    base_url: Optional[str] = Field(
+        default=None,
+        description=(
+            "Override OpenAI API base URL. Point at an "
+            "OpenAI-compatible endpoint such as a local vLLM server "
+            "(e.g. http://dgx-llm-1.tail6d0ed4.ts.net:8003/v1)."
+        ),
+    )
+    extra_body: Optional[Dict[str, Any]] = Field(
+        default=None,
+        description=(
+            "Extra fields merged into every chat.completions request "
+            "body. Required for Qwen3.5/3.6 family on vLLM: "
+            "``{chat_template_kwargs: {enable_thinking: false}}``."
+        ),
+    )
+    api_key_env: Optional[str] = Field(
+        default=None,
+        description=(
+            "Name of the env var holding the API key. Defaults to "
+            "OPENAI_API_KEY. For local vLLM (no auth) use any name "
+            "that resolves to a non-empty string."
+        ),
     )
 
 

@@ -1,0 +1,35 @@
+# Autoresearch v2 paragraph — vLLM (OpenAI-compatible backend) on DGX.
+#
+# Demonstrates the #960 first-class vLLM path: the existing ``openai``
+# backend now accepts ``base_url`` + ``extra_body`` + ``api_key_env`` so
+# vLLM is reachable via the autoresearch experiment-run pipeline with
+# no side-channel script.
+#
+# Replaces the standalone ``scripts/eval/score/summary_vllm_predict_v1.py``
+# workaround built during the #928 batch.
+id: "autoresearch_prompt_vllm_qwen36_35b_smoke_paragraph_v1"
+task: "summarization"
+backend:
+  type: "openai"
+  model: "Qwen/Qwen3.6-35B-A3B"
+  base_url: "http://dgx-llm-1.tail6d0ed4.ts.net:8003/v1"
+  # vLLM ignores api key validation but the OpenAI client requires a
+  # non-empty string; any env var pointing at a non-empty value works.
+  api_key_env: "VLLM_NO_AUTH_NEEDED"
+  # Required for the Qwen3.5/3.6 family on vLLM — without this the
+  # model leaks reasoning prose into the summary instead of producing a
+  # clean output. Per the consumer contract in
+  # infra/dgx/vllm-autoresearch/README.md.
+  extra_body:
+    chat_template_kwargs:
+      enable_thinking: false
+prompts:
+  system: "ollama/qwen3.5_35b/summarization/system_v1"
+  user: "ollama/qwen3.5_35b/summarization/long_v1"
+data:
+  dataset_id: "curated_5feeds_smoke_v1"
+params:
+  max_length: 800
+  min_length: 200
+  temperature: 0.0
+preprocessing_profile: "cleaning_v4"

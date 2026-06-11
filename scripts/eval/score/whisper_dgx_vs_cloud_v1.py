@@ -216,11 +216,14 @@ def _transcribe_dgx(audio_path: Path, model_name: str, _model_cache: dict[str, A
     with audio_path.open("rb") as fh:
         # Timeout sized for a 90-min episode on a slow DGX day. The actual
         # transcription should take seconds on the custom-build #948 image.
+        # 1500s (25 min) covers the worst case observed during #957 — the
+        # speaches faster-whisper int8 path needs ~700s for a 11-min audio
+        # on a busy DGX, ~3× what the int8 single-ep ping suggested.
         resp = requests.post(
             url,
             files={"file": (audio_path.name, fh, "audio/mpeg")},
             data={"model": model_name, "response_format": "json"},
-            timeout=900,
+            timeout=1500,
         )
     resp.raise_for_status()
     return resp.json().get("text", "")
