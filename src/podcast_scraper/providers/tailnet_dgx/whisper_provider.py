@@ -18,6 +18,7 @@ exists and the endpoint + port reflect that.
 from __future__ import annotations
 
 import logging
+import threading
 import time
 from pathlib import Path
 from typing import Any, cast, List, Optional
@@ -26,12 +27,29 @@ from ... import config
 from ...transcription.base import TranscriptionProvider
 from ...transcription.factory import create_transcription_provider
 from ...utils.log_redaction import format_exception_for_log
+from . import resilience
 from .health import check_faster_whisper_health, dgx_whisper_base_url
+from .resilience import CircuitBreaker, dgx_http_client, TimeoutLike
 from .telemetry import emit_dgx_fallback_breadcrumb
 
 logger = logging.getLogger(__name__)
 
 _RETRY_BACKOFF_SEC = 5.0
+
+# Single-flight guard: the DGX faster-whisper server has one GPU and processes
+# transcriptions serially. Sending concurrent requests just queues them server-side
+# and makes every client wait (and risk a false timeout). Serialize DGX calls within
+# this process so we never self-contend; a busy GPU from *other* workloads is ridden
+# out by the duration-scaled timeout + watchdog, not by piling on more requests (#876).
+_dgx_single_flight = threading.Lock()
+
+# Process-wide breaker for the DGX Whisper endpoint (:8002). One hard timeout trips
+# it immediately; otherwise two failures inside the window open it for a 5-minute
+# cooldown before a half-open probe, so a wedged batch isn't paced by per-episode
+# timeouts but still self-heals when DGX recovers (#954).
+_whisper_breaker = CircuitBreaker(
+    failure_threshold=2, window_sec=300.0, cooldown_sec=300.0, name="dgx-whisper"
+)
 
 
 class TailnetDgxWhisperTranscriptionProvider:
@@ -45,7 +63,9 @@ class TailnetDgxWhisperTranscriptionProvider:
         # is a different service on a different port.
         self._port = int(getattr(cfg, "dgx_whisper_port", None) or 8000)
         self._model = (cfg.dgx_whisper_model or "Systran/faster-whisper-large-v3").strip()
-        self._timeout_sec = float(cfg.dgx_request_timeout_sec or 300.0)
+        self._timeout_sec = float(cfg.dgx_request_timeout_sec or 600.0)
+        self._timeout_per_audio_min = float(getattr(cfg, "dgx_timeout_per_audio_minute_sec", 20.0))
+        self._max_attempts = max(1, int(getattr(cfg, "dgx_max_attempts", 3)))
         self._fallback_name = (cfg.transcription_fallback_provider or "openai").strip()
         self._fallback: Optional[TranscriptionProvider] = None
         self._initialized = False
@@ -66,6 +86,22 @@ class TailnetDgxWhisperTranscriptionProvider:
     def _ensure_init(self) -> None:
         if not self._initialized:
             self.initialize()
+
+    def _effective_timeout_sec(self, episode_duration_seconds: int | None) -> float:
+        """Duration-scaled request timeout: base + per-audio-minute budget.
+
+        A flat timeout false-fails long episodes whenever the shared GPU is briefly
+        contended. Scaling the budget by audio length lets the transcription wait the
+        contention out instead of bailing to the cloud fallback (#876).
+        """
+        base = self._timeout_sec
+        if (
+            episode_duration_seconds
+            and episode_duration_seconds > 0
+            and self._timeout_per_audio_min
+        ):
+            base += (float(episode_duration_seconds) / 60.0) * self._timeout_per_audio_min
+        return base
 
     def transcribe(self, audio_path: str, language: str | None = None) -> str:
         """Return transcript text, using DGX or fallback provider."""
@@ -118,28 +154,68 @@ class TailnetDgxWhisperTranscriptionProvider:
     ) -> tuple[str, list[dict[str, object]], float]:
         assert self._fallback is not None
         last_err: Optional[Exception] = None
+        timed_out = False
         # Health-check substring matches the model's slug portion (after the
         # ``Systran/`` namespace) so we don't fail on small repo-id variations.
         health_substring = self._model.rsplit("/", 1)[-1]
-        for attempt in range(2):
-            try:
-                if check_faster_whisper_health(
-                    self._host,
-                    port=self._port,
-                    require_model_substring=health_substring,
-                ):
-                    return self._transcribe_dgx(audio_path, language)
-            except Exception as exc:
-                last_err = exc
-                logger.warning(
-                    "DGX Whisper attempt %s failed: %s",
-                    attempt + 1,
-                    format_exception_for_log(exc),
-                )
-            if attempt == 0:
-                time.sleep(_RETRY_BACKOFF_SEC)
+        timeout_sec = self._effective_timeout_sec(episode_duration_seconds)
+        # Circuit breaker: if DGX Whisper is in its cooldown, skip it entirely and
+        # go straight to the cloud fallback — a wedged batch isn't paced by timeouts.
+        if not _whisper_breaker.allow():
+            reason = "dgx_whisper_circuit_open"
+        else:
+            # Serialize DGX calls (single GPU, serial server) so we never self-contend.
+            with _dgx_single_flight:
+                for attempt in range(self._max_attempts):
+                    try:
+                        if not check_faster_whisper_health(
+                            self._host,
+                            port=self._port,
+                            require_model_substring=health_substring,
+                        ):
+                            last_err = None  # health says unavailable; retry then fall back
+                        else:
+                            # Hard wall-clock watchdog: guarantees fail-over even when
+                            # httpx's own timeout doesn't fire (a co-tenant GPU stall can
+                            # make the multipart upload trickle indefinitely, #954).
+                            result_dgx = resilience.run_with_watchdog(
+                                lambda: self._transcribe_dgx(audio_path, language, timeout_sec),
+                                timeout_sec + resilience.WATCHDOG_GRACE_SEC,
+                                label="dgx-whisper",
+                            )
+                            _whisper_breaker.record_success()
+                            return result_dgx
+                    except TimeoutLike as exc:
+                        # The GPU is busy/contended and the (generous, duration-scaled)
+                        # budget elapsed. Retrying would pile a duplicate request onto the
+                        # already-overloaded server, so stop and fall back instead.
+                        last_err = exc
+                        timed_out = True
+                        logger.warning(
+                            "DGX Whisper attempt %s timed out after %.0fs (GPU contended?); "
+                            "falling back rather than re-queuing: %s",
+                            attempt + 1,
+                            timeout_sec,
+                            format_exception_for_log(exc),
+                        )
+                        break
+                    except Exception as exc:
+                        # Connection blip / transient server error — safe to retry with
+                        # exponential backoff (no duplicate work is in flight).
+                        last_err = exc
+                        logger.warning(
+                            "DGX Whisper attempt %s failed: %s",
+                            attempt + 1,
+                            format_exception_for_log(exc),
+                        )
+                    if attempt < self._max_attempts - 1:
+                        time.sleep(_RETRY_BACKOFF_SEC * (2**attempt))
 
-        reason = format_exception_for_log(last_err) if last_err else "health_check_failed"
+            # A hard timeout trips the breaker immediately (one expensive wedge is
+            # enough); other failures accrue toward the rolling-window threshold.
+            _whisper_breaker.record_failure(hard=timed_out)
+            reason = format_exception_for_log(last_err) if last_err else "health_check_failed"
+
         emit_dgx_fallback_breadcrumb(
             stage="transcription",
             model=self._model,
@@ -176,6 +252,7 @@ class TailnetDgxWhisperTranscriptionProvider:
         self,
         audio_path: str,
         language: str | None,
+        timeout_sec: Optional[float] = None,
     ) -> tuple[str, list[dict[str, object]], float]:
         """Call faster-whisper-server's OpenAI-compatible transcribe endpoint.
 
@@ -184,11 +261,6 @@ class TailnetDgxWhisperTranscriptionProvider:
         addition to the flat text (we need segments for downstream stages —
         speaker assignment, screenplay, etc.).
         """
-        try:
-            import httpx
-        except ImportError as exc:
-            raise RuntimeError("httpx required for tailnet_dgx_whisper") from exc
-
         path = Path(audio_path)
         if not path.is_file():
             raise FileNotFoundError(audio_path)
@@ -204,7 +276,7 @@ class TailnetDgxWhisperTranscriptionProvider:
             }
             if language:
                 data["language"] = language
-            with httpx.Client(timeout=self._timeout_sec) as client:
+            with dgx_http_client(timeout_sec or self._timeout_sec) as client:
                 resp = client.post(url, data=data, files=files)
         resp.raise_for_status()
         payload = resp.json()

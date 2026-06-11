@@ -17,10 +17,16 @@ transcription:
   fallback: openai
 
 dgx_tailnet_host: dgx-llm-1.tail6d0ed4.ts.net
-# Hugging Face repo ID (Speaches takes HF format). Pre-#814 this was the
-# Ollama-style "whisper-large-v3" tag, which Speaches doesn't recognize →
-# every transcribe call would 404 and force the cloud Whisper fallback.
-dgx_whisper_model: Systran/faster-whisper-large-v3
+# 2026-06-10: DGX Whisper temporarily switched from Speaches (:8000,
+# faster-whisper) to an openai-whisper service on :8002 while the GB10
+# Speaches/ctranslate2 path is sorted out. The :8002 service is
+# OpenAI-API-compatible (GET /v1/models → "large-v3") and takes the short
+# model id "large-v3" (NOT the HF "Systran/faster-whisper-large-v3" id).
+# It is ~10-15× slower per episode than Speaches — fine for re-diarization,
+# and the #946 duration-scaled timeout already covers it. Revert both lines
+# to port 8000 / Systran/faster-whisper-large-v3 once Speaches is restored.
+dgx_whisper_port: 8002
+dgx_whisper_model: large-v3
 transcription_fallback_provider: openai
 
 openai_transcription_model: whisper-1

@@ -95,7 +95,10 @@ export function resolveEpisodeMetadataFromLoadedArtifacts(
     if (epId !== want) continue
     const fromArtifact =
       (typeof art.sourceCorpusRelPath === 'string' && art.sourceCorpusRelPath.trim()) || ''
-    const rel = (fromArtifact || selectedRelPaths[i]?.trim()).trim()
+    // Both operands are already trimmed; the previous outer ``.trim()`` threw a
+    // TypeError when ``fromArtifact`` was '' and ``selectedRelPaths[i]`` was
+    // undefined (missing parallel entry). Coalesce to '' so we skip gracefully.
+    const rel = fromArtifact || selectedRelPaths[i]?.trim() || ''
     if (!rel) continue
     let guessed = guessMetadataRelPathFromArtifactRelPath(rel)
     if (guessed) return guessed

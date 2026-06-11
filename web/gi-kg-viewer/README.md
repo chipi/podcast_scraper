@@ -76,6 +76,13 @@ should still point at that parent so list/search/explore see the whole corpus.
 
 Copy `.env.example` to `.env` and set `VITE_DEFAULT_CORPUS_PATH` to pre-fill that folder in the UI. Optional **`VITE_CLUSTER_SIBLING_EPISODE_CAP`** caps how many extra sibling episodes the Graph tab loads when **`topic_clusters.json`** lists **`members[].episode_ids`** (API mode only). The status line uses a short form: `+N new · M in cluster · cap C` (see [Polyglot guide](../../docs/guides/POLYGLOT_REPO_GUIDE.md)).
 
+## Testing
+
+See **[TESTING.md](./TESTING.md)** for the full test tier map — Vitest unit +
+`@vue/test-utils` component tests, the `#914` coverage gate, the mocked
+Playwright e2e (`npm run test:e2e`), and the Tier-3 real-corpus validation walk
+(`make ci-ui-validation`) — plus the corpora and how to run each.
+
 ## Production build
 
 ```bash

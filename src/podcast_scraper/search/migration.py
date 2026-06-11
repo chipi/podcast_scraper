@@ -31,7 +31,7 @@ from pathlib import Path
 from typing import Dict, Optional
 
 from .backend import AuxDocument, InsightDocument, SegmentDocument
-from .backends.lancedb_backend import LanceDBBackend
+from .backends.lancedb_backend import lance_index_is_stale, LanceDBBackend
 from .faiss_store import FaissVectorStore
 
 # Non-tiered FAISS surfaces carried into the aux tier for full hybrid coverage.
@@ -56,6 +56,8 @@ def _aux_from_faiss(doc_id: str, meta: Dict, embedding: list) -> AuxDocument:
         show_id=meta.get("feed_id") or "",
         episode_id=meta.get("episode_id") or "",
         doc_type=str(meta.get("doc_type") or ""),
+        publish_date=meta.get("publish_date"),
+        source_id=meta.get("source_id"),
         embedding=embedding,
     )
 
@@ -70,6 +72,7 @@ def _segment_from_faiss(doc_id: str, meta: Dict, embedding: list) -> SegmentDocu
         end_time=float(meta.get("timestamp_end_ms") or 0.0) / 1000.0,
         embedding=embedding,
         speaker_id=meta.get("speaker_id"),
+        publish_date=meta.get("publish_date"),
     )
 
 
@@ -84,6 +87,8 @@ def _insight_from_faiss(doc_id: str, meta: Dict, embedding: list) -> InsightDocu
         # FAISS marks quote-grounded insights with ``grounded``; reuse it as the
         # derived flag so the two-tier payload keeps the provenance bit.
         derived=bool(meta.get("grounded")),
+        publish_date=meta.get("publish_date"),
+        source_id=meta.get("source_id"),
         embedding=embedding,
     )
 
@@ -100,6 +105,12 @@ def migrate_faiss_to_lance(
     cross over (Tier 2 and Tier 1 respectively). ``limit_per_tier`` caps each tier
     for smoke runs. Returns per-tier counts. Idempotent (merge-insert on ``id``).
     """
+    # A pre-schema-bump lance index has incompatible tables — wipe it so this rebuild
+    # is clean (merge-inserting new-schema rows into old tables errors / drops columns).
+    if lance_index_is_stale(Path(lance_path)):
+        import shutil
+
+        shutil.rmtree(Path(lance_path), ignore_errors=True)
     store = FaissVectorStore.load(Path(faiss_dir))
     vectors = store.export_vectors_by_doc_id()
     metadata = store.metadata_by_doc_id

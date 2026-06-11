@@ -87,6 +87,129 @@ describe('cilApi', () => {
     await expect(fetchTopicTimeline('  ', 'topic:x')).rejects.toThrow(/Corpus path/)
   })
 
+  it('fetchTopicTimeline throws when topic id empty', async () => {
+    await expect(fetchTopicTimeline('/c', '   ')).rejects.toThrow(/Topic id/)
+  })
+
+  it('fetchTopicTimeline propagates trimmed body text on non-OK', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => ({
+        ok: false,
+        status: 500,
+        text: async () => '  boom detail  ',
+      })) as unknown as typeof fetch,
+    )
+    await expect(fetchTopicTimeline('/c', 'topic:t')).rejects.toThrow('boom detail')
+  })
+
+  it('fetchTopicTimeline falls back to HTTP status when body empty', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => ({
+        ok: false,
+        status: 503,
+        text: async () => '   ',
+      })) as unknown as typeof fetch,
+    )
+    await expect(fetchTopicTimeline('/c', 'topic:t')).rejects.toThrow('HTTP 503')
+  })
+
+  it('fetchTopicTimelineMerged throws when corpus path empty', async () => {
+    await expect(fetchTopicTimelineMerged('   ', ['topic:a'])).rejects.toThrow(/Corpus path/)
+  })
+
+  it('fetchTopicTimelineMerged throws when no usable topic ids', async () => {
+    await expect(fetchTopicTimelineMerged('/c', ['  ', ''])).rejects.toThrow(
+      /At least one topic id/,
+    )
+  })
+
+  it('fetchTopicTimelineMerged trims/filters ids and sets insight_types', async () => {
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(JSON.stringify({ path: '/c', topic_ids: ['topic:a'], episodes: [] }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      }),
+    )
+    await fetchTopicTimelineMerged('/c', ['  topic:a  ', '', '  '], { insightTypes: '  claim  ' })
+    const [, init] = fetchSpy.mock.calls[0] as [string, RequestInit]
+    const body = JSON.parse(String(init?.body))
+    expect(body.topic_ids).toEqual(['topic:a'])
+    expect(body.insight_types).toBe('claim')
+    fetchSpy.mockRestore()
+  })
+
+  it('fetchTopicTimelineMerged omits insight_types when blank', async () => {
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(JSON.stringify({ path: '/c', topic_ids: ['topic:a'], episodes: [] }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      }),
+    )
+    await fetchTopicTimelineMerged('/c', ['topic:a'], { insightTypes: '   ' })
+    const [, init] = fetchSpy.mock.calls[0] as [string, RequestInit]
+    const body = JSON.parse(String(init?.body))
+    expect(body).not.toHaveProperty('insight_types')
+    fetchSpy.mockRestore()
+  })
+
+  it('fetchTopicTimelineMerged propagates body text on non-OK', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => ({
+        ok: false,
+        status: 502,
+        text: async () => 'merged boom',
+      })) as unknown as typeof fetch,
+    )
+    await expect(fetchTopicTimelineMerged('/c', ['topic:a'])).rejects.toThrow('merged boom')
+  })
+
+  it('fetchTopicTimelineMerged falls back to HTTP status when body empty', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => ({
+        ok: false,
+        status: 500,
+        text: async () => '',
+      })) as unknown as typeof fetch,
+    )
+    await expect(fetchTopicTimelineMerged('/c', ['topic:a'])).rejects.toThrow('HTTP 500')
+  })
+
+  it('fetchTopicPersons throws when corpus path empty', async () => {
+    await expect(fetchTopicPersons('   ', 'topic:x')).rejects.toThrow(/Corpus path/)
+  })
+
+  it('fetchTopicPersons throws when topic id empty', async () => {
+    await expect(fetchTopicPersons('/c', '   ')).rejects.toThrow(/Topic id/)
+  })
+
+  it('fetchTopicPersons propagates body text on non-OK', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => ({
+        ok: false,
+        status: 500,
+        text: async () => 'persons boom',
+      })) as unknown as typeof fetch,
+    )
+    await expect(fetchTopicPersons('/root', 'topic:x')).rejects.toThrow('persons boom')
+  })
+
+  it('fetchTopicPersons falls back to HTTP status when body empty', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => ({
+        ok: false,
+        status: 404,
+        text: async () => '',
+      })) as unknown as typeof fetch,
+    )
+    await expect(fetchTopicPersons('/root', 'topic:x')).rejects.toThrow('HTTP 404')
+  })
+
   it('fetchTopicPersons GETs encoded path', async () => {
     vi.stubGlobal(
       'fetch',

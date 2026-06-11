@@ -8,6 +8,9 @@
 
 transcription_provider: openai
 openai_transcription_model: whisper-1
+# #913: diarization (pyannote pass + named screenplay) is available on this openai
+# path but opt-in (off by default) — set `diarize: true` to enable (needs an HF
+# token; see cloud_balanced note).
 
 audio_preprocessing_profile: speech_optimal_v1
 

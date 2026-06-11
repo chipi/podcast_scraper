@@ -336,6 +336,7 @@ MARKDOWNLINT_CLI_ARGS = "**/*.md" \
 	--ignore "data/eval/runs/**" \
 	--ignore "$(WEB_VIEWER_DIR)/playwright-report/**" \
 	--ignore "$(WEB_VIEWER_DIR)/test-results/**" \
+	--ignore "$(WEB_VIEWER_DIR)/validation-results/**" \
 	--ignore "tests/stack-test/playwright-report/**" \
 	--ignore "tests/stack-test/test-results/**" \
 	--config .markdownlint.json
@@ -1064,6 +1065,54 @@ redo-diarization:
 	  --output-dir "$${CORPUS_DIR}" \
 	  --skip-existing \
 	  --reprocess-source whisper_transcription; \
+	echo "Re-deriving relational edges (corpus-wide SPOKEN_BY)..."; \
+	$(PYTHON) -m podcast_scraper.cli enrich-edges --output-dir "$${CORPUS_DIR}"
+
+# Phase 1 of staged re-diarization (#947): download + cache RAW audio for the existing
+# corpus episodes only, WITHOUT transcribing/diarizing. --reprocess-existing-only scopes
+# to on-disk GUIDs; --reprocess-source forces the existing whisper episodes back through
+# download; --pipeline-stage download_only stops before transcription. The audio lands in
+# the durable cache (default .cache/audio, external to the corpus) so phase 2
+# (migrate-diarization) reprocesses off the cache with no feed re-fetch. Set
+# AUDIO_CACHE_IN_CORPUS=1 to store the cache inside the corpus for a portable snapshot.
+#   make download-audio CORPUS_DIR=<corpus> PROFILE=config/profiles/cloud_with_dgx_primary.yaml
+download-audio:
+	@test -n "$${CORPUS_DIR:-}" || { echo "CORPUS_DIR required (corpus parent path)"; exit 1; }; \
+	test -n "$${PROFILE:-}" || { echo "PROFILE required (e.g. config/profiles/cloud_with_dgx_primary.yaml)"; exit 1; }; \
+	test -f "$${CORPUS_DIR}/feeds.spec.yaml" || { echo "Missing $${CORPUS_DIR}/feeds.spec.yaml"; exit 1; }; \
+	echo "Downloading + caching audio (existing-only, no transcription) for $${CORPUS_DIR}..."; \
+	$(HF_NET_ENV) $(PYTHON) -m podcast_scraper.cli \
+	  --config "$${PROFILE}" \
+	  --feeds-spec "$${CORPUS_DIR}/feeds.spec.yaml" \
+	  --output-dir "$${CORPUS_DIR}" \
+	  --skip-existing \
+	  --reprocess-source whisper_transcription \
+	  --reprocess-existing-only \
+	  --pipeline-stage download_only \
+	  $${AUDIO_CACHE_IN_CORPUS:+--audio-cache-in-corpus}
+
+# Strict existing-only re-diarization MIGRATION (#876/#946). Like redo-diarization but
+# adds --reprocess-existing-only: the episode set is restricted to GUIDs already on disk
+# under each feed's run_*/metadata/. New feed items are dropped and max/offset/date caps
+# are ignored, so the corpus NEVER grows -- a migration of existing data while ingestion
+# is paused, not an ingest. Audio comes from the #947 raw-audio cache when present (run
+# ``make download-audio`` first to prime it -> cache HIT, no feed fetch, and rolled-off
+# episodes stay re-diarizable); otherwise it is re-fetched from the live feed enclosure
+# and cached for next time. Aborts loudly if no on-disk GUIDs are found (mis-pointed
+# CORPUS_DIR). Set AUDIO_CACHE_IN_CORPUS=1 to keep the cache inside the corpus.
+#   make migrate-diarization CORPUS_DIR=<corpus> PROFILE=config/profiles/cloud_with_dgx_primary.yaml
+migrate-diarization:
+	@test -n "$${CORPUS_DIR:-}" || { echo "CORPUS_DIR required (corpus parent path)"; exit 1; }; \
+	test -n "$${PROFILE:-}" || { echo "PROFILE required (a diarization-enabled profile, e.g. config/profiles/cloud_with_dgx_primary.yaml)"; exit 1; }; \
+	test -f "$${CORPUS_DIR}/feeds.spec.yaml" || { echo "Missing $${CORPUS_DIR}/feeds.spec.yaml"; exit 1; }; \
+	echo "Migrating (existing-only) whisper_transcription episodes in $${CORPUS_DIR} under $${PROFILE}..."; \
+	$(HF_NET_ENV) $(PYTHON) -m podcast_scraper.cli \
+	  --config "$${PROFILE}" \
+	  --feeds-spec "$${CORPUS_DIR}/feeds.spec.yaml" \
+	  --output-dir "$${CORPUS_DIR}" \
+	  --skip-existing \
+	  --reprocess-source whisper_transcription \
+	  --reprocess-existing-only; \
 	echo "Re-deriving relational edges (corpus-wide SPOKEN_BY)..."; \
 	$(PYTHON) -m podcast_scraper.cli enrich-edges --output-dir "$${CORPUS_DIR}"
 
@@ -2081,6 +2130,13 @@ ci-ui-full:
 	echo ""; echo "=== ci-ui-full [$$(date '+%Y-%m-%d %H:%M:%S')] stack-test-ml-ci ==="; $(MAKE) stack-test-ml-ci; \
 	echo ""; echo "=== ci-ui-full DONE $$(date '+%Y-%m-%d %H:%M:%S') ==="; echo ""
 
+# Synthetic validation corpus root — MUST include the FIXTURES_VERSION subdir
+# (e.g. ``.../viewer-validation-corpus/v2``). The raw ``feeds/<feed>/metadata/``
+# artifacts that serve-api computes episodes from live under the version dir, NOT
+# the version-less parent — pointing the walk at the parent discovers 0 episodes
+# (empty Library → every handoff spec fails on the first row-click).
+VIEWER_VALIDATION_CORPUS := $(PWD)/tests/fixtures/viewer-validation-corpus/$(shell cat tests/fixtures/FIXTURES_VERSION 2>/dev/null || echo v2)
+
 ci-ui-validation:
 	# Tier-3 real-backend validation walk (RFC-086 / ADR-095). Drives the
 	# viewer against a running ``make serve`` stack + an on-disk corpus.
@@ -2099,7 +2155,7 @@ ci-ui-validation:
 		echo "  1) Start server pointed at the repo root:"; \
 		echo "       make serve-for-validation"; \
 		echo "  2) Run validation against the synthetic corpus:"; \
-		echo "       make ci-ui-validation CORPUS=$(PWD)/tests/fixtures/viewer-validation-corpus"; \
+		echo "       make ci-ui-validation CORPUS=$(VIEWER_VALIDATION_CORPUS)"; \
 		exit 2; \
 	fi
 	@echo "=== ci-ui-validation against $(CORPUS) ==="
@@ -2115,30 +2171,46 @@ serve-for-validation:
 	# target points at the repo root so ``tests/fixtures/viewer-validation-corpus``
 	# is reachable. Use a separate terminal: ``make serve-for-validation``.
 	@echo "Starting API + UI with SERVE_OUTPUT_DIR=$(PWD) (repo root)."
-	@echo "Synthetic validation corpus is at:"
-	@echo "  $(PWD)/tests/fixtures/viewer-validation-corpus"
+	@echo "Synthetic validation corpus root (pass this as CORPUS=):"
+	@echo "  $(VIEWER_VALIDATION_CORPUS)"
 	@SERVE_OUTPUT_DIR=$(PWD) $(MAKE) -j2 serve-api serve-ui
 
 build-validation-index:
-	# Build the FAISS index + topic_clusters.json against the in-repo
-	# synthetic validation corpus so V2 (digest topic-band) and V4
-	# (dashboard topic-cluster chip) can be exercised. Run this BEFORE
-	# ``make serve-for-validation`` if you want V2/V4 to work — V1/V5
-	# do not require it.
-	@CORPUS=$(if $(CORPUS),$(CORPUS),$(PWD)/tests/fixtures/viewer-validation-corpus); \
-	echo "=== Building FAISS index at $$CORPUS/search ==="; \
+	# Build ALL search artifacts the Tier-3 walk needs, against the in-repo
+	# synthetic validation corpus. Run this BEFORE ``make serve-for-validation``.
+	# Unlocks the index-dependent specs (V1/V5 — Library/Digest handoffs — do NOT
+	# need any of this; they pass on the path fix alone):
+	#   1. FAISS flat index (vectors.faiss + sidecars) — required for V3
+	#      (semantic search → Show on graph). Without it V3 is SKIPPED
+	#      (test.skip on ``!indexJson.available``).
+	#   2. LanceDB two-tier index (search/lance_index/) — the current search
+	#      layer on top of FAISS (native BM25 + hybrid RRF). serve-api uses it
+	#      when present (hybrid_enabled default on) and falls back to FAISS if
+	#      absent, so V3 passes either way — but building it makes the synthetic
+	#      corpus match prod's two-tier layout and exercises the real hybrid path.
+	#   3. topic_clusters.json — required for V2 (digest topic-band) and V4
+	#      (dashboard topic-cluster chip). Without it the Intelligence tab shows
+	#      "Topic clusters not yet built" → no chips → V4 fails.
+	# All three live under <corpus>/search/ and are gitignored (binary,
+	# embedding-model-hash-keyed, regenerable) — never committed.
+	@CORPUS=$(if $(CORPUS),$(CORPUS),$(VIEWER_VALIDATION_CORPUS)); \
+	echo "=== 1/3 Building FAISS flat index at $$CORPUS/search ==="; \
 	$(PYTHON) -m podcast_scraper.cli index \
 		--output-dir $$CORPUS \
 		--rebuild --vector-faiss-index-mode flat
-	@CORPUS=$(if $(CORPUS),$(CORPUS),$(PWD)/tests/fixtures/viewer-validation-corpus); \
-	echo "=== Building topic_clusters.json at $$CORPUS/search ==="; \
+	@CORPUS=$(if $(CORPUS),$(CORPUS),$(VIEWER_VALIDATION_CORPUS)); \
+	echo "=== 2/3 Building LanceDB two-tier index at $$CORPUS/search/lance_index ==="; \
+	$(PYTHON) -m podcast_scraper.cli index-two-tier \
+		--output-dir $$CORPUS
+	@CORPUS=$(if $(CORPUS),$(CORPUS),$(VIEWER_VALIDATION_CORPUS)); \
+	echo "=== 3/3 Building topic_clusters.json at $$CORPUS/search ==="; \
 	$(PYTHON) -m podcast_scraper.cli topic-clusters \
 		--output-dir $$CORPUS \
 		--threshold 0.35
 	@echo ""
-	@echo "Done. Now run:"
+	@echo "Done — FAISS + LanceDB two-tier + topic_clusters built. Now run:"
 	@echo "  make serve-for-validation       (terminal 1)"
-	@echo "  make ci-ui-validation CORPUS=\$$PWD/tests/fixtures/viewer-validation-corpus  (terminal 2)"
+	@echo "  make ci-ui-validation CORPUS=$(VIEWER_VALIDATION_CORPUS)  (terminal 2)"
 
 ci-clean: clean-all format-check lint lint-markdown type security complexity deadcode docstrings spelling check-test-policy preload-ml-models test test-ui test-ui-e2e build-viewer coverage-enforce docs build
 

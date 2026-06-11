@@ -1,8 +1,13 @@
+// @vitest-environment happy-dom
 import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { dirname, resolve } from 'node:path'
 
+import { mount } from '@vue/test-utils'
 import { describe, expect, it } from 'vitest'
+
+import type { BridgePartitionSummary } from '../../api/corpusLibraryApi'
+import EpisodeBridgePartition from './EpisodeBridgePartition.vue'
 
 /**
  * #656 Stage B — invariants on the per-episode bridge partition indicator.
@@ -70,5 +75,70 @@ describe('EpisodeBridgePartition.vue — shape + safety invariants', () => {
   it('exposes stable test-ids per partition cell', () => {
     expect(source).toMatch(/`bridge-partition-\$\{cell\.key\}`/)
     expect(source).toMatch(/'episode-bridge-partition'/)
+  })
+})
+
+// ── @vue/test-utils mount tests (render states + props + a11y) ────────────────
+
+function partitionOf(over: Partial<BridgePartitionSummary> = {}): BridgePartitionSummary {
+  return { gi_only: 3, kg_only: 4, both: 5, total: 12, ...over }
+}
+
+const ROW = '[data-testid="episode-bridge-partition"]'
+
+describe('EpisodeBridgePartition.vue — mount behaviour', () => {
+  it('renders nothing when partition is null', () => {
+    const w = mount(EpisodeBridgePartition, { props: { partition: null } })
+    expect(w.find(ROW).exists()).toBe(false)
+  })
+
+  it('renders nothing when partition is undefined', () => {
+    const w = mount(EpisodeBridgePartition, { props: { partition: undefined } })
+    expect(w.find(ROW).exists()).toBe(false)
+  })
+
+  it('renders nothing when partition total is 0 (present but empty)', () => {
+    const w = mount(EpisodeBridgePartition, {
+      props: { partition: partitionOf({ gi_only: 0, kg_only: 0, both: 0, total: 0 }) },
+    })
+    expect(w.find(ROW).exists()).toBe(false)
+  })
+
+  it('renders the three partition cells with their counts when populated', () => {
+    const w = mount(EpisodeBridgePartition, { props: { partition: partitionOf() } })
+    expect(w.find(ROW).exists()).toBe(true)
+    expect(w.get('[data-testid="bridge-partition-gi_only"]').text()).toContain('3')
+    expect(w.get('[data-testid="bridge-partition-both"]').text()).toContain('5')
+    expect(w.get('[data-testid="bridge-partition-kg_only"]').text()).toContain('4')
+  })
+
+  it('shows the total identities in the header', () => {
+    const w = mount(EpisodeBridgePartition, { props: { partition: partitionOf({ total: 99 }) } })
+    expect(w.get(ROW).text()).toContain('99 identities')
+  })
+
+  it('labels each cell and exposes a screen-reader aria-label with the count', () => {
+    const w = mount(EpisodeBridgePartition, { props: { partition: partitionOf() } })
+    const both = w.get('[data-testid="bridge-partition-both"]')
+    expect(both.text()).toContain('Both')
+    expect(both.attributes('aria-label')).toBe('Both: 5 identities')
+    expect(both.attributes('title')).toContain('overlap signal')
+  })
+
+  it('wraps the cells in a screen-reader partition group', () => {
+    const w = mount(EpisodeBridgePartition, { props: { partition: partitionOf() } })
+    const row = w.get(ROW)
+    expect(row.attributes('role')).toBe('group')
+    expect(row.attributes('aria-label')).toBe('Bridge partition summary')
+  })
+
+  it('honours a custom dataTestid for the row wrapper', () => {
+    const w = mount(EpisodeBridgePartition, {
+      props: { partition: partitionOf(), dataTestid: 'custom-bridge' },
+    })
+    expect(w.find('[data-testid="custom-bridge"]').exists()).toBe(true)
+    expect(w.find(ROW).exists()).toBe(false)
+    // Cell testids are independent of the row testid override.
+    expect(w.find('[data-testid="bridge-partition-both"]').exists()).toBe(true)
   })
 })

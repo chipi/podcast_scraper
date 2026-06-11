@@ -137,6 +137,16 @@ def _to_search_result(result: ScoredResult) -> SearchResult:
         metadata["timestamp_end_ms"] = int(float(payload.get("end_time") or 0.0) * 1000)
     if payload.get("speaker_id"):
         metadata["speaker_id"] = payload["speaker_id"]
+    # Carry the episode publish date (parity with FAISS rows) so the shared
+    # date/``since`` filter — and digest topic-band window join — work on the
+    # hybrid path. Without it, every hybrid hit is dropped whenever ``since`` is set.
+    if payload.get("publish_date"):
+        metadata["publish_date"] = payload["publish_date"]
+    # Canonical graph node id (parity with FAISS) so a result's "Show on graph"
+    # affordance resolves — the viewer reads metadata.source_id for focusable tiers
+    # (insight / quote / kg_topic / kg_entity). Absent it, no graph handoff renders.
+    if payload.get("source_id"):
+        metadata["source_id"] = payload["source_id"]
     return SearchResult(doc_id=str(result.doc_id), score=float(result.score), metadata=metadata)
 
 
@@ -182,6 +192,25 @@ def hybrid_candidates(
     if not os.path.isdir(index_dir_str):
         return None
     index_dir = Path(index_dir_str)
+
+    # Self-healing schema guard: an index built before a schema bump lacks columns the
+    # read path expects (e.g. publish_date → date filters silently drop every hit), so
+    # skip it and serve via FAISS until a (re)index moment rebuilds it.
+    from .backends.lancedb_backend import (
+        lance_index_is_stale,
+        LANCE_SCHEMA_VERSION,
+        stored_schema_version,
+    )
+
+    if lance_index_is_stale(index_dir):
+        logger.warning(
+            "hybrid_search: lance index at %s has a stale schema (v%s < v%s); falling "
+            "back to FAISS — rebuild via `cli index-two-tier` or `cli upgrade`",
+            index_dir,
+            stored_schema_version(index_dir),
+            LANCE_SCHEMA_VERSION,
+        )
+        return None
 
     try:
         from .backends.lancedb_backend import LanceDBBackend

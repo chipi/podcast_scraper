@@ -136,6 +136,83 @@ def test_linking_populates_compounds(tmp_path, monkeypatch):
     assert compounds, "linked insight+segment must dedup into a CompoundResult"
 
 
+def test_faiss_metadata_parity_publish_date_and_source_id(tmp_path, monkeypatch):
+    """Regression: hybrid hits must carry FAISS-parity metadata fields.
+
+    - ``publish_date``: the shared ``since`` filter drops any hit lacking it, which
+      silently zeroed out the digest topic-bands (always pass a ``since`` bound) when
+      a corpus was served via LanceDB instead of FAISS.
+    - ``source_id``: the viewer's "Show on graph" affordance reads it (focusable
+      tiers) to resolve the graph node; without it the handoff never renders.
+    """
+    rows = [
+        (
+            "insight:1",
+            "The central bank is shifting monetary policy",
+            {
+                "doc_type": "insight",
+                "episode_id": "ep1",
+                "feed_id": "show1",
+                "grounded": True,
+                "publish_date": "2026-06-07",
+                "source_id": "insight:n1",
+            },
+        ),
+        (
+            "kg_topic:1",
+            "monetary policy",
+            {
+                "doc_type": "kg_topic",
+                "episode_id": "ep1",
+                "feed_id": "show1",
+                "publish_date": "2026-06-07",
+                "source_id": "topic:monetary-policy",
+            },
+        ),
+    ]
+    _stub_extraction(monkeypatch, tmp_path, rows)
+    corpus = tmp_path / "corpus"
+    (corpus / "metadata").mkdir(parents=True)
+    lance = corpus / "search" / "lance_index"
+    tti.build_two_tier_index(corpus, lance)
+
+    rows_out = hs.hybrid_candidates(corpus, "monetary policy", top_k=5)
+    assert rows_out is not None and rows_out
+    # Every hit (insight + aux tier) carries the episode publish date.
+    assert all(r.metadata.get("publish_date") == "2026-06-07" for r in rows_out)
+    # The focusable kg_topic hit carries its canonical graph node id.
+    topic_hit = next(r for r in rows_out if r.metadata.get("doc_type") == "kg_topic")
+    assert topic_hit.metadata.get("source_id") == "topic:monetary-policy"
+
+
+def test_stale_schema_is_detected_and_read_falls_back(tmp_path, monkeypatch):
+    """A pre-schema-bump index is flagged stale, so the read path skips it (FAISS)."""
+    from podcast_scraper.search.backends import lancedb_backend as lb
+
+    rows = [("insight:1", "x", {"doc_type": "insight", "episode_id": "ep1", "feed_id": "s"})]
+    _stub_extraction(monkeypatch, tmp_path, rows)
+    corpus = tmp_path / "corpus"
+    (corpus / "metadata").mkdir(parents=True)
+    lance = corpus / "search" / "lance_index"
+    tti.build_two_tier_index(corpus, lance)
+
+    # Fresh build is current-schema → not stale → served.
+    assert lb.stored_schema_version(lance) == lb.LANCE_SCHEMA_VERSION
+    assert lb.lance_index_is_stale(lance) is False
+    assert hs.hybrid_candidates(corpus, "x", top_k=5) is not None
+
+    # Simulate a pre-versioning index (meta without schema_version → version 1).
+    import json
+
+    meta = json.loads((lance / "index_meta.json").read_text())
+    meta.pop("schema_version", None)
+    (lance / "index_meta.json").write_text(json.dumps(meta))
+    assert lb.stored_schema_version(lance) == 1
+    assert lb.lance_index_is_stale(lance) is True
+    # Read path must skip a stale index and defer to FAISS (returns None).
+    assert hs.hybrid_candidates(corpus, "x", top_k=5) is None
+
+
 def test_limit_episodes_caps_walk(tmp_path, monkeypatch):
     rows = [("insight:1", "x", {"doc_type": "insight", "episode_id": "ep1", "feed_id": "s"})]
     # Two metadata files, but limit_episodes=0 stops before any work.

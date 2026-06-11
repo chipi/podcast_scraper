@@ -6,6 +6,7 @@ import {
   fetchCorpusFeeds,
   fetchCorpusSimilarEpisodes,
   fetchNodeEpisodes,
+  fetchResolveEpisodeArtifacts,
   GRAPH_NODE_EPISODES_EXPAND_MAX,
 } from './corpusLibraryApi'
 
@@ -141,6 +142,73 @@ describe('corpusLibraryApi', () => {
       const called = vi.mocked(fetch).mock.calls[0][0] as string
       expect(called).toContain('topic_cluster_only=true')
     })
+
+    it('passes until when set and skips it when blank', async () => {
+      const payload = { path: '/r', feed_id: null, items: [], next_cursor: null }
+      mockFetchJson(true, payload)
+      await fetchCorpusEpisodes('/c', { until: '  2025-12-31  ' })
+      expect(vi.mocked(fetch).mock.calls[0][0] as string).toContain('until=2025-12-31')
+
+      mockFetchJson(true, payload)
+      await fetchCorpusEpisodes('/c', { until: '   ' })
+      expect(vi.mocked(fetch).mock.calls[0][0] as string).not.toMatch(/[&?]until=/)
+    })
+
+    it('sets has_gi=true when hasGi is true', async () => {
+      const payload = { path: '/r', feed_id: null, items: [], next_cursor: null }
+      mockFetchJson(true, payload)
+      await fetchCorpusEpisodes('/c', { hasGi: true })
+      expect(vi.mocked(fetch).mock.calls[0][0] as string).toContain('has_gi=true')
+    })
+
+    it('sets has_gi=false when hasGi is false', async () => {
+      const payload = { path: '/r', feed_id: null, items: [], next_cursor: null }
+      mockFetchJson(true, payload)
+      await fetchCorpusEpisodes('/c', { hasGi: false })
+      expect(vi.mocked(fetch).mock.calls[0][0] as string).toContain('has_gi=false')
+    })
+
+    it('omits has_gi when hasGi is undefined', async () => {
+      const payload = { path: '/r', feed_id: null, items: [], next_cursor: null }
+      mockFetchJson(true, payload)
+      await fetchCorpusEpisodes('/c', {})
+      expect(vi.mocked(fetch).mock.calls[0][0] as string).not.toMatch(/has_gi=/)
+    })
+
+    it('includes limit=0 (limit != null) and omits a null cursor', async () => {
+      const payload = { path: '/r', feed_id: null, items: [], next_cursor: null }
+      mockFetchJson(true, payload)
+      await fetchCorpusEpisodes('/c', { limit: 0, cursor: null })
+      const called = vi.mocked(fetch).mock.calls[0][0] as string
+      expect(called).toContain('limit=0')
+      expect(called).not.toMatch(/cursor=/)
+    })
+
+    it('returns total when the server supplies it', async () => {
+      const payload = {
+        path: '/r',
+        feed_id: null,
+        items: [],
+        next_cursor: 'next-page',
+        total: 42,
+      }
+      mockFetchJson(true, payload)
+      const r = await fetchCorpusEpisodes('/c', {})
+      expect(r.total).toBe(42)
+      expect(r.next_cursor).toBe('next-page')
+    })
+
+    it('throws upgrade hint on 404', async () => {
+      mockFetchJson(false, {}, '', 404)
+      await expect(fetchCorpusEpisodes('/c', {})).rejects.toThrow(
+        /Corpus Library endpoint not found/,
+      )
+    })
+
+    it('throws response text on a non-404 error', async () => {
+      mockFetchJson(false, {}, 'boom', 500)
+      await expect(fetchCorpusEpisodes('/c', {})).rejects.toThrow('boom')
+    })
   })
 
   describe('fetchCorpusEpisodeDetail', () => {
@@ -168,6 +236,20 @@ describe('corpusLibraryApi', () => {
         '/api/corpus/episodes/detail?path=%2Froot&metadata_relpath=metadata%2Fa.metadata.json',
       )
     })
+
+    it('throws upgrade hint on 404', async () => {
+      mockFetchJson(false, {}, '', 404)
+      await expect(
+        fetchCorpusEpisodeDetail('/root', 'metadata/a.metadata.json'),
+      ).rejects.toThrow(/Corpus Library endpoint not found/)
+    })
+
+    it('throws response text on a non-404 error', async () => {
+      mockFetchJson(false, {}, 'detail failed', 500)
+      await expect(
+        fetchCorpusEpisodeDetail('/root', 'metadata/a.metadata.json'),
+      ).rejects.toThrow('detail failed')
+    })
   })
 
   describe('fetchCorpusSimilarEpisodes', () => {
@@ -184,6 +266,96 @@ describe('corpusLibraryApi', () => {
       await fetchCorpusSimilarEpisodes('/root', 'metadata/a.metadata.json', { topK: 5 })
       expectFetchCalledWithUrl(
         '/api/corpus/episodes/similar?path=%2Froot&metadata_relpath=metadata%2Fa.metadata.json&top_k=5',
+      )
+    })
+
+    it('omits top_k when options.topK is not provided', async () => {
+      const payload: CorpusSimilarEpisodesResponse = {
+        path: '/r',
+        source_metadata_relative_path: 'metadata/a.metadata.json',
+        query_used: 'q',
+        items: [],
+        error: null,
+        detail: null,
+      }
+      mockFetchJson(true, payload)
+      await fetchCorpusSimilarEpisodes('/root', 'metadata/a.metadata.json')
+      const called = vi.mocked(fetch).mock.calls[0][0] as string
+      expect(called).not.toMatch(/top_k=/)
+    })
+
+    it('throws upgrade hint on 404', async () => {
+      mockFetchJson(false, {}, '', 404)
+      await expect(
+        fetchCorpusSimilarEpisodes('/root', 'metadata/a.metadata.json'),
+      ).rejects.toThrow(/Corpus Library endpoint not found/)
+    })
+
+    it('throws response text on a non-404 error', async () => {
+      mockFetchJson(false, {}, 'similar failed', 500)
+      await expect(
+        fetchCorpusSimilarEpisodes('/root', 'metadata/a.metadata.json'),
+      ).rejects.toThrow('similar failed')
+    })
+  })
+
+  describe('fetchResolveEpisodeArtifacts', () => {
+    it('POSTs path and trimmed/filtered episode_ids and returns parsed body', async () => {
+      const payload = {
+        path: '/c',
+        resolved: [
+          {
+            episode_id: 'e1',
+            publish_date: '2024-01-01',
+            gi_relative_path: 'metadata/e1.gi.json',
+            kg_relative_path: 'metadata/e1.kg.json',
+            bridge_relative_path: null,
+          },
+        ],
+        missing_episode_ids: ['e2'],
+      }
+      mockFetchJson(true, payload)
+      await expect(
+        fetchResolveEpisodeArtifacts('  /c  ', ['  e1  ', '', '  ', 'e2']),
+      ).resolves.toEqual(payload)
+      expect(fetch).toHaveBeenCalledWith(
+        '/api/corpus/resolve-episode-artifacts',
+        expect.objectContaining({
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ path: '/c', episode_ids: ['e1', 'e2'] }),
+          signal: expect.any(AbortSignal),
+        }),
+      )
+    })
+
+    it('rejects when corpus path is blank without calling fetch', async () => {
+      mockFetchJson(true, {})
+      await expect(fetchResolveEpisodeArtifacts('   ', ['e1'])).rejects.toThrow(
+        'Corpus path is required',
+      )
+      expect(fetch).not.toHaveBeenCalled()
+    })
+
+    it('rejects when no valid episode ids remain after filtering', async () => {
+      mockFetchJson(true, {})
+      await expect(fetchResolveEpisodeArtifacts('/c', ['  ', ''])).rejects.toThrow(
+        'At least one episode id is required',
+      )
+      expect(fetch).not.toHaveBeenCalled()
+    })
+
+    it('throws upgrade hint on 404', async () => {
+      mockFetchJson(false, {}, '', 404)
+      await expect(fetchResolveEpisodeArtifacts('/c', ['e1'])).rejects.toThrow(
+        /Corpus Library endpoint not found/,
+      )
+    })
+
+    it('throws response text on a non-404 error', async () => {
+      mockFetchJson(false, {}, 'resolve failed', 500)
+      await expect(fetchResolveEpisodeArtifacts('/c', ['e1'])).rejects.toThrow(
+        'resolve failed',
       )
     })
   })
@@ -240,6 +412,68 @@ describe('corpusLibraryApi', () => {
         node_id: 'topic:x',
         max_episodes: GRAPH_NODE_EPISODES_EXPAND_MAX,
       })
+    })
+
+    it('omits max_episodes when maxEpisodes is zero or negative', async () => {
+      const payload = {
+        path: '/c',
+        node_id: 'topic:x',
+        episodes: [],
+        truncated: false,
+        total_matched: null,
+      }
+      mockFetchJson(true, payload)
+      await fetchNodeEpisodes('/c', 'topic:x', 0)
+      expect(
+        JSON.parse((vi.mocked(fetch).mock.calls[0][1] as RequestInit).body as string),
+      ).toEqual({ path: '/c', node_id: 'topic:x' })
+
+      mockFetchJson(true, payload)
+      await fetchNodeEpisodes('/c', 'topic:x', -5)
+      expect(
+        JSON.parse((vi.mocked(fetch).mock.calls[0][1] as RequestInit).body as string),
+      ).toEqual({ path: '/c', node_id: 'topic:x' })
+    })
+
+    it('trims node_id before sending', async () => {
+      const payload = {
+        path: '/c',
+        node_id: 'topic:x',
+        episodes: [],
+        truncated: false,
+        total_matched: null,
+      }
+      mockFetchJson(true, payload)
+      await fetchNodeEpisodes('/c', '  topic:x  ')
+      expect(
+        JSON.parse((vi.mocked(fetch).mock.calls[0][1] as RequestInit).body as string),
+      ).toEqual({ path: '/c', node_id: 'topic:x' })
+    })
+
+    it('rejects when corpus path is blank without calling fetch', async () => {
+      mockFetchJson(true, {})
+      await expect(fetchNodeEpisodes('   ', 'topic:x')).rejects.toThrow(
+        'Corpus path is required',
+      )
+      expect(fetch).not.toHaveBeenCalled()
+    })
+
+    it('rejects when node_id is blank without calling fetch', async () => {
+      mockFetchJson(true, {})
+      await expect(fetchNodeEpisodes('/c', '   ')).rejects.toThrow('node_id is required')
+      expect(fetch).not.toHaveBeenCalled()
+    })
+
+    it('throws upgrade hint on 404', async () => {
+      mockFetchJson(false, {}, '', 404)
+      await expect(fetchNodeEpisodes('/c', 'topic:x')).rejects.toThrow(
+        /Corpus Library endpoint not found/,
+      )
+    })
+
+    it('throws response text on a non-404 error', async () => {
+      mockFetchJson(false, {}, 'node failed', 500)
+      await expect(fetchNodeEpisodes('/c', 'topic:x')).rejects.toThrow('node failed')
     })
   })
 })

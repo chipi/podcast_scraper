@@ -1,8 +1,12 @@
+// @vitest-environment happy-dom
 import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { dirname, resolve } from 'node:path'
 
+import { mount } from '@vue/test-utils'
 import { describe, expect, it } from 'vitest'
+
+import DiagnosticRow from './DiagnosticRow.vue'
 
 /**
  * Pre-#656 foundation: invariants on the shared DiagnosticRow primitive.
@@ -56,5 +60,82 @@ describe('DiagnosticRow.vue — shape + safety invariants', () => {
 
   it('exposes dataTestid hook for e2e selection', () => {
     expect(source).toMatch(/:data-testid="dataTestid"/)
+  })
+})
+
+describe('DiagnosticRow.vue — mount behaviour', () => {
+  const mountRow = (props: Record<string, unknown> = {}) =>
+    mount(DiagnosticRow, {
+      props: { label: 'Bridge', value: 'partition-a', ...props },
+      attachTo: document.body,
+    })
+
+  it('renders the label in a <dt> and the value in a <dd>', () => {
+    const w = mountRow()
+    expect(w.get('dt').text()).toBe('Bridge')
+    expect(w.get('dd').text()).toBe('partition-a')
+  })
+
+  it('renders a numeric value by stringifying it', () => {
+    const w = mountRow({ value: 42 })
+    expect(w.get('dd').text()).toBe('42')
+  })
+
+  it('renders a zero numeric value (no falsy drop)', () => {
+    const w = mountRow({ value: 0 })
+    expect(w.get('dd').text()).toBe('0')
+  })
+
+  it('renders no chip by default (no kind/badge)', () => {
+    const w = mountRow()
+    expect(w.find('span').exists()).toBe(false)
+  })
+
+  it('renders no chip for the explicit "default" kind even with a badge', () => {
+    const w = mountRow({ kind: 'default', badge: 'ml' })
+    expect(w.find('span').exists()).toBe(false)
+  })
+
+  it('renders no chip when a non-default kind is set but the badge is missing', () => {
+    const w = mountRow({ kind: 'info' })
+    expect(w.find('span').exists()).toBe(false)
+  })
+
+  it('renders the info chip with badge text and the info colour class', () => {
+    const w = mountRow({ kind: 'info', badge: 'ml' })
+    const chip = w.get('span')
+    expect(chip.text()).toBe('ml')
+    expect(chip.classes().join(' ')).toContain('text-primary')
+  })
+
+  it('renders the warning chip colour class', () => {
+    const w = mountRow({ kind: 'warning', badge: 'filtered' })
+    expect(w.get('span').classes().join(' ')).toContain('text-warning')
+  })
+
+  it('renders the success chip colour class', () => {
+    const w = mountRow({ kind: 'success', badge: 'ok' })
+    expect(w.get('span').classes().join(' ')).toContain('text-success')
+  })
+
+  it('does not set a title attribute when no tooltip is given', () => {
+    const w = mountRow()
+    expect(w.get('[data-testid], div').attributes('title')).toBeUndefined()
+  })
+
+  it('maps tooltip to the native title attribute', () => {
+    const w = mountRow({ tooltip: 'hover help' })
+    // The outermost row div carries the title.
+    expect(w.element.getAttribute('title')).toBe('hover help')
+  })
+
+  it('applies the dataTestid hook to the row', () => {
+    const w = mountRow({ dataTestid: 'diag-bridge' })
+    expect(w.find('[data-testid="diag-bridge"]').exists()).toBe(true)
+  })
+
+  it('renders an empty-string value without crashing', () => {
+    const w = mountRow({ value: '' })
+    expect(w.get('dd').text()).toBe('')
   })
 })

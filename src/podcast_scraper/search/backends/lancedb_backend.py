@@ -33,6 +33,13 @@ if TYPE_CHECKING:  # pragma: no cover - typing only
 # all-MiniLM-L6-v2 dimensionality (matches the existing FAISS index).
 DEFAULT_EMBED_DIM = 384
 
+# Bump whenever the stored table schema changes so existing indexes self-heal:
+# read paths fall back to FAISS on a stale index and (re)index moments rebuild it.
+#   1 — initial two-tier schema (#855)
+#   2 — FAISS-parity fields: ``publish_date`` (date/``since`` filter) on all tiers +
+#       ``source_id`` (canonical graph node id → "Show on graph") on insight/aux
+LANCE_SCHEMA_VERSION = 2
+
 _SEGMENT_TABLE = "segments"
 _INSIGHT_TABLE = "insights"
 _AUX_TABLE = "aux"
@@ -53,6 +60,7 @@ def _segment_schema(dim: int) -> "pa.Schema":
             ("end_time", pa.float64()),
             ("linked_insight_ids", pa.list_(pa.string())),
             ("source_tier", pa.string()),
+            ("publish_date", pa.string()),
         ]
     )
 
@@ -73,6 +81,8 @@ def _insight_schema(dim: int) -> "pa.Schema":
             ("derived", pa.bool_()),
             ("source_segment_id", pa.string()),
             ("source_tier", pa.string()),
+            ("publish_date", pa.string()),
+            ("source_id", pa.string()),
         ]
     )
 
@@ -89,6 +99,8 @@ def _aux_schema(dim: int) -> "pa.Schema":
             ("episode_id", pa.string()),
             ("doc_type", pa.string()),  # kg_entity | kg_topic | quote | summary
             ("source_tier", pa.string()),
+            ("publish_date", pa.string()),
+            ("source_id", pa.string()),
         ]
     )
 
@@ -131,7 +143,11 @@ class LanceDBBackend:
         meta_path = normpath_if_under_root(os.path.normpath(verified), root_s)
         if not meta_path:
             return
-        meta = {"embedding_model": embedding_model, "embed_dim": self.embed_dim}
+        meta = {
+            "embedding_model": embedding_model,
+            "embed_dim": self.embed_dim,
+            "schema_version": LANCE_SCHEMA_VERSION,
+        }
         # codeql[py/path-injection] -- meta_path via normpath_if_under_root (Type 1).
         with open(meta_path, "w", encoding="utf-8") as fh:
             json.dump(meta, fh)
@@ -296,3 +312,61 @@ class LanceDBBackend:
             }
         except Exception as exc:  # noqa: BLE001
             return {"status": "error", "error": str(exc)}
+
+
+def stored_schema_version(lance_path: Path | str) -> Optional[int]:
+    """Schema version recorded in a lance index's ``index_meta.json``.
+
+    ``None`` when no index/meta exists; ``1`` for a pre-versioning index (meta present
+    but no ``schema_version`` key — the initial #855 layout, before this field existed).
+    """
+    import json
+    import os
+
+    # py/path-injection sanitiser chain (same as read_index_meta): resolve the corpus
+    # dir, confine the CONSTANT "index_meta.json" subpath under it, then normalise. The
+    # filename literal mirrors LanceDBBackend.INDEX_META_FILE (kept literal so this stays
+    # correct when callers monkeypatch the backend class in tests).
+    root_res = safe_resolve_directory(Path(lance_path))
+    if root_res is None:
+        return None
+    root_s = os.path.normpath(str(root_res))
+    verified = safe_relpath_under_corpus_root(root_res, "index_meta.json")
+    if not verified:
+        return None
+    meta_path = normpath_if_under_root(os.path.normpath(verified), root_s)
+    if not meta_path:
+        return None
+    # codeql[py/path-injection] -- meta_path via normpath_if_under_root (Type 1).
+    if not os.path.isfile(meta_path):
+        return None
+    try:
+        # codeql[py/path-injection] -- meta_path via normpath_if_under_root (Type 1).
+        with open(meta_path, encoding="utf-8") as fh:
+            data = json.load(fh)
+    except (OSError, ValueError):
+        return None
+    if not isinstance(data, dict):
+        return None
+    v = data.get("schema_version")
+    return int(v) if isinstance(v, int) else 1
+
+
+def lance_index_is_stale(lance_path: Path | str) -> bool:
+    """True when a lance index dir exists but its schema predates the code's.
+
+    A stale index lacks columns the current read path expects (e.g. ``publish_date``),
+    so read paths must skip it (FAISS fallback) and (re)index moments must rebuild it
+    rather than upsert into the incompatible schema.
+
+    Requires *positive evidence* of an older schema: an existing ``index_meta.json``
+    whose version is below the code's. A missing/unreadable meta is treated as
+    not-stale — a real build always writes meta, so an absent one is an ambiguous
+    partial/empty dir (the build path's own "already exists" no-op handles that), and
+    the read path's try/except still falls back to FAISS if such an index can't serve.
+    """
+    p = safe_resolve_directory(Path(lance_path))
+    if p is None or not Path(p).is_dir():
+        return False
+    v = stored_schema_version(lance_path)
+    return v is not None and v < LANCE_SCHEMA_VERSION

@@ -5,8 +5,10 @@ This module handles RSS feed fetching, parsing, and episode preparation.
 
 from __future__ import annotations
 
+import json
 import logging
-from typing import Any, List, TYPE_CHECKING
+from pathlib import Path
+from typing import Any, List, Set, TYPE_CHECKING
 
 from ... import config, models
 
@@ -18,6 +20,7 @@ else:
 from ...rss import (
     create_episode_from_item,
     extract_feed_metadata,
+    extract_item_guid,
     published_date_for_episode_filter,
 )
 from ..types import FeedMetadata
@@ -99,6 +102,88 @@ def extract_feed_metadata_for_generation(
         return FeedMetadata(None, None, None)
 
 
+def collect_existing_guids(output_dir: str) -> Set[str]:
+    """Collect the GUIDs of episodes already persisted under ``output_dir``.
+
+    Scans ``output_dir/run_*/metadata/*.metadata.json`` (the per-feed corpus
+    layout — ``cfg.output_dir`` is already the feed leaf during selection) and
+    reads each ``episode.guid``. Used by the #876 existing-only migration mode to
+    restrict the episode set to data already on disk. Dedupes the cross-run
+    duplicate dirs into a set; corrupt or guid-less files are skipped, not fatal.
+    """
+    root = Path(output_dir)
+    # Per-feed leaf layout, plus a defensive fallback for a flat single-run dir.
+    patterns = ("run_*/metadata/*.metadata.json", "metadata/*.metadata.json")
+    guids: Set[str] = set()
+    scanned = 0
+    for pattern in patterns:
+        for meta_path in root.glob(pattern):
+            scanned += 1
+            try:
+                data = json.loads(meta_path.read_text(encoding="utf-8"))
+            except (OSError, ValueError) as exc:
+                logger.debug("Skipping unreadable metadata %s: %s", meta_path, exc)
+                continue
+            guid = (data.get("episode") or {}).get("guid")
+            if isinstance(guid, str) and guid.strip():
+                guids.add(guid.strip())
+    logger.info(
+        "Existing-only (#876): scanned %s on-disk metadata file(s) under %s; "
+        "%s distinct GUID(s)",
+        scanned,
+        output_dir,
+        len(guids),
+    )
+    return guids
+
+
+def _filter_items_to_existing_guids(
+    items: List[Any], cfg: config.Config  # type: ignore[valid-type]
+) -> List[Any]:
+    """#876 migration mode: keep only feed items whose GUID is already on disk.
+
+    Hard invariant: the result is a strict subset of the on-disk GUID set, so no
+    new episode can ever enter the pipeline. ``max_episodes`` / offset / date caps
+    are intentionally not applied in this mode — every matched existing episode is
+    processed. Aborts loudly on an empty on-disk set to guard against a mis-pointed
+    ``--output-dir`` silently degrading into a full-feed ingest.
+    """
+    if cfg.output_dir is None:
+        raise ValueError("reprocess_existing_only requires output_dir to locate the on-disk corpus")
+    existing = collect_existing_guids(cfg.output_dir)
+    if not existing:
+        raise ValueError(
+            "reprocess_existing_only is set but no on-disk episode GUIDs were found "
+            f"under {cfg.output_dir}/run_*/metadata/. Wrong --output-dir, or the corpus "
+            "is not present. Aborting to avoid ingesting the entire live feed."
+        )
+    kept: List[Any] = []
+    seen_guids: Set[str] = set()
+    dropped_new = 0
+    dropped_no_guid = 0
+    for it in items:
+        guid = extract_item_guid(it)
+        if not guid:
+            dropped_no_guid += 1
+            continue
+        if guid in existing:
+            kept.append(it)
+            seen_guids.add(guid)
+        else:
+            dropped_new += 1
+    rolled_off = len(existing - seen_guids)
+    logger.info(
+        "Existing-only re-diarization (#876): kept %s, dropped %s new feed item(s), "
+        "dropped %s item(s) with no GUID, %s on-disk GUID(s) not in the live feed "
+        "(rolled off — cannot re-diarize without stored audio)",
+        len(kept),
+        dropped_new,
+        dropped_no_guid,
+        rolled_off,
+    )
+    return kept
+
+
 def prepare_episodes_from_feed(
     feed: RssFeed, cfg: config.Config  # type: ignore[valid-type]
 ) -> List[Episode]:  # type: ignore[valid-type]
@@ -117,33 +202,38 @@ def prepare_episodes_from_feed(
     if cfg.episode_order == "oldest":
         items = list(reversed(items))
 
-    if cfg.episode_since is not None or cfg.episode_until is not None:
-        kept: List[Any] = []
-        missing_pub = 0
-        for it in items:
-            pub_d = published_date_for_episode_filter(it)
-            if pub_d is None:
-                missing_pub += 1
+    if cfg.reprocess_existing_only:
+        # #876 migration mode: episode set is defined entirely by on-disk GUIDs.
+        # Bypasses date/offset/max caps so every matched existing episode processes.
+        items = _filter_items_to_existing_guids(items, cfg)
+    else:
+        if cfg.episode_since is not None or cfg.episode_until is not None:
+            kept: List[Any] = []
+            missing_pub = 0
+            for it in items:
+                pub_d = published_date_for_episode_filter(it)
+                if pub_d is None:
+                    missing_pub += 1
+                    kept.append(it)
+                    continue
+                if cfg.episode_since is not None and pub_d < cfg.episode_since:
+                    continue
+                if cfg.episode_until is not None and pub_d > cfg.episode_until:
+                    continue
                 kept.append(it)
-                continue
-            if cfg.episode_since is not None and pub_d < cfg.episode_since:
-                continue
-            if cfg.episode_until is not None and pub_d > cfg.episode_until:
-                continue
-            kept.append(it)
-        if missing_pub:
-            logger.warning(
-                "Episode date filter: %s item(s) had no parseable pubDate; "
-                "keeping them in the selection (GitHub #521)",
-                missing_pub,
-            )
-        items = kept
+            if missing_pub:
+                logger.warning(
+                    "Episode date filter: %s item(s) had no parseable pubDate; "
+                    "keeping them in the selection (GitHub #521)",
+                    missing_pub,
+                )
+            items = kept
 
-    if cfg.episode_offset:
-        items = items[cfg.episode_offset :]
+        if cfg.episode_offset:
+            items = items[cfg.episode_offset :]
 
-    if cfg.max_episodes is not None:
-        items = items[: cfg.max_episodes]
+        if cfg.max_episodes is not None:
+            items = items[: cfg.max_episodes]
 
     logger.info(
         "Episodes to process: %s of %s (after order/date filter/offset/limit)",

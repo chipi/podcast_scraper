@@ -31,6 +31,10 @@ DEFAULT_LANGUAGE = "en"
 
 # Cache directory defaults
 DEFAULT_PREPROCESSING_CACHE_DIR = ".cache/preprocessing"
+# #947 durable raw-audio cache for reprocessing (re-diarization without re-fetching
+# from the feed). Default external to the corpus so backups stay lean; opt into an
+# in-corpus location with ``audio_cache_in_corpus`` for self-contained snapshots.
+DEFAULT_AUDIO_CACHE_DIR = ".cache/audio"
 
 # Validation ranges (for summary word chunking)
 # These are used in Config validators and field descriptions
