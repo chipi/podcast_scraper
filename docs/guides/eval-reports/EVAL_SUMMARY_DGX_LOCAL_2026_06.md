@@ -126,21 +126,131 @@ default is validated as the right local summary champion.
    re-run, see if R1-Distill becomes competitive. Useful data point;
    not load-bearing for prod.
 
-   **Status (post-#961 prompt-engineering side):** the anti-reasoning
-   prompts now live at
+   **Result (#961 landed):** the anti-reasoning prompts at
    `src/podcast_scraper/prompts/vllm/r1_distill_32b/summarization/`
-   (`system_no_thinking_v1.j2` + `long_no_thinking_v1.j2`) and a
-   belt-and-braces `strip_r1_reasoning` post-processor lives at
-   `src/podcast_scraper/evaluation/r1_postprocess.py`. The matching
-   experiment YAML is at
-   `data/eval/configs/summarization/autoresearch_prompt_vllm_r1distill_32b_thinking_suppressed_smoke_v1.yaml`.
-   The DGX eval re-run itself is deferred — needs a vLLM session
-   serving R1-Distill (vLLM default per the batch-3 flip is Qwen3.6;
-   re-flipping just for the R1 eval is the gating cost).
-2. **Larger vLLM model panel** — `Qwen/Qwen2.5-32B-Instruct` and
+   (`system_no_thinking_v1.j2` + `long_no_thinking_v1.j2`) +
+   `strip_r1_reasoning` post-processor produced a meaningful lift.
+   Re-eval on the same #928 smoke set:
+
+   | Metric | Pre-fix R1 (#928) | Post-fix R1 (#961) | Δ |
+   | --- | ---: | ---: | ---: |
+   | Faithfulness | n/a | 4.60 | — |
+   | Coverage | n/a | 4.20 | — |
+   | Coherence | 2.2 | 3.00 | **+0.80** |
+   | Fluency | 2.4 | 4.40 | **+2.00** |
+   | **Mean** | **3.25** | **4.05** | **+0.80** |
+
+   R1-Distill closed about **45% of the gap** to Ollama qwen3.5:35b
+   (which sat at 5.00 in #928). The fluency jump from 2.4 → 4.4 is
+   the headline: the model still emits some planning prose
+   ("I'll structure...", "Let me organize...") in its first
+   paragraph, which the strip catches imperfectly, but once past
+   that the summary content reads cleanly. Even imperfect
+   post-processing was enough to lift fluency above the 4.0 bar.
+
+   **Verdict:** the #928 production decision still holds — Ollama
+   qwen3.5:35b stays the local DGX default — but R1-Distill is now
+   a **legitimate second open-weight summary candidate** rather than
+   a "broken on this prompt" panelist. Useful for diversity in
+   future autoresearch sweeps and as a production fallback.
+
+   Cost: $0.42 (finale_961_r1_post_prompt_2026_06).
+   Artifacts: `data/eval/runs/finale/finale_961_r1_post_prompt_2026_06/`.
+   Predictions: `data/eval/runs/autoresearch_prompt_vllm_r1distill_32b_thinking_suppressed_curated_5feeds_smoke_v1/`.
+
+### #958 — Quantization isolation matrix (Cell C / D / E)
+
+The methodology gap noted below was: the parent #928 eval changed
+three variables at once (server × model × precision). #958 closes
+the gap one cell at a time, holding two variables fixed per cell.
+
+- **Cell C** (shipped in #966 / batch-3): vLLM-Qwen3.6-bf16 vs
+  Ollama-Qwen3.6-Q4_K_M. Isolates the serving stack on Qwen3.6.
+  Result: roughly tied — the serving stack contributes ~0.05-0.10
+  of score noise when the model is held fixed.
+- **Cell D** (this PR): Ollama-R1-Distill-Q4 vs vLLM-R1-Distill-bf16.
+  Isolates server + precision on R1-Distill.
+- **Cell E** (deferred to **#970**): Ollama-Qwen3.6-Q4_K_M vs
+  Ollama-Qwen3.6-bf16. Isolates quantization on the Ollama side.
+
+#### Cell D — DeepSeek-R1-Distill-Qwen-32B across server × precision
+
+Surprising result — Ollama Q4 beats vLLM bf16 on the SAME model:
+
+| Stack | Faith | Cov | Coh | Flu | Mean |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Ollama R1-Distill 32B Q4 | 4.40 | 4.80 | 3.60 | 3.80 | **4.15** |
+| vLLM R1-Distill 32B bf16 | 4.60 | 3.60 | 2.20 | 2.60 | **3.25** |
+| **Δ (Ollama Q4 vs vLLM bf16)** | -0.20 | **+1.20** | **+1.40** | **+1.20** | **+0.90** |
+
+Reading the deltas:
+
+- Faithfulness is essentially tied — both stacks ground their
+  output in the source transcript similarly.
+- Coverage, coherence, and fluency all swing massively in favor of
+  the Ollama Q4 path. Coherence + fluency (the two metrics the
+  #961 prompt fix targeted via reasoning-suppression) are where
+  most of the gap lives.
+- Mean delta of **+0.90** in favor of Ollama Q4 on the same
+  underlying weights.
+
+What this tells us:
+
+1. **R1-Distill's quality on the #928 parent eval was held back by
+   the vLLM stack, not by the model weights themselves.** The 3.25
+   parent score was a vLLM-stack penalty, not a model defect.
+2. **Ollama's chat template handles R1-Distill's reasoning-token
+   contract cleaner than vLLM does without our #961 prompt patch.**
+   The Ollama Q4 path (no anti-reasoning prompt) is roughly on par
+   with the vLLM bf16 + #961 anti-reasoning prompt path (4.15 vs
+   4.05). The prompt fix recovers most of the gap on vLLM's side;
+   Ollama doesn't need it.
+3. **Q4 quantization is not the quality bottleneck for R1-Distill
+   summaries on this hardware.** Indirect signal that the same is
+   probably true for the Qwen-family Q4 production default, but
+   Cell E (#970) is what would isolate it.
+
+Cost: $0.89 (finale_958_cell_d_r1_quant_isolation_2026_06). Both
+runs reused existing predictions from earlier batches (#924 for
+the Ollama R1 Q4 path, #928 for the vLLM R1 bf16 path) — Cell D
+was a finale-only re-judge, no fresh inference.
+
+#### Cell E — deferred to #970
+
+Ollama Qwen3.6 bf16 import hit three independent tooling blockers
+in Ollama 0.30.5:
+
+1. HuggingFace cache symlinks are rejected with
+   `Error: insecure path` — Ollama refuses to follow the relative
+   symlinks the HF `transformers` cache uses to dedupe against
+   `blobs/`.
+2. Every community fp16/bf16 GGUF upload of Qwen3.6-35B-A3B is
+   sharded across multiple files; Ollama doesn't support multi-shard
+   pulls (upstream blocker: ollama#5245).
+3. Direct `hf.co/Qwen/Qwen3.6-35B-A3B` pulls fail with
+   `Repository is not GGUF or is not compatible with llama.cpp` —
+   Ollama's HF pull path only handles GGUF artifacts.
+
+Unblocking requires a llama.cpp single-file GGUF conversion of the
+local safetensors (~70 GB extra disk, 30-60 min on GB10, plus the
+work to match the existing `qwen3.6:latest` template/renderer/parser
+config). Full handoff in **#970**.
+
+What we DON'T get without Cell E: direct evidence on whether prod
+Q4 leaves quality on the table. Cell D's same-server, same-model
+result on R1-Distill (Q4 winning) is **indirect** signal that
+quantization isn't the bottleneck for Qwen-family models on Ollama,
+but it isn't isolated. Production decision (Ollama qwen3.5:35b Q4
+stays the local DGX default) is robust enough to ship without it.
+
+---
+
+### Other follow-ups (not this PR)
+
+1. **Larger vLLM model panel** — `Qwen/Qwen2.5-32B-Instruct` and
    `Qwen/Qwen3-30B-A3B-Instruct` would be the true Ollama-equivalent
    generalists on vLLM. Needs ~60 GB download each.
-3. **GI + KG stages** — this eval is summary-only. The GI / KG
+2. **GI + KG stages** — this eval is summary-only. The GI / KG
    stages have different output shapes (structured JSON) and may
    favor different models entirely.
 

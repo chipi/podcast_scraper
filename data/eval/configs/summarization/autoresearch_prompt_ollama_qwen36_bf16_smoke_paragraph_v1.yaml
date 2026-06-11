@@ -1,0 +1,29 @@
+# Autoresearch v2 paragraph — Ollama Qwen3.6 bf16 for #958 Cell E.
+#
+# Counterpart to autoresearch_prompt_ollama_qwen3.6_latest_smoke_paragraph_v1
+# (Q4_K_M). Same model, same prompts, same dataset — only the precision
+# differs. Isolates quantization on the Ollama side, holding model and
+# server fixed.
+#
+# Requires: ollama create qwen3.6:bf16 -f Modelfile (Modelfile FROM the
+# bf16 safetensors at /opt/llm-models/huggingface/models--Qwen--Qwen3.6-35B-A3B/)
+id: "autoresearch_prompt_ollama_qwen36_bf16_smoke_paragraph_v1"
+task: "summarization"
+
+backend:
+  type: "ollama"
+  model: "qwen3.6:bf16"
+
+prompts:
+  system: "ollama/qwen3.5_35b/summarization/system_v1"
+  user: "ollama/qwen3.5_35b/summarization/long_v1"
+
+data:
+  dataset_id: "curated_5feeds_smoke_v1"
+
+params:
+  max_length: 800
+  min_length: 200
+  temperature: 0.0
+
+preprocessing_profile: "cleaning_v4"

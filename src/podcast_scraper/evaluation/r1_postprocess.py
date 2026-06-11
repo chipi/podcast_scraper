@@ -28,6 +28,10 @@ _OPEN_SUMMARY_ONLY_RE = re.compile(
     r"<summary>\s*(.*)\Z",
     re.IGNORECASE | re.DOTALL,
 )
+_CLOSE_SUMMARY_ONLY_RE = re.compile(
+    r"\A(.*?)</summary>",
+    re.IGNORECASE | re.DOTALL,
+)
 _THINK_BLOCK_RE = re.compile(
     r"<think>.*?</think>\s*",
     re.IGNORECASE | re.DOTALL,
@@ -45,14 +49,81 @@ _PREAMBLE_OPENERS = (
     "okay so",
     "alright, so",
     "alright so",
+    "alright, i need",
+    "alright, i'll",
+    "alright, let me",
     "let me think",
+    "let me start",
+    "let me read",
     "let's think",
     "first, i",
     "first i",
     "i need to",
     "i'll start by",
     "to summarize",
+    "the user provided",
+    "the user wants",
 )
+
+# Tokens that mark a paragraph as reasoning-meta rather than summary content.
+# Used by strategy 3a when we have a closing </summary> tag but no opening tag
+# — we walk paragraph-by-paragraph and drop the leading reasoning paragraphs.
+_REASONING_MARKERS = (
+    "i need to",
+    "i'll ",
+    "i will ",
+    "i should",
+    "i'm going to",
+    "let me",
+    "let's ",
+    "the user",
+    "i notice ",
+    "i'll address",
+    "i'll structure",
+    "i'll make sure",
+    "i'll include",
+    "i'll highlight",
+    "i'll cover",
+    "i'll focus",
+)
+
+
+def _is_reasoning_paragraph(para: str) -> bool:
+    """True if a paragraph reads as meta-reasoning, not summary content.
+
+    Two signals (either fires the heuristic):
+
+    1. The paragraph STARTS with first-person model voice
+       (``I``, ``Let me``, ``Alright``, ``Okay``, ``First, I``, etc.).
+       This catches the bulk of R1-Distill's planning paragraphs.
+    2. The first ~120 chars contain a reasoning marker from
+       ``_REASONING_MARKERS`` (``I need to``, ``I'll``, ``Let me``, ...).
+       Catches paragraphs where the planning voice appears after a
+       transition word like "Next, " or "Then, ".
+    """
+    lowered = para.strip().lower()
+    if not lowered:
+        return False
+    # First-person opener heuristic — anchored to start-of-paragraph.
+    first_person_openers = (
+        "i ",
+        "i'll",
+        "i'd",
+        "i'm",
+        "let me",
+        "let's",
+        "alright",
+        "okay",
+        "first, i",
+        "next, i",
+        "then i",
+        "now i",
+        "so i",
+    )
+    if any(lowered.startswith(o) for o in first_person_openers):
+        return True
+    # Reasoning-marker heuristic — checks the first ~120 chars.
+    return any(marker in lowered[:120] for marker in _REASONING_MARKERS)
 
 
 def strip_r1_reasoning(text: str) -> str:
@@ -85,6 +156,21 @@ def strip_r1_reasoning(text: str) -> str:
     open_only_match = _OPEN_SUMMARY_ONLY_RE.search(text)
     if open_only_match:
         return open_only_match.group(1).strip()
+
+    # Close-tag-only — R1-Distill commonly emits the closing </summary>
+    # but forgets the opening <summary>, dumping reasoning prose before
+    # the actual summary content. Take everything up to the close tag,
+    # then walk paragraphs and drop the leading reasoning ones.
+    close_only_match = _CLOSE_SUMMARY_ONLY_RE.match(text)
+    if close_only_match and "<summary>" not in text.lower():
+        body = close_only_match.group(1).strip()
+        paragraphs = [p for p in body.split("\n\n") if p.strip()]
+        kept = [p for p in paragraphs if not _is_reasoning_paragraph(p)]
+        if kept:
+            return "\n\n".join(kept).strip()
+        # Everything looked like reasoning — return the body as-is rather
+        # than ""; the judge will score it, but at least we kept content.
+        return body
 
     if _OPEN_THINK_NO_CLOSE_RE.match(text) and "</think>" not in text.lower():
         return ""
