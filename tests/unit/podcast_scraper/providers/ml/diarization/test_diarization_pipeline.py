@@ -16,9 +16,13 @@ pytestmark = pytest.mark.unit
 @patch("podcast_scraper.providers.ml.diarization.pipeline.create_diarization_provider")
 def test_apply_diarization_enriches_segments(mock_create_provider) -> None:
     mock_provider = MagicMock()
+    # SPEAKER_00 owns the intro -> host (kept raw); SPEAKER_01 talks most -> guest (#876).
     mock_provider.diarize.return_value = DiarizationResult(
-        segments=[DiarizationSegment(start=0.0, end=2.0, speaker="SPEAKER_00")],
-        num_speakers=1,
+        segments=[
+            DiarizationSegment(start=0.0, end=60.0, speaker="SPEAKER_00"),
+            DiarizationSegment(start=60.0, end=400.0, speaker="SPEAKER_01"),
+        ],
+        num_speakers=2,
         model_name="test",
     )
     mock_create_provider.return_value = mock_provider
@@ -31,14 +35,19 @@ def test_apply_diarization_enriches_segments(mock_create_provider) -> None:
         hf_token="hf-test",
     )
     result = {
-        "text": "hello",
-        "segments": [{"start": 0.0, "end": 2.0, "text": "hello"}],
+        "text": "hello world",
+        "segments": [
+            {"start": 0.0, "end": 60.0, "text": "hello"},
+            {"start": 60.0, "end": 400.0, "text": "world"},
+        ],
     }
 
-    enriched = apply_diarization_to_result(result, "/tmp/audio.wav", cfg, ["Host"])
+    # detected_speaker_names is guest-only; the guest name must land on the guest, not the host.
+    enriched = apply_diarization_to_result(result, "/tmp/audio.wav", cfg, ["Guest"])
 
     assert enriched["segments"][0]["speaker"] == "SPEAKER_00"
-    assert enriched["segments"][0]["speaker_label"] == "Host"
+    assert enriched["segments"][0]["speaker_label"] == "SPEAKER_00", "host kept raw"
+    assert enriched["segments"][1]["speaker_label"] == "Guest", "guest named"
 
 
 @patch("podcast_scraper.providers.ml.diarization.pipeline.create_diarization_provider")

@@ -10,6 +10,35 @@ from .entities import extract_person_entities as _extract_person_entities_direct
 
 logger = logging.getLogger(__name__)
 
+# RSS author tags are often the network/publisher, not the host — e.g. "Colossus",
+# "Colossus | Investing & Business Podcasts", "NPR". Real hosts are personal "First Last"
+# names. Reject org/network-looking tags so host detection falls through to transcript-intro
+# NER / config ``known_hosts`` instead of mislabelling the host on every episode (#876).
+_NONPERSON_AUTHOR_MARKERS = re.compile(
+    r"[|/&@]|\d|"
+    r"\b(?:podcasts?|media|networks?|productions?|studios?|radio|fm|news|inc|llc|ltd|"
+    r"co|company|corp|shows?|entertainment|audio|broadcasting|group|labs?)\b",
+    re.IGNORECASE,
+)
+
+
+def _looks_like_nonperson_author(name: str) -> bool:
+    """True when an RSS author tag looks like a network/organisation, not a host person.
+
+    Any of these → reject: contains org/network markers (``|``, ``&``, digits, words like
+    ``Podcasts``/``Media``/``Network``); or is a single mononym token (real hosts are
+    ``First Last``; this also catches all-caps acronyms like NPR/BBC). Mononym person-hosts
+    are rare and can still be supplied via config ``known_hosts`` (#876).
+    """
+    n = (name or "").strip()
+    if not n:
+        return True
+    if _NONPERSON_AUTHOR_MARKERS.search(n):
+        return True
+    if len(n.split()) < 2:  # mononym ("Colossus", "NPR") — not a "First Last" host name
+        return True
+    return False
+
 
 def _extract_person_entities(text: str, nlp: Any) -> list[tuple[str, float]]:
     """Resolve extract_person_entities via public wrapper when loaded (patchable in tests)."""
@@ -83,14 +112,9 @@ def detect_hosts_from_feed(
                 if "<" in author_clean and ">" in author_clean:
                     author_clean = author_clean.split("<")[0].strip()
                 if author_clean:
-                    is_likely_org = (
-                        len(author_clean) <= 10
-                        and author_clean.isupper()
-                        and " " not in author_clean
-                    )
-                    if is_likely_org:
+                    if _looks_like_nonperson_author(author_clean):
                         logger.debug(
-                            "RSS author '%s' appears to be an organization name, "
+                            "RSS author '%s' looks like a network/organisation, not a host; "
                             "treating as publisher metadata rather than host",
                             author_clean,
                         )

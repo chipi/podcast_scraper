@@ -217,6 +217,38 @@ class TestSpeakerDetection(unittest.TestCase):
         self.assertIn("organisation", call_msg)
         self.assertIn("known_hosts", call_msg)
 
+    def test_detect_hosts_from_feed_rejects_network_author_names(self):
+        """Network/publisher author tags are not hosts (#876).
+
+        Regression for the ILtB ``Colossus`` mislabel: mixed-case, piped, mononym, and
+        org-word author tags slipped past the old all-caps-only filter and got assigned as
+        the host on every episode. They must fall through to transcript-intro / known_hosts.
+        """
+        for author in [
+            "Colossus",
+            "Colossus | Investing & Business Podcasts",
+            "Acme Media",
+            "BBC",
+            "Studio 9",
+        ]:
+            hosts = speaker_detection.detect_hosts_from_feed(
+                feed_title="A Show",
+                feed_description="desc",
+                feed_authors=[author],
+                nlp=None,
+            )
+            self.assertEqual(hosts, set(), f"{author!r} should not be treated as a host")
+
+    def test_detect_hosts_from_feed_keeps_person_author_names(self):
+        """Real ``First Last`` host names still pass the network filter (#876)."""
+        hosts = speaker_detection.detect_hosts_from_feed(
+            feed_title="A Show",
+            feed_description="desc",
+            feed_authors=["Patrick O'Shaughnessy"],
+            nlp=None,
+        )
+        self.assertIn("Patrick O'Shaughnessy", hosts)
+
     @patch.object(speaker_detection, "extract_person_entities")
     def test_detect_hosts_from_feed_ner(self, mock_extract):
         """Test detecting hosts from feed title using NER."""
