@@ -430,3 +430,143 @@ should:
 **Tuned thresholds shipped:** no — the methodology is shipped; the model selection is unchanged. Composite ranking with the reliability axis still favors `gemini-2.5-flash-lite` by a wide margin (3-10× cost dominance, 3× latency dominance).
 
 **Cross-reference:** Reliability burst against the existing per-provider summarize endpoint is reusable for cross-stage evaluation when future tickets bring GI / KG / speaker models into autoresearch scope.
+
+### #928 / #929 / #930 / #931 — DGX-vs-cloud autoresearch (batch 3, 2026-06-10/11)
+
+**Eval set:** 5 v2 audio fixtures (`p0[1-5]_e01.mp3`, ~5 min each)
+across four transcription backends (MPS / CPU / DGX `whisper-openai`
+on `:8002` / DGX faster-whisper on `:8000`), three summary backends
+(Ollama qwen3.5:35b at Q4 / vLLM R1-Distill-32B at bf16 / vLLM
+Qwen3.6-35B-A3B at bf16 added via Cell C), and a 3-way pyannote
+diarization run (MPS / CUDA / CPU). Reports under
+`docs/guides/eval-reports/EVAL_{DIARIZATION,SUMMARY,TRANSCRIPTION,HYBRID_ROUTING}_*_2026_06.md`.
+
+**Real-prod failure-mode catalogue surfaced (v3-relevant):**
+
+1. **Single-voice TTS confirmed-blocks diarization at the fixture
+   level.** The #930 3-way pyannote comparison was contaminated:
+   all three platforms (MPS / CUDA / CPU) collapsed to a single
+   detected speaker because every voice in v2 is `say --voice Alex`.
+   This re-confirms the gap #934 already tracks — included here
+   because the batch-3 numbers are the cleanest empirical evidence
+   yet that the contamination is total, not partial.
+
+2. **Long-form audio is the trigger condition for openai-whisper
+   autoregressive runaway.** The DGX whisper service produced WER
+   3.20 mean (5–9× extra hyp words) pre-fix because the API contract
+   forced `temperature=0.0` scalar, disabling openai-whisper's
+   built-in fallback schedule. Triggered reliably on the 5-min v2
+   episodes; would trigger harder on the 30-90-min real podcasts
+   the operator wants in production. Post-fix, the same episodes
+   produced WER 0.102 / 4.56× realtime — within scoring noise of
+   MPS. The bug fix lives in
+   `infra/dgx/whisper-server/app.py` + the temperature-schedule
+   nuance is documented in the consumer-contract section of
+   `infra/dgx/vllm-autoresearch/README.md`. **Implication for v3
+   audio**: episodes that span the autoregressive-runaway trigger
+   window (multi-minute, conversational, technical-vocab) are
+   exactly the v3 axis that will catch this class of bug before it
+   reaches prod. The v3 text side already has them
+   (`p07_e01` 11.5k words, `p08_e01` 14.5k); the v3 audio PR
+   should render them as similarly-long voiced episodes, not just
+   as 5-min clips.
+
+3. **Per-episode acoustic difficulty asymmetry on temperature-
+   fallback path.** Pure-CPU openai-whisper produced WER 0.281 on
+   `p05_e01` while the other 4 episodes stayed at 0.07–0.12 mean
+   (CPU 5-ep mean 0.137). Same voice, same fixture set —
+   variance comes from openai-whisper's temperature schedule being
+   non-deterministic once it fires (fallback retry at higher
+   temperatures introduces stochasticity). The episode-level WER
+   variance under fallback-mode decoding is ~3× the clean-decode
+   variance. **Implication for v3 audio**: building a transcription-
+   benchmark suite requires *deliberate* coverage of episodes that
+   trigger the fallback path (faster-paced, denser vocab, longer
+   uninterrupted spans). Clean-decode-only fixtures under-represent
+   the failure regime.
+
+4. **Same-model-different-server ties within scoring noise (#928
+   Cell C).** vLLM-served `Qwen3.6-35B-A3B` at bf16 scored 4.90
+   mean vs Ollama-served `qwen3.5:35b` at Q4_K_M's 5.00 mean
+   (Sonnet 4.6 + GPT-5.4 cross-check, 100% agreement, no
+   contested). The parent eval's 1.75-point gap (Ollama 5.00 vs
+   vLLM R1-Distill 3.25) was the **model choice**, not the
+   serving stack. **Implication for v3 / autoresearch
+   methodology**, not v3 fixtures: future cross-stack model
+   sweeps can hold one variable fixed without needing fixture
+   changes. The fixture set produced well-separated scores
+   across *different* models — which is the diversity v3 already
+   delivers — so no new fixture coverage is needed for this
+   class.
+
+5. **R1-Distill reasoning prose leak as an output-side failure
+   mode.** R1-Distill emits "thinking process" prose (`Okay, so
+   I need to summarize this episode…`) before the actual summary
+   when run without `chat_template_kwargs={enable_thinking:
+   False}` (Qwen3.6 has a clean toggle; R1-Distill does not).
+   This contributed to R1's low coherence (2.2) + fluency (2.4)
+   in the parent #928. **Not a v3-fixture-side failure mode** —
+   the leak is a property of the model's output distribution,
+   not the input. Filed as **#961** (prompt-side fix). Mentioned
+   here so future eval reports don't re-discover it from scratch.
+
+**What v3 should add (audio side, consumed by the operator's TTS PR
+when #934 lands):**
+
+- **Multi-voice TTS realization of the v3 text fixtures.**
+  Re-confirmed need; the text side already emits per-episode
+  voice/accent hints via `PodcastV3.host_accent` /
+  `GuestV3.accent` + manifest `audio_voice_hints` (per #906
+  notes above). Batch-3 adds no new requirement here beyond
+  "ship the audio side so #930 / #934 can verdict on diarization
+  quality, not platform speed."
+- **Long-form voiced episodes (5+ min, ideally 30+ min for
+  prod-shape benchmarks).** The v3 text side already has
+  `p07_e01` 11.5k words and `p08_e01` 14.5k words; the audio PR
+  should render at least one of these as a multi-minute voiced
+  episode. Real-podcast 90-min benchmarking is a separate axis
+  tracked by **#959**.
+- **Episodes that reliably trigger the temperature-fallback
+  path** — see point 3 above. Fast-paced + technical-vocab
+  episodes from the existing v3 text set already qualify; the
+  audio renderer just needs to preserve the density when
+  vocalizing.
+
+**What v3 should NOT change (axes already adequately covered):**
+
+- Diversity across summary candidates: v3 episodes produce well-
+  separated scores across different summary models (Qwen3.6 vs
+  R1-Distill = 1.75-point gap). Sufficient diversity for cross-
+  model sweeps.
+- Diversity across diarization candidates: blocked entirely by
+  the single-voice TTS issue; once #934 lands multi-voice
+  rendering, the existing v3 episode set has enough speaker
+  variety (host + 2-4 guests per episode, per #906 notes) to
+  produce a meaningful diarization eval. No new v3 fixture
+  axis needed.
+
+**Tuned thresholds shipped:** no — this batch shipped a
+*configuration* fix (whisper-server `temperature` API contract
+change) and *infrastructure* default flips (vLLM
+`26.05-py3 + Qwen3.6-35B-A3B + --max-num-seqs 128` as the new
+default in `deploy.py`; Ollama qwen3.5:35b stays the
+`cloud_with_dgx_*` summary default with operational-simplicity
+as the new justification, replacing quality as the prior
+justification). Neither is a fixture-side threshold.
+
+**Cross-ref:** Late-batch findings filed as follow-ups for next
+sessions — **#956** (DGX-over-Tailscale client resilience),
+**#957** (speaches/faster-whisper container root-cause; the
+faster-whisper sweep had a separate bug from openai-whisper's;
+empty output 4/5 episodes, hallucination 1/5),
+**#958** (Cell D / Cell E quantization isolation for #928),
+**#959** (real-podcast 90-min validation across the post-fix
+4-way), **#960** (vLLM as a first-class backend in
+`autoresearch_track_a.py`, replacing the standalone
+`summary_vllm_predict_v1.py` workaround used this batch),
+**#961** (R1-Distill reasoning-suppressed prompt — addresses
+the failure mode in point 5), **#962** (Gemini speaker
+detector provider deploy — unblocks the `cloud_*` slot of
+#930's panel), **#963** (re-test DGX whisper under contention
+now that the temperature bug is fixed), **#964** (Wave audio
+hardening umbrella from the WIP audit).
