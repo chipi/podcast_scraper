@@ -9,13 +9,28 @@ multi-speaker diarization + named screenplays, and the relational layer
 
 ## Mechanism
 
-`make redo-diarization CORPUS_DIR=… PROFILE=…` runs two steps:
+> ⚠️ **Use `make migrate-diarization`, NOT `make redo-diarization`.** The two targets
+> differ by a single flag with a huge consequence:
+>
+> | Target | Has `--reprocess-existing-only`? | What it actually processes |
+> | --- | --- | --- |
+> | `make migrate-diarization` | **yes** | the corpus's existing on-disk GUIDs (the whisper episodes) — correct |
+> | `make redo-diarization` | **no** | scrapes the **live feed** and processes the newest items (583-episode feed → wrong episodes) |
+>
+> Verified 2026-06-11: invoking the raw `cli` re-diar command *without*
+> `--reprocess-existing-only` logged `Episodes to process: 2 of 583` and started
+> downloading brand-new feed episodes instead of re-diarizing the corpus. Always
+> confirm the log line reads `Existing-only re-diarization (#876): kept N, dropped …`.
+
+`make migrate-diarization CORPUS_DIR=… PROFILE=…` runs two steps:
 
 1. `cli --config <PROFILE> --feeds-spec <CORPUS_DIR>/feeds.spec.yaml
-   --output-dir <CORPUS_DIR> --skip-existing --reprocess-source whisper_transcription`
-   — force-reprocesses **only** episodes whose `transcript_source` is
-   `whisper_transcription` (direct-download episodes untouched, #925). Each
-   reprocessed episode re-runs the **full per-episode cascade**:
+   --output-dir <CORPUS_DIR> --skip-existing --reprocess-source whisper_transcription
+   --reprocess-existing-only`
+   — `--reprocess-existing-only` scopes to the corpus's on-disk GUIDs;
+   `--reprocess-source whisper_transcription` force-reprocesses **only** those whose
+   `transcript_source` is `whisper_transcription` (direct-download episodes untouched,
+   #925). Each reprocessed episode re-runs the **full per-episode cascade**:
    transcribe → diarize → screenplay → GI → KG → bridge → search index.
 2. `cli enrich-edges --output-dir <CORPUS_DIR>` — re-derives the corpus-wide
    `SPOKEN_BY` relational edges (#876/#909).
@@ -32,7 +47,7 @@ pyannote fallback on DGX health failure).
 | DGX pyannote (`:8001`, `pyannote/speaker-diarization-3.1`) | ✅ healthy |
 | Tailnet reachability to `your-dgx.tailnet.ts.net` | ✅ active/direct |
 | `cloud_with_dgx_primary` profile on `main` | ✅ (#941) |
-| `--reprocess-source` / `make redo-diarization` tooling | ⏳ **PR #944 (merge gate)** |
+| `--reprocess-source` / `--reprocess-existing-only` / `make migrate-diarization` tooling | ✅ (#944 merged) |
 
 ## Step 1 — Health gate (abort if either service is down)
 
@@ -72,19 +87,38 @@ grep -rl "whisper_transcription" "$CORPUS_DIR"/*/metadata/*.json 2>/dev/null | w
 Validate quality before committing 100 episodes. Run on a copy so the live
 corpus is untouched until the pilot passes.
 
+> ⚠️ **`--max-episodes` is IGNORED under `--reprocess-existing-only`** (verified
+> 2026-06-11: it processes *all* on-disk GUIDs regardless). To pilot a subset you must
+> **trim the corpus copy** to the episodes you want, then re-diar existing-only — the
+> scan picks up exactly the GUIDs that remain on disk.
+
 ```bash
 PILOT_DIR=/tmp/rediar_pilot
 rm -rf "$PILOT_DIR" && cp -R "$CORPUS_DIR" "$PILOT_DIR"
 
-# Limit to the first few episodes via the CLI directly (the make wrapper has no limit).
+# Keep only the first 2–3 episodes' metadata so existing-only scopes to them.
+# (metadata/*.metadata.json is what the GUID scan reads; trim transcripts to match.)
+MD=$(echo "$PILOT_DIR"/feeds/*/run_*/metadata); TR=$(echo "$PILOT_DIR"/feeds/*/run_*/transcripts)
+for d in "$MD" "$TR"; do for f in "$d"/*; do
+  case "$(basename "$f")" in 0001*|0002*) : ;; *) rm -f "$f";; esac
+done; done
+
+# NOTE: --reprocess-existing-only is REQUIRED — without it the run scrapes the live
+# feed instead of the corpus (see Mechanism). --max-episodes would be ignored here.
 .venv/bin/python -m podcast_scraper.cli \
   --config config/profiles/cloud_with_dgx_primary.yaml \
   --feeds-spec "$PILOT_DIR/feeds.spec.yaml" \
   --output-dir "$PILOT_DIR" \
   --skip-existing --reprocess-source whisper_transcription \
-  --max-episodes 3
+  --reprocess-existing-only
 .venv/bin/python -m podcast_scraper.cli enrich-edges --output-dir "$PILOT_DIR"
+# Confirm the scoping log line: "Existing-only re-diarization (#876): kept 2, dropped …"
 ```
+
+> 💡 If the audio cache (`.cache/audio`, keyed by `sha256(guid)`) was cleared, the pilot
+> re-downloads from the feed. To diarize off-cache, pre-seed the cache from any stored
+> raw episode audio: `cp <ep>.mp3 .cache/audio/sha256/<h[:2]>/<h[2:4]>/<h>.mp3` where
+> `h = sha256(guid)`. The run then logs `audio cache HIT … (no feed fetch)`.
 
 Pilot acceptance (pick a 2-speaker, a panel, and a single-host episode if possible):
 
@@ -112,15 +146,18 @@ proceed; investigate before the full run.
 ## Step 5 — Full run (all 100, after pilot passes + backup exists)
 
 ```bash
-make redo-diarization \
+make migrate-diarization \
   CORPUS_DIR="$CORPUS_DIR" \
   PROFILE=config/profiles/cloud_with_dgx_primary.yaml
 ```
 
-Monitor: tail the run log; re-run the **Step 1 health gate** periodically (the
-provider falls back to in-process pyannote on DGX failure — watch for fallback
-breadcrumbs so you know whether episodes actually used DGX). Expect this to take
-a while (large-v3 transcription + pyannote per episode, ~100 episodes).
+Monitor: tail the run log; **confirm the scoping line** `Existing-only re-diarization
+(#876): kept N, dropped … new feed item(s)` (if you instead see episodes being
+downloaded by title from the feed, you ran `redo-diarization` by mistake — stop and
+use `migrate-diarization`). Re-run the **Step 1 health gate** periodically (the provider
+falls back to in-process pyannote on DGX failure — watch for fallback breadcrumbs so you
+know whether episodes actually used DGX). Expect this to take a while (large-v3
+transcription ≈ 6–7 min/episode + pyannote per episode, ~100 episodes).
 
 ## Step 6 — Post-run validation
 
