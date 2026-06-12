@@ -22,18 +22,33 @@ _NONPERSON_AUTHOR_MARKERS = re.compile(
 )
 
 
-def is_network_or_org_author(name: str) -> bool:
-    """True when an RSS author tag looks like a network/organisation, not a host person.
+def has_org_markers(name: str) -> bool:
+    """True when ``name`` contains explicit network/organisation markers.
 
-    Any of these → reject: contains org/network markers (``|``, ``&``, digits, words like
-    ``Podcasts``/``Media``/``Network``); or is a single mononym token (real hosts are
-    ``First Last``; this also catches all-caps acronyms like NPR/BBC). Mononym person-hosts
-    are rare and can still be supplied via config ``known_hosts`` (#876).
+    The marker-only half of :func:`is_network_or_org_author` (``|``, ``&``, digits, words like
+    ``Podcasts``/``Media``/``Network``) — WITHOUT the mononym rule. Use this for names from
+    trusted person sources (a transcript self-introduction, config ``known_hosts``, or a
+    detected guest), where a single-token name is a real person (Oprah, Sting), not a network.
     """
     n = (name or "").strip()
     if not n:
         return True
-    if _NONPERSON_AUTHOR_MARKERS.search(n):
+    return bool(_NONPERSON_AUTHOR_MARKERS.search(n))
+
+
+def is_network_or_org_author(name: str) -> bool:
+    """True when an RSS author tag looks like a network/organisation, not a host person.
+
+    Any of these → reject: org/network markers (see :func:`has_org_markers`); or a single
+    mononym token (real hosts are ``First Last``; this also catches all-caps acronyms like
+    NPR/BBC). The mononym rule is specific to RSS **author tags** (where a lone token is almost
+    always the network); apply :func:`has_org_markers` instead to trusted person names. Mononym
+    person-hosts can still be supplied via config ``known_hosts`` (#876).
+    """
+    n = (name or "").strip()
+    if not n:
+        return True
+    if has_org_markers(n):
         return True
     if len(n.split()) < 2:  # mononym ("Colossus", "NPR") — not a "First Last" host name
         return True
