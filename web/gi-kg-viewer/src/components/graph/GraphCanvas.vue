@@ -1679,6 +1679,10 @@ function finishLayoutPass(core: Core): void {
       selectedNodeId.value || '',
       focusNodeId.value || '',
       graphHandoff.pending.cyId || '',
+      // Focus fallback (e.g. a `quote` hit has no node of its own → its Episode).
+      // Without this the redraw path can't resolve a fallback-only target and would
+      // hand off to handoffFailed even though the fallback IS in cy.
+      nav.pendingFocusFallbackNodeId || '',
     ].filter(Boolean)
     let appliedCyId = ''
     for (const c of candidates) {
@@ -3625,10 +3629,16 @@ watch(
   () => nav.pendingFocusNodeId,
   (newFocusId) => {
     if (!newFocusId || !cy) return
-    // Check if the node exists using $id() to handle special characters in IDs
-    const node = cy.$id(newFocusId)
-    if (node.length > 0) {
-      // Node exists - directly apply focus without full redraw
+    const core = cy
+    // Resolve the primary id OR its fallback (a `quote` hit has no node of its
+    // own and falls back to its Episode). Use ``resolveCyNodeId`` rather than a
+    // bare ``$id`` so prefixed cy ids (``g:insight:…``) and fallbacks both match.
+    const fallbackRaw = nav.pendingFocusFallbackNodeId
+    const resolved =
+      resolveCyNodeId(core, newFocusId) ||
+      (fallbackRaw ? resolveCyNodeId(core, fallbackRaw) : null)
+    if (resolved) {
+      // Node already present - apply focus directly without a full redraw.
       void nextTick(() => {
         safeGraphWatch('pendingFocus', () => {
           if (cy) {
@@ -3636,7 +3646,39 @@ watch(
           }
         })
       })
+      return
     }
+    // Neither target nor fallback is in cy. If a redraw is pending/active it will
+    // add the node and ``finishLayoutPass`` will apply (or fail) on layoutstop —
+    // do nothing now. Only when the canvas is genuinely idle is the target
+    // provably unresolvable: fail fast instead of waiting out the 15s
+    // stuck-timeout. Re-check one frame later so a just-scheduled redraw wins.
+    void nextTick(() => {
+      requestAnimationFrame(() => {
+        if (!cy || !graphHandoff.pending) return // resolved / failed elsewhere
+        const fb = nav.pendingFocusFallbackNodeId
+        const r =
+          resolveCyNodeId(cy, newFocusId) || (fb ? resolveCyNodeId(cy, fb) : null)
+        if (r) {
+          safeGraphWatch('pendingFocus', () => {
+            if (cy) tryApplyPendingFocus(cy)
+          })
+          return
+        }
+        const idle =
+          !redrawPending &&
+          redrawDebounceTimer == null &&
+          redrawGateDepth === 0 &&
+          !graphContentHiddenUntilLayout.value
+        if (idle) {
+          graphHandoff.handoffFailed(
+            `no graph node for focus target "${newFocusId}"` +
+              (fb ? ` (fallback "${fb}")` : ''),
+          )
+          nav.clearPendingFocus()
+        }
+      })
+    })
   },
   { flush: 'post' },
 )
