@@ -565,6 +565,24 @@ check-test-policy:
 	$(PYTHON) scripts/tools/check_test_policy.py --fix-hint
 	$(PYTHON) scripts/tools/check_self_hosted_runner_allowlist.py
 
+profile-drift-check:
+	# #907 Option B: every config/profiles/*.yaml that declares a `profile:` field
+	# must agree with the named registry preset on routing
+	# (transcription_provider, summary_provider, summary_model). Catches hand-edits
+	# that fork a YAML from its eval-report-justified registry default.
+	# Wired into ci-fast; safe to run standalone in <1s.
+	$(PYTHON) -m pytest tests/integration/providers/ml/test_profile_yaml_registry_drift.py -q --no-cov --disable-socket --allow-hosts=127.0.0.1,localhost
+
+profile-resolve: ## Print the resolved settings dict for PROFILE=<name>. Usage: make profile-resolve PROFILE=cloud_with_dgx_primary
+	@if [ -z "$(PROFILE)" ]; then \
+		echo "PROFILE not set. Available presets:"; \
+		$(PYTHON) scripts/tools/resolve_profile.py --list | sed 's/^/  /'; \
+		echo ""; \
+		echo "Usage: make profile-resolve PROFILE=<name> [DGX_TAILNET_HOST=<host>]"; \
+		exit 2; \
+	fi
+	@$(PYTHON) scripts/tools/resolve_profile.py "$(PROFILE)"
+
 # Optional ARGS: e.g. make check-pricing-assumptions ARGS="--strict"
 # Runs the staleness report AND the #651 profile-coverage guard
 # (fails when a profile references a model without a YAML rate row).
@@ -2062,6 +2080,7 @@ ci-fast:
 	echo ""; echo "=== ci-fast [$$(date '+%Y-%m-%d %H:%M:%S')] spelling ==="; $(MAKE) spelling; \
 	echo ""; echo "=== ci-fast [$$(date '+%Y-%m-%d %H:%M:%S')] check-test-policy ==="; $(MAKE) check-test-policy; \
 	echo ""; echo "=== ci-fast [$$(date '+%Y-%m-%d %H:%M:%S')] quality-metrics-ci ==="; $(MAKE) quality-metrics-ci; \
+	echo ""; echo "=== ci-fast [$$(date '+%Y-%m-%d %H:%M:%S')] profile-drift-check ==="; $(MAKE) profile-drift-check; \
 	echo ""; echo "=== ci-fast [$$(date '+%Y-%m-%d %H:%M:%S')] test-fast (pytest) ==="; $(MAKE) test-fast; \
 	echo ""; echo "=== ci-fast [$$(date '+%Y-%m-%d %H:%M:%S')] corpus-snapshot-selftest ==="; $(MAKE) corpus-snapshot-selftest; \
 	echo ""; echo "=== ci-fast [$$(date '+%Y-%m-%d %H:%M:%S')] test-ui ==="; $(MAKE) test-ui; \

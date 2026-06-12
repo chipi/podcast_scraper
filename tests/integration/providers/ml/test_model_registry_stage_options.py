@@ -13,6 +13,10 @@ from __future__ import annotations
 import pytest
 
 from podcast_scraper.providers.ml.model_registry import (
+    get_clustering_options,
+    get_gi_options,
+    get_kg_options,
+    get_ner_options,
     get_profile_preset,
     get_summary_option,
     get_summary_options,
@@ -62,6 +66,30 @@ class TestStageOptionRegistries:
             get_transcription_option("not-a-real-option")
         with pytest.raises(ValueError, match="Unknown summary option"):
             get_summary_option("not-a-real-option")
+
+
+class TestScaffoldedStageRegistries:
+    """GI / KG / NER / clustering stage registries are scaffolded empty.
+
+    The structure exists (so future eval reports can register winners), but
+    every entry MUST land with a research_ref. Until those evals run, the
+    registries stay empty — profile YAMLs are the source of truth for these
+    stages. The presence-but-emptiness is the explicit invariant; this test
+    breaks loudly if someone slips in an entry without going through the
+    materialize-decisions discipline.
+    """
+
+    def test_gi_registry_empty(self) -> None:
+        assert get_gi_options() == {}
+
+    def test_kg_registry_empty(self) -> None:
+        assert get_kg_options() == {}
+
+    def test_ner_registry_empty(self) -> None:
+        assert get_ner_options() == {}
+
+    def test_clustering_registry_empty(self) -> None:
+        assert get_clustering_options() == {}
 
 
 class TestProfilePresets:
@@ -181,3 +209,34 @@ class TestResolveEndpoint:
         assert url is not None
         assert "explicit-dgx" in url
         assert "env-dgx" not in url
+
+
+class TestResolveProfileToSettingsHostThreading:
+    """Covers the dgx_tailnet_host arg added to resolve_profile_to_settings()."""
+
+    def test_explicit_host_arg_threads_through(self) -> None:
+        settings = resolve_profile_to_settings(
+            "cloud_with_dgx_primary",
+            dgx_tailnet_host="my-dgx.example.ts.net",
+        )
+        # Both transcription + summary endpoints (when present) should have
+        # the host substituted.
+        if "transcription_endpoint" in settings:
+            assert "my-dgx.example.ts.net" in settings["transcription_endpoint"]
+            assert "{dgx_tailnet_host}" not in settings["transcription_endpoint"]
+        if "summary_endpoint" in settings:
+            assert "{dgx_tailnet_host}" not in settings["summary_endpoint"]
+
+    def test_no_host_falls_back_to_sentinel(self, monkeypatch) -> None:  # type: ignore[no-untyped-def]
+        monkeypatch.delenv("DGX_TAILNET_HOST", raising=False)
+        settings = resolve_profile_to_settings("cloud_with_dgx_primary")
+        # Endpoints carry the sentinel so downstream HTTP fails fast rather
+        # than silently routing to a placeholder hostname.
+        if "transcription_endpoint" in settings:
+            assert "REPLACE_ME_DGX_TAILNET_HOST" in settings["transcription_endpoint"]
+
+    def test_env_var_used_when_no_explicit_host(self, monkeypatch) -> None:  # type: ignore[no-untyped-def]
+        monkeypatch.setenv("DGX_TAILNET_HOST", "env-dgx.example.ts.net")
+        settings = resolve_profile_to_settings("cloud_with_dgx_primary")
+        if "transcription_endpoint" in settings:
+            assert "env-dgx.example.ts.net" in settings["transcription_endpoint"]

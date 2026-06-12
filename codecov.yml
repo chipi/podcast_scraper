@@ -1,0 +1,37 @@
+# Codecov configuration — mirrors pyproject.toml's [tool.coverage.run] source filter.
+#
+# Without this, Codecov treats paths absent from coverage.xml as 0% covered
+# for patch-coverage purposes, dragging PR diffs that touch scripts/ or infra/
+# below the patch target despite full src/ test coverage. PR #975 hit this
+# (55% patch with green ci-fast); the file did not exist at the time.
+#
+# The ignore list below MUST stay in sync with pyproject.toml's coverage
+# source scope. If `coverage.run.source` changes, mirror it here.
+
+coverage:
+  status:
+    project:
+      default:
+        target: auto
+        threshold: 1%
+    patch:
+      default:
+        target: 77.47%
+
+ignore:
+  - "scripts/**"
+  - "infra/**"
+  - "tests/**"
+  - "tools/**"
+  - "docs/**"
+  - "config/**"
+  - "web/**"
+  - "**.md"
+  - "**.yaml"
+  - "**.yml"
+  - "**.j2"
+
+comment:
+  layout: "reach, diff, flags, files"
+  behavior: default
+  require_changes: false

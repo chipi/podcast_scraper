@@ -7,6 +7,89 @@
 
 ---
 
+## Step 0 — codecov.yml that matches the coverage source filter
+
+**Why this is first**: PR #975 landed with `codecov/patch fail (55%)` even
+though `make ci-fast` was green. The root cause is that
+`[tool.coverage.run] source = ["podcast_scraper"]` in `pyproject.toml`
+correctly excludes `scripts/` and `infra/` from measurement, but the repo
+has no `codecov.yml`, so Codecov's default treats those out-of-source
+diff lines as uncovered for patch-coverage purposes. PR #975 added 224
+lines of script/infra Python which got counted as 0/224, dragging the
+patch ratio down to 55%. Every future PR that touches an eval driver or
+the pyinfra deploy will hit the same false-fail.
+
+The fix is a 15-line config file that mirrors `pyproject.toml`'s
+existing source filter into Codecov's view.
+
+### File: `codecov.yml` (NEW, repo root)
+
+```yaml
+coverage:
+  status:
+    project:
+      default:
+        target: auto
+        threshold: 1%   # allow small variation; matches existing CI policy
+    patch:
+      default:
+        target: 77.47%  # current project's patch target (the threshold #975 hit)
+        # Ignore paths that pyproject.toml's [tool.coverage.run] source
+        # filter excludes. Without this, codecov counts their added lines
+        # as 0% covered on every PR diff, regardless of test thoroughness.
+
+ignore:
+  # These match `source = ["podcast_scraper"]` in pyproject.toml.
+  - "scripts/**"
+  - "infra/**"
+  - "tests/**"
+  - "tools/**"
+  - "docs/**"
+  - "config/**"
+  - "web/**"
+  - "**.md"
+  - "**.yaml"
+  - "**.yml"
+  - "**.j2"
+
+# Comment behavior: brief, only after first push. Keeps PR conversations clean.
+comment:
+  layout: "reach, diff, flags, files"
+  behavior: default
+  require_changes: false
+```
+
+### Verification path
+
+1. Apply the config above.
+2. Open a tiny test PR that touches only a `scripts/eval/*.py` file — verify Codecov posts patch=100% (nothing counted; out of scope) rather than 0%.
+3. Run `make ci-fast` locally to confirm coverage % under `[tool.coverage.report]` is unchanged (this is local coverage.py, not Codecov — the change is purely Codecov-side).
+
+### What this is NOT
+
+- Not a global coverage threshold bump. `[tool.coverage.run]` and the
+  per-test-type `--cov-fail-under` settings in the Makefile stay
+  unchanged.
+- Not a way to hide actual uncovered production code. Files under
+  `src/podcast_scraper/` are still fully measured; the ignore list
+  only mirrors what's already excluded by `pyproject.toml`.
+
+### Acceptance
+
+- [ ] `codecov.yml` exists at repo root with the above content.
+- [ ] Open a small follow-up PR after the registry-runtime work that
+      touches at least one `scripts/eval/*.py` line; codecov/patch
+      passes with 100% (or whatever the actual src/ patch hit-rate is)
+      instead of being dragged down by the script lines.
+- [ ] No new tests required for the fix itself — it's a CI config
+      that catches the existing tests correctly.
+
+### Estimated effort
+
+~15 min including the verification PR.
+
+---
+
 ## Why
 
 #975 set up the registry as canonical: every `StageOption` carries `research_ref`, every `ProfilePreset` names one option per stage, and `resolve_profile_to_settings(name)` returns a flat dict the pipeline could ingest.
