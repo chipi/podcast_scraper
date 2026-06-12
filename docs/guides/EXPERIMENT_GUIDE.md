@@ -640,7 +640,7 @@ summary:
 backend:
   type: "openai"
   model: "Qwen/Qwen3.6-35B-A3B"
-  base_url: "http://dgx-llm-1.tail6d0ed4.ts.net:8003/v1"
+  base_url: "http://your-dgx.tailnet.ts.net:8003/v1"
   api_key_env: "VLLM_NO_AUTH_NEEDED"   # vLLM ignores key; any non-empty works
   extra_body:
     chat_template_kwargs:
@@ -1683,7 +1683,7 @@ pipeline will keep running the previous defaults.
        option_id="tailnet_dgx_speaches_thread_b",
        provider="tailnet_dgx_whisper",
        model="Systran/faster-whisper-large-v3",
-       endpoint="http://dgx-llm-1.tail6d0ed4.ts.net:8000/v1/audio/transcriptions",
+       endpoint="http://your-dgx.tailnet.ts.net:8000/v1/audio/transcriptions",
        extra_settings={"WHISPER__COMPUTE_TYPE": "int8"},
        research_ref="docs/guides/eval-reports/EVAL_SPEACHES_COMPUTE_TYPE_2026_06.md",
        headline_metric="mean WER 0.066 / 0.93× realtime on v2 post Thread B temperature-fallback patch",

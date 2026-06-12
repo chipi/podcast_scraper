@@ -21,7 +21,7 @@
 ## Setup
 
 ```bash
-export OLLAMA_API_BASE=http://dgx-llm-1.tail6d0ed4.ts.net:11434/v1
+export OLLAMA_API_BASE=http://your-dgx.tailnet.ts.net:11434/v1
 # 12 models pulled on DGX first (~110 GB total, ~36 min sequential)
 for m in llama32_3b phi3_mini mistral_7b qwen25_7b gemma2_9b llama31_8b \
          qwen35_9b mistral_nemo_12b mistral_small3_2 qwen35_27b qwen25_32b qwen35_35b; do

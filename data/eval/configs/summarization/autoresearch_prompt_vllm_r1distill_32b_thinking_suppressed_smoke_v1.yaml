@@ -24,7 +24,7 @@ task: "summarization"
 backend:
   type: "openai"
   model: "deepseek-ai/DeepSeek-R1-Distill-Qwen-32B"
-  base_url: "http://dgx-llm-1.tail6d0ed4.ts.net:8003/v1"
+  base_url: "http://${DGX_TAILNET_HOST}:8003/v1"
   api_key_env: "VLLM_NO_AUTH_NEEDED"
   # R1-Distill has no chat-template toggle to disable thinking the
   # way Qwen3.x does. Anti-reasoning is enforced via the prompt

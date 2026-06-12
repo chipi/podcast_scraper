@@ -30,7 +30,7 @@ Output:
 
 Usage:
     python scripts/eval/score/summary_vllm_predict_v1.py \\
-        --vllm-url http://dgx-llm-1.tail6d0ed4.ts.net:8003/v1 \\
+        --vllm-url http://your-dgx.tailnet.ts.net:8003/v1 \\
         --model "Qwen/Qwen3-Coder-Next-FP8" \\
         --prompt-system src/podcast_scraper/prompts/ollama/qwen3.5_35b/summarization/system_v1.j2 \\
         --prompt-user src/podcast_scraper/prompts/ollama/qwen3.5_35b/summarization/long_v1.j2 \\

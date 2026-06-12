@@ -7,13 +7,13 @@
 # concurrent whisper sweep can measure contention impact.
 #
 # Usage:
-#   VLLM_URL=http://dgx-llm-1.tail6d0ed4.ts.net:8003/v1 \
+#   VLLM_URL=http://your-dgx.tailnet.ts.net:8003/v1 \
 #     scripts/eval/vllm_summary_loadgen.sh
 #
 # Stop with Ctrl-C or `kill` from the parent shell.
 set -euo pipefail
 
-: "${VLLM_URL:=http://dgx-llm-1.tail6d0ed4.ts.net:8003/v1}"
+: "${VLLM_URL:=http://your-dgx.tailnet.ts.net:8003/v1}"
 : "${MODEL:=Qwen/Qwen3.6-35B-A3B}"
 : "${EPISODES:=p01_e01 p02_e01 p03_e01 p04_e01 p05_e01}"
 : "${MATERIALIZED_DIR:=data/eval/materialized/curated_5feeds_smoke_v1}"

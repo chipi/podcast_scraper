@@ -102,7 +102,7 @@ def _diarize_dgx(audio_path: Path) -> dict[str, Any]:
 
     url = os.environ.get(
         "DIARIZE_DGX_URL",
-        "http://dgx-llm-1.tail6d0ed4.ts.net:8001/v1/diarize",
+        "http://your-dgx.tailnet.ts.net:8001/v1/diarize",
     )
     t0 = time.time()
     with audio_path.open("rb") as fh:

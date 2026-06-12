@@ -3,7 +3,7 @@
 **Date:** 2026-06-11
 **Issue:** #957
 **Container:** `ghcr.io/speaches-ai/speaches:latest-cuda`
-**Endpoint:** `http://dgx-llm-1.tail6d0ed4.ts.net:8000/v1/audio/transcriptions`
+**Endpoint:** `http://your-dgx.tailnet.ts.net:8000/v1/audio/transcriptions`
 **Model:** `Systran/faster-whisper-large-v3`
 **Dataset:** v2 audio fixtures (5 episodes, ~5 min each)
 
@@ -72,9 +72,10 @@ The deep-research hypothesis from #968 was right. Speaches forwards a
 scalar `temperature=0.0` into faster-whisper's `transcribe()`, which
 internally wraps it as `[0.0]` and DISABLES the documented
 `(0.0, 0.2, 0.4, 0.6, 0.8, 1.0)` compression-ratio / logprob rescue
-schedule. The patched `podcast-speaches:0.1.0` image (FROM
-`speaches:latest-cuda` + sed expansion to the fallback tuple at the
-two transcribe call sites in `routers/stt.py`) flips the verdict.
+schedule. The patched `speaches:latest-cuda-gb10` image (built from
+`infra/dgx/speaches-gb10/Dockerfile` — source-built ctranslate2 4.8.0
+per #948, plus a Stage 3 sed expansion to the fallback tuple at the
+transcribe call sites in `routers/stt.py`) flips the verdict.
 
 Same v2 fixture sweep against the patched container:
 

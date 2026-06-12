@@ -113,4 +113,56 @@ RUN /home/ubuntu/speaches/.venv/bin/python -m ensurepip --upgrade && \
     /home/ubuntu/speaches/.venv/bin/python -c \
         "import ctranslate2 as c; print('ctranslate2', c.__version__, 'cuda_device_count:', c.get_cuda_device_count())"
 
+# ---------------------------------------------------------------------------
+# #968 Thread B — speaches temperature-fallback patch.
+#
+# Independent of the CUDA / ctranslate2 work above. Speaches forwards a
+# scalar `temperature=0.0` into `faster_whisper.WhisperModel.transcribe(...)`,
+# which internally wraps it as `[0.0]` and DISABLES the documented
+# `(0.0, 0.2, 0.4, 0.6, 0.8, 1.0)` compression-ratio / logprob fallback
+# rescue schedule. Whisper large-v3 with deterministic temperature=0.0 is
+# known to enter repetitive non-speech-token loops → empty transcripts or
+# 11k-word hallucinations on harder audio (#957 baseline: mean WER 0.324
+# with bimodal 0.05 / 0.60 across the v2 fixture set).
+#
+# Sibling bug class: openai-whisper #929 (commit 6df41b31). Same shape,
+# different repo.
+#
+# The patch expands the scalar to the fallback tuple at the transcribe
+# call sites. Two image-layout variants handled:
+#   - Older image (current :latest-cuda): `temperature=temperature,` in
+#     routers/stt.py (2 sites).
+#   - Newer upstream master: `temperature=request.temperature` in
+#     executors/whisper.py (3 sites).
+# The grep guard fails the build loudly if the upstream pattern shape
+# changes, which is cheap drift protection.
+#
+# Post-fix measurements on the same v2 sweep: mean WER 0.066 (5× better),
+# max WER 0.104 (bimodal disaster gone). Docs:
+# docs/guides/eval-reports/EVAL_SPEACHES_COMPUTE_TYPE_2026_06.md.
+USER root
+RUN set -eux ; \
+    if [ -f /home/ubuntu/speaches/src/speaches/executors/whisper.py ]; then \
+        targets="/home/ubuntu/speaches/src/speaches/executors/whisper.py" ; \
+    else \
+        targets=$(find /home/ubuntu/speaches/src/speaches -type f -name '*.py' \
+            | xargs -r grep -l 'whisper_model.transcribe\|temperature=request.temperature\|temperature=temperature') ; \
+    fi ; \
+    test -n "$targets" ; \
+    echo "Thread B patching: $targets" ; \
+    for t in $targets ; do \
+        sed -i 's|temperature=request.temperature|temperature=((0.0, 0.2, 0.4, 0.6, 0.8, 1.0) if request.temperature == 0.0 else request.temperature)|g' "$t" ; \
+        sed -i 's|temperature=temperature,|temperature=((0.0, 0.2, 0.4, 0.6, 0.8, 1.0) if temperature == 0.0 else temperature),|g' "$t" ; \
+    done ; \
+    n=0 ; \
+    for t in $targets ; do \
+        c=$(grep -c -F "0.2, 0.4, 0.6, 0.8, 1.0" "$t" || echo 0) ; \
+        n=$((n + c)) ; \
+    done ; \
+    if [ "$n" -lt 2 ]; then \
+        echo "FATAL: Thread B patch expected at least 2 hits, got $n. Speaches upstream may have refactored; rebuild abort." >&2 ; \
+        exit 1 ; \
+    fi ; \
+    echo "Thread B: patched $n call sites"
+
 USER ubuntu

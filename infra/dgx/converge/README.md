@@ -27,12 +27,12 @@ this key isn't reused for anything else, and add it to DGX:
 ssh-keygen -t ed25519 -f ~/.ssh/dgx_ed25519 -C "dgx-converge $(date +%Y-%m-%d)"
 
 # Copy to DGX (use Tailscale MagicDNS hostname):
-ssh-copy-id -i ~/.ssh/dgx_ed25519.pub root@dgx-llm-1.tail6d0ed4.ts.net
+ssh-copy-id -i ~/.ssh/dgx_ed25519.pub root@your-dgx.tailnet.ts.net
 # If ssh-copy-id isn't installed, manual fallback:
 #   cat ~/.ssh/dgx_ed25519.pub | ssh root@<host> 'cat >> ~/.ssh/authorized_keys'
 
 # Smoke-test it:
-ssh -i ~/.ssh/dgx_ed25519 root@dgx-llm-1.tail6d0ed4.ts.net 'echo ok && uname -a'
+ssh -i ~/.ssh/dgx_ed25519 root@your-dgx.tailnet.ts.net 'echo ok && uname -a'
 ```
 
 If you already made a key but aren't sure it works, run the smoke-test
@@ -43,7 +43,7 @@ to retype the host / key path:
 
 ```sshconfig
 Host dgx
-    HostName dgx-llm-1.tail6d0ed4.ts.net
+    HostName your-dgx.tailnet.ts.net
     User root
     IdentityFile ~/.ssh/dgx_ed25519
     IdentitiesOnly yes
@@ -57,7 +57,7 @@ Then `ssh dgx` should just work. pyinfra picks this up automatically.
 
 | Var                | Default              | Purpose                                                |
 | ------------------ | -------------------- | ------------------------------------------------------ |
-| `DGX_TAILNET_FQDN` | _required_           | MagicDNS hostname (e.g. `dgx-llm-1.tail6d0ed4.ts.net`) |
+| `DGX_TAILNET_FQDN` | _required_           | MagicDNS hostname (e.g. `your-dgx.tailnet.ts.net`)     |
 | `DGX_SSH_USER`     | `root`               | SSH user on DGX                                        |
 | `DGX_SSH_KEY`      | `~/.ssh/dgx_ed25519` | Path to private key                                    |
 | `DGX_SSH_PORT`     | `22`                 | SSH port                                               |

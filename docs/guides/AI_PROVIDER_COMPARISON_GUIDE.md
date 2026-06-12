@@ -960,7 +960,7 @@ For raw Ollama swaps (autoresearch experiments where you point an existing
 config at DGX), set `OLLAMA_API_BASE`:
 
 ```bash
-export OLLAMA_API_BASE=http://dgx-llm-1.tail6d0ed4.ts.net:11434/v1
+export OLLAMA_API_BASE=http://your-dgx.tailnet.ts.net:11434/v1
 make benchmark CONFIG=... BASELINE=... OUTPUT_DIR=... SMOKE=1
 ```
 

@@ -96,7 +96,7 @@ class OpenAIBackendConfig(BaseModel):
         description=(
             "Override OpenAI API base URL. Point at an "
             "OpenAI-compatible endpoint such as a local vLLM server "
-            "(e.g. http://dgx-llm-1.tail6d0ed4.ts.net:8003/v1)."
+            "(e.g. http://your-dgx.tailnet.ts.net:8003/v1)."
         ),
     )
     extra_body: Optional[Dict[str, Any]] = Field(

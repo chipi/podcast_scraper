@@ -140,7 +140,7 @@ Tied to the autoresearch programme in [`AUTORESEARCH_NEXT_PHASE_AGENT_PLAN.md`](
 2. **Add `summary_provider: vllm` support to the codebase** — new provider in `src/podcast_scraper/providers/vllm/`, OpenAI-compatible client mirroring `ollama_provider.py`. Maybe 1-2 days of work.
 3. **Deploy vLLM container for the champion on DGX** — port :8003, model pinned, `gpu_memory_utilization: 0.5` initially (room for Ollama coexistence)
 4. **A/B shadow run** — same episodes through both Ollama-prod (current) and vLLM-prod (new) for ~1 week. Verify outputs numerically equivalent within acceptable drift.
-5. **Flip `cloud_with_dgx_primary.yaml`** — `summary_provider: vllm` + `vllm_api_base: http://dgx-llm-1.tail6d0ed4.ts.net:8003/v1`. Keep Ollama route as documented fallback.
+5. **Flip `cloud_with_dgx_primary.yaml`** — `summary_provider: vllm` + `vllm_api_base: http://your-dgx.tailnet.ts.net:8003/v1`. Keep Ollama route as documented fallback.
 6. **Add `PIPELINE_PARALLELISM` config** — allow N podcast pipelines running concurrently against the same DGX. vLLM's continuous batching makes this efficient.
 7. **First parallel-prod stress test** — run 4 feed pipelines concurrently. Measure throughput vs sequential baseline.
 

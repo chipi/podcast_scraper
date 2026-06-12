@@ -25,7 +25,7 @@ amendment, and ``docs/guides/EXPERIMENT_GUIDE.md`` § Step 6 for the flow.
 """
 
 from dataclasses import dataclass
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Final, Optional
 
 
 @dataclass(frozen=True)
@@ -790,7 +790,7 @@ _TRANSCRIPTION_OPTIONS: Dict[str, StageOption] = {
         option_id="tailnet_dgx_whisper_openai",
         provider="tailnet_dgx_whisper",
         model="large-v3",
-        endpoint="http://dgx-llm-1.tail6d0ed4.ts.net:8002/v1/audio/transcriptions",
+        endpoint="http://{dgx_tailnet_host}:8002/v1/audio/transcriptions",
         research_ref="docs/guides/eval-reports/EVAL_TRANSCRIPTION_3WAY_2026_06.md",
         headline_metric=(
             "mean WER 0.102 / 4.56× realtime on v2; " "verified stable under vLLM contention (#963)"
@@ -807,7 +807,7 @@ _TRANSCRIPTION_OPTIONS: Dict[str, StageOption] = {
         option_id="tailnet_dgx_speaches_thread_b",
         provider="tailnet_dgx_whisper",
         model="Systran/faster-whisper-large-v3",
-        endpoint="http://dgx-llm-1.tail6d0ed4.ts.net:8000/v1/audio/transcriptions",
+        endpoint="http://{dgx_tailnet_host}:8000/v1/audio/transcriptions",
         extra_settings={"WHISPER__COMPUTE_TYPE": "int8"},
         research_ref="docs/guides/eval-reports/EVAL_SPEACHES_COMPUTE_TYPE_2026_06.md",
         headline_metric=(
@@ -858,7 +858,7 @@ _SUMMARY_OPTIONS: Dict[str, StageOption] = {
         option_id="ollama_qwen35_35b",
         provider="ollama",
         model="qwen3.5:35b",
-        endpoint="http://dgx-llm-1.tail6d0ed4.ts.net:11434/v1",
+        endpoint="http://{dgx_tailnet_host}:11434/v1",
         extra_settings={"think": False},  # required for direct /api/chat (#959)
         research_ref="docs/guides/eval-reports/EVAL_SUMMARY_DGX_LOCAL_2026_06.md",
         headline_metric="G-Eval 5.00 mean on #928 finale; Q4_K_M robust per #958 Cell D",
@@ -872,7 +872,7 @@ _SUMMARY_OPTIONS: Dict[str, StageOption] = {
         option_id="vllm_r1_distill_32b_with_prompt_fix",
         provider="openai",  # via the #960 first-class vLLM path
         model="deepseek-ai/DeepSeek-R1-Distill-Qwen-32B",
-        endpoint="http://dgx-llm-1.tail6d0ed4.ts.net:8003/v1",
+        endpoint="http://{dgx_tailnet_host}:8003/v1",
         extra_settings={
             "api_key_env": "VLLM_NO_AUTH_NEEDED",
             "anti_reasoning_prompt": (
@@ -893,7 +893,7 @@ _SUMMARY_OPTIONS: Dict[str, StageOption] = {
         option_id="ollama_deepseek_r1_32b_q4",
         provider="ollama",
         model="deepseek-r1:32b",
-        endpoint="http://dgx-llm-1.tail6d0ed4.ts.net:11434/v1",
+        endpoint="http://{dgx_tailnet_host}:11434/v1",
         research_ref="docs/guides/eval-reports/EVAL_SUMMARY_DGX_LOCAL_2026_06.md",
         headline_metric=(
             "G-Eval 4.15 mean (#958 Cell D) — " "beats vLLM-R1-bf16 by +0.90 on same model"
@@ -908,7 +908,7 @@ _SUMMARY_OPTIONS: Dict[str, StageOption] = {
         option_id="ollama_qwen35_9b",
         provider="ollama",
         model="qwen3.5:9b",
-        endpoint="http://dgx-llm-1.tail6d0ed4.ts.net:11434/v1",
+        endpoint="http://{dgx_tailnet_host}:11434/v1",
         extra_settings={"think": False, "bundled_mode_caveat": "fragile in bundled mode"},
         research_ref="docs/guides/eval-reports/EVAL_HELDOUT_V2_2026_04.md",
         headline_metric="0.529 bullets / 0.509 para — local DGX entry-level",
@@ -1004,6 +1004,34 @@ def get_profile_preset(name: str) -> ProfilePreset:
     if name not in _PROFILE_PRESETS:
         raise ValueError(f"Unknown profile preset '{name}'. Known: {sorted(_PROFILE_PRESETS)}")
     return _PROFILE_PRESETS[name]
+
+
+# Hostname placeholder used in StageOption.endpoint templates. Operators
+# supply the real value via the DGX_TAILNET_HOST env var (or directly via
+# the dgx_tailnet_host arg to resolve_endpoint) so the operator's specific
+# Tailscale MagicDNS name doesn't get checked into the repo. See
+# CONTRIBUTING.md "Hostnames in the registry" section.
+_DGX_TAILNET_HOST_PLACEHOLDER: Final[str] = "REPLACE_ME_DGX_TAILNET_HOST"
+
+
+def resolve_endpoint(
+    template: Optional[str], dgx_tailnet_host: Optional[str] = None
+) -> Optional[str]:
+    """Substitute the `{dgx_tailnet_host}` placeholder in a StageOption endpoint.
+
+    Resolution order: explicit arg → DGX_TAILNET_HOST env var →
+    DGX_TAILNET_HOST_PLACEHOLDER (which makes downstream HTTP calls fail
+    obviously rather than silently routing to a placeholder hostname). Pass
+    None to get None back (no endpoint configured for this StageOption).
+    """
+    import os
+
+    if template is None:
+        return None
+    if "{dgx_tailnet_host}" not in template:
+        return template
+    host = dgx_tailnet_host or os.getenv("DGX_TAILNET_HOST") or _DGX_TAILNET_HOST_PLACEHOLDER
+    return template.format(dgx_tailnet_host=host)
 
 
 def resolve_profile_to_settings(name: str) -> Dict[str, Any]:

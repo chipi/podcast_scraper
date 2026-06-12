@@ -3,7 +3,7 @@
 **Date:** 2026-06-11
 **Issue:** #963 (filed in PR #966)
 **Container:** `podcast-whisper:0.1.0` (post-fix per #929 / commit `458b4f53`)
-**Endpoint:** `http://dgx-llm-1.tail6d0ed4.ts.net:8002/v1/audio/transcriptions`
+**Endpoint:** `http://your-dgx.tailnet.ts.net:8002/v1/audio/transcriptions`
 **Model:** `large-v3` (openai-whisper, served by our custom FastAPI shim)
 **Dataset:** v2 audio fixtures (5 episodes, ~5 min each)
 

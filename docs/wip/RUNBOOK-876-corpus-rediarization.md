@@ -30,7 +30,7 @@ pyannote fallback on DGX health failure).
 | --- | --- |
 | DGX Whisper (Speaches, `:8000`, `Systran/faster-whisper-large-v3`) | ✅ healthy |
 | DGX pyannote (`:8001`, `pyannote/speaker-diarization-3.1`) | ✅ healthy |
-| Tailnet reachability to `dgx-llm-1.tail6d0ed4.ts.net` | ✅ active/direct |
+| Tailnet reachability to `your-dgx.tailnet.ts.net` | ✅ active/direct |
 | `cloud_with_dgx_primary` profile on `main` | ✅ (#941) |
 | `--reprocess-source` / `make redo-diarization` tooling | ⏳ **PR #944 (merge gate)** |
 
@@ -40,7 +40,7 @@ pyannote fallback on DGX health failure).
 .venv/bin/python - <<'PY'
 import sys; sys.path.insert(0, "src")
 from podcast_scraper.providers.tailnet_dgx import health
-HOST = "dgx-llm-1.tail6d0ed4.ts.net"
+HOST = "your-dgx.tailnet.ts.net"
 w = health.check_faster_whisper_health(HOST, port=8000,
         require_model_substring="faster-whisper-large-v3")
 d = health.check_pyannote_diarize_health(HOST, port=8001)

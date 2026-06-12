@@ -28,7 +28,7 @@ Related: [RFC-089](../rfc/RFC-089-dgx-spark-tailnet-integration.md),
 From your laptop (on tailnet):
 
 ```bash
-export DGX_TAILNET_FQDN=dgx-llm-1.tail6d0ed4.ts.net
+export DGX_TAILNET_FQDN=your-dgx.tailnet.ts.net
 host=$(bash scripts/ops/resolve_dgx_tailnet_host.sh)
 curl -fsS "http://${host}:11434/api/tags"
 curl -fsS "http://${host}:8001/health"

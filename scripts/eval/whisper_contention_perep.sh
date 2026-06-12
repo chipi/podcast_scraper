@@ -4,7 +4,7 @@
 # harness invocation so a hang only kills one episode, not the sweep.
 #
 # Usage:
-#   WHISPER_DGX_URL=http://dgx-llm-1.tail6d0ed4.ts.net:8002/v1/audio/transcriptions \
+#   WHISPER_DGX_URL=http://your-dgx.tailnet.ts.net:8002/v1/audio/transcriptions \
 #     scripts/eval/whisper_contention_perep.sh <scenario_subdir>
 #
 # Output:

@@ -73,18 +73,18 @@ After `make dgx-deploy`:
 
 ```bash
 # 1. Health check — service is up + model loaded
-curl -s http://dgx-llm-1.tail6d0ed4.ts.net:8002/health
+curl -s http://your-dgx.tailnet.ts.net:8002/health
 # Expected: {"status":"ok","model":"large-v3","device":"cuda"}
 
 # 2. Transcribe a real audio file
-curl -s -X POST http://dgx-llm-1.tail6d0ed4.ts.net:8002/v1/audio/transcriptions \
+curl -s -X POST http://your-dgx.tailnet.ts.net:8002/v1/audio/transcriptions \
     -F "file=@some_episode.mp3" \
     -F "model=large-v3" \
     -F "response_format=json"
 # Expected: {"text": "Hello and welcome..."}
 
 # 3. End-to-end pipeline using this service (sets the URL the provider talks to)
-WHISPER_DGX_URL=http://dgx-llm-1.tail6d0ed4.ts.net:8002/v1/audio/transcriptions \
+WHISPER_DGX_URL=http://your-dgx.tailnet.ts.net:8002/v1/audio/transcriptions \
     python -m podcast_scraper.cli --config config/profiles/cloud_with_dgx_balanced.yaml \
     --rss <feed_url> --output-dir /tmp/test-output
 ```

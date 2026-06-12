@@ -23,13 +23,13 @@ from podcast_scraper.evaluation.experiment_config import OpenAIBackendConfig
 def test_openai_backend_config_accepts_vllm_fields() -> None:
     cfg = OpenAIBackendConfig(
         model="Qwen/Qwen3.6-35B-A3B",
-        base_url="http://dgx-llm-1.tail6d0ed4.ts.net:8003/v1",
+        base_url="http://your-dgx.tailnet.ts.net:8003/v1",
         extra_body={"chat_template_kwargs": {"enable_thinking": False}},
         api_key_env="VLLM_NO_AUTH_NEEDED",
     )
     assert cfg.type == "openai"
     assert cfg.model == "Qwen/Qwen3.6-35B-A3B"
-    assert cfg.base_url == "http://dgx-llm-1.tail6d0ed4.ts.net:8003/v1"
+    assert cfg.base_url == "http://your-dgx.tailnet.ts.net:8003/v1"
     assert cfg.extra_body == {"chat_template_kwargs": {"enable_thinking": False}}
     assert cfg.api_key_env == "VLLM_NO_AUTH_NEEDED"
 

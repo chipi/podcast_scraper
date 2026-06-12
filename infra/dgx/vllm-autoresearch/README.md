@@ -135,15 +135,15 @@ After `make dgx-deploy`:
 
 ```bash
 # 1. Health — only 200 after model is fully loaded (5-15 min on cold cache)
-curl -s http://dgx-llm-1.tail6d0ed4.ts.net:8003/health
+curl -s http://your-dgx.tailnet.ts.net:8003/health
 # Expected: empty body, HTTP 200
 
 # 2. Models endpoint
-curl -s http://dgx-llm-1.tail6d0ed4.ts.net:8003/v1/models | jq
+curl -s http://your-dgx.tailnet.ts.net:8003/v1/models | jq
 # Expected: data list including the configured model id
 
 # 3. End-to-end chat completion smoke (with enable_thinking=False)
-curl -s http://dgx-llm-1.tail6d0ed4.ts.net:8003/v1/chat/completions \
+curl -s http://your-dgx.tailnet.ts.net:8003/v1/chat/completions \
   -H 'Content-Type: application/json' \
   -d '{"model": "Qwen/Qwen3.6-35B-A3B", "messages": [{"role":"user","content":"Reply with the single word OK"}], "max_tokens": 8, "chat_template_kwargs": {"enable_thinking": false}}'
 # Expected: choices[0].message.content == "OK" (or close)
