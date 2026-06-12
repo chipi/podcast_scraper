@@ -245,7 +245,8 @@ for the threads.
 | **DGX openai-whisper FIXED (`:8002`)** | **0.102** | **4.56×** | ✅ new production winner | Fix in this PR |
 | **MPS (laptop, openai-whisper)** | 0.096 | 1.6× | ✅ laptop production default | No change |
 | CPU (laptop, openai-whisper) | 0.137 | 2.34× | ✅ viable fallback | New finding documented |
-| DGX faster-whisper post-#957 (`:8000`, int8) | 0.324 (2 clean eps; high variance) | 1.5× | ⚠️ partial fix — empty-output bug gone, but episode-dependent quality variance above #957's ≤0.20 bar; follow-up filed | Compute-type fix in `infra/dgx/converge/deploy.py` |
+| **DGX faster-whisper post-#968 Thread B (`:8000`, int8 + temperature-fallback patch)** | **0.066** (3 clean eps, max 0.104) | 0.93× | ✅ quality-competitive with openai-whisper; speed gap from ctranslate2 vs torch (Thread A still open) | Patched image `podcast-speaches:0.1.0` (FROM speaches:latest-cuda + sed expansion of scalar temp to fallback tuple) |
+| DGX faster-whisper post-#957 only (`:8000`, int8 + default scalar temperature) | 0.324 (2 clean eps; bimodal 0.05/0.60) | 1.5× | ⚠️ superseded by Thread B above — audit trail only | — |
 | DGX faster-whisper PRE-#957 (`:8000`, default) | 2.275–7.374 | 0.24× | ❌ (audit trail only — broken compute_type auto-pick) | Fixed by #957 |
 | DGX openai-whisper PRE-FIX (`:8002`) | 3.204 | 2.30× | ❌ (audit trail only) | Fixed this PR |
 

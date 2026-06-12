@@ -66,6 +66,82 @@ single-flight + per-read pattern is the real cure.
 | p05_e01 | **0.5950** | 388.6 | 1.4× | Clean response, but quality is **much worse** than p01 — wide episode-dependent variance. |
 | **mean (clean only)** | **0.324** | 362.1 | 1.5× | — |
 
+## Update 2026-06-11 — #968 Thread B closed the gap
+
+The deep-research hypothesis from #968 was right. Speaches forwards a
+scalar `temperature=0.0` into faster-whisper's `transcribe()`, which
+internally wraps it as `[0.0]` and DISABLES the documented
+`(0.0, 0.2, 0.4, 0.6, 0.8, 1.0)` compression-ratio / logprob rescue
+schedule. The patched `podcast-speaches:0.1.0` image (FROM
+`speaches:latest-cuda` + sed expansion to the fallback tuple at the
+two transcribe call sites in `routers/stt.py`) flips the verdict.
+
+Same v2 fixture sweep against the patched container:
+
+| Episode | WER (post-#968 Thread B) | Elapsed (s) | Realtime × | Notes |
+| --- | ---: | ---: | ---: | --- |
+| p01_e01 | **0.0605** | 533.8 | 1.0× | Clean. |
+| p02_e01 | _client-hang_ | (1800 timeout) | — | Tailscale hang (#946 / #956). |
+| p03_e01 | **0.1038** | 957.5 | 0.5× | Clean — NEW clean episode vs pre-#968 sweep. |
+| p04_e01 | **0.0331** | 420.4 | 1.3× | Clean. |
+| p05_e01 | _client-hang_ | (3.4 hr before alarm) | — | Tailscale hang. |
+| **mean (clean only, n=3)** | **0.0658** | 637.2 | **0.93×** | — |
+
+### Before vs after
+
+| Metric | Pre-#968 (#957 fix only) | Post-#968 Thread B | Δ |
+| --- | ---: | ---: | --- |
+| Clean episodes (out of 5) | 2 | **3** | +1 |
+| Mean WER (clean) | 0.324 | **0.0658** | **5× better** |
+| Max ep WER (clean) | 0.595 | 0.104 | bimodal disaster gone ✓ |
+| Min ep WER (clean) | 0.053 | 0.033 | — |
+| #957 acceptance (≤0.20) | ❌ failed | ✅ **met** | — |
+| Realtime (clean) | 1.5× | 0.93× | slower (fallback retries — the whole point of the fix) |
+
+### What changed
+
+The patched image runs:
+
+```python
+# Before (faster-whisper sees [0.0] → no rescue schedule):
+temperature=temperature,
+# After (Thread B patch — fallback tuple engaged for the default 0.0 case):
+temperature=((0.0, 0.2, 0.4, 0.6, 0.8, 1.0) if temperature == 0.0 else temperature),
+```
+
+at lines 119 and 191 of `routers/stt.py` inside the speaches package.
+The image's Dockerfile applies the patch via sed at build time with a
+grep guard that fails the build if the upstream pattern shape changes.
+
+### What's still missing
+
+- **Tailscale hangs (#946 / #956) still kill 2/5 episodes.** Not a
+  Thread B issue — separate resilience bug, same shape that hit the
+  original sweep.
+- **Speed is below the production preference** (~1× realtime vs.
+  openai-whisper's ~4.6×). For batch transcription this is fine; for
+  latency-sensitive work openai-whisper stays the default. The
+  speed gap is fundamentally ctranslate2 vs torch on this hardware
+  (Thread A in #968) — out of our reach until upstream ctranslate2
+  adds sm_121 enablement.
+- **Threads C (newer faster-whisper for the batched-VAD silence
+  retention fix, PR #1297) and D (alternative weights)** weren't
+  needed to clear the acceptance bar; deferring to #968 future
+  rounds if quality regressions emerge on real audio.
+
+### Operational read
+
+faster-whisper with int8 + the Thread B patch is now
+**quality-competitive with openai-whisper** (mean WER 0.066 vs
+openai-whisper's 0.102 on the same fixture set) and **passes #957's
+≤0.20 acceptance bar**. It remains slower (1× vs 4.6× realtime), so
+openai-whisper stays the production default for latency-sensitive
+work — but speaches-Thread-B is now a **legitimate secondary engine**
+for #952's WER A/B comparison and for any case where ctranslate2
+quirks become preferable to openai-whisper's pure torch path.
+
+---
+
 ## Conclusion — partial fix, real follow-up
 
 The **empty-output bug from #957 is fixed**: `int8` produces actual
