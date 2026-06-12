@@ -460,6 +460,17 @@ performance before merging.
    `make experiment-run CONFIG=... BASELINE=baseline_prod_authority_v1`
 4. If quality is acceptable, promote:
    `make run-promote RUN_ID=... --as baseline`
+5. **Materialize the decision into the registry.** When the eval proves a
+   new default — transcription backend, summary model, GI/KG threshold — the
+   eval report is necessary but not sufficient. Update the relevant
+   `StageOption` / `ProfilePreset` in
+   `src/podcast_scraper/providers/ml/model_registry.py` with the new
+   choice, set `research_ref` to the eval report path, and regenerate the
+   downstream profile YAMLs in `config/profiles/` so they match. Without
+   this step the runtime keeps running the old default. See
+   [Experiment Guide § Step 6](docs/guides/EXPERIMENT_GUIDE.md) and
+   [AGENTS.md § "Materialize autoresearch decisions"](AGENTS.md) for the
+   full flow.
 
 **Performance validation (`data/profiles/`):**
 

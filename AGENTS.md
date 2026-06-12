@@ -459,6 +459,79 @@ make lint-markdown # Check markdown
 make fix-md        # Auto-fix markdown
 ```
 
+### Materialize autoresearch decisions in the registry, regenerate profiles
+
+After **every** autoresearch finding that changes a default — transcription
+backend, summary model, GI/KG thresholds, anything — the lifecycle is:
+
+```text
+1. Run experiment(s)              →  data/eval/runs/<run_id>/
+2. Score with finale judges       →  data/eval/runs/finale/<tag>/
+3. Write eval report              →  docs/guides/eval-reports/EVAL_*.md
+4. ★ MATERIALIZE DECISION ★       →  src/podcast_scraper/providers/ml/model_registry.py
+     - Add or update StageOption / ProfilePreset entries
+     - research_ref points back at the eval report from step 3
+     - headline_metric + measured_at for provenance
+5. ★ REGENERATE PROFILES ★        →  config/profiles/*.yaml
+     - Update profile YAMLs to match the registry preset
+     - Comment the change with the StageOption id + research_ref
+6. Tests                          →  tests/integration/providers/ml/...
+     - Behavior test: resolve_profile_to_settings(name) returns the expected
+       provider/model/endpoint triple
+```
+
+Steps **4 and 5 are the part that's easy to skip** and the most expensive to
+fix later. An eval report alone documents the decision; without 4+5 the
+runtime never adopts it. With them, "what is production running today?" has
+a single, machine-readable answer.
+
+Don't hand-flip a profile YAML without a matching registry update. Don't
+amend an eval report's verdict without updating the registry entry it
+justified.
+
+See:
+
+- `docs/wip/RESEARCH_POWERED_REGISTRY_PLAN.md` — vision + migration path
+- `docs/adr/ADR-048-centralized-model-registry.md` — original ML-only ADR
+- `docs/rfc/RFC-044-model-registry.md` — registry RFC
+- `src/podcast_scraper/providers/ml/model_registry.py` — canonical code
+
+### Keep the laptop awake during long sweeps — `caffeinate`
+
+When dispatching a sweep / eval that's expected to run >15 min while
+the operator may step away — especially anything routed through
+Tailscale to the DGX — wrap the work or arm a background timer:
+
+```bash
+caffeinate -i -t 7200 > /dev/null 2>&1 &
+disown                                          # 2-hour safety net
+# or, around a single command:
+caffeinate -i make ci-fast                       # exits with the wrapped cmd
+```
+
+- `-i` = prevent idle system sleep (display can still sleep; CPU and
+  networking stay alive — that's all we need for keeping Tailscale up).
+- `-t N` = auto-exit after N seconds. Belt-and-braces so a forgotten
+  background `caffeinate` doesn't outlive the session.
+
+**Why it matters here**: macOS goes into a deeper-than-normal idle
+state after the laptop sits idle, which drops Tailscale's TCP
+connections. A long-running `requests.post(...)` against the DGX over
+Tailscale will hang from the laptop's perspective even though the DGX
+finished the work and returned 200 OK ages ago — the response just
+never crossed the dead connection.
+
+Symptom (the 2026-06-12 incident this rule came from):
+`elapsed=7946.8s` for an episode the server processed in 34 min and
+the harness's HTTP timeout was set to 1500s. Server-side log says
+`POST 200 OK` at minute 34; client-side blocked until the laptop woke
+up ~90 min later.
+
+**When to arm it**: any sweep where the wall-clock estimate exceeds
+the laptop's idle-sleep timeout (default ~10-15 min on battery, often
+longer on AC). Cheaper than babysitting and far cheaper than
+re-running a multi-hour sweep with corrupted timing data.
+
 ---
 
 ## Detail file references

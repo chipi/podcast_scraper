@@ -128,10 +128,42 @@ No network, no Ollama daemon, minimal dependencies.
 ### What exists today
 
 - **Model registry** (`src/podcast_scraper/providers/ml/model_registry.py`):
-  ML model configs (BART, LED, hybrid). Stage-specific (summarization only).
+  ML model configs (BART, LED, hybrid) PLUS the 2026-06-12 expansion that
+  added `StageOption` / `ProfilePreset` dataclasses and the
+  `_TRANSCRIPTION_OPTIONS` / `_SUMMARY_OPTIONS` / `_PROFILE_PRESETS` registries
+  for transcription + summary stages. Per-option `research_ref` links back to
+  the eval report that justified each choice.
 - **Config profiles** (`config/profiles/`): YAML files with frozen settings.
-  Currently used for cleaning profiles, not full pipeline presets.
+  Currently downstream views — the autoresearch findings are materialized in
+  the registry first and the YAMLs are updated to match. Drift between the
+  YAML and the registry preset is a bug to file.
 - **config_constants.py**: scattered defaults per stage. Not unified.
+
+### Autoresearch → registry → profile materialization flow (2026-06-12)
+
+The lifecycle of an autoresearch finding from this point on:
+
+```
+1. Run experiment(s)              →  data/eval/runs/<run_id>/
+2. Score with finale judges       →  data/eval/runs/finale/<tag>/
+3. Write eval report              →  docs/guides/eval-reports/EVAL_*.md
+4. ★ MATERIALIZE DECISION ★       →  src/podcast_scraper/providers/ml/model_registry.py
+     - Add or update StageOption / ProfilePreset entries
+     - research_ref points back at the eval report from step 3
+     - headline_metric + measured_at for provenance
+5. ★ REGENERATE PROFILES ★        →  config/profiles/*.yaml
+     - Update profile YAMLs to match the registry preset
+     - Comment the change with the StageOption id + research_ref
+     - NEVER hand-flip profile YAMLs without a matching registry update
+6. Tests                          →  tests/integration/providers/ml/...
+     - Drift test: every profile YAML's stage choices match its registry preset
+     - Behavior test: resolve_profile_to_settings(name) returns the expected
+       provider/model/endpoint triple
+```
+
+Steps 4 + 5 are the part that was previously implicit. Without them, the
+eval reports document decisions that the runtime never adopts. With them,
+"what is production running today?" has a single, machine-readable answer.
 
 ### What to build
 

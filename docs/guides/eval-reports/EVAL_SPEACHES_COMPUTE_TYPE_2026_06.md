@@ -118,6 +118,45 @@ grep guard that fails the build if the upstream pattern shape changes.
 - **Tailscale hangs (#946 / #956) still kill 2/5 episodes.** Not a
   Thread B issue — separate resilience bug, same shape that hit the
   original sweep.
+
+### 2026-06-12 follow-up — E1 + E2 + E3 validate the speed claim
+
+After Thread B shipped, three follow-up experiments tested whether the
+0.93× realtime floor was a measurement confound or a real architectural
+limit:
+
+| Experiment | Setup | Mean WER (clean) | Mean realtime |
+| --- | --- | ---: | ---: |
+| Thread B baseline | clean DGX, `compression_ratio_threshold=2.4` | 0.0658 | 0.93× |
+| **E1** | openai-whisper on clean DGX (control) | 0.137 | **4.88×** — slightly faster than #929's 4.56× on a contended DGX (~7% gain) |
+| **E2** | unpatched speaches int8 on clean DGX (p01 only) | 0.0534 | **1.6×** — same as the contended-DGX measurement → contention WASN'T hiding speech speed |
+| **E3** | Thread B patch + `compression_ratio_threshold=3.5` (looser) | 0.112 | **0.60×** — worse on BOTH quality and speed |
+
+What E3 specifically proves: Thread B's default of `compression_ratio_threshold=2.4`
+is near-optimal for this hardware. Loosening it:
+
+- Hurts quality as expected (degenerate chunks slip past the rescue path).
+- Hurts speed counter-intuitively (looser threshold lets the model commit
+  to autoregressive-loopy output that takes more tokens to terminate
+  organically; the rescue would have shortcut it via the temperature
+  schedule).
+
+What this tells us about the speed gap to openai-whisper (4.6× vs ~1×):
+
+- E1 ruled out "contention was hiding speed" (only ~7% effect on openai-whisper).
+- E2 ruled out "ctranslate2 had latent speed on clean DGX" (1.6× either way).
+- E3 ruled out "tuning the fallback threshold could recover speed" (looser is slower).
+- **The remaining 1× realtime floor is the architectural gap** between
+  ctranslate2's int8 path on sm_121 and torch's bf16 path on the same
+  GPU. Only upstream ctranslate2 enabling sm_121 (Thread A territory)
+  can move it. Filed as #971.
+
+The honest tradeoff: Thread B at `compression_ratio_threshold=2.4` pays
+~40% retry overhead vs unpatched (1.6× → 0.93× rt) to buy correctness
+on previously-broken episodes. That's the right side of the curve;
+moving the threshold either tighter or looser produces worse outcomes
+on at least one axis.
+
 - **Speed is below the production preference** (~1× realtime vs.
   openai-whisper's ~4.6×). For batch transcription this is fine; for
   latency-sensitive work openai-whisper stays the default. The

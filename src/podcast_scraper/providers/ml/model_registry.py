@@ -1,12 +1,27 @@
-"""Model Registry: single source of truth for model capabilities and architecture limits.
+"""Model Registry: single source of truth for model capabilities AND pipeline-stage defaults.
 
-Centralizes model metadata (max input tokens, chunk defaults,
-model family) and provides get_capabilities() with fallback order: registry →
-dynamic detection → pattern-based guess → safe default. Keeps the codebase
-decoupled from hardcoded limits and supports future mode configurations
-(promoted baselines).
+**Original scope (ADR-048 / RFC-044)**: ML model architecture limits + mode
+configurations. `ModelCapabilities` carries max input tokens, chunk defaults,
+model family; `ModeConfiguration` carries promoted baseline configurations.
+``get_capabilities()`` uses fallback order: registry → dynamic detection →
+pattern-based guess → safe default.
 
-See ``docs/api/MODELS.md`` for design and migration strategy.
+**2026-06-12 amendment**: expanded to also hold the canonical defaults per
+pipeline stage with research provenance. ``StageOption`` is one
+provider/model choice for a stage (transcription, summary, etc.) with
+``research_ref`` pointing back at the eval report that justified it.
+``ProfilePreset`` is a named composition of StageOptions per stage. The
+profile YAMLs in ``config/profiles/`` are downstream views — they should
+match the registry preset they claim to derive from. Drift = bug.
+
+The flow for any autoresearch finding that changes a default:
+
+    run experiment → score → write eval report → MATERIALIZE here →
+    REGENERATE profile YAML → behavior test
+
+See ``docs/wip/RESEARCH_POWERED_REGISTRY_PLAN.md`` for the vision /
+migration path, ``docs/adr/ADR-048-centralized-model-registry.md`` for the
+amendment, and ``docs/guides/EXPERIMENT_GUIDE.md`` § Step 6 for the flow.
 """
 
 from dataclasses import dataclass
@@ -697,3 +712,333 @@ class ModelRegistry:
             capabilities: Model capabilities
         """
         cls._registry[model_id] = capabilities
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Pipeline-stage registry — RFC-044 expansion beyond ML-only models.
+#
+# RFC-044 (and the WIP plan at `docs/wip/RESEARCH_POWERED_REGISTRY_PLAN.md`)
+# extends the model_registry concept from "just ML/HF models" to "canonical
+# defaults for every pipeline stage with research provenance."
+#
+# Each StageOption below carries:
+#   - the runtime knobs (provider, model, endpoint/port if local)
+#   - the research evidence that justified it (eval report path + headline metric)
+#   - a recommendation tier (primary / fallback / experimental)
+#
+# Profile YAMLs in `config/profiles/` derive their stage choices from these
+# entries — a profile is a composition of StageOption references, not a
+# free-form bag of settings. The eventual goal (per RFC-044) is that a
+# profile YAML becomes a near-empty pointer:
+#
+#     profile: cloud_with_dgx_primary
+#
+# and every field is resolved from this registry. Until that resolver lands,
+# the entries below are the **canonical source the profile YAMLs should match**;
+# any drift between them is a bug to file.
+# ─────────────────────────────────────────────────────────────────────────────
+
+
+@dataclass(frozen=True)
+class StageOption:
+    """A single provider/model option for a pipeline stage.
+
+    Used for transcription, summary, GI, KG, NER, clustering. Holds the
+    runtime knobs plus the research_ref that justified the choice.
+    """
+
+    # Identity
+    stage: str  # "transcription" | "summary" | "gi" | "kg" | "ner" | "clustering"
+    option_id: str  # stable key, e.g. "openai_whisper_1", "ollama_qwen35_35b"
+
+    # Runtime knobs
+    provider: str  # config.transcription_provider / summary_provider value
+    model: Optional[str] = None  # provider-specific model name
+    endpoint: Optional[str] = None  # for DGX/Tailscale-routed options
+    extra_settings: Optional[Dict[str, Any]] = None  # e.g. {"think": False}
+
+    # Research provenance
+    research_ref: Optional[str] = None  # eval report path or issue ref
+    headline_metric: Optional[str] = None  # one-line summary of why this won
+    measured_at: Optional[str] = None  # YYYY-MM-DD of the latest measurement
+
+    # Recommendation tier
+    tier: str = "primary"  # "primary" | "fallback" | "experimental" | "deprecated"
+
+    # Capacity hints (for GB10 unified-memory sizing per DGX_RUNBOOK)
+    resident_memory_gb: Optional[float] = None  # GPU + CPU memory if loaded
+    realtime_multiple: Optional[float] = None  # for transcription stages
+
+
+# Transcription stage — answers RFC-044's #592 placeholder.
+_TRANSCRIPTION_OPTIONS: Dict[str, StageOption] = {
+    # Cloud Whisper API — reliable, cheap, 25 MB file cap unless chunked.
+    "openai_whisper_1": StageOption(
+        stage="transcription",
+        option_id="openai_whisper_1",
+        provider="openai",
+        model="whisper-1",
+        research_ref="docs/guides/eval-reports/EVAL_TRANSCRIPTION_3WAY_2026_06.md",
+        headline_metric="quality ceiling for v2 fixtures; ~$0.006/min",
+        measured_at="2026-06-11",
+        tier="primary",
+    ),
+    # DGX whisper-openai container — production winner per #929 + #963.
+    # Fast (4.6× realtime), clean output, code we own.
+    "tailnet_dgx_whisper_openai": StageOption(
+        stage="transcription",
+        option_id="tailnet_dgx_whisper_openai",
+        provider="tailnet_dgx_whisper",
+        model="large-v3",
+        endpoint="http://dgx-llm-1.tail6d0ed4.ts.net:8002/v1/audio/transcriptions",
+        research_ref="docs/guides/eval-reports/EVAL_TRANSCRIPTION_3WAY_2026_06.md",
+        headline_metric=(
+            "mean WER 0.102 / 4.56× realtime on v2; " "verified stable under vLLM contention (#963)"
+        ),
+        measured_at="2026-06-11",
+        tier="primary",
+        resident_memory_gb=3.0,
+        realtime_multiple=4.56,
+    ),
+    # DGX speaches/faster-whisper container — usable secondary post #968 Thread B.
+    # Quality competitive (0.066 WER) but slow (~1× realtime); int8-only on GB10.
+    "tailnet_dgx_speaches_thread_b": StageOption(
+        stage="transcription",
+        option_id="tailnet_dgx_speaches_thread_b",
+        provider="tailnet_dgx_whisper",
+        model="Systran/faster-whisper-large-v3",
+        endpoint="http://dgx-llm-1.tail6d0ed4.ts.net:8000/v1/audio/transcriptions",
+        extra_settings={"WHISPER__COMPUTE_TYPE": "int8"},
+        research_ref="docs/guides/eval-reports/EVAL_SPEACHES_COMPUTE_TYPE_2026_06.md",
+        headline_metric=(
+            "mean WER 0.066 / 0.93× realtime on v2 " "post Thread B temperature-fallback patch"
+        ),
+        measured_at="2026-06-12",
+        tier="fallback",
+        resident_memory_gb=3.0,
+        realtime_multiple=0.93,
+    ),
+    # Laptop MPS — local production default for cloud_with_dgx fallback or no-DGX.
+    "local_mps_large_v3": StageOption(
+        stage="transcription",
+        option_id="local_mps_large_v3",
+        provider="whisper",
+        model="large-v3",
+        extra_settings={"LOCAL_WHISPER_DEVICE": "mps"},
+        research_ref="docs/guides/eval-reports/EVAL_TRANSCRIPTION_3WAY_2026_06.md",
+        headline_metric="mean WER 0.096 / 1.6× realtime on v2 (laptop default)",
+        measured_at="2026-06-09",
+        tier="primary",
+        resident_memory_gb=3.0,
+        realtime_multiple=1.6,
+    ),
+}
+
+
+# Summary stage — local-DGX default holds per #928 + #958 Cell D.
+_SUMMARY_OPTIONS: Dict[str, StageOption] = {
+    # Cloud cheap — current production default for cloud_balanced / cloud_thin /
+    # cloud_with_dgx_primary's summary path.
+    "gemini_flash_lite": StageOption(
+        stage="summary",
+        option_id="gemini_flash_lite",
+        provider="gemini",
+        model="gemini-2.5-flash-lite",
+        research_ref="docs/guides/eval-reports/EVAL_HELDOUT_V2_2026_04.md",
+        headline_metric=(
+            "0.564 bullets / 1.5s / $0.00047/ep — " "best compound (cost × latency × quality) score"
+        ),
+        measured_at="2026-04-16",
+        tier="primary",
+    ),
+    # Local DGX winner per #928 — unchanged after #958 Cell D's same-model quant
+    # isolation check.
+    "ollama_qwen35_35b": StageOption(
+        stage="summary",
+        option_id="ollama_qwen35_35b",
+        provider="ollama",
+        model="qwen3.5:35b",
+        endpoint="http://dgx-llm-1.tail6d0ed4.ts.net:11434/v1",
+        extra_settings={"think": False},  # required for direct /api/chat (#959)
+        research_ref="docs/guides/eval-reports/EVAL_SUMMARY_DGX_LOCAL_2026_06.md",
+        headline_metric="G-Eval 5.00 mean on #928 finale; Q4_K_M robust per #958 Cell D",
+        measured_at="2026-06-11",
+        tier="primary",
+        resident_memory_gb=23.0,
+    ),
+    # Legitimate panelist after #961 prompt fix; still slightly under qwen3.5:35b.
+    "vllm_r1_distill_32b_with_prompt_fix": StageOption(
+        stage="summary",
+        option_id="vllm_r1_distill_32b_with_prompt_fix",
+        provider="openai",  # via the #960 first-class vLLM path
+        model="deepseek-ai/DeepSeek-R1-Distill-Qwen-32B",
+        endpoint="http://dgx-llm-1.tail6d0ed4.ts.net:8003/v1",
+        extra_settings={
+            "api_key_env": "VLLM_NO_AUTH_NEEDED",
+            "anti_reasoning_prompt": (
+                "vllm/r1_distill_32b/summarization/{system,long}_no_thinking_v1"
+            ),
+            "postprocess": "strip_r1_reasoning",
+        },
+        research_ref="docs/guides/eval-reports/EVAL_SUMMARY_DGX_LOCAL_2026_06.md",
+        headline_metric="G-Eval 4.05 mean (post-#961 prompt fix; pre-fix was 3.25)",
+        measured_at="2026-06-11",
+        tier="experimental",
+        resident_memory_gb=64.0,
+    ),
+    # Ollama R1-Distill Q4 — surprising same-model winner over vLLM bf16.
+    # Useful fallback when vLLM is busy.
+    "ollama_deepseek_r1_32b_q4": StageOption(
+        stage="summary",
+        option_id="ollama_deepseek_r1_32b_q4",
+        provider="ollama",
+        model="deepseek-r1:32b",
+        endpoint="http://dgx-llm-1.tail6d0ed4.ts.net:11434/v1",
+        research_ref="docs/guides/eval-reports/EVAL_SUMMARY_DGX_LOCAL_2026_06.md",
+        headline_metric=(
+            "G-Eval 4.15 mean (#958 Cell D) — " "beats vLLM-R1-bf16 by +0.90 on same model"
+        ),
+        measured_at="2026-06-11",
+        tier="fallback",
+        resident_memory_gb=19.0,
+    ),
+    # Smaller local for laptop / dev profiles.
+    "ollama_qwen35_9b": StageOption(
+        stage="summary",
+        option_id="ollama_qwen35_9b",
+        provider="ollama",
+        model="qwen3.5:9b",
+        endpoint="http://dgx-llm-1.tail6d0ed4.ts.net:11434/v1",
+        extra_settings={"think": False, "bundled_mode_caveat": "fragile in bundled mode"},
+        research_ref="docs/guides/eval-reports/EVAL_HELDOUT_V2_2026_04.md",
+        headline_metric="0.529 bullets / 0.509 para — local DGX entry-level",
+        measured_at="2026-04-16",
+        tier="fallback",
+        resident_memory_gb=6.6,
+    ),
+}
+
+
+@dataclass(frozen=True)
+class ProfilePreset:
+    """A named composition of StageOptions — the registry-driven view of a profile.
+
+    Each preset names one StageOption per stage as the canonical default. The
+    profile YAMLs in `config/profiles/` are downstream consumers — they should
+    encode either (a) the exact StageOption keys named here, or (b) explicit
+    overrides for niche use cases. Drift between a profile YAML and its
+    declared preset is a bug.
+    """
+
+    name: str
+    transcription: str  # StageOption.option_id key into _TRANSCRIPTION_OPTIONS
+    summary: str  # StageOption.option_id key into _SUMMARY_OPTIONS
+    notes: Optional[str] = None
+
+
+# Profile presets — canonical compositions. Profile YAMLs are downstream views.
+_PROFILE_PRESETS: Dict[str, ProfilePreset] = {
+    "cloud_balanced": ProfilePreset(
+        name="cloud_balanced",
+        transcription="openai_whisper_1",
+        summary="gemini_flash_lite",
+        notes="Production cloud default. Best compound (quality × cost × latency).",
+    ),
+    "cloud_thin": ProfilePreset(
+        name="cloud_thin",
+        transcription="openai_whisper_1",
+        summary="gemini_flash_lite",
+        notes="Minimal cloud feature set. Same providers as cloud_balanced.",
+    ),
+    "cloud_with_dgx_primary": ProfilePreset(
+        name="cloud_with_dgx_primary",
+        transcription="tailnet_dgx_whisper_openai",  # post-#929/#966 winner
+        summary="gemini_flash_lite",
+        notes=(
+            "Production hybrid: DGX whisper-openai for transcription, cloud Gemini for summary. "
+            "Was previously tailnet_dgx_speaches; flipped after #968 Thread B confirmed "
+            "speaches viability but with 5× speed cost vs whisper-openai."
+        ),
+    ),
+    "local_dgx_balanced": ProfilePreset(
+        name="local_dgx_balanced",
+        transcription="local_mps_large_v3",
+        summary="ollama_qwen35_35b",  # #928 winner; #958 Cell D confirms Q4 robustness
+        notes="Local pipeline with DGX summary; laptop runs MPS transcription.",
+    ),
+    "local_dgx_full": ProfilePreset(
+        name="local_dgx_full",
+        transcription="local_mps_large_v3",
+        summary="ollama_qwen35_35b",
+        notes="Higher resident memory budget; same registry choices as balanced today.",
+    ),
+}
+
+
+def get_transcription_options() -> Dict[str, StageOption]:
+    """All registered transcription options (id → StageOption)."""
+    return dict(_TRANSCRIPTION_OPTIONS)
+
+
+def get_summary_options() -> Dict[str, StageOption]:
+    """All registered summary options (id → StageOption)."""
+    return dict(_SUMMARY_OPTIONS)
+
+
+def get_transcription_option(option_id: str) -> StageOption:
+    """Look up a single transcription option by id."""
+    if option_id not in _TRANSCRIPTION_OPTIONS:
+        raise ValueError(f"Unknown transcription option '{option_id}'")
+    return _TRANSCRIPTION_OPTIONS[option_id]
+
+
+def get_summary_option(option_id: str) -> StageOption:
+    """Look up a single summary option by id."""
+    if option_id not in _SUMMARY_OPTIONS:
+        raise ValueError(f"Unknown summary option '{option_id}'")
+    return _SUMMARY_OPTIONS[option_id]
+
+
+def get_profile_preset(name: str) -> ProfilePreset:
+    """Look up a profile preset by name. The canonical source for profile YAMLs."""
+    if name not in _PROFILE_PRESETS:
+        raise ValueError(f"Unknown profile preset '{name}'. Known: {sorted(_PROFILE_PRESETS)}")
+    return _PROFILE_PRESETS[name]
+
+
+def resolve_profile_to_settings(name: str) -> Dict[str, Any]:
+    """Resolve a profile preset to the runtime settings the pipeline expects.
+
+    Returns a flat dict the Config can ingest. Profile YAMLs become thin
+    viewers — eventually a YAML reads `profile: cloud_with_dgx_primary` and
+    this resolver fills in the rest.
+    """
+    preset = get_profile_preset(name)
+    tx = get_transcription_option(preset.transcription)
+    sm = get_summary_option(preset.summary)
+
+    settings: Dict[str, Any] = {
+        "transcription_provider": tx.provider,
+    }
+    if tx.model is not None:
+        # Field name depends on provider — keeping the canonical mapping minimal here.
+        # Consumers may need additional translation; this returns the registry view.
+        settings.setdefault("transcription_model", tx.model)
+    if tx.endpoint is not None:
+        settings["transcription_endpoint"] = tx.endpoint
+    if tx.extra_settings:
+        settings["transcription_extra"] = dict(tx.extra_settings)
+
+    settings["summary_provider"] = sm.provider
+    if sm.model is not None:
+        settings["summary_model"] = sm.model
+    if sm.endpoint is not None:
+        settings["summary_endpoint"] = sm.endpoint
+    if sm.extra_settings:
+        settings["summary_extra"] = dict(sm.extra_settings)
+
+    settings["_profile_preset"] = preset.name
+    settings["_transcription_research_ref"] = tx.research_ref
+    settings["_summary_research_ref"] = sm.research_ref
+
+    return settings

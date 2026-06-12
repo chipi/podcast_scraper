@@ -1661,6 +1661,66 @@ workflows, prefer the explicit create-then-promote path.
 
 ---
 
+## Step 6: Materialize the decision into the registry
+
+A promoted run + a written eval report is necessary but NOT sufficient to
+change production behavior. The runtime reads from the model registry
+(`src/podcast_scraper/providers/ml/model_registry.py`), and the registry
+reads from… the model registry. If your finding doesn't land there, the
+pipeline will keep running the previous defaults.
+
+### Sequence (must run for every autoresearch finding)
+
+1. **Update the registry** — add or modify the relevant `StageOption` for
+   the stage you're changing. Set `research_ref` to the eval report path,
+   `headline_metric` to the one-line "why this won," and `measured_at` to
+   the date the finding was confirmed.
+
+   ```python
+   # Example: post-#968 Thread B updated the speaches StageOption.
+   "tailnet_dgx_speaches_thread_b": StageOption(
+       stage="transcription",
+       option_id="tailnet_dgx_speaches_thread_b",
+       provider="tailnet_dgx_whisper",
+       model="Systran/faster-whisper-large-v3",
+       endpoint="http://dgx-llm-1.tail6d0ed4.ts.net:8000/v1/audio/transcriptions",
+       extra_settings={"WHISPER__COMPUTE_TYPE": "int8"},
+       research_ref="docs/guides/eval-reports/EVAL_SPEACHES_COMPUTE_TYPE_2026_06.md",
+       headline_metric="mean WER 0.066 / 0.93× realtime on v2 post Thread B temperature-fallback patch",
+       measured_at="2026-06-12",
+       tier="fallback",
+       resident_memory_gb=3.0,
+       realtime_multiple=0.93,
+   ),
+   ```
+
+2. **Bump the relevant `ProfilePreset`** if the finding changes which
+   `StageOption` a profile should point at. The preset is the canonical
+   pointer; every profile YAML downstream of it has to match.
+
+3. **Regenerate the profile YAMLs** so they match the registry. Add a
+   comment per change citing the StageOption id + the research_ref so the
+   next reader knows where the decision came from.
+
+4. **Add a behavior test** under
+   `tests/integration/providers/ml/test_model_registry*.py` that exercises
+   `resolve_profile_to_settings(name)` and asserts the expected
+   provider/model/endpoint triple. Catches accidental drift.
+
+### Why this step exists
+
+Before this discipline, eval reports documented decisions that the runtime
+never adopted. Every PR that changed a default also touched 4-6 unrelated
+config files; nobody could give a one-sentence answer to "what is production
+running today?" After it, the registry is the answer and profile YAMLs
+become thin downstream views.
+
+See `AGENTS.md` ("Materialize autoresearch decisions in the registry"),
+`docs/wip/RESEARCH_POWERED_REGISTRY_PLAN.md` (the long form), and
+`docs/adr/ADR-048-centralized-model-registry.md` (the 2026-06-12 amendment).
+
+---
+
 ## Visual run comparison (RFC-047)
 
 To compare experiment or baseline runs side by side (artifact status, KPI tiles, deltas vs a chosen baseline, token/latency charts, optional map/reduce diagnostics, and per-episode diffs), use the Streamlit tool described in the [compare tool README in the repository](https://github.com/chipi/podcast_scraper/blob/main/tools/run_compare/README.md).

@@ -74,6 +74,31 @@ We adopt a **Centralized Model Registry** to store model architecture limits and
 - **Model-Agnostic**: Handles both test and production models identically
 - **Status**: Implemented — `model_registry.py` with `ModelRegistry` and `ModelCapabilities`
 
+### 2026-06-12 amendment — pipeline-stage expansion
+
+This ADR originally scoped the registry to ML model **capability** lookups
+(BART, LED, hybrid). On 2026-06-12 the registry was extended to also hold the
+**canonical defaults per pipeline stage** (transcription, summary, eventually
+GI/KG/NER) as `StageOption` entries with `research_ref` provenance back to
+the eval report that justified each choice.
+
+This brings the registry into alignment with the
+`docs/wip/RESEARCH_POWERED_REGISTRY_PLAN.md` vision: profile YAMLs become
+downstream views of the registry, and "what is production running today?"
+has a single, machine-readable answer.
+
+The dataclass surface added in this amendment:
+
+- `StageOption` — one provider/model choice for a stage, with research_ref +
+  headline_metric + measured_at + recommendation tier.
+- `ProfilePreset` — a named composition of StageOptions per stage.
+- `_TRANSCRIPTION_OPTIONS`, `_SUMMARY_OPTIONS`, `_PROFILE_PRESETS` registries.
+- `get_*_option`, `get_profile_preset`, `resolve_profile_to_settings`
+  module-level functions.
+
+The existing `ModelRegistry` class + `ModelCapabilities` / `ModeConfiguration`
+dataclasses are unchanged; the expansion is additive.
+
 ## References
 
 - [RFC-044: Model Registry for Architecture Limits](../rfc/RFC-044-model-registry.md)
