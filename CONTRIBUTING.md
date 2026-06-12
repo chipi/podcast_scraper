@@ -341,7 +341,9 @@ make lint
 
 ```bash
 make test-unit          # Fast feedback (~30s)
-make ci-fast            # Default pre-push gate (~6-10 min)
+make profile-drift-check # Confirm config/profiles/*.yaml match registry presets (~1s)
+make profile-resolve PROFILE=<name>  # Print resolved settings for a registry preset (ops debug)
+make ci-fast            # Default pre-push gate (~6-10 min; runs profile-drift-check)
 make ci                 # Full suite before PR (~10-15 min)
 make check-zombie       # After any stuck/hung make run (macOS)
 ```

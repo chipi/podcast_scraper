@@ -219,9 +219,18 @@ class TestAllShippedProfilesRoundTripThroughCLI:
     ) -> None:
         import yaml
 
+        from podcast_scraper.config import _expand_env_vars
+
         with open(f"config/profiles/{profile_name}.yaml") as f:
+            # ``profile:`` is a meta-key consumed by ``Config._resolve_profile``
+            # (the #907 registry opt-in declaration); it never becomes a Config
+            # attribute, so the round-trip check must skip it just like ``rss``.
+            # ``_expand_env_vars`` applies the ``${VAR:-default}`` substitution
+            # so expectations match the post-load Config attribute.
             expected = {
-                k: v for k, v in yaml.safe_load(f).items() if not k.startswith("_") and k != "rss"
+                k: v
+                for k, v in _expand_env_vars(yaml.safe_load(f)).items()
+                if not k.startswith("_") and k not in ("rss", "profile")
             }
         args = parse_args(
             [

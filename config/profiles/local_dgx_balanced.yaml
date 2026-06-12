@@ -1,9 +1,14 @@
+# 2026-06-12 (#907 Option B): opted into registry-driven defaults.
+# See tests/integration/providers/ml/test_profile_yaml_registry_drift.py.
+
+profile: local_dgx_balanced
+
 # Profile: local_dgx_balanced — DGX-hosted Ollama with cloud degradation fallback (RFC-089)
 #
 # Point ollama_api_base / dgx_tailnet_host at your DGX MagicDNS name before running.
 # See docs/guides/DGX_RUNBOOK.md.
 
-dgx_tailnet_host: your-dgx.tailnet.ts.net
+dgx_tailnet_host: ${DGX_TAILNET_HOST:-your-dgx.tailnet.ts.net}
 ollama_api_base: http://your-dgx.tailnet.ts.net:11434/v1
 
 transcription_provider: whisper

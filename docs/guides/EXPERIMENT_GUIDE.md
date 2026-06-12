@@ -1707,6 +1707,31 @@ pipeline will keep running the previous defaults.
    `resolve_profile_to_settings(name)` and asserts the expected
    provider/model/endpoint triple. Catches accidental drift.
 
+### Step 6b: Verify the runtime actually sees the change
+
+`make profile-drift-check` runs the test that asserts every
+`config/profiles/*.yaml` declaring a `profile: <preset>` field agrees with
+its registry preset on routing (`transcription_provider`,
+`summary_provider`, `summary_model`). Run it locally after a registry edit:
+
+```bash
+make profile-drift-check
+```
+
+The check is also wired into `make ci-fast`, so CI will fail loudly if a
+profile YAML drifts from its declared preset. When it fails, you have two
+options:
+
+- **Update the YAML** to match the new registry default — this is what the
+  materialize-decisions flow normally expects.
+- **Update the registry** (with a new `research_ref` + `headline_metric`)
+  if the YAML was the deliberate choice. The eval-report-justified change
+  is the source of truth; the YAML must follow.
+
+Profile YAMLs that don't declare `profile:` are silently skipped — the
+drift check only applies to YAMLs that have opted in. Opting a new YAML
+in is a one-line edit at the top of the file.
+
 ### Why this step exists
 
 Before this discipline, eval reports documented decisions that the runtime

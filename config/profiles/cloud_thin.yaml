@@ -1,3 +1,8 @@
+# 2026-06-12 (#907 Option B): opted into registry-driven defaults.
+# See tests/integration/providers/ml/test_profile_yaml_registry_drift.py.
+
+profile: cloud_thin
+
 # Profile: cloud_thin — cloud APIs only (no local spaCy / FAISS)
 #
 # Use with pipeline image built using ``INSTALL_EXTRAS=llm`` (``pyproject`` **``. [llm]``**).

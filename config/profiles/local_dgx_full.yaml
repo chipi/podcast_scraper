@@ -1,8 +1,13 @@
+# 2026-06-12 (#907 Option B): opted into registry-driven defaults.
+# See tests/integration/providers/ml/test_profile_yaml_registry_drift.py.
+
+profile: local_dgx_full
+
 # Profile: local_dgx_full — pure DGX measurement profile (no cloud fallback in config)
 #
 # For autoresearch / comparison runs only. Do not use for prod or pre-prod pipelines.
 
-dgx_tailnet_host: your-dgx.tailnet.ts.net
+dgx_tailnet_host: ${DGX_TAILNET_HOST:-your-dgx.tailnet.ts.net}
 ollama_api_base: http://your-dgx.tailnet.ts.net:11434/v1
 
 transcription_provider: whisper

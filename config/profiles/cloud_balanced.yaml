@@ -1,3 +1,10 @@
+# 2026-06-12 (#907 Option B): opted into registry-driven defaults via the
+# `profile:` declaration below. Routing fields (transcription_provider,
+# summary_provider, summary_model) are cross-checked against the registry
+# preset by tests/integration/providers/ml/test_profile_yaml_registry_drift.py.
+
+profile: cloud_balanced
+
 # Profile: cloud_balanced — production default
 #
 # Best compound score (quality × cost × latency) from v2 eval + autoresearch.

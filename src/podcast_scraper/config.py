@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import logging
 import os
+import re
 import threading
 import warnings
 from datetime import date
@@ -646,6 +647,56 @@ OPERATOR_ONLY_TOP_LEVEL_KEYS: frozenset[str] = frozenset(
 # accept these names too. Add a new key here whenever a new nested-form
 # rewrite lands (see ``_flatten_dgx_stage_routing`` for ``transcription``).
 NESTED_PROFILE_TOP_LEVEL_KEYS: frozenset[str] = frozenset({"transcription"})
+
+
+_ENV_VAR_PATTERN = re.compile(
+    r"""\$\{                       # opening ${
+        (?P<name>[A-Za-z_][A-Za-z0-9_]*)
+        (?::-(?P<default>[^}]*))?  # optional :- default
+    \}""",
+    re.VERBOSE,
+)
+
+
+def _expand_env_in_string(value: str) -> str:
+    """Substitute ``${VAR}`` and ``${VAR:-default}`` in a single string.
+
+    Supports the bash-style ``:-`` form: if VAR is unset *or empty*, use
+    the default; otherwise use VAR's value. Operator-facing YAMLs use this
+    to keep hostnames / API keys out of git while still having a sensible
+    no-env fallback for ``--config`` smoke tests.
+    """
+
+    def _replace(match: re.Match[str]) -> str:
+        name = match.group("name")
+        default = match.group("default")
+        env_val = os.environ.get(name)
+        if env_val:
+            return env_val
+        if default is not None:
+            return default
+        # No env var, no default — keep the literal so misconfiguration
+        # surfaces loudly downstream rather than silently expanding to "".
+        return match.group(0)
+
+    return _ENV_VAR_PATTERN.sub(_replace, value)
+
+
+def _expand_env_vars(data: Any) -> Any:
+    """Recursively expand ``${VAR}`` / ``${VAR:-default}`` in a parsed YAML/JSON tree.
+
+    Applied to dict/list/string nodes only; other scalars pass through.
+    Returns a NEW structure (does not mutate input). Used by ``Config``'s
+    profile loader and the standalone ``_load_config_file`` so every YAML
+    config that enters the runtime gets the same substitution semantics.
+    """
+    if isinstance(data, dict):
+        return {k: _expand_env_vars(v) for k, v in data.items()}
+    if isinstance(data, list):
+        return [_expand_env_vars(v) for v in data]
+    if isinstance(data, str):
+        return _expand_env_in_string(data)
+    return data
 
 
 class Config(BaseModel):
@@ -3061,12 +3112,18 @@ class Config(BaseModel):
     @model_validator(mode="before")
     @classmethod
     def _resolve_profile(cls, data: Any) -> Any:
-        """Resolve ``profile`` field: load named preset, merge as defaults (#593).
+        """Resolve ``profile`` field with layered defaults (#593, #907).
 
-        If ``profile: cloud_balanced`` is set, loads
-        ``config/profiles/cloud_balanced.yaml`` and merges its values as
-        defaults — explicit fields in ``data`` override profile defaults.
-        The ``profile`` key is consumed and not passed to Pydantic fields.
+        Cascade (highest wins):
+          1. Explicit fields in ``data`` (CLI args, env vars, code-level kwargs).
+          2. Profile YAML at ``config/profiles/<name>.yaml`` (operator policy).
+          3. Registry preset from ``model_registry._PROFILE_PRESETS`` via
+             ``resolve_profile_to_settings(name, dgx_tailnet_host=...)``
+             (research-driven defaults — only fields Config knows about).
+
+        Either the YAML file or the registry preset may be missing; if both
+        are missing the profile name is logged and ignored. The ``profile``
+        key itself is consumed and not passed to Pydantic fields.
         """
         if not isinstance(data, dict):
             return data
@@ -3077,10 +3134,32 @@ class Config(BaseModel):
             return cls._merge_audio_preprocessing_preset(data)
 
         profile_name = str(profile_name).strip()
-        # Resolve profile YAML path
+
+        # Layer 3: registry preset (broadest defaults — research-driven).
+        # Filtered to fields Config actually declares, so resolver outputs
+        # like ``transcription_endpoint`` that have no matching Config field
+        # are dropped silently rather than tripping ``extra="forbid"``.
+        registry_settings: Dict[str, Any] = {}
+        try:
+            from podcast_scraper.providers.ml.model_registry import (
+                resolve_profile_to_settings,
+            )
+
+            raw = resolve_profile_to_settings(
+                profile_name,
+                dgx_tailnet_host=data.get("dgx_tailnet_host"),
+            )
+            config_field_names = set(cls.model_fields.keys())
+            registry_settings = {
+                k: v for k, v in raw.items() if not k.startswith("_") and k in config_field_names
+            }
+        except ValueError:
+            # Not a registry preset — YAML-only mode (existing behaviour).
+            pass
+
+        # Layer 2: profile YAML at config/profiles/<name>.yaml.
         from pathlib import Path
 
-        # Try config/profiles/ relative to project root, then package resources
         candidates = [
             Path("config/profiles") / f"{profile_name}.yaml",
             Path(__file__).parent.parent.parent / "config" / "profiles" / f"{profile_name}.yaml",
@@ -3091,22 +3170,28 @@ class Config(BaseModel):
                 profile_path = c
                 break
 
-        if profile_path is None:
+        profile_dict: Dict[str, Any] = {}
+        if profile_path is not None:
+            import yaml
+
+            profile_dict = yaml.safe_load(profile_path.read_text(encoding="utf-8")) or {}
+            profile_dict = _expand_env_vars(profile_dict)
+            # The YAML itself may declare ``profile:`` (the registry opt-in).
+            # That meta-key must not leak into the merged dict — Config has
+            # ``extra="forbid"`` and has no ``profile`` field.
+            profile_dict.pop("profile", None)
+        elif not registry_settings:
             import logging
 
             logging.getLogger(__name__).warning(
-                "Profile '%s' not found in config/profiles/; ignoring", profile_name
+                "Profile '%s' not found in registry or config/profiles/; ignoring",
+                profile_name,
             )
-            # Still resolve audio preset if set directly on data.
             return cls._merge_audio_preprocessing_preset(data)
 
-        # Load profile YAML
-        import yaml
-
-        profile_dict = yaml.safe_load(profile_path.read_text(encoding="utf-8")) or {}
-
-        # Merge: profile provides defaults, explicit data overrides
-        merged = dict(profile_dict)
+        # Merge registry < YAML < explicit data.
+        merged: Dict[str, Any] = dict(registry_settings)
+        merged.update(profile_dict)
         merged.update(data)  # explicit fields win
 
         # After deployment profile resolution, also resolve
@@ -3166,6 +3251,7 @@ class Config(BaseModel):
         import yaml
 
         preset_dict = yaml.safe_load(preset_path.read_text(encoding="utf-8")) or {}
+        preset_dict = _expand_env_vars(preset_dict)
         merged = dict(preset_dict)
         merged.update(data)
         return merged
@@ -5433,4 +5519,5 @@ def load_config_file(
     if not isinstance(data, dict):
         raise ValueError("Config file must contain a mapping/object at the top level")
 
-    return data
+    expanded = _expand_env_vars(data)
+    return cast(Dict[str, Any], expanded)

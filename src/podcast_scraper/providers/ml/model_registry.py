@@ -921,6 +921,32 @@ _SUMMARY_OPTIONS: Dict[str, StageOption] = {
 }
 
 
+# --- GI / KG / NER / clustering stages — scaffolding (#907 follow-up) -------
+#
+# Empty by design. The structure exists so future eval reports can register
+# their winners here following the same materialize-decisions discipline as
+# transcription + summary above. NEVER add entries here without a
+# ``research_ref`` pointing at an eval report that justifies the choice — the
+# whole point of this registry is that every default is backed by measured
+# evidence, not opinion.
+#
+# When a GI / KG / NER / clustering eval lands:
+#   1. Add the winning option as a StageOption (with research_ref, headline_metric).
+#   2. Extend ProfilePreset (below) to name a default per profile.
+#   3. Update resolve_profile_to_settings() to surface the new stage's fields.
+#   4. Add a drift test row for the new fields in
+#      tests/integration/providers/ml/test_profile_yaml_registry_drift.py.
+#
+# Until then, profile YAMLs continue to be the source of truth for these
+# stages; the runtime reads them directly. This is fine — the registry only
+# pretends to be canonical for stages where the materialize-decisions flow
+# has actually run.
+_GI_OPTIONS: Dict[str, StageOption] = {}
+_KG_OPTIONS: Dict[str, StageOption] = {}
+_NER_OPTIONS: Dict[str, StageOption] = {}
+_CLUSTERING_OPTIONS: Dict[str, StageOption] = {}
+
+
 @dataclass(frozen=True)
 class ProfilePreset:
     """A named composition of StageOptions — the registry-driven view of a profile.
@@ -1001,6 +1027,26 @@ def get_summary_option(option_id: str) -> StageOption:
     return _SUMMARY_OPTIONS[option_id]
 
 
+def get_gi_options() -> Dict[str, StageOption]:
+    """All registered GI options (id → StageOption). Empty until eval lands (#907)."""
+    return dict(_GI_OPTIONS)
+
+
+def get_kg_options() -> Dict[str, StageOption]:
+    """All registered KG options (id → StageOption). Empty until eval lands (#907)."""
+    return dict(_KG_OPTIONS)
+
+
+def get_ner_options() -> Dict[str, StageOption]:
+    """All registered NER options (id → StageOption). Empty until eval lands (#907)."""
+    return dict(_NER_OPTIONS)
+
+
+def get_clustering_options() -> Dict[str, StageOption]:
+    """All registered clustering options (id → StageOption). Empty until eval lands (#907)."""
+    return dict(_CLUSTERING_OPTIONS)
+
+
 def get_profile_preset(name: str) -> ProfilePreset:
     """Look up a profile preset by name. The canonical source for profile YAMLs."""
     if name not in _PROFILE_PRESETS:
@@ -1036,12 +1082,22 @@ def resolve_endpoint(
     return template.format(dgx_tailnet_host=host)
 
 
-def resolve_profile_to_settings(name: str) -> Dict[str, Any]:
+def resolve_profile_to_settings(
+    name: str,
+    dgx_tailnet_host: Optional[str] = None,
+) -> Dict[str, Any]:
     """Resolve a profile preset to the runtime settings the pipeline expects.
 
     Returns a flat dict the Config can ingest. Profile YAMLs become thin
-    viewers — eventually a YAML reads `profile: cloud_with_dgx_primary` and
-    this resolver fills in the rest.
+    viewers — a YAML reads `profile: cloud_with_dgx_primary` and this
+    resolver fills in the rest at validation time.
+
+    Args:
+        name: ProfilePreset name (e.g. "cloud_with_dgx_primary").
+        dgx_tailnet_host: optional explicit Tailscale host; threaded into
+            resolve_endpoint() for each stage option's endpoint template.
+            When None, the resolver's per-endpoint call falls back to the
+            DGX_TAILNET_HOST env var, then to the fail-fast sentinel.
     """
     preset = get_profile_preset(name)
     tx = get_transcription_option(preset.transcription)
@@ -1054,16 +1110,18 @@ def resolve_profile_to_settings(name: str) -> Dict[str, Any]:
         # Field name depends on provider — keeping the canonical mapping minimal here.
         # Consumers may need additional translation; this returns the registry view.
         settings.setdefault("transcription_model", tx.model)
-    if tx.endpoint is not None:
-        settings["transcription_endpoint"] = tx.endpoint
+    resolved_tx_endpoint = resolve_endpoint(tx.endpoint, dgx_tailnet_host)
+    if resolved_tx_endpoint is not None:
+        settings["transcription_endpoint"] = resolved_tx_endpoint
     if tx.extra_settings:
         settings["transcription_extra"] = dict(tx.extra_settings)
 
     settings["summary_provider"] = sm.provider
     if sm.model is not None:
         settings["summary_model"] = sm.model
-    if sm.endpoint is not None:
-        settings["summary_endpoint"] = sm.endpoint
+    resolved_sm_endpoint = resolve_endpoint(sm.endpoint, dgx_tailnet_host)
+    if resolved_sm_endpoint is not None:
+        settings["summary_endpoint"] = resolved_sm_endpoint
     if sm.extra_settings:
         settings["summary_extra"] = dict(sm.extra_settings)
 

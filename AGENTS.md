@@ -478,6 +478,10 @@ backend, summary model, GI/KG thresholds, anything — the lifecycle is:
 6. Tests                          →  tests/integration/providers/ml/...
      - Behavior test: resolve_profile_to_settings(name) returns the expected
        provider/model/endpoint triple
+7. Verify the runtime sees it     →  make profile-drift-check
+     - Each profile YAML that declares `profile: <preset>` is cross-checked
+       against the registry. Wired into make ci-fast — drift is now a CI
+       failure, not a documentation drift problem.
 ```
 
 Steps **4 and 5 are the part that's easy to skip** and the most expensive to

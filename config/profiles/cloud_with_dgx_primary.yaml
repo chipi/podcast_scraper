@@ -11,12 +11,22 @@
 # Cloud fallbacks: OPENAI_API_KEY (Whisper), GEMINI_API_KEY (summary).
 # Diarization falls back to in-process pyannote (no cheap cloud alternative
 # to bill against — TailnetDgxDiarizationProvider handles this transparently).
+#
+# 2026-06-12 (#907 Option B): opted into registry-driven defaults. The
+# `profile:` field below names the registry preset; routing fields below
+# (transcription_provider, summary_provider, summary_model) are now
+# cross-checked against the registry by
+# tests/integration/providers/ml/test_profile_yaml_registry_drift.py. If
+# this YAML disagrees with the registry preset, CI fails — update either
+# this file or the registry (with new research_ref evidence).
+
+profile: cloud_with_dgx_primary
 
 transcription:
   primary: tailnet_dgx_whisper
   fallback: openai
 
-dgx_tailnet_host: your-dgx.tailnet.ts.net
+dgx_tailnet_host: ${DGX_TAILNET_HOST:-your-dgx.tailnet.ts.net}
 # Registry-driven choice (`tailnet_dgx_whisper_openai` in
 # src/podcast_scraper/providers/ml/model_registry.py).
 #
