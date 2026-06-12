@@ -1281,23 +1281,35 @@ def _artifact_from_multi_insight(
         transcript_text and transcript_segments and len(transcript_segments) > 0
     )
     if use_segments_raw and transcript_segments is not None:
-        aligned = _transcript_segments_aligned(transcript_text or "", transcript_segments)
-        if not aligned:
-            lt, recon, delta = _transcript_segments_alignment_delta(
-                transcript_text or "", transcript_segments
-            )
-            logger.warning(
-                "GIL: episode %s transcript vs segment text length mismatch (%s): "
-                "len(transcript)=%d concatenated_segment_len=%d abs_delta=%d (max_delta=%d); "
-                "skipping segment-based quote timestamps and segment speakers (issue #545).",
-                episode_id,
-                transcript_ref or "",
-                lt,
-                recon,
-                delta,
-                SEGMENT_TRANSCRIPT_ALIGNMENT_MAX_DELTA,
-            )
-        use_segments = aligned
+        # #974: segments carrying explicit char_start/char_end (the ad-free processing
+        # base) know their exact position in the screenplay — markers and all — so a
+        # quote maps to its segment without any cumulative-length check. Only the legacy
+        # path (plain segments, no offsets) needs the #545 alignment guard below.
+        has_offsets = all(
+            isinstance(s, dict) and "char_start" in s and "char_end" in s
+            for s in transcript_segments
+        )
+        if has_offsets:
+            use_segments = True
+        else:
+            aligned = _transcript_segments_aligned(transcript_text or "", transcript_segments)
+            if not aligned:
+                lt, recon, delta = _transcript_segments_alignment_delta(
+                    transcript_text or "", transcript_segments
+                )
+                logger.warning(
+                    "GIL: episode %s transcript vs segment text length mismatch (%s): "
+                    "len(transcript)=%d concatenated_segment_len=%d abs_delta=%d (max_delta=%d); "
+                    "skipping segment-based quote timestamps and segment speakers (issue #545). "
+                    "Re-run with the #974 ad-free base to map exactly.",
+                    episode_id,
+                    transcript_ref or "",
+                    lt,
+                    recon,
+                    delta,
+                    SEGMENT_TRANSCRIPT_ALIGNMENT_MAX_DELTA,
+                )
+            use_segments = aligned
     else:
         use_segments = False
     topic_node_specs = _dedupe_topic_node_specs(topic_labels)

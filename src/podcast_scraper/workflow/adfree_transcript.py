@@ -25,7 +25,7 @@ import os
 from dataclasses import dataclass
 from typing import Any, Dict, List, Optional
 
-from ..gi.ad_regions import excise_ad_regions_with_offsets
+from ..gi.ad_regions import _overlaps_any, excise_ad_regions, excise_ad_regions_with_offsets
 from ..providers.ml.diarization.formatting import format_diarized_screenplay_with_offsets
 
 logger = logging.getLogger(__name__)
@@ -94,14 +94,33 @@ def build_adfree_artifacts(
     if not text or not segments:
         return None
 
-    # Exact offsets: if the segments reformat to the saved screenplay byte-for-byte we
-    # know each segment's precise char range; otherwise derive by progressive search.
     rebuilt, offset_segs = format_diarized_screenplay_with_offsets(segments)
-    if rebuilt != text:
-        offset_segs = _derive_offsets_by_find(text, segments)
+    if rebuilt == text:
+        # Diarized screenplay: detect ad ranges, DROP the segments inside them, then
+        # RE-RENDER the survivors. Re-rendering (vs a raw char-cut) guarantees every
+        # surviving turn keeps its ``Name:`` marker — a char-cut would sever the marker
+        # of an ad that coalesced into the same-speaker turn as the following content —
+        # and the offsets come straight from the formatter, so they stay exact.
+        _, _, meta = excise_ad_regions(text)
+        ranges = meta.excised_ranges
+        survivors = (
+            [s for s in offset_segs if not _overlaps_any(s["char_start"], s["char_end"], ranges)]
+            if ranges
+            else offset_segs
+        )
+        adfree_text, adfree_segs = format_diarized_screenplay_with_offsets(survivors)
+        return AdfreeArtifacts(
+            text=adfree_text,
+            segments=adfree_segs,
+            ad_map=meta.to_dict(),
+            chars_removed=meta.chars_removed,
+        )
+
+    # Plain / provider transcript (no speaker markers to preserve): a char-level cut is
+    # exact. Derive each segment's offset by progressive search, then excise.
+    offset_segs = _derive_offsets_by_find(text, segments)
     if not offset_segs:
         return None
-
     adfree_text, adfree_segs, meta = excise_ad_regions_with_offsets(text, offset_segs)
     return AdfreeArtifacts(
         text=adfree_text,
