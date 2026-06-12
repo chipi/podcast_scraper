@@ -1,0 +1,198 @@
+"""Corpus-level diarization / speaker-attribution quality metrics (#876).
+
+Validates a *produced* corpus directory against the quality properties the speaker-attribution
+bugs violated, so a local full-corpus re-diarization run can be checked automatically instead
+of by manual spot-check (RUNBOOK-876 Step 6). Each property maps to a bug we hit:
+
+- guest name painted on host turns        → low share of un-attributed quotes
+- host = network tag ("Colossus")         → no network/org name in ``content.speakers``
+- partial naming (guest left SPEAKER_xx)  → multi-speaker episodes have ≥2 named speakers
+- ``num_speakers`` dropped                 → ``diarization_num_speakers`` present
+- #545 offset mismatch drops attribution  → quotes carry ``speaker_id`` + timestamp
+
+Pure file scan (no DB). Mirrors ``gi.quality_metrics`` conventions: ``compute_*`` +
+``enforce_*`` returning a metrics dict / (passed, failures).
+"""
+
+from __future__ import annotations
+
+import json
+from dataclasses import dataclass, field
+from pathlib import Path
+from typing import Any, Dict, List, Optional, Tuple
+
+from ..search.corpus_scope import discover_all_metadata_files
+from ..speaker_detectors.hosts import is_network_or_org_author
+
+# Default enforcement thresholds.
+MIN_QUOTE_ATTRIBUTION_RATE = 0.90  # quotes whose speaker_id is a real person:<slug>
+MIN_QUOTE_TIMESTAMP_RATE = 0.85  # quotes carrying timestamp_start_ms
+# multi-speaker episode = diarization_num_speakers >= 2 OR >= 2 distinct quote speakers
+
+
+@dataclass
+class EpisodeDiarMetrics:
+    """Per-episode diarization-quality counters."""
+
+    episode: str
+    diarized: bool = False
+    num_speakers: Optional[int] = None
+    quotes_total: int = 0
+    quotes_attributed: int = 0  # speaker_id is a non-empty person:<slug>
+    quotes_with_timestamp: int = 0
+    distinct_speakers: int = 0
+    content_speaker_names: List[str] = field(default_factory=list)
+    network_org_speaker_names: List[str] = field(default_factory=list)
+    multispeaker: bool = False
+    named_speaker_count: int = 0  # distinct named (non SPEAKER_xx / non person:speaker-) speakers
+
+
+def _load_json(path: Path) -> Optional[dict]:
+    try:
+        with open(path, encoding="utf-8") as fh:
+            data = json.load(fh)
+    except (OSError, ValueError):
+        return None
+    return data if isinstance(data, dict) else None
+
+
+def _find(obj: Any, key: str) -> Any:
+    stack = [obj]
+    while stack:
+        cur = stack.pop()
+        if isinstance(cur, dict):
+            for k, v in cur.items():
+                if k == key:
+                    return v
+                if isinstance(v, (dict, list)):
+                    stack.append(v)
+        elif isinstance(cur, list):
+            stack.extend(cur)
+    return None
+
+
+def _is_named_speaker(speaker_id: str) -> bool:
+    """True when a quote ``speaker_id`` names a real person, not a raw diarization label.
+
+    Real ids look like ``person:brian-chesky``; a voice the roster could not name slugs to
+    ``person:speaker-02`` (or stays ``SPEAKER_02``) — those are *attributed but unnamed*.
+    """
+    s = (speaker_id or "").strip().lower()
+    if not s:
+        return False
+    slug = s.split(":", 1)[1] if ":" in s else s
+    return not slug.startswith("speaker")
+
+
+def _episode_metrics(gi_path: Path, meta: Optional[dict]) -> EpisodeDiarMetrics:
+    em = EpisodeDiarMetrics(episode=gi_path.name)
+    gi = _load_json(gi_path) or {}
+    quotes = [n for n in gi.get("nodes", []) if isinstance(n, dict) and n.get("type") == "Quote"]
+    speaker_ids: set[str] = set()
+    named_ids: set[str] = set()
+    for q in quotes:
+        props = q.get("properties", {}) if isinstance(q.get("properties"), dict) else {}
+        sid = str(props.get("speaker_id") or "").strip()
+        em.quotes_total += 1
+        if sid:
+            em.quotes_attributed += 1
+            speaker_ids.add(sid)
+            if _is_named_speaker(sid):
+                named_ids.add(sid)
+        if props.get("timestamp_start_ms") is not None:
+            em.quotes_with_timestamp += 1
+    em.distinct_speakers = len(speaker_ids)
+    em.named_speaker_count = len(named_ids)
+
+    if meta is not None:
+        ns = _find(meta, "diarization_num_speakers")
+        em.num_speakers = ns if isinstance(ns, int) else None
+        speakers = _find(meta, "speakers")
+        if isinstance(speakers, list):
+            for sp in speakers:
+                name = (sp.get("name") if isinstance(sp, dict) else None) or ""
+                if name:
+                    em.content_speaker_names.append(name)
+                    if is_network_or_org_author(name):
+                        em.network_org_speaker_names.append(name)
+
+    em.diarized = em.distinct_speakers > 0 or bool(em.num_speakers)
+    em.multispeaker = (em.num_speakers or 0) >= 2 or em.distinct_speakers >= 2
+    return em
+
+
+def _gi_for_metadata(meta_path: Path) -> Optional[Path]:
+    """The ``.gi.json`` sibling of a ``.metadata.json`` file (same episode stem)."""
+    name = meta_path.name
+    for suffix in (".metadata.json", ".metadata.yaml", ".metadata.yml"):
+        if name.endswith(suffix):
+            gi = meta_path.with_name(name[: -len(suffix)] + ".gi.json")
+            return gi if gi.exists() else None
+    return None
+
+
+def compute_diarization_quality_metrics(corpus_root: Path) -> Dict[str, Any]:
+    """Walk a corpus and aggregate per-episode diarization-quality metrics."""
+    per_episode: List[EpisodeDiarMetrics] = []
+    for meta_path in discover_all_metadata_files(Path(corpus_root)):
+        gi_path = _gi_for_metadata(meta_path)
+        if gi_path is None:
+            continue
+        per_episode.append(_episode_metrics(gi_path, _load_json(meta_path)))
+
+    diarized = [e for e in per_episode if e.diarized]
+    q_total = sum(e.quotes_total for e in diarized)
+    q_attr = sum(e.quotes_attributed for e in diarized)
+    q_ts = sum(e.quotes_with_timestamp for e in diarized)
+    multispeaker = [e for e in diarized if e.multispeaker]
+
+    return {
+        "episodes_total": len(per_episode),
+        "episodes_diarized": len(diarized),
+        "quotes_total": q_total,
+        "quote_attribution_rate": (q_attr / q_total) if q_total else 1.0,
+        "quote_timestamp_rate": (q_ts / q_total) if q_total else 1.0,
+        "episodes_with_network_speaker": sum(1 for e in diarized if e.network_org_speaker_names),
+        "episodes_missing_num_speakers": sum(1 for e in diarized if e.num_speakers is None),
+        "multispeaker_episodes": len(multispeaker),
+        "multispeaker_undernamed_episodes": sum(
+            1 for e in multispeaker if e.named_speaker_count < 2
+        ),
+        "per_episode": [e.__dict__ for e in per_episode],
+    }
+
+
+def enforce_diarization_thresholds(
+    metrics: Dict[str, Any],
+    *,
+    min_attribution_rate: float = MIN_QUOTE_ATTRIBUTION_RATE,
+    min_timestamp_rate: float = MIN_QUOTE_TIMESTAMP_RATE,
+    require_num_speakers: bool = False,
+) -> Tuple[bool, List[str]]:
+    """Return (passed, failures). ``require_num_speakers`` is opt-in (a known propagation gap)."""
+    failures: List[str] = []
+    if metrics["quote_attribution_rate"] < min_attribution_rate:
+        failures.append(
+            f"quote_attribution_rate {metrics['quote_attribution_rate']:.3f} "
+            f"< {min_attribution_rate}"
+        )
+    if metrics["quote_timestamp_rate"] < min_timestamp_rate:
+        failures.append(
+            f"quote_timestamp_rate {metrics['quote_timestamp_rate']:.3f} < {min_timestamp_rate}"
+        )
+    if metrics["episodes_with_network_speaker"] > 0:
+        failures.append(
+            f"{metrics['episodes_with_network_speaker']} episode(s) have a network/org "
+            f"speaker name in content.speakers"
+        )
+    if metrics["multispeaker_undernamed_episodes"] > 0:
+        failures.append(
+            f"{metrics['multispeaker_undernamed_episodes']} multi-speaker episode(s) have "
+            f"<2 named speakers"
+        )
+    if require_num_speakers and metrics["episodes_missing_num_speakers"] > 0:
+        failures.append(
+            f"{metrics['episodes_missing_num_speakers']} diarized episode(s) missing "
+            f"diarization_num_speakers"
+        )
+    return (len(failures) == 0, failures)
