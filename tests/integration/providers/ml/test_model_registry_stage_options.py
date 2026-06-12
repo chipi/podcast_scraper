@@ -19,6 +19,7 @@ from podcast_scraper.providers.ml.model_registry import (
     get_transcription_option,
     get_transcription_options,
     ProfilePreset,
+    resolve_endpoint,
     resolve_profile_to_settings,
 )
 
@@ -132,3 +133,51 @@ class TestResolveProfileToSettings:
         assert settings["_transcription_research_ref"]
         assert settings["_summary_research_ref"]
         assert settings["_profile_preset"] == "cloud_with_dgx_primary"
+
+
+class TestResolveEndpoint:
+    """Covers the {dgx_tailnet_host} template substitution paths.
+
+    Endpoints in StageOption are templates so the operator's specific Tailscale
+    MagicDNS hostname stays out of the repo (see #975 sanitization). At read
+    time the caller resolves the template via this helper.
+    """
+
+    def test_none_template_returns_none(self) -> None:
+        assert resolve_endpoint(None) is None
+        assert resolve_endpoint(None, dgx_tailnet_host="anything") is None
+
+    def test_template_without_placeholder_passes_through(self) -> None:
+        # Some endpoints (cloud APIs) don't need DGX host substitution.
+        assert resolve_endpoint("https://api.openai.com/v1") == "https://api.openai.com/v1"
+
+    def test_explicit_host_arg_wins(self) -> None:
+        url = resolve_endpoint(
+            "http://{dgx_tailnet_host}:8002/v1/audio/transcriptions",
+            dgx_tailnet_host="my-dgx.example.ts.net",
+        )
+        assert url == "http://my-dgx.example.ts.net:8002/v1/audio/transcriptions"
+
+    def test_env_var_used_when_no_explicit_arg(self, monkeypatch) -> None:  # type: ignore[no-untyped-def]
+        monkeypatch.setenv("DGX_TAILNET_HOST", "env-dgx.example.ts.net")
+        url = resolve_endpoint("http://{dgx_tailnet_host}:11434/v1")
+        assert url == "http://env-dgx.example.ts.net:11434/v1"
+
+    def test_sentinel_fallback_when_nothing_set(self, monkeypatch) -> None:  # type: ignore[no-untyped-def]
+        # Clear env var if it happens to be set in the test environment.
+        monkeypatch.delenv("DGX_TAILNET_HOST", raising=False)
+        url = resolve_endpoint("http://{dgx_tailnet_host}:8003/v1")
+        # Sentinel-laced URL fails downstream HTTP cleanly rather than silently
+        # routing to a placeholder hostname.
+        assert url is not None
+        assert "REPLACE_ME_DGX_TAILNET_HOST" in url
+
+    def test_explicit_arg_overrides_env_var(self, monkeypatch) -> None:  # type: ignore[no-untyped-def]
+        monkeypatch.setenv("DGX_TAILNET_HOST", "env-dgx.example.ts.net")
+        url = resolve_endpoint(
+            "http://{dgx_tailnet_host}:8000/v1/audio/transcriptions",
+            dgx_tailnet_host="explicit-dgx.example.ts.net",
+        )
+        assert url is not None
+        assert "explicit-dgx" in url
+        assert "env-dgx" not in url
