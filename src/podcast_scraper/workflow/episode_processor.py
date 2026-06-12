@@ -552,6 +552,31 @@ def _save_transcript_segments_file(
         logger.debug("Could not save segments file %s: %s", segments_path, e)
 
 
+def _maybe_produce_adfree(
+    cfg: config.Config,
+    text: str,
+    segments: Optional[List[Dict[str, Any]]],
+    rel_transcript_path: str,
+    effective_output_dir: str,
+) -> None:
+    """Derive + save the ad-free processing-base sidecars (#974), if enabled.
+
+    No-op when ``save_adfree_transcript`` is off or there are no segments. Keeps the
+    raw ``.txt`` untouched; writes ``<base>.adfree.{txt,segments.json,admap.json}``.
+    """
+    if not cfg.save_adfree_transcript or not rel_transcript_path:
+        return
+    if not isinstance(segments, list) or not segments:
+        return
+    from .adfree_transcript import produce_adfree_transcript
+
+    adfree_rel = produce_adfree_transcript(
+        text, segments, rel_transcript_path, effective_output_dir
+    )
+    if adfree_rel:
+        logger.info("    saved ad-free transcript base: %s", adfree_rel)
+
+
 def _cleanup_temp_media(temp_media: str, cfg: Optional[config.Config] = None) -> None:
     """Clean up temporary media file.
 
@@ -685,6 +710,9 @@ def _check_transcript_cache(
         )
         if isinstance(cached_segments, list) and len(cached_segments) > 0:
             _save_transcript_segments_file(cached_segments, rel_path, effective_output_dir)
+            _maybe_produce_adfree(
+                cfg, cached_transcript, cached_segments, rel_path, effective_output_dir
+            )
         _maybe_persist_episode_media(cfg, temp_media, effective_output_dir, rel_path)
         logger.info(
             "[%s] Transcript cache hit: global cache entry audio_hash=%s "
@@ -1545,6 +1573,8 @@ def transcribe_media_to_text(
         segments = result.get("segments") if isinstance(result, dict) else None
         if isinstance(segments, list) and len(segments) > 0:
             _save_transcript_segments_file(segments, rel_path, effective_output_dir)
+            # #974: derive the ad-free processing-base sibling. Raw .txt left untouched.
+            _maybe_produce_adfree(cfg, text, segments, rel_path, effective_output_dir)
 
         _maybe_persist_episode_media(cfg, temp_media, effective_output_dir, rel_path)
 
@@ -1893,6 +1923,7 @@ def process_transcript_download(
             if rel_path_result is None:
                 return False, None, None, bytes_downloaded
             _save_transcript_segments_file(segments, rel_path_result, effective_output_dir)
+            _maybe_produce_adfree(cfg, plain, segments, rel_path_result, effective_output_dir)
             logger.info(
                 "[%s] normalized %s to .txt with %d segment(s) for GI timing",
                 episode.idx,
