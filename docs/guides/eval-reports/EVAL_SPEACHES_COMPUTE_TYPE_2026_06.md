@@ -152,6 +152,44 @@ What this tells us about the speed gap to openai-whisper (4.6× vs ~1×):
   GPU. Only upstream ctranslate2 enabling sm_121 (Thread A territory)
   can move it. Filed as #971.
 
+### 2026-06-12 final — combined-image sweep (speaches-gb10 + Thread B)
+
+After rebasing onto `main` (which had the parallel `infra/dgx/speaches-gb10`
+work that source-builds ctranslate2 4.8.0 with `compute_120` PTX → driver
+JIT-forwards to sm_121 on GB10), Stage 3 of the same Dockerfile inlined
+the Thread B sed patch. Re-tested on the combined image with
+`WHISPER__COMPUTE_TYPE=default`:
+
+| Episode | WER (combined) | Elapsed (s) | Realtime × |
+| --- | ---: | ---: | ---: |
+| p01_e01 | **0.0397** | 216.5 | 2.5× |
+| p02_e01 | **0.1007** | 370.8 | 1.8× |
+| p03_e01 | **0.1031** | 228.6 | 2.1× |
+| p04_e01 | **0.0387** | 181.7 | 3.1× |
+| p05_e01 | **0.1322** | 217.6 | 2.4× |
+| **mean** | **0.0829** | **243.0** | **2.38×** |
+
+Three-way comparison:
+
+| Image | Mean WER | Mean realtime | Clean eps |
+| --- | ---: | ---: | ---: |
+| openai-whisper (`:8002`, torch + bf16) | 0.102 | 4.56× | 5/5 |
+| Thread B-only (PyPI ctranslate2 int8) | 0.066 | 0.93× | 3/5 (2 Tailscale hangs) |
+| **Combined** (speaches-gb10 + Thread B, `default` compute_type) | **0.083** | **2.38×** | **5/5** |
+
+The combined image beats openai-whisper on quality (better mean WER by
+~0.02) and is ~half the speed, but more than 2.5× faster than Thread B
+alone. The Tailscale hangs that plagued every prior speaches sweep are
+gone — each episode finishes in 3-6 min, well inside any reasonable
+network timeout.
+
+**Production routing recommendation**: openai-whisper stays the
+primary (speed-critical paths benefit from 4.6× realtime); speaches is
+now a legitimate quality-first secondary rather than a "benchmarking
+only" engine. Registry entry `tailnet_dgx_speaches_thread_b` updated to
+realtime_multiple=2.38 + headline_metric reflecting the combined-image
+numbers.
+
 The honest tradeoff: Thread B at `compression_ratio_threshold=2.4` pays
 ~40% retry overhead vs unpatched (1.6× → 0.93× rt) to buy correctness
 on previously-broken episodes. That's the right side of the curve;

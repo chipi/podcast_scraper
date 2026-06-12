@@ -808,15 +808,17 @@ _TRANSCRIPTION_OPTIONS: Dict[str, StageOption] = {
         provider="tailnet_dgx_whisper",
         model="Systran/faster-whisper-large-v3",
         endpoint="http://{dgx_tailnet_host}:8000/v1/audio/transcriptions",
-        extra_settings={"WHISPER__COMPUTE_TYPE": "int8"},
+        extra_settings={"WHISPER__COMPUTE_TYPE": "default"},
         research_ref="docs/guides/eval-reports/EVAL_SPEACHES_COMPUTE_TYPE_2026_06.md",
         headline_metric=(
-            "mean WER 0.066 / 0.93× realtime on v2 " "post Thread B temperature-fallback patch"
+            "mean WER 0.083 / 2.38× realtime on v2 — "
+            "speaches:latest-cuda-gb10 (#948 source-built ctranslate2) "
+            "+ #968 Thread B temperature-fallback patch"
         ),
         measured_at="2026-06-12",
         tier="fallback",
         resident_memory_gb=3.0,
-        realtime_multiple=0.93,
+        realtime_multiple=2.38,
     ),
     # Laptop MPS — local production default for cloud_with_dgx fallback or no-DGX.
     "local_mps_large_v3": StageOption(

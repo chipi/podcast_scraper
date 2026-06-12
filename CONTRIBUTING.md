@@ -472,6 +472,25 @@ performance before merging.
    [AGENTS.md § "Materialize autoresearch decisions"](AGENTS.md) for the
    full flow.
 
+### Hostnames in the registry
+
+**Never commit operator-specific Tailscale MagicDNS hostnames to the
+repo.** Registry `StageOption.endpoint` fields and example YAMLs use the
+literal placeholder `{dgx_tailnet_host}` (Python format-string token) or
+`your-dgx.tailnet.ts.net` (visually-obvious docstring marker), depending
+on the file type:
+
+- **Python (registry, scripts)**: use `{dgx_tailnet_host}` in templates;
+  resolve via `resolve_endpoint(template, dgx_tailnet_host=None)` which
+  pulls from explicit arg → `DGX_TAILNET_HOST` env var → a fail-fast
+  sentinel.
+- **Docs, YAMLs, READMEs**: use `your-dgx.tailnet.ts.net` as the visual
+  placeholder. Operators replace per-checkout or set the env var.
+- **Env files**: see `config/examples/dgx-dev.env.example` for the full
+  env-var contract (`DGX_TAILNET_FQDN` for the pyinfra deploy path,
+  `DGX_TAILNET_HOST` for the registry resolver — same value; both should
+  be set).
+
 **Performance validation (`data/profiles/`):**
 
 1. Run the pipeline with a capture config:
