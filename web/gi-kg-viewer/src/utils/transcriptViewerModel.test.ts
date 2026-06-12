@@ -21,6 +21,12 @@ describe('segmentsSidecarRelpathFromTranscriptRelpath', () => {
     )
   })
 
+  it('maps .adfree.txt to .adfree.segments.json (#974 processing base)', () => {
+    expect(segmentsSidecarRelpathFromTranscriptRelpath('transcripts/01 - ep.adfree.txt')).toBe(
+      'transcripts/01 - ep.adfree.segments.json',
+    )
+  })
+
   it('trims and normalizes slashes', () => {
     expect(segmentsSidecarRelpathFromTranscriptRelpath('  a\\\\b.txt  ')).toBe('a/b.segments.json')
   })

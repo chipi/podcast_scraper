@@ -103,7 +103,15 @@ def _transcript_path(episode_root: Path, doc: Dict[str, Any]) -> Optional[Path]:
     rel = content.get("transcript_file_path")
     if not isinstance(rel, str) or not rel.strip():
         return None
-    p = (episode_root / rel.strip()).resolve()
+    rel = rel.strip()
+    # #974: prefer the ad-free processing base (<base>.adfree.txt) when present, so
+    # search chunks and enrich-edges SPOKEN_BY share the coordinate space GI computed
+    # quote char_start in. Fall back to the raw transcript for pre-#974 corpora.
+    base, ext = os.path.splitext(rel)
+    adfree = (episode_root / f"{base}.adfree{ext}").resolve()
+    if adfree.is_file():
+        return adfree
+    p = (episode_root / rel).resolve()
     return p if p.is_file() else None
 
 
