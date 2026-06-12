@@ -461,8 +461,10 @@ diarization run (MPS / CUDA / CPU). Reports under
    produced WER 0.102 / 4.56× realtime — within scoring noise of
    MPS. The bug fix lives in
    `infra/dgx/whisper-server/app.py` + the temperature-schedule
-   nuance is documented in the consumer-contract section of
-   `infra/dgx/vllm-autoresearch/README.md`. **Implication for v3
+   nuance is documented in the consumer-contract section of the
+   vllm-autoresearch README (moved to
+   <https://github.com/chipi/agentic-ai-homelab/> on 2026-06-12).
+   **Implication for v3
    audio**: episodes that span the autoregressive-runaway trigger
    window (multi-minute, conversational, technical-vocab) are
    exactly the v3 axis that will catch this class of bug before it
