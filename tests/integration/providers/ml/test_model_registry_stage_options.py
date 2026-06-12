@@ -220,9 +220,12 @@ class TestResolveProfileToSettingsHostThreading:
             dgx_tailnet_host="my-dgx.example.ts.net",
         )
         # Both transcription + summary endpoints (when present) should have
-        # the host substituted.
+        # the host substituted. Use urlparse for anchored hostname check —
+        # CodeQL flags bare substring containment as py/incomplete-url-substring-sanitization.
+        from urllib.parse import urlparse
+
         if "transcription_endpoint" in settings:
-            assert "my-dgx.example.ts.net" in settings["transcription_endpoint"]
+            assert urlparse(settings["transcription_endpoint"]).hostname == "my-dgx.example.ts.net"
             assert "{dgx_tailnet_host}" not in settings["transcription_endpoint"]
         if "summary_endpoint" in settings:
             assert "{dgx_tailnet_host}" not in settings["summary_endpoint"]
@@ -236,7 +239,11 @@ class TestResolveProfileToSettingsHostThreading:
             assert "REPLACE_ME_DGX_TAILNET_HOST" in settings["transcription_endpoint"]
 
     def test_env_var_used_when_no_explicit_host(self, monkeypatch) -> None:  # type: ignore[no-untyped-def]
+        from urllib.parse import urlparse
+
         monkeypatch.setenv("DGX_TAILNET_HOST", "env-dgx.example.ts.net")
         settings = resolve_profile_to_settings("cloud_with_dgx_primary")
         if "transcription_endpoint" in settings:
-            assert "env-dgx.example.ts.net" in settings["transcription_endpoint"]
+            # Anchored hostname check (CodeQL: py/incomplete-url-substring-sanitization
+            # flags bare ``host in url`` patterns).
+            assert urlparse(settings["transcription_endpoint"]).hostname == "env-dgx.example.ts.net"
