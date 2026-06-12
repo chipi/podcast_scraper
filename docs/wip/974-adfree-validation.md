@@ -38,6 +38,26 @@ The four episodes that previously dropped ALL attribution (34/8/36/7 quotes) att
 - **Playwright**: `transcript-viewer-dialog.spec.ts` — a `.adfree.txt`-referenced quote
   loads the ad-free base + `.adfree.segments.json` sidecar and highlights exactly.
 
+## Validation chain on the reprojected corpus (production tools)
+
+`.test_outputs/manual/rediar-974-reprojected` — corpus copy, reprojected via
+`scripts/migrate/reproject_gi_to_adfree.py` (backfill ad-free + re-locate each quote in
+the ad-free base, recompute char_start/speaker_id/timestamps, transcript_ref→adfree),
+then production `enrich-edges` + `index`.
+
+| Validator | Result |
+|---|---|
+| `diarization-quality` | ✓ all thresholds pass |
+| quote_attribution_rate | 0.54 → **1.0** |
+| episodes_unattributed | 4 → **0** |
+| spoken_by_coverage | 0.54 → **1.05** |
+| episodes_with_network_speaker | **0** |
+| `verify-gil-chunk-offsets --strict` | **verdict: aligned, overlap_rate 1.0, 185/185 quotes overlap, exit 0** |
+
+The full chain (GI char_start ∈ ad-free → FAISS chunks ad-free → 100% overlap) is green.
+`episodes_missing_num_speakers: 10` is a pre-existing, opt-in (non-enforced) metadata
+propagation gap, not a #974 regression.
+
 ## Remaining for full sign-off
 
 - Produce a corrected serveable corpus for Tier-3 graph walk (reproject existing quotes
