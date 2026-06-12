@@ -31,6 +31,10 @@ SUMMARIZATION_TRANSCRIPT_EXCLUDE_FILENAMES: Final[frozenset[str]] = frozenset(
         "system_v1.j2",
         "bundled_clean_summary_system_v1.j2",
         "system_bullets_v1.j2",
+        # R1-Distill anti-reasoning system prompt — system messages set the
+        # role + output contract; the matching long_no_thinking_v1.j2 carries
+        # the transcript. See #961.
+        "system_no_thinking_v1.j2",
     }
 )
 
