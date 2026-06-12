@@ -99,6 +99,34 @@ def test_produce_writes_three_sidecars(tmp_path: Path):
         assert adfree_text[s["char_start"] : s["char_end"]] == s["text"]
 
 
+def test_maybe_produce_adfree_gate(tmp_path: Path):
+    """The save-path wrapper honours the config flag and the no-segments guard."""
+    from podcast_scraper import config
+    from podcast_scraper.workflow.episode_processor import _maybe_produce_adfree
+
+    segs = _content_segments()
+    text, _ = format_diarized_screenplay_with_offsets(segs)
+    rel = "transcripts/01 - ep.txt"
+    (tmp_path / "transcripts").mkdir()
+    (tmp_path / rel).write_text(text, encoding="utf-8")
+
+    # Disabled → no ad-free sidecars written.
+    cfg_off = config.Config(rss="https://e.com/f.xml", save_adfree_transcript=False)
+    _maybe_produce_adfree(cfg_off, text, segs, rel, str(tmp_path))
+    assert not (tmp_path / "transcripts" / "01 - ep.adfree.txt").exists()
+
+    # Enabled → sidecars written.
+    cfg_on = config.Config(rss="https://e.com/f.xml", save_adfree_transcript=True)
+    _maybe_produce_adfree(cfg_on, text, segs, rel, str(tmp_path))
+    assert (tmp_path / "transcripts" / "01 - ep.adfree.txt").exists()
+
+    # No-segments guard → no crash, no file.
+    rel2 = "transcripts/02 - ep.txt"
+    (tmp_path / rel2).write_text(text, encoding="utf-8")
+    _maybe_produce_adfree(cfg_on, text, None, rel2, str(tmp_path))
+    assert not (tmp_path / "transcripts" / "02 - ep.adfree.txt").exists()
+
+
 def test_non_screenplay_text_falls_back_to_find(tmp_path: Path):
     # Plain whisper-style segments (no speaker labels); transcript is their concatenation.
     body = (

@@ -116,16 +116,45 @@ def test_default_path_transcribe_diarize_screenplay_into_graph() -> None:
     assert "Maya:" in screenplay, f"host Maya not labelled in screenplay:\n{screenplay[:300]}"
     assert "Liam:" in screenplay, f"guest Liam not labelled in screenplay:\n{screenplay[:300]}"
 
-    # === extend into the graph: the diarized transcript must drive GI + KG ===
+    # === #974: the diarized screenplay drives the ad-free processing base ===
+    # On a REAL pyannote screenplay, the producer must emit segments whose char ranges
+    # slice back exactly (the basis for Fault A/B fixes downstream).
+    from podcast_scraper.workflow.adfree_transcript import (
+        build_adfree_artifacts,
+        load_processing_transcript,
+        produce_adfree_transcript,
+    )
+
+    arts = build_adfree_artifacts(screenplay, segments)
+    assert arts is not None, "no ad-free artifacts from diarized screenplay"
+    for s in arts.segments:
+        assert arts.text[s["char_start"] : s["char_end"]] == s["text"], "ad-free offset drift"
+    assert {"Maya", "Liam"} & {s.get("speaker_label") for s in arts.segments}
+
+    # The three sidecars are produced next to the raw .txt (raw left untouched).
+    with tempfile.TemporaryDirectory() as tdir:
+        rel = "transcripts/ep.txt"
+        (Path(tdir) / "transcripts").mkdir()
+        (Path(tdir) / rel).write_text(screenplay, encoding="utf-8")
+        adfree_rel = produce_adfree_transcript(screenplay, segments, rel, tdir)
+        assert adfree_rel == "transcripts/ep.adfree.txt"
+        assert (Path(tdir) / "transcripts" / "ep.adfree.segments.json").is_file()
+        assert (Path(tdir) / "transcripts" / "ep.adfree.admap.json").is_file()
+        # The resolver prefers the ad-free base and it carries char offsets.
+        loaded = load_processing_transcript(tdir, rel)
+        assert loaded.is_adfree and loaded.segments
+        assert (Path(tdir) / rel).read_text() == screenplay  # raw untouched
+
+    # === extend into the graph: the AD-FREE base must drive GI + KG ===
     from podcast_scraper.gi import build_artifact as gi_build_artifact
     from podcast_scraper.kg import build_artifact as kg_build_artifact
 
-    transcript_text = enriched.get("text") or ""
+    transcript_text = arts.text  # GI reasons over the ad-free processing base (#974)
 
     gi = gi_build_artifact(
         "episode:p01-multi-e01",
         transcript_text,
-        transcript_segments=segments,  # diarized segments carry timing into quotes
+        transcript_segments=arts.segments,  # carry char offsets -> exact speaker/timing
         model_version="test",
         cfg=cfg,
         episode_title="Building Trails That Last",
@@ -137,6 +166,13 @@ def test_default_path_transcribe_diarize_screenplay_into_graph() -> None:
     assert quotes, "GI produced no grounded quotes"
     # Diarized segment timing flows into quote timestamps (FR2.2).
     assert all("timestamp_start_ms" in n.get("properties", {}) for n in quotes)
+    # Fault A on REAL data: every quote char_start indexes the saved ad-free text exactly.
+    for n in quotes:
+        cs = n["properties"]["char_start"]
+        ce = n["properties"]["char_end"]
+        assert transcript_text[cs:ce] == n["properties"]["text"], "quote char_start drift"
+    # Fault B on REAL data: diarized speaker maps onto at least one quote.
+    assert any(n["properties"].get("speaker_id") for n in quotes), "no quote got a speaker_id"
 
     kg = kg_build_artifact(
         "episode:p01-multi-e01",
