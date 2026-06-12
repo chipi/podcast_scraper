@@ -8,7 +8,12 @@ the ad-free coordinate space — WITHOUT re-running the (Gemini) GI extraction. 
 TEXT is unchanged; we re-locate its verbatim span in the ad-free text and recompute
 offsets/attribution exactly as ``build_artifact`` would. This is a deterministic
 migration usable to validate the fix / serve a corrected corpus before a faithful
-re-run. Usage::
+re-run.
+
+Note: this is a data-layer fixup, not a full pipeline run — it does NOT update
+``corpus_manifest.json``'s ``produced_by`` stamp, so the server may still warn "no
+produced_by stamp" when serving the reprojected corpus. A subsequent ``make reindex``
+or a faithful re-diarization stamps it. Usage::
 
     python scripts/migrate/reproject_gi_to_adfree.py <corpus_root>
 """

@@ -56,6 +56,21 @@ def _raw_txt_from_cleaned_relpath(norm: str) -> str | None:
     return str(p.with_name(raw_name)).replace("\\", "/")
 
 
+def _raw_txt_from_adfree_relpath(norm: str) -> str | None:
+    """Map ``.../foo.adfree.txt`` to ``.../foo.txt`` (#974).
+
+    GI ``transcript_ref`` points at the ad-free base when it was produced; on a
+    pre-#974 corpus (or one with ``save_adfree_transcript`` disabled) only the raw
+    ``.txt`` exists, so degrade gracefully to it instead of 404ing.
+    """
+    p = Path(norm)
+    name = p.name
+    if not name.lower().endswith(".adfree.txt"):
+        return None
+    raw_name = f"{name[: -len('.adfree.txt')]}.txt"
+    return str(p.with_name(raw_name)).replace("\\", "/")
+
+
 def _resolve_readable_file_under_corpus(root: Path, norm: str) -> tuple[str, str] | None:
     """Return ``(absolute_path, basename)`` for an allowed file under *root*, or ``None``.
 
@@ -77,6 +92,17 @@ def _resolve_readable_file_under_corpus(root: Path, norm: str) -> tuple[str, str
     # codeql[py/path-injection] -- verified from normpath_if_under_root(safe, root_s).
     if os.path.isfile(verified):
         return verified, basename
+
+    # #974: a `.adfree.txt` reference with no ad-free base on disk degrades to raw.
+    adfree_raw_norm = _raw_txt_from_adfree_relpath(norm)
+    if adfree_raw_norm is not None:
+        safe_ar = safe_relpath_under_corpus_root(root, adfree_raw_norm)
+        verified_ar = normpath_if_under_root(safe_ar, root_s) if safe_ar else None
+        if verified_ar:
+            ar_base = os.path.basename(verified_ar)
+            # codeql[py/path-injection] -- verified_ar from normpath_if_under_root.
+            if _suffix_allowed(ar_base) and os.path.isfile(verified_ar):
+                return verified_ar, ar_base
 
     alt_norm = _cleaned_txt_fallback_relpath(norm)
     if alt_norm is not None:

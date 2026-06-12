@@ -509,7 +509,7 @@ See the [Basic Usage with Example Config](#basic-usage-with-example-config-recom
 
 **Output:** Files are organized in `output/` with subdirectories:
 
-- `transcripts/` — Transcript files (RSS may serve `.vtt`/`.srt`; the pipeline normalizes those to `.txt` plus `*.segments.json` for GI quote audio timing when cues parse cleanly; plain `.txt`/`.html` feeds have no segment timing unless you add a sidecar)
+- `transcripts/` — Transcript files (RSS may serve `.vtt`/`.srt`; the pipeline normalizes those to `.txt` plus `*.segments.json` for GI quote audio timing when cues parse cleanly; plain `.txt`/`.html` feeds have no segment timing unless you add a sidecar). When `save_adfree_transcript` is enabled (default) the pipeline also writes the **ad-free processing base** — `*.adfree.txt` + `*.adfree.segments.json` + `*.adfree.admap.json` — which GI, search, and enrichment prefer for exact char offsets (#974); the raw `.txt` is the untouched canonical source.
 - `metadata/` — JSON/YAML metadata, plus `gi.json` (GIL) and `kg.json` (KG) when enabled
 - `search/` — FAISS vector index (when `vector_search` is enabled)
 - `run.json`, `index.json`, `metrics.json` — Run tracking artifacts

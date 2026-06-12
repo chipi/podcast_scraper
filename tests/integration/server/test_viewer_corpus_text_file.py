@@ -109,6 +109,38 @@ def test_corpus_text_file_serves_raw_when_cleaned_path_requested_but_missing(
     assert r.text == "raw only"
 
 
+def test_corpus_text_file_serves_adfree_base_when_present(tmp_path: Path) -> None:
+    """#974: GI transcript_ref points at the ad-free base; serve it directly."""
+    sub = tmp_path / "transcripts"
+    sub.mkdir(parents=True)
+    (sub / "ep.adfree.txt").write_text("ad free base", encoding="utf-8")
+
+    app = create_app(tmp_path, static_dir=False)
+    client = TestClient(app)
+    r = client.get(
+        "/api/corpus/text-file",
+        params={"path": str(tmp_path), "relpath": "transcripts/ep.adfree.txt"},
+    )
+    assert r.status_code == 200
+    assert r.text == "ad free base"
+
+
+def test_corpus_text_file_serves_raw_when_adfree_requested_but_missing(tmp_path: Path) -> None:
+    """#974: a `.adfree.txt` reference on a pre-#974 corpus degrades to the raw `.txt`."""
+    sub = tmp_path / "transcripts"
+    sub.mkdir(parents=True)
+    (sub / "ep.txt").write_text("raw only", encoding="utf-8")
+
+    app = create_app(tmp_path, static_dir=False)
+    client = TestClient(app)
+    r = client.get(
+        "/api/corpus/text-file",
+        params={"path": str(tmp_path), "relpath": "transcripts/ep.adfree.txt"},
+    )
+    assert r.status_code == 200
+    assert r.text == "raw only"
+
+
 def test_corpus_text_file_prefers_raw_txt_when_both_exist(tmp_path: Path) -> None:
     sub = tmp_path / "transcripts"
     sub.mkdir(parents=True)

@@ -407,6 +407,13 @@ Anthropic providers support configurable model selection for dev/test vs product
 
 **Deepgram transcription (Wave 1 / #597):** Set **`transcription_provider: deepgram`**, **`deepgram_api_key`** (or **`DEEPGRAM_API_KEY`**), optional **`deepgram_model`** (default **`nova-3`**) and optional **`deepgram_api_base`** (or **`DEEPGRAM_API_BASE`**, **`--deepgram-api-base`**) to point at a self-hosted/on-prem deployment or a test mock server (default uses the hosted endpoint). Requires **`pip install -e ".[llm]"`**. Deepgram returns utterance-level speaker labels in the API response — separate from local pyannote diarization. See [Audio Pipeline Guide](../guides/AUDIO_PIPELINE_GUIDE.md).
 
+#### Transcript artifacts
+
+| Key | CLI | Default | Effect |
+| --- | --- | --- | --- |
+| `save_adfree_transcript` | `--save-adfree-transcript` / `--no-save-adfree-transcript` | `true` | **#974** — produce the **ad-free processing base** next to the raw `.txt`: `*.adfree.txt` (ads excised), `*.adfree.segments.json` (segments carrying exact `char_start`/`char_end`), and `*.adfree.admap.json` (excised ranges, for a future subtitle player). GI, KG, search-chunking, enrich-edges, and the viewer reader **prefer** this base so quote `char_start` lives in one saved coordinate space (fixes #545 offset drift). The raw `.txt` is left untouched as the canonical source. Disable only to save disk if not using GI/KG/search. |
+| `save_cleaned_transcript` | `--save-cleaned-transcript` / `--no-save-cleaned-transcript` | `true` | Save the **summarization-cleaned** transcript (`*.cleaned.txt`): timestamps/filler/sponsor reads removed. Separate concern from the ad-free base — it is the summarizer's input, not the GI offset base. |
+
 ### Speaker diarization (RFC-058)
 
 Neural speaker diarization runs as an **additive second pass** after local Whisper transcription

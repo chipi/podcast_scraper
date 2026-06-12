@@ -437,12 +437,17 @@ writes the transcript file and, when segments are present, the sibling **`*.segm
 next to it so GI quote audio timestamps match a fresh transcription run. Cache files created before
 segments were stored omit `segments`; re-transcribe or clear that cache entry to populate them.
 
-**GI segment alignment:** Quote audio timestamps (`timestamp_*_ms`) map character offsets using
-`*.segments.json` only when the concatenation of segment `text` fields matches the GI transcript
-string within **50 characters** (`SEGMENT_TRANSCRIPT_ALIGNMENT_MAX_DELTA` in
-`src/podcast_scraper/gi/pipeline.py`). Screenplay formatting or edited transcripts without
-regenerated segments can trip this guard; the pipeline logs **one warning per episode artifact**
-when it skips segment-based timestamps and segment-derived speakers (GitHub issue #545).
+**GI segment alignment:** Quote audio timestamps (`timestamp_*_ms`) and segment-derived
+speakers map character offsets to segments. **Post-#974** the ad-free processing base
+(`*.adfree.txt` + `*.adfree.segments.json`, produced at transcript-save time) carries an
+explicit `char_start`/`char_end` on each segment, so a quote maps to its segment **exactly** —
+screenplay `Name:` markers no longer cause drift and the offset-drift issue (#545) is fixed at
+the source. The legacy **50-character** guard (`SEGMENT_TRANSCRIPT_ALIGNMENT_MAX_DELTA` in
+`src/podcast_scraper/gi/pipeline.py`) now applies **only** to the fallback path — a corpus with
+no ad-free base whose segments carry no offsets, where the pipeline concatenates segment `text`
+and compares it to the transcript. On that legacy path screenplay formatting can still trip the
+guard and the pipeline logs **one warning per episode artifact** when it skips segment-based
+timestamps/speakers; re-running with the ad-free base resolves it.
 
 **Direct RSS transcript download (`transcript_source=direct_download`):** Plain `.txt` or `.html`
 transcript URLs do not carry timed cues, so GI quote **audio** timestamps stay at zero unless you add

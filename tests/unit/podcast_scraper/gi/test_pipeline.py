@@ -584,6 +584,11 @@ class TestGILPipeline:
         assert start_ms == 0
         assert end_ms == 3000
 
+    # NOTE: the SEGMENT_TRANSCRIPT_ALIGNMENT_MAX_DELTA (50-char) guard exercised in the
+    # next few tests is the LEGACY path — used only when segments carry no explicit
+    # char_start/char_end. Post-#974 the ad-free base supplies exact offsets and
+    # _segment_char_spans bypasses this guard entirely (see
+    # test_explicit_char_offsets_map_through_screenplay_markers).
     def test_char_range_to_ms_accepts_delta_at_max_threshold(self):
         """When abs_delta == SEGMENT_TRANSCRIPT_ALIGNMENT_MAX_DELTA, mapping still runs."""
         recon_len = 50
