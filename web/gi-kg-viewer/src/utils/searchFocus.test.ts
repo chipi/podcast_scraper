@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest'
 import type { Core } from 'cytoscape'
-import { graphNodeIdFromSearchHit, resolveCyNodeId } from './searchFocus'
+import {
+  episodeFallbackForSearchHit,
+  graphNodeIdFromSearchHit,
+  resolveCyNodeId,
+} from './searchFocus'
 import type { SearchHit } from '../api/searchApi'
 
 function hit(docType: string, sourceId?: string): SearchHit {
@@ -33,6 +37,39 @@ describe('graphNodeIdFromSearchHit', () => {
 
   it('returns null when source_id is blank', () => {
     expect(graphNodeIdFromSearchHit(hit('insight', '  '))).toBeNull()
+  })
+})
+
+describe('episodeFallbackForSearchHit', () => {
+  function hitWithEpisode(docType: string, episodeId?: unknown): SearchHit {
+    return {
+      doc_id: 'd1',
+      score: 0.9,
+      text: 'text',
+      metadata: { doc_type: docType, source_id: 'quote:abc', episode_id: episodeId },
+    } as SearchHit
+  }
+
+  it('returns the episode_id as a fallback', () => {
+    expect(episodeFallbackForSearchHit(hitWithEpisode('quote', 'ep-123'))).toBe('ep-123')
+  })
+
+  it('trims and rejects blank / non-string episode_id', () => {
+    expect(episodeFallbackForSearchHit(hitWithEpisode('quote', '  ep-9  '))).toBe('ep-9')
+    expect(episodeFallbackForSearchHit(hitWithEpisode('quote', '   '))).toBeNull()
+    expect(episodeFallbackForSearchHit(hitWithEpisode('quote', undefined))).toBeNull()
+    expect(episodeFallbackForSearchHit(hitWithEpisode('quote', 123))).toBeNull()
+  })
+
+  it('a quote hit has no graph node but its episode fallback resolves (stuck-timeout fix)', () => {
+    // Quotes are not rendered as graph nodes → primary id never resolves.
+    const quoteHit = hitWithEpisode('quote', '6162ba8a')
+    const primary = graphNodeIdFromSearchHit(quoteHit) // 'quote:abc'
+    const fallback = episodeFallbackForSearchHit(quoteHit) // '6162ba8a'
+    // Graph has the unified episode node but no quote node.
+    const core = mockCore(['__unified_ep__:6162ba8a'])
+    expect(primary && resolveCyNodeId(core, primary)).toBeNull()
+    expect(fallback && resolveCyNodeId(core, fallback)).toBe('__unified_ep__:6162ba8a')
   })
 })
 
