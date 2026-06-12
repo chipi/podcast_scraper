@@ -127,7 +127,9 @@ def test_network_speaker_name_flagged(tmp_path: Path) -> None:
     assert not passed and any("network/org" in f for f in failures)
 
 
-def test_multispeaker_undernamed_flagged(tmp_path: Path) -> None:
+def test_unnamed_speaker_flagged(tmp_path: Path) -> None:
+    # #876 partial naming: a quote attributed to an unnamed person:speaker-xx while another
+    # voice is named → a diarized voice the roster could not name. This MUST fail.
     _write_episode(
         tmp_path,
         "0001-ep",
@@ -136,10 +138,27 @@ def test_multispeaker_undernamed_flagged(tmp_path: Path) -> None:
         num_speakers=2,
     )
     m = compute_diarization_quality_metrics(tmp_path)
-    assert m["multispeaker_episodes"] == 1
-    assert m["multispeaker_undernamed_episodes"] == 1
+    assert m["episodes_with_unnamed_speaker"] == 1
     passed, failures = enforce_diarization_thresholds(m)
-    assert not passed and any("named speakers" in f for f in failures)
+    assert not passed and any("unnamed speaker" in f for f in failures)
+
+
+def test_guest_dominated_quotes_all_named_passes(tmp_path: Path) -> None:
+    # A 2-speaker interview where GI's quotes are all from the guest (the dominant speaker)
+    # is NORMAL — every voice is named, no person:speaker-xx. Must NOT be flagged, even
+    # though the quotes span only one named speaker (the old over-strict check failed this).
+    _write_episode(
+        tmp_path,
+        "0001-ep",
+        quotes=[_good_quote("person:paul-tudor-jones") for _ in range(5)],
+        speakers=_HOST_GUEST,
+        num_speakers=2,
+    )
+    m = compute_diarization_quality_metrics(tmp_path)
+    assert m["multispeaker_episodes"] == 1
+    assert m["multispeaker_undernamed_episodes"] == 1  # informational only
+    assert m["episodes_with_unnamed_speaker"] == 0  # no unnamed voice → not a bug
+    assert enforce_diarization_thresholds(m)[0] is True  # passes
 
 
 def test_missing_num_speakers_opt_in(tmp_path: Path) -> None:

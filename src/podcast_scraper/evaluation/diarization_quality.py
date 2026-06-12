@@ -171,6 +171,16 @@ def compute_diarization_quality_metrics(corpus_root: Path) -> Dict[str, Any]:
         "episodes_with_network_speaker": sum(1 for e in with_quotes if e.network_org_speaker_names),
         "episodes_missing_num_speakers": sum(1 for e in with_quotes if e.num_speakers is None),
         "multispeaker_episodes": len(multispeaker),
+        # The #876 partial-naming bug: a diarized voice the roster could NOT name, so a quote
+        # is attributed to an unnamed ``person:speaker-xx`` while another voice has a real name.
+        # The signal is ``distinct attributed speakers > distinct NAMED speakers`` (some
+        # attributed voice is unnamed) — NOT "quotes span <2 named speakers", which fires
+        # on the common (correct) case where GI's quotes are all from the dominant speaker.
+        "episodes_with_unnamed_speaker": sum(
+            1 for e in with_quotes if e.distinct_speakers > e.named_speaker_count
+        ),
+        # Informational only (NOT enforced): multi-speaker episodes whose extracted quotes
+        # happen to come from <2 distinct named people (usually a guest-dominated interview).
         "multispeaker_undernamed_episodes": sum(
             1 for e in multispeaker if e.named_speaker_count < 2
         ),
@@ -211,10 +221,11 @@ def enforce_diarization_thresholds(
             f"{metrics['episodes_with_network_speaker']} episode(s) have a network/org "
             f"speaker name in content.speakers"
         )
-    if metrics["multispeaker_undernamed_episodes"] > 0:
+    if metrics.get("episodes_with_unnamed_speaker", 0) > 0:
         failures.append(
-            f"{metrics['multispeaker_undernamed_episodes']} multi-speaker episode(s) have "
-            f"<2 named speakers"
+            f"{metrics['episodes_with_unnamed_speaker']} episode(s) attribute a quote to an "
+            f"unnamed speaker (person:speaker-xx) — diarized voice the roster could not name "
+            f"(#876 partial naming)"
         )
     if require_num_speakers and metrics["episodes_missing_num_speakers"] > 0:
         failures.append(
