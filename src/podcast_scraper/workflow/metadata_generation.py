@@ -375,6 +375,10 @@ class ContentMetadata(BaseModel):
     speakers: List[SpeakerInfo] = Field(
         default_factory=list
     )  # Structured speaker information (facts)
+    diarization_num_speakers: Optional[int] = Field(
+        default=None,
+        description="Distinct speaker voices the diarizer resolved for this episode (#876).",
+    )
     normalized_entities: List[EntityAlias] = Field(
         default_factory=list,
         description="Normalized entity forms with aliases for fuzzy matching (Issue #387)",
@@ -650,6 +654,73 @@ def _build_speakers_from_detected_names(
             speakers.append(SpeakerInfo(id=speaker_id, name=guest_name, role="guest"))
 
     return speakers
+
+
+def _build_speakers_from_diarized_segments(
+    output_dir: str,
+    transcript_file_path: Optional[str],
+    detected_guests: Optional[List[str]],
+) -> Tuple[Optional[List[SpeakerInfo]], Optional[int]]:
+    """Derive ``content.speakers`` + ``diarization_num_speakers`` from saved segments (#876).
+
+    The diarization roster (host + guests + voice count) lives only in-memory during the
+    diarize pass; the durable record is the per-segment ``speaker_label`` (a real name when
+    the roster resolved it, else ``SPEAKER_xx``) written to the segments sidecar. For network
+    feeds the host (e.g. "Patrick O'Shaughnessy") is named by the transcript self-intro, not
+    the RSS author, so the pre-diarization ``detected_hosts`` is empty — only the diarized
+    segments carry the host. This reads them so ``content.speakers`` includes every named
+    voice and ``num_speakers`` reflects the diarizer's voice count.
+
+    Returns ``(speakers, num_speakers)``, or ``(None, None)`` when no diarized segments exist
+    (caller falls back to ``_build_speakers_from_detected_names``).
+    """
+    if not transcript_file_path:
+        return None, None
+    base = os.path.splitext(os.path.join(output_dir, transcript_file_path))[0]
+    # Prefer the ad-free base segments (#974); fall back to the raw segments sidecar.
+    for seg_path in (f"{base}.adfree.segments.json", f"{base}.segments.json"):
+        if os.path.isfile(seg_path):
+            try:
+                with open(seg_path, encoding="utf-8") as fh:
+                    segs = json.load(fh)
+            except (OSError, ValueError):
+                return None, None
+            break
+    else:
+        return None, None
+    if not isinstance(segs, list) or not segs:
+        return None, None
+
+    raw_ids: set[str] = set()
+    # Preserve first-appearance order of named voices for stable host/guest ids.
+    named_order: List[str] = []
+    for s in segs:
+        if not isinstance(s, dict):
+            continue
+        raw = str(s.get("speaker") or s.get("speaker_id") or "").strip()
+        if raw:
+            raw_ids.add(raw)
+        label = str(s.get("speaker_label") or "").strip()
+        if label and not label.lower().startswith("speaker") and label not in named_order:
+            named_order.append(label)
+
+    num_speakers = len(raw_ids) or (len(named_order) or None)
+    if not named_order:
+        return None, num_speakers  # diarized but unnamed → keep num, no named roster
+
+    guest_set = {g.strip().lower() for g in (detected_guests or []) if g and g.strip()}
+    speakers: List[SpeakerInfo] = []
+    hosts: List[str] = []
+    guests: List[str] = []
+    for name in named_order:
+        (guests if name.lower() in guest_set else hosts).append(name)
+    for idx, name in enumerate(hosts):
+        sid = "host" if len(hosts) == 1 else f"host_{idx + 1}"
+        speakers.append(SpeakerInfo(id=sid, name=name, role="host"))
+    for idx, name in enumerate(guests):
+        sid = "guest" if len(guests) == 1 else f"guest_{idx + 1}"
+        speakers.append(SpeakerInfo(id=sid, name=name, role="guest"))
+    return speakers, num_speakers
 
 
 def _normalize_whitespace(s: str) -> str:
@@ -1636,6 +1707,7 @@ def _build_content_metadata(
     corrected_entities: Optional[List[EntityCorrection]] = None,
     episode_description: Optional[str] = None,
     output_dir: Optional[str] = None,
+    diarization_num_speakers: Optional[int] = None,
 ) -> ContentMetadata:
     """Build ContentMetadata object.
 
@@ -1754,6 +1826,7 @@ def _build_content_metadata(
         audio_relpath=audio_relpath,
         whisper_model=whisper_model,
         speakers=speakers,
+        diarization_num_speakers=diarization_num_speakers,
         normalized_entities=normalized_entities,
         expectations=expectations,
         qa_flags=qa_flags,
@@ -2911,7 +2984,8 @@ def _prepare_base_metadata_objects(
     detected_hosts: Optional[List[str]],
     detected_guests: Optional[List[str]],
     pipeline_metrics=None,
-) -> Tuple[FeedMetadata, EpisodeMetadata, List[SpeakerInfo]]:
+    transcript_file_path: Optional[str] = None,
+) -> Tuple[FeedMetadata, EpisodeMetadata, List[SpeakerInfo], Optional[int]]:
     """Prepare base metadata objects (feed, episode, speakers).
 
     ProcessingMetadata (including stage_timings) is built after summarization so
@@ -2956,8 +3030,16 @@ def _prepare_base_metadata_objects(
         episode_number,
         episode_image_url,
     )
-    speakers = _build_speakers_from_detected_names(detected_hosts, detected_guests)
-    return feed_metadata, episode_metadata, speakers
+    # #876: prefer the diarized roster (host + guests + voice count) recorded in the saved
+    # segments — it names the host on network feeds where detected_hosts is empty. Fall back
+    # to the pre-diarization detected names when there are no diarized segments.
+    diarized_speakers, num_speakers = _build_speakers_from_diarized_segments(
+        output_dir, transcript_file_path, detected_guests
+    )
+    speakers = diarized_speakers or _build_speakers_from_detected_names(
+        detected_hosts, detected_guests
+    )
+    return feed_metadata, episode_metadata, speakers, num_speakers
 
 
 def _get_nlp_model_for_reconciliation(
@@ -3355,27 +3437,30 @@ def generate_episode_metadata(  # noqa: C901
         cfg,
     )
 
-    feed_metadata, episode_metadata, speakers = _prepare_base_metadata_objects(
-        feed,
-        episode,
-        feed_url,
-        feed_id,
-        episode_id,
-        cfg,
-        output_dir,
-        feed_description,
-        feed_image_url,
-        feed_last_updated,
-        episode_description,
-        episode_published_date,
-        episode_guid,
-        episode_link,
-        episode_duration_seconds,
-        episode_number,
-        episode_image_url,
-        detected_hosts,
-        detected_guests,
-        pipeline_metrics,
+    feed_metadata, episode_metadata, speakers, diarization_num_speakers = (
+        _prepare_base_metadata_objects(
+            feed,
+            episode,
+            feed_url,
+            feed_id,
+            episode_id,
+            cfg,
+            output_dir,
+            feed_description,
+            feed_image_url,
+            feed_last_updated,
+            episode_description,
+            episode_published_date,
+            episode_guid,
+            episode_link,
+            episode_duration_seconds,
+            episode_number,
+            episode_image_url,
+            detected_hosts,
+            detected_guests,
+            pipeline_metrics,
+            transcript_file_path,
+        )
     )
 
     if cfg.download_podcast_artwork and not cfg.dry_run:
@@ -3460,6 +3545,7 @@ def generate_episode_metadata(  # noqa: C901
         corrected_entities=corrected_entities,
         episode_description=episode_description,
         output_dir=output_dir,
+        diarization_num_speakers=diarization_num_speakers,
     )
 
     # Determine output path (needed for skip_existing check and for GIL path)
