@@ -22,7 +22,7 @@ _NONPERSON_AUTHOR_MARKERS = re.compile(
 )
 
 
-def _looks_like_nonperson_author(name: str) -> bool:
+def is_network_or_org_author(name: str) -> bool:
     """True when an RSS author tag looks like a network/organisation, not a host person.
 
     Any of these → reject: contains org/network markers (``|``, ``&``, digits, words like
@@ -54,7 +54,7 @@ def extract_self_introduced_host(
 
     Diarization yields anonymous speaker turns, and for network-published shows the host's
     name is *not* in the feed metadata (the author tag is the network — see
-    :func:`_looks_like_nonperson_author`). The host almost always self-introduces in the
+    :func:`is_network_or_org_author`). The host almost always self-introduces in the
     first ~90s ("Hello and welcome, I'm Patrick O'Shaughnessy"), so this lets us marry the
     transcript-derived host name to the diarized host speaker (#876). Only the intro is
     scanned so a guest who later says "I'm …" isn't mistaken for the host. Returns ``None``
@@ -141,7 +141,7 @@ def detect_hosts_from_feed(
                 if "<" in author_clean and ">" in author_clean:
                     author_clean = author_clean.split("<")[0].strip()
                 if author_clean:
-                    if _looks_like_nonperson_author(author_clean):
+                    if is_network_or_org_author(author_clean):
                         logger.debug(
                             "RSS author '%s' looks like a network/organisation, not a host; "
                             "treating as publisher metadata rather than host",

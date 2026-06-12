@@ -39,6 +39,20 @@ multi-speaker diarization + named screenplays, and the relational layer
 `diarization_provider: tailnet_dgx`, openai transcription fallback; in-process
 pyannote fallback on DGX health failure).
 
+> ⚠️ **Clear `.cache/transcripts` before re-diarizing** (`rm -rf .cache/transcripts`). The
+> transcript cache is keyed by audio hash and stores the **already-formatted screenplay**
+> (post-diarization). A warm cache short-circuits transcribe→diarize→format, so the run
+> reuses the *old* diarization/naming and re-diarization becomes a silent no-op. Verified
+> 2026-06-12: with the cache warm the run logged `Transcript cache hit … transcribe_sec=0.0`
+> and the screenplay was unchanged. (`transcript_cache_enabled: false` in the profile does
+> *not* reliably take effect via the CLI config merge — clear the dir instead.)
+>
+> ⚠️ **Keep the laptop awake for the whole run** (`caffeinate -i …`, mains power). If this
+> machine sleeps mid-run the tailnet drops and every DGX diarize POST fails with
+> `Connection reset by peer` → slow in-process fallback. Verified 2026-06-12: a sleep during
+> an unattended run produced exactly this; the busy-vs-down health check (#956) correctly
+> reported the box `busy`/`ready`, so the failure was local, not the DGX box.
+
 ## Prerequisites (status as of 2026-06-09)
 
 | Dependency | Status |

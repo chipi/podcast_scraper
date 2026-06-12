@@ -44,9 +44,11 @@ class TestHandleDryRunHostDetection(unittest.TestCase):
 
     def setUp(self):
         """Set up test fixtures."""
+        # Realistic "First Last" person names — these pass the network/org author filter
+        # (#876); names with digits like "Host 1" are correctly treated as non-person.
         self.feed = models.RssFeed(
             title="Test Feed",
-            authors=["Host 1", "Host 2"],
+            authors=["Jane Doe", "John Smith"],
             items=[],
             base_url="https://example.com",
         )
@@ -57,7 +59,7 @@ class TestHandleDryRunHostDetection(unittest.TestCase):
         result = processing._handle_dry_run_host_detection(self.feed)
 
         self.assertIsInstance(result, HostDetectionResult)
-        self.assertEqual(result.cached_hosts, {"Host 1", "Host 2"})
+        self.assertEqual(result.cached_hosts, {"Jane Doe", "John Smith"})
         self.assertIsNone(result.heuristics)
         self.assertIsNone(result.speaker_detector)
         mock_logger.info.assert_called()
