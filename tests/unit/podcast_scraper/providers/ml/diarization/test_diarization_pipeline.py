@@ -51,6 +51,41 @@ def test_apply_diarization_enriches_segments(mock_create_provider) -> None:
 
 
 @patch("podcast_scraper.providers.ml.diarization.pipeline.create_diarization_provider")
+def test_apply_diarization_names_host_from_transcript_self_intro(mock_create_provider) -> None:
+    """End-to-end (#876): host self-intro in the transcript names the diarized host voice."""
+    mock_provider = MagicMock()
+    mock_provider.diarize.return_value = DiarizationResult(
+        segments=[
+            DiarizationSegment(start=0.0, end=60.0, speaker="SPEAKER_00"),  # intro -> host
+            DiarizationSegment(start=60.0, end=400.0, speaker="SPEAKER_01"),  # guest
+        ],
+        num_speakers=2,
+        model_name="test",
+    )
+    mock_create_provider.return_value = mock_provider
+
+    cfg = config.Config(
+        rss="https://example.com/feed.xml",
+        transcription_provider="whisper",
+        diarize=True,
+        screenplay=True,
+        hf_token="hf-test",
+    )
+    result = {
+        "text": "Hello and welcome. I'm Patrick O'Shaughnessy. My guest is Brian Chesky.",
+        "segments": [
+            {"start": 0.0, "end": 60.0, "text": "Hello and welcome. I'm Patrick O'Shaughnessy."},
+            {"start": 60.0, "end": 400.0, "text": "Thanks for having me."},
+        ],
+    }
+
+    enriched = apply_diarization_to_result(result, "/tmp/audio.wav", cfg, ["Brian Chesky"])
+
+    assert enriched["segments"][0]["speaker_label"] == "Patrick O'Shaughnessy", "host named"
+    assert enriched["segments"][1]["speaker_label"] == "Brian Chesky", "guest named"
+
+
+@patch("podcast_scraper.providers.ml.diarization.pipeline.create_diarization_provider")
 def test_apply_diarization_degrades_when_no_turns(mock_create_provider) -> None:
     """Zero diarization turns → segments returned unlabelled so the caller degrades (A3)."""
     mock_provider = MagicMock()

@@ -7,6 +7,7 @@ import os
 from typing import Any, Dict, List, Optional
 
 from .... import config
+from ....speaker_detectors.hosts import extract_self_introduced_host
 from .alignment import align_segments_to_speakers
 from .cache import (
     diarization_cache_dir_for_output,
@@ -73,7 +74,16 @@ def apply_diarization_to_result(
         )
         return result
 
-    speaker_map = map_speakers_to_names(diarization, detected_speaker_names or [])
+    # Marry the host's transcript self-introduction ("I'm Patrick O'Shaughnessy") to the
+    # diarized host speaker — for network-published feeds the host name isn't in the metadata
+    # (the author tag is the network), so the intro is the only reliable source (#876).
+    transcript_text = result.get("text") or " ".join(
+        str(seg.get("text", "")) for seg in segments if isinstance(seg, dict)
+    )
+    host_name = extract_self_introduced_host(transcript_text)
+    speaker_map = map_speakers_to_names(
+        diarization, detected_speaker_names or [], host_name=host_name
+    )
     aligned = align_segments_to_speakers(segments, diarization)
 
     enriched_segments: List[Dict[str, Any]] = []

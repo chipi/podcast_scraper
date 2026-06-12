@@ -48,3 +48,24 @@ def test_map_speakers_to_names_never_paints_guest_name_on_host() -> None:
     assert mapping["HOST"] == "HOST", "guest name must never land on the host slot"
     assert mapping["GUEST"] == "Brian Chesky"
     assert mapping["EXTRA"] == "EXTRA"
+
+
+def test_map_speakers_to_names_assigns_host_name_when_known() -> None:
+    # The "marriage": host voice -> host name, guest voice -> guest name, extra voice raw (#876).
+    diarization = DiarizationResult(
+        segments=[
+            DiarizationSegment(start=0.0, end=80.0, speaker="HOST"),
+            DiarizationSegment(start=80.0, end=400.0, speaker="GUEST"),
+            DiarizationSegment(start=400.0, end=405.0, speaker="EXTRA"),
+        ],
+        num_speakers=3,
+        model_name="test",
+    )
+
+    mapping = map_speakers_to_names(
+        diarization, ["Brian Chesky"], host_name="Patrick O'Shaughnessy"
+    )
+
+    assert mapping["HOST"] == "Patrick O'Shaughnessy"
+    assert mapping["GUEST"] == "Brian Chesky"
+    assert mapping["EXTRA"] == "EXTRA", "leftover voice kept raw, never misattributed"

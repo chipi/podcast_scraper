@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Dict, List
+from typing import Dict, List, Optional
 
 from .base import DiarizationResult
 
@@ -30,20 +30,23 @@ def map_speakers_to_names(
     diarization: DiarizationResult,
     detected_names: List[str],
     *,
+    host_name: Optional[str] = None,
     intro_window_s: float = INTRO_WINDOW_SECONDS,
 ) -> Dict[str, str]:
-    """Map diarized speaker IDs to detected **guest** names by total speaking time.
+    """Map diarized speaker IDs to detected names by speaking time + host role.
 
-    ``detected_names`` are guest names only — host names are stripped upstream in
-    ``_detect_speakers_for_episode`` (the host is identified separately). The single caller
-    (``apply_diarization_to_result``) always passes guest-only names.
+    ``detected_names`` are **guest** names only — host names are stripped upstream in
+    ``_detect_speakers_for_episode`` (the host is identified separately). The most-talking
+    speaker within the first ``intro_window_s`` is treated as the host.
 
-    The most-talking speaker within the first ``intro_window_s`` is treated as the host and
-    **keeps its raw ``SPEAKER_xx`` label**, so a guest's name is never painted onto the
-    host's turns (#876 — previously the first guest name landed on the host slot, mis-
-    attributing the host's intro/questions to the guest and leaving the real guest unnamed).
-    Non-host speakers are named with ``detected_names`` in descending total-speaking-time
-    order; any speaker past the supplied names keeps its raw label.
+    - ``host_name`` (when known — e.g. from the transcript-intro self-introduction) is
+      assigned to the host speaker; otherwise the host keeps its raw ``SPEAKER_xx`` label.
+    - Guests are named with ``detected_names`` in descending total-speaking-time order; any
+      speaker past the supplied names keeps its raw label.
+
+    A guest's name is **never** painted onto the host's turns (#876 — previously the first
+    guest name landed on the host slot, mis-attributing the host's intro/questions to the
+    guest and leaving the real guest unnamed).
     """
     if not diarization.segments:
         return {}
@@ -53,12 +56,13 @@ def map_speakers_to_names(
     by_time = sorted(total_times, key=lambda sid: total_times[sid], reverse=True)
 
     host_id = max(intro_times, key=lambda key: intro_times[key]) if intro_times else None
+    host_label = (host_name or "").strip()
 
     mapping: Dict[str, str] = {}
     guest_index = 0
     for speaker_id in by_time:
         if speaker_id == host_id:
-            mapping[speaker_id] = speaker_id  # host kept raw; named separately if known
+            mapping[speaker_id] = host_label or speaker_id
         elif guest_index < len(detected_names):
             mapping[speaker_id] = detected_names[guest_index]
             guest_index += 1

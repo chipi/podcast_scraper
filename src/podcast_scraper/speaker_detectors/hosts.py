@@ -40,6 +40,35 @@ def _looks_like_nonperson_author(name: str) -> bool:
     return False
 
 
+# Host self-introduction in the transcript intro, e.g. "I'm Patrick O'Shaughnessy".
+# The name sub-pattern allows apostrophes/hyphens so it captures full surnames
+# ("O'Shaughnessy", "Jean-Luc") but NOT periods — a period ends the self-intro sentence, so
+# excluding it stops the match from absorbing the next sentence ("…O'Shaughnessy. My guest").
+_HOST_SELF_INTRO = re.compile(r"\bI'?m\s+([A-Z][\w'’\-]+(?:\s+[A-Z][\w'’\-]+){0,3})")
+
+
+def extract_self_introduced_host(
+    transcript_text: Optional[str], *, intro_chars: int = 2000
+) -> Optional[str]:
+    """Return the host's name from a transcript-intro self-introduction (``I'm <Name>``).
+
+    Diarization yields anonymous speaker turns, and for network-published shows the host's
+    name is *not* in the feed metadata (the author tag is the network — see
+    :func:`_looks_like_nonperson_author`). The host almost always self-introduces in the
+    first ~90s ("Hello and welcome, I'm Patrick O'Shaughnessy"), so this lets us marry the
+    transcript-derived host name to the diarized host speaker (#876). Only the intro is
+    scanned so a guest who later says "I'm …" isn't mistaken for the host. Returns ``None``
+    when no self-introduction is found.
+    """
+    if not transcript_text:
+        return None
+    match = _HOST_SELF_INTRO.search(transcript_text[:intro_chars])
+    if not match:
+        return None
+    name = match.group(1).strip(" .,")
+    return name if len(name) >= 2 else None
+
+
 def _extract_person_entities(text: str, nlp: Any) -> list[tuple[str, float]]:
     """Resolve extract_person_entities via public wrapper when loaded (patchable in tests)."""
     try:

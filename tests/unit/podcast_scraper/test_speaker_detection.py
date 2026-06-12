@@ -249,6 +249,21 @@ class TestSpeakerDetection(unittest.TestCase):
         )
         self.assertIn("Patrick O'Shaughnessy", hosts)
 
+    def test_extract_self_introduced_host(self):
+        """Host self-introduction in the intro yields the full name; guests don't (#876)."""
+        from podcast_scraper.speaker_detectors.hosts import extract_self_introduced_host
+
+        intro = (
+            "Hello and welcome, everyone. I'm Patrick O'Shaughnessy, and this is "
+            "Invest Like the Best. My guest today is Brian Chesky."
+        )
+        self.assertEqual(extract_self_introduced_host(intro), "Patrick O'Shaughnessy")
+        # A guest self-identifying far past the intro window must not be picked as host.
+        late = "x " * 2000 + "I'm Brian Chesky and I run Airbnb."
+        self.assertIsNone(extract_self_introduced_host(late))
+        # No self-introduction at all.
+        self.assertIsNone(extract_self_introduced_host("Today we discuss markets."))
+
     @patch.object(speaker_detection, "extract_person_entities")
     def test_detect_hosts_from_feed_ner(self, mock_extract):
         """Test detecting hosts from feed title using NER."""
