@@ -178,3 +178,69 @@ class TestExciseAdRegions:
         text = _PREROLL_AD_TEXT + middle + _POSTROLL_AD_TEXT
         cleaned, _, _ = excise_ad_regions(text)
         assert middle in cleaned
+
+
+def _sentence_segments(text: str, speaker: str, t0: float = 0.0):
+    """Split ``text`` into ~sentence segments tagged with a speaker (for screenplay)."""
+    segs = []
+    t = t0
+    for piece in text.replace("! ", ". ").replace("? ", ". ").split(". "):
+        piece = piece.strip()
+        if not piece:
+            continue
+        segs.append({"start": t, "end": t + 1.0, "text": piece, "speaker_label": speaker})
+        t += 1.0
+    return segs
+
+
+@pytest.mark.unit
+class TestExciseAdRegionsWithOffsets:
+    """#974 Fault B: ad-free screenplay segments must carry exact char ranges."""
+
+    def _build(self):
+        from podcast_scraper.providers.ml.diarization.formatting import (
+            format_diarized_screenplay_with_offsets,
+        )
+
+        segs = (
+            _sentence_segments(_PREROLL_AD_TEXT, "Host", 0.0)
+            + _sentence_segments(_CONTENT_BLOCK, "Host", 100.0)
+            + _sentence_segments("And what do you think? I think it is great.", "Guest", 200.0)
+            + _sentence_segments(_POSTROLL_AD_TEXT, "Host", 300.0)
+        )
+        text, offset_segs = format_diarized_screenplay_with_offsets(segs)
+        return text, offset_segs
+
+    def test_survivors_slice_back_to_their_text_exactly(self):
+        from podcast_scraper.gi.ad_regions import excise_ad_regions_with_offsets
+
+        text, offset_segs = self._build()
+        # Sanity: the formatter's own offsets are exact in the raw screenplay.
+        for s in offset_segs:
+            assert text[s["char_start"] : s["char_end"]] == s["text"]
+
+        cleaned, survivors, meta = excise_ad_regions_with_offsets(text, offset_segs)
+        assert meta.chars_removed > 0
+        assert meta.preroll_cut_end is not None
+        # Every surviving segment maps EXACTLY into the ad-free text — no guard needed.
+        for s in survivors:
+            assert cleaned[s["char_start"] : s["char_end"]] == s["text"]
+        # Ad segments dropped; content + speaker labels preserved.
+        assert len(survivors) < len(offset_segs)
+        assert not any("Ramp understands" in s["text"] for s in survivors)
+        assert any(s["speaker_label"] == "Guest" for s in survivors)
+
+    def test_no_ads_returns_segments_unchanged(self):
+        from podcast_scraper.gi.ad_regions import excise_ad_regions_with_offsets
+        from podcast_scraper.providers.ml.diarization.formatting import (
+            format_diarized_screenplay_with_offsets,
+        )
+
+        segs = _sentence_segments(_CONTENT_BLOCK * 3, "Host", 0.0)
+        text, offset_segs = format_diarized_screenplay_with_offsets(segs)
+        cleaned, survivors, meta = excise_ad_regions_with_offsets(text, offset_segs)
+        assert meta.chars_removed == 0
+        assert cleaned == text
+        assert len(survivors) == len(offset_segs)
+        for s in survivors:
+            assert cleaned[s["char_start"] : s["char_end"]] == s["text"]

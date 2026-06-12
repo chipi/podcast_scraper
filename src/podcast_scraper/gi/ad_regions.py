@@ -342,3 +342,61 @@ def excise_ad_regions(
         cleaned_segments = _realign_segments(segments, ranges, len(text))
 
     return cleaned_text, cleaned_segments, meta
+
+
+def _shift_for(pos: int, ranges: List[Tuple[int, int]]) -> int:
+    """Total chars excised strictly before ``pos`` (how far ``pos`` moves left)."""
+    return sum(hi - lo for lo, hi in ranges if hi <= pos)
+
+
+def _overlaps_any(cs: int, ce: int, ranges: List[Tuple[int, int]]) -> bool:
+    return any(max(cs, lo) < min(ce, hi) for lo, hi in ranges)
+
+
+def excise_ad_regions_with_offsets(
+    text: str,
+    offset_segments: List[Dict[str, Any]],
+    *,
+    scan_chars: int = SCAN_CHARS,
+    preroll_threshold: int = PREROLL_THRESHOLD,
+    postroll_threshold: int = POSTROLL_THRESHOLD,
+) -> Tuple[str, List[Dict[str, Any]], AdRegionMetadata]:
+    """Excise ad regions from a screenplay while keeping segment char ranges exact.
+
+    Unlike :func:`excise_ad_regions`, the input ``offset_segments`` already carry a
+    ``char_start`` / ``char_end`` range into ``text`` (as emitted by
+    :func:`...diarization.formatting.format_diarized_screenplay_with_offsets`). This
+    returns the ad-free text plus the surviving segments **re-offset into the ad-free
+    text**, so a downstream consumer can map ``cleaned_text[seg["char_start"]:
+    seg["char_end"]] == seg["text"]`` with no length-guard heuristic (#974, Fault B).
+
+    A segment that overlaps an excised range at all is dropped (it's inside the ad);
+    survivors shift left by the number of excised chars before them. Returns
+    ``(cleaned_text, surviving_offset_segments, AdRegionMetadata)``. The metadata is
+    the ad-map (excised ranges in the *source* / raw-screenplay space) used to
+    reconcile the ad-free text back to the raw transcript for the future player.
+    """
+    cleaned_text, _, meta = excise_ad_regions(
+        text,
+        segments=None,
+        scan_chars=scan_chars,
+        preroll_threshold=preroll_threshold,
+        postroll_threshold=postroll_threshold,
+    )
+    ranges = meta.excised_ranges
+    if not ranges:
+        # Nothing cut → ranges/text unchanged; return segments verbatim.
+        return cleaned_text, [dict(s) for s in offset_segments], meta
+
+    survivors: List[Dict[str, Any]] = []
+    for seg in offset_segments:
+        cs = int(seg.get("char_start", 0))
+        ce = int(seg.get("char_end", 0))
+        if _overlaps_any(cs, ce, ranges):
+            continue
+        shift = _shift_for(cs, ranges)
+        moved = dict(seg)
+        moved["char_start"] = cs - shift
+        moved["char_end"] = ce - shift
+        survivors.append(moved)
+    return cleaned_text, survivors, meta
