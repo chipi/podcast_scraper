@@ -234,6 +234,7 @@ See [RFC-042 — Layered transcript cleaning](../rfc/RFC-042-hybrid-summarizatio
 - `--hybrid-reduce-backend {transformers,ollama,llama_cpp}` - Hybrid REDUCE backend
 - `--hybrid-map-device` / `--hybrid-reduce-device` - Devices for hybrid MAP/REDUCE (`cuda`, `mps`, `cpu`, `auto`)
 - `--save-cleaned-transcript` / `--no-save-cleaned-transcript` - Persist `.cleaned` transcript alongside source (default: save)
+- `--save-adfree-transcript` / `--no-save-adfree-transcript` - Produce the ad-free processing base `*.adfree.txt` + `*.adfree.segments.json` (exact char offsets) + `*.adfree.admap.json` (#974); GI/search/enrichment/viewer prefer it for stable offsets, raw `.txt` stays canonical (default: save)
 
 ### Cache Management (v2.4.0+)
 

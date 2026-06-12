@@ -1656,6 +1656,19 @@ def _add_summarization_arguments(parser: argparse.ArgumentParser) -> None:
         help="Don't save cleaned transcript to separate file",
     )
     parser.add_argument(
+        "--save-adfree-transcript",
+        action="store_true",
+        default=True,
+        help="Produce the ad-free processing base (.adfree.txt + segments + ad-map) (#974) "
+        "(default: True)",
+    )
+    parser.add_argument(
+        "--no-save-adfree-transcript",
+        dest="save_adfree_transcript",
+        action="store_false",
+        help="Don't produce the ad-free processing-base transcript",
+    )
+    parser.add_argument(
         "--transcript-cleaning-strategy",
         choices=["pattern", "llm", "hybrid"],
         default=None,
@@ -3903,6 +3916,7 @@ def _build_config(args: argparse.Namespace) -> config.Config:  # noqa: C901
         "summary_cache_dir": None,  # Not exposed in CLI yet
         "summary_prompt": args.summary_prompt,
         "save_cleaned_transcript": args.save_cleaned_transcript,
+        "save_adfree_transcript": getattr(args, "save_adfree_transcript", True),
         "preprocessing_enabled": getattr(args, "preprocessing_enabled", False),
         "preprocessing_cache_dir": getattr(args, "preprocessing_cache_dir", None),
         "preprocessing_sample_rate": getattr(args, "preprocessing_sample_rate", 16000),

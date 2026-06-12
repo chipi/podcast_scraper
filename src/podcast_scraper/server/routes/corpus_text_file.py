@@ -1,6 +1,10 @@
 """GET /api/corpus/text-file — inline transcript-oriented files under corpus root.
 
-Includes plain text (``.txt``, ``.md``, captions) and ``.json`` transcript artifacts.
+Includes plain text (``.txt``, ``.md``, captions) and ``.json`` transcript artifacts —
+the raw transcript, the ad-free processing base (``*.adfree.txt`` /
+``*.adfree.segments.json`` / ``*.adfree.admap.json``, #974), and the summarization-cleaned
+``*.cleaned.txt``. Missing-file fallbacks: a requested ``*.adfree.txt`` degrades to the raw
+``*.txt``, and a raw ``*.txt`` degrades to ``*.cleaned.txt`` (and vice-versa).
 """
 
 from __future__ import annotations

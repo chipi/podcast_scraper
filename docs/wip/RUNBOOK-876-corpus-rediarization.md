@@ -144,6 +144,13 @@ Pilot acceptance (pick a 2-speaker, a panel, and a single-host episode if possib
 
 ## Step 4 — Cascade / offset verification (Bug3)
 
+> **Post-#974:** GI now indexes the saved **ad-free base** (`*.adfree.txt`, produced at
+> transcript-save time) whose segments carry exact `char_start`/`char_end`. Re-diarization
+> regenerates that base, so quote offsets re-derive **exactly** to the new transcript and the
+> screenplay-marker drift (#545) can no longer occur. `verify-gil-offsets-strict` still confirms
+> alignment, but the manual offset knob (`cil_lift_overrides.transcript_char_shift`) is obsolete
+> for ad-free corpora.
+
 Re-diarization shifts transcript char offsets; GI quote `char_start` must index
 the **new** transcript. The reprocess rebuilds GI per episode so they stay
 aligned, but verify explicitly:

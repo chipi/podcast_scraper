@@ -1787,6 +1787,13 @@ class TestParseArgs(unittest.TestCase):
         # CLI should preserve the value passed by user, not override with test default
         self.assertEqual(args.whisper_model, config.TEST_DEFAULT_WHISPER_MODEL)
 
+    def test_parse_args_save_adfree_transcript_flag(self):
+        """#974: --save-adfree-transcript defaults True; --no- flips it to False."""
+        default = cli.parse_args(["https://example.com/feed.xml"])
+        self.assertTrue(default.save_adfree_transcript)
+        off = cli.parse_args(["https://example.com/feed.xml", "--no-save-adfree-transcript"])
+        self.assertFalse(off.save_adfree_transcript)
+
     def test_parse_args_with_transcription_provider(self):
         """Test parsing --transcription-provider argument."""
         args = cli.parse_args(
