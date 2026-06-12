@@ -28,7 +28,7 @@ Related: [RFC-089](../rfc/RFC-089-dgx-spark-tailnet-integration.md),
 From your laptop (on tailnet):
 
 ```bash
-export DGX_TAILNET_FQDN=dgx-llm-1.tail6d0ed4.ts.net
+export DGX_TAILNET_FQDN=your-dgx.tailnet.ts.net
 host=$(bash scripts/ops/resolve_dgx_tailnet_host.sh)
 curl -fsS "http://${host}:11434/api/tags"
 curl -fsS "http://${host}:8001/health"
@@ -199,6 +199,116 @@ Fast disable without code: revert profile in `viewer_operator.yaml` and restart 
 - Logs: `journalctl -u ollama` / embedding shim service.
 - GPU: `nvidia-smi` over SSH.
 - Embedding determinism: GPU indexes are not byte-identical to CPU; compare top-K overlap only.
+
+## ⚠️ GB10 unified memory — DO NOT STACK BIG MODELS
+
+**The DGX Spark / GB10 has 122 GB UNIFIED memory shared between CPU and
+GPU. There is no separate VRAM pool.** This breaks the mental model that
+"x86 server + dedicated NVIDIA GPU" gives you. Stacking models that
+would fit comfortably on a server with 80 GB VRAM + 256 GB RAM will
+OOM the box.
+
+### What happened on 2026-06-11 (incident)
+
+I had vLLM Qwen3.6-35B-A3B bf16 (~70 GB) + 3 small whisper containers
+(~10 GB) running. I then warmed Ollama qwen3.5:35b (~23 GB) to set up
+a multi-tenant test. Within seconds of the warm-up returning, the
+kernel OOM killer fired and killed user-session systemd (PID 75167)
+and a 13 GB uvicorn worker. SSH access died; only ping kept working
+briefly. Required a hard power-cycle to recover.
+
+Math: 70 + 23 + 10 + (Docker + OS + buffer cache + Tailscale + sshd +
+user session services) ≈ 105–115 GB. The system started thrashing,
+OOM killer fired indiscriminately, user session died, SSH stopped
+authenticating.
+
+### Hard rules going forward
+
+1. **Total resident model size ≤ 80 GB at any moment.** Leave 30%+ of
+   the 122 GB pool for the OS, page cache, Docker runtime, networking,
+   user session, and short-lived spikes. This is the load-bearing
+   number — not 122, not 100.
+2. **Never run vLLM Qwen3.6-35B-A3B (~70 GB) alongside any other
+   large-context LLM.** No qwen3.5:35b, no deepseek-r1:70b, no
+   qwen2.5:72b. Use qwen2.5:7b (4.7 GB) or smaller if you need a
+   secondary LLM loaded for contention testing.
+3. **Before warming any model**, check `free -h` total used vs.
+   available, AND `nvidia-smi --query-gpu=memory.used,memory.total
+   --format=csv,noheader`. If `free -h` already shows < 30 GB available
+   memory, stop and unload something first.
+4. **`nvidia-smi memory.used` LIES on GB10.** It reports GPU-allocated
+   memory but tells you nothing about CPU-side pressure on the same
+   122 GB pool. The OS will OOM before nvidia-smi shows a problem.
+   Always cross-check with `free -h`.
+5. **Single-flight scenario tests.** If a test calls for "vLLM,
+   Ollama, and pyannote simultaneously," redesign to load one big
+   model at a time and document the deviation. Don't try to faithfully
+   recreate a multi-model production state that doesn't fit on this
+   hardware.
+
+### Pre-flight checklist before loading a model
+
+Run this BEFORE any `docker compose up`, `ollama pull`, or vLLM
+warm-up:
+
+```bash
+ssh dgx-llm-1 'free -h && echo "---" && sudo nvidia-smi --query-gpu=memory.used,memory.total --format=csv,noheader'
+```
+
+Decision tree:
+
+- `free -h` "available" column ≥ 50 GB → safe to load up to a 30 GB
+  model.
+- `free -h` "available" column 20–50 GB → safe only to load up to a
+  10 GB model. Anything bigger, unload something first.
+- `free -h` "available" column < 20 GB → STOP. Unload an existing
+  service before adding anything. You are already 1 OOM-trigger away
+  from an incident.
+
+### Loaded-model size reference (for arithmetic)
+
+| Service / model | Approx resident |
+| --- | ---: |
+| vLLM Qwen3.6-35B-A3B (bf16) | ~70 GB |
+| vLLM smaller MoE / 13B dense | ~30 GB |
+| Ollama deepseek-r1:70b (Q4) | ~42 GB |
+| Ollama qwen3.5:35b (Q4) | ~23 GB |
+| Ollama qwen2.5:32b (Q4) | ~19 GB |
+| Ollama qwen3.6 (Q4) | ~23 GB |
+| Ollama qwen2.5:7b (Q4) | ~4.7 GB |
+| whisper-openai large-v3 (bf16 via torch) | ~3 GB |
+| faster-whisper large-v3 (int8 via ctranslate2) | ~3 GB |
+| pyannote diarization | ~3 GB |
+| OS + Docker + Tailscale + user session + buffer cache (steady state) | **~15-20 GB** |
+
+Examples of SAFE stacking (~80 GB total):
+
+- vLLM Qwen3.6-35B-A3B + 3 whisper services + qwen2.5:7b ≈ 70+10+4.7 = 84.7 GB ✗ (slightly over — leave Ollama unloaded)
+- vLLM Qwen3.6-35B-A3B + 3 whisper services ≈ 80 GB ✓ (right at the bar)
+- Ollama qwen3.5:35b + 3 whisper services ≈ 33 GB ✓ (plenty of headroom)
+- Ollama deepseek-r1:70b + 3 whisper services ≈ 52 GB ✓
+
+Examples of UNSAFE stacking:
+
+- vLLM Qwen3.6-35B-A3B + Ollama qwen3.5:35b + 3 whisper services ≈ 103 GB ✗ (incident shape)
+- vLLM Qwen3.6-35B-A3B + Ollama deepseek-r1:70b ≈ 112 GB ✗
+- Any two of (vLLM 35B, Ollama 35B+, Ollama 70b) simultaneously ✗
+
+### Recovery if it happens again
+
+Symptoms: SSH connections hang at auth, ping eventually fails, no
+response to anything. The kernel is alive but user session is dead.
+
+1. Try `ssh root@dgx-llm-1` if you have direct root SSH enabled —
+   the root session systemd may still be intact.
+2. If that fails: physical access required. Recessed power button is
+   behind the next-to-top plug on the back of the unit. Short press
+   first; hold 10 sec if no response.
+3. After reboot: check `sudo journalctl --boot=-1 -p err --no-pager`
+   for OOM kill entries. Look for `Out of memory: Killed process`.
+   Pids in the 1000+ UID range = user-session services died.
+4. Update the safe-stacking calculation in this section if the
+   resident-size estimates above were off.
 
 ## Make helper
 

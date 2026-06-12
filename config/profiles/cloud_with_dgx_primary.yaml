@@ -16,17 +16,28 @@ transcription:
   primary: tailnet_dgx_whisper
   fallback: openai
 
-dgx_tailnet_host: dgx-llm-1.tail6d0ed4.ts.net
-# 2026-06-10: DGX Whisper temporarily switched from Speaches (:8000,
-# faster-whisper) to an openai-whisper service on :8002 while the GB10
-# Speaches/ctranslate2 path is sorted out. The :8002 service is
-# OpenAI-API-compatible (GET /v1/models → "large-v3") and takes the short
-# model id "large-v3" (NOT the HF "Systran/faster-whisper-large-v3" id).
-# It is ~10-15× slower per episode than Speaches — fine for re-diarization,
-# and the #946 duration-scaled timeout already covers it. Revert both lines
-# to port 8000 / Systran/faster-whisper-large-v3 once Speaches is restored.
-dgx_whisper_port: 8002
+dgx_tailnet_host: your-dgx.tailnet.ts.net
+# Registry-driven choice (`tailnet_dgx_whisper_openai` in
+# src/podcast_scraper/providers/ml/model_registry.py).
+#
+# 2026-06-10/12: switched from `Systran/faster-whisper-large-v3` on port
+# 8000 (Speaches) to `large-v3` on port 8002 (our custom openai-whisper
+# container). Evidence: docs/guides/eval-reports/EVAL_TRANSCRIPTION_3WAY_2026_06.md
+# — whisper-openai mean WER 0.10 / 4.6× realtime on v2 fixtures vs
+# speaches/Thread-B at 0.066 WER / 0.93× realtime. Quality is competitive;
+# speed difference (~5×) makes whisper-openai the production primary.
+#
+# The :8002 service is OpenAI-API-compatible (GET /v1/models → "large-v3")
+# and takes the short model id "large-v3" (NOT the HF
+# "Systran/faster-whisper-large-v3" id). Per-episode latency is ~10-15×
+# slower than Speaches' CUDA-enabled path but still well within the #946
+# duration-scaled timeout.
+#
+# Speaches stays available as a fallback per `tailnet_dgx_speaches_thread_b`
+# in the registry (now built on the speaches-gb10 source-built ctranslate2
+# image per #948 + this PR's Thread B temperature-fallback patch).
 dgx_whisper_model: large-v3
+dgx_whisper_port: 8002
 transcription_fallback_provider: openai
 
 openai_transcription_model: whisper-1

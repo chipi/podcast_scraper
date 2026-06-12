@@ -3,7 +3,7 @@
 Env vars (see infra/.env.dgx.local.example):
 
     DGX_TAILNET_FQDN     required — runtime HTTP target for assertions
-                         (e.g. dgx-llm-1.tail6d0ed4.ts.net)
+                         (e.g. your-dgx.tailnet.ts.net)
     DGX_SSH_HOST         optional — overrides DGX_TAILNET_FQDN for the SSH path
                          only (e.g. spark-2c14.local on LAN)
     DGX_SSH_USER         default: root  (non-root auto-escalates via sudo)

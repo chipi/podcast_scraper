@@ -47,7 +47,7 @@ v2 clips are overhead-dominated and don't surface the DGX advantage.
         --output data/eval/runs/whisper_dgx_vs_cloud_v1/local
 
     # DGX (requires WHISPER_DGX_URL pointing at Speaches /v1/audio/transcriptions)
-    WHISPER_DGX_URL=http://dgx-llm-1.tail6d0ed4.ts.net:8000/v1/audio/transcriptions \\
+    WHISPER_DGX_URL=http://your-dgx.tailnet.ts.net:8000/v1/audio/transcriptions \\
     python scripts/eval/score/whisper_dgx_vs_cloud_v1.py \\
         --backend dgx \\
         --models Systran/faster-whisper-base.en \\
@@ -211,16 +211,19 @@ def _transcribe_dgx(audio_path: Path, model_name: str, _model_cache: dict[str, A
     if not url:
         raise RuntimeError(
             "WHISPER_DGX_URL unset — e.g. "
-            "http://dgx-llm-1.tail6d0ed4.ts.net:8000/v1/audio/transcriptions"
+            "http://your-dgx.tailnet.ts.net:8000/v1/audio/transcriptions"
         )
     with audio_path.open("rb") as fh:
         # Timeout sized for a 90-min episode on a slow DGX day. The actual
         # transcription should take seconds on the custom-build #948 image.
+        # 1500s (25 min) covers the worst case observed during #957 — the
+        # speaches faster-whisper int8 path needs ~700s for a 11-min audio
+        # on a busy DGX, ~3× what the int8 single-ep ping suggested.
         resp = requests.post(
             url,
             files={"file": (audio_path.name, fh, "audio/mpeg")},
             data={"model": model_name, "response_format": "json"},
-            timeout=900,
+            timeout=1500,
         )
     resp.raise_for_status()
     return resp.json().get("text", "")

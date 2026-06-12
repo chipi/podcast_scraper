@@ -460,6 +460,36 @@ performance before merging.
    `make experiment-run CONFIG=... BASELINE=baseline_prod_authority_v1`
 4. If quality is acceptable, promote:
    `make run-promote RUN_ID=... --as baseline`
+5. **Materialize the decision into the registry.** When the eval proves a
+   new default — transcription backend, summary model, GI/KG threshold — the
+   eval report is necessary but not sufficient. Update the relevant
+   `StageOption` / `ProfilePreset` in
+   `src/podcast_scraper/providers/ml/model_registry.py` with the new
+   choice, set `research_ref` to the eval report path, and regenerate the
+   downstream profile YAMLs in `config/profiles/` so they match. Without
+   this step the runtime keeps running the old default. See
+   [Experiment Guide § Step 6](docs/guides/EXPERIMENT_GUIDE.md) and
+   [AGENTS.md § "Materialize autoresearch decisions"](AGENTS.md) for the
+   full flow.
+
+### Hostnames in the registry
+
+**Never commit operator-specific Tailscale MagicDNS hostnames to the
+repo.** Registry `StageOption.endpoint` fields and example YAMLs use the
+literal placeholder `{dgx_tailnet_host}` (Python format-string token) or
+`your-dgx.tailnet.ts.net` (visually-obvious docstring marker), depending
+on the file type:
+
+- **Python (registry, scripts)**: use `{dgx_tailnet_host}` in templates;
+  resolve via `resolve_endpoint(template, dgx_tailnet_host=None)` which
+  pulls from explicit arg → `DGX_TAILNET_HOST` env var → a fail-fast
+  sentinel.
+- **Docs, YAMLs, READMEs**: use `your-dgx.tailnet.ts.net` as the visual
+  placeholder. Operators replace per-checkout or set the env var.
+- **Env files**: see `config/examples/dgx-dev.env.example` for the full
+  env-var contract (`DGX_TAILNET_FQDN` for the pyinfra deploy path,
+  `DGX_TAILNET_HOST` for the registry resolver — same value; both should
+  be set).
 
 **Performance validation (`data/profiles/`):**
 

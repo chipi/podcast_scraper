@@ -116,7 +116,7 @@ ACL changes in `tailscale/policy.hujson`:
 }
 ```
 
-DGX MagicDNS host (typical): `dgx-llm-1.tail6d0ed4.ts.net`. Suffix-drift handling: same `scripts/ops/resolve_*_tailnet_host.sh` pattern as prod / drill — new resolver `scripts/ops/resolve_dgx_tailnet_host.sh`.
+DGX MagicDNS host (typical): `your-dgx.tailnet.ts.net`. Suffix-drift handling: same `scripts/ops/resolve_*_tailnet_host.sh` pattern as prod / drill — new resolver `scripts/ops/resolve_dgx_tailnet_host.sh`.
 
 ### Server software
 
@@ -140,7 +140,7 @@ class TailnetDgxProvider(LLMProvider):
 
     Configuration:
       tailnet_dgx:
-        host: dgx-llm-1.tail6d0ed4.ts.net
+        host: your-dgx.tailnet.ts.net
         port: 11434
         models:
           summarization: llama3.3:70b-instruct
@@ -165,7 +165,7 @@ New profiles in `config/acceptance/`:
 **Tier 1 — Immediate (days)**
 
 1. DGX joins tailnet, Ollama installed, 4 models pulled, `/api/tags` health probe responds.
-2. Operator's existing local-Ollama config flips `host: localhost` → `host: dgx-llm-1.tail6d0ed4.ts.net`. Same models the laptop had, served from DGX. Single config change; no code.
+2. Operator's existing local-Ollama config flips `host: localhost` → `host: your-dgx.tailnet.ts.net`. Same models the laptop had, served from DGX. Single config change; no code.
 3. Embedding shim deployed; existing CLI tools (`cluster-topics`, `build-validation-index`) gain an `--embedding-endpoint http://...` flag that defaults to local but accepts the DGX endpoint.
 4. Autoresearch eval configs at `data/eval/configs/` add DGX-hosted models as new provider rows. Re-run baseline sweeps; compare to cloud baselines.
 
@@ -188,7 +188,7 @@ New profiles in `config/acceptance/`:
 - Every consumer of DGX (provider, autoresearch, CLI, pre-prod) **must** implement one of:
   - Cloud fallback (`tailnet_dgx → gemini` per-stage), OR
   - Hard-fail with operator-visible error (acceptable for autoresearch eval runs; not acceptable for any pipeline run).
-- Health check: HTTP `GET http://dgx-llm-1.tail6d0ed4.ts.net:11434/api/tags` with 5s timeout. Healthy if responds 200 + at least one model listed.
+- Health check: HTTP `GET http://your-dgx.tailnet.ts.net:11434/api/tags` with 5s timeout. Healthy if responds 200 + at least one model listed.
 - Self-hosted runner availability: if DGX is unreachable when a workflow dispatches, the workflow falls back to `ubuntu-latest` (slower but functional) via a `runs-on:` strategy matrix. Implementation note: GHA self-hosted runner fallback isn't built-in; needs explicit `runs-on: ${{ <determined-by-prior-step> }}` pattern.
 
 ### Operator runbook additions

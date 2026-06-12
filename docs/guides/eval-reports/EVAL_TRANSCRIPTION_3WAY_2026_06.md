@@ -179,7 +179,7 @@ a property of the DGX. Documented for the audit trail because the
 synthesis report's earlier "DGX whisper unfit for production"
 recommendation was based on them.
 
-### DGX faster-whisper on `:8000` (speaches image) — still broken
+### DGX faster-whisper on `:8000` (speaches image) — PRE-FIX (kept for audit trail)
 
 | Episode | WER | Wall (s) | Realtime multiple | Hyp words | Ref words |
 | --- | ---: | ---: | ---: | ---: | ---: |
@@ -196,13 +196,47 @@ Two failure modes in one container:
    of minutes wall time.
 2. **Hallucination (1/5)**: 11,011 words for 1,448 reference.
 
-This is a **different bug from the openai-whisper one** — it lives
-in the speaches container (image
-`ghcr.io/speaches-ai/speaches:latest-cuda`), not in our `app.py`.
-Likely root cause: `WHISPER__COMPUTE_TYPE=default` resolving to a
-quantization (int8) that destroys output on GB10, combined with
-some VAD / chunking config that emits empty transcripts. Diagnosis
-filed as a follow-up.
+Root cause (diagnosed in #957): `WHISPER__COMPUTE_TYPE=default` was
+letting ctranslate2 auto-pick a broken quantization on the GB10
+Blackwell card. CTranslate2 also rejects `float16`, `bfloat16`, and
+`int8_bfloat16` on this hardware with "target device or backend do not
+support efficient X computation" — so the only viable compute type is
+**`int8`** (pure int8 weights + int8 compute). See
+[EVAL_SPEACHES_COMPUTE_TYPE_2026_06.md](./EVAL_SPEACHES_COMPUTE_TYPE_2026_06.md)
+for the full sweep.
+
+### DGX faster-whisper on `:8000` (speaches image) — POST-FIX (compute_type=int8)
+
+Tested on the same v2 fixture set, post-`int8` pin in `deploy.py`. The
+full 5-episode sweep was destroyed by the **Tailscale-hang bug
+(#946 / #956)** — speaches completed all five server-side, but the
+response bodies for episodes 2-5 never reached the laptop (the harness
+hit its HTTP read timeout). That's a separate issue from #957; it
+would have hit any DGX-served stack with similarly long responses.
+
+Two episodes landed cleanly (re-shot p05 with the bumped HTTP timeout
+after the original sweep wedged on episodes 2-4):
+
+| Episode | WER (post-fix int8) | Wall (s) | Realtime × | Notes |
+| --- | ---: | ---: | ---: | --- |
+| p01_e01 | **0.0534** | 335.5 | 1.6× | Beats openai-whisper's 0.0775 baseline. |
+| p05_e01 | **0.5950** | 388.6 | 1.4× | Much worse than p01 — wide episode-dependent variance. |
+| p02 / p03 / p04 | — | — | — | Tailscale-hang (#946 / #956). Server-side processing completed; client never got the response. Not a #957 regression. |
+| **mean (clean)** | **0.324** | 362.1 | 1.5× | — |
+
+Operational read: **the compute-type fix unblocks the empty-output
+bug but does NOT make faster-whisper production-ready.** Mean WER
+0.324 across the two clean episodes is above #957's ≤0.20 acceptance
+bar — int8 has episode-dependent quality variance that openai-whisper
+at the same precision (via torch, not ctranslate2) doesn't exhibit.
+For now: openai-whisper stays the production default for everything;
+faster-whisper-int8 is usable only for #952's apples-to-apples WER
+comparison (which will show openai-whisper winning). A follow-up to
+investigate the int8 variance (newer ctranslate2 build, alternative
+weights, VAD/chunking interaction, speaches temperature-schedule
+analog) is filed as **#968**; see
+[EVAL_SPEACHES_COMPUTE_TYPE_2026_06.md](./EVAL_SPEACHES_COMPUTE_TYPE_2026_06.md)
+for the threads.
 
 ## 4-way summary
 
@@ -211,7 +245,9 @@ filed as a follow-up.
 | **DGX openai-whisper FIXED (`:8002`)** | **0.102** | **4.56×** | ✅ new production winner | Fix in this PR |
 | **MPS (laptop, openai-whisper)** | 0.096 | 1.6× | ✅ laptop production default | No change |
 | CPU (laptop, openai-whisper) | 0.137 | 2.34× | ✅ viable fallback | New finding documented |
-| DGX faster-whisper (`:8000`) | 2.275–7.374 | 0.24× | ❌ broken — separate bug | Filed as follow-up |
+| **DGX faster-whisper post-#968 Thread B (`:8000`, int8 + temperature-fallback patch)** | **0.066** (3 clean eps, max 0.104) | 0.93× | ✅ quality-competitive with openai-whisper; speed gap from ctranslate2 vs torch (Thread A still open) | Patched image `podcast-speaches:0.1.0` (FROM speaches:latest-cuda + sed expansion of scalar temp to fallback tuple) |
+| DGX faster-whisper post-#957 only (`:8000`, int8 + default scalar temperature) | 0.324 (2 clean eps; bimodal 0.05/0.60) | 1.5× | ⚠️ superseded by Thread B above — audit trail only | — |
+| DGX faster-whisper PRE-#957 (`:8000`, default) | 2.275–7.374 | 0.24× | ❌ (audit trail only — broken compute_type auto-pick) | Fixed by #957 |
 | DGX openai-whisper PRE-FIX (`:8002`) | 3.204 | 2.30× | ❌ (audit trail only) | Fixed this PR |
 
 ## What this tells us for #929

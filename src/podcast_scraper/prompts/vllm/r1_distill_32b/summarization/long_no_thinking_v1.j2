@@ -1,0 +1,32 @@
+Summarize the following podcast episode transcript.
+
+{% if title %}
+Episode Title: {{ title }}
+{% endif %}
+
+Transcript:
+{{ transcript }}
+
+Guidelines:
+- Write a detailed summary with {{ paragraphs_min }}-{{ paragraphs_max }} paragraphs
+- Focus on key decisions, arguments, and lessons learned
+- Ignore sponsorships, ads, and housekeeping
+- Do not use quotes or speaker names
+- Do not invent information not implied by the transcript
+- Use abstractive summarization - synthesize and rephrase, don't just extract sentences
+- Ensure the summary is coherent and flows naturally
+
+CRITICAL OUTPUT REQUIREMENTS:
+
+Wrap the entire summary in `<summary>...</summary>` tags.
+
+- Your response begins with `<summary>` and ends with `</summary>`.
+- Nothing — no `<think>` block, no "Okay, so", no "let me", no
+  meta-commentary, no acknowledgement of the task — appears before
+  `<summary>`.
+- Nothing appears after `</summary>` either.
+- The content inside the tags is plain text only: no markdown, no
+  code blocks, no JSON, no bullet points. Use paragraph breaks for
+  structure.
+- Write in third person, past tense where appropriate.
+- All information must be grounded in the transcript above.

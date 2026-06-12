@@ -1,0 +1,45 @@
+# #958 Cell D — DeepSeek-R1-Distill-Qwen-32B quantization isolation.
+#
+# Compares:
+#   - vLLM R1-Distill bf16 (existing predictions from #928 batch)
+#   - Ollama R1-Distill Q4_K_M (existing predictions from #924 batch)
+#
+# Same model, same prompts, same dataset — only the (server, precision)
+# pair differs. Isolates whether R1-Distill's weakness in #928's Sonnet
+# verdict (3.25 mean) was driven by the model itself or by the
+# bf16-via-vLLM combination.
+
+tag: finale_958_cell_d_r1_quant_isolation_2026_06
+
+runs_glob:
+  - data/eval/runs/autoresearch_prompt_vllm_r1distill_32b_smoke_paragraph_v1_curated_5feeds_smoke_v1
+  - data/eval/runs/autoresearch_prompt_ollama_deepseek-r1_32b_smoke_paragraph_v1_curated_5feeds_smoke_v1
+
+metrics_filename: metrics_vs_silver_opus47_smoke_v1.json
+
+strata:
+  - name: r1_distill_32b
+    match:
+      - autoresearch_prompt_vllm_r1distill_32b_smoke_paragraph_v1
+      - autoresearch_prompt_ollama_deepseek-r1_32b_smoke_paragraph_v1
+
+promotion:
+  per_stratum_top_k: 2
+  floor_fraction: 0.0
+  overall_cap: 2
+  carte_blanche:
+    - autoresearch_prompt_vllm_r1distill_32b_smoke_paragraph_v1
+    - autoresearch_prompt_ollama_deepseek-r1_32b_smoke_paragraph_v1
+
+judges:
+  primary:
+    kind: sonnet46
+    model: claude-sonnet-4-6
+  cross_check:
+    kind: openai_chat
+    model: gpt-5.4
+    top_n_per_stratum: 2
+
+max_episodes_per_finalist: 5
+cost_cap_usd: 5.0
+output_root: data/eval/runs/finale

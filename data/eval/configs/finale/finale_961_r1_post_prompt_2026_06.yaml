@@ -1,0 +1,40 @@
+# #961 R1-Distill post-prompt-fix finale.
+#
+# Scores the R1-Distill predictions generated with the new
+# anti-reasoning prompts (system_no_thinking_v1 + long_no_thinking_v1)
+# and the strip_r1_reasoning post-processor, against the same finale
+# framework used for #928's parent eval. Compares to the original
+# pre-fix R1-Distill mean of 3.25 to quantify whether the prompt fix
+# alone moves the needle.
+
+tag: finale_961_r1_post_prompt_2026_06
+
+runs_glob:
+  - data/eval/runs/autoresearch_prompt_vllm_r1distill_32b_thinking_suppressed_curated_5feeds_smoke_v1
+
+metrics_filename: metrics_vs_silver_opus47_smoke_v1.json
+
+strata:
+  - name: dgx_le_40b
+    match:
+      - autoresearch_prompt_vllm_r1distill_32b_thinking_suppressed
+
+promotion:
+  per_stratum_top_k: 1
+  floor_fraction: 0.0
+  overall_cap: 1
+  carte_blanche:
+    - autoresearch_prompt_vllm_r1distill_32b_thinking_suppressed
+
+judges:
+  primary:
+    kind: sonnet46
+    model: claude-sonnet-4-6
+  cross_check:
+    kind: openai_chat
+    model: gpt-5.4
+    top_n_per_stratum: 1
+
+max_episodes_per_finalist: 5
+cost_cap_usd: 3.0
+output_root: data/eval/runs/finale
