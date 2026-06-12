@@ -58,6 +58,28 @@ The full chain (GI char_start ∈ ad-free → FAISS chunks ad-free → 100% over
 `episodes_missing_num_speakers: 10` is a pre-existing, opt-in (non-enforced) metadata
 propagation gap, not a #974 regression.
 
+## Tier-3 graph walk + a graph-handoff bug found & fixed
+
+Served the reprojected corpus (`make serve`) and walked the graph in-browser:
+- Graph renders: 298 nodes · 9 episodes · 1 component.
+- SPOKEN_BY + timestamps visible: a lifted insight shows `Speaker: Brian Chesky` +
+  `Quote time: 552.5s–571.5s`.
+- Fault A confirmed through the **served text-file API** (the path the viewer uses):
+  the `.adfree.txt` serves (200), and every sampled quote's `char_start:char_end`
+  slices **exactly** to its text (`slice_matches_quote: true`), `person:brian-chesky`.
+
+**Bug found while walking (pre-existing, unrelated to offsets) — now fixed:** clicking
+"Show on graph" on a **quote** search hit hung to the 15s graph-handoff stuck-timeout.
+Root cause: `quote` is in `FOCUSABLE_DOC_TYPES` but quotes are never rendered as graph
+nodes (the merged graph has Episode/Insight/Topic/Person/Org/Podcast — 0 Quote nodes),
+and `onFocusHit` passed **no fallback**, so `tryApplyPendingFocus` resolved neither the
+primary nor a fallback → FSM stuck in `loading_fetch` for 15s every time. Fix: pass the
+hit's episode as the focus fallback (`episodeFallbackForSearchHit` →
+`resolveCyNodeId` → `__unified_ep__:<id>`). Verified live: resolves to `ready` in ~700ms,
+`lastResult=applied`, selects the episode; no stuck warning. Audited all 16
+`requestFocusNode` call sites — `quote` was the only focusable type with no node, so no
+other instance of this bug class exists.
+
 ## Remaining for full sign-off
 
 - Produce a corrected serveable corpus for Tier-3 graph walk (reproject existing quotes
