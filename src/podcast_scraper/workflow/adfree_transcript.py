@@ -145,6 +145,73 @@ def save_adfree_artifacts(
     return os.path.relpath(adfree_txt, effective_output_dir)
 
 
+def _read_text(path: str) -> str:
+    try:
+        with open(path, encoding="utf-8") as f:
+            return f.read()
+    except OSError:
+        return ""
+
+
+def _read_json(path: str) -> Optional[Any]:
+    try:
+        with open(path, encoding="utf-8") as f:
+            return json.load(f)
+    except (OSError, ValueError):
+        return None
+
+
+@dataclass
+class ProcessingTranscript:
+    """The transcript a consumer should reason over (#974).
+
+    ``is_adfree`` is True when the ad-free base was found and loaded; in that case the
+    text + segments already exclude ads and ``segments`` carry exact ``char_start`` /
+    ``char_end`` ranges, and ``ad_map`` describes what was cut. When False the caller
+    got the raw ``.txt`` (old corpus / ad-free disabled) and must excise itself.
+    """
+
+    text: str
+    segments: Optional[List[Dict[str, Any]]]
+    transcript_ref: str
+    ad_map: Optional[Dict[str, Any]]
+    is_adfree: bool
+
+
+def load_processing_transcript(output_dir: str, transcript_file_path: str) -> ProcessingTranscript:
+    """Load the ad-free base if present, else the raw transcript.
+
+    This is the single resolver all NLP consumers (GI, enrich-edges, search) use so
+    they read one coordinate space. ``transcript_ref`` is the relpath that was actually
+    loaded — point quote/viewer references at it so highlights align.
+    """
+    adfree_rel = adfree_transcript_relpath(transcript_file_path)
+    adfree_full = os.path.join(output_dir, adfree_rel)
+    if os.path.isfile(adfree_full):
+        adfree_base = os.path.splitext(adfree_full)[0]  # <…>.adfree
+        text = _read_text(adfree_full)
+        segs = _read_json(adfree_base + ".segments.json")
+        ad_map = _read_json(adfree_base + ".admap.json")
+        return ProcessingTranscript(
+            text=text,
+            segments=segs if isinstance(segs, list) else None,
+            transcript_ref=adfree_rel,
+            ad_map=ad_map if isinstance(ad_map, dict) else None,
+            is_adfree=True,
+        )
+
+    raw_full = os.path.join(output_dir, transcript_file_path)
+    text = _read_text(raw_full) if os.path.isfile(raw_full) else ""
+    segs = _read_json(os.path.splitext(raw_full)[0] + ".segments.json")
+    return ProcessingTranscript(
+        text=text,
+        segments=segs if isinstance(segs, list) else None,
+        transcript_ref=transcript_file_path,
+        ad_map=None,
+        is_adfree=False,
+    )
+
+
 def produce_adfree_transcript(
     text: str,
     segments: Optional[List[Dict[str, Any]]],

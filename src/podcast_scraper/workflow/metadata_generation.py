@@ -3515,43 +3515,44 @@ def generate_episode_metadata(  # noqa: C901
         gi_path = _determine_gi_path(metadata_path)
         transcript_text = ""
         transcript_segments_arg: Optional[List[Dict[str, Any]]] = None
+        # #974: prefer the ad-free processing base (.adfree.txt + offset segments).
+        # char_start computed below lives in THAT saved space, so GI, enrich-edges,
+        # FAISS, and the viewer all share one coordinate system. transcript_ref_for_gi
+        # is the relpath actually read — quote/viewer references point at it.
+        transcript_ref_for_gi = transcript_file_path or "transcript.txt"
         if transcript_file_path and output_dir:
-            full_transcript_path = os.path.join(output_dir, transcript_file_path)
-            if os.path.isfile(full_transcript_path):
-                with open(full_transcript_path, encoding="utf-8") as f:
-                    transcript_text = f.read()
-            segments_path = os.path.splitext(full_transcript_path)[0] + ".segments.json"
-            if os.path.isfile(segments_path):
-                try:
-                    with open(segments_path, encoding="utf-8") as f:
-                        transcript_segments_arg = json.load(f)
-                    if not isinstance(transcript_segments_arg, list):
-                        transcript_segments_arg = None
-                except (json.JSONDecodeError, OSError):
-                    transcript_segments_arg = None
-        # #663: excise pre-roll / post-roll ad regions before GI extraction.
-        # Staged-mode GI re-reads the raw transcript file (not the cleaned one
-        # summarization got); without this wrapper, sponsor pre-rolls on shows
-        # like Invest Like the Best leak into insights and quotes.
-        if transcript_text:
-            from ..gi.ad_regions import excise_ad_regions
+            from .adfree_transcript import load_processing_transcript
 
-            transcript_text, transcript_segments_arg, ad_meta = excise_ad_regions(
-                transcript_text, segments=transcript_segments_arg
-            )
-            # #656 Stage D: record run-level ad-excision counters. GI is the
-            # canonical pre-extraction excision point (always runs on raw
-            # transcript regardless of which summarization cleaner ran),
-            # so one record per episode gives accurate run totals without
-            # double-counting the parallel KG pass below.
-            if pipeline_metrics is not None and ad_meta.chars_removed:
-                pre = ad_meta.preroll_cut_end or 0
-                post = (
-                    (ad_meta.source_length - ad_meta.postroll_cut_start)
-                    if ad_meta.postroll_cut_start is not None
-                    else 0
+            loaded = load_processing_transcript(output_dir, transcript_file_path)
+            transcript_text = loaded.text
+            transcript_segments_arg = loaded.segments
+            if loaded.is_adfree:
+                transcript_ref_for_gi = loaded.transcript_ref
+                # Ads were excised at save time; record run-level counters from the
+                # ad-map so #656 Stage D totals stay accurate without re-excising.
+                am = loaded.ad_map or {}
+                if pipeline_metrics is not None and am.get("chars_removed"):
+                    pre = am.get("preroll_cut_end") or 0
+                    pr_start = am.get("postroll_cut_start")
+                    post = (am.get("source_length", 0) - pr_start) if pr_start is not None else 0
+                    pipeline_metrics.record_ad_region_excision(pre, post)
+            elif transcript_text:
+                # Legacy fallback (no ad-free base on disk): excise in-memory like #663.
+                # Staged-mode GI re-reads the raw transcript (not the summarization-cleaned
+                # one); without this, sponsor pre-rolls leak into insights and quotes.
+                from ..gi.ad_regions import excise_ad_regions
+
+                transcript_text, transcript_segments_arg, ad_meta = excise_ad_regions(
+                    transcript_text, segments=transcript_segments_arg
                 )
-                pipeline_metrics.record_ad_region_excision(pre, post)
+                if pipeline_metrics is not None and ad_meta.chars_removed:
+                    pre = ad_meta.preroll_cut_end or 0
+                    post = (
+                        (ad_meta.source_length - ad_meta.postroll_cut_start)
+                        if ad_meta.postroll_cut_start is not None
+                        else 0
+                    )
+                    pipeline_metrics.record_ad_region_excision(pre, post)
         publish_date_str = episode_published_date.isoformat() if episode_published_date else None
         max_attempts = 2
         for attempt in range(max_attempts):
@@ -3651,7 +3652,7 @@ def generate_episode_metadata(  # noqa: C901
                     podcast_id=feed_id,
                     episode_title=episode.title,
                     publish_date=publish_date_str,
-                    transcript_ref=transcript_file_path or "transcript.txt",
+                    transcript_ref=transcript_ref_for_gi,
                     transcript_segments=transcript_segments_arg,
                     cfg=cfg,
                     insight_texts=insight_texts_arg,
@@ -3762,17 +3763,21 @@ def generate_episode_metadata(  # noqa: C901
         episode_id_for_kg, _ = get_episode_id_from_episode(episode, feed_url)
         kg_path = _determine_kg_path(metadata_path)
         transcript_text_kg = ""
+        transcript_ref_for_kg = transcript_file_path or "transcript.txt"
         if transcript_file_path and output_dir:
-            full_transcript_path_kg = os.path.join(output_dir, transcript_file_path)
-            if os.path.isfile(full_transcript_path_kg):
-                with open(full_transcript_path_kg, encoding="utf-8") as f:
-                    transcript_text_kg = f.read()
-        # #663: excise pre-roll / post-roll ads so KG entity/topic extraction
-        # doesn't pick up sponsor names (Ramp, WorkOS, etc.) as content.
-        if transcript_text_kg:
-            from ..gi.ad_regions import excise_ad_regions
+            from .adfree_transcript import load_processing_transcript
 
-            transcript_text_kg, _, _ = excise_ad_regions(transcript_text_kg)
+            loaded_kg = load_processing_transcript(output_dir, transcript_file_path)
+            transcript_text_kg = loaded_kg.text
+            if loaded_kg.is_adfree:
+                # #974: ad-free base already excludes sponsor reads.
+                transcript_ref_for_kg = loaded_kg.transcript_ref
+            elif transcript_text_kg:
+                # Legacy: #663 excise pre-roll / post-roll ads so KG entity/topic
+                # extraction doesn't pick up sponsor names (Ramp, WorkOS) as content.
+                from ..gi.ad_regions import excise_ad_regions
+
+                transcript_text_kg, _, _ = excise_ad_regions(transcript_text_kg)
         publish_date_str_kg = episode_published_date.isoformat() if episode_published_date else None
         max_kg_topics = int(
             getattr(cfg, "kg_max_topics", config_constants.DEFAULT_SUMMARY_BULLETS_DOWNSTREAM_MAX)
@@ -3844,7 +3849,7 @@ def generate_episode_metadata(  # noqa: C901
                     podcast_id=feed_id,
                     episode_title=episode.title,
                     publish_date=publish_date_str_kg,
-                    transcript_ref=transcript_file_path or "transcript.txt",
+                    transcript_ref=transcript_ref_for_kg,
                     topic_label=topic_hint_kg if not topic_labels_kg else None,
                     topic_labels=topic_labels_kg,
                     detected_hosts=detected_hosts,

@@ -607,6 +607,42 @@ class TestGILPipeline:
         transcript = "a" * (5 + SEGMENT_TRANSCRIPT_ALIGNMENT_MAX_DELTA + 1)
         assert _speaker_id_for_char_range(transcript, 0, 3, segments) is None
 
+    def test_explicit_char_offsets_map_through_screenplay_markers(self):
+        """#974 Fault B: segments carrying char_start/char_end map EXACTLY through a
+        marker-bearing screenplay that the cumulative-length guard would reject."""
+        # Screenplay has "Patrick: " / "Brian: " markers, so its length is far larger than
+        # the summed segment text — the legacy cumulative path would trip the 50-char guard.
+        transcript = "Patrick: Welcome to the show today.\nBrian: Thanks, great to be here.\n"
+        p_text = "Welcome to the show today."
+        b_text = "Thanks, great to be here."
+        p_start = transcript.index(p_text)
+        b_start = transcript.index(b_text)
+        segments = [
+            {
+                "start": 0.0,
+                "end": 2.0,
+                "text": p_text,
+                "speaker_label": "Patrick",
+                "char_start": p_start,
+                "char_end": p_start + len(p_text),
+            },
+            {
+                "start": 2.0,
+                "end": 4.0,
+                "text": b_text,
+                "speaker_label": "Brian",
+                "char_start": b_start,
+                "char_end": b_start + len(b_text),
+            },
+        ]
+        # A quote inside Brian's turn resolves to Brian (not skipped, no guard).
+        assert _speaker_id_for_char_range(transcript, b_start, b_start + 6, segments) == "Brian"
+        # And to Patrick inside his turn.
+        assert _speaker_id_for_char_range(transcript, p_start, p_start + 6, segments) == "Patrick"
+        # Timestamps map to Brian's segment time, despite the marker length mismatch.
+        start_ms, end_ms = _char_range_to_ms(transcript, b_start, b_start + 6, segments)
+        assert (start_ms, end_ms) == (2000, 4000)
+
     def test_artifact_from_multi_insight_logs_once_when_segments_misaligned(self, caplog):
         """Misaligned transcript vs segments emits one warning per artifact (issue #545)."""
         transcript = "a" * 60

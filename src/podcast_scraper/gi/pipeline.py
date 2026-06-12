@@ -623,6 +623,36 @@ def _transcript_segments_aligned(
     return delta <= max_delta
 
 
+def _segment_char_spans(
+    transcript: str, segments: List[Dict[str, Any]]
+) -> Optional[List[Tuple[int, int, Dict[str, Any]]]]:
+    """Return ``[(seg_start, seg_end, seg)]`` char spans for the segments.
+
+    #974: when segments carry explicit ``char_start`` / ``char_end`` (the ad-free
+    processing base, where each segment knows its exact position in the screenplay —
+    markers and all), use those directly — a quote ``char_start`` maps to its segment
+    with no heuristic. Otherwise fall back to cumulative ``len(text)`` positions and
+    apply the legacy alignment guard (returning ``None`` when the transcript length and
+    the summed segment text diverge by more than ``SEGMENT_TRANSCRIPT_ALIGNMENT_MAX_DELTA``,
+    so callers skip an unreliable mapping on a reformatted transcript).
+    """
+    dict_segs = [s for s in segments if isinstance(s, dict)]
+    if dict_segs and all("char_start" in s and "char_end" in s for s in dict_segs):
+        return [(int(s["char_start"]), int(s["char_end"]), s) for s in dict_segs]
+
+    spans: List[Tuple[int, int, Dict[str, Any]]] = []
+    pos = 0
+    for seg in dict_segs:
+        text = seg.get("text") or ""
+        spans.append((pos, pos + len(text), seg))
+        pos += len(text)
+    if not spans:
+        return None
+    if abs(len(transcript) - pos) > SEGMENT_TRANSCRIPT_ALIGNMENT_MAX_DELTA:
+        return None
+    return spans
+
+
 def _char_range_to_ms(
     transcript: str,
     char_start: int,
@@ -646,34 +676,20 @@ def _char_range_to_ms(
     """
     if not segments or char_start >= char_end:
         return 0, 0
-    seg_list = []
-    pos = 0
-    for seg in segments:
-        if not isinstance(seg, dict):
-            continue
-        start_s = float(seg.get("start", 0.0))
-        end_s = float(seg.get("end", 0.0))
-        text = seg.get("text") or ""
-        seg_start = pos
-        seg_end = pos + len(text)
-        seg_list.append((seg_start, seg_end, start_s, end_s))
-        pos = seg_end
-    if not seg_list:
-        return 0, 0
-    # Only map when segment text length matches transcript (no heavy reformatting)
-    if abs(len(transcript) - pos) > SEGMENT_TRANSCRIPT_ALIGNMENT_MAX_DELTA:
+    spans = _segment_char_spans(transcript, segments)
+    if not spans:
         return 0, 0
     # Find segments overlapping [char_start, char_end]; use first overlap for start, last for end
     start_ms = 0
     end_ms = 0
     first_set = False
-    for seg_start, seg_end, start_s, end_s in seg_list:
+    for seg_start, seg_end, seg in spans:
         if seg_end <= char_start or seg_start >= char_end:
             continue
         if not first_set:
-            start_ms = int(start_s * 1000)
+            start_ms = int(float(seg.get("start", 0.0)) * 1000)
             first_set = True
-        end_ms = int(end_s * 1000)
+        end_ms = int(float(seg.get("end", 0.0)) * 1000)
     return start_ms, end_ms
 
 
@@ -710,21 +726,10 @@ def _speaker_id_for_char_range(
     """
     if not segments or char_start >= char_end:
         return None
-    seg_list: List[Tuple[int, int, Dict[str, Any]]] = []
-    pos = 0
-    for seg in segments:
-        if not isinstance(seg, dict):
-            continue
-        text = seg.get("text") or ""
-        seg_start = pos
-        seg_end = pos + len(text)
-        seg_list.append((seg_start, seg_end, seg))
-        pos = seg_end
-    if not seg_list:
+    spans = _segment_char_spans(transcript, segments)
+    if not spans:
         return None
-    if abs(len(transcript) - pos) > SEGMENT_TRANSCRIPT_ALIGNMENT_MAX_DELTA:
-        return None
-    for seg_start, seg_end, seg in seg_list:
+    for seg_start, seg_end, seg in spans:
         if seg_start <= char_start < seg_end:
             sp = _segment_speaker_label(seg)
             if sp:
@@ -732,7 +737,7 @@ def _speaker_id_for_char_range(
             break
     best_overlap = 0
     best: Optional[str] = None
-    for seg_start, seg_end, seg in seg_list:
+    for seg_start, seg_end, seg in spans:
         if seg_end <= char_start or seg_start >= char_end:
             continue
         ov = min(seg_end, char_end) - max(seg_start, char_start)
