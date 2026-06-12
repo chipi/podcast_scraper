@@ -22,12 +22,23 @@ def _write_episode(
     quotes,
     speakers,
     num_speakers,
+    spoken_by=None,
     feed: str = "f1",
     run: str = "run_20260101-000000",
 ) -> None:
+    """Write one episode's gi.json + metadata.json under feeds/<feed>/<run>/metadata/.
+
+    ``spoken_by`` SPOKEN_BY edges are added (defaults to the number of attributed quotes,
+    mirroring the in-pipeline Quote->Person edges).
+    """
     meta_dir = root / "feeds" / feed / run / "metadata"
     meta_dir.mkdir(parents=True, exist_ok=True)
-    gi = {"nodes": [{"type": "Quote", "properties": p} for p in quotes]}
+    if spoken_by is None:
+        spoken_by = sum(1 for p in quotes if p.get("speaker_id"))
+    gi = {
+        "nodes": [{"type": "Quote", "properties": p} for p in quotes],
+        "edges": [{"type": "SPOKEN_BY"} for _ in range(spoken_by)],
+    }
     (meta_dir / f"{stem}.gi.json").write_text(json.dumps(gi))
     meta = {"content": {"speakers": speakers}, "diarization_num_speakers": num_speakers}
     (meta_dir / f"{stem}.metadata.json").write_text(json.dumps(meta))
@@ -37,29 +48,69 @@ def _good_quote(speaker_id: str, ts: int = 1000) -> dict:
     return {"text": "x", "speaker_id": speaker_id, "timestamp_start_ms": ts}
 
 
+_HOST_GUEST = [
+    {"id": "host_1", "name": "Patrick O'Shaughnessy", "role": "host"},
+    {"id": "guest", "name": "Brian Chesky", "role": "guest"},
+]
+
+
 def test_clean_corpus_passes(tmp_path: Path) -> None:
     _write_episode(
         tmp_path,
         "0001-ep",
         quotes=[_good_quote("person:patrick-oshaughnessy"), _good_quote("person:brian-chesky")],
-        speakers=[
-            {"id": "host_1", "name": "Patrick O'Shaughnessy", "role": "host"},
-            {"id": "guest", "name": "Brian Chesky", "role": "guest"},
-        ],
+        speakers=_HOST_GUEST,
         num_speakers=2,
     )
     m = compute_diarization_quality_metrics(tmp_path)
-    assert m["episodes_diarized"] == 1
+    assert m["episodes_with_quotes"] == 1
     assert m["quote_attribution_rate"] == 1.0
-    assert m["quote_timestamp_rate"] == 1.0
-    assert m["episodes_with_network_speaker"] == 0
-    assert m["multispeaker_undernamed_episodes"] == 0
+    assert m["spoken_by_coverage"] == 1.0
+    assert m["episodes_unattributed"] == 0
     passed, failures = enforce_diarization_thresholds(m)
     assert passed, failures
 
 
+def test_unattributed_episode_flagged(tmp_path: Path) -> None:
+    # The #545 failure mode: an episode has quotes but 0 attributed speakers + 0 SPOKEN_BY.
+    _write_episode(
+        tmp_path,
+        "0002-ep",
+        quotes=[
+            {"text": "a", "speaker_id": "", "timestamp_start_ms": 1},
+            {"text": "b", "speaker_id": "", "timestamp_start_ms": 2},
+        ],
+        speakers=_HOST_GUEST,
+        num_speakers=2,
+        spoken_by=0,
+    )
+    m = compute_diarization_quality_metrics(tmp_path)
+    assert m["episodes_unattributed"] == 1
+    assert m["quote_attribution_rate"] == 0.0
+    assert m["spoken_by_coverage"] == 0.0
+    passed, failures = enforce_diarization_thresholds(m)
+    assert not passed
+    assert any("0 attributed" in f for f in failures)
+    assert any("spoken_by_coverage" in f for f in failures)
+
+
+def test_partial_spoken_by_coverage_flagged(tmp_path: Path) -> None:
+    # Quotes attributed but SPOKEN_BY edges missing (e.g. enrich-edges offset failure).
+    _write_episode(
+        tmp_path,
+        "0003-ep",
+        quotes=[_good_quote("person:a"), _good_quote("person:b"), _good_quote("person:c")],
+        speakers=_HOST_GUEST,
+        num_speakers=2,
+        spoken_by=1,  # only 1 of 3 quotes got an edge
+    )
+    m = compute_diarization_quality_metrics(tmp_path)
+    assert abs(m["spoken_by_coverage"] - (1 / 3)) < 1e-6
+    passed, failures = enforce_diarization_thresholds(m)
+    assert not passed and any("spoken_by_coverage" in f for f in failures)
+
+
 def test_network_speaker_name_flagged(tmp_path: Path) -> None:
-    # The "Colossus" bug: a network/org name in content.speakers.
     _write_episode(
         tmp_path,
         "0001-ep",
@@ -77,7 +128,6 @@ def test_network_speaker_name_flagged(tmp_path: Path) -> None:
 
 
 def test_multispeaker_undernamed_flagged(tmp_path: Path) -> None:
-    # The partial-naming bug: 2 speakers but only one is a real name (the other stays raw).
     _write_episode(
         tmp_path,
         "0001-ep",
@@ -92,34 +142,12 @@ def test_multispeaker_undernamed_flagged(tmp_path: Path) -> None:
     assert not passed and any("named speakers" in f for f in failures)
 
 
-def test_unattributed_quotes_flagged(tmp_path: Path) -> None:
-    # The #545 / mis-attribution bug: quotes with no speaker_id.
-    _write_episode(
-        tmp_path,
-        "0001-ep",
-        quotes=[
-            {"text": "x", "speaker_id": "", "timestamp_start_ms": 10},
-            {"text": "y", "speaker_id": "person:brian-chesky", "timestamp_start_ms": 20},
-        ],
-        speakers=[{"id": "guest", "name": "Brian Chesky", "role": "guest"}],
-        num_speakers=2,
-    )
-    m = compute_diarization_quality_metrics(tmp_path)
-    assert m["quote_attribution_rate"] == 0.5
-    passed, failures = enforce_diarization_thresholds(m)
-    assert not passed and any("attribution_rate" in f for f in failures)
-
-
 def test_missing_num_speakers_opt_in(tmp_path: Path) -> None:
-    # num_speakers propagation gap: warned by default, enforced only when required.
     _write_episode(
         tmp_path,
         "0001-ep",
         quotes=[_good_quote("person:patrick-oshaughnessy"), _good_quote("person:brian-chesky")],
-        speakers=[
-            {"id": "host_1", "name": "Patrick O'Shaughnessy", "role": "host"},
-            {"id": "guest", "name": "Brian Chesky", "role": "guest"},
-        ],
+        speakers=_HOST_GUEST,
         num_speakers=None,
     )
     m = compute_diarization_quality_metrics(tmp_path)

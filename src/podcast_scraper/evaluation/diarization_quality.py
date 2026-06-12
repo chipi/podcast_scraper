@@ -21,12 +21,13 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
-from ..search.corpus_scope import discover_all_metadata_files
+from ..search.corpus_scope import discover_metadata_files
 from ..speaker_detectors.hosts import is_network_or_org_author
 
 # Default enforcement thresholds.
 MIN_QUOTE_ATTRIBUTION_RATE = 0.90  # quotes whose speaker_id is a real person:<slug>
 MIN_QUOTE_TIMESTAMP_RATE = 0.85  # quotes carrying timestamp_start_ms
+MIN_SPOKEN_BY_COVERAGE = 0.85  # SPOKEN_BY edges per quote (Quote -> Person attribution)
 # multi-speaker episode = diarization_num_speakers >= 2 OR >= 2 distinct quote speakers
 
 
@@ -40,6 +41,7 @@ class EpisodeDiarMetrics:
     quotes_total: int = 0
     quotes_attributed: int = 0  # speaker_id is a non-empty person:<slug>
     quotes_with_timestamp: int = 0
+    spoken_by_edges: int = 0  # SPOKEN_BY edges in this episode's gi.json (Quote -> Person)
     distinct_speakers: int = 0
     content_speaker_names: List[str] = field(default_factory=list)
     network_org_speaker_names: List[str] = field(default_factory=list)
@@ -88,6 +90,11 @@ def _episode_metrics(gi_path: Path, meta: Optional[dict]) -> EpisodeDiarMetrics:
     em = EpisodeDiarMetrics(episode=gi_path.name)
     gi = _load_json(gi_path) or {}
     quotes = [n for n in gi.get("nodes", []) if isinstance(n, dict) and n.get("type") == "Quote"]
+    em.spoken_by_edges = sum(
+        1
+        for e in gi.get("edges", [])
+        if isinstance(e, dict) and "SPOKEN" in str(e.get("type", "")).upper()
+    )
     speaker_ids: set[str] = set()
     named_ids: set[str] = set()
     for q in quotes:
@@ -133,27 +140,36 @@ def _gi_for_metadata(meta_path: Path) -> Optional[Path]:
 
 def compute_diarization_quality_metrics(corpus_root: Path) -> Dict[str, Any]:
     """Walk a corpus and aggregate per-episode diarization-quality metrics."""
+    # ``discover_metadata_files`` resolves the latest run per feed, so a re-diarized corpus is
+    # scored on its NEW run only (the superseded un-diarized run is excluded).
     per_episode: List[EpisodeDiarMetrics] = []
-    for meta_path in discover_all_metadata_files(Path(corpus_root)):
+    for meta_path in discover_metadata_files(Path(corpus_root)):
         gi_path = _gi_for_metadata(meta_path)
         if gi_path is None:
             continue
         per_episode.append(_episode_metrics(gi_path, _load_json(meta_path)))
 
-    diarized = [e for e in per_episode if e.diarized]
-    q_total = sum(e.quotes_total for e in diarized)
-    q_attr = sum(e.quotes_attributed for e in diarized)
-    q_ts = sum(e.quotes_with_timestamp for e in diarized)
-    multispeaker = [e for e in diarized if e.multispeaker]
+    # Score over every episode that produced quotes — an episode with quotes but zero
+    # attributed speakers is the #545 failure mode (don't silently drop it from the denominator).
+    with_quotes = [e for e in per_episode if e.quotes_total > 0]
+    q_total = sum(e.quotes_total for e in with_quotes)
+    q_attr = sum(e.quotes_attributed for e in with_quotes)
+    q_ts = sum(e.quotes_with_timestamp for e in with_quotes)
+    q_spoken = sum(e.spoken_by_edges for e in with_quotes)
+    multispeaker = [e for e in with_quotes if e.multispeaker]
 
     return {
         "episodes_total": len(per_episode),
-        "episodes_diarized": len(diarized),
+        "episodes_with_quotes": len(with_quotes),
         "quotes_total": q_total,
         "quote_attribution_rate": (q_attr / q_total) if q_total else 1.0,
         "quote_timestamp_rate": (q_ts / q_total) if q_total else 1.0,
-        "episodes_with_network_speaker": sum(1 for e in diarized if e.network_org_speaker_names),
-        "episodes_missing_num_speakers": sum(1 for e in diarized if e.num_speakers is None),
+        "spoken_by_coverage": (q_spoken / q_total) if q_total else 1.0,
+        "episodes_unattributed": sum(
+            1 for e in with_quotes if e.quotes_attributed == 0
+        ),  # quotes present, 0 attributed (#545)
+        "episodes_with_network_speaker": sum(1 for e in with_quotes if e.network_org_speaker_names),
+        "episodes_missing_num_speakers": sum(1 for e in with_quotes if e.num_speakers is None),
         "multispeaker_episodes": len(multispeaker),
         "multispeaker_undernamed_episodes": sum(
             1 for e in multispeaker if e.named_speaker_count < 2
@@ -167,6 +183,7 @@ def enforce_diarization_thresholds(
     *,
     min_attribution_rate: float = MIN_QUOTE_ATTRIBUTION_RATE,
     min_timestamp_rate: float = MIN_QUOTE_TIMESTAMP_RATE,
+    min_spoken_by_coverage: float = MIN_SPOKEN_BY_COVERAGE,
     require_num_speakers: bool = False,
 ) -> Tuple[bool, List[str]]:
     """Return (passed, failures). ``require_num_speakers`` is opt-in (a known propagation gap)."""
@@ -179,6 +196,15 @@ def enforce_diarization_thresholds(
     if metrics["quote_timestamp_rate"] < min_timestamp_rate:
         failures.append(
             f"quote_timestamp_rate {metrics['quote_timestamp_rate']:.3f} < {min_timestamp_rate}"
+        )
+    if metrics["spoken_by_coverage"] < min_spoken_by_coverage:
+        failures.append(
+            f"spoken_by_coverage {metrics['spoken_by_coverage']:.3f} < {min_spoken_by_coverage}"
+        )
+    if metrics["episodes_unattributed"] > 0:
+        failures.append(
+            f"{metrics['episodes_unattributed']} episode(s) have quotes but 0 attributed "
+            f"speakers (#545 offset drift)"
         )
     if metrics["episodes_with_network_speaker"] > 0:
         failures.append(
