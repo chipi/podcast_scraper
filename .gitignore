@@ -207,6 +207,8 @@ logs/
 
 # Claude Code local settings (per-clone permission overrides)
 .claude/settings.json
+# Harness scheduled-task state — per-session, not project state.
+.claude/scheduled_tasks.lock
 
 # Worktree-specific files
 WORKTREE.md
