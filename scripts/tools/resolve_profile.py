@@ -91,7 +91,8 @@ def main(argv: list[str] | None = None) -> int:
             print(name)
         return 0
     if not args.profile:
-        print("error: profile name required (or pass --list)", file=sys.stderr)
+        print("error: profile name required (or pass --list).", file=sys.stderr)
+        print(f"Available: {sorted(_PROFILE_PRESETS)}", file=sys.stderr)
         return 2
     if args.profile not in _PROFILE_PRESETS:
         print(
