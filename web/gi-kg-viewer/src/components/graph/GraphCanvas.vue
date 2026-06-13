@@ -3630,15 +3630,12 @@ watch(
   (newFocusId) => {
     if (!newFocusId || !cy) return
     const core = cy
-    // Resolve the primary id OR its fallback (a `quote` hit has no node of its
-    // own and falls back to its Episode). Use ``resolveCyNodeId`` rather than a
-    // bare ``$id`` so prefixed cy ids (``g:insight:…``) and fallbacks both match.
-    const fallbackRaw = nav.pendingFocusFallbackNodeId
-    const resolved =
-      resolveCyNodeId(core, newFocusId) ||
-      (fallbackRaw ? resolveCyNodeId(core, fallbackRaw) : null)
-    if (resolved) {
-      // Node already present - apply focus directly without a full redraw.
+    // Apply immediately ONLY when the PRIMARY target is already in cy. Resolve via
+    // ``resolveCyNodeId`` (not a bare ``$id``) so prefixed ids (``g:insight:…``) match.
+    // Do NOT apply the fallback here: the primary (e.g. a quote that becomes a node after
+    // the handoff's redraw) must get first chance — applying the fallback now would
+    // preempt it and focus the wrong node.
+    if (resolveCyNodeId(core, newFocusId)) {
       void nextTick(() => {
         safeGraphWatch('pendingFocus', () => {
           if (cy) {
@@ -3648,18 +3645,17 @@ watch(
       })
       return
     }
-    // Neither target nor fallback is in cy. If a redraw is pending/active it will
-    // add the node and ``finishLayoutPass`` will apply (or fail) on layoutstop —
-    // do nothing now. Only when the canvas is genuinely idle is the target
-    // provably unresolvable: fail fast instead of waiting out the 15s
-    // stuck-timeout. Re-check one frame later so a just-scheduled redraw wins.
+    // Primary not in cy yet. If a redraw is pending/active it will add the primary and
+    // ``finishLayoutPass`` will apply it (or fall back to the episode, or fail) on
+    // layoutstop — do nothing now. Only when the canvas is genuinely IDLE (no redraw
+    // coming → the primary will never load) do we resolve here: apply the fallback if it
+    // exists (``tryApplyPendingFocus`` tries primary then fallback), else fail fast instead
+    // of waiting out the 15s stuck-timeout. Re-check one frame later so a just-scheduled
+    // redraw wins.
     void nextTick(() => {
       requestAnimationFrame(() => {
         if (!cy || !graphHandoff.pending) return // resolved / failed elsewhere
-        const fb = nav.pendingFocusFallbackNodeId
-        const r =
-          resolveCyNodeId(cy, newFocusId) || (fb ? resolveCyNodeId(cy, fb) : null)
-        if (r) {
+        if (resolveCyNodeId(cy, newFocusId)) {
           safeGraphWatch('pendingFocus', () => {
             if (cy) tryApplyPendingFocus(cy)
           })
@@ -3670,13 +3666,19 @@ watch(
           redrawDebounceTimer == null &&
           redrawGateDepth === 0 &&
           !graphContentHiddenUntilLayout.value
-        if (idle) {
-          graphHandoff.handoffFailed(
-            `no graph node for focus target "${newFocusId}"` +
-              (fb ? ` (fallback "${fb}")` : ''),
-          )
-          nav.clearPendingFocus()
+        if (!idle) return // redraw in flight → finishLayoutPass handles primary + fallback
+        const fb = nav.pendingFocusFallbackNodeId
+        if (fb && resolveCyNodeId(cy, fb)) {
+          safeGraphWatch('pendingFocus', () => {
+            if (cy) tryApplyPendingFocus(cy)
+          })
+          return
         }
+        graphHandoff.handoffFailed(
+          `no graph node for focus target "${newFocusId}"` +
+            (fb ? ` (fallback "${fb}")` : ''),
+        )
+        nav.clearPendingFocus()
       })
     })
   },
