@@ -834,6 +834,36 @@ _TRANSCRIPTION_OPTIONS: Dict[str, StageOption] = {
         resident_memory_gb=3.0,
         realtime_multiple=1.6,
     ),
+    # Laptop CPU/MPS — quality upgrade over base.en at higher latency.
+    # Picked by local.yaml (operator's laptop default profile).
+    "local_whisper_small_en": StageOption(
+        stage="transcription",
+        option_id="local_whisper_small_en",
+        provider="whisper",
+        model="small.en",
+        research_ref="docs/guides/eval-reports/EVAL_WHISPER_SMALL_EN_2026_06_13.md",
+        headline_metric=(
+            "mean WER 0.029 on v2 (-25% vs base.en); 30.6s/ep on M4 Pro CPU "
+            "(2.6× base.en latency — laptop trade)"
+        ),
+        measured_at="2026-06-13",
+        tier="primary",
+        resident_memory_gb=0.5,
+    ),
+    # Cloud quality — Deepgram nova-3 picked by cloud_quality.yaml.
+    "deepgram_nova_3": StageOption(
+        stage="transcription",
+        option_id="deepgram_nova_3",
+        provider="deepgram",
+        model="nova-3",
+        research_ref="docs/guides/eval-reports/EVAL_DEEPGRAM_TRANSCRIPTION_2026_06_13.md",
+        headline_metric=(
+            "mean WER 0.0248 on v2 — best accuracy AND best latency (1.2s/ep) "
+            "across all measured models. ≈$0.0043/min."
+        ),
+        measured_at="2026-06-13",
+        tier="primary",
+    ),
 }
 
 
@@ -917,6 +947,36 @@ _SUMMARY_OPTIONS: Dict[str, StageOption] = {
         measured_at="2026-04-16",
         tier="fallback",
         resident_memory_gb=6.6,
+    ),
+    # Cloud-quality cheap-and-fast pick — bullets-bundled compound winner.
+    # Picked by cloud_quality.yaml.
+    "anthropic_haiku_4_5": StageOption(
+        stage="summary",
+        option_id="anthropic_haiku_4_5",
+        provider="anthropic",
+        model="claude-haiku-4-5",
+        research_ref="docs/guides/eval-reports/EVAL_HELDOUT_V2_2026_04.md",
+        headline_metric=(
+            "bullets-bundled compound winner (0.552); 4th quality / 2nd fastest "
+            "on the cost-latency-quality frontier; 4.8s / $0.00416/ep"
+        ),
+        measured_at="2026-04-16",
+        tier="primary",
+    ),
+    # Laptop summary default (no DGX, no cloud). Picked by local.yaml.
+    "ollama_hermes3_8b_laptop": StageOption(
+        stage="summary",
+        option_id="ollama_hermes3_8b_laptop",
+        provider="ollama",
+        model="hermes3:8b",
+        research_ref="docs/guides/eval-reports/EVAL_HYBRID_ROUTING_2026_06.md",
+        headline_metric=(
+            "laptop-default summary per #949 finale; ~50× realtime on Ollama CPU. "
+            "Trade vs base llama3.1:8b documented in EVAL_SMOKE_V2_DGX_REFRESH_2026_06."
+        ),
+        measured_at="2026-06-10",
+        tier="primary",
+        resident_memory_gb=6.0,
     ),
 }
 
@@ -1125,6 +1185,31 @@ _PROFILE_PRESETS: Dict[str, ProfilePreset] = {
         ner="spacy_trf",
         clustering="topic_clusters_default_0_75",
         notes="Higher resident memory budget; same registry choices as balanced today.",
+    ),
+    "cloud_quality": ProfilePreset(
+        name="cloud_quality",
+        transcription="deepgram_nova_3",
+        summary="anthropic_haiku_4_5",
+        kg="provider_n10_15",
+        ner="spacy_trf",
+        clustering="topic_clusters_default_0_75",
+        notes=(
+            "Cloud quality-first profile: Deepgram for transcription (best WER + best "
+            "latency on v2 fixtures), Anthropic Haiku 4.5 for summary "
+            "(compound-winner per EVAL_HELDOUT_V2)."
+        ),
+    ),
+    "local": ProfilePreset(
+        name="local",
+        transcription="local_whisper_small_en",
+        summary="ollama_hermes3_8b_laptop",
+        kg="provider_n10_15",
+        ner="spacy_trf",
+        clustering="topic_clusters_default_0_75",
+        notes=(
+            "Laptop-only profile: small.en whisper (quality upgrade over base.en) + "
+            "Ollama hermes3:8b summary. No DGX, no cloud."
+        ),
     ),
 }
 

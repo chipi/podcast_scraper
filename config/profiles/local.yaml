@@ -1,3 +1,10 @@
+# 2026-06-13 (#979/#980/#981 follow-up): opted into registry-driven defaults
+# via the `profile:` declaration below. Routing fields are cross-checked
+# against the registry preset by
+# tests/integration/providers/ml/test_profile_yaml_registry_drift.py.
+
+profile: local
+
 # Profile: local — fully local, no API calls, $0 cost
 #
 # Privacy-first / offline deployment. Uses Ollama + local Whisper.
