@@ -2401,6 +2401,31 @@ class Config(BaseModel):
             "``None`` uses orchestration defaults; ``0`` disables interim checkpoints."
         ),
     )
+    topic_cluster_threshold: float = Field(
+        default=0.75,
+        ge=0.0,
+        le=1.0,
+        alias="topic_cluster_threshold",
+        description=(
+            "Minimum mean cosine similarity for merging topic clusters in "
+            "``search/topic_clusters.py``. Pareto-optimal at 0.75 on v2 fixtures per "
+            "EVAL_FIXTURES_V2_TIER1_TUNING_2026_06_08. Lower values surface near-singleton "
+            "parents without adding cross-feed value; higher values collapse cross-feed "
+            "clusters. Materialized in the registry as ``topic_clusters_default_0_75``."
+        ),
+    )
+    insight_cluster_threshold: float = Field(
+        default=0.75,
+        ge=0.0,
+        le=1.0,
+        alias="insight_cluster_threshold",
+        description=(
+            "Minimum mean cosine similarity for merging insight clusters in "
+            "``search/insight_clusters.py``. Defaults to 0.75 to match the topic-cluster "
+            "default; conceptually independent and may be tuned separately when "
+            "insight-side autoresearch motivates it."
+        ),
+    )
     vector_index_path: Optional[str] = Field(
         default=None,
         alias="vector_index_path",

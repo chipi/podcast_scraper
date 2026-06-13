@@ -1324,7 +1324,12 @@ class TestFinalizePipeline(unittest.TestCase):
         )
 
         mock_maybe_index_corpus.assert_called_once_with(self.output_dir, cfg)
-        mock_topic_clusters.assert_called_once_with(self.output_dir, self.pipeline_metrics)
+        # The threshold kwarg flows from cfg.topic_cluster_threshold (#991).
+        mock_topic_clusters.assert_called_once_with(
+            self.output_dir,
+            self.pipeline_metrics,
+            threshold=cfg.topic_cluster_threshold,
+        )
 
     @patch("podcast_scraper.workflow.orchestration._maybe_build_topic_clusters_after_index")
     @patch("podcast_scraper.search.indexer.maybe_index_corpus")

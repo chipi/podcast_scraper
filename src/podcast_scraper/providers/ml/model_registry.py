@@ -1430,14 +1430,16 @@ def resolve_profile_to_settings(
     if ner.model is not None:
         settings["ner_model"] = ner.model
 
-    # Clustering: documented in the registry but no Config field surfaces it yet
-    # — the threshold is a function default in search/topic_clusters.py and
-    # search/insight_clusters.py. Exposed here under the internal-debug
-    # ``_clustering_*`` prefix so consumers can read the registry view without
-    # treating it as a routing field.
-    settings["_clustering_research_ref"] = clustering.research_ref
+    # Clustering: threshold flows through to runtime Config (#991). The same
+    # value drives both ``topic_cluster_threshold`` and ``insight_cluster_threshold``
+    # today — they share the registry's clustering option because the v2-fixture
+    # eval (#904 Tier 1) treated them as a coupled knob. Future autoresearch
+    # can split them by introducing separate StageOptions.
     if clustering.extra_settings and "threshold" in clustering.extra_settings:
-        settings["_clustering_threshold"] = clustering.extra_settings["threshold"]
+        threshold = clustering.extra_settings["threshold"]
+        settings["topic_cluster_threshold"] = threshold
+        settings["insight_cluster_threshold"] = threshold
+    settings["_clustering_research_ref"] = clustering.research_ref
 
     settings["_profile_preset"] = preset.name
     settings["_transcription_research_ref"] = tx.research_ref

@@ -45,6 +45,8 @@ _ROUTING_FIELDS = (
     "gi_require_grounding",
     "gil_evidence_quote_mode",
     "gil_evidence_nli_mode",
+    "topic_cluster_threshold",
+    "insight_cluster_threshold",
 )
 
 

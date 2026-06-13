@@ -898,7 +898,11 @@ class _InterimCheckpointManager:
                 "interim-checkpoint start: kind=topic_cluster success_count=%s",
                 self._last_seen_success_count,
             )
-            _maybe_build_topic_clusters_after_index(self._output_dir, self._pipeline_metrics)
+            _maybe_build_topic_clusters_after_index(
+                self._output_dir,
+                self._pipeline_metrics,
+                threshold=getattr(self._cfg, "topic_cluster_threshold", None),
+            )
             self._pipeline_metrics.interim_topic_cluster_checkpoint_success += 1
         except Exception as exc:
             self._pipeline_metrics.interim_topic_cluster_checkpoint_failures += 1
@@ -1650,7 +1654,11 @@ def _finalize_pipeline(
             episode_total=len(episodes),
         )
         maybe_index_corpus(effective_output_dir, cfg)
-        _maybe_build_topic_clusters_after_index(effective_output_dir, pipeline_metrics)
+        _maybe_build_topic_clusters_after_index(
+            effective_output_dir,
+            pipeline_metrics,
+            threshold=getattr(cfg, "topic_cluster_threshold", None),
+        )
     pipeline_metrics.vector_index_seconds = round(time.perf_counter() - _vidx_t0, 4)
     if metrics_path:
         try:
@@ -1681,13 +1689,22 @@ def _finalize_pipeline(
     )
 
 
-def _maybe_build_topic_clusters_after_index(output_dir: str, pipeline_metrics: Any) -> None:
+def _maybe_build_topic_clusters_after_index(
+    output_dir: str,
+    pipeline_metrics: Any,
+    *,
+    threshold: Optional[float] = None,
+) -> None:
     """Build ``search/topic_clusters.json`` when the FAISS index exists.
 
     The full incremental pipeline always runs this after vector indexing for
     vector-search-enabled profiles. If the index file is missing, we log and
     return so pipeline finalize stays resilient in first-run or partial-data
     scenarios.
+
+    ``threshold`` is the registry-driven similarity threshold (per #991). When
+    ``None``, the builder's function-default applies — callers that don't
+    have a Config (tests, ad-hoc scripts) keep working unchanged.
     """
     from podcast_scraper.search.faiss_store import VECTORS_FILE
 
@@ -1701,7 +1718,10 @@ def _maybe_build_topic_clusters_after_index(output_dir: str, pipeline_metrics: A
     from podcast_scraper.search.topic_clusters import build_topic_clusters_for_corpus
 
     _t0 = time.perf_counter()
-    payload = build_topic_clusters_for_corpus(output_dir, index_dir=index_dir)
+    kwargs: Dict[str, Any] = {"index_dir": index_dir}
+    if threshold is not None:
+        kwargs["threshold"] = threshold
+    payload = build_topic_clusters_for_corpus(output_dir, **kwargs)
     pipeline_metrics.topic_clusters_built = True
     pipeline_metrics.topic_cluster_count = int(payload.get("cluster_count") or 0)
     pipeline_metrics.topic_cluster_topic_count = int(payload.get("topic_count") or 0)
