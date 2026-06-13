@@ -28,6 +28,53 @@ Wave 1 (#850), Wave 2 (#895), and Wave 3 (#898). It is the source list for a sin
 
 **Validation:** full `make ci-fast` + `ci-ui-fast` run as the end gate before push (in progress).
 
+## Status update — 2026-06-13 (gap analysis vs current `main`)
+
+Re-checked the "DEFERRED" list against current `main` (HEAD `5c548d82`). Several items
+have been picked up by follow-up work in the interim (#908 + later branches). Truth is now:
+
+**Newly DONE since 2026-06-06** (verified in current `main`):
+
+- ✅ **D3 / D5 / D6** — Group D fully resolved (see ✅ marks inline in Group D below).
+- ✅ **G7** — `Accept-Ranges` no longer set manually (`server/routes/corpus_media.py:113`
+  comment confirms Starlette handles it).
+- ✅ **H5** — Dead `getattr(provider, "name", None)` fallback gone; `_get_provider_model_name`
+  in `workflow/episode_processor.py:1038-1087` now has an explicit `isinstance(model, str)` branch.
+- ✅ **H4** (lock half) — Lock no longer held across `logger.info` in `config.py:3492-3496`
+  (flag flip happens inside the lock, the log call is moved outside). Per-config warning
+  for explicit overrides still missing.
+- ✅ **F1 (deepgram half)** — Real 2 GB Deepgram cap in `utils/audio_payload_limits.py`.
+  Gemini/Mistral still inherit the 25 MiB OpenAI default.
+- ✅ **I5 (aria-label half)** — `<audio>` element in `TranscriptViewerDialog.vue` has
+  `aria-label="Episode audio"`. `audioSeekStartMs` consistency from the insight/quote
+  open path still warrants a pass.
+
+**Still OPEN — confirmed against current `main`** (16 items, almost all minor/cleanup):
+
+| ID | One-liner | Cite |
+| --- | --- | --- |
+| **E4** | Dead `speaker_detectors/patterns.py` no-op stub still imported by `__init__.py` and `providers/ml/speaker_detection.py` | `speaker_detectors/patterns.py:10` |
+| **B9** | `summarizer.remove_sponsor_blocks` delegate still present | `providers/ml/summarizer.py:526` |
+| **H2** | Legacy `{hash}.json` transcript-cache fallback returns entries without provider/model check | `cache/transcript_cache.py:132-134, 190-197` |
+| **B3** | `DEFAULT_CONFIDENCE_THRESHOLD = 0.65` hardcoded, not config-driven | `cleaning/commercial/patterns.py:9` |
+| **B4** | Host-speaker inference: audit's cold-open misfire concern unrevisited (logic + log present) | `cleaning/commercial/context.py:43-84` |
+| **B5** | No `.sponsors` removal audit sidecar; removals stay silent + unrecoverable | `cleaning/commercial/detector.py:98-120` |
+| **F1** (gemini/mistral) | Both still inherit 25 MiB OpenAI default; need real per-provider caps | `utils/audio_payload_limits.py:26-29` |
+| **G4** | `Path(norm).stem` flattens cross-feed → silent overwrite | `utils/corpus_media.py:22-31` |
+| **G5** | `safe_relpath_under_corpus_root` uses `normpath`, not `realpath` | `utils/path_validation.py:174-188` |
+| **A6** | Diarize-truthiness helper rename + cache-dir single-source + `diarization_device` fingerprint — partial, needs verification per item | various |
+| **E1** (rest) | `test_entities.py` / `test_hosts.py` / `test_guests.py` / `test_detection.py` still missing (only `test_normalization.py` + `test_ner_detector.py` present) | `tests/unit/podcast_scraper/speaker_detectors/` |
+| **E2** | Duplicate `_extract_person_entities` trampoline | `speaker_detectors/detection.py:16-25` ≡ `hosts.py:14-21` |
+| **E3** | `_log` single-line logger trampoline | `speaker_detectors/hosts.py:24-31` |
+| **E5** | No facade `__all__` surface-guard test | `speaker_detectors/__init__.py` |
+| **G6** | `shutil.copy2` default duplicates audio footprint; no hardlink/symlink mode | `utils/corpus_media.py:47` |
+| **I5** (rest) | `audioSeekStartMs` plumbing consistency from insight/supporting-quote open path | `NodeDetail.vue:1119-1137` |
+
+**Recommendation:** the umbrella PR model is no longer the right shape — most P1/P2 work
+shipped opportunistically with adjacent PRs. Remaining items are minor enough to land
+piecemeal (small PR per group as the surrounding code is touched, or a single
+"audio-hardening cleanup" PR for the cluster). Audit doc remains the source of truth.
+
 ## 🚨 BLOCKER — diarization does not load (dependency conflict, found via real eval)
 
 The whole pyannote path is **non-functional in a fresh `[ml]` install**, undetected
