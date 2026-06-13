@@ -549,7 +549,10 @@ class TestProcessingStage(unittest.TestCase):
         """Test detect_feed_hosts_and_patterns uses speaker detector."""
         mock_detector = Mock()
         mock_detector.initialize = Mock()
-        feed_hosts_set = {"Host 1", "Host 2"}
+        # Use person-shaped names (First Last) without digits — the #876 network/org
+        # filter (_NONPERSON_AUTHOR_MARKERS) drops anything containing a digit, so the
+        # old placeholders "Host 1"/"Host 2" would get filtered out before validation.
+        feed_hosts_set = {"Alice Smith", "Bob Jones"}
         mock_detector.detect_hosts = Mock(return_value=feed_hosts_set)
 
         # Mock detect_speakers to return both hosts so validation passes
@@ -557,7 +560,7 @@ class TestProcessingStage(unittest.TestCase):
         # detect_speakers returns (speaker_names_list, known_hosts_set, success_bool, used_defaults)
         # Need to handle both with and without pipeline_metrics parameter
         def mock_detect_speakers(*args, **kwargs):
-            return (["Host 1", "Host 2"], set(), True, False)
+            return (["Alice Smith", "Bob Jones"], set(), True, False)
 
         mock_detector.detect_speakers = Mock(side_effect=mock_detect_speakers)
         # Mock inspect.signature to return a signature that doesn't have pipeline_metrics
@@ -604,9 +607,9 @@ class TestProcessingStage(unittest.TestCase):
             result = processing.detect_feed_hosts_and_patterns(cfg, feed_no_authors, self.episodes)
 
         # Validation should pass since both hosts appear in first episode
-        # feed_hosts = {"Host 1", "Host 2"}
-        # first_episode_persons = {"Host 1", "Host 2"} (from detect_speakers mock)
-        # validated_hosts = feed_hosts & first_episode_persons = {"Host 1", "Host 2"}
+        # feed_hosts = {"Alice Smith", "Bob Jones"}
+        # first_episode_persons = {"Alice Smith", "Bob Jones"} (from detect_speakers mock)
+        # validated_hosts = feed_hosts & first_episode_persons = {"Alice Smith", "Bob Jones"}
         self.assertEqual(len(result.cached_hosts), 2)
         mock_detector.detect_hosts.assert_called_once()
         self.assertIsNotNone(result.heuristics)
