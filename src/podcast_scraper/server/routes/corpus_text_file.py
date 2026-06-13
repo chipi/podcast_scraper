@@ -97,16 +97,16 @@ def _resolve_readable_file_under_corpus(root: Path, norm: str) -> tuple[str, str
     if os.path.isfile(verified):
         return verified, basename
 
-    # #974: a `.adfree.txt` reference with no ad-free base on disk degrades to raw.
+    # #974: a `.adfree.txt` reference with no ad-free base on disk degrades to the raw
+    # `.txt`. Resolve the raw path through this same function (it re-validates the path and
+    # also picks up the raw's own `.cleaned.txt` fallback) rather than re-deriving a path
+    # expression here. The mapped path never ends in `.adfree.txt`, so the recursion is
+    # bounded to one level.
     adfree_raw_norm = _raw_txt_from_adfree_relpath(norm)
     if adfree_raw_norm is not None:
-        safe_ar = safe_relpath_under_corpus_root(root, adfree_raw_norm)
-        verified_ar = normpath_if_under_root(safe_ar, root_s) if safe_ar else None
-        if verified_ar:
-            ar_base = os.path.basename(verified_ar)
-            # codeql[py/path-injection] -- verified_ar from normpath_if_under_root.
-            if _suffix_allowed(ar_base) and os.path.isfile(verified_ar):
-                return verified_ar, ar_base
+        resolved = _resolve_readable_file_under_corpus(root, adfree_raw_norm)
+        if resolved is not None:
+            return resolved
 
     alt_norm = _cleaned_txt_fallback_relpath(norm)
     if alt_norm is not None:
