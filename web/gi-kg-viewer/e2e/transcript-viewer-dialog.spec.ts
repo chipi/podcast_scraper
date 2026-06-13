@@ -160,3 +160,143 @@ test.describe('Transcript viewer dialog (mocked API)', () => {
     await expect(dlg.getByText('0.0s – 1.2s', { exact: false })).toBeVisible()
   })
 })
+
+// #974: a quote whose transcript_ref points at the ad-free processing base must load
+// that base + its `.adfree.segments.json` sidecar and highlight exactly. Same dialog
+// mechanics as the raw case — proves the viewer reads the ad-free coordinate space.
+test.describe('Transcript viewer dialog — ad-free base (#974)', () => {
+  const adfreeArtifact = (() => {
+    const a = JSON.parse(artifactJson)
+    const q = a.nodes.find((n: { type: string }) => n.type === 'Quote') as
+      | { properties: Record<string, unknown> }
+      | undefined
+    if (q) q.properties.transcript_ref = 'transcripts/ci_sample.adfree.txt'
+    return JSON.stringify(a)
+  })()
+  // Ad-free body: ads already removed, so the quote sits at char 0 of THIS text.
+  const ADFREE_BODY =
+    'Hello world transcript sample for CI quality metrics fixture.\nAd-free base line.'
+
+  test.beforeEach(async ({ page }) => {
+    await page.route('**/api/health', async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          status: 'ok',
+          corpus_library_api: true,
+          corpus_digest_api: true,
+        }),
+      })
+    })
+
+    await page.route('**/api/artifacts?**', async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          path: '/mock/corpus',
+          artifacts: [
+            {
+              name: 'ci_sample.gi.json',
+              relative_path: 'metadata/ci_sample.gi.json',
+              kind: 'gi',
+              size_bytes: adfreeArtifact.length,
+              mtime_utc: '2026-04-18T12:00:00Z',
+              publish_date: '2026-04-18',
+            },
+          ],
+        }),
+      })
+    })
+
+    await page.route('**/api/artifacts/metadata/ci_sample.gi.json?**', async (route) => {
+      await route.fulfill({ status: 200, contentType: 'application/json', body: adfreeArtifact })
+    })
+
+    await page.route('**/api/corpus/text-file**', async (route) => {
+      const url = new URL(route.request().url())
+      const relpath = decodeURIComponent(url.searchParams.get('relpath') || '')
+      // The viewer must derive the sidecar as `.adfree.segments.json` from `.adfree.txt`.
+      if (relpath.endsWith('.adfree.segments.json')) {
+        await route.fulfill({
+          status: 200,
+          contentType: 'application/json; charset=utf-8',
+          body: JSON.stringify([
+            { start: 0, end: 1.2, text: 'Hello world' },
+            { start: 1.2, end: 3, text: ' transcript sample' },
+          ]),
+        })
+        return
+      }
+      if (relpath.endsWith('.adfree.txt')) {
+        await route.fulfill({
+          status: 200,
+          contentType: 'text/plain; charset=utf-8',
+          body: ADFREE_BODY,
+        })
+        return
+      }
+      await route.fulfill({ status: 404, body: 'not found' })
+    })
+
+    await page.route('**/api/search?**', async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          query: 'stub-quote',
+          results: [
+            {
+              doc_id: 'doc-quote',
+              score: 0.91,
+              text: 'Hello world transcript sample for CI quality metrics fixture.',
+              metadata: {
+                doc_type: 'quote',
+                source_id: 'quote:4729aa32a95c9ca1',
+                episode_id: 'ci-fixture',
+                source_metadata_relative_path: 'metadata/ci_sample.metadata.json',
+              },
+            },
+          ],
+        }),
+      })
+    })
+  })
+
+  test('Quote with .adfree.txt transcript_ref highlights from the ad-free base', async ({
+    page,
+  }) => {
+    await page.goto('/')
+    await page.getByRole('heading', { name: SHELL_HEADING_RE }).waitFor()
+
+    await statusBarCorpusPathInput(page).fill('/mock/corpus')
+    await mainViewsNav(page).getByRole('button', { name: 'Graph' }).click()
+    await page.getByRole('button', { name: 'Fit' }).waitFor({ state: 'visible', timeout: 30_000 })
+
+    await page.locator('#search-q').fill('stub quote hit')
+    await page
+      .locator('section')
+      .filter({ has: page.getByRole('heading', { name: 'Semantic search' }) })
+      .getByRole('button', { name: 'Search', exact: true })
+      .click()
+
+    await page
+      .getByText('Hello world transcript sample', { exact: false })
+      .waitFor({ timeout: 10_000 })
+    await page.getByRole('button', { name: 'Show on graph' }).click()
+    await page.getByRole('button', { name: 'Fit' }).waitFor({ state: 'visible', timeout: 30_000 })
+
+    await page.getByTestId('node-detail-view-transcript').click()
+
+    const dlg = page.getByTestId('transcript-viewer-dialog')
+    await expect(dlg).toBeVisible()
+    // Highlight lands on the quote, read from the ad-free base (not the raw transcript).
+    await expect(dlg.getByTestId('transcript-viewer-highlight')).toContainText(
+      'Hello world transcript sample for CI quality metrics fixture',
+    )
+    // The `.adfree.segments.json` sidecar loaded (proves the derivation).
+    await dlg.getByText('Timeline (2 segments)', { exact: false }).click()
+    await expect(dlg.getByTestId('transcript-viewer-timeline')).toBeVisible()
+  })
+})

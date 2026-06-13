@@ -15,7 +15,7 @@ from .cache import (
     save_diarization_cache,
 )
 from .factory import create_diarization_provider
-from .mapping import map_speakers_to_names
+from .roster import resolve_speaker_roster
 
 logger = logging.getLogger(__name__)
 
@@ -73,17 +73,30 @@ def apply_diarization_to_result(
         )
         return result
 
-    speaker_map = map_speakers_to_names(diarization, detected_speaker_names or [])
+    # Resolve every diarized voice once via the unified roster (#876): host = intro-dominant,
+    # named by transcript self-intro ("I'm Patrick O'Shaughnessy") → config known_hosts;
+    # guests by talk-time; leftovers kept raw; a guest's name never lands on a host. For
+    # network-published feeds the host name isn't in the metadata (the author tag is the
+    # network), so the transcript self-intro the roster reads is the only reliable source.
+    transcript_text = result.get("text") or " ".join(
+        str(seg.get("text", "")) for seg in segments if isinstance(seg, dict)
+    )
+    roster = resolve_speaker_roster(
+        diarization,
+        transcript_text,
+        detected_guests=detected_speaker_names or [],
+        known_hosts=list(getattr(cfg, "known_hosts", None) or []),
+    )
     aligned = align_segments_to_speakers(segments, diarization)
 
     enriched_segments: List[Dict[str, Any]] = []
     for segment, speaker_id in aligned:
         enriched = dict(segment)
         enriched["speaker"] = speaker_id
-        enriched["speaker_label"] = speaker_map.get(speaker_id, speaker_id)
+        enriched["speaker_label"] = roster.label_for(speaker_id)
         enriched_segments.append(enriched)
 
     enriched_result = dict(result)
     enriched_result["segments"] = enriched_segments
-    enriched_result["diarization_num_speakers"] = diarization.num_speakers
+    enriched_result["diarization_num_speakers"] = roster.num_speakers
     return enriched_result

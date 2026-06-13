@@ -7,7 +7,7 @@ import { useSearchStore } from '../../stores/search'
 import { useShellStore } from '../../stores/shell'
 import { useSubjectStore } from '../../stores/subject'
 import type { SearchHit } from '../../api/searchApi'
-import { graphNodeIdFromSearchHit } from '../../utils/searchFocus'
+import { episodeFallbackForSearchHit, graphNodeIdFromSearchHit } from '../../utils/searchFocus'
 import { sourceMetadataRelativePathFromSearchHit } from '../../utils/searchHitLibrary'
 import ResultCard from './ResultCard.vue'
 import SearchFilterBar from './SearchFilterBar.vue'
@@ -173,7 +173,14 @@ async function onFocusHit(hit: SearchHit): Promise<void> {
     camera: { kind: 'center-on-target' },
   })
   subject.focusGraphNode(id)
-  nav.requestFocusNode(id, undefined, tcParent ? [tcParent] : undefined)
+  // Fall back to the hit's Episode node when the primary id has no graph node
+  // (e.g. a `quote` hit — quotes aren't rendered as nodes). Without a resolvable
+  // fallback the handoff hangs to its 15s stuck-timeout.
+  nav.requestFocusNode(
+    id,
+    episodeFallbackForSearchHit(hit) ?? undefined,
+    tcParent ? [tcParent] : undefined,
+  )
   emit('go-graph')
 }
 

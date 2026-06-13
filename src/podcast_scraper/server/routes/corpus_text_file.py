@@ -1,6 +1,10 @@
 """GET /api/corpus/text-file — inline transcript-oriented files under corpus root.
 
-Includes plain text (``.txt``, ``.md``, captions) and ``.json`` transcript artifacts.
+Includes plain text (``.txt``, ``.md``, captions) and ``.json`` transcript artifacts —
+the raw transcript, the ad-free processing base (``*.adfree.txt`` /
+``*.adfree.segments.json`` / ``*.adfree.admap.json``, #974), and the summarization-cleaned
+``*.cleaned.txt``. Missing-file fallbacks: a requested ``*.adfree.txt`` degrades to the raw
+``*.txt``, and a raw ``*.txt`` degrades to ``*.cleaned.txt`` (and vice-versa).
 """
 
 from __future__ import annotations
@@ -56,6 +60,21 @@ def _raw_txt_from_cleaned_relpath(norm: str) -> str | None:
     return str(p.with_name(raw_name)).replace("\\", "/")
 
 
+def _raw_txt_from_adfree_relpath(norm: str) -> str | None:
+    """Map ``.../foo.adfree.txt`` to ``.../foo.txt`` (#974).
+
+    GI ``transcript_ref`` points at the ad-free base when it was produced; on a
+    pre-#974 corpus (or one with ``save_adfree_transcript`` disabled) only the raw
+    ``.txt`` exists, so degrade gracefully to it instead of 404ing.
+    """
+    p = Path(norm)
+    name = p.name
+    if not name.lower().endswith(".adfree.txt"):
+        return None
+    raw_name = f"{name[: -len('.adfree.txt')]}.txt"
+    return str(p.with_name(raw_name)).replace("\\", "/")
+
+
 def _resolve_readable_file_under_corpus(root: Path, norm: str) -> tuple[str, str] | None:
     """Return ``(absolute_path, basename)`` for an allowed file under *root*, or ``None``.
 
@@ -77,6 +96,17 @@ def _resolve_readable_file_under_corpus(root: Path, norm: str) -> tuple[str, str
     # codeql[py/path-injection] -- verified from normpath_if_under_root(safe, root_s).
     if os.path.isfile(verified):
         return verified, basename
+
+    # #974: a `.adfree.txt` reference with no ad-free base on disk degrades to the raw
+    # `.txt`. Resolve the raw path through this same function (it re-validates the path and
+    # also picks up the raw's own `.cleaned.txt` fallback) rather than re-deriving a path
+    # expression here. The mapped path never ends in `.adfree.txt`, so the recursion is
+    # bounded to one level.
+    adfree_raw_norm = _raw_txt_from_adfree_relpath(norm)
+    if adfree_raw_norm is not None:
+        resolved = _resolve_readable_file_under_corpus(root, adfree_raw_norm)
+        if resolved is not None:
+            return resolved
 
     alt_norm = _cleaned_txt_fallback_relpath(norm)
     if alt_norm is not None:

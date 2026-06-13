@@ -25,7 +25,8 @@ function toFiniteNumber(v: unknown): number | null {
 
 /**
  * Path to `{base}.segments.json` next to the transcript file (pipeline convention).
- * Handles `.cleaned.txt` → `.cleaned.segments.json`.
+ * Handles `.cleaned.txt` → `.cleaned.segments.json` and `.adfree.txt` →
+ * `.adfree.segments.json` (#974 ad-free processing base) — strips the last extension.
  */
 export function segmentsSidecarRelpathFromTranscriptRelpath(transcriptRelpath: string): string {
   const t = transcriptRelpath

@@ -60,6 +60,7 @@ def extract_episode_description(item):
 
 
 from ...speaker_detectors.factory import create_speaker_detector
+from ...speaker_detectors.hosts import is_network_or_org_author
 from ..cost_monitoring import CostCapExceeded
 from ..helpers import update_metric_safely
 from ..types import (
@@ -224,9 +225,9 @@ def _handle_dry_run_host_detection(
     """
     logger.info("(dry-run) would initialize speaker detector")
     cached_hosts: set[str] = set()
-    # Still detect hosts from RSS author tags if available
+    # Still detect hosts from RSS author tags if available (network/org tags filtered, #876)
     if feed.authors:
-        cached_hosts = set(feed.authors)
+        cached_hosts = {a for a in feed.authors if not is_network_or_org_author(a)}
         if cached_hosts:
             logger.info(
                 "DETECTED HOSTS (from %s): %s",
@@ -482,6 +483,10 @@ def detect_feed_hosts_and_patterns(
 
     # Detect hosts: prefer RSS author tags, fall back to NER
     feed_hosts = _detect_hosts_from_feed(feed, speaker_detector)
+    # Strip network/publisher author tags the detector surfaces as hosts (e.g. "Colossus",
+    # "Colossus | Investing & Business Podcasts"). For such shows the real host comes from the
+    # transcript self-introduction at diarization time, not the feed metadata (#876).
+    feed_hosts = {h for h in feed_hosts if not is_network_or_org_author(h)}
 
     # Priority: Use known_hosts from config if provided (show-level override)
     if cfg.known_hosts:
@@ -508,7 +513,11 @@ def detect_feed_hosts_and_patterns(
     # Fallback to episode-level authors if no feed-level hosts found (Issue #380)
     episode_authors: set[str] = set()
     if not cached_hosts:
-        episode_authors = _fallback_to_episode_authors(cfg, episodes)
+        episode_authors = {
+            a
+            for a in _fallback_to_episode_authors(cfg, episodes)
+            if not is_network_or_org_author(a)
+        }
         if episode_authors:
             cached_hosts = episode_authors
             logger.info(

@@ -22,6 +22,26 @@ export function graphNodeIdFromSearchHit(row: SearchHit): string | null {
 }
 
 /**
+ * The episode a search hit belongs to, returned as a focus *fallback*.
+ *
+ * Some focusable doc types have no node of their own in the merged graph — most
+ * notably `quote`: quotes are evidence under Insights and are never rendered as
+ * graph nodes (the merged graph carries Episode / Insight / Topic / Person /
+ * Organization / Podcast). "Show on graph" on a quote therefore targets a node
+ * that does not exist; without a resolvable fallback the focus never lands and
+ * the handoff FSM hangs until its 15s stuck-timeout. Falling back to the hit's
+ * Episode node (resolved via `resolveCyNodeId` → `__unified_ep__:<id>`) makes
+ * the click center the quote's episode instead — useful, and never stuck.
+ *
+ * Harmless for hits whose own node IS present (insight / kg_topic / kg_entity):
+ * the fallback is only consulted when the primary id fails to resolve.
+ */
+export function episodeFallbackForSearchHit(row: SearchHit): string | null {
+  const ep = row.metadata?.episode_id
+  return typeof ep === 'string' && ep.trim() ? ep.trim() : null
+}
+
+/**
  * Resolve a raw source_id (from the search index) to the actual Cytoscape node
  * id.  The merged GI+KG graph prefixes every node id with `g:` (GI) or `k:`
  * (KG), and KG files sometimes use `kg:` internally, so the Cytoscape id may

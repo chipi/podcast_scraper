@@ -10,6 +10,79 @@ from .entities import extract_person_entities as _extract_person_entities_direct
 
 logger = logging.getLogger(__name__)
 
+# RSS author tags are often the network/publisher, not the host — e.g. "Colossus",
+# "Colossus | Investing & Business Podcasts", "NPR". Real hosts are personal "First Last"
+# names. Reject org/network-looking tags so host detection falls through to transcript-intro
+# NER / config ``known_hosts`` instead of mislabelling the host on every episode (#876).
+_NONPERSON_AUTHOR_MARKERS = re.compile(
+    r"[|/&@]|\d|"
+    r"\b(?:podcasts?|media|networks?|productions?|studios?|radio|fm|news|inc|llc|ltd|"
+    r"co|company|corp|shows?|entertainment|audio|broadcasting|group|labs?)\b",
+    re.IGNORECASE,
+)
+
+
+def has_org_markers(name: str) -> bool:
+    """True when ``name`` contains explicit network/organisation markers.
+
+    The marker-only half of :func:`is_network_or_org_author` (``|``, ``&``, digits, words like
+    ``Podcasts``/``Media``/``Network``) — WITHOUT the mononym rule. Use this for names from
+    trusted person sources (a transcript self-introduction, config ``known_hosts``, or a
+    detected guest), where a single-token name is a real person (Oprah, Sting), not a network.
+    """
+    n = (name or "").strip()
+    if not n:
+        return True
+    return bool(_NONPERSON_AUTHOR_MARKERS.search(n))
+
+
+def is_network_or_org_author(name: str) -> bool:
+    """True when an RSS author tag looks like a network/organisation, not a host person.
+
+    Any of these → reject: org/network markers (see :func:`has_org_markers`); or a single
+    mononym token (real hosts are ``First Last``; this also catches all-caps acronyms like
+    NPR/BBC). The mononym rule is specific to RSS **author tags** (where a lone token is almost
+    always the network); apply :func:`has_org_markers` instead to trusted person names. Mononym
+    person-hosts can still be supplied via config ``known_hosts`` (#876).
+    """
+    n = (name or "").strip()
+    if not n:
+        return True
+    if has_org_markers(n):
+        return True
+    if len(n.split()) < 2:  # mononym ("Colossus", "NPR") — not a "First Last" host name
+        return True
+    return False
+
+
+# Host self-introduction in the transcript intro, e.g. "I'm Patrick O'Shaughnessy".
+# The name sub-pattern allows apostrophes/hyphens so it captures full surnames
+# ("O'Shaughnessy", "Jean-Luc") but NOT periods — a period ends the self-intro sentence, so
+# excluding it stops the match from absorbing the next sentence ("…O'Shaughnessy. My guest").
+_HOST_SELF_INTRO = re.compile(r"\bI'?m\s+([A-Z][\w'’\-]+(?:\s+[A-Z][\w'’\-]+){0,3})")
+
+
+def extract_self_introduced_host(
+    transcript_text: Optional[str], *, intro_chars: int = 2000
+) -> Optional[str]:
+    """Return the host's name from a transcript-intro self-introduction (``I'm <Name>``).
+
+    Diarization yields anonymous speaker turns, and for network-published shows the host's
+    name is *not* in the feed metadata (the author tag is the network — see
+    :func:`is_network_or_org_author`). The host almost always self-introduces in the
+    first ~90s ("Hello and welcome, I'm Patrick O'Shaughnessy"), so this lets us marry the
+    transcript-derived host name to the diarized host speaker (#876). Only the intro is
+    scanned so a guest who later says "I'm …" isn't mistaken for the host. Returns ``None``
+    when no self-introduction is found.
+    """
+    if not transcript_text:
+        return None
+    match = _HOST_SELF_INTRO.search(transcript_text[:intro_chars])
+    if not match:
+        return None
+    name = match.group(1).strip(" .,")
+    return name if len(name) >= 2 else None
+
 
 def _extract_person_entities(text: str, nlp: Any) -> list[tuple[str, float]]:
     """Resolve extract_person_entities via public wrapper when loaded (patchable in tests)."""
@@ -83,14 +156,9 @@ def detect_hosts_from_feed(
                 if "<" in author_clean and ">" in author_clean:
                     author_clean = author_clean.split("<")[0].strip()
                 if author_clean:
-                    is_likely_org = (
-                        len(author_clean) <= 10
-                        and author_clean.isupper()
-                        and " " not in author_clean
-                    )
-                    if is_likely_org:
+                    if is_network_or_org_author(author_clean):
                         logger.debug(
-                            "RSS author '%s' appears to be an organization name, "
+                            "RSS author '%s' looks like a network/organisation, not a host; "
                             "treating as publisher metadata rather than host",
                             author_clean,
                         )

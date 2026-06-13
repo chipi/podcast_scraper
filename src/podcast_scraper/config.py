@@ -2839,6 +2839,9 @@ class Config(BaseModel):
     save_cleaned_transcript: bool = Field(
         default=True, alias="save_cleaned_transcript"
     )  # Save cleaned transcript to separate file for testing (default: True)
+    save_adfree_transcript: bool = Field(
+        default=True, alias="save_adfree_transcript"
+    )  # Save ad-free processing-base transcript (.adfree.txt) + segments + ad-map (#974)
     # Transcript cleaning configuration (Issue #418)
     transcript_cleaning_strategy: Literal["pattern", "llm", "hybrid"] = Field(
         default="hybrid",
