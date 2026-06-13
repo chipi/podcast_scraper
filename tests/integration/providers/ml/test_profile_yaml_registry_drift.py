@@ -35,6 +35,11 @@ _ROUTING_FIELDS = (
     "transcription_provider",
     "summary_provider",
     "summary_model",
+    "kg_extraction_source",
+    "kg_max_topics",
+    "kg_max_entities",
+    "speaker_detector_provider",
+    "ner_model",
 )
 
 

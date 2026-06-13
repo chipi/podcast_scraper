@@ -921,30 +921,138 @@ _SUMMARY_OPTIONS: Dict[str, StageOption] = {
 }
 
 
-# --- GI / KG / NER / clustering stages — scaffolding (#907 follow-up) -------
+# --- GI / KG / NER / clustering stages -------------------------------------
 #
-# Empty by design. The structure exists so future eval reports can register
-# their winners here following the same materialize-decisions discipline as
-# transcription + summary above. NEVER add entries here without a
-# ``research_ref`` pointing at an eval report that justifies the choice — the
-# whole point of this registry is that every default is backed by measured
-# evidence, not opinion.
+# Materialized 2026-06-13 from #853 + #904 + #906 eval reports per the
+# materialize-decisions discipline. GI sweep (#978) still needs a v2-fixture
+# run before its options can land — that registry slot stays empty.
 #
-# When a GI / KG / NER / clustering eval lands:
-#   1. Add the winning option as a StageOption (with research_ref, headline_metric).
-#   2. Extend ProfilePreset (below) to name a default per profile.
-#   3. Update resolve_profile_to_settings() to surface the new stage's fields.
-#   4. Add a drift test row for the new fields in
-#      tests/integration/providers/ml/test_profile_yaml_registry_drift.py.
-#
-# Until then, profile YAMLs continue to be the source of truth for these
-# stages; the runtime reads them directly. This is fine — the registry only
-# pretends to be canonical for stages where the materialize-decisions flow
-# has actually run.
+# NEVER add entries here without a ``research_ref`` pointing at an eval
+# report that justifies the choice — the whole point of this registry is
+# that every default is backed by measured evidence, not opinion.
+
+# GI — still empty pending #978 (v2 GI sweep + report).
 _GI_OPTIONS: Dict[str, StageOption] = {}
-_KG_OPTIONS: Dict[str, StageOption] = {}
-_NER_OPTIONS: Dict[str, StageOption] = {}
-_CLUSTERING_OPTIONS: Dict[str, StageOption] = {}
+
+
+# KG — extraction source + max_topics / max_entities defaults.
+#
+# Source choice (provider vs summary_bullets) is currently a profile-level
+# operational decision, not a measured comparison. Per-provider extraction
+# uses the configured summary provider's KG-extraction endpoint;
+# summary_bullets is the airgapped/offline fallback that walks summary text
+# instead of running a fresh extraction.
+#
+# The (max_topics, max_entities) = (10, 15) tuple is the universal default
+# across every YAML — these are caps, not sweeps, so a "winner" doesn't
+# meaningfully apply. The canonicalization thresholds 0.65 / 0.70 baked into
+# ``entity_clusters.py`` ARE measured (see #853 report).
+_KG_OPTIONS: Dict[str, StageOption] = {
+    "provider_n10_15": StageOption(
+        stage="kg",
+        option_id="provider_n10_15",
+        provider="provider",
+        extra_settings={"max_topics": 10, "max_entities": 15},
+        research_ref="docs/guides/eval-reports/EVAL_ENTITY_CANON_2026_06_08.md",
+        headline_metric=(
+            "canonicalization thresholds 0.65/0.70 (+18pp recall vs pre-#853 baseline at "
+            "100% precision); per-provider KG-extraction default for cloud + DGX profiles"
+        ),
+        measured_at="2026-06-08",
+        tier="primary",
+    ),
+    "summary_bullets_n10_15": StageOption(
+        stage="kg",
+        option_id="summary_bullets_n10_15",
+        provider="summary_bullets",
+        extra_settings={"max_topics": 10, "max_entities": 15},
+        research_ref="docs/guides/eval-reports/EVAL_ENTITY_CANON_2026_06_08.md",
+        headline_metric=(
+            "summary-bullets KG source for airgapped/offline profiles; same canon "
+            "thresholds (0.65/0.70) from #853 apply downstream"
+        ),
+        measured_at="2026-06-08",
+        tier="fallback",
+    ),
+}
+
+
+# NER / speaker detection — provider choice + spaCy model variant.
+#
+# Tier 3 report (#906) compared `en_core_web_sm` vs `en_core_web_trf`:
+# `_trf` is +13pp v2-spec recall (96.7% vs 83.3%) at 2× latency, but 600 MB
+# and not present in every deploy path. The Tier 3 finding: keep `_sm` as
+# the explicit "lighter" default and prefer `_trf` where it's installed.
+# Cloud profiles route NER through Gemini instead of spaCy (the pipeline-llm
+# image doesn't ship spaCy models at all).
+_NER_OPTIONS: Dict[str, StageOption] = {
+    "gemini_speaker_detector": StageOption(
+        stage="ner",
+        option_id="gemini_speaker_detector",
+        provider="gemini",
+        research_ref="docs/guides/eval-reports/EVAL_FIXTURES_V2_TIER3_TUNING_2026_06_08.md",
+        headline_metric=(
+            "cloud-profile default — pipeline-llm image lacks spaCy models, "
+            "Gemini handles NER + speaker detection inline with summary calls"
+        ),
+        measured_at="2026-06-08",
+        tier="primary",
+    ),
+    "spacy_trf": StageOption(
+        stage="ner",
+        option_id="spacy_trf",
+        provider="spacy",
+        model="en_core_web_trf",
+        research_ref="docs/guides/eval-reports/EVAL_FIXTURES_V2_TIER3_TUNING_2026_06_08.md",
+        headline_metric=(
+            "v2 spec recall 96.7% (+13pp vs en_core_web_sm); 2× more PERSON "
+            "mentions/ep; ~1s latency. Preferred where the 600MB model is installed."
+        ),
+        measured_at="2026-06-08",
+        tier="primary",
+    ),
+    "spacy_sm": StageOption(
+        stage="ner",
+        option_id="spacy_sm",
+        provider="spacy",
+        model="en_core_web_sm",
+        research_ref="docs/guides/eval-reports/EVAL_FIXTURES_V2_TIER3_TUNING_2026_06_08.md",
+        headline_metric=(
+            "lightweight fallback — 83.3% v2 spec recall, 0.55s/ep; the "
+            "thin-deploy default when `_trf` isn't available"
+        ),
+        measured_at="2026-06-08",
+        tier="fallback",
+    ),
+}
+
+
+# Topic / insight clusters — similarity threshold.
+#
+# Tier 1 report (#904) swept clustering threshold ∈ {0.65, 0.70, 0.75, 0.80,
+# 0.85}. The current default of 0.75 is Pareto-optimal: max cross-feed
+# parent clusters (4) at the lowest tc:* total (6). No Config field exposes
+# this knob today — the threshold is a function-default in
+# ``search/topic_clusters.py`` + ``search/insight_clusters.py``. The
+# registry entry is documentation/provenance until a config surface lands;
+# ``resolve_profile_to_settings`` does NOT yet plumb a clustering field
+# into runtime settings.
+_CLUSTERING_OPTIONS: Dict[str, StageOption] = {
+    "topic_clusters_default_0_75": StageOption(
+        stage="clustering",
+        option_id="topic_clusters_default_0_75",
+        provider="default",
+        extra_settings={"threshold": 0.75},
+        research_ref="docs/guides/eval-reports/EVAL_FIXTURES_V2_TIER1_TUNING_2026_06_08.md",
+        headline_metric=(
+            "0.75 Pareto-optimal on v2 fixtures (6 tc:* parents / 4 cross-feed); "
+            "lower thresholds add near-singletons without cross-feed lift, "
+            "higher collapse cross-feed clusters"
+        ),
+        measured_at="2026-06-08",
+        tier="primary",
+    ),
+}
 
 
 @dataclass(frozen=True)
@@ -961,6 +1069,9 @@ class ProfilePreset:
     name: str
     transcription: str  # StageOption.option_id key into _TRANSCRIPTION_OPTIONS
     summary: str  # StageOption.option_id key into _SUMMARY_OPTIONS
+    kg: str  # StageOption.option_id key into _KG_OPTIONS
+    ner: str  # StageOption.option_id key into _NER_OPTIONS
+    clustering: str  # StageOption.option_id key into _CLUSTERING_OPTIONS
     notes: Optional[str] = None
 
 
@@ -970,18 +1081,27 @@ _PROFILE_PRESETS: Dict[str, ProfilePreset] = {
         name="cloud_balanced",
         transcription="openai_whisper_1",
         summary="gemini_flash_lite",
+        kg="provider_n10_15",
+        ner="gemini_speaker_detector",
+        clustering="topic_clusters_default_0_75",
         notes="Production cloud default. Best compound (quality × cost × latency).",
     ),
     "cloud_thin": ProfilePreset(
         name="cloud_thin",
         transcription="openai_whisper_1",
         summary="gemini_flash_lite",
+        kg="provider_n10_15",
+        ner="gemini_speaker_detector",
+        clustering="topic_clusters_default_0_75",
         notes="Minimal cloud feature set. Same providers as cloud_balanced.",
     ),
     "cloud_with_dgx_primary": ProfilePreset(
         name="cloud_with_dgx_primary",
         transcription="tailnet_dgx_whisper_openai",  # post-#929/#966 winner
         summary="gemini_flash_lite",
+        kg="provider_n10_15",
+        ner="gemini_speaker_detector",
+        clustering="topic_clusters_default_0_75",
         notes=(
             "Production hybrid: DGX whisper-openai for transcription, cloud Gemini for summary. "
             "Was previously tailnet_dgx_speaches; flipped after #968 Thread B confirmed "
@@ -992,12 +1112,18 @@ _PROFILE_PRESETS: Dict[str, ProfilePreset] = {
         name="local_dgx_balanced",
         transcription="local_mps_large_v3",
         summary="ollama_qwen35_35b",  # #928 winner; #958 Cell D confirms Q4 robustness
+        kg="provider_n10_15",
+        ner="spacy_trf",  # +13pp v2 recall vs sm per #906 Tier 3
+        clustering="topic_clusters_default_0_75",
         notes="Local pipeline with DGX summary; laptop runs MPS transcription.",
     ),
     "local_dgx_full": ProfilePreset(
         name="local_dgx_full",
         transcription="local_mps_large_v3",
         summary="ollama_qwen35_35b",
+        kg="provider_n10_15",
+        ner="spacy_trf",
+        clustering="topic_clusters_default_0_75",
         notes="Higher resident memory budget; same registry choices as balanced today.",
     ),
 }
@@ -1028,23 +1154,44 @@ def get_summary_option(option_id: str) -> StageOption:
 
 
 def get_gi_options() -> Dict[str, StageOption]:
-    """All registered GI options (id → StageOption). Empty until eval lands (#907)."""
+    """All registered GI options (id → StageOption). Empty pending #978."""
     return dict(_GI_OPTIONS)
 
 
 def get_kg_options() -> Dict[str, StageOption]:
-    """All registered KG options (id → StageOption). Empty until eval lands (#907)."""
+    """All registered KG options (id → StageOption)."""
     return dict(_KG_OPTIONS)
 
 
 def get_ner_options() -> Dict[str, StageOption]:
-    """All registered NER options (id → StageOption). Empty until eval lands (#907)."""
+    """All registered NER options (id → StageOption)."""
     return dict(_NER_OPTIONS)
 
 
 def get_clustering_options() -> Dict[str, StageOption]:
-    """All registered clustering options (id → StageOption). Empty until eval lands (#907)."""
+    """All registered clustering options (id → StageOption)."""
     return dict(_CLUSTERING_OPTIONS)
+
+
+def get_kg_option(option_id: str) -> StageOption:
+    """Look up a single KG option by id."""
+    if option_id not in _KG_OPTIONS:
+        raise ValueError(f"Unknown KG option '{option_id}'")
+    return _KG_OPTIONS[option_id]
+
+
+def get_ner_option(option_id: str) -> StageOption:
+    """Look up a single NER option by id."""
+    if option_id not in _NER_OPTIONS:
+        raise ValueError(f"Unknown NER option '{option_id}'")
+    return _NER_OPTIONS[option_id]
+
+
+def get_clustering_option(option_id: str) -> StageOption:
+    """Look up a single clustering option by id."""
+    if option_id not in _CLUSTERING_OPTIONS:
+        raise ValueError(f"Unknown clustering option '{option_id}'")
+    return _CLUSTERING_OPTIONS[option_id]
 
 
 def get_profile_preset(name: str) -> ProfilePreset:
@@ -1102,6 +1249,9 @@ def resolve_profile_to_settings(
     preset = get_profile_preset(name)
     tx = get_transcription_option(preset.transcription)
     sm = get_summary_option(preset.summary)
+    kg = get_kg_option(preset.kg)
+    ner = get_ner_option(preset.ner)
+    clustering = get_clustering_option(preset.clustering)
 
     settings: Dict[str, Any] = {
         "transcription_provider": tx.provider,
@@ -1125,8 +1275,32 @@ def resolve_profile_to_settings(
     if sm.extra_settings:
         settings["summary_extra"] = dict(sm.extra_settings)
 
+    # KG: extraction source + caps.
+    settings["kg_extraction_source"] = kg.provider
+    if kg.extra_settings:
+        if "max_topics" in kg.extra_settings:
+            settings["kg_max_topics"] = kg.extra_settings["max_topics"]
+        if "max_entities" in kg.extra_settings:
+            settings["kg_max_entities"] = kg.extra_settings["max_entities"]
+
+    # NER / speaker detection: provider + (when spaCy) the model name.
+    settings["speaker_detector_provider"] = ner.provider
+    if ner.model is not None:
+        settings["ner_model"] = ner.model
+
+    # Clustering: documented in the registry but no Config field surfaces it yet
+    # — the threshold is a function default in search/topic_clusters.py and
+    # search/insight_clusters.py. Exposed here under the internal-debug
+    # ``_clustering_*`` prefix so consumers can read the registry view without
+    # treating it as a routing field.
+    settings["_clustering_research_ref"] = clustering.research_ref
+    if clustering.extra_settings and "threshold" in clustering.extra_settings:
+        settings["_clustering_threshold"] = clustering.extra_settings["threshold"]
+
     settings["_profile_preset"] = preset.name
     settings["_transcription_research_ref"] = tx.research_ref
     settings["_summary_research_ref"] = sm.research_ref
+    settings["_kg_research_ref"] = kg.research_ref
+    settings["_ner_research_ref"] = ner.research_ref
 
     return settings

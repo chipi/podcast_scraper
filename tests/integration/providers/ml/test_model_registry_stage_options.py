@@ -13,9 +13,12 @@ from __future__ import annotations
 import pytest
 
 from podcast_scraper.providers.ml.model_registry import (
+    get_clustering_option,
     get_clustering_options,
     get_gi_options,
+    get_kg_option,
     get_kg_options,
+    get_ner_option,
     get_ner_options,
     get_profile_preset,
     get_summary_option,
@@ -47,49 +50,68 @@ class TestStageOptionRegistries:
 
     def test_every_option_has_research_provenance(self) -> None:
         """Every StageOption must cite the eval report that justified it."""
-        for opt in get_transcription_options().values():
-            assert opt.research_ref, f"{opt.option_id} missing research_ref"
-            assert opt.headline_metric, f"{opt.option_id} missing headline_metric"
-        for opt in get_summary_options().values():
-            assert opt.research_ref, f"{opt.option_id} missing research_ref"
-            assert opt.headline_metric, f"{opt.option_id} missing headline_metric"
+        for opts in (
+            get_transcription_options(),
+            get_summary_options(),
+            get_kg_options(),
+            get_ner_options(),
+            get_clustering_options(),
+        ):
+            for opt in opts.values():
+                assert opt.research_ref, f"{opt.option_id} missing research_ref"
+                assert opt.headline_metric, f"{opt.option_id} missing headline_metric"
 
     def test_every_option_has_valid_tier(self) -> None:
         valid_tiers = {"primary", "fallback", "experimental", "deprecated"}
-        for opt in get_transcription_options().values():
-            assert opt.tier in valid_tiers, f"{opt.option_id}: bad tier {opt.tier!r}"
-        for opt in get_summary_options().values():
-            assert opt.tier in valid_tiers, f"{opt.option_id}: bad tier {opt.tier!r}"
+        for opts in (
+            get_transcription_options(),
+            get_summary_options(),
+            get_kg_options(),
+            get_ner_options(),
+            get_clustering_options(),
+        ):
+            for opt in opts.values():
+                assert opt.tier in valid_tiers, f"{opt.option_id}: bad tier {opt.tier!r}"
 
     def test_unknown_option_id_raises(self) -> None:
         with pytest.raises(ValueError, match="Unknown transcription option"):
             get_transcription_option("not-a-real-option")
         with pytest.raises(ValueError, match="Unknown summary option"):
             get_summary_option("not-a-real-option")
+        with pytest.raises(ValueError, match="Unknown KG option"):
+            get_kg_option("not-a-real-option")
+        with pytest.raises(ValueError, match="Unknown NER option"):
+            get_ner_option("not-a-real-option")
+        with pytest.raises(ValueError, match="Unknown clustering option"):
+            get_clustering_option("not-a-real-option")
 
 
-class TestScaffoldedStageRegistries:
-    """GI / KG / NER / clustering stage registries are scaffolded empty.
+class TestPipelineStageRegistries:
+    """KG / NER / clustering materialized from #853 + #904 + #906 reports.
 
-    The structure exists (so future eval reports can register winners), but
-    every entry MUST land with a research_ref. Until those evals run, the
-    registries stay empty — profile YAMLs are the source of truth for these
-    stages. The presence-but-emptiness is the explicit invariant; this test
-    breaks loudly if someone slips in an entry without going through the
-    materialize-decisions discipline.
+    GI stays empty pending #978 (v2-fixture GI sweep + report). Every other
+    stage now has at least one StageOption with research provenance.
     """
 
-    def test_gi_registry_empty(self) -> None:
+    def test_gi_registry_still_empty_pending_978(self) -> None:
+        # GI sweep on v2 fixtures hasn't run yet — see #978.
         assert get_gi_options() == {}
 
-    def test_kg_registry_empty(self) -> None:
-        assert get_kg_options() == {}
+    def test_kg_registry_has_provider_default(self) -> None:
+        opts = get_kg_options()
+        assert "provider_n10_15" in opts
+        assert "summary_bullets_n10_15" in opts
 
-    def test_ner_registry_empty(self) -> None:
-        assert get_ner_options() == {}
+    def test_ner_registry_covers_cloud_and_local(self) -> None:
+        opts = get_ner_options()
+        assert "gemini_speaker_detector" in opts
+        assert "spacy_trf" in opts
+        assert "spacy_sm" in opts
 
-    def test_clustering_registry_empty(self) -> None:
-        assert get_clustering_options() == {}
+    def test_clustering_registry_has_pareto_default(self) -> None:
+        opts = get_clustering_options()
+        assert "topic_clusters_default_0_75" in opts
+        assert opts["topic_clusters_default_0_75"].extra_settings == {"threshold": 0.75}
 
 
 class TestProfilePresets:
@@ -110,6 +132,9 @@ class TestProfilePresets:
         """Drift catch: every preset's stage choices must exist in the option registry."""
         all_tx = set(get_transcription_options())
         all_sm = set(get_summary_options())
+        all_kg = set(get_kg_options())
+        all_ner = set(get_ner_options())
+        all_clustering = set(get_clustering_options())
         for name in [
             "cloud_balanced",
             "cloud_thin",
@@ -122,9 +147,18 @@ class TestProfilePresets:
                 f"profile {name!r} references unknown transcription option "
                 f"{preset.transcription!r}"
             )
-            assert preset.summary in all_sm, (
-                f"profile {name!r} references unknown summary option " f"{preset.summary!r}"
-            )
+            assert (
+                preset.summary in all_sm
+            ), f"profile {name!r} references unknown summary option {preset.summary!r}"
+            assert (
+                preset.kg in all_kg
+            ), f"profile {name!r} references unknown KG option {preset.kg!r}"
+            assert (
+                preset.ner in all_ner
+            ), f"profile {name!r} references unknown NER option {preset.ner!r}"
+            assert (
+                preset.clustering in all_clustering
+            ), f"profile {name!r} references unknown clustering option {preset.clustering!r}"
 
     def test_unknown_preset_raises(self) -> None:
         with pytest.raises(ValueError, match="Unknown profile preset"):
