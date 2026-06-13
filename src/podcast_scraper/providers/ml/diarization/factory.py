@@ -64,6 +64,8 @@ def create_diarization_provider(cfg: config.Config) -> DiarizationProvider:
     - ``local`` (default) — in-process pyannote.audio on the pipeline host.
     - ``tailnet_dgx`` — POST audio to the DGX-hosted pyannote service over
       the tailnet (#926). Falls back to local pyannote on DGX failure.
+    - ``gemini`` — Gemini 2.5 audio understanding (#962). Cloud-only path
+      with no local pyannote install required.
     """
     backend = getattr(cfg, "diarization_provider", "local")
     if backend == "tailnet_dgx":
@@ -76,4 +78,18 @@ def create_diarization_provider(cfg: config.Config) -> DiarizationProvider:
         provider = TailnetDgxDiarizationProvider(cfg)
         provider.initialize()
         return provider
+    if backend == "gemini":
+        from .gemini_provider import GeminiDiarizationProvider
+
+        api_key = getattr(cfg, "gemini_api_key", None) or os.getenv("GEMINI_API_KEY")
+        if not api_key:
+            raise ValueError(
+                "GEMINI_API_KEY required for diarization_provider=gemini. "
+                "Set gemini_api_key in config or the GEMINI_API_KEY env var."
+            )
+        return GeminiDiarizationProvider(
+            api_key=api_key,
+            model_name=getattr(cfg, "gemini_diarization_model", "gemini-2.5-flash"),
+            temperature=getattr(cfg, "gemini_temperature", 0.0),
+        )
     return create_local_pyannote_provider(cfg)

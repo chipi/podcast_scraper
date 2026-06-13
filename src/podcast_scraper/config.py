@@ -1347,16 +1347,18 @@ class Config(BaseModel):
             "faster-whisper-server which takes HF repo IDs."
         ),
     )
-    diarization_provider: Literal["local", "tailnet_dgx"] = Field(
+    diarization_provider: Literal["local", "tailnet_dgx", "gemini"] = Field(
         default="local",
         alias="diarization_provider",
         description=(
-            "Diarization backend (#926). ``local`` runs pyannote.audio in-process on "
-            "the pipeline host (laptop / prod VPS). ``tailnet_dgx`` POSTs audio to the "
-            "DGX-hosted pyannote service on dgx_diarize_port and gets speaker turns "
-            "back over the tailnet. Falls back to local pyannote when DGX is "
-            "unreachable so the pipeline never hard-fails on diarize. Default "
-            "``local`` keeps behavior backwards-compatible."
+            "Diarization backend (#926, #962). ``local`` runs pyannote.audio in-process "
+            "on the pipeline host (laptop / prod VPS). ``tailnet_dgx`` POSTs audio to "
+            "the DGX-hosted pyannote service on dgx_diarize_port and gets speaker turns "
+            "back over the tailnet. ``gemini`` sends audio to Gemini's 2.5 audio API "
+            "and parses speaker turns from the structured-JSON response — the cloud_* "
+            "profile path that needs no local pyannote install. Falls back to local "
+            "pyannote when DGX is unreachable so the pipeline never hard-fails on "
+            "diarize. Default ``local`` keeps behavior backwards-compatible."
         ),
     )
     dgx_diarize_port: int = Field(

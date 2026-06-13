@@ -1,9 +1,15 @@
-# EVAL — Diarization championship phase 1 (3-way: MPS / CUDA / CPU), 2026-06-10
+# EVAL — Diarization championship (3-way: MPS / CUDA / Gemini)
 
-**Issue:** #930
-**Branch:** `feat/autoresearch-batch-3-championships`
+Phase 1 — 2026-06-10 — MPS / CUDA / CPU.
+Phase 2 — 2026-06-13 — Gemini 2.5 audio API added (#962); fresh
+pyannote/MPS re-run on the post-#944 multi-voice v2 fixtures.
+
+**Issue:** #930, #962
+**Branch:** `feat/autoresearch-batch-3-championships` (Phase 1); `main` (Phase 2)
 **Dataset:** v2 audio fixtures, 5 episodes (RFC-059 §2 macOS `say` generation)
-**Status:** Phase 1 complete (3 GPU/CPU backends measured). Gemini speaker-detection comparison is a follow-up — no Gemini speech provider in repo yet.
+**Status:** **3-way panel COMPLETE** as of 2026-06-13. Gemini speaker detection
+re-measured on the current multi-voice v2 fixtures (#944) alongside a fresh
+pyannote/MPS run for apples-to-apples comparison.
 
 ---
 
@@ -57,23 +63,54 @@ All three backends produce **roughly the same segmentation density** (~1.0× tur
 
 For laptop-driven manual processing, **either path is fine**. This is a strong signal for the `local` profile shape (`config/profiles/local.yaml`): keep the in-process pyannote default for laptop runs, no DGX required.
 
+## Phase 2 — Gemini 2.5 audio API added (2026-06-13)
+
+Issue #962 ships the `GeminiDiarizationProvider` — Gemini 2.5 Flash audio input
+with a structured-JSON prompt asking for speaker turns. Closes the
+"#962 cloud_*-needs-a-non-pyannote-path" gap.
+
+| Backend | Episodes | Mean wall (s) | Mean ratio (seg / gt-turn) | Cost / 5-min ep |
+| --- | ---: | ---: | ---: | ---: |
+| **pyannote / MPS** (fresh re-run 2026-06-13) | 5/5 | **22.2** | **1.07** | $0 |
+| **pyannote / DGX CUDA** (phase 1) | 5/5 | 23.5 | 1.08 | $0 (DGX) |
+| **Gemini 2.5 Flash audio** | 5/5 | **37.3** | **1.68** | ≈ $0.03/ep |
+
+**Verdict:** Gemini is a *working* backend — every v2 episode produces valid
+speaker turns — but it **over-segments by ~60%** vs pyannote (ratio 1.68 vs
+1.07; lower is closer to the transcript's actual turn count). Latency is
+also ~1.6× pyannote on the laptop. The audio API is **not free** (~$0.03 per
+5-min episode under the Gemini 2.5 Flash audio rate). Pyannote stays the
+quality + cost leader on every dimension.
+
+The win for #962 is **fall-back coverage**: the `cloud_*` profile path no
+longer 404s on diarization when pyannote isn't installed. Use:
+
+- `diarization_provider: local` — default, pyannote everywhere it's installed.
+- `diarization_provider: tailnet_dgx` — DGX-equipped profiles per #926.
+- `diarization_provider: gemini` — **new**: cloud-only profiles that want
+  to skip the pyannote dependency (pipeline-llm image / lightweight CI).
+
+No production-default flip is warranted; pyannote stays the canonical
+diarizer. Filing the Gemini path as the cloud_* fall-back.
+
 ## What's NOT in this report (gaps + follow-ups)
 
-1. **Gemini speech speaker detection** — no Gemini speech provider in this repo. `cloud_balanced.yaml` references it but the provider class needs wiring. Filed as part of the broader cloud-provider-pluggability work (no separate ticket yet).
-2. **Proper DER** (Diarization Error Rate) — requires time-aligned speaker ground truth, which v2 fixtures don't ship. Could be derived from whisper word-level timestamps as an alignment proxy. Filed for follow-up.
-3. **Distinct voices in v2 fixtures** (#934) — until this lands, speaker-count is the wrong signal. Documented above.
-4. **Diarization client resilience** (#954, filed today) — independent of this evaluation but matters for prod reliability under shared-GPU contention.
-5. **Burst latency** — only sequential measurements here. Concurrent diarization calls would test the queueing behavior that #954 is filed against.
+1. **Proper DER** (Diarization Error Rate) — requires time-aligned speaker ground truth, which v2 fixtures don't ship. Could be derived from whisper word-level timestamps as an alignment proxy. Filed for follow-up.
+2. **Diarization client resilience** (#954, filed today) — independent of this evaluation but matters for prod reliability under shared-GPU contention.
+3. **Burst latency** — only sequential measurements here. Concurrent diarization calls would test the queueing behavior that #954 is filed against.
+4. **Multi-voice v2 fixtures (#944)** — landed between phase 1 and phase 2; phase 2 re-ran pyannote/MPS on the new fixtures for an apples-to-apples comparison. Speaker-count still over-detects (3 vs 2) because both backends pick up a third acoustic cluster from the Ad insert reads. Real DER (item 1) is the next signal-strength bump.
 
 ## Recommendation
 
-**Phase 1 verdict**: keep pyannote as the diarization engine across all profile shapes. Device selection picks itself:
+**3-way verdict** (post-phase 2): pyannote stays the canonical diarization
+engine across all profile shapes. Gemini is now a wired fall-back for
+cloud-only profiles that want to skip the pyannote install:
 
 - `local` profile (laptop, no DGX): in-process pyannote with `device=auto` → picks MPS on Apple Silicon → ~13× realtime
 - `cloud_with_dgx_*` profiles (DGX available): route to `:8001/v1/diarize` → ~13× realtime, off-laptop
-- `cloud_*` profiles (no DGX, no GPU): currently `speaker_detector_provider: gemini` — keep until either (a) Gemini speech is wired and benchmarked, or (b) the operator decides cost > convenience and migrates to a cloud pyannote service
+- `cloud_*` profiles (no DGX, no GPU): pyannote/local stays the canonical default; `diarization_provider: gemini` is the **explicit fall-back** for ultra-thin deployments that don't ship the pyannote dependency (over-segments ~60% vs pyannote and costs ~$0.03/episode, but does work end-to-end).
 
-Phase 2 (when the gaps above close): real DER measurement vs Gemini speaker detection, burst-latency, fixture quality once #934 voices land.
+Phase 3 (when the gaps above close): real DER measurement, burst-latency.
 
 ## Artifacts
 
