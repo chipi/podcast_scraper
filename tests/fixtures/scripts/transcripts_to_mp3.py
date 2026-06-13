@@ -1,35 +1,50 @@
 #!/usr/bin/env python3
 """
-macOS-only: Generate MP3 files from .txt transcripts using the system 'say'
-TTS engine with a distinct voice per speaker.
+Generate MP3 files from .txt transcripts using either macOS ``say`` (default,
+offline + deterministic) or **Gemini 2.5 multi-speaker TTS** (cloud +
+naturalistic, #934).
 
 Per-speaker voice mapping (RFC-059 §2 / issue #111) replaces the prior
 binary host/guest scheme so diarization tests (RFC-058) can actually
 distinguish speakers in fixture audio.
 
-Voice resolution order:
-1. Exact name match in SPEAKER_VOICE_MAP
-2. First-word match (e.g. "Alex Morgan" -> "Alex")
-3. Stable hash-based fallback (md5; deterministic across runs)
+Backend selection: ``--backend say`` (default, macOS-only) or
+``--backend gemini``.
+
+For the ``say`` backend:
+    Voice resolution order:
+    1. Exact name match in SPEAKER_VOICE_MAP
+    2. First-word match (e.g. "Alex Morgan" -> "Alex")
+    3. Stable hash-based fallback (md5; deterministic across runs)
+    Requires: /usr/bin/say, ffmpeg.
+
+For the ``gemini`` backend:
+    Each speaker maps to a prebuilt Gemini voice via
+    SPEAKER_GEMINI_VOICE_MAP. Single-call multi-speaker TTS for transcripts
+    with ≤ 2 distinct speakers; per-segment fallback for ≥ 3 speakers
+    (Gemini multi-speaker mode is capped at 2 voices per call as of 2026).
+    Output is non-deterministic — regen drifts byte-by-byte. Requires:
+    GEMINI_API_KEY env var, ffmpeg.
 
 Output version is derived from the input transcript's path
 (``.../transcripts/v2/...`` -> ``.../audio/v2/...``); explicit
 ``--output-version`` overrides; otherwise FIXTURES_VERSION is read from
 ``tests/fixtures/FIXTURES_VERSION``.
-
-Requires: /usr/bin/say, ffmpeg
 """
 
 from __future__ import annotations
 
 import argparse
 import hashlib
+import os
 import re
 import shutil
+import struct
 import subprocess
 import sys
 import tempfile
 from pathlib import Path
+from typing import Any
 
 # Update if you rename podcast IDs or hosts.
 PODCAST_HOSTS: dict[str, str] = {
@@ -92,6 +107,51 @@ FALLBACK_VOICES: list[str] = [
     "Trinoids",
     "Whisper",
     "Bells",
+]
+
+# Gemini 2.5 prebuilt voices per speaker (#934). Voice names are the
+# canonical ones the Gemini TTS API recognises in 2026: Kore, Aoede, Puck,
+# Charon, Fenrir, Leda, Orus, Zephyr. Each speaker label gets a distinct
+# voice for diarization separability — the mapping intentionally varies
+# across hosts so the gemini-backed fixtures behave like the say-backed
+# ones (different speaker, different voice).
+SPEAKER_GEMINI_VOICE_MAP: dict[str, str] = {
+    # Hosts
+    "Maya": "Kore",  # warm + clear, common host pick
+    "Ethan": "Charon",  # lower-pitched male
+    "Rina": "Leda",  # bright female
+    "Leo": "Fenrir",  # mid male
+    "Nora": "Zephyr",  # airy female
+    "Alex": "Orus",  # neutral male
+    # Guests — picked to contrast against each host they pair with
+    "Liam": "Puck",  # higher-energy male (contrast vs Kore on p01)
+    "Sophie": "Aoede",
+    "Noah": "Charon",
+    "Priya": "Leda",
+    "Jonas": "Orus",
+    "Camila": "Aoede",
+    "Marco": "Puck",
+    "Hanna": "Leda",
+    "Owen": "Fenrir",
+    "Ava": "Aoede",
+    "Tariq": "Orus",
+    "Elise": "Leda",
+    "Daniel": "Charon",
+    "Isabel": "Aoede",
+    "Kasper": "Fenrir",
+    # Ad reads — robotic-shaped pick (Charon is the closest to Zarvox-y).
+    "Ad": "Charon",
+}
+
+GEMINI_FALLBACK_VOICES: list[str] = [
+    "Kore",
+    "Aoede",
+    "Puck",
+    "Charon",
+    "Fenrir",
+    "Leda",
+    "Orus",
+    "Zephyr",
 ]
 
 TS_RE = re.compile(r"^\[\s*\d{1,2}:\d{2}(:\d{2})?\s*\]$")
@@ -174,6 +234,196 @@ def say_to_aiff(text: str, out_aiff: Path, voice: str, rate: int | None) -> None
         cmd += ["-r", str(rate)]
     cmd += [text]
     run(cmd)
+
+
+# ---------------------------------------------------------------- Gemini TTS
+
+
+def get_gemini_voice_for_speaker(name: str) -> str:
+    """Resolve a speaker name to a prebuilt Gemini voice (Gemini backend)."""
+    name = name.strip()
+    if name in SPEAKER_GEMINI_VOICE_MAP:
+        return SPEAKER_GEMINI_VOICE_MAP[name]
+    parts = name.split()
+    if parts and parts[0] in SPEAKER_GEMINI_VOICE_MAP:
+        return SPEAKER_GEMINI_VOICE_MAP[parts[0]]
+    digest = hashlib.md5(name.lower().encode("utf-8"), usedforsecurity=False).hexdigest()
+    return GEMINI_FALLBACK_VOICES[int(digest, 16) % len(GEMINI_FALLBACK_VOICES)]
+
+
+def _pcm_to_wav(pcm_bytes: bytes, sample_rate: int, out_wav: Path) -> None:
+    """Wrap raw little-endian 16-bit PCM bytes into a WAV container."""
+    n_channels = 1
+    bits_per_sample = 16
+    byte_rate = sample_rate * n_channels * bits_per_sample // 8
+    block_align = n_channels * bits_per_sample // 8
+    data_size = len(pcm_bytes)
+    fmt_chunk = struct.pack(
+        "<4sIHHIIHH",
+        b"fmt ",
+        16,
+        1,  # PCM
+        n_channels,
+        sample_rate,
+        byte_rate,
+        block_align,
+        bits_per_sample,
+    )
+    data_chunk = struct.pack("<4sI", b"data", data_size) + pcm_bytes
+    riff_size = 4 + len(fmt_chunk) + len(data_chunk)
+    riff_header = struct.pack("<4sI4s", b"RIFF", riff_size, b"WAVE")
+    out_wav.write_bytes(riff_header + fmt_chunk + data_chunk)
+
+
+def _gemini_tts_pcm(
+    client: Any, model: str, script: str, speaker_voice_pairs: list[tuple[str, str]]
+) -> tuple[bytes, int]:
+    """Return (PCM bytes, sample_rate) for a Gemini TTS call.
+
+    ``speaker_voice_pairs`` is (speaker_label, gemini_voice_name). Gemini's
+    multi-speaker mode requires *exactly* 2 distinct voices; with 1 voice
+    the script falls back to single-speaker mode (the speaker label is
+    ignored by the API).
+    """
+    from google.genai import types
+
+    if len(speaker_voice_pairs) == 2:
+        speaker_configs = [
+            types.SpeakerVoiceConfig(
+                speaker=label,
+                voice_config=types.VoiceConfig(
+                    prebuilt_voice_config=types.PrebuiltVoiceConfig(voice_name=voice),
+                ),
+            )
+            for label, voice in speaker_voice_pairs
+        ]
+        speech_config = types.SpeechConfig(
+            multi_speaker_voice_config=types.MultiSpeakerVoiceConfig(
+                speaker_voice_configs=speaker_configs,
+            ),
+        )
+    elif len(speaker_voice_pairs) == 1:
+        _, voice = speaker_voice_pairs[0]
+        speech_config = types.SpeechConfig(
+            voice_config=types.VoiceConfig(
+                prebuilt_voice_config=types.PrebuiltVoiceConfig(voice_name=voice),
+            ),
+        )
+    else:
+        raise ValueError(
+            f"Gemini TTS expects 1 or 2 speakers per call, got {len(speaker_voice_pairs)}"
+        )
+
+    config = types.GenerateContentConfig(
+        response_modalities=["AUDIO"],
+        speech_config=speech_config,
+    )
+    response = client.models.generate_content(
+        model=model,
+        contents=script,
+        config=config,
+    )
+    parts = response.candidates[0].content.parts
+    for part in parts:
+        inline = getattr(part, "inline_data", None)
+        if inline and inline.data:
+            mime = str(inline.mime_type or "")
+            # Mime looks like 'audio/L16;codec=pcm;rate=24000'.
+            sample_rate = 24000
+            m = re.search(r"rate=(\d+)", mime)
+            if m:
+                sample_rate = int(m.group(1))
+            return inline.data, sample_rate
+    raise RuntimeError(
+        f"Gemini TTS returned no audio part (got: {[type(p).__name__ for p in parts]})"
+    )
+
+
+def _gemini_render_script(
+    segments: list[tuple[str, str]],
+) -> tuple[str, list[tuple[str, str]]]:
+    """Build a Gemini-friendly TTS script + the speaker→voice list.
+
+    Returns (script_text, speaker_voice_pairs). Speakers in script appear in
+    alphabetical order of their first-seen index so the model receives them
+    in a stable order.
+    """
+    distinct: list[str] = []
+    for speaker, _ in segments:
+        if speaker not in distinct:
+            distinct.append(speaker)
+    speaker_voice_pairs = [(s, get_gemini_voice_for_speaker(s)) for s in distinct]
+    body_lines: list[str] = []
+    for speaker, text in segments:
+        body_lines.append(f"{speaker}: {text}")
+    return "\n\n".join(body_lines), speaker_voice_pairs
+
+
+def render_segments_via_gemini(
+    segments: list[tuple[str, str]],
+    out_mp3: Path,
+    bitrate: str,
+    model: str,
+    api_key: str,
+) -> None:
+    """Render the full transcript via Gemini multi-speaker TTS in chunks.
+
+    Gemini multi-speaker mode is capped at 2 distinct voices per call as of
+    2026. Transcripts with more speakers fall back to **single-speaker mode
+    per segment** — slower, costlier, and the voice for the same speaker may
+    drift across segments. Still functional for fixture generation; flagged
+    in the comparison memo (#934).
+    """
+    from google import genai
+
+    client = genai.Client(api_key=api_key)
+    distinct_speakers = {s for s, _ in segments}
+
+    with tempfile.TemporaryDirectory() as td:
+        td_path = Path(td)
+        wav_chunks: list[Path] = []
+
+        if len(distinct_speakers) <= 2:
+            script, speaker_voice_pairs = _gemini_render_script(segments)
+            pcm_bytes, sample_rate = _gemini_tts_pcm(client, model, script, speaker_voice_pairs)
+            wav_path = td_path / "full.wav"
+            _pcm_to_wav(pcm_bytes, sample_rate, wav_path)
+            wav_chunks.append(wav_path)
+        else:
+            # > 2 speakers: per-segment single-speaker rendering.
+            for idx, (speaker, text) in enumerate(segments, start=1):
+                voice = get_gemini_voice_for_speaker(speaker)
+                pcm_bytes, sample_rate = _gemini_tts_pcm(client, model, text, [(speaker, voice)])
+                wav_path = td_path / f"chunk_{idx:03d}.wav"
+                _pcm_to_wav(pcm_bytes, sample_rate, wav_path)
+                wav_chunks.append(wav_path)
+
+        # Concat WAV → MP3 via ffmpeg, mirroring the say backend's path.
+        playlist = td_path / "playlist.txt"
+        playlist.write_text(
+            "\n".join(f"file '{p.as_posix()}'" for p in wav_chunks),
+            encoding="utf-8",
+        )
+        run(
+            [
+                "ffmpeg",
+                "-y",
+                "-hide_banner",
+                "-loglevel",
+                "error",
+                "-f",
+                "concat",
+                "-safe",
+                "0",
+                "-i",
+                str(playlist),
+                "-ac",
+                "1",
+                "-b:a",
+                bitrate,
+                str(out_mp3),
+            ]
+        )
 
 
 def concat_aiff_to_mp3(aiffs: list[Path], out_mp3: Path, bitrate: str) -> None:
@@ -267,6 +517,17 @@ def main() -> int:
         action="store_true",
         help="List available macOS 'say' voices and exit",
     )
+    ap.add_argument(
+        "--backend",
+        choices=("say", "gemini"),
+        default="say",
+        help="TTS backend (default: say). 'gemini' requires GEMINI_API_KEY.",
+    )
+    ap.add_argument(
+        "--gemini-model",
+        default="gemini-2.5-flash-preview-tts",
+        help="Gemini TTS model id (default: gemini-2.5-flash-preview-tts)",
+    )
     args = ap.parse_args()
 
     if args.list_voices:
@@ -285,12 +546,20 @@ def main() -> int:
         else:
             print(f"Skipping (not a .txt file or directory): {path}", file=sys.stderr)
 
-    if not shutil.which("say"):
-        print("say not found (macOS required)", file=sys.stderr)
-        return 2
+    if args.backend == "say":
+        if not shutil.which("say"):
+            print("say not found (macOS required)", file=sys.stderr)
+            return 2
     if not shutil.which("ffmpeg"):
         print("ffmpeg not found", file=sys.stderr)
         return 2
+
+    gemini_api_key: str | None = None
+    if args.backend == "gemini":
+        gemini_api_key = os.environ.get("GEMINI_API_KEY", "").strip() or None
+        if not gemini_api_key:
+            print("GEMINI_API_KEY required for --backend gemini", file=sys.stderr)
+            return 2
 
     scripts_dir = Path(__file__).resolve().parent
     fixtures_dir = scripts_dir.parent
@@ -336,17 +605,27 @@ def main() -> int:
         if not segments:
             continue
 
-        with tempfile.TemporaryDirectory() as td:
-            td_path = Path(td)
-            aiffs: list[Path] = []
-            for i, (speaker, text) in enumerate(segments, start=1):
-                voice = get_voice_for_speaker(speaker)
-                chunk = text.strip()
-                safe_speaker = re.sub(r"[^A-Za-z0-9_]", "_", speaker)[:24] or "spk"
-                out_aiff = td_path / f"{txt.stem}_{i:03d}_{safe_speaker}.aiff"
-                say_to_aiff(chunk, out_aiff, voice=voice, rate=args.rate)
-                aiffs.append(out_aiff)
-            concat_aiff_to_mp3(aiffs, out_mp3, bitrate=args.bitrate)
+        if args.backend == "gemini":
+            assert gemini_api_key is not None  # narrowed above
+            render_segments_via_gemini(
+                segments,
+                out_mp3,
+                bitrate=args.bitrate,
+                model=args.gemini_model,
+                api_key=gemini_api_key,
+            )
+        else:
+            with tempfile.TemporaryDirectory() as td:
+                td_path = Path(td)
+                aiffs: list[Path] = []
+                for i, (speaker, text) in enumerate(segments, start=1):
+                    voice = get_voice_for_speaker(speaker)
+                    chunk = text.strip()
+                    safe_speaker = re.sub(r"[^A-Za-z0-9_]", "_", speaker)[:24] or "spk"
+                    out_aiff = td_path / f"{txt.stem}_{i:03d}_{safe_speaker}.aiff"
+                    say_to_aiff(chunk, out_aiff, voice=voice, rate=args.rate)
+                    aiffs.append(out_aiff)
+                concat_aiff_to_mp3(aiffs, out_mp3, bitrate=args.bitrate)
 
         print(f"Wrote {out_mp3}")
 
