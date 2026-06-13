@@ -414,4 +414,5 @@ register_profile("cleaning_none", _cleaning_none)
 # Default profile (matches current production behavior)
 # Note: Production baseline (baseline_ml_prod_authority_v1) uses cleaning_v4
 # Default changed to cleaning_v4 to match production baseline
-DEFAULT_PROFILE = "cleaning_v4"
+# Flipped 2026-06-13 (#989) — 15/15 v3 wins per cleaning_v3_vs_v4_broader_judge_v1.
+DEFAULT_PROFILE = "cleaning_v3"

@@ -1375,11 +1375,12 @@ class MLProvider:
             #      deployment-profile override
             #   3. mode_cfg.preprocessing_profile — registry default for the
             #      summary mode
-            #   4. "cleaning_v4" hard fallback
+            #   4. "cleaning_v3" hard fallback (flipped from v4 in #989 after
+            #      the 15-ep broader judge confirmed 15/15 v3 wins)
             preprocessing_profile = (
                 (params.get("preprocessing_profile") if params else None)
                 or getattr(self.cfg, "ml_preprocessing_profile", None)
-                or (mode_cfg.preprocessing_profile if mode_cfg else "cleaning_v4")
+                or (mode_cfg.preprocessing_profile if mode_cfg else "cleaning_v3")
             )
 
             result = summarizer.summarize_long_text(

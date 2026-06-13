@@ -57,8 +57,9 @@ class TestPreprocessingProfiles(unittest.TestCase):
         self.assertEqual(result, "TEST")
 
     def test_default_profile(self):
-        """Test default profile constant."""
-        self.assertEqual(DEFAULT_PROFILE, "cleaning_v4")
+        """Default profile is cleaning_v3 — flipped from v4 in #989 after the
+        broader 15-episode pairwise judge showed 15/15 v3 wins on v2 fixtures."""
+        self.assertEqual(DEFAULT_PROFILE, "cleaning_v3")
 
     def test_cleaning_hybrid_after_pattern_registered(self):
         """Hybrid layered-cleaning profile is registered (Issue #419)."""

@@ -447,11 +447,12 @@ class HybridMLProvider:
         # Resolution order (high -> low priority):
         #   1. Explicit params dict
         #   2. Config.ml_preprocessing_profile (#634 Scope 2)
-        #   3. "cleaning_v4" hard fallback
+        #   3. "cleaning_v3" hard fallback (flipped from v4 in #989 — judge
+        #      verdict 15/15 v3 wins on broader v2 sample)
         preprocessing_profile = (
             params.get("preprocessing_profile")
             or getattr(self.cfg, "ml_preprocessing_profile", None)
-            or "cleaning_v4"
+            or "cleaning_v3"
         )
         cleaned_text, _stats = apply_profile_with_stats(text, preprocessing_profile)
 

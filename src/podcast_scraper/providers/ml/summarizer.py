@@ -2140,8 +2140,8 @@ def summarize_long_text(
     reduce_encoder_no_repeat_ngram_size: Optional[int] = None,
     reduce_max_input_tokens: Optional[int] = None,
     truncation: Optional[bool] = None,
-    preprocessing_profile: str = "cleaning_v4",  # Default to cleaning_v4
-    # (matches production baseline)
+    preprocessing_profile: str = "cleaning_v3",  # Flipped 2026-06-13 (#989)
+    # — 15/15 v3 wins vs v4 per the broader pairwise judge sample.
     # Optional 2nd-pass distill parameters (Issue #387)
     enable_2nd_pass_distill: bool = False,
     transcript_text: Optional[str] = None,
