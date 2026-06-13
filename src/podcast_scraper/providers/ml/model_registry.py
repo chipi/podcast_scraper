@@ -991,8 +991,37 @@ _SUMMARY_OPTIONS: Dict[str, StageOption] = {
 # report that justifies the choice — the whole point of this registry is
 # that every default is backed by measured evidence, not opinion.
 
-# GI — still empty pending #978 (v2 GI sweep + report).
-_GI_OPTIONS: Dict[str, StageOption] = {}
+# GI — summary-derived provider mode is the v2 winner (#978).
+#
+# `EVAL_GI_AUTORESEARCH_V2_2026_06_13.md` measured direct-from-transcript
+# extraction across n ∈ {6, 8, 10, 12, 16} against the v2 silver. Coverage
+# capped at 10% regardless of n; the summary-derived pipeline hits 72% on
+# the same provider in the same eval window. The "bypass summary" historic
+# claim is reversed on v2.
+#
+# Bundling (`bundled_ab`) is the cross-provider champion per #921
+# (EVAL_GIL_BUNDLING_2026_05). Grounding is treated as universal-on.
+_GI_OPTIONS: Dict[str, StageOption] = {
+    "provider_n12_grounded_bundled": StageOption(
+        stage="gi",
+        option_id="provider_n12_grounded_bundled",
+        provider="provider",
+        extra_settings={
+            "max_insights": 12,
+            "require_grounding": True,
+            "evidence_quote_mode": "bundled",
+            "evidence_nli_mode": "bundled",
+        },
+        research_ref="docs/guides/eval-reports/EVAL_GI_AUTORESEARCH_V2_2026_06_13.md",
+        headline_metric=(
+            "summary-derived provider mode beats direct-from-transcript by "
+            "~60pp on v2 silver (72% vs 10%); n=12 historic default holds; "
+            "bundled per EVAL_GIL_BUNDLING_2026_05"
+        ),
+        measured_at="2026-06-13",
+        tier="primary",
+    ),
+}
 
 
 # KG — extraction source + max_topics / max_entities defaults.
@@ -1132,6 +1161,7 @@ class ProfilePreset:
     kg: str  # StageOption.option_id key into _KG_OPTIONS
     ner: str  # StageOption.option_id key into _NER_OPTIONS
     clustering: str  # StageOption.option_id key into _CLUSTERING_OPTIONS
+    gi: str  # StageOption.option_id key into _GI_OPTIONS
     notes: Optional[str] = None
 
 
@@ -1144,6 +1174,7 @@ _PROFILE_PRESETS: Dict[str, ProfilePreset] = {
         kg="provider_n10_15",
         ner="gemini_speaker_detector",
         clustering="topic_clusters_default_0_75",
+        gi="provider_n12_grounded_bundled",
         notes="Production cloud default. Best compound (quality × cost × latency).",
     ),
     "cloud_thin": ProfilePreset(
@@ -1153,6 +1184,7 @@ _PROFILE_PRESETS: Dict[str, ProfilePreset] = {
         kg="provider_n10_15",
         ner="gemini_speaker_detector",
         clustering="topic_clusters_default_0_75",
+        gi="provider_n12_grounded_bundled",
         notes="Minimal cloud feature set. Same providers as cloud_balanced.",
     ),
     "cloud_with_dgx_primary": ProfilePreset(
@@ -1162,6 +1194,7 @@ _PROFILE_PRESETS: Dict[str, ProfilePreset] = {
         kg="provider_n10_15",
         ner="gemini_speaker_detector",
         clustering="topic_clusters_default_0_75",
+        gi="provider_n12_grounded_bundled",
         notes=(
             "Production hybrid: DGX whisper-openai for transcription, cloud Gemini for summary. "
             "Was previously tailnet_dgx_speaches; flipped after #968 Thread B confirmed "
@@ -1175,6 +1208,7 @@ _PROFILE_PRESETS: Dict[str, ProfilePreset] = {
         kg="provider_n10_15",
         ner="spacy_trf",  # +13pp v2 recall vs sm per #906 Tier 3
         clustering="topic_clusters_default_0_75",
+        gi="provider_n12_grounded_bundled",
         notes="Local pipeline with DGX summary; laptop runs MPS transcription.",
     ),
     "local_dgx_full": ProfilePreset(
@@ -1184,6 +1218,7 @@ _PROFILE_PRESETS: Dict[str, ProfilePreset] = {
         kg="provider_n10_15",
         ner="spacy_trf",
         clustering="topic_clusters_default_0_75",
+        gi="provider_n12_grounded_bundled",
         notes="Higher resident memory budget; same registry choices as balanced today.",
     ),
     "cloud_quality": ProfilePreset(
@@ -1193,6 +1228,7 @@ _PROFILE_PRESETS: Dict[str, ProfilePreset] = {
         kg="provider_n10_15",
         ner="spacy_trf",
         clustering="topic_clusters_default_0_75",
+        gi="provider_n12_grounded_bundled",
         notes=(
             "Cloud quality-first profile: Deepgram for transcription (best WER + best "
             "latency on v2 fixtures), Anthropic Haiku 4.5 for summary "
@@ -1206,6 +1242,7 @@ _PROFILE_PRESETS: Dict[str, ProfilePreset] = {
         kg="provider_n10_15",
         ner="spacy_trf",
         clustering="topic_clusters_default_0_75",
+        gi="provider_n12_grounded_bundled",
         notes=(
             "Laptop-only profile: small.en whisper (quality upgrade over base.en) + "
             "Ollama hermes3:8b summary. No DGX, no cloud."
@@ -1279,6 +1316,13 @@ def get_clustering_option(option_id: str) -> StageOption:
     return _CLUSTERING_OPTIONS[option_id]
 
 
+def get_gi_option(option_id: str) -> StageOption:
+    """Look up a single GI option by id."""
+    if option_id not in _GI_OPTIONS:
+        raise ValueError(f"Unknown GI option '{option_id}'")
+    return _GI_OPTIONS[option_id]
+
+
 def get_profile_preset(name: str) -> ProfilePreset:
     """Look up a profile preset by name. The canonical source for profile YAMLs."""
     if name not in _PROFILE_PRESETS:
@@ -1337,6 +1381,7 @@ def resolve_profile_to_settings(
     kg = get_kg_option(preset.kg)
     ner = get_ner_option(preset.ner)
     clustering = get_clustering_option(preset.clustering)
+    gi = get_gi_option(preset.gi)
 
     settings: Dict[str, Any] = {
         "transcription_provider": tx.provider,
@@ -1359,6 +1404,18 @@ def resolve_profile_to_settings(
         settings["summary_endpoint"] = resolved_sm_endpoint
     if sm.extra_settings:
         settings["summary_extra"] = dict(sm.extra_settings)
+
+    # GI: insight source + caps + grounding + evidence-stack bundling.
+    settings["gi_insight_source"] = gi.provider
+    if gi.extra_settings:
+        if "max_insights" in gi.extra_settings:
+            settings["gi_max_insights"] = gi.extra_settings["max_insights"]
+        if "require_grounding" in gi.extra_settings:
+            settings["gi_require_grounding"] = gi.extra_settings["require_grounding"]
+        if "evidence_quote_mode" in gi.extra_settings:
+            settings["gil_evidence_quote_mode"] = gi.extra_settings["evidence_quote_mode"]
+        if "evidence_nli_mode" in gi.extra_settings:
+            settings["gil_evidence_nli_mode"] = gi.extra_settings["evidence_nli_mode"]
 
     # KG: extraction source + caps.
     settings["kg_extraction_source"] = kg.provider
@@ -1387,5 +1444,6 @@ def resolve_profile_to_settings(
     settings["_summary_research_ref"] = sm.research_ref
     settings["_kg_research_ref"] = kg.research_ref
     settings["_ner_research_ref"] = ner.research_ref
+    settings["_gi_research_ref"] = gi.research_ref
 
     return settings

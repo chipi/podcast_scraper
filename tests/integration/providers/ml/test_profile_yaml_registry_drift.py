@@ -40,6 +40,11 @@ _ROUTING_FIELDS = (
     "kg_max_entities",
     "speaker_detector_provider",
     "ner_model",
+    "gi_insight_source",
+    "gi_max_insights",
+    "gi_require_grounding",
+    "gil_evidence_quote_mode",
+    "gil_evidence_nli_mode",
 )
 
 

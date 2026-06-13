@@ -87,15 +87,20 @@ class TestStageOptionRegistries:
 
 
 class TestPipelineStageRegistries:
-    """KG / NER / clustering materialized from #853 + #904 + #906 reports.
+    """GI / KG / NER / clustering materialized from #853 + #904 + #906 + #978 reports.
 
-    GI stays empty pending #978 (v2-fixture GI sweep + report). Every other
-    stage now has at least one StageOption with research provenance.
+    Every pipeline stage now has at least one StageOption with research provenance.
     """
 
-    def test_gi_registry_still_empty_pending_978(self) -> None:
-        # GI sweep on v2 fixtures hasn't run yet — see #978.
-        assert get_gi_options() == {}
+    def test_gi_registry_has_v2_winner(self) -> None:
+        opts = get_gi_options()
+        assert "provider_n12_grounded_bundled" in opts
+        assert opts["provider_n12_grounded_bundled"].extra_settings == {
+            "max_insights": 12,
+            "require_grounding": True,
+            "evidence_quote_mode": "bundled",
+            "evidence_nli_mode": "bundled",
+        }
 
     def test_kg_registry_has_provider_default(self) -> None:
         opts = get_kg_options()
