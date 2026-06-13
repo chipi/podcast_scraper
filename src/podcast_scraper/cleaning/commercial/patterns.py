@@ -102,6 +102,60 @@ SPONSOR_PATTERNS: List[SponsorPattern] = [
         0.85,
         "block_end",
     ),
+    # --- #986 expansion: native-ad / outro patterns surfaced from the manual
+    # run-10 real-prod sample (54 episodes, FT-Unhedged-dominant). The original
+    # SPONSOR_PATTERNS set above is template-heavy ("brought to you by"). Real
+    # podcasts use host-read native ads + production-credit outros that don't
+    # follow that template — #904 Tier 1 measured the gap at 2-6% content
+    # recall on real prod. The patterns below close some of that gap without
+    # over-fitting to a single show's voice.
+    SponsorPattern(
+        # "Unhedged is produced by Jake Harper" — production-credit outro
+        re.compile(r"\bis produced by\s+[A-Z][\w\-' ]+", re.I),
+        "outro",
+        0.8,
+        "block_end",
+    ),
+    SponsorPattern(
+        # "Our executive producer is Jacob Goldstein"
+        re.compile(r"\b(?:our )?executive producer (?:is|are)\b", re.I),
+        "outro",
+        0.85,
+        "block_end",
+    ),
+    SponsorPattern(
+        # "Special thanks to Laura Clark, Alistair Mackey, ..."
+        re.compile(r"\bspecial thanks to\b", re.I),
+        "outro",
+        0.7,
+        "block_end",
+    ),
+    SponsorPattern(
+        # "FT Premium subscribers can get the Unhedged newsletter for free"
+        re.compile(
+            r"\b(?:premium )?subscribers can (?:get|receive|access|read)\b",
+            re.I,
+        ),
+        "cta",
+        0.8,
+        "inline",
+    ),
+    SponsorPattern(
+        # "a 30-day free trial is available", "30 day free trial"
+        re.compile(r"\b(?:\d+[- ]?day(?:s)? )?free trial(?: is available)?\b", re.I),
+        "cta",
+        0.7,
+        "inline",
+    ),
+    SponsorPattern(
+        # Spoken URL: "go to ft.com slash unhedged" — the existing visit/go to
+        # pattern only catches the bare URL form ("go to ft.com"), not the
+        # full spoken-slash construction that follows.
+        re.compile(r"\b\w+\.(?:com|net|org|io) slash\s+\S+", re.I),
+        "cta",
+        0.7,
+        "inline",
+    ),
 ]
 
 BLOCK_START_PATTERNS = [p for p in SPONSOR_PATTERNS if p.boundary_hint == "block_start"]
