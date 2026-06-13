@@ -239,6 +239,21 @@ def main() -> int:
             "error": err,
         }
         rows.append(row)
+        # Dump per-episode segments to a sidecar JSON so downstream DER
+        # computation (#992) can consume them without re-running diarization.
+        if r["segments"]:
+            (args.output / f"segments_{ep}.json").write_text(
+                json.dumps(
+                    {
+                        "backend": args.backend,
+                        "episode_id": ep,
+                        "model_name": r["model_name"],
+                        "segments": r["segments"],
+                    },
+                    indent=2,
+                ),
+                encoding="utf-8",
+            )
         err_tail = f" ERROR={err}" if err else ""
         ratio_str = f"{ratio:.2f}" if ratio is not None else "n/a"
         print(

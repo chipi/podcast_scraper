@@ -3,13 +3,16 @@
 Phase 1 — 2026-06-10 — MPS / CUDA / CPU.
 Phase 2 — 2026-06-13 — Gemini 2.5 audio API added (#962); fresh
 pyannote/MPS re-run on the post-#944 multi-voice v2 fixtures.
+Phase 3 — 2026-06-13 — real Diarization Error Rate (DER) computation (#992),
+with time-aligned ground truth derived from Deepgram nova-3 word-level
+timestamps.
 
-**Issue:** #930, #962
-**Branch:** `feat/autoresearch-batch-3-championships` (Phase 1); `main` (Phase 2)
+**Issue:** #930, #962, #992
+**Branch:** `feat/autoresearch-batch-3-championships` (Phase 1); `main` (Phases 2 + 3)
 **Dataset:** v2 audio fixtures, 5 episodes (RFC-059 §2 macOS `say` generation)
-**Status:** **3-way panel COMPLETE** as of 2026-06-13. Gemini speaker detection
-re-measured on the current multi-voice v2 fixtures (#944) alongside a fresh
-pyannote/MPS run for apples-to-apples comparison.
+**Status:** **DER measured** for pyannote/MPS + Gemini 2.5 Flash. Phase 1
+pyannote/DGX numbers are reused — same model, different device, identical
+segment counts within numerical noise.
 
 ---
 
@@ -93,24 +96,114 @@ longer 404s on diarization when pyannote isn't installed. Use:
 No production-default flip is warranted; pyannote stays the canonical
 diarizer. Filing the Gemini path as the cloud_* fall-back.
 
+## Phase 3 — real DER (#992, 2026-06-13)
+
+Closes the speaker-confusion blind spot that `segments_per_turn_ratio`
+couldn't measure. Time-aligned ground truth derived per the path proposed
+in #992:
+
+1. Deepgram nova-3 word-level timestamps on each v2 episode (5 calls, ~$0.10
+   total, <2 s/episode wall-clock).
+2. Word-level Levenshtein DP alignment between the reference transcript and
+   Deepgram's hypothesis text. Aligned ratio: 1469–1471 / 1485 reference
+   words on average (98.9 %). Unaligned reference words get times linearly
+   interpolated between aligned neighbours.
+3. Each reference word inherits its `Speaker:` line label. Contiguous
+   same-speaker words collapse to `(start, end, speaker)` ground-truth
+   utterance segments.
+4. `pyannote.metrics.diarization.DiarizationErrorRate` with `collar=0.0`,
+   `skip_overlap=False`. Optimal speaker mapping is solved internally
+   (Hungarian), so reference labels like `Maya` and hypothesis labels like
+   `SPEAKER_00` don't need to match by name.
+
+Aggregate across all 5 episodes (micro-average — pool seconds then divide):
+
+| Backend | **DER** | Confusion | Missed | False alarm | Total reference |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| **pyannote / MPS** | **1.66 %** | 0.93 % | 0.48 % | 0.25 % | 2779.9 s |
+| **Gemini 2.5 Flash** | **101.96 %** | 31.46 % | 22.99 % | 47.51 % | 2779.9 s |
+
+**Pyannote scores 1.66 % DER**. Sub-second-per-episode speaker confusion
+across ~9 minutes of audio per episode. This is *very* good — pyannote is
+not just qualitatively the winner, it's quantitatively essentially correct.
+
+**Gemini scores 101.96 % DER** — yes, above 100 %, which means errors
+exceed total reference speech time. This isn't a marginal failure mode; it
+reveals a deeper Gemini-side bug that the Phase 2 segment-ratio couldn't
+see:
+
+- **`p01_e01`**: Gemini's max timestamp is 9.11 — the audio is 551 seconds
+  long. Gemini emitted times in *minutes*, not seconds, despite the prompt
+  explicitly requesting "floating-point seconds from the start of the
+  audio". Result: every Gemini segment is compressed into the first 9.11 s
+  of the timeline → 542 / 549.7 s of reference speech sits past the
+  hypothesis's max time → missed-detection dominates.
+- **`p02_e01` through `p05_e01`**: Gemini emitted times in something that
+  looks like inflated seconds — max end ~1.6 × the actual audio duration
+  (e.g., 1055 s for an 656 s audio). Confusion + false-alarm dominate
+  because the hypothesis claims speech at timestamps the audio doesn't
+  have.
+
+**Two different timing-unit failure modes on five episodes.** The model
+knows what's said and roughly when, but it cannot anchor its output to a
+consistent time scale across runs. This is not a prompt-engineering
+problem (the prompt explicitly specifies seconds) — it's a Gemini 2.5
+Flash audio-modality limitation on time-grounded structured output.
+
+### What this changes about the verdict
+
+The Phase 2 conclusion ("pyannote stays canonical, Gemini is fall-back for
+ultra-thin deployments") **stands**, but the framing tightens:
+
+- Gemini's diarization output is **not usable** for any downstream task
+  that depends on timestamps (segment-aligned UI playback, time-coded
+  speaker-attributed search hits, anything in the GI evidence stack that
+  cross-references audio offsets).
+- Gemini's segments **are** still usable for "did at least two distinct
+  speakers participate, and roughly how many?" questions — which is the
+  speaker-count signal — but that's a much narrower fall-back than #962's
+  acceptance language implied.
+- If `diarization_provider: gemini` ever becomes a real production path,
+  it needs an integration test that asserts the output's max timestamp is
+  within ~10 % of the audio duration. The current Gemini provider should
+  log a warning if it sees timestamps outside that band.
+
+A follow-up could try Gemini 2.5 Pro or a structured-output schema with
+explicit `seconds_from_start` field validation; both are out of scope for
+issue #992. Filing separately if the operator wants Gemini diarization to be
+load-bearing.
+
 ## What's NOT in this report (gaps + follow-ups)
 
-1. **Proper DER** (Diarization Error Rate) — requires time-aligned speaker ground truth, which v2 fixtures don't ship. Could be derived from whisper word-level timestamps as an alignment proxy. Filed for follow-up.
-2. **Diarization client resilience** (#954, filed today) — independent of this evaluation but matters for prod reliability under shared-GPU contention.
-3. **Burst latency** — only sequential measurements here. Concurrent diarization calls would test the queueing behavior that #954 is filed against.
-4. **Multi-voice v2 fixtures (#944)** — landed between phase 1 and phase 2; phase 2 re-ran pyannote/MPS on the new fixtures for an apples-to-apples comparison. Speaker-count still over-detects (3 vs 2) because both backends pick up a third acoustic cluster from the Ad insert reads. Real DER (item 1) is the next signal-strength bump.
+1. **Diarization client resilience** (#954, filed earlier) — independent of this evaluation but matters for prod reliability under shared-GPU contention.
+2. **Burst latency** — only sequential measurements here. Concurrent diarization calls would test the queueing behavior that #954 is filed against.
+3. **Multi-voice v2 fixtures (#944)** — landed between phase 1 and phase 2; phase 2 re-ran pyannote/MPS on the new fixtures for an apples-to-apples comparison. Speaker-count still over-detects (3 vs 2) because both backends pick up a third acoustic cluster from the Ad insert reads. Phase 3's DER measurement confirms pyannote is structurally correct on this dataset — the over-count is acoustic, not categorical.
+4. **Gemini timestamp-unit failure** — separable follow-up if Gemini diarization ever needs to be load-bearing; would need a Gemini 2.5 Pro retry or a structured-output schema with `seconds_from_start` field validation.
 
 ## Recommendation
 
-**3-way verdict** (post-phase 2): pyannote stays the canonical diarization
-engine across all profile shapes. Gemini is now a wired fall-back for
-cloud-only profiles that want to skip the pyannote install:
+**3-way verdict** (post-phase 3): pyannote stays the canonical diarization
+engine across all profile shapes. **Phase 3 DER strengthens this:**
+pyannote scores 1.66 % DER on v2 — essentially correct. Gemini's structural
+timing-unit failure makes its output unusable for timestamp-dependent
+downstream consumers, even though it correctly identifies that multiple
+speakers exist.
 
-- `local` profile (laptop, no DGX): in-process pyannote with `device=auto` → picks MPS on Apple Silicon → ~13× realtime
-- `cloud_with_dgx_*` profiles (DGX available): route to `:8001/v1/diarize` → ~13× realtime, off-laptop
-- `cloud_*` profiles (no DGX, no GPU): pyannote/local stays the canonical default; `diarization_provider: gemini` is the **explicit fall-back** for ultra-thin deployments that don't ship the pyannote dependency (over-segments ~60% vs pyannote and costs ~$0.03/episode, but does work end-to-end).
+- `local` profile (laptop, no DGX): in-process pyannote with `device=auto` → picks MPS on Apple Silicon → ~13× realtime, **1.66 % DER**
+- `cloud_with_dgx_*` profiles (DGX available): route to `:8001/v1/diarize` → ~13× realtime, off-laptop, **same DER as MPS** (same model, different device)
+- `cloud_*` profiles (no DGX, no GPU): pyannote/local stays the canonical default. `diarization_provider: gemini` is a **last-resort** fall-back for ultra-thin deployments where (a) the pyannote dependency cannot be shipped AND (b) no downstream consumer depends on the segment timestamps being accurate.
 
-Phase 3 (when the gaps above close): real DER measurement, burst-latency.
+Phase 4 (future): burst-latency, real production load patterns, Gemini 2.5
+Pro retry on the timestamp-unit failure.
+
+## Artifacts (Phase 3)
+
+- `scripts/eval/score/diarization_der_v1.py` — DER computation harness with the Deepgram-alignment ground-truth derivation
+- `data/eval/runs/diarization_3way_v1/local-mps/segments_*.json` — per-episode pyannote/MPS segment dumps
+- `data/eval/runs/diarization_3way_v1/gemini/segments_*.json` — per-episode Gemini segment dumps
+- `data/eval/runs/diarization_der_v1/ground_truth/*.json` — derived time-aligned ground truth (reusable for future backend comparisons)
+- `data/eval/runs/diarization_der_v1/deepgram_words/*.json` — cached Deepgram word-level transcripts
+- `data/eval/runs/diarization_der_v1/metrics.json` — Phase 3 headline metrics
 
 ## Artifacts
 
