@@ -811,6 +811,27 @@ class TestValidationEdgeCases(unittest.TestCase):
         self.assertEqual(cfg.interim_index_checkpoint_every_episodes, 7)
         self.assertEqual(cfg.interim_topic_cluster_checkpoint_every_episodes, 11)
 
+    def test_cluster_thresholds_default_to_v2_pareto_winner(self):
+        cfg = Config(rss_url="https://example.com/feed.xml")
+        self.assertEqual(cfg.topic_cluster_threshold, 0.75)
+        self.assertEqual(cfg.insight_cluster_threshold, 0.75)
+
+    def test_cluster_thresholds_accept_override(self):
+        cfg = Config(
+            rss_url="https://example.com/feed.xml",
+            topic_cluster_threshold=0.70,
+            insight_cluster_threshold=0.80,
+        )
+        self.assertEqual(cfg.topic_cluster_threshold, 0.70)
+        self.assertEqual(cfg.insight_cluster_threshold, 0.80)
+
+    def test_cluster_thresholds_reject_out_of_range(self):
+        for field in ("topic_cluster_threshold", "insight_cluster_threshold"):
+            with self.assertRaises(ValidationError):
+                Config(rss_url="https://example.com/feed.xml", **{field: -0.1})
+            with self.assertRaises(ValidationError):
+                Config(rss_url="https://example.com/feed.xml", **{field: 1.1})
+
     def test_vector_index_path_optional_relative(self):
         cfg = Config(
             rss_url="https://example.com/feed.xml",

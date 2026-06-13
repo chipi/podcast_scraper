@@ -1,0 +1,175 @@
+# Frozen prod-validation tier v1 (#933).
+#
+# Source: .test_outputs/manual/my-manual-run-10/ (the prod backup the
+# operator has locally; 54 episodes drawn from 10 RSS feeds, run on
+# 2026-04-21). Episodes selected to balance the failure-mode taxonomy
+# from docs/wip/AUTORESEARCH_LEARNINGS_FOR_V3.md across the 15-episode
+# v1 cap.
+#
+# Tags below are derived from text/duration inspection only — full
+# taxonomy coverage requires per-episode pipeline runs which are out of
+# scope for the v1 freeze. Tags marked [needs_runtime] need the GI/KG/
+# diarization pipeline output to land before they can be definitively
+# assigned. Future probing fills those in; the manifest does NOT
+# change after freeze.
+
+source:
+  kind: local_prod_backup
+  root: .test_outputs/manual/my-manual-run-10/run_20260421-190016_2606de6d/transcripts
+  manifest: .test_outputs/manual/my-manual-run-10/run_20260421-190016_2606de6d/run_manifest.json
+  pulled_on: 2026-04-21
+  total_episodes_in_backup: 54
+  feeds_in_backup: 10  # see feeds.spec.yaml under the parent dir
+
+# 15 episodes — small enough to stay frozen, big enough for sanity check.
+episodes:
+  - id: ep_0001
+    source_file: "0001 - Boing_ Springtime for the market_20260421-190016_2606de6d.txt"
+    title: "Boing! Springtime for the market"
+    duration_s: 1291
+    word_count: 3455
+    tags: [native_ad_heavy, cross_feed_topic_cluster]
+    notes: "Canonical FT/Unhedged outro + subscription pitch + production credits."
+
+  - id: ep_0013
+    source_file: "0013 - The case against stablecoins_20260421-190016_2606de6d.txt"
+    title: "The case against stablecoins"
+    duration_s: 1585
+    word_count: 4882
+    tags: [native_ad_heavy, cross_feed_topic_cluster]
+    notes: "Crypto-domain vocabulary; useful for NER edge cases on financial proper nouns."
+
+  - id: ep_0014
+    source_file: "0014 - Energy prices up_ markets down_20260421-190016_2606de6d.txt"
+    title: "Energy prices up, markets down"
+    duration_s: 1573
+    word_count: 4423
+    tags: [native_ad_heavy, cross_feed_topic_cluster]
+    notes: "Multi-topic macro (energy + markets + Fed)."
+
+  - id: ep_0021
+    source_file: "0021 - The triangle of confusion_20260421-190016_2606de6d.txt"
+    title: "The triangle of confusion"
+    duration_s: 1432
+    word_count: 4396
+    tags: [native_ad_heavy, cross_feed_topic_cluster]
+    notes: "Conversational format with multiple named guests."
+
+  - id: ep_0024
+    source_file: "0024 - How does a gold rush end__20260421-190016_2606de6d.txt"
+    title: "How does a gold rush end?"
+    duration_s: 1432
+    word_count: 3588
+    tags: [cross_feed_topic_cluster]
+    notes: "Gold cluster (cross-feed: gold appears across markets shows)."
+
+  - id: ep_0029
+    source_file: "0029 - Showdown at the Federal Reserve_20260421-190016_2606de6d.txt"
+    title: "Showdown at the Federal Reserve"
+    duration_s: 1502
+    word_count: 4193
+    tags: [native_ad_heavy, cross_feed_topic_cluster]
+    notes: "Fed cluster (universal cross-feed topic for macro pods)."
+
+  - id: ep_0033
+    source_file: "0033 - Quiz show__20260421-190016_2606de6d.txt"
+    title: "Quiz show!"
+    duration_s: 1711
+    word_count: 4722
+    tags: [native_ad_heavy]
+    notes: "Atypical interactive/quiz format — stress-tests speaker-segmentation assumptions."
+
+  - id: ep_0034
+    source_file: "0034 - From Against the Rules_ Michael _20260421-190016_2606de6d.txt"
+    title: "From Against the Rules: Michael Lewis episode"
+    duration_s: 2049
+    word_count: 6217
+    tags: [long_interview, cross_feed_topic_cluster, sponsor_shaped_real_content]
+    notes: "Cross-show promo (Michael Lewis' Against the Rules) — extended interview format."
+
+  - id: ep_0036
+    source_file: "0036 - Three numbers that matter_20260421-190016_2606de6d.txt"
+    title: "Three numbers that matter"
+    duration_s: 998
+    word_count: 2695
+    tags: [native_ad_heavy]
+    notes: "Short-form (~17 min) — shortest in the set; segmentation density edge case."
+
+  - id: ep_0038
+    source_file: "0038 - Can 2026 match 2025__20260421-190016_2606de6d.txt"
+    title: "Can 2026 match 2025?"
+    duration_s: 2240
+    word_count: 6581
+    tags: [long_interview, native_ad_heavy, cross_feed_topic_cluster]
+    notes: "Year-end macro retrospective — long interview format."
+
+  - id: ep_0040
+    source_file: "0040 - A satanic list of inflationary f_20260421-190016_2606de6d.txt"
+    title: "A satanic list of inflationary forces"
+    duration_s: 1798
+    word_count: 5112
+    tags: [native_ad_heavy, cross_feed_topic_cluster]
+    notes: "List-format episode — narrative structure differs from interview default."
+
+  - id: ep_0046
+    source_file: "0046 - Is the US an emerging market__20260421-190016_2606de6d.txt"
+    title: "Is the US an emerging market?"
+    duration_s: 2280
+    word_count: 6838
+    tags: [long_interview, native_ad_heavy, cross_feed_topic_cluster]
+    notes: "Longest in the set (~38 min); chunking + hierarchical stress."
+
+  - id: ep_0049
+    source_file: "0049 - Martin Wolf on the economics of _20260421-190016_2606de6d.txt"
+    title: "Martin Wolf on the economics of immigration"
+    duration_s: 1457
+    word_count: 3676
+    tags: [native_ad_heavy, cross_feed_topic_cluster]
+    notes: "Named guest Martin Wolf — useful NER + name-recognition test."
+
+  - id: ep_0050
+    source_file: "0050 - The vigorous nods of Bessent_20260421-190016_2606de6d.txt"
+    title: "The vigorous nods of Bessent"
+    duration_s: 1273
+    word_count: 3601
+    tags: [native_ad_heavy, asr_garble]
+    notes: "Scott Bessent name in the title — known ASR-garble candidate (Bessent ↔ Bessett, #853 baseline)."
+
+  - id: ep_0056
+    source_file: "0056 - Introducing Untold_ Toxic Legacy_20260421-190016_2606de6d.txt"
+    title: "Introducing Untold: Toxic Legacy"
+    duration_s: 120
+    word_count: 288
+    tags: [sponsor_shaped_real_content]
+    notes: "Cross-show promo — entire episode IS a promo. Tests that cleaning doesn't strip 100% of content."
+
+# Taxonomy coverage check
+# Tags hit by at least 1 episode above:
+#   - native_ad_heavy (12)
+#   - cross_feed_topic_cluster (11)
+#   - long_interview (3: ep_0034, ep_0038, ep_0046)
+#   - asr_garble (1: ep_0050)
+#   - sponsor_shaped_real_content (2: ep_0034, ep_0056)
+#
+# Tags NOT hit by this v1 — need a more diverse backup or per-episode
+# pipeline output to confidently assign:
+#   - low_grounding         (omnycontent-shape; needs GI grounding rate)
+#   - ner_zero_hosts        (NPR-shape; needs NER output)
+#   - multi_accent          (needs audio analysis)
+#   - sustained_burst       (needs ≥3h continuous run telemetry)
+#   - dialogue_insight_offender (needs GI evidence-stack pass)
+#   - nickname_alias        (needs KG canon pair output)
+#
+# These tags will either be probed via runtime data added to a sidecar
+# file (manifest.yaml stays frozen) OR addressed by prod_validation_v2/
+# pulled from a more diverse backup.
+
+freeze_status: frozen
+frozen_at: 2026-06-13
+freeze_rationale: |
+  v1 is small (15 ep) and covers 5 of 11 taxonomy tags from direct
+  observation. Per the #933 design ("v1 is frozen on commit"), this set
+  does not churn — bugs in metadata get errata in sidecar files; the
+  audio/transcript symlinks under episodes/ stay pinned. The uncovered
+  tags become priorities for prod_validation_v2/ pulled from a more
+  diverse prod backup (multiple feeds, NPR-shape, multi-accent).

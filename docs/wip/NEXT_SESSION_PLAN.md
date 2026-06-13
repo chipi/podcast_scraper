@@ -77,7 +77,8 @@ closed — wrong target; the real v3 audio piece is tracked by **#934**.
     the end has this batch's contributions)
 - **vLLM service contract** (consumers must pass
   `chat_template_kwargs={enable_thinking: false}` for Qwen3 family):
-  - `infra/dgx/vllm-autoresearch/README.md`
+  - <https://github.com/chipi/agentic-ai-homelab/> (moved out of
+    `infra/dgx/vllm-autoresearch/` on 2026-06-12)
 - **The rebase-before-push rule** (added this batch):
   - `AGENTS.md` "Always rebase before pushing a feature branch"
   - `.ai-coding-guidelines-quick.md` PR Push Workflow item 3

@@ -166,16 +166,13 @@ server.shell(
     ],
 )
 
-# 9. vllm-autoresearch service (#928) — NVIDIA-prebuilt vLLM serving an
-# open-weight LLM on :8003 for autoresearch summary/GI/KG scoring.
-server.shell(
-    name="assert: vllm-autoresearch container is up",
-    commands=[
-        "docker ps --filter name=^vllm-autoresearch$ --filter status=running --format '{{.Names}}' "
-        "| grep -q '^vllm-autoresearch$'",
-    ],
-)
-
+# 9. vllm-autoresearch reachability (#928 / 2026-06-12 relocation).
+# vllm-autoresearch is provisioned by github.com/chipi/agentic-ai-homelab
+# (moved out of podcast_scraper on 2026-06-12). podcast_scraper is a CLIENT
+# of the :8003 endpoint, not its provisioner — the only thing we still
+# verify here is that the autoresearch sweeps will have something to talk
+# to. Container existence + model-matches-compose probes moved to the
+# homelab repo's verify script.
 server.shell(
     name="assert: vllm-autoresearch API responsive on :8003",
     commands=[
@@ -184,24 +181,5 @@ server.shell(
         # We give verify the same patience — a fresh DGX boot can hit it.
         "curl -fsS --max-time 900 http://127.0.0.1:8003/health >/dev/null",
         "curl -fsS --max-time 10 http://127.0.0.1:8003/v1/models >/dev/null",
-    ],
-)
-
-server.shell(
-    name="assert: vllm-autoresearch serves the model its compose declares",
-    commands=[
-        # Extract the served model id from the live /v1/models endpoint
-        # and the model id declared in the compose, then assert they
-        # match. Catches drift if vLLM started against a different model
-        # than the compose was written for (e.g., an interrupted swap).
-        "served=$(curl -fsS --max-time 10 http://127.0.0.1:8003/v1/models "
-        '| python3 -c \'import json,sys; print(json.load(sys.stdin)["data"][0]["id"])\') && '
-        # Compose declares the model on the line right after ``- serve``;
-        # the value is the next ``- <model>`` entry. awk picks the line
-        # that comes one after ``- serve`` and strips list/quote chrome.
-        "declared=$(awk '/^      - serve$/{getline; gsub(/^[[:space:]-]+/,\"\"); print; exit}' "
-        "/opt/vllm-autoresearch/docker-compose.yml) && "
-        'test "$served" = "$declared" '
-        '|| { echo "drift: vLLM serves $served but compose declares $declared"; exit 1; }',
     ],
 )

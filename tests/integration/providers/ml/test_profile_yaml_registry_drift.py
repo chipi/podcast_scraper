@@ -35,6 +35,18 @@ _ROUTING_FIELDS = (
     "transcription_provider",
     "summary_provider",
     "summary_model",
+    "kg_extraction_source",
+    "kg_max_topics",
+    "kg_max_entities",
+    "speaker_detector_provider",
+    "ner_model",
+    "gi_insight_source",
+    "gi_max_insights",
+    "gi_require_grounding",
+    "gil_evidence_quote_mode",
+    "gil_evidence_nli_mode",
+    "topic_cluster_threshold",
+    "insight_cluster_threshold",
 )
 
 

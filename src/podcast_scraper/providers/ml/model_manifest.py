@@ -69,6 +69,11 @@ REQUIRED_ML_MODELS: tuple[MLModelSpec, ...] = (
     MLModelSpec(cc.PROD_DEFAULT_WHISPER_MODEL, "whisper", _CI),  # base.en
     # spaCy (NER / speaker detection)
     MLModelSpec(cc.TEST_DEFAULT_NER_MODEL, "spacy", _T),  # en_core_web_sm
+    # _trf is the prod NER default (PROD_DEFAULT_NER_MODEL); preloaded into
+    # CI artifact + production-tier bakes per #984 (+13 pp v2 spec recall vs
+    # _sm at ~2x latency, still sub-second). _sm stays the dev/test default
+    # to keep the cycle quick and the install footprint small.
+    MLModelSpec(cc.PROD_DEFAULT_NER_MODEL, "spacy", _CI),  # en_core_web_trf
     # Summarization -- ids are central ModelRegistry keys (params live there).
     # These four are the actual preloaded summarizers (the default dev preload and
     # --production both bake all four); the larger *-large variants are registry/

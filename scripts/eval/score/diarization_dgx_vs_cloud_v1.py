@@ -159,9 +159,33 @@ def _diarize_local(audio_path: Path) -> dict[str, Any]:
     }
 
 
+def _diarize_gemini(audio_path: Path) -> dict[str, Any]:
+    """Gemini 2.5 audio API speaker turns (#962)."""
+    from podcast_scraper.providers.ml.diarization.gemini_provider import (
+        GeminiDiarizationProvider,
+    )
+
+    api_key = os.environ.get("GEMINI_API_KEY", "").strip()
+    if not api_key:
+        raise RuntimeError("GEMINI_API_KEY env var required for the gemini diarization backend.")
+    model = os.environ.get("GEMINI_DIARIZATION_MODEL", "gemini-2.5-flash").strip()
+    provider = GeminiDiarizationProvider(api_key=api_key, model_name=model)
+    t0 = time.time()
+    result = provider.diarize(str(audio_path))
+    elapsed = time.time() - t0
+    segments = [{"start": s.start, "end": s.end, "speaker": s.speaker} for s in result.segments]
+    return {
+        "segments": segments,
+        "num_speakers": result.num_speakers,
+        "model_name": result.model_name,
+        "elapsed_seconds": elapsed,
+    }
+
+
 _BACKENDS = {
     "dgx": _diarize_dgx,
     "local": _diarize_local,
+    "gemini": _diarize_gemini,
 }
 
 
@@ -215,6 +239,21 @@ def main() -> int:
             "error": err,
         }
         rows.append(row)
+        # Dump per-episode segments to a sidecar JSON so downstream DER
+        # computation (#992) can consume them without re-running diarization.
+        if r["segments"]:
+            (args.output / f"segments_{ep}.json").write_text(
+                json.dumps(
+                    {
+                        "backend": args.backend,
+                        "episode_id": ep,
+                        "model_name": r["model_name"],
+                        "segments": r["segments"],
+                    },
+                    indent=2,
+                ),
+                encoding="utf-8",
+            )
         err_tail = f" ERROR={err}" if err else ""
         ratio_str = f"{ratio:.2f}" if ratio is not None else "n/a"
         print(

@@ -248,7 +248,7 @@ for a research output.
 - `scripts/eval/score/whisper_dgx_vs_cloud_v1.py` (with `LOCAL_*_DEVICE` env overrides)
 - `scripts/eval/score/summary_vllm_predict_v1.py`
 - `infra/dgx/whisper-server/` (#953 deploy)
-- `infra/dgx/vllm-autoresearch/` (#928 prereq deploy)
+- `infra/dgx/vllm-autoresearch/` (#928 prereq deploy; moved to <https://github.com/chipi/agentic-ai-homelab/> on 2026-06-12)
 
 ## References
 

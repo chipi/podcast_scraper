@@ -133,6 +133,12 @@ No network, no Ollama daemon, minimal dependencies.
   `_TRANSCRIPTION_OPTIONS` / `_SUMMARY_OPTIONS` / `_PROFILE_PRESETS` registries
   for transcription + summary stages. Per-option `research_ref` links back to
   the eval report that justified each choice.
+  - **2026-06-13:** `_KG_OPTIONS`, `_NER_OPTIONS`, `_CLUSTERING_OPTIONS`
+    materialized (#979 / #980 / #981) from #853 + #904 + #906 eval reports.
+    `resolve_profile_to_settings` now emits `kg_extraction_source`,
+    `kg_max_topics`, `kg_max_entities`, `speaker_detector_provider`, and
+    `ner_model`; drift test extended to cover them.
+    `_GI_OPTIONS` stays empty pending #978 (v2-fixture GI sweep + report).
 - **Config profiles** (`config/profiles/`): YAML files with frozen settings.
   Currently downstream views — the autoresearch findings are materialized in
   the registry first and the YAMLs are updated to match. Drift between the

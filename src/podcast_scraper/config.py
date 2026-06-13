@@ -1347,16 +1347,18 @@ class Config(BaseModel):
             "faster-whisper-server which takes HF repo IDs."
         ),
     )
-    diarization_provider: Literal["local", "tailnet_dgx"] = Field(
+    diarization_provider: Literal["local", "tailnet_dgx", "gemini"] = Field(
         default="local",
         alias="diarization_provider",
         description=(
-            "Diarization backend (#926). ``local`` runs pyannote.audio in-process on "
-            "the pipeline host (laptop / prod VPS). ``tailnet_dgx`` POSTs audio to the "
-            "DGX-hosted pyannote service on dgx_diarize_port and gets speaker turns "
-            "back over the tailnet. Falls back to local pyannote when DGX is "
-            "unreachable so the pipeline never hard-fails on diarize. Default "
-            "``local`` keeps behavior backwards-compatible."
+            "Diarization backend (#926, #962). ``local`` runs pyannote.audio in-process "
+            "on the pipeline host (laptop / prod VPS). ``tailnet_dgx`` POSTs audio to "
+            "the DGX-hosted pyannote service on dgx_diarize_port and gets speaker turns "
+            "back over the tailnet. ``gemini`` sends audio to Gemini's 2.5 audio API "
+            "and parses speaker turns from the structured-JSON response — the cloud_* "
+            "profile path that needs no local pyannote install. Falls back to local "
+            "pyannote when DGX is unreachable so the pipeline never hard-fails on "
+            "diarize. Default ``local`` keeps behavior backwards-compatible."
         ),
     )
     dgx_diarize_port: int = Field(
@@ -2397,6 +2399,31 @@ class Config(BaseModel):
         description=(
             "Optional episode cadence for interim (in-run) topic-clustering checkpoints. "
             "``None`` uses orchestration defaults; ``0`` disables interim checkpoints."
+        ),
+    )
+    topic_cluster_threshold: float = Field(
+        default=0.75,
+        ge=0.0,
+        le=1.0,
+        alias="topic_cluster_threshold",
+        description=(
+            "Minimum mean cosine similarity for merging topic clusters in "
+            "``search/topic_clusters.py``. Pareto-optimal at 0.75 on v2 fixtures per "
+            "EVAL_FIXTURES_V2_TIER1_TUNING_2026_06_08. Lower values surface near-singleton "
+            "parents without adding cross-feed value; higher values collapse cross-feed "
+            "clusters. Materialized in the registry as ``topic_clusters_default_0_75``."
+        ),
+    )
+    insight_cluster_threshold: float = Field(
+        default=0.75,
+        ge=0.0,
+        le=1.0,
+        alias="insight_cluster_threshold",
+        description=(
+            "Minimum mean cosine similarity for merging insight clusters in "
+            "``search/insight_clusters.py``. Defaults to 0.75 to match the topic-cluster "
+            "default; conceptually independent and may be tuned separately when "
+            "insight-side autoresearch motivates it."
         ),
     )
     vector_index_path: Optional[str] = Field(

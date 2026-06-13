@@ -13,7 +13,7 @@
 The DGX hosts two serving stacks for local LLM inference:
 
 - **Ollama** (port 11434) — what the #932/#949 G-Eval finale crowned `qwen3.5:35b` on. Generalist, multi-model, fast.
-- **vLLM** (port 8003, new in #928 / `infra/dgx/vllm-autoresearch/`) — NVIDIA-prebuilt server. Standard inference target outside of Ollama land.
+- **vLLM** (port 8003, new in #928 / `infra/dgx/vllm-autoresearch/` — moved to <https://github.com/chipi/agentic-ai-homelab/> on 2026-06-12) — NVIDIA-prebuilt server. Standard inference target outside of Ollama land.
 
 The autoresearch question was **whether a vLLM-served alternative
 beats Ollama qwen3.5:35b on local summary quality**. This eval is the
@@ -110,8 +110,10 @@ default is validated as the right local summary champion.
 ## What this DOES change
 
 1. **vLLM serving path is now operational** on the DGX (port 8003,
-   `infra/dgx/vllm-autoresearch/`). Future autoresearch can swap in
-   different models without redeploying infra.
+   `infra/dgx/vllm-autoresearch/` — moved to
+   <https://github.com/chipi/agentic-ai-homelab/> on 2026-06-12).
+   Future autoresearch can swap in different models without
+   redeploying infra.
 2. **R1-Distill is documented as unsuitable for drop-in summarization**
    — anyone tempted to swap to it should fix the reasoning-suppression
    prompt first.
@@ -436,11 +438,11 @@ and quality-equivalent, so it stays the default.
 - `data/eval/configs/finale/finale_928_cell_c_qwen36_vllm_vs_ollama_2026_06.yaml` — Cell C finale config
 - `data/eval/runs/finale/finale_928_summary_dgx_local_2026_06/finale_report.{json,md}` — parent verdict
 - `data/eval/runs/finale/finale_928_cell_c_qwen36_vllm_vs_ollama_2026_06/finale_report.{json,md}` — Cell C verdict
-- `infra/dgx/vllm-autoresearch/` — vLLM service the eval ran against
+- `infra/dgx/vllm-autoresearch/` — vLLM service the eval ran against (moved to <https://github.com/chipi/agentic-ai-homelab/> on 2026-06-12)
 
 ## References
 
 - Issue: #928
 - Parent epic: #927 (DGX-vs-cloud autoresearch programme)
 - Finale framework (reused): #932 / #949
-- vLLM-on-DGX deploy: this PR, `infra/dgx/vllm-autoresearch/` (originally pinned by #928)
+- vLLM-on-DGX deploy: this PR, `infra/dgx/vllm-autoresearch/` (originally pinned by #928; moved to <https://github.com/chipi/agentic-ai-homelab/> on 2026-06-12)
