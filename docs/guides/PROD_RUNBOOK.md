@@ -450,13 +450,15 @@ canonical way to free the GPU.
 **GB10 unified-memory cap:** `gpu-memory-utilization=0.75` is the working ceiling on the
 GB10 (121 GiB unified CPU+GPU). `0.92` OOM-crashes the host. The compose default
 (`agentic-ai-homelab/infra/vllm/coder-next/docker-compose.yml`, operator's IDE vLLM —
-NOT a podcast_scraper resource) is `${VLLM_GPU_MEM_UTIL:-0.75}`. Any future
-`vllm-autoresearch` deployment in homelab should inherit the same cap.
+NOT a podcast_scraper resource) is `${VLLM_GPU_MEM_UTIL:-0.75}`. As of 2026-06-14 the
+sibling `vllm-autoresearch` stack (`agentic-ai-homelab/infra/vllm/autoresearch/`,
+`gpu-mode-swap.sh research` slot) is live on the same cap.
 
 **Open follow-ups (do not block #927/#931 closure):**
 
-- **#996** — Characterize the catastrophic-tail failure rate (N=1 today; operator rule
-  covers the risk regardless).
+- **#996** — Characterize the catastrophic-tail failure rate against the autoresearch
+  vLLM (N=1 today against a coder-next stand-in; the autoresearch stack is now live
+  so #996 is actionable). Operator rule covers the risk regardless of the rate.
 - **#997** — Benchmark Gemini speaker-detector vs pyannote on the v2 bed (validates the
   `cloud_*` profile's assertion; doesn't affect `cloud_with_dgx_primary`).
 

@@ -294,8 +294,9 @@ for the underlying evidence.
 **Also corrected this re-run:** vLLM `gpu-memory-utilization=0.75`
 is now the GB10 floor (`0.92` OOM-crashes the host because of the
 unified CPU+GPU pool). Compose default is now
-`VLLM_GPU_MEM_UTIL:-0.75` upstream in the homelab repo (coder-next; any
-future autoresearch stack should inherit the same cap). The 2026-06-11
+`VLLM_GPU_MEM_UTIL:-0.75` upstream in the homelab repo (coder-next; the
+autoresearch stack shipped 2026-06-14 at homelab
+`infra/vllm/autoresearch/` and inherits the same cap). The 2026-06-11
 SC3 numbers were attributed at writing time to Qwen3.6-35B-A3B; today's
 numbers ran under `0.75` against Qwen3-Coder-Next-FP8 — same GB10 GPU,
 same contention shape, attribution clarified.
@@ -303,8 +304,14 @@ same contention shape, attribution clarified.
 **Open follow-ups filed (do not block this synthesis):**
 
 - **#996** — Characterize the catastrophic-tail failure rate (N≥20
-  episodes, both vLLM models). N=1 today; the operational rule covers
-  the risk but the actual rate is unknown.
+  episodes) against the autoresearch vLLM. As of 2026-06-14 the
+  autoresearch stack is live at `:8003` on the DGX (homelab repo
+  `infra/vllm/autoresearch/`, model `Qwen/Qwen3-30B-A3B-Instruct-2507`),
+  so this is now actionable rather than blocked. N=1 today; the
+  operational rule covers the risk but the actual rate is unknown.
+  Homelab issues `#1` (MoE config), `#2` (vLLM image bump),
+  `#3` (model size drift) document the residual caveats to record when
+  #996 numbers land.
 - **#997** — Benchmark Gemini speaker-detector quality vs pyannote on
   the v2 fixture bed. The 3rd-candidate gap in #930 (Gemini provider
   was undeployed when #930 ran; #962 shipped it but the quality

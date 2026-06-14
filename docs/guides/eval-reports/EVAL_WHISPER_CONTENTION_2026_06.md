@@ -249,11 +249,17 @@ mean 5.8s/req, max **335.2s** — vLLM tail latency blew out too.
    scenario we can't distinguish "different vLLM workload shape causes
    it" from "rare event we happened not to hit." **Important — this
    measurement reflects coder-next sweep behavior, not the project's
-   autoresearch sweep**: when an autoresearch vLLM ships in homelab,
-   re-measure. **Characterization follow-up: #996** is blocked on the
-   autoresearch stack deploying; until then, coder-next data is the
-   best stand-in we have, but the failure rate may be model/workload
-   specific.
+   autoresearch sweep.** Update 2026-06-14: the autoresearch vLLM stack
+   shipped at `agentic-ai-homelab/infra/vllm/autoresearch/` (model
+   `Qwen/Qwen3-30B-A3B-Instruct-2507`, port `:8003`, see the
+   `gpu-mode-swap.sh research` slot). **Characterization follow-up:
+   #996** is now actionable against the correct target — re-run
+   scenario 3 with N ≥ 20 against `:8003` and amend this report when
+   the numbers land. Caveats to record in the #996 amendment: model
+   size drift (30 B vs original 35 B baseline; homelab issue #3), MoE
+   config not GB10-tuned (homelab issue #1), vLLM image version drift
+   (homelab issue #2). The coder-next numbers above are no longer the
+   best stand-in — they're now retired-as-superseded-once-#996-runs.
 3. **Mean realtime × halved under SC3** (4.4× → 2.0×) — consistent with
    the 2026-06-11 SC1→SC3 drop (5.1× → 1.84×). Latency-under-load is
    reproducible across vLLM models.
