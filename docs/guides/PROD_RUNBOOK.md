@@ -448,6 +448,13 @@ GB10 (121 GiB unified CPU+GPU). `0.92` OOM-crashes the host. The compose default
 `${VLLM_GPU_MEM_UTIL:-0.75}` — override transiently via env var for eval / contention tests
 on a quieter box only.
 
+**Open follow-ups (do not block #927/#931 closure):**
+
+- **#996** — Characterize the catastrophic-tail failure rate (N=1 today; operator rule
+  covers the risk regardless).
+- **#997** — Benchmark Gemini speaker-detector vs pyannote on the v2 bed (validates the
+  `cloud_*` profile's assertion; doesn't affect `cloud_with_dgx_primary`).
+
 ### Where to look first
 
 | Symptom | Where |

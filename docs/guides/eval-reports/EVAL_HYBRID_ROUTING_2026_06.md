@@ -294,3 +294,15 @@ SC3 numbers ran under `0.92` against Qwen3.6-35B-A3B; today's numbers
 ran under `0.75` against Qwen3-Coder-Next-FP8 — different config,
 similar mean behaviour, but the catastrophic-tail risk is now
 documented.
+
+**Open follow-ups filed (do not block this synthesis):**
+
+- **#996** — Characterize the catastrophic-tail failure rate (N≥20
+  episodes, both vLLM models). N=1 today; the operational rule covers
+  the risk but the actual rate is unknown.
+- **#997** — Benchmark Gemini speaker-detector quality vs pyannote on
+  the v2 fixture bed. The 3rd-candidate gap in #930 (Gemini provider
+  was undeployed when #930 ran; #962 shipped it but the quality
+  comparison was never run). Doesn't affect `cloud_with_dgx_primary`
+  routing — only validates the `cloud_*` profile's
+  `speaker_detector_provider: gemini` assertion.

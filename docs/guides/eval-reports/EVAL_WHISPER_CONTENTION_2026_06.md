@@ -234,7 +234,9 @@ mean 5.8s/req, max **335.2s** — vLLM tail latency blew out too.
    because Qwen3.6-35B-A3B had a different request-shape than
    Qwen3-Coder-Next-FP8, but with N=5 episodes per scenario we can't
    distinguish "new model causes it" from "rare event we happened not
-   to hit before."
+   to hit before." **Characterization follow-up: #996** (N≥20 sweep
+   across both vLLM models to put a numeric ceiling on the failure
+   rate).
 3. **Mean realtime × halved under SC3** (4.4× → 2.0×) — consistent with
    the 2026-06-11 SC1→SC3 drop (5.1× → 1.84×). Latency-under-load is
    reproducible across vLLM models.
