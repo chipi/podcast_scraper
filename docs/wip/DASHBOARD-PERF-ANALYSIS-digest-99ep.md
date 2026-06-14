@@ -1,5 +1,14 @@
 # Dashboard performance analysis — digest topic bands on a 99-episode corpus
 
+> **RESOLVED → [ADR-099](../adr/ADR-099-process-scoped-search-index-pooling.md).**
+> Deeper profiling refined the root cause below: the dominant cost is **not** the
+> number of topic bands — it is that **every lance query rebuilds the
+> `LanceDBBackend` from scratch** (open DB + load IVF/FTS indices, ~0.8 s) while
+> the actual search on a warm table is ~7 ms. This slows *all* lance search
+> (`/api/search` ~0.8 s too), and the concurrent cold-init is what SIGSEGV'd
+> serve-api. The fix is process-scoped index-handle pooling — see ADR-099. The
+> original band-level analysis is kept below as the measurement trail.
+
 Surfaced while running the Tier-3 validation walk against the re-diarized prod-v2
 corpus (99 eps). Validation V4 (Dashboard topic-cluster chip) timed out at 30s;
 manual load of the Intelligence tab took ~12s; and an earlier concurrent

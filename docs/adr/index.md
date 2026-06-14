@@ -117,11 +117,12 @@ still rolling out; **No** = not started (including accepted ADRs waiting on impl
 | [ADR-096](ADR-096-dgx-spark-prod-primary-with-fallback.md) | DGX Spark in prod — primary-with-fallback contract | Accepted | [RFC-089](../rfc/RFC-089-dgx-spark-tailnet-integration.md) | Prod may use DGX when each stage names a cloud fallback; v1 stage is Whisper | Partial |
 | [ADR-097](ADR-097-self-hosted-gha-runner-policy.md) | GitHub Actions self-hosted runner policy on public repos | Accepted | [RFC-089](../rfc/RFC-089-dgx-spark-tailnet-integration.md) | Ephemeral runner + fork approval + workflow allowlist before `dgx-spark` | Partial |
 | [ADR-098](ADR-098-embedding-provider-profile-axis.md) | Embedding provider as a profile axis, supersede RFC-089 §D4 | Accepted | [RFC-089](../rfc/RFC-089-dgx-spark-tailnet-integration.md) (§D4 superseded) | `vector_embedding_provider` literal (sentence_transformers \| ollama); shim deleted; default stays `sentence_transformers` everywhere — empirical A/B showed MiniLM beats nomic under fair chunking | Partial |
+| [ADR-099](ADR-099-process-scoped-search-index-pooling.md) | Process-scoped search-index pooling — build the index handle once, reuse it | Proposed | [RFC-090](../rfc/RFC-090-hybrid-retrieval.md) | A new LanceDB backend was opened per query (~0.8s lifecycle vs ~7ms search); pool index handles per `index_dir`, mtime/version-invalidated + lock-guarded; ~40× per query, fixes the concurrent-cold-init segfault; lance-preferred/FAISS-fallback unchanged | No |
 
 ## Gap analysis {:#gaps}
 
-**Counts (reconcile when adding ADRs):** **98** files under `docs/adr/ADR-*.md` (ADR-001–ADR-098;
-numbering has historical gaps). From the index table: **2** **Proposed** (**ADR-055**, **ADR-056**),
+**Counts (reconcile when adding ADRs):** **99** files under `docs/adr/ADR-*.md` (ADR-001–ADR-099;
+numbering has historical gaps). From the index table: **3** **Proposed** (**ADR-055**, **ADR-056**, **ADR-099**),
 **7** **Accepted** with **Code = No** (**ADR-054**, **ADR-058**, **ADR-059**, **ADR-089**, **ADR-090**, **ADR-091**), **5** **Accepted** with
 **Code = Partial** (**ADR-031**, **ADR-047**, **ADR-096**, **ADR-097**, **ADR-098**). **Accepted** means ratified, not necessarily shipped.
 

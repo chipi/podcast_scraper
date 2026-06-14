@@ -8,7 +8,7 @@
   - `docs/prd/PRD-031-search.md` — Search product surface
   - `docs/prd/PRD-021-semantic-corpus-search.md` — predecessor (FAISS)
 - **Related ADRs**:
-  - _(none yet)_
+  - [ADR-099](../adr/ADR-099-process-scoped-search-index-pooling.md) — serving lifecycle: pool the index handle per `index_dir` instead of opening a new LanceDB backend per query.
 - **Related RFCs**:
   - `docs/rfc/RFC-091-kg-proximity-signal.md` — third RRF signal (additive)
   - `docs/rfc/RFC-092-ml-query-router.md` — ML query router (additive)
