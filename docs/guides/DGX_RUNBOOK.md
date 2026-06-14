@@ -310,6 +310,86 @@ response to anything. The kernel is alive but user session is dead.
 4. Update the safe-stacking calculation in this section if the
    resident-size estimates above were off.
 
+## Networking — long-blocking HTTP over Tailscale (#956)
+
+The DGX is reached over a Tailscale tunnel. Long-blocking sync HTTP calls
+(whisper, pyannote, vLLM) against the DGX over that tunnel will eventually
+**hang after the server has already returned 200 OK** — the response body
+never reaches the laptop and the TCP connection stays `ESTABLISHED`
+indefinitely. Surfaced during #929, codified as the failure mode this
+section addresses.
+
+### Why it happens
+
+Three things compound:
+
+1. **Tailscale switches paths mid-connection** (DERP relay → direct UDP →
+   re-relay) when keepalives go quiet. The TCP layer doesn't know the
+   underlying path changed; packet loss during the switch loses the response.
+2. **macOS TCP keepalive default is 2 hours.** The kernel doesn't probe an
+   idle socket for 2 hr before declaring it dead — so a lost mid-response
+   packet leaves the client waiting "forever" from a user perspective.
+   Linux defaults to ~75 s; the laptop side is the harsh one.
+3. **`requests`-style `timeout=N` is a wall-clock budget**, not per-read.
+   Bytes-arrive-then-stop never trips it.
+
+### What prod consumers do
+
+Every prod DGX consumer (`whisper_provider.py`, `diarization_provider.py`)
+uses `src/podcast_scraper/providers/tailnet_dgx/resilience.py`, which
+applies the three defences:
+
+| Layer | What it does | Knob |
+| --- | --- | --- |
+| `dgx_http_client` | httpx client with `(connect, read)` per-read timeout, `Connection: close`, SO_KEEPALIVE + TCP_KEEPALIVE at ~30 s | every per-request call |
+| `run_with_watchdog` | hard process-side wall-clock deadline that bypasses httpx's stuck-read state (covers the case where even per-read timeout doesn't fire because bytes are trickling) | every long-blocking call |
+| `CircuitBreaker` | once DGX has failed N times in a window, open a cooldown so callers skip the per-request timeout tax on a wedged batch; half-open probe re-tests for self-heal | every consumer's call site |
+| `effective_timeout_sec` | duration-scale the request timeout from audio length so 90-min episodes don't false-fail under brief contention | per-request `(duration, base, per_min)` |
+
+Coverage proof: unit tests at
+`tests/unit/podcast_scraper/providers/test_tailnet_dgx_resilience.py`
+include `test_raises_timeout_when_overrunning` (watchdog fires) and
+`test_client_sets_connection_close_and_is_closeable` (httpx config).
+`test_tailnet_dgx_diarization.py` adds `test_dgx_raises_then_falls_back`,
+`test_timeout_does_not_requeue_and_falls_back`,
+`test_open_breaker_skips_dgx_entirely`,
+`test_watchdog_hard_deadline_forces_fallback` (#954 — the diarization
+analog with mandatory local-pyannote fallback).
+
+### Diarization-specific config knobs (#954)
+
+| Config field | Default | Purpose |
+| --- | --- | --- |
+| `dgx_diarize_request_timeout_sec` | `180.0` | Base request budget for DGX diarization calls (duration-scaled per audio minute on top of this). |
+| `diarization_provider` | `local` | `local` / `tailnet_dgx` / `gemini`. `tailnet_dgx` enables the resilient client below; falls back to in-process pyannote on persistent failure. |
+
+`TailnetDgxDiarizationProvider` (`src/podcast_scraper/providers/tailnet_dgx/diarization_provider.py`)
+holds a process-wide `threading.Lock` so concurrent callers serialise on a
+single in-flight DGX request — piling on a contended shared GPU just
+multiplies the slowdown. On retry-after-transient or hard failure, the
+provider falls back to local in-process pyannote (LOCAL not cloud,
+because diarization audio shouldn't leave the trust boundary).
+
+### What eval scripts do NOT do
+
+`scripts/eval/score/whisper_dgx_vs_cloud_v1.py` and
+`scripts/eval/score/diarization_dgx_vs_cloud_v1.py` use bare `requests.post`
+with a flat wall-clock timeout. They were the original repro of the failure
+mode. They use a `perl alarm` shell wrapper as a kill switch
+(`scripts/eval/whisper_contention_perep.sh`) so a single-episode hang
+doesn't kill the whole sweep — fine for eval, NOT a pattern to ship to
+prod. If you write a new eval-class script that targets the DGX, prefer
+importing `dgx_http_client` from the resilience layer rather than reusing
+the eval pattern.
+
+### When to design Tier-1 (async) vs Tier-2 (sync-with-resilience)
+
+Tier-2 (what we have today) covers the failure mode for current load. For
+any future DGX service whose typical response time exceeds **30 s**, prefer
+a Tier-1 design from the start: `POST /jobs` → `202` → `{jobId, statusUrl}` →
+poll or SSE for result. Eliminates the long-blocking socket entirely.
+Tradeoff: every server needs a job queue.
+
 ## Make helper
 
 ```bash

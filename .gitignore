@@ -205,6 +205,9 @@ autoresearch/**/eval/autoresearch_cfg_*.yaml
 autoresearch/logs/
 logs/
 
+# pyinfra deploy debug log (transient per `make dgx-deploy` run)
+infra/dgx/converge/pyinfra-debug.log
+
 # Claude Code local settings (per-clone permission overrides)
 .claude/settings.json
 # Harness scheduled-task state — per-session, not project state.

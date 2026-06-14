@@ -313,7 +313,11 @@ class TestExplore:
 class TestAppFactory:
     def test_static_dir_false_no_mount(self, corpus: Path) -> None:
         app = create_app(corpus, static_dir=False)
-        route_names = [r.name for r in app.routes]
+        # Newer starlette wraps `include_router` results in `_IncludedRouter`,
+        # which doesn't expose `.name`. Mounts (the case we care about — the
+        # viewer static mount) still have `.name`. `getattr` keeps the test
+        # forward-compatible without changing what it asserts.
+        route_names = [getattr(r, "name", None) for r in app.routes]
         assert "viewer" not in route_names
 
     def test_output_dir_stored_on_state(self, corpus: Path) -> None:
