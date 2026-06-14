@@ -1221,6 +1221,26 @@ _PROFILE_PRESETS: Dict[str, ProfilePreset] = {
         gi="provider_n12_grounded_bundled",
         notes="Higher resident memory budget; same registry choices as balanced today.",
     ),
+    "prod_dgx_full_with_fallback": ProfilePreset(
+        name="prod_dgx_full_with_fallback",
+        transcription="tailnet_dgx_whisper_openai",  # #929 winner + cloud Whisper fallback
+        summary="ollama_qwen35_35b",  # #928 Cell C winner on DGX
+        kg="provider_n10_15",
+        ner="gemini_speaker_detector",  # sub-cent, better than spacy on names
+        clustering="topic_clusters_default_0_75",
+        gi="provider_n12_grounded_bundled",
+        notes=(
+            "Prod-ready all-DGX (#923): whisper + summary + GI + KG on the GB10, "
+            "Gemini for the cheap speaker-detect, cloud Gemini as the summary "
+            "degradation_policy.fallback_provider_on_failure. Marginal cost ≈ $0 "
+            "vs cloud_with_dgx_primary's ~$0.85/mo at ~100ep/mo. "
+            "OPERATIONAL GATE: the #963 / #996 catastrophic-tail risk applies — "
+            "do not run autoresearch sweeps on coder-next vLLM concurrent with a "
+            "pipeline run on this profile. The transcription and summary stages "
+            "are sequential per-episode so on-profile they don't overlap, but "
+            "external vLLM sweeps will."
+        ),
+    ),
     "cloud_quality": ProfilePreset(
         name="cloud_quality",
         transcription="deepgram_nova_3",
