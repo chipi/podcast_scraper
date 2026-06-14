@@ -21,13 +21,16 @@ class FaissToLanceMigration(Migration):
     description = "Historical FAISS→LanceDB migration; no-op since FAISS was retired (#995)"
 
     def plan(self, ctx: MigrationContext) -> str:
+        """Describe the step: a no-op since FAISS was retired (nothing to migrate)."""
         return "FAISS retired (#995); nothing to migrate (no-op)."
 
     def apply(self, ctx: MigrationContext) -> MigrationResult:
+        """Record the step as applied without touching the corpus (no FAISS to migrate)."""
         ctx.log("FAISS retired (#995); nothing to migrate")
         return MigrationResult(
             self.id, applied=True, dry_run=ctx.dry_run, message="FAISS retired — no-op"
         )
 
     def verify(self, ctx: MigrationContext) -> Tuple[bool, str]:
+        """Always verify ok: the no-op leaves nothing to check."""
         return True, "FAISS retired (#995); no-op"
