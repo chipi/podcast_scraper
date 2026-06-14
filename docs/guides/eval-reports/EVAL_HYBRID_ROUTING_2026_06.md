@@ -261,11 +261,13 @@ for a research output.
 
 ---
 
-## 2026-06-14 addendum — sweep-vs-transcription overlap is now a hard rule
+## 2026-06-14 addendum — any-vLLM-vs-transcription overlap is now a hard rule
 
-The 2026-06-14 #963 re-run on the new homelab vLLM config
-(`Qwen/Qwen3-Coder-Next-FP8` at `gpu-memory-utilization=0.75`)
-turned up a failure mode that the 2026-06-11 re-run didn't see:
+The 2026-06-14 #963 re-run, measured against the operator's **coder-next**
+vLLM stack (`Qwen/Qwen3-Coder-Next-FP8` at `gpu-memory-utilization=0.75`;
+see `agentic-ai-homelab/infra/vllm/coder-next/`) **as a stand-in for the
+project's planned-but-not-deployed `vllm-autoresearch`** turned up a
+failure mode that the 2026-06-11 re-run didn't see:
 
 - SC3 (active vLLM serving) caused **one of five** episodes
   (`p03_e01`) to collapse to **WER 1.000 at an 18× slowdown** —
@@ -277,10 +279,13 @@ turned up a failure mode that the 2026-06-11 re-run didn't see:
 
 **Net effect on the routing recommendation.** The
 `cloud_with_dgx_primary` profile defaults stay the right shape —
-quality is fine when whisper + autoresearch don't overlap. But the
-operator-side rule **"do not overlap autoresearch sweeps with
+quality is fine when whisper + any vLLM don't overlap. But the
+operator-side rule **"do not overlap *any* active vLLM serving
+(coder-next, autoresearch, or other future stacks) with
 transcription windows"** is now a load-bearing piece of the
-hybrid-routing decision, not advisory.
+hybrid-routing decision, not advisory. The prior draft framed this as
+autoresearch-specific; corrected here because the measurement target
+was coder-next.
 
 The PROD_RUNBOOK §"Provider model selection — DGX vs cloud per stage"
 section codifies this rule and points back to the contention report
@@ -289,11 +294,11 @@ for the underlying evidence.
 **Also corrected this re-run:** vLLM `gpu-memory-utilization=0.75`
 is now the GB10 floor (`0.92` OOM-crashes the host because of the
 unified CPU+GPU pool). Compose default is now
-`VLLM_GPU_MEM_UTIL:-0.75` upstream in the homelab repo. The 2026-06-11
-SC3 numbers ran under `0.92` against Qwen3.6-35B-A3B; today's numbers
-ran under `0.75` against Qwen3-Coder-Next-FP8 — different config,
-similar mean behaviour, but the catastrophic-tail risk is now
-documented.
+`VLLM_GPU_MEM_UTIL:-0.75` upstream in the homelab repo (coder-next; any
+future autoresearch stack should inherit the same cap). The 2026-06-11
+SC3 numbers were attributed at writing time to Qwen3.6-35B-A3B; today's
+numbers ran under `0.75` against Qwen3-Coder-Next-FP8 — same GB10 GPU,
+same contention shape, attribution clarified.
 
 **Open follow-ups filed (do not block this synthesis):**
 

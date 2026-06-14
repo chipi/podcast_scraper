@@ -173,13 +173,28 @@ Each scenario subdir contains:
 
 ---
 
-## 2026-06-14 re-run — new vLLM model + GB10 unified-memory cap
+## 2026-06-14 re-run — different vLLM model + GB10 unified-memory cap
+
+**Attribution caveat — read first.** This re-run measured the operator's
+**`vllm-coder-next`** stack (`Qwen/Qwen3-Coder-Next-FP8` on port `:9000`,
+homelab repo `infra/vllm/coder-next/`) as a stand-in for "vLLM contention."
+That is **not** the project's intended autoresearch model. The
+podcast_scraper-side `vllm-autoresearch` stack (intended Qwen3.6-35B-A3B)
+has not been deployed in homelab as of 2026-06-14 — `infra/vllm/` contains
+only `coder-next/`, `openwebui/`, and `template/`. Coder-next was measured
+because it was the only deployed vLLM. The numbers below are still
+informative (any vLLM competes for the same GB10 GPU as whisper), but
+attribution to "the autoresearch model" was wrong in the prior draft and
+has been corrected throughout this section.
 
 **Why a re-run.** Two things changed since the 2026-06-11 numbers above:
 
-1. **vLLM model switched** — Qwen3.6-35B-A3B → `Qwen/Qwen3-Coder-Next-FP8`
-   (homelab repo migration #975; the FP8 model is what the operator
-   actually uses day-to-day for autoresearch).
+1. **vLLM target switched** — measured against the operator's coder-next
+   stack (`Qwen/Qwen3-Coder-Next-FP8`) rather than the project's intended
+   autoresearch model (Qwen3.6-35B-A3B). The 2026-06-11 run cited the
+   project model, but in practice both runs hit the only-deployed vLLM
+   on the box; the *model* difference is real, the *purpose* attribution
+   was wrong.
 2. **vLLM `gpu-memory-utilization` lowered** — `0.92` → `0.75` after the
    `0.92` setting OOM-crashed the host during this very re-test. GB10
    has a unified CPU+GPU pool (121 GiB total), so `0.92` claims ≈ 112 GB
@@ -197,11 +212,11 @@ post-#966 whisper image landed on the DGX before scenario 1 re-baselined.
 
 | | 2026-06-11 run | 2026-06-14 re-run |
 | --- | --- | --- |
-| vLLM model | Qwen3.6-35B-A3B | **Qwen/Qwen3-Coder-Next-FP8** |
+| vLLM stack | (cited as autoresearch — wrong; measured coder-next) | **coder-next (`Qwen/Qwen3-Coder-Next-FP8`)** |
 | vLLM mem util | 0.92 | **0.75** (GB10-safe) |
 | Whisper image | post-#929 | **post-#929 + post-#966 (re-deployed today)** |
 | Fixtures | v2 (5 ep) | v2 (5 ep) — same |
-| Load generators | `vllm_summary_loadgen.sh` | `_dgx_vllm_load_generator.sh` (this branch) |
+| Load generators | `vllm_summary_loadgen.sh` (coder-next-shaped) | `_dgx_vllm_load_generator.sh` (this branch, coder-next-shaped) |
 
 ### Re-run numbers
 
@@ -230,13 +245,15 @@ mean 5.8s/req, max **335.2s** — vLLM tail latency blew out too.
    WER** under SC3 — an 18× slowdown and complete transcription
    collapse. The other 4 episodes degraded gracefully (WER +0–6pp,
    latency 2–3.7× slower) consistent with the 2026-06-11 picture. This
-   tail risk did **not** appear in the 2026-06-11 SC3 run — likely
-   because Qwen3.6-35B-A3B had a different request-shape than
-   Qwen3-Coder-Next-FP8, but with N=5 episodes per scenario we can't
-   distinguish "new model causes it" from "rare event we happened not
-   to hit before." **Characterization follow-up: #996** (N≥20 sweep
-   across both vLLM models to put a numeric ceiling on the failure
-   rate).
+   tail risk did **not** appear in the prior SC3 run, but with N=5 per
+   scenario we can't distinguish "different vLLM workload shape causes
+   it" from "rare event we happened not to hit." **Important — this
+   measurement reflects coder-next sweep behavior, not the project's
+   autoresearch sweep**: when an autoresearch vLLM ships in homelab,
+   re-measure. **Characterization follow-up: #996** is blocked on the
+   autoresearch stack deploying; until then, coder-next data is the
+   best stand-in we have, but the failure rate may be model/workload
+   specific.
 3. **Mean realtime × halved under SC3** (4.4× → 2.0×) — consistent with
    the 2026-06-11 SC1→SC3 drop (5.1× → 1.84×). Latency-under-load is
    reproducible across vLLM models.
@@ -247,16 +264,18 @@ mean 5.8s/req, max **335.2s** — vLLM tail latency blew out too.
 ### Operational implications (2026-06-14)
 
 - **Hybrid-routing rule of thumb (feeds #927/#929/#930/#931 synthesis)**:
-  if an autoresearch sweep is active on vLLM, treat the DGX whisper
-  endpoint as *latency-undefined* (95th-percentile risk includes a
-  catastrophic single-episode failure). For batch transcription
-  windows, **gate autoresearch sweeps behind a queue** rather than
-  letting them run concurrently. The provider resilience layer
-  (`tailnet_dgx.resilience`, #956) catches the timeout case — the
-  client falls back to cloud — but the failure mode here is a
-  successful HTTP response containing wrong content (WER = 1.0), not
-  a timeout. We can't safely depend on the resilience layer alone for
-  this; gating remains the operator-side rule.
+  if **any vLLM is actively serving** on the GB10 (whether coder-next
+  for the operator's IDE, an autoresearch sweep, or any other future
+  stack on the same GPU), treat the DGX whisper endpoint as
+  *latency-undefined* (95th-percentile risk includes a catastrophic
+  single-episode failure). For batch transcription windows, **gate
+  vLLM serving behind a queue** rather than letting them run
+  concurrently. The provider resilience layer (`tailnet_dgx.resilience`,
+  #956) catches the timeout case — the client falls back to cloud —
+  but the failure mode here is a successful HTTP response containing
+  wrong content (WER = 1.0), not a timeout. We can't safely depend on
+  the resilience layer alone for this; gating remains the
+  operator-side rule.
 - **Whisper-on-DGX is still viable** for the operator's day-to-day
   pattern (transcription during idle vLLM = 4.4× realtime, no quality
   loss vs SC1). The catastrophic case is sweep-overlap-specific.

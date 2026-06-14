@@ -426,8 +426,14 @@ panel with `--calls N --concurrency C` scaled to the production operating point 
 - [EVAL_SUMMARY_DGX_LOCAL_2026_06.md](eval-reports/EVAL_SUMMARY_DGX_LOCAL_2026_06.md) — #928 Cell C summary parity.
 - [EVAL_WHISPER_CONTENTION_2026_06.md](eval-reports/EVAL_WHISPER_CONTENTION_2026_06.md) — #963 contention re-tests (2026-06-11 + 2026-06-14).
 
-**Operator-gated rule: do not overlap autoresearch sweeps with transcription windows.**
-The 2026-06-14 #963 re-run found that under active vLLM serving on GB10:
+**Operator-gated rule: do not overlap *any* active vLLM serving (coder-next,
+autoresearch sweeps, or any future stack on the GB10 GPU) with transcription
+windows.** The 2026-06-14 #963 re-run was measured against the operator's
+**coder-next** vLLM (`Qwen/Qwen3-Coder-Next-FP8` on `:9000` — see
+`agentic-ai-homelab/infra/vllm/coder-next/`) because the project's intended
+`vllm-autoresearch` stack is not currently deployed in homelab. The numbers
+inform the rule (any vLLM competes for the same GB10 GPU) but the rule
+should not be read as autoresearch-specific:
 
 - Mean whisper latency drops from 4.4× realtime to 2.0× realtime.
 - One of five episodes hit a **catastrophic single-episode failure** (WER 1.000 at 18× slowdown).
@@ -436,17 +442,16 @@ The 2026-06-14 #963 re-run found that under active vLLM serving on GB10:
 The `tailnet_dgx` resilience layer (`#956`) catches *timeout* failure modes — falls back to
 the cloud provider on watchdog deadline + opens the circuit breaker on repeated errors. It
 does **not** catch "successful HTTP response containing wrong content" (the WER=1.000 case),
-so the sweep-vs-transcription overlap remains an **operator-gated rule**, not a client-side
-guarantee. In practice: gate autoresearch sweeps behind the transcription queue rather than
-letting them run concurrently. The DGX GPU mode toggle script
-(`/home/<user>/bin/gpu-mode-swap.sh` — operator-side) is the canonical way to free the GPU
-between modes.
+so the vLLM-vs-transcription overlap remains an **operator-gated rule**, not a client-side
+guarantee. In practice: idle vLLM (any stack) before starting a transcription window. The
+DGX GPU mode toggle script (`/home/<user>/bin/gpu-mode-swap.sh idle` — operator-side) is the
+canonical way to free the GPU.
 
 **GB10 unified-memory cap:** `gpu-memory-utilization=0.75` is the working ceiling on the
 GB10 (121 GiB unified CPU+GPU). `0.92` OOM-crashes the host. The compose default
-(`agentic-ai-homelab/infra/vllm/coder-next/docker-compose.yml`) is
-`${VLLM_GPU_MEM_UTIL:-0.75}` — override transiently via env var for eval / contention tests
-on a quieter box only.
+(`agentic-ai-homelab/infra/vllm/coder-next/docker-compose.yml`, operator's IDE vLLM —
+NOT a podcast_scraper resource) is `${VLLM_GPU_MEM_UTIL:-0.75}`. Any future
+`vllm-autoresearch` deployment in homelab should inherit the same cap.
 
 **Open follow-ups (do not block #927/#931 closure):**
 
