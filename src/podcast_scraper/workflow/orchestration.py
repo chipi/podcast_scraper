@@ -1638,7 +1638,7 @@ def _finalize_pipeline(
         cfg, pipeline_metrics, episodes, effective_output_dir, run_suffix
     )
     # Skip the import entirely when vector indexing is disabled. The
-    # ``search.indexer`` module pulls in numpy + faiss at load time, which
+    # ``search.indexer`` module pulls in numpy + the ML stack at load time, which
     # cloud-thin builds (``[llm]`` extras, ``vector_search: false``)
     # don't ship — without this guard the finalize step crashes with
     # ``ModuleNotFoundError: numpy`` despite the rest of the pipeline
@@ -1695,7 +1695,7 @@ def _maybe_build_topic_clusters_after_index(
     *,
     threshold: Optional[float] = None,
 ) -> None:
-    """Build ``search/topic_clusters.json`` when the FAISS index exists.
+    """Build ``search/topic_clusters.json`` when the LanceDB index exists.
 
     The full incremental pipeline always runs this after vector indexing for
     vector-search-enabled profiles. If the index file is missing, we log and
@@ -1706,12 +1706,10 @@ def _maybe_build_topic_clusters_after_index(
     ``None``, the builder's function-default applies — callers that don't
     have a Config (tests, ad-hoc scripts) keep working unchanged.
     """
-    from podcast_scraper.search.faiss_store import VECTORS_FILE
-
     index_dir = Path(output_dir).resolve() / "search"
-    vectors_path = index_dir / VECTORS_FILE
-    if not vectors_path.is_file():
-        logger.warning("topic-clusters: skipped (missing vector index at %s)", vectors_path)
+    lance_dir = index_dir / "lance_index"
+    if not (lance_dir.is_dir() and any(lance_dir.iterdir())):
+        logger.warning("topic-clusters: skipped (missing LanceDB index at %s)", lance_dir)
         pipeline_metrics.topic_clusters_built = False
         return
 

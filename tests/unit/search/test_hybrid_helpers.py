@@ -17,9 +17,9 @@ def test_lance_index_dir():
 def test_load_search_config_present_and_invalid(tmp_path, monkeypatch):
     cfg = tmp_path / "search.yaml"
     monkeypatch.setenv("PODCAST_SEARCH_CONFIG", str(cfg))
-    cfg.write_text("serving:\n  hybrid_enabled: true\nrouter:\n  mode: rules\n", encoding="utf-8")
+    cfg.write_text("backend: lancedb\nrouter:\n  mode: rules\n", encoding="utf-8")
     doc = hs._load_search_config()
-    assert doc["serving"]["hybrid_enabled"] is True and doc["router"]["mode"] == "rules"
+    assert doc["backend"] == "lancedb" and doc["router"]["mode"] == "rules"
 
     cfg.write_text(": : not yaml : :", encoding="utf-8")
     assert hs._load_search_config() == {}  # parse error → {}

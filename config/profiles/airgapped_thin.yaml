@@ -1,7 +1,7 @@
 # Profile: airgapped_thin — same isolation as ``airgapped``, lower RAM / startup cost
 #
 # No cloud APIs, no Ollama. Tuned for Docker stack tests and smaller machines while keeping the
-# same **GI / KG / FAISS** shape as packaged ``airgapped`` (summary bullets → GI/KG, grounded GIL).
+# same **GI / KG / search-index** shape as packaged ``airgapped`` (summary bullets → GI/KG, grounded GIL).
 #
 # Compared to ``airgapped``:
 # - Whisper ``tiny.en`` instead of ``medium.en`` (smaller download + VRAM/RAM footprint)

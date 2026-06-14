@@ -198,7 +198,7 @@ class TestAssessVectorIndexRun:
         (tmp_path / "search").mkdir()
         (tmp_path / "search" / "metadata.json").write_text("{}", encoding="utf-8")
         cfg = Config(rss="https://example.com/f.xml", output_dir=str(tmp_path), max_episodes=1)
-        cfg = cfg.model_copy(update={"vector_search": True, "vector_backend": "faiss"})
+        cfg = cfg.model_copy(update={"vector_search": True})
         ok, note = _assess_vector_index_run(tmp_path, cfg, episodes_processed=3, is_dry_run=False)
         assert ok is False
         assert "empty" in note

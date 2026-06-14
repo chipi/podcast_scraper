@@ -1,11 +1,14 @@
-"""End-to-end test of the real 0001 migration + CLI dispatch (#862).
+"""End-to-end test of the upgrade migration chain + CLI dispatch (#862, #995).
 
-Builds a tiny FAISS corpus, drives the actual ``podcast upgrade`` CLI path
-(parse → run → status → verify), and asserts the ledger + LanceDB index land.
+Builds a tiny corpus of artifacts (metadata + gi.json + transcript), drives the actual
+``podcast upgrade`` CLI path (parse → run → status → verify), and asserts the ledger +
+LanceDB index land. FAISS was retired (#995): 0001 is a no-op, 0002 builds the two-tier
+LanceDB index natively from the artifacts.
 """
 
 from __future__ import annotations
 
+import json
 import logging
 
 import pytest
@@ -13,9 +16,7 @@ import pytest
 pytestmark = pytest.mark.integration
 
 pytest.importorskip("lancedb")
-pytest.importorskip("faiss")
 
-from podcast_scraper.search.faiss_store import FaissVectorStore  # noqa: E402
 from podcast_scraper.upgrade.cli_handlers import parse_upgrade_argv, run_upgrade_cli  # noqa: E402
 from podcast_scraper.upgrade.state import FilesystemStateStore  # noqa: E402
 
@@ -23,26 +24,39 @@ log = logging.getLogger("test")
 
 
 def _tiny_corpus(root):
-    search = root / "search"
-    store = FaissVectorStore(4, index_dir=search)
-    store.upsert(
-        "insight:1",
-        [0.1, 0.2, 0.3, 0.4],
-        {"doc_type": "insight", "text": "Altman on AI", "episode_id": "ep1", "feed_id": "A"},
+    # Artifacts the native two-tier build (0002) indexes: metadata + gi.json + transcript.
+    meta = root / "metadata"
+    meta.mkdir(parents=True, exist_ok=True)
+    (root / "ep1.txt").write_text(
+        "The central bank signaled a policy shift in markets today.", encoding="utf-8"
     )
-    store.upsert(
-        "chunk:1",
-        [0.9, 0.1, 0.0, 0.1],
-        {
-            "doc_type": "transcript",
-            "text": "a chunk",
-            "episode_id": "ep1",
-            "feed_id": "A",
-            "timestamp_start_ms": 0,
-            "timestamp_end_ms": 1000,
-        },
+    (meta / "ep1.gi.json").write_text(
+        json.dumps(
+            {
+                "nodes": [
+                    {"id": "insight:n1", "type": "Insight", "properties": {"text": "policy shift"}},
+                    {
+                        "id": "quote:q1",
+                        "type": "Quote",
+                        "properties": {"timestamp_start_ms": 0, "timestamp_end_ms": 4000},
+                    },
+                ],
+                "edges": [{"type": "SUPPORTED_BY", "from": "insight:n1", "to": "quote:q1"}],
+            }
+        ),
+        encoding="utf-8",
     )
-    store.persist()
+    (meta / "ep1.metadata.json").write_text(
+        json.dumps(
+            {
+                "episode": {"episode_id": "ep1"},
+                "feed": {"feed_id": "A"},
+                "content": {"transcript_file_path": "ep1.txt"},
+                "grounded_insights": {"artifact_path": "metadata/ep1.gi.json"},
+            }
+        ),
+        encoding="utf-8",
+    )
     (root / "corpus_manifest.json").write_text(
         '{"produced_by": {"code_version": "2.6.0"}}', encoding="utf-8"
     )
@@ -61,8 +75,8 @@ def test_status_then_run_then_verify(tmp_path):
     # status before: pending → exit 2.
     assert _run(corpus, "status") == 2
 
-    # run --yes applies the chain: 0001 migrates from FAISS, 0002 sees the index and
-    # no-ops.
+    # run --yes applies the chain: 0001 is a no-op (FAISS retired), 0002 builds the
+    # two-tier LanceDB index natively from the corpus artifacts.
     assert _run(corpus, "run", "--yes") == 0
     store = FilesystemStateStore(corpus)
     assert store.applied_migration_ids() == {

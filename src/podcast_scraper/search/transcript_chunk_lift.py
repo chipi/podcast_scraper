@@ -1,4 +1,4 @@
-"""Lift FAISS transcript chunks to GIL Insights + bridge display names."""
+"""Lift indexed transcript chunks to GIL Insights + bridge display names."""
 
 from __future__ import annotations
 

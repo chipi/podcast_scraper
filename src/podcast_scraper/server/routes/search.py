@@ -58,9 +58,9 @@ async def search_corpus(
 ) -> CorpusSearchApiResponse:
     """Semantic corpus search.
 
-    Routes through the two-tier hybrid ``RetrievalLayer`` when ``serving.hybrid_enabled``
-    is set and a LanceDB index exists (RFC-090 Phase 2); otherwise FAISS. The response
-    shape is identical for both backends.
+    Routes through the two-tier hybrid ``RetrievalLayer`` over the LanceDB index — the
+    single search path (RFC-090 Phase 2 / ADR-099, #995; FAISS retired). When no usable
+    index exists the response carries ``error="no_index"``.
     """
     fallback = getattr(request.app.state, "output_dir", None)
     root = _resolve_corpus_root(path, fallback)

@@ -270,16 +270,12 @@ async def corpus_digest(
         since_s = since_str_for_search(start)
         topics_cfg = load_digest_topics()[:DIGEST_MAX_TOPICS_PER_REQUEST]
 
-        # ADR-099 Stage 2 (#995): a full probe search (~0.2s) just to detect a missing index
-        # is wasteful — check the index on disk instead. LanceDB (lance-first) or the FAISS
-        # sidecar; either presence means topics can be built.
-        from podcast_scraper.search.faiss_store import VECTORS_FILE
+        # ADR-099 (#995): a full probe search (~0.2s) just to detect a missing index is
+        # wasteful — check the LanceDB index on disk instead.
         from podcast_scraper.search.hybrid_search import lance_index_dir
 
         lance_dir = lance_index_dir(root)
-        has_index = (lance_dir.is_dir() and any(lance_dir.iterdir())) or (
-            root / "search" / VECTORS_FILE
-        ).is_file()
+        has_index = lance_dir.is_dir() and any(lance_dir.iterdir())
         if not has_index:
             topics_reason = "no_index"
         else:

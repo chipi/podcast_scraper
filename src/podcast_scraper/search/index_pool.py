@@ -3,7 +3,7 @@
 Opening a LanceDB backend — ``lancedb.connect`` + opening the segment/insight/aux
 tables + loading their IVF-PQ (vector) and FTS (BM25) index readers — costs ~0.8 s on a
 99-episode corpus; the actual query on a *warm* table is ~7 ms. The serving path used to
-construct a fresh ``LanceDBBackend`` per query (``hybrid_search``) and reload the FAISS
+construct a fresh ``LanceDBBackend`` per query (``hybrid_search``) and reload the vector
 store per query (``corpus_search``), paying the open cost every time. That is the
 "open a database per request" anti-pattern.
 
@@ -11,8 +11,8 @@ This module caches one **warm** handle per index directory and reuses it for the
 the process, rebuilding only when the on-disk index changes (directory mtime). Handles
 are built under a lock and the LanceDB read tables are pre-opened before publication, so
 concurrent borrowers (FastAPI's sync-handler threadpool) never trigger a cold open — which
-also removes the concurrent-cold-init SIGSEGV. The lance-preferred / FAISS-fallback
-contract (ADR-098) is unchanged; pooling applies to whichever backend the caller selects.
+also removes the concurrent-cold-init SIGSEGV. The LanceDB-only / no_index contract
+(ADR-098) is unchanged; pooling applies to whichever backend the caller selects.
 """
 
 from __future__ import annotations
@@ -31,7 +31,6 @@ _LANCE_TIERS: Tuple[str, ...] = ("segment", "insight", "aux")
 _lock = threading.Lock()
 # resolved index path -> (freshness_token, handle)
 _lance_pool: Dict[str, Tuple[float, Any]] = {}
-_faiss_pool: Dict[str, Tuple[float, Any]] = {}
 
 
 def _freshness_token(index_dir: Path) -> float:
@@ -83,31 +82,7 @@ def get_lance_backend(index_dir: str | os.PathLike[str], build: Callable[[], Any
         return backend
 
 
-def get_faiss_store(index_dir: str | os.PathLike[str], build: Callable[[], Any]) -> Any:
-    """Return a cached FAISS store for *index_dir*, rebuilt on index change.
-
-    FAISS load is cheap (~30 ms) but pooling removes the per-query disk read + keeps the
-    serving lifecycle uniform with LanceDB. FAISS ``search`` is thread-safe for concurrent
-    reads, so the shared store is safe across the handler threadpool.
-    """
-    path = Path(index_dir)
-    key = str(path.resolve())
-    token = _freshness_token(path)
-    cached = _faiss_pool.get(key)
-    if cached is not None and cached[0] == token:
-        return cached[1]
-    with _lock:
-        cached = _faiss_pool.get(key)
-        if cached is not None and cached[0] == token:
-            return cached[1]
-        store = build()
-        _faiss_pool[key] = (token, store)
-        logger.info("index_pool: loaded FAISS store for %s", key)
-        return store
-
-
 def clear() -> None:
     """Drop all pooled handles. For tests and explicit reindex hooks."""
     with _lock:
         _lance_pool.clear()
-        _faiss_pool.clear()

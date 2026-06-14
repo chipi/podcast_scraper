@@ -3,7 +3,7 @@
 
 profile: cloud_thin
 
-# Profile: cloud_thin — cloud APIs only (no local spaCy / FAISS)
+# Profile: cloud_thin — cloud APIs only (no local spaCy / vector index)
 #
 # Use with pipeline image built using ``INSTALL_EXTRAS=llm`` (``pyproject`` **``. [llm]``**).
 # Requires ``OPENAI_API_KEY`` (Whisper) and ``GEMINI_API_KEY`` (NER + summary + GI/KG) in the environment.

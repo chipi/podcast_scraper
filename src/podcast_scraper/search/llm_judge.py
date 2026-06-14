@@ -1,4 +1,4 @@
-"""LLM-as-judge relevance grading for the hybrid-vs-FAISS eval (RFC-057 / Step 2).
+"""LLM-as-judge relevance grading for the hybrid-vs-baseline eval (RFC-057 / Step 2).
 
 Turns the human-grading bottleneck into a spot-check: an LLM grades each (query,
 candidate) for relevance (0 irrelevant / 1 related / 2 directly answers), filling a

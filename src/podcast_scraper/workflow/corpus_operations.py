@@ -476,9 +476,9 @@ def collect_corpus_status(corpus_parent: str) -> Dict[str, Any]:
             )
 
     search_dir = parent / "search"
-    vectors = search_dir / "vectors.faiss"
+    lance_index = search_dir / "lance_index"
     index_meta: Optional[Dict[str, Any]] = None
-    meta_file = search_dir / "index_meta.json"
+    meta_file = lance_index / "index_meta.json"
     if meta_file.is_file():
         try:
             blob = json.loads(meta_file.read_text(encoding="utf-8"))
@@ -491,7 +491,7 @@ def collect_corpus_status(corpus_parent: str) -> Dict[str, Any]:
         "manifest_present": manifest is not None,
         "manifest_schema": (manifest or {}).get("schema_version"),
         "feeds_subdirs": per_feed,
-        "search_index_present": vectors.is_file(),
+        "search_index_present": lance_index.is_dir(),
         "search_embedding_model": (index_meta or {}).get("embedding_model"),
         "search_index_kind": (index_meta or {}).get("index_kind"),
     }
@@ -533,7 +533,7 @@ def finalize_multi_feed_batch(
     """Write manifest/summary logs and optionally build parent vector index (#505/#506).
 
     **Partial batches:** Manifest and summary are written even when some feeds failed.
-    When ``vector_search`` and FAISS are enabled, ``index_corpus`` still runs on the
+    When ``vector_search`` is enabled, ``index_corpus`` still runs on the
     corpus parent so completed feeds contribute to the unified index; failed feeds
     simply omit metadata until a later successful run.
 

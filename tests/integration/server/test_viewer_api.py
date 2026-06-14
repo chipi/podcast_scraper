@@ -15,7 +15,6 @@ pytest.importorskip("fastapi")
 
 from fastapi.testclient import TestClient
 
-from podcast_scraper.search.faiss_store import VECTORS_FILE
 from podcast_scraper.server.app import create_app
 from podcast_scraper.server.schemas import HealthResponse
 
@@ -62,8 +61,8 @@ def test_list_artifacts_finds_gi_and_kg(tmp_path: Path) -> None:
 
 def test_list_artifacts_hints_when_index_at_corpus_parent(tmp_path: Path) -> None:
     corpus = tmp_path / "corpus"
-    (corpus / "search").mkdir(parents=True)
-    (corpus / "search" / VECTORS_FILE).write_bytes(b"")
+    (corpus / "search" / "lance_index").mkdir(parents=True)
+    (corpus / "search" / "lance_index" / "marker").write_text("x", encoding="utf-8")
     feed_meta = corpus / "feeds" / "rss_x" / "metadata"
     feed_meta.mkdir(parents=True)
     (feed_meta / "ep1.gi.json").write_text("{}", encoding="utf-8")

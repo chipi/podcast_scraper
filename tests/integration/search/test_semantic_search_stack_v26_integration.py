@@ -1,19 +1,20 @@
 """Integration: semantic search stack without E2E ML jobs.
 
-Exercises ``corpus_search``, ``indexer`` helpers, ``gil_chunk_offset_verify``, and
-optionally a tiny FAISS round-trip when ``faiss`` is importable.
+Exercises ``corpus_search`` (LanceDB hybrid path, mocked), ``indexer`` helpers, and
+``gil_chunk_offset_verify``. FAISS was retired (#995): the search path is LanceDB-only,
+so the search test mocks ``hybrid_candidates`` rather than a vector store.
 """
 
 from __future__ import annotations
 
 import json
 from pathlib import Path
-from typing import Any, List, Optional
+from typing import Any, List
 
 import pytest
 
 from podcast_scraper import config as config_mod
-from podcast_scraper.search import corpus_search, faiss_store
+from podcast_scraper.search import corpus_search
 from podcast_scraper.search.corpus_search import dedupe_kg_surface_rows, run_corpus_search
 from podcast_scraper.search.gil_chunk_offset_verify import (
     build_offset_alignment_report,
@@ -31,7 +32,7 @@ from podcast_scraper.search.indexer import (
     _kg_vector_rows_from_path,
     _resolve_index_dir,
 )
-from podcast_scraper.search.protocol import IndexStats, SearchResult
+from podcast_scraper.search.protocol import SearchResult
 
 pytestmark = pytest.mark.integration
 
@@ -58,64 +59,6 @@ def test_dedupe_kg_surface_rows_merges_same_surface_text() -> None:
     assert set(meta.get("kg_surface_episode_ids") or []) == {"a", "b"}
 
 
-class _FakeVectorStore:
-    """Minimal stand-in for ``FaissVectorStore`` in ``run_corpus_search``."""
-
-    ntotal = 12
-
-    def __init__(self, hits: List[SearchResult]) -> None:
-        self._hits = hits
-
-    def stats(self) -> IndexStats:
-        return IndexStats(
-            total_vectors=self.ntotal,
-            doc_type_counts={},
-            feeds_indexed=[],
-            embedding_model="sentence-transformers/all-MiniLM-L6-v2",
-            embedding_dim=384,
-            last_updated="",
-            index_size_bytes=0,
-        )
-
-    def search(
-        self,
-        _query_embedding: List[float],
-        top_k: int = 10,
-        filters: Optional[dict[str, Any]] = None,
-        *,
-        overfetch_factor: int = 3,
-    ) -> List[SearchResult]:
-        del overfetch_factor
-        if filters and "doc_type" in filters:
-            dt = filters["doc_type"]
-            return [h for h in self._hits if h.metadata.get("doc_type") == dt][:top_k]
-        return self._hits[:top_k]
-
-
-class _FakeVectorStoreCapturingFilters(_FakeVectorStore):
-    """Records the last ``filters`` passed to ``search`` for assertions."""
-
-    def __init__(self, hits: List[SearchResult], seen: dict[str, Any]) -> None:
-        super().__init__(hits)
-        self._seen = seen
-
-    def search(
-        self,
-        query_embedding: List[float],
-        top_k: int = 10,
-        filters: Optional[dict[str, Any]] = None,
-        *,
-        overfetch_factor: int = 3,
-    ) -> List[SearchResult]:
-        self._seen["filters"] = filters
-        return super().search(
-            query_embedding,
-            top_k=top_k,
-            filters=filters,
-            overfetch_factor=overfetch_factor,
-        )
-
-
 def test_run_corpus_search_empty_query(tmp_path: Path) -> None:
     out = run_corpus_search(tmp_path, "   ")
     assert out.error == "empty_query"
@@ -126,63 +69,10 @@ def test_run_corpus_search_no_index(tmp_path: Path) -> None:
     assert out.error == "no_index"
 
 
-def test_run_corpus_search_load_failed(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    idx = tmp_path / "search"
-    idx.mkdir()
-    (idx / faiss_store.VECTORS_FILE).write_text("x", encoding="utf-8")
-    (idx / faiss_store.INDEX_META_FILE).write_text("{}", encoding="utf-8")
-
-    def _bad_load(cls: type, _path: Path) -> Any:
-        raise RuntimeError("bad index")
-
-    monkeypatch.setattr(
-        corpus_search.FaissVectorStore,
-        "load",
-        classmethod(_bad_load),
-    )
-    out = run_corpus_search(tmp_path, "hello")
-    assert out.error == "load_failed"
-
-
-def test_run_corpus_search_embed_failed(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    idx = tmp_path / "search"
-    idx.mkdir()
-    (idx / faiss_store.VECTORS_FILE).write_bytes(b"x")
-    (idx / faiss_store.INDEX_META_FILE).write_text(
-        json.dumps(
-            {
-                "embedding_dim": 384,
-                "embedding_model": "sentence-transformers/all-MiniLM-L6-v2",
-                "index_kind": faiss_store.INDEX_VARIANT_FLAT,
-            },
-        ),
-        encoding="utf-8",
-    )
-
-    fake = _FakeVectorStore([])
-    monkeypatch.setattr(
-        corpus_search.FaissVectorStore,
-        "load",
-        classmethod(lambda cls, _p: fake),
-    )
-    monkeypatch.setattr(
-        corpus_search.embedding_loader,
-        "encode",
-        lambda *a, **k: (_ for _ in ()).throw(ValueError("no embed")),
-    )
-    out = run_corpus_search(tmp_path, "climate science")
-    assert out.error == "embed_failed"
-
-
 def test_run_corpus_search_success_multi_doc_types_and_dedupe(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    idx_dir = tmp_path / "search"
-    idx_dir.mkdir()
-    (idx_dir / faiss_store.VECTORS_FILE).write_bytes(b"x")
-    (idx_dir / faiss_store.INDEX_META_FILE).write_text("{}", encoding="utf-8")
-
     meta_dir = tmp_path / "metadata"
     meta_dir.mkdir()
     (meta_dir / "row.metadata.json").write_text(
@@ -197,38 +87,17 @@ def test_run_corpus_search_success_multi_doc_types_and_dedupe(
     )
 
     hits = [
+        SearchResult("d1", 0.9, {"doc_type": "insight", "episode_id": "ep1", "feed_id": "f1"}),
+        SearchResult("d2", 0.8, {"doc_type": "summary", "episode_id": "ep1", "feed_id": "f1"}),
         SearchResult(
-            doc_id="d1",
-            score=0.9,
-            metadata={"doc_type": "insight", "episode_id": "ep1", "feed_id": "f1"},
+            "d3", 0.7, {"doc_type": "kg_topic", "episode_id": "ep1", "feed_id": "f1", "text": "Tea"}
         ),
         SearchResult(
-            doc_id="d2",
-            score=0.8,
-            metadata={"doc_type": "summary", "episode_id": "ep1", "feed_id": "f1"},
-        ),
-        SearchResult(
-            doc_id="d3",
-            score=0.7,
-            metadata={"doc_type": "kg_topic", "episode_id": "ep1", "feed_id": "f1", "text": "Tea"},
-        ),
-        SearchResult(
-            doc_id="d4",
-            score=0.6,
-            metadata={"doc_type": "kg_topic", "episode_id": "ep1", "feed_id": "f1", "text": "tea"},
+            "d4", 0.6, {"doc_type": "kg_topic", "episode_id": "ep1", "feed_id": "f1", "text": "tea"}
         ),
     ]
-    fake = _FakeVectorStore(hits)
-    monkeypatch.setattr(
-        corpus_search.FaissVectorStore,
-        "load",
-        classmethod(lambda cls, _p: fake),
-    )
-    monkeypatch.setattr(
-        corpus_search.embedding_loader,
-        "encode",
-        lambda *_a, **_k: [0.01] * 384,
-    )
+    # LanceDB hybrid retrieval is the single search path; mock it (no real index/embedding).
+    monkeypatch.setattr(corpus_search, "hybrid_candidates", lambda *a, **k: hits)
 
     out = run_corpus_search(
         tmp_path,
@@ -240,34 +109,6 @@ def test_run_corpus_search_success_multi_doc_types_and_dedupe(
     assert out.error is None
     assert out.lift_stats is not None
     assert len(out.results) <= 5
-
-
-def test_run_corpus_search_single_doc_type_uses_faiss_filter(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    idx = tmp_path / "search"
-    idx.mkdir()
-    (idx / faiss_store.VECTORS_FILE).write_bytes(b"x")
-    (idx / faiss_store.INDEX_META_FILE).write_text("{}", encoding="utf-8")
-    hits = [
-        SearchResult("a", 1.0, {"doc_type": "quote"}),
-        SearchResult("b", 0.5, {"doc_type": "insight"}),
-    ]
-    seen: dict[str, Any] = {}
-    fake = _FakeVectorStoreCapturingFilters(hits, seen)
-    monkeypatch.setattr(
-        corpus_search.FaissVectorStore,
-        "load",
-        classmethod(lambda cls, _p: fake),
-    )
-    monkeypatch.setattr(
-        corpus_search.embedding_loader,
-        "encode",
-        lambda *_a, **_k: [0.0] * 384,
-    )
-    run_corpus_search(tmp_path, "q", doc_types=["insight"], top_k=3)
-    assert seen.get("filters") == {"doc_type": "insight"}
 
 
 def test_indexer_helpers_and_kg_vector_rows(tmp_path: Path) -> None:
@@ -296,16 +137,8 @@ def test_indexer_helpers_and_kg_vector_rows(tmp_path: Path) -> None:
         json.dumps(
             {
                 "nodes": [
-                    {
-                        "id": "t1",
-                        "type": "Topic",
-                        "properties": {"label": "Climate"},
-                    },
-                    {
-                        "id": "e1",
-                        "type": "Entity",
-                        "properties": {"name": "ACME", "kind": "org"},
-                    },
+                    {"id": "t1", "type": "Topic", "properties": {"label": "Climate"}},
+                    {"id": "e1", "type": "Entity", "properties": {"name": "ACME", "kind": "org"}},
                 ],
             },
         ),
@@ -344,11 +177,7 @@ def test_gil_chunk_offset_pure_and_report(tmp_path: Path) -> None:
         json.dumps(
             {
                 "nodes": [
-                    {
-                        "id": "q1",
-                        "type": "Quote",
-                        "properties": {"char_start": 10, "char_end": 20},
-                    },
+                    {"id": "q1", "type": "Quote", "properties": {"char_start": 10, "char_end": 20}},
                 ],
             },
         ),
@@ -367,21 +196,3 @@ def test_gil_chunk_offset_pure_and_report(tmp_path: Path) -> None:
         "no_quotes",
         "no_indexed_transcript_for_quotes",
     )
-
-
-def test_faiss_store_metadata_matches_and_minimal_roundtrip() -> None:
-    pytest.importorskip("faiss")
-    assert faiss_store._metadata_matches({"doc_type": "x"}, {"doc_type": "x"}) is True
-    assert faiss_store._metadata_matches({"doc_type": "x"}, {"doc_type": "y"}) is False
-    assert faiss_store._nlist_for_ntotal(1000) >= 4
-    assert faiss_store._pq_m_for_dim(384) == 48
-
-    store = faiss_store.FaissVectorStore(8, embedding_model="test-model")
-    store.upsert(
-        "doc-a",
-        [0.1] * 8,
-        {"doc_type": "summary", "episode_id": "e1"},
-    )
-    res = store.search([0.1] * 8, top_k=3, filters={"doc_type": "summary"})
-    assert len(res) >= 1
-    assert res[0].doc_id == "doc-a"

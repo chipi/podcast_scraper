@@ -31,7 +31,7 @@ def index_fingerprint_scope_key(feed_id: Optional[str], episode_id: str) -> str:
 
 
 def vector_doc_scope_tag(feed_id: Optional[str], episode_id: str) -> str:
-    """Segment embedded in FAISS doc ids for uniqueness across feeds."""
+    """Segment embedded in the index doc ids for uniqueness across feeds."""
     if not feed_id:
         return episode_id
     safe = "".join(c if c.isalnum() or c in "-_" else "_" for c in feed_id)[:120]

@@ -1,4 +1,4 @@
-"""Viewer API: GET /api/index/stats.
+"""Viewer API: GET /api/index/stats (LanceDB index stats; #995).
 
 Requires ``fastapi`` (``pip install -e '.[dev]'``).
 """
@@ -6,7 +6,7 @@ Requires ``fastapi`` (``pip install -e '.[dev]'``).
 from __future__ import annotations
 
 from pathlib import Path
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 import pytest
 
@@ -15,10 +15,12 @@ pytest.importorskip("fastapi")
 from fastapi.testclient import TestClient
 
 from podcast_scraper import config_constants
-from podcast_scraper.search.protocol import IndexStats
+from podcast_scraper.search.lance_index_stats import LanceIndexStats
 from podcast_scraper.server.app import create_app
 
 pytestmark = [pytest.mark.integration]
+
+_READ_STATS = "podcast_scraper.search.lance_index_stats.read_lance_index_stats"
 
 
 def test_index_stats_no_corpus_when_no_path_and_no_state(tmp_path: Path) -> None:
@@ -69,25 +71,6 @@ def test_index_stats_rejects_bad_path(tmp_path: Path) -> None:
     assert response.status_code == 400
 
 
-def test_index_stats_load_failed_when_faiss_store_load_raises(tmp_path: Path) -> None:
-    """Route maps ``FaissVectorStore.load`` failures to ``reason=load_failed`` (no real FAISS)."""
-    index_dir = tmp_path / "search"
-    index_dir.mkdir(parents=True)
-    (index_dir / "vectors.faiss").write_bytes(b"not-a-faiss-index")
-
-    app = create_app(tmp_path, static_dir=False)
-    client = TestClient(app)
-    with patch(
-        "podcast_scraper.search.faiss_store.FaissVectorStore.load",
-        side_effect=ValueError("corrupt or unreadable index"),
-    ):
-        response = client.get("/api/index/stats", params={"path": str(tmp_path)})
-    assert response.status_code == 200
-    body = response.json()
-    assert body["available"] is False
-    assert body["reason"] == "load_failed"
-
-
 def test_index_stats_no_index_recommends_when_metadata_exists(tmp_path: Path) -> None:
     meta = tmp_path / "metadata"
     meta.mkdir(parents=True)
@@ -107,13 +90,9 @@ def test_index_stats_no_index_recommends_when_metadata_exists(tmp_path: Path) ->
     assert body.get("artifact_newest_mtime")
 
 
-def test_index_stats_available_with_mocked_vector_store(tmp_path: Path) -> None:
-    """Happy path uses ``FaissVectorStore.load`` + ``stats()``; mock store — no FAISS build."""
-    index_dir = tmp_path / "search"
-    index_dir.mkdir(parents=True)
-    (index_dir / "vectors.faiss").touch()
-
-    fake_stats = IndexStats(
+def test_index_stats_available_with_mocked_index(tmp_path: Path) -> None:
+    """Happy path reads ``read_lance_index_stats``; mock it — no real LanceDB build."""
+    fake = LanceIndexStats(
         total_vectors=1,
         doc_type_counts={"insight": 1},
         feeds_indexed=["f1"],
@@ -122,15 +101,9 @@ def test_index_stats_available_with_mocked_vector_store(tmp_path: Path) -> None:
         last_updated="2024-01-01T00:00:00Z",
         index_size_bytes=100,
     )
-    fake_store = MagicMock()
-    fake_store.stats.return_value = fake_stats
-
     app = create_app(tmp_path, static_dir=False)
     client = TestClient(app)
-    with patch(
-        "podcast_scraper.search.faiss_store.FaissVectorStore.load",
-        return_value=fake_store,
-    ):
+    with patch(_READ_STATS, return_value=fake):
         response = client.get("/api/index/stats", params={"path": str(tmp_path)})
     assert response.status_code == 200
     body = response.json()
@@ -148,11 +121,7 @@ def test_index_stats_available_with_mocked_vector_store(tmp_path: Path) -> None:
 
 def test_index_stats_feeds_indexed_normalized_and_deduped(tmp_path: Path) -> None:
     """``feeds_indexed`` matches catalog-style ids: strip, dedupe, sorted."""
-    index_dir = tmp_path / "search"
-    index_dir.mkdir(parents=True)
-    (index_dir / "vectors.faiss").touch()
-
-    fake_stats = IndexStats(
+    fake = LanceIndexStats(
         total_vectors=2,
         doc_type_counts={"insight": 2},
         feeds_indexed=["  f1  ", "f1", "f2"],
@@ -161,15 +130,9 @@ def test_index_stats_feeds_indexed_normalized_and_deduped(tmp_path: Path) -> Non
         last_updated="2024-01-01T00:00:00Z",
         index_size_bytes=100,
     )
-    fake_store = MagicMock()
-    fake_store.stats.return_value = fake_stats
-
     app = create_app(tmp_path, static_dir=False)
     client = TestClient(app)
-    with patch(
-        "podcast_scraper.search.faiss_store.FaissVectorStore.load",
-        return_value=fake_store,
-    ):
+    with patch(_READ_STATS, return_value=fake):
         response = client.get("/api/index/stats", params={"path": str(tmp_path)})
     assert response.status_code == 200
     stats = response.json()["stats"]

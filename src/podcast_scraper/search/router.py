@@ -65,8 +65,8 @@ TIER_WEIGHTS_BY_QUERY: Dict[str, Dict[str, float]] = {
 # doc_type → retrieval tier. The canonical mapping behind the per-query tier weights
 # above: insights are the synthesized tier, transcript chunks the segment tier, and
 # kg_entity/kg_topic/quote/summary the full-coverage ``aux`` tier (RFC-090). Used to
-# label API hits with a stable ``source_tier`` (PRD-033 FR1.1) consistently across the
-# FAISS and hybrid paths.
+# label API hits with a stable ``source_tier`` (PRD-033 FR1.1) consistently across all
+# retrieval paths.
 DOC_TYPE_TO_TIER: Dict[str, str] = {
     "insight": "insight",
     "transcript": "segment",

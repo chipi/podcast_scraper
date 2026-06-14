@@ -1684,15 +1684,11 @@ class TestBuildConfig(unittest.TestCase):
             vector_embedding_model="minilm-l6",
             vector_chunk_size_tokens=400,
             vector_chunk_overlap_tokens=40,
-            vector_backend="faiss",
-            vector_faiss_index_mode="ivf_flat",
             vector_search=True,
             vector_index_types="insight, kg_entity",
         )
         cfg = cli._build_config(args)
         self.assertTrue(cfg.vector_search)
-        self.assertEqual(cfg.vector_backend, "faiss")
-        self.assertEqual(cfg.vector_faiss_index_mode, "ivf_flat")
         self.assertEqual(cfg.vector_chunk_size_tokens, 400)
         self.assertEqual(cfg.vector_chunk_overlap_tokens, 40)
         self.assertIn("search_idx", (cfg.vector_index_path or ""))

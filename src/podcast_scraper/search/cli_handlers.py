@@ -18,7 +18,6 @@ from podcast_scraper.search.corpus_scope import (
     index_fingerprint_scope_key,
     normalize_feed_id,
 )
-from podcast_scraper.search.faiss_store import FaissVectorStore
 from podcast_scraper.search.indexer import _scope_display_titles, index_corpus
 from podcast_scraper.search.protocol import SearchResult
 from podcast_scraper.utils.log_redaction import format_exception_for_log
@@ -43,7 +42,6 @@ def _minimal_vector_config(
     vector_embedding_model: Optional[str] = None,
     vector_embedding_endpoint: Optional[str] = None,
     vector_embedding_provider: Optional[str] = None,
-    vector_faiss_index_mode: Optional[str] = None,
     vector_index_types: Optional[List[str]] = None,
 ) -> config.Config:
     """Build a Config sufficient for embedding + index paths (RSS is unused)."""
@@ -60,8 +58,6 @@ def _minimal_vector_config(
         payload["vector_embedding_endpoint"] = vector_embedding_endpoint
     if vector_embedding_provider is not None:
         payload["vector_embedding_provider"] = vector_embedding_provider
-    if vector_faiss_index_mode is not None:
-        payload["vector_faiss_index_mode"] = vector_faiss_index_mode
     if vector_index_types is not None:
         payload["vector_index_types"] = vector_index_types
     return config.Config(**payload)
@@ -188,7 +184,7 @@ def merged_episode_gi_paths(output_dir: Path) -> Dict[str, Path]:
 def _metadata_relpath_by_scope_from_corpus(output_dir: Path) -> Dict[str, str]:
     """Map fingerprint scope key -> corpus-relative ``*.metadata.json`` path (POSIX).
 
-    Backfills ``source_metadata_relative_path`` on search hits when FAISS rows predate
+    Backfills ``source_metadata_relative_path`` on search hits when index rows predate
     that field (incremental index without re-embed, or older indexer builds).
     """
     root = safe_resolve_directory(output_dir)
@@ -341,7 +337,7 @@ def _backfill_display_titles_from_corpus(
 ) -> None:
     """Set ``episode_title`` / ``feed_title`` from ``*.metadata.json`` when missing on the hit.
 
-    Uses the same title resolution as the vector indexer so older FAISS rows (indexed before
+    Uses the same title resolution as the vector indexer so older index rows (indexed before
     titles were stamped) still get human labels in the viewer without a full rebuild.
     """
     if meta.get("episode_title") and meta.get("feed_title"):
@@ -431,7 +427,7 @@ def _enrich_hit(
 
 
 def run_search_cli(args: Namespace, logger: logging.Logger) -> int:
-    """Run semantic search over a FAISS corpus index."""
+    """Run semantic search over the LanceDB corpus index."""
     qparts: Sequence[str] = getattr(args, "query", None) or []
     query = " ".join(qparts).strip()
     if not query:
@@ -505,7 +501,7 @@ def run_search_cli(args: Namespace, logger: logging.Logger) -> int:
 
 
 def run_index_cli(args: Namespace, logger: logging.Logger) -> int:
-    """Update or inspect the FAISS corpus index."""
+    """Update or inspect the LanceDB corpus search index."""
     output_dir = getattr(args, "output_dir", None)
     if not output_dir:
         logger.error("index: --output-dir is required")
@@ -522,21 +518,17 @@ def run_index_cli(args: Namespace, logger: logging.Logger) -> int:
         vector_embedding_model=getattr(args, "embedding_model", None),
         vector_embedding_endpoint=getattr(args, "embedding_endpoint", None),
         vector_embedding_provider=getattr(args, "embedding_provider", None),
-        vector_faiss_index_mode=getattr(args, "vector_faiss_index_mode", None),
         vector_index_types=_vit_list,
     )
 
     index_dir = _resolve_index_dir(Path(output_dir), getattr(args, "vector_index_path", None))
 
     if getattr(args, "stats", False):
-        if not (index_dir / "vectors.faiss").is_file():
-            logger.error("No index at %s", index_dir)
-            return EXIT_NO_ARTIFACTS
-        try:
-            store = FaissVectorStore.load(index_dir)
-            st = store.stats()
-        except Exception as exc:
-            logger.error("Failed to read index: %s", format_exception_for_log(exc))
+        from podcast_scraper.search.lance_index_stats import read_lance_index_stats
+
+        st = read_lance_index_stats(index_dir / "lance_index")
+        if st is None:
+            logger.error("No index at %s", index_dir / "lance_index")
             return EXIT_NO_ARTIFACTS
         blob = {
             "total_vectors": st.total_vectors,
@@ -717,13 +709,6 @@ def parse_index_argv(argv: Sequence[str]) -> Namespace:
         ),
     )
     parser.add_argument(
-        "--vector-faiss-index-mode",
-        choices=["auto", "flat", "ivf_flat", "ivfpq"],
-        default=None,
-        dest="vector_faiss_index_mode",
-        help="FAISS index structure after indexing (default: auto).",
-    )
-    parser.add_argument(
         "--vector-index-types",
         default=None,
         dest="vector_index_types",
@@ -740,7 +725,7 @@ def parse_verify_gil_chunk_offsets_argv(argv: Sequence[str]) -> Namespace:
     parser = argparse.ArgumentParser(
         prog="podcast_scraper verify-gil-chunk-offsets",
         description=(
-            "Compare GIL Quote char ranges to FAISS transcript chunk metadata per episode "
+            "Compare GIL Quote char ranges to indexed transcript chunk metadata per episode "
             "(offset alignment gate before search lift)."
         ),
     )
@@ -856,7 +841,7 @@ def parse_topic_clusters_argv(argv: Sequence[str]) -> Namespace:
     parser = argparse.ArgumentParser(
         prog="podcast_scraper topic-clusters",
         description=(
-            "Cluster KG topics from FAISS kg_topic embeddings; write topic_clusters.json."
+            "Cluster KG topics from indexed kg_topic embeddings; write topic_clusters.json."
         ),
     )
     parser.add_argument(
@@ -946,14 +931,13 @@ def run_topic_clusters_cli(args: Namespace, logger: logging.Logger) -> int:
 
         from podcast_scraper.search.topic_clusters import (
             cluster_indices_by_threshold,
-            collect_topic_rows_from_faiss,
+            collect_topic_rows_from_lance,
             cosine_similarity_matrix,
             load_kg_topic_labels_from_corpus,
         )
 
-        store = FaissVectorStore.load(index_dir)
-        rows = collect_topic_rows_from_faiss(
-            store,
+        rows = collect_topic_rows_from_lance(
+            index_dir / "lance_index",
             load_kg_topic_labels_from_corpus(Path(output_dir).resolve()),
         )
         if not rows:
@@ -1158,7 +1142,7 @@ def parse_explore_quotes_argv(argv: Sequence[str]) -> Namespace:
     """Parse argv after ``gi explore-quotes``."""
     parser = argparse.ArgumentParser(
         prog="podcast_scraper gi explore-quotes",
-        description="Search quotes directly via FAISS semantic search.",
+        description="Search quotes directly via semantic (LanceDB) search.",
     )
     parser.add_argument(
         "--query",
@@ -1189,7 +1173,7 @@ def parse_explore_quotes_argv(argv: Sequence[str]) -> Namespace:
 
 
 def run_explore_quotes_cli(args: Namespace, logger: logging.Logger) -> int:
-    """Search quotes directly via FAISS (#601 3c)."""
+    """Search quotes directly via semantic (LanceDB) search (#601 3c)."""
     query = (getattr(args, "query", "") or "").strip()
     if not query:
         logger.error("gi explore-quotes: --query is required")

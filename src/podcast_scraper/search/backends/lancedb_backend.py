@@ -30,13 +30,13 @@ from ..backend import (
 if TYPE_CHECKING:  # pragma: no cover - typing only
     import pyarrow as pa
 
-# all-MiniLM-L6-v2 dimensionality (matches the existing FAISS index).
+# all-MiniLM-L6-v2 dimensionality.
 DEFAULT_EMBED_DIM = 384
 
 # Bump whenever the stored table schema changes so existing indexes self-heal:
-# read paths fall back to FAISS on a stale index and (re)index moments rebuild it.
+# read paths report no_index on a stale index and (re)index moments rebuild it.
 #   1 — initial two-tier schema (#855)
-#   2 — FAISS-parity fields: ``publish_date`` (date/``since`` filter) on all tiers +
+#   2 — added fields: ``publish_date`` (date/``since`` filter) on all tiers +
 #       ``source_id`` (canonical graph node id → "Show on graph") on insight/aux
 LANCE_SCHEMA_VERSION = 2
 
@@ -402,14 +402,14 @@ def lance_index_is_stale(lance_path: Path | str) -> bool:
     """True when a lance index dir exists but its schema predates the code's.
 
     A stale index lacks columns the current read path expects (e.g. ``publish_date``),
-    so read paths must skip it (FAISS fallback) and (re)index moments must rebuild it
-    rather than upsert into the incompatible schema.
+    so read paths must skip it (reporting no_index, since there is no fallback) and
+    (re)index moments must rebuild it rather than upsert into the incompatible schema.
 
     Requires *positive evidence* of an older schema: an existing ``index_meta.json``
     whose version is below the code's. A missing/unreadable meta is treated as
     not-stale — a real build always writes meta, so an absent one is an ambiguous
     partial/empty dir (the build path's own "already exists" no-op handles that), and
-    the read path's try/except still falls back to FAISS if such an index can't serve.
+    the read path's try/except still reports no_index if such an index can't serve.
     """
     p = safe_resolve_directory(Path(lance_path))
     if p is None or not Path(p).is_dir():

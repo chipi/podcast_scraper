@@ -69,7 +69,6 @@ CLOUD_BALANCED_EXPECTED = {
     "kg_max_topics": 10,
     "kg_max_entities": 15,
     "vector_search": True,
-    "vector_backend": "faiss",
     "generate_metadata": True,
     "generate_summaries": True,
     "preprocessing_silence_threshold": "-30dB",

@@ -1,4 +1,4 @@
-"""GET /api/index/stats — FAISS vector index metrics + staleness (GitHub #507)."""
+"""GET /api/index/stats — LanceDB vector index metrics + staleness (GitHub #507)."""
 
 from __future__ import annotations
 
@@ -54,7 +54,7 @@ async def index_stats(
         ),
     ),
 ) -> IndexStatsEnvelope:
-    """Return FAISS index statistics when ``<corpus>/search`` is loadable."""
+    """Return LanceDB index statistics when ``<corpus>/search/lance_index`` is loadable."""
     fallback = getattr(request.app.state, "output_dir", None)
     root = _resolve_corpus_root(path, fallback)
     if root is None:
@@ -62,31 +62,11 @@ async def index_stats(
 
     rb_prog, rb_err = rebuild_status_snapshot(request.app, root)
     index_dir = (root / "search").resolve()
-    try:
-        from podcast_scraper.search.faiss_store import FaissVectorStore, VECTORS_FILE
-    except ImportError:
-        st = compute_index_staleness(
-            root,
-            index_available=False,
-            index_reason="faiss_unavailable",
-            index_last_updated=None,
-            index_embedding_model=None,
-            embedding_model_query=embedding_model,
-        )
-        return IndexStatsEnvelope(
-            available=False,
-            reason="faiss_unavailable",
-            index_path=str(index_dir),
-            reindex_recommended=st.reindex_recommended,
-            reindex_reasons=st.reindex_reasons,
-            artifact_newest_mtime=st.artifact_newest_mtime,
-            search_root_hints=st.search_root_hints,
-            rebuild_in_progress=rb_prog,
-            rebuild_last_error=rb_err,
-        )
+    lance_dir = index_dir / "lance_index"
+    from podcast_scraper.search.lance_index_stats import read_lance_index_stats
 
-    vec = index_dir / VECTORS_FILE
-    if not vec.is_file():
+    raw = read_lance_index_stats(lance_dir)
+    if raw is None:
         st = compute_index_staleness(
             root,
             index_available=False,
@@ -107,38 +87,13 @@ async def index_stats(
             rebuild_last_error=rb_err,
         )
 
-    try:
-        store = FaissVectorStore.load(index_dir)
-        raw = store.stats()
-    except Exception:
-        logger.exception("Failed to load vector index from %s", index_dir)
-        st = compute_index_staleness(
-            root,
-            index_available=False,
-            index_reason="load_failed",
-            index_last_updated=None,
-            index_embedding_model=None,
-            embedding_model_query=embedding_model,
-        )
-        return IndexStatsEnvelope(
-            available=False,
-            reason="load_failed",
-            index_path=str(index_dir),
-            reindex_recommended=st.reindex_recommended,
-            reindex_reasons=st.reindex_reasons,
-            artifact_newest_mtime=st.artifact_newest_mtime,
-            search_root_hints=st.search_root_hints,
-            rebuild_in_progress=rb_prog,
-            rebuild_last_error=rb_err,
-        )
-
     body = IndexStatsBody(
         total_vectors=raw.total_vectors,
         doc_type_counts=dict(raw.doc_type_counts),
         feeds_indexed=_canonical_feeds_indexed(list(raw.feeds_indexed)),
-        embedding_model=raw.embedding_model,
-        embedding_dim=raw.embedding_dim,
-        last_updated=raw.last_updated,
+        embedding_model=raw.embedding_model or "",
+        embedding_dim=raw.embedding_dim or 0,
+        last_updated=raw.last_updated or "",
         index_size_bytes=raw.index_size_bytes,
     )
     st = compute_index_staleness(

@@ -1,20 +1,21 @@
 """From-corpus two-tier indexer (RFC-090 / wire-live follow-up B).
 
 Builds the two-tier LanceDB index (#855) directly from corpus artifacts, so a
-**fresh** corpus becomes hybrid-searchable without first having a FAISS index to
-migrate (#858). It reuses the proven FAISS-indexer extraction —
+**fresh** corpus becomes hybrid-searchable without first having a legacy index to
+migrate (#858). It reuses the proven indexer extraction —
 ``discover_metadata_files`` → ``_collect_docs_for_episode`` — which already yields
 insight rows and timestamped transcript chunks, then re-embeds the text and upserts
 into the ``insight`` (Tier 2) and ``segment`` (Tier 1) tables.
 
-Relationship to the migration (#858): the migration is the fast path for a corpus
-that already has FAISS (it reuses those embeddings verbatim); this indexer is the
-native path for corpora that don't. Both produce the same two-tier layout the live
-hybrid search (RFC-090 Phase 2) reads. Unlike the migration, this path **populates
-insight↔segment links** (``linked_insight_ids`` / ``source_segment_id``) from the
-gi.json ``SUPPORTED_BY`` edges + quote timestamps, so the compound-result path
-(``dedup``) actually fires on a natively-built index. The migration leaves them
-empty (FAISS gives it no edges), so compounds need a native (re)index.
+Relationship to the (now-retired) migration (#858): the migration was the fast path
+for a corpus that already had a legacy index (it reused those embeddings verbatim);
+this indexer is the native path for corpora that don't. Both produce the same
+two-tier layout the live hybrid search (RFC-090 Phase 2) reads. Unlike the migration,
+this path **populates insight↔segment links** (``linked_insight_ids`` /
+``source_segment_id``) from the gi.json ``SUPPORTED_BY`` edges + quote timestamps, so
+the compound-result path (``dedup``) actually fires on a natively-built index. The
+migration left them empty (it had no edges to supply), so compounds need a native
+(re)index.
 """
 
 from __future__ import annotations
@@ -36,7 +37,7 @@ DEFAULT_MODEL = "sentence-transformers/all-MiniLM-L6-v2"
 DEFAULT_TARGET_TOKENS = 256
 DEFAULT_OVERLAP_TOKENS = 32
 
-# Non-tiered FAISS surfaces indexed into the aux tier for full coverage.
+# Non-tiered corpus surfaces indexed into the aux tier for full coverage.
 _AUX_DOC_TYPES = frozenset({"kg_entity", "kg_topic", "quote", "summary"})
 
 
@@ -70,7 +71,7 @@ def _insight_grounding_quotes(gi_path: Path) -> Dict[str, Tuple[float, Optional[
     Reads the episode's ``*.gi.json`` (Insight ``SUPPORTED_BY`` Quote; quotes carry
     ``timestamp_*_ms``). This is what lets ``link_insights_to_segments`` connect an
     insight to the transcript segment it was spoken in — the input the compound-result
-    path (``dedup``) needs but the FAISS-derived migration can't supply.
+    path (``dedup``) needs but the retired migration couldn't supply.
     """
     if not gi_path.is_file():
         return {}

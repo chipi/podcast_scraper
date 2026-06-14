@@ -112,16 +112,3 @@ def test_concurrent_get_builds_exactly_once(tmp_path: Path) -> None:
 
     assert calls["n"] == 1  # built exactly once despite 16 concurrent callers
     assert len({id(r) for r in results}) == 1  # everyone got the same handle
-
-
-def test_faiss_store_is_reused_for_same_dir(tmp_path: Path) -> None:
-    calls = {"n": 0}
-
-    def build():
-        calls["n"] += 1
-        return object()
-
-    s1 = index_pool.get_faiss_store(tmp_path, build)
-    s2 = index_pool.get_faiss_store(tmp_path, build)
-    assert s1 is s2
-    assert calls["n"] == 1

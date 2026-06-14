@@ -2430,8 +2430,8 @@ class Config(BaseModel):
         default=None,
         alias="vector_index_path",
         description=(
-            "Directory for the FAISS corpus index. Relative paths resolve under output_dir. "
-            "Default when unset: <output_dir>/search."
+            "Directory for the LanceDB corpus search index. Relative paths resolve under "
+            "output_dir. Default when unset: <output_dir>/search."
         ),
     )
     vector_chunk_size_tokens: int = Field(
@@ -2476,14 +2476,6 @@ class Config(BaseModel):
             "NOT a HuggingFace id."
         ),
     )
-    vector_backend: Literal["faiss"] = Field(
-        default="faiss",
-        alias="vector_backend",
-        description=(
-            "Vector index backend. Currently faiss only. qdrant is reserved for a future "
-            "platform-mode release — will be re-added to this Literal once wired."
-        ),
-    )
     vector_index_types: Optional[
         List[Literal["insight", "quote", "summary", "transcript", "kg_topic", "kg_entity"]]
     ] = Field(
@@ -2492,14 +2484,6 @@ class Config(BaseModel):
         description=(
             "Doc types to embed (default: all). "
             "Values: insight, quote, summary, transcript, kg_topic, kg_entity."
-        ),
-    )
-    vector_faiss_index_mode: Literal["auto", "flat", "ivf_flat", "ivfpq"] = Field(
-        default="auto",
-        alias="vector_faiss_index_mode",
-        description=(
-            "FAISS structure: auto uses #484 thresholds (Flat / IVFFlat / IVFPQ by size); "
-            "or force flat, ivf_flat, ivfpq after indexing."
         ),
     )
     # Knowledge Graph Layer (PRD-019): per-episode kg.json when enabled

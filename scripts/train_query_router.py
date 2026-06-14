@@ -10,9 +10,10 @@ Where the labels come from — and why they are real, not circular:
   {person} about {topic}" → ``raw_evidence``). The template defines the ground
   truth by construction, so the label is genuine — we are NOT silver-labeling with
   the rules router (which would only teach the model to copy the rules). The slots
-  ({person}, {topic}) are filled from REAL corpus entities/topics (FAISS
-  ``kg_entity`` / ``kg_topic`` surface text), so the lexical distribution matches
-  production queries. A small built-in entity list is used when no corpus is given.
+  ({person}, {topic}) are filled from REAL corpus entities/topics (the LanceDB
+  aux tier's ``kg_entity`` / ``kg_topic`` surface text), so the lexical distribution
+  matches production queries. A small built-in entity list is used when no corpus
+  is given.
 
 Validation:
   - Stratified holdout: accuracy + per-class report on unseen queries.
@@ -24,7 +25,7 @@ embedding — exactly what ``MLQueryRouter`` feeds it. No ONNX runtime needed.
 
 Usage:
   python scripts/train_query_router.py \
-      --faiss-dir .test_outputs/manual/my-manual-run-10/search \
+      --lance-dir .test_outputs/manual/my-manual-run-10/search/lance_index \
       --out ./data/query_router.joblib --per-template 30
 """
 
@@ -106,22 +107,26 @@ _FALLBACK_TOPICS = [
 ]
 
 
-def _corpus_entities(faiss_dir: Path) -> Tuple[List[str], List[str]]:
-    """(people, topics) surface strings from a FAISS index, else built-in fallbacks."""
-    from podcast_scraper.search.faiss_store import FaissVectorStore
+def _corpus_entities(lance_dir: Path) -> Tuple[List[str], List[str]]:
+    """(people, topics) surface strings from the LanceDB aux tier, else built-in fallbacks."""
+    from podcast_scraper.search.backends.lancedb_backend import LanceDBBackend
 
     try:
-        store = FaissVectorStore.load(faiss_dir)
+        tbl = LanceDBBackend(str(lance_dir))._open_if_exists("aux")
     except Exception:  # noqa: BLE001 - no/unreadable index → fallbacks
+        tbl = None
+    if tbl is None:
         return _FALLBACK_PEOPLE, _FALLBACK_TOPICS
     people, topics = [], []
-    for meta in store.metadata_by_doc_id.values():
-        txt = (meta.get("text") or "").strip()
+    cols = [c for c in ("doc_type", "text") if c in tbl.schema.names]
+    n = tbl.count_rows()
+    for r in tbl.search().limit(max(n, 1)).select(cols).to_list():
+        txt = (r.get("text") or "").strip()
         if not txt or len(txt) > 40:
             continue
-        if meta.get("doc_type") == "kg_entity":
+        if r.get("doc_type") == "kg_entity":
             people.append(txt)
-        elif meta.get("doc_type") == "kg_topic":
+        elif r.get("doc_type") == "kg_topic":
             topics.append(txt)
     # De-dupe, keep deterministic order.
     people = list(dict.fromkeys(people)) or _FALLBACK_PEOPLE
@@ -145,7 +150,11 @@ def _build_dataset(
 def main() -> int:
     """Bootstrap labeled queries, train the router, validate, and persist it."""
     ap = argparse.ArgumentParser(description=__doc__)
-    ap.add_argument("--faiss-dir", default=None, help="corpus FAISS index for real slots")
+    ap.add_argument(
+        "--lance-dir",
+        default=None,
+        help="corpus LanceDB index dir (…/search/lance_index) for real slots",
+    )
     ap.add_argument("--out", default="./data/query_router.joblib")
     ap.add_argument("--per-template", type=int, default=30)
     ap.add_argument("--test-frac", type=float, default=0.2)
@@ -158,8 +167,8 @@ def main() -> int:
     from sklearn.model_selection import train_test_split
 
     people, topics = (
-        _corpus_entities(Path(args.faiss_dir))
-        if args.faiss_dir
+        _corpus_entities(Path(args.lance_dir))
+        if args.lance_dir
         else (_FALLBACK_PEOPLE, _FALLBACK_TOPICS)
     )
     print(f"Slots: {len(people)} people, {len(topics)} topics")

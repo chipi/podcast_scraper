@@ -127,8 +127,8 @@ def test_embedding_model_mismatch_via_query_param(tmp_path: Path) -> None:
 def test_corpus_search_parent_hint_in_reasons(tmp_path: Path) -> None:
     """When corpus root is a feed subtree but parent has search/, emit hint."""
     corpus = tmp_path / "corpus"
-    (corpus / "search").mkdir(parents=True)
-    (corpus / "search" / "vectors.faiss").write_bytes(b"x")
+    (corpus / "search" / "lance_index").mkdir(parents=True)
+    (corpus / "search" / "lance_index" / "marker").write_text("x", encoding="utf-8")
     feed_root = corpus / "feeds" / "show_a"
     meta_dir = feed_root / "metadata"
     meta_dir.mkdir(parents=True)

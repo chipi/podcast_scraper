@@ -4,9 +4,10 @@ Used by gi explore to build an in-memory view from per-episode gi.json files
 (no DB). Supports topic filter via Topic label (ABOUT edge) or substring in insight
 text; optional speaker filter on quote speaker_id or graph speaker_name.
 
-When ``<output_dir>/search/vectors.faiss`` exists and ``--topic`` is set, topic matching
-uses the semantic corpus index first to propose insight candidates (metadata map loads
-``gi.json`` paths). Each candidate must still satisfy the same **topic contains** rule as the
+When the LanceDB index at ``<output_dir>/search/lance_index`` exists and ``--topic`` is
+set, topic matching uses the semantic corpus index first to propose insight candidates
+(metadata map loads ``gi.json`` paths). Each candidate must still satisfy the same
+**topic contains** rule as the
 non-semantic path (substring on linked Topic labels or insight text); on failure or no hits,
 behavior falls back to substring/topic-label matching over all artifacts.
 
@@ -125,9 +126,9 @@ def _supporting_quote_speaker_key(q: SupportingQuote) -> Optional[str]:
 
 
 def default_vector_index_dir(output_dir: Path) -> Optional[Path]:
-    """Return ``output_dir / search`` if a FAISS index is present."""
+    """Return ``output_dir / search`` if the LanceDB index is present."""
     p = Path(output_dir) / "search"
-    if (p / "vectors.faiss").is_file():
+    if (p / "lance_index").is_dir():
         return p
     return None
 
@@ -312,35 +313,17 @@ def _collect_insights_semantic(
         (insights, gi_paths) — ``gi_paths`` lists each ``gi.json`` used, in hit order
         (deduped later by the caller when counting episodes).
     """
-    from podcast_scraper.providers.ml import embedding_loader
-    from podcast_scraper.search.faiss_store import FaissVectorStore, VECTORS_FILE
+    # ADR-099 / #995: semantic explore ranks insights via the single LanceDB index;
+    # the doc_types filter keeps it to the insight tier.
+    from podcast_scraper.search.corpus_search import run_corpus_search
 
-    if not (index_dir / VECTORS_FILE).is_file():
+    if output_dir is None:
         return [], []
-
-    store = FaissVectorStore.load(index_dir)
-    if store.ntotal == 0:
-        return [], []
-
-    model_id = store.stats().embedding_model
-    qvec = embedding_loader.encode(
-        topic,
-        model_id,
-        return_numpy=False,
-        allow_download=False,
-    )
-    if not (isinstance(qvec, list) and qvec and isinstance(qvec[0], float)):
-        raise ValueError("semantic explore: expected a single query embedding")
-    qemb = cast(List[float], qvec)
-
     top_k = max(1, limit or 200)
-    fetch_k = min(max(top_k * 25, top_k), max(store.ntotal, 1))
-    hits = store.search(
-        qemb,
-        top_k=fetch_k,
-        filters={"doc_type": "insight"},
-        overfetch_factor=1,
-    )
+    outcome = run_corpus_search(output_dir, topic, top_k=top_k, doc_types=["insight"])
+    if outcome.error:
+        return [], []
+    hits = outcome.results
 
     by_ep_path = _merge_episode_gi_paths(output_dir, artifacts_with_paths)
 
@@ -348,7 +331,7 @@ def _collect_insights_semantic(
     gi_paths: List[Path] = []
     seen: Set[Tuple[str, str]] = set()
     for h in hits:
-        meta = h.metadata
+        meta = h.get("metadata") or {}
         ep = meta.get("episode_id")
         iid = meta.get("source_id")
         if not isinstance(ep, str) or not isinstance(iid, str):
@@ -457,7 +440,7 @@ def collect_insights(
 ) -> Tuple[List[InsightSummary], bool]:
     """Collect InsightSummary from artifacts with optional topic/speaker/grounded filters.
 
-    When ``topic`` is set and ``semantic_index_dir`` contains ``vectors.faiss``, tries
+    When ``topic`` is set and ``semantic_index_dir`` contains the LanceDB index, tries
     vector-ranked insights first. If that yields at least one result, returns
     ``(insights, True)`` (caller should not re-sort by confidence/time). Otherwise falls
     back to substring/topic-label matching and returns ``(insights, False)``.

@@ -21,7 +21,6 @@ if PACKAGE_ROOT not in sys.path:
 
 pytestmark = [pytest.mark.e2e, pytest.mark.critical_path]
 
-pytest.importorskip("faiss")
 pytest.importorskip("lancedb")
 
 
@@ -37,54 +36,47 @@ def project_root() -> Path:
     return Path(__file__).resolve().parent.parent.parent
 
 
-def _build_faiss_corpus(root: Path) -> None:
-    """A minimal corpus with a real 384-dim FAISS index (transcript + insight + kg_entity).
-
-    Real MiniLM embeddings (not toy 4-dim) so a `search` query embeds in the same space
-    and the hybrid serving path is exercised after migration.
+def _build_corpus(root: Path) -> None:
+    """A minimal corpus of artifacts (metadata + gi.json + transcript) the native two-tier
+    build (0002) indexes into LanceDB, so a post-migration ``search`` exercises the real path
+    (#995 — FAISS retired; the index is built natively from artifacts, not migrated).
     """
-    from podcast_scraper.providers.ml import embedding_loader
-    from podcast_scraper.search.faiss_store import FaissVectorStore
-
-    def emb(text: str):
-        return list(
-            embedding_loader.encode(
-                text,
-                "sentence-transformers/all-MiniLM-L6-v2",
-                return_numpy=False,
-            )
-        )
-
-    store = FaissVectorStore(384, index_dir=root / "search")
-    store.upsert(
-        "chunk:1",
-        emb("markets moved as the central bank signaled a rate policy shift"),
-        {
-            "doc_type": "transcript",
-            "text": "markets moved as the central bank signaled a policy shift",
-            "episode_id": "ep1",
-            "feed_id": "show1",
-            "timestamp_start_ms": 0,
-            "timestamp_end_ms": 4000,
-        },
+    meta = root / "metadata"
+    meta.mkdir(parents=True, exist_ok=True)
+    (root / "ep1.txt").write_text(
+        "Markets moved as the central bank signaled a rate policy shift.", encoding="utf-8"
     )
-    store.upsert(
-        "insight:1",
-        emb("the central bank shifted monetary policy"),
-        {
-            "doc_type": "insight",
-            "text": "the central bank shifted monetary policy",
-            "episode_id": "ep1",
-            "feed_id": "show1",
-            "grounded": True,
-        },
+    (meta / "ep1.gi.json").write_text(
+        json.dumps(
+            {
+                "nodes": [
+                    {
+                        "id": "insight:n1",
+                        "type": "Insight",
+                        "properties": {"text": "the central bank shifted monetary policy"},
+                    },
+                    {
+                        "id": "quote:q1",
+                        "type": "Quote",
+                        "properties": {"timestamp_start_ms": 0, "timestamp_end_ms": 4000},
+                    },
+                ],
+                "edges": [{"type": "SUPPORTED_BY", "from": "insight:n1", "to": "quote:q1"}],
+            }
+        ),
+        encoding="utf-8",
     )
-    store.upsert(
-        "kg_entity:1",
-        emb("Jerome Powell"),
-        {"doc_type": "kg_entity", "text": "Jerome Powell", "episode_id": "ep1", "feed_id": "show1"},
+    (meta / "ep1.metadata.json").write_text(
+        json.dumps(
+            {
+                "episode": {"episode_id": "ep1"},
+                "feed": {"feed_id": "show1"},
+                "content": {"transcript_file_path": "ep1.txt"},
+                "grounded_insights": {"artifact_path": "metadata/ep1.gi.json"},
+            }
+        ),
+        encoding="utf-8",
     )
-    store.persist()
     (root / "corpus_manifest.json").write_text(
         json.dumps({"produced_by": {"code_version": "2.6.0"}}), encoding="utf-8"
     )
@@ -94,7 +86,7 @@ class TestUpgradeCliE2E:
     def test_upgrade_full_chain_via_cli(self, project_root: Path, tmp_path: Path) -> None:
         corpus = tmp_path / "corpus"
         corpus.mkdir()
-        _build_faiss_corpus(corpus)
+        _build_corpus(corpus)
 
         # status → pending (exit 2)
         r = _run_cli(["upgrade", "status", "--corpus-dir", str(corpus)], project_root)
@@ -109,7 +101,7 @@ class TestUpgradeCliE2E:
         assert r.returncode == 0
         assert not (corpus / "search" / "lance_index").exists()
 
-        # run --yes → migrates FAISS→LanceDB (segment+insight+aux), records ledger
+        # run --yes → 0001 no-op (FAISS retired), 0002 builds LanceDB natively, records ledger
         r = _run_cli(["upgrade", "run", "--corpus-dir", str(corpus), "--yes"], project_root)
         assert r.returncode == 0, f"run: {r.returncode} {r.stderr!r}"
         assert (corpus / "search" / "lance_index").exists()
@@ -129,10 +121,10 @@ class TestUpgradeCliE2E:
         r = _run_cli(["upgrade", "status", "--corpus-dir", str(corpus), "--json"], project_root)
         assert json.loads(r.stdout)["up_to_date"] is True
 
-        # Hybrid serving path: `search` with hybrid enabled now hits the LanceDB index
-        # built above (exercises hybrid_search + corpus_search through the real CLI).
+        # Search path: `search` hits the LanceDB two-tier index built above — the single
+        # search path (FAISS retired, #995). Exercises hybrid_search + corpus_search
+        # through the real CLI.
         env = os.environ.copy()
-        env["PODCAST_HYBRID_SEARCH"] = "true"
         r = subprocess.run(
             [
                 sys.executable,
@@ -171,33 +163,6 @@ class TestUpgradeCliE2E:
             _run_cli(["upgrade", "verify", "--corpus-dir", str(corpus)], project_root).returncode
             == 0
         )
-
-    def test_faiss_search_path(self, project_root: Path, tmp_path: Path) -> None:
-        # `search` with hybrid OFF (default) exercises the FAISS serving path.
-        corpus = tmp_path / "corpus"
-        corpus.mkdir()
-        _build_faiss_corpus(corpus)
-        env = os.environ.copy()
-        env.pop("PODCAST_HYBRID_SEARCH", None)
-        r = subprocess.run(
-            [
-                sys.executable,
-                "-m",
-                "podcast_scraper.cli",
-                "search",
-                "central bank policy",
-                "--output-dir",
-                str(corpus),
-                "--top-k",
-                "5",
-            ],
-            capture_output=True,
-            text=True,
-            cwd=str(project_root),
-            timeout=180,
-            env=env,
-        )
-        assert r.returncode == 0, f"faiss search: {r.returncode} {r.stderr!r}"
 
     def test_upgrade_status_missing_corpus_dir(self, project_root: Path) -> None:
         env = os.environ.copy()

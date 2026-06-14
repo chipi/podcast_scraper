@@ -4,32 +4,25 @@ from __future__ import annotations
 
 import logging
 import re
-import time
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, cast, Dict, List, Optional, Sequence, Set
+from typing import Any, Dict, List, Optional, Sequence, Set
 
-from podcast_scraper import config as _config
-from podcast_scraper.providers.ml import embedding_loader
-from podcast_scraper.providers.ml.model_registry import ModelRegistry
 from podcast_scraper.search.cil_lift_overrides import load_cil_lift_overrides
 from podcast_scraper.search.cli_handlers import (
     _enrich_hit,
     _hit_passes_cli_filters,
     _metadata_relpath_by_scope_from_corpus,
     _parse_since,
-    _resolve_index_dir,
     merged_episode_gi_paths,
 )
-from podcast_scraper.search.faiss_store import FaissVectorStore, VECTORS_FILE
-from podcast_scraper.search.hybrid_search import hybrid_candidates, hybrid_search_enabled
+from podcast_scraper.search.hybrid_search import hybrid_candidates
 from podcast_scraper.search.protocol import SearchResult
 from podcast_scraper.search.topic_clusters import load_topic_cluster_enrichment_map
 from podcast_scraper.search.transcript_chunk_lift import (
     lift_row_if_transcript,
     TranscriptLiftGiCache,
 )
-from podcast_scraper.utils.log_redaction import format_exception_for_log
 
 logger = logging.getLogger(__name__)
 
@@ -200,7 +193,7 @@ def run_corpus_search(
     embedding_model: Optional[str] = None,
     dedupe_kg_surfaces: bool = True,
 ) -> CorpusSearchOutcome:
-    """Embed ``query``, search FAISS, apply metadata filters, return enriched rows."""
+    """Embed ``query``, search the LanceDB index, apply metadata filters, return enriched rows."""
     q = query.strip()
     if not q:
         return CorpusSearchOutcome(error="empty_query")
@@ -212,115 +205,20 @@ def run_corpus_search(
         if not types_norm:
             types_norm = None
 
-    # Hybrid path (RFC-090 Phase 2): opt-in via serving.hybrid_enabled. Returns None to
-    # fall back to FAISS (flag off, no LanceDB index, or embed failure), so this can
-    # never regress the FAISS path — only override it when explicitly enabled + ready.
-    if hybrid_search_enabled():
-        candidates = hybrid_candidates(
-            output_dir,
-            q,
-            top_k=top_k,
-            doc_types=doc_types,
-            embedding_model=embedding_model,
-        )
-        if candidates is not None:
-            logger.info("corpus_search: hybrid path (%d candidates)", len(candidates))
-            return _filter_and_enrich(
-                candidates,
-                output_dir,
-                types_norm=types_norm,
-                feed=feed,
-                since=since,
-                speaker=speaker,
-                grounded_only=grounded_only,
-                top_k=top_k,
-                dedupe_kg_surfaces=dedupe_kg_surfaces,
-                collect_cap=len(candidates),
-            )
-
-    index_dir = _resolve_index_dir(output_dir, index_path)
-    if not (index_dir / VECTORS_FILE).is_file():
-        return CorpusSearchOutcome(error="no_index", detail=str(index_dir))
-
-    try:
-        # ADR-099 / #995: pool the loaded store per index_dir rather than re-reading it
-        # from disk on every query (FAISS search is thread-safe for concurrent reads).
-        from .index_pool import get_faiss_store
-
-        store = get_faiss_store(index_dir, lambda: FaissVectorStore.load(index_dir))
-    except Exception as exc:
-        logger.warning("corpus_search load failed: %s", format_exception_for_log(exc))
-        return CorpusSearchOutcome(error="load_failed", detail=str(exc))
-
-    idx_model = store.stats().embedding_model
-    if isinstance(embedding_model, str) and embedding_model.strip():
-        # An unknown alias (no "/" and not a registered alias) makes
-        # resolve_evidence_model_id raise. embedding_model arrives unvalidated from
-        # the CLI, so resolve defensively: an unresolvable override is a divergence,
-        # not a crash -- warn and proceed (encode then fails cleanly -> embed_failed).
-        try:
-            same_space = ModelRegistry.resolve_evidence_model_id(
-                embedding_model.strip()
-            ) == ModelRegistry.resolve_evidence_model_id(idx_model)
-        except ValueError:
-            same_space = False
-        if not same_space:
-            logger.warning(
-                "search: embedding_model %s differs from index model %s",
-                embedding_model,
-                idx_model,
-            )
-        model_id = embedding_model.strip()
-    else:
-        model_id = idx_model
-
-    # Provider/endpoint come from the active profile (Config) so query-time embedding
-    # matches what built the index. Without this, DGX-built indexes (Ollama provider)
-    # would be queried with local sentence-transformers → silent vector mismatch (#897).
-    _cfg = _config.Config()
-    t_embed0 = time.perf_counter()
-    try:
-        qvec = embedding_loader.encode(
-            q,
-            model_id,
-            return_numpy=False,
-            allow_download=False,
-            remote_endpoint=_cfg.vector_embedding_endpoint,
-            provider=_cfg.vector_embedding_provider,
-        )
-        if isinstance(qvec, list) and qvec and isinstance(qvec[0], float):
-            qemb = cast(List[float], qvec)
-        else:
-            return CorpusSearchOutcome(error="embed_failed", detail="expected single embedding")
-    except Exception as exc:
-        logger.warning("corpus_search embed failed: %s", format_exception_for_log(exc))
-        return CorpusSearchOutcome(error="embed_failed", detail=str(exc))
-    embed_sec = time.perf_counter() - t_embed0
-
-    faiss_filters: Optional[Dict[str, Any]] = None
-    if types_norm and len(types_norm) == 1:
-        faiss_filters = {"doc_type": types_norm[0]}
-
-    fetch_k = min(max(top_k * 25, top_k), max(store.ntotal, 1))
-
-    t_search0 = time.perf_counter()
-    hits = store.search(
-        qemb,
-        top_k=fetch_k,
-        filters=faiss_filters,
-        overfetch_factor=1,
+    # ADR-099 / #995: the LanceDB two-tier index is the single search path — no FAISS
+    # fallback. ``hybrid_candidates`` returns None when there is no usable index (or a
+    # query-embedding failure); surface that as ``no_index`` rather than a second path.
+    candidates = hybrid_candidates(
+        output_dir,
+        q,
+        top_k=top_k,
+        doc_types=doc_types,
+        embedding_model=embedding_model,
     )
-    search_sec = time.perf_counter() - t_search0
-    logger.info(
-        "corpus_search: embed_sec=%.4f search_sec=%.4f ntotal=%s fetch_k=%s",
-        embed_sec,
-        search_sec,
-        store.ntotal,
-        fetch_k,
-    )
-
+    if candidates is None:
+        return CorpusSearchOutcome(error="no_index", detail="no LanceDB index (run `cli index`)")
     return _filter_and_enrich(
-        hits,
+        candidates,
         output_dir,
         types_norm=types_norm,
         feed=feed,
@@ -329,7 +227,7 @@ def run_corpus_search(
         grounded_only=grounded_only,
         top_k=top_k,
         dedupe_kg_surfaces=dedupe_kg_surfaces,
-        collect_cap=fetch_k if dedupe_kg_surfaces else top_k,
+        collect_cap=len(candidates),
     )
 
 
@@ -348,8 +246,8 @@ def _filter_and_enrich(
 ) -> CorpusSearchOutcome:
     """Apply metadata filters + enrich/lift/dedupe a candidate list (backend-agnostic).
 
-    Shared by the FAISS and hybrid (#RFC-090 Phase 2) retrieval paths so both return
-    the identical enriched response shape.
+    Drives the LanceDB two-tier hybrid retrieval path (RFC-090 Phase 2 / ADR-099) — the
+    single search path since FAISS was retired (#995) — producing the enriched response shape.
     """
     since_dt = _parse_since(since) if isinstance(since, str) and since.strip() else None
     gi_cache = merged_episode_gi_paths(output_dir)

@@ -1,9 +1,10 @@
-"""Human-judged hybrid-vs-FAISS eval harness (RFC-057 / wire-live follow-up C).
+"""Human-judged hybrid-vs-baseline eval harness (RFC-057 / wire-live follow-up C).
 
-The shared unblocker for #858 (FAISS removal) and #860 (ML-router promotion). The
+The eval that unblocked FAISS removal (#995, done) and #860 (ML-router promotion). The
 Stage-4 known-item proxy (``scripts/eval_two_tier_retrieval.py``) *saturated* — it
-confirmed parity but could not discriminate, so it cannot justify removing FAISS or
-promoting the ML router. This harness produces a **discriminating, graded** eval:
+confirmed parity but could not discriminate, so it could not justify retiring the
+baseline backend or promoting the ML router. This harness produces a **discriminating,
+graded** eval:
 
 1. ``build_judgment_template`` runs a real query set through both backends, unions
    the candidates, and emits a per-query record with each backend's ranking — ready
@@ -32,8 +33,10 @@ class JudgmentRecord:
 
     query: str
     intent: str
-    candidates: List[Dict] = field(default_factory=list)  # {doc_id, text, faiss_rank, hybrid_rank}
-    faiss_ranking: List[str] = field(default_factory=list)  # doc_ids, best first
+    candidates: List[Dict] = field(
+        default_factory=list
+    )  # {doc_id, text, baseline_rank, hybrid_rank}
+    baseline_ranking: List[str] = field(default_factory=list)  # doc_ids, best first
     hybrid_ranking: List[str] = field(default_factory=list)
     relevance: Dict[str, int] = field(default_factory=dict)  # doc_id -> grade (human-filled)
 
@@ -41,34 +44,34 @@ class JudgmentRecord:
 def build_judgment_template(
     queries: Sequence[str],
     *,
-    faiss_ranks: RankFn,
+    baseline_ranks: RankFn,
     hybrid_ranks: RankFn,
     intent_of: Callable[[str], str],
     k: int = 10,
 ) -> List[JudgmentRecord]:
     """Run *queries* through both backends and build per-query judgment records.
 
-    ``faiss_ranks`` / ``hybrid_ranks`` return ranked ``(doc_id, text)`` for a query;
+    ``baseline_ranks`` / ``hybrid_ranks`` return ranked ``(doc_id, text)`` for a query;
     ``intent_of`` labels the query (seeds #860). Candidates from both backends are
     unioned with each backend's 1-based rank (or ``None`` if a backend missed it).
     """
     records: List[JudgmentRecord] = []
     for query in queries:
-        faiss_list = list(faiss_ranks(query))[:k]
+        baseline_list = list(baseline_ranks(query))[:k]
         hybrid_list = list(hybrid_ranks(query))[:k]
-        faiss_rank = {doc_id: i + 1 for i, (doc_id, _) in enumerate(faiss_list)}
+        baseline_rank = {doc_id: i + 1 for i, (doc_id, _) in enumerate(baseline_list)}
         hybrid_rank = {doc_id: i + 1 for i, (doc_id, _) in enumerate(hybrid_list)}
-        texts = {doc_id: text for doc_id, text in list(faiss_list) + list(hybrid_list)}
+        texts = {doc_id: text for doc_id, text in list(baseline_list) + list(hybrid_list)}
 
         candidates = [
             {
                 "doc_id": doc_id,
                 "text": texts.get(doc_id, ""),
-                "faiss_rank": faiss_rank.get(doc_id),
+                "baseline_rank": baseline_rank.get(doc_id),
                 "hybrid_rank": hybrid_rank.get(doc_id),
             }
             for doc_id in sorted(
-                texts, key=lambda d: (faiss_rank.get(d, 999), hybrid_rank.get(d, 999))
+                texts, key=lambda d: (baseline_rank.get(d, 999), hybrid_rank.get(d, 999))
             )
         ]
         records.append(
@@ -76,7 +79,7 @@ def build_judgment_template(
                 query=query,
                 intent=intent_of(query),
                 candidates=candidates,
-                faiss_ranking=[doc_id for doc_id, _ in faiss_list],
+                baseline_ranking=[doc_id for doc_id, _ in baseline_list],
                 hybrid_ranking=[doc_id for doc_id, _ in hybrid_list],
             )
         )
@@ -108,14 +111,14 @@ def score_from_judgments(
     """Mean nDCG@k + recall@k per backend over judged *records*.
 
     Records with no positive grade are skipped (no signal). Returns
-    ``{"faiss": {...}, "hybrid": {...}}``; compare to gate FAISS removal / ML promotion.
+    ``{"baseline": {...}, "hybrid": {...}}``; compare to gate backend retirement / ML promotion.
     """
-    agg = {b: {"ndcg": 0.0, "recall": 0.0} for b in ("faiss", "hybrid")}
+    agg = {b: {"ndcg": 0.0, "recall": 0.0} for b in ("baseline", "hybrid")}
     judged = [r for r in records if any(g > 0 for g in r.relevance.values())]
     n = len(judged)
     for rec in judged:
-        agg["faiss"]["ndcg"] += _ndcg_at(rec.faiss_ranking, rec.relevance, k)
-        agg["faiss"]["recall"] += _recall_at(rec.faiss_ranking, rec.relevance, k)
+        agg["baseline"]["ndcg"] += _ndcg_at(rec.baseline_ranking, rec.relevance, k)
+        agg["baseline"]["recall"] += _recall_at(rec.baseline_ranking, rec.relevance, k)
         agg["hybrid"]["ndcg"] += _ndcg_at(rec.hybrid_ranking, rec.relevance, k)
         agg["hybrid"]["recall"] += _recall_at(rec.hybrid_ranking, rec.relevance, k)
     for backend in agg:
