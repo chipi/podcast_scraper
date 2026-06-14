@@ -42,6 +42,11 @@ def test_digest_include_topics_builds_bands_when_search_hits_catalog(
         json.dumps(_row(f"{today}T12:00:00Z")),
         encoding="utf-8",
     )
+    # ADR-099 #995: the digest now checks for an index on disk (not a probe search) before
+    # building topic bands — create a LanceDB index marker so the (mocked) band searches run.
+    lance_idx = tmp_path / "search" / "lance_index"
+    lance_idx.mkdir(parents=True)
+    (lance_idx / "marker").write_text("x", encoding="utf-8")
 
     monkeypatch.setattr(
         "podcast_scraper.server.routes.corpus_digest.load_digest_topics",

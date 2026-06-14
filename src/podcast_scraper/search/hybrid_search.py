@@ -166,7 +166,12 @@ def hybrid_candidates(
     top_k: int,
     doc_types: Optional[Sequence[str]] = None,
     embedding_model: Optional[str] = None,
-    fetch_multiplier: int = 25,
+    # ADR-099 Stage 2 (#995): the ×25 over-fetch was a FAISS-era habit — cheap to pull 600
+    # rows from an in-memory array, then filter in Python. On the database it dominates cost
+    # (limit 600 ≈ 0.37s vs limit 100 ≈ 0.09s per query). Native in-engine RRF fusion needs
+    # far fewer candidates; ×6 keeps enough headroom for the downstream type/feed/since
+    # filters in ``_filter_and_enrich`` while cutting the per-query cost ~4×.
+    fetch_multiplier: int = 6,
 ) -> Optional[List[SearchResult]]:
     """Hybrid candidates as ``SearchResult`` rows, or ``None`` to fall back to FAISS.
 

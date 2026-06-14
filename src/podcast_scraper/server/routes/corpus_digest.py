@@ -270,18 +270,25 @@ async def corpus_digest(
         since_s = since_str_for_search(start)
         topics_cfg = load_digest_topics()[:DIGEST_MAX_TOPICS_PER_REQUEST]
 
-        probe = run_corpus_search(
-            root,
-            "digest",
-            since=since_s,
-            top_k=1,
-            dedupe_kg_surfaces=False,
-        )
-        if probe.error == "no_index":
+        # ADR-099 Stage 2 (#995): a full probe search (~0.2s) just to detect a missing index
+        # is wasteful — check the index on disk instead. LanceDB (lance-first) or the FAISS
+        # sidecar; either presence means topics can be built.
+        from podcast_scraper.search.faiss_store import VECTORS_FILE
+        from podcast_scraper.search.hybrid_search import lance_index_dir
+
+        lance_dir = lance_index_dir(root)
+        has_index = (lance_dir.is_dir() and any(lance_dir.iterdir())) or (
+            root / "search" / VECTORS_FILE
+        ).is_file()
+        if not has_index:
             topics_reason = "no_index"
         else:
-            for t in topics_cfg:
-                band = _topic_band_for_query(
+            # ADR-099 Stage 2 (#995): the topic-band searches are independent reads on the
+            # shared (pooled, warm) index — run them concurrently instead of one after another.
+            # With the per-query cost now ~0.2s, sequential bands made the digest ~Nx0.2s; in
+            # parallel the wall-clock is ~one band. LanceDB reads are concurrent-safe.
+            def _band(t: dict) -> CorpusDigestTopicBand | None:
+                return _topic_band_for_query(
                     root,
                     t["id"],
                     t["label"],
@@ -294,8 +301,10 @@ async def corpus_digest(
                     feed_rss_urls_by_feed_id=rss_by_feed,
                     feed_descriptions_by_feed_id=desc_by_feed,
                 )
-                if band is not None:
-                    topics.append(band)
+
+            if topics_cfg:
+                with ThreadPoolExecutor(max_workers=min(len(topics_cfg), 8)) as ex:
+                    topics = [band for band in ex.map(_band, topics_cfg) if band is not None]
 
     return CorpusDigestResponse(
         path=str(root),
