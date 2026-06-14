@@ -2147,8 +2147,10 @@ function tryApplyPendingFocus(core: Core): boolean {
   if (!rawId) return false
   const fallbackRaw = nav.pendingFocusFallbackNodeId
   let cyId = resolveCyNodeId(core, rawId)
+  let usedFallback = false
   if (!cyId && fallbackRaw) {
     cyId = resolveCyNodeId(core, fallbackRaw)
+    usedFallback = true
   }
   /** Do not clear pending: ``redraw`` can leave the graph mid-rebuild; a later ``finishLayoutPass`` / watcher applies. */
   if (!cyId) {
@@ -2172,8 +2174,17 @@ function tryApplyPendingFocus(core: Core): boolean {
   } catch {
     /* ignore */
   }
-  const rawNode = rawNodeForRailInteraction(cyId)
-  void openGraphEpisodeOrNodeRail(cyId, rawNode)
+  // RAIL target ≠ camera target when we fell back: a `quote` search hit has no cy node of its
+  // own, so ``cyId`` here is its *Episode* (camera anchor). But the user picked the quote, and
+  // ``onFocusHit`` already opened the quote's detail rail from the artifact (``subject`` =
+  // quote). Opening the Episode rail now would clobber it. So only (re)open the rail when we
+  // resolved the PRIMARY; on a fallback, leave the subject rail on the user's actual target.
+  // (Pre-#967 the cose layout stayed busy long enough that this fallback never fired here;
+  // fcose goes idle fast, exposing the clobber — hence the explicit guard.)
+  if (!usedFallback) {
+    const rawNode = rawNodeForRailInteraction(cyId)
+    void openGraphEpisodeOrNodeRail(cyId, rawNode)
+  }
   const extras = [...nav.pendingFocusCameraIncludeRawIds]
   nav.clearPendingFocus()
   // Record the apply with the FSM so it transitions back to ``ready``.
@@ -3672,42 +3683,49 @@ watch(
       })
       return
     }
-    // Primary not in cy yet. If a redraw is pending/active it will add the primary and
-    // ``finishLayoutPass`` will apply it (or fall back to the episode, or fail) on
-    // layoutstop — do nothing now. Only when the canvas is genuinely IDLE (no redraw
-    // coming → the primary will never load) do we resolve here: apply the fallback if it
-    // exists (``tryApplyPendingFocus`` tries primary then fallback), else fail fast instead
-    // of waiting out the 15s stuck-timeout. Re-check one frame later so a just-scheduled
-    // redraw wins.
-    void nextTick(() => {
-      requestAnimationFrame(() => {
-        if (!cy || !graphHandoff.pending) return // resolved / failed elsewhere
-        if (resolveCyNodeId(cy, newFocusId)) {
-          safeGraphWatch('pendingFocus', () => {
-            if (cy) tryApplyPendingFocus(cy)
-          })
-          return
-        }
-        const idle =
-          !redrawPending &&
-          redrawDebounceTimer == null &&
-          redrawGateDepth === 0 &&
-          !graphContentHiddenUntilLayout.value
-        if (!idle) return // redraw in flight → finishLayoutPass handles primary + fallback
-        const fb = nav.pendingFocusFallbackNodeId
-        if (fb && resolveCyNodeId(cy, fb)) {
-          safeGraphWatch('pendingFocus', () => {
-            if (cy) tryApplyPendingFocus(cy)
-          })
-          return
-        }
-        graphHandoff.handoffFailed(
-          `no graph node for focus target "${newFocusId}"` +
-            (fb ? ` (fallback "${fb}")` : ''),
-        )
-        nav.clearPendingFocus()
-      })
-    })
+    // Primary not in cy yet. A handoff redraw may still add it (e.g. a quote that becomes a
+    // node once its episode's gi.json merges), and that redraw + its fcose layout (#967) can
+    // take many frames — so a single-frame idle-check races the layout and would apply the
+    // fallback before the primary renders. Instead POLL: each frame, bail if the handoff
+    // settled elsewhere (``finishLayoutPass``), apply the moment the primary appears, and keep
+    // waiting while a redraw/layout is in flight OR a small frame budget remains. Only once the
+    // canvas is genuinely IDLE *and* that budget is spent (no redraw is coming → the primary
+    // will never load) do we resolve the fallback (``tryApplyPendingFocus`` tries primary then
+    // fallback) or fail fast — instead of waiting out the 15s stuck-timeout.
+    let framesWaited = 0
+    const FOCUS_RESOLVE_FRAME_BUDGET = 40 // ~650ms: covers a redraw + fcose layout adding the node
+    const pollForFocusTarget = (): void => {
+      if (!cy || !graphHandoff.pending) return // resolved / failed elsewhere
+      if (resolveCyNodeId(cy, newFocusId)) {
+        safeGraphWatch('pendingFocus', () => {
+          if (cy) tryApplyPendingFocus(cy)
+        })
+        return
+      }
+      const idle =
+        !redrawPending &&
+        redrawDebounceTimer == null &&
+        redrawGateDepth === 0 &&
+        !graphContentHiddenUntilLayout.value
+      if (!idle || framesWaited++ < FOCUS_RESOLVE_FRAME_BUDGET) {
+        requestAnimationFrame(pollForFocusTarget)
+        return
+      }
+      // Idle + budget spent + primary still absent → it will never load. Resolve the fallback
+      // (its episode) or fail fast.
+      const fb = nav.pendingFocusFallbackNodeId
+      if (fb && resolveCyNodeId(cy, fb)) {
+        safeGraphWatch('pendingFocus', () => {
+          if (cy) tryApplyPendingFocus(cy)
+        })
+        return
+      }
+      graphHandoff.handoffFailed(
+        `no graph node for focus target "${newFocusId}"` + (fb ? ` (fallback "${fb}")` : ''),
+      )
+      nav.clearPendingFocus()
+    }
+    void nextTick(() => requestAnimationFrame(pollForFocusTarget))
   },
   { flush: 'post' },
 )
