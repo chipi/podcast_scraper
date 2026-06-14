@@ -4,7 +4,7 @@ import { useArtifactsStore } from '../../stores/artifacts'
 import { useGraphFilterStore } from '../../stores/graphFilters'
 import { useSubjectStore } from '../../stores/subject'
 import { useGraphNavigationStore } from '../../stores/graphNavigation'
-import { findRawNodeInArtifact } from '../../utils/parsing'
+import { findRawNodeInArtifactByIdOrPrefixed } from '../../utils/parsing'
 import {
   findClusterByCompoundId,
   findTopicClusterContextForGraphNode,
@@ -39,7 +39,7 @@ const viewArtifact = computed(() => {
   if (!id || !full) {
     return ego
   }
-  if (ego && findRawNodeInArtifact(ego, id)) {
+  if (ego && findRawNodeInArtifactByIdOrPrefixed(ego, id)) {
     return ego
   }
   return full
@@ -54,13 +54,13 @@ const rawNode = computed(() => {
   }
   const slice = viewArtifact.value
   if (slice) {
-    const hit = findRawNodeInArtifact(slice, id)
+    const hit = findRawNodeInArtifactByIdOrPrefixed(slice, id)
     if (hit) {
       return hit
     }
   }
   const full = gf.fullArtifact
-  return full ? findRawNodeInArtifact(full, id) : null
+  return full ? findRawNodeInArtifactByIdOrPrefixed(full, id) : null
 })
 
 /** Same type chip as ``NodeDetail``; used as rail heading (Library uses “Episode”). */
