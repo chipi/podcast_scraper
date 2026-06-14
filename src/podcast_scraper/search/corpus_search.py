@@ -243,7 +243,11 @@ def run_corpus_search(
         return CorpusSearchOutcome(error="no_index", detail=str(index_dir))
 
     try:
-        store = FaissVectorStore.load(index_dir)
+        # ADR-099 / #995: pool the loaded store per index_dir rather than re-reading it
+        # from disk on every query (FAISS search is thread-safe for concurrent reads).
+        from .index_pool import get_faiss_store
+
+        store = get_faiss_store(index_dir, lambda: FaissVectorStore.load(index_dir))
     except Exception as exc:
         logger.warning("corpus_search load failed: %s", format_exception_for_log(exc))
         return CorpusSearchOutcome(error="load_failed", detail=str(exc))

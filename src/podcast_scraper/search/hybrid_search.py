@@ -214,9 +214,13 @@ def hybrid_candidates(
 
     try:
         from .backends.lancedb_backend import LanceDBBackend
+        from .index_pool import get_lance_backend
         from .retrieval import RetrievalLayer
 
-        backend = LanceDBBackend(str(index_dir))
+        # ADR-099 / #995: reuse one warm backend per index_dir instead of opening the
+        # LanceDB connection + index readers on every query (~0.8 s) — the query on a
+        # warm table is ~7 ms. Pooling also removes the concurrent-cold-init segfault.
+        backend = get_lance_backend(index_dir, lambda: LanceDBBackend(str(index_dir)))
     except Exception as exc:  # noqa: BLE001 - cannot open index → FAISS fallback
         logger.warning("hybrid_search open failed (%s); falling back to FAISS", exc)
         return None
