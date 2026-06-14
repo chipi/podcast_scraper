@@ -110,6 +110,29 @@ metrics:
           scrape_interval: 60s
           scrape_timeout: 10s
 
+        # vLLM autoresearch native /metrics (#996 follow-up; deployed
+        # 2026-06-14 at homelab infra/vllm/autoresearch/). vLLM exposes
+        # Prometheus-format metrics natively at /metrics — request rate,
+        # latency histograms, TTFT, queue depth, KV-cache utilization,
+        # GPU memory tracking. ~30 series at the default config; well
+        # within the existing ~175-series budget on the DGX side.
+        # Only scrapeable while `gpu-mode-swap.sh research` is the
+        # active mode — Grafana Agent drops the target cleanly when
+        # port :8003 isn't listening, no retries, no log spam. Pair
+        # with #996 contention sweeps so vLLM-side TTFT and queue
+        # depth land next to whisper-side WER and latency in the same
+        # dashboard window.
+        - job_name: dgx-vllm-autoresearch
+          static_configs:
+            - targets: ['dgx-llm-1.tail6d0ed4.ts.net:8003']
+              labels:
+                host: dgx
+                kind: app
+                service: vllm-autoresearch
+          metrics_path: /metrics
+          scrape_interval: 30s
+          scrape_timeout: 10s
+
       remote_write:
         # Quote env substitutions: -config.expand-env=true inlines values
         # before YAML parse, and Grafana Cloud API keys typically contain

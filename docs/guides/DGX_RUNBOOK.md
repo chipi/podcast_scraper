@@ -419,7 +419,7 @@ If a future panel needs higher-cardinality metrics (per-handler labels,
 per-feed labels, etc.), price the additional series first: each new
 series × 2880 scrapes/day × 30 bytes ≈ ~85 KB/day of ingest.
 
-### Endpoints (added in #943)
+### Endpoints (added in #943; vLLM autoresearch added 2026-06-14)
 
 | Port | Exporter | Scrape interval | Why |
 | --- | --- | --- | --- |
@@ -427,6 +427,7 @@ series × 2880 scrapes/day × 30 bytes ≈ ~85 KB/day of ingest.
 | `:9100` | node-exporter | 60s | Host CPU/mem/disk/net — low churn. |
 | `:8080` | cAdvisor | 60s | Per-container resource use. `id`/`pod`/`namespace` labels dropped at scrape. |
 | `:8001/metrics` | pyannote-server | 60s | Request rate / latency histo / status codes via `prometheus-fastapi-instrumentator`. |
+| `:8003/metrics` | vllm-autoresearch | 30s | Native vLLM Prometheus exporter — TTFT, queue depth, KV-cache util, GPU mem tracking. Only up while `gpu-mode-swap.sh research` is the active mode; Grafana Agent drops the target cleanly when the port isn't listening. ~30 series. |
 
 Tailscale ACL (`tailscale/policy.hujson`) opens the three new ports
 on `tag:dgx-llm-host` for `autogroup:admin`, `tag:gha-deployer`, and
