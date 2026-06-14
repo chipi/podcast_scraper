@@ -52,7 +52,9 @@ CLEANING_USER_TMPL = (
     "Transcript:\n```\n{transcript}\n```"
 )
 
-# Matrix — cloud only (Ollama daemon is user-managed per project convention).
+# Matrix — cloud + Ollama. Ollama daemon is user-managed; the runtime endpoint
+# defaults to the DGX tailnet host (override via OLLAMA_API_BASE_NATIVE).
+# Ollama models were added in #987 (deferred from #594).
 MATRIX: list[tuple[str, str]] = [
     ("openai", "gpt-4o-mini"),
     ("openai", "gpt-4o"),
@@ -61,6 +63,9 @@ MATRIX: list[tuple[str, str]] = [
     ("gemini", "gemini-2.0-flash"),
     ("gemini", "gemini-2.5-flash"),
     ("deepseek", "deepseek-chat"),
+    ("ollama", "llama3.2:3b"),
+    ("ollama", "mistral:7b"),
+    ("ollama", "qwen3.5:9b"),
 ]
 
 TEMPS: list[float] = [0.0, 0.2, 0.4]
@@ -127,6 +132,33 @@ def _clean_deepseek(client: Any, model: str, transcript: str, temperature: float
     return (resp.choices[0].message.content or "").strip()
 
 
+def _clean_ollama(client: Any, model: str, transcript: str, temperature: float) -> str:
+    # Native /api/chat (not the /v1 OpenAI shim) so we can pass `think: false`
+    # for thinking-model variants (qwen3.5). Same root-cause and same fix as
+    # documented in prompt_v2_cross_provider_v1.py.
+    base = os.environ.get(
+        "OLLAMA_API_BASE_NATIVE",
+        "http://dgx-llm-1.tail6d0ed4.ts.net:11434",
+    )
+    timeout = float(os.environ.get("OLLAMA_TIMEOUT_S", "600"))
+    resp = client.post(
+        f"{base}/api/chat",
+        json={
+            "model": model,
+            "stream": False,
+            "think": False,
+            "options": {"temperature": temperature, "num_predict": 8000},
+            "messages": [
+                {"role": "system", "content": CLEANING_SYSTEM},
+                {"role": "user", "content": CLEANING_USER_TMPL.format(transcript=transcript)},
+            ],
+        },
+        timeout=timeout,
+    )
+    resp.raise_for_status()
+    return (resp.json()["message"]["content"] or "").strip()
+
+
 def build_clients() -> dict[str, Any]:
     clients: dict[str, Any] = {}
     if os.environ.get("OPENAI_API_KEY"):
@@ -147,6 +179,13 @@ def build_clients() -> dict[str, Any]:
         clients["deepseek"] = OpenAI(
             api_key=os.environ["DEEPSEEK_API_KEY"], base_url="https://api.deepseek.com"
         )
+    # Ollama client is always available — the daemon is reachable via
+    # OLLAMA_API_BASE_NATIVE (defaults to the DGX tailnet host). A reachability
+    # probe happens at first call; failures surface per-cell rather than at
+    # client-build time.
+    import httpx
+
+    clients["ollama"] = httpx.Client()
     return clients
 
 
@@ -155,6 +194,7 @@ CALLERS = {
     "anthropic": _clean_anthropic,
     "gemini": _clean_gemini,
     "deepseek": _clean_deepseek,
+    "ollama": _clean_ollama,
 }
 
 
@@ -179,6 +219,12 @@ def main() -> int:
     p.add_argument("--episodes", nargs="+", required=True)
     p.add_argument("--output", type=Path, required=True)
     p.add_argument("--limit-cells", type=int, default=0, help="0 = full matrix, N = first N cells")
+    p.add_argument(
+        "--providers",
+        nargs="+",
+        default=None,
+        help="Filter MATRIX to only these providers (default: all). E.g. --providers ollama",
+    )
     args = p.parse_args()
 
     clients = build_clients()
@@ -203,7 +249,12 @@ def main() -> int:
         transcripts[ep] = srcs[0].read_text(encoding="utf-8")
         silvers[ep] = sil.read_text(encoding="utf-8")
 
-    cells = MATRIX[: args.limit_cells] if args.limit_cells else MATRIX
+    cells = list(MATRIX)
+    if args.providers:
+        keep = set(args.providers)
+        cells = [(prov, model) for prov, model in cells if prov in keep]
+    if args.limit_cells:
+        cells = cells[: args.limit_cells]
     args.output.mkdir(parents=True, exist_ok=True)
     metrics_rows: list[dict[str, Any]] = []
 
