@@ -40,7 +40,7 @@
   "generate_kg": true,
   "kg_extraction_source": "provider",
   "kg_max_topics": 10,
-  "_comment_llm_summary_prompts": "For API summary providers, defaults are JSON bullet templates (prompts/shared/summarization/). summary_prompt_params defaults: bullet_min, max_words_per_bullet; optional bullet_max. GI/KG use gi_max_insights and kg_max_topics as downstream ceilings. Paragraph mode: */long_v1 + */system_v1.",
+  "_comment_llm_summary_prompts": "For API summary providers, defaults are JSON bullet templates (prompts/shared/summarization/). summary_prompt_params defaults: bullet_min, max_words_per_bullet; optional bullet_max. GI/KG use gi_max_insights and kg_max_topics as downstream ceilings. Paragraph mode: */long_v2 + */system_v1 (anthropic/openai/gemini/ollama; deepseek stays on long_v1 per #985 cross-provider verdict — see docs/guides/eval-reports/EVAL_PROMPT_LONG_V2_CROSS_PROVIDER_2026_06_14.md).",
   "metadata_format": "json",
 
   "_comment_gi_kg_vector_preset": "Multi-feed / cloud examples align with config/profiles/cloud_balanced.yaml plus --feeds-spec pointing at your multi-feed feeds list (generate_gi true, gi_insight_source provider, gi_max_insights 12, generate_kg true, kg_extraction_source provider, kg_max_topics 10, vector_search true, vector_backend faiss). Optional topic clustering after indexing: python -m podcast_scraper.cli topic-clusters --output-dir <corpus_parent> (writes search/topic_clusters.json). See docs/guides/SEMANTIC_SEARCH_GUIDE.md",
