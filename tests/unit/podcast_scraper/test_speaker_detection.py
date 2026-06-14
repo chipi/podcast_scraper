@@ -264,6 +264,28 @@ class TestSpeakerDetection(unittest.TestCase):
         # No self-introduction at all.
         self.assertIsNone(extract_self_introduced_host("Today we discuss markets."))
 
+    def test_extract_self_introduced_host_skips_network_bumper(self):
+        """A network bumper ("I'm Pushkin") is skipped; the real host follows (#876)."""
+        from podcast_scraper.speaker_detectors.hosts import (
+            extract_self_introduced_host,
+            is_known_network,
+        )
+
+        # Unhedged opens with the publisher bumper before the host self-introduces.
+        intro = (
+            "This is Unhedged, the markets and finance podcast from the Financial Times and "
+            "Pushkin. I'm Pushkin. I'm Katie Martin, a markets columnist at the FT in London."
+        )
+        self.assertEqual(extract_self_introduced_host(intro), "Katie Martin")
+        # A real mononym host is NOT a known network and must still be returned.
+        self.assertEqual(
+            extract_self_introduced_host("Welcome. I'm Oprah, great to see you."), "Oprah"
+        )
+        self.assertTrue(is_known_network("Pushkin"))
+        self.assertTrue(is_known_network("NPR"))
+        self.assertFalse(is_known_network("Katie Martin"))
+        self.assertFalse(is_known_network("Neeraj"))
+
     @patch.object(speaker_detection, "extract_person_entities")
     def test_detect_hosts_from_feed_ner(self, mock_extract):
         """Test detecting hosts from feed title using NER."""
