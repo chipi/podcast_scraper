@@ -258,3 +258,39 @@ for a research output.
 - Related infra: #953 (openai-whisper), #948 (speaches investigation),
   #946 (whisper client resilience), #954 (diarization client resilience),
   #952 (faster-whisper validation), #934 (distinct-voice fixtures)
+
+---
+
+## 2026-06-14 addendum — sweep-vs-transcription overlap is now a hard rule
+
+The 2026-06-14 #963 re-run on the new homelab vLLM config
+(`Qwen/Qwen3-Coder-Next-FP8` at `gpu-memory-utilization=0.75`)
+turned up a failure mode that the 2026-06-11 re-run didn't see:
+
+- SC3 (active vLLM serving) caused **one of five** episodes
+  (`p03_e01`) to collapse to **WER 1.000 at an 18× slowdown** —
+  a catastrophic single-episode failure that survived as a
+  successful HTTP response (so the resilience layer can't catch it).
+- The other four episodes degraded gracefully (latency 2–3.7×
+  slower, WER +0–6pp). Mean SC3 latency 2.0× realtime vs 4.4× idle.
+- vLLM's own tail latency blew out to 335s during the same window.
+
+**Net effect on the routing recommendation.** The
+`cloud_with_dgx_primary` profile defaults stay the right shape —
+quality is fine when whisper + autoresearch don't overlap. But the
+operator-side rule **"do not overlap autoresearch sweeps with
+transcription windows"** is now a load-bearing piece of the
+hybrid-routing decision, not advisory.
+
+The PROD_RUNBOOK §"Provider model selection — DGX vs cloud per stage"
+section codifies this rule and points back to the contention report
+for the underlying evidence.
+
+**Also corrected this re-run:** vLLM `gpu-memory-utilization=0.75`
+is now the GB10 floor (`0.92` OOM-crashes the host because of the
+unified CPU+GPU pool). Compose default is now
+`VLLM_GPU_MEM_UTIL:-0.75` upstream in the homelab repo. The 2026-06-11
+SC3 numbers ran under `0.92` against Qwen3.6-35B-A3B; today's numbers
+ran under `0.75` against Qwen3-Coder-Next-FP8 — different config,
+similar mean behaviour, but the catastrophic-tail risk is now
+documented.

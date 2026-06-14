@@ -407,6 +407,47 @@ rate over ~3h of batched multi-stage calls. Run completed cleanly via the **#697
 panel with `--calls N --concurrency C` scaled to the production operating point and write to
 `data/eval/runs/`. See the eval report § Reproduction for the exact invocation.
 
+### Provider model selection — DGX vs cloud per stage (cloud_with_dgx_primary)
+
+**Current incumbent matrix** (set in `config/profiles/cloud_with_dgx_primary.yaml`):
+
+| Stage | Provider | Endpoint | Why this routing |
+| --- | --- | --- | --- |
+| Transcription | `tailnet_dgx` whisper-openai | `dgx:8002` (`large-v3`) | WER 0.10 mean / 4.6× realtime — matches MPS within noise, ~3× faster. **Cloud Whisper API stays the configured fallback** (`transcription_fallback_provider: openai`). |
+| Diarization | `tailnet_dgx` pyannote | `dgx:8001` (`speaker-diarization-3.1`) | DGX ties Apple MPS within noise (~23s / 5-min episode, ~13× realtime). Same model + same numerics; falls back to local pyannote on circuit-open. |
+| Summary | Gemini | `gemini-2.5-flash-lite` | Cloud kept for the summary stage — Ollama qwen3.5:35b is the DGX-only alternative; Gemini is cheaper, faster, and reliability-floor validated (§ Provider model selection above). |
+| Speaker-detector | Gemini | `speaker_detector_provider: gemini` | Cloud kept — no measured DGX win for this stage. |
+
+**Validated by:**
+
+- [EVAL_HYBRID_ROUTING_2026_06.md](eval-reports/EVAL_HYBRID_ROUTING_2026_06.md) — #931 synthesis, profile-defaults decision.
+- [EVAL_TRANSCRIPTION_3WAY_2026_06.md](eval-reports/EVAL_TRANSCRIPTION_3WAY_2026_06.md) — #929 transcription championship.
+- [EVAL_DIARIZATION_DGX_VS_CLOUD_2026_06.md](eval-reports/EVAL_DIARIZATION_DGX_VS_CLOUD_2026_06.md) — #930 diarization championship.
+- [EVAL_SUMMARY_DGX_LOCAL_2026_06.md](eval-reports/EVAL_SUMMARY_DGX_LOCAL_2026_06.md) — #928 Cell C summary parity.
+- [EVAL_WHISPER_CONTENTION_2026_06.md](eval-reports/EVAL_WHISPER_CONTENTION_2026_06.md) — #963 contention re-tests (2026-06-11 + 2026-06-14).
+
+**Operator-gated rule: do not overlap autoresearch sweeps with transcription windows.**
+The 2026-06-14 #963 re-run found that under active vLLM serving on GB10:
+
+- Mean whisper latency drops from 4.4× realtime to 2.0× realtime.
+- One of five episodes hit a **catastrophic single-episode failure** (WER 1.000 at 18× slowdown).
+- vLLM's own tail latency spiked to 335s.
+
+The `tailnet_dgx` resilience layer (`#956`) catches *timeout* failure modes — falls back to
+the cloud provider on watchdog deadline + opens the circuit breaker on repeated errors. It
+does **not** catch "successful HTTP response containing wrong content" (the WER=1.000 case),
+so the sweep-vs-transcription overlap remains an **operator-gated rule**, not a client-side
+guarantee. In practice: gate autoresearch sweeps behind the transcription queue rather than
+letting them run concurrently. The DGX GPU mode toggle script
+(`/home/<user>/bin/gpu-mode-swap.sh` — operator-side) is the canonical way to free the GPU
+between modes.
+
+**GB10 unified-memory cap:** `gpu-memory-utilization=0.75` is the working ceiling on the
+GB10 (121 GiB unified CPU+GPU). `0.92` OOM-crashes the host. The compose default
+(`agentic-ai-homelab/infra/vllm/coder-next/docker-compose.yml`) is
+`${VLLM_GPU_MEM_UTIL:-0.75}` — override transiently via env var for eval / contention tests
+on a quieter box only.
+
 ### Where to look first
 
 | Symptom | Where |
