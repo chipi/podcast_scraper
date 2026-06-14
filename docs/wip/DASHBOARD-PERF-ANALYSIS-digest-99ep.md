@@ -1,6 +1,6 @@
 # Dashboard performance analysis — digest topic bands on a 99-episode corpus
 
-> **RESOLVED → [ADR-099](../adr/ADR-099-process-scoped-search-index-pooling.md).**
+> **RESOLVED → [ADR-099](../adr/ADR-099-lancedb-first-single-index-search.md).**
 > Deeper profiling refined the root cause below: the dominant cost is **not** the
 > number of topic bands — it is that **every lance query rebuilds the
 > `LanceDBBackend` from scratch** (open DB + load IVF/FTS indices, ~0.8 s) while
