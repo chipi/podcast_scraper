@@ -450,3 +450,40 @@ server.shell(
     commands=[f"cd {WHISPER_INSTALL_ROOT} && docker compose up -d"],
     _sudo=True,
 )
+
+# ----------------------------------------------------------------------
+# 4. Observability stack (#943): DCGM exporter + node-exporter + cAdvisor.
+#
+# All upstream images; no local Dockerfile build. The compose lives at
+# infra/dgx/observability/docker-compose.yml in this repo and is shipped
+# verbatim. Tailscale ACL opens :9100 / :9400 / :8080 on tag:dgx-llm-host
+# (tailscale/policy.hujson, same commit).
+# ----------------------------------------------------------------------
+
+OBS_INSTALL_ROOT = "/opt/observability"
+OBS_COMPOSE_FILE = f"{OBS_INSTALL_ROOT}/docker-compose.yml"
+_OBS_COMPOSE_SRC = (
+    _FasterWhisperPath(__file__).resolve().parents[1] / "observability" / "docker-compose.yml"
+)
+
+files.directory(
+    name="dir: /opt/observability (DGX exporters install root)",
+    path=OBS_INSTALL_ROOT,
+    mode="755",
+    present=True,
+    _sudo=True,
+)
+
+files.put(
+    name="ship: observability/docker-compose.yml (#943)",
+    src=str(_OBS_COMPOSE_SRC),
+    dest=OBS_COMPOSE_FILE,
+    mode="644",
+    _sudo=True,
+)
+
+server.shell(
+    name="compose: up -d (start / restart DCGM + node-exporter + cAdvisor)",
+    commands=[f"cd {OBS_INSTALL_ROOT} && docker compose up -d"],
+    _sudo=True,
+)

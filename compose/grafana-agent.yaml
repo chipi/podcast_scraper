@@ -50,6 +50,66 @@ metrics:
                 service: podcast-scraper-api
           metrics_path: /metrics
 
+        # DGX observability (#943): three exporters on the operator's
+        # GB10 box, scraped over Tailnet. Sized to stay well under the
+        # Grafana Cloud free tier (10k active series, 50 GB ingest/mo).
+        # See docs/guides/DGX_RUNBOOK.md § DGX observability for budget.
+
+        - job_name: dgx-gpu
+          static_configs:
+            - targets: ['dgx-llm-1.tail6d0ed4.ts.net:9400']
+              labels:
+                host: dgx
+                kind: gpu
+          metrics_path: /metrics
+          scrape_interval: 30s
+          scrape_timeout: 10s
+
+        - job_name: dgx-system
+          static_configs:
+            - targets: ['dgx-llm-1.tail6d0ed4.ts.net:9100']
+              labels:
+                host: dgx
+                kind: system
+          metrics_path: /metrics
+          scrape_interval: 60s
+          scrape_timeout: 10s
+
+        - job_name: dgx-containers
+          static_configs:
+            - targets: ['dgx-llm-1.tail6d0ed4.ts.net:8080']
+              labels:
+                host: dgx
+                kind: container
+          metrics_path: /metrics
+          scrape_interval: 60s
+          scrape_timeout: 10s
+          # Cardinality discipline: cAdvisor emits ~150 metric names per
+          # container by default. Keep ~10 high-signal metrics + drop the
+          # `id` label (full cgroup path — unstable across restarts,
+          # blows cardinality). `name` is enough to identify a container.
+          metric_relabel_configs:
+            - source_labels: [__name__]
+              regex: 'container_(cpu_usage_seconds_total|memory_usage_bytes|memory_working_set_bytes|network_receive_bytes_total|network_transmit_bytes_total|fs_usage_bytes|fs_writes_total|fs_reads_total|last_seen|start_time_seconds)'
+              action: keep
+            - regex: '(id|pod|namespace|container_label_.*)'
+              action: labeldrop
+
+        # Pyannote-server application metrics (#943; #942 sibling adds
+        # Sentry). Exposed at /metrics via prometheus-fastapi-instrumentator
+        # — request rate / latency histo / status code. Scrape only when
+        # the service is up (Grafana Agent drops on failure, no retries).
+        - job_name: dgx-pyannote-app
+          static_configs:
+            - targets: ['dgx-llm-1.tail6d0ed4.ts.net:8001']
+              labels:
+                host: dgx
+                kind: app
+                service: pyannote-server
+          metrics_path: /metrics
+          scrape_interval: 60s
+          scrape_timeout: 10s
+
       remote_write:
         # Quote env substitutions: -config.expand-env=true inlines values
         # before YAML parse, and Grafana Cloud API keys typically contain

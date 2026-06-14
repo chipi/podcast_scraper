@@ -397,3 +397,85 @@ make dgx-smoke
 ```
 
 Uses `DGX_TAILNET_FQDN` and `resolve_dgx_tailnet_host.sh`; exits 0 with a warning when DGX is offline (for CI-less laptops).
+
+## DGX observability (#943 / #942)
+
+Three exporters on DGX feed the existing Grafana Cloud Prometheus +
+the existing pipeline-side `compose/grafana-agent.yaml` scrape config.
+**No new Grafana Cloud subscription**: this rides on the free tier the
+pipeline already uses.
+
+### Free-tier sizing (do not exceed)
+
+| Cap (Grafana Cloud free) | Headroom we use | Discipline |
+| --- | --- | --- |
+| 10k active series | ~175 (1.7%) | Strip `id` / `pod` / `namespace` / `container_label_*` from cAdvisor at scrape; keep ~10 metric names per container. |
+| 50 GB Prometheus ingest/mo | ~420 MB/mo (<1%) | 60s scrape for node/cAdvisor/pyannote-app; 30s for DCGM only. |
+| 14-day retention | n/a | inherited |
+| 5k Sentry errors/mo | ~0 expected | `before_send` drops the 503-still-loading boot noise; per-fingerprint rate limit upstream in Sentry project settings. |
+| 10k Sentry transactions/mo | ~1.5k @ 0.01 sample × ~150k req/mo | `SENTRY_TRACES_SAMPLE_RATE` env override available; do not raise without re-budgeting. |
+
+If a future panel needs higher-cardinality metrics (per-handler labels,
+per-feed labels, etc.), price the additional series first: each new
+series × 2880 scrapes/day × 30 bytes ≈ ~85 KB/day of ingest.
+
+### Endpoints (added in #943)
+
+| Port | Exporter | Scrape interval | Why |
+| --- | --- | --- | --- |
+| `:9400` | DCGM exporter | 30s | GPU state changes fast; util/mem/temp/power/SM ~15 series. |
+| `:9100` | node-exporter | 60s | Host CPU/mem/disk/net — low churn. |
+| `:8080` | cAdvisor | 60s | Per-container resource use. `id`/`pod`/`namespace` labels dropped at scrape. |
+| `:8001/metrics` | pyannote-server | 60s | Request rate / latency histo / status codes via `prometheus-fastapi-instrumentator`. |
+
+Tailscale ACL (`tailscale/policy.hujson`) opens the three new ports
+on `tag:dgx-llm-host` for `autogroup:admin`, `tag:gha-deployer`, and
+`tag:prod` (the pipeline VPS). Scrape config lives in
+`compose/grafana-agent.yaml` and is shipped by the existing prod
+overlay.
+
+### Dashboard
+
+Importable: `config/grafana/grafana-dashboard-dgx.json`. 11 panels in
+4 rows (GPU / System / Containers / App). The DGX panels reference the
+existing Prometheus datasource — no new datasource setup needed.
+
+### Sentry integration (#942)
+
+`infra/dgx/pyannote-server/app.py` initializes `sentry_sdk` when
+`SENTRY_DSN` is set in the operator's `/home/markodragoljevic/.env`.
+No-op when unset. Tags applied to every event: `service=pyannote-server`,
+`dgx_host=spark-2c14`, `gpu=GB10`, `environment=dgx-prod`. The
+`before_send` hook drops the boot-time `pyannote pipeline not yet loaded`
+503s — they're health-check noise, not actionable errors.
+
+Future DGX FastAPI services (vLLM-prod, etc.) should mirror this pattern
+verbatim — same DSN, same tags, same `before_send` filter.
+
+### First-time operator steps
+
+1. Set `SENTRY_DSN` in `/home/markodragoljevic/.env` on DGX (or leave
+   unset to skip Sentry).
+2. Push the Tailscale ACL change (Tailscale admin console — pull-request
+   the JSON, merge, propagation is ~10s).
+3. `make dgx-deploy` from the laptop — this lays down the new
+   `/opt/observability/docker-compose.yml` and brings up the three
+   exporters. The pyannote-server image is rebuilt with the new
+   Sentry / Prometheus deps.
+4. Verify scrape from the pipeline VPS:
+   `curl http://dgx-llm-1.tail6d0ed4.ts.net:9400/metrics | head` (DCGM),
+   same for `:9100`, `:8080`, `:8001/metrics`.
+5. Import `config/grafana/grafana-dashboard-dgx.json` into Grafana
+   Cloud (Dashboards → New → Import → upload JSON).
+
+### When to break the free-tier budget
+
+If the operator wants higher-fidelity metrics for a one-off
+investigation (e.g. characterizing #996 catastrophic-tail in real
+time):
+
+- Drop scrape interval to 15s in `compose/grafana-agent.yaml` per-job
+  (≈ 4× current ingest, still under 2 GB/mo).
+- Add per-handler latency labels to pyannote-server temporarily.
+- Revert after the investigation — sustained traffic at higher
+  fidelity will eventually exceed the free tier.
