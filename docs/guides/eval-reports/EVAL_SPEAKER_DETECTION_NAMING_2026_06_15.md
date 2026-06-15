@@ -104,8 +104,8 @@ model at the same endpoint completed in **21s**, which is itself slow but
 `OllamaProvider._build_speaker_detection_prompt` template + system
 prompt, which may be producing much longer prompts or asking for
 structured output. **Diagnosing why the provider's prompt template is 4×
-slower than a bare probe is a separate task** (see follow-ups); it does
-not change the routing decision.
+slower than a bare probe is operational observability**, not a code
+change — it does not affect the routing decision in this report.
 
 ## Routing decisions (4-profile table)
 

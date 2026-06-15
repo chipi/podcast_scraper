@@ -291,11 +291,12 @@ queueing.
   for a confident rate; would need N≥100 against a fixed stack.
 - Whisper-container side instrumentation. Would benefit any future
   catastrophic-tail follow-up; out of scope here.
-- Resilience-layer hardening: the watchdog catches "hang" and
-  "connection reset" cases but not the WER=1.0 case. Hardening to
-  catch the third mode (e.g. a sanity-check on returned text length
-  vs expected) is a separate ticket worth filing if the WER=1.0 mode
-  reproduces in any future sample.
+- Resilience-layer hardening for the WER=1.0 case: now covered by
+  ADR-099 response-shape guardrails (#999, `b0ee6c58`). The new
+  `check_whisper_response()` catches both the empty case and the
+  WER=1.0 garbage-content case via a duration-vs-output sanity ratio
+  (see `providers/guardrails/transcription.py`). No further ticket
+  needed.
 
 ## Reproduction
 

@@ -227,22 +227,26 @@ Same as ADR-099 — the helper is the same. Per-mode thresholds:
 Fine-tuning these against observed firing-rate data is tracked in #1002
 (shared with ADR-099 — same thresholds apply, same evidence loop).
 
-## Acceptance for the implementing PR (#1003)
+## Acceptance for the implementing PR (#1003) — closed 2026-06-15
 
-- [ ] OpenAI, Anthropic, Gemini, DeepSeek provider call sites wire
+- [x] OpenAI, Anthropic, Gemini, DeepSeek provider call sites wire
   `providers.guardrails.check_chat_response(content, service=...)` at the
   content-producing stages (summary, cleaning, GI, KG, speaker as
-  applicable).
-- [ ] Mistral, Grok providers documented as remaining work with the
-  same pattern; can ship in follow-up PRs.
-- [ ] Cost-attribution: `llm_cost` log event extended with
-  `triggered_guardrail` boolean field.
-- [ ] Tests at the unit tier confirm the helper fires per-service for the
-  4 failure modes; integration tests confirm the consumer-side fallback
-  path triggers correctly per stage.
-- [ ] Mock-server injection (from #999) reused for cloud E2E tests where
-  practical.
-- [ ] ADR-100 (this doc) referenced from the implementation site.
+  applicable). Shipped in `#1003` (`b0ee6c58`).
+- [x] Mistral, Grok providers wired the same pattern (2026-06-15
+  close-out, `5942c637`).
+- [x] Cost-attribution: `llm_cost` log event extended with
+  `triggered_guardrail` boolean field. Lives at
+  `workflow/cost_monitoring.py:61` and is set in both happy and
+  violation branches per provider.
+- [x] Tests at the unit tier confirm the helper fires per-service for the
+  4 failure modes (`tests/unit/podcast_scraper/providers/test_cloud_guardrails_wiring.py`);
+  E2E tests confirm the consumer-side fallback triggers per stage
+  (`tests/e2e/test_cloud_guardrails_fallback_e2e.py`).
+- [x] Mock-server injection (from #999) reused for cloud E2E
+  (`tests/e2e/test_cloud_guardrails_e2e.py`).
+- [x] ADR-100 referenced from the implementation site (Gemini /
+  DeepSeek / OpenAI / Anthropic / Mistral / Grok provider modules).
 
 ## Post-implementation updates (2026-06-15)
 

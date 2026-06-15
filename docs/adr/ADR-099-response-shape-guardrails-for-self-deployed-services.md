@@ -142,16 +142,28 @@ Other shapes were considered:
 | **vLLM** | JSON parse + finish_reason | When structured-output requested: JSON parse fails. Always: `finish_reason == "length"` |
 | **Pyannote** | Empty segments for non-trivial audio | `segments == []` AND `duration_sec > 5.0` |
 
-## Acceptance for the implementing PR (#999)
+## Acceptance for the implementing PR (#999) — closed 2026-06-15
 
-- [ ] `GuardrailViolation` exception class + `check_response_shape()` helper land in `resilience.py`
-- [ ] All four service consumers wire the guardrail
-- [ ] Prometheus counter `dgx_guardrail_violations_total{service, reason}` exposed
-- [ ] Mock server `inject_violation()` classmethod added; existing E2E tests still green
-- [ ] Unit tests: per-service guardrail fires on bad shape, does not fire on good shape
-- [ ] Integration tests: existing `test_tailnet_dgx_*.py` patterns extended with guardrail scenarios
-- [ ] E2E test: end-to-end fallback path triggered via injected violation, asserts cloud fallback fired
-- [ ] ADR-099 (this doc) referenced from the implementation site
+- [x] `GuardrailViolation` exception class + per-service `check_*_response()` helpers land in
+  `providers/guardrails/` (extracted from `tailnet_dgx/resilience.py` in the
+  refactor, commit `ec66e186`).
+- [x] All four service consumers wire the guardrail (`whisper_provider.py`,
+  `diarization_provider.py`, `ollama_provider.py`, plus cloud providers
+  via the same helpers under ADR-100).
+- [x] Prometheus counter exposed — renamed to
+  `inference_guardrail_violations_total{service, reason}` 2026-06-15
+  (the metric covers both self-hosted and cloud services).
+- [x] Mock server `inject_violation()` classmethod added
+  (`tests/e2e/fixtures/e2e_http_server.py:492`); existing E2E green.
+- [x] Unit tests: per-service guardrail fires on bad shape, doesn't fire on good shape
+  (`tests/unit/podcast_scraper/providers/test_resilience_and_guardrails.py`).
+- [x] Integration tests: `test_tailnet_dgx_*.py` patterns extended with
+  guardrail scenarios.
+- [x] E2E test: end-to-end fallback proven on real DGX, see
+  `docs/guides/eval-reports/EVAL_DGX_GUARDRAILS_REAL_VALIDATION_2026_06_15.md`.
+- [x] ADR-099 referenced from implementation sites
+  (`providers/guardrails/__init__.py`, `exceptions.py`, `_telemetry.py`,
+  `tailnet_dgx/diarization_provider.py`).
 
 ## Post-implementation updates (2026-06-15)
 
