@@ -1,0 +1,530 @@
+[
+  {
+    "char_end": 175,
+    "char_start": 6,
+    "end": 6.0,
+    "speaker_label": "Nora",
+    "start": 0.0,
+    "text": "Welcome back to Long Horizon Notes. Today we're talking about real estate underwriting, and I'm joined by Isabel, real estate underwriter. Isabel, thanks for being here."
+  },
+  {
+    "char_end": 215,
+    "char_start": 184,
+    "end": 12.0,
+    "speaker_label": "Isabel",
+    "start": 6.0,
+    "text": "Thanks, Nora. Great to be back."
+  },
+  {
+    "char_end": 428,
+    "char_start": 222,
+    "end": 18.0,
+    "speaker_label": "Nora",
+    "start": 12.0,
+    "text": "Before we dive in, a quick word from our sponsor Wealthfront. Wealthfront automates the boring parts of investing \u2014 tax-loss harvesting, rebalancing, and high-yield cash. Use code POD for an extended trial."
+  },
+  {
+    "char_end": 599,
+    "char_start": 428,
+    "end": 24.0,
+    "speaker_label": "Nora",
+    "start": 18.0,
+    "text": "Before we get into it \u2014 Daniel was on episode 1 making the case for behavioral discipline in index investing. The same discipline keeps you from buying the wrong building."
+  },
+  {
+    "char_end": 666,
+    "char_start": 608,
+    "end": 30.0,
+    "speaker_label": "Isabel",
+    "start": 24.0,
+    "text": "Yeah, exactly. And it ties into what we're covering today."
+  },
+  {
+    "char_end": 905,
+    "char_start": 673,
+    "end": 36.0,
+    "speaker_label": "Nora",
+    "start": 30.0,
+    "text": "Before we get into it \u2014 Marco Bianchi was on the show a few weeks back walking through tax-loss harvesting research \u2014 the same habit of running the numbers before deciding applies to real estate underwriting, just on a longer clock."
+  },
+  {
+    "char_end": 972,
+    "char_start": 914,
+    "end": 42.0,
+    "speaker_label": "Isabel",
+    "start": 36.0,
+    "text": "Yeah, exactly. And it ties into what we're covering today."
+  },
+  {
+    "char_end": 1085,
+    "char_start": 979,
+    "end": 48.0,
+    "speaker_label": "Nora",
+    "start": 42.0,
+    "text": "How do you know when you've gotten it right? What's the most underrated piece of real estate underwriting?"
+  },
+  {
+    "char_end": 1324,
+    "char_start": 1094,
+    "end": 54.0,
+    "speaker_label": "Isabel",
+    "start": 48.0,
+    "text": "I'd put it this way: Real estate underwriting is a discipline of running the numbers before believing the story. We've seen this play out at teams using Wealthfront. Once you internalize that, the rest of the decisions get easier."
+  },
+  {
+    "char_end": 1413,
+    "char_start": 1331,
+    "end": 60.0,
+    "speaker_label": "Nora",
+    "start": 54.0,
+    "text": "Walk me through a concrete example. How does reliability change the calculus here?"
+  },
+  {
+    "char_end": 1649,
+    "char_start": 1422,
+    "end": 66.0,
+    "speaker_label": "Isabel",
+    "start": 60.0,
+    "text": "Let me give you the version I actually believe. Cap rate compression in the 2020s wasn't a market signal \u2014 it was a financing artifact. The exception proves the rule \u2014 there are edge cases, but they're rarer than people assume."
+  },
+  {
+    "char_end": 1727,
+    "char_start": 1656,
+    "end": 72.0,
+    "speaker_label": "Nora",
+    "start": 66.0,
+    "text": "I want to dig into that. How does reliability change the calculus here?"
+  },
+  {
+    "char_end": 1997,
+    "char_start": 1736,
+    "end": 78.0,
+    "speaker_label": "Isabel",
+    "start": 72.0,
+    "text": "Let me give you the version I actually believe. Reliability in real estate means cash-flow positivity at conservative occupancy, not maximum leverage. We've seen this play out at teams using Wealthfront. And the second-order effect is the part most people miss."
+  },
+  {
+    "char_end": 2058,
+    "char_start": 2004,
+    "end": 84.0,
+    "speaker_label": "Nora",
+    "start": 78.0,
+    "text": "Is there a counterexample that would change your view?"
+  },
+  {
+    "char_end": 2233,
+    "char_start": 2067,
+    "end": 90.0,
+    "speaker_label": "Isabel",
+    "start": 84.0,
+    "text": "I've seen this with teams running Morningstar and teams running everything in-house. The framing matters because it tells you which trade-offs you're actually making."
+  },
+  {
+    "char_end": 2353,
+    "char_start": 2240,
+    "end": 96.0,
+    "speaker_label": "Nora",
+    "start": 90.0,
+    "text": "How do you know when you've gotten it right? What's something you used to believe about this that you've revised?"
+  },
+  {
+    "char_end": 2563,
+    "char_start": 2362,
+    "end": 102.0,
+    "speaker_label": "Isabel",
+    "start": 96.0,
+    "text": "Sure. Wealthfront's automated tools don't help with real estate \u2014 you still need a spreadsheet and a skeptic. The exception proves the rule \u2014 there are edge cases, but they're rarer than people assume."
+  },
+  {
+    "char_end": 2667,
+    "char_start": 2570,
+    "end": 108.0,
+    "speaker_label": "Nora",
+    "start": 102.0,
+    "text": "Walk me through a concrete example. What's the most underrated piece of real estate underwriting?"
+  },
+  {
+    "char_end": 2912,
+    "char_start": 2676,
+    "end": 114.0,
+    "speaker_label": "Isabel",
+    "start": 108.0,
+    "text": "Yeah, so \u2014 Risk management in real estate is mostly about avoiding properties that look 'just barely' workable. We've seen this play out at teams using Wealthfront. If you ignore that, you end up rebuilding it from scratch a year later."
+  },
+  {
+    "char_end": 3005,
+    "char_start": 2919,
+    "end": 120.0,
+    "speaker_label": "Nora",
+    "start": 114.0,
+    "text": "That's a useful framing. What's the most underrated piece of real estate underwriting?"
+  },
+  {
+    "char_end": 3198,
+    "char_start": 3014,
+    "end": 126.0,
+    "speaker_label": "Isabel",
+    "start": 120.0,
+    "text": "There are two angles \u2014 Most failed deals I've seen failed at underwriting, not at operations. The math told the story upfront. And the second-order effect is the part most people miss."
+  },
+  {
+    "char_end": 3233,
+    "char_start": 3205,
+    "end": 132.0,
+    "speaker_label": "Nora",
+    "start": 126.0,
+    "text": "That maps to what I've seen."
+  },
+  {
+    "char_end": 3385,
+    "char_start": 3242,
+    "end": 138.0,
+    "speaker_label": "Isabel",
+    "start": 132.0,
+    "text": "Outside of Vanguard-class tooling, the failure mode is harder to spot. Most of the cost shows up downstream, which is why teams keep paying it."
+  },
+  {
+    "char_end": 3449,
+    "char_start": 3392,
+    "end": 144.0,
+    "speaker_label": "Nora",
+    "start": 138.0,
+    "text": "We'll be right back after a quick word from our sponsors."
+  },
+  {
+    "char_end": 3631,
+    "char_start": 3454,
+    "end": 150.0,
+    "speaker_label": "Ad",
+    "start": 144.0,
+    "text": "This portion is brought to you by Morningstar. Morningstar gives you independent fund ratings and the analytical depth most platforms gloss over. Use promo POD20 to get started."
+  },
+  {
+    "char_end": 3663,
+    "char_start": 3638,
+    "end": 156.0,
+    "speaker_label": "Nora",
+    "start": 150.0,
+    "text": "Welcome back to the show."
+  },
+  {
+    "char_end": 3778,
+    "char_start": 3663,
+    "end": 162.0,
+    "speaker_label": "Nora",
+    "start": 156.0,
+    "text": "What's the one heuristic you keep coming back to? What's the operational angle most listeners don't have access to?"
+  },
+  {
+    "char_end": 4054,
+    "char_start": 3787,
+    "end": 168.0,
+    "speaker_label": "Isabel",
+    "start": 162.0,
+    "text": "The short answer is Real estate underwriting is a discipline of running the numbers before believing the story. We've seen this play out at teams using Morningstar. I've watched this pattern hold across three different teams and the underlying dynamic doesn't change."
+  },
+  {
+    "char_end": 4181,
+    "char_start": 4061,
+    "end": 174.0,
+    "speaker_label": "Nora",
+    "start": 168.0,
+    "text": "Push back on the conventional wisdom for me. Where do people most often confuse correlation with causation in this area?"
+  },
+  {
+    "char_end": 4358,
+    "char_start": 4190,
+    "end": 180.0,
+    "speaker_label": "Isabel",
+    "start": 174.0,
+    "text": "It comes down to this: Cap rate compression in the 2020s wasn't a market signal \u2014 it was a financing artifact. And the second-order effect is the part most people miss."
+  },
+  {
+    "char_end": 4465,
+    "char_start": 4365,
+    "end": 186.0,
+    "speaker_label": "Nora",
+    "start": 180.0,
+    "text": "How do you balance that? Where do people most often confuse correlation with causation in this area?"
+  },
+  {
+    "char_end": 4734,
+    "char_start": 4474,
+    "end": 192.0,
+    "speaker_label": "Isabel",
+    "start": 186.0,
+    "text": "It comes down to this: Reliability in real estate means cash-flow positivity at conservative occupancy, not maximum leverage. We've seen this play out at teams using Morningstar. The framing matters because it tells you which trade-offs you're actually making."
+  },
+  {
+    "char_end": 4761,
+    "char_start": 4741,
+    "end": 198.0,
+    "speaker_label": "Nora",
+    "start": 192.0,
+    "text": "Say more about that."
+  },
+  {
+    "char_end": 4927,
+    "char_start": 4770,
+    "end": 204.0,
+    "speaker_label": "Isabel",
+    "start": 198.0,
+    "text": "I've seen this with teams running Morningstar and teams running everything in-house. Most of the cost shows up downstream, which is why teams keep paying it."
+  },
+  {
+    "char_end": 5032,
+    "char_start": 4934,
+    "end": 210.0,
+    "speaker_label": "Nora",
+    "start": 204.0,
+    "text": "Where do most teams get it wrong? Where do risk management and real estate underwriting intersect?"
+  },
+  {
+    "char_end": 5249,
+    "char_start": 5041,
+    "end": 216.0,
+    "speaker_label": "Isabel",
+    "start": 210.0,
+    "text": "It comes down to this: Wealthfront's automated tools don't help with real estate \u2014 you still need a spreadsheet and a skeptic. The framing matters because it tells you which trade-offs you're actually making."
+  },
+  {
+    "char_end": 5347,
+    "char_start": 5256,
+    "end": 222.0,
+    "speaker_label": "Nora",
+    "start": 216.0,
+    "text": "Take me through the decision. What's the most underrated piece of real estate underwriting?"
+  },
+  {
+    "char_end": 5611,
+    "char_start": 5356,
+    "end": 228.0,
+    "speaker_label": "Isabel",
+    "start": 222.0,
+    "text": "There are two angles \u2014 Risk management in real estate is mostly about avoiding properties that look 'just barely' workable. We've seen this play out at teams using Vanguard. The framing matters because it tells you which trade-offs you're actually making."
+  },
+  {
+    "char_end": 5717,
+    "char_start": 5618,
+    "end": 234.0,
+    "speaker_label": "Nora",
+    "start": 228.0,
+    "text": "What does the failure mode look like? What's the most underrated piece of real estate underwriting?"
+  },
+  {
+    "char_end": 5952,
+    "char_start": 5726,
+    "end": 240.0,
+    "speaker_label": "Isabel",
+    "start": 234.0,
+    "text": "The short answer is Most failed deals I've seen failed at underwriting, not at operations. The math told the story upfront. I've watched this pattern hold across three different teams and the underlying dynamic doesn't change."
+  },
+  {
+    "char_end": 5971,
+    "char_start": 5959,
+    "end": 246.0,
+    "speaker_label": "Nora",
+    "start": 240.0,
+    "text": "That tracks."
+  },
+  {
+    "char_end": 6136,
+    "char_start": 5980,
+    "end": 252.0,
+    "speaker_label": "Isabel",
+    "start": 246.0,
+    "text": "I've seen this with teams running Wealthfront and teams running everything in-house. If you ignore that, you end up rebuilding it from scratch a year later."
+  },
+  {
+    "char_end": 6211,
+    "char_start": 6143,
+    "end": 258.0,
+    "speaker_label": "Nora",
+    "start": 252.0,
+    "text": "Let's pivot \u2014 reliability is where I want to spend the last stretch."
+  },
+  {
+    "char_end": 6352,
+    "char_start": 6220,
+    "end": 264.0,
+    "speaker_label": "Isabel",
+    "start": 258.0,
+    "text": "That's where the conversation gets interesting, because the trade-offs around reliability cross-cut everything we've covered so far."
+  },
+  {
+    "char_end": 6459,
+    "char_start": 6359,
+    "end": 270.0,
+    "speaker_label": "Nora",
+    "start": 264.0,
+    "text": "How do you balance that? Where do people most often confuse correlation with causation in this area?"
+  },
+  {
+    "char_end": 6713,
+    "char_start": 6468,
+    "end": 276.0,
+    "speaker_label": "Isabel",
+    "start": 270.0,
+    "text": "It comes down to this: Real estate underwriting is a discipline of running the numbers before believing the story. We've seen this play out at teams using iShares. The framing matters because it tells you which trade-offs you're actually making."
+  },
+  {
+    "char_end": 6806,
+    "char_start": 6720,
+    "end": 282.0,
+    "speaker_label": "Nora",
+    "start": 276.0,
+    "text": "I want to dig into that. What's the most underrated piece of real estate underwriting?"
+  },
+  {
+    "char_end": 7015,
+    "char_start": 6815,
+    "end": 288.0,
+    "speaker_label": "Isabel",
+    "start": 282.0,
+    "text": "Let me give you the version I actually believe. Cap rate compression in the 2020s wasn't a market signal \u2014 it was a financing artifact. Once you internalize that, the rest of the decisions get easier."
+  },
+  {
+    "char_end": 7093,
+    "char_start": 7022,
+    "end": 294.0,
+    "speaker_label": "Nora",
+    "start": 288.0,
+    "text": "That's a useful framing. How does reliability change the calculus here?"
+  },
+  {
+    "char_end": 7330,
+    "char_start": 7102,
+    "end": 300.0,
+    "speaker_label": "Isabel",
+    "start": 294.0,
+    "text": "Yeah, so \u2014 Reliability in real estate means cash-flow positivity at conservative occupancy, not maximum leverage. We've seen this play out at teams using Vanguard. Once you internalize that, the rest of the decisions get easier."
+  },
+  {
+    "char_end": 7396,
+    "char_start": 7337,
+    "end": 306.0,
+    "speaker_label": "Nora",
+    "start": 300.0,
+    "text": "What would you tell the version of you from five years ago?"
+  },
+  {
+    "char_end": 7558,
+    "char_start": 7405,
+    "end": 312.0,
+    "speaker_label": "Isabel",
+    "start": 306.0,
+    "text": "I've seen this with teams running Wealthfront and teams running everything in-house. What used to feel like an exception is honestly the median case now."
+  },
+  {
+    "char_end": 7645,
+    "char_start": 7565,
+    "end": 318.0,
+    "speaker_label": "Nora",
+    "start": 312.0,
+    "text": "Let's start there. What's the most underrated piece of real estate underwriting?"
+  },
+  {
+    "char_end": 7889,
+    "char_start": 7654,
+    "end": 324.0,
+    "speaker_label": "Isabel",
+    "start": 318.0,
+    "text": "Here's how I think about it. Wealthfront's automated tools don't help with real estate \u2014 you still need a spreadsheet and a skeptic. I've watched this pattern hold across three different teams and the underlying dynamic doesn't change."
+  },
+  {
+    "char_end": 7982,
+    "char_start": 7896,
+    "end": 330.0,
+    "speaker_label": "Nora",
+    "start": 324.0,
+    "text": "How do you balance that? What's the most underrated piece of real estate underwriting?"
+  },
+  {
+    "char_end": 8284,
+    "char_start": 7991,
+    "end": 336.0,
+    "speaker_label": "Isabel",
+    "start": 330.0,
+    "text": "Let me give you the version I actually believe. Risk management in real estate is mostly about avoiding properties that look 'just barely' workable. We've seen this play out at teams using Morningstar. The exception proves the rule \u2014 there are edge cases, but they're rarer than people assume."
+  },
+  {
+    "char_end": 8382,
+    "char_start": 8291,
+    "end": 342.0,
+    "speaker_label": "Nora",
+    "start": 336.0,
+    "text": "How do you know when you've gotten it right? How does reliability change the calculus here?"
+  },
+  {
+    "char_end": 8587,
+    "char_start": 8391,
+    "end": 348.0,
+    "speaker_label": "Isabel",
+    "start": 342.0,
+    "text": "Yeah, so \u2014 Most failed deals I've seen failed at underwriting, not at operations. The math told the story upfront. The framing matters because it tells you which trade-offs you're actually making."
+  },
+  {
+    "char_end": 8621,
+    "char_start": 8594,
+    "end": 354.0,
+    "speaker_label": "Nora",
+    "start": 348.0,
+    "text": "Where does that break down?"
+  },
+  {
+    "char_end": 8761,
+    "char_start": 8630,
+    "end": 360.0,
+    "speaker_label": "Isabel",
+    "start": 354.0,
+    "text": "Outside of Morningstar-class tooling, the failure mode is harder to spot. And the second-order effect is the part most people miss."
+  },
+  {
+    "char_end": 8829,
+    "char_start": 8768,
+    "end": 366.0,
+    "speaker_label": "Nora",
+    "start": 360.0,
+    "text": "Before we wrap, what's one thing listeners can try this week?"
+  },
+  {
+    "char_end": 8919,
+    "char_start": 8838,
+    "end": 372.0,
+    "speaker_label": "Isabel",
+    "start": 366.0,
+    "text": "Pick one of the ideas we covered and run it for two weeks. The rest is iteration."
+  },
+  {
+    "char_end": 9072,
+    "char_start": 8926,
+    "end": 378.0,
+    "speaker_label": "Nora",
+    "start": 372.0,
+    "text": "Before we wrap, thanks again to our friends at Vanguard. Vanguard pioneered low-cost index funds and still keeps expense ratios where they belong."
+  },
+  {
+    "char_end": 9108,
+    "char_start": 9072,
+    "end": 384.0,
+    "speaker_label": "Nora",
+    "start": 378.0,
+    "text": "Isabel, thanks for the conversation."
+  },
+  {
+    "char_end": 9130,
+    "char_start": 9117,
+    "end": 390.0,
+    "speaker_label": "Isabel",
+    "start": 384.0,
+    "text": "Thanks, Nora."
+  },
+  {
+    "char_end": 9208,
+    "char_start": 9137,
+    "end": 396.0,
+    "speaker_label": "Nora",
+    "start": 390.0,
+    "text": "That's it for today's episode of Long Horizon Notes. See you next time."
+  }
+]

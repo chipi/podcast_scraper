@@ -31,19 +31,64 @@
       "type": "HAS_INSIGHT"
     },
     {
-      "from": "episode:799ba6c0-3117-50e1-8c97-c2d8b695cce4",
-      "to": "quote:65292f989284c828",
-      "type": "HAS_QUOTE"
+      "from": "quote:e254f48ec0fc65ef",
+      "to": "person:speaker-01",
+      "type": "SPOKEN_BY"
     },
     {
-      "from": "episode:799ba6c0-3117-50e1-8c97-c2d8b695cce4",
-      "to": "quote:e3dcb73f7f4fbea2",
-      "type": "HAS_QUOTE"
+      "from": "insight:da2f8ac7df94d0a9",
+      "to": "quote:e254f48ec0fc65ef",
+      "type": "SUPPORTED_BY"
     },
     {
-      "from": "episode:799ba6c0-3117-50e1-8c97-c2d8b695cce4",
-      "to": "quote:19ec713ba3206fab",
-      "type": "HAS_QUOTE"
+      "from": "quote:3617bfd9322ba3a7",
+      "to": "person:speaker-02",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:a615fa69d639e612",
+      "to": "quote:3617bfd9322ba3a7",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:6c7d34e10a3c6f2f",
+      "to": "person:speaker-01",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:26a3c94c02bbc759",
+      "to": "quote:6c7d34e10a3c6f2f",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:09b450d2858862c6",
+      "to": "person:speaker-01",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:da2f8ac7df94d0a9",
+      "to": "quote:09b450d2858862c6",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:24391f70935cca56",
+      "to": "person:speaker-02",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:a615fa69d639e612",
+      "to": "quote:24391f70935cca56",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:53f1bb1ee58f8760",
+      "to": "person:speaker-02",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:26a3c94c02bbc759",
+      "to": "quote:53f1bb1ee58f8760",
+      "type": "SUPPORTED_BY"
     }
   ],
   "episode_id": "799ba6c0-3117-50e1-8c97-c2d8b695cce4",
@@ -56,7 +101,7 @@
         "episode_id": "799ba6c0-3117-50e1-8c97-c2d8b695cce4",
         "metadata_relative_path": "feeds/p01/metadata/p01_e02.metadata.json",
         "podcast_id": "sha256:90167c0635d0f3d31fe8ebc87b372f75cd15166e02da8abb2df7dfeca65aa588",
-        "publish_date": "2026-06-05T12:00:00",
+        "publish_date": "2026-06-13T12:00:00",
         "title": "Singletrack Sessions \u2014 Episode 2"
       },
       "type": "Episode"
@@ -113,26 +158,100 @@
       "type": "Insight"
     },
     {
-      "id": "quote:65292f989284c828",
+      "id": "person:speaker-01",
       "properties": {
-        "speaker": "Speaker 1",
-        "text": "This episode is brought to you by Linear."
+        "name": "Maya"
+      },
+      "type": "Person"
+    },
+    {
+      "id": "quote:e254f48ec0fc65ef",
+      "properties": {
+        "char_end": 165,
+        "char_start": 6,
+        "episode_id": "799ba6c0-3117-50e1-8c97-c2d8b695cce4",
+        "speaker_id": "person:speaker-01",
+        "text": "Welcome back to Singletrack Sessions. Today we're talking about enduro racing, and I'm joined by Sophie, enduro racer and coach. Sophie, thanks for being here.",
+        "timestamp_end_ms": 6000,
+        "timestamp_start_ms": 0,
+        "transcript_ref": "transcripts/p01_e02.txt"
       },
       "type": "Quote"
     },
     {
-      "id": "quote:e3dcb73f7f4fbea2",
+      "id": "person:speaker-02",
       "properties": {
-        "speaker": "Speaker 1",
-        "text": "Linear is the issue tracker built for speed \u2014 keyboard-first, fast search, and a clean roadmap view your team actually uses."
+        "name": "Sophie"
+      },
+      "type": "Person"
+    },
+    {
+      "id": "quote:3617bfd9322ba3a7",
+      "properties": {
+        "char_end": 205,
+        "char_start": 174,
+        "episode_id": "799ba6c0-3117-50e1-8c97-c2d8b695cce4",
+        "speaker_id": "person:speaker-02",
+        "text": "Thanks, Maya. Great to be back.",
+        "timestamp_end_ms": 12000,
+        "timestamp_start_ms": 6000,
+        "transcript_ref": "transcripts/p01_e02.txt"
       },
       "type": "Quote"
     },
     {
-      "id": "quote:19ec713ba3206fab",
+      "id": "quote:6c7d34e10a3c6f2f",
       "properties": {
-        "speaker": "Speaker 1",
-        "text": "Get started at linear.com/podcast."
+        "char_end": 413,
+        "char_start": 212,
+        "episode_id": "799ba6c0-3117-50e1-8c97-c2d8b695cce4",
+        "speaker_id": "person:speaker-01",
+        "text": "This episode is brought to you by Linear. Linear is the issue tracker built for speed \u2014 keyboard-first, fast search, and a clean roadmap view your team actually uses. Get started at linear.com/podcast.",
+        "timestamp_end_ms": 18000,
+        "timestamp_start_ms": 12000,
+        "transcript_ref": "transcripts/p01_e02.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:09b450d2858862c6",
+      "properties": {
+        "char_end": 592,
+        "char_start": 413,
+        "episode_id": "799ba6c0-3117-50e1-8c97-c2d8b695cce4",
+        "speaker_id": "person:speaker-01",
+        "text": "Before we get into it \u2014 Liam was on the show talking about how drainage is the single highest-leverage design choice. That ties directly into how a track holds up across race day.",
+        "timestamp_end_ms": 24000,
+        "timestamp_start_ms": 18000,
+        "transcript_ref": "transcripts/p01_e02.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:24391f70935cca56",
+      "properties": {
+        "char_end": 659,
+        "char_start": 601,
+        "episode_id": "799ba6c0-3117-50e1-8c97-c2d8b695cce4",
+        "speaker_id": "person:speaker-02",
+        "text": "Yeah, exactly. And it ties into what we're covering today.",
+        "timestamp_end_ms": 30000,
+        "timestamp_start_ms": 24000,
+        "transcript_ref": "transcripts/p01_e02.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:53f1bb1ee58f8760",
+      "properties": {
+        "char_end": 804,
+        "char_start": 659,
+        "episode_id": "799ba6c0-3117-50e1-8c97-c2d8b695cce4",
+        "speaker_id": "person:speaker-02",
+        "text": "I used to think you could brake your way out of any line mistake. After 2024 nationals I revised that \u2014 the right line in practice is everything.",
+        "timestamp_end_ms": 36000,
+        "timestamp_start_ms": 30000,
+        "transcript_ref": "transcripts/p01_e02.txt"
       },
       "type": "Quote"
     }

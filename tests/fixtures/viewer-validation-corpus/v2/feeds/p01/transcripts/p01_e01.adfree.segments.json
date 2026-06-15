@@ -1,0 +1,498 @@
+[
+  {
+    "char_end": 179,
+    "char_start": 6,
+    "end": 6.0,
+    "speaker_label": "Maya",
+    "start": 0.0,
+    "text": "Welcome back to Singletrack Sessions. Today we're talking about trail building, and I'm joined by Liam, trail builder for the Cascadia Alliance. Liam, thanks for being here."
+  },
+  {
+    "char_end": 282,
+    "char_start": 186,
+    "end": 12.0,
+    "speaker_label": "Liam",
+    "start": 6.0,
+    "text": "Thanks, Maya. Excited for this one \u2014 trail building is something I've been thinking about a lot."
+  },
+  {
+    "char_end": 483,
+    "char_start": 289,
+    "end": 18.0,
+    "speaker_label": "Maya",
+    "start": 12.0,
+    "text": "Before we dive in, a quick word from our sponsor Strava. Strava is the home for athletes \u2014 track every ride, run, and swim, and compare segments with friends. Use code POD for an extended trial."
+  },
+  {
+    "char_end": 553,
+    "char_start": 483,
+    "end": 24.0,
+    "speaker_label": "Maya",
+    "start": 18.0,
+    "text": "Let's start there. What's the most underrated piece of trail building?"
+  },
+  {
+    "char_end": 826,
+    "char_start": 560,
+    "end": 30.0,
+    "speaker_label": "Liam",
+    "start": 24.0,
+    "text": "The short answer is Drainage is the single highest-leverage design choice on any trail. If water leaves on its own, the trail will last a decade. We've seen this play out at teams using Spoke & Wrench. Once you internalize that, the rest of the decisions get easier."
+  },
+  {
+    "char_end": 929,
+    "char_start": 833,
+    "end": 36.0,
+    "speaker_label": "Maya",
+    "start": 30.0,
+    "text": "Push back on the conventional wisdom for me. What's the most underrated piece of trail building?"
+  },
+  {
+    "char_end": 1158,
+    "char_start": 936,
+    "end": 42.0,
+    "speaker_label": "Liam",
+    "start": 36.0,
+    "text": "I'd put it this way: The most common mistake new builders make is grading too aggressively \u2014 gentle is durable, steep is romantic. The exception proves the rule \u2014 there are edge cases, but they're rarer than people assume."
+  },
+  {
+    "char_end": 1258,
+    "char_start": 1165,
+    "end": 48.0,
+    "speaker_label": "Maya",
+    "start": 42.0,
+    "text": "I want to dig into that. What's something you used to believe about this that you've revised?"
+  },
+  {
+    "char_end": 1554,
+    "char_start": 1265,
+    "end": 54.0,
+    "speaker_label": "Liam",
+    "start": 48.0,
+    "text": "Here's how I think about it. Land-stewardship conversations have to happen before the first dig. Otherwise you spend the next year fighting people who feel ignored. We've seen this play out at teams using Spoke & Wrench. What used to feel like an exception is honestly the median case now."
+  },
+  {
+    "char_end": 1615,
+    "char_start": 1561,
+    "end": 60.0,
+    "speaker_label": "Maya",
+    "start": 54.0,
+    "text": "Is there a counterexample that would change your view?"
+  },
+  {
+    "char_end": 1788,
+    "char_start": 1622,
+    "end": 66.0,
+    "speaker_label": "Liam",
+    "start": 60.0,
+    "text": "And when teams adopt Cascadia Alliance in that flow, the trade-off becomes visible \u2014 The framing matters because it tells you which trade-offs you're actually making."
+  },
+  {
+    "char_end": 1906,
+    "char_start": 1795,
+    "end": 72.0,
+    "speaker_label": "Maya",
+    "start": 66.0,
+    "text": "Walk me through a concrete example. Where do people most often confuse correlation with causation in this area?"
+  },
+  {
+    "char_end": 2120,
+    "char_start": 1913,
+    "end": 78.0,
+    "speaker_label": "Liam",
+    "start": 72.0,
+    "text": "Let me give you the version I actually believe. Bench cuts on hillsides aren't optional. The shortcut on day one is the washout on year three. Once you internalize that, the rest of the decisions get easier."
+  },
+  {
+    "char_end": 2240,
+    "char_start": 2127,
+    "end": 84.0,
+    "speaker_label": "Maya",
+    "start": 78.0,
+    "text": "What does the failure mode look like? Where do people most often confuse correlation with causation in this area?"
+  },
+  {
+    "char_end": 2545,
+    "char_start": 2247,
+    "end": 90.0,
+    "speaker_label": "Liam",
+    "start": 84.0,
+    "text": "The short answer is Soil structure matters more than people think \u2014 silty soil collapses under tire load, clay holds shape but pools water. We've seen this play out at teams using Spoke & Wrench. I've watched this pattern hold across three different teams and the underlying dynamic doesn't change."
+  },
+  {
+    "char_end": 2639,
+    "char_start": 2552,
+    "end": 96.0,
+    "speaker_label": "Maya",
+    "start": 90.0,
+    "text": "Walk me through a concrete example. How does land stewardship change the calculus here?"
+  },
+  {
+    "char_end": 2878,
+    "char_start": 2646,
+    "end": 102.0,
+    "speaker_label": "Liam",
+    "start": 96.0,
+    "text": "Let me give you the version I actually believe. I changed my mind about machine-built versus hand-built trails. Done right, machines can produce gorgeous flow. Most of the cost shows up downstream, which is why teams keep paying it."
+  },
+  {
+    "char_end": 2912,
+    "char_start": 2885,
+    "end": 108.0,
+    "speaker_label": "Maya",
+    "start": 102.0,
+    "text": "Where does that break down?"
+  },
+  {
+    "char_end": 3058,
+    "char_start": 2919,
+    "end": 114.0,
+    "speaker_label": "Liam",
+    "start": 108.0,
+    "text": "Spoke & Wrench is one of the platforms where this shows up cleanly. If you ignore that, you end up rebuilding it from scratch a year later."
+  },
+  {
+    "char_end": 3122,
+    "char_start": 3065,
+    "end": 120.0,
+    "speaker_label": "Maya",
+    "start": 114.0,
+    "text": "We'll be right back after a quick word from our sponsors."
+  },
+  {
+    "char_end": 3295,
+    "char_start": 3127,
+    "end": 126.0,
+    "speaker_label": "Ad",
+    "start": 120.0,
+    "text": "This portion is brought to you by Stripe. Stripe makes payments simple, whether you're running a marketplace or a subscription business. Use promo POD20 to get started."
+  },
+  {
+    "char_end": 3327,
+    "char_start": 3302,
+    "end": 132.0,
+    "speaker_label": "Maya",
+    "start": 126.0,
+    "text": "Welcome back to the show."
+  },
+  {
+    "char_end": 3429,
+    "char_start": 3327,
+    "end": 138.0,
+    "speaker_label": "Maya",
+    "start": 132.0,
+    "text": "What does that look like day-to-day? What's the operational angle most listeners don't have access to?"
+  },
+  {
+    "char_end": 3746,
+    "char_start": 3436,
+    "end": 144.0,
+    "speaker_label": "Liam",
+    "start": 138.0,
+    "text": "It comes down to this: Drainage is the single highest-leverage design choice on any trail. If water leaves on its own, the trail will last a decade. We've seen this play out at teams using Cascadia Alliance. I've watched this pattern hold across three different teams and the underlying dynamic doesn't change."
+  },
+  {
+    "char_end": 3866,
+    "char_start": 3753,
+    "end": 150.0,
+    "speaker_label": "Maya",
+    "start": 144.0,
+    "text": "Push back on the conventional wisdom for me. What's something you used to believe about this that you've revised?"
+  },
+  {
+    "char_end": 4046,
+    "char_start": 3873,
+    "end": 156.0,
+    "speaker_label": "Liam",
+    "start": 150.0,
+    "text": "Sure. The most common mistake new builders make is grading too aggressively \u2014 gentle is durable, steep is romantic. And the second-order effect is the part most people miss."
+  },
+  {
+    "char_end": 4178,
+    "char_start": 4053,
+    "end": 162.0,
+    "speaker_label": "Maya",
+    "start": 156.0,
+    "text": "What's the one heuristic you keep coming back to? Where do people most often confuse correlation with causation in this area?"
+  },
+  {
+    "char_end": 4459,
+    "char_start": 4185,
+    "end": 168.0,
+    "speaker_label": "Liam",
+    "start": 162.0,
+    "text": "Yeah, so \u2014 Land-stewardship conversations have to happen before the first dig. Otherwise you spend the next year fighting people who feel ignored. We've seen this play out at teams using Cascadia Alliance. What used to feel like an exception is honestly the median case now."
+  },
+  {
+    "char_end": 4493,
+    "char_start": 4466,
+    "end": 174.0,
+    "speaker_label": "Maya",
+    "start": 168.0,
+    "text": "Where does that break down?"
+  },
+  {
+    "char_end": 4650,
+    "char_start": 4500,
+    "end": 180.0,
+    "speaker_label": "Liam",
+    "start": 174.0,
+    "text": "And when teams adopt Spoke & Wrench in that flow, the trade-off becomes visible \u2014 What used to feel like an exception is honestly the median case now."
+  },
+  {
+    "char_end": 4742,
+    "char_start": 4657,
+    "end": 186.0,
+    "speaker_label": "Maya",
+    "start": 180.0,
+    "text": "Where do most teams get it wrong? How does land stewardship change the calculus here?"
+  },
+  {
+    "char_end": 4956,
+    "char_start": 4749,
+    "end": 192.0,
+    "speaker_label": "Liam",
+    "start": 186.0,
+    "text": "Honestly, Bench cuts on hillsides aren't optional. The shortcut on day one is the washout on year three. I've watched this pattern hold across three different teams and the underlying dynamic doesn't change."
+  },
+  {
+    "char_end": 5048,
+    "char_start": 4963,
+    "end": 198.0,
+    "speaker_label": "Maya",
+    "start": 192.0,
+    "text": "Where do most teams get it wrong? How does land stewardship change the calculus here?"
+  },
+  {
+    "char_end": 5324,
+    "char_start": 5055,
+    "end": 204.0,
+    "speaker_label": "Liam",
+    "start": 198.0,
+    "text": "I'd put it this way: Soil structure matters more than people think \u2014 silty soil collapses under tire load, clay holds shape but pools water. We've seen this play out at teams using Spoke & Wrench. Most of the cost shows up downstream, which is why teams keep paying it."
+  },
+  {
+    "char_end": 5395,
+    "char_start": 5331,
+    "end": 210.0,
+    "speaker_label": "Maya",
+    "start": 204.0,
+    "text": "That's a useful framing. How does Shimano fit into this picture?"
+  },
+  {
+    "char_end": 5605,
+    "char_start": 5402,
+    "end": 216.0,
+    "speaker_label": "Liam",
+    "start": 210.0,
+    "text": "There are two angles \u2014 I changed my mind about machine-built versus hand-built trails. Done right, machines can produce gorgeous flow. What used to feel like an exception is honestly the median case now."
+  },
+  {
+    "char_end": 5632,
+    "char_start": 5612,
+    "end": 222.0,
+    "speaker_label": "Maya",
+    "start": 216.0,
+    "text": "Say more about that."
+  },
+  {
+    "char_end": 5789,
+    "char_start": 5639,
+    "end": 228.0,
+    "speaker_label": "Liam",
+    "start": 222.0,
+    "text": "And when teams adopt Spoke & Wrench in that flow, the trade-off becomes visible \u2014 What used to feel like an exception is honestly the median case now."
+  },
+  {
+    "char_end": 5869,
+    "char_start": 5796,
+    "end": 234.0,
+    "speaker_label": "Maya",
+    "start": 228.0,
+    "text": "Let's pivot \u2014 land stewardship is where I want to spend the last stretch."
+  },
+  {
+    "char_end": 6013,
+    "char_start": 5876,
+    "end": 240.0,
+    "speaker_label": "Liam",
+    "start": 234.0,
+    "text": "That's where the conversation gets interesting, because the trade-offs around land stewardship cross-cut everything we've covered so far."
+  },
+  {
+    "char_end": 6113,
+    "char_start": 6020,
+    "end": 246.0,
+    "speaker_label": "Maya",
+    "start": 240.0,
+    "text": "That's a useful framing. What's something you used to believe about this that you've revised?"
+  },
+  {
+    "char_end": 6377,
+    "char_start": 6120,
+    "end": 252.0,
+    "speaker_label": "Liam",
+    "start": 246.0,
+    "text": "Yeah, so \u2014 Drainage is the single highest-leverage design choice on any trail. If water leaves on its own, the trail will last a decade. We've seen this play out at teams using Spoke & Wrench. Once you internalize that, the rest of the decisions get easier."
+  },
+  {
+    "char_end": 6477,
+    "char_start": 6384,
+    "end": 258.0,
+    "speaker_label": "Maya",
+    "start": 252.0,
+    "text": "I want to dig into that. What's something you used to believe about this that you've revised?"
+  },
+  {
+    "char_end": 6689,
+    "char_start": 6484,
+    "end": 264.0,
+    "speaker_label": "Liam",
+    "start": 258.0,
+    "text": "There are two angles \u2014 The most common mistake new builders make is grading too aggressively \u2014 gentle is durable, steep is romantic. Most of the cost shows up downstream, which is why teams keep paying it."
+  },
+  {
+    "char_end": 6787,
+    "char_start": 6696,
+    "end": 270.0,
+    "speaker_label": "Maya",
+    "start": 264.0,
+    "text": "Where do most teams get it wrong? What's the version of the question that actually matters?"
+  },
+  {
+    "char_end": 7065,
+    "char_start": 6794,
+    "end": 276.0,
+    "speaker_label": "Liam",
+    "start": 270.0,
+    "text": "Yeah, so \u2014 Land-stewardship conversations have to happen before the first dig. Otherwise you spend the next year fighting people who feel ignored. We've seen this play out at teams using Spoke & Wrench. What used to feel like an exception is honestly the median case now."
+  },
+  {
+    "char_end": 7131,
+    "char_start": 7072,
+    "end": 282.0,
+    "speaker_label": "Maya",
+    "start": 276.0,
+    "text": "What would you tell the version of you from five years ago?"
+  },
+  {
+    "char_end": 7311,
+    "char_start": 7138,
+    "end": 288.0,
+    "speaker_label": "Liam",
+    "start": 282.0,
+    "text": "And when teams adopt Spoke & Wrench in that flow, the trade-off becomes visible \u2014 The exception proves the rule \u2014 there are edge cases, but they're rarer than people assume."
+  },
+  {
+    "char_end": 7399,
+    "char_start": 7318,
+    "end": 294.0,
+    "speaker_label": "Maya",
+    "start": 288.0,
+    "text": "Take me through the decision. What's the most underrated piece of trail building?"
+  },
+  {
+    "char_end": 7613,
+    "char_start": 7406,
+    "end": 300.0,
+    "speaker_label": "Liam",
+    "start": 294.0,
+    "text": "Honestly, Bench cuts on hillsides aren't optional. The shortcut on day one is the washout on year three. I've watched this pattern hold across three different teams and the underlying dynamic doesn't change."
+  },
+  {
+    "char_end": 7710,
+    "char_start": 7620,
+    "end": 306.0,
+    "speaker_label": "Maya",
+    "start": 300.0,
+    "text": "What's the one heuristic you keep coming back to? How does RockShox fit into this picture?"
+  },
+  {
+    "char_end": 7984,
+    "char_start": 7717,
+    "end": 312.0,
+    "speaker_label": "Liam",
+    "start": 306.0,
+    "text": "The short answer is Soil structure matters more than people think \u2014 silty soil collapses under tire load, clay holds shape but pools water. We've seen this play out at teams using Cascadia Alliance. What used to feel like an exception is honestly the median case now."
+  },
+  {
+    "char_end": 8074,
+    "char_start": 7991,
+    "end": 318.0,
+    "speaker_label": "Maya",
+    "start": 312.0,
+    "text": "Let's start there. What's the contrarian angle most listeners don't have access to?"
+  },
+  {
+    "char_end": 8286,
+    "char_start": 8081,
+    "end": 324.0,
+    "speaker_label": "Liam",
+    "start": 318.0,
+    "text": "I'd put it this way: I changed my mind about machine-built versus hand-built trails. Done right, machines can produce gorgeous flow. Most of the cost shows up downstream, which is why teams keep paying it."
+  },
+  {
+    "char_end": 8320,
+    "char_start": 8293,
+    "end": 330.0,
+    "speaker_label": "Maya",
+    "start": 324.0,
+    "text": "Where does that break down?"
+  },
+  {
+    "char_end": 8500,
+    "char_start": 8327,
+    "end": 336.0,
+    "speaker_label": "Liam",
+    "start": 330.0,
+    "text": "Outside of RockShox-class tooling, the failure mode is harder to spot. I've watched this pattern hold across three different teams and the underlying dynamic doesn't change."
+  },
+  {
+    "char_end": 8568,
+    "char_start": 8507,
+    "end": 342.0,
+    "speaker_label": "Maya",
+    "start": 336.0,
+    "text": "Before we wrap, what's one thing listeners can try this week?"
+  },
+  {
+    "char_end": 8656,
+    "char_start": 8575,
+    "end": 348.0,
+    "speaker_label": "Liam",
+    "start": 342.0,
+    "text": "Pick one of the ideas we covered and run it for two weeks. The rest is iteration."
+  },
+  {
+    "char_end": 8865,
+    "char_start": 8663,
+    "end": 354.0,
+    "speaker_label": "Maya",
+    "start": 348.0,
+    "text": "And finally, a big thank you to our partners at Linear. Linear is the issue tracker built for speed \u2014 keyboard-first, fast search, and a clean roadmap view your team actually uses. Check out linear.com."
+  },
+  {
+    "char_end": 8899,
+    "char_start": 8865,
+    "end": 360.0,
+    "speaker_label": "Maya",
+    "start": 354.0,
+    "text": "Liam, thanks for the conversation."
+  },
+  {
+    "char_end": 8919,
+    "char_start": 8906,
+    "end": 366.0,
+    "speaker_label": "Liam",
+    "start": 360.0,
+    "text": "Thanks, Maya."
+  },
+  {
+    "char_end": 8999,
+    "char_start": 8926,
+    "end": 372.0,
+    "speaker_label": "Maya",
+    "start": 366.0,
+    "text": "That's it for today's episode of Singletrack Sessions. See you next time."
+  }
+]

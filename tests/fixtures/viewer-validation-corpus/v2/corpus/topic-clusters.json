@@ -2,30 +2,6 @@
   "cluster_count": 5,
   "clusters": [
     {
-      "canonical_label": "Health",
-      "canonical_topic_id": "topic:health",
-      "cil_alias_target_topic_id": "topic:health",
-      "graph_compound_parent_id": "tc:health-cluster",
-      "member_count": 1,
-      "members": [
-        {
-          "topic_id": "topic:health"
-        }
-      ]
-    },
-    {
-      "canonical_label": "Outdoor Activities",
-      "canonical_topic_id": "topic:outdoor-activities",
-      "cil_alias_target_topic_id": "topic:outdoor-activities",
-      "graph_compound_parent_id": "tc:outdoor-activities-cluster",
-      "member_count": 1,
-      "members": [
-        {
-          "topic_id": "topic:outdoor-activities"
-        }
-      ]
-    },
-    {
       "canonical_label": "Gear",
       "canonical_topic_id": "topic:gear",
       "cil_alias_target_topic_id": "topic:gear",
@@ -58,6 +34,30 @@
       "members": [
         {
           "topic_id": "topic:environment"
+        }
+      ]
+    },
+    {
+      "canonical_label": "Health",
+      "canonical_topic_id": "topic:health",
+      "cil_alias_target_topic_id": "topic:health",
+      "graph_compound_parent_id": "tc:health-cluster",
+      "member_count": 1,
+      "members": [
+        {
+          "topic_id": "topic:health"
+        }
+      ]
+    },
+    {
+      "canonical_label": "Outdoor Activities",
+      "canonical_topic_id": "topic:outdoor-activities",
+      "cil_alias_target_topic_id": "topic:outdoor-activities",
+      "graph_compound_parent_id": "tc:outdoor-activities-cluster",
+      "member_count": 1,
+      "members": [
+        {
+          "topic_id": "topic:outdoor-activities"
         }
       ]
     }

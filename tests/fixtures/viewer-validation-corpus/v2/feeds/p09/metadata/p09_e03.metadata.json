@@ -13,9 +13,31 @@
       "topic_id": "topic:health"
     }
   ],
+  "content": {
+    "diarization_num_speakers": 3,
+    "speakers": [
+      {
+        "id": "speaker_1",
+        "name": "Alex Morgan",
+        "role": "host"
+      },
+      {
+        "id": "speaker_2",
+        "name": "Dr. Elena Fischer",
+        "role": "guest"
+      },
+      {
+        "id": "speaker_3",
+        "name": "Ad",
+        "role": "guest"
+      }
+    ],
+    "transcript_file_path": "transcripts/p09_e03.txt",
+    "transcript_source": "synthetic"
+  },
   "episode": {
     "episode_id": "79fb44f3-5be0-5fc7-9d43-2f39049f7f2d",
-    "published_date": "2026-06-07",
+    "published_date": "2026-06-15",
     "title": "The Long View: Biohacking \u2014 Episode 3"
   },
   "episode_id": "79fb44f3-5be0-5fc7-9d43-2f39049f7f2d",
@@ -40,7 +62,7 @@
     "artifact_path": "feeds/p09/metadata/p09_e03.kg.json",
     "schema_version": "1.1"
   },
-  "publish_date": "2026-06-07",
+  "publish_date": "2026-06-15",
   "schema_version": "1",
   "summary": {
     "bullets": [

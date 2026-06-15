@@ -31,19 +31,64 @@
       "type": "HAS_INSIGHT"
     },
     {
-      "from": "episode:9a2d05c1-8854-5ae6-8ad0-14fcf37d1de9",
-      "to": "quote:5f5dfb4a23673f6b",
-      "type": "HAS_QUOTE"
+      "from": "quote:2ac04c990b1cf3f4",
+      "to": "person:speaker-01",
+      "type": "SPOKEN_BY"
     },
     {
-      "from": "episode:9a2d05c1-8854-5ae6-8ad0-14fcf37d1de9",
-      "to": "quote:29cb69bedfb38a79",
-      "type": "HAS_QUOTE"
+      "from": "insight:18077314d5cf9c74",
+      "to": "quote:2ac04c990b1cf3f4",
+      "type": "SUPPORTED_BY"
     },
     {
-      "from": "episode:9a2d05c1-8854-5ae6-8ad0-14fcf37d1de9",
-      "to": "quote:6fea6cf0b5c1057d",
-      "type": "HAS_QUOTE"
+      "from": "quote:8dc6cd407918b91c",
+      "to": "person:speaker-02",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:9f48edef35be0632",
+      "to": "quote:8dc6cd407918b91c",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:f69061f24cc4900e",
+      "to": "person:speaker-01",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:691dbe6035aa8769",
+      "to": "quote:f69061f24cc4900e",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:7ae3d4b6fbdaf716",
+      "to": "person:speaker-01",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:18077314d5cf9c74",
+      "to": "quote:7ae3d4b6fbdaf716",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:1bd236aa45c85c80",
+      "to": "person:speaker-02",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:9f48edef35be0632",
+      "to": "quote:1bd236aa45c85c80",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:426cf06a5dbb8170",
+      "to": "person:speaker-01",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:691dbe6035aa8769",
+      "to": "quote:426cf06a5dbb8170",
+      "type": "SUPPORTED_BY"
     }
   ],
   "episode_id": "9a2d05c1-8854-5ae6-8ad0-14fcf37d1de9",
@@ -56,7 +101,7 @@
         "episode_id": "9a2d05c1-8854-5ae6-8ad0-14fcf37d1de9",
         "metadata_relative_path": "feeds/p03/metadata/p03_e03.metadata.json",
         "podcast_id": "sha256:16de36c98e7e4b95d699380d14d84d2f13717c2c151f935076564a9a5f5e979b",
-        "publish_date": "2026-06-07T12:00:00",
+        "publish_date": "2026-06-15T12:00:00",
         "title": "Below the Surface \u2014 Episode 3"
       },
       "type": "Episode"
@@ -113,26 +158,100 @@
       "type": "Insight"
     },
     {
-      "id": "quote:5f5dfb4a23673f6b",
+      "id": "person:speaker-01",
       "properties": {
-        "speaker": "Speaker 1",
-        "text": "Suunto builds dive computers and outdoor watches that you trust because they don't quit when conditions change."
+        "name": "Rina"
+      },
+      "type": "Person"
+    },
+    {
+      "id": "quote:2ac04c990b1cf3f4",
+      "properties": {
+        "char_end": 178,
+        "char_start": 6,
+        "episode_id": "9a2d05c1-8854-5ae6-8ad0-14fcf37d1de9",
+        "speaker_id": "person:speaker-01",
+        "text": "Welcome back to Below the Surface. Today we're talking about calm under pressure, and I'm joined by Owen, rebreather instructor and cave diver. Owen, thanks for being here.",
+        "timestamp_end_ms": 6000,
+        "timestamp_start_ms": 0,
+        "transcript_ref": "transcripts/p03_e03.txt"
       },
       "type": "Quote"
     },
     {
-      "id": "quote:29cb69bedfb38a79",
+      "id": "person:speaker-02",
       "properties": {
-        "speaker": "Speaker 1",
-        "text": "Get started at suunto.com/podcast."
+        "name": "Owen"
+      },
+      "type": "Person"
+    },
+    {
+      "id": "quote:8dc6cd407918b91c",
+      "properties": {
+        "char_end": 216,
+        "char_start": 185,
+        "episode_id": "9a2d05c1-8854-5ae6-8ad0-14fcf37d1de9",
+        "speaker_id": "person:speaker-02",
+        "text": "Thanks, Rina. Great to be back.",
+        "timestamp_end_ms": 12000,
+        "timestamp_start_ms": 6000,
+        "transcript_ref": "transcripts/p03_e03.txt"
       },
       "type": "Quote"
     },
     {
-      "id": "quote:6fea6cf0b5c1057d",
+      "id": "quote:f69061f24cc4900e",
       "properties": {
-        "speaker": "Speaker 1",
-        "text": "Before we get into it \u2014 Hanna mentioned anchor strikes hurting reefs \u2014 the same operational discipline applies underwater: plan, brief, execute, debrief."
+        "char_end": 411,
+        "char_start": 223,
+        "episode_id": "9a2d05c1-8854-5ae6-8ad0-14fcf37d1de9",
+        "speaker_id": "person:speaker-01",
+        "text": "This episode is brought to you by Suunto. Suunto builds dive computers and outdoor watches that you trust because they don't quit when conditions change. Get started at suunto.com/podcast.",
+        "timestamp_end_ms": 18000,
+        "timestamp_start_ms": 12000,
+        "transcript_ref": "transcripts/p03_e03.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:7ae3d4b6fbdaf716",
+      "properties": {
+        "char_end": 564,
+        "char_start": 411,
+        "episode_id": "9a2d05c1-8854-5ae6-8ad0-14fcf37d1de9",
+        "speaker_id": "person:speaker-01",
+        "text": "Before we get into it \u2014 Hanna mentioned anchor strikes hurting reefs \u2014 the same operational discipline applies underwater: plan, brief, execute, debrief.",
+        "timestamp_end_ms": 24000,
+        "timestamp_start_ms": 18000,
+        "transcript_ref": "transcripts/p03_e03.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:1bd236aa45c85c80",
+      "properties": {
+        "char_end": 629,
+        "char_start": 571,
+        "episode_id": "9a2d05c1-8854-5ae6-8ad0-14fcf37d1de9",
+        "speaker_id": "person:speaker-02",
+        "text": "Yeah, exactly. And it ties into what we're covering today.",
+        "timestamp_end_ms": 30000,
+        "timestamp_start_ms": 24000,
+        "transcript_ref": "transcripts/p03_e03.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:426cf06a5dbb8170",
+      "properties": {
+        "char_end": 699,
+        "char_start": 636,
+        "episode_id": "9a2d05c1-8854-5ae6-8ad0-14fcf37d1de9",
+        "speaker_id": "person:speaker-01",
+        "text": "That's a useful framing. How does Suunto fit into this picture?",
+        "timestamp_end_ms": 36000,
+        "timestamp_start_ms": 30000,
+        "transcript_ref": "transcripts/p03_e03.txt"
       },
       "type": "Quote"
     }

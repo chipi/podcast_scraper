@@ -1,0 +1,34 @@
+[
+  {
+    "char_end": 82,
+    "char_start": 6,
+    "end": 6.0,
+    "speaker_label": "Maya",
+    "start": 0.0,
+    "text": "This is an edge-case fixture used for parser and processor robustness tests."
+  },
+  {
+    "char_end": 107,
+    "char_start": 82,
+    "end": 12.0,
+    "speaker_label": "Maya",
+    "start": 6.0,
+    "text": "Some lines have speakers."
+  },
+  {
+    "char_end": 156,
+    "char_start": 114,
+    "end": 18.0,
+    "speaker_label": "Liam",
+    "start": 12.0,
+    "text": "But the parser should still classify them."
+  },
+  {
+    "char_end": 192,
+    "char_start": 163,
+    "end": 24.0,
+    "speaker_label": "Maya",
+    "start": 18.0,
+    "text": "End of edge-case episode e02."
+  }
+]

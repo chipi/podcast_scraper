@@ -31,19 +31,64 @@
       "type": "HAS_INSIGHT"
     },
     {
-      "from": "episode:d2fb36a0-6f97-55ee-a67a-e97dba3b7f27",
-      "to": "quote:8b635eb51162b171",
-      "type": "HAS_QUOTE"
+      "from": "quote:99220ffdf5c66834",
+      "to": "person:speaker-01",
+      "type": "SPOKEN_BY"
     },
     {
-      "from": "episode:d2fb36a0-6f97-55ee-a67a-e97dba3b7f27",
-      "to": "quote:0e5c05fc4e97fe51",
-      "type": "HAS_QUOTE"
+      "from": "insight:28d65da2957382c0",
+      "to": "quote:99220ffdf5c66834",
+      "type": "SUPPORTED_BY"
     },
     {
-      "from": "episode:d2fb36a0-6f97-55ee-a67a-e97dba3b7f27",
-      "to": "quote:72f322ac1975989f",
-      "type": "HAS_QUOTE"
+      "from": "quote:c4a97578abf51afe",
+      "to": "person:speaker-02",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:b23b6583135a55b1",
+      "to": "quote:c4a97578abf51afe",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:a8939f522ceeddda",
+      "to": "person:speaker-01",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:42c4a9f138eb1851",
+      "to": "quote:a8939f522ceeddda",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:18df7b25298d216f",
+      "to": "person:speaker-01",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:28d65da2957382c0",
+      "to": "quote:18df7b25298d216f",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:1218c8c935ade6c9",
+      "to": "person:speaker-02",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:b23b6583135a55b1",
+      "to": "quote:1218c8c935ade6c9",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:5351b48f497b915e",
+      "to": "person:speaker-02",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:42c4a9f138eb1851",
+      "to": "quote:5351b48f497b915e",
+      "type": "SUPPORTED_BY"
     }
   ],
   "episode_id": "d2fb36a0-6f97-55ee-a67a-e97dba3b7f27",
@@ -56,7 +101,7 @@
         "episode_id": "d2fb36a0-6f97-55ee-a67a-e97dba3b7f27",
         "metadata_relative_path": "feeds/p02/metadata/p02_e03.metadata.json",
         "podcast_id": "sha256:05eff208d6fd774940bed9fd154c6a46b9325e32cf95e1769f8eb679505ef414",
-        "publish_date": "2026-06-02T12:00:00",
+        "publish_date": "2026-06-10T12:00:00",
         "title": "Practical Systems \u2014 Episode 3"
       },
       "type": "Episode"
@@ -113,26 +158,100 @@
       "type": "Insight"
     },
     {
-      "id": "quote:8b635eb51162b171",
+      "id": "person:speaker-01",
       "properties": {
-        "speaker": "Speaker 1",
-        "text": "Vanta automates SOC 2 and ISO compliance so you can focus on building, not on collecting screenshots."
+        "name": "Ethan"
+      },
+      "type": "Person"
+    },
+    {
+      "id": "quote:99220ffdf5c66834",
+      "properties": {
+        "char_end": 177,
+        "char_start": 7,
+        "episode_id": "d2fb36a0-6f97-55ee-a67a-e97dba3b7f27",
+        "speaker_id": "person:speaker-01",
+        "text": "Welcome back to Practical Systems. Today we're talking about security design, and I'm joined by Priya, principal SRE at a payments platform. Priya, thanks for being here.",
+        "timestamp_end_ms": 6000,
+        "timestamp_start_ms": 0,
+        "transcript_ref": "transcripts/p02_e03.txt"
       },
       "type": "Quote"
     },
     {
-      "id": "quote:0e5c05fc4e97fe51",
+      "id": "person:speaker-02",
       "properties": {
-        "speaker": "Speaker 1",
-        "text": "Before we get into it \u2014 I was last on the show talking about on-call rotations."
+        "name": "Priya"
+      },
+      "type": "Person"
+    },
+    {
+      "id": "quote:c4a97578abf51afe",
+      "properties": {
+        "char_end": 217,
+        "char_start": 185,
+        "episode_id": "d2fb36a0-6f97-55ee-a67a-e97dba3b7f27",
+        "speaker_id": "person:speaker-02",
+        "text": "Thanks, Ethan. Great to be back.",
+        "timestamp_end_ms": 12000,
+        "timestamp_start_ms": 6000,
+        "transcript_ref": "transcripts/p02_e03.txt"
       },
       "type": "Quote"
     },
     {
-      "id": "quote:72f322ac1975989f",
+      "id": "quote:a8939f522ceeddda",
       "properties": {
-        "speaker": "Speaker 1",
-        "text": "The pattern shows up again here \u2014 embed ownership where the work happens."
+        "char_end": 386,
+        "char_start": 225,
+        "episode_id": "d2fb36a0-6f97-55ee-a67a-e97dba3b7f27",
+        "speaker_id": "person:speaker-01",
+        "text": "Today's episode is sponsored by Vanta. Vanta automates SOC 2 and ISO compliance so you can focus on building, not on collecting screenshots. Try vanta.com today.",
+        "timestamp_end_ms": 18000,
+        "timestamp_start_ms": 12000,
+        "transcript_ref": "transcripts/p02_e03.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:18df7b25298d216f",
+      "properties": {
+        "char_end": 539,
+        "char_start": 386,
+        "episode_id": "d2fb36a0-6f97-55ee-a67a-e97dba3b7f27",
+        "speaker_id": "person:speaker-01",
+        "text": "Before we get into it \u2014 I was last on the show talking about on-call rotations. The pattern shows up again here \u2014 embed ownership where the work happens.",
+        "timestamp_end_ms": 24000,
+        "timestamp_start_ms": 18000,
+        "transcript_ref": "transcripts/p02_e03.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:1218c8c935ade6c9",
+      "properties": {
+        "char_end": 605,
+        "char_start": 547,
+        "episode_id": "d2fb36a0-6f97-55ee-a67a-e97dba3b7f27",
+        "speaker_id": "person:speaker-02",
+        "text": "Yeah, exactly. And it ties into what we're covering today.",
+        "timestamp_end_ms": 30000,
+        "timestamp_start_ms": 24000,
+        "transcript_ref": "transcripts/p02_e03.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:5351b48f497b915e",
+      "properties": {
+        "char_end": 764,
+        "char_start": 605,
+        "episode_id": "d2fb36a0-6f97-55ee-a67a-e97dba3b7f27",
+        "speaker_id": "person:speaker-02",
+        "text": "I used to argue for a single central security team. I changed my mind after the 2024 webhook incident \u2014 the embedded model gets faster fixes and better signal.",
+        "timestamp_end_ms": 36000,
+        "timestamp_start_ms": 30000,
+        "transcript_ref": "transcripts/p02_e03.txt"
       },
       "type": "Quote"
     }

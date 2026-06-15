@@ -31,14 +31,44 @@
       "type": "HAS_INSIGHT"
     },
     {
-      "from": "episode:e3d8c7e5-2b7b-572b-a226-ddec128285ca",
-      "to": "quote:f590fa530b6f539f",
-      "type": "HAS_QUOTE"
+      "from": "quote:c44474b0b6c34839",
+      "to": "person:speaker-01",
+      "type": "SPOKEN_BY"
     },
     {
-      "from": "episode:e3d8c7e5-2b7b-572b-a226-ddec128285ca",
-      "to": "quote:20f3def846247675",
-      "type": "HAS_QUOTE"
+      "from": "insight:cf518a87cfa3ca42",
+      "to": "quote:c44474b0b6c34839",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:ec5fc6f38d66eded",
+      "to": "person:speaker-01",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:248f0f75837bef22",
+      "to": "quote:ec5fc6f38d66eded",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:a90bcc4dcb703859",
+      "to": "person:speaker-02",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:57c42c70ec823caf",
+      "to": "quote:a90bcc4dcb703859",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:286964398526f067",
+      "to": "person:speaker-01",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:cf518a87cfa3ca42",
+      "to": "quote:286964398526f067",
+      "type": "SUPPORTED_BY"
     }
   ],
   "episode_id": "e3d8c7e5-2b7b-572b-a226-ddec128285ca",
@@ -51,7 +81,7 @@
         "episode_id": "e3d8c7e5-2b7b-572b-a226-ddec128285ca",
         "metadata_relative_path": "feeds/p06/metadata/p06_e02.metadata.json",
         "podcast_id": "sha256:d517d39c803a89d395740e81b17ace57ebb95aa5ec504129b1c306c7e592f10c",
-        "publish_date": "2026-06-06T12:00:00",
+        "publish_date": "2026-06-14T12:00:00",
         "title": "Edge Cases Podcast \u2014 Episode 2"
       },
       "type": "Episode"
@@ -108,18 +138,72 @@
       "type": "Insight"
     },
     {
-      "id": "quote:f590fa530b6f539f",
+      "id": "person:speaker-01",
       "properties": {
-        "speaker": "Speaker 1",
-        "text": "But the parser should still classify them."
+        "name": "Maya"
+      },
+      "type": "Person"
+    },
+    {
+      "id": "quote:c44474b0b6c34839",
+      "properties": {
+        "char_end": 82,
+        "char_start": 6,
+        "episode_id": "e3d8c7e5-2b7b-572b-a226-ddec128285ca",
+        "speaker_id": "person:speaker-01",
+        "text": "This is an edge-case fixture used for parser and processor robustness tests.",
+        "timestamp_end_ms": 6000,
+        "timestamp_start_ms": 0,
+        "transcript_ref": "transcripts/p06_e02.txt"
       },
       "type": "Quote"
     },
     {
-      "id": "quote:20f3def846247675",
+      "id": "quote:ec5fc6f38d66eded",
       "properties": {
-        "speaker": "Speaker 1",
-        "text": "End of edge-case episode e02."
+        "char_end": 107,
+        "char_start": 82,
+        "episode_id": "e3d8c7e5-2b7b-572b-a226-ddec128285ca",
+        "speaker_id": "person:speaker-01",
+        "text": "Some lines have speakers.",
+        "timestamp_end_ms": 12000,
+        "timestamp_start_ms": 6000,
+        "transcript_ref": "transcripts/p06_e02.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "person:speaker-02",
+      "properties": {
+        "name": "Liam"
+      },
+      "type": "Person"
+    },
+    {
+      "id": "quote:a90bcc4dcb703859",
+      "properties": {
+        "char_end": 156,
+        "char_start": 114,
+        "episode_id": "e3d8c7e5-2b7b-572b-a226-ddec128285ca",
+        "speaker_id": "person:speaker-02",
+        "text": "But the parser should still classify them.",
+        "timestamp_end_ms": 18000,
+        "timestamp_start_ms": 12000,
+        "transcript_ref": "transcripts/p06_e02.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:286964398526f067",
+      "properties": {
+        "char_end": 192,
+        "char_start": 163,
+        "episode_id": "e3d8c7e5-2b7b-572b-a226-ddec128285ca",
+        "speaker_id": "person:speaker-01",
+        "text": "End of edge-case episode e02.",
+        "timestamp_end_ms": 24000,
+        "timestamp_start_ms": 18000,
+        "transcript_ref": "transcripts/p06_e02.txt"
       },
       "type": "Quote"
     }

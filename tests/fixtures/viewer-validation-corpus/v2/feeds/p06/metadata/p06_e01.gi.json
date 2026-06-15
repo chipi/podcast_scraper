@@ -29,6 +29,36 @@
       "from": "episode:e741f35a-8dd9-5c40-9d5c-905f4dca4122",
       "to": "insight:610091403c99329b",
       "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "quote:c0cbfa7221ac53c7",
+      "to": "person:speaker-01",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:e9740a00d0461a30",
+      "to": "quote:c0cbfa7221ac53c7",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:867366a4f7f6adee",
+      "to": "person:speaker-01",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:504222534a5710a7",
+      "to": "quote:867366a4f7f6adee",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:be085204673f2d04",
+      "to": "person:speaker-01",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:610091403c99329b",
+      "to": "quote:be085204673f2d04",
+      "type": "SUPPORTED_BY"
     }
   ],
   "episode_id": "e741f35a-8dd9-5c40-9d5c-905f4dca4122",
@@ -41,7 +71,7 @@
         "episode_id": "e741f35a-8dd9-5c40-9d5c-905f4dca4122",
         "metadata_relative_path": "feeds/p06/metadata/p06_e01.metadata.json",
         "podcast_id": "sha256:d517d39c803a89d395740e81b17ace57ebb95aa5ec504129b1c306c7e592f10c",
-        "publish_date": "2026-06-02T12:00:00",
+        "publish_date": "2026-06-10T12:00:00",
         "title": "Edge Cases Podcast \u2014 Episode 1"
       },
       "type": "Episode"
@@ -96,6 +126,55 @@
         "text": "End of edge-case episode e01."
       },
       "type": "Insight"
+    },
+    {
+      "id": "person:speaker-01",
+      "properties": {
+        "name": "Maya"
+      },
+      "type": "Person"
+    },
+    {
+      "id": "quote:c0cbfa7221ac53c7",
+      "properties": {
+        "char_end": 82,
+        "char_start": 6,
+        "episode_id": "e741f35a-8dd9-5c40-9d5c-905f4dca4122",
+        "speaker_id": "person:speaker-01",
+        "text": "This is an edge-case fixture used for parser and processor robustness tests.",
+        "timestamp_end_ms": 6000,
+        "timestamp_start_ms": 0,
+        "transcript_ref": "transcripts/p06_e01.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:867366a4f7f6adee",
+      "properties": {
+        "char_end": 151,
+        "char_start": 82,
+        "episode_id": "e741f35a-8dd9-5c40-9d5c-905f4dca4122",
+        "speaker_id": "person:speaker-01",
+        "text": "This episode is intentionally short to test minimal-content handling.",
+        "timestamp_end_ms": 12000,
+        "timestamp_start_ms": 6000,
+        "transcript_ref": "transcripts/p06_e01.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:be085204673f2d04",
+      "properties": {
+        "char_end": 180,
+        "char_start": 151,
+        "episode_id": "e741f35a-8dd9-5c40-9d5c-905f4dca4122",
+        "speaker_id": "person:speaker-01",
+        "text": "End of edge-case episode e01.",
+        "timestamp_end_ms": 18000,
+        "timestamp_start_ms": 12000,
+        "transcript_ref": "transcripts/p06_e01.txt"
+      },
+      "type": "Quote"
     }
   ],
   "prompt_version": "n/a",

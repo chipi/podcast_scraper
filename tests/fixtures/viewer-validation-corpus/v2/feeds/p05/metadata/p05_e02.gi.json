@@ -31,19 +31,64 @@
       "type": "HAS_INSIGHT"
     },
     {
-      "from": "episode:78741d49-00ad-5f5f-b127-8fd1c1b6844c",
-      "to": "quote:b2969c49ac544093",
-      "type": "HAS_QUOTE"
+      "from": "quote:91095d2be6fc99bc",
+      "to": "person:speaker-01",
+      "type": "SPOKEN_BY"
     },
     {
-      "from": "episode:78741d49-00ad-5f5f-b127-8fd1c1b6844c",
-      "to": "quote:00c83c535c058b15",
-      "type": "HAS_QUOTE"
+      "from": "insight:75fca224addd5258",
+      "to": "quote:91095d2be6fc99bc",
+      "type": "SUPPORTED_BY"
     },
     {
-      "from": "episode:78741d49-00ad-5f5f-b127-8fd1c1b6844c",
-      "to": "quote:ee9f60cc56218a72",
-      "type": "HAS_QUOTE"
+      "from": "quote:c6ab035ba298f4fa",
+      "to": "person:speaker-02",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:3c2ecfd377960b18",
+      "to": "quote:c6ab035ba298f4fa",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:847b82bf85351c6b",
+      "to": "person:speaker-01",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:1bc052c2cd922b94",
+      "to": "quote:847b82bf85351c6b",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:f5e669cd7124a74c",
+      "to": "person:speaker-01",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:75fca224addd5258",
+      "to": "quote:f5e669cd7124a74c",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:62d73d0ce8159138",
+      "to": "person:speaker-02",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:3c2ecfd377960b18",
+      "to": "quote:62d73d0ce8159138",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:2742ac2297a792e9",
+      "to": "person:speaker-01",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:1bc052c2cd922b94",
+      "to": "quote:2742ac2297a792e9",
+      "type": "SUPPORTED_BY"
     }
   ],
   "episode_id": "78741d49-00ad-5f5f-b127-8fd1c1b6844c",
@@ -56,7 +101,7 @@
         "episode_id": "78741d49-00ad-5f5f-b127-8fd1c1b6844c",
         "metadata_relative_path": "feeds/p05/metadata/p05_e02.metadata.json",
         "podcast_id": "sha256:f4abc2ce662eb5875453632ed70c87b2fbc7394bbeef83c9d1d0918febd5bebe",
-        "publish_date": "2026-06-07T12:00:00",
+        "publish_date": "2026-06-15T12:00:00",
         "title": "Long Horizon Notes \u2014 Episode 2"
       },
       "type": "Episode"
@@ -113,26 +158,100 @@
       "type": "Insight"
     },
     {
-      "id": "quote:b2969c49ac544093",
+      "id": "person:speaker-01",
       "properties": {
-        "speaker": "Speaker 1",
-        "text": "Before we dive in, a quick word from our sponsor Wealthfront."
+        "name": "Nora"
+      },
+      "type": "Person"
+    },
+    {
+      "id": "quote:91095d2be6fc99bc",
+      "properties": {
+        "char_end": 175,
+        "char_start": 6,
+        "episode_id": "78741d49-00ad-5f5f-b127-8fd1c1b6844c",
+        "speaker_id": "person:speaker-01",
+        "text": "Welcome back to Long Horizon Notes. Today we're talking about real estate underwriting, and I'm joined by Isabel, real estate underwriter. Isabel, thanks for being here.",
+        "timestamp_end_ms": 6000,
+        "timestamp_start_ms": 0,
+        "transcript_ref": "transcripts/p05_e02.txt"
       },
       "type": "Quote"
     },
     {
-      "id": "quote:00c83c535c058b15",
+      "id": "person:speaker-02",
       "properties": {
-        "speaker": "Speaker 1",
-        "text": "Wealthfront automates the boring parts of investing \u2014 tax-loss harvesting, rebalancing, and high-yield cash."
+        "name": "Isabel"
+      },
+      "type": "Person"
+    },
+    {
+      "id": "quote:c6ab035ba298f4fa",
+      "properties": {
+        "char_end": 215,
+        "char_start": 184,
+        "episode_id": "78741d49-00ad-5f5f-b127-8fd1c1b6844c",
+        "speaker_id": "person:speaker-02",
+        "text": "Thanks, Nora. Great to be back.",
+        "timestamp_end_ms": 12000,
+        "timestamp_start_ms": 6000,
+        "transcript_ref": "transcripts/p05_e02.txt"
       },
       "type": "Quote"
     },
     {
-      "id": "quote:ee9f60cc56218a72",
+      "id": "quote:847b82bf85351c6b",
       "properties": {
-        "speaker": "Speaker 1",
-        "text": "Use code POD for an extended trial."
+        "char_end": 428,
+        "char_start": 222,
+        "episode_id": "78741d49-00ad-5f5f-b127-8fd1c1b6844c",
+        "speaker_id": "person:speaker-01",
+        "text": "Before we dive in, a quick word from our sponsor Wealthfront. Wealthfront automates the boring parts of investing \u2014 tax-loss harvesting, rebalancing, and high-yield cash. Use code POD for an extended trial.",
+        "timestamp_end_ms": 18000,
+        "timestamp_start_ms": 12000,
+        "transcript_ref": "transcripts/p05_e02.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:f5e669cd7124a74c",
+      "properties": {
+        "char_end": 599,
+        "char_start": 428,
+        "episode_id": "78741d49-00ad-5f5f-b127-8fd1c1b6844c",
+        "speaker_id": "person:speaker-01",
+        "text": "Before we get into it \u2014 Daniel was on episode 1 making the case for behavioral discipline in index investing. The same discipline keeps you from buying the wrong building.",
+        "timestamp_end_ms": 24000,
+        "timestamp_start_ms": 18000,
+        "transcript_ref": "transcripts/p05_e02.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:62d73d0ce8159138",
+      "properties": {
+        "char_end": 666,
+        "char_start": 608,
+        "episode_id": "78741d49-00ad-5f5f-b127-8fd1c1b6844c",
+        "speaker_id": "person:speaker-02",
+        "text": "Yeah, exactly. And it ties into what we're covering today.",
+        "timestamp_end_ms": 30000,
+        "timestamp_start_ms": 24000,
+        "transcript_ref": "transcripts/p05_e02.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:2742ac2297a792e9",
+      "properties": {
+        "char_end": 905,
+        "char_start": 673,
+        "episode_id": "78741d49-00ad-5f5f-b127-8fd1c1b6844c",
+        "speaker_id": "person:speaker-01",
+        "text": "Before we get into it \u2014 Marco Bianchi was on the show a few weeks back walking through tax-loss harvesting research \u2014 the same habit of running the numbers before deciding applies to real estate underwriting, just on a longer clock.",
+        "timestamp_end_ms": 36000,
+        "timestamp_start_ms": 30000,
+        "transcript_ref": "transcripts/p05_e02.txt"
       },
       "type": "Quote"
     }

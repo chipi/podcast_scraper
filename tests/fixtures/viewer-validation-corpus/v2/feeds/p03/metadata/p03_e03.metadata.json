@@ -13,9 +13,31 @@
       "topic_id": "topic:gear"
     }
   ],
+  "content": {
+    "diarization_num_speakers": 3,
+    "speakers": [
+      {
+        "id": "speaker_1",
+        "name": "Rina",
+        "role": "host"
+      },
+      {
+        "id": "speaker_2",
+        "name": "Owen",
+        "role": "guest"
+      },
+      {
+        "id": "speaker_3",
+        "name": "Ad",
+        "role": "guest"
+      }
+    ],
+    "transcript_file_path": "transcripts/p03_e03.txt",
+    "transcript_source": "synthetic"
+  },
   "episode": {
     "episode_id": "9a2d05c1-8854-5ae6-8ad0-14fcf37d1de9",
-    "published_date": "2026-06-07",
+    "published_date": "2026-06-15",
     "title": "Below the Surface \u2014 Episode 3"
   },
   "episode_id": "9a2d05c1-8854-5ae6-8ad0-14fcf37d1de9",
@@ -40,7 +62,7 @@
     "artifact_path": "feeds/p03/metadata/p03_e03.kg.json",
     "schema_version": "1.1"
   },
-  "publish_date": "2026-06-07",
+  "publish_date": "2026-06-15",
   "schema_version": "1",
   "summary": {
     "bullets": [

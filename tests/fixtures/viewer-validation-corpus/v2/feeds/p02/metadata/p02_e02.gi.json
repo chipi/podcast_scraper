@@ -31,19 +31,64 @@
       "type": "HAS_INSIGHT"
     },
     {
-      "from": "episode:096240a2-e115-5a3c-98b4-2d852b096eda",
-      "to": "quote:361df54e8c2523e6",
-      "type": "HAS_QUOTE"
+      "from": "quote:3e63f17dd24d8f60",
+      "to": "person:speaker-01",
+      "type": "SPOKEN_BY"
     },
     {
-      "from": "episode:096240a2-e115-5a3c-98b4-2d852b096eda",
-      "to": "quote:b36679554816c381",
-      "type": "HAS_QUOTE"
+      "from": "insight:b82d203ed2596a6e",
+      "to": "quote:3e63f17dd24d8f60",
+      "type": "SUPPORTED_BY"
     },
     {
-      "from": "episode:096240a2-e115-5a3c-98b4-2d852b096eda",
-      "to": "quote:f5b84283c962e71e",
-      "type": "HAS_QUOTE"
+      "from": "quote:e9540cb5dd447f6c",
+      "to": "person:speaker-02",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:4ad6a42d3812af5b",
+      "to": "quote:e9540cb5dd447f6c",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:74df4dab753f6388",
+      "to": "person:speaker-01",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:3e91ef621d0c5cbf",
+      "to": "quote:74df4dab753f6388",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:3cb3a1191a93d776",
+      "to": "person:speaker-01",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:b82d203ed2596a6e",
+      "to": "quote:3cb3a1191a93d776",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:d9d159dd603e9ea2",
+      "to": "person:speaker-02",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:4ad6a42d3812af5b",
+      "to": "quote:d9d159dd603e9ea2",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:5acae13eb94611b9",
+      "to": "person:speaker-01",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:3e91ef621d0c5cbf",
+      "to": "quote:5acae13eb94611b9",
+      "type": "SUPPORTED_BY"
     }
   ],
   "episode_id": "096240a2-e115-5a3c-98b4-2d852b096eda",
@@ -56,7 +101,7 @@
         "episode_id": "096240a2-e115-5a3c-98b4-2d852b096eda",
         "metadata_relative_path": "feeds/p02/metadata/p02_e02.metadata.json",
         "podcast_id": "sha256:05eff208d6fd774940bed9fd154c6a46b9325e32cf95e1769f8eb679505ef414",
-        "publish_date": "2026-06-04T12:00:00",
+        "publish_date": "2026-06-12T12:00:00",
         "title": "Practical Systems \u2014 Episode 2"
       },
       "type": "Episode"
@@ -113,26 +158,100 @@
       "type": "Insight"
     },
     {
-      "id": "quote:361df54e8c2523e6",
+      "id": "person:speaker-01",
       "properties": {
-        "speaker": "Speaker 1",
-        "text": "Notion replaces the dozen tools your team is half-using with a single workspace for docs, projects, and wikis."
+        "name": "Ethan"
+      },
+      "type": "Person"
+    },
+    {
+      "id": "quote:3e63f17dd24d8f60",
+      "properties": {
+        "char_end": 191,
+        "char_start": 7,
+        "episode_id": "096240a2-e115-5a3c-98b4-2d852b096eda",
+        "speaker_id": "person:speaker-01",
+        "text": "Welcome back to Practical Systems. Today we're talking about engineering communication, and I'm joined by Jonas, staff engineer focused on platform teams. Jonas, thanks for being here.",
+        "timestamp_end_ms": 6000,
+        "timestamp_start_ms": 0,
+        "transcript_ref": "transcripts/p02_e02.txt"
       },
       "type": "Quote"
     },
     {
-      "id": "quote:b36679554816c381",
+      "id": "person:speaker-02",
       "properties": {
-        "speaker": "Speaker 1",
-        "text": "Before we get into it \u2014 Priya was on episode 1 making the case that good on-call rotations are designed so waking up is rare."
+        "name": "Jonas"
+      },
+      "type": "Person"
+    },
+    {
+      "id": "quote:e9540cb5dd447f6c",
+      "properties": {
+        "char_end": 231,
+        "char_start": 199,
+        "episode_id": "096240a2-e115-5a3c-98b4-2d852b096eda",
+        "speaker_id": "person:speaker-02",
+        "text": "Thanks, Ethan. Great to be back.",
+        "timestamp_end_ms": 12000,
+        "timestamp_start_ms": 6000,
+        "transcript_ref": "transcripts/p02_e02.txt"
       },
       "type": "Quote"
     },
     {
-      "id": "quote:f5b84283c962e71e",
+      "id": "quote:74df4dab753f6388",
       "properties": {
-        "speaker": "Speaker 1",
-        "text": "I want to push that further into how we communicate the design itself."
+        "char_end": 411,
+        "char_start": 239,
+        "episode_id": "096240a2-e115-5a3c-98b4-2d852b096eda",
+        "speaker_id": "person:speaker-01",
+        "text": "Today's episode is sponsored by Notion. Notion replaces the dozen tools your team is half-using with a single workspace for docs, projects, and wikis. Try notion.com today.",
+        "timestamp_end_ms": 18000,
+        "timestamp_start_ms": 12000,
+        "transcript_ref": "transcripts/p02_e02.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:3cb3a1191a93d776",
+      "properties": {
+        "char_end": 607,
+        "char_start": 411,
+        "episode_id": "096240a2-e115-5a3c-98b4-2d852b096eda",
+        "speaker_id": "person:speaker-01",
+        "text": "Before we get into it \u2014 Priya was on episode 1 making the case that good on-call rotations are designed so waking up is rare. I want to push that further into how we communicate the design itself.",
+        "timestamp_end_ms": 24000,
+        "timestamp_start_ms": 18000,
+        "transcript_ref": "transcripts/p02_e02.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:d9d159dd603e9ea2",
+      "properties": {
+        "char_end": 673,
+        "char_start": 615,
+        "episode_id": "096240a2-e115-5a3c-98b4-2d852b096eda",
+        "speaker_id": "person:speaker-02",
+        "text": "Yeah, exactly. And it ties into what we're covering today.",
+        "timestamp_end_ms": 30000,
+        "timestamp_start_ms": 24000,
+        "transcript_ref": "transcripts/p02_e02.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:5acae13eb94611b9",
+      "properties": {
+        "char_end": 845,
+        "char_start": 681,
+        "episode_id": "096240a2-e115-5a3c-98b4-2d852b096eda",
+        "speaker_id": "person:speaker-01",
+        "text": "Before we get into it \u2014 Linear keeps coming up as our project tracker \u2014 last episode Priya talked about it for incident workflows; today we're using it differently.",
+        "timestamp_end_ms": 36000,
+        "timestamp_start_ms": 30000,
+        "transcript_ref": "transcripts/p02_e02.txt"
       },
       "type": "Quote"
     }

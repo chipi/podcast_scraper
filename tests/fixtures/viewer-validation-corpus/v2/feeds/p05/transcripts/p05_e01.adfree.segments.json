@@ -1,0 +1,498 @@
+[
+  {
+    "char_end": 183,
+    "char_start": 6,
+    "end": 6.0,
+    "speaker_label": "Nora",
+    "start": 0.0,
+    "text": "Welcome back to Long Horizon Notes. Today we're talking about index investing, and I'm joined by Daniel, former bond trader turned index advocate. Daniel, thanks for being here."
+  },
+  {
+    "char_end": 289,
+    "char_start": 192,
+    "end": 12.0,
+    "speaker_label": "Daniel",
+    "start": 6.0,
+    "text": "Thanks, Nora. Excited for this one \u2014 index investing is something I've been thinking about a lot."
+  },
+  {
+    "char_end": 480,
+    "char_start": 296,
+    "end": 18.0,
+    "speaker_label": "Nora",
+    "start": 12.0,
+    "text": "Before we dive in, a quick word from our sponsor Vanguard. Vanguard pioneered low-cost index funds and still keeps expense ratios where they belong. Use code POD for an extended trial."
+  },
+  {
+    "char_end": 600,
+    "char_start": 480,
+    "end": 24.0,
+    "speaker_label": "Nora",
+    "start": 18.0,
+    "text": "How do you know when you've gotten it right? Where do people most often confuse correlation with causation in this area?"
+  },
+  {
+    "char_end": 829,
+    "char_start": 609,
+    "end": 30.0,
+    "speaker_label": "Daniel",
+    "start": 24.0,
+    "text": "Honestly, Index funds are not a strategy \u2014 they're the absence of one. That's their advantage. We've seen this play out at teams using Morningstar. Most of the cost shows up downstream, which is why teams keep paying it."
+  },
+  {
+    "char_end": 937,
+    "char_start": 836,
+    "end": 36.0,
+    "speaker_label": "Nora",
+    "start": 30.0,
+    "text": "What does that look like day-to-day? What's the structural angle most listeners don't have access to?"
+  },
+  {
+    "char_end": 1162,
+    "char_start": 946,
+    "end": 42.0,
+    "speaker_label": "Daniel",
+    "start": 36.0,
+    "text": "Honestly, Vanguard's structure pioneered low costs, but iShares is now competitive on most major index exposures. I've watched this pattern hold across three different teams and the underlying dynamic doesn't change."
+  },
+  {
+    "char_end": 1251,
+    "char_start": 1169,
+    "end": 48.0,
+    "speaker_label": "Nora",
+    "start": 42.0,
+    "text": "How do you balance that? What's the version of the question that actually matters?"
+  },
+  {
+    "char_end": 1523,
+    "char_start": 1260,
+    "end": 54.0,
+    "speaker_label": "Daniel",
+    "start": 48.0,
+    "text": "Sure. Reliability in investing means having a plan you can hold through a 30% drawdown, not maximizing returns. We've seen this play out at teams using iShares. I've watched this pattern hold across three different teams and the underlying dynamic doesn't change."
+  },
+  {
+    "char_end": 1542,
+    "char_start": 1530,
+    "end": 60.0,
+    "speaker_label": "Nora",
+    "start": 54.0,
+    "text": "That tracks."
+  },
+  {
+    "char_end": 1717,
+    "char_start": 1551,
+    "end": 66.0,
+    "speaker_label": "Daniel",
+    "start": 60.0,
+    "text": "And when teams adopt iShares in that flow, the trade-off becomes visible \u2014 The exception proves the rule \u2014 there are edge cases, but they're rarer than people assume."
+  },
+  {
+    "char_end": 1844,
+    "char_start": 1724,
+    "end": 72.0,
+    "speaker_label": "Nora",
+    "start": 66.0,
+    "text": "Push back on the conventional wisdom for me. Where do people most often confuse correlation with causation in this area?"
+  },
+  {
+    "char_end": 2021,
+    "char_start": 1853,
+    "end": 78.0,
+    "speaker_label": "Daniel",
+    "start": 72.0,
+    "text": "I'd put it this way: Risk management for individual investors is mostly behavioral, not analytical. What used to feel like an exception is honestly the median case now."
+  },
+  {
+    "char_end": 2132,
+    "char_start": 2028,
+    "end": 84.0,
+    "speaker_label": "Nora",
+    "start": 78.0,
+    "text": "Walk me through a concrete example. What's something you used to believe about this that you've revised?"
+  },
+  {
+    "char_end": 2375,
+    "char_start": 2141,
+    "end": 90.0,
+    "speaker_label": "Daniel",
+    "start": 84.0,
+    "text": "Yeah, so \u2014 Systems thinking applies: the index is a system that accepts every company's failure as expected. We've seen this play out at teams using Wealthfront. Most of the cost shows up downstream, which is why teams keep paying it."
+  },
+  {
+    "char_end": 2476,
+    "char_start": 2382,
+    "end": 96.0,
+    "speaker_label": "Nora",
+    "start": 90.0,
+    "text": "Let's start there. Where do people most often confuse correlation with causation in this area?"
+  },
+  {
+    "char_end": 2745,
+    "char_start": 2485,
+    "end": 102.0,
+    "speaker_label": "Daniel",
+    "start": 96.0,
+    "text": "Yeah, so \u2014 I changed my mind on small-value tilts. I used to think they were free lunch \u2014 now I think they're a behavioral commitment most people can't keep. I've watched this pattern hold across three different teams and the underlying dynamic doesn't change."
+  },
+  {
+    "char_end": 2811,
+    "char_start": 2752,
+    "end": 108.0,
+    "speaker_label": "Nora",
+    "start": 102.0,
+    "text": "What would you tell the version of you from five years ago?"
+  },
+  {
+    "char_end": 2958,
+    "char_start": 2820,
+    "end": 114.0,
+    "speaker_label": "Daniel",
+    "start": 108.0,
+    "text": "Outside of Morningstar-class tooling, the failure mode is harder to spot. Once you internalize that, the rest of the decisions get easier."
+  },
+  {
+    "char_end": 3022,
+    "char_start": 2965,
+    "end": 120.0,
+    "speaker_label": "Nora",
+    "start": 114.0,
+    "text": "We'll be right back after a quick word from our sponsors."
+  },
+  {
+    "char_end": 3228,
+    "char_start": 3027,
+    "end": 126.0,
+    "speaker_label": "Ad",
+    "start": 120.0,
+    "text": "Today's episode is sponsored by Wealthfront. Wealthfront automates the boring parts of investing \u2014 tax-loss harvesting, rebalancing, and high-yield cash. Visit wealthfront.com/podcast for a free trial."
+  },
+  {
+    "char_end": 3260,
+    "char_start": 3235,
+    "end": 132.0,
+    "speaker_label": "Nora",
+    "start": 126.0,
+    "text": "Welcome back to the show."
+  },
+  {
+    "char_end": 3350,
+    "char_start": 3260,
+    "end": 138.0,
+    "speaker_label": "Nora",
+    "start": 132.0,
+    "text": "What does the failure mode look like? What's the most underrated piece of index investing?"
+  },
+  {
+    "char_end": 3580,
+    "char_start": 3359,
+    "end": 144.0,
+    "speaker_label": "Daniel",
+    "start": 138.0,
+    "text": "Yeah, so \u2014 Index funds are not a strategy \u2014 they're the absence of one. That's their advantage. We've seen this play out at teams using Morningstar. Most of the cost shows up downstream, which is why teams keep paying it."
+  },
+  {
+    "char_end": 3688,
+    "char_start": 3587,
+    "end": 150.0,
+    "speaker_label": "Nora",
+    "start": 144.0,
+    "text": "What's the one heuristic you keep coming back to? Where do reliability and index investing intersect?"
+  },
+  {
+    "char_end": 3895,
+    "char_start": 3697,
+    "end": 156.0,
+    "speaker_label": "Daniel",
+    "start": 150.0,
+    "text": "It comes down to this: Vanguard's structure pioneered low costs, but iShares is now competitive on most major index exposures. If you ignore that, you end up rebuilding it from scratch a year later."
+  },
+  {
+    "char_end": 3977,
+    "char_start": 3902,
+    "end": 162.0,
+    "speaker_label": "Nora",
+    "start": 156.0,
+    "text": "Walk me through a concrete example. How does iShares fit into this picture?"
+  },
+  {
+    "char_end": 4233,
+    "char_start": 3986,
+    "end": 168.0,
+    "speaker_label": "Daniel",
+    "start": 162.0,
+    "text": "I'd put it this way: Reliability in investing means having a plan you can hold through a 30% drawdown, not maximizing returns. We've seen this play out at teams using iShares. If you ignore that, you end up rebuilding it from scratch a year later."
+  },
+  {
+    "char_end": 4252,
+    "char_start": 4240,
+    "end": 174.0,
+    "speaker_label": "Nora",
+    "start": 168.0,
+    "text": "That tracks."
+  },
+  {
+    "char_end": 4403,
+    "char_start": 4261,
+    "end": 180.0,
+    "speaker_label": "Daniel",
+    "start": 174.0,
+    "text": "Outside of iShares-class tooling, the failure mode is harder to spot. Most of the cost shows up downstream, which is why teams keep paying it."
+  },
+  {
+    "char_end": 4480,
+    "char_start": 4410,
+    "end": 186.0,
+    "speaker_label": "Nora",
+    "start": 180.0,
+    "text": "Take me through the decision. How does Vanguard fit into this picture?"
+  },
+  {
+    "char_end": 4638,
+    "char_start": 4489,
+    "end": 192.0,
+    "speaker_label": "Daniel",
+    "start": 186.0,
+    "text": "Sure. Risk management for individual investors is mostly behavioral, not analytical. Once you internalize that, the rest of the decisions get easier."
+  },
+  {
+    "char_end": 4745,
+    "char_start": 4645,
+    "end": 198.0,
+    "speaker_label": "Nora",
+    "start": 192.0,
+    "text": "How do you balance that? Where do people most often confuse correlation with causation in this area?"
+  },
+  {
+    "char_end": 4983,
+    "char_start": 4754,
+    "end": 204.0,
+    "speaker_label": "Daniel",
+    "start": 198.0,
+    "text": "Honestly, Systems thinking applies: the index is a system that accepts every company's failure as expected. We've seen this play out at teams using Wealthfront. What used to feel like an exception is honestly the median case now."
+  },
+  {
+    "char_end": 5072,
+    "char_start": 4990,
+    "end": 210.0,
+    "speaker_label": "Nora",
+    "start": 204.0,
+    "text": "I want to dig into that. What's the version of the question that actually matters?"
+  },
+  {
+    "char_end": 5316,
+    "char_start": 5081,
+    "end": 216.0,
+    "speaker_label": "Daniel",
+    "start": 210.0,
+    "text": "The short answer is I changed my mind on small-value tilts. I used to think they were free lunch \u2014 now I think they're a behavioral commitment most people can't keep. What used to feel like an exception is honestly the median case now."
+  },
+  {
+    "char_end": 5335,
+    "char_start": 5323,
+    "end": 222.0,
+    "speaker_label": "Nora",
+    "start": 216.0,
+    "text": "That tracks."
+  },
+  {
+    "char_end": 5483,
+    "char_start": 5344,
+    "end": 228.0,
+    "speaker_label": "Daniel",
+    "start": 222.0,
+    "text": "And when teams adopt iShares in that flow, the trade-off becomes visible \u2014 Once you internalize that, the rest of the decisions get easier."
+  },
+  {
+    "char_end": 5563,
+    "char_start": 5490,
+    "end": 234.0,
+    "speaker_label": "Nora",
+    "start": 228.0,
+    "text": "Let's pivot \u2014 systems thinking is where I want to spend the last stretch."
+  },
+  {
+    "char_end": 5709,
+    "char_start": 5572,
+    "end": 240.0,
+    "speaker_label": "Daniel",
+    "start": 234.0,
+    "text": "That's where the conversation gets interesting, because the trade-offs around systems thinking cross-cut everything we've covered so far."
+  },
+  {
+    "char_end": 5818,
+    "char_start": 5716,
+    "end": 246.0,
+    "speaker_label": "Nora",
+    "start": 240.0,
+    "text": "Push back on the conventional wisdom for me. What's the version of the question that actually matters?"
+  },
+  {
+    "char_end": 6059,
+    "char_start": 5827,
+    "end": 252.0,
+    "speaker_label": "Daniel",
+    "start": 246.0,
+    "text": "Here's how I think about it. Index funds are not a strategy \u2014 they're the absence of one. That's their advantage. We've seen this play out at teams using Vanguard. What used to feel like an exception is honestly the median case now."
+  },
+  {
+    "char_end": 6143,
+    "char_start": 6066,
+    "end": 258.0,
+    "speaker_label": "Nora",
+    "start": 252.0,
+    "text": "I want to dig into that. What's the most underrated piece of index investing?"
+  },
+  {
+    "char_end": 6367,
+    "char_start": 6152,
+    "end": 264.0,
+    "speaker_label": "Daniel",
+    "start": 258.0,
+    "text": "The short answer is Vanguard's structure pioneered low costs, but iShares is now competitive on most major index exposures. The exception proves the rule \u2014 there are edge cases, but they're rarer than people assume."
+  },
+  {
+    "char_end": 6467,
+    "char_start": 6374,
+    "end": 270.0,
+    "speaker_label": "Nora",
+    "start": 264.0,
+    "text": "How do you balance that? What's something you used to believe about this that you've revised?"
+  },
+  {
+    "char_end": 6744,
+    "char_start": 6476,
+    "end": 276.0,
+    "speaker_label": "Daniel",
+    "start": 270.0,
+    "text": "Honestly, Reliability in investing means having a plan you can hold through a 30% drawdown, not maximizing returns. We've seen this play out at teams using Vanguard. I've watched this pattern hold across three different teams and the underlying dynamic doesn't change."
+  },
+  {
+    "char_end": 6805,
+    "char_start": 6751,
+    "end": 282.0,
+    "speaker_label": "Nora",
+    "start": 276.0,
+    "text": "Is there a counterexample that would change your view?"
+  },
+  {
+    "char_end": 6960,
+    "char_start": 6814,
+    "end": 288.0,
+    "speaker_label": "Daniel",
+    "start": 282.0,
+    "text": "Outside of Wealthfront-class tooling, the failure mode is harder to spot. Most of the cost shows up downstream, which is why teams keep paying it."
+  },
+  {
+    "char_end": 7068,
+    "char_start": 6967,
+    "end": 294.0,
+    "speaker_label": "Nora",
+    "start": 288.0,
+    "text": "What does that look like day-to-day? What's the contrarian angle most listeners don't have access to?"
+  },
+  {
+    "char_end": 7238,
+    "char_start": 7077,
+    "end": 300.0,
+    "speaker_label": "Daniel",
+    "start": 294.0,
+    "text": "Yeah, so \u2014 Risk management for individual investors is mostly behavioral, not analytical. If you ignore that, you end up rebuilding it from scratch a year later."
+  },
+  {
+    "char_end": 7333,
+    "char_start": 7245,
+    "end": 306.0,
+    "speaker_label": "Nora",
+    "start": 300.0,
+    "text": "What does that look like day-to-day? How does systems thinking change the calculus here?"
+  },
+  {
+    "char_end": 7595,
+    "char_start": 7342,
+    "end": 312.0,
+    "speaker_label": "Daniel",
+    "start": 306.0,
+    "text": "Yeah, so \u2014 Systems thinking applies: the index is a system that accepts every company's failure as expected. We've seen this play out at teams using Morningstar. The exception proves the rule \u2014 there are edge cases, but they're rarer than people assume."
+  },
+  {
+    "char_end": 7679,
+    "char_start": 7602,
+    "end": 318.0,
+    "speaker_label": "Nora",
+    "start": 312.0,
+    "text": "How do you balance that? What's the most underrated piece of index investing?"
+  },
+  {
+    "char_end": 7947,
+    "char_start": 7688,
+    "end": 324.0,
+    "speaker_label": "Daniel",
+    "start": 318.0,
+    "text": "Let me give you the version I actually believe. I changed my mind on small-value tilts. I used to think they were free lunch \u2014 now I think they're a behavioral commitment most people can't keep. Once you internalize that, the rest of the decisions get easier."
+  },
+  {
+    "char_end": 7982,
+    "char_start": 7954,
+    "end": 330.0,
+    "speaker_label": "Nora",
+    "start": 324.0,
+    "text": "That maps to what I've seen."
+  },
+  {
+    "char_end": 8124,
+    "char_start": 7991,
+    "end": 336.0,
+    "speaker_label": "Daniel",
+    "start": 330.0,
+    "text": "Vanguard is one of the platforms where this shows up cleanly. If you ignore that, you end up rebuilding it from scratch a year later."
+  },
+  {
+    "char_end": 8192,
+    "char_start": 8131,
+    "end": 342.0,
+    "speaker_label": "Nora",
+    "start": 336.0,
+    "text": "Before we wrap, what's one thing listeners can try this week?"
+  },
+  {
+    "char_end": 8282,
+    "char_start": 8201,
+    "end": 348.0,
+    "speaker_label": "Daniel",
+    "start": 342.0,
+    "text": "Pick one of the ideas we covered and run it for two weeks. The rest is iteration."
+  },
+  {
+    "char_end": 8461,
+    "char_start": 8289,
+    "end": 354.0,
+    "speaker_label": "Nora",
+    "start": 348.0,
+    "text": "And finally, a big thank you to our partners at Stripe. Stripe makes payments simple, whether you're running a marketplace or a subscription business. Check out stripe.com."
+  },
+  {
+    "char_end": 8497,
+    "char_start": 8461,
+    "end": 360.0,
+    "speaker_label": "Nora",
+    "start": 354.0,
+    "text": "Daniel, thanks for the conversation."
+  },
+  {
+    "char_end": 8519,
+    "char_start": 8506,
+    "end": 366.0,
+    "speaker_label": "Daniel",
+    "start": 360.0,
+    "text": "Thanks, Nora."
+  },
+  {
+    "char_end": 8597,
+    "char_start": 8526,
+    "end": 372.0,
+    "speaker_label": "Nora",
+    "start": 366.0,
+    "text": "That's it for today's episode of Long Horizon Notes. See you next time."
+  }
+]

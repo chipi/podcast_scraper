@@ -1,0 +1,530 @@
+[
+  {
+    "char_end": 165,
+    "char_start": 6,
+    "end": 6.0,
+    "speaker_label": "Maya",
+    "start": 0.0,
+    "text": "Welcome back to Singletrack Sessions. Today we're talking about enduro racing, and I'm joined by Sophie, enduro racer and coach. Sophie, thanks for being here."
+  },
+  {
+    "char_end": 205,
+    "char_start": 174,
+    "end": 12.0,
+    "speaker_label": "Sophie",
+    "start": 6.0,
+    "text": "Thanks, Maya. Great to be back."
+  },
+  {
+    "char_end": 413,
+    "char_start": 212,
+    "end": 18.0,
+    "speaker_label": "Maya",
+    "start": 12.0,
+    "text": "This episode is brought to you by Linear. Linear is the issue tracker built for speed \u2014 keyboard-first, fast search, and a clean roadmap view your team actually uses. Get started at linear.com/podcast."
+  },
+  {
+    "char_end": 592,
+    "char_start": 413,
+    "end": 24.0,
+    "speaker_label": "Maya",
+    "start": 18.0,
+    "text": "Before we get into it \u2014 Liam was on the show talking about how drainage is the single highest-leverage design choice. That ties directly into how a track holds up across race day."
+  },
+  {
+    "char_end": 659,
+    "char_start": 601,
+    "end": 30.0,
+    "speaker_label": "Sophie",
+    "start": 24.0,
+    "text": "Yeah, exactly. And it ties into what we're covering today."
+  },
+  {
+    "char_end": 804,
+    "char_start": 659,
+    "end": 36.0,
+    "speaker_label": "Sophie",
+    "start": 30.0,
+    "text": "I used to think you could brake your way out of any line mistake. After 2024 nationals I revised that \u2014 the right line in practice is everything."
+  },
+  {
+    "char_end": 849,
+    "char_start": 811,
+    "end": 42.0,
+    "speaker_label": "Maya",
+    "start": 36.0,
+    "text": "That's a real shift. Worth pulling on."
+  },
+  {
+    "char_end": 924,
+    "char_start": 849,
+    "end": 48.0,
+    "speaker_label": "Maya",
+    "start": 42.0,
+    "text": "That's a useful framing. How does risk management change the calculus here?"
+  },
+  {
+    "char_end": 1188,
+    "char_start": 933,
+    "end": 54.0,
+    "speaker_label": "Sophie",
+    "start": 48.0,
+    "text": "The short answer is Speed comes from braking earlier and smoother, not from taking bigger risks. We've seen this play out at teams using Spoke & Wrench. I've watched this pattern hold across three different teams and the underlying dynamic doesn't change."
+  },
+  {
+    "char_end": 1297,
+    "char_start": 1195,
+    "end": 60.0,
+    "speaker_label": "Maya",
+    "start": 54.0,
+    "text": "How do you know when you've gotten it right? What's the version of the question that actually matters?"
+  },
+  {
+    "char_end": 1507,
+    "char_start": 1306,
+    "end": 66.0,
+    "speaker_label": "Sophie",
+    "start": 60.0,
+    "text": "I'd put it this way: On a berm, you want your eyes through the exit, hips centered, and pressure building gradually rather than spiking. Once you internalize that, the rest of the decisions get easier."
+  },
+  {
+    "char_end": 1596,
+    "char_start": 1514,
+    "end": 72.0,
+    "speaker_label": "Maya",
+    "start": 66.0,
+    "text": "How do you balance that? What's the version of the question that actually matters?"
+  },
+  {
+    "char_end": 1858,
+    "char_start": 1605,
+    "end": 78.0,
+    "speaker_label": "Sophie",
+    "start": 72.0,
+    "text": "I'd put it this way: The fastest riders I race against are the ones who modify least under pressure. We've seen this play out at teams using RockShox. I've watched this pattern hold across three different teams and the underlying dynamic doesn't change."
+  },
+  {
+    "char_end": 1885,
+    "char_start": 1865,
+    "end": 84.0,
+    "speaker_label": "Maya",
+    "start": 78.0,
+    "text": "Say more about that."
+  },
+  {
+    "char_end": 2037,
+    "char_start": 1894,
+    "end": 90.0,
+    "speaker_label": "Sophie",
+    "start": 84.0,
+    "text": "Cascadia Alliance is one of the platforms where this shows up cleanly. Most of the cost shows up downstream, which is why teams keep paying it."
+  },
+  {
+    "char_end": 2157,
+    "char_start": 2044,
+    "end": 96.0,
+    "speaker_label": "Maya",
+    "start": 90.0,
+    "text": "How do you know when you've gotten it right? What's something you used to believe about this that you've revised?"
+  },
+  {
+    "char_end": 2359,
+    "char_start": 2166,
+    "end": 102.0,
+    "speaker_label": "Sophie",
+    "start": 96.0,
+    "text": "Let me give you the version I actually believe. Tire pressure and casing choice often matter more than a minor suspension tweak. Once you internalize that, the rest of the decisions get easier."
+  },
+  {
+    "char_end": 2464,
+    "char_start": 2366,
+    "end": 108.0,
+    "speaker_label": "Maya",
+    "start": 102.0,
+    "text": "Take me through the decision. What's something you used to believe about this that you've revised?"
+  },
+  {
+    "char_end": 2711,
+    "char_start": 2473,
+    "end": 114.0,
+    "speaker_label": "Sophie",
+    "start": 108.0,
+    "text": "The short answer is Risk management in racing isn't avoiding crashes \u2014 it's choosing which crashes are survivable. We've seen this play out at teams using Cascadia Alliance. Once you internalize that, the rest of the decisions get easier."
+  },
+  {
+    "char_end": 2793,
+    "char_start": 2718,
+    "end": 120.0,
+    "speaker_label": "Maya",
+    "start": 114.0,
+    "text": "That's a useful framing. Where do soil erosion and enduro racing intersect?"
+  },
+  {
+    "char_end": 2988,
+    "char_start": 2802,
+    "end": 126.0,
+    "speaker_label": "Sophie",
+    "start": 120.0,
+    "text": "Honestly, Erosion patterns on race-tracks change everything about line choice from practice to race day. The framing matters because it tells you which trade-offs you're actually making."
+  },
+  {
+    "char_end": 3022,
+    "char_start": 2995,
+    "end": 132.0,
+    "speaker_label": "Maya",
+    "start": 126.0,
+    "text": "Where does that break down?"
+  },
+  {
+    "char_end": 3177,
+    "char_start": 3031,
+    "end": 138.0,
+    "speaker_label": "Sophie",
+    "start": 132.0,
+    "text": "And when teams adopt Shimano in that flow, the trade-off becomes visible \u2014 If you ignore that, you end up rebuilding it from scratch a year later."
+  },
+  {
+    "char_end": 3241,
+    "char_start": 3184,
+    "end": 144.0,
+    "speaker_label": "Maya",
+    "start": 138.0,
+    "text": "We'll be right back after a quick word from our sponsors."
+  },
+  {
+    "char_end": 3439,
+    "char_start": 3246,
+    "end": 150.0,
+    "speaker_label": "Ad",
+    "start": 144.0,
+    "text": "Today's episode is sponsored by Notion. Notion replaces the dozen tools your team is half-using with a single workspace for docs, projects, and wikis. Visit notion.com/podcast for a free trial."
+  },
+  {
+    "char_end": 3471,
+    "char_start": 3446,
+    "end": 156.0,
+    "speaker_label": "Maya",
+    "start": 150.0,
+    "text": "Welcome back to the show."
+  },
+  {
+    "char_end": 3596,
+    "char_start": 3471,
+    "end": 162.0,
+    "speaker_label": "Maya",
+    "start": 156.0,
+    "text": "What's the one heuristic you keep coming back to? Where do people most often confuse correlation with causation in this area?"
+  },
+  {
+    "char_end": 3842,
+    "char_start": 3605,
+    "end": 168.0,
+    "speaker_label": "Sophie",
+    "start": 162.0,
+    "text": "Here's how I think about it. Speed comes from braking earlier and smoother, not from taking bigger risks. We've seen this play out at teams using RockShox. The framing matters because it tells you which trade-offs you're actually making."
+  },
+  {
+    "char_end": 3960,
+    "char_start": 3849,
+    "end": 174.0,
+    "speaker_label": "Maya",
+    "start": 168.0,
+    "text": "Walk me through a concrete example. Where do people most often confuse correlation with causation in this area?"
+  },
+  {
+    "char_end": 4177,
+    "char_start": 3969,
+    "end": 180.0,
+    "speaker_label": "Sophie",
+    "start": 174.0,
+    "text": "The short answer is On a berm, you want your eyes through the exit, hips centered, and pressure building gradually rather than spiking. Most of the cost shows up downstream, which is why teams keep paying it."
+  },
+  {
+    "char_end": 4268,
+    "char_start": 4184,
+    "end": 186.0,
+    "speaker_label": "Maya",
+    "start": 180.0,
+    "text": "Where do most teams get it wrong? How does risk management change the calculus here?"
+  },
+  {
+    "char_end": 4496,
+    "char_start": 4277,
+    "end": 192.0,
+    "speaker_label": "Sophie",
+    "start": 186.0,
+    "text": "It comes down to this: The fastest riders I race against are the ones who modify least under pressure. We've seen this play out at teams using Cascadia Alliance. And the second-order effect is the part most people miss."
+  },
+  {
+    "char_end": 4531,
+    "char_start": 4503,
+    "end": 198.0,
+    "speaker_label": "Maya",
+    "start": 192.0,
+    "text": "That maps to what I've seen."
+  },
+  {
+    "char_end": 4696,
+    "char_start": 4540,
+    "end": 204.0,
+    "speaker_label": "Sophie",
+    "start": 198.0,
+    "text": "I've seen this with teams running Spoke & Wrench and teams running everything in-house. What used to feel like an exception is honestly the median case now."
+  },
+  {
+    "char_end": 4816,
+    "char_start": 4703,
+    "end": 210.0,
+    "speaker_label": "Maya",
+    "start": 204.0,
+    "text": "How do you know when you've gotten it right? What's something you used to believe about this that you've revised?"
+  },
+  {
+    "char_end": 5016,
+    "char_start": 4825,
+    "end": 216.0,
+    "speaker_label": "Sophie",
+    "start": 210.0,
+    "text": "Here's how I think about it. Tire pressure and casing choice often matter more than a minor suspension tweak. The framing matters because it tells you which trade-offs you're actually making."
+  },
+  {
+    "char_end": 5110,
+    "char_start": 5023,
+    "end": 222.0,
+    "speaker_label": "Maya",
+    "start": 216.0,
+    "text": "What does that look like day-to-day? How does risk management change the calculus here?"
+  },
+  {
+    "char_end": 5343,
+    "char_start": 5119,
+    "end": 228.0,
+    "speaker_label": "Sophie",
+    "start": 222.0,
+    "text": "There are two angles \u2014 Risk management in racing isn't avoiding crashes \u2014 it's choosing which crashes are survivable. We've seen this play out at teams using Shimano. And the second-order effect is the part most people miss."
+  },
+  {
+    "char_end": 5463,
+    "char_start": 5350,
+    "end": 234.0,
+    "speaker_label": "Maya",
+    "start": 228.0,
+    "text": "What does the failure mode look like? Where do people most often confuse correlation with causation in this area?"
+  },
+  {
+    "char_end": 5645,
+    "char_start": 5472,
+    "end": 240.0,
+    "speaker_label": "Sophie",
+    "start": 234.0,
+    "text": "I'd put it this way: Erosion patterns on race-tracks change everything about line choice from practice to race day. And the second-order effect is the part most people miss."
+  },
+  {
+    "char_end": 5706,
+    "char_start": 5652,
+    "end": 246.0,
+    "speaker_label": "Maya",
+    "start": 240.0,
+    "text": "Is there a counterexample that would change your view?"
+  },
+  {
+    "char_end": 5887,
+    "char_start": 5715,
+    "end": 252.0,
+    "speaker_label": "Sophie",
+    "start": 246.0,
+    "text": "I've seen this with teams running Shimano and teams running everything in-house. The exception proves the rule \u2014 there are edge cases, but they're rarer than people assume."
+  },
+  {
+    "char_end": 5966,
+    "char_start": 5894,
+    "end": 258.0,
+    "speaker_label": "Maya",
+    "start": 252.0,
+    "text": "Let's pivot \u2014 risk management is where I want to spend the last stretch."
+  },
+  {
+    "char_end": 6111,
+    "char_start": 5975,
+    "end": 264.0,
+    "speaker_label": "Sophie",
+    "start": 258.0,
+    "text": "That's where the conversation gets interesting, because the trade-offs around risk management cross-cut everything we've covered so far."
+  },
+  {
+    "char_end": 6238,
+    "char_start": 6118,
+    "end": 270.0,
+    "speaker_label": "Maya",
+    "start": 264.0,
+    "text": "How do you know when you've gotten it right? Where do people most often confuse correlation with causation in this area?"
+  },
+  {
+    "char_end": 6463,
+    "char_start": 6247,
+    "end": 276.0,
+    "speaker_label": "Sophie",
+    "start": 270.0,
+    "text": "I'd put it this way: Speed comes from braking earlier and smoother, not from taking bigger risks. We've seen this play out at teams using RockShox. What used to feel like an exception is honestly the median case now."
+  },
+  {
+    "char_end": 6563,
+    "char_start": 6470,
+    "end": 282.0,
+    "speaker_label": "Maya",
+    "start": 276.0,
+    "text": "Walk me through a concrete example. What's the version of the question that actually matters?"
+  },
+  {
+    "char_end": 6796,
+    "char_start": 6572,
+    "end": 288.0,
+    "speaker_label": "Sophie",
+    "start": 282.0,
+    "text": "Sure. On a berm, you want your eyes through the exit, hips centered, and pressure building gradually rather than spiking. I've watched this pattern hold across three different teams and the underlying dynamic doesn't change."
+  },
+  {
+    "char_end": 6901,
+    "char_start": 6803,
+    "end": 294.0,
+    "speaker_label": "Maya",
+    "start": 288.0,
+    "text": "Take me through the decision. What's something you used to believe about this that you've revised?"
+  },
+  {
+    "char_end": 7142,
+    "char_start": 6910,
+    "end": 300.0,
+    "speaker_label": "Sophie",
+    "start": 294.0,
+    "text": "I'd put it this way: The fastest riders I race against are the ones who modify least under pressure. We've seen this play out at teams using Cascadia Alliance. Most of the cost shows up downstream, which is why teams keep paying it."
+  },
+  {
+    "char_end": 7161,
+    "char_start": 7149,
+    "end": 306.0,
+    "speaker_label": "Maya",
+    "start": 300.0,
+    "text": "That tracks."
+  },
+  {
+    "char_end": 7314,
+    "char_start": 7170,
+    "end": 312.0,
+    "speaker_label": "Sophie",
+    "start": 306.0,
+    "text": "Outside of Cascadia Alliance-class tooling, the failure mode is harder to spot. Once you internalize that, the rest of the decisions get easier."
+  },
+  {
+    "char_end": 7415,
+    "char_start": 7321,
+    "end": 318.0,
+    "speaker_label": "Maya",
+    "start": 312.0,
+    "text": "What does that look like day-to-day? What's the version of the question that actually matters?"
+  },
+  {
+    "char_end": 7625,
+    "char_start": 7424,
+    "end": 324.0,
+    "speaker_label": "Sophie",
+    "start": 318.0,
+    "text": "Let me give you the version I actually believe. Tire pressure and casing choice often matter more than a minor suspension tweak. Most of the cost shows up downstream, which is why teams keep paying it."
+  },
+  {
+    "char_end": 7707,
+    "char_start": 7632,
+    "end": 330.0,
+    "speaker_label": "Maya",
+    "start": 324.0,
+    "text": "I want to dig into that. What's the most underrated piece of enduro racing?"
+  },
+  {
+    "char_end": 7995,
+    "char_start": 7716,
+    "end": 336.0,
+    "speaker_label": "Sophie",
+    "start": 330.0,
+    "text": "There are two angles \u2014 Risk management in racing isn't avoiding crashes \u2014 it's choosing which crashes are survivable. We've seen this play out at teams using Cascadia Alliance. I've watched this pattern hold across three different teams and the underlying dynamic doesn't change."
+  },
+  {
+    "char_end": 8102,
+    "char_start": 8002,
+    "end": 342.0,
+    "speaker_label": "Maya",
+    "start": 336.0,
+    "text": "What's the one heuristic you keep coming back to? How does risk management change the calculus here?"
+  },
+  {
+    "char_end": 8299,
+    "char_start": 8111,
+    "end": 348.0,
+    "speaker_label": "Sophie",
+    "start": 342.0,
+    "text": "I'd put it this way: Erosion patterns on race-tracks change everything about line choice from practice to race day. Most of the cost shows up downstream, which is why teams keep paying it."
+  },
+  {
+    "char_end": 8326,
+    "char_start": 8306,
+    "end": 354.0,
+    "speaker_label": "Maya",
+    "start": 348.0,
+    "text": "Say more about that."
+  },
+  {
+    "char_end": 8506,
+    "char_start": 8335,
+    "end": 360.0,
+    "speaker_label": "Sophie",
+    "start": 354.0,
+    "text": "Outside of Cascadia Alliance-class tooling, the failure mode is harder to spot. The exception proves the rule \u2014 there are edge cases, but they're rarer than people assume."
+  },
+  {
+    "char_end": 8574,
+    "char_start": 8513,
+    "end": 366.0,
+    "speaker_label": "Maya",
+    "start": 360.0,
+    "text": "Before we wrap, what's one thing listeners can try this week?"
+  },
+  {
+    "char_end": 8664,
+    "char_start": 8583,
+    "end": 372.0,
+    "speaker_label": "Sophie",
+    "start": 366.0,
+    "text": "Pick one of the ideas we covered and run it for two weeks. The rest is iteration."
+  },
+  {
+    "char_end": 8848,
+    "char_start": 8671,
+    "end": 378.0,
+    "speaker_label": "Maya",
+    "start": 372.0,
+    "text": "And finally, a big thank you to our partners at Vanta. Vanta automates SOC 2 and ISO compliance so you can focus on building, not on collecting screenshots. Check out vanta.com."
+  },
+  {
+    "char_end": 8884,
+    "char_start": 8848,
+    "end": 384.0,
+    "speaker_label": "Maya",
+    "start": 378.0,
+    "text": "Sophie, thanks for the conversation."
+  },
+  {
+    "char_end": 8906,
+    "char_start": 8893,
+    "end": 390.0,
+    "speaker_label": "Sophie",
+    "start": 384.0,
+    "text": "Thanks, Maya."
+  },
+  {
+    "char_end": 8986,
+    "char_start": 8913,
+    "end": 396.0,
+    "speaker_label": "Maya",
+    "start": 390.0,
+    "text": "That's it for today's episode of Singletrack Sessions. See you next time."
+  }
+]

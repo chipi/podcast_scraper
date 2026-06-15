@@ -1,0 +1,3866 @@
+[
+  {
+    "char_end": 155,
+    "char_start": 13,
+    "end": 6.0,
+    "speaker_label": "Alex Morgan",
+    "start": 0.0,
+    "text": "Welcome to The Long View. Today we're exploring sustainability in depth with Dr. Elena Fischer, sustainability researcher and systems thinker."
+  },
+  {
+    "char_end": 234,
+    "char_start": 175,
+    "end": 12.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 6.0,
+    "text": "Thanks, Alex Morgan. This is a topic I've spent decades on."
+  },
+  {
+    "char_end": 435,
+    "char_start": 248,
+    "end": 18.0,
+    "speaker_label": "Alex Morgan",
+    "start": 12.0,
+    "text": "This episode is brought to you by Notion. Notion replaces the dozen tools your team is half-using with a single workspace for docs, projects, and wikis. Get started at notion.com/podcast."
+  },
+  {
+    "char_end": 487,
+    "char_start": 435,
+    "end": 24.0,
+    "speaker_label": "Alex Morgan",
+    "start": 18.0,
+    "text": "Let's talk about systems thinking. What's your read?"
+  },
+  {
+    "char_end": 730,
+    "char_start": 507,
+    "end": 30.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 24.0,
+    "text": "Honestly, Sustainability is a systems-thinking problem before it's an environmental problem. Teams working with Carbon Trust run into this constantly. Most of the cost shows up downstream, which is why teams keep paying it."
+  },
+  {
+    "char_end": 764,
+    "char_start": 744,
+    "end": 36.0,
+    "speaker_label": "Alex Morgan",
+    "start": 30.0,
+    "text": "Say more about that."
+  },
+  {
+    "char_end": 1021,
+    "char_start": 784,
+    "end": 42.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 36.0,
+    "text": "That ties to another point \u2014 Most sustainability framing fails because it treats outcomes as targets instead of properties of systems. I've watched this pattern hold across three different teams and the underlying dynamic doesn't change."
+  },
+  {
+    "char_end": 1096,
+    "char_start": 1035,
+    "end": 48.0,
+    "speaker_label": "Alex Morgan",
+    "start": 42.0,
+    "text": "Why is risk management the part that most analyses get wrong?"
+  },
+  {
+    "char_end": 1359,
+    "char_start": 1116,
+    "end": 54.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 48.0,
+    "text": "Let me give you the version I actually believe. The most expensive thing about climate is the optionality you lose by delaying. Teams working with Carbon Trust run into this constantly. And the second-order effect is the part most people miss."
+  },
+  {
+    "char_end": 1400,
+    "char_start": 1373,
+    "end": 60.0,
+    "speaker_label": "Alex Morgan",
+    "start": 54.0,
+    "text": "Where does that break down?"
+  },
+  {
+    "char_end": 1625,
+    "char_start": 1420,
+    "end": 66.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 60.0,
+    "text": "That ties to another point \u2014 Reliability and sustainability share a vocabulary \u2014 failure modes, redundancy, and graceful degradation. If you ignore that, you end up rebuilding it from scratch a year later."
+  },
+  {
+    "char_end": 1723,
+    "char_start": 1639,
+    "end": 72.0,
+    "speaker_label": "Alex Morgan",
+    "start": 66.0,
+    "text": "Walk me through how risk management interacts with the broader sustainability story."
+  },
+  {
+    "char_end": 2002,
+    "char_start": 1743,
+    "end": 78.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 72.0,
+    "text": "Yeah, so \u2014 Risk management at planetary scale looks like reliability engineering at company scale. Teams working with Carbon Trust run into this constantly. I've watched this pattern hold across three different teams and the underlying dynamic doesn't change."
+  },
+  {
+    "char_end": 2075,
+    "char_start": 2016,
+    "end": 84.0,
+    "speaker_label": "Alex Morgan",
+    "start": 78.0,
+    "text": "What would you tell the version of you from five years ago?"
+  },
+  {
+    "char_end": 2301,
+    "char_start": 2095,
+    "end": 90.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 84.0,
+    "text": "That ties to another point \u2014 I've changed my mind on individual action versus structural change. Both matter, but structural change moves the curve. And the second-order effect is the part most people miss."
+  },
+  {
+    "char_end": 2399,
+    "char_start": 2315,
+    "end": 96.0,
+    "speaker_label": "Alex Morgan",
+    "start": 90.0,
+    "text": "Walk me through how risk management interacts with the broader sustainability story."
+  },
+  {
+    "char_end": 2654,
+    "char_start": 2419,
+    "end": 102.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 96.0,
+    "text": "Yeah, so \u2014 Most sustainability framing fails because it treats outcomes as targets instead of properties of systems. Teams working with IPCC run into this constantly. What used to feel like an exception is honestly the median case now."
+  },
+  {
+    "char_end": 2696,
+    "char_start": 2668,
+    "end": 108.0,
+    "speaker_label": "Alex Morgan",
+    "start": 102.0,
+    "text": "That maps to what I've seen."
+  },
+  {
+    "char_end": 2893,
+    "char_start": 2716,
+    "end": 114.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 108.0,
+    "text": "That ties to another point \u2014 Carbon accounting needs the same rigor double-entry bookkeeping brought to finance. Once you internalize that, the rest of the decisions get easier."
+  },
+  {
+    "char_end": 2938,
+    "char_start": 2907,
+    "end": 120.0,
+    "speaker_label": "Alex Morgan",
+    "start": 114.0,
+    "text": "A quick word from our sponsors."
+  },
+  {
+    "char_end": 3155,
+    "char_start": 2943,
+    "end": 126.0,
+    "speaker_label": "Ad",
+    "start": 120.0,
+    "text": "Today's episode is sponsored by Linear. Linear is the issue tracker built for speed \u2014 keyboard-first, fast search, and a clean roadmap view your team actually uses. Visit linear.com/podcast for an extended trial."
+  },
+  {
+    "char_end": 3194,
+    "char_start": 3169,
+    "end": 132.0,
+    "speaker_label": "Alex Morgan",
+    "start": 126.0,
+    "text": "Welcome back to the show."
+  },
+  {
+    "char_end": 3278,
+    "char_start": 3194,
+    "end": 138.0,
+    "speaker_label": "Alex Morgan",
+    "start": 132.0,
+    "text": "Walk me through how risk management interacts with the broader sustainability story."
+  },
+  {
+    "char_end": 3557,
+    "char_start": 3298,
+    "end": 144.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 138.0,
+    "text": "It comes down to this: Reliability and sustainability share a vocabulary \u2014 failure modes, redundancy, and graceful degradation. Teams working with IPCC run into this constantly. The framing matters because it tells you which trade-offs you're actually making."
+  },
+  {
+    "char_end": 3625,
+    "char_start": 3571,
+    "end": 150.0,
+    "speaker_label": "Alex Morgan",
+    "start": 144.0,
+    "text": "Is there a counterexample that would change your view?"
+  },
+  {
+    "char_end": 3854,
+    "char_start": 3645,
+    "end": 156.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 150.0,
+    "text": "That ties to another point \u2014 The hardest part of climate work is staying technical when the conversation pulls toward identity. The framing matters because it tells you which trade-offs you're actually making."
+  },
+  {
+    "char_end": 3952,
+    "char_start": 3868,
+    "end": 162.0,
+    "speaker_label": "Alex Morgan",
+    "start": 156.0,
+    "text": "Walk me through how risk management interacts with the broader sustainability story."
+  },
+  {
+    "char_end": 4230,
+    "char_start": 3972,
+    "end": 168.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 162.0,
+    "text": "The short answer is I've changed my mind on individual action versus structural change. Both matter, but structural change moves the curve. Teams working with IPCC run into this constantly. What used to feel like an exception is honestly the median case now."
+  },
+  {
+    "char_end": 4303,
+    "char_start": 4244,
+    "end": 174.0,
+    "speaker_label": "Alex Morgan",
+    "start": 168.0,
+    "text": "What would you tell the version of you from five years ago?"
+  },
+  {
+    "char_end": 4526,
+    "char_start": 4323,
+    "end": 180.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 174.0,
+    "text": "That ties to another point \u2014 Sustainability is a systems-thinking problem before it's an environmental problem. The exception proves the rule \u2014 there are edge cases, but they're rarer than people assume."
+  },
+  {
+    "char_end": 4591,
+    "char_start": 4540,
+    "end": 186.0,
+    "speaker_label": "Alex Morgan",
+    "start": 180.0,
+    "text": "Let's talk about risk management. What's your read?"
+  },
+  {
+    "char_end": 4844,
+    "char_start": 4611,
+    "end": 192.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 186.0,
+    "text": "There are two angles \u2014 Carbon accounting needs the same rigor double-entry bookkeeping brought to finance. Teams working with Project Drawdown run into this constantly. Once you internalize that, the rest of the decisions get easier."
+  },
+  {
+    "char_end": 4885,
+    "char_start": 4858,
+    "end": 198.0,
+    "speaker_label": "Alex Morgan",
+    "start": 192.0,
+    "text": "Where does that break down?"
+  },
+  {
+    "char_end": 5078,
+    "char_start": 4905,
+    "end": 204.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 198.0,
+    "text": "That ties to another point \u2014 The most expensive thing about climate is the optionality you lose by delaying. Once you internalize that, the rest of the decisions get easier."
+  },
+  {
+    "char_end": 5175,
+    "char_start": 5092,
+    "end": 210.0,
+    "speaker_label": "Alex Morgan",
+    "start": 204.0,
+    "text": "What's the deepest piece of context on systems thinking that listeners are missing?"
+  },
+  {
+    "char_end": 5430,
+    "char_start": 5195,
+    "end": 216.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 210.0,
+    "text": "Honestly, The hardest part of climate work is staying technical when the conversation pulls toward identity. Teams working with Carbon Trust run into this constantly. What used to feel like an exception is honestly the median case now."
+  },
+  {
+    "char_end": 5456,
+    "char_start": 5444,
+    "end": 222.0,
+    "speaker_label": "Alex Morgan",
+    "start": 216.0,
+    "text": "That tracks."
+  },
+  {
+    "char_end": 5665,
+    "char_start": 5476,
+    "end": 228.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 222.0,
+    "text": "That ties to another point \u2014 Risk management at planetary scale looks like reliability engineering at company scale. Most of the cost shows up downstream, which is why teams keep paying it."
+  },
+  {
+    "char_end": 5757,
+    "char_start": 5679,
+    "end": 234.0,
+    "speaker_label": "Alex Morgan",
+    "start": 228.0,
+    "text": "What's the deepest piece of context on reliability that listeners are missing?"
+  },
+  {
+    "char_end": 6030,
+    "char_start": 5777,
+    "end": 240.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 234.0,
+    "text": "Let me give you the version I actually believe. Sustainability is a systems-thinking problem before it's an environmental problem. Teams working with IPCC run into this constantly. Most of the cost shows up downstream, which is why teams keep paying it."
+  },
+  {
+    "char_end": 6056,
+    "char_start": 6044,
+    "end": 246.0,
+    "speaker_label": "Alex Morgan",
+    "start": 240.0,
+    "text": "That tracks."
+  },
+  {
+    "char_end": 6268,
+    "char_start": 6076,
+    "end": 252.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 246.0,
+    "text": "That ties to another point \u2014 Most sustainability framing fails because it treats outcomes as targets instead of properties of systems. And the second-order effect is the part most people miss."
+  },
+  {
+    "char_end": 6313,
+    "char_start": 6282,
+    "end": 258.0,
+    "speaker_label": "Alex Morgan",
+    "start": 252.0,
+    "text": "A quick word from our sponsors."
+  },
+  {
+    "char_end": 6530,
+    "char_start": 6318,
+    "end": 264.0,
+    "speaker_label": "Ad",
+    "start": 258.0,
+    "text": "Today's episode is sponsored by Linear. Linear is the issue tracker built for speed \u2014 keyboard-first, fast search, and a clean roadmap view your team actually uses. Visit linear.com/podcast for an extended trial."
+  },
+  {
+    "char_end": 6569,
+    "char_start": 6544,
+    "end": 270.0,
+    "speaker_label": "Alex Morgan",
+    "start": 264.0,
+    "text": "Welcome back to the show."
+  },
+  {
+    "char_end": 6631,
+    "char_start": 6569,
+    "end": 276.0,
+    "speaker_label": "Alex Morgan",
+    "start": 270.0,
+    "text": "Why is systems thinking the part that most analyses get wrong?"
+  },
+  {
+    "char_end": 6867,
+    "char_start": 6651,
+    "end": 282.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 276.0,
+    "text": "Honestly, The most expensive thing about climate is the optionality you lose by delaying. Teams working with Carbon Trust run into this constantly. What used to feel like an exception is honestly the median case now."
+  },
+  {
+    "char_end": 6940,
+    "char_start": 6881,
+    "end": 288.0,
+    "speaker_label": "Alex Morgan",
+    "start": 282.0,
+    "text": "What would you tell the version of you from five years ago?"
+  },
+  {
+    "char_end": 7175,
+    "char_start": 6960,
+    "end": 294.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 288.0,
+    "text": "That ties to another point \u2014 Reliability and sustainability share a vocabulary \u2014 failure modes, redundancy, and graceful degradation. The framing matters because it tells you which trade-offs you're actually making."
+  },
+  {
+    "char_end": 7250,
+    "char_start": 7189,
+    "end": 300.0,
+    "speaker_label": "Alex Morgan",
+    "start": 294.0,
+    "text": "Why is risk management the part that most analyses get wrong?"
+  },
+  {
+    "char_end": 7503,
+    "char_start": 7270,
+    "end": 306.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 300.0,
+    "text": "Sure. Risk management at planetary scale looks like reliability engineering at company scale. Teams working with Carbon Trust run into this constantly. The framing matters because it tells you which trade-offs you're actually making."
+  },
+  {
+    "char_end": 7544,
+    "char_start": 7517,
+    "end": 312.0,
+    "speaker_label": "Alex Morgan",
+    "start": 306.0,
+    "text": "Where does that break down?"
+  },
+  {
+    "char_end": 7794,
+    "char_start": 7564,
+    "end": 318.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 312.0,
+    "text": "That ties to another point \u2014 I've changed my mind on individual action versus structural change. Both matter, but structural change moves the curve. The framing matters because it tells you which trade-offs you're actually making."
+  },
+  {
+    "char_end": 7855,
+    "char_start": 7808,
+    "end": 324.0,
+    "speaker_label": "Alex Morgan",
+    "start": 318.0,
+    "text": "Let's talk about reliability. What's your read?"
+  },
+  {
+    "char_end": 8126,
+    "char_start": 7875,
+    "end": 330.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 324.0,
+    "text": "It comes down to this: Most sustainability framing fails because it treats outcomes as targets instead of properties of systems. Teams working with IPCC run into this constantly. Most of the cost shows up downstream, which is why teams keep paying it."
+  },
+  {
+    "char_end": 8152,
+    "char_start": 8140,
+    "end": 336.0,
+    "speaker_label": "Alex Morgan",
+    "start": 330.0,
+    "text": "That tracks."
+  },
+  {
+    "char_end": 8366,
+    "char_start": 8172,
+    "end": 342.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 336.0,
+    "text": "That ties to another point \u2014 Carbon accounting needs the same rigor double-entry bookkeeping brought to finance. The framing matters because it tells you which trade-offs you're actually making."
+  },
+  {
+    "char_end": 8437,
+    "char_start": 8380,
+    "end": 348.0,
+    "speaker_label": "Alex Morgan",
+    "start": 342.0,
+    "text": "Why is reliability the part that most analyses get wrong?"
+  },
+  {
+    "char_end": 8693,
+    "char_start": 8457,
+    "end": 354.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 348.0,
+    "text": "Honestly, Reliability and sustainability share a vocabulary \u2014 failure modes, redundancy, and graceful degradation. Teams working with IPCC run into this constantly. If you ignore that, you end up rebuilding it from scratch a year later."
+  },
+  {
+    "char_end": 8735,
+    "char_start": 8707,
+    "end": 360.0,
+    "speaker_label": "Alex Morgan",
+    "start": 354.0,
+    "text": "That maps to what I've seen."
+  },
+  {
+    "char_end": 8955,
+    "char_start": 8755,
+    "end": 366.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 360.0,
+    "text": "That ties to another point \u2014 The hardest part of climate work is staying technical when the conversation pulls toward identity. Most of the cost shows up downstream, which is why teams keep paying it."
+  },
+  {
+    "char_end": 9054,
+    "char_start": 8969,
+    "end": 372.0,
+    "speaker_label": "Alex Morgan",
+    "start": 366.0,
+    "text": "Walk me through how systems thinking interacts with the broader sustainability story."
+  },
+  {
+    "char_end": 9336,
+    "char_start": 9074,
+    "end": 378.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 372.0,
+    "text": "The short answer is I've changed my mind on individual action versus structural change. Both matter, but structural change moves the curve. Teams working with Carbon Trust run into this constantly. Once you internalize that, the rest of the decisions get easier."
+  },
+  {
+    "char_end": 9409,
+    "char_start": 9350,
+    "end": 384.0,
+    "speaker_label": "Alex Morgan",
+    "start": 378.0,
+    "text": "What would you tell the version of you from five years ago?"
+  },
+  {
+    "char_end": 9605,
+    "char_start": 9429,
+    "end": 390.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 384.0,
+    "text": "That ties to another point \u2014 Sustainability is a systems-thinking problem before it's an environmental problem. Once you internalize that, the rest of the decisions get easier."
+  },
+  {
+    "char_end": 9650,
+    "char_start": 9619,
+    "end": 396.0,
+    "speaker_label": "Alex Morgan",
+    "start": 390.0,
+    "text": "A quick word from our sponsors."
+  },
+  {
+    "char_end": 9867,
+    "char_start": 9655,
+    "end": 402.0,
+    "speaker_label": "Ad",
+    "start": 396.0,
+    "text": "Today's episode is sponsored by Linear. Linear is the issue tracker built for speed \u2014 keyboard-first, fast search, and a clean roadmap view your team actually uses. Visit linear.com/podcast for an extended trial."
+  },
+  {
+    "char_end": 9906,
+    "char_start": 9881,
+    "end": 408.0,
+    "speaker_label": "Alex Morgan",
+    "start": 402.0,
+    "text": "Welcome back to the show."
+  },
+  {
+    "char_end": 9958,
+    "char_start": 9906,
+    "end": 414.0,
+    "speaker_label": "Alex Morgan",
+    "start": 408.0,
+    "text": "Let's talk about systems thinking. What's your read?"
+  },
+  {
+    "char_end": 10205,
+    "char_start": 9978,
+    "end": 420.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 414.0,
+    "text": "I'd put it this way: Carbon accounting needs the same rigor double-entry bookkeeping brought to finance. Teams working with Carbon Trust run into this constantly. Once you internalize that, the rest of the decisions get easier."
+  },
+  {
+    "char_end": 10231,
+    "char_start": 10219,
+    "end": 426.0,
+    "speaker_label": "Alex Morgan",
+    "start": 420.0,
+    "text": "That tracks."
+  },
+  {
+    "char_end": 10417,
+    "char_start": 10251,
+    "end": 432.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 426.0,
+    "text": "That ties to another point \u2014 The most expensive thing about climate is the optionality you lose by delaying. And the second-order effect is the part most people miss."
+  },
+  {
+    "char_end": 10482,
+    "char_start": 10431,
+    "end": 438.0,
+    "speaker_label": "Alex Morgan",
+    "start": 432.0,
+    "text": "Let's talk about risk management. What's your read?"
+  },
+  {
+    "char_end": 10738,
+    "char_start": 10502,
+    "end": 444.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 438.0,
+    "text": "Yeah, so \u2014 The hardest part of climate work is staying technical when the conversation pulls toward identity. Teams working with Project Drawdown run into this constantly. Once you internalize that, the rest of the decisions get easier."
+  },
+  {
+    "char_end": 10780,
+    "char_start": 10752,
+    "end": 450.0,
+    "speaker_label": "Alex Morgan",
+    "start": 444.0,
+    "text": "That maps to what I've seen."
+  },
+  {
+    "char_end": 10985,
+    "char_start": 10800,
+    "end": 456.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 450.0,
+    "text": "That ties to another point \u2014 Risk management at planetary scale looks like reliability engineering at company scale. What used to feel like an exception is honestly the median case now."
+  },
+  {
+    "char_end": 11046,
+    "char_start": 10999,
+    "end": 462.0,
+    "speaker_label": "Alex Morgan",
+    "start": 456.0,
+    "text": "Let's talk about reliability. What's your read?"
+  },
+  {
+    "char_end": 11304,
+    "char_start": 11066,
+    "end": 468.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 462.0,
+    "text": "Let me give you the version I actually believe. Sustainability is a systems-thinking problem before it's an environmental problem. Teams working with IPCC run into this constantly. And the second-order effect is the part most people miss."
+  },
+  {
+    "char_end": 11372,
+    "char_start": 11318,
+    "end": 474.0,
+    "speaker_label": "Alex Morgan",
+    "start": 468.0,
+    "text": "Is there a counterexample that would change your view?"
+  },
+  {
+    "char_end": 11608,
+    "char_start": 11392,
+    "end": 480.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 474.0,
+    "text": "That ties to another point \u2014 Most sustainability framing fails because it treats outcomes as targets instead of properties of systems. The framing matters because it tells you which trade-offs you're actually making."
+  },
+  {
+    "char_end": 11684,
+    "char_start": 11622,
+    "end": 486.0,
+    "speaker_label": "Alex Morgan",
+    "start": 480.0,
+    "text": "Why is systems thinking the part that most analyses get wrong?"
+  },
+  {
+    "char_end": 11955,
+    "char_start": 11704,
+    "end": 492.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 486.0,
+    "text": "Yeah, so \u2014 The most expensive thing about climate is the optionality you lose by delaying. Teams working with Carbon Trust run into this constantly. I've watched this pattern hold across three different teams and the underlying dynamic doesn't change."
+  },
+  {
+    "char_end": 11989,
+    "char_start": 11969,
+    "end": 498.0,
+    "speaker_label": "Alex Morgan",
+    "start": 492.0,
+    "text": "Say more about that."
+  },
+  {
+    "char_end": 12234,
+    "char_start": 12009,
+    "end": 504.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 498.0,
+    "text": "That ties to another point \u2014 Reliability and sustainability share a vocabulary \u2014 failure modes, redundancy, and graceful degradation. The exception proves the rule \u2014 there are edge cases, but they're rarer than people assume."
+  },
+  {
+    "char_end": 12333,
+    "char_start": 12248,
+    "end": 510.0,
+    "speaker_label": "Alex Morgan",
+    "start": 504.0,
+    "text": "Walk me through how systems thinking interacts with the broader sustainability story."
+  },
+  {
+    "char_end": 12628,
+    "char_start": 12353,
+    "end": 516.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 510.0,
+    "text": "Let me give you the version I actually believe. Risk management at planetary scale looks like reliability engineering at company scale. Teams working with Carbon Trust run into this constantly. The framing matters because it tells you which trade-offs you're actually making."
+  },
+  {
+    "char_end": 12701,
+    "char_start": 12642,
+    "end": 522.0,
+    "speaker_label": "Alex Morgan",
+    "start": 516.0,
+    "text": "What would you tell the version of you from five years ago?"
+  },
+  {
+    "char_end": 12951,
+    "char_start": 12721,
+    "end": 528.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 522.0,
+    "text": "That ties to another point \u2014 I've changed my mind on individual action versus structural change. Both matter, but structural change moves the curve. The framing matters because it tells you which trade-offs you're actually making."
+  },
+  {
+    "char_end": 12996,
+    "char_start": 12965,
+    "end": 534.0,
+    "speaker_label": "Alex Morgan",
+    "start": 528.0,
+    "text": "A quick word from our sponsors."
+  },
+  {
+    "char_end": 13213,
+    "char_start": 13001,
+    "end": 540.0,
+    "speaker_label": "Ad",
+    "start": 534.0,
+    "text": "Today's episode is sponsored by Linear. Linear is the issue tracker built for speed \u2014 keyboard-first, fast search, and a clean roadmap view your team actually uses. Visit linear.com/podcast for an extended trial."
+  },
+  {
+    "char_end": 13252,
+    "char_start": 13227,
+    "end": 546.0,
+    "speaker_label": "Alex Morgan",
+    "start": 540.0,
+    "text": "Welcome back to the show."
+  },
+  {
+    "char_end": 13304,
+    "char_start": 13252,
+    "end": 552.0,
+    "speaker_label": "Alex Morgan",
+    "start": 546.0,
+    "text": "Let's talk about systems thinking. What's your read?"
+  },
+  {
+    "char_end": 13570,
+    "char_start": 13324,
+    "end": 558.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 552.0,
+    "text": "There are two angles \u2014 Most sustainability framing fails because it treats outcomes as targets instead of properties of systems. Teams working with IEA run into this constantly. What used to feel like an exception is honestly the median case now."
+  },
+  {
+    "char_end": 13643,
+    "char_start": 13584,
+    "end": 564.0,
+    "speaker_label": "Alex Morgan",
+    "start": 558.0,
+    "text": "What would you tell the version of you from five years ago?"
+  },
+  {
+    "char_end": 13833,
+    "char_start": 13663,
+    "end": 570.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 564.0,
+    "text": "That ties to another point \u2014 Carbon accounting needs the same rigor double-entry bookkeeping brought to finance. And the second-order effect is the part most people miss."
+  },
+  {
+    "char_end": 13925,
+    "char_start": 13847,
+    "end": 576.0,
+    "speaker_label": "Alex Morgan",
+    "start": 570.0,
+    "text": "What's the deepest piece of context on reliability that listeners are missing?"
+  },
+  {
+    "char_end": 14177,
+    "char_start": 13945,
+    "end": 582.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 576.0,
+    "text": "Honestly, Reliability and sustainability share a vocabulary \u2014 failure modes, redundancy, and graceful degradation. Teams working with IEA run into this constantly. What used to feel like an exception is honestly the median case now."
+  },
+  {
+    "char_end": 14250,
+    "char_start": 14191,
+    "end": 588.0,
+    "speaker_label": "Alex Morgan",
+    "start": 582.0,
+    "text": "What would you tell the version of you from five years ago?"
+  },
+  {
+    "char_end": 14470,
+    "char_start": 14270,
+    "end": 594.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 588.0,
+    "text": "That ties to another point \u2014 The hardest part of climate work is staying technical when the conversation pulls toward identity. Most of the cost shows up downstream, which is why teams keep paying it."
+  },
+  {
+    "char_end": 14546,
+    "char_start": 14484,
+    "end": 600.0,
+    "speaker_label": "Alex Morgan",
+    "start": 594.0,
+    "text": "Why is systems thinking the part that most analyses get wrong?"
+  },
+  {
+    "char_end": 14816,
+    "char_start": 14566,
+    "end": 606.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 600.0,
+    "text": "It comes down to this: I've changed my mind on individual action versus structural change. Both matter, but structural change moves the curve. Teams working with IPCC run into this constantly. And the second-order effect is the part most people miss."
+  },
+  {
+    "char_end": 14858,
+    "char_start": 14830,
+    "end": 612.0,
+    "speaker_label": "Alex Morgan",
+    "start": 606.0,
+    "text": "That maps to what I've seen."
+  },
+  {
+    "char_end": 15081,
+    "char_start": 14878,
+    "end": 618.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 612.0,
+    "text": "That ties to another point \u2014 Sustainability is a systems-thinking problem before it's an environmental problem. The exception proves the rule \u2014 there are edge cases, but they're rarer than people assume."
+  },
+  {
+    "char_end": 15175,
+    "char_start": 15095,
+    "end": 624.0,
+    "speaker_label": "Alex Morgan",
+    "start": 618.0,
+    "text": "Walk me through how reliability interacts with the broader sustainability story."
+  },
+  {
+    "char_end": 15411,
+    "char_start": 15195,
+    "end": 630.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 624.0,
+    "text": "Yeah, so \u2014 Carbon accounting needs the same rigor double-entry bookkeeping brought to finance. Teams working with IPCC run into this constantly. If you ignore that, you end up rebuilding it from scratch a year later."
+  },
+  {
+    "char_end": 15452,
+    "char_start": 15425,
+    "end": 636.0,
+    "speaker_label": "Alex Morgan",
+    "start": 630.0,
+    "text": "Where does that break down?"
+  },
+  {
+    "char_end": 15649,
+    "char_start": 15472,
+    "end": 642.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 636.0,
+    "text": "That ties to another point \u2014 The most expensive thing about climate is the optionality you lose by delaying. What used to feel like an exception is honestly the median case now."
+  },
+  {
+    "char_end": 15724,
+    "char_start": 15663,
+    "end": 648.0,
+    "speaker_label": "Alex Morgan",
+    "start": 642.0,
+    "text": "Why is risk management the part that most analyses get wrong?"
+  },
+  {
+    "char_end": 16020,
+    "char_start": 15744,
+    "end": 654.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 648.0,
+    "text": "Let me give you the version I actually believe. The hardest part of climate work is staying technical when the conversation pulls toward identity. Teams working with Carbon Trust run into this constantly. If you ignore that, you end up rebuilding it from scratch a year later."
+  },
+  {
+    "char_end": 16062,
+    "char_start": 16034,
+    "end": 660.0,
+    "speaker_label": "Alex Morgan",
+    "start": 654.0,
+    "text": "That maps to what I've seen."
+  },
+  {
+    "char_end": 16270,
+    "char_start": 16082,
+    "end": 666.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 660.0,
+    "text": "That ties to another point \u2014 Risk management at planetary scale looks like reliability engineering at company scale. If you ignore that, you end up rebuilding it from scratch a year later."
+  },
+  {
+    "char_end": 16315,
+    "char_start": 16284,
+    "end": 672.0,
+    "speaker_label": "Alex Morgan",
+    "start": 666.0,
+    "text": "A quick word from our sponsors."
+  },
+  {
+    "char_end": 16532,
+    "char_start": 16320,
+    "end": 678.0,
+    "speaker_label": "Ad",
+    "start": 672.0,
+    "text": "Today's episode is sponsored by Linear. Linear is the issue tracker built for speed \u2014 keyboard-first, fast search, and a clean roadmap view your team actually uses. Visit linear.com/podcast for an extended trial."
+  },
+  {
+    "char_end": 16571,
+    "char_start": 16546,
+    "end": 684.0,
+    "speaker_label": "Alex Morgan",
+    "start": 678.0,
+    "text": "Welcome back to the show."
+  },
+  {
+    "char_end": 16656,
+    "char_start": 16571,
+    "end": 690.0,
+    "speaker_label": "Alex Morgan",
+    "start": 684.0,
+    "text": "Walk me through how systems thinking interacts with the broader sustainability story."
+  },
+  {
+    "char_end": 16907,
+    "char_start": 16676,
+    "end": 696.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 690.0,
+    "text": "Here's how I think about it. Sustainability is a systems-thinking problem before it's an environmental problem. Teams working with Project Drawdown run into this constantly. And the second-order effect is the part most people miss."
+  },
+  {
+    "char_end": 16948,
+    "char_start": 16921,
+    "end": 702.0,
+    "speaker_label": "Alex Morgan",
+    "start": 696.0,
+    "text": "Where does that break down?"
+  },
+  {
+    "char_end": 17167,
+    "char_start": 16968,
+    "end": 708.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 702.0,
+    "text": "That ties to another point \u2014 Most sustainability framing fails because it treats outcomes as targets instead of properties of systems. Once you internalize that, the rest of the decisions get easier."
+  },
+  {
+    "char_end": 17233,
+    "char_start": 17181,
+    "end": 714.0,
+    "speaker_label": "Alex Morgan",
+    "start": 708.0,
+    "text": "Let's talk about systems thinking. What's your read?"
+  },
+  {
+    "char_end": 17486,
+    "char_start": 17253,
+    "end": 720.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 714.0,
+    "text": "It comes down to this: The most expensive thing about climate is the optionality you lose by delaying. Teams working with Project Drawdown run into this constantly. What used to feel like an exception is honestly the median case now."
+  },
+  {
+    "char_end": 17559,
+    "char_start": 17500,
+    "end": 726.0,
+    "speaker_label": "Alex Morgan",
+    "start": 720.0,
+    "text": "What would you tell the version of you from five years ago?"
+  },
+  {
+    "char_end": 17804,
+    "char_start": 17579,
+    "end": 732.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 726.0,
+    "text": "That ties to another point \u2014 Reliability and sustainability share a vocabulary \u2014 failure modes, redundancy, and graceful degradation. The exception proves the rule \u2014 there are edge cases, but they're rarer than people assume."
+  },
+  {
+    "char_end": 17880,
+    "char_start": 17818,
+    "end": 738.0,
+    "speaker_label": "Alex Morgan",
+    "start": 732.0,
+    "text": "Why is systems thinking the part that most analyses get wrong?"
+  },
+  {
+    "char_end": 18138,
+    "char_start": 17900,
+    "end": 744.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 738.0,
+    "text": "Here's how I think about it. Risk management at planetary scale looks like reliability engineering at company scale. Teams working with IEA run into this constantly. Most of the cost shows up downstream, which is why teams keep paying it."
+  },
+  {
+    "char_end": 18172,
+    "char_start": 18152,
+    "end": 750.0,
+    "speaker_label": "Alex Morgan",
+    "start": 744.0,
+    "text": "Say more about that."
+  },
+  {
+    "char_end": 18398,
+    "char_start": 18192,
+    "end": 756.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 750.0,
+    "text": "That ties to another point \u2014 I've changed my mind on individual action versus structural change. Both matter, but structural change moves the curve. And the second-order effect is the part most people miss."
+  },
+  {
+    "char_end": 18490,
+    "char_start": 18412,
+    "end": 762.0,
+    "speaker_label": "Alex Morgan",
+    "start": 756.0,
+    "text": "What's the deepest piece of context on reliability that listeners are missing?"
+  },
+  {
+    "char_end": 18748,
+    "char_start": 18510,
+    "end": 768.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 762.0,
+    "text": "Yeah, so \u2014 Most sustainability framing fails because it treats outcomes as targets instead of properties of systems. Teams working with IEA run into this constantly. Most of the cost shows up downstream, which is why teams keep paying it."
+  },
+  {
+    "char_end": 18789,
+    "char_start": 18762,
+    "end": 774.0,
+    "speaker_label": "Alex Morgan",
+    "start": 768.0,
+    "text": "Where does that break down?"
+  },
+  {
+    "char_end": 19024,
+    "char_start": 18809,
+    "end": 780.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 774.0,
+    "text": "That ties to another point \u2014 Carbon accounting needs the same rigor double-entry bookkeeping brought to finance. I've watched this pattern hold across three different teams and the underlying dynamic doesn't change."
+  },
+  {
+    "char_end": 19090,
+    "char_start": 19038,
+    "end": 786.0,
+    "speaker_label": "Alex Morgan",
+    "start": 780.0,
+    "text": "Let's talk about systems thinking. What's your read?"
+  },
+  {
+    "char_end": 19342,
+    "char_start": 19110,
+    "end": 792.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 786.0,
+    "text": "Sure. Reliability and sustainability share a vocabulary \u2014 failure modes, redundancy, and graceful degradation. Teams working with IEA run into this constantly. Most of the cost shows up downstream, which is why teams keep paying it."
+  },
+  {
+    "char_end": 19368,
+    "char_start": 19356,
+    "end": 798.0,
+    "speaker_label": "Alex Morgan",
+    "start": 792.0,
+    "text": "That tracks."
+  },
+  {
+    "char_end": 19607,
+    "char_start": 19388,
+    "end": 804.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 798.0,
+    "text": "That ties to another point \u2014 The hardest part of climate work is staying technical when the conversation pulls toward identity. The exception proves the rule \u2014 there are edge cases, but they're rarer than people assume."
+  },
+  {
+    "char_end": 19652,
+    "char_start": 19621,
+    "end": 810.0,
+    "speaker_label": "Alex Morgan",
+    "start": 804.0,
+    "text": "A quick word from our sponsors."
+  },
+  {
+    "char_end": 19869,
+    "char_start": 19657,
+    "end": 816.0,
+    "speaker_label": "Ad",
+    "start": 810.0,
+    "text": "Today's episode is sponsored by Linear. Linear is the issue tracker built for speed \u2014 keyboard-first, fast search, and a clean roadmap view your team actually uses. Visit linear.com/podcast for an extended trial."
+  },
+  {
+    "char_end": 19908,
+    "char_start": 19883,
+    "end": 822.0,
+    "speaker_label": "Alex Morgan",
+    "start": 816.0,
+    "text": "Welcome back to the show."
+  },
+  {
+    "char_end": 19986,
+    "char_start": 19908,
+    "end": 828.0,
+    "speaker_label": "Alex Morgan",
+    "start": 822.0,
+    "text": "What's the deepest piece of context on reliability that listeners are missing?"
+  },
+  {
+    "char_end": 20292,
+    "char_start": 20006,
+    "end": 834.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 828.0,
+    "text": "There are two angles \u2014 I've changed my mind on individual action versus structural change. Both matter, but structural change moves the curve. Teams working with Project Drawdown run into this constantly. The framing matters because it tells you which trade-offs you're actually making."
+  },
+  {
+    "char_end": 20360,
+    "char_start": 20306,
+    "end": 840.0,
+    "speaker_label": "Alex Morgan",
+    "start": 834.0,
+    "text": "Is there a counterexample that would change your view?"
+  },
+  {
+    "char_end": 20560,
+    "char_start": 20380,
+    "end": 846.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 840.0,
+    "text": "That ties to another point \u2014 Sustainability is a systems-thinking problem before it's an environmental problem. What used to feel like an exception is honestly the median case now."
+  },
+  {
+    "char_end": 20657,
+    "char_start": 20574,
+    "end": 852.0,
+    "speaker_label": "Alex Morgan",
+    "start": 846.0,
+    "text": "What's the deepest piece of context on systems thinking that listeners are missing?"
+  },
+  {
+    "char_end": 20877,
+    "char_start": 20677,
+    "end": 858.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 852.0,
+    "text": "Honestly, Carbon accounting needs the same rigor double-entry bookkeeping brought to finance. Teams working with IEA run into this constantly. And the second-order effect is the part most people miss."
+  },
+  {
+    "char_end": 20918,
+    "char_start": 20891,
+    "end": 864.0,
+    "speaker_label": "Alex Morgan",
+    "start": 858.0,
+    "text": "Where does that break down?"
+  },
+  {
+    "char_end": 21111,
+    "char_start": 20938,
+    "end": 870.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 864.0,
+    "text": "That ties to another point \u2014 The most expensive thing about climate is the optionality you lose by delaying. Once you internalize that, the rest of the decisions get easier."
+  },
+  {
+    "char_end": 21182,
+    "char_start": 21125,
+    "end": 876.0,
+    "speaker_label": "Alex Morgan",
+    "start": 870.0,
+    "text": "Why is reliability the part that most analyses get wrong?"
+  },
+  {
+    "char_end": 21488,
+    "char_start": 21202,
+    "end": 882.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 876.0,
+    "text": "It comes down to this: The hardest part of climate work is staying technical when the conversation pulls toward identity. Teams working with Project Drawdown run into this constantly. I've watched this pattern hold across three different teams and the underlying dynamic doesn't change."
+  },
+  {
+    "char_end": 21530,
+    "char_start": 21502,
+    "end": 888.0,
+    "speaker_label": "Alex Morgan",
+    "start": 882.0,
+    "text": "That maps to what I've seen."
+  },
+  {
+    "char_end": 21738,
+    "char_start": 21550,
+    "end": 894.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 888.0,
+    "text": "That ties to another point \u2014 Risk management at planetary scale looks like reliability engineering at company scale. If you ignore that, you end up rebuilding it from scratch a year later."
+  },
+  {
+    "char_end": 21836,
+    "char_start": 21752,
+    "end": 900.0,
+    "speaker_label": "Alex Morgan",
+    "start": 894.0,
+    "text": "Walk me through how risk management interacts with the broader sustainability story."
+  },
+  {
+    "char_end": 22095,
+    "char_start": 21856,
+    "end": 906.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 900.0,
+    "text": "There are two angles \u2014 Sustainability is a systems-thinking problem before it's an environmental problem. Teams working with Project Drawdown run into this constantly. If you ignore that, you end up rebuilding it from scratch a year later."
+  },
+  {
+    "char_end": 22137,
+    "char_start": 22109,
+    "end": 912.0,
+    "speaker_label": "Alex Morgan",
+    "start": 906.0,
+    "text": "That maps to what I've seen."
+  },
+  {
+    "char_end": 22349,
+    "char_start": 22157,
+    "end": 918.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 912.0,
+    "text": "That ties to another point \u2014 Most sustainability framing fails because it treats outcomes as targets instead of properties of systems. And the second-order effect is the part most people miss."
+  },
+  {
+    "char_end": 22420,
+    "char_start": 22363,
+    "end": 924.0,
+    "speaker_label": "Alex Morgan",
+    "start": 918.0,
+    "text": "Why is reliability the part that most analyses get wrong?"
+  },
+  {
+    "char_end": 22669,
+    "char_start": 22440,
+    "end": 930.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 924.0,
+    "text": "Here's how I think about it. The most expensive thing about climate is the optionality you lose by delaying. Teams working with IEA run into this constantly. If you ignore that, you end up rebuilding it from scratch a year later."
+  },
+  {
+    "char_end": 22703,
+    "char_start": 22683,
+    "end": 936.0,
+    "speaker_label": "Alex Morgan",
+    "start": 930.0,
+    "text": "Say more about that."
+  },
+  {
+    "char_end": 22948,
+    "char_start": 22723,
+    "end": 942.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 936.0,
+    "text": "That ties to another point \u2014 Reliability and sustainability share a vocabulary \u2014 failure modes, redundancy, and graceful degradation. The exception proves the rule \u2014 there are edge cases, but they're rarer than people assume."
+  },
+  {
+    "char_end": 22993,
+    "char_start": 22962,
+    "end": 948.0,
+    "speaker_label": "Alex Morgan",
+    "start": 942.0,
+    "text": "A quick word from our sponsors."
+  },
+  {
+    "char_end": 23210,
+    "char_start": 22998,
+    "end": 954.0,
+    "speaker_label": "Ad",
+    "start": 948.0,
+    "text": "Today's episode is sponsored by Linear. Linear is the issue tracker built for speed \u2014 keyboard-first, fast search, and a clean roadmap view your team actually uses. Visit linear.com/podcast for an extended trial."
+  },
+  {
+    "char_end": 23249,
+    "char_start": 23224,
+    "end": 960.0,
+    "speaker_label": "Alex Morgan",
+    "start": 954.0,
+    "text": "Welcome back to the show."
+  },
+  {
+    "char_end": 23331,
+    "char_start": 23249,
+    "end": 966.0,
+    "speaker_label": "Alex Morgan",
+    "start": 960.0,
+    "text": "What's the deepest piece of context on risk management that listeners are missing?"
+  },
+  {
+    "char_end": 23588,
+    "char_start": 23351,
+    "end": 972.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 966.0,
+    "text": "It comes down to this: Risk management at planetary scale looks like reliability engineering at company scale. Teams working with Project Drawdown run into this constantly. Once you internalize that, the rest of the decisions get easier."
+  },
+  {
+    "char_end": 23629,
+    "char_start": 23602,
+    "end": 978.0,
+    "speaker_label": "Alex Morgan",
+    "start": 972.0,
+    "text": "Where does that break down?"
+  },
+  {
+    "char_end": 23889,
+    "char_start": 23649,
+    "end": 984.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 978.0,
+    "text": "That ties to another point \u2014 I've changed my mind on individual action versus structural change. Both matter, but structural change moves the curve. The exception proves the rule \u2014 there are edge cases, but they're rarer than people assume."
+  },
+  {
+    "char_end": 23986,
+    "char_start": 23903,
+    "end": 990.0,
+    "speaker_label": "Alex Morgan",
+    "start": 984.0,
+    "text": "What's the deepest piece of context on systems thinking that listeners are missing?"
+  },
+  {
+    "char_end": 24285,
+    "char_start": 24006,
+    "end": 996.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 990.0,
+    "text": "I'd put it this way: Most sustainability framing fails because it treats outcomes as targets instead of properties of systems. Teams working with IPCC run into this constantly. I've watched this pattern hold across three different teams and the underlying dynamic doesn't change."
+  },
+  {
+    "char_end": 24358,
+    "char_start": 24299,
+    "end": 1002.0,
+    "speaker_label": "Alex Morgan",
+    "start": 996.0,
+    "text": "What would you tell the version of you from five years ago?"
+  },
+  {
+    "char_end": 24559,
+    "char_start": 24378,
+    "end": 1008.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 1002.0,
+    "text": "That ties to another point \u2014 Carbon accounting needs the same rigor double-entry bookkeeping brought to finance. What used to feel like an exception is honestly the median case now."
+  },
+  {
+    "char_end": 24656,
+    "char_start": 24573,
+    "end": 1014.0,
+    "speaker_label": "Alex Morgan",
+    "start": 1008.0,
+    "text": "What's the deepest piece of context on systems thinking that listeners are missing?"
+  },
+  {
+    "char_end": 24947,
+    "char_start": 24676,
+    "end": 1020.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 1014.0,
+    "text": "There are two angles \u2014 Reliability and sustainability share a vocabulary \u2014 failure modes, redundancy, and graceful degradation. Teams working with Project Drawdown run into this constantly. The framing matters because it tells you which trade-offs you're actually making."
+  },
+  {
+    "char_end": 24988,
+    "char_start": 24961,
+    "end": 1026.0,
+    "speaker_label": "Alex Morgan",
+    "start": 1020.0,
+    "text": "Where does that break down?"
+  },
+  {
+    "char_end": 25217,
+    "char_start": 25008,
+    "end": 1032.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 1026.0,
+    "text": "That ties to another point \u2014 The hardest part of climate work is staying technical when the conversation pulls toward identity. The framing matters because it tells you which trade-offs you're actually making."
+  },
+  {
+    "char_end": 25313,
+    "char_start": 25231,
+    "end": 1038.0,
+    "speaker_label": "Alex Morgan",
+    "start": 1032.0,
+    "text": "What's the deepest piece of context on risk management that listeners are missing?"
+  },
+  {
+    "char_end": 25603,
+    "char_start": 25333,
+    "end": 1044.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 1038.0,
+    "text": "Here's how I think about it. I've changed my mind on individual action versus structural change. Both matter, but structural change moves the curve. Teams working with IPCC run into this constantly. If you ignore that, you end up rebuilding it from scratch a year later."
+  },
+  {
+    "char_end": 25644,
+    "char_start": 25617,
+    "end": 1050.0,
+    "speaker_label": "Alex Morgan",
+    "start": 1044.0,
+    "text": "Where does that break down?"
+  },
+  {
+    "char_end": 25847,
+    "char_start": 25664,
+    "end": 1056.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 1050.0,
+    "text": "That ties to another point \u2014 Sustainability is a systems-thinking problem before it's an environmental problem. If you ignore that, you end up rebuilding it from scratch a year later."
+  },
+  {
+    "char_end": 25908,
+    "char_start": 25861,
+    "end": 1062.0,
+    "speaker_label": "Alex Morgan",
+    "start": 1056.0,
+    "text": "Let's talk about reliability. What's your read?"
+  },
+  {
+    "char_end": 26154,
+    "char_start": 25928,
+    "end": 1068.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 1062.0,
+    "text": "It comes down to this: Carbon accounting needs the same rigor double-entry bookkeeping brought to finance. Teams working with Project Drawdown run into this constantly. And the second-order effect is the part most people miss."
+  },
+  {
+    "char_end": 26227,
+    "char_start": 26168,
+    "end": 1074.0,
+    "speaker_label": "Alex Morgan",
+    "start": 1068.0,
+    "text": "What would you tell the version of you from five years ago?"
+  },
+  {
+    "char_end": 26427,
+    "char_start": 26247,
+    "end": 1080.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 1074.0,
+    "text": "That ties to another point \u2014 The most expensive thing about climate is the optionality you lose by delaying. If you ignore that, you end up rebuilding it from scratch a year later."
+  },
+  {
+    "char_end": 26472,
+    "char_start": 26441,
+    "end": 1086.0,
+    "speaker_label": "Alex Morgan",
+    "start": 1080.0,
+    "text": "A quick word from our sponsors."
+  },
+  {
+    "char_end": 26689,
+    "char_start": 26477,
+    "end": 1092.0,
+    "speaker_label": "Ad",
+    "start": 1086.0,
+    "text": "Today's episode is sponsored by Linear. Linear is the issue tracker built for speed \u2014 keyboard-first, fast search, and a clean roadmap view your team actually uses. Visit linear.com/podcast for an extended trial."
+  },
+  {
+    "char_end": 26728,
+    "char_start": 26703,
+    "end": 1098.0,
+    "speaker_label": "Alex Morgan",
+    "start": 1092.0,
+    "text": "Welcome back to the show."
+  },
+  {
+    "char_end": 26812,
+    "char_start": 26728,
+    "end": 1104.0,
+    "speaker_label": "Alex Morgan",
+    "start": 1098.0,
+    "text": "Walk me through how risk management interacts with the broader sustainability story."
+  },
+  {
+    "char_end": 27093,
+    "char_start": 26832,
+    "end": 1110.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 1104.0,
+    "text": "Here's how I think about it. The hardest part of climate work is staying technical when the conversation pulls toward identity. Teams working with Project Drawdown run into this constantly. If you ignore that, you end up rebuilding it from scratch a year later."
+  },
+  {
+    "char_end": 27127,
+    "char_start": 27107,
+    "end": 1116.0,
+    "speaker_label": "Alex Morgan",
+    "start": 1110.0,
+    "text": "Say more about that."
+  },
+  {
+    "char_end": 27328,
+    "char_start": 27147,
+    "end": 1122.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 1116.0,
+    "text": "That ties to another point \u2014 Risk management at planetary scale looks like reliability engineering at company scale. Once you internalize that, the rest of the decisions get easier."
+  },
+  {
+    "char_end": 27426,
+    "char_start": 27342,
+    "end": 1128.0,
+    "speaker_label": "Alex Morgan",
+    "start": 1122.0,
+    "text": "Walk me through how risk management interacts with the broader sustainability story."
+  },
+  {
+    "char_end": 27666,
+    "char_start": 27446,
+    "end": 1134.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 1128.0,
+    "text": "It comes down to this: Sustainability is a systems-thinking problem before it's an environmental problem. Teams working with IPCC run into this constantly. Once you internalize that, the rest of the decisions get easier."
+  },
+  {
+    "char_end": 27739,
+    "char_start": 27680,
+    "end": 1140.0,
+    "speaker_label": "Alex Morgan",
+    "start": 1134.0,
+    "text": "What would you tell the version of you from five years ago?"
+  },
+  {
+    "char_end": 27958,
+    "char_start": 27759,
+    "end": 1146.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 1140.0,
+    "text": "That ties to another point \u2014 Most sustainability framing fails because it treats outcomes as targets instead of properties of systems. Once you internalize that, the rest of the decisions get easier."
+  },
+  {
+    "char_end": 28033,
+    "char_start": 27972,
+    "end": 1152.0,
+    "speaker_label": "Alex Morgan",
+    "start": 1146.0,
+    "text": "Why is risk management the part that most analyses get wrong?"
+  },
+  {
+    "char_end": 28275,
+    "char_start": 28053,
+    "end": 1158.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 1152.0,
+    "text": "I'd put it this way: The most expensive thing about climate is the optionality you lose by delaying. Teams working with IPCC run into this constantly. If you ignore that, you end up rebuilding it from scratch a year later."
+  },
+  {
+    "char_end": 28301,
+    "char_start": 28289,
+    "end": 1164.0,
+    "speaker_label": "Alex Morgan",
+    "start": 1158.0,
+    "text": "That tracks."
+  },
+  {
+    "char_end": 28527,
+    "char_start": 28321,
+    "end": 1170.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 1164.0,
+    "text": "That ties to another point \u2014 Reliability and sustainability share a vocabulary \u2014 failure modes, redundancy, and graceful degradation. Most of the cost shows up downstream, which is why teams keep paying it."
+  },
+  {
+    "char_end": 28588,
+    "char_start": 28541,
+    "end": 1176.0,
+    "speaker_label": "Alex Morgan",
+    "start": 1170.0,
+    "text": "Let's talk about reliability. What's your read?"
+  },
+  {
+    "char_end": 28854,
+    "char_start": 28608,
+    "end": 1182.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 1176.0,
+    "text": "Sure. Risk management at planetary scale looks like reliability engineering at company scale. Teams working with IPCC run into this constantly. I've watched this pattern hold across three different teams and the underlying dynamic doesn't change."
+  },
+  {
+    "char_end": 28927,
+    "char_start": 28868,
+    "end": 1188.0,
+    "speaker_label": "Alex Morgan",
+    "start": 1182.0,
+    "text": "What would you tell the version of you from five years ago?"
+  },
+  {
+    "char_end": 29198,
+    "char_start": 28947,
+    "end": 1194.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 1188.0,
+    "text": "That ties to another point \u2014 I've changed my mind on individual action versus structural change. Both matter, but structural change moves the curve. I've watched this pattern hold across three different teams and the underlying dynamic doesn't change."
+  },
+  {
+    "char_end": 29296,
+    "char_start": 29212,
+    "end": 1200.0,
+    "speaker_label": "Alex Morgan",
+    "start": 1194.0,
+    "text": "Walk me through how risk management interacts with the broader sustainability story."
+  },
+  {
+    "char_end": 29566,
+    "char_start": 29316,
+    "end": 1206.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 1200.0,
+    "text": "There are two angles \u2014 Most sustainability framing fails because it treats outcomes as targets instead of properties of systems. Teams working with IEA run into this constantly. Most of the cost shows up downstream, which is why teams keep paying it."
+  },
+  {
+    "char_end": 29639,
+    "char_start": 29580,
+    "end": 1212.0,
+    "speaker_label": "Alex Morgan",
+    "start": 1206.0,
+    "text": "What would you tell the version of you from five years ago?"
+  },
+  {
+    "char_end": 29836,
+    "char_start": 29659,
+    "end": 1218.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 1212.0,
+    "text": "That ties to another point \u2014 Carbon accounting needs the same rigor double-entry bookkeeping brought to finance. Once you internalize that, the rest of the decisions get easier."
+  },
+  {
+    "char_end": 29881,
+    "char_start": 29850,
+    "end": 1224.0,
+    "speaker_label": "Alex Morgan",
+    "start": 1218.0,
+    "text": "A quick word from our sponsors."
+  },
+  {
+    "char_end": 30098,
+    "char_start": 29886,
+    "end": 1230.0,
+    "speaker_label": "Ad",
+    "start": 1224.0,
+    "text": "Today's episode is sponsored by Linear. Linear is the issue tracker built for speed \u2014 keyboard-first, fast search, and a clean roadmap view your team actually uses. Visit linear.com/podcast for an extended trial."
+  },
+  {
+    "char_end": 30137,
+    "char_start": 30112,
+    "end": 1236.0,
+    "speaker_label": "Alex Morgan",
+    "start": 1230.0,
+    "text": "Welcome back to the show."
+  },
+  {
+    "char_end": 30189,
+    "char_start": 30137,
+    "end": 1242.0,
+    "speaker_label": "Alex Morgan",
+    "start": 1236.0,
+    "text": "Let's talk about systems thinking. What's your read?"
+  },
+  {
+    "char_end": 30456,
+    "char_start": 30209,
+    "end": 1248.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 1242.0,
+    "text": "I'd put it this way: Reliability and sustainability share a vocabulary \u2014 failure modes, redundancy, and graceful degradation. Teams working with IPCC run into this constantly. If you ignore that, you end up rebuilding it from scratch a year later."
+  },
+  {
+    "char_end": 30482,
+    "char_start": 30470,
+    "end": 1254.0,
+    "speaker_label": "Alex Morgan",
+    "start": 1248.0,
+    "text": "That tracks."
+  },
+  {
+    "char_end": 30694,
+    "char_start": 30502,
+    "end": 1260.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 1254.0,
+    "text": "That ties to another point \u2014 The hardest part of climate work is staying technical when the conversation pulls toward identity. Once you internalize that, the rest of the decisions get easier."
+  },
+  {
+    "char_end": 30793,
+    "char_start": 30708,
+    "end": 1266.0,
+    "speaker_label": "Alex Morgan",
+    "start": 1260.0,
+    "text": "Walk me through how systems thinking interacts with the broader sustainability story."
+  },
+  {
+    "char_end": 31102,
+    "char_start": 30813,
+    "end": 1272.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 1266.0,
+    "text": "The short answer is I've changed my mind on individual action versus structural change. Both matter, but structural change moves the curve. Teams working with Carbon Trust run into this constantly. The exception proves the rule \u2014 there are edge cases, but they're rarer than people assume."
+  },
+  {
+    "char_end": 31175,
+    "char_start": 31116,
+    "end": 1278.0,
+    "speaker_label": "Alex Morgan",
+    "start": 1272.0,
+    "text": "What would you tell the version of you from five years ago?"
+  },
+  {
+    "char_end": 31371,
+    "char_start": 31195,
+    "end": 1284.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 1278.0,
+    "text": "That ties to another point \u2014 Sustainability is a systems-thinking problem before it's an environmental problem. Once you internalize that, the rest of the decisions get easier."
+  },
+  {
+    "char_end": 31437,
+    "char_start": 31385,
+    "end": 1290.0,
+    "speaker_label": "Alex Morgan",
+    "start": 1284.0,
+    "text": "Let's talk about systems thinking. What's your read?"
+  },
+  {
+    "char_end": 31684,
+    "char_start": 31457,
+    "end": 1296.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 1290.0,
+    "text": "I'd put it this way: Carbon accounting needs the same rigor double-entry bookkeeping brought to finance. Teams working with IPCC run into this constantly. Most of the cost shows up downstream, which is why teams keep paying it."
+  },
+  {
+    "char_end": 31725,
+    "char_start": 31698,
+    "end": 1302.0,
+    "speaker_label": "Alex Morgan",
+    "start": 1296.0,
+    "text": "Where does that break down?"
+  },
+  {
+    "char_end": 31945,
+    "char_start": 31745,
+    "end": 1308.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 1302.0,
+    "text": "That ties to another point \u2014 The most expensive thing about climate is the optionality you lose by delaying. The exception proves the rule \u2014 there are edge cases, but they're rarer than people assume."
+  },
+  {
+    "char_end": 32042,
+    "char_start": 31959,
+    "end": 1314.0,
+    "speaker_label": "Alex Morgan",
+    "start": 1308.0,
+    "text": "What's the deepest piece of context on systems thinking that listeners are missing?"
+  },
+  {
+    "char_end": 32320,
+    "char_start": 32062,
+    "end": 1320.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 1314.0,
+    "text": "Honestly, The hardest part of climate work is staying technical when the conversation pulls toward identity. Teams working with Carbon Trust run into this constantly. The exception proves the rule \u2014 there are edge cases, but they're rarer than people assume."
+  },
+  {
+    "char_end": 32354,
+    "char_start": 32334,
+    "end": 1326.0,
+    "speaker_label": "Alex Morgan",
+    "start": 1320.0,
+    "text": "Say more about that."
+  },
+  {
+    "char_end": 32563,
+    "char_start": 32374,
+    "end": 1332.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 1326.0,
+    "text": "That ties to another point \u2014 Risk management at planetary scale looks like reliability engineering at company scale. Most of the cost shows up downstream, which is why teams keep paying it."
+  },
+  {
+    "char_end": 32629,
+    "char_start": 32577,
+    "end": 1338.0,
+    "speaker_label": "Alex Morgan",
+    "start": 1332.0,
+    "text": "Let's talk about systems thinking. What's your read?"
+  },
+  {
+    "char_end": 32889,
+    "char_start": 32649,
+    "end": 1344.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 1338.0,
+    "text": "There are two angles \u2014 Sustainability is a systems-thinking problem before it's an environmental problem. Teams working with Project Drawdown run into this constantly. Most of the cost shows up downstream, which is why teams keep paying it."
+  },
+  {
+    "char_end": 32931,
+    "char_start": 32903,
+    "end": 1350.0,
+    "speaker_label": "Alex Morgan",
+    "start": 1344.0,
+    "text": "That maps to what I've seen."
+  },
+  {
+    "char_end": 33167,
+    "char_start": 32951,
+    "end": 1356.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 1350.0,
+    "text": "That ties to another point \u2014 Most sustainability framing fails because it treats outcomes as targets instead of properties of systems. The framing matters because it tells you which trade-offs you're actually making."
+  },
+  {
+    "char_end": 33212,
+    "char_start": 33181,
+    "end": 1362.0,
+    "speaker_label": "Alex Morgan",
+    "start": 1356.0,
+    "text": "A quick word from our sponsors."
+  },
+  {
+    "char_end": 33429,
+    "char_start": 33217,
+    "end": 1368.0,
+    "speaker_label": "Ad",
+    "start": 1362.0,
+    "text": "Today's episode is sponsored by Linear. Linear is the issue tracker built for speed \u2014 keyboard-first, fast search, and a clean roadmap view your team actually uses. Visit linear.com/podcast for an extended trial."
+  },
+  {
+    "char_end": 33468,
+    "char_start": 33443,
+    "end": 1374.0,
+    "speaker_label": "Alex Morgan",
+    "start": 1368.0,
+    "text": "Welcome back to the show."
+  },
+  {
+    "char_end": 33530,
+    "char_start": 33468,
+    "end": 1380.0,
+    "speaker_label": "Alex Morgan",
+    "start": 1374.0,
+    "text": "Why is systems thinking the part that most analyses get wrong?"
+  },
+  {
+    "char_end": 33762,
+    "char_start": 33550,
+    "end": 1386.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 1380.0,
+    "text": "Honestly, The most expensive thing about climate is the optionality you lose by delaying. Teams working with Carbon Trust run into this constantly. Once you internalize that, the rest of the decisions get easier."
+  },
+  {
+    "char_end": 33830,
+    "char_start": 33776,
+    "end": 1392.0,
+    "speaker_label": "Alex Morgan",
+    "start": 1386.0,
+    "text": "Is there a counterexample that would change your view?"
+  },
+  {
+    "char_end": 34065,
+    "char_start": 33850,
+    "end": 1398.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 1392.0,
+    "text": "That ties to another point \u2014 Reliability and sustainability share a vocabulary \u2014 failure modes, redundancy, and graceful degradation. The framing matters because it tells you which trade-offs you're actually making."
+  },
+  {
+    "char_end": 34164,
+    "char_start": 34079,
+    "end": 1404.0,
+    "speaker_label": "Alex Morgan",
+    "start": 1398.0,
+    "text": "Walk me through how systems thinking interacts with the broader sustainability story."
+  },
+  {
+    "char_end": 34448,
+    "char_start": 34184,
+    "end": 1410.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 1404.0,
+    "text": "It comes down to this: Risk management at planetary scale looks like reliability engineering at company scale. Teams working with Project Drawdown run into this constantly. The exception proves the rule \u2014 there are edge cases, but they're rarer than people assume."
+  },
+  {
+    "char_end": 34474,
+    "char_start": 34462,
+    "end": 1416.0,
+    "speaker_label": "Alex Morgan",
+    "start": 1410.0,
+    "text": "That tracks."
+  },
+  {
+    "char_end": 34734,
+    "char_start": 34494,
+    "end": 1422.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 1416.0,
+    "text": "That ties to another point \u2014 I've changed my mind on individual action versus structural change. Both matter, but structural change moves the curve. The exception proves the rule \u2014 there are edge cases, but they're rarer than people assume."
+  },
+  {
+    "char_end": 34828,
+    "char_start": 34748,
+    "end": 1428.0,
+    "speaker_label": "Alex Morgan",
+    "start": 1422.0,
+    "text": "Walk me through how reliability interacts with the broader sustainability story."
+  },
+  {
+    "char_end": 35079,
+    "char_start": 34848,
+    "end": 1434.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 1428.0,
+    "text": "Sure. Most sustainability framing fails because it treats outcomes as targets instead of properties of systems. Teams working with Project Drawdown run into this constantly. And the second-order effect is the part most people miss."
+  },
+  {
+    "char_end": 35152,
+    "char_start": 35093,
+    "end": 1440.0,
+    "speaker_label": "Alex Morgan",
+    "start": 1434.0,
+    "text": "What would you tell the version of you from five years ago?"
+  },
+  {
+    "char_end": 35349,
+    "char_start": 35172,
+    "end": 1446.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 1440.0,
+    "text": "That ties to another point \u2014 Carbon accounting needs the same rigor double-entry bookkeeping brought to finance. Once you internalize that, the rest of the decisions get easier."
+  },
+  {
+    "char_end": 35446,
+    "char_start": 35363,
+    "end": 1452.0,
+    "speaker_label": "Alex Morgan",
+    "start": 1446.0,
+    "text": "What's the deepest piece of context on systems thinking that listeners are missing?"
+  },
+  {
+    "char_end": 35741,
+    "char_start": 35466,
+    "end": 1458.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 1452.0,
+    "text": "Honestly, Reliability and sustainability share a vocabulary \u2014 failure modes, redundancy, and graceful degradation. Teams working with Carbon Trust run into this constantly. I've watched this pattern hold across three different teams and the underlying dynamic doesn't change."
+  },
+  {
+    "char_end": 35783,
+    "char_start": 35755,
+    "end": 1464.0,
+    "speaker_label": "Alex Morgan",
+    "start": 1458.0,
+    "text": "That maps to what I've seen."
+  },
+  {
+    "char_end": 35995,
+    "char_start": 35803,
+    "end": 1470.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 1464.0,
+    "text": "That ties to another point \u2014 The hardest part of climate work is staying technical when the conversation pulls toward identity. Once you internalize that, the rest of the decisions get easier."
+  },
+  {
+    "char_end": 36089,
+    "char_start": 36009,
+    "end": 1476.0,
+    "speaker_label": "Alex Morgan",
+    "start": 1470.0,
+    "text": "Walk me through how reliability interacts with the broader sustainability story."
+  },
+  {
+    "char_end": 36383,
+    "char_start": 36109,
+    "end": 1482.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 1476.0,
+    "text": "Yeah, so \u2014 I've changed my mind on individual action versus structural change. Both matter, but structural change moves the curve. Teams working with Project Drawdown run into this constantly. The framing matters because it tells you which trade-offs you're actually making."
+  },
+  {
+    "char_end": 36417,
+    "char_start": 36397,
+    "end": 1488.0,
+    "speaker_label": "Alex Morgan",
+    "start": 1482.0,
+    "text": "Say more about that."
+  },
+  {
+    "char_end": 36630,
+    "char_start": 36437,
+    "end": 1494.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 1488.0,
+    "text": "That ties to another point \u2014 Sustainability is a systems-thinking problem before it's an environmental problem. The framing matters because it tells you which trade-offs you're actually making."
+  },
+  {
+    "char_end": 36675,
+    "char_start": 36644,
+    "end": 1500.0,
+    "speaker_label": "Alex Morgan",
+    "start": 1494.0,
+    "text": "A quick word from our sponsors."
+  },
+  {
+    "char_end": 36892,
+    "char_start": 36680,
+    "end": 1506.0,
+    "speaker_label": "Ad",
+    "start": 1500.0,
+    "text": "Today's episode is sponsored by Linear. Linear is the issue tracker built for speed \u2014 keyboard-first, fast search, and a clean roadmap view your team actually uses. Visit linear.com/podcast for an extended trial."
+  },
+  {
+    "char_end": 36931,
+    "char_start": 36906,
+    "end": 1512.0,
+    "speaker_label": "Alex Morgan",
+    "start": 1506.0,
+    "text": "Welcome back to the show."
+  },
+  {
+    "char_end": 36993,
+    "char_start": 36931,
+    "end": 1518.0,
+    "speaker_label": "Alex Morgan",
+    "start": 1512.0,
+    "text": "Why is systems thinking the part that most analyses get wrong?"
+  },
+  {
+    "char_end": 37234,
+    "char_start": 37013,
+    "end": 1524.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 1518.0,
+    "text": "There are two angles \u2014 Carbon accounting needs the same rigor double-entry bookkeeping brought to finance. Teams working with IPCC run into this constantly. Once you internalize that, the rest of the decisions get easier."
+  },
+  {
+    "char_end": 37275,
+    "char_start": 37248,
+    "end": 1530.0,
+    "speaker_label": "Alex Morgan",
+    "start": 1524.0,
+    "text": "Where does that break down?"
+  },
+  {
+    "char_end": 37476,
+    "char_start": 37295,
+    "end": 1536.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 1530.0,
+    "text": "That ties to another point \u2014 The most expensive thing about climate is the optionality you lose by delaying. Most of the cost shows up downstream, which is why teams keep paying it."
+  },
+  {
+    "char_end": 37570,
+    "char_start": 37490,
+    "end": 1542.0,
+    "speaker_label": "Alex Morgan",
+    "start": 1536.0,
+    "text": "Walk me through how reliability interacts with the broader sustainability story."
+  },
+  {
+    "char_end": 37832,
+    "char_start": 37590,
+    "end": 1548.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 1542.0,
+    "text": "Honestly, The hardest part of climate work is staying technical when the conversation pulls toward identity. Teams working with Project Drawdown run into this constantly. If you ignore that, you end up rebuilding it from scratch a year later."
+  },
+  {
+    "char_end": 37874,
+    "char_start": 37846,
+    "end": 1554.0,
+    "speaker_label": "Alex Morgan",
+    "start": 1548.0,
+    "text": "That maps to what I've seen."
+  },
+  {
+    "char_end": 38092,
+    "char_start": 37894,
+    "end": 1560.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 1554.0,
+    "text": "That ties to another point \u2014 Risk management at planetary scale looks like reliability engineering at company scale. The framing matters because it tells you which trade-offs you're actually making."
+  },
+  {
+    "char_end": 38167,
+    "char_start": 38106,
+    "end": 1566.0,
+    "speaker_label": "Alex Morgan",
+    "start": 1560.0,
+    "text": "Why is risk management the part that most analyses get wrong?"
+  },
+  {
+    "char_end": 38399,
+    "char_start": 38187,
+    "end": 1572.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 1566.0,
+    "text": "Honestly, Sustainability is a systems-thinking problem before it's an environmental problem. Teams working with Project Drawdown run into this constantly. And the second-order effect is the part most people miss."
+  },
+  {
+    "char_end": 38472,
+    "char_start": 38413,
+    "end": 1578.0,
+    "speaker_label": "Alex Morgan",
+    "start": 1572.0,
+    "text": "What would you tell the version of you from five years ago?"
+  },
+  {
+    "char_end": 38729,
+    "char_start": 38492,
+    "end": 1584.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 1578.0,
+    "text": "That ties to another point \u2014 Most sustainability framing fails because it treats outcomes as targets instead of properties of systems. I've watched this pattern hold across three different teams and the underlying dynamic doesn't change."
+  },
+  {
+    "char_end": 38804,
+    "char_start": 38743,
+    "end": 1590.0,
+    "speaker_label": "Alex Morgan",
+    "start": 1584.0,
+    "text": "Why is risk management the part that most analyses get wrong?"
+  },
+  {
+    "char_end": 39057,
+    "char_start": 38824,
+    "end": 1596.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 1590.0,
+    "text": "The short answer is The most expensive thing about climate is the optionality you lose by delaying. Teams working with Project Drawdown run into this constantly. If you ignore that, you end up rebuilding it from scratch a year later."
+  },
+  {
+    "char_end": 39130,
+    "char_start": 39071,
+    "end": 1602.0,
+    "speaker_label": "Alex Morgan",
+    "start": 1596.0,
+    "text": "What would you tell the version of you from five years ago?"
+  },
+  {
+    "char_end": 39348,
+    "char_start": 39150,
+    "end": 1608.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 1602.0,
+    "text": "That ties to another point \u2014 Reliability and sustainability share a vocabulary \u2014 failure modes, redundancy, and graceful degradation. Once you internalize that, the rest of the decisions get easier."
+  },
+  {
+    "char_end": 39447,
+    "char_start": 39362,
+    "end": 1614.0,
+    "speaker_label": "Alex Morgan",
+    "start": 1608.0,
+    "text": "Walk me through how systems thinking interacts with the broader sustainability story."
+  },
+  {
+    "char_end": 39710,
+    "char_start": 39467,
+    "end": 1620.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 1614.0,
+    "text": "I'd put it this way: Risk management at planetary scale looks like reliability engineering at company scale. Teams working with Project Drawdown run into this constantly. Most of the cost shows up downstream, which is why teams keep paying it."
+  },
+  {
+    "char_end": 39736,
+    "char_start": 39724,
+    "end": 1626.0,
+    "speaker_label": "Alex Morgan",
+    "start": 1620.0,
+    "text": "That tracks."
+  },
+  {
+    "char_end": 39969,
+    "char_start": 39756,
+    "end": 1632.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 1626.0,
+    "text": "That ties to another point \u2014 I've changed my mind on individual action versus structural change. Both matter, but structural change moves the curve. Once you internalize that, the rest of the decisions get easier."
+  },
+  {
+    "char_end": 40014,
+    "char_start": 39983,
+    "end": 1638.0,
+    "speaker_label": "Alex Morgan",
+    "start": 1632.0,
+    "text": "A quick word from our sponsors."
+  },
+  {
+    "char_end": 40231,
+    "char_start": 40019,
+    "end": 1644.0,
+    "speaker_label": "Ad",
+    "start": 1638.0,
+    "text": "Today's episode is sponsored by Linear. Linear is the issue tracker built for speed \u2014 keyboard-first, fast search, and a clean roadmap view your team actually uses. Visit linear.com/podcast for an extended trial."
+  },
+  {
+    "char_end": 40270,
+    "char_start": 40245,
+    "end": 1650.0,
+    "speaker_label": "Alex Morgan",
+    "start": 1644.0,
+    "text": "Welcome back to the show."
+  },
+  {
+    "char_end": 40332,
+    "char_start": 40270,
+    "end": 1656.0,
+    "speaker_label": "Alex Morgan",
+    "start": 1650.0,
+    "text": "Why is systems thinking the part that most analyses get wrong?"
+  },
+  {
+    "char_end": 40608,
+    "char_start": 40352,
+    "end": 1662.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 1656.0,
+    "text": "Honestly, Most sustainability framing fails because it treats outcomes as targets instead of properties of systems. Teams working with IEA run into this constantly. The exception proves the rule \u2014 there are edge cases, but they're rarer than people assume."
+  },
+  {
+    "char_end": 40634,
+    "char_start": 40622,
+    "end": 1668.0,
+    "speaker_label": "Alex Morgan",
+    "start": 1662.0,
+    "text": "That tracks."
+  },
+  {
+    "char_end": 40858,
+    "char_start": 40654,
+    "end": 1674.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 1668.0,
+    "text": "That ties to another point \u2014 Carbon accounting needs the same rigor double-entry bookkeeping brought to finance. The exception proves the rule \u2014 there are edge cases, but they're rarer than people assume."
+  },
+  {
+    "char_end": 40952,
+    "char_start": 40872,
+    "end": 1680.0,
+    "speaker_label": "Alex Morgan",
+    "start": 1674.0,
+    "text": "Walk me through how reliability interacts with the broader sustainability story."
+  },
+  {
+    "char_end": 41247,
+    "char_start": 40972,
+    "end": 1686.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 1680.0,
+    "text": "Let me give you the version I actually believe. Reliability and sustainability share a vocabulary \u2014 failure modes, redundancy, and graceful degradation. Teams working with IPCC run into this constantly. Most of the cost shows up downstream, which is why teams keep paying it."
+  },
+  {
+    "char_end": 41273,
+    "char_start": 41261,
+    "end": 1692.0,
+    "speaker_label": "Alex Morgan",
+    "start": 1686.0,
+    "text": "That tracks."
+  },
+  {
+    "char_end": 41478,
+    "char_start": 41293,
+    "end": 1698.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 1692.0,
+    "text": "That ties to another point \u2014 The hardest part of climate work is staying technical when the conversation pulls toward identity. And the second-order effect is the part most people miss."
+  },
+  {
+    "char_end": 41572,
+    "char_start": 41492,
+    "end": 1704.0,
+    "speaker_label": "Alex Morgan",
+    "start": 1698.0,
+    "text": "Walk me through how reliability interacts with the broader sustainability story."
+  },
+  {
+    "char_end": 41889,
+    "char_start": 41592,
+    "end": 1710.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 1704.0,
+    "text": "Let me give you the version I actually believe. I've changed my mind on individual action versus structural change. Both matter, but structural change moves the curve. Teams working with Carbon Trust run into this constantly. If you ignore that, you end up rebuilding it from scratch a year later."
+  },
+  {
+    "char_end": 41923,
+    "char_start": 41903,
+    "end": 1716.0,
+    "speaker_label": "Alex Morgan",
+    "start": 1710.0,
+    "text": "Say more about that."
+  },
+  {
+    "char_end": 42146,
+    "char_start": 41943,
+    "end": 1722.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 1716.0,
+    "text": "That ties to another point \u2014 Sustainability is a systems-thinking problem before it's an environmental problem. The exception proves the rule \u2014 there are edge cases, but they're rarer than people assume."
+  },
+  {
+    "char_end": 42238,
+    "char_start": 42160,
+    "end": 1728.0,
+    "speaker_label": "Alex Morgan",
+    "start": 1722.0,
+    "text": "What's the deepest piece of context on reliability that listeners are missing?"
+  },
+  {
+    "char_end": 42514,
+    "char_start": 42258,
+    "end": 1734.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 1728.0,
+    "text": "The short answer is Carbon accounting needs the same rigor double-entry bookkeeping brought to finance. Teams working with IPCC run into this constantly. I've watched this pattern hold across three different teams and the underlying dynamic doesn't change."
+  },
+  {
+    "char_end": 42548,
+    "char_start": 42528,
+    "end": 1740.0,
+    "speaker_label": "Alex Morgan",
+    "start": 1734.0,
+    "text": "Say more about that."
+  },
+  {
+    "char_end": 42749,
+    "char_start": 42568,
+    "end": 1746.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 1740.0,
+    "text": "That ties to another point \u2014 The most expensive thing about climate is the optionality you lose by delaying. Most of the cost shows up downstream, which is why teams keep paying it."
+  },
+  {
+    "char_end": 42824,
+    "char_start": 42763,
+    "end": 1752.0,
+    "speaker_label": "Alex Morgan",
+    "start": 1746.0,
+    "text": "Why is risk management the part that most analyses get wrong?"
+  },
+  {
+    "char_end": 43111,
+    "char_start": 42844,
+    "end": 1758.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 1752.0,
+    "text": "Let me give you the version I actually believe. The hardest part of climate work is staying technical when the conversation pulls toward identity. Teams working with IEA run into this constantly. If you ignore that, you end up rebuilding it from scratch a year later."
+  },
+  {
+    "char_end": 43145,
+    "char_start": 43125,
+    "end": 1764.0,
+    "speaker_label": "Alex Morgan",
+    "start": 1758.0,
+    "text": "Say more about that."
+  },
+  {
+    "char_end": 43354,
+    "char_start": 43165,
+    "end": 1770.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 1764.0,
+    "text": "That ties to another point \u2014 Risk management at planetary scale looks like reliability engineering at company scale. Most of the cost shows up downstream, which is why teams keep paying it."
+  },
+  {
+    "char_end": 43399,
+    "char_start": 43368,
+    "end": 1776.0,
+    "speaker_label": "Alex Morgan",
+    "start": 1770.0,
+    "text": "A quick word from our sponsors."
+  },
+  {
+    "char_end": 43616,
+    "char_start": 43404,
+    "end": 1782.0,
+    "speaker_label": "Ad",
+    "start": 1776.0,
+    "text": "Today's episode is sponsored by Linear. Linear is the issue tracker built for speed \u2014 keyboard-first, fast search, and a clean roadmap view your team actually uses. Visit linear.com/podcast for an extended trial."
+  },
+  {
+    "char_end": 43655,
+    "char_start": 43630,
+    "end": 1788.0,
+    "speaker_label": "Alex Morgan",
+    "start": 1782.0,
+    "text": "Welcome back to the show."
+  },
+  {
+    "char_end": 43737,
+    "char_start": 43655,
+    "end": 1794.0,
+    "speaker_label": "Alex Morgan",
+    "start": 1788.0,
+    "text": "What's the deepest piece of context on risk management that listeners are missing?"
+  },
+  {
+    "char_end": 43991,
+    "char_start": 43757,
+    "end": 1800.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 1794.0,
+    "text": "I'd put it this way: Sustainability is a systems-thinking problem before it's an environmental problem. Teams working with Project Drawdown run into this constantly. What used to feel like an exception is honestly the median case now."
+  },
+  {
+    "char_end": 44059,
+    "char_start": 44005,
+    "end": 1806.0,
+    "speaker_label": "Alex Morgan",
+    "start": 1800.0,
+    "text": "Is there a counterexample that would change your view?"
+  },
+  {
+    "char_end": 44278,
+    "char_start": 44079,
+    "end": 1812.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 1806.0,
+    "text": "That ties to another point \u2014 Most sustainability framing fails because it treats outcomes as targets instead of properties of systems. Once you internalize that, the rest of the decisions get easier."
+  },
+  {
+    "char_end": 44343,
+    "char_start": 44292,
+    "end": 1818.0,
+    "speaker_label": "Alex Morgan",
+    "start": 1812.0,
+    "text": "Let's talk about risk management. What's your read?"
+  },
+  {
+    "char_end": 44579,
+    "char_start": 44363,
+    "end": 1824.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 1818.0,
+    "text": "Sure. The most expensive thing about climate is the optionality you lose by delaying. Teams working with IEA run into this constantly. The framing matters because it tells you which trade-offs you're actually making."
+  },
+  {
+    "char_end": 44652,
+    "char_start": 44593,
+    "end": 1830.0,
+    "speaker_label": "Alex Morgan",
+    "start": 1824.0,
+    "text": "What would you tell the version of you from five years ago?"
+  },
+  {
+    "char_end": 44870,
+    "char_start": 44672,
+    "end": 1836.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 1830.0,
+    "text": "That ties to another point \u2014 Reliability and sustainability share a vocabulary \u2014 failure modes, redundancy, and graceful degradation. Once you internalize that, the rest of the decisions get easier."
+  },
+  {
+    "char_end": 44946,
+    "char_start": 44884,
+    "end": 1842.0,
+    "speaker_label": "Alex Morgan",
+    "start": 1836.0,
+    "text": "Why is systems thinking the part that most analyses get wrong?"
+  },
+  {
+    "char_end": 45224,
+    "char_start": 44966,
+    "end": 1848.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 1842.0,
+    "text": "Honestly, Risk management at planetary scale looks like reliability engineering at company scale. Teams working with Carbon Trust run into this constantly. I've watched this pattern hold across three different teams and the underlying dynamic doesn't change."
+  },
+  {
+    "char_end": 45266,
+    "char_start": 45238,
+    "end": 1854.0,
+    "speaker_label": "Alex Morgan",
+    "start": 1848.0,
+    "text": "That maps to what I've seen."
+  },
+  {
+    "char_end": 45492,
+    "char_start": 45286,
+    "end": 1860.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 1854.0,
+    "text": "That ties to another point \u2014 I've changed my mind on individual action versus structural change. Both matter, but structural change moves the curve. And the second-order effect is the part most people miss."
+  },
+  {
+    "char_end": 45558,
+    "char_start": 45506,
+    "end": 1866.0,
+    "speaker_label": "Alex Morgan",
+    "start": 1860.0,
+    "text": "Let's talk about systems thinking. What's your read?"
+  },
+  {
+    "char_end": 45839,
+    "char_start": 45578,
+    "end": 1872.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 1866.0,
+    "text": "Here's how I think about it. Most sustainability framing fails because it treats outcomes as targets instead of properties of systems. Teams working with Carbon Trust run into this constantly. What used to feel like an exception is honestly the median case now."
+  },
+  {
+    "char_end": 45912,
+    "char_start": 45853,
+    "end": 1878.0,
+    "speaker_label": "Alex Morgan",
+    "start": 1872.0,
+    "text": "What would you tell the version of you from five years ago?"
+  },
+  {
+    "char_end": 46109,
+    "char_start": 45932,
+    "end": 1884.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 1878.0,
+    "text": "That ties to another point \u2014 Carbon accounting needs the same rigor double-entry bookkeeping brought to finance. Once you internalize that, the rest of the decisions get easier."
+  },
+  {
+    "char_end": 46180,
+    "char_start": 46123,
+    "end": 1890.0,
+    "speaker_label": "Alex Morgan",
+    "start": 1884.0,
+    "text": "Why is reliability the part that most analyses get wrong?"
+  },
+  {
+    "char_end": 46457,
+    "char_start": 46200,
+    "end": 1896.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 1890.0,
+    "text": "There are two angles \u2014 Reliability and sustainability share a vocabulary \u2014 failure modes, redundancy, and graceful degradation. Teams working with Carbon Trust run into this constantly. If you ignore that, you end up rebuilding it from scratch a year later."
+  },
+  {
+    "char_end": 46491,
+    "char_start": 46471,
+    "end": 1902.0,
+    "speaker_label": "Alex Morgan",
+    "start": 1896.0,
+    "text": "Say more about that."
+  },
+  {
+    "char_end": 46703,
+    "char_start": 46511,
+    "end": 1908.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 1902.0,
+    "text": "That ties to another point \u2014 The hardest part of climate work is staying technical when the conversation pulls toward identity. Once you internalize that, the rest of the decisions get easier."
+  },
+  {
+    "char_end": 46748,
+    "char_start": 46717,
+    "end": 1914.0,
+    "speaker_label": "Alex Morgan",
+    "start": 1908.0,
+    "text": "A quick word from our sponsors."
+  },
+  {
+    "char_end": 46965,
+    "char_start": 46753,
+    "end": 1920.0,
+    "speaker_label": "Ad",
+    "start": 1914.0,
+    "text": "Today's episode is sponsored by Linear. Linear is the issue tracker built for speed \u2014 keyboard-first, fast search, and a clean roadmap view your team actually uses. Visit linear.com/podcast for an extended trial."
+  },
+  {
+    "char_end": 47004,
+    "char_start": 46979,
+    "end": 1926.0,
+    "speaker_label": "Alex Morgan",
+    "start": 1920.0,
+    "text": "Welcome back to the show."
+  },
+  {
+    "char_end": 47061,
+    "char_start": 47004,
+    "end": 1932.0,
+    "speaker_label": "Alex Morgan",
+    "start": 1926.0,
+    "text": "Why is reliability the part that most analyses get wrong?"
+  },
+  {
+    "char_end": 47350,
+    "char_start": 47081,
+    "end": 1938.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 1932.0,
+    "text": "It comes down to this: I've changed my mind on individual action versus structural change. Both matter, but structural change moves the curve. Teams working with Carbon Trust run into this constantly. What used to feel like an exception is honestly the median case now."
+  },
+  {
+    "char_end": 47423,
+    "char_start": 47364,
+    "end": 1944.0,
+    "speaker_label": "Alex Morgan",
+    "start": 1938.0,
+    "text": "What would you tell the version of you from five years ago?"
+  },
+  {
+    "char_end": 47636,
+    "char_start": 47443,
+    "end": 1950.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 1944.0,
+    "text": "That ties to another point \u2014 Sustainability is a systems-thinking problem before it's an environmental problem. The framing matters because it tells you which trade-offs you're actually making."
+  },
+  {
+    "char_end": 47732,
+    "char_start": 47650,
+    "end": 1956.0,
+    "speaker_label": "Alex Morgan",
+    "start": 1950.0,
+    "text": "What's the deepest piece of context on risk management that listeners are missing?"
+  },
+  {
+    "char_end": 48012,
+    "char_start": 47752,
+    "end": 1962.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 1956.0,
+    "text": "It comes down to this: Carbon accounting needs the same rigor double-entry bookkeeping brought to finance. Teams working with Project Drawdown run into this constantly. The exception proves the rule \u2014 there are edge cases, but they're rarer than people assume."
+  },
+  {
+    "char_end": 48053,
+    "char_start": 48026,
+    "end": 1968.0,
+    "speaker_label": "Alex Morgan",
+    "start": 1962.0,
+    "text": "Where does that break down?"
+  },
+  {
+    "char_end": 48246,
+    "char_start": 48073,
+    "end": 1974.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 1968.0,
+    "text": "That ties to another point \u2014 The most expensive thing about climate is the optionality you lose by delaying. Once you internalize that, the rest of the decisions get easier."
+  },
+  {
+    "char_end": 48312,
+    "char_start": 48260,
+    "end": 1980.0,
+    "speaker_label": "Alex Morgan",
+    "start": 1974.0,
+    "text": "Let's talk about systems thinking. What's your read?"
+  },
+  {
+    "char_end": 48593,
+    "char_start": 48332,
+    "end": 1986.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 1980.0,
+    "text": "Yeah, so \u2014 The hardest part of climate work is staying technical when the conversation pulls toward identity. Teams working with IEA run into this constantly. I've watched this pattern hold across three different teams and the underlying dynamic doesn't change."
+  },
+  {
+    "char_end": 48634,
+    "char_start": 48607,
+    "end": 1992.0,
+    "speaker_label": "Alex Morgan",
+    "start": 1986.0,
+    "text": "Where does that break down?"
+  },
+  {
+    "char_end": 48852,
+    "char_start": 48654,
+    "end": 1998.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 1992.0,
+    "text": "That ties to another point \u2014 Risk management at planetary scale looks like reliability engineering at company scale. The framing matters because it tells you which trade-offs you're actually making."
+  },
+  {
+    "char_end": 48918,
+    "char_start": 48866,
+    "end": 2004.0,
+    "speaker_label": "Alex Morgan",
+    "start": 1998.0,
+    "text": "Let's talk about systems thinking. What's your read?"
+  },
+  {
+    "char_end": 49148,
+    "char_start": 48938,
+    "end": 2010.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 2004.0,
+    "text": "Honestly, Sustainability is a systems-thinking problem before it's an environmental problem. Teams working with IEA run into this constantly. What used to feel like an exception is honestly the median case now."
+  },
+  {
+    "char_end": 49216,
+    "char_start": 49162,
+    "end": 2016.0,
+    "speaker_label": "Alex Morgan",
+    "start": 2010.0,
+    "text": "Is there a counterexample that would change your view?"
+  },
+  {
+    "char_end": 49462,
+    "char_start": 49236,
+    "end": 2022.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 2016.0,
+    "text": "That ties to another point \u2014 Most sustainability framing fails because it treats outcomes as targets instead of properties of systems. The exception proves the rule \u2014 there are edge cases, but they're rarer than people assume."
+  },
+  {
+    "char_end": 49527,
+    "char_start": 49476,
+    "end": 2028.0,
+    "speaker_label": "Alex Morgan",
+    "start": 2022.0,
+    "text": "Let's talk about risk management. What's your read?"
+  },
+  {
+    "char_end": 49780,
+    "char_start": 49547,
+    "end": 2034.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 2028.0,
+    "text": "There are two angles \u2014 The most expensive thing about climate is the optionality you lose by delaying. Teams working with Project Drawdown run into this constantly. What used to feel like an exception is honestly the median case now."
+  },
+  {
+    "char_end": 49853,
+    "char_start": 49794,
+    "end": 2040.0,
+    "speaker_label": "Alex Morgan",
+    "start": 2034.0,
+    "text": "What would you tell the version of you from five years ago?"
+  },
+  {
+    "char_end": 50109,
+    "char_start": 49873,
+    "end": 2046.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 2040.0,
+    "text": "That ties to another point \u2014 Reliability and sustainability share a vocabulary \u2014 failure modes, redundancy, and graceful degradation. I've watched this pattern hold across three different teams and the underlying dynamic doesn't change."
+  },
+  {
+    "char_end": 50154,
+    "char_start": 50123,
+    "end": 2052.0,
+    "speaker_label": "Alex Morgan",
+    "start": 2046.0,
+    "text": "A quick word from our sponsors."
+  },
+  {
+    "char_end": 50371,
+    "char_start": 50159,
+    "end": 2058.0,
+    "speaker_label": "Ad",
+    "start": 2052.0,
+    "text": "Today's episode is sponsored by Linear. Linear is the issue tracker built for speed \u2014 keyboard-first, fast search, and a clean roadmap view your team actually uses. Visit linear.com/podcast for an extended trial."
+  },
+  {
+    "char_end": 50410,
+    "char_start": 50385,
+    "end": 2064.0,
+    "speaker_label": "Alex Morgan",
+    "start": 2058.0,
+    "text": "Welcome back to the show."
+  },
+  {
+    "char_end": 50492,
+    "char_start": 50410,
+    "end": 2070.0,
+    "speaker_label": "Alex Morgan",
+    "start": 2064.0,
+    "text": "What's the deepest piece of context on risk management that listeners are missing?"
+  },
+  {
+    "char_end": 50762,
+    "char_start": 50512,
+    "end": 2076.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 2070.0,
+    "text": "I'd put it this way: Risk management at planetary scale looks like reliability engineering at company scale. Teams working with IPCC run into this constantly. The exception proves the rule \u2014 there are edge cases, but they're rarer than people assume."
+  },
+  {
+    "char_end": 50788,
+    "char_start": 50776,
+    "end": 2082.0,
+    "speaker_label": "Alex Morgan",
+    "start": 2076.0,
+    "text": "That tracks."
+  },
+  {
+    "char_end": 51021,
+    "char_start": 50808,
+    "end": 2088.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 2082.0,
+    "text": "That ties to another point \u2014 I've changed my mind on individual action versus structural change. Both matter, but structural change moves the curve. Once you internalize that, the rest of the decisions get easier."
+  },
+  {
+    "char_end": 51115,
+    "char_start": 51035,
+    "end": 2094.0,
+    "speaker_label": "Alex Morgan",
+    "start": 2088.0,
+    "text": "Walk me through how reliability interacts with the broader sustainability story."
+  },
+  {
+    "char_end": 51390,
+    "char_start": 51135,
+    "end": 2100.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 2094.0,
+    "text": "There are two angles \u2014 Most sustainability framing fails because it treats outcomes as targets instead of properties of systems. Teams working with Project Drawdown run into this constantly. Once you internalize that, the rest of the decisions get easier."
+  },
+  {
+    "char_end": 51458,
+    "char_start": 51404,
+    "end": 2106.0,
+    "speaker_label": "Alex Morgan",
+    "start": 2100.0,
+    "text": "Is there a counterexample that would change your view?"
+  },
+  {
+    "char_end": 51655,
+    "char_start": 51478,
+    "end": 2112.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 2106.0,
+    "text": "That ties to another point \u2014 Carbon accounting needs the same rigor double-entry bookkeeping brought to finance. Once you internalize that, the rest of the decisions get easier."
+  },
+  {
+    "char_end": 51749,
+    "char_start": 51669,
+    "end": 2118.0,
+    "speaker_label": "Alex Morgan",
+    "start": 2112.0,
+    "text": "Walk me through how reliability interacts with the broader sustainability story."
+  },
+  {
+    "char_end": 52061,
+    "char_start": 51769,
+    "end": 2124.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 2118.0,
+    "text": "It comes down to this: Reliability and sustainability share a vocabulary \u2014 failure modes, redundancy, and graceful degradation. Teams working with Project Drawdown run into this constantly. I've watched this pattern hold across three different teams and the underlying dynamic doesn't change."
+  },
+  {
+    "char_end": 52102,
+    "char_start": 52075,
+    "end": 2130.0,
+    "speaker_label": "Alex Morgan",
+    "start": 2124.0,
+    "text": "Where does that break down?"
+  },
+  {
+    "char_end": 52321,
+    "char_start": 52122,
+    "end": 2136.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 2130.0,
+    "text": "That ties to another point \u2014 The hardest part of climate work is staying technical when the conversation pulls toward identity. If you ignore that, you end up rebuilding it from scratch a year later."
+  },
+  {
+    "char_end": 52420,
+    "char_start": 52335,
+    "end": 2142.0,
+    "speaker_label": "Alex Morgan",
+    "start": 2136.0,
+    "text": "Walk me through how systems thinking interacts with the broader sustainability story."
+  },
+  {
+    "char_end": 52726,
+    "char_start": 52440,
+    "end": 2148.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 2142.0,
+    "text": "Sure. I've changed my mind on individual action versus structural change. Both matter, but structural change moves the curve. Teams working with Carbon Trust run into this constantly. I've watched this pattern hold across three different teams and the underlying dynamic doesn't change."
+  },
+  {
+    "char_end": 52760,
+    "char_start": 52740,
+    "end": 2154.0,
+    "speaker_label": "Alex Morgan",
+    "start": 2148.0,
+    "text": "Say more about that."
+  },
+  {
+    "char_end": 52956,
+    "char_start": 52780,
+    "end": 2160.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 2154.0,
+    "text": "That ties to another point \u2014 Sustainability is a systems-thinking problem before it's an environmental problem. Once you internalize that, the rest of the decisions get easier."
+  },
+  {
+    "char_end": 53022,
+    "char_start": 52970,
+    "end": 2166.0,
+    "speaker_label": "Alex Morgan",
+    "start": 2160.0,
+    "text": "Let's talk about systems thinking. What's your read?"
+  },
+  {
+    "char_end": 53287,
+    "char_start": 53042,
+    "end": 2172.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 2166.0,
+    "text": "I'd put it this way: Carbon accounting needs the same rigor double-entry bookkeeping brought to finance. Teams working with IEA run into this constantly. The exception proves the rule \u2014 there are edge cases, but they're rarer than people assume."
+  },
+  {
+    "char_end": 53313,
+    "char_start": 53301,
+    "end": 2178.0,
+    "speaker_label": "Alex Morgan",
+    "start": 2172.0,
+    "text": "That tracks."
+  },
+  {
+    "char_end": 53499,
+    "char_start": 53333,
+    "end": 2184.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 2178.0,
+    "text": "That ties to another point \u2014 The most expensive thing about climate is the optionality you lose by delaying. And the second-order effect is the part most people miss."
+  },
+  {
+    "char_end": 53544,
+    "char_start": 53513,
+    "end": 2190.0,
+    "speaker_label": "Alex Morgan",
+    "start": 2184.0,
+    "text": "A quick word from our sponsors."
+  },
+  {
+    "char_end": 53761,
+    "char_start": 53549,
+    "end": 2196.0,
+    "speaker_label": "Ad",
+    "start": 2190.0,
+    "text": "Today's episode is sponsored by Linear. Linear is the issue tracker built for speed \u2014 keyboard-first, fast search, and a clean roadmap view your team actually uses. Visit linear.com/podcast for an extended trial."
+  },
+  {
+    "char_end": 53800,
+    "char_start": 53775,
+    "end": 2202.0,
+    "speaker_label": "Alex Morgan",
+    "start": 2196.0,
+    "text": "Welcome back to the show."
+  },
+  {
+    "char_end": 53885,
+    "char_start": 53800,
+    "end": 2208.0,
+    "speaker_label": "Alex Morgan",
+    "start": 2202.0,
+    "text": "Walk me through how systems thinking interacts with the broader sustainability story."
+  },
+  {
+    "char_end": 54141,
+    "char_start": 53905,
+    "end": 2214.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 2208.0,
+    "text": "The short answer is The hardest part of climate work is staying technical when the conversation pulls toward identity. Teams working with IEA run into this constantly. What used to feel like an exception is honestly the median case now."
+  },
+  {
+    "char_end": 54182,
+    "char_start": 54155,
+    "end": 2220.0,
+    "speaker_label": "Alex Morgan",
+    "start": 2214.0,
+    "text": "Where does that break down?"
+  },
+  {
+    "char_end": 54391,
+    "char_start": 54202,
+    "end": 2226.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 2220.0,
+    "text": "That ties to another point \u2014 Risk management at planetary scale looks like reliability engineering at company scale. Most of the cost shows up downstream, which is why teams keep paying it."
+  },
+  {
+    "char_end": 54488,
+    "char_start": 54405,
+    "end": 2232.0,
+    "speaker_label": "Alex Morgan",
+    "start": 2226.0,
+    "text": "What's the deepest piece of context on systems thinking that listeners are missing?"
+  },
+  {
+    "char_end": 54720,
+    "char_start": 54508,
+    "end": 2238.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 2232.0,
+    "text": "Honestly, Sustainability is a systems-thinking problem before it's an environmental problem. Teams working with Project Drawdown run into this constantly. And the second-order effect is the part most people miss."
+  },
+  {
+    "char_end": 54761,
+    "char_start": 54734,
+    "end": 2244.0,
+    "speaker_label": "Alex Morgan",
+    "start": 2238.0,
+    "text": "Where does that break down?"
+  },
+  {
+    "char_end": 54984,
+    "char_start": 54781,
+    "end": 2250.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 2244.0,
+    "text": "That ties to another point \u2014 Most sustainability framing fails because it treats outcomes as targets instead of properties of systems. What used to feel like an exception is honestly the median case now."
+  },
+  {
+    "char_end": 55081,
+    "char_start": 54998,
+    "end": 2256.0,
+    "speaker_label": "Alex Morgan",
+    "start": 2250.0,
+    "text": "What's the deepest piece of context on systems thinking that listeners are missing?"
+  },
+  {
+    "char_end": 55315,
+    "char_start": 55101,
+    "end": 2262.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 2256.0,
+    "text": "I'd put it this way: The most expensive thing about climate is the optionality you lose by delaying. Teams working with IEA run into this constantly. Once you internalize that, the rest of the decisions get easier."
+  },
+  {
+    "char_end": 55341,
+    "char_start": 55329,
+    "end": 2268.0,
+    "speaker_label": "Alex Morgan",
+    "start": 2262.0,
+    "text": "That tracks."
+  },
+  {
+    "char_end": 55586,
+    "char_start": 55361,
+    "end": 2274.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 2268.0,
+    "text": "That ties to another point \u2014 Reliability and sustainability share a vocabulary \u2014 failure modes, redundancy, and graceful degradation. The exception proves the rule \u2014 there are edge cases, but they're rarer than people assume."
+  },
+  {
+    "char_end": 55685,
+    "char_start": 55600,
+    "end": 2280.0,
+    "speaker_label": "Alex Morgan",
+    "start": 2274.0,
+    "text": "Walk me through how systems thinking interacts with the broader sustainability story."
+  },
+  {
+    "char_end": 55925,
+    "char_start": 55705,
+    "end": 2286.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 2280.0,
+    "text": "Sure. Risk management at planetary scale looks like reliability engineering at company scale. Teams working with Carbon Trust run into this constantly. What used to feel like an exception is honestly the median case now."
+  },
+  {
+    "char_end": 55967,
+    "char_start": 55939,
+    "end": 2292.0,
+    "speaker_label": "Alex Morgan",
+    "start": 2286.0,
+    "text": "That maps to what I've seen."
+  },
+  {
+    "char_end": 56204,
+    "char_start": 55987,
+    "end": 2298.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 2292.0,
+    "text": "That ties to another point \u2014 I've changed my mind on individual action versus structural change. Both matter, but structural change moves the curve. What used to feel like an exception is honestly the median case now."
+  },
+  {
+    "char_end": 56301,
+    "char_start": 56218,
+    "end": 2304.0,
+    "speaker_label": "Alex Morgan",
+    "start": 2298.0,
+    "text": "What's the deepest piece of context on systems thinking that listeners are missing?"
+  },
+  {
+    "char_end": 56628,
+    "char_start": 56321,
+    "end": 2310.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 2304.0,
+    "text": "Let me give you the version I actually believe. Most sustainability framing fails because it treats outcomes as targets instead of properties of systems. Teams working with Project Drawdown run into this constantly. The exception proves the rule \u2014 there are edge cases, but they're rarer than people assume."
+  },
+  {
+    "char_end": 56654,
+    "char_start": 56642,
+    "end": 2316.0,
+    "speaker_label": "Alex Morgan",
+    "start": 2310.0,
+    "text": "That tracks."
+  },
+  {
+    "char_end": 56859,
+    "char_start": 56674,
+    "end": 2322.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 2316.0,
+    "text": "That ties to another point \u2014 Carbon accounting needs the same rigor double-entry bookkeeping brought to finance. Most of the cost shows up downstream, which is why teams keep paying it."
+  },
+  {
+    "char_end": 56904,
+    "char_start": 56873,
+    "end": 2328.0,
+    "speaker_label": "Alex Morgan",
+    "start": 2322.0,
+    "text": "A quick word from our sponsors."
+  },
+  {
+    "char_end": 57121,
+    "char_start": 56909,
+    "end": 2334.0,
+    "speaker_label": "Ad",
+    "start": 2328.0,
+    "text": "Today's episode is sponsored by Linear. Linear is the issue tracker built for speed \u2014 keyboard-first, fast search, and a clean roadmap view your team actually uses. Visit linear.com/podcast for an extended trial."
+  },
+  {
+    "char_end": 57160,
+    "char_start": 57135,
+    "end": 2340.0,
+    "speaker_label": "Alex Morgan",
+    "start": 2334.0,
+    "text": "Welcome back to the show."
+  },
+  {
+    "char_end": 57207,
+    "char_start": 57160,
+    "end": 2346.0,
+    "speaker_label": "Alex Morgan",
+    "start": 2340.0,
+    "text": "Let's talk about reliability. What's your read?"
+  },
+  {
+    "char_end": 57473,
+    "char_start": 57227,
+    "end": 2352.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 2346.0,
+    "text": "Yeah, so \u2014 Reliability and sustainability share a vocabulary \u2014 failure modes, redundancy, and graceful degradation. Teams working with IEA run into this constantly. The framing matters because it tells you which trade-offs you're actually making."
+  },
+  {
+    "char_end": 57507,
+    "char_start": 57487,
+    "end": 2358.0,
+    "speaker_label": "Alex Morgan",
+    "start": 2352.0,
+    "text": "Say more about that."
+  },
+  {
+    "char_end": 57736,
+    "char_start": 57527,
+    "end": 2364.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 2358.0,
+    "text": "That ties to another point \u2014 The hardest part of climate work is staying technical when the conversation pulls toward identity. The framing matters because it tells you which trade-offs you're actually making."
+  },
+  {
+    "char_end": 57834,
+    "char_start": 57750,
+    "end": 2370.0,
+    "speaker_label": "Alex Morgan",
+    "start": 2364.0,
+    "text": "Walk me through how risk management interacts with the broader sustainability story."
+  },
+  {
+    "char_end": 58106,
+    "char_start": 57854,
+    "end": 2376.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 2370.0,
+    "text": "Yeah, so \u2014 I've changed my mind on individual action versus structural change. Both matter, but structural change moves the curve. Teams working with IPCC run into this constantly. If you ignore that, you end up rebuilding it from scratch a year later."
+  },
+  {
+    "char_end": 58132,
+    "char_start": 58120,
+    "end": 2382.0,
+    "speaker_label": "Alex Morgan",
+    "start": 2376.0,
+    "text": "That tracks."
+  },
+  {
+    "char_end": 58332,
+    "char_start": 58152,
+    "end": 2388.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 2382.0,
+    "text": "That ties to another point \u2014 Sustainability is a systems-thinking problem before it's an environmental problem. What used to feel like an exception is honestly the median case now."
+  },
+  {
+    "char_end": 58398,
+    "char_start": 58346,
+    "end": 2394.0,
+    "speaker_label": "Alex Morgan",
+    "start": 2388.0,
+    "text": "Let's talk about systems thinking. What's your read?"
+  },
+  {
+    "char_end": 58665,
+    "char_start": 58418,
+    "end": 2400.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 2394.0,
+    "text": "Let me give you the version I actually believe. Carbon accounting needs the same rigor double-entry bookkeeping brought to finance. Teams working with Carbon Trust run into this constantly. And the second-order effect is the part most people miss."
+  },
+  {
+    "char_end": 58733,
+    "char_start": 58679,
+    "end": 2406.0,
+    "speaker_label": "Alex Morgan",
+    "start": 2400.0,
+    "text": "Is there a counterexample that would change your view?"
+  },
+  {
+    "char_end": 58933,
+    "char_start": 58753,
+    "end": 2412.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 2406.0,
+    "text": "That ties to another point \u2014 The most expensive thing about climate is the optionality you lose by delaying. If you ignore that, you end up rebuilding it from scratch a year later."
+  },
+  {
+    "char_end": 59004,
+    "char_start": 58947,
+    "end": 2418.0,
+    "speaker_label": "Alex Morgan",
+    "start": 2412.0,
+    "text": "Why is reliability the part that most analyses get wrong?"
+  },
+  {
+    "char_end": 59246,
+    "char_start": 59024,
+    "end": 2424.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 2418.0,
+    "text": "Sure. The hardest part of climate work is staying technical when the conversation pulls toward identity. Teams working with IEA run into this constantly. What used to feel like an exception is honestly the median case now."
+  },
+  {
+    "char_end": 59319,
+    "char_start": 59260,
+    "end": 2430.0,
+    "speaker_label": "Alex Morgan",
+    "start": 2424.0,
+    "text": "What would you tell the version of you from five years ago?"
+  },
+  {
+    "char_end": 59527,
+    "char_start": 59339,
+    "end": 2436.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 2430.0,
+    "text": "That ties to another point \u2014 Risk management at planetary scale looks like reliability engineering at company scale. If you ignore that, you end up rebuilding it from scratch a year later."
+  },
+  {
+    "char_end": 59592,
+    "char_start": 59541,
+    "end": 2442.0,
+    "speaker_label": "Alex Morgan",
+    "start": 2436.0,
+    "text": "Let's talk about risk management. What's your read?"
+  },
+  {
+    "char_end": 59857,
+    "char_start": 59612,
+    "end": 2448.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 2442.0,
+    "text": "Honestly, Sustainability is a systems-thinking problem before it's an environmental problem. Teams working with IPCC run into this constantly. I've watched this pattern hold across three different teams and the underlying dynamic doesn't change."
+  },
+  {
+    "char_end": 59930,
+    "char_start": 59871,
+    "end": 2454.0,
+    "speaker_label": "Alex Morgan",
+    "start": 2448.0,
+    "text": "What would you tell the version of you from five years ago?"
+  },
+  {
+    "char_end": 60142,
+    "char_start": 59950,
+    "end": 2460.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 2454.0,
+    "text": "That ties to another point \u2014 Most sustainability framing fails because it treats outcomes as targets instead of properties of systems. And the second-order effect is the part most people miss."
+  },
+  {
+    "char_end": 60187,
+    "char_start": 60156,
+    "end": 2466.0,
+    "speaker_label": "Alex Morgan",
+    "start": 2460.0,
+    "text": "A quick word from our sponsors."
+  },
+  {
+    "char_end": 60404,
+    "char_start": 60192,
+    "end": 2472.0,
+    "speaker_label": "Ad",
+    "start": 2466.0,
+    "text": "Today's episode is sponsored by Linear. Linear is the issue tracker built for speed \u2014 keyboard-first, fast search, and a clean roadmap view your team actually uses. Visit linear.com/podcast for an extended trial."
+  },
+  {
+    "char_end": 60443,
+    "char_start": 60418,
+    "end": 2478.0,
+    "speaker_label": "Alex Morgan",
+    "start": 2472.0,
+    "text": "Welcome back to the show."
+  },
+  {
+    "char_end": 60527,
+    "char_start": 60443,
+    "end": 2484.0,
+    "speaker_label": "Alex Morgan",
+    "start": 2478.0,
+    "text": "Walk me through how risk management interacts with the broader sustainability story."
+  },
+  {
+    "char_end": 60768,
+    "char_start": 60547,
+    "end": 2490.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 2484.0,
+    "text": "I'd put it this way: The most expensive thing about climate is the optionality you lose by delaying. Teams working with IEA run into this constantly. If you ignore that, you end up rebuilding it from scratch a year later."
+  },
+  {
+    "char_end": 60836,
+    "char_start": 60782,
+    "end": 2496.0,
+    "speaker_label": "Alex Morgan",
+    "start": 2490.0,
+    "text": "Is there a counterexample that would change your view?"
+  },
+  {
+    "char_end": 61054,
+    "char_start": 60856,
+    "end": 2502.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 2496.0,
+    "text": "That ties to another point \u2014 Reliability and sustainability share a vocabulary \u2014 failure modes, redundancy, and graceful degradation. Once you internalize that, the rest of the decisions get easier."
+  },
+  {
+    "char_end": 61148,
+    "char_start": 61068,
+    "end": 2508.0,
+    "speaker_label": "Alex Morgan",
+    "start": 2502.0,
+    "text": "Walk me through how reliability interacts with the broader sustainability story."
+  },
+  {
+    "char_end": 61390,
+    "char_start": 61168,
+    "end": 2514.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 2508.0,
+    "text": "I'd put it this way: Risk management at planetary scale looks like reliability engineering at company scale. Teams working with IEA run into this constantly. Once you internalize that, the rest of the decisions get easier."
+  },
+  {
+    "char_end": 61458,
+    "char_start": 61404,
+    "end": 2520.0,
+    "speaker_label": "Alex Morgan",
+    "start": 2514.0,
+    "text": "Is there a counterexample that would change your view?"
+  },
+  {
+    "char_end": 61699,
+    "char_start": 61478,
+    "end": 2526.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 2520.0,
+    "text": "That ties to another point \u2014 I've changed my mind on individual action versus structural change. Both matter, but structural change moves the curve. Most of the cost shows up downstream, which is why teams keep paying it."
+  },
+  {
+    "char_end": 61764,
+    "char_start": 61713,
+    "end": 2532.0,
+    "speaker_label": "Alex Morgan",
+    "start": 2526.0,
+    "text": "Let's talk about risk management. What's your read?"
+  },
+  {
+    "char_end": 62064,
+    "char_start": 61784,
+    "end": 2538.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 2532.0,
+    "text": "It comes down to this: Most sustainability framing fails because it treats outcomes as targets instead of properties of systems. Teams working with IEA run into this constantly. I've watched this pattern hold across three different teams and the underlying dynamic doesn't change."
+  },
+  {
+    "char_end": 62098,
+    "char_start": 62078,
+    "end": 2544.0,
+    "speaker_label": "Alex Morgan",
+    "start": 2538.0,
+    "text": "Say more about that."
+  },
+  {
+    "char_end": 62299,
+    "char_start": 62118,
+    "end": 2550.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 2544.0,
+    "text": "That ties to another point \u2014 Carbon accounting needs the same rigor double-entry bookkeeping brought to finance. What used to feel like an exception is honestly the median case now."
+  },
+  {
+    "char_end": 62360,
+    "char_start": 62313,
+    "end": 2556.0,
+    "speaker_label": "Alex Morgan",
+    "start": 2550.0,
+    "text": "Let's talk about reliability. What's your read?"
+  },
+  {
+    "char_end": 62649,
+    "char_start": 62380,
+    "end": 2562.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 2556.0,
+    "text": "Yeah, so \u2014 Reliability and sustainability share a vocabulary \u2014 failure modes, redundancy, and graceful degradation. Teams working with Project Drawdown run into this constantly. The exception proves the rule \u2014 there are edge cases, but they're rarer than people assume."
+  },
+  {
+    "char_end": 62683,
+    "char_start": 62663,
+    "end": 2568.0,
+    "speaker_label": "Alex Morgan",
+    "start": 2562.0,
+    "text": "Say more about that."
+  },
+  {
+    "char_end": 62922,
+    "char_start": 62703,
+    "end": 2574.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 2568.0,
+    "text": "That ties to another point \u2014 The hardest part of climate work is staying technical when the conversation pulls toward identity. The exception proves the rule \u2014 there are edge cases, but they're rarer than people assume."
+  },
+  {
+    "char_end": 63021,
+    "char_start": 62936,
+    "end": 2580.0,
+    "speaker_label": "Alex Morgan",
+    "start": 2574.0,
+    "text": "Walk me through how systems thinking interacts with the broader sustainability story."
+  },
+  {
+    "char_end": 63312,
+    "char_start": 63041,
+    "end": 2586.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 2580.0,
+    "text": "I'd put it this way: I've changed my mind on individual action versus structural change. Both matter, but structural change moves the curve. Teams working with IEA run into this constantly. The framing matters because it tells you which trade-offs you're actually making."
+  },
+  {
+    "char_end": 63354,
+    "char_start": 63326,
+    "end": 2592.0,
+    "speaker_label": "Alex Morgan",
+    "start": 2586.0,
+    "text": "That maps to what I've seen."
+  },
+  {
+    "char_end": 63557,
+    "char_start": 63374,
+    "end": 2598.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 2592.0,
+    "text": "That ties to another point \u2014 Sustainability is a systems-thinking problem before it's an environmental problem. If you ignore that, you end up rebuilding it from scratch a year later."
+  },
+  {
+    "char_end": 63602,
+    "char_start": 63571,
+    "end": 2604.0,
+    "speaker_label": "Alex Morgan",
+    "start": 2598.0,
+    "text": "A quick word from our sponsors."
+  },
+  {
+    "char_end": 63819,
+    "char_start": 63607,
+    "end": 2610.0,
+    "speaker_label": "Ad",
+    "start": 2604.0,
+    "text": "Today's episode is sponsored by Linear. Linear is the issue tracker built for speed \u2014 keyboard-first, fast search, and a clean roadmap view your team actually uses. Visit linear.com/podcast for an extended trial."
+  },
+  {
+    "char_end": 63858,
+    "char_start": 63833,
+    "end": 2616.0,
+    "speaker_label": "Alex Morgan",
+    "start": 2610.0,
+    "text": "Welcome back to the show."
+  },
+  {
+    "char_end": 63919,
+    "char_start": 63858,
+    "end": 2622.0,
+    "speaker_label": "Alex Morgan",
+    "start": 2616.0,
+    "text": "Why is risk management the part that most analyses get wrong?"
+  },
+  {
+    "char_end": 64163,
+    "char_start": 63939,
+    "end": 2628.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 2622.0,
+    "text": "Yeah, so \u2014 Carbon accounting needs the same rigor double-entry bookkeeping brought to finance. Teams working with Carbon Trust run into this constantly. If you ignore that, you end up rebuilding it from scratch a year later."
+  },
+  {
+    "char_end": 64231,
+    "char_start": 64177,
+    "end": 2634.0,
+    "speaker_label": "Alex Morgan",
+    "start": 2628.0,
+    "text": "Is there a counterexample that would change your view?"
+  },
+  {
+    "char_end": 64417,
+    "char_start": 64251,
+    "end": 2640.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 2634.0,
+    "text": "That ties to another point \u2014 The most expensive thing about climate is the optionality you lose by delaying. And the second-order effect is the part most people miss."
+  },
+  {
+    "char_end": 64514,
+    "char_start": 64431,
+    "end": 2646.0,
+    "speaker_label": "Alex Morgan",
+    "start": 2640.0,
+    "text": "What's the deepest piece of context on systems thinking that listeners are missing?"
+  },
+  {
+    "char_end": 64778,
+    "char_start": 64534,
+    "end": 2652.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 2646.0,
+    "text": "It comes down to this: The hardest part of climate work is staying technical when the conversation pulls toward identity. Teams working with Carbon Trust run into this constantly. Once you internalize that, the rest of the decisions get easier."
+  },
+  {
+    "char_end": 64851,
+    "char_start": 64792,
+    "end": 2658.0,
+    "speaker_label": "Alex Morgan",
+    "start": 2652.0,
+    "text": "What would you tell the version of you from five years ago?"
+  },
+  {
+    "char_end": 65079,
+    "char_start": 64871,
+    "end": 2664.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 2658.0,
+    "text": "That ties to another point \u2014 Risk management at planetary scale looks like reliability engineering at company scale. The exception proves the rule \u2014 there are edge cases, but they're rarer than people assume."
+  },
+  {
+    "char_end": 65175,
+    "char_start": 65093,
+    "end": 2670.0,
+    "speaker_label": "Alex Morgan",
+    "start": 2664.0,
+    "text": "What's the deepest piece of context on risk management that listeners are missing?"
+  },
+  {
+    "char_end": 65438,
+    "char_start": 65195,
+    "end": 2676.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 2670.0,
+    "text": "Yeah, so \u2014 Sustainability is a systems-thinking problem before it's an environmental problem. Teams working with Carbon Trust run into this constantly. The exception proves the rule \u2014 there are edge cases, but they're rarer than people assume."
+  },
+  {
+    "char_end": 65480,
+    "char_start": 65452,
+    "end": 2682.0,
+    "speaker_label": "Alex Morgan",
+    "start": 2676.0,
+    "text": "That maps to what I've seen."
+  },
+  {
+    "char_end": 65692,
+    "char_start": 65500,
+    "end": 2688.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 2682.0,
+    "text": "That ties to another point \u2014 Most sustainability framing fails because it treats outcomes as targets instead of properties of systems. And the second-order effect is the part most people miss."
+  },
+  {
+    "char_end": 65790,
+    "char_start": 65706,
+    "end": 2694.0,
+    "speaker_label": "Alex Morgan",
+    "start": 2688.0,
+    "text": "Walk me through how risk management interacts with the broader sustainability story."
+  },
+  {
+    "char_end": 66077,
+    "char_start": 65810,
+    "end": 2700.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 2694.0,
+    "text": "There are two angles \u2014 The most expensive thing about climate is the optionality you lose by delaying. Teams working with Project Drawdown run into this constantly. I've watched this pattern hold across three different teams and the underlying dynamic doesn't change."
+  },
+  {
+    "char_end": 66145,
+    "char_start": 66091,
+    "end": 2706.0,
+    "speaker_label": "Alex Morgan",
+    "start": 2700.0,
+    "text": "Is there a counterexample that would change your view?"
+  },
+  {
+    "char_end": 66401,
+    "char_start": 66165,
+    "end": 2712.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 2706.0,
+    "text": "That ties to another point \u2014 Reliability and sustainability share a vocabulary \u2014 failure modes, redundancy, and graceful degradation. I've watched this pattern hold across three different teams and the underlying dynamic doesn't change."
+  },
+  {
+    "char_end": 66493,
+    "char_start": 66415,
+    "end": 2718.0,
+    "speaker_label": "Alex Morgan",
+    "start": 2712.0,
+    "text": "What's the deepest piece of context on reliability that listeners are missing?"
+  },
+  {
+    "char_end": 66742,
+    "char_start": 66513,
+    "end": 2724.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 2718.0,
+    "text": "The short answer is Risk management at planetary scale looks like reliability engineering at company scale. Teams working with IEA run into this constantly. Most of the cost shows up downstream, which is why teams keep paying it."
+  },
+  {
+    "char_end": 66783,
+    "char_start": 66756,
+    "end": 2730.0,
+    "speaker_label": "Alex Morgan",
+    "start": 2724.0,
+    "text": "Where does that break down?"
+  },
+  {
+    "char_end": 67054,
+    "char_start": 66803,
+    "end": 2736.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 2730.0,
+    "text": "That ties to another point \u2014 I've changed my mind on individual action versus structural change. Both matter, but structural change moves the curve. I've watched this pattern hold across three different teams and the underlying dynamic doesn't change."
+  },
+  {
+    "char_end": 67099,
+    "char_start": 67068,
+    "end": 2742.0,
+    "speaker_label": "Alex Morgan",
+    "start": 2736.0,
+    "text": "A quick word from our sponsors."
+  },
+  {
+    "char_end": 67316,
+    "char_start": 67104,
+    "end": 2748.0,
+    "speaker_label": "Ad",
+    "start": 2742.0,
+    "text": "Today's episode is sponsored by Linear. Linear is the issue tracker built for speed \u2014 keyboard-first, fast search, and a clean roadmap view your team actually uses. Visit linear.com/podcast for an extended trial."
+  },
+  {
+    "char_end": 67355,
+    "char_start": 67330,
+    "end": 2754.0,
+    "speaker_label": "Alex Morgan",
+    "start": 2748.0,
+    "text": "Welcome back to the show."
+  },
+  {
+    "char_end": 67407,
+    "char_start": 67355,
+    "end": 2760.0,
+    "speaker_label": "Alex Morgan",
+    "start": 2754.0,
+    "text": "Let's talk about systems thinking. What's your read?"
+  },
+  {
+    "char_end": 67717,
+    "char_start": 67427,
+    "end": 2766.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 2760.0,
+    "text": "The short answer is Most sustainability framing fails because it treats outcomes as targets instead of properties of systems. Teams working with Project Drawdown run into this constantly. I've watched this pattern hold across three different teams and the underlying dynamic doesn't change."
+  },
+  {
+    "char_end": 67743,
+    "char_start": 67731,
+    "end": 2772.0,
+    "speaker_label": "Alex Morgan",
+    "start": 2766.0,
+    "text": "That tracks."
+  },
+  {
+    "char_end": 67944,
+    "char_start": 67763,
+    "end": 2778.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 2772.0,
+    "text": "That ties to another point \u2014 Carbon accounting needs the same rigor double-entry bookkeeping brought to finance. What used to feel like an exception is honestly the median case now."
+  },
+  {
+    "char_end": 68019,
+    "char_start": 67958,
+    "end": 2784.0,
+    "speaker_label": "Alex Morgan",
+    "start": 2778.0,
+    "text": "Why is risk management the part that most analyses get wrong?"
+  },
+  {
+    "char_end": 68284,
+    "char_start": 68039,
+    "end": 2790.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 2784.0,
+    "text": "There are two angles \u2014 Reliability and sustainability share a vocabulary \u2014 failure modes, redundancy, and graceful degradation. Teams working with IEA run into this constantly. What used to feel like an exception is honestly the median case now."
+  },
+  {
+    "char_end": 68318,
+    "char_start": 68298,
+    "end": 2796.0,
+    "speaker_label": "Alex Morgan",
+    "start": 2790.0,
+    "text": "Say more about that."
+  },
+  {
+    "char_end": 68538,
+    "char_start": 68338,
+    "end": 2802.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 2796.0,
+    "text": "That ties to another point \u2014 The hardest part of climate work is staying technical when the conversation pulls toward identity. Most of the cost shows up downstream, which is why teams keep paying it."
+  },
+  {
+    "char_end": 68603,
+    "char_start": 68552,
+    "end": 2808.0,
+    "speaker_label": "Alex Morgan",
+    "start": 2802.0,
+    "text": "Let's talk about risk management. What's your read?"
+  },
+  {
+    "char_end": 68883,
+    "char_start": 68623,
+    "end": 2814.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 2808.0,
+    "text": "There are two angles \u2014 I've changed my mind on individual action versus structural change. Both matter, but structural change moves the curve. Teams working with IEA run into this constantly. What used to feel like an exception is honestly the median case now."
+  },
+  {
+    "char_end": 68909,
+    "char_start": 68897,
+    "end": 2820.0,
+    "speaker_label": "Alex Morgan",
+    "start": 2814.0,
+    "text": "That tracks."
+  },
+  {
+    "char_end": 69098,
+    "char_start": 68929,
+    "end": 2826.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 2820.0,
+    "text": "That ties to another point \u2014 Sustainability is a systems-thinking problem before it's an environmental problem. And the second-order effect is the part most people miss."
+  },
+  {
+    "char_end": 69173,
+    "char_start": 69112,
+    "end": 2832.0,
+    "speaker_label": "Alex Morgan",
+    "start": 2826.0,
+    "text": "Why is risk management the part that most analyses get wrong?"
+  },
+  {
+    "char_end": 69404,
+    "char_start": 69193,
+    "end": 2838.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 2832.0,
+    "text": "Honestly, Carbon accounting needs the same rigor double-entry bookkeeping brought to finance. Teams working with IEA run into this constantly. What used to feel like an exception is honestly the median case now."
+  },
+  {
+    "char_end": 69430,
+    "char_start": 69418,
+    "end": 2844.0,
+    "speaker_label": "Alex Morgan",
+    "start": 2838.0,
+    "text": "That tracks."
+  },
+  {
+    "char_end": 69630,
+    "char_start": 69450,
+    "end": 2850.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 2844.0,
+    "text": "That ties to another point \u2014 The most expensive thing about climate is the optionality you lose by delaying. If you ignore that, you end up rebuilding it from scratch a year later."
+  },
+  {
+    "char_end": 69691,
+    "char_start": 69644,
+    "end": 2856.0,
+    "speaker_label": "Alex Morgan",
+    "start": 2850.0,
+    "text": "Let's talk about reliability. What's your read?"
+  },
+  {
+    "char_end": 69946,
+    "char_start": 69711,
+    "end": 2862.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 2856.0,
+    "text": "Sure. The hardest part of climate work is staying technical when the conversation pulls toward identity. Teams working with Project Drawdown run into this constantly. What used to feel like an exception is honestly the median case now."
+  },
+  {
+    "char_end": 69980,
+    "char_start": 69960,
+    "end": 2868.0,
+    "speaker_label": "Alex Morgan",
+    "start": 2862.0,
+    "text": "Say more about that."
+  },
+  {
+    "char_end": 70188,
+    "char_start": 70000,
+    "end": 2874.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 2868.0,
+    "text": "That ties to another point \u2014 Risk management at planetary scale looks like reliability engineering at company scale. If you ignore that, you end up rebuilding it from scratch a year later."
+  },
+  {
+    "char_end": 70352,
+    "char_start": 70202,
+    "end": 2880.0,
+    "speaker_label": "Alex Morgan",
+    "start": 2874.0,
+    "text": "Before we wrap, thanks again to our partners at Stripe. Stripe makes payments simple, whether you're running a marketplace or a subscription business."
+  },
+  {
+    "char_end": 70397,
+    "char_start": 70352,
+    "end": 2886.0,
+    "speaker_label": "Alex Morgan",
+    "start": 2880.0,
+    "text": "Dr. Elena Fischer, thanks for the depth here."
+  },
+  {
+    "char_end": 70440,
+    "char_start": 70417,
+    "end": 2892.0,
+    "speaker_label": "Dr. Elena Fischer",
+    "start": 2886.0,
+    "text": "Thank you, Alex Morgan."
+  },
+  {
+    "char_end": 70495,
+    "char_start": 70454,
+    "end": 2898.0,
+    "speaker_label": "Alex Morgan",
+    "start": 2892.0,
+    "text": "That's The Long View \u2014 see you next time."
+  }
+]

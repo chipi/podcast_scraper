@@ -13,9 +13,31 @@
       "topic_id": "topic:without-the"
     }
   ],
+  "content": {
+    "diarization_num_speakers": 3,
+    "speakers": [
+      {
+        "id": "speaker_1",
+        "name": "Nora",
+        "role": "host"
+      },
+      {
+        "id": "speaker_2",
+        "name": "Daniel",
+        "role": "guest"
+      },
+      {
+        "id": "speaker_3",
+        "name": "Ad",
+        "role": "guest"
+      }
+    ],
+    "transcript_file_path": "transcripts/p05_e01.txt",
+    "transcript_source": "synthetic"
+  },
   "episode": {
     "episode_id": "ac5784fa-1c94-5cd8-99c6-c4f0be157a64",
-    "published_date": "2026-06-03",
+    "published_date": "2026-06-11",
     "title": "Long Horizon Notes \u2014 Episode 1"
   },
   "episode_id": "ac5784fa-1c94-5cd8-99c6-c4f0be157a64",
@@ -40,7 +62,7 @@
     "artifact_path": "feeds/p05/metadata/p05_e01.kg.json",
     "schema_version": "1.1"
   },
-  "publish_date": "2026-06-03",
+  "publish_date": "2026-06-11",
   "schema_version": "1",
   "summary": {
     "bullets": [

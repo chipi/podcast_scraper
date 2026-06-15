@@ -13,9 +13,31 @@
       "topic_id": "topic:management-for"
     }
   ],
+  "content": {
+    "diarization_num_speakers": 3,
+    "speakers": [
+      {
+        "id": "speaker_1",
+        "name": "Nora",
+        "role": "host"
+      },
+      {
+        "id": "speaker_2",
+        "name": "Kasper",
+        "role": "guest"
+      },
+      {
+        "id": "speaker_3",
+        "name": "Ad",
+        "role": "guest"
+      }
+    ],
+    "transcript_file_path": "transcripts/p05_e03.txt",
+    "transcript_source": "synthetic"
+  },
   "episode": {
     "episode_id": "7f877683-ea36-55d1-94f7-a5cc051ff3d0",
-    "published_date": "2026-06-05",
+    "published_date": "2026-06-13",
     "title": "Long Horizon Notes \u2014 Episode 3"
   },
   "episode_id": "7f877683-ea36-55d1-94f7-a5cc051ff3d0",
@@ -40,7 +62,7 @@
     "artifact_path": "feeds/p05/metadata/p05_e03.kg.json",
     "schema_version": "1.1"
   },
-  "publish_date": "2026-06-05",
+  "publish_date": "2026-06-13",
   "schema_version": "1",
   "summary": {
     "bullets": [

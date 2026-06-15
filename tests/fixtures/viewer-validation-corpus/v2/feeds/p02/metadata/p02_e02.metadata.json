@@ -13,9 +13,31 @@
       "topic_id": "topic:technology"
     }
   ],
+  "content": {
+    "diarization_num_speakers": 3,
+    "speakers": [
+      {
+        "id": "speaker_1",
+        "name": "Ethan",
+        "role": "host"
+      },
+      {
+        "id": "speaker_2",
+        "name": "Jonas",
+        "role": "guest"
+      },
+      {
+        "id": "speaker_3",
+        "name": "Ad",
+        "role": "guest"
+      }
+    ],
+    "transcript_file_path": "transcripts/p02_e02.txt",
+    "transcript_source": "synthetic"
+  },
   "episode": {
     "episode_id": "096240a2-e115-5a3c-98b4-2d852b096eda",
-    "published_date": "2026-06-04",
+    "published_date": "2026-06-12",
     "title": "Practical Systems \u2014 Episode 2"
   },
   "episode_id": "096240a2-e115-5a3c-98b4-2d852b096eda",
@@ -40,7 +62,7 @@
     "artifact_path": "feeds/p02/metadata/p02_e02.kg.json",
     "schema_version": "1.1"
   },
-  "publish_date": "2026-06-04",
+  "publish_date": "2026-06-12",
   "schema_version": "1",
   "summary": {
     "bullets": [

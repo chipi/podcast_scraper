@@ -1,0 +1,3 @@
+Maya: This is an edge-case fixture used for parser and processor robustness tests.Some lines have speakers.
+Liam: But the parser should still classify them.
+Maya: End of edge-case episode e02.

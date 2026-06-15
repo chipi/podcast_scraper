@@ -13,9 +13,21 @@
       "topic_id": "topic:this-is-an-edge"
     }
   ],
+  "content": {
+    "diarization_num_speakers": 1,
+    "speakers": [
+      {
+        "id": "speaker_1",
+        "name": "Maya",
+        "role": "host"
+      }
+    ],
+    "transcript_file_path": "transcripts/p06_e01.txt",
+    "transcript_source": "synthetic"
+  },
   "episode": {
     "episode_id": "e741f35a-8dd9-5c40-9d5c-905f4dca4122",
-    "published_date": "2026-06-02",
+    "published_date": "2026-06-10",
     "title": "Edge Cases Podcast \u2014 Episode 1"
   },
   "episode_id": "e741f35a-8dd9-5c40-9d5c-905f4dca4122",
@@ -40,7 +52,7 @@
     "artifact_path": "feeds/p06/metadata/p06_e01.kg.json",
     "schema_version": "1.1"
   },
-  "publish_date": "2026-06-02",
+  "publish_date": "2026-06-10",
   "schema_version": "1",
   "summary": {
     "bullets": [

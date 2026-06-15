@@ -13,9 +13,31 @@
       "topic_id": "topic:gear"
     }
   ],
+  "content": {
+    "diarization_num_speakers": 3,
+    "speakers": [
+      {
+        "id": "speaker_1",
+        "name": "Leo",
+        "role": "host"
+      },
+      {
+        "id": "speaker_2",
+        "name": "Tariq",
+        "role": "guest"
+      },
+      {
+        "id": "speaker_3",
+        "name": "Ad",
+        "role": "guest"
+      }
+    ],
+    "transcript_file_path": "transcripts/p04_e02.txt",
+    "transcript_source": "synthetic"
+  },
   "episode": {
     "episode_id": "9833b47e-0cc8-50b9-a6da-65dc0f6d053f",
-    "published_date": "2026-06-02",
+    "published_date": "2026-06-10",
     "title": "Frame & Light \u2014 Episode 2"
   },
   "episode_id": "9833b47e-0cc8-50b9-a6da-65dc0f6d053f",
@@ -40,7 +62,7 @@
     "artifact_path": "feeds/p04/metadata/p04_e02.kg.json",
     "schema_version": "1.1"
   },
-  "publish_date": "2026-06-02",
+  "publish_date": "2026-06-10",
   "schema_version": "1",
   "summary": {
     "bullets": [
