@@ -137,8 +137,15 @@ def record_provider_call_cost(
     prompt_tokens: Optional[int] = None,
     completion_tokens: Optional[int] = None,
     audio_minutes: Optional[float] = None,
+    triggered_guardrail: bool = False,
 ) -> None:
-    """Set per-call USD, backfill when null, and emit ``llm_cost_event`` (#823 / #804)."""
+    """Set per-call USD, backfill when null, and emit ``llm_cost_event`` (#823 / #804).
+
+    ``triggered_guardrail`` (added ADR-100): forwarded into the
+    ``llm_cost_event`` so cost-rollup can pivot on paid-but-rejected
+    spend (the cloud provider charged us for a response that tripped a
+    response-shape guardrail and got routed to a fallback).
+    """
     if cost is not None:
         call_metrics.set_cost(cost)
     else:
@@ -166,6 +173,7 @@ def record_provider_call_cost(
             estimated_cost_usd=float(final),
             prompt_tokens=prompt_tokens,
             completion_tokens=completion_tokens,
+            triggered_guardrail=triggered_guardrail,
         )
     except Exception as exc:
         logger.debug("llm_cost_event emission skipped: %s", exc)

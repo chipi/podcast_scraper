@@ -306,41 +306,70 @@ extended the injection vocabulary:
 | `/v1/messages` (Anthropic) | `anthropic:empty_content`, `anthropic:thinking_prose`, `anthropic:max_tokens` |
 | `/v1beta/generateContent` (Gemini) | `gemini:empty_content`, `gemini:thinking_prose`, `gemini:max_tokens` |
 
-The `*:max_tokens` entries surface a known limitation: the helper trips
-only on a literal `"length"` finish_reason. Anthropic's SDK returns
-`"max_tokens"` and Gemini's returns `"MAX_TOKENS"`. Today the cloud
-providers don't normalize these into `"length"`, so the helper
-silently passes them through. The E2E tests document this as
-a known gap (`test_cloud_guardrails_wiring.py::TestAnthropicWiring::test_max_tokens_stop_reason_treated_as_length`).
-Normalizing at the provider call sites is a one-line follow-up.
+The `*:max_tokens` entries fed the per-SDK normalization that landed
+in the close-out: Anthropic's `"max_tokens"` and Gemini's `"MAX_TOKENS"`
+are now normalised to `"length"` at the per-SDK boundary
+(`_anthropic_finish_reason()` and `_gemini_finish_reason()`). The
+helper stays service-neutral. Unit tests
+(`test_cloud_guardrails_wiring.py::TestAnthropicWiring::test_max_tokens_stop_reason_normalised_to_length`
+and `TestGeminiWiring::test_finish_length_fires_gemini_violation`)
+prove the trip.
 
-### D. Cost-attribution: field exists, emit-with-flag deferred
+### D. Cost-attribution: emitted at every summarize site
 
-The `emit_llm_cost_event(... triggered_guardrail: bool = False)`
-extension lands in `workflow/cost_monitoring.py`. The cost-rollup
-infrastructure can pivot on the field today. **What didn't land:**
-the provider call sites don't yet emit a cost event with
-`triggered_guardrail=True` in the `except GuardrailViolation`
-block. The architectural reason: the cost-data (token counts, model,
-estimated cost) is captured AFTER the guardrail check in the current
-control flow. Emitting-with-flag requires a small refactor at each
-call site (capture cost data BEFORE the check, emit-with-flag in
-the except block, then re-raise). Tracked as item #4 in
-`docs/wip/CLOUD-PROVIDER-RESILIENCE-E2E-GAP-1003.md`. Out of scope
-for #1003; mechanics are now in place to make it a small follow-up
-patch.
+`emit_llm_cost_event(... triggered_guardrail: bool = False)` lands in
+`workflow/cost_monitoring.py`. The plumbing flows through
+`record_provider_call_cost` so each provider's summarize site emits
+the cost event in BOTH branches: happy path
+(`triggered_guardrail=False`) and the `except GuardrailViolation`
+block (`triggered_guardrail=True`) before re-raising. Token data is
+captured up-front so the cost shape is identical between branches.
+Wired at: OpenAI, Anthropic, Gemini, DeepSeek, Ollama summarize.
 
-### E. Resilience-coverage audit (parallel review)
+Scoped deliberately to summarize, not bundled / GI / KG / cleaning —
+summarize is the load-bearing call for paid-but-rejected spend
+attribution (largest cost per call); the smaller call sites have the
+guardrail wired and the cost field exists for them, they just don't
+emit-with-flag in their `except` blocks. Marked as a known scope
+decision, not a deferred follow-up, in
+`docs/wip/CLOUD-PROVIDER-RESILIENCE-E2E-GAP-1003.md`.
+
+### E. Resilience-coverage audit + close-out
 
 A second user-requested follow-up audit during the same review
 flagged that prior to #1003, no cloud LLM provider had E2E
 resilience coverage via the mock server's `set_error_behavior`
-hooks. The matrix and follow-up gaps are documented in
-`docs/wip/CLOUD-PROVIDER-RESILIENCE-E2E-GAP-1003.md`.
-`tests/e2e/test_cloud_resilience_e2e.py` lands a per-provider
-permanent-5xx baseline; transient-5xx retry, watchdog/timeout,
-FallbackAware-routing-under-violation, and Ollama remain gaps for
-a follow-up PR.
+hooks. The matrix and the original gaps are documented in
+`docs/wip/CLOUD-PROVIDER-RESILIENCE-E2E-GAP-1003.md`. All 5 gaps in
+that doc closed on 2026-06-15:
+
+| Gap | Closed by |
+| --- | --- |
+| Transient-5xx retry-recovery, cloud | `TestTransient5xxRetryRecovery` in `test_cloud_resilience_e2e.py` (OpenAI / Anthropic / DeepSeek). |
+| Request timeout, all 4 cloud providers | `TestRequestTimeoutE2E` in `test_cloud_resilience_e2e.py`; Gemini's `HttpOptions.timeout` plumbing landed in the same batch. |
+| FallbackAware under real GuardrailViolation | `test_cloud_guardrails_fallback_e2e.py` — primary trips guardrail, configured fallback's response reaches the caller. |
+| Cost-event `triggered_guardrail=True` integration | See §D above. |
+| Ollama resilience coverage | `test_ollama_guardrails_and_resilience_e2e.py` — guardrail empty / thinking-prose, cleaning catch-and-degrade, permanent 5xx, transient 5xx, request timeout. |
+
+### F. `retry_with_metrics` no longer retries on GuardrailViolation
+
+Surfaced during close-out: bundled / GI / KG call sites wrap their
+SDK call in `retry_with_metrics(_make_api_call, ...)`. The default
+`retryable_exceptions=(Exception,)` would have made the closure's
+`GuardrailViolation` retry 3× before propagating — wasteful (the
+response will not become non-empty by retrying) and semantically
+wrong. `utils/retryable_errors.py::is_retryable_error` now returns
+`False` for `GuardrailViolation` early, so retry loops surface the
+type immediately to the caller's `except` clause.
+
+### G. Ollama cleaning passthrough
+
+Surfaced during close-out: Ollama's `clean_transcript` had no
+`except _guardrails.GuardrailViolation` clause (the cloud providers'
+cleaning paths did, after the original #1003 wiring). The same
+wrap-into-`ProviderRuntimeError` trap applied. Fixed; new E2E
+`test_cleaning_thinking_prose_degrades_gracefully` proves the
+catch-and-degrade path returns the original transcript.
 
 ## References
 

@@ -82,9 +82,14 @@ def _gemini_finish_reason(response: Any) -> Optional[str]:
         if reason is None:
             return None
         name = getattr(reason, "name", None)
-        if name:
-            return str(name).lower()
-        return str(reason).lower()
+        raw = str(name).lower() if name else str(reason).lower()
+        # ADR-100 normalization: Gemini emits ``MAX_TOKENS`` for the
+        # over-budget condition; the guardrail trips on the canonical
+        # ``"length"`` value (OpenAI/DeepSeek convention). Map at the
+        # per-SDK boundary so the helper stays service-neutral.
+        if raw == "max_tokens":
+            return "length"
+        return raw
     except Exception:  # noqa: BLE001 - defensive; never break the caller
         return None
 
@@ -241,17 +246,37 @@ class GeminiProvider:
         # New API uses Client instead of configure() + GenerativeModel
         client_kwargs: Dict[str, Any] = {"api_key": cfg.gemini_api_key}
         gemini_api_base = getattr(cfg, "gemini_api_base", None)
-        if gemini_api_base:
-            # E2E testing: route requests to mock server via http_options.base_url
-            if genai_types is not None:
-                client_kwargs["http_options"] = genai_types.HttpOptions(
-                    base_url=gemini_api_base.rstrip("/")
-                )
-            else:
-                logger.warning(
-                    "gemini_api_base is set but google.genai.types not available; "
-                    "requests will use default API."
-                )
+        if genai_types is not None:
+            # google-genai ``HttpOptions.timeout`` is documented in milliseconds.
+            # ADR-100: honour ``summarization_timeout`` (read_timeout in our
+            # shared helper) so a tight client-timeout config plumbs through
+            # to the SDK — matches the contract on the other 3 cloud providers
+            # (OpenAI / Anthropic / DeepSeek).
+            from ...utils.timeout_config import get_http_timeout
+
+            timeout_config = get_http_timeout(cfg)
+            timeout_ms: Optional[int] = None
+            try:
+                read_t = getattr(timeout_config, "read", None) if timeout_config else None
+                if read_t is None and isinstance(timeout_config, (int, float)):
+                    read_t = float(timeout_config)
+                if read_t is not None:
+                    timeout_ms = int(float(read_t) * 1000)
+            except Exception:  # noqa: BLE001 - defensive; never break client construction
+                timeout_ms = None
+
+            http_options_kwargs: Dict[str, Any] = {}
+            if gemini_api_base:
+                http_options_kwargs["base_url"] = gemini_api_base.rstrip("/")
+            if timeout_ms is not None and timeout_ms > 0:
+                http_options_kwargs["timeout"] = timeout_ms
+            if http_options_kwargs:
+                client_kwargs["http_options"] = genai_types.HttpOptions(**http_options_kwargs)
+        elif gemini_api_base:
+            logger.warning(
+                "gemini_api_base is set but google.genai.types not available; "
+                "requests will use default API."
+            )
         self.client = genai.Client(**client_kwargs)
 
         # Log non-sensitive provider metadata (for debugging)
@@ -265,11 +290,6 @@ class GeminiProvider:
             project=project,
             region=region,
         )
-
-        # Note: HTTP timeout configuration
-        # Gemini SDK uses global configure() and may not support per-client timeout configuration.
-        # Timeout behavior is controlled by the SDK's default settings.
-        # If timeout configuration is needed, it may require SDK version update or workaround.
 
         # Transcription settings
         # Model validation happens at API call time - invalid models will raise clear errors
@@ -969,7 +989,7 @@ class GeminiProvider:
     # SummarizationProvider Protocol Implementation
     # ============================================================================
 
-    def summarize(
+    def summarize(  # noqa: C901
         self,
         text: str,
         episode_title: Optional[str] = None,
@@ -1092,17 +1112,9 @@ class GeminiProvider:
             call_metrics.finalize()
 
             summary = response.text if hasattr(response, "text") else str(response)
-            # Response-shape guardrail (ADR-100, #1003): empty / thinking-prose /
-            # finish_reason=length. Gemini "thinking" models (2.5-flash w/o
-            # explicit budget=0) can burn output budget on hidden reasoning
-            # and return empty/short content — caught here.
-            _guardrails.check_chat_response(
-                summary, service="gemini", finish_reason=_gemini_finish_reason(response)
-            )
-
-            logger.debug("Gemini summarization completed: %d characters", len(summary))
-
-            # Extract token counts and populate call_metrics
+            # Extract token counts up-front so the cost event can fire on
+            # both the happy path and the GuardrailViolation path
+            # (ADR-100 paid-but-rejected cost-attribution).
             input_tokens = None
             output_tokens = None
             if hasattr(response, "usage_metadata") and response.usage_metadata:
@@ -1148,8 +1160,6 @@ class GeminiProvider:
             except Exception:
                 pass
 
-            # Calculate cost first so the value flows into both call_metrics and
-            # pipeline_metrics.record_llm_summarization_call(cost_usd=...).
             cost: Optional[float] = None
             if input_tokens is not None:
                 from ...workflow.helpers import calculate_provider_cost
@@ -1162,6 +1172,10 @@ class GeminiProvider:
                     prompt_tokens=input_tokens,
                     completion_tokens=output_tokens,
                 )
+
+            def _record_cost(*, triggered_guardrail: bool = False) -> None:
+                if input_tokens is None:
+                    return
                 from ...utils.provider_metrics import record_provider_call_cost
 
                 record_provider_call_cost(
@@ -1173,7 +1187,27 @@ class GeminiProvider:
                     model=self.summary_model,
                     prompt_tokens=input_tokens,
                     completion_tokens=output_tokens,
+                    triggered_guardrail=triggered_guardrail,
                 )
+
+            # Response-shape guardrail (ADR-100, #1003): empty / thinking-prose /
+            # finish_reason=length. Gemini "thinking" models (2.5-flash w/o
+            # explicit budget=0) can burn output budget on hidden reasoning
+            # and return empty/short content — caught here. Cost event fires
+            # in BOTH branches so the operator can pivot on paid-but-rejected
+            # spend; raw GuardrailViolation propagates so FallbackAware
+            # routes the configured fallback.
+            try:
+                _guardrails.check_chat_response(
+                    summary, service="gemini", finish_reason=_gemini_finish_reason(response)
+                )
+            except _guardrails.GuardrailViolation:
+                _record_cost(triggered_guardrail=True)
+                raise
+
+            logger.debug("Gemini summarization completed: %d characters", len(summary))
+
+            _record_cost()
 
             # Track LLM call metrics if available (aggregate tracking)
             if (

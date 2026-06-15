@@ -181,3 +181,167 @@ class TestGeminiResilienceE2E:
         with pytest.raises(ProviderRuntimeError) as exc_info:
             provider.summarize(_TRANSCRIPT_TEXT)
         assert "GeminiProvider/Summarization" in str(exc_info.value)
+
+
+# ---------------------------------------------------------------------------
+# Transient-5xx: each provider must recover when the underlying transport
+# retries (the cloud SDK's own backoff, observed via fail-then-succeed).
+# ---------------------------------------------------------------------------
+
+
+class TestTransient5xxRetryRecovery:
+    """Inject N 503s followed by a real 200; assert the provider's SDK-level
+    retry recovers transparently. fail_count is set generously to absorb
+    however many retries the SDK attempts before giving up."""
+
+    def test_openai_recovers_from_transient_503(self, e2e_server):
+        from tests.e2e.fixtures.e2e_http_server import E2EHTTPRequestHandler
+
+        E2EHTTPRequestHandler.set_transient_error("/v1/chat/completions", status=503, fail_count=2)
+        provider = _openai_provider(e2e_server)
+        result = provider.summarize(_TRANSCRIPT_TEXT)
+        assert result is not None and "summary" in result
+
+    def test_anthropic_recovers_from_transient_503(self, e2e_server):
+        from tests.e2e.fixtures.e2e_http_server import E2EHTTPRequestHandler
+
+        E2EHTTPRequestHandler.set_transient_error("/v1/messages", status=503, fail_count=2)
+        provider = _anthropic_provider(e2e_server)
+        result = provider.summarize(_TRANSCRIPT_TEXT)
+        assert result is not None and "summary" in result
+
+    def test_deepseek_recovers_from_transient_503(self, e2e_server):
+        from tests.e2e.fixtures.e2e_http_server import E2EHTTPRequestHandler
+
+        E2EHTTPRequestHandler.set_transient_error("/v1/chat/completions", status=503, fail_count=2)
+        provider = _deepseek_provider(e2e_server)
+        result = provider.summarize(_TRANSCRIPT_TEXT)
+        assert result is not None and "summary" in result
+
+
+# ---------------------------------------------------------------------------
+# Request timeout: tight client timeout against an injected response delay
+# must surface as ProviderRuntimeError, proving the config-driven timeout
+# plumbs through to the SDK's httpx layer. Gemini's SDK doesn't currently
+# accept a timeout override from cfg (gap, not a wiring bug in this PR).
+# ---------------------------------------------------------------------------
+
+
+def _openai_provider_tight_timeout(e2e_server):
+    from podcast_scraper.providers.openai.openai_provider import OpenAIProvider
+
+    cfg = Config.model_validate(
+        {
+            "rss_url": "https://example.com/feed.xml",
+            "openai_api_key": "sk-test",
+            "openai_api_base": e2e_server.urls.openai_api_base(),
+            "summary_provider": "openai",
+            "generate_summaries": True,
+            "summarization_timeout": 1,
+        }
+    )
+    p = OpenAIProvider(cfg)
+    p.initialize()
+    return p
+
+
+def _anthropic_provider_tight_timeout(e2e_server):
+    from podcast_scraper.providers.anthropic.anthropic_provider import AnthropicProvider
+
+    cfg = Config.model_validate(
+        {
+            "rss_url": "https://example.com/feed.xml",
+            "anthropic_api_key": "sk-ant-test",
+            "anthropic_api_base": e2e_server.urls.anthropic_api_base(),
+            "summary_provider": "anthropic",
+            "generate_summaries": True,
+            "summarization_timeout": 1,
+        }
+    )
+    p = AnthropicProvider(cfg)
+    p.initialize()
+    return p
+
+
+def _deepseek_provider_tight_timeout(e2e_server):
+    from podcast_scraper.providers.deepseek.deepseek_provider import DeepSeekProvider
+
+    cfg = Config.model_validate(
+        {
+            "rss_url": "https://example.com/feed.xml",
+            "deepseek_api_key": "sk-ds-test",
+            "deepseek_api_base": e2e_server.urls.deepseek_api_base(),
+            "summary_provider": "deepseek",
+            "generate_summaries": True,
+            "summarization_timeout": 1,
+        }
+    )
+    p = DeepSeekProvider(cfg)
+    p.initialize()
+    return p
+
+
+def _gemini_provider_tight_timeout(e2e_server):
+    from podcast_scraper.providers.gemini.gemini_provider import GeminiProvider
+
+    cfg = Config.model_validate(
+        {
+            "rss_url": "https://example.com/feed.xml",
+            "gemini_api_key": "AIza-test",
+            "gemini_api_base": e2e_server.urls.gemini_api_base(),
+            "summary_provider": "gemini",
+            "generate_summaries": True,
+            "summarization_timeout": 1,
+        }
+    )
+    p = GeminiProvider(cfg)
+    p.initialize()
+    return p
+
+
+class TestRequestTimeoutE2E:
+    """Inject a 3-second response delay and configure a 1-second client
+    timeout; the provider must surface a ProviderRuntimeError before the
+    response arrives. Skipped retry-sleep so total wall time stays small."""
+
+    def test_openai_request_timeout_surfaces(self, e2e_server):
+        from tests.e2e.fixtures.e2e_http_server import E2EHTTPRequestHandler
+
+        E2EHTTPRequestHandler.set_error_behavior("/v1/chat/completions", status=200, delay=3.0)
+        provider = _openai_provider_tight_timeout(e2e_server)
+        with pytest.raises(ProviderRuntimeError) as exc_info:
+            provider.summarize(_TRANSCRIPT_TEXT)
+        assert "OpenAIProvider/Summarization" in str(exc_info.value)
+
+    def test_anthropic_request_timeout_surfaces(self, e2e_server):
+        from tests.e2e.fixtures.e2e_http_server import E2EHTTPRequestHandler
+
+        E2EHTTPRequestHandler.set_error_behavior("/v1/messages", status=200, delay=3.0)
+        provider = _anthropic_provider_tight_timeout(e2e_server)
+        with pytest.raises(ProviderRuntimeError) as exc_info:
+            provider.summarize(_TRANSCRIPT_TEXT)
+        assert "AnthropicProvider/Summarization" in str(exc_info.value)
+
+    def test_deepseek_request_timeout_surfaces(self, e2e_server):
+        from tests.e2e.fixtures.e2e_http_server import E2EHTTPRequestHandler
+
+        E2EHTTPRequestHandler.set_error_behavior("/v1/chat/completions", status=200, delay=3.0)
+        provider = _deepseek_provider_tight_timeout(e2e_server)
+        with pytest.raises(ProviderRuntimeError) as exc_info:
+            provider.summarize(_TRANSCRIPT_TEXT)
+        assert "DeepSeekProvider/Summarization" in str(exc_info.value)
+
+    def test_gemini_request_timeout_surfaces(self, e2e_server):
+        from tests.e2e.fixtures.e2e_http_server import E2EHTTPRequestHandler
+
+        # Gemini SDK plumbs ``summarization_timeout`` into HttpOptions.timeout
+        # as of the ADR-100 follow-up; a 1s config + 3s delay must bail.
+        E2EHTTPRequestHandler.set_error_behavior(
+            "/v1beta/models/gemini-2.5-flash-lite:generateContent",
+            status=200,
+            delay=3.0,
+        )
+        provider = _gemini_provider_tight_timeout(e2e_server)
+        with pytest.raises(ProviderRuntimeError) as exc_info:
+            provider.summarize(_TRANSCRIPT_TEXT)
+        assert "GeminiProvider/Summarization" in str(exc_info.value)

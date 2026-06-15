@@ -146,6 +146,17 @@ class TestIsRetryableError(unittest.TestCase):
         err = ConnectionError("reset by peer")
         self.assertTrue(is_retryable_error(err))
 
+    def test_guardrail_violation_is_not_retryable(self):
+        """ADR-100: response-shape guardrail violations are NEVER retryable.
+        Retrying the same request yields the same bad content; the caller's
+        fallback layer is the right next-step, not another wait + retry."""
+        from podcast_scraper.providers.guardrails import GuardrailViolation
+
+        err = GuardrailViolation("openai", "empty_content", "")
+        self.assertFalse(is_retryable_error(err))
+        self.assertFalse(is_retryable_error(err, error_context="default"))
+        self.assertFalse(is_retryable_error(err, error_context="ollama_local"))
+
 
 class TestIsNonRetryableHttpError(unittest.TestCase):
     """Test is_non_retryable_http_error function."""

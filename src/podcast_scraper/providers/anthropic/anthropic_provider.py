@@ -54,6 +54,22 @@ from ..ml.speaker_detection import DEFAULT_SPEAKER_NAMES
 # Pricing for Anthropic models lives in ``config/pricing_assumptions.yaml`` (#651).
 
 
+def _anthropic_finish_reason(response: Any) -> Optional[str]:
+    """Normalize Anthropic's ``stop_reason`` to the guardrail's vocabulary.
+
+    Anthropic emits ``"max_tokens"`` for the over-budget condition; the
+    chat guardrail trips on the canonical ``"length"`` value (OpenAI /
+    DeepSeek convention). Map at the per-SDK boundary so the helper stays
+    service-neutral. Returns None when the field isn't present (the
+    guardrail then skips the finish-reason check, which is the safe
+    default).
+    """
+    raw = getattr(response, "stop_reason", None)
+    if raw == "max_tokens":
+        return "length"
+    return raw
+
+
 def _record_anthropic_llm_call(
     response: Any,
     pipeline_metrics: Optional[Any],
@@ -755,24 +771,14 @@ class AnthropicProvider:
                     summary = first_block.text
                 elif isinstance(first_block, str):
                     summary = first_block
-            # Response-shape guardrail (ADR-100, #1003): empty / thinking-prose /
-            # finish_reason=length. Raises GuardrailViolation; caller's existing
-            # FallbackAware path catches it and routes to the configured
-            # degradation_policy.fallback_provider_on_failure.
-            _guardrails.check_chat_response(
-                summary, service="anthropic", finish_reason=getattr(response, "stop_reason", None)
-            )
-
-            logger.debug("Anthropic summarization completed: %d characters", len(summary))
-
-            # Extract token counts and populate call_metrics
+            # Extract token counts up-front so the cost event can fire on
+            # both the happy path and the GuardrailViolation path
+            # (ADR-100 paid-but-rejected cost-attribution).
             input_tokens = None
             output_tokens = None
             if hasattr(response, "usage") and response.usage:
                 input_tokens_val = getattr(response.usage, "input_tokens", None)
                 output_tokens_val = getattr(response.usage, "output_tokens", None)
-                # Convert to int if they're actual numbers, otherwise use 0
-                # Handle Mock objects from tests by checking type
                 input_tokens = (
                     int(input_tokens_val) if isinstance(input_tokens_val, (int, float)) else 0
                 )
@@ -782,8 +788,6 @@ class AnthropicProvider:
                 if input_tokens > 0 or output_tokens > 0:
                     call_metrics.set_tokens(input_tokens, output_tokens)
 
-            # Calculate cost first so the value flows into both call_metrics and
-            # pipeline_metrics.record_llm_summarization_call(cost_usd=...).
             cost: Optional[float] = None
             if input_tokens is not None:
                 from ...workflow.helpers import calculate_provider_cost
@@ -796,6 +800,10 @@ class AnthropicProvider:
                     prompt_tokens=input_tokens,
                     completion_tokens=output_tokens,
                 )
+
+            def _record_cost(*, triggered_guardrail: bool = False) -> None:
+                if input_tokens is None:
+                    return
                 from ...utils.provider_metrics import record_provider_call_cost
 
                 record_provider_call_cost(
@@ -807,7 +815,27 @@ class AnthropicProvider:
                     model=self.summary_model,
                     prompt_tokens=input_tokens,
                     completion_tokens=output_tokens,
+                    triggered_guardrail=triggered_guardrail,
                 )
+
+            # Response-shape guardrail (ADR-100, #1003): empty / thinking-prose /
+            # finish_reason=length. Cost event fires in BOTH branches so the
+            # operator can pivot on paid-but-rejected spend; the raw
+            # GuardrailViolation propagates so FallbackAware can route the
+            # configured degradation_policy.fallback_provider_on_failure.
+            try:
+                _guardrails.check_chat_response(
+                    summary,
+                    service="anthropic",
+                    finish_reason=_anthropic_finish_reason(response),
+                )
+            except _guardrails.GuardrailViolation:
+                _record_cost(triggered_guardrail=True)
+                raise
+
+            logger.debug("Anthropic summarization completed: %d characters", len(summary))
+
+            _record_cost()
 
             # Track LLM call metrics if available (aggregate tracking)
             if (
@@ -1154,7 +1182,7 @@ class AnthropicProvider:
         # Response-shape guardrail (ADR-100, #1003): empty / thinking-prose /
         # finish_reason=length. Replaces narrower "if not raw" check.
         _guardrails.check_chat_response(
-            raw, service="anthropic", finish_reason=getattr(response, "stop_reason", None)
+            raw, service="anthropic", finish_reason=_anthropic_finish_reason(response)
         )
         raw = "{" + raw if not raw.startswith("{") else raw
 
@@ -1413,7 +1441,7 @@ class AnthropicProvider:
             _guardrails.check_chat_response(
                 cleaned,
                 service="anthropic",
-                finish_reason=getattr(response, "stop_reason", None),
+                finish_reason=_anthropic_finish_reason(response),
             )
 
             logger.debug("Anthropic cleaning completed: %d -> %d chars", len(text), len(cleaned))
@@ -1516,7 +1544,7 @@ class AnthropicProvider:
             _guardrails.check_chat_response(
                 content,
                 service="anthropic",
-                finish_reason=getattr(response, "stop_reason", None),
+                finish_reason=_anthropic_finish_reason(response),
             )
             lines = [
                 line.strip()

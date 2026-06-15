@@ -114,17 +114,22 @@ class TestAnthropicWiring:
         assert exc_info.value.service == "anthropic"
         assert exc_info.value.reason == guardrails.REASON_CHAT_EMPTY
 
-    def test_max_tokens_stop_reason_treated_as_length(self):
-        # Anthropic uses "max_tokens" not "length" — we don't map it
-        # automatically; the guardrail trips only on "length". This
-        # documents the current limitation; a future PR could normalize.
-        response = _anthropic_response("truncated", stop_reason="max_tokens")
-        # Should NOT raise — guardrail only knows "length"
-        guardrails.check_chat_response(
-            response.content[0].text,
-            service="anthropic",
-            finish_reason=getattr(response, "stop_reason", None),
+    def test_max_tokens_stop_reason_normalised_to_length(self):
+        # Anthropic's "max_tokens" is normalised to "length" by the
+        # provider's _anthropic_finish_reason helper so the guardrail
+        # trips (closing the documented limitation from #1003).
+        from podcast_scraper.providers.anthropic.anthropic_provider import (
+            _anthropic_finish_reason,
         )
+
+        response = _anthropic_response("truncated", stop_reason="max_tokens")
+        with pytest.raises(guardrails.GuardrailViolation) as exc_info:
+            guardrails.check_chat_response(
+                response.content[0].text,
+                service="anthropic",
+                finish_reason=_anthropic_finish_reason(response),
+            )
+        assert exc_info.value.reason == guardrails.REASON_CHAT_FINISH_LENGTH
 
     def test_thinking_prose_fires_anthropic_violation(self):
         response = _anthropic_response("Let me think about this.")
@@ -159,16 +164,18 @@ class TestGeminiWiring:
             _gemini_finish_reason,
         )
 
+        # Gemini's MAX_TOKENS now normalises to "length" in the helper
+        # (closing the documented limitation from #1003).
         response = _gemini_response("truncated mid", finish_reason="MAX_TOKENS")
-        # Gemini's MAX_TOKENS lowercases to "max_tokens" — same as Anthropic,
-        # not auto-normalized to "length". Document the limitation.
-        guardrails.check_chat_response(
-            response.text,
-            service="gemini",
-            finish_reason=_gemini_finish_reason(response),
-        )  # no raise (yet)
+        with pytest.raises(guardrails.GuardrailViolation) as exc_info:
+            guardrails.check_chat_response(
+                response.text,
+                service="gemini",
+                finish_reason=_gemini_finish_reason(response),
+            )
+        assert exc_info.value.reason == guardrails.REASON_CHAT_FINISH_LENGTH
 
-        # Direct "length" — does fire.
+        # Direct "length" also fires.
         response2 = _gemini_response("truncated", finish_reason="length")
         with pytest.raises(guardrails.GuardrailViolation):
             guardrails.check_chat_response(
