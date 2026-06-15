@@ -53,7 +53,15 @@ RUN pip install \
         "tqdm>=4.66" \
         "more-itertools>=10.0" \
         "tiktoken>=0.5" \
+        "sentry-sdk[fastapi]>=2.18,<3.0" \
+        "prometheus-fastapi-instrumentator>=7.0,<8.0" \
  && pip install --no-deps "openai-whisper>=20231117"
+# sentry-sdk + prometheus-fastapi-instrumentator added for #996 follow-up
+# (mirror pyannote-server #942/#943 pattern). The 2026-06-15 catastrophic-tail
+# sweep had no whisper-side telemetry — Sentry catches in-handler errors that
+# the client-side resilience layer can't see, and /metrics exposes per-request
+# latency so any future sweep can correlate contention spikes with whisper-side
+# queue depth + status-code distribution.
 
 COPY app.py /app/app.py
 

@@ -428,6 +428,7 @@ series × 2880 scrapes/day × 30 bytes ≈ ~85 KB/day of ingest.
 | `:8080` | cAdvisor | 60s | Per-container resource use. `id`/`pod`/`namespace` labels dropped at scrape. |
 | `:8001/metrics` | pyannote-server | 60s | Request rate / latency histo / status codes via `prometheus-fastapi-instrumentator`. |
 | `:8003/metrics` | vllm-autoresearch | 30s | Native vLLM Prometheus exporter — TTFT, queue depth, KV-cache util, GPU mem tracking. Only up while `gpu-mode-swap.sh research` is the active mode; Grafana Agent drops the target cleanly when the port isn't listening. ~30 series. |
+| `:8002/metrics` | whisper-server (#996 follow-up) | 60s | Request rate / latency histo / status codes via `prometheus-fastapi-instrumentator`. Mirrors the pyannote pattern. Pair with contention sweeps so whisper-side queue depth + status-code drift land next to vLLM TTFT in the same dashboard window. |
 
 Tailscale ACL (`tailscale/policy.hujson`) opens the three new ports
 on `tag:dgx-llm-host` for `autogroup:admin`, `tag:gha-deployer`, and

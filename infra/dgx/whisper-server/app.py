@@ -61,6 +61,33 @@ logging.basicConfig(
     format="%(asctime)s %(levelname)s %(name)s: %(message)s",
 )
 
+# Sentry SDK (#996 follow-up; mirrors the pyannote-server pattern from #942)
+# — captures DGX-side errors the client-side dgx_fallback breadcrumb can't see
+# (compat bugs at startup, in-handler exceptions before fallback triggers).
+# No-op when SENTRY_DSN is unset so dev/local runs aren't affected. The
+# before_send filter drops the boot-time 503 "whisper model not yet loaded"
+# health-check noise.
+_SENTRY_DSN = os.environ.get("SENTRY_DSN", "").strip()
+if _SENTRY_DSN:
+    import sentry_sdk
+
+    sentry_sdk.init(
+        dsn=_SENTRY_DSN,
+        traces_sample_rate=float(os.environ.get("SENTRY_TRACES_SAMPLE_RATE", "0.01")),
+        environment=os.environ.get("SENTRY_ENVIRONMENT", "dgx-prod"),
+        server_name=os.environ.get("SENTRY_SERVER_NAME", "dgx-llm-1.tail6d0ed4.ts.net"),
+        release=os.environ.get("SERVICE_VERSION", "dev"),
+        before_send=lambda event, hint: (
+            None if "whisper model not yet loaded" in str(event.get("message", "")) else event
+        ),
+    )
+    sentry_sdk.set_tag("service", "whisper-server")
+    sentry_sdk.set_tag("dgx_host", os.environ.get("DGX_HOST_TAG", "spark-2c14"))
+    sentry_sdk.set_tag("gpu", "GB10")
+    logger.info("Sentry SDK initialized for whisper-server")
+else:
+    logger.info("SENTRY_DSN not set — running without Sentry integration")
+
 
 _MODEL: Any = None
 _MODEL_NAME = os.environ.get("WHISPER_MODEL", "large-v3")
@@ -92,6 +119,29 @@ app = FastAPI(
     version="0.1.0",
     lifespan=lifespan,
 )
+
+# Prometheus instrumentation (#996 follow-up; mirrors pyannote-server #943).
+# Exposes /metrics with request rate / latency histo / status classifier.
+# Pair with the dgx-whisper-app scrape in compose/grafana-agent.yaml to
+# correlate whisper-side state (queue depth, per-request latency,
+# connection-reset rate) with any catastrophic-tail measurement going
+# forward. The 2026-06-15 #996 sweep had no whisper-side telemetry —
+# this closes that observability gap.
+try:
+    from prometheus_fastapi_instrumentator import Instrumentator
+
+    Instrumentator(
+        should_group_status_codes=True,
+        should_ignore_untemplated=True,
+        should_respect_env_var=False,
+        excluded_handlers=["/metrics"],
+    ).instrument(app).expose(app, include_in_schema=False, tags=["observability"])
+    logger.info("Prometheus instrumentation enabled at /metrics")
+except ImportError:
+    logger.warning(
+        "prometheus_fastapi_instrumentator not installed — /metrics endpoint disabled. "
+        "Add to requirements/Dockerfile to enable scrape."
+    )
 
 
 @app.get("/health")

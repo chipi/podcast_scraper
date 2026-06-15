@@ -133,6 +133,25 @@ metrics:
           scrape_interval: 30s
           scrape_timeout: 10s
 
+        # Whisper-openai application metrics (#996 follow-up; mirrors the
+        # pyannote-server #943 pattern). The 2026-06-15 catastrophic-tail
+        # sweep had no whisper-side telemetry — adding /metrics so any
+        # future sweep can correlate whisper-side request rate / latency /
+        # status codes with vLLM contention. Especially useful for the
+        # ConnectionResetError failure mode the #996 sweep surfaced —
+        # whisper-side request rate dropping to 0 + status code distribution
+        # is the direct signal for that case.
+        - job_name: dgx-whisper-app
+          static_configs:
+            - targets: ['dgx-llm-1.tail6d0ed4.ts.net:8002']
+              labels:
+                host: dgx
+                kind: app
+                service: whisper-server
+          metrics_path: /metrics
+          scrape_interval: 60s
+          scrape_timeout: 10s
+
       remote_write:
         # Quote env substitutions: -config.expand-env=true inlines values
         # before YAML parse, and Grafana Cloud API keys typically contain
