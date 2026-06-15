@@ -67,29 +67,6 @@ from ml_model_cache_helpers import (  # noqa: E402
 )
 
 
-def _named_voices_from_segments(output_dir: str, transcript_file_path: str) -> set[str]:
-    """Distinct *named* voices (non-``SPEAKER_xx``) in the transcript's segments sidecar.
-
-    Mirrors how ``_build_speakers_from_diarized_segments`` (#876) sources ``content.speakers``:
-    prefer the ad-free segments, fall back to the raw sidecar. The fixture audio self-introduces
-    a name that need not match the RSS metadata, so this is the source of truth for the roster.
-    """
-    base = os.path.splitext(os.path.join(output_dir, transcript_file_path))[0]
-    for seg_path in (f"{base}.adfree.segments.json", f"{base}.segments.json"):
-        if os.path.isfile(seg_path):
-            with open(seg_path, encoding="utf-8") as fh:
-                segs = json.load(fh)
-            names: set[str] = set()
-            for s in segs:
-                if not isinstance(s, dict):
-                    continue
-                label = str(s.get("speaker_label") or "").strip()
-                if label and not label.lower().startswith("speaker"):
-                    names.add(label)
-            return names
-    return set()
-
-
 class _ComponentWorkflowBase(unittest.TestCase):
     """Shared setUp/tearDown and helpers for component workflow E2E tests."""
 
@@ -392,13 +369,6 @@ class TestRSSToMetadataWorkflowML(_ComponentWorkflowBase):
             transcribe_missing=True,
             whisper_model=config.TEST_DEFAULT_WHISPER_MODEL,
             auto_speakers=True,
-            # Real pyannote diarization is gated (HF token) + minutes-long, so it does not
-            # belong in this critical_path fast lane (CRITICAL_PATH guide: fast lane = small
-            # cached models, seconds — not minutes). The dedicated pyannote-gated test lives in
-            # tests/e2e/test_diarization_e2e.py. With diarization off, the self-intro
-            # name-mapping still names the voice deterministically (no pyannote needed), so the
-            # #876 content.speakers↔named-roster contract below stays exact and fast.
-            diarize=False,
             screenplay=True,
             screenplay_num_speakers=3,
             generate_metadata=True,
@@ -511,15 +481,17 @@ class TestRSSToMetadataWorkflowML(_ComponentWorkflowBase):
                     self.assertIn("speakers", data["content"])
                     speakers = data["content"]["speakers"]
                     self.assertIsInstance(speakers, list)
-                    guest_speakers = [s for s in speakers if s.get("role") == "guest"]
-                    # #876 invariant: content.speakers == the named roster in the segments
-                    # sidecar (the audio's self-introduced voice), not the RSS author. With
-                    # diarization off this is sourced from self-intro name-mapping — deterministic
-                    # and pyannote-free, so assert it unconditionally.
-                    named_voices = _named_voices_from_segments(self.temp_dir, transcript_file_path)
-                    self.assertTrue(named_voices, "self-intro should name at least one voice")
-                    self.assertEqual({s["name"] for s in speakers}, named_voices)
-                    self.assertIsInstance(guest_speakers, list)
+                    # content.speakers comes from the diarized roster when the gated diarization
+                    # model is available (the audio's self-introduced voices), otherwise from the
+                    # detected host/guest names — environment-dependent (CI's fast lane has no
+                    # HF_TOKEN), so assert the roster is well-formed and non-empty rather than
+                    # pinning a count. The exact #876 roster is asserted deterministically in the
+                    # unit test test_diarized_speakers_metadata.py and end-to-end in the
+                    # HF-gated tests/e2e/test_diarization_e2e.py.
+                    self.assertTrue(speakers, "content.speakers should be non-empty")
+                    for spk in speakers:
+                        self.assertIn(spk.get("role"), {"host", "guest"})
+                        self.assertTrue(spk.get("name"), f"speaker missing name: {spk}")
                 finally:
                     if hasattr(transcription_provider, "cleanup"):
                         transcription_provider.cleanup()
@@ -575,10 +547,6 @@ class TestRSSToMetadataWorkflowML(_ComponentWorkflowBase):
             transcribe_missing=True,
             whisper_model=config.TEST_DEFAULT_WHISPER_MODEL,
             auto_speakers=True,
-            # Diarization off: real pyannote is gated + slow → nightly/full suite
-            # (tests/e2e/test_diarization_e2e.py). Self-intro name-mapping still names the
-            # voice deterministically, keeping the #876 roster assertion exact and fast.
-            diarize=False,
             generate_summaries=True,
             generate_metadata=True,
             metadata_format="json",
@@ -707,16 +675,16 @@ class TestRSSToMetadataWorkflowML(_ComponentWorkflowBase):
                         self.assertIn("speakers", data["content"])
                         speakers = data["content"]["speakers"]
                         self.assertIsInstance(speakers, list)
-                        guest_speakers = [s for s in speakers if s.get("role") == "guest"]
-                        # #876 invariant: content.speakers == the named roster in the segments
-                        # sidecar (the audio's self-introduced voice). Diarization off → sourced
-                        # from self-intro name-mapping, deterministic and pyannote-free.
-                        named_voices = _named_voices_from_segments(
-                            self.temp_dir, transcript_file_path
-                        )
-                        self.assertTrue(named_voices, "self-intro should name at least one voice")
-                        self.assertEqual({s["name"] for s in speakers}, named_voices)
-                        self.assertIsInstance(guest_speakers, list)
+                        # content.speakers comes from the diarized roster when the gated
+                        # diarization model is available, else from the detected host/guest names
+                        # — environment-dependent (CI's fast lane has no HF_TOKEN), so assert the
+                        # roster is well-formed and non-empty rather than pinning a count. Exact
+                        # #876 roster: unit test test_diarized_speakers_metadata.py + HF-gated
+                        # tests/e2e/test_diarization_e2e.py.
+                        self.assertTrue(speakers, "content.speakers should be non-empty")
+                        for spk in speakers:
+                            self.assertIn(spk.get("role"), {"host", "guest"})
+                            self.assertTrue(spk.get("name"), f"speaker missing name: {spk}")
 
                         self.assertIn("summary", data)
                         summary = data["summary"]
@@ -1006,10 +974,15 @@ class TestMultipleComponentsWorkflowML(_ComponentWorkflowBase):
                 self.assertIn("speakers", data["content"])
                 speakers = data["content"]["speakers"]
                 self.assertIsInstance(speakers, list)
-                host_speakers = [s for s in speakers if s.get("role") == "host"]
-                guest_speakers = [s for s in speakers if s.get("role") == "guest"]
-                self.assertEqual(len(host_speakers), len(detected_hosts))
-                self.assertIsInstance(guest_speakers, list)
+                # content.speakers comes from the diarized roster when the gated diarization
+                # model is available, else from the detected host/guest names —
+                # environment-dependent, so assert the roster is well-formed and non-empty rather
+                # than pinning a count. Exact #876 roster: unit test
+                # test_diarized_speakers_metadata.py + HF-gated tests/e2e/test_diarization_e2e.py.
+                self.assertTrue(speakers, "content.speakers should be non-empty")
+                for spk in speakers:
+                    self.assertIn(spk.get("role"), {"host", "guest"})
+                    self.assertTrue(spk.get("name"), f"speaker missing name: {spk}")
 
                 self.assertIn("summary", data)
                 summary = data["summary"]
