@@ -99,9 +99,8 @@ builds all three, in order:
 
 | # | Artifact | Built by (`cli …`) | Unlocks |
 | --- | --- | --- | --- |
-| 1 | `search/vectors.faiss` (+ `id_map.json`, `index_meta.json`) | `index --rebuild --vector-faiss-index-mode flat` | **V3** semantic search → Show on graph. Absent → `/api/index/stats` reports `available:false` → **V3 is skipped** (`test.skip`). |
-| 2 | `search/lance_index/` (LanceDB two-tier: `insights.lance`, `aux.lance`, `segments.lance`) | `index-two-tier` | The **current search layer on top of FAISS** — native BM25 + hybrid RRF. `serve-api` uses it when present (`hybrid_enabled` default on) and **falls back to FAISS if absent**, so V3 passes either way; building it exercises the real hybrid path and matches prod's two-tier layout. |
-| 3 | `search/topic_clusters.json` | `topic-clusters --threshold 0.35` | **V2** (digest topic-band) and **V4** (dashboard topic-cluster chip). Absent → Intelligence tab shows "Topic clusters not yet built" → no chips → V4 fails. |
+| 1 | `search/lance_index/` (LanceDB two-tier: `insights.lance`, `aux.lance`, `segments.lance`) | `index-two-tier` (or `index`) | **V3** semantic search → Show on graph. The single search artifact — native BM25 + hybrid RRF, always-on; there is no FAISS layer and no fallback. Absent → `/api/index/stats` reports `available:false` → **V3 is skipped** (`test.skip`). |
+| 2 | `search/topic_clusters.json` | `topic-clusters --threshold 0.35` | **V2** (digest topic-band) and **V4** (dashboard topic-cluster chip). Absent → Intelligence tab shows "Topic clusters not yet built" → no chips → V4 fails. |
 
 Without this step the walk still runs, but **V3 is SKIPPED** (the "1 skipped" you
 see) and **V2/V4 fail** (no topic-cluster chips). V1/V5 (Library/Digest handoffs)

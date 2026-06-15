@@ -230,7 +230,7 @@ class TestArtifacts:
 
 
 # ---------------------------------------------------------------------------
-# Index stats — no FAISS index present
+# Index stats — no search index present
 # ---------------------------------------------------------------------------
 
 
@@ -240,7 +240,7 @@ class TestIndexStats:
         assert resp.status_code == 200
         body = resp.json()
         assert body["available"] is False
-        assert body["reason"] in ("no_index", "faiss_unavailable")
+        assert body["reason"] == "no_index"
 
     def test_uses_app_state_fallback(self, client: TestClient) -> None:
         resp = client.get("/api/index/stats")

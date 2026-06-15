@@ -11,7 +11,7 @@ const INDEX_REASON_LABELS: Record<string, string> = {
   artifacts_newer_than_index:
     'Index-related files on disk are newer than the last index build. Run `podcast index` on the corpus root (use `--rebuild` after model or chunking changes).',
   no_index_but_metadata:
-    'Episode metadata exists but there is no usable FAISS index at the expected path.',
+    'Episode metadata exists but there is no usable search index at the expected path.',
   embedding_model_mismatch:
     'Embedding model differs from the default (or from the model you passed in the API). Rebuild the index so embeddings stay consistent.',
   multi_feed_batch_incomplete:
@@ -169,7 +169,6 @@ export const useIndexStatsStore = defineStore('indexStats', () => {
       !shell.healthStatus ||
       indexLoading.value ||
       rebuildSubmitting.value ||
-      indexEnvelope.value?.reason === 'faiss_unavailable' ||
       indexEnvelope.value?.rebuild_in_progress === true,
   )
 

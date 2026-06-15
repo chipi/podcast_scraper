@@ -32,4 +32,3 @@ generate_kg: true
 kg_extraction_source: summary_bullets
 kg_max_topics: 5
 vector_search: true
-vector_backend: faiss

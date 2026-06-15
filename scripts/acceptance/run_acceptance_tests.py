@@ -436,39 +436,29 @@ def _assess_vector_index_run(
     episodes_processed: int,
     is_dry_run: bool,
 ) -> tuple[bool, str]:
-    """Return (ok, note) for FAISS output when vector_search is enabled."""
+    """Return (ok, note) for the LanceDB search index when vector_search is enabled."""
     if is_dry_run:
         return True, "dry_run"
     if getattr(cfg_model, "vector_search", False) is not True:
         return True, "vector_search_off"
-    if getattr(cfg_model, "vector_backend", "faiss") != "faiss":
-        return True, "not_faiss_backend"
     if episodes_processed <= 0:
         return True, "no_episodes"
 
-    meta_path = run_output_dir / "search" / "metadata.json"
-    if not meta_path.is_file():
-        return False, "missing_search_metadata_json"
-    try:
-        data = json.loads(meta_path.read_text(encoding="utf-8"))
-    except json.JSONDecodeError:
-        return False, "invalid_search_metadata_json"
-    if isinstance(data, dict) and len(data) > 0:
-        return True, "indexed"
+    # FAISS was retired (#995): the search index is a LanceDB directory
+    # (search/lance_index/), not a metadata.json / id_map.json sidecar. STRICT mode
+    # should still fail an empty build, so assert the index has indexed rows.
+    from podcast_scraper.search.lance_index_stats import read_lance_index_stats
 
-    id_map_path = run_output_dir / "search" / "id_map.json"
-    if id_map_path.is_file():
-        try:
-            idm = json.loads(id_map_path.read_text(encoding="utf-8"))
-            if isinstance(idm, dict) and len(idm) > 0:
-                return True, "id_map_nonempty"
-        except json.JSONDecodeError:
-            pass
+    stats = read_lance_index_stats(run_output_dir / "search" / "lance_index")
+    if stats is None:
+        return False, "missing_lance_index"
+    if stats.total_vectors > 0:
+        return True, "indexed"
     return False, "empty_vector_index"
 
 
 def _strict_vector_index_requested() -> bool:
-    """True if CLI or env requests failing runs when FAISS produced no rows."""
+    """True if CLI or env requests failing runs when the index produced no rows."""
     val = os.environ.get("STRICT_VECTOR_INDEX", "").strip().lower()
     return val in ("1", "true", "yes", "on")
 
@@ -1400,7 +1390,7 @@ def copy_service_outputs(service_output_dir: Path, run_output_dir: Path) -> None
     transcripts_dest = run_output_dir / "transcripts"
     _copytree_if_distinct(transcripts_source, transcripts_dest, "transcript files")
 
-    # Copy search/FAISS index directory (vector_search output)
+    # Copy search/ index directory (vector_search output: LanceDB lance_index/)
     search_source = source_dir / "search"
     search_dest = run_output_dir / "search"
     _copytree_if_distinct(search_source, search_dest, "search index")
@@ -2434,8 +2424,8 @@ def main() -> None:  # noqa: C901 - CLI orchestrates configs, server, analysis, 
         action="store_true",
         default=False,
         help=(
-            "Treat empty FAISS output (vector_search on, episodes processed, but no rows in "
-            "search/metadata.json) as a failed run (exit_code 1). Same as STRICT_VECTOR_INDEX=1."
+            "Treat an empty index (vector_search on, episodes processed, but no rows in "
+            "search/lance_index/) as a failed run (exit_code 1). Same as STRICT_VECTOR_INDEX=1."
         ),
     )
     parser.add_argument(
