@@ -1,102 +1,70 @@
-"""Real-pyannote diarization integration test (RFC-058).
+"""Integration test: diarization factory + pyannote provider wiring (mocked model).
 
-This is the missing end-to-end check the RFC called for: run the *actual* pyannote
-pipeline on a known two-voice TTS fixture and confirm it separates the host and
-guest. Every other diarization test mocks pyannote, so they prove the wiring but
-not that diarization works on audio.
+Exercises the real dispatch path — ``create_diarization_provider(cfg)`` resolves the
+local pyannote backend, constructs the provider, and the provider maps the pyannote
+output into a ``DiarizationResult`` — with the pyannote model itself **mocked** (no gated
+download, no HuggingFace token, no real audio). This is the integration tier: it proves
+the wiring, not that diarization works on real audio.
 
-Skipped unless ``pyannote.audio`` is installed (the ``[ml]`` extra) AND a
-HuggingFace token is available — ``pyannote/speaker-diarization-3.1`` is a gated
-model. Run with::
-
-    HF_TOKEN=hf_... .venv/bin/pytest -m diarization tests/integration/providers/ml/test_diarization.py
-
-Ground truth (tests/fixtures/FIXTURES_SPEC.md): ``p01_multi_e01`` is podcast p01
-"Singletrack Sessions" — host **Maya** (TTS voice Samantha) and guest **Liam**
-(TTS voice Daniel) — i.e. two distinct speakers.
+The *real* pyannote pipeline running on actual TTS audio (host **Maya** + guest **Liam**,
+two distinct voices) is covered end-to-end by ``tests/e2e/test_diarization_e2e.py`` — the
+e2e tier, where real ML belongs (see scripts/tools/check_test_policy.py: no @ml_models in
+integration; all real-ML tests live in tests/e2e/).
 """
 
 from __future__ import annotations
 
-import os
-from pathlib import Path
+from unittest.mock import MagicMock, patch
 
 import pytest
 
-pytestmark = [pytest.mark.integration, pytest.mark.ml_models, pytest.mark.diarization]
+pytestmark = [pytest.mark.integration, pytest.mark.diarization]
 
-# pyannote.audio ships in the [ml] extra, not [dev]. Skip if it can't be imported
-# *for any reason* — a version-mismatched install (e.g. pyannote 3.4 against
-# torchaudio>=2.9, which removed AudioMetaData) raises AttributeError, not
-# ImportError, so plain importorskip would error collection instead of skipping.
-try:
-    import pyannote.audio  # noqa: F401
-except Exception as exc:  # pragma: no cover - environment-dependent
-    pytest.skip(f"pyannote.audio unavailable: {exc}", allow_module_level=True)
-
-# Audio fixtures are versioned (#902). Use v2 (the current default): its host (female,
-# ~178Hz) and guest (male, ~117Hz) voices are acoustically distinct (cross-voice embedding
-# cosine ~0.22) and pyannote separates them deterministically. An earlier note pinned this
-# to v1 claiming v2 "doesn't separate" (#921); that did not reproduce — v1 and v2 both
-# diarize into two clean voices. The old non-versioned path no longer exists.
-_FIXTURE = Path(__file__).resolve().parents[3] / "fixtures" / "audio" / "v2" / "p01_multi_e01.mp3"
+_PROVIDER_MOD = "podcast_scraper.providers.ml.diarization.pyannote_provider"
 
 
-def _hf_token_available() -> bool:
-    if os.getenv("HF_TOKEN") or os.getenv("HUGGINGFACE_TOKEN"):
-        return True
-    return (Path.home() / ".huggingface" / "token").is_file()
+@patch(f"{_PROVIDER_MOD}._load_waveform")
+@patch(f"{_PROVIDER_MOD}._create_pyannote_pipeline")
+def test_factory_builds_local_pyannote_and_maps_two_speakers(
+    mock_create_pipeline: MagicMock, mock_load_waveform: MagicMock
+) -> None:
+    """``create_diarization_provider`` -> local pyannote provider maps a 2-voice diarization.
 
-
-pytestmark.append(
-    pytest.mark.skipif(
-        not _hf_token_available(),
-        reason="no HuggingFace token (pyannote/speaker-diarization-3.1 is gated)",
-    )
-)
-
-
-@pytest.mark.serial
-def test_pyannote_separates_two_voices() -> None:
-    """pyannote must detect both speakers in the two-voice host+guest fixture."""
-    assert _FIXTURE.is_file(), f"missing fixture: {_FIXTURE}"
-
+    Mirrors the host+guest fixture (two distinct speakers) with the model mocked, so the
+    factory dispatch *and* the provider's pyannote-output mapping run without real pyannote.
+    """
     from podcast_scraper import config
     from podcast_scraper.providers.ml.diarization.factory import create_diarization_provider
+    from podcast_scraper.providers.ml.diarization.pyannote_provider import (
+        PyAnnoteDiarizationProvider,
+    )
+
+    # Mock the gated-model boundary: a fake pipeline whose pyannote-4.x DiarizeOutput
+    # carries a two-speaker Annotation. _load_waveform is mocked so no real audio is read.
+    mock_pipeline = MagicMock()
+    mock_create_pipeline.return_value = mock_pipeline
+    mock_load_waveform.return_value = (MagicMock(), 16000)
+    host_turn = MagicMock(start=0.0, end=2.0)
+    guest_turn = MagicMock(start=2.0, end=3.5)
+    mock_pipeline.return_value.speaker_diarization.itertracks.return_value = [
+        (host_turn, None, "SPEAKER_00"),
+        (guest_turn, None, "SPEAKER_01"),
+    ]
 
     cfg = config.Config(
         rss="https://example.com/feed.xml",
         transcription_provider="whisper",
         diarize=True,
+        hf_token="test-token",  # dummy: the real Pipeline.from_pretrained is mocked out
     )
-    # The suite runs with HF_HUB_OFFLINE=1 + sockets blocked, so the gated model must
-    # already be in the active HF cache (run ``make preload-ml-models`` with a token).
-    # Skip — don't fail — when it isn't, distinguishing "not provisioned" from a real
-    # diarization regression.
-    try:
-        provider = create_diarization_provider(cfg)
-        result = provider.diarize(str(_FIXTURE), min_speakers=1, max_speakers=5)
-    except Exception as exc:  # noqa: BLE001 - provisioning vs regression
-        haystack = f"{exc} {type(exc).__name__}".lower()
-        provisioning = (
-            "offlinemode",
-            "offline mode",
-            "gatedrepo",
-            "localentrynotfound",
-            "local cache",
-            "cannot reach",
-            "socketblocked",
-            "connection",
-        )
-        if any(k in haystack for k in provisioning):
-            pytest.skip(f"pyannote model not in offline cache (preload it): {type(exc).__name__}")
-        raise
 
-    assert result.segments, "pyannote returned no speaker turns"
-    # Two distinct TTS voices (Maya/Samantha + Liam/Daniel) -> at least two speakers.
-    assert (
-        result.num_speakers >= 2
-    ), f"expected >= 2 speakers for the host+guest fixture, got {result.num_speakers}"
-    # Turns should cover a meaningful span of the audio, not a single blip.
+    provider = create_diarization_provider(cfg)
+    assert isinstance(provider, PyAnnoteDiarizationProvider)
+
+    result = provider.diarize("/tmp/audio.wav", min_speakers=1, max_speakers=5)
+
+    # Two distinct mocked voices -> two mapped speakers, labels preserved, real span covered.
+    assert result.num_speakers == 2, f"expected 2 speakers, got {result.num_speakers}"
+    assert {seg.speaker for seg in result.segments} == {"SPEAKER_00", "SPEAKER_01"}
     covered = sum(seg.end - seg.start for seg in result.segments)
-    assert covered > 1.0, f"diarization covered only {covered:.2f}s of audio"
+    assert covered > 1.0, f"diarization covered only {covered:.2f}s"

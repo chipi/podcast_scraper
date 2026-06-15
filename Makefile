@@ -1451,10 +1451,12 @@ test-analytical:
 	@E2E_TEST_MODE=fast $(PYTHON) -m pytest tests/analytical/ -m "analytical" -v --disable-socket --allow-hosts=127.0.0.1,localhost --durations=10
 
 test-diarization: cleanup-processes
-	# Real-pyannote speaker-diarization tests (RFC-058). The gated pyannote models
-	# must be cached first (``make preload-ml-models`` with an HF token that has
-	# accepted the model terms); the tests skip when the model isn't in the cache.
-	# Selected by NO other target, so without this it never runs in CI/nightly.
+	# Speaker-diarization tests (RFC-058). Two tiers under the ``diarization`` marker:
+	#   - integration: factory + provider wiring with pyannote MOCKED (always runs, no token).
+	#   - e2e (tests/e2e/test_diarization_e2e.py): the REAL pyannote full flow — needs the
+	#     gated models cached (``make preload-ml-models`` with an HF token that accepted the
+	#     model terms) and skips when the model/token isn't available.
+	# The e2e tier is selected by NO other target, so without this it never runs in CI/nightly.
 	@echo "🎙️  Running pyannote diarization tests at $$(date '+%H:%M:%S')..."
 	$(PYTHON) -m pytest tests/ -m diarization -v --tb=short --allow-hosts=127.0.0.1,localhost
 
