@@ -9,6 +9,7 @@ import { useShellStore } from '../../stores/shell'
 import { useSubjectStore } from '../../stores/subject'
 import { graphNodeTypeChrome } from '../../utils/colors'
 import { formatCalendarDateForDisplay, truncate } from '../../utils/formatting'
+import { quoteAttributionDisplayFromId } from '../../utils/parsing'
 import {
   fetchTopicTimeline,
   fetchTopicTimelineMerged,
@@ -1088,7 +1089,8 @@ const transcriptSourceSection = computed(() => {
   const sp = p.speaker_id
   let speakerLine = ''
   if (typeof sp === 'string' && sp.trim()) {
-    speakerLine = sp.trim()
+    // Humanize the raw speaker id so the chip shows "Pushkin", not "person:pushkin" (#1011).
+    speakerLine = quoteAttributionDisplayFromId(sp.trim())
   } else if (typeof sp === 'number' && Number.isFinite(sp)) {
     speakerLine = String(sp)
   }

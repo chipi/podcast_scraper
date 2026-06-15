@@ -481,15 +481,15 @@ function onNlQuestionKeydown(e: KeyboardEvent): void {
                 type="button"
                 class="min-w-0 truncate rounded text-left text-surface-foreground hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
                 data-testid="explore-top-speaker-link"
-                :title="`Open Person panel for ${sp.name || sp.speaker_id}`"
+                :title="`Open Person panel for ${sp.name || quoteAttributionDisplayFromId(sp.speaker_id)}`"
                 @click="focusPersonFromSpeakerId(sp.speaker_id)"
               >
-                {{ sp.name || sp.speaker_id }}
+                {{ sp.name || quoteAttributionDisplayFromId(sp.speaker_id) }}
               </button>
               <span
                 v-else
                 class="min-w-0 truncate text-surface-foreground"
-              >{{ sp.name || sp.speaker_id }}</span>
+              >{{ sp.name || quoteAttributionDisplayFromId(sp.speaker_id) }}</span>
               <span class="shrink-0 text-muted">{{ sp.quote_count }} quotes · {{ sp.insight_count }} insights</span>
             </div>
           </div>
