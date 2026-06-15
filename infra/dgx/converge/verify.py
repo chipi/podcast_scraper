@@ -97,6 +97,23 @@ server.shell(
     ],
 )
 
+# 5a. #920 — assert the compose-level healthcheck is reporting healthy.
+# Distinct from "container is up" (above) and "API responds" (below) —
+# this catches the middle state where the container is up and the API
+# returns but the healthcheck has flagged repeated failures. ``starting``
+# is treated as a soft pass because the pre-warm step is generous; if
+# we're still ``starting`` after the assert above + the API curl below
+# succeed, the model is being loaded and we'll be ``healthy`` shortly.
+server.shell(
+    name="assert: faster-whisper compose healthcheck not in unhealthy state (#920)",
+    commands=[
+        "state=$(docker inspect --format '{{.State.Health.Status}}' "
+        "faster-whisper 2>/dev/null || echo none); "
+        'echo "healthcheck state: $state"; '
+        '[ "$state" = "healthy" ] || [ "$state" = "starting" ] || [ "$state" = "none" ]',
+    ],
+)
+
 # 6. Speaches API responsive on the loopback port. Provider client from laptop
 # reaches this via the tailnet ACL on tag:dgx-llm-host:8000; verify runs
 # locally on the DGX, so it hits 127.0.0.1.

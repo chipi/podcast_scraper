@@ -195,8 +195,86 @@ Fast disable without code: revert profile in `viewer_operator.yaml` and restart 
 
 ## Day-2 operations
 
-- Model updates: `ollama pull` on DGX; document tag changes in this file.
-- Logs: `journalctl -u ollama` / embedding shim service.
+### Speaches (faster-whisper) container — Docker-based install (#920)
+
+The DGX Whisper service runs as a Docker container deployed via
+`infra/dgx/converge/deploy.py`. **Not** a pip-into-venv install — the
+upstream `speaches-ai/speaches` ships Docker-only.
+
+| Operation | Command |
+| --- | --- |
+| Inspect status | `docker ps --filter name=^faster-whisper$` (use `docker inspect` for the healthcheck state — see below) |
+| Tail logs | `docker logs -f faster-whisper` |
+| Restart | `sudo docker compose -f /opt/faster-whisper/docker-compose.yml restart` |
+| Stop | `sudo docker compose -f /opt/faster-whisper/docker-compose.yml down` |
+| Redeploy after pinning a new image | `make dgx-deploy` from the laptop (idempotent; only recreates the container if config-hash or image digest changed) |
+
+The compose file at `/opt/faster-whisper/docker-compose.yml` is
+**auto-generated** by `deploy.py`. Don't edit it on the DGX — edits get
+overwritten on the next `make dgx-deploy`. Edit the template in
+`infra/dgx/converge/deploy.py` (specifically the `COMPOSE_CONTENT`
+block) and redeploy.
+
+#### Healthcheck (#920)
+
+The compose file now ships a `healthcheck:` block that curls
+`http://127.0.0.1:8000/v1/models` every 30s. `docker ps` shows
+"healthy" / "unhealthy" / "starting" in the STATUS column. To inspect the
+last few healthcheck attempts:
+
+```bash
+docker inspect --format '{{json .State.Health}}' faster-whisper | jq
+```
+
+`start_period: 600s` — the first 10 minutes after `compose up` are
+grace, because cold-start with a fresh model download can take that
+long. On a warm DGX (model already in the HF cache) the healthcheck
+should flip to "healthy" within ~30s.
+
+#### Model pre-warm (#920)
+
+`make dgx-deploy` runs a pre-warm step automatically: after
+`docker compose up -d`, it waits for `/v1/models` to respond, then
+imports `faster_whisper.WhisperModel` inside the container with the
+production model + compute type. This pulls the model into the shared
+HF cache at `/opt/llm-models/huggingface` (one-time per host) and
+confirms the GB10 + int8 path works end-to-end.
+
+If pre-warm fails the deploy continues — the warning is logged via
+`::warning::` and the first real `/v1/audio/transcriptions` call will
+do the download instead. Check `docker logs faster-whisper` for
+specifics.
+
+#### Upgrading the Speaches image
+
+Don't edit `:latest-cuda` — we don't use that floating tag anymore. The
+image is **pinned** in `deploy.py` (`BASE_IMAGE = "ghcr.io/speaches-ai/speaches:vX.Y.Z-cuda"`).
+To bump:
+
+1. Drop a markdown entry under
+   `infra/dgx/speaches/decisions/YYYY-MM-DD-image-pin-vX.Y.Z.md`
+   following the existing template — capture why the new version, any
+   bench numbers, what compute type / model assumptions still hold.
+2. Edit `infra/dgx/converge/deploy.py`'s `BASE_IMAGE` to the new tag.
+3. `make dgx-deploy` from the laptop. The pre-warm step + healthcheck
+   surface any breakage at the model-loading layer immediately.
+4. Rollback: revert the `deploy.py` edit and re-run `make dgx-deploy`.
+
+The decisions/ directory is the durable record. Don't rely on commit
+messages for "what version were we on in June" — that loses signal as
+the tree grows.
+
+#### Port-sharing reality
+
+`:8000` is Speaches only. Ollama (`:11434`), pyannote (`:8001`),
+autoresearch vLLM (`:8003`), and coder-next vLLM (`:9000`) all bind
+separate ports. No conflicts within this stack.
+
+### Ollama / vLLM / pyannote
+
+- Model updates (Ollama): `ollama pull` on DGX; document tag changes in this file.
+- Logs (Ollama): `journalctl -u ollama` / embedding shim service.
+- Logs (vLLM / pyannote / Speaches): `docker logs -f <container>` per the patterns above.
 - GPU: `nvidia-smi` over SSH.
 - Embedding determinism: GPU indexes are not byte-identical to CPU; compare top-K overlap only.
 
