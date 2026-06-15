@@ -392,6 +392,13 @@ class TestRSSToMetadataWorkflowML(_ComponentWorkflowBase):
             transcribe_missing=True,
             whisper_model=config.TEST_DEFAULT_WHISPER_MODEL,
             auto_speakers=True,
+            # Real pyannote diarization is gated (HF token) + minutes-long, so it does not
+            # belong in this critical_path fast lane (CRITICAL_PATH guide: fast lane = small
+            # cached models, seconds — not minutes). The dedicated pyannote-gated test lives in
+            # tests/e2e/test_diarization_e2e.py. With diarization off, the self-intro
+            # name-mapping still names the voice deterministically (no pyannote needed), so the
+            # #876 content.speakers↔named-roster contract below stays exact and fast.
+            diarize=False,
             screenplay=True,
             screenplay_num_speakers=3,
             generate_metadata=True,
@@ -505,17 +512,13 @@ class TestRSSToMetadataWorkflowML(_ComponentWorkflowBase):
                     speakers = data["content"]["speakers"]
                     self.assertIsInstance(speakers, list)
                     guest_speakers = [s for s in speakers if s.get("role") == "guest"]
-                    # #876: content.speakers reflects the diarized roster (the named voices in
-                    # the audio's segments), not the RSS-detected hosts — the fixture audio
-                    # self-introduces a different name than the RSS author. Assert the roster
-                    # matches the distinct *named* speaker_labels in the segments sidecar.
+                    # #876 invariant: content.speakers == the named roster in the segments
+                    # sidecar (the audio's self-introduced voice), not the RSS author. With
+                    # diarization off this is sourced from self-intro name-mapping — deterministic
+                    # and pyannote-free, so assert it unconditionally.
                     named_voices = _named_voices_from_segments(self.temp_dir, transcript_file_path)
-                    # #876 invariant: content.speakers == the named diarized roster. Only
-                    # checkable when diarization actually named a voice — CI's fast lane without
-                    # the gated pyannote model degrades to raw SPEAKER_xx (the dedicated
-                    # diarization tests cover the model). Holds wherever pyannote runs.
-                    if named_voices:
-                        self.assertEqual({s["name"] for s in speakers}, named_voices)
+                    self.assertTrue(named_voices, "self-intro should name at least one voice")
+                    self.assertEqual({s["name"] for s in speakers}, named_voices)
                     self.assertIsInstance(guest_speakers, list)
                 finally:
                     if hasattr(transcription_provider, "cleanup"):
@@ -572,6 +575,10 @@ class TestRSSToMetadataWorkflowML(_ComponentWorkflowBase):
             transcribe_missing=True,
             whisper_model=config.TEST_DEFAULT_WHISPER_MODEL,
             auto_speakers=True,
+            # Diarization off: real pyannote is gated + slow → nightly/full suite
+            # (tests/e2e/test_diarization_e2e.py). Self-intro name-mapping still names the
+            # voice deterministically, keeping the #876 roster assertion exact and fast.
+            diarize=False,
             generate_summaries=True,
             generate_metadata=True,
             metadata_format="json",
@@ -701,18 +708,14 @@ class TestRSSToMetadataWorkflowML(_ComponentWorkflowBase):
                         speakers = data["content"]["speakers"]
                         self.assertIsInstance(speakers, list)
                         guest_speakers = [s for s in speakers if s.get("role") == "guest"]
-                        # #876: content.speakers reflects the diarized roster (named voices in the
-                        # audio's segments), not the RSS-detected hosts — the fixture audio
-                        # self-introduces a name that differs from the RSS author.
+                        # #876 invariant: content.speakers == the named roster in the segments
+                        # sidecar (the audio's self-introduced voice). Diarization off → sourced
+                        # from self-intro name-mapping, deterministic and pyannote-free.
                         named_voices = _named_voices_from_segments(
                             self.temp_dir, transcript_file_path
                         )
-                        # #876 invariant: content.speakers == the named diarized roster. Only
-                        # checkable when diarization named a voice — CI's fast lane without the
-                        # gated pyannote model degrades to raw SPEAKER_xx. Holds wherever
-                        # pyannote runs (local / nightly / provisioned CI).
-                        if named_voices:
-                            self.assertEqual({s["name"] for s in speakers}, named_voices)
+                        self.assertTrue(named_voices, "self-intro should name at least one voice")
+                        self.assertEqual({s["name"] for s in speakers}, named_voices)
                         self.assertIsInstance(guest_speakers, list)
 
                         self.assertIn("summary", data)
