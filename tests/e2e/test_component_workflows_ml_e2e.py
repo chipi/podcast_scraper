@@ -67,6 +67,29 @@ from ml_model_cache_helpers import (  # noqa: E402
 )
 
 
+def _named_voices_from_segments(output_dir: str, transcript_file_path: str) -> set[str]:
+    """Distinct *named* voices (non-``SPEAKER_xx``) in the transcript's segments sidecar.
+
+    Mirrors how ``_build_speakers_from_diarized_segments`` (#876) sources ``content.speakers``:
+    prefer the ad-free segments, fall back to the raw sidecar. The fixture audio self-introduces
+    a name that need not match the RSS metadata, so this is the source of truth for the roster.
+    """
+    base = os.path.splitext(os.path.join(output_dir, transcript_file_path))[0]
+    for seg_path in (f"{base}.adfree.segments.json", f"{base}.segments.json"):
+        if os.path.isfile(seg_path):
+            with open(seg_path, encoding="utf-8") as fh:
+                segs = json.load(fh)
+            names: set[str] = set()
+            for s in segs:
+                if not isinstance(s, dict):
+                    continue
+                label = str(s.get("speaker_label") or "").strip()
+                if label and not label.lower().startswith("speaker"):
+                    names.add(label)
+            return names
+    return set()
+
+
 class _ComponentWorkflowBase(unittest.TestCase):
     """Shared setUp/tearDown and helpers for component workflow E2E tests."""
 
@@ -481,9 +504,14 @@ class TestRSSToMetadataWorkflowML(_ComponentWorkflowBase):
                     self.assertIn("speakers", data["content"])
                     speakers = data["content"]["speakers"]
                     self.assertIsInstance(speakers, list)
-                    host_speakers = [s for s in speakers if s.get("role") == "host"]
                     guest_speakers = [s for s in speakers if s.get("role") == "guest"]
-                    self.assertEqual(len(host_speakers), len(detected_hosts))
+                    # #876: content.speakers reflects the diarized roster (the named voices in
+                    # the audio's segments), not the RSS-detected hosts — the fixture audio
+                    # self-introduces a different name than the RSS author. Assert the roster
+                    # matches the distinct *named* speaker_labels in the segments sidecar.
+                    named_voices = _named_voices_from_segments(self.temp_dir, transcript_file_path)
+                    self.assertTrue(named_voices, "segments should carry at least one named voice")
+                    self.assertEqual({s["name"] for s in speakers}, named_voices)
                     self.assertIsInstance(guest_speakers, list)
                 finally:
                     if hasattr(transcription_provider, "cleanup"):
@@ -668,9 +696,15 @@ class TestRSSToMetadataWorkflowML(_ComponentWorkflowBase):
                         self.assertIn("speakers", data["content"])
                         speakers = data["content"]["speakers"]
                         self.assertIsInstance(speakers, list)
-                        host_speakers = [s for s in speakers if s.get("role") == "host"]
                         guest_speakers = [s for s in speakers if s.get("role") == "guest"]
-                        self.assertEqual(len(host_speakers), len(detected_hosts))
+                        # #876: content.speakers reflects the diarized roster (named voices in the
+                        # audio's segments), not the RSS-detected hosts — the fixture audio
+                        # self-introduces a name that differs from the RSS author.
+                        named_voices = _named_voices_from_segments(
+                            self.temp_dir, transcript_file_path
+                        )
+                        self.assertTrue(named_voices, "segments should carry a named voice")
+                        self.assertEqual({s["name"] for s in speakers}, named_voices)
                         self.assertIsInstance(guest_speakers, list)
 
                         self.assertIn("summary", data)
