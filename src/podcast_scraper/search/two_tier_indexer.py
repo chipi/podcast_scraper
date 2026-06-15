@@ -39,6 +39,12 @@ logger = logging.getLogger(__name__)
 DEFAULT_MODEL = "sentence-transformers/all-MiniLM-L6-v2"
 DEFAULT_TARGET_TOKENS = 256
 DEFAULT_OVERLAP_TOKENS = 32
+# Rows accumulated (across episodes) before a tier is flushed in one merge_insert.
+# Each flush = one LanceDB transaction (data file + version), so this trades peak
+# memory for fewer fragments: ~total_rows/batch transactions per tier instead of
+# one-per-document. 512 keeps buffers small (<~1MB/tier at 384-dim) while collapsing
+# a 99-episode corpus's thousands of docs into tens of transactions.
+DEFAULT_UPSERT_BATCH_SIZE = 512
 
 # Non-tiered corpus surfaces indexed into the aux tier for full coverage.
 _AUX_DOC_TYPES = frozenset({"kg_entity", "kg_topic", "quote", "summary"})
@@ -141,6 +147,7 @@ def build_two_tier_index(
     limit_episodes: Optional[int] = None,
     allow_download: bool = False,
     drop_existing: bool = False,
+    upsert_batch_size: int = DEFAULT_UPSERT_BATCH_SIZE,
 ) -> TwoTierIndexStats:
     """Build the two-tier LanceDB index at *lance_path* from the corpus at *corpus_dir*.
 
@@ -178,6 +185,29 @@ def build_two_tier_index(
         if backend is None:
             backend = LanceDBBackend(str(lance_path), embed_dim=embed_dim or vec_len)
         return backend
+
+    # Cross-episode upsert buffers: docs accumulate here and flush in one transaction
+    # per tier once a buffer reaches ``upsert_batch_size`` (and once more at the end),
+    # so transaction count scales with total_rows/batch, not with document count.
+    seg_buf: List[SegmentDocument] = []
+    ins_buf: List[InsightDocument] = []
+    aux_buf: List[AuxDocument] = []
+    batch = max(1, int(upsert_batch_size))
+
+    def _flush_segments() -> None:
+        if seg_buf:
+            _ensure_backend(len(seg_buf[0].embedding)).upsert_segments(seg_buf)
+            seg_buf.clear()
+
+    def _flush_insights() -> None:
+        if ins_buf:
+            _ensure_backend(len(ins_buf[0].embedding)).upsert_insights(ins_buf)
+            ins_buf.clear()
+
+    def _flush_auxes() -> None:
+        if aux_buf:
+            _ensure_backend(len(aux_buf[0].embedding)).upsert_auxes(aux_buf)
+            aux_buf.clear()
 
     for meta_path in discover_metadata_files(out):
         if limit_episodes is not None and stats.episodes >= limit_episodes:
@@ -271,22 +301,30 @@ def build_two_tier_index(
                 ins.source_segment_id = mapping[ins.id]
         stats.linked += len(mapping)
 
-        # Batch the upserts per tier per episode (one merge_insert transaction each)
-        # instead of one-per-document — keeps the index from fragmenting as it builds.
-        if seg_docs:
-            _ensure_backend(len(seg_docs[0].embedding)).upsert_segments(seg_docs)
-            stats.segments += len(seg_docs)
-        if ins_docs:
-            _ensure_backend(len(ins_docs[0].embedding)).upsert_insights(ins_docs)
-            stats.insights += len(ins_docs)
-        if aux_docs:
-            _ensure_backend(len(aux_docs[0].embedding)).upsert_auxes(aux_docs)
-            stats.aux += len(aux_docs)
+        # Accumulate into cross-episode buffers; flush a tier in one transaction once it
+        # reaches the batch size. Counts reflect rows buffered (all get flushed below).
+        seg_buf.extend(seg_docs)
+        stats.segments += len(seg_docs)
+        ins_buf.extend(ins_docs)
+        stats.insights += len(ins_docs)
+        aux_buf.extend(aux_docs)
+        stats.aux += len(aux_docs)
+        if len(seg_buf) >= batch:
+            _flush_segments()
+        if len(ins_buf) >= batch:
+            _flush_insights()
+        if len(aux_buf) >= batch:
+            _flush_auxes()
+
+    # Final flush of any partial buffers.
+    _flush_segments()
+    _flush_insights()
+    _flush_auxes()
 
     if backend is not None:
         backend.write_index_meta(model_id)  # query path must embed in the same space
         backend.create_indices()
-        # Reclaim the per-document-upsert fragments + superseded versions this build
-        # created, so the index stays bounded across full AND incremental reindexes.
+        # Reclaim the fragments + superseded versions this build created, so the index
+        # stays bounded across full AND incremental reindexes.
         backend.compact()
     return stats

@@ -268,6 +268,37 @@ def test_repeated_reindex_stays_bounded_via_compaction(tmp_path, monkeypatch):
     assert health["insights"] == 1 and health["segments"] == 1
 
 
+def test_configurable_batch_size_flushes_in_chunks(tmp_path, monkeypatch):
+    """A small ``upsert_batch_size`` flushes mid-build, but every row still lands."""
+    rows = [
+        (
+            f"insight:{i}",
+            f"insight {i} on monetary policy",
+            {"doc_type": "insight", "episode_id": "ep1"},
+        )
+        for i in range(5)
+    ] + [
+        (
+            f"chunk:{i}",
+            f"transcript chunk {i}: markets moved on the policy signal",
+            {"doc_type": "transcript", "episode_id": "ep1"},
+        )
+        for i in range(5)
+    ]
+    _stub_extraction(monkeypatch, tmp_path, rows)
+    corpus = tmp_path / "corpus"
+    (corpus / "metadata").mkdir(parents=True)
+    lance = corpus / "search" / "lance_index"
+
+    # batch_size=2 over 5 rows/tier → multiple flushes + a final partial flush.
+    stats = tti.build_two_tier_index(corpus, lance, upsert_batch_size=2)
+    assert stats.insights == 5 and stats.segments == 5
+
+    backend = LanceDBBackend(str(lance))
+    health = backend.health()
+    assert health["insights"] == 5 and health["segments"] == 5  # nothing dropped across flushes
+
+
 def test_drop_existing_clears_before_full_reindex(tmp_path, monkeypatch):
     """``drop_existing=True`` wipes the prior index so a full reindex starts clean."""
     corpus = tmp_path / "corpus"

@@ -1364,6 +1364,12 @@ def parse_index_two_tier_argv(argv: Sequence[str]) -> Namespace:
     parser.add_argument(
         "--allow-download", action="store_true", help="Allow embedding-model download."
     )
+    parser.add_argument(
+        "--upsert-batch-size",
+        type=int,
+        default=None,
+        help="Rows buffered per tier before one merge_insert flush (default: indexer's).",
+    )
     args = parser.parse_args(list(argv))
     args.command = "index-two-tier"
     return args
@@ -1376,7 +1382,11 @@ def run_index_two_tier_cli(args: Namespace, logger: logging.Logger) -> int:
         logger.error("index-two-tier: --output-dir is required")
         return EXIT_INVALID_ARGS
 
-    from podcast_scraper.search.two_tier_indexer import build_two_tier_index, DEFAULT_MODEL
+    from podcast_scraper.search.two_tier_indexer import (
+        build_two_tier_index,
+        DEFAULT_MODEL,
+        DEFAULT_UPSERT_BATCH_SIZE,
+    )
 
     lance_path = getattr(args, "lance_path", None) or str(
         Path(output_dir) / "search" / "lance_index"
@@ -1391,6 +1401,7 @@ def run_index_two_tier_cli(args: Namespace, logger: logging.Logger) -> int:
         # ``index-two-tier`` is a full reindex: start from a clean slate so per-document
         # upsert fragments can't accumulate across runs (the build compacts at the end).
         drop_existing=True,
+        upsert_batch_size=getattr(args, "upsert_batch_size", None) or DEFAULT_UPSERT_BATCH_SIZE,
     )
     print(
         f"Two-tier index built at {lance_path}: episodes={stats.episodes} "
