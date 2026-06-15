@@ -27,9 +27,9 @@ from ... import config
 from ...transcription.base import TranscriptionProvider
 from ...transcription.factory import create_transcription_provider
 from ...utils.log_redaction import format_exception_for_log
-from . import resilience
+from .. import guardrails, resilience
+from ..resilience import CircuitBreaker, hardened_http_client, TimeoutLike
 from .health import check_faster_whisper_health, dgx_whisper_base_url
-from .resilience import CircuitBreaker, dgx_http_client, TimeoutLike
 from .telemetry import emit_dgx_fallback_breadcrumb
 
 logger = logging.getLogger(__name__)
@@ -199,7 +199,7 @@ class TailnetDgxWhisperTranscriptionProvider:
                             format_exception_for_log(exc),
                         )
                         break
-                    except resilience.GuardrailViolation as exc:
+                    except guardrails.GuardrailViolation as exc:
                         # DGX returned a successful HTTP response but the content
                         # failed the structural sanity check (ADR-099, #999) —
                         # e.g. WER=1.0 garbage transcript under GPU contention.
@@ -291,7 +291,7 @@ class TailnetDgxWhisperTranscriptionProvider:
             }
             if language:
                 data["language"] = language
-            with dgx_http_client(timeout_sec or self._timeout_sec) as client:
+            with hardened_http_client(timeout_sec or self._timeout_sec) as client:
                 resp = client.post(url, data=data, files=files)
         resp.raise_for_status()
         payload = resp.json()
@@ -303,7 +303,7 @@ class TailnetDgxWhisperTranscriptionProvider:
         # caller treats as a sibling of TimeoutLike (DGX fails, breaker counts,
         # cloud fallback fires).
         audio_duration_sec = resilience.probe_audio_duration_sec(audio_path)
-        resilience.check_whisper_response(text, audio_duration_sec=audio_duration_sec)
+        guardrails.check_whisper_response(text, audio_duration_sec=audio_duration_sec)
         duration = float(time.perf_counter() - started)
         segments: list[dict[str, object]] = []
         if isinstance(payload.get("segments"), list):

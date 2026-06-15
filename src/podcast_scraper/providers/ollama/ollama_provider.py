@@ -55,7 +55,7 @@ from ...utils.log_redaction import format_exception_for_log
 from ...utils.provider_metadata import warn_if_truncated
 from ...utils.timeout_config import get_http_timeout
 from ...workflow import metrics
-from ..tailnet_dgx import resilience as _dgx_resilience
+from .. import guardrails as _guardrails
 
 logger = logging.getLogger(__name__)
 
@@ -1120,7 +1120,7 @@ class OllamaProvider:
             # Raises GuardrailViolation which the caller's existing exception
             # handler treats as a failed Ollama call (falls back per the
             # configured degradation_policy.fallback_provider_on_failure).
-            _dgx_resilience.check_ollama_response(summary)
+            _guardrails.check_chat_response(summary, service="ollama")
 
             logger.debug(
                 "Ollama summarization completed: %d characters",
@@ -1311,7 +1311,7 @@ class OllamaProvider:
         # OR thinking-prose markers. Replaces the narrower "if not raw"
         # check that was here before; same effect plus thinking-prose
         # detection for the qwen3.5 budget-trap case.
-        _dgx_resilience.check_ollama_response(raw)
+        _guardrails.check_chat_response(raw, service="ollama")
 
         try:
             data = json.loads(raw, strict=False)
@@ -1556,7 +1556,7 @@ class OllamaProvider:
             # is intentionally allowed above — cleaning stage gracefully degrades
             # to the original text. By this point ``cleaned`` is non-empty so the
             # empty-check inside check_ollama_response won't false-fire.
-            _dgx_resilience.check_ollama_response(cleaned)
+            _guardrails.check_chat_response(cleaned, service="ollama")
 
             logger.debug("Ollama cleaning completed: %d -> %d chars", len(text), len(cleaned))
             return cast(str, cleaned)
@@ -1629,7 +1629,7 @@ class OllamaProvider:
             # empty content or thinking-prose markers should fail the call rather
             # than silently parse into zero insights. The caller's existing
             # exception handler treats this as a failed Ollama call.
-            _dgx_resilience.check_ollama_response(content)
+            _guardrails.check_chat_response(content, service="ollama")
             lines = [
                 line.strip()
                 for line in content.splitlines()

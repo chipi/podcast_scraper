@@ -271,7 +271,7 @@ def test_guardrail_fires_on_empty_dgx_response(mock_client_cls: MagicMock, tmp_p
     mock_client_cls.return_value = mock_client
 
     provider = TailnetDgxWhisperTranscriptionProvider(_dgx_cfg())
-    with pytest.raises(wp.resilience.GuardrailViolation) as exc_info:
+    with pytest.raises(wp.guardrails.GuardrailViolation) as exc_info:
         provider._transcribe_dgx(str(audio), "en")
     assert exc_info.value.service == "whisper"
     assert exc_info.value.reason == "empty_response"

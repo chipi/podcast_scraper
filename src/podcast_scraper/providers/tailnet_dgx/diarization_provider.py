@@ -47,9 +47,9 @@ from ...providers.ml.diarization.base import (
     DiarizationSegment,
 )
 from ...utils.log_redaction import format_exception_for_log
-from . import resilience
+from .. import guardrails, resilience
+from ..resilience import CircuitBreaker, hardened_http_client, TimeoutLike
 from .health import check_pyannote_diarize_health, dgx_diarize_base_url
-from .resilience import CircuitBreaker, dgx_http_client, TimeoutLike
 from .telemetry import emit_dgx_fallback_breadcrumb
 
 logger = logging.getLogger(__name__)
@@ -180,7 +180,7 @@ class TailnetDgxDiarizationProvider:
                         format_exception_for_log(exc),
                     )
                     break
-                except resilience.GuardrailViolation as exc:
+                except guardrails.GuardrailViolation as exc:
                     # DGX returned a successful HTTP response but the content
                     # failed the structural sanity check (ADR-099, #999). Retry
                     # would likely return the same shape; fall back to local
@@ -298,7 +298,7 @@ class TailnetDgxDiarizationProvider:
             }
             if num_speakers is not None:
                 data["num_speakers"] = str(num_speakers)
-            with dgx_http_client(timeout) as client:
+            with hardened_http_client(timeout) as client:
                 resp = client.post(url, data=data, files=files)
         resp.raise_for_status()
         payload = resp.json()
@@ -320,7 +320,7 @@ class TailnetDgxDiarizationProvider:
         # counts, in-process pyannote fallback fires). Preventive — no observed
         # cases of this failure mode in production yet.
         audio_duration_sec = resilience.probe_audio_duration_sec(audio_path)
-        resilience.check_pyannote_response(segments, audio_duration_sec=audio_duration_sec)
+        guardrails.check_pyannote_response(segments, audio_duration_sec=audio_duration_sec)
         return DiarizationResult(
             segments=segments,
             num_speakers=int(payload.get("num_speakers") or len({s.speaker for s in segments})),
