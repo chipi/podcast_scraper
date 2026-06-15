@@ -13,9 +13,13 @@ profile: cloud_thin
 
 transcription_provider: openai
 openai_transcription_model: whisper-1
-# #913: diarization (pyannote pass + named screenplay) is available on this openai
-# path but opt-in (off by default) — set `diarize: true` to enable (needs an HF
-# token; see cloud_balanced note).
+# Diarization is a core pipeline stage (#913 follow-up, 2026-06-15). Cloud
+# profiles route to Deepgram for the diarize pass — independent API call,
+# no [ml]/HF_TOKEN install on the pipeline host. Cost: ~$0.004/min for the
+# diarize call on top of OpenAI Whisper ($0.006/min) for transcription.
+diarize: true
+diarization_provider: deepgram
+screenplay: true
 
 audio_preprocessing_profile: speech_optimal_v1
 

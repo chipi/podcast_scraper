@@ -89,8 +89,35 @@ def test_openai_explicit_screenplay_survives():
         ("mistral", "mistral_api_key", "m-test"),
     ],
 )
-def test_plaintext_cloud_providers_still_coerced_off(provider, key_field, key):
-    """Gemini / Mistral emit plain text (no segments) → diarize stays coerced off."""
+def test_plaintext_cloud_providers_raise_on_explicit_diarize_true(
+    provider, key_field, key, monkeypatch
+):
+    """Gemini / Mistral emit plain text (no segments). diarize=true here is a
+    misconfig → strict-mode raises (2026-06-15 diarize-everywhere change)."""
+    monkeypatch.delenv("PODCAST_SCRAPER_DIARIZE_LAX", raising=False)
+    with pytest.raises(ValueError, match=r"diarize=true"):
+        Config.model_validate(
+            {
+                "rss_url": "https://example.com/feed.xml",
+                "transcription_provider": provider,
+                key_field: key,
+                "diarize": True,
+            }
+        )
+    assert provider not in _DIARIZATION_ELIGIBLE_TRANSCRIPTION_PROVIDERS
+
+
+@pytest.mark.parametrize(
+    "provider,key_field,key",
+    [
+        ("gemini", "gemini_api_key", "g-test"),
+        ("mistral", "mistral_api_key", "m-test"),
+    ],
+)
+def test_plaintext_cloud_providers_coerce_with_lax_env(provider, key_field, key, monkeypatch):
+    """Escape hatch ``PODCAST_SCRAPER_DIARIZE_LAX=1`` restores the
+    pre-2026-06-15 silent-coerce behavior for CI / migration runs."""
+    monkeypatch.setenv("PODCAST_SCRAPER_DIARIZE_LAX", "1")
     cfg = Config.model_validate(
         {
             "rss_url": "https://example.com/feed.xml",
@@ -100,4 +127,3 @@ def test_plaintext_cloud_providers_still_coerced_off(provider, key_field, key):
         }
     )
     assert cfg.diarize is False
-    assert provider not in _DIARIZATION_ELIGIBLE_TRANSCRIPTION_PROVIDERS

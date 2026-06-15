@@ -31,13 +31,15 @@ profile: cloud_quality
 #     --rss <feed_url> --output-dir <output>
 
 # Transcription — Deepgram nova-3 for the quality tier: native, server-side
-# speaker diarization that the local-Whisper path can't produce without a second
-# pyannote pass. `screenplay: true` renders Deepgram's utterance-level speaker
-# labels as a named screenplay (for deepgram, the pyannote `diarize` pass is
-# coerced off while screenplay is kept — see #597 / audit D1). Requires
-# DEEPGRAM_API_KEY (or deepgram_api_key). Aligned with "quality > cost".
+# speaker diarization, no separate pyannote pass needed. Diarization is a
+# core pipeline stage (#913 follow-up, 2026-06-15): we now route the
+# diarize stage explicitly to Deepgram too. With both stages on Deepgram,
+# a future "reuse transcription response" optimization can collapse to a
+# single API call; today the wiring is intentionally simple (two calls).
 transcription_provider: deepgram
 deepgram_model: nova-3
+diarize: true
+diarization_provider: deepgram
 screenplay: true
 
 # Audio preprocessing — named preset (#634 Scope 1).

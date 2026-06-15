@@ -245,8 +245,12 @@ class TestDeepgramScreenplay:
 
 
 class TestDeepgramConfigCoercion:
-    def test_deepgram_keeps_screenplay_but_drops_pyannote_diarize(self) -> None:
-        """Native-diarization provider keeps screenplay; the pyannote pass is coerced off (D1)."""
+    def test_deepgram_diarize_true_uses_deepgram_as_diarization_provider(self) -> None:
+        """Diarize-everywhere change (2026-06-15): ``deepgram`` is now a valid
+        ``diarization_provider``, and pairing it with the transcription
+        provider is the natural default. The old behavior coerced
+        ``diarize: false`` to skip the pyannote pass; the new behavior keeps
+        ``diarize: true`` and auto-selects ``diarization_provider: deepgram``."""
         config.reset_diarize_coerce_log_for_tests()
         config.reset_screenplay_transcription_api_coerce_log_for_tests()
         cfg = config.Config(
@@ -257,7 +261,8 @@ class TestDeepgramConfigCoercion:
             diarize=True,
         )
         assert cfg.screenplay is True
-        assert cfg.diarize is False
+        assert cfg.diarize is True
+        assert cfg.diarization_provider == "deepgram"
 
 
 class TestDeepgramConfigValidation:
