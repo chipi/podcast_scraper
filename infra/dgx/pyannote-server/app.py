@@ -46,6 +46,36 @@ logging.basicConfig(
     format="%(asctime)s %(levelname)s %(name)s: %(message)s",
 )
 
+# Sentry SDK (#942) — DGX-side errors that the client-side dgx_fallback
+# breadcrumb can't see (compat bugs at startup, in-handler exceptions
+# that turn into 500s before the fallback path triggers).
+# No-op when SENTRY_DSN is unset so dev/local runs aren't affected.
+_SENTRY_DSN = os.environ.get("SENTRY_DSN", "").strip()
+if _SENTRY_DSN:
+    import sentry_sdk
+
+    sentry_sdk.init(
+        dsn=_SENTRY_DSN,
+        # Keep traces sample low — Sentry free tier is 10k transactions/mo,
+        # we have ~5 services × ~1k requests/day = 150k/mo of raw traffic;
+        # 0.01 keeps us well under budget while still surfacing slow paths.
+        traces_sample_rate=float(os.environ.get("SENTRY_TRACES_SAMPLE_RATE", "0.01")),
+        environment=os.environ.get("SENTRY_ENVIRONMENT", "dgx-prod"),
+        server_name=os.environ.get("SENTRY_SERVER_NAME", "dgx-llm-1.tail6d0ed4.ts.net"),
+        release=os.environ.get("SERVICE_VERSION", "dev"),
+        # Drop expected 503s (model still loading at boot) — they're
+        # health-check noise, not real errors. Anything else propagates.
+        before_send=lambda event, hint: (
+            None if "pyannote pipeline not yet loaded" in str(event.get("message", "")) else event
+        ),
+    )
+    sentry_sdk.set_tag("service", "pyannote-server")
+    sentry_sdk.set_tag("dgx_host", os.environ.get("DGX_HOST_TAG", "spark-2c14"))
+    sentry_sdk.set_tag("gpu", "GB10")
+    logger.info("Sentry SDK initialized for pyannote-server")
+else:
+    logger.info("SENTRY_DSN not set — running without Sentry integration")
+
 
 _PIPELINE: Any = None
 _MODEL_NAME = os.environ.get("PYANNOTE_MODEL", "pyannote/speaker-diarization-3.1")
@@ -139,6 +169,30 @@ app = FastAPI(
     version="0.1.0",
     lifespan=lifespan,
 )
+
+# Prometheus instrumentation (#943) — request rate / latency histo /
+# status codes at /metrics. The cardinality-control concern: don't
+# include high-cardinality URL params (we don't have any here — paths
+# are static), and don't expose default-collector metrics on `name`/
+# `handler` labels beyond the route name (Instrumentator already groups
+# /v1/diarize as one bucket, which is what we want).
+try:
+    from prometheus_fastapi_instrumentator import Instrumentator
+
+    Instrumentator(
+        should_group_status_codes=True,
+        should_ignore_untemplated=True,
+        should_respect_env_var=False,
+        # excluded_handlers: don't trace the metrics endpoint itself —
+        # otherwise every scrape shows up in the histogram and skews p95.
+        excluded_handlers=["/metrics"],
+    ).instrument(app).expose(app, include_in_schema=False, tags=["observability"])
+    logger.info("Prometheus instrumentation enabled at /metrics")
+except ImportError:
+    logger.warning(
+        "prometheus_fastapi_instrumentator not installed — /metrics endpoint disabled. "
+        "Add to requirements/Dockerfile to enable scrape."
+    )
 
 
 @app.get("/health")

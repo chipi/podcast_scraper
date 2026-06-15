@@ -1,0 +1,96 @@
+# DGX observability stack (#943): NVIDIA DCGM + node-exporter + cAdvisor.
+#
+# All three run as long-lived sidecars and expose /metrics on the host
+# network so the pipeline VPS's grafana-agent can scrape them over Tailnet.
+#
+# Ports surfaced (must also be open in tailscale/policy.hujson for
+# tag:dgx-llm-host):
+#   :9100 — node-exporter (host CPU/mem/disk/net)
+#   :9400 — DCGM exporter  (per-GPU util/mem/temp/power/SM)
+#   :8080 — cAdvisor       (per-container resource use)
+#
+# Cardinality discipline (the Grafana Cloud free tier caps at 10k active
+# series; sizing comment in docs/guides/DGX_RUNBOOK.md § DGX observability):
+#   * cAdvisor scrape side: metric_relabel_configs in
+#     compose/grafana-agent.yaml drop container_id / id / pod / namespace
+#     labels and keep only ~10 metric names per container — that holds the
+#     total at ~175 active series for the whole DGX side.
+#   * DCGM exporter: the default field set is sized for one GB10; OK as-is.
+#   * node-exporter: default collectors enabled; ~30 series is fine.
+#
+# Built / shipped by pyinfra (see infra/dgx/converge/deploy.py — drops
+# this compose file to /opt/observability/docker-compose.yml then
+# `docker compose up -d`).
+
+services:
+  dcgm-exporter:
+    image: nvcr.io/nvidia/k8s/dcgm-exporter:3.3.7-3.5.0-ubuntu22.04
+    container_name: dcgm-exporter
+    restart: unless-stopped
+    runtime: nvidia
+    cap_add:
+      - SYS_ADMIN
+    environment:
+      - NVIDIA_VISIBLE_DEVICES=all
+      - NVIDIA_DRIVER_CAPABILITIES=compute,utility
+      # Default metric set — sized for one GB10; ~15 series.
+      - DCGM_EXPORTER_LISTEN=:9400
+    ports:
+      - "9400:9400"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:9400/metrics > /dev/null"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+  node-exporter:
+    image: quay.io/prometheus/node-exporter:v1.8.2
+    container_name: node-exporter
+    restart: unless-stopped
+    pid: host
+    network_mode: host
+    volumes:
+      - /:/host:ro,rslave
+    command:
+      - --path.rootfs=/host
+      # Exclude k8s/docker tmpfs noise from filesystem metrics.
+      - --collector.filesystem.mount-points-exclude=^/(sys|proc|dev|host|etc|rootfs/var/lib/docker)($$|/)
+      - --collector.filesystem.fs-types-exclude=^(autofs|binfmt_misc|bpf|cgroup2?|configfs|debugfs|devpts|devtmpfs|fusectl|hugetlbfs|iso9660|mqueue|nsfs|overlay|proc|procfs|pstore|rpc_pipefs|securityfs|selinuxfs|squashfs|sysfs|tracefs)$$
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:9100/metrics > /dev/null"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+  cadvisor:
+    image: gcr.io/cadvisor/cadvisor:v0.50.0
+    container_name: cadvisor
+    restart: unless-stopped
+    privileged: true
+    ports:
+      - "8080:8080"
+    volumes:
+      - /:/rootfs:ro
+      - /var/run:/var/run:ro
+      - /sys:/sys:ro
+      - /var/lib/docker/:/var/lib/docker:ro
+      - /dev/disk/:/dev/disk:ro
+    devices:
+      - /dev/kmsg
+    command:
+      # Trim what cAdvisor emits at source — saves ingest before we even
+      # get to the scrape-side relabel. Default exposes ~150 series per
+      # container; we want maybe ~10. The disabled metrics are not
+      # actionable for our workload (cpu_load is k8s-shaped; tcp/udp are
+      # noisy; advtcp/cpuset are cgroup-internal; we don't run k8s).
+      - --disable_metrics=cpu_topology,memory_numa,tcp,udp,advtcp,cpuset,disk,diskIO,hugetlb,referenced_memory,resctrl,sched,process,oom_event,percpu
+      - --docker_only=true
+      - --housekeeping_interval=30s
+      # Keep label set minimal — image, name, container_label_* metadata
+      # is plenty; we drop container_id / id at scrape time anyway.
+      - --store_container_labels=false
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8080/healthz > /dev/null"]
+      interval: 30s
+      timeout: 5s
+      retries: 3

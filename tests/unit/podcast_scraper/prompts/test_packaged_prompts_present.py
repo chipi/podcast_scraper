@@ -41,6 +41,16 @@ def _prompts_root() -> Path:
         "gemini/summarization/system_v1.j2",
         "openai/ner/guest_host_v1.j2",
         "anthropic/ner/guest_host_v1.j2",
+        # Long-form paragraph summary v2 (#985) — five providers, one file each.
+        # Each preserves its own v1 baseline + adds position-change + recurring-
+        # guest beats. Regression guard: if any port drops from packaging,
+        # paragraph-mode runs against that provider silently fall back to
+        # v1 (or PromptNotFoundError when no v1 ships either).
+        "anthropic/summarization/long_v2.j2",
+        "openai/summarization/long_v2.j2",
+        "gemini/summarization/long_v2.j2",
+        "deepseek/summarization/long_v2.j2",
+        "ollama/summarization/long_v2.j2",
         # Shared (KG extraction). Used by all providers.
         "shared/kg_graph_extraction/v1.j2",
         # Local providers (airgapped path) — also bundled.

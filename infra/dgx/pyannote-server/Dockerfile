@@ -70,7 +70,14 @@ RUN pip install \
         "python-multipart>=0.0.9" \
         "pyannote.audio>=3.3,<4.0" \
         "huggingface_hub>=0.25,<1.0" \
+        "sentry-sdk[fastapi]>=2.18,<3.0" \
+        "prometheus-fastapi-instrumentator>=7.0,<8.0" \
  && pip install --force-reinstall --no-deps "torchaudio>=2.7,<2.8"
+# sentry-sdk + prometheus-fastapi-instrumentator added for #942/#943.
+# sentry-sdk[fastapi] pulls the asgi/starlette integration so the
+# in-handler 5xx classifier works without explicit middleware wiring.
+# prometheus-fastapi-instrumentator exposes /metrics; the scrape config
+# in compose/grafana-agent.yaml hits it from the pipeline VPS over Tailnet.
 # huggingface_hub MUST be <1.0 because pyannote 3.x internally calls
 # `hf_hub_download(use_auth_token=...)`, and HF Hub 1.x removed that
 # parameter (renamed to `token=`). Without this pin, the model load at

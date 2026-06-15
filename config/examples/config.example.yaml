@@ -72,7 +72,10 @@ kg_extraction_source: provider
 kg_max_topics: 10
 # Default LLM summaries: JSON bullets (e.g. openai/summarization/bullets_json_v1 → shared templates).
 # summary_prompt_params defaults: bullet_min (3), max_words_per_bullet; optional bullet_max caps count.
-# Paragraph mode: <provider>_summary_user_prompt */long_v1 + system */system_v1.
+# Paragraph mode: <provider>_summary_user_prompt */long_v2 + system */system_v1.
+# (anthropic / openai / gemini / ollama: long_v2 — adds position-change + recurring-guest beats.
+#  deepseek stays on long_v1: 3-2 in the #985 cross-provider sweep, below the ≥4/5 gate.)
+# See docs/guides/eval-reports/EVAL_PROMPT_LONG_V2_CROSS_PROVIDER_2026_06_14.md for per-provider verdicts.
 metadata_format: json  # json or yaml (json recommended for database ingestion)
 # metadata_subdirectory: metadata  # Optional: subdirectory for metadata files (null = same as transcripts)
 

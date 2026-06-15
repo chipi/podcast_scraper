@@ -112,11 +112,69 @@ Logged in `docs/wip/AUTORESEARCH_LEARNINGS_FOR_V3.md`.
 - [x] Default temperature applied for anthropic + gemini in `src/podcast_scraper/config.py` and provider `__init__` fallback.
 - [x] Eval report (this file).
 - [x] v3 contribution logged in `docs/wip/AUTORESEARCH_LEARNINGS_FOR_V3.md`.
+- [x] Ollama variants swept (#987, 2026-06-14): no Ollama variant beats the cloud champion — finding documented, no registry change.
+
+## Ollama variants — added 2026-06-14 (#987)
+
+The original ticket explicitly listed `llama3.2:3b`, `mistral:7b`, and
+`qwen3.5:9b` as deferred local candidates. #987 re-ran the cleaning sweep
+with these 3 models against the same v2 silver bed + same temperature grid.
+Models served by the DGX-tailnet Ollama daemon (qwen3.5 is a thinking
+model — sweep uses the native `/api/chat` endpoint with `"think": false`
+to keep the `num_predict` budget on output, not hidden reasoning).
+
+**Per-cell similarity-to-silver (sweep 45 cells = 3 models × 3 temps × 5 ep):**
+
+| Model | T | Sim | Sponsor residual | Cleaned/silver | Latency |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| llama3.2:3b | 0.0 | 0.194 | 3.8 | 83% | 14.9s |
+| llama3.2:3b | 0.2 | 0.178 | 4.4 | 75% | 34.4s |
+| llama3.2:3b | 0.4 | 0.112 | 4.4 | 82% | 14.6s |
+| mistral:7b | 0.0 | 0.191 | 0.4 | 45% | 19.3s |
+| mistral:7b | 0.2 | 0.182 | 0.0 | 31% | 12.0s |
+| mistral:7b | 0.4 | 0.105 | 0.0 | 15% | 5.8s |
+| qwen3.5:9b | 0.0 | 0.339 | 6.4 | 127% | 54.0s |
+| qwen3.5:9b | **0.2** | **0.499** | 8.0 | 129% | 53.1s |
+| qwen3.5:9b | 0.4 | 0.413 | 5.0 | 124% | 50.6s |
+
+**Best Ollama cell** (qwen3.5:9b t=0.2): sim 0.499. **Cloud champion**
+(anthropic/claude-haiku-4-5 t=0.4): sim 0.663. **Δ = −0.164 / −25%**.
+
+### Verdict — no Ollama variant beats the cloud champion meaningfully
+
+1. **qwen3.5:9b is the only Ollama variant in the right ballpark** but still
+   ~25% behind the cloud champion on similarity-to-silver. It also **leaks
+   sponsor patterns** (8.0 residual hits vs 0.0 for haiku-4-5/gpt-4o-mini/
+   deepseek-chat) AND **over-produces** (129% of silver length — the model
+   prepends preamble/commentary that the cleaning system prompt explicitly
+   forbids). Latency is ~5× the haiku-4-5 baseline (53s vs 10s).
+2. **llama3.2:3b and mistral:7b are out of contention.** Both score ~0.19 —
+   in the same ballpark as a raw passthrough. mistral:7b additionally
+   *under*-produces aggressively (only 31–45% of silver length at higher
+   temps) — it's truncating mid-content, not cleaning. llama3.2 leaks ~4
+   sponsor pattern hits, indicating the smaller model has limited capacity
+   for the cleaning-rule constraints.
+3. **No materialize-decisions ticket filed.** Per the #987 acceptance
+   gate this is outcome (a): "no Ollama variant beats cloud champion
+   meaningfully → ticket closes with documented finding." The closed
+   #816 reliability axis already establishes that cloud Gemini Lite
+   at $0.0004/successful-call is the cost floor we'd be competing
+   against — Ollama-on-DGX is "free" in cloud spend but pays in latency
+   AND quality vs. the haiku-4-5/gpt-4o-mini baseline, and the
+   cleaning stage doesn't have a privacy/data-residency forcing
+   function that would justify the quality drop.
+
+**Raw data:** `data/eval/runs/cleaning_ollama_2026_06_14/metrics.jsonl`
+plus per-cell cleaned transcripts under
+`data/eval/runs/cleaning_ollama_2026_06_14/ollama__<model>__t<temp>/`.
+
+**Spend:** $0 cloud spend (Ollama runs on operator-paid DGX); ~25 min
+wall-clock for the 45-cell sweep over the tailnet.
 
 ## Out of scope
 
 - **Cleaning profile selection** (cleaning_v1 vs v2 vs v3 vs v4 vs hybrid_after_pattern) — that's #905 Tier 2's job. This issue tunes model + temperature WITHIN cleaning_v4.
-- **Ollama variants** — daemon is user-managed per project convention; the ticket explicitly listed `llama3.2:3b`, `mistral:7b`, `qwen3.5:9b` but local-model autoresearch requires the user to start the right models. Tracking as a follow-up (could be folded into #905 or a dedicated mini-ticket).
+- ~~**Ollama variants**~~ — closed via #987 (Ollama section above). The 3 listed models were swept against the same v2 silver bed; none beat the cloud champion. No registry change.
 - **Per-cell cost accounting** — total spend for the sweep + judge + validation was ~$3–4, an order of magnitude below the ticket's "$5–15" budget estimate. Cost ranking didn't differentiate between cells materially (all under $0.005/ep for cleaning).
 
 ## Reproduction

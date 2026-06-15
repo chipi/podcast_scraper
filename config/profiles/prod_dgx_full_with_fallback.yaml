@@ -1,0 +1,107 @@
+# Profile: prod_dgx_full_with_fallback — all-DGX prod hot path, cloud fallbacks (#923)
+#
+# Compared to `cloud_with_dgx_primary`, this profile additionally moves the
+# **LLM stages** (summary / GI / KG) onto DGX Ollama. The hot path no longer
+# pays cloud LLM spend; the cloud is the fallback only.
+#
+# Cost (at the operator's ~100 ep/mo cadence): marginal ≈ $0 (electricity).
+# `cloud_with_dgx_primary` is ~$0.85/mo at the same volume. Both rely on the
+# DGX capex.
+#
+# 2026-06-14 — OPERATIONAL GATE (#963 / #996 catastrophic-tail).
+# The 2026-06-14 #963 re-run found that under active vLLM serving, DGX
+# whisper can produce a successful-but-garbage response (WER 1.000) for one
+# episode in a 5-episode batch — a failure mode the `tailnet_dgx.resilience`
+# layer cannot catch (200 OK + wrong content, not a timeout). On THIS
+# profile the transcribe + diarize + summary stages run sequentially per
+# episode so they don't overlap each other — but external vLLM autoresearch
+# sweeps on the coder-next image DO overlap. Operator rule:
+#
+#   DO NOT run autoresearch sweeps on coder-next vLLM concurrent with a
+#   pipeline run on this profile.
+#
+# #996 tracks characterizing the catastrophic-tail failure rate at N≥20 so
+# the operational rule can graduate to a code-level enforcement story.
+# Until #996 closes, this profile is "prod-eligible but operator-gated."
+
+# 2026-06-12 (#907 Option B): opted into registry-driven defaults. The
+# `profile:` field below names the registry preset; routing fields below
+# are cross-checked against the registry by
+# tests/integration/providers/ml/test_profile_yaml_registry_drift.py.
+profile: prod_dgx_full_with_fallback
+
+# --- Transcription: DGX whisper-openai with cloud Whisper fallback ---
+# Same pattern as cloud_with_dgx_primary post-#929/#966.
+transcription:
+  primary: tailnet_dgx_whisper
+  fallback: openai
+
+dgx_tailnet_host: ${DGX_TAILNET_HOST:-your-dgx.tailnet.ts.net}
+dgx_whisper_model: large-v3
+dgx_whisper_port: 8002
+transcription_fallback_provider: openai
+openai_transcription_model: whisper-1
+
+# --- Diarization: pyannote on DGX with local fallback ---
+# Identical to cloud_with_dgx_primary. The TailnetDgxDiarizationProvider
+# handles fallback to in-process pyannote on health-check or per-request
+# error; no separate `diarization_fallback_provider` config needed.
+screenplay: true
+diarize: true
+diarization_provider: tailnet_dgx
+dgx_diarize_port: 8001
+dgx_diarize_model: pyannote/speaker-diarization-3.1
+dgx_diarize_request_timeout_sec: 180.0  # #954: per-request hard ceiling
+
+audio_preprocessing_profile: speech_optimal_v1
+
+# --- Speaker detection: Gemini (kept on cloud) ---
+# Sub-cent per call, materially better than spacy on names. The cost
+# argument that drives moving LLM to DGX doesn't apply to speaker
+# detection (already nearly free) so we keep it where quality wins.
+speaker_detector_provider: gemini
+auto_speakers: true
+
+# --- LLM stages: Ollama qwen3.5:35b on DGX with Gemini fallback ---
+# qwen3.5:35b is the #928 Cell C cross-stack winner against vLLM-served
+# Qwen3.6-35B-A3B (tied within scoring noise; Ollama is operationally
+# simpler so it stays the default). `llm_pipeline_mode: staged` follows
+# the operator-validated #912 workaround for the bundled-mode flake.
+summary_provider: ollama
+ollama_api_base: http://${DGX_TAILNET_HOST:-your-dgx.tailnet.ts.net}:11434/v1
+ollama_summary_model: qwen3.5:35b
+llm_pipeline_mode: staged
+
+# Cloud fallback path for the LLM stages. The FallbackAwareSummarizationProvider
+# wraps summary + GI evidence (extract_quotes / score_entailment) + KG so a
+# DGX outage degrades cleanly to Gemini (#812). Speaker detection already
+# hits Gemini directly above.
+degradation_policy:
+  fallback_provider_on_failure: gemini
+  continue_on_stage_failure: true
+gemini_summary_model: gemini-2.5-flash-lite
+
+preprocessing_enabled: true
+cloud_llm_structured_min_output_tokens: 4096
+
+# --- GI / KG / vector search ---
+generate_gi: true
+gi_insight_source: provider
+gi_max_insights: 12
+gi_require_grounding: true
+gil_evidence_quote_mode: bundled
+gil_evidence_nli_mode: bundled
+
+generate_kg: true
+kg_extraction_source: provider
+kg_max_topics: 10
+kg_max_entities: 15
+
+vector_search: true
+vector_embedding_provider: sentence_transformers
+llm_circuit_breaker_enabled: true
+
+generate_metadata: true
+generate_summaries: true
+language: en
+log_level: INFO

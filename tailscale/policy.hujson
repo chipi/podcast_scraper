@@ -64,14 +64,18 @@
     // RFC-089 / ADR-096 / #814 / #926 / #953:
     //   :11434 = DGX Ollama (LLM stages).
     //   :8000  = faster-whisper-server / speaches (transcription stage; #814).
-    //   :8001  = pyannote diarization service (#926).
+    //   :8001  = pyannote diarization service (#926; #943 adds /metrics).
     //   :8002  = openai-whisper service (first-party Whisper code; #953).
     //            Runs alongside speaches:8000 until #952 picks the winner.
+    // #943 observability sidecars:
+    //   :8080  = cAdvisor (per-container resource use).
+    //   :9100  = node-exporter (host CPU/mem/disk/net).
+    //   :9400  = DCGM exporter (per-GPU util/mem/temp/power).
     // Cloud fallback is enforced in profile config, not the ACL.
     {
       "action": "accept",
       "src":    ["autogroup:admin", "tag:gha-deployer"],
-      "dst":    ["tag:dgx-llm-host:11434", "tag:dgx-llm-host:8000", "tag:dgx-llm-host:8001", "tag:dgx-llm-host:8002"]
+      "dst":    ["tag:dgx-llm-host:11434", "tag:dgx-llm-host:8000", "tag:dgx-llm-host:8001", "tag:dgx-llm-host:8002", "tag:dgx-llm-host:8080", "tag:dgx-llm-host:9100", "tag:dgx-llm-host:9400"]
     },
     {
       "action": "accept",
@@ -81,7 +85,7 @@
     {
       "action": "accept",
       "src":    ["tag:prod"],
-      "dst":    ["tag:dgx-llm-host:11434", "tag:dgx-llm-host:8000", "tag:dgx-llm-host:8001", "tag:dgx-llm-host:8002"]
+      "dst":    ["tag:dgx-llm-host:11434", "tag:dgx-llm-host:8000", "tag:dgx-llm-host:8001", "tag:dgx-llm-host:8002", "tag:dgx-llm-host:8080", "tag:dgx-llm-host:9100", "tag:dgx-llm-host:9400"]
     }
 
     // (Future, for #714 + #723) Home Assistant subscribes to /api/jobs.

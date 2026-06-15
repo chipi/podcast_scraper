@@ -124,7 +124,7 @@ Not sufficient to evaluate a *new* prompt — judges don't run. Run the full har
 | `src/podcast_scraper/prompts/shared/summarization/system_bullets_v1.j2` | Shared bullets system prompt |
 | `src/podcast_scraper/prompts/shared/summarization/bullets_json_v1.j2` | Shared bullets user prompt |
 | `src/podcast_scraper/prompts/openai/summarization/system_v1.j2` | OpenAI paragraph system prompt |
-| `src/podcast_scraper/prompts/openai/summarization/long_v1.j2` | OpenAI paragraph user prompt |
+| `src/podcast_scraper/prompts/openai/summarization/long_v1.j2` | OpenAI paragraph user prompt (legacy ratchet target — `long_v2.j2` is the post-#985 default, see Eval reports → #985) |
 
 ## Files you must NOT edit during a ratchet
 
@@ -212,7 +212,7 @@ under sustained load**. All reports live under `docs/guides/eval-reports/`.
 | [#594](https://github.com/chipi/podcast_scraper/issues/594) | [EVAL_CLEANING_AUTORESEARCH_2026_06_08.md](../docs/guides/eval-reports/EVAL_CLEANING_AUTORESEARCH_2026_06_08.md) | Anthropic + Gemini cleaning temp 0.2 → 0.4 shipped; documented gpt-4o cleaning regression vs gpt-4o-mini |
 | [#904](https://github.com/chipi/podcast_scraper/issues/904) | [EVAL_FIXTURES_V2_TIER1_TUNING_2026_06_08.md](../docs/guides/eval-reports/EVAL_FIXTURES_V2_TIER1_TUNING_2026_06_08.md) | CIL predicate redesign +18pp recall; sponsor + topic-cluster threshold sweeps |
 | [#905](https://github.com/chipi/podcast_scraper/issues/905) | [EVAL_FIXTURES_V2_TIER2_TUNING_2026_06_08.md](../docs/guides/eval-reports/EVAL_FIXTURES_V2_TIER2_TUNING_2026_06_08.md) | Cleaning profile sweep + MAP-REDUCE chunking behavior; current `cleaning_v4` default validated as judge-suboptimal vs `cleaning_v3` (not shipped due to hardcoded fallbacks — follow-up) |
-| [#906](https://github.com/chipi/podcast_scraper/issues/906) | [EVAL_FIXTURES_V2_TIER3_TUNING_2026_06_08.md](../docs/guides/eval-reports/EVAL_FIXTURES_V2_TIER3_TUNING_2026_06_08.md) | NER (`en_core_web_trf` +13pp recall vs `_sm`, not shipped pending install verification); Whisper accent WER (`base.en` prod default validated, 2.8× more accurate than `tiny.en`); **`long_v2.j2` Anthropic prompt shipped (5-0 sweep)** |
+| [#906](https://github.com/chipi/podcast_scraper/issues/906) | [EVAL_FIXTURES_V2_TIER3_TUNING_2026_06_08.md](../docs/guides/eval-reports/EVAL_FIXTURES_V2_TIER3_TUNING_2026_06_08.md), [EVAL_PROMPT_LONG_V2_CROSS_PROVIDER_2026_06_14.md](../docs/guides/eval-reports/EVAL_PROMPT_LONG_V2_CROSS_PROVIDER_2026_06_14.md) | NER (`en_core_web_trf` +13pp recall vs `_sm`, not shipped pending install verification); Whisper accent WER (`base.en` prod default validated, 2.8× more accurate than `tiny.en`); **`long_v2.j2` Anthropic prompt shipped (5-0 sweep)**. Follow-up via [#985](https://github.com/chipi/podcast_scraper/issues/985): ported to 4 other providers — **OpenAI, Gemini, Ollama flip to long_v2 (4-1 each); DeepSeek stays on long_v1 (3-2, below gate)** |
 | [#816](https://github.com/chipi/podcast_scraper/issues/816) | [EVAL_SUMMARY_MODEL_RELIABILITY_2026_06_08.md](../docs/guides/eval-reports/EVAL_SUMMARY_MODEL_RELIABILITY_2026_06_08.md) | Reliability axis added (success-rate floor, effective $/successful-call, p50/p95 under load). 4-candidate panel re-ranked; **`gemini-2.5-flash-lite` kept** by 4-10× cost dominance |
 
 ## Eval reports (#927 — DGX-vs-cloud programme)
