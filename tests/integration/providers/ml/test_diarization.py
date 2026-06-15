@@ -34,7 +34,10 @@ try:
 except Exception as exc:  # pragma: no cover - environment-dependent
     pytest.skip(f"pyannote.audio unavailable: {exc}", allow_module_level=True)
 
-_FIXTURE = Path(__file__).resolve().parents[3] / "fixtures" / "audio" / "p01_multi_e01.mp3"
+# Audio fixtures are versioned (#902). Pin to v1: its two TTS voices separate cleanly
+# under the diarizer, whereas the default (v2) fixture's voices don't (the #921 limitation
+# noted in tests/e2e/test_diarization_e2e.py). The old non-versioned path no longer exists.
+_FIXTURE = Path(__file__).resolve().parents[3] / "fixtures" / "audio" / "v1" / "p01_multi_e01.mp3"
 
 
 def _hf_token_available() -> bool:
