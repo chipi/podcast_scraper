@@ -227,3 +227,71 @@ def test_limit_episodes_caps_walk(tmp_path, monkeypatch):
         tmp_path / "corpus", tmp_path / "corpus" / "search" / "li", limit_episodes=0
     )
     assert stats.episodes == 0 and stats.insights == 0
+
+
+def test_repeated_reindex_stays_bounded_via_compaction(tmp_path, monkeypatch):
+    """Repeated (incremental) reindex must not grow the index unboundedly.
+
+    LanceDB is MVCC and the indexer upserts per-document, so without compaction every
+    build piles up fragments + versions (observed in prod: 8k fragments / 2.7G on one
+    table). Each build now compacts + prunes old versions, so the retained-version
+    count stays bounded no matter how many times we reindex.
+    """
+    rows = [
+        ("insight:1", "central bank policy", {"doc_type": "insight", "episode_id": "ep1"}),
+        (
+            "chunk:1",
+            "markets moved as the bank signaled a shift",
+            {"doc_type": "transcript", "episode_id": "ep1"},
+        ),
+    ]
+    _stub_extraction(monkeypatch, tmp_path, rows)
+    corpus = tmp_path / "corpus"
+    (corpus / "metadata").mkdir(parents=True)
+    lance = corpus / "search" / "lance_index"
+
+    def _max_retained_versions() -> int:
+        return max(
+            (len(list(p.glob("*"))) for p in lance.glob("*.lance/_versions")),
+            default=0,
+        )
+
+    # Five incremental reindexes — the path the pipeline runs after each batch.
+    for _ in range(5):
+        tti.build_two_tier_index(corpus, lance)
+
+    # Compaction keeps retained versions tiny (a handful, not one-per-build-per-doc).
+    assert _max_retained_versions() <= 4, f"versions unbounded: {_max_retained_versions()}"
+    # Data is still correct + queryable after compaction.
+    backend = LanceDBBackend(str(lance))
+    health = backend.health()
+    assert health["insights"] == 1 and health["segments"] == 1
+
+
+def test_drop_existing_clears_before_full_reindex(tmp_path, monkeypatch):
+    """``drop_existing=True`` wipes the prior index so a full reindex starts clean."""
+    corpus = tmp_path / "corpus"
+    (corpus / "metadata").mkdir(parents=True)
+    lance = corpus / "search" / "lance_index"
+
+    _stub_extraction(
+        monkeypatch,
+        tmp_path,
+        [("insight:old", "first build content", {"doc_type": "insight", "episode_id": "ep1"})],
+    )
+    tti.build_two_tier_index(corpus, lance)
+    assert LanceDBBackend(str(lance)).health()["insights"] == 1
+
+    # Re-stub with different content and rebuild full (clean slate).
+    _stub_extraction(
+        monkeypatch,
+        tmp_path,
+        [("insight:new", "second build content", {"doc_type": "insight", "episode_id": "ep1"})],
+    )
+    tti.build_two_tier_index(corpus, lance, drop_existing=True)
+
+    # Old row must be gone (cleared), only the new one present.
+    rows_out = hs.hybrid_candidates(corpus, "build content", top_k=10) or []
+    ids = {r.doc_id for r in rows_out}
+    assert "insight:new" in ids
+    assert "insight:old" not in ids

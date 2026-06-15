@@ -10,8 +10,12 @@ instantiating the backend requires the dependency.
 from __future__ import annotations
 
 import dataclasses
+import logging
+from datetime import timedelta
 from pathlib import Path
 from typing import Any, Dict, List, Optional, TYPE_CHECKING
+
+logger = logging.getLogger(__name__)
 
 from ...utils.path_validation import (
     normpath_if_under_root,
@@ -213,6 +217,26 @@ class LanceDBBackend:
                 table.create_index(vector_column_name="embedding", replace=True)
             except Exception:  # noqa: BLE001 - small tables use brute force; index optional
                 pass
+
+    def compact(self) -> None:
+        """Compact data fragments + prune superseded versions on every table.
+
+        LanceDB is MVCC and the indexer upserts **one document at a time**, so each
+        build (and every incremental post-pipeline reindex) appends thousands of tiny
+        fragments + versions that are never reclaimed — the index grows unbounded
+        (observed: a single ``aux`` table at 8k fragments / 2.7G). ``optimize`` merges
+        the fragments and ``cleanup_older_than=0`` drops every version but the current
+        one, bounding the on-disk size and keeping reads fast (fewer fragments to scan).
+        Best-effort: a compaction failure must never fail the build.
+        """
+        for tier in ("segment", "insight", "aux"):
+            table = self._open_if_exists(tier)
+            if table is None:
+                continue
+            try:
+                table.optimize(cleanup_older_than=timedelta(0))
+            except Exception as exc:  # noqa: BLE001 - optimize is best-effort
+                logger.warning("LanceDB compaction skipped for %s table: %s", tier, exc)
 
     def _tables_for_tier(self, tier: Tier) -> List[str]:
         if tier == "all":

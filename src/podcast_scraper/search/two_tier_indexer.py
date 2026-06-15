@@ -21,6 +21,7 @@ migration left them empty (it had no edges to supply), so compounds need a nativ
 from __future__ import annotations
 
 import json
+import logging
 from dataclasses import dataclass
 from pathlib import Path
 from typing import cast, Dict, List, Optional, Tuple
@@ -32,6 +33,8 @@ from .backends.lancedb_backend import lance_index_is_stale, LanceDBBackend
 from .corpus_scope import discover_metadata_files, episode_root_from_metadata_path
 from .indexer import _collect_docs_for_episode, _gi_path, _load_metadata_file
 from .segments import link_insights_to_segments, link_insights_to_segments_by_text
+
+logger = logging.getLogger(__name__)
 
 DEFAULT_MODEL = "sentence-transformers/all-MiniLM-L6-v2"
 DEFAULT_TARGET_TOKENS = 256
@@ -137,6 +140,7 @@ def build_two_tier_index(
     embed_dim: Optional[int] = None,
     limit_episodes: Optional[int] = None,
     allow_download: bool = False,
+    drop_existing: bool = False,
 ) -> TwoTierIndexStats:
     """Build the two-tier LanceDB index at *lance_path* from the corpus at *corpus_dir*.
 
@@ -144,14 +148,24 @@ def build_two_tier_index(
     *model_id*, and upserts into the segment/insight tables (idempotent merge on id).
     ``embed_dim`` is derived from *model_id* when None (so a non-MiniLM model can't
     silently mismatch the schema). ``limit_episodes`` caps the walk. Returns counts.
+
+    ``drop_existing=True`` removes any existing index first — a **full** reindex starts
+    from a clean slate so per-document-upsert fragments can't accumulate across runs.
+    Either way the index is compacted at the end (see ``LanceDBBackend.compact``), which
+    bounds the **incremental** post-pipeline reindex too (it upserts new episodes into
+    the existing index, then reclaims the fragments/versions that creates).
     """
     out = Path(corpus_dir)
+    import shutil
+
+    # Full reindex: clear the index so a fresh build can't inherit prior fragments.
+    if drop_existing and Path(lance_path).exists():
+        logger.info("Full reindex: clearing existing LanceDB index at %s", lance_path)
+        shutil.rmtree(Path(lance_path), ignore_errors=True)
     # A pre-schema-bump index has incompatible tables — wipe it so we rebuild fresh.
     # Upserting new-schema rows (e.g. with publish_date) into old tables would error or
     # silently drop the new columns, so a stale index must be removed, not merged into.
-    if lance_index_is_stale(Path(lance_path)):
-        import shutil
-
+    elif lance_index_is_stale(Path(lance_path)):
         shutil.rmtree(Path(lance_path), ignore_errors=True)
     stats = TwoTierIndexStats()
     backend: Optional[LanceDBBackend] = None
@@ -270,4 +284,7 @@ def build_two_tier_index(
     if backend is not None:
         backend.write_index_meta(model_id)  # query path must embed in the same space
         backend.create_indices()
+        # Reclaim the per-document-upsert fragments + superseded versions this build
+        # created, so the index stays bounded across full AND incremental reindexes.
+        backend.compact()
     return stats

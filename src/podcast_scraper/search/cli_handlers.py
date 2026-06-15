@@ -1388,6 +1388,9 @@ def run_index_two_tier_cli(args: Namespace, logger: logging.Logger) -> int:
         model_id=model_id,
         limit_episodes=getattr(args, "limit_episodes", None),
         allow_download=bool(getattr(args, "allow_download", False)),
+        # ``index-two-tier`` is a full reindex: start from a clean slate so per-document
+        # upsert fragments can't accumulate across runs (the build compacts at the end).
+        drop_existing=True,
     )
     print(
         f"Two-tier index built at {lance_path}: episodes={stats.episodes} "
