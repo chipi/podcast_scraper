@@ -137,24 +137,20 @@ services:
       # Compose-specific (NOT in ~/.env): Speaches-only knobs.
       - WHISPER__MODEL={MODEL}
       - WHISPER__DEVICE=cuda
-      # Pinned to int8 per #957. The story:
-      #   - ``default`` produced empty output on 4/5 v2 fixture episodes
-      #     — ctranslate2's auto-pick on this speaches:latest-cuda image
-      #     resolved to a broken variant that destroyed the model's output
-      #     distribution on GB10.
-      #   - ``float16``, ``bfloat16``, and ``int8_bfloat16`` all error
-      #     with "target device or backend do not support efficient
-      #     <type> computation". CTranslate2's Blackwell support for those
-      #     compute types is missing in the bundled image. (openai-whisper
-      #     happily uses bf16 on the same card via torch — different stack.)
-      #   - ``float32`` works but is too slow (0.8× realtime) and quality
-      #     is degraded (WER 0.345 — worse than the empty case for any
-      #     downstream use).
-      #   - ``int8`` (pure int8 weights + int8 compute) is the working
-      #     path: WER 0.0534 on v2 p01_e01 (better than openai-whisper's
-      #     0.0775 baseline) at 1.6× realtime. Still slower than
-      #     openai-whisper's ~4.6×, but quality-competitive and unblocks
-      #     #952.
+      # Pinned to int8 per #957, empirically re-confirmed in #948 against
+      # the v0.9.0-rc.3-cuda image (CTranslate2 4.8.0).
+      # See: infra/dgx/speaches/decisions/2026-06-15-compute-type-int8.md
+      # for the full benchmark table. Headline (33-min episode, idle box):
+      #   - int8:        407s  (4.89× realtime) ← chosen
+      #   - int8_float16:423s  (4.71× realtime) — ties int8 within noise
+      #   - float32:     735s  (2.71× realtime)
+      #   - float16:    1178s  (1.69× realtime) — slower than fp32
+      #   - bfloat16:   1506s  (1.32× realtime) — slowest
+      # All compute types now LOAD and produce coherent output on this
+      # image (the historical "fp16/bf16 hard-error" claim was specific
+      # to the pre-#920 :latest-cuda image, which has since been pinned).
+      # fp16/bf16 kernels exist in CTranslate2 4.8.0 for Blackwell sm_120
+      # but are sub-optimal — int8 is the fastest path by a wide margin.
       - WHISPER__COMPUTE_TYPE=int8
       - LOG_LEVEL=INFO
       - ENABLE_UI=false

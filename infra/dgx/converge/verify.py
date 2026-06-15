@@ -140,6 +140,23 @@ server.shell(
     ],
 )
 
+# 6b. Per #948 — assert the runtime compute type matches the deploy.py pin.
+# Catches the case where someone edited the container's env via ``docker
+# update`` or a hand-edit to /opt/faster-whisper/docker-compose.yml without
+# re-running ``make dgx-deploy``. The pin is empirically benchmark-justified
+# (see infra/dgx/speaches/decisions/2026-06-15-compute-type-int8.md); drift
+# silently flips the transcription path to a 2-4× slower variant.
+server.shell(
+    name="assert: WHISPER__COMPUTE_TYPE=int8 in running container (#948 pin)",
+    commands=[
+        'ct=$(docker exec faster-whisper sh -c "echo $WHISPER__COMPUTE_TYPE"); '
+        'echo "runtime compute type: $ct"; '
+        '[ "$ct" = "int8" ] '
+        '|| { echo "ERR: WHISPER__COMPUTE_TYPE=$ct, expected int8 — see '
+        'infra/dgx/speaches/decisions/2026-06-15-compute-type-int8.md" >&2; exit 1; }',
+    ],
+)
+
 # 7. pyannote diarize service (#926) — installed by deploy.py alongside
 # Speaches. Same Docker pattern + loopback check.
 server.shell(
