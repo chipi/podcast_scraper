@@ -1,78 +1,76 @@
-# Corpus search (RFC-061 FAISS → RFC-090 Hybrid)
+# Corpus search (RFC-090 Hybrid over LanceDB)
 
 Meaning-based retrieval over **Grounded Insights** (insights and quotes), **summary
 bullets**, **transcript chunks**, and **Knowledge Graph** **Topic** / **Entity** nodes
 (when `kg.json` is present) in a pipeline output directory.
 
-**Hybrid retrieval (RFC-090) is the default (v2.7+):** a two-tier index — transcript
-segments + GIL insights — with **BM25 + dense vector fused via RRF** over an embedded
-**LanceDB** backend, plus **compound results** (a segment and its linked insight merged).
-The legacy **FAISS** index (`faiss-cpu`) is retained as a switchable fallback; both use the
-same embedding stack (`embedding_loader`, sentence-transformers). See [Hybrid retrieval](#hybrid-retrieval-rfc-090)
-below. **Qdrant** and other remote/platform-scale backends remain future — **Draft**
+**Hybrid retrieval (RFC-090) is the single search path (v2.7+):** a two-tier index —
+transcript segments + GIL insights — with **BM25 + dense vector fused via RRF** over an
+embedded **LanceDB** backend, plus **compound results** (a segment and its linked insight
+merged). FAISS was retired in #995 (ADR-099); LanceDB is now the only index and there is
+no fallback. See [Hybrid retrieval](#hybrid-retrieval-rfc-090) below. **Qdrant** and other
+remote/platform-scale backends remain future — **Draft**
 [RFC-070](../rfc/RFC-070-semantic-corpus-search-platform-future.md).
 
 ## Hybrid retrieval (RFC-090) {#hybrid-retrieval-rfc-090}
 
-The default serving path. When `serving.hybrid_enabled: true` (the shipped default in
-`config/search.yaml`) **and** a two-tier LanceDB index exists at
+The single serving path. When a two-tier LanceDB index exists at
 `<output_dir>/search/lance_index`, `GET /api/search` and `podcast search` route through the
-two-tier **`RetrievalLayer`** (BM25 + dense vector → RRF, with compound dedup). Otherwise they
-**fall back to FAISS** — so enabling hybrid can never regress.
+two-tier **`RetrievalLayer`** (BM25 + dense vector → RRF, with compound dedup). When no
+usable index is present, the caller reports `no_index` (FAISS was retired in #995; there is
+no fallback).
 
 - **Tiers:** Tier 1 = transcript **segments**, Tier 2 = GIL **insights**, plus a full-coverage
   **aux** tier (`kg_entity` / `kg_topic` / `quote` / `summary`). Compound results merge a
   segment and its linked insight when both match.
 - **Build the index:**
-  - Native (no FAISS needed; populates insight↔segment links + compounds):
+  - Build the two-tier index (populates insight↔segment links + compounds):
     `make index-two-tier CORPUS_DIR=<corpus>`.
-  - From an existing FAISS corpus: migrate it (RFC-090 Stage 4) — see [Corpus Upgrade](CORPUS_UPGRADE.md).
   - Derive the relational edges into the corpus (`Person→Insight`, `MENTIONS`, `HAS_EPISODE`; #874):
     `make enrich-relational-edges CORPUS_DIR=<corpus>`.
-- **Config (`config/search.yaml`):** `serving.hybrid_enabled` (default `true`); `router.mode`
-  (`rules` | `ml`). Per-container override: `PODCAST_HYBRID_SEARCH=1|0`.
+- **Config (`config/search.yaml`):** `router.mode` (`rules` | `ml`).
 - **Not a retrieval signal:** KG-proximity was evaluated and **rejected** (RFC-091 Decision
   Record); the KG's value is the relational edges above, consumed by viewer surfaces (PRD-033 /
   RFC-094), not by ranking.
 
-### Telling which backend served a query (hybrid vs FAISS fallback)
+### Telling whether the index served a query
 
-Because hybrid silently falls back to FAISS, "search works" does **not** mean hybrid is live —
-a stale/broken `lance_index`, `hybrid_enabled: false`, or an embed failure all degrade to FAISS
-invisibly. Two signals on `GET /api/search` distinguish them:
+A stale/broken `lance_index`, an embed failure, or a dim mismatch makes the index unusable; in
+that case the caller reports `no_index` rather than silently degrading. Two signals on
+`GET /api/search` confirm the hybrid path is live:
 
-- **Score shape (definitive):** the hybrid path returns **RRF** scores `1/(60+rank)` — the top
-  hit is ≈ `0.016`–`0.03`, always **< 0.1**. FAISS returns a cosine similarity, top hit ≈ `1.0`.
+- **Score shape:** the hybrid path returns **RRF** scores `1/(60+rank)` — the top
+  hit is ≈ `0.016`–`0.03`, always **< 0.1**.
 - **Response fields:** hybrid sets `source_tier` (`insight` / `segment` / `aux`) on every hit
-  plus top-level `lift_stats` and `query_type`; the FAISS fallback leaves these unset/empty.
+  plus top-level `lift_stats` and `query_type`.
 
 The Tier-3 walk's **V6** spec (`e2e/validation/real-corpus.spec.ts`) asserts exactly this, so a
-regression to FAISS fails CI loudly. (Note: prod corpora carrying a legacy `lance_native/` dir
-rather than `lance_index/` run on the FAISS fallback — reindex with `make index-two-tier` to
-move them onto hybrid.)
+regression fails CI loudly. (Note: prod corpora carrying a legacy `lance_native/` dir
+rather than `lance_index/` report `no_index` — reindex with `make index-two-tier` to
+move them onto the current layout.)
 
-### Metadata parity + schema versioning (lance ⇄ FAISS)
+### Metadata parity + schema versioning
 
-A hybrid hit must carry the **same consumer-facing metadata fields** a FAISS row carries, or
-shared consumers break silently on the hybrid path only. Established contract:
+A hybrid hit must carry the **same consumer-facing metadata fields** every consumer expects, or
+shared consumers break silently. Established contract:
 
 - `publish_date` — the shared `since`/date filter drops any hit lacking it (this zeroed out the
   digest topic-bands, which always pass a `since` bound, under lance).
 - `source_id` — the viewer's "Show on graph" affordance resolves the graph node from it; missing
   it = no handoff.
 
-**Rule:** any new field a consumer reads off a search hit must be added to **both** backends
-(`search/backend.py` docs + lance schema in `backends/lancedb_backend.py`, populated in
-`two_tier_indexer.py` *and* `migration.py`), and you must **bump `LANCE_SCHEMA_VERSION`**. The
-version is stamped into `search/lance_index/index_meta.json`; `lance_index_is_stale()` then makes
-old indexes self-heal — the read path skips a stale index (→ FAISS) and reindex moments
-(`build_two_tier_index`, `migrate_faiss_to_lance`, upgrade migration 0002) rebuild rather than
-upsert into incompatible tables.
+**Rule:** any new field a consumer reads off a search hit must be added to the lance schema
+(`search/backend.py` docs + `backends/lancedb_backend.py`, populated in `two_tier_indexer.py`),
+and you must **bump `LANCE_SCHEMA_VERSION`**. The version is stamped into
+`search/lance_index/index_meta.json`; `lance_index_is_stale()` then makes old indexes
+self-heal — the read path skips a stale index (reports `no_index`) and reindex moments
+(`build_two_tier_index`, upgrade migration 0002) rebuild rather than upsert into incompatible
+tables.
 
 ## When to use it
 
 - Cross-episode questions: “What do my podcasts say about X?” without exact keywords.
-- **`gi explore --topic`**: when `<output_dir>/search/vectors.faiss` exists, topic
+- **`gi explore --topic`**: when `<output_dir>/search/lance_index/` exists, topic
   matching uses the vector index first (metadata is scanned to find `gi.json` paths;
   only matching episodes load full artifacts), then falls back to substring/topic-label
   matching if the index is missing, fails, or returns no hits.
@@ -105,10 +103,10 @@ one run), the indexer discovers episode metadata under each
 in metadata are resolved relative to each episode’s workspace (the directory that contains
 that feed’s `metadata/`). Vector row ids and fingerprint keys use a composite
 **`(feed_id, episode_id)`** scope when `feed_id` is present in metadata, so GUID collisions
-across feeds cannot clobber FAISS rows.
+across feeds cannot clobber index rows.
 
 Per-feed pipeline runs set **`skip_auto_vector_index: true`** internally when
-`vector_search` and FAISS are enabled; after all feeds complete, the CLI or service builds
+`vector_search` is enabled; after all feeds complete, the CLI or service builds
 **one** index at **`<corpus_parent>/search`**.
 
 ### Manual index / rebuild
@@ -125,7 +123,7 @@ contains **`feeds/`**), not an individual feed subdirectory.
 ### Index upgrade / stale rows (multi-feed)
 
 If you **change embedding model**, **chunking settings**, or **composite fingerprint scope** (feed +
-episode keys — GitHub #505), existing FAISS rows may no longer match metadata on disk. Rebuild the
+episode keys — GitHub #505), existing index rows may no longer match metadata on disk. Rebuild the
 parent index with:
 
 ```bash
@@ -138,7 +136,7 @@ summary contracts.
 
 ## Corpus topic clustering (RFC-075)
 
-After **`kg_topic`** rows exist in the FAISS index, you can build **`search/topic_clusters.json`**
+After **`kg_topic`** rows exist in the LanceDB index, you can build **`search/topic_clusters.json`**
 with **`topic-clusters`** (see [CLI reference](../api/CLI.md) — section **Topic clusters**).
 Optional **`--merge-cil-overrides`** writes merged **`topic_id_aliases`** into
 **`cil_lift_overrides.json`** (see **Optional corpus overrides** below). The GI/KG viewer loads
@@ -150,7 +148,7 @@ New CLI runs emit **`schema_version`: `"2"`** with distinct ids: **`graph_compou
 **`topic_id_aliases`** merge target). Older **`topic_clusters.json`** files may still use v1
 keys (`cluster_id`, `canonical_topic_id`); readers accept both.
 
-**Search responses:** Membership is **not** copied into FAISS metadata at index time. On each
+**Search responses:** Membership is **not** copied into index metadata at index time. On each
 **`GET /api/search`** (and CLI search), the server **joins** **`search/topic_clusters.json`**
 by **`metadata.source_id`** for **`doc_type`: `kg_topic`** rows and attaches
 **`metadata.topic_cluster`** with **`graph_compound_parent_id`**, **`canonical_label`**, and
@@ -164,9 +162,9 @@ global ontology:
 
 | Lens | Role |
 | ---- | ---- |
-| **Embedding / FAISS** | Similarity search over chunk vectors; **`kg_topic`** rows use **`topic:{slug}`** as **`metadata.source_id`** (episode-local KG identity). |
+| **Embedding / vector** | Similarity search over chunk vectors; **`kg_topic`** rows use **`topic:{slug}`** as **`metadata.source_id`** (episode-local KG identity). |
 | **`topic:…` (KG)** | Canonical **Topic** node ids in **`*.kg.json`** and in the index; CIL **aliases** can merge variants for lift and timelines. |
-| **`tc:…` (TopicCluster)** | **Viewer-only** compound parent ids from **`graph_compound_parent_id`** in **`topic_clusters.json`** — grouping in Cytoscape, **not** a FAISS key and **not** the same field as **`cil_alias_target_topic_id`**. |
+| **`tc:…` (TopicCluster)** | **Viewer-only** compound parent ids from **`graph_compound_parent_id`** in **`topic_clusters.json`** — grouping in Cytoscape, **not** an index key and **not** the same field as **`cil_alias_target_topic_id`**. |
 | **Overrides** | **`cil_lift_overrides.json`** (and optional **`topic_id_aliases`** from **`topic-clusters --merge-cil-overrides`**) tune identity without rewriting KG files. |
 
 Details and field renames (v1 vs v2): [RFC-075 § Artifact schema](../rfc/RFC-075-corpus-topic-clustering.md#3-artifact-schema-topic_clustersjson).
@@ -183,7 +181,7 @@ Use **`--index-path`** if the index is not under `<output_dir>/search`.
 ## Web UI (GI / KG Viewer v2)
 
 The Vue viewer can run the **same** corpus search as the CLI via **`GET /api/search`** when
-the FastAPI server is up (`pip install -e ".[dev]"` + `[ml]` for FAISS/embeddings) and
+the FastAPI server is up (`pip install -e ".[dev]"` + `[ml]` for LanceDB/embeddings) and
 the index exists under `<corpus>/search/`. Set **Corpus root** in the sidebar to your
 pipeline output directory. See
 [web/gi-kg-viewer/README.md](https://github.com/chipi/podcast_scraper/blob/main/web/gi-kg-viewer/README.md)
@@ -211,7 +209,7 @@ rules: [Development Guide — GI quote `speaker_id`](DEVELOPMENT_GUIDE.md#gi-quo
 **`bridge.json`** when present), and **quote** timestamps from the matched **Quote** node.
 Matching uses **half-open overlap** between the chunk’s **`char_start` / `char_end`** and a
 **Quote** span, then walks **SUPPORTED_BY**, **ABOUT**, and **SPOKEN_BY** edges in `gi.json`.
-No FAISS rebuild is required; this is **query-time** enrichment.
+No index rebuild is required; this is **query-time** enrichment.
 
 **Response counters:** On successful search, the JSON may include **`lift_stats`** with
 **`transcript_hits_returned`** (rows in that response with `doc_type: transcript`) and
@@ -276,7 +274,7 @@ Limitations).
 
 ## `gi explore` and `gi query`
 
-- **`gi explore --topic "…"`** — If a FAISS index is present at **`output_dir/search`**
+- **`gi explore --topic "…"`** — If a LanceDB index is present at **`output_dir/search`**
   (or the path implied by your pipeline layout), insights are ranked by embedding
   similarity to the topic string. Otherwise behavior is unchanged (substring + Topic
   labels).
@@ -285,7 +283,7 @@ Limitations).
 
 ## Requirements
 
-- **`pip install -e ".[ml]"`** (or equivalent) for sentence-transformers and FAISS.
+- **`pip install -e ".[ml]"`** (or equivalent) for sentence-transformers and LanceDB.
 - Embedding models must be available locally (or cached); search uses
   **`allow_download=False`** — run the pipeline or `index` once with network if needed.
 

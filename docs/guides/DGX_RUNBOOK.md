@@ -75,7 +75,7 @@ Single-episode end-to-end run through `local_dgx_balanced` against the fast fixt
 | Summarization | 2.7 s | DGX `qwen3.5:9b` | 665 in / 18 out | $0 |
 | GI (insights + evidence) | 10.5 s | DGX `qwen3.5:9b` (7 calls) | 967 in / 80 out | $0 |
 | KG | 6.3 s | from summary path | — | $0 |
-| FAISS index + topic clusters | 0.2 s | in-process MiniLM (ADR-098) | — | $0 |
+| LanceDB index + topic clusters | 0.2 s | in-process MiniLM (ADR-098) | — | $0 |
 | **Total** | **30 s** | | | **$0** |
 
 Quality gates:
@@ -145,7 +145,7 @@ What to look for in the run output:
 - `gi_grounding_rate_pct` near 100 in `metrics.json`
 - `gi_quote_validity_rate_pct` at 100 (verbatim quotes from transcript)
 - `kg_topic_nodes_total` and `kg_entity_nodes_total` non-zero
-- `search/vectors.faiss` written
+- `search/lance_index/` written
 - No `llm_summary_fallback_active_count` (this profile uses Gemini directly; nothing to fall back FROM)
 
 If anything looks wrong, fix it on the prompt / pipeline side before any DGX Whisper work — no point installing a service on DGX while pipeline shape is broken.

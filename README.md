@@ -23,7 +23,7 @@ and hands-on work with edge and cloud AI/ML technologies.
 
 - **Transcript Downloads** — Automatic detection and download from RSS feeds
 - **Episode selection** — Order (`newest` / `oldest`), optional publish-date window (`--since` / `--until`), offset, and `max_episodes` for large back-catalogs ([CONFIGURATION.md](docs/api/CONFIGURATION.md#episode-selection-github-521), GitHub #521)
-- **Multi-feed corpus** — One config or CLI invocation for multiple shows: `feeds` / `rss_urls` in YAML, **`--feeds-spec`** for structured `feeds.spec.yaml` / JSON, or repeatable `--rss` / legacy `--rss-file`; isolated output under `<output_dir>/feeds/<stable_id>/` per feed. With `vector_search` + FAISS, a **single parent index** is built under `<output_dir>/search` after all feeds finish; **`corpus_manifest.json`**, **`corpus_run_summary.json`**, and structured log lines record batch status ([RFC-063](docs/rfc/RFC-063-multi-feed-corpus-append-resume.md), [CONFIGURATION.md](docs/api/CONFIGURATION.md#rss-and-multi-feed-corpus-github-440)). Inspect offline: `python -m podcast_scraper.cli corpus-status --output-dir <corpus_parent>`.
+- **Multi-feed corpus** — One config or CLI invocation for multiple shows: `feeds` / `rss_urls` in YAML, **`--feeds-spec`** for structured `feeds.spec.yaml` / JSON, or repeatable `--rss` / legacy `--rss-file`; isolated output under `<output_dir>/feeds/<stable_id>/` per feed. With `vector_search`, a **single parent index** is built under `<output_dir>/search` after all feeds finish; **`corpus_manifest.json`**, **`corpus_run_summary.json`**, and structured log lines record batch status ([RFC-063](docs/rfc/RFC-063-multi-feed-corpus-append-resume.md), [CONFIGURATION.md](docs/api/CONFIGURATION.md#rss-and-multi-feed-corpus-github-440)). Inspect offline: `python -m podcast_scraper.cli corpus-status --output-dir <corpus_parent>`.
 - **Transcription** — Local Whisper, DGX tailnet Whisper, OpenAI, Gemini, Mistral, or **Deepgram Nova-3**; automatic **API audio chunking** for oversized files ([Audio Pipeline Guide](docs/guides/AUDIO_PIPELINE_GUIDE.md))
 - **Speaker screenplay** — Gap-based or **neural diarization** (pyannote; default on for local Whisper, `--no-diarize` to disable); maps to NER-detected host/guest names
 - **Commercial cleaning** — Confidence-scored sponsor/ad detection (patterns + position; optional diarization signals when speaker timeline exists)
@@ -40,7 +40,7 @@ and hands-on work with edge and cloud AI/ML technologies.
 - **Operational Hardening** — Configurable HTTP retries (media vs RSS), application-level episode retries on transient errors, timeout enforcement, `--fail-fast` / `--max-failures`, structured JSON logging, and `failure_summary` in `run.json` when episodes fail ([CONFIGURATION.md — Download resilience](docs/api/CONFIGURATION.md#download-resilience), Issue #379)
 - **Security** — Path validation, model allowlist validation, safetensors format preference, and `trust_remote_code=False` enforcement (Issue #379)
 - **Diagnostics** — `doctor` command for environment validation and dependency checks (Issue #379)
-- **Hybrid corpus search** — Two-tier (transcript segments + GIL insights) **BM25 + dense vector via RRF** over LanceDB, with **compound results**; default-on when a two-tier index exists, FAISS retained as a switchable fallback ([RFC-090](docs/rfc/RFC-090-hybrid-retrieval.md)). Also `vector_search` (FAISS) index, `search` / `index` CLIs, and semantic `gi explore --topic` ([guide](docs/guides/SEMANTIC_SEARCH_GUIDE.md), RFC-061)
+- **Hybrid corpus search** — Two-tier (transcript segments + GIL insights) **BM25 + dense vector via RRF** over LanceDB, with **compound results**; the single search path when a two-tier index exists (FAISS retired in #995, ADR-099) ([RFC-090](docs/rfc/RFC-090-hybrid-retrieval.md)). Enabled by `vector_search`; `search` / `index` CLIs, and semantic `gi explore --topic` ([guide](docs/guides/SEMANTIC_SEARCH_GUIDE.md), RFC-061)
 - **Run Tracking** — Per-episode stage timings, run summaries, episode index files, and `metrics.json` fields for download retries (`http_urllib3_retry_events`, `episode_download_retries`) (Issue #379)
 
 - **Live pipeline monitor** — Optional **`--monitor`**: separate process + **`rich`** dashboard (or **`.monitor.log`** if stderr is not a TTY) and **`.pipeline_status.json`**. Optional **`pip install -e ".[monitor]"`**: **`--memray`** for heap profiling; with monitor + TTY, **`f`** runs **py-spy** to **`debug/flamegraph_*.svg`** ([RFC-065](docs/rfc/RFC-065-live-pipeline-monitor.md), [guide](docs/guides/LIVE_PIPELINE_MONITOR.md), #512)
@@ -70,7 +70,7 @@ Browse **Grounded Insight** and **Knowledge Graph** artifacts, use **semantic se
 | ---- | ------- | ----- |
 | **API + built UI in one process** | `pip install -e ".[dev]"` and, once, `cd web/gi-kg-viewer && npm install && npm run build` | `make init` installs `[dev,ml,llm]`; FastAPI ships with `[dev]`. |
 | **Graph only, no Python API** | Just open the UI (e.g. Vite dev) and use **Choose .gi.json / .kg.json files** | Works when `/api/health` fails; no list/search/index from the server. |
-| **Semantic search / index stats** | `[dev]` + `[ml]` (FAISS, embeddings) as for `podcast search` | Index lives under `<output_dir>/search/`. See [Semantic Search Guide](docs/guides/SEMANTIC_SEARCH_GUIDE.md). |
+| **Semantic search / index stats** | `[dev]` + `[ml]` (LanceDB, embeddings) as for `podcast search` | Index lives under `<output_dir>/search/`. See [Semantic Search Guide](docs/guides/SEMANTIC_SEARCH_GUIDE.md). |
 
 ### Run the server (typical)
 
@@ -141,7 +141,7 @@ Choose the installation method based on your use case:
 | Use Case | Installation Command | What You Get | Disk Space |
 | -------- | --------------------- | ----------- | --------- |
 | **OpenAI only** | `pip install -e ".[llm]"` | Core + OpenAI, Gemini, Anthropic, Mistral SDKs | ~50MB |
-| **Local ML only** | `pip install -e ".[ml]"` | Core + Whisper, spaCy, torch, transformers, FAISS, **llama-cpp-python** (GGUF), etc. | ~1-3GB |
+| **Local ML only** | `pip install -e ".[ml]"` | Core + Whisper, spaCy, torch, transformers, LanceDB, **llama-cpp-python** (GGUF), etc. | ~1-3GB |
 | **Both** (recommended) | `pip install -e ".[ml,llm]"` | Local ML + all LLM API SDKs | ~1-3GB |
 | **Run comparison UI** (eval runs) | `pip install -e ".[compare]"` | Streamlit compare tool (RFC-047; `make run-compare`) | moderate |
 | **GI/KG viewer API** | `pip install -e ".[dev]"` | FastAPI + uvicorn for `python -m podcast_scraper.cli serve` | small |
@@ -156,9 +156,9 @@ Choose the installation method based on your use case:
 
 **Note:** LLM provider SDKs (`openai`, `google-genai`, `anthropic`, `mistralai`, `httpx`) are **not** in core — they require the `[llm]` extra. Core (`pip install -e .`) gives you the pipeline framework only.
 
-### FAISS / `vector_search` and embedding cache
+### `vector_search` and embedding cache
 
-Corpus indexing (`vector_search` with the default FAISS backend) calls the embedder with **`allow_download=False`**, so sentence-transformers weights must **already** be on disk in the Hugging Face hub cache. Before offline or sandbox runs, run **`make preload-ml-models`** and **omit `SKIP_GIL=1`** so evidence embeddings (including the model named by **`vector_embedding_model`**) are pre-cached; GIL’s **`gi_embedding_model`** is checked separately when GIL uses transformers. If you set **`HF_HUB_CACHE`**, use the same value when preloading and when running the pipeline. See [Semantic Search Guide](docs/guides/SEMANTIC_SEARCH_GUIDE.md).
+Corpus indexing (`vector_search`, LanceDB index) calls the embedder with **`allow_download=False`**, so sentence-transformers weights must **already** be on disk in the Hugging Face hub cache. Before offline or sandbox runs, run **`make preload-ml-models`** and **omit `SKIP_GIL=1`** so evidence embeddings (including the model named by **`vector_embedding_model`**) are pre-cached; GIL’s **`gi_embedding_model`** is checked separately when GIL uses transformers. If you set **`HF_HUB_CACHE`**, use the same value when preloading and when running the pipeline. See [Semantic Search Guide](docs/guides/SEMANTIC_SEARCH_GUIDE.md).
 
 ### Install
 
@@ -511,7 +511,7 @@ See the [Basic Usage with Example Config](#basic-usage-with-example-config-recom
 
 - `transcripts/` — Transcript files (RSS may serve `.vtt`/`.srt`; the pipeline normalizes those to `.txt` plus `*.segments.json` for GI quote audio timing when cues parse cleanly; plain `.txt`/`.html` feeds have no segment timing unless you add a sidecar). When `save_adfree_transcript` is enabled (default) the pipeline also writes the **ad-free processing base** — `*.adfree.txt` + `*.adfree.segments.json` + `*.adfree.admap.json` — which GI, search, and enrichment prefer for exact char offsets (#974); the raw `.txt` is the untouched canonical source.
 - `metadata/` — JSON/YAML metadata, plus `gi.json` (GIL) and `kg.json` (KG) when enabled
-- `search/` — FAISS vector index (when `vector_search` is enabled)
+- `search/` — LanceDB search index under `search/lance_index/` (when `vector_search` is enabled)
 - `run.json`, `index.json`, `metrics.json` — Run tracking artifacts
 
 Multi-feed corpora add `feeds/<stable_id>/` per feed, plus `corpus_manifest.json` and `corpus_run_summary.json` at the corpus root.
@@ -565,7 +565,7 @@ For more help, see [Troubleshooting Guide](docs/guides/TROUBLESHOOTING.md).
 | [CLI Reference](docs/api/CLI.md) | All command-line options |
 | [Configuration](docs/api/CONFIGURATION.md) | Config files and environment variables |
 | [Server Guide](docs/guides/SERVER_GUIDE.md) | FastAPI viewer API, endpoints, development |
-| [Semantic Search Guide](docs/guides/SEMANTIC_SEARCH_GUIDE.md) | FAISS indexing, search CLI, configuration |
+| [Semantic Search Guide](docs/guides/SEMANTIC_SEARCH_GUIDE.md) | LanceDB indexing, search CLI, configuration |
 | [AI Provider Comparison](docs/guides/AI_PROVIDER_COMPARISON_GUIDE.md) | Compare all providers: cost, quality, speed, privacy |
 | [Provider Deep Dives](docs/guides/PROVIDER_DEEP_DIVES.md) | Per-provider reference cards, benchmarks, and magic quadrant |
 | [Experiment Guide](docs/guides/EXPERIMENT_GUIDE.md) | Eval datasets, baselines, experiments (`data/eval/`) |

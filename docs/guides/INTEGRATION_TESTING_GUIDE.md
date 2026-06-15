@@ -223,7 +223,7 @@ tests/integration/
 ├── workflow/                # Orchestration, stages, resume, parallelism, metadata
 ├── gi/                      # GI artifacts, KG artifacts, evidence stack
 ├── server/                  # FastAPI viewer: wired app, corpus library, index rebuild/stats
-├── search/                  # FAISS indexing, corpus search
+├── search/                  # LanceDB indexing, corpus search
 ├── rss/                     # RSS parsing, HTTP fetching
 ├── eval/                    # Evaluation framework
 ├── infrastructure/          # Fixture mapping, infra concerns

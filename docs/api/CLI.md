@@ -529,7 +529,7 @@ python -m podcast_scraper.cli gi inspect --output-dir ./mycorpus --episode-id 's
 python -m podcast_scraper.cli gi show-insight --id 'insight:<id-from-gi.json>' --episode-path ./output/metadata/ep1.gi.json
 
 # Cross-episode: topic / speaker filters, sort, RFC-style JSON
-# When ./output/search/vectors.faiss exists, --topic uses semantic ranking first (RFC-061).
+# When ./output/search/lance_index/ exists, --topic uses semantic ranking first (RFC-061).
 python -m podcast_scraper.cli gi explore --output-dir ./output --topic 'AI regulation' --format json
 python -m podcast_scraper.cli gi explore --output-dir ./output --speaker Host --sort time --strict
 
@@ -557,7 +557,7 @@ python -m podcast_scraper.cli index --output-dir ./output --stats
 
 ## Topic clusters (`topic-clusters`)
 
-Corpus-wide clustering of **KG topic** embeddings already stored as `kg_topic` rows in the FAISS
+Corpus-wide clustering of **KG topic** embeddings already stored as `kg_topic` rows in the LanceDB
 index (RFC-075). Writes **`topic_clusters.json`** next to the index (default:
 `<output-dir>/search/topic_clusters.json`). Requires an indexed corpus with `kg_topic` included.
 The JSON **`schema_version`** is **`"2"`** for new writes: **`graph_compound_parent_id`** / **`cil_alias_target_topic_id`**
@@ -599,7 +599,7 @@ python -m podcast_scraper.cli gi explore --topic "index funds" --output-dir ./ou
 Offline summary for a **corpus parent** (multi-feed: directory containing `feeds/`): whether
 **`corpus_manifest.json`** is present, per-feed **`metadata/`** file counts, a sample of
 **`index.json`** failures when available, and whether **`<corpus_parent>/search`** holds a
-FAISS index plus embedding model id from **`index_meta.json`** (GitHub #506 / RFC-063 §7).
+LanceDB index plus embedding model id from **`index_meta.json`** (GitHub #506 / RFC-063 §7).
 
 ```bash
 python -m podcast_scraper.cli corpus-status --output-dir ./corpus_parent

@@ -21,7 +21,7 @@ Use `pip install -e ".[<extra>]"` from the repo root. Combine extras with commas
 
 | Extra | Purpose |
 | --- | --- |
-| **`ml`** | Local ML stack: Whisper, spaCy (+models), torch, **pyannote.audio + torchaudio** (speaker diarization, RFC-058), transformers, sentence-transformers, FAISS, **llama-cpp-python** (GGUF hybrid REDUCE, RFC-042), etc. |
+| **`ml`** | Local ML stack: Whisper, spaCy (+models), torch, **pyannote.audio + torchaudio** (speaker diarization, RFC-058), transformers, sentence-transformers, LanceDB, **llama-cpp-python** (GGUF hybrid REDUCE, RFC-042), etc. |
 | **`dev`** | Tests, lint, typecheck, security, **FastAPI + uvicorn** (GI/KG viewer API, RFC-062), scheduler/metrics deps, text eval helpers (ROUGE, BLEU, WER), and **pyannote.audio + torchaudio** pins aligned with `[ml]` for CI/dev venv parity. Embedding cosine in `evaluation/scorer.py` needs **`[ml]`** (sentence-transformers). |
 | **`compare`** | Streamlit run comparison UI (RFC-047; `make run-compare`). |
 | **`llm`** | API client SDKs bundled for CI/dev: Gemini (`google-genai`), Anthropic, Mistral, **httpx** (Ollama health checks). The **OpenAI** SDK ships with **core** dependencies. |
@@ -271,7 +271,7 @@ pip cache (for example some CI jobs) can still re-download the large `.whl` file
   not HTTP API clients (those live under `[llm]`, e.g. Ollama health checks via **httpx**).
 
 - **Fallback**: If you use **Ollama** for REDUCE instead, you do not need **llama-cpp-python**; install **`[llm]`**
-  for Ollama and keep **`[ml]`** only if you also need Whisper, GIL evidence models, FAISS, etc.
+  for Ollama and keep **`[ml]`** only if you also need Whisper, GIL evidence models, LanceDB, etc.
 
 ### `openai` (>=1.0.0)
 

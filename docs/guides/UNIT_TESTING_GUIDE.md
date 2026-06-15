@@ -28,7 +28,7 @@ This guide covers unit test implementation details: what to mock, isolation patt
 
 **Why this matters:** CI `test-unit` installs `pip install -e .[dev]` only. Any test in `tests/unit/` that needs a non-`[dev]` package will be silently skipped (via `importorskip`) or fail outright, meaning it never validates anything in CI. Integration CI jobs install `.[dev,ml,llm]`, so tests there run with the full dependency set.
 
-**Viewer / FastAPI tests:** Place in **`tests/integration/server/`** (not `tests/unit/`). Use `pytest.importorskip("fastapi")` there. CI integration jobs install `.[dev,ml,llm]`, so these tests run. Prefer thin HTTP boundaries (domain exceptions, lazy imports, patching `FaissVectorStore.load`, etc.) so most server logic can be tested without real FAISS or ML stacks. Reserve `TestClient` + `create_app` for route/contract checks in integration tests.
+**Viewer / FastAPI tests:** Place in **`tests/integration/server/`** (not `tests/unit/`). Use `pytest.importorskip("fastapi")` there. CI integration jobs install `.[dev,ml,llm]`, so these tests run. Prefer thin HTTP boundaries (domain exceptions, lazy imports, patching the LanceDB backend load, etc.) so most server logic can be tested without a real index or ML stacks. Reserve `TestClient` + `create_app` for route/contract checks in integration tests.
 
 **Local CI parity:** **`make venv-dev-init`** creates **`.venv-dev`** with `pip install -e .[dev]` only (same extras as GitHub `test-unit`). Then **`make test-unit-dev-venv`** runs `check_unit_test_imports` + `pytest tests/unit/` inside that env. Override path: `make venv-dev-init VENVDEV=.venv-ci-unit`. Install ffmpeg locally if audio-related unit tests fail (CI installs it in the unit job).
 
