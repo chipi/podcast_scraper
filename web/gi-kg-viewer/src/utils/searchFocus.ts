@@ -5,7 +5,7 @@ const FOCUSABLE_DOC_TYPES = new Set(['insight', 'quote', 'kg_topic', 'kg_entity'
 
 /**
  * Return the raw source_id for a search hit when the doc_type maps to a graph
- * node.  This is the *canonical* id stored in the FAISS index — it does NOT
+ * node.  This is the *canonical* id stored in the search index — it does NOT
  * include the `g:` / `k:` prefix that `mergeGiKg.ts` adds when combining
  * artifacts.  Use `resolveCyNodeId` to find the actual Cytoscape node.
  */

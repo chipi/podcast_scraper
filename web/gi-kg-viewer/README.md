@@ -10,7 +10,7 @@ fits with the root `Makefile`, `.env` files, and CI, see
 
 Use this when you want **list files**, **semantic search**, **explore**, and **dashboard** (everything that talks to `/api/*`).
 
-1. **Python:** `pip install -e ".[dev]"` from the repo root (add `[ml]` too if you need FAISS / embeddings on the server, same as `podcast search`).
+1. **Python:** `pip install -e ".[dev]"` from the repo root (add `[ml]` too if you need LanceDB / embeddings on the server, same as `podcast search`).
 2. **UI build (once per clone / after UI changes):**  
    `cd web/gi-kg-viewer && npm install && npm run build`  
    This creates `dist/`. When `dist/` exists, `serve` mounts it at `/` so you only run one backend process.
@@ -99,11 +99,11 @@ After loading one or more `.gi.json` / `.kg.json` files, the **Cytoscape** graph
 
 ## Dashboard (M3)
 
-Use the **Dashboard** tab for artifact metrics (v1-style key/value rows), a **Chart.js** bar chart of node counts by visual type, and **vector index** stats from `GET /api/index/stats` (FAISS under `<corpus>/search/`). If `/api/health` fails, use **Choose .gi.json / .kg.json files** under API to load graphs offline (index stats stay disabled without the server).
+Use the **Dashboard** tab for artifact metrics (v1-style key/value rows), a **Chart.js** bar chart of node counts by visual type, and **vector index** stats from `GET /api/index/stats` (LanceDB under `<corpus>/search/lance_index/`). If `/api/health` fails, use **Choose .gi.json / .kg.json files** under API to load graphs offline (index stats stay disabled without the server).
 
 ## Corpus Library (RFC-067)
 
-The **Library** tab lists **feeds** and **episodes** from on-disk `*.metadata.json` / YAML under your corpus root (same discovery as the pipeline). Select an episode to see **summary bullets** and **Open in graph** (loads sibling `.gi.json` / `.kg.json` via `GET /api/artifacts/...`) or **Prefill semantic search** (opens Search with **Feed** filter and the same field order as **Similar episodes**: summary **title** + **bullets**, else **episode title** — each segment and the total string are length-capped so long recap text in metadata does not flood the query box — then run **Search** against the vector index). After episode detail loads, **Similar episodes** auto-calls `GET /api/corpus/episodes/similar` (FAISS + deduped peers). Endpoints: `GET /api/corpus/feeds`, `GET /api/corpus/episodes`, `GET /api/corpus/episodes/detail`, `GET /api/corpus/episodes/similar`. Requires a healthy API and corpus path set in the left panel. `GET /api/health` includes `corpus_library_api: true` on current servers; a 404 on `/api/corpus/*` usually means an older API process is still running—restart `make serve-api` / `podcast serve` from this repo after `pip install -e ".[dev]"`.
+The **Library** tab lists **feeds** and **episodes** from on-disk `*.metadata.json` / YAML under your corpus root (same discovery as the pipeline). Select an episode to see **summary bullets** and **Open in graph** (loads sibling `.gi.json` / `.kg.json` via `GET /api/artifacts/...`) or **Prefill semantic search** (opens Search with **Feed** filter and the same field order as **Similar episodes**: summary **title** + **bullets**, else **episode title** — each segment and the total string are length-capped so long recap text in metadata does not flood the query box — then run **Search** against the vector index). After episode detail loads, **Similar episodes** auto-calls `GET /api/corpus/episodes/similar` (LanceDB + deduped peers). Endpoints: `GET /api/corpus/feeds`, `GET /api/corpus/episodes`, `GET /api/corpus/episodes/detail`, `GET /api/corpus/episodes/similar`. Requires a healthy API and corpus path set in the left panel. `GET /api/health` includes `corpus_library_api: true` on current servers; a 404 on `/api/corpus/*` usually means an older API process is still running—restart `make serve-api` / `podcast serve` from this repo after `pip install -e ".[dev]"`.
 
 ## Corpus Digest (RFC-068)
 
@@ -111,7 +111,7 @@ The **Digest** tab calls **`GET /api/corpus/digest`** (rolling **24h** / **7d** 
 
 ## Semantic search (M4)
 
-**List artifacts** (`GET /api/artifacts`) may return **`hints`** when the path you entered is under `feeds/` but the unified FAISS index lives at the corpus parent; the Corpus panel shows those hints above the file list.
+**List artifacts** (`GET /api/artifacts`) may return **`hints`** when the path you entered is under `feeds/` but the unified LanceDB index lives at the corpus parent; the Corpus panel shows those hints above the file list.
 
 The sidebar **Semantic search** panel calls `GET /api/search` (same pipeline as `podcast search`): natural-language query, optional doc-type / feed / date / speaker / grounded filters, and `top_k`. Results include **Show on graph** when the hit maps to a graph node (`source_id` for insights, quotes, KG topics/entities). That switches to the **Graph** tab, selects the node, opens the detail panel, and centers the view. Requires a built vector index under `<corpus>/search/` and the embedding model available to the server process.
 

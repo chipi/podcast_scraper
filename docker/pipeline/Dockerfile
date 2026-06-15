@@ -5,7 +5,7 @@
 # ============================================================================
 # INSTALL_EXTRAS: Which optional dependencies to install
 #   - "" (empty) = core only (minimal, no ML / no cloud SDK bundle)
-#   - "llm" = core + API SDK extras only (``pip install '.[llm]'`` — no torch/spaCy/FAISS)
+#   - "llm" = core + API SDK extras only (``pip install '.[llm]'`` — no torch/spaCy/lancedb)
 #   - "ml" = core + ML dependencies (~1-3GB with models)
 #   Default: "ml" for backwards compatibility
 ARG INSTALL_EXTRAS=ml
@@ -106,8 +106,8 @@ RUN --mount=type=cache,target=/root/.cache/pip \
         # all three together keeps them a matched, ABI-compatible set.
         pip install --force-reinstall --no-deps torch torchaudio torchcodec --index-url https://download.pytorch.org/whl/cpu; \
     elif [ "$INSTALL_EXTRAS" = "llm" ]; then \
-        # cloud-API pipeline image. Includes [search] (faiss + sentence-transformers + torch CPU)
-        # so cloud_balanced can build its FAISS vector index without [ml]'s spaCy/Whisper/Pegasus.
+        # cloud-API pipeline image. Includes [search] (lancedb + sentence-transformers + torch CPU)
+        # so cloud_balanced can build its LanceDB vector index without [ml]'s spaCy/Whisper/Pegasus.
         pip install torch --index-url https://download.pytorch.org/whl/cpu && \
         pip install '.[llm,search]' && \
         pip uninstall -y podcast-scraper && \

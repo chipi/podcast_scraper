@@ -55,13 +55,13 @@ make ci-ui-validation CORPUS=$PWD/tests/fixtures/viewer-validation-corpus
 ```
 
 For the full set (V1, V2, V4, V5 — V3 still cleanly skips), build the
-FAISS index + topic clusters first:
+LanceDB index + topic clusters first:
 
 ```bash
 # One-time prereq (downloads ~80MB MiniLM model on first run):
 make preload-ml-models
 
-# Build the in-corpus FAISS index + topic_clusters.json
+# Build the in-corpus LanceDB index + topic_clusters.json
 make build-validation-index
 
 # Then terminal 1 + terminal 2 as above.
@@ -72,11 +72,11 @@ make build-validation-index
 - **V1 — Library row "Open in graph"** ✓ Episode resolves, camera
   centers, full 6-point contract holds.
 - **V2 — Digest topic pill "Open in graph"** ✓ (after
-  `make build-validation-index`) — the FAISS index gives
+  `make build-validation-index`) — the LanceDB index gives
   `/api/corpus/digest` real `kg_topic` + `insight` embeddings to
   derive topic-bands from.
 - **V3 — Search "Show on graph"** ✓ (after
-  `make build-validation-index`) — the FAISS index lets semantic search
+  `make build-validation-index`) — the LanceDB index lets semantic search
   return focusable hits with a "Show on graph" affordance; the FSM
   resolves them like any other handoff.
 - **V4 — Dashboard topic-cluster chip** ✓ (after
@@ -89,7 +89,7 @@ make build-validation-index
 
 ## Why the prereq instead of a checked-in index
 
-`vectors.faiss` + `metadata.json` are binary / hash-keyed by embedding
+The `lance_index/` directory contents are binary / hash-keyed by embedding
 model id, so they would churn on every model-version bump and bloat
 the repo. Building the index at CI step 0 (or via
 `make build-validation-index` locally) is ~30s on a warm runner and

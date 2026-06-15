@@ -14,5 +14,5 @@ def test_empty_query_returns_error(tmp_path):
 
 
 def test_no_index_returns_error(tmp_path):
-    # Hybrid disabled (default) + no FAISS index → no_index.
+    # No LanceDB index → no_index.
     assert run_corpus_search(tmp_path, "a real query").error == "no_index"

@@ -89,7 +89,7 @@ This surfaces in multiple places:
 
 1. **`verify-gil-offsets-strict` CI gate** (the immediate trigger) -- the
    offset verification expects Quote nodes to exist so it can check alignment
-   with FAISS transcript chunks.  Runs from ML-only acceptance configs
+   with indexed transcript chunks.  Runs from ML-only acceptance configs
    (ML-only / **airgapped** single-feed acceptance rows) produce `verdict: no_quotes`.
    Fixed (April 2026) by treating `no_quotes` as a pass in strict mode --
    nothing to misalign means no alignment failure -- but the underlying
@@ -97,7 +97,7 @@ This surfaces in multiple places:
    transcript vectors in the index, those quotes are excluded from
    `overlap_rate` (and `no_indexed_transcript_for_quotes` passes strict) so
    partial fixture indexing does not fail the ratio gate.
-2. **Search lift** -- the FAISS lift layer (RFC-072 Phase 5) boosts insight
+2. **Search lift** -- the search lift layer (RFC-072 Phase 5) boosts insight
    hits whose Quotes overlap the matched transcript chunk.  With no Quotes,
    ML-stack insights get zero lift, making search results less relevant for
    ML-only corpora.

@@ -60,7 +60,7 @@ const giRate = computed(() => {
   }
   return props.coverage.with_gi / t
 })
-/** FAISS row count (many per episode) — do not divide by episode count as a “%”. */
+/** search-index row count (many per episode) — do not divide by episode count as a “%”. */
 const indexVectorCount = computed(() => props.indexEnv?.stats?.total_vectors ?? null)
 
 const indexVectorsPerEpisode = computed(() => {

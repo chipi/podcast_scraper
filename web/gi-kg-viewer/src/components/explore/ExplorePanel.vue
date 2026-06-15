@@ -172,7 +172,7 @@ function onNlQuestionKeydown(e: KeyboardEvent): void {
               <li>
                 <span class="font-medium text-surface-foreground">Topic contains</span> — substring
                 on insight topic labels. If
-                <code class="rounded bg-canvas px-0.5 text-[10px]">&lt;corpus&gt;/search/vectors.faiss</code>
+                <code class="rounded bg-canvas px-0.5 text-[10px]">&lt;corpus&gt;/search/lance_index/</code>
                 exists, this field can use the vector index to pick relevant episodes first
                 (routing), then GI files load from disk. That is <em>not</em> the same as
                 <strong class="text-surface-foreground">Semantic search</strong>, which ranks all

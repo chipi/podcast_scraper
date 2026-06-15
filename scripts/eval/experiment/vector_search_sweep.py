@@ -116,7 +116,7 @@ def main():
     print(f"Chunk configs: {DEFAULT_CHUNK_CONFIGS}")
     print()
     print("NOTE: This script is a scaffold. Full implementation requires")
-    print("building FAISS indexes per config and measuring retrieval quality")
+    print("building LanceDB indexes per config and measuring retrieval quality")
     print("against GI silver quotes. See #595 for full plan.")
     print()
 

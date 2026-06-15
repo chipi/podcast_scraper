@@ -66,7 +66,7 @@ python -m podcast_scraper.cli topic-clusters --output-dir <corpus_parent>
 See [RFC-075](../../docs/rfc/RFC-075-corpus-topic-clustering.md) and
 [Semantic Search Guide](../../docs/guides/SEMANTIC_SEARCH_GUIDE.md).
 
-## CI: GIL vs FAISS offset check after the fast matrix
+## CI: GIL vs indexed-transcript offset check after the fast matrix
 
 On **push** to `main` / release branches, `.github/workflows/python-app.yml` runs
 `make test-acceptance-fixtures-fast`, then **`make verify-gil-offsets-after-acceptance`**.

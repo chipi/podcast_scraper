@@ -269,8 +269,8 @@ const advancedFeedCombinedTitle = computed(() =>
         </p>
         <ul class="mt-1.5 list-disc space-y-1 pl-4 text-muted">
           <li>
-            Reads the FAISS index under
-            <code class="rounded bg-canvas px-0.5 text-[10px]">&lt;corpus&gt;/search/</code>
+            Reads the search index under
+            <code class="rounded bg-canvas px-0.5 text-[10px]">&lt;corpus&gt;/search/lance_index/</code>
             — build it with
             <code class="rounded bg-canvas px-0.5 text-[10px]">podcast index</code>.
           </li>

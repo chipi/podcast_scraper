@@ -1,7 +1,8 @@
-"""Unit tests for hybrid_candidates FAISS-fallback branches (RFC-090 Phase 2).
+"""Unit tests for hybrid_candidates failure branches (RFC-090 Phase 2; FAISS retired #995).
 
 These are the non-regression guarantees the module sells — every failure must return
-None so the caller falls back to FAISS. Faked backend + encode keep this off LanceDB.
+None so the caller reports ``no_index`` (there is no FAISS fallback anymore). Faked
+backend + encode keep this off a real LanceDB index.
 """
 
 from __future__ import annotations
@@ -93,6 +94,6 @@ def test_tier_for_mixed_doc_types_is_all():
 
 def test_unsafe_output_dir_falls_back(tmp_path, monkeypatch):
     _patch_backend(monkeypatch)
-    # A path containing '..' is rejected by safe_resolve_directory → None (FAISS fallback).
+    # A path containing '..' is rejected by safe_resolve_directory → None (caller: no_index).
     unsafe = str(tmp_path / "a" / ".." / "b")
     assert hs.hybrid_candidates(unsafe, "q", top_k=5) is None

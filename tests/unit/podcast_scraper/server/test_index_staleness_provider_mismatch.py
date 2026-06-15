@@ -1,8 +1,8 @@
 """REASON_EMBEDDING_PROVIDER_MISMATCH detection in compute_index_staleness (#897).
 
 Covers the new branch in ``server/index_staleness.py`` that flags a provider
-drift between the persisted FAISS index and the active profile / query.
-This is the operator-visible signal that drives FAISS rebuild — a regression
+drift between the persisted search index and the active profile / query.
+This is the operator-visible signal that drives index rebuild — a regression
 here would silently leave indexes built under one provider being queried
 under another (the exact failure mode #897 was meant to prevent).
 """

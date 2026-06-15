@@ -70,7 +70,7 @@ test.describe('Handoff matrix § Tier 2 — Digest pill (production-shaped)', ()
     // click target, this test goes red and the V2 fix doesn't decay.
     //
     // The "Search topic" button next to each headline remains as the
-    // actionable affordance (runs the FAISS query to surface real focusable
+    // actionable affordance (runs the search query to surface real focusable
     // hits). Per-row CIL pills (covered by P1.2 above and Tier-3 P2.2 / P3.2)
     // are the user-facing topic-pill graph-handoff paths.
     await setupProductionShapedMocks(page)

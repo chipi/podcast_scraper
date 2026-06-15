@@ -1169,7 +1169,7 @@ jobs:
         export PYTHONPATH
         # Fast matrix is four cloud/dev rows (no airgapped Whisper-heavy preset); 900s per config.
         TIMEOUT=900 PER_RUN_WALL_SECONDS=600 make test-acceptance-fixtures-fast
-    - name: Verify GIL Quote vs FAISS transcript chunk offsets (acceptance corpora)
+    - name: Verify GIL Quote vs indexed transcript chunk offsets (acceptance corpora)
       run: |
         PYTHONPATH="${PYTHONPATH}:$(pwd)"
         export PYTHONPATH

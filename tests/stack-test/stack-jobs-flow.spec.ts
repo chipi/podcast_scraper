@@ -71,7 +71,7 @@ function stackTestOperatorProfile(): string {
 }
 
 /**
- * Whether the active profile builds a local FAISS / sentence-transformers
+ * Whether the active profile builds a local LanceDB / sentence-transformers
  * vector index during the pipeline run. ``cloud_thin`` opts out via
  * ``vector_search: false`` — the API correctly returns
  * ``error: "no_index"`` and the spec asserts that gracefully instead of
@@ -416,7 +416,7 @@ async function validateCorpusDataLoadedAfterJob(
     stackTestProgress('post-job: semantic search UI (left panel) + results list')
     await prepareSemanticSearchUi(page)
     // Short query matches ``waitForSearchHits`` probes; long phrases can
-    // return 0 rows on tiny FAISS corpora.
+    // return 0 rows on tiny LanceDB corpora.
     const searchUiQuery = 'trails'
     const searchRespPromise = page.waitForResponse(
       (r) => {
@@ -472,7 +472,7 @@ async function validateCorpusDataLoadedAfterJob(
   }
 
   if (hasVector) {
-    stackTestProgress('post-job: GET /api/search (FAISS + embeddings)')
+    stackTestProgress('post-job: GET /api/search (LanceDB + embeddings)')
     await waitForSearchHits(request, 120_000)
   }
 

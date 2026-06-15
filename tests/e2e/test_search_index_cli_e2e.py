@@ -45,7 +45,7 @@ class TestSearchIndexCliSubprocessE2E:
         )
 
     def test_search_exits_no_index(self, project_root: Path, tmp_path: Path) -> None:
-        """``search`` with no FAISS index returns exit code 3."""
+        """``search`` with no search index returns exit code 3."""
         result = _run_cli(
             ["search", "climate", "--output-dir", str(tmp_path)],
             cwd=project_root,

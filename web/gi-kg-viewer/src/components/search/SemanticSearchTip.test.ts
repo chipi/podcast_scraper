@@ -24,10 +24,10 @@ describe('SemanticSearchTip', () => {
     expect(w.findAll('ul > li')).toHaveLength(4)
   })
 
-  it('documents the FAISS index location and the build command', () => {
+  it('documents the search index location and the build command', () => {
     const w = mountTip()
     const text = w.text()
-    expect(text).toContain('FAISS index')
+    expect(text).toContain('search index')
     // The build command code snippet.
     expect(text).toContain('podcast index')
   })
