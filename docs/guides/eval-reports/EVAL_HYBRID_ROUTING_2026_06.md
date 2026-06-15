@@ -258,3 +258,63 @@ for a research output.
 - Related infra: #953 (openai-whisper), #948 (speaches investigation),
   #946 (whisper client resilience), #954 (diarization client resilience),
   #952 (faster-whisper validation), #934 (distinct-voice fixtures)
+
+---
+
+## 2026-06-14 addendum — any-vLLM-vs-transcription overlap is now a hard rule
+
+The 2026-06-14 #963 re-run, measured against the operator's **coder-next**
+vLLM stack (`Qwen/Qwen3-Coder-Next-FP8` at `gpu-memory-utilization=0.75`;
+see `agentic-ai-homelab/infra/vllm/coder-next/`) **as a stand-in for the
+project's planned-but-not-deployed `vllm-autoresearch`** turned up a
+failure mode that the 2026-06-11 re-run didn't see:
+
+- SC3 (active vLLM serving) caused **one of five** episodes
+  (`p03_e01`) to collapse to **WER 1.000 at an 18× slowdown** —
+  a catastrophic single-episode failure that survived as a
+  successful HTTP response (so the resilience layer can't catch it).
+- The other four episodes degraded gracefully (latency 2–3.7×
+  slower, WER +0–6pp). Mean SC3 latency 2.0× realtime vs 4.4× idle.
+- vLLM's own tail latency blew out to 335s during the same window.
+
+**Net effect on the routing recommendation.** The
+`cloud_with_dgx_primary` profile defaults stay the right shape —
+quality is fine when whisper + any vLLM don't overlap. But the
+operator-side rule **"do not overlap *any* active vLLM serving
+(coder-next, autoresearch, or other future stacks) with
+transcription windows"** is now a load-bearing piece of the
+hybrid-routing decision, not advisory. The prior draft framed this as
+autoresearch-specific; corrected here because the measurement target
+was coder-next.
+
+The PROD_RUNBOOK §"Provider model selection — DGX vs cloud per stage"
+section codifies this rule and points back to the contention report
+for the underlying evidence.
+
+**Also corrected this re-run:** vLLM `gpu-memory-utilization=0.75`
+is now the GB10 floor (`0.92` OOM-crashes the host because of the
+unified CPU+GPU pool). Compose default is now
+`VLLM_GPU_MEM_UTIL:-0.75` upstream in the homelab repo (coder-next; the
+autoresearch stack shipped 2026-06-14 at homelab
+`infra/vllm/autoresearch/` and inherits the same cap). The 2026-06-11
+SC3 numbers were attributed at writing time to Qwen3.6-35B-A3B; today's
+numbers ran under `0.75` against Qwen3-Coder-Next-FP8 — same GB10 GPU,
+same contention shape, attribution clarified.
+
+**Open follow-ups filed (do not block this synthesis):**
+
+- **#996** — Characterize the catastrophic-tail failure rate (N≥20
+  episodes) against the autoresearch vLLM. As of 2026-06-14 the
+  autoresearch stack is live at `:8003` on the DGX (homelab repo
+  `infra/vllm/autoresearch/`, model `Qwen/Qwen3-30B-A3B-Instruct-2507`),
+  so this is now actionable rather than blocked. N=1 today; the
+  operational rule covers the risk but the actual rate is unknown.
+  Homelab issues `#1` (MoE config), `#2` (vLLM image bump),
+  `#3` (model size drift) document the residual caveats to record when
+  #996 numbers land.
+- **#997** — Benchmark Gemini speaker-detector quality vs pyannote on
+  the v2 fixture bed. The 3rd-candidate gap in #930 (Gemini provider
+  was undeployed when #930 ran; #962 shipped it but the quality
+  comparison was never run). Doesn't affect `cloud_with_dgx_primary`
+  routing — only validates the `cloud_*` profile's
+  `speaker_detector_provider: gemini` assertion.

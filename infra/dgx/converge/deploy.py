@@ -64,7 +64,7 @@ MODEL = "Systran/faster-whisper-large-v3"
 
 from pathlib import Path as _FasterWhisperPath  # noqa: E402
 
-_FASTER_WHISPER_SRC = _FasterWhisperPath(__file__).resolve().parents[1] / "faster-whisper-server"
+_FASTER_WHISPER_SRC = _FasterWhisperPath(__file__).resolve().parents[1] / "speaches-gb10"
 
 # HF config lives in the operator's ``~/.env`` on DGX (single source of truth
 # for HF_TOKEN / HF_HOME / HF_HUB_CACHE / HF_DATASETS_CACHE). Compose injects it

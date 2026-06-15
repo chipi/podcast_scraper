@@ -215,6 +215,20 @@ under sustained load**. All reports live under `docs/guides/eval-reports/`.
 | [#906](https://github.com/chipi/podcast_scraper/issues/906) | [EVAL_FIXTURES_V2_TIER3_TUNING_2026_06_08.md](../docs/guides/eval-reports/EVAL_FIXTURES_V2_TIER3_TUNING_2026_06_08.md) | NER (`en_core_web_trf` +13pp recall vs `_sm`, not shipped pending install verification); Whisper accent WER (`base.en` prod default validated, 2.8× more accurate than `tiny.en`); **`long_v2.j2` Anthropic prompt shipped (5-0 sweep)** |
 | [#816](https://github.com/chipi/podcast_scraper/issues/816) | [EVAL_SUMMARY_MODEL_RELIABILITY_2026_06_08.md](../docs/guides/eval-reports/EVAL_SUMMARY_MODEL_RELIABILITY_2026_06_08.md) | Reliability axis added (success-rate floor, effective $/successful-call, p50/p95 under load). 4-candidate panel re-ranked; **`gemini-2.5-flash-lite` kept** by 4-10× cost dominance |
 
+## Eval reports (#927 — DGX-vs-cloud programme)
+
+The #927 epic synthesized DGX vs cloud across the four pipeline stages.
+All four children resolved into the `cloud_with_dgx_primary` profile
+already shipping in `config/profiles/`. Routing-decision PROD_RUNBOOK
+entry: §"Provider model selection — DGX vs cloud per stage".
+
+| Child | Report | Outcome |
+| ----- | ------ | ------- |
+| [#928](https://github.com/chipi/podcast_scraper/issues/928) | [EVAL_SUMMARY_DGX_LOCAL_2026_06.md](../docs/guides/eval-reports/EVAL_SUMMARY_DGX_LOCAL_2026_06.md) | Cell C: vLLM-served Qwen3.6-35B-A3B ties Ollama qwen3.5:35b within scoring noise. **Ollama kept** as `cloud_with_dgx_*` summary (operationally simpler) |
+| [#929](https://github.com/chipi/podcast_scraper/issues/929) | [EVAL_TRANSCRIPTION_3WAY_2026_06.md](../docs/guides/eval-reports/EVAL_TRANSCRIPTION_3WAY_2026_06.md), [EVAL_WHISPER_CONTENTION_2026_06.md](../docs/guides/eval-reports/EVAL_WHISPER_CONTENTION_2026_06.md) | whisper-openai on `dgx:8002` (post-#929 temperature fix) matches MPS within noise at ~3× speed. **Transcription routed to DGX** for DGX-equipped profiles. Contention re-tests (#963, 2026-06-11 + 2026-06-14): mean WER stable, but active vLLM serving can trigger catastrophic single-episode failure (operator-gated rule) |
+| [#930](https://github.com/chipi/podcast_scraper/issues/930) | [EVAL_DIARIZATION_DGX_VS_CLOUD_2026_06.md](../docs/guides/eval-reports/EVAL_DIARIZATION_DGX_VS_CLOUD_2026_06.md) | pyannote on DGX ties MPS within noise (~13× realtime). **Diarization routed to DGX** for DGX-equipped profiles. Gemini speaker-detector 3-way completion deferred to follow-up |
+| [#931](https://github.com/chipi/podcast_scraper/issues/931) | [EVAL_HYBRID_ROUTING_2026_06.md](../docs/guides/eval-reports/EVAL_HYBRID_ROUTING_2026_06.md) | Hybrid synthesis: `cloud_with_dgx_primary` = whisper+diarize on DGX, summary+speaker-detector on Gemini. PROD_RUNBOOK entry documents per-stage rationale + the load-bearing operator gate (no sweep-vs-transcription overlap) |
+
 ### Reliability axis (#816) — methodology change
 
 Summary-model autoresearch now measures reliability as a hard floor, not
