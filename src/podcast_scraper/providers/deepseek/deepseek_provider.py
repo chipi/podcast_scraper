@@ -44,6 +44,7 @@ from ...utils.log_redaction import format_exception_for_log
 from ...utils.provider_metadata import warn_if_truncated
 from ...utils.timeout_config import get_http_timeout
 from ...workflow import metrics
+from .. import guardrails as _guardrails
 
 logger = logging.getLogger(__name__)
 
@@ -618,9 +619,12 @@ class DeepSeekProvider:
             )
 
             summary = response.choices[0].message.content
-            if not summary:
-                logger.warning("DeepSeek API returned empty summary")
-                summary = ""
+            finish_reason = response.choices[0].finish_reason
+            # Response-shape guardrail (ADR-100, #1003): empty / thinking-prose /
+            # finish_reason=length. DeepSeek SDK is OpenAI-compatible so same shape.
+            _guardrails.check_chat_response(
+                summary, service="deepseek", finish_reason=finish_reason
+            )
 
             logger.debug(
                 "DeepSeek summarization completed: %d characters",
@@ -710,6 +714,11 @@ class DeepSeekProvider:
                 },
             }
 
+        except _guardrails.GuardrailViolation:
+            # ADR-100: propagate the raw violation so FallbackAwareSummarizationProvider
+            # can route to the degradation policy's fallback. Wrapping into
+            # ProviderRuntimeError would hide the type from the fallback layer.
+            raise
         except Exception as exc:
             logger.error("DeepSeek API error in summarization: %s", format_exception_for_log(exc))
             from podcast_scraper.exceptions import (
@@ -998,8 +1007,9 @@ class DeepSeekProvider:
             "summarize_bundled",
         )
         raw = (response.choices[0].message.content or "").strip()
-        if not raw:
-            raise ValueError("DeepSeek bundled call returned empty content")
+        finish_reason = response.choices[0].finish_reason
+        # Response-shape guardrail (ADR-100, #1003) on bundled output.
+        _guardrails.check_chat_response(raw, service="deepseek", finish_reason=finish_reason)
 
         try:
             data = json.loads(raw)
@@ -1192,6 +1202,11 @@ class DeepSeekProvider:
                 model=self.summary_model,
             )
             content = (response.choices[0].message.content or "").strip()
+            finish_reason = response.choices[0].finish_reason
+            # Response-shape guardrail (ADR-100, #1003) on GI insights output.
+            _guardrails.check_chat_response(
+                content, service="deepseek", finish_reason=finish_reason
+            )
             lines = [
                 line.strip()
                 for line in content.splitlines()
@@ -1828,10 +1843,26 @@ class DeepSeekProvider:
             if not cleaned:
                 logger.warning("DeepSeek API returned empty cleaned text, using original")
                 return text
+            # Response-shape guardrail (ADR-100, #1003) on cleaning output —
+            # only the thinking-prose case. Empty handled gracefully above.
+            _guardrails.check_chat_response(
+                cleaned,
+                service="deepseek",
+                finish_reason=response.choices[0].finish_reason,
+            )
 
             logger.debug("DeepSeek cleaning completed: %d -> %d chars", len(text), len(cleaned))
             return cast(str, cleaned)
 
+        except _guardrails.GuardrailViolation:
+            # ADR-100 per-stage policy: cleaning degrades gracefully — a
+            # guardrail-tripping cleaned response means we serve the original
+            # transcript text rather than fail the run. Distinct from summarize
+            # (fail-up) and GI/KG (fail-up).
+            logger.warning(
+                "DeepSeek cleaning output failed guardrail; " "returning original transcript text"
+            )
+            return text
         except Exception as exc:
             logger.error("DeepSeek API error in cleaning: %s", format_exception_for_log(exc))
             from podcast_scraper.exceptions import ProviderAuthError, ProviderRuntimeError

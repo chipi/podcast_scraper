@@ -43,6 +43,7 @@ from ...utils.cleaning_max_tokens import (
 from ...utils.log_redaction import format_exception_for_log
 from ...utils.timeout_config import get_http_timeout
 from ...workflow import metrics
+from .. import guardrails as _guardrails
 from ..capabilities import ProviderCapabilities
 
 logger = logging.getLogger(__name__)
@@ -754,9 +755,13 @@ class AnthropicProvider:
                     summary = first_block.text
                 elif isinstance(first_block, str):
                     summary = first_block
-            if not summary:
-                logger.warning("Anthropic API returned empty summary")
-                summary = ""
+            # Response-shape guardrail (ADR-100, #1003): empty / thinking-prose /
+            # finish_reason=length. Raises GuardrailViolation; caller's existing
+            # FallbackAware path catches it and routes to the configured
+            # degradation_policy.fallback_provider_on_failure.
+            _guardrails.check_chat_response(
+                summary, service="anthropic", finish_reason=getattr(response, "stop_reason", None)
+            )
 
             logger.debug("Anthropic summarization completed: %d characters", len(summary))
 
@@ -841,6 +846,11 @@ class AnthropicProvider:
                 },
             }
 
+        except _guardrails.GuardrailViolation:
+            # ADR-100: propagate the raw violation so FallbackAwareSummarizationProvider
+            # can route to the degradation policy's fallback. Wrapping into
+            # ProviderRuntimeError would hide the type from the fallback layer.
+            raise
         except Exception as exc:
             logger.error("Anthropic API error in summarization: %s", format_exception_for_log(exc))
             from podcast_scraper.exceptions import (
@@ -1141,8 +1151,11 @@ class AnthropicProvider:
             elif isinstance(first_block, str):
                 summary = first_block
         raw = (summary or "").strip()
-        if not raw:
-            raise ValueError("Anthropic bundled call returned empty content")
+        # Response-shape guardrail (ADR-100, #1003): empty / thinking-prose /
+        # finish_reason=length. Replaces narrower "if not raw" check.
+        _guardrails.check_chat_response(
+            raw, service="anthropic", finish_reason=getattr(response, "stop_reason", None)
+        )
         raw = "{" + raw if not raw.startswith("{") else raw
 
         try:
@@ -1393,10 +1406,28 @@ class AnthropicProvider:
             if not cleaned:
                 logger.warning("Anthropic API returned empty cleaned text, using original")
                 return text
+            # Response-shape guardrail (ADR-100, #1003) on cleaning — only the
+            # thinking-prose case (empty handled gracefully above per the
+            # per-stage policy in ADR-100; cleaned is non-empty here so the
+            # empty-content branch won't false-fire).
+            _guardrails.check_chat_response(
+                cleaned,
+                service="anthropic",
+                finish_reason=getattr(response, "stop_reason", None),
+            )
 
             logger.debug("Anthropic cleaning completed: %d -> %d chars", len(text), len(cleaned))
             return cast(str, cleaned)
 
+        except _guardrails.GuardrailViolation:
+            # ADR-100 per-stage policy: cleaning degrades gracefully — a
+            # guardrail-tripping cleaned response means we serve the original
+            # transcript text rather than fail the run. Distinct from summarize
+            # (fail-up) and GI/KG (fail-up).
+            logger.warning(
+                "Anthropic cleaning output failed guardrail; " "returning original transcript text"
+            )
+            return text
         except Exception as exc:
             logger.error("Anthropic API error in cleaning: %s", format_exception_for_log(exc))
             from podcast_scraper.exceptions import ProviderAuthError, ProviderRuntimeError
@@ -1481,6 +1512,12 @@ class AnthropicProvider:
                 raw = getattr(first, "text", None)
                 content = raw if isinstance(raw, str) else ""
             content = (content or "").strip()
+            # Response-shape guardrail (ADR-100, #1003) on GI insights.
+            _guardrails.check_chat_response(
+                content,
+                service="anthropic",
+                finish_reason=getattr(response, "stop_reason", None),
+            )
             lines = [
                 line.strip()
                 for line in content.splitlines()

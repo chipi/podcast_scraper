@@ -432,6 +432,10 @@ class E2EHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
     #   /v1/diarize:               "diarize:empty_segments"
     #   /v1/chat/completions:      "chat:empty_content" | "chat:thinking_prose"
     #                              | "chat:bad_json" | "chat:finish_length"
+    #   /v1/messages:              "anthropic:empty_content" | "anthropic:thinking_prose"
+    #                              | "anthropic:max_tokens"
+    #   /v1beta/generateContent:   "gemini:empty_content" | "gemini:thinking_prose"
+    #                              | "gemini:max_tokens"
     #   /api/generate:             "generate:empty" | "generate:thinking_prose"
     # Tests set an injection, run the pipeline, assert fallback fires.
     # Cleared at fixture teardown so tests don't leak state to siblings.
@@ -1246,6 +1250,70 @@ class E2EHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
             }
         )
 
+    def _emit_anthropic_violation(self, violation_type: str) -> None:
+        """Return a guardrail-violating Anthropic /v1/messages response.
+
+        violation_type ∈ {
+            'anthropic:empty_content', 'anthropic:thinking_prose',
+            'anthropic:max_tokens'
+        }.
+        """
+        if violation_type == "anthropic:thinking_prose":
+            text = "<think>Let me think about this carefully before I respond.</think>"
+            stop_reason = "end_turn"
+        elif violation_type == "anthropic:max_tokens":
+            text = "This response was truncated mid-sent"
+            # ADR-100: tests assume callers normalize Anthropic's "max_tokens" → "length"
+            stop_reason = "length"
+        else:  # anthropic:empty_content (or unknown)
+            text = ""
+            stop_reason = "end_turn"
+        self._send_json_200(
+            {
+                "id": "msg-violation-injected",
+                "type": "message",
+                "role": "assistant",
+                "model": "violation-injected",
+                "content": [{"type": "text", "text": text}],
+                "stop_reason": stop_reason,
+                "stop_sequence": None,
+                "usage": {"input_tokens": 0, "output_tokens": max(len(text), 1)},
+            }
+        )
+
+    def _emit_gemini_violation(self, violation_type: str) -> None:
+        """Return a guardrail-violating Gemini generateContent response.
+
+        violation_type ∈ {
+            'gemini:empty_content', 'gemini:thinking_prose',
+            'gemini:max_tokens'
+        }.
+        """
+        if violation_type == "gemini:thinking_prose":
+            text = "<think>Okay, so I need to figure out the right answer here.</think>"
+            finish_reason = "STOP"
+        elif violation_type == "gemini:max_tokens":
+            text = "Truncated answer mid-thoug"
+            finish_reason = "length"  # ADR-100 limitation: helper trips only on lowercase "length"
+        else:  # gemini:empty_content (or unknown)
+            text = ""
+            finish_reason = "STOP"
+        self._send_json_200(
+            {
+                "candidates": [
+                    {
+                        "content": {"parts": [{"text": text}], "role": "model"},
+                        "finishReason": finish_reason,
+                    }
+                ],
+                "usageMetadata": {
+                    "promptTokenCount": 1,
+                    "candidatesTokenCount": max(len(text), 1),
+                    "totalTokenCount": max(len(text), 1) + 1,
+                },
+            }
+        )
+
     def _emit_generate_violation(self, violation_type: str) -> None:
         """Return a guardrail-violating Ollama /api/generate response.
 
@@ -1445,16 +1513,28 @@ class E2EHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
         - Speaker detection (when system prompt contains "speaker" or "NER")
         - GIL extract_quotes / score_entailment (Insight+quote_text or Premise+Hypothesis)
         - Summarization (default)
+        - Guardrail violation injection (#1003 / ADR-100): see ``inject_violation``
         """
+        # Drain the request body first so error injection doesn't desync the keep-alive socket.
         try:
-            # Read request body
             content_length = int(self.headers.get("Content-Length", 0))
-            if content_length == 0:
+            if content_length > 0:
+                _drained_body = self.rfile.read(content_length)
+            else:
+                _drained_body = b""
+        except Exception:
+            _drained_body = b""
+
+        injection = type(self)._pop_injected_violation("/v1/messages")
+        if injection is not None:
+            self._emit_anthropic_violation(injection)
+            return
+
+        try:
+            if not _drained_body:
                 self.send_error(400, "Request body required")
                 return
-
-            body = self.rfile.read(content_length)
-            request_data = json.loads(body.decode("utf-8"))
+            request_data = json.loads(_drained_body.decode("utf-8"))
 
             # Extract request details
             messages = request_data.get("messages", [])
@@ -1602,15 +1682,26 @@ class E2EHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
         - Audio transcription (multimodal input with audio)
         - GIL extract_quotes / score_entailment (Insight+quote_text or Premise+Hypothesis)
         - Text generation (summarization, speaker detection)
+        - Guardrail violation injection (#1003 / ADR-100): see ``inject_violation``
         """
         try:
-            # Read request body
             content_length = int(self.headers.get("Content-Length", 0))
-            if content_length == 0:
+            if content_length > 0:
+                body = self.rfile.read(content_length)
+            else:
+                body = b""
+        except Exception:
+            body = b""
+
+        injection = type(self)._pop_injected_violation("/v1beta/generateContent")
+        if injection is not None:
+            self._emit_gemini_violation(injection)
+            return
+
+        try:
+            if not body:
                 self.send_error(400, "Request body required")
                 return
-
-            body = self.rfile.read(content_length)
             request_data = json.loads(body.decode("utf-8"))
 
             # Extract contents from request

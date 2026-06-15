@@ -40,6 +40,7 @@ from ...utils.provider_metadata import (
 )
 from ...utils.timeout_config import get_openai_client_timeout
 from ...workflow import metrics
+from .. import guardrails as _guardrails
 from ..capabilities import ProviderCapabilities
 
 logger = logging.getLogger(__name__)
@@ -1174,9 +1175,12 @@ class OpenAIProvider:
             )
 
             summary = response.choices[0].message.content
-            if not summary:
-                logger.warning("OpenAI API returned empty summary")
-                summary = ""
+            finish_reason = response.choices[0].finish_reason
+            # Response-shape guardrail (ADR-100, #1003): empty / thinking-prose /
+            # finish_reason=length. Raises GuardrailViolation; caller's existing
+            # FallbackAware path catches it and routes to the configured
+            # degradation_policy.fallback_provider_on_failure.
+            _guardrails.check_chat_response(summary, service="openai", finish_reason=finish_reason)
 
             logger.debug(
                 "OpenAI summarization completed: %d characters",
@@ -1265,6 +1269,11 @@ class OpenAIProvider:
                 },
             }
 
+        except _guardrails.GuardrailViolation:
+            # ADR-100: propagate the raw violation so FallbackAwareSummarizationProvider
+            # can route to the degradation policy's fallback. Wrapping into
+            # ProviderRuntimeError would hide the type from the fallback layer.
+            raise
         except Exception as exc:
             logger.error("OpenAI API error in summarization: %s", format_exception_for_log(exc))
             from podcast_scraper.exceptions import ProviderAuthError, ProviderRuntimeError
@@ -1577,8 +1586,11 @@ class OpenAIProvider:
             "summarize_bundled",
         )
         raw = (response.choices[0].message.content or "").strip()
-        if not raw:
-            raise ValueError("OpenAI bundled call returned empty content")
+        finish_reason = response.choices[0].finish_reason
+        # Response-shape guardrail (ADR-100, #1003) — empty content, thinking-
+        # prose markers, finish_reason=length. Replaces narrower "if not raw"
+        # check. JSON parse handled below in the existing try/except.
+        _guardrails.check_chat_response(raw, service="openai", finish_reason=finish_reason)
 
         try:
             data = json.loads(raw)
@@ -1725,6 +1737,9 @@ class OpenAIProvider:
                 )
                 pipeline_metrics.record_llm_gi_call(in_tok, out_tok, cost_usd=gi_cost)
             content = (response.choices[0].message.content or "").strip()
+            finish_reason = response.choices[0].finish_reason
+            # Response-shape guardrail (ADR-100, #1003) on GI insights output.
+            _guardrails.check_chat_response(content, service="openai", finish_reason=finish_reason)
             lines = [
                 line.strip()
                 for line in content.splitlines()
@@ -2488,6 +2503,18 @@ class OpenAIProvider:
             call_metrics.finalize()
 
             cleaned = response.choices[0].message.content
+            # Response-shape guardrail (ADR-100, #1003) on cleaning output —
+            # but ONLY thinking-prose case. Empty cleaning result is handled
+            # gracefully below (return original text) per the per-stage policy
+            # in ADR-100. The check runs after we know `cleaned` is non-empty
+            # so the empty-content branch inside check_chat_response doesn't
+            # false-fire.
+            if cleaned:
+                _guardrails.check_chat_response(
+                    cleaned,
+                    service="openai",
+                    finish_reason=response.choices[0].finish_reason,
+                )
             in_tok, out_tok = _openai_chat_usage_tokens(response)
             if (
                 pipeline_metrics is not None
@@ -2513,6 +2540,15 @@ class OpenAIProvider:
             logger.debug("OpenAI cleaning completed: %d -> %d chars", len(text), len(cleaned))
             return cast(str, cleaned)
 
+        except _guardrails.GuardrailViolation:
+            # ADR-100 per-stage policy: cleaning degrades gracefully — a
+            # guardrail-tripping cleaned response means we serve the original
+            # transcript text rather than fail the run. Distinct from summarize
+            # (fail-up) and GI/KG (fail-up).
+            logger.warning(
+                "OpenAI cleaning output failed guardrail; returning original transcript text"
+            )
+            return text
         except Exception as exc:
             logger.error("OpenAI API error in cleaning: %s", format_exception_for_log(exc))
             from podcast_scraper.exceptions import ProviderAuthError, ProviderRuntimeError

@@ -55,12 +55,39 @@ from ...utils.cleaning_max_tokens import (
 )
 from ...utils.log_redaction import format_exception_for_log, redact_for_log
 from ...workflow import metrics
+from .. import guardrails as _guardrails
 from ..capabilities import ProviderCapabilities
 
 logger = logging.getLogger(__name__)
 
 # Default speaker names when detection fails
 from ..ml.speaker_detection import DEFAULT_SPEAKER_NAMES
+
+
+def _gemini_finish_reason(response: Any) -> Optional[str]:
+    """Best-effort extraction of Gemini's finish_reason for guardrail purposes.
+
+    Gemini's response shape varies by SDK version; ``candidates[0].finish_reason``
+    is the canonical path but the value is sometimes an enum and sometimes a
+    string. Normalises to a lowercase string ("length", "stop", etc.) so the
+    chat-guardrail's ``finish_reason == "length"`` comparison works.
+    Returns None when the field isn't present (the guardrail then skips the
+    finish-reason check, which is the safe default).
+    """
+    try:
+        candidates = getattr(response, "candidates", None) or []
+        if not candidates:
+            return None
+        reason = getattr(candidates[0], "finish_reason", None)
+        if reason is None:
+            return None
+        name = getattr(reason, "name", None)
+        if name:
+            return str(name).lower()
+        return str(reason).lower()
+    except Exception:  # noqa: BLE001 - defensive; never break the caller
+        return None
+
 
 # Pricing for Gemini models lives in ``config/pricing_assumptions.yaml`` (#651).
 
@@ -1065,9 +1092,13 @@ class GeminiProvider:
             call_metrics.finalize()
 
             summary = response.text if hasattr(response, "text") else str(response)
-            if not summary:
-                logger.warning("Gemini API returned empty summary")
-                summary = ""
+            # Response-shape guardrail (ADR-100, #1003): empty / thinking-prose /
+            # finish_reason=length. Gemini "thinking" models (2.5-flash w/o
+            # explicit budget=0) can burn output budget on hidden reasoning
+            # and return empty/short content — caught here.
+            _guardrails.check_chat_response(
+                summary, service="gemini", finish_reason=_gemini_finish_reason(response)
+            )
 
             logger.debug("Gemini summarization completed: %d characters", len(summary))
 
@@ -1181,6 +1212,11 @@ class GeminiProvider:
                 },
             }
 
+        except _guardrails.GuardrailViolation:
+            # ADR-100: propagate the raw violation so FallbackAwareSummarizationProvider
+            # can route to the degradation policy's fallback. Wrapping into
+            # ProviderRuntimeError would hide the type from the fallback layer.
+            raise
         except Exception as exc:
             logger.error("Gemini API error in summarization: %s", format_exception_for_log(exc))
             from podcast_scraper.exceptions import (
@@ -1474,8 +1510,10 @@ class GeminiProvider:
         call_metrics.finalize()
 
         raw = (response.text if hasattr(response, "text") else str(response) or "").strip()
-        if not raw:
-            raise ValueError("Gemini bundled call returned empty content")
+        # Response-shape guardrail (ADR-100, #1003) on bundled output.
+        _guardrails.check_chat_response(
+            raw, service="gemini", finish_reason=_gemini_finish_reason(response)
+        )
 
         try:
             data = json.loads(raw, strict=False)
@@ -1690,6 +1728,10 @@ class GeminiProvider:
             )
             content = response.text if hasattr(response, "text") else str(response)
             content = (content or "").strip()
+            # Response-shape guardrail (ADR-100, #1003) on GI insights output.
+            _guardrails.check_chat_response(
+                content, service="gemini", finish_reason=_gemini_finish_reason(response)
+            )
             lines = [
                 line.strip()
                 for line in content.splitlines()
@@ -2404,10 +2446,25 @@ class GeminiProvider:
             if not cleaned:
                 logger.warning("Gemini API returned empty cleaned text, using original")
                 return text
+            # Response-shape guardrail (ADR-100, #1003) on cleaning output —
+            # only the thinking-prose case. Empty handled gracefully above
+            # per ADR-100 per-stage policy.
+            _guardrails.check_chat_response(
+                cleaned, service="gemini", finish_reason=_gemini_finish_reason(response)
+            )
 
             logger.debug("Gemini cleaning completed: %d -> %d chars", len(text), len(cleaned))
             return cast(str, cleaned)
 
+        except _guardrails.GuardrailViolation:
+            # ADR-100 per-stage policy: cleaning degrades gracefully — a
+            # guardrail-tripping cleaned response means we serve the original
+            # transcript text rather than fail the run. Distinct from summarize
+            # (fail-up) and GI/KG (fail-up).
+            logger.warning(
+                "Gemini cleaning output failed guardrail; returning original transcript text"
+            )
+            return text
         except Exception as exc:
             logger.error("Gemini API error in cleaning: %s", format_exception_for_log(exc))
             from podcast_scraper.exceptions import ProviderAuthError, ProviderRuntimeError

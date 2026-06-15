@@ -36,6 +36,7 @@ WIP file is removed.
 | `manual-test-plan-gi-kg.md` | Manual GI/KG smoke checklist | Reference |
 | `wip-concurrent-pipeline-http-retry-metrics.md` | Open documentation gap for `http_urllib3_retry_events` | Open |
 | `wip-topic-clusters-validation-reference.yaml` | Reference topic-cluster validation config | Reference |
+| `CLOUD-PROVIDER-RESILIENCE-E2E-GAP-1003.md` | Audit of cloud-LLM resilience E2E coverage; matrix + 5 follow-up gaps surfaced during #1003 | Active |
 
 ## Guidelines
 
