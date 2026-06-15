@@ -7,15 +7,19 @@ schema-valid corpus from ``tests/fixtures/rss/*.xml`` + matching
 so CI / scheduled GHA can run Tier-3 validation against a stable,
 version-pinned corpus without external dependencies or operator setup.
 
-This corpus is **synthetic, low-fidelity**. The text fixtures have low
-cross-episode topic intermingling, so this catches:
+This corpus is **synthetic** but production-shaped: it carries diarized
+two-artifact transcripts (raw screenplay + ad-free sidecars), GI Person
+nodes + SPOKEN_BY/SUPPORTED_BY edges, and a metadata content block
+(#876/#974), so a real LanceDB build indexes real transcript segments.
+It catches:
   - Schema regressions (endpoints return wrong shape)
   - Empty-state bugs (digest/dashboard with sparse data)
   - Per-episode handoff contract (cold-start Library, Episode panel)
-It does NOT catch:
+  - Real LanceDB indexing + hybrid search over transcript segments (V3),
+    diarized speakers + SPOKEN_BY in the graph
+It does NOT catch (text fixtures have low cross-episode intermingling):
   - Cross-episode topic-cluster supersession bugs (need richer mock data)
   - KG-second-wave timing at production scale
-  - Real-vector-index search
 
 Usage:
     python scripts/build_synthetic_validation_corpus.py \\

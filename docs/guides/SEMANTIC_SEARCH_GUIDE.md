@@ -134,6 +134,25 @@ Until you rebuild, search may return hits that no longer map cleanly to current 
 episodes. See [CORPUS_MULTI_FEED_ARTIFACTS.md](../api/CORPUS_MULTI_FEED_ARTIFACTS.md) for manifest /
 summary contracts.
 
+### Index lifecycle: compaction + clean-slate reindex
+
+LanceDB is **MVCC** and the indexer upserts **one document at a time**, so every build appends
+many small data fragments + superseded table versions. Left unmanaged these accumulate without
+bound — a corpus reindexed daily can balloon to gigabytes of stale fragments. Two mechanisms keep
+the on-disk index bounded; both are automatic:
+
+- **Compaction on every build.** `build_two_tier_index` calls `LanceDBBackend.compact()` at the
+  end (`Table.optimize(cleanup_older_than=0)`) — it merges fragments and prunes all-but-current
+  versions. This bounds the **incremental** reindex the pipeline runs after each batch (it upserts
+  new episodes into the existing index, then reclaims the fragments that creates) as well as a full
+  rebuild. Fewer fragments also means faster reads (less to scan).
+- **Clean slate on a full reindex.** `index-two-tier` (and `index --rebuild`) clears the index
+  directory first (`drop_existing`), so a full rebuild can't inherit prior-run fragments. The
+  incremental path keeps the existing index and relies on post-build compaction.
+
+You should never need to compact by hand; if an index ever looks bloated (thousands of files under
+`search/lance_index/*.lance/`), a full reindex (`index-two-tier` / `index --rebuild`) resets it.
+
 ## Corpus topic clustering (RFC-075)
 
 After **`kg_topic`** rows exist in the LanceDB index, you can build **`search/topic_clusters.json`**

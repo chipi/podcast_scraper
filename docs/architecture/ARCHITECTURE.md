@@ -681,6 +681,14 @@ from typed edges in the cross-layer graph (`Person→Insight`, `Insight→Entity
 (`podcast search`) and HTTP (`/api/search`). Multi-feed corpora use a single unified index under
 `<corpus>/search/lance_index/`.
 
+**Index lifecycle (bounded growth).** LanceDB is MVCC and the indexer upserts per document, so
+each build appends data fragments + superseded versions. To keep the index bounded across the
+**incremental** reindex the pipeline runs after every batch, `build_two_tier_index` **compacts**
+each table at the end (`Table.optimize(cleanup_older_than=0)` — merges fragments, prunes
+all-but-current versions). A **full** reindex (`index-two-tier`, `index --rebuild`) additionally
+clears the index directory first (`drop_existing`) for a clean slate. Without this the index grew
+unbounded (a real reprocessed corpus reached ~3.8G of stale fragments before the fix).
+
 **Modules (implemented):**
 
 - `search/two_tier_indexer.py` — native two-tier (segment + insight + aux) LanceDB index build
