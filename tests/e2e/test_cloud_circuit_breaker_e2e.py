@@ -129,3 +129,105 @@ class TestPerProviderCircuitBreakerE2E:
 
         # No trips recorded — breaker wasn't wired.
         assert llm_circuit_breaker.stats("openai")["trips_total"] == 0
+
+
+@pytest.mark.parametrize(
+    "service_name,provider_factory_kwargs",
+    [
+        (
+            "anthropic",
+            {
+                "module": "podcast_scraper.providers.anthropic.anthropic_provider",
+                "klass": "AnthropicProvider",
+                "extra_cfg": {
+                    "anthropic_api_key": "sk-ant-test",
+                    "anthropic_api_base_attr": "anthropic_api_base",
+                },
+                "summary_provider": "anthropic",
+            },
+        ),
+        (
+            "gemini",
+            {
+                "module": "podcast_scraper.providers.gemini.gemini_provider",
+                "klass": "GeminiProvider",
+                "extra_cfg": {
+                    "gemini_api_key": "AIza-test",
+                    "gemini_api_base_attr": "gemini_api_base",
+                },
+                "summary_provider": "gemini",
+            },
+        ),
+        (
+            "deepseek",
+            {
+                "module": "podcast_scraper.providers.deepseek.deepseek_provider",
+                "klass": "DeepSeekProvider",
+                "extra_cfg": {
+                    "deepseek_api_key": "sk-ds-test",
+                    "deepseek_api_base_attr": "deepseek_api_base",
+                },
+                "summary_provider": "deepseek",
+            },
+        ),
+    ],
+    ids=["anthropic", "gemini", "deepseek"],
+)
+class TestPerProviderBreakerWiring:
+    """Each cloud provider's ``set_breaker_config_from_cfg`` wires the
+    breaker. Same architectural pattern as OpenAI — but every provider
+    needs the proof that its retry_with_metrics call sites are picking
+    up the metrics-attached breaker config.
+
+    These tests use the breaker stats module directly so they don't depend
+    on a precise number of 503s — only on the breaker observing at least
+    one trip after a burst of failures."""
+
+    def _build_provider(self, e2e_server, service_name, provider_factory_kwargs):
+        import importlib
+
+        from tests.e2e.fixtures.e2e_http_server import E2EHTTPRequestHandler
+
+        mod = importlib.import_module(provider_factory_kwargs["module"])
+        klass = getattr(mod, provider_factory_kwargs["klass"])
+        cfg_dict = {
+            "rss_url": "https://example.com/feed.xml",
+            "summary_provider": provider_factory_kwargs["summary_provider"],
+            "generate_summaries": True,
+            "llm_circuit_breaker_enabled": True,
+            "llm_circuit_breaker_failure_threshold": 3,
+            "llm_circuit_breaker_window_seconds": 60.0,
+            "llm_circuit_breaker_cooldown_seconds": 1.0,
+        }
+        extra = provider_factory_kwargs["extra_cfg"]
+        api_base_attr = extra["%s_api_base_attr" % service_name]
+        api_base_helper = getattr(e2e_server.urls, "%s_api_base" % service_name)
+        cfg_dict[api_base_attr] = api_base_helper()
+        for k, v in extra.items():
+            if k.endswith("_api_base_attr"):
+                continue
+            cfg_dict[k] = v
+        provider = klass(Config.model_validate(cfg_dict))
+        provider.initialize()
+        # Pick the right route to inject 503 on.
+        if service_name == "anthropic":
+            E2EHTTPRequestHandler.set_error_behavior("/v1/messages", status=503)
+        elif service_name == "gemini":
+            E2EHTTPRequestHandler.set_error_behavior(
+                "/v1beta/models/gemini-2.5-flash-lite:generateContent", status=503
+            )
+        else:
+            E2EHTTPRequestHandler.set_error_behavior("/v1/chat/completions", status=503)
+        return provider
+
+    def test_breaker_trips_under_503_burst(self, e2e_server, service_name, provider_factory_kwargs):
+        provider = self._build_provider(e2e_server, service_name, provider_factory_kwargs)
+        assert llm_circuit_breaker.stats(service_name)["trips_total"] == 0
+        for _ in range(2):
+            with pytest.raises(ProviderRuntimeError):
+                provider.summarize("Sample transcript for breaker. " * 4)
+        s = llm_circuit_breaker.stats(service_name)
+        assert s["trips_total"] >= 1, (
+            f"{service_name} breaker did not trip — "
+            f"set_breaker_config_from_cfg wiring is broken"
+        )

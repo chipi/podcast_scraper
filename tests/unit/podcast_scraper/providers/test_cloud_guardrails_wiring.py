@@ -278,3 +278,41 @@ class TestCostAttributionFlag:
         ]
         assert len(events) == 1
         assert events[0]["triggered_guardrail"] is True
+
+    @pytest.mark.parametrize("stage", ["gi", "cleaning", "summarization"])
+    def test_emit_llm_cost_event_with_non_summarize_stages_carries_flag(self, stage, caplog):
+        """ADR-100 close-out: cost-emit-with-flag is wired at GI / cleaning /
+        bundled (capability=summarization) sites too. The Loki ``llm_cost``
+        stream must carry the flag for any of these stage labels."""
+        from podcast_scraper import config as cfg_module
+        from podcast_scraper.workflow.cost_monitoring import emit_llm_cost_event
+
+        cfg = cfg_module.Config.model_validate(
+            {
+                "rss_url": "https://example.com/feed.xml",
+                "openai_api_key": "sk-test",
+            }
+        )
+        with caplog.at_level("INFO"):
+            emit_llm_cost_event(
+                cfg,
+                provider="openai",
+                stage=stage,
+                model="gpt-4o-mini",
+                estimated_cost_usd=0.001,
+                triggered_guardrail=True,
+                prompt_tokens=100,
+                completion_tokens=50,
+            )
+        import json as _json
+
+        events = [
+            _json.loads(r.message)
+            for r in caplog.records
+            if r.message.startswith("{") and '"event_type"' in r.message
+        ]
+        assert len(events) == 1
+        assert events[0]["stage"] == stage
+        assert events[0]["triggered_guardrail"] is True
+        assert events[0]["prompt_tokens"] == 100
+        assert events[0]["completion_tokens"] == 50

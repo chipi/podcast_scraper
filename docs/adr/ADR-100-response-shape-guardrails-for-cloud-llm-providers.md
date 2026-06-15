@@ -19,7 +19,7 @@ The operator observed during the ADR-099 implementation:
 > guardrails on my API LLM providers. you never know when one can hallucinate?"
 
 The answer is yes. The cloud LLM providers we use (OpenAI, Anthropic, Gemini,
-DeepSeek, Mistral, Grok, Groq) have the same structurally-invalid-response
+DeepSeek, Mistral, Grok) have the same structurally-invalid-response
 failure modes as the self-hosted ones — we have direct evidence in our own
 eval data:
 
@@ -55,7 +55,7 @@ exception path triggers fallback via the configured
 chat-completion provider. The `service` kwarg becomes the Prometheus label
 and the `GuardrailViolation.service` attribute. **Pick a fixed short string
 per provider** — `"openai"` / `"anthropic"` / `"gemini"` / `"deepseek"` /
-`"mistral"` / `"grok"` / `"groq"` — and never embed deployment details
+`"mistral"` / `"grok"` — and never embed deployment details
 (no `"openai-via-azure"`, no `"gemini-prod"`).
 
 No per-provider helper functions get added. Same code, different SDK
@@ -71,7 +71,7 @@ Each cloud provider's SDK has its own response shape:
 | Anthropic | `response.content[0].text` | `response.stop_reason` |
 | Gemini | `response.text` | `response.candidates[0].finish_reason` (when present) |
 | DeepSeek | `response.choices[0].message.content` | `response.choices[0].finish_reason` |
-| Mistral / Grok / Groq | OpenAI-compatible | same |
+| Mistral / Grok | OpenAI-compatible | same |
 
 The caller extracts `content` and `finish_reason` first, then passes them to
 the helper. Keeps the helper free of SDK dependencies (and free of the
@@ -127,7 +127,7 @@ land on the same counter with `service` set per-provider. Cardinality math:
 | Cloud (this ADR) | 4 mainstream (openai, anthropic, gemini, deepseek) | ~4 each (empty, thinking-prose, finish-length, bad-json) | ~16 |
 | **Total active series** | **~26** | | well under the 175-series DGX-side budget; <1% of Grafana free-tier 10k cap |
 
-The Mistral / Grok / Groq providers get the same helper when they next get
+The Mistral / Grok providers get the same helper when they next get
 PR work; estimated `+3 × 4 = 12` series later, still well within budget.
 
 **Cardinality discipline enforced by code review** (same as ADR-099): only
@@ -233,7 +233,7 @@ Fine-tuning these against observed firing-rate data is tracked in #1002
   `providers.guardrails.check_chat_response(content, service=...)` at the
   content-producing stages (summary, cleaning, GI, KG, speaker as
   applicable).
-- [ ] Mistral, Grok, Groq providers documented as remaining work with the
+- [ ] Mistral, Grok providers documented as remaining work with the
   same pattern; can ship in follow-up PRs.
 - [ ] Cost-attribution: `llm_cost` log event extended with
   `triggered_guardrail` boolean field.

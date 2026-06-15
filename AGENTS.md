@@ -221,6 +221,74 @@ operator repeatedly. Adherence beats every other rule.
     `tailnet_dgx.*` — the operator flagged this immediately, and a cleanup
     is now mandatory precursor to #1003.
 
+17. **Adding a chat-completion provider — the wiring conventions.** Every
+    cloud or self-hosted chat-completion provider added after the 2026-06-15
+    ADR-100 close-out MUST follow the same wiring pattern at EVERY call
+    site that calls `_guardrails.check_chat_response` (summarize,
+    summarize_bundled, generate_insights, KG extraction, clean_transcript).
+    Half-applied wiring is the failure mode this rule exists to prevent.
+
+    a. **Guardrail propagation, not wrap.** Add an explicit
+       `except _guardrails.GuardrailViolation: raise` clause BEFORE the
+       broad `except Exception` that wraps into `ProviderRuntimeError`.
+       Without this, FallbackAware never sees the violation type.
+
+    b. **Per-SDK finish_reason normalization at the call-site boundary.** If
+       the provider's SDK returns a non-canonical truncation value (Anthropic
+       `"max_tokens"`, Gemini `"MAX_TOKENS"`, etc.), normalize to `"length"`
+       in a tiny helper (`_<provider>_finish_reason(response)`). Keep the
+       guardrail helper service-neutral.
+
+    c. **Cost-emit-with-flag in BOTH branches.** Extract token + cost data
+       up-front, define a local `_record_cost(*, triggered_guardrail=False)`
+       closure, then:
+
+       ```python
+       try:
+           _guardrails.check_chat_response(...)
+       except _guardrails.GuardrailViolation:
+           _record_cost(triggered_guardrail=True)
+           raise  # or `return text` for cleaning
+       _record_cost()
+       ```
+
+       The `llm_cost` Loki/Grafana stream depends on this — paid-but-rejected
+       spend is invisible without it.
+
+    d. **GI / KG stages are fail-up, NOT silent degrade.** ADR-100 §3.
+       The outer broad-except pattern `except Exception: return []` MUST add
+       an explicit `except _guardrails.GuardrailViolation: raise` clause
+       above it so FallbackAware can route. Same for KG returning None.
+
+    e. **Cleaning is catch-and-degrade.** ADR-100 §3. Inline-handle the
+       violation: emit cost-with-flag, log WARNING, return original `text`.
+
+    f. **Per-provider circuit breaker.** After every
+       `ProviderCallMetrics()` construction + `set_provider_name(...)`,
+       call `call_metrics.set_breaker_config_from_cfg(self.cfg)`. This
+       auto-wires every `retry_with_metrics` call through to the
+       `LLMCircuitBreakerConfig` substrate — opt-in via
+       `cfg.llm_circuit_breaker_enabled`, default off.
+
+    g. **Add the provider to the cross-cutting E2E suites.** Append a
+       per-provider test class to:
+       - `tests/e2e/test_cloud_guardrails_e2e.py`
+       - `tests/e2e/test_cloud_resilience_e2e.py`
+       - `tests/e2e/test_cloud_gi_failup_e2e.py`
+       - `tests/e2e/test_cloud_cleaning_degrades_e2e.py`
+       - `tests/e2e/test_cloud_circuit_breaker_e2e.py` (parameterized list)
+       - `tests/e2e/test_cloud_guardrails_fallback_e2e.py`
+
+    Reference implementations: OpenAI / Anthropic / Gemini / DeepSeek /
+    Mistral / Grok / Ollama in `src/podcast_scraper/providers/*/`.
+
+    Failure mode of record (2026-06-15 batch): #999 + #1003 + close-out
+    landed across 7 providers, with the cost-emit-with-flag + circuit
+    breaker wiring + GI fail-up policy added in three separate close-out
+    rounds because earlier scope-cuts had marked them as "deferred." Hold
+    the line — finish the matrix in the same batch a new provider is
+    added.
+
 ---
 
 ## User intent beats procedural defaults

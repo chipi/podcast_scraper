@@ -112,6 +112,40 @@ def _deepseek_provider(e2e_server):
     return p
 
 
+def _mistral_provider(e2e_server):
+    from podcast_scraper.providers.mistral.mistral_provider import MistralProvider
+
+    cfg = Config.model_validate(
+        {
+            "rss_url": "https://example.com/feed.xml",
+            "mistral_api_key": "test-mistral-key",
+            "mistral_api_base": e2e_server.urls.mistral_api_base(),
+            "summary_provider": "mistral",
+            "generate_summaries": True,
+        }
+    )
+    p = MistralProvider(cfg)
+    p.initialize()
+    return p
+
+
+def _grok_provider(e2e_server):
+    from podcast_scraper.providers.grok.grok_provider import GrokProvider
+
+    cfg = Config.model_validate(
+        {
+            "rss_url": "https://example.com/feed.xml",
+            "grok_api_key": "xai-test",
+            "grok_api_base": e2e_server.urls.grok_api_base(),
+            "summary_provider": "grok",
+            "generate_summaries": True,
+        }
+    )
+    p = GrokProvider(cfg)
+    p.initialize()
+    return p
+
+
 # ---------------------------------------------------------------------------
 # OpenAI (and DeepSeek, which shares the chat-completions wire shape)
 # ---------------------------------------------------------------------------
@@ -219,3 +253,55 @@ class TestGeminiGuardrailE2E:
         with pytest.raises(guardrails.GuardrailViolation) as exc_info:
             provider.summarize(_TRANSCRIPT_TEXT)
         assert exc_info.value.reason == guardrails.REASON_CHAT_THINKING_PROSE
+
+
+# ---------------------------------------------------------------------------
+# Mistral + Grok — OpenAI-compatible wire shape, hit /v1/chat/completions
+# ---------------------------------------------------------------------------
+
+
+class TestMistralGuardrailE2E:
+    def test_empty_content_raises_guardrail_violation(self, e2e_server):
+        from tests.e2e.fixtures.e2e_http_server import E2EHTTPRequestHandler
+
+        E2EHTTPRequestHandler.inject_violation("/v1/chat/completions", "chat:empty_content")
+        provider = _mistral_provider(e2e_server)
+        with pytest.raises(guardrails.GuardrailViolation) as exc_info:
+            provider.summarize(_TRANSCRIPT_TEXT)
+        assert exc_info.value.service == "mistral"
+        assert exc_info.value.reason == guardrails.REASON_CHAT_EMPTY
+
+    def test_thinking_prose_raises_guardrail_violation(self, e2e_server):
+        # finish_reason-based tests aren't reliable for Mistral here because
+        # the SDK's response object doesn't surface ``finish_reason`` through
+        # ``response.choices[0]`` for all server payload shapes (verified at
+        # E2E wiring time). The empty-content + thinking-prose detectors
+        # don't depend on finish_reason and cover the common failure modes.
+        from tests.e2e.fixtures.e2e_http_server import E2EHTTPRequestHandler
+
+        E2EHTTPRequestHandler.inject_violation("/v1/chat/completions", "chat:thinking_prose")
+        provider = _mistral_provider(e2e_server)
+        with pytest.raises(guardrails.GuardrailViolation) as exc_info:
+            provider.summarize(_TRANSCRIPT_TEXT)
+        assert exc_info.value.reason == guardrails.REASON_CHAT_THINKING_PROSE
+
+
+class TestGrokGuardrailE2E:
+    def test_empty_content_raises_guardrail_violation(self, e2e_server):
+        from tests.e2e.fixtures.e2e_http_server import E2EHTTPRequestHandler
+
+        E2EHTTPRequestHandler.inject_violation("/v1/chat/completions", "chat:empty_content")
+        provider = _grok_provider(e2e_server)
+        with pytest.raises(guardrails.GuardrailViolation) as exc_info:
+            provider.summarize(_TRANSCRIPT_TEXT)
+        assert exc_info.value.service == "grok"
+        assert exc_info.value.reason == guardrails.REASON_CHAT_EMPTY
+
+    def test_finish_length_raises_guardrail_violation(self, e2e_server):
+        from tests.e2e.fixtures.e2e_http_server import E2EHTTPRequestHandler
+
+        E2EHTTPRequestHandler.inject_violation("/v1/chat/completions", "chat:finish_length")
+        provider = _grok_provider(e2e_server)
+        with pytest.raises(guardrails.GuardrailViolation) as exc_info:
+            provider.summarize(_TRANSCRIPT_TEXT)
+        assert exc_info.value.reason == guardrails.REASON_CHAT_FINISH_LENGTH
