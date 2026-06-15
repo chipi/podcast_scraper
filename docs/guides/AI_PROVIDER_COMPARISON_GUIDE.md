@@ -950,6 +950,16 @@ is available for any profile that wants to opt in via
 `degradation_policy.fallback_provider_on_failure`, but the local-DGX profiles
 intentionally don't.
 
+As of [ADR-099](../adr/ADR-099-response-shape-guardrails-for-self-deployed-services.md)
+/ [ADR-100](../adr/ADR-100-response-shape-guardrails-for-cloud-llm-providers.md)
+(2026-06-15), the `FallbackAware*` layer also routes on `GuardrailViolation` —
+not just connection-level failures. A `200 OK` from any configured chat
+provider that fails the response-shape check (empty content, thinking-prose
+markers, `finish_reason=length`) hits the same fallback path as a connection
+error. Per-stage policy: summary / GI / KG / speaker fail-up to the configured
+fallback, cleaning degrades gracefully to the original transcript. Profiles
+that opt in to cloud fallback get this for free — no extra config required.
+
 Cloud fallback IS used in prod via
 [ADR-096](../adr/ADR-096-dgx-spark-prod-primary-with-fallback.md), but at the
 Whisper layer — the prod profile (`cloud_with_dgx_primary`) sets

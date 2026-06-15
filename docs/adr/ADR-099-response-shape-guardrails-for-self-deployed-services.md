@@ -153,6 +153,39 @@ Other shapes were considered:
 - [ ] E2E test: end-to-end fallback path triggered via injected violation, asserts cloud fallback fired
 - [ ] ADR-099 (this doc) referenced from the implementation site
 
+## Post-implementation updates (2026-06-15)
+
+The original ADR placed the guardrail helpers inside
+`src/podcast_scraper/providers/tailnet_dgx/resilience.py` because that's
+where the connection-level primitives lived. Setting up ADR-100 (cloud-LLM
+guardrails) made that placement wrong: cloud providers would have had to
+import from `tailnet_dgx.*` to reach `GuardrailViolation`, coupling
+deployment-agnostic code to a hardware-vendor name.
+
+Commit `ec66e186` (precursor to #1003) split the module into two
+deployment-agnostic packages — same primitives, new home:
+
+| Was | Is |
+| --- | --- |
+| `providers/tailnet_dgx/resilience.py::TimeoutLike` | `providers/resilience/exceptions.py::TimeoutLike` |
+| `providers/tailnet_dgx/resilience.py::CircuitBreaker` | `providers/resilience/breakers.py::CircuitBreaker` |
+| `providers/tailnet_dgx/resilience.py::run_with_watchdog` | `providers/resilience/deadlines.py::run_with_watchdog` |
+| `providers/tailnet_dgx/resilience.py::dgx_http_client(...)` | `providers/resilience/sockets.py::hardened_http_client(...)` |
+| `providers/tailnet_dgx/resilience.py::GuardrailViolation` | `providers/guardrails/exceptions.py::GuardrailViolation` |
+| `providers/tailnet_dgx/resilience.py::check_chat_response` | `providers/guardrails/chat.py::check_chat_response` |
+| `providers/tailnet_dgx/resilience.py::check_whisper_response` | `providers/guardrails/transcription.py::check_whisper_response` |
+| `providers/tailnet_dgx/resilience.py::check_diarization_response` | `providers/guardrails/diarization.py::check_diarization_response` |
+| Prometheus `dgx_guardrail_violations_total{service, reason}` | Prometheus `inference_guardrail_violations_total{service, reason}` |
+
+The `tailnet_dgx` whisper / diarize providers were updated to import from the
+new packages. No behavior change — just a relocation. The acceptance items
+in this ADR remain valid; the module paths in the checklist (and in the
+"Related code" header at the top) refer to the now-renamed modules.
+
+The counter rename **drops historical timeseries** (acceptable trade per
+operator review at the time of the refactor) — Grafana panels keyed on the
+old name need a one-character update.
+
 ## References
 
 - Originating eval reports:

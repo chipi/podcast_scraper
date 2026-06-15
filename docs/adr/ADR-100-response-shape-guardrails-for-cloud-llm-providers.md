@@ -244,6 +244,104 @@ Fine-tuning these against observed firing-rate data is tracked in #1002
   practical.
 - [ ] ADR-100 (this doc) referenced from the implementation site.
 
+## Post-implementation updates (2026-06-15)
+
+The implementing PR (#1003, commit `b0ee6c58`) closed the design as
+specified above, but two facts surfaced during E2E validation that the
+original draft assumed away. Both are now in the code; this section is
+what a future reader needs to know.
+
+### A. The `except GuardrailViolation: raise` clause
+
+The design assumed `GuardrailViolation` would propagate naturally to the
+`FallbackAwareSummarizationProvider` layer because "callers don't catch
+unknown exception types." That assumption was wrong for the cloud
+providers as written. Each provider's `summarize()` has a broad
+`except Exception as exc` that wraps everything into
+`ProviderAuthError` / `ProviderRuntimeError` for the
+operator-facing error-classification system. `GuardrailViolation` got
+silently re-typed and never reached the fallback layer.
+
+The fix is one clause at every call site that calls
+`check_chat_response`:
+
+```python
+except _guardrails.GuardrailViolation:
+    raise  # ADR-100: let FallbackAware see the raw type, don't wrap
+except Exception as exc:
+    # existing error-classification block
+```
+
+Applied at: summarize on OpenAI / Anthropic / Gemini / DeepSeek. The
+test that caught it was `test_cloud_guardrails_e2e.py` — the unit-level
+wiring tests passed because they call the helper directly, not through
+the provider's broad except. The cloud E2E was the only test that
+exercised the full SDK → broad except → caller path.
+
+The self-hosted whisper / diarize providers from ADR-099 already had
+this clause (they were written knowing the wrap risk); the cloud
+providers were not, because cloud providers' existing exception path
+predates the guardrail design.
+
+### B. Cleaning policy: catch-and-degrade, not propagate
+
+Section 3 above specifies cleaning as "graceful degradation — return
+the original transcript." The implementation lands that with an
+explicit `except _guardrails.GuardrailViolation: return text` clause
+in each provider's `clean_transcript`. The summarize and
+GI / KG sites take the opposite policy (re-raise) because their
+contracts demand non-empty output. **Don't paste-and-modify between
+the two patterns** — they look identical but the trailing action
+(`raise` vs `return text`) is the contract.
+
+### C. Mock-server injection: extended to per-provider routes
+
+`#999` shipped `inject_violation` for `/v1/chat/completions`,
+`/v1/audio/transcriptions`, `/v1/diarize`, `/api/generate`. The
+Anthropic and Gemini cloud providers use their own paths, so #1003
+extended the injection vocabulary:
+
+| Route | Violation types |
+| --- | --- |
+| `/v1/messages` (Anthropic) | `anthropic:empty_content`, `anthropic:thinking_prose`, `anthropic:max_tokens` |
+| `/v1beta/generateContent` (Gemini) | `gemini:empty_content`, `gemini:thinking_prose`, `gemini:max_tokens` |
+
+The `*:max_tokens` entries surface a known limitation: the helper trips
+only on a literal `"length"` finish_reason. Anthropic's SDK returns
+`"max_tokens"` and Gemini's returns `"MAX_TOKENS"`. Today the cloud
+providers don't normalize these into `"length"`, so the helper
+silently passes them through. The E2E tests document this as
+a known gap (`test_cloud_guardrails_wiring.py::TestAnthropicWiring::test_max_tokens_stop_reason_treated_as_length`).
+Normalizing at the provider call sites is a one-line follow-up.
+
+### D. Cost-attribution: field exists, emit-with-flag deferred
+
+The `emit_llm_cost_event(... triggered_guardrail: bool = False)`
+extension lands in `workflow/cost_monitoring.py`. The cost-rollup
+infrastructure can pivot on the field today. **What didn't land:**
+the provider call sites don't yet emit a cost event with
+`triggered_guardrail=True` in the `except GuardrailViolation`
+block. The architectural reason: the cost-data (token counts, model,
+estimated cost) is captured AFTER the guardrail check in the current
+control flow. Emitting-with-flag requires a small refactor at each
+call site (capture cost data BEFORE the check, emit-with-flag in
+the except block, then re-raise). Tracked as item #4 in
+`docs/wip/CLOUD-PROVIDER-RESILIENCE-E2E-GAP-1003.md`. Out of scope
+for #1003; mechanics are now in place to make it a small follow-up
+patch.
+
+### E. Resilience-coverage audit (parallel review)
+
+A second user-requested follow-up audit during the same review
+flagged that prior to #1003, no cloud LLM provider had E2E
+resilience coverage via the mock server's `set_error_behavior`
+hooks. The matrix and follow-up gaps are documented in
+`docs/wip/CLOUD-PROVIDER-RESILIENCE-E2E-GAP-1003.md`.
+`tests/e2e/test_cloud_resilience_e2e.py` lands a per-provider
+permanent-5xx baseline; transient-5xx retry, watchdog/timeout,
+FallbackAware-routing-under-violation, and Ollama remain gaps for
+a follow-up PR.
+
 ## References
 
 - ADR-099 — the self-hosted precedent
