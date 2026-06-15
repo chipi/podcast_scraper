@@ -271,15 +271,17 @@ def build_two_tier_index(
                 ins.source_segment_id = mapping[ins.id]
         stats.linked += len(mapping)
 
-        for seg in seg_docs:
-            _ensure_backend(len(seg.embedding)).upsert_segment(seg)
-            stats.segments += 1
-        for ins in ins_docs:
-            _ensure_backend(len(ins.embedding)).upsert_insight(ins)
-            stats.insights += 1
-        for aux in aux_docs:
-            _ensure_backend(len(aux.embedding)).upsert_aux(aux)
-            stats.aux += 1
+        # Batch the upserts per tier per episode (one merge_insert transaction each)
+        # instead of one-per-document — keeps the index from fragmenting as it builds.
+        if seg_docs:
+            _ensure_backend(len(seg_docs[0].embedding)).upsert_segments(seg_docs)
+            stats.segments += len(seg_docs)
+        if ins_docs:
+            _ensure_backend(len(ins_docs[0].embedding)).upsert_insights(ins_docs)
+            stats.insights += len(ins_docs)
+        if aux_docs:
+            _ensure_backend(len(aux_docs[0].embedding)).upsert_auxes(aux_docs)
+            stats.aux += len(aux_docs)
 
     if backend is not None:
         backend.write_index_meta(model_id)  # query path must embed in the same space

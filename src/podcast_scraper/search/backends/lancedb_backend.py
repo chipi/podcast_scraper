@@ -339,14 +339,25 @@ class LanceDBBackend:
 
     # --- writes ----------------------------------------------------------------
 
-    def _upsert(self, tier: str, data: Dict[str, Any]) -> None:
+    def _upsert_many(self, tier: str, rows: List[Dict[str, Any]]) -> None:
+        """Upsert a batch of rows in a SINGLE merge_insert transaction.
+
+        One transaction per batch (not per row) is what keeps the index from
+        fragmenting: LanceDB writes one data file + one version per ``execute``, so
+        batching N rows is N× fewer fragments/versions than per-document upserts.
+        """
+        if not rows:
+            return
         table = self._ensure_table(tier)
         (
             table.merge_insert("id")
             .when_matched_update_all()
             .when_not_matched_insert_all()
-            .execute([data])
+            .execute(rows)
         )
+
+    def _upsert(self, tier: str, data: Dict[str, Any]) -> None:
+        self._upsert_many(tier, [data])
 
     def upsert_segment(self, doc: SegmentDocument) -> None:
         """Insert or update a Tier-1 segment document."""
@@ -359,6 +370,18 @@ class LanceDBBackend:
     def upsert_aux(self, doc: AuxDocument) -> None:
         """Insert or update an aux document (kg_entity / kg_topic / quote / summary)."""
         self._upsert("aux", dataclasses.asdict(doc))
+
+    def upsert_segments(self, docs: List[SegmentDocument]) -> None:
+        """Batch-upsert Tier-1 segments in one transaction (see ``_upsert_many``)."""
+        self._upsert_many("segment", [dataclasses.asdict(d) for d in docs])
+
+    def upsert_insights(self, docs: List[InsightDocument]) -> None:
+        """Batch-upsert Tier-2 insights in one transaction."""
+        self._upsert_many("insight", [dataclasses.asdict(d) for d in docs])
+
+    def upsert_auxes(self, docs: List[AuxDocument]) -> None:
+        """Batch-upsert aux rows in one transaction."""
+        self._upsert_many("aux", [dataclasses.asdict(d) for d in docs])
 
     def delete(self, doc_id: str, tier: Tier) -> None:
         """Delete a document by id; ``tier="all"`` removes from every table."""
